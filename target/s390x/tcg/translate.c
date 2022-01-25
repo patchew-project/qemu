@@ -4290,9 +4290,16 @@ static DisasJumpType op_stcke(DisasContext *s, DisasOps *o)
 #ifndef CONFIG_USER_ONLY
 static DisasJumpType op_sck(DisasContext *s, DisasOps *o)
 {
-    tcg_gen_qemu_ld_i64(o->in1, o->addr1, get_mem_index(s), MO_TEUQ | MO_ALIGN);
-    gen_helper_sck(cc_op, cpu_env, o->in1);
+    TCGv_i64 t1;
+
+    t1 = tcg_temp_new_i64();
+
+    tcg_gen_qemu_ld_i64(t1, o->addr1, get_mem_index(s), MO_TEUQ | MO_ALIGN);
+    gen_helper_sck(cc_op, cpu_env, t1);
     set_cc_static(s);
+
+    tcg_temp_free_i64(t1);
+
     return DISAS_NEXT;
 }
 
