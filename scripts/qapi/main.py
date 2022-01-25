@@ -75,8 +75,8 @@ def main() -> int:
     parser.add_argument('-u', '--unmask-non-abi-names', action='store_true',
                         dest='unmask',
                         help="expose non-ABI names in introspection")
-    parser.add_argument('--gen-trace', action='store_true',
-                        help="add trace events to qmp marshals")
+    parser.add_argument('--no-trace-events', action='store_true',
+                        help="suppress adding trace events to qmp marshals")
     parser.add_argument('schema', action='store')
     args = parser.parse_args()
 
@@ -92,7 +92,7 @@ def main() -> int:
                  prefix=args.prefix,
                  unmask=args.unmask,
                  builtins=args.builtins,
-                 gen_trace_events=args.gen_trace)
+                 gen_trace_events=not args.no_trace_events)
     except QAPIError as err:
         print(f"{sys.argv[0]}: {str(err)}", file=sys.stderr)
         return 1

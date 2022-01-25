@@ -26,7 +26,8 @@ qga_qapi_outputs = [
 qga_qapi_files = custom_target('QGA QAPI files',
                                output: qga_qapi_outputs,
                                input: 'qapi-schema.json',
-                               command: [ qapi_gen, '-o', 'qga', '-p', 'qga-', '@INPUT0@' ],
+                               command: [ qapi_gen, '-o', 'qga', '-p', 'qga-', '@INPUT0@',
+                                          '--no-trace-events' ],
                                depend_files: qapi_gen_depends)
 
 qga_ss = ss.source_set()

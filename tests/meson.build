@@ -45,7 +45,8 @@ test_qapi_files = custom_target('Test QAPI files',
                                              'qapi-schema/include/sub-module.json',
                                              'qapi-schema/sub-sub-module.json'),
                                 command: [ qapi_gen, '-o', meson.current_build_dir(),
-                                           '-b', '-p', 'test-', '@INPUT0@' ],
+                                           '-b', '-p', 'test-', '@INPUT0@',
+                                           '--no-trace-events' ],
                                 depend_files: qapi_gen_depends)
 
 # meson doesn't like generated output in other directories
