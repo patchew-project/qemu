@@ -232,6 +232,8 @@ static void vduse_blk_enable_queue(VduseDev *dev, VduseVirtq *vq)
 
     aio_set_fd_handler(vblk_exp->export.ctx, vduse_queue_get_fd(vq),
                        true, on_vduse_vq_kick, NULL, NULL, NULL, vq);
+    /* Make sure we don't miss any kick afer reconnecting */
+    eventfd_write(vduse_queue_get_fd(vq), 1);
 }
 
 static void vduse_blk_disable_queue(VduseDev *dev, VduseVirtq *vq)
@@ -388,7 +390,7 @@ static int vduse_blk_exp_create(BlockExport *exp, BlockExportOptions *opts,
                                      features, num_queues,
                                      sizeof(struct virtio_blk_config),
                                      (char *)&config, &vduse_blk_ops,
-                                     vblk_exp);
+                                     g_get_tmp_dir(), vblk_exp);
     if (!vblk_exp->dev) {
         error_setg(errp, "failed to create vduse device");
         return -ENOMEM;

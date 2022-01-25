@@ -171,6 +171,7 @@ int vduse_dev_setup_queue(VduseDev *dev, int index, int max_size);
  * @config_size: the size of the configuration space
  * @config: the buffer of the configuration space
  * @ops: the operation of VDUSE backend
+ * @shm_log_dir: directory to store the metadata file for reconnect
  * @priv: private pointer
  *
  * Create VDUSE device.
@@ -180,7 +181,8 @@ int vduse_dev_setup_queue(VduseDev *dev, int index, int max_size);
 VduseDev *vduse_dev_create(const char *name, uint32_t device_id,
                            uint32_t vendor_id, uint64_t features,
                            uint16_t num_queues, uint32_t config_size,
-                           char *config, const VduseOps *ops, void *priv);
+                           char *config, const VduseOps *ops,
+                           const char *shm_log_dir, void *priv);
 
 /**
  * vduse_dev_destroy:
