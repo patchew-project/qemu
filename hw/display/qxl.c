@@ -31,6 +31,7 @@
 #include "hw/qdev-properties.h"
 #include "sysemu/runstate.h"
 #include "migration/vmstate.h"
+#include "migration/colo.h"
 #include "trace.h"
 
 #include "qxl.h"
@@ -757,6 +758,10 @@ static void interface_release_resource(QXLInstance *sin,
     if (!ext.info) {
         return;
     }
+    /* The SVM load PVM states,so it not need to release resources */
+    if (get_colo_mode() == COLO_MODE_SECONDARY) {
+        return;
+    }
     if (ext.group_id == MEMSLOT_GROUP_HOST) {
         /* host group -> vga mode update request */
         QXLCommandExt *cmdext = (void *)(intptr_t)(ext.info->id);
@@ -880,6 +885,10 @@ static int interface_flush_resources(QXLInstance *sin)
     PCIQXLDevice *qxl = container_of(sin, PCIQXLDevice, ssd.qxl);
     int ret;
 
+    /* The SVM load PVM states,so it not need to release resources */
+    if (get_colo_mode() == COLO_MODE_SECONDARY) {
+        return 0;
+    }
     ret = qxl->num_free_res;
     if (ret) {
         qxl_push_free_res(qxl, 1);
