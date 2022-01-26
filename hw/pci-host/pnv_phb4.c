@@ -1261,13 +1261,21 @@ static void pnv_phb4_translate_tve(PnvPhb4DMASpace *ds, hwaddr addr,
         /* Top level table base address */
         base = tta << 12;
 
+        /*
+         * There were reports of compilers complaining about 'taddr'
+         * being used uninitialized in pnv_phb3_translate_tve(), and
+         * the same scenario is happening here. Initialize 'taddr'
+         * just in case.
+         */
+        taddr = base;
+
         /* Total shift to first level */
         sh = tbl_shift * lev + tce_shift;
 
         /* TODO: Limit to support IO page sizes */
 
         /* TODO: Multi-level untested */
-        while ((lev--) >= 0) {
+        do {
             /* Grab the TCE address */
             taddr = base | (((addr >> sh) & ((1ul << tbl_shift) - 1)) << 3);
             if (dma_memory_read(&address_space_memory, taddr, &tce,
@@ -1288,7 +1296,7 @@ static void pnv_phb4_translate_tve(PnvPhb4DMASpace *ds, hwaddr addr,
             }
             sh -= tbl_shift;
             base = tce & ~0xfffull;
-        }
+        } while ((lev--) >= 0);
 
         /* We exit the loop with TCE being the final TCE */
         tce_mask = ~((1ull << tce_shift) - 1);
