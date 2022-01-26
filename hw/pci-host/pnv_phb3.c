@@ -788,6 +788,17 @@ static void pnv_phb3_translate_tve(PnvPhb3DMASpace *ds, hwaddr addr,
         /* Top level table base address */
         base = tta << 12;
 
+        /*
+         * Some compilers will complain that the "TCE access fault"
+         * phb3_error() down below will use 'taddr' uninitialized
+         * because, in theory, the loop that sets 'taddr' is skippable
+         * due to 'lev' being an signed int.
+         *
+         * Setting 'taddr 'to the base address will bring piece of mind
+         * to such compilers.
+         */
+        taddr = base;
+
         /* Total shift to first level */
         sh = tbl_shift * lev + tce_shift;
 
