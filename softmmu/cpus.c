@@ -603,6 +603,7 @@ void cpu_remove_sync(CPUState *cpu)
     qemu_mutex_unlock_iothread();
     qemu_thread_join(cpu->thread);
     qemu_mutex_lock_iothread();
+    g_free(cpu->thread);
 }
 
 void cpus_register_accel(const AccelOpsClass *ops)
