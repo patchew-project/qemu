@@ -6487,6 +6487,7 @@ static void x86_cpu_unrealizefn(DeviceState *dev)
 {
     X86CPU *cpu = X86_CPU(dev);
     X86CPUClass *xcc = X86_CPU_GET_CLASS(dev);
+    CPUX86State *env = &cpu->env;
 
 #ifndef CONFIG_USER_ONLY
     cpu_remove_sync(CPU(dev));
@@ -6499,6 +6500,7 @@ static void x86_cpu_unrealizefn(DeviceState *dev)
     }
 
     xcc->parent_unrealize(dev);
+    g_free(env->xsave_buf);
 }
 
 typedef struct BitProperty {
