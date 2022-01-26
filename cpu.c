@@ -170,6 +170,7 @@ void cpu_exec_unrealizefn(CPUState *cpu)
     if (tcg_enabled()) {
         tcg_exec_unrealizefn(cpu);
     }
+    g_free(cpu->cpu_ases);
 
     cpu_list_remove(cpu);
 }
