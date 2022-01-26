@@ -1261,6 +1261,14 @@ static void pnv_phb4_translate_tve(PnvPhb4DMASpace *ds, hwaddr addr,
         /* Top level table base address */
         base = tta << 12;
 
+        /*
+         * There were reports of compilers complaining about 'taddr'
+         * being used uninitialized in pnv_phb3_translate_tve(), and
+         * the same scenario is happening here. Initialize 'taddr'
+         * just in case.
+         */
+        taddr = base;
+
         /* Total shift to first level */
         sh = tbl_shift * lev + tce_shift;
 
