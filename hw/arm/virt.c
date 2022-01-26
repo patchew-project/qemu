@@ -2499,7 +2499,7 @@ virt_cpu_index_to_props(MachineState *ms, unsigned cpu_index)
 
 static int64_t virt_get_default_cpu_node_id(const MachineState *ms, int idx)
 {
-    return idx % ms->numa_state->num_nodes;
+    return idx / (ms->smp.dies * ms->smp.clusters * ms->smp.cores * ms->smp.threads);
 }
 
 static const CPUArchIdList *virt_possible_cpu_arch_ids(MachineState *ms)
