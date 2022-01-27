@@ -805,6 +805,12 @@ static inline int platform_does_not_support_system(const char *command)
 }
 #endif /* !HAVE_SYSTEM_FUNCTION */
 
+/**
+ * Actual 'struct dirent' size may be bigger or shorter than
+ * sizeof(struct dirent) in many cases.
+ */
+struct dirent *qemu_dirent_dup(struct dirent *dent);
+
 #ifdef __cplusplus
 }
 #endif

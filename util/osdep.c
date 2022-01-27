@@ -33,6 +33,7 @@
 extern int madvise(char *, size_t, int);
 #endif
 
+#include <dirent.h>
 #include "qemu-common.h"
 #include "qemu/cutils.h"
 #include "qemu/sockets.h"
@@ -615,3 +616,25 @@ writev(int fd, const struct iovec *iov, int iov_cnt)
     return readv_writev(fd, iov, iov_cnt, true);
 }
 #endif
+
+struct dirent *
+qemu_dirent_dup(struct dirent *dent)
+{
+    struct dirent *dst;
+#if defined _DIRENT_HAVE_D_RECLEN
+    /* Avoid use of strlen() if there's d_reclen. */
+    dst = g_malloc(dent->d_reclen);
+#else
+    /* Fallback to a most portable way. */
+    const size_t reclen = offsetof(struct dirent, d_name) + strlen(dent->d_name) + 1;
+
+    dst = g_malloc(reclen);
+#endif
+    if (!dst)
+        return NULL;
+#ifdef _DIRENT_HAVE_D_RECLEN
+    return memcpy(dst, dent, dent->d_reclen);
+#else
+    return memcpy(dst, dent, reclen);
+#endif
+}
