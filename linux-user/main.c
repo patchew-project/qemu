@@ -196,6 +196,17 @@ void init_task_state(TaskState *ts)
         .ss_size = 0,
         .ss_flags = TARGET_SS_DISABLE,
     };
+
+    /* Capture task start time relative to system boot */
+
+    long long ticksPerSec = sysconf(_SC_CLK_TCK);
+    struct timespec bt;
+
+    if ((ticksPerSec > 0) && !clock_gettime(CLOCK_BOOTTIME, &bt)) {
+        /* start_boottime is expressed in clock ticks */
+        ts->start_boottime = bt.tv_sec * ticksPerSec;
+        ts->start_boottime += bt.tv_nsec * ticksPerSec / 1000000000L;
+    }
 }
 
 CPUArchState *cpu_copy(CPUArchState *env)

@@ -158,6 +158,9 @@ typedef struct TaskState {
 
     /* This thread's sigaltstack, if it has one */
     struct target_sigaltstack sigaltstack_used;
+
+    /* Start time of task after system boot in clock ticks */
+    unsigned long long start_boottime;
 } __attribute__((aligned(16))) TaskState;
 
 abi_long do_brk(abi_ulong new_brk);
