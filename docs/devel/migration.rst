@@ -156,12 +156,20 @@ An example (from hw/input/pckbd.c)
       .name = "pckbd",
       .version_id = 3,
       .minimum_version_id = 3,
+      .pre_load = kbd_pre_load,
+      .post_load = kbd_post_load,
+      .pre_save = kbd_pre_save,
       .fields = (VMStateField[]) {
           VMSTATE_UINT8(write_cmd, KBDState),
           VMSTATE_UINT8(status, KBDState),
           VMSTATE_UINT8(mode, KBDState),
-          VMSTATE_UINT8(pending, KBDState),
+          VMSTATE_UINT8(pending_tmp, KBDState),
           VMSTATE_END_OF_LIST()
+      },
+      .subsections = (const VMStateDescription*[]) {
+          &vmstate_kbd_outport,
+          &vmstate_kbd_extended_state,
+          NULL
       }
   };
 
@@ -278,7 +286,7 @@ Example:
       IDEState *s = opaque;
 
       return ((s->status & DRQ_STAT) != 0)
-          || (s->bus->error_status & BM_STATUS_PIO_RETRY);
+          || (s->bus->error_status & IDE_RETRY_PIO);
   }
 
   const VMStateDescription vmstate_ide_drive_pio_state = {
@@ -312,6 +320,8 @@ Example:
       },
       .subsections = (const VMStateDescription*[]) {
           &vmstate_ide_drive_pio_state,
+          &vmstate_ide_tray_state,
+          &vmstate_ide_atapi_gesn_state,
           NULL
       }
   };
@@ -481,11 +491,11 @@ versions exist for high bandwidth IO.
 
 An iterative device must provide:
 
-  - A ``save_setup`` function that initialises the data structures and
-    transmits a first section containing information on the device.  In the
-    case of RAM this transmits a list of RAMBlocks and sizes.
+  - A ``save_setup`` function that initialize the data structures and
+    transmits a first section containing information on the device. In the
+    case of RAM used to transmit a list of RAMBlocks and sizes.
 
-  - A ``load_setup`` function that initialises the data structures on the
+  - A ``load_setup`` function that initialize the data structures on the
     destination.
 
   - A ``save_live_pending`` function that is called repeatedly and must
@@ -756,13 +766,13 @@ ADVISE->DISCARD->LISTEN->RUNNING->END
     (the 'listen thread') which takes over the job of receiving
     pages off the migration stream, while the main thread carries
     on processing the blob.  With this thread able to process page
-    reception, the destination now 'sensitises' the RAM to detect
+    reception, the destination now 'sensitive' the RAM to detect
     any access to missing pages (on Linux using the 'userfault'
     system).
 
  - Running
 
-    POSTCOPY_RUN causes the destination to synchronise all
+    POSTCOPY_RUN causes the destination to synchronize all
     state and start the CPUs and IO devices running.  The main
     thread now finishes processing the migration package and
     now carries on as it would for normal precopy migration
@@ -771,8 +781,8 @@ ADVISE->DISCARD->LISTEN->RUNNING->END
 
  - End
 
-    The listen thread can now quit, and perform the cleanup of migration
-    state, the migration is now complete.
+    The listen thread already exited, and perform the cleanup of migration
+    state, the migration has been completed.
 
 Source side page maps
 ---------------------
@@ -861,9 +871,9 @@ Firmware
 ========
 
 Migration migrates the copies of RAM and ROM, and thus when running
-on the destination it includes the firmware from the source. Even after
-resetting a VM, the old firmware is used.  Only once QEMU has been restarted
-is the new firmware in use.
+on the destination it includes the firmware from the source. The old
+firmware of the VM is still used even rebooted. And the new firmware
+will not be loaded until QEMU is restarted.
 
 - Changes in firmware size can cause changes in the required RAMBlock size
   to hold the firmware and thus migration can fail.  In practice it's best
