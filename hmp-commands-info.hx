@@ -879,3 +879,15 @@ SRST
   ``info sgx``
     Show intel SGX information.
 ERST
+
+    {
+        .name       = "via",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show guest 6522 VIA devices",
+    },
+
+SRST
+  ``info via``
+    Show guest 6522 VIA devices.
+ERST
