@@ -3228,6 +3228,13 @@
 # @lazy-refcounts: whether to enable the lazy refcounts
 #                  feature (default is taken from the image file)
 #
+# @keep-dirty: whether to not touch dirty bit. When set, QEMU doesn't
+#              check refcounts on qcow2 open (ignoring dirty bit) and doesn't
+#              clear dirty bit on qcow2 close. When true dirty bit must
+#              be already set in the image on open, otherwise open fails.
+#              When true user guarantees that refcounts are consistent on
+#              open, so the check is omitted. (since 7.0)
+#
 # @pass-discard-request: whether discard requests to the qcow2
 #                        device should be forwarded to the data source
 #
@@ -3276,6 +3283,7 @@
 { 'struct': 'BlockdevOptionsQcow2',
   'base': 'BlockdevOptionsGenericCOWFormat',
   'data': { '*lazy-refcounts': 'bool',
+            '*keep-dirty': 'bool',
             '*pass-discard-request': 'bool',
             '*pass-discard-snapshot': 'bool',
             '*pass-discard-other': 'bool',

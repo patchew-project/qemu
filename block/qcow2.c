@@ -514,15 +514,17 @@ int qcow2_mark_dirty(BlockDriverState *bs)
         return 0; /* already dirty */
     }
 
-    val = cpu_to_be64(s->incompatible_features | QCOW2_INCOMPAT_DIRTY);
-    ret = bdrv_pwrite(bs->file, offsetof(QCowHeader, incompatible_features),
-                      &val, sizeof(val));
-    if (ret < 0) {
-        return ret;
-    }
-    ret = bdrv_flush(bs->file->bs);
-    if (ret < 0) {
-        return ret;
+    if (!s->keep_dirty) {
+        val = cpu_to_be64(s->incompatible_features | QCOW2_INCOMPAT_DIRTY);
+        ret = bdrv_pwrite(bs->file, offsetof(QCowHeader, incompatible_features),
+                          &val, sizeof(val));
+        if (ret < 0) {
+            return ret;
+        }
+        ret = bdrv_flush(bs->file->bs);
+        if (ret < 0) {
+            return ret;
+        }
     }
 
     /* Only treat image as dirty if the header was updated successfully */
@@ -549,7 +551,13 @@ static int qcow2_mark_clean(BlockDriverState *bs)
             return ret;
         }
 
-        return qcow2_update_header(bs);
+        if (!s->keep_dirty) {
+            /*
+             * No reason to update the header if we don't want to clear dirty
+             * bit.
+             */
+            return qcow2_update_header(bs);
+        }
     }
     return 0;
 }
@@ -708,6 +716,11 @@ static QemuOptsList qcow2_runtime_opts = {
             .name = QCOW2_OPT_LAZY_REFCOUNTS,
             .type = QEMU_OPT_BOOL,
             .help = "Postpone refcount updates",
+        },
+        {
+            .name = QCOW2_OPT_KEEP_DIRTY,
+            .type = QEMU_OPT_BOOL,
+            .help = "Keep dirty bit set",
         },
         {
             .name = QCOW2_OPT_DISCARD_REQUEST,
@@ -966,6 +979,7 @@ typedef struct Qcow2ReopenState {
     Qcow2Cache *refcount_block_cache;
     int l2_slice_size; /* Number of entries in a slice of the L2 table */
     bool use_lazy_refcounts;
+    bool keep_dirty;
     int overlap_check;
     bool discard_passthrough[QCOW2_DISCARD_MAX];
     uint64_t cache_clean_interval;
@@ -1087,6 +1101,8 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
             goto fail;
         }
     }
+
+    r->keep_dirty = qemu_opt_get_bool(opts, QCOW2_OPT_KEEP_DIRTY, false);
 
     /* Overlap check options */
     opt_overlap_check = qemu_opt_get(opts, QCOW2_OPT_OVERLAP);
@@ -1214,6 +1230,7 @@ static void qcow2_update_options_commit(BlockDriverState *bs,
 
     s->overlap_check = r->overlap_check;
     s->use_lazy_refcounts = r->use_lazy_refcounts;
+    s->keep_dirty = r->keep_dirty;
 
     for (i = 0; i < QCOW2_DISCARD_MAX; i++) {
         s->discard_passthrough[i] = r->discard_passthrough[i];
@@ -1810,7 +1827,7 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
     bs->supported_truncate_flags = BDRV_REQ_ZERO_WRITE;
 
     /* Repair image if dirty */
-    if (!(flags & BDRV_O_CHECK) && bdrv_is_writable(bs) &&
+    if (!s->keep_dirty && !(flags & BDRV_O_CHECK) && bdrv_is_writable(bs) &&
         (s->incompatible_features & QCOW2_INCOMPAT_DIRTY)) {
         BdrvCheckResult result = {0};
 
@@ -1823,6 +1840,20 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
             error_setg_errno(errp, -ret, "Could not repair dirty image");
             goto fail;
         }
+    }
+
+    if (s->keep_dirty) {
+        if (!(s->incompatible_features & QCOW2_INCOMPAT_DIRTY)) {
+            error_setg(errp, "keep-dirty behaviour is requested but image "
+                       "is not dirty");
+            ret = -EINVAL;
+            goto fail;
+        }
+        /*
+         * User guarantees that refcounts are valid. So, consider them valid,
+         * keeping dirty bit set in the header.
+         */
+        s->incompatible_features &= ~QCOW2_INCOMPAT_DIRTY;
     }
 
 #ifdef DEBUG_ALLOC
@@ -2826,6 +2857,7 @@ int qcow2_update_header(BlockDriverState *bs)
     uint32_t refcount_table_clusters;
     size_t header_length;
     Qcow2UnknownHeaderExtension *uext;
+    uint64_t incompatible_features;
 
     buf = qemu_blockalign(bs, buflen);
 
@@ -2846,6 +2878,11 @@ int qcow2_update_header(BlockDriverState *bs)
         goto fail;
     }
 
+    incompatible_features = s->incompatible_features;
+    if (s->keep_dirty) {
+        incompatible_features |= QCOW2_INCOMPAT_DIRTY;
+    }
+
     *header = (QCowHeader) {
         /* Version 2 fields */
         .magic                  = cpu_to_be32(QCOW_MAGIC),
@@ -2863,7 +2900,7 @@ int qcow2_update_header(BlockDriverState *bs)
         .snapshots_offset       = cpu_to_be64(s->snapshots_offset),
 
         /* Version 3 fields */
-        .incompatible_features  = cpu_to_be64(s->incompatible_features),
+        .incompatible_features  = cpu_to_be64(incompatible_features),
         .compatible_features    = cpu_to_be64(s->compatible_features),
         .autoclear_features     = cpu_to_be64(s->autoclear_features),
         .refcount_order         = cpu_to_be32(s->refcount_order),
