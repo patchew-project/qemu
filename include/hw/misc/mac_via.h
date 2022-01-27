@@ -80,11 +80,10 @@ struct MOS6522Q800VIA1State {
 
 
 /* VIA 2 */
-#define VIA2_IRQ_SCSI_DATA_BIT  0
-#define VIA2_IRQ_NUBUS_BIT      1
-#define VIA2_IRQ_UNUSED_BIT     2
-#define VIA2_IRQ_SCSI_BIT       3
-#define VIA2_IRQ_ASC_BIT        4
+#define VIA2_IRQ_SCSI_DATA_BIT  CA2_INT_BIT
+#define VIA2_IRQ_NUBUS_BIT      CA1_INT_BIT
+#define VIA2_IRQ_SCSI_BIT       CB2_INT_BIT
+#define VIA2_IRQ_ASC_BIT        CB1_INT_BIT
 
 #define VIA2_IRQ_NB             8
 
