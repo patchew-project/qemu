@@ -215,7 +215,10 @@ static void xlnx_zynqmp_create_rpu(MachineState *ms, XlnxZynqMPState *s,
 
         name = object_get_canonical_path_component(OBJECT(&s->rpu_cpu[i]));
         if (strcmp(name, boot_cpu)) {
-            /* Secondary CPUs start in PSCI powered-down state */
+            /*
+             * Secondary CPUs start in powered-down state.
+             * TODO: check this is what EL3 firmware expects.
+             */
             object_property_set_bool(OBJECT(&s->rpu_cpu[i]),
                                      "start-powered-off", true, &error_abort);
         } else {
@@ -435,12 +438,12 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < num_apus; i++) {
         const char *name;
 
-        object_property_set_int(OBJECT(&s->apu_cpu[i]), "psci-conduit",
-                                QEMU_PSCI_CONDUIT_SMC, &error_abort);
-
         name = object_get_canonical_path_component(OBJECT(&s->apu_cpu[i]));
         if (strcmp(name, boot_cpu)) {
-            /* Secondary CPUs start in PSCI powered-down state */
+            /*
+             * Secondary CPUs start in powered-down state.
+             * TODO: check this is what EL3 firmware expects.
+             */
             object_property_set_bool(OBJECT(&s->apu_cpu[i]),
                                      "start-powered-off", true, &error_abort);
         } else {
