@@ -211,8 +211,11 @@ static CancelJob *create_common(Job **pjob)
     bjob = mk_job(blk, "Steve", &test_cancel_driver, true,
                   JOB_MANUAL_FINALIZE | JOB_MANUAL_DISMISS);
     job = &bjob->job;
-    job_ref(job);
-    assert(job->status == JOB_STATUS_CREATED);
+    WITH_JOB_LOCK_GUARD() {
+        job_ref(job);
+        assert(job->status == JOB_STATUS_CREATED);
+    }
+
     s = container_of(bjob, CancelJob, common);
     s->blk = blk;
 
@@ -230,13 +233,15 @@ static void cancel_common(CancelJob *s)
     ctx = job->job.aio_context;
     aio_context_acquire(ctx);
 
-    job_cancel_sync(&job->job, true);
-    if (sts != JOB_STATUS_CREATED && sts != JOB_STATUS_CONCLUDED) {
-        Job *dummy = &job->job;
-        job_dismiss(&dummy, &error_abort);
+    WITH_JOB_LOCK_GUARD() {
+        job_cancel_sync(&job->job, true);
+        if (sts != JOB_STATUS_CREATED && sts != JOB_STATUS_CONCLUDED) {
+            Job *dummy = &job->job;
+            job_dismiss(&dummy, &error_abort);
+        }
+        assert(job->job.status == JOB_STATUS_NULL);
+        job_unref(&job->job);
     }
-    assert(job->job.status == JOB_STATUS_NULL);
-    job_unref(&job->job);
     destroy_blk(blk);
 
     aio_context_release(ctx);
@@ -251,6 +256,10 @@ static void test_cancel_created(void)
     cancel_common(s);
 }
 
+/*
+ * This test always runs in the main loop, so there is no
+ * need to protect job->status.
+ */
 static void test_cancel_running(void)
 {
     Job *job;
@@ -264,6 +273,10 @@ static void test_cancel_running(void)
     cancel_common(s);
 }
 
+/*
+ * This test always runs in the main loop, so there is no
+ * need to protect job->status.
+ */
 static void test_cancel_paused(void)
 {
     Job *job;
@@ -274,13 +287,19 @@ static void test_cancel_paused(void)
     job_start(job);
     assert(job->status == JOB_STATUS_RUNNING);
 
-    job_user_pause(job, &error_abort);
+    WITH_JOB_LOCK_GUARD() {
+        job_user_pause(job, &error_abort);
+    }
     job_enter(job);
     assert(job->status == JOB_STATUS_PAUSED);
 
     cancel_common(s);
 }
 
+/*
+ * This test always runs in the main loop, so there is no
+ * need to protect job->status.
+ */
 static void test_cancel_ready(void)
 {
     Job *job;
@@ -298,6 +317,10 @@ static void test_cancel_ready(void)
     cancel_common(s);
 }
 
+/*
+ * This test always runs in the main loop, so there is no
+ * need to protect job->status.
+ */
 static void test_cancel_standby(void)
 {
     Job *job;
@@ -312,13 +335,19 @@ static void test_cancel_standby(void)
     job_enter(job);
     assert(job->status == JOB_STATUS_READY);
 
-    job_user_pause(job, &error_abort);
+    WITH_JOB_LOCK_GUARD() {
+        job_user_pause(job, &error_abort);
+    }
     job_enter(job);
     assert(job->status == JOB_STATUS_STANDBY);
 
     cancel_common(s);
 }
 
+/*
+ * This test always runs in the main loop, so there is no
+ * need to protect job->status.
+ */
 static void test_cancel_pending(void)
 {
     Job *job;
@@ -333,7 +362,9 @@ static void test_cancel_pending(void)
     job_enter(job);
     assert(job->status == JOB_STATUS_READY);
 
-    job_complete(job, &error_abort);
+    WITH_JOB_LOCK_GUARD() {
+        job_complete(job, &error_abort);
+    }
     job_enter(job);
     while (!job->deferred_to_main_loop) {
         aio_poll(qemu_get_aio_context(), true);
@@ -345,6 +376,10 @@ static void test_cancel_pending(void)
     cancel_common(s);
 }
 
+/*
+ * This test always runs in the main loop, so there is no
+ * need to protect job->status.
+ */
 static void test_cancel_concluded(void)
 {
     Job *job;
@@ -359,7 +394,9 @@ static void test_cancel_concluded(void)
     job_enter(job);
     assert(job->status == JOB_STATUS_READY);
 
-    job_complete(job, &error_abort);
+    WITH_JOB_LOCK_GUARD() {
+        job_complete(job, &error_abort);
+    }
     job_enter(job);
     while (!job->deferred_to_main_loop) {
         aio_poll(qemu_get_aio_context(), true);
@@ -369,7 +406,9 @@ static void test_cancel_concluded(void)
     assert(job->status == JOB_STATUS_PENDING);
 
     aio_context_acquire(job->aio_context);
-    job_finalize(job, &error_abort);
+    WITH_JOB_LOCK_GUARD() {
+        job_finalize(job, &error_abort);
+    }
     aio_context_release(job->aio_context);
     assert(job->status == JOB_STATUS_CONCLUDED);
 
@@ -459,36 +498,45 @@ static void test_complete_in_standby(void)
     bjob = mk_job(blk, "job", &test_yielding_driver, true,
                   JOB_MANUAL_FINALIZE | JOB_MANUAL_DISMISS);
     job = &bjob->job;
+    /* Job did not start, so status is safe to read*/
     assert(job->status == JOB_STATUS_CREATED);
 
     /* Wait for the job to become READY */
     job_start(job);
     aio_context_acquire(ctx);
+    /*
+     * Here we are waiting for the status to change, so don't bother
+     * protecting the read every time.
+     */
     AIO_WAIT_WHILE(ctx, job->status != JOB_STATUS_READY);
     aio_context_release(ctx);
 
     /* Begin the drained section, pausing the job */
     bdrv_drain_all_begin();
-    assert(job->status == JOB_STATUS_STANDBY);
+    WITH_JOB_LOCK_GUARD() {
+        assert(job->status == JOB_STATUS_STANDBY);
+    }
     /* Lock the IO thread to prevent the job from being run */
     aio_context_acquire(ctx);
     /* This will schedule the job to resume it */
     bdrv_drain_all_end();
 
-    /* But the job cannot run, so it will remain on standby */
-    assert(job->status == JOB_STATUS_STANDBY);
+    WITH_JOB_LOCK_GUARD() {
+        /* But the job cannot run, so it will remain on standby */
+        assert(job->status == JOB_STATUS_STANDBY);
 
-    /* Even though the job is on standby, this should work */
-    job_complete(job, &error_abort);
+        /* Even though the job is on standby, this should work */
+        job_complete(job, &error_abort);
 
-    /* The test is done now, clean up. */
-    job_finish_sync(job, NULL, &error_abort);
-    assert(job->status == JOB_STATUS_PENDING);
+        /* The test is done now, clean up. */
+        job_finish_sync(job, NULL, &error_abort);
+        assert(job->status == JOB_STATUS_PENDING);
 
-    job_finalize(job, &error_abort);
-    assert(job->status == JOB_STATUS_CONCLUDED);
+        job_finalize(job, &error_abort);
+        assert(job->status == JOB_STATUS_CONCLUDED);
 
-    job_dismiss(&job, &error_abort);
+        job_dismiss(&job, &error_abort);
+    }
 
     destroy_blk(blk);
     aio_context_release(ctx);
