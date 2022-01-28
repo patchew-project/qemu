@@ -29,16 +29,21 @@
 #include "qapi/error.h"
 #include "trace/trace-root.h"
 
-/* Get a job using its ID and acquire its AioContext */
+/*
+ * Get a block job using its ID and acquire its AioContext.
+ * Returns with job_lock held on success.
+ */
 static Job *find_job(const char *id, AioContext **aio_context, Error **errp)
 {
     Job *job;
 
     *aio_context = NULL;
+    job_lock();
 
     job = job_get(id);
     if (!job) {
         error_setg(errp, "Job not found");
+        job_unlock();
         return NULL;
     }
 
@@ -60,6 +65,7 @@ void qmp_job_cancel(const char *id, Error **errp)
     trace_qmp_job_cancel(job);
     job_user_cancel(job, true, errp);
     aio_context_release(aio_context);
+    job_unlock();
 }
 
 void qmp_job_pause(const char *id, Error **errp)
@@ -74,6 +80,7 @@ void qmp_job_pause(const char *id, Error **errp)
     trace_qmp_job_pause(job);
     job_user_pause(job, errp);
     aio_context_release(aio_context);
+    job_unlock();
 }
 
 void qmp_job_resume(const char *id, Error **errp)
@@ -88,6 +95,7 @@ void qmp_job_resume(const char *id, Error **errp)
     trace_qmp_job_resume(job);
     job_user_resume(job, errp);
     aio_context_release(aio_context);
+    job_unlock();
 }
 
 void qmp_job_complete(const char *id, Error **errp)
@@ -102,6 +110,7 @@ void qmp_job_complete(const char *id, Error **errp)
     trace_qmp_job_complete(job);
     job_complete(job, errp);
     aio_context_release(aio_context);
+    job_unlock();
 }
 
 void qmp_job_finalize(const char *id, Error **errp)
@@ -125,6 +134,7 @@ void qmp_job_finalize(const char *id, Error **errp)
     aio_context = job->aio_context;
     job_unref(job);
     aio_context_release(aio_context);
+    job_unlock();
 }
 
 void qmp_job_dismiss(const char *id, Error **errp)
@@ -139,6 +149,7 @@ void qmp_job_dismiss(const char *id, Error **errp)
     trace_qmp_job_dismiss(job);
     job_dismiss(&job, errp);
     aio_context_release(aio_context);
+    job_unlock();
 }
 
 static JobInfo *job_query_single(Job *job, Error **errp)
