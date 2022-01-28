@@ -33,6 +33,22 @@
 #include "qapi/qapi-events-job.h"
 
 /*
+ * The job API is composed of two categories of functions.
+ *
+ * The first includes functions used by the monitor.  The monitor is
+ * peculiar in that it accesses the block job list with job_get, and
+ * therefore needs consistency across job_get and the actual operation
+ * (e.g. job_user_cancel). To achieve this consistency, the caller
+ * calls job_lock/job_unlock itself around the whole operation.
+ * These functions are declared in job-monitor.h.
+ *
+ *
+ * The second includes functions used by the block job drivers and sometimes
+ * by the core block layer. These delegate the locking to the callee instead,
+ * and are declared in job-driver.h.
+ */
+
+/*
  * job_mutex protects the jobs list, but also makes the
  * struct job fields thread-safe.
  */
@@ -227,16 +243,29 @@ const char *job_type_str(const Job *job)
     return JobType_str(job_type(job));
 }
 
-bool job_is_cancelled(Job *job)
+bool job_is_cancelled_locked(Job *job)
 {
     /* force_cancel may be true only if cancelled is true, too */
     assert(job->cancelled || !job->force_cancel);
     return job->force_cancel;
 }
 
-bool job_cancel_requested(Job *job)
+bool job_is_cancelled(Job *job)
+{
+    JOB_LOCK_GUARD();
+    return job_is_cancelled_locked(job);
+}
+
+/* Called with job_mutex held. */
+static bool job_cancel_requested_locked(Job *job)
 {
     return job->cancelled;
+}
+
+bool job_cancel_requested(Job *job)
+{
+    JOB_LOCK_GUARD();
+    return job_cancel_requested_locked(job);
 }
 
 bool job_is_ready_locked(Job *job)
@@ -551,7 +580,7 @@ void coroutine_fn job_pause_point(Job *job)
         job_unlock();
         return;
     }
-    if (job_is_cancelled(job)) {
+    if (job_is_cancelled_locked(job)) {
         job_unlock();
         return;
     }
@@ -585,7 +614,7 @@ void job_yield(Job *job)
         assert(job->busy);
 
         /* Check cancellation *before* setting busy = false, too!  */
-        if (job_is_cancelled(job)) {
+        if (job_is_cancelled_locked(job)) {
             return;
         }
 
@@ -603,7 +632,7 @@ void coroutine_fn job_sleep_ns(Job *job, int64_t ns)
         assert(job->busy);
 
         /* Check cancellation *before* setting busy = false, too!  */
-        if (job_is_cancelled(job)) {
+        if (job_is_cancelled_locked(job)) {
             return;
         }
 
@@ -731,7 +760,7 @@ static void job_conclude_locked(Job *job)
 /* Called with job_mutex held. */
 static void job_update_rc_locked(Job *job)
 {
-    if (!job->ret && job_is_cancelled(job)) {
+    if (!job->ret && job_is_cancelled_locked(job)) {
         job->ret = -ECANCELED;
     }
     if (job->ret) {
@@ -909,7 +938,7 @@ static void job_completed_txn_abort_locked(Job *job)
         ctx = other_job->aio_context;
         aio_context_acquire(ctx);
         if (!job_is_completed_locked(other_job)) {
-            assert(job_cancel_requested(other_job));
+            assert(job_cancel_requested_locked(other_job));
             job_finish_sync_locked(other_job, NULL, NULL);
         }
         aio_context_release(ctx);
@@ -1133,10 +1162,10 @@ void job_cancel_locked(Job *job, bool force)
          * job_cancel_async_locked() ignores soft-cancel requests for jobs
          * that are already done (i.e. deferred to the main loop).  We
          * have to check again whether the job is really cancelled.
-         * (job_cancel_requested() and job_is_cancelled() are equivalent
-         * here, because job_cancel_async_locked() will make soft-cancel
-         * requests no-ops when deferred_to_main_loop is true.  We
-         * choose to call job_is_cancelled() to show that we invoke
+         * (job_cancel_requested_locked() and job_is_cancelled_locked() are
+         * equivalent here, because job_cancel_async_locked() will make
+         * soft-cancel requests no-ops when deferred_to_main_loop is true.  We
+         * choose to call job_is_cancelled_locked() to show that we invoke
          * job_completed_txn_abort_locked() only for force-cancelled jobs.)
          */
         if (job_is_cancelled_locked(job)) {
@@ -1213,7 +1242,7 @@ void job_complete_locked(Job *job, Error **errp)
     if (job_apply_verb_locked(job, JOB_VERB_COMPLETE, errp)) {
         return;
     }
-    if (job_cancel_requested(job) || !job->driver->complete) {
+    if (job_cancel_requested_locked(job) || !job->driver->complete) {
         error_setg(errp, "The active block job '%s' cannot be completed",
                    job->id);
         return;
@@ -1246,7 +1275,8 @@ int job_finish_sync_locked(Job *job, void (*finish)(Job *, Error **errp),
                    (job_enter(job), !job_is_completed(job)));
     job_lock();
 
-    ret = (job_is_cancelled(job) && job->ret == 0) ? -ECANCELED : job->ret;
+    ret = (job_is_cancelled_locked(job) && job->ret == 0) ?
+          -ECANCELED : job->ret;
     job_unref_locked(job);
     return ret;
 }
