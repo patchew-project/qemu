@@ -2141,8 +2141,6 @@ enum {
     PPC_MFTB           = 0x0000000000000200ULL,
 
     /* Fixed-point unit extensions                                           */
-    /*   PowerPC 602 specific                                                */
-    PPC_602_SPEC       = 0x0000000000000400ULL,
     /*   isel instruction                                                    */
     PPC_ISEL           = 0x0000000000000800ULL,
     /*   popcntb instruction                                                 */
