@@ -341,6 +341,7 @@ struct RISCVCPU {
         bool ext_counters;
         bool ext_ifencei;
         bool ext_icsr;
+        bool ext_svinval;
         bool ext_svnapot;
         bool ext_svpbmt;
         bool ext_zfh;
