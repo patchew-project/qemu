@@ -118,7 +118,7 @@ static void test_single_job(int expected)
 
     WITH_JOB_LOCK_GUARD() {
         if (expected == -ECANCELED) {
-            job_cancel(&job->job, false);
+            job_cancel_locked(&job->job, false);
         }
     }
 
@@ -128,7 +128,7 @@ static void test_single_job(int expected)
     g_assert_cmpint(result, ==, expected);
 
     WITH_JOB_LOCK_GUARD() {
-        job_txn_unref(txn);
+        job_txn_unref_locked(txn);
     }
 }
 
@@ -165,13 +165,13 @@ static void test_pair_jobs(int expected1, int expected2)
      * use-after-free bugs as possible.
      */
     WITH_JOB_LOCK_GUARD() {
-        job_txn_unref(txn);
+        job_txn_unref_locked(txn);
 
         if (expected1 == -ECANCELED) {
-            job_cancel(&job1->job, false);
+            job_cancel_locked(&job1->job, false);
         }
         if (expected2 == -ECANCELED) {
-            job_cancel(&job2->job, false);
+            job_cancel_locked(&job2->job, false);
         }
     }
 
@@ -226,7 +226,7 @@ static void test_pair_jobs_fail_cancel_race(void)
     job_start(&job2->job);
 
     WITH_JOB_LOCK_GUARD() {
-        job_cancel(&job1->job, false);
+        job_cancel_locked(&job1->job, false);
     }
 
     /* Now make job2 finish before the main loop kicks jobs.  This simulates
@@ -243,7 +243,7 @@ static void test_pair_jobs_fail_cancel_race(void)
     g_assert_cmpint(result2, ==, -ECANCELED);
 
     WITH_JOB_LOCK_GUARD() {
-        job_txn_unref(txn);
+        job_txn_unref_locked(txn);
     }
 }
 

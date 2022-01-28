@@ -59,21 +59,21 @@ static bool is_block_job(Job *job)
            job_type(job) == JOB_TYPE_STREAM;
 }
 
-BlockJob *block_job_next(BlockJob *bjob)
+BlockJob *block_job_next_locked(BlockJob *bjob)
 {
     Job *job = bjob ? &bjob->job : NULL;
     assert(qemu_in_main_thread());
 
     do {
-        job = job_next(job);
+        job = job_next_locked(job);
     } while (job && !is_block_job(job));
 
     return job ? container_of(job, BlockJob, job) : NULL;
 }
 
-BlockJob *block_job_get(const char *id)
+BlockJob *block_job_get_locked(const char *id)
 {
-    Job *job = job_get(id);
+    Job *job = job_get_locked(id);
     assert(qemu_in_main_thread());
 
     if (job && is_block_job(job)) {
@@ -103,7 +103,7 @@ static void child_job_drained_begin(BdrvChild *c)
 {
     BlockJob *job = c->opaque;
     WITH_JOB_LOCK_GUARD() {
-        job_pause(&job->job);
+        job_pause_locked(&job->job);
     }
 }
 
@@ -117,7 +117,7 @@ static bool child_job_drained_poll(BdrvChild *c)
      * with !job->busy are either already paused or have a pause point after
      * being reentered, so no job driver code will run before they pause. */
     WITH_JOB_LOCK_GUARD() {
-        if (!job->busy || job_is_completed(job)) {
+        if (!job->busy || job_is_completed_locked(job)) {
             return false;
         }
     }
@@ -135,7 +135,7 @@ static void child_job_drained_end(BdrvChild *c, int *drained_end_counter)
 {
     BlockJob *job = c->opaque;
     WITH_JOB_LOCK_GUARD() {
-        job_resume(&job->job);
+        job_resume_locked(&job->job);
     }
 }
 
@@ -283,14 +283,14 @@ static bool job_timer_pending(Job *job)
     return timer_pending(&job->sleep_timer);
 }
 
-bool block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
+bool block_job_set_speed_locked(BlockJob *job, int64_t speed, Error **errp)
 {
     const BlockJobDriver *drv = block_job_driver(job);
     int64_t old_speed = job->speed;
 
     assert(qemu_in_main_thread());
 
-    if (job_apply_verb(&job->job, JOB_VERB_SET_SPEED, errp) < 0) {
+    if (job_apply_verb_locked(&job->job, JOB_VERB_SET_SPEED, errp) < 0) {
         return false;
     }
     if (speed < 0) {
@@ -314,7 +314,7 @@ bool block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
     }
 
     /* kick only if a timer is pending */
-    job_enter_cond(&job->job, job_timer_pending);
+    job_enter_cond_locked(&job->job, job_timer_pending);
 
     return true;
 }
@@ -324,7 +324,7 @@ int64_t block_job_ratelimit_get_delay(BlockJob *job, uint64_t n)
     return ratelimit_calculate_delay(&job->limit, n);
 }
 
-BlockJobInfo *block_job_query(BlockJob *job, Error **errp)
+BlockJobInfo *block_job_query_locked(BlockJob *job, Error **errp)
 {
     BlockJobInfo *info;
     uint64_t progress_current, progress_total;
@@ -348,7 +348,7 @@ BlockJobInfo *block_job_query(BlockJob *job, Error **errp)
     info->len       = progress_total;
     info->speed     = job->speed;
     info->io_status = job->iostatus;
-    info->ready     = job_is_ready(&job->job),
+    info->ready     = job_is_ready_locked(&job->job),
     info->status    = job->job.status;
     info->auto_finalize = job->job.auto_finalize;
     info->auto_dismiss  = job->job.auto_dismiss;
@@ -504,7 +504,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     bdrv_op_unblock(bs, BLOCK_OP_TYPE_DATAPLANE, job->blocker);
 
     WITH_JOB_LOCK_GUARD() {
-        ret = block_job_set_speed(job, speed, errp);
+        ret = block_job_set_speed_locked(job, speed, errp);
     }
     if (!ret) {
         goto fail;
@@ -568,7 +568,7 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
     if (action == BLOCK_ERROR_ACTION_STOP) {
         WITH_JOB_LOCK_GUARD() {
             if (!job->job.user_paused) {
-                job_pause(&job->job);
+                job_pause_locked(&job->job);
                 /*
                  * make the pause user visible, which will be
                  * resumed from QMP.

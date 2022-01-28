@@ -4973,7 +4973,7 @@ static void bdrv_close(BlockDriverState *bs)
 void bdrv_close_all(void)
 {
     WITH_JOB_LOCK_GUARD() {
-        assert(job_next(NULL) == NULL);
+        assert(job_next_locked(NULL) == NULL);
     }
     assert(qemu_in_main_thread());
 
@@ -6152,7 +6152,8 @@ XDbgBlockGraph *bdrv_get_xdbg_block_graph(Error **errp)
     }
 
     WITH_JOB_LOCK_GUARD() {
-        for (job = block_job_next(NULL); job; job = block_job_next(job)) {
+        for (job = block_job_next_locked(NULL); job;
+             job = block_job_next_locked(job)) {
             GSList *el;
 
             xdbg_graph_add_node(gr, job, X_DBG_BLOCK_GRAPH_NODE_TYPE_BLOCK_JOB,
