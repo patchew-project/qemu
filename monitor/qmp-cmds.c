@@ -137,7 +137,7 @@ void qmp_cont(Error **errp)
     WITH_JOB_LOCK_GUARD() {
         for (job = block_job_next_locked(NULL); job;
              job = block_job_next_locked(job)) {
-            block_job_iostatus_reset(job);
+            block_job_iostatus_reset_locked(job);
         }
     }
 
