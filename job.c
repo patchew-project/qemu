@@ -532,11 +532,12 @@ void job_enter_cond_locked(Job *job, bool(*fn)(Job *job))
         return;
     }
 
-    assert(!job->deferred_to_main_loop);
     timer_del(&job->sleep_timer);
     job->busy = true;
     real_job_unlock();
-    aio_co_enter(job->aio_context, job->co);
+    job_unlock();
+    aio_co_wake(job->co);
+    job_lock();
 }
 
 void job_enter(Job *job)
@@ -556,6 +557,8 @@ void job_enter(Job *job)
  */
 static void coroutine_fn job_do_yield_locked(Job *job, uint64_t ns)
 {
+    AioContext *next_aio_context;
+
     real_job_lock();
     if (ns != -1) {
         timer_mod(&job->sleep_timer, ns);
@@ -566,6 +569,20 @@ static void coroutine_fn job_do_yield_locked(Job *job, uint64_t ns)
     job_unlock();
     qemu_coroutine_yield();
     job_lock();
+
+    next_aio_context = job->aio_context;
+    /*
+     * Coroutine has resumed, but in the meanwhile the job AioContext
+     * might have changed via bdrv_try_set_aio_context(), so we need to move
+     * the coroutine too in the new aiocontext.
+     */
+    while (qemu_get_current_aio_context() != next_aio_context) {
+        job_unlock();
+        aio_co_reschedule_self(next_aio_context);
+        job_lock();
+        next_aio_context = job->aio_context;
+    }
+
 
     /* Set by job_enter_cond_locked() before re-entering the coroutine.  */
     assert(job->busy);
@@ -666,7 +683,6 @@ void job_resume_locked(Job *job)
     if (job->pause_count) {
         return;
     }
-
     /* kick only if no timer is pending */
     job_enter_cond_locked(job, job_timer_not_pending);
 }
@@ -1145,7 +1161,7 @@ void job_start(Job *job)
         job->paused = false;
         job_state_transition_locked(job, JOB_STATUS_RUNNING);
     }
-    aio_co_enter(job->aio_context, job->co);
+    qemu_coroutine_enter(job->co);
 }
 
 void job_cancel_locked(Job *job, bool force)
