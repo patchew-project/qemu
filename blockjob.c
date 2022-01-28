@@ -568,5 +568,6 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
 
 AioContext *block_job_get_aio_context(BlockJob *job)
 {
+    assert(qemu_in_main_thread());
     return job->job.aio_context;
 }

@@ -169,6 +169,14 @@ BlockJobInfo *block_job_query_locked(BlockJob *job, Error **errp);
  */
 void block_job_iostatus_reset_locked(BlockJob *job);
 
+/*
+ * block_job_get_aio_context:
+ *
+ * Returns aio context associated with a block job.
+ */
+AioContext *block_job_get_aio_context(BlockJob *job);
+
+
 /* Common functions that are neither I/O nor Global State */
 
 /**
@@ -185,12 +193,5 @@ bool block_job_is_internal(BlockJob *job);
  * Returns the driver associated with a block job.
  */
 const BlockJobDriver *block_job_driver(BlockJob *job);
-
-/*
- * block_job_get_aio_context:
- *
- * Returns aio context associated with a block job.
- */
-AioContext *block_job_get_aio_context(BlockJob *job);
 
 #endif
