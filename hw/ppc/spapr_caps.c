@@ -94,6 +94,30 @@ static void spapr_cap_set_bool(Object *obj, Visitor *v, const char *name,
     spapr->eff.caps[cap->index] = value ? SPAPR_CAP_ON : SPAPR_CAP_OFF;
 }
 
+static void spapr_cap_get_uint8(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
+{
+    SpaprCapabilityInfo *cap = opaque;
+    SpaprMachineState *spapr = SPAPR_MACHINE(obj);
+    uint8_t value = spapr_get_cap(spapr, cap->index) == SPAPR_CAP_ON;
+
+    visit_type_uint8(v, name, &value, errp);
+}
+
+static void spapr_cap_set_uint8(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
+{
+    SpaprCapabilityInfo *cap = opaque;
+    SpaprMachineState *spapr = SPAPR_MACHINE(obj);
+    uint8_t value;
+
+    if (!visit_type_uint8(v, name, &value, errp)) {
+        return;
+    }
+
+    spapr->cmd_line_caps[cap->index] = true;
+    spapr->eff.caps[cap->index] = value;
+}
 
 static void  spapr_cap_get_string(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
@@ -613,6 +637,54 @@ static void cap_rpt_invalidate_apply(SpaprMachineState *spapr,
     }
 }
 
+static void cap_ail_apply(SpaprMachineState *spapr,
+                                     uint8_t val, Error **errp)
+{
+    ERRP_GUARD();
+
+    if (!(val & (0x01 << 0))) {
+        error_setg(errp, "cap-ail-modes mode must include AIL=0");
+        error_append_hint(errp,
+                          "Ensure bit 0 (value 1) is set in cap-ail-modes\n");
+        return;
+    }
+
+    if (val & ~((0x01 << 0) | (0x01 << 1) | (0x01 << 2) | (0x01 << 3))) {
+        error_setg(errp, "Unknown cap-ail-modes value");
+        error_append_hint(errp,
+                          "Ensure only bits between 0 and 3 are set in cap-ail-modes\n");
+        return;
+    }
+
+    if (val & (0x01 << 1)) {
+        error_setg(errp, "Unsupported cap-ail-modes mode AIL=1");
+        error_append_hint(errp,
+                          "Ensure bit 1 (value 2) is clear in cap-ail-modes\n");
+        return;
+    }
+
+    if (kvm_enabled()) {
+        if (val & (0x01 << 2)) {
+            error_setg(errp, "KVM does not support cap-ail-modes mode AIL=2");
+            error_append_hint(errp,
+                              "Ensure bit 2 (value 4) is clear in cap-ail-modes\n");
+            if (kvmppc_has_cap_ail_3()) {
+                error_append_hint(errp, "Try appending -machine cap-ail-modes=9\n");
+            } else {
+                error_append_hint(errp, "Try appending -machine cap-ail-modes=1\n");
+            }
+            return;
+        }
+        if ((val & (0x01 << 3)) && !kvmppc_has_cap_ail_3()) {
+            error_setg(errp, "KVM implementation does not support cap-ail-modes AIL=3");
+            error_append_hint(errp,
+                              "Ensure bit 3 (value 8) is clear in cap-ail-modes\n");
+            error_append_hint(errp, "Try appending -machine cap-ail-modes=1\n");
+            return;
+        }
+    }
+}
+
 SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
     [SPAPR_CAP_HTM] = {
         .name = "htm",
@@ -729,6 +801,15 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .set = spapr_cap_set_bool,
         .type = "bool",
         .apply = cap_rpt_invalidate_apply,
+    },
+    [SPAPR_CAP_AIL_MODES] = {
+        .name = "ail-modes",
+        .description = "Bitmap of AIL (alternate interrupt location) mode support",
+        .index = SPAPR_CAP_AIL_MODES,
+        .get = spapr_cap_get_uint8,
+        .set = spapr_cap_set_uint8,
+        .type = "uint8",
+        .apply = cap_ail_apply,
     },
 };
 

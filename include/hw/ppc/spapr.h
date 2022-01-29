@@ -50,6 +50,12 @@ typedef enum {
 } SpaprResizeHpt;
 
 /**
+ * This cap is a bitmask of supported modes. Default to always supporting
+ * 0 and 3 (PR KVM and POWER7 and earlier only support 0).
+ */
+#define SPAPR_CAP_AIL_MODES_DEFAULT     ((0x01 << 0) | (0x01 << 3))
+
+/**
  * Capabilities
  */
 
@@ -77,8 +83,10 @@ typedef enum {
 #define SPAPR_CAP_FWNMI                 0x0A
 /* Support H_RPT_INVALIDATE */
 #define SPAPR_CAP_RPT_INVALIDATE        0x0B
+/* Support for AIL modes */
+#define SPAPR_CAP_AIL_MODES             0x0C
 /* Num Caps */
-#define SPAPR_CAP_NUM                   (SPAPR_CAP_RPT_INVALIDATE + 1)
+#define SPAPR_CAP_NUM                   (SPAPR_CAP_AIL_MODES + 1)
 
 /*
  * Capability Values
