@@ -37,6 +37,16 @@ endif
 if build_docs
   SPHINX_ARGS += ['-Dversion=' + meson.project_version(), '-Drelease=' + config_host['PKGVERSION']]
 
+  foreach key: config_host_data.keys()
+    if not key.startswith('CONFIG_')
+      continue
+    endif
+    if '@0@'.format(config_host_data.get(key)) in ['0', 'false']
+      tag = 'DISABLE_' + key.substring(7)
+      SPHINX_ARGS += ['-t', tag]
+    endif
+  endforeach
+
   have_ga = have_tools and config_host.has_key('CONFIG_GUEST_AGENT')
 
   man_pages = {
