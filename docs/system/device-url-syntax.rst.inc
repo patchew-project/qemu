@@ -1,47 +1,49 @@
 
 In addition to using normal file images for the emulated storage
-devices, QEMU can also use networked resources such as iSCSI devices.
-These are specified using a special URL syntax.
+devices, QEMU can also use networked resources. These are specified using a
+special URL syntax.
 
-``iSCSI``
-   iSCSI support allows QEMU to access iSCSI resources directly and use
-   as images for the guest storage. Both disk and cdrom images are
-   supported.
+.. only:: not DISABLE_LIBISCSI
 
-   Syntax for specifying iSCSI LUNs is
-   "iscsi://<target-ip>[:<port>]/<target-iqn>/<lun>"
+    ``iSCSI``
+       iSCSI support allows QEMU to access iSCSI resources directly and use
+       as images for the guest storage. Both disk and cdrom images are
+       supported.
 
-   By default qemu will use the iSCSI initiator-name
-   'iqn.2008-11.org.linux-kvm[:<name>]' but this can also be set from
-   the command line or a configuration file.
+       Syntax for specifying iSCSI LUNs is
+       "iscsi://<target-ip>[:<port>]/<target-iqn>/<lun>"
 
-   Since version QEMU 2.4 it is possible to specify a iSCSI request
-   timeout to detect stalled requests and force a reestablishment of the
-   session. The timeout is specified in seconds. The default is 0 which
-   means no timeout. Libiscsi 1.15.0 or greater is required for this
-   feature.
+       By default qemu will use the iSCSI initiator-name
+       'iqn.2008-11.org.linux-kvm[:<name>]' but this can also be set from
+       the command line or a configuration file.
 
-   Example (without authentication):
+       Since version QEMU 2.4 it is possible to specify a iSCSI request
+       timeout to detect stalled requests and force a reestablishment of the
+       session. The timeout is specified in seconds. The default is 0 which
+       means no timeout. Libiscsi 1.15.0 or greater is required for this
+       feature.
 
-   .. parsed-literal::
+       Example (without authentication):
 
-      |qemu_system| -iscsi initiator-name=iqn.2001-04.com.example:my-initiator \\
-                       -cdrom iscsi://192.0.2.1/iqn.2001-04.com.example/2 \\
-                       -drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
+       .. parsed-literal::
 
-   Example (CHAP username/password via URL):
+          |qemu_system| -iscsi initiator-name=iqn.2001-04.com.example:my-initiator \\
+                           -cdrom iscsi://192.0.2.1/iqn.2001-04.com.example/2 \\
+                           -drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
 
-   .. parsed-literal::
+       Example (CHAP username/password via URL):
 
-      |qemu_system| -drive file=iscsi://user%password@192.0.2.1/iqn.2001-04.com.example/1
+       .. parsed-literal::
 
-   Example (CHAP username/password via environment variables):
+          |qemu_system| -drive file=iscsi://user%password@192.0.2.1/iqn.2001-04.com.example/1
 
-   .. parsed-literal::
+       Example (CHAP username/password via environment variables):
 
-      LIBISCSI_CHAP_USERNAME="user" \\
-      LIBISCSI_CHAP_PASSWORD="password" \\
-      |qemu_system| -drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
+       .. parsed-literal::
+
+          LIBISCSI_CHAP_USERNAME="user" \\
+          LIBISCSI_CHAP_PASSWORD="password" \\
+          |qemu_system| -drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
 
 ``NBD``
    QEMU supports NBD (Network Block Devices) both using TCP protocol as

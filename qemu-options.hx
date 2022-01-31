@@ -1363,7 +1363,7 @@ SRST
         If the filename contains comma, you must double it (for instance,
         "file=my,,file" to use file "my,file").
 
-        Special files such as iSCSI devices can be specified using
+        Special files such as for network protocols can be specified using
         protocol specific URLs. See the section for "Device URL Syntax"
         for more information.
 
@@ -1831,8 +1831,11 @@ DEF("iscsi", HAS_ARG, QEMU_OPTION_iscsi,
     "                iSCSI session parameters\n", QEMU_ARCH_ALL)
 
 SRST
-``-iscsi``
-    Configure iSCSI session parameters.
+
+.. only:: not DISABLE_LIBISCSI
+
+    ``-iscsi``
+        Configure iSCSI session parameters.
 ERST
 
 DEFHEADING()
