@@ -89,44 +89,46 @@ special URL syntax.
        Currently authentication must be done using ssh-agent. Other
        authentication methods may be supported in future.
 
-``GlusterFS``
-   GlusterFS is a user space distributed file system. QEMU supports the
-   use of GlusterFS volumes for hosting VM disk images using TCP, Unix
-   Domain Sockets and RDMA transport protocols.
+.. only:: not DISABLE_GLUSTERFS
 
-   Syntax for specifying a VM disk image on GlusterFS volume is
+    ``GlusterFS``
+       GlusterFS is a user space distributed file system. QEMU supports the
+       use of GlusterFS volumes for hosting VM disk images using TCP, Unix
+       Domain Sockets and RDMA transport protocols.
 
-   .. parsed-literal::
+       Syntax for specifying a VM disk image on GlusterFS volume is
 
-      URI:
-      gluster[+type]://[host[:port]]/volume/path[?socket=...][,debug=N][,logfile=...]
+       .. parsed-literal::
 
-      JSON:
-      'json:{"driver":"qcow2","file":{"driver":"gluster","volume":"testvol","path":"a.img","debug":N,"logfile":"...",
-                                       "server":[{"type":"tcp","host":"...","port":"..."},
-                                                 {"type":"unix","socket":"..."}]}}'
+          URI:
+          gluster[+type]://[host[:port]]/volume/path[?socket=...][,debug=N][,logfile=...]
 
-   Example
+          JSON:
+          'json:{"driver":"qcow2","file":{"driver":"gluster","volume":"testvol","path":"a.img","debug":N,"logfile":"...",
+                                           "server":[{"type":"tcp","host":"...","port":"..."},
+                                                     {"type":"unix","socket":"..."}]}}'
 
-   .. parsed-literal::
+       Example
 
-      URI:
-      |qemu_system| --drive file=gluster://192.0.2.1/testvol/a.img,
-                                     file.debug=9,file.logfile=/var/log/qemu-gluster.log
+       .. parsed-literal::
 
-      JSON:
-      |qemu_system| 'json:{"driver":"qcow2",
-                                "file":{"driver":"gluster",
-                                         "volume":"testvol","path":"a.img",
-                                         "debug":9,"logfile":"/var/log/qemu-gluster.log",
-                                         "server":[{"type":"tcp","host":"1.2.3.4","port":24007},
-                                                   {"type":"unix","socket":"/var/run/glusterd.socket"}]}}'
-      |qemu_system| -drive driver=qcow2,file.driver=gluster,file.volume=testvol,file.path=/path/a.img,
-                                            file.debug=9,file.logfile=/var/log/qemu-gluster.log,
-                                            file.server.0.type=tcp,file.server.0.host=1.2.3.4,file.server.0.port=24007,
-                                            file.server.1.type=unix,file.server.1.socket=/var/run/glusterd.socket
+          URI:
+          |qemu_system| --drive file=gluster://192.0.2.1/testvol/a.img,
+                                         file.debug=9,file.logfile=/var/log/qemu-gluster.log
 
-   See also http://www.gluster.org.
+          JSON:
+          |qemu_system| 'json:{"driver":"qcow2",
+                                    "file":{"driver":"gluster",
+                                             "volume":"testvol","path":"a.img",
+                                             "debug":9,"logfile":"/var/log/qemu-gluster.log",
+                                             "server":[{"type":"tcp","host":"1.2.3.4","port":24007},
+                                                       {"type":"unix","socket":"/var/run/glusterd.socket"}]}}'
+          |qemu_system| -drive driver=qcow2,file.driver=gluster,file.volume=testvol,file.path=/path/a.img,
+                                                file.debug=9,file.logfile=/var/log/qemu-gluster.log,
+                                                file.server.0.type=tcp,file.server.0.host=1.2.3.4,file.server.0.port=24007,
+                                                file.server.1.type=unix,file.server.1.socket=/var/run/glusterd.socket
+
+       See also http://www.gluster.org.
 
 .. only:: not DISABLE_CURL
 
