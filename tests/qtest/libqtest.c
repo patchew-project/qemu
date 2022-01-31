@@ -1394,6 +1394,12 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine),
             g_str_equal("xenpv", machines[i].name)) {
             continue;
         }
+#ifndef CONFIG_ARM_GIC_TCG
+        if (!strncmp("sbsa-ref", machines[i].name, 8) ||
+            !strncmp("xlnx-versal-virt", machines[i].name, 16)) {
+            continue;
+        }
+#endif
         if (!skip_old_versioned ||
             !qtest_is_old_versioned_machine(machines[i].name)) {
             cb(machines[i].name);
