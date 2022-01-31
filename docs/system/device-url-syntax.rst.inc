@@ -128,87 +128,89 @@ special URL syntax.
 
    See also http://www.gluster.org.
 
-``HTTP/HTTPS/FTP/FTPS``
-   QEMU supports read-only access to files accessed over http(s) and
-   ftp(s).
+.. only:: not DISABLE_CURL
 
-   Syntax using a single filename:
+    ``HTTP/HTTPS/FTP/FTPS``
+       QEMU supports read-only access to files accessed over http(s) and
+       ftp(s).
 
-   ::
+       Syntax using a single filename:
 
-      <protocol>://[<username>[:<password>]@]<host>/<path>
+       ::
 
-   where:
+          <protocol>://[<username>[:<password>]@]<host>/<path>
 
-   ``protocol``
-      'http', 'https', 'ftp', or 'ftps'.
+       where:
 
-   ``username``
-      Optional username for authentication to the remote server.
+       ``protocol``
+          'http', 'https', 'ftp', or 'ftps'.
 
-   ``password``
-      Optional password for authentication to the remote server.
+       ``username``
+          Optional username for authentication to the remote server.
 
-   ``host``
-      Address of the remote server.
+       ``password``
+          Optional password for authentication to the remote server.
 
-   ``path``
-      Path on the remote server, including any query string.
+       ``host``
+          Address of the remote server.
 
-   The following options are also supported:
+       ``path``
+          Path on the remote server, including any query string.
 
-   ``url``
-      The full URL when passing options to the driver explicitly.
+       The following options are also supported:
 
-   ``readahead``
-      The amount of data to read ahead with each range request to the
-      remote server. This value may optionally have the suffix 'T', 'G',
-      'M', 'K', 'k' or 'b'. If it does not have a suffix, it will be
-      assumed to be in bytes. The value must be a multiple of 512 bytes.
-      It defaults to 256k.
+       ``url``
+          The full URL when passing options to the driver explicitly.
 
-   ``sslverify``
-      Whether to verify the remote server's certificate when connecting
-      over SSL. It can have the value 'on' or 'off'. It defaults to
-      'on'.
+       ``readahead``
+          The amount of data to read ahead with each range request to the
+          remote server. This value may optionally have the suffix 'T', 'G',
+          'M', 'K', 'k' or 'b'. If it does not have a suffix, it will be
+          assumed to be in bytes. The value must be a multiple of 512 bytes.
+          It defaults to 256k.
 
-   ``cookie``
-      Send this cookie (it can also be a list of cookies separated by
-      ';') with each outgoing request. Only supported when using
-      protocols such as HTTP which support cookies, otherwise ignored.
+       ``sslverify``
+          Whether to verify the remote server's certificate when connecting
+          over SSL. It can have the value 'on' or 'off'. It defaults to
+          'on'.
 
-   ``timeout``
-      Set the timeout in seconds of the CURL connection. This timeout is
-      the time that CURL waits for a response from the remote server to
-      get the size of the image to be downloaded. If not set, the
-      default timeout of 5 seconds is used.
+       ``cookie``
+          Send this cookie (it can also be a list of cookies separated by
+          ';') with each outgoing request. Only supported when using
+          protocols such as HTTP which support cookies, otherwise ignored.
 
-   Note that when passing options to qemu explicitly, ``driver`` is the
-   value of <protocol>.
+       ``timeout``
+          Set the timeout in seconds of the CURL connection. This timeout is
+          the time that CURL waits for a response from the remote server to
+          get the size of the image to be downloaded. If not set, the
+          default timeout of 5 seconds is used.
 
-   Example: boot from a remote Fedora 20 live ISO image
+       Note that when passing options to qemu explicitly, ``driver`` is the
+       value of <protocol>.
 
-   .. parsed-literal::
+       Example: boot from a remote Fedora 20 live ISO image
 
-      |qemu_system_x86| --drive media=cdrom,file=https://archives.fedoraproject.org/pub/archive/fedora/linux/releases/20/Live/x86_64/Fedora-Live-Desktop-x86_64-20-1.iso,readonly
+       .. parsed-literal::
 
-      |qemu_system_x86| --drive media=cdrom,file.driver=http,file.url=http://archives.fedoraproject.org/pub/fedora/linux/releases/20/Live/x86_64/Fedora-Live-Desktop-x86_64-20-1.iso,readonly
+          |qemu_system_x86| --drive media=cdrom,file=https://archives.fedoraproject.org/pub/archive/fedora/linux/releases/20/Live/x86_64/Fedora-Live-Desktop-x86_64-20-1.iso,readonly
 
-   Example: boot from a remote Fedora 20 cloud image using a local
-   overlay for writes, copy-on-read, and a readahead of 64k
+          |qemu_system_x86| --drive media=cdrom,file.driver=http,file.url=http://archives.fedoraproject.org/pub/fedora/linux/releases/20/Live/x86_64/Fedora-Live-Desktop-x86_64-20-1.iso,readonly
 
-   .. parsed-literal::
+       Example: boot from a remote Fedora 20 cloud image using a local
+       overlay for writes, copy-on-read, and a readahead of 64k
 
-      qemu-img create -f qcow2 -o backing_file='json:{"file.driver":"http",, "file.url":"http://archives.fedoraproject.org/pub/archive/fedora/linux/releases/20/Images/x86_64/Fedora-x86_64-20-20131211.1-sda.qcow2",, "file.readahead":"64k"}' /tmp/Fedora-x86_64-20-20131211.1-sda.qcow2
+       .. parsed-literal::
 
-      |qemu_system_x86| -drive file=/tmp/Fedora-x86_64-20-20131211.1-sda.qcow2,copy-on-read=on
+          qemu-img create -f qcow2 -o backing_file='json:{"file.driver":"http",, "file.url":"http://archives.fedoraproject.org/pub/archive/fedora/linux/releases/20/Images/x86_64/Fedora-x86_64-20-20131211.1-sda.qcow2",, "file.readahead":"64k"}' /tmp/Fedora-x86_64-20-20131211.1-sda.qcow2
 
-   Example: boot from an image stored on a VMware vSphere server with a
-   self-signed certificate using a local overlay for writes, a readahead
-   of 64k and a timeout of 10 seconds.
+          |qemu_system_x86| -drive file=/tmp/Fedora-x86_64-20-20131211.1-sda.qcow2,copy-on-read=on
 
-   .. parsed-literal::
+       Example: boot from an image stored on a VMware vSphere server with a
+       self-signed certificate using a local overlay for writes, a readahead
+       of 64k and a timeout of 10 seconds.
 
-      qemu-img create -f qcow2 -o backing_file='json:{"file.driver":"https",, "file.url":"https://user:password@vsphere.example.com/folder/test/test-flat.vmdk?dcPath=Datacenter&dsName=datastore1",, "file.sslverify":"off",, "file.readahead":"64k",, "file.timeout":10}' /tmp/test.qcow2
+       .. parsed-literal::
 
-      |qemu_system_x86| -drive file=/tmp/test.qcow2
+          qemu-img create -f qcow2 -o backing_file='json:{"file.driver":"https",, "file.url":"https://user:password@vsphere.example.com/folder/test/test-flat.vmdk?dcPath=Datacenter&dsName=datastore1",, "file.sslverify":"off",, "file.readahead":"64k",, "file.timeout":10}' /tmp/test.qcow2
+
+          |qemu_system_x86| -drive file=/tmp/test.qcow2
