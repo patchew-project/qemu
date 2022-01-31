@@ -21,6 +21,7 @@
 #include "qapi/error.h"
 #include "qom/object_interfaces.h"
 #include "qemu/base64.h"
+#include "qemu/buffer.h"
 #include "qemu/module.h"
 #include "qemu/uuid.h"
 #include "crypto/hash.h"
@@ -73,6 +74,8 @@ struct SevGuestState {
     int sev_fd;
     SevState state;
     gchar *measurement;
+    gchar *debug_launch_digest;
+    Buffer launch_memory;
 
     uint32_t reset_cs;
     uint32_t reset_ip;
@@ -643,6 +646,7 @@ static SevAttestationReport *sev_get_attestation_report(const char *mnonce,
 
     report = g_new0(SevAttestationReport, 1);
     report->data = g_base64_encode(data, input.len);
+    report->debug_launch_digest = g_strdup(sev->debug_launch_digest);
 
     trace_kvm_sev_attestation_report(mnonce, report->data);
 
@@ -709,6 +713,7 @@ sev_launch_start(SevGuestState *sev)
 
     sev_set_guest_state(sev, SEV_STATE_LAUNCH_UPDATE);
     sev->handle = start.handle;
+    buffer_init(&sev->launch_memory, "sev-guest-launch-memory");
     ret = 0;
 
 out:
@@ -726,6 +731,9 @@ sev_launch_update_data(SevGuestState *sev, uint8_t *addr, uint64_t len)
     if (!addr || !len) {
         return 1;
     }
+
+    buffer_reserve(&sev->launch_memory, len);
+    buffer_append(&sev->launch_memory, addr, len);
 
     update.uaddr = (__u64)(unsigned long)addr;
     update.len = len;
@@ -799,7 +807,17 @@ sev_launch_get_measure(Notifier *notifier, void *unused)
 
     /* encode the measurement value and emit the event */
     sev->measurement = g_base64_encode(data, measurement.len);
-    trace_kvm_sev_launch_measurement(sev->measurement);
+    if (qcrypto_hash_base64(QCRYPTO_HASH_ALG_SHA256,
+                            (const char *)sev->launch_memory.buffer,
+                            sev->launch_memory.offset,
+                            &sev->debug_launch_digest,
+                            NULL) < 0) {
+        error_report("%s: failed hashing launch memory", __func__);
+        return;
+    }
+    buffer_free(&sev->launch_memory);
+
+    trace_kvm_sev_launch_measurement(sev->measurement, sev->debug_launch_digest);
 }
 
 static char *sev_get_launch_measurement(void)
@@ -812,9 +830,19 @@ static char *sev_get_launch_measurement(void)
     return NULL;
 }
 
+static char *sev_get_debug_launch_digest(void)
+{
+    if (sev_guest &&
+        sev_guest->state >= SEV_STATE_LAUNCH_SECRET) {
+        return g_strdup(sev_guest->debug_launch_digest);
+    }
+
+    return NULL;
+}
+
 SevLaunchMeasureInfo *qmp_query_sev_launch_measure(Error **errp)
 {
-    char *data;
+    char *data, *debug_launch_digest;
     SevLaunchMeasureInfo *info;
 
     data = sev_get_launch_measurement();
@@ -823,8 +851,16 @@ SevLaunchMeasureInfo *qmp_query_sev_launch_measure(Error **errp)
         return NULL;
     }
 
+    debug_launch_digest = sev_get_debug_launch_digest();
+    if (!debug_launch_digest) {
+        error_setg(errp, "SEV launch digest is not available");
+        return NULL;
+    }
+
+
     info = g_malloc0(sizeof(*info));
     info->data = data;
+    info->debug_launch_digest = debug_launch_digest;
 
     return info;
 }

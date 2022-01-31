@@ -142,10 +142,15 @@
 #
 # @data: the measurement value encoded in base64
 #
+# @debug-launch-digest: SHA256 of launch memory (base64 encoded) (since: 6.3)
+#
 # Since: 2.12
 #
 ##
-{ 'struct': 'SevLaunchMeasureInfo', 'data': {'data': 'str'},
+{ 'struct': 'SevLaunchMeasureInfo',
+  'data': { 'data': 'str',
+            'debug-launch-digest': 'str'
+          },
   'if': 'TARGET_I386' }
 
 ##
@@ -160,7 +165,8 @@
 # Example:
 #
 # -> { "execute": "query-sev-launch-measure" }
-# <- { "return": { "data": "4l8LXeNlSPUDlXPJG5966/8%YZ" } }
+# <- { "return": { "data": "4l8LXeNlSPUDlXPJG5966/8%YZ",
+#                  "debug-launch-digest": "abcdef1234567890" } }
 #
 ##
 { 'command': 'query-sev-launch-measure', 'returns': 'SevLaunchMeasureInfo',
@@ -237,11 +243,14 @@
 #
 # @data:  guest attestation report (base64 encoded)
 #
+# @debug-launch-digest: SHA256 of launch memory (base64 encoded) (since: 6.3)
 #
 # Since: 6.1
 ##
 { 'struct': 'SevAttestationReport',
-  'data': { 'data': 'str'},
+  'data': { 'data': 'str',
+            'debug-launch-digest': 'str'
+          },
   'if': 'TARGET_I386' }
 
 ##
@@ -261,7 +270,8 @@
 #
 # -> { "execute" : "query-sev-attestation-report",
 #                  "arguments": { "mnonce": "aaaaaaa" } }
-# <- { "return" : { "data": "aaaaaaaabbbddddd"} }
+# <- { "return" : { "data": "aaaaaaaabbbddddd",
+#                   "debug-launch-digest": "abcdef1234567890" } }
 #
 ##
 { 'command': 'query-sev-attestation-report',
