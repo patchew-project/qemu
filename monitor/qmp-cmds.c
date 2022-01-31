@@ -18,6 +18,7 @@
 #include "qemu/cutils.h"
 #include "qemu/option.h"
 #include "monitor/monitor.h"
+#include "monitor/stats.h"
 #include "sysemu/sysemu.h"
 #include "qemu/config-file.h"
 #include "qemu/uuid.h"
@@ -447,4 +448,186 @@ HumanReadableText *qmp_x_query_irq(Error **errp)
                                    qmp_x_query_irq_foreach, buf);
 
     return human_readable_text_from_str(buf);
+}
+
+typedef struct StatsCallbacks {
+    StatsProvider provider;
+    void (*stats_cb)(StatsResults *, StatsFilter *, Error **);
+    void (*schemas_cb)(StatsSchemaResult *, Error **);
+    QTAILQ_ENTRY(StatsCallbacks) next;
+} StatsCallbacks;
+
+static QTAILQ_HEAD(, StatsCallbacks) stats_callbacks =
+    QTAILQ_HEAD_INITIALIZER(stats_callbacks);
+
+void add_stats_callbacks(StatsProvider provider,
+                         void (*stats_fn)(StatsResults *, StatsFilter*,
+                                          Error **),
+                         void (*schemas_fn)(StatsSchemaResult *, Error **))
+{
+    StatsCallbacks *entry = g_malloc0(sizeof(*entry));
+    entry->provider = provider;
+    entry->stats_cb = stats_fn;
+    entry->schemas_cb = schemas_fn;
+
+    QTAILQ_INSERT_TAIL(&stats_callbacks, entry, next);
+}
+
+StatsResults *qmp_query_stats(StatsFilter *filter, Error **errp)
+{
+    StatsResults *stats_results = g_malloc0(sizeof(*stats_results));
+    StatsCallbacks *entry;
+    StatsProvider provider = STATS_PROVIDER__MAX;
+
+    if (filter->target == STATS_TARGET_VM &&
+        filter->u.vm.has_provider) {
+        provider = filter->u.vm.provider;
+    } else if (filter->target == STATS_TARGET_VCPU &&
+               filter->u.vcpu.has_provider) {
+        provider = filter->u.vcpu.provider;
+    }
+
+    QTAILQ_FOREACH(entry, &stats_callbacks, next) {
+        if (provider != STATS_PROVIDER__MAX && (provider != entry->provider)) {
+            continue;
+        }
+        entry->stats_cb(stats_results, filter, errp);
+    }
+
+    return stats_results;
+}
+
+StatsSchemaResult *qmp_query_stats_schemas(bool has_provider,
+                                           StatsProvider provider,
+                                           Error **errp)
+{
+    StatsSchemaResult *stats_results = g_malloc0(sizeof(*stats_results));
+    StatsCallbacks *entry;
+
+    QTAILQ_FOREACH(entry, &stats_callbacks, next) {
+        if (has_provider && (provider != entry->provider)) {
+            continue;
+        }
+        entry->schemas_cb(stats_results, errp);
+    }
+
+    return stats_results;
+}
+
+StatsResultsEntry *add_vm_stats_entry(StatsResults *stats_results,
+                                      StatsProvider provider)
+{
+    StatsResultsEntry *entry = g_malloc0(sizeof(*entry));
+    stats_results->target = STATS_TARGET_VM;
+    entry->provider = provider;
+    QAPI_LIST_PREPEND(stats_results->u.vm.list, entry);
+
+    return entry;
+}
+
+StatsResultsEntry *add_vcpu_stats_entry(StatsResults *stats_results,
+                                        StatsProvider provider,
+                                        char *path)
+{
+    StatsResultsEntry *entry = g_malloc0(sizeof(*entry));
+    stats_results->target = STATS_TARGET_VCPU;
+    entry->provider = provider;
+
+    /*
+     * Find the corresponding vCPU entry and add to its list. Else, create it.
+     */
+    VCPUResultsEntryList **tailp = &stats_results->u.vcpu.list;
+    VCPUResultsEntryList *tail;
+
+    for (tail = *tailp; tail; tail = tail->next) {
+        if (g_str_equal(tail->value->path, path)) {
+            /* Add to the existing vCPU list */
+            QAPI_LIST_PREPEND(tail->value->list, entry);
+            goto done;
+        }
+        tailp = &tail->next;
+    }
+    /* Create and populate a new entry for the vCPU */
+    VCPUResultsEntry *value = g_malloc0(sizeof(*value));
+    value->path = g_strdup(path);
+    value->list = g_malloc0(sizeof(*value->list));
+    value->list->value = entry;
+    QAPI_LIST_APPEND(tailp, value);
+
+done:
+    return entry;
+}
+
+StatsSchemaProvider *add_vm_stats_schema(StatsSchemaResult *schema_results,
+                                         StatsProvider provider)
+{
+    StatsSchemaProvider *entry = g_malloc0(sizeof(*entry));
+    schema_results->has_vm = true;
+    entry->provider = provider;
+    QAPI_LIST_PREPEND(schema_results->vm, entry);
+
+    return entry;
+}
+
+StatsSchemaProvider *add_vcpu_stats_schema(StatsSchemaResult *schema_results,
+                                           StatsProvider provider)
+{
+    StatsSchemaProvider *entry = g_malloc0(sizeof(*entry));
+    schema_results->has_vcpu = true;
+    entry->provider = provider;
+    QAPI_LIST_PREPEND(schema_results->vcpu, entry);
+
+    return entry;
+}
+
+/* True if stat doesn't match a requested name */
+bool stat_name_filter(StatsFilter *filter, StatsTarget type, char *name)
+{
+    strList *str_list = NULL;
+
+    if (type == STATS_TARGET_VM) {
+        if (filter->target != STATS_TARGET_VM) {
+            return false;
+        }
+        if (!filter->u.vm.has_fields) {
+            return false;
+        }
+        str_list = filter->u.vm.fields;
+    } else if (type == STATS_TARGET_VCPU) {
+        if (filter->target != STATS_TARGET_VCPU) {
+            return false;
+        }
+        if (!filter->u.vcpu.has_fields) {
+            return false;
+        }
+        str_list = filter->u.vcpu.fields;
+    }
+
+    for (; str_list; str_list = str_list->next) {
+        if (g_str_equal(name, str_list->value)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/* True if cpu qom path doesn't match a requested path */
+bool stat_cpu_filter(StatsFilter *filter, char *path)
+{
+    strList *list;
+
+    if (filter->target != STATS_TARGET_VCPU) {
+        return false;
+    }
+
+    if (!filter->u.vcpu.has_paths) {
+        return false;
+    }
+
+    for (list = filter->u.vcpu.paths; list; list = list->next) {
+        if (g_str_equal(list->value, path)) {
+            return false;
+        }
+    }
+    return true;
 }

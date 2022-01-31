@@ -527,3 +527,256 @@
  'data': { '*option': 'str' },
  'returns': ['CommandLineOptionInfo'],
  'allow-preconfig': true }
+
+##
+# @StatType:
+#
+# Enumeration of stat types
+# @cumulative: stat is cumulative; value can only increase.
+# @instant: stat is instantaneous; value can increase or decrease.
+# @peak: stat is the peak value; value can only increase.
+#
+# Since: 7.0
+##
+{ 'enum' : 'StatType',
+  'data' : [ 'cumulative', 'instant', 'peak',
+             'linear-hist', 'log-hist', 'unknown' ] }
+
+##
+# @StatUnit:
+#
+# Enumeration of stat units
+# @bytes: stat reported in bytes.
+# @seconds: stat reported in seconds.
+# @cycles: stat reported in clock cycles.
+# @none: no unit for this stat.
+#
+# Since: 7.0
+##
+{ 'enum' : 'StatUnit',
+  'data' : [ 'none', 'bytes', 'seconds', 'cycles', 'unknown' ] }
+
+##
+# @StatBase:
+#
+# Enumeration of stat base
+#
+# Since: 7.0
+##
+{ 'enum' : 'StatBase',
+  'data' : [ 'pow10', 'pow2', 'unknown' ] }
+
+##
+# @StatsProvider:
+#
+# Enumeration of stat providers.
+#
+# Since: 7.0
+##
+{ 'enum': 'StatsProvider',
+  'data': [ ] }
+
+##
+# @StatsTarget:
+#
+# Enumeration of stat targets.
+# @vm: stat is per vm.
+# @vcpu: stat is per vcpu.
+#
+# Since: 7.0
+##
+{ 'enum': 'StatsTarget',
+  'data': [ 'vm', 'vcpu' ] }
+
+##
+# @StatsVCPURequest:
+#
+# vcpu specific filter element.
+# @paths: list of qom paths.
+#
+# Since: 7.0
+##
+{ 'struct': 'StatsVCPURequest',
+  'base': 'StatsRequest',
+  'data': { '*paths': [ 'str' ] } }
+
+##
+# @StatsRequest:
+#
+# Stats filter element.
+# @provider: stat provider.
+# @fields: list of stat names.
+#
+# Since: 7.0
+##
+{ 'struct': 'StatsRequest',
+  'data': { '*provider': 'StatsProvider',
+            '*fields': [ 'str' ] } }
+
+##
+# @StatsFilter:
+#
+# Target specific filter.
+#
+# Since: 7.0
+##
+{ 'union': 'StatsFilter',
+  'base': { 'target': 'StatsTarget' },
+  'discriminator': 'target',
+  'data': { 'vcpu': 'StatsVCPURequest',
+            'vm': 'StatsRequest' } }
+
+##
+# @StatsValueArray:
+#
+# uint64 list for StatsValue.
+#
+# Since: 7.0
+##
+{ 'struct': 'StatsValueArray',
+  'data': { 'list' : [ 'uint64' ] } }
+
+##
+# @StatsValue:
+#
+# @scalar: stat is single uint64.
+# @list: stat is a list of uint64.
+#
+# Since: 7.0
+##
+{ 'alternate': 'StatsValue',
+  'data': { 'scalar': 'uint64',
+            'list': 'StatsValueArray' } }
+
+##
+# @Stats:
+#
+# @name: name of stat.
+# @value: stat value.
+#
+# Since: 7.0
+##
+{ 'struct': 'Stats',
+  'data': { 'name': 'str',
+            'value' : 'StatsValue' } }
+
+##
+# @StatsResultsEntry:
+#
+# @provider: stat provider.
+# @stats: list of stats.
+#
+# Since: 7.0
+##
+{ 'struct': 'StatsResultsEntry',
+  'data': { 'provider': 'StatsProvider',
+            'stats': [ 'Stats' ] } }
+
+##
+# @VCPUResultsEntry:
+#
+# @path: qom path.
+# @list: per provider @StatsResultEntry list.
+#
+# Since: 7.0
+##
+{ 'struct': 'VCPUResultsEntry',
+  'data': { 'path': 'str',
+            'list': [ 'StatsResultsEntry' ] } }
+
+##
+# @VMStatsResults:
+#
+# Since: 7.0
+##
+{ 'struct': 'VMStatsResults',
+  'data': { 'list' : [ 'StatsResultsEntry' ] } }
+
+##
+# @VCPUStatsResults:
+#
+# Since: 7.0
+##
+{ 'struct': 'VCPUStatsResults',
+  'data': { 'list': [ 'VCPUResultsEntry' ] } }
+
+##
+# @StatsResults:
+#
+# Target specific results.
+#
+# Since: 7.0
+##
+{ 'union': 'StatsResults',
+  'base': { 'target': 'StatsTarget' },
+  'discriminator': 'target',
+  'data': { 'vcpu': 'VCPUStatsResults',
+            'vm': 'VMStatsResults' } }
+
+##
+# @query-stats:
+#
+# data: @StatsFilter
+# Returns: @StatsResults
+#
+# Since: 7.0
+##
+{ 'command': 'query-stats',
+  'data': 'StatsFilter',
+  'boxed': true,
+  'returns': 'StatsResults' }
+
+##
+# @StatsSchemaValue:
+#
+# Individual stat schema.
+# @name: stat name.
+# @type: @StatType
+# @unit: @StatUnit
+# @base: @StatBase
+# @exponent: Used together with @base.
+#
+# Since: 7.0
+##
+{ 'struct': 'StatsSchemaValue',
+  'data': { 'name': 'str',
+            'type': 'StatType',
+            'unit': 'StatUnit',
+            'base': 'StatBase',
+            'exponent': 'int16' } }
+
+##
+# @StatsSchemaProvider:
+#
+# @provider: @StatsProvider.
+# @stats: list of stats.
+#
+# Since: 7.0
+##
+{ 'struct': 'StatsSchemaProvider',
+  'data': { 'provider': 'StatsProvider',
+            'stats': [ 'StatsSchemaValue' ] } }
+
+##
+# @StatsSchemaResult:
+#
+# @vm: vm stats schemas.
+# @vcpu: vcpu stats schemas.
+#
+# Since: 7.0
+##
+{ 'struct': 'StatsSchemaResult',
+  'data': { '*vm': [ 'StatsSchemaProvider' ],
+            '*vcpu': [ 'StatsSchemaProvider' ] } }
+
+##
+# @query-stats-schemas:
+#
+# Query Stats schemas.
+# Returns @StatsSchemaResult
+#
+# Since: 7.0
+##
+{ 'command': 'query-stats-schemas',
+  'data': { '*provider': 'StatsProvider' },
+  'returns': 'StatsSchemaResult' }
