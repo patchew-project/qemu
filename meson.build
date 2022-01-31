@@ -2515,6 +2515,7 @@ if have_system
     'hw/rtc',
     'hw/s390x',
     'hw/scsi',
+    'hw/sensor',
     'hw/sd',
     'hw/sh4',
     'hw/sparc',
