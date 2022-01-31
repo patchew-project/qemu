@@ -2178,3 +2178,291 @@ void hmp_info_memory_size_summary(Monitor *mon, const QDict *qdict)
     }
     hmp_handle_error(mon, err);
 }
+
+static void print_stats_schema_value(Monitor *mon, StatsSchemaValue *value)
+{
+    monitor_printf(mon, "    %s (%s", value->name, StatType_str(value->type));
+
+    if (value->unit == STAT_UNIT_SECONDS &&
+        value->exponent >= -9 && value->exponent <= 0 &&
+        value->exponent % 3 == 0 && value->base == STAT_BASE_POW10) {
+
+        const char *si_prefix[] = { "", "milli", "micro", "nano" };
+        monitor_printf(mon, " %s", si_prefix[value->exponent / -3]);
+
+    } else if (value->unit == STAT_UNIT_BYTES &&
+        value->exponent >= 0 && value->exponent <= 40 &&
+        value->exponent % 10 == 0 && value->base == STAT_BASE_POW2) {
+
+        const char *si_prefix[] = {
+            "", "kilo", "mega", "giga", "tera" };
+        monitor_printf(mon, " %s", si_prefix[value->exponent / 10]);
+
+    } else if (value->exponent) {
+        /* Print the base and exponent as "x <base>^<exp>" */
+        monitor_printf(mon, " x %s^%d", StatBase_str(value->base),
+                       value->exponent);
+    }
+
+    /* Don't print "none" unit type */
+    monitor_printf(mon, "%s)", value->unit == STAT_UNIT_NONE ?
+                   "" : StatUnit_str(value->unit));
+}
+
+static StatsSchemaValueList *find_schema_value_list(
+    StatsSchemaProviderList *list, StatsProvider provider)
+{
+    StatsSchemaProviderList *schema_provider_list;
+
+    for (schema_provider_list = list;
+         schema_provider_list;
+         schema_provider_list = schema_provider_list->next) {
+        if (schema_provider_list->value->provider == provider) {
+            return schema_provider_list->value->stats;
+        }
+    }
+    return NULL;
+}
+
+static void print_stats_results_entry_list(Monitor *mon, StatsTarget type,
+                                           StatsResultsEntryList *list,
+                                           StatsSchemaProviderList *schema)
+{
+    StatsResultsEntryList *results_entry_list;
+
+    for (results_entry_list = list;
+         results_entry_list;
+         results_entry_list = results_entry_list->next) {
+
+        StatsResultsEntry *results_entry = results_entry_list->value;
+        monitor_printf(mon, "  provider: %s\n",
+                       StatsProvider_str(results_entry->provider));
+
+        /* Find provider schema */
+        StatsSchemaValueList *schema_value_list =
+            find_schema_value_list(schema, results_entry->provider);
+        StatsList *stats_list;
+
+        for (stats_list = results_entry->stats;
+             stats_list;
+             stats_list = stats_list->next,
+                 schema_value_list = schema_value_list->next) {
+
+            Stats *stats = stats_list->value;
+            StatsValue *stats_value = stats->value;
+            StatsSchemaValue *schema_value = schema_value_list->value;
+
+            /* Find schema entry */
+            while (!g_str_equal(stats->name, schema_value->name)) {
+                if (!schema_value_list->next) {
+                    monitor_printf(mon, "failed to find schema entry for %s\n",
+                                   stats->name);
+                    return;
+                }
+                schema_value_list = schema_value_list->next;
+                schema_value = schema_value_list->value;
+            }
+
+            print_stats_schema_value(mon, schema_value);
+
+            if (stats_value->type == QTYPE_QNUM) {
+                monitor_printf(mon, ": %ld\n", stats_value->u.scalar);
+            } else if (stats_value->type == QTYPE_QDICT) {
+                uint64List *list;
+                int i;
+
+                monitor_printf(mon, ": ");
+                for (list = stats_value->u.list.list, i = 1;
+                     list;
+                     list = list->next, i++) {
+                    monitor_printf(mon, "[%d]=%ld ", i, list->value);
+                }
+                monitor_printf(mon, "\n");
+            }
+        }
+    }
+}
+
+static const char wildcard[] = "*";
+static StatsFilter *stats_filter(StatsTarget target, const char *name,
+                                 StatsProvider provider)
+{
+    StatsFilter *filter = g_malloc0(sizeof(*filter));
+    filter->target = target;
+
+    switch (target) {
+    case STATS_TARGET_VM:
+        if (name && !g_str_equal(name, wildcard)) {
+            filter->u.vm.fields = strList_from_comma_list(name);
+            filter->u.vm.has_fields = true;
+        }
+        if (provider != STATS_PROVIDER__MAX) {
+            filter->u.vm.provider = provider;
+            filter->u.vm.has_provider = true;
+        }
+        break;
+    case STATS_TARGET_VCPU:
+        if (name && !g_str_equal(name, wildcard)) {
+            filter->u.vcpu.fields = strList_from_comma_list(name);
+            filter->u.vcpu.has_fields = true;
+        }
+        if (provider != STATS_PROVIDER__MAX) {
+            filter->u.vcpu.provider = provider;
+            filter->u.vcpu.has_provider = true;
+        }
+        break;
+    default:
+        break;
+    }
+    return filter;
+}
+
+void hmp_info_stats(Monitor *mon, const QDict *qdict)
+{
+    const char *names = qdict_get_try_str(qdict, "names");
+    const char *paths = qdict_get_try_str(qdict, "paths");
+    const char *provider = qdict_get_try_str(qdict, "provider");
+
+    StatsProvider stats_provider = STATS_PROVIDER__MAX;
+    StatsTarget target;
+    Error *err = NULL;
+
+    if (provider) {
+        for (stats_provider = 0; stats_provider < STATS_PROVIDER__MAX;
+             stats_provider++) {
+            if (g_str_equal(StatsProvider_str(stats_provider), provider)) {
+                break;
+            }
+        }
+        if (stats_provider == STATS_PROVIDER__MAX) {
+            monitor_printf(mon, "invalid stats filter provider %s\n",
+                           provider);
+            goto exit;
+        }
+    }
+
+    for (target = 0; target < STATS_TARGET__MAX; target++) {
+        StatsResults *stats_results = NULL;
+        StatsSchemaResult *schema_results = NULL;
+        StatsFilter *filter = stats_filter(target, names, stats_provider);
+
+        switch (target) {
+        case STATS_TARGET_VM:
+            if (paths && !g_str_equal(paths, wildcard) &&
+                !g_str_equal(paths, StatsTarget_str(STATS_TARGET_VM))) {
+                break;
+            }
+            stats_results = qmp_query_stats(filter, &err);
+            schema_results =
+                qmp_query_stats_schemas(provider ? true : false,
+                                        stats_provider, &err);
+
+            if (!stats_results->u.vm.list) {
+                break;
+            }
+            monitor_printf(mon, "%s\n", StatsTarget_str(STATS_TARGET_VM));
+            print_stats_results_entry_list(mon, STATS_TARGET_VM,
+                                           stats_results->u.vm.list,
+                                           schema_results->vm);
+            break;
+        case STATS_TARGET_VCPU:
+            if (paths && !g_str_equal(paths, wildcard) &&
+                !g_str_equal(paths, StatsTarget_str(STATS_TARGET_VCPU))) {
+                /* apply filter for specified paths */
+                filter->u.vcpu.paths = strList_from_comma_list(paths);
+                filter->u.vcpu.has_paths = true;
+            }
+
+            stats_results = qmp_query_stats(filter, &err);
+            schema_results =
+                qmp_query_stats_schemas(provider ? true : false,
+                                        stats_provider, &err);
+
+            VCPUResultsEntryList *results_entry_list;
+            for (results_entry_list = stats_results->u.vcpu.list;
+                 results_entry_list;
+                 results_entry_list = results_entry_list->next) {
+                monitor_printf(mon, "%s (qom path: %s)\n",
+                               StatsTarget_str(STATS_TARGET_VCPU),
+                               results_entry_list->value->path);
+                print_stats_results_entry_list(mon, STATS_TARGET_VCPU,
+                                               results_entry_list->value->list,
+                                               schema_results->vcpu);
+            }
+            break;
+        default:
+            break;
+        }
+        qapi_free_StatsFilter(filter);
+        qapi_free_StatsSchemaResult(schema_results);
+        qapi_free_StatsResults(stats_results);
+    }
+
+exit:
+    if (err) {
+        monitor_printf(mon, "%s\n", error_get_pretty(err));
+        error_free(err);
+    }
+}
+
+static void print_stats_schema_list(Monitor *mon, StatsSchemaProviderList *list)
+{
+    StatsSchemaProviderList *schema_provider_list;
+
+    for (schema_provider_list = list;
+         schema_provider_list;
+         schema_provider_list = schema_provider_list->next) {
+
+        StatsSchemaProvider *schema_provider =
+            schema_provider_list->value;
+        monitor_printf(mon, "  provider: %s\n",
+                       StatsProvider_str(schema_provider->provider));
+
+        StatsSchemaValueList *schema_value_list;
+        for (schema_value_list = schema_provider->stats;
+             schema_value_list;
+             schema_value_list = schema_value_list->next) {
+
+            StatsSchemaValue *schema_value = schema_value_list->value;
+            print_stats_schema_value(mon, schema_value);
+            monitor_printf(mon, "\n");
+        }
+    }
+}
+
+void hmp_info_stats_schemas(Monitor *mon, const QDict *qdict)
+{
+    const char *provider = qdict_get_try_str(qdict, "provider");
+    StatsProvider stats_provider = STATS_PROVIDER__MAX;
+    StatsSchemaResult *schema_result;
+    Error *err = NULL;
+
+    if (provider) {
+        for (stats_provider = 0; stats_provider < STATS_PROVIDER__MAX;
+             stats_provider++) {
+            if (g_str_equal(StatsProvider_str(stats_provider), provider)) {
+                break;
+            }
+        }
+        if (stats_provider == STATS_PROVIDER__MAX) {
+            monitor_printf(mon, "invalid stats filter provider %s\n", provider);
+            return;
+       }
+    }
+
+    schema_result =
+        qmp_query_stats_schemas(provider ? true : false, stats_provider, &err);
+
+    if (err) {
+        monitor_printf(mon, "%s\n", error_get_pretty(err));
+        error_free(err);
+        return;
+    }
+
+    monitor_printf(mon, "%s\n", StatsTarget_str(STATS_TARGET_VM));
+    print_stats_schema_list(mon, schema_result->vm);
+    monitor_printf(mon, "%s\n", StatsTarget_str(STATS_TARGET_VCPU));
+    print_stats_schema_list(mon, schema_result->vcpu);
+
+    qapi_free_StatsSchemaResult(schema_result);
+}

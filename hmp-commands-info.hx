@@ -879,3 +879,31 @@ SRST
   ``info sgx``
     Show intel SGX information.
 ERST
+
+    {
+        .name       = "stats",
+        .args_type  = "names:s?,paths:s?,provider:s?",
+        .params     = "[names] [paths] [provider]",
+        .help       = "show statistics; optional comma separated names, "
+	              "vcpu qom paths, and provider",
+        .cmd        = hmp_info_stats,
+    },
+
+SRST
+  ``stats``
+    Show stats
+ERST
+
+    {
+        .name       = "stats-schemas",
+        .args_type  = "provider:s?",
+        .params     = "[provider]",
+        .help       = "show statistics schema for each provider",
+        .cmd        = hmp_info_stats_schemas,
+    },
+
+SRST
+  ``stats-schemas``
+    Show stats per schema
+ERST
+
