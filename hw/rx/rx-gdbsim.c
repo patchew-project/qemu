@@ -143,6 +143,7 @@ static void rx_gdbsim_init(MachineState *machine)
             }
             /* DTB is located at the end of SDRAM space. */
             dtb_offset = machine->ram_size - dtb_size;
+            dtb_offset &= ~0x0f;
             rom_add_blob_fixed("dtb", dtb, dtb_size,
                                SDRAM_BASE + dtb_offset);
             /* Set dtb address to R1 */
