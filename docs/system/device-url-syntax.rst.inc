@@ -74,18 +74,20 @@ special URL syntax.
 
       |qemu_system| --drive file=nbd:unix:/tmp/nbd-socket
 
-``SSH``
-   QEMU supports SSH (Secure Shell) access to remote disks.
+.. only:: not DISABLE_LIBSSH
 
-   Examples:
+    ``SSH``
+       QEMU supports SSH (Secure Shell) access to remote disks.
 
-   .. parsed-literal::
+       Examples:
 
-      |qemu_system| -drive file=ssh://user@host/path/to/disk.img
-      |qemu_system| -drive file.driver=ssh,file.user=user,file.host=host,file.port=22,file.path=/path/to/disk.img
+       .. parsed-literal::
 
-   Currently authentication must be done using ssh-agent. Other
-   authentication methods may be supported in future.
+          |qemu_system| -drive file=ssh://user@host/path/to/disk.img
+          |qemu_system| -drive file.driver=ssh,file.user=user,file.host=host,file.port=22,file.path=/path/to/disk.img
+
+       Currently authentication must be done using ssh-agent. Other
+       authentication methods may be supported in future.
 
 ``GlusterFS``
    GlusterFS is a user space distributed file system. QEMU supports the
