@@ -1852,7 +1852,11 @@ static void finalize_gic_version(VirtMachineState *vms)
         vms->gic_version = VIRT_GIC_VERSION_2;
         break;
     case VIRT_GIC_VERSION_MAX:
+#ifdef CONFIG_ARM_GIC_TCG
         vms->gic_version = VIRT_GIC_VERSION_3;
+#else
+        vms->gic_version = VIRT_GIC_VERSION_2;
+#endif
         break;
     case VIRT_GIC_VERSION_HOST:
         error_report("gic-version=host requires KVM");
