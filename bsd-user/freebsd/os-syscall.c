@@ -200,7 +200,32 @@ abi_long do_freebsd_syscall(void *cpu_env, int num, abi_long arg1,
                             abi_long arg5, abi_long arg6, abi_long arg7,
                             abi_long arg8)
 {
-    return 0;
+    CPUState *cpu = env_cpu(cpu_env);
+    abi_long ret;
+
+#ifdef DEBUG
+    gemu_log("freebsd syscall %d\n", num);
+#endif
+    trace_guest_user_syscall(cpu, num, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+    if (do_strace) {
+        print_freebsd_syscall(num, arg1, arg2, arg3, arg4, arg5, arg6);
+    }
+
+    switch (num) {
+    default:
+        gemu_log("qemu: unsupported syscall: %d\n", num);
+        ret = -TARGET_ENOSYS;
+        break;
+    }
+
+#ifdef DEBUG
+    gemu_log(" = %ld\n", ret);
+#endif
+    if (do_strace) {
+        print_freebsd_syscall_ret(num, ret);
+    }
+    trace_guest_user_syscall_ret(cpu, num, ret);
+    return ret;
 }
 
 void syscall_init(void)
