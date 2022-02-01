@@ -242,8 +242,10 @@ static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
          * one, then we know what to save.
          */
         if (sig == TARGET_SIGTRAP) {
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 1400026
             tinfo->_reason._capsicum._syscall =
                 info->_reason._capsicum._syscall;
+#endif
             si_type = QEMU_SI_CAPSICUM;
         }
         break;
@@ -296,8 +298,10 @@ static void tswap_siginfo(target_siginfo_t *tinfo, const target_siginfo_t *info)
         __put_user(info->_reason._poll._band, &tinfo->_reason._poll._band);
         break;
     case QEMU_SI_CAPSICUM:
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 1400026
         __put_user(info->_reason._capsicum._syscall,
                    &tinfo->_reason._capsicum._syscall);
+#endif
         break;
     default:
         g_assert_not_reached();
