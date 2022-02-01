@@ -625,6 +625,7 @@ static void fuse_fallocate(fuse_req_t req, fuse_ino_t inode, int mode,
         return;
     }
 
+#ifdef CONFIG_FALLOCATE_PUNCH_HOLE
     if (mode & FALLOC_FL_KEEP_SIZE) {
         length = MIN(length, blk_len - offset);
     }
@@ -643,6 +644,7 @@ static void fuse_fallocate(fuse_req_t req, fuse_ino_t inode, int mode,
             length -= size;
         } while (ret == 0 && length > 0);
     }
+#endif
 #ifdef CONFIG_FALLOCATE_ZERO_RANGE
     else if (mode & FALLOC_FL_ZERO_RANGE) {
         if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + length > blk_len) {
