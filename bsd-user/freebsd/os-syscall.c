@@ -167,6 +167,29 @@ struct iovec *lock_iovec(int type, abi_ulong target_addr,
     return NULL;
 }
 
+void unlock_iovec(struct iovec *vec, abi_ulong target_addr,
+        int count, int copy)
+{
+    struct target_iovec *target_vec;
+    int i;
+
+    target_vec = lock_user(VERIFY_READ, target_addr,
+                           count * sizeof(struct target_iovec), 1);
+    if (target_vec) {
+        for (i = 0; i < count; i++) {
+            abi_ulong base = tswapal(target_vec[i].iov_base);
+            abi_long len = tswapal(target_vec[i].iov_len);
+            if (len < 0) {
+                break;
+            }
+            unlock_user(vec[i].iov_base, base, copy ? vec[i].iov_len : 0);
+        }
+        unlock_user(target_vec, target_addr, 0);
+    }
+
+    free(vec);
+}
+
 /*
  * do_syscall() should always have a single exit point at the end so that
  * actions, such as logging of syscall results, can be performed.  All errnos
