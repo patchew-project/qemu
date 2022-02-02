@@ -3685,7 +3685,8 @@ for bios_file in \
     $source_path/pc-bios/openbios-* \
     $source_path/pc-bios/u-boot.* \
     $source_path/pc-bios/palcode-* \
-    $source_path/pc-bios/qemu_vga.ndrv
+    $source_path/pc-bios/qemu_vga.ndrv \
+    $source_path/pc-bios/m68k-virt.*
 
 do
     LINKS="$LINKS pc-bios/$(basename $bios_file)"
