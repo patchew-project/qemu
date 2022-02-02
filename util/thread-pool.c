@@ -25,6 +25,8 @@
 static void do_spawn_thread(ThreadPool *pool);
 
 typedef struct ThreadPoolElement ThreadPoolElement;
+int thread_pool_max_threads = 64;
+bool thread_pool_fixed_size;
 
 enum ThreadState {
     THREAD_QUEUED,
@@ -59,6 +61,7 @@ struct ThreadPool {
     QemuCond worker_stopped;
     QemuSemaphore sem;
     int max_threads;
+    bool fixed_size;
     QEMUBH *new_thread_bh;
 
     /* The following variables are only accessed from one AioContext. */
@@ -83,12 +86,16 @@ static void *worker_thread(void *opaque)
 
     while (!pool->stopping) {
         ThreadPoolElement *req;
-        int ret;
+        int ret = 0;
 
         do {
             pool->idle_threads++;
             qemu_mutex_unlock(&pool->lock);
-            ret = qemu_sem_timedwait(&pool->sem, 10000);
+            if (pool->fixed_size) {
+                qemu_sem_wait(&pool->sem);
+            } else {
+                ret = qemu_sem_timedwait(&pool->sem, 10000);
+            }
             qemu_mutex_lock(&pool->lock);
             pool->idle_threads--;
         } while (ret == -1 && !QTAILQ_EMPTY(&pool->request_list));
@@ -306,11 +313,18 @@ static void thread_pool_init_one(ThreadPool *pool, AioContext *ctx)
     qemu_mutex_init(&pool->lock);
     qemu_cond_init(&pool->worker_stopped);
     qemu_sem_init(&pool->sem, 0);
-    pool->max_threads = 64;
+    pool->max_threads = thread_pool_max_threads;
+    pool->fixed_size = thread_pool_fixed_size;
     pool->new_thread_bh = aio_bh_new(ctx, spawn_thread_bh_fn, pool);
 
     QLIST_INIT(&pool->head);
     QTAILQ_INIT(&pool->request_list);
+
+    for (int i = 0; pool->fixed_size && i < pool->max_threads; i++) {
+        qemu_mutex_lock(&pool->lock);
+        spawn_thread(pool);
+        qemu_mutex_unlock(&pool->lock);
+    }
 }
 
 ThreadPool *thread_pool_new(AioContext *ctx)

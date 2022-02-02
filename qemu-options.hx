@@ -4627,6 +4627,27 @@ SRST
     user-provided config files on sysconfdir.
 ERST
 
+DEF("thread-pool", HAS_ARG, QEMU_OPTION_threadpool,
+    "-thread-pool fixed-size=[n]\n"
+    "               Sets the number of threads always available in the pool.\n",
+    QEMU_ARCH_ALL)
+SRST
+``-thread-pool fixed-size=[n]``
+    The ``fixed-size=value`` option sets the number of readily available
+    threads in the pool. When set, the pool will create the threads during
+    initialization and will abstain from growing or shrinking during runtime.
+    This moves the burden of properly sizing the pool to the user in exchange
+    for a more deterministic thread pool behaviour. The number of threads has
+    to be greater than 0.
+
+    When not used, the thread pool size will change dynamically based on
+    demand: converging to being empty when idle and maxing out at 64 threads.
+
+    This option targets real-time systems sensitive to the latency introduced
+    by creating new threads during runtime. Performance sensitive use-cases are
+    better-off not using this.
+ERST
+
 DEF("trace", HAS_ARG, QEMU_OPTION_trace,
     "-trace [[enable=]<pattern>][,events=<file>][,file=<file>]\n"
     "                specify tracing options\n",

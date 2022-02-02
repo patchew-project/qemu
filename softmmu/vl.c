@@ -72,6 +72,7 @@
 #include "qemu/log.h"
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
+#include "block/thread-pool.h"
 #include "hw/i386/x86.h"
 #include "hw/i386/pc.h"
 #include "migration/misc.h"
@@ -491,6 +492,19 @@ static QemuOptsList qemu_action_opts = {
         },{
             .name = "watchdog",
             .type = QEMU_OPT_STRING,
+        },
+        { /* end of list */ }
+    },
+};
+
+static QemuOptsList qemu_thread_pool_opts = {
+    .name = "thread-pool",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_thread_pool_opts.head),
+    .desc = {
+        {
+            .name = "fixed-size",
+            .type = QEMU_OPT_NUMBER,
+            .help = "Sets the number of threads available in the pool",
         },
         { /* end of list */ }
     },
@@ -2809,6 +2823,7 @@ void qemu_init(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_semihosting_config_opts);
     qemu_add_opts(&qemu_fw_cfg_opts);
     qemu_add_opts(&qemu_action_opts);
+    qemu_add_opts(&qemu_thread_pool_opts);
     module_call_init(MODULE_INIT_OPTS);
 
     error_init(argv[0]);
@@ -3657,6 +3672,19 @@ void qemu_init(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_nouserconfig:
                 /* Nothing to be parsed here. Especially, do not error out below. */
+                break;
+            case QEMU_OPTION_threadpool:
+                opts = qemu_opts_parse_noisily(qemu_find_opts("thread-pool"),
+                                               optarg, false);
+                if (!opts) {
+                    exit(1);
+                }
+                thread_pool_max_threads = qemu_opt_get_number(opts, "fixed-size", 0);
+                if (thread_pool_max_threads <= 0) {
+                    error_report("fixed-size is invalid");
+                    exit(1);
+                }
+                thread_pool_fixed_size = true;
                 break;
             default:
                 if (os_parse_cmd_args(popt->index, optarg)) {

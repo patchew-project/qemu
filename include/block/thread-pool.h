@@ -23,6 +23,8 @@
 typedef int ThreadPoolFunc(void *opaque);
 
 typedef struct ThreadPool ThreadPool;
+extern int thread_pool_max_threads;
+extern bool thread_pool_fixed_size;
 
 ThreadPool *thread_pool_new(struct AioContext *ctx);
 void thread_pool_free(ThreadPool *pool);
