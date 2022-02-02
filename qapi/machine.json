@@ -505,6 +505,21 @@
    'val': 'uint8' }}
 
 ##
+# @CXLFixedMemoryWindowOptions:
+#
+# Create a CXL Fixed Memory Window (for OptsVisitor)
+#
+# @targets: Target root bridge IDs
+#
+# Since X.X //fixme
+##
+{ 'struct': 'CXLFixedMemoryWindowOptions',
+  'data': {
+      'size': 'size',
+      '*interleave-granularity': 'size',
+      'targets': ['str'] }}
+
+##
 # @X86CPURegister32:
 #
 # A X86 32-bit register

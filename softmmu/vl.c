@@ -91,6 +91,7 @@
 #include "qemu/config-file.h"
 #include "qemu/qemu-options.h"
 #include "qemu/main-loop.h"
+#include "hw/cxl/cxl.h"
 #ifdef CONFIG_VIRTFS
 #include "fsdev/qemu-fsdev.h"
 #endif
@@ -2744,6 +2745,7 @@ void qmp_x_exit_preconfig(Error **errp)
 
     qemu_init_board();
     qemu_create_cli_devices();
+    cxl_fixed_memory_window_link_targets(errp);
     qemu_machine_creation_done();
 
     if (loadvm) {
@@ -2805,6 +2807,7 @@ void qemu_init(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_msg_opts);
     qemu_add_opts(&qemu_name_opts);
     qemu_add_opts(&qemu_numa_opts);
+    qemu_add_opts(&qemu_cxl_fixed_window_opts);
     qemu_add_opts(&qemu_icount_opts);
     qemu_add_opts(&qemu_semihosting_config_opts);
     qemu_add_opts(&qemu_fw_cfg_opts);
@@ -2922,6 +2925,13 @@ void qemu_init(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_numa:
                 opts = qemu_opts_parse_noisily(qemu_find_opts("numa"),
+                                               optarg, true);
+                if (!opts) {
+                    exit(1);
+                }
+                break;
+            case QEMU_OPTION_cxl_fixed_memory_window:
+                opts = qemu_opts_parse_noisily(qemu_find_opts("cxl-fixed-memory-window"),
                                                optarg, true);
                 if (!opts) {
                     exit(1);
@@ -3764,6 +3774,7 @@ void qemu_init(int argc, char **argv, char **envp)
 
     qemu_resolve_machine_memdev();
     parse_numa_opts(current_machine);
+    parse_cxl_fixed_memory_window_opts(current_machine);
 
     if (vmstate_dump_file) {
         /* dump and exit */
