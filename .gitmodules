@@ -67,3 +67,6 @@
 [submodule "tests/lcitool/libvirt-ci"]
 	path = tests/lcitool/libvirt-ci
 	url = http://gitlab.com/libvirt/libvirt-ci
+[submodule "roms/m68k-virt"]
+	path = roms/m68k-virt
+	url = https://github.com/vivier/m68k-virt-bootstrap.git
