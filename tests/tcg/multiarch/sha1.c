@@ -17,9 +17,6 @@ A million repetitions of "a"
 */
 
 /* #define LITTLE_ENDIAN * This should be #define'd already, if true. */
-/* #define SHA1HANDSOFF * Copies data before messing with it. */
-
-#define SHA1HANDSOFF
 
 #include <stdio.h>
 #include <string.h>
@@ -69,24 +66,17 @@ void SHA1Final(unsigned char digest[20], SHA1_CTX* context);
 
 /* Hash a single 512-bit block. This is the core of the algorithm. */
 
-void SHA1Transform(uint32_t state[5], const unsigned char buffer[64])
+inline void SHA1Transform(uint32_t state[5], const unsigned char buffer[64])
 {
-uint32_t a, b, c, d, e;
-typedef union {
-    unsigned char c[64];
-    uint32_t l[16];
-} CHAR64LONG16;
-#ifdef SHA1HANDSOFF
-CHAR64LONG16 block[1];  /* use array to appear as a pointer */
-    memcpy(block, buffer, 64);
-#else
-    /* The following had better never be used because it causes the
-     * pointer-to-const buffer to be cast into a pointer to non-const.
-     * And the result is written through.  I threw a "const" in, hoping
-     * this will cause a diagnostic.
-     */
-CHAR64LONG16* block = (const CHAR64LONG16*)buffer;
-#endif
+    uint32_t a, b, c, d, e;
+    typedef union {
+        unsigned char c[64];
+        uint32_t l[16];
+    } CHAR64LONG16;
+
+    CHAR64LONG16 block[1];  /* use array to appear as a pointer */
+    memcpy(&block[0], buffer, sizeof(block));
+
     /* Copy context->state[] to working vars */
     a = state[0];
     b = state[1];
@@ -120,13 +110,7 @@ CHAR64LONG16* block = (const CHAR64LONG16*)buffer;
     state[2] += c;
     state[3] += d;
     state[4] += e;
-    /* Wipe variables */
-    a = b = c = d = e = 0;
-#ifdef SHA1HANDSOFF
-    memset(block, '\0', sizeof(block));
-#endif
 }
-
 
 /* SHA1Init - Initialize new context */
 
@@ -146,8 +130,8 @@ void SHA1Init(SHA1_CTX* context)
 
 void SHA1Update(SHA1_CTX* context, const unsigned char* data, uint32_t len)
 {
-uint32_t i;
-uint32_t j;
+    uint32_t i;
+    uint32_t j;
 
     j = context->count[0];
     if ((context->count[0] += len << 3) < j)
@@ -171,32 +155,15 @@ uint32_t j;
 
 void SHA1Final(unsigned char digest[20], SHA1_CTX* context)
 {
-unsigned i;
-unsigned char finalcount[8];
-unsigned char c;
+    unsigned i;
+    unsigned char finalcount[8];
+    unsigned char c;
 
-#if 0	/* untested "improvement" by DHR */
-    /* Convert context->count to a sequence of bytes
-     * in finalcount.  Second element first, but
-     * big-endian order within element.
-     * But we do it all backwards.
-     */
-    unsigned char *fcp = &finalcount[8];
-
-    for (i = 0; i < 2; i++)
-    {
-        uint32_t t = context->count[i];
-        int j;
-
-        for (j = 0; j < 4; t >>= 8, j++)
-            *--fcp = (unsigned char) t;
-    }
-#else
     for (i = 0; i < 8; i++) {
         finalcount[i] = (unsigned char)((context->count[(i >= 4 ? 0 : 1)]
          >> ((3-(i & 3)) * 8) ) & 255);  /* Endian independent */
     }
-#endif
+
     c = 0200;
     SHA1Update(context, &c, 1);
     while ((context->count[0] & 504) != 448) {
