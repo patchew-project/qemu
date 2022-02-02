@@ -169,7 +169,7 @@ static uint64_t a9_gtimer_read(void *opaque, hwaddr addr, unsigned size)
         return 0;
     }
 
-    DB_PRINT("addr:%#x data:%#08" PRIx64 "\n", (unsigned)addr, ret);
+    DB_PRINT("addr:0x%x data:0x%08" PRIx64 "\n", (unsigned)addr, ret);
     return ret;
 }
 
@@ -180,7 +180,7 @@ static void a9_gtimer_write(void *opaque, hwaddr addr, uint64_t value,
     A9GTimerState *s = gtb->parent;
     int shift = 0;
 
-    DB_PRINT("addr:%#x data:%#08" PRIx64 "\n", (unsigned)addr, value);
+    DB_PRINT("addr:0x%x data:0x%08" PRIx64 "\n", (unsigned)addr, value);
 
     switch (addr) {
     case R_COUNTER_HI:

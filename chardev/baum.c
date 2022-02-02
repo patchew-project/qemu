@@ -366,7 +366,7 @@ static int baum_eat_packet(BaumChardev *baum, const uint8_t *buf, int len)
         if (!len--) \
             return 0; \
         if (*cur++ != ESC) { \
-            DPRINTF("Broken packet %#2x, tossing\n", req); \
+            DPRINTF("Broken packet 0x%02x, tossing\n", req); \
             if (timer_pending(baum->cellCount_timer)) {    \
                 timer_del(baum->cellCount_timer);     \
                 baum_cellCount_timer_cb(baum);             \

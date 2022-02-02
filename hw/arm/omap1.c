@@ -42,7 +42,7 @@
 
 static inline void omap_log_badwidth(const char *funcname, hwaddr addr, int sz)
 {
-    qemu_log_mask(LOG_GUEST_ERROR, "%s: %d-bit register %#08" HWADDR_PRIx "\n",
+    qemu_log_mask(LOG_GUEST_ERROR, "%s: %d-bit register 0x%08" HWADDR_PRIx "\n",
                   funcname, 8 * sz, addr);
 }
 

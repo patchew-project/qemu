@@ -45,7 +45,7 @@ int print_insn_or1k(bfd_vma addr, disassemble_info *info)
     insn = bfd_getb32(buffer);
 
     if (!decode(info, insn)) {
-        output(".long", "%#08x", insn);
+        output(".long", "0x%08x", insn);
     }
     return 4;
 }

@@ -1851,7 +1851,7 @@ print_insn_alpha (bfd_vma memaddr, struct disassemble_info *info)
     }
 
   /* No instruction found */
-  (*info->fprintf_func) (info->stream, ".long %#08x", insn);
+  (*info->fprintf_func) (info->stream, ".long 0x%08x", insn);
 
   return 4;
 

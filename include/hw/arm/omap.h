@@ -1003,10 +1003,11 @@ void omap_badwidth_write32(void *opaque, hwaddr addr,
 void omap_mpu_wakeup(void *opaque, int irq, int req);
 
 # define OMAP_BAD_REG(paddr)		\
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad register %#08"HWADDR_PRIx"\n", \
+        qemu_log_mask(LOG_GUEST_ERROR,  \
+                      "%s: Bad register 0x%08"HWADDR_PRIx"\n", \
                       __func__, paddr)
 # define OMAP_RO_REG(paddr)		\
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Read-only register %#08" \
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Read-only register 0x%08" \
                                        HWADDR_PRIx "\n", \
                       __func__, paddr)
 
