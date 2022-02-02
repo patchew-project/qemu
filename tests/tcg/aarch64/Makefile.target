@@ -62,6 +62,17 @@ run-sha1-vector: sha1-vector run-sha1
 
 TESTS += sha1-vector
 
+# SVE versions of sha512
+sha512-sve: CFLAGS=-march=armv8.1-a+sve -O3
+sha512-sve: sha512.c
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS)
+
+sha512-sve2: CFLAGS=-march=armv8.1-a+sve2 -O3
+sha512-sve2: sha512.c
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS)
+
+TESTS += sha512-sve sha512-sve2
+
 ifneq ($(HAVE_GDB_BIN),)
 GDB_SCRIPT=$(SRC_PATH)/tests/guest-debug/run-test.py
 
