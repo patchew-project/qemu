@@ -1030,7 +1030,7 @@ static void mps2tz_common_init(MachineState *machine)
     };
 
     const PPCInfo an547_ppcs[] = { {
-            .name = "apb_ppcexp0",
+            .name = "ahb_ppcexp0",
             .ports = {
                 { "ssram-mpc", make_mpc, &mms->mpc[0], 0x57000000, 0x1000 },
                 { "qspi-mpc", make_mpc, &mms->mpc[1], 0x57001000, 0x1000 },
@@ -1072,7 +1072,7 @@ static void mps2tz_common_init(MachineState *machine)
                 { "rtc", make_rtc, &mms->rtc, 0x4930b000, 0x1000 },
             },
         }, {
-            .name = "ahb_ppcexp0",
+            .name = "apb_ppcexp0",
             .ports = {
                 { "gpio0", make_unimp_dev, &mms->gpio[0], 0x41100000, 0x1000 },
                 { "gpio1", make_unimp_dev, &mms->gpio[1], 0x41101000, 0x1000 },
