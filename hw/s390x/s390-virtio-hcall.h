@@ -13,6 +13,7 @@
 #define HW_S390_VIRTIO_HCALL_H
 
 #include "standard-headers/asm-s390/virtio-ccw.h"
+#include "cpu.h"
 
 /* The only thing that we need from the old kvm_virtio.h file */
 #define KVM_S390_VIRTIO_NOTIFY 0
