@@ -3585,6 +3585,16 @@ int gdbserver_start(const char *device)
     return 0;
 }
 
+bool gdb_attached(CPUState *cpu)
+{
+    GDBProcess *process = gdb_get_cpu_process(cpu);
+    if (process != NULL) {
+        return process->attached;
+    }
+
+    return false;
+}
+
 static void register_types(void)
 {
     type_register_static(&char_gdb_type_info);

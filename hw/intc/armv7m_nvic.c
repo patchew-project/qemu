@@ -21,6 +21,7 @@
 #include "sysemu/runstate.h"
 #include "target/arm/cpu.h"
 #include "exec/exec-all.h"
+#include "exec/gdbstub.h"
 #include "exec/memop.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
@@ -1510,6 +1511,9 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
         }
         /* We provide minimal-RAS only: RFSR is RAZ/WI */
         return 0;
+    case 0xdf0: /* DHCSR */
+        /* Bit 0: DEBUGEN. */
+        return gdb_attached(CPU(cpu)) ? 1 : 0;
     case 0xf34: /* FPCCR */
         if (!cpu_isar_feature(aa32_vfp_simd, cpu)) {
             return 0;

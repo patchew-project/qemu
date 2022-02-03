@@ -178,6 +178,12 @@ static inline uint8_t * gdb_get_reg_ptr(GByteArray *buf, int len)
 int gdbserver_start(const char *port_or_device);
 
 /**
+ * gdb_attached: check if GDB is attached to a given CPU.
+ * @cpu: the CPU to check if GDB is attached to.
+ */
+bool gdb_attached(CPUState *cpu);
+
+/**
  * gdb_has_xml:
  * This is an ugly hack to cope with both new and old gdb.
  * If gdb sends qXfer:features:read then assume we're talking to a newish
