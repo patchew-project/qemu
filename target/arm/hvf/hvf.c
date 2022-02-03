@@ -1163,6 +1163,28 @@ int hvf_vcpu_exec(CPUState *cpu)
             break;
         }
 
+        /*
+         * Dirty log updates work without isv as well. We just run the write
+         * again with write permissions set. So handle them before the assert.
+         */
+        if (iswrite) {
+            uint64_t gpa = hvf_exit->exception.physical_address;
+            hvf_slot *slot = hvf_find_overlap_slot(gpa, 1);
+
+            if (slot && slot->flags & HVF_SLOT_LOG) {
+                /*
+                 * HVF can only set a full region's permissions, so let's just
+                 * mark the full region as dirty.
+                 */
+                memory_region_set_dirty(slot->region, 0, slot->size);
+                hv_vm_protect(slot->start, slot->size, HV_MEMORY_READ |
+                              HV_MEMORY_WRITE | HV_MEMORY_EXEC);
+
+                /* Run the same instruction again, without write faulting */
+                break;
+            }
+        }
+
         assert(isv);
 
         if (iswrite) {
