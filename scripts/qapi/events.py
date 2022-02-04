@@ -109,15 +109,15 @@ def gen_event_send(name: str,
         if not boxed:
             ret += gen_param_var(arg_type)
 
-    for f in features:
-        if f.is_special():
+    for feat in features:
+        if feat.is_special():
             ret += mcgen('''
 
     if (compat_policy.%(feat)s_output == COMPAT_POLICY_OUTPUT_HIDE) {
         return;
     }
 ''',
-                         feat=f.name)
+                         feat=feat.name)
 
     ret += mcgen('''
 
