@@ -369,7 +369,7 @@ slirp="auto"
 default_devices="true"
 
 # 3. Automatically enable/disable other options
-tcg="enabled"
+tcg="auto"
 cfi="false"
 
 # 4. Detection partly done in configure
@@ -1770,7 +1770,7 @@ EOF
   fi
 fi
 
-if test "$tcg" = "enabled"; then
+if test "$tcg" != "disabled"; then
     git_submodules="$git_submodules tests/fp/berkeley-testfloat-3"
     git_submodules="$git_submodules tests/fp/berkeley-softfloat-3"
 fi
@@ -1811,6 +1811,14 @@ case " $target_list " in
   *) softmmu=no
   ;;
 esac
+
+if test "$tcg" = "auto"; then
+  if test -z "$target_list"; then
+    tcg="disabled"
+  else
+    tcg="enabled"
+  fi
+fi
 
 feature_not_found() {
   feature=$1
