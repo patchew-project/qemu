@@ -39,7 +39,6 @@ tests = {
   'test-bitcnt': [],
   'test-qgraph': ['../qtest/libqos/qgraph.c'],
   'check-qom-interface': [qom],
-  'check-qom-proplist': [qom],
   'test-qemu-opts': [],
   'test-keyval': [testqapi],
   'test-logging': [],
@@ -51,6 +50,7 @@ tests = {
 
 if have_system or have_tools
   tests += {
+    'check-qom-proplist': [qom],
     'test-qmp-event': [testqapi],
   }
 endif
