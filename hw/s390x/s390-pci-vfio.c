@@ -149,6 +149,87 @@ int s390_pci_update_passthrough_fh(S390PCIBusDevice *pbdev)
     return 0;
 }
 
+int s390_pci_probe_aif(S390PCIBusDevice *pbdev)
+{
+    VFIOPCIDevice *vdev = VFIO_PCI(pbdev->pdev);
+    struct vfio_device_feature feat = {
+        .argsz = sizeof(struct vfio_device_feature),
+        .flags = VFIO_DEVICE_FEATURE_PROBE + VFIO_DEVICE_FEATURE_ZPCI_AIF
+    };
+
+    return ioctl(vdev->vbasedev.fd, VFIO_DEVICE_FEATURE, &feat);
+}
+
+int s390_pci_set_aif(S390PCIBusDevice *pbdev, ZpciFib *fib, bool enable,
+                     bool assist)
+{
+    VFIOPCIDevice *vdev = VFIO_PCI(pbdev->pdev);
+    struct vfio_device_zpci_aif *data;
+    int size = sizeof(struct vfio_device_feature) + sizeof(*data);
+    g_autofree struct vfio_device_feature *feat = g_malloc0(size);
+
+    feat->argsz = size;
+    feat->flags = VFIO_DEVICE_FEATURE_SET + VFIO_DEVICE_FEATURE_ZPCI_AIF;
+
+    data = (struct vfio_device_zpci_aif *)&feat->data;
+    if (enable) {
+        data->flags = VFIO_DEVICE_ZPCI_FLAG_AIF_FLOAT;
+        if (!pbdev->forwarding_assist) {
+            data->flags |= VFIO_DEVICE_ZPCI_FLAG_AIF_HOST;
+        }
+        /* Fill in the guest fib info */
+        data->ibv = fib->aibv;
+        data->sb = fib->aisb;
+        data->noi = FIB_DATA_NOI(fib->data);
+        data->isc = FIB_DATA_ISC(fib->data);
+        data->sbo = FIB_DATA_AISBO(fib->data);
+    } else {
+        data->flags = 0;
+    }
+
+    return ioctl(vdev->vbasedev.fd, VFIO_DEVICE_FEATURE, feat);
+}
+
+int s390_pci_get_aif(S390PCIBusDevice *pbdev, bool enabled,
+                     bool forwarding_assist)
+{
+    VFIOPCIDevice *vdev = VFIO_PCI(pbdev->pdev);
+    struct vfio_device_zpci_aif *data;
+    int size = sizeof(struct vfio_device_feature) + sizeof(*data);
+    g_autofree struct vfio_device_feature *feat = g_malloc0(size);
+    int rc;
+
+    feat->argsz = size;
+    feat->flags = VFIO_DEVICE_FEATURE_GET + VFIO_DEVICE_FEATURE_ZPCI_AIF;
+
+    rc = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_FEATURE, feat);
+    if (rc) {
+        return rc;
+    }
+
+    /* Ensure that both kernel and QEMU agree on whether AIF is enabled */
+    data = (struct vfio_device_zpci_aif *)&feat->data;
+    if (enabled && (!(data->flags & VFIO_DEVICE_ZPCI_FLAG_AIF_FLOAT))) {
+        rc = -EINVAL;
+    } else if (!enabled && (data->flags & VFIO_DEVICE_ZPCI_FLAG_AIF_FLOAT)) {
+        rc = -EINVAL;
+    }
+
+    /*
+     * If AIF is enabled, ensure that kernel and QEMU agree on whether host
+     * delivery is being forced
+     */
+    if (enabled && forwarding_assist &&
+        (data->flags & VFIO_DEVICE_ZPCI_FLAG_AIF_HOST)) {
+        rc = -EINVAL;
+    } else if (enabled && (!forwarding_assist) &&
+               (!(data->flags & VFIO_DEVICE_ZPCI_FLAG_AIF_HOST))) {
+        rc = -EINVAL;
+    }
+
+    return rc;
+}
+
 static void s390_pci_read_base(S390PCIBusDevice *pbdev,
                                struct vfio_device_info *info)
 {
