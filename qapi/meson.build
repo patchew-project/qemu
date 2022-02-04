@@ -23,10 +23,6 @@ endif
 
 qapi_all_modules = [
   'authz',
-  'block',
-  'block-core',
-  'block-export',
-  'char',
   'common',
   'compat',
   'control',
@@ -35,26 +31,23 @@ qapi_all_modules = [
   'error',
   'introspect',
   'job',
-  'machine',
-  'machine-target',
+  'machine', # x86 is considered multiarch by some
   'migration',
   'misc',
   'misc-target',
-  'net',
   'pragma',
-  'qom',
   'replay',
   'run-state',
   'sockets',
   'trace',
-  'transaction',
-  'yank',
 ]
 if have_system
   qapi_all_modules += [
     'acpi',
     'audio',
     'qdev',
+    'machine-target',
+    'net',
     'pci',
     'rdma',
     'rocker',
@@ -63,7 +56,14 @@ if have_system
 endif
 if have_system or have_tools
   qapi_all_modules += [
+    'block',
+    'block-core',
+    'block-export',
+    'char',
+    'qom',
     'ui',
+    'transaction',
+    'yank',
   ]
 endif
 
