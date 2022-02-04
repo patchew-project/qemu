@@ -28,6 +28,8 @@ void hyperv_sint_route_unref(HvSintRoute *sint_route);
 
 int hyperv_sint_route_set_sint(HvSintRoute *sint_route);
 
+int hyperv_synic_eom(CPUState *cs);
+
 /*
  * Submit a message to be posted in vcpu context.  If the submission succeeds,
  * the status of posting the message is reported via the callback associated
