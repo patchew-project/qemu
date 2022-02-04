@@ -29,6 +29,8 @@ int s390_pci_set_aif(S390PCIBusDevice *pbdev, ZpciFib *fib, bool enable,
                      bool assist);
 int s390_pci_get_aif(S390PCIBusDevice *pbdev, bool enabled,
                      bool forwarding_assist);
+int s390_pci_probe_ioat(S390PCIBusDevice *pbdev);
+int s390_pci_set_ioat(S390PCIBusDevice *pbdev, uint64_t iota);
 
 void s390_pci_get_clp_info(S390PCIBusDevice *pbdev);
 #else
@@ -66,6 +68,14 @@ static inline int s390_pci_set_aif(S390PCIBusDevice *pbdev, ZpciFib *fib,
 }
 static inline int s390_pci_get_aif(S390PCIBusDevice *pbdev, bool enabled,
                                    bool forwarding_assist)
+{
+    return -EINVAL;
+}
+static inline int s390_pci_probe_ioat(S390PCIBusDevice *pbdev)
+{
+    return -EINVAL;
+}
+static inline int s390_pci_set_ioat(S390PCIBusDevice *pbdev, uint64_t iota)
 {
     return -EINVAL;
 }
