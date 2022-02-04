@@ -211,6 +211,7 @@ static const int tcg_target_call_oarg_regs[] = {
 #define ARITH_ADD  (INSN_OP(2) | INSN_OP3(0x00))
 #define ARITH_ADDCC (INSN_OP(2) | INSN_OP3(0x10))
 #define ARITH_AND  (INSN_OP(2) | INSN_OP3(0x01))
+#define ARITH_ANDCC (INSN_OP(2) | INSN_OP3(0x11))
 #define ARITH_ANDN (INSN_OP(2) | INSN_OP3(0x05))
 #define ARITH_OR   (INSN_OP(2) | INSN_OP3(0x02))
 #define ARITH_ORCC (INSN_OP(2) | INSN_OP3(0x12))
@@ -997,7 +998,7 @@ static void build_trampolines(TCGContext *s)
             /* Skip the oi argument.  */
             ra += 1;
         }
-                
+
         /* Set the retaddr operand.  */
         if (ra >= TCG_REG_O6) {
             tcg_out_st(s, TCG_TYPE_PTR, TCG_REG_O7, TCG_REG_CALL_STACK,
@@ -1008,6 +1009,38 @@ static void build_trampolines(TCGContext *s)
 
         /* Tail call.  */
         tcg_out_jmpl_const(s, qemu_st_helpers[i], true, true);
+        /* delay slot -- set the env argument */
+        tcg_out_mov_delay(s, TCG_REG_O0, TCG_AREG0);
+    }
+}
+#else
+static const tcg_insn_unit *qemu_unalign_ld_trampoline;
+static const tcg_insn_unit *qemu_unalign_st_trampoline;
+
+static void build_trampolines(TCGContext *s)
+{
+    for (int ld = 0; ld < 2; ++ld) {
+        void *helper;
+
+        while ((uintptr_t)s->code_ptr & 15) {
+            tcg_out_nop(s);
+        }
+
+        if (ld) {
+            helper = helper_unaligned_ld;
+            qemu_unalign_ld_trampoline = tcg_splitwx_to_rx(s->code_ptr);
+        } else {
+            helper = helper_unaligned_st;
+            qemu_unalign_st_trampoline = tcg_splitwx_to_rx(s->code_ptr);
+        }
+
+        if (!SPARC64 && TARGET_LONG_BITS == 64) {
+            /* Install the high part of the address.  */
+            tcg_out_arithi(s, TCG_REG_O1, TCG_REG_O2, 32, SHIFT_SRLX);
+        }
+
+        /* Tail call.  */
+        tcg_out_jmpl_const(s, helper, true, true);
         /* delay slot -- set the env argument */
         tcg_out_mov_delay(s, TCG_REG_O0, TCG_AREG0);
     }
@@ -1062,9 +1095,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     /* delay slot */
     tcg_out_movi_imm13(s, TCG_REG_O0, 0);
 
-#ifdef CONFIG_SOFTMMU
     build_trampolines(s);
-#endif
 }
 
 static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
@@ -1149,18 +1180,22 @@ static TCGReg tcg_out_tlb_load(TCGContext *s, TCGReg addr, int mem_index,
 static const int qemu_ld_opc[(MO_SSIZE | MO_BSWAP) + 1] = {
     [MO_UB]   = LDUB,
     [MO_SB]   = LDSB,
+    [MO_UB | MO_LE] = LDUB,
+    [MO_SB | MO_LE] = LDSB,
 
     [MO_BEUW] = LDUH,
     [MO_BESW] = LDSH,
     [MO_BEUL] = LDUW,
     [MO_BESL] = LDSW,
     [MO_BEUQ] = LDX,
+    [MO_BESQ] = LDX,
 
     [MO_LEUW] = LDUH_LE,
     [MO_LESW] = LDSH_LE,
     [MO_LEUL] = LDUW_LE,
     [MO_LESL] = LDSW_LE,
     [MO_LEUQ] = LDX_LE,
+    [MO_LESQ] = LDX_LE,
 };
 
 static const int qemu_st_opc[(MO_SIZE | MO_BSWAP) + 1] = {
@@ -1179,11 +1214,12 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
                             MemOpIdx oi, bool is_64)
 {
     MemOp memop = get_memop(oi);
+    tcg_insn_unit *label_ptr;
+
 #ifdef CONFIG_SOFTMMU
     unsigned memi = get_mmuidx(oi);
     TCGReg addrz, param;
     const tcg_insn_unit *func;
-    tcg_insn_unit *label_ptr;
 
     addrz = tcg_out_tlb_load(s, addr, memi, memop,
                              offsetof(CPUTLBEntry, addr_read));
@@ -1247,13 +1283,190 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
 
     *label_ptr |= INSN_OFF19(tcg_ptr_byte_diff(s->code_ptr, label_ptr));
 #else
+    TCGReg index = (guest_base ? TCG_GUEST_BASE_REG : TCG_REG_G0);
+    unsigned a_bits = get_alignment_bits(memop);
+    unsigned s_bits = memop & MO_SIZE;
+    unsigned t_bits;
+    TCGReg orig_addr = addr;
+
     if (SPARC64 && TARGET_LONG_BITS == 32) {
         tcg_out_arithi(s, TCG_REG_T1, addr, 0, SHIFT_SRL);
         addr = TCG_REG_T1;
     }
-    tcg_out_ldst_rr(s, data, addr,
-                    (guest_base ? TCG_GUEST_BASE_REG : TCG_REG_G0),
+
+    /*
+     * Normal case: alignment equal to access size.
+     */
+    if (a_bits == s_bits) {
+        tcg_out_ldst_rr(s, data, addr, index,
+                        qemu_ld_opc[memop & (MO_BSWAP | MO_SSIZE)]);
+        return;
+    }
+
+    /*
+     * Test for at least natural alignment, and assume most accesses
+     * will be aligned -- perform a straight load in the delay slot.
+     * This is required to preserve atomicity for aligned accesses.
+     */
+    t_bits = MAX(a_bits, s_bits);
+    tcg_debug_assert(t_bits < 13);
+    tcg_out_arithi(s, TCG_REG_G0, addr, (1u << t_bits) - 1, ARITH_ANDCC);
+
+    /* beq,a,pt %icc, label */
+    label_ptr = s->code_ptr;
+    tcg_out_bpcc0(s, COND_E, BPCC_A | BPCC_PT | BPCC_ICC, 0);
+    /* delay slot */
+    tcg_out_ldst_rr(s, data, addr, index,
                     qemu_ld_opc[memop & (MO_BSWAP | MO_SSIZE)]);
+
+    /*
+     * Overalignment: When we're asking for really large alignment,
+     * the actual access is always done above and all we need to do
+     * here is invoke the handler for SIGBUS.
+     */
+    if (a_bits >= s_bits) {
+        TCGReg arg_low = TCG_REG_O1 + (!SPARC64 && TARGET_LONG_BITS == 64);
+        tcg_out_call_nodelay(s, qemu_unalign_ld_trampoline, false);
+        /* delay slot -- move to low part of argument reg */
+        tcg_out_mov_delay(s, arg_low, addr);
+        goto done;
+    }
+
+    /*
+     * Underalignment: use multiple loads to perform the operation.
+     *
+     * Force full address into T1 early; avoids problems with
+     * overlap between @addr and @data.
+     *
+     * Note that the little-endian instructions use the immediate
+     * asi form, and must use tcg_out_ldst_rr.
+     */
+    tcg_out_arith(s, TCG_REG_T1, addr, index, ARITH_ADD);
+
+    switch ((unsigned)memop) {
+    case MO_BEUW | MO_UNALN:
+    case MO_BESW | MO_UNALN:
+    case MO_BEUL | MO_ALIGN_2:
+    case MO_BESL | MO_ALIGN_2:
+    case MO_BEUQ | MO_ALIGN_4:
+        /* Two loads: shift and combine. */
+        tcg_out_ldst(s, TCG_REG_T2, TCG_REG_T1, 0,
+                        qemu_ld_opc[a_bits | MO_BE | (memop & MO_SIGN)]);
+        tcg_out_ldst(s, data, TCG_REG_T1, 1 << a_bits,
+                        qemu_ld_opc[a_bits | MO_BE]);
+        tcg_out_arithi(s, TCG_REG_T2, TCG_REG_T2, 8 << a_bits, SHIFT_SLLX);
+        tcg_out_arith(s, data, data, TCG_REG_T2, ARITH_OR);
+        break;
+
+    case MO_LEUW | MO_UNALN:
+    case MO_LESW | MO_UNALN:
+    case MO_LEUL | MO_ALIGN_2:
+    case MO_LESL | MO_ALIGN_2:
+    case MO_LEUQ | MO_ALIGN_4:
+        /* Similarly, with shifts adjusted for little-endian. */
+        tcg_out_ldst_rr(s, TCG_REG_T2, TCG_REG_T1, TCG_REG_G0,
+                        qemu_ld_opc[a_bits | MO_LE]);
+        tcg_out_arithi(s, TCG_REG_T1, TCG_REG_T1, 1 << a_bits, ARITH_ADD);
+        tcg_out_ldst_rr(s, data, TCG_REG_T1, TCG_REG_G0,
+                        qemu_ld_opc[a_bits | MO_LE | (memop & MO_SIGN)]);
+        tcg_out_arithi(s, data, data, 8 << a_bits, SHIFT_SLLX);
+        tcg_out_arith(s, data, data, TCG_REG_T2, ARITH_OR);
+        break;
+
+    case MO_BEUL | MO_UNALN:
+    case MO_BESL | MO_UNALN:
+        /*
+         * Naively, this would require 4 loads, 3 shifts, 3 ors.
+         * Use two 32-bit aligned loads, combine, and extract.
+         */
+        tcg_out_arithi(s, TCG_REG_T1, TCG_REG_T1, 3, ARITH_ANDN);
+        tcg_out_ldst(s, TCG_REG_T2, TCG_REG_T1, 0, LDUW);
+        tcg_out_ldst(s, TCG_REG_T1, TCG_REG_T1, 4, LDUW);
+        tcg_out_arithi(s, TCG_REG_T2, TCG_REG_T2, 32, SHIFT_SLLX);
+        tcg_out_arith(s, TCG_REG_T1, TCG_REG_T1, TCG_REG_T2, ARITH_OR);
+        tcg_out_arithi(s, TCG_REG_T2, orig_addr, 3, ARITH_AND);
+        tcg_out_arithi(s, TCG_REG_T2, TCG_REG_T2, 3, SHIFT_SLL);
+        tcg_out_arith(s, TCG_REG_T1, TCG_REG_T1, TCG_REG_T2, SHIFT_SLLX);
+        tcg_out_arithi(s, data, TCG_REG_T1, 32,
+                       memop & MO_SIGN ? SHIFT_SRAX : SHIFT_SRLX);
+        break;
+
+    case MO_LEUL | MO_UNALN:
+    case MO_LESL | MO_UNALN:
+        /* Similarly, with shifts adjusted for little-endian. */
+        tcg_out_arithi(s, TCG_REG_T1, TCG_REG_T1, 3, ARITH_ANDN);
+        tcg_out_ldst_rr(s, TCG_REG_T2, TCG_REG_T1, TCG_REG_G0, LDUW_LE);
+        tcg_out_arithi(s, TCG_REG_T1, TCG_REG_T1, 4, ARITH_ADD);
+        tcg_out_ldst_rr(s, TCG_REG_T1, TCG_REG_T1, TCG_REG_G0, LDUW_LE);
+        tcg_out_arithi(s, TCG_REG_T1, TCG_REG_T1, 32, SHIFT_SLLX);
+        tcg_out_arith(s, TCG_REG_T1, TCG_REG_T1, TCG_REG_T2, ARITH_OR);
+        tcg_out_arithi(s, TCG_REG_T2, orig_addr, 3, ARITH_AND);
+        tcg_out_arithi(s, TCG_REG_T2, TCG_REG_T2, 3, SHIFT_SLL);
+        tcg_out_arith(s, data, TCG_REG_T1, TCG_REG_T2, SHIFT_SRLX);
+        if (is_64) {
+            tcg_out_arithi(s, data, data, 0,
+                           memop & MO_SIGN ? SHIFT_SRA : SHIFT_SRL);
+        }
+        break;
+
+    case MO_BEUQ | MO_UNALN:
+        /* Similarly for 64-bit. */
+        tcg_out_arithi(s, TCG_REG_T1, TCG_REG_T1, 7, ARITH_ANDN);
+        tcg_out_ldst(s, TCG_REG_T2, TCG_REG_T1, 0, LDX);
+        tcg_out_ldst(s, TCG_REG_T1, TCG_REG_T1, 8, LDX);
+        tcg_out_arithi(s, data, orig_addr, 7, ARITH_AND);
+        tcg_out_arithi(s, data, data, 3, SHIFT_SLL);
+        tcg_out_arith(s, TCG_REG_T2, TCG_REG_T2, data, SHIFT_SLLX);
+        tcg_out_arithi(s, data, data, 64, ARITH_SUB);
+        tcg_out_arith(s, TCG_REG_T1, TCG_REG_T1, data, SHIFT_SRLX);
+        tcg_out_arith(s, data, TCG_REG_T1, TCG_REG_T2, ARITH_OR);
+        break;
+
+    case MO_LEUQ | MO_UNALN:
+        /* Similarly for little-endian. */
+        tcg_out_arithi(s, TCG_REG_T1, TCG_REG_T1, 7, ARITH_ANDN);
+        tcg_out_ldst_rr(s, TCG_REG_T2, TCG_REG_T1, TCG_REG_G0, LDX_LE);
+        tcg_out_arithi(s, TCG_REG_T1, TCG_REG_T1, 8, ARITH_ADD);
+        tcg_out_ldst_rr(s, TCG_REG_T1, TCG_REG_T1, TCG_REG_G0, LDX_LE);
+        tcg_out_arithi(s, data, orig_addr, 7, ARITH_AND);
+        tcg_out_arithi(s, data, data, 3, SHIFT_SLL);
+        tcg_out_arith(s, TCG_REG_T2, TCG_REG_T2, data, SHIFT_SRLX);
+        tcg_out_arithi(s, data, data, 64, ARITH_SUB);
+        tcg_out_arith(s, TCG_REG_T1, TCG_REG_T1, data, SHIFT_SLLX);
+        tcg_out_arith(s, data, TCG_REG_T1, TCG_REG_T2, ARITH_OR);
+        break;
+
+    case MO_BEUQ | MO_ALIGN_2:
+        /*
+         * An extra test to verify alignment 2 is 5 insns, which
+         * is more than we would save by using the slightly smaller
+         * unaligned sequence above.
+         */
+        tcg_out_ldst(s, data, TCG_REG_T1, 0, LDUH);
+        for (int i = 2; i < 8; i += 2) {
+            tcg_out_ldst(s, TCG_REG_T2, TCG_REG_T1, i, LDUW);
+            tcg_out_arithi(s, data, data, 16, SHIFT_SLLX);
+            tcg_out_arith(s, data, data, TCG_REG_T2, ARITH_OR);
+        }
+        break;
+
+    case MO_LEUQ | MO_ALIGN_2:
+        /* Similarly for little-endian. */
+        tcg_out_ldst_rr(s, data, TCG_REG_T1, TCG_REG_G0, LDUH_LE);
+        for (int i = 2; i < 8; i += 2) {
+            tcg_out_arithi(s, TCG_REG_T1, TCG_REG_T1, 2, ARITH_ADD);
+            tcg_out_ldst_rr(s, TCG_REG_T2, TCG_REG_T1, TCG_REG_G0, LDUW_LE);
+            tcg_out_arithi(s, TCG_REG_T2, TCG_REG_T2, i * 8, SHIFT_SLLX);
+            tcg_out_arith(s, data, data, TCG_REG_T2, ARITH_OR);
+        }
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
+
+ done:
+    *label_ptr |= INSN_OFF19(tcg_ptr_byte_diff(s->code_ptr, label_ptr));
 #endif /* CONFIG_SOFTMMU */
 }
 
@@ -1261,11 +1474,12 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
                             MemOpIdx oi)
 {
     MemOp memop = get_memop(oi);
+    tcg_insn_unit *label_ptr;
+
 #ifdef CONFIG_SOFTMMU
     unsigned memi = get_mmuidx(oi);
     TCGReg addrz, param;
     const tcg_insn_unit *func;
-    tcg_insn_unit *label_ptr;
 
     addrz = tcg_out_tlb_load(s, addr, memi, memop,
                              offsetof(CPUTLBEntry, addr_write));
@@ -1302,13 +1516,89 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
 
     *label_ptr |= INSN_OFF19(tcg_ptr_byte_diff(s->code_ptr, label_ptr));
 #else
+    TCGReg index = (guest_base ? TCG_GUEST_BASE_REG : TCG_REG_G0);
+    unsigned a_bits = get_alignment_bits(memop);
+    unsigned s_bits = memop & MO_SIZE;
+    unsigned t_bits;
+
     if (SPARC64 && TARGET_LONG_BITS == 32) {
         tcg_out_arithi(s, TCG_REG_T1, addr, 0, SHIFT_SRL);
         addr = TCG_REG_T1;
     }
-    tcg_out_ldst_rr(s, data, addr,
-                    (guest_base ? TCG_GUEST_BASE_REG : TCG_REG_G0),
+
+    /*
+     * Normal case: alignment equal to access size.
+     */
+    if (a_bits == s_bits) {
+        tcg_out_ldst_rr(s, data, addr, index,
+                        qemu_st_opc[memop & (MO_BSWAP | MO_SIZE)]);
+        return;
+    }
+
+    /*
+     * Test for at least natural alignment, and assume most accesses
+     * will be aligned -- perform a straight store in the delay slot.
+     * This is required to preserve atomicity for aligned accesses.
+     */
+    t_bits = MAX(a_bits, s_bits);
+    tcg_debug_assert(t_bits < 13);
+    tcg_out_arithi(s, TCG_REG_G0, addr, (1u << t_bits) - 1, ARITH_ANDCC);
+
+    /* beq,a,pt %icc, label */
+    label_ptr = s->code_ptr;
+    tcg_out_bpcc0(s, COND_E, BPCC_A | BPCC_PT | BPCC_ICC, 0);
+    /* delay slot */
+    tcg_out_ldst_rr(s, data, addr, index,
                     qemu_st_opc[memop & (MO_BSWAP | MO_SIZE)]);
+
+    if (a_bits >= s_bits) {
+        TCGReg arg_low = TCG_REG_O1 + (!SPARC64 && TARGET_LONG_BITS == 64);
+        /* Overalignment: only need to call helper for SIGBUS. */
+        tcg_out_call_nodelay(s, qemu_unalign_st_trampoline, false);
+        /* delay slot -- move to low part of argument reg */
+        tcg_out_mov_delay(s, arg_low, addr);
+    } else {
+        /* Underalignment: store by pieces of minimum alignment. */
+        int st_opc, a_size, s_size, i;
+
+        /*
+         * Force full address into T1 early; avoids problems with
+         * overlap between @addr and @data.
+         */
+        tcg_out_arith(s, TCG_REG_T1, addr, index, ARITH_ADD);
+
+        a_size = 1 << a_bits;
+        s_size = 1 << (memop & MO_SIZE);
+        if ((memop & MO_BSWAP) == MO_BE) {
+            st_opc = qemu_st_opc[a_bits + MO_BE];
+            for (i = 0; i < s_size; i += a_size) {
+                TCGReg d = data;
+                int shift = (s_size - a_size - i) * 8;
+                if (shift) {
+                    d = TCG_REG_T2;
+                    tcg_out_arithi(s, d, data, shift, SHIFT_SRLX);
+                }
+                tcg_out_ldst(s, d, TCG_REG_T1, i, st_opc);
+            }
+        } else if (a_bits == 0) {
+            tcg_out_ldst(s, data, TCG_REG_T1, 0, STB);
+            for (i = 1; i < s_size; i++) {
+                tcg_out_arithi(s, TCG_REG_T2, data, i * 8, SHIFT_SRLX);
+                tcg_out_ldst(s, TCG_REG_T2, TCG_REG_T1, i, STB);
+            }
+        } else {
+            /* Note that ST*A with immediate asi must use indexed address. */
+            st_opc = qemu_st_opc[a_bits + MO_LE];
+            tcg_out_ldst_rr(s, data, TCG_REG_T1, TCG_REG_G0, st_opc);
+            for (i = a_size; i < s_size; i += a_size) {
+                tcg_out_arithi(s, TCG_REG_T2, data, i * 8, SHIFT_SRLX);
+                tcg_out_arithi(s, TCG_REG_T1, TCG_REG_T1, a_size, ARITH_ADD);
+                tcg_out_ldst_rr(s, TCG_REG_T2, TCG_REG_T1, TCG_REG_G0, st_opc);
+            }
+        }
+    }
+
+    *label_ptr |= INSN_OFF19(tcg_ptr_byte_diff(s->code_ptr, label_ptr));
 #endif /* CONFIG_SOFTMMU */
 }
 
