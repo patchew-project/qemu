@@ -46,7 +46,6 @@ struct PIIX4State {
     qemu_irq cpu_intr;
     qemu_irq *isa;
 
-    RTCState rtc;
     /* Reset Control Register */
     MemoryRegion rcr_mem;
     uint8_t rcr;
@@ -193,20 +192,9 @@ static void piix4_realize(PCIDevice *dev, Error **errp)
     i8257_dma_init(isa_bus, 0);
 
     /* RTC */
-    qdev_prop_set_int32(DEVICE(&s->rtc), "base_year", 2000);
-    if (!qdev_realize(DEVICE(&s->rtc), BUS(isa_bus), errp)) {
-        return;
-    }
-    isa_init_irq(ISA_DEVICE(&s->rtc), &s->rtc.irq, RTC_ISA_IRQ);
+    mc146818_rtc_init(isa_bus, 2000, NULL);
 
     piix4_dev = dev;
-}
-
-static void piix4_init(Object *obj)
-{
-    PIIX4State *s = PIIX4_PCI_DEVICE(obj);
-
-    object_initialize(&s->rtc, sizeof(s->rtc), TYPE_MC146818_RTC);
 }
 
 static void piix4_class_init(ObjectClass *klass, void *data)
@@ -233,7 +221,6 @@ static const TypeInfo piix4_info = {
     .name          = TYPE_PIIX4_PCI_DEVICE,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PIIX4State),
-    .instance_init = piix4_init,
     .class_init    = piix4_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
