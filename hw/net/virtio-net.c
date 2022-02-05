@@ -3507,11 +3507,21 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     nc->rxfilter_notify_enabled = 1;
 
    if (nc->peer && nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_VDPA) {
+        uint64_t features = BIT_ULL(VIRTIO_F_IN_ORDER);
         struct virtio_net_config netcfg = {};
+
         memcpy(&netcfg.mac, &n->nic_conf.macaddr, ETH_ALEN);
         vhost_net_set_config(get_vhost_net(nc->peer),
             (uint8_t *)&netcfg, 0, ETH_ALEN, VHOST_SET_CONFIG_TYPE_MASTER);
+
+	/*
+         * For vhost-vdpa, if underlying device supports IN_ORDER feature,
+         * make it available for negotiation.
+         */
+	features = vhost_net_get_features(get_vhost_net(nc->peer), features);
+	n->host_features |= features;
     }
+
     QTAILQ_INIT(&n->rsc_chains);
     n->qdev = dev;
 
