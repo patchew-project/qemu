@@ -304,6 +304,8 @@ void pc_machine_init_sgx_epc(PCMachineState *pcms)
     for (list = x86ms->sgx_epc_list; list; list = list->next) {
         obj = object_new("sgx-epc");
 
+        object_property_add_child(OBJECT(pcms), "sgx-epc[*]", OBJECT(obj));
+
         /* set the memdev link with memory backend */
         object_property_parse(obj, SGX_EPC_MEMDEV_PROP, list->value->memdev,
                               &error_fatal);
