@@ -38,6 +38,11 @@ config IDE_VIA
     select IDE_PCI
     select IDE_QDEV
 
+config IDE_ICH6
+    bool
+    select IDE_PCI
+    select IDE_QDEV
+
 config MICRODRIVE
     bool
     select IDE_QDEV

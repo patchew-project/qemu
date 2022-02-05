@@ -53,6 +53,7 @@ struct PCIIDEState {
     MemoryRegion bmdma_bar;
     MemoryRegion cmd_bar[2];
     MemoryRegion data_bar[2];
+    qemu_irq native_irq; /* used only for ich6-ide */
 };
 
 static inline IDEState *bmdma_active_if(BMDMAState *bmdma)
@@ -62,6 +63,10 @@ static inline IDEState *bmdma_active_if(BMDMAState *bmdma)
 }
 
 void bmdma_init(IDEBus *bus, BMDMAState *bm, PCIIDEState *d);
+
+uint64_t piix_bmdma_read(void *opaque, hwaddr addr, unsigned size);
+void piix_bmdma_write(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+
 void bmdma_cmd_writeb(BMDMAState *bm, uint32_t val);
 extern MemoryRegionOps bmdma_addr_ioport_ops;
 void pci_ide_create_devs(PCIDevice *dev);

@@ -1,8 +1,7 @@
 /*
- * QEMU IDE Emulation: PCI PIIX3/4 support.
+ * QEMU IDE Emulation: PCI ICH6/ICH7 IDE support.
  *
- * Copyright (c) 2003 Fabrice Bellard
- * Copyright (c) 2006 Openedhand Ltd.
+ * Copyright (c) 2022 Liav Albani
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -35,7 +34,9 @@
 #include "hw/ide/pci.h"
 #include "trace.h"
 
-static const MemoryRegionOps piix_bmdma_ops = {
+
+
+static const MemoryRegionOps ich6_bmdma_ops = {
     .read = piix_bmdma_read,
     .write = piix_bmdma_write,
 };
@@ -44,12 +45,12 @@ static void bmdma_setup_bar(PCIIDEState *d)
 {
     int i;
 
-    memory_region_init(&d->bmdma_bar, OBJECT(d), "piix-bmdma-container", 16);
-    for(i = 0;i < 2; i++) {
+    memory_region_init(&d->bmdma_bar, OBJECT(d), "ich6-bmdma-container", 16);
+    for (i = 0; i < 2; i++) {
         BMDMAState *bm = &d->bmdma[i];
 
-        memory_region_init_io(&bm->extra_io, OBJECT(d), &piix_bmdma_ops, bm,
-                              "piix-bmdma", 4);
+        memory_region_init_io(&bm->extra_io, OBJECT(d), &ich6_bmdma_ops, bm,
+                              "ich6-bmdma", 4);
         memory_region_add_subregion(&d->bmdma_bar, i * 8, &bm->extra_io);
         memory_region_init_io(&bm->addr_ioport, OBJECT(d),
                               &bmdma_addr_ioport_ops, bm, "bmdma", 4);
@@ -57,7 +58,32 @@ static void bmdma_setup_bar(PCIIDEState *d)
     }
 }
 
-static void piix_ide_reset(DeviceState *dev)
+static uint32_t ich6_pci_config_read(PCIDevice *d,
+                                       uint32_t address, int len)
+{
+    return pci_default_read_config(d, address, len);
+}
+
+static void ich6_pci_config_write(PCIDevice *d, uint32_t addr, uint32_t val,
+                                    int l)
+{
+    uint32_t i;
+
+    pci_default_write_config(d, addr, val, l);
+
+    for (i = addr; i < addr + l; i++) {
+        switch (i) {
+        case 0x40:
+            pci_default_write_config(d, i, 0x8000, 2);
+            continue;
+        case 0x42:
+            pci_default_write_config(d, i, 0x8000, 2);
+            continue;
+        }
+    }
+}
+
+static void ich6_ide_reset(DeviceState *dev)
 {
     PCIIDEState *d = PCI_IDE(dev);
     PCIDevice *pd = PCI_DEVICE(d);
@@ -78,26 +104,13 @@ static void piix_ide_reset(DeviceState *dev)
     pci_conf[0x20] = 0x01; /* BMIBA: 20-23h */
 }
 
-static int pci_piix_init_ports(PCIIDEState *d)
+static int pci_ich6_init_ports(PCIIDEState *d)
 {
-    static const struct {
-        int iobase;
-        int iobase2;
-        int isairq;
-    } port_info[] = {
-        {0x1f0, 0x3f6, 14},
-        {0x170, 0x376, 15},
-    };
-    int i, ret;
+    int i;
 
     for (i = 0; i < 2; i++) {
         ide_bus_init(&d->bus[i], sizeof(d->bus[i]), DEVICE(d), i, 2);
-        ret = ide_init_ioport(&d->bus[i], NULL, port_info[i].iobase,
-                              port_info[i].iobase2);
-        if (ret) {
-            return ret;
-        }
-        ide_init2(&d->bus[i], isa_get_irq(NULL, port_info[i].isairq));
+        ide_init2(&d->bus[i], d->native_irq);
 
         bmdma_init(&d->bus[i], &d->bmdma[i], d);
         d->bmdma[i].bus = &d->bus[i];
@@ -107,62 +120,56 @@ static int pci_piix_init_ports(PCIIDEState *d)
     return 0;
 }
 
-static void pci_piix_ide_realize(PCIDevice *dev, Error **errp)
+static void pci_ich6_ide_realize(PCIDevice *dev, Error **errp)
 {
     PCIIDEState *d = PCI_IDE(dev);
     uint8_t *pci_conf = dev->config;
     int rc;
 
-    pci_conf[PCI_CLASS_PROG] = 0x80; // legacy ATA mode
+    pci_conf[PCI_INTERRUPT_PIN] = 1; /* interrupt pin A */
+
+    /* PCI native mode-only controller, supports bus mastering */
+    pci_conf[PCI_CLASS_PROG] = 0x85;
 
     bmdma_setup_bar(d);
     pci_register_bar(dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &d->bmdma_bar);
 
+    d->native_irq = pci_allocate_irq(&d->parent_obj);
+    /* Address Map Register - Non Combined Mode, MAP.USCC = 0 */
+    pci_conf[0x90]   = 0;
+
+    /* IDE Decode enabled by default */
+    pci_set_long(pci_conf + 0x40, 0x80008000);
+
+    /* IDE Timing control - Disable UDMA controls */
+    pci_set_long(pci_conf + 0x48, 0x00000000);
+
     vmstate_register(VMSTATE_IF(dev), 0, &vmstate_ide_pci, d);
 
-    rc = pci_piix_init_ports(d);
+    memory_region_init_io(&d->data_bar[0], OBJECT(d), &pci_ide_data_le_ops,
+                          &d->bus[0], "ich6-ide0-data", 8);
+    pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &d->data_bar[0]);
+
+    memory_region_init_io(&d->cmd_bar[0], OBJECT(d), &pci_ide_cmd_le_ops,
+                          &d->bus[0], "ich6-ide0-cmd", 4);
+    pci_register_bar(dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &d->cmd_bar[0]);
+
+    memory_region_init_io(&d->data_bar[1], OBJECT(d), &pci_ide_data_le_ops,
+                          &d->bus[1], "ich6-ide1-data", 8);
+    pci_register_bar(dev, 2, PCI_BASE_ADDRESS_SPACE_IO, &d->data_bar[1]);
+
+    memory_region_init_io(&d->cmd_bar[1], OBJECT(d), &pci_ide_cmd_le_ops,
+                          &d->bus[1], "ich6-ide1-cmd", 4);
+    pci_register_bar(dev, 3, PCI_BASE_ADDRESS_SPACE_IO, &d->cmd_bar[1]);
+
+    rc = pci_ich6_init_ports(d);
     if (rc) {
         error_setg_errno(errp, -rc, "Failed to realize %s",
                          object_get_typename(OBJECT(dev)));
     }
 }
 
-int pci_piix3_xen_ide_unplug(DeviceState *dev, bool aux)
-{
-    PCIIDEState *pci_ide;
-    int i;
-    IDEDevice *idedev;
-    IDEBus *idebus;
-    BlockBackend *blk;
-
-    pci_ide = PCI_IDE(dev);
-
-    for (i = aux ? 1 : 0; i < 4; i++) {
-        idebus = &pci_ide->bus[i / 2];
-        blk = idebus->ifs[i % 2].blk;
-
-        if (blk && idebus->ifs[i % 2].drive_kind != IDE_CD) {
-            if (!(i % 2)) {
-                idedev = idebus->master;
-            } else {
-                idedev = idebus->slave;
-            }
-
-            blk_drain(blk);
-            blk_flush(blk);
-
-            blk_detach_dev(blk, DEVICE(idedev));
-            idebus->ifs[i % 2].blk = NULL;
-            idedev->conf.blk = NULL;
-            monitor_remove_blk(blk);
-            blk_unref(blk);
-        }
-    }
-    qdev_reset_all(dev);
-    return 0;
-}
-
-static void pci_piix_ide_exitfn(PCIDevice *dev)
+static void pci_ich6_ide_exitfn(PCIDevice *dev)
 {
     PCIIDEState *d = PCI_IDE(dev);
     unsigned i;
@@ -173,61 +180,32 @@ static void pci_piix_ide_exitfn(PCIDevice *dev)
     }
 }
 
-/* NOTE: for the PIIX3, the IRQs and IOports are hardcoded */
-static void piix3_ide_class_init(ObjectClass *klass, void *data)
+static void ich6_ide_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    dc->reset = piix_ide_reset;
-    k->realize = pci_piix_ide_realize;
-    k->exit = pci_piix_ide_exitfn;
+    dc->reset = ich6_ide_reset;
+    k->realize = pci_ich6_ide_realize;
+    k->exit = pci_ich6_ide_exitfn;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
-    k->device_id = PCI_DEVICE_ID_INTEL_82371SB_1;
+    k->device_id = PCI_DEVICE_ID_INTEL_82801GB;
     k->class_id = PCI_CLASS_STORAGE_IDE;
+    k->config_read = ich6_pci_config_read;
+    k->config_write = ich6_pci_config_write;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->hotpluggable = false;
 }
 
-static const TypeInfo piix3_ide_info = {
-    .name          = "piix3-ide",
+static const TypeInfo ich6_ide_info = {
+    .name          = "ich6-ide",
     .parent        = TYPE_PCI_IDE,
-    .class_init    = piix3_ide_class_init,
+    .class_init    = ich6_ide_class_init,
 };
 
-static const TypeInfo piix3_ide_xen_info = {
-    .name          = "piix3-ide-xen",
-    .parent        = TYPE_PCI_IDE,
-    .class_init    = piix3_ide_class_init,
-};
-
-/* NOTE: for the PIIX4, the IRQs and IOports are hardcoded */
-static void piix4_ide_class_init(ObjectClass *klass, void *data)
+static void ich6_ide_register_types(void)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-
-    dc->reset = piix_ide_reset;
-    k->realize = pci_piix_ide_realize;
-    k->exit = pci_piix_ide_exitfn;
-    k->vendor_id = PCI_VENDOR_ID_INTEL;
-    k->device_id = PCI_DEVICE_ID_INTEL_82371AB;
-    k->class_id = PCI_CLASS_STORAGE_IDE;
-    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    dc->hotpluggable = false;
+    type_register_static(&ich6_ide_info);
 }
 
-static const TypeInfo piix4_ide_info = {
-    .name          = "piix4-ide",
-    .parent        = TYPE_PCI_IDE,
-    .class_init    = piix4_ide_class_init,
-};
-
-static void piix_ide_register_types(void)
-{
-    type_register_static(&piix3_ide_info);
-    type_register_static(&piix3_ide_xen_info);
-    type_register_static(&piix4_ide_info);
-}
-
-type_init(piix_ide_register_types)
+type_init(ich6_ide_register_types)
