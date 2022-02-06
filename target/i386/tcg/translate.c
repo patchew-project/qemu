@@ -112,6 +112,7 @@ typedef struct DisasContext {
     int cpuid_ext2_features;
     int cpuid_ext3_features;
     int cpuid_7_0_ebx_features;
+    int cpuid_7_0_ecx_features;
     int cpuid_xsave_features;
 
     /* TCG local temps */
@@ -7382,6 +7383,8 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         case 0: /* sldt */
             if (!PE(s) || VM86(s))
                 goto illegal_op;
+            if ((PE(s) || LMA(s)) && s->cpuid_7_0_ecx_features & CPUID_7_0_ECX_UMIP && s->flags & HF_UMIP_MASK)
+                gen_exception_gpf(s);
             gen_svm_check_intercept(s, SVM_EXIT_LDTR_READ);
             tcg_gen_ld32u_tl(s->T0, cpu_env,
                              offsetof(CPUX86State, ldt.selector));
@@ -7401,6 +7404,8 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         case 1: /* str */
             if (!PE(s) || VM86(s))
                 goto illegal_op;
+            if ((PE(s) || LMA(s)) && s->cpuid_7_0_ecx_features & CPUID_7_0_ECX_UMIP && s->flags & HF_UMIP_MASK)
+                gen_exception_gpf(s);
             gen_svm_check_intercept(s, SVM_EXIT_TR_READ);
             tcg_gen_ld32u_tl(s->T0, cpu_env,
                              offsetof(CPUX86State, tr.selector));
@@ -7439,6 +7444,8 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         modrm = x86_ldub_code(env, s);
         switch (modrm) {
         CASE_MODRM_MEM_OP(0): /* sgdt */
+            if ((PE(s) || LMA(s)) && s->cpuid_7_0_ecx_features & CPUID_7_0_ECX_UMIP && s->flags & HF_UMIP_MASK)
+                gen_exception_gpf(s);
             gen_svm_check_intercept(s, SVM_EXIT_GDTR_READ);
             gen_lea_modrm(env, s, modrm);
             tcg_gen_ld32u_tl(s->T0,
@@ -7495,6 +7502,8 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             break;
 
         CASE_MODRM_MEM_OP(1): /* sidt */
+            if ((PE(s) || LMA(s)) && s->cpuid_7_0_ecx_features & CPUID_7_0_ECX_UMIP && s->flags & HF_UMIP_MASK)
+                gen_exception_gpf(s);
             gen_svm_check_intercept(s, SVM_EXIT_IDTR_READ);
             gen_lea_modrm(env, s, modrm);
             tcg_gen_ld32u_tl(s->T0, cpu_env, offsetof(CPUX86State, idt.limit));
@@ -7670,6 +7679,8 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             break;
 
         CASE_MODRM_OP(4): /* smsw */
+            if ((PE(s) || LMA(s)) && s->cpuid_7_0_ecx_features & CPUID_7_0_ECX_UMIP && s->flags & HF_UMIP_MASK)
+                gen_exception_gpf(s);
             gen_svm_check_intercept(s, SVM_EXIT_READ_CR0);
             tcg_gen_ld_tl(s->T0, cpu_env, offsetof(CPUX86State, cr[0]));
             /*
@@ -8585,6 +8596,7 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
     dc->cpuid_ext2_features = env->features[FEAT_8000_0001_EDX];
     dc->cpuid_ext3_features = env->features[FEAT_8000_0001_ECX];
     dc->cpuid_7_0_ebx_features = env->features[FEAT_7_0_EBX];
+    dc->cpuid_7_0_ecx_features = env->features[FEAT_7_0_ECX];
     dc->cpuid_xsave_features = env->features[FEAT_XSAVE];
     dc->jmp_opt = !((cflags & CF_NO_GOTO_TB) ||
                     (flags & (HF_TF_MASK | HF_INHIBIT_IRQ_MASK)));
