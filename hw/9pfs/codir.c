@@ -167,7 +167,14 @@ static int do_readdir_many(V9fsPDU *pdu, V9fsFidState *fidp,
         }
 
         size += len;
+        /* This conditional statement is identical in
+         * function to qemu_dirent_off, described in 9p-util.h,
+         * since that header cannot be included here. */
+#ifdef CONFIG_DARWIN
+        saved_dir_pos = dent->d_seekoff;
+#else
         saved_dir_pos = dent->d_off;
+#endif
     }
 
     /* restore (last) saved position */

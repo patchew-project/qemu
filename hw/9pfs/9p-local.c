@@ -559,6 +559,15 @@ static struct dirent *local_readdir(FsContext *ctx, V9fsFidOpenState *fs)
 
 again:
     entry = readdir(fs->dir.stream);
+#ifdef CONFIG_DARWIN
+    int td;
+    td = telldir(fs->dir.stream);
+    /* If telldir fails, fail the entire readdir call */
+    if (td < 0) {
+        return NULL;
+    }
+    entry->d_seekoff = td;
+#endif
     if (!entry) {
         return NULL;
     }
