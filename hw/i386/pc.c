@@ -844,6 +844,10 @@ static void relocate_4g(MachineState *machine, PCMachineState *pcms)
     uint32_t eax, vendor[3];
     hwaddr maxphysaddr;
 
+    if (!pcmc->enforce_valid_iova) {
+        return;
+    }
+
     host_cpuid(0x0, 0, &eax, &vendor[0], &vendor[2], &vendor[1]);
     if (!IS_AMD_VENDOR(vendor)) {
         return;
@@ -1787,6 +1791,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     pcmc->has_reserved_memory = true;
     pcmc->kvmclock_enabled = true;
     pcmc->enforce_aligned_dimm = true;
+    pcmc->enforce_valid_iova = true;
     /* BIOS ACPI tables: 128K. Other BIOS datastructures: less than 4K reported
      * to be used at the moment, 32K should be enough for a while.  */
     pcmc->acpi_data_size = 0x20000 + 0x8000;
