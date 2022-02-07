@@ -61,6 +61,7 @@ struct AspeedGPIOClass {
     uint32_t nr_gpio_pins;
     uint32_t nr_gpio_sets;
     const AspeedGPIOReg *reg_table;
+    bool have_index_reg;
 };
 
 struct AspeedGPIOState {
@@ -91,6 +92,8 @@ struct AspeedGPIOState {
         uint32_t debounce_2;
         uint32_t input_mask;
     } sets[ASPEED_GPIO_MAX_NR_SETS];
+
+    uint32_t index;
 };
 
 #endif /* _ASPEED_GPIO_H_ */

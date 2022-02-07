@@ -160,7 +160,42 @@
 #define GPIO_YZAAAB_DIRECTION      (0x1E4 >> 2)
 #define GPIO_AC_DATA_VALUE         (0x1E8 >> 2)
 #define GPIO_AC_DIRECTION          (0x1EC >> 2)
-#define GPIO_3_3V_MEM_SIZE         0x1F0
+#define GPIO_INDEX                 (0x2AC >> 2)
+#define  GPIO_INDEX_DATA_SHIFT     20
+#define  GPIO_INDEX_DATA_LEN       12
+#define   GPIO_INDEX_DATA_DATA     20
+#define   GPIO_INDEX_DATA_DIR      20
+#define   GPIO_INDEX_DATA_IRQ_EN   20
+#define   GPIO_INDEX_DATA_IRQ_TY0  21
+#define   GPIO_INDEX_DATA_IRQ_TY1  22
+#define   GPIO_INDEX_DATA_IRQ_TY2  23
+#define   GPIO_INDEX_DATA_IRQ_STS  24
+#define   GPIO_INDEX_DATA_DB1      20
+#define   GPIO_INDEX_DATA_DB2      21
+#define   GPIO_INDEX_DATA_TOL      20
+#define   GPIO_INDEX_DATA_SRC0     20
+#define   GPIO_INDEX_DATA_SRC1     20
+#define   GPIO_INDEX_DATA_INPUT    20
+#define   GPIO_INDEX_DATA_WR_SRC   20
+#define  GPIO_INDEX_TYPE_SHIFT     16
+#define  GPIO_INDEX_TYPE_LEN       4
+#define   GPIO_INDEX_TYPE_DATA     0
+#define   GPIO_INDEX_TYPE_DIR      1
+#define   GPIO_INDEX_TYPE_IRQ      2
+#define   GPIO_INDEX_TYPE_DEBOUNCE 3
+#define   GPIO_INDEX_TYPE_TOL      4
+#define   GPIO_INDEX_TYPE_SRC      5
+#define   GPIO_INDEX_TYPE_INPUT    6
+#define   GPIO_INDEX_TYPE_RSVD     7
+#define   GPIO_INDEX_TYPE_WR_SRC   8
+#define   GPIO_INDEX_TYPE_RD_SRC   9
+#define  GPIO_INDEX_CMD_SHIFT      12
+#define  GPIO_INDEX_CMD_LEN        1
+#define   GPIO_INDEX_CMD_WRITE     0
+#define   GPIO_INDEX_CMD_READ      1
+#define  GPIO_INDEX_NR_SHIFT       0
+#define  GPIO_INDEX_NR_LEN         8
+#define GPIO_3_3V_MEM_SIZE         0x2B0
 #define GPIO_3_3V_REG_ARRAY_SIZE   (GPIO_3_3V_MEM_SIZE >> 2)
 
 /* AST2600 only - 1.8V gpios */
@@ -571,6 +606,11 @@ static uint64_t aspeed_gpio_read(void *opaque, hwaddr offset, uint32_t size)
         return (uint64_t) s->debounce_regs[idx];
     }
 
+    /* This is a (new, indirect) register interface for configuring GPIOs */
+    if (agc->have_index_reg && idx == GPIO_INDEX) {
+        return (uint64_t) s->index;
+    }
+
     reg = &agc->reg_table[idx];
     if (reg->set_idx >= agc->nr_gpio_sets) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: no getter for offset 0x%"
@@ -581,8 +621,73 @@ static uint64_t aspeed_gpio_read(void *opaque, hwaddr offset, uint32_t size)
     return aspeed_gpio_set_read(s, reg);
 }
 
-static void aspeed_gpio_set_write(AspeedGPIOState *s, const AspeedGPIOReg *reg,
-                                  uint32_t data)
+static int aspeed_gpio_set_offset_read(AspeedGPIOState *s, int set, enum GPIORegType reg,
+                                       int offset)
+{
+    return !!(aspeed_gpio_set_read(s, &(AspeedGPIOReg){set, reg}) & BIT(offset));
+}
+
+static const enum GPIORegType aspeed_gpio_index_type_map[] = {
+   [GPIO_INDEX_TYPE_DATA] = gpio_reg_data_value,
+   [GPIO_INDEX_TYPE_DIR] = gpio_reg_direction,
+   [GPIO_INDEX_TYPE_TOL] = gpio_reg_reset_tolerant,
+   [GPIO_INDEX_TYPE_INPUT] = gpio_reg_input_mask,
+   [GPIO_INDEX_TYPE_WR_SRC] = gpio_reg_input_mask /* See GPIO2AC doc */
+};
+
+static void
+aspeed_gpio_index_read(AspeedGPIOState *s, uint32_t type, uint32_t number)
+{
+    int pin = number % 32;
+    int set = number / 32;
+
+    /* Clear the data field so we can OR into it without further data dependencies */
+    s->index = deposit32(s->index, GPIO_INDEX_DATA_SHIFT, GPIO_INDEX_DATA_LEN, 0);
+
+    switch (type) {
+    case GPIO_INDEX_TYPE_DATA:
+    case GPIO_INDEX_TYPE_DIR:
+    case GPIO_INDEX_TYPE_TOL:
+    case GPIO_INDEX_TYPE_INPUT:
+    case GPIO_INDEX_TYPE_WR_SRC:
+    {
+        enum GPIORegType reg = aspeed_gpio_index_type_map[type];
+        s->index |= deposit32(0, GPIO_INDEX_DATA_SHIFT, GPIO_INDEX_DATA_LEN,
+                              aspeed_gpio_set_offset_read(s, set, reg, pin));
+        break;
+    }
+    case GPIO_INDEX_TYPE_IRQ:
+        s->index |= deposit32(0, GPIO_INDEX_DATA_IRQ_EN, 1,
+                        aspeed_gpio_set_offset_read(s, set, gpio_reg_int_enable, pin));
+        s->index |= deposit32(0, GPIO_INDEX_DATA_IRQ_TY0, 1,
+                        aspeed_gpio_set_offset_read(s, set, gpio_reg_int_sens_0, pin));
+        s->index |= deposit32(0, GPIO_INDEX_DATA_IRQ_TY1, 1,
+                        aspeed_gpio_set_offset_read(s, set, gpio_reg_int_sens_1, pin));
+        s->index |= deposit32(0, GPIO_INDEX_DATA_IRQ_TY2, 1,
+                        aspeed_gpio_set_offset_read(s, set, gpio_reg_int_sens_2, pin));
+        s->index |= deposit32(0, GPIO_INDEX_DATA_IRQ_STS, 1,
+                        aspeed_gpio_set_offset_read(s, set, gpio_reg_int_status, pin));
+        break;
+    case GPIO_INDEX_TYPE_DEBOUNCE:
+        s->index |= deposit32(0, GPIO_INDEX_DATA_DB1, 1,
+                        aspeed_gpio_set_offset_read(s, set, gpio_reg_debounce_1, pin));
+        s->index |= deposit32(0, GPIO_INDEX_DATA_DB2, 1,
+                        aspeed_gpio_set_offset_read(s, set, gpio_reg_debounce_2, pin));
+        break;
+    case GPIO_INDEX_TYPE_SRC:
+        s->index |= deposit32(0, GPIO_INDEX_DATA_SRC0, 1,
+                        aspeed_gpio_set_offset_read(s, set, gpio_reg_cmd_source_0, pin));
+        s->index |= deposit32(0, GPIO_INDEX_DATA_SRC1, 1,
+                        aspeed_gpio_set_offset_read(s, set, gpio_reg_cmd_source_1, pin));
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: no such command type: %" PRIu32 "\n",
+                      __func__, type);
+    }
+}
+
+static void
+aspeed_gpio_set_write(AspeedGPIOState *s, const AspeedGPIOReg *reg, uint32_t data)
 {
     AspeedGPIOClass *agc = ASPEED_GPIO_GET_CLASS(s);
     const GPIOSetProperties *props;
@@ -677,6 +782,87 @@ static void aspeed_gpio_set_write(AspeedGPIOState *s, const AspeedGPIOReg *reg,
     aspeed_gpio_update(s, set, set->data_value);
 }
 
+static void
+aspeed_gpio_set_offset_write(AspeedGPIOState *s, int set, enum GPIORegType reg,
+                             int offset, int val)
+{
+    AspeedGPIOReg agr = { set, reg };
+    uint32_t data;
+
+    data = aspeed_gpio_set_read(s, &agr);
+    data = deposit32(data, offset, 1, val);
+    aspeed_gpio_set_write(s, &agr, data);
+}
+
+static void
+aspeed_gpio_index_write(AspeedGPIOState *s, uint32_t type, uint32_t number, uint32_t data)
+{
+    int pin = number % 32;
+    int set = number / 32;
+
+    switch (type) {
+    case GPIO_INDEX_TYPE_DATA:
+    case GPIO_INDEX_TYPE_DIR:
+    case GPIO_INDEX_TYPE_TOL:
+    case GPIO_INDEX_TYPE_INPUT:
+    case GPIO_INDEX_TYPE_WR_SRC:
+    {
+        enum GPIORegType reg = aspeed_gpio_index_type_map[type];
+        aspeed_gpio_set_offset_write(s, set, reg, pin, data);
+        break;
+    }
+    case GPIO_INDEX_TYPE_IRQ:
+        aspeed_gpio_set_offset_write(s, set, gpio_reg_int_enable, pin,
+                                     extract32(data, GPIO_INDEX_DATA_IRQ_EN, 1));
+        aspeed_gpio_set_offset_write(s, set, gpio_reg_int_sens_0, pin,
+                                     extract32(data, GPIO_INDEX_DATA_IRQ_TY0, 1));
+        aspeed_gpio_set_offset_write(s, set, gpio_reg_int_sens_1, pin,
+                                     extract32(data, GPIO_INDEX_DATA_IRQ_TY1, 1));
+        aspeed_gpio_set_offset_write(s, set, gpio_reg_int_sens_2, pin,
+                                     extract32(data, GPIO_INDEX_DATA_IRQ_TY2, 1));
+        aspeed_gpio_set_offset_write(s, set, gpio_reg_int_status, pin,
+                                     extract32(data, GPIO_INDEX_DATA_IRQ_STS, 1));
+        break;
+    case GPIO_INDEX_TYPE_DEBOUNCE:
+        aspeed_gpio_set_offset_write(s, set, gpio_reg_debounce_1, pin,
+                                     extract32(data, GPIO_INDEX_DATA_DB1, 1));
+        aspeed_gpio_set_offset_write(s, set, gpio_reg_debounce_2, pin,
+                                     extract32(data, GPIO_INDEX_DATA_DB2, 1));
+        break;
+    case GPIO_INDEX_TYPE_SRC:
+        aspeed_gpio_set_offset_write(s, set, gpio_reg_cmd_source_0, pin,
+                                     extract32(data, GPIO_INDEX_DATA_SRC0, 1));
+        aspeed_gpio_set_offset_write(s, set, gpio_reg_cmd_source_1, pin,
+                                     extract32(data, GPIO_INDEX_DATA_SRC1, 1));
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: no such command type: %" PRIu32 "\n",
+                      __func__, type);
+    };
+}
+
+static void aspeed_gpio_index_command(AspeedGPIOState *s, uint32_t index)
+{
+    uint32_t command, number, type;
+
+    s->index = index;
+
+    command = extract32(index, GPIO_INDEX_CMD_SHIFT, GPIO_INDEX_CMD_LEN);
+    number = extract32(index, GPIO_INDEX_NR_SHIFT, GPIO_INDEX_NR_LEN);
+    type = extract32(index, GPIO_INDEX_TYPE_SHIFT, GPIO_INDEX_TYPE_LEN);
+
+    if (command == GPIO_INDEX_CMD_WRITE) {
+        uint32_t data;
+
+        data = extract32(index, GPIO_INDEX_DATA_SHIFT, GPIO_INDEX_DATA_LEN);
+        aspeed_gpio_index_write(s, type, number, data);
+
+        return;
+    }
+
+    aspeed_gpio_index_read(s, type, number);
+}
+
 static void aspeed_gpio_write(void *opaque, hwaddr offset, uint64_t data,
                               uint32_t size)
 {
@@ -689,6 +875,12 @@ static void aspeed_gpio_write(void *opaque, hwaddr offset, uint64_t data,
     if (idx >= GPIO_DEBOUNCE_TIME_1 && idx <= GPIO_DEBOUNCE_TIME_3) {
         idx -= GPIO_DEBOUNCE_TIME_1;
         s->debounce_regs[idx] = (uint32_t) data;
+        return;
+    }
+
+    /* This is a (new, indirect) register interface for configuring GPIOs */
+    if (agc->have_index_reg && idx == GPIO_INDEX) {
+        aspeed_gpio_index_command(s, data);
         return;
     }
 
@@ -930,6 +1122,7 @@ static void aspeed_gpio_ast2400_class_init(ObjectClass *klass, void *data)
     agc->nr_gpio_pins = 216;
     agc->nr_gpio_sets = 7;
     agc->reg_table = aspeed_3_3v_gpios;
+    agc->have_index_reg = false;
 }
 
 static void aspeed_gpio_2500_class_init(ObjectClass *klass, void *data)
@@ -940,6 +1133,7 @@ static void aspeed_gpio_2500_class_init(ObjectClass *klass, void *data)
     agc->nr_gpio_pins = 228;
     agc->nr_gpio_sets = 8;
     agc->reg_table = aspeed_3_3v_gpios;
+    agc->have_index_reg = false;
 }
 
 static void aspeed_gpio_ast2600_3_3v_class_init(ObjectClass *klass, void *data)
@@ -950,6 +1144,7 @@ static void aspeed_gpio_ast2600_3_3v_class_init(ObjectClass *klass, void *data)
     agc->nr_gpio_pins = 208;
     agc->nr_gpio_sets = 7;
     agc->reg_table = aspeed_3_3v_gpios;
+    agc->have_index_reg = true;
 }
 
 static void aspeed_gpio_ast2600_1_8v_class_init(ObjectClass *klass, void *data)
@@ -960,6 +1155,7 @@ static void aspeed_gpio_ast2600_1_8v_class_init(ObjectClass *klass, void *data)
     agc->nr_gpio_pins = 36;
     agc->nr_gpio_sets = 2;
     agc->reg_table = aspeed_1_8v_gpios;
+    agc->have_index_reg = true;
 }
 
 static const TypeInfo aspeed_gpio_info = {
