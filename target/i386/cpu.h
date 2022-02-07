@@ -906,6 +906,10 @@ typedef uint64_t FeatureWordArray[FEATURE_WORDS];
 #define IS_AMD_CPU(env) ((env)->cpuid_vendor1 == CPUID_VENDOR_AMD_1 && \
                          (env)->cpuid_vendor2 == CPUID_VENDOR_AMD_2 && \
                          (env)->cpuid_vendor3 == CPUID_VENDOR_AMD_3)
+#define IS_AMD_VENDOR(vendor) ((vendor[0]) == CPUID_VENDOR_AMD_1 && \
+                         (vendor[1]) == CPUID_VENDOR_AMD_2 && \
+                         (vendor[2]) == CPUID_VENDOR_AMD_3)
+
 
 #define CPUID_MWAIT_IBE     (1U << 1) /* Interrupts can exit capability */
 #define CPUID_MWAIT_EMX     (1U << 0) /* enumeration supported */
