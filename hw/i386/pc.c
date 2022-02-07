@@ -842,6 +842,7 @@ static void relocate_4g(MachineState *machine, PCMachineState *pcms)
     X86MachineState *x86ms = X86_MACHINE(pcms);
     ram_addr_t device_mem_size = 0;
     uint32_t eax, vendor[3];
+    hwaddr maxphysaddr;
 
     host_cpuid(0x0, 0, &eax, &vendor[0], &vendor[2], &vendor[1]);
     if (!IS_AMD_VENDOR(vendor)) {
@@ -857,6 +858,12 @@ static void relocate_4g(MachineState *machine, PCMachineState *pcms)
          device_mem_size) < AMD_HT_START) {
         return;
     }
+
+    maxphysaddr = ((hwaddr)1 << X86_CPU(first_cpu)->phys_bits) - 1;
+    if (maxphysaddr < AMD_ABOVE_1TB_START)
+        warn_report("Relocated RAM above 4G to start at %lu "
+                    "phys-bits too low (%u)",
+                    AMD_ABOVE_1TB_START, X86_CPU(first_cpu)->phys_bits);
 
     x86ms->above_4g_mem_start = AMD_ABOVE_1TB_START;
 }
