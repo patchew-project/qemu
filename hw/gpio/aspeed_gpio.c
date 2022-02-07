@@ -516,28 +516,11 @@ static const AspeedGPIOReg aspeed_1_8v_gpios[GPIO_1_8V_REG_ARRAY_SIZE] = {
     [GPIO_1_8V_E_INPUT_MASK] =     {1, gpio_reg_input_mask},
 };
 
-static uint64_t aspeed_gpio_read(void *opaque, hwaddr offset, uint32_t size)
+static uint64_t
+aspeed_gpio_set_read(const AspeedGPIOState *s, const AspeedGPIOReg *reg)
 {
-    AspeedGPIOState *s = ASPEED_GPIO(opaque);
-    AspeedGPIOClass *agc = ASPEED_GPIO_GET_CLASS(s);
-    uint64_t idx = -1;
-    const AspeedGPIOReg *reg;
-    GPIOSets *set;
+    const GPIOSets *set = &s->sets[reg->set_idx];
 
-    idx = offset >> 2;
-    if (idx >= GPIO_DEBOUNCE_TIME_1 && idx <= GPIO_DEBOUNCE_TIME_3) {
-        idx -= GPIO_DEBOUNCE_TIME_1;
-        return (uint64_t) s->debounce_regs[idx];
-    }
-
-    reg = &agc->reg_table[idx];
-    if (reg->set_idx >= agc->nr_gpio_sets) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: no getter for offset 0x%"
-                      HWADDR_PRIx"\n", __func__, offset);
-        return 0;
-    }
-
-    set = &s->sets[reg->set_idx];
     switch (reg->type) {
     case gpio_reg_data_value:
         return set->data_value;
@@ -567,37 +550,44 @@ static uint64_t aspeed_gpio_read(void *opaque, hwaddr offset, uint32_t size)
         return set->data_read;
     case gpio_reg_input_mask:
         return set->input_mask;
-    default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: no getter for offset 0x%"
-                      HWADDR_PRIx"\n", __func__, offset);
-        return 0;
+    case gpio_not_a_reg:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Invalid register: %d\n", __func__,
+                      reg->type);
     }
+
+    return 0;
 }
 
-static void aspeed_gpio_write(void *opaque, hwaddr offset, uint64_t data,
-                              uint32_t size)
+static uint64_t aspeed_gpio_read(void *opaque, hwaddr offset, uint32_t size)
 {
     AspeedGPIOState *s = ASPEED_GPIO(opaque);
     AspeedGPIOClass *agc = ASPEED_GPIO_GET_CLASS(s);
-    const GPIOSetProperties *props;
-    uint64_t idx = -1;
     const AspeedGPIOReg *reg;
-    GPIOSets *set;
-    uint32_t cleared;
+    uint64_t idx = -1;
 
     idx = offset >> 2;
     if (idx >= GPIO_DEBOUNCE_TIME_1 && idx <= GPIO_DEBOUNCE_TIME_3) {
         idx -= GPIO_DEBOUNCE_TIME_1;
-        s->debounce_regs[idx] = (uint32_t) data;
-        return;
+        return (uint64_t) s->debounce_regs[idx];
     }
 
     reg = &agc->reg_table[idx];
     if (reg->set_idx >= agc->nr_gpio_sets) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: no setter for offset 0x%"
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: no getter for offset 0x%"
                       HWADDR_PRIx"\n", __func__, offset);
-        return;
+        return 0;
     }
+
+    return aspeed_gpio_set_read(s, reg);
+}
+
+static void aspeed_gpio_set_write(AspeedGPIOState *s, const AspeedGPIOReg *reg,
+                                  uint32_t data)
+{
+    AspeedGPIOClass *agc = ASPEED_GPIO_GET_CLASS(s);
+    const GPIOSetProperties *props;
+    uint32_t cleared;
+    GPIOSets *set;
 
     set = &s->sets[reg->set_idx];
     props = &agc->props[reg->set_idx];
@@ -678,13 +668,38 @@ static void aspeed_gpio_write(void *opaque, hwaddr offset, uint64_t data,
          */
          set->input_mask = data & props->input;
         break;
-    default:
+    case gpio_not_a_reg:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Invalid register: %d\n", __func__,
+                      reg->type);
+        return;
+    }
+
+    aspeed_gpio_update(s, set, set->data_value);
+}
+
+static void aspeed_gpio_write(void *opaque, hwaddr offset, uint64_t data,
+                              uint32_t size)
+{
+    AspeedGPIOState *s = ASPEED_GPIO(opaque);
+    AspeedGPIOClass *agc = ASPEED_GPIO_GET_CLASS(s);
+    const AspeedGPIOReg *reg;
+    uint64_t idx = -1;
+
+    idx = offset >> 2;
+    if (idx >= GPIO_DEBOUNCE_TIME_1 && idx <= GPIO_DEBOUNCE_TIME_3) {
+        idx -= GPIO_DEBOUNCE_TIME_1;
+        s->debounce_regs[idx] = (uint32_t) data;
+        return;
+    }
+
+    reg = &agc->reg_table[idx];
+    if (reg->set_idx >= agc->nr_gpio_sets) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: no setter for offset 0x%"
                       HWADDR_PRIx"\n", __func__, offset);
         return;
     }
-    aspeed_gpio_update(s, set, set->data_value);
-    return;
+
+    aspeed_gpio_set_write(s, reg, data);
 }
 
 static int get_set_idx(AspeedGPIOState *s, const char *group, int *group_idx)
