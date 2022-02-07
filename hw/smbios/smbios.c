@@ -1048,6 +1048,9 @@ void smbios_get_tables(MachineState *ms,
                                        mem_array[i].length);
         }
 
+        /* we need to make sure table 19 and table 32 do not overlap */
+        assert((mem_array_size + offset) < (T32_BASE - T19_BASE));
+
         smbios_build_type_32_table();
         smbios_build_type_38_table();
         smbios_build_type_41_table(errp);
