@@ -810,3 +810,13 @@ static inline int platform_does_not_support_system(const char *command)
 #endif
 
 #endif
+
+/*
+ * As long as mknodat is not available on macOS, this workaround
+ * using pthread_fchdir_np is needed. qemu_mknodat is defined in
+ * os-posix.c
+ */
+#ifdef CONFIG_DARWIN
+int pthread_fchdir_np(int fd);
+#endif
+int qemu_mknodat(int dirfd, const char *filename, mode_t mode, dev_t dev);
