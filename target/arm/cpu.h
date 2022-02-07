@@ -2510,11 +2510,6 @@ static inline uint32_t kvm_to_cpreg_id(uint64_t kvmid)
         if ((kvmid & CP_REG_SIZE_MASK) == CP_REG_SIZE_U64) {
             cpregid |= (1 << 15);
         }
-
-        /* KVM is always non-secure so add the NS flag on AArch32 register
-         * entries.
-         */
-         cpregid |= 1 << CP_REG_NS_SHIFT;
     }
     return cpregid;
 }
