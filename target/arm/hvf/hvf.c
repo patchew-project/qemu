@@ -54,6 +54,7 @@
 #define SYSREG_PMCEID1_EL0    SYSREG(3, 3, 9, 12, 7)
 #define SYSREG_PMCCNTR_EL0    SYSREG(3, 3, 9, 13, 0)
 #define SYSREG_PMCCFILTR_EL0  SYSREG(3, 3, 14, 15, 7)
+#define SYSREG_ID_AA64ISAR2_EL1 SYSREG(3, 0, 0, 6, 2)
 
 #define WFX_IS_WFE (1 << 0)
 
@@ -779,6 +780,10 @@ static int hvf_sysreg_read(CPUState *cpu, uint32_t reg, uint32_t rt)
         break;
     case SYSREG_OSDLR_EL1:
         /* Dummy register */
+        break;
+    case SYSREG_ID_AA64ISAR2_EL1:
+        /* We do not support any of the ISAR2 features yet */
+        val = 0;
         break;
     default:
         cpu_synchronize_state(cpu);
