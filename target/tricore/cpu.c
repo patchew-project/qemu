@@ -20,7 +20,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "cpu.h"
-#include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "qemu/error-report.h"
 
 static inline void set_feature(CPUTriCoreState *env, int feature)

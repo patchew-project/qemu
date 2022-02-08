@@ -21,7 +21,7 @@
 #include "cpu.h"
 #include "qemu/units.h"
 #include "exec/cpu_ldst.h"
-#include "exec/exec-all.h"
+#include "exec/translate-all.h"
 
 #undef DEBUG_REMAP
 

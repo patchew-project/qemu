@@ -25,7 +25,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "tcg/tcg.h"
 #include "tcg-internal.h"
 

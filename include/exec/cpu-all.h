@@ -429,11 +429,6 @@ void dump_opcount_info(GString *buf);
 
 #endif /* !CONFIG_USER_ONLY */
 
-/* accel/tcg/cpu-exec.c */
-int cpu_exec(CPUState *cpu);
-void tcg_exec_realizefn(CPUState *cpu, Error **errp);
-void tcg_exec_unrealizefn(CPUState *cpu);
-
 /**
  * cpu_set_cpustate_pointers(cpu)
  * @cpu: The cpu object

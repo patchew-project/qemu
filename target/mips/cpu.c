@@ -28,7 +28,7 @@
 #include "qemu/module.h"
 #include "sysemu/kvm.h"
 #include "sysemu/qtest.h"
-#include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-clock.h"
 #include "semihosting/semihost.h"

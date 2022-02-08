@@ -23,6 +23,7 @@
 #include "cpu.h"
 #include "qemu/host-utils.h"
 #include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "exec/cpu_ldst.h"
 #include "exec/log.h"
 #include "exec/helper-proto.h"

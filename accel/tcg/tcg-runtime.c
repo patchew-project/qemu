@@ -27,6 +27,7 @@
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
 #include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "disas/disas.h"
 #include "exec/log.h"
 #include "tcg/tcg.h"

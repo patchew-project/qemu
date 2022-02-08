@@ -23,7 +23,7 @@
 #include "hw/core/cpu.h"
 #include "exec/cpu-common.h"
 
-#include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "exec/helper-proto.h"
 #include "tcg/tcg.h"
 #include "tcg/tcg-op.h"

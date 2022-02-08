@@ -23,7 +23,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "tcg/tcg.h"
 #include "tcg/tcg-op.h"
 #include "tcg/tcg-mo.h"

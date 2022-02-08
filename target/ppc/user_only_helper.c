@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "internal.h"
 
 void ppc_cpu_record_sigsegv(CPUState *cs, vaddr address,

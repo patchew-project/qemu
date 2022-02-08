@@ -42,7 +42,7 @@
    instructions */
 #define NO_CPU_IO_DEFS
 
-#include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "tcg/tcg-op.h"
 
 #if UINTPTR_MAX == UINT32_MAX

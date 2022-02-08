@@ -15,6 +15,7 @@
 #include "sysemu/runstate.h"
 #include "exec/address-spaces.h"
 #include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "sysemu/tcg.h"
 #include "trace.h"
 #include "qapi/qapi-types-machine.h"

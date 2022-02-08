@@ -2,7 +2,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-machine.h"
-#include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "monitor/monitor.h"
 #include "sysemu/tcg.h"
 

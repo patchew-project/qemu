@@ -20,7 +20,7 @@
 #include "qemu/crc32c.h"
 #include "qemu/qemu-print.h"
 #include "qemu/log.h"
-#include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include <zlib.h> /* For crc32 */
 #include "semihosting/semihost.h"
 #include "sysemu/cpus.h"

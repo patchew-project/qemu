@@ -22,7 +22,7 @@
 #include "sysemu/cpus.h"
 #include "disas/disas.h"
 #include "qemu/host-utils.h"
-#include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "tcg/tcg-op.h"
 #include "exec/cpu_ldst.h"
 #include "exec/helper-proto.h"

@@ -45,7 +45,7 @@
 #include "qemu/osdep.h"
 #include "tcg/tcg.h"
 #include "tcg/tcg-op.h"
-#include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "exec/plugin-gen.h"
 #include "exec/translator.h"
 

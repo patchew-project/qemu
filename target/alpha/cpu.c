@@ -23,7 +23,7 @@
 #include "qapi/error.h"
 #include "qemu/qemu-print.h"
 #include "cpu.h"
-#include "exec/exec-all.h"
+#include "exec/translate-all.h"
 
 
 static void alpha_cpu_set_pc(CPUState *cs, vaddr value)

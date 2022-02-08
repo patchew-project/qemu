@@ -22,6 +22,7 @@
 #include "qemu/qemu-print.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "mmu.h"
 
 #if !defined(CONFIG_USER_ONLY)

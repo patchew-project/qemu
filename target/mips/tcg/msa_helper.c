@@ -21,7 +21,7 @@
 #include "cpu.h"
 #include "internal.h"
 #include "tcg/tcg.h"
-#include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "exec/helper-proto.h"
 #include "exec/memop.h"
 #include "fpu/softfloat.h"

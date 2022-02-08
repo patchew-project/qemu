@@ -21,7 +21,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/qemu-print.h"
-#include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "cpu.h"
 #include "disas/dis-asm.h"
 

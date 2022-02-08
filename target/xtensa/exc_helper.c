@@ -32,6 +32,7 @@
 #include "exec/helper-proto.h"
 #include "qemu/host-utils.h"
 #include "exec/exec-all.h"
+#include "exec/translate-all.h"
 
 void HELPER(exception)(CPUXtensaState *env, uint32_t excp)
 {

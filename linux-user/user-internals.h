@@ -19,7 +19,7 @@
 #define LINUX_USER_USER_INTERNALS_H
 
 #include "exec/user/thunk.h"
-#include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "qemu/log.h"
 
 extern char *exec_path;

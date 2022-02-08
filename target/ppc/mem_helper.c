@@ -19,7 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "qemu/host-utils.h"
 #include "qemu/main-loop.h"
 #include "exec/helper-proto.h"

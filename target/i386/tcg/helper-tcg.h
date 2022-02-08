@@ -20,7 +20,7 @@
 #ifndef I386_HELPER_TCG_H
 #define I386_HELPER_TCG_H
 
-#include "exec/exec-all.h"
+#include "exec/translate-all.h"
 
 /* Maximum instruction code size */
 #define TARGET_MAX_INSN_SIZE 16

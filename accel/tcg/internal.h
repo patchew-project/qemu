@@ -9,7 +9,7 @@
 #ifndef ACCEL_TCG_INTERNAL_H
 #define ACCEL_TCG_INTERNAL_H
 
-#include "exec/exec-all.h"
+#include "exec/translate-all.h"
 
 TranslationBlock *tb_gen_code(CPUState *cpu, target_ulong pc,
                               target_ulong cs_base, uint32_t flags,

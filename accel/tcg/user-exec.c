@@ -19,7 +19,7 @@
 #include "qemu/osdep.h"
 #include "hw/core/tcg-cpu-ops.h"
 #include "disas/disas.h"
-#include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "tcg/tcg.h"
 #include "qemu/bitops.h"
 #include "exec/cpu_ldst.h"

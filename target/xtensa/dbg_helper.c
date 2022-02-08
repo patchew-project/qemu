@@ -31,7 +31,7 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "qemu/host-utils.h"
-#include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "exec/address-spaces.h"
 
 static void tb_invalidate_virtual_addr(CPUXtensaState *env, uint32_t vaddr)

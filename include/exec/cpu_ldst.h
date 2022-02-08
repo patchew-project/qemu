@@ -62,6 +62,7 @@
 #ifndef CPU_LDST_H
 #define CPU_LDST_H
 
+#include "exec/cpu-defs.h"
 #include "exec/memopidx.h"
 #include "qemu/int128.h"
 #include "cpu.h"

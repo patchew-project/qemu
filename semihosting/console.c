@@ -20,6 +20,7 @@
 #include "semihosting/console.h"
 #include "exec/gdbstub.h"
 #include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "qemu/log.h"
 #include "chardev/char.h"
 #include "chardev/char-fe.h"

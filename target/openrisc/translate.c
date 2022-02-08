@@ -20,7 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "disas/disas.h"
 #include "tcg/tcg-op.h"
 #include "qemu/log.h"

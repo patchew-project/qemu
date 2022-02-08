@@ -29,6 +29,7 @@
 #include "qemu/log.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "exec/gdbstub.h"
 #include "exec/helper-proto.h"
 #include "qemu/error-report.h"

@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "exec/exec-all.h"
+#include "exec/translate-all.h"
 
 void tb_flush(CPUState *cpu)
 {

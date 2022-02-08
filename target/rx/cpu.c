@@ -23,6 +23,7 @@
 #include "qemu-common.h"
 #include "migration/vmstate.h"
 #include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "hw/loader.h"
 #include "fpu/softfloat.h"
 

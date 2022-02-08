@@ -25,6 +25,7 @@
 #include "cpu.h"
 #include "qemu/module.h"
 #include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "fpu/softfloat.h"
 
 

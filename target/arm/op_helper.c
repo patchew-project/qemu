@@ -22,6 +22,7 @@
 #include "exec/helper-proto.h"
 #include "internals.h"
 #include "exec/exec-all.h"
+#include "exec/translate-all.h"
 #include "exec/cpu_ldst.h"
 
 #define SIGNBIT (uint32_t)0x80000000
