@@ -120,6 +120,30 @@ def make_argparser() -> argparse.ArgumentParser:
 if __name__ == '__main__':
     args = make_argparser().parse_args()
 
+    if os.path.islink(sys.argv[0]):
+        # called from the build tree
+        source_iotests = os.path.dirname(os.readlink(sys.argv[0]))
+    else:
+        source_iotests = os.getcwd()
+
+    testfinder = TestFinder(source_iotests)
+
+    groups = args.groups.split(',') if args.groups else None
+    x_groups = args.exclude_groups.split(',') if args.exclude_groups else None
+
+    try:
+        tests = testfinder.find_tests(groups=groups, exclude_groups=x_groups,
+                                      tests=args.tests,
+                                      start_from=args.start_from)
+        if not tests:
+            raise ValueError('No tests selected')
+    except ValueError as e:
+        sys.exit(e)
+
+    if args.dry_run:
+        print('\n'.join(tests))
+        sys.exit(0)
+
     env = TestEnv(imgfmt=args.imgfmt, imgproto=args.imgproto,
                   aiomode=args.aiomode, cachemode=args.cachemode,
                   imgopts=args.imgopts, misalign=args.misalign,
@@ -140,11 +164,6 @@ if __name__ == '__main__':
         os.chdir(exec_path.parent)
         os.execve(cmd[0], cmd, full_env)
 
-    testfinder = TestFinder(test_dir=env.source_iotests)
-
-    groups = args.groups.split(',') if args.groups else None
-    x_groups = args.exclude_groups.split(',') if args.exclude_groups else None
-
     group_local = os.path.join(env.source_iotests, 'group.local')
     if os.path.isfile(group_local):
         try:
@@ -152,21 +171,8 @@ if __name__ == '__main__':
         except ValueError as e:
             sys.exit(f"Failed to parse group file '{group_local}': {e}")
 
-    try:
-        tests = testfinder.find_tests(groups=groups, exclude_groups=x_groups,
-                                      tests=args.tests,
-                                      start_from=args.start_from)
-        if not tests:
-            raise ValueError('No tests selected')
-    except ValueError as e:
-        sys.exit(e)
-
-    if args.dry_run:
-        print('\n'.join(tests))
-    else:
-        with TestRunner(env, tap=args.tap,
-                        color=args.color) as tr:
-            paths = [os.path.join(env.source_iotests, t) for t in tests]
-            ok = tr.run_tests(paths, args.jobs)
-            if not ok:
-                sys.exit(1)
+    with TestRunner(env, tap=args.tap, color=args.color) as tr:
+        paths = [os.path.join(env.source_iotests, t) for t in tests]
+        ok = tr.run_tests(paths, args.jobs)
+        if not ok:
+            sys.exit(1)
