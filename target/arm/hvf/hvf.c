@@ -729,6 +729,17 @@ static bool hvf_handle_psci_call(CPUState *cpu)
     return true;
 }
 
+static bool is_id_sysreg(uint32_t reg)
+{
+    uint32_t op0 = (reg >> 20) & 0x3;
+    uint32_t op1 = (reg >> 14) & 0x7;
+    uint32_t crn = (reg >> 10) & 0xf;
+    uint32_t crm = (reg >> 1) & 0xf;
+    uint32_t op2 = (reg >> 7) & 0x7;
+
+    return op0 == 3 && op1 == 0 && crn == 0 && crm >= 1 && crm < 8 && op2 < 8;
+}
+
 static int hvf_sysreg_read(CPUState *cpu, uint32_t reg, uint32_t rt)
 {
     ARMCPU *arm_cpu = ARM_CPU(cpu);
@@ -781,6 +792,11 @@ static int hvf_sysreg_read(CPUState *cpu, uint32_t reg, uint32_t rt)
         /* Dummy register */
         break;
     default:
+        if (is_id_sysreg(reg)) {
+            /* ID system registers read as RES0 */
+            val = 0;
+            break;
+        }
         cpu_synchronize_state(cpu);
         trace_hvf_unhandled_sysreg_read(env->pc, reg,
                                         (reg >> 20) & 0x3,
