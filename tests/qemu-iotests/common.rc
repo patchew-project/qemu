@@ -17,17 +17,27 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+# bail out, setting up .notrun file
+_notrun()
+{
+    echo "$*" >"$OUTPUT_DIR/$seq.notrun"
+    echo "$seq not run: $*"
+    status=0
+    exit
+}
+
+# We need GNU sed for the iotests. Make sure to not use BusyBox sed
+# which says that "This is not GNU sed version 4.0"
 SED=
 for sed in sed gsed; do
-    ($sed --version | grep 'GNU sed') > /dev/null 2>&1
+    ($sed --version | grep -v "not GNU sed" | grep 'GNU sed') > /dev/null 2>&1
     if [ "$?" -eq 0 ]; then
         SED=$sed
         break
     fi
 done
 if [ -z "$SED" ]; then
-    echo "$0: GNU sed not found"
-    exit 1
+    _notrun "GNU sed not found"
 fi
 
 dd()
@@ -720,16 +730,6 @@ _img_info()
                 discard=0
             fi
         done
-}
-
-# bail out, setting up .notrun file
-#
-_notrun()
-{
-    echo "$*" >"$OUTPUT_DIR/$seq.notrun"
-    echo "$seq not run: $*"
-    status=0
-    exit
 }
 
 # bail out, setting up .casenotrun file
