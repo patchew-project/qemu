@@ -19,6 +19,7 @@
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
 #include "cpu.h"
+#include "hw/ppc/ppc.h"
 #include "exec/exec-all.h"
 #include "internal.h"
 #include "helper_regs.h"
@@ -990,8 +991,22 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
         new_msr |= (target_ulong)MSR_HVB;
         new_msr |= env->msr & ((target_ulong)1 << MSR_RI);
         break;
-    case POWERPC_EXCP_THERM:     /* Thermal interrupt                        */
     case POWERPC_EXCP_PERFM:     /* Embedded performance monitor interrupt   */
+        env->spr[SPR_BESCR] &= ~BESCR_GE;
+        env->spr[SPR_BESCR] |= BESCR_PMEO;
+
+        /*
+         * Save NIP for rfebb insn in SPR_EBBRR. Next nip is
+         * stored in the EBB Handler SPR_EBBHR.
+         */
+        env->spr[SPR_EBBRR] = env->nip;
+        powerpc_set_excp_state(cpu, env->spr[SPR_EBBHR], env->msr);
+
+        /*
+         * This exception is handled in userspace. No need to proceed.
+         */
+        return;
+    case POWERPC_EXCP_THERM:     /* Thermal interrupt                        */
     case POWERPC_EXCP_VPUA:      /* Vector assist exception                  */
     case POWERPC_EXCP_MAINT:     /* Maintenance exception                    */
     case POWERPC_EXCP_SDOOR:     /* Doorbell interrupt                       */
@@ -1671,8 +1686,14 @@ static void ppc_hw_interrupt(CPUPPCState *env)
             return;
         }
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_PERFM)) {
-            env->pending_interrupts &= ~(1 << PPC_INTERRUPT_PERFM);
-            powerpc_excp(cpu, POWERPC_EXCP_PERFM);
+            /*
+             * PERFM EBB must be taken in problem state and
+             * with BESCR_GE set.
+             */
+            if (msr_pr == 1 && env->spr[SPR_BESCR] & BESCR_GE) {
+                env->pending_interrupts &= ~(1 << PPC_INTERRUPT_PERFM);
+                powerpc_excp(cpu, POWERPC_EXCP_PERFM);
+            }
             return;
         }
         /* Thermal interrupt */
@@ -1914,6 +1935,30 @@ void helper_rfebb(CPUPPCState *env, target_ulong s)
     } else {
         env->spr[SPR_BESCR] &= ~BESCR_GE;
     }
+}
+
+void helper_ebb_perfm_int(CPUPPCState *env)
+{
+    PowerPCCPU *cpu = env_archcpu(env);
+
+    /*
+     * FSCR_EBB and FSCR_IC_EBB are the same bits used with
+     * HFSCR.
+     */
+    helper_fscr_facility_check(env, FSCR_EBB, 0, FSCR_IC_EBB);
+    helper_hfscr_facility_check(env, FSCR_EBB, "EBB", FSCR_IC_EBB);
+
+    /*
+     * Setting "env->pending_interrupts |= 1 << PPC_INTERRUPT_PERFM"
+     * instead of calling "ppc_set_irq()"" works in most cases, but under
+     * certain race conditions (e.g. lost_exception_test EBB kernel
+     * selftest) this hits an assert when dealing with the BQL:
+     *
+     * tcg_handle_interrupt: assertion failed: (qemu_mutex_iothread_locked())
+     *
+     * We ended up using ppc_set_irq() because it handles the BQL.
+     */
+    ppc_set_irq(cpu, PPC_INTERRUPT_PERFM, 1);
 }
 #endif
 
