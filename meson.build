@@ -3003,14 +3003,21 @@ foreach target : target_dirs
     execs = [{
       'name': 'qemu-system-' + target_name,
       'win_subsystem': 'console',
-      'sources': files('softmmu/main.c'),
+      'sources': [files('softmmu/climain.c', 'softmmu/main.c')],
       'dependencies': []
     }]
-    if targetos == 'windows' and (sdl.found() or gtk.found())
+    if targetos != 'windows'
+      execs += [{
+        'name': 'qemu-qmp-' + target_name,
+        'win_subsystem': 'console',
+        'sources': [files('softmmu/qmpmain.c', 'softmmu/main.c')],
+        'dependencies': []
+      }]
+    elif sdl.found() or gtk.found()
       execs += [{
         'name': 'qemu-system-' + target_name + 'w',
         'win_subsystem': 'windows',
-        'sources': files('softmmu/main.c'),
+        'sources': [files('softmmu/climain.c', 'softmmu/main.c')],
         'dependencies': []
       }]
     endif
@@ -3019,7 +3026,7 @@ foreach target : target_dirs
       execs += [{
         'name': 'qemu-fuzz-' + target_name,
         'win_subsystem': 'console',
-        'sources': specific_fuzz.sources(),
+        'sources': [files('softmmu/climain.c'), specific_fuzz.sources()],
         'dependencies': specific_fuzz.dependencies(),
       }]
     endif
@@ -3040,6 +3047,7 @@ foreach target : target_dirs
     emulator = executable(exe_name, exe['sources'],
                install: true,
                c_args: c_args,
+               include_directories: target_inc,
                dependencies: arch_deps + deps + exe['dependencies'],
                objects: lib.extract_all_objects(recursive: true),
                link_language: link_language,

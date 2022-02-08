@@ -12,7 +12,6 @@ specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: [files(
   'memory.c',
   'memory_mapping.c',
   'qtest.c',
-  'vl.c',
   'cpu-timers.c',
   'runstate-action.c',
 )])

@@ -1,5 +1,5 @@
 /*
- * QEMU System Emulator
+ * QEMU System Emulator command-line interface
  *
  * Copyright (c) 2003-2008 Fabrice Bellard
  *
