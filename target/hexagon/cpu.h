@@ -75,7 +75,7 @@ typedef struct {
 /* Maximum number of vector temps in a packet */
 #define VECTOR_TEMPS_MAX            4
 
-struct CPUHexagonState {
+typedef struct CPUArchState {
     target_ulong gpr[TOTAL_PER_THREAD_REGS];
     target_ulong pred[NUM_PREGS];
     target_ulong branch_taken;
@@ -129,7 +129,7 @@ struct CPUHexagonState {
     target_ulong vstore_pending[VSTORES_MAX];
     bool vtcm_pending;
     VTCMStoreLog vtcm_log;
-};
+} CPUHexagonState;
 
 #define HEXAGON_CPU_CLASS(klass) \
     OBJECT_CLASS_CHECK(HexagonCPUClass, (klass), TYPE_HEXAGON_CPU)
@@ -180,7 +180,6 @@ static inline int cpu_mmu_index(CPUHexagonState *env, bool ifetch)
 #endif
 }
 
-typedef struct CPUHexagonState CPUArchState;
 typedef HexagonCPU ArchCPU;
 
 void hexagon_translate_init(void);

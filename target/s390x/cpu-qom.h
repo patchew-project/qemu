@@ -63,6 +63,6 @@ struct S390CPUClass {
     void (*reset)(CPUState *cpu, cpu_reset_type type);
 };
 
-typedef struct CPUS390XState CPUS390XState;
+typedef struct CPUArchState CPUS390XState;
 
 #endif

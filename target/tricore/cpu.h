@@ -28,8 +28,7 @@ struct tricore_boot_info;
 
 typedef struct tricore_def_t tricore_def_t;
 
-typedef struct CPUTriCoreState CPUTriCoreState;
-struct CPUTriCoreState {
+typedef struct CPUArchState {
     /* GPR Register */
     uint32_t gpr_a[16];
     uint32_t gpr_d[16];
@@ -189,7 +188,7 @@ struct CPUTriCoreState {
     const tricore_def_t *cpu_model;
     void *irq[8];
     struct QEMUTimer *timer; /* Internal timer */
-};
+} CPUTriCoreState;
 
 /**
  * TriCoreCPU:

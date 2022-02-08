@@ -51,7 +51,7 @@ typedef struct PSW {
     uint64_t addr;
 } PSW;
 
-struct CPUS390XState {
+struct CPUArchState {
     uint64_t regs[16];     /* GP registers */
     /*
      * The floating point registers are part of the vector registers.

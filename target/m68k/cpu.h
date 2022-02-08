@@ -79,7 +79,7 @@
 
 typedef CPU_LDoubleU FPReg;
 
-typedef struct CPUM68KState {
+typedef struct CPUArchState {
     uint32_t dregs[8];
     uint32_t aregs[8];
     uint32_t pc;

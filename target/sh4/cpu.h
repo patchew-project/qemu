@@ -130,7 +130,7 @@ typedef struct memory_content {
     struct memory_content *next;
 } memory_content;
 
-typedef struct CPUSH4State {
+typedef struct CPUArchState {
     uint32_t flags;		/* general execution flags */
     uint32_t gregs[24];		/* general registers */
     float32 fregs[32];		/* floating point registers */

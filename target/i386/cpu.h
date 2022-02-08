@@ -1429,7 +1429,7 @@ typedef struct HVFX86LazyFlags {
     target_ulong auxbits;
 } HVFX86LazyFlags;
 
-typedef struct CPUX86State {
+typedef struct CPUArchState {
     /* standard registers */
     target_ulong regs[CPU_NB_REGS];
     target_ulong eip;

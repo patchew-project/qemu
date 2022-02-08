@@ -242,7 +242,7 @@ typedef struct CPUOpenRISCTLBContext {
 } CPUOpenRISCTLBContext;
 #endif
 
-typedef struct CPUOpenRISCState {
+typedef struct CPUArchState {
     target_ulong shadow_gpr[16][32]; /* Shadow registers */
 
     target_ulong pc;          /* Program counter */

@@ -105,7 +105,7 @@ typedef struct {
     uint32_t lo;
 } TLBSet;
 
-typedef struct CPUCRISState {
+typedef struct CPUArchState {
 	uint32_t regs[16];
 	/* P0 - P15 are referred to as special registers in the docs.  */
 	uint32_t pregs[16];

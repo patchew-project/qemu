@@ -24,7 +24,7 @@
 #include "exec/cpu-defs.h"
 #include "fpu/softfloat-types.h"
 
-typedef struct CPUMBState CPUMBState;
+typedef struct CPUArchState CPUMBState;
 #if !defined(CONFIG_USER_ONLY)
 #include "mmu.h"
 #endif
@@ -239,7 +239,7 @@ typedef struct CPUMBState CPUMBState;
 #define USE_NON_SECURE_M_AXI_DC_MASK 0x4
 #define USE_NON_SECURE_M_AXI_IC_MASK 0x8
 
-struct CPUMBState {
+struct CPUArchState {
     uint32_t bvalue;   /* TCG temporary, only valid during a TB */
     uint32_t btarget;  /* Full resolved branch destination */
 

@@ -97,7 +97,7 @@ enum {
 
 #define MAX_RISCV_PMPS (16)
 
-typedef struct CPURISCVState CPURISCVState;
+typedef struct CPUArchState CPURISCVState;
 
 #if !defined(CONFIG_USER_ONLY)
 #include "pmp.h"
@@ -112,7 +112,7 @@ FIELD(VTYPE, VMA, 7, 1)
 FIELD(VTYPE, VEDIV, 8, 2)
 FIELD(VTYPE, RESERVED, 10, sizeof(target_ulong) * 8 - 11)
 
-struct CPURISCVState {
+struct CPUArchState {
     target_ulong gpr[32];
     target_ulong gprh[32]; /* 64 top bits of the 128-bit registers */
     uint64_t fpr[32]; /* assume both F and D extensions */

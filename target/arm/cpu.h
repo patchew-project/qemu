@@ -232,7 +232,7 @@ typedef struct CPUARMTBFlags {
     target_ulong flags2;
 } CPUARMTBFlags;
 
-typedef struct CPUARMState {
+typedef struct CPUArchState {
     /* Regs for current mode.  */
     uint32_t regs[16];
 

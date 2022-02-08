@@ -306,7 +306,7 @@ typedef enum {
     INTTYPE_MAX
 } interrupt_type;
 
-struct CPUXtensaState;
+typedef struct CPUArchState CPUXtensaState;
 
 typedef struct xtensa_tlb_entry {
     uint32_t vaddr;
@@ -506,7 +506,7 @@ enum {
 };
 #endif
 
-typedef struct CPUXtensaState {
+struct CPUArchState {
     const XtensaConfig *config;
     uint32_t regs[16];
     uint32_t pc;
@@ -545,7 +545,7 @@ typedef struct CPUXtensaState {
 
     /* Watchpoints for DBREAK registers */
     struct CPUWatchpoint *cpu_watchpoint[MAX_NDBREAK];
-} CPUXtensaState;
+};
 
 /**
  * XtensaCPU:
