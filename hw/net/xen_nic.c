@@ -275,7 +275,7 @@ static NetClientInfo net_xen_info = {
     .receive = net_rx_packet,
 };
 
-static int net_init(struct XenLegacyDevice *xendev)
+static int xen_net_init(struct XenLegacyDevice *xendev)
 {
     struct XenNetDev *netdev = container_of(xendev, struct XenNetDev, xendev);
 
@@ -307,7 +307,7 @@ static int net_init(struct XenLegacyDevice *xendev)
     return 0;
 }
 
-static int net_connect(struct XenLegacyDevice *xendev)
+static int xen_net_connect(struct XenLegacyDevice *xendev)
 {
     struct XenNetDev *netdev = container_of(xendev, struct XenNetDev, xendev);
     int rx_copy;
@@ -362,7 +362,7 @@ static int net_connect(struct XenLegacyDevice *xendev)
     return 0;
 }
 
-static void net_disconnect(struct XenLegacyDevice *xendev)
+static void xen_net_disconnect(struct XenLegacyDevice *xendev)
 {
     struct XenNetDev *netdev = container_of(xendev, struct XenNetDev, xendev);
 
@@ -378,14 +378,14 @@ static void net_disconnect(struct XenLegacyDevice *xendev)
     }
 }
 
-static void net_event(struct XenLegacyDevice *xendev)
+static void xen_net_event(struct XenLegacyDevice *xendev)
 {
     struct XenNetDev *netdev = container_of(xendev, struct XenNetDev, xendev);
     net_tx_packets(netdev);
     qemu_flush_queued_packets(qemu_get_queue(netdev->nic));
 }
 
-static int net_free(struct XenLegacyDevice *xendev)
+static int xen_net_free(struct XenLegacyDevice *xendev)
 {
     struct XenNetDev *netdev = container_of(xendev, struct XenNetDev, xendev);
 
@@ -403,9 +403,9 @@ static int net_free(struct XenLegacyDevice *xendev)
 struct XenDevOps xen_netdev_ops = {
     .size       = sizeof(struct XenNetDev),
     .flags      = DEVOPS_FLAG_NEED_GNTDEV,
-    .init       = net_init,
-    .initialise    = net_connect,
-    .event      = net_event,
-    .disconnect = net_disconnect,
-    .free       = net_free,
+    .init       = xen_net_init,
+    .initialise    = xen_net_connect,
+    .event      = xen_net_event,
+    .disconnect = xen_net_disconnect,
+    .free       = xen_net_free,
 };

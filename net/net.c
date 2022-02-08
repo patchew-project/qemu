@@ -1551,13 +1551,16 @@ out:
     return ret;
 }
 
-int net_init_clients(Error **errp)
+void net_init(void)
 {
     net_change_state_entry =
         qemu_add_vm_change_state_handler(net_vm_change_state_handler, NULL);
 
     QTAILQ_INIT(&net_clients);
+}
 
+int net_init_clients(Error **errp)
+{
     if (qemu_opts_foreach(qemu_find_opts("netdev"),
                           net_init_netdev, NULL, errp)) {
         return -1;
