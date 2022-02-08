@@ -152,10 +152,10 @@ class TestRunner(ContextManager['TestRunner']):
 
         return results
 
-    def __init__(self, env: TestEnv, tap: bool = False,
+    def __init__(self, env: TestEnv, makecheck: bool = False,
                  color: str = 'auto') -> None:
         self.env = env
-        self.tap = tap
+        self.makecheck = makecheck
         self.last_elapsed = LastElapsedTime('.last-elapsed-cache', env)
 
         assert color in ('auto', 'on', 'off')
@@ -185,16 +185,13 @@ class TestRunner(ContextManager['TestRunner']):
         """ Print short test info before/after test run """
         test = os.path.basename(test)
 
-        if test_field_width is None:
-            test_field_width = 8
+        if self.makecheck and status != '...':
+            if status and status != 'pass':
+                status = f' [{status}]'
+            else:
+                status = ''
 
-        if self.tap:
-            if status == 'pass':
-                print(f'ok {self.env.imgfmt} {test}')
-            elif status == 'fail':
-                print(f'not ok {self.env.imgfmt} {test}')
-            elif status == 'not run':
-                print(f'ok {self.env.imgfmt} {test} # SKIP')
+            print(f'  TEST   iotest-{self.env.imgfmt}: {test}{status}')
             return
 
         if lasttime:
@@ -346,7 +343,7 @@ class TestRunner(ContextManager['TestRunner']):
         last_el = self.last_elapsed.get(test)
         start = datetime.datetime.now().strftime('%H:%M:%S')
 
-        if not self.tap:
+        if not self.makecheck:
             self.test_print_one_line(test=test,
                                      test_field_width=test_field_width,
                                      status = 'started' if mp else '...',
@@ -375,9 +372,7 @@ class TestRunner(ContextManager['TestRunner']):
         notrun = []
         casenotrun = []
 
-        if self.tap:
-            self.env.print_env('# ')
-        else:
+        if not self.makecheck:
             self.env.print_env()
 
         test_field_width = max(len(os.path.basename(t)) for t in tests) + 2
@@ -403,6 +398,8 @@ class TestRunner(ContextManager['TestRunner']):
 
             if res.status == 'fail':
                 failed.append(name)
+                if self.makecheck:
+                    self.env.print_env()
                 if res.diff:
                     print('\n'.join(res.diff))
             elif res.status == 'not run':
@@ -415,16 +412,16 @@ class TestRunner(ContextManager['TestRunner']):
             if res.interrupted:
                 break
 
-        if not self.tap:
-            if notrun:
-                print('Not run:', ' '.join(notrun))
+        if notrun:
+            print('Not run:', ' '.join(notrun))
 
-            if casenotrun:
-                print('Some cases not run in:', ' '.join(casenotrun))
+        if casenotrun:
+            print('Some cases not run in:', ' '.join(casenotrun))
 
-            if failed:
-                print('Failures:', ' '.join(failed))
-                print(f'Failed {len(failed)} of {n_run} iotests')
-            else:
-                print(f'Passed all {n_run} iotests')
-        return not failed
+        if failed:
+            print('Failures:', ' '.join(failed))
+            print(f'Failed {len(failed)} of {n_run} iotests')
+            return False
+        else:
+            print(f'Passed all {n_run} iotests')
+            return True
