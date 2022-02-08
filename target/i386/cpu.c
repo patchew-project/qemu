@@ -6384,6 +6384,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
          * In this case, the default is the value used by TCG (40).
          */
         if (cpu->phys_bits == 0) {
+            assert(tcg_enabled());
             cpu->phys_bits = TCG_PHYS_ADDR_BITS;
         }
     } else {
