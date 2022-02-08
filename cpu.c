@@ -350,7 +350,7 @@ void cpu_single_step(CPUState *cpu, int enabled)
 {
     if (cpu->singlestep_enabled != enabled) {
         cpu->singlestep_enabled = enabled;
-        if (kvm_enabled()) {
+        if (kvm_enabled() && kvm_supports_guest_debug()) {
             kvm_update_guest_debug(cpu, 0);
         }
         trace_breakpoint_singlestep(cpu->cpu_index, enabled);
