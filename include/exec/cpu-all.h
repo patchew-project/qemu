@@ -296,9 +296,10 @@ void *page_alloc_target_data(target_ulong address, size_t size);
  * at @address, as per page_alloc_target_data.
  */
 void *page_get_target_data(target_ulong address);
-#endif
 
 CPUArchState *cpu_copy(CPUArchState *env);
+
+#endif /* CONFIG_USER_ONLY */
 
 /* Flags for use in ENV->INTERRUPT_PENDING.
 
