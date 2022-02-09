@@ -116,6 +116,9 @@ static const int syscall_allowlist[] = {
     SCMP_SYS(write),
     SCMP_SYS(writev),
     SCMP_SYS(umask),
+#ifdef __NR_rseq
+    SCMP_SYS(rseq), /* required since glibc 2.35 */
+#endif
 };
 
 /* Syscalls used when --syslog is enabled */
