@@ -1,9 +1,28 @@
-if not have_tools or targetos == 'windows'
+if not have_tools or targetos == 'windows' or \
+   config_host.has_key('CONFIG_GPROF')
   subdir_done()
 endif
 
+bash = find_program('bash', required: false, version: '>= 4.0')
+if not bash.found()
+  message('bash >= v4.0 not available ==> Disabled the qemu-iotests.')
+  subdir_done()
+endif
+
+foreach cflag: config_host['QEMU_CFLAGS'].split()
+  if cflag.startswith('-fsanitize') and \
+     not cflag.contains('safe-stack') and not cflag.contains('cfi-icall')
+    message('Sanitizers are enabled ==> Disabled the qemu-iotests.')
+    subdir_done()
+  endif
+endforeach
+
 qemu_iotests_binaries = [qemu_img, qemu_io, qemu_nbd, qsd]
-qemu_iotests_env = {'PYTHON': python.full_path()}
+qemu_iotests_env = {
+  'PYTHON': python.full_path(),
+  'PYTHONUTF8': '1',
+  'QEMU_CHECK_BLOCK_AUTO': '1'
+}
 qemu_iotests_formats = {
   'qcow2': 'quick',
   'raw': 'slow',
@@ -18,16 +37,25 @@ foreach k, v : emulators
   endif
 endforeach
 
+check_script = find_program(meson.current_build_dir() / 'check')
+iotests = run_command(python, [check_script.full_path(), '-g', 'auto', '-n'],
+                      check: true).stdout().strip().replace('tests/', '').split('\n')
+
 foreach format, speed: qemu_iotests_formats
   if speed == 'quick'
     suites = 'block'
   else
     suites = ['block-' + speed, speed]
   endif
-  test('qemu-iotests ' + format, sh, args: [files('../check-block.sh'), format],
-       depends: qemu_iotests_binaries, env: qemu_iotests_env,
-       protocol: 'tap',
-       suite: suites,
-       timeout: 0,
-       is_parallel: false)
+  foreach tst: iotests
+    test('iotest-' + format + '-' + tst,
+         python, args: [check_script.full_path(), '-tap', '-' + format, tst],
+         depends: qemu_iotests_binaries,
+         env: qemu_iotests_env + \
+              { 'TEST_DIR':
+                meson.current_build_dir() / 'scratch' / format + '-' + tst },
+         protocol: 'tap',
+         suite: suites,
+         timeout: 0)
+  endforeach
 endforeach
