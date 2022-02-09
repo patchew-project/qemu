@@ -114,6 +114,12 @@ target_ulong helper_csrrw_i128(CPURISCVState *env, int csr,
     return int128_getlo(rv);
 }
 
+void helper_atomic_check(CPURISCVState *env, target_ulong address,
+                         int width, int mmu_idx)
+{
+    probe_write(env, address, width, mmu_idx, GETPC());
+}
+
 #ifndef CONFIG_USER_ONLY
 
 target_ulong helper_sret(CPURISCVState *env)
