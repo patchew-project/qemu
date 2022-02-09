@@ -33,6 +33,7 @@ msys2-64bit:
   script:
   - .\msys64\usr\bin\bash -lc "pacman -Sy --noconfirm --needed
       diffutils git grep make sed
+      flex bison
       mingw-w64-x86_64-capstone
       mingw-w64-x86_64-curl
       mingw-w64-x86_64-cyrus-sasl
@@ -68,6 +69,7 @@ msys2-32bit:
   script:
   - .\msys64\usr\bin\bash -lc "pacman -Sy --noconfirm --needed
       diffutils git grep make sed
+      flex bison
       mingw-w64-i686-capstone
       mingw-w64-i686-curl
       mingw-w64-i686-cyrus-sasl

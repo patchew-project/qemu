@@ -66,4 +66,5 @@
 	url = https://gitlab.com/qemu-project/vbootrom.git
 [submodule "tests/lcitool/libvirt-ci"]
 	path = tests/lcitool/libvirt-ci
-	url = http://gitlab.com/libvirt/libvirt-ci
+	url = http://gitlab.com/AntonJohansson/libvirt-ci
+        branch = mapping-flex-bison
