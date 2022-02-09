@@ -259,7 +259,7 @@ class TestRunner(ContextManager['TestRunner']):
         """
 
         f_test = Path(test)
-        f_bad = Path(f_test.name + '.out.bad')
+        f_bad = Path(f'{os.getpid()}-{f_test.name}.out.bad')
         f_notrun = Path(f_test.name + '.notrun')
         f_casenotrun = Path(f_test.name + '.casenotrun')
         f_reference = Path(self.find_reference(test))
