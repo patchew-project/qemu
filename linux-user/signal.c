@@ -809,6 +809,8 @@ static inline void rewind_if_in_safe_syscall(void *puc)
     }
 }
 
+GLIB_VAR char *__glib_assert_msg;
+
 static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
 {
     CPUArchState *env = thread_cpu->env_ptr;
@@ -820,6 +822,10 @@ static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
     int guest_sig;
     uintptr_t pc = 0;
     bool sync_sig = false;
+
+    if (__glib_assert_msg) {
+        cpu_abort(cpu, "internal QEMU error, aborting...");
+    }
 
     /*
      * Non-spoofed SIGSEGV and SIGBUS are synchronous, and need special
