@@ -31,6 +31,8 @@ int e820_add_entry(uint64_t address, uint64_t length, uint32_t type)
         entry->type = cpu_to_le32(type);
 
         e820_reserve.count = cpu_to_le32(index);
+
+        return index;
     }
 
     /* new "etc/e820" file -- include ram too */
