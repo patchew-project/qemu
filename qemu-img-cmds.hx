@@ -58,9 +58,9 @@ SRST
 ERST
 
 DEF("dd", img_dd,
-    "dd [--image-opts] [-U] [-f fmt] [-O output_fmt] [-n] [bs=block_size] [count=blocks] [skip=blocks] [isize=input_size] [osize=output_size] [if=input] [of=output]")
+    "dd [--image-opts] [-U] [-f fmt] [-O output_fmt] [-n] [-l snapshot_param] [bs=block_size] [count=blocks] [skip=blocks] [isize=input_size] [osize=output_size] [if=input] [of=output]")
 SRST
-.. option:: dd [--image-opts] [-U] [-f FMT] [-O OUTPUT_FMT] [-n] [bs=BLOCK_SIZE] [count=BLOCKS] [skip=BLOCKS] [isize=INPUT_SIZE] [osize=OUTPUT_SIZE] [if=INPUT] [of=OUTPUT]
+.. option:: dd [--image-opts] [-U] [-f FMT] [-O OUTPUT_FMT] [-n] [-l SNAPSHOT_PARAM] [bs=BLOCK_SIZE] [count=BLOCKS] [skip=BLOCKS] [isize=INPUT_SIZE] [osize=OUTPUT_SIZE] [if=INPUT] [of=OUTPUT]
 ERST
 
 DEF("info", img_info,
