@@ -2533,8 +2533,8 @@ static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
 
         out_num = elem->out_num;
         out_sg = elem->out_sg;
-        if (out_num < 1) {
-            virtio_error(vdev, "virtio-net header not in first element");
+        if (iov_size(out_sg, out_num) < n->guest_hdr_len) {
+            virtio_error(vdev, "virtio-net header is missing");
             virtqueue_detach_element(q->tx_vq, elem, 0);
             g_free(elem);
             return -EINVAL;
