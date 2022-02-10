@@ -3293,13 +3293,13 @@ if targetos == 'windows'
     summary_info += {'Windows SDK':   config_host['WIN_SDK']}
   endif
 endif
-summary_info += {'CFLAGS':            ' '.join(get_option('c_args')
-                                               + ['-O' + get_option('optimization')]
-                                               + (get_option('debug') ? ['-g'] : []))}
+summary_info += {'CFLAGS':            ' '.join(['-O' + get_option('optimization')]
+                                               + (get_option('debug') ? ['-g'] : [])
+                                               + get_option('c_args'))}
 if link_language == 'cpp'
-  summary_info += {'CXXFLAGS':        ' '.join(get_option('cpp_args')
-                                               + ['-O' + get_option('optimization')]
-                                               + (get_option('debug') ? ['-g'] : []))}
+  summary_info += {'CXXFLAGS':        ' '.join(['-O' + get_option('optimization')]
+                                               + (get_option('debug') ? ['-g'] : [])
+                                               + get_option('cpp_args'))}
 endif
 link_args = get_option(link_language + '_link_args')
 if link_args.length() > 0
