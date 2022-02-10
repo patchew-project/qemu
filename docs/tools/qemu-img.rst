@@ -230,6 +230,10 @@ Parameters to dd subcommand:
 
   Sets the number of input blocks to skip
 
+.. option:: isize=INPUT_SIZE
+
+  Treat the input image or stream as if it had this size
+
 .. option:: osize=OUTPUT_SIZE
 
   Sets the output image's size
@@ -492,7 +496,7 @@ Command description:
   it doesn't need to be specified separately in this case.
 
 
-.. option:: dd [--image-opts] [-U] [-f FMT] [-O OUTPUT_FMT] [bs=BLOCK_SIZE] [count=BLOCKS] [skip=BLOCKS] [osize=OUTPUT_SIZE] [if=INPUT] [of=OUTPUT]
+.. option:: dd [--image-opts] [-U] [-f FMT] [-O OUTPUT_FMT] [bs=BLOCK_SIZE] [count=BLOCKS] [skip=BLOCKS] [isize=INPUT_SIZE] [osize=OUTPUT_SIZE] [if=INPUT] [of=OUTPUT]
 
   dd copies from *INPUT* file (default: STDIN) to *OUTPUT* file (default:
   STDOUT) converting it from *FMT* format to *OUTPUT_FMT* format.
@@ -504,7 +508,9 @@ Command description:
   The size syntax is similar to :manpage:`dd(1)`'s size syntax.
 
   The output image will be created with size *OUTPUT_SIZE* and at most this many
-  bytes will be copied.
+  bytes will be copied. When *INPUT_SIZE* is positive, it overrides the input
+  image's size for the copy operation. When *INPUT_SIZE* is zero and reading
+  from STDIN, do not treat premature end of the input stream as an error.
 
 .. option:: info [--object OBJECTDEF] [--image-opts] [-f FMT] [--output=OFMT] [--backing-chain] [-U] FILENAME
 

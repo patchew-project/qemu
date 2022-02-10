@@ -4820,11 +4820,13 @@ static int img_bitmap(int argc, char **argv)
 #define C_OF      010
 #define C_SKIP    020
 #define C_OSIZE   040
+#define C_ISIZE   0100
 
 struct DdInfo {
     unsigned int flags;
     int64_t count;
     int64_t osize;
+    int64_t isize;
 };
 
 struct DdIo {
@@ -4913,6 +4915,19 @@ static int img_dd_osize(const char *arg,
     return 0;
 }
 
+static int img_dd_isize(const char *arg,
+                        struct DdIo *in, struct DdIo *out,
+                        struct DdInfo *dd)
+{
+    dd->isize = cvtnum("isize", arg);
+
+    if (dd->isize < 0) {
+        return 1;
+    }
+
+    return 0;
+}
+
 static int img_dd(int argc, char **argv)
 {
     int ret = 0;
@@ -4934,6 +4949,7 @@ static int img_dd(int argc, char **argv)
         .flags = 0,
         .count = 0,
         .osize = 0,
+        .isize = 0,
     };
     struct DdIo in = {
         .bsz = 512, /* Block size is by default 512 bytes */
@@ -4955,6 +4971,7 @@ static int img_dd(int argc, char **argv)
         { "of", img_dd_of, C_OF },
         { "skip", img_dd_skip, C_SKIP },
         { "osize", img_dd_osize, C_OSIZE },
+        { "isize", img_dd_isize, C_ISIZE },
         { NULL, NULL, 0 }
     };
     const struct option long_options[] = {
@@ -5061,7 +5078,9 @@ static int img_dd(int argc, char **argv)
         }
     }
 
-    if (dd.flags & C_IF) {
+    if (dd.flags & C_ISIZE && dd.isize > 0) {
+        size = dd.isize;
+    } else if (dd.flags & C_IF) {
         size = blk_getlength(blk1);
         if (size < 0) {
             error_report("Failed to get size for '%s'", in.filename);
@@ -5174,6 +5193,9 @@ static int img_dd(int argc, char **argv)
         } else {
             in_ret = read(STDIN_FILENO, in.buf, in_bsz);
             if (in_ret == 0) {
+                if (dd.flags & C_ISIZE && dd.isize == 0) {
+                    goto out;
+                }
                 /* early EOF is considered an error */
                 error_report("Input ended unexpectedly");
                 ret = -1;
