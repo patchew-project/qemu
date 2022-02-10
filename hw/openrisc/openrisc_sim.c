@@ -187,6 +187,32 @@ static hwaddr openrisc_load_kernel(ram_addr_t ram_size,
     return 0;
 }
 
+static hwaddr openrisc_load_initrd(Or1ksimState *s, const char *filename,
+    hwaddr load_start, uint64_t mem_size)
+{
+    int size;
+    hwaddr start;
+
+    /* We put the initrd right after the kernel; page aligned. */
+    start = TARGET_PAGE_ALIGN(load_start);
+
+    size = load_ramdisk(filename, start, mem_size - start);
+    if (size < 0) {
+        size = load_image_targphys(filename, start, mem_size - start);
+        if (size < 0) {
+            error_report("could not load ramdisk '%s'", filename);
+            exit(1);
+        }
+    }
+
+    qemu_fdt_setprop_cell(s->fdt, "/chosen",
+                          "linux,initrd-start", start);
+    qemu_fdt_setprop_cell(s->fdt, "/chosen",
+                          "linux,initrd-end", start + size);
+
+    return start + size;
+}
+
 static uint32_t openrisc_load_fdt(Or1ksimState *s, hwaddr load_start,
     uint64_t mem_size)
 {
@@ -198,7 +224,7 @@ static uint32_t openrisc_load_fdt(Or1ksimState *s, hwaddr load_start,
         exit(1);
     }
 
-    /* We should put fdt right after the kernel */
+    /* We put fdt right after the kernel and/or initrd. */
     fdt_addr = ROUND_UP(load_start, 4);
 
     fdt_pack(s->fdt);
@@ -369,6 +395,10 @@ static void openrisc_sim_init(MachineState *machine)
                         machine->kernel_cmdline);
 
     load_addr = openrisc_load_kernel(ram_size, kernel_filename);
+    if (machine->initrd_filename) {
+        load_addr = openrisc_load_initrd(s, machine->initrd_filename,
+                                         load_addr, machine->ram_size);
+    }
     boot_info.fdt_addr = openrisc_load_fdt(s, load_addr, machine->ram_size);
 }
 
