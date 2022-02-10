@@ -210,6 +210,10 @@ Parameters to dd subcommand:
 
 .. program:: qemu-img-dd
 
+.. option:: -n
+
+  Skip the creation of the target volume
+
 .. option:: bs=BLOCK_SIZE
 
   Defines the block size
@@ -496,7 +500,7 @@ Command description:
   it doesn't need to be specified separately in this case.
 
 
-.. option:: dd [--image-opts] [-U] [-f FMT] [-O OUTPUT_FMT] [bs=BLOCK_SIZE] [count=BLOCKS] [skip=BLOCKS] [isize=INPUT_SIZE] [osize=OUTPUT_SIZE] [if=INPUT] [of=OUTPUT]
+.. option:: dd [--image-opts] [-U] [-f FMT] [-O OUTPUT_FMT] [-n] [bs=BLOCK_SIZE] [count=BLOCKS] [skip=BLOCKS] [isize=INPUT_SIZE] [osize=OUTPUT_SIZE] [if=INPUT] [of=OUTPUT]
 
   dd copies from *INPUT* file (default: STDIN) to *OUTPUT* file (default:
   STDOUT) converting it from *FMT* format to *OUTPUT_FMT* format.

@@ -4944,7 +4944,7 @@ static int img_dd(int argc, char **argv)
     const char *fmt = NULL;
     int64_t size = 0, readsize = 0;
     int64_t block_count = 0, out_pos, in_pos;
-    bool force_share = false;
+    bool force_share = false, skip_create = false;
     struct DdInfo dd = {
         .flags = 0,
         .count = 0,
@@ -4982,7 +4982,7 @@ static int img_dd(int argc, char **argv)
         { 0, 0, 0, 0 }
     };
 
-    while ((c = getopt_long(argc, argv, ":hf:O:U", long_options, NULL))) {
+    while ((c = getopt_long(argc, argv, ":hf:O:Un", long_options, NULL))) {
         if (c == EOF) {
             break;
         }
@@ -5001,6 +5001,9 @@ static int img_dd(int argc, char **argv)
             break;
         case 'h':
             help();
+            break;
+        case 'n':
+            skip_create = true;
             break;
         case 'U':
             force_share = true;
@@ -5144,13 +5147,15 @@ static int img_dd(int argc, char **argv)
                                 size - in.bsz * in.offset, &error_abort);
         }
 
-        ret = bdrv_create(drv, out.filename, opts, &local_err);
-        if (ret < 0) {
-            error_reportf_err(local_err,
-                              "%s: error while creating output image: ",
-                              out.filename);
-            ret = -1;
-            goto out;
+        if (!skip_create) {
+            ret = bdrv_create(drv, out.filename, opts, &local_err);
+            if (ret < 0) {
+                error_reportf_err(local_err,
+                                  "%s: error while creating output image: ",
+                                  out.filename);
+                ret = -1;
+                goto out;
+            }
         }
 
         /* TODO, we can't honour --image-opts for the target,
