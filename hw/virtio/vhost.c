@@ -335,7 +335,7 @@ static void vhost_memory_unmap(struct vhost_dev *dev, void *buffer,
                                hwaddr len, int is_write,
                                hwaddr access_len)
 {
-    if (!vhost_dev_has_iommu(dev)) {
+    if (buffer && !vhost_dev_has_iommu(dev)) {
         cpu_physical_memory_unmap(buffer, len, is_write, access_len);
     }
 }
@@ -1191,6 +1191,7 @@ fail_alloc_avail:
     vhost_memory_unmap(dev, vq->desc, virtio_queue_get_desc_size(vdev, idx),
                        0, 0);
 fail_alloc_desc:
+    vq->used = vq->avail = vq->desc = NULL;
     return r;
 }
 
@@ -1238,6 +1239,7 @@ static void vhost_virtqueue_stop(struct vhost_dev *dev,
                        0, virtio_queue_get_avail_size(vdev, idx));
     vhost_memory_unmap(dev, vq->desc, virtio_queue_get_desc_size(vdev, idx),
                        0, virtio_queue_get_desc_size(vdev, idx));
+    vq->used = vq->avail = vq->desc = NULL;
 }
 
 static void vhost_eventfd_add(MemoryListener *listener,
