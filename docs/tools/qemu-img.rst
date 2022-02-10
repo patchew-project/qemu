@@ -220,15 +220,19 @@ Parameters to dd subcommand:
 
 .. option:: if=INPUT
 
-  Sets the input file
+  Sets the input file (defaults to STDIN)
 
 .. option:: of=OUTPUT
 
-  Sets the output file
+  Sets the output file (defaults to STDOUT)
 
 .. option:: skip=BLOCKS
 
   Sets the number of input blocks to skip
+
+.. option:: osize=OUTPUT_SIZE
+
+  Sets the output image's size
 
 Parameters to snapshot subcommand:
 
@@ -488,16 +492,19 @@ Command description:
   it doesn't need to be specified separately in this case.
 
 
-.. option:: dd [--image-opts] [-U] [-f FMT] [-O OUTPUT_FMT] [bs=BLOCK_SIZE] [count=BLOCKS] [skip=BLOCKS] if=INPUT of=OUTPUT
+.. option:: dd [--image-opts] [-U] [-f FMT] [-O OUTPUT_FMT] [bs=BLOCK_SIZE] [count=BLOCKS] [skip=BLOCKS] [osize=OUTPUT_SIZE] [if=INPUT] [of=OUTPUT]
 
-  dd copies from *INPUT* file to *OUTPUT* file converting it from
-  *FMT* format to *OUTPUT_FMT* format.
+  dd copies from *INPUT* file (default: STDIN) to *OUTPUT* file (default:
+  STDOUT) converting it from *FMT* format to *OUTPUT_FMT* format.
 
   The data is by default read and written using blocks of 512 bytes but can be
   modified by specifying *BLOCK_SIZE*. If count=\ *BLOCKS* is specified
   dd will stop reading input after reading *BLOCKS* input blocks.
 
   The size syntax is similar to :manpage:`dd(1)`'s size syntax.
+
+  The output image will be created with size *OUTPUT_SIZE* and at most this many
+  bytes will be copied.
 
 .. option:: info [--object OBJECTDEF] [--image-opts] [-f FMT] [--output=OFMT] [--backing-chain] [-U] FILENAME
 
