@@ -9,6 +9,7 @@
 #include "qemu/error-report.h"
 #include "exec/exec-all.h"
 #include "helper_regs.h"
+#include "hw/ppc/ppc.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_cpu_core.h"
 #include "mmu-hash64.h"
@@ -1497,6 +1498,317 @@ static void hypercall_register_softmmu(void)
 }
 #endif
 
+/* TCG only */
+#define PRTS_MASK      0x1f
+
+static target_ulong h_set_ptbl(PowerPCCPU *cpu,
+                               SpaprMachineState *spapr,
+                               target_ulong opcode,
+                               target_ulong *args)
+{
+    target_ulong ptcr = args[0];
+
+    if (!spapr_get_cap(spapr, SPAPR_CAP_NESTED_KVM_HV)) {
+        return H_FUNCTION;
+    }
+
+    if ((ptcr & PRTS_MASK) + 12 - 4 > 12) {
+        return H_PARAMETER;
+    }
+
+    spapr->nested_ptcr = ptcr; /* Save new partition table */
+
+    return H_SUCCESS;
+}
+
+static target_ulong h_tlb_invalidate(PowerPCCPU *cpu,
+                               SpaprMachineState *spapr,
+                               target_ulong opcode,
+                               target_ulong *args)
+{
+    CPUState *cs = CPU(cpu);
+
+    /*
+     * The spapr virtual hypervisor nested HV implementation retains no
+     * translation state except for TLB. This might be optimised to
+     * invalidate fewer entries, but at the moment it's not important
+     * because L1<->L2 transitions always flush the entire TLB for now.
+     */
+    tlb_flush(cs);
+
+    return H_SUCCESS;
+}
+
+static target_ulong h_copy_tofrom_guest(PowerPCCPU *cpu,
+                               SpaprMachineState *spapr,
+                               target_ulong opcode,
+                               target_ulong *args)
+{
+    /*
+     * This HCALL is not required, L1 KVM will take a slow path and walk the
+     * page tables manually to do the data copy.
+     */
+    return H_FUNCTION;
+}
+
+void spapr_enter_nested(PowerPCCPU *cpu)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    CPUState *cs = CPU(cpu);
+    CPUPPCState *env = &cpu->env;
+    target_ulong hv_ptr = env->gpr[4];
+    target_ulong regs_ptr = env->gpr[5];
+    target_ulong hdec, now = cpu_ppc_load_tbl(env);
+    struct kvmppc_hv_guest_state *hvstate;
+    struct kvmppc_hv_guest_state hv_state;
+    struct kvmppc_pt_regs *regs;
+    hwaddr len;
+    uint32_t cr;
+    int i;
+
+    if (cpu->in_spapr_nested) {
+        env->gpr[3] = H_FUNCTION;
+        return;
+    }
+    if (spapr->nested_ptcr == 0) {
+        env->gpr[3] = H_NOT_AVAILABLE;
+        return;
+    }
+
+    len = sizeof(*hvstate);
+    hvstate = cpu_physical_memory_map(hv_ptr, &len, true);
+    if (!hvstate || len != sizeof(*hvstate)) {
+        env->gpr[3] = H_PARAMETER;
+        return;
+    }
+
+    memcpy(&hv_state, hvstate, len);
+
+    cpu_physical_memory_unmap(hvstate, len, 0 /* read */, len /* access len */);
+
+    if (hv_state.version != HV_GUEST_STATE_VERSION) {
+        env->gpr[3] = H_PARAMETER;
+        return;
+    }
+
+    cpu->nested_host_state = g_try_malloc(sizeof(CPUPPCState));
+    if (!cpu->nested_host_state) {
+        env->gpr[3] = H_NO_MEM;
+        return;
+    }
+
+    memcpy(cpu->nested_host_state, env, sizeof(CPUPPCState));
+
+    len = sizeof(*regs);
+    regs = cpu_physical_memory_map(regs_ptr, &len, true);
+    if (!regs || len != sizeof(*regs)) {
+        g_free(cpu->nested_host_state);
+        env->gpr[3] = H_P2;
+        return;
+    }
+
+    len = sizeof(env->gpr);
+    assert(len == sizeof(regs->gpr));
+    memcpy(env->gpr, regs->gpr, len);
+
+    env->lr = regs->link;
+    env->ctr = regs->ctr;
+    cpu_write_xer(env, regs->xer);
+
+    cr = regs->ccr;
+    for (i = 7; i >= 0; i--) {
+        env->crf[i] = cr & 15;
+        cr >>= 4;
+    }
+
+    env->msr = regs->msr;
+    env->nip = regs->nip;
+
+    cpu_physical_memory_unmap(regs, len, 0 /* read */, len /* access len */);
+
+    env->cfar = hv_state.cfar;
+
+    assert(env->spr[SPR_LPIDR] == 0);
+    env->spr[SPR_LPCR] = hv_state.lpcr & pcc->lpcr_mask; // XXX any other mask?
+    env->spr[SPR_LPIDR] = hv_state.lpid;
+    env->spr[SPR_PCR] = hv_state.pcr;
+//    env->spr[SPR_AMOR] = hv_state.amor;
+    env->spr[SPR_DPDES] = hv_state.dpdes;
+    env->spr[SPR_HFSCR] = hv_state.hfscr;
+    hdec = hv_state.hdec_expiry - now;
+    env->tb_env->tb_offset += hv_state.tb_offset; // XXX how to deal?
+    // dec already set
+//  DAWRetc, CIABR, [S]PURR, IC
+    env->spr[SPR_VTB] = hv_state.vtb;
+//    env->spr[SPR_HEIR] = hv_state.heir;
+    env->spr[SPR_SRR0] = hv_state.srr0;
+    env->spr[SPR_SRR1] = hv_state.srr1;
+    env->spr[SPR_SPRG0] = hv_state.sprg[0];
+    env->spr[SPR_SPRG1] = hv_state.sprg[1];
+    env->spr[SPR_SPRG2] = hv_state.sprg[2];
+    env->spr[SPR_SPRG3] = hv_state.sprg[3];
+    env->spr[SPR_BOOKS_PID] = hv_state.pidr;
+    env->spr[SPR_PPR] = hv_state.ppr;
+
+    cpu_ppc_hdecr_init(env);
+    cpu_ppc_store_hdecr(env, hdec);
+
+    /*
+     * The hv_state.vcpu_token is not needed. It is used by the KVM
+     * implementation to remember which L2 vCPU last ran on which physical
+     * CPU so as to invalidate process scope translations if it is moved
+     * between physical CPUs. For now TLBs are always flushed on L1<->L2
+     * transitions so this is not a problem.
+     *
+     * Could validate that the same vcpu_token does not attempt to run on
+     * different L1 vCPUs at the same time, but that would be a L1 KVM bug
+     * and it's not obviously worth a new data structure to do it.
+     */
+
+    cpu->in_spapr_nested = true;
+
+    hreg_compute_hflags(env);
+    tlb_flush(cs);
+}
+
+void spapr_exit_nested(PowerPCCPU *cpu, int excp)
+{
+    CPUState *cs = CPU(cpu);
+    CPUPPCState *env = &cpu->env;
+    target_ulong r3_return = env->excp_vectors[excp]; // hcall return value
+    target_ulong hv_ptr = cpu->nested_host_state->gpr[4];
+    target_ulong regs_ptr = cpu->nested_host_state->gpr[5];
+    struct kvmppc_hv_guest_state *hvstate;
+    struct kvmppc_pt_regs *regs;
+    hwaddr len;
+    int i;
+
+    assert(cpu->in_spapr_nested);
+    cpu->in_spapr_nested = false;
+
+    cpu_ppc_hdecr_exit(env);
+
+    len = sizeof(*hvstate);
+    hvstate = cpu_physical_memory_map(hv_ptr, &len, true);
+    if (!hvstate || len != sizeof(*hvstate)) {
+        r3_return = H_PARAMETER;
+        goto out_restore_l1;
+    }
+
+    //XXX check linux kvm nested CTRL reg bug?
+    //
+    env->tb_env->tb_offset -= hvstate->tb_offset;
+
+    hvstate->cfar = env->cfar;
+    hvstate->lpcr = env->spr[SPR_LPCR];
+    hvstate->pcr = env->spr[SPR_PCR];
+//    hvstate->amor = env->spr[SPR_AMOR];
+    hvstate->dpdes = env->spr[SPR_DPDES];
+    hvstate->hfscr = env->spr[SPR_HFSCR];
+//    hvstate-> = // dec already set
+//  DAWRetc, CIABR, [S]PURR, IC
+    hvstate->vtb = env->spr[SPR_VTB];
+
+    if (excp == POWERPC_EXCP_HDSI) {
+        hvstate->hdar = env->spr[SPR_HDAR];
+        hvstate->hdsisr = env->spr[SPR_HDSISR];
+        hvstate->asdr = env->spr[SPR_ASDR];
+    } else if (excp == POWERPC_EXCP_HISI) {
+        hvstate->asdr = env->spr[SPR_ASDR];
+    }
+
+//    hvstate->heir = env->spr[SPR_HEIR]; XXX HEIR?
+    hvstate->srr0 = env->spr[SPR_SRR0];
+    hvstate->srr1 = env->spr[SPR_SRR1];
+    hvstate->sprg[0] = env->spr[SPR_SPRG0];
+    hvstate->sprg[1] = env->spr[SPR_SPRG1];
+    hvstate->sprg[2] = env->spr[SPR_SPRG2];
+    hvstate->sprg[3] = env->spr[SPR_SPRG3];
+    hvstate->pidr = env->spr[SPR_BOOKS_PID];
+    hvstate->ppr = env->spr[SPR_PPR];
+
+    cpu_physical_memory_unmap(hvstate, len, 0 /* read */, len /* access len */);
+
+    len = sizeof(*regs);
+    regs = cpu_physical_memory_map(regs_ptr, &len, true);
+    if (!regs || len != sizeof(*regs)) {
+        r3_return = H_P2;
+        goto out_restore_l1;
+    }
+
+    len = sizeof(env->gpr);
+    assert(len == sizeof(regs->gpr));
+    memcpy(regs->gpr, env->gpr, len);
+
+    regs->link = env->lr;
+    regs->ctr = env->ctr;
+    regs->xer = cpu_read_xer(env);
+
+    regs->ccr = 0;
+    for (i = 0; i < 8; i++) {
+        regs->ccr |= (env->crf[i] & 15) << (4 * (7 - i));
+    }
+
+    if (excp == POWERPC_EXCP_MCHECK ||
+        excp == POWERPC_EXCP_RESET ||
+        excp == POWERPC_EXCP_SYSCALL) {
+        regs->nip = env->spr[SPR_SRR0];
+        regs->msr = env->spr[SPR_SRR1];
+    } else {
+        regs->nip = env->spr[SPR_HSRR0];
+        regs->msr = env->spr[SPR_HSRR1];
+    }
+    // XXX must msr be masked?
+
+    cpu_physical_memory_unmap(regs, len, 0 /* read */, len /* access len */);
+
+out_restore_l1:
+    memcpy(env->gpr, cpu->nested_host_state->gpr, sizeof(env->gpr));
+    env->lr = cpu->nested_host_state->lr;
+    env->ctr = cpu->nested_host_state->ctr;
+    memcpy(env->crf, cpu->nested_host_state->crf, sizeof(env->crf));
+    env->cfar = cpu->nested_host_state->cfar;
+    env->xer = cpu->nested_host_state->xer;
+    env->so = cpu->nested_host_state->so;
+    env->ov = cpu->nested_host_state->ov;
+    env->ov32 = cpu->nested_host_state->ov32;
+    env->ca32 = cpu->nested_host_state->ca32;
+    env->msr = cpu->nested_host_state->msr;
+    env->nip = cpu->nested_host_state->nip;
+
+    assert(env->spr[SPR_LPIDR] != 0);
+    env->spr[SPR_LPCR] = cpu->nested_host_state->spr[SPR_LPCR];
+    env->spr[SPR_LPIDR] = cpu->nested_host_state->spr[SPR_LPIDR];
+    env->spr[SPR_PCR] = cpu->nested_host_state->spr[SPR_PCR];
+//    env->spr[SPR_AMOR] = cpu->nested_host_state->spr[SPR_AMOR];
+    env->spr[SPR_DPDES] = 0;
+    env->spr[SPR_HFSCR] = cpu->nested_host_state->spr[SPR_HFSCR];
+//  DAWRetc, CIABR, [S]PURR, IC
+    env->spr[SPR_VTB] = cpu->nested_host_state->spr[SPR_VTB];
+//    env->spr[SPR_HEIR] = hv_state.heir;
+    env->spr[SPR_SRR0] = cpu->nested_host_state->spr[SPR_SRR0];
+    env->spr[SPR_SRR1] = cpu->nested_host_state->spr[SPR_SRR1];
+    env->spr[SPR_SPRG0] = cpu->nested_host_state->spr[SPR_SPRG0];
+    env->spr[SPR_SPRG1] = cpu->nested_host_state->spr[SPR_SPRG1];
+    env->spr[SPR_SPRG2] = cpu->nested_host_state->spr[SPR_SPRG2];
+    env->spr[SPR_SPRG3] = cpu->nested_host_state->spr[SPR_SPRG3];
+    env->spr[SPR_BOOKS_PID] = cpu->nested_host_state->spr[SPR_BOOKS_PID];
+    env->spr[SPR_PPR] = cpu->nested_host_state->spr[SPR_PPR];
+
+    g_free(cpu->nested_host_state);
+    cpu->nested_host_state = NULL;
+
+    /*
+     * Return the interrupt vector address from H_ENTER_NESTED to the L1
+     * (or error code).
+     */
+    env->gpr[3] = r3_return;
+
+    hreg_compute_hflags(env);
+    tlb_flush(cs);
+}
+
 static void hypercall_register_types(void)
 {
     hypercall_register_softmmu();
@@ -1552,6 +1864,10 @@ static void hypercall_register_types(void)
     spapr_register_hypercall(KVMPPC_H_CAS, h_client_architecture_support);
 
     spapr_register_hypercall(KVMPPC_H_UPDATE_DT, h_update_dt);
+
+    spapr_register_hypercall(KVMPPC_H_SET_PARTITION_TABLE, h_set_ptbl);
+    spapr_register_hypercall(KVMPPC_H_TLB_INVALIDATE, h_tlb_invalidate);
+    spapr_register_hypercall(KVMPPC_H_COPY_TOFROM_GUEST, h_copy_tofrom_guest);
 }
 
 type_init(hypercall_register_types)

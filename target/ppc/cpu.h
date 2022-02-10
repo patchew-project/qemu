@@ -1306,6 +1306,9 @@ struct PowerPCCPU {
     bool pre_2_10_migration;
     bool pre_3_0_migration;
     int32_t mig_slb_nr;
+
+    bool in_spapr_nested;
+    CPUPPCState *nested_host_state;
 };
 
 
@@ -1316,6 +1319,9 @@ PowerPCCPUClass *ppc_cpu_get_family_class(PowerPCCPUClass *pcc);
 #ifndef CONFIG_USER_ONLY
 struct PPCVirtualHypervisorClass {
     InterfaceClass parent;
+    bool (*cpu_in_nested)(PowerPCCPU *cpu);
+    target_ulong (*get_nested_ptcr)(PowerPCCPU *cpu, target_ulong lpid);
+    void (*exit_nested)(PowerPCCPU *cpu, int excp);
     void (*hypercall)(PPCVirtualHypervisor *vhyp, PowerPCCPU *cpu);
     hwaddr (*hpt_mask)(PPCVirtualHypervisor *vhyp);
     const ppc_hash_pte64_t *(*map_hptes)(PPCVirtualHypervisor *vhyp,

@@ -361,8 +361,8 @@ static void ppc_excp_apply_ail(PowerPCCPU *cpu, int excp_model, int excp,
 #endif
 }
 
-static void powerpc_set_excp_state(PowerPCCPU *cpu,
-                                          target_ulong vector, target_ulong msr)
+static void powerpc_set_excp_state(PowerPCCPU *cpu, int excp,
+                                   target_ulong vector, target_ulong msr)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
@@ -375,9 +375,17 @@ static void powerpc_set_excp_state(PowerPCCPU *cpu,
      * will prevent setting of the HV bit which some exceptions might need
      * to do.
      */
-    env->msr = msr & env->msr_mask;
-    hreg_compute_hflags(env);
-    env->nip = vector;
+    if (cpu->vhyp && cpu->in_spapr_nested && (msr & MSR_HVB)) {
+        PPCVirtualHypervisorClass *vhc =
+            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
+        // Deliver interrupt to L1 by returning from the H_ENTER_NESTED call
+        vhc->exit_nested(cpu, excp);
+    } else {
+        env->nip = vector;
+        env->msr = msr & env->msr_mask;
+        hreg_compute_hflags(env);
+    }
+
     /* Reset exception state */
     cs->exception_index = POWERPC_EXCP_NONE;
     env->error_code = 0;
@@ -548,7 +556,7 @@ static void powerpc_excp_40x(PowerPCCPU *cpu, int excp)
     /* Save MSR */
     env->spr[srr1] = msr;
 
-    powerpc_set_excp_state(cpu, vector, new_msr);
+    powerpc_set_excp_state(cpu, excp, vector, new_msr);
 }
 
 static void powerpc_excp_74xx(PowerPCCPU *cpu, int excp)
@@ -742,7 +750,7 @@ static void powerpc_excp_74xx(PowerPCCPU *cpu, int excp)
     /* Save MSR */
     env->spr[SPR_SRR1] = msr;
 
-    powerpc_set_excp_state(cpu, vector, new_msr);
+    powerpc_set_excp_state(cpu, excp, vector, new_msr);
 }
 
 #ifdef TARGET_PPC64
@@ -916,7 +924,7 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
         env->nip += 4;
 
         /* "PAPR mode" built-in hypercall emulation */
-        if ((lev == 1) && cpu->vhyp) {
+        if ((lev == 1) && cpu->vhyp && !cpu->in_spapr_nested) {
             PPCVirtualHypervisorClass *vhc =
                 PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
             vhc->hypercall(cpu->vhyp, cpu);
@@ -1004,18 +1012,6 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
         break;
     }
 
-    /* Sanity check */
-    if (!(env->msr_mask & MSR_HVB)) {
-        if (new_msr & MSR_HVB) {
-            cpu_abort(cs, "Trying to deliver HV exception (MSR) %d with "
-                      "no HV support\n", excp);
-        }
-        if (srr0 == SPR_HSRR0) {
-            cpu_abort(cs, "Trying to deliver HV exception (HSRR) %d with "
-                      "no HV support\n", excp);
-        }
-    }
-
     /*
      * Sort out endianness of interrupt, this differs depending on the
      * CPU, the HV mode, etc...
@@ -1037,7 +1033,19 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
     /* This can update new_msr and vector if AIL applies */
     ppc_excp_apply_ail(cpu, excp_model, excp, msr, &new_msr, &vector);
 
-    powerpc_set_excp_state(cpu, vector, new_msr);
+    powerpc_set_excp_state(cpu, excp, vector, new_msr);
+
+    /* Sanity check */
+    if (!(env->msr_mask & MSR_HVB)) {
+        if (env->msr & MSR_HVB) {
+            cpu_abort(cs, "Trying to deliver HV exception (MSR) %d with "
+                      "no HV support\n", excp);
+        }
+        if (0 && srr0 == SPR_HSRR0) {
+            cpu_abort(cs, "Trying to deliver HV exception (HSRR) %d with "
+                      "no HV support\n", excp);
+        }
+    }
 }
 #else
 static inline void powerpc_excp_books(PowerPCCPU *cpu, int excp)
@@ -1517,7 +1525,7 @@ static inline void powerpc_excp_legacy(PowerPCCPU *cpu, int excp)
     /* This can update new_msr and vector if AIL applies */
     ppc_excp_apply_ail(cpu, excp_model, excp, msr, &new_msr, &vector);
 
-    powerpc_set_excp_state(cpu, vector, new_msr);
+    powerpc_set_excp_state(cpu, excp, vector, new_msr);
 }
 
 static void powerpc_excp(PowerPCCPU *cpu, int excp)
@@ -1613,7 +1621,11 @@ static void ppc_hw_interrupt(CPUPPCState *env)
         /* HEIC blocks delivery to the hypervisor */
         if ((async_deliver && !(heic && msr_hv && !msr_pr)) ||
             (env->has_hv_mode && msr_hv == 0 && !lpes0)) {
-            powerpc_excp(cpu, POWERPC_EXCP_EXTERNAL);
+            if (cpu->in_spapr_nested) {
+                powerpc_excp(cpu, POWERPC_EXCP_HVIRT);
+            } else {
+                powerpc_excp(cpu, POWERPC_EXCP_EXTERNAL);
+            }
             return;
         }
     }
@@ -1723,7 +1735,7 @@ void ppc_cpu_do_fwnmi_machine_check(CPUState *cs, target_ulong vector)
         msr |= (1ULL << MSR_LE);
     }
 
-    powerpc_set_excp_state(cpu, vector, msr);
+    powerpc_set_excp_state(cpu, POWERPC_EXCP_MCHECK, vector, msr);
 }
 
 bool ppc_cpu_exec_interrupt(CPUState *cs, int interrupt_request)

@@ -25,8 +25,23 @@
 
 bool ppc64_v3_get_pate(PowerPCCPU *cpu, target_ulong lpid, ppc_v3_pate_t *entry)
 {
-    uint64_t patb = cpu->env.spr[SPR_PTCR] & PTCR_PATB;
-    uint64_t pats = cpu->env.spr[SPR_PTCR] & PTCR_PATS;
+    uint64_t patb, pats;
+
+    if (cpu->vhyp) {
+        PPCVirtualHypervisorClass *vhc =
+            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
+        target_ulong nested_ptcr;
+
+        assert(cpu->in_spapr_nested);
+
+        nested_ptcr = vhc->get_nested_ptcr(cpu, lpid);
+
+        patb = nested_ptcr & PTCR_PATB;
+        pats = nested_ptcr & PTCR_PATS;
+    } else {
+        patb = cpu->env.spr[SPR_PTCR] & PTCR_PATB;
+        pats = cpu->env.spr[SPR_PTCR] & PTCR_PATS;
+    }
 
     /* Calculate number of entries */
     pats = 1ull << (pats + 12 - 4);
@@ -38,5 +53,6 @@ bool ppc64_v3_get_pate(PowerPCCPU *cpu, target_ulong lpid, ppc_v3_pate_t *entry)
     patb += 16 * lpid;
     entry->dw0 = ldq_phys(CPU(cpu)->as, patb);
     entry->dw1 = ldq_phys(CPU(cpu)->as, patb + 8);
+
     return true;
 }

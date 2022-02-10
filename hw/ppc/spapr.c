@@ -1273,6 +1273,8 @@ static void emulate_spapr_hypercall(PPCVirtualHypervisor *vhyp,
     if (msr_pr) {
         hcall_dprintf("Hypercall made with MSR[PR]=1\n");
         env->gpr[3] = H_PRIVILEGE;
+    } else if (env->gpr[3] == KVMPPC_H_ENTER_NESTED) {
+        spapr_enter_nested(cpu);
     } else {
         env->gpr[3] = spapr_hypercall(cpu, env->gpr[3], &env->gpr[4]);
     }
@@ -4465,6 +4467,17 @@ PowerPCCPU *spapr_find_cpu(int vcpu_id)
     return NULL;
 }
 
+static bool spapr_cpu_in_nested(PowerPCCPU *cpu)
+{
+    return cpu->in_spapr_nested;
+}
+
+static target_ulong spapr_get_nested_ptcr(PowerPCCPU *cpu, target_ulong lpid)
+{
+        SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+        return spapr->nested_ptcr;
+}
+
 static void spapr_cpu_exec_enter(PPCVirtualHypervisor *vhyp, PowerPCCPU *cpu)
 {
     SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
@@ -4573,6 +4586,9 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     fwc->get_dev_path = spapr_get_fw_dev_path;
     nc->nmi_monitor_handler = spapr_nmi;
     smc->phb_placement = spapr_phb_placement;
+    vhc->cpu_in_nested = spapr_cpu_in_nested;
+    vhc->get_nested_ptcr = spapr_get_nested_ptcr;
+    vhc->exit_nested = spapr_exit_nested;
     vhc->hypercall = emulate_spapr_hypercall;
     vhc->hpt_mask = spapr_hpt_mask;
     vhc->map_hptes = spapr_map_hptes;

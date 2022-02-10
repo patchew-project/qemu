@@ -163,6 +163,7 @@ static uint32_t hreg_compute_hflags_value(CPUPPCState *env)
         immu_idx |= msr & (1 << MSR_IS) ? 2 : 0;
         dmmu_idx |= msr & (1 << MSR_DS) ? 2 : 0;
     } else {
+        /* Could have nested IDX instead of HV to avoid tlb flush on nested enter/exit? */
         dmmu_idx |= msr & (1ull << MSR_HV) ? 4 : 0;
         immu_idx = dmmu_idx;
         immu_idx |= msr & (1 << MSR_IR) ? 0 : 2;
