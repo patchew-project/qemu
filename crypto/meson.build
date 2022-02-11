@@ -19,6 +19,7 @@ crypto_ss.add(files(
   'tlscredspsk.c',
   'tlscredsx509.c',
   'tlssession.c',
+  'akcipher.c',
 ))
 
 if nettle.found()
