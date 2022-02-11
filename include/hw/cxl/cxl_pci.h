@@ -64,6 +64,28 @@ _Static_assert(sizeof(struct dvsec_header) == 10,
  * CXL 2.0 Downstream Port: 3, 4, 7, 8
  */
 
+/* CXL 2.0 - 8.1.3 (ID 0001) */
+struct cxl_dvsec_device {
+    struct dvsec_header hdr;
+    uint16_t cap;
+    uint16_t ctrl;
+    uint16_t status;
+    uint16_t ctrl2;
+    uint16_t status2;
+    uint16_t lock;
+    uint16_t cap2;
+    uint32_t range1_size_hi;
+    uint32_t range1_size_lo;
+    uint32_t range1_base_hi;
+    uint32_t range1_base_lo;
+    uint32_t range2_size_hi;
+    uint32_t range2_size_lo;
+    uint32_t range2_base_hi;
+    uint32_t range2_base_lo;
+};
+_Static_assert(sizeof(struct cxl_dvsec_device) == 0x38,
+               "dvsec device size incorrect");
+
 /* CXL 2.0 - 8.1.5 (ID 0003) */
 struct cxl_dvsec_port_extensions {
     struct dvsec_header hdr;
