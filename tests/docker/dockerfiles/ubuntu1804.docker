@@ -65,7 +65,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
             libpam0g-dev \
             libpcre2-dev \
             libpixman-1-dev \
-            libpmem-dev \
             libpng-dev \
             libpulse-dev \
             librbd-dev \
@@ -89,7 +88,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
             libvdeplug-dev \
             libvirglrenderer-dev \
             libvte-2.91-dev \
-            libxen-dev \
             libzstd-dev \
             llvm \
             locales \
