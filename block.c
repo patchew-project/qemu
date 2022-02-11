@@ -999,6 +999,7 @@ BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,
 {
     int score_max = 0, score;
     BlockDriver *drv = NULL, *d;
+    IO_CODE();
 
     QLIST_FOREACH(d, &bdrv_drivers, list) {
         if (d->bdrv_probe) {
@@ -1051,6 +1052,7 @@ static int find_image_format(BlockBackend *file, const char *filename,
 int refresh_total_sectors(BlockDriverState *bs, int64_t hint)
 {
     BlockDriver *drv = bs->drv;
+    IO_CODE();
 
     if (!drv) {
         return -ENOMEDIUM;
@@ -6195,6 +6197,7 @@ const char *bdrv_get_parent_name(const BlockDriverState *bs)
 {
     BdrvChild *c;
     const char *name;
+    IO_CODE();
 
     /* If multiple parents have a name, just pick the first one. */
     QLIST_FOREACH(c, &bs->parents, next_parent) {
@@ -7931,6 +7934,8 @@ int bdrv_make_empty(BdrvChild *c, Error **errp)
  */
 BdrvChild *bdrv_cow_child(BlockDriverState *bs)
 {
+    IO_CODE();
+
     if (!bs || !bs->drv) {
         return NULL;
     }
@@ -7954,6 +7959,7 @@ BdrvChild *bdrv_cow_child(BlockDriverState *bs)
 BdrvChild *bdrv_filter_child(BlockDriverState *bs)
 {
     BdrvChild *c;
+    IO_CODE();
 
     if (!bs || !bs->drv) {
         return NULL;
@@ -7985,6 +7991,7 @@ BdrvChild *bdrv_filter_or_cow_child(BlockDriverState *bs)
 {
     BdrvChild *cow_child = bdrv_cow_child(bs);
     BdrvChild *filter_child = bdrv_filter_child(bs);
+    IO_CODE();
 
     /* Filter nodes cannot have COW backing files */
     assert(!(cow_child && filter_child));
@@ -8005,6 +8012,7 @@ BdrvChild *bdrv_filter_or_cow_child(BlockDriverState *bs)
 BdrvChild *bdrv_primary_child(BlockDriverState *bs)
 {
     BdrvChild *c, *found = NULL;
+    IO_CODE();
 
     QLIST_FOREACH(c, &bs->children, next) {
         if (c->role & BDRV_CHILD_PRIMARY) {
@@ -8067,6 +8075,7 @@ BlockDriverState *bdrv_skip_implicit_filters(BlockDriverState *bs)
  */
 BlockDriverState *bdrv_skip_filters(BlockDriverState *bs)
 {
+    IO_CODE();
     return bdrv_do_skip_filters(bs, false);
 }
 
@@ -8076,6 +8085,7 @@ BlockDriverState *bdrv_skip_filters(BlockDriverState *bs)
  */
 BlockDriverState *bdrv_backing_chain_next(BlockDriverState *bs)
 {
+    IO_CODE();
     return bdrv_skip_filters(bdrv_cow_bs(bdrv_skip_filters(bs)));
 }
 
@@ -8111,8 +8121,8 @@ static bool bdrv_bsc_range_overlaps_locked(BlockDriverState *bs,
  */
 bool bdrv_bsc_is_data(BlockDriverState *bs, int64_t offset, int64_t *pnum)
 {
+    IO_CODE();
     RCU_READ_LOCK_GUARD();
-
     return bdrv_bsc_range_overlaps_locked(bs, offset, 1, pnum);
 }
 
@@ -8122,6 +8132,7 @@ bool bdrv_bsc_is_data(BlockDriverState *bs, int64_t offset, int64_t *pnum)
 void bdrv_bsc_invalidate_range(BlockDriverState *bs,
                                int64_t offset, int64_t bytes)
 {
+    IO_CODE();
     RCU_READ_LOCK_GUARD();
 
     if (bdrv_bsc_range_overlaps_locked(bs, offset, bytes, NULL)) {
@@ -8136,6 +8147,7 @@ void bdrv_bsc_fill(BlockDriverState *bs, int64_t offset, int64_t bytes)
 {
     BdrvBlockStatusCache *new_bsc = g_new(BdrvBlockStatusCache, 1);
     BdrvBlockStatusCache *old_bsc;
+    IO_CODE();
 
     *new_bsc = (BdrvBlockStatusCache) {
         .valid = true,
