@@ -24,12 +24,25 @@
 #include "qapi/error.h"
 #include "crypto/akcipher.h"
 
+QCryptoAkcipher *qcrypto_akcipher_nettle_new(uint32_t alg, bool private,
+                                             const uint8_t *key,
+                                             size_t keylen,
+                                             void *para,
+                                             int index, Error **errp);
+
 QCryptoAkcipher *qcrypto_akcipher_new(uint32_t alg, bool private,
                                       const uint8_t *key, size_t keylen,
                                       void *para,
                                       int index, Error **errp)
 {
     QCryptoAkcipher *akcipher = NULL;
+
+#ifdef CONFIG_HOGWEED
+    akcipher = qcrypto_akcipher_nettle_new(alg, private, key, keylen,
+                                           para, index, errp);
+#else
+    error_setg(errp, "qcrypto akcipher has no nettle/hogweed support");
+#endif
 
     return akcipher;
 }
