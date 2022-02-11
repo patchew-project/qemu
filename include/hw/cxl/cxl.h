@@ -46,4 +46,6 @@ extern QemuOptsList qemu_cxl_fixed_window_opts;
 void parse_cxl_fixed_memory_window_opts(MachineState *ms);
 void cxl_fixed_memory_window_link_targets(Error **errp);
 
+extern const MemoryRegionOps cfmws_ops;
+
 #endif
