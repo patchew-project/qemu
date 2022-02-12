@@ -45,7 +45,7 @@ struct PIIX4State {
     qemu_irq *isa;
     qemu_irq i8259[ISA_NUM_IRQS];
 
-    int pci_irq_levels[PIIX_NUM_PIRQS];
+    int32_t pci_irq_levels[PIIX_NUM_PIRQS];
 
     RTCState rtc;
     /* Reset Control Register */
@@ -128,12 +128,14 @@ static int piix4_ide_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_piix4 = {
     .name = "PIIX4",
-    .version_id = 3,
+    .version_id = 4,
     .minimum_version_id = 2,
     .post_load = piix4_ide_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, PIIX4State),
         VMSTATE_UINT8_V(rcr, PIIX4State, 3),
+        VMSTATE_INT32_ARRAY_V(pci_irq_levels, PIIX4State,
+                              PIIX_NUM_PIRQS, 4),
         VMSTATE_END_OF_LIST()
     }
 };
