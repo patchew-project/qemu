@@ -111,9 +111,9 @@ static int sh_pci_map_irq(PCIDevice *d, int irq_num)
 
 static void sh_pci_set_irq(void *opaque, int irq_num, int level)
 {
-    qemu_irq *pic = opaque;
+    SHPCIState *s = opaque;
 
-    qemu_set_irq(pic[irq_num], level);
+    qemu_set_irq(s->irq[irq_num], level);
 }
 
 static void sh_pci_device_realize(DeviceState *dev, Error **errp)
@@ -128,7 +128,7 @@ static void sh_pci_device_realize(DeviceState *dev, Error **errp)
     }
     phb->bus = pci_register_root_bus(dev, "pci",
                                      sh_pci_set_irq, sh_pci_map_irq,
-                                     s->irq,
+                                     s,
                                      get_system_memory(),
                                      get_system_io(),
                                      PCI_DEVFN(0, 0), 4, TYPE_PCI_BUS);
