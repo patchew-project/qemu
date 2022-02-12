@@ -526,6 +526,7 @@ void multifd_save_cleanup(void)
 
         if (p->running) {
             qemu_thread_join(&p->thread);
+            p->running = false;
         }
     }
     for (i = 0; i < migrate_multifd_channels(); i++) {
@@ -706,10 +707,6 @@ out:
         qemu_sem_post(&p->sem_sync);
         qemu_sem_post(&multifd_send_state->channels_ready);
     }
-
-    qemu_mutex_lock(&p->mutex);
-    p->running = false;
-    qemu_mutex_unlock(&p->mutex);
 
     rcu_unregister_thread();
     trace_multifd_send_thread_end(p->id, p->num_packets, p->total_normal_pages);
@@ -995,6 +992,7 @@ int multifd_load_cleanup(Error **errp)
              */
             qemu_sem_post(&p->sem_sync);
             qemu_thread_join(&p->thread);
+            p->running = false;
         }
     }
     for (i = 0; i < migrate_multifd_channels(); i++) {
@@ -1110,9 +1108,6 @@ static void *multifd_recv_thread(void *opaque)
         multifd_recv_terminate_threads(local_err);
         error_free(local_err);
     }
-    qemu_mutex_lock(&p->mutex);
-    p->running = false;
-    qemu_mutex_unlock(&p->mutex);
 
     rcu_unregister_thread();
     trace_multifd_recv_thread_end(p->id, p->num_packets, p->total_normal_pages);
