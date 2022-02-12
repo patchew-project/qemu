@@ -43,7 +43,6 @@ struct PIIX4State {
     PCIDevice dev;
     qemu_irq cpu_intr;
     qemu_irq *isa;
-    qemu_irq i8259[ISA_NUM_IRQS];
 
     int32_t pci_irq_levels[PIIX_NUM_PIRQS];
 
@@ -73,7 +72,7 @@ static void piix4_set_irq(void *opaque, int irq_num, int level)
                 pic_level |= s->pci_irq_levels[i];
             }
         }
-        qemu_set_irq(s->i8259[pic_irq], pic_level);
+        qemu_set_irq(s->isa[pic_irq], pic_level);
     }
 }
 
@@ -322,10 +321,6 @@ DeviceState *piix4_create(PCIBus *pci_bus, ISABus **isa_bus, I2CBus **smbus)
     }
 
     pci_bus_irqs(pci_bus, piix4_set_irq, pci_slot_get_pirq, s, PIIX_NUM_PIRQS);
-
-    for (int i = 0; i < ISA_NUM_IRQS; i++) {
-        s->i8259[i] = qdev_get_gpio_in_named(dev, "isa", i);
-    }
 
     return dev;
 }
