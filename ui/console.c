@@ -1824,12 +1824,8 @@ int dpy_gl_ctx_make_current(QemuConsole *con, QEMUGLContext ctx)
 
 void dpy_gl_scanout_disable(QemuConsole *con)
 {
-    DisplayState *s = con->ds;
-    DisplayChangeListener *dcl;
-
-    QLIST_FOREACH(dcl, &s->listeners, next) {
-        dcl->ops->dpy_gl_scanout_disable(dcl);
-    }
+    assert(con->gl);
+    con->gl->ops->dpy_gl_scanout_disable(con->gl);
 }
 
 void dpy_gl_scanout_texture(QemuConsole *con,
@@ -1840,80 +1836,58 @@ void dpy_gl_scanout_texture(QemuConsole *con,
                             uint32_t x, uint32_t y,
                             uint32_t width, uint32_t height)
 {
-    DisplayState *s = con->ds;
-    DisplayChangeListener *dcl;
-
-    QLIST_FOREACH(dcl, &s->listeners, next) {
-        dcl->ops->dpy_gl_scanout_texture(dcl, backing_id,
+    assert(con->gl);
+    con->gl->ops->dpy_gl_scanout_texture(con->gl, backing_id,
                                          backing_y_0_top,
                                          backing_width, backing_height,
                                          x, y, width, height);
-    }
 }
 
 void dpy_gl_scanout_dmabuf(QemuConsole *con,
                            QemuDmaBuf *dmabuf)
 {
-    DisplayState *s = con->ds;
-    DisplayChangeListener *dcl;
-
-    QLIST_FOREACH(dcl, &s->listeners, next) {
-        dcl->ops->dpy_gl_scanout_dmabuf(dcl, dmabuf);
-    }
+    assert(con->gl);
+    con->gl->ops->dpy_gl_scanout_dmabuf(con->gl, dmabuf);
 }
 
 void dpy_gl_cursor_dmabuf(QemuConsole *con, QemuDmaBuf *dmabuf,
                           bool have_hot, uint32_t hot_x, uint32_t hot_y)
 {
-    DisplayState *s = con->ds;
-    DisplayChangeListener *dcl;
+    assert(con->gl);
 
-    QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (dcl->ops->dpy_gl_cursor_dmabuf) {
-            dcl->ops->dpy_gl_cursor_dmabuf(dcl, dmabuf,
+    if (con->gl->ops->dpy_gl_cursor_dmabuf) {
+        con->gl->ops->dpy_gl_cursor_dmabuf(con->gl, dmabuf,
                                            have_hot, hot_x, hot_y);
-        }
     }
 }
 
 void dpy_gl_cursor_position(QemuConsole *con,
                             uint32_t pos_x, uint32_t pos_y)
 {
-    DisplayState *s = con->ds;
-    DisplayChangeListener *dcl;
+    assert(con->gl);
 
-    QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (dcl->ops->dpy_gl_cursor_position) {
-            dcl->ops->dpy_gl_cursor_position(dcl, pos_x, pos_y);
-        }
+    if (con->gl->ops->dpy_gl_cursor_position) {
+        con->gl->ops->dpy_gl_cursor_position(con->gl, pos_x, pos_y);
     }
 }
 
 void dpy_gl_release_dmabuf(QemuConsole *con,
                           QemuDmaBuf *dmabuf)
 {
-    DisplayState *s = con->ds;
-    DisplayChangeListener *dcl;
+    assert(con->gl);
 
-    QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (dcl->ops->dpy_gl_release_dmabuf) {
-            dcl->ops->dpy_gl_release_dmabuf(dcl, dmabuf);
-        }
+    if (con->gl->ops->dpy_gl_release_dmabuf) {
+        con->gl->ops->dpy_gl_release_dmabuf(con->gl, dmabuf);
     }
 }
 
 void dpy_gl_update(QemuConsole *con,
                    uint32_t x, uint32_t y, uint32_t w, uint32_t h)
 {
-    DisplayState *s = con->ds;
-    DisplayChangeListener *dcl;
-
     assert(con->gl);
 
     graphic_hw_gl_block(con, true);
-    QLIST_FOREACH(dcl, &s->listeners, next) {
-        dcl->ops->dpy_gl_update(dcl, x, y, w, h);
-    }
+    con->gl->ops->dpy_gl_update(con->gl, x, y, w, h);
     graphic_hw_gl_block(con, false);
 }
 
