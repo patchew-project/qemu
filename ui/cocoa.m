@@ -1680,7 +1680,10 @@ static void create_initial_menus(void)
 /* Returns a name for a given console */
 static NSString * getConsoleName(QemuConsole * console)
 {
-    return [NSString stringWithFormat: @"%s", qemu_console_get_label(console)];
+    char *label = qemu_console_get_label(console);
+    NSString *nslabel = [NSString stringWithUTF8String:label];
+    g_free(label);
+    return nslabel;
 }
 
 /* Add an entry to the View menu for each console */
