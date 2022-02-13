@@ -33,11 +33,10 @@
 
 struct _DBusDisplayConsole {
     GDBusObjectSkeleton parent_instance;
-    DisplayChangeListener dcl;
 
     DBusDisplay *display;
     QemuConsole *con;
-    GHashTable *listeners;
+    DBusDisplayListener *listener;
     QemuDBusDisplay1Console *iface;
 
     QemuDBusDisplay1Keyboard *iface_kbd;
@@ -54,7 +53,7 @@ G_DEFINE_TYPE(DBusDisplayConsole,
               dbus_display_console,
               G_TYPE_DBUS_OBJECT_SKELETON)
 
-static void
+void
 dbus_display_console_set_size(DBusDisplayConsole *ddc,
                               uint32_t width, uint32_t height)
 {
@@ -65,77 +64,8 @@ dbus_display_console_set_size(DBusDisplayConsole *ddc,
 }
 
 static void
-dbus_gfx_switch(DisplayChangeListener *dcl,
-                struct DisplaySurface *new_surface)
-{
-    DBusDisplayConsole *ddc = container_of(dcl, DBusDisplayConsole, dcl);
-
-    dbus_display_console_set_size(ddc,
-                                  surface_width(new_surface),
-                                  surface_height(new_surface));
-}
-
-static void
-dbus_gfx_update(DisplayChangeListener *dcl,
-                int x, int y, int w, int h)
-{
-}
-
-static void
-dbus_gl_scanout_disable(DisplayChangeListener *dcl)
-{
-}
-
-static void
-dbus_gl_scanout_texture(DisplayChangeListener *dcl,
-                        uint32_t tex_id,
-                        bool backing_y_0_top,
-                        uint32_t backing_width,
-                        uint32_t backing_height,
-                        uint32_t x, uint32_t y,
-                        uint32_t w, uint32_t h)
-{
-    DBusDisplayConsole *ddc = container_of(dcl, DBusDisplayConsole, dcl);
-
-    dbus_display_console_set_size(ddc, w, h);
-}
-
-static void
-dbus_gl_scanout_dmabuf(DisplayChangeListener *dcl,
-                       QemuDmaBuf *dmabuf)
-{
-    DBusDisplayConsole *ddc = container_of(dcl, DBusDisplayConsole, dcl);
-
-    dbus_display_console_set_size(ddc,
-                                  dmabuf->width,
-                                  dmabuf->height);
-}
-
-static void
-dbus_gl_scanout_update(DisplayChangeListener *dcl,
-                       uint32_t x, uint32_t y,
-                       uint32_t w, uint32_t h)
-{
-}
-
-static const DisplayChangeListenerOps dbus_console_dcl_ops = {
-    .dpy_name                = "dbus-console",
-    .dpy_gfx_switch          = dbus_gfx_switch,
-    .dpy_gfx_update          = dbus_gfx_update,
-    .dpy_gl_scanout_disable  = dbus_gl_scanout_disable,
-    .dpy_gl_scanout_texture  = dbus_gl_scanout_texture,
-    .dpy_gl_scanout_dmabuf   = dbus_gl_scanout_dmabuf,
-    .dpy_gl_update           = dbus_gl_scanout_update,
-};
-
-static void
 dbus_display_console_init(DBusDisplayConsole *object)
 {
-    DBusDisplayConsole *ddc = DBUS_DISPLAY_CONSOLE(object);
-
-    ddc->listeners = g_hash_table_new_full(g_str_hash, g_str_equal,
-                                            NULL, g_object_unref);
-    ddc->dcl.ops = &dbus_console_dcl_ops;
 }
 
 static void
@@ -143,10 +73,10 @@ dbus_display_console_dispose(GObject *object)
 {
     DBusDisplayConsole *ddc = DBUS_DISPLAY_CONSOLE(object);
 
-    unregister_displaychangelistener(&ddc->dcl);
     g_clear_object(&ddc->iface_kbd);
     g_clear_object(&ddc->iface);
-    g_clear_pointer(&ddc->listeners, g_hash_table_unref);
+    dbus_display_listener_unref_all_connections(ddc->listener);
+    g_clear_object(&ddc->listener);
     g_clear_pointer(&ddc->kbd, qkbd_state_free);
 
     G_OBJECT_CLASS(dbus_display_console_parent_class)->dispose(object);
@@ -161,14 +91,14 @@ dbus_display_console_class_init(DBusDisplayConsoleClass *klass)
 }
 
 static void
-listener_vanished_cb(DBusDisplayListener *listener)
+listener_vanished_cb(DBusDisplayListenerConnection *ddlc)
 {
-    DBusDisplayConsole *ddc = dbus_display_listener_get_console(listener);
-    const char *name = dbus_display_listener_get_bus_name(listener);
+    DBusDisplayConsole *ddc = dbus_display_listener_connection_get_console(ddlc);
+    const char *name = dbus_display_listener_connection_get_bus_name(ddlc);
 
     trace_dbus_listener_vanished(name);
 
-    g_hash_table_remove(ddc->listeners, name);
+    g_object_unref(ddlc);
     qkbd_state_lift_all_keys(ddc->kbd);
 }
 
@@ -211,15 +141,15 @@ dbus_console_register_listener(DBusDisplayConsole *ddc,
                                GVariant *arg_listener)
 {
     const char *sender = g_dbus_method_invocation_get_sender(invocation);
-    GDBusConnection *listener_conn;
+    GDBusConnection *conn;
     g_autoptr(GError) err = NULL;
     g_autoptr(GSocket) socket = NULL;
     g_autoptr(GSocketConnection) socket_conn = NULL;
     g_autofree char *guid = g_dbus_generate_guid();
-    DBusDisplayListener *listener;
+    DBusDisplayListenerConnection *listener_conn;
     int fd;
 
-    if (sender && g_hash_table_contains(ddc->listeners, sender)) {
+    if (sender && dbus_display_listener_has_connection(ddc->listener, sender)) {
         g_dbus_method_invocation_return_error(
             invocation,
             DBUS_DISPLAY_ERROR,
@@ -254,7 +184,7 @@ dbus_console_register_listener(DBusDisplayConsole *ddc,
     qemu_dbus_display1_console_complete_register_listener(
         ddc->iface, invocation, NULL);
 
-    listener_conn = g_dbus_connection_new_sync(
+    conn = g_dbus_connection_new_sync(
         G_IO_STREAM(socket_conn),
         guid,
         G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_SERVER,
@@ -264,16 +194,15 @@ dbus_console_register_listener(DBusDisplayConsole *ddc,
         return DBUS_METHOD_INVOCATION_HANDLED;
     }
 
-    listener = dbus_display_listener_new(sender, listener_conn, ddc);
-    if (!listener) {
+    listener_conn = dbus_display_listener_add_connection(ddc->listener,
+                                                         sender, conn);
+    if (!listener_conn) {
         return DBUS_METHOD_INVOCATION_HANDLED;
     }
 
-    g_hash_table_insert(ddc->listeners,
-                        (gpointer)dbus_display_listener_get_bus_name(listener),
-                        listener);
-    g_object_connect(listener_conn,
-                     "swapped-signal::closed", listener_vanished_cb, listener,
+    g_object_connect(conn,
+                     "swapped-signal::closed", listener_vanished_cb,
+                     listener_conn,
                      NULL);
 
     trace_dbus_registered_listener(sender);
@@ -489,7 +418,7 @@ dbus_display_console_new(DBusDisplay *display, QemuConsole *con)
     g_dbus_object_skeleton_add_interface(G_DBUS_OBJECT_SKELETON(ddc),
         G_DBUS_INTERFACE_SKELETON(ddc->iface_mouse));
 
-    register_displaychangelistener(&ddc->dcl);
+    ddc->listener = dbus_display_listener_new(ddc);
     ddc->mouse_mode_notifier.notify = dbus_mouse_mode_change;
     qemu_add_mouse_mode_change_notifier(&ddc->mouse_mode_notifier);
 

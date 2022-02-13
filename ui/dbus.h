@@ -76,8 +76,18 @@ G_DECLARE_FINAL_TYPE(DBusDisplayConsole,
 DBusDisplayConsole *
 dbus_display_console_new(DBusDisplay *display, QemuConsole *con);
 
+void
+dbus_display_console_set_size(DBusDisplayConsole *ddc,
+                              uint32_t width, uint32_t height);
+
 int
 dbus_display_console_get_index(DBusDisplayConsole *ddc);
+
+G_DECLARE_FINAL_TYPE(DBusDisplayListenerConnection,
+                     dbus_display_listener_connection,
+                     DBUS_DISPLAY,
+                     LISTENER_CONNECTION,
+                     GObject)
 
 #define DBUS_DISPLAY_TYPE_LISTENER dbus_display_listener_get_type()
 G_DECLARE_FINAL_TYPE(DBusDisplayListener,
@@ -86,16 +96,28 @@ G_DECLARE_FINAL_TYPE(DBusDisplayListener,
                      LISTENER,
                      GObject)
 
+#define DBUS_DISPLAY_TYPE_LISTENER_CONNECTION \
+    dbus_display_listener_connection_get_type()
 DBusDisplayListener *
-dbus_display_listener_new(const char *bus_name,
-                          GDBusConnection *conn,
-                          DBusDisplayConsole *console);
+dbus_display_listener_new(DBusDisplayConsole *console);
+
+DBusDisplayListenerConnection *
+dbus_display_listener_add_connection(DBusDisplayListener *ddl,
+                                     const char *bus_name,
+                                     GDBusConnection *conn);
+
+bool
+dbus_display_listener_has_connection(DBusDisplayListener *ddl,
+                                     const char *bus_name);
+
+void
+dbus_display_listener_unref_all_connections(DBusDisplayListener *ddl);
 
 DBusDisplayConsole *
-dbus_display_listener_get_console(DBusDisplayListener *ddl);
+dbus_display_listener_connection_get_console(DBusDisplayListenerConnection *ddlc);
 
 const char *
-dbus_display_listener_get_bus_name(DBusDisplayListener *ddl);
+dbus_display_listener_connection_get_bus_name(DBusDisplayListenerConnection *ddlc);
 
 extern const DisplayChangeListenerOps dbus_gl_dcl_ops;
 extern const DisplayChangeListenerOps dbus_dcl_ops;

@@ -31,18 +31,36 @@
 #include "ui/egl-context.h"
 #include "trace.h"
 
-struct _DBusDisplayListener {
+struct _DBusDisplayListenerConnection {
     GObject parent;
 
     char *bus_name;
-    DBusDisplayConsole *console;
+    DBusDisplayListener *listener;
     GDBusConnection *conn;
 
     QemuDBusDisplay1Listener *proxy;
+};
+
+G_DEFINE_TYPE(DBusDisplayListenerConnection,
+              dbus_display_listener_connection,
+              G_TYPE_OBJECT)
+
+struct _DBusDisplayListener {
+    GObject parent;
+
+    GHashTable *conns;
+    DBusDisplayConsole *console;
 
     DisplayChangeListener dcl;
     DisplaySurface *ds;
     QemuGLShader *gls;
+    GUnixFDList *dmabuf_fd_list;
+    uint32_t dmabuf_width;
+    uint32_t dmabuf_height;
+    uint32_t dmabuf_stride;
+    uint32_t dmabuf_fourcc;
+    uint64_t dmabuf_modifier;
+    bool dmabuf_y0_top;
     int gl_updates;
 };
 
@@ -53,65 +71,98 @@ static void dbus_update_gl_cb(GObject *source_object,
                            gpointer user_data)
 {
     g_autoptr(GError) err = NULL;
-    DBusDisplayListener *ddl = user_data;
+    DBusDisplayListenerConnection *ddlc = user_data;
 
-    if (!qemu_dbus_display1_listener_call_update_dmabuf_finish(ddl->proxy,
+    if (!qemu_dbus_display1_listener_call_update_dmabuf_finish(ddlc->proxy,
                                                                res, &err)) {
         error_report("Failed to call update: %s", err->message);
     }
 
-    graphic_hw_gl_block(ddl->dcl.con, false);
-    g_object_unref(ddl);
+    graphic_hw_gl_block(ddlc->listener->dcl.con, false);
+    g_object_unref(ddlc);
 }
 
 static void dbus_call_update_gl(DBusDisplayListener *ddl,
                                 int x, int y, int w, int h)
 {
-    graphic_hw_gl_block(ddl->dcl.con, true);
-    glFlush();
-    qemu_dbus_display1_listener_call_update_dmabuf(ddl->proxy,
-        x, y, w, h,
-        G_DBUS_CALL_FLAGS_NONE,
-        DBUS_DEFAULT_TIMEOUT, NULL,
-        dbus_update_gl_cb,
-        g_object_ref(ddl));
+    GHashTableIter iter;
+    gpointer ddlc;
+
+    g_hash_table_iter_init(&iter, ddl->conns);
+    while (g_hash_table_iter_next(&iter, NULL, &ddlc)) {
+        graphic_hw_gl_block(ddl->dcl.con, true);
+        glFlush();
+        qemu_dbus_display1_listener_call_update_dmabuf(
+            ((DBusDisplayListenerConnection *)ddlc)->proxy,
+            x, y, w, h,
+            G_DBUS_CALL_FLAGS_NONE,
+            DBUS_DEFAULT_TIMEOUT, NULL,
+            dbus_update_gl_cb,
+            g_object_ref(ddlc));
+    }
 }
 
 static void dbus_scanout_disable(DisplayChangeListener *dcl)
 {
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
+    GHashTableIter iter;
+    gpointer ddlc;
 
     ddl->ds = NULL;
-    qemu_dbus_display1_listener_call_disable(
-        ddl->proxy, G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
+
+    g_hash_table_iter_init(&iter, ddl->conns);
+    while (g_hash_table_iter_next(&iter, NULL, &ddlc)) {
+        qemu_dbus_display1_listener_call_disable(
+            ((DBusDisplayListenerConnection *)ddlc)->proxy,
+            G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
+    }
 }
 
 static void dbus_scanout_dmabuf(DisplayChangeListener *dcl,
                                 QemuDmaBuf *dmabuf)
 {
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
+    GHashTableIter iter;
+    gpointer ddlc;
     g_autoptr(GError) err = NULL;
     g_autoptr(GUnixFDList) fd_list = NULL;
 
-    fd_list = g_unix_fd_list_new();
-    if (g_unix_fd_list_append(fd_list, dmabuf->fd, &err) != 0) {
+    if (ddl->dmabuf_fd_list) {
+        g_clear_object(&ddl->dmabuf_fd_list);
+    }
+
+    ddl->dmabuf_fd_list = g_unix_fd_list_new();
+    if (g_unix_fd_list_append(ddl->dmabuf_fd_list, dmabuf->fd, &err) != 0) {
+        g_clear_object(&ddl->dmabuf_fd_list);
         error_report("Failed to setup dmabuf fdlist: %s", err->message);
         return;
     }
 
-    qemu_dbus_display1_listener_call_scanout_dmabuf(
-        ddl->proxy,
-        g_variant_new_handle(0),
-        dmabuf->width,
-        dmabuf->height,
-        dmabuf->stride,
-        dmabuf->fourcc,
-        dmabuf->modifier,
-        dmabuf->y0_top,
-        G_DBUS_CALL_FLAGS_NONE,
-        -1,
-        fd_list,
-        NULL, NULL, NULL);
+    ddl->dmabuf_width = dmabuf->width;
+    ddl->dmabuf_height = dmabuf->height;
+    ddl->dmabuf_stride = dmabuf->stride;
+    ddl->dmabuf_fourcc = dmabuf->fourcc;
+    ddl->dmabuf_modifier = dmabuf->modifier;
+    ddl->dmabuf_y0_top = dmabuf->y0_top;
+
+    dbus_display_console_set_size(ddl->console, dmabuf->width, dmabuf->height);
+
+    g_hash_table_iter_init(&iter, ddl->conns);
+    while (g_hash_table_iter_next(&iter, NULL, &ddlc)) {
+        qemu_dbus_display1_listener_call_scanout_dmabuf(
+            ((DBusDisplayListenerConnection *)ddlc)->proxy,
+            g_variant_new_handle(0),
+            ddl->dmabuf_width,
+            ddl->dmabuf_height,
+            ddl->dmabuf_stride,
+            ddl->dmabuf_fourcc,
+            ddl->dmabuf_modifier,
+            ddl->dmabuf_y0_top,
+            G_DBUS_CALL_FLAGS_NONE,
+            -1,
+            ddl->dmabuf_fd_list,
+            NULL, NULL, NULL);
+    }
 }
 
 static void dbus_scanout_texture(DisplayChangeListener *dcl,
@@ -150,11 +201,16 @@ static void dbus_cursor_dmabuf(DisplayChangeListener *dcl,
     DisplaySurface *ds;
     GVariant *v_data = NULL;
     egl_fb cursor_fb;
+    GHashTableIter iter;
+    gpointer ddlc;
 
     if (!dmabuf) {
-        qemu_dbus_display1_listener_call_mouse_set(
-            ddl->proxy, 0, 0, false,
-            G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
+        g_hash_table_iter_init(&iter, ddl->conns);
+        while (g_hash_table_iter_next(&iter, NULL, &ddlc)) {
+            qemu_dbus_display1_listener_call_mouse_set(
+                ((DBusDisplayListenerConnection *)ddlc)->proxy, 0, 0, false,
+                G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
+        }
         return;
     }
 
@@ -174,28 +230,37 @@ static void dbus_cursor_dmabuf(DisplayChangeListener *dcl,
         TRUE,
         (GDestroyNotify)qemu_free_displaysurface,
         ds);
-    qemu_dbus_display1_listener_call_cursor_define(
-        ddl->proxy,
-        surface_width(ds),
-        surface_height(ds),
-        hot_x,
-        hot_y,
-        v_data,
-        G_DBUS_CALL_FLAGS_NONE,
-        -1,
-        NULL,
-        NULL,
-        NULL);
+
+    g_hash_table_iter_init(&iter, ddl->conns);
+    while (g_hash_table_iter_next(&iter, NULL, &ddlc)) {
+        qemu_dbus_display1_listener_call_cursor_define(
+            ((DBusDisplayListenerConnection *)ddlc)->proxy,
+            surface_width(ds),
+            surface_height(ds),
+            hot_x,
+            hot_y,
+            v_data,
+            G_DBUS_CALL_FLAGS_NONE,
+            -1,
+            NULL,
+            NULL,
+            NULL);
+    }
 }
 
 static void dbus_cursor_position(DisplayChangeListener *dcl,
                                  uint32_t pos_x, uint32_t pos_y)
 {
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
+    GHashTableIter iter;
+    gpointer ddlc;
 
-    qemu_dbus_display1_listener_call_mouse_set(
-        ddl->proxy, pos_x, pos_y, true,
-        G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
+    g_hash_table_iter_init(&iter, ddl->conns);
+    while (g_hash_table_iter_next(&iter, NULL, &ddlc)) {
+        qemu_dbus_display1_listener_call_mouse_set(
+            ((DBusDisplayListenerConnection *)ddlc)->proxy,
+            pos_x, pos_y, true, G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
+    }
 }
 
 static void dbus_release_dmabuf(DisplayChangeListener *dcl,
@@ -254,6 +319,8 @@ static void dbus_gfx_update(DisplayChangeListener *dcl,
     pixman_image_t *img;
     GVariant *v_data;
     size_t stride;
+    GHashTableIter iter;
+    gpointer ddlc;
 
     assert(ddl->ds);
     stride = w * DIV_ROUND_UP(PIXMAN_FORMAT_BPP(surface_format(ddl->ds)), 8);
@@ -273,11 +340,16 @@ static void dbus_gfx_update(DisplayChangeListener *dcl,
         TRUE,
         (GDestroyNotify)pixman_image_unref,
         img);
-    qemu_dbus_display1_listener_call_update(ddl->proxy,
-        x, y, w, h, pixman_image_get_stride(img), pixman_image_get_format(img),
-        v_data,
-        G_DBUS_CALL_FLAGS_NONE,
-        DBUS_DEFAULT_TIMEOUT, NULL, NULL, NULL);
+
+    g_hash_table_iter_init(&iter, ddl->conns);
+    while (g_hash_table_iter_next(&iter, NULL, &ddlc)) {
+        qemu_dbus_display1_listener_call_update(
+            ((DBusDisplayListenerConnection *)ddlc)->proxy,
+            x, y, w, h, pixman_image_get_stride(img), pixman_image_get_format(img),
+            v_data,
+            G_DBUS_CALL_FLAGS_NONE,
+            DBUS_DEFAULT_TIMEOUT, NULL, NULL, NULL);
+    }
 }
 
 static void dbus_gl_gfx_switch(DisplayChangeListener *dcl,
@@ -293,6 +365,8 @@ static void dbus_gl_gfx_switch(DisplayChangeListener *dcl,
         int width = surface_width(ddl->ds);
         int height = surface_height(ddl->ds);
 
+        dbus_display_console_set_size(ddl->console, width, height);
+
         surface_gl_create_texture(ddl->gls, ddl->ds);
         /* TODO: lazy send dmabuf (there are unnecessary sent otherwise) */
         dbus_scanout_texture(&ddl->dcl, ddl->ds->texture, false,
@@ -305,12 +379,18 @@ static void dbus_gfx_switch(DisplayChangeListener *dcl,
 {
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
     GVariant *v_data = NULL;
+    GHashTableIter iter;
+    gpointer ddlc;
 
     ddl->ds = new_surface;
     if (!ddl->ds) {
         /* why not call disable instead? */
         return;
     }
+
+    dbus_display_console_set_size(ddl->console,
+                                  surface_width(ddl->ds),
+                                  surface_height(ddl->ds));
 
     v_data = g_variant_new_from_data(
         G_VARIANT_TYPE("ay"),
@@ -319,23 +399,34 @@ static void dbus_gfx_switch(DisplayChangeListener *dcl,
         TRUE,
         (GDestroyNotify)pixman_image_unref,
         pixman_image_ref(ddl->ds->image));
-    qemu_dbus_display1_listener_call_scanout(ddl->proxy,
-        surface_width(ddl->ds),
-        surface_height(ddl->ds),
-        surface_stride(ddl->ds),
-        surface_format(ddl->ds),
-        v_data,
-        G_DBUS_CALL_FLAGS_NONE,
-        DBUS_DEFAULT_TIMEOUT, NULL, NULL, NULL);
+
+    g_hash_table_iter_init(&iter, ddl->conns);
+    while (g_hash_table_iter_next(&iter, NULL, &ddlc)) {
+        qemu_dbus_display1_listener_call_scanout(
+            ((DBusDisplayListenerConnection *)ddlc)->proxy,
+            surface_width(ddl->ds),
+            surface_height(ddl->ds),
+            surface_stride(ddl->ds),
+            surface_format(ddl->ds),
+            v_data,
+            G_DBUS_CALL_FLAGS_NONE,
+            DBUS_DEFAULT_TIMEOUT, NULL, NULL, NULL);
+    }
 }
 
 static void dbus_mouse_set(DisplayChangeListener *dcl,
                            int x, int y, int on)
 {
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
+    GHashTableIter iter;
+    gpointer ddlc;
 
-    qemu_dbus_display1_listener_call_mouse_set(
-        ddl->proxy, x, y, on, G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
+    g_hash_table_iter_init(&iter, ddl->conns);
+    while (g_hash_table_iter_next(&iter, NULL, &ddlc)) {
+        qemu_dbus_display1_listener_call_mouse_set(
+            ((DBusDisplayListenerConnection *)ddlc)->proxy,
+            x, y, on, G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
+    }
 }
 
 static void dbus_cursor_define(DisplayChangeListener *dcl,
@@ -343,6 +434,8 @@ static void dbus_cursor_define(DisplayChangeListener *dcl,
 {
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
     GVariant *v_data = NULL;
+    GHashTableIter iter;
+    gpointer ddlc;
 
     cursor_get(c);
     v_data = g_variant_new_from_data(
@@ -353,18 +446,21 @@ static void dbus_cursor_define(DisplayChangeListener *dcl,
         (GDestroyNotify)cursor_put,
         c);
 
-    qemu_dbus_display1_listener_call_cursor_define(
-        ddl->proxy,
-        c->width,
-        c->height,
-        c->hot_x,
-        c->hot_y,
-        v_data,
-        G_DBUS_CALL_FLAGS_NONE,
-        -1,
-        NULL,
-        NULL,
-        NULL);
+    g_hash_table_iter_init(&iter, ddl->conns);
+    while (g_hash_table_iter_next(&iter, NULL, &ddlc)) {
+        qemu_dbus_display1_listener_call_cursor_define(
+            ((DBusDisplayListenerConnection *)ddlc)->proxy,
+            c->width,
+            c->height,
+            c->hot_x,
+            c->hot_y,
+            v_data,
+            G_DBUS_CALL_FLAGS_NONE,
+            -1,
+            NULL,
+            NULL,
+            NULL);
+    }
 }
 
 const DisplayChangeListenerOps dbus_gl_dcl_ops = {
@@ -400,9 +496,8 @@ dbus_display_listener_dispose(GObject *object)
     DBusDisplayListener *ddl = DBUS_DISPLAY_LISTENER(object);
 
     unregister_displaychangelistener(&ddl->dcl);
-    g_clear_object(&ddl->conn);
-    g_clear_pointer(&ddl->bus_name, g_free);
-    g_clear_object(&ddl->proxy);
+    g_clear_object(&ddl->dmabuf_fd_list);
+    g_clear_pointer(&ddl->conns, g_hash_table_unref);
     g_clear_pointer(&ddl->gls, qemu_gl_fini_shader);
 
     G_OBJECT_CLASS(dbus_display_listener_parent_class)->dispose(object);
@@ -435,46 +530,146 @@ dbus_display_listener_class_init(DBusDisplayListenerClass *klass)
 static void
 dbus_display_listener_init(DBusDisplayListener *ddl)
 {
+    ddl->conns = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, NULL);
 }
 
-const char *
-dbus_display_listener_get_bus_name(DBusDisplayListener *ddl)
+DBusDisplayListenerConnection *
+dbus_display_listener_add_connection(DBusDisplayListener *ddl,
+                                     const char *bus_name,
+                                     GDBusConnection *conn)
 {
-    return ddl->bus_name ?: "p2p";
-}
-
-DBusDisplayConsole *
-dbus_display_listener_get_console(DBusDisplayListener *ddl)
-{
-    return ddl->console;
-}
-
-DBusDisplayListener *
-dbus_display_listener_new(const char *bus_name,
-                          GDBusConnection *conn,
-                          DBusDisplayConsole *console)
-{
-    DBusDisplayListener *ddl;
-    QemuConsole *con;
+    DBusDisplayListenerConnection *ddlc;
+    QemuDBusDisplay1Listener *proxy;
     g_autoptr(GError) err = NULL;
 
-    ddl = g_object_new(DBUS_DISPLAY_TYPE_LISTENER, NULL);
-    ddl->proxy =
+    proxy =
         qemu_dbus_display1_listener_proxy_new_sync(conn,
             G_DBUS_PROXY_FLAGS_DO_NOT_AUTO_START,
             NULL,
             "/org/qemu/Display1/Listener",
             NULL,
             &err);
-    if (!ddl->proxy) {
+    if (!proxy) {
         error_report("Failed to setup proxy: %s", err->message);
         g_object_unref(conn);
-        g_object_unref(ddl);
         return NULL;
     }
 
-    ddl->bus_name = g_strdup(bus_name);
-    ddl->conn = conn;
+    ddlc = g_object_new(DBUS_DISPLAY_TYPE_LISTENER_CONNECTION, NULL);
+    ddlc->listener = g_object_ref(ddl);
+    ddlc->proxy = proxy;
+    ddlc->bus_name = g_strdup(bus_name);
+    ddlc->conn = conn;
+
+    g_hash_table_insert(ddl->conns, ddlc->bus_name, ddlc);
+
+    if (display_opengl) {
+        if (ddl->dmabuf_fd_list) {
+            qemu_dbus_display1_listener_call_scanout_dmabuf(
+                ddlc->proxy,
+                g_variant_new_handle(0),
+                ddl->dmabuf_width,
+                ddl->dmabuf_height,
+                ddl->dmabuf_stride,
+                ddl->dmabuf_fourcc,
+                ddl->dmabuf_modifier,
+                ddl->dmabuf_y0_top,
+                G_DBUS_CALL_FLAGS_NONE,
+                -1,
+                ddl->dmabuf_fd_list,
+                NULL, NULL, NULL);
+        }
+    } else {
+        if (ddl->ds) {
+            GVariant *v_data = NULL;
+
+            v_data = g_variant_new_from_data(
+                G_VARIANT_TYPE("ay"),
+                surface_data(ddl->ds),
+                surface_stride(ddl->ds) * surface_height(ddl->ds),
+                TRUE,
+                (GDestroyNotify)pixman_image_unref,
+                pixman_image_ref(ddl->ds->image));
+
+            qemu_dbus_display1_listener_call_scanout(
+                ((DBusDisplayListenerConnection *)ddlc)->proxy,
+                surface_width(ddl->ds),
+                surface_height(ddl->ds),
+                surface_stride(ddl->ds),
+                surface_format(ddl->ds),
+                v_data,
+                G_DBUS_CALL_FLAGS_NONE,
+                DBUS_DEFAULT_TIMEOUT, NULL, NULL, NULL);
+        }
+    }
+
+    return ddlc;
+}
+
+bool
+dbus_display_listener_has_connection(DBusDisplayListener *ddl,
+                                     const char *bus_name)
+{
+    return g_hash_table_contains(ddl->conns, bus_name);
+}
+
+void
+dbus_display_listener_unref_all_connections(DBusDisplayListener *ddl)
+{
+    GHashTableIter iter;
+    gpointer ddlc;
+
+    g_hash_table_iter_init(&iter, ddl->conns);
+    while (g_hash_table_iter_next(&iter, NULL, &ddlc)) {
+        g_object_unref(ddlc);
+    }
+}
+
+static void
+dbus_display_listener_connection_dispose(GObject *object)
+{
+    DBusDisplayListenerConnection *ddlc =
+        DBUS_DISPLAY_LISTENER_CONNECTION(object);
+
+    g_hash_table_remove(ddlc->listener->conns, ddlc->bus_name);
+    g_clear_object(&ddlc->listener);
+    g_clear_object(&ddlc->conn);
+    g_clear_pointer(&ddlc->bus_name, g_free);
+    g_clear_object(&ddlc->proxy);
+
+    G_OBJECT_CLASS(dbus_display_listener_connection_parent_class)->dispose(object);
+}
+
+static void
+dbus_display_listener_connection_class_init(DBusDisplayListenerConnectionClass *klass)
+{
+    G_OBJECT_CLASS(klass)->dispose = dbus_display_listener_connection_dispose;
+}
+
+static void
+dbus_display_listener_connection_init(DBusDisplayListenerConnection *ddl)
+{
+}
+
+const char *
+dbus_display_listener_connection_get_bus_name(DBusDisplayListenerConnection *ddlc)
+{
+    return ddlc->bus_name ?: "p2p";
+}
+
+DBusDisplayConsole *
+dbus_display_listener_connection_get_console(DBusDisplayListenerConnection *ddlc)
+{
+    return ddlc->listener->console;
+}
+
+DBusDisplayListener *
+dbus_display_listener_new(DBusDisplayConsole *console)
+{
+    DBusDisplayListener *ddl;
+    QemuConsole *con;
+
+    ddl = g_object_new(DBUS_DISPLAY_TYPE_LISTENER, NULL);
     ddl->console = console;
 
     con = qemu_console_lookup_by_index(dbus_display_console_get_index(console));
