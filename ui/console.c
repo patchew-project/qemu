@@ -1458,19 +1458,6 @@ static bool dpy_compatible_with(QemuConsole *con,
     return true;
 }
 
-void qemu_console_set_display_gl_ctx(QemuConsole *con,
-                                     DisplayChangeListener *dcl)
-{
-    /* display has opengl support */
-    assert(dcl->con);
-    if (dcl->con->gl) {
-        fprintf(stderr, "can't register two opengl displays (%s, %s)\n",
-                dcl->ops->dpy_name, dcl->con->gl->ops->dpy_name);
-        exit(1);
-    }
-    dcl->con->gl = dcl;
-}
-
 void register_displaychangelistener(DisplayChangeListener *dcl)
 {
     static const char nodev[] =
@@ -1481,7 +1468,14 @@ void register_displaychangelistener(DisplayChangeListener *dcl)
     assert(!dcl->ds);
 
     if (dcl->ops->dpy_gl_ctx_create) {
-        qemu_console_set_display_gl_ctx(dcl->con, dcl);
+        /* display has opengl support */
+        assert(dcl->con);
+        if (dcl->con->gl) {
+            error_report("can't register two opengl displays (%s, %s)\n",
+                         dcl->ops->dpy_name, dcl->con->gl->ops->dpy_name);
+            exit(1);
+        }
+        dcl->con->gl = dcl;
     }
 
     if (dcl->con) {
