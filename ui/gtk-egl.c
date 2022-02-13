@@ -197,14 +197,14 @@ void gd_egl_switch(DisplayChangeListener *dcl,
     }
 }
 
-QEMUGLContext gd_egl_create_context(DisplayGLCtx *dgc,
+QEMUGLContext gd_egl_create_context(DisplayChangeListener *dcl,
                                     QEMUGLParams *params)
 {
-    VirtualConsole *vc = container_of(dgc, VirtualConsole, gfx.dgc);
+    VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
 
     eglMakeCurrent(qemu_egl_display, vc->gfx.esurface,
                    vc->gfx.esurface, vc->gfx.ectx);
-    return qemu_egl_create_context(dgc, params);
+    return qemu_egl_create_context(dcl, params);
 }
 
 void gd_egl_scanout_disable(DisplayChangeListener *dcl)
@@ -360,10 +360,10 @@ void gtk_egl_init(DisplayGLMode mode)
     display_opengl = 1;
 }
 
-int gd_egl_make_current(DisplayGLCtx *dgc,
+int gd_egl_make_current(DisplayChangeListener *dcl,
                         QEMUGLContext ctx)
 {
-    VirtualConsole *vc = container_of(dgc, VirtualConsole, gfx.dgc);
+    VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
 
     return eglMakeCurrent(qemu_egl_display, vc->gfx.esurface,
                           vc->gfx.esurface, ctx);

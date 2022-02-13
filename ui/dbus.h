@@ -45,7 +45,6 @@ struct DBusDisplay {
     bool p2p;
     char *dbus_addr;
     char *audiodev;
-    DisplayGLCtx glctx;
 
     GDBusConnection *bus;
     GDBusObjectManagerServer *server;
@@ -118,9 +117,6 @@ dbus_display_listener_connection_get_console(DBusDisplayListenerConnection *ddlc
 
 const char *
 dbus_display_listener_connection_get_bus_name(DBusDisplayListenerConnection *ddlc);
-
-extern const DisplayChangeListenerOps dbus_gl_dcl_ops;
-extern const DisplayChangeListenerOps dbus_dcl_ops;
 
 #define TYPE_CHARDEV_DBUS "chardev-dbus"
 

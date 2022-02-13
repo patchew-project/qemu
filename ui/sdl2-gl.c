@@ -132,10 +132,10 @@ void sdl2_gl_redraw(struct sdl2_console *scon)
     }
 }
 
-QEMUGLContext sdl2_gl_create_context(DisplayGLCtx *dgc,
+QEMUGLContext sdl2_gl_create_context(DisplayChangeListener *dcl,
                                      QEMUGLParams *params)
 {
-    struct sdl2_console *scon = container_of(dgc, struct sdl2_console, dgc);
+    struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
     SDL_GLContext ctx;
 
     assert(scon->opengl);
@@ -167,17 +167,17 @@ QEMUGLContext sdl2_gl_create_context(DisplayGLCtx *dgc,
     return (QEMUGLContext)ctx;
 }
 
-void sdl2_gl_destroy_context(DisplayGLCtx *dgc, QEMUGLContext ctx)
+void sdl2_gl_destroy_context(DisplayChangeListener *dcl, QEMUGLContext ctx)
 {
     SDL_GLContext sdlctx = (SDL_GLContext)ctx;
 
     SDL_GL_DeleteContext(sdlctx);
 }
 
-int sdl2_gl_make_context_current(DisplayGLCtx *dgc,
+int sdl2_gl_make_context_current(DisplayChangeListener *dcl,
                                  QEMUGLContext ctx)
 {
-    struct sdl2_console *scon = container_of(dgc, struct sdl2_console, dgc);
+    struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
     SDL_GLContext sdlctx = (SDL_GLContext)ctx;
 
     assert(scon->opengl);

@@ -30,7 +30,6 @@
 #include "sysemu/sysemu.h"
 #include "ui/dbus-module.h"
 #include "ui/egl-helpers.h"
-#include "ui/egl-context.h"
 #include "audio/audio.h"
 #include "audio/audio_int.h"
 #include "qapi/error.h"
@@ -39,21 +38,6 @@
 #include "dbus.h"
 
 static DBusDisplay *dbus_display;
-
-static QEMUGLContext dbus_create_context(DisplayGLCtx *dgc,
-                                         QEMUGLParams *params)
-{
-    eglMakeCurrent(qemu_egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE,
-                   qemu_egl_rn_ctx);
-    return qemu_egl_create_context(dgc, params);
-}
-
-static const DisplayGLCtxOps dbus_gl_ops = {
-    .compatible_dcl          = &dbus_gl_dcl_ops,
-    .dpy_gl_ctx_create       = dbus_create_context,
-    .dpy_gl_ctx_destroy      = qemu_egl_destroy_context,
-    .dpy_gl_ctx_make_current = qemu_egl_make_context_current,
-};
 
 static NotifierList dbus_display_notifiers =
     NOTIFIER_LIST_INITIALIZER(dbus_display_notifiers);
@@ -82,7 +66,6 @@ dbus_display_init(Object *o)
     DBusDisplay *dd = DBUS_DISPLAY(o);
     g_autoptr(GDBusObjectSkeleton) vm = NULL;
 
-    dd->glctx.ops = &dbus_gl_ops;
     dd->iface = qemu_dbus_display1_vm_skeleton_new();
     dd->consoles = g_ptr_array_new_with_free_func(g_object_unref);
 
@@ -130,11 +113,6 @@ dbus_display_add_console(DBusDisplay *dd, int idx, Error **errp)
 
     con = qemu_console_lookup_by_index(idx);
     assert(con);
-
-    if (qemu_console_is_graphic(con) &&
-        dd->gl_mode != DISPLAYGL_MODE_OFF) {
-        qemu_console_set_display_gl_ctx(con, &dd->glctx);
-    }
 
     dbus_console = dbus_display_console_new(dd, con);
     g_ptr_array_insert(dd->consoles, idx, dbus_console);

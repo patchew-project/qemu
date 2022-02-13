@@ -1,7 +1,7 @@
 #include "qemu/osdep.h"
 #include "ui/egl-context.h"
 
-QEMUGLContext qemu_egl_create_context(DisplayGLCtx *dgc,
+QEMUGLContext qemu_egl_create_context(DisplayChangeListener *dcl,
                                       QEMUGLParams *params)
 {
    EGLContext ctx;
@@ -24,12 +24,12 @@ QEMUGLContext qemu_egl_create_context(DisplayGLCtx *dgc,
    return ctx;
 }
 
-void qemu_egl_destroy_context(DisplayGLCtx *dgc, QEMUGLContext ctx)
+void qemu_egl_destroy_context(DisplayChangeListener *dcl, QEMUGLContext ctx)
 {
     eglDestroyContext(qemu_egl_display, ctx);
 }
 
-int qemu_egl_make_context_current(DisplayGLCtx *dgc,
+int qemu_egl_make_context_current(DisplayChangeListener *dcl,
                                   QEMUGLContext ctx)
 {
    return eglMakeCurrent(qemu_egl_display,

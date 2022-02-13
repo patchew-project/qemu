@@ -102,6 +102,14 @@ static void dbus_call_update_gl(DBusDisplayListener *ddl,
     }
 }
 
+static QEMUGLContext dbus_create_context(DisplayChangeListener *dcl,
+                                         QEMUGLParams *params)
+{
+    eglMakeCurrent(qemu_egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE,
+                   qemu_egl_rn_ctx);
+    return qemu_egl_create_context(dcl, params);
+}
+
 static void dbus_scanout_disable(DisplayChangeListener *dcl)
 {
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
@@ -463,7 +471,7 @@ static void dbus_cursor_define(DisplayChangeListener *dcl,
     }
 }
 
-const DisplayChangeListenerOps dbus_gl_dcl_ops = {
+static const DisplayChangeListenerOps dbus_gl_dcl_ops = {
     .dpy_name                = "dbus-gl",
     .dpy_gfx_update          = dbus_gl_gfx_update,
     .dpy_gfx_switch          = dbus_gl_gfx_switch,
@@ -471,6 +479,10 @@ const DisplayChangeListenerOps dbus_gl_dcl_ops = {
     .dpy_refresh             = dbus_gl_refresh,
     .dpy_mouse_set           = dbus_mouse_set,
     .dpy_cursor_define       = dbus_cursor_define,
+
+    .dpy_gl_ctx_create       = dbus_create_context,
+    .dpy_gl_ctx_destroy      = qemu_egl_destroy_context,
+    .dpy_gl_ctx_make_current = qemu_egl_make_context_current,
 
     .dpy_gl_scanout_disable  = dbus_scanout_disable,
     .dpy_gl_scanout_texture  = dbus_scanout_texture,
@@ -481,7 +493,7 @@ const DisplayChangeListenerOps dbus_gl_dcl_ops = {
     .dpy_gl_update           = dbus_scanout_update,
 };
 
-const DisplayChangeListenerOps dbus_dcl_ops = {
+static const DisplayChangeListenerOps dbus_dcl_ops = {
     .dpy_name                = "dbus",
     .dpy_gfx_update          = dbus_gfx_update,
     .dpy_gfx_switch          = dbus_gfx_switch,
