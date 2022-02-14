@@ -3357,6 +3357,50 @@ static void lo_lseek(fuse_req_t req, fuse_ino_t ino, off_t off, int whence,
     }
 }
 
+static int lo_do_syncfs(struct lo_data *lo, struct lo_inode *inode)
+{
+    int fd, ret = 0;
+
+    fuse_log(FUSE_LOG_DEBUG, "lo_do_syncfs(ino=%" PRIu64 ")\n",
+             inode->fuse_ino);
+
+    fd = lo_inode_open(lo, inode, O_RDONLY);
+    if (fd < 0) {
+        return -fd;
+    }
+
+    if (syncfs(fd) < 0) {
+        ret = errno;
+    }
+
+    close(fd);
+    return ret;
+}
+
+static void lo_syncfs(fuse_req_t req, fuse_ino_t ino)
+{
+    struct lo_data *lo = lo_data(req);
+    int err;
+
+    if (lo->announce_submounts) {
+        struct lo_inode *inode;
+
+        inode = lo_inode(req, ino);
+        if (!inode) {
+            fuse_reply_err(req, EBADF);
+            return;
+        }
+
+        err = lo_do_syncfs(lo, inode);
+        lo_inode_put(lo, &inode);
+    } else {
+        /* Requires the sever to track submounts. Not implemented yet */
+        err = ENOSYS;
+    }
+
+    fuse_reply_err(req, err);
+}
+
 static void lo_destroy(void *userdata)
 {
     struct lo_data *lo = (struct lo_data *)userdata;
@@ -3417,6 +3461,7 @@ static struct fuse_lowlevel_ops lo_oper = {
     .copy_file_range = lo_copy_file_range,
 #endif
     .lseek = lo_lseek,
+    .syncfs = lo_syncfs,
     .destroy = lo_destroy,
 };
 
