@@ -3400,8 +3400,42 @@ static void lo_syncfs(fuse_req_t req, fuse_ino_t ino)
         err = lo_do_syncfs(lo, inode);
         lo_inode_put(lo, &inode);
     } else {
-        /* Requires the sever to track submounts. Not implemented yet */
-        err = ENOSYS;
+        g_autoptr(GSList) submount_list = NULL;
+        GSList *elem;
+        GHashTableIter iter;
+        gpointer key, value;
+
+        pthread_mutex_lock(&lo->mutex);
+
+        g_hash_table_iter_init(&iter, lo->inodes);
+        while (g_hash_table_iter_next(&iter, &key, &value)) {
+            struct lo_inode *inode = value;
+
+            if (inode->is_submount) {
+                g_atomic_int_inc(&inode->refcount);
+                submount_list = g_slist_prepend(submount_list, inode);
+            }
+        }
+
+        pthread_mutex_unlock(&lo->mutex);
+
+        /* The root inode is always present and not tracked in the hash table */
+        err = lo_do_syncfs(lo, &lo->root);
+
+        for (elem = submount_list; elem; elem = g_slist_next(elem)) {
+            struct lo_inode *inode = elem->data;
+            int r;
+
+            r = lo_do_syncfs(lo, inode);
+            if (r) {
+                /*
+                 * Try to sync as much as possible. Only one error can be
+                 * reported to the client though, arbitrarily the last one.
+                 */
+                err = r;
+            }
+            lo_inode_put(lo, &inode);
+        }
     }
 
     fuse_reply_err(req, err);
