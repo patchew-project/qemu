@@ -283,6 +283,14 @@ uint8_t xive_esb_set(uint8_t *pq, uint8_t value);
 #define XIVE_ESB_SET_PQ_10      0xe00 /* Load */
 #define XIVE_ESB_SET_PQ_11      0xf00 /* Load */
 
+/*
+ * Load-after-store ordering
+ *
+ * Adding this offset to the load address will enforce
+ * load-after-store ordering. This is required to use with StoreEOI.
+ */
+#define XIVE_ESB_LD_ST_MO       0x40 /* Load-after-store ordering */
+
 uint8_t xive_source_esb_get(XiveSource *xsrc, uint32_t srcno);
 uint8_t xive_source_esb_set(XiveSource *xsrc, uint32_t srcno, uint8_t pq);
 

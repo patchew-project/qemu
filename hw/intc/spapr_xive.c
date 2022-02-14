@@ -25,6 +25,7 @@
 #include "hw/ppc/xive_regs.h"
 #include "hw/qdev-properties.h"
 #include "trace.h"
+#include "cpu-models.h"
 
 /*
  * XIVE Virtualization Controller BAR and Thread Managment BAR that we
@@ -1828,4 +1829,18 @@ void spapr_xive_hcall_init(SpaprMachineState *spapr)
     spapr_register_hypercall(H_INT_ESB, h_int_esb);
     spapr_register_hypercall(H_INT_SYNC, h_int_sync);
     spapr_register_hypercall(H_INT_RESET, h_int_reset);
+}
+
+/*
+ * Advertise StoreEOI for a P10 compat guest. OS is required to
+ * enforce load-after-store ordering.
+ */
+void spapr_xive_enable_store_eoi(SpaprXive *xive, bool enable)
+{
+    if (enable) {
+        xive->source.esb_flags |= XIVE_SRC_STORE_EOI;
+    } else {
+        xive->source.esb_flags &= ~XIVE_SRC_STORE_EOI;
+    }
+
 }

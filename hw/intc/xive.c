@@ -1004,6 +1004,12 @@ static uint64_t xive_source_esb_read(void *opaque, hwaddr addr, unsigned size)
     case XIVE_ESB_SET_PQ_01 ... XIVE_ESB_SET_PQ_01 + 0x0FF:
     case XIVE_ESB_SET_PQ_10 ... XIVE_ESB_SET_PQ_10 + 0x0FF:
     case XIVE_ESB_SET_PQ_11 ... XIVE_ESB_SET_PQ_11 + 0x0FF:
+        if (offset == XIVE_ESB_SET_PQ_10 &&
+            xsrc->esb_flags & XIVE_SRC_STORE_EOI) {
+            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: load-after-store ordering "
+                          "not enforced with Store EOI active for IRQ %d\n",
+                          srcno);
+        }
         ret = xive_source_esb_set(xsrc, srcno, (offset >> 8) & 0x3);
         break;
     default:
