@@ -118,6 +118,7 @@ struct lo_inode {
     GHashTable *posix_locks; /* protected by lo_inode->plock_mutex */
 
     mode_t filetype;
+    bool is_submount;
 };
 
 struct lo_cred {
@@ -1017,6 +1018,7 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
     struct lo_data *lo = lo_data(req);
     struct lo_inode *inode = NULL;
     struct lo_inode *dir = lo_inode(req, parent);
+    bool is_submount;
 
     if (inodep) {
         *inodep = NULL; /* in case there is an error */
@@ -1051,8 +1053,10 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         goto out_err;
     }
 
-    if (S_ISDIR(e->attr.st_mode) && lo->announce_submounts &&
-        (e->attr.st_dev != dir->key.dev || mnt_id != dir->key.mnt_id)) {
+    is_submount = S_ISDIR(e->attr.st_mode) &&
+        (e->attr.st_dev != dir->key.dev || mnt_id != dir->key.mnt_id);
+
+    if (is_submount && lo->announce_submounts) {
         e->attr_flags |= FUSE_ATTR_SUBMOUNT;
     }
 
@@ -1079,6 +1083,7 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         inode->key.ino = e->attr.st_ino;
         inode->key.dev = e->attr.st_dev;
         inode->key.mnt_id = mnt_id;
+        inode->is_submount = is_submount;
         if (lo->posix_lock) {
             pthread_mutex_init(&inode->plock_mutex, NULL);
             inode->posix_locks = g_hash_table_new_full(
@@ -1100,8 +1105,9 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
 
     lo_inode_put(lo, &dir);
 
-    fuse_log(FUSE_LOG_DEBUG, "  %lli/%s -> %lli\n", (unsigned long long)parent,
-             name, (unsigned long long)e->ino);
+    fuse_log(FUSE_LOG_DEBUG, "  %lli/%s -> %lli%s\n",
+             (unsigned long long) parent, name, (unsigned long long) e->ino,
+             is_submount ? " (submount)" : "");
 
     return 0;
 
