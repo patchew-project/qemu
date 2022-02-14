@@ -58,6 +58,7 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
 {
     static uint64_t ns_count;
     NvmeIdNs *id_ns = &ns->id_ns;
+    NvmeIdNsNvm *id_ns_nvm = &ns->id_ns_nvm;
     uint8_t ds;
     uint16_t ms;
     int i;
@@ -101,6 +102,8 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
         id_ns->dps |= NVME_ID_NS_DPS_FIRST_EIGHT;
     }
 
+    ns->pif = ns->params.pif;
+
     static const NvmeLBAF lbaf[16] = {
         [0] = { .ds =  9           },
         [1] = { .ds =  9, .ms =  8 },
@@ -133,7 +136,9 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
 
     id_ns->flbas |= i;
 
+
 lbaf_found:
+    id_ns_nvm->elbaf[i] = (ns->pif & 0x3) << 7;
     id_ns->nlbaf = ns->nlbaf - 1;
     nvme_ns_init_format(ns);
 
@@ -384,6 +389,12 @@ static int nvme_ns_check_constraints(NvmeNamespace *ns, Error **errp)
         return -1;
     }
 
+    if (ns->params.pif != NVME_PI_GUARD_16 &&
+        ns->params.pif != NVME_PI_GUARD_64) {
+        error_setg(errp, "invalid 'pif'");
+        return -1;
+    }
+
     if (ns->params.nsid > NVME_MAX_NAMESPACES) {
         error_setg(errp, "invalid namespace id (must be between 0 and %d)",
                    NVME_MAX_NAMESPACES);
@@ -593,6 +604,7 @@ static Property nvme_ns_props[] = {
     DEFINE_PROP_UINT8("mset", NvmeNamespace, params.mset, 0),
     DEFINE_PROP_UINT8("pi", NvmeNamespace, params.pi, 0),
     DEFINE_PROP_UINT8("pil", NvmeNamespace, params.pil, 0),
+    DEFINE_PROP_UINT8("pif", NvmeNamespace, params.pif, 0),
     DEFINE_PROP_UINT16("mssrl", NvmeNamespace, params.mssrl, 128),
     DEFINE_PROP_UINT32("mcl", NvmeNamespace, params.mcl, 128),
     DEFINE_PROP_UINT8("msrc", NvmeNamespace, params.msrc, 127),
