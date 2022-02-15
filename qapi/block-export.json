@@ -21,7 +21,9 @@
 #             recreated on the fly while the NBD server is active.
 #             If missing, it will default to denying access (since 4.0).
 # @max-connections: The maximum number of connections to allow at the same
-#                   time, 0 for unlimited. (since 5.2; default: 0)
+#                   time, 0 for unlimited. Setting this to 1 also stops
+#                   the server from advertising multiple client support
+#                   (since 5.2; default: 0)
 #
 # Since: 4.2
 ##
@@ -50,7 +52,9 @@
 #             recreated on the fly while the NBD server is active.
 #             If missing, it will default to denying access (since 4.0).
 # @max-connections: The maximum number of connections to allow at the same
-#                   time, 0 for unlimited. (since 5.2; default: 0)
+#                   time, 0 for unlimited. Setting this to 1 also stops
+#                   the server from advertising multiple client support
+#                   (since 5.2; default: 0).
 #
 # Returns: error if the server is already running.
 #
@@ -80,6 +84,26 @@
   'data': { '*name': 'str', '*description': 'str' } }
 
 ##
+# @NbdExportMultiConn:
+#
+# Possible settings for advertising NBD multiple client support.
+#
+# @off: Do not advertise multiple clients.
+#
+# @on: Allow multiple clients (for writable clients, this is only safe
+#      if the underlying BDS is cache-consistent, such as when backed
+#      by the raw file driver); ignored if the NBD server was set up
+#      with max-connections of 1.
+#
+# @auto: Behaves like @off if the export is writable, and @on if the
+#        export is read-only.
+#
+# Since: 7.0
+##
+{ 'enum': 'NbdExportMultiConn',
+  'data': ['off', 'on', 'auto'] }
+
+##
 # @BlockExportOptionsNbd:
 #
 # An NBD block export (distinct options used in the NBD branch of
@@ -95,11 +119,15 @@
 #                    the metadata context name "qemu:allocation-depth" to
 #                    inspect allocation details. (since 5.2)
 #
+# @multi-conn: Controls whether multiple client support is advertised, if the
+#              server's max-connections is not 1. (default auto, since 7.0)
+#
 # Since: 5.2
 ##
 { 'struct': 'BlockExportOptionsNbd',
   'base': 'BlockExportOptionsNbdBase',
-  'data': { '*bitmaps': ['str'], '*allocation-depth': 'bool' } }
+  'data': { '*bitmaps': ['str'], '*allocation-depth': 'bool',
+            '*multi-conn': 'NbdExportMultiConn' } }
 
 ##
 # @BlockExportOptionsVhostUserBlk:

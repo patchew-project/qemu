@@ -1,0 +1,188 @@
+#!/usr/bin/env bash
+# group: rw auto quick
+#
+# Test that qemu-nbd MULTI_CONN works
+#
+# Copyright (C) 2018-2022 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+status=1 # failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+    _cleanup_qemu
+    rm -f "$SOCK_DIR/nbd"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+cd ..
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+. ./common.nbd
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+_require_command QEMU_NBD
+
+# Parallel client connections are easier with libnbd than qemu-io:
+if ! (nbdsh --version) >/dev/null 2>&1; then
+    _notrun "nbdsh utility required, skipped this test"
+fi
+
+echo
+echo "=== Initial image setup ==="
+echo
+
+_make_test_img 4M
+$QEMU_IO -c 'w -P 1 0 2M' -c 'w -P 2 2M 2M' "$TEST_IMG" | _filter_qemu_io
+_launch_qemu 2> >(_filter_nbd)
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"qmp_capabilities"}' "return"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"blockdev-add",
+  "arguments":{"driver":"qcow2", "node-name":"n",
+    "file":{"driver":"file", "filename":"'"$TEST_IMG"'"}}}' "return"
+export nbd_unix_socket
+
+echo
+echo "=== Default nbd server settings ==="
+echo
+# Default allows for unlimited connections, readonly images advertise
+# multi-conn, and writable images do not
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-start",
+  "arguments":{"addr":{"type":"unix",
+    "data":{"path":"'"$nbd_unix_socket"'"}}}}' "return"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"block-export-add",
+  "arguments":{"type":"nbd", "id":"r", "node-name":"n",
+    "name":"r"}}' "return"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"block-export-add",
+  "arguments":{"type":"nbd", "id":"w", "node-name":"n",
+    "name":"w", "writable":true}}' "return"
+nbdsh -u "nbd+unix:///r?socket=$nbd_unix_socket" -c '
+assert h.can_multi_conn()
+h.shutdown()
+print("nbdsh passed")'
+nbdsh -u "nbd+unix:///w?socket=$nbd_unix_socket" -c '
+assert not h.can_multi_conn()
+h.shutdown()
+print("nbdsh passed")'
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"block-export-del",
+  "arguments":{"id":"r"}}' "DELETED"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"block-export-del",
+  "arguments":{"id":"w"}}' "DELETED"
+
+echo
+echo "=== Per-export overrides of defaults ==="
+echo
+# Can explicitly disable multi-conn for readonly image, and explicitly
+# enable it for writable image
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"block-export-add",
+  "arguments":{"type":"nbd", "id":"r", "node-name":"n",
+    "name":"r", "multi-conn":"off"}}' "return"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"block-export-add",
+  "arguments":{"type":"nbd", "id":"w", "node-name":"n",
+    "name":"w", "multi-conn":"on", "writable":true}}' "return"
+nbdsh -u "nbd+unix:///r?socket=$nbd_unix_socket" -c '
+assert not h.can_multi_conn()
+h.shutdown()
+print("nbdsh passed")'
+nbdsh -u "nbd+unix:///w?socket=$nbd_unix_socket" -c '
+assert h.can_multi_conn()
+h.shutdown()
+print("nbdsh passed")'
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"block-export-del",
+  "arguments":{"id":"r"}}' "DELETED"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"block-export-del",
+  "arguments":{"id":"w"}}' "DELETED"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-stop"}' "return"
+
+echo
+echo "=== Limit nbd server max-connections ==="
+echo
+# When max-connections is 1, no images advertise multi-conn, even when
+# explicitly requested per export
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-start",
+  "arguments":{"max-connections":1, "addr":{"type":"unix",
+    "data":{"path":"'"$nbd_unix_socket"'"}}}}' "return"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"block-export-add",
+  "arguments":{"type":"nbd", "id":"r", "node-name":"n",
+    "name":"r", "multi-conn":"on"}}' "return"
+nbdsh -u "nbd+unix:///r?socket=$nbd_unix_socket" -c '
+assert not h.can_multi_conn()
+h.shutdown()
+print("nbdsh passed")'
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"block-export-del",
+  "arguments":{"id":"r"}}' "DELETED"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"block-export-add",
+  "arguments":{"type":"nbd", "id":"w", "node-name":"n",
+    "name":"w", "multi-conn":"on", "writable":true}}' "return"
+nbdsh -u "nbd+unix:///w?socket=$nbd_unix_socket" -c '
+assert not h.can_multi_conn()
+h.shutdown()
+print("nbdsh passed")'
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"block-export-del",
+  "arguments":{"id":"w"}}' "DELETED"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-stop"}' "return"
+
+echo
+echo "=== Demonstrate parallel writers ==="
+echo
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-start",
+  "arguments":{"addr":{"type":"unix",
+    "data":{"path":"'"$nbd_unix_socket"'"}}}}' "return"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"block-export-add",
+  "arguments":{"type":"nbd", "id":"w", "node-name":"n",
+    "name":"", "multi-conn":"on", "writable":true}}' "return"
+
+nbdsh -c '
+import os
+sock = os.getenv("nbd_unix_socket")
+h = []
+
+for i in range(3):
+  h.append(nbd.NBD())
+  h[i].connect_unix(sock)
+  assert h[i].can_multi_conn()
+
+buf1 = h[0].pread(1024 * 1024, 0)
+if buf1 != b"\x01" * 1024 * 1024:
+  print("Unexpected initial read")
+buf2 = b"\x03" * 1024 * 1024
+h[1].pwrite(buf2, 0)
+h[2].flush()
+buf1 = h[0].pread(1024 * 1024, 0)
+if buf1 == buf2:
+  print("Flush appears to be consistent across connections")
+
+for i in range(3):
+  h[i].shutdown()
+'
+
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"block-export-del",
+  "arguments":{"id":"w"}}' "DELETED"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-stop"}' "return"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"quit"}' "return"
+wait=yes _cleanup_qemu
+
+# success, all done
+echo '*** done'
+rm -f $seq.full
+status=0
