@@ -47,6 +47,7 @@
 #include "kvm-cpus.h"
 
 #include "hw/boards.h"
+#include "monitor/stats.h"
 
 /* This check must be after config-host.h is included */
 #ifdef CONFIG_EVENTFD
@@ -2309,6 +2310,9 @@ bool kvm_dirty_ring_enabled(void)
     return kvm_state->kvm_dirty_ring_size ? true : false;
 }
 
+static void query_stats_cb(StatsResults *, StatsFilter *, Error **);
+static void query_stats_schemas_cb(StatsSchemaResults *, Error **);
+
 static int kvm_init(MachineState *ms)
 {
     MachineClass *mc = MACHINE_GET_CLASS(ms);
@@ -2635,6 +2639,11 @@ static int kvm_init(MachineState *ms)
         if (ret) {
             goto err;
         }
+    }
+
+    if (kvm_check_extension(kvm_state, KVM_CAP_BINARY_STATS_FD)) {
+        add_stats_callbacks(STATS_PROVIDER_KVM, &query_stats_cb,
+                            &query_stats_schemas_cb);
     }
 
     return 0;
@@ -3696,3 +3705,387 @@ static void kvm_type_init(void)
 }
 
 type_init(kvm_type_init);
+
+typedef struct StatsArgs {
+    StatsFilter *filter;
+    bool is_schema;
+    union StatsResultsType {
+        StatsResults *stats;
+        StatsSchemaResults *schema;
+    } result;
+    Error **errp;
+} StatsArgs;
+
+static StatsList *add_kvmstat_entry(struct kvm_stats_desc *pdesc,
+                                    uint64_t *stats_data,
+                                    StatsList *stats_list,
+                                    Error **errp)
+{
+
+    StatsList *stats_entry;
+    Stats *stats;
+    uint64List *val_list = NULL;
+
+    switch (pdesc->flags & KVM_STATS_TYPE_MASK) {
+    case KVM_STATS_TYPE_CUMULATIVE:
+    case KVM_STATS_TYPE_INSTANT:
+    case KVM_STATS_TYPE_PEAK:
+    case KVM_STATS_TYPE_LINEAR_HIST:
+    case KVM_STATS_TYPE_LOG_HIST:
+        break;
+    default:
+        return stats_list;
+    }
+
+    switch (pdesc->flags & KVM_STATS_UNIT_MASK) {
+    case KVM_STATS_UNIT_NONE:
+    case KVM_STATS_UNIT_BYTES:
+    case KVM_STATS_UNIT_CYCLES:
+    case KVM_STATS_UNIT_SECONDS:
+        break;
+    default:
+        return stats_list;
+    }
+
+    switch (pdesc->flags & KVM_STATS_BASE_MASK) {
+    case KVM_STATS_BASE_POW10:
+    case KVM_STATS_BASE_POW2:
+        break;
+    default:
+        return stats_list;
+    }
+
+    /* Alloc and populate data list */
+    stats_entry = g_malloc0(sizeof(*stats_entry));
+    stats = g_malloc0(sizeof(*stats));
+    stats->name = g_strdup(pdesc->name);
+    stats->value = g_malloc0(sizeof(*stats->value));
+
+    if (pdesc->size == 1) {
+        stats->value->u.scalar = *stats_data;
+        stats->value->type = QTYPE_QNUM;
+    } else {
+        int i;
+        for (i = 0; i < pdesc->size; i++) {
+            uint64List *val_entry = g_malloc0(sizeof(*val_entry));
+            val_entry->value = stats_data[i];
+            val_entry->next = val_list;
+            val_list = val_entry;
+        }
+        stats->value->u.list.values = val_list;
+        stats->value->type = QTYPE_QDICT;
+    }
+
+    stats_entry->value = stats;
+    stats_entry->next = stats_list;
+
+    return stats_entry;
+}
+
+static StatsSchemaValueList *add_kvmschema_entry(struct kvm_stats_desc *pdesc,
+                                                 StatsSchemaValueList *list,
+                                                 Error **errp)
+{
+    StatsSchemaValueList *schema_entry = g_malloc0(sizeof(*schema_entry));
+    schema_entry->value = g_malloc0(sizeof(*schema_entry->value));
+
+    switch (pdesc->flags & KVM_STATS_TYPE_MASK) {
+    case KVM_STATS_TYPE_CUMULATIVE:
+        schema_entry->value->type = STATS_TYPE_CUMULATIVE;
+        break;
+    case KVM_STATS_TYPE_INSTANT:
+        schema_entry->value->type = STATS_TYPE_INSTANT;
+        break;
+    case KVM_STATS_TYPE_PEAK:
+        schema_entry->value->type = STATS_TYPE_PEAK;
+        break;
+    case KVM_STATS_TYPE_LINEAR_HIST:
+        schema_entry->value->type = STATS_TYPE_LINEAR_HIST;
+        schema_entry->value->bucket_size = pdesc->bucket_size;
+        schema_entry->value->has_bucket_size = true;
+        break;
+    case KVM_STATS_TYPE_LOG_HIST:
+        schema_entry->value->type = STATS_TYPE_LOG_HIST;
+        break;
+    default:
+        goto exit;
+    }
+
+    switch (pdesc->flags & KVM_STATS_UNIT_MASK) {
+    case KVM_STATS_UNIT_NONE:
+        schema_entry->value->unit = STATS_UNIT_NONE;
+        break;
+    case KVM_STATS_UNIT_BYTES:
+        schema_entry->value->unit = STATS_UNIT_BYTES;
+        break;
+    case KVM_STATS_UNIT_CYCLES:
+        schema_entry->value->unit = STATS_UNIT_CYCLES;
+        break;
+    case KVM_STATS_UNIT_SECONDS:
+        schema_entry->value->unit = STATS_UNIT_SECONDS;
+        break;
+    default:
+        goto exit;
+    }
+
+    switch (pdesc->flags & KVM_STATS_BASE_MASK) {
+    case KVM_STATS_BASE_POW10:
+        schema_entry->value->base = STATS_BASE_POW10;
+        break;
+    case KVM_STATS_BASE_POW2:
+        schema_entry->value->base = STATS_BASE_POW2;
+        break;
+    default:
+        goto exit;
+    }
+
+    schema_entry->value->name = g_strdup(pdesc->name);
+    schema_entry->value->exponent = pdesc->exponent;
+    schema_entry->next = list;
+    return schema_entry;
+exit:
+    g_free(schema_entry->value);
+    g_free(schema_entry);
+    return list;
+}
+
+/* Cached stats descriptors */
+typedef struct StatsDescriptors {
+    char *ident; /* 'vm' or vCPU qom path */
+    struct kvm_stats_desc *kvm_stats_desc;
+    struct kvm_stats_header *kvm_stats_header;
+    QTAILQ_ENTRY(StatsDescriptors) next;
+} StatsDescriptors;
+
+static QTAILQ_HEAD(, StatsDescriptors) stats_descriptors =
+    QTAILQ_HEAD_INITIALIZER(stats_descriptors);
+
+static StatsDescriptors *find_stats_descriptors(StatsFilter *filter)
+{
+    StatsDescriptors *entry;
+    QTAILQ_FOREACH(entry, &stats_descriptors, next) {
+        switch (filter->target) {
+        case STATS_TARGET_VM:
+            if (g_str_equal(entry->ident, StatsTarget_str(STATS_TARGET_VM))) {
+                return entry;
+            }
+            break;
+        case STATS_TARGET_VCPU:
+            if (g_str_equal(entry->ident,
+                            current_cpu->parent_obj.canonical_path)) {
+                return entry;
+            }
+            break;
+        default:
+            break;
+        }
+    }
+    return NULL;
+}
+
+static void query_stats(union StatsResultsType result, StatsFilter *filter,
+                        int stats_fd, bool is_schema, Error **errp)
+{
+    struct kvm_stats_desc *kvm_stats_desc;
+    struct kvm_stats_header *kvm_stats_header;
+    StatsDescriptors *descriptors;
+    g_autofree uint64_t *stats_data = NULL;
+    struct kvm_stats_desc *pdesc;
+    void *stats_list = NULL;
+    size_t size_desc, size_data = 0;
+    ssize_t ret;
+    int i;
+
+    descriptors = find_stats_descriptors(filter);
+    if (!descriptors) {
+        descriptors = g_malloc0(sizeof(*descriptors));
+
+        /* Read stats header */
+        kvm_stats_header = g_malloc(sizeof(*kvm_stats_header));
+        ret = read(stats_fd, kvm_stats_header, sizeof(*kvm_stats_header));
+        if (ret != sizeof(*kvm_stats_header)) {
+            error_setg(errp, "KVM stats: failed to read stats header: "
+                       "expected %zu actual %zu",
+                       sizeof(*kvm_stats_header), ret);
+            return;
+        }
+        size_desc = sizeof(*kvm_stats_desc) + kvm_stats_header->name_size;
+
+        /* Read stats descriptors */
+        kvm_stats_desc = g_malloc0(kvm_stats_header->num_desc * size_desc);
+        ret = pread(stats_fd, kvm_stats_desc,
+                    size_desc * kvm_stats_header->num_desc,
+                    kvm_stats_header->desc_offset);
+
+        if (ret != size_desc * kvm_stats_header->num_desc) {
+            error_setg(errp, "KVM stats: failed to read stats descriptors: "
+                       "expected %zu actual %zu",
+                       size_desc * kvm_stats_header->num_desc, ret);
+            return;
+        }
+        descriptors->kvm_stats_header = kvm_stats_header;
+        descriptors->kvm_stats_desc = kvm_stats_desc;
+        descriptors->ident = strdup(filter->target == STATS_TARGET_VM ?
+                                    StatsTarget_str(STATS_TARGET_VM) :
+                                    current_cpu->parent_obj.canonical_path);
+        QTAILQ_INSERT_TAIL(&stats_descriptors, descriptors, next);
+    } else {
+        kvm_stats_header = descriptors->kvm_stats_header;
+        kvm_stats_desc = descriptors->kvm_stats_desc;
+        size_desc = sizeof(*kvm_stats_desc) + kvm_stats_header->name_size;
+    }
+
+    /* Tally the total data size; read schema data */
+    for (i = 0; i < kvm_stats_header->num_desc; ++i) {
+        pdesc = (void *)kvm_stats_desc + i * size_desc;
+        size_data += pdesc->size * sizeof(*stats_data);
+        if (is_schema) {
+            stats_list = add_kvmschema_entry(pdesc, (StatsSchemaValueList *)
+                                             stats_list, errp);
+        }
+    }
+
+    /* If schema request, add the entries and return */
+    if (is_schema) {
+        switch (filter->target) {
+        case STATS_TARGET_VM:
+            add_vm_stats_schema((StatsSchemaValueList *)stats_list,
+                                 result.schema, STATS_PROVIDER_KVM);
+            break;
+        case STATS_TARGET_VCPU:
+            add_vcpu_stats_schema((StatsSchemaValueList *)stats_list,
+                                  result.schema, STATS_PROVIDER_KVM);
+            break;
+        default:
+            break;
+        }
+        return;
+    }
+
+    stats_data = g_malloc0(size_data);
+    ret = pread(stats_fd, stats_data, size_data, kvm_stats_header->data_offset);
+
+    if (ret != size_data) {
+        error_setg(errp, "KVM stats: failed to read data: "
+                   "expected %zu actual %zu", size_data, ret);
+        return;
+    }
+
+    for (i = 0; i < kvm_stats_header->num_desc; ++i) {
+        uint64_t *stats;
+        pdesc = (void *)kvm_stats_desc + i * size_desc;
+
+        /* Add entry to the list */
+        stats = (void *)stats_data + pdesc->offset;
+        if (!stats_requested_name(pdesc->name, STATS_PROVIDER_KVM, filter)) {
+            continue;
+        }
+        stats_list =
+            add_kvmstat_entry(pdesc, stats, (StatsList *) stats_list, errp);
+    }
+
+    if (!stats_list) {
+        return;
+    }
+
+    switch (filter->target) {
+    case STATS_TARGET_VM:
+        add_vm_stats_entry((StatsList *)stats_list, result.stats,
+                           STATS_PROVIDER_KVM);
+        break;
+    case STATS_TARGET_VCPU:
+        add_vcpu_stats_entry((StatsList *)stats_list, result.stats,
+                             STATS_PROVIDER_KVM,
+                             current_cpu->parent_obj.canonical_path);
+        break;
+    default:
+        break;
+    }
+}
+
+static void query_stats_vcpu(CPUState *cpu, run_on_cpu_data data)
+{
+    StatsArgs *kvm_stats_args = (StatsArgs *) data.host_ptr;
+    int stats_fd = kvm_vcpu_ioctl(cpu, KVM_GET_STATS_FD, NULL);
+    Error *local_err = NULL;
+
+    if (stats_fd == -1) {
+        error_setg(&local_err, "KVM stats: ioctl failed");
+        error_propagate(kvm_stats_args->errp, local_err);
+        return;
+    }
+    query_stats(kvm_stats_args->result, kvm_stats_args->filter, stats_fd,
+                kvm_stats_args->is_schema, kvm_stats_args->errp);
+    close(stats_fd);
+}
+
+static void query_stats_cb(StatsResults *stats_result, StatsFilter *filter,
+                           Error **errp)
+{
+    KVMState *s = kvm_state;
+    CPUState *cpu;
+    int stats_fd;
+
+    switch (filter->target) {
+    case STATS_TARGET_VM:
+    {
+        union StatsResultsType result;
+        result.stats = stats_result;
+        stats_fd = kvm_vm_ioctl(s, KVM_GET_STATS_FD, NULL);
+        if (stats_fd == -1) {
+            error_setg(errp, "KVM stats: ioctl failed");
+            return;
+        }
+        query_stats(result, filter, stats_fd, false, errp);
+        break;
+    }
+    case STATS_TARGET_VCPU:
+    {
+        g_autofree StatsArgs *stats_args = g_malloc0(sizeof(*stats_args));
+        stats_args->filter = filter;
+        stats_args->errp = errp;
+        stats_args->result.stats = stats_result;
+        CPU_FOREACH(cpu) {
+            if (!stats_requested_vcpu(cpu->parent_obj.canonical_path,
+                                      STATS_PROVIDER_KVM, filter)) {
+                continue;
+            }
+            run_on_cpu(cpu, query_stats_vcpu, RUN_ON_CPU_HOST_PTR(stats_args));
+        }
+        break;
+    }
+    default:
+        break;
+    }
+}
+
+void query_stats_schemas_cb(StatsSchemaResults *stats_result, Error **errp)
+{
+    g_autofree StatsArgs *stats_args = g_malloc0(sizeof(*stats_args));
+    g_autofree StatsFilter *filter = g_malloc0(sizeof(*filter));
+    union StatsResultsType result;
+    KVMState *s = kvm_state;
+    int stats_fd;
+
+    stats_args->filter = filter;
+    stats_args->errp = errp;
+
+    result.schema = stats_result;
+
+    stats_fd = kvm_vm_ioctl(s, KVM_GET_STATS_FD, NULL);
+    if (stats_fd == -1) {
+        error_setg(errp, "KVM stats: ioctl failed");
+        return;
+    }
+
+    stats_args->result.schema = stats_result;
+    stats_args->is_schema = true;
+
+    /* Query VM */
+    stats_args->filter->target = STATS_TARGET_VM;
+    query_stats(result, filter, stats_fd, true, errp);
+
+    /* Query vCPU */
+    stats_args->filter->target = STATS_TARGET_VCPU;
+    run_on_cpu(first_cpu, query_stats_vcpu, RUN_ON_CPU_HOST_PTR(stats_args));
+}
