@@ -1,0 +1,259 @@
+# -*- Mode: Python -*-
+# vim: filetype=python
+#
+# Copyright (c) 2022 Oracle and/or its affiliates.
+#
+# This work is licensed under the terms of the GNU GPL, version 2 or later.
+# See the COPYING file in the top-level directory.
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+##
+# = Stats
+##
+
+##
+# @StatsType:
+#
+# Enumeration of stats types
+# @cumulative: stat is cumulative; value can only increase.
+# @instant: stat is instantaneous; value can increase or decrease.
+# @peak: stat is the peak value; value can only increase.
+# @linear-hist: stat is a linear histogram.
+# @log-hist: stat is a logarithmic histogram.
+#
+# Since: 7.0
+##
+{ 'enum' : 'StatsType',
+  'data' : [ 'cumulative', 'instant', 'peak', 'linear-hist', 'log-hist' ] }
+
+##
+# @StatsUnit:
+#
+# Enumeration of stats units
+# @bytes: stat reported in bytes.
+# @seconds: stat reported in seconds.
+# @cycles: stat reported in clock cycles.
+# @none: no unit for this stat.
+#
+# Since: 7.0
+##
+{ 'enum' : 'StatsUnit',
+  'data' : [ 'bytes', 'seconds', 'cycles', 'none' ] }
+
+##
+# @StatsBase:
+#
+# Enumeration of stats base
+# @pow10: scale is based on power of 10.
+# @pow2: scale is based on power of 2.
+#
+# Since: 7.0
+##
+{ 'enum' : 'StatsBase',
+  'data' : [ 'pow10', 'pow2' ] }
+
+##
+# @StatsProvider:
+#
+# Enumeration of stats providers.
+#
+# Since: 7.0
+##
+{ 'enum': 'StatsProvider',
+  'data': [ ] }
+
+##
+# @StatsTarget:
+#
+# Enumeration of stats targets.
+# @vm: stat is per vm.
+# @vcpu: stat is per vcpu.
+#
+# Since: 7.0
+##
+{ 'enum': 'StatsTarget',
+  'data': [ 'vm', 'vcpu' ] }
+
+##
+# @StatsRequest:
+#
+# Stats filter element.
+# @provider: stat provider.
+# @fields: list of stat names.
+#
+# Since: 7.0
+##
+{ 'struct': 'StatsRequest',
+  'data': { '*provider': 'StatsProvider',
+            '*fields': [ 'str' ] } }
+
+##
+# @StatsRequestArray:
+#
+# @filters: filters for this request.
+##
+{ 'struct': 'StatsRequestArray',
+  'data': { '*filters': [ 'StatsRequest' ] } }
+
+##
+# @StatsVCPURequestArray:
+#
+# @vcpus: list of qom paths.
+##
+{ 'struct': 'StatsVCPURequestArray',
+  'base': 'StatsRequestArray',
+  'data': { '*vcpus': [ 'str' ] } }
+
+##
+# @StatsFilter:
+#
+# Target specific filter.
+#
+# Since: 7.0
+##
+{ 'union': 'StatsFilter',
+  'base': { 'target': 'StatsTarget' },
+  'discriminator': 'target',
+  'data': { 'vcpu': 'StatsVCPURequestArray',
+            'vm': 'StatsRequestArray' } }
+
+##
+# @StatsValueArray:
+#
+# @values: uint64 list.
+#
+# Since: 7.0
+##
+{ 'struct': 'StatsValueArray',
+  'data': { 'values' : [ 'uint64' ] } }
+
+##
+# @StatsValue:
+#
+# @scalar: single uint64.
+# @list: list of uint64.
+#
+# Since: 7.0
+##
+{ 'alternate': 'StatsValue',
+  'data': { 'scalar': 'uint64',
+            'list': 'StatsValueArray' } }
+
+##
+# @Stats:
+#
+# @name: name of stat.
+# @value: stat value.
+#
+# Since: 7.0
+##
+{ 'struct': 'Stats',
+  'data': { 'name': 'str',
+            'value' : 'StatsValue' } }
+
+##
+# @StatsResultsEntry:
+#
+# @provider: stat provider.
+# @stats: list of stats.
+#
+# Since: 7.0
+##
+{ 'struct': 'StatsResultsEntry',
+  'data': { 'provider': 'StatsProvider',
+            'stats': [ 'Stats' ] } }
+
+##
+# @StatsResultsVCPUEntry:
+#
+# @path: vCPU qom path.
+# @providers: per provider results.
+#
+# Since: 7.0
+##
+{ 'struct': 'StatsResultsVCPUEntry',
+  'data': { 'path': 'str',
+            'providers': [ 'StatsResultsEntry' ] } }
+
+##
+# @StatsResults:
+#
+# Target specific results.
+#
+# Since: 7.0
+##
+{ 'struct': 'StatsResults',
+  'data': {
+      '*vcpus': [ 'StatsResultsVCPUEntry' ],
+      '*vm': [ 'StatsResultsEntry' ] } }
+
+##
+# @query-stats:
+#
+# data: @StatsFilter.
+# Returns: @StatsResults.
+#
+# Since: 7.0
+##
+{ 'command': 'query-stats',
+  'data': 'StatsFilter',
+  'boxed': true,
+  'returns': 'StatsResults' }
+
+##
+# @StatsSchemaValue:
+#
+# Individual stat schema.
+# @name: stat name.
+# @type: @StatType.
+# @unit: @StatUnit.
+# @base: @StatBase.
+# @exponent: Used together with @base.
+# @bucket-size: Used with linear-hist to report bucket size
+#
+# Since: 7.0
+##
+{ 'struct': 'StatsSchemaValue',
+  'data': { 'name': 'str',
+            'type': 'StatsType',
+            'unit': 'StatsUnit',
+            'base': 'StatsBase',
+            'exponent': 'int16',
+            '*bucket-size': 'uint32' } }
+
+##
+# @StatsSchemaProvider:
+#
+# @provider: @StatsProvider.
+# @stats: list of stats.
+#
+# Since: 7.0
+##
+{ 'struct': 'StatsSchemaProvider',
+  'data': { 'provider': 'StatsProvider',
+            'stats': [ 'StatsSchemaValue' ] } }
+
+##
+# @StatsSchemaResults:
+#
+# @vm: vm stats schemas.
+# @vcpu: vcpu stats schemas.
+#
+# Since: 7.0
+##
+{ 'struct': 'StatsSchemaResults',
+  'data': { '*vm': [ 'StatsSchemaProvider' ],
+            '*vcpu': [ 'StatsSchemaProvider' ] } }
+
+##
+# @query-stats-schemas:
+#
+# Query Stats schemas.
+# Returns @StatsSchemaResult.
+#
+# Since: 7.0
+##
+{ 'command': 'query-stats-schemas',
+  'data': { '*provider': 'StatsProvider' },
+  'returns': 'StatsSchemaResults' }
