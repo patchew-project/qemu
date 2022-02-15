@@ -2819,6 +2819,18 @@ else
   avx512f_opt="no"
 fi
 
+#########################################
+# Disable out-of-line atomic operations.
+
+case "$cpu" in
+  aarch64)
+    write_c_skeleton;
+    if compile_prog "$CPU_CFLAGS -Werror -mno-outline-atomics" "" ; then
+      CPU_CFLAGS="-mno-outline-atomics $CPU_CFLAGS"
+    fi
+    ;;
+esac
+
 ########################################
 # check if __[u]int128_t is usable.
 
