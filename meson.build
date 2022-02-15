@@ -199,9 +199,11 @@ if get_option('fuzzing')
 endif
 
 add_global_arguments(config_host['QEMU_CFLAGS'].split(),
-                     native: false, language: ['c', 'objc'])
+                     native: false, language: ['c'])
 add_global_arguments(config_host['QEMU_CXXFLAGS'].split(),
                      native: false, language: 'cpp')
+add_global_arguments(config_host['QEMU_OBJCFLAGS'].split(),
+                     native: false, language: ['objc'])
 add_global_link_arguments(config_host['QEMU_LDFLAGS'].split(),
                           native: false, language: ['c', 'cpp', 'objc'])
 
@@ -3301,6 +3303,7 @@ if link_args.length() > 0
 endif
 summary_info += {'QEMU_CFLAGS':       config_host['QEMU_CFLAGS']}
 summary_info += {'QEMU_CXXFLAGS':     config_host['QEMU_CXXFLAGS']}
+summary_info += {'QEMU_OBJCFLAGS':    config_host['QEMU_OBJCFLAGS']}
 summary_info += {'QEMU_LDFLAGS':      config_host['QEMU_LDFLAGS']}
 summary_info += {'profiler':          config_host.has_key('CONFIG_PROFILER')}
 summary_info += {'link-time optimization (LTO)': get_option('b_lto')}
