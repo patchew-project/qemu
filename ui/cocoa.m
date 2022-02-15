@@ -639,6 +639,9 @@ QemuCocoaView *cocoaView;
     qkbd_state_key_event(kbd, keycode, !qkbd_state_key_get(kbd, keycode));
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winitializer-overrides"
+
 // Does the work of sending input to the monitor
 - (void) handleMonitorInput:(NSEvent *)event
 {
@@ -702,6 +705,8 @@ QemuCocoaView *cocoaView;
         kbd_put_keysym(keysym);
     }
 }
+
+#pragma GCC diagnostic pop
 
 - (bool) handleEvent:(NSEvent *)event
 {
