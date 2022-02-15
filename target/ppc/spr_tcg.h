@@ -141,4 +141,12 @@ void spr_write_hmer(DisasContext *ctx, int sprn, int gprn);
 void spr_write_lpcr(DisasContext *ctx, int sprn, int gprn);
 #endif
 
+void register_low_BATs(CPUPPCState *env);
+void register_high_BATs(CPUPPCState *env);
+void register_sdr1_sprs(CPUPPCState *env);
+void register_thrm_sprs(CPUPPCState *env);
+void register_usprgh_sprs(CPUPPCState *env);
+void register_non_embedded_sprs(CPUPPCState *env);
+void register_soft_tlb_sprs(CPUPPCState *env, int nb_tlbs, int nb_ways);
+
 #endif
