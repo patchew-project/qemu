@@ -1301,6 +1301,9 @@ struct PowerPCCPU {
     bool pre_2_10_migration;
     bool pre_3_0_migration;
     int32_t mig_slb_nr;
+
+    bool in_spapr_nested;
+    CPUPPCState *nested_host_state;
 };
 
 
