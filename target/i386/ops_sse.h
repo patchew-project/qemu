@@ -1249,15 +1249,27 @@ void glue(helper_packssdw, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
     }                                                                   \
                                                                         \
     void glue(helper_punpck ## base_name ## dq, SUFFIX)(CPUX86State *env,\
-                                                        Reg *d, Reg *s) \
+                                                        Reg *d, Reg *s2, Reg *s1, unsigned int simd_type) \
     {                                                                   \
         Reg r;                                                          \
                                                                         \
-        r.L(0) = d->L((base << SHIFT) + 0);                             \
-        r.L(1) = s->L((base << SHIFT) + 0);                             \
+        if (simd_type == SIMD_SSE)                             \
+            s1 = d;                                            \
+        r.L(0) = s1->L((base << SHIFT) + 0);                             \
+        r.L(1) = s2->L((base << SHIFT) + 0);                             \
         XMM_ONLY(                                                       \
-                 r.L(2) = d->L((base << SHIFT) + 1);                    \
-                 r.L(3) = s->L((base << SHIFT) + 1);                    \
+                 r.L(2) = s1->L((base << SHIFT) + 1);                    \
+                 r.L(3) = s2->L((base << SHIFT) + 1);                    \
+                 if (simd_type == SIMD_VEX256) {                        \
+                     r.L(4) = s1->L((base<<1) + 4);                            \
+                     r.L(5) = s2->L((base<<1) + 4);                            \
+                     r.L(6) = s1->L((base<<1) + 5);                            \
+                     r.L(7) = s2->L((base<<1) + 5);                            \
+                 }                                                      \
+                 if (simd_type == SIMD_VEX128) {                        \
+                     r.Q(2) = 0;                                        \
+                     r.Q(3) = 0;                                        \
+                 }                                                      \
                                                                       ) \
             *d = r;                                                     \
     }                                                                   \
@@ -1266,12 +1278,24 @@ void glue(helper_packssdw, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
              void glue(helper_punpck ## base_name ## qdq, SUFFIX)(CPUX86State \
                                                                   *env, \
                                                                   Reg *d, \
-                                                                  Reg *s) \
+                                                                  Reg *s2, \
+                                                                  Reg *s1, \
+                                                                  unsigned int simd_type) \
              {                                                          \
                  Reg r;                                                 \
                                                                         \
-                 r.Q(0) = d->Q(base);                                   \
-                 r.Q(1) = s->Q(base);                                   \
+                 if (simd_type == SIMD_SSE)                             \
+                     s1 = d;                                            \
+                 r.Q(0) = s1->Q(base);                                  \
+                 r.Q(1) = s2->Q(base);                                  \
+                 if (simd_type == SIMD_VEX256) {                        \
+                     r.Q(2) = s1->Q(base+2);                            \
+                     r.Q(3) = s2->Q(base+2);                            \
+                 }                                                      \
+                 if (simd_type == SIMD_VEX128) {                        \
+                     r.Q(2) = 0;                                        \
+                     r.Q(3) = 0;                                        \
+                 }                                                      \
                  *d = r;                                                \
              }                                                          \
                                                                         )

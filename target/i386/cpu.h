@@ -82,6 +82,12 @@ typedef enum X86Seg {
     R_TR = 7,
 } X86Seg;
 
+enum {
+    SIMD_SSE,
+    SIMD_VEX128,
+    SIMD_VEX256
+};
+
 /* segment descriptor fields */
 #define DESC_G_SHIFT    23
 #define DESC_G_MASK     (1 << DESC_G_SHIFT)

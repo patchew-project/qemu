@@ -2729,7 +2729,7 @@ static inline void gen_stq_env_A0(DisasContext *s, int offset)
     tcg_gen_qemu_st_i64(s->tmp1_i64, s->A0, s->mem_index, MO_LEUQ);
 }
 
-static inline void gen_ldo_env_A0(DisasContext *s, int offset)
+static inline void gen_ldo_env_A0(DisasContext *s, int offset, int simd_type)
 {
     int mem_index = s->mem_index;
     tcg_gen_qemu_ld_i64(s->tmp1_i64, s->A0, mem_index, MO_LEUQ);
@@ -2737,6 +2737,17 @@ static inline void gen_ldo_env_A0(DisasContext *s, int offset)
     tcg_gen_addi_tl(s->tmp0, s->A0, 8);
     tcg_gen_qemu_ld_i64(s->tmp1_i64, s->tmp0, mem_index, MO_LEUQ);
     tcg_gen_st_i64(s->tmp1_i64, cpu_env, offset + offsetof(ZMMReg, ZMM_Q(1)));
+    if (simd_type == SIMD_VEX128) {
+        tcg_gen_st_i64(0, cpu_env, offset + offsetof(ZMMReg, ZMM_Q(2)));
+        tcg_gen_st_i64(0, cpu_env, offset + offsetof(ZMMReg, ZMM_Q(3)));
+    } else if (simd_type == SIMD_VEX256) {
+        tcg_gen_addi_tl(s->tmp0, s->A0, 8);
+        tcg_gen_qemu_ld_i64(s->tmp1_i64, s->tmp0, mem_index, MO_LEUQ);
+        tcg_gen_st_i64(s->tmp1_i64, cpu_env, offset + offsetof(ZMMReg, ZMM_Q(2)));
+        tcg_gen_addi_tl(s->tmp0, s->A0, 8);
+        tcg_gen_qemu_ld_i64(s->tmp1_i64, s->tmp0, mem_index, MO_LEUQ);
+        tcg_gen_st_i64(s->tmp1_i64, cpu_env, offset + offsetof(ZMMReg, ZMM_Q(3)));
+    }
 }
 
 static inline void gen_sto_env_A0(DisasContext *s, int offset)
@@ -2749,12 +2760,21 @@ static inline void gen_sto_env_A0(DisasContext *s, int offset)
     tcg_gen_qemu_st_i64(s->tmp1_i64, s->tmp0, mem_index, MO_LEUQ);
 }
 
-static inline void gen_op_movo(DisasContext *s, int d_offset, int s_offset)
+static inline void gen_op_movo(DisasContext *s, int d_offset, int s_offset, int simd_type)
 {
     tcg_gen_ld_i64(s->tmp1_i64, cpu_env, s_offset + offsetof(ZMMReg, ZMM_Q(0)));
     tcg_gen_st_i64(s->tmp1_i64, cpu_env, d_offset + offsetof(ZMMReg, ZMM_Q(0)));
     tcg_gen_ld_i64(s->tmp1_i64, cpu_env, s_offset + offsetof(ZMMReg, ZMM_Q(1)));
     tcg_gen_st_i64(s->tmp1_i64, cpu_env, d_offset + offsetof(ZMMReg, ZMM_Q(1)));
+    if (simd_type == SIMD_VEX128) {
+        tcg_gen_st_i64(0, cpu_env, d_offset + offsetof(ZMMReg, ZMM_Q(2)));
+        tcg_gen_st_i64(0, cpu_env, d_offset + offsetof(ZMMReg, ZMM_Q(3)));
+    } else if (simd_type == SIMD_VEX256) {
+        tcg_gen_ld_i64(s->tmp1_i64, cpu_env, s_offset + offsetof(ZMMReg, ZMM_Q(2)));
+        tcg_gen_st_i64(s->tmp1_i64, cpu_env, d_offset + offsetof(ZMMReg, ZMM_Q(2)));
+        tcg_gen_ld_i64(s->tmp1_i64, cpu_env, s_offset + offsetof(ZMMReg, ZMM_Q(3)));
+        tcg_gen_st_i64(s->tmp1_i64, cpu_env, d_offset + offsetof(ZMMReg, ZMM_Q(3)));
+    }
 }
 
 static inline void gen_op_movq(DisasContext *s, int d_offset, int s_offset)
@@ -2779,7 +2799,7 @@ typedef void (*SSEFunc_i_ep)(TCGv_i32 val, TCGv_ptr env, TCGv_ptr reg);
 typedef void (*SSEFunc_l_ep)(TCGv_i64 val, TCGv_ptr env, TCGv_ptr reg);
 typedef void (*SSEFunc_0_epi)(TCGv_ptr env, TCGv_ptr reg, TCGv_i32 val);
 typedef void (*SSEFunc_0_epl)(TCGv_ptr env, TCGv_ptr reg, TCGv_i64 val);
-typedef void (*SSEFunc_0_epp)(TCGv_ptr env, TCGv_ptr reg_a, TCGv_ptr reg_b);
+typedef void (*SSEFunc_0_epp)(TCGv_ptr env, TCGv_ptr reg_a, TCGv_ptr reg_b, TCGv_ptr reg_c, TCGv_i32 simd_mode);
 typedef void (*SSEFunc_0_eppi)(TCGv_ptr env, TCGv_ptr reg_a, TCGv_ptr reg_b,
                                TCGv_i32 val);
 typedef void (*SSEFunc_0_ppi)(TCGv_ptr reg_a, TCGv_ptr reg_b, TCGv_i32 val);
@@ -3115,6 +3135,13 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
     SSEFunc_0_ppi sse_fn_ppi;
     SSEFunc_0_eppt sse_fn_eppt;
     MemOp ot;
+    int simd_type;
+
+    simd_type = SIMD_SSE;
+    if ((s->prefix & PREFIX_VEX) && (s->vex_l == 0))
+        simd_type = SIMD_VEX128;
+    else if ((s->prefix & PREFIX_VEX) && (s->vex_l == 1))
+        simd_type = SIMD_VEX256;
 
     b &= 0xff;
     if (s->prefix & PREFIX_DATA)
@@ -3271,11 +3298,11 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
         case 0x26f: /* movdqu xmm, ea */
             if (mod != 3) {
                 gen_lea_modrm(env, s, modrm);
-                gen_ldo_env_A0(s, offsetof(CPUX86State, xmm_regs[reg]));
+                gen_ldo_env_A0(s, offsetof(CPUX86State, xmm_regs[reg]), simd_type);
             } else {
                 rm = (modrm & 7) | REX_B(s);
                 gen_op_movo(s, offsetof(CPUX86State, xmm_regs[reg]),
-                            offsetof(CPUX86State,xmm_regs[rm]));
+                            offsetof(CPUX86State,xmm_regs[rm]), simd_type);
             }
             break;
         case 0x210: /* movss xmm, ea */
@@ -3291,8 +3318,16 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                                 offsetof(CPUX86State, xmm_regs[reg].ZMM_L(2)));
                 tcg_gen_st32_tl(s->T0, cpu_env,
                                 offsetof(CPUX86State, xmm_regs[reg].ZMM_L(3)));
+                if (simd_type == SIMD_VEX128) {
+                   tcg_gen_st_i64(0, cpu_env, offsetof(CPUX86State, xmm_regs[reg].ZMM_Q(2)));
+                   tcg_gen_st_i64(0, cpu_env, offsetof(CPUX86State, xmm_regs[reg].ZMM_Q(3)));
+                }
             } else {
                 rm = (modrm & 7) | REX_B(s);
+                if (simd_type == SIMD_VEX128) {
+                    gen_op_movo(s, offsetof(CPUX86State, xmm_regs[reg]),
+                                offsetof(CPUX86State,xmm_regs[s->vex_v]), simd_type);
+                }
                 gen_op_movl(s, offsetof(CPUX86State, xmm_regs[reg].ZMM_L(0)),
                             offsetof(CPUX86State,xmm_regs[rm].ZMM_L(0)));
             }
@@ -3307,8 +3342,16 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                                 offsetof(CPUX86State, xmm_regs[reg].ZMM_L(2)));
                 tcg_gen_st32_tl(s->T0, cpu_env,
                                 offsetof(CPUX86State, xmm_regs[reg].ZMM_L(3)));
+                if (simd_type == SIMD_VEX128) {
+                   tcg_gen_st_i64(0, cpu_env, offsetof(CPUX86State, xmm_regs[reg].ZMM_Q(2)));
+                   tcg_gen_st_i64(0, cpu_env, offsetof(CPUX86State, xmm_regs[reg].ZMM_Q(3)));
+                }
             } else {
                 rm = (modrm & 7) | REX_B(s);
+                if (simd_type == SIMD_VEX128) {
+                    gen_op_movo(s, offsetof(CPUX86State, xmm_regs[reg]),
+                                offsetof(CPUX86State,xmm_regs[s->vex_v]), simd_type);
+                }
                 gen_op_movq(s, offsetof(CPUX86State, xmm_regs[reg].ZMM_Q(0)),
                             offsetof(CPUX86State,xmm_regs[rm].ZMM_Q(0)));
             }
@@ -3316,6 +3359,10 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
         case 0x012: /* movlps */
         case 0x112: /* movlpd */
             if (mod != 3) {
+                if (simd_type == SIMD_VEX128) {
+                    gen_op_movo(s, offsetof(CPUX86State, xmm_regs[reg]),
+                                offsetof(CPUX86State,xmm_regs[s->vex_v]), simd_type);
+                }
                 gen_lea_modrm(env, s, modrm);
                 gen_ldq_env_A0(s, offsetof(CPUX86State,
                                            xmm_regs[reg].ZMM_Q(0)));
@@ -3324,36 +3371,50 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                 rm = (modrm & 7) | REX_B(s);
                 gen_op_movq(s, offsetof(CPUX86State, xmm_regs[reg].ZMM_Q(0)),
                             offsetof(CPUX86State,xmm_regs[rm].ZMM_Q(1)));
+                if (simd_type == SIMD_VEX128) {
+                    gen_op_movq(s, offsetof(CPUX86State, xmm_regs[reg].ZMM_Q(1)),
+                                offsetof(CPUX86State,xmm_regs[s->vex_v].ZMM_Q(1)));
+                    tcg_gen_st_i64(0, cpu_env, offsetof(CPUX86State, xmm_regs[reg].ZMM_Q(2)));
+                    tcg_gen_st_i64(0, cpu_env, offsetof(CPUX86State, xmm_regs[reg].ZMM_Q(3)));
+                }
             }
             break;
         case 0x212: /* movsldup */
             if (mod != 3) {
                 gen_lea_modrm(env, s, modrm);
-                gen_ldo_env_A0(s, offsetof(CPUX86State, xmm_regs[reg]));
+                gen_ldo_env_A0(s, offsetof(CPUX86State, xmm_regs[reg]), simd_type);
             } else {
                 rm = (modrm & 7) | REX_B(s);
-                gen_op_movl(s, offsetof(CPUX86State, xmm_regs[reg].ZMM_L(0)),
-                            offsetof(CPUX86State,xmm_regs[rm].ZMM_L(0)));
-                gen_op_movl(s, offsetof(CPUX86State, xmm_regs[reg].ZMM_L(2)),
-                            offsetof(CPUX86State,xmm_regs[rm].ZMM_L(2)));
+                gen_op_movo(s, offsetof(CPUX86State, xmm_regs[reg].ZMM_Q(0)),
+                            offsetof(CPUX86State,xmm_regs[rm].ZMM_Q(0)), simd_type);
             }
             gen_op_movl(s, offsetof(CPUX86State, xmm_regs[reg].ZMM_L(1)),
                         offsetof(CPUX86State,xmm_regs[reg].ZMM_L(0)));
             gen_op_movl(s, offsetof(CPUX86State, xmm_regs[reg].ZMM_L(3)),
                         offsetof(CPUX86State,xmm_regs[reg].ZMM_L(2)));
+            if (simd_type == SIMD_VEX256) {
+                gen_op_movl(s, offsetof(CPUX86State, xmm_regs[reg].ZMM_L(5)),
+                            offsetof(CPUX86State,xmm_regs[reg].ZMM_Q(4)));
+                gen_op_movl(s, offsetof(CPUX86State, xmm_regs[reg].ZMM_L(7)),
+                            offsetof(CPUX86State,xmm_regs[reg].ZMM_Q(6)));
+            }
             break;
         case 0x312: /* movddup */
             if (mod != 3) {
                 gen_lea_modrm(env, s, modrm);
-                gen_ldq_env_A0(s, offsetof(CPUX86State,
-                                           xmm_regs[reg].ZMM_Q(0)));
+                gen_ldo_env_A0(s, offsetof(CPUX86State,
+                                           xmm_regs[reg]), simd_type);
             } else {
                 rm = (modrm & 7) | REX_B(s);
-                gen_op_movq(s, offsetof(CPUX86State, xmm_regs[reg].ZMM_Q(0)),
-                            offsetof(CPUX86State,xmm_regs[rm].ZMM_Q(0)));
+                gen_op_movo(s, offsetof(CPUX86State, xmm_regs[reg].ZMM_Q(0)),
+                            offsetof(CPUX86State,xmm_regs[rm].ZMM_Q(0)), simd_type);
             }
             gen_op_movq(s, offsetof(CPUX86State, xmm_regs[reg].ZMM_Q(1)),
                         offsetof(CPUX86State,xmm_regs[reg].ZMM_Q(0)));
+            if (simd_type == SIMD_VEX256) {
+                gen_op_movq(s, offsetof(CPUX86State, xmm_regs[reg].ZMM_Q(3)),
+                            offsetof(CPUX86State,xmm_regs[reg].ZMM_Q(2)));
+            }
             break;
         case 0x016: /* movhps */
         case 0x116: /* movhpd */
@@ -3361,11 +3422,23 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                 gen_lea_modrm(env, s, modrm);
                 gen_ldq_env_A0(s, offsetof(CPUX86State,
                                            xmm_regs[reg].ZMM_Q(1)));
+                if (simd_type == SIMD_VEX128) {
+                    gen_op_movq(s, offsetof(CPUX86State, xmm_regs[reg].ZMM_Q(0)),
+                                offsetof(CPUX86State,xmm_regs[s->vex_v].ZMM_Q(0)));
+                    tcg_gen_st_i64(0, cpu_env, offsetof(CPUX86State, xmm_regs[reg].ZMM_Q(2)));
+                    tcg_gen_st_i64(0, cpu_env, offsetof(CPUX86State, xmm_regs[reg].ZMM_Q(3)));
+                }
             } else {
                 /* movlhps */
                 rm = (modrm & 7) | REX_B(s);
                 gen_op_movq(s, offsetof(CPUX86State, xmm_regs[reg].ZMM_Q(1)),
                             offsetof(CPUX86State,xmm_regs[rm].ZMM_Q(0)));
+                if (simd_type == SIMD_VEX128) {
+                    gen_op_movq(s, offsetof(CPUX86State, xmm_regs[reg].ZMM_Q(0)),
+                                offsetof(CPUX86State,xmm_regs[s->vex_v].ZMM_Q(0)));
+                    tcg_gen_st_i64(0, cpu_env, offsetof(CPUX86State, xmm_regs[reg].ZMM_Q(2)));
+                    tcg_gen_st_i64(0, cpu_env, offsetof(CPUX86State, xmm_regs[reg].ZMM_Q(3)));
+                }
             }
             break;
         case 0x216: /* movshdup */
@@ -3467,7 +3540,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
             } else {
                 rm = (modrm & 7) | REX_B(s);
                 gen_op_movo(s, offsetof(CPUX86State, xmm_regs[rm]),
-                            offsetof(CPUX86State,xmm_regs[reg]));
+                            offsetof(CPUX86State,xmm_regs[reg]), simd_type);
             }
             break;
         case 0x211: /* movss ea, xmm */
@@ -3478,6 +3551,10 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                 gen_op_st_v(s, MO_32, s->T0, s->A0);
             } else {
                 rm = (modrm & 7) | REX_B(s);
+                if (simd_type == SIMD_VEX128) {
+                    gen_op_movo(s, offsetof(CPUX86State, xmm_regs[rm]),
+                                offsetof(CPUX86State,xmm_regs[s->vex_v]), simd_type);
+                }
                 gen_op_movl(s, offsetof(CPUX86State, xmm_regs[rm].ZMM_L(0)),
                             offsetof(CPUX86State,xmm_regs[reg].ZMM_L(0)));
             }
@@ -3489,6 +3566,10 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                                            xmm_regs[reg].ZMM_Q(0)));
             } else {
                 rm = (modrm & 7) | REX_B(s);
+                if (simd_type == SIMD_VEX128) {
+                    gen_op_movo(s, offsetof(CPUX86State, xmm_regs[rm]),
+                                offsetof(CPUX86State,xmm_regs[s->vex_v]), simd_type);
+                }
                 gen_op_movq(s, offsetof(CPUX86State, xmm_regs[rm].ZMM_Q(0)),
                             offsetof(CPUX86State,xmm_regs[reg].ZMM_Q(0)));
             }
@@ -4534,9 +4615,11 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
             sse_fn_eppt(cpu_env, s->ptr0, s->ptr1, s->A0);
             break;
         default:
+            TCGv_ptr ptr2;
             tcg_gen_addi_ptr(s->ptr0, cpu_env, op1_offset);
             tcg_gen_addi_ptr(s->ptr1, cpu_env, op2_offset);
-            sse_fn_epp(cpu_env, s->ptr0, s->ptr1);
+            tcg_gen_addi_ptr(ptr2, cpu_env, offsetof(CPUX86State,xmm_regs[s->vex_v]));
+            sse_fn_epp(cpu_env, s->ptr0, s->ptr1, ptr2, simd_type);
             break;
         }
         if (b == 0x2e || b == 0x2f) {
