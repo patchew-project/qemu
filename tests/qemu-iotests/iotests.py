@@ -249,9 +249,51 @@ def qemu_img_pipe_and_status(*args: str) -> Tuple[str, int]:
     return qemu_tool_pipe_and_status('qemu-img', full_args,
                                      drop_successful_output=is_create)
 
-def qemu_img(*args: str) -> int:
-    '''Run qemu-img and return the exit code'''
-    return qemu_img_pipe_and_status(*args)[1]
+def qemu_img(*args: str, check: bool = True, combine_stdio: bool = True
+             ) -> subprocess.CompletedProcess[str]:
+    """
+    Run qemu_img, returning a CompletedProcess instance.
+
+    The CompletedProcess object has args, returncode, and output properties.
+    If streams are not combined, It will also have stdout/stderr properties.
+
+    :param args: command-line arguments to qemu_img.
+    :param check: set to False to suppress VerboseProcessError.
+    :param combine_stdio: set to False to keep stdout/stderr separated.
+
+    :raise VerboseProcessError:
+        On non-zero exit code, when 'check=True' was provided. This
+        exception has 'stderr', 'stdout' and 'returncode' properties
+        that may be inspected to show greater detail. If this exception
+        is not handled, The command-line, return code, and all console
+        output will be included at the bottom of the stack trace.
+    """
+    full_args = qemu_img_args + qemu_img_create_prepare_args(list(args))
+
+    subp = subprocess.run(
+        full_args,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT if combine_stdio else subprocess.PIPE,
+        universal_newlines=True,
+        check=False
+    )
+
+    # For behavioral consistency with qemu_tool_pipe_and_status():
+    # Print out an immediate error when the return code is negative.
+    if subp.returncode < 0:
+        cmd = ' '.join(full_args)
+        sys.stderr.write(
+            f'qemu-img received signal {-subp.returncode}: {cmd}\n')
+
+    if check and subp.returncode:
+        raise VerboseProcessError(
+            subp.returncode, full_args,
+            output=subp.stdout,
+            stderr=subp.stderr,
+        )
+
+    return subp
+
 
 def ordered_qmp(qmsg, conv_keys=True):
     # Dictionaries are not ordered prior to 3.6, therefore:
@@ -469,8 +511,9 @@ def qemu_nbd_popen(*args):
 
 def compare_images(img1, img2, fmt1=imgfmt, fmt2=imgfmt):
     '''Return True if two image files are identical'''
-    return qemu_img('compare', '-f', fmt1,
-                    '-F', fmt2, img1, img2) == 0
+    res = qemu_img('compare', '-f', fmt1,
+                   '-F', fmt2, img1, img2, check=False)
+    return res.returncode == 0
 
 def create_image(name, size):
     '''Create a fully-allocated raw image with sector markers'''
