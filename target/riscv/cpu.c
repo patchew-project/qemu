@@ -34,6 +34,9 @@
 
 /* RISC-V CPU definitions */
 
+/* This includes the null terminated character '\0' */
+#define MAX_ISA_EXT_LEN 256
+
 static const char riscv_exts[26] = "IEMAFDQCLBJTPVNSUHKORWXYZG";
 
 const char * const riscv_int_regnames[] = {
@@ -828,10 +831,26 @@ static void riscv_cpu_class_init(ObjectClass *c, void *data)
     device_class_set_props(dc, riscv_cpu_properties);
 }
 
+static void riscv_isa_string_ext(RISCVCPU *cpu, char *isa_str, int max_str_len)
+{
+    int offset = strnlen(isa_str, max_str_len);
+
+    if (cpu->cfg.ext_svpbmt) {
+        offset += snprintf(isa_str + offset, max_str_len, "_%s", "_svpbmt");
+    }
+    if ((offset < max_str_len) && cpu->cfg.ext_svinval) {
+        offset += snprintf(isa_str + offset, max_str_len, "_%s", "_svinval");
+    }
+    if ((offset < max_str_len) && (cpu->cfg.ext_svnapot)) {
+        offset += snprintf(isa_str + offset, max_str_len, "_%s", "_svnapot");
+    }
+}
+
 char *riscv_isa_string(RISCVCPU *cpu)
 {
     int i;
-    const size_t maxlen = sizeof("rv128") + sizeof(riscv_exts) + 1;
+    const size_t maxlen = sizeof("rv128") + sizeof(riscv_exts) +
+                          MAX_ISA_EXT_LEN;
     char *isa_str = g_new(char, maxlen);
     char *p = isa_str + snprintf(isa_str, maxlen, "rv%d", TARGET_LONG_BITS);
     for (i = 0; i < sizeof(riscv_exts); i++) {
@@ -840,6 +859,8 @@ char *riscv_isa_string(RISCVCPU *cpu)
         }
     }
     *p = '\0';
+    riscv_isa_string_ext(cpu, isa_str, maxlen);
+
     return isa_str;
 }
 
