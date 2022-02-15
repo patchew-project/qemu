@@ -420,7 +420,7 @@ static void pc_i440fx_7_0_machine_options(MachineClass *m)
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
     pc_i440fx_machine_options(m);
     m->alias = "pc";
-    m->is_default = true;
+    m->is_default = false;
     pcmc->default_cpu_version = 1;
 }
 
@@ -431,7 +431,6 @@ static void pc_i440fx_6_2_machine_options(MachineClass *m)
 {
     pc_i440fx_7_0_machine_options(m);
     m->alias = NULL;
-    m->is_default = false;
     compat_props_add(m->compat_props, hw_compat_6_2, hw_compat_6_2_len);
     compat_props_add(m->compat_props, pc_compat_6_2, pc_compat_6_2_len);
 }
@@ -443,7 +442,6 @@ static void pc_i440fx_6_1_machine_options(MachineClass *m)
 {
     pc_i440fx_6_2_machine_options(m);
     m->alias = NULL;
-    m->is_default = false;
     compat_props_add(m->compat_props, hw_compat_6_1, hw_compat_6_1_len);
     compat_props_add(m->compat_props, pc_compat_6_1, pc_compat_6_1_len);
     m->smp_props.prefer_sockets = true;
@@ -456,7 +454,6 @@ static void pc_i440fx_6_0_machine_options(MachineClass *m)
 {
     pc_i440fx_6_1_machine_options(m);
     m->alias = NULL;
-    m->is_default = false;
     compat_props_add(m->compat_props, hw_compat_6_0, hw_compat_6_0_len);
     compat_props_add(m->compat_props, pc_compat_6_0, pc_compat_6_0_len);
 }
@@ -468,7 +465,6 @@ static void pc_i440fx_5_2_machine_options(MachineClass *m)
 {
     pc_i440fx_6_0_machine_options(m);
     m->alias = NULL;
-    m->is_default = false;
     compat_props_add(m->compat_props, hw_compat_5_2, hw_compat_5_2_len);
     compat_props_add(m->compat_props, pc_compat_5_2, pc_compat_5_2_len);
 }
@@ -482,7 +478,6 @@ static void pc_i440fx_5_1_machine_options(MachineClass *m)
 
     pc_i440fx_5_2_machine_options(m);
     m->alias = NULL;
-    m->is_default = false;
     compat_props_add(m->compat_props, hw_compat_5_1, hw_compat_5_1_len);
     compat_props_add(m->compat_props, pc_compat_5_1, pc_compat_5_1_len);
     pcmc->kvmclock_create_always = false;
@@ -496,7 +491,6 @@ static void pc_i440fx_5_0_machine_options(MachineClass *m)
 {
     pc_i440fx_5_1_machine_options(m);
     m->alias = NULL;
-    m->is_default = false;
     m->numa_mem_supported = true;
     compat_props_add(m->compat_props, hw_compat_5_0, hw_compat_5_0_len);
     compat_props_add(m->compat_props, pc_compat_5_0, pc_compat_5_0_len);
@@ -510,7 +504,6 @@ static void pc_i440fx_4_2_machine_options(MachineClass *m)
 {
     pc_i440fx_5_0_machine_options(m);
     m->alias = NULL;
-    m->is_default = false;
     compat_props_add(m->compat_props, hw_compat_4_2, hw_compat_4_2_len);
     compat_props_add(m->compat_props, pc_compat_4_2, pc_compat_4_2_len);
 }
@@ -522,7 +515,6 @@ static void pc_i440fx_4_1_machine_options(MachineClass *m)
 {
     pc_i440fx_4_2_machine_options(m);
     m->alias = NULL;
-    m->is_default = false;
     compat_props_add(m->compat_props, hw_compat_4_1, hw_compat_4_1_len);
     compat_props_add(m->compat_props, pc_compat_4_1, pc_compat_4_1_len);
 }
@@ -535,7 +527,6 @@ static void pc_i440fx_4_0_machine_options(MachineClass *m)
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
     pc_i440fx_4_1_machine_options(m);
     m->alias = NULL;
-    m->is_default = false;
     pcmc->default_cpu_version = CPU_VERSION_LEGACY;
     compat_props_add(m->compat_props, hw_compat_4_0, hw_compat_4_0_len);
     compat_props_add(m->compat_props, pc_compat_4_0, pc_compat_4_0_len);
@@ -549,7 +540,6 @@ static void pc_i440fx_3_1_machine_options(MachineClass *m)
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
 
     pc_i440fx_4_0_machine_options(m);
-    m->is_default = false;
     pcmc->do_not_add_smb_acpi = true;
     m->smbus_no_migration_support = true;
     m->alias = NULL;
