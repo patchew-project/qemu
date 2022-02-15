@@ -252,22 +252,19 @@ void qmp_block_dirty_bitmap_disable(const char *node, const char *name,
     bdrv_disable_dirty_bitmap(bitmap);
 }
 
+/*
+ * On failure target may be modified. In this case @backup is set.
+ */
 BdrvDirtyBitmap *block_dirty_bitmap_merge(const char *node, const char *target,
                                           BlockDirtyBitmapMergeSourceList *bms,
                                           HBitmap **backup, Error **errp)
 {
     BlockDriverState *bs;
-    BdrvDirtyBitmap *dst, *src, *anon;
+    BdrvDirtyBitmap *dst, *src;
     BlockDirtyBitmapMergeSourceList *lst;
 
     dst = block_dirty_bitmap_lookup(node, target, &bs, errp);
     if (!dst) {
-        return NULL;
-    }
-
-    anon = bdrv_create_dirty_bitmap(bs, bdrv_dirty_bitmap_granularity(dst),
-                                    NULL, errp);
-    if (!anon) {
         return NULL;
     }
 
@@ -279,8 +276,7 @@ BdrvDirtyBitmap *block_dirty_bitmap_merge(const char *node, const char *target,
             src = bdrv_find_dirty_bitmap(bs, name);
             if (!src) {
                 error_setg(errp, "Dirty bitmap '%s' not found", name);
-                dst = NULL;
-                goto out;
+                return NULL;
             }
             break;
         case QTYPE_QDICT:
@@ -288,28 +284,19 @@ BdrvDirtyBitmap *block_dirty_bitmap_merge(const char *node, const char *target,
             name = lst->value->u.external.name;
             src = block_dirty_bitmap_lookup(node, name, NULL, errp);
             if (!src) {
-                dst = NULL;
-                goto out;
+                return NULL;
             }
             break;
         default:
             abort();
         }
 
-        if (!bdrv_merge_dirty_bitmap(anon, src, NULL, errp)) {
-            dst = NULL;
-            goto out;
+        if (!bdrv_merge_dirty_bitmap(dst, src, backup, errp)) {
+            return NULL;
         }
+        backup = NULL; /* Set once by first bdrv_merge_dirty_bitmap() call */
     }
 
-    /* Merge into dst; dst is unchanged on failure. */
-    if (!bdrv_merge_dirty_bitmap(dst, anon, backup, errp)) {
-        dst = NULL;
-        goto out;
-    }
-
- out:
-    bdrv_release_dirty_bitmap(anon);
     return dst;
 }
 
