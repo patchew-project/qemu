@@ -30,6 +30,7 @@ tfcflags = [
   '-Wno-implicit-fallthrough',
   '-Wno-strict-prototypes',
   '-Wno-unknown-pragmas',
+  '-Wno-ignored-pragmas',
   '-Wno-uninitialized',
   '-Wno-missing-prototypes',
   '-Wno-return-type',
