@@ -428,7 +428,7 @@ static void register_high_BATs(CPUPPCState *env)
 }
 
 /* Softare table search registers */
-static void register_6xx_7xx_soft_tlb(CPUPPCState *env, int nb_tlbs, int nb_ways)
+static void register_soft_tlb_sprs(CPUPPCState *env, int nb_tlbs, int nb_ways)
 {
 #if !defined(CONFIG_USER_ONLY)
     env->nb_tlb = nb_tlbs;
@@ -3025,7 +3025,7 @@ static void init_proc_G2(CPUPPCState *env)
     /* Memory management */
     register_low_BATs(env);
     register_high_BATs(env);
-    register_6xx_7xx_soft_tlb(env, 64, 2);
+    register_soft_tlb_sprs(env, 64, 2);
     init_excp_G2(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
@@ -3734,7 +3734,7 @@ static void init_proc_603(CPUPPCState *env)
 
     /* Memory management */
     register_low_BATs(env);
-    register_6xx_7xx_soft_tlb(env, 64, 2);
+    register_soft_tlb_sprs(env, 64, 2);
     init_excp_603(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
@@ -4495,7 +4495,7 @@ static void init_proc_745(CPUPPCState *env)
     /* Memory management */
     register_low_BATs(env);
     register_high_BATs(env);
-    register_6xx_7xx_soft_tlb(env, 64, 2);
+    register_soft_tlb_sprs(env, 64, 2);
     init_excp_7x5(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
