@@ -124,6 +124,26 @@ int qemu_mprotect_none(void *addr, size_t size)
 #endif
 }
 
+static void qemu_pthread_jit_write_protect(bool enabled)
+{
+#if defined(MAC_OS_VERSION_11_0) \
+        && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_VERSION_11_0
+    if (__builtin_available(macOS 11.0, *)) {
+        pthread_jit_write_protect_np(enabled);
+    }
+#endif
+}
+
+void qemu_thread_jit_execute(void)
+{
+    qemu_pthread_jit_write_protect(true);
+}
+
+void qemu_thread_jit_write(void)
+{
+    qemu_pthread_jit_write_protect(false);
+}
+
 #ifndef _WIN32
 
 static int fcntl_op_setlk = -1;

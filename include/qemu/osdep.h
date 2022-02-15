@@ -773,21 +773,8 @@ size_t qemu_get_host_physmem(void);
  * Toggle write/execute on the pages marked MAP_JIT
  * for the current thread.
  */
-#if defined(MAC_OS_VERSION_11_0) && \
-    MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_VERSION_11_0
-static inline void qemu_thread_jit_execute(void)
-{
-    pthread_jit_write_protect_np(true);
-}
-
-static inline void qemu_thread_jit_write(void)
-{
-    pthread_jit_write_protect_np(false);
-}
-#else
-static inline void qemu_thread_jit_write(void) {}
-static inline void qemu_thread_jit_execute(void) {}
-#endif
+void qemu_thread_jit_execute(void);
+void qemu_thread_jit_write(void);
 
 /**
  * Platforms which do not support system() return ENOSYS
