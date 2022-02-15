@@ -53,8 +53,8 @@ def do_test(use_cbw, base_img_path, fleece_img_path, nbd_sock_path, vm):
     log('--- Setting up images ---')
     log('')
 
-    assert qemu_img('create', '-f', iotests.imgfmt, base_img_path, '64M') == 0
-    assert qemu_img('create', '-f', 'qcow2', fleece_img_path, '64M') == 0
+    qemu_img('create', '-f', iotests.imgfmt, base_img_path, '64M')
+    qemu_img('create', '-f', 'qcow2', fleece_img_path, '64M')
 
     for p in patterns:
         qemu_io('-f', iotests.imgfmt,
