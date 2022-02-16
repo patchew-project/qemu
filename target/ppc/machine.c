@@ -20,7 +20,9 @@ static void post_load_update_msr(CPUPPCState *env)
      */
     env->msr ^= env->msr_mask & ~((1ULL << MSR_TGPR) | MSR_HVB);
     ppc_store_msr(env, msr);
+#if defined(CONFIG_TCG)
     pmu_update_summaries(env);
+#endif
 }
 
 static int get_avr(QEMUFile *f, void *pv, size_t size,

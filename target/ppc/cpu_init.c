@@ -6379,7 +6379,7 @@ static void register_power9_mmu_sprs(CPUPPCState *env)
  */
 static void init_tcg_pmu_power8(CPUPPCState *env)
 {
-#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+#if defined(CONFIG_TCG)
     /* Init PMU overflow timers */
     if (!kvm_enabled()) {
         cpu_ppc_pmu_init(env);
@@ -7872,10 +7872,9 @@ static void ppc_cpu_reset(DeviceState *dev)
     if (env->mmu_model != POWERPC_MMU_REAL) {
         ppc_tlb_invalidate_all(env);
     }
+    pmu_update_summaries(env);
 #endif /* CONFIG_TCG */
 #endif
-
-    pmu_update_summaries(env);
     hreg_compute_hflags(env);
     env->reserve_addr = (target_ulong)-1ULL;
     /* Be sure no exception or interrupt is pending */
