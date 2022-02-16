@@ -361,7 +361,7 @@ static void ppc_excp_apply_ail(PowerPCCPU *cpu, int excp, target_ulong msr,
 #endif
 
 static void powerpc_set_excp_state(PowerPCCPU *cpu,
-                                          target_ulong vector, target_ulong msr)
+                                   target_ulong vector, target_ulong msr)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
