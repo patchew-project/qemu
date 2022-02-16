@@ -185,7 +185,7 @@ for target in $target_list; do
       ;;
     s390x-*)
       container_hosts=x86_64
-      container_image=debian-s390x-cross
+      container_image=debian-s390x-test-cross
       container_cross_cc=s390x-linux-gnu-gcc
       ;;
     sh4-*)

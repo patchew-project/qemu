@@ -146,6 +146,13 @@ s390x-debian-cross-container:
   variables:
     NAME: debian-s390x-cross
 
+s390x-test-debian-cross-container:
+  extends: .container_job_template
+  stage: containers-layer2
+  needs: ['amd64-debian11-container']
+  variables:
+    NAME: debian-s390x-test-cross
+
 sh4-debian-cross-container:
   extends: .container_job_template
   stage: containers-layer2
