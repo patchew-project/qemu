@@ -38,6 +38,7 @@
 #include "hw/mips/mips.h"
 #include "hw/mips/cpudevs.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pci_host.h"
 #include "qemu/log.h"
 #include "hw/mips/bios.h"
 #include "hw/ide.h"
@@ -1230,7 +1231,7 @@ void mips_malta_init(MachineState *machine)
     const size_t smbus_eeprom_size = 8 * 256;
     uint8_t *smbus_eeprom_buf = g_malloc0(smbus_eeprom_size);
     uint64_t kernel_entry, bootloader_run_addr;
-    PCIBus *pci_bus;
+    PCIHostState *phb;
     ISABus *isa_bus;
     qemu_irq cbus_irq, i8259_irq;
     I2CBus *smbus;
@@ -1390,7 +1391,9 @@ void mips_malta_init(MachineState *machine)
     stl_p(memory_region_get_ram_ptr(bios_copy) + 0x10, 0x00000420);
 
     /* Northbridge */
-    pci_bus = gt64120_register();
+    dev = qdev_new("gt64120");
+    phb = PCI_HOST_BRIDGE(dev);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     /*
      * The whole address space decoded by the GT-64120A doesn't generate
      * exception when accessing invalid memory. Create an empty slot to
@@ -1399,7 +1402,7 @@ void mips_malta_init(MachineState *machine)
     empty_slot_init("GT64120", 0, 0x20000000);
 
     /* Southbridge */
-    dev = piix4_create(pci_bus, &isa_bus, &smbus);
+    dev = piix4_create(phb->bus, &isa_bus, &smbus);
 
     /* Interrupt controller */
     qdev_connect_gpio_out_named(dev, "intr", 0, i8259_irq);
@@ -1414,10 +1417,10 @@ void mips_malta_init(MachineState *machine)
     isa_create_simple(isa_bus, TYPE_FDC37M81X_SUPERIO);
 
     /* Network card */
-    network_init(pci_bus);
+    network_init(phb->bus);
 
     /* Optional PCI video card */
-    pci_vga_init(pci_bus);
+    pci_vga_init(phb->bus);
 }
 
 static void mips_malta_instance_init(Object *obj)
