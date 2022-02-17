@@ -57,6 +57,13 @@
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "hw/remote/vfio-user-obj.h"
+#include "migration/qemu-file.h"
+#include "migration/savevm.h"
+#include "migration/vmstate.h"
+#include "migration/global_state.h"
+#include "block/block.h"
+#include "sysemu/block-backend.h"
+#include "net/net.h"
 
 #define TYPE_VFU_OBJECT "x-vfio-user-server"
 OBJECT_DECLARE_TYPE(VfuObject, VfuObjectClass, VFU_OBJECT)
@@ -108,11 +115,48 @@ struct VfuObject {
     Error *unplug_blocker;
 
     int vfu_poll_fd;
+
+    /*
+     * vfu_mig_buf holds the migration data. In the remote server, this
+     * buffer replaces the role of an IO channel which links the source
+     * and the destination.
+     *
+     * Whenever the client QEMU process initiates migration, the remote
+     * server gets notified via libvfio-user callbacks. The remote server
+     * sets up a QEMUFile object using this buffer as backend. The remote
+     * server passes this object to its migration subsystem, which slurps
+     * the VMSD of the device ('devid' above) referenced by this object
+     * and stores the VMSD in this buffer.
+     *
+     * The client subsequetly asks the remote server for any data that
+     * needs to be moved over to the destination via libvfio-user
+     * library's vfu_migration_callbacks_t callbacks. The remote hands
+     * over this buffer as data at this time.
+     *
+     * A reverse of this process happens at the destination.
+     */
+    uint8_t *vfu_mig_buf;
+
+    uint64_t vfu_mig_buf_size;
+
+    uint64_t vfu_mig_buf_pending;
+
+    uint64_t vfu_mig_data_written;
+
+    uint64_t vfu_mig_section_offset;
+
+    QEMUFile *vfu_mig_file;
+
+    vfu_migr_state_t vfu_state;
 };
 
 static GHashTable *vfu_object_bdf_to_ctx_table;
 
 #define INT2VOIDP(i) (void *)(uintptr_t)(i)
+
+#define KB(x)    ((size_t) (x) << 10)
+
+#define VFU_OBJECT_MIG_WINDOW KB(64)
 
 static void vfu_object_init_ctx(VfuObject *o, Error **errp);
 
@@ -162,6 +206,394 @@ static void vfu_object_set_device(Object *obj, const char *str, Error **errp)
 
     vfu_object_init_ctx(o, errp);
 }
+
+/**
+ * Migration helper functions
+ *
+ * vfu_mig_buf_read & vfu_mig_buf_write are used by QEMU's migration
+ * subsystem - qemu_remote_loadvm & qemu_remote_savevm. loadvm/savevm
+ * call these functions via QEMUFileOps to load/save the VMSD of a
+ * device into vfu_mig_buf
+ *
+ */
+static ssize_t vfu_mig_buf_read(void *opaque, uint8_t *buf, int64_t pos,
+                                size_t size, Error **errp)
+{
+    VfuObject *o = opaque;
+
+    if (pos > o->vfu_mig_buf_size) {
+        size = 0;
+    } else if ((pos + size) > o->vfu_mig_buf_size) {
+        size = o->vfu_mig_buf_size - pos;
+    }
+
+    memcpy(buf, (o->vfu_mig_buf + pos), size);
+
+    return size;
+}
+
+static ssize_t vfu_mig_buf_write(void *opaque, struct iovec *iov, int iovcnt,
+                                 int64_t pos, Error **errp)
+{
+    ERRP_GUARD();
+    VfuObject *o = opaque;
+    uint64_t end = pos + iov_size(iov, iovcnt);
+    int i;
+
+    if (o->vfu_mig_buf_pending) {
+        error_setg(errp, "Migration is ongoing");
+        return 0;
+    }
+
+    if (end > o->vfu_mig_buf_size) {
+        o->vfu_mig_buf = g_realloc(o->vfu_mig_buf, end);
+    }
+
+    for (i = 0; i < iovcnt; i++) {
+        memcpy((o->vfu_mig_buf + o->vfu_mig_buf_size), iov[i].iov_base,
+               iov[i].iov_len);
+        o->vfu_mig_buf_size += iov[i].iov_len;
+    }
+
+    return iov_size(iov, iovcnt);
+}
+
+static int vfu_mig_buf_shutdown(void *opaque, bool rd, bool wr, Error **errp)
+{
+    VfuObject *o = opaque;
+
+    o->vfu_mig_buf_size = 0;
+
+    g_free(o->vfu_mig_buf);
+
+    o->vfu_mig_buf = NULL;
+
+    o->vfu_mig_buf_pending = 0;
+
+    o->vfu_mig_data_written = 0;
+
+    o->vfu_mig_section_offset = 0;
+
+    return 0;
+}
+
+static const QEMUFileOps vfu_mig_fops_save = {
+    .writev_buffer  = vfu_mig_buf_write,
+    .shut_down      = vfu_mig_buf_shutdown,
+};
+
+static const QEMUFileOps vfu_mig_fops_load = {
+    .get_buffer     = vfu_mig_buf_read,
+    .shut_down      = vfu_mig_buf_shutdown,
+};
+
+static BlockDriverState *vfu_object_find_bs_by_dev(DeviceState *dev)
+{
+    BlockBackend *blk = blk_by_dev(dev);
+
+    if (!blk) {
+        return NULL;
+    }
+
+    return blk_bs(blk);
+}
+
+static int vfu_object_bdrv_invalidate_cache_by_dev(DeviceState *dev)
+{
+    BlockDriverState *bs = NULL;
+    Error *local_err = NULL;
+
+    bs = vfu_object_find_bs_by_dev(dev);
+    if (!bs) {
+        return 0;
+    }
+
+    bdrv_invalidate_cache(bs, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int vfu_object_bdrv_inactivate_by_dev(DeviceState *dev)
+{
+    BlockDriverState *bs = NULL;
+
+    bs = vfu_object_find_bs_by_dev(dev);
+    if (!bs) {
+        return 0;
+    }
+
+    return bdrv_inactivate(bs);
+}
+
+static void vfu_object_start_stop_netdev(DeviceState *dev, bool start)
+{
+    NetClientState *nc = NULL;
+    Error *local_err = NULL;
+    char *netdev = NULL;
+
+    netdev = object_property_get_str(OBJECT(dev), "netdev", &local_err);
+    if (local_err) {
+        /**
+         * object_property_get_str() sets Error if netdev property is
+         * not found, not necessarily an error in the context of
+         * this function
+         */
+        error_free(local_err);
+        return;
+    }
+
+    if (!netdev) {
+        return;
+    }
+
+    nc = qemu_find_netdev(netdev);
+
+    if (!nc) {
+        return;
+    }
+
+    if (!start) {
+        qemu_flush_or_purge_queued_packets(nc, true);
+
+        if (nc->info && nc->info->cleanup) {
+            nc->info->cleanup(nc);
+        }
+    } else if (nc->peer) {
+        qemu_flush_or_purge_queued_packets(nc->peer, false);
+    }
+}
+
+static int vfu_object_start_devs(DeviceState *dev, void *opaque)
+{
+    int ret = vfu_object_bdrv_invalidate_cache_by_dev(dev);
+
+    if (ret) {
+        return ret;
+    }
+
+    vfu_object_start_stop_netdev(dev, true);
+
+    return ret;
+}
+
+static int vfu_object_stop_devs(DeviceState *dev, void *opaque)
+{
+    int ret = vfu_object_bdrv_inactivate_by_dev(dev);
+
+    if (ret) {
+        return ret;
+    }
+
+    vfu_object_start_stop_netdev(dev, false);
+
+    return ret;
+}
+
+/**
+ * handlers for vfu_migration_callbacks_t
+ *
+ * The libvfio-user library accesses these handlers to drive the migration
+ * at the remote end, and also to transport the data stored in vfu_mig_buf
+ *
+ */
+static void vfu_mig_state_stop_and_copy(vfu_ctx_t *vfu_ctx)
+{
+    VfuObject *o = vfu_get_private(vfu_ctx);
+    int ret;
+
+    if (!o->vfu_mig_file) {
+        o->vfu_mig_file = qemu_fopen_ops(o, &vfu_mig_fops_save, false);
+    }
+
+    ret = qemu_remote_savevm(o->vfu_mig_file, DEVICE(o->pci_dev));
+    if (ret) {
+        qemu_file_shutdown(o->vfu_mig_file);
+        o->vfu_mig_file = NULL;
+        return;
+    }
+
+    qemu_fflush(o->vfu_mig_file);
+}
+
+static void vfu_mig_state_running(vfu_ctx_t *vfu_ctx)
+{
+    VfuObject *o = vfu_get_private(vfu_ctx);
+    int ret;
+
+    if (o->vfu_state != VFU_MIGR_STATE_RESUME) {
+        goto run_ctx;
+    }
+
+    if (!o->vfu_mig_file) {
+        o->vfu_mig_file = qemu_fopen_ops(o, &vfu_mig_fops_load, false);
+    }
+
+    ret = qemu_remote_loadvm(o->vfu_mig_file);
+    if (ret) {
+        VFU_OBJECT_ERROR(o, "vfu: failed to restore device state");
+        return;
+    }
+
+    qemu_file_shutdown(o->vfu_mig_file);
+    o->vfu_mig_file = NULL;
+
+run_ctx:
+    ret = qdev_walk_children(DEVICE(o->pci_dev), NULL, NULL,
+                             vfu_object_start_devs,
+                             NULL, NULL);
+    if (ret) {
+        VFU_OBJECT_ERROR(o, "vfu: failed to setup backends for %s",
+                         o->device);
+        return;
+    }
+}
+
+static void vfu_mig_state_stop(vfu_ctx_t *vfu_ctx)
+{
+    VfuObject *o = vfu_get_private(vfu_ctx);
+    int ret;
+
+    ret = qdev_walk_children(DEVICE(o->pci_dev), NULL, NULL,
+                             vfu_object_stop_devs,
+                             NULL, NULL);
+    if (ret) {
+        VFU_OBJECT_ERROR(o, "vfu: failed to inactivate backends for %s",
+                         o->device);
+    }
+}
+
+static int vfu_mig_transition(vfu_ctx_t *vfu_ctx, vfu_migr_state_t state)
+{
+    VfuObject *o = vfu_get_private(vfu_ctx);
+
+    if (o->vfu_state == state) {
+        return 0;
+    }
+
+    switch (state) {
+    case VFU_MIGR_STATE_RESUME:
+        break;
+    case VFU_MIGR_STATE_STOP_AND_COPY:
+        vfu_mig_state_stop_and_copy(vfu_ctx);
+        break;
+    case VFU_MIGR_STATE_STOP:
+        vfu_mig_state_stop(vfu_ctx);
+        break;
+    case VFU_MIGR_STATE_PRE_COPY:
+        break;
+    case VFU_MIGR_STATE_RUNNING:
+        vfu_mig_state_running(vfu_ctx);
+        break;
+    default:
+        warn_report("vfu: Unknown migration state %d", state);
+    }
+
+    o->vfu_state = state;
+
+    return 0;
+}
+
+static uint64_t vfu_mig_get_pending_bytes(vfu_ctx_t *vfu_ctx)
+{
+    VfuObject *o = vfu_get_private(vfu_ctx);
+    static bool mig_ongoing;
+
+    if (!mig_ongoing && !o->vfu_mig_buf_pending) {
+        o->vfu_mig_buf_pending = o->vfu_mig_buf_size;
+        mig_ongoing = true;
+    }
+
+    if (mig_ongoing && !o->vfu_mig_buf_pending) {
+        mig_ongoing = false;
+    }
+
+    return o->vfu_mig_buf_pending;
+}
+
+static int vfu_mig_prepare_data(vfu_ctx_t *vfu_ctx, uint64_t *offset,
+                                uint64_t *size)
+{
+    VfuObject *o = vfu_get_private(vfu_ctx);
+    uint64_t data_size = o->vfu_mig_buf_pending;
+
+    if (data_size > VFU_OBJECT_MIG_WINDOW) {
+        data_size = VFU_OBJECT_MIG_WINDOW;
+    }
+
+    o->vfu_mig_section_offset = o->vfu_mig_buf_size - o->vfu_mig_buf_pending;
+
+    o->vfu_mig_buf_pending -= data_size;
+
+    if (offset) {
+        *offset = 0;
+    }
+
+    if (size) {
+        *size = data_size;
+    }
+
+    return 0;
+}
+
+static ssize_t vfu_mig_read_data(vfu_ctx_t *vfu_ctx, void *buf,
+                                 uint64_t size, uint64_t offset)
+{
+    VfuObject *o = vfu_get_private(vfu_ctx);
+    uint64_t read_offset = o->vfu_mig_section_offset + offset;
+
+    if (read_offset > o->vfu_mig_buf_size) {
+        warn_report("vfu: buffer overflow - offset outside range");
+        return -1;
+    }
+
+    if ((read_offset + size) > o->vfu_mig_buf_size) {
+        warn_report("vfu: buffer overflow - size outside range");
+        size = o->vfu_mig_buf_size - read_offset;
+    }
+
+    memcpy(buf, (o->vfu_mig_buf + read_offset), size);
+
+    return size;
+}
+
+static ssize_t vfu_mig_write_data(vfu_ctx_t *vfu_ctx, void *data,
+                                  uint64_t size, uint64_t offset)
+{
+    VfuObject *o = vfu_get_private(vfu_ctx);
+    uint64_t end = o->vfu_mig_data_written + offset + size;
+
+    if (end > o->vfu_mig_buf_size) {
+        o->vfu_mig_buf = g_realloc(o->vfu_mig_buf, end);
+        o->vfu_mig_buf_size = end;
+    }
+
+    memcpy((o->vfu_mig_buf + o->vfu_mig_data_written + offset), data, size);
+
+    return size;
+}
+
+static int vfu_mig_data_written(vfu_ctx_t *vfu_ctx, uint64_t count)
+{
+    VfuObject *o = vfu_get_private(vfu_ctx);
+
+    o->vfu_mig_data_written += count;
+
+    return 0;
+}
+
+static const vfu_migration_callbacks_t vfu_mig_cbs = {
+    .version = VFU_MIGR_CALLBACKS_VERS,
+    .transition = &vfu_mig_transition,
+    .get_pending_bytes = &vfu_mig_get_pending_bytes,
+    .prepare_data = &vfu_mig_prepare_data,
+    .read_data = &vfu_mig_read_data,
+    .data_written = &vfu_mig_data_written,
+    .write_data = &vfu_mig_write_data,
+};
 
 static void vfu_object_ctx_run(void *opaque)
 {
@@ -550,6 +982,13 @@ void vfu_object_set_bus_irq(PCIBus *pci_bus)
     pci_bus_irqs(pci_bus, vfu_object_set_irq, vfu_object_map_irq, NULL, 1);
 }
 
+static bool vfu_object_migratable(VfuObject *o)
+{
+    DeviceClass *dc = DEVICE_GET_CLASS(o->pci_dev);
+
+    return dc->vmsd && !dc->vmsd->unmigratable;
+}
+
 /*
  * TYPE_VFU_OBJECT depends on the availability of the 'socket' and 'device'
  * properties. It also depends on devices instantiated in QEMU. These
@@ -575,6 +1014,7 @@ static void vfu_object_init_ctx(VfuObject *o, Error **errp)
     ERRP_GUARD();
     DeviceState *dev = NULL;
     vfu_pci_type_t pci_type = VFU_PCI_TYPE_CONVENTIONAL;
+    uint64_t migr_regs_size, migr_size;
     int ret;
 
     if (o->vfu_ctx || !o->socket || !o->device ||
@@ -653,6 +1093,31 @@ static void vfu_object_init_ctx(VfuObject *o, Error **errp)
         goto fail;
     }
 
+    migr_regs_size = vfu_get_migr_register_area_size();
+    migr_size = migr_regs_size + VFU_OBJECT_MIG_WINDOW;
+
+    ret = vfu_setup_region(o->vfu_ctx, VFU_PCI_DEV_MIGR_REGION_IDX,
+                           migr_size, NULL,
+                           VFU_REGION_FLAG_RW, NULL, 0, -1, 0);
+    if (ret < 0) {
+        error_setg(errp, "vfu: Failed to register migration BAR %s- %s",
+                   o->device, strerror(errno));
+        goto fail;
+    }
+
+    if (!vfu_object_migratable(o)) {
+        goto realize_ctx;
+    }
+
+    ret = vfu_setup_device_migration_callbacks(o->vfu_ctx, &vfu_mig_cbs,
+                                               migr_regs_size);
+    if (ret < 0) {
+        error_setg(errp, "vfu: Failed to setup migration %s- %s",
+                   o->device, strerror(errno));
+        goto fail;
+    }
+
+realize_ctx:
     ret = vfu_realize_ctx(o->vfu_ctx);
     if (ret < 0) {
         error_setg(errp, "vfu: Failed to realize device %s- %s",
@@ -700,6 +1165,8 @@ static void vfu_object_init(Object *obj)
     }
 
     o->vfu_poll_fd = -1;
+
+    o->vfu_state = VFU_MIGR_STATE_STOP;
 }
 
 static void vfu_object_finalize(Object *obj)

@@ -24,6 +24,7 @@
 #include "hw/qdev-core.h"
 #include "hw/remote/iommu.h"
 #include "hw/remote/vfio-user-obj.h"
+#include "sysemu/sysemu.h"
 
 static void remote_machine_init(MachineState *machine)
 {
@@ -86,6 +87,11 @@ static void remote_machine_set_vfio_user(Object *obj, bool value, Error **errp)
     s->vfio_user = value;
 }
 
+static void remote_machine_instance_init(Object *obj)
+{
+    set_deferred_backend_init();
+}
+
 static void remote_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -105,6 +111,7 @@ static const TypeInfo remote_machine = {
     .name = TYPE_REMOTE_MACHINE,
     .parent = TYPE_MACHINE,
     .instance_size = sizeof(RemoteMachineState),
+    .instance_init = remote_machine_instance_init,
     .class_init = remote_machine_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },

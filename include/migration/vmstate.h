@@ -1165,6 +1165,8 @@ extern const VMStateInfo vmstate_info_qlist;
 #define VMSTATE_END_OF_LIST()                                         \
     {}
 
+uint64_t vmstate_vmsd_size(PCIDevice *pci_dev);
+
 int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                        void *opaque, int version_id);
 int vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,

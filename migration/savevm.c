@@ -66,6 +66,7 @@
 #include "net/announce.h"
 #include "qemu/yank.h"
 #include "yank_functions.h"
+#include "hw/qdev-core.h"
 
 const unsigned int postcopy_ram_discard_version;
 
@@ -1606,6 +1607,64 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
     return ret;
 }
 
+static SaveStateEntry *find_se_from_dev(DeviceState *dev)
+{
+    SaveStateEntry *se;
+
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (se->opaque == dev) {
+            return se;
+        }
+    }
+
+    return NULL;
+}
+
+static int qemu_remote_savevm_section_full(DeviceState *dev, void *opaque)
+{
+    QEMUFile *f = opaque;
+    SaveStateEntry *se;
+    int ret;
+
+    se = find_se_from_dev(dev);
+    if (!se) {
+        return 0;
+    }
+
+    if (!se->vmsd || !vmstate_save_needed(se->vmsd, se->opaque) ||
+        se->vmsd->unmigratable) {
+        return 0;
+    }
+
+    save_section_header(f, se, QEMU_VM_SECTION_FULL);
+
+    ret = vmstate_save(f, se, NULL);
+    if (ret) {
+        qemu_file_set_error(f, ret);
+        return ret;
+    }
+
+    save_section_footer(f, se);
+
+    return 0;
+}
+
+int qemu_remote_savevm(QEMUFile *f, DeviceState *dev)
+{
+    int ret = qdev_walk_children(dev, NULL, NULL,
+                                 qemu_remote_savevm_section_full,
+                                 NULL, f);
+
+    if (ret) {
+        return ret;
+    }
+
+    qemu_put_byte(f, QEMU_VM_EOF);
+    qemu_fflush(f);
+
+    return 0;
+}
+
 void qemu_savevm_live_state(QEMUFile *f)
 {
     /* save QEMU_VM_SECTION_END section */
@@ -2445,6 +2504,36 @@ qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
     }
 
     return 0;
+}
+
+int qemu_remote_loadvm(QEMUFile *f)
+{
+    uint8_t section_type;
+    int ret = 0;
+
+    while (true) {
+        section_type = qemu_get_byte(f);
+
+        ret = qemu_file_get_error(f);
+        if (ret) {
+            break;
+        }
+
+        switch (section_type) {
+        case QEMU_VM_SECTION_FULL:
+            ret = qemu_loadvm_section_start_full(f, NULL);
+            if (ret < 0) {
+                break;
+            }
+            break;
+        case QEMU_VM_EOF:
+            return ret;
+        default:
+            return -EINVAL;
+        }
+    }
+
+    return ret;
 }
 
 static int

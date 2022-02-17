@@ -495,6 +495,7 @@ int generated_co_wrapper bdrv_invalidate_cache(BlockDriverState *bs,
                                                Error **errp);
 void bdrv_invalidate_cache_all(Error **errp);
 int bdrv_inactivate_all(void);
+int bdrv_inactivate(BlockDriverState *bs);
 
 /* Ensure contents are flushed to disk.  */
 int generated_co_wrapper bdrv_flush(BlockDriverState *bs);

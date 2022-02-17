@@ -6565,6 +6565,11 @@ static int bdrv_inactivate_recurse(BlockDriverState *bs)
     return 0;
 }
 
+int bdrv_inactivate(BlockDriverState *bs)
+{
+    return bdrv_inactivate_recurse(bs);
+}
+
 int bdrv_inactivate_all(void)
 {
     BlockDriverState *bs = NULL;
