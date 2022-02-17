@@ -1130,6 +1130,8 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_BINARY_STATS_FD 203
 #define KVM_CAP_EXIT_ON_EMULATION_FAILURE 204
 #define KVM_CAP_ARM_MTE 205
+#define KVM_CAP_XSAVE2  208
+#define KVM_CAP_SYS_ATTRIBUTES 209
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -1676,6 +1678,8 @@ struct kvm_xen_hvm_attr {
 
 #define KVM_GET_SREGS2             _IOR(KVMIO,  0xcc, struct kvm_sregs2)
 #define KVM_SET_SREGS2             _IOW(KVMIO,  0xcd, struct kvm_sregs2)
+
+#define KVM_GET_XSAVE2           _IOR(KVMIO,  0xcf, struct kvm_xsave)
 
 struct kvm_xen_vcpu_attr {
 	__u16 type;
