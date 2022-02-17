@@ -150,6 +150,8 @@ struct CPUS390XState {
     /* currently processed sigp order */
     uint8_t sigp_order;
 
+    /* Using Perform CPU Topology Function*/
+    bool using_ptf;
 };
 
 static inline uint64_t *get_freg(CPUS390XState *cs, int nr)

@@ -250,6 +250,53 @@ const VMStateDescription vmstate_diag318 = {
     }
 };
 
+static int cpu_topology_presave(void *opaque)
+{
+    S390CPU *cpu = opaque;
+
+    cpu->env.using_ptf = s390_has_feat(S390_FEAT_CPU_TOPOLOGY);
+    return 0;
+}
+
+static int cpu_topology_postload(void *opaque, int version_id)
+{
+    S390CPU *cpu = opaque;
+
+    if ((cpu->env.using_ptf == s390_has_feat(S390_FEAT_CPU_TOPOLOGY)) &&
+        (cpu->env.using_ptf == s390_has_feat(S390_FEAT_CONFIGURATION_TOPOLOGY))) {
+        return 0;
+    }
+    if (cpu->env.using_ptf) {
+        error_report("Target needs CPU Topology enabled");
+    } else {
+        if (s390_has_feat(S390_FEAT_CONFIGURATION_TOPOLOGY)) {
+            error_report("Target is not allowed to enable configuration Topology");
+        }
+        if (s390_has_feat(S390_FEAT_CPU_TOPOLOGY)) {
+            error_report("Target is not allowed to enable CPU Topology");
+        }
+    }
+    return -EINVAL;
+}
+
+static bool cpu_topology_needed(void *opaque)
+{
+    return 1;
+}
+
+const VMStateDescription vmstate_cpu_topology = {
+    .name = "cpu/cpu_topology",
+    .version_id = 1,
+    .pre_save = cpu_topology_presave,
+    .post_load = cpu_topology_postload,
+    .minimum_version_id = 1,
+    .needed = cpu_topology_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(env.using_ptf, S390CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_s390_cpu = {
     .name = "cpu",
     .post_load = cpu_post_load,
@@ -287,6 +334,7 @@ const VMStateDescription vmstate_s390_cpu = {
         &vmstate_bpbc,
         &vmstate_etoken,
         &vmstate_diag318,
+        &vmstate_cpu_topology,
         NULL
     },
 };
