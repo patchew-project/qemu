@@ -119,4 +119,8 @@ extern QemuOptsList qemu_net_opts;
 extern QemuOptsList qemu_global_opts;
 extern QemuOptsList qemu_semihosting_config_opts;
 
+bool deferred_backend_init(void);
+void set_deferred_backend_init(void);
+void clear_deferred_backend_init(void);
+
 #endif

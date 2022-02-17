@@ -569,7 +569,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         qdict_set_default_str(bs_opts, BDRV_OPT_AUTO_READ_ONLY, "on");
         assert((bdrv_flags & BDRV_O_CACHE_MASK) == 0);
 
-        if (runstate_check(RUN_STATE_INMIGRATE)) {
+        if (runstate_check(RUN_STATE_INMIGRATE) || deferred_backend_init()) {
             bdrv_flags |= BDRV_O_INACTIVE;
         }
 

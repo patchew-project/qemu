@@ -496,6 +496,23 @@ static QemuOptsList qemu_action_opts = {
     },
 };
 
+bool defer_backend_init;
+
+bool deferred_backend_init(void)
+{
+    return defer_backend_init;
+}
+
+void set_deferred_backend_init(void)
+{
+    defer_backend_init = true;
+}
+
+void clear_deferred_backend_init(void)
+{
+    defer_backend_init = false;
+}
+
 const char *qemu_get_vm_name(void)
 {
     return qemu_name;

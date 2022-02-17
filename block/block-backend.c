@@ -20,6 +20,7 @@
 #include "sysemu/blockdev.h"
 #include "sysemu/runstate.h"
 #include "sysemu/replay.h"
+#include "sysemu/sysemu.h"
 #include "qapi/error.h"
 #include "qapi/qapi-events-block.h"
 #include "qemu/id.h"
@@ -935,7 +936,7 @@ int blk_attach_dev(BlockBackend *blk, DeviceState *dev)
     /* While migration is still incoming, we don't need to apply the
      * permissions of guest device BlockBackends. We might still have a block
      * job or NBD server writing to the image for storage migration. */
-    if (runstate_check(RUN_STATE_INMIGRATE)) {
+    if (runstate_check(RUN_STATE_INMIGRATE) || deferred_backend_init()) {
         blk->disable_perm = true;
     }
 
