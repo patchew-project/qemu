@@ -19,9 +19,9 @@
 { uint64_t res = 0; F_PRO ; ASM ; return res; }
 
 
-Fi3 (_selre,     asm("selre    %%r0, %%r3, %%r2\n" F_EPI))
-Fi3 (_selgrz,    asm("selgrz   %%r0, %%r3, %%r2\n" F_EPI))
-Fi3 (_selfhrnz,  asm("selfhrnz %%r0, %%r3, %%r2\n" F_EPI))
+Fi3 (_selre,     asm(".insn rrf, 0xB9F00000, %%r0, %%r3, %%r2, 8\n" F_EPI))
+Fi3 (_selgrz,    asm(".insn rrf, 0xB9E30000, %%r0, %%r3, %%r2, 8\n" F_EPI))
+Fi3 (_selfhrnz,  asm(".insn rrf, 0xB9C00000, %%r0, %%r3, %%r2, 7\n" F_EPI))
 
 
 int main(int argc, char *argv[])
