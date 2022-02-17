@@ -51,6 +51,8 @@
  */
 bool msi_nonbroken;
 
+static void pci_msi_notify(PCIDevice *dev, unsigned int vector);
+
 /* If we get rid of cap allocator, we won't need this. */
 static inline uint8_t msi_cap_sizeof(uint16_t flags)
 {
@@ -225,6 +227,8 @@ int msi_init(struct PCIDevice *dev, uint8_t offset,
     dev->msi_cap = config_offset;
     dev->cap_present |= QEMU_PCI_CAP_MSI;
 
+    dev->msi_notify = pci_msi_notify;
+
     pci_set_word(dev->config + msi_flags_off(dev), flags);
     pci_set_word(dev->wmask + msi_flags_off(dev),
                  PCI_MSI_FLAGS_QSIZE | PCI_MSI_FLAGS_ENABLE);
@@ -307,7 +311,7 @@ bool msi_is_masked(const PCIDevice *dev, unsigned int vector)
     return mask & (1U << vector);
 }
 
-void msi_notify(PCIDevice *dev, unsigned int vector)
+static void pci_msi_notify(PCIDevice *dev, unsigned int vector)
 {
     uint16_t flags = pci_get_word(dev->config + msi_flags_off(dev));
     bool msi64bit = flags & PCI_MSI_FLAGS_64BIT;
@@ -330,6 +334,13 @@ void msi_notify(PCIDevice *dev, unsigned int vector)
                    " address: 0x%"PRIx64" data: 0x%"PRIx32"\n",
                    vector, msg.address, msg.data);
     msi_send_message(dev, msg);
+}
+
+void msi_notify(PCIDevice *dev, unsigned int vector)
+{
+    if (dev->msi_notify) {
+        dev->msi_notify(dev, vector);
+    }
 }
 
 void msi_send_message(PCIDevice *dev, MSIMessage msg)
