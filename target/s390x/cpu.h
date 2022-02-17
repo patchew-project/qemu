@@ -892,4 +892,5 @@ typedef S390CPU ArchCPU;
 
 #include "exec/cpu-all.h"
 
+void insert_stsi_15_1_x(S390CPU *cpu, int sel2, __u64 addr, uint8_t ar);
 #endif
