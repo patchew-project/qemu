@@ -1229,20 +1229,30 @@ case $git_submodules_action in
     ;;
 esac
 
-libdir="${libdir:-$prefix/lib}"
-libexecdir="${libexecdir:-$prefix/libexec}"
-includedir="${includedir:-$prefix/include}"
+# Emits a relative path in the case of an empty prefix.
+prefix_subdir() {
+    dir="$1"
+    if test -z "$prefix" ; then
+        echo "$dir"
+    else
+        echo "$prefix/$dir"
+    fi
+}
+
+libdir="${libdir:-$(prefix_subdir lib)}"
+libexecdir="${libexecdir:-$(prefix_subdir libexec)}"
+includedir="${includedir:-$(prefix_subdir include)}"
 
 if test "$mingw32" = "yes" ; then
     bindir="${bindir:-$prefix}"
 else
-    bindir="${bindir:-$prefix/bin}"
+    bindir="${bindir:-$(prefix_subdir bin)}"
 fi
-mandir="${mandir:-$prefix/share/man}"
-datadir="${datadir:-$prefix/share}"
-docdir="${docdir:-$prefix/share/doc}"
-sysconfdir="${sysconfdir:-$prefix/etc}"
-local_statedir="${local_statedir:-$prefix/var}"
+mandir="${mandir:-$(prefix_subdir share/man)}"
+datadir="${datadir:-$(prefix_subdir share)}"
+docdir="${docdir:-$(prefix_subdir share/doc)}"
+sysconfdir="${sysconfdir:-$(prefix_subdir etc)}"
+local_statedir="${local_statedir:-$(prefix_subdir var)}"
 firmwarepath="${firmwarepath:-$datadir/qemu-firmware}"
 localedir="${localedir:-$datadir/locale}"
 
@@ -3763,6 +3773,11 @@ if test "$skip_meson" = no; then
   mv $cross config-meson.cross
 
   rm -rf meson-private meson-info meson-logs
+
+  # Workaround for a meson bug preventing empty prefixes:
+  # see https://github.com/mesonbuild/meson/issues/6946.
+  prefix="${prefix:-/}"
+
   run_meson() {
     NINJA=$ninja $meson setup \
         --prefix "$prefix" \
