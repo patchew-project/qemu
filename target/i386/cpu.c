@@ -43,6 +43,8 @@
 #include "disas/capstone.h"
 #include "cpu-internal.h"
 
+#include <sys/syscall.h>
+
 /* Helpers for building CPUID[2] descriptors: */
 
 struct CPUID2CacheDescriptorInfo {
@@ -6000,12 +6002,47 @@ static void x86_cpu_adjust_feat_level(X86CPU *cpu, FeatureWord w)
     }
 }
 
+static void kvm_request_xsave_components(X86CPU *cpu, uint64_t mask)
+{
+    KVMState *s = kvm_state;
+    uint64_t bitmask;
+    long rc;
+
+    if ((mask & XSTATE_XTILE_DATA_MASK) == XSTATE_XTILE_DATA_MASK) {
+        bitmask = kvm_arch_get_supported_cpuid(s, 0xd, 0, R_EAX);
+        if (!(bitmask & XSTATE_XTILE_DATA_MASK)) {
+            warn_report("no amx support from supported_xcr0, "
+                        "bitmask:0x%lx", bitmask);
+            return;
+        }
+
+        rc = syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_GUEST_PERM,
+                      XSTATE_XTILE_DATA_BIT);
+        if (rc) {
+            /*
+             * The older kernel version(<5.15) can't support
+             * ARCH_REQ_XCOMP_GUEST_PERM and directly return.
+             */
+            return;
+        }
+
+        rc = syscall(SYS_arch_prctl, ARCH_GET_XCOMP_GUEST_PERM, &bitmask);
+        if (rc) {
+            warn_report("prctl(ARCH_GET_XCOMP_GUEST_PERM) error: %ld", rc);
+        } else if (!(bitmask & XFEATURE_XTILE_MASK)) {
+            warn_report("prctl(ARCH_REQ_XCOMP_GUEST_PERM) failure "
+                        "and bitmask=0x%lx", bitmask);
+        }
+    }
+}
+
 /* Calculate XSAVE components based on the configured CPU feature flags */
 static void x86_cpu_enable_xsave_components(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
     int i;
     uint64_t mask;
+    static bool request_perm;
 
     if (!(env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE)) {
         env->features[FEAT_XSAVE_COMP_LO] = 0;
@@ -6019,6 +6056,12 @@ static void x86_cpu_enable_xsave_components(X86CPU *cpu)
         if (env->features[esa->feature] & esa->bits) {
             mask |= (1ULL << i);
         }
+    }
+
+    /* Only request permission for first vcpu */
+    if (kvm_enabled() && !request_perm) {
+        kvm_request_xsave_components(cpu, mask);
+        request_perm = true;
     }
 
     env->features[FEAT_XSAVE_COMP_LO] = mask;
