@@ -61,6 +61,26 @@ static S390TopologySocket *s390_create_socket(S390TopologyBook *book, int id)
     return socket;
 }
 
+static S390TopologyBook *s390_create_book(S390TopologyDrawer *drawer, int id)
+{
+    DeviceState *dev;
+    S390TopologyBook *book;
+    const MachineState *ms = MACHINE(qdev_get_machine());
+
+    if (drawer->bus->num_children >= ms->smp.books) {
+        return NULL;
+    }
+
+    dev = qdev_new(TYPE_S390_TOPOLOGY_BOOK);
+    qdev_realize_and_unref(dev, drawer->bus, &error_fatal);
+
+    book = S390_TOPOLOGY_BOOK(dev);
+    book->book_id = id;
+    drawer->cnt++;
+
+    return book;
+}
+
 /*
  * s390_get_cores:
  * @socket: the socket to search into
@@ -111,6 +131,31 @@ static S390TopologySocket *s390_get_socket(S390TopologyBook *book,
 }
 
 /*
+ * s390_get_book:
+ * @drawer: The drawer to search into
+ * @book_id: the identifier of the book to search for
+ *
+ * returns a pointer to a S390TopologySocket structure within a drawer having
+ * the specified book_id.
+ * First search if the drawer is already containing the S390TopologySocket
+ * structure and if not create one with this book_id.
+ */
+static S390TopologyBook *s390_get_book(S390TopologyDrawer *drawer,
+                                       int book_id)
+{
+    S390TopologyBook *book;
+    BusChild *kid;
+
+    QTAILQ_FOREACH(kid, &drawer->bus->children, sibling) {
+        book = S390_TOPOLOGY_BOOK(kid->child);
+        if (book->book_id == book_id) {
+            return book;
+        }
+    }
+    return s390_create_book(drawer, book_id);
+}
+
+/*
  * s390_topology_new_cpu:
  * @core_id: the core ID is machine wide
  *
@@ -124,16 +169,21 @@ static S390TopologySocket *s390_get_socket(S390TopologyBook *book,
 void s390_topology_new_cpu(int core_id)
 {
     const MachineState *ms = MACHINE(qdev_get_machine());
+    S390TopologyDrawer *drawer;
     S390TopologyBook *book;
     S390TopologySocket *socket;
     S390TopologyCores *cores;
     int origin, bit;
     int nb_cores_per_socket;
+    int nb_cores_per_book;
 
-    book = s390_get_topology();
+    drawer = s390_get_topology();
 
     /* Cores for the S390 topology are cores and threads of the QEMU topology */
     nb_cores_per_socket = ms->smp.cores * ms->smp.threads;
+    nb_cores_per_book = ms->smp.sockets * nb_cores_per_socket;
+
+    book = s390_get_book(drawer, core_id / nb_cores_per_book);
     socket = s390_get_socket(book, core_id / nb_cores_per_socket);
 
     /*
@@ -166,23 +216,23 @@ void s390_topology_setup(MachineState *ms)
     DeviceState *dev;
 
     /* Create BOOK bridge device */
-    dev = qdev_new(TYPE_S390_TOPOLOGY_BOOK);
+    dev = qdev_new(TYPE_S390_TOPOLOGY_DRAWER);
     object_property_add_child(qdev_get_machine(),
-                              TYPE_S390_TOPOLOGY_BOOK, OBJECT(dev));
+                              TYPE_S390_TOPOLOGY_DRAWER, OBJECT(dev));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 }
 
-S390TopologyBook *s390_get_topology(void)
+S390TopologyDrawer *s390_get_topology(void)
 {
-    static S390TopologyBook *book;
+    static S390TopologyDrawer *drawer;
 
-    if (!book) {
-        book = S390_TOPOLOGY_BOOK(
-            object_resolve_path(TYPE_S390_TOPOLOGY_BOOK, NULL));
-        assert(book != NULL);
+    if (!drawer) {
+        drawer = S390_TOPOLOGY_DRAWER(object_resolve_path(
+                                      TYPE_S390_TOPOLOGY_DRAWER, NULL));
+        assert(drawer != NULL);
     }
 
-    return book;
+    return drawer;
 }
 
 /* --- CORES Definitions --- */
@@ -333,12 +383,13 @@ static void book_class_init(ObjectClass *oc, void *data)
     hc->unplug = qdev_simple_device_unplug_cb;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->realize = s390_book_device_realize;
+    dc->bus_type = TYPE_S390_TOPOLOGY_DRAWER_BUS;
     dc->desc = "topology book";
 }
 
 static const TypeInfo book_info = {
     .name          = TYPE_S390_TOPOLOGY_BOOK,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_DEVICE,
     .instance_size = sizeof(S390TopologyBook),
     .class_init    = book_class_init,
     .interfaces = (InterfaceInfo[]) {
@@ -347,6 +398,78 @@ static const TypeInfo book_info = {
     }
 };
 
+/* --- DRAWER Definitions --- */
+static Property s390_topology_drawer_properties[] = {
+    DEFINE_PROP_UINT8("drawer_id", S390TopologyDrawer, drawer_id, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static char *drawer_bus_get_dev_path(DeviceState *dev)
+{
+    S390TopologyDrawer *drawer = S390_TOPOLOGY_DRAWER(dev);
+    DeviceState *node = dev->parent_bus->parent;
+    char *id = qdev_get_dev_path(node);
+    char *ret;
+
+    if (id) {
+        ret = g_strdup_printf("%s:%02d", id, drawer->drawer_id);
+        g_free(id);
+    } else {
+        ret = g_malloc(6);
+        snprintf(ret, 6, "_:%02d", drawer->drawer_id);
+    }
+
+    return ret;
+}
+
+static void drawer_bus_class_init(ObjectClass *oc, void *data)
+{
+    BusClass *k = BUS_CLASS(oc);
+
+    k->get_dev_path = drawer_bus_get_dev_path;
+    k->max_dev = S390_MAX_DRAWERS;
+}
+
+static const TypeInfo drawer_bus_info = {
+    .name = TYPE_S390_TOPOLOGY_DRAWER_BUS,
+    .parent = TYPE_BUS,
+    .instance_size = 0,
+    .class_init = drawer_bus_class_init,
+};
+
+static void s390_drawer_device_realize(DeviceState *dev, Error **errp)
+{
+    S390TopologyDrawer *drawer = S390_TOPOLOGY_DRAWER(dev);
+    BusState *bus;
+
+    bus = qbus_new(TYPE_S390_TOPOLOGY_DRAWER_BUS, dev,
+                   TYPE_S390_TOPOLOGY_DRAWER_BUS);
+    qbus_set_hotplug_handler(bus, OBJECT(dev));
+    drawer->bus = bus;
+}
+
+static void drawer_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
+
+    hc->unplug = qdev_simple_device_unplug_cb;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    dc->realize = s390_drawer_device_realize;
+    device_class_set_props(dc, s390_topology_drawer_properties);
+    dc->desc = "topology drawer";
+}
+
+static const TypeInfo drawer_info = {
+    .name          = TYPE_S390_TOPOLOGY_DRAWER,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(S390TopologyDrawer),
+    .class_init    = drawer_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_HOTPLUG_HANDLER },
+        { }
+    }
+};
 static void topology_register(void)
 {
     type_register_static(&cpu_cores_info);
@@ -354,6 +477,8 @@ static void topology_register(void)
     type_register_static(&socket_info);
     type_register_static(&book_bus_info);
     type_register_static(&book_info);
+    type_register_static(&drawer_bus_info);
+    type_register_static(&drawer_info);
 }
 
 type_init(topology_register);
