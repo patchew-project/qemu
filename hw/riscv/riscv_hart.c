@@ -66,6 +66,13 @@ static void riscv_harts_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static void riscv_harts_finalize(Object *obj)
+{
+    RISCVHartArrayState *s = RISCV_HART_ARRAY(obj);
+
+    g_free(s->harts);
+}
+
 static void riscv_harts_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -79,6 +86,7 @@ static const TypeInfo riscv_harts_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(RISCVHartArrayState),
     .class_init    = riscv_harts_class_init,
+    .instance_finalize = riscv_harts_finalize,
 };
 
 static void riscv_harts_register_types(void)
