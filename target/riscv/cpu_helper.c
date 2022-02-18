@@ -596,6 +596,14 @@ int riscv_cpu_claim_interrupts(RISCVCPU *cpu, uint64_t interrupts)
     }
 }
 
+void riscv_cpu_release_claimed_interrupts(RISCVCPU *cpu, uint64_t interrupts)
+{
+    CPURISCVState *env = &cpu->env;
+    /* ensure all claimed interrupt are really there */
+    g_assert((env->miclaim & interrupts) == interrupts);
+    env->miclaim &= ~interrupts;
+}
+
 uint64_t riscv_cpu_update_mip(RISCVCPU *cpu, uint64_t mask, uint64_t value)
 {
     CPURISCVState *env = &cpu->env;
