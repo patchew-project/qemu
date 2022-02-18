@@ -75,6 +75,7 @@ config I440FX
     select PCI_I440FX
     select PIIX3
     select IDE_PIIX
+    select IDE_ICH6
     select DIMM
     select SMBIOS
     select FW_CFG_DMA
@@ -101,6 +102,7 @@ config Q35
     select PCI_EXPRESS_Q35
     select LPC_ICH9
     select AHCI_ICH9
+    select IDE_ICH6
     select DIMM
     select SMBIOS
     select FW_CFG_DMA

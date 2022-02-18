@@ -1,5 +1,6 @@
 softmmu_ss.add(when: 'CONFIG_AHCI', if_true: files('ahci.c'))
 softmmu_ss.add(when: 'CONFIG_AHCI_ICH9', if_true: files('ich.c'))
+softmmu_ss.add(when: 'CONFIG_IDE_ICH6', if_true: files('ich6.c', 'bmdma.c'))
 softmmu_ss.add(when: 'CONFIG_ALLWINNER_A10', if_true: files('ahci-allwinner.c'))
 softmmu_ss.add(when: 'CONFIG_IDE_CMD646', if_true: files('cmd646.c'))
 softmmu_ss.add(when: 'CONFIG_IDE_CORE', if_true: files('core.c', 'atapi.c'))
