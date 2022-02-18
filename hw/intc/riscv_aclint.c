@@ -389,22 +389,48 @@ static void riscv_aclint_swi_realize(DeviceState *dev, Error **errp)
     RISCVAclintSwiState *swi = RISCV_ACLINT_SWI(dev);
     int i;
 
+    if (swi->num_harts > RISCV_ACLINT_MAX_HARTS) {
+        error_setg(errp, "invalid 'num-harts': max is %u",
+                   RISCV_ACLINT_MAX_HARTS);
+        return;
+    }
+
+    /*
+     * Claim software interrupt bits:
+     * + sswi==false -> MSIP
+     * + sswi==true  -> SSIP
+     * We don't claim mip.SSIP because it is writeable by software
+     */
+    if (!swi->sswi) {
+        for (i = 0; i < swi->num_harts; i++) {
+            RISCVCPU *cpu = RISCV_CPU(qemu_get_cpu(swi->hartid_base + i));
+            if (riscv_cpu_claim_interrupts(cpu, MIP_MSIP) < 0) {
+                error_setg(errp, "MSIP (hartid %u) already claimed",
+                           (unsigned) (swi->hartid_base + i));
+                /* release interrupts we already claimed */
+                while (--i >= 0) {
+                    cpu = RISCV_CPU(qemu_get_cpu(swi->hartid_base + i));
+                    riscv_cpu_release_claimed_interrupts(cpu, MIP_MSIP);
+                }
+                return;
+            }
+        }
+    }
+
     memory_region_init_io(&swi->mmio, OBJECT(dev), &riscv_aclint_swi_ops, swi,
                           TYPE_RISCV_ACLINT_SWI, RISCV_ACLINT_SWI_SIZE);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &swi->mmio);
 
     swi->soft_irqs = g_malloc(sizeof(qemu_irq) * swi->num_harts);
     qdev_init_gpio_out(dev, swi->soft_irqs, swi->num_harts);
+}
 
-    /* Claim software interrupt bits */
-    for (i = 0; i < swi->num_harts; i++) {
-        RISCVCPU *cpu = RISCV_CPU(qemu_get_cpu(swi->hartid_base + i));
-        /* We don't claim mip.SSIP because it is writeable by software */
-        if (riscv_cpu_claim_interrupts(cpu, swi->sswi ? 0 : MIP_MSIP) < 0) {
-            error_report("MSIP already claimed");
-            exit(1);
-        }
-    }
+static void riscv_aclint_swi_finalize(Object *obj)
+{
+    RISCVAclintSwiState *swi = RISCV_ACLINT_SWI(obj);
+
+    /* free allocated area during realize */
+    g_free(swi->soft_irqs);
 }
 
 static void riscv_aclint_swi_class_init(ObjectClass *klass, void *data)
@@ -415,10 +441,11 @@ static void riscv_aclint_swi_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo riscv_aclint_swi_info = {
-    .name          = TYPE_RISCV_ACLINT_SWI,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(RISCVAclintSwiState),
-    .class_init    = riscv_aclint_swi_class_init,
+    .name              = TYPE_RISCV_ACLINT_SWI,
+    .parent            = TYPE_SYS_BUS_DEVICE,
+    .instance_size     = sizeof(RISCVAclintSwiState),
+    .class_init        = riscv_aclint_swi_class_init,
+    .instance_finalize = riscv_aclint_swi_finalize,
 };
 
 /*
@@ -430,7 +457,6 @@ DeviceState *riscv_aclint_swi_create(hwaddr addr, uint32_t hartid_base,
     int i;
     DeviceState *dev = qdev_new(TYPE_RISCV_ACLINT_SWI);
 
-    assert(num_harts <= RISCV_ACLINT_MAX_HARTS);
     assert(!(addr & 0x3));
 
     qdev_prop_set_uint32(dev, "hartid-base", hartid_base);
