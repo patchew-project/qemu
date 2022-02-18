@@ -37,16 +37,20 @@ static bool addr_between(uint32_t addr, uint32_t base, uint32_t num)
     return addr >= base && addr - base < num;
 }
 
-static PLICMode char_to_mode(char c)
+static PLICMode char_to_mode(char c, bool *success)
 {
+    if (success) {
+        *success = true;
+    };
     switch (c) {
     case 'U': return PLICMode_U;
     case 'S': return PLICMode_S;
     case 'H': return PLICMode_H;
     case 'M': return PLICMode_M;
     default:
-        error_report("plic: invalid mode '%c'", c);
-        exit(1);
+        g_assert(success != NULL);
+        *success = false;
+        return 0;
     }
 }
 
@@ -260,7 +264,7 @@ static void sifive_plic_reset(DeviceState *dev)
  * "MS,MS"          2 harts, 0-1 with M and S mode
  * "M,MS,MS,MS,MS"  5 harts, 0 with M mode, 1-5 with M and S mode
  */
-static void parse_hart_config(SiFivePLICState *plic)
+static bool parse_hart_config(SiFivePLICState *plic, Error **errp)
 {
     int addrid, hartid, modes;
     const char *p;
@@ -275,11 +279,16 @@ static void parse_hart_config(SiFivePLICState *plic)
             modes = 0;
             hartid++;
         } else {
-            int m = 1 << char_to_mode(c);
+            bool mode_ok = false;
+            int m = 1 << char_to_mode(c, &mode_ok);
+            if (!mode_ok) {
+                error_setg(errp, "plic: invalid mode '%c'", c);
+                return false;
+            }
             if (modes == (modes | m)) {
-                error_report("plic: duplicate mode '%c' in config: %s",
-                             c, plic->hart_config);
-                exit(1);
+                error_setg(errp, "plic: duplicate mode '%c' in config: %s",
+                           c, plic->hart_config);
+                return false;
             }
             modes |= m;
         }
@@ -302,10 +311,12 @@ static void parse_hart_config(SiFivePLICState *plic)
         } else {
             plic->addr_config[addrid].addrid = addrid;
             plic->addr_config[addrid].hartid = hartid;
-            plic->addr_config[addrid].mode = char_to_mode(c);
+            plic->addr_config[addrid].mode = char_to_mode(c, NULL);
             addrid++;
         }
     }
+
+    return true;
 }
 
 static void sifive_plic_irq_request(void *opaque, int irq, int level)
@@ -321,11 +332,33 @@ static void sifive_plic_realize(DeviceState *dev, Error **errp)
     SiFivePLICState *s = SIFIVE_PLIC(dev);
     int i;
 
+    if (!parse_hart_config(s, errp)) {
+        return;
+    }
+
+    /*
+     * We can't allow the supervisor to control SEIP as this would allow the
+     * supervisor to clear a pending external interrupt which will result in
+     * lost a interrupt in the case a PLIC is attached. The SEIP bit must be
+     * hardware controlled when a PLIC is attached.
+     */
+    for (i = 0; i < s->num_harts; i++) {
+        RISCVCPU *cpu = RISCV_CPU(qemu_get_cpu(s->hartid_base + i));
+        if (riscv_cpu_claim_interrupts(cpu, MIP_SEIP) < 0) {
+            error_setg(errp, "SEIP (hartid %u) already claimed",
+                       (unsigned) (s->hartid_base + i));
+            /* release interrupts we already claimed */
+            while (--i >= 0) {
+                cpu = RISCV_CPU(qemu_get_cpu(s->hartid_base + i));
+                riscv_cpu_release_claimed_interrupts(cpu, MIP_SEIP);
+            }
+            return;
+        }
+    }
+
     memory_region_init_io(&s->mmio, OBJECT(dev), &sifive_plic_ops, s,
                           TYPE_SIFIVE_PLIC, s->aperture_size);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mmio);
-
-    parse_hart_config(s);
 
     s->bitfield_words = (s->num_sources + 31) >> 5;
     s->num_enables = s->bitfield_words * s->num_addrs;
@@ -342,19 +375,6 @@ static void sifive_plic_realize(DeviceState *dev, Error **errp)
 
     s->m_external_irqs = g_malloc(sizeof(qemu_irq) * s->num_harts);
     qdev_init_gpio_out(dev, s->m_external_irqs, s->num_harts);
-
-    /* We can't allow the supervisor to control SEIP as this would allow the
-     * supervisor to clear a pending external interrupt which will result in
-     * lost a interrupt in the case a PLIC is attached. The SEIP bit must be
-     * hardware controlled when a PLIC is attached.
-     */
-    for (i = 0; i < s->num_harts; i++) {
-        RISCVCPU *cpu = RISCV_CPU(qemu_get_cpu(s->hartid_base + i));
-        if (riscv_cpu_claim_interrupts(cpu, MIP_SEIP) < 0) {
-            error_report("SEIP already claimed");
-            exit(1);
-        }
-    }
 
     msi_nonbroken = true;
 }
@@ -379,6 +399,19 @@ static const VMStateDescription vmstate_sifive_plic = {
             VMSTATE_END_OF_LIST()
         }
 };
+
+static void sifive_plic_finalize(Object *obj)
+{
+    SiFivePLICState *s = SIFIVE_PLIC(obj);
+
+    /* free allocated arrays during realize */
+    g_free(s->addr_config);
+    g_free(s->source_priority);
+    g_free(s->target_priority);
+    g_free(s->pending);
+    g_free(s->claimed);
+    g_free(s->enable);
+}
 
 static Property sifive_plic_properties[] = {
     DEFINE_PROP_STRING("hart-config", SiFivePLICState, hart_config),
@@ -406,10 +439,11 @@ static void sifive_plic_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo sifive_plic_info = {
-    .name          = TYPE_SIFIVE_PLIC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SiFivePLICState),
-    .class_init    = sifive_plic_class_init,
+    .name              = TYPE_SIFIVE_PLIC,
+    .parent            = TYPE_SYS_BUS_DEVICE,
+    .instance_size     = sizeof(SiFivePLICState),
+    .class_init        = sifive_plic_class_init,
+    .instance_finalize = sifive_plic_finalize,
 };
 
 static void sifive_plic_register_types(void)
