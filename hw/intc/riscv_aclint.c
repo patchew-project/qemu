@@ -231,21 +231,51 @@ static void riscv_aclint_mtimer_realize(DeviceState *dev, Error **errp)
     RISCVAclintMTimerState *s = RISCV_ACLINT_MTIMER(dev);
     int i;
 
+    if (s->num_harts > RISCV_ACLINT_MAX_HARTS) {
+        error_setg(errp, "invalid 'num-harts': max is %u",
+                   RISCV_ACLINT_MAX_HARTS);
+        return;
+    }
+
+    if (s->timecmp_base & 0x7) {
+        error_setg(errp, "invalid 'timecmp-base': must be aligned on 0x8");
+        return;
+    }
+
+    if (s->time_base & 0x7) {
+        error_setg(errp, "invalid 'time-base': must be aligned on 0x8");
+        return;
+    }
+
+    /* Claim timer interrupt bits */
+    for (i = 0; i < s->num_harts; i++) {
+        RISCVCPU *cpu = RISCV_CPU(qemu_get_cpu(s->hartid_base + i));
+        if (riscv_cpu_claim_interrupts(cpu, MIP_MTIP) < 0) {
+            error_setg(errp, "MTIP (hartid %u) already claimed",
+                       (unsigned) (s->hartid_base + i));
+            /* release interrupts we already claimed */
+            while (--i >= 0) {
+                cpu = RISCV_CPU(qemu_get_cpu(s->hartid_base + i));
+                riscv_cpu_release_claimed_interrupts(cpu, MIP_MTIP);
+            }
+            return;
+        }
+    }
+
     memory_region_init_io(&s->mmio, OBJECT(dev), &riscv_aclint_mtimer_ops,
                           s, TYPE_RISCV_ACLINT_MTIMER, s->aperture_size);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mmio);
 
     s->timer_irqs = g_malloc(sizeof(qemu_irq) * s->num_harts);
     qdev_init_gpio_out(dev, s->timer_irqs, s->num_harts);
+}
 
-    /* Claim timer interrupt bits */
-    for (i = 0; i < s->num_harts; i++) {
-        RISCVCPU *cpu = RISCV_CPU(qemu_get_cpu(s->hartid_base + i));
-        if (riscv_cpu_claim_interrupts(cpu, MIP_MTIP) < 0) {
-            error_report("MTIP already claimed");
-            exit(1);
-        }
-    }
+static void riscv_aclint_mtimer_finalize(Object *obj)
+{
+    RISCVAclintMTimerState *s = RISCV_ACLINT_MTIMER(obj);
+
+    /* free allocated area during realize */
+    g_free(s->timer_irqs);
 }
 
 static void riscv_aclint_mtimer_class_init(ObjectClass *klass, void *data)
@@ -256,10 +286,11 @@ static void riscv_aclint_mtimer_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo riscv_aclint_mtimer_info = {
-    .name          = TYPE_RISCV_ACLINT_MTIMER,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(RISCVAclintMTimerState),
-    .class_init    = riscv_aclint_mtimer_class_init,
+    .name              = TYPE_RISCV_ACLINT_MTIMER,
+    .parent            = TYPE_SYS_BUS_DEVICE,
+    .instance_size     = sizeof(RISCVAclintMTimerState),
+    .class_init        = riscv_aclint_mtimer_class_init,
+    .instance_finalize = riscv_aclint_mtimer_finalize,
 };
 
 /*
@@ -273,10 +304,7 @@ DeviceState *riscv_aclint_mtimer_create(hwaddr addr, hwaddr size,
     int i;
     DeviceState *dev = qdev_new(TYPE_RISCV_ACLINT_MTIMER);
 
-    assert(num_harts <= RISCV_ACLINT_MAX_HARTS);
     assert(!(addr & 0x7));
-    assert(!(timecmp_base & 0x7));
-    assert(!(time_base & 0x7));
 
     qdev_prop_set_uint32(dev, "hartid-base", hartid_base);
     qdev_prop_set_uint32(dev, "num-harts", num_harts);
