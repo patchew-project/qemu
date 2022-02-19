@@ -62,6 +62,10 @@ static inline IDEState *bmdma_active_if(BMDMAState *bmdma)
 }
 
 void bmdma_init(IDEBus *bus, BMDMAState *bm, PCIIDEState *d);
+uint64_t bmdma_default_read(void *opaque, hwaddr addr,
+                           unsigned size);
+void bmdma_default_write(void *opaque, hwaddr addr,
+                        uint64_t val, unsigned size);
 void bmdma_cmd_writeb(BMDMAState *bm, uint32_t val);
 extern MemoryRegionOps bmdma_addr_ioport_ops;
 void pci_ide_create_devs(PCIDevice *dev);

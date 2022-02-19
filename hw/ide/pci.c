@@ -502,6 +502,53 @@ static const struct IDEDMAOps bmdma_ops = {
     .reset = bmdma_reset,
 };
 
+uint64_t bmdma_default_read(void *opaque, hwaddr addr,
+                           unsigned size)
+{
+    BMDMAState *bm = opaque;
+    uint32_t val;
+
+    if (size != 1) {
+        return ((uint64_t)1 << (size * 8)) - 1;
+    }
+
+    switch (addr & 3) {
+    case 0:
+        val = bm->cmd;
+        break;
+    case 2:
+        val = bm->status;
+        break;
+    default:
+        val = 0xff;
+        break;
+    }
+
+    trace_bmdma_read_via(addr, val);
+    return val;
+}
+
+void bmdma_default_write(void *opaque, hwaddr addr,
+                        uint64_t val, unsigned size)
+{
+    BMDMAState *bm = opaque;
+
+    if (size != 1) {
+        return;
+    }
+
+    trace_bmdma_write_via(addr, val);
+    switch (addr & 3) {
+    case 0:
+        bmdma_cmd_writeb(bm, val);
+        break;
+    case 2:
+        bm->status = (val & 0x60) | (bm->status & 1) | (bm->status & ~val & 0x06);
+        break;
+    default:;
+    }
+}
+
 void bmdma_init(IDEBus *bus, BMDMAState *bm, PCIIDEState *d)
 {
     if (bus->dma == &bm->dma) {
