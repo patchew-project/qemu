@@ -189,6 +189,11 @@ static void acpi_build_microvm(AcpiBuildTables *tables,
         .reset_val = ACPI_GED_RESET_VALUE,
     };
 
+    if (isa_check_device_existence("i8042")) {
+        /* Indicates if i8042 is present or not */
+        pmfadt.iapc_boot_arch = (1 << 1);
+    }
+
     table_offsets = g_array_new(false, true /* clear */,
                                         sizeof(uint32_t));
     bios_linker_loader_alloc(tables->linker,
