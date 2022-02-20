@@ -222,6 +222,23 @@ void isa_build_aml(ISABus *bus, Aml *scope)
     }
 }
 
+bool isa_check_device_existence(const char *typename)
+{
+    assert(isabus != NULL);
+
+    BusChild *kid;
+    ISADevice *dev;
+
+    QTAILQ_FOREACH(kid, &isabus->parent_obj.children, sibling) {
+        dev = ISA_DEVICE(kid->child);
+        const char *object_type = object_get_typename(OBJECT(dev));
+        if (object_type && strcmp(object_type, typename) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static void isabus_dev_print(Monitor *mon, DeviceState *dev, int indent)
 {
     ISADevice *d = ISA_DEVICE(dev);
