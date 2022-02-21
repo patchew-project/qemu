@@ -348,7 +348,13 @@ def qemu_img_map(*args: str) -> Any:
     return qemu_img_json('map', "--output", "json", *args)
 
 def qemu_img_log(*args: str) -> subprocess.CompletedProcess[str]:
-    result = qemu_img(*args, check=False)
+    """
+    Logged, unchecked variant of qemu_img() that allows non-zero exit codes.
+
+    If logging is perceived to be disabled, this function will behave
+    like qemu_img() and prohibit non-zero return codes.
+    """
+    result = qemu_img(*args, check=not logging_enabled())
     log(result.stdout, filters=[filter_testfiles])
     return result
 
@@ -1634,6 +1640,11 @@ def activate_logging():
     test_logger.addHandler(handler)
     test_logger.setLevel(logging.INFO)
     test_logger.propagate = False
+
+def logging_enabled() -> bool:
+    """Return True if iotest logging is active."""
+    return (test_logger.hasHandlers()
+            and test_logger.getEffectiveLevel() >= logging.INFO)
 
 # This is called from script-style iotests without a single point of entry
 def script_initialize(*args, **kwargs):
