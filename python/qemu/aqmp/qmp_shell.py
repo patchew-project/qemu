@@ -11,7 +11,7 @@
 """
 Low-level QEMU shell on top of QMP.
 
-usage: qmp-shell [-h] [-H] [-N] [-v] [-p] qmp_server
+usage: qmp-shell [-h] [-H] [-N] [-v] [-p] [-e] qmp_server
 
 positional arguments:
   qmp_server            < UNIX socket path | TCP address:port >
@@ -23,6 +23,8 @@ optional arguments:
                         Skip negotiate (for qemu-ga)
   -v, --verbose         Verbose (echo commands sent and received)
   -p, --pretty          Pretty-print JSON
+  -e, --exit-on-error   Exit when an error occurs (command parsing,
+                        disconnection and command failure)
 
 
 Start QEMU with:
@@ -177,9 +179,11 @@ class QMPShell(QEMUMonitorProtocol):
     :param address: Address of the QMP server.
     :param pretty: Pretty-print QMP messages.
     :param verbose: Echo outgoing QMP messages to console.
+    :param raise_error: Don't continue after an error occured
     """
     def __init__(self, address: SocketAddrT,
-                 pretty: bool = False, verbose: bool = False):
+                 pretty: bool = False, verbose: bool = False,
+                 raise_error: bool = False):
         super().__init__(address)
         self._greeting: Optional[QMPMessage] = None
         self._completer = QMPCompleter()
@@ -189,6 +193,7 @@ class QMPShell(QEMUMonitorProtocol):
                                       '.qmp-shell_history')
         self.pretty = pretty
         self.verbose = verbose
+        self.raise_error = raise_error
 
     def close(self) -> None:
         # Hook into context manager of parent to save shell history.
@@ -343,19 +348,19 @@ class QMPShell(QEMUMonitorProtocol):
             file=sys.stderr
         )
 
-    def _execute_cmd(self, cmdline: str) -> bool:
+    def _execute_cmd(self, cmdline: str) -> Optional[QMPMessage]:
         qmpcmd = self._build_cmd(cmdline)
 
         # For transaction mode, we may have just cached the action:
         if qmpcmd is None:
-            return True
+            return None
         if self.verbose:
             self._print(qmpcmd)
         resp = self.cmd_obj(qmpcmd)
         if resp is None:
             raise QMPShellConnectError('Disconnected')
         self._print(resp)
-        return True
+        return resp
 
     def connect(self, negotiate: bool = True) -> None:
         self._greeting = super().connect(negotiate)
@@ -401,8 +406,13 @@ class QMPShell(QEMUMonitorProtocol):
                 print(event)
             return True
 
+        if self.raise_error:
+            resp = self._execute_cmd(cmdline)
+            if resp and 'error' in resp:
+                raise QMPShellError(f"Command failed: {resp['error']}")
+            return True
         try:
-            return self._execute_cmd(cmdline)
+            self._execute_cmd(cmdline)
         except QMPShellParseError as err:
             self._print_parse_error(err)
         except QMPShellConnectError as err:
@@ -477,7 +487,7 @@ class HMPShell(QMPShell):
     def _print_parse_error(self, err: QMPShellParseError) -> None:
         print(f"{err!s}")
 
-    def _execute_cmd(self, cmdline: str) -> bool:
+    def _execute_cmd(self, cmdline: str) -> Optional[QMPMessage]:
         if cmdline.split()[0] == "cpu":
             # trap the cpu command, it requires special setting
             try:
@@ -498,7 +508,7 @@ class HMPShell(QMPShell):
         else:
             # Error
             print('%s: %s' % (resp['error']['class'], resp['error']['desc']))
-        return True
+        return resp
 
     def show_banner(self, msg: str = 'Welcome to the HMP shell!') -> None:
         QMPShell.show_banner(self, msg)
@@ -523,6 +533,9 @@ def main() -> None:
                         help='Verbose (echo commands sent and received)')
     parser.add_argument('-p', '--pretty', action='store_true',
                         help='Pretty-print JSON')
+    parser.add_argument('-e', '--exit-on-error', action='store_true',
+                        help='Exit when an error occurs (command parsing,'
+                             ' disconnection and command failure)')
 
     default_server = os.environ.get('QMP_SOCKET')
     parser.add_argument('qmp_server', action='store',
@@ -541,7 +554,8 @@ def main() -> None:
         parser.error(f"Bad port number: {args.qmp_server}")
         return  # pycharm doesn't know error() is noreturn
 
-    with shell_class(address, args.pretty, args.verbose) as qemu:
+    with shell_class(address, args.pretty, args.verbose,
+                     args.exit_on_error) as qemu:
         try:
             qemu.connect(negotiate=not args.skip_negotiation)
         except ConnectError as err:
@@ -549,8 +563,11 @@ def main() -> None:
                 die(f"Couldn't connect to {args.qmp_server}: {err!s}")
             die(str(err))
 
-        for _ in qemu.repl():
-            pass
+        try:
+            for _ in qemu.repl():
+                pass
+        except QMPShellError as err:
+            die(str(err))
 
 
 if __name__ == '__main__':
