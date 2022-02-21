@@ -56,9 +56,14 @@ void fw_cfg_build_smbios(MachineState *ms, FWCfgState *fw_cfg)
     struct smbios_phys_mem_area *mem_array;
     unsigned i, array_count;
     X86CPU *cpu = X86_CPU(ms->possible_cpus->cpus[0].cpu);
+    CPUState *cs = CPU(cpu);
 
     /* tell smbios about cpuid version and features */
-    smbios_set_cpuid(cpu->env.cpuid_version, cpu->env.features[FEAT_1_EDX]);
+    uint32_t edx = cpu->env.features[FEAT_1_EDX];
+    if (cs->nr_cores * cs->nr_threads > 1) {
+        edx |= CPUID_HT;
+    }
+    smbios_set_cpuid(cpu->env.cpuid_version, edx);
 
     smbios_tables = smbios_get_table_legacy(ms, &smbios_tables_len);
     if (smbios_tables) {
