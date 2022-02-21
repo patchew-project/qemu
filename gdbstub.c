@@ -34,6 +34,10 @@
 #include "exec/gdbstub.h"
 #ifdef CONFIG_USER_ONLY
 #include "qemu.h"
+#ifdef CONFIG_LINUX
+#include "linux-user/qemu.h"
+#include "linux-user/loader.h"
+#endif
 #else
 #include "monitor/monitor.h"
 #include "chardev/char.h"
@@ -60,6 +64,21 @@
 
 #ifndef CONFIG_USER_ONLY
 static int phy_memory_mode;
+#endif
+
+/*
+ *  Set to 1 to enable remote protocol debugging output. This output is similar
+ *  to the one produced by the gdbserver's --remote-debug flag with some
+ *  additions. Anyway, the main debug prints are:
+ * - getpkt ("...") which refers to received data (or, send by the GDB client)
+ * - putpkt ("...") which refers to sent data
+ */
+#define ENABLE_REMOTE_DEBUG 0
+
+#if ENABLE_REMOTE_DEBUG
+#define REMOTE_DEBUG_PRINT printf
+#else
+#define REMOTE_DEBUG_PRINT(...)
 #endif
 
 static inline int target_memory_rw_debug(CPUState *cpu, target_ulong addr,
@@ -554,6 +573,7 @@ static int gdb_continue_partial(char *newstates)
 
 static void put_buffer(const uint8_t *buf, int len)
 {
+    REMOTE_DEBUG_PRINT("putpkt (\"%.*s\");\n", len, buf);
 #ifdef CONFIG_USER_ONLY
     int ret;
 
@@ -1982,6 +2002,157 @@ static void handle_v_kill(GArray *params, void *user_ctx)
     exit(0);
 }
 
+#ifdef CONFIG_USER_ONLY
+/*
+ * Handles the `vFile:setfs: pid` command
+ *
+ * Example call: vFile:setfs:0
+ *
+ * --- From the GDB remote protocol documentation ---
+ * Select the filesystem on which vFile operations with filename arguments
+ * will operate. This is required for GDB to be able to access files on
+ * remote targets where the remote stub does not share a common filesystem with
+ * the inferior(s). If pid is nonzero, select the filesystem as seen by process
+ * pid. If pid is zero, select the filesystem as seen by the remote stub.
+ * Return 0 on success, or -1 if an error occurs. If vFile:setfs: indicates
+ * success, the selected filesystem remains selected until the next successful
+ * vFile:setfs: operation.
+*/
+static void handle_v_setfs(GArray *params, void *user_ctx)
+{
+    /*
+     * We do not support different filesystem view for different pids
+     * Return that all is OK, so that GDB can proceed
+     */
+    put_packet("F0");
+}
+
+/*
+ * Handle the `vFile:open: filename, flags, mode` command
+ *
+ * We try to serve the filesystem here from the inferior point of view
+
+ * Example call: vFile:open:6a7573742070726f62696e67,0,1c0
+ * (tries to open "just probing" with flags=0 mode=448)
+ *
+ * --- From the GDB remote protocol documentation ---
+ * Open a file at filename and return a file descriptor for it, or return
+ * -1 if an error occurs. The filename is a string, flags is an integer
+ * indicating a mask of open flags (see Open Flags), and mode is an integer
+ * indicating a mask of mode bits to use if the file is created
+ * (see mode_t Values). See open, for details of the open flags and mode
+ * values.
+ */
+static void handle_v_file_open(GArray *params, void *user_ctx)
+{
+    uint64_t flags = get_param(params, 1)->val_ull;
+    uint64_t mode = get_param(params, 2)->val_ull;
+    const char *hex_filename = get_param(params, 0)->data;
+
+    /* Decode the filename & append a null byte so we can use it later on */
+    hextomem(gdbserver_state.mem_buf, hex_filename, strlen(hex_filename));
+    const char *null_byte = "\0";
+    g_byte_array_append(gdbserver_state.mem_buf, (const guint8 *)null_byte, 1);
+
+    const char *filename = (const char *)gdbserver_state.mem_buf->data;
+
+    REMOTE_DEBUG_PRINT("vFile:open: filename=\"%s\" flags=%ld mode=%ld\n",
+                       filename, flags, mode);
+
+    /*
+     * On Linux we call the do_openat syscall on behalf of the inferior as it
+     * handles special filepaths properly like the /proc/$pid files, which are
+     * fetched by GDB for certain info (such as `info proc mappings`).
+     */
+#ifdef CONFIG_LINUX
+    int fd = do_openat(gdbserver_state.g_cpu->env_ptr,
+                       /* dirfd */ 0, filename, flags, mode);
+    REMOTE_DEBUG_PRINT("do_openat = %d\n", fd);
+#else
+    int fd = open(filename, flags, mode);
+    REMOTE_DEBUG_PRINT("open = %d\n", fd);
+#endif
+
+    g_string_printf(gdbserver_state.str_buf, "F%d", fd);
+    if (fd < 0) {
+        /* Append ENOENT result.
+         * TODO/FIXME: Can we retrieve errno from do_openat/open and return it here?
+         */
+        g_string_append(gdbserver_state.str_buf, ",2");
+    }
+    put_strbuf();
+}
+
+/*
+ * Handles the `vFile:pread: fd, count, offset` command
+ *
+ * Example call: vFile:pread:7,47ff,0
+ *
+ * --- From the GDB remote protocol documentation ---
+ * Read data from the open file corresponding to fd.
+ * Up to count bytes will be read from the file, starting at offset relative to
+ * the start of the file. The target may read fewer bytes; common reasons
+ * include packet size limits and an end-of-file condition. The number of bytes
+ * read is returned. Zero should only be returned for a successful read at the
+ * end of the file, or if count was zero.
+ *
+ * The data read should be returned as a binary attachment on success. If zero
+ * bytes were read, the response should include an empty binary attachment
+ * (i.e. a trailing semicolon). The return value is the number of target bytes
+ * read; the binary attachment may be longer if some characters were escaped.
+ */
+static void handle_v_file_pread(GArray *params, void *user_ctx)
+{
+    int fd = get_param(params, 0)->val_ul;
+    uint64_t count = get_param(params, 1)->val_ull;
+    uint64_t offset = get_param(params, 2)->val_ull;
+
+    g_autoptr(GString) file_content = g_string_new(NULL);
+
+    REMOTE_DEBUG_PRINT("vFile:read: fd=%d, count=%lu, offset=%lu\n",
+                       fd, count, offset);
+
+    while (count > 0) {
+        char buf[1024] = {0};
+        ssize_t n = pread(fd, buf, sizeof(buf), offset);
+        if (n <= 0) {
+            break;
+        }
+        g_string_append_len(file_content, buf, n);
+        count -= n;
+        offset += n;
+    }
+    g_string_printf(gdbserver_state.str_buf, "F%lx;", file_content->len);
+    /* Encode special chars */
+    memtox(gdbserver_state.str_buf, file_content->str, file_content->len);
+    put_packet_binary(gdbserver_state.str_buf->str,
+                      gdbserver_state.str_buf->len, true);
+}
+
+/*
+ * Handles the `vFile:close: fd` command
+ *
+ * Example call: vFile:close:7
+ *
+ * --- From the GDB remote protocol documentation ---
+ * Close the open file corresponding to fd and return 0, or -1 if an error occurs.
+ */
+static void handle_v_file_close(GArray *params, void *user_ctx)
+{
+    int fd = get_param(params, 0)->val_ul;
+    int res = close(fd);
+    if (res == 0) {
+        put_packet("F00");
+    } else {
+        /* This may happen only with a bugged GDB client or a bugged inferior */
+        REMOTE_DEBUG_PRINT("Warning: the vFile:close(fd=%d) operation returned %d\n",
+                           fd, res);
+        g_string_printf(gdbserver_state.str_buf, "F%d,%d", res, errno);
+        put_strbuf();
+    }
+}
+#endif /* CONFIG_USER_ONLY */
+
 static const GdbCmdParseEntry gdb_v_commands_table[] = {
     /* Order is important if has same prefix */
     {
@@ -2001,6 +2172,32 @@ static const GdbCmdParseEntry gdb_v_commands_table[] = {
         .cmd_startswith = 1,
         .schema = "l0"
     },
+    #ifdef CONFIG_USER_ONLY
+    {
+        .handler = handle_v_setfs,
+        .cmd = "File:setfs:",
+        .cmd_startswith = 1,
+        .schema = "l0"
+    },
+    {
+        .handler = handle_v_file_open,
+        .cmd = "File:open:",
+        .cmd_startswith = 1,
+        .schema = "s,L,L0"
+    },
+    {
+        .handler = handle_v_file_pread,
+        .cmd = "File:pread:",
+        .cmd_startswith = 1,
+        .schema = "l,L,L0"
+    },
+    {
+        .handler = handle_v_file_close,
+        .cmd = "File:close:",
+        .cmd_startswith = 1,
+        .schema = "l0"
+    },
+    #endif
     {
         .handler = handle_v_kill,
         .cmd = "Kill;",
@@ -2197,6 +2394,8 @@ static void handle_query_supported(GArray *params, void *user_ctx)
     if (gdbserver_state.c_cpu->opaque) {
         g_string_append(gdbserver_state.str_buf, ";qXfer:auxv:read+");
     }
+
+    g_string_append(gdbserver_state.str_buf, ";qXfer:exec-file:read+");
 #endif
 
     if (params->len &&
@@ -2304,6 +2503,63 @@ static void handle_query_xfer_auxv(GArray *params, void *user_ctx)
            (const char *)gdbserver_state.mem_buf->data, len);
     put_packet_binary(gdbserver_state.str_buf->str,
                       gdbserver_state.str_buf->len, true);
+}
+
+/*
+ * Handle the `qXfer:exec-file:read:annex:offset,length` command
+ *
+ * Example call: qXfer:exec-file:read:241022:0,ffb
+ *
+ * --- From the GDB remote protocol documentation ---
+ * Return the full absolute name of the file that was executed to create a process
+ * running on the remote system. The annex specifies the numeric process ID of the
+ * process to query, encoded as a hexadecimal number. If the annex part is empty the
+ * remote stub should return the filename corresponding to the currently executing
+ * process.
+ *
+ * This packet is not probed by default; the remote stub must request it, by supplying
+ * an appropriate ‘qSupported’ response (see qSupported).
+ */
+static void handle_query_xfer_exec_file(GArray *params, void *user_ctx)
+{
+    uint32_t pid = get_param(params, 0)->val_ul;
+    uint32_t offset = get_param(params, 1)->val_ul;
+    uint32_t length = get_param(params, 2)->val_ul;
+
+    GDBProcess *process = gdb_get_process(pid);
+    if (!process) {
+        put_packet("E01");
+        return;
+    }
+
+    CPUState *cpu = get_first_cpu_in_process(process);
+    if (!cpu) {
+        put_packet("E02");
+        return;
+    }
+
+    TaskState *ts = cpu->opaque;
+    /* Those should be there but lets sanity check them */
+    if (!ts || !ts->bprm || !ts->bprm->filename) {
+        put_packet("E03");
+        return;
+    }
+
+    /*
+     * This filename is an absolute path even when QEMU user-mode emulation is called
+     * with a symlink path so we do not have to resolve it with readlink(2)
+     */
+    const char *filename = ts->bprm->filename;
+
+    /* It does not make sense to return anything after the filename */
+    if (offset > strlen(filename)) {
+        put_packet("E04");
+        return;
+    }
+
+    g_string_printf(gdbserver_state.str_buf, "l%.*s", length, filename + offset);
+    put_strbuf();
+    return;
 }
 #endif
 
@@ -2419,6 +2675,12 @@ static const GdbCmdParseEntry gdb_gen_query_table[] = {
         .cmd_startswith = 1,
         .schema = "l,l0"
     },
+    {
+        .handler = handle_query_xfer_exec_file,
+        .cmd = "Xfer:exec-file:read:",
+        .cmd_startswith = 1,
+        .schema = "l:l,l0"
+    },
 #endif
     {
         .handler = handle_query_attached,
@@ -2516,6 +2778,7 @@ static int gdb_handle_packet(const char *line_buf)
     const GdbCmdParseEntry *cmd_parser = NULL;
 
     trace_gdbstub_io_command(line_buf);
+    REMOTE_DEBUG_PRINT("getpkt (\"%s\");\n", line_buf);
 
     switch (line_buf[0]) {
     case '!':
@@ -3132,6 +3395,15 @@ static void create_default_process(GDBState *s)
 {
     GDBProcess *process;
     int max_pid = 0;
+
+#if defined(CONFIG_USER_ONLY)
+    /*
+     * In QEMU user-mode emulation we want to return the real PID of the proces
+     * as this allows us to return proper view of /proc/$pid files as seen by
+     * the inferior
+     */
+    max_pid = getpid() - 1;
+#endif
 
     if (gdbserver_state.process_num) {
         max_pid = s->processes[s->process_num - 1].pid;

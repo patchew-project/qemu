@@ -182,6 +182,8 @@ static inline bool access_ok(CPUState *cpu, int type,
     return access_ok_untagged(type, cpu_untagged_addr(cpu, addr), size);
 }
 
+int do_openat(void *cpu_env, int dirfd, const char *pathname, int flags, mode_t mode);
+
 /* NOTE __get_user and __put_user use host pointers and don't check access.
    These are usually used to access struct data members once the struct has
    been locked - usually with lock_user_struct.  */
