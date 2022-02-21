@@ -98,10 +98,23 @@ event_loop_backend_complete(UserCreatable *uc, Error **errp)
     }
 }
 
+static bool event_loop_backend_can_be_deleted(UserCreatable *uc)
+{
+    EventLoopBackendClass *bc = EVENT_LOOP_BACKEND_GET_CLASS(uc);
+    EventLoopBackend *backend = EVENT_LOOP_BACKEND(uc);
+
+    if (bc->can_be_deleted) {
+        return bc->can_be_deleted(backend);
+    }
+
+    return true;
+}
+
 static void event_loop_backend_class_init(ObjectClass *klass, void *class_data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(klass);
     ucc->complete = event_loop_backend_complete;
+    ucc->can_be_deleted = event_loop_backend_can_be_deleted;
 
     object_class_property_add(klass, "poll-max-ns", "int",
                               event_loop_backend_get_param,

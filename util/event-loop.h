@@ -24,6 +24,7 @@ struct EventLoopBackendClass {
     ObjectClass parent_class;
 
     void (*init)(EventLoopBackend *backend, Error **errp);
+    bool (*can_be_deleted)(EventLoopBackend *backend);
 };
 
 struct EventLoopBackend {

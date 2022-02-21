@@ -500,9 +500,9 @@
             '*grab-toggle': 'GrabToggleKeys' } }
 
 ##
-# @IothreadProperties:
+# @EventLoopBackendProperties:
 #
-# Properties for iothread objects.
+# Properties for iothread and main-loop objects.
 #
 # @poll-max-ns: the maximum number of nanoseconds to busy wait for events.
 #               0 means polling is disabled (default: 32768 on POSIX hosts,
@@ -522,7 +522,7 @@
 #
 # Since: 2.0
 ##
-{ 'struct': 'IothreadProperties',
+{ 'struct': 'EventLoopBackendProperties',
   'data': { '*poll-max-ns': 'int',
             '*poll-grow': 'int',
             '*poll-shrink': 'int',
@@ -818,6 +818,7 @@
     { 'name': 'input-linux',
       'if': 'CONFIG_LINUX' },
     'iothread',
+    'main-loop',
     { 'name': 'memory-backend-epc',
       'if': 'CONFIG_LINUX' },
     'memory-backend-file',
@@ -882,7 +883,8 @@
       'input-barrier':              'InputBarrierProperties',
       'input-linux':                { 'type': 'InputLinuxProperties',
                                       'if': 'CONFIG_LINUX' },
-      'iothread':                   'IothreadProperties',
+      'iothread':                   'EventLoopBackendProperties',
+      'main-loop':                  'EventLoopBackendProperties',
       'memory-backend-epc':         { 'type': 'MemoryBackendEpcProperties',
                                       'if': 'CONFIG_LINUX' },
       'memory-backend-file':        'MemoryBackendFileProperties',

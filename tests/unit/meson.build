@@ -51,7 +51,7 @@ tests = {
 
 if have_system or have_tools
   tests += {
-    'test-qmp-event': [testqapi],
+    'test-qmp-event': [testqapi, qom],
   }
 endif
 
@@ -120,17 +120,17 @@ endif
 if have_system
   tests += {
     'test-iov': [],
-    'test-qmp-cmds': [testqapi],
+    'test-qmp-cmds': [testqapi, qom],
     'test-xbzrle': [migration],
-    'test-timed-average': [],
-    'test-util-sockets': ['socket-helpers.c'],
+    'test-timed-average': [qom],
+    'test-util-sockets': ['socket-helpers.c', qom],
     'test-base64': [],
     'test-bufferiszero': [],
     'test-vmstate': [migration, io],
     'test-yank': ['socket-helpers.c', qom, io, chardev]
   }
   if config_host_data.get('CONFIG_INOTIFY1')
-    tests += {'test-util-filemonitor': []}
+    tests += {'test-util-filemonitor': [qom]}
   endif
 
   # Some tests: test-char, test-qdev-global-props, and test-qga,

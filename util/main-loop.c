@@ -33,6 +33,7 @@
 #include "qemu/error-report.h"
 #include "qemu/queue.h"
 #include "qemu/compiler.h"
+#include "qom/object.h"
 
 #ifndef _WIN32
 #include <sys/wait.h>
@@ -183,6 +184,48 @@ int qemu_init_main_loop(Error **errp)
     g_source_unref(src);
     return 0;
 }
+
+MainLoop *mloop;
+
+static void main_loop_init(EventLoopBackend *bc, Error **errp)
+{
+    MainLoop *m = MAIN_LOOP(bc);
+
+    if (mloop) {
+        error_setg(errp, "only one main-loop instance allowed");
+        return;
+    }
+
+    mloop = m;
+    return;
+}
+
+static bool main_loop_can_be_deleted(EventLoopBackend *bc)
+{
+    return false;
+}
+
+static void main_loop_class_init(ObjectClass *oc, void *class_data)
+{
+    EventLoopBackendClass *bc = EVENT_LOOP_BACKEND_CLASS(oc);
+
+    bc->init = main_loop_init;
+    bc->can_be_deleted = main_loop_can_be_deleted;
+}
+
+static const TypeInfo main_loop_info = {
+    .name = TYPE_MAIN_LOOP,
+    .parent = TYPE_EVENT_LOOP_BACKEND,
+    .class_init = main_loop_class_init,
+    .instance_size = sizeof(MainLoop),
+};
+
+static void main_loop_register_types(void)
+{
+    type_register_static(&main_loop_info);
+}
+
+type_init(main_loop_register_types)
 
 static int max_priority;
 

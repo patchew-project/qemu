@@ -26,8 +26,19 @@
 #define QEMU_MAIN_LOOP_H
 
 #include "block/aio.h"
+#include "qom/object.h"
+#include "util/event-loop.h"
 
 #define SIG_IPI SIGUSR1
+
+#define TYPE_MAIN_LOOP "main-loop"
+
+struct MainLoop {
+    EventLoopBackend parent_obj;
+};
+typedef struct MainLoop MainLoop;
+
+DECLARE_INSTANCE_CHECKER(MainLoop, MAIN_LOOP, TYPE_MAIN_LOOP)
 
 /**
  * qemu_init_main_loop: Set up the process so that it can run the main loop.
