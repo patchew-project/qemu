@@ -23,21 +23,12 @@
 #include "qemu/error-report.h"
 #include "qemu/rcu.h"
 #include "qemu/main-loop.h"
+#include "util/event-loop.h"
 
 typedef ObjectClass IOThreadClass;
 
 DECLARE_CLASS_CHECKERS(IOThreadClass, IOTHREAD,
                        TYPE_IOTHREAD)
-
-#ifdef CONFIG_POSIX
-/* Benchmark results from 2016 on NVMe SSD drives show max polling times around
- * 16-32 microseconds yield IOPS improvements for both iodepth=1 and iodepth=32
- * workloads.
- */
-#define IOTHREAD_POLL_MAX_NS_DEFAULT 32768ULL
-#else
-#define IOTHREAD_POLL_MAX_NS_DEFAULT 0ULL
-#endif
 
 static void *iothread_run(void *opaque)
 {
@@ -105,7 +96,6 @@ static void iothread_instance_init(Object *obj)
 {
     IOThread *iothread = IOTHREAD(obj);
 
-    iothread->poll_max_ns = IOTHREAD_POLL_MAX_NS_DEFAULT;
     iothread->thread_id = -1;
     qemu_sem_init(&iothread->init_done_sem, 0);
     /* By default, we don't run gcontext */
@@ -152,28 +142,24 @@ static void iothread_init_gcontext(IOThread *iothread)
     iothread->main_loop = g_main_loop_new(iothread->worker_context, TRUE);
 }
 
-static void iothread_set_aio_context_params(IOThread *iothread, Error **errp)
+static void iothread_set_aio_context_params(EventLoopBackend *bc, Error **errp)
 {
+    IOThread *iothread = IOTHREAD(bc);
     ERRP_GUARD();
 
-    aio_context_set_poll_params(iothread->ctx,
-                                iothread->poll_max_ns,
-                                iothread->poll_grow,
-                                iothread->poll_shrink,
-                                errp);
+    aio_context_set_poll_params(iothread->ctx, bc->poll_max_ns, bc->poll_grow,
+                                bc->poll_shrink, errp);
     if (*errp) {
         return;
     }
 
-    aio_context_set_aio_params(iothread->ctx,
-                               iothread->aio_max_batch,
-                               errp);
+    aio_context_set_aio_params(iothread->ctx, bc->aio_max_batch, errp);
 }
 
-static void iothread_complete(UserCreatable *obj, Error **errp)
+static void iothread_init(EventLoopBackend *bc, Error **errp)
 {
     Error *local_error = NULL;
-    IOThread *iothread = IOTHREAD(obj);
+    IOThread *iothread = IOTHREAD(bc);
     char *thread_name;
 
     iothread->stopping = false;
@@ -189,7 +175,7 @@ static void iothread_complete(UserCreatable *obj, Error **errp)
      */
     iothread_init_gcontext(iothread);
 
-    iothread_set_aio_context_params(iothread, &local_error);
+    iothread_set_aio_context_params(bc, &local_error);
     if (local_error) {
         error_propagate(errp, local_error);
         aio_context_unref(iothread->ctx);
@@ -201,7 +187,7 @@ static void iothread_complete(UserCreatable *obj, Error **errp)
      * to inherit.
      */
     thread_name = g_strdup_printf("IO %s",
-                        object_get_canonical_path_component(OBJECT(obj)));
+                        object_get_canonical_path_component(OBJECT(bc)));
     qemu_thread_create(&iothread->thread, thread_name, iothread_run,
                        iothread, QEMU_THREAD_JOINABLE);
     g_free(thread_name);
@@ -212,141 +198,20 @@ static void iothread_complete(UserCreatable *obj, Error **errp)
     }
 }
 
-typedef struct {
-    const char *name;
-    ptrdiff_t offset; /* field's byte offset in IOThread struct */
-} IOThreadParamInfo;
-
-static IOThreadParamInfo poll_max_ns_info = {
-    "poll-max-ns", offsetof(IOThread, poll_max_ns),
-};
-static IOThreadParamInfo poll_grow_info = {
-    "poll-grow", offsetof(IOThread, poll_grow),
-};
-static IOThreadParamInfo poll_shrink_info = {
-    "poll-shrink", offsetof(IOThread, poll_shrink),
-};
-static IOThreadParamInfo aio_max_batch_info = {
-    "aio-max-batch", offsetof(IOThread, aio_max_batch),
-};
-
-static void iothread_get_param(Object *obj, Visitor *v,
-        const char *name, IOThreadParamInfo *info, Error **errp)
+static void iothread_class_init(ObjectClass *oc, void *class_data)
 {
-    IOThread *iothread = IOTHREAD(obj);
-    int64_t *field = (void *)iothread + info->offset;
+    EventLoopBackendClass *bc = EVENT_LOOP_BACKEND_CLASS(oc);
 
-    visit_type_int64(v, name, field, errp);
-}
-
-static bool iothread_set_param(Object *obj, Visitor *v,
-        const char *name, IOThreadParamInfo *info, Error **errp)
-{
-    IOThread *iothread = IOTHREAD(obj);
-    int64_t *field = (void *)iothread + info->offset;
-    int64_t value;
-
-    if (!visit_type_int64(v, name, &value, errp)) {
-        return false;
-    }
-
-    if (value < 0) {
-        error_setg(errp, "%s value must be in range [0, %" PRId64 "]",
-                   info->name, INT64_MAX);
-        return false;
-    }
-
-    *field = value;
-
-    return true;
-}
-
-static void iothread_get_poll_param(Object *obj, Visitor *v,
-        const char *name, void *opaque, Error **errp)
-{
-    IOThreadParamInfo *info = opaque;
-
-    iothread_get_param(obj, v, name, info, errp);
-}
-
-static void iothread_set_poll_param(Object *obj, Visitor *v,
-        const char *name, void *opaque, Error **errp)
-{
-    IOThread *iothread = IOTHREAD(obj);
-    IOThreadParamInfo *info = opaque;
-
-    if (!iothread_set_param(obj, v, name, info, errp)) {
-        return;
-    }
-
-    if (iothread->ctx) {
-        aio_context_set_poll_params(iothread->ctx,
-                                    iothread->poll_max_ns,
-                                    iothread->poll_grow,
-                                    iothread->poll_shrink,
-                                    errp);
-    }
-}
-
-static void iothread_get_aio_param(Object *obj, Visitor *v,
-        const char *name, void *opaque, Error **errp)
-{
-    IOThreadParamInfo *info = opaque;
-
-    iothread_get_param(obj, v, name, info, errp);
-}
-
-static void iothread_set_aio_param(Object *obj, Visitor *v,
-        const char *name, void *opaque, Error **errp)
-{
-    IOThread *iothread = IOTHREAD(obj);
-    IOThreadParamInfo *info = opaque;
-
-    if (!iothread_set_param(obj, v, name, info, errp)) {
-        return;
-    }
-
-    if (iothread->ctx) {
-        aio_context_set_aio_params(iothread->ctx,
-                                   iothread->aio_max_batch,
-                                   errp);
-    }
-}
-
-static void iothread_class_init(ObjectClass *klass, void *class_data)
-{
-    UserCreatableClass *ucc = USER_CREATABLE_CLASS(klass);
-    ucc->complete = iothread_complete;
-
-    object_class_property_add(klass, "poll-max-ns", "int",
-                              iothread_get_poll_param,
-                              iothread_set_poll_param,
-                              NULL, &poll_max_ns_info);
-    object_class_property_add(klass, "poll-grow", "int",
-                              iothread_get_poll_param,
-                              iothread_set_poll_param,
-                              NULL, &poll_grow_info);
-    object_class_property_add(klass, "poll-shrink", "int",
-                              iothread_get_poll_param,
-                              iothread_set_poll_param,
-                              NULL, &poll_shrink_info);
-    object_class_property_add(klass, "aio-max-batch", "int",
-                              iothread_get_aio_param,
-                              iothread_set_aio_param,
-                              NULL, &aio_max_batch_info);
+    bc->init = iothread_init;
 }
 
 static const TypeInfo iothread_info = {
     .name = TYPE_IOTHREAD,
-    .parent = TYPE_OBJECT,
+    .parent = TYPE_EVENT_LOOP_BACKEND,
     .class_init = iothread_class_init,
     .instance_size = sizeof(IOThread),
     .instance_init = iothread_instance_init,
     .instance_finalize = iothread_instance_finalize,
-    .interfaces = (InterfaceInfo[]) {
-        {TYPE_USER_CREATABLE},
-        {}
-    },
 };
 
 static void iothread_register_types(void)
@@ -380,10 +245,10 @@ static int query_one_iothread(Object *object, void *opaque)
     info = g_new0(IOThreadInfo, 1);
     info->id = iothread_get_id(iothread);
     info->thread_id = iothread->thread_id;
-    info->poll_max_ns = iothread->poll_max_ns;
-    info->poll_grow = iothread->poll_grow;
-    info->poll_shrink = iothread->poll_shrink;
-    info->aio_max_batch = iothread->aio_max_batch;
+    info->poll_max_ns = iothread->parent_obj.poll_max_ns;
+    info->poll_grow = iothread->parent_obj.poll_grow;
+    info->poll_shrink = iothread->parent_obj.poll_shrink;
+    info->aio_max_batch = iothread->parent_obj.aio_max_batch;
 
     QAPI_LIST_APPEND(*tail, info);
     return 0;
