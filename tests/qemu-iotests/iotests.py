@@ -30,6 +30,7 @@ import signal
 import struct
 import subprocess
 import sys
+import textwrap
 import time
 from typing import (Any, Callable, Dict, Iterable, Iterator,
                     List, Optional, Sequence, TextIO, Tuple, Type, TypeVar)
@@ -39,6 +40,7 @@ from contextlib import contextmanager
 
 from qemu.machine import qtest
 from qemu.qmp import QMPMessage
+from qemu.utils import enboxify
 
 # Use this logger for logging messages directly from the iotests module
 logger = logging.getLogger('qemu.iotests')
@@ -116,6 +118,38 @@ luks_default_key_secret_opt = 'key-secret=keysec0'
 
 sample_img_dir = os.environ['SAMPLE_IMG_DIR']
 
+
+class VerboseProcessError(subprocess.CalledProcessError):
+    """
+    The same as CalledProcessError, but more verbose.
+
+    This is useful for debugging failed calls during test executions.
+    The return code, signal (if any), and terminal output will be displayed
+    on unhandled exceptions.
+    """
+    def summary(self) -> str:
+        return super().__str__()
+
+    def __str__(self) -> str:
+        lmargin = '  '
+        width = shutil.get_terminal_size()[0] - len(lmargin)
+        sections = []
+
+        name = 'output' if self.stderr is None else 'stdout'
+        if self.stdout:
+            sections.append(enboxify(self.stdout, width, name))
+        else:
+            sections.append(f"{name}: N/A")
+
+        if self.stderr:
+            sections.append(enboxify(self.stderr, width, 'stderr'))
+        elif self.stderr is not None:
+            sections.append("stderr: N/A")
+
+        return os.linesep.join((
+            self.summary(),
+            textwrap.indent(os.linesep.join(sections), prefix=lmargin),
+        ))
 
 @contextmanager
 def change_log_level(
