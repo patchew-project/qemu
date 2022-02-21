@@ -526,7 +526,9 @@
   'data': { '*poll-max-ns': 'int',
             '*poll-grow': 'int',
             '*poll-shrink': 'int',
-            '*aio-max-batch': 'int' } }
+            '*aio-max-batch': 'int',
+            '*thread-pool-min': 'int',
+            '*thread-pool-max': 'int' } }
 
 ##
 # @MemoryBackendProperties:

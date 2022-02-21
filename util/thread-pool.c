@@ -21,6 +21,7 @@
 #include "trace.h"
 #include "block/thread-pool.h"
 #include "qemu/main-loop.h"
+#include "qapi/error.h"
 
 static void do_spawn_thread(ThreadPool *pool);
 
@@ -58,7 +59,6 @@ struct ThreadPool {
     QemuMutex lock;
     QemuCond worker_stopped;
     QemuSemaphore sem;
-    int max_threads;
     QEMUBH *new_thread_bh;
 
     /* The following variables are only accessed from one AioContext. */
@@ -76,6 +76,7 @@ struct ThreadPool {
 static void *worker_thread(void *opaque)
 {
     ThreadPool *pool = opaque;
+    AioContext *ctx = pool->ctx;
 
     qemu_mutex_lock(&pool->lock);
     pool->pending_threads--;
@@ -91,7 +92,8 @@ static void *worker_thread(void *opaque)
             ret = qemu_sem_timedwait(&pool->sem, 10000);
             qemu_mutex_lock(&pool->lock);
             pool->idle_threads--;
-        } while (ret == -1 && !QTAILQ_EMPTY(&pool->request_list));
+        } while (ret == -1 && (!QTAILQ_EMPTY(&pool->request_list) ||
+                 pool->cur_threads <= ctx->pool_min));
         if (ret == -1 || pool->stopping) {
             break;
         }
@@ -244,6 +246,7 @@ BlockAIOCB *thread_pool_submit_aio(ThreadPool *pool,
         ThreadPoolFunc *func, void *arg,
         BlockCompletionFunc *cb, void *opaque)
 {
+    AioContext *ctx = pool->ctx;
     ThreadPoolElement *req;
 
     req = qemu_aio_get(&thread_pool_aiocb_info, NULL, cb, opaque);
@@ -257,7 +260,7 @@ BlockAIOCB *thread_pool_submit_aio(ThreadPool *pool,
     trace_thread_pool_submit(pool, req, arg);
 
     qemu_mutex_lock(&pool->lock);
-    if (pool->idle_threads == 0 && pool->cur_threads < pool->max_threads) {
+    if (pool->idle_threads == 0 && pool->cur_threads < ctx->pool_max) {
         spawn_thread(pool);
     }
     QTAILQ_INSERT_TAIL(&pool->request_list, req, reqs);
@@ -306,11 +309,16 @@ static void thread_pool_init_one(ThreadPool *pool, AioContext *ctx)
     qemu_mutex_init(&pool->lock);
     qemu_cond_init(&pool->worker_stopped);
     qemu_sem_init(&pool->sem, 0);
-    pool->max_threads = 64;
     pool->new_thread_bh = aio_bh_new(ctx, spawn_thread_bh_fn, pool);
 
     QLIST_INIT(&pool->head);
     QTAILQ_INIT(&pool->request_list);
+
+    qemu_mutex_lock(&pool->lock);
+    for (int i = pool->cur_threads; i < ctx->pool_min; i++) {
+        spawn_thread(pool);
+    }
+    qemu_mutex_unlock(&pool->lock);
 }
 
 ThreadPool *thread_pool_new(AioContext *ctx)
@@ -349,4 +357,29 @@ void thread_pool_free(ThreadPool *pool)
     qemu_cond_destroy(&pool->worker_stopped);
     qemu_mutex_destroy(&pool->lock);
     g_free(pool);
+}
+
+void aio_context_set_thread_pool_params(AioContext *ctx, uint64_t min,
+                                        uint64_t max, Error **errp)
+{
+    ThreadPool *pool = ctx->thread_pool;
+
+    if (min > max || !max) {
+        error_setg(errp, "bad thread-pool-min/thread-pool-max values");
+        return;
+    }
+
+    if (pool) {
+        qemu_mutex_lock(&pool->lock);
+    }
+
+    ctx->pool_min = min;
+    ctx->pool_max = max;
+
+    if (pool) {
+        for (int i = pool->cur_threads; i < ctx->pool_min; i++) {
+            spawn_thread(pool);
+        }
+        qemu_mutex_unlock(&pool->lock);
+    }
 }

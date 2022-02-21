@@ -562,6 +562,9 @@ AioContext *aio_context_new(Error **errp)
 
     ctx->aio_max_batch = 0;
 
+    ctx->pool_min = 0;
+    ctx->pool_max = 64;
+
     return ctx;
 fail:
     g_source_destroy(&ctx->source);

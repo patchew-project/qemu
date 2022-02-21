@@ -192,6 +192,8 @@ struct AioContext {
     QSLIST_HEAD(, Coroutine) scheduled_coroutines;
     QEMUBH *co_schedule_bh;
 
+    int pool_min;
+    int pool_max;
     /* Thread pool for performing work and receiving completion callbacks.
      * Has its own locking.
      */
@@ -768,5 +770,14 @@ void aio_context_set_poll_params(AioContext *ctx, int64_t max_ns,
  */
 void aio_context_set_aio_params(AioContext *ctx, int64_t max_batch,
                                 Error **errp);
+
+/**
+ * aio_context_set_thread_pool_params:
+ * @ctx: the aio context
+ * @min: Thread pool's min size, 0 by default
+ * @max: Thread pool's max size, 64 by default
+ */
+void aio_context_set_thread_pool_params(AioContext *ctx, uint64_t min,
+                                        uint64_t max, Error **errp);
 
 #endif

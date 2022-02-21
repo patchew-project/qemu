@@ -51,6 +51,12 @@ static EventLoopBackendParamInfo poll_shrink_info = {
 static EventLoopBackendParamInfo aio_max_batch_info = {
     "aio-max-batch", offsetof(EventLoopBackend, aio_max_batch),
 };
+static EventLoopBackendParamInfo thread_pool_min_info = {
+    "thread-pool-min", offsetof(EventLoopBackend, thread_pool_min),
+};
+static EventLoopBackendParamInfo thread_pool_max_info = {
+    "thread-pool-max", offsetof(EventLoopBackend, thread_pool_max),
+};
 
 static void event_loop_backend_get_param(Object *obj, Visitor *v,
         const char *name, void *opaque, Error **errp)
@@ -84,7 +90,6 @@ static void event_loop_backend_set_param(Object *obj, Visitor *v,
     *field = value;
 
     return;
-
 }
 
 static void
@@ -132,6 +137,14 @@ static void event_loop_backend_class_init(ObjectClass *klass, void *class_data)
                               event_loop_backend_get_param,
                               event_loop_backend_set_param,
                               NULL, &aio_max_batch_info);
+    object_class_property_add(klass, "thread-pool-min", "int",
+                              event_loop_backend_get_param,
+                              event_loop_backend_set_param,
+                              NULL, &thread_pool_min_info);
+    object_class_property_add(klass, "thread-pool-max", "int",
+                              event_loop_backend_get_param,
+                              event_loop_backend_set_param,
+                              NULL, &thread_pool_max_info);
 }
 
 static const TypeInfo event_loop_backend_info = {

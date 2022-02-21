@@ -190,9 +190,22 @@ MainLoop *mloop;
 static void main_loop_init(EventLoopBackend *bc, Error **errp)
 {
     MainLoop *m = MAIN_LOOP(bc);
+    Error *local_error = NULL;
+
+    if (!qemu_aio_context) {
+        error_setg(errp, "qemu aio context not ready");
+        return;
+    }
 
     if (mloop) {
         error_setg(errp, "only one main-loop instance allowed");
+        return;
+    }
+
+    aio_context_set_thread_pool_params(qemu_aio_context, bc->thread_pool_min,
+                                       bc->thread_pool_max, &local_error);
+    if (local_error) {
+        error_propagate(errp, local_error);
         return;
     }
 
