@@ -40,8 +40,8 @@ class MigrationFile(object):
     def read64(self):
         return int.from_bytes(self.file.read(8), byteorder='big', signed=True)
 
-    def read32(self):
-        return int.from_bytes(self.file.read(4), byteorder='big', signed=True)
+    def read32(self, signed=True):
+        return int.from_bytes(self.file.read(4), byteorder='big', signed=signed)
 
     def read16(self):
         return int.from_bytes(self.file.read(2), byteorder='big', signed=True)
@@ -533,7 +533,7 @@ class MigrationDump(object):
             elif section_type == self.QEMU_VM_SECTION_START or section_type == self.QEMU_VM_SECTION_FULL:
                 section_id = file.read32()
                 name = file.readstr()
-                instance_id = file.read32()
+                instance_id = file.read32(signed=False)
                 version_id = file.read32()
                 section_key = (name, instance_id)
                 classdesc = self.section_classes[section_key]
