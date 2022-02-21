@@ -188,6 +188,7 @@ class QMPShell(QEMUMonitorProtocol):
         self._greeting: Optional[QMPMessage] = None
         self._completer = QMPCompleter()
         self._transmode = False
+        self._escaped_eol = False
         self._actions: List[QMPMessage] = []
         self._histfile = os.path.join(os.path.expanduser('~'),
                                       '.qmp-shell_history')
@@ -385,6 +386,8 @@ class QMPShell(QEMUMonitorProtocol):
         """
         if not sys.stdin.isatty():
             return ""
+        if self._escaped_eol:
+            return '> '
         if self._transmode:
             return 'TRANS> '
         return '(QEMU) '
@@ -397,6 +400,11 @@ class QMPShell(QEMUMonitorProtocol):
         """
         try:
             cmdline = input(self.prompt)
+            self._escaped_eol = True
+            while cmdline[-2:] == ' \\':
+                #only remove the trailing '\', keep the space
+                cmdline = cmdline[:-1] + input(self.prompt)
+            self._escaped_eol = False
         except EOFError:
             print()
             return False
@@ -404,6 +412,10 @@ class QMPShell(QEMUMonitorProtocol):
         if cmdline == '':
             for event in self.get_events():
                 print(event)
+            return True
+
+        if cmdline[0] == '#':
+            #consider these lines as comments
             return True
 
         if self.raise_error:
