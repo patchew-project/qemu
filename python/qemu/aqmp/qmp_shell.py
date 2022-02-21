@@ -367,6 +367,8 @@ class QMPShell(QEMUMonitorProtocol):
         """
         Return the current shell prompt, including a trailing space.
         """
+        if not sys.stdin.isatty():
+            return ""
         if self._transmode:
             return 'TRANS> '
         return '(QEMU) '
