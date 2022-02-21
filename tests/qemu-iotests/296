@@ -76,7 +76,7 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
     # create the encrypted block device using qemu-img
     def createImg(self, file, secret):
 
-        output = iotests.qemu_img_pipe(
+        iotests.qemu_img(
             'create',
             '--object', *secret.to_cmdline_object(),
             '-f', iotests.imgfmt,
@@ -85,7 +85,7 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
             file,
             '1M')
 
-        iotests.log(output, filters=[iotests.filter_test_dir])
+        print('')  # Keeps 296.out prettier.
 
     # attempts to add a key using qemu-img
     def addKey(self, file, secret, new_secret):
@@ -99,7 +99,7 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
                 }
             }
 
-        output = iotests.qemu_img_pipe(
+        ret = iotests.qemu_img(
             'amend',
             '--object', *secret.to_cmdline_object(),
             '--object', *new_secret.to_cmdline_object(),
@@ -108,10 +108,11 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
             '-o', 'new-secret=' + new_secret.id(),
             '-o', 'iter-time=10',
 
-            "json:" + json.dumps(image_options)
-            )
+            "json:" + json.dumps(image_options),
+            check=False  # Expected to fail, output is logged.
+        )
 
-        iotests.log(output, filters=[iotests.filter_test_dir])
+        iotests.log(ret.stdout, filters=[iotests.filter_test_dir])
 
     ###########################################################################
     # open an encrypted block device
