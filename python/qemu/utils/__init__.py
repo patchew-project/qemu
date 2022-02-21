@@ -15,7 +15,10 @@ various tasks not directly related to the launching of a VM.
 # the COPYING file in the top-level directory.
 #
 
+import os
 import re
+import shutil
+import textwrap
 from typing import Optional
 
 # pylint: disable=import-error
@@ -23,6 +26,7 @@ from .accel import kvm_available, list_accel, tcg_available
 
 
 __all__ = (
+    'enboxify',
     'get_info_usernet_hostfwd_port',
     'kvm_available',
     'list_accel',
@@ -43,3 +47,57 @@ def get_info_usernet_hostfwd_port(info_usernet_output: str) -> Optional[int]:
         if match is not None:
             return int(match[1])
     return None
+
+
+# pylint: disable=too-many-arguments
+def enboxify(
+        content: str = '',
+        width: Optional[int] = None,
+        name: Optional[str] = None,
+        padding: int = 1,
+        upper_left: str = '┏',
+        upper_right: str = '┓',
+        lower_left: str = '┗',
+        lower_right: str = '┛',
+        horizontal: str = '━',
+        vertical: str = '┃',
+) -> str:
+    """
+    Wrap some text into a text art box of a given width.
+
+    :param content: The text to wrap into a box.
+    :param width: The number of columns (including the box itself).
+    :param name: A label to apply to the upper-left of the box.
+    :param padding: How many columns of padding to apply inside.
+    """
+    if width is None:
+        width = shutil.get_terminal_size()[0]
+    prefix = vertical + (' ' * padding)
+    suffix = (' ' * padding) + vertical
+    lwidth = width - len(suffix)
+
+    def _bar(name: Optional[str], top: bool = True) -> str:
+        ret = upper_left if top else lower_left
+        right = upper_right if top else lower_right
+        if name is not None:
+            ret += f"{horizontal} {name} "
+
+        assert width is not None
+        filler_len = width - len(ret) - len(right)
+        ret += f"{horizontal * filler_len}{right}"
+        return ret
+
+    def _wrap(line: str) -> str:
+        return os.linesep.join([
+            wrapped_line.ljust(lwidth) + suffix
+            for wrapped_line in textwrap.wrap(
+                    line, width=lwidth, initial_indent=prefix,
+                    subsequent_indent=prefix, replace_whitespace=False,
+                    drop_whitespace=False, break_on_hyphens=False)
+        ])
+
+    return os.linesep.join((
+        _bar(name, top=True),
+        os.linesep.join(_wrap(line) for line in content.splitlines()),
+        _bar(None, top=False),
+    ))
