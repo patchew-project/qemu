@@ -142,6 +142,12 @@ class QMPShellParseError(QMPShellError):
     """
 
 
+class QMPShellConnectError(QMPShellError):
+    """
+    QMP Shell Connect error class.
+    """
+
+
 class FuzzyJSON(ast.NodeTransformer):
     """
     This extension of ast.NodeTransformer filters literal "true/false/null"
@@ -347,8 +353,7 @@ class QMPShell(QEMUMonitorProtocol):
             self._print(qmpcmd)
         resp = self.cmd_obj(qmpcmd)
         if resp is None:
-            print('Disconnected')
-            return False
+            raise QMPShellConnectError('Disconnected')
         self._print(resp)
         return True
 
@@ -400,6 +405,9 @@ class QMPShell(QEMUMonitorProtocol):
             return self._execute_cmd(cmdline)
         except QMPShellParseError as err:
             self._print_parse_error(err)
+        except QMPShellConnectError as err:
+            print(f"{err!s}");
+            return False
         return True
 
     def repl(self) -> Iterator[None]:
@@ -481,8 +489,7 @@ class HMPShell(QMPShell):
                 raise QMPShellParseError('cpu command takes an integer argument')
         resp = self._cmd_passthrough(cmdline, self._cpu_index)
         if resp is None:
-            print('Disconnected')
-            return False
+            raise QMPShellConnectError('Disconnected')
         assert 'return' in resp or 'error' in resp
         if 'return' in resp:
             # Success
