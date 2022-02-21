@@ -24,7 +24,7 @@ import os
 import re
 import json
 import iotests
-from iotests import qemu_img, qemu_img_pipe
+from iotests import qemu_img_pipe, qemu_img_pipe_and_status
 import unittest
 
 test_img = os.path.join(iotests.test_dir, 'test.img')
@@ -35,8 +35,13 @@ class TestImageInfoSpecific(iotests.QMPTestCase):
     def setUp(self):
         if self.img_options is None:
             self.skipTest('Skipping abstract test class')
-        qemu_img('create', '-f', iotests.imgfmt, '-o', self.img_options,
-                 test_img, '128K')
+        output, status = qemu_img_pipe_and_status('create',
+                                                  '-f', iotests.imgfmt,
+                                                  '-o', self.img_options,
+                                                  test_img, '128K')
+        if status == 1 and \
+                "'compression-type' does not accept value 'zstd'" in output:
+            self.case_skip('zstd compression not supported')
 
     def tearDown(self):
         os.remove(test_img)
