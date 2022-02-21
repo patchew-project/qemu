@@ -347,15 +347,20 @@ def qemu_img_info(*args: str) -> Any:
 def qemu_img_map(*args: str) -> Any:
     return qemu_img_json('map', "--output", "json", *args)
 
-def qemu_img_log(*args: str) -> subprocess.CompletedProcess[str]:
+def qemu_img_log(
+        *args: str,
+        filters: Iterable[Callable[[str], str]] = (),
+) -> subprocess.CompletedProcess[str]:
     """
     Logged, unchecked variant of qemu_img() that allows non-zero exit codes.
 
     If logging is perceived to be disabled, this function will behave
     like qemu_img() and prohibit non-zero return codes.
+
+    By default, output will be filtered through filter_testfiles().
     """
     result = qemu_img(*args, check=not logging_enabled())
-    log(result.stdout, filters=[filter_testfiles])
+    log(result.stdout, filters=filters or [filter_testfiles])
     return result
 
 def img_info_log(filename: str, filter_path: Optional[str] = None,
@@ -369,10 +374,11 @@ def img_info_log(filename: str, filter_path: Optional[str] = None,
     args += extra_args
     args.append(filename)
 
-    output = qemu_img(*args, check=False).stdout
     if not filter_path:
         filter_path = filename
-    log(filter_img_info(output, filter_path))
+    qemu_img_log(
+        *args,
+        filters=[lambda output: filter_img_info(output, filter_path)])
 
 def qemu_io_wrap_args(args: Sequence[str]) -> List[str]:
     if '-f' in args or '--image-opts' in args:
