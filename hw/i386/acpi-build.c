@@ -192,6 +192,11 @@ static void init_common_fadt_data(MachineState *ms, Object *o,
             .address = object_property_get_uint(o, ACPI_PM_PROP_GPE0_BLK, NULL)
         },
     };
+    if (isa_check_device_existence("i8042")) {
+        /* Indicates if i8042 is present or not */
+        fadt.iapc_boot_arch = (1 << 1);
+    }
+        
     *data = fadt;
 }
 
