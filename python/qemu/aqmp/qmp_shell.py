@@ -136,6 +136,12 @@ class QMPShellError(QMPError):
     """
 
 
+class QMPShellParseError(QMPShellError):
+    """
+    QMP Shell Parse error class.
+    """
+
+
 class FuzzyJSON(ast.NodeTransformer):
     """
     This extension of ast.NodeTransformer filters literal "true/false/null"
@@ -246,7 +252,7 @@ class QMPShell(QEMUMonitorProtocol):
         for arg in tokens:
             (key, sep, val) = arg.partition('=')
             if sep != '=':
-                raise QMPShellError(
+                raise QMPShellParseError(
                     f"Expected a key=value pair, got '{arg!s}'"
                 )
 
@@ -258,14 +264,14 @@ class QMPShell(QEMUMonitorProtocol):
                 obj = parent.get(path, {})
                 if not isinstance(obj, dict):
                     msg = 'Cannot use "{:s}" as both leaf and non-leaf key'
-                    raise QMPShellError(msg.format('.'.join(curpath)))
+                    raise QMPShellParseError(msg.format('.'.join(curpath)))
                 parent[path] = obj
                 parent = obj
             if optpath[-1] in parent:
                 if isinstance(parent[optpath[-1]], dict):
                     msg = 'Cannot use "{:s}" as both leaf and non-leaf key'
-                    raise QMPShellError(msg.format('.'.join(curpath)))
-                raise QMPShellError(f'Cannot set "{key}" multiple times')
+                    raise QMPShellParseError(msg.format('.'.join(curpath)))
+                raise QMPShellParseError(f'Cannot set "{key}" multiple times')
             parent[optpath[-1]] = value
 
     def _build_cmd(self, cmdline: str) -> Optional[QMPMessage]:
@@ -290,7 +296,7 @@ class QMPShell(QEMUMonitorProtocol):
             self._transmode = False
             if len(cmdargs) > 1:
                 msg = 'Unexpected input after close of Transaction sub-shell'
-                raise QMPShellError(msg)
+                raise QMPShellParseError(msg)
             qmpcmd = {
                 'execute': 'transaction',
                 'arguments': {'actions': self._actions}
@@ -323,17 +329,17 @@ class QMPShell(QEMUMonitorProtocol):
                            sort_keys=self.pretty)
         print(str(jsobj))
 
+    def _print_parse_error(self, err: QMPShellParseError) -> None:
+        print(
+            f"Error while parsing command line: {err!s}\n"
+            "command format: <command-name> "
+            "[arg-name1=arg1] ... [arg-nameN=argN",
+            file=sys.stderr
+        )
+
     def _execute_cmd(self, cmdline: str) -> bool:
-        try:
-            qmpcmd = self._build_cmd(cmdline)
-        except QMPShellError as err:
-            print(
-                f"Error while parsing command line: {err!s}\n"
-                "command format: <command-name> "
-                "[arg-name1=arg1] ... [arg-nameN=argN",
-                file=sys.stderr
-            )
-            return True
+        qmpcmd = self._build_cmd(cmdline)
+
         # For transaction mode, we may have just cached the action:
         if qmpcmd is None:
             return True
@@ -390,7 +396,11 @@ class QMPShell(QEMUMonitorProtocol):
                 print(event)
             return True
 
-        return self._execute_cmd(cmdline)
+        try:
+            return self._execute_cmd(cmdline)
+        except QMPShellParseError as err:
+            self._print_parse_error(err)
+        return True
 
     def repl(self) -> Iterator[None]:
         """
@@ -456,18 +466,19 @@ class HMPShell(QMPShell):
             }
         })
 
+    def _print_parse_error(self, err: QMPShellParseError) -> None:
+        print(f"{err!s}")
+
     def _execute_cmd(self, cmdline: str) -> bool:
         if cmdline.split()[0] == "cpu":
             # trap the cpu command, it requires special setting
             try:
                 idx = int(cmdline.split()[1])
                 if 'return' not in self._cmd_passthrough('info version', idx):
-                    print('bad CPU index')
-                    return True
+                    raise QMPShellParseError('bad CPU index')
                 self._cpu_index = idx
             except ValueError:
-                print('cpu command takes an integer argument')
-                return True
+                raise QMPShellParseError('cpu command takes an integer argument')
         resp = self._cmd_passthrough(cmdline, self._cpu_index)
         if resp is None:
             print('Disconnected')
