@@ -40,10 +40,22 @@ static void error_exit(int err, const char *msg)
 
 static void compute_abs_deadline(struct timespec *ts, int ms)
 {
+    time_t now_sec;
+    long now_nsec;
+#ifdef CONFIG_PTHREAD_CONDATTR_SETCLOCK
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    now_sec = now.tv_sec;
+    now_nsec = now.tv_nsec;
+#else
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    ts->tv_nsec = tv.tv_usec * 1000 + (ms % 1000) * 1000000;
-    ts->tv_sec = tv.tv_sec + ms / 1000;
+    now_sec = tv.tv_sec;
+    now_nsec = tv.tv_usec * 1000;
+#endif
+
+    ts->tv_nsec = now_nsec + (ms % 1000) * 1000000;
+    ts->tv_sec = now_sec + ms / 1000;
     if (ts->tv_nsec >= 1000000000) {
         ts->tv_sec++;
         ts->tv_nsec -= 1000000000;
@@ -223,7 +235,17 @@ void qemu_sem_init(QemuSemaphore *sem, int init)
     if (rc != 0) {
         error_exit(rc, __func__);
     }
-    rc = pthread_cond_init(&sem->cond, NULL);
+    rc = pthread_condattr_init(&sem->attr);
+    if (rc != 0) {
+        error_exit(rc, __func__);
+    }
+#ifdef CONFIG_PTHREAD_CONDATTR_SETCLOCK
+    rc = pthread_condattr_setclock(&sem->attr, CLOCK_MONOTONIC);
+    if (rc != 0) {
+        error_exit(rc, __func__);
+    }
+#endif
+    rc = pthread_cond_init(&sem->cond, &sem->attr);
     if (rc != 0) {
         error_exit(rc, __func__);
     }
@@ -245,6 +267,10 @@ void qemu_sem_destroy(QemuSemaphore *sem)
         error_exit(rc, __func__);
     }
     rc = pthread_mutex_destroy(&sem->lock);
+    if (rc < 0) {
+        error_exit(rc, __func__);
+    }
+    rc = pthread_condattr_destroy(&sem->attr);
     if (rc < 0) {
         error_exit(rc, __func__);
     }

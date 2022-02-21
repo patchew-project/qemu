@@ -29,6 +29,7 @@ struct QemuCond {
 struct QemuSemaphore {
     pthread_mutex_t lock;
     pthread_cond_t cond;
+    pthread_condattr_t attr;
     unsigned int count;
     bool initialized;
 };
