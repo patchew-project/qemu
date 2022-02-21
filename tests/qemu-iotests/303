@@ -21,7 +21,8 @@
 
 import iotests
 import subprocess
-from iotests import qemu_img_create, qemu_io, file_path, log, filter_qemu_io
+from iotests import notrun, qemu_img_pipe_and_status, qemu_io, file_path, \
+        log, filter_qemu_io
 
 iotests.script_initialize(supported_fmts=['qcow2'],
                           unsupported_imgopts=['refcount_bits', 'compat'])
@@ -55,9 +56,15 @@ def add_bitmap(num, begin, end, disabled):
 
 
 def test(compression_type: str, json_output: bool) -> None:
-    qemu_img_create('-f', iotests.imgfmt,
-                    '-o', f'compression_type={compression_type}',
-                    disk, '10M')
+    opts = f'compression_type={compression_type}'
+    output, status = qemu_img_pipe_and_status('create',
+                                              '-f', iotests.imgfmt,
+                                              '-o', opts,
+                                              disk, '10M')
+    if status == 1 and \
+            "'compression-type' does not accept value 'zstd'" in output:
+        notrun('zstd compression not supported')
+
     add_bitmap(1, 0, 6, False)
     add_bitmap(2, 6, 8, True)
 
