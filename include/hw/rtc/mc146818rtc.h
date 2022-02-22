@@ -26,6 +26,7 @@ struct RTCState {
     uint8_t cmos_data[128];
     uint8_t cmos_index;
     int32_t base_year;
+    uint32_t isairq;
     uint64_t base_rtc;
     uint64_t last_update;
     int64_t offset;
