@@ -2110,6 +2110,8 @@ static void set_memory_options(MachineClass *mc)
         exit(EXIT_FAILURE);
     }
 
+    /* store value for have_custom_ram_size() */
+    qemu_opt_set_number(opts, "size", ram_size, &error_abort);
     maxram_size = ram_size;
 
     if (qemu_opt_get(opts, "maxmem")) {
