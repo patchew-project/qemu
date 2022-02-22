@@ -2126,10 +2126,125 @@ TRANS_FLAGS2(ISA310, VMULOSD, do_vx_helper, gen_helper_VMULOSD)
 TRANS_FLAGS2(ISA310, VMULEUD, do_vx_helper, gen_helper_VMULEUD)
 TRANS_FLAGS2(ISA310, VMULOUD, do_vx_helper, gen_helper_VMULOUD)
 
-TRANS_FLAGS2(ISA310, VMULHSW, do_vx_helper, gen_helper_VMULHSW)
-TRANS_FLAGS2(ISA310, VMULHSD, do_vx_helper, gen_helper_VMULHSD)
-TRANS_FLAGS2(ISA310, VMULHUW, do_vx_helper, gen_helper_VMULHUW)
-TRANS_FLAGS2(ISA310, VMULHUD, do_vx_helper, gen_helper_VMULHUD)
+static void do_vx_vmulhw_i64(TCGv_i64 t, TCGv_i64 a, TCGv_i64 b, bool sign)
+{
+    TCGv_i64 hh, lh, temp;
+
+    uint64_t c;
+    hh = tcg_temp_new_i64();
+    lh = tcg_temp_new_i64();
+    temp = tcg_temp_new_i64();
+
+    c = 0xFFFFFFFF;
+
+    if (sign) {
+        tcg_gen_ext32s_i64(lh, a);
+        tcg_gen_ext32s_i64(temp, b);
+    } else {
+        tcg_gen_andi_i64(lh, a, c);
+        tcg_gen_andi_i64(temp, b, c);
+    }
+    tcg_gen_mul_i64(lh, lh, temp);
+
+    if (sign) {
+        tcg_gen_sari_i64(hh, a, 32);
+        tcg_gen_sari_i64(temp, b, 32);
+    } else {
+        tcg_gen_shri_i64(hh, a, 32);
+        tcg_gen_shri_i64(temp, b, 32);
+    }
+    tcg_gen_mul_i64(hh, hh, temp);
+
+    tcg_gen_shri_i64(lh, lh, 32);
+    tcg_gen_andi_i64(hh, hh, c << 32);
+    tcg_gen_or_i64(t, hh, lh);
+
+    tcg_temp_free_i64(hh);
+    tcg_temp_free_i64(lh);
+    tcg_temp_free_i64(temp);
+}
+
+static void do_vx_vmulhd_i64(TCGv_i64 t, TCGv_i64 a, TCGv_i64 b, bool sign)
+{
+    TCGv_i64 a1, b1, mask, w, k;
+    void (*tcg_gen_shift_imm)(TCGv_i64, TCGv_i64, int64_t);
+
+    a1 = tcg_temp_new_i64();
+    b1 = tcg_temp_new_i64();
+    w  = tcg_temp_new_i64();
+    k  = tcg_temp_new_i64();
+    mask = tcg_temp_new_i64();
+    if (sign) {
+        tcg_gen_shift_imm = tcg_gen_sari_i64;
+    } else {
+        tcg_gen_shift_imm = tcg_gen_shri_i64;
+    }
+
+    tcg_gen_movi_i64(mask, 0xFFFFFFFF);
+    tcg_gen_and_i64(a1, a, mask);
+    tcg_gen_and_i64(b1, b, mask);
+    tcg_gen_mul_i64(t, a1, b1);
+    tcg_gen_shri_i64(k, t, 32);
+
+    tcg_gen_shift_imm(a1, a, 32);
+    tcg_gen_mul_i64(t, a1, b1);
+    tcg_gen_add_i64(t, t, k);
+    tcg_gen_and_i64(k, t, mask);
+    tcg_gen_shift_imm(w, t, 32);
+
+    tcg_gen_and_i64(a1, a, mask);
+    tcg_gen_shift_imm(b1, b, 32);
+    tcg_gen_mul_i64(t, a1, b1);
+    tcg_gen_add_i64(t, t, k);
+    tcg_gen_shift_imm(k, t, 32);
+
+    tcg_gen_shift_imm(a1, a, 32);
+    tcg_gen_mul_i64(t, a1, b1);
+    tcg_gen_add_i64(t, t, w);
+    tcg_gen_add_i64(t, t, k);
+
+    tcg_temp_free_i64(a1);
+    tcg_temp_free_i64(b1);
+    tcg_temp_free_i64(w);
+    tcg_temp_free_i64(k);
+    tcg_temp_free_i64(mask);
+}
+
+static bool do_vx_mulh(DisasContext *ctx, arg_VX *a, bool sign,
+                       void (*func)(TCGv_i64, TCGv_i64, TCGv_i64, bool))
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    TCGv_i64 vra, vrb, vrt;
+    int i;
+
+    vra = tcg_temp_new_i64();
+    vrb = tcg_temp_new_i64();
+    vrt = tcg_temp_new_i64();
+
+    for (i = 0; i < 2; i++) {
+        get_avr64(vra, a->vra, i);
+        get_avr64(vrb, a->vrb, i);
+        get_avr64(vrt, a->vrt, i);
+
+        func(vrt, vra, vrb, sign);
+
+        set_avr64(a->vrt, vrt, i);
+    }
+
+    tcg_temp_free_i64(vra);
+    tcg_temp_free_i64(vrb);
+    tcg_temp_free_i64(vrt);
+
+    return true;
+
+}
+
+TRANS(VMULHSW, do_vx_mulh, true , do_vx_vmulhw_i64)
+TRANS(VMULHSD, do_vx_mulh, true , do_vx_vmulhd_i64)
+TRANS(VMULHUW, do_vx_mulh, false, do_vx_vmulhw_i64)
+TRANS(VMULHUD, do_vx_mulh, false, do_vx_vmulhd_i64)
 
 #undef GEN_VR_LDX
 #undef GEN_VR_STX
