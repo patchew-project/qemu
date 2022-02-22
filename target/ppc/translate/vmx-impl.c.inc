@@ -834,7 +834,8 @@ TRANS_FLAGS(ALTIVEC, VSRAH, do_vector_gvec3_VX, MO_16, tcg_gen_gvec_sarv);
 TRANS_FLAGS(ALTIVEC, VSRAW, do_vector_gvec3_VX, MO_32, tcg_gen_gvec_sarv);
 TRANS_FLAGS2(ALTIVEC_207, VSRAD, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_sarv);
 
-static bool do_vector_shift_quad(DisasContext *ctx, arg_VX *a, bool right)
+static bool do_vector_shift_quad(DisasContext *ctx, arg_VX *a, bool right,
+                                 bool alg)
 {
     TCGv_i64 hi, lo, tmp, n, sf = tcg_constant_i64(64);
 
@@ -853,6 +854,9 @@ static bool do_vector_shift_quad(DisasContext *ctx, arg_VX *a, bool right)
 
     if (right) {
         tcg_gen_movcond_i64(TCG_COND_GE, lo, n, sf, hi, lo);
+        if (alg) {
+            tcg_gen_sari_i64(tmp, lo, 63);
+        }
         tcg_gen_movcond_i64(TCG_COND_GE, hi, n, sf, tmp, hi);
     } else {
         tcg_gen_movcond_i64(TCG_COND_GE, hi, n, sf, lo, hi);
@@ -861,7 +865,11 @@ static bool do_vector_shift_quad(DisasContext *ctx, arg_VX *a, bool right)
     tcg_gen_andi_i64(n, n, ~64ULL);
 
     if (right) {
-        tcg_gen_shr_i64(tmp, hi, n);
+        if (alg) {
+            tcg_gen_sar_i64(tmp, hi, n);
+        } else {
+            tcg_gen_shr_i64(tmp, hi, n);
+        }
     } else {
         tcg_gen_shl_i64(tmp, lo, n);
     }
@@ -891,8 +899,9 @@ static bool do_vector_shift_quad(DisasContext *ctx, arg_VX *a, bool right)
     return true;
 }
 
-TRANS_FLAGS2(ISA310, VSLQ, do_vector_shift_quad, false);
-TRANS_FLAGS2(ISA310, VSRQ, do_vector_shift_quad, true);
+TRANS_FLAGS2(ISA310, VSLQ, do_vector_shift_quad, false, false);
+TRANS_FLAGS2(ISA310, VSRQ, do_vector_shift_quad, true, false);
+TRANS_FLAGS2(ISA310, VSRAQ, do_vector_shift_quad, true, true);
 
 #define GEN_VXFORM_SAT(NAME, VECE, NORM, SAT, OPC2, OPC3)               \
 static void glue(glue(gen_, NAME), _vec)(unsigned vece, TCGv_vec t,     \
