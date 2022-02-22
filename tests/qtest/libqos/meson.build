@@ -57,7 +57,6 @@ libqos_srcs = files('../libqtest.c',
 )
 
 libqos = static_library('qos', libqos_srcs + genh,
-                        name_suffix: 'fa',
                         build_by_default: false)
 
 qos = declare_dependency(link_whole: libqos)
