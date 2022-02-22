@@ -1973,8 +1973,6 @@ int main (int argc, char **argv) {
 static void cocoa_update(DisplayChangeListener *dcl,
                          int x, int y, int w, int h)
 {
-    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
-
     COCOA_DEBUG("qemu_cocoa: cocoa_update\n");
 
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -1990,14 +1988,11 @@ static void cocoa_update(DisplayChangeListener *dcl,
         }
         [cocoaView setNeedsDisplayInRect:rect];
     });
-
-    [pool release];
 }
 
 static void cocoa_switch(DisplayChangeListener *dcl,
                          DisplaySurface *surface)
 {
-    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
     pixman_image_t *image = surface->image;
 
     COCOA_DEBUG("qemu_cocoa: cocoa_switch\n");
@@ -2012,7 +2007,6 @@ static void cocoa_switch(DisplayChangeListener *dcl,
         [cocoaView updateUIInfo];
         [cocoaView switchSurface:image];
     });
-    [pool release];
 }
 
 static void cocoa_refresh(DisplayChangeListener *dcl)
