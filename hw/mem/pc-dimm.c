@@ -115,7 +115,7 @@ static int pc_dimm_get_free_slot(const int *hint, int max_slots, Error **errp)
 
     if (max_slots <= 0) {
         error_setg(errp, "no slots where allocated, please specify "
-                   "the 'slots' option");
+                   "the 'slot' option");
         return slot;
     }
 
