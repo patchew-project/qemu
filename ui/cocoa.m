@@ -522,8 +522,9 @@ QemuCocoaView *cocoaView;
     }
 }
 
-- (void) updateUIInfo
+- (void) doUpdateUIInfo
 {
+    /* Must be called with the iothread lock, i.e. via updateUIInfo */
     NSSize frameSize;
     QemuUIInfo info;
 
@@ -552,6 +553,22 @@ QemuCocoaView *cocoaView;
     info.height = frameSize.height;
 
     dpy_set_ui_info(dcl.con, &info, TRUE);
+}
+
+- (void) updateUIInfo
+{
+    if (!allow_events) {
+        /*
+         * Don't try to tell QEMU about UI information in the application
+         * startup phase -- we haven't yet registered dcl with the QEMU UI
+         * layer, and also trying to take the iothread lock would deadlock.
+         */
+        return;
+    }
+
+    with_iothread_lock(^{
+        [self doUpdateUIInfo];
+    });
 }
 
 - (void)viewDidMoveToWindow
@@ -1985,8 +2002,6 @@ static void cocoa_switch(DisplayChangeListener *dcl,
 
     COCOA_DEBUG("qemu_cocoa: cocoa_switch\n");
 
-    [cocoaView updateUIInfo];
-
     // The DisplaySurface will be freed as soon as this callback returns.
     // We take a reference to the underlying pixman image here so it does
     // not disappear from under our feet; the switchSurface method will
@@ -1994,6 +2009,7 @@ static void cocoa_switch(DisplayChangeListener *dcl,
     pixman_image_ref(image);
 
     dispatch_async(dispatch_get_main_queue(), ^{
+        [cocoaView updateUIInfo];
         [cocoaView switchSurface:image];
     });
     [pool release];
@@ -2057,6 +2073,11 @@ static void cocoa_display_init(DisplayState *ds, DisplayOptions *opts)
     qemu_event_init(&cbevent, false);
     cbowner = [[QemuCocoaPasteboardTypeOwner alloc] init];
     qemu_clipboard_peer_register(&cbpeer);
+
+    /* Now we're set up, tell the UI layer our initial window size */
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [cocoaView updateUIInfo];
+    });
 }
 
 static QemuDisplay qemu_display_cocoa = {
