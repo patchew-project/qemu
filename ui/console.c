@@ -37,6 +37,9 @@
 #include "exec/memory.h"
 #include "io/channel-file.h"
 #include "qom/object.h"
+#ifdef CONFIG_VNC_PNG
+#include "png.h"
+#endif
 
 #define DEFAULT_BACKSCROLL 512
 #define CONSOLE_CURSOR_PERIOD 500
@@ -289,6 +292,137 @@ void graphic_hw_invalidate(QemuConsole *con)
     }
 }
 
+#ifdef CONFIG_VNC_PNG
+/**
+ * a8r8g8b8_to_rgba: Convert a8r8g8b8 to rgba format
+ *
+ * @dst: Destination pointer.
+ * @src: Source pointer.
+ * @n_pixels: Size of image.
+ */
+static void a8r8g8b8_to_rgba(uint32_t *dst, uint32_t *src, int n_pixels)
+{
+    uint8_t *dst8 = (uint8_t *)dst;
+    int i;
+
+    for (i = 0; i < n_pixels; ++i) {
+        uint32_t p = src[i];
+        uint8_t a, r, g, b;
+
+        a = (p & 0xff000000) >> 24;
+        r = (p & 0x00ff0000) >> 16;
+        g = (p & 0x0000ff00) >> 8;
+        b = (p & 0x000000ff) >> 0;
+
+        if (a != 0) {
+            #define DIVIDE(c, a) \
+            do { \
+                int t = ((c) * 255) / a; \
+                (c) = t < 0 ? 0 : t > 255 ? 255 : t; \
+            } while (0)
+
+            DIVIDE(r, a);
+            DIVIDE(g, a);
+            DIVIDE(b, a);
+            #undef DIVIDE
+        }
+
+        *dst8++ = r;
+        *dst8++ = g;
+        *dst8++ = b;
+        *dst8++ = a;
+    }
+}
+
+/**
+ * png_save: Take a screenshot as PNG
+ *
+ * Saves screendump as a PNG file
+ *
+ * Returns true for success or false for error.
+ * Inspired from png test utils from https://github.com/aseprite/pixman
+ *
+ * @fd: File descriptor for PNG file.
+ * @image: Image data in pixman format.
+ * @errp: Pointer to an error.
+ */
+static bool png_save(int fd, pixman_image_t *image, Error **errp)
+{
+    int width = pixman_image_get_width(image);
+    int height = pixman_image_get_height(image);
+    int stride = width * 4;
+    g_autofree uint32_t *src_data = g_malloc(height * stride);
+    g_autofree uint32_t *dest_data = g_malloc(height * stride);
+    g_autoptr(pixman_image_t) src_copy;
+    g_autoptr(pixman_image_t) dest_copy;
+    g_autofree png_struct *write_struct;
+    g_autofree png_info *info_struct;
+    g_autofree png_bytep *row_pointers = g_malloc(height * sizeof(png_bytep));
+    FILE *f = fdopen(fd, "wb");
+    int y;
+    if (!f) {
+        error_setg(errp, "Failed to create file from file descriptor");
+        return false;
+    }
+
+    src_copy = pixman_image_create_bits(PIXMAN_a8r8g8b8, width, height,
+                                        src_data, stride);
+
+    pixman_image_composite32(PIXMAN_OP_SRC, image, NULL, src_copy, 0, 0, 0, 0,
+                             0, 0, width, height);
+
+    memcpy(dest_data, src_data, sizeof(*src_data));
+
+    a8r8g8b8_to_rgba(dest_data, src_data, height * width);
+
+    for (y = 0; y < height; ++y) {
+        row_pointers[y] = (png_bytep)(src_data + y * width);
+    }
+
+    write_struct = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL,
+                                                 NULL, NULL);
+    if (!write_struct) {
+        error_setg(errp, "PNG creation failed. Unable to write struct");
+        return false;
+    }
+
+    info_struct = png_create_info_struct(write_struct);
+
+    if (!info_struct) {
+        error_setg(errp, "PNG creation failed. Unable to write info");
+        return false;
+    }
+
+    png_init_io(write_struct, f);
+
+    png_set_IHDR(write_struct, info_struct, width, height, 8,
+                 PNG_COLOR_TYPE_RGB_ALPHA, PNG_INTERLACE_NONE,
+                 PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+
+    png_write_info(write_struct, info_struct);
+
+    png_write_image(write_struct, row_pointers);
+
+    png_write_end(write_struct, NULL);
+
+    if (fclose(f) != 0) {
+        error_setg(errp, "PNG creation failed. Unable to close file");
+        return false;
+    }
+
+    return true;
+}
+
+#else /* no png support */
+
+static bool png_save(int fd, pixman_image_t *image, Error **errp)
+{
+    error_setg(errp, "Enable VNC PNG support for png screendump");
+    return false;
+}
+
+#endif /* CONFIG_VNC_PNG */
+
 static bool ppm_save(int fd, pixman_image_t *image, Error **errp)
 {
     int width = pixman_image_get_width(image);
@@ -327,7 +461,8 @@ static void graphic_hw_update_bh(void *con)
 /* Safety: coroutine-only, concurrent-coroutine safe, main thread only */
 void coroutine_fn
 qmp_screendump(const char *filename, bool has_device, const char *device,
-               bool has_head, int64_t head, Error **errp)
+               bool has_head, int64_t head, bool has_format,
+               const char *format, Error **errp)
 {
     g_autoptr(pixman_image_t) image = NULL;
     QemuConsole *con;
@@ -383,8 +518,22 @@ qmp_screendump(const char *filename, bool has_device, const char *device,
      * yields and releases the BQL. It could produce corrupted dump, but
      * it should be otherwise safe.
      */
-    if (!ppm_save(fd, image, errp)) {
+
+    if (has_format && strcmp(format, "png") == 0) {
+        /* PNG format specified for screendump */
+        if (!png_save(fd, image, errp)) {
+            qemu_unlink(filename);
+        }
+    } else if (!has_format || (has_format && strcmp(format, "ppm") == 0)) {
+        /* PPM format specified/default for screendump */
+        if (!ppm_save(fd, image, errp)) {
+            qemu_unlink(filename);
+        }
+    } else {
+        /* Invalid specified for screendump */
+        error_setg(errp, "Invalid format provided for screendump.");
         qemu_unlink(filename);
+        return;
     }
 }
 

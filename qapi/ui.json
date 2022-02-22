@@ -76,7 +76,7 @@
 ##
 # @screendump:
 #
-# Write a PPM of the VGA screen to a file.
+# Write a screenshot of the VGA screen to a file.
 #
 # @filename: the path of a new PPM file to store the image
 #
@@ -86,6 +86,9 @@
 # @head: head to use in case the device supports multiple heads. If this
 #        parameter is missing, head #0 will be used. Also note that the head
 #        can only be specified in conjunction with the device ID. (Since 2.12)
+#
+# @format: image format for screendump is specified. Currently only PNG and
+#             PPM are supported.
 #
 # Returns: Nothing on success
 #
@@ -99,7 +102,7 @@
 #
 ##
 { 'command': 'screendump',
-  'data': {'filename': 'str', '*device': 'str', '*head': 'int'},
+  'data': {'filename': 'str', '*device': 'str', '*head': 'int', '*format': 'str'},
   'coroutine': true }
 
 ##
