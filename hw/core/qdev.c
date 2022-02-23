@@ -910,6 +910,11 @@ Object *qdev_get_machine(void)
 
 static MachineInitPhase machine_phase;
 
+MachineInitPhase phase_get(void)
+{
+    return machine_phase;
+}
+
 bool phase_check(MachineInitPhase phase)
 {
     return machine_phase >= phase;
