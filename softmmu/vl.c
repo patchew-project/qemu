@@ -2741,30 +2741,72 @@ void qmp_x_exit_preconfig(Error **errp)
         error_setg(errp, "The command is permitted only before machine initialization");
         return;
     }
+    phase_until(PHASE_MACHINE_READY, errp);
+}
 
-    qemu_init_board();
-    qemu_create_cli_devices();
-    qemu_machine_creation_done();
-
-    if (loadvm) {
-        load_snapshot(loadvm, NULL, false, NULL, &error_fatal);
+bool phase_until(MachineInitPhase phase, Error **errp)
+{
+    if (!phase_check(PHASE_ACCEL_CREATED)) {
+        error_setg(errp, "Phase transition is not supported until accelerator"
+                   " is created");
+        return false;
     }
-    if (replay_mode != REPLAY_MODE_NONE) {
-        replay_vmstate_init();
-    }
 
-    if (incoming) {
-        Error *local_err = NULL;
-        if (strcmp(incoming, "defer") != 0) {
-            qmp_migrate_incoming(incoming, &local_err);
-            if (local_err) {
-                error_reportf_err(local_err, "-incoming %s: ", incoming);
-                exit(1);
+    while (!phase_check(phase)) {
+        MachineInitPhase cur_phase = phase_get();
+
+        switch (cur_phase) {
+        case PHASE_ACCEL_CREATED:
+            qemu_init_board();
+            /* We are now in PHASE_MACHINE_INITIALIZED. */
+            qemu_create_cli_devices();
+            /*
+             * At this point all CLI options are handled apart:
+             * + -S (autostart)
+             * + -incoming
+             */
+            qemu_machine_creation_done();
+            /* We are now in PHASE_MACHINE_READY. */
+
+            if (loadvm) {
+                load_snapshot(loadvm, NULL, false, NULL, &error_fatal);
             }
+            if (replay_mode != REPLAY_MODE_NONE) {
+                replay_vmstate_init();
+            }
+
+            if (incoming) {
+                Error *local_err = NULL;
+                if (strcmp(incoming, "defer") != 0) {
+                    qmp_migrate_incoming(incoming, &local_err);
+                    if (local_err) {
+                        error_reportf_err(local_err, "-incoming %s: ",
+                                          incoming);
+                        exit(1);
+                    }
+                }
+            } else if (autostart) {
+                qmp_cont(NULL);
+            }
+            break;
+
+        default:
+            /*
+             * If we end up here, it is because we miss a case above.
+             */
+            error_setg(&error_abort, "Requested phase transition is not"
+                       " implemented");
+            return false;
         }
-    } else if (autostart) {
-        qmp_cont(NULL);
+
+        /*
+         * Ensure we made some progress.
+         * With the default case above, it should be enough to prevent
+         * any infinite loop.
+         */
+        assert(cur_phase < phase_get());
     }
+    return true;
 }
 
 void qemu_init(int argc, char **argv, char **envp)
