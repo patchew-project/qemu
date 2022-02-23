@@ -888,6 +888,7 @@ void pc_memory_init(PCMachineState *pcms,
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
     X86MachineState *x86ms = X86_MACHINE(pcms);
+    hwaddr maxphysaddr, maxusedaddr;
 
     assert(machine->ram_size == x86ms->below_4g_mem_size +
                                 x86ms->above_4g_mem_size);
@@ -895,6 +896,15 @@ void pc_memory_init(PCMachineState *pcms,
     linux_boot = (machine->kernel_filename != NULL);
 
     x86_update_above_4g_mem_start(pcms, pci_hole64_size);
+
+    maxphysaddr = ((hwaddr)1 << X86_CPU(first_cpu)->phys_bits) - 1;
+    maxusedaddr = x86_max_phys_addr(pcms, pci_hole64_size);
+    if (maxphysaddr < maxusedaddr) {
+        warn_report("Address space above 4G at %"PRIx64"-%"PRIx64
+                    " phys-bits too low (%u)",
+                    x86ms->above_4g_mem_start, maxusedaddr,
+                    X86_CPU(first_cpu)->phys_bits);
+    }
 
     /*
      * Split single memory region and use aliases to address portions of it,
