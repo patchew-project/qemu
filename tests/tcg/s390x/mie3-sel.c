@@ -22,9 +22,9 @@ asm (                   \
 }
 
 
-Fi3 (_selre,    "selre    %%r0, %%r3, %%r2\n")
-Fi3 (_selgrz,   "selgrz   %%r0, %%r3, %%r2\n")
-Fi3 (_selfhrnz, "selfhrnz %%r0, %%r3, %%r2\n")
+Fi3 (_selre,     ".insn rrf, 0xB9F00000, %%r0, %%r3, %%r2, 8\n")
+Fi3 (_selgrz,    ".insn rrf, 0xB9E30000, %%r0, %%r3, %%r2, 8\n")
+Fi3 (_selfhrnz,  ".insn rrf, 0xB9C00000, %%r0, %%r3, %%r2, 7\n")
 
 
 int main(int argc, char *argv[])
