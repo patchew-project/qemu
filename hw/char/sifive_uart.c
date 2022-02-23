@@ -243,6 +243,7 @@ static void sifive_uart_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     ResettableClass *rc = RESETTABLE_CLASS(oc);
 
+    dc->user_creatable = true;
     dc->realize = sifive_uart_realize;
     dc->vmsd = &vmstate_sifive_uart;
     rc->phases.enter = sifive_uart_reset_enter;

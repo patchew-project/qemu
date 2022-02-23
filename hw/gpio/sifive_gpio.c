@@ -380,6 +380,7 @@ static void sifive_gpio_class_init(ObjectClass *klass, void *data)
     dc->realize = sifive_gpio_realize;
     dc->reset = sifive_gpio_reset;
     dc->desc = "SiFive GPIO";
+    dc->user_creatable = true;
 }
 
 static const TypeInfo sifive_gpio_info = {

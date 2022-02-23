@@ -80,6 +80,7 @@ static void unimp_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->user_creatable = true;
     dc->realize = unimp_realize;
     device_class_set_props(dc, unimp_properties);
 }

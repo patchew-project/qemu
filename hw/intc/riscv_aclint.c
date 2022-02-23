@@ -283,6 +283,7 @@ static void riscv_aclint_mtimer_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->realize = riscv_aclint_mtimer_realize;
     device_class_set_props(dc, riscv_aclint_mtimer_properties);
+    dc->user_creatable = true;
 }
 
 static const TypeInfo riscv_aclint_mtimer_info = {
@@ -466,6 +467,7 @@ static void riscv_aclint_swi_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->realize = riscv_aclint_swi_realize;
     device_class_set_props(dc, riscv_aclint_swi_properties);
+    dc->user_creatable = true;
 }
 
 static const TypeInfo riscv_aclint_swi_info = {

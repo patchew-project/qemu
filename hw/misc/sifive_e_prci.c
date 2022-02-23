@@ -97,11 +97,19 @@ static void sifive_e_prci_init(Object *obj)
     s->plloutdiv = SIFIVE_E_PRCI_PLLOUTDIV_DIV1;
 }
 
+static void sifive_e_prci_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->user_creatable = true;
+}
+
 static const TypeInfo sifive_e_prci_info = {
     .name          = TYPE_SIFIVE_E_PRCI,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SiFiveEPRCIState),
     .instance_init = sifive_e_prci_init,
+    .class_init    = sifive_e_prci_class_init,
 };
 
 static void sifive_e_prci_register_types(void)
