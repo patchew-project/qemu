@@ -2737,8 +2737,8 @@ static void qemu_machine_creation_done(void)
 
 void qmp_x_exit_preconfig(Error **errp)
 {
-    if (phase_check(PHASE_MACHINE_INITIALIZED)) {
-        error_setg(errp, "The command is permitted only before machine initialization");
+    if (phase_check(PHASE_MACHINE_READY)) {
+        error_setg(errp, "The command is permitted only before machine is ready");
         return;
     }
     phase_until(PHASE_MACHINE_READY, errp);
@@ -2759,7 +2759,17 @@ bool phase_until(MachineInitPhase phase, Error **errp)
         case PHASE_ACCEL_CREATED:
             qemu_init_board();
             /* We are now in PHASE_MACHINE_INITIALIZED. */
+            /*
+             * Handle CLI devices now in order leave the function in a state
+             * where we can cold plug devices with QMP. The following call
+             * handles the CLI options:
+             * + -fw_cfg (has side effects on device cold plug)
+             * + -device
+             */
             qemu_create_cli_devices();
+            break;
+
+        case PHASE_MACHINE_INITIALIZED:
             /*
              * At this point all CLI options are handled apart:
              * + -S (autostart)
