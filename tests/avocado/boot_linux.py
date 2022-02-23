@@ -74,7 +74,7 @@ class BootLinuxAarch64(LinuxTest):
     def test_virt_tcg_gicv2(self):
         """
         :avocado: tags=accel:tcg
-        :avocado: tags=cpu:max
+        :avocado: tags=cpu:cortex-a72
         :avocado: tags=device:gicv2
         """
         self.require_accelerator("tcg")
@@ -86,7 +86,7 @@ class BootLinuxAarch64(LinuxTest):
     def test_virt_tcg_gicv3(self):
         """
         :avocado: tags=accel:tcg
-        :avocado: tags=cpu:max
+        :avocado: tags=cpu:cortex-a72
         :avocado: tags=device:gicv3
         """
         self.require_accelerator("tcg")
