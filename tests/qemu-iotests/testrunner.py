@@ -377,6 +377,7 @@ class TestRunner(ContextManager['TestRunner']):
 
         if self.tap:
             self.env.print_env('# ')
+            print('1..%d' % len(tests))
         else:
             self.env.print_env()
 
