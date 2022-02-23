@@ -34,6 +34,10 @@ static void machine_none_init(MachineState *mch)
 
     /* Initialize CPU (if user asked for it) */
     if (mch->cpu_type) {
+        if (mch->smp.cpus > 1) {
+            error_report("Cannot initialize more than 1 CPU");
+            exit(1);
+        }
         cpu = cpu_create(mch->cpu_type);
         if (!cpu) {
             error_report("Unable to initialize CPU");
@@ -79,7 +83,7 @@ static void machine_none_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "empty machine";
     mc->init = machine_none_init;
-    mc->max_cpus = 1;
+    mc->max_cpus = 16;
     mc->default_ram_size = 0;
     mc->default_ram_id = "ram";
     mc->no_serial = 1;
