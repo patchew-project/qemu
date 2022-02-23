@@ -17,6 +17,7 @@
 #include "exec/address-spaces.h"
 #include "hw/core/cpu.h"
 #include "qapi/visitor.h"
+#include "hw/sysbus.h"
 
 struct NoneMachineState {
     MachineState parent;
@@ -93,6 +94,9 @@ static void machine_none_class_init(ObjectClass *oc, void *data)
         NULL, NULL);
     object_class_property_set_description(oc, "ram-addr",
         "Base address of the RAM (default is 0)");
+
+    /* allow cold plugging any any "user-creatable" sysbus device */
+    machine_class_allow_dynamic_sysbus_dev(mc, TYPE_SYS_BUS_DEVICE);
 }
 
 static const TypeInfo none_machine_info = {
