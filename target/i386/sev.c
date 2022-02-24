@@ -82,6 +82,8 @@ struct SevGuestState {
 #define DEFAULT_GUEST_POLICY    0x1 /* disable debug */
 #define DEFAULT_SEV_DEVICE      "/dev/sev"
 
+#define SEV_CPU_UNIQUE_ID_LEN   64
+
 #define SEV_INFO_BLOCK_GUID     "00f771de-1a7e-4fcb-890e-68c77e2fb44e"
 typedef struct __attribute__((__packed__)) SevInfoBlock {
     /* SEV-ES Reset Vector Address */
@@ -531,11 +533,31 @@ e_free:
     return 1;
 }
 
+static int
+sev_get_id(int fd, guchar *id_buf, size_t id_buf_len, Error **errp)
+{
+    struct sev_user_data_get_id2 id = {
+        .address = (unsigned long)id_buf,
+        .length = id_buf_len
+    };
+    int err, r;
+
+    r = sev_platform_ioctl(fd, SEV_GET_ID2, &id, &err);
+    if (r < 0) {
+        error_setg(errp, "SEV: Failed to get ID ret=%d fw_err=%d (%s)",
+                   r, err, fw_error_to_str(err));
+        return 1;
+    }
+
+    return 0;
+}
+
 static SevCapability *sev_get_capabilities(Error **errp)
 {
     SevCapability *cap = NULL;
     guchar *pdh_data = NULL;
     guchar *cert_chain_data = NULL;
+    guchar cpu0_id[SEV_CPU_UNIQUE_ID_LEN];
     size_t pdh_len = 0, cert_chain_len = 0;
     uint32_t ebx;
     int fd;
@@ -561,9 +583,14 @@ static SevCapability *sev_get_capabilities(Error **errp)
         goto out;
     }
 
+    if (sev_get_id(fd, cpu0_id, sizeof(cpu0_id), errp)) {
+        goto out;
+    }
+
     cap = g_new0(SevCapability, 1);
     cap->pdh = g_base64_encode(pdh_data, pdh_len);
     cap->cert_chain = g_base64_encode(cert_chain_data, cert_chain_len);
+    cap->cpu0_id = g_base64_encode(cpu0_id, sizeof(cpu0_id));
 
     host_cpuid(0x8000001F, 0, NULL, &ebx, NULL, NULL);
     cap->cbitpos = ebx & 0x3f;
