@@ -32,6 +32,7 @@
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_host.h"
 #include "hw/pci/pcie_port.h"
+#include "hw/pci-bridge/xio3130_downstream.h"
 #include "hw/i386/acpi-build.h"
 #include "hw/acpi/acpi.h"
 #include "hw/pci/pci_bus.h"
@@ -328,6 +329,15 @@ void acpi_pcihp_device_pre_plug_cb(HotplugHandler *hotplug_dev,
         g_sequence_insert_sorted(used_indexes,
                                  GINT_TO_POINTER(pdev->acpi_index),
                                  g_cmp_uint32, NULL);
+    }
+
+    /*
+     * since acpi_pcihp manages hotplug, disable PCI-E power control on slot
+     */
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PCIE_ROOT_PORT) ||
+        object_dynamic_cast(OBJECT(dev), TYPE_XIO3130_DOWNSTREAM)) {
+        object_property_set_bool(OBJECT(dev), COMPAT_PROP_PCP, false,
+                                 &error_abort);
     }
 }
 
