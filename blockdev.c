@@ -2180,6 +2180,55 @@ static void abort_commit(BlkActionState *common)
     g_assert_not_reached(); /* this action never succeeds */
 }
 
+static BlockDriverState *blockdev_add(BlockdevOptions *options, Error **errp)
+{
+    BlockDriverState *bs = NULL;
+    QObject *obj;
+    Visitor *v = qobject_output_visitor_new(&obj);
+    QDict *qdict;
+
+    visit_type_BlockdevOptions(v, NULL, &options, &error_abort);
+    visit_complete(v, &obj);
+    qdict = qobject_to(QDict, obj);
+
+    qdict_flatten(qdict);
+
+    if (!qdict_get_try_str(qdict, "node-name")) {
+        error_setg(errp, "'node-name' must be specified for the root node");
+        goto fail;
+    }
+
+    bs = bds_tree_init(qdict, errp);
+    if (!bs) {
+        goto fail;
+    }
+
+    bdrv_set_monitor_owned(bs);
+
+fail:
+    visit_free(v);
+    return bs;
+}
+
+typedef struct BlockdevAddState {
+    BlkActionState common;
+    BlockDriverState *bs;
+} BlockdevAddState;
+
+static void blockdev_add_prepare(BlkActionState *common, Error **errp)
+{
+    BlockdevAddState *s = DO_UPCAST(BlockdevAddState, common, common);
+
+    s->bs = blockdev_add(common->action->u.blockdev_add.data, errp);
+}
+
+static void blockdev_add_abort(BlkActionState *common)
+{
+    BlockdevAddState *s = DO_UPCAST(BlockdevAddState, common, common);
+
+    bdrv_unref(s->bs);
+}
+
 static const BlkActionOps actions[] = {
     [TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT] = {
         .instance_size = sizeof(ExternalSnapshotState),
@@ -2252,6 +2301,11 @@ static const BlkActionOps actions[] = {
         .prepare = block_dirty_bitmap_remove_prepare,
         .commit = block_dirty_bitmap_remove_commit,
         .abort = block_dirty_bitmap_remove_abort,
+    },
+    [TRANSACTION_ACTION_KIND_BLOCKDEV_ADD] = {
+        .instance_size = sizeof(BlockdevAddState),
+        .prepare = blockdev_add_prepare,
+        .abort = blockdev_add_abort,
     },
     /* Where are transactions for MIRROR, COMMIT and STREAM?
      * Although these blockjobs use transaction callbacks like the backup job,
@@ -3499,31 +3553,7 @@ out:
 
 void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 {
-    BlockDriverState *bs;
-    QObject *obj;
-    Visitor *v = qobject_output_visitor_new(&obj);
-    QDict *qdict;
-
-    visit_type_BlockdevOptions(v, NULL, &options, &error_abort);
-    visit_complete(v, &obj);
-    qdict = qobject_to(QDict, obj);
-
-    qdict_flatten(qdict);
-
-    if (!qdict_get_try_str(qdict, "node-name")) {
-        error_setg(errp, "'node-name' must be specified for the root node");
-        goto fail;
-    }
-
-    bs = bds_tree_init(qdict, errp);
-    if (!bs) {
-        goto fail;
-    }
-
-    bdrv_set_monitor_owned(bs);
-
-fail:
-    visit_free(v);
+    blockdev_add(options, errp);
 }
 
 void qmp_blockdev_reopen(BlockdevOptionsList *reopen_list, Error **errp)
