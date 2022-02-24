@@ -1934,6 +1934,13 @@ static bool spapr_patb_entry_needed(void *opaque)
     return !!spapr->patb_entry;
 }
 
+static bool spapr_nested_ptcr_needed(void *opaque)
+{
+    SpaprMachineState *spapr = opaque;
+
+    return !!spapr->nested_ptcr;
+}
+
 static const VMStateDescription vmstate_spapr_patb_entry = {
     .name = "spapr_patb_entry",
     .version_id = 1,
@@ -1941,6 +1948,17 @@ static const VMStateDescription vmstate_spapr_patb_entry = {
     .needed = spapr_patb_entry_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT64(patb_entry, SpaprMachineState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static const VMStateDescription vmstate_spapr_nested_ptcr = {
+    .name = "spapr_nested_ptcr",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = spapr_nested_ptcr_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(nested_ptcr, SpaprMachineState),
         VMSTATE_END_OF_LIST()
     },
 };
@@ -2069,6 +2087,7 @@ static const VMStateDescription vmstate_spapr = {
         &vmstate_spapr_cap_fwnmi,
         &vmstate_spapr_fwnmi,
         &vmstate_spapr_cap_rpt_invalidate,
+        &vmstate_spapr_nested_ptcr,
         NULL
     }
 };

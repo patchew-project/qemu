@@ -25,6 +25,7 @@
 #include "sysemu/reset.h"
 #include "sysemu/hw_accel.h"
 #include "qemu/error-report.h"
+#include "migration/cpu.h"
 
 static void spapr_reset_vcpu(PowerPCCPU *cpu)
 {
@@ -174,6 +175,80 @@ static const VMStateDescription vmstate_spapr_cpu_vpa = {
     }
 };
 
+static bool nested_needed(void *opaque)
+{
+    SpaprCpuState *spapr_cpu = opaque;
+
+    return spapr_cpu->in_nested;
+}
+
+static int nested_state_pre_save(void *opaque)
+{
+    CPUPPCState *env = opaque;
+
+    env->spr[SPR_LR] = env->lr;
+    env->spr[SPR_CTR] = env->ctr;
+    env->spr[SPR_XER] = cpu_read_xer(env);
+    env->spr[SPR_CFAR] = env->cfar;
+
+    return 0;
+}
+
+static int nested_state_post_load(void *opaque, int version_id)
+{
+    CPUPPCState *env = opaque;
+
+    env->lr = env->spr[SPR_LR];
+    env->ctr = env->spr[SPR_CTR];
+    cpu_write_xer(env, env->spr[SPR_XER]);
+    env->cfar = env->spr[SPR_CFAR];
+
+    return 0;
+}
+
+static const VMStateDescription vmstate_nested_host_state = {
+    .name = "spapr_nested_host_state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .pre_save = nested_state_pre_save,
+    .post_load = nested_state_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINTTL_ARRAY(gpr, CPUPPCState, 32),
+        VMSTATE_UINTTL_ARRAY(spr, CPUPPCState, 1024),
+        VMSTATE_UINT32_ARRAY(crf, CPUPPCState, 8),
+        VMSTATE_UINTTL(nip, CPUPPCState),
+        VMSTATE_UINTTL(msr, CPUPPCState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static int nested_cpu_pre_load(void *opaque)
+{
+    SpaprCpuState *spapr_cpu = opaque;
+
+    spapr_cpu->nested_host_state = g_try_malloc(sizeof(CPUPPCState));
+    if (!spapr_cpu->nested_host_state) {
+        return -1;
+    }
+
+    return 0;
+}
+
+static const VMStateDescription vmstate_spapr_cpu_nested = {
+    .name = "spapr_cpu/nested",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = nested_needed,
+    .pre_load = nested_cpu_pre_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(in_nested, SpaprCpuState),
+        VMSTATE_INT64(nested_tb_offset, SpaprCpuState),
+        VMSTATE_STRUCT_POINTER_V(nested_host_state, SpaprCpuState, 1,
+                                 vmstate_nested_host_state, CPUPPCState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const VMStateDescription vmstate_spapr_cpu_state = {
     .name = "spapr_cpu",
     .version_id = 1,
@@ -184,6 +259,7 @@ static const VMStateDescription vmstate_spapr_cpu_state = {
     },
     .subsections = (const VMStateDescription * []) {
         &vmstate_spapr_cpu_vpa,
+        &vmstate_spapr_cpu_nested,
         NULL
     }
 };

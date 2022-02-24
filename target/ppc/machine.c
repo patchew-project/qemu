@@ -10,6 +10,7 @@
 #include "kvm_ppc.h"
 #include "power8-pmu.h"
 #include "hw/ppc/ppc.h"
+#include "hw/ppc/spapr_cpu_core.h"
 
 static void post_load_update_msr(CPUPPCState *env)
 {
@@ -679,6 +680,48 @@ static const VMStateDescription vmstate_tb_env = {
     }
 };
 
+static const VMStateDescription vmstate_hdecr = {
+    .name = "cpu/hdecr",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(hdecr_next, ppc_tb_t),
+        VMSTATE_TIMER_PTR(hdecr_timer, ppc_tb_t),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool nested_needed(void *opaque)
+{
+    PowerPCCPU *cpu = opaque;
+    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
+
+    return spapr_cpu->in_nested;
+}
+
+static int nested_pre_load(void *opaque)
+{
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
+
+    cpu_ppc_hdecr_init(env);
+
+    return 0;
+}
+
+static const VMStateDescription vmstate_nested = {
+    .name = "cpu/nested-guest",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = nested_needed,
+    .pre_load = nested_pre_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT_POINTER_V(env.tb_env, PowerPCCPU, 1,
+                                 vmstate_hdecr, ppc_tb_t),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_ppc_cpu = {
     .name = "cpu",
     .version_id = 5,
@@ -734,6 +777,7 @@ const VMStateDescription vmstate_ppc_cpu = {
         &vmstate_tlbemb,
         &vmstate_tlbmas,
         &vmstate_compat,
+        &vmstate_nested,
         NULL
     }
 };
