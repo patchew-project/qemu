@@ -97,7 +97,7 @@ static int nvic_pending_prio(NVICState *s)
  * this is only different in the obscure corner case where guest
  * code has manually deactivated an exception and is about
  * to fail an exception-return integrity check. The definition
- * above is the one from the v8M ARM ARM and is also in line
+ * above is the one from the v8M ARM and is also in line
  * with the behaviour documented for the Cortex-M3.
  */
 static bool nvic_rettobase(NVICState *s)
