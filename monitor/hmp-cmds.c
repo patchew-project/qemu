@@ -1677,9 +1677,15 @@ hmp_screendump(Monitor *mon, const QDict *qdict)
     const char *filename = qdict_get_str(qdict, "filename");
     const char *id = qdict_get_try_str(qdict, "device");
     int64_t head = qdict_get_try_int(qdict, "head", 0);
+    const char *input_format  = qdict_get_str(qdict, "format");
     Error *err = NULL;
+    ImageFormat format = IMAGE_FORMAT_PPM;
+    if (input_format != NULL && strcmp(input_format, "png") == 0) {
+        format = IMAGE_FORMAT_PNG;
+    }
 
-    qmp_screendump(filename, id != NULL, id, id != NULL, head, &err);
+    qmp_screendump(filename, id != NULL, id, id != NULL, head,
+                   input_format != NULL, format, &err);
     hmp_handle_error(mon, err);
 }
 
