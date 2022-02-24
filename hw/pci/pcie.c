@@ -383,10 +383,9 @@ static void pcie_cap_update_power(PCIDevice *hotplug_dev)
 
     if (sltcap & PCI_EXP_SLTCAP_PCP) {
         power = (sltctl & PCI_EXP_SLTCTL_PCC) == PCI_EXP_SLTCTL_PWR_ON;
+        pci_for_each_device(sec_bus, pci_bus_num(sec_bus),
+                            pcie_set_power_device, &power);
     }
-
-    pci_for_each_device(sec_bus, pci_bus_num(sec_bus),
-                        pcie_set_power_device, &power);
 }
 
 /*
