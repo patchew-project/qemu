@@ -186,6 +186,7 @@ typedef enum S390Opcode {
     RRE_SLBGR   = 0xb989,
     RRE_XGR     = 0xb982,
 
+    RRFa_MGRK   = 0xb9ec,
     RRFa_MSRKC  = 0xb9fd,
     RRFa_MSGRKC = 0xb9ed,
     RRFa_NRK    = 0xb9f4,
@@ -2547,6 +2548,9 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_mulu2_i64:
         tcg_out_insn(s, RRE, MLGR, TCG_REG_R2, args[3]);
         break;
+    case INDEX_op_muls2_i64:
+        tcg_out_insn(s, RRFa, MGRK, TCG_REG_R2, args[2], args[3]);
+        break;
 
     case INDEX_op_shl_i64:
         op = RSY_SLLG;
@@ -3235,6 +3239,8 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
 
     case INDEX_op_mulu2_i64:
         return C_O2_I2(b, a, 0, r);
+    case INDEX_op_muls2_i64:
+        return C_O2_I2(b, a, r, r);
 
     case INDEX_op_add2_i32:
     case INDEX_op_sub2_i32:
