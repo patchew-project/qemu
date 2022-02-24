@@ -3394,21 +3394,26 @@ void qemu_init(int argc, char **argv, char **envp)
                 qdict_put_str(machine_opts_dict, "usb", "on");
                 add_device_config(DEV_USB, optarg);
                 break;
-            case QEMU_OPTION_device:
+            case QEMU_OPTION_device: {
+                QObject *obj;
                 if (optarg[0] == '{') {
-                    QObject *obj = qobject_from_json(optarg, &error_fatal);
-                    DeviceOption *opt = g_new0(DeviceOption, 1);
-                    opt->opts = qobject_to(QDict, obj);
-                    loc_save(&opt->loc);
-                    assert(opt->opts != NULL);
-                    QTAILQ_INSERT_TAIL(&device_opts, opt, next);
+                    obj = qobject_from_json(optarg, &error_fatal);
                 } else {
-                    if (!qemu_opts_parse_noisily(qemu_find_opts("device"),
-                                                 optarg, true)) {
+                    opts = qemu_opts_parse_noisily(qemu_find_opts("device"),
+                                                   optarg, true);
+                    if (!opts) {
                         exit(1);
                     }
+                    obj = QOBJECT(qemu_opts_to_qdict(opts, NULL));
+                    qemu_opts_del(opts);
                 }
+                DeviceOption *opt = g_new0(DeviceOption, 1);
+                opt->opts = qobject_to(QDict, obj);
+                loc_save(&opt->loc);
+                assert(opt->opts != NULL);
+                QTAILQ_INSERT_TAIL(&device_opts, opt, next);
                 break;
+            }
             case QEMU_OPTION_smp:
                 machine_parse_property_opt(qemu_find_opts("smp-opts"),
                                            "smp", optarg);
