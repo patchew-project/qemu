@@ -1,0 +1,6 @@
+{"execute": "transaction", "arguments": {"actions": [{"data": {"driver": "null-co", "node-name": "node0", "size": 1048576}, "type": "blockdev-add"}, {"data": {"driver": "null-co", "node-name": "node0", "size": 1048576}, "type": "blockdev-add"}]}}
+{"error": {"class": "GenericError", "desc": "Duplicate nodes with node-name='node0'"}}
+Created 0 nodes
+{"execute": "transaction", "arguments": {"actions": [{"data": {"driver": "null-co", "node-name": "node0", "size": 1048576}, "type": "blockdev-add"}, {"data": {"driver": "null-co", "node-name": "node1", "size": 1048576}, "type": "blockdev-add"}]}}
+{"return": {}}
+Created 2 nodes
