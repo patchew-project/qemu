@@ -9,6 +9,7 @@
 #include "qemu/main-loop.h"
 #include "kvm_ppc.h"
 #include "power8-pmu.h"
+#include "hw/ppc/ppc.h"
 
 static void post_load_update_msr(CPUPPCState *env)
 {
@@ -666,6 +667,18 @@ static const VMStateDescription vmstate_compat = {
     }
 };
 
+static const VMStateDescription vmstate_tb_env = {
+    .name = "cpu/env/tb_env",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_INT64(tb_offset, ppc_tb_t),
+        VMSTATE_UINT64(decr_next, ppc_tb_t),
+        VMSTATE_TIMER_PTR(decr_timer, ppc_tb_t),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_ppc_cpu = {
     .name = "cpu",
     .version_id = 5,
@@ -696,12 +709,16 @@ const VMStateDescription vmstate_ppc_cpu = {
         /* Backward compatible internal state */
         VMSTATE_UINTTL(env.hflags_compat_nmsr, PowerPCCPU),
 
+        VMSTATE_STRUCT_POINTER_V(env.tb_env, PowerPCCPU, 1,
+                                 vmstate_tb_env, ppc_tb_t),
+
         /* Sanity checking */
         VMSTATE_UINTTL_TEST(mig_msr_mask, PowerPCCPU, cpu_pre_2_8_migration),
         VMSTATE_UINT64_TEST(mig_insns_flags, PowerPCCPU, cpu_pre_2_8_migration),
         VMSTATE_UINT64_TEST(mig_insns_flags2, PowerPCCPU,
                             cpu_pre_2_8_migration),
         VMSTATE_UINT32_TEST(mig_nb_BATs, PowerPCCPU, cpu_pre_2_8_migration),
+
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription*[]) {
