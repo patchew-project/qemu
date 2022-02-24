@@ -36,6 +36,7 @@
 #include "kvm_ppc.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "hw/ppc/spapr_cpu_core.h"
 
 static void cpu_ppc_tb_stop (CPUPPCState *env);
 static void cpu_ppc_tb_start (CPUPPCState *env);
@@ -961,10 +962,24 @@ static void timebase_save(PPCTimebase *tb)
 {
     uint64_t ticks = cpu_get_host_ticks();
     PowerPCCPU *first_ppc_cpu = POWERPC_CPU(first_cpu);
+    int64_t tb_offset;
 
     if (!first_ppc_cpu->env.tb_env) {
         error_report("No timebase object");
         return;
+    }
+
+    tb_offset = first_ppc_cpu->env.tb_env->tb_offset;
+
+    if (first_ppc_cpu->vhyp && vhyp_cpu_in_nested(first_ppc_cpu)) {
+        SpaprCpuState *spapr_cpu = spapr_cpu_state(first_ppc_cpu);
+
+        /*
+         * If the first_cpu happens to be running a nested guest at
+         * this time, tb_env->tb_offset will contain the nested guest
+         * offset.
+         */
+        tb_offset -= spapr_cpu->nested_tb_offset;
     }
 
     /* not used anymore, we keep it for compatibility */
@@ -973,7 +988,7 @@ static void timebase_save(PPCTimebase *tb)
      * tb_offset is only expected to be changed by QEMU so
      * there is no need to update it from KVM here
      */
-    tb->guest_timebase = ticks + first_ppc_cpu->env.tb_env->tb_offset;
+    tb->guest_timebase = ticks + tb_offset;
 
     tb->runstate_paused =
         runstate_check(RUN_STATE_PAUSED) || runstate_check(RUN_STATE_SAVE_VM);
