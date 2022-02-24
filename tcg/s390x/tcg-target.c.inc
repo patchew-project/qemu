@@ -210,6 +210,8 @@ typedef enum S390Opcode {
     RRFa_XRK    = 0xb9f7,
     RRFa_XGRK   = 0xb9e7,
 
+    RRFa4_SELGR  = 0xb9e3,  /* RRF-a with the m4 field */
+
     RRFc_LOCR   = 0xb9f2,
     RRFc_LOCGR  = 0xb9e2,
 
@@ -564,10 +566,18 @@ static void tcg_out_insn_RRE(TCGContext *s, S390Opcode op,
     tcg_out32(s, (op << 16) | (r1 << 4) | r2);
 }
 
+/* RRF-a without the m4 field */
 static void tcg_out_insn_RRFa(TCGContext *s, S390Opcode op,
                               TCGReg r1, TCGReg r2, TCGReg r3)
 {
     tcg_out32(s, (op << 16) | (r3 << 12) | (r1 << 4) | r2);
+}
+
+/* RRF-a with the m4 field */
+static void tcg_out_insn_RRFa4(TCGContext *s, S390Opcode op,
+                               TCGReg r1, TCGReg r2, TCGReg r3, int m4)
+{
+    tcg_out32(s, (op << 16) | (r3 << 12) | (m4 << 8) | (r1 << 4) | r2);
 }
 
 static void tcg_out_insn_RRFc(TCGContext *s, S390Opcode op,
@@ -1562,25 +1572,80 @@ static void tgen_setcond(TCGContext *s, TCGType type, TCGCond cond,
     }
 }
 
+static void tgen_movcond_int(TCGContext *s, TCGType type, TCGReg dest,
+                             TCGArg v3, int v3const, TCGReg v4,
+                             int cc, int inv_cc)
+{
+    TCGReg src;
+
+    if (v3const && HAVE_FACILITY(LOAD_ON_COND2)) {
+        tcg_out_mov(s, type, dest, v4);
+        /* Emit: if (cc) dest = v3. */
+        tcg_out_insn(s, RIEg, LOCGHI, dest, v3, cc);
+        return;
+    }
+
+    /* Note that while MIE3 implies LOC, it does not imply LOC2. */
+    if (HAVE_FACILITY(MISC_INSN_EXT3)) {
+        if (v3const) {
+            tcg_out_insn(s, RI, LGHI, TCG_TMP0, v3);
+            v3 = TCG_TMP0;
+        }
+        /* Emit: dest = cc ? v3 : v4. */
+        tcg_out_insn(s, RRFa4, SELGR, dest, v3, v4, cc);
+        return;
+    }
+
+    if (HAVE_FACILITY(LOAD_ON_COND)) {
+        if (v3const) {
+            if (dest == v4) {
+                tcg_out_insn(s, RI, LGHI, TCG_TMP0, v3);
+                src = TCG_TMP0;
+            } else {
+                tcg_out_insn(s, RI, LGHI, dest, v3);
+                cc = inv_cc;
+                src = v4;
+            }
+        } else if (dest == v3) {
+            cc = inv_cc;
+            src = v4;
+        } else {
+            tcg_out_mov(s, type, dest, v4);
+            src = v3;
+        }
+        /* Emit: if (cc) dest = v3. */
+        tcg_out_insn(s, RRFc, LOCGR, dest, src, cc);
+        return;
+    }
+
+    if (v3const) {
+        tcg_out_mov(s, type, dest, v4);
+        /* Emit: if (!cc) goto over; dest = r3; over:  */
+        tcg_out_insn(s, RI, BRC, inv_cc, (4 + 4) >> 1);
+        tcg_out_insn(s, RI, LGHI, dest, v3);
+        return;
+    }
+
+    if (dest == v3) {
+        src = v4;
+        inv_cc = cc;
+    } else {
+        tcg_out_mov(s, type, dest, v4);
+        src = v3;
+    }
+    /* Emit: if (!cc) goto over; dest = r3; over:  */
+    tcg_out_insn(s, RI, BRC, inv_cc, (4 + 4) >> 1);
+    tcg_out_insn(s, RRE, LGR, dest, src);
+}
+
 static void tgen_movcond(TCGContext *s, TCGType type, TCGCond c, TCGReg dest,
                          TCGReg c1, TCGArg c2, int c2const,
-                         TCGArg v3, int v3const)
+                         TCGArg v3, int v3const, TCGReg v4)
 {
     int cc, inv_cc;
 
     cc = tgen_cmp2(s, type, c, c1, c2, c2const, false, &inv_cc);
-
-    if (HAVE_FACILITY(LOAD_ON_COND)) {
-        if (v3const) {
-            tcg_out_insn(s, RIEg, LOCGHI, dest, v3, cc);
-        } else {
-            tcg_out_insn(s, RRFc, LOCGR, dest, v3, cc);
-        }
-    } else {
-        /* Emit: if (cc) goto over; dest = r3; over:  */
-        tcg_out_insn(s, RI, BRC, inv_cc, (4 + 4) >> 1);
-        tcg_out_insn(s, RRE, LGR, dest, v3);
-    }
+    tgen_movcond_int(s, type, dest, v3, v3const, v4, cc, inv_cc);
 }
 
 static void tgen_clz(TCGContext *s, TCGReg dest, TCGReg a1,
@@ -2460,7 +2525,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
     case INDEX_op_movcond_i32:
         tgen_movcond(s, TCG_TYPE_I32, args[5], args[0], args[1],
-                     args[2], const_args[2], args[3], const_args[3]);
+                     args[2], const_args[2], args[3], const_args[3], args[4]);
         break;
 
     case INDEX_op_qemu_ld_i32:
@@ -2737,7 +2802,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
     case INDEX_op_movcond_i64:
         tgen_movcond(s, TCG_TYPE_I64, args[5], args[0], args[1],
-                     args[2], const_args[2], args[3], const_args[3]);
+                     args[2], const_args[2], args[3], const_args[3], args[4]);
         break;
 
     OP_32_64(deposit):
@@ -3336,9 +3401,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
 
     case INDEX_op_movcond_i32:
     case INDEX_op_movcond_i64:
-        return (HAVE_FACILITY(LOAD_ON_COND2)
-                ? C_O1_I4(r, r, ri, rI, 0)
-                : C_O1_I4(r, r, ri, r, 0));
+        return C_O1_I4(r, r, ri, rI, r);
 
     case INDEX_op_div2_i32:
     case INDEX_op_div2_i64:
