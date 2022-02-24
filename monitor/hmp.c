@@ -308,7 +308,7 @@ void help_cmd(Monitor *mon, const char *name)
 static const char *pch;
 static sigjmp_buf expr_env;
 
-static void G_GNUC_PRINTF(2, 3) QEMU_NORETURN
+G_NORETURN static void G_GNUC_PRINTF(2, 3)
 expr_error(Monitor *mon, const char *fmt, ...)
 {
     va_list ap;

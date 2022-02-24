@@ -30,7 +30,7 @@ void HELPER(exception)(CPUOpenRISCState *env, uint32_t excp)
     raise_exception(cpu, excp);
 }
 
-static void QEMU_NORETURN do_range(CPUOpenRISCState *env, uintptr_t pc)
+G_NORETURN static void do_range(CPUOpenRISCState *env, uintptr_t pc)
 {
     CPUState *cs = env_cpu(env);
 

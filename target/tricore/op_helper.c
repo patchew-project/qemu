@@ -25,7 +25,7 @@
 
 /* Exception helpers */
 
-static void QEMU_NORETURN
+G_NORETURN static void
 raise_exception_sync_internal(CPUTriCoreState *env, uint32_t class, int tin,
                               uintptr_t pc, uint32_t fcd_pc)
 {

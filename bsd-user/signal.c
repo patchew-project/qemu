@@ -347,7 +347,7 @@ static int core_dump_signal(int sig)
 }
 
 /* Abort execution with signal. */
-static void QEMU_NORETURN dump_core_and_abort(int target_sig)
+G_NORETURN static void dump_core_and_abort(int target_sig)
 {
     CPUArchState *env = thread_cpu->env_ptr;
     CPUState *cpu = env_cpu(env);

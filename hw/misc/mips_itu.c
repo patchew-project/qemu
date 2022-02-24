@@ -189,7 +189,7 @@ static void wake_blocked_threads(ITCStorageCell *c)
     c->blocked_threads = 0;
 }
 
-static void QEMU_NORETURN block_thread_and_exit(ITCStorageCell *c)
+G_NORETURN static void block_thread_and_exit(ITCStorageCell *c)
 {
     c->blocked_threads |= 1ULL << current_cpu->cpu_index;
     current_cpu->halted = 1;
