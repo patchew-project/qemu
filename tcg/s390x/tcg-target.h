@@ -90,7 +90,7 @@ extern uint64_t s390_facilities[3];
 #define TCG_TARGET_HAS_nand_i32       HAVE_FACILITY(MISC_INSN_EXT3)
 #define TCG_TARGET_HAS_nor_i32        HAVE_FACILITY(MISC_INSN_EXT3)
 #define TCG_TARGET_HAS_clz_i32        0
-#define TCG_TARGET_HAS_ctz_i32        0
+#define TCG_TARGET_HAS_ctz_i32        HAVE_FACILITY(VECTOR)
 #define TCG_TARGET_HAS_ctpop_i32      0
 #define TCG_TARGET_HAS_deposit_i32    HAVE_FACILITY(GEN_INST_EXT)
 #define TCG_TARGET_HAS_extract_i32    HAVE_FACILITY(GEN_INST_EXT)
@@ -127,7 +127,7 @@ extern uint64_t s390_facilities[3];
 #define TCG_TARGET_HAS_nand_i64       HAVE_FACILITY(MISC_INSN_EXT3)
 #define TCG_TARGET_HAS_nor_i64        HAVE_FACILITY(MISC_INSN_EXT3)
 #define TCG_TARGET_HAS_clz_i64        HAVE_FACILITY(EXT_IMM)
-#define TCG_TARGET_HAS_ctz_i64        0
+#define TCG_TARGET_HAS_ctz_i64        HAVE_FACILITY(VECTOR)
 #define TCG_TARGET_HAS_ctpop_i64      0
 #define TCG_TARGET_HAS_deposit_i64    HAVE_FACILITY(GEN_INST_EXT)
 #define TCG_TARGET_HAS_extract_i64    HAVE_FACILITY(GEN_INST_EXT)

@@ -64,6 +64,7 @@
 
 /* A scratch register that may be be used throughout the backend.  */
 #define TCG_TMP0        TCG_REG_R1
+#define TCG_TMPV        TCG_REG_V31
 
 /* A scratch register that holds a pointer to the beginning of the TB.
    We don't need this when we have pc-relative loads with the general
@@ -291,6 +292,7 @@ typedef enum S390Opcode {
     VRIb_VGM    = 0xe746,
     VRIc_VREP   = 0xe74d,
 
+    VRRa_VCTZ   = 0xe752,
     VRRa_VLC    = 0xe7de,
     VRRa_VLP    = 0xe7df,
     VRRa_VLR    = 0xe756,
@@ -1669,6 +1671,29 @@ static void tgen_clz(TCGContext *s, TCGReg dest, TCGReg a1,
     tgen_movcond_int(s, TCG_TYPE_I64, dest, a2, a2const, TCG_REG_R0, 8, 2);
 }
 
+static void tgen_ctz(TCGContext *s, TCGType type, TCGReg dest,
+                     TCGReg a1, TCGArg a2, int a2const)
+{
+    MemOp vece = type == TCG_TYPE_I32 ? MO_32 : MO_64;
+    int width = 8 << vece;
+    int cc, inv_cc;
+    TCGReg src;
+
+    tcg_out_mov(s, type, TCG_TMPV, a1);
+    tcg_out_insn(s, VRRa, VCTZ, TCG_TMPV, TCG_TMPV, vece);
+
+    if (a2const && a2 == width) {
+        tcg_out_mov(s, type, dest, TCG_TMPV);
+        return;
+    }
+
+    cc = tgen_cmp2(s, type, TCG_COND_EQ, a1, 0, true, false, &inv_cc);
+
+    src = (a2const || dest != a2 ? dest : TCG_TMP0);
+    tcg_out_mov(s, type, src, TCG_TMPV);
+    tgen_movcond_int(s, type, dest, a2, a2const, src, cc, inv_cc);
+}
+
 static void tgen_deposit(TCGContext *s, TCGReg dest, TCGReg src,
                          int ofs, int len, int z)
 {
@@ -2826,6 +2851,13 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tgen_clz(s, args[0], args[1], args[2], const_args[2]);
         break;
 
+    case INDEX_op_ctz_i32:
+        tgen_ctz(s, TCG_TYPE_I32, args[0], args[1], args[2], const_args[2]);
+        break;
+    case INDEX_op_ctz_i64:
+        tgen_ctz(s, TCG_TYPE_I64, args[0], args[1], args[2], const_args[2]);
+        break;
+
     case INDEX_op_mb:
         /* The host memory model is quite strong, we simply need to
            serialize the instruction stream.  */
@@ -3303,6 +3335,8 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
         return C_O1_I2(r, r, ri);
 
     case INDEX_op_clz_i64:
+    case INDEX_op_ctz_i32:
+    case INDEX_op_ctz_i64:
         return C_O1_I2(r, r, rI);
 
     case INDEX_op_sub_i32:
@@ -3557,6 +3591,7 @@ static void tcg_target_init(TCGContext *s)
 
     s->reserved_regs = 0;
     tcg_regset_set_reg(s->reserved_regs, TCG_TMP0);
+    tcg_regset_set_reg(s->reserved_regs, TCG_TMPV);
     /* XXX many insns can't be used with R0, so we better avoid it for now */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R0);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
