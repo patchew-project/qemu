@@ -179,6 +179,7 @@ static const VMStateDescription vmstate_spapr_cpu_state = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
+        VMSTATE_BOOL(prod, SpaprCpuState),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription * []) {
