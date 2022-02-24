@@ -73,14 +73,6 @@
 #define QEMU_BUILD_BUG_ON_ZERO(x) (sizeof(QEMU_BUILD_BUG_ON_STRUCT(x)) - \
                                    sizeof(QEMU_BUILD_BUG_ON_STRUCT(x)))
 
-#if !defined(__clang__) && defined(_WIN32)
-/*
- * Map __printf__ to __gnu_printf__ because we want standard format strings even
- * when MinGW or GLib include files use __printf__.
- */
-# define __printf__ __gnu_printf__
-#endif
-
 #ifndef __has_warning
 #define __has_warning(x) 0 /* compatibility with non-clang compilers */
 #endif
