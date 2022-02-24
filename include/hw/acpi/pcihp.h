@@ -52,6 +52,7 @@ typedef struct AcpiPciHpState {
     bool legacy_piix;
     uint16_t io_base;
     uint16_t io_len;
+    bool enable_pcie_pcp_cap;
 } AcpiPciHpState;
 
 void acpi_pcihp_init(Object *owner, AcpiPciHpState *, PCIBus *root,
@@ -59,7 +60,8 @@ void acpi_pcihp_init(Object *owner, AcpiPciHpState *, PCIBus *root,
                      uint16_t io_base);
 
 void acpi_pcihp_device_pre_plug_cb(HotplugHandler *hotplug_dev,
-                                   DeviceState *dev, Error **errp);
+                                   AcpiPciHpState *s, DeviceState *dev,
+                                   Error **errp);
 void acpi_pcihp_device_plug_cb(HotplugHandler *hotplug_dev, AcpiPciHpState *s,
                                DeviceState *dev, Error **errp);
 void acpi_pcihp_device_unplug_cb(HotplugHandler *hotplug_dev, AcpiPciHpState *s,

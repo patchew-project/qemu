@@ -18,7 +18,8 @@ void acpi_pcihp_device_plug_cb(HotplugHandler *hotplug_dev, AcpiPciHpState *s,
 }
 
 void acpi_pcihp_device_pre_plug_cb(HotplugHandler *hotplug_dev,
-                                   DeviceState *dev, Error **errp)
+                                   AcpiPciHpState *s, DeviceState *dev,
+                                   Error **errp)
 {
     return;
 }

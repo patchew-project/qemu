@@ -291,7 +291,8 @@ void acpi_pcihp_reset(AcpiPciHpState *s, bool acpihp_root_off)
 #define ONBOARD_INDEX_MAX (16 * 1024 - 1)
 
 void acpi_pcihp_device_pre_plug_cb(HotplugHandler *hotplug_dev,
-                                   DeviceState *dev, Error **errp)
+                                   AcpiPciHpState *s, DeviceState *dev,
+                                   Error **errp)
 {
     PCIDevice *pdev = PCI_DEVICE(dev);
 
@@ -331,13 +332,16 @@ void acpi_pcihp_device_pre_plug_cb(HotplugHandler *hotplug_dev,
                                  g_cmp_uint32, NULL);
     }
 
-    /*
-     * since acpi_pcihp manages hotplug, disable PCI-E power control on slot
-     */
-    if (object_dynamic_cast(OBJECT(dev), TYPE_PCIE_ROOT_PORT) ||
-        object_dynamic_cast(OBJECT(dev), TYPE_XIO3130_DOWNSTREAM)) {
-        object_property_set_bool(OBJECT(dev), COMPAT_PROP_PCP, false,
-                                 &error_abort);
+    /* compat knob to preserve pci_config as in 6.2 & older when pcihp in use */
+    if (s->enable_pcie_pcp_cap == false) {
+        /*
+         * since acpi_pcihp manages hotplug, disable PCI-E power control on slot
+         */
+        if (object_dynamic_cast(OBJECT(dev), TYPE_PCIE_ROOT_PORT) ||
+            object_dynamic_cast(OBJECT(dev), TYPE_XIO3130_DOWNSTREAM)) {
+            object_property_set_bool(OBJECT(dev), COMPAT_PROP_PCP, false,
+                                     &error_abort);
+        }
     }
 }
 

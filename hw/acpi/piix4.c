@@ -350,7 +350,8 @@ static void piix4_device_pre_plug_cb(HotplugHandler *hotplug_dev,
     PIIX4PMState *s = PIIX4_PM(hotplug_dev);
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
-        acpi_pcihp_device_pre_plug_cb(hotplug_dev, dev, errp);
+        acpi_pcihp_device_pre_plug_cb(hotplug_dev, &s->acpi_pci_hotplug, dev,
+                                      errp);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
         if (!s->acpi_memory_hotplug.is_enabled) {
             error_setg(errp,
