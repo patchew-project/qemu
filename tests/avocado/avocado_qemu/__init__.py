@@ -8,7 +8,6 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-import logging
 import os
 import shutil
 import subprocess
@@ -138,7 +137,7 @@ def _console_interaction(test, success_message, failure_message,
     if vm is None:
         vm = test.vm
     console = vm.console_socket.makefile(mode='rb', encoding='utf-8')
-    console_logger = logging.getLogger('console')
+    console_logger = test.log.getChild('console')
     while True:
         if send_string:
             vm.console_socket.sendall(send_string.encode())
@@ -370,7 +369,7 @@ class LinuxSSHMixIn:
     """Contains utility methods for interacting with a guest via SSH."""
 
     def ssh_connect(self, username, credential, credential_is_key=True):
-        self.ssh_logger = logging.getLogger('ssh')
+        self.ssh_logger = self.log.getChild('ssh')
         res = self.vm.command('human-monitor-command',
                               command_line='info usernet')
         port = get_info_usernet_hostfwd_port(res)

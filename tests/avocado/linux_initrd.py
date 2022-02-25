@@ -9,7 +9,6 @@
 # later.  See the COPYING file in the top-level directory.
 
 import os
-import logging
 import tempfile
 
 from avocado_qemu import QemuSystemTest
@@ -79,7 +78,7 @@ class LinuxInitrd(QemuSystemTest):
                              '-m', '5120')
             self.vm.launch()
             console = self.vm.console_socket.makefile()
-            console_logger = logging.getLogger('console')
+            console_logger = self.log.getChild('console')
             while True:
                 msg = console.readline()
                 console_logger.debug(msg.strip())

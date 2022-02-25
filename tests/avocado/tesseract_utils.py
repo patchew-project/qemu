@@ -31,8 +31,8 @@ def tesseract_available(expected_version):
 
 
 def tesseract_ocr(image_path, tesseract_args='', tesseract_version=3):
-    console_logger = logging.getLogger('tesseract')
-    console_logger.debug(image_path)
+    logger = logging.getLogger('avocado.test.tesseract')
+    logger.debug(image_path)
     if tesseract_version == 4:
         tesseract_args += ' --oem 1'
     proc = process.run("tesseract {} {} stdout".format(tesseract_args,
@@ -41,6 +41,6 @@ def tesseract_ocr(image_path, tesseract_args='', tesseract_version=3):
     for line in proc.stdout_text.split('\n'):
         sline = line.strip()
         if len(sline):
-            console_logger.debug(sline)
+            logger.debug(sline)
             lines += [sline]
     return lines

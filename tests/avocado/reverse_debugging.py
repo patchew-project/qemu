@@ -8,7 +8,6 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 import os
-import logging
 
 from avocado import skipIf
 from avocado_qemu import BUILD_DIR
@@ -35,7 +34,7 @@ class ReverseDebugging(LinuxKernelTest):
     endian_is_le = True
 
     def run_vm(self, record, shift, args, replay_path, image_path, port):
-        logger = logging.getLogger('replay')
+        logger = self.log.getChild('replay')
         vm = self.get_vm()
         vm.set_console()
         if record:
@@ -95,7 +94,7 @@ class ReverseDebugging(LinuxKernelTest):
         return vm.qmp('query-replay')['return']['icount']
 
     def reverse_debugging(self, shift=7, args=None):
-        logger = logging.getLogger('replay')
+        logger = self.log.getChild('replay')
 
         # create qcow2 for snapshots
         logger.info('creating qcow2 image for VM snapshots')

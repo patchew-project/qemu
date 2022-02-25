@@ -9,7 +9,6 @@
 # later.  See the COPYING file in the top-level directory.
 
 import os
-import logging
 import time
 
 from avocado import skipUnless
@@ -55,7 +54,7 @@ class ReplayLinux(LinuxTest):
             vm.add_args(*args)
         self.vm_add_disk(vm, self.boot_path, 0, self.hdd)
         self.vm_add_disk(vm, self.cloudinit_path, 1, self.cd)
-        logger = logging.getLogger('replay')
+        logger = self.log.getChild('replay')
         if record:
             logger.info('recording the execution...')
             mode = 'record'
@@ -91,7 +90,7 @@ class ReplayLinux(LinuxTest):
     def run_rr(self, args=None, shift=7):
         t1 = self.launch_and_wait(True, args, shift)
         t2 = self.launch_and_wait(False, args, shift)
-        logger = logging.getLogger('replay')
+        logger = self.log.getChild('replay')
         logger.info('replay overhead {:.2%}'.format(t2 / t1 - 1))
 
 @skipUnless(os.getenv('AVOCADO_TIMEOUT_EXPECTED'), 'Test might timeout')

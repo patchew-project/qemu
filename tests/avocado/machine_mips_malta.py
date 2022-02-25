@@ -9,7 +9,6 @@
 
 import os
 import gzip
-import logging
 
 from avocado import skipUnless
 from avocado_qemu import QemuSystemTest
@@ -72,7 +71,7 @@ class MaltaMachineFramebuffer(QemuSystemTest):
         self.vm.command('human-monitor-command', command_line='stop')
         self.vm.command('human-monitor-command',
                         command_line='screendump %s' % screendump_path)
-        logger = logging.getLogger('framebuffer')
+        logger = self.log.getChild('framebuffer')
 
         match_threshold = 0.95
         screendump_bgr = cv2.imread(screendump_path, cv2.IMREAD_COLOR)

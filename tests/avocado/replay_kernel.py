@@ -11,7 +11,6 @@
 import os
 import lzma
 import shutil
-import logging
 import time
 
 from avocado import skip
@@ -36,7 +35,7 @@ class ReplayKernelBase(LinuxKernelTest):
 
     def run_vm(self, kernel_path, kernel_command_line, console_pattern,
                record, shift, args, replay_path):
-        logger = logging.getLogger('replay')
+        logger = self.log.getChild('replay')
         start_time = time.time()
         vm = self.get_vm()
         vm.set_console()
@@ -74,7 +73,7 @@ class ReplayKernelBase(LinuxKernelTest):
                          True, shift, args, replay_path)
         t2 = self.run_vm(kernel_path, kernel_command_line, console_pattern,
                          False, shift, args, replay_path)
-        logger = logging.getLogger('replay')
+        logger = self.log.getChild('replay')
         logger.info('replay overhead {:.2%}'.format(t2 / t1 - 1))
 
 class ReplayKernelNormal(ReplayKernelBase):
