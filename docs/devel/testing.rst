@@ -936,6 +936,28 @@ in the current directory, tagged as "quick", run:
 
   avocado run -t quick .
 
+To run tests with a given value for a given tag, such as having the
+``accel`` tag set to ``kvm``, run:
+
+.. code::
+
+  avocado run -t accel:kvm .
+
+Multiple mandatory conditions can also be given.  To run only tests
+with ``arch`` set to ``x86_64`` and ``accell`` set to ``kvm``, run:
+
+.. code::
+
+  avocado run -t arch:x86_64,accel:kvm .
+
+It's also possible to exclude tests that contain a given value for a
+tag.  To list all tests that do *not* have ``arch`` set to ``x86_64``,
+run:
+
+.. code::
+
+  avocado run -t arch:-x86_64 .
+
 The ``avocado_qemu.Test`` base test class
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
