@@ -64,6 +64,9 @@
         du -chs ${CI_PROJECT_DIR}/avocado-cache ;
       fi
     - export AVOCADO_ALLOW_UNTRUSTED_CODE=1
+  script:
+    - cd build
+    - make check-avocado
   after_script:
     - cd build
     - du -chs ${CI_PROJECT_DIR}/avocado-cache
