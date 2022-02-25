@@ -892,7 +892,13 @@ int blk_insert_bs(BlockBackend *blk, BlockDriverState *bs, Error **errp)
  */
 int blk_replace_bs(BlockBackend *blk, BlockDriverState *new_bs, Error **errp)
 {
-    return bdrv_replace_child_bs(blk->root, new_bs, errp);
+    int ret;
+    Transaction *tran = tran_new();
+
+    ret = bdrv_replace_child_bs(blk->root, new_bs, tran, errp);
+    tran_finalize(tran, ret);
+
+    return ret;
 }
 
 /*

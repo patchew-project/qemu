@@ -5204,19 +5204,39 @@ out:
     return ret;
 }
 
+static void bdrv_drained_clean(void *opaque)
+{
+    BlockDriverState *bs = opaque;
+
+    bdrv_drained_end(bs);
+    bdrv_unref(bs);
+}
+
+TransactionActionDrv bdrv_drained_drv = {
+    .clean = bdrv_drained_clean,
+};
+
+/*
+ * Start drained section on @bs, and finish it in .clean action.
+ * Reference to @bs is kept, so @bs can't be removed during transaction.
+ */
+static void bdrv_drained(BlockDriverState *bs, Transaction *tran)
+{
+    bdrv_ref(bs);
+    bdrv_drained_begin(bs);
+    tran_add(tran, &bdrv_drained_drv, bs);
+}
+
 /* Not for empty child */
 int bdrv_replace_child_bs(BdrvChild *child, BlockDriverState *new_bs,
-                          Error **errp)
+                          Transaction *tran, Error **errp)
 {
-    int ret;
-    Transaction *tran = tran_new();
     g_autoptr(GHashTable) found = NULL;
     g_autoptr(GSList) refresh_list = NULL;
     BlockDriverState *old_bs = child->bs;
 
-    bdrv_ref(old_bs);
-    bdrv_drained_begin(old_bs);
-    bdrv_drained_begin(new_bs);
+    bdrv_drained(old_bs, tran);
+    bdrv_drained(new_bs, tran);
 
     bdrv_replace_child_tran(&child, new_bs, tran, true);
     /* @new_bs must have been non-NULL, so @child must not have been freed */
@@ -5226,15 +5246,7 @@ int bdrv_replace_child_bs(BdrvChild *child, BlockDriverState *new_bs,
     refresh_list = bdrv_topological_dfs(refresh_list, found, old_bs);
     refresh_list = bdrv_topological_dfs(refresh_list, found, new_bs);
 
-    ret = bdrv_list_refresh_perms(refresh_list, NULL, tran, errp);
-
-    tran_finalize(tran, ret);
-
-    bdrv_drained_end(old_bs);
-    bdrv_drained_end(new_bs);
-    bdrv_unref(old_bs);
-
-    return ret;
+    return bdrv_list_refresh_perms(refresh_list, NULL, tran, errp);
 }
 
 static void bdrv_delete(BlockDriverState *bs)
