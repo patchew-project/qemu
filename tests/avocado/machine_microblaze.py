@@ -17,6 +17,7 @@ class MicroblazeMachine(QemuSystemTest):
         """
         :avocado: tags=arch:microblaze
         :avocado: tags=machine:petalogix-s3adsp1800
+        :avocado: tags=boots:kernel
         """
 
         tar_url = ('https://www.qemu-advent-calendar.org'

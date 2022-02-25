@@ -26,6 +26,7 @@ class MipsLoongson3v(QemuSystemTest):
         :avocado: tags=cpu:Loongson-3A1000
         :avocado: tags=device:liointc
         :avocado: tags=device:goldfish_rtc
+        :avocado: tags=boots:bios
         """
 
         pmon_hash = '7c8b45dd81ccfc55ff28f5aa267a41c3'

@@ -19,6 +19,7 @@ class SMMU(LinuxTest):
     :avocado: tags=cpu:host
     :avocado: tags=arch:aarch64
     :avocado: tags=machine:virt
+    :avocado: tags=boots:distro
     :avocado: tags=distro:fedora
     :avocado: tags=smmu
     """

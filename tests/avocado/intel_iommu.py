@@ -20,6 +20,7 @@ class IntelIOMMU(LinuxTest):
     :avocado: tags=distro_version:31
     :avocado: tags=machine:q35
     :avocado: tags=accel:kvm
+    :avocado: tags=boots:distro
     :avocado: tags=intel_iommu
     """
 

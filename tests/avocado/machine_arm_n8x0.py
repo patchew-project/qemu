@@ -37,6 +37,7 @@ class N8x0Machine(QemuSystemTest):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:n800
+        :avocado: tags=boots:kernel
         """
         self.__do_test_n8x0()
 
@@ -45,5 +46,6 @@ class N8x0Machine(QemuSystemTest):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:n810
+        :avocado: tags=boots:kernel
         """
         self.__do_test_n8x0()

@@ -26,6 +26,7 @@ class MipsFuloong2e(QemuSystemTest):
         :avocado: tags=endian:little
         :avocado: tags=device:bonito64
         :avocado: tags=device:via686b
+        :avocado: tags=boots:kernel
         """
         # Recovery system for the Yeeloong laptop
         # (enough to test the fuloong2e southbridge, accessing its ISA bus)

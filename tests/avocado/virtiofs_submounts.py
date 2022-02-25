@@ -16,6 +16,7 @@ class VirtiofsSubmountsTest(LinuxTest):
     """
     :avocado: tags=arch:x86_64
     :avocado: tags=accel:kvm
+    :avocado: tags=boots:distro
     """
 
     def run(self, args, ignore_error=False):

@@ -25,6 +25,7 @@ class NextCubeMachine(QemuSystemTest):
     :avocado: tags=arch:m68k
     :avocado: tags=machine:next-cube
     :avocado: tags=device:framebuffer
+    :avocado: tags=boots:bios
     """
 
     timeout = 15

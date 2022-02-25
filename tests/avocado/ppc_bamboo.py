@@ -20,6 +20,8 @@ class BambooMachine(QemuSystemTest):
         :avocado: tags=machine:bamboo
         :avocado: tags=cpu:440epb
         :avocado: tags=device:rtl8139
+        :avocado: tags=boots:kernel
+        :avocado: tags=boots:initrd
         """
         tar_url = ('http://landley.net/aboriginal/downloads/binaries/'
                    'system-image-powerpc-440fp.tar.gz')

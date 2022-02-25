@@ -18,6 +18,7 @@ from avocado import skipIf
 class BootLinuxX8664(LinuxTest):
     """
     :avocado: tags=arch:x86_64
+    :avocado: tags=boots:distro
     """
 
     def test_pc_i440fx_tcg(self):
@@ -62,6 +63,7 @@ class BootLinuxAarch64(LinuxTest):
     :avocado: tags=arch:aarch64
     :avocado: tags=machine:virt
     :avocado: tags=machine:gic-version=2
+    :avocado: tags=boots:distro
     """
 
     def add_common_args(self):
@@ -110,6 +112,7 @@ class BootLinuxAarch64(LinuxTest):
 class BootLinuxPPC64(LinuxTest):
     """
     :avocado: tags=arch:ppc64
+    :avocado: tags=boots:distro
     """
 
     def test_pseries_tcg(self):
@@ -125,6 +128,7 @@ class BootLinuxPPC64(LinuxTest):
 class BootLinuxS390X(LinuxTest):
     """
     :avocado: tags=arch:s390x
+    :avocado: tags=boots:distro
     """
 
     @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')

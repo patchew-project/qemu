@@ -22,6 +22,7 @@ class CanonA1100Machine(QemuSystemTest):
         :avocado: tags=arch:arm
         :avocado: tags=machine:canon-a1100
         :avocado: tags=device:pflash_cfi02
+        :avocado: tags=boots:bios
         """
         tar_url = ('https://www.qemu-advent-calendar.org'
                    '/2018/download/day18.tar.xz')

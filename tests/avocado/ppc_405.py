@@ -30,6 +30,7 @@ class Ppc405Machine(QemuSystemTest):
         :avocado: tags=arch:ppc
         :avocado: tags=machine:taihu
         :avocado: tags=cpu:405ep
+        :avocado: tags=boots:bios
         """
         self.do_test_ppc405()
 
@@ -38,5 +39,6 @@ class Ppc405Machine(QemuSystemTest):
         :avocado: tags=arch:ppc
         :avocado: tags=machine:ref405ep
         :avocado: tags=cpu:405ep
+        :avocado: tags=boots:bios
         """
         self.do_test_ppc405()

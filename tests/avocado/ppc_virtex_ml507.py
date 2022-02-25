@@ -19,6 +19,7 @@ class VirtexMl507Machine(QemuSystemTest):
         """
         :avocado: tags=arch:ppc
         :avocado: tags=machine:virtex-ml507
+        :avocado: tags=boots:kernel
         """
         tar_url = ('https://www.qemu-advent-calendar.org'
                    '/2020/download/hippo.tar.gz')

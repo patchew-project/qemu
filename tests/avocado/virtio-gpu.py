@@ -32,6 +32,8 @@ class VirtioGPUx86(QemuSystemTest):
     :avocado: tags=virtio-gpu
     :avocado: tags=arch:x86_64
     :avocado: tags=cpu:host
+    :avocado: tags=boots:kernel
+    :avocado: tags=boots:initrd
     """
 
     KERNEL_COMMAND_LINE = "printk.time=0 console=ttyS0 rdinit=/bin/bash"

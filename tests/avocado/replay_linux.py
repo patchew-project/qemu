@@ -98,6 +98,7 @@ class ReplayLinuxX8664(ReplayLinux):
     """
     :avocado: tags=arch:x86_64
     :avocado: tags=accel:tcg
+    :avocado: tags=boots:distro
     """
 
     chksum = 'e3c1b309d9203604922d6e255c2c5d098a309c2d46215d8fc026954f3c5c27a0'

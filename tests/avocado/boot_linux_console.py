@@ -95,6 +95,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:x86_64
         :avocado: tags=machine:pc
+        :avocado: tags=boots:kernel
         """
         kernel_url = ('https://archives.fedoraproject.org/pub/archive/fedora'
                       '/linux/releases/29/Everything/x86_64/os/images/pxeboot'
@@ -115,6 +116,7 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=arch:mips
         :avocado: tags=machine:malta
         :avocado: tags=endian:big
+        :avocado: tags=boots:kernel
         """
         deb_url = ('http://snapshot.debian.org/archive/debian/'
                    '20130217T032700Z/pool/main/l/linux-2.6/'
@@ -147,6 +149,7 @@ class BootLinuxConsole(LinuxKernelTest):
 
         :avocado: tags=arch:mips64el
         :avocado: tags=machine:malta
+        :avocado: tags=boots:kernel
         """
         deb_url = ('http://snapshot.debian.org/archive/debian/'
                    '20130217T032700Z/pool/main/l/linux-2.6/'
@@ -169,6 +172,7 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=arch:mips64el
         :avocado: tags=machine:fuloong2e
         :avocado: tags=endian:little
+        :avocado: tags=boots:kernel
         """
         deb_url = ('http://archive.debian.org/debian/pool/main/l/linux/'
                    'linux-image-3.16.0-6-loongson-2e_3.16.56-1+deb8u1_mipsel.deb')
@@ -190,6 +194,8 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=arch:mips
         :avocado: tags=machine:malta
         :avocado: tags=endian:big
+        :avocado: tags=boots:kernel
+        :avocado: tags=boots:initrd
         """
         deb_url = ('http://snapshot.debian.org/archive/debian/'
                    '20160601T041800Z/pool/main/l/linux/'
@@ -233,6 +239,8 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=machine:malta
         :avocado: tags=endian:little
         :avocado: tags=cpu:5KEc
+        :avocado: tags=boots:kernel
+        :avocado: tags=boots:initrd
         """
         kernel_url = ('https://github.com/philmd/qemu-testing-blob/'
                       'raw/9ad2df38/mips/malta/mips64el/'
@@ -292,6 +300,7 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=machine:malta
         :avocado: tags=endian:little
         :avocado: tags=cpu:I7200
+        :avocado: tags=boots:kernel
         """
         kernel_url = ('https://mipsdistros.mips.com/LinuxDistro/nanomips/'
                       'kernels/v4.15.18-432-gb2eb9a8b07a1-20180627102142/'
@@ -305,6 +314,7 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=machine:malta
         :avocado: tags=endian:little
         :avocado: tags=cpu:I7200
+        :avocado: tags=boots:kernel
         """
         kernel_url = ('https://mipsdistros.mips.com/LinuxDistro/nanomips/'
                       'kernels/v4.15.18-432-gb2eb9a8b07a1-20180627102142/'
@@ -318,6 +328,7 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=machine:malta
         :avocado: tags=endian:little
         :avocado: tags=cpu:I7200
+        :avocado: tags=boots:kernel
         """
         kernel_url = ('https://mipsdistros.mips.com/LinuxDistro/nanomips/'
                       'kernels/v4.15.18-432-gb2eb9a8b07a1-20180627102142/'
@@ -331,6 +342,7 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=machine:virt
         :avocado: tags=accel:tcg
         :avocado: tags=cpu:cortex-a53
+        :avocado: tags=boots:kernel
         """
         kernel_url = ('https://archives.fedoraproject.org/pub/archive/fedora'
                       '/linux/releases/29/Everything/aarch64/os/images/pxeboot'
@@ -357,6 +369,8 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=device:pl011
         :avocado: tags=device:arm_gicv3
         :avocado: tags=accel:tcg
+        :avocado: tags=boots:kernel
+        :avocado: tags=boots:initrd
         """
         images_url = ('http://ports.ubuntu.com/ubuntu-ports/dists/'
                       'bionic-updates/main/installer-arm64/'
@@ -382,6 +396,7 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=arch:arm
         :avocado: tags=machine:virt
         :avocado: tags=accel:tcg
+        :avocado: tags=boots:kernel
         """
         kernel_url = ('https://archives.fedoraproject.org/pub/archive/fedora'
                       '/linux/releases/29/Everything/armhfp/os/images/pxeboot'
@@ -405,6 +420,8 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=endian:little
         :avocado: tags=u-boot
         :avocado: tags=accel:tcg
+        :avocado: tags=boots:kernel
+        :avocado: tags=boots:rootfs
         """
         uboot_url = ('https://raw.githubusercontent.com/'
                      'Subbaraya-Sundeep/qemu-test-binaries/'
@@ -471,6 +488,7 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=machine:raspi2b
         :avocado: tags=device:pl011
         :avocado: tags=accel:tcg
+        :avocado: tags=boots:kernel
         """
         self.do_test_arm_raspi2(0)
 
@@ -478,6 +496,8 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:raspi2b
+        :avocado: tags=boots:kernel
+        :avocado: tags=boots:initrd
         """
         deb_url = ('http://archive.raspberrypi.org/debian/'
                    'pool/main/r/raspberrypi-firmware/'
@@ -521,6 +541,8 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=arch:arm
         :avocado: tags=machine:smdkc210
         :avocado: tags=accel:tcg
+        :avocado: tags=boots:kernel
+        :avocado: tags=boots:initrd
         """
         deb_url = ('https://snapshot.debian.org/archive/debian/'
                    '20190928T224601Z/pool/main/l/linux/'
@@ -562,6 +584,8 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=arch:arm
         :avocado: tags=machine:cubieboard
         :avocado: tags=accel:tcg
+        :avocado: tags=boots:kernel
+        :avocado: tags=boots:initrd
         """
         deb_url = ('https://apt.armbian.com/pool/main/l/'
                    'linux-5.10.16-sunxi/linux-image-current-sunxi_21.02.2_armhf.deb')
@@ -603,6 +627,8 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=arch:arm
         :avocado: tags=machine:cubieboard
         :avocado: tags=accel:tcg
+        :avocado: tags=boots:kernel
+        :avocado: tags=boots:rootfs
         """
         deb_url = ('https://apt.armbian.com/pool/main/l/'
                    'linux-5.10.16-sunxi/linux-image-current-sunxi_21.02.2_armhf.deb')
@@ -648,6 +674,7 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=arch:arm
         :avocado: tags=machine:quanta-gsj
         :avocado: tags=accel:tcg
+        :avocado: tags=boots:rootfs
         """
         # 25 MiB compressed, 32 MiB uncompressed.
         image_url = (
@@ -696,6 +723,8 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=arch:arm
         :avocado: tags=machine:quanta-gsj
         :avocado: tags=accel:tcg
+        :avocado: tags=boots:kernel
+        :avocado: tags=boots:initrd
         """
         initrd_url = (
                 'https://github.com/hskinnemoen/openbmc/releases/download/'
@@ -733,6 +762,7 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=arch:arm
         :avocado: tags=machine:orangepi-pc
         :avocado: tags=accel:tcg
+        :avocado: tags=boots:kernel
         """
         deb_url = ('https://apt.armbian.com/pool/main/l/'
                    'linux-5.10.16-sunxi/linux-image-current-sunxi_21.02.2_armhf.deb')
@@ -759,6 +789,8 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=arch:arm
         :avocado: tags=accel:tcg
         :avocado: tags=machine:orangepi-pc
+        :avocado: tags=boots:kernel
+        :avocado: tags=boots:initrd
         """
         deb_url = ('https://apt.armbian.com/pool/main/l/'
                    'linux-5.10.16-sunxi/linux-image-current-sunxi_21.02.2_armhf.deb')
@@ -803,6 +835,8 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=accel:tcg
         :avocado: tags=machine:orangepi-pc
         :avocado: tags=device:sd
+        :avocado: tags=boots:kernel
+        :avocado: tags=boots:rootfs
         """
         deb_url = ('https://apt.armbian.com/pool/main/l/'
                    'linux-5.10.16-sunxi/linux-image-current-sunxi_21.02.2_armhf.deb')
@@ -855,6 +889,7 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=arch:arm
         :avocado: tags=machine:orangepi-pc
         :avocado: tags=device:sd
+        :avocado: tags=boots:distro
         """
 
         # This test download a 275 MiB compressed image and expand it
@@ -902,6 +937,7 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=machine:orangepi-pc
         :avocado: tags=device:sd
         :avocado: tags=os:netbsd
+        :avocado: tags=boots:distro
         """
         # This test download a 304MB compressed image and expand it to 2GB
         deb_url = ('http://snapshot.debian.org/archive/debian/'
@@ -987,6 +1023,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:s390x
         :avocado: tags=machine:s390-ccw-virtio
+        :avocado: tags=boots:kernel
         """
         kernel_url = ('https://archives.fedoraproject.org/pub/archive'
                       '/fedora-secondary/releases/29/Everything/s390x/os/images'
@@ -1007,6 +1044,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:alpha
         :avocado: tags=machine:clipper
+        :avocado: tags=boots:kernel
         """
         kernel_url = ('http://archive.debian.org/debian/dists/lenny/main/'
                       'installer-alpha/20090123lenny10/images/cdrom/vmlinuz')
@@ -1028,6 +1066,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:m68k
         :avocado: tags=machine:q800
+        :avocado: tags=boots:kernel
         """
         deb_url = ('https://snapshot.debian.org/archive/debian-ports'
                    '/20191021T083923Z/pool-m68k/main'
@@ -1063,6 +1102,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:vexpress-a9
+        :avocado: tags=boots:kernel
         """
         tar_hash = '32b7677ce8b6f1471fb0059865f451169934245b'
         self.vm.add_args('-dtb', self.workdir + '/day16/vexpress-v2p-ca9.dtb')
@@ -1072,6 +1112,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:palmetto-bmc
+        :avocado: tags=boots:rootfs
         """
 
         image_url = ('https://github.com/openbmc/openbmc/releases/download/2.9.0/'
@@ -1086,6 +1127,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:romulus-bmc
+        :avocado: tags=boots:rootfs
         """
 
         image_url = ('https://github.com/openbmc/openbmc/releases/download/2.9.0/'
@@ -1115,6 +1157,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:tacoma-bmc
+        :avocado: tags=boots:kernel
         """
         deb_url = ('http://snapshot.debian.org/archive/debian/'
                    '20210302T203551Z/'
@@ -1140,6 +1183,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:m68k
         :avocado: tags=machine:mcf5208evb
+        :avocado: tags=boots:kernel
         """
         tar_hash = 'ac688fd00561a2b6ce1359f9ff6aa2b98c9a570c'
         self.do_test_advcal_2018('07', tar_hash, 'sanity-clause.elf')
@@ -1148,6 +1192,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:or1k
         :avocado: tags=machine:or1k-sim
+        :avocado: tags=boots:kernel
         """
         tar_hash = '20334cdaf386108c530ff0badaecc955693027dd'
         self.do_test_advcal_2018('20', tar_hash, 'vmlinux')
@@ -1156,6 +1201,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:nios2
         :avocado: tags=machine:10m50-ghrd
+        :avocado: tags=boots:kernel
         """
         tar_hash = 'e4251141726c412ac0407c5a6bceefbbff018918'
         self.do_test_advcal_2018('14', tar_hash, 'vmlinux.elf')
@@ -1165,6 +1211,7 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=arch:ppc64
         :avocado: tags=machine:ppce500
         :avocado: tags=cpu:e5500
+        :avocado: tags=boots:kernel
         """
         tar_hash = '6951d86d644b302898da2fd701739c9406527fe1'
         self.do_test_advcal_2018('19', tar_hash, 'uImage')
@@ -1194,6 +1241,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:ppc64
         :avocado: tags=machine:powernv8
+        :avocado: tags=boots:kernel
         """
         self.do_test_ppc64_powernv('P8')
 
@@ -1201,6 +1249,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:ppc64
         :avocado: tags=machine:powernv9
+        :avocado: tags=boots:kernel
         """
         self.do_test_ppc64_powernv('P9')
 
@@ -1208,6 +1257,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:ppc
         :avocado: tags=machine:g3beige
+        :avocado: tags=boots:kernel
         """
         tar_hash = 'e0b872a5eb8fdc5bed19bd43ffe863900ebcedfc'
         self.vm.add_args('-M', 'graphics=off')
@@ -1217,6 +1267,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:ppc
         :avocado: tags=machine:mac99
+        :avocado: tags=boots:kernel
         """
         tar_hash = 'e0b872a5eb8fdc5bed19bd43ffe863900ebcedfc'
         self.vm.add_args('-M', 'graphics=off')
@@ -1226,6 +1277,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:sh4
         :avocado: tags=machine:r2d
+        :avocado: tags=boots:kernel
         """
         tar_hash = 'fe06a4fd8ccbf2e27928d64472939d47829d4c7e'
         self.vm.add_args('-append', 'console=ttySC1')
@@ -1235,6 +1287,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:sparc
         :avocado: tags=machine:SS-20
+        :avocado: tags=boots:kernel
         """
         tar_hash = 'b18550d5d61c7615d989a06edace051017726a9f'
         self.do_test_advcal_2018('11', tar_hash, 'zImage.elf')
@@ -1244,6 +1297,7 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=arch:xtensa
         :avocado: tags=machine:lx60
         :avocado: tags=cpu:dc233c
+        :avocado: tags=boots:kernel
         """
         tar_hash = '49e88d9933742f0164b60839886c9739cb7a0d34'
         self.do_test_advcal_2018('02', tar_hash, 'santas-sleigh-ride.elf')

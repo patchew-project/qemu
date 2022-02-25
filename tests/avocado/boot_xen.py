@@ -61,6 +61,9 @@ class BootXenBase(LinuxKernelTest):
 
 
 class BootXen(BootXenBase):
+    """
+    :avocado: tags=boots:kernel
+    """
 
     def test_arm64_xen_411_and_dom0(self):
         """

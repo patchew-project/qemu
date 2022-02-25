@@ -45,6 +45,8 @@ class S390CCWVirtioMachine(QemuSystemTest):
         """
         :avocado: tags=arch:s390x
         :avocado: tags=machine:s390-ccw-virtio
+        :avocado: tags=boots:kernel
+        :avocado: tags=boots:initrd
         """
 
         kernel_url = ('https://snapshot.debian.org/archive/debian/'
@@ -167,6 +169,8 @@ class S390CCWVirtioMachine(QemuSystemTest):
         :avocado: tags=device:virtio-gpu
         :avocado: tags=device:virtio-crypto
         :avocado: tags=device:virtio-net
+        :avocado: tags=boots:kernel
+        :avocado: tags=boots:initrd
         """
 
         kernel_url = ('https://archives.fedoraproject.org/pub/archive'

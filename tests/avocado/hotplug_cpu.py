@@ -18,6 +18,7 @@ class HotPlugCPU(LinuxTest):
         :avocado: tags=arch:x86_64
         :avocado: tags=machine:q35
         :avocado: tags=accel:kvm
+        :avocado: tags=boots:distro
         """
         self.require_accelerator('kvm')
         self.vm.add_args('-accel', 'kvm')

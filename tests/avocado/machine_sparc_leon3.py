@@ -22,6 +22,7 @@ class Leon3Machine(QemuSystemTest):
         :avocado: tags=arch:sparc
         :avocado: tags=machine:leon3_generic
         :avocado: tags=binfmt:uimage
+        :avocado: tags=boots:kernel
         """
         kernel_url = ('http://www.helenos.org/releases/'
                       'HelenOS-0.6.0-sparc32-leon3.bin')

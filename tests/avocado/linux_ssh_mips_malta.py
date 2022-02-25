@@ -25,6 +25,8 @@ from avocado.utils import ssh
 class LinuxSSH(QemuSystemTest, LinuxSSHMixIn):
     """
     :avocado: tags=accel:tcg
+    :avocado: tags=boots:kernel
+    :avocado: tags=boots:distro
     """
 
     timeout = 150 # Not for 'configure --enable-debug --enable-debug-tcg'

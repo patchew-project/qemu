@@ -29,6 +29,10 @@ except ImportError:
 
 
 class IntegratorMachine(QemuSystemTest):
+    """
+    :avocado: tags=boots:kernel
+    :avocado: tags=boots:initrd
+    """
 
     timeout = 90
 

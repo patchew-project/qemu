@@ -21,6 +21,8 @@ class LinuxInitrd(QemuSystemTest):
 
     :avocado: tags=arch:x86_64
     :avocado: tags=machine:pc
+    :avocado: tags=boots:kernel
+    :avocado: tags=boots:initrd
     """
 
     timeout = 300

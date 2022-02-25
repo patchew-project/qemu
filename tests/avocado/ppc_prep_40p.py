@@ -28,6 +28,7 @@ class IbmPrep40pMachine(QemuSystemTest):
         :avocado: tags=machine:40p
         :avocado: tags=os:netbsd
         :avocado: tags=slowness:high
+        :avocado: tags=boots:bios
         """
         bios_url = ('http://ftpmirror.your.org/pub/misc/'
                     'ftp.software.ibm.com/rs6000/firmware/'

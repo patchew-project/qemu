@@ -28,6 +28,7 @@ class AVR6Machine(QemuSystemTest):
         """
         :avocado: tags=arch:avr
         :avocado: tags=machine:arduino-mega-2560-v3
+        :avocado: tags=boots:bios
         """
         """
         https://github.com/seharris/qemu-avr-tests/raw/master/free-rtos/Demo/AVR_ATMega2560_GCC/demo.elf

@@ -23,6 +23,7 @@ class Sun4uMachine(LinuxKernelTest):
         """
         :avocado: tags=arch:sparc64
         :avocado: tags=machine:sun4u
+        :avocado: tags=boots:kernel
         """
         tar_url = ('https://www.qemu-advent-calendar.org'
                    '/2018/download/day23.tar.xz')
