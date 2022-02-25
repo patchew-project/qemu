@@ -157,9 +157,10 @@ class VirtiofsSubmountsTest(LinuxTest):
         except:
             pass
 
-        scratch_dir = os.path.join(self.shared_dir, 'scratch')
-        self.run(('bash', self.get_data('cleanup.sh'), scratch_dir),
-                 ignore_error=True)
+        if hasattr(self, 'shared_dir'):
+            scratch_dir = os.path.join(self.shared_dir, 'scratch')
+            self.run(('bash', self.get_data('cleanup.sh'), scratch_dir),
+                     ignore_error=True)
 
     def test_pre_virtiofsd_set_up(self):
         self.set_up_shared_dir()
