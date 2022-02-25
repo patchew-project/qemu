@@ -2294,6 +2294,34 @@ void qmp_x_blockdev_replace(BlockdevReplace *repl, Error **errp)
     tran_finalize(tran, ret);
 }
 
+typedef struct TranObjState {
+    BlkActionState common;
+    Transaction *tran;
+} TranObjState;
+
+static void tran_obj_commit(BlkActionState *common)
+{
+    TranObjState *s = DO_UPCAST(TranObjState, common, common);
+
+    tran_commit(s->tran);
+}
+
+static void tran_obj_abort(BlkActionState *common)
+{
+    TranObjState *s = DO_UPCAST(TranObjState, common, common);
+
+    tran_abort(s->tran);
+}
+
+static void blockdev_replace_prepare(BlkActionState *common, Error **errp)
+{
+    TranObjState *s = DO_UPCAST(TranObjState, common, common);
+
+    s->tran = tran_new();
+
+    blockdev_replace(common->action->u.x_blockdev_replace.data, s->tran, errp);
+}
+
 static const BlkActionOps actions[] = {
     [TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT] = {
         .instance_size = sizeof(ExternalSnapshotState),
@@ -2371,6 +2399,12 @@ static const BlkActionOps actions[] = {
         .instance_size = sizeof(BlockdevAddState),
         .prepare = blockdev_add_prepare,
         .abort = blockdev_add_abort,
+    },
+    [TRANSACTION_ACTION_KIND_X_BLOCKDEV_REPLACE] = {
+        .instance_size = sizeof(TranObjState),
+        .prepare = blockdev_replace_prepare,
+        .commit = tran_obj_commit,
+        .abort = tran_obj_abort,
     },
     /* Where are transactions for MIRROR, COMMIT and STREAM?
      * Although these blockjobs use transaction callbacks like the backup job,
