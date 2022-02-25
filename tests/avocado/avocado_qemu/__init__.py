@@ -17,7 +17,8 @@ import time
 import uuid
 
 import avocado
-from avocado.utils import cloudinit, datadrainer, network, process, ssh, vmimage
+from avocado.utils import cloudinit, datadrainer, process, ssh, vmimage
+from avocado.utils.network import ports
 from avocado.utils.path import find_command
 
 #: The QEMU build root directory.  It may also be the source directory
@@ -601,7 +602,7 @@ class LinuxTest(LinuxSSHMixIn, QemuSystemTest):
         self.log.info('Preparing cloudinit image')
         try:
             cloudinit_iso = os.path.join(self.workdir, 'cloudinit.iso')
-            self.phone_home_port = network.find_free_port()
+            self.phone_home_port = ports.find_free_port()
             pubkey_content = None
             if ssh_pubkey:
                 with open(ssh_pubkey) as pubkey:
