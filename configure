@@ -3100,6 +3100,7 @@ done
 
 symlink $source_path/ui/icons/qemu.svg qemu-bundle/share/icons/hicolor/scalable/apps/qemu.svg
 symlink ../../pc-bios qemu-bundle/share/qemu
+symlink ../../qemu-bridge-helper qemu-bundle/libexec/qemu-bridge-helper
 
 (for i in $cross_cc_vars; do
   export $i
