@@ -604,6 +604,8 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
             coreaudio_playback_logerr(status,
                                       "Could not remove voice property change listener\n");
         }
+
+        return -1;
     }
 
     return 0;
