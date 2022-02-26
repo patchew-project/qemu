@@ -189,6 +189,15 @@ static void acpi_build_microvm(AcpiBuildTables *tables,
         .reset_val = ACPI_GED_RESET_VALUE,
     };
 
+    /*
+     * second bit of 16 but IAPC_BOOT_ARCH indicates presence of 8042 or
+     * equivalent micro controller. See table 5-10 of APCI spec version 2.0
+     * (the earliest acpi revision that supports this).
+     */
+
+    pmfadt.iapc_boot_arch = isa_check_device_existence("i8042") ? 0x0002
+                            : 0x0000;
+
     table_offsets = g_array_new(false, true /* clear */,
                                         sizeof(uint32_t));
     bios_linker_loader_alloc(tables->linker,
