@@ -2296,9 +2296,11 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
     s->opts = opts;
 
     theme = gtk_icon_theme_get_default();
-    dir = get_relocated_path(CONFIG_QEMU_ICONDIR);
-    gtk_icon_theme_prepend_search_path(theme, dir);
-    g_free(dir);
+    dir = find_bundle(CONFIG_QEMU_BUNDLE_ICONDIR);
+    if (dir) {
+        gtk_icon_theme_prepend_search_path(theme, dir);
+        g_free(dir);
+    }
     g_set_prgname("qemu");
 
     s->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);

@@ -1477,15 +1477,17 @@ QemuCocoaView *cocoaView;
     NSRect picture_rect = NSMakeRect(x, y, picture_width, picture_height);
 
     /* Make the picture of QEMU */
-    NSImageView *picture_view = [[NSImageView alloc] initWithFrame:
-                                                     picture_rect];
-    char *qemu_image_path_c = get_relocated_path(CONFIG_QEMU_ICONDIR "/hicolor/512x512/apps/qemu.png");
-    NSString *qemu_image_path = [NSString stringWithUTF8String:qemu_image_path_c];
-    g_free(qemu_image_path_c);
-    NSImage *qemu_image = [[NSImage alloc] initWithContentsOfFile:qemu_image_path];
-    [picture_view setImage: qemu_image];
-    [picture_view setImageScaling: NSImageScaleProportionallyUpOrDown];
-    [superView addSubview: picture_view];
+    char *qemu_image_path_c = find_bundle(CONFIG_QEMU_BUNDLE_ICONDIR "/hicolor/512x512/apps/qemu.png");
+    if (qemu_image_path_c) {
+        NSString *qemu_image_path = [NSString stringWithUTF8String:qemu_image_path_c];
+        g_free(qemu_image_path_c);
+        NSImageView *picture_view = [[NSImageView alloc] initWithFrame:
+                                                         picture_rect];
+        NSImage *qemu_image = [[NSImage alloc] initWithContentsOfFile:qemu_image_path];
+        [picture_view setImage: qemu_image];
+        [picture_view setImageScaling: NSImageScaleProportionallyUpOrDown];
+        [superView addSubview: picture_view];
+    }
 
     /* Make the name label */
     NSBundle *bundle = [NSBundle mainBundle];

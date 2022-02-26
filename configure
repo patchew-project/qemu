@@ -3089,6 +3089,16 @@ for f in $LINKS ; do
     fi
 done
 
+for icon_extension in bmp png ; do
+  for icon_file in $source_path/ui/icons/qemu_*.$icon_extension ; do
+    icon_basename=${icon_file%.$icon_extension}
+    icon_name=${icon_basename#$source_path/ui/icons/qemu_}
+    icon_dir=qemu-bundle/share/icons/hicolor/$icon_name/apps
+    symlink $icon_file $icon_dir/qemu.$icon_extension
+  done
+done
+
+symlink $source_path/ui/icons/qemu.svg qemu-bundle/share/icons/hicolor/scalable/apps/qemu.svg
 symlink ../../pc-bios qemu-bundle/share/qemu
 
 (for i in $cross_cc_vars; do
