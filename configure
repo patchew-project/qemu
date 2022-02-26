@@ -3089,6 +3089,8 @@ for f in $LINKS ; do
     fi
 done
 
+symlink ../../pc-bios qemu-bundle/share/qemu
+
 (for i in $cross_cc_vars; do
   export $i
 done
