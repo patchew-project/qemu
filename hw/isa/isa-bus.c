@@ -222,6 +222,29 @@ void isa_build_aml(ISABus *bus, Aml *scope)
     }
 }
 
+bool isa_check_device_existence(const char *typename)
+{
+    /*
+     * If there's no ISA bus, we know for sure that the checked ISA device type
+     * doesn't exist in the machine.
+     */
+    if (isabus == NULL) {
+        return false;
+    }
+
+    BusChild *kid;
+    ISADevice *dev;
+
+    QTAILQ_FOREACH(kid, &isabus->parent_obj.children, sibling) {
+        dev = ISA_DEVICE(kid->child);
+        const char *object_type = object_get_typename(OBJECT(dev));
+        if (object_type && strcmp(object_type, typename) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static void isabus_dev_print(Monitor *mon, DeviceState *dev, int indent)
 {
     ISADevice *d = ISA_DEVICE(dev);
