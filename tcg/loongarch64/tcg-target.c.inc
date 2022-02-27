@@ -880,8 +880,6 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
     return tcg_out_fail_alignment(s, l);
 }
 
-#endif /* CONFIG_SOFTMMU */
-
 /*
  * `ext32u` the address register into the temp register given,
  * if target is 32-bit, no-op otherwise.
@@ -891,12 +889,13 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 static TCGReg tcg_out_zext_addr_if_32_bit(TCGContext *s,
                                           TCGReg addr, TCGReg tmp)
 {
-    if (TARGET_LONG_BITS == 32) {
+    if (TARGET_LONG_BITS == 32 && !guest_base_signed_addr32) {
         tcg_out_ext32u(s, tmp, addr);
         return tmp;
     }
     return addr;
 }
+#endif /* CONFIG_SOFTMMU */
 
 static void tcg_out_qemu_ld_indexed(TCGContext *s, TCGReg rd, TCGReg rj,
                                    TCGReg rk, MemOp opc, TCGType type)
@@ -944,8 +943,8 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, TCGType type)
     tcg_insn_unit *label_ptr[1];
 #else
     unsigned a_bits;
-#endif
     TCGReg base;
+#endif
 
     data_regl = *args++;
     addr_regl = *args++;
@@ -954,8 +953,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, TCGType type)
 
 #if defined(CONFIG_SOFTMMU)
     tcg_out_tlb_load(s, addr_regl, oi, label_ptr, 1);
-    base = tcg_out_zext_addr_if_32_bit(s, addr_regl, TCG_REG_TMP0);
-    tcg_out_qemu_ld_indexed(s, data_regl, base, TCG_REG_TMP2, opc, type);
+    tcg_out_qemu_ld_indexed(s, data_regl, addr_regl, TCG_REG_TMP2, opc, type);
     add_qemu_ldst_label(s, 1, oi, type,
                         data_regl, addr_regl,
                         s->code_ptr, label_ptr);
@@ -1004,8 +1002,8 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args)
     tcg_insn_unit *label_ptr[1];
 #else
     unsigned a_bits;
-#endif
     TCGReg base;
+#endif
 
     data_regl = *args++;
     addr_regl = *args++;
@@ -1014,8 +1012,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args)
 
 #if defined(CONFIG_SOFTMMU)
     tcg_out_tlb_load(s, addr_regl, oi, label_ptr, 0);
-    base = tcg_out_zext_addr_if_32_bit(s, addr_regl, TCG_REG_TMP0);
-    tcg_out_qemu_st_indexed(s, data_regl, base, TCG_REG_TMP2, opc);
+    tcg_out_qemu_st_indexed(s, data_regl, addr_regl, TCG_REG_TMP2, opc);
     add_qemu_ldst_label(s, 0, oi,
                         0, /* type param is unused for stores */
                         data_regl, addr_regl,
