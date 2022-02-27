@@ -1141,3 +1141,8 @@ DEF_HELPER_2(sha512sig0l, tl, tl, tl)
 DEF_HELPER_2(sha512sig0h, tl, tl, tl)
 DEF_HELPER_2(sha512sig1l, tl, tl, tl)
 DEF_HELPER_2(sha512sig1h, tl, tl, tl)
+
+DEF_HELPER_1(sha512sig0, tl, tl)
+DEF_HELPER_1(sha512sig1, tl, tl)
+DEF_HELPER_1(sha512sum0, tl, tl)
+DEF_HELPER_1(sha512sum1, tl, tl)

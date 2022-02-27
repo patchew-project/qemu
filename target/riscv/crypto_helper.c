@@ -360,4 +360,35 @@ target_ulong HELPER(sha512sig1h)(target_ulong rs1, target_ulong rs2)
     return sext_xlen(result);
 }
 #undef zext32
+
+#define ROR64(a, amt) ((a << (-amt & 63)) | (a >> (amt & 63)))
+
+target_ulong HELPER(sha512sig0)(target_ulong rs1)
+{
+    uint64_t a = rs1;
+
+    return ROR64(a, 1) ^ ROR64(a, 8) ^ (a >> 7);
+}
+
+target_ulong HELPER(sha512sig1)(target_ulong rs1)
+{
+    uint64_t a = rs1;
+
+    return ROR64(a, 19) ^ ROR64(a, 61) ^ (a >> 6);
+}
+
+target_ulong HELPER(sha512sum0)(target_ulong rs1)
+{
+    uint64_t a = rs1;
+
+    return ROR64(a, 28) ^ ROR64(a, 34) ^ ROR64(a, 39);
+}
+
+target_ulong HELPER(sha512sum1)(target_ulong rs1)
+{
+    uint64_t a = rs1;
+
+    return ROR64(a, 14) ^ ROR64(a, 18) ^ ROR64(a, 41);
+}
+#undef ROR64
 #undef sext_xlen
