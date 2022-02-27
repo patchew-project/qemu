@@ -630,6 +630,7 @@ static int vhost_vdpa_set_features(struct vhost_dev *dev,
     }
 
     if (v->shadow_vqs_enabled) {
+        /* We must not ack _F_LOG if SVQ is enabled */
         uint64_t features_ok = features;
         bool ok;
 
@@ -640,6 +641,18 @@ static int vhost_vdpa_set_features(struct vhost_dev *dev,
                 PRIx64", ok: 0x%"PRIx64, features, features_ok);
             return -EINVAL;
         }
+
+        if ((v->acked_features ^ features) == BIT_ULL(VHOST_F_LOG_ALL)) {
+            /*
+             * QEMU is just trying to enable or disable logging. SVQ handles
+             * this sepparately, so no need to forward this.
+             */
+            v->acked_features = features;
+            return 0;
+        }
+
+        v->acked_features = features;
+        features &= ~BIT_ULL(VHOST_F_LOG_ALL);
     }
 
     trace_vhost_vdpa_set_features(dev, features);
@@ -1245,6 +1258,9 @@ static int vhost_vdpa_get_features(struct vhost_dev *dev,
     if (ret == 0 && v->shadow_vqs_enabled) {
         /* Filter only features that SVQ can offer to guest */
         vhost_svq_valid_features(features);
+
+        /* Add SVQ logging capabilities */
+        *features |= BIT_ULL(VHOST_F_LOG_ALL);
     }
 
     return ret;
