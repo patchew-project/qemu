@@ -17,6 +17,7 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # Fields:
+%bs        30:2
 %rs3       27:5
 %rs2       20:5
 %rs1       15:5
@@ -91,6 +92,7 @@
 
 # Formats 64:
 @sh5     .......  ..... .....  ... ..... ....... &shift  shamt=%sh5      %rs1 %rd
+@k_aes       .. ..... ..... ..... ... ..... ....... %bs %rs2 %rs1 %rd
 
 # Formats 128:
 @sh6       ...... ...... ..... ... ..... ....... &shift shamt=%sh6 %rs1 %rd
@@ -834,3 +836,10 @@ sfence_w_inval    0001100 00000 00000 000 00000 1110011
 sfence_inval_ir   0001100 00001 00000 000 00000 1110011
 hinval_vvma       0010011 ..... ..... 000 00000 1110011 @hfence_vvma
 hinval_gvma       0110011 ..... ..... 000 00000 1110011 @hfence_gvma
+
+# *** RV32 Zknd Standard Extension ***
+aes32dsmi   .. 10111 ..... ..... 000 ..... 0110011 @k_aes
+aes32dsi    .. 10101 ..... ..... 000 ..... 0110011 @k_aes
+# *** RV32 Zkne Standard Extension ***
+aes32esmi   .. 10011 ..... ..... 000 ..... 0110011 @k_aes
+aes32esi    .. 10001 ..... ..... 000 ..... 0110011 @k_aes
