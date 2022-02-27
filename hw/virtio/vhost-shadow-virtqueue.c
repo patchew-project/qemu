@@ -14,6 +14,45 @@
 #include "qemu/main-loop.h"
 #include "linux-headers/linux/vhost.h"
 
+/**
+ * Validate the transport device features that both guests can use with the SVQ
+ * and SVQs can use with the device.
+ *
+ * @dev_features  The features. If success, the acknowledged features. If
+ *                failure, the minimal set from it.
+ *
+ * Returns true if SVQ can go with a subset of these, false otherwise.
+ */
+bool vhost_svq_valid_features(uint64_t *features)
+{
+    bool r = true;
+
+    for (uint64_t b = VIRTIO_TRANSPORT_F_START; b <= VIRTIO_TRANSPORT_F_END;
+         ++b) {
+        switch (b) {
+        case VIRTIO_F_ANY_LAYOUT:
+            continue;
+
+        case VIRTIO_F_ACCESS_PLATFORM:
+            /* SVQ trust in the host's IOMMU to translate addresses */
+        case VIRTIO_F_VERSION_1:
+            /* SVQ trust that the guest vring is little endian */
+            if (!(*features & BIT_ULL(b))) {
+                set_bit(b, features);
+                r = false;
+            }
+            continue;
+
+        default:
+            if (*features & BIT_ULL(b)) {
+                clear_bit(b, features);
+            }
+        }
+    }
+
+    return r;
+}
+
 /** Forward guest notifications */
 static void vhost_handle_guest_kick(EventNotifier *n)
 {
