@@ -391,4 +391,53 @@ target_ulong HELPER(sha512sum1)(target_ulong rs1)
     return ROR64(a, 14) ^ ROR64(a, 18) ^ ROR64(a, 41);
 }
 #undef ROR64
+
+#define ROL32(a, amt) ((a >> (-amt & 31)) | (a << (amt & 31)))
+
+target_ulong HELPER(sm3p0)(target_ulong rs1)
+{
+    uint32_t src = rs1;
+    uint32_t result = src ^ ROL32(src, 9) ^ ROL32(src, 17);
+
+    return sext_xlen(result);
+}
+
+target_ulong HELPER(sm3p1)(target_ulong rs1)
+{
+    uint32_t src = rs1;
+    uint32_t result = src ^ ROL32(src, 15) ^ ROL32(src, 23);
+
+    return sext_xlen(result);
+}
+#undef ROL32
+
+target_ulong HELPER(sm4ed)(target_ulong rs2, target_ulong rt, target_ulong bs)
+{
+    uint8_t bs_t = bs;
+
+    uint32_t sb_in = (uint8_t)(rs2 >> (8 * bs_t));
+    uint32_t sb_out = (uint32_t)sm4_sbox[sb_in];
+
+    uint32_t linear = sb_out ^ (sb_out << 8) ^ (sb_out << 2) ^ (sb_out << 18) ^
+        ((sb_out & 0x3f) << 26) ^ ((sb_out & 0xC0) << 10);
+
+    uint32_t rotl = (linear << (8 * bs_t)) | (linear >> (32 - 8 * bs_t));
+
+    return sext_xlen(rotl ^ (uint32_t)rt);
+}
+
+target_ulong HELPER(sm4ks)(target_ulong rs2, target_ulong rs1, target_ulong bs)
+{
+    uint8_t bs_t = bs;
+
+    uint32_t sb_in = (uint8_t)(rs2 >> (8 * bs_t));
+    uint32_t sb_out = sm4_sbox[sb_in];
+
+    uint32_t x = sb_out ^ ((sb_out & 0x07) << 29) ^ ((sb_out & 0xFE) << 7) ^
+        ((sb_out & 0x01) << 23) ^ ((sb_out & 0xF8) << 13);
+
+    uint32_t rotl = (x << (8 * bs_t)) | (x >> (32 - 8 * bs_t));
+
+    return sext_xlen(rotl ^ (uint32_t)rs1);
+}
 #undef sext_xlen
