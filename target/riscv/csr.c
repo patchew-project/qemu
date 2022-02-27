@@ -23,6 +23,8 @@
 #include "cpu.h"
 #include "qemu/main-loop.h"
 #include "exec/exec-all.h"
+#include "qemu/guest-random.h"
+#include "qapi/error.h"
 
 /* CSR function table public API */
 void riscv_get_csr_ops(int csrno, riscv_csr_operations *ops)
@@ -289,6 +291,39 @@ static RISCVException epmp(CPURISCVState *env, int csrno)
     return RISCV_EXCP_ILLEGAL_INST;
 }
 #endif
+
+/* Predicates */
+static RISCVException seed(CPURISCVState *env, int csrno)
+{
+    RISCVCPU *cpu = env_archcpu(env);
+
+    if (!cpu->cfg.ext_zkr) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+#if !defined(CONFIG_USER_ONLY)
+    if (riscv_has_ext(env, RVS) && riscv_has_ext(env, RVH)) {
+        /* Hypervisor extension is supported */
+        if (riscv_cpu_virt_enabled(env) && (env->priv != PRV_M)) {
+            if (env->mseccfg & MSECCFG_SSEED) {
+                return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
+            } else {
+                return RISCV_EXCP_ILLEGAL_INST;
+            }
+        }
+    }
+    if (env->priv == PRV_M) {
+        return RISCV_EXCP_NONE;
+    } else if (env->priv == PRV_S && (env->mseccfg & MSECCFG_SSEED)) {
+        return RISCV_EXCP_NONE;
+    } else if (env->priv == PRV_U && (env->mseccfg & MSECCFG_USEED)) {
+        return RISCV_EXCP_NONE;
+    } else {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+#else
+    return RISCV_EXCP_NONE;
+#endif
+}
 
 /* User Floating-Point CSRs */
 static RISCVException read_fflags(CPURISCVState *env, int csrno,
@@ -2846,6 +2881,32 @@ static RISCVException write_upmbase(CPURISCVState *env, int csrno,
 
 #endif
 
+/* Crypto Extension */
+static RISCVException rmw_seed(CPURISCVState *env, int csrno,
+                              target_ulong *ret_value,
+                              target_ulong new_value, target_ulong write_mask)
+{
+    if (!write_mask) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+
+    uint32_t return_status =  SEED_OPST_ES16;
+
+    *ret_value = return_status;
+    if (return_status == SEED_OPST_ES16) {
+        uint16_t random_number;
+        qemu_guest_getrandom_nofail(&random_number, sizeof(random_number));
+        *ret_value = (*ret_value) | random_number;
+    } else if (return_status == SEED_OPST_BIST) {
+        /* Do nothing */
+    } else if (return_status == SEED_OPST_WAIT) {
+        /* Do nothing */
+    } else if (return_status == SEED_OPST_DEAD) {
+        /* Do nothing */
+    }
+    return RISCV_EXCP_NONE;
+}
+
 /*
  * riscv_csrrw - read and/or update control and status register
  *
@@ -3071,6 +3132,9 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
      */
     [CSR_TIME]  = { "time",  ctr,   read_time  },
     [CSR_TIMEH] = { "timeh", ctr32, read_timeh },
+
+    /* Crypto Extension */
+    [CSR_SEED] = { "seed", seed, NULL, NULL, rmw_seed},
 
 #if !defined(CONFIG_USER_ONLY)
     /* Machine Timers and Counters */
