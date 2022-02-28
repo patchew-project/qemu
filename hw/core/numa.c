@@ -724,6 +724,11 @@ void numa_complete_configuration(MachineState *ms)
             /* Validation succeeded, now fill in any missing distances. */
             complete_init_numa_distance(ms);
         }
+
+        /* Validate NUMA nodes for the individual machine */
+        if (mc->validate_numa_nodes) {
+            mc->validate_numa_nodes(ms);
+        }
     }
 }
 

@@ -282,6 +282,7 @@ struct MachineClass {
                                                          unsigned cpu_index);
     const CPUArchIdList *(*possible_cpu_arch_ids)(MachineState *machine);
     int64_t (*get_default_cpu_node_id)(const MachineState *ms, int idx);
+    void (*validate_numa_nodes)(MachineState *ms);
     ram_addr_t (*fixup_ram_size)(ram_addr_t size);
 };
 
