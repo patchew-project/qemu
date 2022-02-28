@@ -38,6 +38,7 @@
 #include "hw/nvram/fw_cfg.h"
 #include "hw/acpi/bios-linker-loader.h"
 #include "hw/isa/isa.h"
+#include "hw/input/i8042.h"
 #include "hw/block/fdc.h"
 #include "hw/acpi/memory_hotplug.h"
 #include "sysemu/tpm.h"
@@ -192,6 +193,14 @@ static void init_common_fadt_data(MachineState *ms, Object *o,
             .address = object_property_get_uint(o, ACPI_PM_PROP_GPE0_BLK, NULL)
         },
     };
+    /*
+     * second bit of 16 of the IAPC_BOOT_ARCH register indicates i8042 presence
+     * or equivalent micro controller. See table 5-10 of APCI spec version 2.0
+     * (the earliest acpi revision that supports this).
+     */
+    fadt.iapc_boot_arch = object_resolve_path_type("", TYPE_I8042, NULL) ?
+                            0x0002 : 0x0000;
+
     *data = fadt;
 }
 

@@ -31,6 +31,7 @@
 #include "hw/acpi/generic_event_device.h"
 #include "hw/acpi/utils.h"
 #include "hw/acpi/erst.h"
+#include "hw/input/i8042.h"
 #include "hw/i386/fw_cfg.h"
 #include "hw/i386/microvm.h"
 #include "hw/pci/pci.h"
@@ -188,6 +189,14 @@ static void acpi_build_microvm(AcpiBuildTables *tables,
         },
         .reset_val = ACPI_GED_RESET_VALUE,
     };
+
+    /*
+     * second bit of 16 of the IAPC_BOOT_ARCH register indicates i8042 presence
+     * or equivalent micro controller. See table 5-10 of APCI spec version 2.0
+     * (the earliest acpi revision that supports this).
+     */
+    pmfadt.iapc_boot_arch = object_resolve_path_type("", TYPE_I8042, NULL) ?
+                            0x0002 : 0x0000;
 
     table_offsets = g_array_new(false, true /* clear */,
                                         sizeof(uint32_t));
