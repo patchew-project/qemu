@@ -32,7 +32,7 @@
 
 static hvf_slot memslots[HVF_NUM_SLOTS];
 
-hvf_slot *hvf_find_overlap_slot(uint64_t start, uint64_t size)
+hvf_slot *hvf_find_overlap_slot(hwaddr start, hwaddr size)
 {
     hvf_slot *slot;
     int x;
