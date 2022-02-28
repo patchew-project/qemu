@@ -28,12 +28,16 @@
 
 /* Memory slots */
 
+#define HVF_NUM_SLOTS 32
+
+static hvf_slot memslots[HVF_NUM_SLOTS];
+
 hvf_slot *hvf_find_overlap_slot(uint64_t start, uint64_t size)
 {
     hvf_slot *slot;
     int x;
-    for (x = 0; x < hvf_state->num_slots; ++x) {
-        slot = &hvf_state->slots[x];
+    for (x = 0; x < HVF_NUM_SLOTS; ++x) {
+        slot = &memslots[x];
         if (slot->size && start < (slot->start + slot->size) &&
             (start + size) > slot->start) {
             return slot;
@@ -42,127 +46,129 @@ hvf_slot *hvf_find_overlap_slot(uint64_t start, uint64_t size)
     return NULL;
 }
 
-struct mac_slot {
-    int present;
-    uint64_t size;
-    uint64_t gpa_start;
-    uint64_t gva;
-};
-
-struct mac_slot mac_slots[32];
-
-static int do_hvf_set_memory(hvf_slot *slot, hv_memory_flags_t flags)
+static hvf_slot *hvf_find_free_slot(void)
 {
-    struct mac_slot *macslot;
-    hv_return_t ret;
-
-    macslot = &mac_slots[slot->slot_id];
-
-    if (macslot->present) {
-        if (macslot->size != slot->size) {
-            macslot->present = 0;
-            ret = hv_vm_unmap(macslot->gpa_start, macslot->size);
-            assert_hvf_ok(ret);
+    hvf_slot *slot;
+    int x;
+    for (x = 0; x < HVF_NUM_SLOTS; x++) {
+        slot = &memslots[x];
+        if (!slot->size) {
+            return slot;
         }
     }
 
-    if (!slot->size) {
-        return 0;
-    }
+    return slot;
+}
 
-    macslot->present = 1;
-    macslot->gpa_start = slot->start;
-    macslot->size = slot->size;
-    ret = hv_vm_map(slot->mem, slot->start, slot->size, flags);
-    assert_hvf_ok(ret);
-    return 0;
+/*
+ * Hypervisor.framework requires that the host virtual address,
+ * the guest physical address and the size of memory regions are aligned
+ * to the host page size.
+ *
+ * The function here tries to align the guest physical address and the size.
+ *
+ * The return value is the aligned size.
+ * The aligned guest physical address will be written to `start'.
+ * The delta between the aligned address and the original address will be
+ * written to `delta'.
+ */
+static hwaddr hvf_align_section(MemoryRegionSection *section,
+                              hwaddr *start, hwaddr *delta)
+{
+    hwaddr unaligned, _start, size, _delta;
+
+    unaligned = section->offset_within_address_space;
+    size = int128_get64(section->size);
+    _start = ROUND_UP(unaligned, qemu_real_host_page_size);
+    _delta = _start - unaligned;
+    size = (size - _delta) & qemu_real_host_page_mask;
+
+    *start = _start;
+    *delta = _delta;
+
+    return size;
 }
 
 static void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
 {
-    hvf_slot *mem;
+    hvf_slot *slot;
+    hwaddr start, size, offset, delta;
+    uint8_t *host_addr;
     MemoryRegion *area = section->mr;
-    bool writeable = !area->readonly && !area->rom_device;
+    bool readonly, dirty_tracking;
     hv_memory_flags_t flags;
-    uint64_t page_size = qemu_real_host_page_size;
+    hv_return_t ret;
 
-    if (!memory_region_is_ram(area)) {
-        if (writeable) {
-            return;
-        } else if (!memory_region_is_romd(area)) {
-            /*
-             * If the memory device is not in romd_mode, then we actually want
-             * to remove the hvf memory slot so all accesses will trap.
-             */
-             add = false;
-        }
-    }
-
-    if (!QEMU_IS_ALIGNED(int128_get64(section->size), page_size) ||
-        !QEMU_IS_ALIGNED(section->offset_within_address_space, page_size)) {
-        /* Not page aligned, so we can not map as RAM */
-        add = false;
-    }
-
-    mem = hvf_find_overlap_slot(
-            section->offset_within_address_space,
-            int128_get64(section->size));
-
-    if (mem && add) {
-        if (mem->size == int128_get64(section->size) &&
-            mem->start == section->offset_within_address_space &&
-            mem->mem == (memory_region_get_ram_ptr(area) +
-            section->offset_within_region)) {
-            return; /* Same region was attempted to register, go away. */
-        }
-    }
-
-    /* Region needs to be reset. set the size to 0 and remap it. */
-    if (mem) {
-        mem->size = 0;
-        if (do_hvf_set_memory(mem, 0)) {
-            error_report("Failed to reset overlapping slot");
-            abort();
-        }
-    }
-
-    if (!add) {
+    if (add && !memory_region_is_ram(area) && !memory_region_is_romd(area)) {
+        /*
+         * If the memory region is not RAM and is in ROMD mode,
+         * do not map it to the guest.
+         */
         return;
     }
 
-    if (area->readonly ||
-        (!memory_region_is_ram(area) && memory_region_is_romd(area))) {
-        flags = HV_MEMORY_READ | HV_MEMORY_EXEC;
-    } else {
-        flags = HV_MEMORY_READ | HV_MEMORY_WRITE | HV_MEMORY_EXEC;
+    size = hvf_align_section(section, &start, &delta);
+
+    if (!size) {
+        /* The size is 0 after aligned. Do not map the region */
+        return;
     }
 
-    /* Now make a new slot. */
-    int x;
+    if (add) {
+        /* add memory region */
+        offset = section->offset_within_region + delta;
+        host_addr = memory_region_get_ram_ptr(area) + offset;
 
-    for (x = 0; x < hvf_state->num_slots; ++x) {
-        mem = &hvf_state->slots[x];
-        if (!mem->size) {
-            break;
+        if (!QEMU_PTR_IS_ALIGNED(host_addr, qemu_real_host_page_size)) {
+            /* The host virtual address is not aligned. It cannot be mapped */
+            return;
+        }
+
+        dirty_tracking = !!memory_region_get_dirty_log_mask(area);
+        readonly = memory_region_is_rom(area) || memory_region_is_romd(area);
+
+        /* setup a slot */
+        slot = hvf_find_free_slot();
+        if (!slot) {
+            error_report("No free slots");
+            abort();
+        }
+
+        slot->start = start;
+        slot->size = size;
+        slot->offset = offset;
+        slot->flags = 0;
+        slot->region = area;
+
+        if (readonly) {
+            slot->flags |= HVF_SLOT_READONLY;
+        }
+
+        if (dirty_tracking) {
+            slot->flags |= HVF_SLOT_LOG;
+        }
+
+        /* set Hypervisor.framework memory mapping flags */
+        if (readonly || dirty_tracking) {
+            flags = HV_MEMORY_READ | HV_MEMORY_EXEC;
+        } else {
+            flags = HV_MEMORY_READ | HV_MEMORY_WRITE | HV_MEMORY_EXEC;
+        }
+
+        ret = hv_vm_map(host_addr, start, size, flags);
+        assert_hvf_ok(ret);
+    } else {
+        /* remove memory region */
+        slot = hvf_find_overlap_slot(start, size);
+
+        if (slot) {
+            ret = hv_vm_unmap(start, size);
+            assert_hvf_ok(ret);
+
+            slot->size = 0;
         }
     }
-
-    if (x == hvf_state->num_slots) {
-        error_report("No free slots");
-        abort();
-    }
-
-    mem->size = int128_get64(section->size);
-    mem->mem = memory_region_get_ram_ptr(area) + section->offset_within_region;
-    mem->start = section->offset_within_address_space;
-    mem->region = area;
-
-    if (do_hvf_set_memory(mem, flags)) {
-        error_report("Error registering new memory slot");
-        abort();
-    }
 }
-
 
 static void hvf_set_dirty_tracking(MemoryRegionSection *section, bool on)
 {
@@ -239,14 +245,5 @@ static MemoryListener hvf_memory_listener = {
 
 void hvf_init_memslots(void)
 {
-    int x;
-    HVFState *s = hvf_state;
-
-    s->num_slots = ARRAY_SIZE(s->slots);
-    for (x = 0; x < s->num_slots; ++x) {
-        s->slots[x].size = 0;
-        s->slots[x].slot_id = x;
-    }
-
     memory_listener_register(&hvf_memory_listener, &address_space_memory);
 }
