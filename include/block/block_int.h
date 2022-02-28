@@ -377,6 +377,24 @@ struct BlockDriver {
     void (*bdrv_cancel_in_flight)(BlockDriverState *bs);
 
     /*
+     * Snapshot-access API.
+     *
+     * Block-driver may provide snapshot-access API: special functions to access
+     * some internal "snapshot". The functions are similar with normal
+     * read/block_status/discard handler, but don't have any specific handling
+     * in generic block-layer: no serializing, no alignment, no tracked
+     * requests. So, block-driver that realizes these APIs is fully responsible
+     * for synchronization between snapshot-access API and normal IO requests.
+     */
+    int coroutine_fn (*bdrv_co_preadv_snapshot)(BlockDriverState *bs,
+        int64_t offset, int64_t bytes, QEMUIOVector *qiov, size_t qiov_offset);
+    int coroutine_fn (*bdrv_co_snapshot_block_status)(BlockDriverState *bs,
+        bool want_zero, int64_t offset, int64_t bytes, int64_t *pnum,
+        int64_t *map, BlockDriverState **file);
+    int coroutine_fn (*bdrv_co_pdiscard_snapshot)(BlockDriverState *bs,
+        int64_t offset, int64_t bytes);
+
+    /*
      * Invalidate any cached meta-data.
      */
     void coroutine_fn (*bdrv_co_invalidate_cache)(BlockDriverState *bs,
@@ -1077,6 +1095,15 @@ typedef enum BlockMirrorBackingMode {
 extern BlockDriver bdrv_file;
 extern BlockDriver bdrv_raw;
 extern BlockDriver bdrv_qcow2;
+
+int coroutine_fn bdrv_co_preadv_snapshot(BdrvChild *child,
+    int64_t offset, int64_t bytes, QEMUIOVector *qiov, size_t qiov_offset);
+int coroutine_fn bdrv_co_snapshot_block_status(BlockDriverState *bs,
+    bool want_zero, int64_t offset, int64_t bytes, int64_t *pnum,
+    int64_t *map, BlockDriverState **file);
+int coroutine_fn bdrv_co_pdiscard_snapshot(BlockDriverState *bs,
+    int64_t offset, int64_t bytes);
+
 
 int coroutine_fn bdrv_co_preadv(BdrvChild *child,
     int64_t offset, int64_t bytes, QEMUIOVector *qiov,
