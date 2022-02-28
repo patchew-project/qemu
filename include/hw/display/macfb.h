@@ -48,7 +48,7 @@ typedef struct MacFbMode {
     uint32_t offset;
 } MacFbMode;
 
-#define MACFB_NUM_REGS      8
+#define MACFB_NUM_REGS      (0x200 / sizeof(uint32_t))
 
 typedef struct MacfbState {
     MemoryRegion mem_vram;
