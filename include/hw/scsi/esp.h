@@ -51,7 +51,7 @@ struct ESPState {
     ESPDMAMemoryReadWriteFunc dma_memory_write;
     void *dma_opaque;
     void (*dma_cb)(ESPState *s);
-    void (*pdma_cb)(ESPState *s);
+    uint8_t pdma_cb;
 
     uint8_t mig_version_id;
 
@@ -149,6 +149,15 @@ struct SysBusESPState {
 
 #define TCHI_FAS100A 0x4
 #define TCHI_AM53C974 0x12
+
+/* PDMA callbacks */
+#define PDMA_SATN_PDMA_CB              0
+#define PDMA_S_WITHOUT_SATN_PDMA_CB    1
+#define PDMA_SATN_STOP_PDMA_CB         2
+#define PDMA_WRITE_RESPONSE_PDMA_CB    3
+#define PDMA_DO_DMA_PDMA_CB            4
+
+#define PDMA_NUM_CBS                   5
 
 void esp_dma_enable(ESPState *s, int irq, int level);
 void esp_request_cancelled(SCSIRequest *req);
