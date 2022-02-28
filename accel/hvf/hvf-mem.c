@@ -30,9 +30,21 @@
 
 #define HVF_NUM_SLOTS 32
 
+/* HVFSlot flags */
+#define HVF_SLOT_LOG (1 << 0)
+#define HVF_SLOT_READONLY (1 << 1)
+
+typedef struct HVFSlot {
+    hwaddr start;
+    hwaddr size;  /* 0 if the slot is free */
+    hwaddr offset;  /* offset within memory region */
+    uint32_t flags;
+    MemoryRegion *region;
+} HVFSlot;
+
 static HVFSlot memslots[HVF_NUM_SLOTS];
 
-HVFSlot *hvf_find_overlap_slot(hwaddr start, hwaddr size)
+static HVFSlot *hvf_find_overlap_slot(hwaddr start, hwaddr size)
 {
     HVFSlot *slot;
     int x;
@@ -194,7 +206,7 @@ static void hvf_set_dirty_tracking(MemoryRegionSection *section, bool on)
 static void hvf_log_start(MemoryListener *listener,
                           MemoryRegionSection *section, int old, int new)
 {
-    if (old != 0) {
+    if (old == new) {
         return;
     }
 
@@ -211,12 +223,12 @@ static void hvf_log_stop(MemoryListener *listener,
     hvf_set_dirty_tracking(section, 0);
 }
 
-static void hvf_log_sync(MemoryListener *listener,
+static void hvf_log_clear(MemoryListener *listener,
                          MemoryRegionSection *section)
 {
     /*
-     * sync of dirty pages is handled elsewhere; just make sure we keep
-     * tracking the region.
+     * The dirty bits are being cleared.
+     * Make the section write-protected again.
      */
     hvf_set_dirty_tracking(section, 1);
 }
@@ -240,8 +252,46 @@ static MemoryListener hvf_memory_listener = {
     .region_del = hvf_region_del,
     .log_start = hvf_log_start,
     .log_stop = hvf_log_stop,
-    .log_sync = hvf_log_sync,
+    .log_clear = hvf_log_clear,
 };
+
+
+/*
+ * The function is called when the guest is accessing memory causing vmexit.
+ * Check whether the guest can access the memory directly and
+ * also mark the accessed page being written dirty
+ * if the page is being dirty-tracked.
+ *
+ * Return true if the access is within the mapped region,
+ * otherwise return false.
+ */
+bool hvf_access_memory(hwaddr address, bool write)
+{
+    HVFSlot *slot;
+    hv_return_t ret;
+    hwaddr start, size;
+
+    slot = hvf_find_overlap_slot(address, 1);
+
+    if (!slot || (write && slot->flags & HVF_SLOT_READONLY)) {
+        /* MMIO or unmapped area, return false */
+        return false;
+    }
+
+    if (write && (slot->flags & HVF_SLOT_LOG)) {
+        /* The slot is being dirty-tracked. Mark the accessed page dirty. */
+        start = address & qemu_real_host_page_mask;
+        size = qemu_real_host_page_size;
+
+        memory_region_set_dirty(slot->region,
+                                start - slot->start + slot->offset, size);
+        ret = hv_vm_protect(start, size,
+                    HV_MEMORY_READ | HV_MEMORY_WRITE | HV_MEMORY_EXEC);
+        assert_hvf_ok(ret);
+    }
+
+    return true;
+}
 
 void hvf_init_memslots(void)
 {
