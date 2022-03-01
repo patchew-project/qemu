@@ -430,6 +430,23 @@ static void ich9_pm_set_keep_pci_slot_hpc(Object *obj, bool value, Error **errp)
     s->pm.keep_pci_slot_hpc = value;
 }
 
+static bool ich9_pm_get_disable_pcie_slot_power_on_fixup(Object *obj,
+                                                         Error **errp)
+{
+    ICH9LPCState *s = ICH9_LPC_DEVICE(obj);
+
+    return s->pm.acpi_pci_hotplug.disable_pcie_slot_power_on_fixup;
+}
+
+static void ich9_pm_set_disable_pcie_slot_power_on_fixup(Object *obj,
+                                                         bool value,
+                                                         Error **errp)
+{
+    ICH9LPCState *s = ICH9_LPC_DEVICE(obj);
+
+    s->pm.acpi_pci_hotplug.disable_pcie_slot_power_on_fixup = value;
+}
+
 void ich9_pm_add_properties(Object *obj, ICH9LPCPMRegs *pm)
 {
     static const uint32_t gpe0_len = ICH9_PMIO_GPE0_LEN;
@@ -469,6 +486,9 @@ void ich9_pm_add_properties(Object *obj, ICH9LPCPMRegs *pm)
     object_property_add_bool(obj, "x-keep-pci-slot-hpc",
                              ich9_pm_get_keep_pci_slot_hpc,
                              ich9_pm_set_keep_pci_slot_hpc);
+    object_property_add_bool(obj, "x-pcihp-disable-pcie-slot-power-on-fixup",
+                             ich9_pm_get_disable_pcie_slot_power_on_fixup,
+                             ich9_pm_set_disable_pcie_slot_power_on_fixup);
 }
 
 void ich9_pm_device_pre_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,

@@ -52,6 +52,7 @@ typedef struct AcpiPciHpState {
     bool legacy_piix;
     uint16_t io_base;
     uint16_t io_len;
+    bool disable_pcie_slot_power_on_fixup;
 } AcpiPciHpState;
 
 void acpi_pcihp_init(Object *owner, AcpiPciHpState *, PCIBus *root,
