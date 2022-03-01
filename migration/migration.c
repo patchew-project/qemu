@@ -1802,6 +1802,12 @@ void qmp_migrate_start_postcopy(Error **errp)
                          " started");
         return;
     }
+
+    if (migrate_postcopy_preempt() && migrate_tls_enabled()) {
+        error_setg(errp, "Postcopy preemption does not support TLS yet");
+        return;
+    }
+
     /*
      * we don't error if migration has finished since that would be racy
      * with issuing this command.
