@@ -324,6 +324,14 @@ machine is hardly emulated at all (e.g. neither the LCD nor the USB part had
 been implemented), so there is not much value added by this board. Use the
 ``ref405ep`` machine instead.
 
+x86 default machine type
+''''''''''''''''''''''''
+
+x86 currently defaults to the ```pc``` machine type which is based on the very
+old ```i440fx``` chipset.  This default will be removed and the user will be
+required to specify a machine type explicitly using -M; users are encouraged to
+switch to the not quite as old ```q35``` machine types.
+
 Backend options
 ---------------
 
