@@ -155,8 +155,8 @@ typedef struct DumpState {
     ArchDumpInfo dump_info;
     MemoryMappingList list;
     uint16_t phdr_num;
+    uint32_t shdr_num;
     uint32_t sh_info;
-    bool have_section;
     bool resume;
     bool detached;
     ssize_t note_size;
