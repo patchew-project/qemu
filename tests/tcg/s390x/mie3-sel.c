@@ -1,28 +1,26 @@
 #include <stdint.h>
 
 #define Fi3(S, ASM) uint64_t S(uint64_t a, uint64_t b, uint64_t c) \
-{                            \
-    uint64_t res = 0;        \
-    asm (                    \
-         "lg %%r2, %[a]\n"   \
-         "lg %%r3, %[b]\n"   \
-         "lg %%r0, %[c]\n"   \
-         "ltgr %%r0, %%r0\n" \
-         ASM                 \
-         "stg %%r0, %[res] " \
-         : [res] "=m" (res)  \
-         : [a] "m" (a),      \
-           [b] "m" (b),      \
-           [c] "m" (c)       \
-         : "r0", "r2",       \
-           "r3", "r4"        \
-    );                       \
-    return res;              \
+{                       \
+    uint64_t res = 0;   \
+asm volatile (          \
+    "lg %%r0, %[c]\n"   \
+    "ltgr %%r0, %%r0\n" \
+    ASM                 \
+    "stg %%r0, %[res] " \
+    : [res] "=m" (res)  \
+    : [a] "r" (a),      \
+      [b] "r" (b),      \
+      [c] "m" (c)       \
+    : "r0", "memory"    \
+);                      \
+    return res;         \
 }
 
-Fi3 (_selre,     ".insn rrf, 0xB9F00000, %%r0, %%r3, %%r2, 8\n")
-Fi3 (_selgrz,    ".insn rrf, 0xB9E30000, %%r0, %%r3, %%r2, 8\n")
-Fi3 (_selfhrnz,  ".insn rrf, 0xB9C00000, %%r0, %%r3, %%r2, 7\n")
+Fi3 (_selre,     ".insn rrf, 0xB9F00000, %%r0, %[b], %[a], 8\n")
+Fi3 (_selgrz,    ".insn rrf, 0xB9E30000, %%r0, %[b], %[a], 8\n")
+Fi3 (_selfhrnz,  ".insn rrf, 0xB9C00000, %%r0, %[b], %[a], 7\n")
+
 
 int main(int argc, char *argv[])
 {
@@ -34,5 +32,6 @@ int main(int argc, char *argv[])
     return (int) (
         (0xFFFFFFFF00000066ull != a) ||
         (0x0000F00D00000005ull != b) ||
-        (0x00000654FFFFFFFFull != c));
+        (0x00000654FFFFFFFFull != c) );
 }
+
