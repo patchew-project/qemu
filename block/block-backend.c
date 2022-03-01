@@ -575,7 +575,7 @@ BlockBackend *blk_next(BlockBackend *blk)
  * the monitor or attached to a BlockBackend */
 BlockDriverState *bdrv_next(BdrvNextIterator *it)
 {
-    BlockDriverState *bs, *old_bs;
+    BlockDriverState *bs, *old_bs = it->bs;
 
     /* Must be called from the main loop */
     assert(qemu_get_current_aio_context() == qemu_get_aio_context());
@@ -585,8 +585,6 @@ BlockDriverState *bdrv_next(BdrvNextIterator *it)
      * if the BB is the first one in the parent list of the BDS. */
     if (it->phase == BDRV_NEXT_BACKEND_ROOTS) {
         BlockBackend *old_blk = it->blk;
-
-        old_bs = old_blk ? blk_bs(old_blk) : NULL;
 
         do {
             it->blk = blk_all_next(it->blk);
@@ -601,11 +599,12 @@ BlockDriverState *bdrv_next(BdrvNextIterator *it)
         if (bs) {
             bdrv_ref(bs);
             bdrv_unref(old_bs);
+            it->bs = bs;
             return bs;
         }
         it->phase = BDRV_NEXT_MONITOR_OWNED;
-    } else {
-        old_bs = it->bs;
+        /* Start from the first monitor-owned BDS */
+        it->bs = NULL;
     }
 
     /* Then return the monitor-owned BDSes without a BB attached. Ignore all
