@@ -512,6 +512,11 @@ void bdrv_drain_all(void);
     AIO_WAIT_WHILE(bdrv_get_aio_context(bs_),              \
                    cond); })
 
+#define BDRV_POLL_WHILE_UNLOCKED(bs, cond) ({              \
+    BlockDriverState *bs_ = (bs);                          \
+    AIO_WAIT_WHILE_UNLOCKED(bdrv_get_aio_context(bs_),     \
+                            cond); })
+
 int generated_co_wrapper bdrv_pdiscard(BdrvChild *child, int64_t offset,
                                        int64_t bytes);
 int bdrv_co_pdiscard(BdrvChild *child, int64_t offset, int64_t bytes);
