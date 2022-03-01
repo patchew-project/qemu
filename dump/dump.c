@@ -507,6 +507,21 @@ static void write_elf_loads(DumpState *s, Error **errp)
     }
 }
 
+static void write_elf_notes(DumpState *s, Error **errp)
+{
+    Error *local_err = NULL;
+
+    if (dump_is_64bit(s)) {
+        write_elf64_notes(fd_write_vmcore, s, &local_err);
+    } else {
+        write_elf32_notes(fd_write_vmcore, s, &local_err);
+    }
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+}
+
 /* write elf header, PT_NOTE and elf note to vmcore. */
 static void dump_begin(DumpState *s, Error **errp)
 {
@@ -570,13 +585,8 @@ static void dump_begin(DumpState *s, Error **errp)
         }
     }
 
-    if (dump_is_64bit(s)) {
-        /* write notes to vmcore */
-        write_elf64_notes(fd_write_vmcore, s, &local_err);
-    } else {
-        /* write notes to vmcore */
-        write_elf32_notes(fd_write_vmcore, s, &local_err);
-    }
+    /* write notes to vmcore */
+    write_elf_notes(s, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
