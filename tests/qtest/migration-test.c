@@ -470,6 +470,7 @@ typedef struct {
      */
     bool hide_stderr;
     bool use_shmem;
+    bool postcopy_preempt;
     /* only launch the target process */
     bool only_target;
     /* Use dirty ring if true; dirty logging otherwise */
@@ -663,6 +664,8 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
                                     MigrateStart *args)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
+    /* NOTE: args will be freed in test_migrate_start(), cache it */
+    bool postcopy_preempt = args->postcopy_preempt;
     QTestState *from, *to;
 
     if (test_migrate_start(&from, &to, uri, args)) {
@@ -672,6 +675,11 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
     migrate_set_capability(from, "postcopy-ram", true);
     migrate_set_capability(to, "postcopy-ram", true);
     migrate_set_capability(to, "postcopy-blocktime", true);
+
+    if (postcopy_preempt) {
+        migrate_set_capability(from, "postcopy-preempt", true);
+        migrate_set_capability(to, "postcopy-preempt", true);
+    }
 
     /* We want to pick a speed slow enough that the test completes
      * quickly, but that it doesn't complete precopy even on a slow
@@ -719,13 +727,29 @@ static void test_postcopy(void)
     migrate_postcopy_complete(from, to);
 }
 
-static void test_postcopy_recovery(void)
+static void test_postcopy_preempt(void)
+{
+    MigrateStart *args = migrate_start_new();
+    QTestState *from, *to;
+
+    args->postcopy_preempt = true;
+
+    if (migrate_postcopy_prepare(&from, &to, args)) {
+        return;
+    }
+    migrate_postcopy_start(from, to);
+    migrate_postcopy_complete(from, to);
+}
+
+/* @preempt: whether to use postcopy-preempt */
+static void test_postcopy_recovery(bool preempt)
 {
     MigrateStart *args = migrate_start_new();
     QTestState *from, *to;
     g_autofree char *uri = NULL;
 
     args->hide_stderr = true;
+    args->postcopy_preempt = preempt;
 
     if (migrate_postcopy_prepare(&from, &to, args)) {
         return;
@@ -779,6 +803,16 @@ static void test_postcopy_recovery(void)
     migrate_set_parameter_int(from, "max-postcopy-bandwidth", 0);
 
     migrate_postcopy_complete(from, to);
+}
+
+static void test_postcopy_recovery_normal(void)
+{
+    test_postcopy_recovery(false);
+}
+
+static void test_postcopy_recovery_preempt(void)
+{
+    test_postcopy_recovery(true);
 }
 
 static void test_baddest(void)
@@ -1458,7 +1492,10 @@ int main(int argc, char **argv)
     module_call_init(MODULE_INIT_QOM);
 
     qtest_add_func("/migration/postcopy/unix", test_postcopy);
-    qtest_add_func("/migration/postcopy/recovery", test_postcopy_recovery);
+    qtest_add_func("/migration/postcopy/recovery", test_postcopy_recovery_normal);
+    qtest_add_func("/migration/postcopy/preempt/unix", test_postcopy_preempt);
+    qtest_add_func("/migration/postcopy/preempt/recovery",
+                   test_postcopy_recovery_preempt);
     qtest_add_func("/migration/bad_dest", test_baddest);
     qtest_add_func("/migration/precopy/unix", test_precopy_unix);
     qtest_add_func("/migration/precopy/tcp", test_precopy_tcp);
