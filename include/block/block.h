@@ -780,6 +780,7 @@ void bdrv_do_drained_begin_quiesce(BlockDriverState *bs,
  * exclusive access to all child nodes as well.
  */
 void bdrv_subtree_drained_begin(BlockDriverState *bs);
+void bdrv_subtree_drained_begin_unlocked(BlockDriverState *bs);
 
 /**
  * bdrv_drained_end:
@@ -812,6 +813,7 @@ void bdrv_drained_end_no_poll(BlockDriverState *bs, int *drained_end_counter);
  * End a quiescent section started by bdrv_subtree_drained_begin().
  */
 void bdrv_subtree_drained_end(BlockDriverState *bs);
+void bdrv_subtree_drained_end_unlocked(BlockDriverState *bs);
 
 void bdrv_add_child(BlockDriverState *parent, BlockDriverState *child,
                     Error **errp);
