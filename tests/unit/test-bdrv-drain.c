@@ -1534,6 +1534,219 @@ static void test_set_aio_context(void)
     iothread_join(b);
 }
 
+typedef struct ParallelDrainJob {
+    BlockJob common;
+    BlockBackend *blk;
+    BlockDriverState *bs;
+    IOThread *a;
+    bool should_fail;
+    bool allowed_to_run;
+    bool conclude_test;
+    bool job_started;
+} ParallelDrainJob;
+
+typedef struct BDRVParallelTestState {
+    ParallelDrainJob *job;
+} BDRVParallelTestState;
+
+static void coroutine_fn bdrv_test_par_co_drain(BlockDriverState *bs)
+{
+    BDRVParallelTestState *s = bs->opaque;
+    ParallelDrainJob *job = s->job;
+    assert(!qatomic_read(&job->should_fail));
+}
+
+static int parallel_run_test(Job *job, Error **errp)
+{
+    ParallelDrainJob *s = container_of(job, ParallelDrainJob, common.job);
+    s->job_started = true;
+
+    while (!s->conclude_test) {
+        if (s->allowed_to_run) {
+            bdrv_subtree_drained_begin_unlocked(s->bs);
+            bdrv_subtree_drained_end_unlocked(s->bs);
+        }
+        job_pause_point(&s->common.job);
+    }
+    s->job_started = false;
+
+    return 0;
+}
+
+static BlockDriver bdrv_test_parallel = {
+    .format_name            = "test",
+    .instance_size          = sizeof(BDRVParallelTestState),
+    .supports_backing       = true,
+
+    .bdrv_co_drain_begin    = bdrv_test_par_co_drain,
+    .bdrv_co_drain_end      = bdrv_test_par_co_drain,
+
+    .bdrv_child_perm        = bdrv_default_perms,
+};
+
+static bool parallel_drained_poll(BlockJob *job)
+{
+    /* need to return false otherwise a drain in coroutine deadlocks */
+    return false;
+}
+
+static const BlockJobDriver test_block_job_driver_parallel = {
+    .job_driver = {
+        .instance_size = sizeof(ParallelDrainJob),
+        .run           = parallel_run_test,
+        .user_resume   = block_job_user_resume,
+        .free          = block_job_free,
+    },
+    .drained_poll      = parallel_drained_poll,
+};
+
+static ParallelDrainJob *setup_job_test(void)
+{
+    BlockBackend *blk;
+    BlockDriverState *bs;
+    Error *err = NULL;
+    IOThread *a = iothread_new();
+    AioContext *ctx_a = iothread_get_aio_context(a);
+    ParallelDrainJob *s;
+    BDRVParallelTestState *p;
+    int ret;
+
+    blk = blk_new(qemu_get_aio_context(),
+                         BLK_PERM_CONSISTENT_READ, BLK_PERM_ALL);
+    blk_set_allow_aio_context_change(blk, true);
+
+    bs = bdrv_new_open_driver(&bdrv_test_parallel, "parent", 0,
+                                     &error_abort);
+    p = bs->opaque;
+
+    ret = blk_insert_bs(blk, bs, &error_abort);
+    assert(ret == 0);
+
+    s = block_job_create("job1", &test_block_job_driver_parallel,
+                         NULL, blk_bs(blk), 0, BLK_PERM_ALL, 0, JOB_DEFAULT,
+                         NULL, NULL, &err);
+    s->bs = bs;
+    s->a = a;
+    s->blk = blk;
+    p->job = s;
+
+    ret = bdrv_try_set_aio_context(bs, ctx_a, &error_abort);
+    assert(ret == 0);
+    assert(blk_get_aio_context(blk) == ctx_a);
+    assert(s->common.job.aio_context == ctx_a);
+
+    return s;
+}
+
+static void stop_and_tear_down_test(ParallelDrainJob *s)
+{
+    AioContext *ctx = iothread_get_aio_context(s->a);
+
+    /* stop iothread */
+    s->conclude_test = true;
+
+    /* wait that it's stopped */
+    while (s->job_started) {
+        aio_poll(qemu_get_current_aio_context(), false);
+    }
+
+    aio_context_acquire(ctx);
+    bdrv_unref(s->bs);
+    blk_unref(s->blk);
+    aio_context_release(ctx);
+    iothread_join(s->a);
+}
+
+/**
+ * test_main_and_then_iothread_drain: test that if the main
+ * loop drains, iothread cannot possibly drain.
+ *
+ * In this test, make sure that the main loop has firstly
+ * drained, and then allow the iothread to try and drain.
+ *
+ * Therefore, if the main loop drains, there is no way that
+ * the graph can be read or written by the iothread.
+ */
+static void test_main_and_then_iothread_drain(void)
+{
+    ParallelDrainJob *s = setup_job_test();
+
+    s->allowed_to_run = false;
+    job_start(&s->common.job);
+
+    /*
+     * Wait that the iothread starts, even though it just
+     * loops without doing anything (allowed_to_run is false)
+     */
+    while (!s->job_started) {
+        aio_poll(qemu_get_current_aio_context(), false);
+    }
+
+    /*
+     * Drain in the main loop and ensure that no drain
+     * is performed by the iothread.
+     */
+    bdrv_subtree_drained_begin_unlocked(s->bs);
+    /* iothread should be put */
+    qatomic_set(&s->should_fail, true);
+    /* let the iothread do drains */
+    s->allowed_to_run = true;
+
+    /* [perform graph modifications here], as iothread is stopped */
+    sleep(3);
+
+    /* done with modifications, let the iothread drain once it resumes */
+    qatomic_set(&s->should_fail, false);
+
+    /* drained_end should resume the iothread */
+    bdrv_subtree_drained_end_unlocked(s->bs);
+
+    stop_and_tear_down_test(s);
+}
+
+/**
+ * test_main_and_iothread_drain: test that if the main
+ * loop drains, iothread cannot possibly drain.
+ *
+ * In this test, simply let iothread and main loop concurrenly
+ * loop and drain together, making sure that iothread never
+ * reads the graph while main loop is draining.
+ *
+ * Therefore, if the main loop drains, there is no way that
+ * the graph can be read or written by the iothread.
+ */
+static void test_main_and_iothread_drain(void)
+{
+    ParallelDrainJob *s = setup_job_test();
+    int i;
+
+    /* let the iothread do drains from beginning */
+    s->allowed_to_run = true;
+    job_start(&s->common.job);
+
+    /* wait that the iothread starts and begins with drains. */
+    while (!s->job_started) {
+        aio_poll(qemu_get_current_aio_context(), false);
+    }
+
+    /* at the same time, also main loop performs drains */
+    for (i = 0; i < 1000; i++) {
+        bdrv_subtree_drained_begin_unlocked(s->bs);
+        /* iothread should be put, regardless of when it drained */
+        qatomic_set(&s->should_fail, true);
+
+        /* [perform graph modifications here] */
+
+        /* done with modifications, let the iothread drain once it resumes */
+        qatomic_set(&s->should_fail, false);
+
+        /* drained_end should resume the iothread */
+        bdrv_subtree_drained_end_unlocked(s->bs);
+    }
+
+    stop_and_tear_down_test(s);
+}
+
 
 typedef struct TestDropBackingBlockJob {
     BlockJob common;
@@ -2184,6 +2397,11 @@ int main(int argc, char **argv)
     g_test_add_func("/bdrv-drain/iothread/drain", test_iothread_drain);
     g_test_add_func("/bdrv-drain/iothread/drain_subtree",
                     test_iothread_drain_subtree);
+
+    g_test_add_func("/bdrv-drain/iothread/drain_main_and_then_iothread",
+                    test_main_and_then_iothread_drain);
+    g_test_add_func("/bdrv-drain/iothread/drain_parallel",
+                    test_main_and_iothread_drain);
 
     g_test_add_func("/bdrv-drain/blockjob/drain_all", test_blockjob_drain_all);
     g_test_add_func("/bdrv-drain/blockjob/drain", test_blockjob_drain);
