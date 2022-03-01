@@ -554,52 +554,32 @@ static void dump_begin(DumpState *s, Error **errp)
         return;
     }
 
-    if (dump_is_64bit(s)) {
-        /* write all PT_LOAD to vmcore */
-        write_elf_loads(s, &local_err);
+    /* write all PT_LOAD to vmcore */
+    write_elf_loads(s, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    /* write section to vmcore */
+    if (s->shdr_num) {
+        write_elf_section(s, 1, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
         }
+    }
 
-        /* write section to vmcore */
-        if (s->shdr_num) {
-            write_elf_section(s, 1, &local_err);
-            if (local_err) {
-                error_propagate(errp, local_err);
-                return;
-            }
-        }
-
+    if (dump_is_64bit(s)) {
         /* write notes to vmcore */
         write_elf64_notes(fd_write_vmcore, s, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
     } else {
-        /* write all PT_LOAD to vmcore */
-        write_elf_loads(s, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
-
-        /* write section to vmcore */
-        if (s->shdr_num) {
-            write_elf_section(s, 0, &local_err);
-            if (local_err) {
-                error_propagate(errp, local_err);
-                return;
-            }
-        }
-
         /* write notes to vmcore */
         write_elf32_notes(fd_write_vmcore, s, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
+    }
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
     }
 }
 
