@@ -107,6 +107,7 @@ static bool child_job_drained_poll(BdrvChild *c)
     BlockJob *bjob = c->opaque;
     Job *job = &bjob->job;
     const BlockJobDriver *drv = block_job_driver(bjob);
+    AioContext *ctx = block_job_get_aio_context(bjob);
 
     /* An inactive or completed job doesn't have any pending requests. Jobs
      * with !job->busy are either already paused or have a pause point after
@@ -117,7 +118,7 @@ static bool child_job_drained_poll(BdrvChild *c)
 
     /* Otherwise, assume that it isn't fully stopped yet, but allow the job to
      * override this assumption. */
-    if (drv->drained_poll) {
+    if (in_aio_context_home_thread(ctx) && drv->drained_poll) {
         return drv->drained_poll(bjob);
     } else {
         return true;
