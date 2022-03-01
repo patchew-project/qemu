@@ -1,12 +1,19 @@
 #include <stdint.h>
 
+
 #define FbinOp(S, ASM) uint64_t S(uint64_t a, uint64_t b) \
-{ \
-    uint64_t res = 0; \
-    asm ("llihf %[res],801\n" ASM \
-         : [res]"=&r"(res) : [a]"r"(a), [b]"r"(b) : "cc"); \
-    return res; \
+{                       \
+    uint64_t res = 0;   \
+asm volatile (          \
+    "llihf %[res],801\n"\
+    ASM                 \
+    : [res] "=&r" (res)  \
+    : [a] "r" (a)       \
+    , [b] "r" (b)       \
+);                      \
+    return res;         \
 }
+
 
 /* AND WITH COMPLEMENT */
 FbinOp(_ncrk,  ".insn rrf, 0xB9F50000, %[res], %[b], %[a], 0\n")
@@ -27,6 +34,7 @@ FbinOp(_nogrk, ".insn rrf, 0xB9660000, %[res], %[b], %[a], 0\n")
 /* OR WITH COMPLEMENT */
 FbinOp(_ocrk,  ".insn rrf, 0xB9750000, %[res], %[b], %[a], 0\n")
 FbinOp(_ocgrk, ".insn rrf, 0xB9650000, %[res], %[b], %[a], 0\n")
+
 
 int main(int argc, char *argv[])
 {
