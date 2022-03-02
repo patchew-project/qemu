@@ -1795,20 +1795,21 @@ static void test_multifd_tcp_zstd(void)
 #ifdef CONFIG_GNUTLS
 static void test_multifd_tcp_tls_common(TestMigrateStartHook start_hook,
                                         TestMigrateFinishHook finish_hook,
-                                        bool expect_fail)
+                                        bool expect_fail,
+                                        bool dst_quit)
 {
     test_precopy_common("defer",
                         NULL, /* connect_uri */
                         start_hook,
                         finish_hook,
                         expect_fail,
-                        false, /* dst_quit */
+                        dst_quit,
                         1, /* iterations */
                         false /* dirty_ring */);
 }
 
 static void *
-test_migrate_multifd_tcp_tls_psk_start_match(QTestState *from,
+test_migrate_multifd_tls_psk_start_match(QTestState *from,
                                              QTestState *to)
 {
     test_migrate_precopy_tcp_multifd_start_common(from, to, "none");
@@ -1816,27 +1817,131 @@ test_migrate_multifd_tcp_tls_psk_start_match(QTestState *from,
 }
 
 static void *
-test_migrate_multifd_tcp_tls_psk_start_mismatch(QTestState *from,
+test_migrate_multifd_tls_psk_start_mismatch(QTestState *from,
                                                 QTestState *to)
 {
     test_migrate_precopy_tcp_multifd_start_common(from, to, "none");
     return test_migrate_tls_psk_start_mismatch(from, to);
 }
 
+#ifdef CONFIG_TASN1
+static void *
+test_migrate_multifd_tls_x509_start_default_host(QTestState *from,
+                                                 QTestState *to)
+{
+    test_migrate_precopy_tcp_multifd_start_common(from, to, "none");
+    return test_migrate_tls_x509_start_default_host(from, to);
+}
+
+static void *
+test_migrate_multifd_tls_x509_start_override_host(QTestState *from,
+                                                  QTestState *to)
+{
+    test_migrate_precopy_tcp_multifd_start_common(from, to, "none");
+    return test_migrate_tls_x509_start_override_host(from, to);
+}
+
+static void *
+test_migrate_multifd_tls_x509_start_mismatch_host(QTestState *from,
+                                                  QTestState *to)
+{
+    test_migrate_precopy_tcp_multifd_start_common(from, to, "none");
+    return test_migrate_tls_x509_start_mismatch_host(from, to);
+}
+
+static void *
+test_migrate_multifd_tls_x509_start_allow_anonymous_client(QTestState *from,
+                                                           QTestState *to)
+{
+    test_migrate_precopy_tcp_multifd_start_common(from, to, "none");
+    return test_migrate_tls_x509_start_allow_anonymous_client(from, to);
+}
+
+static void *
+test_migrate_multifd_tls_x509_start_reject_anonymous_client(QTestState *from,
+                                                            QTestState *to)
+{
+    test_migrate_precopy_tcp_multifd_start_common(from, to, "none");
+    return test_migrate_tls_x509_start_reject_anonymous_client(from, to);
+}
+#endif /* CONFIG_TASN1 */
+
 static void test_multifd_tcp_tls_psk_match(void)
 {
-    test_multifd_tcp_tls_common(test_migrate_multifd_tcp_tls_psk_start_match,
+    test_multifd_tcp_tls_common(test_migrate_multifd_tls_psk_start_match,
                                 test_migrate_tls_psk_finish,
-                                false /* expect_fail */);
+                                false, /* expect_fail */
+                                false /* dst_quit */);
 }
 
 static void test_multifd_tcp_tls_psk_mismatch(void)
 {
-    test_multifd_tcp_tls_common(test_migrate_multifd_tcp_tls_psk_start_mismatch,
+    test_multifd_tcp_tls_common(test_migrate_multifd_tls_psk_start_mismatch,
                                 test_migrate_tls_psk_finish,
-                                true /* expect_fail */);
+                                true, /* expect_fail */
+                                false /* dst_quit */);
 }
-#endif
+
+#ifdef CONFIG_TASN1
+static void test_multifd_tcp_tls_x509_default_host(void)
+{
+    test_multifd_tcp_tls_common(
+        test_migrate_multifd_tls_x509_start_default_host,
+        test_migrate_tls_x509_finish,
+        false, /* expect_fail */
+        false /* dst_quit */);
+}
+
+static void test_multifd_tcp_tls_x509_override_host(void)
+{
+    test_multifd_tcp_tls_common(
+        test_migrate_multifd_tls_x509_start_override_host,
+        test_migrate_tls_x509_finish,
+        false, /* expect_fail */
+        false /* dst_quit */);
+}
+
+static void test_multifd_tcp_tls_x509_mismatch_host(void)
+{
+    /*
+     * This has different behaviour to the non-multifd case.
+     *
+     * In non-multifd case when client aborts due to mismatched
+     * cert host, the server has already started trying to load
+     * migration state, and so it exits with I/O  failure.
+     *
+     * In multifd case when client aborts due to mismatched
+     * cert host, the server is still waiting for the other
+     * multifd connections to arrive so hasn't started trying
+     * to load migration state, and thus just aborts the migration
+     * without exiting
+     */
+    test_multifd_tcp_tls_common(
+        test_migrate_multifd_tls_x509_start_mismatch_host,
+        test_migrate_tls_x509_finish,
+        true, /* expect_fail */
+        false /* dst_quit */);
+}
+
+static void test_multifd_tcp_tls_x509_allow_anonymous_client(void)
+{
+    test_multifd_tcp_tls_common(
+        test_migrate_multifd_tls_x509_start_allow_anonymous_client,
+        test_migrate_tls_x509_finish,
+        false, /* expect_fail */
+        false /* dst_quit */);
+}
+
+static void test_multifd_tcp_tls_x509_reject_anonymous_client(void)
+{
+    test_multifd_tcp_tls_common(
+        test_migrate_multifd_tls_x509_start_reject_anonymous_client,
+        test_migrate_tls_x509_finish,
+        true, /* expect_fail */
+        false /* dst_quit */);
+}
+#endif /* CONFIG_TASN1 */
+#endif /* CONFIHG_GNUTLS */
 
 /*
  * This test does:
@@ -2062,6 +2167,18 @@ int main(int argc, char **argv)
                    test_multifd_tcp_tls_psk_match);
     qtest_add_func("/migration/multifd/tcp/tls/psk/mismatch",
                    test_multifd_tcp_tls_psk_mismatch);
+#ifdef CONFIG_TASN1
+    qtest_add_func("/migration/multifd/tcp/tls/x509/default-host",
+                   test_multifd_tcp_tls_x509_default_host);
+    qtest_add_func("/migration/multifd/tcp/tls/x509/override-host",
+                   test_multifd_tcp_tls_x509_override_host);
+    qtest_add_func("/migration/multifd/tcp/tls/x509/mismatch-host",
+                   test_multifd_tcp_tls_x509_mismatch_host);
+    qtest_add_func("/migration/multifd/tcp/tls/x509/allow-anonymous-client",
+                   test_multifd_tcp_tls_x509_allow_anonymous_client);
+    qtest_add_func("/migration/multifd/tcp/tls/x509/reject-anonymous-client",
+                   test_multifd_tcp_tls_x509_reject_anonymous_client);
+#endif /* CONFIG_TASN1 */
 #endif /* CONFIG_GNUTLS */
 
     if (kvm_dirty_ring_supported()) {
