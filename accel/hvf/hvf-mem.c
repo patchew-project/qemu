@@ -28,8 +28,6 @@
 
 /* Memory slots */
 
-#define HVF_NUM_SLOTS 32
-
 /* HVFSlot flags */
 #define HVF_SLOT_LOG (1 << 0)
 #define HVF_SLOT_READONLY (1 << 1)
@@ -42,35 +40,24 @@ typedef struct HVFSlot {
     MemoryRegion *region;
 } HVFSlot;
 
-static HVFSlot memslots[HVF_NUM_SLOTS];
+static GTree *memslots;
 static QemuMutex memlock;
 
 static HVFSlot *hvf_find_overlap_slot(hwaddr start, hwaddr size)
 {
-    HVFSlot *slot;
-    int x;
-    for (x = 0; x < HVF_NUM_SLOTS; ++x) {
-        slot = &memslots[x];
-        if (slot->size && start < (slot->start + slot->size) &&
-            (start + size) > slot->start) {
-            return slot;
-        }
-    }
-    return NULL;
+    HVFSlot key = {.start = start, .size = 1};
+    return g_tree_lookup(memslots, &key);
 }
 
-static HVFSlot *hvf_find_free_slot(void)
+static void hvf_insert_slot(HVFSlot *slot)
 {
-    HVFSlot *slot;
-    int x;
-    for (x = 0; x < HVF_NUM_SLOTS; x++) {
-        slot = &memslots[x];
-        if (!slot->size) {
-            return slot;
-        }
-    }
+    g_tree_insert(memslots, slot, slot);
+}
 
-    return NULL;
+static bool hvf_remove_slot(hwaddr start)
+{
+    HVFSlot key = {.start = start, .size = 1};
+    return g_tree_remove(memslots, &key);
 }
 
 /*
@@ -141,9 +128,7 @@ static void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
         readonly = memory_region_is_rom(area) || memory_region_is_romd(area);
 
         /* setup a slot */
-        qemu_mutex_lock(&memlock);
-
-        slot = hvf_find_free_slot();
+        slot = g_new0(HVFSlot, 1);
         if (!slot) {
             error_report("No free slots");
             abort();
@@ -170,6 +155,10 @@ static void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
             flags = HV_MEMORY_READ | HV_MEMORY_WRITE | HV_MEMORY_EXEC;
         }
 
+        qemu_mutex_lock(&memlock);
+
+        hvf_insert_slot(slot);
+
         ret = hv_vm_map(host_addr, start, size, flags);
         assert_hvf_ok(ret);
 
@@ -178,13 +167,9 @@ static void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
         /* remove memory region */
         qemu_mutex_lock(&memlock);
 
-        slot = hvf_find_overlap_slot(start, size);
-
-        if (slot) {
+        if (hvf_remove_slot(start)) {
             ret = hv_vm_unmap(start, size);
             assert_hvf_ok(ret);
-
-            slot->size = 0;
         }
 
         qemu_mutex_unlock(&memlock);
@@ -310,8 +295,24 @@ bool hvf_access_memory(hwaddr address, bool write)
     return true;
 }
 
+/* compare function for GTree */
+static gint _hvf_slot_compare(gconstpointer a, gconstpointer b, gpointer data)
+{
+    const HVFSlot *m1 = (const HVFSlot *)a;
+    const HVFSlot *m2 = (const HVFSlot *)b;
+
+    if (m2->start >= m1->start + m1->size) {
+        return -1;
+    } else if (m1->start >= m2->start + m2->size) {
+        return 1;
+    }
+
+    return 0;
+}
+
 void hvf_init_memslots(void)
 {
     qemu_mutex_init(&memlock);
+    memslots = g_tree_new_full(_hvf_slot_compare, NULL, g_free, NULL);
     memory_listener_register(&hvf_memory_listener, &address_space_memory);
 }
