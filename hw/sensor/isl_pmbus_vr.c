@@ -7,13 +7,13 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/sensor/isl_pmbus.h"
+#include "hw/sensor/isl_pmbus_vr.h"
 #include "hw/qdev-properties.h"
 #include "qapi/visitor.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 
-static uint8_t isl_pmbus_read_byte(PMBusDevice *pmdev)
+static uint8_t isl_pmbus_vr_read_byte(PMBusDevice *pmdev)
 {
     qemu_log_mask(LOG_GUEST_ERROR,
                   "%s: reading from unsupported register: 0x%02x\n",
@@ -21,7 +21,7 @@ static uint8_t isl_pmbus_read_byte(PMBusDevice *pmdev)
     return 0xFF;
 }
 
-static int isl_pmbus_write_data(PMBusDevice *pmdev, const uint8_t *buf,
+static int isl_pmbus_vr_write_data(PMBusDevice *pmdev, const uint8_t *buf,
                               uint8_t len)
 {
     qemu_log_mask(LOG_GUEST_ERROR,
@@ -31,13 +31,13 @@ static int isl_pmbus_write_data(PMBusDevice *pmdev, const uint8_t *buf,
 }
 
 /* TODO: Implement coefficients support in pmbus_device.c for qmp */
-static void isl_pmbus_get(Object *obj, Visitor *v, const char *name,
+static void isl_pmbus_vr_get(Object *obj, Visitor *v, const char *name,
                                      void *opaque, Error **errp)
 {
     visit_type_uint16(v, name, (uint16_t *)opaque, errp);
 }
 
-static void isl_pmbus_set(Object *obj, Visitor *v, const char *name,
+static void isl_pmbus_vr_set(Object *obj, Visitor *v, const char *name,
                                  void *opaque, Error **errp)
 {
     PMBusDevice *pmdev = PMBUS_DEVICE(obj);
@@ -51,7 +51,7 @@ static void isl_pmbus_set(Object *obj, Visitor *v, const char *name,
     pmbus_check_limits(pmdev);
 }
 
-static void isl_pmbus_exit_reset(Object *obj)
+static void isl_pmbus_vr_exit_reset(Object *obj)
 {
     PMBusDevice *pmdev = PMBUS_DEVICE(obj);
 
@@ -92,7 +92,7 @@ static void isl_pmbus_exit_reset(Object *obj)
 /* The raa228000 uses different direct mode coefficents from most isl devices */
 static void raa228000_exit_reset(Object *obj)
 {
-    isl_pmbus_exit_reset(obj);
+    isl_pmbus_vr_exit_reset(obj);
 
     PMBusDevice *pmdev = PMBUS_DEVICE(obj);
 
@@ -107,70 +107,70 @@ static void raa228000_exit_reset(Object *obj)
     pmdev->pages[0].read_temperature_3 = 0;
 }
 
-static void isl_pmbus_add_props(Object *obj, uint64_t *flags, uint8_t pages)
+static void isl_pmbus_vr_add_props(Object *obj, uint64_t *flags, uint8_t pages)
 {
     PMBusDevice *pmdev = PMBUS_DEVICE(obj);
     for (int i = 0; i < pages; i++) {
         if (flags[i] & PB_HAS_VIN) {
             object_property_add(obj, "vin[*]", "uint16",
-                                isl_pmbus_get,
-                                isl_pmbus_set,
+                                isl_pmbus_vr_get,
+                                isl_pmbus_vr_set,
                                 NULL, &pmdev->pages[i].read_vin);
         }
 
         if (flags[i] & PB_HAS_VOUT) {
             object_property_add(obj, "vout[*]", "uint16",
-                                isl_pmbus_get,
-                                isl_pmbus_set,
+                                isl_pmbus_vr_get,
+                                isl_pmbus_vr_set,
                                 NULL, &pmdev->pages[i].read_vout);
         }
 
         if (flags[i] & PB_HAS_IIN) {
             object_property_add(obj, "iin[*]", "uint16",
-                                isl_pmbus_get,
-                                isl_pmbus_set,
+                                isl_pmbus_vr_get,
+                                isl_pmbus_vr_set,
                                 NULL, &pmdev->pages[i].read_iin);
         }
 
         if (flags[i] & PB_HAS_IOUT) {
             object_property_add(obj, "iout[*]", "uint16",
-                                isl_pmbus_get,
-                                isl_pmbus_set,
+                                isl_pmbus_vr_get,
+                                isl_pmbus_vr_set,
                                 NULL, &pmdev->pages[i].read_iout);
         }
 
         if (flags[i] & PB_HAS_PIN) {
             object_property_add(obj, "pin[*]", "uint16",
-                                isl_pmbus_get,
-                                isl_pmbus_set,
+                                isl_pmbus_vr_get,
+                                isl_pmbus_vr_set,
                                 NULL, &pmdev->pages[i].read_pin);
         }
 
         if (flags[i] & PB_HAS_POUT) {
             object_property_add(obj, "pout[*]", "uint16",
-                                isl_pmbus_get,
-                                isl_pmbus_set,
+                                isl_pmbus_vr_get,
+                                isl_pmbus_vr_set,
                                 NULL, &pmdev->pages[i].read_pout);
         }
 
         if (flags[i] & PB_HAS_TEMPERATURE) {
             object_property_add(obj, "temp1[*]", "uint16",
-                                isl_pmbus_get,
-                                isl_pmbus_set,
+                                isl_pmbus_vr_get,
+                                isl_pmbus_vr_set,
                                 NULL, &pmdev->pages[i].read_temperature_1);
         }
 
         if (flags[i] & PB_HAS_TEMP2) {
             object_property_add(obj, "temp2[*]", "uint16",
-                                isl_pmbus_get,
-                                isl_pmbus_set,
+                                isl_pmbus_vr_get,
+                                isl_pmbus_vr_set,
                                 NULL, &pmdev->pages[i].read_temperature_2);
         }
 
         if (flags[i] & PB_HAS_TEMP3) {
             object_property_add(obj, "temp3[*]", "uint16",
-                                isl_pmbus_get,
-                                isl_pmbus_set,
+                                isl_pmbus_vr_get,
+                                isl_pmbus_vr_set,
                                 NULL, &pmdev->pages[i].read_temperature_3);
         }
     }
@@ -192,7 +192,7 @@ static void raa22xx_init(Object *obj)
 
     pmbus_page_config(pmdev, 0, flags[0]);
     pmbus_page_config(pmdev, 1, flags[1]);
-    isl_pmbus_add_props(obj, flags, 2);
+    isl_pmbus_vr_add_props(obj, flags, 2);
 }
 
 static void raa228000_init(Object *obj)
@@ -206,14 +206,15 @@ static void raa228000_init(Object *obj)
                PB_HAS_TEMP2 | PB_HAS_TEMP3 | PB_HAS_STATUS_MFR_SPECIFIC;
 
     pmbus_page_config(pmdev, 0, flags[0]);
-    isl_pmbus_add_props(obj, flags, 1);
+    isl_pmbus_vr_add_props(obj, flags, 1);
 }
 
-static void isl_pmbus_class_init(ObjectClass *klass, void *data, uint8_t pages)
+static void isl_pmbus_vr_class_init(ObjectClass *klass, void *data,
+                                    uint8_t pages)
 {
     PMBusDeviceClass *k = PMBUS_DEVICE_CLASS(klass);
-    k->write_data = isl_pmbus_write_data;
-    k->receive_byte = isl_pmbus_read_byte;
+    k->write_data = isl_pmbus_vr_write_data;
+    k->receive_byte = isl_pmbus_vr_read_byte;
     k->device_num_pages = pages;
 }
 
@@ -222,8 +223,8 @@ static void isl69260_class_init(ObjectClass *klass, void *data)
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->desc = "Renesas ISL69260 Digital Multiphase Voltage Regulator";
-    rc->phases.exit = isl_pmbus_exit_reset;
-    isl_pmbus_class_init(klass, data, 2);
+    rc->phases.exit = isl_pmbus_vr_exit_reset;
+    isl_pmbus_vr_class_init(klass, data, 2);
 }
 
 static void raa228000_class_init(ObjectClass *klass, void *data)
@@ -232,7 +233,7 @@ static void raa228000_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->desc = "Renesas 228000 Digital Multiphase Voltage Regulator";
     rc->phases.exit = raa228000_exit_reset;
-    isl_pmbus_class_init(klass, data, 1);
+    isl_pmbus_vr_class_init(klass, data, 1);
 }
 
 static void raa229004_class_init(ObjectClass *klass, void *data)
@@ -240,8 +241,8 @@ static void raa229004_class_init(ObjectClass *klass, void *data)
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->desc = "Renesas 229004 Digital Multiphase Voltage Regulator";
-    rc->phases.exit = isl_pmbus_exit_reset;
-    isl_pmbus_class_init(klass, data, 2);
+    rc->phases.exit = isl_pmbus_vr_exit_reset;
+    isl_pmbus_vr_class_init(klass, data, 2);
 }
 
 static const TypeInfo isl69260_info = {
@@ -268,11 +269,11 @@ static const TypeInfo raa228000_info = {
     .class_init = raa228000_class_init,
 };
 
-static void isl_pmbus_register_types(void)
+static void isl_pmbus_vr_register_types(void)
 {
     type_register_static(&isl69260_info);
     type_register_static(&raa228000_info);
     type_register_static(&raa229004_info);
 }
 
-type_init(isl_pmbus_register_types)
+type_init(isl_pmbus_vr_register_types)

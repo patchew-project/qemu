@@ -31,7 +31,7 @@ config LSM303DLHC_MAG
     depends on I2C
     default y if I2C_DEVICES
 
-config ISL_PMBUS
+config ISL_PMBUS_VR
     bool
     depends on I2C
 

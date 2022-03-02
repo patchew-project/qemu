@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#ifndef HW_MISC_ISL_PMBUS_H
-#define HW_MISC_ISL_PMBUS_H
+#ifndef HW_MISC_ISL_PMBUS_VR_H
+#define HW_MISC_ISL_PMBUS_VR_H
 
 #include "hw/i2c/pmbus_device.h"
 #include "qom/object.h"
