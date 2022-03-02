@@ -40,7 +40,12 @@ void helper_raise_exception(CPURISCVState *env, uint32_t exception)
 target_ulong helper_csrr(CPURISCVState *env, int csr)
 {
     target_ulong val = 0;
-    RISCVException ret = riscv_csrrw(env, csr, &val, 0, 0);
+
+    /*
+     * new_value here should be none-zero or none-all-ones here to
+     * distinguish with csrrc/csrrs with rs1 is not x0 but holding zero value
+     */
+    RISCVException ret = riscv_csrrw(env, csr, &val, 1, 0);
 
     if (ret != RISCV_EXCP_NONE) {
         riscv_raise_exception(env, ret, GETPC());
