@@ -43,6 +43,7 @@ typedef struct HVFSlot {
 } HVFSlot;
 
 static HVFSlot memslots[HVF_NUM_SLOTS];
+static QemuMutex memlock;
 
 static HVFSlot *hvf_find_overlap_slot(hwaddr start, hwaddr size)
 {
@@ -140,6 +141,8 @@ static void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
         readonly = memory_region_is_rom(area) || memory_region_is_romd(area);
 
         /* setup a slot */
+        qemu_mutex_lock(&memlock);
+
         slot = hvf_find_free_slot();
         if (!slot) {
             error_report("No free slots");
@@ -169,8 +172,12 @@ static void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
 
         ret = hv_vm_map(host_addr, start, size, flags);
         assert_hvf_ok(ret);
+
+        qemu_mutex_unlock(&memlock);
     } else {
         /* remove memory region */
+        qemu_mutex_lock(&memlock);
+
         slot = hvf_find_overlap_slot(start, size);
 
         if (slot) {
@@ -179,12 +186,16 @@ static void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
 
             slot->size = 0;
         }
+
+        qemu_mutex_unlock(&memlock);
     }
 }
 
 static void hvf_set_dirty_tracking(MemoryRegionSection *section, bool on)
 {
     HVFSlot *slot;
+
+    qemu_mutex_lock(&memlock);
 
     slot = hvf_find_overlap_slot(
             section->offset_within_address_space,
@@ -201,6 +212,8 @@ static void hvf_set_dirty_tracking(MemoryRegionSection *section, bool on)
         hv_vm_protect((uintptr_t)slot->start, (size_t)slot->size,
                       HV_MEMORY_READ | HV_MEMORY_WRITE | HV_MEMORY_EXEC);
     }
+
+    qemu_mutex_unlock(&memlock);
 }
 
 static void hvf_log_start(MemoryListener *listener,
@@ -271,10 +284,13 @@ bool hvf_access_memory(hwaddr address, bool write)
     hv_return_t ret;
     hwaddr start, size;
 
+    qemu_mutex_lock(&memlock);
+
     slot = hvf_find_overlap_slot(address, 1);
 
     if (!slot || (write && slot->flags & HVF_SLOT_READONLY)) {
         /* MMIO or unmapped area, return false */
+        qemu_mutex_unlock(&memlock);
         return false;
     }
 
@@ -290,10 +306,12 @@ bool hvf_access_memory(hwaddr address, bool write)
         assert_hvf_ok(ret);
     }
 
+    qemu_mutex_unlock(&memlock);
     return true;
 }
 
 void hvf_init_memslots(void)
 {
+    qemu_mutex_init(&memlock);
     memory_listener_register(&hvf_memory_listener, &address_space_memory);
 }
