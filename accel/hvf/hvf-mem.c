@@ -180,6 +180,11 @@ static void hvf_set_dirty_tracking(MemoryRegionSection *section, bool on)
 {
     HVFSlot *slot;
 
+    if (!memory_region_is_ram(section->mr) || memory_region_is_rom(section)) {
+        /* do not consider memory regions which are not directly writeable */
+        return;
+    }
+
     qemu_mutex_lock(&memlock);
 
     slot = hvf_find_overlap_slot(
