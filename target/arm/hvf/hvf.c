@@ -1227,6 +1227,11 @@ int hvf_vcpu_exec(CPUState *cpu)
             break;
         }
 
+        if (iswrite &&
+            hvf_access_memory(hvf_exit->exception.physical_address, 1)) {
+            break;
+        }
+
         assert(isv);
 
         if (iswrite) {

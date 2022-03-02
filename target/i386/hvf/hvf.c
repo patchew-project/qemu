@@ -114,7 +114,7 @@ void hvf_handle_io(CPUArchState *env, uint16_t port, void *buffer,
     }
 }
 
-static bool ept_emulation_fault(HVFSlot *slot, uint64_t gpa, uint64_t ept_qual)
+static bool ept_emulation_fault(uint64_t gpa, uint64_t ept_qual)
 {
     int read, write;
 
@@ -130,14 +130,6 @@ static bool ept_emulation_fault(HVFSlot *slot, uint64_t gpa, uint64_t ept_qual)
         return false;
     }
 
-    if (write && slot) {
-        if (slot->flags & HVF_SLOT_LOG) {
-            memory_region_set_dirty(slot->region, gpa - slot->start, 1);
-            hv_vm_protect((hv_gpaddr_t)slot->start, (size_t)slot->size,
-                          HV_MEMORY_READ | HV_MEMORY_WRITE);
-        }
-    }
-
     /*
      * The EPT violation must have been caused by accessing a
      * guest-physical address that is a translation of a guest-linear
@@ -148,14 +140,11 @@ static bool ept_emulation_fault(HVFSlot *slot, uint64_t gpa, uint64_t ept_qual)
         return false;
     }
 
-    if (!slot) {
-        return true;
+    if (hvf_access_memory(gpa, write)) {
+        return false;
     }
-    if (!memory_region_is_ram(slot->region) &&
-        !(read && memory_region_is_romd(slot->region))) {
-        return true;
-    }
-    return false;
+
+    return true;
 }
 
 void hvf_arch_vcpu_destroy(CPUState *cpu)
@@ -470,7 +459,6 @@ int hvf_vcpu_exec(CPUState *cpu)
         /* Need to check if MMIO or unmapped fault */
         case EXIT_REASON_EPT_FAULT:
         {
-            HVFSlot *slot;
             uint64_t gpa = rvmcs(cpu->hvf->fd, VMCS_GUEST_PHYSICAL_ADDRESS);
 
             if (((idtvec_info & VMCS_IDT_VEC_VALID) == 0) &&
@@ -478,9 +466,8 @@ int hvf_vcpu_exec(CPUState *cpu)
                 vmx_set_nmi_blocking(cpu);
             }
 
-            slot = hvf_find_overlap_slot(gpa, 1);
             /* mmio */
-            if (ept_emulation_fault(slot, gpa, exit_qual)) {
+            if (ept_emulation_fault(gpa, exit_qual)) {
                 struct x86_decode decode;
 
                 load_regs(cpu);
