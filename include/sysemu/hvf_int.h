@@ -19,12 +19,12 @@
 
 /* hvf_slot flags */
 #define HVF_SLOT_LOG (1 << 0)
+#define HVF_SLOT_READONLY (1 << 1)
 
 typedef struct hvf_slot {
     uint64_t start;
-    uint64_t size;
-    uint8_t *mem;
-    int slot_id;
+    uint64_t size;  /* 0 if the slot is free */
+    uint64_t offset;  /* offset within memory region */
     uint32_t flags;
     MemoryRegion *region;
 } hvf_slot;
@@ -40,8 +40,6 @@ typedef struct hvf_vcpu_caps {
 
 struct HVFState {
     AccelState parent;
-    hvf_slot slots[32];
-    int num_slots;
 
     hvf_vcpu_caps *hvf_caps;
     uint64_t vtimer_offset;
