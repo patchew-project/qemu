@@ -30,11 +30,11 @@
 
 #define HVF_NUM_SLOTS 32
 
-static hvf_slot memslots[HVF_NUM_SLOTS];
+static HVFSlot memslots[HVF_NUM_SLOTS];
 
-hvf_slot *hvf_find_overlap_slot(hwaddr start, hwaddr size)
+HVFSlot *hvf_find_overlap_slot(hwaddr start, hwaddr size)
 {
-    hvf_slot *slot;
+    HVFSlot *slot;
     int x;
     for (x = 0; x < HVF_NUM_SLOTS; ++x) {
         slot = &memslots[x];
@@ -46,9 +46,9 @@ hvf_slot *hvf_find_overlap_slot(hwaddr start, hwaddr size)
     return NULL;
 }
 
-static hvf_slot *hvf_find_free_slot(void)
+static HVFSlot *hvf_find_free_slot(void)
 {
-    hvf_slot *slot;
+    HVFSlot *slot;
     int x;
     for (x = 0; x < HVF_NUM_SLOTS; x++) {
         slot = &memslots[x];
@@ -91,7 +91,7 @@ static hwaddr hvf_align_section(MemoryRegionSection *section,
 
 static void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
 {
-    hvf_slot *slot;
+    HVFSlot *slot;
     hwaddr start, size, offset, delta;
     uint8_t *host_addr;
     MemoryRegion *area = section->mr;
@@ -172,7 +172,7 @@ static void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
 
 static void hvf_set_dirty_tracking(MemoryRegionSection *section, bool on)
 {
-    hvf_slot *slot;
+    HVFSlot *slot;
 
     slot = hvf_find_overlap_slot(
             section->offset_within_address_space,
