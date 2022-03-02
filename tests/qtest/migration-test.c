@@ -1717,9 +1717,9 @@ static void test_migrate_auto_converge(void)
 }
 
 static void *
-test_migration_precopy_tcp_multifd_start_common(QTestState *from,
-                                                QTestState *to,
-                                                const char *method)
+test_migrate_precopy_tcp_multifd_start_common(QTestState *from,
+                                              QTestState *to,
+                                              const char *method)
 {
     QDict *rsp;
 
@@ -1741,25 +1741,25 @@ test_migration_precopy_tcp_multifd_start_common(QTestState *from,
 }
 
 static void *
-test_migration_precopy_tcp_multifd_start(QTestState *from,
-                                         QTestState *to)
+test_migrate_precopy_tcp_multifd_start(QTestState *from,
+                                       QTestState *to)
 {
-    return test_migration_precopy_tcp_multifd_start_common(from, to, "none");
+    return test_migrate_precopy_tcp_multifd_start_common(from, to, "none");
 }
 
 static void *
-test_migration_precopy_tcp_multifd_zlib_start(QTestState *from,
-                                              QTestState *to)
+test_migrate_precopy_tcp_multifd_zlib_start(QTestState *from,
+                                            QTestState *to)
 {
-    return test_migration_precopy_tcp_multifd_start_common(from, to, "zlib");
+    return test_migrate_precopy_tcp_multifd_start_common(from, to, "zlib");
 }
 
 #ifdef CONFIG_ZSTD
 static void *
-test_migration_precopy_tcp_multifd_zstd_start(QTestState *from,
-                                              QTestState *to)
+test_migrate_precopy_tcp_multifd_zstd_start(QTestState *from,
+                                            QTestState *to)
 {
-    return test_migration_precopy_tcp_multifd_start_common(from, to, "zstd");
+    return test_migrate_precopy_tcp_multifd_start_common(from, to, "zstd");
 }
 #endif /* CONFIG_ZSTD */
 
@@ -1777,18 +1777,64 @@ static void test_multifd_tcp_common(TestMigrateStartHook start_hook)
 
 static void test_multifd_tcp_none(void)
 {
-    test_multifd_tcp_common(test_migration_precopy_tcp_multifd_start);
+    test_multifd_tcp_common(test_migrate_precopy_tcp_multifd_start);
 }
 
 static void test_multifd_tcp_zlib(void)
 {
-    test_multifd_tcp_common(test_migration_precopy_tcp_multifd_zlib_start);
+    test_multifd_tcp_common(test_migrate_precopy_tcp_multifd_zlib_start);
 }
 
 #ifdef CONFIG_ZSTD
 static void test_multifd_tcp_zstd(void)
 {
-    test_multifd_tcp_common(test_migration_precopy_tcp_multifd_zstd_start);
+    test_multifd_tcp_common(test_migrate_precopy_tcp_multifd_zstd_start);
+}
+#endif
+
+#ifdef CONFIG_GNUTLS
+static void test_multifd_tcp_tls_common(TestMigrateStartHook start_hook,
+                                        TestMigrateFinishHook finish_hook,
+                                        bool expect_fail)
+{
+    test_precopy_common("defer",
+                        NULL, /* connect_uri */
+                        start_hook,
+                        finish_hook,
+                        expect_fail,
+                        false, /* dst_quit */
+                        1, /* iterations */
+                        false /* dirty_ring */);
+}
+
+static void *
+test_migrate_multifd_tcp_tls_psk_start_match(QTestState *from,
+                                             QTestState *to)
+{
+    test_migrate_precopy_tcp_multifd_start_common(from, to, "none");
+    return test_migrate_tls_psk_start_match(from, to);
+}
+
+static void *
+test_migrate_multifd_tcp_tls_psk_start_mismatch(QTestState *from,
+                                                QTestState *to)
+{
+    test_migrate_precopy_tcp_multifd_start_common(from, to, "none");
+    return test_migrate_tls_psk_start_mismatch(from, to);
+}
+
+static void test_multifd_tcp_tls_psk_match(void)
+{
+    test_multifd_tcp_tls_common(test_migrate_multifd_tcp_tls_psk_start_match,
+                                test_migrate_tls_psk_finish,
+                                false /* expect_fail */);
+}
+
+static void test_multifd_tcp_tls_psk_mismatch(void)
+{
+    test_multifd_tcp_tls_common(test_migrate_multifd_tcp_tls_psk_start_mismatch,
+                                test_migrate_tls_psk_finish,
+                                true /* expect_fail */);
 }
 #endif
 
@@ -2001,12 +2047,22 @@ int main(int argc, char **argv)
                    test_validate_uuid_dst_not_set);
 
     qtest_add_func("/migration/auto_converge", test_migrate_auto_converge);
-    qtest_add_func("/migration/multifd/tcp/none", test_multifd_tcp_none);
-    qtest_add_func("/migration/multifd/tcp/cancel", test_multifd_tcp_cancel);
-    qtest_add_func("/migration/multifd/tcp/zlib", test_multifd_tcp_zlib);
+    qtest_add_func("/migration/multifd/tcp/plain/none",
+                   test_multifd_tcp_none);
+    qtest_add_func("/migration/multifd/tcp/plain/cancel",
+                   test_multifd_tcp_cancel);
+    qtest_add_func("/migration/multifd/tcp/plain/zlib",
+                   test_multifd_tcp_zlib);
 #ifdef CONFIG_ZSTD
-    qtest_add_func("/migration/multifd/tcp/zstd", test_multifd_tcp_zstd);
+    qtest_add_func("/migration/multifd/tcp/plain/zstd",
+                   test_multifd_tcp_zstd);
 #endif
+#ifdef CONFIG_GNUTLS
+    qtest_add_func("/migration/multifd/tcp/tls/psk/match",
+                   test_multifd_tcp_tls_psk_match);
+    qtest_add_func("/migration/multifd/tcp/tls/psk/mismatch",
+                   test_multifd_tcp_tls_psk_mismatch);
+#endif /* CONFIG_GNUTLS */
 
     if (kvm_dirty_ring_supported()) {
         qtest_add_func("/migration/dirty_ring",
