@@ -49,7 +49,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
-#include "exec/address-spaces.h"
 #include "exec/exec-all.h"
 #include "sysemu/cpus.h"
 #include "sysemu/hvf.h"
