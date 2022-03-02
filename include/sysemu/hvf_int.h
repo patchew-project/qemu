@@ -17,18 +17,6 @@
 #include <Hypervisor/hv.h>
 #endif
 
-/* HVFSlot flags */
-#define HVF_SLOT_LOG (1 << 0)
-#define HVF_SLOT_READONLY (1 << 1)
-
-typedef struct HVFSlot {
-    hwaddr start;
-    hwaddr size;  /* 0 if the slot is free */
-    hwaddr offset;  /* offset within memory region */
-    uint32_t flags;
-    MemoryRegion *region;
-} HVFSlot;
-
 typedef struct hvf_vcpu_caps {
     uint64_t vmx_cap_pinbased;
     uint64_t vmx_cap_procbased;
@@ -58,11 +46,11 @@ int hvf_arch_init(void);
 int hvf_arch_init_vcpu(CPUState *cpu);
 void hvf_arch_vcpu_destroy(CPUState *cpu);
 int hvf_vcpu_exec(CPUState *);
-HVFSlot *hvf_find_overlap_slot(hwaddr, hwaddr);
 int hvf_put_registers(CPUState *);
 int hvf_get_registers(CPUState *);
 void hvf_kick_vcpu_thread(CPUState *cpu);
 
+bool hvf_access_memory(hwaddr address, bool write);
 void hvf_init_memslots(void);
 
 #endif
