@@ -797,10 +797,36 @@ static void test_baddest(void)
 }
 
 /*
+ * A hook that runs after the src and dst QEMUs have been
+ * created, but before the migration is started. This can
+ * be used to set migration parameters and capabilities.
+ *
+ * Returns: NULL, or a pointer to opaque state to be
+ *          later passed to the TestMigrateFinishHook
+ */
+typedef void * (*TestMigrateStartHook)(QTestState *from,
+                                       QTestState *to);
+
+/*
+ * A hook that runs after the migration has finished,
+ * regardless of whether it succeeded or failed, but
+ * before QEMU has terminated (unless it self-terminated
+ * due to migration error)
+ *
+ * @opaque is a pointer to state previously returned
+ * by the TestMigrateStartHook if any, or NULL.
+ */
+typedef void (*TestMigrateFinishHook)(QTestState *from,
+                                      QTestState *to,
+                                      void *opaque);
+
+/*
  * Common helper for running a precopy migration test
  *
  * @listen_uri: the URI for the dst QEMU to listen on
  * @connect_uri: the URI for the src QEMU to connect to
+ * @start_hook: (optional) callback to run at start to set migration parameters
+ * @finish_hook: (optional) callback to run at finish to cleanup
  * @dirty_ring: true to use dirty ring tracking
  *
  * If @connect_uri is NULL, then it will query the dst
@@ -810,11 +836,14 @@ static void test_baddest(void)
  */
 static void test_precopy_common(const char *listen_uri,
                                 const char *connect_uri,
+                                TestMigrateStartHook start_hook,
+                                TestMigrateFinishHook finish_hook,
                                 bool dirty_ring)
 {
     MigrateStart *args = migrate_start_new();
     g_autofree char *local_connect_uri = NULL;
     QTestState *from, *to;
+    void *data_hook = NULL;
 
     args->use_dirty_ring = dirty_ring;
 
@@ -831,6 +860,10 @@ static void test_precopy_common(const char *listen_uri,
     migrate_set_parameter_int(from, "downtime-limit", 1);
     /* 1GB/s */
     migrate_set_parameter_int(from, "max-bandwidth", 1000000000);
+
+    if (start_hook) {
+        data_hook = start_hook(from, to);
+    }
 
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
@@ -855,6 +888,10 @@ static void test_precopy_common(const char *listen_uri,
     wait_for_serial("dest_serial");
     wait_for_migration_complete(from);
 
+    if (finish_hook) {
+        finish_hook(from, to, data_hook);
+    }
+
     test_migrate_end(from, to, true);
 }
 
@@ -864,6 +901,8 @@ static void test_precopy_unix_common(bool dirty_ring)
 
     test_precopy_common(uri,
                         uri,
+                        NULL, /* start_hook */
+                        NULL, /* finish_hook */
                         dirty_ring);
 }
 
@@ -971,6 +1010,8 @@ static void test_precopy_tcp(void)
 {
     test_precopy_common("tcp:127.0.0.1:0",
                         NULL, /* connect_uri */
+                        NULL, /* start_hook */
+                        NULL, /* finish_hook */
                         false /* dirty_ring */);
 }
 
