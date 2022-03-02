@@ -111,7 +111,7 @@ static int vfio_set_trigger_eventfd(VFIOINTp *intp,
                                     eventfd_user_side_handler_t handler)
 {
     VFIODevice *vbasedev = &intp->vdev->vbasedev;
-    int32_t fd = event_notifier_get_fd(intp->interrupt);
+    int32_t fd = event_notifier_get_fd(intp->interrupt, false);
     Error *err = NULL;
     int ret;
 
@@ -192,7 +192,7 @@ static void vfio_intp_mmap_enable(void *opaque)
 static void vfio_intp_inject_pending_lockheld(VFIOINTp *intp)
 {
     trace_vfio_platform_intp_inject_pending_lockheld(intp->pin,
-                              event_notifier_get_fd(intp->interrupt));
+                              event_notifier_get_fd(intp->interrupt, false));
 
     intp->state = VFIO_IRQ_ACTIVE;
 
@@ -244,7 +244,7 @@ static void vfio_intp_interrupt(VFIOINTp *intp)
     ret = event_notifier_test_and_clear(intp->interrupt);
     if (!ret) {
         error_report("Error when clearing fd=%d (ret = %d)",
-                     event_notifier_get_fd(intp->interrupt), ret);
+                     event_notifier_get_fd(intp->interrupt, false), ret);
     }
 
     intp->state = VFIO_IRQ_ACTIVE;
@@ -291,7 +291,7 @@ static void vfio_platform_eoi(VFIODevice *vbasedev)
     QLIST_FOREACH(intp, &vdev->intp_list, next) {
         if (intp->state == VFIO_IRQ_ACTIVE) {
             trace_vfio_platform_eoi(intp->pin,
-                                event_notifier_get_fd(intp->interrupt));
+                                event_notifier_get_fd(intp->interrupt, false));
             intp->state = VFIO_IRQ_INACTIVE;
 
             /* deassert the virtual IRQ */
@@ -350,7 +350,7 @@ static void vfio_start_eventfd_injection(SysBusDevice *sbdev, qemu_irq irq)
  */
 static int vfio_set_resample_eventfd(VFIOINTp *intp)
 {
-    int32_t fd = event_notifier_get_fd(intp->unmask);
+    int32_t fd = event_notifier_get_fd(intp->unmask, false);
     VFIODevice *vbasedev = &intp->vdev->vbasedev;
     Error *err = NULL;
     int ret;
@@ -403,11 +403,11 @@ static void vfio_start_irqfd_injection(SysBusDevice *sbdev, qemu_irq irq)
             goto fail_vfio;
         }
         trace_vfio_platform_start_level_irqfd_injection(intp->pin,
-                                    event_notifier_get_fd(intp->interrupt),
-                                    event_notifier_get_fd(intp->unmask));
+                                 event_notifier_get_fd(intp->interrupt, false),
+                                 event_notifier_get_fd(intp->unmask, false));
     } else {
         trace_vfio_platform_start_edge_irqfd_injection(intp->pin,
-                                    event_notifier_get_fd(intp->interrupt));
+                                 event_notifier_get_fd(intp->interrupt, false));
     }
 
     intp->kvm_accel = true;

@@ -229,7 +229,7 @@ static NVMeQueuePair *nvme_create_queue_pair(BDRVNVMeState *s,
         return NULL;
     }
     trace_nvme_create_queue_pair(idx, q, size, aio_context,
-                                 event_notifier_get_fd(s->irq_notifier));
+                                 event_notifier_get_fd(s->irq_notifier, false));
     bytes = QEMU_ALIGN_UP(s->page_size * NVME_NUM_REQS,
                           qemu_real_host_page_size);
     q->prp_list_pages = qemu_try_memalign(qemu_real_host_page_size, bytes);

@@ -437,7 +437,7 @@ static void vfio_ccw_register_irq_notifier(VFIOCCWDevice *vcdev,
         goto out_free_info;
     }
 
-    fd = event_notifier_get_fd(notifier);
+    fd = event_notifier_get_fd(notifier, false);
     qemu_set_fd_handler(fd, fd_read, NULL, vcdev);
 
     if (vfio_set_irq_signaling(vdev, irq, 0,
@@ -476,7 +476,7 @@ static void vfio_ccw_unregister_irq_notifier(VFIOCCWDevice *vcdev,
         warn_reportf_err(err, VFIO_MSG_PREFIX, vcdev->vdev.name);
     }
 
-    qemu_set_fd_handler(event_notifier_get_fd(notifier),
+    qemu_set_fd_handler(event_notifier_get_fd(notifier, false),
                         NULL, NULL, vcdev);
     event_notifier_cleanup(notifier);
 }

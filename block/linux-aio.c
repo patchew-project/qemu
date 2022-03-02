@@ -390,7 +390,7 @@ static int laio_do_submit(int fd, struct qemu_laiocb *laiocb, off_t offset,
                         __func__, type);
         return -EIO;
     }
-    io_set_eventfd(&laiocb->iocb, event_notifier_get_fd(&s->e));
+    io_set_eventfd(&laiocb->iocb, event_notifier_get_fd(&s->e, false));
 
     QSIMPLEQ_INSERT_TAIL(&s->io_q.pending, laiocb, next);
     s->io_q.in_queue++;

@@ -309,7 +309,7 @@ static void vfio_ioeventfd_exit(VFIOPCIDevice *vdev, VFIOIOEventFD *ioeventfd)
                          ioeventfd->size, ioeventfd->data);
         }
     } else {
-        qemu_set_fd_handler(event_notifier_get_fd(&ioeventfd->e),
+        qemu_set_fd_handler(event_notifier_get_fd(&ioeventfd->e, false),
                             NULL, NULL, NULL);
     }
 
@@ -387,14 +387,14 @@ static VFIOIOEventFD *vfio_ioeventfd_init(VFIOPCIDevice *vdev,
         vfio_ioeventfd.data = ioeventfd->data;
         vfio_ioeventfd.offset = ioeventfd->region->fd_offset +
                                 ioeventfd->region_addr;
-        vfio_ioeventfd.fd = event_notifier_get_fd(&ioeventfd->e);
+        vfio_ioeventfd.fd = event_notifier_get_fd(&ioeventfd->e, false);
 
         ioeventfd->vfio = !ioctl(vdev->vbasedev.fd,
                                  VFIO_DEVICE_IOEVENTFD, &vfio_ioeventfd);
     }
 
     if (!ioeventfd->vfio) {
-        qemu_set_fd_handler(event_notifier_get_fd(&ioeventfd->e),
+        qemu_set_fd_handler(event_notifier_get_fd(&ioeventfd->e, false),
                             vfio_ioeventfd_handler, NULL, ioeventfd);
     }
 

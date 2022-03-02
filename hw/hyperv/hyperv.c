@@ -616,7 +616,7 @@ int hyperv_set_event_flag_handler(uint32_t conn_id, EventNotifier *notifier)
     if (!process_event_flags_userspace) {
         struct kvm_hyperv_eventfd hvevfd = {
             .conn_id = conn_id,
-            .fd = notifier ? event_notifier_get_fd(notifier) : -1,
+            .fd = notifier ? event_notifier_get_fd(notifier, false) : -1,
             .flags = notifier ? 0 : KVM_HYPERV_EVENTFD_DEASSIGN,
         };
 

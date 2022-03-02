@@ -1149,7 +1149,7 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
         goto fail_alloc;
     }
 
-    file.fd = event_notifier_get_fd(virtio_queue_get_host_notifier(vvq));
+    file.fd = event_notifier_get_fd(virtio_queue_get_host_notifier(vvq), false);
     r = dev->vhost_ops->vhost_set_vring_kick(dev, &file);
     if (r) {
         VHOST_OPS_DEBUG(r, "vhost_set_vring_kick failed");
@@ -1287,7 +1287,7 @@ static int vhost_virtqueue_init(struct vhost_dev *dev,
         return r;
     }
 
-    file.fd = event_notifier_get_fd(&vq->masked_notifier);
+    file.fd = event_notifier_get_fd(&vq->masked_notifier, true);
     r = dev->vhost_ops->vhost_set_vring_call(dev, &file);
     if (r) {
         VHOST_OPS_DEBUG(r, "vhost_set_vring_call failed");
@@ -1542,9 +1542,11 @@ void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
 
     if (mask) {
         assert(vdev->use_guest_notifier_mask);
-        file.fd = event_notifier_get_fd(&hdev->vqs[index].masked_notifier);
+        file.fd = event_notifier_get_fd(&hdev->vqs[index].masked_notifier,
+                                        true);
     } else {
-        file.fd = event_notifier_get_fd(virtio_queue_get_guest_notifier(vvq));
+        file.fd = event_notifier_get_fd(virtio_queue_get_guest_notifier(vvq),
+                                        true);
     }
 
     file.index = hdev->vhost_ops->vhost_get_vq_index(hdev, n);

@@ -61,8 +61,8 @@ static void setup_irqfd(PCIProxyDev *dev)
     memset(&msg, 0, sizeof(MPQemuMsg));
     msg.cmd = MPQEMU_CMD_SET_IRQFD;
     msg.num_fds = 2;
-    msg.fds[0] = event_notifier_get_fd(&dev->intr);
-    msg.fds[1] = event_notifier_get_fd(&dev->resample);
+    msg.fds[0] = event_notifier_get_fd(&dev->intr, false);
+    msg.fds[1] = event_notifier_get_fd(&dev->resample, false);
     msg.size = 0;
 
     if (!mpqemu_msg_send(&msg, dev->ioc, &local_err)) {

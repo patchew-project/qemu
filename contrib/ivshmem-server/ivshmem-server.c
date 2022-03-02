@@ -204,7 +204,8 @@ ivshmem_server_handle_new_conn(IvshmemServer *server)
     /* advertise the new peer to itself */
     for (i = 0; i < peer->vectors_count; i++) {
         ivshmem_server_send_one_msg(peer->sock_fd, peer->id,
-                                    event_notifier_get_fd(&peer->vectors[i]));
+                                    event_notifier_get_fd(&peer->vectors[i],
+                                                          false));
     }
 
     QTAILQ_INSERT_TAIL(&server->peer_list, peer, next);
@@ -456,7 +457,7 @@ ivshmem_server_dump(const IvshmemServer *server)
 
         for (vector = 0; vector < peer->vectors_count; vector++) {
             printf("  vector %d is enabled (fd=%d)\n", vector,
-                   event_notifier_get_fd(&peer->vectors[vector]));
+                   event_notifier_get_fd(&peer->vectors[vector], false));
         }
     }
 }

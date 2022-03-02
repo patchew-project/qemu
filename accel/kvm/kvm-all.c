@@ -1573,7 +1573,7 @@ static void kvm_mem_ioeventfd_add(MemoryListener *listener,
                                   bool match_data, uint64_t data,
                                   EventNotifier *e)
 {
-    int fd = event_notifier_get_fd(e);
+    int fd = event_notifier_get_fd(e, false);
     int r;
 
     r = kvm_set_ioeventfd_mmio(fd, section->offset_within_address_space,
@@ -1591,7 +1591,7 @@ static void kvm_mem_ioeventfd_del(MemoryListener *listener,
                                   bool match_data, uint64_t data,
                                   EventNotifier *e)
 {
-    int fd = event_notifier_get_fd(e);
+    int fd = event_notifier_get_fd(e, false);
     int r;
 
     r = kvm_set_ioeventfd_mmio(fd, section->offset_within_address_space,
@@ -1609,7 +1609,7 @@ static void kvm_io_ioeventfd_add(MemoryListener *listener,
                                  bool match_data, uint64_t data,
                                  EventNotifier *e)
 {
-    int fd = event_notifier_get_fd(e);
+    int fd = event_notifier_get_fd(e, false);
     int r;
 
     r = kvm_set_ioeventfd_pio(fd, section->offset_within_address_space,
@@ -1628,7 +1628,7 @@ static void kvm_io_ioeventfd_del(MemoryListener *listener,
                                  EventNotifier *e)
 
 {
-    int fd = event_notifier_get_fd(e);
+    int fd = event_notifier_get_fd(e, false);
     int r;
 
     r = kvm_set_ioeventfd_pio(fd, section->offset_within_address_space,
@@ -2045,8 +2045,8 @@ static int kvm_irqchip_assign_irqfd(KVMState *s, EventNotifier *event,
                                     EventNotifier *resample, int virq,
                                     bool assign)
 {
-    int fd = event_notifier_get_fd(event);
-    int rfd = resample ? event_notifier_get_fd(resample) : -1;
+    int fd = event_notifier_get_fd(event, false);
+    int rfd = resample ? event_notifier_get_fd(resample, false) : -1;
 
     struct kvm_irqfd irqfd = {
         .fd = fd,

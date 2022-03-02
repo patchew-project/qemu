@@ -113,7 +113,7 @@ static void vfio_intx_eoi(VFIODevice *vbasedev)
 static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev, Error **errp)
 {
 #ifdef CONFIG_KVM
-    int irq_fd = event_notifier_get_fd(&vdev->intx.interrupt);
+    int irq_fd = event_notifier_get_fd(&vdev->intx.interrupt, false);
 
     if (vdev->no_kvm_intx || !kvm_irqfds_enabled() ||
         vdev->intx.route.mode != PCI_INTX_ENABLED ||
@@ -143,7 +143,7 @@ static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev, Error **errp)
 
     if (vfio_set_irq_signaling(&vdev->vbasedev, VFIO_PCI_INTX_IRQ_INDEX, 0,
                                VFIO_IRQ_SET_ACTION_UNMASK,
-                               event_notifier_get_fd(&vdev->intx.unmask),
+                               event_notifier_get_fd(&vdev->intx.unmask, false),
                                errp)) {
         goto fail_vfio;
     }
@@ -193,7 +193,7 @@ static void vfio_intx_disable_kvm(VFIOPCIDevice *vdev)
     event_notifier_cleanup(&vdev->intx.unmask);
 
     /* QEMU starts listening for interrupt events. */
-    qemu_set_fd_handler(event_notifier_get_fd(&vdev->intx.interrupt),
+    qemu_set_fd_handler(event_notifier_get_fd(&vdev->intx.interrupt, false),
                         vfio_intx_interrupt, NULL, vdev);
 
     vdev->intx.kvm_accel = false;
@@ -286,7 +286,7 @@ static int vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
         error_setg_errno(errp, -ret, "event_notifier_init failed");
         return ret;
     }
-    fd = event_notifier_get_fd(&vdev->intx.interrupt);
+    fd = event_notifier_get_fd(&vdev->intx.interrupt, false);
     qemu_set_fd_handler(fd, vfio_intx_interrupt, NULL, vdev);
 
     if (vfio_set_irq_signaling(&vdev->vbasedev, VFIO_PCI_INTX_IRQ_INDEX, 0,
@@ -318,7 +318,7 @@ static void vfio_intx_disable(VFIOPCIDevice *vdev)
     pci_irq_deassert(&vdev->pdev);
     vfio_mmap_set_enabled(vdev, true);
 
-    fd = event_notifier_get_fd(&vdev->intx.interrupt);
+    fd = event_notifier_get_fd(&vdev->intx.interrupt, false);
     qemu_set_fd_handler(fd, NULL, NULL, vdev);
     event_notifier_cleanup(&vdev->intx.interrupt);
 
@@ -393,9 +393,11 @@ static int vfio_enable_vectors(VFIOPCIDevice *vdev, bool msix)
         if (vdev->msi_vectors[i].use) {
             if (vdev->msi_vectors[i].virq < 0 ||
                 (msix && msix_is_masked(&vdev->pdev, i))) {
-                fd = event_notifier_get_fd(&vdev->msi_vectors[i].interrupt);
+                fd = event_notifier_get_fd(&vdev->msi_vectors[i].interrupt,
+                                           false);
             } else {
-                fd = event_notifier_get_fd(&vdev->msi_vectors[i].kvm_interrupt);
+                fd = event_notifier_get_fd(&vdev->msi_vectors[i].kvm_interrupt,
+                                           false);
             }
         }
 
@@ -475,7 +477,7 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
         msix_vector_use(pdev, nr);
     }
 
-    qemu_set_fd_handler(event_notifier_get_fd(&vector->interrupt),
+    qemu_set_fd_handler(event_notifier_get_fd(&vector->interrupt, false),
                         handler, NULL, vector);
 
     /*
@@ -511,9 +513,9 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
         int32_t fd;
 
         if (vector->virq >= 0) {
-            fd = event_notifier_get_fd(&vector->kvm_interrupt);
+            fd = event_notifier_get_fd(&vector->kvm_interrupt, false);
         } else {
-            fd = event_notifier_get_fd(&vector->interrupt);
+            fd = event_notifier_get_fd(&vector->interrupt, false);
         }
 
         if (vfio_set_irq_signaling(&vdev->vbasedev,
@@ -556,7 +558,7 @@ static void vfio_msix_vector_release(PCIDevice *pdev, unsigned int nr)
      * be re-asserted on unmask.  Nothing to do if already using QEMU mode.
      */
     if (vector->virq >= 0) {
-        int32_t fd = event_notifier_get_fd(&vector->interrupt);
+        int32_t fd = event_notifier_get_fd(&vector->interrupt, false);
         Error *err = NULL;
 
         if (vfio_set_irq_signaling(&vdev->vbasedev, VFIO_PCI_MSIX_IRQ_INDEX, nr,
@@ -614,7 +616,7 @@ static void vfio_msix_enable(VFIOPCIDevice *vdev)
 
 static void vfio_msi_enable(VFIOPCIDevice *vdev)
 {
-    int ret, i;
+    int ret, i, fd;
 
     vfio_disable_interrupts(vdev);
 
@@ -633,8 +635,8 @@ retry:
             error_report("vfio: Error: event_notifier_init failed");
         }
 
-        qemu_set_fd_handler(event_notifier_get_fd(&vector->interrupt),
-                            vfio_msi_interrupt, NULL, vector);
+        fd = event_notifier_get_fd(&vector->interrupt, false);
+        qemu_set_fd_handler(fd, vfio_msi_interrupt, NULL, vector);
 
         /*
          * Attempt to enable route through KVM irqchip,
@@ -660,8 +662,8 @@ retry:
             if (vector->virq >= 0) {
                 vfio_remove_kvm_msi_virq(vector);
             }
-            qemu_set_fd_handler(event_notifier_get_fd(&vector->interrupt),
-                                NULL, NULL, NULL);
+            fd = event_notifier_get_fd(&vector->interrupt, false);
+            qemu_set_fd_handler(fd, NULL, NULL, NULL);
             event_notifier_cleanup(&vector->interrupt);
         }
 
@@ -691,7 +693,7 @@ retry:
 static void vfio_msi_disable_common(VFIOPCIDevice *vdev)
 {
     Error *err = NULL;
-    int i;
+    int i, fd;
 
     for (i = 0; i < vdev->nr_vectors; i++) {
         VFIOMSIVector *vector = &vdev->msi_vectors[i];
@@ -699,8 +701,8 @@ static void vfio_msi_disable_common(VFIOPCIDevice *vdev)
             if (vector->virq >= 0) {
                 vfio_remove_kvm_msi_virq(vector);
             }
-            qemu_set_fd_handler(event_notifier_get_fd(&vector->interrupt),
-                                NULL, NULL, NULL);
+            fd = event_notifier_get_fd(&vector->interrupt, false);
+            qemu_set_fd_handler(fd, NULL, NULL, NULL);
             event_notifier_cleanup(&vector->interrupt);
         }
     }
@@ -2700,7 +2702,7 @@ static void vfio_register_err_notifier(VFIOPCIDevice *vdev)
         return;
     }
 
-    fd = event_notifier_get_fd(&vdev->err_notifier);
+    fd = event_notifier_get_fd(&vdev->err_notifier, false);
     qemu_set_fd_handler(fd, vfio_err_notifier_handler, NULL, vdev);
 
     if (vfio_set_irq_signaling(&vdev->vbasedev, VFIO_PCI_ERR_IRQ_INDEX, 0,
@@ -2724,7 +2726,7 @@ static void vfio_unregister_err_notifier(VFIOPCIDevice *vdev)
                                VFIO_IRQ_SET_ACTION_TRIGGER, -1, &err)) {
         error_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
     }
-    qemu_set_fd_handler(event_notifier_get_fd(&vdev->err_notifier),
+    qemu_set_fd_handler(event_notifier_get_fd(&vdev->err_notifier, false),
                         NULL, NULL, vdev);
     event_notifier_cleanup(&vdev->err_notifier);
 }
@@ -2765,7 +2767,7 @@ static void vfio_register_req_notifier(VFIOPCIDevice *vdev)
         return;
     }
 
-    fd = event_notifier_get_fd(&vdev->req_notifier);
+    fd = event_notifier_get_fd(&vdev->req_notifier, false);
     qemu_set_fd_handler(fd, vfio_req_notifier_handler, NULL, vdev);
 
     if (vfio_set_irq_signaling(&vdev->vbasedev, VFIO_PCI_REQ_IRQ_INDEX, 0,
@@ -2790,7 +2792,7 @@ static void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
                                VFIO_IRQ_SET_ACTION_TRIGGER, -1, &err)) {
         error_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
     }
-    qemu_set_fd_handler(event_notifier_get_fd(&vdev->req_notifier),
+    qemu_set_fd_handler(event_notifier_get_fd(&vdev->req_notifier, false),
                         NULL, NULL, vdev);
     event_notifier_cleanup(&vdev->req_notifier);
 

@@ -94,8 +94,11 @@ void event_notifier_cleanup(EventNotifier *e)
     e->initialized = false;
 }
 
-int event_notifier_get_fd(const EventNotifier *e)
+int event_notifier_get_fd(const EventNotifier *e, bool write)
 {
+    if (write) {
+        return e->wfd;
+    }
     return e->rfd;
 }
 

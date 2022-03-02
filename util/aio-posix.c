@@ -200,7 +200,7 @@ void aio_set_event_notifier(AioContext *ctx,
                             AioPollFn *io_poll,
                             EventNotifierHandler *io_poll_ready)
 {
-    aio_set_fd_handler(ctx, event_notifier_get_fd(notifier), is_external,
+    aio_set_fd_handler(ctx, event_notifier_get_fd(notifier, false), is_external,
                        (IOHandler *)io_read, NULL, io_poll,
                        (IOHandler *)io_poll_ready, notifier);
 }
@@ -210,7 +210,7 @@ void aio_set_event_notifier_poll(AioContext *ctx,
                                  EventNotifierHandler *io_poll_begin,
                                  EventNotifierHandler *io_poll_end)
 {
-    aio_set_fd_poll(ctx, event_notifier_get_fd(notifier),
+    aio_set_fd_poll(ctx, event_notifier_get_fd(notifier, false),
                     (IOHandler *)io_poll_begin,
                     (IOHandler *)io_poll_end);
 }

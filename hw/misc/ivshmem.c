@@ -351,7 +351,7 @@ static void ivshmem_vector_poll(PCIDevice *dev,
 static void watch_vector_notifier(IVShmemState *s, EventNotifier *n,
                                  int vector)
 {
-    int eventfd = event_notifier_get_fd(n);
+    int eventfd = event_notifier_get_fd(n, false);
 
     assert(!s->msi_vectors[vector].pdev);
     s->msi_vectors[vector].pdev = PCI_DEVICE(s);

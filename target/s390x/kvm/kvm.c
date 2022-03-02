@@ -2019,7 +2019,7 @@ int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
     struct kvm_ioeventfd kick = {
         .flags = KVM_IOEVENTFD_FLAG_VIRTIO_CCW_NOTIFY |
         KVM_IOEVENTFD_FLAG_DATAMATCH,
-        .fd = event_notifier_get_fd(notifier),
+        .fd = event_notifier_get_fd(notifier, false),
         .datamatch = vq,
         .addr = sch,
         .len = 8,
