@@ -84,7 +84,10 @@ static hwaddr hvf_align_section(MemoryRegionSection *section,
     size = (size - _delta) & qemu_real_host_page_mask;
 
     *start = _start;
-    *delta = _delta;
+
+    if (delta) {
+        *delta = _delta;
+    }
 
     return size;
 }
@@ -229,11 +232,21 @@ static void hvf_log_stop(MemoryListener *listener,
 static void hvf_log_clear(MemoryListener *listener,
                          MemoryRegionSection *section)
 {
+    hwaddr start, size;
+
+    if (!memory_region_is_ram(section->mr) || memory_region_is_rom(section)) {
+        /* do not consider memory regions which are not directly writeable */
+        return;
+    }
+
     /*
      * The dirty bits are being cleared.
      * Make the section write-protected again.
      */
-    hvf_set_dirty_tracking(section, 1);
+    size = hvf_align_section(section, &start, NULL);
+    if (size) {
+        hv_vm_protect(start, size, HV_MEMORY_READ | HV_MEMORY_EXEC);
+    }
 }
 
 static void hvf_region_add(MemoryListener *listener,
