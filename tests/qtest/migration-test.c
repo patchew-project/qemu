@@ -1162,6 +1162,7 @@ typedef void (*TestMigrateFinishHook)(QTestState *from,
  * @expect_fail: true if we expect migration to fail
  * @dst_quit: true if we expect the dst QEMU to quit with an
  *            abnormal exit status on failure
+ * @iterations: number of migration passes to wait for
  * @dirty_ring: true to use dirty ring tracking
  *
  * If @connect_uri is NULL, then it will query the dst
@@ -1185,6 +1186,7 @@ static void test_precopy_common(const char *listen_uri,
                                 TestMigrateFinishHook finish_hook,
                                 bool expect_fail,
                                 bool dst_quit,
+                                unsigned int iterations,
                                 bool dirty_ring)
 {
     MigrateStart *args = migrate_start_new();
@@ -1229,7 +1231,9 @@ static void test_precopy_common(const char *listen_uri,
             qtest_set_expected_status(to, 1);
         }
     } else {
-        wait_for_migration_pass(from);
+        while (iterations--) {
+            wait_for_migration_pass(from);
+        }
 
         migrate_set_parameter_int(from, "downtime-limit", CONVERGE_DOWNTIME);
 
@@ -1255,6 +1259,7 @@ static void test_precopy_unix_common(TestMigrateStartHook start_hook,
                                      TestMigrateFinishHook finish_hook,
                                      bool expect_fail,
                                      bool dst_quit,
+                                     unsigned int iterations,
                                      bool dirty_ring)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
@@ -1265,6 +1270,7 @@ static void test_precopy_unix_common(TestMigrateStartHook start_hook,
                         finish_hook,
                         expect_fail,
                         dst_quit,
+                        iterations,
                         dirty_ring);
 }
 
@@ -1274,6 +1280,7 @@ static void test_precopy_unix_plain(void)
                              NULL, /* finish_hook */
                              false, /* expect_fail */
                              false, /* dst_quit */
+                             1, /* iterations */
                              false /* dirty_ring */);
 }
 
@@ -1283,6 +1290,7 @@ static void test_precopy_unix_dirty_ring(void)
                              NULL, /* finish_hook */
                              false, /* clientReject */
                              false, /* dst_quit */
+                             1, /* iterations */
                              true /* dirty_ring */);
 }
 
@@ -1293,6 +1301,7 @@ static void test_precopy_unix_tls_psk(void)
                              test_migrate_tls_psk_finish,
                              false, /* expect_fail */
                              false, /* dst_quit */
+                             1, /* iterations */
                              false /* dirty_ring */);
 }
 
@@ -1303,6 +1312,7 @@ static void test_precopy_unix_tls_x509_default_host(void)
                              test_migrate_tls_x509_finish,
                              true, /* expect_fail */
                              true, /* dst_quit */
+                             1, /* iterations */
                              false /* dirty_ring */);
 }
 
@@ -1312,6 +1322,7 @@ static void test_precopy_unix_tls_x509_override_host(void)
                              test_migrate_tls_x509_finish,
                              false, /* expect_fail */
                              false, /* dst_quit */
+                             1, /* iterations */
                              false /* dirty_ring */);
 }
 #endif /* CONFIG_TASN1 */
@@ -1354,57 +1365,26 @@ static void test_ignore_shared(void)
 }
 #endif
 
-static void test_xbzrle(const char *uri)
+static void *
+test_migrate_xbzrle_start(QTestState *from,
+                          QTestState *to)
 {
-    MigrateStart *args = migrate_start_new();
-    QTestState *from, *to;
-
-    if (test_migrate_start(&from, &to, uri, args)) {
-        return;
-    }
-
-    /*
-     * We want to pick a speed slow enough that the test completes
-     * quickly, but that it doesn't complete precopy even on a slow
-     * machine, so also set the downtime.
-     */
-    /* 1 ms should make it not converge*/
-    migrate_set_parameter_int(from, "downtime-limit", 1);
-    /* 1GB/s */
-    migrate_set_parameter_int(from, "max-bandwidth", 1000000000);
-
     migrate_set_parameter_int(from, "xbzrle-cache-size", 33554432);
 
     migrate_set_capability(from, "xbzrle", true);
     migrate_set_capability(to, "xbzrle", true);
-    /* Wait for the first serial output from the source */
-    wait_for_serial("src_serial");
 
-    migrate_qmp(from, uri, "{}");
-
-    wait_for_migration_pass(from);
-    /* Make sure we have 2 passes, so the xbzrle cache gets a workout */
-    wait_for_migration_pass(from);
-
-    /* 1000ms should converge */
-    migrate_set_parameter_int(from, "downtime-limit", 1000);
-
-    if (!got_stop) {
-        qtest_qmp_eventwait(from, "STOP");
-    }
-    qtest_qmp_eventwait(to, "RESUME");
-
-    wait_for_serial("dest_serial");
-    wait_for_migration_complete(from);
-
-    test_migrate_end(from, to, true);
+    return NULL;
 }
 
-static void test_xbzrle_unix(void)
+static void test_precopy_unix_xbzrle(void)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-
-    test_xbzrle(uri);
+    test_precopy_unix_common(test_migrate_xbzrle_start,
+                             NULL, /* finish_hook */
+                             false, /* expect_fail */
+                             false, /* dst_quit */
+                             2, /* iterations */
+                             false /* dirty_ring */);
 }
 
 static void test_precopy_tcp_common(TestMigrateStartHook start_hook,
@@ -1418,6 +1398,7 @@ static void test_precopy_tcp_common(TestMigrateStartHook start_hook,
                         finish_hook,
                         expect_fail,
                         dst_quit,
+                        1, /* iterations */
                         false /* dirty_ring */);
 }
 
@@ -1572,6 +1553,7 @@ static void test_migrate_fd_proto(void)
                         test_migrate_fd_finish_hook,
                         false, /* expect_fail */
                         false, /* dst_quit */
+                        1, /* iterations */
                         false /* dirty_ring */);
 }
 
@@ -1970,6 +1952,7 @@ int main(int argc, char **argv)
     qtest_add_func("/migration/postcopy/recovery", test_postcopy_recovery);
     qtest_add_func("/migration/bad_dest", test_baddest);
     qtest_add_func("/migration/precopy/unix/plain", test_precopy_unix_plain);
+    qtest_add_func("/migration/precopy/unix/xbzrle", test_precopy_unix_xbzrle);
 #ifdef CONFIG_GNUTLS
     qtest_add_func("/migration/precopy/unix/tls/psk",
                    test_precopy_unix_tls_psk);
@@ -2006,7 +1989,6 @@ int main(int argc, char **argv)
 #endif /* CONFIG_GNUTLS */
 
     /* qtest_add_func("/migration/ignore_shared", test_ignore_shared); */
-    qtest_add_func("/migration/xbzrle/unix", test_xbzrle_unix);
     qtest_add_func("/migration/fd_proto", test_migrate_fd_proto);
     qtest_add_func("/migration/validate_uuid", test_validate_uuid);
     qtest_add_func("/migration/validate_uuid_error", test_validate_uuid_error);
