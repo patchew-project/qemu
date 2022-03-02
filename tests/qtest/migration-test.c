@@ -827,17 +827,32 @@ typedef void (*TestMigrateFinishHook)(QTestState *from,
  * @connect_uri: the URI for the src QEMU to connect to
  * @start_hook: (optional) callback to run at start to set migration parameters
  * @finish_hook: (optional) callback to run at finish to cleanup
+ * @expect_fail: true if we expect migration to fail
+ * @dst_quit: true if we expect the dst QEMU to quit with an
+ *            abnormal exit status on failure
  * @dirty_ring: true to use dirty ring tracking
  *
  * If @connect_uri is NULL, then it will query the dst
  * QEMU for its actual listening address and use that
  * as the connect address. This allows for dynamically
  * picking a free TCP port.
+ *
+ * If @expect_fail is true then we expect the migration process to
+ * fail instead of completing. There can be a variety of reasons
+ * and stages in which this may happen. If a failure is expected
+ * to happen at time of establishing the connection, then @dst_quit
+ * should be false to indicate that the dst QEMU is espected to
+ * stay running and accept future migration connections. If a
+ * failure is expected to happen while processing the migration
+ * stream, then @dst_quit should be true to indicate that the
+ * dst QEMU is expected to quit with non-zero exit status
  */
 static void test_precopy_common(const char *listen_uri,
                                 const char *connect_uri,
                                 TestMigrateStartHook start_hook,
                                 TestMigrateFinishHook finish_hook,
+                                bool expect_fail,
+                                bool dst_quit,
                                 bool dirty_ring)
 {
     MigrateStart *args = migrate_start_new();
@@ -875,24 +890,32 @@ static void test_precopy_common(const char *listen_uri,
 
     migrate_qmp(from, connect_uri, "{}");
 
-    wait_for_migration_pass(from);
+    if (expect_fail) {
+        wait_for_migration_fail(from, !dst_quit);
 
-    migrate_set_parameter_int(from, "downtime-limit", CONVERGE_DOWNTIME);
+        if (dst_quit) {
+            qtest_set_expected_status(to, 1);
+        }
+    } else {
+        wait_for_migration_pass(from);
 
-    if (!got_stop) {
-        qtest_qmp_eventwait(from, "STOP");
+        migrate_set_parameter_int(from, "downtime-limit", CONVERGE_DOWNTIME);
+
+        if (!got_stop) {
+            qtest_qmp_eventwait(from, "STOP");
+        }
+
+        qtest_qmp_eventwait(to, "RESUME");
+
+        wait_for_serial("dest_serial");
+        wait_for_migration_complete(from);
     }
-
-    qtest_qmp_eventwait(to, "RESUME");
-
-    wait_for_serial("dest_serial");
-    wait_for_migration_complete(from);
 
     if (finish_hook) {
         finish_hook(from, to, data_hook);
     }
 
-    test_migrate_end(from, to, true);
+    test_migrate_end(from, to, !expect_fail);
 }
 
 static void test_precopy_unix_common(bool dirty_ring)
@@ -903,6 +926,8 @@ static void test_precopy_unix_common(bool dirty_ring)
                         uri,
                         NULL, /* start_hook */
                         NULL, /* finish_hook */
+                        false, /* expect_fail */
+                        false, /* dst_quit */
                         dirty_ring);
 }
 
@@ -1012,6 +1037,8 @@ static void test_precopy_tcp(void)
                         NULL, /* connect_uri */
                         NULL, /* start_hook */
                         NULL, /* finish_hook */
+                        false, /* expect_fail */
+                        false, /* dst_quit */
                         false /* dirty_ring */);
 }
 
@@ -1079,6 +1106,8 @@ static void test_migrate_fd_proto(void)
                         "fd:fd-mig",
                         test_migrate_fd_start_hook,
                         test_migrate_fd_finish_hook,
+                        false, /* expect_fail */
+                        false, /* dst_quit */
                         false /* dirty_ring */);
 }
 
