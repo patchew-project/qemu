@@ -36,10 +36,23 @@
 
 #include "boot.h"
 
+#define TYPE_NIOS2_MACHINE  MACHINE_TYPE_NAME("10m50-ghrd")
+typedef struct Nios2MachineClass Nios2MachineClass;
+DECLARE_OBJ_CHECKERS(MachineState, Nios2MachineClass,
+                     NIOS2_MACHINE, TYPE_NIOS2_MACHINE)
+
 #define BINARY_DEVICE_TREE_FILE    "10m50-devboard.dtb"
+
+struct Nios2MachineClass {
+    MachineClass parent_obj;
+
+    bool vic;
+};
 
 static void nios2_10m50_ghrd_init(MachineState *machine)
 {
+    Nios2MachineClass *nmc = NIOS2_MACHINE_GET_CLASS(machine);
+
     Nios2CPU *cpu;
     DeviceState *dev;
     MemoryRegion *address_space_mem = get_system_memory();
@@ -74,8 +87,24 @@ static void nios2_10m50_ghrd_init(MachineState *machine)
 
     /* Create CPU -- FIXME */
     cpu = NIOS2_CPU(cpu_create(TYPE_NIOS2_CPU));
-    for (i = 0; i < 32; i++) {
-        irq[i] = qdev_get_gpio_in_named(DEVICE(cpu), "IRQ", i);
+
+    if (nmc->vic) {
+        DeviceState *dev = qdev_new("nios2-vic");
+
+        object_property_set_link(OBJECT(dev), "cpu", OBJECT(cpu), &error_fatal);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+        cpu->intc_present = false;
+        qemu_irq cpu_irq = qdev_get_gpio_in_named(DEVICE(cpu), "IRQ", 0);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, cpu_irq);
+        for (int i = 0; i < 32; i++) {
+            irq[i] = qdev_get_gpio_in(dev, i);
+        }
+        MemoryRegion *dev_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
+        memory_region_add_subregion(address_space_mem, 0x18002000, dev_mr);
+    } else {
+        for (i = 0; i < 32; i++) {
+            irq[i] = qdev_get_gpio_in_named(DEVICE(cpu), "IRQ", i);
+        }
     }
 
     /* Register: Altera 16550 UART */
@@ -105,11 +134,38 @@ static void nios2_10m50_ghrd_init(MachineState *machine)
                       BINARY_DEVICE_TREE_FILE, NULL);
 }
 
-static void nios2_10m50_ghrd_machine_init(struct MachineClass *mc)
+static void nios2_10m50_ghrd_machine_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+    Nios2MachineClass *nmc = NIOS2_MACHINE_CLASS(oc);
     mc->desc = "Altera 10M50 GHRD Nios II design";
     mc->init = nios2_10m50_ghrd_init;
     mc->is_default = true;
+    nmc->vic = false;
 }
 
-DEFINE_MACHINE("10m50-ghrd", nios2_10m50_ghrd_machine_init);
+static void nios2_10m50_ghrd_vic_machine_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    Nios2MachineClass *nmc = NIOS2_MACHINE_CLASS(oc);
+    mc->desc = "Altera 10M50 GHRD Nios II design with VIC";
+    mc->init = nios2_10m50_ghrd_init;
+    mc->is_default = false;
+    nmc->vic = true;
+}
+
+static const TypeInfo nios_machine_types[] = {
+    {
+        .name          = MACHINE_TYPE_NAME("10m50-ghrd"),
+        .parent        = TYPE_MACHINE,
+        .class_size    = sizeof(Nios2MachineClass),
+        .class_init    = nios2_10m50_ghrd_machine_class_init,
+    }, {
+        .name          = MACHINE_TYPE_NAME("10m50-ghrd-vic"),
+        .parent        = TYPE_MACHINE,
+        .class_size    = sizeof(Nios2MachineClass),
+        .class_init    = nios2_10m50_ghrd_vic_machine_class_init,
+    }
+};
+
+DEFINE_TYPES(nios_machine_types)
