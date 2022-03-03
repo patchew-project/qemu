@@ -54,6 +54,7 @@ static void nios2_cpu_reset(DeviceState *dev)
     ncc->parent_reset(dev);
 
     memset(env->regs, 0, sizeof(uint32_t) * NUM_CORE_REGS);
+    memset(env->shadow_regs, 0, sizeof(uint32_t) * NUM_REG_SETS * NUM_GP_REGS);
     env->regs[R_PC] = cpu->reset_addr;
 
 #if defined(CONFIG_USER_ONLY)

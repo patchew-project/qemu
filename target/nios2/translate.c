@@ -205,6 +205,34 @@ static void call(DisasContext *dc, uint32_t code, uint32_t flags)
 /*
  * I-Type instructions
  */
+
+/*
+ * rB <- prs.rA + sigma(IMM16)
+ */
+static void rdprs(DisasContext *dc, uint32_t code, uint32_t flags)
+{
+    I_TYPE(instr, code);
+
+    gen_check_supervisor(dc);
+
+    TCGv_i32 t = tcg_temp_new_i32();
+    TCGv_ptr p = tcg_temp_new_ptr();
+
+    tcg_gen_extract_i32(t, cpu_R[CR_STATUS],
+                        R_CR_STATUS_PRS_SHIFT,
+                        R_CR_STATUS_PRS_LENGTH);
+    tcg_gen_muli_i32(t, t, sizeof(uint32_t) * NUM_GP_REGS);
+    tcg_gen_ext_i32_ptr(p, t);
+
+    tcg_gen_add_ptr(p, p, cpu_env);
+    tcg_gen_ld_i32(t, p, offsetof(CPUNios2State, shadow_regs)
+                    + sizeof(uint32_t) * instr.a);
+    tcg_gen_addi_i32(cpu_R[instr.b], t, instr.imm16.s);
+
+    tcg_temp_free_ptr(p);
+    tcg_temp_free_i32(t);
+}
+
 /* Load instructions */
 static void gen_ldx(DisasContext *dc, uint32_t code, uint32_t flags)
 {
@@ -365,7 +393,7 @@ static const Nios2Instruction i_type_instructions[] = {
     INSTRUCTION_FLG(gen_stx, MO_SL),                  /* stwio */
     INSTRUCTION_FLG(gen_bxx, TCG_COND_LTU),           /* bltu */
     INSTRUCTION_FLG(gen_ldx, MO_UL),                  /* ldwio */
-    INSTRUCTION_UNIMPLEMENTED(),                      /* rdprs */
+    INSTRUCTION(rdprs),                               /* rdprs */
     INSTRUCTION_ILLEGAL(),
     INSTRUCTION_FLG(handle_r_type_instr, 0),          /* R-Type */
     INSTRUCTION_NOP(),                                /* flushd */
@@ -378,16 +406,42 @@ static const Nios2Instruction i_type_instructions[] = {
 /*
  * R-Type instructions
  */
+
 /*
- * status <- estatus
+ * prs.rC <- rA
+ */
+static void wrprs(DisasContext *dc, uint32_t code, uint32_t flags)
+{
+    R_TYPE(instr, code);
+
+    gen_check_supervisor(dc);
+
+    TCGv_i32 t = tcg_temp_new_i32();
+    TCGv_ptr p = tcg_temp_new_ptr();
+
+    tcg_gen_extract_i32(t, cpu_R[CR_STATUS],
+                        R_CR_STATUS_PRS_SHIFT,
+                        R_CR_STATUS_PRS_LENGTH);
+    tcg_gen_muli_i32(t, t, sizeof(uint32_t) * NUM_GP_REGS);
+    tcg_gen_ext_i32_ptr(p, t);
+
+    tcg_gen_add_ptr(p, p, cpu_env);
+    tcg_gen_st_i32(cpu_R[instr.a], p, offsetof(CPUNios2State, shadow_regs)
+                   + sizeof(uint32_t) * instr.c);
+
+    tcg_temp_free_ptr(p);
+    tcg_temp_free_i32(t);
+}
+
+/*
+ * status <- CRS == 0? estatus: sstatus
  * PC <- ea
  */
 static void eret(DisasContext *dc, uint32_t code, uint32_t flags)
 {
     gen_check_supervisor(dc);
 
-    tcg_gen_mov_tl(cpu_R[CR_STATUS], cpu_R[CR_ESTATUS]);
-    tcg_gen_mov_tl(cpu_R[R_PC], cpu_R[R_EA]);
+    gen_helper_eret(cpu_env, cpu_R[R_EA]);
 
     dc->base.is_jmp = DISAS_JUMP;
 }
@@ -665,7 +719,7 @@ static const Nios2Instruction r_type_instructions[] = {
     INSTRUCTION_ILLEGAL(),
     INSTRUCTION(slli),                                /* slli */
     INSTRUCTION(sll),                                 /* sll */
-    INSTRUCTION_UNIMPLEMENTED(),                      /* wrprs */
+    INSTRUCTION(wrprs),                               /* wrprs */
     INSTRUCTION_ILLEGAL(),
     INSTRUCTION(or),                                  /* or */
     INSTRUCTION(mulxsu),                              /* mulxsu */

@@ -30,3 +30,21 @@ void helper_raise_exception(CPUNios2State *env, uint32_t index)
     cs->exception_index = index;
     cpu_loop_exit(cs);
 }
+
+void helper_eret(CPUNios2State *env, uint32_t new_pc)
+{
+    uint32_t crs = cpu_get_crs(env);
+    if (crs == 0) {
+        env->regs[CR_STATUS] = env->regs[CR_ESTATUS];
+    } else {
+        env->regs[CR_STATUS] = env->regs[R_SSTATUS];
+    }
+
+    /*
+     * At this point CRS was updated by the above assignment to CR_STATUS.
+     * Therefore we need to retrieve the new value of CRS and potentially
+     * switch the register set
+     */
+    cpu_change_reg_set(env, crs, cpu_get_crs(env));
+    env->regs[R_PC] = new_pc;
+}

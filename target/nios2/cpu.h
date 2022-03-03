@@ -23,6 +23,7 @@
 
 #include "exec/cpu-defs.h"
 #include "hw/core/cpu.h"
+#include "hw/registerfields.h"
 #include "qom/object.h"
 
 typedef struct CPUNios2State CPUNios2State;
@@ -57,9 +58,14 @@ struct Nios2CPUClass {
 #define EXCEPTION_ADDRESS     0x00000004
 #define FAST_TLB_MISS_ADDRESS 0x00000008
 
+#define NUM_GP_REGS 32
+#define NUM_CR_REGS 32
 
 /* GP regs + CR regs + PC */
-#define NUM_CORE_REGS (32 + 32 + 1)
+#define NUM_CORE_REGS (NUM_GP_REGS + NUM_CR_REGS + 1)
+
+/* 63 shadow register sets. 0 is the primary set */
+#define NUM_REG_SETS 64
 
 /* General purpose register aliases */
 #define R_ZERO   0
@@ -80,15 +86,15 @@ struct Nios2CPUClass {
 #define R_RA     31
 
 /* Control register aliases */
-#define CR_BASE  32
+#define CR_BASE  NUM_GP_REGS
 #define CR_STATUS    (CR_BASE + 0)
 #define   CR_STATUS_PIE  (1 << 0)
 #define   CR_STATUS_U    (1 << 1)
 #define   CR_STATUS_EH   (1 << 2)
 #define   CR_STATUS_IH   (1 << 3)
 #define   CR_STATUS_IL   (63 << 4)
-#define   CR_STATUS_CRS  (63 << 10)
-#define   CR_STATUS_PRS  (63 << 16)
+FIELD(CR_STATUS, CRS, 10, 6)
+FIELD(CR_STATUS, PRS, 16, 6)
 #define   CR_STATUS_NMI  (1 << 22)
 #define   CR_STATUS_RSIE (1 << 23)
 #define CR_ESTATUS   (CR_BASE + 1)
@@ -131,6 +137,7 @@ struct Nios2CPUClass {
 
 /* Other registers */
 #define R_PC         64
+#define R_SSTATUS    30
 
 /* Exceptions */
 #define EXCP_BREAK    0x1000
@@ -157,6 +164,7 @@ struct Nios2CPUClass {
 
 struct CPUNios2State {
     uint32_t regs[NUM_CORE_REGS];
+    uint32_t shadow_regs[NUM_REG_SETS][NUM_GP_REGS];
 
 #if !defined(CONFIG_USER_ONLY)
     Nios2MMU mmu;
@@ -243,6 +251,38 @@ static inline void cpu_get_tb_cpu_state(CPUNios2State *env, target_ulong *pc,
     *pc = env->regs[R_PC];
     *cs_base = 0;
     *flags = (env->regs[CR_STATUS] & (CR_STATUS_EH | CR_STATUS_U));
+}
+
+static inline uint32_t cpu_get_crs(const CPUNios2State *env)
+{
+    return FIELD_EX32(env->regs[CR_STATUS], CR_STATUS, CRS);
+}
+
+static inline uint32_t cpu_get_prs(const CPUNios2State *env)
+{
+    return FIELD_EX32(env->regs[CR_STATUS], CR_STATUS, PRS);
+}
+
+static inline void cpu_change_reg_set(CPUNios2State *env, uint32_t prev_set,
+                                      uint32_t new_set)
+{
+    if (new_set == prev_set) {
+        return;
+    }
+    memcpy(env->shadow_regs[prev_set], env->regs,
+           sizeof(uint32_t) * NUM_GP_REGS);
+    memcpy(env->regs, env->shadow_regs[new_set],
+           sizeof(uint32_t) * NUM_GP_REGS);
+    env->regs[CR_STATUS] =
+        FIELD_DP32(env->regs[CR_STATUS], CR_STATUS, PRS, prev_set);
+    env->regs[CR_STATUS] =
+        FIELD_DP32(env->regs[CR_STATUS], CR_STATUS, CRS, new_set);
+}
+
+static inline void cpu_set_crs(CPUNios2State *env, uint32_t value)
+{
+    uint32_t crs = cpu_get_crs(env);
+    cpu_change_reg_set(env, crs, value);
 }
 
 #endif /* NIOS2_CPU_H */
