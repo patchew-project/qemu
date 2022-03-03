@@ -146,6 +146,7 @@ static inline void tswap64s(uint64_t *s)
 
 #if defined(CONFIG_USER_ONLY)
 #include "exec/user/abitypes.h"
+#include "tcg-target-sa32.h"
 
 /* On some host systems the guest address space is reserved on the host.
  * This allows the guest address space to be offset to a convenient location.
@@ -153,6 +154,21 @@ static inline void tswap64s(uint64_t *s)
 extern uintptr_t guest_base;
 extern bool have_guest_base;
 extern unsigned long reserved_va;
+
+#if TCG_TARGET_SIGNED_ADDR32 && TARGET_LONG_BITS == 32
+extern bool guest_base_signed_addr32;
+#else
+#define guest_base_signed_addr32  false
+#endif
+
+static inline void set_guest_base_signed_addr32(void)
+{
+#ifdef guest_base_signed_addr32
+    qemu_build_not_reached();
+#else
+    guest_base_signed_addr32 = true;
+#endif
+}
 
 /*
  * Limit the guest addresses as best we can.

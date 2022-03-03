@@ -72,6 +72,9 @@ static const char *seed_optarg;
 unsigned long mmap_min_addr;
 uintptr_t guest_base;
 bool have_guest_base;
+#ifndef guest_base_signed_addr32
+bool guest_base_signed_addr32;
+#endif
 
 /*
  * Used to implement backwards-compatibility for the `-strace`, and
