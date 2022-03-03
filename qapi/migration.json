@@ -463,6 +463,9 @@
 #                       procedure starts. The VM RAM is saved with running VM.
 #                       (since 6.0)
 #
+# @dirtylimit: Use dirtylimit to throttle down guest if enabled.
+#              (since 6.1)
+#
 # Features:
 # @unstable: Members @x-colo and @x-ignore-shared are experimental.
 #
@@ -476,7 +479,7 @@
            'block', 'return-path', 'pause-before-switchover', 'multifd',
            'dirty-bitmaps', 'postcopy-blocktime', 'late-block-activate',
            { 'name': 'x-ignore-shared', 'features': [ 'unstable' ] },
-           'validate-uuid', 'background-snapshot'] }
+           'validate-uuid', 'background-snapshot', 'dirtylimit'] }
 
 ##
 # @MigrationCapabilityStatus:
@@ -760,6 +763,12 @@
 #                        block device name if there is one, and to their node name
 #                        otherwise. (Since 5.2)
 #
+# @min-dirtylimit-rate: minimum qouta for limiting dirty page rate.
+#                       Defaults to 1. (Since 6.1)
+#
+# @dirtylimit-step-size: step size (MB/s) for limiting dirty page rate.
+#                        Defaults to 10. (Since 6.1)
+#
 # Features:
 # @unstable: Member @x-checkpoint-delay is experimental.
 #
@@ -779,8 +788,9 @@
            'multifd-channels',
            'xbzrle-cache-size', 'max-postcopy-bandwidth',
            'max-cpu-throttle', 'multifd-compression',
-           'multifd-zlib-level' ,'multifd-zstd-level',
-           'block-bitmap-mapping' ] }
+           'multifd-zlib-level', 'multifd-zstd-level',
+           'block-bitmap-mapping', 'min-dirtylimit-rate',
+           'dirtylimit-step-size' ] }
 
 ##
 # @MigrateSetParameters:
@@ -925,6 +935,12 @@
 #                        block device name if there is one, and to their node name
 #                        otherwise. (Since 5.2)
 #
+# @min-dirtylimit-rate: minimum qouta for limiting dirty page rate.
+#                       Defaults to 1. (Since 6.1)
+#
+# @dirtylimit-step-size: step size (MB/s) for limiting dirty page rate.
+#                        Defaults to 10. (Since 6.1)
+#
 # Features:
 # @unstable: Member @x-checkpoint-delay is experimental.
 #
@@ -960,7 +976,9 @@
             '*multifd-compression': 'MultiFDCompression',
             '*multifd-zlib-level': 'uint8',
             '*multifd-zstd-level': 'uint8',
-            '*block-bitmap-mapping': [ 'BitmapMigrationNodeAlias' ] } }
+            '*block-bitmap-mapping': [ 'BitmapMigrationNodeAlias' ],
+            '*min-dirtylimit-rate': 'uint64',
+            '*dirtylimit-step-size': 'uint64' } }
 
 ##
 # @migrate-set-parameters:
@@ -1125,6 +1143,12 @@
 #                        block device name if there is one, and to their node name
 #                        otherwise. (Since 5.2)
 #
+# @min-dirtylimit-rate: minimum qouta for limiting dirty page rate.
+#                       Defaults to 1. (Since 6.1)
+#
+# @dirtylimit-step-size: step size (MB/s) for limiting dirty page rate.
+#                        Defaults to 10. (Since 6.1)
+#
 # Features:
 # @unstable: Member @x-checkpoint-delay is experimental.
 #
@@ -1158,7 +1182,9 @@
             '*multifd-compression': 'MultiFDCompression',
             '*multifd-zlib-level': 'uint8',
             '*multifd-zstd-level': 'uint8',
-            '*block-bitmap-mapping': [ 'BitmapMigrationNodeAlias' ] } }
+            '*block-bitmap-mapping': [ 'BitmapMigrationNodeAlias' ],
+            '*min-dirtylimit-rate': 'uint64',
+            '*dirtylimit-step-size': 'uint64' } }
 
 ##
 # @query-migrate-parameters:

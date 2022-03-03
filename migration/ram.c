@@ -56,6 +56,7 @@
 #include "qemu/iov.h"
 #include "multifd.h"
 #include "sysemu/runstate.h"
+#include "sysemu/dirtylimit.h"
 
 #include "hw/boards.h" /* for machine_dump_guest_core() */
 
@@ -1082,6 +1083,27 @@ static void migration_update_rates(RAMState *rs, int64_t end_time)
     }
 }
 
+/**
+ * mig_dirtylimit_guest_down: enable dirtylimit to throttle down the guest
+ */
+static void mig_dirtylimit_guest_down(void)
+{
+    MigrationState *s = migrate_get_current();
+    uint64_t current_dirtyrate = s->mbps / 8;
+    uint64_t min_dirtyrate = s->parameters.min_dirtylimit_rate;
+    uint64_t step_size = s->parameters.dirtylimit_step_size;
+    static uint64_t quota_dirtyrate;
+
+    if (!dirtylimit_in_service()) {
+        quota_dirtyrate = MAX(current_dirtyrate, min_dirtyrate);
+        dirtylimit_set_all(quota_dirtyrate, true);
+    } else {
+        quota_dirtyrate -= step_size;
+        quota_dirtyrate = MAX(current_dirtyrate, min_dirtyrate);
+        dirtylimit_set_all(quota_dirtyrate, true);
+    }
+}
+
 static void migration_trigger_throttle(RAMState *rs)
 {
     MigrationState *s = migrate_get_current();
@@ -1108,6 +1130,8 @@ static void migration_trigger_throttle(RAMState *rs)
             mig_throttle_guest_down(bytes_dirty_period,
                                     bytes_dirty_threshold);
         }
+    } else if (migrate_dirtylimit() && kvm_dirty_ring_enabled()) {
+        mig_dirtylimit_guest_down();
     }
 }
 

@@ -116,6 +116,9 @@
 #define DEFAULT_MIGRATE_ANNOUNCE_ROUNDS    5
 #define DEFAULT_MIGRATE_ANNOUNCE_STEP    100
 
+#define DEFAULT_MIGRATE_MIN_DIRTYLIMIT_RATE     1
+#define DEFAULT_MIGRATE_DIRTYLIMIT_STEP_SIZE    10
+
 static NotifierList migration_state_notifiers =
     NOTIFIER_LIST_INITIALIZER(migration_state_notifiers);
 
@@ -2397,6 +2400,15 @@ bool migrate_auto_converge(void)
     return s->enabled_capabilities[MIGRATION_CAPABILITY_AUTO_CONVERGE];
 }
 
+bool migrate_dirtylimit(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_DIRTYLIMIT];
+}
+
 bool migrate_zero_blocks(void)
 {
     MigrationState *s;
@@ -4215,6 +4227,12 @@ static Property migration_properties[] = {
     DEFINE_PROP_SIZE("announce-step", MigrationState,
                       parameters.announce_step,
                       DEFAULT_MIGRATE_ANNOUNCE_STEP),
+    DEFINE_PROP_UINT64("min-dirtylimit-rate", MigrationState,
+                      parameters.min_dirtylimit_rate,
+                      DEFAULT_MIGRATE_ANNOUNCE_STEP),
+    DEFINE_PROP_UINT64("dirtylimit-step-size", MigrationState,
+                      parameters.dirtylimit_step_size,
+                      DEFAULT_MIGRATE_ANNOUNCE_STEP),
 
     /* Migration capabilities */
     DEFINE_PROP_MIG_CAP("x-xbzrle", MIGRATION_CAPABILITY_XBZRLE),
@@ -4231,6 +4249,7 @@ static Property migration_properties[] = {
     DEFINE_PROP_MIG_CAP("x-multifd", MIGRATION_CAPABILITY_MULTIFD),
     DEFINE_PROP_MIG_CAP("x-background-snapshot",
             MIGRATION_CAPABILITY_BACKGROUND_SNAPSHOT),
+    DEFINE_PROP_MIG_CAP("x-dirtylimit", MIGRATION_CAPABILITY_DIRTYLIMIT),
 
     DEFINE_PROP_END_OF_LIST(),
 };
