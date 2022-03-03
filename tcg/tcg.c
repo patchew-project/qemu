@@ -61,6 +61,10 @@
 #include "exec/log.h"
 #include "tcg/tcg-ldst.h"
 #include "tcg-internal.h"
+#include "tcg-target-sa32.h"
+
+/* Sanity check for TCG_TARGET_SIGNED_ADDR32. */
+QEMU_BUILD_BUG_ON(TCG_TARGET_REG_BITS == 32 && TCG_TARGET_SIGNED_ADDR32);
 
 #ifdef CONFIG_TCG_INTERPRETER
 #include <ffi.h>
