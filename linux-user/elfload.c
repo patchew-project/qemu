@@ -2482,32 +2482,70 @@ static void pgb_dynamic(const char *image_name, long align)
 static void pgb_reserved_va(const char *image_name, abi_ulong guest_loaddr,
                             abi_ulong guest_hiaddr, long align)
 {
-    int flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE;
+    int flags = (MAP_ANONYMOUS | MAP_PRIVATE |
+                 MAP_NORESERVE | MAP_FIXED_NOREPLACE);
+    unsigned long local_rva = reserved_va;
+    bool protect_wrap = false;
     void *addr, *test;
 
-    if (guest_hiaddr > reserved_va) {
+    if (guest_hiaddr > local_rva) {
         error_report("%s: requires more than reserved virtual "
                      "address space (0x%" PRIx64 " > 0x%lx)",
-                     image_name, (uint64_t)guest_hiaddr, reserved_va);
+                     image_name, (uint64_t)guest_hiaddr, local_rva);
         exit(EXIT_FAILURE);
     }
 
-    /* Widen the "image" to the entire reserved address space. */
-    pgb_static(image_name, 0, reserved_va, align);
+    if (TCG_TARGET_SIGNED_ADDR32 && TARGET_LONG_BITS == 32) {
+        if (guest_loaddr < 0x80000000u && guest_hiaddr > 0x80000000u) {
+            /*
+             * The executable itself wraps on signed addresses.
+             * Without per-page translation, we must keep the
+             * guest address 0x7fff_ffff adjacent to 0x8000_0000
+             * consecutive in host memory: unsigned addresses.
+             */
+        } else {
+            set_guest_base_signed_addr32();
+            if (local_rva <= 0x80000000u) {
+                /* No guest addresses are "negative": win! */
+            } else {
+                /* Begin by allocating the entire address space. */
+                local_rva = 0xfffffffful + 1;
+                protect_wrap = true;
+            }
+        }
+    }
 
-    /* osdep.h defines this as 0 if it's missing */
-    flags |= MAP_FIXED_NOREPLACE;
+    /* Widen the "image" to the entire reserved address space. */
+    pgb_static(image_name, 0, local_rva, align);
+    assert(guest_base != 0);
 
     /* Reserve the memory on the host. */
-    assert(guest_base != 0);
     test = g2h_untagged(0);
-    addr = mmap(test, reserved_va, PROT_NONE, flags, -1, 0);
+    addr = mmap(test, local_rva, PROT_NONE, flags, -1, 0);
     if (addr == MAP_FAILED || addr != test) {
+        /*
+         * If protect_wrap, we could try again with the original reserved_va
+         * setting, but the edge case of low ulimit vm setting on a 64-bit
+         * host is probably useless.
+         */
         error_report("Unable to reserve 0x%lx bytes of virtual address "
-                     "space at %p (%s) for use as guest address space (check your"
-                     "virtual memory ulimit setting, min_mmap_addr or reserve less "
-                     "using -R option)", reserved_va, test, strerror(errno));
+                     "space at %p (%s) for use as guest address space "
+                     "(check your virtual memory ulimit setting, "
+                     "min_mmap_addr or reserve less using -R option)",
+                     local_rva, test, strerror(errno));
         exit(EXIT_FAILURE);
+    }
+
+    if (protect_wrap) {
+        /*
+         * Prevent the page just before 0x80000000 from being allocated.
+         * This prevents a single guest object/allocation from crossing
+         * the signed wrap, and thus being discontiguous in host memory.
+         */
+        page_set_flags(0x7fffffff & TARGET_PAGE_MASK, 0x80000000u,
+                       PAGE_RESERVED);
+        /* Adjust guest_base so that 0 is in the middle of the reservation. */
+        guest_base += 0x80000000ul;
     }
 
     qemu_log_mask(CPU_LOG_PAGE, "%s: base @ %p for %lu bytes\n",
