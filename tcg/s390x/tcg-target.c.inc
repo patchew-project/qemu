@@ -2673,6 +2673,7 @@ static bool tcg_out_dup_vec(TCGContext *s, TCGType type, unsigned vece,
         if (vece == MO_64) {
             return true;
         }
+        src = dst;
     }
 
     /*
