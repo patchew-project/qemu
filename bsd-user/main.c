@@ -54,6 +54,10 @@
 int singlestep;
 uintptr_t guest_base;
 bool have_guest_base;
+#ifndef guest_base_signed_addr32
+bool guest_base_signed_addr32;
+#endif
+
 /*
  * When running 32-on-64 we should make sure we can fit all of the possible
  * guest address space into a contiguous chunk of virtual host memory.

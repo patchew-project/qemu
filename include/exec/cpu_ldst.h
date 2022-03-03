@@ -87,7 +87,8 @@ static inline abi_ptr cpu_untagged_addr(CPUState *cs, abi_ptr x)
 /* All direct uses of g2h and h2g need to go away for usermode softmmu.  */
 static inline void *g2h_untagged(abi_ptr x)
 {
-    return (void *)((uintptr_t)(x) + guest_base);
+    uintptr_t hx = guest_base_signed_addr32 ? (int32_t)x : (uintptr_t)x;
+    return (void *)(guest_base + hx);
 }
 
 static inline void *g2h(CPUState *cs, abi_ptr x)
