@@ -2105,10 +2105,6 @@ static void set_memory_options(MachineClass *mc)
         sz = mc->fixup_ram_size(sz);
     }
     ram_size = sz;
-    if (ram_size != sz) {
-        error_report("ram size too large");
-        exit(EXIT_FAILURE);
-    }
 
     maxram_size = ram_size;
 
