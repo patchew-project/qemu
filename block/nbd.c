@@ -167,6 +167,7 @@ static void nbd_channel_error(BDRVNBDState *s, int ret)
         s->state = NBD_CLIENT_QUIT;
     }
 
+    qemu_co_queue_restart_all(&s->free_sema);
     nbd_recv_coroutines_wake(s, true);
 }
 
