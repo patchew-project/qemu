@@ -3746,9 +3746,42 @@ static void lo_syncfs(fuse_req_t req, fuse_ino_t ino)
 
     /*
      * If submounts aren't announced, the client only sends a request to
-     * sync the root inode. TODO: Track submounts internally and iterate
-     * over them as well.
+     * sync the root inode. Iterate over the known submounts to sync them
+     * as well.
      */
+    if (!lo->announce_submounts) {
+        g_autoptr(GSList) submount_list = NULL;
+        GSList *elem;
+        GHashTableIter iter;
+        gpointer key, value;
+
+        pthread_mutex_lock(&lo->mutex);
+
+        g_hash_table_iter_init(&iter, lo->submounts);
+        while (g_hash_table_iter_next(&iter, &key, &value)) {
+            struct lo_inode *inode = value;
+
+            g_atomic_int_inc(&inode->refcount);
+            submount_list = g_slist_prepend(submount_list, inode);
+        }
+
+        pthread_mutex_unlock(&lo->mutex);
+
+        for (elem = submount_list; elem; elem = g_slist_next(elem)) {
+            struct lo_inode *inode = elem->data;
+            int r;
+
+            r = lo_do_syncfs(lo, inode);
+            if (r) {
+                /*
+                 * Try to sync as much as possible. Only one error can be
+                 * reported to the client though, arbitrarily the last one.
+                 */
+                err = r;
+            }
+            lo_inode_put(lo, &inode);
+        }
+    }
 
     fuse_reply_err(req, err);
 }
