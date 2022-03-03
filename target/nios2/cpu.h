@@ -92,11 +92,12 @@ struct Nios2CPUClass {
 #define   CR_STATUS_U    (1 << 1)
 #define   CR_STATUS_EH   (1 << 2)
 #define   CR_STATUS_IH   (1 << 3)
-#define   CR_STATUS_IL   (63 << 4)
+FIELD(CR_STATUS, IL, 4, 6)
 FIELD(CR_STATUS, CRS, 10, 6)
 FIELD(CR_STATUS, PRS, 16, 6)
 #define   CR_STATUS_NMI  (1 << 22)
 #define   CR_STATUS_RSIE (1 << 23)
+#define   CR_STATUS_SRS  (1 << 31)
 #define CR_ESTATUS   (CR_BASE + 1)
 #define CR_BSTATUS   (CR_BASE + 2)
 #define CR_IENABLE   (CR_BASE + 3)
@@ -187,6 +188,7 @@ struct Nios2CPU {
     CPUNios2State env;
 
     bool mmu_present;
+    bool intc_present;
     uint32_t pid_num_bits;
     uint32_t tlb_num_ways;
     uint32_t tlb_num_entries;
@@ -195,6 +197,12 @@ struct Nios2CPU {
     uint32_t reset_addr;
     uint32_t exception_addr;
     uint32_t fast_tlb_miss_addr;
+
+    /* External Interrupt Controller Interface */
+    uint32_t rha; /* Requested handler address */
+    uint32_t ril; /* Requested interrupt level */
+    uint32_t rrs; /* Requested register set */
+    uint32_t rnmi; /* Requested nonmaskable interrupt */
 };
 
 
@@ -251,6 +259,17 @@ static inline void cpu_get_tb_cpu_state(CPUNios2State *env, target_ulong *pc,
     *pc = env->regs[R_PC];
     *cs_base = 0;
     *flags = (env->regs[CR_STATUS] & (CR_STATUS_EH | CR_STATUS_U));
+}
+
+static inline uint32_t cpu_get_il(const CPUNios2State *env)
+{
+    return FIELD_EX32(env->regs[CR_STATUS], CR_STATUS, IL);
+}
+
+static inline void cpu_set_il(CPUNios2State *env, uint32_t value)
+{
+    env->regs[CR_STATUS] =
+        FIELD_DP32(env->regs[CR_STATUS], CR_STATUS, IL, value);
 }
 
 static inline uint32_t cpu_get_crs(const CPUNios2State *env)

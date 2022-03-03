@@ -54,21 +54,46 @@ void nios2_cpu_do_interrupt(CPUState *cs)
     Nios2CPU *cpu = NIOS2_CPU(cs);
     CPUNios2State *env = &cpu->env;
 
+    if (cs->exception_index != EXCP_IRQ) {
+        cpu_set_crs(env, 0);
+    }
+
     switch (cs->exception_index) {
     case EXCP_IRQ:
         assert(env->regs[CR_STATUS] & CR_STATUS_PIE);
 
         qemu_log_mask(CPU_LOG_INT, "interrupt at pc=%x\n", env->regs[R_PC]);
 
-        env->regs[CR_ESTATUS] = env->regs[CR_STATUS];
-        env->regs[CR_STATUS] |= CR_STATUS_IH;
+        uint32_t last_status = env->regs[CR_STATUS];
         env->regs[CR_STATUS] &= ~(CR_STATUS_PIE | CR_STATUS_U);
 
         env->regs[CR_EXCEPTION] &= ~(0x1F << 2);
         env->regs[CR_EXCEPTION] |= (cs->exception_index & 0x1F) << 2;
 
-        env->regs[R_EA] = env->regs[R_PC] + 4;
-        env->regs[R_PC] = cpu->exception_addr;
+        if (!cpu->intc_present) {
+            cpu_set_crs(env, cpu->rrs);
+            cpu_set_il(env, cpu->ril);
+            if (cpu->rnmi) {
+                env->regs[CR_STATUS] |= CR_STATUS_NMI;
+            } else {
+                env->regs[CR_STATUS] &= ~CR_STATUS_NMI;
+            }
+            if (cpu->rrs == 0) {
+                env->regs[CR_ESTATUS] = last_status;
+            } else {
+                env->regs[R_SSTATUS] = last_status;
+                env->regs[R_SSTATUS] |= CR_STATUS_SRS;
+            }
+            env->regs[CR_STATUS] |= CR_STATUS_IH;
+            env->regs[R_EA] = env->regs[R_PC] + 4;
+            env->regs[R_PC] = cpu->rha;
+
+        } else {
+            env->regs[CR_ESTATUS] = last_status;
+            env->regs[R_EA] = env->regs[R_PC] + 4;
+            env->regs[R_PC] = cpu->exception_addr;
+        }
+
         break;
 
     case EXCP_TLBD:

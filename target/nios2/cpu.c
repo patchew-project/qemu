@@ -55,6 +55,7 @@ static void nios2_cpu_reset(DeviceState *dev)
 
     memset(env->regs, 0, sizeof(uint32_t) * NUM_CORE_REGS);
     memset(env->shadow_regs, 0, sizeof(uint32_t) * NUM_REG_SETS * NUM_GP_REGS);
+    env->regs[CR_STATUS] |= CR_STATUS_RSIE;
     env->regs[R_PC] = cpu->reset_addr;
 
 #if defined(CONFIG_USER_ONLY)
@@ -63,6 +64,25 @@ static void nios2_cpu_reset(DeviceState *dev)
 #else
     env->regs[CR_STATUS] = 0;
 #endif
+}
+
+static bool nios2_take_eic_irq(const Nios2CPU *cpu)
+{
+    const CPUNios2State *env = &cpu->env;
+
+    if (cpu->rnmi) {
+        return !(env->regs[CR_STATUS] & CR_STATUS_NMI);
+    }
+
+    if (((env->regs[CR_STATUS] & CR_STATUS_PIE) == 0) ||
+        (cpu->ril <= cpu_get_il(env)) ||
+        (cpu->rrs == cpu_get_crs(env) &&
+          !(env->regs[CR_STATUS] & CR_STATUS_RSIE))) {
+
+        return false;
+    }
+
+    return true;
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -91,13 +111,6 @@ static void nios2_cpu_initfn(Object *obj)
 #if !defined(CONFIG_USER_ONLY)
     mmu_init(&cpu->env);
 
-    /*
-     * These interrupt lines model the IIC (internal interrupt
-     * controller). QEMU does not currently support the EIC
-     * (external interrupt controller) -- if we did it would be
-     * a separate device in hw/intc with a custom interface to
-     * the CPU, and boards using it would not wire up these IRQ lines.
-     */
     qdev_init_gpio_in_named(DEVICE(cpu), nios2_cpu_set_irq, "IRQ", 32);
 #endif
 }
@@ -131,13 +144,26 @@ static bool nios2_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     Nios2CPU *cpu = NIOS2_CPU(cs);
     CPUNios2State *env = &cpu->env;
 
-    if ((interrupt_request & CPU_INTERRUPT_HARD) &&
-        (env->regs[CR_STATUS] & CR_STATUS_PIE) &&
-        (env->regs[CR_IPENDING] & env->regs[CR_IENABLE])) {
-        cs->exception_index = EXCP_IRQ;
-        nios2_cpu_do_interrupt(cs);
-        return true;
+    if (cpu->intc_present) {
+        if ((interrupt_request & CPU_INTERRUPT_HARD) &&
+            (env->regs[CR_STATUS] & CR_STATUS_PIE) &&
+            (env->regs[CR_IPENDING] & env->regs[CR_IENABLE])) {
+            cs->exception_index = EXCP_IRQ;
+            nios2_cpu_do_interrupt(cs);
+            return true;
+        }
+    } else {
+        /*
+         * IPENDING does not exist with external interrupt controller
+         * but we still use it to signal an external interrupt
+         */
+        if (env->regs[CR_IPENDING] && nios2_take_eic_irq(cpu)) {
+            cs->exception_index = EXCP_IRQ;
+            nios2_cpu_do_interrupt(cs);
+            return true;
+        }
     }
+
     return false;
 }
 #endif /* !CONFIG_USER_ONLY */
@@ -200,6 +226,8 @@ static Property nios2_properties[] = {
     DEFINE_PROP_UINT32("mmu_tlb_num_ways", Nios2CPU, tlb_num_ways, 16),
     /* ALTR,tlb-num-entries */
     DEFINE_PROP_UINT32("mmu_pid_num_entries", Nios2CPU, tlb_num_entries, 256),
+    /* interrupt-controller (internal) */
+    DEFINE_PROP_BOOL("intc_present", Nios2CPU, intc_present, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
