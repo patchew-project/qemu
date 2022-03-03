@@ -38,6 +38,24 @@ conventions <backend_conventions>`.
 *Master* and *slave* can be either a client (i.e. connecting) or
 server (listening) in the socket communication.
 
+Support for platforms other than Linux
+--------------------------------------
+
+While vhost-user was initially developed targeting Linux, nowadays is
+supported on any platform that provides the following features:
+
+- The ability to share a mapping injected into the guest between
+  multiple processes, so both QEMU and the vhost-user daemon servicing
+  the device can access simultaneously the memory regions containing
+  the virtqueues and the data associated with each request.
+
+- AF_UNIX sockets with SCM_RIGHTS, so QEMU can communicate with the
+  vhost-user daemon and send it file descriptors when needed.
+
+- Either eventfd or pipe/pipe2. On platforms where eventfd is not
+  available, QEMU will automatically fallback to pipe2 or, as a last
+  resort, pipe.
+
 Message Specification
 =====================
 
