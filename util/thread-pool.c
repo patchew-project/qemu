@@ -339,7 +339,9 @@ void thread_pool_free(ThreadPool *pool)
     pool->stopping = true;
     while (pool->cur_threads > 0) {
         qemu_sem_post(&pool->sem);
+        qemu_mutex_unlock(&pool->lock);
         qemu_cond_wait(&pool->worker_stopped, &pool->lock);
+        qemu_mutex_lock(&pool->lock);
     }
 
     qemu_mutex_unlock(&pool->lock);
