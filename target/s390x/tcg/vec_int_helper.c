@@ -540,16 +540,75 @@ void HELPER(gvec_vsl)(void *v1, const void *v2, uint64_t count,
     s390_vec_shl(v1, v2, count);
 }
 
+
+void HELPER(gvec_vsl_ve2)(void *v1, const void *v2, const void *v3,
+                          uint32_t desc)
+{
+    uint8_t i, v;
+    S390Vector tmp = {};
+    for (i = 0; i < 16; i++) {
+        const uint8_t shift = s390_vec_read_element8(v3, i) & 7;
+        v = s390_vec_read_element8(v2, i);
+
+        if (shift) {
+            v <<= shift;
+            if (i < 15) {
+                v |= extract8(s390_vec_read_element8(v2, i + 1),
+                              8 - shift, shift);
+            }
+        }
+        s390_vec_write_element8(&tmp, i, v);
+    }
+    *(S390Vector *)v1 = tmp;
+}
+
 void HELPER(gvec_vsra)(void *v1, const void *v2, uint64_t count,
                        uint32_t desc)
 {
     s390_vec_sar(v1, v2, count);
 }
 
+void HELPER(gvec_vsra_ve2)(void *v1, const void *v2, const void *v3,
+                           uint32_t desc)
+{
+    int i;
+    uint8_t t, v;
+    S390Vector tmp = {};
+    for (i = 0; i < 16; i++) {
+        const uint8_t shift = s390_vec_read_element8(v3, i) & 7;
+        v = s390_vec_read_element8(v2, i);
+        if (shift) {
+            t = i > 0 ? s390_vec_read_element8(v2, i - 1)
+                    : ((v & 0x80) ? ~0 : 0);
+            v = deposit8(v >> shift, 8 - shift, shift, t);
+        }
+        s390_vec_write_element8(&tmp, i, v);
+    }
+    *(S390Vector *)v1 = tmp;
+}
+
 void HELPER(gvec_vsrl)(void *v1, const void *v2, uint64_t count,
                        uint32_t desc)
 {
     s390_vec_shr(v1, v2, count);
+}
+
+void HELPER(gvec_vsrl_ve2)(void *v1, const void *v2, const void *v3,
+                           uint32_t desc)
+{
+    int i;
+    uint8_t t, v;
+    S390Vector tmp = {};
+    for (i = 0; i < 16; i++) {
+        const uint8_t shift = s390_vec_read_element8(v3, i) & 7;
+        v = s390_vec_read_element8(v2, i) >> shift;
+        if (shift) {
+            t = (0 == i ? 0 : s390_vec_read_element8(v2, i - 1));
+            v = deposit8(v, 8 - shift, shift, t);
+        }
+        s390_vec_write_element8(&tmp, i, v);
+    }
+    *(S390Vector *)v1 = tmp;
 }
 
 #define DEF_VSCBI(BITS)                                                        \

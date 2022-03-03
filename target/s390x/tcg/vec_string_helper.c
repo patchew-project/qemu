@@ -471,3 +471,68 @@ void HELPER(gvec_vstrc_cc_rt##BITS)(void *v1, const void *v2, const void *v3,  \
 DEF_VSTRC_CC_RT_HELPER(8)
 DEF_VSTRC_CC_RT_HELPER(16)
 DEF_VSTRC_CC_RT_HELPER(32)
+
+void HELPER(vstrs)(void *v1, const void *v2, const void *v3, void *v4,
+                   CPUS390XState *env, uint32_t desc) {
+    const bool zs = (desc >> 16);
+    const uint8_t es = desc & 16;
+    const uint8_t char_size = 1 << es;
+
+    uint32_t str_len = 0, eos = 0;
+    uint32_t i = 0, j = 0, k = 0, cc = 0;
+    uint32_t substr_len = ((uint8_t *)v4)[H1(7)] & 31;
+
+    for (i = 0; i < 16; i += char_size) {
+        if (0 == es && !((uint8_t  *)v3)[H1(i >> es)]) { break; }
+        if (1 == es && !((uint16_t *)v3)[H2(i >> es)]) { break; }
+        if (2 == es && !((uint32_t *)v3)[H4(i >> es)]) { break; }
+    }
+    if (i < substr_len) {
+        substr_len = i;
+    }
+    if (substr_len) {
+        if (zs) {
+            for (k = 0; k < 16; k += char_size) {
+                if (0 == es && !((uint8_t  *)v2)[H1(k >> es)]) { break; }
+                if (1 == es && !((uint16_t *)v2)[H2(k >> es)]) { break; }
+                if (2 == es && !((uint32_t *)v2)[H4(k >> es)]) { break; }
+            }
+            eos = (16 != k);
+            str_len = k;
+        } else {
+            str_len = 16;
+        }
+
+        for (k = 0; k < str_len; k += char_size) {
+            if (0 == es && ((uint8_t  *)v3)[H1(0)]
+                        == ((uint8_t  *)v2)[H1(k >> es)]) { break; }
+            if (1 == es && ((uint16_t *)v3)[H2(0)]
+                        == ((uint16_t *)v2)[H2(k >> es)]) { break; }
+            if (2 == es && ((uint32_t *)v3)[H4(0)]
+                        == ((uint32_t *)v2)[H4(k >> es)]) { break; }
+        }
+
+        if (k < 16 &&  (!eos || (k + substr_len) <= str_len)) {
+            if ((k + substr_len) <= 16) {
+                for (j = 0; j < substr_len; j += char_size) {
+                    if (0 == es && ((uint8_t  *)v3)[H1(j >> es)]
+                                != ((uint8_t  *)v2)[H1((k + j) >> es)]) { break; }
+                    if (1 == es && ((uint16_t *)v3)[H2(j >> es)]
+                                != ((uint16_t *)v2)[H2((k + j) >> es)]) { break; }
+                    if (2 == es && ((uint32_t *)v3)[H4(j >> es)]
+                                != ((uint32_t *)v2)[H4((k + j) >> es)]) { break; }
+                }
+            }
+            cc = (j == substr_len) ? 2 : 3;
+        } else {
+            cc = eos ? 1 : 0;
+            k = 16;
+        }
+    } else {
+        cc = 2;
+    }
+
+    ((uint64_t *)v1)[0] = ((uint64_t *)v1)[1] = 0;
+    ((uint8_t *)v1)[H1(7)] = k;
+    env->cc_op = cc;
+}

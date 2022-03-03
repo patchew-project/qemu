@@ -138,4 +138,34 @@ static inline void s390_vec_write_element(S390Vector *v, uint8_t enr,
     }
 }
 
+static inline void s390_vec_reverse(S390Vector *vdst,
+                                    S390Vector *vsrc, uint8_t es)
+{
+    const uint8_t elems = 1 << (4 - es);
+    uint32_t enr;
+
+    for (enr = 0; enr < elems; enr++) {
+        switch (es) {
+        case MO_8:
+            s390_vec_write_element8(vdst, enr,
+                           s390_vec_read_element8(vsrc, 15 ^ enr));
+            break;
+        case MO_16:
+            s390_vec_write_element16(vdst, enr,
+                           s390_vec_read_element16(vsrc, 7 ^ enr));
+            break;
+        case MO_32:
+            s390_vec_write_element32(vdst, enr,
+                           s390_vec_read_element32(vsrc, 3 ^ enr));
+            break;
+        case MO_64:
+            s390_vec_write_element64(vdst, enr,
+                           s390_vec_read_element64(vsrc, 1 ^ enr));
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    }
+}
+
 #endif /* S390X_VEC_H */
