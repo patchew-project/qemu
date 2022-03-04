@@ -46,7 +46,9 @@ void os_set_line_buffering(void);
 void os_set_proc_name(const char *s);
 void os_setup_signal_handling(void);
 void os_daemonize(void);
-void os_setup_post(void);
+void os_setup_post(const char *chroot_dir,
+                   uid_t uid, gid_t gid,
+                   const char *username);
 int os_mlock(void);
 
 #define closesocket(s) close(s)

@@ -2602,11 +2602,13 @@ static void qemu_process_help_options(void)
     }
 }
 
-static void qemu_maybe_daemonize(const char *pid_file)
+static void qemu_maybe_daemonize(bool daemonize, const char *pid_file)
 {
     Error *err = NULL;
 
-    os_daemonize();
+    if (daemonize) {
+        os_daemonize();
+    }
     rcu_disable_atfork();
 
     if (pid_file && !qemu_write_pidfile(pid_file, &err)) {
@@ -2768,6 +2770,35 @@ void qmp_x_exit_preconfig(Error **errp)
     }
 }
 
+#ifndef WIN32
+static bool os_parse_runas_uid_gid(const char *optarg,
+                                   uid_t *runas_uid,
+                                   gid_t *runas_gid)
+{
+    unsigned long lv;
+    const char *ep;
+    uid_t got_uid;
+    gid_t got_gid;
+    int rc;
+
+    rc = qemu_strtoul(optarg, &ep, 0, &lv);
+    got_uid = lv; /* overflow here is ID in C99 */
+    if (rc || *ep != ':' || got_uid != lv || got_uid == (uid_t)-1) {
+        return false;
+    }
+
+    rc = qemu_strtoul(ep + 1, 0, 0, &lv);
+    got_gid = lv; /* overflow here is ID in C99 */
+    if (rc || got_gid != lv || got_gid == (gid_t)-1) {
+        return false;
+    }
+
+    *runas_gid = got_gid;
+    *runas_uid = got_uid;
+    return true;
+}
+#endif /* !WIN32 */
+
 void qemu_init(int argc, char **argv, char **envp)
 {
     QemuOpts *opts;
@@ -2778,6 +2809,14 @@ void qemu_init(int argc, char **argv, char **envp)
     MachineClass *machine_class;
     bool userconfig = true;
     FILE *vmstate_dump_file = NULL;
+    bool daemonize = false;
+#ifndef WIN32
+    struct passwd *pwd;
+    uid_t runas_uid = -1;
+    gid_t runas_gid = -1;
+    g_autofree char *runas_name = NULL;
+    const char *chroot_dir = NULL;
+#endif /* !WIN32 */
 
     qemu_add_opts(&qemu_drive_opts);
     qemu_add_drive_opts(&qemu_legacy_drive_opts);
@@ -3659,11 +3698,32 @@ void qemu_init(int argc, char **argv, char **envp)
             case QEMU_OPTION_nouserconfig:
                 /* Nothing to be parsed here. Especially, do not error out below. */
                 break;
-            default:
-                if (os_parse_cmd_args(popt->index, optarg)) {
-                    error_report("Option not supported in this build");
+#ifndef WIN32
+            case QEMU_OPTION_runas:
+                pwd = getpwnam(optarg);
+                if (pwd) {
+                    runas_uid = pwd->pw_uid;
+                    runas_gid = pwd->pw_gid;
+                    runas_name = g_strdup(pwd->pw_name);
+                } else if (!os_parse_runas_uid_gid(optarg,
+                                                   &runas_uid,
+                                                   &runas_gid)) {
+                    error_report("User \"%s\" doesn't exist"
+                                 " (and is not <uid>:<gid>)",
+                                 optarg);
                     exit(1);
                 }
+                break;
+            case QEMU_OPTION_chroot:
+                chroot_dir = optarg;
+                break;
+            case QEMU_OPTION_daemonize:
+                daemonize = 1;
+                break;
+#endif /* !WIN32 */
+            default:
+                error_report("Option not supported in this build");
+                exit(1);
             }
         }
     }
@@ -3683,7 +3743,7 @@ void qemu_init(int argc, char **argv, char **envp)
     qemu_process_early_options();
 
     qemu_process_help_options();
-    qemu_maybe_daemonize(pid_file);
+    qemu_maybe_daemonize(daemonize, pid_file);
 
     /*
      * The trace backend must be initialized after daemonizing.
@@ -3778,6 +3838,8 @@ void qemu_init(int argc, char **argv, char **envp)
     }
     qemu_init_displays();
     accel_setup_post(current_machine);
-    os_setup_post();
+#ifndef WIN32
+    os_setup_post(chroot_dir, runas_uid, runas_gid, runas_name);
+#endif /* !WIN32 */
     resume_mux_open();
 }
