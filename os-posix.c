@@ -42,11 +42,6 @@
 #include <sys/prctl.h>
 #endif
 
-static char *user_name;
-static uid_t user_uid = (uid_t)-1;
-static gid_t user_gid = (gid_t)-1;
-
-static const char *chroot_dir;
 static int daemonize;
 static int daemon_pipe;
 
@@ -96,69 +91,6 @@ void os_set_proc_name(const char *s)
 }
 
 
-static bool os_parse_runas_uid_gid(const char *optarg,
-                                   uid_t *runas_uid, gid_t *runas_gid)
-{
-    unsigned long lv;
-    const char *ep;
-    uid_t got_uid;
-    gid_t got_gid;
-    int rc;
-
-    rc = qemu_strtoul(optarg, &ep, 0, &lv);
-    got_uid = lv; /* overflow here is ID in C99 */
-    if (rc || *ep != ':' || got_uid != lv || got_uid == (uid_t)-1) {
-        return false;
-    }
-
-    rc = qemu_strtoul(ep + 1, 0, 0, &lv);
-    got_gid = lv; /* overflow here is ID in C99 */
-    if (rc || got_gid != lv || got_gid == (gid_t)-1) {
-        return false;
-    }
-
-    *runas_uid = got_uid;
-    *runas_gid = got_gid;
-    return true;
-}
-
-/*
- * Parse OS specific command line options.
- * return 0 if option handled, -1 otherwise
- */
-int os_parse_cmd_args(int index, const char *optarg)
-{
-    struct passwd *user_pwd;
-
-    switch (index) {
-    case QEMU_OPTION_runas:
-        user_pwd = getpwnam(optarg);
-        if (user_pwd) {
-            user_uid = user_pwd->pw_uid;
-            user_gid = user_pwd->pw_gid;
-            user_name = g_strdup(user_pwd->pw_name);
-        } else if (!os_parse_runas_uid_gid(optarg,
-                                           &user_uid,
-                                           &user_gid)) {
-            error_report("User \"%s\" doesn't exist"
-                         " (and is not <uid>:<gid>)",
-                         optarg);
-            exit(1);
-        }
-        break;
-    case QEMU_OPTION_chroot:
-        chroot_dir = optarg;
-        break;
-    case QEMU_OPTION_daemonize:
-        daemonize = 1;
-        break;
-    default:
-        return -1;
-    }
-
-    return 0;
-}
-
 static void change_process_uid(uid_t uid, gid_t gid, const char *name)
 {
     if (setgid(gid) < 0) {
@@ -202,54 +134,56 @@ static void change_root(const char *root)
 
 void os_daemonize(void)
 {
-    if (daemonize) {
-        pid_t pid;
-        int fds[2];
+    pid_t pid;
+    int fds[2];
 
-        if (pipe(fds) == -1) {
-            exit(1);
-        }
-
-        pid = fork();
-        if (pid > 0) {
-            uint8_t status;
-            ssize_t len;
-
-            close(fds[1]);
-
-            do {
-                len = read(fds[0], &status, 1);
-            } while (len < 0 && errno == EINTR);
-
-            /* only exit successfully if our child actually wrote
-             * a one-byte zero to our pipe, upon successful init */
-            exit(len == 1 && status == 0 ? 0 : 1);
-
-        } else if (pid < 0) {
-            exit(1);
-        }
-
-        close(fds[0]);
-        daemon_pipe = fds[1];
-        qemu_set_cloexec(daemon_pipe);
-
-        setsid();
-
-        pid = fork();
-        if (pid > 0) {
-            exit(0);
-        } else if (pid < 0) {
-            exit(1);
-        }
-        umask(027);
-
-        signal(SIGTSTP, SIG_IGN);
-        signal(SIGTTOU, SIG_IGN);
-        signal(SIGTTIN, SIG_IGN);
+    if (pipe(fds) == -1) {
+        exit(1);
     }
+
+    pid = fork();
+    if (pid > 0) {
+        uint8_t status;
+        ssize_t len;
+
+        close(fds[1]);
+
+        do {
+            len = read(fds[0], &status, 1);
+        } while (len < 0 && errno == EINTR);
+
+        /* only exit successfully if our child actually wrote
+         * a one-byte zero to our pipe, upon successful init */
+        exit(len == 1 && status == 0 ? 0 : 1);
+
+    } else if (pid < 0) {
+        exit(1);
+    }
+
+    close(fds[0]);
+    daemon_pipe = fds[1];
+    qemu_set_cloexec(daemon_pipe);
+
+    setsid();
+
+    pid = fork();
+    if (pid > 0) {
+            exit(0);
+    } else if (pid < 0) {
+        exit(1);
+    }
+    umask(027);
+
+    signal(SIGTSTP, SIG_IGN);
+    signal(SIGTTOU, SIG_IGN);
+    signal(SIGTTIN, SIG_IGN);
+
+    daemonize = true;
 }
 
-void os_setup_post(void)
+void os_setup_post(const char *root_dir,
+                   uid_t runas_uid, gid_t runas_gid,
+                   const char *runas_name)
 {
     int fd = 0;
 
@@ -264,11 +198,11 @@ void os_setup_post(void)
         }
     }
 
-    if (chroot_dir) {
-        change_root(chroot_dir);
+    if (root_dir != NULL) {
+        change_root(root_dir);
     }
-    if (user_uid != -1 && user_gid != -1) {
-        change_process_uid(user_uid, user_gid, user_name);
+    if (runas_uid != -1 && runas_gid != -1) {
+        change_process_uid(runas_uid, runas_gid, runas_name);
     }
 
     if (daemonize) {
