@@ -42,13 +42,9 @@
 #include <sys/prctl.h>
 #endif
 
-/*
- * Must set all three of these at once.
- * Legal combinations are              unset   by name   by uid
- */
-static struct passwd *user_pwd;    /*   NULL   non-NULL   NULL   */
-static uid_t user_uid = (uid_t)-1; /*   -1      -1        >=0    */
-static gid_t user_gid = (gid_t)-1; /*   -1      -1        >=0    */
+static char *user_name;
+static uid_t user_uid = (uid_t)-1;
+static gid_t user_gid = (gid_t)-1;
 
 static const char *chroot_dir;
 static int daemonize;
@@ -100,7 +96,8 @@ void os_set_proc_name(const char *s)
 }
 
 
-static bool os_parse_runas_uid_gid(const char *optarg)
+static bool os_parse_runas_uid_gid(const char *optarg,
+                                   uid_t *runas_uid, gid_t *runas_gid)
 {
     unsigned long lv;
     const char *ep;
@@ -120,9 +117,8 @@ static bool os_parse_runas_uid_gid(const char *optarg)
         return false;
     }
 
-    user_pwd = NULL;
-    user_uid = got_uid;
-    user_gid = got_gid;
+    *runas_uid = got_uid;
+    *runas_gid = got_gid;
     return true;
 }
 
@@ -132,13 +128,18 @@ static bool os_parse_runas_uid_gid(const char *optarg)
  */
 int os_parse_cmd_args(int index, const char *optarg)
 {
+    struct passwd *user_pwd;
+
     switch (index) {
     case QEMU_OPTION_runas:
         user_pwd = getpwnam(optarg);
         if (user_pwd) {
-            user_uid = -1;
-            user_gid = -1;
-        } else if (!os_parse_runas_uid_gid(optarg)) {
+            user_uid = user_pwd->pw_uid;
+            user_gid = user_pwd->pw_gid;
+            user_name = g_strdup(user_pwd->pw_name);
+        } else if (!os_parse_runas_uid_gid(optarg,
+                                           &user_uid,
+                                           &user_gid)) {
             error_report("User \"%s\" doesn't exist"
                          " (and is not <uid>:<gid>)",
                          optarg);
@@ -158,40 +159,32 @@ int os_parse_cmd_args(int index, const char *optarg)
     return 0;
 }
 
-static void change_process_uid(void)
+static void change_process_uid(uid_t uid, gid_t gid, const char *name)
 {
-    assert((user_uid == (uid_t)-1) || user_pwd == NULL);
-    assert((user_uid == (uid_t)-1) ==
-           (user_gid == (gid_t)-1));
-
-    if (user_pwd || user_uid != (uid_t)-1) {
-        gid_t intended_gid = user_pwd ? user_pwd->pw_gid : user_gid;
-        uid_t intended_uid = user_pwd ? user_pwd->pw_uid : user_uid;
-        if (setgid(intended_gid) < 0) {
-            error_report("Failed to setgid(%d)", intended_gid);
+    if (setgid(gid) < 0) {
+        error_report("Failed to setgid(%d)", gid);
+        exit(1);
+    }
+    if (name) {
+        if (initgroups(name, gid) < 0) {
+            error_report("Failed to initgroups(\"%s\", %d)",
+                         name, gid);
             exit(1);
         }
-        if (user_pwd) {
-            if (initgroups(user_pwd->pw_name, user_pwd->pw_gid) < 0) {
-                error_report("Failed to initgroups(\"%s\", %d)",
-                        user_pwd->pw_name, user_pwd->pw_gid);
-                exit(1);
-            }
-        } else {
-            if (setgroups(1, &user_gid) < 0) {
-                error_report("Failed to setgroups(1, [%d])",
-                        user_gid);
-                exit(1);
-            }
-        }
-        if (setuid(intended_uid) < 0) {
-            error_report("Failed to setuid(%d)", intended_uid);
+    } else {
+        if (setgroups(1, &gid) < 0) {
+            error_report("Failed to setgroups(1, [%d])",
+                         gid);
             exit(1);
         }
-        if (setuid(0) != -1) {
-            error_report("Dropping privileges failed");
-            exit(1);
-        }
+    }
+    if (setuid(uid) < 0) {
+        error_report("Failed to setuid(%d)", uid);
+        exit(1);
+    }
+    if (setuid(0) != -1) {
+        error_report("Dropping privileges failed");
+        exit(1);
     }
 }
 
@@ -275,7 +268,9 @@ void os_setup_post(void)
     }
 
     change_root();
-    change_process_uid();
+    if (user_uid != -1 && user_gid != -1) {
+        change_process_uid(user_uid, user_gid, user_name);
+    }
 
     if (daemonize) {
         uint8_t status = 0;
