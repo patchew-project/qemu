@@ -4078,6 +4078,8 @@
 #
 # @tls-creds: TLS credentials ID
 #
+# @tls-hostname: TLS hostname override for certificate validation (Since 7.0)
+#
 # @x-dirty-bitmap: A metadata context name such as "qemu:dirty-bitmap:NAME"
 #                  or "qemu:allocation-depth" to query in place of the
 #                  traditional "base:allocation" block status (see
@@ -4108,6 +4110,7 @@
   'data': { 'server': 'SocketAddress',
             '*export': 'str',
             '*tls-creds': 'str',
+            '*tls-hostname': 'str',
             '*x-dirty-bitmap': { 'type': 'str', 'features': [ 'unstable' ] },
             '*reconnect-delay': 'uint32',
             '*open-timeout': 'uint32' } }
