@@ -1371,11 +1371,11 @@ static void qemu_disable_default_devices(void)
     }
 }
 
-static void qemu_create_default_devices(void)
+static void qemu_create_default_devices(bool daemonize)
 {
     MachineClass *machine_class = MACHINE_GET_CLASS(current_machine);
 
-    if (is_daemonized()) {
+    if (daemonize) {
         /* According to documentation and historically, -nographic redirects
          * serial port, parallel port and monitor to stdio, which does not work
          * with -daemonize.  We can redirect these to null instead, but since
@@ -2455,7 +2455,8 @@ static void create_default_memdev(MachineState *ms, const char *path)
                             &error_fatal);
 }
 
-static void qemu_validate_options(const QDict *machine_opts)
+static void qemu_validate_options(const QDict *machine_opts,
+                                  bool daemonize)
 {
     const char *kernel_filename = qdict_get_try_str(machine_opts, "kernel");
     const char *initrd_filename = qdict_get_try_str(machine_opts, "initrd");
@@ -2484,7 +2485,7 @@ static void qemu_validate_options(const QDict *machine_opts)
     }
 
 #ifdef CONFIG_CURSES
-    if (is_daemonized() && dpy.type == DISPLAY_TYPE_CURSES) {
+    if (daemonize && dpy.type == DISPLAY_TYPE_CURSES) {
         error_report("curses display cannot be used with -daemonize");
         exit(1);
     }
@@ -3676,7 +3677,7 @@ void qemu_init(int argc, char **argv, char **envp)
      */
     loc_set_none();
 
-    qemu_validate_options(machine_opts_dict);
+    qemu_validate_options(machine_opts_dict, is_daemonized());
     qemu_process_sugar_options();
 
     /*
@@ -3714,7 +3715,7 @@ void qemu_init(int argc, char **argv, char **envp)
     suspend_mux_open();
 
     qemu_disable_default_devices();
-    qemu_create_default_devices();
+    qemu_create_default_devices(is_daemonized());
     qemu_create_early_backends();
 
     qemu_apply_legacy_machine_options(machine_opts_dict);
