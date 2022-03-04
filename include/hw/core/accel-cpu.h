@@ -11,6 +11,8 @@
 #ifndef ACCEL_CPU_H
 #define ACCEL_CPU_H
 
+#include "qom/object.h"
+
 /*
  * This header is used to define new accelerator-specific target-specific
  * accelerator cpu subclasses.
