@@ -188,19 +188,16 @@ static void change_process_uid(uid_t uid, gid_t gid, const char *name)
     }
 }
 
-static void change_root(void)
+static void change_root(const char *root)
 {
-    if (chroot_dir) {
-        if (chroot(chroot_dir) < 0) {
-            error_report("chroot failed");
-            exit(1);
-        }
-        if (chdir("/")) {
-            error_report("not able to chdir to /: %s", strerror(errno));
-            exit(1);
-        }
+    if (chroot(root) < 0) {
+        error_report("chroot failed");
+        exit(1);
     }
-
+    if (chdir("/")) {
+        error_report("not able to chdir to /: %s", strerror(errno));
+        exit(1);
+    }
 }
 
 void os_daemonize(void)
@@ -267,7 +264,9 @@ void os_setup_post(void)
         }
     }
 
-    change_root();
+    if (chroot_dir) {
+        change_root(chroot_dir);
+    }
     if (user_uid != -1 && user_gid != -1) {
         change_process_uid(user_uid, user_gid, user_name);
     }
