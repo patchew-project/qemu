@@ -57,8 +57,6 @@ int os_mlock(void);
 typedef struct timeval qemu_timeval;
 #define qemu_gettimeofday(tp) gettimeofday(tp, NULL)
 
-bool is_daemonized(void);
-
 /**
  * qemu_alloc_stack:
  * @sz: pointer to a size_t holding the requested usable stack size

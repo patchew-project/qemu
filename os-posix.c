@@ -232,11 +232,6 @@ void os_set_line_buffering(void)
     setvbuf(stdout, NULL, _IOLBF, 0);
 }
 
-bool is_daemonized(void)
-{
-    return daemonize;
-}
-
 int os_mlock(void)
 {
 #ifdef HAVE_MLOCKALL
