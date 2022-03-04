@@ -147,6 +147,7 @@ typedef struct QEMULogItem {
 
 extern const QEMULogItem qemu_log_items[];
 
+void qemu_log_stdio_disable(void);
 void qemu_set_log(int log_flags);
 void qemu_log_needs_buffers(void);
 void qemu_set_log_filename(const char *filename, Error **errp);

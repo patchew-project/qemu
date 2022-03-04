@@ -3664,6 +3664,9 @@ void qemu_init(int argc, char **argv, char **envp)
                     error_report("Option not supported in this build");
                     exit(1);
                 }
+                if (is_daemonized()) {
+                    qemu_log_stdio_disable();
+                }
             }
         }
     }

@@ -33,6 +33,12 @@ QemuLogFile *qemu_logfile;
 int qemu_loglevel;
 static int log_append = 0;
 static GArray *debug_regions;
+static bool stdio_disabled;
+
+void qemu_log_stdio_disable(void)
+{
+    stdio_disabled = true;
+}
 
 /* Return the number of characters emitted.  */
 int qemu_log(const char *fmt, ...)
@@ -92,7 +98,7 @@ void qemu_set_log(int log_flags)
      *   If we are daemonized,
      *     we will only log if there is a logfilename.
      */
-    if (qemu_loglevel && (!is_daemonized() || logfilename)) {
+    if (qemu_loglevel && (!stdio_disabled || logfilename)) {
         need_to_open_file = true;
     }
     QEMU_LOCK_GUARD(&qemu_logfile_mutex);
@@ -110,7 +116,7 @@ void qemu_set_log(int log_flags)
                 _exit(1);
             }
             /* In case we are a daemon redirect stderr to logfile */
-            if (is_daemonized()) {
+            if (stdio_disabled) {
                 dup2(fileno(logfile->fd), STDERR_FILENO);
                 fclose(logfile->fd);
                 /* This will skip closing logfile in qemu_log_close() */
@@ -118,7 +124,7 @@ void qemu_set_log(int log_flags)
             }
         } else {
             /* Default to stderr if no log file specified */
-            assert(!is_daemonized());
+            assert(!stdio_disabled);
             logfile->fd = stderr;
         }
         /* must avoid mmap() usage of glibc by setting a buffer "by hand" */
