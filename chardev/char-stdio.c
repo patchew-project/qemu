@@ -28,6 +28,7 @@
 #include "qemu/sockets.h"
 #include "qapi/error.h"
 #include "chardev/char.h"
+#include "chardev/char-stdio.h"
 
 #ifdef _WIN32
 #include "chardev/char-win.h"
@@ -36,6 +37,13 @@
 #include <termios.h>
 #include "chardev/char-fd.h"
 #endif
+
+static bool stdio_disabled;
+
+void qemu_chr_stdio_disable(void)
+{
+    stdio_disabled = true;
+}
 
 #ifndef _WIN32
 /* init terminal so that we can grab keys */
@@ -90,8 +98,8 @@ static void qemu_chr_open_stdio(Chardev *chr,
     ChardevStdio *opts = backend->u.stdio.data;
     struct sigaction act;
 
-    if (is_daemonized()) {
-        error_setg(errp, "cannot use stdio with -daemonize");
+    if (stdio_disabled) {
+        error_setg(errp, "cannot use stdio with this configuration");
         return;
     }
 

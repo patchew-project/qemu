@@ -69,6 +69,7 @@
 #include "exec/gdbstub.h"
 #include "qemu/timer.h"
 #include "chardev/char.h"
+#include "chardev/char-stdio.h"
 #include "qemu/bitmap.h"
 #include "qemu/log.h"
 #include "sysemu/blockdev.h"
@@ -3667,6 +3668,7 @@ void qemu_init(int argc, char **argv, char **envp)
                 }
                 if (is_daemonized()) {
                     qemu_log_stdio_disable();
+                    qemu_chr_stdio_disable();
                 }
             }
         }
