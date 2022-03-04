@@ -52,9 +52,6 @@ int os_mlock(void);
 #define closesocket(s) close(s)
 #define ioctlsocket(s, r, v) ioctl(s, r, v)
 
-typedef struct timeval qemu_timeval;
-#define qemu_gettimeofday(tp) gettimeofday(tp, NULL)
-
 bool is_daemonized(void);
 
 /**
