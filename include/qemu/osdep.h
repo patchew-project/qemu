@@ -534,9 +534,6 @@ static inline void qemu_timersub(const struct timeval *val1,
 
 void qemu_set_cloexec(int fd);
 
-void fips_set_state(bool requested);
-bool fips_get_state(void);
-
 /* Return a dynamically allocated pathname denoting a file or directory that is
  * appropriate for storing local state.
  *
