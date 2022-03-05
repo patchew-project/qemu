@@ -35,6 +35,9 @@
 !define OUTFILE "qemu-setup.exe"
 !endif
 
+; Build a unicode installer
+Unicode True
+
 ; Use maximum compression.
 SetCompressor /SOLID lzma
 
