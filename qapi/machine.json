@@ -505,6 +505,24 @@
    'val': 'uint8' }}
 
 ##
+# @CXLFixedMemoryWindowOptions:
+#
+# Create a CXL Fixed Memory Window (for OptsVisitor)
+#
+# @size: Size in bytes of the Fixed Memory Window
+# @interleave-granularity: Number of contiguous bytes for which
+#                          accesses will go to a given interleave target.
+# @targets: Target root bridge IDs
+#
+# Since 6.3
+##
+{ 'struct': 'CXLFixedMemoryWindowOptions',
+  'data': {
+      'size': 'size',
+      '*interleave-granularity': 'size',
+      'targets': ['str'] }}
+
+##
 # @X86CPURegister32:
 #
 # A X86 32-bit register
