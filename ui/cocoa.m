@@ -1604,97 +1604,6 @@ QemuCocoaView *cocoaView;
 }
 @end
 
-static void create_initial_menus(void)
-{
-    // Add menus
-    NSMenu      *menu;
-    NSMenuItem  *menuItem;
-
-    [NSApp setMainMenu:[[NSMenu alloc] init]];
-    [NSApp setServicesMenu:[[NSMenu alloc] initWithTitle:@"Services"]];
-
-    // Application menu
-    menu = [[NSMenu alloc] initWithTitle:@""];
-    [menu addItemWithTitle:@"About QEMU" action:@selector(do_about_menu_item:) keyEquivalent:@""]; // About QEMU
-    [menu addItem:[NSMenuItem separatorItem]]; //Separator
-    menuItem = [menu addItemWithTitle:@"Services" action:nil keyEquivalent:@""];
-    [menuItem setSubmenu:[NSApp servicesMenu]];
-    [menu addItem:[NSMenuItem separatorItem]];
-    [menu addItemWithTitle:@"Hide QEMU" action:@selector(hide:) keyEquivalent:@"h"]; //Hide QEMU
-    menuItem = (NSMenuItem *)[menu addItemWithTitle:@"Hide Others" action:@selector(hideOtherApplications:) keyEquivalent:@"h"]; // Hide Others
-    [menuItem setKeyEquivalentModifierMask:(NSEventModifierFlagOption|NSEventModifierFlagCommand)];
-    [menu addItemWithTitle:@"Show All" action:@selector(unhideAllApplications:) keyEquivalent:@""]; // Show All
-    [menu addItem:[NSMenuItem separatorItem]]; //Separator
-    [menu addItemWithTitle:@"Quit QEMU" action:@selector(terminate:) keyEquivalent:@"q"];
-    menuItem = [[NSMenuItem alloc] initWithTitle:@"Apple" action:nil keyEquivalent:@""];
-    [menuItem setSubmenu:menu];
-    [[NSApp mainMenu] addItem:menuItem];
-    [NSApp performSelector:@selector(setAppleMenu:) withObject:menu]; // Workaround (this method is private since 10.4+)
-
-    // Machine menu
-    menu = [[NSMenu alloc] initWithTitle: @"Machine"];
-    [menu setAutoenablesItems: NO];
-    [menu addItem: [[[NSMenuItem alloc] initWithTitle: @"Pause" action: @selector(pauseQEMU:) keyEquivalent: @""] autorelease]];
-    menuItem = [[[NSMenuItem alloc] initWithTitle: @"Resume" action: @selector(resumeQEMU:) keyEquivalent: @""] autorelease];
-    [menu addItem: menuItem];
-    [menuItem setEnabled: NO];
-    [menu addItem: [NSMenuItem separatorItem]];
-    [menu addItem: [[[NSMenuItem alloc] initWithTitle: @"Reset" action: @selector(restartQEMU:) keyEquivalent: @""] autorelease]];
-    [menu addItem: [[[NSMenuItem alloc] initWithTitle: @"Power Down" action: @selector(powerDownQEMU:) keyEquivalent: @""] autorelease]];
-    menuItem = [[[NSMenuItem alloc] initWithTitle: @"Machine" action:nil keyEquivalent:@""] autorelease];
-    [menuItem setSubmenu:menu];
-    [[NSApp mainMenu] addItem:menuItem];
-
-    // View menu
-    menu = [[NSMenu alloc] initWithTitle:@"View"];
-    [menu addItem: [[[NSMenuItem alloc] initWithTitle:@"Enter Fullscreen" action:@selector(doToggleFullScreen:) keyEquivalent:@"f"] autorelease]]; // Fullscreen
-    [menu addItem: [[[NSMenuItem alloc] initWithTitle:@"Zoom To Fit" action:@selector(zoomToFit:) keyEquivalent:@""] autorelease]];
-    menuItem = [[[NSMenuItem alloc] initWithTitle:@"View" action:nil keyEquivalent:@""] autorelease];
-    [menuItem setSubmenu:menu];
-    [[NSApp mainMenu] addItem:menuItem];
-
-    // Speed menu
-    menu = [[NSMenu alloc] initWithTitle:@"Speed"];
-
-    // Add the rest of the Speed menu items
-    int p, percentage, throttle_pct;
-    for (p = 10; p >= 0; p--)
-    {
-        percentage = p * 10 > 1 ? p * 10 : 1; // prevent a 0% menu item
-
-        menuItem = [[[NSMenuItem alloc]
-                   initWithTitle: [NSString stringWithFormat: @"%d%%", percentage] action:@selector(adjustSpeed:) keyEquivalent:@""] autorelease];
-
-        if (percentage == 100) {
-            [menuItem setState: NSControlStateValueOn];
-        }
-
-        /* Calculate the throttle percentage */
-        throttle_pct = -1 * percentage + 100;
-
-        [menuItem setTag: throttle_pct];
-        [menu addItem: menuItem];
-    }
-    menuItem = [[[NSMenuItem alloc] initWithTitle:@"Speed" action:nil keyEquivalent:@""] autorelease];
-    [menuItem setSubmenu:menu];
-    [[NSApp mainMenu] addItem:menuItem];
-
-    // Window menu
-    menu = [[NSMenu alloc] initWithTitle:@"Window"];
-    [menu addItem: [[[NSMenuItem alloc] initWithTitle:@"Minimize" action:@selector(performMiniaturize:) keyEquivalent:@"m"] autorelease]]; // Miniaturize
-    menuItem = [[[NSMenuItem alloc] initWithTitle:@"Window" action:nil keyEquivalent:@""] autorelease];
-    [menuItem setSubmenu:menu];
-    [[NSApp mainMenu] addItem:menuItem];
-    [NSApp setWindowsMenu:menu];
-
-    // Help menu
-    menu = [[NSMenu alloc] initWithTitle:@"Help"];
-    [menu addItem: [[[NSMenuItem alloc] initWithTitle:@"QEMU Documentation" action:@selector(showQEMUDoc:) keyEquivalent:@"?"] autorelease]]; // QEMU Help
-    menuItem = [[[NSMenuItem alloc] initWithTitle:@"Window" action:nil keyEquivalent:@""] autorelease];
-    [menuItem setSubmenu:menu];
-    [[NSApp mainMenu] addItem:menuItem];
-}
-
 /* Returns a name for a given console */
 static NSString * getConsoleName(QemuConsole * console)
 {
@@ -1704,13 +1613,10 @@ static NSString * getConsoleName(QemuConsole * console)
 }
 
 /* Add an entry to the View menu for each console */
-static void add_console_menu_entries(void)
+static void add_console_menu_entries(NSMenu *menu)
 {
-    NSMenu *menu;
     NSMenuItem *menuItem;
     int index = 0;
-
-    menu = [[[NSApp mainMenu] itemWithTitle:@"View"] submenu];
 
     [menu addItem:[NSMenuItem separatorItem]];
 
@@ -1726,17 +1632,14 @@ static void add_console_menu_entries(void)
 /* Make menu items for all removable devices.
  * Each device is given an 'Eject' and 'Change' menu item.
  */
-static void addRemovableDevicesMenuItems(void)
+static void addRemovableDevicesMenuItems(NSMenu *menu)
 {
-    NSMenu *menu;
     NSMenuItem *menuItem;
     BlockInfoList *currentDevice, *pointerToFree;
     NSString *deviceName;
 
     currentDevice = qmp_query_block(NULL);
     pointerToFree = currentDevice;
-
-    menu = [[[NSApp mainMenu] itemWithTitle:@"Machine"] submenu];
 
     // Add a separator between related groups of menu items
     [menu addItem:[NSMenuItem separatorItem]];
@@ -1782,6 +1685,96 @@ static void addRemovableDevicesMenuItems(void)
         currentDevice = currentDevice->next;
     }
     qapi_free_BlockInfoList(pointerToFree);
+}
+
+static void create_menus(void)
+{
+    // Add menus
+    NSString    *title = [[[NSBundle mainBundle] executablePath] lastPathComponent];
+    NSMenu      *mainMenu;
+    NSMenu      *menu;
+    NSMenuItem  *menuItem;
+
+    mainMenu = [[NSMenu alloc] initWithTitle:@"Main Menu"];
+    [NSApp setServicesMenu:[[NSMenu alloc] initWithTitle:@"Services"]];
+
+    // Application menu
+    menu = [[NSMenu alloc] initWithTitle:title];
+    [menu addItemWithTitle:@"About QEMU" action:@selector(do_about_menu_item:) keyEquivalent:@""]; // About QEMU
+    [menu addItem:[NSMenuItem separatorItem]]; //Separator
+    menuItem = [menu addItemWithTitle:@"Services" action:nil keyEquivalent:@""];
+    [menuItem setSubmenu:[NSApp servicesMenu]];
+    [menu addItem:[NSMenuItem separatorItem]];
+    [menu addItemWithTitle:@"Hide QEMU" action:@selector(hide:) keyEquivalent:@"h"]; //Hide QEMU
+    menuItem = (NSMenuItem *)[menu addItemWithTitle:@"Hide Others" action:@selector(hideOtherApplications:) keyEquivalent:@"h"]; // Hide Others
+    [menuItem setKeyEquivalentModifierMask:(NSEventModifierFlagOption|NSEventModifierFlagCommand)];
+    [menu addItemWithTitle:@"Show All" action:@selector(unhideAllApplications:) keyEquivalent:@""]; // Show All
+    [menu addItem:[NSMenuItem separatorItem]]; //Separator
+    [menu addItemWithTitle:@"Quit QEMU" action:@selector(terminate:) keyEquivalent:@"q"];
+    menuItem = [mainMenu addItemWithTitle:title action:nil keyEquivalent:@""];
+    [menuItem setSubmenu:menu];
+
+    // Machine menu
+    menu = [[NSMenu alloc] initWithTitle: @"Machine"];
+    [menu setAutoenablesItems: NO];
+    [menu addItem: [[[NSMenuItem alloc] initWithTitle: @"Pause" action: @selector(pauseQEMU:) keyEquivalent: @""] autorelease]];
+    menuItem = [[[NSMenuItem alloc] initWithTitle: @"Resume" action: @selector(resumeQEMU:) keyEquivalent: @""] autorelease];
+    [menu addItem: menuItem];
+    [menuItem setEnabled: NO];
+    [menu addItem: [NSMenuItem separatorItem]];
+    [menu addItem: [[[NSMenuItem alloc] initWithTitle: @"Reset" action: @selector(restartQEMU:) keyEquivalent: @""] autorelease]];
+    [menu addItem: [[[NSMenuItem alloc] initWithTitle: @"Power Down" action: @selector(powerDownQEMU:) keyEquivalent: @""] autorelease]];
+    addRemovableDevicesMenuItems(menu);
+    menuItem = [mainMenu addItemWithTitle: @"Machine" action:nil keyEquivalent:@""];
+    [menuItem setSubmenu:menu];
+
+    // View menu
+    menu = [[NSMenu alloc] initWithTitle:@"View"];
+    [menu addItem: [[[NSMenuItem alloc] initWithTitle:@"Enter Fullscreen" action:@selector(doToggleFullScreen:) keyEquivalent:@"f"] autorelease]]; // Fullscreen
+    [menu addItem: [[[NSMenuItem alloc] initWithTitle:@"Zoom To Fit" action:@selector(zoomToFit:) keyEquivalent:@""] autorelease]];
+    add_console_menu_entries(menu);
+    menuItem = [mainMenu addItemWithTitle:@"View" action:nil keyEquivalent:@""];
+    [menuItem setSubmenu:menu];
+
+    // Speed menu
+    menu = [[NSMenu alloc] initWithTitle:@"Speed"];
+
+    // Add the rest of the Speed menu items
+    int p, percentage, throttle_pct;
+    for (p = 10; p >= 0; p--)
+    {
+        percentage = p * 10 > 1 ? p * 10 : 1; // prevent a 0% menu item
+
+        menuItem = [[[NSMenuItem alloc]
+                   initWithTitle: [NSString stringWithFormat: @"%d%%", percentage] action:@selector(adjustSpeed:) keyEquivalent:@""] autorelease];
+
+        if (percentage == 100) {
+            [menuItem setState: NSControlStateValueOn];
+        }
+
+        /* Calculate the throttle percentage */
+        throttle_pct = -1 * percentage + 100;
+
+        [menuItem setTag: throttle_pct];
+        [menu addItem: menuItem];
+    }
+    menuItem = [mainMenu addItemWithTitle:@"Speed" action:nil keyEquivalent:@""];
+    [menuItem setSubmenu:menu];
+
+    // Window menu
+    menu = [[NSMenu alloc] initWithTitle:@"Window"];
+    [menu addItem: [[[NSMenuItem alloc] initWithTitle:@"Minimize" action:@selector(performMiniaturize:) keyEquivalent:@"m"] autorelease]]; // Miniaturize
+    menuItem = [mainMenu addItemWithTitle:@"Window" action:nil keyEquivalent:@""];
+    [menuItem setSubmenu:menu];
+    [NSApp setWindowsMenu:menu];
+
+    // Help menu
+    menu = [[NSMenu alloc] initWithTitle:@"Help"];
+    [menu addItem: [[[NSMenuItem alloc] initWithTitle:@"QEMU Documentation" action:@selector(showQEMUDoc:) keyEquivalent:@"?"] autorelease]]; // QEMU Help
+    menuItem = [mainMenu addItemWithTitle:@"Window" action:nil keyEquivalent:@""];
+    [menuItem setSubmenu:menu];
+
+    [NSApp setMainMenu:mainMenu];
 }
 
 @interface QemuCocoaPasteboardTypeOwner : NSObject<NSPasteboardTypeOwner>
@@ -1947,18 +1940,6 @@ int main (int argc, char **argv) {
 
     [QemuApplication sharedApplication];
 
-    create_initial_menus();
-
-    /*
-     * Create the menu entries which depend on QEMU state (for consoles
-     * and removeable devices). These make calls back into QEMU functions,
-     * which is OK because at this point we know that the second thread
-     * holds the iothread lock and is synchronously waiting for us to
-     * finish.
-     */
-    add_console_menu_entries();
-    addRemovableDevicesMenuItems();
-
     // Create an Application controller
     QemuCocoaAppController *appController = [[QemuCocoaAppController alloc] init];
     [NSApp setDelegate:appController];
@@ -2050,12 +2031,16 @@ static void cocoa_refresh(DisplayChangeListener *dcl)
 
 static void cocoa_display_init(DisplayState *ds, DisplayOptions *opts)
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+
     COCOA_DEBUG("qemu_cocoa: cocoa_display_init\n");
 
     /* Tell main thread to go ahead and create the app and enter the run loop */
     qemu_sem_post(&display_init_sem);
     qemu_sem_wait(&app_started_sem);
     COCOA_DEBUG("cocoa_display_init: app start completed\n");
+
+    create_menus();
 
     /* if fullscreen mode is to be used */
     if (opts->has_full_screen && opts->full_screen) {
@@ -2074,6 +2059,8 @@ static void cocoa_display_init(DisplayState *ds, DisplayOptions *opts)
     qemu_event_init(&cbevent, false);
     cbowner = [[QemuCocoaPasteboardTypeOwner alloc] init];
     qemu_clipboard_peer_register(&cbpeer);
+
+    [pool release];
 }
 
 static QemuDisplay qemu_display_cocoa = {
