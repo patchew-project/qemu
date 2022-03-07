@@ -1618,6 +1618,17 @@ static target_ulong h_query_vas_capabilities(PowerPCCPU *cpu,
     return H_FUNCTION;
 }
 
+static target_ulong h_vioctl(PowerPCCPU *cpu,
+                             SpaprMachineState *spapr,
+                             target_ulong opcode,
+                             target_ulong *args)
+{
+    /* We do not support any VIO (Virtualized I/O) HCALL */
+    qemu_log_mask(LOG_UNSUPP, "Unsupported SPAPR hcall 0x"TARGET_FMT_lx"%s\n",
+                  opcode, " (H_VIOCTL)");
+    return H_FUNCTION;
+}
+
 /*
  * When this handler returns, the environment is switched to the L2 guest
  * and TCG begins running that. spapr_exit_nested() performs the switch from
@@ -1965,6 +1976,9 @@ static void hypercall_register_types(void)
     /* Unsupported VAS h-calls */
     spapr_register_hypercall(H_QUERY_VAS_CAPABILITIES,
                              h_query_vas_capabilities);
+
+    /* Unsupported Virtualized I/O (VIO) h-calls */
+    spapr_register_hypercall(H_VIOCTL, h_vioctl);
 }
 
 type_init(hypercall_register_types)
