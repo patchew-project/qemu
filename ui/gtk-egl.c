@@ -244,6 +244,10 @@ void gd_egl_scanout_dmabuf(DisplayChangeListener *dcl,
 #ifdef CONFIG_GBM
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
 
+    if (!vc->gfx.ectx || !vc->gfx.esurface) {
+        return;
+    }
+
     eglMakeCurrent(qemu_egl_display, vc->gfx.esurface,
                    vc->gfx.esurface, vc->gfx.ectx);
 
@@ -268,6 +272,10 @@ void gd_egl_cursor_dmabuf(DisplayChangeListener *dcl,
 {
 #ifdef CONFIG_GBM
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
+
+    if (!vc->gfx.ectx || !vc->gfx.esurface) {
+        return;
+    }
 
     if (dmabuf) {
         egl_dmabuf_import_texture(dmabuf);
