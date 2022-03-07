@@ -638,6 +638,21 @@ static target_ulong h_prod(PowerPCCPU *cpu, SpaprMachineState *spapr,
     return H_SUCCESS;
 }
 
+static target_ulong h_get_ppp(PowerPCCPU *cpu,
+                              SpaprMachineState *spapr,
+                              target_ulong opcode,
+                              target_ulong *args)
+{
+    /*
+     * H_GET_PPP (partition performance parameters) isn't supported
+     * the same way h_get_em_parms or any other performance/metric
+     * related HCALL is not supported in QEMU.
+     */
+    qemu_log_mask(LOG_UNSUPP, "Unsupported SPAPR hcall 0x"TARGET_FMT_lx"%s\n",
+                  opcode, " (H_GET_PPP)");
+    return H_FUNCTION;
+}
+
 static target_ulong h_rtas(PowerPCCPU *cpu, SpaprMachineState *spapr,
                            target_ulong opcode, target_ulong *args)
 {
@@ -1894,6 +1909,7 @@ static void hypercall_register_types(void)
     spapr_register_hypercall(H_CEDE, h_cede);
     spapr_register_hypercall(H_CONFER, h_confer);
     spapr_register_hypercall(H_PROD, h_prod);
+    spapr_register_hypercall(H_GET_PPP, h_get_ppp);
 
     /* hcall-join */
     spapr_register_hypercall(H_JOIN, h_join);
