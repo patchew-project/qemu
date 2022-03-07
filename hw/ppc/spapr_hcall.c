@@ -1544,6 +1544,8 @@ static target_ulong h_copy_tofrom_guest(PowerPCCPU *cpu,
      * This HCALL is not required, L1 KVM will take a slow path and walk the
      * page tables manually to do the data copy.
      */
+    qemu_log_mask(LOG_UNSUPP, "Unsupported SPAPR hcall 0x"TARGET_FMT_lx"%s\n",
+                  opcode, " (H_COPY_TOFROM_GUEST)");
     return H_FUNCTION;
 }
 
