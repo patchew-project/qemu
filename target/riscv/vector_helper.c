@@ -4721,6 +4721,9 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,          \
                   uint32_t desc)                          \
 {                                                         \
     uint32_t vl = env->vl;                                \
+    uint32_t vlmax =                                      \
+        vext_get_total_elem(env_archcpu(env), env->vtype);\
+    uint32_t vta = vext_vta(desc);                        \
     uint32_t i;                                           \
     int a, b;                                             \
                                                           \
@@ -4730,6 +4733,12 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,          \
         vext_set_elem_mask(vd, i, OP(b, a));              \
     }                                                     \
     env->vstart = 0;                                      \
+    /* set tail elements to 1s */                         \
+    if (vta) {                                            \
+        for (; i < vlmax; i++) {                          \
+            vext_set_elem_mask(vd, i, 1);                 \
+        }                                                 \
+    }                                                     \
 }
 
 #define DO_NAND(N, M)  (!(N & M))
@@ -4797,6 +4806,8 @@ static void vmsetm(void *vd, void *v0, void *vs2, CPURISCVState *env,
 {
     uint32_t vm = vext_vm(desc);
     uint32_t vl = env->vl;
+    uint32_t vlmax = vext_get_total_elem(env_archcpu(env), env->vtype);
+    uint32_t vta = vext_vta(desc);
     int i;
     bool first_mask_bit = false;
 
@@ -4825,6 +4836,12 @@ static void vmsetm(void *vd, void *v0, void *vs2, CPURISCVState *env,
         }
     }
     env->vstart = 0;
+    /* set tail elements to 1s */
+    if (vta) {
+        for (; i < vlmax; i++) {
+            vext_set_elem_mask(vd, i, 1);
+        }
+    }
 }
 
 void HELPER(vmsbf_m)(void *vd, void *v0, void *vs2, CPURISCVState *env,
@@ -4852,6 +4869,9 @@ void HELPER(NAME)(void *vd, void *v0, void *vs2, CPURISCVState *env,      \
 {                                                                         \
     uint32_t vm = vext_vm(desc);                                          \
     uint32_t vl = env->vl;                                                \
+    uint32_t esz = sizeof(ETYPE);                                         \
+    uint32_t vlmax = vext_get_total_elem(env_archcpu(env), env->vtype);   \
+    uint32_t vta = vext_vta(desc);                                        \
     uint32_t sum = 0;                                                     \
     int i;                                                                \
                                                                           \
@@ -4865,6 +4885,8 @@ void HELPER(NAME)(void *vd, void *v0, void *vs2, CPURISCVState *env,      \
         }                                                                 \
     }                                                                     \
     env->vstart = 0;                                                      \
+    /* set tail elements to 1s */                                         \
+    vext_set_elems_1s_fns[ctzl(esz)](vd, vta, vl, vl * esz, vlmax * esz); \
 }
 
 GEN_VEXT_VIOTA_M(viota_m_b, uint8_t,  H1)
@@ -4878,6 +4900,9 @@ void HELPER(NAME)(void *vd, void *v0, CPURISCVState *env, uint32_t desc)  \
 {                                                                         \
     uint32_t vm = vext_vm(desc);                                          \
     uint32_t vl = env->vl;                                                \
+    uint32_t esz = sizeof(ETYPE);                                         \
+    uint32_t vlmax = vext_get_total_elem(env_archcpu(env), env->vtype);   \
+    uint32_t vta = vext_vta(desc);                                        \
     int i;                                                                \
                                                                           \
     for (i = env->vstart; i < vl; i++) {                                  \
@@ -4887,6 +4912,8 @@ void HELPER(NAME)(void *vd, void *v0, CPURISCVState *env, uint32_t desc)  \
         *((ETYPE *)vd + H(i)) = i;                                        \
     }                                                                     \
     env->vstart = 0;                                                      \
+    /* set tail elements to 1s */                                         \
+    vext_set_elems_1s_fns[ctzl(esz)](vd, vta, vl, vl * esz, vlmax * esz); \
 }
 
 GEN_VEXT_VID_V(vid_v_b, uint8_t,  H1)
