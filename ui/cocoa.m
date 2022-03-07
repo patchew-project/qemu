@@ -95,14 +95,11 @@ static DisplayChangeListener dcl = {
 };
 static int last_buttons;
 static int cursor_hide = 1;
+static bool full_screen;
 
-static int gArgc;
-static char **gArgv;
 static bool stretch_video;
 static NSTextField *pauseLabel;
 
-static QemuSemaphore display_init_sem;
-static QemuSemaphore app_started_sem;
 static bool allow_events;
 
 static NSInteger cbchangecount = -1;
@@ -138,6 +135,32 @@ static bool bool_with_iothread_lock(BoolCodeBlock block)
         qemu_mutex_unlock_iothread();
     }
     return val;
+}
+
+/*
+ * The startup process for the OSX/Cocoa UI is complicated, because
+ * OSX insists that the UI runs on the initial main thread, and so we
+ * need to start a second thread which runs qemu_main_loop():
+ *
+ * Initial thread:                    2nd thread:
+ * in main():
+ *  qemu_init()
+ *  create application, menus, etc
+ *  enter OSX run loop
+ * in applicationDidFinishLaunching:
+ *  fullscreen if needed
+ *  create main loop thread
+ *                                    call qemu_main_loop()
+ */
+
+static void *call_qemu_main_loop(void *opaque)
+{
+    COCOA_DEBUG("Second thread: calling qemu_main()\n");
+    qemu_main_loop();
+    COCOA_DEBUG("Second thread: qemu_main_loop() returned, exiting\n");
+    qemu_cleanup();
+    [cbowner release];
+    exit(0);
 }
 
 // Mac to QKeyCode conversion
@@ -728,9 +751,7 @@ QemuCocoaView *cocoaView;
         /*
          * Just let OSX have all events that arrive before
          * applicationDidFinishLaunching.
-         * This avoids a deadlock on the iothread lock, which cocoa_display_init()
-         * will not drop until after the app_started_sem is posted. (In theory
-         * there should not be any such events, but OSX Catalina now emits some.)
+         * This may not be needed anymore?
          */
         return false;
     }
@@ -1205,8 +1226,19 @@ QemuCocoaView *cocoaView;
 {
     COCOA_DEBUG("QemuCocoaAppController: applicationDidFinishLaunching\n");
     allow_events = true;
-    /* Tell cocoa_display_init to proceed */
-    qemu_sem_post(&app_started_sem);
+
+    // register vga output callbacks
+    register_displaychangelistener(&dcl);
+
+    qemu_clipboard_peer_register(&cbpeer);
+    qemu_mutex_unlock_iothread();
+    qemu_thread_create(&thread, "qemu_main_loop", call_qemu_main_loop,
+                       NULL, QEMU_THREAD_DETACHED);
+
+    if (full_screen) {
+        [NSApp activateIgnoringOtherApps: YES];
+        [self toggleFullScreen: nil];
+    }
 }
 
 - (void)applicationWillTerminate:(NSNotification *)aNotification
@@ -1883,60 +1915,14 @@ static void cocoa_clipboard_request(QemuClipboardInfo *info,
     }
 }
 
-/*
- * The startup process for the OSX/Cocoa UI is complicated, because
- * OSX insists that the UI runs on the initial main thread, and so we
- * need to start a second thread which runs the vl.c qemu_main():
- *
- * Initial thread:                    2nd thread:
- * in main():
- *  create qemu-main thread
- *  wait on display_init semaphore
- *                                    call qemu_main()
- *                                    ...
- *                                    in cocoa_display_init():
- *                                     post the display_init semaphore
- *                                     wait on app_started semaphore
- *  create application, menus, etc
- *  enter OSX run loop
- * in applicationDidFinishLaunching:
- *  post app_started semaphore
- *                                     tell main thread to fullscreen if needed
- *                                    [...]
- *                                    run qemu main-loop
- *
- * We do this in two stages so that we don't do the creation of the
- * GUI application menus and so on for command line options like --help
- * where we want to just print text to stdout and exit immediately.
- */
-
-static void *call_qemu_main(void *opaque)
-{
-    int status;
-
-    COCOA_DEBUG("Second thread: calling qemu_main()\n");
-    status = qemu_main(gArgc, gArgv, *_NSGetEnviron());
-    COCOA_DEBUG("Second thread: qemu_main() returned, exiting\n");
-    [cbowner release];
-    exit(status);
-}
-
 int main (int argc, char **argv) {
     QemuThread thread;
 
     COCOA_DEBUG("Entered main()\n");
-    gArgc = argc;
-    gArgv = argv;
+    qemu_event_init(&cbevent, false);
 
-    qemu_sem_init(&display_init_sem, 0);
-    qemu_sem_init(&app_started_sem, 0);
-
-    qemu_thread_create(&thread, "qemu_main", call_qemu_main,
-                       NULL, QEMU_THREAD_DETACHED);
-
-    COCOA_DEBUG("Main thread: waiting for display_init_sem\n");
-    qemu_sem_wait(&display_init_sem);
-    COCOA_DEBUG("Main thread: initializing app\n");
+    /* Takes iothread lock, released in applicationDidFinishLaunching:.  */
+    qemu_init(argc, argv);
 
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
@@ -1958,6 +1944,7 @@ int main (int argc, char **argv) {
      */
     add_console_menu_entries();
     addRemovableDevicesMenuItems();
+    cbowner = [[QemuCocoaPasteboardTypeOwner alloc] init];
 
     // Create an Application controller
     QemuCocoaAppController *appController = [[QemuCocoaAppController alloc] init];
@@ -2051,29 +2038,12 @@ static void cocoa_refresh(DisplayChangeListener *dcl)
 static void cocoa_display_init(DisplayState *ds, DisplayOptions *opts)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_display_init\n");
-
-    /* Tell main thread to go ahead and create the app and enter the run loop */
-    qemu_sem_post(&display_init_sem);
-    qemu_sem_wait(&app_started_sem);
-    COCOA_DEBUG("cocoa_display_init: app start completed\n");
-
-    /* if fullscreen mode is to be used */
     if (opts->has_full_screen && opts->full_screen) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [NSApp activateIgnoringOtherApps: YES];
-            [(QemuCocoaAppController *)[[NSApplication sharedApplication] delegate] toggleFullScreen: nil];
-        });
+        full_screen = 1;
     }
     if (opts->has_show_cursor && opts->show_cursor) {
         cursor_hide = 0;
     }
-
-    // register vga output callbacks
-    register_displaychangelistener(&dcl);
-
-    qemu_event_init(&cbevent, false);
-    cbowner = [[QemuCocoaPasteboardTypeOwner alloc] init];
-    qemu_clipboard_peer_register(&cbpeer);
 }
 
 static QemuDisplay qemu_display_cocoa = {
