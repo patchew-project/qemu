@@ -1262,6 +1262,9 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,                          \
 {                                                                         \
     uint32_t vm = vext_vm(desc);                                          \
     uint32_t vl = env->vl;                                                \
+    uint32_t esz = sizeof(TS1);                                           \
+    uint32_t vlmax = vext_get_total_elem(env_archcpu(env), env->vtype);   \
+    uint32_t vta = vext_vta(desc);                                        \
     uint32_t i;                                                           \
                                                                           \
     for (i = env->vstart; i < vl; i++) {                                  \
@@ -1273,6 +1276,8 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,                          \
         *((TS1 *)vd + HS1(i)) = OP(s2, s1 & MASK);                        \
     }                                                                     \
     env->vstart = 0;                                                      \
+    /* set tail elements to 1s */                                         \
+    vext_set_elems_1s_fns[ctzl(esz)](vd, vta, vl, vl * esz, vlmax * esz); \
 }
 
 GEN_VEXT_SHIFT_VV(vsll_vv_b, uint8_t,  uint8_t, H1, H1, DO_SLL, 0x7)
@@ -1297,6 +1302,10 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1,      \
 {                                                           \
     uint32_t vm = vext_vm(desc);                            \
     uint32_t vl = env->vl;                                  \
+    uint32_t esz = sizeof(TD);                              \
+    uint32_t vlmax =                                        \
+        vext_get_total_elem(env_archcpu(env), env->vtype);  \
+    uint32_t vta = vext_vta(desc);                          \
     uint32_t i;                                             \
                                                             \
     for (i = env->vstart; i < vl; i++) {                    \
@@ -1307,6 +1316,9 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1,      \
         *((TD *)vd + HD(i)) = OP(s2, s1 & MASK);            \
     }                                                       \
     env->vstart = 0;                                        \
+    /* set tail elements to 1s */                           \
+    vext_set_elems_1s_fns[ctzl(esz)](vd, vta, vl, vl * esz, \
+                                     vlmax * esz);          \
 }
 
 GEN_VEXT_SHIFT_VX(vsll_vx_b, uint8_t, int8_t, H1, H1, DO_SLL, 0x7)
