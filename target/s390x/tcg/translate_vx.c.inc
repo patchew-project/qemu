@@ -457,6 +457,111 @@ static DisasJumpType op_vlrep(DisasContext *s, DisasOps *o)
     return DISAS_NEXT;
 }
 
+static DisasJumpType op_vlebr(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = (1 == s->fields.op2) ? 1 : (1 ^ s->fields.op2);
+    const uint8_t enr = get_field(s, m3);
+    TCGv_i64 tmp;
+
+    if (es < ES_16 || es > ES_64 || !valid_vec_element(enr, es)) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    tmp = tcg_temp_new_i64();
+    tcg_gen_qemu_ld_i64(tmp, o->addr1, get_mem_index(s), MO_TE | es);
+
+    tcg_gen_bswap64_i64(tmp, tmp);
+    tcg_gen_rotri_i64(tmp, tmp, 64 - 8 * (1 << es));
+
+    write_vec_element_i64(tmp, get_field(s, v1), enr, es);
+    tcg_temp_free_i64(tmp);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vlbrrep(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s, m3);
+    TCGv_i64 tmp;
+
+    if (es == ES_8 || es > ES_64) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    tmp = tcg_temp_new_i64();
+    tcg_gen_qemu_ld_i64(tmp, o->addr1, get_mem_index(s), MO_TE | es);
+    tcg_gen_bswap64_i64(tmp, tmp);
+    tcg_gen_rotri_i64(tmp, tmp, 64 - 8 * (1 << es));
+    gen_gvec_dup_i64(es, get_field(s, v1), tmp);
+    tcg_temp_free_i64(tmp);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vllebrz(DisasContext *s, DisasOps *o)
+{
+    const uint8_t m3 = get_field(s, m3);
+    const uint8_t es = m3 & 3;
+    const uint8_t enr = (m3 == 6) ? 0 : ((1 << (3 - es)) - 1);
+
+    TCGv_i64 tmp, zero;
+
+    if (m3 < ES_16 || (m3 > ES_64 && m3 != 6))  {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    zero = tcg_const_i64(0);
+    write_vec_element_i64(zero, get_field(s, v1), 1, ES_64);
+    write_vec_element_i64(zero, get_field(s, v1), 0, ES_64);
+
+    tmp = tcg_temp_new_i64();
+    tcg_gen_qemu_ld_i64(tmp, o->addr1, get_mem_index(s), MO_TE | es);
+
+    tcg_gen_bswap64_i64(tmp, tmp);
+    tcg_gen_rotri_i64(tmp, tmp, 64 - 8 * (1 << es));
+
+    write_vec_element_i64(tmp, get_field(s, v1), enr, es);
+    tcg_temp_free_i64(tmp);
+    tcg_temp_free_i64(zero);
+
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vlbr(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s, m3);
+    const uint8_t bytes = 1 << es;
+    uint32_t dst_idx;
+
+    if (es < ES_16 || es > ES_128) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+
+    if (es >= ES_64) {
+        tcg_gen_qemu_ld_i64(t0, o->addr1, get_mem_index(s), MO_TEUQ);
+        tcg_gen_bswap64_i64(t0, t0);
+        gen_addi_and_wrap_i64(s, o->addr1, o->addr1, 8);
+        tcg_gen_qemu_ld_i64(t1, o->addr1, get_mem_index(s), MO_TEUQ);
+        tcg_gen_bswap64_i64(t1, t1);
+        write_vec_element_i64(t0, get_field(s, v1), (es > ES_64) ? 1 : 0, ES_64);
+        write_vec_element_i64(t1, get_field(s, v1), (es > ES_64) ? 0 : 1, ES_64);
+    } else {
+        for (dst_idx = 0; dst_idx < NUM_VEC_ELEMENTS(es); dst_idx++) {
+            tcg_gen_qemu_ld_i64(t0, o->addr1, get_mem_index(s), MO_TEUQ);
+            tcg_gen_bswap64_i64(t0, t0);
+            write_vec_element_i64(t0, get_field(s, v1), dst_idx, es);
+            gen_addi_and_wrap_i64(s, o->addr1, o->addr1, bytes);
+        }
+    }
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    return DISAS_NEXT;
+}
+
 static DisasJumpType op_vle(DisasContext *s, DisasOps *o)
 {
     const uint8_t es = s->insn->data;
@@ -975,6 +1080,62 @@ static DisasJumpType op_vst(DisasContext *s, DisasOps *o)
     read_vec_element_i64(tmp,  get_field(s, v1), 1, ES_64);
     tcg_gen_qemu_st_i64(tmp, o->addr1, get_mem_index(s), MO_TEUQ);
     tcg_temp_free_i64(tmp);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vsteb(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = (9 == s->fields.op2) ? 1 : 1 ^ (s->fields.op2 & 3);
+    const uint8_t enr = get_field(s, m3);
+    const uint8_t bytes = 1 << es;
+    TCGv_i64 tmp;
+
+    if (!valid_vec_element(enr, es)) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+    tmp = tcg_temp_new_i64();
+    read_vec_element_i64(tmp, get_field(s, v1), enr, es);
+    tcg_gen_bswap64_i64(tmp, tmp);
+    tcg_gen_rotri_i64(tmp, tmp, 64 - 8 * bytes);
+    tcg_gen_qemu_st_i64(tmp, o->addr1, get_mem_index(s), MO_TE | es);
+    tcg_temp_free_i64(tmp);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vstbr(DisasContext *s, DisasOps *o)
+{
+    const uint8_t v1 = get_field(s, v1);
+    const uint8_t es = get_field(s, m3);
+    const uint8_t bytes = 1 << es;
+    uint32_t src_idx;
+
+    if (es == ES_8 || es > ES_128) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+    TCGv_i64 t0 = tcg_const_i64(16);
+    gen_helper_probe_write_access(cpu_env, o->addr1, t0);
+
+    if (es >= ES_64) {
+        read_vec_element_i64(t0, v1, (es > ES_64) ? 1 : 0, ES_64);
+        tcg_gen_bswap64_i64(t0, t0);
+        tcg_gen_qemu_st_i64(t0, o->addr1, get_mem_index(s), MO_TEUQ);
+        gen_addi_and_wrap_i64(s, o->addr1, o->addr1, 8);
+        read_vec_element_i64(t0, v1, (es > ES_64) ? 0 : 1, ES_64);
+        tcg_gen_bswap64_i64(t0, t0);
+        tcg_gen_qemu_st_i64(t0, o->addr1, get_mem_index(s), MO_TEUQ);
+    } else {
+        for (src_idx = 0; src_idx < NUM_VEC_ELEMENTS(es); src_idx++) {
+            read_vec_element_i64(t0, v1, src_idx, es);
+            tcg_gen_bswap64_i64(t0, t0);
+            tcg_gen_rotri_i64(t0, t0, 64 - 8 * bytes);
+            tcg_gen_qemu_st_i64(t0, o->addr1, get_mem_index(s), MO_TE | es);
+            gen_addi_and_wrap_i64(s, o->addr1, o->addr1, bytes);
+        }
+    }
+
+    tcg_temp_free(t0);
     return DISAS_NEXT;
 }
 
