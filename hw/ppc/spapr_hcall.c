@@ -873,7 +873,7 @@ static target_ulong h_clean_slb(PowerPCCPU *cpu, SpaprMachineState *spapr,
 static target_ulong h_invalidate_pid(PowerPCCPU *cpu, SpaprMachineState *spapr,
                                      target_ulong opcode, target_ulong *args)
 {
-    qemu_log_mask(LOG_UNIMP, "Unimplemented SPAPR hcall 0x"TARGET_FMT_lx"%s\n",
+    qemu_log_mask(LOG_UNSUPP, "Unsupported SPAPR hcall 0x"TARGET_FMT_lx"%s\n",
                   opcode, " (H_INVALIDATE_PID)");
     return H_FUNCTION;
 }
