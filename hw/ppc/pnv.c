@@ -2144,7 +2144,7 @@ static void pnv_machine_power9_class_init(ObjectClass *oc, void *data)
     static const char compat[] = "qemu,powernv9\0ibm,powernv";
 
     mc->desc = "IBM PowerNV (Non-Virtualized) POWER9";
-    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power9_v2.0");
+    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power9_v2.2");
     xfc->match_nvt = pnv_match_nvt;
 
     mc->alias = "powernv";
