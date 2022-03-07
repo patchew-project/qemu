@@ -1564,6 +1564,31 @@ static target_ulong h_get_em_parms(PowerPCCPU *cpu,
     return H_FUNCTION;
 }
 
+static target_ulong h_best_energy(PowerPCCPU *cpu,
+                                  SpaprMachineState *spapr,
+                                  target_ulong opcode,
+                                  target_ulong *args)
+{
+    /*
+     * This HCALL is described as follows in PAPR+ V2.8 section 14.14.2.1:
+     *
+     * "This hcall() returns a hint to the caller as to the probable impact
+     * toward the goal of minimal platform energy consumption for a given
+     * level of computing capacity that would result from releasing or
+     * activating various computing resources."
+     *
+     * In short, this HCALL provides a hint about what would happen with
+     * the energy consumption if the OS tries to increase/decrease
+     * the performance of a given device/CPU/mem.
+     *
+     * This is also part of the PEM option and, as with h_get_em_parms, is
+     * not supported.
+     */
+    qemu_log_mask(LOG_UNSUPP, "Unsupported SPAPR hcall 0x"TARGET_FMT_lx"%s\n",
+                  opcode, " (H_BEST_ENERGY)");
+    return H_FUNCTION;
+}
+
 /*
  * When this handler returns, the environment is switched to the L2 guest
  * and TCG begins running that. spapr_exit_nested() performs the switch from
@@ -1903,7 +1928,9 @@ static void hypercall_register_types(void)
     spapr_register_hypercall(KVMPPC_H_TLB_INVALIDATE, h_tlb_invalidate);
     spapr_register_hypercall(KVMPPC_H_COPY_TOFROM_GUEST, h_copy_tofrom_guest);
 
+    /* Unsupported PEM option h-calls */
     spapr_register_hypercall(H_GET_EM_PARMS, h_get_em_parms);
+    spapr_register_hypercall(H_BEST_ENERGY, h_best_energy);
 }
 
 type_init(hypercall_register_types)

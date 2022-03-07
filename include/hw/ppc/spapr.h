@@ -535,6 +535,7 @@ struct SpaprMachineState {
 #define H_SET_MPP               0x2D0
 #define H_GET_MPP               0x2D4
 #define H_HOME_NODE_ASSOCIATIVITY 0x2EC
+#define H_BEST_ENERGY           0x2F4
 #define H_XIRR_X                0x2FC
 #define H_RANDOM                0x300
 #define H_SET_MODE              0x31C
