@@ -264,11 +264,14 @@ vext_ldst_stride(void *vd, void *v0, target_ulong base,
                  target_ulong stride, CPURISCVState *env,
                  uint32_t desc, uint32_t vm,
                  vext_ldst_elem_fn *ldst_elem,
-                 uint32_t log2_esz, uintptr_t ra)
+                 uint32_t log2_esz, uintptr_t ra, uint32_t is_load)
 {
     uint32_t i, k;
     uint32_t nf = vext_nf(desc);
     uint32_t max_elems = vext_max_elems(desc, log2_esz);
+    uint32_t esz = 1 << log2_esz;
+    uint32_t total_elems = vext_get_total_elems(env, desc, esz);
+    uint32_t vta = vext_vta(desc) & is_load;
 
     for (i = env->vstart; i < env->vl; i++, env->vstart++) {
         if (!vm && !vext_elem_mask(v0, i)) {
@@ -283,6 +286,18 @@ vext_ldst_stride(void *vd, void *v0, target_ulong base,
         }
     }
     env->vstart = 0;
+    /* set tail elements to 1s */
+    for (k = 0; k < nf; ++k) {
+        vext_set_elems_1s(vd, vta, (k * max_elems + env->vl) * esz,
+                          (k * max_elems + max_elems) * esz);
+    }
+    if (nf * max_elems % total_elems != 0) {
+        uint32_t vlenb = env_archcpu(env)->cfg.vlen >> 3;
+        uint32_t registers_used =
+            ((nf * max_elems) * esz + (vlenb - 1)) / vlenb;
+        vext_set_elems_1s(vd, vta, (nf * max_elems) * esz,
+                          registers_used * vlenb);
+    }
 }
 
 #define GEN_VEXT_LD_STRIDE(NAME, ETYPE, LOAD_FN)                        \
@@ -292,7 +307,7 @@ void HELPER(NAME)(void *vd, void * v0, target_ulong base,               \
 {                                                                       \
     uint32_t vm = vext_vm(desc);                                        \
     vext_ldst_stride(vd, v0, base, stride, env, desc, vm, LOAD_FN,      \
-                     ctzl(sizeof(ETYPE)), GETPC());                     \
+                     ctzl(sizeof(ETYPE)), GETPC(), 1);                  \
 }
 
 GEN_VEXT_LD_STRIDE(vlse8_v,  int8_t,  lde_b)
@@ -307,7 +322,7 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong base,                \
 {                                                                       \
     uint32_t vm = vext_vm(desc);                                        \
     vext_ldst_stride(vd, v0, base, stride, env, desc, vm, STORE_FN,     \
-                     ctzl(sizeof(ETYPE)), GETPC());                     \
+                     ctzl(sizeof(ETYPE)), GETPC(), 0);                  \
 }
 
 GEN_VEXT_ST_STRIDE(vsse8_v,  int8_t,  ste_b)
@@ -323,11 +338,14 @@ GEN_VEXT_ST_STRIDE(vsse64_v, int64_t, ste_d)
 static void
 vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
              vext_ldst_elem_fn *ldst_elem, uint32_t log2_esz, uint32_t evl,
-             uintptr_t ra)
+             uintptr_t ra, uint32_t is_load)
 {
     uint32_t i, k;
     uint32_t nf = vext_nf(desc);
     uint32_t max_elems = vext_max_elems(desc, log2_esz);
+    uint32_t esz = 1 << log2_esz;
+    uint32_t total_elems = vext_get_total_elems(env, desc, esz);
+    uint32_t vta = vext_vta(desc) & is_load;
 
     /* load bytes from guest memory */
     for (i = env->vstart; i < evl; i++, env->vstart++) {
@@ -339,6 +357,18 @@ vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
         }
     }
     env->vstart = 0;
+    /* set tail elements to 1s */
+    for (k = 0; k < nf; ++k) {
+        vext_set_elems_1s(vd, vta, (k * max_elems + evl) * esz,
+                          (k * max_elems + max_elems) * esz);
+    }
+    if (nf * max_elems % total_elems != 0) {
+        uint32_t vlenb = env_archcpu(env)->cfg.vlen >> 3;
+        uint32_t registers_used =
+            ((nf * max_elems) * esz + (vlenb - 1)) / vlenb;
+        vext_set_elems_1s(vd, vta, (nf * max_elems) * esz,
+                          registers_used * vlenb);
+    }
 }
 
 /*
@@ -352,14 +382,14 @@ void HELPER(NAME##_mask)(void *vd, void *v0, target_ulong base,         \
 {                                                                       \
     uint32_t stride = vext_nf(desc) << ctzl(sizeof(ETYPE));             \
     vext_ldst_stride(vd, v0, base, stride, env, desc, false, LOAD_FN,   \
-                     ctzl(sizeof(ETYPE)), GETPC());                     \
+                     ctzl(sizeof(ETYPE)), GETPC(), 1);                  \
 }                                                                       \
                                                                         \
 void HELPER(NAME)(void *vd, void *v0, target_ulong base,                \
                   CPURISCVState *env, uint32_t desc)                    \
 {                                                                       \
     vext_ldst_us(vd, base, env, desc, LOAD_FN,                          \
-                 ctzl(sizeof(ETYPE)), env->vl, GETPC());                \
+                 ctzl(sizeof(ETYPE)), env->vl, GETPC(), 1);             \
 }
 
 GEN_VEXT_LD_US(vle8_v,  int8_t,  lde_b)
@@ -373,14 +403,14 @@ void HELPER(NAME##_mask)(void *vd, void *v0, target_ulong base,          \
 {                                                                        \
     uint32_t stride = vext_nf(desc) << ctzl(sizeof(ETYPE));              \
     vext_ldst_stride(vd, v0, base, stride, env, desc, false, STORE_FN,   \
-                     ctzl(sizeof(ETYPE)), GETPC());                      \
+                     ctzl(sizeof(ETYPE)), GETPC(), 0);                   \
 }                                                                        \
                                                                          \
 void HELPER(NAME)(void *vd, void *v0, target_ulong base,                 \
                   CPURISCVState *env, uint32_t desc)                     \
 {                                                                        \
     vext_ldst_us(vd, base, env, desc, STORE_FN,                          \
-                 ctzl(sizeof(ETYPE)), env->vl, GETPC());                 \
+                 ctzl(sizeof(ETYPE)), env->vl, GETPC(), 0);              \
 }
 
 GEN_VEXT_ST_US(vse8_v,  int8_t,  ste_b)
@@ -397,7 +427,7 @@ void HELPER(vlm_v)(void *vd, void *v0, target_ulong base,
     /* evl = ceil(vl/8) */
     uint8_t evl = (env->vl + 7) >> 3;
     vext_ldst_us(vd, base, env, desc, lde_b,
-                 0, evl, GETPC());
+                 0, evl, GETPC(), 1);
 }
 
 void HELPER(vsm_v)(void *vd, void *v0, target_ulong base,
@@ -406,7 +436,7 @@ void HELPER(vsm_v)(void *vd, void *v0, target_ulong base,
     /* evl = ceil(vl/8) */
     uint8_t evl = (env->vl + 7) >> 3;
     vext_ldst_us(vd, base, env, desc, ste_b,
-                 0, evl, GETPC());
+                 0, evl, GETPC(), 0);
 }
 
 /*
@@ -432,12 +462,15 @@ vext_ldst_index(void *vd, void *v0, target_ulong base,
                 void *vs2, CPURISCVState *env, uint32_t desc,
                 vext_get_index_addr get_index_addr,
                 vext_ldst_elem_fn *ldst_elem,
-                uint32_t log2_esz, uintptr_t ra)
+                uint32_t log2_esz, uintptr_t ra, uint32_t is_load)
 {
     uint32_t i, k;
     uint32_t nf = vext_nf(desc);
     uint32_t vm = vext_vm(desc);
     uint32_t max_elems = vext_max_elems(desc, log2_esz);
+    uint32_t esz = 1 << log2_esz;
+    uint32_t total_elems = vext_get_total_elems(env, desc, esz);
+    uint32_t vta = vext_vta(desc) & is_load;
 
     /* load bytes from guest memory */
     for (i = env->vstart; i < env->vl; i++, env->vstart++) {
@@ -453,6 +486,18 @@ vext_ldst_index(void *vd, void *v0, target_ulong base,
         }
     }
     env->vstart = 0;
+    /* set tail elements to 1s */
+    for (k = 0; k < nf; ++k) {
+        vext_set_elems_1s(vd, vta, (k * max_elems + env->vl) * esz,
+                          (k * max_elems + max_elems) * esz);
+    }
+    if (nf * max_elems % total_elems != 0) {
+        uint32_t vlenb = env_archcpu(env)->cfg.vlen >> 3;
+        uint32_t registers_used =
+            ((nf * max_elems) * esz + (vlenb - 1)) / vlenb;
+        vext_set_elems_1s(vd, vta, (nf * max_elems) * esz,
+                          registers_used * vlenb);
+    }
 }
 
 #define GEN_VEXT_LD_INDEX(NAME, ETYPE, INDEX_FN, LOAD_FN)                  \
@@ -460,7 +505,7 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong base,                   \
                   void *vs2, CPURISCVState *env, uint32_t desc)            \
 {                                                                          \
     vext_ldst_index(vd, v0, base, vs2, env, desc, INDEX_FN,                \
-                    LOAD_FN, ctzl(sizeof(ETYPE)), GETPC());                \
+                    LOAD_FN, ctzl(sizeof(ETYPE)), GETPC(), 1);             \
 }
 
 GEN_VEXT_LD_INDEX(vlxei8_8_v,   int8_t,  idx_b, lde_b)
@@ -486,7 +531,7 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong base,         \
 {                                                                \
     vext_ldst_index(vd, v0, base, vs2, env, desc, INDEX_FN,      \
                     STORE_FN, ctzl(sizeof(ETYPE)),               \
-                    GETPC());                                    \
+                    GETPC(), 0);                                 \
 }
 
 GEN_VEXT_ST_INDEX(vsxei8_8_v,   int8_t,  idx_b, ste_b)
@@ -520,6 +565,9 @@ vext_ldff(void *vd, void *v0, target_ulong base,
     uint32_t nf = vext_nf(desc);
     uint32_t vm = vext_vm(desc);
     uint32_t max_elems = vext_max_elems(desc, log2_esz);
+    uint32_t esz = 1 << log2_esz;
+    uint32_t total_elems = vext_get_total_elems(env, desc, esz);
+    uint32_t vta = vext_vta(desc);
     target_ulong addr, offset, remain;
 
     /* probe every access*/
@@ -575,6 +623,18 @@ ProbeSuccess:
         }
     }
     env->vstart = 0;
+    /* set tail elements to 1s */
+    for (k = 0; k < nf; ++k) {
+        vext_set_elems_1s(vd, vta, (k * max_elems + env->vl) * esz,
+                          (k * max_elems + max_elems) * esz);
+    }
+    if (nf * max_elems % total_elems != 0) {
+        uint32_t vlenb = env_archcpu(env)->cfg.vlen >> 3;
+        uint32_t registers_used =
+            ((nf * max_elems) * esz + (vlenb - 1)) / vlenb;
+        vext_set_elems_1s(vd, vta, (nf * max_elems) * esz,
+                          registers_used * vlenb);
+    }
 }
 
 #define GEN_VEXT_LDFF(NAME, ETYPE, LOAD_FN)               \
