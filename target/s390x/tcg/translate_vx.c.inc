@@ -2020,26 +2020,33 @@ static DisasJumpType op_ves(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vsl(DisasContext *s, DisasOps *o)
 {
-    TCGv_i64 shift = tcg_temp_new_i64();
-
-    read_vec_element_i64(shift, get_field(s, v3), 7, ES_8);
-    if (s->fields.op2 == 0x74) {
-        tcg_gen_andi_i64(shift, shift, 0x7);
+    const bool B = 0x75 == s->fields.op2;
+    if (!B && s390_has_feat(S390_FEAT_VECTOR_ENH2)) {
+        gen_gvec_3_ool(get_field(s, v1), get_field(s, v2),
+                       get_field(s, v3), 0,  gen_helper_gvec_vsl_ve2);
     } else {
-        tcg_gen_andi_i64(shift, shift, 0x78);
-    }
+        TCGv_i64 shift = tcg_temp_new_i64();
 
-    gen_gvec_2i_ool(get_field(s, v1), get_field(s, v2),
-                    shift, 0, gen_helper_gvec_vsl);
-    tcg_temp_free_i64(shift);
+        read_vec_element_i64(shift, get_field(s, v3), 7, ES_8);
+        tcg_gen_andi_i64(shift, shift, B ? 0x78 : 7);
+        gen_gvec_2i_ool(get_field(s, v1), get_field(s, v2),
+                        shift, 0, gen_helper_gvec_vsl);
+        tcg_temp_free_i64(shift);
+    }
     return DISAS_NEXT;
 }
 
-static DisasJumpType op_vsldb(DisasContext *s, DisasOps *o)
+static DisasJumpType op_vsld(DisasContext *s, DisasOps *o)
 {
-    const uint8_t i4 = get_field(s, i4) & 0xf;
-    const int left_shift = (i4 & 7) * 8;
-    const int right_shift = 64 - left_shift;
+    const uint8_t mask = (0x86 == s->fields.op2) ? 7 : 15;
+    const uint8_t mul  = (0x86 == s->fields.op2) ? 1 : 8;
+    const uint8_t i4   = get_field(s, i4);
+    const int shift = 64 - (i4 & 7) * mul;
+
+    if (i4 & ~mask) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
     TCGv_i64 t0 = tcg_temp_new_i64();
     TCGv_i64 t1 = tcg_temp_new_i64();
     TCGv_i64 t2 = tcg_temp_new_i64();
@@ -2053,8 +2060,35 @@ static DisasJumpType op_vsldb(DisasContext *s, DisasOps *o)
         read_vec_element_i64(t1, get_field(s, v3), 0, ES_64);
         read_vec_element_i64(t2, get_field(s, v3), 1, ES_64);
     }
-    tcg_gen_extract2_i64(t0, t1, t0, right_shift);
-    tcg_gen_extract2_i64(t1, t2, t1, right_shift);
+    tcg_gen_extract2_i64(t0, t1, t0, shift);
+    tcg_gen_extract2_i64(t1, t2, t1, shift);
+    write_vec_element_i64(t0, get_field(s, v1), 0, ES_64);
+    write_vec_element_i64(t1, get_field(s, v1), 1, ES_64);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vsrd(DisasContext *s, DisasOps *o)
+{
+    const uint8_t i4 = get_field(s, i4);
+    const int left_shift = (i4 & 7);
+    if (i4 & ~7) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    TCGv_i64 t2 = tcg_temp_new_i64();
+
+    read_vec_element_i64(t0, get_field(s, v2), 1, ES_64);
+    read_vec_element_i64(t1, get_field(s, v3), 0, ES_64);
+    read_vec_element_i64(t2, get_field(s, v3), 1, ES_64);
+
+    tcg_gen_extract2_i64(t0, t1, t0, left_shift);
+    tcg_gen_extract2_i64(t1, t2, t1, left_shift);
     write_vec_element_i64(t0, get_field(s, v1), 0, ES_64);
     write_vec_element_i64(t1, get_field(s, v1), 1, ES_64);
 
@@ -2066,35 +2100,37 @@ static DisasJumpType op_vsldb(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vsra(DisasContext *s, DisasOps *o)
 {
-    TCGv_i64 shift = tcg_temp_new_i64();
-
-    read_vec_element_i64(shift, get_field(s, v3), 7, ES_8);
-    if (s->fields.op2 == 0x7e) {
-        tcg_gen_andi_i64(shift, shift, 0x7);
+    const bool B = 0x7f == s->fields.op2;
+    if (!B && s390_has_feat(S390_FEAT_VECTOR_ENH2)) {
+        gen_gvec_3_ool(get_field(s, v1), get_field(s, v2),
+                       get_field(s, v3), 0, gen_helper_gvec_vsra_ve2);
     } else {
-        tcg_gen_andi_i64(shift, shift, 0x78);
-    }
+        TCGv_i64 shift = tcg_temp_new_i64();
 
-    gen_gvec_2i_ool(get_field(s, v1), get_field(s, v2),
-                    shift, 0, gen_helper_gvec_vsra);
-    tcg_temp_free_i64(shift);
+        read_vec_element_i64(shift, get_field(s, v3), 7, ES_8);
+        tcg_gen_andi_i64(shift, shift, B ? 0x78 : 7);
+        gen_gvec_2i_ool(get_field(s, v1), get_field(s, v2),
+                        shift, 0, gen_helper_gvec_vsra);
+        tcg_temp_free_i64(shift);
+    }
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_vsrl(DisasContext *s, DisasOps *o)
 {
-    TCGv_i64 shift = tcg_temp_new_i64();
-
-    read_vec_element_i64(shift, get_field(s, v3), 7, ES_8);
-    if (s->fields.op2 == 0x7c) {
-        tcg_gen_andi_i64(shift, shift, 0x7);
+    const bool B = 0x7d == s->fields.op2;
+    if (!B && s390_has_feat(S390_FEAT_VECTOR_ENH2)) {
+        gen_gvec_3_ool(get_field(s, v1), get_field(s, v2),
+                       get_field(s, v3), 0, gen_helper_gvec_vsrl_ve2);
     } else {
-        tcg_gen_andi_i64(shift, shift, 0x78);
-    }
+        TCGv_i64 shift = tcg_temp_new_i64();
 
-    gen_gvec_2i_ool(get_field(s, v1), get_field(s, v2),
-                    shift, 0, gen_helper_gvec_vsrl);
-    tcg_temp_free_i64(shift);
+        read_vec_element_i64(shift, get_field(s, v3), 7, ES_8);
+        tcg_gen_andi_i64(shift, shift, B ? 0x78 : 7);
+        gen_gvec_2i_ool(get_field(s, v1), get_field(s, v2),
+                        shift, 0, gen_helper_gvec_vsrl);
+        tcg_temp_free_i64(shift);
+    }
     return DISAS_NEXT;
 }
 
