@@ -14,8 +14,8 @@ else
 fi
 
 skip() {
-    echo "1..0 #SKIP $*"
-    exit 0
+    echo "$*"
+    exit 77
 }
 
 # Disable tests with any sanitizer except for specific ones
@@ -63,7 +63,7 @@ JOBS=$(echo "$MAKEFLAGS" | sed -n 's/\(^\|.* \)-j\([0-9]\+\)\( .*\|$\)/-j \2/p')
 
 ret=0
 for fmt in $format_list ; do
-    ${PYTHON} ./check $JOBS -tap -$fmt $group || ret=1
+    ${PYTHON} ./check $JOBS -makecheck -$fmt $group || ret=1
 done
 
 exit $ret
