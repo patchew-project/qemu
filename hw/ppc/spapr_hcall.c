@@ -1549,6 +1549,21 @@ static target_ulong h_copy_tofrom_guest(PowerPCCPU *cpu,
     return H_FUNCTION;
 }
 
+static target_ulong h_get_em_parms(PowerPCCPU *cpu,
+                                   SpaprMachineState *spapr,
+                                   target_ulong opcode,
+                                   target_ulong *args)
+{
+    /*
+     * This HCALL returns energy management parameters as part of
+     * the PEM (Partition Energy Management) option. We do not
+     * support it.
+     */
+    qemu_log_mask(LOG_UNSUPP, "Unsupported SPAPR hcall 0x"TARGET_FMT_lx"%s\n",
+                  opcode, " (H_GET_EM_PARMS)");
+    return H_FUNCTION;
+}
+
 /*
  * When this handler returns, the environment is switched to the L2 guest
  * and TCG begins running that. spapr_exit_nested() performs the switch from
@@ -1887,6 +1902,8 @@ static void hypercall_register_types(void)
     spapr_register_hypercall(KVMPPC_H_ENTER_NESTED, h_enter_nested);
     spapr_register_hypercall(KVMPPC_H_TLB_INVALIDATE, h_tlb_invalidate);
     spapr_register_hypercall(KVMPPC_H_COPY_TOFROM_GUEST, h_copy_tofrom_guest);
+
+    spapr_register_hypercall(H_GET_EM_PARMS, h_get_em_parms);
 }
 
 type_init(hypercall_register_types)
