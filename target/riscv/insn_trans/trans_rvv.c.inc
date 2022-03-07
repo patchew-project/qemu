@@ -2113,11 +2113,21 @@ static bool trans_vmv_v_v(DisasContext *s, arg_vmv_v_v *a)
         /* vmv.v.v has rs2 = 0 and vm = 1 */
         vext_check_sss(s, a->rd, a->rs1, 0, 1)) {
         if (s->vl_eq_vlmax) {
+            if (s->vta && s->lmul < 0) {
+                /* tail elements may pass vlmax when lmul < 0
+                * set tail elements to 1s
+                */
+                uint32_t vlenb = s->cfg_ptr->vlen >> 3;
+                tcg_gen_gvec_ori(s->sew, vreg_ofs(s, a->rd),
+                                vreg_ofs(s, a->rd), -1,
+                                vlenb, vlenb);
+            }
             tcg_gen_gvec_mov(s->sew, vreg_ofs(s, a->rd),
                              vreg_ofs(s, a->rs1),
                              MAXSZ(s), MAXSZ(s));
         } else {
             uint32_t data = FIELD_DP32(0, VDATA, LMUL, s->lmul);
+            data = FIELD_DP32(data, VDATA, VTA, s->vta);
             static gen_helper_gvec_2_ptr * const fns[4] = {
                 gen_helper_vmv_v_v_b, gen_helper_vmv_v_v_h,
                 gen_helper_vmv_v_v_w, gen_helper_vmv_v_v_d,
@@ -2153,6 +2163,15 @@ static bool trans_vmv_v_x(DisasContext *s, arg_vmv_v_x *a)
         s1 = get_gpr(s, a->rs1, EXT_SIGN);
 
         if (s->vl_eq_vlmax) {
+            if (s->vta && s->lmul < 0) {
+                /* tail elements may pass vlmax when lmul < 0
+                * set tail elements to 1s
+                */
+                uint32_t vlenb = s->cfg_ptr->vlen >> 3;
+                tcg_gen_gvec_ori(s->sew, vreg_ofs(s, a->rd),
+                                vreg_ofs(s, a->rd), -1,
+                                vlenb, vlenb);
+            }
             tcg_gen_gvec_dup_tl(s->sew, vreg_ofs(s, a->rd),
                                 MAXSZ(s), MAXSZ(s), s1);
         } else {
@@ -2160,6 +2179,7 @@ static bool trans_vmv_v_x(DisasContext *s, arg_vmv_v_x *a)
             TCGv_i64 s1_i64 = tcg_temp_new_i64();
             TCGv_ptr dest = tcg_temp_new_ptr();
             uint32_t data = FIELD_DP32(0, VDATA, LMUL, s->lmul);
+            data = FIELD_DP32(data, VDATA, VTA, s->vta);
             static gen_helper_vmv_vx * const fns[4] = {
                 gen_helper_vmv_v_x_b, gen_helper_vmv_v_x_h,
                 gen_helper_vmv_v_x_w, gen_helper_vmv_v_x_d,
@@ -2190,6 +2210,15 @@ static bool trans_vmv_v_i(DisasContext *s, arg_vmv_v_i *a)
         vext_check_ss(s, a->rd, 0, 1)) {
         int64_t simm = sextract64(a->rs1, 0, 5);
         if (s->vl_eq_vlmax) {
+            if (s->vta && s->lmul < 0) {
+                /* tail elements may pass vlmax when lmul < 0
+                * set tail elements to 1s
+                */
+                uint32_t vlenb = s->cfg_ptr->vlen >> 3;
+                tcg_gen_gvec_ori(s->sew, vreg_ofs(s, a->rd),
+                                vreg_ofs(s, a->rd), -1,
+                                vlenb, vlenb);
+            }
             tcg_gen_gvec_dup_imm(s->sew, vreg_ofs(s, a->rd),
                                  MAXSZ(s), MAXSZ(s), simm);
             mark_vs_dirty(s);
@@ -2198,6 +2227,7 @@ static bool trans_vmv_v_i(DisasContext *s, arg_vmv_v_i *a)
             TCGv_i64 s1;
             TCGv_ptr dest;
             uint32_t data = FIELD_DP32(0, VDATA, LMUL, s->lmul);
+            data = FIELD_DP32(data, VDATA, VTA, s->vta);
             static gen_helper_vmv_vx * const fns[4] = {
                 gen_helper_vmv_v_x_b, gen_helper_vmv_v_x_h,
                 gen_helper_vmv_v_x_w, gen_helper_vmv_v_x_d,
@@ -2770,6 +2800,15 @@ static bool trans_vfmv_v_f(DisasContext *s, arg_vfmv_v_f *a)
         TCGv_i64 t1;
 
         if (s->vl_eq_vlmax) {
+            if (s->vta && s->lmul < 0) {
+                /* tail elements may pass vlmax when lmul < 0
+                * set tail elements to 1s
+                */
+                uint32_t vlenb = s->cfg_ptr->vlen >> 3;
+                tcg_gen_gvec_ori(s->sew, vreg_ofs(s, a->rd),
+                                vreg_ofs(s, a->rd), -1,
+                                vlenb, vlenb);
+            }
             t1 = tcg_temp_new_i64();
             /* NaN-box f[rs1] */
             do_nanbox(s, t1, cpu_fpr[a->rs1]);
@@ -2781,6 +2820,7 @@ static bool trans_vfmv_v_f(DisasContext *s, arg_vfmv_v_f *a)
             TCGv_ptr dest;
             TCGv_i32 desc;
             uint32_t data = FIELD_DP32(0, VDATA, LMUL, s->lmul);
+            data = FIELD_DP32(data, VDATA, VTA, s->vta);
             static gen_helper_vmv_vx * const fns[3] = {
                 gen_helper_vmv_v_x_h,
                 gen_helper_vmv_v_x_w,
