@@ -14,7 +14,7 @@ typedef struct QemuLogFile {
 extern QemuLogFile *qemu_logfile;
 
 
-/* 
+/*
  * The new API:
  *
  */
@@ -64,6 +64,7 @@ static inline bool qemu_log_separate(void)
 #define CPU_LOG_PLUGIN     (1 << 18)
 /* LOG_STRACE is used for user-mode strace logging. */
 #define LOG_STRACE         (1 << 19)
+#define LOG_UNSUPP         (1 << 20)
 
 /* Lock output for a series of related logs.  Since this is not needed
  * for a single qemu_log / qemu_log_mask / qemu_log_mask_and_addr, we

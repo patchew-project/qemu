@@ -334,6 +334,8 @@ const QEMULogItem qemu_log_items[] = {
 #endif
     { LOG_STRACE, "strace",
       "log every user-mode syscall, its input, and its result" },
+    { LOG_UNSUPP, "unsupp",
+      "log unsupported functionality" },
     { 0, NULL, NULL },
 };
 
