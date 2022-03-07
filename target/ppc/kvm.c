@@ -2563,6 +2563,38 @@ int kvmppc_has_cap_rpt_invalidate(void)
     return cap_rpt_invalidate;
 }
 
+bool kvmppc_supports_ail_3(void)
+{
+    PowerPCCPUClass *pcc = kvm_ppc_get_host_cpu_class();
+
+    /*
+     * KVM PR only supports AIL-0
+     */
+    if (kvmppc_is_pr(kvm_state)) {
+        return false;
+    }
+
+    /*
+     * KVM HV hosts support AIL-3 on POWER8 and above, except for radix
+     * mode on some early POWER9s.
+     */
+    if (!(pcc->insns_flags2 & PPC2_ISA207S)) {
+        return false;
+    }
+
+    /*
+     * These tests match the CPU_FTR_P9_RADIX_PREFETCH_BUG flag in Linux.
+     * DD2.0 and 2.1 has it, DD2.2 and 2.3 does not, but we have no 2.1 or
+     * 2.3 CPU model.
+     */
+    if (((pcc->pvr & 0xffff0fff) == CPU_POWERPC_POWER9_DD1) ||
+        ((pcc->pvr & 0xffff0fff) == CPU_POWERPC_POWER9_DD20)) {
+        return false;
+    }
+
+    return true;
+}
+
 PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void)
 {
     uint32_t host_pvr = mfpvr();
