@@ -212,3 +212,34 @@ void HELPER(vstl)(CPUS390XState *env, const void *v1, uint64_t addr,
         *(S390Vector *)v1 = tmp;
     }
 }
+
+void HELPER(vler)(CPUS390XState *env, void *v1, uint64_t addr, uint64_t es)
+{
+    uint64_t t0, t1;
+    t0 = cpu_ldq_data_ra(env, addr, GETPC());
+    addr = wrap_address(env, addr + 8);
+    t1 = cpu_ldq_data_ra(env, addr, GETPC());
+
+    if (MO_64 == es) {
+        s390_vec_write_element64(v1, 1, t0);
+        s390_vec_write_element64(v1, 0, t1);
+    } else {
+        S390Vector tmp = {};
+        s390_vec_write_element64(&tmp, 0, t0);
+        s390_vec_write_element64(&tmp, 1, t1);
+        s390_vec_reverse(v1, &tmp, (uint8_t)es);
+    }
+}
+
+void HELPER(vster)(CPUS390XState *env, void *v1, uint64_t addr, uint64_t es)
+{
+    S390Vector tmp = {};
+    /* Probe write access before actually modifying memory */
+    probe_write_access(env, addr, 16, GETPC());
+
+    s390_vec_reverse(&tmp, v1, (uint8_t)es);
+
+    cpu_stq_data_ra(env, addr, tmp.doubleword[0], GETPC());
+    addr = wrap_address(env, addr + 8);
+    cpu_stq_data_ra(env, addr, tmp.doubleword[1], GETPC());
+}

@@ -138,4 +138,28 @@ static inline void s390_vec_write_element(S390Vector *v, uint8_t enr,
     }
 }
 
+static inline void s390_vec_reverse(uint64_t *vdst, uint64_t *vsrc, uint8_t es)
+{
+    const uint64_t l = vsrc[0], h = vsrc[1];
+
+    switch (es) {
+    case MO_8:
+        vdst[1] = bswap64(l);
+        vdst[0] = bswap64(h);
+        break;
+    case MO_16:
+        vdst[1] = hswap64(l);
+        vdst[0] = hswap64(h);
+        break;
+    case MO_32:
+        vdst[1] = wswap64(l);
+        vdst[0] = wswap64(h);
+        break;
+    case MO_64:
+        vdst[1] = l;
+        vdst[0] = h;
+        break;
+    }
+}
+
 #endif /* S390X_VEC_H */

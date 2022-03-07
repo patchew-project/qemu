@@ -492,6 +492,26 @@ static DisasJumpType op_vlei(DisasContext *s, DisasOps *o)
     return DISAS_NEXT;
 }
 
+static DisasJumpType op_vler(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s, m3);
+
+    if (es < ES_16 || es > ES_64) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    TCGv_ptr a0 = tcg_temp_new_ptr();
+    TCGv_i64 tes = tcg_const_i64(es & 0xf);
+
+    tcg_gen_addi_ptr(a0, cpu_env, vec_full_reg_offset(get_field(s, v1)));
+    gen_helper_vler(cpu_env, a0, o->addr1, tes);
+
+    tcg_temp_free_i64(tes);
+    tcg_temp_free_ptr(a0);
+    return DISAS_NEXT;
+}
+
 static DisasJumpType op_vlgv(DisasContext *s, DisasOps *o)
 {
     const uint8_t es = get_field(s, m4);
@@ -973,6 +993,25 @@ static DisasJumpType op_vste(DisasContext *s, DisasOps *o)
     read_vec_element_i64(tmp, get_field(s, v1), enr, es);
     tcg_gen_qemu_st_i64(tmp, o->addr1, get_mem_index(s), MO_TE | es);
     tcg_temp_free_i64(tmp);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vster(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s, m3);
+    if (es < ES_16 || es > ES_64) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    TCGv_ptr a0 = tcg_temp_new_ptr();
+    TCGv_i64 tes = tcg_const_i64(es);
+
+    tcg_gen_addi_ptr(a0, cpu_env, vec_full_reg_offset(get_field(s, v1)));
+    gen_helper_vster(cpu_env, a0, o->addr1, tes);
+
+    tcg_temp_free_i64(tes);
+    tcg_temp_free_ptr(a0);
     return DISAS_NEXT;
 }
 
