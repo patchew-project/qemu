@@ -1589,6 +1589,20 @@ static target_ulong h_best_energy(PowerPCCPU *cpu,
     return H_FUNCTION;
 }
 
+static target_ulong h_query_vas_capabilities(PowerPCCPU *cpu,
+                                             SpaprMachineState *spapr,
+                                             target_ulong opcode,
+                                             target_ulong *args)
+{
+    /*
+     * This HCALL is VAS (Virtual Accelerator Switchboard) related. VAS
+     * is not supported in QEMU.
+     */
+    qemu_log_mask(LOG_UNSUPP, "Unsupported SPAPR hcall 0x"TARGET_FMT_lx"%s\n",
+                  opcode, " (H_QUERY_VAS_CAPABILITIES)");
+    return H_FUNCTION;
+}
+
 /*
  * When this handler returns, the environment is switched to the L2 guest
  * and TCG begins running that. spapr_exit_nested() performs the switch from
@@ -1931,6 +1945,10 @@ static void hypercall_register_types(void)
     /* Unsupported PEM option h-calls */
     spapr_register_hypercall(H_GET_EM_PARMS, h_get_em_parms);
     spapr_register_hypercall(H_BEST_ENERGY, h_best_energy);
+
+    /* Unsupported VAS h-calls */
+    spapr_register_hypercall(H_QUERY_VAS_CAPABILITIES,
+                             h_query_vas_capabilities);
 }
 
 type_init(hypercall_register_types)
