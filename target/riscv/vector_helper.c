@@ -289,6 +289,8 @@ vext_ldst_stride(void *vd, void *v0, target_ulong base,
     uint32_t i, k;
     uint32_t nf = vext_nf(desc);
     uint32_t max_elems = vext_max_elems(desc, log2_esz);
+    uint32_t esz = 1 << log2_esz;
+    uint32_t vta = vext_vta(desc);
 
     for (i = env->vstart; i < env->vl; i++, env->vstart++) {
         if (!vm && !vext_elem_mask(v0, i)) {
@@ -303,6 +305,11 @@ vext_ldst_stride(void *vd, void *v0, target_ulong base,
         }
     }
     env->vstart = 0;
+    /* set tail elements to 1s */
+    for (k = 0; k < nf; ++k) {
+        vext_set_elems_1s_fns[log2_esz](vd, vta, env->vl + k * max_elems,
+                                        env->vl * esz, max_elems * esz);
+    }
 }
 
 #define GEN_VEXT_LD_STRIDE(NAME, ETYPE, LOAD_FN)                        \
@@ -348,6 +355,8 @@ vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
     uint32_t i, k;
     uint32_t nf = vext_nf(desc);
     uint32_t max_elems = vext_max_elems(desc, log2_esz);
+    uint32_t esz = 1 << log2_esz;
+    uint32_t vta = vext_vta(desc);
 
     /* load bytes from guest memory */
     for (i = env->vstart; i < evl; i++, env->vstart++) {
@@ -359,6 +368,11 @@ vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
         }
     }
     env->vstart = 0;
+    /* set tail elements to 1s */
+    for (k = 0; k < nf; ++k) {
+        vext_set_elems_1s_fns[log2_esz](vd, vta, env->vl + k * max_elems,
+                                        env->vl * esz, max_elems * esz);
+    }
 }
 
 /*
@@ -458,6 +472,8 @@ vext_ldst_index(void *vd, void *v0, target_ulong base,
     uint32_t nf = vext_nf(desc);
     uint32_t vm = vext_vm(desc);
     uint32_t max_elems = vext_max_elems(desc, log2_esz);
+    uint32_t esz = 1 << log2_esz;
+    uint32_t vta = vext_vta(desc);
 
     /* load bytes from guest memory */
     for (i = env->vstart; i < env->vl; i++, env->vstart++) {
@@ -473,6 +489,11 @@ vext_ldst_index(void *vd, void *v0, target_ulong base,
         }
     }
     env->vstart = 0;
+    /* set tail elements to 1s */
+    for (k = 0; k < nf; ++k) {
+        vext_set_elems_1s_fns[log2_esz](vd, vta, env->vl + k * max_elems,
+                                        env->vl * esz, max_elems * esz);
+    }
 }
 
 #define GEN_VEXT_LD_INDEX(NAME, ETYPE, INDEX_FN, LOAD_FN)                  \
@@ -540,6 +561,8 @@ vext_ldff(void *vd, void *v0, target_ulong base,
     uint32_t nf = vext_nf(desc);
     uint32_t vm = vext_vm(desc);
     uint32_t max_elems = vext_max_elems(desc, log2_esz);
+    uint32_t esz = 1 << log2_esz;
+    uint32_t vta = vext_vta(desc);
     target_ulong addr, offset, remain;
 
     /* probe every access*/
@@ -595,6 +618,11 @@ ProbeSuccess:
         }
     }
     env->vstart = 0;
+    /* set tail elements to 1s */
+    for (k = 0; k < nf; ++k) {
+        vext_set_elems_1s_fns[log2_esz](vd, vta, env->vl + k * max_elems,
+                                        env->vl * esz, max_elems * esz);
+    }
 }
 
 #define GEN_VEXT_LDFF(NAME, ETYPE, LOAD_FN)               \
