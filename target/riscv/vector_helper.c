@@ -4534,6 +4534,9 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,          \
 {                                                         \
     uint32_t vm = vext_vm(desc);                          \
     uint32_t vl = env->vl;                                \
+    uint32_t esz = sizeof(TD);                            \
+    uint32_t vlenb = simd_maxsz(desc);                    \
+    uint32_t vta = vext_vta(desc);                        \
     uint32_t i;                                           \
     TD s1 =  *((TD *)vs1 + HD(0));                        \
                                                           \
@@ -4546,6 +4549,8 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,          \
     }                                                     \
     *((TD *)vd + HD(0)) = s1;                             \
     env->vstart = 0;                                      \
+    /* set tail elements to 1s */                         \
+    vext_set_elems_1s(vd, vta, esz, vlenb);               \
 }
 
 /* vd[0] = sum(vs1[0], vs2[*]) */
@@ -4615,6 +4620,9 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,           \
 {                                                          \
     uint32_t vm = vext_vm(desc);                           \
     uint32_t vl = env->vl;                                 \
+    uint32_t esz = sizeof(TD);                             \
+    uint32_t vlenb = simd_maxsz(desc);                     \
+    uint32_t vta = vext_vta(desc);                         \
     uint32_t i;                                            \
     TD s1 =  *((TD *)vs1 + HD(0));                         \
                                                            \
@@ -4627,6 +4635,8 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,           \
     }                                                      \
     *((TD *)vd + HD(0)) = s1;                              \
     env->vstart = 0;                                       \
+    /* set tail elements to 1s */                          \
+    vext_set_elems_1s(vd, vta, esz, vlenb);                \
 }
 
 /* Unordered sum */
@@ -4651,6 +4661,9 @@ void HELPER(vfwredsum_vs_h)(void *vd, void *v0, void *vs1,
 {
     uint32_t vm = vext_vm(desc);
     uint32_t vl = env->vl;
+    uint32_t esz = sizeof(uint32_t);
+    uint32_t vlenb = simd_maxsz(desc);
+    uint32_t vta = vext_vta(desc);
     uint32_t i;
     uint32_t s1 =  *((uint32_t *)vs1 + H4(0));
 
@@ -4664,6 +4677,8 @@ void HELPER(vfwredsum_vs_h)(void *vd, void *v0, void *vs1,
     }
     *((uint32_t *)vd + H4(0)) = s1;
     env->vstart = 0;
+    /* set tail elements to 1s */
+    vext_set_elems_1s(vd, vta, esz, vlenb);
 }
 
 void HELPER(vfwredsum_vs_w)(void *vd, void *v0, void *vs1,
@@ -4671,6 +4686,9 @@ void HELPER(vfwredsum_vs_w)(void *vd, void *v0, void *vs1,
 {
     uint32_t vm = vext_vm(desc);
     uint32_t vl = env->vl;
+    uint32_t esz = sizeof(uint64_t);
+    uint32_t vlenb = simd_maxsz(desc);
+    uint32_t vta = vext_vta(desc);
     uint32_t i;
     uint64_t s1 =  *((uint64_t *)vs1);
 
@@ -4684,6 +4702,8 @@ void HELPER(vfwredsum_vs_w)(void *vd, void *v0, void *vs1,
     }
     *((uint64_t *)vd) = s1;
     env->vstart = 0;
+    /* set tail elements to 1s */
+    vext_set_elems_1s(vd, vta, esz, vlenb);
 }
 
 /*
