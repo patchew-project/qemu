@@ -4884,6 +4884,9 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
 {                                                                         \
     uint32_t vm = vext_vm(desc);                                          \
     uint32_t vl = env->vl;                                                \
+    uint32_t esz = sizeof(ETYPE);                                         \
+    uint32_t vlmax = vext_get_vlmax(env_archcpu(env), env->vtype);        \
+    uint32_t vta = vext_vta(desc);                                        \
     target_ulong offset = s1, i_min, i;                                   \
                                                                           \
     i_min = MAX(env->vstart, offset);                                     \
@@ -4893,6 +4896,8 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
         }                                                                 \
         *((ETYPE *)vd + H(i)) = *((ETYPE *)vs2 + H(i - offset));          \
     }                                                                     \
+    /* set tail elements to 1s */                                         \
+    vext_set_elems_1s_fns[ctzl(esz)](vd, vta, vl, vl * esz, vlmax * esz); \
 }
 
 /* vslideup.vx vd, vs2, rs1, vm # vd[i+rs1] = vs2[i] */
@@ -4908,6 +4913,8 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
     uint32_t vlmax = vext_max_elems(desc, ctzl(sizeof(ETYPE)));           \
     uint32_t vm = vext_vm(desc);                                          \
     uint32_t vl = env->vl;                                                \
+    uint32_t esz = sizeof(ETYPE);                                         \
+    uint32_t vta = vext_vta(desc);                                        \
     target_ulong i_max, i;                                                \
                                                                           \
     i_max = MAX(MIN(s1 < vlmax ? vlmax - s1 : 0, vl), env->vstart);       \
@@ -4924,6 +4931,8 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
     }                                                                     \
                                                                           \
     env->vstart = 0;                                                      \
+    /* set tail elements to 1s */                                         \
+    vext_set_elems_1s_fns[ctzl(esz)](vd, vta, vl, vl * esz, vlmax * esz); \
 }
 
 /* vslidedown.vx vd, vs2, rs1, vm # vd[i] = vs2[i+rs1] */
@@ -4939,6 +4948,9 @@ static void vslide1up_##BITWIDTH(void *vd, void *v0, target_ulong s1,       \
     typedef uint##BITWIDTH##_t ETYPE;                                       \
     uint32_t vm = vext_vm(desc);                                            \
     uint32_t vl = env->vl;                                                  \
+    uint32_t esz = sizeof(ETYPE);                                           \
+    uint32_t vlmax = vext_get_vlmax(env_archcpu(env), env->vtype);          \
+    uint32_t vta = vext_vta(desc);                                          \
     uint32_t i;                                                             \
                                                                             \
     for (i = env->vstart; i < vl; i++) {                                    \
@@ -4952,6 +4964,8 @@ static void vslide1up_##BITWIDTH(void *vd, void *v0, target_ulong s1,       \
         }                                                                   \
     }                                                                       \
     env->vstart = 0;                                                        \
+    /* set tail elements to 1s */                                           \
+    vext_set_elems_1s_fns[ctzl(esz)](vd, vta, vl, vl * esz, vlmax * esz);   \
 }
 
 GEN_VEXT_VSLIE1UP(8,  H1)
@@ -4979,6 +4993,9 @@ static void vslide1down_##BITWIDTH(void *vd, void *v0, target_ulong s1,       \
     typedef uint##BITWIDTH##_t ETYPE;                                         \
     uint32_t vm = vext_vm(desc);                                              \
     uint32_t vl = env->vl;                                                    \
+    uint32_t esz = sizeof(ETYPE);                                             \
+    uint32_t vlmax = vext_get_vlmax(env_archcpu(env), env->vtype);            \
+    uint32_t vta = vext_vta(desc);                                            \
     uint32_t i;                                                               \
                                                                               \
     for (i = env->vstart; i < vl; i++) {                                      \
@@ -4992,6 +5009,8 @@ static void vslide1down_##BITWIDTH(void *vd, void *v0, target_ulong s1,       \
         }                                                                     \
     }                                                                         \
     env->vstart = 0;                                                          \
+    /* set tail elements to 1s */                                             \
+    vext_set_elems_1s_fns[ctzl(esz)](vd, vta, vl, vl * esz, vlmax * esz);     \
 }
 
 GEN_VEXT_VSLIDE1DOWN(8,  H1)
@@ -5045,6 +5064,8 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,               \
     uint32_t vlmax = vext_max_elems(desc, ctzl(sizeof(TS2)));             \
     uint32_t vm = vext_vm(desc);                                          \
     uint32_t vl = env->vl;                                                \
+    uint32_t esz = sizeof(TS2);                                           \
+    uint32_t vta = vext_vta(desc);                                        \
     uint64_t index;                                                       \
     uint32_t i;                                                           \
                                                                           \
@@ -5060,6 +5081,8 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,               \
         }                                                                 \
     }                                                                     \
     env->vstart = 0;                                                      \
+    /* set tail elements to 1s */                                         \
+    vext_set_elems_1s_fns[ctzl(esz)](vd, vta, vl, vl * esz, vlmax * esz); \
 }
 
 /* vd[i] = (vs1[i] >= VLMAX) ? 0 : vs2[vs1[i]]; */
@@ -5080,6 +5103,8 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
     uint32_t vlmax = vext_max_elems(desc, ctzl(sizeof(ETYPE)));           \
     uint32_t vm = vext_vm(desc);                                          \
     uint32_t vl = env->vl;                                                \
+    uint32_t esz = sizeof(ETYPE);                                         \
+    uint32_t vta = vext_vta(desc);                                        \
     uint64_t index = s1;                                                  \
     uint32_t i;                                                           \
                                                                           \
@@ -5094,6 +5119,8 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
         }                                                                 \
     }                                                                     \
     env->vstart = 0;                                                      \
+    /* set tail elements to 1s */                                         \
+    vext_set_elems_1s_fns[ctzl(esz)](vd, vta, vl, vl * esz, vlmax * esz); \
 }
 
 /* vd[i] = (x[rs1] >= VLMAX) ? 0 : vs2[rs1] */
@@ -5108,6 +5135,9 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,               \
                   CPURISCVState *env, uint32_t desc)                      \
 {                                                                         \
     uint32_t vl = env->vl;                                                \
+    uint32_t esz = sizeof(ETYPE);                                         \
+    uint32_t vlmax = vext_get_vlmax(env_archcpu(env), env->vtype);        \
+    uint32_t vta = vext_vta(desc);                                        \
     uint32_t num = 0, i;                                                  \
                                                                           \
     for (i = env->vstart; i < vl; i++) {                                  \
@@ -5118,6 +5148,8 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,               \
         num++;                                                            \
     }                                                                     \
     env->vstart = 0;                                                      \
+    /* set tail elements to 1s */                                         \
+    vext_set_elems_1s_fns[ctzl(esz)](vd, vta, vl, vl * esz, vlmax * esz); \
 }
 
 /* Compress into vd elements of vs2 where vs1 is enabled */
@@ -5154,6 +5186,10 @@ void HELPER(NAME)(void *vd, void *v0, void *vs2,                 \
 {                                                                \
     uint32_t vl = env->vl;                                       \
     uint32_t vm = vext_vm(desc);                                 \
+    uint32_t esz = sizeof(ETYPE);                                \
+    uint32_t vlmax =                                             \
+        vext_get_vlmax(env_archcpu(env), env->vtype);            \
+    uint32_t vta = vext_vta(desc);                               \
     uint32_t i;                                                  \
                                                                  \
     for (i = env->vstart; i < vl; i++) {                         \
@@ -5163,6 +5199,9 @@ void HELPER(NAME)(void *vd, void *v0, void *vs2,                 \
         *((ETYPE *)vd + HD(i)) = *((DTYPE *)vs2 + HS1(i));       \
     }                                                            \
     env->vstart = 0;                                             \
+    /* set tail elements to 1s */                                \
+    vext_set_elems_1s_fns[ctzl(esz)](vd, vta, vl, vl * esz,      \
+                                     vlmax * esz);               \
 }
 
 GEN_VEXT_INT_EXT(vzext_vf2_h, uint16_t, uint8_t,  H2, H1)
