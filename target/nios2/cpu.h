@@ -23,6 +23,7 @@
 
 #include "exec/cpu-defs.h"
 #include "hw/core/cpu.h"
+#include "hw/registerfields.h"
 #include "qom/object.h"
 
 typedef struct CPUNios2State CPUNios2State;
@@ -80,15 +81,23 @@ struct Nios2CPUClass {
 
 /* Control register aliases */
 #define CR_STATUS        0
-#define   CR_STATUS_PIE  (1 << 0)
-#define   CR_STATUS_U    (1 << 1)
-#define   CR_STATUS_EH   (1 << 2)
-#define   CR_STATUS_IH   (1 << 3)
-#define   CR_STATUS_IL   (63 << 4)
-#define   CR_STATUS_CRS  (63 << 10)
-#define   CR_STATUS_PRS  (63 << 16)
-#define   CR_STATUS_NMI  (1 << 22)
-#define   CR_STATUS_RSIE (1 << 23)
+
+FIELD(CR_STATUS, PIE, 0, 1)
+FIELD(CR_STATUS, U, 1, 1)
+FIELD(CR_STATUS, EH, 2, 1)
+FIELD(CR_STATUS, IH, 3, 1)
+FIELD(CR_STATUS, IL, 4, 6)
+FIELD(CR_STATUS, CRS, 10, 6)
+FIELD(CR_STATUS, PRS, 16, 6)
+FIELD(CR_STATUS, NMI, 22, 1)
+
+#define CR_STATUS_PIE  (1u << R_CR_STATUS_PIE_SHIFT)
+#define CR_STATUS_U    (1u << R_CR_STATUS_U_SHIFT)
+#define CR_STATUS_EH   (1u << R_CR_STATUS_EH_SHIFT)
+#define CR_STATUS_IH   (1u << R_CR_STATUS_IH_SHIFT)
+#define CR_STATUS_NMI  (1u << R_CR_STATUS_NMI_SHIFT)
+#define CR_STATUS_RSIE (1u << R_CR_STATUS_RSIE_SHIFT)
+
 #define CR_ESTATUS       1
 #define CR_BSTATUS       2
 #define CR_IENABLE       3
