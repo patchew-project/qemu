@@ -53,48 +53,25 @@ void nios2_cpu_do_interrupt(CPUState *cs)
 {
     Nios2CPU *cpu = NIOS2_CPU(cs);
     CPUNios2State *env = &cpu->env;
+    uint32_t exception_addr = cpu->exception_addr;
+    unsigned r_ea = R_EA;
+    unsigned cr_estatus = CR_ESTATUS;
 
     switch (cs->exception_index) {
     case EXCP_IRQ:
-        assert(env->status & CR_STATUS_PIE);
-
         qemu_log_mask(CPU_LOG_INT, "interrupt at pc=%x\n", env->pc);
-
-        env->estatus = env->status;
-        env->status |= CR_STATUS_IH;
-        env->status &= ~(CR_STATUS_PIE | CR_STATUS_U);
-
-        nios2_crs(env)[R_EA] = env->pc + 4;
-        env->pc = cpu->exception_addr;
         break;
 
     case EXCP_TLBD:
-        if ((env->status & CR_STATUS_EH) == 0) {
+        if (env->status & CR_STATUS_EH) {
+            qemu_log_mask(CPU_LOG_INT, "TLB MISS (double) at pc=%x\n", env->pc);
+            /* Double TLB miss */
+            env->tlbmisc |= CR_TLBMISC_DBL;
+        } else {
             qemu_log_mask(CPU_LOG_INT, "TLB MISS (fast) at pc=%x\n", env->pc);
-
-            /* Fast TLB miss */
-            /* Variation from the spec. Table 3-35 of the cpu reference shows
-             * estatus not being changed for TLB miss but this appears to
-             * be incorrect. */
-            env->estatus = env->status;
-            env->status |= CR_STATUS_EH;
-            env->status &= ~(CR_STATUS_PIE | CR_STATUS_U);
-
             env->tlbmisc &= ~CR_TLBMISC_DBL;
             env->tlbmisc |= CR_TLBMISC_WR;
-
-            nios2_crs(env)[R_EA] = env->pc + 4;
-            env->pc = cpu->fast_tlb_miss_addr;
-        } else {
-            qemu_log_mask(CPU_LOG_INT, "TLB MISS (double) at pc=%x\n", env->pc);
-
-            /* Double TLB miss */
-            env->status |= CR_STATUS_EH;
-            env->status &= ~(CR_STATUS_PIE | CR_STATUS_U);
-
-            env->tlbmisc |= CR_TLBMISC_DBL;
-
-            env->pc = cpu->exception_addr;
+            exception_addr = cpu->fast_tlb_miss_addr;
         }
         break;
 
@@ -102,48 +79,18 @@ void nios2_cpu_do_interrupt(CPUState *cs)
     case EXCP_TLBW:
     case EXCP_TLBX:
         qemu_log_mask(CPU_LOG_INT, "TLB PERM at pc=%x\n", env->pc);
-
-        env->estatus = env->status;
-        env->status |= CR_STATUS_EH;
-        env->status &= ~(CR_STATUS_PIE | CR_STATUS_U);
-
-        if ((env->status & CR_STATUS_EH) == 0) {
-            env->tlbmisc |= CR_TLBMISC_WR;
-        }
-
-        nios2_crs(env)[R_EA] = env->pc + 4;
-        env->pc = cpu->exception_addr;
+        env->tlbmisc |= CR_TLBMISC_WR;
         break;
 
     case EXCP_SUPERA:
     case EXCP_SUPERI:
     case EXCP_SUPERD:
         qemu_log_mask(CPU_LOG_INT, "SUPERVISOR exception at pc=%x\n", env->pc);
-
-        if ((env->status & CR_STATUS_EH) == 0) {
-            env->estatus = env->status;
-            nios2_crs(env)[R_EA] = env->pc + 4;
-        }
-
-        env->status |= CR_STATUS_EH;
-        env->status &= ~(CR_STATUS_PIE | CR_STATUS_U);
-
-        env->pc = cpu->exception_addr;
         break;
 
     case EXCP_ILLEGAL:
     case EXCP_TRAP:
         qemu_log_mask(CPU_LOG_INT, "TRAP exception at pc=%x\n", env->pc);
-
-        if ((env->status & CR_STATUS_EH) == 0) {
-            env->estatus = env->status;
-            nios2_crs(env)[R_EA] = env->pc + 4;
-        }
-
-        env->status |= CR_STATUS_EH;
-        env->status &= ~(CR_STATUS_PIE | CR_STATUS_U);
-
-        env->pc = cpu->exception_addr;
         break;
 
     case EXCP_SEMIHOST:
@@ -154,23 +101,26 @@ void nios2_cpu_do_interrupt(CPUState *cs)
 
     case EXCP_BREAK:
         qemu_log_mask(CPU_LOG_INT, "BREAK exception at pc=%x\n", env->pc);
-        if ((env->status & CR_STATUS_EH) == 0) {
-            env->bstatus = env->status;
-            nios2_crs(env)[R_BA] = env->pc + 4;
-        }
-
-        env->status |= CR_STATUS_EH;
-        env->status &= ~(CR_STATUS_PIE | CR_STATUS_U);
-
-        env->pc = cpu->exception_addr;
+        r_ea = R_BA;
+        cr_estatus = CR_BSTATUS;
         break;
 
     default:
-        cpu_abort(cs, "unhandled exception type=%d\n",
-                  cs->exception_index);
-        break;
+        cpu_abort(cs, "unhandled exception type=%d\n", cs->exception_index);
     }
 
+    /*
+     * Finish Internal Interrupt or Noninterrupt Exception.
+     */
+
+    if (!(env->status & CR_STATUS_EH)) {
+        env->ctrl[cr_estatus] = env->status;
+        env->crs[r_ea] = env->pc + 4;
+        env->status |= CR_STATUS_EH;
+    }
+    env->status &= ~(CR_STATUS_PIE | CR_STATUS_U);
+
+    env->pc = exception_addr;
     env->exception = FIELD_DP32(env->exception, CR_EXCEPTION, CAUSE,
                                 cs->exception_index);
 }
