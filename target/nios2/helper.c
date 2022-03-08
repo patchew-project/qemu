@@ -281,8 +281,8 @@ bool nios2_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     } else {
         env->tlbmisc |= CR_TLBMISC_D;
     }
-    env->pteaddr &= CR_PTEADDR_PTBASE_MASK;
-    env->pteaddr |= (address >> 10) & CR_PTEADDR_VPN_MASK;
+    env->pteaddr = FIELD_DP32(env->pteaddr, CR_PTEADDR, VPN,
+                              address >> TARGET_PAGE_BITS);
     env->mmu.pteaddr_wr = env->pteaddr;
 
     cs->exception_index = excp;
