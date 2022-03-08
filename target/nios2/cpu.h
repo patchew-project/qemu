@@ -60,9 +60,6 @@ struct Nios2CPUClass {
 #define NUM_GP_REGS 32
 #define NUM_CR_REGS 32
 
-/* GP regs + CR regs */
-#define NUM_CORE_REGS (NUM_GP_REGS + NUM_CR_REGS)
-
 /* General purpose register aliases */
 #define R_ZERO   0
 #define R_AT     1
@@ -82,8 +79,7 @@ struct Nios2CPUClass {
 #define R_RA     31
 
 /* Control register aliases */
-#define CR_BASE  NUM_GP_REGS
-#define CR_STATUS    (CR_BASE + 0)
+#define CR_STATUS        0
 #define   CR_STATUS_PIE  (1 << 0)
 #define   CR_STATUS_U    (1 << 1)
 #define   CR_STATUS_EH   (1 << 2)
@@ -93,19 +89,19 @@ struct Nios2CPUClass {
 #define   CR_STATUS_PRS  (63 << 16)
 #define   CR_STATUS_NMI  (1 << 22)
 #define   CR_STATUS_RSIE (1 << 23)
-#define CR_ESTATUS   (CR_BASE + 1)
-#define CR_BSTATUS   (CR_BASE + 2)
-#define CR_IENABLE   (CR_BASE + 3)
-#define CR_IPENDING  (CR_BASE + 4)
-#define CR_CPUID     (CR_BASE + 5)
-#define CR_CTL6      (CR_BASE + 6)
-#define CR_EXCEPTION (CR_BASE + 7)
-#define CR_PTEADDR   (CR_BASE + 8)
+#define CR_ESTATUS       1
+#define CR_BSTATUS       2
+#define CR_IENABLE       3
+#define CR_IPENDING      4
+#define CR_CPUID         5
+#define CR_CTL6          6
+#define CR_EXCEPTION     7
+#define CR_PTEADDR       8
 #define   CR_PTEADDR_PTBASE_SHIFT 22
 #define   CR_PTEADDR_PTBASE_MASK  (0x3FF << CR_PTEADDR_PTBASE_SHIFT)
 #define   CR_PTEADDR_VPN_SHIFT    2
 #define   CR_PTEADDR_VPN_MASK     (0xFFFFF << CR_PTEADDR_VPN_SHIFT)
-#define CR_TLBACC    (CR_BASE + 9)
+#define CR_TLBACC        9
 #define   CR_TLBACC_IGN_SHIFT 25
 #define   CR_TLBACC_IGN_MASK  (0x7F << CR_TLBACC_IGN_SHIFT)
 #define   CR_TLBACC_C         (1 << 24)
@@ -114,7 +110,7 @@ struct Nios2CPUClass {
 #define   CR_TLBACC_X         (1 << 21)
 #define   CR_TLBACC_G         (1 << 20)
 #define   CR_TLBACC_PFN_MASK  0x000FFFFF
-#define CR_TLBMISC   (CR_BASE + 10)
+#define CR_TLBMISC       10
 #define   CR_TLBMISC_WAY_SHIFT 20
 #define   CR_TLBMISC_WAY_MASK  (0xF << CR_TLBMISC_WAY_SHIFT)
 #define   CR_TLBMISC_RD        (1 << 19)
@@ -125,11 +121,11 @@ struct Nios2CPUClass {
 #define   CR_TLBMISC_BAD       (1 << 2)
 #define   CR_TLBMISC_PERM      (1 << 1)
 #define   CR_TLBMISC_D         (1 << 0)
-#define CR_ENCINJ    (CR_BASE + 11)
-#define CR_BADADDR   (CR_BASE + 12)
-#define CR_CONFIG    (CR_BASE + 13)
-#define CR_MPUBASE   (CR_BASE + 14)
-#define CR_MPUACC    (CR_BASE + 15)
+#define CR_ENCINJ        11
+#define CR_BADADDR       12
+#define CR_CONFIG        13
+#define CR_MPUBASE       14
+#define CR_MPUACC        15
 
 /* Exceptions */
 #define EXCP_BREAK    0x1000
@@ -155,7 +151,28 @@ struct Nios2CPUClass {
 #define CPU_INTERRUPT_NMI       CPU_INTERRUPT_TGT_EXT_3
 
 struct CPUNios2State {
-    uint32_t regs[NUM_CORE_REGS];
+    uint32_t regs[NUM_GP_REGS];
+    union {
+        uint32_t ctrl[NUM_CR_REGS];
+        struct {
+            uint32_t status;
+            uint32_t estatus;
+            uint32_t bstatus;
+            uint32_t ienable;
+            uint32_t ipending;
+            uint32_t cpuid;
+            uint32_t reserved6;
+            uint32_t exception;
+            uint32_t pteaddr;
+            uint32_t tlbacc;
+            uint32_t tlbmisc;
+            uint32_t eccinj;
+            uint32_t badaddr;
+            uint32_t config;
+            uint32_t mpubase;
+            uint32_t mpuacc;
+        };
+    };
     uint32_t pc;
 
 #if !defined(CONFIG_USER_ONLY)
@@ -213,8 +230,7 @@ void do_nios2_semihosting(CPUNios2State *env);
 
 static inline int cpu_mmu_index(CPUNios2State *env, bool ifetch)
 {
-    return (env->regs[CR_STATUS] & CR_STATUS_U) ? MMU_USER_IDX :
-                                                  MMU_SUPERVISOR_IDX;
+    return (env->status & CR_STATUS_U) ? MMU_USER_IDX : MMU_SUPERVISOR_IDX;
 }
 
 #ifdef CONFIG_USER_ONLY
@@ -237,7 +253,7 @@ static inline void cpu_get_tb_cpu_state(CPUNios2State *env, target_ulong *pc,
 {
     *pc = env->pc;
     *cs_base = 0;
-    *flags = (env->regs[CR_STATUS] & (CR_STATUS_EH | CR_STATUS_U));
+    *flags = env->status & (CR_STATUS_EH | CR_STATUS_U);
 }
 
 #endif /* NIOS2_CPU_H */

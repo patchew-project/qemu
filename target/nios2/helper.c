@@ -56,38 +56,38 @@ void nios2_cpu_do_interrupt(CPUState *cs)
 
     switch (cs->exception_index) {
     case EXCP_IRQ:
-        assert(env->regs[CR_STATUS] & CR_STATUS_PIE);
+        assert(env->status & CR_STATUS_PIE);
 
         qemu_log_mask(CPU_LOG_INT, "interrupt at pc=%x\n", env->pc);
 
-        env->regs[CR_ESTATUS] = env->regs[CR_STATUS];
-        env->regs[CR_STATUS] |= CR_STATUS_IH;
-        env->regs[CR_STATUS] &= ~(CR_STATUS_PIE | CR_STATUS_U);
+        env->estatus = env->status;
+        env->status |= CR_STATUS_IH;
+        env->status &= ~(CR_STATUS_PIE | CR_STATUS_U);
 
-        env->regs[CR_EXCEPTION] &= ~(0x1F << 2);
-        env->regs[CR_EXCEPTION] |= (cs->exception_index & 0x1F) << 2;
+        env->exception &= ~(0x1F << 2);
+        env->exception |= (cs->exception_index & 0x1F) << 2;
 
         env->regs[R_EA] = env->pc + 4;
         env->pc = cpu->exception_addr;
         break;
 
     case EXCP_TLBD:
-        if ((env->regs[CR_STATUS] & CR_STATUS_EH) == 0) {
+        if ((env->status & CR_STATUS_EH) == 0) {
             qemu_log_mask(CPU_LOG_INT, "TLB MISS (fast) at pc=%x\n", env->pc);
 
             /* Fast TLB miss */
             /* Variation from the spec. Table 3-35 of the cpu reference shows
              * estatus not being changed for TLB miss but this appears to
              * be incorrect. */
-            env->regs[CR_ESTATUS] = env->regs[CR_STATUS];
-            env->regs[CR_STATUS] |= CR_STATUS_EH;
-            env->regs[CR_STATUS] &= ~(CR_STATUS_PIE | CR_STATUS_U);
+            env->estatus = env->status;
+            env->status |= CR_STATUS_EH;
+            env->status &= ~(CR_STATUS_PIE | CR_STATUS_U);
 
-            env->regs[CR_EXCEPTION] &= ~(0x1F << 2);
-            env->regs[CR_EXCEPTION] |= (cs->exception_index & 0x1F) << 2;
+            env->exception &= ~(0x1F << 2);
+            env->exception |= (cs->exception_index & 0x1F) << 2;
 
-            env->regs[CR_TLBMISC] &= ~CR_TLBMISC_DBL;
-            env->regs[CR_TLBMISC] |= CR_TLBMISC_WR;
+            env->tlbmisc &= ~CR_TLBMISC_DBL;
+            env->tlbmisc |= CR_TLBMISC_WR;
 
             env->regs[R_EA] = env->pc + 4;
             env->pc = cpu->fast_tlb_miss_addr;
@@ -95,13 +95,13 @@ void nios2_cpu_do_interrupt(CPUState *cs)
             qemu_log_mask(CPU_LOG_INT, "TLB MISS (double) at pc=%x\n", env->pc);
 
             /* Double TLB miss */
-            env->regs[CR_STATUS] |= CR_STATUS_EH;
-            env->regs[CR_STATUS] &= ~(CR_STATUS_PIE | CR_STATUS_U);
+            env->status |= CR_STATUS_EH;
+            env->status &= ~(CR_STATUS_PIE | CR_STATUS_U);
 
-            env->regs[CR_EXCEPTION] &= ~(0x1F << 2);
-            env->regs[CR_EXCEPTION] |= (cs->exception_index & 0x1F) << 2;
+            env->exception &= ~(0x1F << 2);
+            env->exception |= (cs->exception_index & 0x1F) << 2;
 
-            env->regs[CR_TLBMISC] |= CR_TLBMISC_DBL;
+            env->tlbmisc |= CR_TLBMISC_DBL;
 
             env->pc = cpu->exception_addr;
         }
@@ -112,15 +112,15 @@ void nios2_cpu_do_interrupt(CPUState *cs)
     case EXCP_TLBX:
         qemu_log_mask(CPU_LOG_INT, "TLB PERM at pc=%x\n", env->pc);
 
-        env->regs[CR_ESTATUS] = env->regs[CR_STATUS];
-        env->regs[CR_STATUS] |= CR_STATUS_EH;
-        env->regs[CR_STATUS] &= ~(CR_STATUS_PIE | CR_STATUS_U);
+        env->estatus = env->status;
+        env->status |= CR_STATUS_EH;
+        env->status &= ~(CR_STATUS_PIE | CR_STATUS_U);
 
-        env->regs[CR_EXCEPTION] &= ~(0x1F << 2);
-        env->regs[CR_EXCEPTION] |= (cs->exception_index & 0x1F) << 2;
+        env->exception &= ~(0x1F << 2);
+        env->exception |= (cs->exception_index & 0x1F) << 2;
 
-        if ((env->regs[CR_STATUS] & CR_STATUS_EH) == 0) {
-            env->regs[CR_TLBMISC] |= CR_TLBMISC_WR;
+        if ((env->status & CR_STATUS_EH) == 0) {
+            env->tlbmisc |= CR_TLBMISC_WR;
         }
 
         env->regs[R_EA] = env->pc + 4;
@@ -132,16 +132,16 @@ void nios2_cpu_do_interrupt(CPUState *cs)
     case EXCP_SUPERD:
         qemu_log_mask(CPU_LOG_INT, "SUPERVISOR exception at pc=%x\n", env->pc);
 
-        if ((env->regs[CR_STATUS] & CR_STATUS_EH) == 0) {
-            env->regs[CR_ESTATUS] = env->regs[CR_STATUS];
+        if ((env->status & CR_STATUS_EH) == 0) {
+            env->estatus = env->status;
             env->regs[R_EA] = env->pc + 4;
         }
 
-        env->regs[CR_STATUS] |= CR_STATUS_EH;
-        env->regs[CR_STATUS] &= ~(CR_STATUS_PIE | CR_STATUS_U);
+        env->status |= CR_STATUS_EH;
+        env->status &= ~(CR_STATUS_PIE | CR_STATUS_U);
 
-        env->regs[CR_EXCEPTION] &= ~(0x1F << 2);
-        env->regs[CR_EXCEPTION] |= (cs->exception_index & 0x1F) << 2;
+        env->exception &= ~(0x1F << 2);
+        env->exception |= (cs->exception_index & 0x1F) << 2;
 
         env->pc = cpu->exception_addr;
         break;
@@ -150,16 +150,16 @@ void nios2_cpu_do_interrupt(CPUState *cs)
     case EXCP_TRAP:
         qemu_log_mask(CPU_LOG_INT, "TRAP exception at pc=%x\n", env->pc);
 
-        if ((env->regs[CR_STATUS] & CR_STATUS_EH) == 0) {
-            env->regs[CR_ESTATUS] = env->regs[CR_STATUS];
+        if ((env->status & CR_STATUS_EH) == 0) {
+            env->estatus = env->status;
             env->regs[R_EA] = env->pc + 4;
         }
 
-        env->regs[CR_STATUS] |= CR_STATUS_EH;
-        env->regs[CR_STATUS] &= ~(CR_STATUS_PIE | CR_STATUS_U);
+        env->status |= CR_STATUS_EH;
+        env->status &= ~(CR_STATUS_PIE | CR_STATUS_U);
 
-        env->regs[CR_EXCEPTION] &= ~(0x1F << 2);
-        env->regs[CR_EXCEPTION] |= (cs->exception_index & 0x1F) << 2;
+        env->exception &= ~(0x1F << 2);
+        env->exception |= (cs->exception_index & 0x1F) << 2;
 
         env->pc = cpu->exception_addr;
         break;
@@ -175,16 +175,16 @@ void nios2_cpu_do_interrupt(CPUState *cs)
             break;
         }
 
-        if ((env->regs[CR_STATUS] & CR_STATUS_EH) == 0) {
-            env->regs[CR_BSTATUS] = env->regs[CR_STATUS];
+        if ((env->status & CR_STATUS_EH) == 0) {
+            env->bstatus = env->status;
             env->regs[R_BA] = env->pc + 4;
         }
 
-        env->regs[CR_STATUS] |= CR_STATUS_EH;
-        env->regs[CR_STATUS] &= ~(CR_STATUS_PIE | CR_STATUS_U);
+        env->status |= CR_STATUS_EH;
+        env->status &= ~(CR_STATUS_PIE | CR_STATUS_U);
 
-        env->regs[CR_EXCEPTION] &= ~(0x1F << 2);
-        env->regs[CR_EXCEPTION] |= (cs->exception_index & 0x1F) << 2;
+        env->exception &= ~(0x1F << 2);
+        env->exception |= (cs->exception_index & 0x1F) << 2;
 
         env->pc = cpu->exception_addr;
         break;
@@ -227,8 +227,8 @@ void nios2_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
     Nios2CPU *cpu = NIOS2_CPU(cs);
     CPUNios2State *env = &cpu->env;
 
-    env->regs[CR_BADADDR] = addr;
-    env->regs[CR_EXCEPTION] = EXCP_UNALIGN << 2;
+    env->badaddr = addr;
+    env->exception = EXCP_UNALIGN << 2;
     helper_raise_exception(env, EXCP_UNALIGN);
 }
 
@@ -266,7 +266,7 @@ bool nios2_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                 return false;
             }
             cs->exception_index = EXCP_SUPERA;
-            env->regs[CR_BADADDR] = address;
+            env->badaddr = address;
             cpu_loop_exit_restore(cs, retaddr);
         }
     }
@@ -295,16 +295,16 @@ bool nios2_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     }
 
     if (access_type == MMU_INST_FETCH) {
-        env->regs[CR_TLBMISC] &= ~CR_TLBMISC_D;
+        env->tlbmisc &= ~CR_TLBMISC_D;
     } else {
-        env->regs[CR_TLBMISC] |= CR_TLBMISC_D;
+        env->tlbmisc |= CR_TLBMISC_D;
     }
-    env->regs[CR_PTEADDR] &= CR_PTEADDR_PTBASE_MASK;
-    env->regs[CR_PTEADDR] |= (address >> 10) & CR_PTEADDR_VPN_MASK;
-    env->mmu.pteaddr_wr = env->regs[CR_PTEADDR];
+    env->pteaddr &= CR_PTEADDR_PTBASE_MASK;
+    env->pteaddr |= (address >> 10) & CR_PTEADDR_VPN_MASK;
+    env->mmu.pteaddr_wr = env->pteaddr;
 
     cs->exception_index = excp;
-    env->regs[CR_BADADDR] = address;
+    env->badaddr = address;
     cpu_loop_exit_restore(cs, retaddr);
 }
 #endif /* !CONFIG_USER_ONLY */

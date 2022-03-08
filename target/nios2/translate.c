@@ -463,7 +463,7 @@ static void rdctl(DisasContext *dc, uint32_t code, uint32_t flags)
         return;
     }
 
-    switch (instr.imm5 + CR_BASE) {
+    switch (instr.imm5) {
     case CR_IPENDING:
         /*
          * The value of the ipending register is synthetic.
@@ -475,17 +475,15 @@ static void rdctl(DisasContext *dc, uint32_t code, uint32_t flags)
          */
         t1 = tcg_temp_new();
         t2 = tcg_temp_new();
-        tcg_gen_ld_tl(t1, cpu_env,
-                      offsetof(CPUNios2State, regs[CR_IPENDING]));
-        tcg_gen_ld_tl(t2, cpu_env,
-                      offsetof(CPUNios2State, regs[CR_IENABLE]));
+        tcg_gen_ld_tl(t1, cpu_env, offsetof(CPUNios2State, ipending));
+        tcg_gen_ld_tl(t2, cpu_env, offsetof(CPUNios2State, ienable));
         tcg_gen_and_tl(cpu_R[instr.c], t1, t2);
         tcg_temp_free(t1);
         tcg_temp_free(t2);
         break;
     default:
         tcg_gen_ld_tl(cpu_R[instr.c], cpu_env,
-                      offsetof(CPUNios2State, regs[instr.imm5 + CR_BASE]));
+                      offsetof(CPUNios2State, ctrl[instr.imm5]));
         break;
     }
 }
@@ -503,7 +501,7 @@ static void wrctl(DisasContext *dc, uint32_t code, uint32_t flags)
     R_TYPE(instr, code);
     TCGv v = load_gpr(dc, instr.a);
 
-    switch (instr.imm5 + CR_BASE) {
+    switch (instr.imm5) {
     case CR_PTEADDR:
         gen_helper_mmu_write_pteaddr(cpu_env, v);
         break;
@@ -523,7 +521,7 @@ static void wrctl(DisasContext *dc, uint32_t code, uint32_t flags)
         /* fall through */
     default:
         tcg_gen_st_tl(v, cpu_env,
-                      offsetof(CPUNios2State, regs[instr.imm5 + CR_BASE]));
+                      offsetof(CPUNios2State, ctrl[instr.imm5]));
         break;
     }
 #endif
@@ -756,7 +754,7 @@ illegal_op:
     t_gen_helper_raise_exception(dc, EXCP_ILLEGAL);
 }
 
-static const char * const regnames[] = {
+static const char * const gr_regnames[] = {
     "zero",       "at",         "r2",         "r3",
     "r4",         "r5",         "r6",         "r7",
     "r8",         "r9",         "r10",        "r11",
@@ -765,6 +763,9 @@ static const char * const regnames[] = {
     "r20",        "r21",        "r22",        "r23",
     "et",         "bt",         "gp",         "sp",
     "fp",         "ea",         "ba",         "ra",
+};
+
+static const char * const cr_regnames[] = {
     "status",     "estatus",    "bstatus",    "ienable",
     "ipending",   "cpuid",      "reserved0",  "exception",
     "pteaddr",    "tlbacc",     "tlbmisc",    "reserved1",
@@ -892,8 +893,14 @@ void nios2_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 
     qemu_fprintf(f, "IN: PC=%x %s\n", env->pc, lookup_symbol(env->pc));
 
-    for (i = 0; i < NUM_CORE_REGS; i++) {
-        qemu_fprintf(f, "%9s=%8.8x ", regnames[i], env->regs[i]);
+    for (i = 0; i < NUM_GP_REGS; i++) {
+        qemu_fprintf(f, "%9s=%8.8x ", gr_regnames[i], env->regs[i]);
+        if ((i + 1) % 4 == 0) {
+            qemu_fprintf(f, "\n");
+        }
+    }
+    for (i = 0; i < NUM_CR_REGS; i++) {
+        qemu_fprintf(f, "%9s=%8.8x ", cr_regnames[i], env->ctrl[i]);
         if ((i + 1) % 4 == 0) {
             qemu_fprintf(f, "\n");
         }
@@ -914,7 +921,7 @@ void nios2_tcg_init(void)
     for (i = 0; i < NUM_GP_REGS; i++) {
         cpu_R[i] = tcg_global_mem_new(cpu_env,
                                       offsetof(CPUNios2State, regs[i]),
-                                      regnames[i]);
+                                      gr_regnames[i]);
     }
     cpu_pc = tcg_global_mem_new(cpu_env,
                                 offsetof(CPUNios2State, pc), "pc");
