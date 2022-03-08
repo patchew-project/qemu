@@ -49,6 +49,36 @@ void nios2_cpu_record_sigsegv(CPUState *cs, vaddr addr,
 
 #else /* !CONFIG_USER_ONLY */
 
+static void eic_do_interrupt(Nios2CPU *cpu)
+{
+    CPUNios2State *env = &cpu->env;
+    uint32_t old_status = env->status;
+    uint32_t old_rs = FIELD_EX32(old_status, CR_STATUS, CRS);
+    uint32_t new_rs = cpu->rrs;
+
+    env->status = FIELD_DP32(env->status, CR_STATUS, CRS, new_rs);
+    env->status = FIELD_DP32(env->status, CR_STATUS, IL, cpu->ril);
+    env->status = FIELD_DP32(env->status, CR_STATUS, NMI, cpu->rnmi);
+    env->status &= ~(CR_STATUS_RSIE | CR_STATUS_U);
+    env->status |= CR_STATUS_IH;
+    nios2_update_crs(env);
+
+    if (!(env->status & CR_STATUS_EH)) {
+        env->status = FIELD_DP32(env->status, CR_STATUS, PRS, old_rs);
+        if (new_rs == 0) {
+            env->estatus = old_status;
+        } else {
+            if (new_rs != old_rs) {
+                old_status |= CR_STATUS_SRS;
+            }
+            env->crs[R_SSTATUS] = old_status;
+        }
+        env->crs[R_EA] = env->pc + 4;
+    }
+
+    env->pc = cpu->rha;
+}
+
 void nios2_cpu_do_interrupt(CPUState *cs)
 {
     Nios2CPU *cpu = NIOS2_CPU(cs);
@@ -60,6 +90,10 @@ void nios2_cpu_do_interrupt(CPUState *cs)
     switch (cs->exception_index) {
     case EXCP_IRQ:
         qemu_log_mask(CPU_LOG_INT, "interrupt at pc=%x\n", env->pc);
+        if (cpu->eic_present) {
+            eic_do_interrupt(cpu);
+            return;
+        }
         break;
 
     case EXCP_TLBD:
@@ -112,6 +146,9 @@ void nios2_cpu_do_interrupt(CPUState *cs)
     /*
      * Finish Internal Interrupt or Noninterrupt Exception.
      */
+
+    env->status &= ~R_CR_STATUS_CRS_MASK;
+    nios2_update_crs(env);
 
     if (!(env->status & CR_STATUS_EH)) {
         env->ctrl[cr_estatus] = env->status;
