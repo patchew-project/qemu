@@ -61,6 +61,11 @@ struct Nios2CPUClass {
 #define NUM_GP_REGS 32
 #define NUM_CR_REGS 32
 
+#ifndef CONFIG_USER_ONLY
+/* 63 shadow register sets; index 0 is the primary register set. */
+#define NUM_REG_SETS 64
+#endif
+
 /* General purpose register aliases */
 enum {
     R_ZERO   = 0,
@@ -176,7 +181,13 @@ FIELD(CR_TLBMISC, EE, 24, 1)
 #define EXCP_MPUD     17
 
 struct CPUNios2State {
+#ifdef CONFIG_USER_ONLY
     uint32_t regs[NUM_GP_REGS];
+#else
+    uint32_t shadow_regs[NUM_REG_SETS][NUM_GP_REGS];
+    uint32_t *crs;
+#endif
+
     union {
         uint32_t ctrl[NUM_CR_REGS];
         struct {
@@ -245,6 +256,23 @@ static inline bool nios2_cr_reserved(const ControlRegState *s)
     return (s->writable | s->readonly) == 0;
 }
 
+static inline void nios2_update_crs(CPUNios2State *env)
+{
+#ifndef CONFIG_USER_ONLY
+    unsigned crs = FIELD_EX32(env->status, CR_STATUS, CRS);
+    env->crs = env->shadow_regs[crs];
+#endif
+}
+
+static inline uint32_t *nios2_crs(CPUNios2State *env)
+{
+#ifdef CONFIG_USER_ONLY
+    return env->regs;
+#else
+    return env->crs;
+#endif
+}
+
 void nios2_tcg_init(void);
 void nios2_cpu_do_interrupt(CPUState *cs);
 void dump_mmu(CPUNios2State *env);
@@ -286,12 +314,16 @@ typedef Nios2CPU ArchCPU;
 
 #include "exec/cpu-all.h"
 
+FIELD(TBFLAGS, CRS0, 0, 1)
+FIELD(TBFLAGS, U, 1, 1)     /* Overlaps CR_STATUS_U */
+
 static inline void cpu_get_tb_cpu_state(CPUNios2State *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)
 {
     *pc = env->pc;
     *cs_base = 0;
     *flags = env->status & CR_STATUS_U;
+    *flags |= env->status & R_CR_STATUS_CRS_MASK ? 0 : R_TBFLAGS_CRS0_MASK;
 }
 
 #endif /* NIOS2_CPU_H */

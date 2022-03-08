@@ -144,7 +144,7 @@ static bool translate_stat(CPUNios2State *env, target_ulong addr,
 static void nios2_semi_return_u32(CPUNios2State *env, uint32_t ret,
                                   uint32_t err)
 {
-    target_ulong args = env->regs[R_ARG1];
+    target_ulong args = nios2_crs(env)[R_ARG1];
     if (put_user_u32(ret, args) ||
         put_user_u32(err, args + 4)) {
         /*
@@ -160,7 +160,7 @@ static void nios2_semi_return_u32(CPUNios2State *env, uint32_t ret,
 static void nios2_semi_return_u64(CPUNios2State *env, uint64_t ret,
                                   uint32_t err)
 {
-    target_ulong args = env->regs[R_ARG1];
+    target_ulong args = nios2_crs(env)[R_ARG1];
     if (put_user_u32(ret >> 32, args) ||
         put_user_u32(ret, args + 4) ||
         put_user_u32(err, args + 8)) {
@@ -210,13 +210,14 @@ void do_nios2_semihosting(CPUNios2State *env)
     void *q;
     uint32_t len;
     uint32_t result;
+    uint32_t *crs = nios2_crs(env);
 
-    nr = env->regs[R_ARG0];
-    args = env->regs[R_ARG1];
+    nr = crs[R_ARG0];
+    args = crs[R_ARG1];
     switch (nr) {
     case HOSTED_EXIT:
-        gdb_exit(env->regs[R_ARG0]);
-        exit(env->regs[R_ARG0]);
+        gdb_exit(crs[R_ARG0]);
+        exit(crs[R_ARG0]);
     case HOSTED_OPEN:
         GET_ARG(0);
         GET_ARG(1);

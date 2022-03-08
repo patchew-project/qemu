@@ -64,7 +64,7 @@ void nios2_cpu_do_interrupt(CPUState *cs)
         env->status |= CR_STATUS_IH;
         env->status &= ~(CR_STATUS_PIE | CR_STATUS_U);
 
-        env->regs[R_EA] = env->pc + 4;
+        nios2_crs(env)[R_EA] = env->pc + 4;
         env->pc = cpu->exception_addr;
         break;
 
@@ -83,7 +83,7 @@ void nios2_cpu_do_interrupt(CPUState *cs)
             env->tlbmisc &= ~CR_TLBMISC_DBL;
             env->tlbmisc |= CR_TLBMISC_WR;
 
-            env->regs[R_EA] = env->pc + 4;
+            nios2_crs(env)[R_EA] = env->pc + 4;
             env->pc = cpu->fast_tlb_miss_addr;
         } else {
             qemu_log_mask(CPU_LOG_INT, "TLB MISS (double) at pc=%x\n", env->pc);
@@ -111,7 +111,7 @@ void nios2_cpu_do_interrupt(CPUState *cs)
             env->tlbmisc |= CR_TLBMISC_WR;
         }
 
-        env->regs[R_EA] = env->pc + 4;
+        nios2_crs(env)[R_EA] = env->pc + 4;
         env->pc = cpu->exception_addr;
         break;
 
@@ -122,7 +122,7 @@ void nios2_cpu_do_interrupt(CPUState *cs)
 
         if ((env->status & CR_STATUS_EH) == 0) {
             env->estatus = env->status;
-            env->regs[R_EA] = env->pc + 4;
+            nios2_crs(env)[R_EA] = env->pc + 4;
         }
 
         env->status |= CR_STATUS_EH;
@@ -137,7 +137,7 @@ void nios2_cpu_do_interrupt(CPUState *cs)
 
         if ((env->status & CR_STATUS_EH) == 0) {
             env->estatus = env->status;
-            env->regs[R_EA] = env->pc + 4;
+            nios2_crs(env)[R_EA] = env->pc + 4;
         }
 
         env->status |= CR_STATUS_EH;
@@ -159,7 +159,7 @@ void nios2_cpu_do_interrupt(CPUState *cs)
 
         if ((env->status & CR_STATUS_EH) == 0) {
             env->bstatus = env->status;
-            env->regs[R_BA] = env->pc + 4;
+            nios2_crs(env)[R_BA] = env->pc + 4;
         }
 
         env->status |= CR_STATUS_EH;

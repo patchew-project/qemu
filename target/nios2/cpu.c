@@ -53,7 +53,6 @@ static void nios2_cpu_reset(DeviceState *dev)
 
     ncc->parent_reset(dev);
 
-    memset(env->regs, 0, sizeof(env->regs));
     memset(env->ctrl, 0, sizeof(env->ctrl));
     env->pc = cpu->reset_addr;
 
@@ -63,6 +62,8 @@ static void nios2_cpu_reset(DeviceState *dev)
 #else
     env->status = CR_STATUS_RSIE;
 #endif
+
+    nios2_update_crs(env);
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -210,7 +211,7 @@ static int nios2_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     uint32_t val;
 
     if (n < 32) {          /* GP regs */
-        val = env->regs[n];
+        val = nios2_crs(env)[n];
     } else if (n == 32) {    /* PC */
         val = env->pc;
     } else if (n < 49) {     /* Status regs */
@@ -241,7 +242,7 @@ static int nios2_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     val = ldl_p(mem_buf);
 
     if (n < 32) {            /* GP regs */
-        env->regs[n] = val;
+        nios2_crs(env)[n] = val;
     } else if (n == 32) {    /* PC */
         env->pc = val;
     } else if (n < 49) {     /* Status regs */

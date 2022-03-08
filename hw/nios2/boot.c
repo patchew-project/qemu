@@ -62,10 +62,10 @@ static void main_cpu_reset(void *opaque)
 
     cpu_reset(CPU(cpu));
 
-    env->regs[R_ARG0] = NIOS2_MAGIC;
-    env->regs[R_ARG1] = boot_info.initrd_start;
-    env->regs[R_ARG2] = boot_info.fdt;
-    env->regs[R_ARG3] = boot_info.cmdline;
+    nios2_crs(env)[R_ARG0] = NIOS2_MAGIC;
+    nios2_crs(env)[R_ARG1] = boot_info.initrd_start;
+    nios2_crs(env)[R_ARG2] = boot_info.fdt;
+    nios2_crs(env)[R_ARG3] = boot_info.cmdline;
 
     cpu_set_pc(cs, boot_info.bootstrap_pc);
     if (boot_info.machine_cpu_reset) {
