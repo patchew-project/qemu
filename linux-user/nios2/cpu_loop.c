@@ -56,25 +56,24 @@ void cpu_loop(CPUNios2State *env)
                 env->regs[2] = abs(ret);
                 /* Return value is 0..4096 */
                 env->regs[7] = ret > 0xfffff000u;
-                env->regs[R_PC] += 4;
+                env->pc += 4;
                 break;
 
             case 1:
                 qemu_log_mask(CPU_LOG_INT, "\nTrap 1\n");
-                force_sig_fault(TARGET_SIGUSR1, 0, env->regs[R_PC]);
+                force_sig_fault(TARGET_SIGUSR1, 0, env->pc);
                 break;
             case 2:
                 qemu_log_mask(CPU_LOG_INT, "\nTrap 2\n");
-                force_sig_fault(TARGET_SIGUSR2, 0, env->regs[R_PC]);
+                force_sig_fault(TARGET_SIGUSR2, 0, env->pc);
                 break;
             case 31:
                 qemu_log_mask(CPU_LOG_INT, "\nTrap 31\n");
-                force_sig_fault(TARGET_SIGTRAP, TARGET_TRAP_BRKPT, env->regs[R_PC]);
+                force_sig_fault(TARGET_SIGTRAP, TARGET_TRAP_BRKPT, env->pc);
                 break;
             default:
                 qemu_log_mask(CPU_LOG_INT, "\nTrap %d\n", env->error_code);
-                force_sig_fault(TARGET_SIGILL, TARGET_ILL_ILLTRP,
-                                env->regs[R_PC]);
+                force_sig_fault(TARGET_SIGILL, TARGET_ILL_ILLTRP, env->pc);
                 break;
 
             case 16: /* QEMU specific, for __kuser_cmpxchg */
@@ -99,7 +98,7 @@ void cpu_loop(CPUNios2State *env)
                     o = env->regs[5];
                     n = env->regs[6];
                     env->regs[2] = qatomic_cmpxchg(h, o, n) - o;
-                    env->regs[R_PC] += 4;
+                    env->pc += 4;
                 }
                 break;
             }
@@ -117,7 +116,7 @@ void cpu_loop(CPUNios2State *env)
                 info.si_errno = 0;
                 /* TODO: check env->error_code */
                 info.si_code = TARGET_SEGV_MAPERR;
-                info._sifields._sigfault._addr = env->regs[R_PC];
+                info._sifields._sigfault._addr = env->pc;
                 queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
             }
             break;
@@ -155,6 +154,6 @@ void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
     env->regs[R_SP] = regs->sp;
     env->regs[R_GP] = regs->gp;
     env->regs[CR_ESTATUS] = regs->estatus;
-    env->regs[R_PC] = regs->ea;
+    env->pc = regs->ea;
     /* TODO: unsigned long  orig_r7; */
 }
