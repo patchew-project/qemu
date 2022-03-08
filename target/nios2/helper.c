@@ -276,11 +276,8 @@ bool nios2_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         return false;
     }
 
-    if (access_type == MMU_INST_FETCH) {
-        env->tlbmisc &= ~CR_TLBMISC_D;
-    } else {
-        env->tlbmisc |= CR_TLBMISC_D;
-    }
+    env->tlbmisc = FIELD_DP32(env->tlbmisc, CR_TLBMISC, D,
+                              access_type == MMU_INST_FETCH);
     env->pteaddr = FIELD_DP32(env->pteaddr, CR_PTEADDR, VPN,
                               address >> TARGET_PAGE_BITS);
     env->mmu.pteaddr_wr = env->pteaddr;
