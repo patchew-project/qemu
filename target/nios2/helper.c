@@ -64,9 +64,6 @@ void nios2_cpu_do_interrupt(CPUState *cs)
         env->status |= CR_STATUS_IH;
         env->status &= ~(CR_STATUS_PIE | CR_STATUS_U);
 
-        env->exception &= ~(0x1F << 2);
-        env->exception |= (cs->exception_index & 0x1F) << 2;
-
         env->regs[R_EA] = env->pc + 4;
         env->pc = cpu->exception_addr;
         break;
@@ -83,9 +80,6 @@ void nios2_cpu_do_interrupt(CPUState *cs)
             env->status |= CR_STATUS_EH;
             env->status &= ~(CR_STATUS_PIE | CR_STATUS_U);
 
-            env->exception &= ~(0x1F << 2);
-            env->exception |= (cs->exception_index & 0x1F) << 2;
-
             env->tlbmisc &= ~CR_TLBMISC_DBL;
             env->tlbmisc |= CR_TLBMISC_WR;
 
@@ -97,9 +91,6 @@ void nios2_cpu_do_interrupt(CPUState *cs)
             /* Double TLB miss */
             env->status |= CR_STATUS_EH;
             env->status &= ~(CR_STATUS_PIE | CR_STATUS_U);
-
-            env->exception &= ~(0x1F << 2);
-            env->exception |= (cs->exception_index & 0x1F) << 2;
 
             env->tlbmisc |= CR_TLBMISC_DBL;
 
@@ -115,9 +106,6 @@ void nios2_cpu_do_interrupt(CPUState *cs)
         env->estatus = env->status;
         env->status |= CR_STATUS_EH;
         env->status &= ~(CR_STATUS_PIE | CR_STATUS_U);
-
-        env->exception &= ~(0x1F << 2);
-        env->exception |= (cs->exception_index & 0x1F) << 2;
 
         if ((env->status & CR_STATUS_EH) == 0) {
             env->tlbmisc |= CR_TLBMISC_WR;
@@ -140,9 +128,6 @@ void nios2_cpu_do_interrupt(CPUState *cs)
         env->status |= CR_STATUS_EH;
         env->status &= ~(CR_STATUS_PIE | CR_STATUS_U);
 
-        env->exception &= ~(0x1F << 2);
-        env->exception |= (cs->exception_index & 0x1F) << 2;
-
         env->pc = cpu->exception_addr;
         break;
 
@@ -157,9 +142,6 @@ void nios2_cpu_do_interrupt(CPUState *cs)
 
         env->status |= CR_STATUS_EH;
         env->status &= ~(CR_STATUS_PIE | CR_STATUS_U);
-
-        env->exception &= ~(0x1F << 2);
-        env->exception |= (cs->exception_index & 0x1F) << 2;
 
         env->pc = cpu->exception_addr;
         break;
@@ -183,9 +165,6 @@ void nios2_cpu_do_interrupt(CPUState *cs)
         env->status |= CR_STATUS_EH;
         env->status &= ~(CR_STATUS_PIE | CR_STATUS_U);
 
-        env->exception &= ~(0x1F << 2);
-        env->exception |= (cs->exception_index & 0x1F) << 2;
-
         env->pc = cpu->exception_addr;
         break;
 
@@ -194,6 +173,9 @@ void nios2_cpu_do_interrupt(CPUState *cs)
                   cs->exception_index);
         break;
     }
+
+    env->exception = FIELD_DP32(env->exception, CR_EXCEPTION, CAUSE,
+                                cs->exception_index);
 }
 
 hwaddr nios2_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
