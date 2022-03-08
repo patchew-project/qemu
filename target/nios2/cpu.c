@@ -159,6 +159,7 @@ static ObjectClass *nios2_cpu_class_by_name(const char *cpu_model)
 static void nios2_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
+    Nios2CPU *cpu = NIOS2_CPU(cs);
     Nios2CPUClass *ncc = NIOS2_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
 
@@ -170,6 +171,9 @@ static void nios2_cpu_realizefn(DeviceState *dev, Error **errp)
 
     qemu_init_vcpu(cs);
     cpu_reset(cs);
+
+    /* We have reserved storage for ctrl[CR_CPUID]; might as well use it. */
+    cpu->env.cpuid = cs->cpu_index;
 
     ncc->parent_realize(dev, errp);
 }
