@@ -59,9 +59,9 @@ static void nios2_cpu_reset(DeviceState *dev)
 
 #if defined(CONFIG_USER_ONLY)
     /* Start in user mode with interrupts enabled. */
-    env->status = CR_STATUS_U | CR_STATUS_PIE;
+    env->status = CR_STATUS_RSIE | CR_STATUS_U | CR_STATUS_PIE;
 #else
-    env->status = 0;
+    env->status = CR_STATUS_RSIE;
 #endif
 }
 
@@ -109,6 +109,7 @@ static void nios2_cpu_initfn(Object *obj)
     WR_REG(CR_BADADDR);
 
     /* TODO: These control registers are not present with the EIC. */
+    RO_FIELD(CR_STATUS, RSIE);
     WR_REG(CR_IENABLE);
     RO_REG(CR_IPENDING);
 
