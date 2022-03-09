@@ -146,6 +146,11 @@ static void v9fs_uint16_read(P9Req *req, uint16_t *val)
     le16_to_cpus(val);
 }
 
+static void v9fs_int16_read(P9Req *req, int16_t *val)
+{
+    v9fs_uint16_read(req, (uint16_t *)val);
+}
+
 static void v9fs_uint32_write(P9Req *req, uint32_t val)
 {
     uint32_t le_val = cpu_to_le32(val);
@@ -166,10 +171,20 @@ static void v9fs_uint32_read(P9Req *req, uint32_t *val)
     le32_to_cpus(val);
 }
 
+static void v9fs_int32_read(P9Req *req, int32_t *val)
+{
+    v9fs_uint32_read(req, (uint32_t *)val);
+}
+
 static void v9fs_uint64_read(P9Req *req, uint64_t *val)
 {
     v9fs_memread(req, val, 8);
     le64_to_cpus(val);
+}
+
+static void v9fs_int64_read(P9Req *req, int64_t *val)
+{
+    v9fs_uint64_read(req, (uint64_t *)val);
 }
 
 /* len[2] string[len] */
@@ -422,6 +437,40 @@ static void v9fs_rwalk(P9Req *req, uint16_t *nwqid, v9fs_qid **wqid)
         *wqid = g_malloc(local_nwqid * 13);
         v9fs_memread(req, *wqid, local_nwqid * 13);
     }
+    v9fs_req_free(req);
+}
+
+/* size[4] Tstat tag[2] fid[4] */
+static P9Req *v9fs_tstat(QVirtio9P *v9p, uint32_t fid, uint16_t tag)
+{
+    P9Req *req;
+
+    req = v9fs_req_init(v9p, 4, P9_TSTAT, tag);
+    v9fs_uint32_write(req, fid);
+    v9fs_req_send(req);
+    return req;
+}
+
+/* size[4] Rstat tag[2] stat[n] */
+static void v9fs_rstat(P9Req *req, struct V9fsStat *st)
+{
+    v9fs_req_recv(req, P9_RSTAT);
+
+    v9fs_int16_read(req, &st->size);
+    v9fs_int16_read(req, &st->type);
+    v9fs_int32_read(req, &st->dev);
+    v9fs_uint8_read(req, &st->qid.type);
+    v9fs_uint32_read(req, &st->qid.version);
+    v9fs_uint64_read(req, &st->qid.path);
+    v9fs_int32_read(req, &st->mode);
+    v9fs_int32_read(req, &st->mtime);
+    v9fs_int32_read(req, &st->atime);
+    v9fs_int64_read(req, &st->length);
+    v9fs_string_read(req, &st->name.size, &st->name.data);
+    v9fs_string_read(req, &st->uid.size, &st->uid.data);
+    v9fs_string_read(req, &st->gid.size, &st->gid.data);
+    v9fs_string_read(req, &st->muid.size, &st->muid.data);
+
     v9fs_req_free(req);
 }
 
@@ -1009,6 +1058,8 @@ static void fs_walk_none(void *obj, void *data, QGuestAllocator *t_alloc)
     v9fs_qid root_qid;
     g_autofree v9fs_qid *wqid = NULL;
     P9Req *req;
+    struct V9fsStat st[2];
+    int i;
 
     do_version(v9p);
     req = v9fs_tattach(v9p, 0, getuid(), 0);
@@ -1021,6 +1072,25 @@ static void fs_walk_none(void *obj, void *data, QGuestAllocator *t_alloc)
 
     /* special case: no QID is returned if nwname=0 was sent */
     g_assert(wqid == NULL);
+
+    req = v9fs_tstat(v9p, 0, 0);
+    v9fs_req_wait_for_reply(req, NULL);
+    v9fs_rstat(req, &st[0]);
+
+    req = v9fs_tstat(v9p, 1, 0);
+    v9fs_req_wait_for_reply(req, NULL);
+    v9fs_rstat(req, &st[1]);
+
+    /* don't compare QID version for checking for file ID equalness */
+    g_assert(st[0].qid.type == st[1].qid.type);
+    g_assert(st[0].qid.path == st[1].qid.path);
+
+    for (i = 0; i < 2; ++i) {
+        g_free(st[i].name.data);
+        g_free(st[i].uid.data);
+        g_free(st[i].gid.data);
+        g_free(st[i].muid.data);
+    }
 }
 
 static void fs_walk_dotdot(void *obj, void *data, QGuestAllocator *t_alloc)
