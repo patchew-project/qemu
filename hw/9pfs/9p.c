@@ -1766,7 +1766,7 @@ static void coroutine_fn v9fs_walk(void *opaque)
 {
     int name_idx, nvalid;
     g_autofree V9fsQID *qids = NULL;
-    int i, err = 0;
+    int i, err = 0, any_err = 0;
     V9fsPath dpath, path;
     P9ARRAY_REF(V9fsPath) pathes = NULL;
     uint16_t nwnames;
@@ -1832,6 +1832,7 @@ static void coroutine_fn v9fs_walk(void *opaque)
      * driver code altogether inside the following block.
      */
     v9fs_co_run_in_worker({
+        nvalid = 0;
         if (v9fs_request_cancelled(pdu)) {
             err = -EINTR;
             break;
@@ -1842,7 +1843,7 @@ static void coroutine_fn v9fs_walk(void *opaque)
             break;
         }
         stbuf = fidst;
-        for (nvalid = 0; nvalid < nwnames; nvalid++) {
+        for (; nvalid < nwnames; nvalid++) {
             if (v9fs_request_cancelled(pdu)) {
                 err = -EINTR;
                 break;
@@ -1874,12 +1875,13 @@ static void coroutine_fn v9fs_walk(void *opaque)
     /*
      * Handle all the rest of this Twalk request on main thread ...
      */
-    if (err < 0) {
+    if ((err < 0 && !nvalid) || err == -EINTR) {
         goto out;
     }
 
+    any_err |= err;
     err = stat_to_qid(pdu, &fidst, &qid);
-    if (err < 0) {
+    if (err < 0 && !nvalid) {
         goto out;
     }
     stbuf = fidst;
@@ -1888,19 +1890,29 @@ static void coroutine_fn v9fs_walk(void *opaque)
     v9fs_path_copy(&dpath, &fidp->path);
     v9fs_path_copy(&path, &fidp->path);
 
-    for (name_idx = 0; name_idx < nwnames; name_idx++) {
+    for (name_idx = 0; name_idx < nvalid; name_idx++) {
         if (!same_stat_id(&pdu->s->root_st, &stbuf) ||
             strcmp("..", wnames[name_idx].data))
         {
             stbuf = stbufs[name_idx];
             err = stat_to_qid(pdu, &stbuf, &qid);
             if (err < 0) {
-                goto out;
+                break;
             }
             v9fs_path_copy(&path, &pathes[name_idx]);
             v9fs_path_copy(&dpath, &path);
         }
         memcpy(&qids[name_idx], &qid, sizeof(qid));
+    }
+    any_err |= err;
+    if (any_err) {
+        if (!name_idx) {
+            /* don't send any QIDs, send Rlerror instead */
+            goto out;
+        } else {
+            /* send QIDs (not Rlerror), but fid MUST remain unaffected */
+            goto send_qids;
+        }
     }
     if (fid == newfid) {
         if (fidp->fid_type != P9_FID_NONE) {
@@ -1919,8 +1931,9 @@ static void coroutine_fn v9fs_walk(void *opaque)
         newfidp->uid = fidp->uid;
         v9fs_path_copy(&newfidp->path, &path);
     }
-    err = v9fs_walk_marshal(pdu, nwnames, qids);
-    trace_v9fs_walk_return(pdu->tag, pdu->id, nwnames, qids);
+send_qids:
+    err = v9fs_walk_marshal(pdu, name_idx, qids);
+    trace_v9fs_walk_return(pdu->tag, pdu->id, name_idx, qids);
 out:
     put_fid(pdu, fidp);
     if (newfidp) {
