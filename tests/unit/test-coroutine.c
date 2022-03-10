@@ -556,14 +556,21 @@ static void test_order(void)
         g_assert_cmpint(records[i].state, ==, expected_pos[i].state);
     }
 }
-#if 0
+
 /*
  * Lifecycle benchmark
  */
 
-static void coroutine_fn empty_coroutine(void *opaque)
+CO_DECLARE_FRAME(empty_coroutine);
+static CoroutineAction co__empty_coroutine(void *_frame)
 {
-    /* Do nothing */
+    struct FRAME__empty_coroutine *_f = _frame;
+    return stack_free(&_f->common);
+}
+
+static CoroutineAction empty_coroutine(void *opaque)
+{
+    return CO_INIT_FRAME(empty_coroutine);
 }
 
 static void perf_lifecycle(void)
@@ -572,7 +579,7 @@ static void perf_lifecycle(void)
     unsigned int i, max;
     double duration;
 
-    max = 1000000;
+    max = 10000000;
 
     g_test_timer_start();
     for (i = 0; i < max; i++) {
@@ -584,6 +591,30 @@ static void perf_lifecycle(void)
     g_test_message("Lifecycle %u iterations: %f s", max, duration);
 }
 
+static CoroutineAction empty_coroutine_noalloc(void *opaque)
+{
+    return COROUTINE_CONTINUE;
+}
+
+static void perf_lifecycle_noalloc(void)
+{
+    Coroutine *coroutine;
+    unsigned int i, max;
+    double duration;
+
+    max = 10000000;
+
+    g_test_timer_start();
+    for (i = 0; i < max; i++) {
+        coroutine = qemu_coroutine_create(empty_coroutine_noalloc, NULL);
+        qemu_coroutine_enter(coroutine);
+    }
+    duration = g_test_timer_elapsed();
+
+    g_test_message("Lifecycle %u iterations: %f s", max, duration);
+}
+
+#if 0
 static void perf_nesting(void)
 {
     unsigned int i, maxcycles, maxnesting;
@@ -719,13 +750,16 @@ int main(int argc, char **argv)
     g_test_add_func("/locking/co-mutex/lockable", test_co_mutex_lockable);
     g_test_add_func("/locking/co-rwlock/upgrade", test_co_rwlock_upgrade);
     g_test_add_func("/locking/co-rwlock/downgrade", test_co_rwlock_downgrade);
+#endif
     if (g_test_perf()) {
         g_test_add_func("/perf/lifecycle", perf_lifecycle);
+        g_test_add_func("/perf/lifecycle/noalloc", perf_lifecycle_noalloc);
+#if 0
         g_test_add_func("/perf/nesting", perf_nesting);
         g_test_add_func("/perf/yield", perf_yield);
         g_test_add_func("/perf/function-call", perf_baseline);
         g_test_add_func("/perf/cost", perf_cost);
-    }
 #endif
+    }
     return g_test_run();
 }
