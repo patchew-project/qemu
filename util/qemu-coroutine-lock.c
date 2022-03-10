@@ -198,21 +198,13 @@ static void coroutine_fn qemu_co_mutex_wake(CoMutex *mutex, Coroutine *co)
     aio_co_wake(co);
 }
 
-struct FRAME__qemu_co_mutex_lock_slowpath {
-    CoroutineFrame common;
-    uint32_t _step;
-    AioContext *ctx;
-    CoMutex *mutex;
-    Coroutine *self;
-    CoWaitRecord w;
-};
+CO_DECLARE_FRAME(qemu_co_mutex_lock_slowpath, AioContext *ctx, CoMutex *mutex, Coroutine *self, CoWaitRecord w);
 
 static CoroutineAction co__qemu_co_mutex_lock_slowpath(void *_frame)
 {
     struct FRAME__qemu_co_mutex_lock_slowpath *_f = _frame;
-    AioContext *ctx = _f->ctx;
-    CoMutex *mutex = _f->mutex;
-    Coroutine *self;
+    CO_ARG(ctx, mutex);
+    CO_DECLARE(self);
     unsigned old_handoff;
 
 switch(_f->_step) {
@@ -244,11 +236,11 @@ case 0: {
     }
 
 _f->_step = 1;
-_f->self = self;
+CO_SAVE(self);
     return qemu_coroutine_yield();
 }
 case 1:
-self = _f->self;
+CO_LOAD(self);
     trace_qemu_co_mutex_lock_return(mutex, self);
     mutex->holder = self;
     self->locks_held++;
@@ -260,12 +252,7 @@ return stack_free(&_f->common);
 
 static CoroutineAction qemu_co_mutex_lock_slowpath(AioContext *ctx, CoMutex *mutex)
 {
-    struct FRAME__qemu_co_mutex_lock_slowpath *f;
-    f = stack_alloc(co__qemu_co_mutex_lock_slowpath, sizeof(*f));
-    f->ctx = ctx;
-    f->mutex = mutex;
-    f->_step = 0;
-    return co__qemu_co_mutex_lock_slowpath(f);
+    return CO_INIT_FRAME(qemu_co_mutex_lock_slowpath, ctx, mutex);
 }
 
 CoroutineAction qemu_co_mutex_lock(CoMutex *mutex)
