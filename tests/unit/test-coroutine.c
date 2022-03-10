@@ -639,19 +639,33 @@ static void perf_nesting(void)
         maxcycles, maxnesting, duration);
 }
 
-#if 0
 /*
  * Yield benchmark
  */
 
-static void coroutine_fn yield_loop(void *opaque)
+CO_DECLARE_FRAME(yield_loop, void *opaque);
+static CoroutineAction co__yield_loop(void *_frame)
 {
+    struct FRAME__yield_loop *_f = _frame;
+    CO_ARG(opaque);
     unsigned int *counter = opaque;
 
+switch(_f->_step) {
+case 0:
     while ((*counter) > 0) {
         (*counter)--;
-        qemu_coroutine_yield();
+_f->_step = 1;
+        return qemu_coroutine_yield();
+case 1:
     }
+    break;
+}
+return stack_free(&_f->common);
+}
+
+static CoroutineAction yield_loop(void *opaque)
+{
+    return CO_INIT_FRAME(yield_loop, opaque);
 }
 
 static void perf_yield(void)
@@ -672,6 +686,7 @@ static void perf_yield(void)
     g_test_message("Yield %u iterations: %f s", maxcycles, duration);
 }
 
+#if 0
 static __attribute__((noinline)) void dummy(unsigned *i)
 {
     (*i)--;
@@ -755,8 +770,8 @@ int main(int argc, char **argv)
         g_test_add_func("/perf/lifecycle", perf_lifecycle);
         g_test_add_func("/perf/lifecycle/noalloc", perf_lifecycle_noalloc);
         g_test_add_func("/perf/nesting", perf_nesting);
-#if 0
         g_test_add_func("/perf/yield", perf_yield);
+#if 0
         g_test_add_func("/perf/function-call", perf_baseline);
         g_test_add_func("/perf/cost", perf_cost);
 #endif
