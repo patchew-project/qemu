@@ -355,7 +355,6 @@ static void test_co_mutex_lockable(void)
     g_assert(QEMU_MAKE_CO_LOCKABLE(null_pointer) == NULL);
 }
 
-#if 0
 static CoRwlock rwlock;
 
 /* Test that readers are properly sent back to the queue when upgrading,
@@ -375,24 +374,66 @@ static CoRwlock rwlock;
  * | unlock       |            |
  */
 
-static void coroutine_fn rwlock_yield_upgrade(void *opaque)
+CO_DECLARE_FRAME(rwlock_yield_upgrade, bool *done);
+static CoroutineAction co__rwlock_yield_upgrade(void *_frame)
 {
-    qemu_co_rwlock_rdlock(&rwlock);
-    qemu_coroutine_yield();
+    struct FRAME__rwlock_yield_upgrade *_f = _frame;
+    CO_ARG(done);
+switch(_f->_step) {
+case 0:
+_f->_step = 1;
+    return qemu_co_rwlock_rdlock(&rwlock);
+case 1:
+_f->_step = 2;
+    return qemu_coroutine_yield();
 
-    qemu_co_rwlock_upgrade(&rwlock);
-    qemu_co_rwlock_unlock(&rwlock);
+case 2:
+_f->_step = 3;
+    return qemu_co_rwlock_upgrade(&rwlock);
+case 3:
+_f->_step = 4;
+    return qemu_co_rwlock_unlock(&rwlock);
 
-    *(bool *)opaque = true;
+case 4:
+    *done = true;
+    break;
+}
+return stack_free(&_f->common);
 }
 
-static void coroutine_fn rwlock_wrlock_yield(void *opaque)
+static CoroutineAction rwlock_yield_upgrade(void *opaque)
 {
-    qemu_co_rwlock_wrlock(&rwlock);
-    qemu_coroutine_yield();
+    bool *done = opaque;
+    return CO_INIT_FRAME(rwlock_yield_upgrade, done);
+}
 
-    qemu_co_rwlock_unlock(&rwlock);
-    *(bool *)opaque = true;
+CO_DECLARE_FRAME(rwlock_wrlock_yield, bool *done);
+static CoroutineAction co__rwlock_wrlock_yield(void *_frame)
+{
+    struct FRAME__rwlock_wrlock_yield *_f = _frame;
+    CO_ARG(done);
+switch(_f->_step) {
+case 0:
+_f->_step = 1;
+    return qemu_co_rwlock_wrlock(&rwlock);
+case 1:
+_f->_step = 2;
+    return qemu_coroutine_yield();
+
+case 2:
+_f->_step = 3;
+    return qemu_co_rwlock_unlock(&rwlock);
+case 3:
+    *done = true;
+    break;
+}
+return stack_free(&_f->common);
+}
+
+static CoroutineAction rwlock_wrlock_yield(void *opaque)
+{
+    bool *done = opaque;
+    return CO_INIT_FRAME(rwlock_wrlock_yield, done);
 }
 
 static void test_co_rwlock_upgrade(void)
@@ -417,6 +458,7 @@ static void test_co_rwlock_upgrade(void)
     g_assert(c2_done);
 }
 
+#if 0
 static void coroutine_fn rwlock_rdlock_yield(void *opaque)
 {
     qemu_co_rwlock_rdlock(&rwlock);
@@ -829,8 +871,8 @@ int main(int argc, char **argv)
     g_test_add_func("/basic/order", test_order);
     g_test_add_func("/locking/co-mutex", test_co_mutex);
     g_test_add_func("/locking/co-mutex/lockable", test_co_mutex_lockable);
-#if 0
     g_test_add_func("/locking/co-rwlock/upgrade", test_co_rwlock_upgrade);
+#if 0
     g_test_add_func("/locking/co-rwlock/downgrade", test_co_rwlock_downgrade);
 #endif
     if (g_test_perf()) {
