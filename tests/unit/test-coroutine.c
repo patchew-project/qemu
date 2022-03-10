@@ -490,8 +490,6 @@ static void test_lifecycle(void)
     g_assert(done); /* expect done to be true (second time) */
 }
 
-#if 0
-
 #define RECORD_SIZE 10 /* Leave some room for expansion */
 struct coroutine_position {
     int func;
@@ -508,13 +506,27 @@ static void record_push(int func, int state)
     cp->state = state;
 }
 
-static void coroutine_fn co_order_test(void *opaque)
+CO_DECLARE_FRAME(co_order_test);
+static CoroutineAction co__co_order_test(void *_frame)
 {
+    struct FRAME__co_order_test *_f = _frame;
+switch(_f->_step) {
+case 0:
     record_push(2, 1);
     g_assert(qemu_in_coroutine());
-    qemu_coroutine_yield();
+_f->_step = 1;
+    return qemu_coroutine_yield();
+case 1:
     record_push(2, 2);
     g_assert(qemu_in_coroutine());
+    break;
+}
+return stack_free(&_f->common);
+}
+
+static CoroutineAction co_order_test(void *opaque)
+{
+    return CO_INIT_FRAME(co_order_test);
 }
 
 static void do_order_test(void)
@@ -544,6 +556,7 @@ static void test_order(void)
         g_assert_cmpint(records[i].state, ==, expected_pos[i].state);
     }
 }
+#if 0
 /*
  * Lifecycle benchmark
  */
@@ -700,8 +713,8 @@ int main(int argc, char **argv)
     g_test_add_func("/basic/self", test_self);
     g_test_add_func("/basic/entered", test_entered);
     g_test_add_func("/basic/in_coroutine", test_in_coroutine);
-#if 0
     g_test_add_func("/basic/order", test_order);
+#if 0
     g_test_add_func("/locking/co-mutex", test_co_mutex);
     g_test_add_func("/locking/co-mutex/lockable", test_co_mutex_lockable);
     g_test_add_func("/locking/co-rwlock/upgrade", test_co_rwlock_upgrade);
