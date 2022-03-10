@@ -224,7 +224,7 @@ void qdict_array_split(QDict *src, QList **dst)
     for (i = 0; i < UINT_MAX; i++) {
         QObject *subqobj;
         bool is_subqdict;
-        QDict *subqdict;
+        QDict *subqdict = NULL;
         char indexstr[32], prefix[32];
         size_t snprintf_ret;
 
