@@ -201,16 +201,32 @@ static void test_yield(void)
     g_assert_cmpint(i, ==, 5); /* coroutine must yield 5 times */
 }
 
-#if 0
-static void coroutine_fn c2_fn(void *opaque)
+CO_DECLARE_FRAME(c2_fn);
+static CoroutineAction co__c2_fn(void *_frame)
 {
-    qemu_coroutine_yield();
+    struct FRAME__verify_entered_step_2 *_f = _frame;
+
+switch(_f->_step)
+{
+case 0:
+    _f->_step = 1;
+    return qemu_coroutine_yield();
+case 1:
+    break;
+}
+return stack_free(&_f->common);
 }
 
-static void coroutine_fn c1_fn(void *opaque)
+static CoroutineAction c2_fn(void *opaque)
+{
+    return CO_INIT_FRAME(c2_fn);
+}
+
+static CoroutineAction c1_fn(void *opaque)
 {
     Coroutine *c2 = opaque;
     qemu_coroutine_enter(c2);
+    return COROUTINE_CONTINUE;
 }
 
 static void test_no_dangling_access(void)
@@ -233,6 +249,7 @@ static void test_no_dangling_access(void)
     *c1 = tmp;
 }
 
+#if 0
 static bool locked;
 static int done;
 
@@ -757,7 +774,6 @@ int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
 
-#if 0
     /* This test assumes there is a freelist and marks freed coroutine memory
      * with a sentinel value.  If there is no freelist this would legitimately
      * crash, so skip it.
@@ -765,7 +781,6 @@ int main(int argc, char **argv)
     if (CONFIG_COROUTINE_POOL) {
         g_test_add_func("/basic/no-dangling-access", test_no_dangling_access);
     }
-#endif
 
     g_test_add_func("/basic/lifecycle", test_lifecycle);
     g_test_add_func("/basic/yield", test_yield);
