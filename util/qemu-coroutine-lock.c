@@ -34,6 +34,7 @@
 #include "block/aio.h"
 #include "trace.h"
 
+#if 0
 void qemu_co_queue_init(CoQueue *queue)
 {
     QSIMPLEQ_INIT(&queue->entries);
@@ -465,3 +466,4 @@ void qemu_co_rwlock_upgrade(CoRwlock *lock)
         assert(lock->owners == -1);
     }
 }
+#endif

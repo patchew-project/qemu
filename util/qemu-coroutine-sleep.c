@@ -17,6 +17,7 @@
 #include "qemu/timer.h"
 #include "block/aio.h"
 
+#if 0
 static const char *qemu_co_sleep_ns__scheduled = "qemu_co_sleep_ns";
 
 void qemu_co_sleep_wake(QemuCoSleep *w)
@@ -78,3 +79,4 @@ void coroutine_fn qemu_co_sleep_ns_wakeable(QemuCoSleep *w,
     qemu_co_sleep(w);
     timer_del(&ts);
 }
+#endif

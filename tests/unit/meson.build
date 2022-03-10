@@ -61,7 +61,7 @@ endif
 
 if have_block
   tests += {
-    'test-coroutine': [testblock],
+    'test-coroutine': [],
     'test-aio': [testblock],
     'test-aio-multithread': [testblock],
     'test-throttle': [testblock],
