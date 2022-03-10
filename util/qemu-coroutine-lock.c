@@ -231,6 +231,8 @@ static void coroutine_fn qemu_co_mutex_lock_slowpath(AioContext *ctx,
 
     qemu_coroutine_yield();
     trace_qemu_co_mutex_lock_return(mutex, self);
+    mutex->holder = self;
+    self->locks_held++;
 }
 
 void coroutine_fn qemu_co_mutex_lock(CoMutex *mutex)
@@ -266,11 +268,11 @@ retry_fast_path:
         /* Uncontended.  */
         trace_qemu_co_mutex_lock_uncontended(mutex, self);
         mutex->ctx = ctx;
+        mutex->holder = self;
+        self->locks_held++;
     } else {
         qemu_co_mutex_lock_slowpath(ctx, mutex);
     }
-    mutex->holder = self;
-    self->locks_held++;
 }
 
 void coroutine_fn qemu_co_mutex_unlock(CoMutex *mutex)
