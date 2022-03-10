@@ -36,14 +36,16 @@ static void test_in_coroutine(void)
     qemu_coroutine_enter(coroutine);
 }
 
+#endif
 /*
  * Check that qemu_coroutine_self() works
  */
 
-static void coroutine_fn verify_self(void *opaque)
+static CoroutineAction verify_self(void *opaque)
 {
     Coroutine **p_co = opaque;
     g_assert(qemu_coroutine_self() == *p_co);
+    return COROUTINE_CONTINUE;
 }
 
 static void test_self(void)
@@ -53,6 +55,7 @@ static void test_self(void)
     coroutine = qemu_coroutine_create(verify_self, &coroutine);
     qemu_coroutine_enter(coroutine);
 }
+#if 0
 
 /*
  * Check that qemu_coroutine_entered() works
@@ -681,8 +684,8 @@ int main(int argc, char **argv)
     g_test_add_func("/basic/lifecycle", test_lifecycle);
     g_test_add_func("/basic/yield", test_yield);
     g_test_add_func("/basic/nesting", test_nesting);
-#if 0
     g_test_add_func("/basic/self", test_self);
+#if 0
     g_test_add_func("/basic/entered", test_entered);
     g_test_add_func("/basic/in_coroutine", test_in_coroutine);
     g_test_add_func("/basic/order", test_order);
