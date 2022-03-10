@@ -1548,7 +1548,6 @@ static void pnv_phb4_instance_init(Object *obj)
 static PnvPhb4PecState *pnv_phb4_get_pec(PnvChip *chip, PnvPHB4 *phb,
                                          Error **errp)
 {
-    Pnv9Chip *chip9 = PNV9_CHIP(chip);
     int chip_id = phb->chip_id;
     int index = phb->phb_id;
     int i, j;
@@ -1556,9 +1555,9 @@ static PnvPhb4PecState *pnv_phb4_get_pec(PnvChip *chip, PnvPHB4 *phb,
     for (i = 0; i < chip->num_pecs; i++) {
         /*
          * For each PEC, check the amount of phbs it supports
-         * and see if the given phb4 index matches an index.
+         * and see if the given phb index matches an index.
          */
-        PnvPhb4PecState *pec = &chip9->pecs[i];
+        PnvPhb4PecState *pec = PNV_CHIP_GET_CLASS(chip)->get_pec(chip, i);
 
         for (j = 0; j < pec->num_phbs; j++) {
             if (index == pnv_phb4_pec_get_phb_id(pec, j)) {

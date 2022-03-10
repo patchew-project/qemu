@@ -1561,6 +1561,12 @@ static uint32_t pnv_chip_power9_xscom_pcba(PnvChip *chip, uint64_t addr)
     return addr >> 3;
 }
 
+static PnvPhb4PecState *pnv_chip_power9_get_pec(PnvChip *chip, uint32_t index)
+{
+    Pnv9Chip *chip9 = PNV9_CHIP(chip);
+    return &chip9->pecs[index];
+}
+
 static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1580,6 +1586,7 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     k->xscom_pcba = pnv_chip_power9_xscom_pcba;
     dc->desc = "PowerNV Chip POWER9";
     k->num_pecs = PNV9_CHIP_MAX_PEC;
+    k->get_pec = pnv_chip_power9_get_pec;
 
     device_class_set_parent_realize(dc, pnv_chip_power9_realize,
                                     &k->parent_realize);
@@ -1769,6 +1776,12 @@ static uint32_t pnv_chip_power10_xscom_pcba(PnvChip *chip, uint64_t addr)
     return addr >> 3;
 }
 
+static PnvPhb4PecState *pnv_chip_power10_get_pec(PnvChip *chip, uint32_t index)
+{
+    Pnv10Chip *chip10 = PNV10_CHIP(chip);
+    return &chip10->pecs[index];
+}
+
 static void pnv_chip_power10_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1788,6 +1801,7 @@ static void pnv_chip_power10_class_init(ObjectClass *klass, void *data)
     k->xscom_pcba = pnv_chip_power10_xscom_pcba;
     dc->desc = "PowerNV Chip POWER10";
     k->num_pecs = PNV10_CHIP_MAX_PEC;
+    k->get_pec = pnv_chip_power10_get_pec;
 
     device_class_set_parent_realize(dc, pnv_chip_power10_realize,
                                     &k->parent_realize);
