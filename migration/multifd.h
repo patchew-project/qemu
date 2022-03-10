@@ -119,6 +119,8 @@ typedef struct {
     uint32_t normal_num;
     /* used for compression methods */
     void *data;
+    /* How many bytes have we sent on the last packet */
+    uint64_t sent_bytes;
 }  MultiFDSendParams;
 
 typedef struct {
