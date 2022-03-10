@@ -1220,8 +1220,6 @@ Advanced options (experts only):
   --with-trace-file=NAME   Full PATH,NAME of file to store traces
                            Default:trace-<pid>
   --cpu=CPU                Build for host CPU [$cpu]
-  --with-coroutine=BACKEND coroutine backend. Supported options:
-                           ucontext, sigaltstack, windows
   --enable-gcov            enable test coverage analysis with gcov
   --tls-priority           default TLS protocol/cipher priority string
   --enable-plugins
@@ -1242,7 +1240,7 @@ cat << EOF
   debug-info      debugging information
   lto             Enable Link-Time Optimization.
   safe-stack      SafeStack Stack Smash Protection. Depends on
-                  clang/llvm >= 3.7 and requires coroutine backend ucontext.
+                  clang/llvm >= 3.7
   rdma            Enable RDMA-based migration
   pvrdma          Enable PVRDMA support
   vhost-net       vhost-net kernel acceleration support
@@ -2338,39 +2336,7 @@ EOF
   fi
 fi
 
-if test "$coroutine" = ""; then
-  if test "$mingw32" = "yes"; then
-    coroutine=win32
-  elif test "$ucontext_works" = "yes"; then
-    coroutine=ucontext
-  else
-    coroutine=sigaltstack
-  fi
-else
-  case $coroutine in
-  windows)
-    if test "$mingw32" != "yes"; then
-      error_exit "'windows' coroutine backend only valid for Windows"
-    fi
-    # Unfortunately the user visible backend name doesn't match the
-    # coroutine-*.c filename for this case, so we have to adjust it here.
-    coroutine=win32
-    ;;
-  ucontext)
-    if test "$ucontext_works" != "yes"; then
-      feature_not_found "ucontext"
-    fi
-    ;;
-  sigaltstack)
-    if test "$mingw32" = "yes"; then
-      error_exit "only the 'windows' coroutine backend is valid for Windows"
-    fi
-    ;;
-  *)
-    error_exit "unknown coroutine backend $coroutine"
-    ;;
-  esac
-fi
+coroutine=stackless
 
 ##################################################
 # SafeStack
@@ -2394,9 +2360,6 @@ EOF
     QEMU_LDFLAGS="$QEMU_LDFLAGS $flag"
   else
     error_exit "SafeStack not supported by your compiler"
-  fi
-  if test "$coroutine" != "ucontext"; then
-    error_exit "SafeStack is only supported by the coroutine backend ucontext"
   fi
 else
 cat > $TMPC << EOF
@@ -2427,9 +2390,6 @@ else # "$safe_stack" = ""
     safe_stack="no"
   else
     safe_stack="yes"
-    if test "$coroutine" != "ucontext"; then
-      error_exit "SafeStack is only supported by the coroutine backend ucontext"
-    fi
   fi
 fi
 fi

@@ -16,13 +16,25 @@
 #include "qemu/coroutine.h"
 #include "qemu/thread.h"
 
-typedef void coroutine_fn QemuCoLockUnlockFunc(void *);
+typedef CoroutineAction QemuCoLockUnlockFunc(void *);
 
 struct QemuCoLockable {
     void *object;
     QemuCoLockUnlockFunc *lock;
     QemuCoLockUnlockFunc *unlock;
 };
+
+static inline CoroutineAction qemu_mutex_co_lock(QemuMutex *mutex)
+{
+    qemu_mutex_lock(mutex);
+    return COROUTINE_CONTINUE;
+}
+
+static inline CoroutineAction qemu_mutex_co_unlock(QemuMutex *mutex)
+{
+    qemu_mutex_unlock(mutex);
+    return COROUTINE_CONTINUE;
+}
 
 static inline __attribute__((__always_inline__)) QemuCoLockable *
 qemu_make_co_lockable(void *x, QemuCoLockable *lockable)
@@ -68,7 +80,7 @@ qemu_null_co_lockable(void *x)
 #define QEMU_MAKE_CO_LOCKABLE(x)                                            \
     _Generic((x), QemuCoLockable *: (x),                                    \
              void *: qemu_null_co_lockable(x),                              \
-             QemuMutex *: qemu_make_co_lockable(x, QMCL_OBJ_(x, mutex)),    \
+             QemuMutex *: qemu_make_co_lockable(x, QMCL_OBJ_(x, mutex_co)), \
              CoMutex *: qemu_make_co_lockable(x, QMCL_OBJ_(x, co_mutex)))   \
 
 /**
@@ -82,17 +94,17 @@ qemu_null_co_lockable(void *x)
  */
 #define QEMU_MAKE_CO_LOCKABLE_NONNULL(x)                        \
     _Generic((x), QemuCoLockable *: (x),                        \
-                  QemuMutex *: QMCL_OBJ_(x, mutex),             \
+                  QemuMutex *: QMCL_OBJ_(x, mutex_co),          \
                   CoMutex *: QMCL_OBJ_(x, co_mutex))
 
-static inline void coroutine_fn qemu_co_lockable_lock(QemuCoLockable *x)
+static inline CoroutineAction qemu_co_lockable_lock(QemuCoLockable *x)
 {
-    x->lock(x->object);
+    return x->lock(x->object);
 }
 
-static inline void coroutine_fn qemu_co_lockable_unlock(QemuCoLockable *x)
+static inline CoroutineAction qemu_co_lockable_unlock(QemuCoLockable *x)
 {
-    x->unlock(x->object);
+    return x->unlock(x->object);
 }
 
 #endif

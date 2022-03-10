@@ -18,6 +18,20 @@
 #include "qemu/queue.h"
 #include "qemu/timer.h"
 
+typedef enum {
+    COROUTINE_YIELD = 1,
+    COROUTINE_TERMINATE = 2,
+    COROUTINE_ENTER = 3,
+    COROUTINE_CONTINUE = 4,
+} CoroutineAction;
+
+typedef CoroutineAction CoroutineImpl(void *opaque);
+
+typedef struct {
+    CoroutineImpl *caller_func;
+    void *caller_frame;
+} CoroutineFrame;
+
 /**
  * Coroutines are a mechanism for stack switching and can be used for
  * cooperative userspace threading.  These functions provide a simple but
@@ -56,7 +70,7 @@ typedef struct Coroutine Coroutine;
  * When this function returns, the coroutine is destroyed automatically and
  * execution continues in the caller who last entered the coroutine.
  */
-typedef void coroutine_fn CoroutineEntry(void *opaque);
+typedef CoroutineAction CoroutineEntry(void *opaque);
 
 /**
  * Create a new coroutine
@@ -88,7 +102,7 @@ void qemu_aio_coroutine_enter(AioContext *ctx, Coroutine *co);
  * This function does not return until the coroutine is re-entered using
  * qemu_coroutine_enter().
  */
-void coroutine_fn qemu_coroutine_yield(void);
+CoroutineAction qemu_coroutine_yield(void);
 
 /**
  * Get the AioContext of the given coroutine
@@ -160,13 +174,13 @@ void qemu_co_mutex_init(CoMutex *mutex);
  * Locks the mutex. If the lock cannot be taken immediately, control is
  * transferred to the caller of the current coroutine.
  */
-void coroutine_fn qemu_co_mutex_lock(CoMutex *mutex);
+CoroutineAction qemu_co_mutex_lock(CoMutex *mutex);
 
 /**
  * Unlocks the mutex and schedules the next coroutine that was waiting for this
  * lock to be run.
  */
-void coroutine_fn qemu_co_mutex_unlock(CoMutex *mutex);
+CoroutineAction qemu_co_mutex_unlock(CoMutex *mutex);
 
 /**
  * Assert that the current coroutine holds @mutex.
@@ -206,7 +220,7 @@ void qemu_co_queue_init(CoQueue *queue);
  */
 #define qemu_co_queue_wait(queue, lock) \
     qemu_co_queue_wait_impl(queue, QEMU_MAKE_CO_LOCKABLE(lock))
-void coroutine_fn qemu_co_queue_wait_impl(CoQueue *queue, QemuCoLockable *lock);
+CoroutineAction qemu_co_queue_wait_impl(CoQueue *queue, QemuCoLockable *lock);
 
 /**
  * Removes the next coroutine from the CoQueue, and wake it up.
@@ -262,7 +276,7 @@ void qemu_co_rwlock_init(CoRwlock *lock);
  * of a parallel writer, control is transferred to the caller of the current
  * coroutine.
  */
-void coroutine_fn qemu_co_rwlock_rdlock(CoRwlock *lock);
+CoroutineAction qemu_co_rwlock_rdlock(CoRwlock *lock);
 
 /**
  * Write Locks the CoRwlock from a reader.  This is a bit more efficient than
@@ -271,7 +285,7 @@ void coroutine_fn qemu_co_rwlock_rdlock(CoRwlock *lock);
  * to the caller of the current coroutine; another writer might run while
  * @qemu_co_rwlock_upgrade blocks.
  */
-void coroutine_fn qemu_co_rwlock_upgrade(CoRwlock *lock);
+CoroutineAction qemu_co_rwlock_upgrade(CoRwlock *lock);
 
 /**
  * Downgrades a write-side critical section to a reader.  Downgrading with
@@ -279,20 +293,20 @@ void coroutine_fn qemu_co_rwlock_upgrade(CoRwlock *lock);
  * followed by @qemu_co_rwlock_rdlock.  This makes it more efficient, but
  * may also sometimes be necessary for correctness.
  */
-void coroutine_fn qemu_co_rwlock_downgrade(CoRwlock *lock);
+CoroutineAction qemu_co_rwlock_downgrade(CoRwlock *lock);
 
 /**
  * Write Locks the mutex. If the lock cannot be taken immediately because
  * of a parallel reader, control is transferred to the caller of the current
  * coroutine.
  */
-void coroutine_fn qemu_co_rwlock_wrlock(CoRwlock *lock);
+CoroutineAction qemu_co_rwlock_wrlock(CoRwlock *lock);
 
 /**
  * Unlocks the read/write lock and schedules the next coroutine that was
  * waiting for this lock to be run.
  */
-void coroutine_fn qemu_co_rwlock_unlock(CoRwlock *lock);
+CoroutineAction qemu_co_rwlock_unlock(CoRwlock *lock);
 
 typedef struct QemuCoSleep {
     Coroutine *to_wake;
@@ -303,18 +317,18 @@ typedef struct QemuCoSleep {
  * during this yield, it can be passed to qemu_co_sleep_wake() to
  * terminate the sleep.
  */
-void coroutine_fn qemu_co_sleep_ns_wakeable(QemuCoSleep *w,
+CoroutineAction qemu_co_sleep_ns_wakeable(QemuCoSleep *w,
                                             QEMUClockType type, int64_t ns);
 
 /**
  * Yield the coroutine until the next call to qemu_co_sleep_wake.
  */
-void coroutine_fn qemu_co_sleep(QemuCoSleep *w);
+CoroutineAction qemu_co_sleep(QemuCoSleep *w);
 
-static inline void coroutine_fn qemu_co_sleep_ns(QEMUClockType type, int64_t ns)
+static inline CoroutineAction qemu_co_sleep_ns(QEMUClockType type, int64_t ns)
 {
     QemuCoSleep w = { 0 };
-    qemu_co_sleep_ns_wakeable(&w, type, ns);
+    return qemu_co_sleep_ns_wakeable(&w, type, ns);
 }
 
 /**
@@ -330,7 +344,7 @@ void qemu_co_sleep_wake(QemuCoSleep *w);
  *
  * Note that this function clobbers the handlers for the file descriptor.
  */
-void coroutine_fn yield_until_fd_readable(int fd);
+CoroutineAction yield_until_fd_readable(int fd);
 
 /**
  * Increase coroutine pool size
@@ -342,7 +356,9 @@ void qemu_coroutine_increase_pool_batch_size(unsigned int additional_pool_size);
  */
 void qemu_coroutine_decrease_pool_batch_size(unsigned int additional_pool_size);
 
-#include "qemu/lockable.h"
 #include "qemu/co-lockable.h"
+
+void *coroutine_only_fn stack_alloc(CoroutineImpl *func, size_t bytes);
+CoroutineAction coroutine_only_fn stack_free(CoroutineFrame *f);
 
 #endif /* QEMU_COROUTINE_H */

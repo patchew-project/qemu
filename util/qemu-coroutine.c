@@ -179,22 +179,6 @@ void qemu_coroutine_enter_if_inactive(Coroutine *co)
     }
 }
 
-void coroutine_fn qemu_coroutine_yield(void)
-{
-    Coroutine *self = qemu_coroutine_self();
-    Coroutine *to = self->caller;
-
-    trace_qemu_coroutine_yield(self, to);
-
-    if (!to) {
-        fprintf(stderr, "Co-routine is yielding to no one\n");
-        abort();
-    }
-
-    self->caller = NULL;
-    qemu_coroutine_switch(self, to, COROUTINE_YIELD);
-}
-
 bool qemu_coroutine_entered(Coroutine *co)
 {
     return co->caller;
