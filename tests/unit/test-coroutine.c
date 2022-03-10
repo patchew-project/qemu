@@ -93,6 +93,7 @@ static void test_entered(void)
     g_assert(!qemu_coroutine_entered(coroutine));
     qemu_coroutine_enter(coroutine);
 }
+#endif
 
 /*
  * Check that coroutines may nest multiple levels
@@ -104,7 +105,7 @@ typedef struct {
     unsigned int max;       /* maximum level of nesting */
 } NestData;
 
-static void coroutine_fn nest(void *opaque)
+static CoroutineAction nest(void *opaque)
 {
     NestData *nd = opaque;
 
@@ -118,6 +119,7 @@ static void coroutine_fn nest(void *opaque)
     }
 
     nd->n_return++;
+    return COROUTINE_CONTINUE;
 }
 
 static void test_nesting(void)
@@ -141,7 +143,6 @@ static void test_nesting(void)
  * Check that yield/enter transfer control correctly
  */
 
-#endif
 CO_DECLARE_FRAME(yield_5_times, void *opaque, int i);
 static CoroutineAction co__yield_5_times(void *_frame)
 {
@@ -679,8 +680,8 @@ int main(int argc, char **argv)
 
     g_test_add_func("/basic/lifecycle", test_lifecycle);
     g_test_add_func("/basic/yield", test_yield);
-#if 0
     g_test_add_func("/basic/nesting", test_nesting);
+#if 0
     g_test_add_func("/basic/self", test_self);
     g_test_add_func("/basic/entered", test_entered);
     g_test_add_func("/basic/in_coroutine", test_in_coroutine);
