@@ -53,16 +53,16 @@ static void nios2_cpu_reset(DeviceState *dev)
 
     ncc->parent_reset(dev);
 
-    memset(env->regs, 0, sizeof(env->regs));
     memset(env->ctrl, 0, sizeof(env->ctrl));
-    env->pc = cpu->reset_addr;
-
 #if defined(CONFIG_USER_ONLY)
     /* Start in user mode with interrupts enabled. */
     env->ctrl[CR_STATUS] = CR_STATUS_U | CR_STATUS_PIE;
 #else
     env->ctrl[CR_STATUS] = 0;
 #endif
+
+    env->regs[R_ZERO] = 0;
+    env->pc = cpu->reset_addr;
 }
 
 #ifndef CONFIG_USER_ONLY
