@@ -458,41 +458,117 @@ static void test_co_rwlock_upgrade(void)
     g_assert(c2_done);
 }
 
-#if 0
-static void coroutine_fn rwlock_rdlock_yield(void *opaque)
+CO_DECLARE_FRAME(rwlock_rdlock_yield, bool *done);
+static CoroutineAction co__rwlock_rdlock_yield(void *_frame)
 {
-    qemu_co_rwlock_rdlock(&rwlock);
-    qemu_coroutine_yield();
+    struct FRAME__rwlock_rdlock_yield *_f = _frame;
+    CO_ARG(done);
+switch(_f->_step) {
+case 0:
+_f->_step = 1;
+    return qemu_co_rwlock_rdlock(&rwlock);
+case 1:
+_f->_step = 2;
+    return qemu_coroutine_yield();
 
-    qemu_co_rwlock_unlock(&rwlock);
-    qemu_coroutine_yield();
-
-    *(bool *)opaque = true;
+case 2:
+_f->_step = 3;
+    return qemu_co_rwlock_unlock(&rwlock);
+case 3:
+_f->_step = 4;
+    return qemu_coroutine_yield();
+case 4:
+    *done = true;
+    break;
+}
+return stack_free(&_f->common);
 }
 
-static void coroutine_fn rwlock_wrlock_downgrade(void *opaque)
+static CoroutineAction rwlock_rdlock_yield(void *opaque)
 {
-    qemu_co_rwlock_wrlock(&rwlock);
-
-    qemu_co_rwlock_downgrade(&rwlock);
-    qemu_co_rwlock_unlock(&rwlock);
-    *(bool *)opaque = true;
+    bool *done = opaque;
+    return CO_INIT_FRAME(rwlock_rdlock_yield, done);
 }
 
-static void coroutine_fn rwlock_rdlock(void *opaque)
+CO_DECLARE_FRAME(rwlock_wrlock_downgrade, bool *done);
+static CoroutineAction co__rwlock_wrlock_downgrade(void *_frame)
 {
-    qemu_co_rwlock_rdlock(&rwlock);
+    struct FRAME__rwlock_wrlock_downgrade *_f = _frame;
+    CO_ARG(done);
+switch(_f->_step) {
+case 0:
+_f->_step = 1;
+    return qemu_co_rwlock_wrlock(&rwlock);
 
-    qemu_co_rwlock_unlock(&rwlock);
-    *(bool *)opaque = true;
+case 1:
+_f->_step = 2;
+    return qemu_co_rwlock_downgrade(&rwlock);
+case 2:
+_f->_step = 3;
+    return qemu_co_rwlock_unlock(&rwlock);
+case 3:
+    *done = true;
+    break;
+}
+return stack_free(&_f->common);
 }
 
-static void coroutine_fn rwlock_wrlock(void *opaque)
+static CoroutineAction rwlock_wrlock_downgrade(void *opaque)
 {
-    qemu_co_rwlock_wrlock(&rwlock);
+    bool *done = opaque;
+    return CO_INIT_FRAME(rwlock_wrlock_downgrade, done);
+}
 
-    qemu_co_rwlock_unlock(&rwlock);
-    *(bool *)opaque = true;
+CO_DECLARE_FRAME(rwlock_rdlock, bool *done);
+static CoroutineAction co__rwlock_rdlock(void *_frame)
+{
+    struct FRAME__rwlock_rdlock *_f = _frame;
+    CO_ARG(done);
+switch(_f->_step) {
+case 0:
+_f->_step = 1;
+    return qemu_co_rwlock_rdlock(&rwlock);
+
+case 1:
+_f->_step = 2;
+    return qemu_co_rwlock_unlock(&rwlock);
+case 2:
+    *done = true;
+    break;
+}
+return stack_free(&_f->common);
+}
+
+static CoroutineAction rwlock_rdlock(void *opaque)
+{
+    bool *done = opaque;
+    return CO_INIT_FRAME(rwlock_rdlock, done);
+}
+
+CO_DECLARE_FRAME(rwlock_wrlock, bool *done);
+static CoroutineAction co__rwlock_wrlock(void *_frame)
+{
+    struct FRAME__rwlock_wrlock *_f = _frame;
+    CO_ARG(done);
+switch(_f->_step) {
+case 0:
+_f->_step = 1;
+    return qemu_co_rwlock_wrlock(&rwlock);
+
+case 1:
+_f->_step = 2;
+    return qemu_co_rwlock_unlock(&rwlock);
+case 2:
+    *done = true;
+    break;
+}
+return stack_free(&_f->common);
+}
+
+static CoroutineAction rwlock_wrlock(void *opaque)
+{
+    bool *done = opaque;
+    return CO_INIT_FRAME(rwlock_wrlock, done);
 }
 
 /*
@@ -556,7 +632,6 @@ static void test_co_rwlock_downgrade(void)
 
     g_assert(c1_done);
 }
-#endif
 
 /*
  * Check that creation, enter, and return work
@@ -872,9 +947,7 @@ int main(int argc, char **argv)
     g_test_add_func("/locking/co-mutex", test_co_mutex);
     g_test_add_func("/locking/co-mutex/lockable", test_co_mutex_lockable);
     g_test_add_func("/locking/co-rwlock/upgrade", test_co_rwlock_upgrade);
-#if 0
     g_test_add_func("/locking/co-rwlock/downgrade", test_co_rwlock_downgrade);
-#endif
     if (g_test_perf()) {
         g_test_add_func("/perf/lifecycle", perf_lifecycle);
         g_test_add_func("/perf/lifecycle/noalloc", perf_lifecycle_noalloc);
