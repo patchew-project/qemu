@@ -361,4 +361,45 @@ void qemu_coroutine_decrease_pool_batch_size(unsigned int additional_pool_size);
 void *coroutine_only_fn stack_alloc(CoroutineImpl *func, size_t bytes);
 CoroutineAction coroutine_only_fn stack_free(CoroutineFrame *f);
 
+
+#define CO_DO(MACRO, ...) CO_DO_(MACRO, __VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+#define CO_DO_(MACRO, a0, a1, a2, a3, a4, a5, a6, a7, a8 , a9, n, ...) CO_DO##n(MACRO, a0, a1, a2, a3, a4, a5, a6, a7, a8 , a9)
+#define CO_DO0(MACRO, a0, ...)
+#define CO_DO1(MACRO, a0, ...) MACRO(a0)
+#define CO_DO2(MACRO, a0, ...) MACRO(a0); CO_DO1(MACRO, __VA_ARGS__)
+#define CO_DO3(MACRO, a0, ...) MACRO(a0); CO_DO2(MACRO, __VA_ARGS__)
+#define CO_DO4(MACRO, a0, ...) MACRO(a0); CO_DO3(MACRO, __VA_ARGS__)
+#define CO_DO5(MACRO, a0, ...) MACRO(a0); CO_DO4(MACRO, __VA_ARGS__)
+#define CO_DO6(MACRO, a0, ...) MACRO(a0); CO_DO5(MACRO, __VA_ARGS__)
+#define CO_DO7(MACRO, a0, ...) MACRO(a0); CO_DO6(MACRO, __VA_ARGS__)
+#define CO_DO8(MACRO, a0, ...) MACRO(a0); CO_DO7(MACRO, __VA_ARGS__)
+#define CO_DO9(MACRO, a0, ...) MACRO(a0); CO_DO8(MACRO, __VA_ARGS__)
+
+#define CO_FRAME1(decl) decl
+#define CO_SAVE1(var) _f->var = var
+#define CO_LOAD1(var) var = _f->var
+#define CO_DECLARE1(var) typeof(_f->var) var
+#define CO_ARG1(var) typeof(_f->var) var = _f->var
+
+#define CO_SAVE(...) CO_DO(CO_SAVE1, __VA_ARGS__)
+#define CO_LOAD(...) CO_DO(CO_LOAD1, __VA_ARGS__)
+#define CO_DECLARE(...) CO_DO(CO_DECLARE1, __VA_ARGS__)
+#define CO_ARG(...) CO_DO(CO_ARG1, __VA_ARGS__)
+
+#define CO_DECLARE_FRAME(func, ...) \
+    struct FRAME__##func { \
+        CoroutineFrame common; \
+        uint32_t _step; \
+        CO_DO(CO_FRAME1, __VA_ARGS__); \
+    }
+
+#define CO_INIT_FRAME(func, ...) \
+    co__##func(({ \
+        struct FRAME__##func *_f; \
+        _f = stack_alloc(co__##func, sizeof(*_f)); \
+        __VA_OPT__(CO_SAVE(__VA_ARGS__);) \
+        _f->_step = 0; \
+        _f; \
+    }))
+
 #endif /* QEMU_COROUTINE_H */
