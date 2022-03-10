@@ -59,6 +59,7 @@ static void nios2_cpu_reset(DeviceState *dev)
     env->ctrl[CR_STATUS] = CR_STATUS_RSIE | CR_STATUS_U | CR_STATUS_PIE;
 #else
     env->ctrl[CR_STATUS] = CR_STATUS_RSIE;
+    nios2_update_crs(env);
 #endif
 
     env->regs[R_ZERO] = 0;
