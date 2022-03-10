@@ -686,7 +686,6 @@ static void perf_yield(void)
     g_test_message("Yield %u iterations: %f s", maxcycles, duration);
 }
 
-#if 0
 static __attribute__((noinline)) void dummy(unsigned *i)
 {
     (*i)--;
@@ -709,6 +708,7 @@ static void perf_baseline(void)
     g_test_message("Function call %u iterations: %f s", maxcycles, duration);
 }
 
+#if 0
 static __attribute__((noinline)) void perf_cost_func(void *opaque)
 {
     qemu_coroutine_yield();
@@ -771,8 +771,8 @@ int main(int argc, char **argv)
         g_test_add_func("/perf/lifecycle/noalloc", perf_lifecycle_noalloc);
         g_test_add_func("/perf/nesting", perf_nesting);
         g_test_add_func("/perf/yield", perf_yield);
-#if 0
         g_test_add_func("/perf/function-call", perf_baseline);
+#if 0
         g_test_add_func("/perf/cost", perf_cost);
 #endif
     }
