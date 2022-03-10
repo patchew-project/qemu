@@ -512,27 +512,47 @@ CoroutineAction qemu_co_rwlock_downgrade(CoRwlock *lock)
     return CO_INIT_FRAME(qemu_co_rwlock_downgrade, lock);
 }
 
-#if 0
-void qemu_co_rwlock_wrlock(CoRwlock *lock)
+CO_DECLARE_FRAME(qemu_co_rwlock_wrlock, CoRwlock *lock, Coroutine *self, CoRwTicket my_ticket);
+static CoroutineAction co__qemu_co_rwlock_wrlock(void *_frame)
 {
+    struct FRAME__qemu_co_rwlock_wrlock *_f = _frame;
+    CO_ARG(lock);
     Coroutine *self = qemu_coroutine_self();
 
-    qemu_co_mutex_lock(&lock->mutex);
+switch(_f->_step) {
+case 0:
+_f->_step = 1;
+CO_SAVE(self);
+    return qemu_co_mutex_lock(&lock->mutex);
+case 1:
+CO_LOAD(self);
     if (lock->owners == 0) {
         lock->owners = -1;
         qemu_co_mutex_unlock(&lock->mutex);
     } else {
-        CoRwTicket my_ticket = { false, self };
+        _f->my_ticket = (CoRwTicket){ false, self };
 
-        QSIMPLEQ_INSERT_TAIL(&lock->tickets, &my_ticket, next);
+        QSIMPLEQ_INSERT_TAIL(&lock->tickets, &_f->my_ticket, next);
         qemu_co_mutex_unlock(&lock->mutex);
-        qemu_coroutine_yield();
+_f->_step = 2;
+        return qemu_coroutine_yield();
+case 2:
+CO_LOAD(self);
         assert(lock->owners == -1);
     }
-
-    self->locks_held++;
+    break;
 }
 
+    self->locks_held++;
+return stack_free(&_f->common);
+}
+
+CoroutineAction qemu_co_rwlock_wrlock(CoRwlock *lock)
+{
+    return CO_INIT_FRAME(qemu_co_rwlock_wrlock, lock);
+}
+
+#if 0
 void qemu_co_rwlock_upgrade(CoRwlock *lock)
 {
     qemu_co_mutex_lock(&lock->mutex);
