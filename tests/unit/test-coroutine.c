@@ -213,13 +213,13 @@ static void coroutine_fn mutex_fn(void *opaque)
 
 static void coroutine_fn lockable_fn(void *opaque)
 {
-    QemuLockable *x = opaque;
-    qemu_lockable_lock(x);
+    QemuCoLockable *x = opaque;
+    qemu_co_lockable_lock(x);
     assert(!locked);
     locked = true;
     qemu_coroutine_yield();
     locked = false;
-    qemu_lockable_unlock(x);
+    qemu_co_lockable_unlock(x);
     done++;
 }
 
@@ -259,9 +259,9 @@ static void test_co_mutex_lockable(void)
     CoMutex *null_pointer = NULL;
 
     qemu_co_mutex_init(&m);
-    do_test_co_mutex(lockable_fn, QEMU_MAKE_LOCKABLE(&m));
+    do_test_co_mutex(lockable_fn, QEMU_MAKE_CO_LOCKABLE(&m));
 
-    g_assert(QEMU_MAKE_LOCKABLE(null_pointer) == NULL);
+    g_assert(QEMU_MAKE_CO_LOCKABLE(null_pointer) == NULL);
 }
 
 static CoRwlock rwlock;

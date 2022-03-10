@@ -204,8 +204,8 @@ void qemu_co_queue_init(CoQueue *queue);
  * locked again afterwards.
  */
 #define qemu_co_queue_wait(queue, lock) \
-    qemu_co_queue_wait_impl(queue, QEMU_MAKE_LOCKABLE(lock))
-void coroutine_fn qemu_co_queue_wait_impl(CoQueue *queue, QemuLockable *lock);
+    qemu_co_queue_wait_impl(queue, QEMU_MAKE_CO_LOCKABLE(lock))
+void coroutine_fn qemu_co_queue_wait_impl(CoQueue *queue, QemuCoLockable *lock);
 
 /**
  * Removes the next coroutine from the CoQueue, and wake it up.
@@ -342,5 +342,6 @@ void qemu_coroutine_increase_pool_batch_size(unsigned int additional_pool_size);
 void qemu_coroutine_decrease_pool_batch_size(unsigned int additional_pool_size);
 
 #include "qemu/lockable.h"
+#include "qemu/co-lockable.h"
 
 #endif /* QEMU_COROUTINE_H */

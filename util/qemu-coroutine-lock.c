@@ -39,13 +39,13 @@ void qemu_co_queue_init(CoQueue *queue)
     QSIMPLEQ_INIT(&queue->entries);
 }
 
-void coroutine_fn qemu_co_queue_wait_impl(CoQueue *queue, QemuLockable *lock)
+void coroutine_fn qemu_co_queue_wait_impl(CoQueue *queue, QemuCoLockable *lock)
 {
     Coroutine *self = qemu_coroutine_self();
     QSIMPLEQ_INSERT_TAIL(&queue->entries, self, co_queue_next);
 
     if (lock) {
-        qemu_lockable_unlock(lock);
+        qemu_co_lockable_unlock(lock);
     }
 
     /* There is no race condition here.  Other threads will call
@@ -63,7 +63,7 @@ void coroutine_fn qemu_co_queue_wait_impl(CoQueue *queue, QemuLockable *lock)
      * other cases of QemuLockable.
      */
     if (lock) {
-        qemu_lockable_lock(lock);
+        qemu_co_lockable_lock(lock);
     }
 }
 
