@@ -708,10 +708,25 @@ static void perf_baseline(void)
     g_test_message("Function call %u iterations: %f s", maxcycles, duration);
 }
 
-#if 0
-static __attribute__((noinline)) void perf_cost_func(void *opaque)
+CO_DECLARE_FRAME(perf_cost_func);
+static CoroutineAction co__perf_cost_func(void *_frame)
 {
-    qemu_coroutine_yield();
+    struct FRAME__verify_entered_step_2 *_f = _frame;
+
+switch(_f->_step)
+{
+case 0:
+    _f->_step = 1;
+    return qemu_coroutine_yield();
+case 1:
+    break;
+}
+return stack_free(&_f->common);
+}
+
+static CoroutineAction perf_cost_func(void *opaque)
+{
+    return CO_INIT_FRAME(perf_cost_func);
 }
 
 static void perf_cost(void)
@@ -737,7 +752,6 @@ static void perf_cost(void)
                    duration, ops,
                    (unsigned long)(1000000000.0 * duration / maxcycles));
 }
-#endif
 
 int main(int argc, char **argv)
 {
@@ -772,9 +786,7 @@ int main(int argc, char **argv)
         g_test_add_func("/perf/nesting", perf_nesting);
         g_test_add_func("/perf/yield", perf_yield);
         g_test_add_func("/perf/function-call", perf_baseline);
-#if 0
         g_test_add_func("/perf/cost", perf_cost);
-#endif
     }
     return g_test_run();
 }
