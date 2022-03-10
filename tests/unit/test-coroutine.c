@@ -283,19 +283,36 @@ static CoroutineAction mutex_fn(void *opaque)
     return CO_INIT_FRAME(mutex_fn, m);
 }
 
-#if 0
-static void coroutine_fn lockable_fn(void *opaque)
+CO_DECLARE_FRAME(lockable_fn, QemuCoLockable *x);
+static CoroutineAction co__lockable_fn(void *_frame)
 {
-    QemuCoLockable *x = opaque;
-    qemu_co_lockable_lock(x);
+    struct FRAME__lockable_fn *_f = _frame;
+    CO_ARG(x);
+switch(_f->_step) {
+case 0:
+_f->_step = 1;
+    return qemu_co_lockable_lock(x);
+case 1:
     assert(!locked);
     locked = true;
-    qemu_coroutine_yield();
+_f->_step = 2;
+    return qemu_coroutine_yield();
+case 2:
     locked = false;
-    qemu_co_lockable_unlock(x);
+_f->_step = 3;
+    return qemu_co_lockable_unlock(x);
+case 3:
     done++;
+    break;
 }
-#endif
+return stack_free(&_f->common);
+}
+
+static CoroutineAction lockable_fn(void *opaque)
+{
+    QemuCoLockable *x = opaque;
+    return CO_INIT_FRAME(lockable_fn, x);
+}
 
 static void do_test_co_mutex(CoroutineEntry *entry, void *opaque)
 {
@@ -327,7 +344,6 @@ static void test_co_mutex(void)
     do_test_co_mutex(mutex_fn, &m);
 }
 
-#if 0
 static void test_co_mutex_lockable(void)
 {
     CoMutex m;
@@ -339,6 +355,7 @@ static void test_co_mutex_lockable(void)
     g_assert(QEMU_MAKE_CO_LOCKABLE(null_pointer) == NULL);
 }
 
+#if 0
 static CoRwlock rwlock;
 
 /* Test that readers are properly sent back to the queue when upgrading,
@@ -811,8 +828,8 @@ int main(int argc, char **argv)
     g_test_add_func("/basic/in_coroutine", test_in_coroutine);
     g_test_add_func("/basic/order", test_order);
     g_test_add_func("/locking/co-mutex", test_co_mutex);
-#if 0
     g_test_add_func("/locking/co-mutex/lockable", test_co_mutex_lockable);
+#if 0
     g_test_add_func("/locking/co-rwlock/upgrade", test_co_rwlock_upgrade);
     g_test_add_func("/locking/co-rwlock/downgrade", test_co_rwlock_downgrade);
 #endif
