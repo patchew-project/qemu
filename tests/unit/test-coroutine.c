@@ -614,7 +614,6 @@ static void perf_lifecycle_noalloc(void)
     g_test_message("Lifecycle %u iterations: %f s", max, duration);
 }
 
-#if 0
 static void perf_nesting(void)
 {
     unsigned int i, maxcycles, maxnesting;
@@ -640,6 +639,7 @@ static void perf_nesting(void)
         maxcycles, maxnesting, duration);
 }
 
+#if 0
 /*
  * Yield benchmark
  */
@@ -754,8 +754,8 @@ int main(int argc, char **argv)
     if (g_test_perf()) {
         g_test_add_func("/perf/lifecycle", perf_lifecycle);
         g_test_add_func("/perf/lifecycle/noalloc", perf_lifecycle_noalloc);
-#if 0
         g_test_add_func("/perf/nesting", perf_nesting);
+#if 0
         g_test_add_func("/perf/yield", perf_yield);
         g_test_add_func("/perf/function-call", perf_baseline);
         g_test_add_func("/perf/cost", perf_cost);
