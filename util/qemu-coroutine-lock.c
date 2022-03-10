@@ -436,7 +436,7 @@ void qemu_co_rwlock_wrlock(CoRwlock *lock)
         lock->owners = -1;
         qemu_co_mutex_unlock(&lock->mutex);
     } else {
-        CoRwTicket my_ticket = { false, qemu_coroutine_self() };
+        CoRwTicket my_ticket = { false, self };
 
         QSIMPLEQ_INSERT_TAIL(&lock->tickets, &my_ticket, next);
         qemu_co_mutex_unlock(&lock->mutex);
