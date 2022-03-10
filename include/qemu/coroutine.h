@@ -43,6 +43,7 @@
  *   }
  */
 #define coroutine_fn
+#define coroutine_only_fn
 
 typedef struct Coroutine Coroutine;
 
@@ -97,7 +98,7 @@ AioContext *qemu_coroutine_get_aio_context(Coroutine *co);
 /**
  * Get the currently executing coroutine
  */
-Coroutine *coroutine_fn qemu_coroutine_self(void);
+Coroutine *coroutine_only_fn qemu_coroutine_self(void);
 
 /**
  * Return whether or not currently inside a coroutine
@@ -170,7 +171,7 @@ void coroutine_fn qemu_co_mutex_unlock(CoMutex *mutex);
 /**
  * Assert that the current coroutine holds @mutex.
  */
-static inline coroutine_fn void qemu_co_mutex_assert_locked(CoMutex *mutex)
+static inline void coroutine_only_fn qemu_co_mutex_assert_locked(CoMutex *mutex)
 {
     /*
      * mutex->holder doesn't need any synchronisation if the assertion holds
