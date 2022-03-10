@@ -352,7 +352,6 @@ CoroutineAction qemu_co_mutex_unlock(CoMutex *mutex)
     return COROUTINE_CONTINUE;
 }
 
-#if 0
 struct CoRwTicket {
     bool read;
     Coroutine *co;
@@ -367,7 +366,7 @@ void qemu_co_rwlock_init(CoRwlock *lock)
 }
 
 /* Releases the internal CoMutex.  */
-static void qemu_co_rwlock_maybe_wake_one(CoRwlock *lock)
+static CoroutineAction qemu_co_rwlock_maybe_wake_one(CoRwlock *lock)
 {
     CoRwTicket *tkt = QSIMPLEQ_FIRST(&lock->tickets);
     Coroutine *co = NULL;
@@ -393,13 +392,17 @@ static void qemu_co_rwlock_maybe_wake_one(CoRwlock *lock)
 
     if (co) {
         QSIMPLEQ_REMOVE_HEAD(&lock->tickets, next);
-        qemu_co_mutex_unlock(&lock->mutex);
+        int action = qemu_co_mutex_unlock(&lock->mutex);
+        assert(action == COROUTINE_CONTINUE);
         aio_co_wake(co);
     } else {
-        qemu_co_mutex_unlock(&lock->mutex);
+        int action = qemu_co_mutex_unlock(&lock->mutex);
+        assert(action == COROUTINE_CONTINUE);
     }
+    return COROUTINE_CONTINUE;
 }
 
+#if 0
 void qemu_co_rwlock_rdlock(CoRwlock *lock)
 {
     Coroutine *self = qemu_coroutine_self();
