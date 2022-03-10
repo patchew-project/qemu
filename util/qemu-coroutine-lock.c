@@ -552,23 +552,39 @@ CoroutineAction qemu_co_rwlock_wrlock(CoRwlock *lock)
     return CO_INIT_FRAME(qemu_co_rwlock_wrlock, lock);
 }
 
-#if 0
-void qemu_co_rwlock_upgrade(CoRwlock *lock)
+CO_DECLARE_FRAME(qemu_co_rwlock_upgrade, CoRwlock *lock, CoRwTicket my_ticket);
+static CoroutineAction co__qemu_co_rwlock_upgrade(void *_frame)
 {
-    qemu_co_mutex_lock(&lock->mutex);
+    struct FRAME__qemu_co_rwlock_upgrade *_f = _frame;
+    CO_ARG(lock);
+
+switch(_f->_step) {
+case 0:
+_f->_step = 1;
+    return qemu_co_mutex_lock(&lock->mutex);
+case 1:
     assert(lock->owners > 0);
     /* For fairness, wait if a writer is in line.  */
     if (lock->owners == 1 && QSIMPLEQ_EMPTY(&lock->tickets)) {
         lock->owners = -1;
         qemu_co_mutex_unlock(&lock->mutex);
     } else {
-        CoRwTicket my_ticket = { false, qemu_coroutine_self() };
+        _f->my_ticket = (CoRwTicket){ false, qemu_coroutine_self() };
 
         lock->owners--;
-        QSIMPLEQ_INSERT_TAIL(&lock->tickets, &my_ticket, next);
+        QSIMPLEQ_INSERT_TAIL(&lock->tickets, &_f->my_ticket, next);
         qemu_co_rwlock_maybe_wake_one(lock);
-        qemu_coroutine_yield();
+_f->_step = 2;
+        return qemu_coroutine_yield();
+case 2:
         assert(lock->owners == -1);
     }
+    break;
 }
-#endif
+return stack_free(&_f->common);
+}
+
+CoroutineAction qemu_co_rwlock_upgrade(CoRwlock *lock)
+{
+    return CO_INIT_FRAME(qemu_co_rwlock_upgrade, lock);
+}
