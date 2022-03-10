@@ -402,32 +402,54 @@ static CoroutineAction qemu_co_rwlock_maybe_wake_one(CoRwlock *lock)
     return COROUTINE_CONTINUE;
 }
 
-#if 0
-void qemu_co_rwlock_rdlock(CoRwlock *lock)
+CO_DECLARE_FRAME(qemu_co_rwlock_rdlock, CoRwlock *lock, Coroutine *self, CoRwTicket my_ticket);
+static CoroutineAction co__qemu_co_rwlock_rdlock(void *_frame)
 {
+    struct FRAME__qemu_co_rwlock_rdlock *_f = _frame;
+    CO_ARG(lock);
     Coroutine *self = qemu_coroutine_self();
 
-    qemu_co_mutex_lock(&lock->mutex);
+switch(_f->_step) {
+case 0:
+_f->_step = 1;
+CO_SAVE(self);
+    return qemu_co_mutex_lock(&lock->mutex);
+case 1:
+CO_LOAD(self);
     /* For fairness, wait if a writer is in line.  */
     if (lock->owners == 0 || (lock->owners > 0 && QSIMPLEQ_EMPTY(&lock->tickets))) {
         lock->owners++;
         qemu_co_mutex_unlock(&lock->mutex);
     } else {
-        CoRwTicket my_ticket = { true, self };
+        _f->my_ticket = (CoRwTicket){ true, self };
 
-        QSIMPLEQ_INSERT_TAIL(&lock->tickets, &my_ticket, next);
+        QSIMPLEQ_INSERT_TAIL(&lock->tickets, &_f->my_ticket, next);
         qemu_co_mutex_unlock(&lock->mutex);
-        qemu_coroutine_yield();
+
+_f->_step = 2;
+        return qemu_coroutine_yield();
+case 2:
         assert(lock->owners >= 1);
 
         /* Possibly wake another reader, which will wake the next in line.  */
-        qemu_co_mutex_lock(&lock->mutex);
+_f->_step = 3;
+        return qemu_co_mutex_lock(&lock->mutex);
+case 3:
+CO_LOAD(self);
         qemu_co_rwlock_maybe_wake_one(lock);
     }
-
-    self->locks_held++;
 }
 
+    self->locks_held++;
+return stack_free(&_f->common);
+}
+
+CoroutineAction qemu_co_rwlock_rdlock(CoRwlock *lock)
+{
+    return CO_INIT_FRAME(qemu_co_rwlock_rdlock, lock);
+}
+
+#if 0
 void qemu_co_rwlock_unlock(CoRwlock *lock)
 {
     Coroutine *self = qemu_coroutine_self();
