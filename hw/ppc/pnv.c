@@ -1600,9 +1600,7 @@ static void pnv_chip_power10_instance_init(Object *obj)
     object_initialize_child(obj, "occ",  &chip10->occ, TYPE_PNV10_OCC);
     object_initialize_child(obj, "homer", &chip10->homer, TYPE_PNV10_HOMER);
 
-    if (defaults_enabled()) {
-        chip->num_pecs = pcc->num_pecs;
-    }
+    chip->num_pecs = pcc->num_pecs;
 
     for (i = 0; i < chip->num_pecs; i++) {
         object_initialize_child(obj, "pec[*]", &chip10->pecs[i],
@@ -2171,6 +2169,8 @@ static void pnv_machine_power10_class_init(ObjectClass *oc, void *data)
     pmc->dt_power_mgt = pnv_dt_power_mgt;
 
     xfc->match_nvt = pnv10_xive_match_nvt;
+
+    machine_class_allow_dynamic_sysbus_dev(mc, TYPE_PNV_PHB5);
 }
 
 static bool pnv_machine_get_hb(Object *obj, Error **errp)
