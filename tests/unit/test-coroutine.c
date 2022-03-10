@@ -423,16 +423,18 @@ static void test_co_rwlock_downgrade(void)
 
     g_assert(c1_done);
 }
+#endif
 
 /*
  * Check that creation, enter, and return work
  */
 
-static void coroutine_fn set_and_exit(void *opaque)
+static CoroutineAction set_and_exit(void *opaque)
 {
     bool *done = opaque;
 
     *done = true;
+    return COROUTINE_CONTINUE;
 }
 
 static void test_lifecycle(void)
@@ -452,6 +454,7 @@ static void test_lifecycle(void)
     g_assert(done); /* expect done to be true (second time) */
 }
 
+#if 0
 
 #define RECORD_SIZE 10 /* Leave some room for expansion */
 struct coroutine_position {
@@ -655,8 +658,8 @@ int main(int argc, char **argv)
     }
 #endif
 
-#if 0
     g_test_add_func("/basic/lifecycle", test_lifecycle);
+#if 0
     g_test_add_func("/basic/yield", test_yield);
     g_test_add_func("/basic/nesting", test_nesting);
     g_test_add_func("/basic/self", test_self);
