@@ -55,26 +55,40 @@ static void test_self(void)
     coroutine = qemu_coroutine_create(verify_self, &coroutine);
     qemu_coroutine_enter(coroutine);
 }
-#if 0
 
 /*
  * Check that qemu_coroutine_entered() works
  */
 
-static void coroutine_fn verify_entered_step_2(void *opaque)
+CO_DECLARE_FRAME(verify_entered_step_2, Coroutine *caller);
+static CoroutineAction co__verify_entered_step_2(void *_frame)
 {
-    Coroutine *caller = (Coroutine *)opaque;
+    struct FRAME__verify_entered_step_2 *_f = _frame;
+    CO_ARG(caller);
 
+switch(_f->_step)
+{
+case 0:
     g_assert(qemu_coroutine_entered(caller));
     g_assert(qemu_coroutine_entered(qemu_coroutine_self()));
-    qemu_coroutine_yield();
-
+    _f->_step = 1;
+    return qemu_coroutine_yield();
+case 1:
     /* Once more to check it still works after yielding */
     g_assert(qemu_coroutine_entered(caller));
     g_assert(qemu_coroutine_entered(qemu_coroutine_self()));
+    break;
+}
+return stack_free(&_f->common);
 }
 
-static void coroutine_fn verify_entered_step_1(void *opaque)
+static CoroutineAction verify_entered_step_2(void *opaque)
+{
+    Coroutine *caller = (Coroutine *)opaque;
+    return CO_INIT_FRAME(verify_entered_step_2, caller);
+}
+
+static CoroutineAction verify_entered_step_1(void *opaque)
 {
     Coroutine *self = qemu_coroutine_self();
     Coroutine *coroutine;
@@ -86,6 +100,7 @@ static void coroutine_fn verify_entered_step_1(void *opaque)
     qemu_coroutine_enter(coroutine);
     g_assert(!qemu_coroutine_entered(coroutine));
     qemu_coroutine_enter(coroutine);
+    return COROUTINE_CONTINUE;
 }
 
 static void test_entered(void)
@@ -96,7 +111,6 @@ static void test_entered(void)
     g_assert(!qemu_coroutine_entered(coroutine));
     qemu_coroutine_enter(coroutine);
 }
-#endif
 
 /*
  * Check that coroutines may nest multiple levels
@@ -685,8 +699,8 @@ int main(int argc, char **argv)
     g_test_add_func("/basic/yield", test_yield);
     g_test_add_func("/basic/nesting", test_nesting);
     g_test_add_func("/basic/self", test_self);
-#if 0
     g_test_add_func("/basic/entered", test_entered);
+#if 0
     g_test_add_func("/basic/in_coroutine", test_in_coroutine);
     g_test_add_func("/basic/order", test_order);
     g_test_add_func("/locking/co-mutex", test_co_mutex);
