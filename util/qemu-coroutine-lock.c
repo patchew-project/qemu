@@ -449,15 +449,21 @@ CoroutineAction qemu_co_rwlock_rdlock(CoRwlock *lock)
     return CO_INIT_FRAME(qemu_co_rwlock_rdlock, lock);
 }
 
-#if 0
-void qemu_co_rwlock_unlock(CoRwlock *lock)
+CO_DECLARE_FRAME(qemu_co_rwlock_unlock, CoRwlock *lock);
+static CoroutineAction co__qemu_co_rwlock_unlock(void *_frame)
 {
+    struct FRAME__qemu_co_rwlock_unlock *_f = _frame;
+    CO_ARG(lock);
     Coroutine *self = qemu_coroutine_self();
 
+switch(_f->_step) {
+case 0:
+_f->_step = 1;
     assert(qemu_in_coroutine());
     self->locks_held--;
 
-    qemu_co_mutex_lock(&lock->mutex);
+    return qemu_co_mutex_lock(&lock->mutex);
+case 1:
     if (lock->owners > 0) {
         lock->owners--;
     } else {
@@ -465,9 +471,20 @@ void qemu_co_rwlock_unlock(CoRwlock *lock)
         lock->owners = 0;
     }
 
-    qemu_co_rwlock_maybe_wake_one(lock);
+_f->_step = 2;
+    return qemu_co_rwlock_maybe_wake_one(lock);
+case 2:
+    break;
+}
+return stack_free(&_f->common);
 }
 
+CoroutineAction qemu_co_rwlock_unlock(CoRwlock *lock)
+{
+    return CO_INIT_FRAME(qemu_co_rwlock_unlock, lock);
+}
+
+#if 0
 void qemu_co_rwlock_downgrade(CoRwlock *lock)
 {
     qemu_co_mutex_lock(&lock->mutex);
