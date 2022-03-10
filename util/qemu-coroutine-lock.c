@@ -120,6 +120,7 @@ bool qemu_co_queue_empty(CoQueue *queue)
 {
     return QSIMPLEQ_FIRST(&queue->entries) == NULL;
 }
+#endif
 
 /* The wait records are handled with a multiple-producer, single-consumer
  * lock-free queue.  There cannot be two concurrent pop_waiter() calls
@@ -197,15 +198,28 @@ static void coroutine_fn qemu_co_mutex_wake(CoMutex *mutex, Coroutine *co)
     aio_co_wake(co);
 }
 
-static void coroutine_fn qemu_co_mutex_lock_slowpath(AioContext *ctx,
-                                                     CoMutex *mutex)
-{
-    Coroutine *self = qemu_coroutine_self();
+struct FRAME__qemu_co_mutex_lock_slowpath {
+    CoroutineFrame common;
+    uint32_t _step;
+    AioContext *ctx;
+    CoMutex *mutex;
+    Coroutine *self;
     CoWaitRecord w;
+};
+
+static CoroutineAction co__qemu_co_mutex_lock_slowpath(void *_frame)
+{
+    struct FRAME__qemu_co_mutex_lock_slowpath *_f = _frame;
+    AioContext *ctx = _f->ctx;
+    CoMutex *mutex = _f->mutex;
+    Coroutine *self;
     unsigned old_handoff;
 
+switch(_f->_step) {
+case 0: {
+    self = qemu_coroutine_self();
     trace_qemu_co_mutex_lock_entry(mutex, self);
-    push_waiter(mutex, &w);
+    push_waiter(mutex, &_f->w);
 
     /* This is the "Responsibility Hand-Off" protocol; a lock() picks from
      * a concurrent unlock() the responsibility of waking somebody up.
@@ -221,21 +235,40 @@ static void coroutine_fn qemu_co_mutex_lock_slowpath(AioContext *ctx,
         Coroutine *co = to_wake->co;
         if (co == self) {
             /* We got the lock ourselves!  */
-            assert(to_wake == &w);
+            assert(to_wake == &_f->w);
             mutex->ctx = ctx;
-            return;
+            goto _out;
         }
 
         qemu_co_mutex_wake(mutex, co);
     }
 
-    qemu_coroutine_yield();
+_f->_step = 1;
+_f->self = self;
+    return qemu_coroutine_yield();
+}
+case 1:
+self = _f->self;
     trace_qemu_co_mutex_lock_return(mutex, self);
     mutex->holder = self;
     self->locks_held++;
+    goto _out;
+}
+_out:
+return stack_free(&_f->common);
 }
 
-void coroutine_fn qemu_co_mutex_lock(CoMutex *mutex)
+static CoroutineAction qemu_co_mutex_lock_slowpath(AioContext *ctx, CoMutex *mutex)
+{
+    struct FRAME__qemu_co_mutex_lock_slowpath *f;
+    f = stack_alloc(co__qemu_co_mutex_lock_slowpath, sizeof(*f));
+    f->ctx = ctx;
+    f->mutex = mutex;
+    f->_step = 0;
+    return co__qemu_co_mutex_lock_slowpath(f);
+}
+
+CoroutineAction qemu_co_mutex_lock(CoMutex *mutex)
 {
     AioContext *ctx = qemu_get_current_aio_context();
     Coroutine *self = qemu_coroutine_self();
@@ -270,12 +303,13 @@ retry_fast_path:
         mutex->ctx = ctx;
         mutex->holder = self;
         self->locks_held++;
+        return COROUTINE_CONTINUE;
     } else {
-        qemu_co_mutex_lock_slowpath(ctx, mutex);
+        return qemu_co_mutex_lock_slowpath(ctx, mutex);
     }
 }
 
-void coroutine_fn qemu_co_mutex_unlock(CoMutex *mutex)
+CoroutineAction qemu_co_mutex_unlock(CoMutex *mutex)
 {
     Coroutine *self = qemu_coroutine_self();
 
@@ -290,7 +324,7 @@ void coroutine_fn qemu_co_mutex_unlock(CoMutex *mutex)
     self->locks_held--;
     if (qatomic_fetch_dec(&mutex->locked) == 1) {
         /* No waiting qemu_co_mutex_lock().  Pfew, that was easy!  */
-        return;
+        return COROUTINE_CONTINUE;
     }
 
     for (;;) {
@@ -328,8 +362,10 @@ void coroutine_fn qemu_co_mutex_unlock(CoMutex *mutex)
     }
 
     trace_qemu_co_mutex_unlock_return(mutex, self);
+    return COROUTINE_CONTINUE;
 }
 
+#if 0
 struct CoRwTicket {
     bool read;
     Coroutine *co;
