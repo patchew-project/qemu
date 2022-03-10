@@ -16,14 +16,14 @@
 #include "qemu/coroutine_int.h"
 #include "qemu/lockable.h"
 
-#if 0
 /*
  * Check that qemu_in_coroutine() works
  */
 
-static void coroutine_fn verify_in_coroutine(void *opaque)
+static CoroutineAction verify_in_coroutine(void *opaque)
 {
     g_assert(qemu_in_coroutine());
+    return COROUTINE_CONTINUE;
 }
 
 static void test_in_coroutine(void)
@@ -36,7 +36,6 @@ static void test_in_coroutine(void)
     qemu_coroutine_enter(coroutine);
 }
 
-#endif
 /*
  * Check that qemu_coroutine_self() works
  */
@@ -700,8 +699,8 @@ int main(int argc, char **argv)
     g_test_add_func("/basic/nesting", test_nesting);
     g_test_add_func("/basic/self", test_self);
     g_test_add_func("/basic/entered", test_entered);
-#if 0
     g_test_add_func("/basic/in_coroutine", test_in_coroutine);
+#if 0
     g_test_add_func("/basic/order", test_order);
     g_test_add_func("/locking/co-mutex", test_co_mutex);
     g_test_add_func("/locking/co-mutex/lockable", test_co_mutex_lockable);
