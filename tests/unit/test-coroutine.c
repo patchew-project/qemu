@@ -249,22 +249,41 @@ static void test_no_dangling_access(void)
     *c1 = tmp;
 }
 
-#if 0
 static bool locked;
 static int done;
 
-static void coroutine_fn mutex_fn(void *opaque)
+CO_DECLARE_FRAME(mutex_fn, CoMutex *m);
+static CoroutineAction co__mutex_fn(void *_frame)
 {
-    CoMutex *m = opaque;
-    qemu_co_mutex_lock(m);
+    struct FRAME__mutex_fn *_f = _frame;
+    CO_ARG(m);
+switch(_f->_step) {
+case 0:
+_f->_step = 1;
+    return qemu_co_mutex_lock(m);
+case 1:
     assert(!locked);
     locked = true;
-    qemu_coroutine_yield();
+_f->_step = 2;
+    return qemu_coroutine_yield();
+case 2:
     locked = false;
-    qemu_co_mutex_unlock(m);
+_f->_step = 3;
+    return qemu_co_mutex_unlock(m);
+case 3:
     done++;
+    break;
+}
+return stack_free(&_f->common);
 }
 
+static CoroutineAction mutex_fn(void *opaque)
+{
+    CoMutex *m = opaque;
+    return CO_INIT_FRAME(mutex_fn, m);
+}
+
+#if 0
 static void coroutine_fn lockable_fn(void *opaque)
 {
     QemuCoLockable *x = opaque;
@@ -276,6 +295,7 @@ static void coroutine_fn lockable_fn(void *opaque)
     qemu_co_lockable_unlock(x);
     done++;
 }
+#endif
 
 static void do_test_co_mutex(CoroutineEntry *entry, void *opaque)
 {
@@ -307,6 +327,7 @@ static void test_co_mutex(void)
     do_test_co_mutex(mutex_fn, &m);
 }
 
+#if 0
 static void test_co_mutex_lockable(void)
 {
     CoMutex m;
@@ -789,8 +810,8 @@ int main(int argc, char **argv)
     g_test_add_func("/basic/entered", test_entered);
     g_test_add_func("/basic/in_coroutine", test_in_coroutine);
     g_test_add_func("/basic/order", test_order);
-#if 0
     g_test_add_func("/locking/co-mutex", test_co_mutex);
+#if 0
     g_test_add_func("/locking/co-mutex/lockable", test_co_mutex_lockable);
     g_test_add_func("/locking/co-rwlock/upgrade", test_co_rwlock_upgrade);
     g_test_add_func("/locking/co-rwlock/downgrade", test_co_rwlock_downgrade);
