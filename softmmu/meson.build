@@ -1,5 +1,6 @@
 specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: [files(
   'arch_init.c',
+  'cpus_list.c',
   'ioport.c',
   'memory.c',
   'physmem.c',
