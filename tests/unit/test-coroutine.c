@@ -141,15 +141,33 @@ static void test_nesting(void)
  * Check that yield/enter transfer control correctly
  */
 
-static void coroutine_fn yield_5_times(void *opaque)
+#endif
+CO_DECLARE_FRAME(yield_5_times, void *opaque, int i);
+static CoroutineAction co__yield_5_times(void *_frame)
 {
+    struct FRAME__yield_5_times *_f = _frame;
+    CO_ARG(opaque);
     bool *done = opaque;
-    int i;
+    CO_DECLARE(i);
 
+switch(_f->_step) {
+case 0:
     for (i = 0; i < 5; i++) {
-        qemu_coroutine_yield();
+CO_SAVE(i);
+_f->_step = 1;
+        return qemu_coroutine_yield();
+case 1:
+CO_LOAD(i);
     }
     *done = true;
+    break;
+}
+return stack_free(&_f->common);
+}
+
+static CoroutineAction yield_5_times(void *opaque)
+{
+    return CO_INIT_FRAME(yield_5_times, opaque);
 }
 
 static void test_yield(void)
@@ -166,6 +184,7 @@ static void test_yield(void)
     g_assert_cmpint(i, ==, 5); /* coroutine must yield 5 times */
 }
 
+#if 0
 static void coroutine_fn c2_fn(void *opaque)
 {
     qemu_coroutine_yield();
@@ -659,8 +678,8 @@ int main(int argc, char **argv)
 #endif
 
     g_test_add_func("/basic/lifecycle", test_lifecycle);
-#if 0
     g_test_add_func("/basic/yield", test_yield);
+#if 0
     g_test_add_func("/basic/nesting", test_nesting);
     g_test_add_func("/basic/self", test_self);
     g_test_add_func("/basic/entered", test_entered);
