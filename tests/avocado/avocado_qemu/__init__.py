@@ -602,9 +602,8 @@ class LinuxTest(LinuxSSHMixIn, QemuSystemTest):
         self.log.info('Preparing cloudinit image')
         try:
             cloudinit_iso = os.path.join(self.workdir, 'cloudinit.iso')
-            self.phone_home_port = network.find_free_port()
-            if not self.phone_home_port:
-                self.cancel('Failed to get a free port')
+            if not self.phone_server:
+                self.cancel('Failed to get port used by the PhoneServer.')
             pubkey_content = None
             if ssh_pubkey:
                 with open(ssh_pubkey) as pubkey:
@@ -614,7 +613,7 @@ class LinuxTest(LinuxSSHMixIn, QemuSystemTest):
                           password=self.password,
                           # QEMU's hard coded usermode router address
                           phone_home_host='10.0.2.2',
-                          phone_home_port=self.phone_home_port,
+                          phone_home_port=self.phone_server.server_port,
                           authorized_key=pubkey_content)
         except Exception:
             self.cancel('Failed to prepare the cloudinit image')
@@ -625,6 +624,8 @@ class LinuxTest(LinuxSSHMixIn, QemuSystemTest):
         self.vm.add_args('-drive', 'file=%s' % path)
 
     def set_up_cloudinit(self, ssh_pubkey=None):
+        self.phone_server = cloudinit.PhoneHomeServer(('0.0.0.0', 0),
+                                                      self.name)
         cloudinit_iso = self.prepare_cloudinit(ssh_pubkey)
         self.vm.add_args('-drive', 'file=%s,format=raw' % cloudinit_iso)
 
@@ -635,7 +636,9 @@ class LinuxTest(LinuxSSHMixIn, QemuSystemTest):
                                                  logger=self.log.getChild('console'))
         console_drainer.start()
         self.log.info('VM launched, waiting for boot confirmation from guest')
-        cloudinit.wait_for_phone_home(('0.0.0.0', self.phone_home_port), self.name)
+        while not self.phone_server.instance_phoned_back:
+            self.phone_server.handle_request()
+
         if set_up_ssh_connection:
             self.log.info('Setting up the SSH connection')
             self.ssh_connect(self.username, self.ssh_key)
