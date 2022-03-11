@@ -743,9 +743,9 @@ void pc_machine_done(Notifier *notifier, void *data)
 
 
     if (x86ms->apic_id_limit > 255 && !xen_enabled() &&
-        !kvm_irqchip_in_kernel()) {
-        error_report("current -smp configuration requires kernel "
-                     "irqchip support.");
+        !kvm_irqchip_is_split()) {
+        error_report("current -smp configuration requires 'split' irqchip,"
+                     "ensure that '-machine kernel-irqchip=split' is used.");
         exit(EXIT_FAILURE);
     }
 }
