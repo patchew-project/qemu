@@ -328,7 +328,7 @@ static void intel_hda_corb_run(IntelHDAState *d)
             dprint(d, 2, "%s: corb ring empty\n", __func__);
             return;
         }
-        if (d->rirb_count == d->rirb_cnt) {
+        if (d->rirb_count >= d->rirb_cnt) {
             dprint(d, 2, "%s: rirb count reached\n", __func__);
             return;
         }
