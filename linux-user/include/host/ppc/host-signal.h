@@ -11,6 +11,9 @@
 #ifndef PPC_HOST_SIGNAL_H
 #define PPC_HOST_SIGNAL_H
 
+/* needed for pt_regs */
+#include <asm/ptrace.h>
+
 /* The third argument to a SA_SIGINFO handler is ucontext_t. */
 typedef ucontext_t host_sigcontext;
 
