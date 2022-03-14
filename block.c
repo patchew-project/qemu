@@ -1434,6 +1434,11 @@ static void bdrv_inherited_options(BdrvChildRole role, bool parent_is_format,
     *child_flags = flags;
 }
 
+/*
+ * Add the child node to child->opaque->children list,
+ * and then apply the drain to the whole child subtree,
+ * so that the drain count matches with the parent.
+ */
 static void bdrv_child_cb_attach(BdrvChild *child)
 {
     BlockDriverState *bs = child->opaque;
@@ -2889,8 +2894,6 @@ static void bdrv_replace_child_noperm(BdrvChild **childp,
     }
 
     if (new_bs) {
-        assert_bdrv_graph_writable(new_bs);
-        QLIST_INSERT_HEAD(&new_bs->parents, child, next_parent);
 
         /*
          * Detaching the old node may have led to the new node's
@@ -2901,12 +2904,19 @@ static void bdrv_replace_child_noperm(BdrvChild **childp,
         assert(new_bs->quiesce_counter <= new_bs_quiesce_counter);
         drain_saldo += new_bs->quiesce_counter - new_bs_quiesce_counter;
 
-        /* Attach only after starting new drained sections, so that recursive
-         * drain sections coming from @child don't get an extra .drained_begin
-         * callback. */
+        /*
+         * First call ->attach() cb.
+         * In child_of_bds case, add child to the parent
+         * (child->opaque) ->children list and if
+         * necessary add missing drains in the child subtree.
+         */
         if (child->klass->attach) {
             child->klass->attach(child);
         }
+
+        /* Then add child to new_bs->parents list */
+        assert_bdrv_graph_writable(new_bs);
+        QLIST_INSERT_HEAD(&new_bs->parents, child, next_parent);
     }
 
     /*
