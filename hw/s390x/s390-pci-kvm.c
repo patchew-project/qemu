@@ -137,3 +137,24 @@ int s390_pci_kvm_aif_disable(S390PCIBusDevice *pbdev)
 
     return kvm_vm_ioctl(kvm_state, KVM_S390_ZPCI_OP, &args);
 }
+
+int s390_pci_kvm_ioat_enable(S390PCIBusDevice *pbdev, uint64_t iota)
+{
+    struct kvm_s390_zpci_op args = {
+        .fh = pbdev->fh,
+        .op = KVM_S390_ZPCIOP_REG_IOAT,
+        .u.reg_ioat.iota = iota
+    };
+
+    return kvm_vm_ioctl(kvm_state, KVM_S390_ZPCI_OP, &args);
+}
+
+int s390_pci_kvm_ioat_disable(S390PCIBusDevice *pbdev)
+{
+    struct kvm_s390_zpci_op args = {
+        .fh = pbdev->fh,
+        .op = KVM_S390_ZPCIOP_DEREG_IOAT
+    };
+
+    return kvm_vm_ioctl(kvm_state, KVM_S390_ZPCI_OP, &args);
+}

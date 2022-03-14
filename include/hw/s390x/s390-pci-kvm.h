@@ -23,6 +23,8 @@ int s390_pci_kvm_interp_enable(S390PCIBusDevice *pbdev);
 int s390_pci_kvm_interp_disable(S390PCIBusDevice *pbdev);
 int s390_pci_kvm_aif_enable(S390PCIBusDevice *pbdev, ZpciFib *fib, bool assist);
 int s390_pci_kvm_aif_disable(S390PCIBusDevice *pbdev);
+int s390_pci_kvm_ioat_enable(S390PCIBusDevice *pbdev, uint64_t iota);
+int s390_pci_kvm_ioat_disable(S390PCIBusDevice *pbdev);
 #else
 static inline bool s390_pci_kvm_zpciop_allowed(void)
 {
@@ -50,6 +52,14 @@ static inline int s390_pci_kvm_aif_enable(S390PCIBusDevice *pbdev, ZpciFib *fib,
     return -EINVAL;
 }
 static inline int s390_pci_kvm_aif_disable(S390PCIBusDevice *pbdev)
+{
+    return -EINVAL;
+}
+int s390_pci_kvm_ioat_enable(S390PCIBusDevice *pbdev, uint64_t iota)
+{
+    return -EINVAL;
+}
+int s390_pci_kvm_ioat_disable(S390PCIBusDevice *pbdev)
 {
     return -EINVAL;
 }
