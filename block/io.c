@@ -524,7 +524,7 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs,
     }
 }
 
-void bdrv_do_drained_begin_quiesce(BlockDriverState *bs,
+static void bdrv_do_drained_begin_quiesce(BlockDriverState *bs,
                                    BdrvChild *parent, bool ignore_bds_parents)
 {
     IO_OR_GS_CODE();
@@ -586,6 +586,12 @@ void bdrv_subtree_drained_begin(BlockDriverState *bs)
 {
     IO_OR_GS_CODE();
     bdrv_do_drained_begin(bs, true, NULL, false, true);
+}
+
+void bdrv_drained_begin_no_poll(BlockDriverState *bs)
+{
+    IO_CODE();
+    bdrv_do_drained_begin(bs, false, NULL, false, false);
 }
 
 /**

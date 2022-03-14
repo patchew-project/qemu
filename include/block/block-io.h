@@ -227,6 +227,17 @@ int coroutine_fn bdrv_co_copy_range(BdrvChild *src, int64_t src_offset,
                                     BdrvRequestFlags write_flags);
 
 /**
+ * bdrv_drained_begin_no_poll:
+ *
+ * Quiesces a BDS like bdrv_drained_begin(), but does not wait for already
+ * running requests to complete.
+ * Same as bdrv_drained_begin(), but do not poll for the subgraph to
+ * actually become unquiesced. Therefore, no graph changes will occur
+ * with this function.
+ */
+void bdrv_drained_begin_no_poll(BlockDriverState *bs);
+
+/**
  * bdrv_drained_end_no_poll:
  *
  * Same as bdrv_drained_end(), but do not poll for the subgraph to
@@ -331,15 +342,6 @@ bool bdrv_drain_poll(BlockDriverState *bs, bool recursive,
  * This function can be recursive.
  */
 void bdrv_drained_begin(BlockDriverState *bs);
-
-/**
- * bdrv_do_drained_begin_quiesce:
- *
- * Quiesces a BDS like bdrv_drained_begin(), but does not wait for already
- * running requests to complete.
- */
-void bdrv_do_drained_begin_quiesce(BlockDriverState *bs,
-                                   BdrvChild *parent, bool ignore_bds_parents);
 
 /**
  * Like bdrv_drained_begin, but recursively begins a quiesced section for
