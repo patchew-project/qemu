@@ -1320,14 +1320,17 @@ static void detach_by_parent_aio_cb(void *opaque, int ret)
     }
 }
 
+static BdrvChildClass detach_by_driver_cb_class;
+
 static void detach_by_driver_cb_drained_begin(BdrvChild *child)
 {
+    /* restore .drained_begin cb, we don't need it anymore. */
+    detach_by_driver_cb_class.drained_begin = child_of_bds.drained_begin;
+
     aio_bh_schedule_oneshot(qemu_get_current_aio_context(),
                             detach_indirect_bh, &detach_by_parent_data);
     child_of_bds.drained_begin(child);
 }
-
-static BdrvChildClass detach_by_driver_cb_class;
 
 /*
  * Initial graph:
@@ -1360,8 +1363,6 @@ static void test_detach_indirect(bool by_parent_cb)
 
     if (!by_parent_cb) {
         detach_by_driver_cb_class = child_of_bds;
-        detach_by_driver_cb_class.drained_begin =
-            detach_by_driver_cb_drained_begin;
     }
 
     /* Create all involved nodes */
@@ -1418,6 +1419,12 @@ static void test_detach_indirect(bool by_parent_cb)
     };
     acb = blk_aio_preadv(blk, 0, &qiov, 0, detach_by_parent_aio_cb, NULL);
     g_assert(acb != NULL);
+
+    if (!by_parent_cb) {
+        /* set .drained_begin cb to run only in the following drain. */
+        detach_by_driver_cb_class.drained_begin =
+            detach_by_driver_cb_drained_begin;
+    }
 
     /* Drain and check the expected result */
     bdrv_subtree_drained_begin(parent_b);
