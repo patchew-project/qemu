@@ -1448,6 +1448,11 @@ static void bdrv_child_cb_attach(BdrvChild *child)
     bdrv_apply_subtree_drain(child, bs);
 }
 
+/*
+ * Unapply the drain in the whole child subtree, as
+ * it has been already detached, and then remove from
+ * child->opaque->children.
+ */
 static void bdrv_child_cb_detach(BdrvChild *child)
 {
     BlockDriverState *bs = child->opaque;
@@ -2864,14 +2869,18 @@ static void bdrv_replace_child_noperm(BdrvChild **childp,
     }
 
     if (old_bs) {
-        /* Detach first so that the recursive drain sections coming from @child
-         * are already gone and we only end the drain sections that came from
-         * elsewhere. */
+        /* First remove child from child->bs->parents list */
+        assert_bdrv_graph_writable(old_bs);
+        QLIST_REMOVE(child, next_parent);
+        /*
+         * Then call ->detach() cb.
+         * In child_of_bds case, update the child parent
+         * (child->opaque) ->children list and
+         * remove any drain left in the child subtree.
+         */
         if (child->klass->detach) {
             child->klass->detach(child);
         }
-        assert_bdrv_graph_writable(old_bs);
-        QLIST_REMOVE(child, next_parent);
     }
 
     child->bs = new_bs;
