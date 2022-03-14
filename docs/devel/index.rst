@@ -12,6 +12,7 @@ modifying QEMU's source code.
 
    code-of-conduct
    conflict-resolution
+   mailing-lists
    build-system
    style
    kconfig
