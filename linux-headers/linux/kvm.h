@@ -1133,6 +1133,9 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_VM_MOVE_ENC_CONTEXT_FROM 206
 #define KVM_CAP_VM_GPA_BITS 207
 #define KVM_CAP_XSAVE2 208
+#define KVM_CAP_SYS_ATTRIBUTES 209
+#define KVM_CAP_PPC_AIL_MODE_3 210
+#define KVM_CAP_S390_ZPCI_OP 211
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -1623,9 +1626,6 @@ struct kvm_enc_region {
 #define KVM_S390_NORMAL_RESET	_IO(KVMIO,   0xc3)
 #define KVM_S390_CLEAR_RESET	_IO(KVMIO,   0xc4)
 
-/* Available with KVM_CAP_XSAVE2 */
-#define KVM_GET_XSAVE2		  _IOR(KVMIO,  0xcf, struct kvm_xsave)
-
 struct kvm_s390_pv_sec_parm {
 	__u64 origin;
 	__u64 length;
@@ -2046,5 +2046,50 @@ struct kvm_stats_desc {
 };
 
 #define KVM_GET_STATS_FD  _IO(KVMIO,  0xce)
+
+/* Available with KVM_CAP_XSAVE2 */
+#define KVM_GET_XSAVE2		  _IOR(KVMIO,  0xcf, struct kvm_xsave)
+
+/* Available with KVM_CAP_S390_ZPCI_OP */
+#define KVM_S390_ZPCI_OP	  _IOW(KVMIO,  0xd0, struct kvm_s390_zpci_op)
+
+struct kvm_s390_zpci_op {
+	/* in */
+	__u32 fh;		/* target device */
+	__u8  op;		/* operation to perform */
+	__u8  pad[3];
+	union {
+		/* for KVM_S390_ZPCIOP_REG_INT */
+		struct {
+			__u64 ibv;	/* Guest addr of interrupt bit vector */
+			__u64 sb;	/* Guest addr of summary bit */
+			__u32 flags;
+			__u32 noi;	/* Number of interrupts */
+			__u8 isc;	/* Guest interrupt subclass */
+			__u8 sbo;	/* Offset of guest summary bit vector */
+			__u16 pad;
+		} reg_int;
+		/* for KVM_S390_ZPCIOP_REG_IOAT */
+		struct {
+			__u64 iota;	/* I/O Translation settings */
+		} reg_ioat;
+		__u8 reserved[64];
+	} u;
+	/* out */
+	__u32 newfh;		/* updated device handle */
+};
+
+/* types for kvm_s390_zpci_op->op */
+#define KVM_S390_ZPCIOP_INIT		0
+#define KVM_S390_ZPCIOP_END		1
+#define KVM_S390_ZPCIOP_START_INTERP	2
+#define KVM_S390_ZPCIOP_STOP_INTERP	3
+#define KVM_S390_ZPCIOP_REG_INT		4
+#define KVM_S390_ZPCIOP_DEREG_INT	5
+#define KVM_S390_ZPCIOP_REG_IOAT	6
+#define KVM_S390_ZPCIOP_DEREG_IOAT	7
+
+/* flags for kvm_s390_zpci_op->u.reg_int.flags */
+#define KVM_S390_ZPCIOP_REGINT_HOST	(1 << 0)
 
 #endif /* __LINUX_KVM_H */

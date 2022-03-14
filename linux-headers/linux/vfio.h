@@ -53,6 +53,12 @@
 #define VFIO_UPDATE_VADDR		10
 
 /*
+ * The KVM_IOMMU type implies that the hypervisor will control the mappings
+ * rather than userspace
+ */
+#define VFIO_KVM_IOMMU			11
+
+/*
  * The IOCTL interface is designed for extensibility by embedding the
  * structure length (argsz) and flags into structures passed between
  * kernel and userspace.  We therefore use the _IO() macro for these
