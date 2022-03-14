@@ -14,6 +14,7 @@ env:
   MAKE: "@MAKE@"
   CONFIGURE_ARGS: "@CONFIGURE_ARGS@"
   TEST_TARGETS: "@TEST_TARGETS@"
+  MANUAL_JOB: 0
 
 build_task:
   install_script:
