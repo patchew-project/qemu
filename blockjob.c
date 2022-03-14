@@ -110,7 +110,9 @@ static bool child_job_drained_poll(BdrvChild *c)
     BlockJob *bjob = c->opaque;
     Job *job = &bjob->job;
     const BlockJobDriver *drv = block_job_driver(bjob);
+    AioContext *ctx;
 
+    ctx = job->aio_context;
     /* An inactive or completed job doesn't have any pending requests. Jobs
      * with !job->busy are either already paused or have a pause point after
      * being reentered, so no job driver code will run before they pause. */
@@ -118,9 +120,14 @@ static bool child_job_drained_poll(BdrvChild *c)
         return false;
     }
 
-    /* Otherwise, assume that it isn't fully stopped yet, but allow the job to
-     * override this assumption. */
-    if (drv->drained_poll) {
+    /*
+     * Otherwise, assume that it isn't fully stopped yet, but allow the job to
+     * override this assumption, if the drain is being performed in the
+     * iothread. We need to check that the caller is the home thread because
+     * it could otherwise lead the main loop to exit polling while the job
+     * has not paused yet.
+     */
+    if (in_aio_context_home_thread(ctx) && drv->drained_poll) {
         return drv->drained_poll(bjob);
     } else {
         return true;
