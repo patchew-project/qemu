@@ -248,7 +248,7 @@ class TestParallelOps(iotests.QMPTestCase):
             pending_jobs.append(job_id)
             result = self.vm.qmp('block-stream', device=node_name,
                                  job_id=job_id, bottom=f'node{i-1}',
-                                 speed=1024)
+                                 speed=1024, auto_finalize=False)
             self.assert_qmp(result, 'return', {})
 
         # Do this in reverse: After unthrottling them, some jobs may finish
@@ -264,14 +264,8 @@ class TestParallelOps(iotests.QMPTestCase):
             result = self.vm.qmp('block-job-set-speed', device=job, speed=0)
             self.assert_qmp(result, 'return', {})
 
-        # Wait for all jobs to be finished.
-        while len(pending_jobs) > 0:
-            for event in self.vm.get_qmp_events(wait=True):
-                if event['event'] == 'BLOCK_JOB_COMPLETED':
-                    job_id = self.dictpath(event, 'data/device')
-                    self.assertTrue(job_id in pending_jobs)
-                    self.assert_qmp_absent(event, 'data/error')
-                    pending_jobs.remove(job_id)
+        for job in pending_jobs:
+            self.vm.run_job(job=job, auto_finalize=False)
 
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
