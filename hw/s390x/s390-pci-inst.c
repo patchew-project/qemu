@@ -18,6 +18,8 @@
 #include "sysemu/hw_accel.h"
 #include "hw/s390x/s390-pci-inst.h"
 #include "hw/s390x/s390-pci-bus.h"
+#include "hw/s390x/s390-pci-kvm.h"
+#include "hw/s390x/s390-pci-vfio.h"
 #include "hw/s390x/tod.h"
 
 #ifndef DEBUG_S390PCI_INST
@@ -156,6 +158,37 @@ out:
     return rc;
 }
 
+static int clp_enable_interp(S390PCIBusDevice *pbdev)
+{
+    int rc;
+
+    rc = s390_pci_kvm_interp_enable(pbdev);
+    if (rc) {
+        DPRINTF("Failed to enable interpretation\n");
+        return rc;
+    }
+
+    if (!(pbdev->fh & FH_MASK_ENABLE)) {
+        DPRINTF("Passthrough handle is not enabled\n");
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+static int clp_disable_interp(S390PCIBusDevice *pbdev)
+{
+    int rc;
+
+    rc = s390_pci_kvm_interp_disable(pbdev);
+    if (rc) {
+        DPRINTF("Failed to disable interpretation\n");
+        return rc;
+    }
+
+    return 0;
+}
+
 int clp_service_call(S390CPU *cpu, uint8_t r2, uintptr_t ra)
 {
     ClpReqHdr *reqh;
@@ -246,7 +279,19 @@ int clp_service_call(S390CPU *cpu, uint8_t r2, uintptr_t ra)
                 goto out;
             }
 
-            pbdev->fh |= FH_MASK_ENABLE;
+            /*
+             * If interpretation is specified, attempt to enable this now and
+             * update with the host fh
+             */
+            if (pbdev->interp) {
+                if (clp_enable_interp(pbdev)) {
+                    stw_p(&ressetpci->hdr.rsp, CLP_RC_SETPCIFN_ERR);
+                    goto out;
+                }
+            } else {
+                pbdev->fh |= FH_MASK_ENABLE;
+            }
+
             pbdev->state = ZPCI_FS_ENABLED;
             stl_p(&ressetpci->fh, pbdev->fh);
             stw_p(&ressetpci->hdr.rsp, CLP_RC_OK);
@@ -257,6 +302,13 @@ int clp_service_call(S390CPU *cpu, uint8_t r2, uintptr_t ra)
                 goto out;
             }
             device_legacy_reset(DEVICE(pbdev));
+            if (pbdev->interp) {
+                if (clp_disable_interp(pbdev)) {
+                    stw_p(&ressetpci->hdr.rsp, CLP_RC_SETPCIFN_ERR);
+                    goto out;
+                }
+            }
+            /* Mask off the enabled bit for interpreted devices too */
             pbdev->fh &= ~FH_MASK_ENABLE;
             pbdev->state = ZPCI_FS_DISABLED;
             stl_p(&ressetpci->fh, pbdev->fh);
