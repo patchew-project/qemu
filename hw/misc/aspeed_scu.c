@@ -205,6 +205,8 @@ static const uint32_t ast2500_a1_resets[ASPEED_SCU_NR_REGS] = {
      [BMC_DEV_ID]      = 0x00002402U
 };
 
+static uint32_t aspeed_2600_scu_calc_hpll(AspeedSCUState *s, uint32_t hpll_reg);
+
 static uint32_t aspeed_scu_get_random(void)
 {
     uint32_t num;
@@ -215,9 +217,19 @@ static uint32_t aspeed_scu_get_random(void)
 uint32_t aspeed_scu_get_apb_freq(AspeedSCUState *s)
 {
     AspeedSCUClass *asc = ASPEED_SCU_GET_CLASS(s);
-    uint32_t hpll = asc->calc_hpll(s, s->regs[HPLL_PARAM]);
+    uint32_t hpll, hpll_reg, clk_sel_reg;
 
-    return hpll / (SCU_CLK_GET_PCLK_DIV(s->regs[CLK_SEL]) + 1)
+    if (asc->calc_hpll == aspeed_2600_scu_calc_hpll) {
+        hpll_reg = s->regs[AST2600_HPLL_PARAM];
+        clk_sel_reg = s->regs[AST2600_CLK_SEL];
+    } else {
+        hpll_reg = s->regs[HPLL_PARAM];
+        clk_sel_reg = s->regs[CLK_SEL];
+    }
+
+    hpll = asc->calc_hpll(s, hpll_reg);
+
+    return hpll / (SCU_CLK_GET_PCLK_DIV(clk_sel_reg) + 1)
         / asc->apb_divider;
 }
 
@@ -357,7 +369,10 @@ static const MemoryRegionOps aspeed_ast2500_scu_ops = {
 
 static uint32_t aspeed_scu_get_clkin(AspeedSCUState *s)
 {
-    if (s->hw_strap1 & SCU_HW_STRAP_CLK_25M_IN) {
+    AspeedSCUClass *asc = ASPEED_SCU_GET_CLASS(s);
+
+    if (s->hw_strap1 & SCU_HW_STRAP_CLK_25M_IN ||
+        asc->calc_hpll == aspeed_2600_scu_calc_hpll) {
         return 25000000;
     } else if (s->hw_strap1 & SCU_HW_STRAP_CLK_48M_IN) {
         return 48000000;
@@ -419,6 +434,26 @@ static uint32_t aspeed_2500_scu_calc_hpll(AspeedSCUState *s, uint32_t hpll_reg)
         uint32_t p = (hpll_reg >> 13) & 0x3f;
         uint32_t m = (hpll_reg >> 5) & 0xff;
         uint32_t n = hpll_reg & 0x1f;
+
+        multiplier = ((m + 1) / (n + 1)) / (p + 1);
+    }
+
+    return clkin * multiplier;
+}
+
+static uint32_t aspeed_2600_scu_calc_hpll(AspeedSCUState *s, uint32_t hpll_reg)
+{
+    uint32_t multiplier = 1;
+    uint32_t clkin = aspeed_scu_get_clkin(s);
+
+    if (hpll_reg & SCU_AST2600_H_PLL_OFF) {
+        return 0;
+    }
+
+    if (!(hpll_reg & SCU_H_PLL_BYPASS_EN)) {
+        uint32_t p = (hpll_reg >> 19) & 0xf;
+        uint32_t n = (hpll_reg >> 13) & 0x3f;
+        uint32_t m = hpll_reg & 0x1fff;
 
         multiplier = ((m + 1) / (n + 1)) / (p + 1);
     }
@@ -716,7 +751,7 @@ static void aspeed_2600_scu_class_init(ObjectClass *klass, void *data)
     dc->desc = "ASPEED 2600 System Control Unit";
     dc->reset = aspeed_ast2600_scu_reset;
     asc->resets = ast2600_a3_resets;
-    asc->calc_hpll = aspeed_2500_scu_calc_hpll; /* No change since AST2500 */
+    asc->calc_hpll = aspeed_2600_scu_calc_hpll;
     asc->apb_divider = 4;
     asc->nr_regs = ASPEED_AST2600_SCU_NR_REGS;
     asc->ops = &aspeed_ast2600_scu_ops;
