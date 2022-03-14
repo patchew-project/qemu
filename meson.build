@@ -329,6 +329,9 @@ elif targetos == 'sunos'
   socket = [cc.find_library('socket'),
             cc.find_library('nsl'),
             cc.find_library('resolv')]
+  config_host_data.set('HAVE_MADVISE_PROTO',
+                       cc.has_function('madvise',
+                                       prefix: '#include <sys/mman.h>'))
 elif targetos == 'haiku'
   socket = [cc.find_library('posix_error_mapper'),
             cc.find_library('network'),
