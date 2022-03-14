@@ -1873,7 +1873,7 @@ static int vfio_get_iommu_type(VFIOContainer *container,
     return -EINVAL;
 }
 
-static int vfio_init_container(VFIOContainer *container, int group_fd,
+static int vfio_init_container(VFIOContainer *container, VFIOGroup *group,
                                Error **errp)
 {
     int iommu_type, ret;
@@ -1883,10 +1883,18 @@ static int vfio_init_container(VFIOContainer *container, int group_fd,
         return iommu_type;
     }
 
-    ret = ioctl(group_fd, VFIO_GROUP_SET_CONTAINER, &container->fd);
+    ret = ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &container->fd);
     if (ret) {
         error_setg_errno(errp, errno, "Failed to set group container");
         return -errno;
+    }
+
+    /*
+     * In the case where KVM will manage the IOMMU, we must instruct the host
+     * IOMMU to use the appropriate domain ops
+     */
+    if (group->kvm_managed_iommu) {
+        iommu_type = VFIO_KVM_IOMMU;
     }
 
     while (ioctl(container->fd, VFIO_SET_IOMMU, iommu_type)) {
@@ -2062,7 +2070,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     QLIST_INIT(&container->hostwin_list);
     QLIST_INIT(&container->vrdl_list);
 
-    ret = vfio_init_container(container, group->fd, errp);
+    ret = vfio_init_container(container, group, errp);
     if (ret) {
         goto free_container_exit;
     }
@@ -2265,7 +2273,8 @@ static void vfio_disconnect_container(VFIOGroup *group)
     }
 }
 
-VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
+VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, bool kvm_managed_iommu,
+                          Error **errp)
 {
     VFIOGroup *group;
     char path[32];
@@ -2273,7 +2282,13 @@ VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
 
     QLIST_FOREACH(group, &vfio_group_list, next) {
         if (group->groupid == groupid) {
-            /* Found it.  Now is it already in the right context? */
+            /* Found it.  Ensure using same IOMMU type */
+            if (group->kvm_managed_iommu != kvm_managed_iommu) {
+                error_setg(errp, "group %d using conflicting iommu ops",
+                           group->groupid);
+                return NULL;
+            }
+            /* Is it already in the right context? */
             if (group->container->space->as == as) {
                 return group;
             } else {
@@ -2307,6 +2322,7 @@ VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
     }
 
     group->groupid = groupid;
+    group->kvm_managed_iommu = kvm_managed_iommu;
     QLIST_INIT(&group->device_list);
 
     if (vfio_connect_container(group, as, errp)) {
