@@ -913,7 +913,7 @@ static void run_block_job(BlockJob *job, Error **errp)
 
     aio_context_acquire(aio_context);
     WITH_JOB_LOCK_GUARD() {
-        job_ref(&job->job);
+        job_ref_locked(&job->job);
         do {
             float progress = 0.0f;
             job_unlock();
@@ -930,11 +930,11 @@ static void run_block_job(BlockJob *job, Error **errp)
                  !job_is_completed_locked(&job->job));
 
         if (!job_is_completed_locked(&job->job)) {
-            ret = job_complete_sync(&job->job, errp);
+            ret = job_complete_sync_locked(&job->job, errp);
         } else {
             ret = job->job.ret;
         }
-        job_unref(&job->job);
+        job_unref_locked(&job->job);
     }
     aio_context_release(aio_context);
 

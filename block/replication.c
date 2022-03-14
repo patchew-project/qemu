@@ -150,7 +150,7 @@ static void replication_close(BlockDriverState *bs)
         commit_job = &s->commit_job->job;
         assert(commit_job->aio_context == qemu_get_current_aio_context());
         WITH_JOB_LOCK_GUARD() {
-            job_cancel_sync(commit_job, false);
+            job_cancel_sync_locked(commit_job, false);
         }
     }
 
@@ -729,7 +729,7 @@ static void replication_stop(ReplicationState *rs, bool failover, Error **errp)
          */
         if (s->backup_job) {
             WITH_JOB_LOCK_GUARD() {
-                job_cancel_sync(&s->backup_job->job, true);
+                job_cancel_sync_locked(&s->backup_job->job, true);
             }
         }
 
