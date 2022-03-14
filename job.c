@@ -236,19 +236,32 @@ const char *job_type_str(const Job *job)
     return JobType_str(job_type(job));
 }
 
-bool job_is_cancelled(Job *job)
+bool job_is_cancelled_locked(Job *job)
 {
     /* force_cancel may be true only if cancelled is true, too */
     assert(job->cancelled || !job->force_cancel);
     return job->force_cancel;
 }
 
-bool job_cancel_requested(Job *job)
+bool job_is_cancelled(Job *job)
+{
+    JOB_LOCK_GUARD();
+    return job_is_cancelled_locked(job);
+}
+
+/* Called with job_mutex held. */
+static bool job_cancel_requested_locked(Job *job)
 {
     return job->cancelled;
 }
 
-bool job_is_ready(Job *job)
+bool job_cancel_requested(Job *job)
+{
+    JOB_LOCK_GUARD();
+    return job_cancel_requested_locked(job);
+}
+
+bool job_is_ready_locked(Job *job)
 {
     switch (job->status) {
     case JOB_STATUS_UNDEFINED:
@@ -263,6 +276,34 @@ bool job_is_ready(Job *job)
         return false;
     case JOB_STATUS_READY:
     case JOB_STATUS_STANDBY:
+        return true;
+    default:
+        g_assert_not_reached();
+    }
+    return false;
+}
+
+bool job_is_ready(Job *job)
+{
+    JOB_LOCK_GUARD();
+    return job_is_ready_locked(job);
+}
+
+bool job_is_completed_locked(Job *job)
+{
+    switch (job->status) {
+    case JOB_STATUS_UNDEFINED:
+    case JOB_STATUS_CREATED:
+    case JOB_STATUS_RUNNING:
+    case JOB_STATUS_PAUSED:
+    case JOB_STATUS_READY:
+    case JOB_STATUS_STANDBY:
+        return false;
+    case JOB_STATUS_WAITING:
+    case JOB_STATUS_PENDING:
+    case JOB_STATUS_ABORTING:
+    case JOB_STATUS_CONCLUDED:
+    case JOB_STATUS_NULL:
         return true;
     default:
         g_assert_not_reached();
@@ -272,24 +313,8 @@ bool job_is_ready(Job *job)
 
 bool job_is_completed(Job *job)
 {
-    switch (job->status) {
-    case JOB_STATUS_UNDEFINED:
-    case JOB_STATUS_CREATED:
-    case JOB_STATUS_RUNNING:
-    case JOB_STATUS_PAUSED:
-    case JOB_STATUS_READY:
-    case JOB_STATUS_STANDBY:
-        return false;
-    case JOB_STATUS_WAITING:
-    case JOB_STATUS_PENDING:
-    case JOB_STATUS_ABORTING:
-    case JOB_STATUS_CONCLUDED:
-    case JOB_STATUS_NULL:
-        return true;
-    default:
-        g_assert_not_reached();
-    }
-    return false;
+    JOB_LOCK_GUARD();
+    return job_is_completed_locked(job);
 }
 
 static bool job_started(Job *job)
@@ -521,7 +546,8 @@ static void coroutine_fn job_do_yield(Job *job, uint64_t ns)
     assert(job->busy);
 }
 
-void coroutine_fn job_pause_point(Job *job)
+/* Called with job_mutex held, but releases it temporarly. */
+static void coroutine_fn job_pause_point_locked(Job *job)
 {
     assert(job && job_started(job));
 
@@ -550,6 +576,12 @@ void coroutine_fn job_pause_point(Job *job)
     if (job->driver->resume) {
         job->driver->resume(job);
     }
+}
+
+void coroutine_fn job_pause_point(Job *job)
+{
+    JOB_LOCK_GUARD();
+    job_pause_point_locked(job);
 }
 
 void job_yield(Job *job)
@@ -949,11 +981,15 @@ static void job_completed(Job *job)
     }
 }
 
-/** Useful only as a type shim for aio_bh_schedule_oneshot. */
+/**
+ * Useful only as a type shim for aio_bh_schedule_oneshot.
+ * Called with job_mutex *not* held.
+ */
 static void job_exit(void *opaque)
 {
     Job *job = (Job *)opaque;
     AioContext *ctx;
+    JOB_LOCK_GUARD();
 
     job_ref(job);
     aio_context_acquire(job->aio_context);
