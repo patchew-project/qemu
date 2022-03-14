@@ -70,6 +70,7 @@
 #define QEMU_NBD_OPT_PID_FILE      265
 #define QEMU_NBD_OPT_SELINUX_LABEL 266
 #define QEMU_NBD_OPT_TLSHOSTNAME   267
+#define QEMU_NBD_OPT_MULTI_CONN    268
 
 #define MBR_SIZE 512
 
@@ -79,6 +80,7 @@ static SocketAddress *saddr;
 static int persistent = 0;
 static enum { RUNNING, TERMINATE, TERMINATED } state;
 static int shared = 1;
+static OnOffAuto multi_conn = ON_OFF_AUTO_AUTO;
 static int nb_fds;
 static QIONetListener *server;
 static QCryptoTLSCreds *tlscreds;
@@ -100,6 +102,8 @@ static void usage(const char *name)
 "  -k, --socket=PATH         path to the unix socket\n"
 "                            (default '"SOCKET_PATH"')\n"
 "  -e, --shared=NUM          device can be shared by NUM clients (default '1')\n"
+"  -m, --multi-conn=MODE     control multi-conn advertisement with -e, MODE is\n"
+"                            'on', 'off', or 'auto' (default based on -r)\n"
 "  -t, --persistent          don't exit on the last connection\n"
 "  -v, --verbose             display extra debugging information\n"
 "  -x, --export-name=NAME    expose export by name (default is empty string)\n"
@@ -513,7 +517,7 @@ int main(int argc, char **argv)
     char *device = NULL;
     QemuOpts *sn_opts = NULL;
     const char *sn_id_or_name = NULL;
-    const char *sopt = "hVb:o:p:rsnc:dvk:e:f:tl:x:T:D:AB:L";
+    const char *sopt = "hVb:o:p:rsnc:dvk:e:m:f:tl:x:T:D:AB:L";
     struct option lopt[] = {
         { "help", no_argument, NULL, 'h' },
         { "version", no_argument, NULL, 'V' },
@@ -536,6 +540,7 @@ int main(int argc, char **argv)
         { "detect-zeroes", required_argument, NULL,
           QEMU_NBD_OPT_DETECT_ZEROES },
         { "shared", required_argument, NULL, 'e' },
+        { "multi-conn", required_argument, NULL, 'm' },
         { "format", required_argument, NULL, 'f' },
         { "persistent", no_argument, NULL, 't' },
         { "verbose", no_argument, NULL, 'v' },
@@ -709,6 +714,17 @@ int main(int argc, char **argv)
                 exit(EXIT_FAILURE);
             }
             break;
+        case 'm':
+        {
+            Error *err = NULL;
+            multi_conn = qapi_enum_parse(&OnOffAuto_lookup, optarg,
+                                         ON_OFF_AUTO_AUTO, &err);
+            if (err) {
+                error_report_err(err);
+                exit(EXIT_FAILURE);
+            }
+            break;
+        }
         case 'f':
             fmt = optarg;
             break;
@@ -1107,6 +1123,8 @@ int main(int argc, char **argv)
             .bitmaps              = bitmaps,
             .has_allocation_depth = alloc_depth,
             .allocation_depth     = alloc_depth,
+            .has_multi_conn       = true,
+            .multi_conn           = multi_conn,
         },
     };
     blk_exp_add(export_opts, &error_fatal);

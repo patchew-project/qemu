@@ -21,7 +21,9 @@
 #             recreated on the fly while the NBD server is active.
 #             If missing, it will default to denying access (since 4.0).
 # @max-connections: The maximum number of connections to allow at the same
-#                   time, 0 for unlimited. (since 5.2; default: 0)
+#                   time, 0 for unlimited. Setting this to 1 also stops
+#                   the server from advertising multiple client support
+#                   (since 5.2; default: 0)
 #
 # Since: 4.2
 ##
@@ -50,7 +52,9 @@
 #             recreated on the fly while the NBD server is active.
 #             If missing, it will default to denying access (since 4.0).
 # @max-connections: The maximum number of connections to allow at the same
-#                   time, 0 for unlimited. (since 5.2; default: 0)
+#                   time, 0 for unlimited. Setting this to 1 also stops
+#                   the server from advertising multiple client support
+#                   (since 5.2; default: 0).
 #
 # Returns: error if the server is already running.
 #
@@ -95,11 +99,20 @@
 #                    the metadata context name "qemu:allocation-depth" to
 #                    inspect allocation details. (since 5.2)
 #
+# @multi-conn: Controls whether multiple client support is advertised, if the
+#              server's max-connections is not 1. "auto" advertises support
+#              for read-only clients, but not for writeable (although this
+#              may be improved in the future for writeable devices that are
+#              known to be cache-consistent, such as the raw file driver),
+#              while "on" and "off" explicitly set the bit (default auto,
+#              since 7.0).
+#
 # Since: 5.2
 ##
 { 'struct': 'BlockExportOptionsNbd',
   'base': 'BlockExportOptionsNbdBase',
-  'data': { '*bitmaps': ['str'], '*allocation-depth': 'bool' } }
+  'data': { '*bitmaps': ['str'], '*allocation-depth': 'bool',
+            '*multi-conn': 'OnOffAuto' } }
 
 ##
 # @BlockExportOptionsVhostUserBlk:

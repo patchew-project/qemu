@@ -139,8 +139,18 @@ driver options if :option:`--image-opts` is specified.
 .. option:: -e, --shared=NUM
 
   Allow up to *NUM* clients to share the device (default
-  ``1``), 0 for unlimited. Safe for readers, but for now,
-  consistency is not guaranteed between multiple writers.
+  ``1``), 0 for unlimited.
+
+.. option:: -m, --multi-conn=MODE
+
+  When multiple clients are allowed at once (via :option:`--shared`),
+  controls whether the NBD protocol MULTI_CONN bit is advertised to
+  clients.  This defaults to ``auto``, which advertises the bit for
+  readonly connections (:option:`--read-only`) but not for writeable
+  connections; it can also be set to ``on`` or ``off`` to override the
+  default.  Advertising this bit informs clients whether a flush from
+  one client has guaranteed consistency to subsequent access from a
+  parallel client.
 
 .. option:: -t, --persistent
 
