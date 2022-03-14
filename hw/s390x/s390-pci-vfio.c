@@ -324,3 +324,25 @@ void s390_pci_get_clp_info(S390PCIBusDevice *pbdev)
 
     return;
 }
+
+/*
+ * This function will determine if the specified VFIOPCIDevice is linked to a
+ * zPCI device that requests interpretation support.  In this case, we must
+ * inform vfio that the KVM-managed IOMMU should be requested when the
+ * VFIO_SET_IOMMU ioctl is issued.
+ */
+int s390_pci_set_kvm_iommu(S390pciState *s, DeviceState *dev)
+{
+    VFIOPCIDevice *vdev = VFIO_PCI(dev);
+    S390PCIBusDevice *pbdev = s390_pci_find_dev_by_target(s, dev->id);
+
+    if (!pbdev) {
+        return -ENODEV;
+    }
+
+    if (pbdev->interp) {
+        vdev->kvm_managed_iommu = true;
+    }
+
+    return 0;
+}

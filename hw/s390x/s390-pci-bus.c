@@ -950,6 +950,17 @@ static void s390_pcihost_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
             error_setg(errp, "multifunction not supported in s390");
             return;
         }
+        /*
+         * If we have a vfio-pci device that wishes to use interpretation
+         * we must update the host IOMMU domain ops.
+         */
+        if (s390_pci_kvm_zpciop_allowed() &&
+            object_dynamic_cast(OBJECT(dev), "vfio-pci")) {
+            if (s390_pci_set_kvm_iommu(s, dev)) {
+                error_setg(errp, "KVM IOMMU not available for interpretation");
+                return;
+            }
+        }
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_S390_PCI_DEVICE)) {
         S390PCIBusDevice *pbdev = S390_PCI_DEVICE(dev);
 
