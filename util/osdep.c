@@ -24,12 +24,6 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 
-/* Needed early for CONFIG_BSD etc. */
-
-#ifdef CONFIG_SOLARIS
-#include <sys/statvfs.h>
-#endif
-
 #ifdef HAVE_MADVISE_MISSING_PROTOTYPE
 /* See MySQL bug #7156 (http://bugs.mysql.com/bug.php?id=7156) for
    discussion about Solaris header problems */
