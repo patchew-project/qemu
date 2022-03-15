@@ -869,9 +869,8 @@ int main(int argc, char **argv, char **envp)
         qemu_log("start_stack 0x" TARGET_ABI_FMT_lx "\n", info->start_stack);
         qemu_log("brk         0x" TARGET_ABI_FMT_lx "\n", info->brk);
         qemu_log("entry       0x" TARGET_ABI_FMT_lx "\n", info->entry);
-        qemu_log("argv_start  0x" TARGET_ABI_FMT_lx "\n", info->arg_start);
-        qemu_log("env_start   0x" TARGET_ABI_FMT_lx "\n",
-                 info->arg_end + (abi_ulong)sizeof(abi_ulong));
+        qemu_log("argv_start  0x" TARGET_ABI_FMT_lx "\n", info->argv);
+        qemu_log("env_start   0x" TARGET_ABI_FMT_lx "\n", info->envp);
         qemu_log("auxv_start  0x" TARGET_ABI_FMT_lx "\n", info->saved_auxv);
     }
 
