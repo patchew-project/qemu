@@ -114,6 +114,13 @@ static bool trans_sfence_vma(DisasContext *ctx, arg_sfence_vma *a)
 {
 #ifndef CONFIG_USER_ONLY
     gen_helper_tlb_flush(cpu_env);
+    /*
+     * The flush might have changed the backing physical memory of
+     * the instructions we're currently executing
+     */
+    gen_set_pc_imm(ctx, ctx->pc_succ_insn);
+    tcg_gen_exit_tb(NULL, 0);
+    ctx->base.is_jmp = DISAS_NORETURN;
     return true;
 #endif
     return false;
