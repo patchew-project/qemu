@@ -18,13 +18,13 @@ one-shot fix, the bare minimum we ask is that:
    <http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/Documentation/SubmittingPatches?id=f6f94e2ab1b33f0082ac22d71f66385a60d8157f#n297>`__
    policy.) ``git commit -s`` or ``git format-patch -s`` will add one.
 -  All contributions to QEMU must be **sent as patches** to the
-   qemu-devel `mailing list <MailingLists>`__. Patch contributions
-   should not be posted on the bug tracker, posted on forums, or
-   externally hosted and linked to. (We have other mailing lists too,
-   but all patches must go to qemu-devel, possibly with a Cc: to another
-   list.) ``git send-email`` (`step-by-step setup
-   guide <https://git-send-email.io/>`__ and `hints and
-   tips <https://elixir.bootlin.com/linux/latest/source/Documentation/process/email-clients.rst>`__)
+   qemu-devel mailing list (refer to :ref:`mailing-lists`). Patch
+   contributions should not be posted on the bug tracker, posted on
+   forums, or externally hosted and linked to. (We have other mailing
+   lists too, but all patches must go to qemu-devel, possibly with a Cc:
+   to another list.) ``git send-email`` (`step-by-step setup guide
+   <https://git-send-email.io/>`__ and `hints and tips
+   <https://elixir.bootlin.com/linux/latest/source/Documentation/process/email-clients.rst>`__)
    works best for delivering the patch without mangling it, but
    attachments can be used as a last resort on a first-time submission.
 -  You must read replies to your message, and be willing to act on them.
