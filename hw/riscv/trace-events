@@ -1,0 +1,7 @@
+# See documentation at docs/devel/tracing.rst
+
+# rivos-iommu.c
+rivos_iommu_new(int bus, int slot, int func, int dbus, int dslot, int dfunc) "NEW %04x:%02x.%d attached %04x:%02x.%d"
+rivos_iommu_flt(int bus, int slot, int func, int cause, uint64_t iova) "FLT %04x:%02x.%d cause: %d iova: 0x%"PRIx64
+rivos_iommu_dma(int bus, int slot, int func, const char *dir, uint64_t iova, uint64_t phys) "TLB q%04x:%02x.%d %s 0x%"PRIx64" -> 0x%"PRIx64
+rivos_iommu_cmd(int bus, int slot, int func, uint64_t l, uint64_t u) "CMD %04x:%02x.%d 0x%"PRIx64" 0x%"PRIx64

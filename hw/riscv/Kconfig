@@ -4,6 +4,9 @@ config RISCV_NUMA
 config IBEX
     bool
 
+config RIVOS_IOMMU
+    bool
+
 config MICROCHIP_PFSOC
     bool
     select CADENCE_SDHCI
