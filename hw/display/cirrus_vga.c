@@ -2944,6 +2944,7 @@ static void pci_cirrus_vga_realize(PCIDevice *dev, Error **errp)
     CirrusVGAState *s = &d->cirrus_vga;
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     int16_t device_id = pc->device_id;
+    Error *local_err = NULL;
 
     /*
      * Follow real hardware, cirrus card emulated has 4 MB video memory.
@@ -2956,7 +2957,11 @@ static void pci_cirrus_vga_realize(PCIDevice *dev, Error **errp)
         return;
     }
     /* setup VGA */
-    vga_common_init(&s->vga, OBJECT(dev));
+    vga_common_init(&s->vga, OBJECT(dev), &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
     cirrus_init_common(s, OBJECT(dev), device_id, 1, pci_address_space(dev),
                        pci_address_space_io(dev));
     s->vga.con = graphic_console_init(DEVICE(dev), 0, s->vga.hw_ops, &s->vga);

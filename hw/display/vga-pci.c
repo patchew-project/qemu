@@ -25,6 +25,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/pci/pci.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
@@ -235,11 +236,16 @@ static void pci_std_vga_realize(PCIDevice *dev, Error **errp)
 {
     PCIVGAState *d = PCI_VGA(dev);
     VGACommonState *s = &d->vga;
+    Error *local_err = NULL;
     bool qext = false;
     bool edid = false;
 
     /* vga + console init */
-    vga_common_init(s, OBJECT(dev));
+    vga_common_init(s, OBJECT(dev), &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
     vga_init(s, OBJECT(dev), pci_address_space(dev), pci_address_space_io(dev),
              true);
 
@@ -271,11 +277,16 @@ static void pci_secondary_vga_realize(PCIDevice *dev, Error **errp)
 {
     PCIVGAState *d = PCI_VGA(dev);
     VGACommonState *s = &d->vga;
+    Error *local_err = NULL;
     bool qext = false;
     bool edid = false;
 
     /* vga + console init */
-    vga_common_init(s, OBJECT(dev));
+    vga_common_init(s, OBJECT(dev), &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
     s->con = graphic_console_init(DEVICE(dev), 0, s->hw_ops, s);
 
     /* mmio bar */

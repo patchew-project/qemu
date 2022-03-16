@@ -88,6 +88,7 @@ static void vga_mmio_realizefn(DeviceState *dev, Error **errp)
 {
     VGAMmioState *s = VGA_MMIO(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    Error *local_err = NULL;
 
     memory_region_init_io(&s->iomem, OBJECT(dev), &vga_mm_ctrl_ops, s,
                           "vga-mmio", 0x100000);
@@ -102,7 +103,12 @@ static void vga_mmio_realizefn(DeviceState *dev, Error **errp)
 
     s->vga.bank_offset = 0;
     s->vga.global_vmstate = true;
-    vga_common_init(&s->vga, OBJECT(dev));
+    vga_common_init(&s->vga, OBJECT(dev), &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
     sysbus_init_mmio(sbd, &s->vga.vram);
     s->vga.con = graphic_console_init(dev, 0, s->vga.hw_ops, &s->vga);
 }
