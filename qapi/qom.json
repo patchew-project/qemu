@@ -529,6 +529,19 @@
             '*aio-max-batch': 'int' } }
 
 ##
+# @MainLoopProperties:
+#
+# Properties for the main-loop object.
+#
+# @aio-max-batch: maximum number of requests in a batch for the AIO engine,
+#                 0 means that the engine will use its default (default:0)
+#
+# Since: 7.1
+##
+{ 'struct': 'MainLoopProperties',
+  'data': { '*aio-max-batch': 'int' } }
+
+##
 # @MemoryBackendProperties:
 #
 # Properties for objects of classes derived from memory-backend.
@@ -818,6 +831,7 @@
     { 'name': 'input-linux',
       'if': 'CONFIG_LINUX' },
     'iothread',
+    'main-loop',
     { 'name': 'memory-backend-epc',
       'if': 'CONFIG_LINUX' },
     'memory-backend-file',
@@ -883,6 +897,7 @@
       'input-linux':                { 'type': 'InputLinuxProperties',
                                       'if': 'CONFIG_LINUX' },
       'iothread':                   'IothreadProperties',
+      'main-loop':                  'MainLoopProperties',
       'memory-backend-epc':         { 'type': 'MemoryBackendEpcProperties',
                                       'if': 'CONFIG_LINUX' },
       'memory-backend-file':        'MemoryBackendFileProperties',
