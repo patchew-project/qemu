@@ -14,6 +14,12 @@
 
 #include "libqos/libqtest.h"
 
+/* For dirty ring test; so far only x86_64 is supported */
+#if defined(__linux__) && defined(HOST_X86_64)
+#include "linux/kvm.h"
+#endif
+#include <sys/ioctl.h>
+
 extern bool got_stop;
 
 G_GNUC_PRINTF(3, 4)
@@ -33,5 +39,11 @@ void wait_for_migration_status(QTestState *who,
 void wait_for_migration_complete(QTestState *who);
 
 void wait_for_migration_fail(QTestState *from, bool allow_active);
+
+void init_bootfile(const char *bootpath, void *content, size_t len);
+
+void wait_for_serial(const char *tmpfs, const char *side);
+
+bool kvm_dirty_ring_supported(void);
 
 #endif /* MIGRATION_HELPERS_H_ */
