@@ -32,6 +32,7 @@ qtests_generic = \
   'qom-test',
   'test-hmp',
   'qos-test',
+  'dirtylimit-test',
 ]
 if config_host.has_key('CONFIG_MODULES')
   qtests_generic += [ 'modules-test' ]
@@ -296,6 +297,7 @@ qtests = {
   'tpm-tis-device-swtpm-test': [io, tpmemu_files, 'tpm-tis-util.c'],
   'tpm-tis-device-test': [io, tpmemu_files, 'tpm-tis-util.c'],
   'vmgenid-test': files('boot-sector.c', 'acpi-utils.c'),
+  'dirtylimit-test': files('migration-helpers.c'),
 }
 
 if dbus_display
