@@ -3591,11 +3591,10 @@ int ram_block_discard_range(RAMBlock *rb, uint64_t start, size_t length)
              * and to fall back on the file contents (which we just
              * fallocate'd away).
              */
-#if defined(CONFIG_MADVISE)
             if (qemu_ram_is_shared(rb) && rb->fd < 0) {
-                ret = madvise(host_startaddr, length, QEMU_MADV_REMOVE);
+                ret = qemu_madvise(host_startaddr, length, QEMU_MADV_REMOVE);
             } else {
-                ret = madvise(host_startaddr, length, QEMU_MADV_DONTNEED);
+                ret = qemu_madvise(host_startaddr, length, QEMU_MADV_DONTNEED);
             }
             if (ret) {
                 ret = -errno;
@@ -3604,13 +3603,6 @@ int ram_block_discard_range(RAMBlock *rb, uint64_t start, size_t length)
                              rb->idstr, start, length, ret);
                 goto err;
             }
-#else
-            ret = -ENOSYS;
-            error_report("ram_block_discard_range: MADVISE not available"
-                         "%s:%" PRIx64 " +%zx (%d)",
-                         rb->idstr, start, length, ret);
-            goto err;
-#endif
         }
         trace_ram_block_discard_range(rb->idstr, host_startaddr, length,
                                       need_madvise, need_fallocate, ret);
