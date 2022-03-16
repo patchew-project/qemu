@@ -520,13 +520,22 @@
 #                 0 means that the engine will use its default
 #                 (default:0, since 6.1)
 #
+# @thread-pool-min: minimum number of threads readily available in the thread
+#                   pool
+#                   (default:0, since 7.1)
+#
+# @thread-pool-max: maximum number of threads the thread pool can contain
+#                   (default:64, since 7.1)
+#
 # Since: 2.0
 ##
 { 'struct': 'IothreadProperties',
   'data': { '*poll-max-ns': 'int',
             '*poll-grow': 'int',
             '*poll-shrink': 'int',
-            '*aio-max-batch': 'int' } }
+            '*aio-max-batch': 'int',
+            '*thread-pool-min': 'int',
+            '*thread-pool-max': 'int' } }
 
 ##
 # @MainLoopProperties:
@@ -536,10 +545,18 @@
 # @aio-max-batch: maximum number of requests in a batch for the AIO engine,
 #                 0 means that the engine will use its default (default:0)
 #
+# @thread-pool-min: minimum number of threads readily available in the thread
+#                   pool (default:0)
+#
+# @thread-pool-max: maximum number of threads the thread pool can contain
+#                   (default:64)
+#
 # Since: 7.1
 ##
 { 'struct': 'MainLoopProperties',
-  'data': { '*aio-max-batch': 'int' } }
+  'data': { '*aio-max-batch': 'int',
+            '*thread-pool-min': 'int',
+            '*thread-pool-max': 'int' } }
 
 ##
 # @MemoryBackendProperties:
