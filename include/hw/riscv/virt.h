@@ -49,7 +49,9 @@ struct RISCVVirtState {
     DeviceState *irqchip[VIRT_SOCKETS_MAX];
     PFlashCFI01 *flash[2];
     FWCfgState *fw_cfg;
+    Notifier machine_done;
 
+    uint64_t kernel_entry;
     int fdt_size;
     bool have_aclint;
     RISCVVirtAIAType aia_type;

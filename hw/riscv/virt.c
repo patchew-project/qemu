@@ -32,6 +32,7 @@
 #include "hw/riscv/virt.h"
 #include "hw/riscv/boot.h"
 #include "hw/riscv/numa.h"
+#include "hw/riscv/rivos_iommu.h"
 #include "hw/intc/riscv_aclint.h"
 #include "hw/intc/riscv_aplic.h"
 #include "hw/intc/riscv_imsic.h"
@@ -948,6 +949,33 @@ static void create_fdt_flash(RISCVVirtState *s, const MemMapEntry *memmap)
     g_free(name);
 }
 
+static void create_rivos_iommu_dt_binding(RISCVVirtState *s, uint16_t bdf)
+{
+    const char compat[] = "rivos,pci-iommu";
+    MachineState *mc = MACHINE(s);
+    uint32_t iommu_phandle;
+    char *iommu_node;
+    char *pci_node;
+
+    pci_node = g_strdup_printf("/soc/pci@%lx",
+            (long) virt_memmap[VIRT_PCIE_ECAM].base);
+    iommu_node = g_strdup_printf("%s/iommu@%x", pci_node, bdf);
+
+    iommu_phandle = qemu_fdt_alloc_phandle(mc->fdt);
+    qemu_fdt_add_subnode(mc->fdt, iommu_node);
+    qemu_fdt_setprop(mc->fdt, iommu_node, "compatible", compat, sizeof(compat));
+    qemu_fdt_setprop_sized_cells(mc->fdt, iommu_node, "reg",
+            1, bdf << 8, 1, 0, 1, 0, 1, 0, 1, 0);
+    qemu_fdt_setprop_cell(mc->fdt, iommu_node, "#iommu-cells", 1);
+    qemu_fdt_setprop_cell(mc->fdt, iommu_node, "phandle", iommu_phandle);
+    g_free(iommu_node);
+
+    qemu_fdt_setprop_cells(mc->fdt, pci_node, "iommu-map",
+            0x0, iommu_phandle, 0x0, bdf,
+            bdf + 1, iommu_phandle, bdf + 1, 0xffff - bdf);
+    g_free(pci_node);
+}
+
 static void create_fdt(RISCVVirtState *s, const MemMapEntry *memmap,
                        uint64_t mem_size, const char *cmdline, bool is_32_bit)
 {
@@ -1156,6 +1184,34 @@ static DeviceState *virt_create_aia(RISCVVirtAIAType aia_type, int aia_guests,
     return aplic_m;
 }
 
+static void virt_machine_done(Notifier *notifier, void *data)
+{
+    const MemMapEntry *memmap = virt_memmap;
+    uint32_t fdt_load_addr;
+    target_ulong start_addr = memmap[VIRT_DRAM].base;
+    RISCVVirtState *s = container_of(notifier, RISCVVirtState, machine_done);
+    MachineState *machine = MACHINE(s);
+
+    /* Compute the fdt load address in dram */
+    fdt_load_addr = riscv_load_fdt(memmap[VIRT_DRAM].base,
+                                   machine->ram_size, machine->fdt);
+    /* load the reset vector */
+    riscv_setup_rom_reset_vec(machine, &s->soc[0], start_addr,
+                              virt_memmap[VIRT_MROM].base,
+                              virt_memmap[VIRT_MROM].size,
+                              s->kernel_entry,
+                              fdt_load_addr, machine->fdt);
+
+    /*
+     * Only direct boot kernel is currently supported for KVM VM,
+     * So here setup kernel start address and fdt address.
+     * TODO:Support firmware loading and integrate to TCG start
+     */
+    if (kvm_enabled()) {
+        riscv_setup_direct_kernel(s->kernel_entry, fdt_load_addr);
+    }
+}
+
 static void virt_machine_init(MachineState *machine)
 {
     const MemMapEntry *memmap = virt_memmap;
@@ -1165,8 +1221,6 @@ static void virt_machine_init(MachineState *machine)
     char *soc_name;
     target_ulong start_addr = memmap[VIRT_DRAM].base;
     target_ulong firmware_end_addr, kernel_start_addr;
-    uint32_t fdt_load_addr;
-    uint64_t kernel_entry;
     DeviceState *mmio_irqchip, *virtio_irqchip, *pcie_irqchip;
     int i, base_hartid, hart_count;
 
@@ -1328,13 +1382,13 @@ static void virt_machine_init(MachineState *machine)
         kernel_start_addr = riscv_calc_kernel_start_addr(&s->soc[0],
                                                          firmware_end_addr);
 
-        kernel_entry = riscv_load_kernel(machine->kernel_filename,
-                                         kernel_start_addr, NULL);
+        s->kernel_entry = riscv_load_kernel(machine->kernel_filename,
+                                            kernel_start_addr, NULL);
 
         if (machine->initrd_filename) {
             hwaddr start;
             hwaddr end = riscv_load_initrd(machine->initrd_filename,
-                                           machine->ram_size, kernel_entry,
+                                           machine->ram_size, s->kernel_entry,
                                            &start);
             qemu_fdt_setprop_cell(machine->fdt, "/chosen",
                                   "linux,initrd-start", start);
@@ -1346,7 +1400,7 @@ static void virt_machine_init(MachineState *machine)
         * If dynamic firmware is used, it doesn't know where is the next mode
         * if kernel argument is not set.
         */
-        kernel_entry = 0;
+        s->kernel_entry = 0;
     }
 
     if (drive_get(IF_PFLASH, 0, 0)) {
@@ -1363,24 +1417,6 @@ static void virt_machine_init(MachineState *machine)
      */
     s->fw_cfg = create_fw_cfg(machine);
     rom_set_fw(s->fw_cfg);
-
-    /* Compute the fdt load address in dram */
-    fdt_load_addr = riscv_load_fdt(memmap[VIRT_DRAM].base,
-                                   machine->ram_size, machine->fdt);
-    /* load the reset vector */
-    riscv_setup_rom_reset_vec(machine, &s->soc[0], start_addr,
-                              virt_memmap[VIRT_MROM].base,
-                              virt_memmap[VIRT_MROM].size, kernel_entry,
-                              fdt_load_addr, machine->fdt);
-
-    /*
-     * Only direct boot kernel is currently supported for KVM VM,
-     * So here setup kernel start address and fdt address.
-     * TODO:Support firmware loading and integrate to TCG start
-     */
-    if (kvm_enabled()) {
-        riscv_setup_direct_kernel(kernel_entry, fdt_load_addr);
-    }
 
     /* SiFive Test MMIO device */
     sifive_test_create(memmap[VIRT_TEST].base);
@@ -1417,6 +1453,29 @@ static void virt_machine_init(MachineState *machine)
                                   drive_get(IF_PFLASH, 0, i));
     }
     virt_flash_map(s, system_memory);
+
+    s->machine_done.notify = virt_machine_done;
+    qemu_add_machine_init_done_notifier(&s->machine_done);
+}
+
+static void virt_machine_device_plug_cb(HotplugHandler *machine,
+                                        DeviceState *dev, Error **errp)
+{
+    RISCVVirtState *s = RISCV_VIRT_MACHINE(machine);
+
+    if (object_dynamic_cast(OBJECT(dev), TYPE_RIVOS_IOMMU_PCI)) {
+        PCIDevice *pdev = PCI_DEVICE(dev);
+        create_rivos_iommu_dt_binding(s, pci_get_bdf(pdev));
+    }
+}
+
+static HotplugHandler *virt_machine_get_hotplug_handler(MachineState *machine,
+                                                        DeviceState *dev)
+{
+    if (object_dynamic_cast(OBJECT(dev), TYPE_RIVOS_IOMMU_PCI)) {
+        return HOTPLUG_HANDLER(machine);
+    }
+    return NULL;
 }
 
 static void virt_machine_instance_init(Object *obj)
@@ -1501,6 +1560,7 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
 {
     char str[128];
     MachineClass *mc = MACHINE_CLASS(oc);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
 
     mc->desc = "RISC-V VirtIO board";
     mc->init = virt_machine_init;
@@ -1512,6 +1572,9 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     mc->get_default_cpu_node_id = riscv_numa_get_default_cpu_node_id;
     mc->numa_mem_supported = true;
     mc->default_ram_id = "riscv_virt_board.ram";
+    assert(!mc->get_hotplug_handler);
+    mc->get_hotplug_handler = virt_machine_get_hotplug_handler;
+    hc->plug = virt_machine_device_plug_cb;
 
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_RAMFB_DEVICE);
 
@@ -1542,6 +1605,10 @@ static const TypeInfo virt_machine_typeinfo = {
     .class_init = virt_machine_class_init,
     .instance_init = virt_machine_instance_init,
     .instance_size = sizeof(RISCVVirtState),
+    .interfaces = (InterfaceInfo[]) {
+         { TYPE_HOTPLUG_HANDLER },
+         { }
+    },
 };
 
 static void virt_machine_init_register_types(void)
