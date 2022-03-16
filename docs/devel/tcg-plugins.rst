@@ -34,6 +34,10 @@ Arguments are plugin specific and can be used to modify their
 behaviour. In this case the howvec plugin is being asked to use inline
 ops to count and break down the hint instructions by type.
 
+QEMU also evaluates the environment variable ``QEMU_PLUGIN``::
+
+  QEMU_PLUGIN="file=tests/plugin/libhowec.so,inline=on,count=hint" $QEMU
+
 Writing plugins
 ---------------
 
