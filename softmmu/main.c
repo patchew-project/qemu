@@ -39,16 +39,18 @@ int main(int argc, char **argv)
 #endif
 #endif /* CONFIG_SDL */
 
-#ifdef CONFIG_COCOA
-#undef main
-#define main qemu_main
-#endif /* CONFIG_COCOA */
-
+#ifndef CONFIG_COCOA
 int main(int argc, char **argv, char **envp)
 {
+    /*
+     * ui/cocoa.m relies on this being the exact content of main(),
+     * because it has to run everything after qemu_init in a secondary
+     * thread.
+     */
     qemu_init(argc, argv, envp);
     qemu_main_loop();
     qemu_cleanup();
 
     return 0;
 }
+#endif /* CONFIG_COCOA */
