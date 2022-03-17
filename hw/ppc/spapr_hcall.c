@@ -1508,7 +1508,7 @@ static target_ulong h_set_ptbl(PowerPCCPU *cpu,
 {
     target_ulong ptcr = args[0];
 
-    if (!spapr_get_cap(spapr, SPAPR_CAP_NESTED_KVM_HV)) {
+    if (!spapr_get_cap(spapr, SPAPR_CAP_NESTED_KVM_HV) || !tcg_enabled()) {
         return H_FUNCTION;
     }
 
@@ -1531,6 +1531,10 @@ static target_ulong h_tlb_invalidate(PowerPCCPU *cpu,
      * translation state except for TLB. And the TLB is always invalidated
      * across L1<->L2 transitions, so nothing is required here.
      */
+
+    if (!tcg_enabled()) {
+        return H_FUNCTION;
+    }
 
     return H_SUCCESS;
 }
@@ -1571,6 +1575,10 @@ static target_ulong h_enter_nested(PowerPCCPU *cpu,
     hwaddr len;
     uint64_t cr;
     int i;
+
+    if (!tcg_enabled()) {
+        return H_FUNCTION;
+    }
 
     if (spapr->nested_ptcr == 0) {
         return H_NOT_AVAILABLE;
