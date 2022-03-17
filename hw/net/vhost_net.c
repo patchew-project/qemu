@@ -274,6 +274,10 @@ static int vhost_net_start_one(struct vhost_net *net,
             }
         }
     }
+
+    if (net->nc->info->start) {
+        net->nc->info->start(net->nc);
+    }
     return 0;
 fail:
     file.fd = -1;
