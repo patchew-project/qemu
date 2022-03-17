@@ -80,6 +80,9 @@ fi
 : ${cross_as_tricore="tricore-as"}
 : ${cross_ld_tricore="tricore-ld"}
 
+# nios2 is special as it requires ar
+: ${cross_ar_nios2="nios2-linux-gnu-ar"}
+
 for target in $target_list; do
   arch=${target%%-*}
 
@@ -89,6 +92,7 @@ for target in $target_list; do
   container_cross_cc=
   container_cross_as=
   container_cross_ld=
+  container_cross_ar=
 
   # suppress clang
   supress_clang=
@@ -166,6 +170,7 @@ for target in $target_list; do
       container_hosts=x86_64
       container_image=debian-nios2-cross
       container_cross_cc=nios2-linux-gnu-gcc
+      container_cross_ar=nios2-linux-gnu-ar
       ;;
     ppc-*)
       container_hosts=x86_64
@@ -285,6 +290,11 @@ for target in $target_list; do
                   ;;
           esac
       fi
+
+      eval "target_ar=\"\${cross_ar_$arch}\""
+      if has $target_ar; then
+          echo "CROSS_AR_GUEST=$target_ar" >> $config_target_mak
+      fi
   fi
 
   if test $got_cross_cc = yes; then
@@ -342,6 +352,10 @@ for target in $target_list; do
               fi
               if test -n "$container_cross_ld"; then
                   echo "DOCKER_CROSS_LD_GUEST=$container_cross_ld" >> \
+                      $config_target_mak
+              fi
+              if test -n "$container_cross_ar"; then
+                  echo "DOCKER_CROSS_AR_GUEST=$container_cross_ar" >> \
                       $config_target_mak
               fi
           fi
