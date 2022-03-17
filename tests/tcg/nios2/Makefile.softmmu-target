@@ -1,0 +1,32 @@
+#
+# Nios2 system tests
+#
+
+NIOS2_SYSTEM_SRC = $(SRC_PATH)/tests/tcg/nios2
+VPATH += $(NIOS2_SYSTEM_SRC)
+
+# These objects provide the basic boot code and helper functions for all tests
+CRT_OBJS = minilib.a
+LINK_SCRIPT = $(NIOS2_SYSTEM_SRC)/10m50-ghrd.ld
+
+CFLAGS  += -nostdlib -g -O0 $(MINILIB_INC)
+LDFLAGS += -Wl,-T$(LINK_SCRIPT) -static -nostdlib $(CRT_OBJS) -lgcc
+
+%.o: %.S
+	$(call quiet-command, $(CC) $(CFLAGS) $(EXTRA_CFLAGS) -x assembler-with-cpp -c $< -o $@, AS, $@)
+
+%.o: %.c
+	$(call quiet-command, $(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c $< -o $@, CC, $@)
+
+minilib.a: ml-intr.o ml-start.o ml-ftm.o ml-outc.o ml-memcpy.o ml-memset.o $(MINILIB_OBJS)
+	$(call quiet-command, $(AR) cqs $@ $^, AR, $@)
+
+# Build and link the tests
+%: %.o $(LINK_SCRIPT) $(CRT_OBJS)
+	$(call quiet-command, $(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS), LD, $@)
+
+# FIXME: nios2 semihosting writes to stdout, not a chardev
+QEMU_OPTS = -M 10m50-ghrd,vic=on -semihosting >$@.out -kernel
+
+memory: CFLAGS+=-DCHECK_UNALIGNED=0
+TESTS += $(MULTIARCH_TESTS)
