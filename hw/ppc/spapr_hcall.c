@@ -1473,31 +1473,6 @@ target_ulong spapr_hypercall(PowerPCCPU *cpu, target_ulong opcode,
     return H_FUNCTION;
 }
 
-#ifndef CONFIG_TCG
-static target_ulong h_softmmu(PowerPCCPU *cpu, SpaprMachineState *spapr,
-                            target_ulong opcode, target_ulong *args)
-{
-    g_assert_not_reached();
-}
-
-static void hypercall_register_softmmu(void)
-{
-    /* hcall-pft */
-    spapr_register_hypercall(H_ENTER, h_softmmu);
-    spapr_register_hypercall(H_REMOVE, h_softmmu);
-    spapr_register_hypercall(H_PROTECT, h_softmmu);
-    spapr_register_hypercall(H_READ, h_softmmu);
-
-    /* hcall-bulk */
-    spapr_register_hypercall(H_BULK_REMOVE, h_softmmu);
-}
-#else
-static void hypercall_register_softmmu(void)
-{
-    /* DO NOTHING */
-}
-#endif
-
 /* TCG only */
 #define PRTS_MASK      0x1f
 
@@ -1832,6 +1807,31 @@ out_restore_l1:
     g_free(spapr_cpu->nested_host_state);
     spapr_cpu->nested_host_state = NULL;
 }
+
+#ifndef CONFIG_TCG
+static target_ulong h_softmmu(PowerPCCPU *cpu, SpaprMachineState *spapr,
+                            target_ulong opcode, target_ulong *args)
+{
+    g_assert_not_reached();
+}
+
+static void hypercall_register_softmmu(void)
+{
+    /* hcall-pft */
+    spapr_register_hypercall(H_ENTER, h_softmmu);
+    spapr_register_hypercall(H_REMOVE, h_softmmu);
+    spapr_register_hypercall(H_PROTECT, h_softmmu);
+    spapr_register_hypercall(H_READ, h_softmmu);
+
+    /* hcall-bulk */
+    spapr_register_hypercall(H_BULK_REMOVE, h_softmmu);
+}
+#else
+static void hypercall_register_softmmu(void)
+{
+    /* DO NOTHING */
+}
+#endif
 
 static void hypercall_register_types(void)
 {
