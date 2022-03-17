@@ -34,6 +34,15 @@ void helper_raise_exception(CPUNios2State *env, uint32_t index)
 #ifndef CONFIG_USER_ONLY
 void helper_eret(CPUNios2State *env, uint32_t new_status, uint32_t new_pc)
 {
+    Nios2CPU *cpu = env_archcpu(env);
+
+    /*
+     * Both estatus and bstatus have no constraints on write;
+     * do not allow reserved fields in status to be set.
+     */
+    new_status &= (cpu->cr_state[CR_STATUS].writable |
+                   cpu->cr_state[CR_STATUS].readonly);
+
     env->ctrl[CR_STATUS] = new_status;
     env->pc = new_pc;
     cpu_loop_exit(env_cpu(env));
