@@ -2,6 +2,7 @@
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "sysemu/hw_accel.h"
+#include "sysemu/tcg.h"
 #include "sysemu/runstate.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
@@ -1473,7 +1474,8 @@ target_ulong spapr_hypercall(PowerPCCPU *cpu, target_ulong opcode,
     return H_FUNCTION;
 }
 
-/* TCG only */
+#ifdef CONFIG_TCG
+
 #define PRTS_MASK      0x1f
 
 static target_ulong h_set_ptbl(PowerPCCPU *cpu,
@@ -1807,6 +1809,12 @@ out_restore_l1:
     g_free(spapr_cpu->nested_host_state);
     spapr_cpu->nested_host_state = NULL;
 }
+#else
+void spapr_exit_nested(PowerPCCPU *cpu, int excp)
+{
+    g_assert_not_reached();
+}
+#endif
 
 #ifndef CONFIG_TCG
 static target_ulong h_softmmu(PowerPCCPU *cpu, SpaprMachineState *spapr,
@@ -1829,7 +1837,10 @@ static void hypercall_register_softmmu(void)
 #else
 static void hypercall_register_softmmu(void)
 {
-    /* DO NOTHING */
+    spapr_register_hypercall(KVMPPC_H_SET_PARTITION_TABLE, h_set_ptbl);
+    spapr_register_hypercall(KVMPPC_H_ENTER_NESTED, h_enter_nested);
+    spapr_register_hypercall(KVMPPC_H_TLB_INVALIDATE, h_tlb_invalidate);
+    spapr_register_hypercall(KVMPPC_H_COPY_TOFROM_GUEST, h_copy_tofrom_guest);
 }
 #endif
 
@@ -1888,11 +1899,6 @@ static void hypercall_register_types(void)
     spapr_register_hypercall(KVMPPC_H_CAS, h_client_architecture_support);
 
     spapr_register_hypercall(KVMPPC_H_UPDATE_DT, h_update_dt);
-
-    spapr_register_hypercall(KVMPPC_H_SET_PARTITION_TABLE, h_set_ptbl);
-    spapr_register_hypercall(KVMPPC_H_ENTER_NESTED, h_enter_nested);
-    spapr_register_hypercall(KVMPPC_H_TLB_INVALIDATE, h_tlb_invalidate);
-    spapr_register_hypercall(KVMPPC_H_COPY_TOFROM_GUEST, h_copy_tofrom_guest);
 }
 
 type_init(hypercall_register_types)
