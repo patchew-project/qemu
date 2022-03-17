@@ -75,6 +75,9 @@ typedef struct {
     int height;
 } QEMUScreen;
 
+@interface QemuCocoaPasteboardTypeOwner : NSObject<NSPasteboardTypeOwner>
+@end
+
 static void cocoa_update(DisplayChangeListener *dcl,
                          int x, int y, int w, int h);
 
@@ -109,6 +112,8 @@ static bool allow_events;
 
 static NSInteger cbchangecount = -1;
 static QemuClipboardInfo *cbinfo;
+static QemuClipboardPeer cbpeer;
+static QemuCocoaPasteboardTypeOwner *cbowner;
 static QemuEvent cbevent;
 
 // Utility functions to run specified code block with iothread lock held
@@ -140,6 +145,44 @@ static bool bool_with_iothread_lock(BoolCodeBlock block)
         qemu_mutex_unlock_iothread();
     }
     return val;
+}
+
+/*
+ * The startup process for the OSX/Cocoa UI is complicated, because
+ * OSX insists that the UI runs on the initial main thread, and so we
+ * need to start a second thread which runs the vl.c qemu_main():
+ *
+ * Initial thread:                    2nd thread:
+ * in main():
+ *  create qemu-main thread
+ *  wait on display_init semaphore
+ *                                    call qemu_main()
+ *                                    ...
+ *                                    in cocoa_display_init():
+ *                                     post the display_init semaphore
+ *                                     wait on app_started semaphore
+ *  create application, menus, etc
+ *  enter OSX run loop
+ * in applicationDidFinishLaunching:
+ *  post app_started semaphore
+ *                                     tell main thread to fullscreen if needed
+ *                                    [...]
+ *                                    run qemu main-loop
+ *
+ * We do this in two stages so that we don't do the creation of the
+ * GUI application menus and so on for command line options like --help
+ * where we want to just print text to stdout and exit immediately.
+ */
+
+static void *call_qemu_main(void *opaque)
+{
+    int status;
+
+    COCOA_DEBUG("Second thread: calling qemu_main()\n");
+    status = qemu_main(gArgc, gArgv, *_NSGetEnviron());
+    COCOA_DEBUG("Second thread: qemu_main() returned, exiting\n");
+    [cbowner release];
+    exit(status);
 }
 
 // Mac to QKeyCode conversion
@@ -1804,9 +1847,6 @@ static void addRemovableDevicesMenuItems(void)
     qapi_free_BlockInfoList(pointerToFree);
 }
 
-@interface QemuCocoaPasteboardTypeOwner : NSObject<NSPasteboardTypeOwner>
-@end
-
 @implementation QemuCocoaPasteboardTypeOwner
 
 - (void)pasteboard:(NSPasteboard *)sender provideDataForType:(NSPasteboardType)type
@@ -1840,8 +1880,6 @@ static void addRemovableDevicesMenuItems(void)
 }
 
 @end
-
-static QemuCocoaPasteboardTypeOwner *cbowner;
 
 static void cocoa_clipboard_notify(Notifier *notifier, void *data);
 static void cocoa_clipboard_request(QemuClipboardInfo *info,
@@ -1901,44 +1939,6 @@ static void cocoa_clipboard_request(QemuClipboardInfo *info,
     default:
         break;
     }
-}
-
-/*
- * The startup process for the OSX/Cocoa UI is complicated, because
- * OSX insists that the UI runs on the initial main thread, and so we
- * need to start a second thread which runs the vl.c qemu_main():
- *
- * Initial thread:                    2nd thread:
- * in main():
- *  create qemu-main thread
- *  wait on display_init semaphore
- *                                    call qemu_main()
- *                                    ...
- *                                    in cocoa_display_init():
- *                                     post the display_init semaphore
- *                                     wait on app_started semaphore
- *  create application, menus, etc
- *  enter OSX run loop
- * in applicationDidFinishLaunching:
- *  post app_started semaphore
- *                                     tell main thread to fullscreen if needed
- *                                    [...]
- *                                    run qemu main-loop
- *
- * We do this in two stages so that we don't do the creation of the
- * GUI application menus and so on for command line options like --help
- * where we want to just print text to stdout and exit immediately.
- */
-
-static void *call_qemu_main(void *opaque)
-{
-    int status;
-
-    COCOA_DEBUG("Second thread: calling qemu_main()\n");
-    status = qemu_main(gArgc, gArgv, *_NSGetEnviron());
-    COCOA_DEBUG("Second thread: qemu_main() returned, exiting\n");
-    [cbowner release];
-    exit(status);
 }
 
 int main (int argc, char **argv) {
