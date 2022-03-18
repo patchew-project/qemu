@@ -643,6 +643,7 @@ static inline uint64_t sd_addr_to_wpnum(uint64_t addr)
 static void sd_reset(DeviceState *dev)
 {
     SDState *sd = SD_CARD(dev);
+    SDCardClass *sc = SD_CARD_GET_CLASS(sd);
     uint64_t size;
     uint64_t sect;
 
@@ -653,6 +654,11 @@ static void sd_reset(DeviceState *dev)
         sect = 0;
     }
     size = sect << 9;
+
+    if (sc->bootpart_offset) {
+        unsigned int boot_capacity = sd->ext_csd[EXT_CSD_BOOT_MULT] << 17;
+        size -= boot_capacity * 2;
+    }
 
     sect = sd_addr_to_wpnum(size) + 1;
 
