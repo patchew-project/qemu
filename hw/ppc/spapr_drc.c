@@ -316,14 +316,6 @@ static SpaprDREntitySense logical_entity_sense(SpaprDrc *drc)
     }
 }
 
-static void prop_get_index(Object *obj, Visitor *v, const char *name,
-                           void *opaque, Error **errp)
-{
-    SpaprDrc *drc = SPAPR_DR_CONNECTOR(obj);
-    uint32_t value = spapr_drc_index(drc);
-    visit_type_uint32(v, name, &value, errp);
-}
-
 static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
                          void *opaque, Error **errp)
 {
@@ -577,8 +569,8 @@ static void spapr_dr_connector_instance_init(Object *obj)
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
     object_property_add_uint32_ptr(obj, "id", &drc->id, OBJ_PROP_FLAG_READ);
-    object_property_add(obj, "index", "uint32", prop_get_index,
-                        NULL, NULL, NULL);
+    object_property_add_uint32_ptr(obj, "index", &drc->index,
+                                   OBJ_PROP_FLAG_READ);
     object_property_add(obj, "fdt", "struct", prop_get_fdt,
                         NULL, NULL, NULL);
     drc->state = drck->empty_state;
