@@ -419,7 +419,7 @@ static int spapr_dt_dynamic_memory_v2(SpaprMachineState *spapr, void *fdt,
             drc = spapr_drc_by_id(TYPE_SPAPR_DRC_LMB, cur_addr / lmb_size);
             g_assert(drc);
             elem = spapr_get_drconf_cell((addr - cur_addr) / lmb_size,
-                                         cur_addr, spapr_drc_index(drc), -1, 0);
+                                         cur_addr, drc->index, -1, 0);
             QSIMPLEQ_INSERT_TAIL(&drconf_queue, elem, entry);
             nr_entries++;
         }
@@ -428,7 +428,7 @@ static int spapr_dt_dynamic_memory_v2(SpaprMachineState *spapr, void *fdt,
         drc = spapr_drc_by_id(TYPE_SPAPR_DRC_LMB, addr / lmb_size);
         g_assert(drc);
         elem = spapr_get_drconf_cell(size / lmb_size, addr,
-                                     spapr_drc_index(drc), node,
+                                     drc->index, node,
                                      (SPAPR_LMB_FLAGS_ASSIGNED |
                                       SPAPR_LMB_FLAGS_HOTREMOVABLE));
         QSIMPLEQ_INSERT_TAIL(&drconf_queue, elem, entry);
@@ -441,7 +441,7 @@ static int spapr_dt_dynamic_memory_v2(SpaprMachineState *spapr, void *fdt,
         drc = spapr_drc_by_id(TYPE_SPAPR_DRC_LMB, cur_addr / lmb_size);
         g_assert(drc);
         elem = spapr_get_drconf_cell((mem_end - cur_addr) / lmb_size,
-                                     cur_addr, spapr_drc_index(drc), -1, 0);
+                                     cur_addr, drc->index, -1, 0);
         QSIMPLEQ_INSERT_TAIL(&drconf_queue, elem, entry);
         nr_entries++;
     }
@@ -497,7 +497,7 @@ static int spapr_dt_dynamic_memory(SpaprMachineState *spapr, void *fdt,
 
             dynamic_memory[0] = cpu_to_be32(addr >> 32);
             dynamic_memory[1] = cpu_to_be32(addr & 0xffffffff);
-            dynamic_memory[2] = cpu_to_be32(spapr_drc_index(drc));
+            dynamic_memory[2] = cpu_to_be32(drc->index);
             dynamic_memory[3] = cpu_to_be32(0); /* reserved */
             dynamic_memory[4] = cpu_to_be32(spapr_pc_dimm_node(dimms, addr));
             if (memory_region_present(get_system_memory(), addr)) {
@@ -663,14 +663,12 @@ static void spapr_dt_cpu(CPUState *cs, void *fdt, int offset,
     uint32_t pft_size_prop[] = {0, cpu_to_be32(spapr->htab_shift)};
     int compat_smt = MIN(smp_threads, ppc_compat_max_vthreads(cpu));
     SpaprDrc *drc;
-    int drc_index;
     uint32_t radix_AP_encodings[PPC_PAGE_SIZES_MAX_SZ];
     int i;
 
     drc = spapr_drc_by_id(TYPE_SPAPR_DRC_CPU, index);
     if (drc) {
-        drc_index = spapr_drc_index(drc);
-        _FDT((fdt_setprop_cell(fdt, offset, "ibm,my-drc-index", drc_index)));
+        _FDT((fdt_setprop_cell(fdt, offset, "ibm,my-drc-index", drc->index)));
     }
 
     _FDT((fdt_setprop_cell(fdt, offset, "reg", index)));
@@ -3448,7 +3446,7 @@ int spapr_lmb_dt_populate(SpaprDrc *drc, SpaprMachineState *spapr,
     uint64_t addr;
     uint32_t node;
 
-    addr = spapr_drc_index(drc) * SPAPR_MEMORY_BLOCK_SIZE;
+    addr = drc->index * SPAPR_MEMORY_BLOCK_SIZE;
     node = object_property_get_uint(OBJECT(drc->dev), PC_DIMM_NODE_PROP,
                                     &error_abort);
     *fdt_start_offset = spapr_dt_memory_node(spapr, fdt, node, addr,
@@ -3491,7 +3489,7 @@ static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
             g_assert(drc);
             spapr_hotplug_req_add_by_count_indexed(SPAPR_DR_CONNECTOR_TYPE_LMB,
                                                    nr_lmbs,
-                                                   spapr_drc_index(drc));
+                                                   drc->index);
         } else {
             spapr_hotplug_req_add_by_count(SPAPR_DR_CONNECTOR_TYPE_LMB,
                                            nr_lmbs);
@@ -3791,7 +3789,7 @@ static void spapr_memory_unplug_request(HotplugHandler *hotplug_dev,
     drc = spapr_drc_by_id(TYPE_SPAPR_DRC_LMB,
                           addr_start / SPAPR_MEMORY_BLOCK_SIZE);
     spapr_hotplug_req_remove_by_count_indexed(SPAPR_DR_CONNECTOR_TYPE_LMB,
-                                              nr_lmbs, spapr_drc_index(drc));
+                                              nr_lmbs, drc->index);
 }
 
 /* Callback to be called during DRC release. */
