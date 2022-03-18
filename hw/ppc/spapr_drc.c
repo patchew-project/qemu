@@ -509,7 +509,7 @@ static const VMStateDescription vmstate_spapr_drc = {
 static void drc_realize(DeviceState *d, Error **errp)
 {
     SpaprDrc *drc = SPAPR_DR_CONNECTOR(d);
-    g_autofree gchar *link_name = g_strdup_printf("%x", spapr_drc_index(drc));
+    g_autofree gchar *link_name = g_strdup_printf("%x", drc->index);
     Object *root_container;
     const char *child_name;
 
@@ -526,15 +526,14 @@ static void drc_realize(DeviceState *d, Error **errp)
     trace_spapr_drc_realize_child(drc->index, child_name);
     object_property_add_alias(root_container, link_name,
                               drc->owner, child_name);
-    vmstate_register(VMSTATE_IF(drc), spapr_drc_index(drc), &vmstate_spapr_drc,
-                     drc);
+    vmstate_register(VMSTATE_IF(drc), drc->index, &vmstate_spapr_drc, drc);
     trace_spapr_drc_realize_complete(drc->index);
 }
 
 static void drc_unrealize(DeviceState *d)
 {
     SpaprDrc *drc = SPAPR_DR_CONNECTOR(d);
-    g_autofree gchar *name = g_strdup_printf("%x", spapr_drc_index(drc));
+    g_autofree gchar *name = g_strdup_printf("%x", drc->index);
     Object *root_container;
 
     trace_spapr_drc_unrealize(drc->index);
@@ -552,8 +551,7 @@ SpaprDrc *spapr_dr_connector_new(Object *owner, const char *type,
     drc->id = id;
     drc->owner = owner;
     drc->index = spapr_drc_index(drc);
-    prop_name = g_strdup_printf("dr-connector[%"PRIu32"]",
-                                spapr_drc_index(drc));
+    prop_name = g_strdup_printf("dr-connector[%"PRIu32"]", drc->index);
     object_property_add_child(owner, prop_name, OBJECT(drc));
     object_unref(OBJECT(drc));
     qdev_realize(DEVICE(drc), NULL, NULL);
@@ -633,8 +631,7 @@ static void realize_physical(DeviceState *d, Error **errp)
         return;
     }
 
-    vmstate_register(VMSTATE_IF(drcp),
-                     spapr_drc_index(SPAPR_DR_CONNECTOR(drcp)),
+    vmstate_register(VMSTATE_IF(drcp), SPAPR_DR_CONNECTOR(drcp)->index,
                      &vmstate_spapr_drc_physical, drcp);
     qemu_register_reset(drc_physical_reset, drcp);
 }
@@ -883,7 +880,7 @@ int spapr_dt_drc(void *fdt, int offset, Object *owner, uint32_t drc_type_mask)
         drc_count++;
 
         /* ibm,drc-indexes */
-        drc_index = cpu_to_be32(spapr_drc_index(drc));
+        drc_index = cpu_to_be32(drc->index);
         g_array_append_val(drc_indexes, drc_index);
 
         /* ibm,drc-power-domains */
