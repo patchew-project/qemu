@@ -173,6 +173,7 @@ typedef struct SpaprDrc {
     DeviceState parent;
 
     uint32_t id;
+    uint32_t index;
     Object *owner;
 
     uint32_t state;

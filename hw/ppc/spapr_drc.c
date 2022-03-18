@@ -561,6 +561,7 @@ SpaprDrc *spapr_dr_connector_new(Object *owner, const char *type,
 
     drc->id = id;
     drc->owner = owner;
+    drc->index = spapr_drc_index(drc);
     prop_name = g_strdup_printf("dr-connector[%"PRIu32"]",
                                 spapr_drc_index(drc));
     object_property_add_child(owner, prop_name, OBJECT(drc));
