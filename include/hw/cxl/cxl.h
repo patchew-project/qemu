@@ -45,4 +45,6 @@ void cxl_fixed_memory_window_options_set(MachineState *ms,
                                          Error **errp);
 void cxl_fixed_memory_window_link_targets(Error **errp);
 
+extern const MemoryRegionOps cfmws_ops;
+
 #endif
