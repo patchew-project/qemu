@@ -318,6 +318,7 @@ static hwaddr kvm_align_section(MemoryRegionSection *section,
                                 hwaddr *start)
 {
     hwaddr size = int128_get64(section->size);
+    size = ROUND_UP(size, qemu_real_host_page_size);
     hwaddr delta, aligned;
 
     /* kvm works in page size chunks, but the function may be called
