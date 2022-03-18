@@ -2252,8 +2252,8 @@ static const SDProto sd_proto_sd = {
 
 static sd_rsp_type_t sd_emmc_cmd_SEND_OP_CMD(SDState *sd, SDRequest req)
 {
-    sd->state = sd_ready_state;
-    return sd_r3;
+    sd_ocr_powerup(sd);
+    return sd->state == sd_idle_state ? sd_r3 : sd_r0;
 }
 
 static sd_rsp_type_t sd_emmc_cmd_ALL_SEND_CID(SDState *sd, SDRequest req)
