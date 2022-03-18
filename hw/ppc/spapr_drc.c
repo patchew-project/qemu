@@ -39,18 +39,6 @@ SpaprDrcType spapr_drc_type(SpaprDrc *drc)
     return 1 << drck->typeshift;
 }
 
-uint32_t spapr_drc_index(SpaprDrc *drc)
-{
-    SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-
-    /* no set format for a drc index: it only needs to be globally
-     * unique. this is how we encode the DRC type on bare-metal
-     * however, so might as well do that here
-     */
-    return (drck->typeshift << DRC_INDEX_TYPE_SHIFT)
-        | (drc->id & DRC_INDEX_ID_MASK);
-}
-
 static void spapr_drc_release(SpaprDrc *drc)
 {
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
@@ -546,11 +534,20 @@ SpaprDrc *spapr_dr_connector_new(Object *owner, const char *type,
                                          uint32_t id)
 {
     SpaprDrc *drc = SPAPR_DR_CONNECTOR(object_new(type));
+    SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     g_autofree char *prop_name = NULL;
 
     drc->id = id;
     drc->owner = owner;
-    drc->index = spapr_drc_index(drc);
+
+    /*
+     * No set format for a drc index: it only needs to be globally
+     * unique. This is how we encode the DRC type on bare-metal
+     * however, so might as well do that here.
+     */
+    drc->index = (drck->typeshift << DRC_INDEX_TYPE_SHIFT) |
+                 (drc->id & DRC_INDEX_ID_MASK);
+
     prop_name = g_strdup_printf("dr-connector[%"PRIu32"]", drc->index);
     object_property_add_child(owner, prop_name, OBJECT(drc));
     object_unref(OBJECT(drc));

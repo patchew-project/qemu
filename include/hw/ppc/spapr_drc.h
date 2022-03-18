@@ -228,7 +228,6 @@ static inline bool spapr_drc_hotplugged(DeviceState *dev)
 /* Returns true if an unplug request completed */
 bool spapr_drc_reset(SpaprDrc *drc);
 
-uint32_t spapr_drc_index(SpaprDrc *drc);
 SpaprDrcType spapr_drc_type(SpaprDrc *drc);
 
 SpaprDrc *spapr_dr_connector_new(Object *owner, const char *type,
