@@ -88,6 +88,7 @@ static void nvmm_accel_ops_class_init(ObjectClass *oc, void *data)
     AccelOpsClass *ops = ACCEL_OPS_CLASS(oc);
 
     ops->create_vcpu_thread = nvmm_start_vcpu_thread;
+    ops->destroy_vcpu_thread = destroy_vcpu_thread_generic;
     ops->kick_vcpu_thread = nvmm_kick_vcpu_thread;
 
     ops->synchronize_post_reset = nvmm_cpu_synchronize_post_reset;

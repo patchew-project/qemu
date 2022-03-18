@@ -51,6 +51,7 @@ static void qtest_accel_ops_class_init(ObjectClass *oc, void *data)
     AccelOpsClass *ops = ACCEL_OPS_CLASS(oc);
 
     ops->create_vcpu_thread = dummy_start_vcpu_thread;
+    ops->destroy_vcpu_thread = destroy_vcpu_thread_generic;
     ops->get_virtual_clock = qtest_get_virtual_clock;
 };
 
