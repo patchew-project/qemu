@@ -145,7 +145,6 @@ static int spapr_dt_nvdimm(SpaprMachineState *spapr, void *fdt,
     int child_offset;
     char *buf;
     SpaprDrc *drc;
-    uint32_t drc_idx;
     uint32_t node = object_property_get_uint(OBJECT(nvdimm), PC_DIMM_NODE_PROP,
                                              &error_abort);
     uint64_t slot = object_property_get_uint(OBJECT(nvdimm), PC_DIMM_SLOT_PROP,
@@ -157,15 +156,13 @@ static int spapr_dt_nvdimm(SpaprMachineState *spapr, void *fdt,
     drc = spapr_drc_by_id(TYPE_SPAPR_DRC_PMEM, slot);
     g_assert(drc);
 
-    drc_idx = spapr_drc_index(drc);
-
-    buf = g_strdup_printf("ibm,pmemory@%x", drc_idx);
+    buf = g_strdup_printf("ibm,pmemory@%x", drc->index);
     child_offset = fdt_add_subnode(fdt, parent_offset, buf);
     g_free(buf);
 
     _FDT(child_offset);
 
-    _FDT((fdt_setprop_cell(fdt, child_offset, "reg", drc_idx)));
+    _FDT((fdt_setprop_cell(fdt, child_offset, "reg", drc->index)));
     _FDT((fdt_setprop_string(fdt, child_offset, "compatible", "ibm,pmemory")));
     _FDT((fdt_setprop_string(fdt, child_offset, "device_type", "ibm,pmemory")));
 
@@ -175,7 +172,8 @@ static int spapr_dt_nvdimm(SpaprMachineState *spapr, void *fdt,
     _FDT((fdt_setprop_string(fdt, child_offset, "ibm,unit-guid", buf)));
     g_free(buf);
 
-    _FDT((fdt_setprop_cell(fdt, child_offset, "ibm,my-drc-index", drc_idx)));
+    _FDT((fdt_setprop_cell(fdt, child_offset, "ibm,my-drc-index",
+                           drc->index)));
 
     _FDT((fdt_setprop_u64(fdt, child_offset, "ibm,block-size",
                           SPAPR_MINIMUM_SCM_BLOCK_SIZE)));
