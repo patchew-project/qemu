@@ -235,6 +235,7 @@ typedef struct cxl_type3_dev {
     PCIDevice parent_obj;
 
     /* Properties */
+    AddressSpace hostmem_as;
     uint64_t size;
     HostMemoryBackend *hostmem;
     HostMemoryBackend *lsa;
@@ -261,5 +262,10 @@ struct CXLType3Class {
     void (*set_lsa)(CXLType3Dev *ct3d, const void *buf, uint64_t size,
                     uint64_t offset);
 };
+
+MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
+                           unsigned size, MemTxAttrs attrs);
+MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
+                            unsigned size, MemTxAttrs attrs);
 
 #endif
