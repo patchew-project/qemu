@@ -609,6 +609,9 @@ void cpu_remove_sync(CPUState *cpu)
     qemu_mutex_unlock_iothread();
     qemu_thread_join(cpu->thread);
     qemu_mutex_lock_iothread();
+    if (cpus_accel->destroy_vcpu_thread) {
+        cpus_accel->destroy_vcpu_thread(cpu);
+    }
 }
 
 void cpus_register_accel(const AccelOpsClass *ops)
