@@ -81,8 +81,7 @@ static uint32_t drc_isolate_physical(SpaprDrc *drc)
     drc->state = SPAPR_DRC_STATE_PHYSICAL_POWERON;
 
     if (drc->unplug_requested) {
-        uint32_t drc_index = spapr_drc_index(drc);
-        trace_spapr_drc_set_isolation_state_finalizing(drc_index);
+        trace_spapr_drc_set_isolation_state_finalizing(drc->index);
         spapr_drc_release(drc);
     }
 
@@ -247,8 +246,7 @@ static uint32_t drc_set_unusable(SpaprDrc *drc)
 
     drc->state = SPAPR_DRC_STATE_LOGICAL_UNUSABLE;
     if (drc->unplug_requested) {
-        uint32_t drc_index = spapr_drc_index(drc);
-        trace_spapr_drc_set_allocation_state_finalizing(drc_index);
+        trace_spapr_drc_set_allocation_state_finalizing(drc->index);
         spapr_drc_release(drc);
     }
 
@@ -390,7 +388,7 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
 
 void spapr_drc_attach(SpaprDrc *drc, DeviceState *d)
 {
-    trace_spapr_drc_attach(spapr_drc_index(drc));
+    trace_spapr_drc_attach(drc->index);
 
     g_assert(!drc->dev);
     g_assert((drc->state == SPAPR_DRC_STATE_LOGICAL_UNUSABLE)
@@ -408,14 +406,14 @@ void spapr_drc_unplug_request(SpaprDrc *drc)
 {
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
-    trace_spapr_drc_unplug_request(spapr_drc_index(drc));
+    trace_spapr_drc_unplug_request(drc->index);
 
     g_assert(drc->dev);
 
     drc->unplug_requested = true;
 
     if (drc->state != drck->empty_state) {
-        trace_spapr_drc_awaiting_quiesce(spapr_drc_index(drc));
+        trace_spapr_drc_awaiting_quiesce(drc->index);
         return;
     }
 
@@ -427,7 +425,7 @@ bool spapr_drc_reset(SpaprDrc *drc)
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     bool unplug_completed = false;
 
-    trace_spapr_drc_reset(spapr_drc_index(drc));
+    trace_spapr_drc_reset(drc->index);
 
     /* immediately upon reset we can safely assume DRCs whose devices
      * are pending removal can be safely removed.
@@ -515,7 +513,7 @@ static void drc_realize(DeviceState *d, Error **errp)
     Object *root_container;
     const char *child_name;
 
-    trace_spapr_drc_realize(spapr_drc_index(drc));
+    trace_spapr_drc_realize(drc->index);
     /* NOTE: we do this as part of realize/unrealize due to the fact
      * that the guest will communicate with the DRC via RTAS calls
      * referencing the global DRC index. By unlinking the DRC
@@ -525,12 +523,12 @@ static void drc_realize(DeviceState *d, Error **errp)
      */
     root_container = container_get(object_get_root(), DRC_CONTAINER_PATH);
     child_name = object_get_canonical_path_component(OBJECT(drc));
-    trace_spapr_drc_realize_child(spapr_drc_index(drc), child_name);
+    trace_spapr_drc_realize_child(drc->index, child_name);
     object_property_add_alias(root_container, link_name,
                               drc->owner, child_name);
     vmstate_register(VMSTATE_IF(drc), spapr_drc_index(drc), &vmstate_spapr_drc,
                      drc);
-    trace_spapr_drc_realize_complete(spapr_drc_index(drc));
+    trace_spapr_drc_realize_complete(drc->index);
 }
 
 static void drc_unrealize(DeviceState *d)
@@ -539,7 +537,7 @@ static void drc_unrealize(DeviceState *d)
     g_autofree gchar *name = g_strdup_printf("%x", spapr_drc_index(drc));
     Object *root_container;
 
-    trace_spapr_drc_unrealize(spapr_drc_index(drc));
+    trace_spapr_drc_unrealize(drc->index);
     vmstate_unregister(VMSTATE_IF(drc), &vmstate_spapr_drc, drc);
     root_container = container_get(object_get_root(), DRC_CONTAINER_PATH);
     object_property_del(root_container, name);
@@ -986,7 +984,7 @@ static uint32_t rtas_set_isolation_state(uint32_t idx, uint32_t state)
         return RTAS_OUT_NO_SUCH_INDICATOR;
     }
 
-    trace_spapr_drc_set_isolation_state(spapr_drc_index(drc), state);
+    trace_spapr_drc_set_isolation_state(drc->index, state);
 
     drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
@@ -1010,7 +1008,7 @@ static uint32_t rtas_set_allocation_state(uint32_t idx, uint32_t state)
         return RTAS_OUT_NO_SUCH_INDICATOR;
     }
 
-    trace_spapr_drc_set_allocation_state(spapr_drc_index(drc), state);
+    trace_spapr_drc_set_allocation_state(drc->index, state);
 
     switch (state) {
     case SPAPR_DR_ALLOCATION_STATE_USABLE:
@@ -1232,10 +1230,8 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
         case FDT_END_NODE:
             drc->ccs_depth--;
             if (drc->ccs_depth == 0) {
-                uint32_t drc_index = spapr_drc_index(drc);
-
                 /* done sending the device tree, move to configured state */
-                trace_spapr_drc_set_configured(drc_index);
+                trace_spapr_drc_set_configured(drc->index);
                 drc->state = drck->ready_state;
                 /*
                  * Ensure that we are able to send the FDT fragment
