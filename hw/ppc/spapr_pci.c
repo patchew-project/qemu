@@ -1419,8 +1419,7 @@ static int spapr_dt_pci_device(SpaprPhbState *sphb, PCIDevice *dev,
     g_free(loc_code);
 
     if (drc) {
-        _FDT(fdt_setprop_cell(fdt, offset, "ibm,my-drc-index",
-                              spapr_drc_index(drc)));
+        _FDT(fdt_setprop_cell(fdt, offset, "ibm,my-drc-index", drc->index));
     }
 
     if (msi_present(dev)) {
@@ -2429,7 +2428,7 @@ int spapr_dt_phb(SpaprMachineState *spapr, SpaprPhbState *phb,
 
     drc = spapr_drc_by_id(TYPE_SPAPR_DRC_PHB, phb->index);
     if (drc) {
-        uint32_t drc_index = cpu_to_be32(spapr_drc_index(drc));
+        uint32_t drc_index = cpu_to_be32(drc->index);
 
         _FDT(fdt_setprop(fdt, bus_off, "ibm,my-drc-index", &drc_index,
                          sizeof(drc_index)));
