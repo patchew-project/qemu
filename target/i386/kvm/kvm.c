@@ -420,14 +420,14 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
         bool sys_attr = kvm_check_extension(s, KVM_CAP_SYS_ATTRIBUTES);
         if (!sys_attr) {
             warn_report("cannot get sys attribute capabilities %d", sys_attr);
-        }
-
-        int rc = kvm_ioctl(s, KVM_GET_DEVICE_ATTR, &attr);
-        if (rc == -1 && (errno == ENXIO || errno == EINVAL)) {
-            warn_report("KVM_GET_DEVICE_ATTR(0, KVM_X86_XCOMP_GUEST_SUPP) "
-                        "error: %d", rc);
-        }
-        ret = (reg == R_EAX) ? bitmask : bitmask >> 32;
+        } else {
+            int rc = kvm_ioctl(s, KVM_GET_DEVICE_ATTR, &attr);
+            if (rc == -1 && (errno == ENXIO || errno == EINVAL)) {
+                warn_report("KVM_GET_DEVICE_ATTR(0, KVM_X86_XCOMP_GUEST_SUPP) "
+                            "error: %d", rc);
+            }
+            ret = (reg == R_EAX) ? bitmask : bitmask >> 32;
+       }
     } else if (function == 0x80000001 && reg == R_ECX) {
         /*
          * It's safe to enable TOPOEXT even if it's not returned by
