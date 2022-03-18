@@ -2874,7 +2874,8 @@ static RISCVException write_upmbase(CPURISCVState *env, int csrno,
 static inline RISCVException riscv_csrrw_check(CPURISCVState *env,
                                                int csrno,
                                                bool write_mask,
-                                               RISCVCPU *cpu)
+                                               RISCVCPU *cpu,
+                                               bool write_op)
 {
     /* check privileges and return RISCV_EXCP_ILLEGAL_INST if check fails */
     int read_only = get_field(csrno, 0xC00) == 3;
@@ -2896,7 +2897,7 @@ static inline RISCVException riscv_csrrw_check(CPURISCVState *env,
         return RISCV_EXCP_ILLEGAL_INST;
     }
 #endif
-    if (write_mask && read_only) {
+    if (write_op && read_only) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
@@ -2916,7 +2917,7 @@ static inline RISCVException riscv_csrrw_check(CPURISCVState *env,
 static RISCVException riscv_csrrw_do64(CPURISCVState *env, int csrno,
                                        target_ulong *ret_value,
                                        target_ulong new_value,
-                                       target_ulong write_mask)
+                                       target_ulong write_mask, bool write_op)
 {
     RISCVException ret;
     target_ulong old_value;
@@ -2936,8 +2937,8 @@ static RISCVException riscv_csrrw_do64(CPURISCVState *env, int csrno,
         return ret;
     }
 
-    /* write value if writable and write mask set, otherwise drop writes */
-    if (write_mask) {
+    /* write value if writable and write_op set, otherwise drop writes */
+    if (write_op) {
         new_value = (old_value & ~write_mask) | (new_value & write_mask);
         if (csr_ops[csrno].write) {
             ret = csr_ops[csrno].write(env, csrno, new_value);
@@ -2957,22 +2958,25 @@ static RISCVException riscv_csrrw_do64(CPURISCVState *env, int csrno,
 
 RISCVException riscv_csrrw(CPURISCVState *env, int csrno,
                            target_ulong *ret_value,
-                           target_ulong new_value, target_ulong write_mask)
+                           target_ulong new_value, target_ulong write_mask,
+                           bool write_op)
 {
     RISCVCPU *cpu = env_archcpu(env);
 
-    RISCVException ret = riscv_csrrw_check(env, csrno, write_mask, cpu);
+    RISCVException ret = riscv_csrrw_check(env, csrno, write_mask, cpu,
+                                           write_op);
     if (ret != RISCV_EXCP_NONE) {
         return ret;
     }
 
-    return riscv_csrrw_do64(env, csrno, ret_value, new_value, write_mask);
+    return riscv_csrrw_do64(env, csrno, ret_value, new_value, write_mask,
+                            write_op);
 }
 
 static RISCVException riscv_csrrw_do128(CPURISCVState *env, int csrno,
                                         Int128 *ret_value,
                                         Int128 new_value,
-                                        Int128 write_mask)
+                                        Int128 write_mask, bool write_op)
 {
     RISCVException ret;
     Int128 old_value;
@@ -2983,8 +2987,8 @@ static RISCVException riscv_csrrw_do128(CPURISCVState *env, int csrno,
         return ret;
     }
 
-    /* write value if writable and write mask set, otherwise drop writes */
-    if (int128_nz(write_mask)) {
+    /* write value if writable and write_op set, otherwise drop writes */
+    if (write_op) {
         new_value = int128_or(int128_and(old_value, int128_not(write_mask)),
                               int128_and(new_value, write_mask));
         if (csr_ops[csrno].write128) {
@@ -3011,18 +3015,20 @@ static RISCVException riscv_csrrw_do128(CPURISCVState *env, int csrno,
 
 RISCVException riscv_csrrw_i128(CPURISCVState *env, int csrno,
                                 Int128 *ret_value,
-                                Int128 new_value, Int128 write_mask)
+                                Int128 new_value, Int128 write_mask,
+                                bool write_op)
 {
     RISCVException ret;
     RISCVCPU *cpu = env_archcpu(env);
 
-    ret = riscv_csrrw_check(env, csrno, int128_nz(write_mask), cpu);
+    ret = riscv_csrrw_check(env, csrno, int128_nz(write_mask), cpu, write_op);
     if (ret != RISCV_EXCP_NONE) {
         return ret;
     }
 
     if (csr_ops[csrno].read128) {
-        return riscv_csrrw_do128(env, csrno, ret_value, new_value, write_mask);
+        return riscv_csrrw_do128(env, csrno, ret_value, new_value, write_mask,
+                                 write_op);
     }
 
     /*
@@ -3034,7 +3040,7 @@ RISCVException riscv_csrrw_i128(CPURISCVState *env, int csrno,
     target_ulong old_value;
     ret = riscv_csrrw_do64(env, csrno, &old_value,
                            int128_getlo(new_value),
-                           int128_getlo(write_mask));
+                           int128_getlo(write_mask), write_op);
     if (ret == RISCV_EXCP_NONE && ret_value) {
         *ret_value = int128_make64(old_value);
     }
@@ -3048,13 +3054,13 @@ RISCVException riscv_csrrw_i128(CPURISCVState *env, int csrno,
 RISCVException riscv_csrrw_debug(CPURISCVState *env, int csrno,
                                  target_ulong *ret_value,
                                  target_ulong new_value,
-                                 target_ulong write_mask)
+                                 target_ulong write_mask, bool write_op)
 {
     RISCVException ret;
 #if !defined(CONFIG_USER_ONLY)
     env->debugger = true;
 #endif
-    ret = riscv_csrrw(env, csrno, ret_value, new_value, write_mask);
+    ret = riscv_csrrw(env, csrno, ret_value, new_value, write_mask, write_op);
 #if !defined(CONFIG_USER_ONLY)
     env->debugger = false;
 #endif

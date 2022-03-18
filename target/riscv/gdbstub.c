@@ -124,7 +124,7 @@ static int riscv_gdb_get_fpu(CPURISCVState *env, GByteArray *buf, int n)
          * This also works for CSR_FRM and CSR_FCSR.
          */
         result = riscv_csrrw_debug(env, n - 32, &val,
-                                   0, 0);
+                                   0, 0, false);
         if (result == RISCV_EXCP_NONE) {
             return gdb_get_regl(buf, val);
         }
@@ -147,7 +147,7 @@ static int riscv_gdb_set_fpu(CPURISCVState *env, uint8_t *mem_buf, int n)
          * This also works for CSR_FRM and CSR_FCSR.
          */
         result = riscv_csrrw_debug(env, n - 32, NULL,
-                                   val, -1);
+                                   val, -1, true);
         if (result == RISCV_EXCP_NONE) {
             return sizeof(target_ulong);
         }
@@ -209,7 +209,7 @@ static int riscv_gdb_get_vector(CPURISCVState *env, GByteArray *buf, int n)
     }
 
     target_ulong val = 0;
-    int result = riscv_csrrw_debug(env, csrno, &val, 0, 0);
+    int result = riscv_csrrw_debug(env, csrno, &val, 0, 0, false);
 
     if (result == 0) {
         return gdb_get_regl(buf, val);
@@ -236,7 +236,7 @@ static int riscv_gdb_set_vector(CPURISCVState *env, uint8_t *mem_buf, int n)
     }
 
     target_ulong val = ldtul_p(mem_buf);
-    int result = riscv_csrrw_debug(env, csrno, NULL, val, -1);
+    int result = riscv_csrrw_debug(env, csrno, NULL, val, -1, true);
 
     if (result == 0) {
         return sizeof(target_ulong);
@@ -251,7 +251,7 @@ static int riscv_gdb_get_csr(CPURISCVState *env, GByteArray *buf, int n)
         target_ulong val = 0;
         int result;
 
-        result = riscv_csrrw_debug(env, n, &val, 0, 0);
+        result = riscv_csrrw_debug(env, n, &val, 0, 0, false);
         if (result == RISCV_EXCP_NONE) {
             return gdb_get_regl(buf, val);
         }
@@ -265,7 +265,7 @@ static int riscv_gdb_set_csr(CPURISCVState *env, uint8_t *mem_buf, int n)
         target_ulong val = ldtul_p(mem_buf);
         int result;
 
-        result = riscv_csrrw_debug(env, n, NULL, val, -1);
+        result = riscv_csrrw_debug(env, n, NULL, val, -1, true);
         if (result == RISCV_EXCP_NONE) {
             return sizeof(target_ulong);
         }

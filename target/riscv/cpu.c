@@ -314,7 +314,8 @@ static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
         for (int i = 0; i < ARRAY_SIZE(dump_csrs); ++i) {
             int csrno = dump_csrs[i];
             target_ulong val = 0;
-            RISCVException res = riscv_csrrw_debug(env, csrno, &val, 0, 0);
+            RISCVException res = riscv_csrrw_debug(env, csrno, &val, 0, 0,
+                                                   false);
 
             /*
              * Rely on the smode, hmode, etc, predicates within csr.c
