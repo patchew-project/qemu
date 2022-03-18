@@ -143,6 +143,7 @@ struct SDState {
     uint64_t data_start;
     uint32_t data_offset;
     uint8_t data[512];
+    uint8_t ext_csd[512];
     qemu_irq readonly_cb;
     qemu_irq inserted_cb;
     QEMUTimer *ocr_power_timer;
@@ -389,8 +390,85 @@ static const uint8_t sd_csd_rw_mask[16] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfc, 0xfe,
 };
 
+static void mmc_set_ext_csd(SDState *sd, uint64_t size)
+{
+    uint32_t sectcount = size >> HWBLOCK_SHIFT;
+
+    memset(sd->ext_csd, 0, sizeof(sd->ext_csd));
+
+    sd->ext_csd[EXT_CSD_S_CMD_SET] = 0x1; /* supported command sets */
+    sd->ext_csd[EXT_CSD_HPI_FEATURES] = 0x3; /* HPI features  */
+    sd->ext_csd[EXT_CSD_BKOPS_SUPPORT] = 0x1; /* Background operations */
+    sd->ext_csd[241] = 0xA; /* 1st initialization time after partitioning */
+    sd->ext_csd[EXT_CSD_TRIM_MULT] = 0x1; /* Trim multiplier */
+    sd->ext_csd[EXT_CSD_SEC_FEATURE_SUPPORT] = 0x15; /* Secure feature */
+    sd->ext_csd[EXT_CSD_SEC_ERASE_MULT] = 0x96; /* Secure erase support */
+    sd->ext_csd[EXT_CSD_SEC_TRIM_MULT] = 0x96; /* Secure TRIM multiplier */
+    sd->ext_csd[EXT_CSD_BOOT_INFO] = 0x7; /* Boot information */
+    sd->ext_csd[EXT_CSD_BOOT_MULT] = 0x8; /* Boot partition size. 128KB unit */
+    sd->ext_csd[EXT_CSD_ACC_SIZE] = 0x6; /* Access size */
+    sd->ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE] = 0x4; /* HC Erase unit size */
+    sd->ext_csd[EXT_CSD_ERASE_TIMEOUT_MULT] = 0x1; /* HC erase timeout */
+    sd->ext_csd[EXT_CSD_REL_WR_SEC_C] = 0x1; /* Reliable write sector count */
+    sd->ext_csd[EXT_CSD_HC_WP_GRP_SIZE] = 0x4; /* HC write protect group size */
+    sd->ext_csd[EXT_CSD_S_C_VCC] = 0x8; /* Sleep current VCC  */
+    sd->ext_csd[EXT_CSD_S_C_VCCQ] = 0x7; /* Sleep current VCCQ */
+    sd->ext_csd[EXT_CSD_S_A_TIMEOUT] = 0x11; /* Sleep/Awake timeout */
+    sd->ext_csd[215] = (sectcount >> 24) & 0xff; /* Sector count */
+    sd->ext_csd[214] = (sectcount >> 16) & 0xff; /* ... */
+    sd->ext_csd[213] = (sectcount >> 8) & 0xff;  /* ... */
+    sd->ext_csd[EXT_CSD_SEC_CNT] = (sectcount & 0xff);       /* ... */
+    sd->ext_csd[210] = 0xa; /* Min write perf for 8bit@52Mhz */
+    sd->ext_csd[209] = 0xa; /* Min read perf for 8bit@52Mhz  */
+    sd->ext_csd[208] = 0xa; /* Min write perf for 4bit@52Mhz */
+    sd->ext_csd[207] = 0xa; /* Min read perf for 4bit@52Mhz */
+    sd->ext_csd[206] = 0xa; /* Min write perf for 4bit@26Mhz */
+    sd->ext_csd[205] = 0xa; /* Min read perf for 4bit@26Mhz */
+    sd->ext_csd[EXT_CSD_PART_SWITCH_TIME] = 0x1;
+    sd->ext_csd[EXT_CSD_OUT_OF_INTERRUPT_TIME] = 0x1;
+    sd->ext_csd[EXT_CSD_CARD_TYPE] = 0x7;
+    sd->ext_csd[EXT_CSD_STRUCTURE] = 0x2;
+    sd->ext_csd[EXT_CSD_REV] = 0x5;
+    sd->ext_csd[EXT_CSD_RPMB_MULT] = 0x1; /* RPMB size */
+    sd->ext_csd[EXT_CSD_PARTITION_SUPPORT] = 0x3;
+    sd->ext_csd[159] = 0x00; /* Max enhanced area size */
+    sd->ext_csd[158] = 0x00; /* ... */
+    sd->ext_csd[157] = 0xEC; /* ... */
+}
+
+static void sd_emmc_set_csd(SDState *sd, uint64_t size)
+{
+    sd->csd[0] = 0xd0;
+    sd->csd[1] = 0x0f;
+    sd->csd[2] = 0x00;
+    sd->csd[3] = 0x32;
+    sd->csd[4] = 0x0f;
+    if (size <= 2 * GiB) {
+        /* use 1k blocks */
+        uint32_t csize1k = (size >> (CMULT_SHIFT + 10)) - 1;
+        sd->csd[5] = 0x5a;
+        sd->csd[6] = 0x80 | ((csize1k >> 10) & 0xf);
+        sd->csd[7] = (csize1k >> 2) & 0xff;
+    } else { /* >= 2GB : size stored in ext CSD, block addressing */
+        sd->csd[5] = 0x59;
+        sd->csd[6] = 0x8f;
+        sd->csd[7] = 0xff;
+        sd->ocr = FIELD_DP32(sd->ocr, OCR, CARD_CAPACITY, 1);
+    }
+    sd->csd[8] = 0xff;
+    sd->csd[9] = 0xff;
+    sd->csd[10] = 0xf7;
+    sd->csd[11] = 0xfe;
+    sd->csd[12] = 0x49;
+    sd->csd[13] = 0x10;
+    sd->csd[14] = 0x00;
+    sd->csd[15] = (sd_crc7(sd->csd, 15) << 1) | 1;
+    mmc_set_ext_csd(sd, size);
+}
+
 static void sd_set_csd(SDState *sd, uint64_t size)
 {
+    SDCardClass *sc = SD_CARD_GET_CLASS(sd);
     int hwblock_shift = HWBLOCK_SHIFT;
     uint32_t csize;
     uint32_t sectsize = (1 << (SECTOR_SHIFT + 1)) - 1;
@@ -402,7 +480,9 @@ static void sd_set_csd(SDState *sd, uint64_t size)
     }
     csize = (size >> (CMULT_SHIFT + hwblock_shift)) - 1;
 
-    if (size <= SDSC_MAX_CAPACITY) { /* Standard Capacity SD */
+    if (sc->set_csd) {
+        sc->set_csd(sd, size);
+    } else if (size <= SDSC_MAX_CAPACITY) { /* Standard Capacity SD */
         sd->csd[0] = 0x00;	/* CSD structure */
         sd->csd[1] = 0x26;	/* Data read access-time-1 */
         sd->csd[2] = 0x00;	/* Data read access-time-2 */
@@ -1025,6 +1105,25 @@ static sd_rsp_type_t sd_cmd_ALL_SEND_CID(SDState *sd, SDRequest req)
     sd->state = sd_identification_state;
 
     return sd_r2_i;
+}
+
+static void sd_emmc_set_rca(SDState *sd, uint16_t value)
+{
+    sd->rca = value;
+}
+
+static sd_rsp_type_t sd_emmc_cmd_SEND_RELATIVE_ADDR(SDState *sd, SDRequest req)
+{
+    switch (sd->state) {
+    case sd_identification_state:
+    case sd_standby_state:
+        sd->state = sd_standby_state;
+        sd_emmc_set_rca(sd, req.arg >> 16);
+        return sd_r1;
+
+    default:
+        return sd_invalid_state_for_cmd(sd, req);
+    }
 }
 
 static sd_rsp_type_t sd_cmd_SEND_RELATIVE_ADDR(SDState *sd, SDRequest req)
@@ -2002,6 +2101,14 @@ uint8_t sd_read_byte(SDState *sd)
             sd->state = sd_transfer_state;
         break;
 
+    case 8:     /* CMD8: SEND_EXT_CSD on MMC */
+        ret = sd->data[sd->data_offset++];
+
+        if (sd->data_offset >= sizeof(sd->ext_csd)) {
+            sd->state = sd_transfer_state;
+        }
+        break;
+
     case 9:	/* CMD9:   SEND_CSD */
     case 10:	/* CMD10:  SEND_CID */
         ret = sd->data[sd->data_offset ++];
@@ -2143,6 +2250,75 @@ static const SDProto sd_proto_sd = {
     },
 };
 
+static sd_rsp_type_t sd_emmc_cmd_SEND_OP_CMD(SDState *sd, SDRequest req)
+{
+    sd->state = sd_ready_state;
+    return sd_r3;
+}
+
+static sd_rsp_type_t sd_emmc_cmd_ALL_SEND_CID(SDState *sd, SDRequest req)
+{
+    if (sd->state != sd_ready_state && sd->state != sd_idle_state) {
+        return sd_invalid_state_for_cmd(sd, req);
+    }
+
+    sd->state = sd_identification_state;
+
+    return sd_r2_i;
+}
+
+static sd_rsp_type_t sd_emmc_cmd_SEND_EXT_CSD(SDState *sd, SDRequest req)
+{
+    uint64_t addr = (sd->ocr & (1 << 30)) ? (uint64_t) req.arg << 9 : req.arg;
+
+    switch (sd->state) {
+    case sd_transfer_state:
+        /* MMC : Sends the EXT_CSD register as a Block of data */
+        sd->state = sd_sendingdata_state;
+        memcpy(sd->data, sd->ext_csd, sizeof(sd->ext_csd));
+        sd->data_start = addr;
+        sd->data_offset = 0;
+        return sd_r1;
+    default:
+        return sd_invalid_state_for_cmd(sd, req);
+    }
+}
+
+static sd_rsp_type_t sd_emmc_cmd_APP_CMD(SDState *sd, SDRequest req)
+{
+    return sd_r0;
+}
+
+static sd_rsp_type_t sd_emmc_cmd_SEND_TUNING_BLOCK(SDState *sd, SDRequest req)
+{
+    if (sd->state != sd_transfer_state) {
+        sd_invalid_state_for_cmd(sd, req);
+    }
+
+    sd->state = sd_sendingdata_state;
+    sd->data_offset = 0;
+    return sd_r1;
+}
+
+static const SDProto sd_proto_emmc = {
+    .name = "eMMC",
+    .cmd = {
+        [0]         = sd_cmd_GO_IDLE_STATE,
+        [1]         = sd_emmc_cmd_SEND_OP_CMD,
+        [2]         = sd_emmc_cmd_ALL_SEND_CID,
+        [3]         = sd_emmc_cmd_SEND_RELATIVE_ADDR,
+        [5]         = sd_cmd_illegal,
+        [8]         = sd_emmc_cmd_SEND_EXT_CSD,
+        [19]        = sd_cmd_SEND_TUNING_BLOCK,
+        [21]        = sd_emmc_cmd_SEND_TUNING_BLOCK,
+        [41]        = sd_cmd_illegal,
+        [52 ... 54] = sd_cmd_illegal,
+        [55]        = sd_emmc_cmd_APP_CMD,
+        [58]        = sd_cmd_illegal,
+        [59]        = sd_cmd_illegal,
+    },
+};
+
 static void sd_instance_init(Object *obj)
 {
     SDState *sd = SD_CARD(obj);
@@ -2161,9 +2337,18 @@ static void sd_instance_finalize(Object *obj)
 static void sd_realize(DeviceState *dev, Error **errp)
 {
     SDState *sd = SD_CARD(dev);
+    SDCardClass *sc = SD_CARD_GET_CLASS(sd);
     int ret;
 
     sd->proto = sd->spi ? &sd_proto_spi : &sd_proto_sd;
+
+    if (sc->proto) {
+        sd->proto = sc->proto;
+    }
+
+    if (sc->spec_version) {
+        sd->spec_version = sc->spec_version;
+    }
 
     switch (sd->spec_version) {
     case SD_PHY_SPECv1_10_VERS
@@ -2260,9 +2445,27 @@ static const TypeInfo sd_info = {
     .instance_finalize = sd_instance_finalize,
 };
 
+static void emmc_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    SDCardClass *sc = SD_CARD_CLASS(klass);
+
+    dc->desc = "eMMC";
+    sc->proto = &sd_proto_emmc;
+    sc->spec_version = SD_PHY_SPECv3_01_VERS; /* eMMC requirement */
+    sc->set_csd = sd_emmc_set_csd;
+}
+
+static const TypeInfo emmc_info = {
+    .name = TYPE_EMMC,
+    .parent = TYPE_SD_CARD,
+    .class_init = emmc_class_init,
+ };
+
 static void sd_register_types(void)
 {
     type_register_static(&sd_info);
+    type_register_static(&emmc_info);
 }
 
 type_init(sd_register_types)

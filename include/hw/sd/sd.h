@@ -93,6 +93,11 @@ typedef struct {
 #define TYPE_SD_CARD "sd-card"
 OBJECT_DECLARE_TYPE(SDState, SDCardClass, SD_CARD)
 
+#define TYPE_EMMC "emmc"
+DECLARE_INSTANCE_CHECKER(SDState, EMMC, TYPE_EMMC)
+
+struct SDProto;
+
 struct SDCardClass {
     /*< private >*/
     DeviceClass parent_class;
@@ -124,6 +129,10 @@ struct SDCardClass {
     void (*enable)(SDState *sd, bool enable);
     bool (*get_inserted)(SDState *sd);
     bool (*get_readonly)(SDState *sd);
+
+    const struct SDProto *proto;
+    uint8_t spec_version;
+    void (*set_csd)(SDState *sd, uint64_t size);
 };
 
 #define TYPE_SD_BUS "sd-bus"
