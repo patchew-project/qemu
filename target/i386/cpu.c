@@ -6572,6 +6572,11 @@ static void x86_cpu_unrealizefn(DeviceState *dev)
     }
 
     xcc->parent_unrealize(dev);
+
+#if defined(CONFIG_KVM) || defined(CONFIG_HVF)
+    CPUX86State *env = &cpu->env;
+    g_free(env->xsave_buf);
+#endif
 }
 
 typedef struct BitProperty {
