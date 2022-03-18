@@ -675,7 +675,7 @@ void spapr_hotplug_req_add_by_index(SpaprDrc *drc)
     SpaprDrcType drc_type = spapr_drc_type(drc);
     union drc_identifier drc_id;
 
-    drc_id.index = spapr_drc_index(drc);
+    drc_id.index = drc->index;
     spapr_hotplug_req_event(RTAS_LOG_V6_HP_ID_DRC_INDEX,
                             RTAS_LOG_V6_HP_ACTION_ADD, drc_type, &drc_id);
 }
@@ -685,7 +685,7 @@ void spapr_hotplug_req_remove_by_index(SpaprDrc *drc)
     SpaprDrcType drc_type = spapr_drc_type(drc);
     union drc_identifier drc_id;
 
-    drc_id.index = spapr_drc_index(drc);
+    drc_id.index = drc->index;
     spapr_hotplug_req_event(RTAS_LOG_V6_HP_ID_DRC_INDEX,
                             RTAS_LOG_V6_HP_ACTION_REMOVE, drc_type, &drc_id);
 }
