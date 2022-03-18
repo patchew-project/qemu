@@ -904,6 +904,7 @@ static void amdvi_page_walk(AMDVIAddressSpace *as, uint64_t *dte,
     /* make sure the DTE has TV = 1 */
     if (pte & AMDVI_DEV_TRANSLATION_VALID) {
         level = get_pte_translation_mode(pte);
+        oldlevel = level;
         if (level >= 7) {
             trace_amdvi_mode_invalid(level, addr);
             return;
