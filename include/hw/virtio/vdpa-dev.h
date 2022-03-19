@@ -25,6 +25,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(VhostVdpaDevice, VHOST_VDPA_DEVICE)
 
 struct VhostVdpaDevice {
     VirtIODevice parent_obj;
+    char *vdpa_dev;
+    int vdpa_dev_fd;
+    int32_t bootindex;
 };
 
 #endif
