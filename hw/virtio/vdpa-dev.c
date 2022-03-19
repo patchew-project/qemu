@@ -167,7 +167,23 @@ out:
 
 static void vhost_vdpa_device_unrealize(DeviceState *dev)
 {
-    return;
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VhostVdpaDevice *s = VHOST_VDPA_DEVICE(vdev);
+    int i;
+
+    virtio_set_status(vdev, 0);
+
+    for (i = 0; i < s->num_queues; i++) {
+        virtio_delete_queue(s->virtqs[i]);
+    }
+    g_free(s->virtqs);
+    virtio_cleanup(vdev);
+
+    g_free(s->config);
+    g_free(s->dev.vqs);
+    vhost_dev_cleanup(&s->dev);
+    qemu_close(s->vdpa_dev_fd);
+    s->vdpa_dev_fd = -1;
 }
 
 static void
