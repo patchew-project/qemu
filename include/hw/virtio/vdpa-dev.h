@@ -28,6 +28,16 @@ struct VhostVdpaDevice {
     char *vdpa_dev;
     int vdpa_dev_fd;
     int32_t bootindex;
+    uint32_t vdev_id;
+    uint32_t num_queues;
+    struct vhost_dev dev;
+    struct vhost_vdpa vdpa;
+    VirtQueue **virtqs;
+    uint8_t *config;
+    int config_size;
+    uint16_t queue_size;
+    bool started;
+    int (*post_init)(VhostVdpaDevice *v, Error **errp);
 };
 
 #endif

@@ -29,9 +29,140 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/runstate.h"
 
+static void
+vhost_vdpa_device_dummy_handle_output(VirtIODevice *vdev, VirtQueue *vq)
+{
+    /* Nothing to do */
+}
+
+static uint32_t
+vhost_vdpa_device_get_u32(int fd, unsigned long int cmd, Error **errp)
+{
+    uint32_t val = (uint32_t)-1;
+
+    if (ioctl(fd, cmd, &val) < 0) {
+        error_setg(errp, "vhost-vdpa-device: cmd 0x%lx failed: %s",
+                   cmd, strerror(errno));
+    }
+
+    return val;
+}
+
 static void vhost_vdpa_device_realize(DeviceState *dev, Error **errp)
 {
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VhostVdpaDevice *v = VHOST_VDPA_DEVICE(vdev);
+    uint32_t max_queue_size;
+    struct vhost_virtqueue *vqs;
+    int i, ret;
+
+    if (!v->vdpa_dev || v->vdpa_dev_fd == -1) {
+        error_setg(errp, "both vpda-dev and vpda-dev-fd are missing");
+        return;
+    }
+
+    if (v->vdpa_dev && v->vdpa_dev_fd != -1) {
+        error_setg(errp, "both vpda-dev and vpda-dev-fd are set");
+        return;
+    }
+
+    if (v->vdpa_dev_fd == -1) {
+        v->vdpa_dev_fd = qemu_open(v->vdpa_dev, O_RDWR, errp);
+        if (*errp) {
+            return;
+        }
+    }
+    v->vdpa.device_fd = v->vdpa_dev_fd;
+
+    v->vdev_id = vhost_vdpa_device_get_u32(v->vdpa_dev_fd,
+                                           VHOST_VDPA_GET_DEVICE_ID, errp);
+    if (*errp) {
+        goto out;
+    }
+
+    max_queue_size = vhost_vdpa_device_get_u32(v->vdpa_dev_fd,
+                                               VHOST_VDPA_GET_VRING_NUM, errp);
+    if (*errp) {
+        goto out;
+    }
+
+    if (v->queue_size > max_queue_size) {
+        error_setg(errp, "vhost-vdpa-device: invalid queue_size: %u (max:%u)",
+                   v->queue_size, max_queue_size);
+        goto out;
+    } else if (!v->queue_size) {
+        v->queue_size = max_queue_size;
+    }
+
+    v->num_queues = vhost_vdpa_device_get_u32(v->vdpa_dev_fd,
+                                              VHOST_VDPA_GET_VQS_COUNT, errp);
+    if (*errp) {
+        goto out;
+    }
+
+    if (!v->num_queues || v->num_queues > VIRTIO_QUEUE_MAX) {
+        error_setg(errp, "invalid number of virtqueues: %u (max:%u)",
+                   v->num_queues, VIRTIO_QUEUE_MAX);
+        goto out;
+    }
+
+    v->dev.nvqs = v->num_queues;
+    vqs = g_new0(struct vhost_virtqueue, v->dev.nvqs);
+    v->dev.vqs = vqs;
+    v->dev.vq_index = 0;
+    v->dev.vq_index_end = v->dev.nvqs;
+    v->dev.backend_features = 0;
+    v->started = false;
+
+    ret = vhost_dev_init(&v->dev, &v->vdpa, VHOST_BACKEND_TYPE_VDPA, 0, NULL);
+    if (ret < 0) {
+        error_setg(errp, "vhost-vdpa-device: vhost initialization failed: %s",
+                   strerror(-ret));
+        goto free_vqs;
+    }
+
+    v->config_size = vhost_vdpa_device_get_u32(v->vdpa_dev_fd,
+                                               VHOST_VDPA_GET_CONFIG_SIZE, errp);
+    if (*errp) {
+        goto vhost_cleanup;
+    }
+    v->config = g_malloc0(v->config_size);
+
+    ret = vhost_dev_get_config(&v->dev, v->config, v->config_size, NULL);
+    if (ret < 0) {
+        error_setg(errp, "vhost-vdpa-device: get config failed");
+        goto free_config;
+    }
+
+    virtio_init(vdev, "vhost-vdpa", v->vdev_id, v->config_size);
+
+    v->virtqs = g_new0(VirtQueue *, v->dev.nvqs);
+    for (i = 0; i < v->dev.nvqs; i++) {
+        v->virtqs[i] = virtio_add_queue(vdev, v->queue_size,
+                                        vhost_vdpa_device_dummy_handle_output);
+    }
+
+    if (v->post_init && v->post_init(v, errp) < 0) {
+        goto free_virtio;
+    }
+
     return;
+
+free_virtio:
+    for (i = 0; i < v->num_queues; i++) {
+        virtio_delete_queue(v->virtqs[i]);
+    }
+    g_free(v->virtqs);
+    virtio_cleanup(vdev);
+free_config:
+    g_free(v->config);
+vhost_cleanup:
+    vhost_dev_cleanup(&v->dev);
+free_vqs:
+    g_free(vqs);
+out:
+    qemu_close(v->vdpa_dev_fd);
+    v->vdpa_dev_fd = -1;
 }
 
 static void vhost_vdpa_device_unrealize(DeviceState *dev)
@@ -66,6 +197,7 @@ static void vhost_vdpa_device_set_status(VirtIODevice *vdev, uint8_t status)
 static Property vhost_vdpa_device_properties[] = {
     DEFINE_PROP_STRING("vdpa-dev", VhostVdpaDevice, vdpa_dev),
     DEFINE_PROP_INT32("vdpa-dev-fd", VhostVdpaDevice, vdpa_dev_fd, -1),
+    DEFINE_PROP_UINT16("queue-size", VhostVdpaDevice, queue_size, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -51,10 +51,26 @@ static Property vhost_vdpa_device_pci_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static int vhost_vdpa_device_pci_post_init(VhostVdpaDevice *v, Error **errp)
+{
+    VhostVdpaDevicePCI *dev = container_of(v, VhostVdpaDevicePCI, vdev);
+    VirtIOPCIProxy *vpci_dev = &dev->parent_obj;
+
+    vpci_dev->class_code = virtio_pci_get_class_id(v->vdev_id);
+    vpci_dev->trans_devid = virtio_pci_get_trans_devid(v->vdev_id);
+    /* one for config vector */
+    vpci_dev->nvectors = v->num_queues + 1;
+
+    return 0;
+}
+
 static void
 vhost_vdpa_device_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
-    return;
+    VhostVdpaDevicePCI *dev = VHOST_VDPA_DEVICE_PCI(vpci_dev);
+
+    dev->vdev.post_init = vhost_vdpa_device_pci_post_init;
+    qdev_realize(DEVICE(&dev->vdev), BUS(&vpci_dev->bus), errp);
 }
 
 static void vhost_vdpa_device_pci_class_init(ObjectClass *klass, void *data)
