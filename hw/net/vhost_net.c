@@ -322,6 +322,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(dev)));
     VirtioBusState *vbus = VIRTIO_BUS(qbus);
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
+    bool mq = virtio_host_has_feature(dev, VIRTIO_NET_F_MQ);
     int total_notifiers = data_queue_pairs * 2 + cvq;
     VirtIONet *n = VIRTIO_NET(dev);
     int nvhosts = data_queue_pairs + cvq;
@@ -343,7 +344,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
         if (i < data_queue_pairs) {
             peer = qemu_get_peer(ncs, i);
         } else { /* Control Virtqueue */
-            peer = qemu_get_peer(ncs, n->max_queue_pairs);
+            peer = qemu_get_peer(ncs, mq ? data_queue_pairs : n->max_queue_pairs);
         }
 
         net = get_vhost_net(peer);
@@ -368,7 +369,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
         if (i < data_queue_pairs) {
             peer = qemu_get_peer(ncs, i);
         } else {
-            peer = qemu_get_peer(ncs, n->max_queue_pairs);
+            peer = qemu_get_peer(ncs, mq ? data_queue_pairs : n->max_queue_pairs);
         }
         r = vhost_net_start_one(get_vhost_net(peer), dev);
 
@@ -390,7 +391,10 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
 
 err_start:
     while (--i >= 0) {
-        peer = qemu_get_peer(ncs , i);
+        if (mq)
+            peer = qemu_get_peer(ncs, i < data_queue_pairs ? i : data_queue_pairs);
+        else
+            peer = qemu_get_peer(ncs, i < data_queue_pairs ? i : n->max_queue_pairs);
         vhost_net_stop_one(get_vhost_net(peer), dev);
     }
     e = k->set_guest_notifiers(qbus->parent, total_notifiers, false);
@@ -409,6 +413,7 @@ void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs,
     VirtioBusState *vbus = VIRTIO_BUS(qbus);
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
     VirtIONet *n = VIRTIO_NET(dev);
+    bool mq = virtio_host_has_feature(dev, VIRTIO_NET_F_MQ);
     NetClientState *peer;
     int total_notifiers = data_queue_pairs * 2 + cvq;
     int nvhosts = data_queue_pairs + cvq;
@@ -418,7 +423,7 @@ void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs,
         if (i < data_queue_pairs) {
             peer = qemu_get_peer(ncs, i);
         } else {
-            peer = qemu_get_peer(ncs, n->max_queue_pairs);
+            peer = qemu_get_peer(ncs, mq ? data_queue_pairs : n->max_queue_pairs);
         }
         vhost_net_stop_one(get_vhost_net(peer), dev);
     }

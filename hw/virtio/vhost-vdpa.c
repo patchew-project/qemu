@@ -1097,7 +1097,30 @@ static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
         vhost_vdpa_host_notifiers_uninit(dev, dev->nvqs);
     }
 
-    if (dev->vq_index + dev->nvqs != dev->vq_index_end) {
+    /* FIXME the vhost_dev group for the control vq may have bogus nvqs=2
+     * value rather than nvqs=1. This can happen in case the guest doesn't
+     * support multiqueue, as a result of virtio_net_change_num_queue_pairs()
+     * destroying and rebuilding all the vqs, the guest index for control vq
+     * will no longer align with the host's. Currently net_init_vhost_vdpa()
+     * only initializes all vhost_dev's and net_clients once during
+     * net_client_init1() time, way earlier before multiqueue feature
+     * negotiation can kick in.
+     *
+     * Discussion - some possible fixes so far I can think of:
+     *
+     * option 1: fix vhost_net->dev.nvqs and nc->is_datapath in place for
+     * vdpa's ctrl vq, or rebuild all vdpa's vhost_dev groups and the
+     * net_client array, in the virtio_net_set_multiqueue() path;
+     *
+     * option 2: fix vhost_dev->nvqs in place at vhost_vdpa_set_features()
+     * before coming down to vhost_vdpa_dev_start() (Q: nc->is_datapath
+     * seems only used in virtio_net_device_realize, is it relevant?);
+     *
+     * option 3: use host queue index all along in vhost-vdpa ioctls instead
+     * of using guest vq index, so that vhost_net_start/stop() can remain
+     * as-is today
+     */
+    if (dev->vq_index + dev->nvqs < dev->vq_index_end) {
         return 0;
     }
 
