@@ -7,16 +7,19 @@
  * This code is licensed under the GPL.
  */
 
+#include "hw/qdev-core.h"
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "cpu.h"
 #include "hw/sysbus.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/primecell.h"
+#include "hw/core/split-irq.h"
 #include "hw/net/lan9118.h"
 #include "hw/net/smc91c111.h"
 #include "hw/pci/pci.h"
 #include "net/net.h"
+#include "qom/object.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
 #include "hw/i2c/i2c.h"
@@ -27,6 +30,7 @@
 #include "hw/irq.h"
 #include "hw/i2c/arm_sbcon_i2c.h"
 #include "hw/sd/sd.h"
+#include <stdarg.h>
 
 #define SMP_BOOT_ADDR 0xe0000000
 #define SMP_BOOTREG_ADDR 0x10000030
@@ -53,6 +57,30 @@ static const int realview_board_id[] = {
     0x76d
 };
 
+static bool split_to_irq_varargs(Object *obj, int nums_of_output, ...) {
+    int i;
+    va_list va;
+    qemu_irq output;
+    Object *src_irq= object_new(TYPE_SPLIT_IRQ);
+
+    if (!object_property_set_int(src_irq, "num-lines", nums_of_output, &error_fatal)) {
+        return false;
+    }
+
+    if (!qdev_realize(DEVICE(src_irq), NULL, &error_fatal)) {
+        return false;
+    }
+
+    va_start(va, nums_of_output);
+    for (i = 0; i < nums_of_output; i++) {
+        output = va_arg(va, qemu_irq);
+        qdev_connect_gpio_out(DEVICE(src_irq), i, output);
+    }
+	va_end(va);
+
+    return true;
+}
+
 static void realview_init(MachineState *machine,
                           enum realview_board_type board_type)
 {
@@ -67,6 +95,8 @@ static void realview_init(MachineState *machine,
     SysBusDevice *busdev;
     qemu_irq pic[64];
     qemu_irq mmc_irq[2];
+    Object *mmc_irq_for_ro = object_new(TYPE_SPLIT_IRQ);
+    Object *mmc_irq_for_cardin = object_new(TYPE_SPLIT_IRQ);
     PCIBus *pci_bus = NULL;
     NICInfo *nd;
     DriveInfo *dinfo;
@@ -229,14 +259,20 @@ static void realview_init(MachineState *machine,
      * and the PL061 has them the other way about. Also the card
      * detect line is inverted.
      */
-    mmc_irq[0] = qemu_irq_split(
-        qdev_get_gpio_in(sysctl, ARM_SYSCTL_GPIO_MMC_WPROT),
-        qdev_get_gpio_in(gpio2, 1));
-    mmc_irq[1] = qemu_irq_split(
-        qdev_get_gpio_in(sysctl, ARM_SYSCTL_GPIO_MMC_CARDIN),
-        qemu_irq_invert(qdev_get_gpio_in(gpio2, 0)));
-    qdev_connect_gpio_out_named(dev, "card-read-only", 0, mmc_irq[0]);
-    qdev_connect_gpio_out_named(dev, "card-inserted", 0, mmc_irq[1]);
+    if (!split_to_irq_varargs(mmc_irq_for_ro, 2,
+                              qdev_get_gpio_in(sysctl, ARM_SYSCTL_GPIO_MMC_WPROT),
+                              qdev_get_gpio_in(gpio2, 1))) {
+        return;
+    }
+    qdev_connect_gpio_out_named(dev, "card-read-only", 0, DEVICE(mmc_irq_for_ro));
+
+    if (!split_to_irq_varargs(mmc_irq_for_cardin, 2,
+                              qdev_get_gpio_in(sysctl, ARM_SYSCTL_GPIO_MMC_CARDIN),
+                              qemu_irq_invert(qdev_get_gpio_in(gpio2, 0)))) {
+        return;
+    }
+    qdev_connect_gpio_out_named(dev, "card-inserted", 0, DEVICE(mmc_irq_for_cardin));
+
     dinfo = drive_get(IF_SD, 0, 0);
     if (dinfo) {
         DeviceState *card;
