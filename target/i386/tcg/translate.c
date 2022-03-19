@@ -5339,15 +5339,17 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
     case 0x1b0:
     case 0x1b1: /* cmpxchg Ev, Gv */
         {
-            TCGv oldv, newv, cmpv;
+            TCGLabel *label1, *label2;
+            TCGv oldv, newv, cmpv, a0;
 
             ot = mo_b_d(b, dflag);
             modrm = x86_ldub_code(env, s);
             reg = ((modrm >> 3) & 7) | REX_R(s);
             mod = (modrm >> 6) & 3;
-            oldv = tcg_temp_new();
-            newv = tcg_temp_new();
-            cmpv = tcg_temp_new();
+            oldv = tcg_temp_local_new();
+            newv = tcg_temp_local_new();
+            cmpv = tcg_temp_local_new();
+            a0 = tcg_temp_local_new();
             gen_op_mov_v_reg(s, ot, newv, reg);
             tcg_gen_mov_tl(cmpv, cpu_regs[R_EAX]);
 
@@ -5365,24 +5367,32 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
                     gen_op_mov_v_reg(s, ot, oldv, rm);
                 } else {
                     gen_lea_modrm(env, s, modrm);
-                    gen_op_ld_v(s, ot, oldv, s->A0);
+                    tcg_gen_mov_tl(a0, s->A0);
+                    gen_op_ld_v(s, ot, oldv, a0);
                     rm = 0; /* avoid warning */
                 }
+                label1 = gen_new_label();
                 gen_extu(ot, oldv);
                 gen_extu(ot, cmpv);
-                /* store value = (old == cmp ? new : old);  */
-                tcg_gen_movcond_tl(TCG_COND_EQ, newv, oldv, cmpv, newv, oldv);
+                tcg_gen_brcond_tl(TCG_COND_EQ, oldv, cmpv, label1);
+                label2 = gen_new_label();
                 if (mod == 3) {
                     gen_op_mov_reg_v(s, ot, R_EAX, oldv);
+                    tcg_gen_br(label2);
+                    gen_set_label(label1);
                     gen_op_mov_reg_v(s, ot, rm, newv);
                 } else {
                     /* Perform an unconditional store cycle like physical cpu;
                        must be before changing accumulator to ensure
                        idempotency if the store faults and the instruction
                        is restarted */
-                    gen_op_st_v(s, ot, newv, s->A0);
+                    gen_op_st_v(s, ot, oldv, a0);
                     gen_op_mov_reg_v(s, ot, R_EAX, oldv);
+                    tcg_gen_br(label2);
+                    gen_set_label(label1);
+                    gen_op_st_v(s, ot, newv, a0);
                 }
+                gen_set_label(label2);
             }
             tcg_gen_mov_tl(cpu_cc_src, oldv);
             tcg_gen_mov_tl(s->cc_srcT, cmpv);
@@ -5391,6 +5401,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             tcg_temp_free(oldv);
             tcg_temp_free(newv);
             tcg_temp_free(cmpv);
+            tcg_temp_free(a0);
         }
         break;
     case 0x1c7: /* cmpxchg8b */
