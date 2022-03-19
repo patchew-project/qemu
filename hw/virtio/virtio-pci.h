@@ -146,6 +146,8 @@ struct VirtIOPCIProxy {
     bool disable_modern;
     bool ignore_backend_features;
     OnOffAuto disable_legacy;
+    /* Transitional device id */
+    uint16_t trans_devid;
     uint32_t class_code;
     uint32_t nvectors;
     uint32_t dfselect;
@@ -157,6 +159,9 @@ struct VirtIOPCIProxy {
     int nvqs_with_notifiers;
     VirtioBusState bus;
 };
+
+uint16_t virtio_pci_get_trans_devid(uint16_t device_id);
+uint16_t virtio_pci_get_class_id(uint16_t device_id);
 
 static inline bool virtio_pci_modern(VirtIOPCIProxy *proxy)
 {
