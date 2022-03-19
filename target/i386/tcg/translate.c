@@ -5360,7 +5360,12 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
                 gen_lea_modrm(env, s, modrm);
                 tcg_gen_atomic_cmpxchg_tl(oldv, s->A0, cmpv, newv,
                                           s->mem_index, ot | MO_LE);
+                label1 = gen_new_label();
+                gen_extu(ot, oldv);
+                gen_extu(ot, cmpv);
+                tcg_gen_brcond_tl(TCG_COND_EQ, oldv, cmpv, label1);
                 gen_op_mov_reg_v(s, ot, R_EAX, oldv);
+                gen_set_label(label1);
             } else {
                 if (mod == 3) {
                     rm = (modrm & 7) | REX_B(s);
