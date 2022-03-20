@@ -48,9 +48,18 @@ void cpu_loop(CPUNios2State *env)
                                  env->regs[7], env->regs[8], env->regs[9],
                                  0, 0);
 
-                env->regs[2] = abs(ret);
-                /* Return value is 0..4096 */
-                env->regs[7] = ret > 0xfffff000u;
+                /*
+                 * See syscall_set_return_value.
+                 * Use the QEMU traditional -515 error indication in
+                 * preference to the < 0 indication used in entry.S.
+                 */
+                if (ret > (abi_ulong)-515) {
+                    env->regs[2] = -ret;
+                    env->regs[7] = 1;
+                } else {
+                    env->regs[2] = ret;
+                    env->regs[7] = 0;
+                }
                 break;
 
             case 1:
