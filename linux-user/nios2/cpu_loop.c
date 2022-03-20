@@ -42,8 +42,7 @@ void cpu_loop(CPUNios2State *env)
         case EXCP_TRAP:
             switch (env->error_code) {
             case 0:
-                qemu_log_mask(CPU_LOG_INT, "\nSyscall\n");
-
+                env->regs[R_PC] += 4;
                 ret = do_syscall(env, env->regs[2],
                                  env->regs[4], env->regs[5], env->regs[6],
                                  env->regs[7], env->regs[8], env->regs[9],
@@ -56,7 +55,6 @@ void cpu_loop(CPUNios2State *env)
                 env->regs[2] = abs(ret);
                 /* Return value is 0..4096 */
                 env->regs[7] = ret > 0xfffff000u;
-                env->regs[R_PC] += 4;
                 break;
 
             case 1:
