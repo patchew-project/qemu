@@ -63,6 +63,8 @@ ssize_t qio_channel_readv_full(QIOChannel *ioc,
         return -1;
     }
 
+    niov = MIN(niov, IOV_MAX);
+
     return klass->io_readv(ioc, iov, niov, fds, nfds, errp);
 }
 
@@ -82,6 +84,8 @@ ssize_t qio_channel_writev_full(QIOChannel *ioc,
                          "Channel does not support file descriptor passing");
         return -1;
     }
+
+    niov = MIN(niov, IOV_MAX);
 
     return klass->io_writev(ioc, iov, niov, fds, nfds, errp);
 }
