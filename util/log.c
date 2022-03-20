@@ -39,12 +39,14 @@ static GArray *debug_regions;
 FILE *qemu_log_lock(void)
 {
     QemuLogFile *logfile;
+
     rcu_read_lock();
     logfile = qatomic_rcu_read(&qemu_logfile);
     if (logfile) {
         qemu_flockfile(logfile->fd);
         return logfile->fd;
     } else {
+        rcu_read_unlock();
         return NULL;
     }
 }
@@ -53,8 +55,8 @@ void qemu_log_unlock(FILE *fd)
 {
     if (fd) {
         qemu_funlockfile(fd);
+        rcu_read_unlock();
     }
-    rcu_read_unlock();
 }
 
 /* Return the number of characters emitted.  */
