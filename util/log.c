@@ -34,7 +34,7 @@ typedef struct QemuLogFile {
     FILE *fd;
 } QemuLogFile;
 
-static char *logfilename;
+static char *global_filename;
 static QemuMutex qemu_logfile_mutex;
 static QemuLogFile *qemu_logfile;
 int qemu_loglevel;
@@ -160,8 +160,8 @@ static void qemu_set_log_internal(const char *filename, bool changed_name,
             }
         }
 
-        g_free(logfilename);
-        logfilename = newname;
+        g_free(global_filename);
+        global_filename = newname;
         filename = newname;
 
         if (logfile) {
@@ -170,7 +170,7 @@ static void qemu_set_log_internal(const char *filename, bool changed_name,
             logfile = NULL;
         }
     } else {
-        filename = logfilename;
+        filename = global_filename;
     }
 
 #ifdef CONFIG_TRACE_LOG
@@ -182,9 +182,8 @@ static void qemu_set_log_internal(const char *filename, bool changed_name,
      * In all cases we only log if qemu_loglevel is set.
      * Also:
      *   If not daemonized we will always log either to stderr
-     *     or to a file (if there is a logfilename).
-     *   If we are daemonized,
-     *     we will only log if there is a logfilename.
+     *     or to a file (if there is a filename).
+     *   If we are daemonized, we will only log if there is a filename.
      */
     need_to_open_file = log_flags && (!is_daemonized() || filename);
 
