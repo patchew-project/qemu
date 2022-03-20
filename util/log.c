@@ -73,7 +73,7 @@ static void qemu_logfile_free(QemuLogFile *logfile)
 }
 
 /* enable or disable low levels log */
-void qemu_set_log(int log_flags)
+void qemu_set_log(int log_flags, Error **errp)
 {
     bool need_to_open_file = false;
     QemuLogFile *logfile;
@@ -103,9 +103,9 @@ void qemu_set_log(int log_flags)
         if (logfilename) {
             logfile->fd = fopen(logfilename, log_append ? "a" : "w");
             if (!logfile->fd) {
-                g_free(logfile);
-                perror(logfilename);
-                _exit(1);
+                error_setg_errno(errp, errno, "Error opening logfile %s",
+                                 logfilename);
+                return;
             }
             /* In case we are a daemon redirect stderr to logfile */
             if (is_daemonized()) {
@@ -159,7 +159,7 @@ void qemu_set_log_filename(const char *filename, Error **errp)
     }
 
     qemu_log_close();
-    qemu_set_log(qemu_loglevel);
+    qemu_set_log(qemu_loglevel, errp);
 }
 
 /* Returns true if addr is in our debug filter or no filter defined
