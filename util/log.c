@@ -34,9 +34,11 @@ typedef struct QemuLogFile {
     FILE *fd;
 } QemuLogFile;
 
+/* Mutex covering the other global_* variables. */
+static QemuMutex global_mutex;
 static char *global_filename;
-static QemuMutex qemu_logfile_mutex;
 static QemuLogFile *global_file;
+
 int qemu_loglevel;
 static int log_append = 0;
 static GArray *debug_regions;
@@ -110,9 +112,9 @@ int qemu_log(const char *fmt, ...)
     return ret;
 }
 
-static void __attribute__((__constructor__)) qemu_logfile_init(void)
+static void __attribute__((__constructor__)) startup(void)
 {
-    qemu_mutex_init(&qemu_logfile_mutex);
+    qemu_mutex_init(&global_mutex);
 }
 
 static void qemu_logfile_free(QemuLogFile *logfile)
@@ -132,7 +134,7 @@ static void qemu_set_log_internal(const char *filename, bool changed_name,
     bool need_to_open_file;
     QemuLogFile *logfile;
 
-    QEMU_LOCK_GUARD(&qemu_logfile_mutex);
+    QEMU_LOCK_GUARD(&global_mutex);
     logfile = global_file;
 
     if (changed_name) {
