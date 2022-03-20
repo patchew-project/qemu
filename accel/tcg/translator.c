@@ -142,7 +142,7 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
         FILE *logfile = qemu_log_lock();
         if (logfile) {
             fprintf(logfile, "----------------\n");
-            ops->disas_log(db, cpu);
+            ops->disas_log(db, cpu, logfile);
             fprintf(logfile, "\n");
             qemu_log_unlock(logfile);
         }
