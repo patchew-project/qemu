@@ -132,6 +132,7 @@ static void qemu_set_log_internal(const char *filename, bool changed_name,
                                   int log_flags, Error **errp)
 {
     bool need_to_open_file;
+    bool daemonized;
     QemuLogFile *logfile;
 
     QEMU_LOCK_GUARD(&global_mutex);
@@ -187,7 +188,8 @@ static void qemu_set_log_internal(const char *filename, bool changed_name,
      *     or to a file (if there is a filename).
      *   If we are daemonized, we will only log if there is a filename.
      */
-    need_to_open_file = log_flags && (!is_daemonized() || filename);
+    daemonized = is_daemonized();
+    need_to_open_file = log_flags && (!daemonized || filename);
 
     if (logfile && !need_to_open_file) {
         qatomic_rcu_set(&global_file, NULL);
@@ -205,7 +207,7 @@ static void qemu_set_log_internal(const char *filename, bool changed_name,
                 return;
             }
             /* In case we are a daemon redirect stderr to logfile */
-            if (is_daemonized()) {
+            if (daemonized) {
                 dup2(fileno(fd), STDERR_FILENO);
                 fclose(fd);
                 /* This will skip closing logfile in qemu_logfile_free. */
@@ -213,7 +215,7 @@ static void qemu_set_log_internal(const char *filename, bool changed_name,
             }
         } else {
             /* Default to stderr if no log file specified */
-            assert(!is_daemonized());
+            assert(!daemonized);
             fd = stderr;
         }
 
