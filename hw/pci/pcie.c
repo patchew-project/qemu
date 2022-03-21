@@ -354,7 +354,9 @@ static void hotplug_event_notify(PCIDevice *dev)
     } else if (msi_enabled(dev)) {
         msi_notify(dev, pcie_cap_flags_get_vector(dev));
     } else {
-        pci_set_irq(dev, dev->exp.hpev_notified);
+        if (pci_intx(dev) != -1) {
+            pci_set_irq(dev, dev->exp.hpev_notified);
+        }
     }
 }
 
@@ -362,7 +364,9 @@ static void hotplug_event_clear(PCIDevice *dev)
 {
     hotplug_event_update_event_status(dev);
     if (!msix_enabled(dev) && !msi_enabled(dev) && !dev->exp.hpev_notified) {
-        pci_irq_deassert(dev);
+        if (pci_intx(dev) != -1) {
+            pci_irq_deassert(dev);
+        }
     }
 }
 
