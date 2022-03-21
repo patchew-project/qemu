@@ -140,4 +140,5 @@ type_init(register_accel_types);
 void generic_destroy_vcpu_thread(CPUState *cpu)
 {
     g_free(cpu->thread);
+    g_free(cpu->halt_cond);
 }
