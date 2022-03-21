@@ -94,6 +94,7 @@ void tcg_handle_interrupt(CPUState *cpu, int mask)
 
 static void tcg_accel_ops_init(AccelOpsClass *ops)
 {
+    ops->destroy_vcpu_thread = generic_destroy_vcpu_thread;
     if (qemu_tcg_mttcg_enabled()) {
         ops->create_vcpu_thread = mttcg_start_vcpu_thread;
         ops->kick_vcpu_thread = mttcg_kick_vcpu_thread;

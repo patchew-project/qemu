@@ -28,6 +28,7 @@
 
 #include "cpu.h"
 #include "hw/core/accel-cpu.h"
+#include "sysemu/accel-ops.h"
 
 #ifndef CONFIG_USER_ONLY
 #include "accel-softmmu.h"
@@ -135,3 +136,8 @@ static void register_accel_types(void)
 }
 
 type_init(register_accel_types);
+
+void generic_destroy_vcpu_thread(CPUState *cpu)
+{
+    g_free(cpu->thread);
+}

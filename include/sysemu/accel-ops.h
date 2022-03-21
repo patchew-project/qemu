@@ -46,4 +46,6 @@ struct AccelOpsClass {
     int64_t (*get_elapsed_ticks)(void);
 };
 
+/* free vcpu thread structures */
+void generic_destroy_vcpu_thread(CPUState *cpu);
 #endif /* ACCEL_OPS_H */
