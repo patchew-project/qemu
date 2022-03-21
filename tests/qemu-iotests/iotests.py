@@ -38,8 +38,7 @@ import unittest
 from contextlib import contextmanager
 
 from qemu.machine import qtest
-from qemu.qmp import QMPMessage
-from qemu.aqmp.legacy import QEMUMonitorProtocol
+from qemu.aqmp.legacy import QMPMessage, QEMUMonitorProtocol
 
 # Use this logger for logging messages directly from the iotests module
 logger = logging.getLogger('qemu.iotests')
