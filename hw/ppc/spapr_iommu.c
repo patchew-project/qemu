@@ -321,8 +321,8 @@ static void spapr_tce_table_realize(DeviceState *dev, Error **errp)
 
     QLIST_INSERT_HEAD(&spapr_tce_tables, tcet, list);
 
-    vmstate_register(VMSTATE_IF(tcet), tcet->liobn, &vmstate_spapr_tce_table,
-                     tcet);
+    qdev_set_legacy_instance_id(dev, tcet->liobn,
+                                vmstate_spapr_tce_table.minimum_version_id);
 }
 
 void spapr_tce_set_need_vfio(SpaprTceTable *tcet, bool need_vfio)
@@ -423,8 +423,6 @@ void spapr_tce_table_disable(SpaprTceTable *tcet)
 static void spapr_tce_table_unrealize(DeviceState *dev)
 {
     SpaprTceTable *tcet = SPAPR_TCE_TABLE(dev);
-
-    vmstate_unregister(VMSTATE_IF(tcet), &vmstate_spapr_tce_table, tcet);
 
     QLIST_REMOVE(tcet, list);
 
@@ -673,6 +671,7 @@ static void spapr_tce_table_class_init(ObjectClass *klass, void *data)
     dc->realize = spapr_tce_table_realize;
     dc->reset = spapr_tce_reset;
     dc->unrealize = spapr_tce_table_unrealize;
+    dc->vmsd = &vmstate_spapr_tce_table;
     /* Reason: This is just an internal device for handling the hypercalls */
     dc->user_creatable = false;
 
