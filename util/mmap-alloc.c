@@ -10,14 +10,18 @@
  * later.  See the COPYING file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
 #ifdef CONFIG_LINUX
 #include <linux/mman.h>
-#else  /* !CONFIG_LINUX */
-#define MAP_SYNC              0x0
-#define MAP_SHARED_VALIDATE   0x0
-#endif /* CONFIG_LINUX */
+#endif  /* CONFIG_LINUX */
 
-#include "qemu/osdep.h"
+#ifndef MAP_SYNC
+#define MAP_SYNC              0x0
+#endif /* MAP_SYNC */
+#ifndef MAP_SHARED_VALIDATE
+#define MAP_SHARED_VALIDATE   0x0
+#endif /* MAP_SHARED_VALIDATE */
+
 #include "qemu/mmap-alloc.h"
 #include "qemu/host-utils.h"
 #include "qemu/cutils.h"
