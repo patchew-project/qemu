@@ -270,10 +270,22 @@ bool qemu_mutex_iothread_locked(void);
 bool qemu_in_main_thread(void);
 
 /* Mark and check that the function is part of the global state API. */
+#ifdef CONFIG_COCOA
+/*
+ * When using Cocoa ui, addRemovableDevicesMenuItems() calls qmp_query_block()
+ * while expecting the main thread to still hold the BQL, triggering this
+ * assertions in the block layer (commit 0439c5a462). As the Cocoa fix is not
+ * trivial, disable this assertion for the v7.0.0 release when using Cocoa; it
+ * will be restored immediately after the release. This issue is tracked as
+ * https://gitlab.com/qemu-project/qemu/-/issues/926
+ */
+#define GLOBAL_STATE_CODE()
+#else
 #define GLOBAL_STATE_CODE()                                         \
     do {                                                            \
         assert(qemu_in_main_thread());                              \
     } while (0)
+#endif /* CONFIG_DARWIN */
 
 /* Mark and check that the function is part of the I/O API. */
 #define IO_CODE()                                                   \
