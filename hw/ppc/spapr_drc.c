@@ -536,8 +536,7 @@ static void drc_realize(DeviceState *d, Error **errp)
     trace_spapr_drc_realize_child(spapr_drc_index(drc), child_name);
     object_property_add_alias(root_container, link_name,
                               drc->owner, child_name);
-    vmstate_register(VMSTATE_IF(drc), spapr_drc_index(drc), &vmstate_spapr_drc,
-                     drc);
+    qdev_set_legacy_instance_id(d, spapr_drc_index(drc), 1);
     trace_spapr_drc_realize_complete(spapr_drc_index(drc));
 }
 
@@ -548,7 +547,6 @@ static void drc_unrealize(DeviceState *d)
     Object *root_container;
 
     trace_spapr_drc_unrealize(spapr_drc_index(drc));
-    vmstate_unregister(VMSTATE_IF(drc), &vmstate_spapr_drc, drc);
     root_container = container_get(object_get_root(), DRC_CONTAINER_PATH);
     object_property_del(root_container, name);
 }
@@ -673,7 +671,10 @@ static void spapr_drc_physical_class_init(ObjectClass *k, void *data)
 
 static void spapr_drc_logical_class_init(ObjectClass *k, void *data)
 {
+    DeviceClass *dk = DEVICE_CLASS(k);
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
+
+    dk->vmsd = &vmstate_spapr_drc;
 
     drck->dr_entity_sense = logical_entity_sense;
     drck->isolate = drc_isolate_logical;
