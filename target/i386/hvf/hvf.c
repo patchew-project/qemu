@@ -163,7 +163,9 @@ void hvf_arch_vcpu_destroy(CPUState *cpu)
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
 
+    g_free(env->xsave_buf);
     g_free(env->hvf_mmio_buf);
+    g_free(hvf_state->hvf_caps);
 }
 
 static void init_tsc_freq(CPUX86State *env)
