@@ -640,9 +640,6 @@ static void realize_physical(DeviceState *d, Error **errp)
         return;
     }
 
-    vmstate_register(VMSTATE_IF(drcp),
-                     spapr_drc_index(SPAPR_DR_CONNECTOR(drcp)),
-                     &vmstate_spapr_drc_physical, drcp);
     qemu_register_reset(drc_physical_reset, drcp);
 }
 
@@ -651,7 +648,6 @@ static void unrealize_physical(DeviceState *d)
     SpaprDrcPhysical *drcp = SPAPR_DRC_PHYSICAL(d);
 
     drc_unrealize(d);
-    vmstate_unregister(VMSTATE_IF(drcp), &vmstate_spapr_drc_physical, drcp);
     qemu_unregister_reset(drc_physical_reset, drcp);
 }
 
@@ -662,6 +658,8 @@ static void spapr_drc_physical_class_init(ObjectClass *k, void *data)
 
     dk->realize = realize_physical;
     dk->unrealize = unrealize_physical;
+    dk->vmsd = &vmstate_spapr_drc_physical;
+
     drck->dr_entity_sense = physical_entity_sense;
     drck->isolate = drc_isolate_physical;
     drck->unisolate = drc_unisolate_physical;
