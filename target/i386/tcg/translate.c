@@ -5339,7 +5339,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
     case 0x1b0:
     case 0x1b1: /* cmpxchg Ev, Gv */
         {
-            TCGv oldv, newv, cmpv;
+            TCGv oldv, newv, cmpv, temp;
 
             ot = mo_b_d(b, dflag);
             modrm = x86_ldub_code(env, s);
@@ -5348,41 +5348,42 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             oldv = tcg_temp_new();
             newv = tcg_temp_new();
             cmpv = tcg_temp_new();
+            temp = tcg_temp_new();
             gen_op_mov_v_reg(s, ot, newv, reg);
             tcg_gen_mov_tl(cmpv, cpu_regs[R_EAX]);
+            tcg_gen_mov_tl(temp, cpu_regs[R_EAX]);
 
-            if (s->prefix & PREFIX_LOCK) {
+            if ((s->prefix & PREFIX_LOCK) ||
+                (mod != 3)) {
+                /* Use the tcg_gen_atomic_cmpxchg_tl path whenever mod != 3.
+                   While an unlocked cmpxchg need not be atomic, it is not
+                   required to be non-atomic either. */
                 if (mod == 3) {
                     goto illegal_op;
                 }
                 gen_lea_modrm(env, s, modrm);
                 tcg_gen_atomic_cmpxchg_tl(oldv, s->A0, cmpv, newv,
                                           s->mem_index, ot | MO_LE);
+                gen_extu(ot, oldv);
+                gen_extu(ot, cmpv);
+                /* Perform the merge into %al or %ax as required by ot. */
                 gen_op_mov_reg_v(s, ot, R_EAX, oldv);
+                /* Undo the entire modification to %rax if comparison equal. */
+                tcg_gen_movcond_tl(TCG_COND_EQ, cpu_regs[R_EAX], oldv, cmpv,
+                                    temp, cpu_regs[R_EAX]);
             } else {
-                if (mod == 3) {
-                    rm = (modrm & 7) | REX_B(s);
-                    gen_op_mov_v_reg(s, ot, oldv, rm);
-                } else {
-                    gen_lea_modrm(env, s, modrm);
-                    gen_op_ld_v(s, ot, oldv, s->A0);
-                    rm = 0; /* avoid warning */
-                }
+                rm = (modrm & 7) | REX_B(s);
+                gen_op_mov_v_reg(s, ot, oldv, rm);
                 gen_extu(ot, oldv);
                 gen_extu(ot, cmpv);
                 /* store value = (old == cmp ? new : old);  */
                 tcg_gen_movcond_tl(TCG_COND_EQ, newv, oldv, cmpv, newv, oldv);
-                if (mod == 3) {
-                    gen_op_mov_reg_v(s, ot, R_EAX, oldv);
-                    gen_op_mov_reg_v(s, ot, rm, newv);
-                } else {
-                    /* Perform an unconditional store cycle like physical cpu;
-                       must be before changing accumulator to ensure
-                       idempotency if the store faults and the instruction
-                       is restarted */
-                    gen_op_st_v(s, ot, newv, s->A0);
-                    gen_op_mov_reg_v(s, ot, R_EAX, oldv);
-                }
+                /* Perform the merge into %al or %ax as required by ot. */
+                gen_op_mov_reg_v(s, ot, R_EAX, oldv);
+                /* Undo the entire modification to %rax if comparison equal. */
+                tcg_gen_movcond_tl(TCG_COND_EQ, cpu_regs[R_EAX], oldv, cmpv,
+                                    temp, cpu_regs[R_EAX]);
+                gen_op_mov_reg_v(s, ot, rm, newv);
             }
             tcg_gen_mov_tl(cpu_cc_src, oldv);
             tcg_gen_mov_tl(s->cc_srcT, cmpv);
@@ -5391,6 +5392,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             tcg_temp_free(oldv);
             tcg_temp_free(newv);
             tcg_temp_free(cmpv);
+            tcg_temp_free(temp);
         }
         break;
     case 0x1c7: /* cmpxchg8b */
