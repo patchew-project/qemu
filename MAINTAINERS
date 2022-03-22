@@ -3612,10 +3612,12 @@ Build and test automation, general continuous integration
 M: Alex Bennée <alex.bennee@linaro.org>
 M: Philippe Mathieu-Daudé <f4bug@amsat.org>
 M: Thomas Huth <thuth@redhat.com>
+M: Yonggang Luo <luoyonggang@gmail>
 R: Wainer dos Santos Moschetta <wainersm@redhat.com>
 R: Beraldo Leal <bleal@redhat.com>
 S: Maintained
-F: .github/lockdown.yml
+F: .github/workflows/lockdown.yml
+F: .github/workflows/main.yml
 F: .gitlab-ci.yml
 F: .gitlab-ci.d/
 F: .travis.yml
