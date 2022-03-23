@@ -114,6 +114,13 @@ enum KVMDirtyRingReaperSpeedControl {
     KVM_DIRTY_RING_REAPER_SPEED_CONTROL_DOWN
 };
 
+struct KVMDirtyRingDirtyCounter {
+    int64_t time_last_count;
+    uint64_t dirty_pages_period;
+    int64_t dirty_pages_rate;
+    int64_t dirty_pages_period_peak_rate;
+};
+
 /*
  * KVM reaper instance, responsible for collecting the KVM dirty bits
  * via the dirty ring.
@@ -128,6 +135,7 @@ struct KVMDirtyRingReaper {
     uint64_t ring_full_cnt;
     float ratio_adjust_threshold;
     int stable_count_threshold;
+    struct KVMDirtyRingDirtyCounter counter; /* Calculate dirty pages rate */
 };
 
 struct KVMState
@@ -739,7 +747,9 @@ static void kvm_dirty_ring_mark_page(KVMState *s, uint32_t as_id,
         return;
     }
 
-    set_bit(offset, mem->dirty_bmap);
+    if (!test_and_set_bit(offset, mem->dirty_bmap)) {
+        s->reaper.counter.dirty_pages_period++;
+    }
 }
 
 static bool dirty_gfn_is_dirtied(struct kvm_dirty_gfn *gfn)
@@ -783,6 +793,56 @@ static uint32_t kvm_dirty_ring_reap_one(KVMState *s, CPUState *cpu)
     return count;
 }
 
+int64_t kvm_dirty_ring_get_rate(void)
+{
+    return kvm_state->reaper.counter.dirty_pages_rate;
+}
+
+int64_t kvm_dirty_ring_get_peak_rate(void)
+{
+    return kvm_state->reaper.counter.dirty_pages_period_peak_rate;
+}
+
+static void kvm_dirty_ring_reap_count(KVMState *s)
+{
+    int64_t spend_time = 0;
+    int64_t end_time;
+
+    if (!s->reaper.counter.time_last_count) {
+        s->reaper.counter.time_last_count =
+            qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    }
+
+    end_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    spend_time = end_time - s->reaper.counter.time_last_count;
+
+    if (!s->reaper.counter.dirty_pages_period ||
+        !spend_time) {
+        return;
+    }
+
+    /*
+     * More than 1 second = 1000 millisecons,
+     * or trigger by kvm_log_sync_global which spend time
+     * more than 300 milliscons.
+     */
+    if (spend_time > 1000) {
+        /* Count the dirty page rate during this period */
+        s->reaper.counter.dirty_pages_rate =
+            s->reaper.counter.dirty_pages_period * 1000 / spend_time;
+        /* Update the peak dirty page rate at this period */
+        if (s->reaper.counter.dirty_pages_rate >
+            s->reaper.counter.dirty_pages_period_peak_rate) {
+            s->reaper.counter.dirty_pages_period_peak_rate =
+                s->reaper.counter.dirty_pages_rate;
+        }
+
+        /* Reset counters */
+        s->reaper.counter.dirty_pages_period = 0;
+        s->reaper.counter.time_last_count = 0;
+    }
+}
+
 /* Must be with slots_lock held */
 static uint64_t kvm_dirty_ring_reap_locked(KVMState *s)
 {
@@ -792,6 +852,8 @@ static uint64_t kvm_dirty_ring_reap_locked(KVMState *s)
     int64_t stamp;
 
     stamp = get_clock();
+
+    kvm_dirty_ring_reap_count(s);
 
     CPU_FOREACH(cpu) {
         total += kvm_dirty_ring_reap_one(s, cpu);
