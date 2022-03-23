@@ -15,6 +15,7 @@
 /* Kick all RR vCPUs. */
 void rr_kick_vcpu_thread(CPUState *unused);
 
+bool rr_create_vcpu_thread_precheck(CPUState *cpu);
 /* start the round robin vcpu thread */
 void rr_start_vcpu_thread(CPUState *cpu);
 

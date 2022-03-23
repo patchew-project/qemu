@@ -272,6 +272,13 @@ static void *rr_cpu_thread_fn(void *arg)
     return NULL;
 }
 
+static QemuThread *single_tcg_cpu_thread;
+
+bool rr_create_vcpu_thread_precheck(CPUState *cpu)
+{
+    return !single_tcg_cpu_thread;
+}
+
 void rr_start_vcpu_thread(CPUState *cpu)
 {
     char thread_name[VCPU_THREAD_NAME_SIZE];
