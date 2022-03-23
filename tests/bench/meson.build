@@ -23,6 +23,12 @@ if have_block
   }
 endif
 
+if nettle.found() and hogweed.found()
+    benchs += {
+        'benchmark-crypto-akcipher': [crypto],
+    }
+endif
+
 foreach bench_name, deps: benchs
   exe = executable(bench_name, bench_name + '.c',
                    dependencies: [qemuutil] + deps)
