@@ -48,6 +48,8 @@
 
 #include "hw/boards.h"
 
+#include "sysemu/cpu-throttle.h"
+
 /* This check must be after config-host.h is included */
 #ifdef CONFIG_EVENTFD
 #include <sys/eventfd.h>
@@ -839,25 +841,6 @@ static uint64_t kvm_dirty_ring_reap(KVMState *s)
     return total;
 }
 
-static void do_kvm_cpu_synchronize_kick(CPUState *cpu, run_on_cpu_data arg)
-{
-    /* No need to do anything */
-}
-
-/*
- * Kick all vcpus out in a synchronized way.  When returned, we
- * guarantee that every vcpu has been kicked and at least returned to
- * userspace once.
- */
-static void kvm_cpu_synchronize_kick_all(void)
-{
-    CPUState *cpu;
-
-    CPU_FOREACH(cpu) {
-        run_on_cpu(cpu, do_kvm_cpu_synchronize_kick, RUN_ON_CPU_NULL);
-    }
-}
-
 /*
  * Flush all the existing dirty pages to the KVM slot buffers.  When
  * this call returns, we guarantee that all the touched dirty pages
@@ -879,7 +862,9 @@ static void kvm_dirty_ring_flush(void)
      * First make sure to flush the hardware buffers by kicking all
      * vcpus out in a synchronous way.
      */
-    kvm_cpu_synchronize_kick_all();
+    if (!cpu_throttle_get_percentage()) {
+        qemu_kvm_cpu_synchronize_kick_all();
+    }
     kvm_dirty_ring_reap(kvm_state);
     trace_kvm_dirty_ring_flush(1);
 }

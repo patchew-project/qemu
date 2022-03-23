@@ -61,6 +61,7 @@
 #include "sysemu/cpus.h"
 #include "yank_functions.h"
 #include "sysemu/qtest.h"
+#include "sysemu/kvm.h"
 
 #define MAX_THROTTLE  (128 << 20)      /* Migration transfer speed throttling */
 
@@ -3183,6 +3184,16 @@ static void migration_completion(MigrationState *s)
 
         if (!ret) {
             bool inactivate = !migrate_colo_enabled();
+            /*
+             * Before stop vm do qemu_kvm_cpu_synchronize_kick_all to
+             * fulsh hardware buffer into KVMslots for dirty ring
+             * optmiaztion, If qemu_kvm_cpu_synchronize_kick_all is not
+             * called when the CPU speed is limited to improve efficiency
+             */
+            if (kvm_dirty_ring_enabled()
+                && cpu_throttle_get_percentage()) {
+                qemu_kvm_cpu_synchronize_kick_all();
+            }
             ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
             trace_migration_completion_vm_stop(ret);
             if (ret >= 0) {
