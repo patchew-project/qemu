@@ -1312,6 +1312,10 @@ static void virt_machine_init(MachineState *machine)
      * when KVM is enabled.
      */
     if (kvm_enabled()) {
+        if (machine->firmware && strcmp(machine->firmware, "none")) {
+            warn_report("Machine mode firmware is not supported in combination "
+                        "with KVM. Ignoring -bios.");
+        }
         g_free(machine->firmware);
         machine->firmware = g_strdup("none");
     }
