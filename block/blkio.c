@@ -1,7 +1,9 @@
 #include "qemu/osdep.h"
 #include <blkio.h>
 #include "block/block_int.h"
+#include "exec/memory.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "qapi/qmp/qdict.h"
 #include "qemu/module.h"
 
@@ -25,6 +27,9 @@ typedef struct {
 
     /* Can we skip adding/deleting blkio_mem_regions? */
     bool needs_mem_regions;
+
+    /* Are file descriptors necessary for blkio_mem_regions? */
+    bool needs_mem_region_fd;
 
     /*
      * blkio_completion_fd_poll() stashes the next completion for
@@ -170,6 +175,8 @@ static BlockAIOCB *blkio_aio_preadv(BlockDriverState *bs, int64_t offset,
         BlockCompletionFunc *cb, void *opaque)
 {
     BDRVBlkioState *s = bs->opaque;
+    bool needs_mem_regions =
+        s->needs_mem_regions && !(flags & BDRV_REQ_REGISTERED_BUF);
     struct iovec *iov = qiov->iov;
     int iovcnt = qiov->niov;
     BlkioAIOCB *acb;
@@ -179,7 +186,7 @@ static BlockAIOCB *blkio_aio_preadv(BlockDriverState *bs, int64_t offset,
 
     acb = blkio_aiocb_get(bs, cb, opaque);
 
-    if (s->needs_mem_regions) {
+    if (needs_mem_regions) {
         if (blkio_aiocb_init_mem_region_locked(acb, bytes) < 0) {
             qemu_aio_unref(&acb->common);
             return NULL;
@@ -194,7 +201,7 @@ static BlockAIOCB *blkio_aio_preadv(BlockDriverState *bs, int64_t offset,
 
     ret = blkioq_readv(s->blkioq, offset, iov, iovcnt, acb, 0);
     if (ret < 0) {
-        if (s->needs_mem_regions) {
+        if (needs_mem_regions) {
             blkio_free_mem_region(s->blkio, &acb->mem_region);
             qemu_iovec_destroy(&acb->qiov);
         }
@@ -215,6 +222,8 @@ static BlockAIOCB *blkio_aio_pwritev(BlockDriverState *bs, int64_t offset,
 {
     uint32_t blkio_flags = (flags & BDRV_REQ_FUA) ? BLKIO_REQ_FUA : 0;
     BDRVBlkioState *s = bs->opaque;
+    bool needs_mem_regions =
+        s->needs_mem_regions && !(flags & BDRV_REQ_REGISTERED_BUF);
     struct iovec *iov = qiov->iov;
     int iovcnt = qiov->niov;
     BlkioAIOCB *acb;
@@ -224,7 +233,7 @@ static BlockAIOCB *blkio_aio_pwritev(BlockDriverState *bs, int64_t offset,
 
     acb = blkio_aiocb_get(bs, cb, opaque);
 
-    if (s->needs_mem_regions) {
+    if (needs_mem_regions) {
         if (blkio_aiocb_init_mem_region_locked(acb, bytes) < 0) {
             qemu_aio_unref(&acb->common);
             return NULL;
@@ -238,7 +247,7 @@ static BlockAIOCB *blkio_aio_pwritev(BlockDriverState *bs, int64_t offset,
 
     ret = blkioq_writev(s->blkioq, offset, iov, iovcnt, acb, blkio_flags);
     if (ret < 0) {
-        if (s->needs_mem_regions) {
+        if (needs_mem_regions) {
             blkio_free_mem_region(s->blkio, &acb->mem_region);
         }
         qemu_aio_unref(&acb->common);
@@ -283,6 +292,83 @@ static void blkio_io_unplug(BlockDriverState *bs)
 
     WITH_QEMU_LOCK_GUARD(&s->lock) {
         blkioq_submit_and_wait(s->blkioq, 0, NULL, NULL);
+    }
+}
+
+static void blkio_register_buf(BlockDriverState *bs, void *host, size_t size)
+{
+    BDRVBlkioState *s = bs->opaque;
+    char *errmsg;
+    int ret;
+    struct blkio_mem_region region = (struct blkio_mem_region){
+        .addr = host,
+        .len = size,
+        .fd = -1,
+    };
+
+    if (((uintptr_t)host | size) % s->mem_region_alignment) {
+        error_report_once("%s: skipping unaligned buf %p with size %zu",
+                          __func__, host, size);
+        return; /* skip unaligned */
+    }
+
+    /* Attempt to find the fd for a MemoryRegion */
+    if (s->needs_mem_region_fd) {
+        int fd = -1;
+        ram_addr_t offset;
+        MemoryRegion *mr;
+
+        /*
+         * bdrv_register_buf() is called with the BQL held so mr lives at least
+         * until this function returns.
+         */
+        mr = memory_region_from_host(host, &offset);
+        if (mr) {
+            fd = memory_region_get_fd(mr);
+        }
+        if (fd == -1) {
+            error_report_once("%s: skipping fd-less buf %p with size %zu",
+                              __func__, host, size);
+            return; /* skip if there is no fd */
+        }
+
+        region.fd = fd;
+        region.fd_offset = offset;
+    }
+
+    WITH_QEMU_LOCK_GUARD(&s->lock) {
+        ret = blkio_add_mem_region(s->blkio, &region, &errmsg);
+    }
+
+    if (ret < 0) {
+        error_report_once("Failed to add blkio mem region %p with size %zu: %s",
+                          host, size, errmsg);
+        free(errmsg);
+    }
+}
+
+static void blkio_unregister_buf(BlockDriverState *bs, void *host, size_t size)
+{
+    BDRVBlkioState *s = bs->opaque;
+    char *errmsg;
+    int ret;
+    struct blkio_mem_region region = (struct blkio_mem_region){
+        .addr = host,
+        .len = size,
+    };
+
+    if (((uintptr_t)host | size) % s->mem_region_alignment) {
+        return; /* skip unaligned */
+    }
+
+    WITH_QEMU_LOCK_GUARD(&s->lock) {
+        ret = blkio_del_mem_region(s->blkio, &region, &errmsg);
+    }
+
+    if (ret < 0) {
+        error_report_once("Failed to delete blkio mem region %p with size %zu: %s",
+                          host, size, errmsg);
+        free(errmsg);
     }
 }
 
@@ -351,6 +437,18 @@ static int blkio_file_open(BlockDriverState *bs, QDict *options, int flags,
     if (ret < 0) {
         error_setg_errno(errp, -ret,
                          "failed to get needs-mem-regions: %s", errmsg);
+        free(errmsg);
+        blkio_destroy(&s->blkio);
+        return ret;
+    }
+
+    ret = blkio_get_bool(s->blkio,
+                         "needs-mem-region-fd",
+                         &s->needs_mem_region_fd,
+                         &errmsg);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret,
+                         "failed to get needs-mem-region-fd: %s", errmsg);
         free(errmsg);
         blkio_destroy(&s->blkio);
         return ret;
@@ -436,6 +534,8 @@ static BlockDriver bdrv_io_uring = {
     .bdrv_aio_pwritev           = blkio_aio_pwritev,
     .bdrv_aio_flush             = blkio_aio_flush,
     .bdrv_io_unplug             = blkio_io_unplug,
+    .bdrv_register_buf          = blkio_register_buf,
+    .bdrv_unregister_buf        = blkio_unregister_buf,
 
     /*
      * TODO
