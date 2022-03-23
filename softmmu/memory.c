@@ -2184,6 +2184,12 @@ static void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
              */
             listener->log_sync_global(listener);
             trace_memory_region_sync_dirty(mr ? mr->name : "(all)", listener->name, 1);
+            /*
+             * The log_sync_global of the dirty ring will collect the dirty
+             * pages of all memslots at one time, so there is no need to
+             * call log_sync_global once when traversing each memslot.
+             */
+            break;
         }
     }
 }
