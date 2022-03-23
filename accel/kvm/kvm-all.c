@@ -91,6 +91,27 @@ enum KVMDirtyRingReaperState {
     KVM_DIRTY_RING_REAPER_REAPING,
 };
 
+enum KVMDirtyRingReaperRunLevel {
+    /* The reaper runs at default normal speed */
+    KVM_DIRTY_RING_REAPER_RUN_NORMAL = 0,
+    /* The reaper starts to accelerate in different gears */
+    KVM_DIRTY_RING_REAPER_RUN_FAST1,
+    KVM_DIRTY_RING_REAPER_RUN_FAST2,
+    KVM_DIRTY_RING_REAPER_RUN_FAST3,
+    KVM_DIRTY_RING_REAPER_RUN_FAST4,
+    /* The reaper runs at the fastest speed */
+    KVM_DIRTY_RING_REAPER_RUN_MAX_SPEED,
+};
+
+enum KVMDirtyRingReaperSpeedControl {
+    /* Maintain current speed */
+    KVM_DIRTY_RING_REAPER_SPEED_CONTROL_KEEP = 0,
+    /* Accelerate current speed */
+    KVM_DIRTY_RING_REAPER_SPEED_CONTROL_UP,
+    /* Decrease current speed */
+    KVM_DIRTY_RING_REAPER_SPEED_CONTROL_DOWN
+};
+
 /*
  * KVM reaper instance, responsible for collecting the KVM dirty bits
  * via the dirty ring.
@@ -100,6 +121,11 @@ struct KVMDirtyRingReaper {
     QemuThread reaper_thr;
     volatile uint64_t reaper_iteration; /* iteration number of reaper thr */
     volatile enum KVMDirtyRingReaperState reaper_state; /* reap thr state */
+    /* Control the running speed of the reaper thread to fit dirty page rate */
+    enum KVMDirtyRingReaperRunLevel run_level;
+    uint64_t ring_full_cnt;
+    float ratio_adjust_threshold;
+    int stable_count_threshold;
 };
 
 struct KVMState
@@ -1449,10 +1475,114 @@ out:
     kvm_slots_unlock();
 }
 
+static uint64_t calcu_sleep_time(KVMState *s,
+                                       uint64_t dirty_count,
+                                       uint64_t ring_full_cnt_last,
+                                       uint32_t *speed_down_cnt)
+{
+    float ratio = 0.0;
+    uint64_t sleep_time = 1000000;
+    enum KVMDirtyRingReaperRunLevel run_level_want;
+    enum KVMDirtyRingReaperSpeedControl speed_control;
+
+    /*
+     * When the number of dirty pages collected exceeds
+     * the given percentage of the ring size,the speed
+     * up action will be triggered.
+     */
+    s->reaper.ratio_adjust_threshold = 0.1;
+    s->reaper.stable_count_threshold = 5;
+
+    ratio = (float)dirty_count / s->kvm_dirty_ring_size;
+
+    if (s->reaper.ring_full_cnt > ring_full_cnt_last) {
+        /* If get a new ring full need speed up reaper thread */
+        if (s->reaper.run_level != KVM_DIRTY_RING_REAPER_RUN_MAX_SPEED) {
+            s->reaper.run_level++;
+        }
+    } else {
+        /*
+         * If get more dirty pages this loop and this status continus
+         * for many times try to speed up reaper thread.
+         * If the status is stable and need to decide which speed need
+         * to use.
+         */
+        if (ratio < s->reaper.ratio_adjust_threshold) {
+            run_level_want = KVM_DIRTY_RING_REAPER_RUN_NORMAL;
+        } else if (ratio < s->reaper.ratio_adjust_threshold * 2) {
+            run_level_want = KVM_DIRTY_RING_REAPER_RUN_FAST1;
+        } else if (ratio < s->reaper.ratio_adjust_threshold * 3) {
+            run_level_want = KVM_DIRTY_RING_REAPER_RUN_FAST2;
+        } else if (ratio < s->reaper.ratio_adjust_threshold * 4) {
+            run_level_want = KVM_DIRTY_RING_REAPER_RUN_FAST3;
+        } else if (ratio < s->reaper.ratio_adjust_threshold * 5) {
+            run_level_want = KVM_DIRTY_RING_REAPER_RUN_FAST4;
+        } else {
+            run_level_want = KVM_DIRTY_RING_REAPER_RUN_MAX_SPEED;
+        }
+
+        /* Get if need speed up or slow down */
+        if (run_level_want > s->reaper.run_level) {
+            speed_control = KVM_DIRTY_RING_REAPER_SPEED_CONTROL_UP;
+            *speed_down_cnt = 0;
+        } else if (run_level_want < s->reaper.run_level) {
+            speed_control = KVM_DIRTY_RING_REAPER_SPEED_CONTROL_DOWN;
+            *speed_down_cnt++;
+        } else {
+            speed_control = KVM_DIRTY_RING_REAPER_SPEED_CONTROL_KEEP;
+        }
+
+        /* Control reaper thread run in sutiable run speed level */
+        if (speed_control == KVM_DIRTY_RING_REAPER_SPEED_CONTROL_UP) {
+            /* If need speed up do not check its stable just do it */
+            s->reaper.run_level++;
+        } else if (speed_control ==
+            KVM_DIRTY_RING_REAPER_SPEED_CONTROL_DOWN) {
+            /* If need speed down we should filter this status */
+            if (*speed_down_cnt > s->reaper.stable_count_threshold) {
+                s->reaper.run_level--;
+            }
+        }
+    }
+
+    /* Set the actual running rate of the reaper */
+    switch (s->reaper.run_level) {
+    case KVM_DIRTY_RING_REAPER_RUN_NORMAL:
+        sleep_time = 1000000;
+        break;
+    case KVM_DIRTY_RING_REAPER_RUN_FAST1:
+        sleep_time = 500000;
+        break;
+    case KVM_DIRTY_RING_REAPER_RUN_FAST2:
+        sleep_time = 250000;
+        break;
+    case KVM_DIRTY_RING_REAPER_RUN_FAST3:
+        sleep_time = 125000;
+        break;
+    case KVM_DIRTY_RING_REAPER_RUN_FAST4:
+        sleep_time = 100000;
+        break;
+    case KVM_DIRTY_RING_REAPER_RUN_MAX_SPEED:
+        sleep_time = 80000;
+        break;
+    default:
+        sleep_time = 1000000;
+        error_report("Bad reaper thread run level, use default");
+    }
+
+    return sleep_time;
+}
+
 static void *kvm_dirty_ring_reaper_thread(void *data)
 {
     KVMState *s = data;
     struct KVMDirtyRingReaper *r = &s->reaper;
+
+    uint64_t count = 0;
+    uint64_t sleep_time = 1000000;
+    uint64_t ring_full_cnt_last = 0;
+    /* Filter speed jitter */
+    uint32_t speed_down_cnt = 0;
 
     rcu_register_thread();
 
@@ -1461,17 +1591,25 @@ static void *kvm_dirty_ring_reaper_thread(void *data)
     while (true) {
         r->reaper_state = KVM_DIRTY_RING_REAPER_WAIT;
         trace_kvm_dirty_ring_reaper("wait");
-        /*
-         * TODO: provide a smarter timeout rather than a constant?
-         */
-        sleep(1);
+
+       ring_full_cnt_last = s->reaper.ring_full_cnt;
+
+        usleep(sleep_time);
 
         trace_kvm_dirty_ring_reaper("wakeup");
         r->reaper_state = KVM_DIRTY_RING_REAPER_REAPING;
 
         qemu_mutex_lock_iothread();
-        kvm_dirty_ring_reap(s);
+        count = kvm_dirty_ring_reap(s);
         qemu_mutex_unlock_iothread();
+
+        /*
+         * Calculate the appropriate sleep time according to
+         * the speed of the current dirty page.
+         */
+        sleep_time = calcu_sleep_time(s, count,
+                                      ring_full_cnt_last,
+                                      &speed_down_cnt);
 
         r->reaper_iteration++;
     }
@@ -2958,6 +3096,7 @@ int kvm_cpu_exec(CPUState *cpu)
             trace_kvm_dirty_ring_full(cpu->cpu_index);
             qemu_mutex_lock_iothread();
             kvm_dirty_ring_reap(kvm_state);
+            kvm_state->reaper.ring_full_cnt++;
             qemu_mutex_unlock_iothread();
             ret = 0;
             break;
