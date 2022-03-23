@@ -29,6 +29,8 @@
 #include "hw/qdev-properties.h"
 #include "hw/arm/exynos4210.h"
 #include "qom/object.h"
+#include "hw/hw.h"
+#include "hw/core/split-irq.h"
 
 enum ExtGicId {
     EXT_GIC_ID_MDMA_LCD0 = 66,
@@ -209,6 +211,23 @@ qemu_irq *exynos4210_init_irq(Exynos4210Irq *s)
             EXYNOS4210_MAX_INT_COMBINER_IN_IRQ);
 }
 
+
+static qemu_irq split_irq(qemu_irq out1, qemu_irq out2) {
+    DeviceState *splitter = qdev_new(TYPE_SPLIT_IRQ);
+
+    qdev_prop_set_uint32(splitter, "num-lines", 2);
+
+    if (!qdev_realize_and_unref(splitter, NULL, &error_fatal)) {
+        hw_error("exynos4210.combiner: unable to realize split irq device");
+        return NULL;
+    }
+
+    qdev_connect_gpio_out(splitter, 0, out1);
+    qdev_connect_gpio_out(splitter, 1, out2);
+
+    return qdev_get_gpio_in(splitter, 0);
+}
+
 /*
  * Initialize board IRQs.
  * These IRQs contain splitted Int/External Combiner and External Gic IRQs.
@@ -230,10 +249,10 @@ void exynos4210_init_board_irqs(Exynos4210Irq *s)
             irq_id = EXT_GIC_ID_MCT_G1;
         }
         if (irq_id) {
-            s->board_irqs[n] = qemu_irq_split(s->int_combiner_irq[n],
+            s->board_irqs[n] = split_irq(s->int_combiner_irq[n],
                     s->ext_gic_irq[irq_id-32]);
         } else {
-            s->board_irqs[n] = qemu_irq_split(s->int_combiner_irq[n],
+            s->board_irqs[n] = split_irq(s->int_combiner_irq[n],
                     s->ext_combiner_irq[n]);
         }
     }
@@ -245,7 +264,7 @@ void exynos4210_init_board_irqs(Exynos4210Irq *s)
                      EXYNOS4210_MAX_EXT_COMBINER_OUT_IRQ][bit];
 
         if (irq_id) {
-            s->board_irqs[n] = qemu_irq_split(s->int_combiner_irq[n],
+            s->board_irqs[n] = split_irq(s->int_combiner_irq[n],
                     s->ext_gic_irq[irq_id-32]);
         }
     }
