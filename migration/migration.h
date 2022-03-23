@@ -333,6 +333,8 @@ struct MigrationState {
      * This save hostname when out-going migration starts
      */
     char *hostname;
+    /* If already caculated the throttle percentage for migration */
+    bool have_caculated_throttle_pct;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);

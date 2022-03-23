@@ -2070,6 +2070,7 @@ void migrate_init(MigrationState *s)
     s->vm_was_running = false;
     s->iteration_initial_bytes = 0;
     s->threshold_size = 0;
+    s->have_caculated_throttle_pct = false;
 }
 
 int migrate_add_blocker_internal(Error *reason, Error **errp)
