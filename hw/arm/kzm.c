@@ -23,6 +23,7 @@
 #include "hw/net/lan9118.h"
 #include "hw/char/serial.h"
 #include "sysemu/qtest.h"
+#include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "qemu/cutils.h"
 
@@ -120,7 +121,8 @@ static void kzm_init(MachineState *machine)
     if (serial_hd(2)) { /* touchscreen */
         serial_mm_init(get_system_memory(), KZM_FPGA_ADDR+0x10, 0,
                        qdev_get_gpio_in(DEVICE(&s->soc.avic), 52),
-                       14745600, serial_hd(2), DEVICE_NATIVE_ENDIAN);
+                       14745600, serial_hd(2), DEVICE_NATIVE_ENDIAN,
+                       false, QEMU_WAKEUP_REASON_NONE);
     }
 
     kzm_binfo.ram_size = machine->ram_size;

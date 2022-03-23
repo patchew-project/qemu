@@ -587,7 +587,8 @@ static MaltaFPGAState *malta_fpga_init(MemoryRegion *address_space,
                              malta_fgpa_display_event, NULL, s, NULL, true);
 
     s->uart = serial_mm_init(address_space, base + 0x900, 3, uart_irq,
-                             230400, uart_chr, DEVICE_NATIVE_ENDIAN);
+                             230400, uart_chr, DEVICE_NATIVE_ENDIAN,
+                             false, QEMU_WAKEUP_REASON_NONE);
 
     malta_fpga_reset(s);
     qemu_register_reset(malta_fpga_reset, s);

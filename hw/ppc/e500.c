@@ -934,13 +934,15 @@ void ppce500_init(MachineState *machine)
     if (serial_hd(0)) {
         serial_mm_init(ccsr_addr_space, MPC8544_SERIAL0_REGS_OFFSET,
                        0, qdev_get_gpio_in(mpicdev, 42), 399193,
-                       serial_hd(0), DEVICE_BIG_ENDIAN);
+                       serial_hd(0), DEVICE_BIG_ENDIAN,
+                       false, QEMU_WAKEUP_REASON_NONE);
     }
 
     if (serial_hd(1)) {
         serial_mm_init(ccsr_addr_space, MPC8544_SERIAL1_REGS_OFFSET,
                        0, qdev_get_gpio_in(mpicdev, 42), 399193,
-                       serial_hd(1), DEVICE_BIG_ENDIAN);
+                       serial_hd(1), DEVICE_BIG_ENDIAN,
+                       false, QEMU_WAKEUP_REASON_NONE);
     }
         /* I2C */
     dev = qdev_new("mpc-i2c");

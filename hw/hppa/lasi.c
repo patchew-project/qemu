@@ -334,7 +334,8 @@ DeviceState *lasi_init(MemoryRegion *address_space)
                 lasi_get_irq(LASI_UART_HPA));
         serial_mm_init(address_space, LASI_UART_HPA + 0x800, 0,
                 serial_irq, 8000000 / 16,
-                serial_hd(0), DEVICE_NATIVE_ENDIAN);
+                serial_hd(0), DEVICE_NATIVE_ENDIAN,
+                false, QEMU_WAKEUP_REASON_NONE);
     }
 
     /* PS/2 Keyboard/Mouse */

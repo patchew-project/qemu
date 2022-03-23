@@ -35,6 +35,7 @@
 #include "hw/sysbus.h"
 #include "sysemu/qtest.h"
 #include "sysemu/reset.h"
+#include "sysemu/runstate.h"
 #include "hw/core/split-irq.h"
 
 #include <libfdt.h>
@@ -258,7 +259,8 @@ static void openrisc_sim_serial_init(Or1ksimState *state, hwaddr base,
         serial_irq = get_cpu_irq(cpus, 0, irq_pin);
     }
     serial_mm_init(get_system_memory(), base, 0, serial_irq, 115200,
-                   serial_hd(0), DEVICE_NATIVE_ENDIAN);
+                   serial_hd(0), DEVICE_NATIVE_ENDIAN,
+                   false, QEMU_WAKEUP_REASON_NONE);
 
     /* Add device tree node for serial. */
     nodename = g_strdup_printf("/serial@%" HWADDR_PRIx, base);

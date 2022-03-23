@@ -25,6 +25,7 @@
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/units.h"
+#include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 
 /*
@@ -563,7 +564,8 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < ARRAY_SIZE(npcm7xx_uart_addr); i++) {
         serial_mm_init(get_system_memory(), npcm7xx_uart_addr[i], 2,
                        npcm7xx_irq(s, NPCM7XX_UART0_IRQ + i), 115200,
-                       serial_hd(i), DEVICE_LITTLE_ENDIAN);
+                       serial_hd(i), DEVICE_LITTLE_ENDIAN,
+                       false, QEMU_WAKEUP_REASON_NONE);
     }
 
     /* Random Number Generator. Cannot fail. */

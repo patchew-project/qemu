@@ -34,6 +34,7 @@
 #include "hw/char/serial.h"
 #include "qemu/timer.h"
 #include "sysemu/reset.h"
+#include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "exec/address-spaces.h"
 #include "hw/intc/ppc-uic.h"
@@ -1498,13 +1499,15 @@ PowerPCCPU *ppc405ep_init(MemoryRegion *address_space_mem,
         serial_mm_init(address_space_mem, 0xef600300, 0,
                        qdev_get_gpio_in(uicdev, 0),
                        PPC_SERIAL_MM_BAUDBASE, serial_hd(0),
-                       DEVICE_BIG_ENDIAN);
+                       DEVICE_BIG_ENDIAN,
+                       false, QEMU_WAKEUP_REASON_NONE);
     }
     if (serial_hd(1) != NULL) {
         serial_mm_init(address_space_mem, 0xef600400, 0,
                        qdev_get_gpio_in(uicdev, 1),
                        PPC_SERIAL_MM_BAUDBASE, serial_hd(1),
-                       DEVICE_BIG_ENDIAN);
+                       DEVICE_BIG_ENDIAN,
+                       false, QEMU_WAKEUP_REASON_NONE);
     }
     /* OCM */
     ppc405_ocm_init(env);

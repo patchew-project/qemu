@@ -326,7 +326,8 @@ static void ebus_realize(PCIDevice *pci_dev, Error **errp)
     i = 0;
     if (s->console_serial_base) {
         serial_mm_init(pci_address_space(pci_dev), s->console_serial_base,
-                       0, NULL, 115200, serial_hd(i), DEVICE_BIG_ENDIAN);
+                       0, NULL, 115200, serial_hd(i), DEVICE_BIG_ENDIAN,
+                       false, QEMU_WAKEUP_REASON_NONE);
         i++;
     }
     serial_hds_isa_init(s->isa_bus, i, MAX_ISA_SERIAL_PORTS);

@@ -30,6 +30,7 @@
 #include "hw/arm/msf2-soc.h"
 #include "hw/misc/unimp.h"
 #include "hw/qdev-clock.h"
+#include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 
 #define MSF2_TIMER_BASE       0x40004000
@@ -148,7 +149,8 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
         if (serial_hd(i)) {
             serial_mm_init(get_system_memory(), uart_addr[i], 2,
                            qdev_get_gpio_in(armv7m, uart_irq[i]),
-                           115200, serial_hd(i), DEVICE_NATIVE_ENDIAN);
+                           115200, serial_hd(i), DEVICE_NATIVE_ENDIAN,
+                           false, QEMU_WAKEUP_REASON_NONE);
         }
     }
 

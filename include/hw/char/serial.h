@@ -62,6 +62,7 @@ struct SerialState {
     uint32_t tsr_retry;
     guint watch_tag;
     bool wakeup;
+    uint32_t wakeup_reason;
 
     /* Time when the last byte was successfully sent out of the tsr */
     uint64_t last_xmit_ts;
@@ -104,7 +105,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(SerialMM, SERIAL_MM)
 SerialMM *serial_mm_init(MemoryRegion *address_space,
                          hwaddr base, int regshift,
                          qemu_irq irq, int baudbase,
-                         Chardev *chr, enum device_endian end);
+                         Chardev *chr, enum device_endian end,
+                         bool wakeup, uint32_t wakeup_reason);
 
 /* serial-isa.c */
 

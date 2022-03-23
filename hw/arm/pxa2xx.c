@@ -27,6 +27,7 @@
 #include "sysemu/blockdev.h"
 #include "sysemu/qtest.h"
 #include "sysemu/rtc.h"
+#include "sysemu/runstate.h"
 #include "qemu/cutils.h"
 #include "qemu/log.h"
 #include "qom/object.h"
@@ -2153,7 +2154,8 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
             serial_mm_init(address_space, pxa270_serial[i].io_base, 2,
                            qdev_get_gpio_in(s->pic, pxa270_serial[i].irqn),
                            14857000 / 16, serial_hd(i),
-                           DEVICE_NATIVE_ENDIAN);
+                           DEVICE_NATIVE_ENDIAN,
+                           false, QEMU_WAKEUP_REASON_NONE);
         } else {
             break;
         }
@@ -2286,7 +2288,8 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
             serial_mm_init(address_space, pxa255_serial[i].io_base, 2,
                            qdev_get_gpio_in(s->pic, pxa255_serial[i].irqn),
                            14745600 / 16, serial_hd(i),
-                           DEVICE_NATIVE_ENDIAN);
+                           DEVICE_NATIVE_ENDIAN,
+                           false, QEMU_WAKEUP_REASON_NONE);
         } else {
             break;
         }

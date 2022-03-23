@@ -602,7 +602,7 @@ static void serial_receive1(void *opaque, const uint8_t *buf, int size)
     SerialState *s = opaque;
 
     if (s->wakeup) {
-        qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
+        qemu_system_wakeup_request(s->wakeup_reason, NULL);
     }
     if(s->fcr & UART_FCR_FE) {
         int i;
@@ -972,6 +972,8 @@ static Property serial_properties[] = {
     DEFINE_PROP_CHR("chardev", SerialState, chr),
     DEFINE_PROP_UINT32("baudbase", SerialState, baudbase, 115200),
     DEFINE_PROP_BOOL("wakeup", SerialState, wakeup, false),
+    DEFINE_PROP_UINT32("wakeup-reason", SerialState,
+                       wakeup_reason, QEMU_WAKEUP_REASON_OTHER),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1062,7 +1064,8 @@ static const VMStateDescription vmstate_serial_mm = {
 SerialMM *serial_mm_init(MemoryRegion *address_space,
                          hwaddr base, int regshift,
                          qemu_irq irq, int baudbase,
-                         Chardev *chr, enum device_endian end)
+                         Chardev *chr, enum device_endian end,
+                         bool wakeup, uint32_t wakeup_reason)
 {
     SerialMM *smm = SERIAL_MM(qdev_new(TYPE_SERIAL_MM));
     MemoryRegion *mr;
@@ -1072,6 +1075,8 @@ SerialMM *serial_mm_init(MemoryRegion *address_space,
     qdev_prop_set_chr(DEVICE(smm), "chardev", chr);
     qdev_set_legacy_instance_id(DEVICE(smm), base, 2);
     qdev_prop_set_uint8(DEVICE(smm), "endianness", end);
+    qdev_prop_set_bit(DEVICE(smm), "wakeup", wakeup);
+    qdev_prop_set_uint32(DEVICE(smm), "wakeup-reason", wakeup_reason);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(smm), &error_fatal);
 
     sysbus_connect_irq(SYS_BUS_DEVICE(smm), 0, irq);

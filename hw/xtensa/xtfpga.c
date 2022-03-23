@@ -312,7 +312,8 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
     }
 
     serial_mm_init(system_io, 0x0d050020, 2, extints[0],
-                   115200, serial_hd(0), DEVICE_NATIVE_ENDIAN);
+                   115200, serial_hd(0), DEVICE_NATIVE_ENDIAN,
+                   false, QEMU_WAKEUP_REASON_NONE);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
     if (dinfo) {

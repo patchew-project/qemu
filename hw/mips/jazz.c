@@ -49,6 +49,7 @@
 #include "hw/sysbus.h"
 #include "sysemu/qtest.h"
 #include "sysemu/reset.h"
+#include "sysemu/runstate.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/help_option.h"
@@ -369,10 +370,12 @@ static void mips_jazz_init(MachineState *machine,
     /* Serial ports */
     serial_mm_init(address_space, 0x80006000, 0,
                    qdev_get_gpio_in(rc4030, 8), 8000000 / 16,
-                   serial_hd(0), DEVICE_NATIVE_ENDIAN);
+                   serial_hd(0), DEVICE_NATIVE_ENDIAN,
+                   false, QEMU_WAKEUP_REASON_NONE);
     serial_mm_init(address_space, 0x80007000, 0,
                    qdev_get_gpio_in(rc4030, 9), 8000000 / 16,
-                   serial_hd(1), DEVICE_NATIVE_ENDIAN);
+                   serial_hd(1), DEVICE_NATIVE_ENDIAN,
+                   false, QEMU_WAKEUP_REASON_NONE);
 
     /* Parallel port */
     if (parallel_hds[0])

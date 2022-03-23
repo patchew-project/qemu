@@ -32,6 +32,7 @@
 #include "hw/sysbus.h"
 #include "net/net.h"
 #include "hw/block/flash.h"
+#include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
 #include "hw/char/serial.h"
@@ -122,7 +123,7 @@ petalogix_ml605_init(MachineState *machine)
 
     serial_mm_init(address_space_mem, UART16550_BASEADDR + 0x1000, 2,
                    irq[UART16550_IRQ], 115200, serial_hd(0),
-                   DEVICE_LITTLE_ENDIAN);
+                   DEVICE_LITTLE_ENDIAN, false, QEMU_WAKEUP_REASON_NONE);
 
     /* 2 timers at irq 2 @ 100 Mhz.  */
     dev = qdev_new("xlnx.xps-timer");

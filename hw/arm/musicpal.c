@@ -1253,10 +1253,12 @@ static void musicpal_init(MachineState *machine)
 
     serial_mm_init(address_space_mem, MP_UART1_BASE, 2,
                    qdev_get_gpio_in(uart_orgate, 0),
-                   1825000, serial_hd(0), DEVICE_NATIVE_ENDIAN);
+                   1825000, serial_hd(0), DEVICE_NATIVE_ENDIAN,
+                   false, QEMU_WAKEUP_REASON_NONE);
     serial_mm_init(address_space_mem, MP_UART2_BASE, 2,
                    qdev_get_gpio_in(uart_orgate, 1),
-                   1825000, serial_hd(1), DEVICE_NATIVE_ENDIAN);
+                   1825000, serial_hd(1), DEVICE_NATIVE_ENDIAN,
+                   false, QEMU_WAKEUP_REASON_NONE);
 
     /* Register flash */
     dinfo = drive_get(IF_PFLASH, 0, 0);
