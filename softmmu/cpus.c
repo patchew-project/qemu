@@ -617,6 +617,10 @@ static void common_vcpu_thread_create(CPUState *cpu)
 #endif
 }
 
+static void common_vcpu_thread_destroy(CPUState *cpu)
+{
+}
+
 void cpu_remove_sync(CPUState *cpu)
 {
     cpu->stop = true;
@@ -625,6 +629,11 @@ void cpu_remove_sync(CPUState *cpu)
     qemu_mutex_unlock_iothread();
     qemu_thread_join(cpu->thread);
     qemu_mutex_lock_iothread();
+
+    if (cpus_accel->destroy_vcpu_thread_precheck == NULL
+            || cpus_accel->destroy_vcpu_thread_precheck(cpu)) {
+        common_vcpu_thread_destroy(cpu);
+    }
 }
 
 void cpus_register_accel(const AccelOpsClass *ops)

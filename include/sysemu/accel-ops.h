@@ -35,6 +35,8 @@ struct AccelOpsClass {
     /* If non-NULL, return whether common vCPU thread must be created */
     bool (*create_vcpu_thread_precheck)(CPUState *cpu);
     void (*create_vcpu_thread_postcheck)(CPUState *cpu);
+    /* If non-NULL, return whether common vCPU thread must be destroyed */
+    bool (*destroy_vcpu_thread_precheck)(CPUState *cpu);
 
     void (*kick_vcpu_thread)(CPUState *cpu);
     bool (*cpu_thread_is_idle)(CPUState *cpu);
