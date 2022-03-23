@@ -102,6 +102,7 @@ static void tcg_accel_ops_init(AccelOpsClass *ops)
         ops->vcpu_thread_fn = rr_vcpu_thread_fn;
         ops->create_vcpu_thread_precheck = rr_create_vcpu_thread_precheck;
         ops->create_vcpu_thread_postcheck = rr_create_vcpu_thread_postcheck;
+        ops->destroy_vcpu_thread_precheck = rr_destroy_vcpu_thread_precheck;
         ops->kick_vcpu_thread = rr_kick_vcpu_thread;
 
         if (icount_enabled()) {

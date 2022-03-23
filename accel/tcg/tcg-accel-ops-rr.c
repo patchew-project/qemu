@@ -295,3 +295,12 @@ void rr_create_vcpu_thread_postcheck(CPUState *cpu)
         cpu->created = true;
     }
 }
+
+bool rr_destroy_vcpu_thread_precheck(CPUState *cpu)
+{
+    if (single_tcg_cpu_thread) {
+        single_tcg_cpu_thread = NULL;
+        return true;
+    }
+    return false;
+}
