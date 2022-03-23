@@ -540,3 +540,89 @@
   'data': { '*loaded': { 'type': 'bool', 'features': ['deprecated'] },
             '*sanity-check': 'bool',
             '*passwordid': 'str' } }
+##
+# @QCryptoAkcipherAlgorithm:
+#
+# The supported algorithms for asymmetric encryption ciphers
+#
+# @rsa: RSA algorithm
+# @ecdsa: ECDSA algorithm
+#
+# Since: 7.0
+##
+{ 'enum': 'QCryptoAkcipherAlgorithm',
+  'prefix': 'QCRYPTO_AKCIPHER_ALG',
+  'data': ['rsa', 'ecdsa']}
+
+##
+# @QCryptoAkcipherKeyType:
+#
+# The type of asymmetric keys.
+#
+# Since: 7.0
+##
+{ 'enum': 'QCryptoAkcipherKeyType',
+  'prefix': 'QCRYPTO_AKCIPHER_KEY_TYPE',
+  'data': ['public', 'private']}
+
+##
+# @QCryptoRsaHashAlgorithm:
+#
+# The hash algorithm for RSA pkcs1 padding algothrim
+#
+# Since: 7.0
+##
+{ 'enum': 'QCryptoRsaHashAlgorithm',
+  'prefix': 'QCRYPTO_RSA_HASH_ALG',
+  'data': [ 'md2', 'md3', 'md4', 'md5', 'sha1', 'sha256', 'sha384', 'sha512', 'sha224' ]}
+
+##
+# @QCryptoRsaPaddingAlgorithm:
+#
+# The padding algorithm for RSA.
+#
+# @raw: no padding used
+# @pkcs1: pkcs1#v1.5
+#
+# Since: 7.0
+##
+{ 'enum': 'QCryptoRsaPaddingAlgorithm',
+  'prefix': 'QCRYPTO_RSA_PADDING_ALG',
+  'data': ['raw', 'pkcs1']}
+
+##
+# @QCryptoCurveId:
+#
+# The well-known curves, referenced from https://csrc.nist.gov/csrc/media/publications/fips/186/3/archive/2009-06-25/documents/fips_186-3.pdf
+#
+# Since: 7.0
+##
+{ 'enum': 'QCryptoCurveId',
+  'prefix': 'QCRYPTO_CURVE_ID',
+  'data': ['nist-p192', 'nist-p224', 'nist-p256', 'nist-p384', 'nist-p521']}
+
+##
+# @QCryptoRsaOptions:
+#
+# Specific parameters for RSA algorithm.
+#
+# @hash-algo: QCryptoRsaHashAlgorithm
+# @padding-algo: QCryptoRsaPaddingAlgorithm
+#
+# Since: 7.0
+##
+{ 'struct': 'QCryptoRsaOptions',
+  'data': { 'hash-algo':'QCryptoRsaHashAlgorithm',
+            'padding-algo': 'QCryptoRsaPaddingAlgorithm'}}
+
+##
+# @QCryptoEcdsaOptions:
+#
+# Specific parameter for ECDSA algorithm.
+#
+# @curve-id: QCryptoCurveId
+#
+# Since: 7.0
+##
+{ 'struct': 'QCryptoEcdsaOptions',
+  'data': { 'curve-id': 'QCryptoCurveId' }}
