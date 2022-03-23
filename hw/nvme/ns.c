@@ -54,6 +54,30 @@ void nvme_ns_init_format(NvmeNamespace *ns)
     id_ns->npda = id_ns->npdg = npdg - 1;
 }
 
+void nvme_ns_identify_common(NvmeIdNs *id_ns)
+{
+    id_ns->dlfeat = 0x1;
+
+    /* support DULBE and I/O optimization fields */
+    id_ns->nsfeat |= (0x4 | 0x10);
+    id_ns->mc = NVME_ID_NS_MC_EXTENDED | NVME_ID_NS_MC_SEPARATE;
+    id_ns->dpc = 0x1f;
+
+    static const NvmeLBAF lbaf[16] = {
+        [0] = { .ds =  9           },
+        [1] = { .ds =  9, .ms =  8 },
+        [2] = { .ds =  9, .ms = 16 },
+        [3] = { .ds =  9, .ms = 64 },
+        [4] = { .ds = 12           },
+        [5] = { .ds = 12, .ms =  8 },
+        [6] = { .ds = 12, .ms = 16 },
+        [7] = { .ds = 12, .ms = 64 },
+    };
+
+    memcpy(&id_ns->lbaf, &lbaf, sizeof(lbaf));
+    id_ns->nlbaf = 7;
+}
+
 static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
 {
     static uint64_t ns_count;
@@ -65,11 +89,6 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
 
     ns->csi = NVME_CSI_NVM;
     ns->status = 0x0;
-
-    ns->id_ns.dlfeat = 0x1;
-
-    /* support DULBE and I/O optimization fields */
-    id_ns->nsfeat |= (0x4 | 0x10);
 
     if (ns->params.shared) {
         id_ns->nmic |= NVME_NMIC_NS_SHARED;
@@ -90,34 +109,18 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
     ds = 31 - clz32(ns->blkconf.logical_block_size);
     ms = ns->params.ms;
 
-    id_ns->mc = NVME_ID_NS_MC_EXTENDED | NVME_ID_NS_MC_SEPARATE;
-
     if (ms && ns->params.mset) {
         id_ns->flbas |= NVME_ID_NS_FLBAS_EXTENDED;
     }
 
-    id_ns->dpc = 0x1f;
     id_ns->dps = ns->params.pi;
     if (ns->params.pi && ns->params.pil) {
         id_ns->dps |= NVME_ID_NS_DPS_FIRST_EIGHT;
     }
 
     ns->pif = ns->params.pif;
-
-    static const NvmeLBAF lbaf[16] = {
-        [0] = { .ds =  9           },
-        [1] = { .ds =  9, .ms =  8 },
-        [2] = { .ds =  9, .ms = 16 },
-        [3] = { .ds =  9, .ms = 64 },
-        [4] = { .ds = 12           },
-        [5] = { .ds = 12, .ms =  8 },
-        [6] = { .ds = 12, .ms = 16 },
-        [7] = { .ds = 12, .ms = 64 },
-    };
-
+    nvme_ns_identify_common(id_ns);
     ns->nlbaf = 8;
-
-    memcpy(&id_ns->lbaf, &lbaf, sizeof(lbaf));
 
     for (i = 0; i < ns->nlbaf; i++) {
         NvmeLBAF *lbaf = &id_ns->lbaf[i];
@@ -145,9 +148,12 @@ lbaf_found:
     return 0;
 }
 
-static int nvme_ns_init_blk(NvmeNamespace *ns, Error **errp)
+static int nvme_ns_init_blk(NvmeNamespace *ns, NvmeSubsystem *subsys,
+                            Error **errp)
 {
     bool read_only;
+    NvmeCtrl *ctrl;
+    int i;
 
     if (!blkconf_blocksizes(&ns->blkconf, errp)) {
         return -1;
@@ -167,6 +173,21 @@ static int nvme_ns_init_blk(NvmeNamespace *ns, Error **errp)
     if (ns->size < 0) {
         error_setg_errno(errp, -ns->size, "could not get blockdev size");
         return -1;
+    }
+
+    if (subsys) {
+        for (i = 0; i < ARRAY_SIZE(subsys->ctrls); i++) {
+            ctrl = nvme_subsys_ctrl(subsys, i);
+
+            if (ctrl) {
+                if (ctrl->id_ctrl.unvmcap < le64_to_cpu(ns->size)) {
+                    error_setg(errp, "blockdev size %ld exceeds subsystem's "
+                                     "unallocated capacity", ns->size);
+                } else {
+                    ctrl->id_ctrl.unvmcap -= le64_to_cpu(ns->size);
+                }
+            }
+        }
     }
 
     return 0;
@@ -487,10 +508,6 @@ int nvme_ns_setup(NvmeNamespace *ns, Error **errp)
         return -1;
     }
 
-    if (nvme_ns_init_blk(ns, errp)) {
-        return -1;
-    }
-
     if (nvme_ns_init(ns, errp)) {
         return -1;
     }
@@ -558,6 +575,15 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
         if (!qdev_set_parent_bus(dev, &subsys->bus.parent_bus, errp)) {
             return;
         }
+    }
+
+    if (nvme_ns_init_blk(ns, subsys, errp)) {
+        return;
+    }
+
+    if (!ns->size) {
+        QSLIST_INSERT_HEAD(&subsys->unallocated_namespaces, ns, entry);
+        return;
     }
 
     if (nvme_ns_setup(ns, errp)) {

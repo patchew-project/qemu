@@ -60,11 +60,14 @@ static void nvme_subsys_realize(DeviceState *dev, Error **errp)
 
     qbus_init(&subsys->bus, sizeof(NvmeBus), TYPE_NVME_BUS, dev, dev->id);
 
+    QSLIST_INIT(&subsys->unallocated_namespaces);
+
     nvme_subsys_setup(subsys);
 }
 
 static Property nvme_subsystem_props[] = {
     DEFINE_PROP_STRING("nqn", NvmeSubsystem, params.nqn),
+    DEFINE_PROP_SIZE("tnvmcap", NvmeSubsystem, params.tnvmcap, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

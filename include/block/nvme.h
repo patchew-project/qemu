@@ -592,6 +592,7 @@ enum NvmeAdminCommands {
     NVME_ADM_CMD_SET_FEATURES   = 0x09,
     NVME_ADM_CMD_GET_FEATURES   = 0x0a,
     NVME_ADM_CMD_ASYNC_EV_REQ   = 0x0c,
+    NVME_ADM_CMD_NS_MANAGEMENT  = 0x0d,
     NVME_ADM_CMD_ACTIVATE_FW    = 0x10,
     NVME_ADM_CMD_DOWNLOAD_FW    = 0x11,
     NVME_ADM_CMD_NS_ATTACHMENT  = 0x15,
@@ -895,6 +896,9 @@ enum NvmeStatusCodes {
     NVME_FEAT_NOT_CHANGEABLE    = 0x010e,
     NVME_FEAT_NOT_NS_SPEC       = 0x010f,
     NVME_FW_REQ_SUSYSTEM_RESET  = 0x0110,
+    NVME_NS_INSUFF_CAP          = 0x0115,
+    NVME_THIN_PROVISION_NO_SUPP = 0x011b,
+    NVME_NS_ID_UNAVAILABLE      = 0x0116,
     NVME_NS_ALREADY_ATTACHED    = 0x0118,
     NVME_NS_PRIVATE             = 0x0119,
     NVME_NS_NOT_ATTACHED        = 0x011a,
@@ -1072,8 +1076,10 @@ typedef struct QEMU_PACKED NvmeIdCtrl {
     uint16_t    mtfa;
     uint32_t    hmpre;
     uint32_t    hmmin;
-    uint8_t     tnvmcap[16];
-    uint8_t     unvmcap[16];
+    uint64_t    tnvmcap;
+    uint64_t    tnvmcap_u;
+    uint64_t    unvmcap;
+    uint64_t    unvmcap_u;
     uint32_t    rpmbs;
     uint16_t    edstt;
     uint8_t     dsto;
@@ -1178,6 +1184,11 @@ enum NvmeIdCtrlCmic {
 enum NvmeNsAttachmentOperation {
     NVME_NS_ATTACHMENT_ATTACH = 0x0,
     NVME_NS_ATTACHMENT_DETACH = 0x1,
+};
+
+enum NvmeNsManagementOperation {
+    NVME_NS_MANAGEMENT_CREATE = 0x0,
+    NVME_NS_MANAGEMENT_DELETE = 0x1,
 };
 
 #define NVME_CTRL_SQES_MIN(sqes) ((sqes) & 0xf)
@@ -1320,7 +1331,8 @@ typedef struct QEMU_PACKED NvmeIdNs {
     uint16_t    nabo;
     uint16_t    nabspf;
     uint16_t    noiob;
-    uint8_t     nvmcap[16];
+    uint64_t    nvmcap;
+    uint64_t    nvmcap_u;
     uint16_t    npwg;
     uint16_t    npwa;
     uint16_t    npdg;
