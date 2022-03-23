@@ -637,7 +637,13 @@ void qemu_init_vcpu(CPUState *cpu)
 
     /* accelerators all implement the AccelOpsClass */
     g_assert(cpus_accel != NULL && cpus_accel->create_vcpu_thread != NULL);
-    cpus_accel->create_vcpu_thread(cpu);
+    if (cpus_accel->create_vcpu_thread_precheck == NULL
+            || cpus_accel->create_vcpu_thread_precheck(cpu)) {
+        cpus_accel->create_vcpu_thread(cpu);
+    }
+    if (cpus_accel->create_vcpu_thread_postcheck) {
+        cpus_accel->create_vcpu_thread_postcheck(cpu);
+    }
 
     while (!cpu->created) {
         qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
