@@ -174,6 +174,7 @@ void cpu_exec_unrealizefn(CPUState *cpu)
         tcg_exec_unrealizefn(cpu);
     }
 
+    cpu_address_space_destroy(cpu);
     cpu_list_remove(cpu);
 }
 
