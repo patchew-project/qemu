@@ -619,6 +619,7 @@ static void common_vcpu_thread_create(CPUState *cpu)
 
 static void common_vcpu_thread_destroy(CPUState *cpu)
 {
+    g_free(cpu->thread);
 }
 
 void cpu_remove_sync(CPUState *cpu)
