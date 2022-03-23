@@ -31,6 +31,9 @@ QCryptoAkcipher *qcrypto_akcipher_new(QCryptoAkcipherAlgorithm alg,
 {
     QCryptoAkcipher *akcipher = NULL;
 
+    akcipher = qcrypto_akcipher_nettle_new(alg, type, key, keylen,
+                                           para, errp);
+
     return akcipher;
 }
 

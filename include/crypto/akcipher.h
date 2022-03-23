@@ -135,5 +135,21 @@ int qcrypto_akcipher_verify(struct QCryptoAkcipher *akcipher,
 
 int qcrypto_akcipher_free(struct QCryptoAkcipher *akcipher, Error **errp);
 
+#ifdef CONFIG_HOGWEED
+QCryptoAkcipher *qcrypto_akcipher_nettle_new(QCryptoAkcipherAlgorithm alg,
+                                             QCryptoAkcipherKeyType type,
+                                             const uint8_t *key, size_t keylen,
+                                             void *para, Error **errp);
+#else
+static inline QCryptoAkcipher *qcrypto_akcipher_nettle_new(
+                                             QCryptoAkcipherAlgorithm alg,
+                                             QCryptoAkcipherKeyType type,
+                                             const uint8_t *key, size_t keylen,
+                                             void *para, Error **errp)
+{
+    error_setg(errp, "qcrypto akcipher has no nettle/hogweed support");
+    return NULL;
+}
+#endif
 
 #endif /* QCRYPTO_AKCIPHER_H */
