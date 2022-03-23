@@ -9,8 +9,8 @@ void cpus_register_accel(const AccelOpsClass *i);
 
 /* accel/dummy-cpus.c */
 
-/* Create a dummy vcpu for AccelOpsClass->create_vcpu_thread */
-void dummy_start_vcpu_thread(CPUState *);
+/* Create a dummy vcpu for AccelOpsClass->vcpu_thread_fn */
+void *dummy_vcpu_thread_fn(void *arg);
 
 /* interface available for cpus accelerator threads */
 

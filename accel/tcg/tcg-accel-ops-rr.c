@@ -148,7 +148,7 @@ static void rr_force_rcu(Notifier *notify, void *data)
  * elsewhere.
  */
 
-static void *rr_cpu_thread_fn(void *arg)
+void *rr_vcpu_thread_fn(void *arg)
 {
     Notifier force_rcu;
     CPUState *cpu = arg;
@@ -279,28 +279,13 @@ bool rr_create_vcpu_thread_precheck(CPUState *cpu)
     return !single_tcg_cpu_thread;
 }
 
-void rr_start_vcpu_thread(CPUState *cpu)
+void rr_create_vcpu_thread_postcheck(CPUState *cpu)
 {
-    char thread_name[VCPU_THREAD_NAME_SIZE];
     static QemuCond *single_tcg_halt_cond;
-    static QemuThread *single_tcg_cpu_thread;
 
-    if (!single_tcg_cpu_thread) {
-        cpu->thread = g_new0(QemuThread, 1);
-        cpu->halt_cond = g_new0(QemuCond, 1);
-        qemu_cond_init(cpu->halt_cond);
-
-        /* share a single thread for all cpus with TCG */
-        snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "ALL CPUs/TCG");
-        qemu_thread_create(cpu->thread, thread_name,
-                           rr_cpu_thread_fn,
-                           cpu, QEMU_THREAD_JOINABLE);
-
+    if (! single_tcg_cpu_thread) {
         single_tcg_halt_cond = cpu->halt_cond;
         single_tcg_cpu_thread = cpu->thread;
-#ifdef _WIN32
-        cpu->hThread = qemu_thread_get_handle(cpu->thread);
-#endif
     } else {
         /* we share the thread */
         cpu->thread = single_tcg_cpu_thread;

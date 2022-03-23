@@ -77,7 +77,7 @@ void accel_init_ops_interfaces(AccelClass *ac)
 
     /*
      * all accelerators need to define ops, providing at least a mandatory
-     * non-NULL create_vcpu_thread operation.
+     * non-NULL vcpu_thread_fn operation.
      */
     g_assert(ops != NULL);
     if (ops->ops_init) {

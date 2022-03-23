@@ -16,7 +16,9 @@
 void rr_kick_vcpu_thread(CPUState *unused);
 
 bool rr_create_vcpu_thread_precheck(CPUState *cpu);
-/* start the round robin vcpu thread */
-void rr_start_vcpu_thread(CPUState *cpu);
+void rr_create_vcpu_thread_postcheck(CPUState *cpu);
+bool rr_destroy_vcpu_thread_precheck(CPUState *cpu);
+
+void *rr_vcpu_thread_fn(void *arg);
 
 #endif /* TCG_CPUS_RR_H */

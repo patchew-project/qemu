@@ -95,11 +95,13 @@ void tcg_handle_interrupt(CPUState *cpu, int mask)
 static void tcg_accel_ops_init(AccelOpsClass *ops)
 {
     if (qemu_tcg_mttcg_enabled()) {
-        ops->create_vcpu_thread = mttcg_start_vcpu_thread;
+        ops->vcpu_thread_fn = mttcg_vcpu_thread_fn;
         ops->kick_vcpu_thread = mttcg_kick_vcpu_thread;
         ops->handle_interrupt = tcg_handle_interrupt;
     } else {
-        ops->create_vcpu_thread = rr_start_vcpu_thread;
+        ops->vcpu_thread_fn = rr_vcpu_thread_fn;
+        ops->create_vcpu_thread_precheck = rr_create_vcpu_thread_precheck;
+        ops->create_vcpu_thread_postcheck = rr_create_vcpu_thread_postcheck;
         ops->kick_vcpu_thread = rr_kick_vcpu_thread;
 
         if (icount_enabled()) {

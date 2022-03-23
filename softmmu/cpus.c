@@ -601,6 +601,22 @@ void resume_all_vcpus(void)
     }
 }
 
+static void common_vcpu_thread_create(CPUState *cpu)
+{
+    char thread_name[VCPU_THREAD_NAME_SIZE];
+
+    cpu->thread = g_new0(QemuThread, 1);
+    cpu->halt_cond = g_new0(QemuCond, 1);
+    qemu_cond_init(cpu->halt_cond);
+    snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/%s",
+             cpu->cpu_index, cpus_accel->thread_name ?: "DUMMY");
+    qemu_thread_create(cpu->thread, thread_name, cpus_accel->vcpu_thread_fn,
+                       cpu, QEMU_THREAD_JOINABLE);
+#ifdef _WIN32
+    cpu->hThread = qemu_thread_get_handle(cpu->thread);
+#endif
+}
+
 void cpu_remove_sync(CPUState *cpu)
 {
     cpu->stop = true;
@@ -614,7 +630,7 @@ void cpu_remove_sync(CPUState *cpu)
 void cpus_register_accel(const AccelOpsClass *ops)
 {
     assert(ops != NULL);
-    assert(ops->create_vcpu_thread != NULL); /* mandatory */
+    assert(ops->vcpu_thread_fn != NULL); /* mandatory */
     cpus_accel = ops;
 }
 
@@ -636,10 +652,11 @@ void qemu_init_vcpu(CPUState *cpu)
     }
 
     /* accelerators all implement the AccelOpsClass */
-    g_assert(cpus_accel != NULL && cpus_accel->create_vcpu_thread != NULL);
+    g_assert(cpus_accel != NULL && cpus_accel->vcpu_thread_fn != NULL);
+
     if (cpus_accel->create_vcpu_thread_precheck == NULL
             || cpus_accel->create_vcpu_thread_precheck(cpu)) {
-        cpus_accel->create_vcpu_thread(cpu);
+        common_vcpu_thread_create(cpu);
     }
     if (cpus_accel->create_vcpu_thread_postcheck) {
         cpus_accel->create_vcpu_thread_postcheck(cpu);

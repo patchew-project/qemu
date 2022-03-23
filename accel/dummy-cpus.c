@@ -18,7 +18,7 @@
 #include "qemu/main-loop.h"
 #include "hw/core/cpu.h"
 
-static void *dummy_cpu_thread_fn(void *arg)
+void *dummy_vcpu_thread_fn(void *arg)
 {
     CPUState *cpu = arg;
     sigset_t waitset;
@@ -56,17 +56,4 @@ static void *dummy_cpu_thread_fn(void *arg)
     qemu_mutex_unlock_iothread();
     rcu_unregister_thread();
     return NULL;
-}
-
-void dummy_start_vcpu_thread(CPUState *cpu)
-{
-    char thread_name[VCPU_THREAD_NAME_SIZE];
-
-    cpu->thread = g_malloc0(sizeof(QemuThread));
-    cpu->halt_cond = g_malloc0(sizeof(QemuCond));
-    qemu_cond_init(cpu->halt_cond);
-    snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/DUMMY",
-             cpu->cpu_index);
-    qemu_thread_create(cpu->thread, thread_name, dummy_cpu_thread_fn, cpu,
-                       QEMU_THREAD_JOINABLE);
 }

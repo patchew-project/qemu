@@ -30,7 +30,8 @@ struct AccelOpsClass {
 
     bool (*cpus_are_resettable)(void);
 
-    void (*create_vcpu_thread)(CPUState *cpu); /* MANDATORY NON-NULL */
+    const char *thread_name;
+    void *(*vcpu_thread_fn)(void *arg); /* MANDATORY NON-NULL */
     /* If non-NULL, return whether common vCPU thread must be created */
     bool (*create_vcpu_thread_precheck)(CPUState *cpu);
     void (*create_vcpu_thread_postcheck)(CPUState *cpu);
