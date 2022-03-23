@@ -2002,18 +2002,27 @@ void build_pptt(GArray *table_data, BIOSLinker *linker, MachineState *ms,
                 const char *oem_id, const char *oem_table_id)
 {
     MachineClass *mc = MACHINE_GET_CLASS(ms);
+    CPUArchIdList *cpus = ms->possible_cpus;
+    GQueue *socket_list = g_queue_new();
+    GQueue *cluster_list = g_queue_new();
+    GQueue *core_list = g_queue_new();
     GQueue *list = g_queue_new();
     guint pptt_start = table_data->len;
     guint parent_offset;
     guint length, i;
-    int uid = 0;
-    int socket;
+    int n, socket_id, cluster_id, core_id, thread_id;
     AcpiTable table = { .sig = "PPTT", .rev = 2,
                         .oem_id = oem_id, .oem_table_id = oem_table_id };
 
     acpi_table_begin(&table, table_data);
 
-    for (socket = 0; socket < ms->smp.sockets; socket++) {
+    for (n = 0; n < cpus->len; n++) {
+        socket_id = cpus->cpus[n].props.socket_id;
+        if (g_queue_find(socket_list, GUINT_TO_POINTER(socket_id))) {
+            continue;
+        }
+
+        g_queue_push_tail(socket_list, GUINT_TO_POINTER(socket_id));
         g_queue_push_tail(list,
             GUINT_TO_POINTER(table_data->len - pptt_start));
         build_processor_hierarchy_node(
@@ -2023,65 +2032,104 @@ void build_pptt(GArray *table_data, BIOSLinker *linker, MachineState *ms,
              * of a physical package
              */
             (1 << 0),
-            0, socket, NULL, 0);
+            0, socket_id, NULL, 0);
     }
 
     if (mc->smp_props.clusters_supported) {
         length = g_queue_get_length(list);
         for (i = 0; i < length; i++) {
-            int cluster;
-
             parent_offset = GPOINTER_TO_UINT(g_queue_pop_head(list));
-            for (cluster = 0; cluster < ms->smp.clusters; cluster++) {
+            socket_id = GPOINTER_TO_UINT(g_queue_pop_head(socket_list));
+
+            for (n = 0; n < cpus->len; n++) {
+                if (cpus->cpus[n].props.socket_id != socket_id) {
+                    continue;
+                }
+
+                cluster_id = cpus->cpus[n].props.cluster_id;
+                if (g_queue_find(cluster_list, GUINT_TO_POINTER(cluster_id))) {
+                    continue;
+                }
+
+                g_queue_push_tail(cluster_list, GUINT_TO_POINTER(cluster_id));
                 g_queue_push_tail(list,
                     GUINT_TO_POINTER(table_data->len - pptt_start));
                 build_processor_hierarchy_node(
                     table_data,
                     (0 << 0), /* not a physical package */
-                    parent_offset, cluster, NULL, 0);
+                    parent_offset, cluster_id, NULL, 0);
             }
         }
     }
 
     length = g_queue_get_length(list);
     for (i = 0; i < length; i++) {
-        int core;
-
         parent_offset = GPOINTER_TO_UINT(g_queue_pop_head(list));
-        for (core = 0; core < ms->smp.cores; core++) {
-            if (ms->smp.threads > 1) {
-                g_queue_push_tail(list,
-                    GUINT_TO_POINTER(table_data->len - pptt_start));
-                build_processor_hierarchy_node(
-                    table_data,
-                    (0 << 0), /* not a physical package */
-                    parent_offset, core, NULL, 0);
-            } else {
+        if (!mc->smp_props.clusters_supported) {
+            socket_id = GPOINTER_TO_UINT(g_queue_pop_head(socket_list));
+        } else {
+            cluster_id = GPOINTER_TO_UINT(g_queue_pop_head(cluster_list));
+        }
+
+        for (n = 0; n < cpus->len; n++) {
+            if (!mc->smp_props.clusters_supported &&
+                cpus->cpus[n].props.socket_id != socket_id) {
+                continue;
+            }
+
+            if (mc->smp_props.clusters_supported &&
+                cpus->cpus[n].props.cluster_id != cluster_id) {
+                continue;
+            }
+
+            core_id = cpus->cpus[n].props.core_id;
+            if (ms->smp.threads <= 1) {
                 build_processor_hierarchy_node(
                     table_data,
                     (1 << 1) | /* ACPI Processor ID valid */
                     (1 << 3),  /* Node is a Leaf */
-                    parent_offset, uid++, NULL, 0);
+                    parent_offset, core_id, NULL, 0);
+                continue;
             }
+
+            if (g_queue_find(core_list, GUINT_TO_POINTER(core_id))) {
+                continue;
+            }
+
+            g_queue_push_tail(core_list, GUINT_TO_POINTER(core_id));
+            g_queue_push_tail(list,
+                GUINT_TO_POINTER(table_data->len - pptt_start));
+            build_processor_hierarchy_node(
+                table_data,
+                (0 << 0), /* not a physical package */
+                parent_offset, core_id, NULL, 0);
         }
     }
 
     length = g_queue_get_length(list);
     for (i = 0; i < length; i++) {
-        int thread;
-
         parent_offset = GPOINTER_TO_UINT(g_queue_pop_head(list));
-        for (thread = 0; thread < ms->smp.threads; thread++) {
+        core_id = GPOINTER_TO_UINT(g_queue_pop_head(core_list));
+
+        for (n = 0; n < cpus->len; n++) {
+            if (cpus->cpus[n].props.core_id != core_id) {
+                continue;
+            }
+
+            thread_id = cpus->cpus[n].props.thread_id;
             build_processor_hierarchy_node(
                 table_data,
                 (1 << 1) | /* ACPI Processor ID valid */
                 (1 << 2) | /* Processor is a Thread */
                 (1 << 3),  /* Node is a Leaf */
-                parent_offset, uid++, NULL, 0);
+                parent_offset, thread_id, NULL, 0);
         }
     }
 
     g_queue_free(list);
+    g_queue_free(core_list);
+    g_queue_free(cluster_list);
+    g_queue_free(socket_list);
     acpi_table_end(linker, &table);
 }
 
