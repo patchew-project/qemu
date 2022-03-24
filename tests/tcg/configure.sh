@@ -80,6 +80,10 @@ fi
 : ${cross_as_tricore="tricore-as"}
 : ${cross_ld_tricore="tricore-ld"}
 
+# If target ppc64-softmmu is configured, also include the virtual test target
+# ppc64le-softmmu
+target_list=`echo $target_list | sed 's/ppc64-softmmu/& ppc64le-softmmu/'`
+
 for target in $target_list; do
   arch=${target%%-*}
 
@@ -237,7 +241,12 @@ for target in $target_list; do
       ;;
     *-softmmu)
       echo "CONFIG_SOFTMMU=y" >> $config_target_mak
-      echo "QEMU=$PWD/qemu-system-$arch" >> $config_target_mak
+      if test $arch = "ppc64le"; then
+        sys_arch=ppc64
+      else
+        sys_arch=$arch
+      fi
+      echo "QEMU=$PWD/qemu-system-$sys_arch" >> $config_target_mak
       ;;
   esac
 

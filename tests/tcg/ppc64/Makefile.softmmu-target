@@ -2,6 +2,8 @@
 # PowerPC64 system tests
 #
 
+BIG_ENDIAN ?= 1
+
 # For now, disable tests that are failing
 DISABLED_TESTS := memory
 DISABLED_EXTRA_RUNS := run-gdbstub-memory

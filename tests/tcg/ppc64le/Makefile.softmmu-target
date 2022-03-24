@@ -1,0 +1,7 @@
+#
+# PowerPC64 LE system tests
+#
+
+BIG_ENDIAN = 0
+
+include $(SRC_PATH)/tests/tcg/ppc64/Makefile.softmmu-target
