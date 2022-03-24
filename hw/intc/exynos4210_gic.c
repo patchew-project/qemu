@@ -29,6 +29,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/arm/exynos4210.h"
 #include "qom/object.h"
+#include "hw/hw.h"
 
 enum ExtGicId {
     EXT_GIC_ID_MDMA_LCD0 = 66,
@@ -197,7 +198,7 @@ static void exynos4210_irq_handler(void *opaque, int irq, int level)
     Exynos4210Irq *s = (Exynos4210Irq *)opaque;
 
     /* Bypass */
-    qemu_set_irq(s->board_irqs[irq], level);
+    qemu_set_irq(qdev_get_gpio_in(DEVICE(&s->board_irqs[irq]), 0), level);
 }
 
 /*
@@ -218,6 +219,12 @@ void exynos4210_init_board_irqs(Exynos4210Irq *s)
     uint32_t grp, bit, irq_id, n;
 
     for (n = 0; n < EXYNOS4210_MAX_EXT_COMBINER_IN_IRQ; n++) {
+        SplitIRQ *splitter = &s->board_irqs[n];
+        DeviceState *dev = DEVICE(splitter);
+
+        qdev_prop_set_uint32(dev, "num-lines", 2);
+        qdev_realize(dev, NULL, &error_fatal);
+
         irq_id = 0;
         if (n == EXYNOS4210_COMBINER_GET_IRQ_NUM(1, 4) ||
                 n == EXYNOS4210_COMBINER_GET_IRQ_NUM(12, 4)) {
@@ -229,15 +236,28 @@ void exynos4210_init_board_irqs(Exynos4210Irq *s)
             /* MCT_G1 is passed to External and GIC */
             irq_id = EXT_GIC_ID_MCT_G1;
         }
+
         if (irq_id) {
-            s->board_irqs[n] = qemu_irq_split(s->int_combiner_irq[n],
-                    s->ext_gic_irq[irq_id-32]);
+            qdev_connect_gpio_out(dev, 0,
+                                  qdev_get_gpio_in(
+                                      DEVICE(&s->int_combiner_irq[n]), 0));
+            qdev_connect_gpio_out(dev, 1, s->ext_gic_irq[irq_id - 32]);
         } else {
-            s->board_irqs[n] = qemu_irq_split(s->int_combiner_irq[n],
-                    s->ext_combiner_irq[n]);
+            qdev_connect_gpio_out(dev, 0,
+                                  qdev_get_gpio_in(
+                                      DEVICE(&s->int_combiner_irq[n]), 0));
+            qdev_connect_gpio_out(dev, 1,
+                                  qdev_get_gpio_in(
+                                      DEVICE(&s->ext_combiner_irq[n]), 0));
         }
     }
     for (; n < EXYNOS4210_MAX_INT_COMBINER_IN_IRQ; n++) {
+        SplitIRQ *splitter = &s->board_irqs[n];
+        DeviceState *dev = DEVICE(splitter);
+
+        qdev_prop_set_uint32(dev, "num-lines", 2);
+        qdev_realize(dev, NULL, &error_fatal);
+
         /* these IDs are passed to Internal Combiner and External GIC */
         grp = EXYNOS4210_COMBINER_GET_GRP_NUM(n);
         bit = EXYNOS4210_COMBINER_GET_BIT_NUM(n);
@@ -245,8 +265,10 @@ void exynos4210_init_board_irqs(Exynos4210Irq *s)
                      EXYNOS4210_MAX_EXT_COMBINER_OUT_IRQ][bit];
 
         if (irq_id) {
-            s->board_irqs[n] = qemu_irq_split(s->int_combiner_irq[n],
-                    s->ext_gic_irq[irq_id-32]);
+            qdev_connect_gpio_out(dev, 0,
+                                  qdev_get_gpio_in(
+                                      DEVICE(&s->int_combiner_irq[n]), 0));
+            qdev_connect_gpio_out(dev, 1, s->ext_gic_irq[irq_id - 32]);
         }
     }
 }
