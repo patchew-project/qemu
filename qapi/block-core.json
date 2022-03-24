@@ -5008,7 +5008,7 @@
 # <- { "event": "BLOCK_IMAGE_CORRUPTED",
 #      "data": { "device": "ide0-hd0", "node-name": "node0",
 #                "msg": "Prevented active L1 table overwrite", "offset": 196608,
-#                "size": 65536 },
+#                "size": 65536, "fatal": false },
 #      "timestamp": { "seconds": 1378126126, "microseconds": 966463 } }
 #
 # Since: 1.7
