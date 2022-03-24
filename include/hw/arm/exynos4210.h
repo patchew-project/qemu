@@ -28,6 +28,7 @@
 #include "hw/sysbus.h"
 #include "target/arm/cpu-qom.h"
 #include "qom/object.h"
+#include "hw/core/split-irq.h"
 
 #define EXYNOS4210_NCPUS                    2
 
@@ -79,11 +80,11 @@
 #define EXYNOS4210_NUM_DMA      3
 
 typedef struct Exynos4210Irq {
-    qemu_irq int_combiner_irq[EXYNOS4210_MAX_INT_COMBINER_IN_IRQ];
-    qemu_irq ext_combiner_irq[EXYNOS4210_MAX_EXT_COMBINER_IN_IRQ];
+    SplitIRQ int_combiner_irq[EXYNOS4210_MAX_INT_COMBINER_IN_IRQ];
+    SplitIRQ ext_combiner_irq[EXYNOS4210_MAX_EXT_COMBINER_IN_IRQ];
     qemu_irq int_gic_irq[EXYNOS4210_INT_GIC_NIRQ];
     qemu_irq ext_gic_irq[EXYNOS4210_EXT_GIC_NIRQ];
-    qemu_irq board_irqs[EXYNOS4210_MAX_INT_COMBINER_IN_IRQ];
+    SplitIRQ board_irqs[EXYNOS4210_MAX_INT_COMBINER_IN_IRQ];
 } Exynos4210Irq;
 
 struct Exynos4210State {
@@ -115,7 +116,7 @@ qemu_irq *exynos4210_init_irq(Exynos4210Irq *env);
 
 /* Initialize board IRQs.
  * These IRQs contain splitted Int/External Combiner and External Gic IRQs */
-void exynos4210_init_board_irqs(Exynos4210Irq *s);
+void exynos4210_init_board_irqs(Exynos4210Irq *irqs);
 
 /* Get IRQ number from exynos4210 IRQ subsystem stub.
  * To identify IRQ source use internal combiner group and bit number
@@ -126,7 +127,7 @@ uint32_t exynos4210_get_irq(uint32_t grp, uint32_t bit);
 /*
  * Get Combiner input GPIO into irqs structure
  */
-void exynos4210_combiner_get_gpioin(Exynos4210Irq *irqs, DeviceState *dev,
+void exynos4210_combiner_get_gpioin(Exynos4210Irq *irqs, DeviceState *combiner,
         int ext);
 
 /*

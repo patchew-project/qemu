@@ -288,6 +288,7 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
     for (n = 0; n < EXYNOS4210_MAX_INT_COMBINER_OUT_IRQ; n++) {
         sysbus_connect_irq(busdev, n, s->irqs.int_gic_irq[n]);
     }
+    // SplitIRQ for internal irq realized here
     exynos4210_combiner_get_gpioin(&s->irqs, dev, 0);
     sysbus_mmio_map(busdev, 0, EXYNOS4210_INT_COMBINER_BASE_ADDR);
 
@@ -299,6 +300,7 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
     for (n = 0; n < EXYNOS4210_MAX_INT_COMBINER_OUT_IRQ; n++) {
         sysbus_connect_irq(busdev, n, s->irqs.ext_gic_irq[n]);
     }
+    // SplitIRQ for external irq realized here
     exynos4210_combiner_get_gpioin(&s->irqs, dev, 1);
     sysbus_mmio_map(busdev, 0, EXYNOS4210_EXT_COMBINER_BASE_ADDR);
 
@@ -486,6 +488,30 @@ static void exynos4210_init(Object *obj)
         qemu_or_irq *orgate = &s->pl330_irq_orgate[i];
 
         object_initialize_child(obj, name, orgate, TYPE_OR_IRQ);
+        g_free(name);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(s->irqs.int_combiner_irq); i++) {
+        char *name = g_strdup_printf("internal-combiner-irq-%d", i);
+
+        object_initialize_child(obj, name, &s->irqs.int_combiner_irq[i],
+                                TYPE_SPLIT_IRQ);
+        g_free(name);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(s->irqs.ext_combiner_irq); i++) {
+        char *name = g_strdup_printf("external-combiner-irq-%d", i);
+
+        object_initialize_child(obj, name, &s->irqs.ext_combiner_irq[i],
+                                TYPE_SPLIT_IRQ);
+        g_free(name);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(s->irqs.board_irqs); i++) {
+        char *name = g_strdup_printf("board-irq-%d", i);
+
+        object_initialize_child(obj, name, &s->irqs.board_irqs[i],
+                                TYPE_SPLIT_IRQ);
         g_free(name);
     }
 }

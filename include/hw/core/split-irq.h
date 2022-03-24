@@ -42,14 +42,13 @@
 
 #define MAX_SPLIT_LINES 16
 
-
-OBJECT_DECLARE_SIMPLE_TYPE(SplitIRQ, SPLIT_IRQ)
-
 struct SplitIRQ {
     DeviceState parent_obj;
 
     qemu_irq out_irq[MAX_SPLIT_LINES];
     uint16_t num_lines;
 };
+
+OBJECT_DECLARE_SIMPLE_TYPE(SplitIRQ, SPLIT_IRQ)
 
 #endif
