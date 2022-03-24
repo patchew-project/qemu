@@ -5931,6 +5931,15 @@ static void x86_cpu_reset(DeviceState *dev)
     env->xstate_bv = 0;
 
     env->pat = 0x0007040600070406ULL;
+
+    /*
+     * Some versions of Windows hang on reboot if their TSC value is greater
+     * than 2^54.  As a workaround, reset the TSC to a small value.  Do not use
+     * zero, KVM applies special heuristics for CPU startup when TSC is cleared.
+     */
+    if (cpu->tsc_clear_on_reset) {
+        env->tsc = 1;
+    }
     env->msr_ia32_misc_enable = MSR_IA32_MISC_ENABLE_DEFAULT;
     if (env->features[FEAT_1_ECX] & CPUID_EXT_MONITOR) {
         env->msr_ia32_misc_enable |= MSR_IA32_MISC_ENABLE_MWAIT;
@@ -6957,6 +6966,7 @@ static Property x86_cpu_properties[] = {
                      false),
     DEFINE_PROP_BOOL("vmware-cpuid-freq", X86CPU, vmware_cpuid_freq, true),
     DEFINE_PROP_BOOL("tcg-cpuid", X86CPU, expose_tcg, true),
+    DEFINE_PROP_BOOL("tsc-clear-on-reset", X86CPU, tsc_clear_on_reset, true),
     DEFINE_PROP_BOOL("x-migrate-smi-count", X86CPU, migrate_smi_count,
                      true),
     /*

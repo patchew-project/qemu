@@ -1862,6 +1862,9 @@ struct ArchCPU {
     /* Forcefully disable KVM PV features not exposed in guest CPUIDs */
     bool kvm_pv_enforce_cpuid;
 
+    /* Clear TSC on reset */
+    bool tsc_clear_on_reset;
+
     /* Number of physical address bits supported */
     uint32_t phys_bits;
 
