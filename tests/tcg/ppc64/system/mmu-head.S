@@ -65,6 +65,7 @@ FUNCTION(test_exec)
 
 #define EXCEPTION(nr)        \
     .= nr                   ;\
+    li      %r3, (nr >> 4)  ;\
     attn
 
     /* DSI vector - skip the failing instruction + the next one */

@@ -35,24 +35,43 @@ CFLAGS = -O -g -Wall -std=c99 -msoft-float -mno-vsx -mno-altivec \
          -I $(PPC64_SYSTEM_SRC)/include $(MINILIB_INC) \
          -mcpu=power8
 
+# Each Microwatt/PowerNV test use its own head.S file and thus needs
+# different rules.
+PPC64_PNV_TESTS = mmu
+PPC64_PNV_ELFS = $(addsuffix .elf,$(PPC64_PNV_TESTS))
+TESTS += $(PPC64_PNV_TESTS)
+
 # Leave the .elf files, to make debugging easier
 .PRECIOUS: $(CRT_OBJS) $(addsuffix .elf,$(TESTS))
 
-# Build CRT objects
+# Build CRT and test objects
 %.o: $(CRT_PATH)/%.S
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -x assembler-with-cpp -c $< -o $@
+
+%.o: %.S
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -x assembler-with-cpp -c $< -o $@
 
 %.o: $(CRT_PATH)/%.c
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c $< -o $@
 
-# Build and link the tests
+%.o: %.c
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c $< -o $@
 
-# The .elf files are just for debugging
-%.elf: %.c $(LINK_SCRIPT) $(CRT_OBJS) $(MINILIB_OBJS)
-	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS)
+# Build .elf files for debugging
+%.elf: %.o $(LINK_SCRIPT) $(CRT_OBJS) $(MINILIB_OBJS)
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -o $@ $< $(LDFLAGS)
 
-%: %.c %.elf $(LINK_SCRIPT) $(CRT_OBJS) $(MINILIB_OBJS)
-	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS) -Wl,--oformat=binary
+$(PPC64_PNV_ELFS): %.elf: %-head.o %.o $(LINK_SCRIPT) $(CRT_OBJS) $(MINILIB_OBJS)
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -o $@ $< $*.o $(LDFLAGS)
+
+# Build test binaries
+%: %.o $(LINK_SCRIPT) $(CRT_OBJS) $(MINILIB_OBJS) %.elf
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -o $@ $< $(LDFLAGS) -Wl,--oformat=binary
+
+# NOTE: %-head.o replaces boot.o
+$(PPC64_PNV_TESTS): CRT_OBJS = console.o
+$(PPC64_PNV_TESTS): %: %-head.o %.o $(LINK_SCRIPT) $(CRT_OBJS) $(MINILIB_OBJS) %.elf
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -o $@ $< $*.o $(LDFLAGS) -Wl,--oformat=binary
 
 memory: CFLAGS+=-DCHECK_UNALIGNED=1
 
