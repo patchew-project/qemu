@@ -3154,20 +3154,6 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
         && (b != 0x38 && b != 0x3a)) {
         goto unknown_op;
     }
-    if (b == 0x0e) {
-        if (!(s->cpuid_ext2_features & CPUID_EXT2_3DNOW)) {
-            /* If we were fully decoding this we might use illegal_op.  */
-            goto unknown_op;
-        }
-        /* femms */
-        gen_helper_emms(cpu_env);
-        return;
-    }
-    if (b == 0x77) {
-        /* emms */
-        gen_helper_emms(cpu_env);
-        return;
-    }
     /* prepare MMX state (XXX: optimize by storing fptt and fptags in
        the static cpu state) */
     if (!is_xmm) {
@@ -8449,14 +8435,24 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
 
         set_cc_op(s, CC_OP_POPCNT);
         break;
-    case 0x10e ... 0x10f:
+    case 0x10e: /* femms */
+        if (!(s->cpuid_ext2_features & CPUID_EXT2_3DNOW)) {
+            /* If we were fully decoding this we might use illegal_op.  */
+            goto unknown_op;
+        }
+        /* fall through */
+    case 0x177: /* emms */
+        gen_helper_emms(cpu_env);
+        break;
+    case 0x10f:
         /* 3DNow! instructions, ignore prefixes */
         s->prefix &= ~(PREFIX_REPZ | PREFIX_REPNZ | PREFIX_DATA);
         /* fall through */
     case 0x110 ... 0x117:
     case 0x128 ... 0x12f:
     case 0x138 ... 0x13a:
-    case 0x150 ... 0x179:
+    case 0x150 ... 0x176:
+    case 0x178 ... 0x179:
     case 0x17c ... 0x17f:
     case 0x1c2:
     case 0x1c4 ... 0x1c6:
