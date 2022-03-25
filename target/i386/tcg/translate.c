@@ -3139,8 +3139,16 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
             is_xmm = 1;
         }
     }
+
+    modrm = x86_ldub_code(env, s);
+    reg = ((modrm >> 3) & 7);
+    if (is_xmm) {
+        reg |= REX_R(s);
+    }
+    mod = (modrm >> 6) & 3;
     /* simple MMX/SSE operation */
-    if (s->flags & HF_TS_MASK) {
+    if ((s->flags & HF_TS_MASK)
+        && (!(modrm & 0xF0))) {
         gen_exception(s, EXCP07_PREX, pc_start - s->cs_base);
         return;
     }
@@ -3159,13 +3167,6 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
     if (!is_xmm) {
         gen_helper_enter_mmx(cpu_env);
     }
-
-    modrm = x86_ldub_code(env, s);
-    reg = ((modrm >> 3) & 7);
-    if (is_xmm) {
-        reg |= REX_R(s);
-    }
-    mod = (modrm >> 6) & 3;
     if (sse_fn_epp == SSE_SPECIAL) {
         b |= (b1 << 8);
         switch(b) {
