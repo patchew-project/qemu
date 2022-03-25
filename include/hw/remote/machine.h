@@ -26,6 +26,12 @@ struct RemoteMachineState {
     bool vfio_user;
 };
 
+struct RemoteMachineClass {
+    MachineClass parent_class;
+
+    bool auto_shutdown;
+};
+
 /* Used to pass to co-routine device and ioc. */
 typedef struct RemoteCommDev {
     PCIDevice *dev;
@@ -33,7 +39,7 @@ typedef struct RemoteCommDev {
 } RemoteCommDev;
 
 #define TYPE_REMOTE_MACHINE "x-remote-machine"
-OBJECT_DECLARE_SIMPLE_TYPE(RemoteMachineState, REMOTE_MACHINE)
+OBJECT_DECLARE_TYPE(RemoteMachineState, RemoteMachineClass, REMOTE_MACHINE)
 
 void coroutine_fn mpqemu_remote_msg_loop_co(void *data);
 
