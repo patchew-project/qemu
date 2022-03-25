@@ -11,6 +11,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/error-report.h"
+#include "qemu/bswap.h"
 #include "hw/misc/aspeed_hace.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
@@ -27,6 +28,7 @@
 
 #define R_HASH_SRC      (0x20 / 4)
 #define R_HASH_DEST     (0x24 / 4)
+#define R_HASH_KEY_BUFF (0x28 / 4)
 #define R_HASH_SRC_LEN  (0x2c / 4)
 
 #define R_HASH_CMD      (0x30 / 4)
@@ -94,12 +96,17 @@ static int hash_algo_lookup(uint32_t reg)
     return -1;
 }
 
-static void do_hash_operation(AspeedHACEState *s, int algo, bool sg_mode)
+static void do_hash_operation(AspeedHACEState *s, int algo, bool sg_mode,
+                              bool acc_mode)
 {
     struct iovec iov[ASPEED_HACE_MAX_SG];
     g_autofree uint8_t *digest_buf;
     size_t digest_len = 0;
-    int i;
+    int i, j;
+    static struct iovec iov_cache[ASPEED_HACE_MAX_SG];
+    static int cnt;
+    static bool has_cache;
+    static uint32_t total_len;
 
     if (sg_mode) {
         uint32_t len = 0;
@@ -123,12 +130,93 @@ static void do_hash_operation(AspeedHACEState *s, int algo, bool sg_mode)
                                         MEMTXATTRS_UNSPECIFIED, NULL);
             addr &= SG_LIST_ADDR_MASK;
 
-            iov[i].iov_len = len & SG_LIST_LEN_MASK;
-            plen = iov[i].iov_len;
+            plen = len & SG_LIST_LEN_MASK;
             iov[i].iov_base = address_space_map(&s->dram_as, addr, &plen, false,
                                                 MEMTXATTRS_UNSPECIFIED);
+
+            if (acc_mode) {
+                total_len += plen;
+
+                if (len & SG_LIST_LEN_LAST) {
+                    /*
+                     * In the padding message, the last 64/128 bit represents
+                     * the total length of bitstream in big endian.
+                     * SHA-224, SHA-256 are 64 bit
+                     * SHA-384, SHA-512, SHA-512/224, SHA-512/256 are 128 bit
+                     * However, we would not process such a huge bit stream.
+                     */
+                    uint8_t *padding = iov[i].iov_base;
+                    uint32_t llen = (uint32_t)(ldq_be_p(iov[i].iov_base + plen - 8) / 8);
+                    uint32_t pad_start_off = 0;
+
+                    if (llen <= total_len) {
+                        uint32_t padding_size = total_len - llen;
+                        pad_start_off = plen - padding_size;
+                    }
+
+                    /*
+                     * FIXME:
+                     * length with sg_last_bit doesn't mean the message
+                     * contains padding.
+                     * Need to find a better way to check whether the current payload
+                     * contains padding message.
+                     * Current solution is to check:
+                     * - padding start byte is 0x80
+                     * - message length should less than total length(msg + padding)
+                     */
+                    if (llen > total_len || padding[pad_start_off] != 0x80) {
+                        has_cache = true;
+                        iov_cache[cnt].iov_base = iov[i].iov_base;
+                        iov_cache[cnt].iov_len = plen;
+                        cnt++;
+                    } else {
+                        if (has_cache) {
+                            has_cache = false;
+                            if (pad_start_off != 0) {
+                                iov_cache[cnt].iov_base = iov[i].iov_base;
+                                iov_cache[cnt].iov_len = pad_start_off;
+                                cnt++;
+                            }
+                            for (j = 0; j < cnt; j++) {
+                                iov[j].iov_base = iov_cache[j].iov_base;
+                                iov[j].iov_len = iov_cache[j].iov_len;
+                            }
+                            /*
+                             * This should be the last message as it contains
+                             * padding message.
+                             * store cnt(count of iov), clear cache and break
+                             * the loop.
+                             */
+                            i = cnt;
+                            cnt = 0;
+                            total_len = 0;
+                            break;
+                        }
+                        plen -= total_len - llen;
+                        cnt = 0;
+                        total_len = 0;
+                    }
+                }
+            }
+            iov[i].iov_len = plen;
         }
     } else {
+        /*
+         * FIXME:
+         * Driver sends hash_update() and hash_final() with
+         * sg_mode enable in aspeed ast2600 u-boot and ast1030 zephyr sdk.
+         * Clear cache if driver trigger hash_update() with sg_mode enable
+         * but trigger hash_final() without sg mode for preventing iov_cache
+         * overflow.
+         */
+        if (cnt || total_len) {
+            cnt = 0;
+            total_len = 0;
+            qemu_log_mask(LOG_UNIMP,
+                          "hash update with sg_mode and hash_final() without"
+                          "sg mode is not yet implemented\n");
+        }
+
         hwaddr len = s->regs[R_HASH_SRC_LEN];
 
         iov[0].iov_len = len;
@@ -210,6 +298,9 @@ static void aspeed_hace_write(void *opaque, hwaddr addr, uint64_t data,
     case R_HASH_DEST:
         data &= ahc->dest_mask;
         break;
+    case R_HASH_KEY_BUFF:
+        data &= ahc->key_mask;
+        break;
     case R_HASH_SRC_LEN:
         data &= 0x0FFFFFFF;
         break;
@@ -229,12 +320,13 @@ static void aspeed_hace_write(void *opaque, hwaddr addr, uint64_t data,
         }
         algo = hash_algo_lookup(data);
         if (algo < 0) {
-                qemu_log_mask(LOG_GUEST_ERROR,
-                        "%s: Invalid hash algorithm selection 0x%"PRIx64"\n",
-                        __func__, data & ahc->hash_mask);
-                break;
+            qemu_log_mask(LOG_GUEST_ERROR,
+                    "%s: Invalid hash algorithm selection 0x%"PRIx64"\n",
+                    __func__, data & ahc->hash_mask);
+            break;
         }
-        do_hash_operation(s, algo, data & HASH_SG_EN);
+        do_hash_operation(s, algo, data & HASH_SG_EN,
+                ((data & HASH_HMAC_MASK) == HASH_DIGEST_ACCUM));
 
         if (data & HASH_IRQ_EN) {
             qemu_irq_raise(s->irq);
@@ -333,6 +425,7 @@ static void aspeed_ast2400_hace_class_init(ObjectClass *klass, void *data)
 
     ahc->src_mask = 0x0FFFFFFF;
     ahc->dest_mask = 0x0FFFFFF8;
+    ahc->key_mask = 0x0FFFFFC0;
     ahc->hash_mask = 0x000003ff; /* No SG or SHA512 modes */
 }
 
@@ -351,6 +444,7 @@ static void aspeed_ast2500_hace_class_init(ObjectClass *klass, void *data)
 
     ahc->src_mask = 0x3fffffff;
     ahc->dest_mask = 0x3ffffff8;
+    ahc->key_mask = 0x3FFFFFC0;
     ahc->hash_mask = 0x000003ff; /* No SG or SHA512 modes */
 }
 
@@ -369,6 +463,7 @@ static void aspeed_ast2600_hace_class_init(ObjectClass *klass, void *data)
 
     ahc->src_mask = 0x7FFFFFFF;
     ahc->dest_mask = 0x7FFFFFF8;
+    ahc->key_mask = 0x7FFFFFF8;
     ahc->hash_mask = 0x00147FFF;
 }
 
