@@ -91,6 +91,9 @@ option('avx2', type: 'feature', value: 'auto',
 option('avx512f', type: 'feature', value: 'disabled',
        description: 'AVX512F optimizations')
 
+option('vfio_user_server', type: 'feature', value: 'auto',
+       description: 'vfio-user server support')
+
 option('attr', type : 'feature', value : 'auto',
        description: 'attr/xattr support')
 option('auth_pam', type : 'feature', value : 'auto',
