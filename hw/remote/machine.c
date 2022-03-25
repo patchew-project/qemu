@@ -23,6 +23,8 @@
 #include "hw/remote/iohub.h"
 #include "hw/qdev-core.h"
 #include "hw/remote/iommu.h"
+#include "hw/remote/vfio-user-obj.h"
+#include "hw/pci/msi.h"
 
 static void remote_machine_init(MachineState *machine)
 {
@@ -53,13 +55,17 @@ static void remote_machine_init(MachineState *machine)
     pci_host = PCI_HOST_BRIDGE(rem_host);
 
     if (s->vfio_user) {
+        msi_nonbroken = true;
+
         remote_configure_iommu(pci_host->bus);
+
+        vfu_object_set_bus_irq(pci_host->bus);
+    } else {
+        remote_iohub_init(&s->iohub);
+
+        pci_bus_irqs(pci_host->bus, remote_iohub_set_irq, remote_iohub_map_irq,
+                     &s->iohub, REMOTE_IOHUB_NB_PIRQS);
     }
-
-    remote_iohub_init(&s->iohub);
-
-    pci_bus_irqs(pci_host->bus, remote_iohub_set_irq, remote_iohub_map_irq,
-                 &s->iohub, REMOTE_IOHUB_NB_PIRQS);
 
     qbus_set_hotplug_handler(BUS(pci_host->bus), OBJECT(s));
 }
