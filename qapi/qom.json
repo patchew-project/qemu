@@ -949,3 +949,72 @@
 ##
 { 'command': 'object-del', 'data': {'id': 'str'},
   'allow-preconfig': true }
+
+##
+# @InitValue:
+#
+# Not all objects have default values but they have "initial" values.
+#
+# @name: property name
+#
+# @value: Current value (default or after initialization. It makes sence,
+#         for example, for x86-cpus)
+#
+# Since: 7.0
+#
+##
+{ 'struct': 'InitValue',
+  'data': { 'name': 'str',
+            '*value': 'any' } }
+
+##
+# @ClassProperties:
+#
+# Initial values of properties that are owned by the class
+#
+# @classname: name of the class that owns appropriate properties
+#
+# @classprops: List of class properties
+#
+# Since: 7.0
+#
+##
+{ 'struct': 'ClassProperties',
+  'data': { 'classname': 'str',
+            '*classprops': [ 'InitValue' ] } }
+
+##
+# @InitProps:
+#
+# List of properties and their values that are available after class
+# initialization. So it important to know default value of the property
+# even if it doesn't have "QObject *defval"
+#
+# @name: Object name
+#
+# @props: List of properties
+#
+# Notes: a value in each property was defval if it's available
+#        otherwise it's obtained via "(ObjectPropertyAccessor*) get"
+#        immediately after initialization of device object.
+#
+# Since: 7.0
+#
+##
+{ 'struct': 'InitProps',
+  'data': { 'name': 'str',
+            'props': [ 'ClassProperties' ] } }
+
+##
+# @query-init-properties:
+#
+# Returns list of all objects (except all types related with machine type)
+# with all properties and their "default" values that  will be available
+# after initialization. The main purpose of this command is to be used to
+# build table with all machine-type-specific properties
+#
+# Since: 7.0
+#
+##
+{ 'command': 'query-init-properties',
+  'returns': [ 'InitProps' ] }
