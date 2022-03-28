@@ -74,7 +74,8 @@ CpuInfoFastList *qmp_query_cpus_fast(Error **errp)
     return head;
 }
 
-MachineInfoList *qmp_query_machines(Error **errp)
+MachineInfoList *qmp_query_machines(bool has_is_full, bool is_full,
+                                    Error **errp)
 {
     GSList *el, *machines = object_class_get_list(TYPE_MACHINE, false);
     MachineInfoList *mach_list = NULL;
@@ -106,6 +107,28 @@ MachineInfoList *qmp_query_machines(Error **errp)
         if (mc->default_ram_id) {
             info->default_ram_id = g_strdup(mc->default_ram_id);
             info->has_default_ram_id = true;
+        }
+        if (has_is_full && is_full && mc->compat_props) {
+            int i;
+            info->compat_props = NULL;
+            info->has_compat_props = true;
+
+            for (i = 0; i < mc->compat_props->len; i++) {
+                GlobalProperty *mt_prop = g_ptr_array_index(mc->compat_props,
+                                                            i);
+                ObjectClass *klass = object_class_by_name(mt_prop->driver);
+                CompatProperty *prop;
+
+                prop = g_malloc0(sizeof(*prop));
+                if (klass && object_class_is_abstract(klass)) {
+                    prop->abstract = true;
+                }
+                prop->driver = g_strdup(mt_prop->driver);
+                prop->property = g_strdup(mt_prop->property);
+                prop->value = g_strdup(mt_prop->value);
+
+                QAPI_LIST_PREPEND(info->compat_props, prop);
+            }
         }
 
         QAPI_LIST_PREPEND(mach_list, info);

@@ -131,6 +131,28 @@
 { 'command': 'query-cpus-fast', 'returns': [ 'CpuInfoFast' ] }
 
 ##
+# @CompatProperty:
+#
+# Machine type compatible property. It's based on GlobalProperty and created
+# for machine type compat properties (see scripts)
+#
+# @driver: name of the driver that has GlobalProperty
+#
+# @abstract: Bool value that shows that property is belonged to abstract class
+#
+# @property: global property name
+#
+# @value: global property value
+#
+# Since: 7.0
+##
+{ 'struct': 'CompatProperty',
+  'data': { 'driver': 'str',
+            'abstract': 'bool',
+            'property': 'str',
+            'value': 'str' } }
+
+##
 # @MachineInfo:
 #
 # Information describing a machine.
@@ -158,6 +180,9 @@
 #
 # @default-ram-id: the default ID of initial RAM memory backend (since 5.2)
 #
+# @compat-props: List of compatible properties that defines machine type
+#                (since 7.0)
+#
 # Since: 1.2
 ##
 { 'struct': 'MachineInfo',
@@ -165,18 +190,47 @@
             '*is-default': 'bool', 'cpu-max': 'int',
             'hotpluggable-cpus': 'bool',  'numa-mem-supported': 'bool',
             'deprecated': 'bool', '*default-cpu-type': 'str',
-            '*default-ram-id': 'str' } }
+            '*default-ram-id': 'str', '*compat-props': ['CompatProperty'] } }
 
 ##
 # @query-machines:
 #
 # Return a list of supported machines
 #
+# @is-full: if true return will contain information about machine type 
+#           compatible properties (since 7.0)
+#
 # Returns: a list of MachineInfo
 #
 # Since: 1.2
+#
+# Example:
+#
+# -> { "execute" : "query-machines", "arguments" : { "is-full" : true } }
+# <- { "return": [
+#          {
+#              "hotpluggable-cpus": true,
+#              "name": "pc-q35-6.2",
+#              "compat-props": [
+#                  {
+#                      "abstract": false,
+#                      "driver": "virtio-mem",
+#                      "property": "unplugged-inaccessible",
+#                      "value": "off"
+#                   }
+#               ],
+#               "numa-mem-supported": false,
+#               "default-cpu-type": "qemu64-x86_64-cpu",
+#               "cpu-max": 288,
+#               "deprecated": false,
+#               "default-ram-id": "pc.ram"
+#           },
+#           ...
+#    }
 ##
-{ 'command': 'query-machines', 'returns': ['MachineInfo'] }
+{ 'command': 'query-machines',
+  'data': { '*is-full': 'bool' },
+  'returns': ['MachineInfo'] }
 
 ##
 # @CurrentMachineParams:
