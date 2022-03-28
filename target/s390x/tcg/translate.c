@@ -199,7 +199,7 @@ static TCGv_i64 regs[16];
 
 void s390x_translate_init(void)
 {
-    int i;
+    size_t i;
 
     psw_addr = tcg_global_mem_new_i64(cpu_env,
                                       offsetof(CPUS390XState, psw.addr),
@@ -221,7 +221,7 @@ void s390x_translate_init(void)
                                    "cc_vr");
 
     for (i = 0; i < 16; i++) {
-        snprintf(cpu_reg_names[i], sizeof(cpu_reg_names[0]), "r%d", i);
+        snprintf(cpu_reg_names[i], sizeof(cpu_reg_names[0]), "r%zu", i);
         regs[i] = tcg_global_mem_new(cpu_env,
                                      offsetof(CPUS390XState, regs[i]),
                                      cpu_reg_names[i]);
