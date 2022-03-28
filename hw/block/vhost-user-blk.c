@@ -124,6 +124,13 @@ static int vhost_user_blk_start(VirtIODevice *vdev, Error **errp)
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     int i, ret;
 
+    if (vdev->start_on_kick) {
+        if (s->starting) {
+            return 0;
+        }
+        s->starting = true;
+    }
+
     if (!k->set_guest_notifiers) {
         error_setg(errp, "binding does not support guest notifiers");
         return -ENOSYS;
@@ -177,6 +184,8 @@ static int vhost_user_blk_start(VirtIODevice *vdev, Error **errp)
     for (i = 0; i < s->dev.nvqs; i++) {
         vhost_virtqueue_mask(&s->dev, vdev, i, false);
     }
+
+    s->starting = false;
 
     return ret;
 
@@ -344,7 +353,7 @@ static int vhost_user_blk_connect(DeviceState *dev, Error **errp)
     }
 
     /* restore vhost state */
-    if (virtio_device_started(vdev, vdev->status)) {
+    if (s->starting || virtio_device_started(vdev, vdev->status)) {
         ret = vhost_user_blk_start(vdev, errp);
         if (ret < 0) {
             return ret;
@@ -500,6 +509,7 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
                                         vhost_user_blk_handle_output);
     }
 
+    s->starting = false;
     s->inflight = g_new0(struct vhost_inflight, 1);
     s->vhost_vqs = g_new0(struct vhost_virtqueue, s->num_queues);
 
