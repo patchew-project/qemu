@@ -855,6 +855,8 @@ static bool do_helper_env_X_tb(DisasContext *ctx, arg_X_tb *a,
     return true;
 }
 
+TRANS(XSCVQPUQZ, do_helper_env_X_tb, gen_helper_XSCVQPUQZ)
+TRANS(XSCVQPSQZ, do_helper_env_X_tb, gen_helper_XSCVQPSQZ)
 TRANS(XSCVUQQP, do_helper_env_X_tb, gen_helper_XSCVUQQP)
 TRANS(XSCVSQQP, do_helper_env_X_tb, gen_helper_XSCVSQQP)
 
