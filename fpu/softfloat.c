@@ -866,6 +866,14 @@ static void parts128_uint_to_float(FloatParts128 *p, uint64_t a,
 #define parts_uint_to_float(P, I, Z, S) \
     PARTS_GENERIC_64_128(uint_to_float, P)(P, I, Z, S)
 
+static void parts64_uint_to_float2(FloatParts64 *p, uint64_t hi, uint64_t lo,
+                                   int scale, float_status *s);
+static void parts128_uint_to_float2(FloatParts128 *p, uint64_t hi, uint64_t lo,
+                                    int scale, float_status *s);
+
+#define parts_uint_to_float2(P, H, L, Z, S) \
+    PARTS_GENERIC_64_128(uint_to_float2, P)(P, H, L, Z, S)
+
 static FloatParts64 *parts64_minmax(FloatParts64 *a, FloatParts64 *b,
                                     float_status *s, int flags);
 static FloatParts128 *parts128_minmax(FloatParts128 *a, FloatParts128 *b,
@@ -3888,6 +3896,15 @@ float32 uint16_to_float32(uint16_t a, float_status *status)
     return uint64_to_float32_scalbn(a, 0, status);
 }
 
+float64 uint128_to_float64_scalbn(uint64_t hi, uint64_t lo, int scale,
+                                  float_status *status)
+{
+    FloatParts64 p;
+
+    parts_uint_to_float2(&p, hi, lo, scale, status);
+    return float64_round_pack_canonical(&p, status);
+}
+
 float64 uint64_to_float64_scalbn(uint64_t a, int scale, float_status *status)
 {
     FloatParts64 p;
@@ -3911,6 +3928,11 @@ float64 uint32_to_float64_scalbn(uint32_t a, int scale, float_status *status)
 float64 uint16_to_float64_scalbn(uint16_t a, int scale, float_status *status)
 {
     return uint64_to_float64_scalbn(a, scale, status);
+}
+
+float64 uint128_to_float64(uint64_t hi, uint64_t lo, float_status *status)
+{
+    return uint128_to_float64_scalbn(hi, lo, 0, status);
 }
 
 float64 uint64_to_float64(uint64_t a, float_status *status)
@@ -3966,6 +3988,14 @@ float128 uint64_to_float128(uint64_t a, float_status *status)
     FloatParts128 p;
 
     parts_uint_to_float(&p, a, 0, status);
+    return float128_round_pack_canonical(&p, status);
+}
+
+float128 uint128_to_float128(uint64_t hi, uint64_t lo, float_status *status)
+{
+    FloatParts128 p;
+
+    parts128_uint_to_float2(&p, hi, lo, 0, status);
     return float128_round_pack_canonical(&p, status);
 }
 

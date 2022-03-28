@@ -169,6 +169,8 @@ float64 int64_to_float64_scalbn(int64_t, int, float_status *status);
 float64 uint16_to_float64_scalbn(uint16_t, int, float_status *status);
 float64 uint32_to_float64_scalbn(uint32_t, int, float_status *status);
 float64 uint64_to_float64_scalbn(uint64_t, int, float_status *status);
+float64 uint128_to_float64_scalbn(uint64_t, uint64_t, int,
+                                  float_status *status);
 
 float64 int16_to_float64(int16_t, float_status *status);
 float64 int32_to_float64(int32_t, float_status *status);
@@ -176,6 +178,7 @@ float64 int64_to_float64(int64_t, float_status *status);
 float64 uint16_to_float64(uint16_t, float_status *status);
 float64 uint32_to_float64(uint32_t, float_status *status);
 float64 uint64_to_float64(uint64_t, float_status *status);
+float64 uint128_to_float64(uint64_t, uint64_t, float_status *status);
 
 floatx80 int32_to_floatx80(int32_t, float_status *status);
 floatx80 int64_to_floatx80(int64_t, float_status *status);
@@ -183,6 +186,7 @@ floatx80 int64_to_floatx80(int64_t, float_status *status);
 float128 int32_to_float128(int32_t, float_status *status);
 float128 int64_to_float128(int64_t, float_status *status);
 float128 uint64_to_float128(uint64_t, float_status *status);
+float128 uint128_to_float128(uint64_t, uint64_t, float_status *status);
 
 /*----------------------------------------------------------------------------
 | Software half-precision conversion routines.

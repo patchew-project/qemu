@@ -1219,6 +1219,25 @@ static void partsN(uint_to_float)(FloatPartsN *p, uint64_t a,
     }
 }
 
+static void partsN(uint_to_float2)(FloatPartsN *p, uint64_t hi, uint64_t lo,
+                                   int scale, float_status *status)
+{
+
+    if (hi == 0) {
+        parts_uint_to_float(p, lo, scale, status);
+    } else {
+        int shift = clz64(hi);
+        memset(p, 0, sizeof(*p));
+        scale = MIN(MAX(scale, -0x10000), 0x10000);
+        p->cls = float_class_normal;
+        p->exp = 127 - shift + scale;
+        p->frac_hi = shl_double(hi, lo, shift);
+        if (N > 64) {
+            p->frac_lo = shl_double(lo, 0, shift);
+        }
+    }
+}
+
 /*
  * Float min/max.
  */
