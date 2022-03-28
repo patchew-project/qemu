@@ -33,6 +33,7 @@
 #include "qapi/clone-visitor.h"
 #include "qapi/qapi-visit-sockets.h"
 #include "qemu/yank.h"
+#include "qapi/qmp/qnull.h"
 
 #include "chardev/char-io.h"
 #include "chardev/char-socket.h"
@@ -1508,6 +1509,14 @@ char_socket_get_addr(Object *obj, Visitor *v, const char *name,
                      void *opaque, Error **errp)
 {
     SocketChardev *s = SOCKET_CHARDEV(obj);
+
+    QNull *null = NULL;
+
+    /* Return NULL type if getting addr was called after init */
+    if (!s->addr) {
+        visit_type_null(v, NULL, &null, errp);
+        return;
+    }
 
     visit_type_SocketAddress(v, name, &s->addr, errp);
 }
