@@ -1164,6 +1164,77 @@ static uint64_t partsN(float_to_uint)(FloatPartsN *p, FloatRoundMode rmode,
     return r;
 }
 
+static uint64_t partsN(float_to_uint2)(FloatPartsN *p, FloatRoundMode rmode,
+                                       int scale, float_status *s, uint64_t *lo)
+{
+    int flags = 0;
+    uint64_t hi;
+
+    switch (p->cls) {
+    case float_class_snan:
+        flags |= float_flag_invalid_snan;
+        /* fall through */
+    case float_class_qnan:
+        flags |= float_flag_invalid;
+        hi = UINT64_MAX;
+        *lo = UINT64_MAX;
+        break;
+
+    case float_class_inf:
+        flags = float_flag_invalid | float_flag_invalid_cvti;
+        if (p->sign) {
+            hi = 0;
+            *lo = 0;
+        } else {
+            hi = UINT64_MAX;
+            *lo = UINT64_MAX;
+        }
+        break;
+
+    case float_class_zero:
+        *lo = 0;
+        return 0;
+
+    case float_class_normal:
+        if (parts_round_to_int_normal(p, rmode, scale, N - 2)) {
+            flags = float_flag_inexact;
+            if (p->cls == float_class_zero) {
+                hi = 0;
+                *lo = 0;
+                break;
+            }
+        }
+
+        if (p->sign) {
+            flags = float_flag_invalid | float_flag_invalid_cvti;
+            hi = 0;
+            *lo = 0;
+        } else if (p->exp <= DECOMPOSED_BINARY_POINT) {
+            hi = 0;
+            *lo = p->frac_hi >> (DECOMPOSED_BINARY_POINT - p->exp);
+        } else if (p->exp <= 127) {
+            int shift = 127 - p->exp;
+            hi = shr_double(0, p->frac_hi, shift);
+            if (N > 64) {
+                *lo = shr_double(p->frac_hi, p->frac_lo, shift);
+            } else {
+                *lo = shr_double(p->frac_hi, 0, shift);
+            }
+        } else {
+            flags = float_flag_invalid | float_flag_invalid_cvti;
+            hi = UINT64_MAX;
+            *lo = UINT64_MAX;
+        }
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
+
+    float_raise(flags, s);
+    return hi;
+}
+
 /*
  * Integer to float conversions
  *
