@@ -800,7 +800,11 @@ int64_t kvm_dirty_ring_get_rate(void)
 
 int64_t kvm_dirty_ring_get_peak_rate(void)
 {
-    return kvm_state->reaper.counter.dirty_pages_period_peak_rate;
+    int64_t rate = kvm_state->reaper.counter.dirty_pages_period_peak_rate;
+    /* Reset the peak rate to calculate a new peak rate after this moment */
+    kvm_state->reaper.counter.dirty_pages_period_peak_rate = 0;
+
+    return rate;
 }
 
 static void kvm_dirty_ring_reap_count(KVMState *s)
@@ -836,7 +840,6 @@ static void kvm_dirty_ring_reap_count(KVMState *s)
             s->reaper.counter.dirty_pages_period_peak_rate =
                 s->reaper.counter.dirty_pages_rate;
         }
-
         /* Reset counters */
         s->reaper.counter.dirty_pages_period = 0;
         s->reaper.counter.time_last_count = 0;

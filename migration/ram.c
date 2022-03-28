@@ -63,6 +63,7 @@
 #include "qemu/userfaultfd.h"
 #endif /* defined(__linux__) */
 
+#include "sysemu/kvm.h"
 /***********************************************************/
 /* ram save/restore */
 
@@ -617,6 +618,64 @@ static size_t save_page_header(RAMState *rs, QEMUFile *f,  RAMBlock *block,
 }
 
 /**
+ * Calculate the matched speed limit threshold according to
+ * the current migration bandwidth and the current rate of
+ * dirty pages to aviod time-consuming and pointless attempt.
+ */
+static int calculate_throttle_pct(void)
+{
+    MigrationState *s = migrate_get_current();
+    uint64_t threshold = s->parameters.throttle_trigger_threshold;
+    uint64_t pct_initial = s->parameters.cpu_throttle_initial;
+    uint64_t pct_icrement = s->parameters.cpu_throttle_increment;
+    int pct_max = s->parameters.max_cpu_throttle;
+
+    int matched_pct = 0;
+    float facter1 = 0.0;
+    float facter2 = 0.0;
+    int64_t dirty_pages_rate = 0;
+    double bandwith_expect = 0.0;
+    double dirty_pages_rate_expect = 0.0;
+    double bandwith = (s->mbps / 8) * 1024 * 1024;
+
+    if (kvm_dirty_ring_enabled()) {
+        dirty_pages_rate = kvm_dirty_ring_get_peak_rate() *
+            qemu_target_page_size();
+    } else {
+        dirty_pages_rate = ram_counters.dirty_pages_rate *
+            qemu_target_page_size();
+    }
+
+    if (dirty_pages_rate) {
+        facter1 = (float)threshold / 100;
+        bandwith_expect = bandwith * facter1;
+
+        for (uint64_t i = pct_initial; i <= pct_max;) {
+            facter2 = 1 - (float)i / 100;
+            dirty_pages_rate_expect = dirty_pages_rate * facter2;
+
+            if (bandwith_expect > dirty_pages_rate_expect) {
+                matched_pct = i;
+                break;
+            }
+            i += pct_icrement;
+        }
+
+        if (!matched_pct) {
+            info_report("Not find matched throttle pct, "
+                        "maybe pressure too high, use max");
+            matched_pct = pct_max;
+        }
+    } else {
+        matched_pct = pct_initial;
+    }
+
+    s->have_caculated_throttle_pct = true;
+
+    return matched_pct;
+}
+
+/**
  * mig_throttle_guest_down: throttle down the guest
  *
  * Reduce amount of guest cpu execution to hopefully slow down memory
@@ -629,7 +688,6 @@ static void mig_throttle_guest_down(uint64_t bytes_dirty_period,
                                     uint64_t bytes_dirty_threshold)
 {
     MigrationState *s = migrate_get_current();
-    uint64_t pct_initial = s->parameters.cpu_throttle_initial;
     uint64_t pct_increment = s->parameters.cpu_throttle_increment;
     bool pct_tailslow = s->parameters.cpu_throttle_tailslow;
     int pct_max = s->parameters.max_cpu_throttle;
@@ -638,8 +696,8 @@ static void mig_throttle_guest_down(uint64_t bytes_dirty_period,
     uint64_t cpu_now, cpu_ideal, throttle_inc;
 
     /* We have not started throttling yet. Let's start it. */
-    if (!cpu_throttle_active()) {
-        cpu_throttle_set(pct_initial);
+    if (!s->have_caculated_throttle_pct) {
+        cpu_throttle_set(MIN(calculate_throttle_pct(), pct_max));
     } else {
         /* Throttling already on, just increase the rate */
         if (!pct_tailslow) {
