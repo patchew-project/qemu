@@ -582,4 +582,6 @@ bool kvm_cpu_check_are_resettable(void);
 bool kvm_arch_cpu_check_are_resettable(void);
 
 bool kvm_dirty_ring_enabled(void);
+int64_t kvm_dirty_ring_get_rate(void);
+int64_t kvm_dirty_ring_get_peak_rate(void);
 #endif
