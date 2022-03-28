@@ -746,14 +746,19 @@ float32 float32_default_nan(float_status *status);
 int16_t float64_to_int16_scalbn(float64, FloatRoundMode, int, float_status *);
 int32_t float64_to_int32_scalbn(float64, FloatRoundMode, int, float_status *);
 int64_t float64_to_int64_scalbn(float64, FloatRoundMode, int, float_status *);
+int64_t float64_to_int128_scalbn(float64, FloatRoundMode, int, float_status *,
+                                 uint64_t *);
 
 int16_t float64_to_int16(float64, float_status *status);
 int32_t float64_to_int32(float64, float_status *status);
 int64_t float64_to_int64(float64, float_status *status);
+int64_t float64_to_int128(float64, float_status *status, uint64_t *lo);
 
 int16_t float64_to_int16_round_to_zero(float64, float_status *status);
 int32_t float64_to_int32_round_to_zero(float64, float_status *status);
 int64_t float64_to_int64_round_to_zero(float64, float_status *status);
+int64_t float64_to_int128_round_to_zero(float64, float_status *status,
+                                        uint64_t *lo);
 
 uint16_t float64_to_uint16_scalbn(float64, FloatRoundMode, int, float_status *);
 uint32_t float64_to_uint32_scalbn(float64, FloatRoundMode, int, float_status *);
@@ -1213,7 +1218,10 @@ floatx80 floatx80_default_nan(float_status *status);
 int32_t float128_to_int32(float128, float_status *status);
 int32_t float128_to_int32_round_to_zero(float128, float_status *status);
 int64_t float128_to_int64(float128, float_status *status);
+int64_t float128_to_int128(float128, float_status *status, uint64_t *lo);
 int64_t float128_to_int64_round_to_zero(float128, float_status *status);
+int64_t float128_to_int128_round_to_zero(float128, float_status *status,
+                                         uint64_t *lo);
 uint64_t float128_to_uint64(float128, float_status *status);
 uint64_t float128_to_uint128(float128, float_status *status, uint64_t *lo);
 uint64_t float128_to_uint64_round_to_zero(float128, float_status *status);
