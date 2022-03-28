@@ -858,6 +858,14 @@ static void parts128_sint_to_float(FloatParts128 *p, int64_t a,
 #define parts_sint_to_float(P, I, Z, S) \
     PARTS_GENERIC_64_128(sint_to_float, P)(P, I, Z, S)
 
+static void parts64_sint_to_float2(FloatParts64 *p, int64_t hi, uint64_t lo,
+                                   int scale, float_status *s);
+static void parts128_sint_to_float2(FloatParts128 *p, int64_t hi, uint64_t lo,
+                                    int scale, float_status *s);
+
+#define parts_sint_to_float2(P, H, L, Z, S) \
+    PARTS_GENERIC_64_128(sint_to_float2, P)(P, H, L, Z, S)
+
 static void parts64_uint_to_float(FloatParts64 *p, uint64_t a,
                                   int scale, float_status *s);
 static void parts128_uint_to_float(FloatParts128 *p, uint64_t a,
@@ -3715,6 +3723,15 @@ float32 int16_to_float32(int16_t a, float_status *status)
     return int64_to_float32_scalbn(a, 0, status);
 }
 
+float64 int128_to_float64_scalbn(int64_t hi, uint64_t lo, int scale,
+                                 float_status *status)
+{
+    FloatParts64 p;
+
+    parts_sint_to_float2(&p, hi, lo, scale, status);
+    return float64_round_pack_canonical(&p, status);
+}
+
 float64 int64_to_float64_scalbn(int64_t a, int scale, float_status *status)
 {
     FloatParts64 p;
@@ -3738,6 +3755,11 @@ float64 int32_to_float64_scalbn(int32_t a, int scale, float_status *status)
 float64 int16_to_float64_scalbn(int16_t a, int scale, float_status *status)
 {
     return int64_to_float64_scalbn(a, scale, status);
+}
+
+float64 int128_to_float64(int64_t hi, uint64_t lo, float_status *status)
+{
+    return int128_to_float64_scalbn(hi, lo, 0, status);
 }
 
 float64 int64_to_float64(int64_t a, float_status *status)
@@ -3786,6 +3808,14 @@ bfloat16 int32_to_bfloat16(int32_t a, float_status *status)
 bfloat16 int16_to_bfloat16(int16_t a, float_status *status)
 {
     return int64_to_bfloat16_scalbn(a, 0, status);
+}
+
+float128 int128_to_float128(int64_t hi, uint64_t lo, float_status *status)
+{
+    FloatParts128 p;
+
+    parts_sint_to_float2(&p, hi, lo, 0, status);
+    return float128_round_pack_canonical(&p, status);
 }
 
 float128 int64_to_float128(int64_t a, float_status *status)

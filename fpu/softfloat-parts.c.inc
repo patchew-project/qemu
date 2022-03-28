@@ -1196,6 +1196,43 @@ static void partsN(sint_to_float)(FloatPartsN *p, int64_t a,
     p->frac_hi = f << shift;
 }
 
+static void partsN(sint_to_float2)(FloatPartsN *p, int64_t hi, uint64_t lo,
+                                   int scale, float_status *status)
+{
+    uint64_t f = hi;
+    int shift;
+
+    if (hi == 0) {
+        parts_uint_to_float(p, lo, scale, status);
+    } else {
+        memset(p, 0, sizeof(*p));
+        p->cls = float_class_normal;
+        if (hi < 0) {
+            lo = -lo;
+            f = ~f + !lo;
+            p->sign = true;
+        }
+        if (f != 0) {
+            shift = clz64(f);
+        } else {
+            shift = 64 + clz64(lo);
+        }
+        scale = MIN(MAX(scale, -0x10000), 0x10000);
+
+        p->exp = 127 - shift + scale;
+
+        if (shift >= 64) {
+            f = lo;
+            lo = 0;
+            shift -= 64;
+        }
+        p->frac_hi = shl_double(f, lo, shift);
+        if (N > 64) {
+            p->frac_lo = shl_double(lo, 0, shift);
+        }
+    }
+}
+
 /*
  * Unsigned Integer to float conversions
  *
