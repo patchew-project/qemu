@@ -160,4 +160,6 @@ extern int singlestep;
 
 void list_cpus(const char *optarg);
 
+void qemu_kvm_cpu_synchronize_kick_all(void);
+
 #endif /* CPU_COMMON_H */
