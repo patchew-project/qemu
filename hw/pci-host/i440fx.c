@@ -158,10 +158,12 @@ static uint64_t i440fx_pcihost_get_pci_hole64_start_value(Object *obj)
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
     I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
     Range w64;
-    uint64_t value;
+    uint64_t value = 0;
 
-    pci_bus_get_w64_range(h->bus, &w64);
-    value = range_is_empty(&w64) ? 0 : range_lob(&w64);
+    if (h->bus) {
+        pci_bus_get_w64_range(h->bus, &w64);
+        value = range_is_empty(&w64) ? 0 : range_lob(&w64);
+    }
     if (!value && s->pci_hole64_fix) {
         value = pc_pci_hole64_start();
     }
@@ -191,10 +193,13 @@ static void i440fx_pcihost_get_pci_hole64_end(Object *obj, Visitor *v,
     I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
     uint64_t hole64_start = i440fx_pcihost_get_pci_hole64_start_value(obj);
     Range w64;
-    uint64_t value, hole64_end;
+    uint64_t value = 0;
+    uint64_t hole64_end;
 
-    pci_bus_get_w64_range(h->bus, &w64);
-    value = range_is_empty(&w64) ? 0 : range_upb(&w64) + 1;
+    if (h->bus) {
+        pci_bus_get_w64_range(h->bus, &w64);
+        value = range_is_empty(&w64) ? 0 : range_upb(&w64) + 1;
+    }
     hole64_end = ROUND_UP(hole64_start + s->pci_hole64_size, 1ULL << 30);
     if (s->pci_hole64_fix && value < hole64_end) {
         value = hole64_end;
