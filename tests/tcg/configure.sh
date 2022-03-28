@@ -350,5 +350,21 @@ for target in $target_list; do
               fi
           fi
       done
+      case $target in
+          aarch64-*)
+              echo "CROSS_CC_HAS_SVE=y" >> $config_target_mak
+              echo "CROSS_CC_HAS_SVE2=y" >> $config_target_mak
+              echo "CROSS_CC_HAS_ARMV8_3=y" >> $config_target_mak
+              echo "CROSS_CC_HAS_ARMV8_BTI=y" >> $config_target_mak
+              echo "CROSS_CC_HAS_ARMV8_MTE=y" >> $config_target_mak
+              ;;
+          ppc*)
+              echo "CROSS_CC_HAS_POWER8_VECTOR=y" >> $config_target_mak
+              echo "CROSS_CC_HAS_POWER10=y" >> $config_target_mak
+              ;;
+          i386-linux-user)
+              echo "CROSS_CC_HAS_I386_NOPIE=y" >> $config_target_mak
+              ;;
+      esac
   fi
 done
