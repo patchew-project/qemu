@@ -166,9 +166,15 @@ static MemoryRegion *nvdimm_md_get_memory_region(MemoryDeviceState *md,
                                                  Error **errp)
 {
     NVDIMMDevice *nvdimm = NVDIMM(md);
+    PCDIMMDevice *dimm = PC_DIMM(nvdimm);
     Error *local_err = NULL;
 
     if (!nvdimm->nvdimm_mr) {
+        /* Not error if we try get memory region after init */
+        if (!dimm->hostmem) {
+            return NULL;
+        }
+
         nvdimm_prepare_memory_region(nvdimm, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);

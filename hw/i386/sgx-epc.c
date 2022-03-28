@@ -121,9 +121,12 @@ static MemoryRegion *sgx_epc_md_get_memory_region(MemoryDeviceState *md,
 {
     SGXEPCDevice *epc = SGX_EPC(md);
     HostMemoryBackend *hostmem;
+    DeviceState *dev = DEVICE(epc);
 
     if (!epc->hostmem) {
-        error_setg(errp, "'" SGX_EPC_MEMDEV_PROP "' property must be set");
+        if (dev->realized) {
+            error_setg(errp, "'" SGX_EPC_MEMDEV_PROP "' property must be set");
+        }
         return NULL;
     }
 

@@ -240,6 +240,11 @@ static void pc_dimm_md_set_addr(MemoryDeviceState *md, uint64_t addr,
 static MemoryRegion *pc_dimm_md_get_memory_region(MemoryDeviceState *md,
                                                   Error **errp)
 {
+    PCDIMMDevice *dimm = PC_DIMM(md);
+    /* Not error if we try get memory region after init */
+    if (!dimm->hostmem) {
+        return NULL;
+    }
     return pc_dimm_get_memory_region(PC_DIMM(md), errp);
 }
 
