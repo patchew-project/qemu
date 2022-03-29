@@ -48,7 +48,7 @@
 #define TYPE_NVDIMM      "nvdimm"
 OBJECT_DECLARE_TYPE(NVDIMMDevice, NVDIMMClass, NVDIMM)
 
-#define NVDIMM_LABEL_SIZE_PROP "label-size"
+#define NVDIMM_LSA_SIZE_PROP   "lsa-size"
 #define NVDIMM_UUID_PROP       "uuid"
 #define NVDIMM_UNARMED_PROP    "unarmed"
 
@@ -62,7 +62,7 @@ struct NVDIMMDevice {
      * the size of label data in NVDIMM device which is presented to
      * guest via __DSM "Get Namespace Label Size" function.
      */
-    uint64_t label_size;
+    uint64_t lsa_size;
 
     /*
      * the address of label data which is read by __DSM "Get Namespace

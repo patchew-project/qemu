@@ -90,9 +90,9 @@ Label
 
 QEMU v2.7.0 and later implement the label support for vNVDIMM devices.
 To enable label on vNVDIMM devices, users can simply add
-"label-size=$SZ" option to "-device nvdimm", e.g.
+"lsa-size=$SZ" option to "-device nvdimm", e.g.
 
- -device nvdimm,id=nvdimm1,memdev=mem1,label-size=128K
+ -device nvdimm,id=nvdimm1,memdev=mem1,lsa-size=128K
 
 Note:
 

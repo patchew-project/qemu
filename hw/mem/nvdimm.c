@@ -32,16 +32,16 @@
 #include "hw/mem/memory-device.h"
 #include "sysemu/hostmem.h"
 
-static void nvdimm_get_label_size(Object *obj, Visitor *v, const char *name,
+static void nvdimm_get_lsa_size(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
     NVDIMMDevice *nvdimm = NVDIMM(obj);
-    uint64_t value = nvdimm->label_size;
+    uint64_t value = nvdimm->lsa_size;
 
     visit_type_size(v, name, &value, errp);
 }
 
-static void nvdimm_set_label_size(Object *obj, Visitor *v, const char *name,
+static void nvdimm_set_lsa_size(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
     NVDIMMDevice *nvdimm = NVDIMM(obj);
@@ -62,7 +62,7 @@ static void nvdimm_set_label_size(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    nvdimm->label_size = value;
+    nvdimm->lsa_size = value;
 }
 
 static void nvdimm_get_uuid(Object *obj, Visitor *v, const char *name,
@@ -99,8 +99,8 @@ static void nvdimm_set_uuid(Object *obj, Visitor *v, const char *name,
 
 static void nvdimm_init(Object *obj)
 {
-    object_property_add(obj, NVDIMM_LABEL_SIZE_PROP, "int",
-                        nvdimm_get_label_size, nvdimm_set_label_size, NULL,
+    object_property_add(obj, NVDIMM_LSA_SIZE_PROP, "int",
+                        nvdimm_get_lsa_size, nvdimm_set_lsa_size, NULL,
                         NULL);
 
     object_property_add(obj, NVDIMM_UUID_PROP, "QemuUUID", nvdimm_get_uuid,
@@ -131,18 +131,18 @@ static void nvdimm_prepare_memory_region(NVDIMMDevice *nvdimm, Error **errp)
     align = memory_region_get_alignment(mr);
     size = memory_region_size(mr);
 
-    pmem_size = size - nvdimm->label_size;
+    pmem_size = size - nvdimm->lsa_size;
     nvdimm->label_data = memory_region_get_ram_ptr(mr) + pmem_size;
     pmem_size = QEMU_ALIGN_DOWN(pmem_size, align);
 
-    if (size <= nvdimm->label_size || !pmem_size) {
+    if (size <= nvdimm->lsa_size || !pmem_size) {
         HostMemoryBackend *hostmem = dimm->hostmem;
 
         error_setg(errp, "the size of memdev %s (0x%" PRIx64 ") is too "
                    "small to contain nvdimm label (0x%" PRIx64 ") and "
                    "aligned PMEM (0x%" PRIx64 ")",
                    object_get_canonical_path_component(OBJECT(hostmem)),
-                   memory_region_size(mr), nvdimm->label_size, align);
+                   memory_region_size(mr), nvdimm->lsa_size, align);
         return;
     }
 
@@ -209,7 +209,7 @@ static void nvdimm_unrealize(PCDIMMDevice *dimm)
 static void nvdimm_validate_rw_label_data(NVDIMMDevice *nvdimm, uint64_t size,
                                         uint64_t offset)
 {
-    assert((nvdimm->label_size >= size + offset) && (offset + size > offset));
+    assert((nvdimm->lsa_size >= size + offset) && (offset + size > offset));
 }
 
 static void nvdimm_read_label_data(NVDIMMDevice *nvdimm, void *buf,
@@ -238,7 +238,7 @@ static void nvdimm_write_label_data(NVDIMMDevice *nvdimm, const void *buf,
     }
 
     mr = host_memory_backend_get_memory(dimm->hostmem);
-    backend_offset = memory_region_size(mr) - nvdimm->label_size + offset;
+    backend_offset = memory_region_size(mr) - nvdimm->lsa_size + offset;
     memory_region_set_dirty(mr, backend_offset, size);
 }
 

@@ -655,7 +655,7 @@ static void nvdimm_dsm_label_size(NVDIMMDevice *nvdimm, hwaddr dsm_mem_addr)
     };
     uint32_t label_size, mxfer;
 
-    label_size = nvdimm->label_size;
+    label_size = nvdimm->lsa_size;
     mxfer = nvdimm_get_max_xfer_label_size();
 
     nvdimm_debug("label_size 0x%x, max_xfer 0x%x.\n", label_size, mxfer);
@@ -679,9 +679,9 @@ static uint32_t nvdimm_rw_label_data_check(NVDIMMDevice *nvdimm,
         return ret;
     }
 
-    if (nvdimm->label_size < offset + length) {
+    if (nvdimm->lsa_size < offset + length) {
         nvdimm_debug("position 0x%x is beyond label data (len = %" PRIx64 ").\n",
-                     offset + length, nvdimm->label_size);
+                     offset + length, nvdimm->lsa_size);
         return ret;
     }
 
@@ -775,7 +775,7 @@ static void nvdimm_dsm_device(NvdimmDsmIn *in, hwaddr dsm_mem_addr)
     if (!in->function) {
         uint32_t supported_func = 0;
 
-        if (nvdimm && nvdimm->label_size) {
+        if (nvdimm && nvdimm->lsa_size) {
             supported_func |= 0x1 /* Bit 0 indicates whether there is
                                      support for any functions other
                                      than function 0. */ |
@@ -796,19 +796,19 @@ static void nvdimm_dsm_device(NvdimmDsmIn *in, hwaddr dsm_mem_addr)
     /* Encode DSM function according to DSM Spec Rev1. */
     switch (in->function) {
     case 4 /* Get Namespace Label Size */:
-        if (nvdimm->label_size) {
+        if (nvdimm->lsa_size) {
             nvdimm_dsm_label_size(nvdimm, dsm_mem_addr);
             return;
         }
         break;
     case 5 /* Get Namespace Label Data */:
-        if (nvdimm->label_size) {
+        if (nvdimm->lsa_size) {
             nvdimm_dsm_get_label_data(nvdimm, in, dsm_mem_addr);
             return;
         }
         break;
     case 0x6 /* Set Namespace Label Data */:
-        if (nvdimm->label_size) {
+        if (nvdimm->lsa_size) {
             nvdimm_dsm_set_label_data(nvdimm, in, dsm_mem_addr);
             return;
         }
