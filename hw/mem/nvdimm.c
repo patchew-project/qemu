@@ -25,6 +25,9 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "qemu/pmem.h"
+#include "qemu/cutils.h"
+#include "qemu/bswap.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "hw/mem/nvdimm.h"
@@ -178,6 +181,348 @@ static MemoryRegion *nvdimm_md_get_memory_region(MemoryDeviceState *md,
     return nvdimm->nvdimm_mr;
 }
 
+static const char NSINDEX_SIGNATURE[] = "NAMESPACE_INDEX\0";
+
+static unsigned inc_seq(unsigned seq)
+{
+    static const unsigned next[] = { 0, 2, 3, 1 };
+
+    return next[seq & 3];
+}
+
+static u32 best_seq(u32 a, u32 b)
+{
+    a &= NSINDEX_SEQ_MASK;
+    b &= NSINDEX_SEQ_MASK;
+
+    if (a == 0 || a == b) {
+        return b;
+    } else if (b == 0) {
+        return a;
+    } else if (inc_seq(a) == b) {
+        return b;
+    } else {
+        return a;
+    }
+}
+
+static size_t __sizeof_namespace_index(u32 nslot)
+{
+    return ALIGN(sizeof(struct namespace_index) + DIV_ROUND_UP(nslot, 8),
+            NSINDEX_ALIGN);
+}
+
+static unsigned sizeof_namespace_label(struct NVDIMMDevice *nvdimm)
+{
+    if (nvdimm->label_size == 0) {
+        warn_report("NVDIMM label size is 0, default it to 128.");
+        nvdimm->label_size = 128;
+    }
+    return nvdimm->label_size;
+}
+
+static int __nvdimm_num_label_slots(struct NVDIMMDevice *nvdimm,
+                                            size_t index_size)
+{
+    return (nvdimm->lsa_size - index_size * 2) /
+        sizeof_namespace_label(nvdimm);
+}
+
+static int nvdimm_num_label_slots(struct NVDIMMDevice *nvdimm)
+{
+    u32 tmp_nslot, n;
+
+    tmp_nslot = nvdimm->lsa_size / nvdimm->label_size;
+    n = __sizeof_namespace_index(tmp_nslot) / NSINDEX_ALIGN;
+
+    return __nvdimm_num_label_slots(nvdimm, NSINDEX_ALIGN * n);
+}
+
+static unsigned int sizeof_namespace_index(struct NVDIMMDevice *nvdimm)
+{
+    u32 nslot, space, size;
+
+    /*
+     * Per UEFI 2.7, the minimum size of the Label Storage Area is
+     * large enough to hold 2 index blocks and 2 labels.  The
+     * minimum index block size is 256 bytes, and the minimum label
+     * size is 256 bytes.
+     */
+    nslot = nvdimm_num_label_slots(nvdimm);
+    space = nvdimm->lsa_size - nslot * sizeof_namespace_label(nvdimm);
+    size = __sizeof_namespace_index(nslot) * 2;
+    if (size <= space && nslot >= 2) {
+        return size / 2;
+    }
+
+    error_report("label area (%ld) too small to host (%d byte) labels",
+            nvdimm->lsa_size, sizeof_namespace_label(nvdimm));
+    return 0;
+}
+
+static struct namespace_index *to_namespace_index(struct NVDIMMDevice *nvdimm,
+       int i)
+{
+    if (i < 0) {
+        return NULL;
+    }
+
+    return nvdimm->label_data + sizeof_namespace_index(nvdimm) * i;
+}
+
+/* Validate NVDIMM index blocks. Generally refer to driver and ndctl code */
+static int __nvdimm_label_validate(struct NVDIMMDevice *nvdimm)
+{
+    /*
+     * On media label format consists of two index blocks followed
+     * by an array of labels.  None of these structures are ever
+     * updated in place.  A sequence number tracks the current
+     * active index and the next one to write, while labels are
+     * written to free slots.
+     *
+     *     +------------+
+     *     |            |
+     *     |  nsindex0  |
+     *     |            |
+     *     +------------+
+     *     |            |
+     *     |  nsindex1  |
+     *     |            |
+     *     +------------+
+     *     |   label0   |
+     *     +------------+
+     *     |   label1   |
+     *     +------------+
+     *     |            |
+     *      ....nslot...
+     *     |            |
+     *     +------------+
+     *     |   labelN   |
+     *     +------------+
+     */
+    struct namespace_index *nsindex[] = {
+        to_namespace_index(nvdimm, 0),
+        to_namespace_index(nvdimm, 1),
+    };
+    const int num_index = ARRAY_SIZE(nsindex);
+    bool valid[2] = { 0 };
+    int i, num_valid = 0;
+    u32 seq;
+
+    for (i = 0; i < num_index; i++) {
+        u32 nslot;
+        u8 sig[NSINDEX_SIG_LEN];
+        u64 sum_save, sum, size;
+        unsigned int version, labelsize;
+
+        memcpy(sig, nsindex[i]->sig, NSINDEX_SIG_LEN);
+        if (memcmp(sig, NSINDEX_SIGNATURE, NSINDEX_SIG_LEN) != 0) {
+            nvdimm_debug("nsindex%d signature invalid\n", i);
+            continue;
+        }
+
+        /* label sizes larger than 128 arrived with v1.2 */
+        version = le16_to_cpu(nsindex[i]->major) * 100
+            + le16_to_cpu(nsindex[i]->minor);
+        if (version >= 102) {
+            labelsize = 1 << (7 + nsindex[i]->labelsize);
+        } else {
+            labelsize = 128;
+        }
+
+        if (labelsize != sizeof_namespace_label(nvdimm)) {
+            nvdimm_debug("nsindex%d labelsize %d invalid\n",
+                    i, nsindex[i]->labelsize);
+            continue;
+        }
+
+        sum_save = le64_to_cpu(nsindex[i]->checksum);
+        nsindex[i]->checksum = cpu_to_le64(0);
+        sum = fletcher64(nsindex[i], sizeof_namespace_index(nvdimm), 1);
+        nsindex[i]->checksum = cpu_to_le64(sum_save);
+        if (sum != sum_save) {
+            nvdimm_debug("nsindex%d checksum invalid\n", i);
+            continue;
+        }
+
+        seq = le32_to_cpu(nsindex[i]->seq);
+        if ((seq & NSINDEX_SEQ_MASK) == 0) {
+            nvdimm_debug("nsindex%d sequence: 0x%x invalid\n", i, seq);
+            continue;
+        }
+
+        /* sanity check the index against expected values */
+        if (le64_to_cpu(nsindex[i]->myoff) !=
+            i * sizeof_namespace_index(nvdimm)) {
+            nvdimm_debug("nsindex%d myoff: 0x%llx invalid\n",
+                         i, (unsigned long long)
+                         le64_to_cpu(nsindex[i]->myoff));
+            continue;
+        }
+        if (le64_to_cpu(nsindex[i]->otheroff)
+            != (!i) * sizeof_namespace_index(nvdimm)) {
+            nvdimm_debug("nsindex%d otheroff: 0x%llx invalid\n",
+                         i, (unsigned long long)
+                         le64_to_cpu(nsindex[i]->otheroff));
+            continue;
+        }
+
+        size = le64_to_cpu(nsindex[i]->mysize);
+        if (size > sizeof_namespace_index(nvdimm) ||
+            size < sizeof(struct namespace_index)) {
+            nvdimm_debug("nsindex%d mysize: 0x%zx invalid\n", i, size);
+            continue;
+        }
+
+        nslot = le32_to_cpu(nsindex[i]->nslot);
+        if (nslot * sizeof_namespace_label(nvdimm) +
+            2 * sizeof_namespace_index(nvdimm) > nvdimm->lsa_size) {
+            nvdimm_debug("nsindex%d nslot: %u invalid, config_size: 0x%zx\n",
+                         i, nslot, nvdimm->lsa_size);
+            continue;
+        }
+        valid[i] = true;
+        num_valid++;
+    }
+
+    switch (num_valid) {
+    case 0:
+        break;
+    case 1:
+        for (i = 0; i < num_index; i++)
+            if (valid[i]) {
+                return i;
+            }
+        /* can't have num_valid > 0 but valid[] = { false, false } */
+        error_report("unexpected index-block parse error");
+        break;
+    default:
+        /* pick the best index... */
+        seq = best_seq(le32_to_cpu(nsindex[0]->seq),
+                       le32_to_cpu(nsindex[1]->seq));
+        if (seq == (le32_to_cpu(nsindex[1]->seq) & NSINDEX_SEQ_MASK)) {
+            return 1;
+        } else {
+            return 0;
+        }
+        break;
+    }
+
+    return -1;
+}
+
+static int nvdimm_label_validate(struct NVDIMMDevice *nvdimm)
+{
+    int label_size[] = { 128, 256 };
+    int i, rc;
+
+    for (i = 0; i < ARRAY_SIZE(label_size); i++) {
+        nvdimm->label_size = label_size[i];
+        rc = __nvdimm_label_validate(nvdimm);
+        if (rc >= 0) {
+            return rc;
+        }
+    }
+
+    return -1;
+}
+
+static int label_next_nsindex(int index)
+{
+    if (index < 0) {
+        return -1;
+    }
+
+    return (index + 1) % 2;
+}
+
+static void *label_base(struct NVDIMMDevice *nvdimm)
+{
+    void *base = to_namespace_index(nvdimm, 0);
+
+    return base + 2 * sizeof_namespace_index(nvdimm);
+}
+
+static int write_label_index(struct NVDIMMDevice *nvdimm,
+        enum ndctl_namespace_version ver, unsigned index, unsigned seq)
+{
+    struct namespace_index *nsindex;
+    unsigned long offset;
+    u64 checksum;
+    u32 nslot;
+
+    /*
+     * We may have initialized ndd to whatever labelsize is
+     * currently on the dimm during label_validate(), so we reset it
+     * to the desired version here.
+     */
+    switch (ver) {
+    case NDCTL_NS_VERSION_1_1:
+        nvdimm->label_size = 128;
+        break;
+    case NDCTL_NS_VERSION_1_2:
+        nvdimm->label_size = 256;
+        break;
+    default:
+        return -1;
+    }
+
+    nsindex = to_namespace_index(nvdimm, index);
+    nslot = nvdimm_num_label_slots(nvdimm);
+
+    memcpy(nsindex->sig, NSINDEX_SIGNATURE, NSINDEX_SIG_LEN);
+    memset(nsindex->flags, 0, 3);
+    nsindex->labelsize = sizeof_namespace_label(nvdimm) >> 8;
+    nsindex->seq = cpu_to_le32(seq);
+    offset = (unsigned long) nsindex
+        - (unsigned long) to_namespace_index(nvdimm, 0);
+    nsindex->myoff = cpu_to_le64(offset);
+    nsindex->mysize = cpu_to_le64(sizeof_namespace_index(nvdimm));
+    offset = (unsigned long) to_namespace_index(nvdimm,
+            label_next_nsindex(index))
+        - (unsigned long) to_namespace_index(nvdimm, 0);
+    nsindex->otheroff = cpu_to_le64(offset);
+    offset = (unsigned long) label_base(nvdimm)
+        - (unsigned long) to_namespace_index(nvdimm, 0);
+    nsindex->labeloff = cpu_to_le64(offset);
+    nsindex->nslot = cpu_to_le32(nslot);
+    nsindex->major = cpu_to_le16(1);
+    if (sizeof_namespace_label(nvdimm) < 256) {
+        nsindex->minor = cpu_to_le16(1);
+    } else {
+        nsindex->minor = cpu_to_le16(2);
+    }
+    nsindex->checksum = cpu_to_le64(0);
+    /* init label bitmap */
+    memset(nsindex->free, 0xff, ALIGN(nslot, BITS_PER_LONG) / 8);
+    checksum = fletcher64(nsindex, sizeof_namespace_index(nvdimm), 1);
+    nsindex->checksum = cpu_to_le64(checksum);
+
+    return 0;
+}
+
+static int nvdimm_init_label(struct NVDIMMDevice *nvdimm)
+{
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        int rc;
+
+        /* To have most compatibility, we init index block with v1.1 */
+        rc = write_label_index(nvdimm, NDCTL_NS_VERSION_1_1, i, 3 - i);
+
+        if (rc < 0) {
+            error_report("init No.%d index block failed", i);
+            return rc;
+        } else {
+            nvdimm_debug("%s: dump No.%d index block\n", __func__, i);
+            dump_index_block(to_namespace_index(nvdimm, i));
+        }
+    }
+
+    return 0;
+}
+
 static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
 {
     NVDIMMDevice *nvdimm = NVDIMM(dimm);
@@ -185,6 +530,20 @@ static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
 
     if (!nvdimm->nvdimm_mr) {
         nvdimm_prepare_memory_region(nvdimm, errp);
+    }
+
+    /* When LSA is designaged, validate it. */
+    if (nvdimm->lsa_size != 0) {
+        if (buffer_is_zero(nvdimm->label_data, nvdimm->lsa_size) ||
+            nvdimm_label_validate(nvdimm) < 0) {
+            int rc;
+
+            info_report("NVDIMM LSA is invalid, needs to be initialized");
+            rc = nvdimm_init_label(nvdimm);
+            if (rc < 0) {
+                error_report("NVDIMM lsa init failed, rc = %d", rc);
+            }
+        }
     }
 
     if (ndc->realize) {

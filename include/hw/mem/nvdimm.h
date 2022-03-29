@@ -48,13 +48,75 @@
 #define TYPE_NVDIMM      "nvdimm"
 OBJECT_DECLARE_TYPE(NVDIMMDevice, NVDIMMClass, NVDIMM)
 
+typedef uint32_t u32;
+typedef uint64_t u64;
+typedef uint8_t u8;
+typedef uint32_t u32;
+
+#define ALIGN(x, y)  (((x) + (y) - 1) & ~((y) - 1))
+
 #define NVDIMM_LSA_SIZE_PROP   "lsa-size"
 #define NVDIMM_UUID_PROP       "uuid"
 #define NVDIMM_UNARMED_PROP    "unarmed"
 
+enum ndctl_namespace_version {
+    NDCTL_NS_VERSION_1_1,
+    NDCTL_NS_VERSION_1_2,
+};
+
+enum {
+    NSINDEX_SIG_LEN = 16,
+    NSINDEX_ALIGN = 256,
+    NSINDEX_SEQ_MASK = 0x3,
+    NSLABEL_UUID_LEN = 16,
+    NSLABEL_NAME_LEN = 64,
+};
+
+/**
+ * struct namespace_index - label set superblock
+ * @sig: NAMESPACE_INDEX\0
+ * @flags: placeholder
+ * @labelsize: log2 size (v1 labels 128 bytes v2 labels 256 bytes)
+ * @seq: sequence number for this index
+ * @myoff: offset of this index in label area
+ * @mysize: size of this index struct
+ * @otheroff: offset of other index
+ * @labeloff: offset of first label slot
+ * @nslot: total number of label slots
+ * @major: label area major version
+ * @minor: label area minor version
+ * @checksum: fletcher64 of all fields
+ * @free: bitmap, nlabel bits
+ *
+ * The size of free[] is rounded up so the total struct size is a
+ * multiple of NSINDEX_ALIGN bytes.  Any bits this allocates beyond
+ * nlabel bits must be zero.
+ */
+struct namespace_index {
+    uint8_t sig[NSINDEX_SIG_LEN];
+    uint8_t flags[3];
+    uint8_t labelsize;
+    uint32_t seq;
+    uint64_t myoff;
+    uint64_t mysize;
+    uint64_t otheroff;
+    uint64_t labeloff;
+    uint32_t nslot;
+    uint16_t major;
+    uint16_t minor;
+    uint64_t checksum;
+    uint8_t free[0];
+};
+
 struct NVDIMMDevice {
     /* private */
     PCDIMMDevice parent_obj;
+
+    /*
+     * Label's size in LSA. Determined by Label version. 128 for v1.1, 256
+     * for v1.2
+     */
+    unsigned int label_size;
 
     /* public */
 
@@ -149,6 +211,48 @@ struct NVDIMMState {
     struct AcpiGenericAddress dsm_io;
 };
 typedef struct NVDIMMState NVDIMMState;
+
+#if (NVDIMM_DEBUG == 1)
+static inline void dump_index_block(struct namespace_index *nsindex)
+{
+    printf("sig %s\n", nsindex->sig);
+    printf("flags 0x%x 0x%x 0x%x\n", nsindex->flags[0],
+           nsindex->flags[1], nsindex->flags[2]);
+    printf("labelsize %d\n", nsindex->labelsize);
+    printf("seq 0x%0x\n", nsindex->seq);
+    printf("myoff 0x%"PRIx64"\n", nsindex->myoff);
+    printf("mysize 0x%"PRIx64"\n", nsindex->mysize);
+    printf("otheroff 0x%"PRIx64"\n", nsindex->otheroff);
+    printf("labeloff 0x%"PRIx64"\n", nsindex->labeloff);
+    printf("nslot %d\n", nsindex->nslot);
+    printf("major %d\n", nsindex->major);
+    printf("minor %d\n", nsindex->minor);
+    printf("checksum 0x%"PRIx64"\n", nsindex->checksum);
+    printf("-------------------------------\n");
+}
+#else
+static inline void dump_index_block(struct namespace_index *nsindex)
+{
+}
+#endif
+
+/*
+ * Note, fletcher64() is copied from drivers/nvdimm/label.c in the Linux kernel
+ */
+static inline u64 fletcher64(void *addr, size_t len, bool le)
+{
+    u32 *buf = addr;
+    u32 lo32 = 0;
+    u64 hi32 = 0;
+    size_t i;
+
+    for (i = 0; i < len / sizeof(u32); i++) {
+        lo32 += le ? le32_to_cpu((u32) buf[i]) : buf[i];
+        hi32 += lo32;
+    }
+
+    return hi32 << 32 | lo32;
+}
 
 void nvdimm_init_acpi_state(NVDIMMState *state, MemoryRegion *io,
                             struct AcpiGenericAddress dsm_io,
