@@ -272,7 +272,8 @@ bool qemu_in_main_thread(void);
 /* Mark and check that the function is part of the global state API. */
 #define GLOBAL_STATE_CODE()                                         \
     do {                                                            \
-        assert(qemu_in_main_thread());                              \
+        /* FIXME: Re-enable after 7.0 release */                    \
+        /* assert(qemu_in_main_thread()); */                        \
     } while (0)
 
 /* Mark and check that the function is part of the I/O API. */
