@@ -406,6 +406,10 @@ static void vhost_svq_flush(VhostShadowVirtqueue *svq,
                 return;
             }
             virtqueue_fill(vq, elem, len, i++);
+
+            if (svq->ops && svq->ops->used_elem_handler) {
+                svq->ops->used_elem_handler(svq->vdev, elem);
+            }
         }
 
         virtqueue_flush(vq, i);
@@ -592,12 +596,14 @@ void vhost_svq_stop(VhostShadowVirtqueue *svq)
  * shadow methods and file descriptors.
  *
  * @iova_tree: Tree to perform descriptors translations
+ * @ops: SVQ operations hooks
  *
  * Returns the new virtqueue or NULL.
  *
  * In case of error, reason is reported through error_report.
  */
-VhostShadowVirtqueue *vhost_svq_new(VhostIOVATree *iova_tree)
+VhostShadowVirtqueue *vhost_svq_new(VhostIOVATree *iova_tree,
+                                    const VhostShadowVirtqueueOps *ops)
 {
     g_autofree VhostShadowVirtqueue *svq = g_new0(VhostShadowVirtqueue, 1);
     int r;
@@ -619,6 +625,7 @@ VhostShadowVirtqueue *vhost_svq_new(VhostIOVATree *iova_tree)
     event_notifier_init_fd(&svq->svq_kick, VHOST_FILE_UNBIND);
     event_notifier_set_handler(&svq->hdev_call, vhost_svq_handle_call);
     svq->iova_tree = iova_tree;
+    svq->ops = ops;
     return g_steal_pointer(&svq);
 
 err_init_hdev_call:
