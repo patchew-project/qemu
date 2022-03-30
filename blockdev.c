@@ -2166,8 +2166,9 @@ static void abort_commit(void *opaque)
     g_assert_not_reached(); /* this action never succeeds */
 }
 
-static int blockdev_replace(BlockdevReplace *repl, Transaction *tran,
-                            Error **errp)
+/* Caller is responsible to update permission of nodes added to @update_list */
+static int blockdev_replace(BlockdevReplace *repl, GSList **refresh_list,
+                            Transaction *tran, Error **errp)
 {
     BdrvChild *child = NULL;
     BlockDriverState *new_child_bs;
@@ -2220,14 +2221,27 @@ static int blockdev_replace(BlockdevReplace *repl, Transaction *tran,
         return -EINVAL;
     }
 
-    return bdrv_replace_child_bs(child, new_child_bs, tran, errp);
+    bdrv_replace_child_tran(child, new_child_bs, refresh_list, tran);
+    return 0;
 }
 
 void qmp_x_blockdev_replace(BlockdevReplace *repl, Error **errp)
 {
+    int ret;
     Transaction *tran = tran_new();
-    int ret = blockdev_replace(repl, tran, errp);
+    g_autoptr(GSList) update_list = NULL;
 
+    ret = blockdev_replace(repl, &update_list, tran, errp);
+    if (ret < 0) {
+        goto out;
+    }
+
+    ret = bdrv_list_refresh_perms(update_list, NULL, tran, errp);
+    if (ret < 0) {
+        goto out;
+    }
+
+out:
     tran_finalize(tran, ret);
 }
 
@@ -2286,6 +2300,10 @@ static void transaction_action(TransactionAction *act, JobTxn *block_job_txn,
     case TRANSACTION_ACTION_KIND_BLOCKDEV_ADD:
         blockdev_add(act->u.blockdev_add.data,
                      refresh_list, tran, errp);
+        return;
+    case TRANSACTION_ACTION_KIND_X_BLOCKDEV_REPLACE:
+        blockdev_replace(act->u.x_blockdev_replace.data,
+                         refresh_list, tran, errp);
         return;
     /*
      * Where are transactions for MIRROR, COMMIT and STREAM?
@@ -2355,7 +2373,8 @@ void qmp_transaction(TransactionActionList *actions,
 
         if (refresh_list &&
             type != TRANSACTION_ACTION_KIND_BLOCKDEV_DEL &&
-            type != TRANSACTION_ACTION_KIND_BLOCKDEV_ADD)
+            type != TRANSACTION_ACTION_KIND_BLOCKDEV_ADD &&
+            type != TRANSACTION_ACTION_KIND_X_BLOCKDEV_REPLACE)
         {
             ret = bdrv_list_refresh_perms(refresh_list, NULL, tran, errp);
             if (ret < 0) {

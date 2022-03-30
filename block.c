@@ -2381,8 +2381,8 @@ static TransactionActionDrv bdrv_replace_child_drv = {
 };
 
 /* Caller is responsible to refresh permissions in @refresh_list */
-static void bdrv_replace_child_tran(BdrvChild *child, BlockDriverState *new_bs,
-                                    GSList **refresh_list, Transaction *tran)
+void bdrv_replace_child_tran(BdrvChild *child, BlockDriverState *new_bs,
+                             GSList **refresh_list, Transaction *tran)
 {
     BdrvReplaceChildState *s = g_new(BdrvReplaceChildState, 1);
     *s = (BdrvReplaceChildState) {

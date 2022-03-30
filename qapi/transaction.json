@@ -54,10 +54,13 @@
 # @blockdev-snapshot-sync: since 1.1
 # @drive-backup: Since 1.6
 # @blockdev-del: since 7.1
+# @blockdev-add: since 7.1
+# @x-blockdev-replace: since 7.1
 #
 # Features:
 # @deprecated: Member @drive-backup is deprecated.  Use member
 #              @blockdev-backup instead.
+# @unstable: Member @x-blockdev-replace is experimental
 #
 # Since: 1.1
 ##
@@ -68,6 +71,7 @@
             'blockdev-backup', 'blockdev-snapshot',
             'blockdev-snapshot-internal-sync', 'blockdev-snapshot-sync',
             'blockdev-del', 'blockdev-add',
+            { 'name': 'x-blockdev-replace', 'features': [ 'unstable' ] },
             { 'name': 'drive-backup', 'features': [ 'deprecated' ] } ] }
 
 ##
@@ -159,6 +163,14 @@
   'data': { 'data': 'BlockdevOptions' } }
 
 ##
+# @BlockdevReplaceWrapper:
+#
+# Since: 7.1
+##
+{ 'struct': 'BlockdevReplaceWrapper',
+  'data': { 'data': 'BlockdevReplace' } }
+
+##
 # @TransactionAction:
 #
 # A discriminated record of operations that can be performed with
@@ -183,7 +195,8 @@
        'blockdev-snapshot-sync': 'BlockdevSnapshotSyncWrapper',
        'blockdev-del': 'BlockdevDelWrapper',
        'blockdev-add': 'BlockdevAddWrapper',
-       'drive-backup': 'DriveBackupWrapper'
+       'drive-backup': 'DriveBackupWrapper',
+       'x-blockdev-replace': 'BlockdevReplaceWrapper'
    } }
 
 ##
