@@ -5420,8 +5420,8 @@ BlockDriverState *bdrv_insert_node(BlockDriverState *bs, QDict *options,
 
     GLOBAL_STATE_CODE();
 
-    new_node_bs = bdrv_new_open_driver_opts(drv, node_name, options, flags,
-                                            errp);
+    new_node_bs = bdrv_new_open_driver_opts(drv, node_name, options,
+                                            flags | BDRV_O_NOPERM, errp);
     options = NULL; /* bdrv_new_open_driver() eats options */
     if (!new_node_bs) {
         error_prepend(errp, "Could not create node: ");
