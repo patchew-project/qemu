@@ -38,7 +38,7 @@
 #include "monitor/monitor.h"
 #include "chardev/char.h"
 #include "chardev/char-fe.h"
-#include "hw/cpu/cluster.h"
+#include "hw/cpu/cpus.h"
 #include "hw/boards.h"
 #endif
 
@@ -3458,9 +3458,10 @@ static const TypeInfo char_gdb_type_info = {
 
 static int find_cpu_clusters(Object *child, void *opaque)
 {
-    if (object_dynamic_cast(child, TYPE_CPU_CLUSTER)) {
+    if (object_dynamic_cast(child, TYPE_CPUS) &&
+        CPUS(child)->is_cluster) {
         GDBState *s = (GDBState *) opaque;
-        CPUClusterState *cluster = CPU_CLUSTER(child);
+        CpusState *cluster = CPUS(child);
         GDBProcess *process;
 
         s->processes = g_renew(GDBProcess, s->processes, ++s->process_num);
@@ -3472,8 +3473,9 @@ static int find_cpu_clusters(Object *child, void *opaque)
          * runtime, we enforce here that the machine does not use a cluster ID
          * that would lead to PID 0.
          */
-        assert(cluster->cluster_id != UINT32_MAX);
-        process->pid = cluster->cluster_id + 1;
+        assert(cluster->cluster_index >= 0 &&
+               cluster->cluster_index < UINT32_MAX);
+        process->pid = cluster->cluster_index + 1;
         process->attached = false;
         process->target_xml[0] = '\0';
 
