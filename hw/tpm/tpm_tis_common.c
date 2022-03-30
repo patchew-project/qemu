@@ -295,6 +295,7 @@ static void tpm_tis_dump_state(TPMState *s, hwaddr addr)
     uint8_t locty = tpm_tis_locality_from_addr(addr);
     hwaddr base = addr & ~0xfff;
 
+    assert(TPM_TIS_IS_VALID_LOCTY(locty));
     printf("tpm_tis: active locality      : %d\n"
            "tpm_tis: state of locality %d : %d\n"
            "tpm_tis: register dump:\n",
