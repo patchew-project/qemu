@@ -24,6 +24,10 @@
  * This is an abstract class, subclasses are supposed to be created on
  * per-architecture basis to handle the specifics of the cpu architecture.
  * Subclasses are meant to be user-creatable (for cold-plug).
+ *
+ * Optionnaly a group of cpus may correspond to a cpu cluster and be
+ * exposed as a gdbstub's inferior. In that case cpus must have the
+ * same memory view.
  */
 
 #define TYPE_CPUS "cpus"
@@ -37,10 +41,18 @@ OBJECT_DECLARE_TYPE(CpusState, CpusClass, CPUS)
  *      order to eventually update this smoothly with a full
  *      CpuTopology structure in the future.
  * @cpus: Array of pointer to cpu objects.
+ * @cluster_node: node in the global cluster list.
+ * @is_cluster: true if the object corresponds to a cpu cluster. It can be
+ *      written before realize in order to enable/disable clustering.
+ * @cluster_index: The cluster ID. This value is for internal use only and
+ *      should not be exposed directly to the user or to the guest.
  */
 struct CpusState {
     /*< private >*/
     DeviceState parent_obj;
+    bool is_cluster;
+    int32_t cluster_index;
+    QLIST_ENTRY(CpusState) cluster_node;
 
     /*< public >*/
     char *cpu_type;
@@ -67,5 +79,12 @@ struct CpusClass {
     CpusConfigureCpu configure_cpu;
     bool skip_cpus_creation;
 };
+
+/**
+ * cpus_disable_clustering:
+ * Disable clustering for this object.
+ * Has to be called before realize step.
+ */
+void cpus_disable_clustering(CpusState *s);
 
 #endif /* HW_CPU_CPUS_H */

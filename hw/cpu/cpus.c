@@ -16,9 +16,17 @@
 #include "hw/resettable.h"
 #include "sysemu/reset.h"
 
+static QLIST_HEAD(, CpusState) clusters =
+    QLIST_HEAD_INITIALIZER(clusters);
+
 static Property cpus_properties[] = {
     DEFINE_PROP_STRING("cpu-type", CpusState, cpu_type),
     DEFINE_PROP_UINT16("num-cpus", CpusState, topology.cpus, 0),
+    /*
+     * Default behavior is to automatically compute a valid index.
+     * FIXME: remove this property to keep it internal ?
+     */
+    DEFINE_PROP_INT32("cluster-id", CpusState, cluster_index, -1),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -28,6 +36,20 @@ static void cpus_reset(Object *obj)
     for (unsigned i = 0; i < s->topology.cpus; i++) {
         cpu_reset(s->cpus[i]);
     }
+}
+
+static void cpus_init(Object *obj)
+{
+    CpusState *s = CPUS(obj);
+
+    /* may be overriden by subclasses or code to disable clustering */
+    s->is_cluster = true;
+}
+
+void cpus_disable_clustering(CpusState *s)
+{
+    assert(!DEVICE(s)->realized);
+    s->is_cluster = false;
 }
 
 static void cpus_create_cpus(CpusState *s, Error **errp)
@@ -43,6 +65,11 @@ static void cpus_create_cpus(CpusState *s, Error **errp)
         /* set child property and release the initial ref */
         object_property_add_child(OBJECT(s), "cpu[*]", OBJECT(cpu));
         object_unref(OBJECT(cpu));
+
+        /* set index in case of cluster */
+        if (s->is_cluster) {
+            cpu->cluster_index = s->cluster_index;
+        }
 
         /* let subclass configure the cpu */
         if (cgc->configure_cpu) {
@@ -60,7 +87,7 @@ static void cpus_create_cpus(CpusState *s, Error **errp)
 
 static void cpus_realize(DeviceState *dev, Error **errp)
 {
-    CpusState *s = CPUS(dev);
+    CpusState *item, *s = CPUS(dev);
     CpusClass *cgc = CPUS_GET_CLASS(s);
 
     /* if subclass defined a base type, let's check it */
@@ -77,6 +104,38 @@ static void cpus_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (s->is_cluster) {
+        if (s->cluster_index < 0) {
+            int32_t max = -1;
+            QLIST_FOREACH(item, &clusters, cluster_node) {
+                if (max < item->cluster_index) {
+                    max = item->cluster_index;
+                }
+            }
+            s->cluster_index = max + 1;
+        } else {
+            /*
+             * Check the index is not already taken.
+             */
+            QLIST_FOREACH(item, &clusters, cluster_node) {
+                if (s->cluster_index == item->cluster_index) {
+                    error_setg(errp, "cluster index %d already exists",
+                               s->cluster_index);
+                    return;
+                }
+            }
+        }
+
+        if (s->cluster_index >= MAX_CLUSTERS) {
+            error_setg(errp, "cluster index must be less than %d",
+                       MAX_CLUSTERS);
+            return;
+        }
+
+        /* Put the cpus in the inferior list */
+        QLIST_INSERT_HEAD(&clusters, s, cluster_node);
+    }
+
     /* create the cpus if needed */
     if (!cgc->skip_cpus_creation) {
         cpus_create_cpus(s, errp);
@@ -89,6 +148,9 @@ static void cpus_finalize(Object *obj)
     CpusState *s = CPUS(obj);
 
     g_free(s->cpus);
+
+    /* it may not be in the list */
+    QLIST_SAFE_REMOVE(s, cluster_node);
 }
 
 static void cpus_class_init(ObjectClass *klass, void *data)
@@ -114,6 +176,7 @@ static const TypeInfo cpus_type_info = {
     .parent            = TYPE_DEVICE,
     .abstract          = true,
     .instance_size     = sizeof(CpusState),
+    .instance_init     = cpus_init,
     .instance_finalize = cpus_finalize,
     .class_size        = sizeof(CpusClass),
     .class_init        = cpus_class_init,
