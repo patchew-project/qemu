@@ -2519,8 +2519,8 @@ static int bdrv_do_refresh_perms(GSList *list, BlockReopenQueue *q,
  * topologically sorted. It's not a problem if some node occurs in the @list
  * several times.
  */
-static int bdrv_list_refresh_perms(GSList *list, BlockReopenQueue *q,
-                                   Transaction *tran, Error **errp)
+int bdrv_list_refresh_perms(GSList *list, BlockReopenQueue *q,
+                            Transaction *tran, Error **errp)
 {
     g_autoptr(GHashTable) found = g_hash_table_new(NULL, NULL);
     g_autoptr(GSList) refresh_list = NULL;
@@ -2580,8 +2580,7 @@ char *bdrv_perm_names(uint64_t perm)
 
 
 /* @tran is allowed to be NULL. In this case no rollback is possible */
-static int bdrv_refresh_perms(BlockDriverState *bs, Transaction *tran,
-                              Error **errp)
+int bdrv_refresh_perms(BlockDriverState *bs, Transaction *tran, Error **errp)
 {
     int ret;
     Transaction *local_tran = NULL;

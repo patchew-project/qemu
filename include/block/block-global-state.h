@@ -253,4 +253,8 @@ void bdrv_unregister_buf(BlockDriverState *bs, void *host);
 
 void bdrv_cancel_in_flight(BlockDriverState *bs);
 
+int bdrv_list_refresh_perms(GSList *list, BlockReopenQueue *q,
+                            Transaction *tran, Error **errp);
+int bdrv_refresh_perms(BlockDriverState *bs, Transaction *tran, Error **errp);
+
 #endif /* BLOCK_GLOBAL_STATE_H */
