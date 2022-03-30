@@ -299,7 +299,7 @@ fail_notifiers:
 }
 
 static void vhost_net_stop_one(struct vhost_net *net,
-                               VirtIODevice *dev)
+                               VirtIODevice *dev, bool reset)
 {
     struct vhost_vring_file file = { .fd = -1 };
 
@@ -313,6 +313,11 @@ static void vhost_net_stop_one(struct vhost_net *net,
         net->nc->info->poll(net->nc, true);
     }
     vhost_dev_stop(&net->dev, dev);
+
+    if (reset) {
+        vhost_dev_reset(&net->dev);
+    }
+
     vhost_dev_disable_notifiers(&net->dev, dev);
 }
 
@@ -391,7 +396,12 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
 err_start:
     while (--i >= 0) {
         peer = qemu_get_peer(ncs , i);
-        vhost_net_stop_one(get_vhost_net(peer), dev);
+
+        if (i == 0) {
+            vhost_net_stop_one(get_vhost_net(peer), dev, true);
+        } else {
+            vhost_net_stop_one(get_vhost_net(peer), dev, false);
+        }
     }
     e = k->set_guest_notifiers(qbus->parent, total_notifiers, false);
     if (e < 0) {
@@ -420,7 +430,13 @@ void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs,
         } else {
             peer = qemu_get_peer(ncs, n->max_queue_pairs);
         }
-        vhost_net_stop_one(get_vhost_net(peer), dev);
+
+        /* We only reset backend device during the last vhost */
+        if (i == nvhosts - 1) {
+            vhost_net_stop_one(get_vhost_net(peer), dev, true);
+        } else {
+            vhost_net_stop_one(get_vhost_net(peer), dev, false);
+        }
     }
 
     r = k->set_guest_notifiers(qbus->parent, total_notifiers, false);
