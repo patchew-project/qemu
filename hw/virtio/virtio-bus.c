@@ -311,7 +311,8 @@ void virtio_bus_cleanup_host_notifier(VirtioBusState *bus, int n)
     /* Test and clear notifier after disabling event,
      * in case poll callback didn't have time to run.
      */
-    virtio_queue_host_notifier_read(notifier);
+    if (!vdev->disable_ioeventfd_handler)
+        virtio_queue_host_notifier_read(notifier);
     event_notifier_cleanup(notifier);
 }
 
