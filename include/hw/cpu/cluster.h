@@ -57,12 +57,6 @@
 #define TYPE_CPU_CLUSTER "cpu-cluster"
 OBJECT_DECLARE_SIMPLE_TYPE(CPUClusterState, CPU_CLUSTER)
 
-/*
- * This limit is imposed by TCG, which puts the cluster ID into an
- * 8 bit field (and uses all-1s for the default "not in any cluster").
- */
-#define MAX_CLUSTERS 255
-
 /**
  * CPUClusterState:
  * @cluster_id: The cluster ID. This value is for internal use only and should

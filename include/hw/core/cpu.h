@@ -1054,5 +1054,11 @@ extern const VMStateDescription vmstate_cpu_common;
 
 #define UNASSIGNED_CPU_INDEX -1
 #define UNASSIGNED_CLUSTER_INDEX -1
+/*
+ * This limit is imposed by TCG, which puts the cluster ID into an
+ * 8 bit field. Default being all-1s, custom index cannot be set to
+ * more than 254.
+ */
+#define MAX_CLUSTERS 255
 
 #endif
