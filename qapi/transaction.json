@@ -67,7 +67,7 @@
             'block-dirty-bitmap-disable', 'block-dirty-bitmap-merge',
             'blockdev-backup', 'blockdev-snapshot',
             'blockdev-snapshot-internal-sync', 'blockdev-snapshot-sync',
-            'blockdev-del',
+            'blockdev-del', 'blockdev-add',
             { 'name': 'drive-backup', 'features': [ 'deprecated' ] } ] }
 
 ##
@@ -150,6 +150,13 @@
 { 'struct': 'BlockdevDelWrapper',
   'data': { 'data': 'BlockdevDel' } }
 
+##
+# @BlockdevAddWrapper:
+#
+# Since: 7.1
+##
+{ 'struct': 'BlockdevAddWrapper',
+  'data': { 'data': 'BlockdevOptions' } }
 
 ##
 # @TransactionAction:
@@ -175,6 +182,7 @@
        'blockdev-snapshot-internal-sync': 'BlockdevSnapshotInternalWrapper',
        'blockdev-snapshot-sync': 'BlockdevSnapshotSyncWrapper',
        'blockdev-del': 'BlockdevDelWrapper',
+       'blockdev-add': 'BlockdevAddWrapper',
        'drive-backup': 'DriveBackupWrapper'
    } }
 

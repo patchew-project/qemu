@@ -65,6 +65,8 @@
 
 static int blockdev_del(const char *node_name, GSList **detached,
                         Transaction *tran, Error **errp);
+static int blockdev_add(BlockdevOptions *options, GSList **refresh_list,
+                        Transaction *tran, Error **errp);
 
 /* Protected by BQL */
 QTAILQ_HEAD(, BlockDriverState) monitor_bdrv_states =
@@ -2216,6 +2218,10 @@ static void transaction_action(TransactionAction *act, JobTxn *block_job_txn,
         blockdev_del(act->u.blockdev_del.data->node_name,
                      refresh_list, tran, errp);
         return;
+    case TRANSACTION_ACTION_KIND_BLOCKDEV_ADD:
+        blockdev_add(act->u.blockdev_add.data,
+                     refresh_list, tran, errp);
+        return;
     /*
      * Where are transactions for MIRROR, COMMIT and STREAM?
      * Although these blockjobs use transaction callbacks like the backup job,
@@ -2283,7 +2289,8 @@ void qmp_transaction(TransactionActionList *actions,
         TransactionActionKind type = act->value->type;
 
         if (refresh_list &&
-            type != TRANSACTION_ACTION_KIND_BLOCKDEV_DEL)
+            type != TRANSACTION_ACTION_KIND_BLOCKDEV_DEL &&
+            type != TRANSACTION_ACTION_KIND_BLOCKDEV_ADD)
         {
             ret = bdrv_list_refresh_perms(refresh_list, NULL, tran, errp);
             if (ret < 0) {
@@ -3454,7 +3461,21 @@ out:
     aio_context_release(aio_context);
 }
 
-void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
+static void blockdev_add_abort(void *opaque)
+{
+    BlockDriverState *bs = opaque;
+
+    QTAILQ_REMOVE(&monitor_bdrv_states, bs, monitor_list);
+    bdrv_unref(bs);
+}
+
+TransactionActionDrv blockdev_add_drv = {
+    .abort = blockdev_add_abort,
+};
+
+/* Caller is responsible to refresh permissions */
+static int blockdev_add(BlockdevOptions *options, GSList **refresh_list,
+                        Transaction *tran, Error **errp)
 {
     BlockDriverState *bs;
     QObject *obj;
@@ -3472,15 +3493,42 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
         goto fail;
     }
 
-    bs = bds_tree_init(qdict, 0, errp);
+    bs = bds_tree_init(qdict, BDRV_O_NOPERM, errp);
     if (!bs) {
         goto fail;
     }
 
+    *refresh_list = g_slist_prepend(*refresh_list, bs);
+    tran_add(tran, &blockdev_add_drv, bs);
+
     bdrv_set_monitor_owned(bs);
+
+    visit_free(v);
+    return 0;
 
 fail:
     visit_free(v);
+    return -EINVAL;
+}
+
+void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
+{
+    int ret;
+    Transaction *tran = tran_new();
+    g_autoptr(GSList) refresh_list = NULL;
+
+    ret = blockdev_add(options, &refresh_list, tran, errp);
+    if (ret < 0) {
+        goto out;
+    }
+
+    ret = bdrv_list_refresh_perms(refresh_list, NULL, tran, errp);
+    if (ret < 0) {
+        goto out;
+    }
+
+out:
+    tran_finalize(tran, ret);
 }
 
 void qmp_blockdev_reopen(BlockdevOptionsList *reopen_list, Error **errp)
