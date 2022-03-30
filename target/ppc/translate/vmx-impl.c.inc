@@ -3349,12 +3349,38 @@ static void do_vx_diveu_i32(TCGv_i32 t, TCGv_i32 a, TCGv_i32 b)
     tcg_temp_free_i64(val2);
 }
 
+#define REM_VEC(NAME, SZ, REM)                                          \
+static void do_vx_##NAME(TCGv_##SZ t, TCGv_##SZ a, TCGv_##SZ b)         \
+{                                                                       \
+    TCGv_##SZ zero = tcg_constant_##SZ(0), one = tcg_constant_##SZ(1);  \
+    /*                                                                  \
+     *  If N%0 the instruction used by the backend might deliver        \
+     *  a signal to the process and the hardware returns 0 when         \
+     *  N%0, so if b = 0 return 0%1                                     \
+     */                                                                 \
+    tcg_gen_movcond_##SZ(TCG_COND_EQ, a, b, zero, zero, a);             \
+    tcg_gen_movcond_##SZ(TCG_COND_EQ, b, b, zero, one, b);              \
+    REM(t, a, b);                                                       \
+}
+
+REM_VEC(rem_i32 , i32, tcg_gen_rem_i32)
+REM_VEC(remu_i32, i32, tcg_gen_remu_i32)
+REM_VEC(rem_i64 , i64, tcg_gen_rem_i64)
+REM_VEC(remu_i64, i64, tcg_gen_remu_i64)
+
+#undef REM_VEC
+
 TRANS_VDIV_VMOD(ISA310, VDIVESW, MO_32, do_vx_dives_i32, NULL)
 TRANS_VDIV_VMOD(ISA310, VDIVEUW, MO_32, do_vx_diveu_i32, NULL)
 TRANS_FLAGS2(ISA310, VDIVESD, do_vx_helper, gen_helper_VDIVESD)
 TRANS_FLAGS2(ISA310, VDIVEUD, do_vx_helper, gen_helper_VDIVEUD)
 TRANS_FLAGS2(ISA310, VDIVESQ, do_vx_helper, gen_helper_VDIVESQ)
 TRANS_FLAGS2(ISA310, VDIVEUQ, do_vx_helper, gen_helper_VDIVEUQ)
+
+TRANS_VDIV_VMOD(ISA310, VMODSW, MO_32, do_vx_rem_i32 , NULL)
+TRANS_VDIV_VMOD(ISA310, VMODUW, MO_32, do_vx_remu_i32, NULL)
+TRANS_VDIV_VMOD(ISA310, VMODSD, MO_64, NULL, do_vx_rem_i64)
+TRANS_VDIV_VMOD(ISA310, VMODUD, MO_64, NULL, do_vx_remu_i64)
 
 #undef GEN_VR_LDX
 #undef GEN_VR_STX
