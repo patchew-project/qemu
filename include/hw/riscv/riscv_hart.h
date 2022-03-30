@@ -56,7 +56,4 @@ static inline unsigned riscv_array_get_num_harts(RISCVHartArrayState *s)
     return CPUS(s)->topology.cpus;
 }
 
-/* Temporary function until we migrated the riscv hart array to simple device */
-void riscv_hart_array_realize(RISCVHartArrayState *state, Error **errp);
-
 #endif
