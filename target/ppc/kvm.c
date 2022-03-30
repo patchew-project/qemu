@@ -543,10 +543,12 @@ static void kvm_get_one_spr(CPUState *cs, uint64_t id, int spr)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
-    union {
+    union reg_val {
         uint32_t u32;
         uint64_t u64;
-    } val;
+    };
+    /* Init reg_val to avoid "uninitialised value" Valgrind warnings */
+    union reg_val val = {0};
     struct kvm_one_reg reg = {
         .id = id,
         .addr = (uintptr_t) &val,
