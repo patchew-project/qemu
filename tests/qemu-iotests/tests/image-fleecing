@@ -131,9 +131,13 @@ def do_test(vm, use_cbw, use_snapshot_access_filter, base_img_path,
         if bitmap:
             fl_cbw['bitmap'] = {'node': src_node, 'name': 'bitmap0'}
 
-        log(vm.qmp('blockdev-add', fl_cbw))
-
-        log(vm.qmp('qom-set', path=qom_path, property='drive', value='fl-cbw'))
+        log(vm.qmp('transaction', {'actions': [
+            {'type': 'blockdev-add', 'data': fl_cbw},
+            {'type': 'x-blockdev-replace', 'data': {
+                'parent-type': 'qdev',
+                'qdev-id': 'sda',
+                'new-child': 'fl-cbw'}}
+        ]}))
 
         if use_snapshot_access_filter:
             log(vm.qmp('blockdev-add', {
@@ -242,8 +246,14 @@ def do_test(vm, use_cbw, use_snapshot_access_filter, base_img_path,
     if use_cbw:
         if use_snapshot_access_filter:
             log(vm.qmp('blockdev-del', node_name='fl-access'))
-        log(vm.qmp('qom-set', path=qom_path, property='drive', value=src_node))
-        log(vm.qmp('blockdev-del', node_name='fl-cbw'))
+        log(vm.qmp('transaction', {'actions': [
+            {'type': 'x-blockdev-replace', 'data': {
+                'parent-type': 'qdev',
+                'qdev-id': 'sda',
+                'new-child': src_node}},
+            {'type': 'blockdev-del', 'data': {
+                'node-name': 'fl-cbw'}}
+        ]}))
     else:
         log(vm.qmp('block-job-cancel', device='fleecing'))
         e = vm.event_wait('BLOCK_JOB_CANCELLED')

@@ -319,12 +319,8 @@ static void cbw_child_perm(BlockDriverState *bs, BdrvChild *c,
         bdrv_default_perms(bs, c, role, reopen_queue,
                            perm, shared, nperm, nshared);
 
-        if (!QLIST_EMPTY(&bs->parents)) {
-            if (perm & BLK_PERM_WRITE) {
-                *nperm = *nperm | BLK_PERM_CONSISTENT_READ;
-            }
-            *nshared &= ~(BLK_PERM_WRITE | BLK_PERM_RESIZE);
-        }
+        *nperm = *nperm | BLK_PERM_CONSISTENT_READ;
+        *nshared &= ~(BLK_PERM_WRITE | BLK_PERM_RESIZE);
     }
 }
 
@@ -378,13 +374,15 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
     int64_t cluster_size;
     int ret;
 
-    ret = bdrv_open_file_child(NULL, options, "file", bs, errp);
+    ret = bdrv_open_file_child_common(NULL, options, "file", bs,
+                                      !(flags & BDRV_O_NOPERM), errp);
     if (ret < 0) {
         return ret;
     }
 
-    s->target = bdrv_open_child(NULL, options, "target", bs, &child_of_bds,
-                                BDRV_CHILD_DATA, false, errp);
+    s->target = bdrv_open_child_common(NULL, options, "target", bs,
+                                       &child_of_bds, BDRV_CHILD_DATA, false,
+                                       !(flags & BDRV_O_NOPERM), errp);
     if (!s->target) {
         return -EINVAL;
     }
@@ -444,6 +442,7 @@ static void cbw_close(BlockDriverState *bs)
 BlockDriver bdrv_cbw_filter = {
     .format_name = "copy-before-write",
     .instance_size = sizeof(BDRVCopyBeforeWriteState),
+    .independent_close = true,
 
     .bdrv_open                  = cbw_open,
     .bdrv_close                 = cbw_close,

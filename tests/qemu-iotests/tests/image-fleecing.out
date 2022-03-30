@@ -81,7 +81,6 @@ Done
 
 {"return": {}}
 {"return": {}}
-{"return": {}}
 
 --- Setting up NBD Export ---
 
@@ -121,7 +120,6 @@ read -P0 0x3fe0000 64k
 
 --- Cleanup ---
 
-{"return": {}}
 {"return": {}}
 {"return": {}}
 {"return": {}}
@@ -152,7 +150,6 @@ Done
 {"return": {}}
 {"return": {}}
 {"return": {}}
-{"return": {}}
 
 --- Setting up NBD Export ---
 
@@ -192,7 +189,6 @@ read -P0 0x3fe0000 64k
 
 --- Cleanup ---
 
-{"return": {}}
 {"return": {}}
 {"return": {}}
 {"return": {}}
@@ -224,7 +220,6 @@ Done
 {"return": {}}
 {"return": {}}
 {"return": {}}
-{"return": {}}
 
 --- Setting up NBD Export ---
 
@@ -280,7 +275,6 @@ read failed: Invalid argument
 {"return": {}}
 {"return": {}}
 {"return": {}}
-{"return": {}}
 
 --- Confirming writes ---
 
@@ -305,7 +299,6 @@ Done
 
 --- Setting up Fleecing Graph ---
 
-{"return": {}}
 {"return": {}}
 {"return": {}}
 {"return": {}}
@@ -340,7 +333,6 @@ read -P0 0x3fe0000 64k
 
 --- Cleanup ---
 
-{"return": {}}
 {"return": {}}
 {"return": {}}
 {"return": {}}
