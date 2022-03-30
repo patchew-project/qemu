@@ -27,6 +27,7 @@ static Property cpus_properties[] = {
      * FIXME: remove this property to keep it internal ?
      */
     DEFINE_PROP_INT32("cluster-id", CpusState, cluster_index, -1),
+    DEFINE_PROP_BOOL("start-powered-off", CpusState, start_powered_off, false),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -70,6 +71,10 @@ static void cpus_create_cpus(CpusState *s, Error **errp)
         if (s->is_cluster) {
             cpu->cluster_index = s->cluster_index;
         }
+
+        /* set power start state */
+        qdev_prop_set_bit(DEVICE(cpu), "start-powered-off",
+                          s->start_powered_off);
 
         /* let subclass configure the cpu */
         if (cgc->configure_cpu) {

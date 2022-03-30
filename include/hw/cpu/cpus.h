@@ -46,6 +46,8 @@ OBJECT_DECLARE_TYPE(CpusState, CpusClass, CPUS)
  *      written before realize in order to enable/disable clustering.
  * @cluster_index: The cluster ID. This value is for internal use only and
  *      should not be exposed directly to the user or to the guest.
+ * @start_powered_off: Default start power state of all cpus
+ *     (can be modified on a per-cpu basis after realize).
  */
 struct CpusState {
     /*< private >*/
@@ -59,6 +61,7 @@ struct CpusState {
     struct {
         uint16_t cpus;
     } topology;
+    bool start_powered_off;
     CPUState **cpus;
 };
 
