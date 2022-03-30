@@ -266,6 +266,8 @@ def ordered_qmp(qmsg, conv_keys=True):
     return qmsg
 
 def qemu_img_create(*args: str) -> 'subprocess.CompletedProcess[str]':
+    if '-f' not in args and '--image-opts' not in args:
+        args = ['-f', imgfmt] + list(args)
     return qemu_img('create', *args)
 
 def qemu_img_json(*args: str) -> Any:
