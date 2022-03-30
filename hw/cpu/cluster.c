@@ -20,50 +20,39 @@
 
 #include "qemu/osdep.h"
 #include "hw/cpu/cluster.h"
+#include "hw/cpu/cpus.h"
 #include "hw/qdev-properties.h"
 #include "hw/core/cpu.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "qemu/cutils.h"
 
-static Property cpu_cluster_properties[] = {
-    DEFINE_PROP_UINT32("cluster-id", CPUClusterState, cluster_id, 0),
-    DEFINE_PROP_END_OF_LIST()
-};
-
-typedef struct CallbackData {
-    CPUClusterState *cluster;
-    int cpu_count;
-} CallbackData;
-
 static int add_cpu_to_cluster(Object *obj, void *opaque)
 {
-    CallbackData *cbdata = opaque;
+    CpusState *base = CPUS(opaque);
     CPUState *cpu = (CPUState *)object_dynamic_cast(obj, TYPE_CPU);
 
     if (cpu) {
-        cpu->cluster_index = cbdata->cluster->cluster_id;
-        cbdata->cpu_count++;
+        cpu->cluster_index = base->cluster_index;
+        base->topology.cpus++;
     }
     return 0;
 }
 
 static void cpu_cluster_realize(DeviceState *dev, Error **errp)
 {
-    /* Iterate through all our CPU children and set their cluster_index */
+    CPUClusterClass *ccc = CPU_CLUSTER_GET_CLASS(dev);
     CPUClusterState *cluster = CPU_CLUSTER(dev);
+    CpusState *base = CPUS(dev);
     Object *cluster_obj = OBJECT(dev);
-    CallbackData cbdata = {
-        .cluster = cluster,
-        .cpu_count = 0,
-    };
 
-    if (cluster->cluster_id >= MAX_CLUSTERS) {
-        error_setg(errp, "cluster-id must be less than %d", MAX_CLUSTERS);
-        return;
-    }
+    /* This is a special legacy case */
+    assert(base->topology.cpus == 0);
+    assert(base->cpu_type == NULL);
+    assert(base->is_cluster);
 
-    object_child_foreach_recursive(cluster_obj, add_cpu_to_cluster, &cbdata);
+    /* Iterate through all our CPU children and set their cluster_index */
+    object_child_foreach_recursive(cluster_obj, add_cpu_to_cluster, base);
 
     /*
      * A cluster with no CPUs is a bug in the board/SoC code that created it;
@@ -71,24 +60,39 @@ static void cpu_cluster_realize(DeviceState *dev, Error **errp)
      * created the CPUs and parented them into the cluster object before
      * realizing the cluster object.
      */
-    assert(cbdata.cpu_count > 0);
+    assert(base->topology.cpus > 0);
+
+    /* realize base class (will set cluster field to true) */
+    ccc->parent_realize(dev, errp);
+
+    /*
+     * Temporarily copy the cluster id from the base class as
+     * gdbstub still uses our field.
+     */
+    cluster->cluster_id = base->cluster_index;
 }
 
 static void cpu_cluster_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    CPUClusterClass *ccc = CPU_CLUSTER_CLASS(klass);
+    CpusClass *cc = CPUS_CLASS(klass);
 
-    device_class_set_props(dc, cpu_cluster_properties);
-    dc->realize = cpu_cluster_realize;
+    device_class_set_parent_realize(dc, cpu_cluster_realize,
+                                    &ccc->parent_realize);
 
     /* This is not directly for users, CPU children must be attached by code */
     dc->user_creatable = false;
+
+    /* Cpus are created by external code */
+    cc->skip_cpus_creation = true;
 }
 
 static const TypeInfo cpu_cluster_type_info = {
     .name = TYPE_CPU_CLUSTER,
-    .parent = TYPE_DEVICE,
+    .parent = TYPE_CPUS,
     .instance_size = sizeof(CPUClusterState),
+    .class_size = sizeof(CPUClusterClass),
     .class_init = cpu_cluster_class_init,
 };
 

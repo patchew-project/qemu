@@ -22,6 +22,7 @@
 
 #include "hw/qdev-core.h"
 #include "qom/object.h"
+#include "hw/cpu/cpus.h"
 
 /*
  * CPU Cluster type
@@ -55,7 +56,7 @@
  */
 
 #define TYPE_CPU_CLUSTER "cpu-cluster"
-OBJECT_DECLARE_SIMPLE_TYPE(CPUClusterState, CPU_CLUSTER)
+OBJECT_DECLARE_TYPE(CPUClusterState, CPUClusterClass, CPU_CLUSTER)
 
 /**
  * CPUClusterState:
@@ -66,10 +67,22 @@ OBJECT_DECLARE_SIMPLE_TYPE(CPUClusterState, CPU_CLUSTER)
  */
 struct CPUClusterState {
     /*< private >*/
-    DeviceState parent_obj;
+    CpusState parent_obj;
 
     /*< public >*/
     uint32_t cluster_id;
+};
+
+/**
+ * CPUClusterClass:
+ * @parent_realize: to store base class realize method
+ */
+struct CPUClusterClass {
+    /*< private >*/
+    CpusClass parent_class;
+
+    /*< public >*/
+    DeviceRealize parent_realize;
 };
 
 #endif
