@@ -38,35 +38,45 @@ void machine_parse_smp_config(MachineState *ms,
                               const SMPConfiguration *config, Error **errp);
 
 /**
- * machine_class_allow_dynamic_sysbus_dev: Add type to list of valid devices
+ * machine_class_allow_dynamic_device: Add type to list of valid devices
  * @mc: Machine class
- * @type: type to allow (should be a subtype of TYPE_SYS_BUS_DEVICE)
+ * @type: type to allow (should be a subtype of TYPE_DEVICE having the
+ *        uc_requires_machine_allowance flag)
  *
  * Add the QOM type @type to the list of devices of which are subtypes
- * of TYPE_SYS_BUS_DEVICE but which are still permitted to be dynamically
- * created (eg by the user on the command line with -device).
- * By default if the user tries to create any devices on the command line
- * that are subtypes of TYPE_SYS_BUS_DEVICE they will get an error message;
- * for the special cases which are permitted for this machine model, the
- * machine model class init code must call this function to add them
- * to the list of specifically permitted devices.
+ * of TYPE_DEVICE but which are only permitted to be dynamically
+ * created (eg by the user on the command line with -device) if the
+ * machine allowed it.
+ *
+ * Otherwise if the user tries to create such a device on the command line,
+ * it will get an error message.
  */
-void machine_class_allow_dynamic_sysbus_dev(MachineClass *mc, const char *type);
+void machine_class_allow_dynamic_device(MachineClass *mc, const char *type);
+static inline void machine_class_allow_dynamic_sysbus_dev(MachineClass *mc,
+                                                          const char *type)
+{
+    machine_class_allow_dynamic_device(mc, type);
+}
 
 /**
- * device_type_is_dynamic_sysbus: Check if type is an allowed sysbus device
+ * device_type_is_dynamic_allowed: Check if type is an allowed device
  * type for the machine class.
  * @mc: Machine class
- * @type: type to check (should be a subtype of TYPE_SYS_BUS_DEVICE)
+ * @type: type to check (should be a subtype of TYPE_DEVICE)
  *
  * Returns: true if @type is a type in the machine's list of
- * dynamically pluggable sysbus devices; otherwise false.
+ * dynamically pluggable devices; otherwise false.
  *
- * Check if the QOM type @type is in the list of allowed sysbus device
- * types (see machine_class_allowed_dynamic_sysbus_dev()).
+ * Check if the QOM type @type is in the list of allowed device
+ * types (see machine_class_allowed_dynamic_device()).
  * Note that if @type has a parent type in the list, it is allowed too.
  */
-bool device_type_is_dynamic_sysbus(MachineClass *mc, const char *type);
+bool device_type_is_dynamic_allowed(MachineClass *mc, const char *type);
+static inline void device_type_is_dynamic_sysbus(MachineClass *mc,
+                                                 const char *type)
+{
+    device_type_is_dynamic_allowed(mc, type);
+}
 
 /**
  * device_is_dynamic_sysbus: test whether device is a dynamic sysbus device
@@ -74,12 +84,12 @@ bool device_type_is_dynamic_sysbus(MachineClass *mc, const char *type);
  * @dev: device to check
  *
  * Returns: true if @dev is a sysbus device on the machine's list
- * of dynamically pluggable sysbus devices; otherwise false.
+ * of dynamically pluggable devices; otherwise false.
  *
  * This function checks whether @dev is a valid dynamic sysbus device,
  * by first confirming that it is a sysbus device and then checking it
- * against the list of permitted dynamic sysbus devices which has been
- * set up by the machine using machine_class_allow_dynamic_sysbus_dev().
+ * against the list of permitted dynamic devices which has been
+ * set up by the machine using machine_class_allow_dynamic_device().
  *
  * It is valid to call this with something that is not a subclass of
  * TYPE_SYS_BUS_DEVICE; the function will return false in this case.
@@ -263,7 +273,7 @@ struct MachineClass {
     bool ignore_memory_transaction_failures;
     int numa_mem_align_shift;
     const char **valid_cpu_types;
-    strList *allowed_dynamic_sysbus_devices;
+    strList *allowed_dynamic_devices;
     bool auto_enable_numa_with_memhp;
     bool auto_enable_numa_with_memdev;
     bool ignore_boot_device_suffixes;
