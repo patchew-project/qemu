@@ -9,6 +9,11 @@
 #include "qemu/thread.h"
 #include "qemu/coroutine.h"
 #include "qemu/qht.h"
+#ifdef CONFIG_LINUX
+#include <linux/limits.h>
+#else
+#include <limits.h>
+#endif
 
 enum {
     P9_TLERROR = 6,
