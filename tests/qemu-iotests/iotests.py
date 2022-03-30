@@ -1101,6 +1101,10 @@ class VM(qtest.QEMUQtestMachine):
     def assert_edges_list(self, edges):
         assert sorted(edges) == sorted(self.get_block_graph())
 
+    def qmp_check(self, *args, **kwargs):
+        result = self.qmp(*args, **kwargs)
+        assert result == {'return': {}}
+
     def assert_block_path(self, root, path, expected_node, graph=None):
         """
         Check whether the node under the given path in the block graph
