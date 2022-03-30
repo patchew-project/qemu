@@ -42,7 +42,6 @@ static int add_cpu_to_cluster(Object *obj, void *opaque)
 static void cpu_cluster_realize(DeviceState *dev, Error **errp)
 {
     CPUClusterClass *ccc = CPU_CLUSTER_GET_CLASS(dev);
-    CPUClusterState *cluster = CPU_CLUSTER(dev);
     CpusState *base = CPUS(dev);
     Object *cluster_obj = OBJECT(dev);
 
@@ -64,12 +63,6 @@ static void cpu_cluster_realize(DeviceState *dev, Error **errp)
 
     /* realize base class (will set cluster field to true) */
     ccc->parent_realize(dev, errp);
-
-    /*
-     * Temporarily copy the cluster id from the base class as
-     * gdbstub still uses our field.
-     */
-    cluster->cluster_id = base->cluster_index;
 }
 
 static void cpu_cluster_class_init(ObjectClass *klass, void *data)

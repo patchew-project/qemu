@@ -60,17 +60,10 @@ OBJECT_DECLARE_TYPE(CPUClusterState, CPUClusterClass, CPU_CLUSTER)
 
 /**
  * CPUClusterState:
- * @cluster_id: The cluster ID. This value is for internal use only and should
- *   not be exposed directly to the user or to the guest.
- *
- * State of a CPU cluster.
  */
 struct CPUClusterState {
     /*< private >*/
     CpusState parent_obj;
-
-    /*< public >*/
-    uint32_t cluster_id;
 };
 
 /**
