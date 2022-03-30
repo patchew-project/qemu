@@ -1821,7 +1821,7 @@ QemuOptsList bdrv_create_opts_simple = {
  *
  * Removes all processed options from *options.
  */
-static int bdrv_open_common(BlockDriverState *bs, BlockBackend *file,
+static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
                             QDict *options, Error **errp)
 {
     int ret, open_flags;
@@ -1861,8 +1861,8 @@ static int bdrv_open_common(BlockDriverState *bs, BlockBackend *file,
     }
 
     if (file != NULL) {
-        bdrv_refresh_filename(blk_bs(file));
-        filename = blk_bs(file)->filename;
+        bdrv_refresh_filename(file);
+        filename = file->filename;
     } else {
         /*
          * Caution: while qdict_get_try_str() is fine, getting
@@ -3883,7 +3883,7 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
                                            Error **errp)
 {
     int ret;
-    BlockBackend *file = NULL;
+    BlockDriverState *file_bs = NULL;
     BlockDriverState *bs;
     BlockDriver *drv = NULL;
     BdrvChild *child;
@@ -4016,8 +4016,6 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
      * probing, the block drivers will do their own bdrv_open_child() for the
      * same BDS, which is why we put the node name back into options. */
     if ((flags & BDRV_O_PROTOCOL) == 0) {
-        BlockDriverState *file_bs;
-
         file_bs = bdrv_open_child_bs(filename, options, "file", bs,
                                      &child_of_bds, BDRV_CHILD_IMAGE,
                                      true, &local_err);
@@ -4025,24 +4023,28 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
             goto fail;
         }
         if (file_bs != NULL) {
-            /* Not requesting BLK_PERM_CONSISTENT_READ because we're only
-             * looking at the header to guess the image format. This works even
-             * in cases where a guest would not see a consistent state. */
-            file = blk_new(bdrv_get_aio_context(file_bs), 0, BLK_PERM_ALL);
-            blk_insert_bs(file, file_bs, &local_err);
-            bdrv_unref(file_bs);
-            if (local_err) {
-                goto fail;
-            }
-
             qdict_put_str(options, "file", bdrv_get_node_name(file_bs));
         }
     }
 
     /* Image format probing */
     bs->probed = !drv;
-    if (!drv && file) {
+    if (!drv && file_bs) {
+        /*
+         * Not requesting BLK_PERM_CONSISTENT_READ because we're only
+         * looking at the header to guess the image format. This works even
+         * in cases where a guest would not see a consistent state.
+         */
+        BlockBackend *file = blk_new(bdrv_get_aio_context(file_bs), 0,
+                                     BLK_PERM_ALL);
+        blk_insert_bs(file, file_bs, &local_err);
+        if (local_err) {
+            blk_unref(file);
+            goto fail;
+        }
+
         ret = find_image_format(file, filename, &drv, &local_err);
+        blk_unref(file);
         if (ret < 0) {
             goto fail;
         }
@@ -4068,17 +4070,17 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
     assert(!!(flags & BDRV_O_PROTOCOL) == !!drv->bdrv_file_open);
     /* file must be NULL if a protocol BDS is about to be created
      * (the inverse results in an error message from bdrv_open_common()) */
-    assert(!(flags & BDRV_O_PROTOCOL) || !file);
+    assert(!(flags & BDRV_O_PROTOCOL) || !file_bs);
 
     /* Open the image */
-    ret = bdrv_open_common(bs, file, options, &local_err);
+    ret = bdrv_open_common(bs, file_bs, options, &local_err);
     if (ret < 0) {
         goto fail;
     }
 
-    if (file) {
-        blk_unref(file);
-        file = NULL;
+    if (file_bs) {
+        bdrv_unref(file_bs);
+        file_bs = NULL;
     }
 
     /* If there is a backing file, use it */
@@ -4142,7 +4144,7 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
     return bs;
 
 fail:
-    blk_unref(file);
+    bdrv_unref(file_bs);
     qobject_unref(snapshot_options);
     qobject_unref(bs->explicit_options);
     qobject_unref(bs->options);
