@@ -31,7 +31,7 @@
 #include "hw/display/xlnx_dp.h"
 #include "hw/intc/xlnx-zynqmp-ipi.h"
 #include "hw/rtc/xlnx-zynqmp-rtc.h"
-#include "hw/cpu/cluster.h"
+#include "hw/arm/arm_cpus.h"
 #include "target/arm/cpu.h"
 #include "qom/object.h"
 #include "net/can_emu.h"
@@ -94,10 +94,8 @@ struct XlnxZynqMPState {
     DeviceState parent_obj;
 
     /*< public >*/
-    CPUClusterState apu_cluster;
-    CPUClusterState rpu_cluster;
-    ARMCPU apu_cpu[XLNX_ZYNQMP_NUM_APU_CPUS];
-    ARMCPU rpu_cpu[XLNX_ZYNQMP_NUM_RPU_CPUS];
+    ArmCpusState apu;
+    ArmCpusState rpu;
     GICState gic;
     MemoryRegion gic_mr[XLNX_ZYNQMP_GIC_REGIONS][XLNX_ZYNQMP_GIC_ALIASES];
 
