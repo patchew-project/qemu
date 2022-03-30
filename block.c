@@ -2907,6 +2907,54 @@ static void bdrv_child_free(BdrvChild *child)
     g_free(child);
 }
 
+typedef struct BdrvTrySetAioContextState {
+    BlockDriverState *bs;
+    AioContext *old_ctx;
+} BdrvTrySetAioContextState;
+
+static void bdrv_try_set_aio_context_abort(void *opaque)
+{
+    BdrvTrySetAioContextState *s = opaque;
+
+    if (bdrv_get_aio_context(s->bs) != s->old_ctx) {
+        bdrv_try_set_aio_context(s->bs, s->old_ctx, &error_abort);
+    }
+}
+
+static TransactionActionDrv bdrv_try_set_aio_context_drv = {
+    .abort = bdrv_try_set_aio_context_abort,
+    .clean = g_free,
+};
+
+__attribute__((unused))
+static int bdrv_try_set_aio_context_tran(BlockDriverState *bs,
+                                         AioContext *new_ctx,
+                                         Transaction *tran,
+                                         Error **errp)
+{
+    AioContext *old_ctx = bdrv_get_aio_context(bs);
+    BdrvTrySetAioContextState *s;
+    int ret;
+
+    if (old_ctx == new_ctx) {
+        return 0;
+    }
+
+    ret = bdrv_try_set_aio_context(bs, new_ctx, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    s = g_new(BdrvTrySetAioContextState, 1);
+    *s = (BdrvTrySetAioContextState) {
+        .bs = bs,
+        .old_ctx = old_ctx,
+    };
+    tran_add(tran, &bdrv_try_set_aio_context_drv, s);
+
+    return 0;
+}
+
 typedef struct BdrvAttachChildCommonState {
     BdrvChild *child;
     AioContext *old_parent_ctx;
