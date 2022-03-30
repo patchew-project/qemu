@@ -325,6 +325,7 @@ static void sysbus_device_class_init(ObjectClass *klass, void *data)
      * subclass needs to override it and set user_creatable=true.
      */
     k->user_creatable = false;
+    k->uc_requires_machine_allowance = true;
 }
 
 static const TypeInfo sysbus_device_type_info = {

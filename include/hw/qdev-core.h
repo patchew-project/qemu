@@ -123,6 +123,12 @@ struct DeviceClass {
      */
     bool user_creatable;
     bool hotpluggable;
+    /*
+     * Some devices (eg: sysbus devices) are only user-creatable if
+     * the machine allowed it. user_creatable need still to be set to
+     * true, this is an additional constraint.
+     */
+    bool uc_requires_machine_allowance;
 
     /* callbacks */
     /*

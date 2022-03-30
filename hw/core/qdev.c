@@ -833,6 +833,7 @@ static void device_class_init(ObjectClass *class, void *data)
      */
     dc->hotpluggable = true;
     dc->user_creatable = true;
+    dc->uc_requires_machine_allowance = false;
     vc->get_id = device_vmstate_if_get_id;
     rc->get_state = device_get_reset_state;
     rc->child_foreach = device_reset_child_foreach;
