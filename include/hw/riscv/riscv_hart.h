@@ -21,7 +21,7 @@
 #ifndef HW_RISCV_HART_H
 #define HW_RISCV_HART_H
 
-#include "hw/sysbus.h"
+#include "hw/cpu/cpus.h"
 #include "target/riscv/cpu.h"
 #include "qom/object.h"
 
@@ -31,30 +31,29 @@ OBJECT_DECLARE_SIMPLE_TYPE(RISCVHartArrayState, RISCV_HART_ARRAY)
 
 struct RISCVHartArrayState {
     /*< private >*/
-    SysBusDevice parent_obj;
+    CpusState parent_obj;
 
     /*< public >*/
-    uint32_t num_harts;
     uint32_t hartid_base;
-    char *cpu_type;
     uint64_t resetvec;
-    RISCVCPU *harts;
 };
 
 /**
  * riscv_array_get_hart:
+ * Helper to get an hart from the container.
  */
-static inline RISCVCPU *riscv_array_get_hart(RISCVHartArrayState *harts, int i)
+static inline RISCVCPU *riscv_array_get_hart(RISCVHartArrayState *s, int i)
 {
-    return &harts->harts[i];
+    return RISCV_CPU(CPUS(s)->cpus[i]);
 }
 
 /**
  * riscv_array_get_num_harts:
+ * Helper to get the number of harts in the container.
  */
-static inline unsigned riscv_array_get_num_harts(RISCVHartArrayState *harts)
+static inline unsigned riscv_array_get_num_harts(RISCVHartArrayState *s)
 {
-    return harts->num_harts;
+    return CPUS(s)->topology.cpus;
 }
 
 /* Temporary function until we migrated the riscv hart array to simple device */
