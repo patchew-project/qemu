@@ -1,4 +1,4 @@
-softmmu_ss.add(files('core.c', 'cluster.c'))
+softmmu_ss.add(files('core.c', 'cluster.c', 'cpus.c'))
 
 specific_ss.add(when: 'CONFIG_ARM11MPCORE', if_true: files('arm11mpcore.c'))
 specific_ss.add(when: 'CONFIG_REALVIEW', if_true: files('realview_mpcore.c'))
