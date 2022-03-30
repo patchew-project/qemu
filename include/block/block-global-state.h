@@ -186,6 +186,8 @@ void bdrv_img_create(const char *filename, const char *fmt,
 
 void bdrv_ref(BlockDriverState *bs);
 void bdrv_unref(BlockDriverState *bs);
+void bdrv_unref_tran(BlockDriverState *bs, GSList **refresh_list,
+                     Transaction *tran);
 void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child);
 BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
                              BlockDriverState *child_bs,

@@ -162,6 +162,13 @@ struct BlockDriver {
      */
     bool supports_backing;
 
+    /*
+     * If true that guarantees that .bdrv_close doesn't access any bdrv children
+     * and is safe to be called in commit phase of block-graph modifying
+     * transaction.
+     */
+    bool independent_close;
+
     bool has_variable_length;
 
     /*

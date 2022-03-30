@@ -92,10 +92,12 @@ static bool bdrv_recurse_has_child(BlockDriverState *bs,
 
 static void bdrv_replace_child_noperm(BdrvChild *child,
                                       BlockDriverState *new_bs);
-static void bdrv_remove_child(BdrvChild *child, Transaction *tran);
+static void bdrv_remove_child(BdrvChild *child, GSList **refresh_list,
+                              Transaction *tran);
 
 static int bdrv_reopen_prepare(BDRVReopenState *reopen_state,
                                BlockReopenQueue *queue,
+                               GSList **refresh_list,
                                Transaction *change_child_tran, Error **errp);
 static void bdrv_reopen_commit(BDRVReopenState *reopen_state);
 static void bdrv_reopen_abort(BDRVReopenState *reopen_state);
@@ -2363,40 +2365,24 @@ typedef struct BdrvReplaceChildState {
     BlockDriverState *old_bs;
 } BdrvReplaceChildState;
 
-static void bdrv_replace_child_commit(void *opaque)
-{
-    BdrvReplaceChildState *s = opaque;
-    GLOBAL_STATE_CODE();
-
-    bdrv_unref(s->old_bs);
-}
-
 static void bdrv_replace_child_abort(void *opaque)
 {
     BdrvReplaceChildState *s = opaque;
     BlockDriverState *new_bs = s->child->bs;
 
     GLOBAL_STATE_CODE();
-    /* old_bs reference is transparently moved from @s to @s->child */
     bdrv_replace_child_noperm(s->child, s->old_bs);
     bdrv_unref(new_bs);
 }
 
 static TransactionActionDrv bdrv_replace_child_drv = {
-    .commit = bdrv_replace_child_commit,
     .abort = bdrv_replace_child_abort,
     .clean = g_free,
 };
 
-/*
- * bdrv_replace_child_tran
- *
- * Note: real unref of old_bs is done only on commit.
- *
- * The function doesn't update permissions, caller is responsible for this.
- */
+/* Caller is responsible to refresh permissions in @refresh_list */
 static void bdrv_replace_child_tran(BdrvChild *child, BlockDriverState *new_bs,
-                                    Transaction *tran)
+                                    GSList **refresh_list, Transaction *tran)
 {
     BdrvReplaceChildState *s = g_new(BdrvReplaceChildState, 1);
     *s = (BdrvReplaceChildState) {
@@ -2407,9 +2393,15 @@ static void bdrv_replace_child_tran(BdrvChild *child, BlockDriverState *new_bs,
 
     if (new_bs) {
         bdrv_ref(new_bs);
+        *refresh_list = g_slist_prepend(*refresh_list, new_bs);
     }
     bdrv_replace_child_noperm(child, new_bs);
-    /* old_bs reference is transparently moved from @child to @s */
+    if (s->old_bs) {
+        bdrv_unref_tran(s->old_bs, refresh_list, tran);
+        if (s->old_bs->refcnt > 0) {
+            *refresh_list = g_slist_prepend(*refresh_list, s->old_bs);
+        }
+    }
 }
 
 /*
@@ -2926,7 +2918,6 @@ static TransactionActionDrv bdrv_try_set_aio_context_drv = {
     .clean = g_free,
 };
 
-__attribute__((unused))
 static int bdrv_try_set_aio_context_tran(BlockDriverState *bs,
                                          AioContext *new_ctx,
                                          Transaction *tran,
@@ -3207,31 +3198,41 @@ out:
     return ret < 0 ? NULL : child;
 }
 
-/* Callers must ensure that child->frozen is false. */
-void bdrv_root_unref_child(BdrvChild *child)
+/* Caller is responsible to refresh permissions in @refresh_list */
+static void bdrv_root_unref_child_tran(BdrvChild *child, GSList **refresh_list,
+                                       Transaction *tran)
 {
     BlockDriverState *child_bs = child->bs;
 
     GLOBAL_STATE_CODE();
-    bdrv_replace_child_noperm(child, NULL);
-    bdrv_child_free(child);
+    bdrv_remove_child(child, refresh_list, tran);
 
-    if (child_bs) {
-        /*
-         * Update permissions for old node. We're just taking a parent away, so
-         * we're loosening restrictions. Errors of permission update are not
-         * fatal in this case, ignore them.
-         */
-        bdrv_refresh_perms(child_bs, NULL, NULL);
-
+    if (child_bs && child_bs->refcnt > 0) {
         /*
          * When the parent requiring a non-default AioContext is removed, the
          * node moves back to the main AioContext
          */
-        bdrv_try_set_aio_context(child_bs, qemu_get_aio_context(), NULL);
+        bdrv_try_set_aio_context_tran(child_bs, qemu_get_aio_context(),
+                                      tran, NULL);
     }
+}
 
-    bdrv_unref(child_bs);
+/* Callers must ensure that child->frozen is false. */
+void bdrv_root_unref_child(BdrvChild *child)
+{
+    Transaction *tran = tran_new();
+    g_autoptr(GSList) refresh_list = NULL;
+
+    bdrv_root_unref_child_tran(child, &refresh_list, tran);
+
+    /*
+     * Update permissions for old node. We're just taking a parent away, so
+     * we're loosening restrictions. Errors of permission update are not
+     * fatal in this case, ignore them.
+     */
+    bdrv_list_refresh_perms(refresh_list, NULL, tran, NULL);
+
+    tran_commit(tran);
 }
 
 typedef struct BdrvSetInheritsFrom {
@@ -3300,16 +3301,28 @@ static void bdrv_unset_inherits_from(BlockDriverState *root, BdrvChild *child,
     }
 }
 
-/* Callers must ensure that child->frozen is false. */
-void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child)
+/* Caller is responsible to refresh permissions in @refresh_list */
+static void bdrv_unref_child_tran(BlockDriverState *parent, BdrvChild *child,
+                                    GSList **refresh_list, Transaction *tran)
 {
     GLOBAL_STATE_CODE();
     if (child == NULL) {
         return;
     }
 
-    bdrv_unset_inherits_from(parent, child, NULL);
-    bdrv_root_unref_child(child);
+    bdrv_unset_inherits_from(parent, child, tran);
+    bdrv_root_unref_child_tran(child, refresh_list, tran);
+}
+
+/* Callers must ensure that child->frozen is false. */
+void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child)
+{
+    Transaction *tran = tran_new();
+    g_autoptr(GSList) refresh_list = NULL;
+
+    bdrv_unref_child_tran(parent, child, &refresh_list, tran);
+    bdrv_list_refresh_perms(refresh_list, NULL, tran, NULL);
+    tran_commit(tran);
 }
 
 
@@ -3354,11 +3367,12 @@ static BdrvChildRole bdrv_backing_role(BlockDriverState *bs)
  * Sets the bs->backing or bs->file link of a BDS. A new reference is created;
  * callers which don't need their own reference any more must call bdrv_unref().
  *
- * Function doesn't update permissions, caller is responsible for this.
+ * Caller is responsible to refresh permissions in @refresh_list.
  */
 static int bdrv_set_file_or_backing_noperm(BlockDriverState *parent_bs,
                                            BlockDriverState *child_bs,
                                            bool is_backing,
+                                           GSList **refresh_list,
                                            Transaction *tran, Error **errp)
 {
     int ret = 0;
@@ -3412,12 +3426,14 @@ static int bdrv_set_file_or_backing_noperm(BlockDriverState *parent_bs,
 
     if (child) {
         bdrv_unset_inherits_from(parent_bs, child, tran);
-        bdrv_remove_child(child, tran);
+        bdrv_remove_child(child, refresh_list, tran);
     }
 
     if (!child_bs) {
         goto out;
     }
+
+    *refresh_list = g_slist_prepend(*refresh_list, parent_bs);
 
     ret = bdrv_attach_child_noperm(parent_bs, child_bs,
                                    is_backing ? "backing" : "file",
@@ -3442,12 +3458,15 @@ out:
     return 0;
 }
 
+/* Caller is responsible to refresh permissions in @refresh_list */
 static int bdrv_set_backing_noperm(BlockDriverState *bs,
                                    BlockDriverState *backing_hd,
+                                   GSList **refresh_list,
                                    Transaction *tran, Error **errp)
 {
     GLOBAL_STATE_CODE();
-    return bdrv_set_file_or_backing_noperm(bs, backing_hd, true, tran, errp);
+    return bdrv_set_file_or_backing_noperm(bs, backing_hd, true, refresh_list,
+                                           tran, errp);
 }
 
 int bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
@@ -3455,16 +3474,17 @@ int bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
 {
     int ret;
     Transaction *tran = tran_new();
+    g_autoptr(GSList) refresh_list = NULL;
 
     GLOBAL_STATE_CODE();
     bdrv_drained_begin(bs);
 
-    ret = bdrv_set_backing_noperm(bs, backing_hd, tran, errp);
+    ret = bdrv_set_backing_noperm(bs, backing_hd, &refresh_list, tran, errp);
     if (ret < 0) {
         goto out;
     }
 
-    ret = bdrv_refresh_perms(bs, tran, errp);
+    ret = bdrv_list_refresh_perms(refresh_list, NULL, tran, errp);
 out:
     tran_finalize(tran, ret);
 
@@ -4429,7 +4449,8 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
         assert(bs_entry->state.bs->quiesce_counter > 0);
         ctx = bdrv_get_aio_context(bs_entry->state.bs);
         aio_context_acquire(ctx);
-        ret = bdrv_reopen_prepare(&bs_entry->state, bs_queue, tran, errp);
+        ret = bdrv_reopen_prepare(&bs_entry->state, bs_queue, &refresh_list,
+                                  tran, errp);
         aio_context_release(ctx);
         if (ret < 0) {
             goto abort;
@@ -4441,14 +4462,7 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
         BDRVReopenState *state = &bs_entry->state;
 
         refresh_list = g_slist_prepend(refresh_list, state->bs);
-        if (state->old_backing_bs) {
-            refresh_list = g_slist_prepend(refresh_list, state->old_backing_bs);
-        }
-        if (state->old_file_bs) {
-            refresh_list = g_slist_prepend(refresh_list, state->old_file_bs);
-        }
     }
-
     /*
      * Note that file-posix driver rely on permission update done during reopen
      * (even if no permission changed), because it wants "new" permissions for
@@ -4561,10 +4575,14 @@ int bdrv_reopen_set_read_only(BlockDriverState *bs, bool read_only,
  * true and reopen_state->new_backing_bs contains a pointer to the new
  * backing BlockDriverState (or NULL).
  *
+ * Caller is responsible to refresh permissions in @refresh_list.
+ *
  * Return 0 on success, otherwise return < 0 and set @errp.
  */
 static int bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
-                                             bool is_backing, Transaction *tran,
+                                             bool is_backing,
+                                             GSList **refresh_list,
+                                             Transaction *tran,
                                              Error **errp)
 {
     BlockDriverState *bs = reopen_state->bs;
@@ -4632,14 +4650,8 @@ static int bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
         return -EINVAL;
     }
 
-    if (is_backing) {
-        reopen_state->old_backing_bs = old_child_bs;
-    } else {
-        reopen_state->old_file_bs = old_child_bs;
-    }
-
     return bdrv_set_file_or_backing_noperm(bs, new_child_bs, is_backing,
-                                           tran, errp);
+                                           refresh_list, tran, errp);
 }
 
 /*
@@ -4651,6 +4663,8 @@ static int bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
  * flags are the new open flags
  * queue is the reopen queue
  *
+ * Caller is responsible to refresh permissions in @refresh_list.
+ *
  * Returns 0 on success, non-zero on error.  On error errp will be set
  * as well.
  *
@@ -4661,6 +4675,7 @@ static int bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
  */
 static int bdrv_reopen_prepare(BDRVReopenState *reopen_state,
                                BlockReopenQueue *queue,
+                               GSList **refresh_list,
                                Transaction *change_child_tran, Error **errp)
 {
     int ret = -1;
@@ -4782,7 +4797,7 @@ static int bdrv_reopen_prepare(BDRVReopenState *reopen_state,
      * either a reference to an existing node (using its node name)
      * or NULL to simply detach the current backing file.
      */
-    ret = bdrv_reopen_parse_file_or_backing(reopen_state, true,
+    ret = bdrv_reopen_parse_file_or_backing(reopen_state, true, refresh_list,
                                             change_child_tran, errp);
     if (ret < 0) {
         goto error;
@@ -4790,7 +4805,7 @@ static int bdrv_reopen_prepare(BDRVReopenState *reopen_state,
     qdict_del(reopen_state->options, "backing");
 
     /* Allow changing the 'file' option. In this case NULL is not allowed */
-    ret = bdrv_reopen_parse_file_or_backing(reopen_state, false,
+    ret = bdrv_reopen_parse_file_or_backing(reopen_state, false, refresh_list,
                                             change_child_tran, errp);
     if (ret < 0) {
         goto error;
@@ -5104,24 +5119,28 @@ static TransactionActionDrv bdrv_remove_child_drv = {
 
 /*
  * A function to remove backing or file child of @bs.
- * Function doesn't update permissions, caller is responsible for this.
+ * Caller is responsible to refresh permissions in @refresh_list.
  */
-static void bdrv_remove_child(BdrvChild *child, Transaction *tran)
+static void bdrv_remove_child(BdrvChild *child, GSList **refresh_list,
+                              Transaction *tran)
 {
     if (!child) {
         return;
     }
 
     if (child->bs) {
-        bdrv_replace_child_tran(child, NULL, tran);
+        bdrv_replace_child_tran(child, NULL, refresh_list, tran);
     }
 
     tran_add(tran, &bdrv_remove_child_drv, child);
 }
 
+/* Caller is responsible to refresh permissions in @refresh_list */
 static int bdrv_replace_node_noperm(BlockDriverState *from,
                                     BlockDriverState *to,
-                                    bool auto_skip, Transaction *tran,
+                                    bool auto_skip,
+                                    GSList **refresh_list,
+                                    Transaction *tran,
                                     Error **errp)
 {
     BdrvChild *c, *next;
@@ -5143,7 +5162,7 @@ static int bdrv_replace_node_noperm(BlockDriverState *from,
                        c->name, from->node_name);
             return -EPERM;
         }
-        bdrv_replace_child_tran(c, to, tran);
+        bdrv_replace_child_tran(c, to, refresh_list, tran);
     }
 
     return 0;
@@ -5196,17 +5215,16 @@ static int bdrv_replace_node_common(BlockDriverState *from,
      * permissions based on new graph. If we fail, we'll roll-back the
      * replacement.
      */
-    ret = bdrv_replace_node_noperm(from, to, auto_skip, tran, errp);
+    ret = bdrv_replace_node_noperm(from, to, auto_skip, &refresh_list, tran,
+                                   errp);
     if (ret < 0) {
         goto out;
     }
 
     if (detach_subchain) {
-        bdrv_remove_child(bdrv_filter_or_cow_child(to_cow_parent), tran);
+        bdrv_remove_child(bdrv_filter_or_cow_child(to_cow_parent),
+                          &refresh_list, tran);
     }
-
-    refresh_list = g_slist_prepend(refresh_list, to);
-    refresh_list = g_slist_prepend(refresh_list, from);
 
     ret = bdrv_list_refresh_perms(refresh_list, NULL, tran, errp);
     if (ret < 0) {
@@ -5257,6 +5275,7 @@ int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
 {
     int ret;
     Transaction *tran = tran_new();
+    g_autoptr(GSList) refresh_list = NULL;
 
     GLOBAL_STATE_CODE();
 
@@ -5269,12 +5288,13 @@ int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
         goto out;
     }
 
-    ret = bdrv_replace_node_noperm(bs_top, bs_new, true, tran, errp);
+    ret = bdrv_replace_node_noperm(bs_top, bs_new, true, &refresh_list, tran,
+                                   errp);
     if (ret < 0) {
         goto out;
     }
 
-    ret = bdrv_refresh_perms(bs_new, tran, errp);
+    ret = bdrv_list_refresh_perms(refresh_list, NULL, tran, errp);
 out:
     tran_finalize(tran, ret);
 
@@ -5298,10 +5318,7 @@ int bdrv_replace_child_bs(BdrvChild *child, BlockDriverState *new_bs,
     bdrv_drained_begin(old_bs);
     bdrv_drained_begin(new_bs);
 
-    bdrv_replace_child_tran(child, new_bs, tran);
-
-    refresh_list = g_slist_prepend(refresh_list, old_bs);
-    refresh_list = g_slist_prepend(refresh_list, new_bs);
+    bdrv_replace_child_tran(child, new_bs, &refresh_list, tran);
 
     ret = bdrv_list_refresh_perms(refresh_list, NULL, tran, errp);
 
@@ -6828,6 +6845,58 @@ void bdrv_ref(BlockDriverState *bs)
 {
     GLOBAL_STATE_CODE();
     bs->refcnt++;
+}
+
+static void bdrv_unref_commit(void *opaque)
+{
+    BlockDriverState *bs = opaque;
+
+    if (bs->refcnt == 0) {
+        bdrv_delete(bs);
+    }
+}
+
+static void bdrv_unref_abort(void *opaque)
+{
+    bdrv_ref(opaque);
+}
+
+static TransactionActionDrv bdrv_unref_drv = {
+    .commit = bdrv_unref_commit,
+    .abort = bdrv_unref_abort,
+};
+
+/*
+ * Transactional unref
+ *   - deletion is postponed to transaction commit
+ *   - where possible children are detached now, and permissions are not
+ *     updated. @refresh_list is filled with nodes, to call
+ *     bdrv_nodes_refresh_perms() on.
+ */
+void bdrv_unref_tran(BlockDriverState *bs, GSList **refresh_list,
+                     Transaction *tran)
+{
+    BdrvChild *child, *next;
+
+    if (!bs) {
+        return;
+    }
+
+    assert(bs->refcnt > 0);
+    bs->refcnt--;
+
+    tran_add(tran, &bdrv_unref_drv, bs);
+
+    if (bs->drv && (!bs->drv->bdrv_close || bs->drv->independent_close) &&
+        refresh_list && bs->refcnt == 0)
+    {
+        QLIST_FOREACH_SAFE(child, &bs->children, next, next) {
+            if (child->bs && child->bs->refcnt > 1) {
+                *refresh_list = g_slist_prepend(*refresh_list, child->bs);
+            }
+            bdrv_unref_child_tran(bs, child, refresh_list, tran);
+        }
+    }
 }
 
 /* Release a previously grabbed reference to bs.
