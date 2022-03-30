@@ -313,6 +313,48 @@ enum {
  *
  * At least one of DATA, METADATA, FILTERED, or COW must be set for
  * every child.
+ *
+ *
+ * = Connection with bs->children, bs->file and bs->backing fields =
+ *
+ * 1. Filters
+ *
+ * Filter drivers has drv->is_filter = true.
+ *
+ * Filter driver has exactly one FILTERED|PRIMARY child, any may have other
+ * children which must not have these bits (the example is copy-before-write
+ * filter that also has target DATA child).
+ *
+ * Filter driver never has COW children.
+ *
+ * For all filters except for mirror_top and commit_top, the filtered child is
+ * linked in bs->file, bs->backing is NULL.
+ *
+ * For mirror_top and commit_top filtered child is linked in bs->backing and
+ * their bs->file is NULL. These two filters has drv->filtered_child_is_backing
+ * = true.
+ *
+ * 2. "raw" driver (block/raw-format.c)
+ *
+ * Formally it's not a filter (drv->is_filter = false)
+ *
+ * bs->backing is always NULL
+ *
+ * Only has one child, linked in bs->file. It's role is either FILTERED|PRIMARY
+ * (like filter) either DATA|PRIMARY depending on options.
+ *
+ * 3. Other drivers
+ *
+ * Doesn't have any FILTERED children.
+ *
+ * May have at most one COW child. In this case it's linked in bs->backing.
+ * Otherwise bs->backing is NULL. COW child is never PRIMARY.
+ *
+ * May have at most one PRIMARY child. In this case it's linked in bs->file.
+ * Otherwise bs->file is NULL.
+ *
+ * May also have some other children that don't have neither PRIMARY nor COW
+ * bits set.
  */
 enum BdrvChildRoleBits {
     /*
