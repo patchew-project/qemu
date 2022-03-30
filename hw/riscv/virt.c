@@ -1221,9 +1221,10 @@ static void virt_machine_init(MachineState *machine)
                                 machine->cpu_type, &error_abort);
         object_property_set_int(OBJECT(&s->soc[i]), "hartid-base",
                                 base_hartid, &error_abort);
-        object_property_set_int(OBJECT(&s->soc[i]), "num-harts",
+        object_property_set_int(OBJECT(&s->soc[i]), "num-cpus",
                                 hart_count, &error_abort);
-        riscv_hart_array_realize(&s->soc[i], &error_abort);
+        cpus_disable_clustering(CPUS(&s->soc[i]));
+        qdev_realize(DEVICE(&s->soc[i]), NULL, &error_abort);
 
         if (!kvm_enabled()) {
             if (s->have_aclint) {

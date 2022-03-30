@@ -108,7 +108,7 @@ static void shakti_c_soc_state_realize(DeviceState *dev, Error **errp)
     ShaktiCSoCState *sss = RISCV_SHAKTI_SOC(dev);
     MemoryRegion *system_memory = get_system_memory();
 
-    riscv_hart_array_realize(&sss->cpus, &error_abort);
+    qdev_realize(DEVICE(&sss->cpus), NULL, &error_abort);
 
     sss->plic = sifive_plic_create(shakti_c_memmap[SHAKTI_C_PLIC].base,
         (char *)SHAKTI_C_PLIC_HART_CONFIG, ms->smp.cpus, 0,
@@ -171,7 +171,7 @@ static void shakti_c_soc_instance_init(Object *obj)
      */
     object_property_set_str(OBJECT(&sss->cpus), "cpu-type",
                             TYPE_RISCV_CPU_SHAKTI_C, &error_abort);
-    object_property_set_int(OBJECT(&sss->cpus), "num-harts", 1,
+    object_property_set_int(OBJECT(&sss->cpus), "num-cpus", 1,
                             &error_abort);
 }
 
