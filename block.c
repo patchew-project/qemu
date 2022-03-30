@@ -3166,12 +3166,13 @@ out:
  * If @parent_bs and @child_bs are in different AioContexts, the caller must
  * hold the AioContext lock for @child_bs, but not for @parent_bs.
  */
-BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
-                             BlockDriverState *child_bs,
-                             const char *child_name,
-                             const BdrvChildClass *child_class,
-                             BdrvChildRole child_role,
-                             Error **errp)
+static BdrvChild *bdrv_do_attach_child(BlockDriverState *parent_bs,
+                                       BlockDriverState *child_bs,
+                                       const char *child_name,
+                                       const BdrvChildClass *child_class,
+                                       BdrvChildRole child_role,
+                                       bool refresh_perms,
+                                       Error **errp)
 {
     int ret;
     BdrvChild *child;
@@ -3185,9 +3186,11 @@ BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
         goto out;
     }
 
-    ret = bdrv_refresh_perms(parent_bs, tran, errp);
-    if (ret < 0) {
-        goto out;
+    if (refresh_perms) {
+        ret = bdrv_refresh_perms(parent_bs, tran, errp);
+        if (ret < 0) {
+            goto out;
+        }
     }
 
 out:
@@ -3196,6 +3199,17 @@ out:
     bdrv_unref(child_bs);
 
     return ret < 0 ? NULL : child;
+}
+
+BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
+                             BlockDriverState *child_bs,
+                             const char *child_name,
+                             const BdrvChildClass *child_class,
+                             BdrvChildRole child_role,
+                             Error **errp)
+{
+    return bdrv_do_attach_child(parent_bs, child_bs, child_name, child_class,
+                                child_role, true, errp);
 }
 
 /* Caller is responsible to refresh permissions in @refresh_list */
@@ -3668,12 +3682,13 @@ done:
  *
  * The BlockdevRef will be removed from the options QDict.
  */
-BdrvChild *bdrv_open_child(const char *filename,
-                           QDict *options, const char *bdref_key,
-                           BlockDriverState *parent,
-                           const BdrvChildClass *child_class,
-                           BdrvChildRole child_role,
-                           bool allow_none, Error **errp)
+BdrvChild *bdrv_open_child_common(const char *filename,
+                                  QDict *options, const char *bdref_key,
+                                  BlockDriverState *parent,
+                                  const BdrvChildClass *child_class,
+                                  BdrvChildRole child_role,
+                                  bool allow_none, bool refresh_perms,
+                                  Error **errp)
 {
     BlockDriverState *bs;
 
@@ -3685,16 +3700,29 @@ BdrvChild *bdrv_open_child(const char *filename,
         return NULL;
     }
 
-    return bdrv_attach_child(parent, bs, bdref_key, child_class, child_role,
-                             errp);
+    return bdrv_do_attach_child(parent, bs, bdref_key, child_class, child_role,
+                                refresh_perms, errp);
+}
+
+BdrvChild *bdrv_open_child(const char *filename,
+                           QDict *options, const char *bdref_key,
+                           BlockDriverState *parent,
+                           const BdrvChildClass *child_class,
+                           BdrvChildRole child_role,
+                           bool allow_none, Error **errp)
+{
+    return bdrv_open_child_common(filename, options, bdref_key, parent,
+                                  child_class, child_role, allow_none, true,
+                                  errp);
 }
 
 /*
  * Wrapper on bdrv_open_child() for most popular case: open primary child of bs.
  */
-int bdrv_open_file_child(const char *filename,
-                         QDict *options, const char *bdref_key,
-                         BlockDriverState *parent, Error **errp)
+int bdrv_open_file_child_common(const char *filename,
+                                QDict *options, const char *bdref_key,
+                                BlockDriverState *parent, bool refresh_perms,
+                                Error **errp)
 {
     BdrvChildRole role;
 
@@ -3703,13 +3731,23 @@ int bdrv_open_file_child(const char *filename,
     role = parent->drv->is_filter ?
         (BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY) : BDRV_CHILD_IMAGE;
 
-    if (!bdrv_open_child(filename, options, bdref_key, parent,
-                         &child_of_bds, role, false, errp))
+    if (!bdrv_open_child_common(filename, options, bdref_key, parent,
+                                &child_of_bds, role, false, refresh_perms,
+                                errp))
     {
         return -EINVAL;
     }
 
     return 0;
+}
+
+int bdrv_open_file_child(const char *filename,
+                         QDict *options, const char *bdref_key,
+                         BlockDriverState *parent,
+                         Error **errp)
+{
+    return bdrv_open_file_child_common(filename, options, bdref_key, parent,
+                                       true, errp);
 }
 
 /*

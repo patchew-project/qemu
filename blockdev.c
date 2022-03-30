@@ -643,12 +643,11 @@ err_no_opts:
 }
 
 /* Takes the ownership of bs_opts */
-BlockDriverState *bds_tree_init(QDict *bs_opts, Error **errp)
+BlockDriverState *bds_tree_init(QDict *bs_opts, BdrvRequestFlags flags,
+                                Error **errp)
 {
-    int bdrv_flags = 0;
-
     GLOBAL_STATE_CODE();
-    /* bdrv_open() defaults to the values in bdrv_flags (for compatibility
+    /* bdrv_open() defaults to the values in flags (for compatibility
      * with other callers) rather than what we want as the real defaults.
      * Apply the defaults here instead. */
     qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_DIRECT, "off");
@@ -656,10 +655,10 @@ BlockDriverState *bds_tree_init(QDict *bs_opts, Error **errp)
     qdict_set_default_str(bs_opts, BDRV_OPT_READ_ONLY, "off");
 
     if (runstate_check(RUN_STATE_INMIGRATE)) {
-        bdrv_flags |= BDRV_O_INACTIVE;
+        flags |= BDRV_O_INACTIVE;
     }
 
-    return bdrv_open(NULL, NULL, bs_opts, bdrv_flags, errp);
+    return bdrv_open(NULL, NULL, bs_opts, flags, errp);
 }
 
 void blockdev_close_all_bdrv_states(void)
@@ -3473,7 +3472,7 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
         goto fail;
     }
 
-    bs = bds_tree_init(qdict, errp);
+    bs = bds_tree_init(qdict, 0, errp);
     if (!bs) {
         goto fail;
     }

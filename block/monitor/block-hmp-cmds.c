@@ -76,7 +76,7 @@ static void hmp_drive_add_node(Monitor *mon, const char *optstr)
         goto out;
     }
 
-    BlockDriverState *bs = bds_tree_init(qdict, &local_err);
+    BlockDriverState *bs = bds_tree_init(qdict, 0, &local_err);
     if (!bs) {
         error_report_err(local_err);
         goto out;

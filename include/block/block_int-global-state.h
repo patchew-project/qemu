@@ -245,7 +245,8 @@ void bdrv_set_monitor_owned(BlockDriverState *bs);
 
 void blockdev_close_all_bdrv_states(void);
 
-BlockDriverState *bds_tree_init(QDict *bs_opts, Error **errp);
+BlockDriverState *bds_tree_init(QDict *bs_opts, BdrvRequestFlags flags,
+                                Error **errp);
 
 /**
  * Simple implementation of bdrv_co_create_opts for protocol drivers

@@ -76,6 +76,17 @@ BdrvChild *bdrv_open_child(const char *filename,
                            const BdrvChildClass *child_class,
                            BdrvChildRole child_role,
                            bool allow_none, Error **errp);
+BdrvChild *bdrv_open_child_common(const char *filename,
+                                  QDict *options, const char *bdref_key,
+                                  BlockDriverState *parent,
+                                  const BdrvChildClass *child_class,
+                                  BdrvChildRole child_role,
+                                  bool allow_none, bool refresh_perms,
+                                  Error **errp);
+int bdrv_open_file_child_common(const char *filename,
+                                QDict *options, const char *bdref_key,
+                                BlockDriverState *parent, bool refresh_perms,
+                                Error **errp);
 int bdrv_open_file_child(const char *filename,
                          QDict *options, const char *bdref_key,
                          BlockDriverState *parent, Error **errp);
