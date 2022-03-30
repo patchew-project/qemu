@@ -41,4 +41,23 @@ struct RISCVHartArrayState {
     RISCVCPU *harts;
 };
 
+/**
+ * riscv_array_get_hart:
+ */
+static inline RISCVCPU *riscv_array_get_hart(RISCVHartArrayState *harts, int i)
+{
+    return &harts->harts[i];
+}
+
+/**
+ * riscv_array_get_num_harts:
+ */
+static inline unsigned riscv_array_get_num_harts(RISCVHartArrayState *harts)
+{
+    return harts->num_harts;
+}
+
+/* Temporary function until we migrated the riscv hart array to simple device */
+void riscv_hart_array_realize(RISCVHartArrayState *state, Error **errp);
+
 #endif

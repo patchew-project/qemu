@@ -27,6 +27,11 @@
 #include "hw/qdev-properties.h"
 #include "hw/riscv/riscv_hart.h"
 
+void riscv_hart_array_realize(RISCVHartArrayState *state, Error **errp)
+{
+    sysbus_realize(SYS_BUS_DEVICE(state), errp);
+}
+
 static Property riscv_harts_props[] = {
     DEFINE_PROP_UINT32("num-harts", RISCVHartArrayState, num_harts, 1),
     DEFINE_PROP_UINT32("hartid-base", RISCVHartArrayState, hartid_base, 0),
