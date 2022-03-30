@@ -3287,6 +3287,71 @@ TRANS_VDIV_VMOD(ISA310, VDIVUD, MO_64, NULL, do_vx_divu_i64)
 TRANS_FLAGS2(ISA310, VDIVSQ, do_vx_helper, gen_helper_VDIVSQ)
 TRANS_FLAGS2(ISA310, VDIVUQ, do_vx_helper, gen_helper_VDIVUQ)
 
+static void do_vx_dives_i32(TCGv_i32 t, TCGv_i32 a, TCGv_i32 b)
+{
+    TCGv_i64 res, val1, val2;
+    TCGv_i64 zero = tcg_constant_i64(0);
+    TCGv_i64 one =  tcg_constant_i64(1);
+
+    res = tcg_temp_new_i64();
+    val1 = tcg_temp_new_i64();
+    val2 = tcg_temp_new_i64();
+
+    tcg_gen_ext_i32_i64(val1, a);
+    tcg_gen_ext_i32_i64(val2, b);
+
+    /* return 0 if b = 0, so make b = 1 so the result doesn't fit in 32 bits*/
+    tcg_gen_movcond_i64(TCG_COND_EQ, val2, val2, zero, one, val2);
+
+    /* (a << 32)/b */
+    tcg_gen_shli_i64(val1, val1, 32);
+    tcg_gen_div_i64(res, val1, val2);
+
+    tcg_gen_ext32s_i64(val1, res);
+    /* if result is undefined (quotient doesn't fit in 32 bits) return 0 */
+    tcg_gen_movcond_i64(TCG_COND_EQ, res, res, val1, res, zero);
+    tcg_gen_extrl_i64_i32(t, res);
+
+    tcg_temp_free_i64(res);
+    tcg_temp_free_i64(val1);
+    tcg_temp_free_i64(val2);
+}
+
+static void do_vx_diveu_i32(TCGv_i32 t, TCGv_i32 a, TCGv_i32 b)
+{
+    TCGv_i64 val1, val2;
+    TCGv_i32 h, l;
+    TCGv_i32 zero = tcg_constant_i32(0);
+    TCGv_i32 one =  tcg_constant_i32(1);
+
+    val1 = tcg_temp_new_i64();
+    val2 = tcg_temp_new_i64();
+    h = tcg_temp_new_i32();
+    l = tcg_temp_new_i32();
+
+    /* return 0 if b = 0, so make b = 1 so the result doesn't fit in 32 bits*/
+    tcg_gen_movcond_i32(TCG_COND_EQ, b, b, zero, one, b);
+
+    tcg_gen_ext_i32_i64(val1, a);
+    tcg_gen_extu_i32_i64(val2, b);
+
+    /* (a << 32)/b */
+    tcg_gen_shli_i64(val1, val1, 32);
+    tcg_gen_divu_i64(val1, val1, val2);
+
+    tcg_gen_extrh_i64_i32(h, val1);
+    tcg_gen_extrl_i64_i32(l, val1);
+    /* if result is undefined (quotient doesn't fit in 32 bits) return 0 */
+    tcg_gen_movcond_i32(TCG_COND_EQ, t, h, zero, l, zero);
+    tcg_temp_free_i32(h);
+    tcg_temp_free_i32(l);
+    tcg_temp_free_i64(val1);
+    tcg_temp_free_i64(val2);
+}
+
+TRANS_VDIV_VMOD(ISA310, VDIVESW, MO_32, do_vx_dives_i32, NULL)
+TRANS_VDIV_VMOD(ISA310, VDIVEUW, MO_32, do_vx_diveu_i32, NULL)
+
 #undef GEN_VR_LDX
 #undef GEN_VR_STX
 #undef GEN_VR_LVE
