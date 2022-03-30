@@ -158,6 +158,11 @@ static inline bool int128_nz(Int128 a)
     return a != 0;
 }
 
+static inline Int128 int128_abs(Int128 a)
+{
+    return a < 0 ? -a : a;
+}
+
 static inline Int128 int128_min(Int128 a, Int128 b)
 {
     return a < b ? a : b;
@@ -411,6 +416,11 @@ static inline bool int128_gt(Int128 a, Int128 b)
 static inline bool int128_nz(Int128 a)
 {
     return a.lo || a.hi;
+}
+
+static inline Int128 int128_abs(Int128 a)
+{
+    return int128_nonneg(a) ? a : int128_neg(a);
 }
 
 static inline Int128 int128_min(Int128 a, Int128 b)

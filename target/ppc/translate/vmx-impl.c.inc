@@ -3351,6 +3351,10 @@ static void do_vx_diveu_i32(TCGv_i32 t, TCGv_i32 a, TCGv_i32 b)
 
 TRANS_VDIV_VMOD(ISA310, VDIVESW, MO_32, do_vx_dives_i32, NULL)
 TRANS_VDIV_VMOD(ISA310, VDIVEUW, MO_32, do_vx_diveu_i32, NULL)
+TRANS_FLAGS2(ISA310, VDIVESD, do_vx_helper, gen_helper_VDIVESD)
+TRANS_FLAGS2(ISA310, VDIVEUD, do_vx_helper, gen_helper_VDIVEUD)
+TRANS_FLAGS2(ISA310, VDIVESQ, do_vx_helper, gen_helper_VDIVESQ)
+TRANS_FLAGS2(ISA310, VDIVEUQ, do_vx_helper, gen_helper_VDIVEUQ)
 
 #undef GEN_VR_LDX
 #undef GEN_VR_STX

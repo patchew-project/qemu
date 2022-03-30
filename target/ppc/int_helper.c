@@ -1054,6 +1054,79 @@ void helper_VDIVUQ(ppc_avr_t *t, ppc_avr_t *a, ppc_avr_t *b)
     }
 }
 
+void helper_VDIVESD(ppc_avr_t *t, ppc_avr_t *a, ppc_avr_t *b)
+{
+    int i;
+    int64_t high;
+    uint64_t low;
+    for (i = 0; i < 2; i++) {
+        high = a->s64[i];
+        low = 0;
+        if (unlikely(uabs64(a->s64[i]) >= uabs64(b->s64[i]) || !b->s64[i])) {
+            t->s64[i] = 0; /* Undefined behavior */
+        } else {
+            divs128(&low, &high, b->s64[i]);
+            if (unlikely((low >= INT64_MAX && high != -1) ||
+                         (low < INT64_MAX && high == -1))) {
+                t->s64[i] = 0; /* Undefined behavior */
+            } else {
+                t->s64[i] = low;
+            }
+        }
+    }
+}
+
+void helper_VDIVEUD(ppc_avr_t *t, ppc_avr_t *a, ppc_avr_t *b)
+{
+    int i;
+    uint64_t high, low;
+    for (i = 0; i < 2; i++) {
+        high = a->u64[i];
+        low = 0;
+        if (unlikely(high >= b->u64[i] || !b->u64[i])) {
+            t->u64[i] = 0; /* Undefined behavior */
+        } else {
+            divu128(&low, &high, b->u64[i]);
+            t->u64[i] = low;
+        }
+    }
+}
+
+void helper_VDIVESQ(ppc_avr_t *t, ppc_avr_t *a, ppc_avr_t *b)
+{
+    Int128 high, low;
+
+    high = a->s128;
+    low = int128_zero();
+    if (unlikely(!int128_nz(b->s128) ||
+                 int128_uge(int128_abs(high), int128_abs(b->s128)))) {
+        t->s128 = int128_zero(); /* Undefined behavior */
+    } else {
+        divs256(&low, &high, b->s128);
+        if (unlikely(
+                (!int128_nonneg(low) && !int128_eq(high, int128_makes64(-1))) ||
+                (int128_nonneg(low) && int128_eq(high, int128_makes64(-1))))) {
+            t->s128 = int128_zero(); /* Undefined behavior */
+        } else {
+            t->s128 = low;
+        }
+    }
+}
+
+void helper_VDIVEUQ(ppc_avr_t *t, ppc_avr_t *a, ppc_avr_t *b)
+{
+    Int128 dhigh, dlow;
+
+    dhigh = a->s128;
+    dlow = int128_zero();
+    if (unlikely(!int128_nz(b->s128) || int128_uge(a->s128, b->s128))) {
+        t->s128 = int128_zero(); /* Undefined behavior */
+    } else {
+        divu256(&dlow, &dhigh, b->s128);
+        t->s128 = dlow;
+    }
+}
+
 void helper_VPERM(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {
     ppc_avr_t result;
