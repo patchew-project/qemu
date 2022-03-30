@@ -3708,17 +3708,22 @@ static int virtio_device_start_ioeventfd_impl(VirtIODevice *vdev)
             err = r;
             goto assign_error;
         }
-        event_notifier_set_handler(&vq->host_notifier,
-                                   virtio_queue_host_notifier_read);
+
+        if (!vdev->disable_ioeventfd_handler) {
+            event_notifier_set_handler(&vq->host_notifier,
+                                       virtio_queue_host_notifier_read);
+        }
     }
 
-    for (n = 0; n < VIRTIO_QUEUE_MAX; n++) {
-        /* Kick right away to begin processing requests already in vring */
-        VirtQueue *vq = &vdev->vq[n];
-        if (!vq->vring.num) {
-            continue;
+    if (!vdev->disable_ioeventfd_handler) {
+        for (n = 0; n < VIRTIO_QUEUE_MAX; n++) {
+            /* Kick right away to begin processing requests already in vring */
+            VirtQueue *vq = &vdev->vq[n];
+            if (!vq->vring.num) {
+                continue;
+            }
+            event_notifier_set(&vq->host_notifier);
         }
-        event_notifier_set(&vq->host_notifier);
     }
     memory_region_transaction_commit();
     return 0;
