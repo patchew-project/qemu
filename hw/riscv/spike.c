@@ -54,6 +54,7 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
     uint64_t addr, size;
     unsigned long clint_addr;
     int cpu, socket;
+    unsigned num_harts;
     MachineState *mc = MACHINE(s);
     uint32_t *clint_cells;
     uint32_t cpu_phandle, intc_phandle, phandle = 1;
@@ -97,10 +98,10 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
     for (socket = (riscv_socket_count(mc) - 1); socket >= 0; socket--) {
         clust_name = g_strdup_printf("/cpus/cpu-map/cluster%d", socket);
         qemu_fdt_add_subnode(fdt, clust_name);
+        num_harts = riscv_array_get_num_harts(&s->soc[socket]);
+        clint_cells =  g_new0(uint32_t, num_harts * 4);
 
-        clint_cells =  g_new0(uint32_t, s->soc[socket].num_harts * 4);
-
-        for (cpu = s->soc[socket].num_harts - 1; cpu >= 0; cpu--) {
+        for (cpu = num_harts - 1; cpu >= 0; cpu--) {
             cpu_phandle = phandle++;
 
             cpu_name = g_strdup_printf("/cpus/cpu@%d",
@@ -111,7 +112,7 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
             } else {
                 qemu_fdt_setprop_string(fdt, cpu_name, "mmu-type", "riscv,sv48");
             }
-            name = riscv_isa_string(&s->soc[socket].harts[cpu]);
+            name = riscv_isa_string(riscv_array_get_hart(&s->soc[socket], cpu));
             qemu_fdt_setprop_string(fdt, cpu_name, "riscv,isa", name);
             g_free(name);
             qemu_fdt_setprop_string(fdt, cpu_name, "compatible", "riscv");
@@ -164,7 +165,7 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
         qemu_fdt_setprop_cells(fdt, clint_name, "reg",
             0x0, clint_addr, 0x0, memmap[SPIKE_CLINT].size);
         qemu_fdt_setprop(fdt, clint_name, "interrupts-extended",
-            clint_cells, s->soc[socket].num_harts * sizeof(uint32_t) * 4);
+            clint_cells, num_harts * sizeof(uint32_t) * 4);
         riscv_socket_fdt_write_id(mc, fdt, clint_name, socket);
 
         g_free(clint_name);
@@ -229,7 +230,7 @@ static void spike_board_init(MachineState *machine)
                                 base_hartid, &error_abort);
         object_property_set_int(OBJECT(&s->soc[i]), "num-harts",
                                 hart_count, &error_abort);
-        sysbus_realize(SYS_BUS_DEVICE(&s->soc[i]), &error_abort);
+        riscv_hart_array_realize(&s->soc[i], &error_abort);
 
         /* Core Local Interruptor (timer and IPI) for each socket */
         riscv_aclint_swi_create(
@@ -311,7 +312,7 @@ static void spike_board_init(MachineState *machine)
 
     /* initialize HTIF using symbols found in load_kernel */
     htif_mm_init(system_memory, mask_rom,
-                 &s->soc[0].harts[0].env, serial_hd(0),
+                 &riscv_array_get_hart(&s->soc[0], 0)->env, serial_hd(0),
                  memmap[SPIKE_HTIF].base);
 }
 
