@@ -53,6 +53,7 @@
 # @blockdev-snapshot-internal-sync: Since 1.7
 # @blockdev-snapshot-sync: since 1.1
 # @drive-backup: Since 1.6
+# @blockdev-del: since 7.1
 #
 # Features:
 # @deprecated: Member @drive-backup is deprecated.  Use member
@@ -66,6 +67,7 @@
             'block-dirty-bitmap-disable', 'block-dirty-bitmap-merge',
             'blockdev-backup', 'blockdev-snapshot',
             'blockdev-snapshot-internal-sync', 'blockdev-snapshot-sync',
+            'blockdev-del',
             { 'name': 'drive-backup', 'features': [ 'deprecated' ] } ] }
 
 ##
@@ -141,6 +143,15 @@
   'data': { 'data': 'DriveBackup' } }
 
 ##
+# @BlockdevDelWrapper:
+#
+# Since: 7.1
+##
+{ 'struct': 'BlockdevDelWrapper',
+  'data': { 'data': 'BlockdevDel' } }
+
+
+##
 # @TransactionAction:
 #
 # A discriminated record of operations that can be performed with
@@ -163,6 +174,7 @@
        'blockdev-snapshot': 'BlockdevSnapshotWrapper',
        'blockdev-snapshot-internal-sync': 'BlockdevSnapshotInternalWrapper',
        'blockdev-snapshot-sync': 'BlockdevSnapshotSyncWrapper',
+       'blockdev-del': 'BlockdevDelWrapper',
        'drive-backup': 'DriveBackupWrapper'
    } }
 

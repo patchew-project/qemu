@@ -63,6 +63,9 @@
 #include "qemu/main-loop.h"
 #include "qemu/throttle-options.h"
 
+static int blockdev_del(const char *node_name, GSList **detached,
+                        Transaction *tran, Error **errp);
+
 /* Protected by BQL */
 QTAILQ_HEAD(, BlockDriverState) monitor_bdrv_states =
     QTAILQ_HEAD_INITIALIZER(monitor_bdrv_states);
@@ -2163,6 +2166,7 @@ static void abort_commit(void *opaque)
 }
 
 static void transaction_action(TransactionAction *act, JobTxn *block_job_txn,
+                               GSList **refresh_list,
                                Transaction *tran, Error **errp)
 {
     switch (act->type) {
@@ -2209,6 +2213,10 @@ static void transaction_action(TransactionAction *act, JobTxn *block_job_txn,
         block_dirty_bitmap_remove_action(act->u.block_dirty_bitmap_remove.data,
                                          tran, errp);
         return;
+    case TRANSACTION_ACTION_KIND_BLOCKDEV_DEL:
+        blockdev_del(act->u.blockdev_del.data->node_name,
+                     refresh_list, tran, errp);
+        return;
     /*
      * Where are transactions for MIRROR, COMMIT and STREAM?
      * Although these blockjobs use transaction callbacks like the backup job,
@@ -2234,6 +2242,7 @@ void qmp_transaction(TransactionActionList *actions,
                      struct TransactionProperties *properties,
                      Error **errp)
 {
+    int ret;
     TransactionActionList *act;
     JobTxn *block_job_txn = NULL;
     Error *local_err = NULL;
@@ -2241,6 +2250,7 @@ void qmp_transaction(TransactionActionList *actions,
     ActionCompletionMode comp_mode =
         has_properties ? properties->completion_mode :
         ACTION_COMPLETION_MODE_INDIVIDUAL;
+    g_autoptr(GSList) refresh_list = NULL;
 
     GLOBAL_STATE_CODE();
 
@@ -2271,11 +2281,30 @@ void qmp_transaction(TransactionActionList *actions,
 
     /* We don't do anything in this loop that commits us to the operations */
     for (act = actions; act; act = act->next) {
-        transaction_action(act->value, block_job_txn, tran, &local_err);
+        TransactionActionKind type = act->value->type;
+
+        if (refresh_list &&
+            type != TRANSACTION_ACTION_KIND_BLOCKDEV_DEL)
+        {
+            ret = bdrv_list_refresh_perms(refresh_list, NULL, tran, errp);
+            if (ret < 0) {
+                goto delete_and_fail;
+            }
+            g_slist_free(refresh_list);
+            refresh_list = NULL;
+        }
+
+        transaction_action(act->value, block_job_txn, &refresh_list, tran,
+                           &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             goto delete_and_fail;
         }
+    }
+
+    ret = bdrv_list_refresh_perms(refresh_list, NULL, tran, errp);
+    if (ret < 0) {
+        goto delete_and_fail;
     }
 
     tran_commit(tran);
@@ -3520,9 +3549,25 @@ fail:
     g_slist_free(drained);
 }
 
-void qmp_blockdev_del(const char *node_name, Error **errp)
+static void aio_context_acquire_clean(void *opaque)
 {
-    AioContext *aio_context;
+    aio_context_release(opaque);
+}
+
+TransactionActionDrv aio_context_acquire_drv = {
+    .clean = aio_context_acquire_clean,
+};
+
+static void aio_context_acquire_tran(AioContext *ctx, Transaction *tran)
+{
+    aio_context_acquire(ctx);
+    tran_add(tran, &aio_context_acquire_drv, ctx);
+}
+
+/* Function doesn't update permissions, it's a responsibility of caller. */
+static int blockdev_del(const char *node_name, GSList **refresh_list,
+                        Transaction *tran, Error **errp)
+{
     BlockDriverState *bs;
 
     GLOBAL_STATE_CODE();
@@ -3530,36 +3575,54 @@ void qmp_blockdev_del(const char *node_name, Error **errp)
     bs = bdrv_find_node(node_name);
     if (!bs) {
         error_setg(errp, "Failed to find node with node-name='%s'", node_name);
-        return;
+        return -EINVAL;
     }
     if (bdrv_has_blk(bs)) {
         error_setg(errp, "Node %s is in use", node_name);
-        return;
+        return -EINVAL;
     }
-    aio_context = bdrv_get_aio_context(bs);
-    aio_context_acquire(aio_context);
+    aio_context_acquire_tran(bdrv_get_aio_context(bs), tran);
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_DRIVE_DEL, errp)) {
-        goto out;
+        return -EINVAL;
     }
 
     if (!QTAILQ_IN_USE(bs, monitor_list)) {
         error_setg(errp, "Node %s is not owned by the monitor",
                    bs->node_name);
-        goto out;
+        return -EINVAL;
     }
 
     if (bs->refcnt > 1) {
         error_setg(errp, "Block device %s is in use",
                    bdrv_get_device_or_node_name(bs));
-        goto out;
+        return -EINVAL;
     }
 
     QTAILQ_REMOVE(&monitor_bdrv_states, bs, monitor_list);
-    bdrv_unref(bs);
+    bdrv_unref_tran(bs, refresh_list, tran);
+
+    return 0;
+}
+
+void qmp_blockdev_del(const char *node_name, Error **errp)
+{
+    int ret;
+    Transaction *tran = tran_new();
+    g_autoptr(GSList) refresh_list = NULL;
+
+    ret = blockdev_del(node_name, &refresh_list, tran, errp);
+    if (ret < 0) {
+        goto out;
+    }
+
+    ret = bdrv_list_refresh_perms(refresh_list, NULL, tran, errp);
+    if (ret < 0) {
+        goto out;
+    }
 
 out:
-    aio_context_release(aio_context);
+    tran_finalize(tran, ret);
 }
 
 static BdrvChild *bdrv_find_child(BlockDriverState *parent_bs,

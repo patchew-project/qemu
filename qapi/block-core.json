@@ -4408,13 +4408,18 @@
   'data': { 'options': ['BlockdevOptions'] } }
 
 ##
+# @BlockdevDel:
+#
+# @node-name: Name of the graph node to delete.
+##
+{ 'struct': 'BlockdevDel', 'data': { 'node-name': 'str' } }
+
+##
 # @blockdev-del:
 #
 # Deletes a block device that has been added using blockdev-add.
 # The command will fail if the node is attached to a device or is
 # otherwise being used.
-#
-# @node-name: Name of the graph node to delete.
 #
 # Since: 2.9
 #
@@ -4438,7 +4443,7 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'blockdev-del', 'data': { 'node-name': 'str' } }
+{ 'command': 'blockdev-del', 'data': 'BlockdevDel' }
 
 ##
 # @BlockdevCreateOptionsFile:
