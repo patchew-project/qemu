@@ -1678,6 +1678,7 @@ M: Eduardo Habkost <eduardo@habkost.net>
 M: Marcel Apfelbaum <marcel.apfelbaum@gmail.com>
 R: Philippe Mathieu-Daudé <f4bug@amsat.org>
 R: Yanan Wang <wangyanan55@huawei.com>
+R: Damien Hedde <damien.hedde@greensocs.com>
 S: Supported
 F: cpu.c
 F: hw/core/cpu.c
@@ -1687,11 +1688,13 @@ F: hw/core/machine-smp.c
 F: hw/core/null-machine.c
 F: hw/core/numa.c
 F: hw/cpu/cluster.c
+F: hw/cpu/cpus.c
 F: qapi/machine.json
 F: qapi/machine-target.json
 F: include/hw/boards.h
 F: include/hw/core/cpu.h
 F: include/hw/cpu/cluster.h
+F: include/hw/cpu/cpus.h
 F: include/sysemu/numa.h
 F: tests/unit/test-smp-parse.c
 T: git https://gitlab.com/ehabkost/qemu.git machine-next
