@@ -133,23 +133,15 @@ static void microchip_pfsoc_soc_instance_init(Object *obj)
     MachineState *ms = MACHINE(qdev_get_machine());
     MicrochipPFSoCState *s = MICROCHIP_PFSOC(obj);
 
-    object_initialize_child(obj, "e-cluster", &s->e_cluster, TYPE_CPU_CLUSTER);
-    qdev_prop_set_uint32(DEVICE(&s->e_cluster), "cluster-id", 0);
-
-    object_initialize_child(OBJECT(&s->e_cluster), "e-cpus", &s->e_cpus,
-                            TYPE_RISCV_HART_ARRAY);
-    qdev_prop_set_uint32(DEVICE(&s->e_cpus), "num-harts", 1);
+    object_initialize_child(obj, "e-cpus", &s->e_cpus, TYPE_RISCV_HART_ARRAY);
+    qdev_prop_set_uint32(DEVICE(&s->e_cpus), "num-cpus", 1);
     qdev_prop_set_uint32(DEVICE(&s->e_cpus), "hartid-base", 0);
     qdev_prop_set_string(DEVICE(&s->e_cpus), "cpu-type",
                          TYPE_RISCV_CPU_SIFIVE_E51);
     qdev_prop_set_uint64(DEVICE(&s->e_cpus), "resetvec", RESET_VECTOR);
 
-    object_initialize_child(obj, "u-cluster", &s->u_cluster, TYPE_CPU_CLUSTER);
-    qdev_prop_set_uint32(DEVICE(&s->u_cluster), "cluster-id", 1);
-
-    object_initialize_child(OBJECT(&s->u_cluster), "u-cpus", &s->u_cpus,
-                            TYPE_RISCV_HART_ARRAY);
-    qdev_prop_set_uint32(DEVICE(&s->u_cpus), "num-harts", ms->smp.cpus - 1);
+    object_initialize_child(obj, "u-cpus", &s->u_cpus, TYPE_RISCV_HART_ARRAY);
+    qdev_prop_set_uint32(DEVICE(&s->u_cpus), "num-cpus", ms->smp.cpus - 1);
     qdev_prop_set_uint32(DEVICE(&s->u_cpus), "hartid-base", 1);
     qdev_prop_set_string(DEVICE(&s->u_cpus), "cpu-type",
                          TYPE_RISCV_CPU_SIFIVE_U54);
@@ -190,16 +182,8 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
     NICInfo *nd;
     int i;
 
-    riscv_hart_array_realize(&s->e_cpus, &error_abort);
-    riscv_hart_array_realize(&s->u_cpus, &error_abort);
-    /*
-     * The cluster must be realized after the RISC-V hart array container,
-     * as the container's CPU object is only created on realize, and the
-     * CPU must exist and have been parented into the cluster before the
-     * cluster is realized.
-     */
-    qdev_realize(DEVICE(&s->e_cluster), NULL, &error_abort);
-    qdev_realize(DEVICE(&s->u_cluster), NULL, &error_abort);
+    qdev_realize(DEVICE(&s->e_cpus), NULL, &error_abort);
+    qdev_realize(DEVICE(&s->u_cpus), NULL, &error_abort);
 
     /* Reserved Memory at address 0 */
     memory_region_init_ram(rsvd0_mem, NULL, "microchip.pfsoc.rsvd0_mem",

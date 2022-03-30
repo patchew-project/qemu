@@ -44,7 +44,6 @@
 #include "hw/loader.h"
 #include "hw/sysbus.h"
 #include "hw/char/serial.h"
-#include "hw/cpu/cluster.h"
 #include "hw/misc/unimp.h"
 #include "hw/sd/sd.h"
 #include "hw/ssi/ssi.h"
@@ -786,20 +785,14 @@ static void sifive_u_soc_instance_init(Object *obj)
 {
     SiFiveUSoCState *s = RISCV_U_SOC(obj);
 
-    object_initialize_child(obj, "e-cluster", &s->e_cluster, TYPE_CPU_CLUSTER);
-    qdev_prop_set_uint32(DEVICE(&s->e_cluster), "cluster-id", 0);
-
-    object_initialize_child(OBJECT(&s->e_cluster), "e-cpus", &s->e_cpus,
+    object_initialize_child(obj, "e-cpus", &s->e_cpus,
                             TYPE_RISCV_HART_ARRAY);
-    qdev_prop_set_uint32(DEVICE(&s->e_cpus), "num-harts", 1);
+    qdev_prop_set_uint32(DEVICE(&s->e_cpus), "num-cpus", 1);
     qdev_prop_set_uint32(DEVICE(&s->e_cpus), "hartid-base", 0);
     qdev_prop_set_string(DEVICE(&s->e_cpus), "cpu-type", SIFIVE_E_CPU);
     qdev_prop_set_uint64(DEVICE(&s->e_cpus), "resetvec", 0x1004);
 
-    object_initialize_child(obj, "u-cluster", &s->u_cluster, TYPE_CPU_CLUSTER);
-    qdev_prop_set_uint32(DEVICE(&s->u_cluster), "cluster-id", 1);
-
-    object_initialize_child(OBJECT(&s->u_cluster), "u-cpus", &s->u_cpus,
+    object_initialize_child(obj, "u-cpus", &s->u_cpus,
                             TYPE_RISCV_HART_ARRAY);
 
     object_initialize_child(obj, "prci", &s->prci, TYPE_SIFIVE_U_PRCI);
@@ -825,21 +818,13 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
     int i, j;
     NICInfo *nd = &nd_table[0];
 
-    qdev_prop_set_uint32(DEVICE(&s->u_cpus), "num-harts", ms->smp.cpus - 1);
+    qdev_prop_set_uint32(DEVICE(&s->u_cpus), "num-cpus", ms->smp.cpus - 1);
     qdev_prop_set_uint32(DEVICE(&s->u_cpus), "hartid-base", 1);
     qdev_prop_set_string(DEVICE(&s->u_cpus), "cpu-type", s->cpu_type);
     qdev_prop_set_uint64(DEVICE(&s->u_cpus), "resetvec", 0x1004);
 
-    riscv_hart_array_realize(&s->e_cpus, &error_abort);
-    riscv_hart_array_realize(&s->u_cpus, &error_abort);
-    /*
-     * The cluster must be realized after the RISC-V hart array container,
-     * as the container's CPU object is only created on realize, and the
-     * CPU must exist and have been parented into the cluster before the
-     * cluster is realized.
-     */
-    qdev_realize(DEVICE(&s->e_cluster), NULL, &error_abort);
-    qdev_realize(DEVICE(&s->u_cluster), NULL, &error_abort);
+    qdev_realize(DEVICE(&s->e_cpus), NULL, &error_abort);
+    qdev_realize(DEVICE(&s->u_cpus), NULL, &error_abort);
 
     /* boot rom */
     memory_region_init_rom(mask_rom, OBJECT(dev), "riscv.sifive.u.mrom",
