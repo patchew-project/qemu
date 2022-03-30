@@ -267,7 +267,7 @@ struct ppc_radix_page_info *kvm_get_radix_page_info(void)
 {
     KVMState *s = KVM_STATE(current_accel());
     struct ppc_radix_page_info *radix_page_info;
-    struct kvm_ppc_rmmu_info rmmu_info;
+    struct kvm_ppc_rmmu_info rmmu_info = {0};
     int i;
 
     if (!kvm_check_extension(s, KVM_CAP_PPC_MMU_RADIX)) {
