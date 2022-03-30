@@ -188,9 +188,9 @@ static void create_fdt(SiFiveUState *s, const MemMapEntry *memmap,
             } else {
                 qemu_fdt_setprop_string(fdt, nodename, "mmu-type", "riscv,sv48");
             }
-            isa = riscv_isa_string(&s->soc.u_cpus.harts[cpu - 1]);
+            isa = riscv_isa_string(riscv_array_get_hart(&s->soc.u_cpus, cpu - 1));
         } else {
-            isa = riscv_isa_string(&s->soc.e_cpus.harts[0]);
+            isa = riscv_isa_string(riscv_array_get_hart(&s->soc.e_cpus, 0));
         }
         qemu_fdt_setprop_string(fdt, nodename, "riscv,isa", isa);
         qemu_fdt_setprop_string(fdt, nodename, "compatible", "riscv");
@@ -830,8 +830,8 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
     qdev_prop_set_string(DEVICE(&s->u_cpus), "cpu-type", s->cpu_type);
     qdev_prop_set_uint64(DEVICE(&s->u_cpus), "resetvec", 0x1004);
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->e_cpus), &error_abort);
-    sysbus_realize(SYS_BUS_DEVICE(&s->u_cpus), &error_abort);
+    riscv_hart_array_realize(&s->e_cpus, &error_abort);
+    riscv_hart_array_realize(&s->u_cpus, &error_abort);
     /*
      * The cluster must be realized after the RISC-V hart array container,
      * as the container's CPU object is only created on realize, and the
