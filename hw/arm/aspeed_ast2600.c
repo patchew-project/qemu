@@ -353,6 +353,8 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
                    serial_hd(0), DEVICE_LITTLE_ENDIAN);
 
     /* I2C */
+    object_property_set_int(OBJECT(&s->i2c), "ctrl-global-rsvd", 0xfffc3e00,
+                            &error_abort);
     object_property_set_link(OBJECT(&s->i2c), "dram", OBJECT(s->dram_mr),
                              &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->i2c), errp)) {
