@@ -266,6 +266,7 @@ M: Cédric Le Goater <clg@kaod.org>
 M: Daniel Henrique Barboza <danielhb413@gmail.com>
 R: David Gibson <david@gibson.dropbear.id.au>
 R: Greg Kurz <groug@kaod.org>
+R: Leandro Lupori <leandro.lupori@eldorado.org.br>
 L: qemu-ppc@nongnu.org
 S: Maintained
 F: target/ppc/
@@ -273,6 +274,7 @@ F: hw/ppc/ppc.c
 F: hw/ppc/ppc_booke.c
 F: include/hw/ppc/ppc.h
 F: disas/ppc.c
+F: tests/tcg/ppc64/
 
 RISC-V TCG CPUs
 M: Palmer Dabbelt <palmer@dabbelt.com>
