@@ -547,9 +547,9 @@ static void machine_set_nvdimm_persistence(Object *obj, const char *value,
     nvdimms_state->persistence_string = g_strdup(value);
 }
 
-void machine_class_allow_dynamic_sysbus_dev(MachineClass *mc, const char *type)
+void machine_class_allow_dynamic_device(MachineClass *mc, const char *type)
 {
-    QAPI_LIST_PREPEND(mc->allowed_dynamic_sysbus_devices, g_strdup(type));
+    QAPI_LIST_PREPEND(mc->allowed_dynamic_devices, g_strdup(type));
 }
 
 bool device_is_dynamic_sysbus(MachineClass *mc, DeviceState *dev)
@@ -560,16 +560,16 @@ bool device_is_dynamic_sysbus(MachineClass *mc, DeviceState *dev)
         return false;
     }
 
-    return device_type_is_dynamic_sysbus(mc, object_get_typename(obj));
+    return device_type_is_dynamic_allowed(mc, object_get_typename(obj));
 }
 
-bool device_type_is_dynamic_sysbus(MachineClass *mc, const char *type)
+bool device_type_is_dynamic_allowed(MachineClass *mc, const char *type)
 {
     bool allowed = false;
     strList *wl;
     ObjectClass *klass = object_class_by_name(type);
 
-    for (wl = mc->allowed_dynamic_sysbus_devices;
+    for (wl = mc->allowed_dynamic_devices;
          !allowed && wl;
          wl = wl->next) {
         allowed |= !!object_class_dynamic_cast(klass, wl->value);
