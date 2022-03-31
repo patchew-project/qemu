@@ -353,10 +353,10 @@ static void pc_q35_machine_options(MachineClass *m)
     m->default_display = "std";
     m->default_kernel_irqchip_split = false;
     m->no_floppy = 1;
-    machine_class_allow_dynamic_sysbus_dev(m, TYPE_AMD_IOMMU_DEVICE);
-    machine_class_allow_dynamic_sysbus_dev(m, TYPE_INTEL_IOMMU_DEVICE);
-    machine_class_allow_dynamic_sysbus_dev(m, TYPE_RAMFB_DEVICE);
-    machine_class_allow_dynamic_sysbus_dev(m, TYPE_VMBUS_BRIDGE);
+    machine_class_allow_dynamic_device(m, TYPE_AMD_IOMMU_DEVICE);
+    machine_class_allow_dynamic_device(m, TYPE_INTEL_IOMMU_DEVICE);
+    machine_class_allow_dynamic_device(m, TYPE_RAMFB_DEVICE);
+    machine_class_allow_dynamic_device(m, TYPE_VMBUS_BRIDGE);
     m->max_cpus = 288;
 }
 

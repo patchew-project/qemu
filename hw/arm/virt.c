@@ -2829,12 +2829,12 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
      * configuration of the particular instance.
      */
     mc->max_cpus = 512;
-    machine_class_allow_dynamic_sysbus_dev(mc, TYPE_VFIO_CALXEDA_XGMAC);
-    machine_class_allow_dynamic_sysbus_dev(mc, TYPE_VFIO_AMD_XGBE);
-    machine_class_allow_dynamic_sysbus_dev(mc, TYPE_RAMFB_DEVICE);
-    machine_class_allow_dynamic_sysbus_dev(mc, TYPE_VFIO_PLATFORM);
+    machine_class_allow_dynamic_device(mc, TYPE_VFIO_CALXEDA_XGMAC);
+    machine_class_allow_dynamic_device(mc, TYPE_VFIO_AMD_XGBE);
+    machine_class_allow_dynamic_device(mc, TYPE_RAMFB_DEVICE);
+    machine_class_allow_dynamic_device(mc, TYPE_VFIO_PLATFORM);
 #ifdef CONFIG_TPM
-    machine_class_allow_dynamic_sysbus_dev(mc, TYPE_TPM_TIS_SYSBUS);
+    machine_class_allow_dynamic_device(mc, TYPE_TPM_TIS_SYSBUS);
 #endif
     mc->block_default_type = IF_VIRTIO;
     mc->no_cdrom = 1;
