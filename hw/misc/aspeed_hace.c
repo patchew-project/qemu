@@ -95,12 +95,115 @@ static int hash_algo_lookup(uint32_t reg)
     return -1;
 }
 
-static void do_hash_operation(AspeedHACEState *s, int algo, bool sg_mode)
+/**
+ * Check whether the request contains padding message.
+ *
+ * @param iov           iov of current request
+ * @param id            index of iov of current request
+ * @param total_req_len length of all acc_mode requests(including padding msg)
+ * @param req_len       length of the current request
+ * @param total_msg_len length of all acc_mode requests(excluding padding msg)
+ * @param pad_offset    start offset of padding message
+ */
+static bool has_padding(struct iovec *iov, uint32_t total_req_len,
+                        hwaddr req_len, uint32_t *total_msg_len,
+                        uint32_t *pad_offset)
+{
+    *total_msg_len = (uint32_t)(ldq_be_p(iov->iov_base + req_len - 8) / 8);
+    /*
+     * SG_LIST_LEN_LAST asserted in the request length doesn't mean it is the
+     * last request. The last request should contain padding message.
+     * We check whether message contains padding by
+     *   1. Get total message length. If the current message contains
+     *      padding, the last 8 bytes are total message length.
+     *   2. Check whether the total message length is valid.
+     *      If it is valid, the value should less than or eaual to
+     *      total_req_len.
+     *   3. Current request len - padding_size to get padding offset.
+     *      The padding message's first byte should be 0x80
+     */
+    if (*total_msg_len <= total_req_len) {
+        uint32_t padding_size = total_req_len - *total_msg_len;
+        uint8_t *padding = iov->iov_base;
+        *pad_offset = req_len - padding_size;
+        if (padding[*pad_offset] == 0x80) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static int reconstruct_iov(struct iovec *cache, struct iovec *iov, int id,
+                           uint32_t *total_req_len,
+                           uint32_t *pad_offset,
+                           int *count)
+{
+    int i, iov_count;
+    if (pad_offset != 0) {
+        (cache + *count)->iov_base = (iov + id)->iov_base;
+        (cache + *count)->iov_len = *pad_offset;
+        ++*count;
+    }
+    for (i = 0; i < *count; i++) {
+        (iov + i)->iov_base = (cache + i)->iov_base;
+        (iov + i)->iov_len = (cache + i)->iov_len;
+    }
+    iov_count = *count;
+    *count = 0;
+    *total_req_len = 0;
+    return iov_count;
+}
+
+/**
+ * Generate iov for accumulative mode.
+ *
+ * @param cache         cached iov
+ * @param iov           iov of current request
+ * @param id            index of iov of current request
+ * @param total_req_len total length of the request(including padding)
+ * @param req_len       length of the current request
+ * @param count         count of cached iov
+ */
+static int gen_acc_mode_iov(struct iovec *cache, struct iovec *iov, int id,
+                            uint32_t *total_req_len, hwaddr *req_len,
+                            int *count)
+{
+    uint32_t pad_offset;
+    uint32_t total_msg_len;
+    *total_req_len += *req_len;
+
+    if (has_padding(&iov[id], *total_req_len, *req_len, &total_msg_len,
+                    &pad_offset)) {
+        if (*count) {
+            return reconstruct_iov(cache, iov, id, total_req_len,
+                    &pad_offset, count);
+        }
+
+        *req_len -= *total_req_len - total_msg_len;
+        *total_req_len = 0;
+        (iov + id)->iov_len = *req_len;
+        return id + 1;
+    } else {
+        (cache + *count)->iov_base = iov->iov_base;
+        (cache + *count)->iov_len = *req_len;
+        ++*count;
+    }
+
+    return 0;
+}
+
+static void do_hash_operation(AspeedHACEState *s, int algo, bool sg_mode,
+                              bool acc_mode)
 {
     struct iovec iov[ASPEED_HACE_MAX_SG];
     g_autofree uint8_t *digest_buf;
     size_t digest_len = 0;
+    int niov = 0;
     int i;
+    static struct iovec iov_cache[ASPEED_HACE_MAX_SG];
+    static int count;
+    static uint32_t total_len;
 
     if (sg_mode) {
         uint32_t len = 0;
@@ -124,10 +227,17 @@ static void do_hash_operation(AspeedHACEState *s, int algo, bool sg_mode)
                                         MEMTXATTRS_UNSPECIFIED, NULL);
             addr &= SG_LIST_ADDR_MASK;
 
-            iov[i].iov_len = len & SG_LIST_LEN_MASK;
-            plen = iov[i].iov_len;
+            plen = len & SG_LIST_LEN_MASK;
             iov[i].iov_base = address_space_map(&s->dram_as, addr, &plen, false,
                                                 MEMTXATTRS_UNSPECIFIED);
+
+            if (acc_mode) {
+                niov = gen_acc_mode_iov(
+                        iov_cache, iov, i, &total_len, &plen, &count);
+
+            } else {
+                iov[i].iov_len = plen;
+            }
         }
     } else {
         hwaddr len = s->regs[R_HASH_SRC_LEN];
@@ -137,6 +247,27 @@ static void do_hash_operation(AspeedHACEState *s, int algo, bool sg_mode)
                                             &len, false,
                                             MEMTXATTRS_UNSPECIFIED);
         i = 1;
+
+        if (count) {
+            /*
+             * In aspeed sdk kernel driver, sg_mode is disabled in hash_final().
+             * Thus if we received a request with sg_mode disabled, it is
+             * required to check whether cache is empty. If no, we should
+             * combine cached iov and the current iov.
+             */
+            uint32_t total_msg_len;
+            uint32_t pad_offset;
+            total_len += len;
+            if (has_padding(iov, total_len, len, &total_msg_len,
+                            &pad_offset)) {
+                niov = reconstruct_iov(iov_cache, iov, 0, &total_len,
+                        &pad_offset, &count);
+            }
+        }
+    }
+
+    if (niov) {
+        i = niov;
     }
 
     if (qcrypto_hash_bytesv(algo, iov, i, &digest_buf, &digest_len, NULL) < 0) {
@@ -238,7 +369,8 @@ static void aspeed_hace_write(void *opaque, hwaddr addr, uint64_t data,
                         __func__, data & ahc->hash_mask);
                 break;
         }
-        do_hash_operation(s, algo, data & HASH_SG_EN);
+        do_hash_operation(s, algo, data & HASH_SG_EN,
+                ((data & HASH_HMAC_MASK) == HASH_DIGEST_ACCUM));
 
         if (data & HASH_IRQ_EN) {
             qemu_irq_raise(s->irq);
