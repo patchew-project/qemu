@@ -122,6 +122,15 @@ struct DeviceClass {
      * TODO remove once we're there
      */
     bool user_creatable;
+    /*
+     * Some devices can be user created under certain conditions (eg:
+     * specific machine support for sysbus devices), but it is
+     * preferable to prevent global allowance for the reasons
+     * described above.
+     * This flag is an additional constraint over user_creatable:
+     * user_creatable still needs to be set to true.
+     */
+    bool user_creatable_requires_machine_allowance;
     bool hotpluggable;
 
     /* callbacks */
