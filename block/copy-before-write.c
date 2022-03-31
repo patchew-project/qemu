@@ -319,7 +319,7 @@ static void cbw_child_perm(BlockDriverState *bs, BdrvChild *c,
         bdrv_default_perms(bs, c, role, reopen_queue,
                            perm, shared, nperm, nshared);
 
-        *nperm = *nperm | BLK_PERM_CONSISTENT_READ;
+        *nperm = *nperm | BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE;
         *nshared &= ~(BLK_PERM_WRITE | BLK_PERM_RESIZE);
     }
 }

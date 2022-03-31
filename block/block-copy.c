@@ -133,6 +133,7 @@ typedef struct BlockCopyState {
     CoMutex lock;
     int64_t in_flight_bytes;
     BlockCopyMethod method;
+    bool discard_source;
     BlockReqList reqs;
     QLIST_HEAD(, BlockCopyCallState) calls;
     /*
@@ -278,11 +279,12 @@ static uint32_t block_copy_max_transfer(BdrvChild *source, BdrvChild *target)
 }
 
 void block_copy_set_copy_opts(BlockCopyState *s, bool use_copy_range,
-                              bool compress)
+                              bool compress, bool discard_source)
 {
     /* Keep BDRV_REQ_SERIALISING set (or not set) in block_copy_state_new() */
     s->write_flags = (s->write_flags & BDRV_REQ_SERIALISING) |
         (compress ? BDRV_REQ_WRITE_COMPRESSED : 0);
+    s->discard_source = discard_source;
 
     if (s->max_transfer < s->cluster_size) {
         /*
@@ -405,7 +407,7 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
                                     cluster_size),
     };
 
-    block_copy_set_copy_opts(s, false, false);
+    block_copy_set_copy_opts(s, false, false, false);
 
     ratelimit_init(&s->rate_limit);
     qemu_co_mutex_init(&s->lock);
@@ -574,6 +576,10 @@ static coroutine_fn int block_copy_task_entry(AioTask *task)
     }
     co_put_to_shres(s->mem, t->req.bytes);
     block_copy_task_end(t, ret);
+
+    if (s->discard_source && ret == 0) {
+        bdrv_co_pdiscard(s->source, t->req.offset, t->req.bytes);
+    }
 
     return ret;
 }
