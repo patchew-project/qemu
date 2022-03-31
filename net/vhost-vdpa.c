@@ -354,10 +354,13 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
     s->vhost_vdpa.iova_tree = iova_tree;
     ret = vhost_vdpa_add(nc, (void *)&s->vhost_vdpa, queue_pair_index, nvqs);
     if (ret) {
-        qemu_del_net_client(nc);
-        return NULL;
+        goto err;
     }
     return nc;
+
+err:
+    qemu_del_net_client(nc);
+    return NULL;
 }
 
 static int vhost_vdpa_get_features(int fd, uint64_t *features, Error **errp)
@@ -366,6 +369,17 @@ static int vhost_vdpa_get_features(int fd, uint64_t *features, Error **errp)
     if (ret) {
         error_setg_errno(errp, errno,
                          "Fail to query features from vhost-vDPA device");
+    }
+    return ret;
+}
+
+static int vhost_vdpa_get_backend_features(int fd, uint64_t *features,
+                                           Error **errp)
+{
+    int ret = ioctl(fd, VHOST_GET_BACKEND_FEATURES, features);
+    if (ret) {
+        error_setg_errno(errp, errno,
+            "Fail to query backend features from vhost-vDPA device");
     }
     return ret;
 }
@@ -403,16 +417,112 @@ static int vhost_vdpa_get_max_queue_pairs(int fd, uint64_t features,
     return 1;
 }
 
+/**
+ * Check vdpa device to support CVQ group asid 1
+ *
+ * @vdpa_device_fd: Vdpa device fd
+ * @queue_pairs: Queue pairs
+ * @errp: Error
+ */
+static int vhost_vdpa_check_cvq_svq(int vdpa_device_fd, int queue_pairs,
+                                    Error **errp)
+{
+    uint64_t backend_features;
+    unsigned num_as;
+    int r;
+
+    r = vhost_vdpa_get_backend_features(vdpa_device_fd, &backend_features,
+                                        errp);
+    if (unlikely(r)) {
+        return -1;
+    }
+
+    if (unlikely(!(backend_features & VHOST_BACKEND_F_IOTLB_ASID))) {
+        error_setg(errp, "Device without IOTLB_ASID feature");
+        return -1;
+    }
+
+    r = ioctl(vdpa_device_fd, VHOST_VDPA_GET_AS_NUM, &num_as);
+    if (unlikely(r)) {
+        error_setg_errno(errp, errno,
+                         "Cannot retrieve number of supported ASs");
+        return -1;
+    }
+    if (unlikely(num_as < 2)) {
+        error_setg(errp, "Insufficient number of ASs (%u, min: 2)", num_as);
+    }
+
+    return 0;
+}
+
+/**
+ * Check if CVQ lives in an isolated group.
+ *
+ * Note that vdpa QEMU needs to be the owner of vdpa device (in other words, to
+ * have called VHOST_SET_OWNER) for this to succeed.
+ *
+ * @vdpa_device_fd: vdpa device fd
+ * @vq_index: vq index to start asking for group
+ * @nvq: Number of vqs to check
+ * @cvq_device_index: cvq device index
+ * @cvq_group: cvq group
+ * @errp: Error
+ */
+static bool vhost_vdpa_is_cvq_isolated_group(int vdpa_device_fd,
+                                           unsigned vq_index,
+                                           unsigned nvq,
+                                           unsigned cvq_device_index,
+                                           struct vhost_vring_state *cvq_group,
+                                           Error **errp)
+{
+    int r;
+
+    if (cvq_group->index == 0) {
+        cvq_group->index = cvq_device_index;
+        r = ioctl(vdpa_device_fd, VHOST_VDPA_GET_VRING_GROUP, cvq_group);
+        if (unlikely(r)) {
+            error_setg_errno(errp, errno,
+                             "Cannot get control vq index %d group",
+                             cvq_group->index);
+            false;
+        }
+    }
+
+    for (int k = vq_index; k < vq_index + nvq; ++k) {
+        struct vhost_vring_state s = {
+            .index = k,
+        };
+
+        r = ioctl(vdpa_device_fd, VHOST_VDPA_GET_VRING_GROUP, &s);
+        if (unlikely(r)) {
+            error_setg_errno(errp, errno, "Cannot get vq %d group", k);
+            return false;
+        }
+
+        if (unlikely(s.num == cvq_group->num)) {
+            error_setg(errp, "Data virtqueue %d has the same group as cvq (%d)",
+                       k, s.num);
+            return false;
+        }
+    }
+
+    return true;
+}
+
 int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
                         NetClientState *peer, Error **errp)
 {
     const NetdevVhostVDPAOptions *opts;
+    struct vhost_vdpa_iova_range iova_range;
+    struct vhost_vring_state cvq_group = {};
     uint64_t features;
     int vdpa_device_fd;
     g_autofree NetClientState **ncs = NULL;
     NetClientState *nc;
     int queue_pairs, r, i, has_cvq = 0;
     g_autoptr(VhostIOVATree) iova_tree = NULL;
+    g_autoptr(VhostIOVATree) cvq_iova_tree = NULL;
+    ERRP_GUARD();
 
     assert(netdev->type == NET_CLIENT_DRIVER_VHOST_VDPA);
     opts = &netdev->u.vhost_vdpa;
@@ -437,8 +547,9 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
         qemu_close(vdpa_device_fd);
         return queue_pairs;
     }
-    if (opts->x_svq) {
-        struct vhost_vdpa_iova_range iova_range;
+    if (opts->x_cvq_svq || opts->x_svq) {
+        vhost_vdpa_get_iova_range(vdpa_device_fd, &iova_range);
+
         uint64_t invalid_dev_features =
             features & ~vdpa_svq_device_features &
             /* Transport are all accepted at this point */
@@ -448,9 +559,25 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
         if (invalid_dev_features) {
             error_setg(errp, "vdpa svq does not work with features 0x%" PRIx64,
                        invalid_dev_features);
-            goto err_svq;
+            goto err_svq_features;
         }
-        vhost_vdpa_get_iova_range(vdpa_device_fd, &iova_range);
+    }
+
+    if (opts->x_cvq_svq) {
+        if (!has_cvq) {
+            error_setg(errp, "Cannot use x-cvq-svq with a device without cvq");
+            goto err_cvq_svq;
+        }
+
+        r = vhost_vdpa_check_cvq_svq(vdpa_device_fd, queue_pairs, errp);
+        if (unlikely(r)) {
+            error_prepend(errp, "Cannot configure CVQ SVQ: ");
+            goto err_cvq_svq;
+        }
+
+        cvq_iova_tree = vhost_iova_tree_new(iova_range.first, iova_range.last);
+    }
+    if (opts->x_svq) {
         iova_tree = vhost_iova_tree_new(iova_range.first, iova_range.last);
     }
 
@@ -458,31 +585,55 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
 
     for (i = 0; i < queue_pairs; i++) {
         ncs[i] = net_vhost_vdpa_init(peer, TYPE_VHOST_VDPA, name,
-                                     vdpa_device_fd, i, 2, 0,
-                                     queue_pairs + has_cvq, true, opts->x_svq,
-                                     iova_tree);
+                                     vdpa_device_fd, i, 2, 0, 2 * queue_pairs,
+                                     true, opts->x_svq, iova_tree);
         if (!ncs[i])
             goto err;
+
+        if (opts->x_cvq_svq &&
+            !vhost_vdpa_is_cvq_isolated_group(vdpa_device_fd, i * 2, 2,
+                                              queue_pairs * 2, &cvq_group,
+                                              errp)) {
+            goto err_cvq_svq;
+        }
     }
 
     if (has_cvq) {
-        nc = net_vhost_vdpa_init(peer, TYPE_VHOST_VDPA, name,
-                                 vdpa_device_fd, i, 1, 0,
-                                 queue_pairs + has_cvq, false, opts->x_svq,
-                                 iova_tree);
+        nc = net_vhost_vdpa_init(peer, TYPE_VHOST_VDPA, name, vdpa_device_fd,
+                                 i, 1, !!opts->x_cvq_svq,
+                                 2 * queue_pairs + 1, false,
+                                 opts->x_cvq_svq || opts->x_svq,
+                                 cvq_iova_tree);
         if (!nc)
             goto err;
+
+        if (opts->x_cvq_svq) {
+            struct vhost_vring_state asid = {
+                .index = 1,
+                .num = 1,
+            };
+
+            r = ioctl(vdpa_device_fd, VHOST_VDPA_SET_GROUP_ASID, &asid);
+            if (unlikely(r)) {
+                error_setg_errno(errp, errno,
+                                 "Cannot set cvq group independent asid");
+                goto err;
+            }
+        }
+
+        cvq_iova_tree = NULL;
     }
 
     iova_tree = NULL;
     return 0;
 
 err:
+err_cvq_svq:
     if (i) {
         qemu_del_net_client(ncs[0]);
     }
 
-err_svq:
+err_svq_features:
     qemu_close(vdpa_device_fd);
 
     return -1;
