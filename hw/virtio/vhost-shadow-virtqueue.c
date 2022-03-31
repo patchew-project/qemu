@@ -333,13 +333,25 @@ static void vhost_svq_disable_notification(VhostShadowVirtqueue *svq)
     svq->vring.avail->flags |= cpu_to_le16(VRING_AVAIL_F_NO_INTERRUPT);
 }
 
+static uint16_t vhost_svq_last_desc_of_chain(VhostShadowVirtqueue *svq,
+                                             uint16_t i)
+{
+    vring_desc_t *descs = svq->vring.desc;
+
+    while (le16_to_cpu(descs[i].flags) & VRING_DESC_F_NEXT) {
+        i = le16_to_cpu(descs[i].next);
+    }
+
+    return i;
+}
+
 static VirtQueueElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
                                            uint32_t *len)
 {
     vring_desc_t *descs = svq->vring.desc;
     const vring_used_t *used = svq->vring.used;
     vring_used_elem_t used_elem;
-    uint16_t last_used;
+    uint16_t last_used, last_used_chain;
 
     if (!vhost_svq_more_used(svq)) {
         return NULL;
@@ -365,7 +377,8 @@ static VirtQueueElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
         return NULL;
     }
 
-    descs[used_elem.id].next = svq->free_head;
+    last_used_chain = vhost_svq_last_desc_of_chain(svq, used_elem.id);
+    descs[last_used_chain].next = svq->free_head;
     svq->free_head = used_elem.id;
 
     *len = used_elem.len;
