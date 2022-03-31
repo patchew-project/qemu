@@ -1603,3 +1603,20 @@ Command line options:
   Enable read-only.
 
   (optional)
+
+vhost-user-scsi
+--------------
+
+Command line options:
+
+--scsi-file=PATH
+
+  Specify block device or file path.
+
+  (optional)
+
+--read-only
+
+  Enable read-only.
+
+  (optional)

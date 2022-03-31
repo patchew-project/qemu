@@ -89,6 +89,37 @@
 }
 
 ##
+# @VHostUserBackendSCSIFeature:
+#
+# List of vhost user "scsi" features.
+#
+# @read-only: The --read-only command line option is supported.
+# @scsi-file: The --scsi-file command line option is supported.
+#
+# Since: 5.0
+##
+{
+  'enum': 'VHostUserBackendSCSIFeature',
+  'data': [ 'read-only', 'scsi-file' ]
+}
+
+##
+# @VHostUserBackendCapabilitiesSCSI:
+#
+# Capabilities reported by vhost user "scsi" backends
+#
+# @features: list of supported features.
+#
+# Since: 5.0
+##
+{
+  'struct': 'VHostUserBackendCapabilitiesSCSI',
+  'data': {
+    'features': [ 'VHostUserBackendSCSIFeature' ]
+  }
+}
+
+##
 # @VHostUserBackendInputFeature:
 #
 # List of vhost user "input" features.
