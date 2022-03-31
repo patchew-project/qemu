@@ -1820,7 +1820,6 @@ fail_features:
 void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev)
 {
     int i;
-
     /* should only be called after backend is connected */
     assert(hdev->vhost_ops);
 
@@ -1853,4 +1852,18 @@ int vhost_net_set_backend(struct vhost_dev *hdev,
     }
 
     return -ENOSYS;
+}
+
+int vhost_dev_reset(struct vhost_dev *hdev)
+{
+    int ret = 0;
+
+    /* should only be called after backend is connected */
+    assert(hdev->vhost_ops);
+
+    if (hdev->vhost_ops->vhost_reset_device) {
+        ret = hdev->vhost_ops->vhost_reset_device(hdev);
+    }
+
+    return ret;
 }
