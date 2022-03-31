@@ -323,6 +323,8 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
                                        int vdpa_device_fd,
                                        int queue_pair_index,
                                        int nvqs,
+                                       uint32_t asid,
+                                       int vq_group_end,
                                        bool is_datapath,
                                        bool svq,
                                        VhostIOVATree *iova_tree)
@@ -344,6 +346,8 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
     s->vhost_vdpa.device_fd = vdpa_device_fd;
     s->vhost_vdpa.index = queue_pair_index;
     s->vhost_vdpa.shadow_vqs_enabled = svq;
+    s->vhost_vdpa.vq_group_index_end = vq_group_end;
+    s->vhost_vdpa.asid = asid;
     if (!is_datapath) {
         s->vhost_vdpa.shadow_vq_ops = &vhost_vdpa_net_svq_ops;
     }
@@ -454,7 +458,8 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
 
     for (i = 0; i < queue_pairs; i++) {
         ncs[i] = net_vhost_vdpa_init(peer, TYPE_VHOST_VDPA, name,
-                                     vdpa_device_fd, i, 2, true, opts->x_svq,
+                                     vdpa_device_fd, i, 2, 0,
+                                     queue_pairs + has_cvq, true, opts->x_svq,
                                      iova_tree);
         if (!ncs[i])
             goto err;
@@ -462,7 +467,8 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
 
     if (has_cvq) {
         nc = net_vhost_vdpa_init(peer, TYPE_VHOST_VDPA, name,
-                                 vdpa_device_fd, i, 1, false, opts->x_svq,
+                                 vdpa_device_fd, i, 1, 0,
+                                 queue_pairs + has_cvq, false, opts->x_svq,
                                  iova_tree);
         if (!nc)
             goto err;
