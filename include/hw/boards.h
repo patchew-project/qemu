@@ -52,11 +52,6 @@ void machine_parse_smp_config(MachineState *ms,
  * it will get an error message.
  */
 void machine_class_allow_dynamic_device(MachineClass *mc, const char *type);
-static inline void machine_class_allow_dynamic_sysbus_dev(MachineClass *mc,
-                                                          const char *type)
-{
-    machine_class_allow_dynamic_device(mc, type);
-}
 
 /**
  * device_type_is_dynamic_allowed: Check if type is an allowed device
@@ -72,11 +67,6 @@ static inline void machine_class_allow_dynamic_sysbus_dev(MachineClass *mc,
  * Note that if @type has a parent type in the list, it is allowed too.
  */
 bool device_type_is_dynamic_allowed(MachineClass *mc, const char *type);
-static inline bool device_type_is_dynamic_sysbus(MachineClass *mc,
-                                                 const char *type)
-{
-    return device_type_is_dynamic_allowed(mc, type);
-}
 
 /**
  * device_is_dynamic_sysbus: test whether device is a dynamic sysbus device
