@@ -42,6 +42,7 @@ struct AspeedI2CBus {
     SysBusDevice parent_obj;
 
     struct AspeedI2CState *controller;
+    struct AspeedI2CSlave *slave;
 
     MemoryRegion mr;
 
@@ -53,6 +54,7 @@ struct AspeedI2CBus {
     uint32_t timing[2];
     uint32_t intr_ctrl;
     uint32_t intr_status;
+    uint32_t dev_addr;
     uint32_t cmd;
     uint32_t buf;
     uint32_t pool_ctrl;
@@ -76,6 +78,12 @@ struct AspeedI2CState {
     AddressSpace dram_as;
 };
 
+#define TYPE_ASPEED_I2C_SLAVE "aspeed.i2c.slave"
+OBJECT_DECLARE_SIMPLE_TYPE(AspeedI2CSlave, ASPEED_I2C_SLAVE)
+struct AspeedI2CSlave {
+    I2CSlave i2c;
+    AspeedI2CBus *bus;
+};
 
 struct AspeedI2CClass {
     SysBusDeviceClass parent_class;
