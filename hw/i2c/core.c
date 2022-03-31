@@ -261,6 +261,20 @@ int i2c_send(I2CBus *bus, uint8_t data)
     return ret ? -1 : 0;
 }
 
+int i2c_send_async(I2CBus *bus, uint8_t data)
+{
+    I2CNode *node = QLIST_FIRST(&bus->current_devs);
+    I2CSlave *slave = node->elt;
+    I2CSlaveClass *sc = I2C_SLAVE_GET_CLASS(slave);
+
+    if (sc->send_async) {
+        sc->send_async(slave, data);
+        return 0;
+    }
+
+    return -1;
+}
+
 uint8_t i2c_recv(I2CBus *bus)
 {
     uint8_t data = 0xff;
@@ -295,6 +309,15 @@ void i2c_nack(I2CBus *bus)
             sc->event(node->elt, I2C_NACK);
         }
     }
+}
+
+void i2c_ack(I2CBus *bus)
+{
+    if (!bus->bh) {
+        return;
+    }
+
+    qemu_bh_schedule(bus->bh);
 }
 
 static int i2c_slave_post_load(void *opaque, int version_id)
