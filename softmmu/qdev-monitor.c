@@ -258,12 +258,12 @@ static DeviceClass *qdev_get_device_class(const char **driver, Error **errp)
         return NULL;
     }
 
-    if (object_class_dynamic_cast(oc, TYPE_SYS_BUS_DEVICE)) {
-        /* sysbus devices need to be allowed by the machine */
+    if (dc->user_creatable_requires_machine_allowance) {
+        /* some devices need to be allowed by the machine */
         MachineClass *mc = MACHINE_CLASS(object_get_class(qdev_get_machine()));
-        if (!device_type_is_dynamic_sysbus(mc, *driver)) {
+        if (!device_type_is_dynamic_allowed(mc, *driver)) {
             error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "driver",
-                       "a dynamic sysbus device type for the machine");
+                       "the device type is not allowed for this machine");
             return NULL;
         }
     }
