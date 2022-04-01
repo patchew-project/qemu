@@ -31,7 +31,7 @@ class QAPISchemaGenGolangVisitor(QAPISchemaVisitor):
 
     def __init__(self, prefix: str):
         super().__init__()
-        self.target = {name: "" for name in ["alternate", "enum", "helper", "struct"]}
+        self.target = {name: "" for name in ["alternate", "enum", "helper", "struct", "union"]}
         self.objects_seen = {}
         self.schema = None
         self._docmap = {}
@@ -82,10 +82,10 @@ func StrictDecode(into interface{}, from []byte) error {
                           members: List[QAPISchemaObjectTypeMember],
                           variants: Optional[QAPISchemaVariants]
                           ) -> None:
-        # Do not handle anything besides structs
+        # Do not handle anything besides struct and unions.
         if (name == self.schema.the_empty_object_type.name or
                 not isinstance(name, str) or
-                info.defn_meta not in ["struct"]):
+                info.defn_meta not in ["struct", "union"]):
             return
 
         assert name not in self.objects_seen
@@ -351,6 +351,93 @@ func (s *{type}) UnmarshalJSON(data []byte) error {{
 }}
 '''
 
+# Marshal methods for Union types
+def generate_marshal_methods(type: str,
+                             type_dict: Dict[str, str],
+                             discriminator: str = "",
+                             base: str = "") -> str:
+    assert base != ""
+    discriminator = "base." + discriminator
+
+    switch_case_format = '''
+    case {name}:
+        value := {case_type}{{}}
+        if err := json.Unmarshal(data, &value); err != nil {{
+            return err
+        }}
+        s.Value = value'''
+
+    if_supported_types = ""
+    added = {}
+    switch_cases = ""
+    for name in sorted(type_dict):
+        case_type = type_dict[name]
+        isptr = "*" if case_type[0] not in "*[" else ""
+        switch_cases += switch_case_format.format(name = name,
+                                                  case_type = case_type)
+        if case_type not in added:
+            if_supported_types += f'''typestr != "{case_type}" &&\n\t\t'''
+            added[case_type] = True
+
+    marshalfn = f'''
+func (s {type}) MarshalJSON() ([]byte, error) {{
+	base, err := json.Marshal(s.{base})
+	if err != nil {{
+		return nil, err
+	}}
+
+    typestr := fmt.Sprintf("%T", s.Value)
+    typestr = typestr[strings.LastIndex(typestr, ".")+1:]
+
+    // "The branches need not cover all possible enum values"
+    // This means that on Marshal, we can safely ignore empty values
+    if typestr == "<nil>" {{
+        return []byte(base), nil
+    }}
+
+    // Runtime check for supported value types
+    if {if_supported_types[:-6]} {{
+        return nil, errors.New(fmt.Sprintf("Type is not supported: %s", typestr))
+    }}
+	value, err := json.Marshal(s.Value)
+	if err != nil {{
+		return nil, err
+	}}
+
+    // Workaround to avoid checking s.Value being empty
+    if string(value) == "{{}}" {{
+        return []byte(base), nil
+    }}
+
+    // Removes the last '}}' from base and the first '{{' from value, in order to
+    // return a single JSON object.
+    result := fmt.Sprintf("%s,%s", base[:len(base)-1], value[1:])
+    return []byte(result), nil
+}}
+'''
+    unmarshal_base = f'''
+    var base {base}
+    if err := json.Unmarshal(data, &base); err != nil {{
+        return err
+    }}
+    s.{base} = base
+'''
+    unmarshal_default_warn = f'''
+    default:
+        fmt.Println("Failed to decode {type}", {discriminator})'''
+
+    return f'''{marshalfn}
+func (s *{type}) UnmarshalJSON(data []byte) error {{
+    {unmarshal_base}
+    switch {discriminator} {{
+{switch_cases[1:]}
+    {unmarshal_default_warn}
+    }}
+
+    return nil
+}}
+'''
+
 # Takes the documentation object of a specific type and returns
 # that type's documentation followed by its member's docs.
 def qapi_to_golang_struct_docs(doc: QAPIDoc) -> (str, Dict[str, str]):
@@ -412,10 +499,37 @@ def qapi_to_golang_struct(name: str,
         field_doc = doc_fields.get(memb.name, "")
         own_fields += f"\t{field} {isptr}{member_type}{fieldtag}{field_doc}\n"
 
+    union_types = {}
+    variant_fields = ""
+    if variants:
+        variant_fields = f"// Value based on @{variants.tag_member.name}, possible types:"
+        for var in variants.variants:
+            if var.type.is_implicit():
+                continue
+
+            name = variants.tag_member._type_name + var.name.title().replace("-", "")
+            union_types[name] = var.type.name
+            variant_fields += f"\n\t// * {var.type.c_unboxed_type()}"
+
+        variant_fields += f"\n\tValue Any"
+
     all_fields = base_fields if len(base_fields) > 0 else ""
     all_fields += own_fields[:-1] if len(own_fields) > 0 else ""
+    all_fields += variant_fields if len(variant_fields) > 0 else ""
 
-    return generate_struct_type(type_name, all_fields, doc_struct)
+    unmarshal_fn = ""
+    if info.defn_meta == "union" and variants is not None:
+        # Union's without variants are the Union's base data structure.
+        # e.g: SchemaInfo's base is SchemainfoBase.
+        discriminator = qapi_to_field_name(variants.tag_member.name)
+        base = qapi_to_go_type_name(variants.tag_member.defined_in,
+                                    variants.tag_member.info.defn_meta)
+        unmarshal_fn = generate_marshal_methods(type_name,
+                                                union_types,
+                                                discriminator = discriminator,
+                                                base = base_type_name)
+
+    return generate_struct_type(type_name, all_fields, doc_struct) + unmarshal_fn
 
 def qapi_schema_type_to_go_type(type: str) -> str:
     schema_types_to_go = {'str': 'string', 'null': 'nil', 'bool': 'bool',
