@@ -37,6 +37,13 @@ static bool gen_lr(DisasContext *ctx, arg_atomic *a, MemOp mop)
     return true;
 }
 
+static void record_insn_start_amo(DisasContext *ctx)
+{
+#ifndef CONFIG_USER_ONLY
+    tcg_set_insn_start_param(ctx->insn_start, 1, 1);
+#endif
+}
+
 static bool gen_sc(DisasContext *ctx, arg_atomic *a, MemOp mop)
 {
     TCGv dest, src1, src2;
@@ -73,6 +80,7 @@ static bool gen_sc(DisasContext *ctx, arg_atomic *a, MemOp mop)
      */
     tcg_gen_movi_tl(load_res, -1);
 
+    record_insn_start_amo(ctx);
     return true;
 }
 
@@ -85,8 +93,9 @@ static bool gen_amo(DisasContext *ctx, arg_atomic *a,
     TCGv src2 = get_gpr(ctx, a->rs2, EXT_NONE);
 
     func(dest, src1, src2, ctx->mem_idx, mop);
-
     gen_set_gpr(ctx, a->rd, dest);
+
+    record_insn_start_amo(ctx);
     return true;
 }
 

@@ -396,6 +396,9 @@ void restore_state_to_opc(CPURISCVState *env, TranslationBlock *tb,
     } else {
         env->pc = data[0];
     }
+#ifndef CONFIG_USER_ONLY
+    env->unwind_amo = data[1];
+#endif
 }
 
 static void riscv_cpu_reset(DeviceState *dev)

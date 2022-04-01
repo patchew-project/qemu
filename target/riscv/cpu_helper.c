@@ -1139,26 +1139,11 @@ void riscv_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
 
-    if (access_type == MMU_DATA_STORE) {
-        cs->exception_index = RISCV_EXCP_STORE_AMO_ACCESS_FAULT;
-    } else if (access_type == MMU_DATA_LOAD) {
-        cs->exception_index = RISCV_EXCP_LOAD_ACCESS_FAULT;
-    } else {
-        cs->exception_index = RISCV_EXCP_INST_ACCESS_FAULT;
+    cpu_restore_state(cs, retaddr, true);
+    if (env->unwind_amo) {
+        access_type = MMU_DATA_STORE;
     }
 
-    env->badaddr = addr;
-    env->two_stage_lookup = riscv_cpu_virt_enabled(env) ||
-                            riscv_cpu_two_stage_lookup(mmu_idx);
-    cpu_loop_exit_restore(cs, retaddr);
-}
-
-void riscv_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
-                                   MMUAccessType access_type, int mmu_idx,
-                                   uintptr_t retaddr)
-{
-    RISCVCPU *cpu = RISCV_CPU(cs);
-    CPURISCVState *env = &cpu->env;
     switch (access_type) {
     case MMU_INST_FETCH:
         cs->exception_index = RISCV_EXCP_INST_ADDR_MIS;
@@ -1172,10 +1157,43 @@ void riscv_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
     default:
         g_assert_not_reached();
     }
+
     env->badaddr = addr;
     env->two_stage_lookup = riscv_cpu_virt_enabled(env) ||
                             riscv_cpu_two_stage_lookup(mmu_idx);
-    cpu_loop_exit_restore(cs, retaddr);
+    cpu_loop_exit(cs);
+}
+
+void riscv_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
+                                   MMUAccessType access_type, int mmu_idx,
+                                   uintptr_t retaddr)
+{
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    CPURISCVState *env = &cpu->env;
+
+    cpu_restore_state(cs, retaddr, true);
+    if (env->unwind_amo) {
+        access_type = MMU_DATA_STORE;
+    }
+
+    switch (access_type) {
+    case MMU_INST_FETCH:
+        cs->exception_index = RISCV_EXCP_INST_ADDR_MIS;
+        break;
+    case MMU_DATA_LOAD:
+        cs->exception_index = RISCV_EXCP_LOAD_ADDR_MIS;
+        break;
+    case MMU_DATA_STORE:
+        cs->exception_index = RISCV_EXCP_STORE_AMO_ADDR_MIS;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    env->badaddr = addr;
+    env->two_stage_lookup = riscv_cpu_virt_enabled(env) ||
+                            riscv_cpu_two_stage_lookup(mmu_idx);
+    cpu_loop_exit(cs);
 }
 
 bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
@@ -1307,11 +1325,15 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     } else if (probe) {
         return false;
     } else {
+        cpu_restore_state(cs, retaddr, true);
+        if (env->unwind_amo) {
+            access_type = MMU_DATA_STORE;
+        }
         raise_mmu_exception(env, address, access_type, pmp_violation,
                             first_stage_error,
                             riscv_cpu_virt_enabled(env) ||
                                 riscv_cpu_two_stage_lookup(mmu_idx));
-        cpu_loop_exit_restore(cs, retaddr);
+        cpu_loop_exit(cs);
     }
 
     return true;

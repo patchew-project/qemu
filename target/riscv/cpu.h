@@ -291,6 +291,13 @@ struct CPUArchState {
     bool debugger;
 
     /*
+     * True if unwinding through an amo insn.  Used to transform a
+     * read fault into a store_amo fault; only valid immediately
+     * after cpu_restore_state().
+     */
+    bool unwind_amo;
+
+    /*
      * CSRs for PointerMasking extension
      */
     target_ulong mmte;
@@ -516,6 +523,14 @@ FIELD(TB_FLAGS, XL, 20, 2)
 /* If PointerMasking should be applied */
 FIELD(TB_FLAGS, PM_MASK_ENABLED, 22, 1)
 FIELD(TB_FLAGS, PM_BASE_ENABLED, 23, 1)
+
+#ifndef CONFIG_USER_ONLY
+/*
+ * RISC-V-specific extra insn start words:
+ * 1: True if the instruction is AMO, false otherwise.
+ */
+#define TARGET_INSN_START_EXTRA_WORDS 1
+#endif
 
 #ifdef TARGET_RISCV32
 #define riscv_cpu_mxl(env)  ((void)(env), MXL_RV32)
