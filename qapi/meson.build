@@ -90,6 +90,7 @@ qapi_nonmodule_outputs = [
   'qapi-init-commands.h', 'qapi-init-commands.c',
   'qapi-events.h', 'qapi-events.c',
   'qapi-emit-events.c', 'qapi-emit-events.h',
+  'qapibara.go',
 ]
 
 # First build all sources
