@@ -31,9 +31,10 @@ class QAPISchemaGenGolangVisitor(QAPISchemaVisitor):
 
     def __init__(self, prefix: str):
         super().__init__()
-        self.target = {name: "" for name in ["alternate", "enum", "helper", "struct", "union"]}
+        self.target = {name: "" for name in ["alternate", "enum", "event", "helper", "struct", "union"]}
         self.objects_seen = {}
         self.schema = None
+        self.events = {}
         self._docmap = {}
         self.golang_package_name = "qapi"
 
@@ -56,6 +57,24 @@ class QAPISchemaGenGolangVisitor(QAPISchemaVisitor):
 
     def visit_end(self):
         self.schema = None
+
+        # EventBase and Event are not specified in the QAPI schema,
+        # so we need to generate it ourselves.
+        self.target["event"] += '''
+type EventBase struct {
+    Name      string `json:"event"`
+    Timestamp struct {
+        Seconds      int64 `json:"seconds"`
+        Microseconds int64 `json:"microseconds"`
+    } `json:"timestamp"`
+}
+
+type Event struct {
+    EventBase
+    Arg       Any    `json:"data,omitempty"`
+}
+'''
+        self.target["event"] += generate_marshal_methods('Event', self.events)
 
         self.target["helper"] += '''
 // Creates a decoder that errors on unknown Fields
@@ -279,7 +298,28 @@ const (
         pass
 
     def visit_event(self, name, info, ifcond, features, arg_type, boxed):
-        pass
+        assert name == info.defn_name
+        type_name = qapi_to_go_type_name(name, info.defn_meta)
+        self.events[name] = type_name
+
+        doc = self._docmap.get(name, None)
+        self_contained = True if not arg_type or not arg_type.name.startswith("q_obj") else False
+        content = ""
+        if self_contained:
+            doc_struct, _ = qapi_to_golang_struct_docs(doc)
+            content = generate_struct_type(type_name, "", doc_struct)
+        else:
+            assert isinstance(arg_type, QAPISchemaObjectType)
+            content = qapi_to_golang_struct(name,
+                                            doc,
+                                            arg_type.info,
+                                            arg_type.ifcond,
+                                            arg_type.features,
+                                            arg_type.base,
+                                            arg_type.members,
+                                            arg_type.variants)
+
+        self.target["event"] += content
 
     def write(self, output_dir: str) -> None:
         for module_name, content in self.target.items():
@@ -351,15 +391,41 @@ func (s *{type}) UnmarshalJSON(data []byte) error {{
 }}
 '''
 
-# Marshal methods for Union types
+# Marshal methods for Event and Union types
 def generate_marshal_methods(type: str,
                              type_dict: Dict[str, str],
                              discriminator: str = "",
                              base: str = "") -> str:
-    assert base != ""
-    discriminator = "base." + discriminator
+    type_is_union = False
+    json_field = ""
+    struct_field = ""
+    if type == "Event":
+        base = type + "Base"
+        discriminator = "base.Name"
+        struct_field = "Arg"
+        json_field = "data"
+    else:
+        assert base != ""
+        discriminator = "base." + discriminator
+        type_is_union = True
 
-    switch_case_format = '''
+    switch_case_format = ""
+    if not type_is_union:
+        switch_case_format = '''
+    case "{name}":
+        tmp := struct {{
+            Value {isptr}{case_type} `json:"{json_field},omitempty"`
+        }}{{}}
+        if err := json.Unmarshal(data, &tmp); err != nil {{
+            return err
+        }}
+        if tmp.Value == nil {{
+            s.{struct_field} = nil
+        }} else {{
+            s.{struct_field} = {isptr}tmp.Value
+        }}'''
+    else:
+        switch_case_format = '''
     case {name}:
         value := {case_type}{{}}
         if err := json.Unmarshal(data, &value); err != nil {{
@@ -374,12 +440,17 @@ def generate_marshal_methods(type: str,
         case_type = type_dict[name]
         isptr = "*" if case_type[0] not in "*[" else ""
         switch_cases += switch_case_format.format(name = name,
+                                                  struct_field = struct_field,
+                                                  json_field = json_field,
+                                                  isptr = isptr,
                                                   case_type = case_type)
         if case_type not in added:
             if_supported_types += f'''typestr != "{case_type}" &&\n\t\t'''
             added[case_type] = True
 
-    marshalfn = f'''
+    marshalfn = ""
+    if type_is_union:
+        marshalfn = f'''
 func (s {type}) MarshalJSON() ([]byte, error) {{
 	base, err := json.Marshal(s.{base})
 	if err != nil {{
@@ -564,4 +635,9 @@ def qapi_to_go_type_name(name: str, meta: str) -> str:
     words = [word for word in name.replace("_", "-").split("-")]
     name = words[0].title() if words[0].islower() or words[0].isupper() else words[0]
     name += ''.join(word.title() for word in words[1:])
+
+    if meta == "event":
+        name = name[:-3] if name.endswith("Arg") else name
+        name += meta.title()
+
     return name
