@@ -191,7 +191,7 @@ static int vhost_kernel_set_owner(struct vhost_dev *dev)
     return vhost_kernel_call(dev, VHOST_SET_OWNER, NULL);
 }
 
-static int vhost_kernel_reset_device(struct vhost_dev *dev)
+static int vhost_kernel_reset_owner(struct vhost_dev *dev)
 {
     return vhost_kernel_call(dev, VHOST_RESET_OWNER, NULL);
 }
@@ -317,7 +317,7 @@ const VhostOps kernel_ops = {
         .vhost_get_features = vhost_kernel_get_features,
         .vhost_set_backend_cap = vhost_kernel_set_backend_cap,
         .vhost_set_owner = vhost_kernel_set_owner,
-        .vhost_reset_device = vhost_kernel_reset_device,
+        .vhost_reset_owner = vhost_kernel_reset_owner,
         .vhost_get_vq_index = vhost_kernel_get_vq_index,
 #ifdef CONFIG_VHOST_VSOCK
         .vhost_vsock_set_guest_cid = vhost_kernel_vsock_set_guest_cid,

@@ -80,8 +80,12 @@ static void vhost_user_scsi_reset(VirtIODevice *vdev)
         return;
     }
 
-    if (dev->vhost_ops->vhost_reset_device) {
+    if (virtio_has_feature(dev->protocol_features,
+                           VHOST_USER_PROTOCOL_F_RESET_DEVICE) &&
+                           dev->vhost_ops->vhost_reset_device) {
         dev->vhost_ops->vhost_reset_device(dev);
+    } else if (dev->vhost_ops->vhost_reset_owner) {
+        dev->vhost_ops->vhost_reset_owner(dev);
     }
 }
 

@@ -1475,16 +1475,29 @@ static int vhost_user_get_max_memslots(struct vhost_dev *dev,
     return 0;
 }
 
-static int vhost_user_reset_device(struct vhost_dev *dev)
+static int vhost_user_reset_owner(struct vhost_dev *dev)
 {
     VhostUserMsg msg = {
+        .hdr.request = VHOST_USER_RESET_OWNER,
         .hdr.flags = VHOST_USER_VERSION,
     };
 
-    msg.hdr.request = virtio_has_feature(dev->protocol_features,
-                                         VHOST_USER_PROTOCOL_F_RESET_DEVICE)
-        ? VHOST_USER_RESET_DEVICE
-        : VHOST_USER_RESET_OWNER;
+    return vhost_user_write(dev, &msg, NULL, 0);
+}
+
+static int vhost_user_reset_device(struct vhost_dev *dev)
+{
+    VhostUserMsg msg = {
+        .hdr.request = VHOST_USER_RESET_DEVICE,
+        .hdr.flags = VHOST_USER_VERSION,
+    };
+
+    /* Caller must ensure the backend has VHOST_USER_PROTOCOL_F_RESET_DEVICE
+     * support */
+    if (!virtio_has_feature(dev->protocol_features,
+                       VHOST_USER_PROTOCOL_F_RESET_DEVICE)) {
+        return -EPERM;
+    }
 
     return vhost_user_write(dev, &msg, NULL, 0);
 }
@@ -2548,6 +2561,7 @@ const VhostOps user_ops = {
         .vhost_set_features = vhost_user_set_features,
         .vhost_get_features = vhost_user_get_features,
         .vhost_set_owner = vhost_user_set_owner,
+        .vhost_reset_owner = vhost_user_reset_owner,
         .vhost_reset_device = vhost_user_reset_device,
         .vhost_get_vq_index = vhost_user_get_vq_index,
         .vhost_set_vring_enable = vhost_user_set_vring_enable,
