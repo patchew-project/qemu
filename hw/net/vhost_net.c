@@ -325,7 +325,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
     int total_notifiers = data_queue_pairs * 2 + cvq;
     VirtIONet *n = VIRTIO_NET(dev);
     int nvhosts = data_queue_pairs + cvq;
-    struct vhost_net *net;
+    struct vhost_net *net = NULL;
     int r, e, i, index_end = data_queue_pairs * 2;
     NetClientState *peer;
 
@@ -391,12 +391,20 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
 err_start:
     while (--i >= 0) {
         peer = qemu_get_peer(ncs , i);
-        vhost_net_stop_one(get_vhost_net(peer), dev);
+
+        net = get_vhost_net(peer);
+
+        vhost_net_stop_one(net, dev);
     }
+
     e = k->set_guest_notifiers(qbus->parent, total_notifiers, false);
     if (e < 0) {
         fprintf(stderr, "vhost guest notifier cleanup failed: %d\n", e);
         fflush(stderr);
+    }
+
+    if (net) {
+        vhost_dev_reset(&net->dev);
     }
 err:
     return r;
@@ -410,6 +418,7 @@ void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs,
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
     VirtIONet *n = VIRTIO_NET(dev);
     NetClientState *peer;
+    struct vhost_net *net = NULL;
     int total_notifiers = data_queue_pairs * 2 + cvq;
     int nvhosts = data_queue_pairs + cvq;
     int i, r;
@@ -420,7 +429,10 @@ void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs,
         } else {
             peer = qemu_get_peer(ncs, n->max_queue_pairs);
         }
-        vhost_net_stop_one(get_vhost_net(peer), dev);
+
+        net = get_vhost_net(peer);
+
+        vhost_net_stop_one(net, dev);
     }
 
     r = k->set_guest_notifiers(qbus->parent, total_notifiers, false);
@@ -429,6 +441,10 @@ void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs,
         fflush(stderr);
     }
     assert(r >= 0);
+
+    if (net) {
+        vhost_dev_reset(&net->dev);
+    }
 }
 
 void vhost_net_cleanup(struct vhost_net *net)
