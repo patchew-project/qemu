@@ -1139,7 +1139,7 @@ void riscv_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
 
-    if (access_type == MMU_DATA_STORE) {
+    if (access_type == MMU_DATA_STORE || env->amo_store_fault) {
         cs->exception_index = RISCV_EXCP_STORE_AMO_ACCESS_FAULT;
     } else if (access_type == MMU_DATA_LOAD) {
         cs->exception_index = RISCV_EXCP_LOAD_ACCESS_FAULT;

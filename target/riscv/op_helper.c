@@ -114,6 +114,20 @@ target_ulong helper_csrrw_i128(CPURISCVState *env, int csr,
     return int128_getlo(rv);
 }
 
+void helper_atomic_check(CPURISCVState *env, target_ulong address,
+                         int mmu_idx)
+{
+#ifndef CONFIG_USER_ONLY
+    void *phost;
+    int ret = probe_access_flags(env, address, MMU_DATA_STORE, mmu_idx, false,
+                                 &phost, GETPC());
+
+    if (ret & TLB_MMIO) {
+        env->amo_store_fault = true;
+    }
+#endif
+}
+
 #ifndef CONFIG_USER_ONLY
 
 target_ulong helper_sret(CPURISCVState *env)

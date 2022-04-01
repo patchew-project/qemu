@@ -179,6 +179,8 @@ struct CPUArchState {
     uint64_t mie;
     uint64_t mideleg;
 
+    bool amo_store_fault;
+
     target_ulong satp;   /* since: priv-1.10.0 */
     target_ulong stval;
     target_ulong medeleg;

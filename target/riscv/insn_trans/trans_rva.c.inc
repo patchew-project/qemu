@@ -83,6 +83,9 @@ static bool gen_amo(DisasContext *ctx, arg_atomic *a,
     TCGv dest = dest_gpr(ctx, a->rd);
     TCGv src1 = get_address(ctx, a->rs1, 0);
     TCGv src2 = get_gpr(ctx, a->rs2, EXT_NONE);
+    TCGv_i32 mem_idx = tcg_constant_i32(ctx->mem_idx);
+
+    gen_helper_atomic_check(cpu_env, src1, mem_idx);
 
     func(dest, src1, src2, ctx->mem_idx, mop);
 
