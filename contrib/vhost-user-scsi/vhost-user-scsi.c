@@ -353,6 +353,8 @@ fail:
 
 int main(int argc, char **argv)
 {
+    static int opt_fdnum = -1;
+    static gboolean opt_print_caps;
     VusDev *vdev_scsi = NULL;
     char *unix_fn = NULL;
     char *iscsi_uri = NULL;
@@ -362,11 +364,17 @@ int main(int argc, char **argv)
         switch (opt) {
         case 'h':
             goto help;
-        case 'u':
+        case 's':
             unix_fn = g_strdup(optarg);
             break;
         case 'i':
             iscsi_uri = g_strdup(optarg);
+            break;
+        case 'f':
+            opt_fdnum = g_strdup(optarg);
+            break;
+        case 'p':
+            opt_print_caps = g_strdup(optarg);
             break;
         default:
             goto help;
@@ -376,9 +384,22 @@ int main(int argc, char **argv)
         goto help;
     }
 
-    lsock = unix_sock_new(unix_fn);
-    if (lsock < 0) {
-        goto err;
+    if (unix_fn) {
+        lsock = unix_sock_new(unix_fn);
+        if (lsock < 0) {
+            exit(EXIT_FAILURE);
+        }
+    } else if (opt_fdnum < 0) {
+        g_print("%s\n", g_option_context_get_help(context, true, NULL));
+        exit(EXIT_FAILURE);
+    } else {
+        lsock = opt_fdnum;
+    }
+
+    if (opt_print_caps) {
+        if (opt_print_caps["type"] != "scsi") {
+            goto err;
+        }
     }
 
     csock = accept(lsock, NULL, NULL);
@@ -426,10 +447,12 @@ err:
     goto out;
 
 help:
-    fprintf(stderr, "Usage: %s [ -u unix_sock_path -i iscsi_uri ] | [ -h ]\n",
+    fprintf(stderr, "Usage: %s [ -s socket-path -i iscsi_uri -f fd -p print-capabilities ] | [ -h ]\n",
             argv[0]);
-    fprintf(stderr, "          -u path to unix socket\n");
+    fprintf(stderr, "          -s path to unix socket\n");
     fprintf(stderr, "          -i iscsi uri for lun 0\n");
+    fprintf(stderr, "          -f fd, file-descriptor\n");
+    fprintf(stderr, "          -p denotes print-capabilities\n");
     fprintf(stderr, "          -h print help and quit\n");
 
     goto err;
