@@ -321,7 +321,12 @@ const (
 '''
 
     def visit_array_type(self, name, info, ifcond, element_type):
-        pass
+        # TLDR: We don't need to any extra boilerplate in Go to handle Arrays.
+        #
+        # This function is implemented just to be sure that:
+        # 1. Every array type ends with List
+        # 2. Every array type's element is the array type without 'List'
+        assert name.endswith("List") and name[:-4] == element_type.name
 
     def visit_command(self,
                       name: str,
