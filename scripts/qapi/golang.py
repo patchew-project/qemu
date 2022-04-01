@@ -31,10 +31,11 @@ class QAPISchemaGenGolangVisitor(QAPISchemaVisitor):
 
     def __init__(self, prefix: str):
         super().__init__()
-        self.target = {name: "" for name in ["alternate", "enum", "event", "helper", "struct", "union"]}
+        self.target = {name: "" for name in ["alternate", "command", "enum", "event", "helper", "struct", "union"]}
         self.objects_seen = {}
         self.schema = None
         self.events = {}
+        self.commands = {}
         self._docmap = {}
         self.golang_package_name = "qapi"
 
@@ -75,6 +76,19 @@ type Event struct {
 }
 '''
         self.target["event"] += generate_marshal_methods('Event', self.events)
+
+        self.target["command"] += '''
+type CommandBase struct {
+    Id   string `json:"id,omitempty"`
+    Name string `json:"execute"`
+}
+
+type Command struct {
+    CommandBase
+    Arg Any    `json:"arguments,omitempty"`
+}
+'''
+        self.target["command"] += generate_marshal_methods('Command', self.commands)
 
         self.target["helper"] += '''
 // Creates a decoder that errors on unknown Fields
@@ -295,7 +309,29 @@ const (
                       allow_oob: bool,
                       allow_preconfig: bool,
                       coroutine: bool) -> None:
-        pass
+        assert name == info.defn_name
+        type_name = qapi_to_go_type_name(name, info.defn_meta)
+        self.commands[name] = type_name
+
+        doc = self._docmap.get(name, None)
+        self_contained = True if not arg_type or not arg_type.name.startswith("q_obj") else False
+        content = ""
+        if boxed or self_contained:
+            args = "" if not arg_type else "\n" + arg_type.name
+            doc_struct, _ = qapi_to_golang_struct_docs(doc)
+            content = generate_struct_type(type_name, args, doc_struct)
+        else:
+            assert isinstance(arg_type, QAPISchemaObjectType)
+            content = qapi_to_golang_struct(name,
+                                            doc,
+                                            arg_type.info,
+                                            arg_type.ifcond,
+                                            arg_type.features,
+                                            arg_type.base,
+                                            arg_type.members,
+                                            arg_type.variants)
+
+        self.target["command"] += content
 
     def visit_event(self, name, info, ifcond, features, arg_type, boxed):
         assert name == info.defn_name
@@ -391,7 +427,7 @@ func (s *{type}) UnmarshalJSON(data []byte) error {{
 }}
 '''
 
-# Marshal methods for Event and Union types
+# Marshal methods for Event, Commad and Union types
 def generate_marshal_methods(type: str,
                              type_dict: Dict[str, str],
                              discriminator: str = "",
@@ -404,6 +440,11 @@ def generate_marshal_methods(type: str,
         discriminator = "base.Name"
         struct_field = "Arg"
         json_field = "data"
+    elif type == "Command":
+        base = type + "Base"
+        discriminator = "base.Name"
+        struct_field = "Arg"
+        json_field = "arguments"
     else:
         assert base != ""
         discriminator = "base." + discriminator
@@ -636,7 +677,7 @@ def qapi_to_go_type_name(name: str, meta: str) -> str:
     name = words[0].title() if words[0].islower() or words[0].isupper() else words[0]
     name += ''.join(word.title() for word in words[1:])
 
-    if meta == "event":
+    if meta == "event" or meta == "command":
         name = name[:-3] if name.endswith("Arg") else name
         name += meta.title()
 
