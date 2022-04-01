@@ -31,7 +31,7 @@ class QAPISchemaGenGolangVisitor(QAPISchemaVisitor):
 
     def __init__(self, prefix: str):
         super().__init__()
-        self.target = {name: "" for name in ["alternate", "enum", "helper"]}
+        self.target = {name: "" for name in ["alternate", "enum", "helper", "struct"]}
         self.objects_seen = {}
         self.schema = None
         self._docmap = {}
@@ -82,7 +82,31 @@ func StrictDecode(into interface{}, from []byte) error {
                           members: List[QAPISchemaObjectTypeMember],
                           variants: Optional[QAPISchemaVariants]
                           ) -> None:
-        pass
+        # Do not handle anything besides structs
+        if (name == self.schema.the_empty_object_type.name or
+                not isinstance(name, str) or
+                info.defn_meta not in ["struct"]):
+            return
+
+        assert name not in self.objects_seen
+        self.objects_seen[name] = True
+
+        # visit all inner objects as well, they are not going to be
+        # called by python's generator.
+        if variants:
+            for var in variants.variants:
+                assert isinstance(var.type, QAPISchemaObjectType)
+                self.visit_object_type(self,
+                                       var.type.name,
+                                       var.type.info,
+                                       var.type.ifcond,
+                                       var.type.base,
+                                       var.type.local_members,
+                                       var.type.variants)
+
+        doc = self._docmap.get(info.defn_name, None)
+        self.target[info.defn_meta] += qapi_to_golang_struct(name, doc, info,
+                ifcond, features, base, members, variants)
 
     def visit_alternate_type(self: QAPISchemaGenGolangVisitor,
                              name: str,
@@ -276,6 +300,14 @@ def gen_golang(schema: QAPISchema,
     schema.visit(vis)
     vis.write(output_dir)
 
+# Helper function for boxed or self contained structures.
+def generate_struct_type(type_name, args="", doc_struct="") -> str:
+    args =  args if len(args) == 0 else f"\n{args}\n"
+    return f'''
+{doc_struct}
+type {type_name} struct {{{args}}}
+'''
+
 def generate_marshal_methods_enum(members: List[QAPISchemaEnumMember]) -> str:
     type = qapi_to_go_type_name(members[0].defined_in, "enum")
 
@@ -345,6 +377,46 @@ def qapi_to_golang_struct_docs(doc: QAPIDoc) -> (str, Dict[str, str]):
 
     return main, fields
 
+# Helper function that is used for most of QAPI types
+def qapi_to_golang_struct(name: str,
+                          doc: QAPIDoc,
+                          info: Optional[QAPISourceInfo],
+                          ifcond: QAPISchemaIfCond,
+                          features: List[QAPISchemaFeature],
+                          base: Optional[QAPISchemaObjectType],
+                          members: List[QAPISchemaObjectTypeMember],
+                          variants: Optional[QAPISchemaVariants]) -> str:
+
+    type_name = qapi_to_go_type_name(name, info.defn_meta)
+    doc_struct, doc_fields = qapi_to_golang_struct_docs(doc)
+
+    base_fields = ""
+    if base:
+        base_type_name = qapi_to_go_type_name(base.name, base.meta)
+        base_fields = f"\t// Base type for this struct\n\t{base_type_name}\n"
+
+    own_fields = ""
+    for memb in members:
+        field = qapi_to_field_name(memb.name)
+        member_type = qapi_schema_type_to_go_type(memb.type.name)
+
+        # In Golang, we are using "encoding/json" library to Marshal and Unmarshal between
+        # over-the-wire QMP and Golang struct. The field tag 'omitempty' does not behave as
+        # expected for some types with default values and they only way to "ignore by default"
+        # unset fields is to have them as reference in the Struct.
+        # This way, a *bool and *int can be ignored where a bool or int might have been set.
+        isptr = "*" if memb.optional and member_type[0] not in "*[" else ""
+        optional = ",omitempty" if memb.optional else ""
+        fieldtag = '`json:"{name}{optional}"`'.format(name=memb.name,optional=optional)
+
+        field_doc = doc_fields.get(memb.name, "")
+        own_fields += f"\t{field} {isptr}{member_type}{fieldtag}{field_doc}\n"
+
+    all_fields = base_fields if len(base_fields) > 0 else ""
+    all_fields += own_fields[:-1] if len(own_fields) > 0 else ""
+
+    return generate_struct_type(type_name, all_fields, doc_struct)
+
 def qapi_schema_type_to_go_type(type: str) -> str:
     schema_types_to_go = {'str': 'string', 'null': 'nil', 'bool': 'bool',
             'number': 'float64', 'size': 'uint64', 'int': 'int64', 'int8': 'int8',
@@ -363,6 +435,9 @@ def qapi_schema_type_to_go_type(type: str) -> str:
 
 def qapi_to_field_name_enum(name: str) -> str:
     return name.title().replace("-", "")
+
+def qapi_to_field_name(name: str) -> str:
+    return name.title().replace("_", "").replace("-", "")
 
 def qapi_to_go_type_name(name: str, meta: str) -> str:
     if name.startswith("q_obj_"):
