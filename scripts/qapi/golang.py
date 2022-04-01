@@ -31,7 +31,8 @@ class QAPISchemaGenGolangVisitor(QAPISchemaVisitor):
 
     def __init__(self, prefix: str):
         super().__init__()
-        self.target = {name: "" for name in ["enum"]}
+        self.target = {name: "" for name in ["alternate", "enum", "helper"]}
+        self.objects_seen = {}
         self.schema = None
         self._docmap = {}
         self.golang_package_name = "qapi"
@@ -43,6 +44,10 @@ class QAPISchemaGenGolangVisitor(QAPISchemaVisitor):
         for target in self.target:
             self.target[target] = f"package {self.golang_package_name}\n"
 
+        self.target["helper"] += f'''
+    // Alias for go version lower than 1.18
+    type Any = interface{{}}'''
+
         # Iterate once in schema.docs to map doc objects to its name
         for doc in schema.docs:
             if doc.symbol is None:
@@ -51,6 +56,22 @@ class QAPISchemaGenGolangVisitor(QAPISchemaVisitor):
 
     def visit_end(self):
         self.schema = None
+
+        self.target["helper"] += '''
+// Creates a decoder that errors on unknown Fields
+// Returns true if successfully decoded @from string @into type
+// Returns false without error is failed with "unknown field"
+// Returns false with error is a different error was found
+func StrictDecode(into interface{}, from []byte) error {
+	dec := json.NewDecoder(strings.NewReader(string(from)))
+	dec.DisallowUnknownFields()
+
+    if err := dec.Decode(into); err != nil {
+        return err
+    }
+	return nil
+}
+'''
 
     def visit_object_type(self: QAPISchemaGenGolangVisitor,
                           name: str,
@@ -70,7 +91,123 @@ class QAPISchemaGenGolangVisitor(QAPISchemaVisitor):
                              features: List[QAPISchemaFeature],
                              variants: QAPISchemaVariants
                              ) -> None:
-        pass
+        assert name not in self.objects_seen
+        self.objects_seen[name] = True
+
+        # Alternate marshal logic
+        #
+        # To avoid programming errors by users of this generated Go module,
+        # we add a runtime check to error out in case the underlying Go type
+        # doesn't not match any of supported types of the Alternate type.
+        #
+        # Also, Golang's json Marshal will include as JSON's object, the
+        # wrapper we use to hold the Go struct (Value Any -> `Value: {...}`)
+        # This would not be an valid QMP message so we workaround it by
+        # calling RemoveValueObject function.
+        doc = self._docmap.get(name, None)
+        doc_struct, doc_fields = qapi_to_golang_struct_docs(doc)
+
+        members_doc = '''// Options are:'''
+        if_supported_types = ""
+        for var in variants.variants:
+            field_doc = doc_fields.get(var.name, "")
+            field_go_type = qapi_schema_type_to_go_type(var.type.name)
+            members_doc += f'''\n// * {var.name} ({field_go_type}):{field_doc[3:]}'''
+
+            if field_go_type == "nil":
+                field_go_type = "*string"
+
+            if_supported_types += f'''typestr != "{field_go_type}" &&\n\t\t'''
+
+        # Alternate unmarshal logic
+        #
+        # With Alternate types, we have to check the JSON data in order to
+        # identify what is the target Go type. So, this is different than an
+        # union which has an identifier that we can check first.
+        # StrictDecode function tries to match the given JSON data to a given
+        # Go type and it'll error in case it doesn´t fit, for instance, when
+        # there were members in the JSON data that had no equivalent in the
+        # target Go type.
+        #
+        # For this reason, the order is important.
+        #
+        # At this moment, the only field that must be checked first is JSON
+        # NULL, which is relevant to a few alternate types. In the future, we
+        # might need to improve the logic to be foolproof between target Go
+        # types that might have a common base (non existing Today).
+        check_type_str = '''
+    // Check for {name}
+    {{
+        var value {go_type}
+        if err := StrictDecode(&value, data); {error_check} {{
+            s.Value = {set_value}
+            return nil
+        }}
+    }}'''
+        reference_checks = ""
+        for var in variants.variants:
+            if var.type.name == "null":
+                # We use a pointer (by referece) to check for JSON's NULL
+                reference_checks += check_type_str.format(
+                        name = var.type.name,
+                        go_type = "*string",
+                        error_check = "err == nil && value == nil",
+                        set_value = "nil")
+                break;
+
+        value_checks = ""
+        for var in variants.variants:
+            if var.type.name != "null":
+                go_type = qapi_schema_type_to_go_type(var.type.name)
+                value_checks += check_type_str.format(
+                        name = var.type.name,
+                        go_type = go_type,
+                        error_check = "err == nil",
+                        set_value = "value")
+
+        unmarshal_checks = ""
+        if len(reference_checks) > 0 and len(value_checks) > 0:
+            unmarshal_checks = reference_checks[1:] + value_checks
+        else:
+            unmarshal_checks = reference_checks[1:] if len(reference_checks) > 0 else value_checks[1:]
+
+        self.target["alternate"] += f'''
+{doc_struct}
+type {name} struct {{
+{members_doc}
+    Value Any
+}}
+
+func (s {name}) MarshalJSON() ([]byte, error) {{
+    typestr := fmt.Sprintf("%T", s.Value)
+    typestr = typestr[strings.LastIndex(typestr, ".")+1:]
+
+    // Runtime check for supported types
+    if typestr != "<nil>" &&
+{if_supported_types[:-6]} {{
+        return nil, errors.New(fmt.Sprintf("Type is not supported: %s", typestr))
+    }}
+
+    b, err := json.Marshal(s.Value);
+    if err != nil {{
+        return nil, err
+    }}
+
+    return b, nil
+}}
+
+func (s *{name}) UnmarshalJSON(data []byte) error {{
+{unmarshal_checks}
+    // Check type to error out nicely
+    {{
+        var value Any
+        if err := json.Unmarshal(data, &value); err != nil {{
+            return err
+        }}
+        return errors.New(fmt.Sprintf("Unsupported type %T (value: %v)", value, value))
+    }}
+}}
+'''
 
     def visit_enum_type(self: QAPISchemaGenGolangVisitor,
                         name: str,
@@ -207,6 +344,22 @@ def qapi_to_golang_struct_docs(doc: QAPIDoc) -> (str, Dict[str, str]):
             fields[key] = " // " + ' '.join(value.text.replace("\n", " ").split())
 
     return main, fields
+
+def qapi_schema_type_to_go_type(type: str) -> str:
+    schema_types_to_go = {'str': 'string', 'null': 'nil', 'bool': 'bool',
+            'number': 'float64', 'size': 'uint64', 'int': 'int64', 'int8': 'int8',
+            'int16': 'int16', 'int32': 'int32', 'int64': 'int64', 'uint8': 'uint8',
+            'uint16': 'uint16', 'uint32': 'uint32', 'uint64': 'uint64',
+            'any': 'Any', 'QType': 'QType',
+    }
+
+    prefix = ""
+    if type.endswith("List"):
+        prefix = "[]"
+        type = type[:-4]
+
+    type = schema_types_to_go.get(type, type)
+    return prefix + type
 
 def qapi_to_field_name_enum(name: str) -> str:
     return name.title().replace("-", "")
