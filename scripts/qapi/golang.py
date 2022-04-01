@@ -36,6 +36,7 @@ class QAPISchemaGenGolangVisitor(QAPISchemaVisitor):
         self.schema = None
         self.events = {}
         self.commands = {}
+        self.command_results = {}
         self._docmap = {}
         self.golang_package_name = "qapi"
 
@@ -89,6 +90,32 @@ type Command struct {
 }
 '''
         self.target["command"] += generate_marshal_methods('Command', self.commands)
+
+        self.target["command"] += '''
+type CommandResult struct {
+	CommandBase
+	Value       Any `json:"return,omitempty"`
+}
+
+func (s Command) GetReturnType() CommandResult {
+	return CommandResult{
+		CommandBase: s.CommandBase,
+	}
+}
+
+// In order to evaluate nil value to empty JSON object
+func (s *CommandResult) MarshalJSON() ([]byte, error) {
+	if s.Value == nil {
+		return []byte(`{"return":{}}`), nil
+	}
+	tmp := struct {
+		Value Any `json:"return"`
+	}{Value: s.Value}
+
+	return json.Marshal(&tmp)
+}
+'''
+        self.target["command"] += generate_marshal_methods('CommandResult', self.command_results)
 
         self.target["helper"] += '''
 // Creates a decoder that errors on unknown Fields
@@ -312,6 +339,9 @@ const (
         assert name == info.defn_name
         type_name = qapi_to_go_type_name(name, info.defn_meta)
         self.commands[name] = type_name
+        if ret_type:
+            ret_type_name = qapi_schema_type_to_go_type(ret_type.name)
+            self.command_results[name] = ret_type_name
 
         doc = self._docmap.get(name, None)
         self_contained = True if not arg_type or not arg_type.name.startswith("q_obj") else False
@@ -445,6 +475,11 @@ def generate_marshal_methods(type: str,
         discriminator = "base.Name"
         struct_field = "Arg"
         json_field = "arguments"
+    elif type == "CommandResult":
+        base = "CommandBase"
+        discriminator = "s.Name"
+        struct_field = "Value"
+        json_field = "return"
     else:
         assert base != ""
         discriminator = "base." + discriminator
@@ -527,14 +562,17 @@ func (s {type}) MarshalJSON() ([]byte, error) {{
     return []byte(result), nil
 }}
 '''
-    unmarshal_base = f'''
+    unmarshal_base = ""
+    unmarshal_default_warn = ""
+    if type != "CommandResult":
+        unmarshal_base = f'''
     var base {base}
     if err := json.Unmarshal(data, &base); err != nil {{
         return err
     }}
     s.{base} = base
 '''
-    unmarshal_default_warn = f'''
+        unmarshal_default_warn = f'''
     default:
         fmt.Println("Failed to decode {type}", {discriminator})'''
 
