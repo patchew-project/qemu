@@ -41,6 +41,7 @@
 typedef struct BDRVCopyBeforeWriteState {
     BlockCopyState *bcs;
     BdrvChild *target;
+    OnCbwError on_cbw_error;
 
     /*
      * @lock: protects access to @access_bitmap, @done_bitmap and
@@ -65,6 +66,14 @@ typedef struct BDRVCopyBeforeWriteState {
      * node. These areas must not be rewritten by guest.
      */
     BlockReqList frozen_read_reqs;
+
+    /*
+     * @snapshot_error is normally zero. But on first copy-before-write failure
+     * when @on_cbw_error == ON_CBW_ERROR_BREAK_SNAPSHOT, @snapshot_error takes
+     * value of this error (<0). After that all in-flight and further
+     * snaoshot-API requests will fail with that error.
+     */
+    int snapshot_error;
 } BDRVCopyBeforeWriteState;
 
 static coroutine_fn int cbw_co_preadv(
@@ -99,11 +108,25 @@ static coroutine_fn int cbw_do_copy_before_write(BlockDriverState *bs,
     end = QEMU_ALIGN_UP(offset + bytes, cluster_size);
 
     ret = block_copy(s->bcs, off, end - off, true);
-    if (ret < 0) {
+    if (ret < 0 && s->on_cbw_error == ON_CBW_ERROR_BREAK_GUEST_WRITE) {
         return ret;
     }
 
     WITH_QEMU_LOCK_GUARD(&s->lock) {
+        if (ret < 0) {
+            assert(s->on_cbw_error == ON_CBW_ERROR_BREAK_SNAPSHOT);
+            if (!s->snapshot_error) {
+                s->snapshot_error = ret;
+            }
+            /*
+             * No need to wait for s->frozen_read_reqs: they will fail anyway,
+             * as s->snapshot_error is set.
+             *
+             * We return 0, as error is handled. Guest operation should be
+             * continued.
+             */
+            return 0;
+        }
         bdrv_set_dirty_bitmap(s->done_bitmap, off, end - off);
         reqlist_wait_all(&s->frozen_read_reqs, off, end - off, &s->lock);
     }
@@ -176,6 +199,11 @@ static BlockReq *cbw_snapshot_read_lock(BlockDriverState *bs,
 
     QEMU_LOCK_GUARD(&s->lock);
 
+    if (s->snapshot_error) {
+        g_free(req);
+        return NULL;
+    }
+
     if (bdrv_dirty_bitmap_next_zero(s->access_bitmap, offset, bytes) != -1) {
         g_free(req);
         return NULL;
@@ -198,19 +226,26 @@ static BlockReq *cbw_snapshot_read_lock(BlockDriverState *bs,
     return req;
 }
 
-static void cbw_snapshot_read_unlock(BlockDriverState *bs, BlockReq *req)
+static int cbw_snapshot_read_unlock(BlockDriverState *bs, BlockReq *req)
 {
     BDRVCopyBeforeWriteState *s = bs->opaque;
 
     if (req->offset == -1 && req->bytes == -1) {
         g_free(req);
-        return;
+        /*
+         * No real need to read snapshot_error under mutex here: we are actually
+         * safe to ignore it and return 0, as this request was to s->target, and
+         * can't be influenced by guest write. But if we can new read negative
+         * s->snapshot_error let's return it, so that backup failed earlier.
+         */
+        return s->snapshot_error;
     }
 
     QEMU_LOCK_GUARD(&s->lock);
 
     reqlist_remove_req(req);
     g_free(req);
+    return s->snapshot_error;
 }
 
 static coroutine_fn int
@@ -219,7 +254,7 @@ cbw_co_preadv_snapshot(BlockDriverState *bs, int64_t offset, int64_t bytes,
 {
     BlockReq *req;
     BdrvChild *file;
-    int ret;
+    int ret, ret2;
 
     /* TODO: upgrade to async loop using AioTask */
     while (bytes) {
@@ -232,9 +267,12 @@ cbw_co_preadv_snapshot(BlockDriverState *bs, int64_t offset, int64_t bytes,
 
         ret = bdrv_co_preadv_part(file, offset, cur_bytes,
                                   qiov, qiov_offset, 0);
-        cbw_snapshot_read_unlock(bs, req);
+        ret2 = cbw_snapshot_read_unlock(bs, req);
         if (ret < 0) {
             return ret;
+        }
+        if (ret2 < 0) {
+            return ret2;
         }
 
         bytes -= cur_bytes;
@@ -253,7 +291,7 @@ cbw_co_snapshot_block_status(BlockDriverState *bs,
 {
     BDRVCopyBeforeWriteState *s = bs->opaque;
     BlockReq *req;
-    int ret;
+    int ret, ret2;
     int64_t cur_bytes;
     BdrvChild *child;
 
@@ -273,7 +311,14 @@ cbw_co_snapshot_block_status(BlockDriverState *bs,
         assert(ret & BDRV_BLOCK_ALLOCATED);
     }
 
-    cbw_snapshot_read_unlock(bs, req);
+    ret2 = cbw_snapshot_read_unlock(bs, req);
+
+    if (ret < 0) {
+        return ret;
+    }
+    if (ret2 < 0) {
+        return ret2;
+    }
 
     return ret;
 }
@@ -366,6 +411,7 @@ static BlockdevOptionsCbw *cbw_parse_options(QDict *options, Error **errp)
      * object for original options.
      */
     qdict_extract_subqdict(options, NULL, "bitmap");
+    qdict_del(options, "on-cbw-error");
 
 out:
     visit_free(v);
@@ -407,6 +453,8 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
             return -EINVAL;
         }
     }
+    s->on_cbw_error = opts->has_on_cbw_error ? opts->on_cbw_error :
+            ON_CBW_ERROR_BREAK_GUEST_WRITE;
 
     bs->total_sectors = bs->file->bs->total_sectors;
     bs->supported_write_flags = BDRV_REQ_WRITE_UNCHANGED |
