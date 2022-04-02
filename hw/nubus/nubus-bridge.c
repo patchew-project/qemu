@@ -18,9 +18,15 @@ static void nubus_bridge_init(Object *obj)
     NubusBridge *s = NUBUS_BRIDGE(obj);
     NubusBus *bus = &s->bus;
 
-    qbus_init(bus, sizeof(s->bus), TYPE_NUBUS_BUS, DEVICE(s), NULL);
-
     qdev_init_gpio_out(DEVICE(s), bus->irqs, NUBUS_IRQS);
+}
+
+static void nubus_bridge_realize(DeviceState *d, Error **errp)
+{
+    NubusBridge *s = NUBUS_BRIDGE(d);
+    NubusBus *bus = &s->bus;
+
+    qbus_init(bus, sizeof(NubusBus), TYPE_NUBUS_BUS, d, NULL);
 }
 
 static Property nubus_bridge_properties[] = {
@@ -34,6 +40,7 @@ static void nubus_bridge_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->fw_name = "nubus";
+    dc->realize = nubus_bridge_realize;
     device_class_set_props(dc, nubus_bridge_properties);
 }
 
