@@ -351,34 +351,57 @@ fail:
 
 /** vhost-user-scsi **/
 
+int opt_fdnum = -1;
+char *opt_socket_path;
+gboolean opt_print_caps;
+
+static GOptionEntry entries[] = {
+    { "print-capabilities", 'c', 0, G_OPTION_ARG_NONE, &opt_print_caps,
+      "Print capabilities", NULL },
+    { "fd", 'f', 0, G_OPTION_ARG_INT, &opt_fdnum,
+      "Use inherited fd socket", "FDNUM" },
+    { "iscsi_uri", 'i', 0, G_OPTION_ARG_INT, &iscsi_uri,
+      "Use inherited fd socket", "FDNUM" },
+    { "socket-path", 's', 0, G_OPTION_ARG_FILENAME, &opt_socket_path,
+      "Use UNIX socket path", "PATH" }
+};
+
 int main(int argc, char **argv)
 {
     VusDev *vdev_scsi = NULL;
-    char *unix_fn = NULL;
-    char *iscsi_uri = NULL;
     int lsock = -1, csock = -1, opt, err = EXIT_SUCCESS;
 
-    while ((opt = getopt(argc, argv, "u:i:")) != -1) {
-        switch (opt) {
-        case 'h':
-            goto help;
-        case 'u':
-            unix_fn = g_strdup(optarg);
-            break;
-        case 'i':
-            iscsi_uri = g_strdup(optarg);
-            break;
-        default:
-            goto help;
-        }
+    GError *error = NULL;
+    GOptionContext *context;
+
+    context = g_option_context_new(NULL);
+    g_option_context_add_main_entries(context, entries, NULL);
+    if (!g_option_context_parse(context, &argc, &argv, &error)) {
+        g_printerr("Option parsing failed: %s\n", error->message);
+        exit(EXIT_FAILURE);
     }
-    if (!unix_fn || !iscsi_uri) {
+
+    if (opt_print_caps) {
+        g_print("{\n");
+        g_print("  \"type\": \"scsi\",\n");
+        g_print("}\n");
+        goto out;
+    }
+
+    if (!opt_socket_path || !iscsi_uri) {
         goto help;
     }
 
-    lsock = unix_sock_new(unix_fn);
-    if (lsock < 0) {
-        goto err;
+    if (opt_socket_path) {
+        lsock = unix_sock_new(opt_socket_path);
+        if (lsock < 0) {
+            exit(EXIT_FAILURE);
+        }
+    } else if (opt_fdnum < 0) {
+        g_print("%s\n", g_option_context_get_help(context, true, NULL));
+        exit(EXIT_FAILURE);
+    } else {
+        lsock = opt_fdnum;
     }
 
     csock = accept(lsock, NULL, NULL);
@@ -408,7 +431,7 @@ out:
     if (vdev_scsi) {
         g_main_loop_unref(vdev_scsi->loop);
         g_free(vdev_scsi);
-        unlink(unix_fn);
+        unlink(opt_socket_path);
     }
     if (csock >= 0) {
         close(csock);
@@ -416,7 +439,7 @@ out:
     if (lsock >= 0) {
         close(lsock);
     }
-    g_free(unix_fn);
+    g_free(opt_socket_path);
     g_free(iscsi_uri);
 
     return err;
@@ -426,10 +449,12 @@ err:
     goto out;
 
 help:
-    fprintf(stderr, "Usage: %s [ -u unix_sock_path -i iscsi_uri ] | [ -h ]\n",
+    fprintf(stderr, "Usage: %s [ -s socket-path -i iscsi_uri -f fd -p print-capabilities ] | [ -h ]\n",
             argv[0]);
-    fprintf(stderr, "          -u path to unix socket\n");
+    fprintf(stderr, "          -s path to unix socket\n");
     fprintf(stderr, "          -i iscsi uri for lun 0\n");
+    fprintf(stderr, "          -f fd, file-descriptor\n");
+    fprintf(stderr, "          -p denotes print-capabilities\n");
     fprintf(stderr, "          -h print help and quit\n");
 
     goto err;
