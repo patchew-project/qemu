@@ -57,5 +57,9 @@ void cxl_fixed_memory_window_config(MachineState *ms,
 void cxl_fixed_memory_window_link_targets(Error **errp);
 
 extern const MemoryRegionOps cfmws_ops;
+#define TYPE_CXL_USP "cxl-upstream"
 
+typedef struct CXLUpstreamPort CXLUpstreamPort;
+DECLARE_INSTANCE_CHECKER(CXLUpstreamPort, CXL_USP, TYPE_CXL_USP)
+CXLComponentState *cxl_usp_to_cstate(CXLUpstreamPort *usp);
 #endif
