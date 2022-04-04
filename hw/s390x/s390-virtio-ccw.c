@@ -805,6 +805,7 @@ static void ccw_machine_6_2_instance_options(MachineState *machine)
     static const S390FeatInit qemu_cpu_feat = { S390_FEAT_LIST_QEMU_V6_2 };
 
     ccw_machine_7_0_instance_options(machine);
+    s390_cpudef_featoff_greater(14, 1, S390_FEAT_ZPCI_INTERP);
     s390_set_qemu_cpu_model(0x3906, 14, 2, qemu_cpu_feat);
 }
 
