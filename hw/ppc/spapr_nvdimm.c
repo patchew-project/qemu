@@ -447,9 +447,19 @@ static int flush_worker_cb(void *opaque)
 {
     SpaprNVDIMMDeviceFlushState *state = opaque;
     SpaprDrc *drc = spapr_drc_by_index(state->drcidx);
-    PCDIMMDevice *dimm = PC_DIMM(drc->dev);
-    HostMemoryBackend *backend = MEMORY_BACKEND(dimm->hostmem);
-    int backend_fd = memory_region_get_fd(&backend->mr);
+    PCDIMMDevice *dimm;
+    HostMemoryBackend *backend;
+    int backend_fd;
+
+    if (!drc) {
+        error_report("papr_scm: Could not find nvdimm device with DRC 0x%u",
+                     state->drcidx);
+        return H_HARDWARE;
+    }
+
+    dimm = PC_DIMM(drc->dev);
+    backend = MEMORY_BACKEND(dimm->hostmem);
+    backend_fd = memory_region_get_fd(&backend->mr);
 
     if (object_property_get_bool(OBJECT(backend), "pmem", NULL)) {
         MemoryRegion *mr = host_memory_backend_get_memory(dimm->hostmem);
@@ -475,7 +485,15 @@ static void spapr_nvdimm_flush_completion_cb(void *opaque, int hcall_ret)
 {
     SpaprNVDIMMDeviceFlushState *state = opaque;
     SpaprDrc *drc = spapr_drc_by_index(state->drcidx);
-    SpaprNVDIMMDevice *s_nvdimm = SPAPR_NVDIMM(drc->dev);
+    SpaprNVDIMMDevice *s_nvdimm;
+
+    if (!drc) {
+        error_report("papr_scm: Could not find nvdimm device with DRC 0x%u",
+                     state->drcidx);
+        return;
+    }
+
+    s_nvdimm = SPAPR_NVDIMM(drc->dev);
 
     state->hcall_ret = hcall_ret;
     QLIST_REMOVE(state, node);
