@@ -46,6 +46,13 @@ static QEMUCursor *cursor_parse_xpm(const char *xpm[])
 
     /* parse pixel data */
     c = cursor_alloc(width, height);
+
+    if (!c) {
+        fprintf(stderr, "%s: cursor %ux%u alloc error\n",
+                __func__, width, height);
+        return NULL;
+    }
+
     for (pixel = 0, y = 0; y < height; y++, line++) {
         for (x = 0; x < height; x++, pixel++) {
             idx = xpm[line][x];
@@ -91,7 +98,10 @@ QEMUCursor *cursor_builtin_left_ptr(void)
 QEMUCursor *cursor_alloc(int width, int height)
 {
     QEMUCursor *c;
-    int datasize = width * height * sizeof(uint32_t);
+    size_t datasize = width * height * sizeof(uint32_t);
+
+    if (width > 512 || height > 512)
+        return NULL;
 
     c = g_malloc0(sizeof(QEMUCursor) + datasize);
     c->width  = width;
