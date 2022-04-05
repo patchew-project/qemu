@@ -262,7 +262,7 @@ static void ref405ep_init(MachineState *machine)
     /* allocate and load BIOS */
     if (machine->firmware) {
         MemoryRegion *bios = g_new(MemoryRegion, 1);
-        g_autofree char *filename;
+        g_autofree char *filename = NULL;
         long bios_size;
 
         memory_region_init_rom(bios, NULL, "ef405ep.bios", BIOS_SIZE,
