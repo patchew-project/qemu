@@ -3340,12 +3340,22 @@ static void do_diveu_i32(TCGv_i32 t, TCGv_i32 a, TCGv_i32 b)
 DO_VDIV_VMOD(do_divesw, 32, do_dives_i32, true)
 DO_VDIV_VMOD(do_diveuw, 32, do_diveu_i32, false)
 
+DO_VDIV_VMOD(do_modsw, 32, tcg_gen_rem_i32, true)
+DO_VDIV_VMOD(do_moduw, 32, tcg_gen_remu_i32, false)
+DO_VDIV_VMOD(do_modsd, 64, tcg_gen_rem_i64, true)
+DO_VDIV_VMOD(do_modud, 64, tcg_gen_remu_i64, false)
+
 TRANS_VDIV_VMOD(ISA310, VDIVESW, MO_32, do_divesw, NULL)
 TRANS_VDIV_VMOD(ISA310, VDIVEUW, MO_32, do_diveuw, NULL)
 TRANS_FLAGS2(ISA310, VDIVESD, do_vx_helper, gen_helper_VDIVESD)
 TRANS_FLAGS2(ISA310, VDIVEUD, do_vx_helper, gen_helper_VDIVEUD)
 TRANS_FLAGS2(ISA310, VDIVESQ, do_vx_helper, gen_helper_VDIVESQ)
 TRANS_FLAGS2(ISA310, VDIVEUQ, do_vx_helper, gen_helper_VDIVEUQ)
+
+TRANS_VDIV_VMOD(ISA310, VMODSW, MO_32, do_modsw , NULL)
+TRANS_VDIV_VMOD(ISA310, VMODUW, MO_32, do_moduw, NULL)
+TRANS_VDIV_VMOD(ISA310, VMODSD, MO_64, NULL, do_modsd)
+TRANS_VDIV_VMOD(ISA310, VMODUD, MO_64, NULL, do_modud)
 
 #undef DO_VDIV_VMOD
 
