@@ -3236,6 +3236,65 @@ TRANS(VMULHSD, do_vx_mulh, true , do_vx_vmulhd_i64)
 TRANS(VMULHUW, do_vx_mulh, false, do_vx_vmulhw_i64)
 TRANS(VMULHUD, do_vx_mulh, false, do_vx_vmulhd_i64)
 
+#define TRANS_VDIV_VMOD(FLAGS, NAME, VECE, FNI4_FUNC, FNI8_FUNC)        \
+static bool trans_##NAME(DisasContext *ctx, arg_VX *a)                  \
+{                                                                       \
+    static const GVecGen3 op = {                                        \
+        .fni4 = FNI4_FUNC,                                              \
+        .fni8 = FNI8_FUNC,                                              \
+        .vece = VECE                                                    \
+    };                                                                  \
+                                                                        \
+    REQUIRE_VECTOR(ctx);                                                \
+    REQUIRE_INSNS_FLAGS2(ctx, FLAGS);                                   \
+                                                                        \
+    tcg_gen_gvec_3(avr_full_offset(a->vrt), avr_full_offset(a->vra),    \
+                   avr_full_offset(a->vrb), 16, 16, &op);               \
+                                                                        \
+    return true;                                                        \
+}
+
+#define DO_VDIV_VMOD(NAME, SZ, DIV, SIGNED)                             \
+static void NAME(TCGv_i##SZ t, TCGv_i##SZ a, TCGv_i##SZ b)              \
+{                                                                       \
+    /*                                                                  \
+     *  If N/0 the instruction used by the backend might deliver        \
+     *  an invalid division signal to the process, so if b = 0 return   \
+     *  N/1 and if signed instruction, the same for a = int_min, b = -1 \
+     */                                                                 \
+    if (SIGNED) {                                                       \
+        TCGv_i##SZ t0 = tcg_temp_new_i##SZ();                           \
+        TCGv_i##SZ t1 = tcg_temp_new_i##SZ();                           \
+        tcg_gen_setcondi_i##SZ(TCG_COND_EQ, t0, a, INT##SZ##_MIN);      \
+        tcg_gen_setcondi_i##SZ(TCG_COND_EQ, t1, b, -1);                 \
+        tcg_gen_and_i##SZ(t0, t0, t1);                                  \
+        tcg_gen_setcondi_i##SZ(TCG_COND_EQ, t1, b, 0);                  \
+        tcg_gen_or_i##SZ(t0, t0, t1);                                   \
+        tcg_gen_movi_i##SZ(t1, 0);                                      \
+        tcg_gen_movcond_i##SZ(TCG_COND_NE, b, t0, t1, t0, b);           \
+        DIV(t, a, b);                                                   \
+        tcg_temp_free_i##SZ(t0);                                        \
+        tcg_temp_free_i##SZ(t1);                                        \
+    } else {                                                            \
+        TCGv_i##SZ zero = tcg_constant_i##SZ(0);                        \
+        TCGv_i##SZ one = tcg_constant_i##SZ(1);                         \
+        tcg_gen_movcond_i##SZ(TCG_COND_EQ, b, b, zero, one, b);         \
+        DIV(t, a, b);                                                   \
+    }                                                                   \
+}
+
+DO_VDIV_VMOD(do_divsw, 32, tcg_gen_div_i32, true)
+DO_VDIV_VMOD(do_divuw, 32, tcg_gen_divu_i32, false)
+DO_VDIV_VMOD(do_divsd, 64, tcg_gen_div_i64, true)
+DO_VDIV_VMOD(do_divud, 64, tcg_gen_divu_i64, false)
+
+TRANS_VDIV_VMOD(ISA310, VDIVSW, MO_32, do_divsw, NULL)
+TRANS_VDIV_VMOD(ISA310, VDIVUW, MO_32, do_divuw, NULL)
+TRANS_VDIV_VMOD(ISA310, VDIVSD, MO_64, NULL, do_divsd)
+TRANS_VDIV_VMOD(ISA310, VDIVUD, MO_64, NULL, do_divud)
+
+#undef DO_VDIV_VMOD
+
 #undef GEN_VR_LDX
 #undef GEN_VR_STX
 #undef GEN_VR_LVE
