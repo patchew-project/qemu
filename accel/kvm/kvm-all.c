@@ -53,6 +53,10 @@
 #include <sys/eventfd.h>
 #endif
 
+#ifdef CONFIG_VALGRIND_H
+#include <valgrind/memcheck.h>
+#endif
+
 /* KVM uses PAGE_SIZE in its definition of KVM_COALESCED_MMIO_MAX. We
  * need to use the real host PAGE_SIZE, as that's what KVM will use.
  */
@@ -3504,6 +3508,19 @@ int kvm_get_one_reg(CPUState *cs, uint64_t id, void *target)
     if (r) {
         trace_kvm_failed_reg_get(id, strerror(-r));
     }
+
+#ifdef CONFIG_VALGRIND_H
+    if (r == 0) {
+        switch (id & KVM_REG_SIZE_MASK) {
+        case KVM_REG_SIZE_U32:
+            VALGRIND_MAKE_MEM_DEFINED(target, sizeof(uint32_t));
+            break;
+        case KVM_REG_SIZE_U64:
+            VALGRIND_MAKE_MEM_DEFINED(target, sizeof(uint64_t));
+            break;
+        }
+    }
+#endif
     return r;
 }
 
