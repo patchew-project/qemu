@@ -32,6 +32,7 @@
 
 #include "qemu/compiler.h"
 #include "qemu/bswap.h"
+#include "qemu/int128.h"
 
 #ifdef CONFIG_INT128
 static inline void mulu64(uint64_t *plow, uint64_t *phigh,
@@ -151,6 +152,19 @@ static inline int clz64(uint64_t val)
 static inline int clo64(uint64_t val)
 {
     return clz64(~val);
+}
+
+/*
+ * clz128 - count leading zeros in a 128-bit value.
+ * @val: The value to search
+ */
+static inline int clz128(Int128 a)
+{
+    if (int128_gethi(a)) {
+        return clz64(int128_gethi(a));
+    } else {
+        return clz64(int128_getlo(a)) + 64;
+    }
 }
 
 /**
@@ -849,4 +863,5 @@ static inline uint64_t udiv_qrnnd(uint64_t *r, uint64_t n1,
 #endif
 }
 
+Int128 divu256(Int128 *plow, Int128 *phigh, Int128 divisor);
 #endif
