@@ -5,6 +5,7 @@
  *
  *  Authors: Alexander Graf <agraf@suse.de>
  *           Susanne Graf <suse@csgraf.de>
+ *           Pedro Tôrres <t0rr3sp3dr0@gmail.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -28,7 +29,15 @@
  * This driver was mostly created by looking at the Linux AppleSMC driver
  * implementation and does not support IRQ.
  *
+ * Reading OSK from SCM on macOS was implemented based on Phil Dennis-Jordan's
+ * description of the process:
+ * https://lists.nongnu.org/archive/html/qemu-devel/2021-10/msg02843.html
+ *
  */
+
+#if defined(__APPLE__) && defined(__MACH__)
+#include <IOKit/IOKitLib.h>
+#endif
 
 #include "qemu/osdep.h"
 #include "hw/isa/isa.h"
@@ -312,9 +321,62 @@ static const MemoryRegionOps applesmc_err_io_ops = {
     },
 };
 
+static bool applesmc_read_osk(uint8_t *osk)
+{
+#if defined(__APPLE__) && defined(__MACH__)
+    struct AppleSMCParams {
+        uint32_t key;
+        uint8_t __pad0[16];
+        uint8_t result;
+        uint8_t __pad1[7];
+        uint32_t size;
+        uint8_t __pad2[10];
+        uint8_t data8;
+        uint8_t __pad3[5];
+        uint8_t output[32];
+    };
+
+    io_service_t svc;
+    io_connect_t conn;
+    kern_return_t ret;
+    size_t size = sizeof(struct AppleSMCParams);
+    struct AppleSMCParams params_in = { .size = 32, .data8 = 5 };
+    struct AppleSMCParams params_out = {};
+
+    svc = IOServiceGetMatchingService(0, IOServiceMatching("AppleSMC"));
+    if (svc == 0) {
+        return false;
+    }
+
+    ret = IOServiceOpen(svc, mach_task_self(), 0, &conn);
+    if (ret != 0) {
+        return false;
+    }
+
+    for (params_in.key = 'OSK0'; params_in.key <= 'OSK1'; ++params_in.key) {
+        ret = IOConnectCallStructMethod(conn, 2, &params_in, size, &params_out, &size);
+        if (ret != 0) {
+            return false;
+        }
+
+        if (params_out.result != 0) {
+            return false;
+        }
+        memcpy(osk, params_out.output, params_in.size);
+
+        osk += params_in.size;
+    }
+
+    return true;
+#else
+    return false;
+#endif
+}
+
 static void applesmc_isa_realize(DeviceState *dev, Error **errp)
 {
     AppleSMCState *s = APPLE_SMC(dev);
+    bool valid_osk = false;
 
     memory_region_init_io(&s->io_data, OBJECT(s), &applesmc_data_io_ops, s,
                           "applesmc-data", 1);
@@ -331,8 +393,17 @@ static void applesmc_isa_realize(DeviceState *dev, Error **errp)
     isa_register_ioport(&s->parent_obj, &s->io_err,
                         s->iobase + APPLESMC_ERR_PORT);
 
-    if (!s->osk || (strlen(s->osk) != 64)) {
-        warn_report("Using AppleSMC with invalid key");
+    if (s->osk) {
+        valid_osk = strlen(s->osk) == 64;
+    } else {
+        valid_osk = applesmc_read_osk((uint8_t *) default_osk);
+        if (valid_osk) {
+            warn_report("Using AppleSMC with host OSK");
+            s->osk = default_osk;
+        }
+    }
+    if (!valid_osk) {
+        warn_report("Using AppleSMC with invalid OSK");
         s->osk = default_osk;
     }
 
