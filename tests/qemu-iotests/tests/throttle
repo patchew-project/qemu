@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+# group: auto
+#
+# Simple test for throttle filter driver.
+#
+# Copyright (c) 2022 Virtuozzo International GmbH
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import iotests
+
+with iotests.VM() as vm:
+    vm.launch()
+
+    result = vm.qmp('object-add', {
+        'qom-type': 'throttle-group',
+        'id': 'group0',
+        'limits': {'bps-write': 512 * 1024}
+    })
+    assert result == {'return': {}}
+
+    result = vm.qmp('blockdev-add', {
+        'node-name': 'throt',
+        'driver': 'throttle',
+        'throttle-group': 'group0',
+        'file': {
+            'driver': 'null-co',
+            'size': 1024 * 1024
+        }
+    })
+    assert result == {'return': {}}
+
+    result = vm.hmp_qemu_io('throt', 'write 0 512K')
+    assert result == {'return': ''}
+
+    # We need second write to trigger throttling
+    result = vm.hmp_qemu_io('throt', 'write 512K 512K')
+    assert result == {'return': ''}
