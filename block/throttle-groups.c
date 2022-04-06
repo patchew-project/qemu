@@ -753,10 +753,6 @@ static void throttle_group_obj_init(Object *obj)
     ThrottleGroup *tg = THROTTLE_GROUP(obj);
 
     tg->clock_type = QEMU_CLOCK_REALTIME;
-    if (qtest_enabled()) {
-        /* For testing block IO throttling only */
-        tg->clock_type = QEMU_CLOCK_VIRTUAL;
-    }
     tg->is_initialized = false;
     qemu_mutex_init(&tg->lock);
     throttle_init(&tg->ts);
