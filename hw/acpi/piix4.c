@@ -267,6 +267,15 @@ static bool piix4_vmstate_need_smbus(void *opaque, int version_id)
     return pm_smbus_vmstate_needed();
 }
 
+/*
+ * This is a fudge to turn off the acpi_index field, whose
+ * test was always broken on piix4.
+ */
+static bool vmstate_test_never(void *opaque, int version_id)
+{
+    return false;
+}
+
 /* qemu-kvm 1.2 uses version 3 but advertised as 2
  * To support incoming qemu-kvm 1.2 migration, change version_id
  * and minimum_version_id to 2 below (which breaks migration from
@@ -297,7 +306,7 @@ static const VMStateDescription vmstate_acpi = {
             struct AcpiPciHpPciStatus),
         VMSTATE_PCI_HOTPLUG(acpi_pci_hotplug, PIIX4PMState,
                             vmstate_test_use_acpi_hotplug_bridge,
-                            vmstate_acpi_pcihp_use_acpi_index),
+                            vmstate_test_never),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription*[]) {
