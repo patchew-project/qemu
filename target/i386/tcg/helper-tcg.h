@@ -51,6 +51,7 @@ void x86_cpu_record_sigsegv(CPUState *cs, vaddr addr,
 bool x86_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                       MMUAccessType access_type, int mmu_idx,
                       bool probe, uintptr_t retaddr);
+vaddr x86_cpu_clean_addr(CPUState *cpu, vaddr addr);
 #endif
 
 void breakpoint_handler(CPUState *cs);

@@ -77,6 +77,7 @@ static const struct TCGCPUOps x86_tcg_ops = {
     .record_sigsegv = x86_cpu_record_sigsegv,
 #else
     .tlb_fill = x86_cpu_tlb_fill,
+    .do_clean_addr = x86_cpu_clean_addr,
     .do_interrupt = x86_cpu_do_interrupt,
     .cpu_exec_interrupt = x86_cpu_exec_interrupt,
     .debug_excp_handler = breakpoint_handler,

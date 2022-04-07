@@ -83,6 +83,11 @@ struct TCGCPUOps {
                                 int mmu_idx, uintptr_t retaddr) QEMU_NORETURN;
 
     /**
+     * @do_clean_addr: Callback for clearing metadata/tags from the address.
+     */
+    vaddr (*do_clean_addr)(CPUState *cpu, vaddr addr);
+
+    /**
      * @adjust_watchpoint_address: hack for cpu_check_watchpoint used by ARM
      */
     vaddr (*adjust_watchpoint_address)(CPUState *cpu, vaddr addr, int len);

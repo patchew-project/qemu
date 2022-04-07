@@ -1295,6 +1295,17 @@ static inline ram_addr_t qemu_ram_addr_from_host_nofail(void *ptr)
     return ram_addr;
 }
 
+static vaddr clean_addr(CPUArchState *env, vaddr addr)
+{
+    CPUClass *cc = CPU_GET_CLASS(env_cpu(env));
+
+    if (cc->tcg_ops->do_clean_addr) {
+        addr = cc->tcg_ops->do_clean_addr(env_cpu(env), addr);
+    }
+
+    return addr;
+}
+
 /*
  * Note: tlb_fill() can trigger a resize of the TLB. This means that all of the
  * caller's prior references to the TLB table (e.g. CPUTLBEntry pointers) must
@@ -1757,10 +1768,11 @@ bool tlb_plugin_lookup(CPUState *cpu, target_ulong addr, int mmu_idx,
  *
  * @prot may be PAGE_READ, PAGE_WRITE, or PAGE_READ|PAGE_WRITE.
  */
-static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
+static void *atomic_mmu_lookup(CPUArchState *env, target_ulong address,
                                MemOpIdx oi, int size, int prot,
                                uintptr_t retaddr)
 {
+    target_ulong addr = clean_addr(env, address);
     size_t mmu_idx = get_mmuidx(oi);
     MemOp mop = get_memop(oi);
     int a_bits = get_alignment_bits(mop);
@@ -1904,10 +1916,11 @@ load_memop(const void *haddr, MemOp op)
 }
 
 static inline uint64_t QEMU_ALWAYS_INLINE
-load_helper(CPUArchState *env, target_ulong addr, MemOpIdx oi,
+load_helper(CPUArchState *env, target_ulong address, MemOpIdx oi,
             uintptr_t retaddr, MemOp op, bool code_read,
             FullLoadHelper *full_load)
 {
+    target_ulong addr = clean_addr(env, address);
     uintptr_t mmu_idx = get_mmuidx(oi);
     uintptr_t index = tlb_index(env, mmu_idx, addr);
     CPUTLBEntry *entry = tlb_entry(env, mmu_idx, addr);
@@ -2307,9 +2320,10 @@ store_helper_unaligned(CPUArchState *env, target_ulong addr, uint64_t val,
 }
 
 static inline void QEMU_ALWAYS_INLINE
-store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
+store_helper(CPUArchState *env, target_ulong address, uint64_t val,
              MemOpIdx oi, uintptr_t retaddr, MemOp op)
 {
+    target_ulong addr = clean_addr(env, address);
     uintptr_t mmu_idx = get_mmuidx(oi);
     uintptr_t index = tlb_index(env, mmu_idx, addr);
     CPUTLBEntry *entry = tlb_entry(env, mmu_idx, addr);

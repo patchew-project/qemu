@@ -64,7 +64,7 @@ static int mmu_translate(CPUState *cs, hwaddr addr, MMUTranslateFunc get_hphys_f
             uint64_t pml4e_addr, pml4e;
 
             if (la57) {
-                pml5e_addr = ((cr3 & ~0xfff) +
+                pml5e_addr = ((cr3 & PG_ADDRESS_MASK) +
                         (((addr >> 48) & 0x1ff) << 3)) & a20_mask;
                 pml5e_addr = GET_HPHYS(cs, pml5e_addr, MMU_DATA_STORE, NULL);
                 pml5e = x86_ldq_phys(cs, pml5e_addr);
@@ -436,4 +436,30 @@ bool x86_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
                                env->error_code, retaddr);
     }
     return true;
+}
+
+static inline int64_t sign_extend64(uint64_t value, int index)
+{
+    int shift = 63 - index;
+    return (int64_t)(value << shift) >> shift;
+}
+
+vaddr x86_cpu_clean_addr(CPUState *cs, vaddr addr)
+{
+    CPUX86State *env = &X86_CPU(cs)->env;
+    bool la57 = env->cr[4] & CR4_LA57_MASK;
+
+    if (addr >> 63) {
+        if (env->cr[4] & CR4_LAM_SUP) {
+            return sign_extend64(addr, la57 ? 56 : 47);
+        }
+    } else {
+        if (env->cr[3] & CR3_LAM_U57) {
+            return sign_extend64(addr, 56);
+        } else if (env->cr[3] & CR3_LAM_U48) {
+            return sign_extend64(addr, 47);
+        }
+    }
+
+    return addr;
 }
