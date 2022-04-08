@@ -709,4 +709,13 @@ static inline void gicv3_cache_all_target_cpustates(GICv3State *s)
 
 void gicv3_set_gicv3state(CPUState *cpu, GICv3CPUState *s);
 
+/*
+ * The ITS should call this when it is realized to add itself
+ * to its GIC's list of connected ITSes.
+ */
+static inline void gicv3_add_its(GICv3State *s, DeviceState *its)
+{
+    g_ptr_array_add(s->itslist, its);
+}
+
 #endif /* QEMU_ARM_GICV3_INTERNAL_H */
