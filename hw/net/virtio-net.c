@@ -741,8 +741,10 @@ static uint64_t virtio_net_get_features(VirtIODevice *vdev, uint64_t features,
         return features;
     }
 
-    if (!ebpf_rss_is_loaded(&n->ebpf_rss)) {
-        virtio_clear_feature(&features, VIRTIO_NET_F_RSS);
+    if (nc->peer->info->type == NET_CLIENT_DRIVER_TAP) {
+        if (!ebpf_rss_is_loaded(&n->ebpf_rss)) {
+            virtio_clear_feature(&features, VIRTIO_NET_F_RSS);
+        }
     }
     features = vhost_net_get_features(get_vhost_net(nc->peer), features);
     vdev->backend_features = features;
@@ -1161,10 +1163,16 @@ static void virtio_net_detach_epbf_rss(VirtIONet *n);
 
 static void virtio_net_disable_rss(VirtIONet *n)
 {
+    NetClientState *nc = qemu_get_queue(n->nic);
+
     if (n->rss_data.enabled) {
         trace_virtio_net_rss_disable();
     }
     n->rss_data.enabled = false;
+
+    if (nc->peer && nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_USER) {
+        vhost_net_set_rss(get_vhost_net(nc->peer), &n->rss_data);
+    }
 
     virtio_net_detach_epbf_rss(n);
 }
@@ -1239,6 +1247,7 @@ static uint16_t virtio_net_handle_rss(VirtIONet *n,
                                       bool do_rss)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    NetClientState *nc = qemu_get_queue(n->nic);
     struct virtio_net_rss_config cfg;
     size_t s, offset = 0, size_get;
     uint16_t queue_pairs, i;
@@ -1354,22 +1363,29 @@ static uint16_t virtio_net_handle_rss(VirtIONet *n,
     }
     n->rss_data.enabled = true;
 
-    if (!n->rss_data.populate_hash) {
-        if (!virtio_net_attach_epbf_rss(n)) {
-            /* EBPF must be loaded for vhost */
-            if (get_vhost_net(qemu_get_queue(n->nic)->peer)) {
-                warn_report("Can't load eBPF RSS for vhost");
-                goto error;
-            }
-            /* fallback to software RSS */
-            warn_report("Can't load eBPF RSS - fallback to software RSS");
-            n->rss_data.enabled_software_rss = true;
+    if (nc->peer && nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_USER) {
+        if (vhost_net_set_rss(get_vhost_net(nc->peer), &n->rss_data)) {
+            warn_report("Failed to configure RSS for vhost-user");
+            goto error;
         }
     } else {
-        /* use software RSS for hash populating */
-        /* and detach eBPF if was loaded before */
-        virtio_net_detach_epbf_rss(n);
-        n->rss_data.enabled_software_rss = true;
+        if (!n->rss_data.populate_hash) {
+            if (!virtio_net_attach_epbf_rss(n)) {
+                /* EBPF must be loaded for vhost */
+                if (get_vhost_net(nc->peer)) {
+                    warn_report("Can't load eBPF RSS for vhost");
+                    goto error;
+                }
+                /* fallback to software RSS */
+                warn_report("Can't load eBPF RSS - fallback to software RSS");
+                n->rss_data.enabled_software_rss = true;
+            }
+        } else {
+            /* use software RSS for hash populating */
+            /* and detach eBPF if was loaded before */
+            virtio_net_detach_epbf_rss(n);
+            n->rss_data.enabled_software_rss = true;
+        }
     }
 
     trace_virtio_net_rss_enable(n->rss_data.hash_types,
@@ -3534,8 +3550,11 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
         n->rss_capa.max_key_size = VIRTIO_NET_RSS_DEFAULT_KEY_SIZE;
         n->rss_capa.max_indirection_len = VIRTIO_NET_RSS_DEFAULT_TABLE_LEN;
         n->rss_capa.supported_hashes = VIRTIO_NET_RSS_SUPPORTED_HASHES;
-
-        virtio_net_load_ebpf(n);
+        if (nc->peer && nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_USER) {
+            vhost_net_get_rss(get_vhost_net(nc->peer), &n->rss_capa);
+        } else {
+            virtio_net_load_ebpf(n);
+        }
     } else {
         n->rss_capa.max_indirection_len = 1;
     }

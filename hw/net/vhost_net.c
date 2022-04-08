@@ -512,3 +512,25 @@ int vhost_net_set_mtu(struct vhost_net *net, uint16_t mtu)
 
     return vhost_ops->vhost_net_set_mtu(&net->dev, mtu);
 }
+
+int vhost_net_get_rss(struct vhost_net *net, VirtioNetRssCapa *rss_capa)
+{
+    const VhostOps *vhost_ops = net->dev.vhost_ops;
+
+    if (!vhost_ops->vhost_net_get_rss) {
+        return 0;
+    }
+
+    return vhost_ops->vhost_net_get_rss(&net->dev, rss_capa);
+}
+
+int vhost_net_set_rss(struct vhost_net *net, VirtioNetRssData *rss_data)
+{
+    const VhostOps *vhost_ops = net->dev.vhost_ops;
+
+    if (!vhost_ops->vhost_net_set_rss) {
+        return 0;
+    }
+
+    return vhost_ops->vhost_net_set_rss(&net->dev, rss_data);
+}

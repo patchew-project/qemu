@@ -12,6 +12,7 @@
 #define VHOST_BACKEND_H
 
 #include "exec/memory.h"
+#include "hw/virtio/virtio-net.h"
 
 typedef enum VhostBackendType {
     VHOST_BACKEND_TYPE_NONE = 0,
@@ -45,6 +46,10 @@ typedef int (*vhost_backend_memslots_limit)(struct vhost_dev *dev);
 typedef int (*vhost_net_set_backend_op)(struct vhost_dev *dev,
                                 struct vhost_vring_file *file);
 typedef int (*vhost_net_set_mtu_op)(struct vhost_dev *dev, uint16_t mtu);
+typedef int (*vhost_net_get_rss_op)(struct vhost_dev *dev,
+                                VirtioNetRssCapa *rss_capa);
+typedef int (*vhost_net_set_rss_op)(struct vhost_dev *dev,
+                                VirtioNetRssData *rss_data);
 typedef int (*vhost_scsi_set_endpoint_op)(struct vhost_dev *dev,
                                   struct vhost_scsi_target *target);
 typedef int (*vhost_scsi_clear_endpoint_op)(struct vhost_dev *dev,
@@ -133,6 +138,8 @@ typedef struct VhostOps {
     vhost_backend_memslots_limit vhost_backend_memslots_limit;
     vhost_net_set_backend_op vhost_net_set_backend;
     vhost_net_set_mtu_op vhost_net_set_mtu;
+    vhost_net_get_rss_op vhost_net_get_rss;
+    vhost_net_set_rss_op vhost_net_set_rss;
     vhost_scsi_set_endpoint_op vhost_scsi_set_endpoint;
     vhost_scsi_clear_endpoint_op vhost_scsi_clear_endpoint;
     vhost_scsi_get_abi_version_op vhost_scsi_get_abi_version;

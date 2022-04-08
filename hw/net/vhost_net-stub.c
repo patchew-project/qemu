@@ -101,3 +101,13 @@ int vhost_net_set_mtu(struct vhost_net *net, uint16_t mtu)
 {
     return 0;
 }
+
+int vhost_net_get_rss(struct vhost_net *net, VirtioNetRssCapa *rss_capa)
+{
+    return 0;
+}
+
+int vhost_net_set_rss(struct vhost_net *net, VirtioNetRssData *rss_data)
+{
+    return 0;
+}
