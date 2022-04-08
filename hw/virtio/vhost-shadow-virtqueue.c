@@ -16,6 +16,7 @@
 #include "qemu/log.h"
 #include "qemu/memalign.h"
 #include "linux-headers/linux/vhost.h"
+#include "qemu/iov.h"
 
 /**
  * Validate the transport device features that both guests can use with the SVQ
@@ -122,7 +123,8 @@ static bool vhost_svq_translate_addr(const VhostShadowVirtqueue *svq,
     return true;
 }
 
-static bool vhost_svq_vring_write_descs(VhostShadowVirtqueue *svq, hwaddr *sg,
+static bool vhost_svq_vring_write_descs(VhostShadowVirtqueue *svq,
+                                        SVQElement *svq_elem, hwaddr *sg,
                                         const struct iovec *iovec, size_t num,
                                         bool more_descs, bool write)
 {
@@ -130,15 +132,39 @@ static bool vhost_svq_vring_write_descs(VhostShadowVirtqueue *svq, hwaddr *sg,
     unsigned n;
     uint16_t flags = write ? cpu_to_le16(VRING_DESC_F_WRITE) : 0;
     vring_desc_t *descs = svq->vring.desc;
-    bool ok;
 
     if (num == 0) {
         return true;
     }
 
-    ok = vhost_svq_translate_addr(svq, sg, iovec, num);
-    if (unlikely(!ok)) {
-        return false;
+    if (svq_elem->not_from_guest) {
+        DMAMap map = {
+            .translated_addr = (hwaddr)iovec->iov_base,
+            .size = ROUND_UP(iovec->iov_len, 4096) - 1,
+            .perm = write ? IOMMU_RW : IOMMU_RO,
+        };
+        int r;
+
+        if (unlikely(num != 1)) {
+            error_report("Unexpected chain of element injected");
+            return false;
+        }
+        r = vhost_iova_tree_map_alloc(svq->iova_tree, &map);
+        if (unlikely(r != IOVA_OK)) {
+            error_report("Cannot map injected element");
+            return false;
+        }
+
+        r = svq->map_ops->map(map.iova, map.size + 1,
+                              (void *)map.translated_addr, !write,
+                              svq->map_ops_opaque);
+        assert(r == 0);
+        sg[0] = map.iova;
+    } else {
+        bool ok = vhost_svq_translate_addr(svq, sg, iovec, num);
+        if (unlikely(!ok)) {
+            return false;
+        }
     }
 
     for (n = 0; n < num; n++) {
@@ -165,7 +191,8 @@ static bool vhost_svq_add_split(VhostShadowVirtqueue *svq, SVQElement *svq_elem,
     unsigned avail_idx;
     vring_avail_t *avail = svq->vring.avail;
     bool ok;
-    g_autofree hwaddr *sgs = g_new(hwaddr, MAX(elem->out_num, elem->in_num));
+    g_autofree hwaddr *sgs = NULL;
+    hwaddr *in_sgs, *out_sgs;
 
     *head = svq->free_head;
 
@@ -176,15 +203,23 @@ static bool vhost_svq_add_split(VhostShadowVirtqueue *svq, SVQElement *svq_elem,
         return false;
     }
 
-    ok = vhost_svq_vring_write_descs(svq, sgs, elem->out_sg, elem->out_num,
-                                     elem->in_num > 0, false);
+    if (!svq_elem->not_from_guest) {
+        sgs = g_new(hwaddr, MAX(elem->out_num, elem->in_num));
+        in_sgs = out_sgs = sgs;
+    } else {
+        in_sgs = &svq_elem->in_iova;
+        out_sgs = &svq_elem->out_iova;
+    }
+    ok = vhost_svq_vring_write_descs(svq, svq_elem, out_sgs, elem->out_sg,
+                                     elem->out_num, elem->in_num > 0, false);
     if (unlikely(!ok)) {
         return false;
     }
 
-    ok = vhost_svq_vring_write_descs(svq, sgs, elem->in_sg, elem->in_num, false,
-                                     true);
+    ok = vhost_svq_vring_write_descs(svq, svq_elem, in_sgs, elem->in_sg,
+                                     elem->in_num, false, true);
     if (unlikely(!ok)) {
+        /* TODO unwind out_sg */
         return false;
     }
 
@@ -229,6 +264,43 @@ static void vhost_svq_kick(VhostShadowVirtqueue *svq)
     event_notifier_set(&svq->hdev_kick);
 }
 
+bool vhost_svq_inject(VhostShadowVirtqueue *svq, const struct iovec *iov,
+                      size_t out_num, size_t in_num)
+{
+    size_t out_size = iov_size(iov, out_num);
+    size_t out_buf_size = ROUND_UP(out_size, 4096);
+    size_t in_size = iov_size(iov + out_num, in_num);
+    size_t in_buf_size = ROUND_UP(in_size, 4096);
+    SVQElement *svq_elem;
+    uint16_t num_slots = (in_num ? 1 : 0) + (out_num ? 1 : 0);
+
+    if (unlikely(num_slots == 0 || svq->next_guest_avail_elem ||
+                 vhost_svq_available_slots(svq) < num_slots)) {
+        return false;
+    }
+
+    svq_elem = virtqueue_alloc_element(sizeof(SVQElement), 1, 1);
+    if (out_num) {
+        void *out = qemu_memalign(4096, out_buf_size);
+        svq_elem->elem.out_sg[0].iov_base = out;
+        svq_elem->elem.out_sg[0].iov_len = out_size;
+        iov_to_buf(iov, out_num, 0, out, out_size);
+        memset(out + out_size, 0, out_buf_size - out_size);
+    }
+    if (in_num) {
+        void *in = qemu_memalign(4096, in_buf_size);
+        svq_elem->elem.in_sg[0].iov_base = in;
+        svq_elem->elem.in_sg[0].iov_len = in_size;
+        memset(in, 0, in_buf_size);
+    }
+
+    svq_elem->not_from_guest = true;
+    vhost_svq_add(svq, svq_elem);
+    vhost_svq_kick(svq);
+
+    return true;
+}
+
 /**
  * Forward available buffers.
  *
@@ -266,6 +338,7 @@ static void vhost_handle_guest_kick(VhostShadowVirtqueue *svq)
                 break;
             }
 
+            svq_elem->not_from_guest = false;
             elem = &svq_elem->elem;
             if (elem->out_num + elem->in_num > vhost_svq_available_slots(svq)) {
                 /*
@@ -391,6 +464,31 @@ static SVQElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq, uint32_t *len)
     return g_steal_pointer(&svq->ring_id_maps[used_elem.id]);
 }
 
+static int vhost_svq_unmap(VhostShadowVirtqueue *svq, hwaddr iova, size_t size)
+{
+    DMAMap needle = {
+        .iova = iova,
+        .size = size,
+    };
+    const DMAMap *overlap;
+
+    while ((overlap = vhost_iova_tree_find(svq->iova_tree, &needle))) {
+        DMAMap needle = *overlap;
+
+        if (svq->map_ops->unmap) {
+            int r = svq->map_ops->unmap(overlap->iova, overlap->size + 1,
+                                        svq->map_ops_opaque);
+            if (unlikely(r != 0)) {
+                return r;
+            }
+        }
+        qemu_vfree((void *)overlap->translated_addr);
+        vhost_iova_tree_remove(svq->iova_tree, &needle);
+    }
+
+    return 0;
+}
+
 static void vhost_svq_flush(VhostShadowVirtqueue *svq,
                             bool check_for_avail_queue)
 {
@@ -410,23 +508,56 @@ static void vhost_svq_flush(VhostShadowVirtqueue *svq,
             }
 
             elem = &svq_elem->elem;
-            if (unlikely(i >= svq->vring.num)) {
-                qemu_log_mask(LOG_GUEST_ERROR,
-                         "More than %u used buffers obtained in a %u size SVQ",
-                         i, svq->vring.num);
-                virtqueue_fill(vq, elem, len, i);
-                virtqueue_flush(vq, i);
-                return;
-            }
-            virtqueue_fill(vq, elem, len, i++);
-
             if (svq->ops && svq->ops->used_elem_handler) {
                 svq->ops->used_elem_handler(svq->vdev, elem);
             }
+
+            if (svq_elem->not_from_guest) {
+                if (unlikely(!elem->out_num && elem->out_num != 1)) {
+                    error_report("Unexpected out_num > 1");
+                    return;
+                }
+
+                if (elem->out_num) {
+                    int r = vhost_svq_unmap(svq, svq_elem->out_iova,
+                                            elem->out_sg[0].iov_len);
+                    if (unlikely(r != 0)) {
+                        error_report("Cannot unmap out buffer");
+                        return;
+                    }
+                }
+
+                if (unlikely(!elem->in_num && elem->in_num != 1)) {
+                    error_report("Unexpected in_num > 1");
+                    return;
+                }
+
+                if (elem->in_num) {
+                    int r = vhost_svq_unmap(svq, svq_elem->in_iova,
+                                            elem->in_sg[0].iov_len);
+                    if (unlikely(r != 0)) {
+                        error_report("Cannot unmap out buffer");
+                        return;
+                    }
+                }
+            } else {
+                if (unlikely(i >= svq->vring.num)) {
+                    qemu_log_mask(
+                        LOG_GUEST_ERROR,
+                        "More than %u used buffers obtained in a %u size SVQ",
+                        i, svq->vring.num);
+                    virtqueue_fill(vq, elem, len, i);
+                    virtqueue_flush(vq, i);
+                    return;
+                }
+                virtqueue_fill(vq, elem, len, i++);
+            }
         }
 
-        virtqueue_flush(vq, i);
-        event_notifier_set(&svq->svq_call);
+        if (i > 0) {
+            virtqueue_flush(vq, i);
+            event_notifier_set(&svq->svq_call);
+        }
 
         if (check_for_avail_queue && svq->next_guest_avail_elem) {
             /*
@@ -589,13 +720,13 @@ void vhost_svq_stop(VhostShadowVirtqueue *svq)
     for (unsigned i = 0; i < svq->vring.num; ++i) {
         g_autofree SVQElement *svq_elem = NULL;
         svq_elem = g_steal_pointer(&svq->ring_id_maps[i]);
-        if (svq_elem) {
+        if (svq_elem && !svq_elem->not_from_guest) {
             virtqueue_detach_element(svq->vq, &svq_elem->elem, 0);
         }
     }
 
     next_avail_elem = g_steal_pointer(&svq->next_guest_avail_elem);
-    if (next_avail_elem) {
+    if (next_avail_elem && !next_avail_elem->not_from_guest) {
         virtqueue_detach_element(svq->vq, &next_avail_elem->elem, 0);
     }
     svq->vq = NULL;
