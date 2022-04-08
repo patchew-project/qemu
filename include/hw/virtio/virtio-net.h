@@ -218,6 +218,9 @@ struct VirtIONet {
     struct EBPFRSSContext ebpf_rss;
 };
 
+unsigned virtio_net_handle_ctrl_iov(VirtIODevice *vdev,
+                                    const struct iovec *in_sg, size_t in_num,
+                                    struct iovec *out_sg, unsigned out_num);
 void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
                                    const char *type);
 
