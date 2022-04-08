@@ -339,10 +339,8 @@ skip_meson=no
 # 1. Track which submodules are needed
 if test "$default_feature" = no ; then
   capstone="disabled"
-  slirp="disabled"
 else
   capstone="auto"
-  slirp="auto"
 fi
 fdt="auto"
 
@@ -873,14 +871,6 @@ for opt do
   --enable-tsan) tsan="yes"
   ;;
   --disable-tsan) tsan="no"
-  ;;
-  --disable-slirp) slirp="disabled"
-  ;;
-  --enable-slirp) slirp="enabled"
-  ;;
-  --enable-slirp=git) slirp="internal"
-  ;;
-  --enable-slirp=*) slirp="$optarg"
   ;;
   --disable-xen) xen="disabled"
   ;;
@@ -2577,16 +2567,6 @@ EOF
 fi
 
 ##########################################
-# check for slirp
-
-case "$slirp" in
-  auto | enabled | internal)
-    # Simpler to always update submodule, even if not needed.
-    git_submodules="${git_submodules} slirp"
-    ;;
-esac
-
-##########################################
 # check for usable __NR_keyctl syscall
 
 if test "$linux" = "yes" ; then
@@ -3169,7 +3149,7 @@ if test "$skip_meson" = no; then
         -Db_pie=$(if test "$pie" = yes; then echo true; else echo false; fi) \
         -Db_coverage=$(if test "$gcov" = yes; then echo true; else echo false; fi) \
         -Db_lto=$lto -Dcfi=$cfi -Dtcg=$tcg -Dxen=$xen \
-        -Dcapstone=$capstone -Dfdt=$fdt -Dslirp=$slirp \
+        -Dcapstone=$capstone -Dfdt=$fdt \
         $(test -n "${LIB_FUZZING_ENGINE+xxx}" && echo "-Dfuzzing_engine=$LIB_FUZZING_ENGINE") \
         $(if test "$default_feature" = no; then echo "-Dauto_features=disabled"; fi) \
         "$@" $cross_arg "$PWD" "$source_path"
