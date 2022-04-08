@@ -110,14 +110,16 @@ static bool ebpf_rss_set_indirections_table(struct EBPFRSSContext *ctx,
 }
 
 static bool ebpf_rss_set_toepliz_key(struct EBPFRSSContext *ctx,
-                                     uint8_t *toeplitz_key)
+                                     uint8_t *toeplitz_key,
+                                     size_t len)
 {
     uint32_t map_key = 0;
 
     /* prepare toeplitz key */
     uint8_t toe[VIRTIO_NET_RSS_MAX_KEY_SIZE] = {};
 
-    if (!ebpf_rss_is_loaded(ctx) || toeplitz_key == NULL) {
+    if (!ebpf_rss_is_loaded(ctx) || toeplitz_key == NULL ||
+            len != VIRTIO_NET_RSS_MAX_KEY_SIZE) {
         return false;
     }
     memcpy(toe, toeplitz_key, VIRTIO_NET_RSS_MAX_KEY_SIZE);
@@ -131,7 +133,8 @@ static bool ebpf_rss_set_toepliz_key(struct EBPFRSSContext *ctx,
 }
 
 bool ebpf_rss_set_all(struct EBPFRSSContext *ctx, struct EBPFRSSConfig *config,
-                      uint16_t *indirections_table, uint8_t *toeplitz_key)
+                      uint16_t *indirections_table, uint8_t *toeplitz_key,
+                      uint8_t key_len)
 {
     if (!ebpf_rss_is_loaded(ctx) || config == NULL ||
         indirections_table == NULL || toeplitz_key == NULL) {
@@ -147,7 +150,7 @@ bool ebpf_rss_set_all(struct EBPFRSSContext *ctx, struct EBPFRSSConfig *config,
         return false;
     }
 
-    if (!ebpf_rss_set_toepliz_key(ctx, toeplitz_key)) {
+    if (!ebpf_rss_set_toepliz_key(ctx, toeplitz_key, key_len)) {
         return false;
     }
 
