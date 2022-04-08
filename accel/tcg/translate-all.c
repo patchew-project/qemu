@@ -1671,6 +1671,7 @@ tb_invalidate_phys_page_range__locked(struct page_collection *pages,
     TranslationBlock *tb;
     tb_page_addr_t tb_start, tb_end;
     int n;
+    int checked = 0, removed = 0;
 #ifdef TARGET_HAS_PRECISE_SMC
     CPUState *cpu = current_cpu;
     CPUArchState *env = NULL;
@@ -1695,6 +1696,7 @@ tb_invalidate_phys_page_range__locked(struct page_collection *pages,
        the code */
     PAGE_FOR_EACH_TB(p, tb, n) {
         assert_page_locked(p);
+        checked++;
         /* NOTE: this is subtle as a TB may span two physical pages */
         if (n == 0) {
             /* NOTE: tb_end may be after the end of the page, but
@@ -1728,13 +1730,20 @@ tb_invalidate_phys_page_range__locked(struct page_collection *pages,
             }
 #endif /* TARGET_HAS_PRECISE_SMC */
             tb_phys_invalidate__locked(tb);
+            removed++;
         }
     }
+
+
 #if !defined(CONFIG_USER_ONLY)
     /* if no code remaining, no need to continue to use slow writes */
     if (!p->first_tb) {
         invalidate_page_bitmap(p);
         tlb_unprotect_code(start);
+        trace_tb_invalidate_phys_page_range(checked, removed, 0);
+    } else {
+        TranslationBlock *tb = (TranslationBlock *) p->first_tb;
+        trace_tb_invalidate_phys_page_range(checked, removed, tb->pc);
     }
 #endif
 #ifdef TARGET_HAS_PRECISE_SMC
