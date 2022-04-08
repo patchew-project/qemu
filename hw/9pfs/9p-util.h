@@ -43,6 +43,7 @@ static inline void close_preserve_errno(int fd)
     errno = serrno;
 }
 
+#ifndef CONFIG_WIN32
 static inline int openat_dir(int dirfd, const char *name)
 {
     return openat(dirfd, name,
@@ -89,6 +90,7 @@ again:
     errno = serrno;
     return fd;
 }
+#endif /* !CONFIG_WIN32 */
 
 ssize_t fgetxattrat_nofollow(int dirfd, const char *path, const char *name,
                              void *value, size_t size);
@@ -99,6 +101,7 @@ ssize_t flistxattrat_nofollow(int dirfd, const char *filename,
 ssize_t fremovexattrat_nofollow(int dirfd, const char *filename,
                                 const char *name);
 
+#ifndef CONFIG_WIN32
 /*
  * Darwin has d_seekoff, which appears to function similarly to d_off.
  * However, it does not appear to be supported on all file systems,
@@ -113,6 +116,7 @@ static inline off_t qemu_dirent_off(struct dirent *dent)
     return dent->d_off;
 #endif
 }
+#endif /* !CONFIG_WIN32 */
 
 /**
  * qemu_dirent_dup() - Duplicate directory entry @dent.

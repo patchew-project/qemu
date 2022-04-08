@@ -31,13 +31,19 @@
 #include "qemu/sockets.h"
 #include "virtio-9p.h"
 #include "fsdev/qemu-fsdev.h"
+#ifndef CONFIG_WIN32
 #include "9p-xattr.h"
+#endif
 #include "9p-util.h"
 #include "coth.h"
 #include "trace.h"
 #include "migration/blocker.h"
 #include "qemu/xxhash.h"
 #include <math.h>
+#ifdef CONFIG_WIN32
+#define UTIME_NOW   ((1l << 30) - 1l)
+#define UTIME_OMIT  ((1l << 30) - 2l)
+#endif
 
 int open_fd_hw;
 int total_open_fd;
@@ -986,9 +992,11 @@ static int stat_to_qid(V9fsPDU *pdu, const struct stat *stbuf, V9fsQID *qidp)
     if (S_ISDIR(stbuf->st_mode)) {
         qidp->type |= P9_QID_TYPE_DIR;
     }
+#ifndef CONFIG_WIN32
     if (S_ISLNK(stbuf->st_mode)) {
         qidp->type |= P9_QID_TYPE_SYMLINK;
     }
+#endif
 
     return 0;
 }
@@ -1095,6 +1103,7 @@ static mode_t v9mode_to_mode(uint32_t mode, V9fsString *extension)
         ret |= S_IFDIR;
     }
 
+#ifndef CONFIG_WIN32
     if (mode & P9_STAT_MODE_SYMLINK) {
         ret |= S_IFLNK;
     }
@@ -1104,6 +1113,7 @@ static mode_t v9mode_to_mode(uint32_t mode, V9fsString *extension)
     if (mode & P9_STAT_MODE_NAMED_PIPE) {
         ret |= S_IFIFO;
     }
+#endif
     if (mode & P9_STAT_MODE_DEVICE) {
         if (extension->size && extension->data[0] == 'c') {
             ret |= S_IFCHR;
@@ -1116,6 +1126,7 @@ static mode_t v9mode_to_mode(uint32_t mode, V9fsString *extension)
         ret |= S_IFREG;
     }
 
+#ifndef CONFIG_WIN32
     if (mode & P9_STAT_MODE_SETUID) {
         ret |= S_ISUID;
     }
@@ -1125,6 +1136,7 @@ static mode_t v9mode_to_mode(uint32_t mode, V9fsString *extension)
     if (mode & P9_STAT_MODE_SETVTX) {
         ret |= S_ISVTX;
     }
+#endif
 
     return ret;
 }
@@ -1180,6 +1192,7 @@ static uint32_t stat_to_v9mode(const struct stat *stbuf)
         mode |= P9_STAT_MODE_DIR;
     }
 
+#ifndef CONFIG_WIN32
     if (S_ISLNK(stbuf->st_mode)) {
         mode |= P9_STAT_MODE_SYMLINK;
     }
@@ -1191,11 +1204,13 @@ static uint32_t stat_to_v9mode(const struct stat *stbuf)
     if (S_ISFIFO(stbuf->st_mode)) {
         mode |= P9_STAT_MODE_NAMED_PIPE;
     }
+#endif
 
     if (S_ISBLK(stbuf->st_mode) || S_ISCHR(stbuf->st_mode)) {
         mode |= P9_STAT_MODE_DEVICE;
     }
 
+#ifndef CONFIG_WIN32
     if (stbuf->st_mode & S_ISUID) {
         mode |= P9_STAT_MODE_SETUID;
     }
@@ -1207,6 +1222,7 @@ static uint32_t stat_to_v9mode(const struct stat *stbuf)
     if (stbuf->st_mode & S_ISVTX) {
         mode |= P9_STAT_MODE_SETVTX;
     }
+#endif
 
     return mode;
 }
@@ -1245,9 +1261,16 @@ static int coroutine_fn stat_to_v9stat(V9fsPDU *pdu, V9fsPath *path,
             return err;
         }
     } else if (v9stat->mode & P9_STAT_MODE_DEVICE) {
+#ifndef CONFIG_WIN32
         v9fs_string_sprintf(&v9stat->extension, "%c %u %u",
                 S_ISCHR(stbuf->st_mode) ? 'c' : 'b',
                 major(stbuf->st_rdev), minor(stbuf->st_rdev));
+#else
+        v9fs_string_sprintf(&v9stat->extension, "%c %u %u",
+                S_ISCHR(stbuf->st_mode) ? 'c' : 'b',
+                0, 0);
+#endif
+
     } else if (S_ISDIR(stbuf->st_mode) || S_ISREG(stbuf->st_mode)) {
         v9fs_string_sprintf(&v9stat->extension, "%s %lu",
                 "HARDLINKCOUNT", (unsigned long)stbuf->st_nlink);
@@ -1315,7 +1338,11 @@ static int32_t blksize_to_iounit(const V9fsPDU *pdu, int32_t blksize)
 
 static int32_t stat_to_iounit(const V9fsPDU *pdu, const struct stat *stbuf)
 {
+#ifndef CONFIG_WIN32
     return blksize_to_iounit(pdu, stbuf->st_blksize);
+#else
+    return blksize_to_iounit(pdu, 0);
+#endif
 }
 
 static int stat_to_v9stat_dotl(V9fsPDU *pdu, const struct stat *stbuf,
@@ -1329,6 +1356,14 @@ static int stat_to_v9stat_dotl(V9fsPDU *pdu, const struct stat *stbuf,
     v9lstat->st_gid = stbuf->st_gid;
     v9lstat->st_rdev = stbuf->st_rdev;
     v9lstat->st_size = stbuf->st_size;
+
+#ifdef CONFIG_WIN32
+    v9lstat->st_blksize = stat_to_iounit(pdu, stbuf);
+    v9lstat->st_blocks = 0;
+    v9lstat->st_atime_sec = stbuf->st_atime;
+    v9lstat->st_mtime_sec = stbuf->st_mtime;
+    v9lstat->st_ctime_sec = stbuf->st_ctime;
+#else /* !CONFIG_WIN32 */
     v9lstat->st_blksize = stat_to_iounit(pdu, stbuf);
     v9lstat->st_blocks = stbuf->st_blocks;
     v9lstat->st_atime_sec = stbuf->st_atime;
@@ -1343,6 +1378,8 @@ static int stat_to_v9stat_dotl(V9fsPDU *pdu, const struct stat *stbuf,
     v9lstat->st_mtime_nsec = stbuf->st_mtim.tv_nsec;
     v9lstat->st_ctime_nsec = stbuf->st_ctim.tv_nsec;
 #endif
+#endif /* CONFIG_WIN32 */
+
     /* Currently we only support BASIC fields in stat */
     v9lstat->st_result_mask = P9_STATS_BASIC;
 
@@ -2300,7 +2337,11 @@ static int coroutine_fn v9fs_do_readdir_with_stat(V9fsPDU *pdu,
         count += len;
         v9fs_stat_free(&v9stat);
         v9fs_path_free(&path);
+#ifndef CONFIG_WIN32
         saved_dir_pos = qemu_dirent_off(dent);
+#else
+        saved_dir_pos = v9fs_co_telldir(pdu, fidp);
+#endif
     }
 
     v9fs_readdir_unlock(&fidp->fs.dir);
@@ -2501,14 +2542,28 @@ static int coroutine_fn v9fs_do_readdir(V9fsPDU *pdu, V9fsFidState *fidp,
             qid.version = 0;
         }
 
+#ifdef CONFIG_WIN32
+        /*
+         * Windows does not have dent->d_off, get offset by calling telldir()
+         * manually.
+         */
+        off = v9fs_co_telldir(pdu, fidp);
+#else
         off = qemu_dirent_off(dent);
+#endif
         v9fs_string_init(&name);
         v9fs_string_sprintf(&name, "%s", dent->d_name);
 
+#ifdef CONFIG_WIN32
+        len = pdu_marshal(pdu, 11 + count, "Qqbs",
+                          &qid, off,
+                          0, &name);
+#else
         /* 11 = 7 + 4 (7 = start offset, 4 = space for storing count) */
         len = pdu_marshal(pdu, 11 + count, "Qqbs",
                           &qid, off,
                           dent->d_type, &name);
+#endif
 
         v9fs_string_free(&name);
 
@@ -2838,8 +2893,14 @@ static void coroutine_fn v9fs_create(void *opaque)
         }
 
         nmode |= perm & 0777;
+
+#ifndef CONFIG_WIN32
         err = v9fs_co_mknod(pdu, fidp, &name, fidp->uid, -1,
                             makedev(major, minor), nmode, &stbuf);
+#else
+        err = -ENOTSUP;
+#endif
+
         if (err < 0) {
             goto out;
         }
@@ -2864,8 +2925,12 @@ static void coroutine_fn v9fs_create(void *opaque)
         v9fs_path_copy(&fidp->path, &path);
         v9fs_path_unlock(s);
     } else if (perm & P9_STAT_MODE_SOCKET) {
+#ifndef CONFIG_WIN32
         err = v9fs_co_mknod(pdu, fidp, &name, fidp->uid, -1,
                             0, S_IFSOCK | (perm & 0777), &stbuf);
+#else
+        err = -ENOTSUP;
+#endif
         if (err < 0) {
             goto out;
         }
@@ -3600,6 +3665,7 @@ out_nofid:
 static void coroutine_fn v9fs_mknod(void *opaque)
 {
 
+#ifndef CONFIG_WIN32
     int mode;
     gid_t gid;
     int32_t fid;
@@ -3656,6 +3722,11 @@ out:
 out_nofid:
     pdu_complete(pdu, err);
     v9fs_string_free(&name);
+#else
+    V9fsPDU *pdu = opaque;
+
+    pdu_complete(pdu, -1);
+#endif
 }
 
 /*
@@ -3928,7 +3999,7 @@ out_nofid:
 #if defined(CONFIG_LINUX)
 /* Currently, only Linux has XATTR_SIZE_MAX */
 #define P9_XATTR_SIZE_MAX XATTR_SIZE_MAX
-#elif defined(CONFIG_DARWIN)
+#elif defined(CONFIG_DARWIN) || defined(CONFIG_WIN32)
 /*
  * Darwin doesn't seem to define a maximum xattr size in its user
  * space header, so manually configure it across platforms as 64k.
@@ -3945,6 +4016,7 @@ out_nofid:
 
 static void coroutine_fn v9fs_xattrcreate(void *opaque)
 {
+#ifndef CONFIG_WIN32
     int flags, rflags = 0;
     int32_t fid;
     uint64_t size;
@@ -4006,10 +4078,15 @@ out_put_fid:
 out_nofid:
     pdu_complete(pdu, err);
     v9fs_string_free(&name);
+#else
+    V9fsPDU *pdu = opaque;
+    pdu_complete(pdu, -1);
+#endif
 }
 
 static void coroutine_fn v9fs_readlink(void *opaque)
 {
+#ifndef CONFIG_WIN32
     V9fsPDU *pdu = opaque;
     size_t offset = 7;
     V9fsString target;
@@ -4045,6 +4122,10 @@ out:
     put_fid(pdu, fidp);
 out_nofid:
     pdu_complete(pdu, err);
+#else
+    V9fsPDU *pdu = opaque;
+    pdu_complete(pdu, -1);
+#endif
 }
 
 static CoroutineEntry *pdu_co_handlers[] = {
@@ -4306,6 +4387,7 @@ void v9fs_reset(V9fsState *s)
 
 static void __attribute__((__constructor__)) v9fs_set_fd_limit(void)
 {
+#ifndef CONFIG_WIN32
     struct rlimit rlim;
     if (getrlimit(RLIMIT_NOFILE, &rlim) < 0) {
         error_report("Failed to get the resource limit");
@@ -4313,4 +4395,5 @@ static void __attribute__((__constructor__)) v9fs_set_fd_limit(void)
     }
     open_fd_hw = rlim.rlim_cur - MIN(400, rlim.rlim_cur / 3);
     open_fd_rc = rlim.rlim_cur / 2;
+#endif
 }

@@ -1,5 +1,13 @@
 fs_ss = ss.source_set()
-fs_ss.add(files(
+fs_ss.add(when: 'CONFIG_WIN32', if_true: files(
+  '9p-local.c',
+  '9p.c',
+  'codir.c',
+  'cofile.c',
+  'cofs.c',
+  'coth.c',
+  'coxattr.c',
+), if_false: files(
   '9p-local.c',
   '9p-posix-acl.c',
   '9p-proxy.c',

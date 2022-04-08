@@ -18,15 +18,22 @@
 #include "qemu/osdep.h"
 #include "9p.h"
 #include "9p-local.h"
+#ifndef CONFIG_WIN32
 #include "9p-xattr.h"
+#endif
 #include "9p-util.h"
 #include "fsdev/qemu-fsdev.h"   /* local_ops */
+#ifndef CONFIG_WIN32
 #include <arpa/inet.h>
 #include <pwd.h>
 #include <grp.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include "qemu/xattr.h"
+#else
+#include <dirent.h>
+#endif
+
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
@@ -38,7 +45,9 @@
 #include <linux/magic.h>
 #endif
 #endif
+#ifndef CONFIG_WIN32
 #include <sys/ioctl.h>
+#endif
 
 #ifndef XFS_SUPER_MAGIC
 #define XFS_SUPER_MAGIC  0x58465342
@@ -57,9 +66,68 @@ typedef struct {
     int mountfd;
 } LocalData;
 
+#ifdef CONFIG_WIN32
+static inline char *merge_fs_path(const char *path1, const char *path2)
+{
+    char *full_fs_path;
+    size_t full_fs_path_len;
+
+    full_fs_path_len = strlen(path1) + strlen(path2) +  2;
+    full_fs_path = g_malloc(full_fs_path_len);
+
+    strcpy(full_fs_path, path1);
+    strcat(full_fs_path, "\\");
+    strcat(full_fs_path, path2);
+
+    return full_fs_path;
+}
+
+static inline int opendir_with_ctx(FsContext *fs_ctx, const char *name)
+{
+    /* Windows do not support open a directory by open() */
+    return -1;
+}
+
+static inline int openfile_with_ctx(FsContext *fs_ctx, const char *name,
+                                    int flags, mode_t mode)
+{
+    char *full_fs_path;
+    int fd;
+
+    full_fs_path = merge_fs_path(fs_ctx->fs_root, name);
+    fd = open(full_fs_path, flags, mode);
+    g_free(full_fs_path);
+
+    return fd;
+}
+
+static inline int mkdir_with_ctx(FsContext *fs_ctx, const char *name)
+{
+    char *full_fs_path;
+    int fd;
+
+    full_fs_path = merge_fs_path(fs_ctx->fs_root, name);
+    fd = mkdir(full_fs_path);
+    g_free(full_fs_path);
+
+    return fd;
+}
+#endif
+
 int local_open_nofollow(FsContext *fs_ctx, const char *path, int flags,
                         mode_t mode)
 {
+#ifdef CONFIG_WIN32
+    int fd;
+
+    if (path[strlen(path) - 1] == '/' || (flags & O_DIRECTORY) != 0) {
+        fd = opendir_with_ctx(fs_ctx, path);
+    } else {
+        fd = openfile_with_ctx(fs_ctx, path, flags, mode);
+    }
+
+    return fd;
+#else
     LocalData *data = fs_ctx->private;
     int fd = data->mountfd;
 
@@ -92,6 +160,7 @@ int local_open_nofollow(FsContext *fs_ctx, const char *path, int flags,
 
     assert(fd != data->mountfd);
     return fd;
+#endif
 }
 
 int local_opendir_nofollow(FsContext *fs_ctx, const char *path)
@@ -99,6 +168,7 @@ int local_opendir_nofollow(FsContext *fs_ctx, const char *path)
     return local_open_nofollow(fs_ctx, path, O_DIRECTORY | O_RDONLY, 0);
 }
 
+#ifndef CONFIG_WIN32
 static void renameat_preserve_errno(int odirfd, const char *opath, int ndirfd,
                                     const char *npath)
 {
@@ -181,12 +251,15 @@ static void local_mapped_file_attr(int dirfd, const char *name,
     }
     fclose(fp);
 }
+#endif /* !CONFIG_WIN32 */
 
 static int local_lstat(FsContext *fs_ctx, V9fsPath *fs_path, struct stat *stbuf)
 {
     int err = -1;
     char *dirpath = g_path_get_dirname(fs_path->data);
     char *name = g_path_get_basename(fs_path->data);
+
+#ifndef CONFIG_WIN32
     int dirfd;
 
     dirfd = local_opendir_nofollow(fs_ctx, dirpath);
@@ -195,9 +268,21 @@ static int local_lstat(FsContext *fs_ctx, V9fsPath *fs_path, struct stat *stbuf)
     }
 
     err = fstatat(dirfd, name, stbuf, AT_SYMLINK_NOFOLLOW);
+#else
+    char *full_fs_path1, *full_fs_path2;
+
+    full_fs_path1 = merge_fs_path(fs_ctx->fs_root, dirpath);
+    full_fs_path2 = merge_fs_path(full_fs_path1, name);
+    err = stat(full_fs_path2, stbuf);
+
+    g_free(full_fs_path1);
+    g_free(full_fs_path2);
+#endif
     if (err) {
         goto err_out;
     }
+
+#ifndef CONFIG_WIN32
     if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
         /* Actual credentials are part of extended attrs */
         uid_t tmp_uid;
@@ -224,15 +309,19 @@ static int local_lstat(FsContext *fs_ctx, V9fsPath *fs_path, struct stat *stbuf)
     } else if (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
         local_mapped_file_attr(dirfd, name, stbuf);
     }
+#endif
 
 err_out:
+#ifndef CONFIG_WIN32
     close_preserve_errno(dirfd);
 out:
+#endif
     g_free(name);
     g_free(dirpath);
     return err;
 }
 
+#ifndef CONFIG_WIN32
 static int local_set_mapped_file_attrat(int dirfd, const char *name,
                                         FsCred *credp)
 {
@@ -456,10 +545,14 @@ static int local_set_cred_passthrough(FsContext *fs_ctx, int dirfd,
 
     return fchmodat_nofollow(dirfd, name, credp->fc_mode & 07777);
 }
+#endif /* !CONFIG_WIN32 */
 
 static ssize_t local_readlink(FsContext *fs_ctx, V9fsPath *fs_path,
                               char *buf, size_t bufsz)
 {
+#ifdef CONFIG_WIN32
+    return -1;
+#else
     ssize_t tsize = -1;
 
     if ((fs_ctx->export_flags & V9FS_SM_MAPPED) ||
@@ -492,6 +585,7 @@ static ssize_t local_readlink(FsContext *fs_ctx, V9fsPath *fs_path,
         g_free(dirpath);
     }
     return tsize;
+#endif
 }
 
 static int local_close(FsContext *ctx, V9fsFidOpenState *fs)
@@ -520,8 +614,20 @@ static int local_open(FsContext *ctx, V9fsPath *fs_path,
 static int local_opendir(FsContext *ctx,
                          V9fsPath *fs_path, V9fsFidOpenState *fs)
 {
-    int dirfd;
     DIR *stream;
+
+#ifdef CONFIG_WIN32
+    char *full_fs_path;
+
+    full_fs_path = merge_fs_path(ctx->fs_root, fs_path->data);
+    stream = opendir(full_fs_path);
+    g_free(full_fs_path);
+
+    if (!stream) {
+        return -1;
+    }
+#else
+    int dirfd;
 
     dirfd = local_opendir_nofollow(ctx, fs_path->data);
     if (dirfd == -1) {
@@ -533,6 +639,7 @@ static int local_opendir(FsContext *ctx,
         close(dirfd);
         return -1;
     }
+#endif
     fs->dir.stream = stream;
     return 0;
 }
@@ -547,17 +654,21 @@ static off_t local_telldir(FsContext *ctx, V9fsFidOpenState *fs)
     return telldir(fs->dir.stream);
 }
 
+#ifndef CONFIG_WIN32
 static bool local_is_mapped_file_metadata(FsContext *fs_ctx, const char *name)
 {
     return
         !strcmp(name, VIRTFS_META_DIR) || !strcmp(name, VIRTFS_META_ROOT_FILE);
 }
+#endif
 
 static struct dirent *local_readdir(FsContext *ctx, V9fsFidOpenState *fs)
 {
     struct dirent *entry;
 
+#ifndef CONFIG_WIN32
 again:
+#endif
     entry = readdir(fs->dir.stream);
     if (!entry) {
         return NULL;
@@ -572,6 +683,7 @@ again:
     entry->d_seekoff = off;
 #endif
 
+#ifndef CONFIG_WIN32
     if (ctx->export_flags & V9FS_SM_MAPPED) {
         entry->d_type = DT_UNKNOWN;
     } else if (ctx->export_flags & V9FS_SM_MAPPED_FILE) {
@@ -581,6 +693,7 @@ again:
         }
         entry->d_type = DT_UNKNOWN;
     }
+#endif
 
     return entry;
 }
@@ -637,6 +750,9 @@ static ssize_t local_pwritev(FsContext *ctx, V9fsFidOpenState *fs,
 
 static int local_chmod(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
 {
+#ifdef CONFIG_WIN32
+    return -1;
+#else
     char *dirpath = g_path_get_dirname(fs_path->data);
     char *name = g_path_get_basename(fs_path->data);
     int ret = -1;
@@ -661,11 +777,15 @@ out:
     g_free(dirpath);
     g_free(name);
     return ret;
+#endif
 }
 
 static int local_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
                        const char *name, FsCred *credp)
 {
+#ifdef CONFIG_WIN32
+    return -1;
+#else
     int err = -1;
     int dirfd;
 
@@ -713,12 +833,14 @@ err_end:
 out:
     close_preserve_errno(dirfd);
     return err;
+#endif
 }
 
 static int local_mkdir(FsContext *fs_ctx, V9fsPath *dir_path,
                        const char *name, FsCred *credp)
 {
     int err = -1;
+#ifndef CONFIG_WIN32
     int dirfd;
 
     if (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE &&
@@ -759,13 +881,25 @@ static int local_mkdir(FsContext *fs_ctx, V9fsPath *dir_path,
             goto err_end;
         }
     }
+#else
+    char *full_fs_path;
+
+    full_fs_path = merge_fs_path(dir_path->data, name);
+    err = mkdir_with_ctx(fs_ctx, full_fs_path);
+    g_free(full_fs_path);
+#endif
     goto out;
 
+#ifndef CONFIG_WIN32
 err_end:
     unlinkat_preserve_errno(dirfd, name, AT_REMOVEDIR);
 out:
     close_preserve_errno(dirfd);
     return err;
+#else
+out:
+    return err;
+#endif
 }
 
 static int local_fstat(FsContext *fs_ctx, int fid_type,
@@ -774,7 +908,9 @@ static int local_fstat(FsContext *fs_ctx, int fid_type,
     int err, fd;
 
     if (fid_type == P9_FID_DIR) {
+#ifndef CONFIG_WIN32
         fd = dirfd(fs->dir.stream);
+#endif
     } else {
         fd = fs->fd;
     }
@@ -783,6 +919,7 @@ static int local_fstat(FsContext *fs_ctx, int fid_type,
     if (err) {
         return err;
     }
+#ifndef CONFIG_WIN32
     if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
         /* Actual credentials are part of extended attrs */
         uid_t tmp_uid;
@@ -810,6 +947,8 @@ static int local_fstat(FsContext *fs_ctx, int fid_type,
         errno = EOPNOTSUPP;
         return -1;
     }
+#endif
+
     return err;
 }
 
@@ -818,6 +957,8 @@ static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
 {
     int fd = -1;
     int err = -1;
+
+#ifndef CONFIG_WIN32
     int dirfd;
 
     if (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE &&
@@ -864,16 +1005,27 @@ static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
             goto err_end;
         }
     }
+#else
+    char *full_fs_path;
+
+    full_fs_path = merge_fs_path(dir_path->data, name);
+    fd = openfile_with_ctx(fs_ctx, full_fs_path, flags, credp->fc_mode);
+    g_free(full_fs_path);
+#endif
     err = fd;
     fs->fd = fd;
     goto out;
 
+#ifndef CONFIG_WIN32
 err_end:
     unlinkat_preserve_errno(dirfd, name,
                             flags & O_DIRECTORY ? AT_REMOVEDIR : 0);
+#endif
     close_preserve_errno(fd);
 out:
+#ifndef CONFIG_WIN32
     close_preserve_errno(dirfd);
+#endif
     return err;
 }
 
@@ -881,6 +1033,9 @@ out:
 static int local_symlink(FsContext *fs_ctx, const char *oldpath,
                          V9fsPath *dir_path, const char *name, FsCred *credp)
 {
+#ifdef CONFIG_WIN32
+    return -1;
+#else
     int err = -1;
     int dirfd;
 
@@ -954,11 +1109,15 @@ err_end:
 out:
     close_preserve_errno(dirfd);
     return err;
+#endif
 }
 
 static int local_link(FsContext *ctx, V9fsPath *oldpath,
                       V9fsPath *dirpath, const char *name)
 {
+#ifdef CONFIG_WIN32
+    return -1;
+#else
     char *odirpath = g_path_get_dirname(oldpath->data);
     char *oname = g_path_get_basename(oldpath->data);
     int ret = -1;
@@ -1028,6 +1187,7 @@ out:
     g_free(oname);
     g_free(odirpath);
     return ret;
+#endif
 }
 
 static int local_truncate(FsContext *ctx, V9fsPath *fs_path, off_t size)
@@ -1045,6 +1205,9 @@ static int local_truncate(FsContext *ctx, V9fsPath *fs_path, off_t size)
 
 static int local_chown(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
 {
+#ifdef CONFIG_WIN32
+    return -1;
+#else
     char *dirpath = g_path_get_dirname(fs_path->data);
     char *name = g_path_get_basename(fs_path->data);
     int ret = -1;
@@ -1071,11 +1234,26 @@ out:
     g_free(name);
     g_free(dirpath);
     return ret;
+#endif
 }
 
 static int local_utimensat(FsContext *s, V9fsPath *fs_path,
                            const struct timespec *buf)
 {
+#ifdef CONFIG_WIN32
+    struct utimbuf tm;
+    char *full_fs_path;
+    int err;
+
+    tm.actime = buf[0].tv_sec;
+    tm.modtime = buf[1].tv_sec;
+
+    full_fs_path = merge_fs_path(s->fs_root, fs_path->data);
+    err = utime(full_fs_path, &tm);
+    g_free(full_fs_path);
+
+    return err;
+#else
     char *dirpath = g_path_get_dirname(fs_path->data);
     char *name = g_path_get_basename(fs_path->data);
     int dirfd, ret = -1;
@@ -1091,8 +1269,10 @@ out:
     g_free(dirpath);
     g_free(name);
     return ret;
+#endif
 }
 
+#ifndef CONFIG_WIN32
 static int local_unlinkat_common(FsContext *ctx, int dirfd, const char *name,
                                  int flags)
 {
@@ -1136,9 +1316,27 @@ static int local_unlinkat_common(FsContext *ctx, int dirfd, const char *name,
 
     return unlinkat(dirfd, name, flags);
 }
+#endif /* !CONFIG_WIN32 */
 
 static int local_remove(FsContext *ctx, const char *path)
 {
+#ifdef CONFIG_WIN32
+    int err;
+    DIR *stream;
+    char *full_fs_path;
+
+    full_fs_path = merge_fs_path(ctx->fs_root, path);
+    stream = opendir(full_fs_path);
+    if (stream == NULL) {
+        err = remove(full_fs_path);
+    } else {
+        closedir(stream);
+        err = rmdir(full_fs_path);
+    }
+
+    g_free(full_fs_path);
+    return err;
+#else
     struct stat stbuf;
     char *dirpath = g_path_get_dirname(path);
     char *name = g_path_get_basename(path);
@@ -1166,11 +1364,15 @@ out:
     g_free(name);
     g_free(dirpath);
     return err;
+#endif
 }
 
 static int local_fsync(FsContext *ctx, int fid_type,
                        V9fsFidOpenState *fs, int datasync)
 {
+#ifdef CONFIG_WIN32
+    return 0;
+#else
     int fd;
 
     if (fid_type == P9_FID_DIR) {
@@ -1184,10 +1386,14 @@ static int local_fsync(FsContext *ctx, int fid_type,
     } else {
         return fsync(fd);
     }
+#endif
 }
 
 static int local_statfs(FsContext *s, V9fsPath *fs_path, struct statfs *stbuf)
 {
+#ifdef CONFIG_WIN32
+    return -1;
+#else
     int fd, ret;
 
     fd = local_open_nofollow(s, fs_path->data, O_RDONLY, 0);
@@ -1197,48 +1403,67 @@ static int local_statfs(FsContext *s, V9fsPath *fs_path, struct statfs *stbuf)
     ret = fstatfs(fd, stbuf);
     close_preserve_errno(fd);
     return ret;
+#endif
 }
 
 static ssize_t local_lgetxattr(FsContext *ctx, V9fsPath *fs_path,
                                const char *name, void *value, size_t size)
 {
+#ifdef CONFIG_WIN32
+    return -1;
+#else
     char *path = fs_path->data;
 
     return v9fs_get_xattr(ctx, path, name, value, size);
+#endif
 }
 
 static ssize_t local_llistxattr(FsContext *ctx, V9fsPath *fs_path,
                                 void *value, size_t size)
 {
+#ifdef CONFIG_WIN32
+    return -1;
+#else
     char *path = fs_path->data;
 
     return v9fs_list_xattr(ctx, path, value, size);
+#endif
 }
 
 static int local_lsetxattr(FsContext *ctx, V9fsPath *fs_path, const char *name,
                            void *value, size_t size, int flags)
 {
+#ifdef CONFIG_WIN32
+    return -1;
+#else
     char *path = fs_path->data;
 
     return v9fs_set_xattr(ctx, path, name, value, size, flags);
+#endif
 }
 
 static int local_lremovexattr(FsContext *ctx, V9fsPath *fs_path,
                               const char *name)
 {
+#ifdef CONFIG_WIN32
+    return -1;
+#else
     char *path = fs_path->data;
 
     return v9fs_remove_xattr(ctx, path, name);
+#endif
 }
 
 static int local_name_to_path(FsContext *ctx, V9fsPath *dir_path,
                               const char *name, V9fsPath *target)
 {
+#ifndef CONFIG_WIN32
     if (ctx->export_flags & V9FS_SM_MAPPED_FILE &&
         local_is_mapped_file_metadata(ctx, name)) {
         errno = EINVAL;
         return -1;
     }
+#endif
 
     if (dir_path) {
         if (!strcmp(name, ".")) {
@@ -1275,6 +1500,9 @@ static int local_renameat(FsContext *ctx, V9fsPath *olddir,
                           const char *old_name, V9fsPath *newdir,
                           const char *new_name)
 {
+#ifdef CONFIG_WIN32
+    return -1;
+#else
     int ret;
     int odirfd, ndirfd;
 
@@ -1340,18 +1568,34 @@ out:
     close_preserve_errno(ndirfd);
     close_preserve_errno(odirfd);
     return ret;
+#endif
 }
 
+#ifndef CONFIG_WIN32
 static void v9fs_path_init_dirname(V9fsPath *path, const char *str)
 {
     path->data = g_path_get_dirname(str);
     path->size = strlen(path->data) + 1;
 }
+#endif
 
 static int local_rename(FsContext *ctx, const char *oldpath,
                         const char *newpath)
 {
     int err;
+
+#ifdef CONFIG_WIN32
+    char *full_fs_path1;
+    char *full_fs_path2;
+
+    full_fs_path1 = merge_fs_path(ctx->fs_root, oldpath);
+    full_fs_path2 = merge_fs_path(ctx->fs_root, newpath);
+
+    err = rename(full_fs_path1, full_fs_path2);
+
+    g_free(full_fs_path1);
+    g_free(full_fs_path2);
+#else
     char *oname = g_path_get_basename(oldpath);
     char *nname = g_path_get_basename(newpath);
     V9fsPath olddir, newdir;
@@ -1365,6 +1609,7 @@ static int local_rename(FsContext *ctx, const char *oldpath,
     v9fs_path_free(&olddir);
     g_free(nname);
     g_free(oname);
+#endif
 
     return err;
 }
@@ -1372,6 +1617,9 @@ static int local_rename(FsContext *ctx, const char *oldpath,
 static int local_unlinkat(FsContext *ctx, V9fsPath *dir,
                           const char *name, int flags)
 {
+#ifdef CONFIG_WIN32
+    return -1;
+#else
     int ret;
     int dirfd;
 
@@ -1389,6 +1637,7 @@ static int local_unlinkat(FsContext *ctx, V9fsPath *dir,
     ret = local_unlinkat_common(ctx, dirfd, name, flags);
     close_preserve_errno(dirfd);
     return ret;
+#endif
 }
 
 #ifdef FS_IOC_GETVERSION
@@ -1416,6 +1665,7 @@ static int local_ioc_getversion(FsContext *ctx, V9fsPath *path,
 }
 #endif
 
+#ifndef CONFIG_WIN32
 static int local_ioc_getversion_init(FsContext *ctx, LocalData *data, Error **errp)
 {
 #ifdef FS_IOC_GETVERSION
@@ -1440,9 +1690,29 @@ static int local_ioc_getversion_init(FsContext *ctx, LocalData *data, Error **er
 #endif
     return 0;
 }
+#endif
+
 
 static int local_init(FsContext *ctx, Error **errp)
 {
+#ifdef CONFIG_WIN32
+    LocalData *data = g_malloc(sizeof(*data));
+    struct stat StatBuf;
+
+    if (stat(ctx->fs_root, &StatBuf) != 0) {
+        error_setg_errno(errp, errno, "failed to open '%s'", ctx->fs_root);
+        goto err;
+    }
+
+    ctx->export_flags |= V9FS_PATHNAME_FSCONTEXT;
+
+    ctx->private = data;
+    return 0;
+
+err:
+    g_free(data);
+    return -1;
+#else
     LocalData *data = g_malloc(sizeof(*data));
 
     data->mountfd = open(ctx->fs_root, O_DIRECTORY | O_RDONLY);
@@ -1477,6 +1747,7 @@ static int local_init(FsContext *ctx, Error **errp)
 err:
     g_free(data);
     return -1;
+#endif
 }
 
 static void local_cleanup(FsContext *ctx)
