@@ -1830,6 +1830,16 @@ void tb_invalidate_phys_page_fast(struct page_collection *pages,
                                   uintptr_t retaddr)
 {
     PageDesc *p = page_find(start >> TARGET_PAGE_BITS);
+    unsigned int nr = start & ~TARGET_PAGE_MASK;
+
+    /*
+     * Assume any write to the start of the page is start of clearing
+     * the whole page. To avoid coming back multiple times lets just
+     * invalidate everything first.
+     */
+    if (nr == 0) {
+        len = TARGET_PAGE_SIZE;
+    }
 
     if (trace_event_get_state_backends(TRACE_TB_INVALIDATE_PHYS_PAGE_FAST)) {
         TranslationBlock *tb = tcg_tb_lookup(retaddr);
@@ -1850,10 +1860,8 @@ void tb_invalidate_phys_page_fast(struct page_collection *pages,
         build_page_bitmap(p);
     }
     if (p->code_bitmap) {
-        unsigned int nr;
         unsigned long b;
 
-        nr = start & ~TARGET_PAGE_MASK;
         b = p->code_bitmap[BIT_WORD(nr)] >> (nr & (BITS_PER_LONG - 1));
         if (b & ((1 << len) - 1)) {
             goto do_invalidate;
