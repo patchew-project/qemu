@@ -81,6 +81,8 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_RESET_DEVICE = 13,
     /* Feature 14 reserved for VHOST_USER_PROTOCOL_F_INBAND_NOTIFICATIONS. */
     VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS = 15,
+    /* Feature 16 reserved for VHOST_USER_PROTOCOL_F_STATUS. */
+    VHOST_USER_PROTOCOL_F_NET_RSS = 17,
     VHOST_USER_PROTOCOL_F_MAX
 };
 
@@ -126,6 +128,10 @@ typedef enum VhostUserRequest {
     VHOST_USER_GET_MAX_MEM_SLOTS = 36,
     VHOST_USER_ADD_MEM_REG = 37,
     VHOST_USER_REM_MEM_REG = 38,
+    /* Message number 39 reserved for VHOST_USER_SET_STATUS. */
+    /* Message number 40 reserved for VHOST_USER_GET_STATUS. */
+    VHOST_USER_NET_GET_RSS = 41,
+    VHOST_USER_NET_SET_RSS = 42,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -196,6 +202,24 @@ typedef struct VhostUserInflight {
     uint16_t queue_size;
 } VhostUserInflight;
 
+typedef struct VhostUserRSSCapa {
+    uint32_t supported_hash_types;
+    uint8_t max_key_len;
+    uint16_t max_indir_len;
+} VhostUserRSSCapa;
+
+#define VHOST_USER_RSS_MAX_KEY_LEN    52
+#define VHOST_USER_RSS_MAX_INDIR_LEN  512
+
+typedef struct VhostUserRSSData {
+    uint32_t hash_types;
+    uint8_t key_len;
+    uint8_t key[VHOST_USER_RSS_MAX_KEY_LEN];
+    uint16_t indir_len;
+    uint16_t indir_table[VHOST_USER_RSS_MAX_INDIR_LEN];
+    uint16_t default_queue;
+} VhostUserRSSData;
+
 typedef struct {
     VhostUserRequest request;
 
@@ -220,6 +244,8 @@ typedef union {
         VhostUserCryptoSession session;
         VhostUserVringArea area;
         VhostUserInflight inflight;
+        VhostUserRSSCapa rss_capa;
+        VhostUserRSSData rss_data;
 } VhostUserPayload;
 
 typedef struct VhostUserMsg {
@@ -2178,7 +2204,123 @@ static int vhost_user_net_set_mtu(struct vhost_dev *dev, uint16_t mtu)
         return ret;
     }
 
-    /* If reply_ack supported, slave has to ack specified MTU is valid */
+    if (reply_supported) {
+        return process_message_reply(dev, &msg);
+    }
+
+    return 0;
+}
+
+static int vhost_user_net_get_rss(struct vhost_dev *dev,
+                                  VirtioNetRssCapa *rss_capa)
+{
+    int ret;
+    VhostUserMsg msg = {
+        .hdr.request = VHOST_USER_NET_GET_RSS,
+        .hdr.flags = VHOST_USER_VERSION,
+    };
+
+    if (!(dev->protocol_features & (1ULL << VHOST_USER_PROTOCOL_F_NET_RSS))) {
+        return -EPROTO;
+    }
+
+    ret = vhost_user_write(dev, &msg, NULL, 0);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = vhost_user_read(dev, &msg);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (msg.hdr.request != VHOST_USER_NET_GET_RSS) {
+        error_report("Received unexpected msg type. Expected %d received %d",
+                     VHOST_USER_NET_GET_RSS, msg.hdr.request);
+        return -EPROTO;
+    }
+
+    if (msg.hdr.size != sizeof(msg.payload.rss_capa)) {
+        error_report("Received bad msg size.");
+        return -EPROTO;
+    }
+
+    if (msg.payload.rss_capa.max_key_len < VIRTIO_NET_RSS_MIN_KEY_SIZE) {
+        error_report("Invalid max RSS key len (%uB, minimum %uB).",
+                     msg.payload.rss_capa.max_key_len,
+                     VIRTIO_NET_RSS_MIN_KEY_SIZE);
+        return -EINVAL;
+    }
+
+    if (msg.payload.rss_capa.max_indir_len < VIRTIO_NET_RSS_MIN_TABLE_LEN) {
+        error_report("Invalid max RSS indir table entries (%u, minimum %u).",
+                     msg.payload.rss_capa.max_indir_len,
+                     VIRTIO_NET_RSS_MIN_TABLE_LEN);
+        return -EINVAL;
+    }
+
+    rss_capa->supported_hashes = msg.payload.rss_capa.supported_hash_types;
+    rss_capa->max_key_size = MIN(msg.payload.rss_capa.max_key_len,
+                                 VHOST_USER_RSS_MAX_KEY_LEN);
+    rss_capa->max_indirection_len = MIN(msg.payload.rss_capa.max_indir_len,
+                                        VHOST_USER_RSS_MAX_INDIR_LEN);
+
+    return 0;
+}
+
+static int vhost_user_net_set_rss(struct vhost_dev *dev,
+                                  VirtioNetRssData *rss_data)
+{
+    VhostUserMsg msg;
+    bool reply_supported = virtio_has_feature(dev->protocol_features,
+                                              VHOST_USER_PROTOCOL_F_REPLY_ACK);
+    int ret;
+
+    if (!(dev->protocol_features & (1ULL << VHOST_USER_PROTOCOL_F_NET_RSS))) {
+        return -EPROTO;
+    }
+
+    msg.hdr.request = VHOST_USER_NET_SET_RSS;
+    msg.hdr.size = sizeof(msg.payload.rss_data);
+    msg.hdr.flags = VHOST_USER_VERSION;
+    if (reply_supported) {
+        msg.hdr.flags |= VHOST_USER_NEED_REPLY_MASK;
+    }
+
+    msg.payload.rss_data.hash_types = rss_data->hash_types;
+
+    if (rss_data->key_len > VHOST_USER_RSS_MAX_KEY_LEN) {
+        error_report("RSS key length too long (%uB, max %uB).",
+                     rss_data->key_len, VHOST_USER_RSS_MAX_KEY_LEN);
+        return -EINVAL;
+    }
+
+    msg.payload.rss_data.key_len = rss_data->key_len;
+    memset(msg.payload.rss_data.key, 0, VHOST_USER_RSS_MAX_KEY_LEN);
+    memcpy(msg.payload.rss_data.key, rss_data->key, rss_data->key_len);
+
+    if (rss_data->indirections_len > VHOST_USER_RSS_MAX_INDIR_LEN) {
+        error_report("RSS indirection table too large (%u, max %u).",
+                     rss_data->indirections_len, VHOST_USER_RSS_MAX_INDIR_LEN);
+        return -EINVAL;
+    }
+
+    msg.payload.rss_data.indir_len = rss_data->indirections_len;
+    memset(msg.payload.rss_data.indir_table, 0,
+            VHOST_USER_RSS_MAX_INDIR_LEN *
+            sizeof(*msg.payload.rss_data.indir_table));
+    memcpy(msg.payload.rss_data.indir_table, rss_data->indirections_table,
+            msg.payload.rss_data.indir_len *
+            sizeof(*msg.payload.rss_data.indir_table));
+
+    msg.payload.rss_data.default_queue = rss_data->default_queue;
+
+    ret = vhost_user_write(dev, &msg, NULL, 0);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /* If reply_ack supported, slave has to ack specified RSS conf is valid */
     if (reply_supported) {
         return process_message_reply(dev, &msg);
     }
@@ -2555,6 +2697,8 @@ const VhostOps user_ops = {
         .vhost_migration_done = vhost_user_migration_done,
         .vhost_backend_can_merge = vhost_user_can_merge,
         .vhost_net_set_mtu = vhost_user_net_set_mtu,
+        .vhost_net_get_rss = vhost_user_net_get_rss,
+        .vhost_net_set_rss = vhost_user_net_set_rss,
         .vhost_set_iotlb_callback = vhost_user_set_iotlb_callback,
         .vhost_send_device_iotlb_msg = vhost_user_send_device_iotlb_msg,
         .vhost_get_config = vhost_user_get_config,
