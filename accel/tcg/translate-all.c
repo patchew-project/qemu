@@ -1807,21 +1807,28 @@ void tb_invalidate_phys_range(target_ulong start, target_ulong end)
 }
 
 #ifdef CONFIG_SOFTMMU
-/* len must be <= 8 and start must be a multiple of len.
+/*
+ * len must be <= 8 and start must be a multiple of len.
  * Called via softmmu_template.h when code areas are written to with
  * iothread mutex not held.
  *
- * Call with all @pages in the range [@start, @start + len[ locked.
+ * Call with all @pages in the range [@start, @start + len] locked.
  */
 void tb_invalidate_phys_page_fast(struct page_collection *pages,
                                   tb_page_addr_t start, int len,
                                   uintptr_t retaddr)
 {
-    PageDesc *p;
+    PageDesc *p = page_find(start >> TARGET_PAGE_BITS);
+
+    if (trace_event_get_state_backends(TRACE_TB_INVALIDATE_PHYS_PAGE_FAST)) {
+        TranslationBlock *tb = tcg_tb_lookup(retaddr);
+        g_assert(tb);
+        trace_tb_invalidate_phys_page_fast(start, len, tb->pc,
+                                           p->code_write_count, p->code_bitmap);
+    }
 
     assert_memory_lock();
 
-    p = page_find(start >> TARGET_PAGE_BITS);
     if (!p) {
         return;
     }
