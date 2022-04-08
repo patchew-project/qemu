@@ -258,6 +258,42 @@ Inflight description
 
 :queue size: a 16-bit size of virtqueues
 
+RSS capabilities description
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++----------------------+-------------+---------------+
+| supported hash types | max key len | max indir len |
++----------------------+-------------+---------------+
+
+:supported hash types: a 32-bit bitfield of supported hash types as defined
+                       in the Virtio specification
+
+:max key len: a 8-bit maximum size of the RSS key
+
+:max indir len: a 16-bits maximum size of the RSS indirection table
+
+RSS data description
+^^^^^^^^^^^^^^^^^^^^
+
++------------+---------+-----+-----------+-------------+---------------+
+| hash types | key len | key | indir len | indir table | default queue |
++------------+---------+-----+-----------+-------------+---------------+
+
+:hash types: a 32-bit bitfield of supported hash types as defined in the
+             Virtio specification
+
+:key len: 8-bit size of the RSS key
+
+:key: a 8-bit array of 52 elements containing the RSS key
+
+:indir len: a 16-bit size of the RSS indirection table
+
+:indir table: a 16-bit array of 512 elements containing the hash indirection
+              table
+
+:default queue: the default queue index for flows not matching requested hash
+                types
+
 C structure
 -----------
 
@@ -858,6 +894,7 @@ Protocol features
   #define VHOST_USER_PROTOCOL_F_INBAND_NOTIFICATIONS 14
   #define VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS  15
   #define VHOST_USER_PROTOCOL_F_STATUS               16
+  #define VHOST_USER_PROTOCOL_F_NET_RSS              17
 
 Master message types
 --------------------
@@ -1370,6 +1407,26 @@ Master message types
   successfully negotiated, this message is submitted by the master to
   query the backend for its device status as defined in the Virtio
   specification.
+
+``VHOST_USER_NET_GET_RSS``
+  :id: 41
+  :equivalent ioctl: N/A
+  :slave payload: RSS capabilities description
+  :master payload: N/A
+
+  When the ``VHOST_USER_PROTOCOL_F_NET_RSS`` protocol has been successfully
+  negotiated, this message is submitted by the master to get the RSS
+  capabilities of the slave.
+
+``VHOST_USER_NET_SET_RSS``
+  :id: 42
+  :equivalent ioctl: N/A
+  :slave payload: N/A
+  :master payload: RSS data description
+
+  When the ``VHOST_USER_PROTOCOL_F_NET_RSS`` protocol has been successfully
+  negotiated, this message is submitted by the master to set the RSS
+  configuration defined by the Virtio driver.
 
 
 Slave message types
