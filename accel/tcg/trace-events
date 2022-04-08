@@ -14,5 +14,6 @@ memory_notdirty_write_access(uint64_t vaddr, uint64_t ram_addr, unsigned size) "
 memory_notdirty_set_dirty(uint64_t vaddr) "0x%" PRIx64
 
 # translate-all.c
+tb_phys_invalidate(void *tb, uintptr_t pc) "tb:%p, pc:0x%"PRIxPTR""
 tb_invalidate_phys_page_fast(uint64_t page_start, int len, uint64_t ret, int wc, void *bmap) "addr:0x%" PRIx64 "/%d pc:0x%" PRIx64" wc:%d/%p"
 translate_block(void *tb, uintptr_t pc, const void *tb_code) "tb:%p, pc:0x%"PRIxPTR", tb_code:%p"

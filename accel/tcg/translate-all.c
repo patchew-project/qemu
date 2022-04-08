@@ -1180,6 +1180,8 @@ static void do_tb_phys_invalidate(TranslationBlock *tb, bool rm_from_page_list)
 
     assert_memory_lock();
 
+    trace_tb_phys_invalidate(tb, tb->pc);
+
     /* make sure no further incoming jumps will be chained to this TB */
     qemu_spin_lock(&tb->jmp_lock);
     qatomic_set(&tb->cflags, tb->cflags | CF_INVALID);
