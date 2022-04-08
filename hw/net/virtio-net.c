@@ -137,12 +137,11 @@ static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
     memcpy(netcfg.mac, n->mac, ETH_ALEN);
     virtio_stl_p(vdev, &netcfg.speed, n->net_conf.speed);
     netcfg.duplex = n->net_conf.duplex;
-    netcfg.rss_max_key_size = VIRTIO_NET_RSS_MAX_KEY_SIZE;
+    netcfg.rss_max_key_size = n->rss_capa.max_key_size;
     virtio_stw_p(vdev, &netcfg.rss_max_indirection_table_length,
-                 virtio_host_has_feature(vdev, VIRTIO_NET_F_RSS) ?
-                 VIRTIO_NET_RSS_MAX_TABLE_LEN : 1);
+                 n->rss_capa.max_indirection_len);
     virtio_stl_p(vdev, &netcfg.supported_hash_types,
-                 VIRTIO_NET_RSS_SUPPORTED_HASHES);
+                 n->rss_capa.supported_hashes);
     memcpy(config, &netcfg, n->config_size);
 
     /*
@@ -1202,7 +1201,7 @@ static bool virtio_net_attach_epbf_rss(VirtIONet *n)
 
     if (!ebpf_rss_set_all(&n->ebpf_rss, &config,
                           n->rss_data.indirections_table, n->rss_data.key,
-                          VIRTIO_NET_RSS_MAX_KEY_SIZE)) {
+                          n->rss_data.key_len)) {
         return false;
     }
 
@@ -1277,7 +1276,7 @@ static uint16_t virtio_net_handle_rss(VirtIONet *n,
         err_value = n->rss_data.indirections_len;
         goto error;
     }
-    if (n->rss_data.indirections_len > VIRTIO_NET_RSS_MAX_TABLE_LEN) {
+    if (n->rss_data.indirections_len > n->rss_capa.max_indirection_len) {
         err_msg = "Too large indirection table";
         err_value = n->rss_data.indirections_len;
         goto error;
@@ -1323,7 +1322,7 @@ static uint16_t virtio_net_handle_rss(VirtIONet *n,
         err_value = queue_pairs;
         goto error;
     }
-    if (temp.b > VIRTIO_NET_RSS_MAX_KEY_SIZE) {
+    if (temp.b > n->rss_capa.max_key_size) {
         err_msg = "Invalid key size";
         err_value = temp.b;
         goto error;
@@ -1339,6 +1338,14 @@ static uint16_t virtio_net_handle_rss(VirtIONet *n,
     }
     offset += size_get;
     size_get = temp.b;
+    n->rss_data.key_len = temp.b;
+    g_free(n->rss_data.key);
+    n->rss_data.key = g_malloc(size_get);
+    if (!n->rss_data.key) {
+        err_msg = "Can't allocate key";
+        err_value = n->rss_data.key_len;
+        goto error;
+    }
     s = iov_to_buf(iov, iov_cnt, offset, n->rss_data.key, size_get);
     if (s != size_get) {
         err_msg = "Can get key buffer";
@@ -3093,8 +3100,9 @@ static const VMStateDescription vmstate_virtio_net_rss = {
         VMSTATE_UINT32(rss_data.hash_types, VirtIONet),
         VMSTATE_UINT16(rss_data.indirections_len, VirtIONet),
         VMSTATE_UINT16(rss_data.default_queue, VirtIONet),
-        VMSTATE_UINT8_ARRAY(rss_data.key, VirtIONet,
-                            VIRTIO_NET_RSS_MAX_KEY_SIZE),
+        VMSTATE_VARRAY_UINT8_ALLOC(rss_data.key, VirtIONet,
+                                   rss_data.key_len, 0,
+                                   vmstate_info_uint8, uint8_t),
         VMSTATE_VARRAY_UINT16_ALLOC(rss_data.indirections_table, VirtIONet,
                                     rss_data.indirections_len, 0,
                                     vmstate_info_uint16, uint16_t),
@@ -3523,8 +3531,16 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     net_rx_pkt_init(&n->rx_pkt, false);
 
     if (virtio_has_feature(n->host_features, VIRTIO_NET_F_RSS)) {
+        n->rss_capa.max_key_size = VIRTIO_NET_RSS_DEFAULT_KEY_SIZE;
+        n->rss_capa.max_indirection_len = VIRTIO_NET_RSS_DEFAULT_TABLE_LEN;
+        n->rss_capa.supported_hashes = VIRTIO_NET_RSS_SUPPORTED_HASHES;
+
         virtio_net_load_ebpf(n);
+    } else {
+        n->rss_capa.max_indirection_len = 1;
     }
+
+
 }
 
 static void virtio_net_device_unrealize(DeviceState *dev)
@@ -3567,6 +3583,7 @@ static void virtio_net_device_unrealize(DeviceState *dev)
     qemu_del_nic(n->nic);
     virtio_net_rsc_cleanup(n);
     g_free(n->rss_data.indirections_table);
+    g_free(n->rss_data.key);
     net_rx_pkt_uninit(n->rx_pkt);
     virtio_cleanup(vdev);
 }

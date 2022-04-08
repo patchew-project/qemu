@@ -127,8 +127,16 @@ typedef struct VirtioNetRscChain {
 /* Maximum packet size we can receive from tap device: header + 64k */
 #define VIRTIO_NET_MAX_BUFSIZE (sizeof(struct virtio_net_hdr) + (64 * KiB))
 
-#define VIRTIO_NET_RSS_MAX_KEY_SIZE     40
-#define VIRTIO_NET_RSS_MAX_TABLE_LEN    128
+typedef struct VirtioNetRssCapa {
+    uint8_t max_key_size;
+    uint16_t max_indirection_len;
+    uint32_t supported_hashes;
+} VirtioNetRssCapa;
+
+#define VIRTIO_NET_RSS_MIN_KEY_SIZE      40
+#define VIRTIO_NET_RSS_DEFAULT_KEY_SIZE  40
+#define VIRTIO_NET_RSS_MIN_TABLE_LEN     128
+#define VIRTIO_NET_RSS_DEFAULT_TABLE_LEN 128
 
 typedef struct VirtioNetRssData {
     bool    enabled;
@@ -136,7 +144,8 @@ typedef struct VirtioNetRssData {
     bool    redirect;
     bool    populate_hash;
     uint32_t hash_types;
-    uint8_t key[VIRTIO_NET_RSS_MAX_KEY_SIZE];
+    uint8_t key_len;
+    uint8_t *key;
     uint16_t indirections_len;
     uint16_t *indirections_table;
     uint16_t default_queue;
@@ -213,6 +222,7 @@ struct VirtIONet {
     QDict *primary_opts;
     bool primary_opts_from_json;
     Notifier migration_state;
+    VirtioNetRssCapa rss_capa;
     VirtioNetRssData rss_data;
     struct NetRxPkt *rx_pkt;
     struct EBPFRSSContext ebpf_rss;
