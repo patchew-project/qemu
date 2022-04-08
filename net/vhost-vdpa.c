@@ -152,9 +152,10 @@ err_init:
 static void vhost_vdpa_cleanup(NetClientState *nc)
 {
     VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, nc);
-    struct vhost_dev *dev = s->vhost_vdpa.dev;
+    struct vhost_vdpa *v = &s->vhost_vdpa;
+    struct vhost_dev *dev = v->dev;
 
-    if (dev && dev->vq_index + dev->nvqs == dev->vq_index_end) {
+    if (dev && dev->vq_index + dev->nvqs == v->vq_group_index_end) {
         g_clear_pointer(&s->vhost_vdpa.iova_tree, vhost_iova_tree_delete);
     }
     if (s->vhost_net) {
@@ -333,6 +334,7 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
                                        int vdpa_device_fd,
                                        int queue_pair_index,
                                        int nvqs,
+                                       int vq_group_end,
                                        bool is_datapath,
                                        bool svq,
                                        VhostIOVATree *iova_tree)
@@ -354,6 +356,7 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
     s->vhost_vdpa.device_fd = vdpa_device_fd;
     s->vhost_vdpa.index = queue_pair_index;
     s->vhost_vdpa.shadow_vqs_enabled = svq;
+    s->vhost_vdpa.vq_group_index_end = vq_group_end;
     if (!is_datapath) {
         s->vhost_vdpa.shadow_vq_ops = &vhost_vdpa_net_svq_ops;
     }
@@ -464,16 +467,16 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
 
     for (i = 0; i < queue_pairs; i++) {
         ncs[i] = net_vhost_vdpa_init(peer, TYPE_VHOST_VDPA, name,
-                                     vdpa_device_fd, i, 2, true, opts->x_svq,
-                                     iova_tree);
+                                     vdpa_device_fd, i, 2, 2 * queue_pairs,
+                                     true, opts->x_svq, iova_tree);
         if (!ncs[i])
             goto err;
     }
 
     if (has_cvq) {
         nc = net_vhost_vdpa_init(peer, TYPE_VHOST_VDPA, name,
-                                 vdpa_device_fd, i, 1, false, opts->x_svq,
-                                 iova_tree);
+                                 vdpa_device_fd, i, 1, 2 * queue_pairs + 1,
+                                 false, opts->x_svq, iova_tree);
         if (!nc)
             goto err;
     }
