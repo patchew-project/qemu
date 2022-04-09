@@ -1029,6 +1029,10 @@ static void arm_max_initfn(Object *obj)
     t = cpu->isar.id_pfr2;
     t = FIELD_DP32(t, ID_PFR2, SSBS, 1);
     cpu->isar.id_pfr2 = t;
+
+    t = cpu->isar.id_dfr0;
+    t = FIELD_DP32(t, ID_DFR0, PERFMON, 5); /* v8.4-PMU */
+    cpu->isar.id_dfr0 = t;
 }
 #endif /* !TARGET_AARCH64 */
 
