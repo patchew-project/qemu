@@ -6275,6 +6275,16 @@ static bool trans_WFI(DisasContext *s, arg_WFI *a)
     return true;
 }
 
+static bool trans_ESB(DisasContext *s, arg_ESB *a)
+{
+    if (dc_isar_feature(aa32_ras, s) &&
+        arm_dc_feature(s, ARM_FEATURE_EL2) &&
+        s->current_el <= 1) {
+        gen_helper_esb(cpu_env);
+    }
+    return true;
+}
+
 static bool trans_NOP(DisasContext *s, arg_NOP *a)
 {
     return true;

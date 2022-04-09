@@ -1469,6 +1469,13 @@ static void handle_hint(DisasContext *s, uint32_t insn,
             gen_helper_autib(cpu_X[17], cpu_env, cpu_X[17], cpu_X[16]);
         }
         break;
+    case 0b10000: /* ESB */
+        if (dc_isar_feature(aa64_ras, s) &&
+            arm_dc_feature(s, ARM_FEATURE_EL2) &&
+            s->current_el <= 1) {
+            gen_helper_esb(cpu_env);
+        }
+        break;
     case 0b11000: /* PACIAZ */
         if (s->pauth_active) {
             gen_helper_pacia(cpu_X[30], cpu_env, cpu_X[30],
