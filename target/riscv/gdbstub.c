@@ -305,7 +305,7 @@ static int riscv_gen_dynamic_csr_xml(CPUState *cs, int base_reg)
     CPURISCVState *env = &cpu->env;
     GString *s = g_string_new(NULL);
     riscv_csr_predicate_fn predicate;
-    int bitsize = 16 << env->misa_mxl_max;
+    int bitsize = riscv_cpu_mxl_bits(env);
     int i;
 
     /* Until gdb knows about 128-bit registers */
@@ -385,10 +385,11 @@ static int ricsv_gen_dynamic_vector_xml(CPUState *cs, int base_reg)
 
     for (i = 0; i < 7; i++) {
         g_string_append_printf(s,
-                               "<reg name=\"%s\" bitsize=\"%d\""
+                               "<reg name=\"%s\" bitsize=\"%lu\""
                                " regnum=\"%d\" group=\"vector\""
                                " type=\"int\"/>",
-                               vector_csrs[i], TARGET_LONG_BITS, base_reg++);
+                               vector_csrs[i], riscv_cpu_mxl_bits(&cpu->env),
+                               base_reg++);
         num_regs++;
     }
 
