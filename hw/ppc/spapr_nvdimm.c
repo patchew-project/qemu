@@ -866,14 +866,6 @@ static void spapr_nvdimm_realize(NVDIMMDevice *dimm, Error **errp)
     if (!is_pmem || pmem_override) {
         s_nvdimm->hcall_flush_required = true;
     }
-
-    vmstate_register(NULL, VMSTATE_INSTANCE_ID_ANY,
-                     &vmstate_spapr_nvdimm_states, dimm);
-}
-
-static void spapr_nvdimm_unrealize(NVDIMMDevice *dimm)
-{
-    vmstate_unregister(NULL, &vmstate_spapr_nvdimm_states, dimm);
 }
 
 static Property spapr_nvdimm_properties[] = {
@@ -888,8 +880,9 @@ static void spapr_nvdimm_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     NVDIMMClass *nvc = NVDIMM_CLASS(oc);
 
+    dc->vmsd = &vmstate_spapr_nvdimm_states;
+
     nvc->realize = spapr_nvdimm_realize;
-    nvc->unrealize = spapr_nvdimm_unrealize;
 
     device_class_set_props(dc, spapr_nvdimm_properties);
 }
