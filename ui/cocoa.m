@@ -656,13 +656,11 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
         [fullScreenWindow close];
         [normalWindow setContentView: self];
         [normalWindow makeKeyAndOrderFront: self];
-        [NSMenu setMenuBarVisible:YES];
     } else { // switch from desktop to fullscreen
         isFullscreen = TRUE;
         [normalWindow orderOut: nil]; /* Hide the window */
         [self grabMouse];
         [self setContentDimensions];
-        [NSMenu setMenuBarVisible:NO];
         fullScreenWindow = [[NSWindow alloc] initWithContentRect:[[NSScreen mainScreen] frame]
             styleMask:NSWindowStyleMaskBorderless
             backing:NSBackingStoreBuffered
@@ -1141,7 +1139,9 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
 {
     COCOA_DEBUG("QemuCocoaView: grabMouse\n");
 
-    if (!isFullscreen) {
+    if (isFullscreen) {
+        [NSMenu setMenuBarVisible: FALSE];
+    } else {
         if (qemu_name)
             [normalWindow setTitle:[NSString stringWithFormat:@"QEMU %s - (Press ctrl + alt + g to release Mouse)", qemu_name]];
         else
@@ -1156,7 +1156,9 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
 {
     COCOA_DEBUG("QemuCocoaView: ungrabMouse\n");
 
-    if (!isFullscreen) {
+    if (isFullscreen) {
+        [NSMenu setMenuBarVisible: TRUE];
+    } else {
         if (qemu_name)
             [normalWindow setTitle:[NSString stringWithFormat:@"QEMU %s", qemu_name]];
         else
