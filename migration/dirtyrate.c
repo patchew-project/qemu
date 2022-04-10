@@ -523,9 +523,17 @@ static void calculate_dirtyrate_dirty_ring(struct DirtyRateConfig config)
     }
 
     dirty_pages = malloc(sizeof(*dirty_pages) * nvcpu);
+    if (!dirty_pages) {
+        error_report("malloc dirty pages for vcpus failed.");
+        exit(1);
+    }
 
     DirtyStat.dirty_ring.nvcpu = nvcpu;
     DirtyStat.dirty_ring.rates = malloc(sizeof(DirtyRateVcpu) * nvcpu);
+    if (!DirtyStat.dirty_ring.rates) {
+        error_report("malloc dirty rates for vcpu ring failed.");
+        exit(1);
+    }
 
     dirtyrate_global_dirty_log_start();
 
