@@ -14,3 +14,4 @@ Emulated devices:
 - SDHCI
 - USB controller
 - SATA controller
+- crypto

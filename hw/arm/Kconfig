@@ -317,6 +317,7 @@ config ALLWINNER_A10
     select AHCI
     select ALLWINNER_A10_PIT
     select ALLWINNER_A10_PIC
+    select ALLWINNER_CRYPTO_SUN4I_SS
     select ALLWINNER_EMAC
     select SERIAL
     select UNIMP

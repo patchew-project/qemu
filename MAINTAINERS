@@ -583,6 +583,14 @@ F: include/hw/*/allwinner-h3*
 F: hw/arm/orangepi.c
 F: docs/system/arm/orangepi.rst
 
+Allwinner sun4i-ss cryptographic offloader
+M: Corentin LABBE <clabbe@baylibre.com>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: hw/crypto/allwinner-*
+F: include/hw/crypto/allwinner-*
+F: docs/system/arm/orangepi.rst
+
 ARM PrimeCell and CMSDK devices
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org

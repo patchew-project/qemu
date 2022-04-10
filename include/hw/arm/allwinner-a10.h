@@ -4,6 +4,7 @@
 #include "qemu/error-report.h"
 #include "hw/char/serial.h"
 #include "hw/arm/boot.h"
+#include "hw/crypto/allwinner-sun4i-ss.h"
 #include "hw/timer/allwinner-a10-pit.h"
 #include "hw/intc/allwinner-a10-pic.h"
 #include "hw/net/allwinner_emac.h"
@@ -33,6 +34,7 @@ struct AwA10State {
     AwA10PITState timer;
     AwA10PICState intc;
     AwEmacState emac;
+    AwSun4iSSState crypto;
     AllwinnerAHCIState sata;
     AwSdHostState mmc0;
     AwRtcState rtc;

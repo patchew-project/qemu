@@ -23,6 +23,7 @@
 #include "hw/misc/unimp.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
+#include "hw/crypto/allwinner-sun4i-ss.h"
 #include "hw/usb/hcd-ohci.h"
 
 #define AW_A10_MMC0_BASE        0x01c0f000
@@ -32,6 +33,7 @@
 #define AW_A10_EMAC_BASE        0x01c0b000
 #define AW_A10_EHCI_BASE        0x01c14000
 #define AW_A10_OHCI_BASE        0x01c14400
+#define AW_A10_CRYPTO_BASE      0x01c15000
 #define AW_A10_SATA_BASE        0x01c18000
 #define AW_A10_RTC_BASE         0x01c20d00
 
@@ -47,6 +49,10 @@ static void aw_a10_init(Object *obj)
     object_initialize_child(obj, "timer", &s->timer, TYPE_AW_A10_PIT);
 
     object_initialize_child(obj, "emac", &s->emac, TYPE_AW_EMAC);
+
+#if defined CONFIG_NETTLE
+    object_initialize_child(obj, "crypto", &s->crypto, TYPE_AW_SUN4I_SS);
+#endif
 
     object_initialize_child(obj, "sata", &s->sata, TYPE_ALLWINNER_AHCI);
 
@@ -114,6 +120,11 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
     sysbusdev = SYS_BUS_DEVICE(&s->emac);
     sysbus_mmio_map(sysbusdev, 0, AW_A10_EMAC_BASE);
     sysbus_connect_irq(sysbusdev, 0, qdev_get_gpio_in(dev, 55));
+
+#if defined CONFIG_NETTLE
+    sysbus_realize(SYS_BUS_DEVICE(&s->crypto), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->crypto), 0, AW_A10_CRYPTO_BASE);
+#endif
 
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->sata), errp)) {
         return;

@@ -1,0 +1,3 @@
+allwinner_sun4i_ss_reset(void) "HW reset"
+allwinner_sun4i_ss_read(uint64_t offset, uint64_t val) "MMIO read: offset=0x%" PRIx64 " value=0x%" PRIx64
+allwinner_sun4i_ss_write(uint64_t offset, uint64_t val) "MMIO write: offset=0x%" PRIx64 " value=0x%" PRIx64

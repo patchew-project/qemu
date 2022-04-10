@@ -1,0 +1,2 @@
+config ALLWINNER_CRYPTO_SUN4I_SS
+    bool
