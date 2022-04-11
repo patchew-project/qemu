@@ -471,8 +471,18 @@ int kvm_arm_init_cpreg_list(ARMCPU *cpu)
             continue;
         }
         switch (rlp->reg[i] & KVM_REG_SIZE_MASK) {
+        case KVM_REG_SIZE_U8:
+        case KVM_REG_SIZE_U16:
         case KVM_REG_SIZE_U32:
+            value_arraylen++;
+            break;
         case KVM_REG_SIZE_U64:
+        case KVM_REG_SIZE_U128:
+        case KVM_REG_SIZE_U256:
+        case KVM_REG_SIZE_U512:
+        case KVM_REG_SIZE_U1024:
+        case KVM_REG_SIZE_U2048:
+            value_arraylen += KVM_REG_SIZE(rlp->reg[i]) / sizeof(uint64_t);
             break;
         default:
             fprintf(stderr, "Can't handle size of register in kernel list\n");
@@ -481,7 +491,6 @@ int kvm_arm_init_cpreg_list(ARMCPU *cpu)
         }
 
         arraylen++;
-        value_arraylen++;
     }
 
     cpu->cpreg_indexes = g_renew(uint64_t, cpu->cpreg_indexes, arraylen);
@@ -507,7 +516,13 @@ int kvm_arm_init_cpreg_list(ARMCPU *cpu)
         cpu->cpreg_indexes[arraylen] = regidx;
         cpu->cpreg_value_indexes[arraylen] = value_arraylen;
         arraylen++;
-        value_arraylen++;
+
+        /* We validate the size just now and no need to do it again */
+        if (KVM_REG_SIZE(rlp->reg[i]) < sizeof(uint64_t)) {
+            value_arraylen++;
+        } else {
+            value_arraylen += KVM_REG_SIZE(rlp->reg[i]) / sizeof(uint64_t);
+        }
     }
     assert(cpu->cpreg_array_len == arraylen);
     assert(cpu->cpreg_value_array_len == value_arraylen);
@@ -535,12 +550,28 @@ bool write_kvmstate_to_list(ARMCPU *cpu)
     for (i = 0; i < cpu->cpreg_array_len; i++) {
         struct kvm_one_reg r;
         uint64_t regidx = cpu->cpreg_indexes[i];
+        uint8_t v8;
+        uint16_t v16;
         uint32_t v32;
         int ret;
 
         r.id = regidx;
 
         switch (regidx & KVM_REG_SIZE_MASK) {
+        case KVM_REG_SIZE_U8:
+            r.addr = (uintptr_t)&v8;
+            ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &r);
+            if (!ret) {
+                cpu->cpreg_values[cpu->cpreg_value_indexes[i]] = v8;
+            }
+            break;
+        case KVM_REG_SIZE_U16:
+            r.addr = (uintptr_t)&v16;
+            ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &r);
+            if (!ret) {
+                cpu->cpreg_values[cpu->cpreg_value_indexes[i]] = v16;
+            }
+            break;
         case KVM_REG_SIZE_U32:
             r.addr = (uintptr_t)&v32;
             ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &r);
@@ -549,6 +580,11 @@ bool write_kvmstate_to_list(ARMCPU *cpu)
             }
             break;
         case KVM_REG_SIZE_U64:
+        case KVM_REG_SIZE_U128:
+        case KVM_REG_SIZE_U256:
+        case KVM_REG_SIZE_U512:
+        case KVM_REG_SIZE_U1024:
+        case KVM_REG_SIZE_U2048:
             r.addr = (uintptr_t)(cpu->cpreg_values +
                                  cpu->cpreg_value_indexes[i]);
             ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &r);
@@ -572,6 +608,8 @@ bool write_list_to_kvmstate(ARMCPU *cpu, int level)
     for (i = 0; i < cpu->cpreg_array_len; i++) {
         struct kvm_one_reg r;
         uint64_t regidx = cpu->cpreg_indexes[i];
+        uint8_t v8;
+        uint16_t v16;
         uint32_t v32;
         int ret;
 
@@ -581,11 +619,24 @@ bool write_list_to_kvmstate(ARMCPU *cpu, int level)
 
         r.id = regidx;
         switch (regidx & KVM_REG_SIZE_MASK) {
+        case KVM_REG_SIZE_U8:
+            v8 = cpu->cpreg_values[cpu->cpreg_value_indexes[i]];
+            r.addr = (uintptr_t)&v8;
+            break;
+        case KVM_REG_SIZE_U16:
+            v16 = cpu->cpreg_values[cpu->cpreg_value_indexes[i]];
+            r.addr = (uintptr_t)&v16;
+            break;
         case KVM_REG_SIZE_U32:
             v32 = cpu->cpreg_values[cpu->cpreg_value_indexes[i]];
             r.addr = (uintptr_t)&v32;
             break;
         case KVM_REG_SIZE_U64:
+        case KVM_REG_SIZE_U128:
+        case KVM_REG_SIZE_U256:
+        case KVM_REG_SIZE_U512:
+        case KVM_REG_SIZE_U1024:
+        case KVM_REG_SIZE_U2048:
             r.addr = (uintptr_t)(cpu->cpreg_values +
                                  cpu->cpreg_value_indexes[i]);
             break;
