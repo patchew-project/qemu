@@ -2,6 +2,7 @@ crypto_ss.add(genh)
 crypto_ss.add(files(
   'afsplit.c',
   'akcipher.c',
+  'asn1_decoder.c',
   'block-luks.c',
   'block-qcow.c',
   'block.c',
