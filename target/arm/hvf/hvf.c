@@ -334,6 +334,7 @@ int hvf_get_registers(CPUState *cpu)
     ARMCPU *arm_cpu = ARM_CPU(cpu);
     CPUARMState *env = &arm_cpu->env;
     hv_return_t ret;
+    uint32_t value_index;
     uint64_t val;
     hv_simd_fp_uchar16_t fpval;
     int i;
@@ -373,7 +374,8 @@ int hvf_get_registers(CPUState *cpu)
         ret = hv_vcpu_get_sys_reg(cpu->hvf->fd, hvf_sreg_match[i].reg, &val);
         assert_hvf_ok(ret);
 
-        arm_cpu->cpreg_values[hvf_sreg_match[i].cp_idx] = val;
+        value_index = arm_cpu->cpreg_value_indexes[hvf_sreg_match[i].cp_idx];
+        arm_cpu->cpreg_values[value_index] = val;
     }
     assert(write_list_to_cpustate(arm_cpu));
 
@@ -387,6 +389,7 @@ int hvf_put_registers(CPUState *cpu)
     ARMCPU *arm_cpu = ARM_CPU(cpu);
     CPUARMState *env = &arm_cpu->env;
     hv_return_t ret;
+    uint32_t value_index;
     uint64_t val;
     hv_simd_fp_uchar16_t fpval;
     int i;
@@ -421,7 +424,8 @@ int hvf_put_registers(CPUState *cpu)
             continue;
         }
 
-        val = arm_cpu->cpreg_values[hvf_sreg_match[i].cp_idx];
+        value_index = arm_cpu->cpreg_value_indexes[hvf_sreg_match[i].cp_idx];
+        val = arm_cpu->cpreg_values[value_index];
         ret = hv_vcpu_set_sys_reg(cpu->hvf->fd, hvf_sreg_match[i].reg, val);
         assert_hvf_ok(ret);
     }
@@ -573,12 +577,18 @@ int hvf_arch_init_vcpu(CPUState *cpu)
                                      sregs_match_len);
     arm_cpu->cpreg_values = g_renew(uint64_t, arm_cpu->cpreg_values,
                                     sregs_match_len);
+    arm_cpu->cpreg_value_indexes =
+        g_renew(uint32_t, arm_cpu->cpreg_value_indexes,
+                sregs_match_len);
     arm_cpu->cpreg_vmstate_indexes = g_renew(uint64_t,
                                              arm_cpu->cpreg_vmstate_indexes,
                                              sregs_match_len);
     arm_cpu->cpreg_vmstate_values = g_renew(uint64_t,
                                             arm_cpu->cpreg_vmstate_values,
                                             sregs_match_len);
+    arm_cpu->cpreg_vmstate_value_indexes =
+        g_renew(uint32_t, arm_cpu->cpreg_vmstate_value_indexes,
+                sregs_match_len);
 
     memset(arm_cpu->cpreg_values, 0, sregs_match_len * sizeof(uint64_t));
 
@@ -591,13 +601,17 @@ int hvf_arch_init_vcpu(CPUState *cpu)
         if (ri) {
             assert(!(ri->type & ARM_CP_NO_RAW));
             hvf_sreg_match[i].cp_idx = sregs_cnt;
-            arm_cpu->cpreg_indexes[sregs_cnt++] = cpreg_to_kvm_id(key);
+            arm_cpu->cpreg_indexes[sregs_cnt] = cpreg_to_kvm_id(key);
+            arm_cpu->cpreg_value_indexes[sregs_cnt] = sregs_cnt;
+            sregs_cnt++;
         } else {
             hvf_sreg_match[i].cp_idx = -1;
         }
     }
     arm_cpu->cpreg_array_len = sregs_cnt;
+    arm_cpu->cpreg_value_array_len = sregs_cnt;
     arm_cpu->cpreg_vmstate_array_len = sregs_cnt;
+    arm_cpu->cpreg_vmstate_value_array_len = sregs_cnt;
 
     assert(write_cpustate_to_list(arm_cpu, false));
 
