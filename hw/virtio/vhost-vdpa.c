@@ -677,7 +677,8 @@ static int vhost_vdpa_set_backend_cap(struct vhost_dev *dev)
 {
     uint64_t features;
     uint64_t f = 0x1ULL << VHOST_BACKEND_F_IOTLB_MSG_V2 |
-        0x1ULL << VHOST_BACKEND_F_IOTLB_BATCH;
+        0x1ULL << VHOST_BACKEND_F_IOTLB_BATCH |
+        0x1ULL << VHOST_BACKEND_F_IOTLB_ASID;
     int r;
 
     if (vhost_vdpa_call(dev, VHOST_GET_BACKEND_FEATURES, &features)) {
@@ -1097,6 +1098,78 @@ static bool vhost_vdpa_svqs_stop(struct vhost_dev *dev)
     return true;
 }
 
+static int vhost_vdpa_get_vring_group(struct vhost_dev *dev,
+                                      struct vhost_vring_state *state)
+{
+    int ret = vhost_vdpa_call(dev, VHOST_VDPA_GET_VRING_GROUP, state);
+    trace_vhost_vdpa_get_vring_group(dev, state->index, state->num);
+    return ret;
+}
+
+static bool vhost_dev_is_independent_group(struct vhost_dev *dev)
+{
+    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vring_state this_vq_group = {
+        .index = dev->vq_index,
+    };
+    int ret;
+
+    if (!(dev->backend_cap & VHOST_BACKEND_F_IOTLB_ASID)) {
+        return true;
+    }
+
+    if (!v->shadow_vqs_enabled) {
+        return true;
+    }
+
+    ret = vhost_vdpa_get_vring_group(dev, &this_vq_group);
+    if (unlikely(ret)) {
+        goto call_err;
+    }
+
+    for (int i = 1; i < dev->nvqs; ++i) {
+        struct vhost_vring_state vq_group = {
+            .index = dev->vq_index + i,
+        };
+
+        ret = vhost_vdpa_get_vring_group(dev, &vq_group);
+        if (unlikely(ret)) {
+            goto call_err;
+        }
+        if (unlikely(vq_group.num != this_vq_group.num)) {
+            error_report("VQ %d group is different than VQ %d one",
+                         this_vq_group.index, vq_group.index);
+            return false;
+        }
+    }
+
+    for (int i = 0; i < dev->vq_index_end; ++i) {
+        struct vhost_vring_state vq_group = {
+            .index = i,
+        };
+
+        if (dev->vq_index <= i && i < dev->vq_index + dev->nvqs) {
+            continue;
+        }
+
+        ret = vhost_vdpa_get_vring_group(dev, &vq_group);
+        if (unlikely(ret)) {
+            goto call_err;
+        }
+        if (unlikely(vq_group.num == this_vq_group.num)) {
+            error_report("VQ %d group is the same as VQ %d one",
+                         this_vq_group.index, vq_group.index);
+            return false;
+        }
+    }
+
+    return true;
+
+call_err:
+    error_report("Can't read vq group, errno=%d (%s)", ret, g_strerror(-ret));
+    return false;
+}
+
 static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
 {
     struct vhost_vdpa *v = dev->opaque;
@@ -1105,6 +1178,10 @@ static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
 
     if (started) {
         vhost_vdpa_host_notifiers_init(dev);
+        if (dev->independent_vq_group &&
+            !vhost_dev_is_independent_group(dev)) {
+            return -1;
+        }
         ok = vhost_vdpa_svqs_start(dev);
         if (unlikely(!ok)) {
             return -1;

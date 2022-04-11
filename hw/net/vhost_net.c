@@ -343,14 +343,16 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
     }
 
     for (i = 0; i < nvhosts; i++) {
+        bool cvq_idx = i >= data_queue_pairs;
 
-        if (i < data_queue_pairs) {
+        if (!cvq_idx) {
             peer = qemu_get_peer(ncs, i);
         } else { /* Control Virtqueue */
             peer = qemu_get_peer(ncs, n->max_queue_pairs);
         }
 
         net = get_vhost_net(peer);
+        net->dev.independent_vq_group = !!cvq_idx;
         vhost_net_set_vq_index(net, i * 2, index_end);
 
         /* Suppress the masking guest notifiers on vhost user
