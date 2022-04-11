@@ -522,10 +522,10 @@ static void calculate_dirtyrate_dirty_ring(struct DirtyRateConfig config)
         nvcpu++;
     }
 
-    dirty_pages = malloc(sizeof(*dirty_pages) * nvcpu);
+    dirty_pages = g_new(DirtyPageRecord, nvcpu);
 
     DirtyStat.dirty_ring.nvcpu = nvcpu;
-    DirtyStat.dirty_ring.rates = malloc(sizeof(DirtyRateVcpu) * nvcpu);
+    DirtyStat.dirty_ring.rates = g_new(DirtyRateVcpu, nvcpu);
 
     dirtyrate_global_dirty_log_start();
 
