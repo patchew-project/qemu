@@ -152,9 +152,10 @@ err_init:
 static void vhost_vdpa_cleanup(NetClientState *nc)
 {
     VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, nc);
-    struct vhost_dev *dev = s->vhost_vdpa.dev;
+    struct vhost_vdpa *v = &s->vhost_vdpa;
+    struct vhost_dev *dev = v->dev;
 
-    if (dev && dev->vq_index + dev->nvqs == dev->vq_index_end) {
+    if (dev && dev->vq_index + dev->nvqs == dev->vq_group_index_end) {
         g_clear_pointer(&s->vhost_vdpa.iova_tree, vhost_iova_tree_delete);
     }
     if (s->vhost_net) {
@@ -472,8 +473,8 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
 
     if (has_cvq) {
         nc = net_vhost_vdpa_init(peer, TYPE_VHOST_VDPA, name,
-                                 vdpa_device_fd, i, 1, false, opts->x_svq,
-                                 iova_tree);
+                                 vdpa_device_fd, i, 1,
+                                 false, opts->x_svq, iova_tree);
         if (!nc)
             goto err;
     }
