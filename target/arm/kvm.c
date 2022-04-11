@@ -429,12 +429,14 @@ static int compare_u64(const void *a, const void *b)
 static uint64_t *kvm_arm_get_cpreg_ptr(ARMCPU *cpu, uint64_t regidx)
 {
     uint64_t *res;
+    uint32_t value_index;
 
     res = bsearch(&regidx, cpu->cpreg_indexes, cpu->cpreg_array_len,
                   sizeof(uint64_t), compare_u64);
     assert(res);
 
-    return &cpu->cpreg_values[res - cpu->cpreg_indexes];
+    value_index = cpu->cpreg_value_indexes[res - cpu->cpreg_indexes];
+    return &cpu->cpreg_values[value_index];
 }
 
 /* Initialize the ARMCPU cpreg list according to the kernel's
@@ -445,7 +447,7 @@ int kvm_arm_init_cpreg_list(ARMCPU *cpu)
 {
     struct kvm_reg_list rl;
     struct kvm_reg_list *rlp;
-    int i, ret, arraylen;
+    int i, ret, arraylen, value_arraylen;
     CPUState *cs = CPU(cpu);
 
     rl.n = 0;
@@ -464,7 +466,7 @@ int kvm_arm_init_cpreg_list(ARMCPU *cpu)
      */
     qsort(&rlp->reg, rlp->n, sizeof(rlp->reg[0]), compare_u64);
 
-    for (i = 0, arraylen = 0; i < rlp->n; i++) {
+    for (i = 0, arraylen = 0, value_arraylen = 0; i < rlp->n; i++) {
         if (!kvm_arm_reg_syncs_via_cpreg_list(rlp->reg[i])) {
             continue;
         }
@@ -479,26 +481,36 @@ int kvm_arm_init_cpreg_list(ARMCPU *cpu)
         }
 
         arraylen++;
+        value_arraylen++;
     }
 
     cpu->cpreg_indexes = g_renew(uint64_t, cpu->cpreg_indexes, arraylen);
-    cpu->cpreg_values = g_renew(uint64_t, cpu->cpreg_values, arraylen);
+    cpu->cpreg_values = g_renew(uint64_t, cpu->cpreg_values, value_arraylen);
+    cpu->cpreg_value_indexes = g_renew(uint32_t, cpu->cpreg_value_indexes,
+                                       arraylen);
     cpu->cpreg_vmstate_indexes = g_renew(uint64_t, cpu->cpreg_vmstate_indexes,
                                          arraylen);
     cpu->cpreg_vmstate_values = g_renew(uint64_t, cpu->cpreg_vmstate_values,
-                                        arraylen);
+                                        value_arraylen);
+    cpu->cpreg_vmstate_value_indexes =
+        g_renew(uint32_t, cpu->cpreg_vmstate_value_indexes, arraylen);
     cpu->cpreg_array_len = arraylen;
+    cpu->cpreg_value_array_len = value_arraylen;
     cpu->cpreg_vmstate_array_len = arraylen;
+    cpu->cpreg_vmstate_value_array_len = value_arraylen;
 
-    for (i = 0, arraylen = 0; i < rlp->n; i++) {
+    for (i = 0, arraylen = 0, value_arraylen = 0; i < rlp->n; i++) {
         uint64_t regidx = rlp->reg[i];
         if (!kvm_arm_reg_syncs_via_cpreg_list(regidx)) {
             continue;
         }
         cpu->cpreg_indexes[arraylen] = regidx;
+        cpu->cpreg_value_indexes[arraylen] = value_arraylen;
         arraylen++;
+        value_arraylen++;
     }
     assert(cpu->cpreg_array_len == arraylen);
+    assert(cpu->cpreg_value_array_len == value_arraylen);
 
     if (!write_kvmstate_to_list(cpu)) {
         /* Shouldn't happen unless kernel is inconsistent about
@@ -533,11 +545,12 @@ bool write_kvmstate_to_list(ARMCPU *cpu)
             r.addr = (uintptr_t)&v32;
             ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &r);
             if (!ret) {
-                cpu->cpreg_values[i] = v32;
+                cpu->cpreg_values[cpu->cpreg_value_indexes[i]] = v32;
             }
             break;
         case KVM_REG_SIZE_U64:
-            r.addr = (uintptr_t)(cpu->cpreg_values + i);
+            r.addr = (uintptr_t)(cpu->cpreg_values +
+                                 cpu->cpreg_value_indexes[i]);
             ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &r);
             break;
         default:
@@ -569,11 +582,12 @@ bool write_list_to_kvmstate(ARMCPU *cpu, int level)
         r.id = regidx;
         switch (regidx & KVM_REG_SIZE_MASK) {
         case KVM_REG_SIZE_U32:
-            v32 = cpu->cpreg_values[i];
+            v32 = cpu->cpreg_values[cpu->cpreg_value_indexes[i]];
             r.addr = (uintptr_t)&v32;
             break;
         case KVM_REG_SIZE_U64:
-            r.addr = (uintptr_t)(cpu->cpreg_values + i);
+            r.addr = (uintptr_t)(cpu->cpreg_values +
+                                 cpu->cpreg_value_indexes[i]);
             break;
         default:
             abort();
