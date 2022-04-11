@@ -795,17 +795,25 @@ struct ArchCPU {
      * 64 bit indexes, not CPRegInfo 32 bit indexes)
      */
     uint64_t *cpreg_indexes;
-    /* Values of the registers (cpreg_indexes[i]'s value is cpreg_values[i]) */
+    /*
+     * Values of the registers
+     * (cpreg_indexes[i]'s value is cpreg_values[cpreg_value_indexes[i]])
+     */
+    uint32_t *cpreg_value_indexes;
     uint64_t *cpreg_values;
-    /* Length of the indexes, values, reset_values arrays */
+    /* Length of the indexes, value indexes and values arrays */
     int32_t cpreg_array_len;
+    int32_t cpreg_value_array_len;
+
     /* These are used only for migration: incoming data arrives in
      * these fields and is sanity checked in post_load before copying
      * to the working data structures above.
      */
     uint64_t *cpreg_vmstate_indexes;
+    uint32_t *cpreg_vmstate_value_indexes;
     uint64_t *cpreg_vmstate_values;
     int32_t cpreg_vmstate_array_len;
+    int32_t cpreg_vmstate_value_array_len;
 
     DynamicGDBXMLInfo dyn_sysreg_xml;
     DynamicGDBXMLInfo dyn_svereg_xml;

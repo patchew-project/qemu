@@ -163,7 +163,7 @@ bool write_cpustate_to_list(ARMCPU *cpu, bool kvm_sync)
              * item in the list, we just recheck "does the raw write we must
              * have made in write_list_to_cpustate() read back OK" here.
              */
-            uint64_t oldval = cpu->cpreg_values[i];
+            uint64_t oldval = cpu->cpreg_values[cpu->cpreg_value_indexes[i]];
 
             if (oldval == newval) {
                 continue;
@@ -176,7 +176,7 @@ bool write_cpustate_to_list(ARMCPU *cpu, bool kvm_sync)
 
             write_raw_cp_reg(&cpu->env, ri, newval);
         }
-        cpu->cpreg_values[i] = newval;
+        cpu->cpreg_values[cpu->cpreg_value_indexes[i]] = newval;
     }
     return ok;
 }
@@ -188,7 +188,7 @@ bool write_list_to_cpustate(ARMCPU *cpu)
 
     for (i = 0; i < cpu->cpreg_array_len; i++) {
         uint32_t regidx = kvm_to_cpreg_id(cpu->cpreg_indexes[i]);
-        uint64_t v = cpu->cpreg_values[i];
+        uint64_t v = cpu->cpreg_values[cpu->cpreg_value_indexes[i]];
         const ARMCPRegInfo *ri;
 
         ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
@@ -222,8 +222,12 @@ static void add_cpreg_to_list(gpointer key, gpointer opaque)
 
     if (!(ri->type & (ARM_CP_NO_RAW|ARM_CP_ALIAS))) {
         cpu->cpreg_indexes[cpu->cpreg_array_len] = cpreg_to_kvm_id(regidx);
+        cpu->cpreg_value_indexes[cpu->cpreg_array_len] =
+            cpu->cpreg_value_array_len;
+
         /* The value array need not be initialized at this point */
         cpu->cpreg_array_len++;
+        cpu->cpreg_value_array_len++;
     }
 }
 
@@ -238,6 +242,7 @@ static void count_cpreg(gpointer key, gpointer opaque)
 
     if (!(ri->type & (ARM_CP_NO_RAW|ARM_CP_ALIAS))) {
         cpu->cpreg_array_len++;
+        cpu->cpreg_value_array_len++;
     }
 }
 
@@ -261,26 +266,32 @@ void init_cpreg_list(ARMCPU *cpu)
      * Note that we require cpreg_tuples[] to be sorted by key ID.
      */
     GList *keys;
-    int arraylen;
+    int arraylen, value_arraylen;
 
     keys = g_hash_table_get_keys(cpu->cp_regs);
     keys = g_list_sort(keys, cpreg_key_compare);
 
     cpu->cpreg_array_len = 0;
-
+    cpu->cpreg_value_array_len = 0;
     g_list_foreach(keys, count_cpreg, cpu);
 
     arraylen = cpu->cpreg_array_len;
+    value_arraylen = cpu->cpreg_value_array_len;
     cpu->cpreg_indexes = g_new(uint64_t, arraylen);
-    cpu->cpreg_values = g_new(uint64_t, arraylen);
+    cpu->cpreg_value_indexes = g_new(uint32_t, arraylen);
+    cpu->cpreg_values = g_new(uint64_t, value_arraylen);
     cpu->cpreg_vmstate_indexes = g_new(uint64_t, arraylen);
-    cpu->cpreg_vmstate_values = g_new(uint64_t, arraylen);
+    cpu->cpreg_vmstate_value_indexes = g_new(uint32_t, arraylen);
+    cpu->cpreg_vmstate_values = g_new(uint64_t, value_arraylen);
     cpu->cpreg_vmstate_array_len = cpu->cpreg_array_len;
-    cpu->cpreg_array_len = 0;
+    cpu->cpreg_vmstate_value_array_len = cpu->cpreg_value_array_len;
 
+    cpu->cpreg_array_len = 0;
+    cpu->cpreg_value_array_len = 0;
     g_list_foreach(keys, add_cpreg_to_list, cpu);
 
     assert(cpu->cpreg_array_len == arraylen);
+    assert(cpu->cpreg_value_array_len == value_arraylen);
 
     g_list_free(keys);
 }
