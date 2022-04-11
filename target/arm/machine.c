@@ -677,10 +677,13 @@ static int cpu_pre_save(void *opaque)
     }
 
     cpu->cpreg_vmstate_array_len = cpu->cpreg_array_len;
+    cpu->cpreg_vmstate_value_array_len = cpu->cpreg_value_array_len;
     memcpy(cpu->cpreg_vmstate_indexes, cpu->cpreg_indexes,
            cpu->cpreg_array_len * sizeof(uint64_t));
     memcpy(cpu->cpreg_vmstate_values, cpu->cpreg_values,
-           cpu->cpreg_array_len * sizeof(uint64_t));
+           cpu->cpreg_value_array_len * sizeof(uint64_t));
+    memcpy(cpu->cpreg_vmstate_value_indexes, cpu->cpreg_value_indexes,
+           cpu->cpreg_array_len * sizeof(uint32_t));
 
     return 0;
 }
@@ -719,7 +722,7 @@ static int cpu_post_load(void *opaque, int version_id)
 {
     ARMCPU *cpu = opaque;
     CPUARMState *env = &cpu->env;
-    int i, v;
+    int i, v, n;
 
     /*
      * Handle migration compatibility from old QEMU which didn't
@@ -757,8 +760,19 @@ static int cpu_post_load(void *opaque, int version_id)
             /* register in their list but not ours: fail migration */
             return -1;
         }
+
         /* matching register, copy the value over */
-        cpu->cpreg_values[i] = cpu->cpreg_vmstate_values[v];
+        if (v < cpu->cpreg_vmstate_array_len - 1) {
+            n = cpu->cpreg_vmstate_value_indexes[v + 1] -
+                cpu->cpreg_vmstate_value_indexes[v];
+        } else {
+            n = cpu->cpreg_vmstate_value_array_len -
+                cpu->cpreg_vmstate_value_indexes[v];
+        }
+
+        memcpy(&cpu->cpreg_values[cpu->cpreg_value_indexes[i]],
+               &cpu->cpreg_vmstate_values[cpu->cpreg_vmstate_value_indexes[v]],
+               n * sizeof(uint64_t));
         v++;
     }
 
@@ -814,8 +828,8 @@ static int cpu_post_load(void *opaque, int version_id)
 
 const VMStateDescription vmstate_arm_cpu = {
     .name = "cpu",
-    .version_id = 22,
-    .minimum_version_id = 22,
+    .version_id = 23,
+    .minimum_version_id = 23,
     .pre_save = cpu_pre_save,
     .post_save = cpu_post_save,
     .pre_load = cpu_pre_load,
@@ -844,12 +858,16 @@ const VMStateDescription vmstate_arm_cpu = {
          * incoming data possibly overflowing the array.
          */
         VMSTATE_INT32_POSITIVE_LE(cpreg_vmstate_array_len, ARMCPU),
+        VMSTATE_INT32_POSITIVE_LE(cpreg_vmstate_value_array_len, ARMCPU),
         VMSTATE_VARRAY_INT32(cpreg_vmstate_indexes, ARMCPU,
                              cpreg_vmstate_array_len,
                              0, vmstate_info_uint64, uint64_t),
         VMSTATE_VARRAY_INT32(cpreg_vmstate_values, ARMCPU,
-                             cpreg_vmstate_array_len,
+                             cpreg_vmstate_value_array_len,
                              0, vmstate_info_uint64, uint64_t),
+        VMSTATE_VARRAY_INT32(cpreg_vmstate_value_indexes, ARMCPU,
+                             cpreg_vmstate_array_len,
+                             0, vmstate_info_uint32, uint32_t),
         VMSTATE_UINT64(env.exclusive_addr, ARMCPU),
         VMSTATE_UINT64(env.exclusive_val, ARMCPU),
         VMSTATE_UINT64(env.exclusive_high, ARMCPU),
