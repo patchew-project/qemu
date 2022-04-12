@@ -83,3 +83,14 @@ config SPIKE
     select MSI_NONBROKEN
     select RISCV_ACLINT
     select SIFIVE_PLIC
+
+config MINIC
+    bool
+    imply PCI_DEVICES
+    select RISCV_NUMA
+    select MSI_NONBROKEN
+    select PCI
+    select PCI_EXPRESS_GENERIC_BRIDGE
+    select SERIAL
+    select RISCV_ACLINT
+    select RISCV_IMSIC
