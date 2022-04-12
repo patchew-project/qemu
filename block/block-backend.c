@@ -593,6 +593,7 @@ BlockBackend *blk_next(BlockBackend *blk)
 BlockDriverState *bdrv_next(BdrvNextIterator *it)
 {
     BlockDriverState *bs, *old_bs;
+    AioContext *ctx = NULL;
 
     /* Must be called from the main loop */
     assert(qemu_get_current_aio_context() == qemu_get_aio_context());
@@ -613,11 +614,17 @@ BlockDriverState *bdrv_next(BdrvNextIterator *it)
         if (it->blk) {
             blk_ref(it->blk);
         }
+	ctx = blk_get_aio_context(old_blk);
+	aio_context_acquire(ctx);
         blk_unref(old_blk);
+	aio_context_release(ctx);
 
         if (bs) {
             bdrv_ref(bs);
+	    ctx = bdrv_get_aio_context(old_bs);
+	    aio_context_acquire(ctx);
             bdrv_unref(old_bs);
+	    aio_context_release(ctx);
             return bs;
         }
         it->phase = BDRV_NEXT_MONITOR_OWNED;
@@ -636,7 +643,10 @@ BlockDriverState *bdrv_next(BdrvNextIterator *it)
     if (bs) {
         bdrv_ref(bs);
     }
+    ctx = bdrv_get_aio_context(old_bs);
+    aio_context_acquire(ctx);
     bdrv_unref(old_bs);
+    aio_context_release(ctx);
 
     return bs;
 }
