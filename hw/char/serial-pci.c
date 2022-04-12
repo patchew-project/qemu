@@ -31,6 +31,7 @@
 #include "hw/char/serial.h"
 #include "hw/irq.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/msi.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
@@ -39,26 +40,54 @@ struct PCISerialState {
     PCIDevice dev;
     SerialState state;
     uint8_t prog_if;
+    bool msi_enabled;
 };
 
 #define TYPE_PCI_SERIAL "pci-serial"
 OBJECT_DECLARE_SIMPLE_TYPE(PCISerialState, PCI_SERIAL)
 
+
+static void msi_irq_handler(void *opaque, int irq_num, int level)
+{
+    PCIDevice *pci_dev = opaque;
+
+    assert(level == 0 || level == 1);
+
+    if (msi_enabled(pci_dev)) {
+        msi_notify(pci_dev, 0);
+    }
+}
+
 static void serial_pci_realize(PCIDevice *dev, Error **errp)
 {
     PCISerialState *pci = DO_UPCAST(PCISerialState, dev, dev);
     SerialState *s = &pci->state;
+    Error *err = NULL;
+    int ret;
 
     if (!qdev_realize(DEVICE(s), NULL, errp)) {
         return;
     }
 
     pci->dev.config[PCI_CLASS_PROG] = pci->prog_if;
-    pci->dev.config[PCI_INTERRUPT_PIN] = 0x01;
-    s->irq = pci_allocate_irq(&pci->dev);
-
+    if (pci->msi_enabled) {
+        pci->dev.config[PCI_INTERRUPT_PIN] = 0x00;
+        s->irq = qemu_allocate_irq(msi_irq_handler, &pci->dev, 100);
+    } else {
+        pci->dev.config[PCI_INTERRUPT_PIN] = 0x01;
+        s->irq = pci_allocate_irq(&pci->dev);
+    }
     memory_region_init_io(&s->io, OBJECT(pci), &serial_io_ops, s, "serial", 8);
     pci_register_bar(&pci->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
+
+    if (!pci->msi_enabled) {
+        return;
+    }
+
+    ret = msi_init(&pci->dev, 0, 1, true, false, &err);
+    if (ret == -ENOTSUP) {
+        fprintf(stdout, "MSIX INIT FAILED\n");
+    }
 }
 
 static void serial_pci_exit(PCIDevice *dev)
@@ -83,6 +112,7 @@ static const VMStateDescription vmstate_pci_serial = {
 
 static Property serial_pci_properties[] = {
     DEFINE_PROP_UINT8("prog_if",  PCISerialState, prog_if, 0x02),
+    DEFINE_PROP_BOOL("msi",  PCISerialState, msi_enabled, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
