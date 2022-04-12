@@ -30,6 +30,7 @@
 #include "target/riscv/cpu.h"
 #include "hw/riscv/riscv_hart.h"
 #include "hw/riscv/virt.h"
+#include "hw/riscv/machine_helper.h"
 #include "hw/riscv/boot.h"
 #include "hw/riscv/numa.h"
 #include "hw/intc/riscv_aclint.h"
@@ -159,136 +160,6 @@ static void virt_flash_map(RISCVVirtState *s,
                     sysmem);
     virt_flash_map1(s->flash[1], flashbase + flashsize, flashsize,
                     sysmem);
-}
-
-static void create_pcie_irq_map(RISCVVirtState *s, void *fdt, char *nodename,
-                                uint32_t irqchip_phandle)
-{
-    int pin, dev;
-    uint32_t irq_map_stride = 0;
-    uint32_t full_irq_map[GPEX_NUM_IRQS * GPEX_NUM_IRQS *
-                          FDT_MAX_INT_MAP_WIDTH] = {};
-    uint32_t *irq_map = full_irq_map;
-
-    /* This code creates a standard swizzle of interrupts such that
-     * each device's first interrupt is based on it's PCI_SLOT number.
-     * (See pci_swizzle_map_irq_fn())
-     *
-     * We only need one entry per interrupt in the table (not one per
-     * possible slot) seeing the interrupt-map-mask will allow the table
-     * to wrap to any number of devices.
-     */
-    for (dev = 0; dev < GPEX_NUM_IRQS; dev++) {
-        int devfn = dev * 0x8;
-
-        for (pin = 0; pin < GPEX_NUM_IRQS; pin++) {
-            int irq_nr = PCIE_IRQ + ((pin + PCI_SLOT(devfn)) % GPEX_NUM_IRQS);
-            int i = 0;
-
-            /* Fill PCI address cells */
-            irq_map[i] = cpu_to_be32(devfn << 8);
-            i += FDT_PCI_ADDR_CELLS;
-
-            /* Fill PCI Interrupt cells */
-            irq_map[i] = cpu_to_be32(pin + 1);
-            i += FDT_PCI_INT_CELLS;
-
-            /* Fill interrupt controller phandle and cells */
-            irq_map[i++] = cpu_to_be32(irqchip_phandle);
-            irq_map[i++] = cpu_to_be32(irq_nr);
-            if (s->aia_type != VIRT_AIA_TYPE_NONE) {
-                irq_map[i++] = cpu_to_be32(0x4);
-            }
-
-            if (!irq_map_stride) {
-                irq_map_stride = i;
-            }
-            irq_map += irq_map_stride;
-        }
-    }
-
-    qemu_fdt_setprop(fdt, nodename, "interrupt-map", full_irq_map,
-                     GPEX_NUM_IRQS * GPEX_NUM_IRQS *
-                     irq_map_stride * sizeof(uint32_t));
-
-    qemu_fdt_setprop_cells(fdt, nodename, "interrupt-map-mask",
-                           0x1800, 0, 0, 0x7);
-}
-
-static void create_fdt_socket_cpus(RISCVVirtState *s, int socket,
-                                   char *clust_name, uint32_t *phandle,
-                                   bool is_32_bit, uint32_t *intc_phandles)
-{
-    int cpu;
-    uint32_t cpu_phandle;
-    MachineState *mc = MACHINE(s);
-    char *name, *cpu_name, *core_name, *intc_name;
-
-    for (cpu = s->soc[socket].num_harts - 1; cpu >= 0; cpu--) {
-        cpu_phandle = (*phandle)++;
-
-        cpu_name = g_strdup_printf("/cpus/cpu@%d",
-            s->soc[socket].hartid_base + cpu);
-        qemu_fdt_add_subnode(mc->fdt, cpu_name);
-        qemu_fdt_setprop_string(mc->fdt, cpu_name, "mmu-type",
-            (is_32_bit) ? "riscv,sv32" : "riscv,sv48");
-        name = riscv_isa_string(&s->soc[socket].harts[cpu]);
-        qemu_fdt_setprop_string(mc->fdt, cpu_name, "riscv,isa", name);
-        g_free(name);
-        qemu_fdt_setprop_string(mc->fdt, cpu_name, "compatible", "riscv");
-        qemu_fdt_setprop_string(mc->fdt, cpu_name, "status", "okay");
-        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "reg",
-            s->soc[socket].hartid_base + cpu);
-        qemu_fdt_setprop_string(mc->fdt, cpu_name, "device_type", "cpu");
-        riscv_socket_fdt_write_id(mc, mc->fdt, cpu_name, socket);
-        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "phandle", cpu_phandle);
-
-        intc_phandles[cpu] = (*phandle)++;
-
-        intc_name = g_strdup_printf("%s/interrupt-controller", cpu_name);
-        qemu_fdt_add_subnode(mc->fdt, intc_name);
-        qemu_fdt_setprop_cell(mc->fdt, intc_name, "phandle",
-            intc_phandles[cpu]);
-        if (riscv_feature(&s->soc[socket].harts[cpu].env,
-                          RISCV_FEATURE_AIA)) {
-            static const char * const compat[2] = {
-                "riscv,cpu-intc-aia", "riscv,cpu-intc"
-            };
-            qemu_fdt_setprop_string_array(mc->fdt, intc_name, "compatible",
-                                      (char **)&compat, ARRAY_SIZE(compat));
-        } else {
-            qemu_fdt_setprop_string(mc->fdt, intc_name, "compatible",
-                "riscv,cpu-intc");
-        }
-        qemu_fdt_setprop(mc->fdt, intc_name, "interrupt-controller", NULL, 0);
-        qemu_fdt_setprop_cell(mc->fdt, intc_name, "#interrupt-cells", 1);
-
-        core_name = g_strdup_printf("%s/core%d", clust_name, cpu);
-        qemu_fdt_add_subnode(mc->fdt, core_name);
-        qemu_fdt_setprop_cell(mc->fdt, core_name, "cpu", cpu_phandle);
-
-        g_free(core_name);
-        g_free(intc_name);
-        g_free(cpu_name);
-    }
-}
-
-static void create_fdt_socket_memory(RISCVVirtState *s,
-                                     const MemMapEntry *memmap, int socket)
-{
-    char *mem_name;
-    uint64_t addr, size;
-    MachineState *mc = MACHINE(s);
-
-    addr = memmap[VIRT_DRAM].base + riscv_socket_mem_offset(mc, socket);
-    size = riscv_socket_mem_size(mc, socket);
-    mem_name = g_strdup_printf("/memory@%lx", (long)addr);
-    qemu_fdt_add_subnode(mc->fdt, mem_name);
-    qemu_fdt_setprop_cells(mc->fdt, mem_name, "reg",
-        addr >> 32, addr, size >> 32, size);
-    qemu_fdt_setprop_string(mc->fdt, mem_name, "device_type", "memory");
-    riscv_socket_fdt_write_id(mc, mc->fdt, mem_name, socket);
-    g_free(mem_name);
 }
 
 static void create_fdt_socket_clint(RISCVVirtState *s,
@@ -472,138 +343,6 @@ static void create_fdt_socket_plic(RISCVVirtState *s,
     g_free(plic_cells);
 }
 
-static uint32_t imsic_num_bits(uint32_t count)
-{
-    uint32_t ret = 0;
-
-    while (BIT(ret) < count) {
-        ret++;
-    }
-
-    return ret;
-}
-
-static void create_fdt_imsic(RISCVVirtState *s, const MemMapEntry *memmap,
-                             uint32_t *phandle, uint32_t *intc_phandles,
-                             uint32_t *msi_m_phandle, uint32_t *msi_s_phandle)
-{
-    int cpu, socket;
-    char *imsic_name;
-    MachineState *mc = MACHINE(s);
-    uint32_t imsic_max_hart_per_socket, imsic_guest_bits;
-    uint32_t *imsic_cells, *imsic_regs, imsic_addr, imsic_size;
-
-    *msi_m_phandle = (*phandle)++;
-    *msi_s_phandle = (*phandle)++;
-    imsic_cells = g_new0(uint32_t, mc->smp.cpus * 2);
-    imsic_regs = g_new0(uint32_t, riscv_socket_count(mc) * 4);
-
-    /* M-level IMSIC node */
-    for (cpu = 0; cpu < mc->smp.cpus; cpu++) {
-        imsic_cells[cpu * 2 + 0] = cpu_to_be32(intc_phandles[cpu]);
-        imsic_cells[cpu * 2 + 1] = cpu_to_be32(IRQ_M_EXT);
-    }
-    imsic_max_hart_per_socket = 0;
-    for (socket = 0; socket < riscv_socket_count(mc); socket++) {
-        imsic_addr = memmap[VIRT_IMSIC_M].base +
-                     socket * VIRT_IMSIC_GROUP_MAX_SIZE;
-        imsic_size = IMSIC_HART_SIZE(0) * s->soc[socket].num_harts;
-        imsic_regs[socket * 4 + 0] = 0;
-        imsic_regs[socket * 4 + 1] = cpu_to_be32(imsic_addr);
-        imsic_regs[socket * 4 + 2] = 0;
-        imsic_regs[socket * 4 + 3] = cpu_to_be32(imsic_size);
-        if (imsic_max_hart_per_socket < s->soc[socket].num_harts) {
-            imsic_max_hart_per_socket = s->soc[socket].num_harts;
-        }
-    }
-    imsic_name = g_strdup_printf("/soc/imsics@%lx",
-        (unsigned long)memmap[VIRT_IMSIC_M].base);
-    qemu_fdt_add_subnode(mc->fdt, imsic_name);
-    qemu_fdt_setprop_string(mc->fdt, imsic_name, "compatible",
-        "riscv,imsics");
-    qemu_fdt_setprop_cell(mc->fdt, imsic_name, "#interrupt-cells",
-        FDT_IMSIC_INT_CELLS);
-    qemu_fdt_setprop(mc->fdt, imsic_name, "interrupt-controller",
-        NULL, 0);
-    qemu_fdt_setprop(mc->fdt, imsic_name, "msi-controller",
-        NULL, 0);
-    qemu_fdt_setprop(mc->fdt, imsic_name, "interrupts-extended",
-        imsic_cells, mc->smp.cpus * sizeof(uint32_t) * 2);
-    qemu_fdt_setprop(mc->fdt, imsic_name, "reg", imsic_regs,
-        riscv_socket_count(mc) * sizeof(uint32_t) * 4);
-    qemu_fdt_setprop_cell(mc->fdt, imsic_name, "riscv,num-ids",
-        VIRT_IRQCHIP_NUM_MSIS);
-    qemu_fdt_setprop_cells(mc->fdt, imsic_name, "riscv,ipi-id",
-        VIRT_IRQCHIP_IPI_MSI);
-    if (riscv_socket_count(mc) > 1) {
-        qemu_fdt_setprop_cell(mc->fdt, imsic_name, "riscv,hart-index-bits",
-            imsic_num_bits(imsic_max_hart_per_socket));
-        qemu_fdt_setprop_cell(mc->fdt, imsic_name, "riscv,group-index-bits",
-            imsic_num_bits(riscv_socket_count(mc)));
-        qemu_fdt_setprop_cell(mc->fdt, imsic_name, "riscv,group-index-shift",
-            IMSIC_MMIO_GROUP_MIN_SHIFT);
-    }
-    qemu_fdt_setprop_cell(mc->fdt, imsic_name, "phandle", *msi_m_phandle);
-    g_free(imsic_name);
-
-    /* S-level IMSIC node */
-    for (cpu = 0; cpu < mc->smp.cpus; cpu++) {
-        imsic_cells[cpu * 2 + 0] = cpu_to_be32(intc_phandles[cpu]);
-        imsic_cells[cpu * 2 + 1] = cpu_to_be32(IRQ_S_EXT);
-    }
-    imsic_guest_bits = imsic_num_bits(s->aia_guests + 1);
-    imsic_max_hart_per_socket = 0;
-    for (socket = 0; socket < riscv_socket_count(mc); socket++) {
-        imsic_addr = memmap[VIRT_IMSIC_S].base +
-                     socket * VIRT_IMSIC_GROUP_MAX_SIZE;
-        imsic_size = IMSIC_HART_SIZE(imsic_guest_bits) *
-                     s->soc[socket].num_harts;
-        imsic_regs[socket * 4 + 0] = 0;
-        imsic_regs[socket * 4 + 1] = cpu_to_be32(imsic_addr);
-        imsic_regs[socket * 4 + 2] = 0;
-        imsic_regs[socket * 4 + 3] = cpu_to_be32(imsic_size);
-        if (imsic_max_hart_per_socket < s->soc[socket].num_harts) {
-            imsic_max_hart_per_socket = s->soc[socket].num_harts;
-        }
-    }
-    imsic_name = g_strdup_printf("/soc/imsics@%lx",
-        (unsigned long)memmap[VIRT_IMSIC_S].base);
-    qemu_fdt_add_subnode(mc->fdt, imsic_name);
-    qemu_fdt_setprop_string(mc->fdt, imsic_name, "compatible",
-        "riscv,imsics");
-    qemu_fdt_setprop_cell(mc->fdt, imsic_name, "#interrupt-cells",
-        FDT_IMSIC_INT_CELLS);
-    qemu_fdt_setprop(mc->fdt, imsic_name, "interrupt-controller",
-        NULL, 0);
-    qemu_fdt_setprop(mc->fdt, imsic_name, "msi-controller",
-        NULL, 0);
-    qemu_fdt_setprop(mc->fdt, imsic_name, "interrupts-extended",
-        imsic_cells, mc->smp.cpus * sizeof(uint32_t) * 2);
-    qemu_fdt_setprop(mc->fdt, imsic_name, "reg", imsic_regs,
-        riscv_socket_count(mc) * sizeof(uint32_t) * 4);
-    qemu_fdt_setprop_cell(mc->fdt, imsic_name, "riscv,num-ids",
-        VIRT_IRQCHIP_NUM_MSIS);
-    qemu_fdt_setprop_cells(mc->fdt, imsic_name, "riscv,ipi-id",
-        VIRT_IRQCHIP_IPI_MSI);
-    if (imsic_guest_bits) {
-        qemu_fdt_setprop_cell(mc->fdt, imsic_name, "riscv,guest-index-bits",
-            imsic_guest_bits);
-    }
-    if (riscv_socket_count(mc) > 1) {
-        qemu_fdt_setprop_cell(mc->fdt, imsic_name, "riscv,hart-index-bits",
-            imsic_num_bits(imsic_max_hart_per_socket));
-        qemu_fdt_setprop_cell(mc->fdt, imsic_name, "riscv,group-index-bits",
-            imsic_num_bits(riscv_socket_count(mc)));
-        qemu_fdt_setprop_cell(mc->fdt, imsic_name, "riscv,group-index-shift",
-            IMSIC_MMIO_GROUP_MIN_SHIFT);
-    }
-    qemu_fdt_setprop_cell(mc->fdt, imsic_name, "phandle", *msi_s_phandle);
-    g_free(imsic_name);
-
-    g_free(imsic_regs);
-    g_free(imsic_cells);
-}
-
 static void create_fdt_socket_aplic(RISCVVirtState *s,
                                     const MemMapEntry *memmap, int socket,
                                     uint32_t msi_m_phandle,
@@ -699,6 +438,7 @@ static void create_fdt_sockets(RISCVVirtState *s, const MemMapEntry *memmap,
     MachineState *mc = MACHINE(s);
     uint32_t msi_m_phandle = 0, msi_s_phandle = 0;
     uint32_t *intc_phandles, xplic_phandles[MAX_NODES];
+    ImsicInitData idata;
 
     qemu_fdt_add_subnode(mc->fdt, "/cpus");
     qemu_fdt_setprop_cell(mc->fdt, "/cpus", "timebase-frequency",
@@ -716,10 +456,10 @@ static void create_fdt_sockets(RISCVVirtState *s, const MemMapEntry *memmap,
         clust_name = g_strdup_printf("/cpus/cpu-map/cluster%d", socket);
         qemu_fdt_add_subnode(mc->fdt, clust_name);
 
-        create_fdt_socket_cpus(s, socket, clust_name, phandle,
+        riscv_create_fdt_socket_cpus(mc, s->soc, socket, clust_name, phandle,
             is_32_bit, &intc_phandles[phandle_pos]);
 
-        create_fdt_socket_memory(s, memmap, socket);
+        riscv_create_fdt_socket_memory(mc, memmap[VIRT_DRAM].base, socket);
 
         g_free(clust_name);
 
@@ -735,8 +475,17 @@ static void create_fdt_sockets(RISCVVirtState *s, const MemMapEntry *memmap,
     }
 
     if (s->aia_type == VIRT_AIA_TYPE_APLIC_IMSIC) {
-        create_fdt_imsic(s, memmap, phandle, intc_phandles,
-            &msi_m_phandle, &msi_s_phandle);
+        idata.imsic_m.base = memmap[VIRT_IMSIC_M].base;
+        idata.imsic_m.size = memmap[VIRT_IMSIC_M].size;
+        idata.imsic_s.base = memmap[VIRT_IMSIC_S].base;
+        idata.imsic_s.size = memmap[VIRT_IMSIC_S].size;
+        idata.group_max_size = VIRT_IMSIC_GROUP_MAX_SIZE;
+        idata.num_msi = VIRT_IRQCHIP_NUM_MSIS;
+        idata.ipi_msi = VIRT_IRQCHIP_IPI_MSI;
+        idata.num_guests = s->aia_guests;
+
+        riscv_create_fdt_imsic(mc, s->soc, phandle, intc_phandles,
+            &msi_m_phandle, &msi_s_phandle, &idata);
         *msi_pcie_phandle = msi_s_phandle;
     }
 
@@ -800,47 +549,6 @@ static void create_fdt_virtio(RISCVVirtState *s, const MemMapEntry *memmap,
         }
         g_free(name);
     }
-}
-
-static void create_fdt_pcie(RISCVVirtState *s, const MemMapEntry *memmap,
-                            uint32_t irq_pcie_phandle,
-                            uint32_t msi_pcie_phandle)
-{
-    char *name;
-    MachineState *mc = MACHINE(s);
-
-    name = g_strdup_printf("/soc/pci@%lx",
-        (long) memmap[VIRT_PCIE_ECAM].base);
-    qemu_fdt_add_subnode(mc->fdt, name);
-    qemu_fdt_setprop_cell(mc->fdt, name, "#address-cells",
-        FDT_PCI_ADDR_CELLS);
-    qemu_fdt_setprop_cell(mc->fdt, name, "#interrupt-cells",
-        FDT_PCI_INT_CELLS);
-    qemu_fdt_setprop_cell(mc->fdt, name, "#size-cells", 0x2);
-    qemu_fdt_setprop_string(mc->fdt, name, "compatible",
-        "pci-host-ecam-generic");
-    qemu_fdt_setprop_string(mc->fdt, name, "device_type", "pci");
-    qemu_fdt_setprop_cell(mc->fdt, name, "linux,pci-domain", 0);
-    qemu_fdt_setprop_cells(mc->fdt, name, "bus-range", 0,
-        memmap[VIRT_PCIE_ECAM].size / PCIE_MMCFG_SIZE_MIN - 1);
-    qemu_fdt_setprop(mc->fdt, name, "dma-coherent", NULL, 0);
-    if (s->aia_type == VIRT_AIA_TYPE_APLIC_IMSIC) {
-        qemu_fdt_setprop_cell(mc->fdt, name, "msi-parent", msi_pcie_phandle);
-    }
-    qemu_fdt_setprop_cells(mc->fdt, name, "reg", 0,
-        memmap[VIRT_PCIE_ECAM].base, 0, memmap[VIRT_PCIE_ECAM].size);
-    qemu_fdt_setprop_sized_cells(mc->fdt, name, "ranges",
-        1, FDT_PCI_RANGE_IOPORT, 2, 0,
-        2, memmap[VIRT_PCIE_PIO].base, 2, memmap[VIRT_PCIE_PIO].size,
-        1, FDT_PCI_RANGE_MMIO,
-        2, memmap[VIRT_PCIE_MMIO].base,
-        2, memmap[VIRT_PCIE_MMIO].base, 2, memmap[VIRT_PCIE_MMIO].size,
-        1, FDT_PCI_RANGE_MMIO_64BIT,
-        2, virt_high_pcie_memmap.base,
-        2, virt_high_pcie_memmap.base, 2, virt_high_pcie_memmap.size);
-
-    create_pcie_irq_map(s, mc->fdt, name, irq_pcie_phandle);
-    g_free(name);
 }
 
 static void create_fdt_reset(RISCVVirtState *s, const MemMapEntry *memmap,
@@ -948,12 +656,26 @@ static void create_fdt_flash(RISCVVirtState *s, const MemMapEntry *memmap)
     g_free(name);
 }
 
+static void copy_memmap_to_pciedata(const MemMapEntry *memmap,
+                                    PcieInitData *pdata)
+{
+    pdata->pcie_ecam.base =  memmap[VIRT_PCIE_ECAM].base;
+    pdata->pcie_ecam.size =  memmap[VIRT_PCIE_ECAM].size;
+    pdata->pcie_pio.base =  memmap[VIRT_PCIE_PIO].base;
+    pdata->pcie_pio.size =  memmap[VIRT_PCIE_PIO].size;
+    pdata->pcie_mmio.base =  memmap[VIRT_PCIE_MMIO].base;
+    pdata->pcie_mmio.size =  memmap[VIRT_PCIE_MMIO].size;
+    pdata->pcie_high_mmio.base = virt_high_pcie_memmap.base;
+    pdata->pcie_high_mmio.size = virt_high_pcie_memmap.size;
+}
+
 static void create_fdt(RISCVVirtState *s, const MemMapEntry *memmap,
                        uint64_t mem_size, const char *cmdline, bool is_32_bit)
 {
     MachineState *mc = MACHINE(s);
     uint32_t phandle = 1, irq_mmio_phandle = 1, msi_pcie_phandle = 1;
     uint32_t irq_pcie_phandle = 1, irq_virtio_phandle = 1;
+    PcieInitData pdata;
 
     if (mc->dtb) {
         mc->fdt = load_device_tree(mc->dtb, &s->fdt_size);
@@ -987,7 +709,9 @@ static void create_fdt(RISCVVirtState *s, const MemMapEntry *memmap,
 
     create_fdt_virtio(s, memmap, irq_virtio_phandle);
 
-    create_fdt_pcie(s, memmap, irq_pcie_phandle, msi_pcie_phandle);
+    pdata.irq_type = riscv_get_irq_type(s->aia_type);
+    copy_memmap_to_pciedata(memmap, &pdata);
+    riscv_create_fdt_pcie(mc, &pdata, irq_pcie_phandle, msi_pcie_phandle);
 
     create_fdt_reset(s, memmap, &phandle);
 
@@ -1001,55 +725,6 @@ update_bootargs:
     if (cmdline) {
         qemu_fdt_setprop_string(mc->fdt, "/chosen", "bootargs", cmdline);
     }
-}
-
-static inline DeviceState *gpex_pcie_init(MemoryRegion *sys_mem,
-                                          hwaddr ecam_base, hwaddr ecam_size,
-                                          hwaddr mmio_base, hwaddr mmio_size,
-                                          hwaddr high_mmio_base,
-                                          hwaddr high_mmio_size,
-                                          hwaddr pio_base,
-                                          DeviceState *irqchip)
-{
-    DeviceState *dev;
-    MemoryRegion *ecam_alias, *ecam_reg;
-    MemoryRegion *mmio_alias, *high_mmio_alias, *mmio_reg;
-    qemu_irq irq;
-    int i;
-
-    dev = qdev_new(TYPE_GPEX_HOST);
-
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-
-    ecam_alias = g_new0(MemoryRegion, 1);
-    ecam_reg = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
-    memory_region_init_alias(ecam_alias, OBJECT(dev), "pcie-ecam",
-                             ecam_reg, 0, ecam_size);
-    memory_region_add_subregion(get_system_memory(), ecam_base, ecam_alias);
-
-    mmio_alias = g_new0(MemoryRegion, 1);
-    mmio_reg = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 1);
-    memory_region_init_alias(mmio_alias, OBJECT(dev), "pcie-mmio",
-                             mmio_reg, mmio_base, mmio_size);
-    memory_region_add_subregion(get_system_memory(), mmio_base, mmio_alias);
-
-    /* Map high MMIO space */
-    high_mmio_alias = g_new0(MemoryRegion, 1);
-    memory_region_init_alias(high_mmio_alias, OBJECT(dev), "pcie-mmio-high",
-                             mmio_reg, high_mmio_base, high_mmio_size);
-    memory_region_add_subregion(get_system_memory(), high_mmio_base,
-                                high_mmio_alias);
-
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 2, pio_base);
-
-    for (i = 0; i < GPEX_NUM_IRQS; i++) {
-        irq = qdev_get_gpio_in(irqchip, PCIE_IRQ + i);
-
-        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, irq);
-        gpex_set_irq_num(GPEX_HOST(dev), i, PCIE_IRQ + i);
-    }
-
-    return dev;
 }
 
 static FWCfgState *create_fw_cfg(const MachineState *mc)
@@ -1122,7 +797,7 @@ static DeviceState *virt_create_aia(RISCVVirtAIAType aia_type, int aia_guests,
         }
 
         /* Per-socket S-level IMSICs */
-        guest_bits = imsic_num_bits(aia_guests + 1);
+        guest_bits = riscv_imsic_num_bits(aia_guests + 1);
         addr = memmap[VIRT_IMSIC_S].base + socket * VIRT_IMSIC_GROUP_MAX_SIZE;
         for (i = 0; i < hart_count; i++) {
             riscv_imsic_create(addr + i * IMSIC_HART_SIZE(guest_bits),
@@ -1169,6 +844,7 @@ static void virt_machine_init(MachineState *machine)
     uint64_t kernel_entry;
     DeviceState *mmio_irqchip, *virtio_irqchip, *pcie_irqchip;
     int i, base_hartid, hart_count;
+    PcieInitData pdata;
 
     /* Check socket count limit */
     if (VIRT_SOCKETS_MAX < riscv_socket_count(machine)) {
@@ -1392,15 +1068,8 @@ static void virt_machine_init(MachineState *machine)
             qdev_get_gpio_in(DEVICE(virtio_irqchip), VIRTIO_IRQ + i));
     }
 
-    gpex_pcie_init(system_memory,
-                   memmap[VIRT_PCIE_ECAM].base,
-                   memmap[VIRT_PCIE_ECAM].size,
-                   memmap[VIRT_PCIE_MMIO].base,
-                   memmap[VIRT_PCIE_MMIO].size,
-                   virt_high_pcie_memmap.base,
-                   virt_high_pcie_memmap.size,
-                   memmap[VIRT_PCIE_PIO].base,
-                   DEVICE(pcie_irqchip));
+    copy_memmap_to_pciedata(memmap, &pdata);
+    riscv_gpex_pcie_intx_init(system_memory, &pdata, DEVICE(pcie_irqchip));
 
     serial_mm_init(system_memory, memmap[VIRT_UART0].base,
         0, qdev_get_gpio_in(DEVICE(mmio_irqchip), UART0_IRQ), 399193,
