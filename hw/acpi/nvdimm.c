@@ -848,10 +848,10 @@ nvdimm_dsm_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 
     nvdimm_debug("Revision 0x%x Handler 0x%x Function 0x%x.\n", in->revision,
                  in->handle, in->function);
-
-    if (in->revision != 0x1 /* Currently we only support DSM Spec Rev1. */) {
-        nvdimm_debug("Revision 0x%x is not supported, expect 0x%x.\n",
-                     in->revision, 0x1);
+    /* Currently we only support DSM Spec Rev1 and Rev2. */
+    if (in->revision != 0x1 && in->revision != 0x2) {
+        nvdimm_debug("Revision 0x%x is not supported, expect 0x1 or 0x2.\n",
+                     in->revision);
         nvdimm_dsm_no_payload(NVDIMM_DSM_RET_STATUS_UNSUPPORT, dsm_mem_addr);
         goto exit;
     }
@@ -1247,6 +1247,11 @@ static void nvdimm_build_fit(Aml *dev)
 static void nvdimm_build_nvdimm_devices(Aml *root_dev, uint32_t ram_slots)
 {
     uint32_t slot;
+    Aml *method, *pkg, *buff;
+
+    /* Build common shared buffer for params pass in/out */
+    buff = aml_buffer(4096, NULL);
+    aml_append(root_dev, aml_name_decl("BUFF", buff));
 
     for (slot = 0; slot < ram_slots; slot++) {
         uint32_t handle = nvdimm_slot_to_handle(slot);
@@ -1263,6 +1268,49 @@ static void nvdimm_build_nvdimm_devices(Aml *root_dev, uint32_t ram_slots)
          * table NFIT or _FIT.
          */
         aml_append(nvdimm_dev, aml_name_decl("_ADR", aml_int(handle)));
+
+        /* Build _LSI, _LSR, _LSW */
+        method = aml_method("_LSI", 0, AML_NOTSERIALIZED);
+        aml_append(method, aml_return(aml_call5(NVDIMM_COMMON_DSM,
+                            aml_touuid("4309AC30-0D11-11E4-9191-0800200C9A66"),
+                            aml_int(2), aml_int(4), aml_int(0),
+                            aml_int(handle))));
+        aml_append(nvdimm_dev, method);
+
+        method = aml_method("_LSR", 2, AML_SERIALIZED);
+        aml_append(method,
+            aml_create_dword_field(aml_name("BUFF"), aml_int(0), "DWD0"));
+        aml_append(method,
+            aml_create_dword_field(aml_name("BUFF"), aml_int(4), "DWD1"));
+        pkg = aml_package(1);
+        aml_append(pkg, aml_name("BUFF"));
+        aml_append(method, aml_name_decl("PKG1", pkg));
+        aml_append(method, aml_store(aml_arg(0), aml_name("DWD0")));
+        aml_append(method, aml_store(aml_arg(1), aml_name("DWD1")));
+        aml_append(method, aml_return(aml_call5(NVDIMM_COMMON_DSM,
+                            aml_touuid("4309AC30-0D11-11E4-9191-0800200C9A66"),
+                            aml_int(2), aml_int(5), aml_name("PKG1"),
+                            aml_int(handle))));
+        aml_append(nvdimm_dev, method);
+
+        method = aml_method("_LSW", 3, AML_SERIALIZED);
+        aml_append(method,
+            aml_create_dword_field(aml_name("BUFF"), aml_int(0), "DWD0"));
+        aml_append(method,
+            aml_create_dword_field(aml_name("BUFF"), aml_int(4), "DWD1"));
+        aml_append(method,
+            aml_create_field(aml_name("BUFF"), aml_int(64), aml_int(32672), "FILD"));
+        pkg = aml_package(1);
+        aml_append(pkg, aml_name("BUFF"));
+        aml_append(method, aml_name_decl("PKG1", pkg));
+        aml_append(method, aml_store(aml_arg(0), aml_name("DWD0")));
+        aml_append(method, aml_store(aml_arg(1), aml_name("DWD1")));
+        aml_append(method, aml_store(aml_arg(2), aml_name("FILD")));
+        aml_append(method, aml_return(aml_call5(NVDIMM_COMMON_DSM,
+                            aml_touuid("4309AC30-0D11-11E4-9191-0800200C9A66"),
+                            aml_int(2), aml_int(6), aml_name("PKG1"),
+                            aml_int(handle))));
+        aml_append(nvdimm_dev, method);
 
         nvdimm_build_device_dsm(nvdimm_dev, handle);
         aml_append(root_dev, nvdimm_dev);
