@@ -454,14 +454,15 @@ static coroutine_fn int nbd_receive_replies(BDRVNBDState *s, uint64_t handle)
             nbd_channel_error(s, -EINVAL);
             return -EINVAL;
         }
-        if (s->reply.handle == handle) {
-            /* We are done */
-            return 0;
-        }
         ind2 = HANDLE_TO_INDEX(s, s->reply.handle);
         if (ind2 >= MAX_NBD_REQUESTS || !s->requests[ind2].reply_possible) {
             nbd_channel_error(s, -EINVAL);
             return -EINVAL;
+        }
+        s->requests[ind2].reply_possible = nbd_reply_is_structured(&s->reply);
+        if (s->reply.handle == handle) {
+            /* We are done */
+            return 0;
         }
         nbd_recv_coroutine_wake_one(&s->requests[ind2]);
     }
