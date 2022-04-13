@@ -85,6 +85,11 @@ static int vhost_vdpa_dma_map(struct vhost_vdpa *v, hwaddr iova, hwaddr size,
     msg.iotlb.perm = readonly ? VHOST_ACCESS_RO : VHOST_ACCESS_RW;
     msg.iotlb.type = VHOST_IOTLB_UPDATE;
 
+    if (v->dev->backend_cap & BIT_ULL(VHOST_BACKEND_F_IOTLB_BATCH)) {
+        g_array_append_val(v->iotlb_updates, msg);
+        return 0;
+    }
+
    trace_vhost_vdpa_dma_map(v, fd, msg.type, msg.iotlb.iova, msg.iotlb.size,
                             msg.iotlb.uaddr, msg.iotlb.perm, msg.iotlb.type);
 
@@ -109,6 +114,11 @@ static int vhost_vdpa_dma_unmap(struct vhost_vdpa *v, hwaddr iova,
     msg.iotlb.size = size;
     msg.iotlb.type = VHOST_IOTLB_INVALIDATE;
 
+    if (v->dev->backend_cap & BIT_ULL(VHOST_BACKEND_F_IOTLB_BATCH)) {
+        g_array_append_val(v->iotlb_updates, msg);
+        return 0;
+    }
+
     trace_vhost_vdpa_dma_unmap(v, fd, msg.type, msg.iotlb.iova,
                                msg.iotlb.size, msg.iotlb.type);
 
@@ -121,56 +131,47 @@ static int vhost_vdpa_dma_unmap(struct vhost_vdpa *v, hwaddr iova,
     return ret;
 }
 
-static void vhost_vdpa_listener_begin_batch(struct vhost_vdpa *v)
-{
-    int fd = v->device_fd;
-    struct vhost_msg_v2 msg = {
-        .type = v->msg_type,
-        .iotlb.type = VHOST_IOTLB_BATCH_BEGIN,
-    };
-
-    trace_vhost_vdpa_listener_begin_batch(v, fd, msg.type, msg.iotlb.type);
-    if (write(fd, &msg, sizeof(msg)) != sizeof(msg)) {
-        error_report("failed to write, fd=%d, errno=%d (%s)",
-                     fd, errno, strerror(errno));
-    }
-}
-
-static void vhost_vdpa_iotlb_batch_begin_once(struct vhost_vdpa *v)
-{
-    if (v->dev->backend_cap & (0x1ULL << VHOST_BACKEND_F_IOTLB_BATCH) &&
-        !v->iotlb_batch_begin_sent) {
-        vhost_vdpa_listener_begin_batch(v);
-    }
-
-    v->iotlb_batch_begin_sent = true;
-}
-
 static void vhost_vdpa_listener_commit(MemoryListener *listener)
 {
     struct vhost_vdpa *v = container_of(listener, struct vhost_vdpa, listener);
-    struct vhost_dev *dev = v->dev;
     struct vhost_msg_v2 msg = {};
     int fd = v->device_fd;
+    size_t num = v->iotlb_updates->len;
 
-    if (!(dev->backend_cap & (0x1ULL << VHOST_BACKEND_F_IOTLB_BATCH))) {
-        return;
-    }
-
-    if (!v->iotlb_batch_begin_sent) {
+    if (!num) {
         return;
     }
 
     msg.type = v->msg_type;
-    msg.iotlb.type = VHOST_IOTLB_BATCH_END;
+    msg.iotlb.type = VHOST_IOTLB_BATCH_BEGIN;
+    trace_vhost_vdpa_listener_begin_batch(v, fd, msg.type, msg.iotlb.type);
+    if (write(fd, &msg, sizeof(msg)) != sizeof(msg)) {
+        error_report("failed to write BEGIN_BATCH, fd=%d, errno=%d (%s)",
+                     fd, errno, strerror(errno));
+        goto done;
+    }
 
+    for (size_t i = 0; i < num; ++i) {
+        struct vhost_msg_v2 *update = &g_array_index(v->iotlb_updates,
+                                                     struct vhost_msg_v2, i);
+        if (write(fd, update, sizeof(*update)) != sizeof(*update)) {
+            error_report("failed to write dma update, fd=%d, errno=%d (%s)",
+                         fd, errno, strerror(errno));
+            goto done;
+        }
+    }
+
+    msg.iotlb.type = VHOST_IOTLB_BATCH_END;
     trace_vhost_vdpa_listener_commit(v, fd, msg.type, msg.iotlb.type);
     if (write(fd, &msg, sizeof(msg)) != sizeof(msg)) {
         error_report("failed to write, fd=%d, errno=%d (%s)",
                      fd, errno, strerror(errno));
     }
 
-    v->iotlb_batch_begin_sent = false;
+done:
+    g_array_set_size(v->iotlb_updates, 0);
+    return;
+
 }
 
 static void vhost_vdpa_listener_region_add(MemoryListener *listener,
@@ -227,7 +228,6 @@ static void vhost_vdpa_listener_region_add(MemoryListener *listener,
         iova = mem_region.iova;
     }
 
-    vhost_vdpa_iotlb_batch_begin_once(v);
     ret = vhost_vdpa_dma_map(v, iova, int128_get64(llsize),
                              vaddr, section->readonly);
     if (ret) {
@@ -292,7 +292,6 @@ static void vhost_vdpa_listener_region_del(MemoryListener *listener,
         iova = result->iova;
         vhost_iova_tree_remove(v->iova_tree, &mem_region);
     }
-    vhost_vdpa_iotlb_batch_begin_once(v);
     ret = vhost_vdpa_dma_unmap(v, iova, int128_get64(llsize));
     if (ret) {
         error_report("vhost_vdpa dma unmap error!");
@@ -446,6 +445,7 @@ static int vhost_vdpa_init(struct vhost_dev *dev, void *opaque, Error **errp)
     dev->opaque =  opaque ;
     v->listener = vhost_vdpa_memory_listener;
     v->msg_type = VHOST_IOTLB_MSG_V2;
+    v->iotlb_updates = g_array_new(false, false, sizeof(struct vhost_msg_v2));
     ret = vhost_vdpa_init_svq(dev, v, errp);
     if (ret) {
         goto err;
@@ -579,6 +579,7 @@ static int vhost_vdpa_cleanup(struct vhost_dev *dev)
     trace_vhost_vdpa_cleanup(dev, v);
     vhost_vdpa_host_notifiers_uninit(dev, dev->nvqs);
     memory_listener_unregister(&v->listener);
+    g_array_free(v->iotlb_updates, true);
     vhost_vdpa_svq_cleanup(dev);
 
     dev->opaque = NULL;

@@ -27,7 +27,7 @@ typedef struct vhost_vdpa {
     int device_fd;
     int index;
     uint32_t msg_type;
-    bool iotlb_batch_begin_sent;
+    GArray *iotlb_updates;
     MemoryListener listener;
     struct vhost_vdpa_iova_range iova_range;
     uint64_t acked_features;
