@@ -16,8 +16,9 @@
 typedef struct VhostIOVATree VhostIOVATree;
 
 VhostIOVATree *vhost_iova_tree_new(uint64_t iova_first, uint64_t iova_last);
-void vhost_iova_tree_delete(VhostIOVATree *iova_tree);
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(VhostIOVATree, vhost_iova_tree_delete);
+VhostIOVATree *vhost_iova_tree_acquire(VhostIOVATree *iova_tree);
+void vhost_iova_tree_release(VhostIOVATree *iova_tree);
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(VhostIOVATree, vhost_iova_tree_release);
 
 const DMAMap *vhost_iova_tree_find_iova(const VhostIOVATree *iova_tree,
                                         const DMAMap *map);
