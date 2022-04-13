@@ -92,6 +92,10 @@ static int vhost_user_start(int queues, NetClientState *ncs[],
             goto err;
         }
 
+        if (s->vhost_net) {
+            s->acked_features = vhost_net_get_acked_features(net);
+        }
+
         if (i == 0) {
             max_queues = vhost_net_get_max_queues(net);
             if (queues > max_queues) {
