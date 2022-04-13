@@ -2796,6 +2796,8 @@ static int guest_get_network_stats(const char *name,
     size_t n = 0;
     fp = fopen(devinfo, "r");
     if (!fp) {
+        g_debug("failed to open network stats %s: %s", devinfo,
+                g_strerror(errno));
         return -1;
     }
     name_len = strlen(name);
@@ -2844,7 +2846,9 @@ static int guest_get_network_stats(const char *name,
     fclose(fp);
     g_free(line);
     g_debug("/proc/net/dev: Interface '%s' not found", name);
-#endif /* CONFIG_LINUX */
+#else /* !CONFIG_LINUX */
+    g_debug("Network stats reporting available only for Linux");
+#endif /* !CONFIG_LINUX */
     return -1;
 }
 
