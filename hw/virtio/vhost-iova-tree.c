@@ -74,6 +74,20 @@ void vhost_iova_tree_release(VhostIOVATree *iova_tree)
 }
 
 /**
+ * Find a mapping in the tree that matches map
+ *
+ * @iova_tree  The iova tree
+ * @map        The map
+ *
+ * Return a matching map that contains argument map or NULL
+ */
+const DMAMap *vhost_iova_tree_find(const VhostIOVATree *iova_tree,
+                                   const DMAMap *map)
+{
+    return iova_tree_find(iova_tree->iova_taddr_map, map);
+}
+
+/**
  * Find the IOVA address stored from a memory address
  *
  * @tree: The iova tree
