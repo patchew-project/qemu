@@ -1029,18 +1029,212 @@ out:
 static int qemu_rbd_reopen_prepare(BDRVReopenState *state,
                                    BlockReopenQueue *queue, Error **errp)
 {
-    BDRVRBDState *s = state->bs->opaque;
-    int ret = 0;
+    BDRVRBDState *new_s = state->bs->opaque;
+    BlockdevOptionsRbd *opts = NULL;
+    const QDictEntry *e;
+    Error *local_err = NULL;
+    char *keypairs, *secretid;
+    rbd_image_info_t info;
+    int r = 0;
 
-    if (s->snap && state->flags & BDRV_O_RDWR) {
+    if (new_s->snap && state->flags & BDRV_O_RDWR) {
         error_setg(errp,
                    "Cannot change node '%s' to r/w when using RBD snapshot",
                    bdrv_get_device_or_node_name(state->bs));
-        ret = -EINVAL;
+        r = -EINVAL;
     }
 
-    return ret;
+    /*
+     * Remove all keys from the generic layer which
+     * can't be converted by rbd
+     */
+    qdict_del(state->options, "driver");
+    qdict_del(state->options, "node-name");
+    qdict_del(state->options, "auto-read-only");
+    qdict_del(state->options, "discard");
+    qdict_del(state->options, "cache");
+
+    /*
+     * To maintain the compatibility prior the rbd-reopen,
+     * where the generic layer can be altered without any
+     * rbd argument given, we must early return if there
+     * aren't any rbd-specific options left.
+     */
+    if (qdict_size(state->options) == 0) {
+        return r;
+    }
+
+    new_s = state->opaque = g_new0(BDRVReopenState, 1);
+
+    keypairs = g_strdup(qdict_get_try_str(state->options, "=keyvalue-pairs"));
+    if (keypairs) {
+        qdict_del(state->options, "=keyvalue-pairs");
+    }
+
+    secretid = g_strdup(qdict_get_try_str(state->options, "password-secret"));
+    if (secretid) {
+        qdict_del(state->options, "password-secret");
+    }
+
+    r = qemu_rbd_convert_options(state->options, &opts, &local_err);
+    if (local_err) {
+        /*
+         * If keypairs are present, that means some options are present in
+         * the modern option format.  Don't attempt to parse legacy option
+         * formats, as we won't support mixed usage.
+         */
+        if (keypairs) {
+            error_propagate(errp, local_err);
+            goto out;
+        }
+
+        /*
+         * If the initial attempt to convert and process the options failed,
+         * we may be attempting to open an image file that has the rbd options
+         * specified in the older format consisting of all key/value pairs
+         * encoded in the filename.  Go ahead and attempt to parse the
+         * filename, and see if we can pull out the required options.
+         */
+        r = qemu_rbd_attempt_legacy_options(state->options, &opts, &keypairs);
+        if (r < 0) {
+            /*
+             * Propagate the original error, not the legacy parsing fallback
+             * error, as the latter was just a best-effort attempt.
+             */
+            error_propagate(errp, local_err);
+            goto out;
+        }
+        /*
+         * Take care whenever deciding to actually deprecate; once this ability
+         * is removed, we will not be able to open any images with legacy-styled
+         * backing image strings.
+         */
+        warn_report("RBD options encoded in the filename as keyvalue pairs "
+                    "is deprecated");
+    }
+
+    /*
+     * Remove the processed options from the QDict (the visitor processes
+     * _all_ options in the QDict)
+     */
+    while ((e = qdict_first(state->options))) {
+        qdict_del(state->options, e->key);
+    }
+
+    r = qemu_rbd_connect(&new_s->cluster, &new_s->io_ctx, opts,
+                         !(state->flags & BDRV_O_NOCACHE), keypairs,
+                         secretid, errp);
+    if (r < 0) {
+        goto out;
+    }
+
+    new_s->snap = g_strdup(opts->snapshot);
+    new_s->image_name = g_strdup(opts->image);
+
+    /* rbd_open is always r/w */
+    r = rbd_open(new_s->io_ctx, new_s->image_name, &new_s->image, new_s->snap);
+    if (r < 0) {
+        error_setg_errno(errp, -r, "error reading header from %s",
+                         new_s->image_name);
+        goto failed_open;
+    }
+
+    if (opts->has_encrypt) {
+#ifdef LIBRBD_SUPPORTS_ENCRYPTION
+        r = qemu_rbd_encryption_load(new_s->image, opts->encrypt, errp);
+        if (r < 0) {
+            goto failed_post_open;
+        }
+#else
+        r = -ENOTSUP;
+        error_setg(errp, "RBD library does not support image encryption");
+        goto failed_post_open;
+#endif
+    }
+
+    r = rbd_stat(new_s->image, &info, sizeof(info));
+    if (r < 0) {
+        error_setg_errno(errp, -r, "error getting image info from %s",
+                         new_s->image_name);
+        goto failed_post_open;
+    }
+    new_s->image_size = info.size;
+    new_s->object_size = info.obj_size;
+
+    /*
+     * If we are using an rbd snapshot, we must be r/o, otherwise
+     * leave as-is
+     */
+    if (new_s->snap != NULL) {
+        r = bdrv_apply_auto_read_only(state->bs, "rbd snapshots are read-only",
+                                      errp);
+        if (r < 0) {
+            goto failed_post_open;
+        }
+    }
+
+#ifdef LIBRBD_SUPPORTS_WRITE_ZEROES
+    state->bs->supported_zero_flags = BDRV_REQ_MAY_UNMAP | BDRV_REQ_NO_FALLBACK;
+#endif
+
+    /* When extending regular files, we get zeros from the OS */
+    state->bs->supported_truncate_flags = BDRV_REQ_ZERO_WRITE;
+
+    r = 0;
+    goto out;
+
+failed_post_open:
+    rbd_close(new_s->image);
+failed_open:
+    rados_ioctx_destroy(new_s->io_ctx);
+    g_free(new_s->snap);
+    g_free(new_s->image_name);
+    rados_shutdown(new_s->cluster);
+out:
+    qapi_free_BlockdevOptionsRbd(opts);
+    g_free(keypairs);
+    g_free(secretid);
+    return r;
 }
+
+static void qemu_rbd_reopen_abort(BDRVReopenState *reopen_state)
+{
+    BDRVRBDState *s = reopen_state->bs->opaque;
+
+    if (s->io_ctx) {
+        rados_ioctx_destroy(s->io_ctx);
+    }
+
+   if (s->cluster) {
+        rados_shutdown(s->cluster);
+    }
+
+    g_free(s->snap);
+    g_free(reopen_state->opaque);
+    reopen_state->opaque = NULL;
+}
+
+static void qemu_rbd_reopen_commit(BDRVReopenState *reopen_state)
+{
+    BDRVRBDState *s = reopen_state->bs->opaque;
+    BDRVRBDState *new_s = reopen_state->opaque;
+
+    rados_aio_flush(s->io_ctx);
+
+    rbd_close(s->image);
+    rados_ioctx_destroy(s->io_ctx);
+    g_free(s->snap);
+    rados_shutdown(s->cluster);
+
+    s->io_ctx = new_s->io_ctx;
+    s->cluster = new_s->cluster;
+    s->image = new_s->image;
+    s->snap = new_s->snap;
+
+    g_free(reopen_state->opaque);
+    reopen_state->opaque = NULL;
+}
+
 
 static void qemu_rbd_close(BlockDriverState *bs)
 {
@@ -1628,6 +1822,8 @@ static BlockDriver bdrv_rbd = {
     .bdrv_file_open         = qemu_rbd_open,
     .bdrv_close             = qemu_rbd_close,
     .bdrv_reopen_prepare    = qemu_rbd_reopen_prepare,
+    .bdrv_reopen_commit     = qemu_rbd_reopen_commit,
+    .bdrv_reopen_abort     = qemu_rbd_reopen_abort,
     .bdrv_co_create         = qemu_rbd_co_create,
     .bdrv_co_create_opts    = qemu_rbd_co_create_opts,
     .bdrv_has_zero_init     = bdrv_has_zero_init_1,
