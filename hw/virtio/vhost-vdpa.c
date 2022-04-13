@@ -79,6 +79,9 @@ static int vhost_vdpa_dma_map(struct vhost_vdpa *v, hwaddr iova, hwaddr size,
     int ret = 0;
 
     msg.type = v->msg_type;
+    if (v->dev->backend_cap & BIT_ULL(VHOST_BACKEND_F_IOTLB_ASID)) {
+        msg.asid = v->dev->address_space_id;
+    }
     msg.iotlb.iova = iova;
     msg.iotlb.size = size;
     msg.iotlb.uaddr = (uint64_t)(uintptr_t)vaddr;
@@ -90,8 +93,9 @@ static int vhost_vdpa_dma_map(struct vhost_vdpa *v, hwaddr iova, hwaddr size,
         return 0;
     }
 
-   trace_vhost_vdpa_dma_map(v, fd, msg.type, msg.iotlb.iova, msg.iotlb.size,
-                            msg.iotlb.uaddr, msg.iotlb.perm, msg.iotlb.type);
+    trace_vhost_vdpa_dma_map(v, fd, msg.type, msg.asid, msg.iotlb.iova,
+                             msg.iotlb.size, msg.iotlb.uaddr, msg.iotlb.perm,
+                             msg.iotlb.type);
 
     if (write(fd, &msg, sizeof(msg)) != sizeof(msg)) {
         error_report("failed to write, fd=%d, errno=%d (%s)",
@@ -109,6 +113,9 @@ static int vhost_vdpa_dma_unmap(struct vhost_vdpa *v, hwaddr iova,
     int fd = v->device_fd;
     int ret = 0;
 
+    if (v->dev->backend_cap & BIT_ULL(VHOST_BACKEND_F_IOTLB_ASID)) {
+        msg.asid = v->dev->address_space_id;
+    }
     msg.type = v->msg_type;
     msg.iotlb.iova = iova;
     msg.iotlb.size = size;
@@ -119,7 +126,7 @@ static int vhost_vdpa_dma_unmap(struct vhost_vdpa *v, hwaddr iova,
         return 0;
     }
 
-    trace_vhost_vdpa_dma_unmap(v, fd, msg.type, msg.iotlb.iova,
+    trace_vhost_vdpa_dma_unmap(v, fd, msg.type, msg.asid, msg.iotlb.iova,
                                msg.iotlb.size, msg.iotlb.type);
 
     if (write(fd, &msg, sizeof(msg)) != sizeof(msg)) {
@@ -134,6 +141,7 @@ static int vhost_vdpa_dma_unmap(struct vhost_vdpa *v, hwaddr iova,
 static void vhost_vdpa_listener_commit(MemoryListener *listener)
 {
     struct vhost_vdpa *v = container_of(listener, struct vhost_vdpa, listener);
+    struct vhost_dev *dev = v->dev;
     struct vhost_msg_v2 msg = {};
     int fd = v->device_fd;
     size_t num = v->iotlb_updates->len;
@@ -142,9 +150,14 @@ static void vhost_vdpa_listener_commit(MemoryListener *listener)
         return;
     }
 
+    if (dev->backend_cap & (0x1ULL << VHOST_BACKEND_F_IOTLB_ASID)) {
+        msg.asid = v->dev->address_space_id;
+    }
+
     msg.type = v->msg_type;
     msg.iotlb.type = VHOST_IOTLB_BATCH_BEGIN;
-    trace_vhost_vdpa_listener_begin_batch(v, fd, msg.type, msg.iotlb.type);
+    trace_vhost_vdpa_listener_begin_batch(v, fd, msg.type, msg.asid,
+                                          msg.iotlb.type);
     if (write(fd, &msg, sizeof(msg)) != sizeof(msg)) {
         error_report("failed to write BEGIN_BATCH, fd=%d, errno=%d (%s)",
                      fd, errno, strerror(errno));
@@ -162,7 +175,8 @@ static void vhost_vdpa_listener_commit(MemoryListener *listener)
     }
 
     msg.iotlb.type = VHOST_IOTLB_BATCH_END;
-    trace_vhost_vdpa_listener_commit(v, fd, msg.type, msg.iotlb.type);
+    trace_vhost_vdpa_listener_commit(v, fd, msg.type, msg.asid,
+                                     msg.iotlb.type);
     if (write(fd, &msg, sizeof(msg)) != sizeof(msg)) {
         error_report("failed to write, fd=%d, errno=%d (%s)",
                      fd, errno, strerror(errno));
@@ -1171,10 +1185,48 @@ call_err:
     return false;
 }
 
+static int vhost_vdpa_set_vq_group_address_space_id(struct vhost_dev *dev,
+                                                struct vhost_vring_state *asid)
+{
+    trace_vhost_vdpa_set_vq_group_address_space_id(dev, asid->index, asid->num);
+    return vhost_vdpa_call(dev, VHOST_VDPA_SET_GROUP_ASID, asid);
+}
+
+static int vhost_vdpa_set_address_space_id(struct vhost_dev *dev)
+{
+    struct vhost_vring_state vq_group = {
+        .index = dev->vq_index,
+    };
+    struct vhost_vring_state asid;
+    int ret;
+
+    if (!dev->address_space_id) {
+        return 0;
+    }
+
+    ret = vhost_vdpa_get_vring_group(dev, &vq_group);
+    if (unlikely(ret)) {
+        error_report("Can't read vq group, errno=%d (%s)", ret,
+                     g_strerror(-ret));
+        return ret;
+    }
+
+    asid.index = vq_group.num;
+    asid.num = dev->address_space_id;
+    ret = vhost_vdpa_set_vq_group_address_space_id(dev, &asid);
+    if (unlikely(ret)) {
+        error_report("Can't set vq group %u asid %u, errno=%d (%s)",
+            asid.index, asid.num, ret, g_strerror(-ret));
+    }
+    return ret;
+}
+
 static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
 {
     struct vhost_vdpa *v = dev->opaque;
-    bool ok;
+    bool vq_group_end, ok;
+    int r = 0;
+
     trace_vhost_vdpa_dev_start(dev, started);
 
     if (started) {
@@ -1182,6 +1234,10 @@ static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
         if (dev->independent_vq_group &&
             !vhost_dev_is_independent_group(dev)) {
             return -1;
+        }
+        r = vhost_vdpa_set_address_space_id(dev);
+        if (unlikely(r)) {
+            return r;
         }
         ok = vhost_vdpa_svqs_start(dev);
         if (unlikely(!ok)) {
@@ -1196,21 +1252,26 @@ static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
         vhost_vdpa_host_notifiers_uninit(dev, dev->nvqs);
     }
 
-    if (dev->vq_index + dev->nvqs != dev->vq_index_end) {
-        return 0;
-    }
-
-    if (started) {
+    vq_group_end = dev->vq_index + dev->nvqs == dev->vq_group_index_end;
+    if (vq_group_end && started) {
         memory_listener_register(&v->listener, &address_space_memory);
-        return vhost_vdpa_add_status(dev, VIRTIO_CONFIG_S_DRIVER_OK);
-    } else {
-        vhost_vdpa_reset_device(dev);
-        vhost_vdpa_add_status(dev, VIRTIO_CONFIG_S_ACKNOWLEDGE |
-                                   VIRTIO_CONFIG_S_DRIVER);
-        memory_listener_unregister(&v->listener);
-
-        return 0;
     }
+
+    if (dev->vq_index + dev->nvqs == dev->vq_index_end) {
+        if (started) {
+            r = vhost_vdpa_add_status(dev, VIRTIO_CONFIG_S_DRIVER_OK);
+        } else {
+            vhost_vdpa_reset_device(dev);
+            vhost_vdpa_add_status(dev, VIRTIO_CONFIG_S_ACKNOWLEDGE |
+                                       VIRTIO_CONFIG_S_DRIVER);
+        }
+    }
+
+    if (vq_group_end && !started) {
+        memory_listener_unregister(&v->listener);
+    }
+
+    return r;
 }
 
 static int vhost_vdpa_set_log_base(struct vhost_dev *dev, uint64_t base,
