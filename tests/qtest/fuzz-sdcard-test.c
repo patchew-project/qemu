@@ -168,11 +168,11 @@ int main(int argc, char **argv)
 
     g_test_init(&argc, &argv, NULL);
 
-   if (strcmp(arch, "i386") == 0) {
+    if (g_str_equal(arch, "i386") || g_str_equal(arch, "x86_64")) {
         qtest_add_func("fuzz/sdcard/oss_fuzz_29225", oss_fuzz_29225);
         qtest_add_func("fuzz/sdcard/oss_fuzz_36217", oss_fuzz_36217);
         qtest_add_func("fuzz/sdcard/oss_fuzz_36391", oss_fuzz_36391);
-   }
+    }
 
-   return g_test_run();
+    return g_test_run();
 }
