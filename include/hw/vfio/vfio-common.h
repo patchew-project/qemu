@@ -81,6 +81,22 @@ typedef struct VFIOLegacyContainer {
     QLIST_HEAD(, VFIOGroup) group_list;
 } VFIOLegacyContainer;
 
+typedef struct VFIOIOASHwpt {
+    uint32_t hwpt_id;
+    QLIST_HEAD(, VFIODevice) device_list;
+    QLIST_ENTRY(VFIOIOASHwpt) next;
+} VFIOIOASHwpt;
+
+typedef struct VFIOIOMMUFDContainer {
+    VFIOContainer obj;
+    int iommufd; /* /dev/vfio/vfio, empowered by the attached device */
+    uint32_t ioas_id;
+    QLIST_HEAD(, VFIOIOASHwpt) hwpt_list;
+} VFIOIOMMUFDContainer;
+
+typedef QLIST_HEAD(VFIOAddressSpaceList, VFIOAddressSpace) VFIOAddressSpaceList;
+extern VFIOAddressSpaceList vfio_address_spaces;
+
 typedef struct VFIODeviceOps VFIODeviceOps;
 
 typedef enum VFIOIOMMUBackendType {
@@ -90,6 +106,7 @@ typedef enum VFIOIOMMUBackendType {
 
 typedef struct VFIODevice {
     QLIST_ENTRY(VFIODevice) next;
+    QLIST_ENTRY(VFIODevice) hwpt_next;
     struct VFIOGroup *group;
     VFIOContainer *container;
     char *sysfsdev;
@@ -97,6 +114,7 @@ typedef struct VFIODevice {
     DeviceState *dev;
     int fd;
     int type;
+    int devid;
     bool reset_works;
     bool needs_reset;
     bool no_mmap;

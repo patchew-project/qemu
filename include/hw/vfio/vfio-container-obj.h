@@ -43,6 +43,7 @@
                          TYPE_VFIO_CONTAINER_OBJ)
 
 #define TYPE_VFIO_LEGACY_CONTAINER "qemu:vfio-legacy-container"
+#define TYPE_VFIO_IOMMUFD_CONTAINER "qemu:vfio-iommufd-container"
 
 typedef enum VFIOContainerFeature {
     VFIO_FEAT_LIVE_MIGRATION,
