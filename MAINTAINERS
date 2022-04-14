@@ -1954,6 +1954,13 @@ F: hw/vfio/ap.c
 F: docs/system/s390x/vfio-ap.rst
 L: qemu-s390x@nongnu.org
 
+iommufd
+M: Yi Liu <yi.l.liu@intel.com>
+M: Eric Auger <eric.auger@redhat.com>
+S: Supported
+F: hw/iommufd/*
+F: include/hw/iommufd/*
+
 vhost
 M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported

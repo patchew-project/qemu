@@ -1,0 +1,4 @@
+config IOMMUFD
+    bool
+    default y
+    depends on LINUX
