@@ -27,6 +27,7 @@
 #include "qom/object.h"
 #include "qapi/visitor.h"
 #include "hw/vfio/vfio-container-obj.h"
+#include "exec/memory.h"
 
 bool vfio_container_check_extension(VFIOContainer *container,
                                     VFIOContainerFeature feat)
@@ -51,6 +52,20 @@ int vfio_container_dma_map(VFIOContainer *container,
     }
 
     return vccs->dma_map(container, iova, size, vaddr, readonly);
+}
+
+int vfio_container_dma_copy(VFIOContainer *src, VFIOContainer *dst,
+                            hwaddr iova, ram_addr_t size, bool readonly)
+{
+    VFIOContainerClass *vccs1 = VFIO_CONTAINER_OBJ_GET_CLASS(src);
+    VFIOContainerClass *vccs2 = VFIO_CONTAINER_OBJ_GET_CLASS(dst);
+
+    if (!vccs1->dma_copy || vccs1->dma_copy != vccs2->dma_copy) {
+        error_report("Incompatiable container: unable to copy dma");
+        return -EINVAL;
+    }
+
+    return vccs1->dma_copy(src, dst, iova, size, readonly);
 }
 
 int vfio_container_dma_unmap(VFIOContainer *container,
@@ -164,8 +179,6 @@ void vfio_container_destroy(VFIOContainer *container)
     VFIORamDiscardListener *vrdl, *vrdl_tmp;
     VFIOGuestIOMMU *giommu, *tmp;
     VFIOHostDMAWindow *hostwin, *next;
-
-    QLIST_SAFE_REMOVE(container, next);
 
     QLIST_FOREACH_SAFE(vrdl, &container->vrdl_list, next, vrdl_tmp) {
         RamDiscardManager *rdm;

@@ -38,6 +38,8 @@ static bool iommufd_check_extension(VFIOContainer *bcontainer,
                                     VFIOContainerFeature feat)
 {
     switch (feat) {
+    case VFIO_FEAT_DMA_COPY:
+        return true;
     default:
         return false;
     };
@@ -49,8 +51,23 @@ static int iommufd_map(VFIOContainer *bcontainer, hwaddr iova,
     VFIOIOMMUFDContainer *container = container_of(bcontainer,
                                                    VFIOIOMMUFDContainer, obj);
 
-    return iommufd_map_dma(container->iommufd, container->ioas_id,
+    return iommufd_map_dma(container->iommufd,
+                           container->ioas_id,
                            iova, size, vaddr, readonly);
+}
+
+static int iommufd_copy(VFIOContainer *src, VFIOContainer *dst,
+                        hwaddr iova, ram_addr_t size, bool readonly)
+{
+    VFIOIOMMUFDContainer *container_src = container_of(src,
+                                                   VFIOIOMMUFDContainer, obj);
+    VFIOIOMMUFDContainer *container_dst = container_of(dst,
+                                                   VFIOIOMMUFDContainer, obj);
+
+    assert(container_src->iommufd == container_dst->iommufd);
+
+    return iommufd_copy_dma(container_src->iommufd, container_src->ioas_id,
+                            container_dst->ioas_id, iova, size, readonly);
 }
 
 static int iommufd_unmap(VFIOContainer *bcontainer,
@@ -428,12 +445,7 @@ static int iommufd_attach_device(VFIODevice *vbasedev, AddressSpace *as,
      * between iommufd and kvm.
      */
 
-    QLIST_INSERT_HEAD(&space->containers, bcontainer, next);
-
-    bcontainer->listener = vfio_memory_listener;
-
-    memory_listener_register(&bcontainer->listener, bcontainer->space->as);
-
+    vfio_as_add_container(space, bcontainer);
     bcontainer->initialized = true;
 
 out:
@@ -476,6 +488,7 @@ static void iommufd_detach_device(VFIODevice *vbasedev)
     VFIOIOMMUFDContainer *container;
     VFIODevice *vbasedev_iter;
     VFIOIOASHwpt *hwpt;
+    VFIOAddressSpace *space;
     Error *err;
 
     if (!bcontainer) {
@@ -501,15 +514,26 @@ found:
         vfio_container_put_hwpt(hwpt);
     }
 
+    space = bcontainer->space;
+    /*
+     * Needs to remove the bcontainer from space->containers list before
+     * detach container. Otherwise, detach container may destroy the
+     * container if it's the last device. By removing bcontainer from the
+     * list, container is disconnected with address space memory listener.
+     */
+    if (QLIST_EMPTY(&container->hwpt_list)) {
+        vfio_as_del_container(space, bcontainer);
+    }
     __vfio_device_detach_container(vbasedev, container, &err);
     if (err) {
         error_report_err(err);
     }
     if (QLIST_EMPTY(&container->hwpt_list)) {
-        VFIOAddressSpace *space = bcontainer->space;
+        int iommufd = container->iommufd;
+        uint32_t ioas_id = container->ioas_id;
 
-        iommufd_put_ioas(container->iommufd, container->ioas_id);
         vfio_iommufd_container_destroy(container);
+        iommufd_put_ioas(iommufd, ioas_id);
         vfio_put_address_space(space);
     }
     vbasedev->container = NULL;
@@ -525,6 +549,7 @@ static void vfio_iommufd_class_init(ObjectClass *klass,
 
     vccs->check_extension = iommufd_check_extension;
     vccs->dma_map = iommufd_map;
+    vccs->dma_copy = iommufd_copy;
     vccs->dma_unmap = iommufd_unmap;
     vccs->attach_device = iommufd_attach_device;
     vccs->detach_device = iommufd_detach_device;
