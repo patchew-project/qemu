@@ -3101,7 +3101,9 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
         }
     }
 
-    if (!pdev->failover_pair_id) {
+    if (!pdev->failover_pair_id &&
+        vfio_container_check_extension(&vbasedev->group->container->obj,
+                                       VFIO_FEAT_LIVE_MIGRATION)) {
         ret = vfio_migration_probe(vbasedev, errp);
         if (ret) {
             error_report("%s: Migration disabled", vbasedev->name);
