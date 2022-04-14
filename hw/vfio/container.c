@@ -458,12 +458,15 @@ vfio_legacy_container_del_section_window(VFIOContainer *bcontainer,
     }
 }
 
-void vfio_reset_handler(void *opaque)
+static int vfio_legacy_container_reset(VFIOContainer *bcontainer)
 {
+    VFIOLegacyContainer *container = container_of(bcontainer,
+                                                  VFIOLegacyContainer, obj);
     VFIOGroup *group;
     VFIODevice *vbasedev;
+    int ret, final_ret = 0;
 
-    QLIST_FOREACH(group, &vfio_group_list, next) {
+    QLIST_FOREACH(group, &container->group_list, container_next) {
         QLIST_FOREACH(vbasedev, &group->device_list, next) {
             if (vbasedev->dev->realized) {
                 vbasedev->ops->vfio_compute_needs_reset(vbasedev);
@@ -471,13 +474,19 @@ void vfio_reset_handler(void *opaque)
         }
     }
 
-    QLIST_FOREACH(group, &vfio_group_list, next) {
+    QLIST_FOREACH(group, &container->group_list, next) {
         QLIST_FOREACH(vbasedev, &group->device_list, next) {
             if (vbasedev->dev->realized && vbasedev->needs_reset) {
-                vbasedev->ops->vfio_hot_reset_multi(vbasedev);
+                ret = vbasedev->ops->vfio_hot_reset_multi(vbasedev);
+                if (ret) {
+                    error_report("failed to reset %s (%d)",
+                                 vbasedev->name, ret);
+                    final_ret = ret;
+                }
             }
         }
     }
+    return final_ret;
 }
 
 static void vfio_kvm_device_add_group(VFIOGroup *group)
@@ -1004,10 +1013,6 @@ static VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
         goto close_fd_exit;
     }
 
-    if (QLIST_EMPTY(&vfio_group_list)) {
-        qemu_register_reset(vfio_reset_handler, NULL);
-    }
-
     QLIST_INSERT_HEAD(&vfio_group_list, group, next);
 
     return group;
@@ -1036,10 +1041,6 @@ static void vfio_put_group(VFIOGroup *group)
     trace_vfio_put_group(group->fd);
     close(group->fd);
     g_free(group);
-
-    if (QLIST_EMPTY(&vfio_group_list)) {
-        qemu_unregister_reset(vfio_reset_handler, NULL);
-    }
 }
 
 static int vfio_get_device(VFIOGroup *group, const char *name,
@@ -1293,6 +1294,7 @@ static void vfio_legacy_container_class_init(ObjectClass *klass,
     vccs->add_window = vfio_legacy_container_add_section_window;
     vccs->del_window = vfio_legacy_container_del_section_window;
     vccs->check_extension = vfio_legacy_container_check_extension;
+    vccs->reset = vfio_legacy_container_reset;
     vccs->attach_device = legacy_attach_device;
     vccs->detach_device = legacy_detach_device;
 }

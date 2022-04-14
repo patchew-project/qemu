@@ -68,6 +68,19 @@ int vfio_container_dma_unmap(VFIOContainer *container,
     return vccs->dma_unmap(container, iova, size, iotlb);
 }
 
+int vfio_container_reset(VFIOContainer *container)
+{
+    VFIOContainerClass *vccs = VFIO_CONTAINER_OBJ_GET_CLASS(container);
+
+    vccs = VFIO_CONTAINER_OBJ_GET_CLASS(container);
+
+    if (!vccs->reset) {
+        return -ENOENT;
+    }
+
+    return vccs->reset(container);
+}
+
 void vfio_container_set_dirty_page_tracking(VFIOContainer *container,
                                             bool start)
 {
