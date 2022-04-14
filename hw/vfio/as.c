@@ -985,16 +985,45 @@ vfio_get_container_class(VFIOIOMMUBackendType be)
     case VFIO_IOMMU_BACKEND_TYPE_LEGACY:
         klass = object_class_by_name(TYPE_VFIO_LEGACY_CONTAINER);
         return VFIO_CONTAINER_OBJ_CLASS(klass);
+    case VFIO_IOMMU_BACKEND_TYPE_IOMMUFD:
+        klass = object_class_by_name(TYPE_VFIO_IOMMUFD_CONTAINER);
+        return VFIO_CONTAINER_OBJ_CLASS(klass);
     default:
         return NULL;
     }
+}
+
+static VFIOContainerClass *
+select_iommu_backend(OnOffAuto value, Error **errp)
+{
+    VFIOContainerClass *vccs = NULL;
+
+    if (value == ON_OFF_AUTO_OFF) {
+        return vfio_get_container_class(VFIO_IOMMU_BACKEND_TYPE_LEGACY);
+    } else {
+        int iommufd = qemu_open_old("/dev/iommu", O_RDWR);
+
+        vccs = vfio_get_container_class(VFIO_IOMMU_BACKEND_TYPE_IOMMUFD);
+        if (iommufd < 0 || !vccs) {
+            if (value == ON_OFF_AUTO_AUTO) {
+                vccs = vfio_get_container_class(VFIO_IOMMU_BACKEND_TYPE_LEGACY);
+            } else { /* ON */
+                error_setg(errp, "iommufd backend is not supported by %s",
+                           iommufd < 0 ? "the host" : "QEMU");
+                error_append_hint(errp, "set iommufd=off\n");
+                vccs = NULL;
+            }
+        }
+        close(iommufd);
+    }
+    return vccs;
 }
 
 int vfio_attach_device(VFIODevice *vbasedev, AddressSpace *as, Error **errp)
 {
     VFIOContainerClass *vccs;
 
-    vccs = vfio_get_container_class(VFIO_IOMMU_BACKEND_TYPE_LEGACY);
+    vccs = select_iommu_backend(vbasedev->iommufd_be, errp);
     if (!vccs) {
         return -ENOENT;
     }
