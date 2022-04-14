@@ -50,8 +50,6 @@
 static int vfio_kvm_device_fd = -1;
 #endif
 
-#define TYPE_VFIO_LEGACY_CONTAINER "qemu:vfio-legacy-container"
-
 VFIOGroupList vfio_group_list =
     QLIST_HEAD_INITIALIZER(vfio_group_list);
 
@@ -1240,7 +1238,8 @@ static int vfio_device_groupid(VFIODevice *vbasedev, Error **errp)
     return groupid;
 }
 
-int vfio_attach_device(VFIODevice *vbasedev, AddressSpace *as, Error **errp)
+static int
+legacy_attach_device(VFIODevice *vbasedev, AddressSpace *as, Error **errp)
 {
     int groupid = vfio_device_groupid(vbasedev, errp);
     VFIODevice *vbasedev_iter;
@@ -1269,14 +1268,16 @@ int vfio_attach_device(VFIODevice *vbasedev, AddressSpace *as, Error **errp)
         vfio_put_group(group);
         return -1;
     }
+    vbasedev->container = &group->container->obj;
 
     return 0;
 }
 
-void vfio_detach_device(VFIODevice *vbasedev)
+static void legacy_detach_device(VFIODevice *vbasedev)
 {
     vfio_put_base_device(vbasedev);
     vfio_put_group(vbasedev->group);
+    vbasedev->container = NULL;
 }
 
 static void vfio_legacy_container_class_init(ObjectClass *klass,
@@ -1292,6 +1293,8 @@ static void vfio_legacy_container_class_init(ObjectClass *klass,
     vccs->add_window = vfio_legacy_container_add_section_window;
     vccs->del_window = vfio_legacy_container_del_section_window;
     vccs->check_extension = vfio_legacy_container_check_extension;
+    vccs->attach_device = legacy_attach_device;
+    vccs->detach_device = legacy_detach_device;
 }
 
 static const TypeInfo vfio_legacy_container_info = {

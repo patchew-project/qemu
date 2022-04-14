@@ -42,6 +42,8 @@
         OBJECT_GET_CLASS(VFIOContainerClass, (obj), \
                          TYPE_VFIO_CONTAINER_OBJ)
 
+#define TYPE_VFIO_LEGACY_CONTAINER "qemu:vfio-legacy-container"
+
 typedef enum VFIOContainerFeature {
     VFIO_FEAT_LIVE_MIGRATION,
 } VFIOContainerFeature;
@@ -101,6 +103,8 @@ struct VFIOContainer {
     QLIST_ENTRY(VFIOContainer) next;
 };
 
+typedef struct VFIODevice VFIODevice;
+
 typedef struct VFIOContainerClass {
     /* private */
     ObjectClass parent_class;
@@ -126,6 +130,8 @@ typedef struct VFIOContainerClass {
                       Error **errp);
     void (*del_window)(VFIOContainer *container,
                        MemoryRegionSection *section);
+    int (*attach_device)(VFIODevice *vbasedev, AddressSpace *as, Error **errp);
+    void (*detach_device)(VFIODevice *vbasedev);
 } VFIOContainerClass;
 
 bool vfio_container_check_extension(VFIOContainer *container,
