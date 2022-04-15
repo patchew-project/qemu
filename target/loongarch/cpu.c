@@ -620,6 +620,13 @@ static void loongarch_cpu_class_init(ObjectClass *c, void *data)
     dc->vmsd = &vmstate_loongarch_cpu;
     cc->sysemu_ops = &loongarch_sysemu_ops;
     cc->disas_set_info = loongarch_cpu_disas_set_info;
+    cc->gdb_read_register = loongarch_cpu_gdb_read_register;
+    cc->gdb_write_register = loongarch_cpu_gdb_write_register;
+    cc->disas_set_info = loongarch_cpu_disas_set_info;
+    cc->gdb_num_core_regs = 34;
+    cc->gdb_core_xml_file = "loongarch-base64.xml";
+    cc->gdb_stop_before_watchpoint = true;
+
 #ifdef CONFIG_TCG
     cc->tcg_ops = &loongarch_tcg_ops;
 #endif
