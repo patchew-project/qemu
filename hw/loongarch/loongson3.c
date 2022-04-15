@@ -18,6 +18,8 @@
 #include "sysemu/rtc.h"
 #include "hw/irq.h"
 #include "net/net.h"
+#include "hw/loader.h"
+#include "elf.h"
 #include "hw/loongarch/loongarch.h"
 #include "hw/intc/loongarch_ipi.h"
 #include "hw/intc/loongarch_extioi.h"
@@ -28,6 +30,49 @@
 #include "hw/misc/unimp.h"
 
 #include "target/loongarch/cpu.h"
+
+static void ls3a5k_aui_boot(uint64_t start_addr)
+{
+    unsigned int ls3a5k_aui_boot_code[] = {
+        0x18000064, /* pcaddi  $r4, 0x3    */
+        0x28c00084, /* ld.d    $r4, $r4, 0 */
+        0x4c000080, /* jirl    $r0, $r4, 0 */
+        start_addr, /* elf pc address      */
+    };
+    int bios_size = sizeof(ls3a5k_aui_boot_code);
+
+    rom_add_blob_fixed("bios", ls3a5k_aui_boot_code, bios_size, LA_BIOS_BASE);
+}
+
+static struct _loaderparams {
+    unsigned long ram_size;
+    const char *kernel_filename;
+} loaderparams;
+
+static uint64_t cpu_loongarch_virt_to_phys(void *opaque, uint64_t addr)
+{
+    return addr & 0x1fffffffll;
+}
+
+static int64_t load_kernel_info(void)
+{
+    int64_t kernel_entry, kernel_low, kernel_high;
+    long kernel_size;
+
+    kernel_size = load_elf(loaderparams.kernel_filename, NULL,
+                           cpu_loongarch_virt_to_phys, NULL,
+                           (uint64_t *)&kernel_entry, (uint64_t *)&kernel_low,
+                           (uint64_t *)&kernel_high, NULL, 0,
+                           EM_LOONGARCH, 1, 0);
+
+    if (kernel_size < 0) {
+        error_report("could not load kernel '%s': %s",
+                     loaderparams.kernel_filename,
+                     load_elf_strerror(kernel_size));
+        exit(1);
+    }
+    return kernel_entry;
+}
 
 static void loongarch_devices_init(DeviceState *pch_pic)
 {
@@ -207,12 +252,14 @@ static void loongarch_irq_init(LoongArchMachineState *lams)
 static void loongarch_init(MachineState *machine)
 {
     const char *cpu_model = machine->cpu_type;
+    const char *kernel_filename = machine->kernel_filename;
     ram_addr_t offset = 0;
     ram_addr_t ram_size = machine->ram_size;
     uint64_t highram_size = 0;
     MemoryRegion *address_space_mem = get_system_memory();
     LoongArchMachineState *lams = LOONGARCH_MACHINE(machine);
     int i;
+    int64_t kernel_addr = 0;
 
     if (!cpu_model) {
         cpu_model = LOONGARCH_CPU_TYPE_NAME("Loongson-3A5000");
@@ -228,22 +275,39 @@ static void loongarch_init(MachineState *machine)
         cpu_create(machine->cpu_type);
     }
 
+    if (ram_size < 1 * GiB) {
+        error_report("ram_size must be greater than 1G.");
+        exit(1);
+    }
+
     /* Add memory region */
     memory_region_init_alias(&lams->lowmem, NULL, "loongarch.lowram",
                              machine->ram, 0, 256 * MiB);
     memory_region_add_subregion(address_space_mem, offset, &lams->lowmem);
     offset += 256 * MiB;
-
     highram_size = ram_size - 256 * MiB;
     memory_region_init_alias(&lams->highmem, NULL, "loongarch.highmem",
                              machine->ram, offset, highram_size);
     memory_region_add_subregion(address_space_mem, 0x90000000, &lams->highmem);
-
     /* Add isa io region */
     memory_region_init_alias(&lams->isa_io, NULL, "isa-io",
                              get_system_io(), 0, LOONGARCH_ISA_IO_SIZE);
     memory_region_add_subregion(address_space_mem, LOONGARCH_ISA_IO_BASE,
                                 &lams->isa_io);
+    if (kernel_filename) {
+        loaderparams.ram_size = ram_size;
+        loaderparams.kernel_filename = kernel_filename;
+        kernel_addr = load_kernel_info();
+    }
+    /* load aui boot code */
+    if (!machine->firmware) {
+        ls3a5k_aui_boot(kernel_addr);
+    }
+    memory_region_init_ram(&lams->bios, NULL, "loongarch.bios",
+                           LA_BIOS_SIZE, &error_fatal);
+    memory_region_set_readonly(&lams->bios, true);
+    memory_region_add_subregion(get_system_memory(), LA_BIOS_BASE, &lams->bios);
+
     /* Initialize the IO interrupt subsystem */
     loongarch_irq_init(lams);
 }
