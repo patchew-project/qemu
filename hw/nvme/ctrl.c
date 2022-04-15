@@ -2372,11 +2372,12 @@ static void nvme_dsm_md_cb(void *opaque, int ret)
         }
 
         nvme_dsm_cb(iocb, 0);
+    } else {
+        iocb->aiocb = blk_aio_pwrite_zeroes(ns->blkconf.blk, nvme_moff(ns, slba),
+                                            nvme_m2b(ns, nlb), BDRV_REQ_MAY_UNMAP,
+                                            nvme_dsm_cb, iocb);
     }
 
-    iocb->aiocb = blk_aio_pwrite_zeroes(ns->blkconf.blk, nvme_moff(ns, slba),
-                                        nvme_m2b(ns, nlb), BDRV_REQ_MAY_UNMAP,
-                                        nvme_dsm_cb, iocb);
     return;
 
 done:
