@@ -1134,6 +1134,8 @@ F: configs/devices/loongarch64-softmmu/default.mak
 F: gdb-xml/loongarch*.xml
 F: hw/loongarch/
 F: include/hw/loongarch/loongarch.h
+F: include/hw/intc/loongarch_*.h
+F: hw/intc/loongarch_*.c
 
 M68K Machines
 -------------
