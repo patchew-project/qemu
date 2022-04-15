@@ -198,4 +198,6 @@ FIELD(CSR_DBG, ECODE, 16, 6)
 #define LOONGARCH_CSR_DERA           0x501 /* Debug era */
 #define LOONGARCH_CSR_DSAVE          0x502 /* Debug save */
 
+int cpu_csr_offset(unsigned csr_num);
+
 #endif /* LOONGARCH_CPU_CSR_H */
