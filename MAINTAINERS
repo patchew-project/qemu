@@ -1130,7 +1130,10 @@ M: Song Gao <gaosong@loongson.cn>
 S: Maintained
 F: docs/system/loongarch/loongson3.rst
 F: configs/targets/loongarch64-softmmu.mak
+F: configs/devices/loongarch64-softmmu/default.mak
 F: gdb-xml/loongarch*.xml
+F: hw/loongarch/
+F: include/hw/loongarch/loongarch.h
 
 M68K Machines
 -------------
