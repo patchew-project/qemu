@@ -84,6 +84,17 @@ target_ulong helper_cpucfg(CPULoongArchState *env, target_ulong rj)
     return rj > 21 ? 0 : env->cpucfg[rj];
 }
 
+uint64_t helper_rdtime_d(CPULoongArchState *env)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(env_cpu(env));
+
+    if ((env->CSR_MISC >> 7) & 0x1) {
+        do_raise_exception(env, EXCCODE_IPE, GETPC());
+    }
+
+    return cpu_loongarch_get_constant_timer_counter(cpu);
+}
+
 void helper_ertn(CPULoongArchState *env)
 {
     uint64_t csr_pplv, csr_pie;
