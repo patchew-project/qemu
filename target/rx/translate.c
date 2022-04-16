@@ -2135,6 +2135,7 @@ enum {
 
 static inline void clrsetpsw(DisasContext *ctx, int cb, int val)
 {
+    TCGv z;
     if (cb < 8) {
         switch (cb) {
         case PSW_C:
@@ -2160,7 +2161,22 @@ static inline void clrsetpsw(DisasContext *ctx, int cb, int val)
             ctx->base.is_jmp = DISAS_UPDATE;
             break;
         case PSW_U:
+            z = tcg_const_i32(0);
+
+            /* (PSW.U ? USP : ISP) = R0 */
+            tcg_gen_movcond_i32(TCG_COND_NE, cpu_usp,
+                                cpu_psw_u, z, cpu_sp, cpu_usp);
+            tcg_gen_movcond_i32(TCG_COND_EQ, cpu_isp,
+                                cpu_psw_u, z, cpu_sp, cpu_isp);
+
+            /* Set PSW.U */
             tcg_gen_movi_i32(cpu_psw_u, val);
+
+            /* R0 = (PSW.U ? USP : ISP) */
+            tcg_gen_movcond_i32(TCG_COND_NE, cpu_sp,
+                                cpu_psw_u, z, cpu_usp, cpu_isp);
+
+            tcg_temp_free(z);
             break;
         default:
             qemu_log_mask(LOG_GUEST_ERROR, "Invalid distination %d", cb);
