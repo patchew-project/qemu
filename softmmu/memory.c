@@ -1924,7 +1924,7 @@ void memory_region_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
 {
     MemoryRegion *mr = MEMORY_REGION(iommu_mr);
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_GET_CLASS(iommu_mr);
-    hwaddr addr, granularity;
+    hwaddr addr, granularity, def_granu;
     IOMMUTLBEntry iotlb;
 
     /* If the IOMMU has its own replay callback, override */
@@ -1933,12 +1933,15 @@ void memory_region_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
         return;
     }
 
-    granularity = memory_region_iommu_get_min_page_size(iommu_mr);
+    def_granu = memory_region_iommu_get_min_page_size(iommu_mr);
 
     for (addr = 0; addr < memory_region_size(mr); addr += granularity) {
         iotlb = imrc->translate(iommu_mr, addr, IOMMU_NONE, n->iommu_idx);
         if (iotlb.perm != IOMMU_NONE) {
             n->notify(n, &iotlb);
+            granularity = iotlb.addr_mask + 1;
+        } else {
+            granularity = def_granu;
         }
 
         /* if (2^64 - MR size) < granularity, it's possible to get an
