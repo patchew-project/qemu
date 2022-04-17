@@ -4744,8 +4744,16 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
         }
 
         /* Handle special cases first */
-        switch (ri->type & ~(ARM_CP_FLAG_MASK & ~ARM_CP_SPECIAL)) {
-        case ARM_CP_NOP:
+        switch (ri->type & ARM_CP_SPECIAL_MASK) {
+        case 0:
+            break;
+        case ARM_CP_CONST:
+            if (isread) {
+                store_reg(s, rt, tcg_constant_i32(ri->resetvalue));
+                if (is64) {
+                    store_reg(s, rt2, tcg_constant_i32(ri->resetvalue >> 32));
+                }
+            }
             return;
         case ARM_CP_WFI:
             if (isread) {
@@ -4756,7 +4764,7 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
             s->base.is_jmp = DISAS_WFI;
             return;
         default:
-            break;
+            g_assert_not_reached();
         }
 
         if ((tb_cflags(s->base.tb) & CF_USE_ICOUNT) && (ri->type & ARM_CP_IO)) {
@@ -4768,9 +4776,7 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
             if (is64) {
                 TCGv_i64 tmp64;
                 TCGv_i32 tmp;
-                if (ri->type & ARM_CP_CONST) {
-                    tmp64 = tcg_constant_i64(ri->resetvalue);
-                } else if (ri->readfn) {
+                if (ri->readfn) {
                     tmp64 = tcg_temp_new_i64();
                     gen_helper_get_cp_reg64(tmp64, cpu_env,
                                             tcg_constant_ptr(ri));
@@ -4787,9 +4793,7 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
                 store_reg(s, rt2, tmp);
             } else {
                 TCGv_i32 tmp;
-                if (ri->type & ARM_CP_CONST) {
-                    tmp = tcg_constant_i32(ri->resetvalue);
-                } else if (ri->readfn) {
+                if (ri->readfn) {
                     tmp = tcg_temp_new_i32();
                     gen_helper_get_cp_reg(tmp, cpu_env, tcg_constant_ptr(ri));
                 } else {
@@ -4807,11 +4811,6 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
             }
         } else {
             /* Write */
-            if (ri->type & ARM_CP_CONST) {
-                /* If not forbidden by access permissions, treat as WI */
-                return;
-            }
-
             if (is64) {
                 TCGv_i32 tmplo, tmphi;
                 TCGv_i64 tmp64 = tcg_temp_new_i64();
