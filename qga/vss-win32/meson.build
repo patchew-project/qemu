@@ -30,9 +30,16 @@ if midl.found()
                           input: 'qga-vss.idl',
                           output: 'qga-vss.tlb',
                           command: [midl, '@INPUT@', '/tlb', '@OUTPUT@'])
-else
+elif widl.found()
+  widl_cmd = [widl, '-t', '@INPUT@', '-o', '@OUTPUT@']
+  usr_include = fs.parent(fs.parent(widl.full_path()))/'include'
+  if fs.is_dir(usr_include)
+    widl_cmd += ['-L', usr_include]
+    widl_cmd += ['-I', usr_include]
+  endif
   gen_tlb = custom_target('gen-tlb',
                           input: 'qga-vss.idl',
                           output: 'qga-vss.tlb',
-                          command: [widl, '-t', '@INPUT@', '-o', '@OUTPUT@'])
+                          build_by_default: true,
+                          command: widl_cmd)
 endif
