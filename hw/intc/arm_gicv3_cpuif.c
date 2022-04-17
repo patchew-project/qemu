@@ -20,6 +20,7 @@
 #include "gicv3_internal.h"
 #include "hw/irq.h"
 #include "cpu.h"
+#include "target/arm/cpregs.h"
 
 static GICv3CPUState *icc_cs_from_env(CPUARMState *env)
 {
