@@ -94,6 +94,9 @@
 &X_t            rt
 @X_t            ...... rt:5 ..... ..... .......... .            &X_t
 
+&X_tb           rt rb
+@X_tb           ...... rt:5 ..... rb:5 .......... .             &X_tb
+
 &X_t_rc         rt rc:bool
 @X_t_rc         ...... rt:5 ..... ..... .......... rc:1         &X_t_rc
 
@@ -123,6 +126,9 @@
 
 &X_bfl          bf l:bool ra rb
 @X_bfl          ...... bf:3 . l:1 ra:5 rb:5 .......... .        &X_bfl
+
+&X_imm2         rt imm
+@X_imm2         ...... rt:5 ..... ... imm:2 .......... .        &X_imm2
 
 %x_xt           0:1 21:5
 &X_imm5         xt imm:uint8_t vrb
@@ -323,6 +329,8 @@ SETNBCR         011111 ..... ..... ----- 0111100000 -   @X_bi
 MFFS            111111 ..... 00000 ----- 1001000111 .   @X_t_rc
 MFFSL           111111 ..... 11000 ----- 1001000111 -   @X_t
 MFFSCE          111111 ..... 00001 ----- 1001000111 -   @X_t
+MFFSCRN         111111 ..... 10110 ..... 1001000111 -   @X_tb
+MFFSCRNI        111111 ..... 10111 ---.. 1001000111 -   @X_imm2
 
 ### Decimal Floating-Point Arithmetic Instructions
 
