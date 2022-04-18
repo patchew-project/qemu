@@ -332,7 +332,7 @@ Command description:
   ``-r all`` fixes all kinds of errors, with a higher risk of choosing the
   wrong fix or hiding corruption that has already occurred.
 
-  Only the formats ``qcow2``, ``qed`` and ``vdi`` support
+  Only the formats ``qcow2``, ``qed``, ``vdi`` and ``parallels`` support
   consistency checks.
 
   In case the image does not have any inconsistencies, check exits with ``0``.
