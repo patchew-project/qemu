@@ -25,6 +25,7 @@
 #include "helper_regs.h"
 
 #include "trace.h"
+#include "semihosting/common-semi.h"
 
 #ifdef CONFIG_TCG
 #include "exec/helper-proto.h"
@@ -100,6 +101,7 @@ static const char *powerpc_excp_name(int excp)
     case POWERPC_EXCP_SDOOR_HV: return "SDOOR_HV";
     case POWERPC_EXCP_HVIRT:    return "HVIRT";
     case POWERPC_EXCP_SYSCALL_VECTORED: return "SYSCALL_VECTORED";
+    case POWERPC_EXCP_SEMIHOST: return "SEMIHOST";
     default:
         g_assert_not_reached();
     }
@@ -1326,6 +1328,13 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
     CPUPPCState *env = &cpu->env;
     target_ulong msr, new_msr, vector;
     int srr0, srr1, lev = -1;
+
+    /* Handle semihost exceptions first */
+    if (excp == POWERPC_EXCP_SEMIHOST) {
+        env->gpr[3] = do_common_semihosting(cs);
+        env->nip += 4;
+        return;
+    }
 
     /* new srr1 value excluding must-be-zero bits */
     msr = env->msr & ~0x783f0000ULL;

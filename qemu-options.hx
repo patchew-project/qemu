@@ -4527,11 +4527,12 @@ SRST
 ERST
 DEF("semihosting", 0, QEMU_OPTION_semihosting,
     "-semihosting    semihosting mode\n",
-    QEMU_ARCH_ARM | QEMU_ARCH_M68K | QEMU_ARCH_XTENSA |
-    QEMU_ARCH_MIPS | QEMU_ARCH_NIOS2 | QEMU_ARCH_RISCV)
+    QEMU_ARCH_ARM | QEMU_ARCH_M68K | QEMU_ARCH_XTENSA | QEMU_ARCH_MIPS |
+    QEMU_ARCH_NIOS2 | QEMU_ARCH_RISCV | QEMU_ARCH_PPC)
 SRST
 ``-semihosting``
-    Enable semihosting mode (ARM, M68K, Xtensa, MIPS, Nios II, RISC-V only).
+    Enable semihosting mode (ARM, M68K, Xtensa, MIPS, Nios II, RISC-V and
+    PPC only).
 
     Note that this allows guest direct access to the host filesystem, so
     should only be used with a trusted guest OS.
@@ -4542,12 +4543,12 @@ ERST
 DEF("semihosting-config", HAS_ARG, QEMU_OPTION_semihosting_config,
     "-semihosting-config [enable=on|off][,target=native|gdb|auto][,chardev=id][,arg=str[,...]]\n" \
     "                semihosting configuration\n",
-QEMU_ARCH_ARM | QEMU_ARCH_M68K | QEMU_ARCH_XTENSA |
-QEMU_ARCH_MIPS | QEMU_ARCH_NIOS2 | QEMU_ARCH_RISCV)
+QEMU_ARCH_ARM | QEMU_ARCH_M68K | QEMU_ARCH_XTENSA | QEMU_ARCH_MIPS |
+QEMU_ARCH_NIOS2 | QEMU_ARCH_RISCV | QEMU_ARCH_PPC)
 SRST
 ``-semihosting-config [enable=on|off][,target=native|gdb|auto][,chardev=id][,arg=str[,...]]``
-    Enable and configure semihosting (ARM, M68K, Xtensa, MIPS, Nios II, RISC-V
-    only).
+    Enable and configure semihosting (ARM, M68K, Xtensa, MIPS, Nios II,
+    RISC-V, PPC only).
 
     Note that this allows guest direct access to the host filesystem, so
     should only be used with a trusted guest OS.
@@ -4562,6 +4563,9 @@ SRST
     linux platform "sim" use this interface.
 
     On RISC-V this implements the standard semihosting API, version 0.2.
+
+    On PPC this implements the standard Arm semihosting API, version 2.0,
+    with only the trap instruction and register definitions changed.
 
     ``target=native|gdb|auto``
         Defines where the semihosting calls will be addressed, to QEMU

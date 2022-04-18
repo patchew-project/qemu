@@ -129,8 +129,9 @@ enum {
     POWERPC_EXCP_SYSCALL_VECTORED = 102, /* scv exception                     */
     POWERPC_EXCP_PERFM_EBB = 103,    /* Performance Monitor EBB Exception    */
     POWERPC_EXCP_EXTERNAL_EBB = 104, /* External EBB Exception               */
+    POWERPC_EXCP_SEMIHOST = 105,     /* Semihosting Exception                */
     /* EOL                                                                   */
-    POWERPC_EXCP_NB       = 105,
+    POWERPC_EXCP_NB       = 106,
     /* QEMU exceptions: special cases we want to stop translation            */
     POWERPC_EXCP_SYSCALL_USER = 0x203, /* System call in user mode only      */
 };

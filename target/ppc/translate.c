@@ -4520,6 +4520,20 @@ static void gen_sc(DisasContext *ctx)
     uint32_t lev;
 
     lev = (ctx->opcode >> 5) & 0x7F;
+
+#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+    /*
+     * PowerPC semihosting uses the following
+     * instruction to flag a semihosting call:
+     *
+     *      sc 7            0x440000e2
+     */
+    if (lev == 7) {
+        gen_exception(ctx, POWERPC_EXCP_SEMIHOST);
+        return;
+    }
+#endif
+
     gen_exception_err(ctx, POWERPC_SYSCALL, lev);
 }
 

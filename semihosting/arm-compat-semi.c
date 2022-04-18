@@ -268,6 +268,31 @@ common_semi_sys_exit_extended(CPUState *cs, int nr)
 
 #endif
 
+#ifdef TARGET_PPC64
+static inline target_ulong
+common_semi_arg(CPUState *cs, int argno)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+    return env->gpr[3 + argno];
+}
+
+static inline void
+common_semi_set_ret(CPUState *cs, target_ulong ret)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+    env->gpr[3] = ret;
+}
+
+static inline bool
+common_semi_sys_exit_extended(CPUState *cs, int nr)
+{
+    return (nr == TARGET_SYS_EXIT_EXTENDED || sizeof(target_ulong) == 8);
+}
+
+#endif
+
 /*
  * Allocate a new guest file descriptor and return it; if we
  * couldn't allocate a new fd then return -1.
@@ -449,6 +474,12 @@ static target_ulong common_semi_flen_buf(CPUState *cs)
     CPURISCVState *env = &cpu->env;
 
     sp = env->gpr[xSP];
+#endif
+#ifdef TARGET_PPC64
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+
+    sp = env->gpr[1];
 #endif
 
     return sp - 64;
@@ -780,6 +811,8 @@ static inline bool is_64bit_semihosting(CPUArchState *env)
     return is_a64(env);
 #elif defined(TARGET_RISCV)
     return riscv_cpu_mxl(env) != MXL_RV32;
+#elif defined(TARGET_PPC64)
+    return true;
 #else
 #error un-handled architecture
 #endif
