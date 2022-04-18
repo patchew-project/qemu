@@ -322,6 +322,7 @@ SETNBCR         011111 ..... ..... ----- 0111100000 -   @X_bi
 
 MFFS            111111 ..... 00000 ----- 1001000111 .   @X_t_rc
 MFFSL           111111 ..... 11000 ----- 1001000111 -   @X_t
+MFFSCE          111111 ..... 00001 ----- 1001000111 -   @X_t
 
 ### Decimal Floating-Point Arithmetic Instructions
 
