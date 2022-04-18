@@ -492,3 +492,38 @@ static bool trans_PEXTD(DisasContext *ctx, arg_X *a)
 #endif
     return true;
 }
+
+static bool trans_ADDG6S(DisasContext *ctx, arg_X *a)
+{
+    const uint64_t nibbles = 0x0f0f0f0f0f0f0f0fULL,
+                   carry_bits = 0x1010101010101010ULL;
+    TCGv t0, t1, t2;
+
+    REQUIRE_INSNS_FLAGS2(ctx, BCDA_ISA206);
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+    t2 = tcg_temp_new();
+
+    tcg_gen_andi_tl(t0, cpu_gpr[a->ra], nibbles);
+    tcg_gen_andi_tl(t1, cpu_gpr[a->rb], nibbles);
+    tcg_gen_add_tl(t0, t0, t1);
+    tcg_gen_andi_tl(t0, t0, carry_bits);
+    tcg_gen_shri_tl(t0, t0, 4);
+
+    tcg_gen_shri_tl(t1, cpu_gpr[a->ra], 4);
+    tcg_gen_shri_tl(t2, cpu_gpr[a->rb], 4);
+    tcg_gen_andi_tl(t1, t1, nibbles);
+    tcg_gen_andi_tl(t2, t2, nibbles);
+    tcg_gen_add_tl(t1, t1, t2);
+    tcg_gen_andi_tl(t1, t1, carry_bits);
+
+    tcg_gen_or_tl(t0, t0, t1);
+    tcg_gen_muli_tl(cpu_gpr[a->rt], t0, 6);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
+
+    return true;
+}
