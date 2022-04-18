@@ -419,9 +419,11 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
                                            BdrvCheckMode fix)
 {
     BDRVParallelsState *s = bs->opaque;
-    int64_t size, prev_off, high_off;
+    int64_t size, prev_off, high_off, idx_host, sector_num;
     int ret;
     uint32_t i;
+    int64_t *buf;
+    int *reversed_bat;
     bool flush_bat = false;
 
     size = bdrv_getlength(bs->file->bs);
@@ -443,7 +445,13 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
     }
 
     res->bfi.total_clusters = s->bat_size;
+    res->bfi.allocated_clusters = 0;
     res->bfi.compressed_clusters = 0; /* compression is not supported */
+
+    reversed_bat = g_malloc(s->bat_size * sizeof(int));
+    for (i = 0; i < s->bat_size; i++) {
+        reversed_bat[i] = -1;
+    }
 
     high_off = 0;
     prev_off = 0;
@@ -453,6 +461,59 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
             prev_off = 0;
             continue;
         }
+
+        /* checking bat entry uniqueness */
+        idx_host = (off - ((s->header->data_off) << BDRV_SECTOR_BITS))
+            / (s->cluster_size);
+        if (reversed_bat[idx_host] != -1) { /* duplicated cluster */
+            fprintf(stderr, "%s cluster %u is duplicated (with cluster %u)\n",
+                    fix & BDRV_FIX_ERRORS ? "Repairing" : "ERROR",
+                    i, reversed_bat[idx_host]);
+            res->corruptions++;
+            res->bfi.allocated_clusters--; /* not to count this cluster twice */
+            if (fix & BDRV_FIX_ERRORS) {
+                /* copy data to new cluster */
+                sector_num = bat2sect(s, reversed_bat[idx_host]);
+                buf = g_malloc(s->cluster_size);
+                ret = bdrv_pread(bs->file, sector_num << BDRV_SECTOR_BITS,
+                                 buf, s->cluster_size);
+                if (ret < 0) {
+                    res->check_errors++;
+                    g_free(buf);
+                    goto out;
+                }
+
+                ret = bdrv_pwrite(bs->file, s->data_end << BDRV_SECTOR_BITS,
+                                  buf, s->cluster_size);
+                if (ret < 0) {
+                    res->check_errors++;
+                    g_free(buf);
+                    goto out;
+                }
+
+                s->bat_bitmap[i] = cpu_to_le32(s->data_end / s->off_multiplier);
+                s->data_end += s->tracks;
+                bitmap_set(s->bat_dirty_bmap,
+                           bat_entry_off(i) / s->bat_dirty_block, 1);
+                g_free(buf);
+
+                res->corruptions_fixed++;
+                flush_bat = true;
+
+                /* these values are invalid after repairing */
+                off = bat2sect(s, i) << BDRV_SECTOR_BITS;
+                idx_host = (off - ((s->header->data_off) << BDRV_SECTOR_BITS))
+                    / (s->cluster_size);
+                size = bdrv_getlength(bs->file->bs);
+                if (size < 0) {
+                    res->check_errors++;
+                    ret = size;
+                    goto out;
+                }
+            }
+        }
+
+        reversed_bat[idx_host] = i;
 
         /* cluster outside the image */
         if (off > size) {
@@ -473,7 +534,7 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
             high_off = off;
         }
 
-        if (prev_off != 0 && (prev_off + s->cluster_size) != off) {
+        if (prev_off != 0 && (off - prev_off) % s->cluster_size != 0) {
             res->bfi.fragmented_clusters++;
         }
         prev_off = off;
@@ -515,6 +576,7 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
     }
 
 out:
+    g_free(reversed_bat);
     qemu_co_mutex_unlock(&s->lock);
     return ret;
 }
