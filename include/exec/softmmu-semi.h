@@ -12,12 +12,27 @@
 
 #include "cpu.h"
 
+#ifdef TARGET_PPC64
+static inline uint64_t sh_swap64(CPUArchState *env, uint64_t val)
+{
+    return msr_le ? val : tswap64(val);
+}
+
+static inline uint32_t sh_swap32(CPUArchState *env, uint32_t val)
+{
+    return msr_le ? val : tswap32(val);
+}
+#else
+#define sh_swap64(env, val)     tswap64(val)
+#define sh_swap32(env, val)     tswap32(val)
+#endif
+
 static inline uint64_t softmmu_tget64(CPUArchState *env, target_ulong addr)
 {
     uint64_t val;
 
     cpu_memory_rw_debug(env_cpu(env), addr, (uint8_t *)&val, 8, 0);
-    return tswap64(val);
+    return sh_swap64(env, val);
 }
 
 static inline uint32_t softmmu_tget32(CPUArchState *env, target_ulong addr)
@@ -25,7 +40,7 @@ static inline uint32_t softmmu_tget32(CPUArchState *env, target_ulong addr)
     uint32_t val;
 
     cpu_memory_rw_debug(env_cpu(env), addr, (uint8_t *)&val, 4, 0);
-    return tswap32(val);
+    return sh_swap32(env, val);
 }
 
 static inline uint32_t softmmu_tget8(CPUArchState *env, target_ulong addr)
@@ -44,14 +59,14 @@ static inline uint32_t softmmu_tget8(CPUArchState *env, target_ulong addr)
 static inline void softmmu_tput64(CPUArchState *env,
                                   target_ulong addr, uint64_t val)
 {
-    val = tswap64(val);
+    val = sh_swap64(env, val);
     cpu_memory_rw_debug(env_cpu(env), addr, (uint8_t *)&val, 8, 1);
 }
 
 static inline void softmmu_tput32(CPUArchState *env,
                                   target_ulong addr, uint32_t val)
 {
-    val = tswap32(val);
+    val = sh_swap32(env, val);
     cpu_memory_rw_debug(env_cpu(env), addr, (uint8_t *)&val, 4, 1);
 }
 #define put_user_u64(arg, p) ({ softmmu_tput64(env, p, arg) ; 0; })
