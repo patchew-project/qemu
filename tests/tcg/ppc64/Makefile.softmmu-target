@@ -1,0 +1,56 @@
+#
+# PowerPC64 system tests
+#
+
+# For now, disable tests that are failing
+DISABLED_TESTS := memory
+DISABLED_EXTRA_RUNS := run-gdbstub-memory
+
+PPC64_SYSTEM_SRC=$(SRC_PATH)/tests/tcg/ppc64/system
+VPATH+=$(PPC64_SYSTEM_SRC)
+
+# These objects provide the basic boot code and helper functions for all tests
+CRT_PATH=$(PPC64_SYSTEM_SRC)/lib
+CRT_OBJS=boot.o
+
+LINK_SCRIPT=$(CRT_PATH)/powerpc.lds
+# NOTE: --build-id is stored before the first code section in the linked
+#       binary, which causes problems for most tests, that expect to
+#       begin at address 0.
+LDFLAGS=-Wl,-T$(LINK_SCRIPT) -Wl,--build-id=none -static -nostdlib \
+    $(CRT_OBJS) $(MINILIB_OBJS) -lgcc
+TESTS += $(filter-out $(DISABLED_TESTS),$(MULTIARCH_TESTS))
+EXTRA_RUNS += $(filter-out $(DISABLED_EXTRA_RUNS),$(MULTIARCH_RUNS))
+
+# NOTE: -Os doesn't work well with -Wl,--oformat=binary
+#       Some linker generated functions, such as savegpr*/restgpr*,
+#       end up being undefined.
+CFLAGS = -O -g -Wall -std=c99 -msoft-float -mno-vsx -mno-altivec \
+         -fno-stack-protector -ffreestanding \
+         -I $(PPC64_SYSTEM_SRC)/include $(MINILIB_INC) \
+         -mcpu=power8
+
+# Uncomment to test in LE
+# override EXTRA_CFLAGS += -mlittle-endian -mabi=elfv2
+
+# Leave the .elf files, to make debugging easier
+.PRECIOUS: $(CRT_OBJS) $(addsuffix .elf,$(TESTS))
+
+# Build CRT objects
+%.o: $(CRT_PATH)/%.S
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -x assembler-with-cpp -c $< -o $@
+
+# Build and link the tests
+
+# The .elf files are just for debugging
+%.elf: %.c $(LINK_SCRIPT) $(CRT_OBJS) $(MINILIB_OBJS)
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS)
+
+%: %.c %.elf $(LINK_SCRIPT) $(CRT_OBJS) $(MINILIB_OBJS)
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS) -Wl,--oformat=binary
+
+memory: CFLAGS+=-DCHECK_UNALIGNED=1
+
+# Running
+QEMU_BASE_MACHINE=-cpu power9 -M powernv9 -m 1G -vga none -nographic
+QEMU_OPTS+=$(QEMU_BASE_MACHINE) -serial chardev:output -bios
