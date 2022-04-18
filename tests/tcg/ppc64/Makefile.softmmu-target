@@ -5,22 +5,52 @@
 # For now, disable tests that are failing
 DISABLED_TESTS := memory
 DISABLED_EXTRA_RUNS := run-gdbstub-memory
+# Disable LE tests too
+DISABLED_TESTS += $(addsuffix -le, $(DISABLED_TESTS))
+DISABLED_EXTRA_RUNS += $(addsuffix -le, $(DISABLED_EXTRA_RUNS))
 
-PPC64_SYSTEM_SRC=$(SRC_PATH)/tests/tcg/ppc64/system
-VPATH+=$(PPC64_SYSTEM_SRC)
+PPC64_SRC := $(SRC_PATH)/tests/tcg/ppc64
+PPC64_SYSTEM_SRC := $(PPC64_SRC)/system
+VPATH += $(PPC64_SYSTEM_SRC)
 
 # These objects provide the basic boot code and helper functions for all tests
-CRT_PATH=$(PPC64_SYSTEM_SRC)/lib
-CRT_OBJS=boot.o
+CRT_PATH := $(PPC64_SYSTEM_SRC)/lib
+CRT_OBJS_BE := boot.o
+CRT_OBJS_LE := boot-le.o
+# NOTE: %-head.o replaces boot.o on PowerNV tests
+PNV_CRT_OBJS_BE := $(filter-out boot.o, $(CRT_OBJS_BE))
+PNV_CRT_OBJS_LE := $(filter-out boot-le.o, $(CRT_OBJS_LE))
 
-LINK_SCRIPT=$(CRT_PATH)/powerpc.lds
-# NOTE: --build-id is stored before the first code section in the linked
-#       binary, which causes problems for most tests, that expect to
-#       begin at address 0.
-LDFLAGS=-Wl,-T$(LINK_SCRIPT) -Wl,--build-id=none -static -nostdlib \
-    $(CRT_OBJS) $(MINILIB_OBJS) -lgcc
-TESTS += $(filter-out $(DISABLED_TESTS),$(MULTIARCH_TESTS))
-EXTRA_RUNS += $(filter-out $(DISABLED_EXTRA_RUNS),$(MULTIARCH_RUNS))
+MINILIB_OBJS_BE := $(MINILIB_OBJS)
+MINILIB_OBJS_LE := $(patsubst %.o, %-le.o, $(MINILIB_OBJS))
+
+# Add BE and LE tests
+
+# Each Microwatt/PowerNV test use its own head.S file and thus needs
+# different rules.
+PPC64BE_PNV_TESTS := mmu
+PPC64BE_PNV_ELFS := $(addsuffix .elf, $(PPC64BE_PNV_TESTS))
+PPC64LE_PNV_TESTS := $(addsuffix -le, $(PPC64BE_PNV_TESTS))
+PPC64LE_PNV_ELFS := $(addsuffix .elf, $(PPC64LE_PNV_TESTS))
+
+# Remaining test sources are assumed to be non-PowerNV tests
+PPC64_TEST_SRCS := $(wildcard $(PPC64_SYSTEM_SRC)/*.c)
+PPC64BE_TESTS := $(MULTIARCH_TESTS)
+PPC64BE_TESTS += $(filter-out $(PPC64BE_PNV_TESTS),\
+                 $(patsubst $(PPC64_SYSTEM_SRC)/%.c, %, $(PPC64_TEST_SRCS)))
+PPC64BE_ELFS := $(addsuffix .elf,$(PPC64BE_TESTS))
+PPC64LE_TESTS := $(addsuffix -le, $(PPC64BE_TESTS))
+PPC64LE_ELFS := $(addsuffix .elf,$(PPC64LE_TESTS))
+
+TESTS += $(filter-out $(DISABLED_TESTS), $(PPC64BE_TESTS) $(PPC64LE_TESTS))
+TESTS += $(PPC64BE_PNV_TESTS) $(PPC64LE_PNV_TESTS)
+
+MULTIARCH_RUNS_BE := $(MULTIARCH_RUNS)
+MULTIARCH_RUNS_LE := $(addsuffix -le, $(MULTIARCH_RUNS))
+EXTRA_RUNS += $(filter-out $(DISABLED_EXTRA_RUNS), \
+                           $(MULTIARCH_RUNS_BE) $(MULTIARCH_RUNS_LE))
+
+LINK_SCRIPT := $(CRT_PATH)/powerpc.lds
 
 # NOTE: -Os doesn't work well with -Wl,--oformat=binary
 #       Some linker generated functions, such as savegpr*/restgpr*,
@@ -30,27 +60,66 @@ CFLAGS = -O -g -Wall -std=c99 -msoft-float -mno-vsx -mno-altivec \
          -I $(PPC64_SYSTEM_SRC)/include $(MINILIB_INC) \
          -mcpu=power8
 
-# Uncomment to test in LE
-# override EXTRA_CFLAGS += -mlittle-endian -mabi=elfv2
+# NOTE: --build-id is stored before the first code section in the linked
+#       binary, which causes problems for most tests, that expect to
+#       begin at address 0.
+LDFLAGS = -Wl,-T$(LINK_SCRIPT) -Wl,--build-id=none -static -nostdlib \
+    $(CRT_OBJS) $(MINILIB_OBJS) -lgcc
+
+memory memory-le: CFLAGS+=-DCHECK_UNALIGNED=1
+
+# PowerNV tests build outputs
+PPC64BE_PNV_OUTPUTS := $(PPC64BE_PNV_TESTS) $(PPC64BE_PNV_ELFS)
+PPC64LE_PNV_OUTPUTS := $(PPC64LE_PNV_TESTS) $(PPC64LE_PNV_ELFS)
+# Non-PowerNV tests build outputs
+PPC64BE_OUTPUTS := $(PPC64BE_TESTS) $(PPC64BE_ELFS)
+PPC64LE_OUTPUTS := $(PPC64LE_TESTS) $(PPC64LE_ELFS)
+# Outputs of all tests
+PPC64BE_ALL_OUTPUTS := $(PPC64BE_OUTPUTS) $(PPC64BE_PNV_OUTPUTS)
+PPC64LE_ALL_OUTPUTS := $(PPC64LE_OUTPUTS) $(PPC64LE_PNV_OUTPUTS)
+
+PPC64_CFLAGS = $(CFLAGS) $(EXTRA_CFLAGS) $(PPC64LE_CFLAGS)
 
 # Leave the .elf files, to make debugging easier
-.PRECIOUS: $(CRT_OBJS) $(addsuffix .elf,$(TESTS))
+.PRECIOUS: $(CRT_OBJS_BE) $(CRT_OBJS_LE) $(addsuffix .elf,$(TESTS))
 
-# Build CRT objects
-%.o: $(CRT_PATH)/%.S
-	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -x assembler-with-cpp -c $< -o $@
+# BE rules
 
-# Build and link the tests
+LE_SUFFIX :=
+CRT_DEPS := $(CRT_OBJS_BE)
+MINILIB_DEPS := $(MINILIB_OBJS_BE)
+PPC64_PNV_ELFS := $(PPC64BE_PNV_ELFS)
+PPC64_PNV_TESTS := $(PPC64BE_PNV_TESTS)
 
-# The .elf files are just for debugging
-%.elf: %.c $(LINK_SCRIPT) $(CRT_OBJS) $(MINILIB_OBJS)
-	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS)
+$(PPC64BE_ALL_OUTPUTS): LE_SUFFIX =
+$(PPC64BE_ALL_OUTPUTS): PPC64LE_CFLAGS =
+$(PPC64BE_OUTPUTS): CRT_OBJS = $(CRT_OBJS_BE)
+$(PPC64BE_PNV_OUTPUTS): CRT_OBJS = $(PNV_CRT_OBJS_BE)
+$(PPC64BE_ALL_OUTPUTS): MINILIB_OBJS = $(MINILIB_OBJS_BE)
 
-%: %.c %.elf $(LINK_SCRIPT) $(CRT_OBJS) $(MINILIB_OBJS)
-	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS) -Wl,--oformat=binary
+include $(PPC64_SRC)/Makefile.softmmu-rules
 
-memory: CFLAGS+=-DCHECK_UNALIGNED=1
+# LE rules
+
+LE_SUFFIX := -le
+CRT_DEPS := $(CRT_OBJS_LE)
+MINILIB_DEPS := $(MINILIB_OBJS_LE)
+PPC64_PNV_ELFS := $(PPC64LE_PNV_ELFS)
+PPC64_PNV_TESTS := $(PPC64LE_PNV_TESTS)
+
+$(PPC64LE_ALL_OUTPUTS): LE_SUFFIX = -le
+$(PPC64LE_ALL_OUTPUTS): PPC64LE_CFLAGS = -mlittle-endian -mabi=elfv2
+$(PPC64LE_OUTPUTS): CRT_OBJS = $(CRT_OBJS_LE)
+$(PPC64LE_PNV_OUTPUTS): CRT_OBJS = $(PNV_CRT_OBJS_LE)
+$(PPC64LE_ALL_OUTPUTS): MINILIB_OBJS = $(MINILIB_OBJS_LE)
+
+include $(PPC64_SRC)/Makefile.softmmu-rules
+
+# Build LE Minilib objs
+%-le.o: $(SYSTEM_MINILIB_SRC)/%.c
+	$(CC) $(PPC64_CFLAGS) -c $< -o $@
 
 # Running
 QEMU_BASE_MACHINE=-cpu power9 -M powernv9 -m 1G -vga none -nographic
-QEMU_OPTS+=$(QEMU_BASE_MACHINE) -serial chardev:output -bios
+QEMU_OPTS+=$(QEMU_BASE_MACHINE) -semihosting-config \
+    enable=on,target=native,chardev=output -bios

@@ -1,0 +1,34 @@
+#
+# Rules to build PowerPC64 softmmu tests, for both BE and LE
+#
+
+# Build CRT and test objects
+%$(LE_SUFFIX).o: $(CRT_PATH)/%.S
+	$(CC) $(PPC64_CFLAGS) -x assembler-with-cpp -c $< -o $@
+
+%$(LE_SUFFIX).o: %.S
+	$(CC) $(PPC64_CFLAGS) -x assembler-with-cpp -c $< -o $@
+
+%$(LE_SUFFIX).o: $(CRT_PATH)/%.c
+	$(CC) $(PPC64_CFLAGS) -c $< -o $@
+
+%$(LE_SUFFIX).o: %.c
+	$(CC) $(PPC64_CFLAGS) -c $< -o $@
+
+# Build .elf files for debugging
+%$(LE_SUFFIX).elf: %$(LE_SUFFIX).o $(LINK_SCRIPT) $(CRT_DEPS) $(MINILIB_DEPS)
+	$(CC) $(PPC64_CFLAGS) -o $@ $< $(LDFLAGS)
+
+$(PPC64_PNV_ELFS): %$(LE_SUFFIX).elf: %-head$(LE_SUFFIX).o %$(LE_SUFFIX).o \
+                    $(LINK_SCRIPT) $(CRT_DEPS) $(MINILIB_DEPS)
+	$(CC) $(PPC64_CFLAGS) -o $@ $< $*$(LE_SUFFIX).o $(LDFLAGS)
+
+# Build test binaries
+%$(LE_SUFFIX): %$(LE_SUFFIX).o $(LINK_SCRIPT) $(CRT_DEPS) $(MINILIB_DEPS) \
+               %$(LE_SUFFIX).elf
+	$(CC) $(PPC64_CFLAGS) -o $@ $< $(LDFLAGS) -Wl,--oformat=binary
+
+$(PPC64_PNV_TESTS): %$(LE_SUFFIX): %-head$(LE_SUFFIX).o %$(LE_SUFFIX).o \
+                    $(LINK_SCRIPT) $(CRT_DEPS) $(MINILIB_DEPS) %$(LE_SUFFIX).elf
+	$(CC) $(PPC64_CFLAGS) -o $@ $< $*$(LE_SUFFIX).o $(LDFLAGS) \
+				-Wl,--oformat=binary
