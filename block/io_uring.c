@@ -435,8 +435,16 @@ LuringState *luring_init(Error **errp)
     }
 
     ioq_init(&s->io_q);
-    return s;
+    if (io_uring_register_ring_fd(&s->ring) < 0) {
+        /*
+         * Only warn about this error: we will fallback to the non-optimized
+         * io_uring operations.
+         */
+        error_setg_errno(errp, errno,
+                         "failed to register linux io_uring ring file descriptor");
+    }
 
+    return s;
 }
 
 void luring_cleanup(LuringState *s)
