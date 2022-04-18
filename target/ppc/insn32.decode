@@ -91,6 +91,9 @@
 
 @X_tp_a_bp_rc   ...... ....0 ra:5 ....0 .......... rc:1         &X_rc rt=%x_frtp rb=%x_frbp
 
+&X_t            rt
+@X_t            ...... rt:5 ..... ..... .......... .            &X_t
+
 &X_t_rc         rt rc:bool
 @X_t_rc         ...... rt:5 ..... ..... .......... rc:1         &X_t_rc
 
@@ -318,6 +321,7 @@ SETNBCR         011111 ..... ..... ----- 0111100000 -   @X_bi
 ### Move To/From FPSCR
 
 MFFS            111111 ..... 00000 ----- 1001000111 .   @X_t_rc
+MFFSL           111111 ..... 11000 ----- 1001000111 -   @X_t
 
 ### Decimal Floating-Point Arithmetic Instructions
 
