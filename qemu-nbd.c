@@ -147,7 +147,11 @@ static void usage(const char *name)
 "      --cache=MODE          set cache mode used to access the disk image, the\n"
 "                            valid options are: 'none', 'writeback' (default),\n"
 "                            'writethrough', 'directsync' and 'unsafe'\n"
+#ifdef CONFIG_LINUX_IO_URING
 "      --aio=MODE            set AIO mode (native, io_uring or threads)\n"
+#else
+"      --aio=MODE            set AIO mode (native or threads)\n"
+#endif
 "      --discard=MODE        set discard mode (ignore, unmap)\n"
 "      --detect-zeroes=MODE  set detect-zeroes mode (off, on, unmap)\n"
 "      --image-opts          treat FILE as a full set of image options\n"
