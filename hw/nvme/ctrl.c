@@ -6862,6 +6862,8 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
         ns = &n->namespace;
         ns->params.nsid = 1;
 
+        nvme_ns_set_eui64(ns);
+
         if (nvme_ns_setup(ns, errp)) {
             return;
         }

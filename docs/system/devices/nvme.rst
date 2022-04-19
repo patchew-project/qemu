@@ -84,8 +84,10 @@ There are a number of parameters available:
 ``eui64``
   Set the EUI-64 of the namespace. This will be reported as a "IEEE Extended
   Unique Identifier" descriptor in the Namespace Identification Descriptor List.
-  Since machine type 6.1 a non-zero default value is used if the parameter
-  is not provided. For earlier machine types the field defaults to 0.
+  Since machine type 6.1, an EUI-64 is auto-generated. However, note that this
+  auto-generated value is dependent on the order with which the namespaces are
+  created. If you intend on adding/removing namespaces on your VM, set this
+  parameter explicitly. For earlier machine types the field defaults to 0.
 
 ``bus``
   If there are more ``nvme`` devices defined, this parameter may be used to
