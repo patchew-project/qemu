@@ -65,7 +65,13 @@ static int mp_pacl_removexattr(FsContext *ctx,
     int ret;
 
     ret = local_removexattr_nofollow(ctx, path, MAP_ACL_ACCESS);
-    if (ret == -1 && errno == ENODATA) {
+    if (ret == -1 &&
+          (errno == ENODATA
+#ifdef ENOATTR
+          || errno == ENOATTR
+#endif
+          )
+    ) {
         /*
          * We don't get ENODATA error when trying to remove a
          * posix acl that is not present. So don't throw the error
