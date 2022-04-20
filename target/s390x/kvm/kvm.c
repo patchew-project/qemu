@@ -63,6 +63,8 @@
     }                                         \
 } while (0)
 
+#include "qemu/error-report.h"
+
 #define kvm_vm_check_mem_attr(s, attr) \
     kvm_vm_check_attr(s, KVM_S390_VM_MEM_CTRL, attr)
 
@@ -2591,21 +2593,56 @@ static void kvm_s390_set_mtr(uint64_t attr)
         .group = KVM_S390_VM_CPU_TOPOLOGY,
         .attr  = attr,
     };
+    int ret;
 
-    int ret = kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attribute);
-
+    ret = kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attribute);
     if (ret) {
         error_report("Failed to set cpu topology attribute %lu: %s",
                      attr, strerror(-ret));
     }
 }
 
-static void kvm_s390_reset_mtr(void)
+int s390_cpu_topology_mtcr_set(uint16_t mtcr)
 {
     uint64_t attr = KVM_S390_VM_CPU_TOPO_MTR_CLEAR;
 
+    attr = mtcr ? KVM_S390_VM_CPU_TOPO_MTR_SET :
+                  KVM_S390_VM_CPU_TOPO_MTR_CLEAR;
+
     if (kvm_vm_check_attr(kvm_state, KVM_S390_VM_CPU_TOPOLOGY, attr)) {
             kvm_s390_set_mtr(attr);
+    }
+
+    return 0;
+}
+
+int s390_cpu_topology_mtcr_get(uint16_t *mtcr)
+{
+    struct kvm_s390_cpu_topology topology;
+    struct kvm_device_attr attribute = {
+        .group = KVM_S390_VM_CPU_TOPOLOGY,
+        .addr = (uint64_t)&topology,
+    };
+    int ret;
+
+    if (!kvm_vm_check_attr(kvm_state, KVM_S390_VM_CPU_TOPOLOGY, 0)) {
+        return -ENODEV;
+    }
+
+    ret = kvm_vm_ioctl(kvm_state, KVM_GET_DEVICE_ATTR, &attribute);
+    if (ret) {
+        error_report("Failed to get cpu topology");
+        return ret;
+    }
+    *mtcr = topology.mtcr;
+    return 0;
+}
+
+static void kvm_s390_reset_mtr(void)
+{
+    if (kvm_vm_check_attr(kvm_state, KVM_S390_VM_CPU_TOPOLOGY,
+                          KVM_S390_VM_CPU_TOPO_MTR_CLEAR)) {
+            kvm_s390_set_mtr(KVM_S390_VM_CPU_TOPO_MTR_CLEAR);
     }
 }
 

@@ -19,6 +19,8 @@
 #include "qemu/typedefs.h"
 #include "target/s390x/cpu.h"
 #include "hw/s390x/s390-virtio-ccw.h"
+#include "migration/vmstate.h"
+#include "qemu/error-report.h"
 
 static S390TopologyCores *s390_create_cores(S390TopologySocket *socket,
                                             int origin)
@@ -566,6 +568,45 @@ static void s390_topology_reset(DeviceState *dev)
     s390_cpu_topology_mtr_reset();
 }
 
+static int cpu_topology_postload(void *opaque, int version_id)
+{
+    S390TopologyNode *node = opaque;
+
+    if (node->topology_needed != s390_has_feat(S390_FEAT_CONFIGURATION_TOPOLOGY)) {
+        return -EINVAL;
+    }
+
+    return s390_cpu_topology_mtcr_set(node->mtcr);
+}
+
+static int cpu_topology_presave(void *opaque)
+{
+    S390TopologyNode *node = opaque;
+
+    node->topology_needed = s390_has_feat(S390_FEAT_CONFIGURATION_TOPOLOGY);
+    return s390_cpu_topology_mtcr_get(&node->mtcr);
+}
+
+static bool cpu_topology_needed(void *opaque)
+{
+    return s390_has_feat(S390_FEAT_CONFIGURATION_TOPOLOGY);
+}
+
+
+const VMStateDescription vmstate_cpu_topology = {
+    .name = "cpu_topology",
+    .version_id = 1,
+    .pre_save = cpu_topology_presave,
+    .post_load = cpu_topology_postload,
+    .minimum_version_id = 1,
+    .needed = cpu_topology_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT16(mtcr, S390TopologyNode),
+        VMSTATE_BOOL(topology_needed, S390TopologyNode),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void node_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -576,6 +617,7 @@ static void node_class_init(ObjectClass *oc, void *data)
     dc->realize = s390_node_device_realize;
     dc->desc = "topology node";
     dc->reset = s390_topology_reset;
+    dc->vmsd = &vmstate_cpu_topology;
 }
 
 static const TypeInfo node_info = {
