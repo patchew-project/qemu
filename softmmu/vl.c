@@ -723,6 +723,9 @@ static QemuOptsList qemu_smp_opts = {
             .name = "cpus",
             .type = QEMU_OPT_NUMBER,
         }, {
+            .name = "books",
+            .type = QEMU_OPT_NUMBER,
+        }, {
             .name = "sockets",
             .type = QEMU_OPT_NUMBER,
         }, {
