@@ -328,11 +328,10 @@ static void ga_log(const gchar *domain, GLogLevelFlags level,
 #else
     if (level & s->log_level) {
 #endif
-        gint64 t = g_get_real_time();
+        int64_t t = g_get_real_time();
         fprintf(s->log_file,
-                "%" G_GINT64_FORMAT ".%" G_GINT64_FORMAT
-                ": %s: %s\n", t / G_USEC_PER_SEC, t % G_USEC_PER_SEC,
-                level_str, msg);
+                "%" PRId64 ".%06" PRId64 ": %s: %s\n",
+                t / G_USEC_PER_SEC, t % G_USEC_PER_SEC, level_str, msg);
         fflush(s->log_file);
     }
 }
