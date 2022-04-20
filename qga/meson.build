@@ -122,12 +122,12 @@ if targetos == 'windows'
                             depends: deps,
                             command: [
                               find_program('env'),
-                              'QEMU_GA_VERSION=' + config_host['QEMU_GA_VERSION'],
                               'QEMU_GA_DISTRO=' + config_host['QEMU_GA_DISTRO'],
                               'BUILD_DIR=' + meson.build_root(),
                               wixl, '-o', '@OUTPUT0@', '@INPUT0@',
                               qemu_ga_msi_arch[cpu],
                               qemu_ga_msi_vss,
+                              '-D', 'QEMU_GA_VERSION=' + meson.project_version(),
                             ])
     all_qga += [qga_msi]
     alias_target('msi', qga_msi)
