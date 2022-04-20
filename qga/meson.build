@@ -123,7 +123,6 @@ if targetos == 'windows'
                             command: [
                               find_program('env'),
                               'QEMU_GA_VERSION=' + config_host['QEMU_GA_VERSION'],
-                              'QEMU_GA_MANUFACTURER=' + config_host['QEMU_GA_MANUFACTURER'],
                               'QEMU_GA_DISTRO=' + config_host['QEMU_GA_DISTRO'],
                               'BUILD_DIR=' + meson.build_root(),
                               wixl, '-o', '@OUTPUT0@', '@INPUT0@',
