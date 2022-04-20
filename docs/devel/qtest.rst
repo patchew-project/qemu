@@ -17,8 +17,8 @@ QTest cases can be executed with
 
    make check-qtest
 
-The QTest library is implemented by ``tests/qtest/libqtest.c`` and the API is
-defined in ``tests/qtest/libqtest.h``.
+The QTest library is implemented by ``tests/qtest/libqos/libqtest.c`` and the API is
+defined in ``tests/qtest/libqos/libqtest.h``.
 
 Consider adding a new QTest case when you are introducing a new virtual
 hardware, or extending one if you are adding functionalities to an existing

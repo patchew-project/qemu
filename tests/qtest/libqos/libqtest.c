@@ -20,7 +20,7 @@
 #include <sys/wait.h>
 #include <sys/un.h>
 
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 #include "qemu/ctype.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
@@ -268,7 +268,7 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
     /* It's possible that if an earlier test run crashed it might
      * have left a stale unix socket lying around. Delete any
      * stale old socket to avoid spurious test failures with
-     * tests/libqtest.c:70:init_socket: assertion failed (ret != -1): (-1 != -1)
+     * libqtest.c:70:init_socket: assertion failed (ret != -1): (-1 != -1)
      */
     unlink(socket_path);
     unlink(qmp_socket_path);
