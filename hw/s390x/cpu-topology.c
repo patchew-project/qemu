@@ -127,15 +127,14 @@ void s390_topology_new_cpu(int core_id)
     S390TopologyBook *book;
     S390TopologySocket *socket;
     S390TopologyCores *cores;
-    int cores_per_socket, sock_idx;
     int origin, bit;
+    int nb_cores_per_socket;
 
     book = s390_get_topology();
 
-    cores_per_socket = ms->smp.max_cpus / ms->smp.sockets;
-
-    sock_idx = (core_id / cores_per_socket);
-    socket = s390_get_socket(book, sock_idx);
+    /* Cores for the S390 topology are cores and threads of the QEMU topology */
+    nb_cores_per_socket = ms->smp.cores * ms->smp.threads;
+    socket = s390_get_socket(book, core_id / nb_cores_per_socket);
 
     /*
      * At the core level, each CPU is represented by a bit in a 64bit
@@ -151,12 +150,11 @@ void s390_topology_new_cpu(int core_id)
      * CPU inside several CPU containers inside the socket container.
      */
     origin = 64 * (core_id / 64);
-
     cores = s390_get_cores(socket, origin);
+    cores->origin = origin;
 
     bit = 63 - (core_id - origin);
     set_bit(bit, &cores->mask);
-    cores->origin = origin;
 }
 
 /*
