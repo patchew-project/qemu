@@ -92,6 +92,16 @@ hosted on Linux (Debian/Fedora).
 The version of the Windows API that's currently targeted is Vista / Server
 2008.
 
+Supported compilers
+-------------------
+
+To compile, QEMU requires either:
+
+- GCC >= 7.4.0
+- Clang >= 6.0
+- XCode Clang >= 10.0
+
+
 .. _HomeBrew: https://brew.sh/
 .. _MacPorts: https://www.macports.org/
 .. _Repology: https://repology.org/
