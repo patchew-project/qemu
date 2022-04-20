@@ -68,18 +68,29 @@ OBJECT_DECLARE_SIMPLE_TYPE(S390TopologyBook, S390_TOPOLOGY_BOOK)
 #define TYPE_S390_TOPOLOGY_DRAWER "topology drawer"
 #define TYPE_S390_TOPOLOGY_DRAWER_BUS "drawer-bus"
 struct S390TopologyDrawer {
-    SysBusDevice parent_obj;
+    DeviceState parent_obj;
     BusState *bus;
     uint8_t drawer_id;
     int cnt;
 };
 typedef struct S390TopologyDrawer S390TopologyDrawer;
 OBJECT_DECLARE_SIMPLE_TYPE(S390TopologyDrawer, S390_TOPOLOGY_DRAWER)
-#define S390_MAX_DRAWERS 1
+#define S390_MAX_DRAWERS 4
 
-S390TopologyDrawer *s390_init_topology(void);
+#define TYPE_S390_TOPOLOGY_NODE "topology node"
+#define TYPE_S390_TOPOLOGY_NODE_BUS "node-bus"
+struct S390TopologyNode {
+    SysBusDevice parent_obj;
+    BusState *bus;
+    uint8_t node_id;
+    int cnt;
+};
+typedef struct S390TopologyNode S390TopologyNode;
+OBJECT_DECLARE_SIMPLE_TYPE(S390TopologyNode, S390_TOPOLOGY_NODE)
+#define S390_MAX_NODES 1
 
-S390TopologyDrawer *s390_get_topology(void);
+S390TopologyNode *s390_init_topology(void);
+S390TopologyNode *s390_get_topology(void);
 void s390_topology_setup(MachineState *ms);
 void s390_topology_new_cpu(int core_id);
 

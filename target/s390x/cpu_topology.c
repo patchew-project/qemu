@@ -77,36 +77,64 @@ static int set_book(const MachineState *ms, void *p,
     return len;
 }
 
+static int set_drawer(const MachineState *ms, void *p,
+                      S390TopologyDrawer *drawer, int level)
+{
+    BusChild *kid;
+    int l, len = 0;
+
+    if (level >= 4) {
+        len += stsi_15_container(p, 3, drawer->drawer_id);
+        p += len;
+    }
+
+    QTAILQ_FOREACH_REVERSE(kid, &drawer->bus->children, sibling) {
+        l = set_book(ms, p, S390_TOPOLOGY_BOOK(kid->child), level);
+        p += l;
+        len += l;
+    }
+
+    return len;
+}
+
 static void setup_stsi(const MachineState *ms, void *p, int level)
 {
-    S390TopologyDrawer *drawer;
+    S390TopologyNode *node;
     SysIB_151x *sysib;
     BusChild *kid;
-    int nb_sockets, nb_books;
+    int nb_sockets, nb_books, nb_drawers;
     int len, l;
 
     sysib = (SysIB_151x *)p;
     sysib->mnest = level;
     switch (level) {
     case 2:
+        nb_drawers = 0;
         nb_books = 0;
-        nb_sockets = ms->smp.sockets * ms->smp.books;
+        nb_sockets = ms->smp.sockets * ms->smp.books * ms->smp.drawers;
         break;
     case 3:
+        nb_drawers = 0;
+        nb_books = ms->smp.books * ms->smp.drawers;
+        nb_sockets = ms->smp.sockets;
+        break;
+    case 4:
+        nb_drawers = ms->smp.drawers;
         nb_books = ms->smp.books;
         nb_sockets = ms->smp.sockets;
         break;
     }
+    sysib->mag[TOPOLOGY_NR_MAG4] = nb_drawers;
     sysib->mag[TOPOLOGY_NR_MAG3] = nb_books;
     sysib->mag[TOPOLOGY_NR_MAG2] = nb_sockets;
     sysib->mag[TOPOLOGY_NR_MAG1] = ms->smp.cores * ms->smp.threads;
 
-    drawer = s390_get_topology();
+    node = s390_get_topology();
     len = sizeof(SysIB_151x);
     p += len;
 
-    QTAILQ_FOREACH_REVERSE(kid, &drawer->bus->children, sibling) {
-        l = set_book(ms, p, S390_TOPOLOGY_BOOK(kid->child), level);
+    QTAILQ_FOREACH_REVERSE(kid, &node->bus->children, sibling) {
+        l = set_drawer(ms, p, S390_TOPOLOGY_DRAWER(kid->child), level);
         p += l;
         len += l;
     }
