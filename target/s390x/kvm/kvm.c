@@ -2584,3 +2584,34 @@ bool kvm_arch_cpu_check_are_resettable(void)
 {
     return true;
 }
+
+static void kvm_s390_set_mtr(uint64_t attr)
+{
+    struct kvm_device_attr attribute = {
+        .group = KVM_S390_VM_CPU_TOPOLOGY,
+        .attr  = attr,
+    };
+
+    int ret = kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attribute);
+
+    if (ret) {
+        error_report("Failed to set cpu topology attribute %lu: %s",
+                     attr, strerror(-ret));
+    }
+}
+
+static void kvm_s390_reset_mtr(void)
+{
+    uint64_t attr = KVM_S390_VM_CPU_TOPO_MTR_CLEAR;
+
+    if (kvm_vm_check_attr(kvm_state, KVM_S390_VM_CPU_TOPOLOGY, attr)) {
+            kvm_s390_set_mtr(attr);
+    }
+}
+
+void kvm_s390_cpu_topology_reset(void)
+{
+    if (s390_has_feat(S390_FEAT_CONFIGURATION_TOPOLOGY)) {
+        kvm_s390_reset_mtr();
+    }
+}

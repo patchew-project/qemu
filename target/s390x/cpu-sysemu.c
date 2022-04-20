@@ -306,3 +306,10 @@ void s390_do_cpu_set_diag318(CPUState *cs, run_on_cpu_data arg)
         kvm_s390_set_diag318(cs, arg.host_ulong);
     }
 }
+
+void s390_cpu_topology_mtr_reset(void)
+{
+    if (kvm_enabled()) {
+        kvm_s390_cpu_topology_reset();
+    }
+}

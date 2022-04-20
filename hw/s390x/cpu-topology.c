@@ -561,6 +561,11 @@ static void s390_node_device_realize(DeviceState *dev, Error **errp)
     qbus_set_hotplug_handler(bus, OBJECT(dev));
 }
 
+static void s390_topology_reset(DeviceState *dev)
+{
+    s390_cpu_topology_mtr_reset();
+}
+
 static void node_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -570,6 +575,7 @@ static void node_class_init(ObjectClass *oc, void *data)
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->realize = s390_node_device_realize;
     dc->desc = "topology node";
+    dc->reset = s390_topology_reset;
 }
 
 static const TypeInfo node_info = {
