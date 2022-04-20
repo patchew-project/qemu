@@ -1167,11 +1167,14 @@ int kvm_vm_check_extension(KVMState *s, unsigned int extension)
     return ret;
 }
 
+#ifdef KVM_HAVE_MCE_INJECTION
 typedef struct HWPoisonPage {
     ram_addr_t ram_addr;
+    size_t page_size; /* normal page or hugeTLB page? */
     QLIST_ENTRY(HWPoisonPage) list;
 } HWPoisonPage;
 
+/* hwpoison_page_list stores the poisoned pages, unpoison them during reset */
 static QLIST_HEAD(, HWPoisonPage) hwpoison_page_list =
     QLIST_HEAD_INITIALIZER(hwpoison_page_list);
 
@@ -1181,24 +1184,47 @@ static void kvm_unpoison_all(void *param)
 
     QLIST_FOREACH_SAFE(page, &hwpoison_page_list, list, next_page) {
         QLIST_REMOVE(page, list);
-        qemu_ram_remap(page->ram_addr, TARGET_PAGE_SIZE);
+        qemu_ram_remap(page->ram_addr, page->page_size);
         g_free(page);
     }
 }
 
-void kvm_hwpoison_page_add(ram_addr_t ram_addr)
+static void kvm_hwpoison_page_add(CPUState *cpu, int sigbus_code, void *addr)
 {
     HWPoisonPage *page;
+    ram_addr_t ram_addr, align_ram_addr;
+    ram_addr_t offset;
+    hwaddr paddr;
+    size_t page_size;
 
+    assert(sigbus_code == BUS_MCEERR_AR || sigbus_code == BUS_MCEERR_AO);
+    ram_addr = qemu_ram_addr_from_host(addr);
+    if (ram_addr == RAM_ADDR_INVALID ||
+        !kvm_physical_memory_addr_from_host(cpu->kvm_state, addr, &paddr)) {
+        /* only deal with valid guest RAM here */
+        return;
+    }
+
+    /* get page size of RAM block, test it's a normal page or huge page */
+    page_size = qemu_ram_block_from_host(addr, false, &offset)->page_size;
+    align_ram_addr = QEMU_ALIGN_DOWN(ram_addr, page_size);
     QLIST_FOREACH(page, &hwpoison_page_list, list) {
-        if (page->ram_addr == ram_addr) {
+        if (page->ram_addr == align_ram_addr) {
+            assert(page->page_size == page_size);
             return;
         }
     }
-    page = g_new(HWPoisonPage, 1);
-    page->ram_addr = ram_addr;
+
+    page = g_new0(HWPoisonPage, 1);
+    page->ram_addr = align_ram_addr;
+    page->page_size = page_size;
     QLIST_INSERT_HEAD(&hwpoison_page_list, page, list);
 }
+
+static __thread void *pending_sigbus_addr;
+static __thread int pending_sigbus_code;
+static __thread bool have_sigbus_pending;
+#endif
 
 static uint32_t adjust_ioeventfd_endianness(uint32_t val, uint32_t size)
 {
@@ -2601,7 +2627,9 @@ static int kvm_init(MachineState *ms)
         s->kernel_irqchip_split = mc->default_kernel_irqchip_split ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
     }
 
+#if defined KVM_HAVE_MCE_INJECTION
     qemu_register_reset(kvm_unpoison_all, NULL);
+#endif
 
     if (s->kernel_irqchip_allowed) {
         kvm_irqchip_create(s);
@@ -2782,12 +2810,6 @@ void kvm_cpu_synchronize_pre_loadvm(CPUState *cpu)
     run_on_cpu(cpu, do_kvm_cpu_synchronize_pre_loadvm, RUN_ON_CPU_NULL);
 }
 
-#ifdef KVM_HAVE_MCE_INJECTION
-static __thread void *pending_sigbus_addr;
-static __thread int pending_sigbus_code;
-static __thread bool have_sigbus_pending;
-#endif
-
 static void kvm_cpu_kick(CPUState *cpu)
 {
     qatomic_set(&cpu->kvm_run->immediate_exit, 1);
@@ -2883,6 +2905,8 @@ int kvm_cpu_exec(CPUState *cpu)
 #ifdef KVM_HAVE_MCE_INJECTION
         if (unlikely(have_sigbus_pending)) {
             qemu_mutex_lock_iothread();
+            kvm_hwpoison_page_add(cpu, pending_sigbus_code,
+                                  pending_sigbus_addr);
             kvm_arch_on_sigbus_vcpu(cpu, pending_sigbus_code,
                                     pending_sigbus_addr);
             have_sigbus_pending = false;
@@ -3436,6 +3460,7 @@ int kvm_on_sigbus(int code, void *addr)
      * we can only get action optional here.
      */
     assert(code != BUS_MCEERR_AR);
+    kvm_hwpoison_page_add(first_cpu, code, addr);
     kvm_arch_on_sigbus_vcpu(first_cpu, code, addr);
     return 0;
 #else
