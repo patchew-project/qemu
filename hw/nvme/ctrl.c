@@ -2786,6 +2786,10 @@ static void nvme_copy_in_completed_cb(void *opaque, int ret)
         size_t mlen = nvme_m2b(ns, nlb);
         uint8_t *mbounce = iocb->bounce + nvme_l2b(ns, nlb);
 
+        status = nvme_dif_mangle_mdata(ns, mbounce, mlen, reftag);
+        if (status) {
+            goto invalid;
+        }
         status = nvme_dif_check(ns, iocb->bounce, len, mbounce, mlen, prinfor,
                                 slba, apptag, appmask, &reftag);
         if (status) {
@@ -2804,6 +2808,7 @@ static void nvme_copy_in_completed_cb(void *opaque, int ret)
             nvme_dif_pract_generate_dif(ns, iocb->bounce, len, mbounce, mlen,
                                         apptag, &iocb->reftag);
         } else {
+            nvme_dif_restore_reftag(ns, mbounce, mlen, iocb->reftag);
             status = nvme_dif_check(ns, iocb->bounce, len, mbounce, mlen,
                                     prinfow, iocb->slba, apptag, appmask,
                                     &iocb->reftag);

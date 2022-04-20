@@ -186,6 +186,8 @@ uint16_t nvme_dif_check(NvmeNamespace *ns, uint8_t *buf, size_t len,
                         uint8_t *mbuf, size_t mlen, uint8_t prinfo,
                         uint64_t slba, uint16_t apptag,
                         uint16_t appmask, uint64_t *reftag);
+void nvme_dif_restore_reftag(NvmeNamespace *ns, uint8_t *mbuf,
+                             size_t mlen, uint64_t reftag);
 bool nvme_dif_is_disabled(NvmeNamespace *ns, NvmeDifTuple *dif);
 uint16_t nvme_dif_rw(NvmeCtrl *n, NvmeRequest *req);
 

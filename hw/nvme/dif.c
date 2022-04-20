@@ -380,6 +380,71 @@ uint16_t nvme_dif_check(NvmeNamespace *ns, uint8_t *buf, size_t len,
     return NVME_SUCCESS;
 }
 
+static void nvme_dif_restore_reftag_crc16(NvmeNamespace *ns, uint8_t *mbuf,
+                                          size_t mlen, uint64_t reftag,
+                                          int16_t pil)
+{
+    uint8_t *mbufp, *end = mbuf + mlen;
+
+    for (mbufp = mbuf; mbufp < end; mbufp += ns->lbaf.ms) {
+        NvmeDifTuple *dif = (NvmeDifTuple *)(mbufp + pil);
+
+        if (!nvme_dif_is_disabled_crc16(ns, dif)) {
+            dif->g16.reftag = cpu_to_be32(reftag++);
+        }
+
+    }
+
+    return;
+}
+
+static void nvme_dif_restore_reftag_crc64(NvmeNamespace *ns, uint8_t *mbuf,
+                                          size_t mlen, uint64_t reftag,
+                                          int16_t pil)
+{
+    uint8_t *mbufp, *end = mbuf + mlen;
+
+    for (mbufp = mbuf; mbufp < end; mbufp += ns->lbaf.ms) {
+        NvmeDifTuple *dif = (NvmeDifTuple *)(mbufp + pil);
+
+        if (!nvme_dif_is_disabled_crc64(ns, dif)) {
+            dif->g64.sr[0] = reftag >> 40;
+            dif->g64.sr[1] = reftag >> 32;
+            dif->g64.sr[2] = reftag >> 24;
+            dif->g64.sr[3] = reftag >> 16;
+            dif->g64.sr[4] = reftag >> 8;
+            dif->g64.sr[5] = reftag;
+
+            reftag++;
+        }
+
+    }
+
+    return;
+}
+
+void nvme_dif_restore_reftag(NvmeNamespace *ns, uint8_t *mbuf,
+                             size_t mlen, uint64_t reftag)
+{
+    int16_t pil = 0;
+
+    if (!(ns->id_ns.dps & NVME_ID_NS_DPS_FIRST_EIGHT)) {
+        pil = ns->lbaf.ms - nvme_pi_tuple_size(ns);
+    }
+
+    switch (ns->pif) {
+    case NVME_PI_GUARD_16:
+        nvme_dif_restore_reftag_crc16(ns, mbuf, mlen, reftag, pil);
+        return;
+    case NVME_PI_GUARD_64:
+        nvme_dif_restore_reftag_crc64(ns, mbuf, mlen, reftag, pil);
+        return;
+    default:
+        abort();
+    }
+
+}
+
 uint16_t nvme_dif_mangle_mdata(NvmeNamespace *ns, uint8_t *mbuf, size_t mlen,
                                uint64_t slba)
 {
