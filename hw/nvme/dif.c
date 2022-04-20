@@ -55,6 +55,75 @@ static uint64_t crc64_nvme(uint64_t crc, const unsigned char *buffer,
     return crc ^ (uint64_t)~0;
 }
 
+static bool nvme_dif_is_disabled_crc16(NvmeNamespace *ns, NvmeDifTuple *dif)
+{
+    switch (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps)) {
+    case NVME_ID_NS_DPS_TYPE_3:
+        if (be32_to_cpu(dif->g16.reftag) != 0xffffffff) {
+            break;
+        }
+
+        /* fallthrough */
+    case NVME_ID_NS_DPS_TYPE_1:
+    case NVME_ID_NS_DPS_TYPE_2:
+        if (be16_to_cpu(dif->g16.apptag) != 0xffff) {
+            break;
+        }
+
+        trace_pci_nvme_dif_is_disabled_crc16(be16_to_cpu(dif->g16.apptag),
+                                             be32_to_cpu(dif->g16.reftag));
+
+        return true;
+    }
+
+    return false;
+}
+
+static bool nvme_dif_is_disabled_crc64(NvmeNamespace *ns, NvmeDifTuple *dif)
+{
+    uint64_t r = 0;
+
+    r |= (uint64_t)dif->g64.sr[0] << 40;
+    r |= (uint64_t)dif->g64.sr[1] << 32;
+    r |= (uint64_t)dif->g64.sr[2] << 24;
+    r |= (uint64_t)dif->g64.sr[3] << 16;
+    r |= (uint64_t)dif->g64.sr[4] << 8;
+    r |= (uint64_t)dif->g64.sr[5];
+
+    switch (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps)) {
+    case NVME_ID_NS_DPS_TYPE_3:
+        if (r != 0xffffffffffff) {
+            break;
+        }
+
+        /* fallthrough */
+    case NVME_ID_NS_DPS_TYPE_1:
+    case NVME_ID_NS_DPS_TYPE_2:
+        if (be16_to_cpu(dif->g64.apptag) != 0xffff) {
+            break;
+        }
+
+        trace_pci_nvme_dif_is_disabled_crc64(be16_to_cpu(dif->g16.apptag),
+                                             r);
+
+        return true;
+    }
+
+    return false;
+}
+
+bool nvme_dif_is_disabled(NvmeNamespace *ns, NvmeDifTuple *dif)
+{
+    switch (ns->pif) {
+    case NVME_PI_GUARD_16:
+        return nvme_dif_is_disabled_crc16(ns, dif);
+    case NVME_PI_GUARD_64:
+        return nvme_dif_is_disabled_crc64(ns, dif);
+    default:
+        abort();
+    }
+}
+
 static void nvme_dif_pract_generate_dif_crc16(NvmeNamespace *ns, uint8_t *buf,
                                               size_t len, uint8_t *mbuf,
                                               size_t mlen, uint16_t apptag,
@@ -150,22 +219,7 @@ static uint16_t nvme_dif_prchk_crc16(NvmeNamespace *ns, NvmeDifTuple *dif,
                                      uint8_t prinfo, uint16_t apptag,
                                      uint16_t appmask, uint64_t reftag)
 {
-    switch (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps)) {
-    case NVME_ID_NS_DPS_TYPE_3:
-        if (be32_to_cpu(dif->g16.reftag) != 0xffffffff) {
-            break;
-        }
-
-        /* fallthrough */
-    case NVME_ID_NS_DPS_TYPE_1:
-    case NVME_ID_NS_DPS_TYPE_2:
-        if (be16_to_cpu(dif->g16.apptag) != 0xffff) {
-            break;
-        }
-
-        trace_pci_nvme_dif_prchk_disabled_crc16(be16_to_cpu(dif->g16.apptag),
-                                                be32_to_cpu(dif->g16.reftag));
-
+    if (nvme_dif_is_disabled_crc16(ns, dif)) {
         return NVME_SUCCESS;
     }
 
@@ -209,31 +263,7 @@ static uint16_t nvme_dif_prchk_crc64(NvmeNamespace *ns, NvmeDifTuple *dif,
                                      uint8_t prinfo, uint16_t apptag,
                                      uint16_t appmask, uint64_t reftag)
 {
-    uint64_t r = 0;
-
-    r |= (uint64_t)dif->g64.sr[0] << 40;
-    r |= (uint64_t)dif->g64.sr[1] << 32;
-    r |= (uint64_t)dif->g64.sr[2] << 24;
-    r |= (uint64_t)dif->g64.sr[3] << 16;
-    r |= (uint64_t)dif->g64.sr[4] << 8;
-    r |= (uint64_t)dif->g64.sr[5];
-
-    switch (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps)) {
-    case NVME_ID_NS_DPS_TYPE_3:
-        if (r != 0xffffffffffff) {
-            break;
-        }
-
-        /* fallthrough */
-    case NVME_ID_NS_DPS_TYPE_1:
-    case NVME_ID_NS_DPS_TYPE_2:
-        if (be16_to_cpu(dif->g64.apptag) != 0xffff) {
-            break;
-        }
-
-        trace_pci_nvme_dif_prchk_disabled_crc64(be16_to_cpu(dif->g16.apptag),
-                                                r);
-
+    if (nvme_dif_is_disabled_crc64(ns, dif)) {
         return NVME_SUCCESS;
     }
 
@@ -261,6 +291,15 @@ static uint16_t nvme_dif_prchk_crc64(NvmeNamespace *ns, NvmeDifTuple *dif,
     }
 
     if (prinfo & NVME_PRINFO_PRCHK_REF) {
+        uint64_t r = 0;
+
+        r |= (uint64_t)dif->g64.sr[0] << 40;
+        r |= (uint64_t)dif->g64.sr[1] << 32;
+        r |= (uint64_t)dif->g64.sr[2] << 24;
+        r |= (uint64_t)dif->g64.sr[3] << 16;
+        r |= (uint64_t)dif->g64.sr[4] << 8;
+        r |= (uint64_t)dif->g64.sr[5];
+
         trace_pci_nvme_dif_prchk_reftag_crc64(r, reftag);
 
         if (r != reftag) {
