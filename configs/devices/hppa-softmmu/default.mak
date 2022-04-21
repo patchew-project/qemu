@@ -6,4 +6,4 @@
 
 # Boards:
 #
-CONFIG_DINO=y
+CONFIG_HPPA_GENERIC=y
