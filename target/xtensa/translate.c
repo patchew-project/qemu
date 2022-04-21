@@ -572,9 +572,10 @@ static bool gen_window_check(DisasContext *dc, uint32_t mask)
 
     if (r / 4 > dc->window) {
         TCGv_i32 pc = tcg_const_i32(dc->pc);
-        TCGv_i32 w = tcg_const_i32(r / 4);
+        TCGv_i32 w = tcg_constant_i32(r / 4);
 
         gen_helper_window_check(cpu_env, pc, w);
+        tcg_temp_free(pc);
         dc->base.is_jmp = DISAS_NORETURN;
         return false;
     }
