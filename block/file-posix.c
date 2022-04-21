@@ -543,7 +543,11 @@ static QemuOptsList raw_runtime_opts = {
         {
             .name = "aio",
             .type = QEMU_OPT_STRING,
+#ifdef CONFIG_LINUX_IO_URING
             .help = "host AIO implementation (threads, native, io_uring)",
+#else
+            .help = "host AIO implementation (threads, native)",
+#endif
         },
         {
             .name = "aio-max-batch",
