@@ -266,6 +266,8 @@ hwaddr nios2_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 void nios2_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
                                    MMUAccessType access_type, int mmu_idx,
                                    uintptr_t retaddr) QEMU_NORETURN;
+void nios2_cpu_loop_exit_advance(CPUNios2State *env, uintptr_t retaddr)
+    QEMU_NORETURN;
 
 void do_nios2_semihosting(CPUNios2State *env);
 
