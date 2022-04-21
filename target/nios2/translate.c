@@ -122,6 +122,7 @@ typedef struct DisasContext {
     DisasContextBase  base;
     target_ulong      pc;
     int               mem_idx;
+    TCGv              sink;
     const ControlRegState *cr_state;
 } DisasContext;
 
@@ -150,6 +151,18 @@ static TCGv load_gpr(DisasContext *dc, unsigned reg)
     assert(reg < NUM_GP_REGS);
     if (unlikely(reg == R_ZERO)) {
         return tcg_constant_tl(0);
+    }
+    return cpu_R[reg];
+}
+
+static TCGv dest_gpr(DisasContext *dc, unsigned reg)
+{
+    assert(reg < NUM_GP_REGS);
+    if (unlikely(reg == R_ZERO)) {
+        if (dc->sink == NULL) {
+            dc->sink = tcg_temp_new();
+        }
+        return dc->sink;
     }
     return cpu_R[reg];
 }
@@ -212,7 +225,7 @@ static void jmpi(DisasContext *dc, uint32_t code, uint32_t flags)
 
 static void call(DisasContext *dc, uint32_t code, uint32_t flags)
 {
-    tcg_gen_movi_tl(cpu_R[R_RA], dc->base.pc_next);
+    tcg_gen_movi_tl(dest_gpr(dc, R_RA), dc->base.pc_next);
     jmpi(dc, code, flags);
 }
 
@@ -225,27 +238,10 @@ static void gen_ldx(DisasContext *dc, uint32_t code, uint32_t flags)
     I_TYPE(instr, code);
 
     TCGv addr = tcg_temp_new();
-    TCGv data;
-
-    /*
-     * WARNING: Loads into R_ZERO are ignored, but we must generate the
-     *          memory access itself to emulate the CPU precisely. Load
-     *          from a protected page to R_ZERO will cause SIGSEGV on
-     *          the Nios2 CPU.
-     */
-    if (likely(instr.b != R_ZERO)) {
-        data = cpu_R[instr.b];
-    } else {
-        data = tcg_temp_new();
-    }
+    TCGv data = dest_gpr(dc, instr.b);
 
     tcg_gen_addi_tl(addr, load_gpr(dc, instr.a), instr.imm16.s);
     tcg_gen_qemu_ld_tl(data, addr, dc->mem_idx, flags);
-
-    if (unlikely(instr.b == R_ZERO)) {
-        tcg_temp_free(data);
-    }
-
     tcg_temp_free(addr);
 }
 
@@ -275,7 +271,7 @@ static void gen_bxx(DisasContext *dc, uint32_t code, uint32_t flags)
     I_TYPE(instr, code);
 
     TCGLabel *l1 = gen_new_label();
-    tcg_gen_brcond_tl(flags, cpu_R[instr.a], cpu_R[instr.b], l1);
+    tcg_gen_brcond_tl(flags, load_gpr(dc, instr.a), load_gpr(dc, instr.b), l1);
     gen_goto_tb(dc, 0, dc->base.pc_next);
     gen_set_label(l1);
     gen_goto_tb(dc, 1, dc->base.pc_next + (instr.imm16.s & -4));
@@ -287,11 +283,8 @@ static void do_i_cmpxx(DisasContext *dc, uint32_t insn, TCGCond cond,
                        target_ulong (*imm)(const InstrIType *))
 {
     I_TYPE(instr, insn);
-
-    if (likely(instr.b != R_ZERO)) {
-        tcg_gen_setcondi_tl(cond, cpu_R[instr.b],
-                            load_gpr(dc, instr.a), imm(&instr));
-    }
+    tcg_gen_setcondi_tl(cond, dest_gpr(dc, instr.b),
+                        load_gpr(dc, instr.a), imm(&instr));
 }
 
 #define gen_i_cmpxx(fname, imm)                                             \
@@ -319,9 +312,9 @@ static void do_i_math_logic(DisasContext *dc, uint32_t insn,
 
     if (instr.a == R_ZERO) {
         /* This catches the canonical expansions of movi and movhi. */
-        tcg_gen_movi_tl(cpu_R[instr.b], x_op_0_eq_x ? val : 0);
+        tcg_gen_movi_tl(dest_gpr(dc, instr.b), x_op_0_eq_x ? val : 0);
     } else {
-        fn(cpu_R[instr.b], cpu_R[instr.a], val);
+        fn(dest_gpr(dc, instr.b), load_gpr(dc, instr.a), val);
     }
 }
 
@@ -429,7 +422,7 @@ static void eret(DisasContext *dc, uint32_t code, uint32_t flags)
 #else
     TCGv tmp = tcg_temp_new();
     tcg_gen_ld_tl(tmp, cpu_env, offsetof(CPUNios2State, ctrl[CR_ESTATUS]));
-    gen_helper_eret(cpu_env, tmp, cpu_R[R_EA]);
+    gen_helper_eret(cpu_env, tmp, load_gpr(dc, R_EA));
     tcg_temp_free(tmp);
 
     dc->base.is_jmp = DISAS_NORETURN;
@@ -439,8 +432,7 @@ static void eret(DisasContext *dc, uint32_t code, uint32_t flags)
 /* PC <- ra */
 static void ret(DisasContext *dc, uint32_t code, uint32_t flags)
 {
-    tcg_gen_mov_tl(cpu_pc, cpu_R[R_RA]);
-
+    tcg_gen_mov_tl(cpu_pc, load_gpr(dc, R_RA));
     dc->base.is_jmp = DISAS_JUMP;
 }
 
@@ -459,7 +451,7 @@ static void bret(DisasContext *dc, uint32_t code, uint32_t flags)
 #else
     TCGv tmp = tcg_temp_new();
     tcg_gen_ld_tl(tmp, cpu_env, offsetof(CPUNios2State, ctrl[CR_BSTATUS]));
-    gen_helper_eret(cpu_env, tmp, cpu_R[R_BA]);
+    gen_helper_eret(cpu_env, tmp, load_gpr(dc, R_BA));
     tcg_temp_free(tmp);
 
     dc->base.is_jmp = DISAS_NORETURN;
@@ -472,7 +464,6 @@ static void jmp(DisasContext *dc, uint32_t code, uint32_t flags)
     R_TYPE(instr, code);
 
     tcg_gen_mov_tl(cpu_pc, load_gpr(dc, instr.a));
-
     dc->base.is_jmp = DISAS_JUMP;
 }
 
@@ -481,9 +472,7 @@ static void nextpc(DisasContext *dc, uint32_t code, uint32_t flags)
 {
     R_TYPE(instr, code);
 
-    if (likely(instr.c != R_ZERO)) {
-        tcg_gen_movi_tl(cpu_R[instr.c], dc->base.pc_next);
-    }
+    tcg_gen_movi_tl(dest_gpr(dc, instr.c), dc->base.pc_next);
 }
 
 /*
@@ -495,7 +484,7 @@ static void callr(DisasContext *dc, uint32_t code, uint32_t flags)
     R_TYPE(instr, code);
 
     tcg_gen_mov_tl(cpu_pc, load_gpr(dc, instr.a));
-    tcg_gen_movi_tl(cpu_R[R_RA], dc->base.pc_next);
+    tcg_gen_movi_tl(dest_gpr(dc, R_RA), dc->base.pc_next);
 
     dc->base.is_jmp = DISAS_JUMP;
 }
@@ -511,15 +500,11 @@ static void rdctl(DisasContext *dc, uint32_t code, uint32_t flags)
     g_assert_not_reached();
 #else
     R_TYPE(instr, code);
-    TCGv t1, t2;
-
-    if (unlikely(instr.c == R_ZERO)) {
-        return;
-    }
+    TCGv t1, t2, dest = dest_gpr(dc, instr.c);
 
     /* Reserved registers read as zero. */
     if (nios2_cr_reserved(&dc->cr_state[instr.imm5])) {
-        tcg_gen_movi_tl(cpu_R[instr.c], 0);
+        tcg_gen_movi_tl(dest, 0);
         return;
     }
 
@@ -537,12 +522,12 @@ static void rdctl(DisasContext *dc, uint32_t code, uint32_t flags)
         t2 = tcg_temp_new();
         tcg_gen_ld_tl(t1, cpu_env, offsetof(CPUNios2State, ctrl[CR_IPENDING]));
         tcg_gen_ld_tl(t2, cpu_env, offsetof(CPUNios2State, ctrl[CR_IENABLE]));
-        tcg_gen_and_tl(cpu_R[instr.c], t1, t2);
+        tcg_gen_and_tl(dest, t1, t2);
         tcg_temp_free(t1);
         tcg_temp_free(t2);
         break;
     default:
-        tcg_gen_ld_tl(cpu_R[instr.c], cpu_env,
+        tcg_gen_ld_tl(dest, cpu_env,
                       offsetof(CPUNios2State, ctrl[instr.imm5]));
         break;
     }
@@ -618,10 +603,8 @@ static void wrctl(DisasContext *dc, uint32_t code, uint32_t flags)
 static void gen_cmpxx(DisasContext *dc, uint32_t code, uint32_t flags)
 {
     R_TYPE(instr, code);
-    if (likely(instr.c != R_ZERO)) {
-        tcg_gen_setcond_tl(flags, cpu_R[instr.c], cpu_R[instr.a],
-                           cpu_R[instr.b]);
-    }
+    tcg_gen_setcond_tl(flags, dest_gpr(dc, instr.c),
+                       load_gpr(dc, instr.a), load_gpr(dc, instr.b));
 }
 
 /* Math/logic instructions */
@@ -629,20 +612,14 @@ static void do_ri_math_logic(DisasContext *dc, uint32_t insn,
                              void (*fn)(TCGv, TCGv, int32_t))
 {
     R_TYPE(instr, insn);
-
-    if (likely(instr.c != R_ZERO)) {
-        fn(cpu_R[instr.c], load_gpr(dc, instr.a), instr.imm5);
-    }
+    fn(dest_gpr(dc, instr.c), load_gpr(dc, instr.a), instr.imm5);
 }
 
 static void do_rr_math_logic(DisasContext *dc, uint32_t insn,
                              void (*fn)(TCGv, TCGv, TCGv))
 {
     R_TYPE(instr, insn);
-
-    if (likely(instr.c != R_ZERO)) {
-        fn(cpu_R[instr.c], load_gpr(dc, instr.a), load_gpr(dc, instr.b));
-    }
+    fn(dest_gpr(dc, instr.c), load_gpr(dc, instr.a), load_gpr(dc, instr.b));
 }
 
 #define gen_ri_math_logic(fname, insn)                                      \
@@ -671,13 +648,11 @@ static void do_rr_mul_high(DisasContext *dc, uint32_t insn,
                            void (*fn)(TCGv, TCGv, TCGv, TCGv))
 {
     R_TYPE(instr, insn);
+    TCGv discard = tcg_temp_new();
 
-    if (likely(instr.c != R_ZERO)) {
-        TCGv discard = tcg_temp_new();
-        fn(discard, cpu_R[instr.c], load_gpr(dc, instr.a),
-           load_gpr(dc, instr.b));
-        tcg_temp_free(discard);
-    }
+    fn(discard, dest_gpr(dc, instr.c),
+       load_gpr(dc, instr.a), load_gpr(dc, instr.b));
+    tcg_temp_free(discard);
 }
 
 #define gen_rr_mul_high(fname, insn)                                        \
@@ -692,14 +667,11 @@ static void do_rr_shift(DisasContext *dc, uint32_t insn,
                         void (*fn)(TCGv, TCGv, TCGv))
 {
     R_TYPE(instr, insn);
+    TCGv sh = tcg_temp_new();
 
-    if (likely(instr.c != R_ZERO)) {
-        TCGv sh = tcg_temp_new();
-
-        tcg_gen_andi_tl(sh, load_gpr(dc, instr.b), 31);
-        fn(cpu_R[instr.c], load_gpr(dc, instr.a), sh);
-        tcg_temp_free(sh);
-    }
+    tcg_gen_andi_tl(sh, load_gpr(dc, instr.b), 31);
+    fn(dest_gpr(dc, instr.c), load_gpr(dc, instr.a), sh);
+    tcg_temp_free(sh);
 }
 
 #define gen_rr_shift(fname, insn)                                           \
@@ -715,39 +687,15 @@ gen_rr_shift(ror, rotr)
 static void divs(DisasContext *dc, uint32_t code, uint32_t flags)
 {
     R_TYPE(instr, (code));
-    TCGv dest;
-
-    if (instr.c == R_ZERO) {
-        dest = tcg_temp_new();
-    } else {
-        dest = cpu_R[instr.c];
-    }
-
-    gen_helper_divs(dest, cpu_env,
+    gen_helper_divs(dest_gpr(dc, instr.c), cpu_env,
                     load_gpr(dc, instr.a), load_gpr(dc, instr.b));
-
-    if (instr.c == R_ZERO) {
-        tcg_temp_free(dest);
-    }
 }
 
 static void divu(DisasContext *dc, uint32_t code, uint32_t flags)
 {
     R_TYPE(instr, (code));
-    TCGv dest;
-
-    if (instr.c == R_ZERO) {
-        dest = tcg_temp_new();
-    } else {
-        dest = cpu_R[instr.c];
-    }
-
-    gen_helper_divu(dest, cpu_env,
+    gen_helper_divu(dest_gpr(dc, instr.c), cpu_env,
                     load_gpr(dc, instr.a), load_gpr(dc, instr.b));
-
-    if (instr.c == R_ZERO) {
-        tcg_temp_free(dest);
-    }
 }
 
 static void trap(DisasContext *dc, uint32_t code, uint32_t flags)
@@ -937,8 +885,14 @@ static void nios2_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
         return;
     }
 
+    dc->sink = NULL;
+
     instr = &i_type_instructions[op];
     instr->handler(dc, code, instr->flags);
+
+    if (dc->sink) {
+        tcg_temp_free(dc->sink);
+    }
 }
 
 static void nios2_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
