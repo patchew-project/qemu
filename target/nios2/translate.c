@@ -71,6 +71,21 @@ typedef struct {
         .a     = extract32((code), 27, 5), \
     }
 
+static target_ulong imm_unsigned(const InstrIType *i)
+{
+    return i->imm16.u;
+}
+
+static target_ulong imm_signed(const InstrIType *i)
+{
+    return i->imm16.s;
+}
+
+static target_ulong imm_shifted(const InstrIType *i)
+{
+    return i->imm16.u << 16;
+}
+
 /* R-Type instruction parsing */
 typedef struct {
     uint8_t op;
@@ -268,40 +283,62 @@ static void gen_bxx(DisasContext *dc, uint32_t code, uint32_t flags)
 }
 
 /* Comparison instructions */
-#define gen_i_cmpxx(fname, op3)                                              \
-static void (fname)(DisasContext *dc, uint32_t code, uint32_t flags)         \
-{                                                                            \
-    I_TYPE(instr, (code));                                                   \
-    tcg_gen_setcondi_tl(flags, cpu_R[instr.b], cpu_R[instr.a], (op3));       \
+static void do_i_cmpxx(DisasContext *dc, uint32_t insn, TCGCond cond,
+                       target_ulong (*imm)(const InstrIType *))
+{
+    I_TYPE(instr, insn);
+
+    if (likely(instr.b != R_ZERO)) {
+        tcg_gen_setcondi_tl(cond, cpu_R[instr.b],
+                            load_gpr(dc, instr.a), imm(&instr));
+    }
 }
 
-gen_i_cmpxx(gen_cmpxxsi, instr.imm16.s)
-gen_i_cmpxx(gen_cmpxxui, instr.imm16.u)
+#define gen_i_cmpxx(fname, imm)                                             \
+    static void (fname)(DisasContext *dc, uint32_t code, uint32_t flags)    \
+    { do_i_cmpxx(dc, code, flags, imm); }
+
+gen_i_cmpxx(gen_cmpxxsi, imm_signed)
+gen_i_cmpxx(gen_cmpxxui, imm_unsigned)
 
 /* Math/logic instructions */
-#define gen_i_math_logic(fname, insn, resimm, op3)                          \
-static void (fname)(DisasContext *dc, uint32_t code, uint32_t flags)        \
-{                                                                           \
-    I_TYPE(instr, (code));                                                  \
-    if (unlikely(instr.b == R_ZERO)) { /* Store to R_ZERO is ignored */     \
-        return;                                                             \
-    } else if (instr.a == R_ZERO) { /* MOVxI optimizations */               \
-        tcg_gen_movi_tl(cpu_R[instr.b], (resimm) ? (op3) : 0);              \
-    } else {                                                                \
-        tcg_gen_##insn##_tl(cpu_R[instr.b], cpu_R[instr.a], (op3));         \
-    }                                                                       \
+static void do_i_math_logic(DisasContext *dc, uint32_t insn,
+                            void (*fn)(TCGv, TCGv, target_long),
+                            target_ulong (*imm)(const InstrIType *),
+                            bool x_op_0_eq_x)
+{
+    I_TYPE(instr, insn);
+    target_ulong val;
+
+    if (unlikely(instr.b == R_ZERO)) {
+        /* Store to R_ZERO is ignored -- this catches the canonical NOP. */
+        return;
+    }
+
+    val = imm(&instr);
+
+    if (instr.a == R_ZERO) {
+        /* This catches the canonical expansions of movi and movhi. */
+        tcg_gen_movi_tl(cpu_R[instr.b], x_op_0_eq_x ? val : 0);
+    } else {
+        fn(cpu_R[instr.b], cpu_R[instr.a], val);
+    }
 }
 
-gen_i_math_logic(addi,  addi, 1, instr.imm16.s)
-gen_i_math_logic(muli,  muli, 0, instr.imm16.s)
+#define gen_i_math_logic(fname, insn, x_op_0, imm)                          \
+    static void (fname)(DisasContext *dc, uint32_t code, uint32_t flags)    \
+    { do_i_math_logic(dc, code, tcg_gen_##insn##_tl, imm, x_op_0); }
 
-gen_i_math_logic(andi,  andi, 0, instr.imm16.u)
-gen_i_math_logic(ori,   ori,  1, instr.imm16.u)
-gen_i_math_logic(xori,  xori, 1, instr.imm16.u)
+gen_i_math_logic(addi,  addi, 1, imm_signed)
+gen_i_math_logic(muli,  muli, 0, imm_signed)
 
-gen_i_math_logic(andhi, andi, 0, instr.imm16.u << 16)
-gen_i_math_logic(orhi , ori,  1, instr.imm16.u << 16)
-gen_i_math_logic(xorhi, xori, 1, instr.imm16.u << 16)
+gen_i_math_logic(andi,  andi, 0, imm_unsigned)
+gen_i_math_logic(ori,   ori,  1, imm_unsigned)
+gen_i_math_logic(xori,  xori, 1, imm_unsigned)
+
+gen_i_math_logic(andhi, andi, 0, imm_shifted)
+gen_i_math_logic(orhi , ori,  1, imm_shifted)
+gen_i_math_logic(xorhi, xori, 1, imm_shifted)
 
 /* Prototype only, defined below */
 static void handle_r_type_instr(DisasContext *dc, uint32_t code,
@@ -588,62 +625,92 @@ static void gen_cmpxx(DisasContext *dc, uint32_t code, uint32_t flags)
 }
 
 /* Math/logic instructions */
-#define gen_r_math_logic(fname, insn, op3)                                 \
-static void (fname)(DisasContext *dc, uint32_t code, uint32_t flags)       \
-{                                                                          \
-    R_TYPE(instr, (code));                                                 \
-    if (likely(instr.c != R_ZERO)) {                                       \
-        tcg_gen_##insn(cpu_R[instr.c], load_gpr((dc), instr.a), (op3));    \
-    }                                                                      \
+static void do_ri_math_logic(DisasContext *dc, uint32_t insn,
+                             void (*fn)(TCGv, TCGv, int32_t))
+{
+    R_TYPE(instr, insn);
+
+    if (likely(instr.c != R_ZERO)) {
+        fn(cpu_R[instr.c], load_gpr(dc, instr.a), instr.imm5);
+    }
 }
 
-gen_r_math_logic(add,  add_tl,   load_gpr(dc, instr.b))
-gen_r_math_logic(sub,  sub_tl,   load_gpr(dc, instr.b))
-gen_r_math_logic(mul,  mul_tl,   load_gpr(dc, instr.b))
+static void do_rr_math_logic(DisasContext *dc, uint32_t insn,
+                             void (*fn)(TCGv, TCGv, TCGv))
+{
+    R_TYPE(instr, insn);
 
-gen_r_math_logic(and,  and_tl,   load_gpr(dc, instr.b))
-gen_r_math_logic(or,   or_tl,    load_gpr(dc, instr.b))
-gen_r_math_logic(xor,  xor_tl,   load_gpr(dc, instr.b))
-gen_r_math_logic(nor,  nor_tl,   load_gpr(dc, instr.b))
-
-gen_r_math_logic(srai, sari_tl,  instr.imm5)
-gen_r_math_logic(srli, shri_tl,  instr.imm5)
-gen_r_math_logic(slli, shli_tl,  instr.imm5)
-gen_r_math_logic(roli, rotli_tl, instr.imm5)
-
-#define gen_r_mul(fname, insn)                                         \
-static void (fname)(DisasContext *dc, uint32_t code, uint32_t flags)   \
-{                                                                      \
-    R_TYPE(instr, (code));                                             \
-    if (likely(instr.c != R_ZERO)) {                                   \
-        TCGv t0 = tcg_temp_new();                                      \
-        tcg_gen_##insn(t0, cpu_R[instr.c],                             \
-                       load_gpr(dc, instr.a), load_gpr(dc, instr.b));  \
-        tcg_temp_free(t0);                                             \
-    }                                                                  \
+    if (likely(instr.c != R_ZERO)) {
+        fn(cpu_R[instr.c], load_gpr(dc, instr.a), load_gpr(dc, instr.b));
+    }
 }
 
-gen_r_mul(mulxss, muls2_tl)
-gen_r_mul(mulxuu, mulu2_tl)
-gen_r_mul(mulxsu, mulsu2_tl)
+#define gen_ri_math_logic(fname, insn)                                      \
+    static void (fname)(DisasContext *dc, uint32_t code, uint32_t flags)    \
+    { do_ri_math_logic(dc, code, tcg_gen_##insn##_tl); }
 
-#define gen_r_shift_s(fname, insn)                                         \
-static void (fname)(DisasContext *dc, uint32_t code, uint32_t flags)       \
-{                                                                          \
-    R_TYPE(instr, (code));                                                 \
-    if (likely(instr.c != R_ZERO)) {                                       \
-        TCGv t0 = tcg_temp_new();                                          \
-        tcg_gen_andi_tl(t0, load_gpr((dc), instr.b), 31);                  \
-        tcg_gen_##insn(cpu_R[instr.c], load_gpr((dc), instr.a), t0);       \
-        tcg_temp_free(t0);                                                 \
-    }                                                                      \
+#define gen_rr_math_logic(fname, insn)                                      \
+    static void (fname)(DisasContext *dc, uint32_t code, uint32_t flags)    \
+    { do_rr_math_logic(dc, code, tcg_gen_##insn##_tl); }
+
+gen_rr_math_logic(add,  add)
+gen_rr_math_logic(sub,  sub)
+gen_rr_math_logic(mul,  mul)
+
+gen_rr_math_logic(and,  and)
+gen_rr_math_logic(or,   or)
+gen_rr_math_logic(xor,  xor)
+gen_rr_math_logic(nor,  nor)
+
+gen_ri_math_logic(srai, sari)
+gen_ri_math_logic(srli, shri)
+gen_ri_math_logic(slli, shli)
+gen_ri_math_logic(roli, rotli)
+
+static void do_rr_mul_high(DisasContext *dc, uint32_t insn,
+                           void (*fn)(TCGv, TCGv, TCGv, TCGv))
+{
+    R_TYPE(instr, insn);
+
+    if (likely(instr.c != R_ZERO)) {
+        TCGv discard = tcg_temp_new();
+        fn(discard, cpu_R[instr.c], load_gpr(dc, instr.a),
+           load_gpr(dc, instr.b));
+        tcg_temp_free(discard);
+    }
 }
 
-gen_r_shift_s(sra, sar_tl)
-gen_r_shift_s(srl, shr_tl)
-gen_r_shift_s(sll, shl_tl)
-gen_r_shift_s(rol, rotl_tl)
-gen_r_shift_s(ror, rotr_tl)
+#define gen_rr_mul_high(fname, insn)                                        \
+    static void (fname)(DisasContext *dc, uint32_t code, uint32_t flags)    \
+    { do_rr_mul_high(dc, code, tcg_gen_##insn##_tl); }
+
+gen_rr_mul_high(mulxss, muls2)
+gen_rr_mul_high(mulxuu, mulu2)
+gen_rr_mul_high(mulxsu, mulsu2)
+
+static void do_rr_shift(DisasContext *dc, uint32_t insn,
+                        void (*fn)(TCGv, TCGv, TCGv))
+{
+    R_TYPE(instr, insn);
+
+    if (likely(instr.c != R_ZERO)) {
+        TCGv sh = tcg_temp_new();
+
+        tcg_gen_andi_tl(sh, load_gpr(dc, instr.b), 31);
+        fn(cpu_R[instr.c], load_gpr(dc, instr.a), sh);
+        tcg_temp_free(sh);
+    }
+}
+
+#define gen_rr_shift(fname, insn)                                           \
+    static void (fname)(DisasContext *dc, uint32_t code, uint32_t flags)    \
+    { do_rr_shift(dc, code, tcg_gen_##insn##_tl); }
+
+gen_rr_shift(sra, sar)
+gen_rr_shift(srl, shr)
+gen_rr_shift(sll, shl)
+gen_rr_shift(rol, rotl)
+gen_rr_shift(ror, rotr)
 
 static void divs(DisasContext *dc, uint32_t code, uint32_t flags)
 {
