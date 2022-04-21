@@ -4171,7 +4171,9 @@ static int kvm_put_vcpu_events(X86CPU *cpu, int level)
     }
 
     if (level >= KVM_PUT_RESET_STATE) {
-        events.flags |= KVM_VCPUEVENT_VALID_NMI_PENDING;
+        events.flags |= KVM_VCPUEVENT_VALID_NMI_PENDING |
+                        KVM_VCPUEVENT_VALID_TRIPLE_FAULT;
+        events.triple_fault_pending = env->triple_fault_pending;
         if (env->mp_state == KVM_MP_STATE_SIPI_RECEIVED) {
             events.flags |= KVM_VCPUEVENT_VALID_SIPI_VECTOR;
         }
@@ -4244,6 +4246,10 @@ static int kvm_get_vcpu_events(X86CPU *cpu)
         } else {
             cpu_reset_interrupt(CPU(cpu), CPU_INTERRUPT_INIT);
         }
+    }
+
+    if (events.flags & KVM_VCPUEVENT_VALID_TRIPLE_FAULT) {
+        env->triple_fault_pending = events.triple_fault_pending;
     }
 
     env->sipi_vector = events.sipi_vector;
