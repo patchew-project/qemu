@@ -327,6 +327,31 @@ static void mark_implicit_pred_writes(DisasContext *ctx, Insn *insn)
     mark_implicit_pred_write(ctx, insn, A_IMPLICIT_WRITES_P3, 3);
 }
 
+static void mark_store_width(DisasContext *ctx, Insn *insn)
+{
+    uint16_t opcode = insn->opcode;
+    uint32_t slot = insn->slot;
+
+    if (GET_ATTRIB(opcode, A_STORE)) {
+        if (GET_ATTRIB(opcode, A_STORE_SIZE1)) {
+            ctx->store_width[slot] = 1;
+            return;
+        }
+        if (GET_ATTRIB(opcode, A_STORE_SIZE2)) {
+            ctx->store_width[slot] = 2;
+            return;
+        }
+        if (GET_ATTRIB(opcode, A_STORE_SIZE4)) {
+            ctx->store_width[slot] = 4;
+            return;
+        }
+        if (GET_ATTRIB(opcode, A_STORE_SIZE8)) {
+            ctx->store_width[slot] = 8;
+            return;
+        }
+    }
+}
+
 static void gen_insn(CPUHexagonState *env, DisasContext *ctx,
                      Insn *insn, Packet *pkt)
 {
@@ -334,6 +359,7 @@ static void gen_insn(CPUHexagonState *env, DisasContext *ctx,
         mark_implicit_reg_writes(ctx, insn);
         insn->generate(env, ctx, insn, pkt);
         mark_implicit_pred_writes(ctx, insn);
+        mark_store_width(ctx, insn);
     } else {
         gen_exception_end_tb(ctx, HEX_EXCP_INVALID_OPCODE);
     }
