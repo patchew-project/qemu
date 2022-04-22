@@ -228,7 +228,7 @@ int hreg_store_msr(CPUPPCState *env, target_ulong value, int alter_hv)
         value |= env->msr & MSR_HVB;
     }
     if (!(value & env->msr & M_MSR_IR) ||
-        ((value >> MSR_DR) & 1) != msr_dr) {
+        !(value & env->msr & M_MSR_DR)) {
         cpu_interrupt_exittb(cs);
     }
     if ((env->mmu_model == POWERPC_MMU_BOOKE ||
