@@ -353,6 +353,11 @@ typedef enum {
 #define MSR_RI   1  /* Recoverable interrupt                        1        */
 #define MSR_LE   0  /* Little-endian mode                           1 hflags */
 
+#if defined(TARGET_PPC64)
+#define M_MSR_HV (1ull << MSR_HV)
+#else
+#define M_MSR_HV 0
+#endif
 #define M_MSR_TS0 (1ull << MSR_TS0)
 #define M_MSR_TS1 (1ull << MSR_TS1)
 #define M_MSR_TS (M_MSR_TS0 | M_MSR_TS1)
@@ -483,12 +488,6 @@ typedef enum {
 /* HFSCR bits */
 #define HFSCR_MSGP     PPC_BIT(53) /* Privileged Message Send Facilities */
 #define HFSCR_IC_MSGP  0xA
-
-#if defined(TARGET_PPC64)
-#define msr_hv   ((env->msr >> MSR_HV)   & 1)
-#else
-#define msr_hv   (0)
-#endif
 
 #define DBCR0_ICMP (1 << 27)
 #define DBCR0_BRT (1 << 26)

@@ -6305,7 +6305,7 @@ static bool cpu_has_work_POWER9(CPUState *cs)
         if ((env->pending_interrupts & (1u << PPC_INTERRUPT_EXT)) &&
             (env->spr[SPR_LPCR] & LPCR_EEE)) {
             bool heic = !!(env->spr[SPR_LPCR] & LPCR_HEIC);
-            if (!heic || !msr_hv || (env->msr & M_MSR_PR)) {
+            if (!heic || !(env->msr & M_MSR_HV) || (env->msr & M_MSR_PR)) {
                 return true;
             }
         }
@@ -6520,7 +6520,7 @@ static bool cpu_has_work_POWER10(CPUState *cs)
         if ((env->pending_interrupts & (1u << PPC_INTERRUPT_EXT)) &&
             (env->spr[SPR_LPCR] & LPCR_EEE)) {
             bool heic = !!(env->spr[SPR_LPCR] & LPCR_HEIC);
-            if (!heic || !msr_hv || (env->msr & M_MSR_PR)) {
+            if (!heic || !(env->msr & M_MSR_HV) || (env->msr & M_MSR_PR)) {
                 return true;
             }
         }
