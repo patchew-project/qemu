@@ -270,3 +270,6 @@ option('profiler', type: 'boolean', value: false,
        description: 'profiler support')
 option('slirp_smbd', type : 'feature', value : 'auto',
        description: 'use smbd (at path --smbd=*) in slirp networking')
+
+option('hexagon_idef_parser_enabled', type : 'boolean', value : true,
+       description: 'Whether idef-parser should be used to automatically generate TCG code for the Hexagon frontend')
