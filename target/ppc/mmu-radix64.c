@@ -191,12 +191,12 @@ static bool ppc_radix64_check_prot(PowerPCCPU *cpu, MMUAccessType access_type,
     }
 
     /* Determine permissions allowed by Encoded Access Authority */
-    if (!partition_scoped && (pte & R_PTE_EAA_PRIV) && msr_pr) {
+    if (!partition_scoped && (pte & R_PTE_EAA_PRIV) && (env->msr & M_MSR_PR)) {
         *prot = 0;
     } else if (mmuidx_pr(mmu_idx) || (pte & R_PTE_EAA_PRIV) ||
                partition_scoped) {
         *prot = ppc_radix64_get_prot_eaa(pte);
-    } else { /* !msr_pr && !(pte & R_PTE_EAA_PRIV) && !partition_scoped */
+    } else { /* !M_MSR_PR && !(pte & R_PTE_EAA_PRIV) && !partition_scoped */
         *prot = ppc_radix64_get_prot_eaa(pte);
         *prot &= ppc_radix64_get_prot_amr(cpu); /* Least combined permissions */
     }
