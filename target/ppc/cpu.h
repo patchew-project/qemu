@@ -362,6 +362,7 @@ typedef enum {
 #define M_MSR_PR (1ull << MSR_PR)
 #define M_MSR_FP (1ull << MSR_FP)
 #define M_MSR_ME (1ull << MSR_ME)
+#define M_MSR_IR (1ull << MSR_IR)
 #define M_MSR_DS (1ull << MSR_DS)
 #define M_MSR_LE (1ull << MSR_LE)
 
@@ -483,7 +484,6 @@ typedef enum {
 #define msr_fe0  ((env->msr >> MSR_FE0)  & 1)
 #define msr_fe1  ((env->msr >> MSR_FE1)  & 1)
 #define msr_ep   ((env->msr >> MSR_EP)   & 1)
-#define msr_ir   ((env->msr >> MSR_IR)   & 1)
 #define msr_dr   ((env->msr >> MSR_DR)   & 1)
 #define msr_ts   ((env->msr >> MSR_TS1)  & 3)
 
