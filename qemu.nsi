@@ -142,8 +142,12 @@ SectionEnd
 
 Section "Tools" SectionTools
     SetOutPath "$INSTDIR"
+    File "${BINDIR}\qemu-edid.exe"
+    File "${BINDIR}\qemu-ga.exe"
     File "${BINDIR}\qemu-img.exe"
     File "${BINDIR}\qemu-io.exe"
+    File "${BINDIR}\qemu-nbd.exe"
+    File "${BINDIR}\qemu-storage-daemon.exe"
 SectionEnd
 
 SectionGroup "System Emulations" SectionSystem
@@ -209,10 +213,7 @@ Section "Uninstall"
     Delete "$INSTDIR\*.ndrv"
     Delete "$INSTDIR\*.rom"
     Delete "$INSTDIR\openbios-*"
-    Delete "$INSTDIR\qemu-img.exe"
-    Delete "$INSTDIR\qemu-io.exe"
-    Delete "$INSTDIR\qemu.exe"
-    Delete "$INSTDIR\qemu-system-*.exe"
+    Delete "$INSTDIR\qemu-*.exe"
     RMDir /r "$INSTDIR\doc"
     RMDir /r "$INSTDIR\share"
     ; Remove generated files
