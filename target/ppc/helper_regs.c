@@ -241,8 +241,8 @@ int hreg_store_msr(CPUPPCState *env, target_ulong value, int alter_hv)
         /* Swap temporary saved registers with GPRs */
         hreg_swap_gpr_tgpr(env);
     }
-    if (unlikely((value >> MSR_EP) & 1) != msr_ep) {
-        env->excp_prefix = ((value >> MSR_EP) & 1) * 0xFFF00000;
+    if (unlikely(!(value & env->msr & M_MSR_EP))) {
+        env->excp_prefix = !!(value & M_MSR_EP) * 0xFFF00000;
     }
     /*
      * If PR=1 then EE, IR and DR must be 1
