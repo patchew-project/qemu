@@ -353,6 +353,9 @@ typedef enum {
 #define MSR_RI   1  /* Recoverable interrupt                        1        */
 #define MSR_LE   0  /* Little-endian mode                           1 hflags */
 
+#define M_MSR_TS0 (1ull << MSR_TS0)
+#define M_MSR_TS1 (1ull << MSR_TS1)
+#define M_MSR_TS (M_MSR_TS0 | M_MSR_TS1)
 #define M_MSR_CM (1ull << MSR_CM)
 #define M_MSR_GS (1ull << MSR_GS)
 #define M_MSR_POW (1ull << MSR_POW)
@@ -486,7 +489,6 @@ typedef enum {
 #else
 #define msr_hv   (0)
 #endif
-#define msr_ts   ((env->msr >> MSR_TS1)  & 3)
 
 #define DBCR0_ICMP (1 << 27)
 #define DBCR0_BRT (1 << 26)

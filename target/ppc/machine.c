@@ -417,7 +417,7 @@ static bool tm_needed(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
     CPUPPCState *env = &cpu->env;
-    return msr_ts;
+    return env->msr & M_MSR_TS;
 }
 
 static const VMStateDescription vmstate_tm = {
