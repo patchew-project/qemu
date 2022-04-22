@@ -768,7 +768,7 @@ static bool mmubooke206_get_as(CPUPPCState *env,
         *pr_out = !!(epidr & EPID_EPR);
         return true;
     } else {
-        *as_out = msr_ds;
+        *as_out = env->msr & M_MSR_DS;
         *pr_out = env->msr & M_MSR_PR;
         return false;
     }
