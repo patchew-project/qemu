@@ -23,6 +23,7 @@ exec "$@"' > /usr/bin/nosync && \
         alsa-lib-devel \
         bash \
         bc \
+        bison \
         brlapi-devel \
         bzip2 \
         bzip2-devel \
@@ -37,7 +38,7 @@ exec "$@"' > /usr/bin/nosync && \
         device-mapper-multipath-devel \
         diffutils \
         findutils \
-        fuse3-devel \
+        flex \
         gcc \
         gcc-c++ \
         gcovr \
@@ -72,13 +73,13 @@ exec "$@"' > /usr/bin/nosync && \
         libpng-devel \
         librbd-devel \
         libseccomp-devel \
-        libselinux-devel \
         libslirp-devel \
         libssh-devel \
         libtasn1-devel \
         libubsan \
         liburing-devel \
         libusbx-devel \
+        libxml2-devel \
         libzstd-devel \
         llvm \
         lttng-ust-devel \

@@ -6,7 +6,7 @@
 
 FROM quay.io/centos/centos:stream8
 
-RUN dnf update -y && \
+RUN dnf distro-sync -y && \
     dnf install 'dnf-command(config-manager)' -y && \
     dnf config-manager --set-enabled -y powertools && \
     dnf install -y centos-release-advanced-virtualization && \
@@ -16,6 +16,7 @@ RUN dnf update -y && \
         alsa-lib-devel \
         bash \
         bc \
+        bison \
         brlapi-devel \
         bzip2 \
         bzip2-devel \
@@ -30,7 +31,7 @@ RUN dnf update -y && \
         device-mapper-multipath-devel \
         diffutils \
         findutils \
-        fuse3-devel \
+        flex \
         gcc \
         gcc-c++ \
         genisoimage \
@@ -64,13 +65,13 @@ RUN dnf update -y && \
         libpng-devel \
         librbd-devel \
         libseccomp-devel \
-        libselinux-devel \
         libslirp-devel \
         libssh-devel \
         libtasn1-devel \
         libubsan \
         liburing-devel \
         libusbx-devel \
+        libxml2-devel \
         libzstd-devel \
         llvm \
         lttng-ust-devel \

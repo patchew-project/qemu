@@ -13,6 +13,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     eatmydata apt-get install --no-install-recommends -y \
             bash \
             bc \
+            bison \
             bsdmainutils \
             bzip2 \
             ca-certificates \
@@ -23,6 +24,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
             diffutils \
             exuberant-ctags \
             findutils \
+            flex \
             g++ \
             gcc \
             gcovr \
@@ -74,7 +76,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
             libsdl2-dev \
             libsdl2-image-dev \
             libseccomp-dev \
-            libselinux1-dev \
             libsnappy-dev \
             libspice-protocol-dev \
             libspice-server-dev \
@@ -89,6 +90,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
             libvirglrenderer-dev \
             libvte-2.91-dev \
             libxen-dev \
+            libxml2-dev \
             libzstd-dev \
             llvm \
             locales \

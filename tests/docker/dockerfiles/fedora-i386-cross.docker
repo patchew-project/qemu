@@ -1,12 +1,15 @@
 FROM registry.fedoraproject.org/fedora:34
 
 ENV PACKAGES \
+    bison \
     bzip2 \
     ccache \
     diffutils \
     findutils \
+    flex \
     gcc \
     git \
+    glib2-devel \
     libffi-devel.i686 \
     libselinux-devel.i686 \
     libtasn1-devel.i686 \

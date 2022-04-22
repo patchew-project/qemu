@@ -13,6 +13,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     eatmydata apt-get install --no-install-recommends -y \
             bash \
             bc \
+            bison \
             bsdextrautils \
             bzip2 \
             ca-certificates \
@@ -22,11 +23,13 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
             diffutils \
             exuberant-ctags \
             findutils \
+            flex \
             gcovr \
             genisoimage \
             gettext \
             git \
             hostname \
+            libglib2.0-dev \
             libpcre2-dev \
             libspice-protocol-dev \
             llvm \
@@ -90,7 +93,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
             libepoxy-dev:s390x \
             libfdt-dev:s390x \
             libffi-dev:s390x \
-            libfuse3-dev:s390x \
             libgbm-dev:s390x \
             libgcrypt20-dev:s390x \
             libglib2.0-dev:s390x \
@@ -117,7 +119,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
             libsdl2-dev:s390x \
             libsdl2-image-dev:s390x \
             libseccomp-dev:s390x \
-            libselinux1-dev:s390x \
             libslirp-dev:s390x \
             libsnappy-dev:s390x \
             libssh-gcrypt-dev:s390x \
@@ -131,6 +132,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
             libvdeplug-dev:s390x \
             libvirglrenderer-dev:s390x \
             libvte-2.91-dev:s390x \
+            libxml2-dev:s390x \
             libzstd-dev:s390x \
             nettle-dev:s390x \
             systemtap-sdt-dev:s390x \

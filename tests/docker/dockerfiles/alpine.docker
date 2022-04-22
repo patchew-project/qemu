@@ -13,6 +13,7 @@ RUN apk update && \
         attr-dev \
         bash \
         bc \
+        bison \
         bzip2 \
         bzip2-dev \
         ca-certificates \
@@ -29,7 +30,7 @@ RUN apk update && \
         dtc-dev \
         eudev-dev \
         findutils \
-        fuse3-dev \
+        flex \
         g++ \
         gcc \
         gcovr \
@@ -50,12 +51,12 @@ RUN apk update && \
         libnfs-dev \
         libpng-dev \
         libseccomp-dev \
-        libselinux-dev \
         libslirp-dev \
         libssh-dev \
         libtasn1-dev \
         liburing-dev \
         libusb-dev \
+        libxml2-dev \
         linux-pam-dev \
         llvm11 \
         lttng-ust-dev \
@@ -64,6 +65,7 @@ RUN apk update && \
         mesa-dev \
         meson \
         multipath-tools \
+        musl-dev \
         ncurses-dev \
         ndctl-dev \
         net-tools \

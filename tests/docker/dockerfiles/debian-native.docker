@@ -26,13 +26,16 @@ RUN apt update && \
 RUN apt update && \
     DEBIAN_FRONTEND=noninteractive eatmydata \
     apt install -y --no-install-recommends \
+        bison \
         cscope \
         genisoimage \
         exuberant-ctags \
+        flex \
         global \
         libbz2-dev \
         liblzo2-dev \
         libgcrypt20-dev \
+        libglib2.0-dev \
         libfdt-dev \
         librdmacm-dev \
         libsasl2-dev \

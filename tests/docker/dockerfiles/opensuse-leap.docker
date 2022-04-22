@@ -12,6 +12,7 @@ RUN zypper update -y && \
            alsa-lib-devel \
            bash \
            bc \
+           bison \
            brlapi-devel \
            bzip2 \
            ca-certificates \
@@ -22,7 +23,7 @@ RUN zypper update -y && \
            dbus-1 \
            diffutils \
            findutils \
-           fuse3-devel \
+           flex \
            gcc \
            gcc-c++ \
            gcovr \
@@ -63,7 +64,6 @@ RUN zypper update -y && \
            libpulse-devel \
            librbd-devel \
            libseccomp-devel \
-           libselinux-devel \
            libspice-server-devel \
            libssh-devel \
            libtasn1-devel \
@@ -71,6 +71,7 @@ RUN zypper update -y && \
            libudev-devel \
            liburing-devel \
            libusb-1_0-devel \
+           libxml2-devel \
            libzstd-devel \
            llvm \
            lttng-ust-devel \

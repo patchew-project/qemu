@@ -3,6 +3,7 @@ packages:
  - alsa
  - bash
  - bc
+ - bison
  - brlapi
  - bzip2
  - bzip2-libs
@@ -18,23 +19,24 @@ packages:
  - diffutils
  - dtrace
  - findutils
- - fuse3
+ - flex
  - g++
  - gcc
  - gcovr
- - gettext
  - genisoimage
+ - gettext
  - glib2
+ - glib2-native
  - glib2-static
- - glibc-static
  - glusterfs
  - gnutls
  - gtk3
  - hostname
  - libaio
- - libattr
  - libasan
+ - libattr
  - libbpf
+ - libc-static
  - libcacard
  - libcap-ng
  - libcurl
@@ -55,7 +57,6 @@ packages:
  - librbd
  - librdmacm
  - libseccomp
- - libselinux
  - libslirp
  - libssh
  - libtasn1
@@ -64,18 +65,19 @@ packages:
  - liburing
  - libusbx
  - libvdeplug
+ - libxml2
  - libzstd
  - llvm
  - lttng-ust
  - lzo
- - netcat
- - nettle
- - ninja
- - nsis
  - make
  - mesa-libgbm
  - meson
  - ncursesw
+ - netcat
+ - nettle
+ - ninja
+ - nsis
  - pam
  - pcre-static
  - perl
