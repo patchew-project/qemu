@@ -10,6 +10,7 @@ Details about QEMU's various subsystems including how to add features to them.
    atomics
    block-coroutine-wrapper
    clocks
+   device
    ebpf_rss
    migration
    multi-process
