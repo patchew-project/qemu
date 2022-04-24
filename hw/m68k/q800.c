@@ -688,6 +688,9 @@ static void q800_init(MachineState *machine)
 
 static GlobalProperty hw_compat_q800[] = {
     { "scsi-hd", "quirk_mode_page_apple_vendor", "on"},
+    { "scsi-hd", "vendor", " SEAGATE" },
+    { "scsi-hd", "product", "          ST225N" },
+    { "scsi-hd", "ver", "1.0 " },
     { "scsi-cd", "quirk_mode_sense_rom_force_dbd", "on"},
 };
 static const size_t hw_compat_q800_len = G_N_ELEMENTS(hw_compat_q800);
