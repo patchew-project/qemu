@@ -834,6 +834,8 @@ static Property riscv_cpu_properties[] = {
     DEFINE_PROP_BOOL("x-aia", RISCVCPU, cfg.aia, false),
 
     DEFINE_PROP_UINT64("resetvec", RISCVCPU, cfg.resetvec, DEFAULT_RSTVEC),
+
+    DEFINE_PROP_BOOL("short-isa-string", RISCVCPU, cfg.short_isa_string, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -989,7 +991,8 @@ char *riscv_isa_string(RISCVCPU *cpu)
         }
     }
     *p = '\0';
-    riscv_isa_string_ext(cpu, &isa_str, maxlen);
+    if (!cpu->cfg.short_isa_string)
+        riscv_isa_string_ext(cpu, &isa_str, maxlen);
     return isa_str;
 }
 
