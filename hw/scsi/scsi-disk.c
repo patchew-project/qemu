@@ -1525,7 +1525,7 @@ static int mode_select_pages(SCSIDiskReq *r, uint8_t *p, int len, bool change)
             goto invalid_param;
         }
         if (page_len > len) {
-            goto invalid_param_len;
+            trace_scsi_disk_mode_select_page_truncated(page, page_len, len);
         }
 
         if (!change) {
