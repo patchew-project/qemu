@@ -46,6 +46,7 @@
 #include "elf.h"
 #include "qemu/units.h"
 #include "kvm_ppc.h"
+#include "audio/audio.h"
 
 /* SMP is not enabled, for now */
 #define MAX_CPUS 1
@@ -304,6 +305,9 @@ static void ibm_40p_init(MachineState *machine)
         dev = DEVICE(isa_dev);
         qdev_prop_set_uint32(dev, "iobase", 0x830);
         qdev_prop_set_uint32(dev, "irq", 10);
+
+        qdev_prop_set_string(dev, "audiodev",
+                             audio_maybe_init_dummy("ppc.defaudio"));
         isa_realize_and_unref(isa_dev, isa_bus, &error_fatal);
 
         isa_dev = isa_new("pc87312");
