@@ -604,11 +604,19 @@ static struct omap_eac_s *omap_eac_init(struct omap_target_agent_s *ta,
                 qemu_irq irq, qemu_irq *drq, omap_clk fclk, omap_clk iclk)
 {
     struct omap_eac_s *s = g_new0(struct omap_eac_s, 1);
+    const char *audiodev_id = audio_maybe_init_dummy("eac.defaudio");
 
     s->irq = irq;
     s->codec.rxdrq = *drq ++;
     s->codec.txdrq = *drq;
     omap_eac_reset(s);
+
+    s->codec.card.name = g_strdup(audiodev_id);
+    s->codec.card.state = audio_state_by_name(s->codec.card.name);
+    if (!s->codec.card.state) {
+        error_setg(&error_fatal, "Cannot find audiodev with id '%s'",
+                   s->codec.card.name);
+    }
 
     AUD_register_card("OMAP EAC", &s->codec.card);
 

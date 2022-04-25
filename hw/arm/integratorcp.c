@@ -27,6 +27,7 @@
 #include "hw/irq.h"
 #include "hw/sd/sd.h"
 #include "qom/object.h"
+#include "audio/audio.h"
 
 #define TYPE_INTEGRATOR_CM "integrator_core"
 OBJECT_DECLARE_SIMPLE_TYPE(IntegratorCMState, INTEGRATOR_CM)
@@ -660,7 +661,12 @@ static void integratorcp_init(MachineState *machine)
                                &error_fatal);
     }
 
-    sysbus_create_varargs("pl041", 0x1d000000, pic[25], NULL);
+    dev = qdev_new("pl041");
+    qdev_prop_set_string(dev, "audiodev",
+                         audio_maybe_init_dummy("integrator.defaudio"));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x1d000000);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[25]);
 
     if (nd_table[0].used)
         smc91c111_init(&nd_table[0], 0xc8000000, pic[27]);

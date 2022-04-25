@@ -24,6 +24,7 @@
 #include "sysemu/device_tree.h"
 #include "qom/object.h"
 #include "net/can_emu.h"
+#include "audio/audio.h"
 
 struct XlnxZCU102 {
     MachineState parent_obj;
@@ -142,6 +143,9 @@ static void xlnx_zcu102_init(MachineState *machine)
     }
 
     object_initialize_child(OBJECT(machine), "soc", &s->soc, TYPE_XLNX_ZYNQMP);
+
+    qdev_prop_set_string(DEVICE(&s->soc.dp), "audiodev",
+                         audio_maybe_init_dummy("zcu102.defaudio"));
 
     object_property_set_link(OBJECT(&s->soc), "ddr-ram", OBJECT(machine->ram),
                              &error_abort);
