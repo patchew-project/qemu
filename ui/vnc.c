@@ -4188,12 +4188,15 @@ void vnc_display_open(const char *id, Error **errp)
     vd->ledstate = 0;
 
     audiodev = qemu_opt_get(opts, "audiodev");
-    if (audiodev) {
-        vd->audio_state = audio_state_by_name(audiodev);
-        if (!vd->audio_state) {
-            error_setg(errp, "Audiodev '%s' not found", audiodev);
-            goto fail;
-        }
+    if (!audiodev) {
+        error_setg(errp, "Audiodev parameter for vnc required");
+        goto fail;
+    }
+
+    vd->audio_state = audio_state_by_name(audiodev);
+    if (!vd->audio_state) {
+        error_setg(errp, "Audiodev '%s' not found", audiodev);
+        goto fail;
     }
 
     device_id = qemu_opt_get(opts, "display");
