@@ -49,6 +49,7 @@
 #include "trace.h"
 #include "exec/target_page.h"
 #include "io/channel-buffer.h"
+#include "io/channel-tls.h"
 #include "migration/colo.h"
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
@@ -4248,6 +4249,13 @@ void migration_global_dump(Monitor *mon)
                    ms->decompress_error_check ? "on" : "off");
     monitor_printf(mon, "clear-bitmap-shift: %u\n",
                    ms->clear_bitmap_shift);
+}
+
+bool migrate_tls_enabled(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->parameters.tls_creds && *s->parameters.tls_creds;
 }
 
 #define DEFINE_PROP_MIG_CAP(name, x)             \
