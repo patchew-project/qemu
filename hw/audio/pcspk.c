@@ -122,7 +122,9 @@ static int pcspk_audio_init(PCSpkState *s)
         return 0;
     }
 
-    AUD_register_card(s_spk, &s->card);
+    if (!AUD_register_card(s_spk, &s->card, NULL)) {
+        return -1;
+    }
 
     s->voice = AUD_open_out(&s->card, s->voice, s_spk, s, pcspk_callback, &as);
     if (!s->voice) {

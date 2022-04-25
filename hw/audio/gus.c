@@ -245,7 +245,9 @@ static void gus_realizefn (DeviceState *dev, Error **errp)
         return;
     }
 
-    AUD_register_card ("gus", &s->card);
+    if (!AUD_register_card ("gus", &s->card, errp)) {
+        return;
+    }
 
     as.freq = s->freq;
     as.nchannels = 2;

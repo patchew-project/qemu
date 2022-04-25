@@ -1400,6 +1400,10 @@ static void sb16_realizefn (DeviceState *dev, Error **errp)
     SB16State *s = SB16 (dev);
     IsaDmaClass *k;
 
+    if (!AUD_register_card ("sb16", &s->card, errp)) {
+        return;
+    }
+
     s->isa_hdma = isa_get_dma(isa_bus_from_device(isadev), s->hdma);
     s->isa_dma = isa_get_dma(isa_bus_from_device(isadev), s->dma);
     if (!s->isa_dma || !s->isa_hdma) {
@@ -1432,8 +1436,6 @@ static void sb16_realizefn (DeviceState *dev, Error **errp)
     k->register_channel(s->isa_dma, s->dma, SB_read_DMA, s);
 
     s->can_write = 1;
-
-    AUD_register_card ("sb16", &s->card);
 }
 
 static Property sb16_properties[] = {

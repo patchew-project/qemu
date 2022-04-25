@@ -289,7 +289,9 @@ void lm4549_init(lm4549_state *s, lm4549_callback data_req_cb, void* opaque,
     lm4549_reset(s);
 
     /* Register an audio card */
-    AUD_register_card("lm4549", &s->card);
+    if (!AUD_register_card("lm4549", &s->card, errp)) {
+        return;
+    }
 
     /* Open a default voice */
     as.freq = 48000;

@@ -867,7 +867,10 @@ static void es1370_realize(PCIDevice *dev, Error **errp)
     memory_region_init_io (&s->io, OBJECT(s), &es1370_io_ops, s, "es1370", 256);
     pci_register_bar (&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
 
-    AUD_register_card ("es1370", &s->card);
+    if (!AUD_register_card ("es1370", &s->card, errp)) {
+        return;
+    }
+
     es1370_reset (s);
 }
 

@@ -1822,15 +1822,18 @@ void audio_free_audiodev_list(AudiodevListHead *head)
     }
 }
 
-void AUD_register_card (const char *name, QEMUSoundCard *card)
+bool AUD_register_card (const char *name, QEMUSoundCard *card, Error **errp)
 {
     if (!card->state) {
-        card->state = audio_init(NULL, name);
+        error_setg(errp, "No audiodev specified for %s", name);
+        return false;
     }
 
     card->name = g_strdup (name);
     memset (&card->entries, 0, sizeof (card->entries));
     QLIST_INSERT_HEAD(&card->state->card_head, card, entries);
+
+    return true;
 }
 
 void AUD_remove_card (QEMUSoundCard *card)

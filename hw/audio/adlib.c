@@ -269,8 +269,6 @@ static void adlib_realizefn (DeviceState *dev, Error **errp)
     as.fmt = AUDIO_FORMAT_S16;
     as.endianness = AUDIO_HOST_ENDIANNESS;
 
-    AUD_register_card ("adlib", &s->card);
-
     s->voice = AUD_open_out (
         &s->card,
         s->voice,
@@ -282,6 +280,11 @@ static void adlib_realizefn (DeviceState *dev, Error **errp)
     if (!s->voice) {
         Adlib_fini (s);
         error_setg (errp, "Initializing audio voice failed");
+        return;
+    }
+
+    if (!AUD_register_card ("adlib", &s->card, errp)) {
+        Adlib_fini (s);
         return;
     }
 
