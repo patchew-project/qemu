@@ -78,6 +78,9 @@ static int do_readdir_many(V9fsPDU *pdu, V9fsFidState *fidp,
     int len, err = 0;
     int32_t size = 0;
     off_t saved_dir_pos;
+#ifdef CONFIG_WIN32
+    off_t next_dir_pos;
+#endif
     struct dirent *dent;
     struct V9fsDirEnt *e = NULL;
     V9fsPath path;
@@ -124,6 +127,14 @@ static int do_readdir_many(V9fsPDU *pdu, V9fsFidState *fidp,
             break;
         }
 
+#ifdef CONFIG_WIN32
+        next_dir_pos = s->ops->telldir(&s->ctx, &fidp->fs);
+        if (next_dir_pos < 0) {
+            err = next_dir_pos;
+            goto out;
+        }
+#endif
+
         /*
          * stop this loop as soon as it would exceed the allowed maximum
          * response message size for the directory entries collected so far,
@@ -168,7 +179,11 @@ static int do_readdir_many(V9fsPDU *pdu, V9fsFidState *fidp,
         }
 
         size += len;
+#ifndef CONFIG_WIN32
         saved_dir_pos = qemu_dirent_off(dent);
+#else
+        saved_dir_pos = next_dir_pos;
+#endif
     }
 
     /* restore (last) saved position */

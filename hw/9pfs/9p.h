@@ -3,12 +3,35 @@
 
 #include <dirent.h>
 #include <utime.h>
+#ifndef CONFIG_WIN32
 #include <sys/resource.h>
+#endif
 #include "fsdev/file-op-9p.h"
 #include "fsdev/9p-iov-marshal.h"
 #include "qemu/thread.h"
 #include "qemu/coroutine.h"
 #include "qemu/qht.h"
+
+#ifdef CONFIG_WIN32
+
+#define O_NOCTTY            0
+#define O_NDELAY            0
+#define O_NONBLOCK          0
+#define O_DSYNC             0
+#define O_DIRECT            0
+#define O_NOFOLLOW          0
+#define O_NOATIME           0
+#define O_SYNC              0
+#define O_ASYNC             0
+#define O_DIRECTORY         02000000
+
+#define FASYNC              0
+
+#define AT_REMOVEDIR        1
+
+#define NAME_MAX            260
+
+#endif
 
 enum {
     P9_TLERROR = 6,

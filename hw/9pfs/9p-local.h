@@ -31,6 +31,10 @@ static inline bool local_is_mapped_file_metadata(FsContext *fs_ctx,
 
 int local_open_nofollow(FsContext *fs_ctx, const char *path, int flags,
                         mode_t mode);
+#ifndef CONFIG_WIN32
 int local_opendir_nofollow(FsContext *fs_ctx, const char *path);
+#else
+DIR *local_opendir_nofollow(FsContext *fs_ctx, const char *path);
+#endif
 
 #endif

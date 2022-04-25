@@ -43,6 +43,7 @@ static inline void close_preserve_errno(int fd)
     errno = serrno;
 }
 
+#ifndef CONFIG_WIN32
 static inline int openat_dir(int dirfd, const char *name)
 {
     return openat(dirfd, name,
@@ -89,7 +90,9 @@ again:
     errno = serrno;
     return fd;
 }
+#endif /* !CONFIG_WIN32 */
 
+#ifndef CONFIG_WIN32
 ssize_t fgetxattrat_nofollow(int dirfd, const char *path, const char *name,
                              void *value, size_t size);
 int fsetxattrat_nofollow(int dirfd, const char *path, const char *name,
@@ -98,7 +101,38 @@ ssize_t flistxattrat_nofollow(int dirfd, const char *filename,
                               char *list, size_t size);
 ssize_t fremovexattrat_nofollow(int dirfd, const char *filename,
                                 const char *name);
+#else
 
+ssize_t fgetxattrat_nofollow(const char *dirname, const char *filename,
+                             const char *name, void *value, size_t size);
+int fsetxattrat_nofollow(const char *dirname, const char *filename,
+                         const char *name, void *value, size_t size,
+                         int flags);
+ssize_t flistxattrat_nofollow(const char *dirname, const char *filename,
+                              char *list, size_t size);
+ssize_t fremovexattrat_nofollow(const char *dirname, const char *filename,
+                                const char *name);
+
+int qemu_statfs(const char *fs_root, struct statfs *stbuf);
+
+static inline char *merge_fs_path(const char *path1, const char *path2)
+{
+    char *full_fs_path;
+    size_t full_fs_path_len;
+
+    full_fs_path_len = strlen(path1) + strlen(path2) + 2;
+    full_fs_path = g_malloc(full_fs_path_len);
+
+    strcpy(full_fs_path, path1);
+    strcat(full_fs_path, "\\");
+    strcat(full_fs_path, path2);
+
+    return full_fs_path;
+}
+
+#endif /* !CONFIG_WIN32 */
+
+#ifndef CONFIG_WIN32
 /*
  * Darwin has d_seekoff, which appears to function similarly to d_off.
  * However, it does not appear to be supported on all file systems,
@@ -113,6 +147,7 @@ static inline off_t qemu_dirent_off(struct dirent *dent)
     return dent->d_off;
 #endif
 }
+#endif /* !CONFIG_WIN32 */
 
 /**
  * qemu_dirent_dup() - Duplicate directory entry @dent.
@@ -154,6 +189,12 @@ static inline struct dirent *qemu_dirent_dup(struct dirent *dent)
 #if defined CONFIG_DARWIN && defined CONFIG_PTHREAD_FCHDIR_NP
 int pthread_fchdir_np(int fd) __attribute__((weak_import));
 #endif
+
+#ifndef CONFIG_WIN32
 int qemu_mknodat(int dirfd, const char *filename, mode_t mode, dev_t dev);
+#else
+int qemu_mknodat(const char *dirname, const char *filename,
+                 mode_t mode, dev_t dev);
+#endif
 
 #endif

@@ -78,10 +78,45 @@ ssize_t v9fs_list_xattr(FsContext *ctx, const char *path,
     char *orig_value, *orig_value_start;
     ssize_t xattr_len, parsed_len = 0, attr_len;
     char *dirpath, *name;
+#ifdef CONFIG_WIN32
+    char *full_dir_path;
+    DIR *dir;
+#else
     int dirfd;
+#endif
 
     /* Get the actual len */
     dirpath = g_path_get_dirname(path);
+
+#ifdef CONFIG_WIN32
+    dir = local_opendir_nofollow(ctx, dirpath);
+    if (dir == NULL) {
+        return -1;
+    }
+    closedir(dir);
+
+    full_dir_path = merge_fs_path(ctx->fs_root, dirpath);
+    g_free(dirpath);
+
+    name = g_path_get_basename(path);
+    xattr_len = flistxattrat_nofollow(full_dir_path, name, value, 0);
+    if (xattr_len <= 0) {
+        g_free(name);
+        g_free(full_dir_path);
+        return xattr_len;
+    }
+
+    /* Now fetch the xattr and find the actual size */
+    orig_value = g_malloc(xattr_len);
+    xattr_len = flistxattrat_nofollow(full_dir_path, name, orig_value,
+                                      xattr_len);
+    g_free(name);
+    g_free(full_dir_path);
+    if (xattr_len < 0) {
+        g_free(orig_value);
+        return -1;
+    }
+#else
     dirfd = local_opendir_nofollow(ctx, dirpath);
     g_free(dirpath);
     if (dirfd == -1) {
@@ -105,6 +140,7 @@ ssize_t v9fs_list_xattr(FsContext *ctx, const char *path,
         g_free(orig_value);
         return -1;
     }
+#endif
 
     /* store the orig pointer */
     orig_value_start = orig_value;
@@ -166,6 +202,31 @@ int v9fs_remove_xattr(FsContext *ctx,
 ssize_t local_getxattr_nofollow(FsContext *ctx, const char *path,
                                 const char *name, void *value, size_t size)
 {
+#ifdef CONFIG_WIN32
+    char *dirpath = g_path_get_dirname(path);
+    char *filename = g_path_get_basename(path);
+    char *full_dir_path;
+    DIR *dir;
+    ssize_t ret = -1;
+
+    full_dir_path = merge_fs_path(ctx->fs_root, dirpath);
+
+    dir = local_opendir_nofollow(ctx, dirpath);
+    if (dir == NULL) {
+        goto out;
+    }
+    closedir(dir);
+
+    ret = fgetxattrat_nofollow(full_dir_path, filename,
+                               name, value, size);
+
+out:
+    g_free(full_dir_path);
+    g_free(dirpath);
+    g_free(filename);
+
+    return ret;
+#else
     char *dirpath = g_path_get_dirname(path);
     char *filename = g_path_get_basename(path);
     int dirfd;
@@ -177,11 +238,13 @@ ssize_t local_getxattr_nofollow(FsContext *ctx, const char *path,
     }
 
     ret = fgetxattrat_nofollow(dirfd, filename, name, value, size);
+
     close_preserve_errno(dirfd);
 out:
     g_free(dirpath);
     g_free(filename);
     return ret;
+#endif
 }
 
 ssize_t pt_getxattr(FsContext *ctx, const char *path, const char *name,
@@ -194,6 +257,30 @@ ssize_t local_setxattr_nofollow(FsContext *ctx, const char *path,
                                 const char *name, void *value, size_t size,
                                 int flags)
 {
+#ifdef CONFIG_WIN32
+    char *dirpath = g_path_get_dirname(path);
+    char *filename = g_path_get_basename(path);
+    char *full_dir_path;
+    DIR *dir;
+    ssize_t ret = -1;
+
+    full_dir_path = merge_fs_path(ctx->fs_root, dirpath);
+
+    dir = local_opendir_nofollow(ctx, dirpath);
+    if (dir == NULL) {
+        goto out;
+    }
+    closedir(dir);
+
+    ret = fsetxattrat_nofollow(full_dir_path, filename, name,
+                               value, size, flags);
+out:
+    g_free(full_dir_path);
+    g_free(dirpath);
+    g_free(filename);
+    return ret;
+
+#else
     char *dirpath = g_path_get_dirname(path);
     char *filename = g_path_get_basename(path);
     int dirfd;
@@ -210,6 +297,7 @@ out:
     g_free(dirpath);
     g_free(filename);
     return ret;
+#endif
 }
 
 int pt_setxattr(FsContext *ctx, const char *path, const char *name, void *value,
@@ -221,6 +309,30 @@ int pt_setxattr(FsContext *ctx, const char *path, const char *name, void *value,
 ssize_t local_removexattr_nofollow(FsContext *ctx, const char *path,
                                    const char *name)
 {
+#ifdef CONFIG_WIN32
+    char *dirpath = g_path_get_dirname(path);
+    char *filename = g_path_get_basename(path);
+    char *full_dir_path;
+    DIR *dir;
+    ssize_t ret = -1;
+
+    full_dir_path = merge_fs_path(ctx->fs_root, dirpath);
+
+    dir = local_opendir_nofollow(ctx, dirpath);
+    if (dir == NULL) {
+        goto out;
+    }
+    closedir(dir);
+
+    ret = fremovexattrat_nofollow(full_dir_path, filename, name);
+
+out:
+    g_free(full_dir_path);
+    g_free(dirpath);
+    g_free(filename);
+    return ret;
+
+#else
     char *dirpath = g_path_get_dirname(path);
     char *filename = g_path_get_basename(path);
     int dirfd;
@@ -237,6 +349,7 @@ out:
     g_free(dirpath);
     g_free(filename);
     return ret;
+#endif
 }
 
 int pt_removexattr(FsContext *ctx, const char *path, const char *name)
