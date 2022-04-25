@@ -525,8 +525,12 @@ static const MemoryRegionOps loongarch_qemu_ops = {
 static void do_cpu_reset(void *opaque)
 {
     LoongArchCPU *cpu = opaque;
+    CPULoongArchState *env = &cpu->env;
 
     cpu_reset(CPU(cpu));
+    if (env->load_elf) {
+        cpu_set_pc(CPU(cpu), env->elf_address);
+    }
 }
 
 static void loongarch_cpu_init(Object *obj)
