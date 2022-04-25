@@ -148,7 +148,6 @@ struct audio_driver {
     void (*set_dbus_server) (AudioState *s, GDBusObjectManagerServer *manager);
 #endif
     struct audio_pcm_ops *pcm_ops;
-    int can_be_default;
     int max_voices_out;
     int max_voices_in;
     int voice_size_out;
