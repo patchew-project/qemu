@@ -1062,6 +1062,13 @@ static void coroutine_fn pdu_complete(V9fsPDU *pdu, ssize_t len)
             id = P9_RERROR;
         }
 
+#ifdef CONFIG_WIN32
+        /*
+         * Some Windows errnos have different value from Linux,
+         * and they need to be translated to the Linux value.
+         */
+        err = errno_translate_win32(err);
+#endif
         ret = pdu_marshal(pdu, len, "d", err);
         if (ret < 0) {
             goto out_notify;

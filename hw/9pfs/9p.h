@@ -490,6 +490,10 @@ void pdu_free(V9fsPDU *pdu);
 void pdu_submit(V9fsPDU *pdu, P9MsgHeader *hdr);
 void v9fs_reset(V9fsState *s);
 
+#ifdef CONFIG_WIN32
+int errno_translate_win32(int errno_win32);
+#endif
+
 struct V9fsTransport {
     ssize_t     (*pdu_vmarshal)(V9fsPDU *pdu, size_t offset, const char *fmt,
                                 va_list ap);

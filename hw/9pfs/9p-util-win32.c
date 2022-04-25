@@ -20,6 +20,11 @@
 #define V9FS_MAGIC 0x53465039 /* string "9PFS" */
 #endif
 
+struct translate_map {
+    int output;     /* Linux error number */
+    int input;      /* Windows error number */
+};
+
 static int build_ads_name(char *namebuf, size_t namebuflen,
                           const char *dirname, const char *filename,
                           const char *ads_name)
@@ -301,3 +306,36 @@ int qemu_statfs(const char *fs_root, struct statfs *stbuf)
 
     return 0;
 }
+
+int errno_translate_win32(int errno_win32)
+    {
+    unsigned int i;
+
+    /*
+     * The translation table only contains values which could be returned
+     * as a result of a filesystem operation, i.e. network/socket related
+     * errno values need not be considered for translation.
+     */
+    static struct translate_map errno_map[] = {
+        /* Linux errno          Windows errno   */
+        { L_EDEADLK,            EDEADLK         },
+        { L_ENAMETOOLONG,       ENAMETOOLONG    },
+        { L_ENOLCK,             ENOLCK          },
+        { L_ENOSYS,             ENOSYS          },
+        { L_ENOTEMPTY,          ENOTEMPTY       },
+        { L_EILSEQ,             EILSEQ          },
+        { L_ELOOP,              ELOOP           },
+    };
+
+    /* scan errno_win32 table for a matching Linux errno value */
+
+    for (i = 0; i < sizeof(errno_map) / sizeof(errno_map[0]); i++) {
+        if (errno_win32 == errno_map[i].input) {
+            return errno_map[i].output;
+        }
+    }
+
+    /* no translation necessary */
+
+    return errno_win32;
+    }
