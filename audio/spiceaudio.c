@@ -74,8 +74,9 @@ static const SpiceRecordInterface record_sif = {
 static void *spice_audio_init(Audiodev *dev)
 {
     if (!using_spice) {
-        return NULL;
+        error_setg(&error_fatal, "Cannot use spice audio without -spice");
     }
+
     return &spice_audio_init;
 }
 
