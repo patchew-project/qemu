@@ -1098,6 +1098,14 @@ static void tsc210x_init(TSC210xState *s,
 
     qemu_add_mouse_event_handler(tsc210x_touchscreen_event, s, 1, name);
 
+    const char *audiodev_id = audio_maybe_init_dummy("tsc.defaudio");
+    s->card.name = g_strdup(audiodev_id);
+    s->card.state = audio_state_by_name(s->card.name);
+    if (!s->card.state) {
+        error_setg(&error_fatal, "Cannot find audiodev with id '%s'",
+                   s->card.name);
+    }
+
     AUD_register_card(s->name, &s->card);
 
     qemu_register_reset((void *) tsc210x_reset, s);
