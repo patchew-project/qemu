@@ -639,6 +639,8 @@ static void *multifd_send_thread(void *opaque)
         if (p->pending_job) {
             uint64_t packet_num = p->packet_num;
             uint32_t flags = p->flags;
+            int iov_offset = 0;
+
             p->iovs_num = 1;
             p->normal_num = 0;
 
@@ -665,15 +667,36 @@ static void *multifd_send_thread(void *opaque)
             trace_multifd_send(p->id, packet_num, p->normal_num, flags,
                                p->next_packet_size);
 
-            p->iov[0].iov_len = p->packet_len;
-            p->iov[0].iov_base = p->packet;
+            if (migrate_use_zero_copy_send()) {
+                /* Send header without zerocopy */
+                ret = qio_channel_write_all(p->c, (void *)p->packet,
+                                            p->packet_len, &local_err);
+                if (ret != 0) {
+                    break;
+                }
 
-            ret = qio_channel_writev_all(p->c, p->iov, p->iovs_num,
+                if (!p->normal_num) {
+                    /* No pages will be sent */
+                    goto skip_send;
+                }
+
+                /* Skip first iov : header */
+                iov_offset = 1;
+            } else {
+                /* Send header using the same writev call */
+                p->iov[0].iov_len = p->packet_len;
+                p->iov[0].iov_base = p->packet;
+            }
+
+            ret = qio_channel_writev_all(p->c, p->iov + iov_offset,
+                                         p->iovs_num - iov_offset,
                                          &local_err);
+
             if (ret != 0) {
                 break;
             }
 
+skip_send:
             qemu_mutex_lock(&p->mutex);
             p->pending_job--;
             qemu_mutex_unlock(&p->mutex);
