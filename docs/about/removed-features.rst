@@ -336,6 +336,16 @@ for the RISC-V ``virt`` machine and ``sifive_u`` machine.
 The ``-no-quit`` was a synonym for ``-display ...,window-close=off`` which
 should be used instead.
 
+Creating sound card devices using ``-soundhw`` (removed in 7.1)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sound card devices should be created using ``-device`` instead.  The
+names are the same for most devices.  The exceptions are ``hda`` which
+needs two devices (``-device intel-hda -device hda-duplex``) and
+``pcspk`` which can be activated using ``-machine
+pcspk-audiodev=<name>``.  And ``AC97`` and ``ES1370`` now have to be
+specified in uppercase.
+
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------

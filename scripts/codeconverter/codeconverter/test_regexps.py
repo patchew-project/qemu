@@ -264,7 +264,6 @@ def test_initial_includes():
 #define SILENT_ES1370
 
 #include "qemu/osdep.h"
-#include "hw/audio/soundhw.h"
 #include "audio/audio.h"
 #include "hw/pci/pci.h"
 #include "migration/vmstate.h"

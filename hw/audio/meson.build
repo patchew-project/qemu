@@ -1,4 +1,3 @@
-softmmu_ss.add(files('soundhw.c'))
 softmmu_ss.add(when: 'CONFIG_AC97', if_true: files('ac97.c'))
 softmmu_ss.add(when: 'CONFIG_ADLIB', if_true: files('fmopl.c', 'adlib.c'))
 softmmu_ss.add(when: 'CONFIG_CS4231', if_true: files('cs4231.c'))

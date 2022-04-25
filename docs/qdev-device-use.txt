@@ -311,21 +311,16 @@ constraints.
 
 Host and guest part of audio devices have always been separate.
 
-The old way to define guest audio devices is -soundhw C1,...
+Host side (backend) is defined using -audiodev with a specific driver:
 
-The new way is to define each guest audio device separately with
--device.
+    spice
+    pa
+    none
 
-Map from -soundhw sound card name to -device:
-
-    ac97        -device AC97
-    cs4231a     -device cs4231a,iobase=IOADDR,irq=IRQ,dma=DMA
-    es1370      -device ES1370
-    gus         -device gus,iobase=IOADDR,irq=IRQ,dma=DMA,freq=F
-    hda         -device intel-hda,msi=MSI -device hda-duplex
-    sb16        -device sb16,iobase=IOADDR,irq=IRQ,dma=DMA,dma16=DMA16,version=V
-    adlib       not yet available with -device
-    pcspk       not yet available with -device
+And each guest audio device is then defined with -device with
+audiodev=AUDIODEV_ID that refers to the audio backend above.  Exceptions are
+pcspk and adlib which are note yet available with -device and are part of a
+machine type.
 
 For PCI devices, you can add bus=PCI-BUS,addr=DEVFN to control the PCI
 device address, as usual.

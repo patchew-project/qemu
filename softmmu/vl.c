@@ -80,7 +80,6 @@
 #include "migration/snapshot.h"
 #include "sysemu/tpm.h"
 #include "sysemu/dma.h"
-#include "hw/audio/soundhw.h"
 #include "audio/audio.h"
 #include "sysemu/cpus.h"
 #include "sysemu/cpu-timers.h"
@@ -2669,8 +2668,6 @@ static void qemu_create_cli_devices(void)
 {
     DeviceOption *opt;
 
-    soundhw_init();
-
     qemu_opts_foreach(qemu_find_opts("fw_cfg"),
                       parse_fw_cfg, fw_cfg_find(), &error_fatal);
 
@@ -3017,9 +3014,6 @@ void qemu_init(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_audiodev:
                 audio_parse_option(optarg);
-                break;
-            case QEMU_OPTION_soundhw:
-                select_soundhw (optarg);
                 break;
             case QEMU_OPTION_h:
                 help(0);
