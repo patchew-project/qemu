@@ -53,10 +53,6 @@
 #define BTRFS_SUPER_MAGIC 0x9123683E
 #endif
 
-typedef struct {
-    int mountfd;
-} LocalData;
-
 int local_open_nofollow(FsContext *fs_ctx, const char *path, int flags,
                         mode_t mode)
 {
@@ -114,9 +110,6 @@ static void unlinkat_preserve_errno(int dirfd, const char *path, int flags)
     errno = serrno;
 }
 
-#define VIRTFS_META_DIR ".virtfs_metadata"
-#define VIRTFS_META_ROOT_FILE VIRTFS_META_DIR "_root"
-
 static FILE *local_fopenat(int dirfd, const char *name, const char *mode)
 {
     int fd, o_mode = 0;
@@ -144,7 +137,6 @@ static FILE *local_fopenat(int dirfd, const char *name, const char *mode)
     return fp;
 }
 
-#define ATTR_MAX 100
 static void local_mapped_file_attr(int dirfd, const char *name,
                                    struct stat *stbuf)
 {
@@ -545,12 +537,6 @@ static void local_rewinddir(FsContext *ctx, V9fsFidOpenState *fs)
 static off_t local_telldir(FsContext *ctx, V9fsFidOpenState *fs)
 {
     return telldir(fs->dir.stream);
-}
-
-static bool local_is_mapped_file_metadata(FsContext *fs_ctx, const char *name)
-{
-    return
-        !strcmp(name, VIRTFS_META_DIR) || !strcmp(name, VIRTFS_META_ROOT_FILE);
 }
 
 static struct dirent *local_readdir(FsContext *ctx, V9fsFidOpenState *fs)

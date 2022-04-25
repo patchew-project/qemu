@@ -13,6 +13,22 @@
 #ifndef QEMU_9P_LOCAL_H
 #define QEMU_9P_LOCAL_H
 
+#define VIRTFS_META_DIR ".virtfs_metadata"
+#define VIRTFS_META_ROOT_FILE VIRTFS_META_DIR "_root"
+
+#define ATTR_MAX 100
+
+typedef struct {
+    int mountfd;
+} LocalData;
+
+static inline bool local_is_mapped_file_metadata(FsContext *fs_ctx,
+                                                 const char *name)
+{
+    return
+        !strcmp(name, VIRTFS_META_DIR) || !strcmp(name, VIRTFS_META_ROOT_FILE);
+}
+
 int local_open_nofollow(FsContext *fs_ctx, const char *path, int flags,
                         mode_t mode);
 int local_opendir_nofollow(FsContext *fs_ctx, const char *path);
