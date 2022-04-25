@@ -596,6 +596,22 @@ static void machine_set_memdev(Object *obj, const char *value, Error **errp)
     ms->ram_memdev_id = g_strdup(value);
 }
 
+static char *machine_get_default_audiodev(Object *obj, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    return g_strdup(ms->default_audiodev);
+}
+
+static void machine_set_default_audiodev(Object *obj, const char *value,
+                                         Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    g_free(ms->default_audiodev);
+    ms->default_audiodev = g_strdup(value);
+}
+
 HotpluggableCPUList *machine_query_hotpluggable_cpus(MachineState *machine)
 {
     int i;
@@ -867,6 +883,12 @@ static void machine_class_init(ObjectClass *oc, void *data)
     object_class_property_set_description(oc, "confidential-guest-support",
                                           "Set confidential guest scheme to support");
 
+    object_class_property_add_str(oc, "default-audiodev",
+                                  machine_get_default_audiodev,
+                                  machine_set_default_audiodev);
+    object_class_property_set_description(oc, "default-audiodev",
+                                          "Audiodev to use for default machine devices");
+
     /* For compatibility */
     object_class_property_add_str(oc, "memory-encryption",
         machine_get_memory_encryption, machine_set_memory_encryption);
@@ -961,6 +983,7 @@ static void machine_finalize(Object *obj)
     g_free(ms->device_memory);
     g_free(ms->nvdimms_state);
     g_free(ms->numa_state);
+    g_free(ms->default_audiodev);
 }
 
 bool machine_usb(MachineState *machine)

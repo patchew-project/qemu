@@ -346,6 +346,7 @@ struct MachineState {
      */
     MemoryRegion *ram;
     DeviceMemoryState *device_memory;
+    char *default_audiodev;
 
     ram_addr_t ram_size;
     ram_addr_t maxram_size;
