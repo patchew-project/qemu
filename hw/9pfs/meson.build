@@ -17,6 +17,8 @@ fs_ss.add(when: 'CONFIG_LINUX', if_true: files('9p-local.c',
 fs_ss.add(when: 'CONFIG_DARWIN', if_true: files('9p-local.c',
                                                 '9p-proxy.c',
                                                 '9p-util-darwin.c'))
+fs_ss.add(when: 'CONFIG_WIN32', if_true: files('9p-local-win32.c',
+                                               '9p-util-win32.c'))
 fs_ss.add(when: 'CONFIG_XEN', if_true: files('xen-9p-backend.c'))
 softmmu_ss.add_all(when: 'CONFIG_FSDEV_9P', if_true: fs_ss)
 
