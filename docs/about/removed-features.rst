@@ -354,6 +354,15 @@ should specify an ``audiodev=`` property.  Additionally, when using
 vnc, you should specify an ``audiodev=`` property if you plan to
 transmit audio through the VNC protocol.
 
+``QEMU_AUDIO_`` environment variables and ``-audio-help`` (removed in 7.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``-audiodev`` argument is now the preferred way to specify audio
+backend settings instead of environment variables.  To ease migration to
+the new format, the ``-audio-help`` option can be used with older QEMU
+binaries to convert some of the old values of the environment variables
+to new ``-audiodev`` options.
+
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------

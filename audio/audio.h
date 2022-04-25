@@ -170,7 +170,6 @@ void audio_sample_from_uint64(void *samples, int pos,
 
 void audio_parse_option(const char *opt);
 void audio_init_audiodevs(void);
-void audio_legacy_help(void);
 
 AudioState *audio_state_by_name(const char *name);
 const char *audio_get_id(QEMUSoundCard *card);

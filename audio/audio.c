@@ -49,19 +49,6 @@
 
 #define SW_NAME(sw) (sw)->name ? (sw)->name : "unknown"
 
-
-/* Order of CONFIG_AUDIO_DRIVERS is import.
-   The 1st one is the one used by default, that is the reason
-    that we generate the list.
-*/
-const char *audio_prio_list[] = {
-    "spice",
-    CONFIG_AUDIO_DRIVERS
-    "none",
-    "wav",
-    NULL
-};
-
 static QLIST_HEAD(, audio_driver) audio_drivers;
 static AudiodevListHead audiodevs = QSIMPLEQ_HEAD_INITIALIZER(audiodevs);
 
