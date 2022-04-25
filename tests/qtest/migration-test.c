@@ -477,6 +477,7 @@ typedef struct {
      */
     bool hide_stderr;
     bool use_shmem;
+    bool postcopy_preempt;
     /* only launch the target process */
     bool only_target;
     /* Use dirty ring if true; dirty logging otherwise */
@@ -992,6 +993,11 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
     migrate_set_capability(to, "postcopy-ram", true);
     migrate_set_capability(to, "postcopy-blocktime", true);
 
+    if (args->postcopy_preempt) {
+        migrate_set_capability(from, "postcopy-preempt", true);
+        migrate_set_capability(to, "postcopy-preempt", true);
+    }
+
     /* We want to pick a speed slow enough that the test completes
      * quickly, but that it doesn't complete precopy even on a slow
      * machine, so also set the downtime.
@@ -1054,6 +1060,25 @@ static void test_postcopy(void)
 static void test_postcopy_tls_psk(void)
 {
     MigrateStart args = { .postcopy_tls = true };
+
+    test_postcopy_common(&args);
+}
+
+static void test_postcopy_preempt(void)
+{
+    MigrateStart args = {
+        .postcopy_preempt = true,
+    };
+
+    test_postcopy_common(&args);
+}
+
+static void test_postcopy_preempt_tls_psk(void)
+{
+    MigrateStart args = {
+        .postcopy_preempt = true,
+        .postcopy_tls = true,
+    };
 
     test_postcopy_common(&args);
 }
@@ -1130,6 +1155,24 @@ static void test_postcopy_recovery(void)
 static void test_postcopy_recovery_tls_psk(void)
 {
     MigrateStart args = { .postcopy_tls = true };
+
+    test_postcopy_recovery_common(&args);
+}
+
+static void test_postcopy_preempt_recovery(void)
+{
+    MigrateStart args = { .postcopy_preempt = true };
+
+    test_postcopy_recovery_common(&args);
+}
+
+/* This contains preempt+recovery+tls test altogether */
+static void test_postcopy_preempt_all(void)
+{
+    MigrateStart args = {
+        .postcopy_preempt = true,
+        .postcopy_tls = true,
+    };
 
     test_postcopy_recovery_common(&args);
 }
@@ -2189,6 +2232,17 @@ int main(int argc, char **argv)
     qtest_add_func("/migration/postcopy/recovery/tls/psk",
                    test_postcopy_recovery_tls_psk);
 #endif /* CONFIG_GNUTLS */
+
+    qtest_add_func("/migration/postcopy/preempt/plain", test_postcopy_preempt);
+    qtest_add_func("/migration/postcopy/preempt/recovery/plain",
+                   test_postcopy_preempt_recovery);
+#ifdef CONFIG_GNUTLS
+    qtest_add_func("/migration/postcopy/preempt/tls/psk",
+                   test_postcopy_preempt_tls_psk);
+    qtest_add_func("/migration/postcopy/preempt/recovery/tls/psk",
+                   test_postcopy_preempt_all);
+#endif /* CONFIG_GNUTLS */
+
     qtest_add_func("/migration/bad_dest", test_baddest);
     qtest_add_func("/migration/precopy/unix/plain", test_precopy_unix_plain);
     qtest_add_func("/migration/precopy/unix/xbzrle", test_precopy_unix_xbzrle);
