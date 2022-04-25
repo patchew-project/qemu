@@ -37,6 +37,7 @@
 #include "sysemu/runstate.h"
 #include "ui/qemu-spice.h"
 #include "trace.h"
+#include "hw/boards.h"
 
 #define AUDIO_CAP "audio"
 #include "audio_int.h"
@@ -2120,6 +2121,39 @@ void audio_init_audiodevs(void)
     QSIMPLEQ_FOREACH(e, &audiodevs, next) {
         audio_init(e->dev, NULL);
     }
+}
+
+static void audio_init_dummy(const char *id)
+{
+    Audiodev *dev = g_new0(Audiodev, 1);
+    AudiodevListEntry *e = g_new0(AudiodevListEntry, 1);
+
+    dev->driver = AUDIODEV_DRIVER_NONE;
+    dev->id = g_strdup(id);
+
+    audio_validate_opts(dev, &error_abort);
+    audio_init(dev, NULL);
+
+    e->dev = dev;
+    QSIMPLEQ_INSERT_TAIL(&audiodevs, e, next);
+}
+
+const char *audio_maybe_init_dummy(const char *default_id)
+{
+    MachineState *ms = MACHINE(qdev_get_machine());
+
+    if (ms->default_audiodev) {
+        return ms->default_audiodev;
+    }
+
+    dolog("warning: No audiodev specified for implicit machine devices, "
+          "no audio output will be available for these. "
+          "For setting a backend audiodev for such devices try using "
+          "the default-audiodev machine option.\n");
+
+    audio_init_dummy(default_id);
+
+    return default_id;
 }
 
 audsettings audiodev_to_audsettings(AudiodevPerDirectionOptions *pdo)
