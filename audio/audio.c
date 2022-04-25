@@ -87,6 +87,8 @@ audio_driver *audio_driver_lookup(const char *name)
         }
     }
 
+    error_setg(&error_fatal, "Unknown audio driver `%s'", name);
+    /* Avoid compiler complaining that we do not return in non-void function */
     return NULL;
 }
 
@@ -103,8 +105,6 @@ const struct mixeng_volume nominal_volume = {
     .l = 1ULL << 32,
 #endif
 };
-
-static bool legacy_config = true;
 
 int audio_bug (const char *funcname, int cond)
 {
@@ -1532,31 +1532,27 @@ size_t audio_generic_read(HWVoiceIn *hw, void *buf, size_t size)
     return total;
 }
 
-static int audio_driver_init(AudioState *s, struct audio_driver *drv,
-                             bool msg, Audiodev *dev)
+static void audio_driver_init(AudioState *s, struct audio_driver *drv,
+                              Audiodev *dev)
 {
     s->drv_opaque = drv->init(dev);
 
-    if (s->drv_opaque) {
-        if (!drv->pcm_ops->get_buffer_in) {
-            drv->pcm_ops->get_buffer_in = audio_generic_get_buffer_in;
-            drv->pcm_ops->put_buffer_in = audio_generic_put_buffer_in;
-        }
-        if (!drv->pcm_ops->get_buffer_out) {
-            drv->pcm_ops->get_buffer_out = audio_generic_get_buffer_out;
-            drv->pcm_ops->put_buffer_out = audio_generic_put_buffer_out;
-        }
-
-        audio_init_nb_voices_out(s, drv);
-        audio_init_nb_voices_in(s, drv);
-        s->drv = drv;
-        return 0;
-    } else {
-        if (msg) {
-            dolog("Could not init `%s' audio driver\n", drv->name);
-        }
-        return -1;
+    if (!s->drv_opaque) {
+        error_setg(&error_fatal, "Could not init `%s' audio driver", drv->name);
     }
+
+    if (!drv->pcm_ops->get_buffer_in) {
+        drv->pcm_ops->get_buffer_in = audio_generic_get_buffer_in;
+        drv->pcm_ops->put_buffer_in = audio_generic_put_buffer_in;
+    }
+    if (!drv->pcm_ops->get_buffer_out) {
+        drv->pcm_ops->get_buffer_out = audio_generic_get_buffer_out;
+        drv->pcm_ops->put_buffer_out = audio_generic_put_buffer_out;
+    }
+
+    audio_init_nb_voices_out(s, drv);
+    audio_init_nb_voices_in(s, drv);
+    s->drv = drv;
 }
 
 static void audio_vm_change_state_handler (void *opaque, bool running,
@@ -1661,78 +1657,18 @@ static const VMStateDescription vmstate_audio = {
 
 static void audio_validate_opts(Audiodev *dev, Error **errp);
 
-static AudiodevListEntry *audiodev_find(
-    AudiodevListHead *head, const char *drvname)
-{
-    AudiodevListEntry *e;
-    QSIMPLEQ_FOREACH(e, head, next) {
-        if (strcmp(AudiodevDriver_str(e->dev->driver), drvname) == 0) {
-            return e;
-        }
-    }
-
-    return NULL;
-}
-
-/*
- * if we have dev, this function was called because of an -audiodev argument =>
- *   initialize a new state with it
- * if dev == NULL => legacy implicit initialization, return the already created
- *   state or create a new one
- */
-static AudioState *audio_init(Audiodev *dev, const char *name)
+static AudioState *audio_init(Audiodev *dev)
 {
     static bool atexit_registered;
-    size_t i;
-    int done = 0;
     const char *drvname = NULL;
     VMChangeStateEntry *e;
     AudioState *s;
-    struct audio_driver *driver;
-    /* silence gcc warning about uninitialized variable */
-    AudiodevListHead head = QSIMPLEQ_HEAD_INITIALIZER(head);
 
-    if (using_spice) {
-        /*
-         * When using spice allow the spice audio driver being picked
-         * as default.
-         *
-         * Temporary hack.  Using audio devices without explicit
-         * audiodev= property is already deprecated.  Same goes for
-         * the -soundhw switch.  Once this support gets finally
-         * removed we can also drop the concept of a default audio
-         * backend and this can go away.
-         */
-        driver = audio_driver_lookup("spice");
-        if (driver) {
-            driver->can_be_default = 1;
-        }
+    if (!dev) {
+        error_setg(&error_abort, "Mandatory audiodev parameter required");
     }
 
-    if (dev) {
-        /* -audiodev option */
-        legacy_config = false;
-        drvname = AudiodevDriver_str(dev->driver);
-    } else if (!QTAILQ_EMPTY(&audio_states)) {
-        if (!legacy_config) {
-            dolog("Device %s: audiodev default parameter is deprecated, please "
-                  "specify audiodev=%s\n", name,
-                  QTAILQ_FIRST(&audio_states)->dev->id);
-        }
-        return QTAILQ_FIRST(&audio_states);
-    } else {
-        /* legacy implicit initialization */
-        head = audio_handle_legacy_opts();
-        /*
-         * In case of legacy initialization, all Audiodevs in the list will have
-         * the same configuration (except the driver), so it doesn't matter which
-         * one we chose.  We need an Audiodev to set up AudioState before we can
-         * init a driver.  Also note that dev at this point is still in the
-         * list.
-         */
-        dev = QSIMPLEQ_FIRST(&head)->dev;
-        audio_validate_opts(dev, &error_abort);
-    }
+    drvname = AudiodevDriver_str(dev->driver);
 
     s = g_new0(AudioState, 1);
     s->dev = dev;
@@ -1763,37 +1699,7 @@ static AudioState *audio_init(Audiodev *dev, const char *name)
         s->nb_hw_voices_in = 0;
     }
 
-    if (drvname) {
-        driver = audio_driver_lookup(drvname);
-        if (driver) {
-            done = !audio_driver_init(s, driver, true, dev);
-        } else {
-            dolog ("Unknown audio driver `%s'\n", drvname);
-        }
-    } else {
-        for (i = 0; audio_prio_list[i]; i++) {
-            AudiodevListEntry *e = audiodev_find(&head, audio_prio_list[i]);
-            driver = audio_driver_lookup(audio_prio_list[i]);
-
-            if (e && driver) {
-                s->dev = dev = e->dev;
-                audio_validate_opts(dev, &error_abort);
-                done = !audio_driver_init(s, driver, false, dev);
-                if (done) {
-                    e->dev = NULL;
-                    break;
-                }
-            }
-        }
-    }
-    audio_free_audiodev_list(&head);
-
-    if (!done) {
-        driver = audio_driver_lookup("none");
-        done = !audio_driver_init(s, driver, false, dev);
-        assert(done);
-        dolog("warning: Using timer based audio emulation\n");
-    }
+    audio_driver_init(s, audio_driver_lookup(drvname), dev);
 
     if (dev->timer_period <= 0) {
         s->period_ticks = 1;
@@ -2120,7 +2026,7 @@ void audio_init_audiodevs(void)
     AudiodevListEntry *e;
 
     QSIMPLEQ_FOREACH(e, &audiodevs, next) {
-        audio_init(e->dev, NULL);
+        audio_init(e->dev);
     }
 }
 
@@ -2133,7 +2039,7 @@ static void audio_init_dummy(const char *id)
     dev->id = g_strdup(id);
 
     audio_validate_opts(dev, &error_abort);
-    audio_init(dev, NULL);
+    audio_init(dev);
 
     e->dev = dev;
     QSIMPLEQ_INSERT_TAIL(&audiodevs, e, next);

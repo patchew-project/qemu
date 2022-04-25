@@ -346,6 +346,14 @@ needs two devices (``-device intel-hda -device hda-duplex``) and
 pcspk-audiodev=<name>``.  And ``AC97`` and ``ES1370`` now have to be
 specified in uppercase.
 
+Creating sound card devices and vnc without ``audiodev=`` property (removed in 7.1)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+When not using the deprecated legacy audio config, each sound card
+should specify an ``audiodev=`` property.  Additionally, when using
+vnc, you should specify an ``audiodev=`` property if you plan to
+transmit audio through the VNC protocol.
+
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
