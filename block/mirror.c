@@ -1066,10 +1066,14 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
             trace_mirror_before_drain(s, cnt);
 
             s->in_drain = true;
+            bdrv_graph_co_rdlock();
             bdrv_drained_begin(bs);
+            bdrv_graph_co_rdunlock();
             cnt = bdrv_get_dirty_count(s->dirty_bitmap);
             if (cnt > 0 || mirror_flush(s) < 0) {
+                bdrv_graph_co_rdlock();
                 bdrv_drained_end(bs);
+                bdrv_graph_co_rdunlock();
                 s->in_drain = false;
                 continue;
             }
@@ -1111,7 +1115,9 @@ immediate_exit:
 
     if (need_drain) {
         s->in_drain = true;
+        bdrv_graph_co_rdlock();
         bdrv_drained_begin(bs);
+        bdrv_graph_co_rdunlock();
     }
 
     return ret;
