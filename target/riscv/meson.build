@@ -29,7 +29,8 @@ riscv_softmmu_ss.add(files(
   'pmp.c',
   'debug.c',
   'monitor.c',
-  'machine.c'
+  'machine.c',
+  'time_helper.c'
 ))
 
 target_arch += {'riscv': riscv_ss}
