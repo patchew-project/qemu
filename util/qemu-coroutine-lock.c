@@ -67,32 +67,26 @@ void coroutine_fn qemu_co_queue_wait_impl(CoQueue *queue, QemuLockable *lock)
     }
 }
 
-static bool qemu_co_queue_do_restart(CoQueue *queue, bool single)
+static void qemu_co_queue_do_restart(CoQueue *queue, QemuLockable *lock)
 {
-    Coroutine *next;
-
-    if (QSIMPLEQ_EMPTY(&queue->entries)) {
-        return false;
+    while (qemu_co_enter_next_impl(queue, lock)) {
+        /* nop */
     }
-
-    while ((next = QSIMPLEQ_FIRST(&queue->entries)) != NULL) {
-        QSIMPLEQ_REMOVE_HEAD(&queue->entries, co_queue_next);
-        aio_co_wake(next);
-        if (single) {
-            break;
-        }
-    }
-    return true;
 }
 
 bool qemu_co_queue_next(CoQueue *queue)
 {
-    return qemu_co_queue_do_restart(queue, true);
+    return qemu_co_enter_next_impl(queue, NULL);
 }
 
 void qemu_co_queue_restart_all(CoQueue *queue)
 {
-    qemu_co_queue_do_restart(queue, false);
+    qemu_co_queue_do_restart(queue, NULL);
+}
+
+void qemu_co_queue_restart_all_impl(CoQueue *queue, QemuLockable *lock)
+{
+    qemu_co_queue_do_restart(queue, lock);
 }
 
 bool qemu_co_enter_next_impl(CoQueue *queue, QemuLockable *lock)

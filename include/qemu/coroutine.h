@@ -221,6 +221,16 @@ bool qemu_co_queue_next(CoQueue *queue);
 void qemu_co_queue_restart_all(CoQueue *queue);
 
 /**
+ * Empties the CoQueue; all coroutines are woken up.
+ * OK to run from coroutine and non-coroutine context.
+ * Unlocks lock before waking up each coroutine takes it again
+ * when done.
+ */
+#define qemu_co_queue_restart_all_lockable(queue, lock) \
+    qemu_co_queue_restart_all_impl(queue, QEMU_MAKE_LOCKABLE(lock))
+void qemu_co_queue_restart_all_impl(CoQueue *queue, QemuLockable *lock);
+
+/**
  * Removes the next coroutine from the CoQueue, and wake it up.  Unlike
  * qemu_co_queue_next, this function releases the lock during aio_co_wake
  * because it is meant to be used outside coroutine context; in that case, the
