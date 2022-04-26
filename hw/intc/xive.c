@@ -114,6 +114,21 @@ static void xive_tctx_notify(XiveTCTX *tctx, uint8_t ring)
     }
 }
 
+void xive_tctx_eval_ext_signal(XiveTCTX *tctx)
+{
+    uint8_t *regs = &tctx->regs[TM_QW1_OS];
+
+    /*
+     * Used when pulling an OS context.
+     * Lower the External interrupt if it's pending. It is necessary
+     * to avoid catching it in the hypervisor context. It should be
+     * raised again when re-pushing the OS context.
+     */
+    if (regs[TM_PIPR] < regs[TM_CPPR]) {
+        qemu_irq_lower(xive_tctx_output(tctx, TM_QW1_OS));
+    }
+}
+
 static void xive_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
 {
     uint8_t *regs = &tctx->regs[ring];
@@ -388,6 +403,8 @@ static uint64_t xive_tm_pull_os_ctx(XivePresenter *xptr, XiveTCTX *tctx,
     /* Invalidate CAM line */
     qw1w2_new = xive_set_field32(TM_QW1W2_VO, qw1w2, 0);
     xive_tctx_set_os_cam(tctx, qw1w2_new);
+
+    xive_tctx_eval_ext_signal(tctx);
     return qw1w2;
 }
 
@@ -413,10 +430,13 @@ static void xive_tctx_need_resend(XiveRouter *xrtr, XiveTCTX *tctx,
         /* Reset the NVT value */
         nvt.w4 = xive_set_field32(NVT_W4_IPB, nvt.w4, 0);
         xive_router_write_nvt(xrtr, nvt_blk, nvt_idx, &nvt, 4);
-
-        /* Merge in current context */
-        xive_tctx_ipb_update(tctx, TM_QW1_OS, ipb);
     }
+    /*
+     * Always merge in current context. Even if there's no escalation,
+     * it will check with the IPB value restored before pushing the OS
+     * context and set the External interrupt signal if needed.
+     */
+    xive_tctx_ipb_update(tctx, TM_QW1_OS, ipb);
 }
 
 /*
