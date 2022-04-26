@@ -142,7 +142,7 @@
 --disable-virtiofsd \
 --disable-vnc \
 --disable-vnc-jpeg \
---disable-vnc-png \
+--disable-png \
 --disable-vnc-sasl \
 --disable-vte \
 --disable-vvfat \
