@@ -540,6 +540,7 @@ DEF_HELPER_5(XXBLENDVD, void, vsr, vsr, vsr, vsr, i32)
 DEF_HELPER_6(XVI4GER8, void, env, i32, i32, i32, i32, i32)
 DEF_HELPER_6(XVI8GER4, void, env, i32, i32, i32, i32, i32)
 DEF_HELPER_6(XVI16GER2, void, env, i32, i32, i32, i32, i32)
+DEF_HELPER_6(XVF16GER2, void, env, i32, i32, i32, i32, i32)
 DEF_HELPER_6(XVF32GER, void, env, i32, i32, i32, i32, i32)
 DEF_HELPER_6(XVF64GER, void, env, i32, i32, i32, i32, i32)
 

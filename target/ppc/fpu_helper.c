@@ -3478,6 +3478,67 @@ static inline bool ger_neg_acc_flag(uint32_t flag)
     return flag & 0x4;
 }
 
+#define float16_to_float32(A, PTR) float16_to_float32(A, true, PTR)
+
+#define GET_VSR(VSR, A, I, SRC_T, TARGET_T)                             \
+    SRC_T##_to_##TARGET_T(A->VSR(I), excp_ptr)
+
+#define VSXGER16(NAME, ORIG_T, OR_EL)                                   \
+    void NAME(CPUPPCState *env, uint32_t a_r, uint32_t b_r,             \
+              uint32_t  at_r, uint32_t mask, uint32_t packed_flags)     \
+    {                                                                   \
+        ppc_vsr_t *at;                                                  \
+        float32 psum, aux_acc, va, vb, vc, vd;                          \
+        int i, j, xmsk_bit, ymsk_bit;                                   \
+        uint8_t xmsk = mask & 0x0F;                                     \
+        uint8_t ymsk = (mask >> 4) & 0x0F;                              \
+        uint8_t pmsk = (mask >> 8) & 0x3;                               \
+        ppc_vsr_t *b = cpu_vsr_ptr(env, b_r);                           \
+        ppc_vsr_t *a = cpu_vsr_ptr(env, a_r);                           \
+        float_status *excp_ptr = &env->fp_status;                       \
+        bool acc = ger_acc_flag(packed_flags);                          \
+        bool neg_acc = ger_neg_acc_flag(packed_flags);                  \
+        bool neg_mul = ger_neg_mul_flag(packed_flags);                  \
+        for (i = 0, xmsk_bit = 1 << 3; i < 4; i++, xmsk_bit >>= 1) {    \
+            at = cpu_vsr_ptr(env, at_r + i);                            \
+            for (j = 0, ymsk_bit = 1 << 3; j < 4; j++, ymsk_bit >>= 1) {\
+                if ((xmsk_bit & xmsk) && (ymsk_bit & ymsk)) {           \
+                    va = !(pmsk & 2) ? float32_zero :                   \
+                                       GET_VSR(Vsr##OR_EL, a,           \
+                                               2 * i, ORIG_T, float32); \
+                    vb = !(pmsk & 2) ? float32_zero :                   \
+                                       GET_VSR(Vsr##OR_EL, b,           \
+                                               2 * j, ORIG_T, float32); \
+                    vc = !(pmsk & 1) ? float32_zero :                   \
+                                       GET_VSR(Vsr##OR_EL, a,           \
+                                            2 * i + 1, ORIG_T, float32);\
+                    vd = !(pmsk & 1) ? float32_zero :                   \
+                                       GET_VSR(Vsr##OR_EL, b,           \
+                                            2 * j + 1, ORIG_T, float32);\
+                    psum = float32_mul(va, vb, excp_ptr);               \
+                    psum = float32_muladd(vc, vd, psum, 0, excp_ptr);   \
+                    if (acc) {                                          \
+                        if (neg_mul) {                                  \
+                            psum = float32_neg(psum);                   \
+                        }                                               \
+                        if (neg_acc) {                                  \
+                            aux_acc = float32_neg(at->VsrSF(j));        \
+                        } else {                                        \
+                            aux_acc = at->VsrSF(j);                     \
+                        }                                               \
+                        at->VsrSF(j) = float32_add(psum, aux_acc,       \
+                                                   excp_ptr);           \
+                    } else {                                            \
+                        at->VsrSF(j) = psum;                            \
+                    }                                                   \
+                } else {                                                \
+                    at->VsrSF(j) = 0;                                   \
+                }                                                       \
+            }                                                           \
+        }                                                               \
+        do_float_check_status(env, GETPC());                            \
+    }
+
 #define VSXGER(NAME, TYPE, EL)                                          \
     void NAME(CPUPPCState *env, uint32_t a_r, uint32_t b_r,             \
               uint32_t  at_r, uint32_t mask, uint32_t packed_flags)     \
@@ -3522,7 +3583,11 @@ static inline bool ger_neg_acc_flag(uint32_t flag)
         do_float_check_status(env, GETPC());                            \
     }
 
+VSXGER16(helper_XVF16GER2, float16, HF)
 VSXGER(helper_XVF32GER, float32, SF)
 VSXGER(helper_XVF64GER, float64, DF)
 
+#undef VSXGER16
 #undef VSXGER
+#undef GET_VSR
+#undef float16_to_float32

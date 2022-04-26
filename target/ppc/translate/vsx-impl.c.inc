@@ -2917,6 +2917,12 @@ TRANS64(PMXVI16GER2SPP, do_ger_MMIRR_XX3, GER_SPP, gen_helper_XVI16GER2)
 #define GER_PN ger_pack_flags_xvf(true, false, true)
 #define GER_NN ger_pack_flags_xvf(true, true, true)
 
+TRANS(XVF16GER2, do_ger_XX3, GER_NOP, gen_helper_XVF16GER2)
+TRANS(XVF16GER2PP, do_ger_XX3, GER_PP, gen_helper_XVF16GER2)
+TRANS(XVF16GER2PN, do_ger_XX3, GER_PN, gen_helper_XVF16GER2)
+TRANS(XVF16GER2NP, do_ger_XX3, GER_NP, gen_helper_XVF16GER2)
+TRANS(XVF16GER2NN, do_ger_XX3, GER_NN, gen_helper_XVF16GER2)
+
 TRANS(XVF32GER, do_ger_XX3, GER_NOP, gen_helper_XVF32GER)
 TRANS(XVF32GERPP, do_ger_XX3, GER_PP, gen_helper_XVF32GER)
 TRANS(XVF32GERPN, do_ger_XX3, GER_PN, gen_helper_XVF32GER)
