@@ -90,4 +90,3 @@ if get_option('install_blobs')
 endif
 
 subdir('descriptors')
-subdir('keymaps')
