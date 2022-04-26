@@ -881,8 +881,12 @@ struct BdrvChildClass {
     void (*activate)(BdrvChild *child, Error **errp);
     int (*inactivate)(BdrvChild *child);
 
-    void (*attach)(BdrvChild *child);
-    void (*detach)(BdrvChild *child);
+    /*
+     * Return true if the graph wrlock is taken/released,
+     * false if the wrlock state is not changed.
+     */
+    bool (*attach)(BdrvChild *child);
+    bool (*detach)(BdrvChild *child);
 
     /*
      * Notifies the parent that the filename of its child has changed (e.g.

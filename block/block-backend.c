@@ -282,7 +282,7 @@ static int blk_root_inactivate(BdrvChild *child)
     return 0;
 }
 
-static void blk_root_attach(BdrvChild *child)
+static bool blk_root_attach(BdrvChild *child)
 {
     BlockBackend *blk = child->opaque;
     BlockBackendAioNotifier *notifier;
@@ -295,9 +295,10 @@ static void blk_root_attach(BdrvChild *child)
                 notifier->detach_aio_context,
                 notifier->opaque);
     }
+    return false;
 }
 
-static void blk_root_detach(BdrvChild *child)
+static bool blk_root_detach(BdrvChild *child)
 {
     BlockBackend *blk = child->opaque;
     BlockBackendAioNotifier *notifier;
@@ -310,6 +311,7 @@ static void blk_root_detach(BdrvChild *child)
                 notifier->detach_aio_context,
                 notifier->opaque);
     }
+    return false;
 }
 
 static AioContext *blk_root_get_parent_aio_context(BdrvChild *c)

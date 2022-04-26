@@ -1434,21 +1434,26 @@ static void bdrv_inherited_options(BdrvChildRole role, bool parent_is_format,
     *child_flags = flags;
 }
 
-static void bdrv_child_cb_attach(BdrvChild *child)
+static bool bdrv_child_cb_attach(BdrvChild *child)
 {
     BlockDriverState *bs = child->opaque;
 
     assert_bdrv_graph_writable(bs);
     QLIST_INSERT_HEAD(&bs->children, child, next);
 
+    /* Paired with bdrv_graph_wrlock() in bdrv_replace_child_noperm */
+    bdrv_graph_wrunlock();
+
     if (child->role & BDRV_CHILD_COW) {
         bdrv_backing_attach(child);
     }
 
     bdrv_apply_subtree_drain(child, bs);
+
+    return true;
 }
 
-static void bdrv_child_cb_detach(BdrvChild *child)
+static bool bdrv_child_cb_detach(BdrvChild *child)
 {
     BlockDriverState *bs = child->opaque;
 
@@ -1458,8 +1463,13 @@ static void bdrv_child_cb_detach(BdrvChild *child)
 
     bdrv_unapply_subtree_drain(child, bs);
 
+    /* Paired with bdrv_graph_wrunlock() in bdrv_replace_child_noperm */
+    bdrv_graph_wrlock();
+
     assert_bdrv_graph_writable(bs);
     QLIST_REMOVE(child, next);
+
+    return true;
 }
 
 static int bdrv_child_cb_update_filename(BdrvChild *c, BlockDriverState *base,
@@ -2842,6 +2852,7 @@ static void bdrv_replace_child_noperm(BdrvChild **childp,
     BlockDriverState *old_bs = child->bs;
     int new_bs_quiesce_counter;
     int drain_saldo;
+    bool locked = false;
 
     assert(!child->frozen);
     assert(old_bs != new_bs);
@@ -2868,8 +2879,12 @@ static void bdrv_replace_child_noperm(BdrvChild **childp,
          * are already gone and we only end the drain sections that came from
          * elsewhere. */
         if (child->klass->detach) {
-            child->klass->detach(child);
+            locked = child->klass->detach(child);
         }
+        if (!locked) {
+            bdrv_graph_wrlock();
+        }
+        locked = true;
         assert_bdrv_graph_writable(old_bs);
         QLIST_REMOVE(child, next_parent);
     }
@@ -2880,6 +2895,10 @@ static void bdrv_replace_child_noperm(BdrvChild **childp,
     }
 
     if (new_bs) {
+        if (!locked) {
+            bdrv_graph_wrlock();
+            locked = true;
+        }
         assert_bdrv_graph_writable(new_bs);
         QLIST_INSERT_HEAD(&new_bs->parents, child, next_parent);
 
@@ -2896,8 +2915,12 @@ static void bdrv_replace_child_noperm(BdrvChild **childp,
          * drain sections coming from @child don't get an extra .drained_begin
          * callback. */
         if (child->klass->attach) {
-            child->klass->attach(child);
+            locked = !(child->klass->attach(child));
         }
+    }
+
+    if (locked) {
+        bdrv_graph_wrunlock();
     }
 
     /*
