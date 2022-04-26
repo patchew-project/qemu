@@ -127,6 +127,15 @@ struct AioContext {
     /* Used by AioContext users to protect from multi-threaded access.  */
     QemuRecMutex lock;
 
+    /* How many readers in this AioContext are currently reading the graph. */
+    uint32_t reader_count;
+
+    /*
+     * List of AioContext kept in graph-lock.c
+     * Protected by aio_context_list_lock
+     */
+    QTAILQ_ENTRY(AioContext) next_aio;
+
     /* The list of registered AIO handlers.  Protected by ctx->list_lock. */
     AioHandlerList aio_handlers;
 
