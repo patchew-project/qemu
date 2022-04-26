@@ -35,6 +35,8 @@ static int vmstate_n_elems(void *opaque, const VMStateField *field)
         n_elems = *(int32_t *)(opaque + field->num_offset);
     } else if (field->flags & VMS_VARRAY_UINT32) {
         n_elems = *(uint32_t *)(opaque + field->num_offset);
+    } else if (field->flags & VMS_VARRAY_UINT64) {
+        n_elems = *(uint64_t *)(opaque + field->num_offset);
     } else if (field->flags & VMS_VARRAY_UINT16) {
         n_elems = *(uint16_t *)(opaque + field->num_offset);
     } else if (field->flags & VMS_VARRAY_UINT8) {
