@@ -3583,6 +3583,7 @@ static inline bool ger_neg_acc_flag(uint32_t flag)
         do_float_check_status(env, GETPC());                            \
     }
 
+VSXGER16(helper_XVBF16GER2, bfloat16, BF)
 VSXGER16(helper_XVF16GER2, float16, HF)
 VSXGER(helper_XVF32GER, float32, SF)
 VSXGER(helper_XVF64GER, float64, DF)
