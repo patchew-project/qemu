@@ -67,6 +67,7 @@ endif
 
 if have_block
   util_ss.add(files('aiocb.c', 'async.c', 'aio-wait.c'))
+  util_ss.add(files('../block/graph-lock.c'))
   util_ss.add(files('base64.c'))
   util_ss.add(files('buffer.c'))
   util_ss.add(files('bufferiszero.c'))
