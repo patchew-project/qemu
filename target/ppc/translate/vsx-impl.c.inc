@@ -2835,7 +2835,7 @@ static uint32_t pack_flags_xvi(int acc, int sat)
     return (sat << 1) | acc;
 }
 
-static bool do_ger_XX3(DisasContext *ctx, arg_XX3 *a, uint32_t op,
+static bool do_ger_MMIRR_XX3(DisasContext *ctx, arg_MMIRR_XX3 *a, uint32_t op,
                              void (*helper)(TCGv_env, TCGv_i32, TCGv_i32,
                                             TCGv_i32, TCGv_i32, TCGv_i32))
 {
@@ -2847,11 +2847,25 @@ static bool do_ger_XX3(DisasContext *ctx, arg_XX3 *a, uint32_t op,
         return true;
     }
 
-    mask = 0xFFFFFFFF;
+    mask = ger_pack_masks(a->pmsk, a->ymsk, a->xmsk);
     helper(cpu_env, tcg_constant_i32(a->xa), tcg_constant_i32(a->xb),
            tcg_constant_i32(a->xt), tcg_constant_i32(mask),
            tcg_constant_i32(op));
     return true;
+
+}
+static bool do_ger_XX3(DisasContext *ctx, arg_XX3 *a, uint32_t op_flags,
+                       void (*helper)(TCGv_env, TCGv_i32, TCGv_i32,
+                                      TCGv_i32, TCGv_i32, TCGv_i32))
+{
+    arg_MMIRR_XX3 m;
+    m.xa = a->xa;
+    m.xb = a->xb;
+    m.xt = a->xt;
+    m.pmsk = 0xFF;
+    m.ymsk = 0xF;
+    m.xmsk = 0xF;
+    return do_ger_MMIRR_XX3(ctx, &m, op_flags, helper);
 }
 
 /* Used to keep line length < 80 */
@@ -2868,6 +2882,16 @@ TRANS(XVI16GER2, do_ger_XX3, GER_NOP, gen_helper_XVI16GER2)
 TRANS(XVI16GER2PP, do_ger_XX3, GER_PP, gen_helper_XVI16GER2)
 TRANS(XVI16GER2S, do_ger_XX3, GER_SAT, gen_helper_XVI16GER2)
 TRANS(XVI16GER2SPP, do_ger_XX3, GER_SPP, gen_helper_XVI16GER2)
+
+TRANS64(PMXVI4GER8, do_ger_MMIRR_XX3, GER_NOP, gen_helper_XVI4GER8)
+TRANS64(PMXVI4GER8PP, do_ger_MMIRR_XX3, GER_PP, gen_helper_XVI4GER8)
+TRANS64(PMXVI8GER4, do_ger_MMIRR_XX3, GER_NOP, gen_helper_XVI8GER4)
+TRANS64(PMXVI8GER4PP, do_ger_MMIRR_XX3, GER_PP, gen_helper_XVI8GER4)
+TRANS64(PMXVI8GER4SPP, do_ger_MMIRR_XX3, GER_SPP, gen_helper_XVI8GER4)
+TRANS64(PMXVI16GER2, do_ger_MMIRR_XX3, GER_NOP, gen_helper_XVI16GER2)
+TRANS64(PMXVI16GER2PP, do_ger_MMIRR_XX3, GER_PP, gen_helper_XVI16GER2)
+TRANS64(PMXVI16GER2S, do_ger_MMIRR_XX3, GER_SAT, gen_helper_XVI16GER2)
+TRANS64(PMXVI16GER2SPP, do_ger_MMIRR_XX3, GER_SPP, gen_helper_XVI16GER2)
 #undef GER_NOP
 #undef GER_PP
 #undef GER_SAT
