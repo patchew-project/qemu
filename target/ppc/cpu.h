@@ -2688,6 +2688,11 @@ static inline uint64_t *cpu_vsrl_ptr(CPUPPCState *env, int i)
     return (uint64_t *)((uintptr_t)env + vsr64_offset(i, false));
 }
 
+static inline ppc_vsr_t *cpu_vsr_ptr(CPUPPCState *env, int i)
+{
+    return (ppc_vsr_t *)((uintptr_t)env + vsr_full_offset(i));
+}
+
 static inline long avr64_offset(int i, bool high)
 {
     return vsr64_offset(i + 32, high);

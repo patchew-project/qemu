@@ -782,6 +782,91 @@ VCT(uxs, cvtsduw, u32)
 VCT(sxs, cvtsdsw, s32)
 #undef VCT
 
+/*
+ * Packed VSX Integer GER Flags
+ * 00 - no accumulation no saturation
+ * 01 - accumulate but no saturation
+ * 10 - no accumulation but with saturation
+ * 11 - accumulate with saturation
+ */
+static inline bool get_sat(uint32_t flags)
+{
+    return flags & 0x2;
+}
+
+static inline bool get_acc(uint32_t flags)
+{
+    return flags & 0x1;
+}
+
+#define GET_VsrN(a, i) (extract32(a->VsrB((i) / 2), (i) % 2 ? 4 : 0, 4))
+#define GET_VsrB(a, i) a->VsrB(i)
+#define GET_VsrH(a, i) a->VsrH(i)
+
+#define GET_VsrSN(a, i) (sextract32(a->VsrSB((i) / 2), (i) % 2 ? 4 : 0, 4))
+#define GET_VsrSB(a, i) a->VsrSB(i)
+#define GET_VsrSH(a, i) a->VsrSH(i)
+
+#define XVIGER(NAME, RANK, EL)                                                 \
+    void NAME(CPUPPCState *env, uint32_t a_r, uint32_t b_r,                    \
+              uint32_t  at_r, uint32_t mask, uint32_t packed_flags)            \
+    {                                                                          \
+        ppc_vsr_t *a = cpu_vsr_ptr(env, a_r), *b = cpu_vsr_ptr(env, b_r), *at; \
+        bool sat = get_sat(packed_flags), acc = get_acc(packed_flags);         \
+        uint8_t pmsk = ger_get_pmsk(mask), xmsk = ger_get_xmsk(mask),          \
+                ymsk = ger_get_ymsk(mask);                                     \
+        uint8_t pmsk_bit, xmsk_bit, ymsk_bit;                                  \
+        int64_t psum;                                                          \
+        int32_t va, vb;                                                        \
+        int i, j, k;                                                           \
+        for (i = 0, xmsk_bit = 1 << 3; i < 4; i++, xmsk_bit >>= 1) {           \
+            at = cpu_vsr_ptr(env, at_r + i);                                   \
+            for (j = 0, ymsk_bit = 1 << 3; j < 4; j++, ymsk_bit >>= 1) {       \
+                if ((xmsk_bit & xmsk) && (ymsk_bit & ymsk)) {                  \
+                    psum = 0;                                                  \
+                    for (k = 0, pmsk_bit = 1 << (RANK - 1); k < RANK;          \
+                         k++, pmsk_bit >>= 1) {                                \
+                        if (pmsk_bit & pmsk) {                                 \
+                            va = (int32_t)GET_VsrS##EL(a, RANK * i + k);       \
+                            vb = (int32_t) ((RANK == 4) ?                      \
+                                                GET_Vsr##EL(b, RANK * j + k) : \
+                                                GET_VsrS##EL(b, RANK * j + k));\
+                            psum += va * vb;                                   \
+                        }                                                      \
+                    }                                                          \
+                    if (acc) {                                                 \
+                        psum += at->VsrSW(j);                                  \
+                    }                                                          \
+                    if (sat && psum > INT32_MAX) {                             \
+                        set_vscr_sat(env);                                     \
+                        at->VsrSW(j) = INT32_MAX;                              \
+                    } else if (sat && psum < INT32_MIN) {                      \
+                        set_vscr_sat(env);                                     \
+                        at->VsrSW(j) = INT32_MIN;                              \
+                    } else {                                                   \
+                        at->VsrSW(j) = (int32_t) psum;                         \
+                    }                                                          \
+                } else {                                                       \
+                    at->VsrSW(j) = 0;                                          \
+                }                                                              \
+            }                                                                  \
+        }                                                                      \
+    }
+
+XVIGER(helper_XVI4GER8, 8, N)
+XVIGER(helper_XVI8GER4, 4, B)
+XVIGER(helper_XVI16GER2, 2, H)
+
+#undef GER_MULT
+#undef XVIGER_NAME
+#undef XVIGER
+#undef GET_VsrN
+#undef GET_VsrB
+#undef GET_VsrH
+#undef GET_VsrSN
+#undef GET_VsrSB
+#undef GET_VsrSH
+
 target_ulong helper_vclzlsbb(ppc_avr_t *r)
 {
     target_ulong count = 0;

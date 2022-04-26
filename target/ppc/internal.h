@@ -291,4 +291,32 @@ G_NORETURN void ppc_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
                                             uintptr_t retaddr);
 #endif
 
+/*
+ * Auxiliary functions to pack/unpack masks for GER instructions.
+ *
+ * Packed format:
+ *  Bits 0-3: xmsk
+ *  Bits 4-7: ymsk
+ *  Bits 8-15: pmsk
+ */
+static inline uint8_t ger_get_xmsk(uint32_t packed_masks)
+{
+    return packed_masks & 0xF;
+}
+
+static inline uint8_t ger_get_ymsk(uint32_t packed_masks)
+{
+    return (packed_masks >> 4) & 0xF;
+}
+
+static inline uint8_t ger_get_pmsk(uint32_t packed_masks)
+{
+    return (packed_masks >> 8) & 0xFF;
+}
+
+static inline int ger_pack_masks(int pmsk, int ymsk, int xmsk)
+{
+    return (pmsk & 0xFF) << 8 | (ymsk & 0xF) << 4 | (xmsk & 0xF);
+}
+
 #endif /* PPC_INTERNAL_H */

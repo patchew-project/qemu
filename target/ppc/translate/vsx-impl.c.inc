@@ -2823,6 +2823,56 @@ static bool trans_XXSETACCZ(DisasContext *ctx, arg_X_a *a)
     return true;
 }
 
+/*
+ * Packed VSX Integer GER Flags
+ * 00 - no accumulation no saturation
+ * 01 - accumulate but no saturation
+ * 10 - no accumulation but with saturation
+ * 11 - accumulate with saturation
+ */
+static uint32_t pack_flags_xvi(int acc, int sat)
+{
+    return (sat << 1) | acc;
+}
+
+static bool do_ger_XX3(DisasContext *ctx, arg_XX3 *a, uint32_t op,
+                             void (*helper)(TCGv_env, TCGv_i32, TCGv_i32,
+                                            TCGv_i32, TCGv_i32, TCGv_i32))
+{
+    uint32_t mask;
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VSX(ctx);
+    if (unlikely((a->xa / 4 == a->xt / 4) || (a->xb / 4 == a->xt / 4))) {
+        gen_invalid(ctx);
+        return true;
+    }
+
+    mask = 0xFFFFFFFF;
+    helper(cpu_env, tcg_constant_i32(a->xa), tcg_constant_i32(a->xb),
+           tcg_constant_i32(a->xt), tcg_constant_i32(mask),
+           tcg_constant_i32(op));
+    return true;
+}
+
+/* Used to keep line length < 80 */
+#define GER_NOP pack_flags_xvi(0, 0)
+#define GER_PP  pack_flags_xvi(1, 0)
+#define GER_SAT pack_flags_xvi(0, 1)
+#define GER_SPP pack_flags_xvi(1, 1)
+TRANS(XVI4GER8, do_ger_XX3, GER_NOP, gen_helper_XVI4GER8)
+TRANS(XVI4GER8PP, do_ger_XX3, GER_PP, gen_helper_XVI4GER8)
+TRANS(XVI8GER4, do_ger_XX3, GER_NOP, gen_helper_XVI8GER4)
+TRANS(XVI8GER4PP, do_ger_XX3, GER_PP, gen_helper_XVI8GER4)
+TRANS(XVI8GER4SPP, do_ger_XX3, GER_SPP, gen_helper_XVI8GER4)
+TRANS(XVI16GER2, do_ger_XX3, GER_NOP, gen_helper_XVI16GER2)
+TRANS(XVI16GER2PP, do_ger_XX3, GER_PP, gen_helper_XVI16GER2)
+TRANS(XVI16GER2S, do_ger_XX3, GER_SAT, gen_helper_XVI16GER2)
+TRANS(XVI16GER2SPP, do_ger_XX3, GER_SPP, gen_helper_XVI16GER2)
+#undef GER_NOP
+#undef GER_PP
+#undef GER_SAT
+#undef GER_SPP
+
 #undef GEN_XX2FORM
 #undef GEN_XX3FORM
 #undef GEN_XX2IFORM
