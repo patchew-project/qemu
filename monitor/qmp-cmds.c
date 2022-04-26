@@ -448,13 +448,30 @@ void add_stats_callbacks(StatRetrieveFunc *stats_fn,
     QTAILQ_INSERT_TAIL(&stats_callbacks, entry, next);
 }
 
+static strList *stats_target_filter(StatsFilter *filter)
+{
+    switch (filter->target) {
+    case STATS_TARGET_VM:
+        return NULL;
+    case STATS_TARGET_VCPU:
+        if (!filter->u.vcpu.has_vcpus) {
+            return NULL;
+        }
+        return filter->u.vcpu.vcpus;
+        break;
+    default:
+        abort();
+    }
+}
+
 StatsResultList *qmp_query_stats(StatsFilter *filter, Error **errp)
 {
     StatsResultList *stats_results = NULL;
+    strList *targets = stats_target_filter(filter);
     StatsCallbacks *entry;
 
     QTAILQ_FOREACH(entry, &stats_callbacks, next) {
-        entry->stats_cb(&stats_results, filter->target, errp);
+        entry->stats_cb(&stats_results, filter->target, targets, errp);
     }
 
     return stats_results;
@@ -496,4 +513,19 @@ void add_stats_schema(StatsSchemaList **schema_results,
     entry->target = target;
     entry->stats = stats_list;
     QAPI_LIST_PREPEND(*schema_results, entry);
+}
+
+bool str_in_list(const char *string, strList *list)
+{
+    strList *str_list = NULL;
+
+    if (!list) {
+        return true;
+    }
+    for (str_list = list; str_list; str_list = str_list->next) {
+        if (g_str_equal(string, str_list->value)) {
+            return true;
+        }
+    }
+    return false;
 }

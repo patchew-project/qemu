@@ -10,7 +10,8 @@
 
 #include "qapi/qapi-types-stats.h"
 
-typedef void StatRetrieveFunc(StatsResultList **result, StatsTarget target, Error **errp);
+typedef void StatRetrieveFunc(StatsResultList **result, StatsTarget target,
+                              strList *targets, Error **errp);
 typedef void SchemaRetrieveFunc(StatsSchemaList **result, Error **errp);
 
 /*
@@ -29,5 +30,11 @@ void add_stats_entry(StatsResultList **, StatsProvider, const char *id,
                      StatsList *stats_list);
 void add_stats_schema(StatsSchemaList **, StatsProvider, StatsTarget,
                       StatsSchemaValueList *);
+
+/*
+ * True if a string matches the filter passed to the stats_fn callabck,
+ * false otherwise.
+ */
+bool str_in_list(const char *string, strList *list);
 
 #endif /* STATS_H */
