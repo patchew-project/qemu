@@ -3462,3 +3462,67 @@ void helper_xssubqp(CPUPPCState *env, uint32_t opcode,
     *xt = t;
     do_float_check_status(env, GETPC());
 }
+
+static inline bool ger_acc_flag(uint32_t flag)
+{
+    return flag & 0x1;
+}
+
+static inline bool ger_neg_mul_flag(uint32_t flag)
+{
+    return flag & 0x2;
+}
+
+static inline bool ger_neg_acc_flag(uint32_t flag)
+{
+    return flag & 0x4;
+}
+
+#define VSXGER(NAME, TYPE, EL)                                          \
+    void NAME(CPUPPCState *env, uint32_t a_r, uint32_t b_r,             \
+              uint32_t  at_r, uint32_t mask, uint32_t packed_flags)     \
+    {                                                                   \
+        ppc_vsr_t *a, *b, *at;                                          \
+        TYPE aux_acc, va, vb;                                           \
+        int i, j, xmsk_bit, ymsk_bit, op_flags;                         \
+        uint8_t xmsk = mask & 0x0F;                                     \
+        uint8_t ymsk = (mask >> 4) & 0x0F;                              \
+        int ymax = MIN(4, 128 / (sizeof(TYPE) * 8));                    \
+        b = cpu_vsr_ptr(env, b_r);                                      \
+        float_status *excp_ptr = &env->fp_status;                       \
+        bool acc = ger_acc_flag(packed_flags);                          \
+        bool neg_acc = ger_neg_acc_flag(packed_flags);                  \
+        bool neg_mul = ger_neg_mul_flag(packed_flags);                  \
+        helper_reset_fpstatus(env);                                     \
+        for (i = 0, xmsk_bit = 1 << 3; i < 4; i++, xmsk_bit >>= 1) {    \
+            a = cpu_vsr_ptr(env, a_r + i / ymax);                       \
+            at = cpu_vsr_ptr(env, at_r + i);                            \
+            for (j = 0, ymsk_bit = 1 << (ymax - 1); j < ymax;           \
+                 j++, ymsk_bit >>= 1) {                                 \
+                if ((xmsk_bit & xmsk) && (ymsk_bit & ymsk)) {           \
+                    op_flags = (neg_acc ^ neg_mul) ?                    \
+                                          float_muladd_negate_c : 0;    \
+                    op_flags |= (neg_mul) ?                             \
+                                     float_muladd_negate_result : 0;    \
+                    va = a->Vsr##EL(i % ymax);                          \
+                    vb = b->Vsr##EL(j);                                 \
+                    aux_acc = at->Vsr##EL(j);                           \
+                    if (acc) {                                          \
+                        at->Vsr##EL(j) = TYPE##_muladd(va, vb, aux_acc, \
+                                                       op_flags,        \
+                                                       excp_ptr);       \
+                    } else {                                            \
+                        at->Vsr##EL(j) = TYPE##_mul(va, vb, excp_ptr);  \
+                    }                                                   \
+                } else {                                                \
+                    at->Vsr##EL(j) = 0;                                 \
+                }                                                       \
+            }                                                           \
+        }                                                               \
+        do_float_check_status(env, GETPC());                            \
+    }
+
+VSXGER(helper_XVF32GER, float32, SF)
+VSXGER(helper_XVF64GER, float64, DF)
+
+#undef VSXGER

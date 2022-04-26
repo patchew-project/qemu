@@ -2835,6 +2835,19 @@ static uint32_t pack_flags_xvi(int acc, int sat)
     return (sat << 1) | acc;
 }
 
+/*
+ * Packed VSX Floating Point GER Flags
+ * 000 - no accumulation no saturation
+ * 001 - positive accumulate, positive multiply
+ * 011 - positive accumulate, negative multiply
+ * 101 - negative accumulate, positive multiply
+ * 111 - negative accumulate, negative multiply
+ */
+static inline uint32_t ger_pack_flags_xvf(bool acc, bool nm, bool na)
+{
+    return (acc ? 0x1 : 0) | (nm ? 0x2 : 0) | (na ? 0x4 : 0);
+}
+
 static bool do_ger_MMIRR_XX3(DisasContext *ctx, arg_MMIRR_XX3 *a, uint32_t op,
                              void (*helper)(TCGv_env, TCGv_i32, TCGv_i32,
                                             TCGv_i32, TCGv_i32, TCGv_i32))
@@ -2896,6 +2909,32 @@ TRANS64(PMXVI16GER2SPP, do_ger_MMIRR_XX3, GER_SPP, gen_helper_XVI16GER2)
 #undef GER_PP
 #undef GER_SAT
 #undef GER_SPP
+
+/* To keep line size < 80 */
+#define GER_NOP ger_pack_flags_xvf(false, false, false)
+#define GER_PP ger_pack_flags_xvf(true, false, false)
+#define GER_NP ger_pack_flags_xvf(true, true, false)
+#define GER_PN ger_pack_flags_xvf(true, false, true)
+#define GER_NN ger_pack_flags_xvf(true, true, true)
+
+TRANS(XVF32GER, do_ger_XX3, GER_NOP, gen_helper_XVF32GER)
+TRANS(XVF32GERPP, do_ger_XX3, GER_PP, gen_helper_XVF32GER)
+TRANS(XVF32GERPN, do_ger_XX3, GER_PN, gen_helper_XVF32GER)
+TRANS(XVF32GERNP, do_ger_XX3, GER_NP, gen_helper_XVF32GER)
+TRANS(XVF32GERNN, do_ger_XX3, GER_NN, gen_helper_XVF32GER)
+
+TRANS(XVF64GER, do_ger_XX3, GER_NOP, gen_helper_XVF64GER)
+TRANS(XVF64GERPP, do_ger_XX3, GER_PP, gen_helper_XVF64GER)
+TRANS(XVF64GERPN, do_ger_XX3, GER_PN, gen_helper_XVF64GER)
+TRANS(XVF64GERNP, do_ger_XX3, GER_NP, gen_helper_XVF64GER)
+TRANS(XVF64GERNN, do_ger_XX3, GER_NN, gen_helper_XVF64GER)
+
+
+#undef GER_NOP
+#undef GER_PP
+#undef GER_NP
+#undef GER_PN
+#undef GER_NN
 
 #undef GEN_XX2FORM
 #undef GEN_XX3FORM
