@@ -468,15 +468,18 @@ static strList *stats_target_filter(StatsFilter *filter)
 }
 
 static bool stats_provider_requested(StatsProvider provider,
-                                     StatsFilter *filter)
+                                     StatsFilter *filter,
+                                     strList **p_names)
 {
     StatsRequestList *request;
 
     if (!filter->has_providers) {
+        *p_names = NULL;
         return true;
     }
     for (request = filter->providers; request; request = request->next) {
         if (request->value->provider == provider) {
+            *p_names = request->value->has_names ? request->value->names : NULL;
             return true;
         }
     }
@@ -490,8 +493,9 @@ StatsResultList *qmp_query_stats(StatsFilter *filter, Error **errp)
     StatsCallbacks *entry;
 
     QTAILQ_FOREACH(entry, &stats_callbacks, next) {
-        if (stats_provider_requested(entry->provider, filter)) {
-            entry->stats_cb(&stats_results, filter->target, targets, errp);
+        strList *names = NULL;
+        if (stats_provider_requested(entry->provider, filter, &names)) {
+            entry->stats_cb(&stats_results, filter->target, names, targets, errp);
         }
     }
 
