@@ -2867,6 +2867,22 @@ static bool do_ger_MMIRR_XX3(DisasContext *ctx, arg_MMIRR_XX3 *a, uint32_t op,
     return true;
 
 }
+
+static bool do_ger_MMIRR_XX3_NO_PMSK(DisasContext *ctx, arg_MMIRR_XX3_NO_P *a,
+                                     int op_flag, void (*helper)(TCGv_env,
+                                     TCGv_i32, TCGv_i32, TCGv_i32,
+                                     TCGv_i32, TCGv_i32))
+{
+    arg_MMIRR_XX3 x;
+    x.xa = a->xa;
+    x.xb = a->xb;
+    x.xt = a->xt;
+    x.pmsk = 0x1;
+    x.ymsk = a->ymsk;
+    x.xmsk = a->xmsk;
+    return do_ger_MMIRR_XX3(ctx, &x, op_flag, helper);
+}
+
 static bool do_ger_XX3(DisasContext *ctx, arg_XX3 *a, uint32_t op_flags,
                        void (*helper)(TCGv_env, TCGv_i32, TCGv_i32,
                                       TCGv_i32, TCGv_i32, TCGv_i32))
@@ -2935,6 +2951,23 @@ TRANS(XVF64GERPN, do_ger_XX3, GER_PN, gen_helper_XVF64GER)
 TRANS(XVF64GERNP, do_ger_XX3, GER_NP, gen_helper_XVF64GER)
 TRANS(XVF64GERNN, do_ger_XX3, GER_NN, gen_helper_XVF64GER)
 
+TRANS64(PMXVF16GER2, do_ger_MMIRR_XX3, GER_NOP, gen_helper_XVF16GER2)
+TRANS64(PMXVF16GER2PP, do_ger_MMIRR_XX3, GER_PP, gen_helper_XVF16GER2)
+TRANS64(PMXVF16GER2PN, do_ger_MMIRR_XX3, GER_PN, gen_helper_XVF16GER2)
+TRANS64(PMXVF16GER2NP, do_ger_MMIRR_XX3, GER_NP, gen_helper_XVF16GER2)
+TRANS64(PMXVF16GER2NN, do_ger_MMIRR_XX3, GER_NN, gen_helper_XVF16GER2)
+
+TRANS64(PMXVF32GER, do_ger_MMIRR_XX3_NO_PMSK, GER_NOP, gen_helper_XVF32GER)
+TRANS64(PMXVF32GERPP, do_ger_MMIRR_XX3_NO_PMSK, GER_PP, gen_helper_XVF32GER)
+TRANS64(PMXVF32GERPN, do_ger_MMIRR_XX3_NO_PMSK, GER_PN, gen_helper_XVF32GER)
+TRANS64(PMXVF32GERNP, do_ger_MMIRR_XX3_NO_PMSK, GER_NP, gen_helper_XVF32GER)
+TRANS64(PMXVF32GERNN, do_ger_MMIRR_XX3_NO_PMSK, GER_NN, gen_helper_XVF32GER)
+
+TRANS64(PMXVF64GER, do_ger_MMIRR_XX3_NO_PMSK, GER_NOP, gen_helper_XVF64GER)
+TRANS64(PMXVF64GERPP, do_ger_MMIRR_XX3_NO_PMSK, GER_PP, gen_helper_XVF64GER)
+TRANS64(PMXVF64GERPN, do_ger_MMIRR_XX3_NO_PMSK, GER_PN, gen_helper_XVF64GER)
+TRANS64(PMXVF64GERNP, do_ger_MMIRR_XX3_NO_PMSK, GER_NP, gen_helper_XVF64GER)
+TRANS64(PMXVF64GERNN, do_ger_MMIRR_XX3_NO_PMSK, GER_NN, gen_helper_XVF64GER)
 
 #undef GER_NOP
 #undef GER_PP
