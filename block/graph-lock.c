@@ -214,3 +214,14 @@ void coroutine_fn bdrv_graph_co_rdunlock(void)
         aio_wait_kick();
     }
 }
+
+void assert_bdrv_graph_readable(void)
+{
+    assert(qemu_in_main_thread() || reader_count());
+}
+
+void assert_bdrv_graph_writable(void)
+{
+    assert(qemu_in_main_thread());
+    assert(qatomic_read(&has_writer));
+}

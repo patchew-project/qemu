@@ -1438,7 +1438,7 @@ static bool bdrv_child_cb_attach(BdrvChild *child)
 {
     BlockDriverState *bs = child->opaque;
 
-    assert_bdrv_graph_writable(bs);
+    assert_bdrv_graph_writable();
     QLIST_INSERT_HEAD(&bs->children, child, next);
 
     /* Paired with bdrv_graph_wrlock() in bdrv_replace_child_noperm */
@@ -1466,7 +1466,7 @@ static bool bdrv_child_cb_detach(BdrvChild *child)
     /* Paired with bdrv_graph_wrunlock() in bdrv_replace_child_noperm */
     bdrv_graph_wrlock();
 
-    assert_bdrv_graph_writable(bs);
+    assert_bdrv_graph_writable();
     QLIST_REMOVE(child, next);
 
     return true;
@@ -2885,7 +2885,7 @@ static void bdrv_replace_child_noperm(BdrvChild **childp,
             bdrv_graph_wrlock();
         }
         locked = true;
-        assert_bdrv_graph_writable(old_bs);
+        assert_bdrv_graph_writable();
         QLIST_REMOVE(child, next_parent);
     }
 
@@ -2899,7 +2899,7 @@ static void bdrv_replace_child_noperm(BdrvChild **childp,
             bdrv_graph_wrlock();
             locked = true;
         }
-        assert_bdrv_graph_writable(new_bs);
+        assert_bdrv_graph_writable();
         QLIST_INSERT_HEAD(&new_bs->parents, child, next_parent);
 
         /*
