@@ -433,7 +433,9 @@ out:
     if (vdev_scsi) {
         g_main_loop_unref(vdev_scsi->loop);
         g_free(vdev_scsi);
-        unlink(opt_socket_path);
+        if (opt_socket_path) {
+            unlink(opt_socket_path);
+        }
     }
     if (csock >= 0) {
         close(csock);
