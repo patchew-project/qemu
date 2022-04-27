@@ -365,7 +365,7 @@ static int fchmodat_nofollow(int dirfd, const char *name, mode_t mode)
     if (fd == -1) {
         /* In case the file is writable-only and isn't a directory. */
         if (errno == EACCES) {
-            fd = openat_file(dirfd, name, O_WRONLY, 0);
+            fd = openat_file(dirfd, name, O_WRONLY | O_NOFOLLOW, 0);
         }
         if (fd == -1 && errno == EISDIR) {
             errno = EACCES;
