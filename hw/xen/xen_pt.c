@@ -327,7 +327,7 @@ static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
             uint32_t real_offset = reg_grp_entry->base_offset + reg->offset;
             uint32_t valid_mask = 0xFFFFFFFF >> ((4 - emul_len) << 3);
             uint8_t *ptr_val = NULL;
-            uint32_t wp_mask = reg->emu_mask | reg->ro_mask;
+            uint32_t wp_mask = reg_entry->emu_mask | reg->ro_mask;
 
             valid_mask <<= (find_addr - real_offset) << 3;
             ptr_val = (uint8_t *)&val + (real_offset & 3);

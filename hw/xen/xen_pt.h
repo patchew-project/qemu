@@ -46,7 +46,7 @@ void igd_write_opregion(XenPCIPassthroughState *s, uint32_t val);
 
 /* function type for config reg */
 typedef int (*xen_pt_conf_reg_init)
-    (XenPCIPassthroughState *, XenPTRegInfo *, uint32_t real_offset,
+    (XenPCIPassthroughState *, XenPTReg *, uint32_t real_offset,
      uint32_t *data);
 typedef int (*xen_pt_conf_dword_write)
     (XenPCIPassthroughState *, XenPTReg *cfg_entry,
@@ -117,7 +117,7 @@ struct XenPTRegInfo {
     /* reg read/write-1-clear field mask (ON:RW1C/RW1CS, OFF:other) */
     uint32_t rw1c_mask;
     /* reg emulate field mask (ON:emu, OFF:passthrough) */
-    uint32_t emu_mask;
+    uint32_t emu_mask_init;
     xen_pt_conf_reg_init init;
     /* read/write function pointer
      * for double_word/word/byte size */
@@ -146,6 +146,7 @@ struct XenPTReg {
         uint16_t *half_word;
         uint32_t *word;
     } ptr; /* pointer to dev.config. */
+    uint32_t emu_mask;
 };
 
 typedef const struct XenPTRegGroupInfo XenPTRegGroupInfo;
