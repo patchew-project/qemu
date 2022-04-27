@@ -40,8 +40,8 @@ ssize_t load_image_size(const char *filename, void *addr, size_t size);
  *
  * Returns the size of the loaded image on success, -1 otherwise.
  */
-int load_image_targphys_as(const char *filename,
-                           hwaddr addr, uint64_t max_sz, AddressSpace *as);
+int64_t load_image_targphys_as(const char *filename,
+                               hwaddr addr, uint64_t max_sz, AddressSpace *as);
 
 /**load_targphys_hex_as:
  * @filename: Path to the .hex file
@@ -53,14 +53,15 @@ int load_image_targphys_as(const char *filename,
  *
  * Returns the size of the loaded .hex file on success, -1 otherwise.
  */
-int load_targphys_hex_as(const char *filename, hwaddr *entry, AddressSpace *as);
+int64_t load_targphys_hex_as(const char *filename, hwaddr *entry,
+                             AddressSpace *as);
 
 /** load_image_targphys:
  * Same as load_image_targphys_as(), but doesn't allow the caller to specify
  * an AddressSpace.
  */
-int load_image_targphys(const char *filename, hwaddr,
-                        uint64_t max_sz);
+int64_t load_image_targphys(const char *filename, hwaddr,
+                            uint64_t max_sz);
 
 /**
  * load_image_mr: load an image into a memory region
@@ -73,7 +74,7 @@ int load_image_targphys(const char *filename, hwaddr,
  * If the file is larger than the memory region's size the call will fail.
  * Returns -1 on failure, or the size of the file.
  */
-int load_image_mr(const char *filename, MemoryRegion *mr);
+int64_t load_image_mr(const char *filename, MemoryRegion *mr);
 
 /* This is the limit on the maximum uncompressed image size that
  * load_image_gzipped_buffer() and load_image_gzipped() will read. It prevents

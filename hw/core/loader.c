@@ -114,17 +114,17 @@ ssize_t read_targphys(const char *name,
     return did;
 }
 
-int load_image_targphys(const char *filename,
-                        hwaddr addr, uint64_t max_sz)
+int64_t load_image_targphys(const char *filename,
+                            hwaddr addr, uint64_t max_sz)
 {
     return load_image_targphys_as(filename, addr, max_sz, NULL);
 }
 
 /* return the size or -1 if error */
-int load_image_targphys_as(const char *filename,
-                           hwaddr addr, uint64_t max_sz, AddressSpace *as)
+int64_t load_image_targphys_as(const char *filename,
+                               hwaddr addr, uint64_t max_sz, AddressSpace *as)
 {
-    int size;
+    int64_t size;
 
     size = get_image_size(filename);
     if (size < 0 || size > max_sz) {
@@ -138,9 +138,9 @@ int load_image_targphys_as(const char *filename,
     return size;
 }
 
-int load_image_mr(const char *filename, MemoryRegion *mr)
+int64_t load_image_mr(const char *filename, MemoryRegion *mr)
 {
-    int size;
+    int64_t size;
 
     if (!memory_access_is_direct(mr, false)) {
         /* Can only load an image into RAM or ROM */
@@ -962,7 +962,8 @@ int rom_add_file(const char *file, const char *fw_dir,
 {
     MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
     Rom *rom;
-    int rc, fd = -1;
+    int fd = -1;
+    size_t bytes_read = 0;
     char devpath[100];
 
     if (as && mr) {
@@ -1002,11 +1003,17 @@ int rom_add_file(const char *file, const char *fw_dir,
     rom->datasize = rom->romsize;
     rom->data     = g_malloc0(rom->datasize);
     lseek(fd, 0, SEEK_SET);
-    rc = read(fd, rom->data, rom->datasize);
-    if (rc != rom->datasize) {
-        fprintf(stderr, "rom: file %-20s: read error: rc=%d (expected %zd)\n",
-                rom->name, rc, rom->datasize);
-        goto err;
+    while (bytes_read < rom->datasize) {
+        ssize_t rc =
+            read(fd, rom->data + bytes_read, rom->datasize - bytes_read);
+        if (rc <= 0) {
+            fprintf(stderr,
+                    "rom: file %-20s: read error: rc=%zd at position %zd "
+                    "(expected size %zd)\n",
+                    rom->name, rc, bytes_read, rom->datasize);
+            goto err;
+        }
+        bytes_read += rc;
     }
     close(fd);
     rom_insert(rom);
@@ -1670,7 +1677,7 @@ typedef struct {
     HexLine line;
     uint8_t *bin_buf;
     hwaddr *start_addr;
-    int total_size;
+    int64_t total_size;
     uint32_t next_address_to_write;
     uint32_t current_address;
     uint32_t current_rom_index;
@@ -1766,8 +1773,8 @@ static int handle_record_type(HexParser *parser)
 }
 
 /* return size or -1 if error */
-static int parse_hex_blob(const char *filename, hwaddr *addr, uint8_t *hex_blob,
-                          size_t hex_blob_size, AddressSpace *as)
+static int64_t parse_hex_blob(const char *filename, hwaddr *addr, uint8_t *hex_blob,
+                              size_t hex_blob_size, AddressSpace *as)
 {
     bool in_process = false; /* avoid re-enter and
                               * check whether record begin with ':' */
@@ -1831,11 +1838,12 @@ out:
 }
 
 /* return size or -1 if error */
-int load_targphys_hex_as(const char *filename, hwaddr *entry, AddressSpace *as)
+int64_t load_targphys_hex_as(const char *filename, hwaddr *entry,
+                             AddressSpace *as)
 {
     gsize hex_blob_size;
     gchar *hex_blob;
-    int total_size = 0;
+    int64_t total_size = 0;
 
     if (!g_file_get_contents(filename, &hex_blob, &hex_blob_size, NULL)) {
         return -1;
