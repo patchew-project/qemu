@@ -729,11 +729,19 @@ static void pci_spapr_set_irq(void *opaque, int irq_num, int level)
 
 static PCIINTxRoute spapr_route_intx_pin_to_irq(void *opaque, int pin)
 {
+    SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     SpaprPhbState *sphb = SPAPR_PCI_HOST_BRIDGE(opaque);
-    PCIINTxRoute route;
+    PCIINTxRoute route = { .mode = PCI_INTX_DISABLED };
 
-    route.mode = PCI_INTX_ENABLED;
-    route.irq = sphb->lsi_table[pin].irq;
+    /*
+     * Disable IRQFD resampler on XIVE as it does not support LSI and QEMU
+     * emulates those so the KVM kernel resamplefd kick is skipped and EOI
+     * is not delivered to VFIO-PCI.
+     */
+    if (!spapr->xive) {
+        route.mode = PCI_INTX_ENABLED;
+        route.irq = sphb->lsi_table[pin].irq;
+    }
 
     return route;
 }
