@@ -173,10 +173,13 @@ static char *
 real_time_iso8601(void)
 {
 #if GLIB_CHECK_VERSION(2,62,0)
-    g_autoptr(GDateTime) dt = g_date_time_new_from_unix_utc(g_get_real_time());
+    g_autoptr(GDateTime) dt = g_date_time_new_now_utc();
     /* ignore deprecation warning, since GLIB_VERSION_MAX_ALLOWED is 2.56 */
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    if (!dt) {
+        return NULL;
+    }
     return g_date_time_format_iso8601(dt);
 #pragma GCC diagnostic pop
 #else
@@ -199,8 +202,10 @@ static void vreport(report_type type, const char *fmt, va_list ap)
 
     if (message_with_timestamp && !monitor_cur()) {
         timestr = real_time_iso8601();
-        error_printf("%s ", timestr);
-        g_free(timestr);
+        if (timestr) {
+            error_printf("%s ", timestr);
+            g_free(timestr);
+        }
     }
 
     /* Only prepend guest name if -msg guest-name and -name guest=... are set */
