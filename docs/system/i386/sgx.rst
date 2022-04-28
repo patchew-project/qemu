@@ -45,7 +45,7 @@ to the VM and an additional 28M mapped but not allocated::
 
  -object memory-backend-epc,id=mem1,size=64M,prealloc=on \
  -object memory-backend-epc,id=mem2,size=28M \
- -M sgx-epc.0.memdev=mem1,sgx-epc.1.memdev=mem2
+ -M sgx-epc.0.memdev=mem1,sgx-epc.0.node=0,sgx-epc.1.memdev=mem2,sgx-epc.1.node=0
 
 Note:
 
