@@ -2375,6 +2375,14 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
                              vc && vc->type == GD_VC_VTE);
 #endif
 
+    if (opts->u.gtk.has_monitor &&
+        opts->u.gtk.monitor < gdk_display_get_n_monitors(window_display)) {
+        GdkRectangle mon_dest;
+        gdk_monitor_get_geometry(
+            gdk_display_get_monitor(window_display, opts->u.gtk.monitor),
+            &mon_dest);
+        gtk_window_move(GTK_WINDOW(s->window), mon_dest.x, mon_dest.y);
+    }
     if (opts->has_full_screen &&
         opts->full_screen) {
         gtk_menu_item_activate(GTK_MENU_ITEM(s->full_screen_item));
