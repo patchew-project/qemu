@@ -1338,6 +1338,8 @@ static void gd_menu_untabify(GtkMenuItem *item, void *opaque)
                                        FALSE);
     }
     if (!vc->window) {
+        gint x, y, w, h;
+        int i;
         gtk_widget_set_sensitive(vc->menu_item, false);
         vc->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 #if defined(CONFIG_OPENGL)
@@ -1351,7 +1353,18 @@ static void gd_menu_untabify(GtkMenuItem *item, void *opaque)
         }
 #endif
         gd_widget_reparent(s->notebook, vc->window, vc->tab_item);
+        gtk_window_get_position(GTK_WINDOW(s->window), &x, &y);
+        gtk_window_get_size(GTK_WINDOW(s->window), &w, &h);
 
+        for (i = 0; i < s->nb_vcs; i++) {
+            if (vc == &s->vc[i]) {
+                break;
+            }
+        }
+
+        gtk_window_move(GTK_WINDOW(vc->window),
+                        x + w * (i % (s->nb_vcs/2) + 1), y + h * (i / (s->nb_vcs/2)));
+        gtk_window_resize(GTK_WINDOW(vc->window), w, h);
         g_signal_connect(vc->window, "delete-event",
                          G_CALLBACK(gd_tab_window_close), vc);
         gtk_widget_show_all(vc->window);
