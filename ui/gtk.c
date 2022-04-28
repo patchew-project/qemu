@@ -2305,6 +2305,8 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
     GdkDisplay *window_display;
     GtkIconTheme *theme;
     char *dir;
+    int num_mon;
+    int i;
 
     if (!gtkinit) {
         fprintf(stderr, "gtk initialization failed\n");
@@ -2374,18 +2376,57 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
     gtk_widget_set_sensitive(s->copy_item,
                              vc && vc->type == GD_VC_VTE);
 #endif
-
     if (opts->u.gtk.has_monitor &&
-        opts->u.gtk.monitor < gdk_display_get_n_monitors(window_display)) {
+        opts->u.gtk.monitor <
+        (num_mon = gdk_display_get_n_monitors(window_display))) {
         GdkRectangle mon_dest;
         gdk_monitor_get_geometry(
             gdk_display_get_monitor(window_display, opts->u.gtk.monitor),
             &mon_dest);
         gtk_window_move(GTK_WINDOW(s->window), mon_dest.x, mon_dest.y);
     }
+    if (opts->has_detach_all &&
+        opts->detach_all) {
+        for (i = 0; i < s->nb_vcs - 1; i++) {
+            gtk_menu_item_activate(GTK_MENU_ITEM(s->untabify_item));
+        }
+    }
     if (opts->has_full_screen &&
         opts->full_screen) {
-        gtk_menu_item_activate(GTK_MENU_ITEM(s->full_screen_item));
+        bool no_mon_left = 0;
+        int next_mon = 0;
+        if (!opts->u.gtk.has_monitor ||
+	    (opts->u.gtk.has_monitor && opts->u.gtk.monitor < num_mon)) {
+            next_mon = (opts->u.gtk.has_monitor) ? opts->u.gtk.monitor : 0;
+            for (i = 0; i < s->nb_vcs - 1; i++) {
+                if (!s->vc[i].window) {
+                    continue;
+                }
+
+                gtk_window_fullscreen_on_monitor(
+                    GTK_WINDOW(s->vc[i].window),
+                    gdk_display_get_default_screen(window_display),
+                    next_mon++);
+
+                if (next_mon == opts->u.gtk.monitor) {
+                    no_mon_left = true;
+                    break;
+                }
+
+                if (next_mon == num_mon) {
+                    next_mon = 0;
+                }
+            }
+        }
+
+        if (!no_mon_left) {
+            GdkRectangle mon_dest;
+            gdk_monitor_get_geometry(
+                gdk_display_get_monitor(window_display, next_mon),
+                &mon_dest);
+            gtk_window_move(GTK_WINDOW(s->window), mon_dest.x, mon_dest.y);
+            gtk_menu_item_activate(GTK_MENU_ITEM(s->full_screen_item));
+        }
     }
     if (opts->u.gtk.has_grab_on_hover &&
         opts->u.gtk.grab_on_hover) {

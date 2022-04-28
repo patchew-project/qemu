@@ -1378,6 +1378,8 @@
 # @show-cursor:   Force showing the mouse cursor (default: off).
 #                 (since: 5.0)
 # @gl:            Enable OpenGL support (default: off).
+# @detach-all:    Start QEMU with all VC windows detached (default: off)
+#                 (since: 7.1)
 #
 # Since: 2.12
 #
@@ -1387,7 +1389,8 @@
                 '*full-screen'   : 'bool',
                 '*window-close'  : 'bool',
                 '*show-cursor'   : 'bool',
-                '*gl'            : 'DisplayGLMode' },
+                '*gl'            : 'DisplayGLMode',
+                '*detach-all'    : 'bool' },
   'discriminator' : 'type',
   'data'    : {
       'gtk': { 'type': 'DisplayGTK', 'if': 'CONFIG_GTK' },
