@@ -29,6 +29,10 @@
    a weak memory model, but with TLB bits that force ordering on a per-page
    basis.  It's probably easier to fall back to a strong memory model.  */
 #define TCG_GUEST_DEFAULT_MO        TCG_MO_ALL
+#define TCG_GUEST_MO_BEF_LD       (TCG_MO_LD_LD | TCG_MO_ST_LD)
+#define TCG_GUEST_MO_AFT_LD       (0)
+#define TCG_GUEST_MO_BEF_ST       (TCG_MO_ST_ST | TCG_MO_LD_ST)
+#define TCG_GUEST_MO_AFT_ST       (0)
 
 #define MMU_KERNEL_IDX   0
 #define MMU_USER_IDX     3

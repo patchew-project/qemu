@@ -29,6 +29,10 @@
 #include "cpu_bits.h"
 
 #define TCG_GUEST_DEFAULT_MO 0
+#define TCG_GUEST_MO_BEF_LD  0
+#define TCG_GUEST_MO_AFT_LD  0
+#define TCG_GUEST_MO_BEF_ST  0
+#define TCG_GUEST_MO_AFT_ST  0
 
 #define TYPE_RISCV_CPU "riscv-cpu"
 

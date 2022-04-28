@@ -34,6 +34,10 @@
 
 /* The z/Architecture has a strong memory model with some store-after-load re-ordering */
 #define TCG_GUEST_DEFAULT_MO      (TCG_MO_ALL & ~TCG_MO_ST_LD)
+#define TCG_GUEST_MO_BEF_LD       (0)
+#define TCG_GUEST_MO_AFT_LD       (TCG_MO_LD_ST | TCG_MO_LD_LD)
+#define TCG_GUEST_MO_BEF_ST       (TCG_MO_ST_ST)
+#define TCG_GUEST_MO_AFT_ST       (0)
 
 #define TARGET_INSN_START_EXTRA_WORDS 2
 
