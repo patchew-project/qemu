@@ -23,6 +23,10 @@ if have_block
   }
 endif
 
+benchs += {
+    'benchmark-crypto-akcipher': [crypto],
+}
+
 foreach bench_name, deps: benchs
   exe = executable(bench_name, bench_name + '.c',
                    dependencies: [qemuutil] + deps)
