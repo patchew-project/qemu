@@ -322,6 +322,14 @@ contains native support for this feature and thus use of the option
 ROM approach is obsolete. The native SeaBIOS support can be activated
 by using ``-machine graphics=off``.
 
+``-device nvme,use-intel-id=on|off`` (since 7.1)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``nvme`` device originally used a PCI Vendor/Device Identifier combination
+from Intel that was not properly allocated. Since version 5.2, the controller
+has used a properly allocated identifier. Deprecate the ``use-intel-id``
+machine compatibility parameter.
+
 
 Block device options
 ''''''''''''''''''''
