@@ -173,9 +173,6 @@ void nios2_cpu_do_interrupt(CPUState *cs)
         case EXCP_BREAK:
             name = "BREAK insn";
             break;
-        case EXCP_SEMIHOST:
-            name = "SEMIHOST insn";
-            break;
         }
         if (name) {
             qemu_log("%s at pc=0x%08x\n", name, env->pc);
@@ -248,10 +245,6 @@ void nios2_cpu_do_interrupt(CPUState *cs)
 
     case EXCP_BREAK:
         do_exception(cpu, cpu->exception_addr, 0, true);
-        break;
-
-    case EXCP_SEMIHOST:
-        do_nios2_semihosting(env);
         break;
 
     default:

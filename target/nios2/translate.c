@@ -819,7 +819,7 @@ static void gen_break(DisasContext *dc, uint32_t code, uint32_t flags)
     /* The semihosting instruction is "break 1".  */
     R_TYPE(instr, code);
     if (semihosting_enabled() && instr.imm5 == 1) {
-        t_gen_helper_raise_exception(dc, EXCP_SEMIHOST);
+        gen_helper_semihosting(cpu_env);
         return;
     }
 #endif

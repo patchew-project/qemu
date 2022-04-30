@@ -32,6 +32,7 @@
 #include "semihosting/softmmu-uaccess.h"
 #endif
 #include "qemu/log.h"
+#include "exec/helper-proto.h"
 
 #define HOSTED_EXIT  0
 #define HOSTED_INIT_SIM 1
@@ -91,7 +92,7 @@ static void nios2_semi_u64_cb(CPUState *cs, uint64_t ret, int err)
     }                                                   \
 } while (0)
 
-void do_nios2_semihosting(CPUNios2State *env)
+void HELPER(semihosting)(CPUNios2State *env)
 {
     CPUState *cs = env_cpu(env);
     int nr;
