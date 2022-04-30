@@ -25,6 +25,7 @@
 #include "semihosting/softmmu-uaccess.h"
 #include "hw/boards.h"
 #include "qemu/log.h"
+#include "exec/helper-proto.h"
 
 #define HOSTED_EXIT  0
 #define HOSTED_INIT_SIM 1
@@ -84,12 +85,13 @@ static void m68k_semi_u64_cb(CPUState *cs, uint64_t ret, int err)
     }                                                   \
 } while (0)
 
-void do_m68k_semihosting(CPUM68KState *env, int nr)
+void HELPER(semihosting)(CPUM68KState *env)
 {
     CPUState *cs = env_cpu(env);
-    uint32_t args;
+    uint32_t args, nr;
     target_ulong arg0, arg1, arg2, arg3;
 
+    nr = env->dregs[0];
     args = env->dregs[1];
     switch (nr) {
     case HOSTED_EXIT:

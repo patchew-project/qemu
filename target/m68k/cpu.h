@@ -456,8 +456,6 @@ typedef enum {
 void m68k_set_irq_level(M68kCPU *cpu, int level, uint8_t vector);
 void m68k_switch_sp(CPUM68KState *env);
 
-void do_m68k_semihosting(CPUM68KState *env, int nr);
-
 /*
  * The 68000 family is defined in six main CPU classes, the 680[012346]0.
  * Generally each successive CPU adds enhanced data/stack/instructions.

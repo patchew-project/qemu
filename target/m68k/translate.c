@@ -33,6 +33,9 @@
 
 #include "exec/log.h"
 #include "fpu/softfloat.h"
+#ifndef CONFIG_USER_ONLY
+#include "semihosting/semihost.h"
+#endif
 
 
 //#define DEBUG_DISPATCH 1
@@ -312,6 +315,25 @@ static inline void gen_addr_fault(DisasContext *s)
 {
     gen_exception(s, s->base.pc_next, EXCP_ADDRESS);
 }
+
+#ifndef CONFIG_USER_ONLY
+static bool maybe_semihosting(DisasContext *s)
+{
+    /*
+     * The semihosting insn (halt or bkpt) is preceeded by an aligned NOP
+     * and followed by an invalid sentinel insn (movec %sp,0).
+     */
+    if (semihosting_enabled()
+        && (s->pc & 3) == 2
+        && cpu_lduw_code(s->env, s->pc - 2) == 0x4e71
+        && cpu_ldl_code(s->env, s->pc + 4) == 0x4e7bf000) {
+        gen_helper_semihosting(cpu_env);
+        s->pc += 4;
+        return true;
+    }
+    return false;
+}
+#endif
 
 /*
  * Generate a load from the specified address.  Narrow values are
@@ -4702,7 +4724,9 @@ DISAS_INSN(halt)
         gen_exception(s, s->base.pc_next, EXCP_PRIVILEGE);
         return;
     }
-
+    if (maybe_semihosting(s)) {
+        return;
+    }
     gen_exception(s, s->pc, EXCP_HALT_INSN);
 }
 
