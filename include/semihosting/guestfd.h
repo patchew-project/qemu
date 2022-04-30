@@ -56,4 +56,7 @@ void semihost_sys_open(CPUState *cs, gdb_syscall_complete_cb complete,
 
 void semihost_sys_close(CPUState *cs, gdb_syscall_complete_cb complete, int fd);
 
+void semihost_sys_read(CPUState *cs, gdb_syscall_complete_cb complete,
+                       int fd, target_ulong buf, target_ulong len);
+
 #endif /* SEMIHOSTING_GUESTFD_H */
