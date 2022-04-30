@@ -201,11 +201,6 @@ static void cf_interrupt_all(CPUM68KState *env, int is_hw)
             /* Return from an exception.  */
             cf_rte(env);
             return;
-        case EXCP_HALT_INSN:
-            cs->halted = 1;
-            cs->exception_index = EXCP_HLT;
-            cpu_loop_exit(cs);
-            return;
         }
         if (cs->exception_index >= EXCP_TRAP0
             && cs->exception_index <= EXCP_TRAP15) {

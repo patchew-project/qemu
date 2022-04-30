@@ -4736,7 +4736,8 @@ DISAS_INSN(halt)
     if (maybe_semihosting(s)) {
         return;
     }
-    gen_exception(s, s->pc, EXCP_HALT_INSN);
+    tcg_gen_movi_i32(cpu_halted, 1);
+    gen_exception(s, s->pc, EXCP_HLT);
 }
 
 DISAS_INSN(stop)
