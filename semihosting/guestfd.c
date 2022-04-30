@@ -49,6 +49,11 @@ int alloc_guestfd(void)
     return i;
 }
 
+static void do_dealloc_guestfd(GuestFD *gf)
+{
+    gf->type = GuestFDUnused;
+}
+
 /*
  * Look up the guestfd in the data structure; return NULL
  * for out of bounds, but don't check whether the slot is unused.
@@ -119,7 +124,7 @@ void dealloc_guestfd(int guestfd)
     GuestFD *gf = do_get_guestfd(guestfd);
 
     assert(gf);
-    gf->type = GuestFDUnused;
+    do_dealloc_guestfd(gf);
 }
 
 /*
@@ -250,4 +255,51 @@ void semihost_sys_open(CPUState *cs, gdb_syscall_complete_cb complete,
     } else {
         host_open(cs, complete, fname, fname_len, gdb_flags, mode);
     }
+}
+
+static void gdb_close(CPUState *cs, gdb_syscall_complete_cb complete,
+                      GuestFD *gf)
+{
+    gdb_do_syscall(complete, "close,%x", (target_ulong)gf->hostfd);
+}
+
+static void host_close(CPUState *cs, gdb_syscall_complete_cb complete,
+                       GuestFD *gf)
+{
+    /*
+     * Only close the underlying host fd if it's one we opened on behalf
+     * of the guest in SYS_OPEN.
+     */
+    if (gf->hostfd != STDIN_FILENO &&
+        gf->hostfd != STDOUT_FILENO &&
+        gf->hostfd != STDERR_FILENO &&
+        close(gf->hostfd) < 0) {
+        complete(cs, -1, errno);
+    } else {
+        complete(cs, 0, 0);
+    }
+}
+
+void semihost_sys_close(CPUState *cs, gdb_syscall_complete_cb complete, int fd)
+{
+    GuestFD *gf = get_guestfd(fd);
+
+    if (!gf) {
+        complete(cs, -1, EBADF);
+        return;
+    }
+    switch (gf->type) {
+    case GuestFDGDB:
+        gdb_close(cs, complete, gf);
+        break;
+    case GuestFDHost:
+        host_close(cs, complete, gf);
+        break;
+    case GuestFDStatic:
+        complete(cs, 0, 0);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    do_dealloc_guestfd(gf);
 }
