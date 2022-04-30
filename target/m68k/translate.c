@@ -2775,6 +2775,15 @@ DISAS_INSN(swap)
 
 DISAS_INSN(bkpt)
 {
+#ifndef CONFIG_USER_ONLY
+    /* The non-ColdFire semihosting insn is bkpt #0. */
+    if (!m68k_feature(s->env, M68K_FEATURE_CF_ISA_A)
+        && !IS_USER(s)
+        && (insn & 7) == 0
+        && maybe_semihosting(s)) {
+        return;
+    }
+#endif
     gen_exception(s, s->base.pc_next, EXCP_DEBUG);
 }
 
