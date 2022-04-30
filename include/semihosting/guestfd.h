@@ -41,4 +41,17 @@ GuestFD *get_guestfd(int guestfd);
 void associate_guestfd(int guestfd, int hostfd);
 void staticfile_guestfd(int guestfd, const uint8_t *data, size_t len);
 
+/*
+ * Syscall implementations for semi-hosting.  Argument loading from
+ * the guest is performed by the caller; results are returned via
+ * the 'complete' callback.  String operands are in address/len pairs.
+ * The len argument may be 0 (when the semihosting abi does not
+ * already provide the length), or non-zero (where it should include
+ * the terminating zero).
+ */
+
+void semihost_sys_open(CPUState *cs, gdb_syscall_complete_cb complete,
+                       target_ulong fname, target_ulong fname_len,
+                       int gdb_flags, int mode);
+
 #endif /* SEMIHOSTING_GUESTFD_H */
