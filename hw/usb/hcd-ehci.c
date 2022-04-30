@@ -1195,6 +1195,11 @@ static int ehci_init_transfer(EHCIPacket *p)
     while (bytes > 0) {
         if (cpage > 4) {
             fprintf(stderr, "cpage out of range (%u)\n", cpage);
+            bytes  = get_field(p->qtd.token, QTD_TOKEN_TBYTES);
+            offset = p->qtd.bufptr[0] & ~QTD_BUFPTR_MASK;
+            cpage  = get_field(p->qtd.token, QTD_TOKEN_CPAGE);
+            fprintf(stderr, "reading %u bytes from offset %u at page %u\n",
+                    bytes, offset, cpage);
             qemu_sglist_destroy(&p->sgl);
             return -1;
         }
