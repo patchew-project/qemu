@@ -272,41 +272,25 @@ static target_ulong common_semi_flen_buf(CPUState *cs)
 }
 
 static void
-common_semi_flen_cb(CPUState *cs, target_ulong ret, target_ulong err)
+common_semi_flen_fstat_cb(CPUState *cs, target_ulong ret, target_ulong err)
 {
-    /* The size is always stored in big-endian order, extract the value. */
-    uint64_t size;
-    cpu_memory_rw_debug(cs, common_semi_flen_buf(cs) +
-                        offsetof(struct gdb_stat, gdb_st_size),
-                        &size, 8, 0);
-    size = be64_to_cpu(size);
-    common_semi_cb(cs, -1, err);
-    common_semi_set_ret(cs, size);
-}
-
-/*
- * Types for functions implementing various semihosting calls
- * for specific types of guest file descriptor. These must all
- * do the work and return the required return value to the guest
- * via common_semi_cb.
- */
-typedef void sys_flenfn(CPUState *cs, GuestFD *gf);
-
-static void host_flenfn(CPUState *cs, GuestFD *gf)
-{
-    struct stat buf;
-
-    if (fstat(gf->hostfd, &buf)) {
-        common_semi_cb(cs, -1, errno);
-    } else {
-        common_semi_cb(cs, buf.st_size, 0);
+    if (!err) {
+        /* The size is always stored in big-endian order, extract the value. */
+        CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+        uint64_t size;
+        if (get_user_u64(size, common_semi_flen_buf(cs) +
+                         offsetof(struct gdb_stat, gdb_st_size))) {
+            ret = -1, err = EFAULT;
+        } else {
+            /* Undo the tswap from get_user_u64, then swap from BE. */
+            size = be64_to_cpu(tswap64(size));
+            ret = size;
+            if (ret != size) {
+                ret = -1, err = EOVERFLOW;
+            }
+        }
     }
-}
-
-static void gdb_flenfn(CPUState *cs, GuestFD *gf)
-{
-    gdb_do_syscall(common_semi_flen_cb, "fstat,%x,%x",
-                   gf->hostfd, common_semi_flen_buf(cs));
+    common_semi_cb(cs, ret, err);
 }
 
 #define SHFB_MAGIC_0 0x53
@@ -324,27 +308,6 @@ static const uint8_t featurefile_data[] = {
     SHFB_MAGIC_2,
     SHFB_MAGIC_3,
     SH_EXT_EXIT_EXTENDED | SH_EXT_STDOUT_STDERR, /* Feature byte 0 */
-};
-
-static void staticfile_flenfn(CPUState *cs, GuestFD *gf)
-{
-    common_semi_cb(cs, gf->staticfile.len, 0);
-}
-
-typedef struct GuestFDFunctions {
-    sys_flenfn *flenfn;
-} GuestFDFunctions;
-
-static const GuestFDFunctions guestfd_fns[] = {
-    [GuestFDHost] = {
-        .flenfn = host_flenfn,
-    },
-    [GuestFDGDB] = {
-        .flenfn = gdb_flenfn,
-    },
-    [GuestFDStatic] = {
-        .flenfn = staticfile_flenfn,
-    },
 };
 
 /*
@@ -365,7 +328,6 @@ void do_common_semihosting(CPUState *cs)
     char * s;
     int nr;
     uint32_t ret;
-    GuestFD *gf;
     int64_t elapsed;
 
     nr = common_semi_arg(cs, 0) & 0xffffffffU;
@@ -478,12 +440,8 @@ void do_common_semihosting(CPUState *cs)
 
     case TARGET_SYS_FLEN:
         GET_ARG(0);
-
-        gf = get_guestfd(arg0);
-        if (!gf) {
-            goto do_badf;
-        }
-        guestfd_fns[gf->type].flenfn(cs, gf);
+        semihost_sys_flen(cs, common_semi_flen_fstat_cb, common_semi_cb,
+                          arg0, common_semi_flen_buf(cs));
         break;
 
     case TARGET_SYS_TMPNAM:
@@ -805,9 +763,6 @@ void do_common_semihosting(CPUState *cs)
         cpu_dump_state(cs, stderr, 0);
         abort();
 
-    do_badf:
-        common_semi_cb(cs, -1, EBADF);
-        break;
     do_fault:
         common_semi_cb(cs, -1, EFAULT);
         break;
