@@ -328,6 +328,7 @@ extern const VMStateDescription vmstate_s390_cpu;
 /* Control register 0 bits */
 #define CR0_LOWPROT             0x0000000010000000ULL
 #define CR0_SECONDARY           0x0000000004000000ULL
+#define CR0_STOR_PROT_OVERRIDE  0x0000000001000000ULL
 #define CR0_EDAT                0x0000000000800000ULL
 #define CR0_AFP                 0x0000000000040000ULL
 #define CR0_VECTOR              0x0000000000020000ULL

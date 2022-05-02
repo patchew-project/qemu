@@ -2141,43 +2141,80 @@ uint32_t HELPER(testblock)(CPUS390XState *env, uint64_t real_addr)
     return 0;
 }
 
+static uint8_t get_skey(target_ulong real_addr)
+{
+    static S390SKeysClass *skeyclass;
+    static S390SKeysState *skeystate;
+    uint8_t skey = 0;
+
+    if (unlikely(!skeystate)) {
+        skeystate = s390_get_skeys_device();
+        skeyclass = S390_SKEYS_GET_CLASS(skeystate);
+    }
+
+    if (skeyclass->skeys_are_enabled(skeystate)) {
+        skeyclass->get_skeys(skeystate, real_addr / TARGET_PAGE_SIZE, 1, &skey);
+    }
+
+    return skey;
+}
+
 uint32_t HELPER(tprot)(CPUS390XState *env, uint64_t a1, uint64_t a2)
 {
     S390CPU *cpu = env_archcpu(env);
-    CPUState *cs = env_cpu(env);
+    const int tp_acc = (a2 & SK_ACC_MASK) >> 4;
+    uint8_t skey;
+    int acc, pgm_code, pflags;
+    target_ulong abs_addr;
+    uint64_t asc = cpu->env.psw.mask & PSW_MASK_ASC;
+    uint64_t tec;
 
     /*
      * TODO: we currently don't handle all access protection types
-     * (including access-list and key-controlled) as well as AR mode.
+     * (including access-list) as well as AR mode.
      */
-    if (!s390_cpu_virt_mem_check_write(cpu, a1, 0, 1)) {
-        /* Fetching permitted; storing permitted */
+    pgm_code = mmu_translate(env, a1, true, asc, &abs_addr, &pflags, &tec);
+    if (!pgm_code) {
+        /* Fetching permitted; storing permitted - but still check skeys */
+        skey = get_skey(abs_addr);
+        acc = (skey & SK_ACC_MASK) >> 4;
+        if (tp_acc != 0 && tp_acc != acc &&
+            !((env->cregs[0] & CR0_STOR_PROT_OVERRIDE) && acc == 9)) {
+            if (skey & SK_F) {
+                return 2;
+            } else {
+                return 1;
+            }
+        }
         return 0;
     }
 
-    if (env->int_pgm_code == PGM_PROTECTION) {
+    if (pgm_code == PGM_PROTECTION) {
         /* retry if reading is possible */
-        cs->exception_index = -1;
-        if (!s390_cpu_virt_mem_check_read(cpu, a1, 0, 1)) {
+        pgm_code = mmu_translate(env, a1, false, asc, &abs_addr, &pflags, &tec);
+        if (!pgm_code) {
             /* Fetching permitted; storing not permitted */
+            skey = get_skey(abs_addr);
+            acc = (skey & SK_ACC_MASK) >> 4;
+            if ((skey & SK_F) && tp_acc != 0 && tp_acc != acc &&
+                !((env->cregs[0] & CR0_STOR_PROT_OVERRIDE) && acc == 9)) {
+                return 2;
+            }
             return 1;
         }
     }
 
-    switch (env->int_pgm_code) {
+    switch (pgm_code) {
     case PGM_PROTECTION:
         /* Fetching not permitted; storing not permitted */
-        cs->exception_index = -1;
         return 2;
     case PGM_ADDRESSING:
     case PGM_TRANS_SPEC:
         /* exceptions forwarded to the guest */
-        s390_cpu_virt_mem_handle_exc(cpu, GETPC());
-        return 0;
+        tcg_s390_program_interrupt(env, pgm_code, GETPC());
     }
 
     /* Translation not available */
-    cs->exception_index = -1;
     return 3;
 }
 
