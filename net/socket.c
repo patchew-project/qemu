@@ -252,10 +252,24 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr,
         goto fail;
     }
 
-    ret = bind(fd, (struct sockaddr *)mcastaddr, sizeof(*mcastaddr));
+    val = 1;
+    ret = qemu_setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &val, sizeof(val));
+    if (ret < 0) {
+        error_setg_errno(errp, errno,
+                         "can't set socket option SO_REUSEPORT");
+        goto fail;
+    }
+
+    struct sockaddr_in bindaddr;
+    memset(&bindaddr, 0, sizeof(bindaddr));
+    bindaddr.sin_family = AF_INET;
+    bindaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    bindaddr.sin_port = mcastaddr->sin_port;
+    ret = bind(fd, (struct sockaddr *)&bindaddr, sizeof(bindaddr));
+
     if (ret < 0) {
         error_setg_errno(errp, errno, "can't bind ip=%s to socket",
-                         inet_ntoa(mcastaddr->sin_addr));
+                         inet_ntoa(bindaddr.sin_addr));
         goto fail;
     }
 
