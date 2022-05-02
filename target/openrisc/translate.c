@@ -780,6 +780,7 @@ static bool trans_l_sh(DisasContext *dc, arg_store *a)
 
 static bool trans_l_nop(DisasContext *dc, arg_l_nop *a)
 {
+    gen_helper_nop(cpu_R(dc, a->k));
     return true;
 }
 

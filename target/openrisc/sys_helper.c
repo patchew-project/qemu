@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "sysemu/runstate.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
@@ -313,4 +314,21 @@ target_ulong HELPER(mfspr)(CPUOpenRISCState *env, target_ulong rd,
 
     /* for rd is passed in, if rd unchanged, just keep it back.  */
     return rd;
+}
+
+void HELPER(nop)(uint32_t arg)
+{
+#ifndef CONFIG_USER_ONLY
+	switch (arg) {
+	case 0x001: /* NOP_EXIT */
+	case 0x00c: /* NOP_EXIT_SILENT */
+		qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+		break;
+	case 0x00d: /* NOP_RESET */
+		qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+		break;
+	default:
+		break;
+	}
+#endif
 }
