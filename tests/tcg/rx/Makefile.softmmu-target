@@ -1,0 +1,24 @@
+#
+# RX system tests
+#
+
+RX_SYSTEM_SRC = $(SRC_PATH)/tests/tcg/rx
+VPATH += $(RX_SYSTEM_SRC)
+
+TESTS += $(MULTIARCH_TESTS)
+
+CFLAGS += -Og -g $(MINILIB_INC)
+LDFLAGS += -msim
+
+MINILIB_OBJS += outc.o
+.PRECIOUS: $(MINILIB_OBJS)
+
+%.o: %.c
+	$(call quiet-command, $(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c $< -o $@, CC, $@)
+
+%: %.o $(LINK_SCRIPT) $(MINILIB_OBJS)
+	$(call quiet-command, $(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS) $(MINILIB_OBJS), LD, $@)
+
+QEMU_OPTS = -M gdbsim-r5f562n7 -m 128 -semihosting-config enable=on,target=native,chardev=output -kernel
+
+memory: CFLAGS+=-DCHECK_UNALIGNED=0
