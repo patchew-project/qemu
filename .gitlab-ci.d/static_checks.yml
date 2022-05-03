@@ -1,8 +1,8 @@
 check-patch:
   stage: build
-  image: $CI_REGISTRY_IMAGE/qemu/centos8:latest
+  image: $CI_REGISTRY_IMAGE/qemu/python:latest
   needs:
-    job: amd64-centos8-container
+    job: python-container
   script:
     - .gitlab-ci.d/check-patch.py
   variables:
@@ -15,9 +15,9 @@ check-patch:
 
 check-dco:
   stage: build
-  image: $CI_REGISTRY_IMAGE/qemu/centos8:latest
+  image: $CI_REGISTRY_IMAGE/qemu/python:latest
   needs:
-    job: amd64-centos8-container
+    job: python-container
   script: .gitlab-ci.d/check-dco.py
   variables:
     GIT_DEPTH: 1000

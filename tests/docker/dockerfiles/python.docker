@@ -6,6 +6,7 @@ MAINTAINER John Snow <jsnow@redhat.com>
 # Please keep this list sorted alphabetically
 ENV PACKAGES \
     gcc \
+    git \
     make \
     pipenv \
     python3 \
