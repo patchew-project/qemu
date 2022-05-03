@@ -262,6 +262,7 @@ void bdrv_query_image_info(BlockDriverState *bs,
     int64_t size;
     const char *backing_filename;
     BlockDriverInfo bdi;
+    BlockDriverState *protocol_bs;
     int ret;
     Error *err = NULL;
     ImageInfo *info;
@@ -302,6 +303,24 @@ void bdrv_query_image_info(BlockDriverState *bs,
         goto out;
     }
     info->has_format_specific = info->format_specific != NULL;
+
+    /* Try to look for an unambiguous protocol node */
+    protocol_bs = bs;
+    while (protocol_bs && !QLIST_EMPTY(&protocol_bs->children)) {
+        protocol_bs = bdrv_primary_bs(protocol_bs);
+    }
+    if (protocol_bs) {
+        /* Assert that this is a protocol node */
+        assert(QLIST_EMPTY(&protocol_bs->children));
+
+        info->protocol_specific = bdrv_get_specific_info(protocol_bs, &err);
+        if (err) {
+            error_propagate(errp, err);
+            qapi_free_ImageInfo(info);
+            goto out;
+        }
+        info->has_protocol_specific = info->protocol_specific != NULL;
+    }
 
     backing_filename = bs->backing_file;
     if (backing_filename[0] != '\0') {
