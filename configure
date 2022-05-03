@@ -249,6 +249,7 @@ stack_protector=""
 safe_stack=""
 use_containers="yes"
 gdb_bin=$(command -v "gdb-multiarch" || command -v "gdb")
+cmake_required="no"
 
 if test -e "$source_path/.git"
 then
@@ -2501,6 +2502,21 @@ fi
 
 if !(GIT="$git" "$source_path/scripts/git-submodule.sh" "$git_submodules_action" "$git_submodules"); then
     exit 1
+fi
+
+# Per cmake spec, CMAKE_<LANG>_COMPILER variable may include "mandatory" compiler
+# flags. QEMU needs to specify these flags to correctly configure the build
+# environment. cmake 3.19 allows specifying these mandatory compiler flags,
+# and as such 3.19 or newer is required to build QEMU.
+if test "$cmake_required" = "yes" ; then
+    cmake_bin=$(command -v "cmake")
+    if [ -z "$cmake_bin" ]; then
+        error_exit "cmake not found"
+    fi
+    cmake_version=$($cmake_bin --version | head -n 1)
+    if ! version_ge ${cmake_version##* } 3.19; then
+        error_exit "QEMU needs cmake 3.19 or newer"
+    fi
 fi
 
 config_host_mak="config-host.mak"
