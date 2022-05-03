@@ -15,7 +15,7 @@ typedef enum GuestFDType {
     GuestFDUnused = 0,
     GuestFDHost = 1,
     GuestFDGDB = 2,
-    GuestFDFeatureFile = 3,
+    GuestFDStatic = 3,
 } GuestFDType;
 
 /*
@@ -26,7 +26,11 @@ typedef struct GuestFD {
     GuestFDType type;
     union {
         int hostfd;
-        unsigned featurefile_offset;
+        struct {
+            const uint8_t *data;
+            size_t len;
+            size_t off;
+        } staticfile;
     };
 } GuestFD;
 
@@ -35,6 +39,6 @@ void dealloc_guestfd(int guestfd);
 GuestFD *get_guestfd(int guestfd);
 
 void associate_guestfd(int guestfd, int hostfd);
-void init_featurefile_guestfd(int guestfd);
+void staticfile_guestfd(int guestfd, const uint8_t *data, size_t len);
 
 #endif /* SEMIHOSTING_GUESTFD_H */
