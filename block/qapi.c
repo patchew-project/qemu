@@ -921,4 +921,9 @@ void bdrv_image_info_dump(ImageInfo *info)
         bdrv_image_info_specific_dump(info->format_specific,
                                       "Format specific information:\n");
     }
+
+    if (info->has_protocol_specific) {
+        bdrv_image_info_specific_dump(info->protocol_specific,
+                                      "Protocol specific information:\n");
+    }
 }
