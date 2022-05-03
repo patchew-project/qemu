@@ -83,36 +83,43 @@ void rx_cpu_do_interrupt(CPUState *cs)
         }
     } else {
         uint32_t vec = cs->exception_index;
-        const char *expname = "unknown exception";
+        const char *expname;
 
         env->isp -= 4;
         cpu_stl_data(env, env->isp, save_psw);
         env->isp -= 4;
         cpu_stl_data(env, env->isp, env->pc);
 
-        if (vec < 0x100) {
+        if (vec < EXCP_INTB_0) {
             env->pc = cpu_ldl_data(env, 0xffffff80 + vec * 4);
         } else {
-            env->pc = cpu_ldl_data(env, env->intb + (vec & 0xff) * 4);
+            env->pc = cpu_ldl_data(env, env->intb + (vec - EXCP_INTB_0) * 4);
         }
         switch (vec) {
-        case 20:
+        case EXCP_PRIVILEGED:
             expname = "privilege violation";
             break;
-        case 21:
+        case EXCP_ACCESS:
             expname = "access exception";
             break;
-        case 23:
+        case EXCP_UNDEFINED:
             expname = "illegal instruction";
             break;
-        case 25:
+        case EXCP_FPU:
             expname = "fpu exception";
             break;
-        case 30:
+        case EXCP_NMI:
             expname = "non-maskable interrupt";
             break;
-        case 0x100 ... 0x1ff:
+        case EXCP_RESET:
+            expname = "reset interrupt";
+            break;
+        case EXCP_INTB_0 ... EXCP_INTB_255:
             expname = "unconditional trap";
+            break;
+        default:
+            expname = "unknown exception";
+            break;
         }
         qemu_log_mask(CPU_LOG_INT, "exception 0x%02x [%s] raised\n",
                       (vec & 0xff), expname);

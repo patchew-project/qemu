@@ -114,7 +114,7 @@ static void update_fpsw(CPURXState *env, float32 ret, uintptr_t retaddr)
         enable = FIELD_EX32(env->fpsw, FPSW, ENABLE);
         enable |= 1 << 5; /* CE always enabled */
         if (cause & enable) {
-            raise_exception(env, 21, retaddr);
+            raise_exception(env, EXCP_FPU, retaddr);
         }
     }
 }
@@ -420,8 +420,7 @@ uint32_t helper_divu(CPURXState *env, uint32_t num, uint32_t den)
 
 /* exception */
 static inline G_NORETURN
-void raise_exception(CPURXState *env, int index,
-                     uintptr_t retaddr)
+void raise_exception(CPURXState *env, int index, uintptr_t retaddr)
 {
     CPUState *cs = env_cpu(env);
 
@@ -431,17 +430,17 @@ void raise_exception(CPURXState *env, int index,
 
 G_NORETURN void helper_raise_privilege_violation(CPURXState *env)
 {
-    raise_exception(env, 20, GETPC());
+    raise_exception(env, EXCP_PRIVILEGED, GETPC());
 }
 
 G_NORETURN void helper_raise_access_fault(CPURXState *env)
 {
-    raise_exception(env, 21, GETPC());
+    raise_exception(env, EXCP_ACCESS, GETPC());
 }
 
 G_NORETURN void helper_raise_illegal_instruction(CPURXState *env)
 {
-    raise_exception(env, 23, GETPC());
+    raise_exception(env, EXCP_UNDEFINED, GETPC());
 }
 
 G_NORETURN void helper_wait(CPURXState *env)
@@ -456,10 +455,10 @@ G_NORETURN void helper_wait(CPURXState *env)
 
 G_NORETURN void helper_rxint(CPURXState *env, uint32_t vec)
 {
-    raise_exception(env, 0x100 + vec, 0);
+    raise_exception(env, EXCP_INTB_0 + vec, 0);
 }
 
 G_NORETURN void helper_rxbrk(CPURXState *env)
 {
-    raise_exception(env, 0x100, 0);
+    raise_exception(env, EXCP_INTB_0, 0);
 }

@@ -66,6 +66,26 @@ enum {
     NUM_REGS = 16,
 };
 
+enum {
+    /*
+     * The Fixed Vector Table begins at 0xffffff80 and contains 32 entries,
+     * most of which are reserved.
+     */
+    EXCP_PRIVILEGED  = 20,
+    EXCP_ACCESS      = 21,
+    EXCP_UNDEFINED   = 23,
+    EXCP_FPU         = 25,
+    EXCP_NMI         = 30,
+    EXCP_RESET       = 31,
+
+    /*
+     * The Relocatable Vector Table begins at env->intb and
+     * contains 256 entries.
+     */
+    EXCP_INTB_0      = 0x100,
+    EXCP_INTB_255    = EXCP_INTB_0 + 255,
+};
+
 typedef struct CPUArchState {
     /* CPU registers */
     uint32_t regs[NUM_REGS];    /* general registers */
