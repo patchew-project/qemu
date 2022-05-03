@@ -87,9 +87,6 @@ XtensaCPU *xtensa_sim_common_init(MachineState *machine)
         xtensa_create_memory_regions(&sysram, "xtensa.sysram",
                                      get_system_memory());
     }
-    if (serial_hd(0)) {
-        xtensa_sim_open_console(serial_hd(0));
-    }
     return cpu;
 }
 
