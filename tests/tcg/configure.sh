@@ -68,6 +68,7 @@ fi
 : ${cross_cc_ppc64le="$cross_cc_ppc64"}
 : ${cross_cc_cflags_ppc64le="-m64 -mlittle-endian"}
 : ${cross_cc_riscv64="riscv64-linux-gnu-gcc"}
+: ${cross_cc_rx="rx-elf-gcc"}
 : ${cross_cc_s390x="s390x-linux-gnu-gcc"}
 : ${cross_cc_sh4="sh4-linux-gnu-gcc"}
 : ${cross_cc_cflags_sparc="-m32 -mv8plus -mcpu=ultrasparc"}
@@ -191,6 +192,11 @@ for target in $target_list; do
       container_hosts=x86_64
       container_image=debian-riscv64-test-cross
       container_cross_cc=riscv64-linux-gnu-gcc
+      ;;
+    rx-*)
+      container_hosts=x86_64
+      container_image=debian-rx-cross
+      container_cross_cc=rx-elf-gcc
       ;;
     s390x-*)
       container_hosts=x86_64

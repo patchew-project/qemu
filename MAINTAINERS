@@ -295,6 +295,7 @@ RENESAS RX CPUs
 R: Yoshinori Sato <ysato@users.sourceforge.jp>
 S: Orphan
 F: target/rx/
+F: tests/docker/dockerfiles/debian-rx-cross.d/build-toolchain.sh
 
 S390 TCG CPUs
 M: Richard Henderson <richard.henderson@linaro.org>
