@@ -84,6 +84,10 @@ enum {
      */
     EXCP_INTB_0      = 0x100,
     EXCP_INTB_255    = EXCP_INTB_0 + 255,
+
+    /* Private to the qemu implementation. */
+    EXCP_IRQ,
+    EXCP_FIRQ,
 };
 
 typedef struct CPUArchState {

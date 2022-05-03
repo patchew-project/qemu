@@ -42,12 +42,13 @@ void rx_cpu_unpack_psw(CPURXState *env, uint32_t psw, int rte)
 
 #ifndef CONFIG_USER_ONLY
 
-#define INT_FLAGS (CPU_INTERRUPT_HARD | CPU_INTERRUPT_FIR)
 void rx_cpu_do_interrupt(CPUState *cs)
 {
     RXCPU *cpu = RX_CPU(cs);
     CPURXState *env = &cpu->env;
-    int do_irq = cs->interrupt_request & INT_FLAGS;
+    uint32_t vec = cs->exception_index;
+    target_ulong vec_table = 0xffffff80u; /* fixed vector table */
+    const char *expname;
     uint32_t save_psw;
 
     env->in_sleep = 0;
@@ -60,69 +61,62 @@ void rx_cpu_do_interrupt(CPUState *cs)
     save_psw = rx_cpu_pack_psw(env);
     env->psw_pm = env->psw_i = env->psw_u = 0;
 
-    if (do_irq) {
-        if (do_irq & CPU_INTERRUPT_FIR) {
-            env->bpc = env->pc;
-            env->bpsw = save_psw;
-            env->pc = env->fintv;
-            env->psw_ipl = 15;
-            cs->interrupt_request &= ~CPU_INTERRUPT_FIR;
-            qemu_set_irq(env->ack, env->ack_irq);
-            qemu_log_mask(CPU_LOG_INT, "fast interrupt raised\n");
-        } else if (do_irq & CPU_INTERRUPT_HARD) {
-            env->isp -= 4;
-            cpu_stl_data(env, env->isp, save_psw);
-            env->isp -= 4;
-            cpu_stl_data(env, env->isp, env->pc);
-            env->pc = cpu_ldl_data(env, env->intb + env->ack_irq * 4);
-            env->psw_ipl = env->ack_ipl;
-            cs->interrupt_request &= ~CPU_INTERRUPT_HARD;
-            qemu_set_irq(env->ack, env->ack_irq);
-            qemu_log_mask(CPU_LOG_INT,
-                          "interrupt 0x%02x raised\n", env->ack_irq);
-        }
-    } else {
-        uint32_t vec = cs->exception_index;
-        const char *expname;
+    switch (vec) {
+    case EXCP_FIRQ:
+        env->bpc = env->pc;
+        env->bpsw = save_psw;
+        env->pc = env->fintv;
+        env->psw_ipl = 15;
+        cs->interrupt_request &= ~CPU_INTERRUPT_FIR;
+        qemu_set_irq(env->ack, env->ack_irq);
+        qemu_log_mask(CPU_LOG_INT, "fast interrupt raised\n");
+        break;
 
+    case EXCP_IRQ:
+        env->psw_ipl = env->ack_ipl;
+        cs->interrupt_request &= ~CPU_INTERRUPT_HARD;
+        qemu_set_irq(env->ack, env->ack_irq);
+        expname = "interrupt";
+        vec_table = env->intb;
+        vec = env->ack_ipl;
+        goto do_stacked;
+
+    case EXCP_PRIVILEGED:
+        expname = "privilege violation";
+        goto do_stacked;
+    case EXCP_ACCESS:
+        expname = "access exception";
+        goto do_stacked;
+    case EXCP_UNDEFINED:
+        expname = "illegal instruction";
+        goto do_stacked;
+    case EXCP_FPU:
+        expname = "fpu exception";
+        goto do_stacked;
+    case EXCP_NMI:
+        expname = "non-maskable interrupt";
+        goto do_stacked;
+    case EXCP_RESET:
+        expname = "reset interrupt";
+        goto do_stacked;
+
+    case EXCP_INTB_0 ... EXCP_INTB_255:
+        expname = "unconditional trap";
+        vec_table = env->intb;
+        vec -= EXCP_INTB_0;
+        goto do_stacked;
+
+    do_stacked:
         env->isp -= 4;
         cpu_stl_data(env, env->isp, save_psw);
         env->isp -= 4;
         cpu_stl_data(env, env->isp, env->pc);
+        env->pc = cpu_ldl_data(env, vec_table + vec * 4);
+        qemu_log_mask(CPU_LOG_INT, "%s raised (0x%02x)\n", expname, vec);
+        break;
 
-        if (vec < EXCP_INTB_0) {
-            env->pc = cpu_ldl_data(env, 0xffffff80 + vec * 4);
-        } else {
-            env->pc = cpu_ldl_data(env, env->intb + (vec - EXCP_INTB_0) * 4);
-        }
-        switch (vec) {
-        case EXCP_PRIVILEGED:
-            expname = "privilege violation";
-            break;
-        case EXCP_ACCESS:
-            expname = "access exception";
-            break;
-        case EXCP_UNDEFINED:
-            expname = "illegal instruction";
-            break;
-        case EXCP_FPU:
-            expname = "fpu exception";
-            break;
-        case EXCP_NMI:
-            expname = "non-maskable interrupt";
-            break;
-        case EXCP_RESET:
-            expname = "reset interrupt";
-            break;
-        case EXCP_INTB_0 ... EXCP_INTB_255:
-            expname = "unconditional trap";
-            break;
-        default:
-            expname = "unknown exception";
-            break;
-        }
-        qemu_log_mask(CPU_LOG_INT, "exception 0x%02x [%s] raised\n",
-                      (vec & 0xff), expname);
+    default:
+        g_assert_not_reached();
     }
     env->regs[0] = env->isp;
 }
@@ -132,19 +126,21 @@ bool rx_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     RXCPU *cpu = RX_CPU(cs);
     CPURXState *env = &cpu->env;
     int accept = 0;
+
     /* hardware interrupt (Normal) */
     if ((interrupt_request & CPU_INTERRUPT_HARD) &&
         env->psw_i && (env->psw_ipl < env->req_ipl)) {
         env->ack_irq = env->req_irq;
         env->ack_ipl = env->req_ipl;
-        accept = 1;
+        accept = EXCP_IRQ;
     }
     /* hardware interrupt (FIR) */
     if ((interrupt_request & CPU_INTERRUPT_FIR) &&
         env->psw_i && (env->psw_ipl < 15)) {
-        accept = 1;
+        accept = EXCP_FIRQ;
     }
     if (accept) {
+        cs->exception_index = accept;
         rx_cpu_do_interrupt(cs);
         return true;
     }
