@@ -89,7 +89,7 @@ class BootLinuxConsole(LinuxKernelTest):
     Boots a Linux kernel and checks that the console is operational and the
     kernel command line is properly passed from QEMU to the kernel
     """
-    timeout = 90
+    timeout = 400
 
     def test_x86_64_pc(self):
         """
@@ -1110,6 +1110,24 @@ class BootLinuxConsole(LinuxKernelTest):
         self.wait_for_console_pattern("Booting Linux on physical CPU 0xf00")
         self.wait_for_console_pattern("SMP: Total of 2 processors activated")
         self.wait_for_console_pattern("No filesystem could mount root")
+
+    def test_arm_ast2600_fby35(self):
+        """
+        :avocado: tags=arch:arm
+        :avocado: tags=machine:fby35-bmc
+        """
+        image_url = ('https://github.com/facebook/openbmc/releases'
+                     '/download/openbmc-e2294ff5d31d/fby35.mtd')
+        image_hash = ('0a3635646f38373e318811be1ec374'
+                      '3540cc456aafe87234655081684b03b713')
+        image_path = self.fetch_asset(image_url, asset_hash=image_hash,
+                                      algorithm='sha256')
+        self.vm.set_console()
+        self.vm.add_args('-drive', f'file={image_path},if=mtd,format=raw',
+                         '-drive', f'file={image_path},if=mtd,format=raw')
+        self.vm.launch()
+        self.wait_for_console_pattern('OpenBMC Release fby35-e2294ff5d3')
+        self.wait_for_console_pattern('bmc-oob. login:')
 
     def test_m68k_mcf5208evb(self):
         """
