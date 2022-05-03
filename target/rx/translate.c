@@ -156,6 +156,13 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
     dc->base.is_jmp = DISAS_NORETURN;
 }
 
+static void gen_raise_exception(DisasContext *ctx, int vec, bool advance_pc)
+{
+    tcg_gen_movi_i32(cpu_pc, advance_pc ? ctx->base.pc_next : ctx->pc);
+    gen_helper_raise_exception(cpu_env, tcg_constant_i32(vec));
+    ctx->base.is_jmp = DISAS_NORETURN;
+}
+
 /* generic load wrapper */
 static inline void rx_gen_ld(unsigned int size, TCGv reg, TCGv mem)
 {
@@ -234,7 +241,7 @@ static int is_privileged(DisasContext *ctx, int is_exception)
 {
     if (FIELD_EX32(ctx->tb_flags, PSW, PM)) {
         if (is_exception) {
-            gen_helper_raise_privilege_violation(cpu_env);
+            gen_raise_exception(ctx, EXCP_PRIVILEGED, false);
         }
         return 0;
     } else {
@@ -2261,23 +2268,15 @@ static bool trans_RTE(DisasContext *ctx, arg_RTE *a)
 /* brk */
 static bool trans_BRK(DisasContext *ctx, arg_BRK *a)
 {
-    tcg_gen_movi_i32(cpu_pc, ctx->base.pc_next);
-    gen_helper_rxbrk(cpu_env);
-    ctx->base.is_jmp = DISAS_NORETURN;
+    gen_raise_exception(ctx, EXCP_INTB_0, true);
     return true;
 }
 
 /* int #imm */
 static bool trans_INT(DisasContext *ctx, arg_INT *a)
 {
-    TCGv vec;
-
     tcg_debug_assert(a->imm < 0x100);
-    vec = tcg_const_i32(a->imm);
-    tcg_gen_movi_i32(cpu_pc, ctx->base.pc_next);
-    gen_helper_rxint(cpu_env, vec);
-    tcg_temp_free(vec);
-    ctx->base.is_jmp = DISAS_NORETURN;
+    gen_raise_exception(ctx, EXCP_INTB_0 + a->imm, true);
     return true;
 }
 
@@ -2318,7 +2317,7 @@ static void rx_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     ctx->pc = ctx->base.pc_next;
     insn = decode_load(ctx);
     if (!decode(ctx, insn)) {
-        gen_helper_raise_illegal_instruction(cpu_env);
+        gen_raise_exception(ctx, EXCP_UNDEFINED, false);
     }
 }
 

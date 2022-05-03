@@ -428,19 +428,12 @@ void raise_exception(CPURXState *env, int index, uintptr_t retaddr)
     cpu_loop_exit_restore(cs, retaddr);
 }
 
-G_NORETURN void helper_raise_privilege_violation(CPURXState *env)
+G_NORETURN void helper_raise_exception(CPURXState *env, uint32_t index)
 {
-    raise_exception(env, EXCP_PRIVILEGED, GETPC());
-}
+    CPUState *cs = env_cpu(env);
 
-G_NORETURN void helper_raise_access_fault(CPURXState *env)
-{
-    raise_exception(env, EXCP_ACCESS, GETPC());
-}
-
-G_NORETURN void helper_raise_illegal_instruction(CPURXState *env)
-{
-    raise_exception(env, EXCP_UNDEFINED, GETPC());
+    cs->exception_index = index;
+    cpu_loop_exit(cs);
 }
 
 G_NORETURN void helper_wait(CPURXState *env)
@@ -451,14 +444,4 @@ G_NORETURN void helper_wait(CPURXState *env)
     env->in_sleep = 1;
     env->psw_i = 1;
     raise_exception(env, EXCP_HLT, 0);
-}
-
-G_NORETURN void helper_rxint(CPURXState *env, uint32_t vec)
-{
-    raise_exception(env, EXCP_INTB_0 + vec, 0);
-}
-
-G_NORETURN void helper_rxbrk(CPURXState *env)
-{
-    raise_exception(env, EXCP_INTB_0, 0);
 }
