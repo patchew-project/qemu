@@ -93,8 +93,11 @@ static void translate_stat(CPUM68KState *env, target_ulong addr, struct stat *s)
     unlock_user(p, addr, sizeof(struct gdb_stat));
 }
 
-static void m68k_semi_return_u32(CPUM68KState *env, uint32_t ret, int err)
+static void m68k_semi_u32_cb(CPUState *cs, uint64_t ret, int err)
 {
+    M68kCPU *cpu = M68K_CPU(cs);
+    CPUM68KState *env = &cpu->env;
+
     target_ulong args = env->dregs[1];
     if (put_user_u32(ret, args) ||
         put_user_u32(err, args + 4)) {
@@ -108,8 +111,11 @@ static void m68k_semi_return_u32(CPUM68KState *env, uint32_t ret, int err)
     }
 }
 
-static void m68k_semi_return_u64(CPUM68KState *env, uint64_t ret, int err)
+static void m68k_semi_u64_cb(CPUState *cs, uint64_t ret, int err)
 {
+    M68kCPU *cpu = M68K_CPU(cs);
+    CPUM68KState *env = &cpu->env;
+
     target_ulong args = env->dregs[1];
     if (put_user_u32(ret >> 32, args) ||
         put_user_u32(ret, args + 4) ||
@@ -117,21 +123,6 @@ static void m68k_semi_return_u64(CPUM68KState *env, uint64_t ret, int err)
         /* No way to report this via m68k semihosting ABI; just log it */
         qemu_log_mask(LOG_GUEST_ERROR, "m68k-semihosting: return value "
                       "discarded because argument block not writable\n");
-    }
-}
-
-static int m68k_semi_is_fseek;
-
-static void m68k_semi_cb(CPUState *cs, uint64_t ret, int err)
-{
-    M68kCPU *cpu = M68K_CPU(cs);
-    CPUM68KState *env = &cpu->env;
-
-    if (m68k_semi_is_fseek) {
-        m68k_semi_return_u64(env, ret, err);
-        m68k_semi_is_fseek = 0;
-    } else {
-        m68k_semi_return_u32(env, ret, err);
     }
 }
 
@@ -149,6 +140,7 @@ static void m68k_semi_cb(CPUState *cs, uint64_t ret, int err)
 
 void do_m68k_semihosting(CPUM68KState *env, int nr)
 {
+    CPUState *cs = env_cpu(env);
     uint32_t args;
     target_ulong arg0, arg1, arg2, arg3;
     void *p;
@@ -167,7 +159,7 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
         GET_ARG(2);
         GET_ARG(3);
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(m68k_semi_cb, "open,%s,%x,%x", arg0, (int)arg1,
+            gdb_do_syscall(m68k_semi_u32_cb, "open,%s,%x,%x", arg0, (int)arg1,
                            arg2, arg3);
             return;
         } else {
@@ -188,7 +180,7 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
             int fd = arg0;
             if (fd > 2) {
                 if (use_gdb_syscalls()) {
-                    gdb_do_syscall(m68k_semi_cb, "close,%x", arg0);
+                    gdb_do_syscall(m68k_semi_u32_cb, "close,%x", arg0);
                     return;
                 } else {
                     result = close(fd);
@@ -204,7 +196,7 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
         GET_ARG(2);
         len = arg2;
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(m68k_semi_cb, "read,%x,%x,%x",
+            gdb_do_syscall(m68k_semi_u32_cb, "read,%x,%x,%x",
                            arg0, arg1, len);
             return;
         } else {
@@ -224,7 +216,7 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
         GET_ARG(2);
         len = arg2;
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(m68k_semi_cb, "write,%x,%x,%x",
+            gdb_do_syscall(m68k_semi_u32_cb, "write,%x,%x,%x",
                            arg0, arg1, len);
             return;
         } else {
@@ -247,12 +239,11 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
             GET_ARG(3);
             off = (uint32_t)arg2 | ((uint64_t)arg1 << 32);
             if (use_gdb_syscalls()) {
-                m68k_semi_is_fseek = 1;
-                gdb_do_syscall(m68k_semi_cb, "fseek,%x,%lx,%x",
+                gdb_do_syscall(m68k_semi_u64_cb, "fseek,%x,%lx,%x",
                                arg0, off, arg3);
             } else {
                 off = lseek(arg0, off, arg3);
-                m68k_semi_return_u64(env, off, errno);
+                m68k_semi_u64_cb(cs, off, errno);
             }
             return;
         }
@@ -262,7 +253,7 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
         GET_ARG(2);
         GET_ARG(3);
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(m68k_semi_cb, "rename,%s,%s",
+            gdb_do_syscall(m68k_semi_u32_cb, "rename,%s,%s",
                            arg0, (int)arg1, arg2, (int)arg3);
             return;
         } else {
@@ -282,7 +273,7 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
         GET_ARG(0);
         GET_ARG(1);
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(m68k_semi_cb, "unlink,%s",
+            gdb_do_syscall(m68k_semi_u32_cb, "unlink,%s",
                            arg0, (int)arg1);
             return;
         } else {
@@ -301,7 +292,7 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
         GET_ARG(1);
         GET_ARG(2);
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(m68k_semi_cb, "stat,%s,%x",
+            gdb_do_syscall(m68k_semi_u32_cb, "stat,%s,%x",
                            arg0, (int)arg1, arg2);
             return;
         } else {
@@ -323,7 +314,7 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
         GET_ARG(0);
         GET_ARG(1);
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(m68k_semi_cb, "fstat,%x,%x",
+            gdb_do_syscall(m68k_semi_u32_cb, "fstat,%x,%x",
                            arg0, arg1);
             return;
         } else {
@@ -338,7 +329,7 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
         GET_ARG(0);
         GET_ARG(1);
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(m68k_semi_cb, "gettimeofday,%x,%x",
+            gdb_do_syscall(m68k_semi_u32_cb, "gettimeofday,%x,%x",
                            arg0, arg1);
             return;
         } else {
@@ -359,7 +350,7 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
     case HOSTED_ISATTY:
         GET_ARG(0);
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(m68k_semi_cb, "isatty,%x", arg0);
+            gdb_do_syscall(m68k_semi_u32_cb, "isatty,%x", arg0);
             return;
         } else {
             result = isatty(arg0);
@@ -369,7 +360,7 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
         GET_ARG(0);
         GET_ARG(1);
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(m68k_semi_cb, "system,%s",
+            gdb_do_syscall(m68k_semi_u32_cb, "system,%s",
                            arg0, (int)arg1);
             return;
         } else {
@@ -427,5 +418,5 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
         result = 0;
     }
 failed:
-    m68k_semi_return_u32(env, result, errno);
+    m68k_semi_u32_cb(cs, result, errno);
 }
