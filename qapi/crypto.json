@@ -364,7 +364,6 @@
 #                 password to use to retrieve current master key.
 #                 Defaults to the same secret that was used to open the image
 #
-#
 # Since 5.1
 ##
 { 'struct': 'QCryptoBlockAmendOptionsLUKS',
