@@ -26,6 +26,7 @@
 #include "sysemu/device_tree.h"
 #include "hw/boards.h"
 #include "qom/object.h"
+#include "elf.h"
 
 /* Same address of GDB integrated simulator */
 #define SDRAM_BASE  EXT_CS_BASE
@@ -57,15 +58,32 @@ static void rx_load_image(RXCPU *cpu, const char *filename,
                           uint32_t start, uint32_t size)
 {
     static uint32_t extable[32];
-    long kernel_size;
+    ssize_t kernel_size;
+    uint64_t kernel_entry;
     int i;
+
+    /* Try an ELF image first. */
+
+    kernel_size = load_elf(filename, NULL, NULL, NULL, &kernel_entry,
+                           NULL, NULL, NULL, false, EM_RX, false, false);
+    if (kernel_size >= 0) {
+        cpu_set_pc(CPU(cpu), kernel_entry);
+        return;
+    }
+    if (kernel_size != ELF_LOAD_NOT_ELF) {
+        error_report("could not load kernel '%s': %s",
+                     filename, load_elf_strerror(kernel_size));
+        exit(1);
+    }
+
+    /* Not ELF: load a raw image, e.g. zImage. */
 
     kernel_size = load_image_targphys(filename, start, size);
     if (kernel_size < 0) {
-        fprintf(stderr, "qemu: could not load kernel '%s'\n", filename);
+        error_report("could not load kernel '%s'", filename);
         exit(1);
     }
-    cpu->env.pc = start;
+    cpu_set_pc(CPU(cpu), start);
 
     /* setup exception trap trampoline */
     /* linux kernel only works little-endian mode */
