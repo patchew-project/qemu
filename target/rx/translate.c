@@ -27,6 +27,7 @@
 #include "exec/helper-gen.h"
 #include "exec/translator.h"
 #include "exec/log.h"
+#include "semihosting/semihost.h"
 
 typedef struct DisasContext {
     DisasContextBase base;
@@ -2276,7 +2277,11 @@ static bool trans_BRK(DisasContext *ctx, arg_BRK *a)
 static bool trans_INT(DisasContext *ctx, arg_INT *a)
 {
     tcg_debug_assert(a->imm < 0x100);
-    gen_raise_exception(ctx, EXCP_INTB_0 + a->imm, true);
+    if (semihosting_enabled() && a->imm == 0xff) {
+        gen_raise_exception(ctx, EXCP_SEMIHOST, false);
+    } else {
+        gen_raise_exception(ctx, EXCP_INTB_0 + a->imm, true);
+    }
     return true;
 }
 

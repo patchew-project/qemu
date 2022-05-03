@@ -10,7 +10,9 @@ rx_ss.add(files(
   'helper.c',
   'cpu.c',
   'gdbstub.c',
-  'disas.c'))
+  'disas.c',
+  'rx-semi.c',
+))
 
 target_arch += {'rx': rx_ss}
 target_softmmu_arch += {'rx': ss.source_set()}

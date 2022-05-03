@@ -53,6 +53,11 @@ void rx_cpu_do_interrupt(CPUState *cs)
 
     env->in_sleep = 0;
 
+    if (vec == EXCP_SEMIHOST) {
+        rx_cpu_do_semihosting(env);
+        return;
+    }
+
     if (env->psw_u) {
         env->usp = env->regs[0];
     } else {

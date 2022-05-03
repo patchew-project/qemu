@@ -88,6 +88,7 @@ enum {
     /* Private to the qemu implementation. */
     EXCP_IRQ,
     EXCP_FIRQ,
+    EXCP_SEMIHOST,
 };
 
 typedef struct CPUArchState {
@@ -147,6 +148,7 @@ const char *rx_crname(uint8_t cr);
 #ifndef CONFIG_USER_ONLY
 void rx_cpu_do_interrupt(CPUState *cpu);
 bool rx_cpu_exec_interrupt(CPUState *cpu, int int_req);
+void rx_cpu_do_semihosting(CPURXState *env);
 #endif /* !CONFIG_USER_ONLY */
 void rx_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
 int rx_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
