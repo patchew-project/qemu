@@ -358,7 +358,7 @@
 #                 Defaults to the same secret that was used to open the image
 #
 #
-# Since 5.1
+# Since: 5.1
 ##
 { 'struct': 'QCryptoBlockAmendOptionsLUKS',
   'data': { 'state': 'QCryptoBlockLUKSKeyslotState',
