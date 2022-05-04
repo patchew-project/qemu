@@ -128,6 +128,8 @@ QEMU_BUILD_BUG_ON(IN_START_INTERP != IN_START + 1);
 #define LOOKAHEAD 0x80
 #define TERMINAL(state) [0 ... 0xFF] = ((state) | LOOKAHEAD)
 
+QEMU_BEGIN_IGNORE_INITIALIZER_OVERRIDES
+
 static const uint8_t json_lexer[][256] =  {
     /* Relies on default initialization to IN_ERROR! */
 
@@ -260,6 +262,8 @@ static const uint8_t json_lexer[][256] =  {
     },
     [IN_START_INTERP]['%'] = IN_INTERP,
 };
+
+QEMU_END_IGNORE_INITIALIZER_OVERRIDES
 
 static inline uint8_t next_state(JSONLexer *lexer, char ch, bool flush,
                                  bool *char_consumed)
