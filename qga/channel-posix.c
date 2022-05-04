@@ -1,4 +1,5 @@
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include <termios.h>
 #include "qapi/error.h"
 #include "qemu/sockets.h"
@@ -121,19 +122,24 @@ static int ga_channel_client_add(GAChannel *c, int fd)
 static gboolean ga_channel_open(GAChannel *c, const gchar *path,
                                 GAChannelMethod method, int fd)
 {
+    g_autoptr(Error) err = NULL;
     int ret;
     c->method = method;
 
     switch (c->method) {
     case GA_CHANNEL_VIRTIO_SERIAL: {
         assert(fd < 0);
-        fd = qemu_open_old(path, O_RDWR | O_NONBLOCK
+        fd = qemu_open_cloexec(
+            path,
 #ifndef CONFIG_SOLARIS
-                           | O_ASYNC
+            O_ASYNC |
 #endif
-                           );
+            O_RDWR | O_NONBLOCK,
+            0,
+            &err
+        );
         if (fd == -1) {
-            g_critical("error opening channel: %s", strerror(errno));
+            g_critical("error opening channel: %s", error_get_pretty(err));
             return false;
         }
 #ifdef CONFIG_SOLARIS
@@ -157,9 +163,9 @@ static gboolean ga_channel_open(GAChannel *c, const gchar *path,
         struct termios tio;
 
         assert(fd < 0);
-        fd = qemu_open_old(path, O_RDWR | O_NOCTTY | O_NONBLOCK);
+        fd = qemu_open_cloexec(path, O_RDWR | O_NOCTTY | O_NONBLOCK, 0, &err);
         if (fd == -1) {
-            g_critical("error opening channel: %s", strerror(errno));
+            g_critical("error opening channel: %s", error_get_pretty(err));
             return false;
         }
         tcgetattr(fd, &tio);
