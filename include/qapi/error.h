@@ -519,6 +519,8 @@ static inline void error_propagator_cleanup(ErrorPropagator *prop)
 
 G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(ErrorPropagator, error_propagator_cleanup);
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(Error, error_free);
+
 /*
  * Special error destination to abort on error.
  * See error_setg() and error_propagate() for details.
