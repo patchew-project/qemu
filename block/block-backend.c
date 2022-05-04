@@ -2106,6 +2106,12 @@ void blk_set_guest_block_size(BlockBackend *blk, int align)
     blk->guest_block_size = align;
 }
 
+int blk_get_guest_block_size(BlockBackend *blk)
+{
+    IO_CODE();
+    return blk->guest_block_size;
+}
+
 void *blk_try_blockalign(BlockBackend *blk, size_t size)
 {
     IO_CODE();
