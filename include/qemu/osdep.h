@@ -489,6 +489,7 @@ void sigaction_invoke(struct sigaction *action,
  */
 int qemu_open_old(const char *name, int flags, ...);
 int qemu_open(const char *name, int flags, Error **errp);
+int qemu_open_cloexec(const char *name, int flags, mode_t mode, Error **errp);
 int qemu_create(const char *name, int flags, mode_t mode, Error **errp);
 int qemu_close(int fd);
 int qemu_unlink(const char *name);
