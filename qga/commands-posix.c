@@ -370,20 +370,15 @@ safe_open_or_create(const char *path, const char *mode, Error **errp)
      * open() is decisive and its third argument is ignored, and the second
      * open() and the fchmod() are never called.
      */
-    fd = open(path, oflag | ((oflag & O_CREAT) ? O_EXCL : 0), 0);
+    fd = qemu_open_cloexec(path, oflag | ((oflag & O_CREAT) ? O_EXCL : 0), 0, errp);
     if (fd == -1 && errno == EEXIST) {
+        g_clear_pointer(errp, error_free);
         oflag &= ~(unsigned)O_CREAT;
-        fd = open(path, oflag);
+        fd = qemu_open_cloexec(path, oflag, 0, errp);
     }
     if (fd == -1) {
-        error_setg_errno(errp, errno,
-                         "failed to open file '%s' "
-                         "(mode: '%s')",
-                         path, mode);
         goto end;
     }
-
-    qemu_set_cloexec(fd);
 
     if ((oflag & O_CREAT) && fchmod(fd, DEFAULT_NEW_FILE_MODE) == -1) {
         error_setg_errno(errp, errno,
