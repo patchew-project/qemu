@@ -184,4 +184,15 @@
 #define QEMU_DISABLE_CFI
 #endif
 
+#if defined (__clang__)
+#define QEMU_BEGIN_IGNORE_INITIALIZER_OVERRIDES                     \
+    _Pragma("clang diagnostic push")                                \
+    _Pragma("clang diagnostic ignored \"-Winitializer-overrides\"")
+#define QEMU_END_IGNORE_INITIALIZER_OVERRIDES \
+    _Pragma("clang diagnostic pop")
+#else
+#define QEMU_BEGIN_IGNORE_INITIALIZER_OVERRIDES
+#define QEMU_END_IGNORE_INITIALIZER_OVERRIDES
+#endif
+
 #endif /* COMPILER_H */
