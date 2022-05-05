@@ -1392,6 +1392,7 @@ static GuestDiskInfoList *get_disk_partitions(
 
 static void get_nvme_smart(GuestDiskInfo *disk)
 {
+    Error *err = NULL;
     int fd;
     GuestNVMeSmart *smart;
     NvmeSmartLog log = {0};
@@ -1404,9 +1405,10 @@ static void get_nvme_smart(GuestDiskInfo *disk)
                  | (((sizeof(log) >> 2) - 1) << 16)
     };
 
-    fd = qemu_open_old(disk->name, O_RDONLY);
+    fd = qemu_open_cloexec(disk->name, O_RDONLY, 0, &err);
     if (fd == -1) {
-        g_debug("Failed to open device: %s: %s", disk->name, g_strerror(errno));
+        g_debug("Failed to open device: %s: %s", disk->name, error_get_pretty(err));
+        error_free(err);
         return;
     }
 
@@ -1737,9 +1739,8 @@ int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
             }
         }
 
-        fd = qemu_open_old(mount->dirname, O_RDONLY);
+        fd = qemu_open_cloexec(mount->dirname, O_RDONLY, 0, errp);
         if (fd == -1) {
-            error_setg_errno(errp, errno, "failed to open %s", mount->dirname);
             goto error;
         }
 
@@ -1804,7 +1805,7 @@ int64_t qmp_guest_fsfreeze_thaw(Error **errp)
 
     QTAILQ_FOREACH(mount, &mounts, next) {
         logged = false;
-        fd = qemu_open_old(mount->dirname, O_RDONLY);
+        fd = qemu_open_cloexec(mount->dirname, O_RDONLY, 0, NULL);
         if (fd == -1) {
             continue;
         }
@@ -1864,21 +1865,20 @@ static void guest_fsfreeze_cleanup(void)
 GuestFilesystemTrimResponse *
 qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
 {
+    ERRP_GUARD();
     GuestFilesystemTrimResponse *response;
     GuestFilesystemTrimResult *result;
     int ret = 0;
     FsMountList mounts;
     struct FsMount *mount;
     int fd;
-    Error *local_err = NULL;
     struct fstrim_range r;
 
     slog("guest-fstrim called");
 
     QTAILQ_INIT(&mounts);
-    build_fs_mount_list(&mounts, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    build_fs_mount_list(&mounts, errp);
+    if (*errp) {
         return NULL;
     }
 
@@ -1890,11 +1890,11 @@ qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
 
         QAPI_LIST_PREPEND(response->paths, result);
 
-        fd = qemu_open_old(mount->dirname, O_RDONLY);
+        fd = qemu_open_cloexec(mount->dirname, O_RDONLY, 0, errp);
         if (fd == -1) {
-            result->error = g_strdup_printf("failed to open: %s",
-                                            strerror(errno));
+            result->error = g_strdup(error_get_pretty(*errp));
             result->has_error = true;
+            g_clear_pointer(errp, error_free);
             continue;
         }
 
