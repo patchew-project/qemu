@@ -279,9 +279,11 @@ int qemu_lock_fd_test(int fd, int64_t start, int64_t len, bool exclusive)
 }
 #endif
 
-static int qemu_open_cloexec(const char *name, int flags, mode_t mode)
+int qemu_open_cloexec(const char *name, int flags, mode_t mode, Error **errp)
 {
+    ERRP_GUARD();
     int ret;
+
 #ifdef O_CLOEXEC
     ret = open(name, flags | O_CLOEXEC, mode);
 #else
@@ -290,6 +292,10 @@ static int qemu_open_cloexec(const char *name, int flags, mode_t mode)
         qemu_set_cloexec(ret);
     }
 #endif
+    if (ret == -1) {
+        error_setg_errno(errp, errno, "Could not open '%s'", name);
+    }
+
     return ret;
 }
 
@@ -327,7 +333,7 @@ qemu_open_internal(const char *name, int flags, mode_t mode, Error **errp)
     }
 #endif
 
-    ret = qemu_open_cloexec(name, flags, mode);
+    ret = qemu_open_cloexec(name, flags, mode, NULL);
 
     if (ret == -1) {
         const char *action = flags & O_CREAT ? "create" : "open";
