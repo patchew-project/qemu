@@ -769,6 +769,15 @@ static void aarch64_max_initfn(Object *obj)
     t = FIELD_DP64(t, MIDR_EL1, REVISION, 0);
     cpu->midr = t;
 
+    /*
+     * We're going to set FEAT_S2FWB, which mandates that CLIDR_EL1.{LoUU,LoUIS}
+     * are zero.
+     */
+    u = cpu->clidr;
+    u = FIELD_DP32(u, CLIDR_EL1, LOUIS, 0);
+    u = FIELD_DP32(u, CLIDR_EL1, LOUU, 0);
+    cpu->clidr = u;
+
     t = cpu->isar.id_aa64isar0;
     t = FIELD_DP64(t, ID_AA64ISAR0, AES, 2); /* AES + PMULL */
     t = FIELD_DP64(t, ID_AA64ISAR0, SHA1, 1);
@@ -841,6 +850,7 @@ static void aarch64_max_initfn(Object *obj)
     t = FIELD_DP64(t, ID_AA64MMFR2, VARANGE, 1); /* FEAT_LVA */
     t = FIELD_DP64(t, ID_AA64MMFR2, TTL, 1); /* FEAT_TTL */
     t = FIELD_DP64(t, ID_AA64MMFR2, BBM, 2); /* FEAT_BBM at level 2 */
+    t = FIELD_DP64(t, ID_AA64MMFR2, FWB, 1); /* FEAT_S2FWB */
     cpu->isar.id_aa64mmfr2 = t;
 
     t = cpu->isar.id_aa64zfr0;
