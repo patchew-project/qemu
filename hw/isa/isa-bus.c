@@ -85,12 +85,6 @@ qemu_irq isa_get_irq(ISADevice *dev, unsigned isairq)
     return isabus->irqs[isairq];
 }
 
-void isa_connect_gpio_out(ISADevice *isadev, int gpioirq, unsigned isairq)
-{
-    qemu_irq irq = isa_get_irq(isadev, isairq);
-    qdev_connect_gpio_out(DEVICE(isadev), gpioirq, irq);
-}
-
 void isa_bus_dma(ISABus *bus, IsaDma *dma8, IsaDma *dma16)
 {
     assert(bus && dma8 && dma16);

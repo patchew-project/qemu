@@ -972,7 +972,8 @@ ISADevice *mc146818_rtc_init(ISABus *bus, int base_year, qemu_irq intercept_irq)
     if (intercept_irq) {
         qdev_connect_gpio_out(dev, 0, intercept_irq);
     } else {
-        isa_connect_gpio_out(isadev, 0, s->isairq);
+        qemu_irq irq = isa_get_irq(isadev, s->isairq);
+        qdev_connect_gpio_out(dev, 0, irq);
     }
 
     object_property_add_alias(qdev_get_machine(), "rtc-time", OBJECT(isadev),
