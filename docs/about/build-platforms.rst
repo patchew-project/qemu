@@ -86,11 +86,12 @@ similar versions.
 Windows
 -------
 
-The project supports building with current versions of the MinGW toolchain,
-hosted on Linux (Debian/Fedora).
+The project aims to support the most recent major version of Windows. Support
+for the previous major version will be dropped 2 years after the new major
+version is released.
 
-The version of the Windows API that's currently targeted is Vista / Server
-2008.
+The project supports building QEMU with current versions of the MinGW
+toolchain, either hosted on Linux (Debian/Fedora) or via MSYS2 on Windows.
 
 .. _Homebrew: https://brew.sh/
 .. _MacPorts: https://www.macports.org/
