@@ -891,7 +891,7 @@ out:
 static void qemu_gluster_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     bs->bl.max_transfer = GLUSTER_MAX_TRANSFER;
-    bs->bl.max_pdiscard = SIZE_MAX;
+    bs->bl.max_pdiscard = INT64_MAX;
 }
 
 static int qemu_gluster_reopen_prepare(BDRVReopenState *state,
@@ -1304,7 +1304,7 @@ static coroutine_fn int qemu_gluster_co_pdiscard(BlockDriverState *bs,
     GlusterAIOCB acb;
     BDRVGlusterState *s = bs->opaque;
 
-    assert(bytes <= SIZE_MAX); /* rely on max_pdiscard */
+    assert(bytes <= INT64_MAX); /* rely on max_pdiscard */
 
     acb.size = 0;
     acb.ret = 0;
