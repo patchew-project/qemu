@@ -3484,6 +3484,56 @@ static void set_rounding_mode_rn(CPUPPCState *env)
     }
 }
 
+typedef float64 extract_f16(float16, float_status *);
+
+static float64 extract_hf16(float16 in, float_status *fp_status)
+{
+    return float16_to_float64(in, true, fp_status);
+}
+
+static void vsxger16(CPUPPCState *env, ppc_vsr_t *a, ppc_vsr_t *b,
+                     ppc_acc_t  *at, uint32_t mask, bool acc,
+                     bool neg_mul, bool neg_acc, extract_f16 extract)
+{
+    float32 msum, aux_acc;
+    float64 psum, va, vb, vc, vd;
+    int i, j, xmsk_bit, ymsk_bit;
+    uint8_t pmsk = FIELD_EX32(mask, GER_MSK, PMSK),
+            xmsk = FIELD_EX32(mask, GER_MSK, XMSK),
+            ymsk = FIELD_EX32(mask, GER_MSK, YMSK);
+    float_status *excp_ptr = &env->fp_status;
+    set_rounding_mode_rn(env);
+    for (i = 0, xmsk_bit = 1 << 3; i < 4; i++, xmsk_bit >>= 1) {
+        for (j = 0, ymsk_bit = 1 << 3; j < 4; j++, ymsk_bit >>= 1) {
+            if ((xmsk_bit & xmsk) && (ymsk_bit & ymsk)) {
+                va = !(pmsk & 2) ? float64_zero : extract(a->VsrHF(2 * i), excp_ptr);
+                vb = !(pmsk & 2) ? float64_zero : extract(b->VsrHF(2 * j), excp_ptr);
+                vc = !(pmsk & 1) ? float64_zero : extract(a->VsrHF(2 * i + 1), excp_ptr);
+                vd = !(pmsk & 1) ? float64_zero : extract(b->VsrHF(2 * j + 1), excp_ptr);
+                psum = float64_mul(va, vb, excp_ptr);
+                psum = float64r32_muladd(vc, vd, psum, 0, excp_ptr);
+                msum = float64_to_float32(psum, excp_ptr);
+                if (acc) {
+                    if (neg_mul) {
+                        msum = float32_neg(msum);
+                    }
+                    if (neg_acc) {
+                        aux_acc = float32_neg(at[i].VsrSF(j));
+                    } else {
+                        aux_acc = at[i].VsrSF(j);
+                    }
+                    at[i].VsrSF(j) = float32_add(msum, aux_acc, excp_ptr);
+                } else {
+                    at[i].VsrSF(j) = msum;
+                }
+            } else {
+                at[i].VsrSF(j) = float32_zero;
+            }
+        }
+    }
+    do_float_check_status(env, GETPC());
+}
+
 typedef void vsxger_zero(ppc_vsr_t *at, int, int);
 
 typedef void vsxger_muladd_f(ppc_vsr_t *, ppc_vsr_t *, ppc_vsr_t *, int, int,
@@ -3559,6 +3609,41 @@ static void vsxger(CPUPPCState *env, ppc_vsr_t *a, ppc_vsr_t *b, ppc_acc_t  *at,
         }
     }
     do_float_check_status(env, GETPC());
+}
+
+QEMU_FLATTEN
+void helper_XVF16GER2(CPUPPCState *env, ppc_vsr_t *a, ppc_vsr_t *b,
+                     ppc_acc_t *at, uint32_t mask)
+{
+    vsxger16(env, a, b, at, mask, false, false, false, extract_hf16);
+}
+
+QEMU_FLATTEN
+void helper_XVF16GER2PP(CPUPPCState *env, ppc_vsr_t *a, ppc_vsr_t *b,
+                        ppc_acc_t *at, uint32_t mask)
+{
+    vsxger16(env, a, b, at, mask, true, false, false, extract_hf16);
+}
+
+QEMU_FLATTEN
+void helper_XVF16GER2PN(CPUPPCState *env, ppc_vsr_t *a, ppc_vsr_t *b,
+                        ppc_acc_t *at, uint32_t mask)
+{
+    vsxger16(env, a, b, at, mask, true, false, true, extract_hf16);
+}
+
+QEMU_FLATTEN
+void helper_XVF16GER2NP(CPUPPCState *env, ppc_vsr_t *a, ppc_vsr_t *b,
+                        ppc_acc_t *at, uint32_t mask)
+{
+    vsxger16(env, a, b, at, mask, true, true, false, extract_hf16);
+}
+
+QEMU_FLATTEN
+void helper_XVF16GER2NN(CPUPPCState *env, ppc_vsr_t *a, ppc_vsr_t *b,
+                        ppc_acc_t *at, uint32_t mask)
+{
+    vsxger16(env, a, b, at, mask, true, true, true, extract_hf16);
 }
 
 QEMU_FLATTEN

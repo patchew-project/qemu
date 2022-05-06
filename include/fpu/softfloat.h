@@ -619,6 +619,15 @@ static inline float32 float32_chs(float32 a)
     return make_float32(float32_val(a) ^ 0x80000000);
 }
 
+static inline float32 float32_neg(float32 a)
+{
+    if (((a & 0x7f800000) == 0x7f800000) && (a & 0x007fffff)) {
+        return a;
+    } else {
+        return float32_chs(a);
+    }
+}
+
 static inline bool float32_is_infinity(float32 a)
 {
     return (float32_val(a) & 0x7fffffff) == 0x7f800000;
