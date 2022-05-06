@@ -49,6 +49,14 @@ static inline int icv_min_vbpr(GICv3CPUState *cs)
     return 7 - cs->vprebits;
 }
 
+static inline int ich_num_aprs(GICv3CPUState *cs)
+{
+    /* Return the number of virtual APR registers (1, 2, or 4) */
+    int aprmax = 1 << (cs->vprebits - 5);
+    assert(aprmax <= ARRAY_SIZE(cs->ich_apr[0]));
+    return aprmax;
+}
+
 /* Simple accessor functions for LR fields */
 static uint32_t ich_lr_vintid(uint64_t lr)
 {
@@ -145,11 +153,8 @@ static int ich_highest_active_virt_prio(GICv3CPUState *cs)
      * in the ICH Active Priority Registers.
      */
     int i;
-    int aprmax = 1 << (cs->vprebits - 5);
 
-    assert(aprmax <= ARRAY_SIZE(cs->ich_apr[0]));
-
-    for (i = 0; i < aprmax; i++) {
+    for (i = 0; i < ich_num_aprs(cs); i++) {
         uint32_t apr = cs->ich_apr[GICV3_G0][i] |
             cs->ich_apr[GICV3_G1NS][i];
 
@@ -1333,11 +1338,8 @@ static int icv_drop_prio(GICv3CPUState *cs)
      * 32 bits are actually relevant.
      */
     int i;
-    int aprmax = 1 << (cs->vprebits - 5);
 
-    assert(aprmax <= ARRAY_SIZE(cs->ich_apr[0]));
-
-    for (i = 0; i < aprmax; i++) {
+    for (i = 0; i < ich_num_aprs(cs); i++) {
         uint64_t *papr0 = &cs->ich_apr[GICV3_G0][i];
         uint64_t *papr1 = &cs->ich_apr[GICV3_G1NS][i];
         int apr0count, apr1count;
