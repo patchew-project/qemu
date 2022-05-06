@@ -2825,7 +2825,7 @@ static bool trans_XXSETACCZ(DisasContext *ctx, arg_X_a *a)
     return true;
 }
 
-static bool do_ger_XX3(DisasContext *ctx, arg_XX3 *a,
+static bool do_ger_MMIRR_XX3(DisasContext *ctx, arg_MMIRR_XX3 *a,
                              void (*helper)(TCGv_env, TCGv_ptr, TCGv_ptr,
                                             TCGv_ptr, TCGv_i32))
 {
@@ -2842,12 +2842,26 @@ static bool do_ger_XX3(DisasContext *ctx, arg_XX3 *a,
     xa = gen_vsr_ptr(a->xa);
     xb = gen_vsr_ptr(a->xb);
 
-    mask = 0xFFFFFFFF;
+    mask = ger_pack_masks(a->pmsk, a->ymsk, a->xmsk);
     helper(cpu_env, xa, xb, xt, tcg_constant_i32(mask));
     tcg_temp_free_ptr(xt);
     tcg_temp_free_ptr(xa);
     tcg_temp_free_ptr(xb);
     return true;
+
+}
+static bool do_ger_XX3(DisasContext *ctx, arg_XX3 *a,
+                       void (*helper)(TCGv_env, TCGv_ptr, TCGv_ptr,
+                                      TCGv_ptr, TCGv_i32))
+{
+    arg_MMIRR_XX3 m;
+    m.xa = a->xa;
+    m.xb = a->xb;
+    m.xt = a->xt;
+    m.pmsk = 0xFF;
+    m.ymsk = 0xF;
+    m.xmsk = 0xF;
+    return do_ger_MMIRR_XX3(ctx, &m, helper);
 }
 
 TRANS(XVI4GER8, do_ger_XX3, gen_helper_XVI4GER8)
@@ -2859,6 +2873,16 @@ TRANS(XVI16GER2, do_ger_XX3, gen_helper_XVI16GER2)
 TRANS(XVI16GER2PP, do_ger_XX3, gen_helper_XVI16GER2PP)
 TRANS(XVI16GER2S, do_ger_XX3, gen_helper_XVI16GER2S)
 TRANS(XVI16GER2SPP, do_ger_XX3, gen_helper_XVI16GER2SPP)
+
+TRANS64(PMXVI4GER8, do_ger_MMIRR_XX3, gen_helper_XVI4GER8)
+TRANS64(PMXVI4GER8PP, do_ger_MMIRR_XX3, gen_helper_XVI4GER8PP)
+TRANS64(PMXVI8GER4, do_ger_MMIRR_XX3, gen_helper_XVI8GER4)
+TRANS64(PMXVI8GER4PP, do_ger_MMIRR_XX3, gen_helper_XVI8GER4PP)
+TRANS64(PMXVI8GER4SPP, do_ger_MMIRR_XX3, gen_helper_XVI8GER4SPP)
+TRANS64(PMXVI16GER2, do_ger_MMIRR_XX3, gen_helper_XVI16GER2)
+TRANS64(PMXVI16GER2PP, do_ger_MMIRR_XX3, gen_helper_XVI16GER2PP)
+TRANS64(PMXVI16GER2S, do_ger_MMIRR_XX3, gen_helper_XVI16GER2S)
+TRANS64(PMXVI16GER2SPP, do_ger_MMIRR_XX3, gen_helper_XVI16GER2SPP)
 
 #undef GEN_XX2FORM
 #undef GEN_XX3FORM
