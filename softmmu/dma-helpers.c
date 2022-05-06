@@ -177,8 +177,8 @@ static void dma_blk_cb(void *opaque, int ret)
     aio_context_acquire(dbs->ctx);
     dbs->acb = dbs->io_func(dbs->offset, &dbs->iov,
                             dma_blk_cb, dbs, dbs->io_func_opaque);
-    aio_context_release(dbs->ctx);
     assert(dbs->acb);
+    aio_context_release(dbs->ctx);
 }
 
 static void dma_aio_cancel(BlockAIOCB *acb)
