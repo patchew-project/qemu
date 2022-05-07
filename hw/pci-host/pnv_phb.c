@@ -63,6 +63,7 @@ static void pnv_phb_instance_init(Object *obj)
 
 static void pnv_phb_realize(DeviceState *dev, Error **errp)
 {
+    PnvPHB *phb = PNV_PHB(dev);
     g_autofree char *chip_typename = pnv_phb_get_chip_typename();
 
     g_assert(chip_typename != NULL);
@@ -71,7 +72,17 @@ static void pnv_phb_realize(DeviceState *dev, Error **errp)
         !strcmp(chip_typename, TYPE_PNV_CHIP_POWER8E) ||
         !strcmp(chip_typename, TYPE_PNV_CHIP_POWER8NVL)) {
         /* PnvPHB3 */
+        phb->version = PHB_VERSION_3;
         pnv_phb3_realize(dev, errp);
+        return;
+    }
+
+    if (!strcmp(chip_typename, TYPE_PNV_CHIP_POWER9)) {
+        phb->version = PHB_VERSION_4;
+    } else if (!strcmp(chip_typename, TYPE_PNV_CHIP_POWER10)) {
+        phb->version = PHB_VERSION_5;
+    } else {
+        error_setg(errp, "unknown PNV chip: %s", chip_typename);
         return;
     }
 

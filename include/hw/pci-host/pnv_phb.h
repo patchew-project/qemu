@@ -103,9 +103,14 @@ typedef struct PnvPhb4PecState PnvPhb4PecState;
 #define TYPE_PNV_PHB "pnv-phb"
 OBJECT_DECLARE_SIMPLE_TYPE(PnvPHB, PNV_PHB)
 
+#define PHB_VERSION_3    3
+#define PHB_VERSION_4    4
+#define PHB_VERSION_5    5
+
 struct PnvPHB {
     PCIExpressHost parent_obj;
 
+    uint64_t version;
     uint32_t chip_id;
     uint32_t phb_id;
     char bus_path[8];
@@ -142,8 +147,6 @@ struct PnvPHB {
     /*
      * PnvPHB4 attributes
      */
-    uint64_t version;
-
     /* The owner PEC */
     PnvPhb4PecState *pec;
 
