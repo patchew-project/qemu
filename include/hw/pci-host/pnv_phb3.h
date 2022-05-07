@@ -43,13 +43,6 @@ OBJECT_DECLARE_SIMPLE_TYPE(PnvPBCQState, PNV_PBCQ)
  */
 #define TYPE_PNV_PHB3_ROOT_BUS "pnv-phb3-root"
 
-#define TYPE_PNV_PHB3_ROOT_PORT "pnv-phb3-root-port"
-
-typedef struct PnvPHB3RootPort {
-    PCIESlot parent_obj;
-} PnvPHB3RootPort;
-
-
 #define PNV_PHB3_NUM_M64      16
 #define PNV_PHB3_NUM_REGS     (0x1000 >> 3)
 #define PNV_PHB3_NUM_LSI      8
