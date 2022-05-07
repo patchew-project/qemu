@@ -155,7 +155,7 @@ struct PnvPHB3 {
 
     PnvPBCQState pbcq;
 
-    QLIST_HEAD(, PnvPhb3DMASpace) dma_spaces;
+    QLIST_HEAD(, PnvPhb3DMASpace) v3_dma_spaces;
 
     PnvChip *chip;
 };

@@ -421,7 +421,7 @@ static void pnv_phb3_rtc_invalidate(PnvPHB3 *phb, uint64_t val)
     PnvPhb3DMASpace *ds;
 
     /* Always invalidate all for now ... */
-    QLIST_FOREACH(ds, &phb->dma_spaces, list) {
+    QLIST_FOREACH(ds, &phb->v3_dma_spaces, list) {
         ds->pe_num = PHB_INVALID_PE;
     }
 }
@@ -460,7 +460,7 @@ static void pnv_phb3_update_all_msi_regions(PnvPHB3 *phb)
 {
     PnvPhb3DMASpace *ds;
 
-    QLIST_FOREACH(ds, &phb->dma_spaces, list) {
+    QLIST_FOREACH(ds, &phb->v3_dma_spaces, list) {
         pnv_phb3_update_msi_regions(ds);
     }
 }
@@ -938,7 +938,7 @@ static AddressSpace *pnv_phb3_dma_iommu(PCIBus *bus, void *opaque, int devfn)
     PnvPHB3 *phb = opaque;
     PnvPhb3DMASpace *ds;
 
-    QLIST_FOREACH(ds, &phb->dma_spaces, list) {
+    QLIST_FOREACH(ds, &phb->v3_dma_spaces, list) {
         if (ds->bus == bus && ds->devfn == devfn) {
             break;
         }
@@ -961,7 +961,7 @@ static AddressSpace *pnv_phb3_dma_iommu(PCIBus *bus, void *opaque, int devfn)
                               ds, "msi64", 0x100000);
         pnv_phb3_update_msi_regions(ds);
 
-        QLIST_INSERT_HEAD(&phb->dma_spaces, ds, list);
+        QLIST_INSERT_HEAD(&phb->v3_dma_spaces, ds, list);
     }
     return &ds->dma_as;
 }
@@ -970,7 +970,7 @@ static void pnv_phb3_instance_init(Object *obj)
 {
     PnvPHB3 *phb = PNV_PHB3(obj);
 
-    QLIST_INIT(&phb->dma_spaces);
+    QLIST_INIT(&phb->v3_dma_spaces);
 
     /* LSI sources */
     object_initialize_child(obj, "lsi", &phb->lsis, TYPE_ICS);
