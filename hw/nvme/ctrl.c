@@ -6707,6 +6707,7 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
     NvmeIdCtrl *id = &n->id_ctrl;
     uint8_t *pci_conf = pci_dev->config;
     uint64_t cap = ldq_le_p(&n->bar.cap);
+    uint32_t supported_oaes;
 
     id->vid = cpu_to_le16(pci_get_word(pci_conf + PCI_VENDOR_ID));
     id->ssvid = cpu_to_le16(pci_get_word(pci_conf + PCI_SUBSYSTEM_VENDOR_ID));
@@ -6716,7 +6717,13 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
 
     id->cntlid = cpu_to_le16(n->cntlid);
 
-    id->oaes = cpu_to_le32(NVME_OAES_NS_ATTR);
+    supported_oaes = NVME_OAES_SMART_SPARE | NVME_OAES_SMART_TEMPERATURE |
+                     NVME_OAES_SMART_RELIABILITY |
+                     NVME_OAES_SMART_MEDIA_READ_ONLY |
+                     NVME_OAES_SMART_FAILED_VOLATILE_MEDIA |
+                     NVME_OAES_SMART_PMR_UNRELIABLE |
+                     NVME_OAES_NS_ATTR;
+    id->oaes = cpu_to_le32(supported_oaes);
     id->ctratt |= cpu_to_le32(NVME_CTRATT_ELBAS);
 
     id->rab = 6;
