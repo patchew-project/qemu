@@ -238,7 +238,7 @@ static const MemoryRegionOps pnv_pbcq_spci_xscom_ops = {
 static void pnv_pbcq_default_bars(PnvPBCQState *pbcq)
 {
     uint64_t mm0, mm1, reg;
-    PnvPHB3 *phb = pbcq->phb;
+    PnvPHB *phb = pbcq->phb;
 
     mm0 = 0x3d00000000000ull + 0x4000000000ull * phb->chip_id +
             0x1000000000ull * phb->phb_id;
@@ -258,7 +258,7 @@ static void pnv_pbcq_default_bars(PnvPBCQState *pbcq)
 static void pnv_pbcq_realize(DeviceState *dev, Error **errp)
 {
     PnvPBCQState *pbcq = PNV_PBCQ(dev);
-    PnvPHB3 *phb;
+    PnvPHB *phb;
     char name[32];
 
     assert(pbcq->phb);
@@ -300,7 +300,7 @@ static int pnv_pbcq_dt_xscom(PnvXScomInterface *dev, void *fdt,
                              int xscom_offset)
 {
     const char compat[] = "ibm,power8-pbcq";
-    PnvPHB3 *phb = PNV_PBCQ(dev)->phb;
+    PnvPHB *phb = PNV_PBCQ(dev)->phb;
     char *name;
     int offset;
     uint32_t lpc_pcba = PNV_XSCOM_PBCQ_NEST_BASE + 0x400 * phb->phb_id;
@@ -331,7 +331,7 @@ static void phb3_pbcq_instance_init(Object *obj)
 {
     PnvPBCQState *pbcq = PNV_PBCQ(obj);
 
-    object_property_add_link(obj, "phb", TYPE_PNV_PHB3,
+    object_property_add_link(obj, "phb", TYPE_PNV_PHB,
                              (Object **)&pbcq->phb,
                              object_property_allow_set_link,
                              OBJ_PROP_LINK_STRONG);

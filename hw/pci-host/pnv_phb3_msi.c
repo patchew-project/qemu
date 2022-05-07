@@ -18,7 +18,7 @@
 #include "hw/qdev-properties.h"
 #include "sysemu/reset.h"
 
-static uint64_t phb3_msi_ive_addr(PnvPHB3 *phb, int srcno)
+static uint64_t phb3_msi_ive_addr(PnvPHB *phb, int srcno)
 {
     uint64_t ivtbar = phb->regs3[PHB_IVT_BAR >> 3];
     uint64_t phbctl = phb->regs3[PHB_CONTROL >> 3];
@@ -43,7 +43,7 @@ static uint64_t phb3_msi_ive_addr(PnvPHB3 *phb, int srcno)
     }
 }
 
-static bool phb3_msi_read_ive(PnvPHB3 *phb, int srcno, uint64_t *out_ive)
+static bool phb3_msi_read_ive(PnvPHB *phb, int srcno, uint64_t *out_ive)
 {
     uint64_t ive_addr, ive;
 
@@ -281,7 +281,7 @@ static void phb3_msi_instance_init(Object *obj)
     Phb3MsiState *msi = PHB3_MSI(obj);
     ICSState *ics = ICS(obj);
 
-    object_property_add_link(obj, "phb", TYPE_PNV_PHB3,
+    object_property_add_link(obj, "phb", TYPE_PNV_PHB,
                              (Object **)&msi->phb,
                              object_property_allow_set_link,
                              OBJ_PROP_LINK_STRONG);

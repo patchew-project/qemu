@@ -24,7 +24,7 @@
     qemu_log_mask(LOG_GUEST_ERROR, "phb3[%d:%d]: " fmt "\n",            \
                   (phb)->chip_id, (phb)->phb_id, ## __VA_ARGS__)
 
-static PCIDevice *pnv_phb3_find_cfg_dev(PnvPHB3 *phb)
+static PCIDevice *pnv_phb3_find_cfg_dev(PnvPHB *phb)
 {
     PCIHostState *pci = PCI_HOST_BRIDGE(phb);
     uint64_t addr = phb->regs3[PHB_CONFIG_ADDRESS >> 3];
@@ -43,7 +43,7 @@ static PCIDevice *pnv_phb3_find_cfg_dev(PnvPHB3 *phb)
  * The CONFIG_DATA register expects little endian accesses, but as the
  * region is big endian, we have to swap the value.
  */
-static void pnv_phb3_config_write(PnvPHB3 *phb, unsigned off,
+static void pnv_phb3_config_write(PnvPHB *phb, unsigned off,
                                   unsigned size, uint64_t val)
 {
     uint32_t cfg_addr, limit;
@@ -78,7 +78,7 @@ static void pnv_phb3_config_write(PnvPHB3 *phb, unsigned off,
     pci_host_config_write_common(pdev, cfg_addr, limit, val, size);
 }
 
-static uint64_t pnv_phb3_config_read(PnvPHB3 *phb, unsigned off,
+static uint64_t pnv_phb3_config_read(PnvPHB *phb, unsigned off,
                                      unsigned size)
 {
     uint32_t cfg_addr, limit;
@@ -112,7 +112,7 @@ static uint64_t pnv_phb3_config_read(PnvPHB3 *phb, unsigned off,
     }
 }
 
-static void pnv_phb3_check_m32(PnvPHB3 *phb)
+static void pnv_phb3_check_m32(PnvPHB *phb)
 {
     uint64_t base, start, size;
     MemoryRegion *parent;
@@ -152,7 +152,7 @@ static void pnv_phb3_check_m32(PnvPHB3 *phb)
     memory_region_add_subregion(parent, base, &phb->mr_m32);
 }
 
-static void pnv_phb3_check_m64(PnvPHB3 *phb, uint32_t index)
+static void pnv_phb3_check_m64(PnvPHB *phb, uint32_t index)
 {
     uint64_t base, start, size, m64;
     MemoryRegion *parent;
@@ -202,7 +202,7 @@ static void pnv_phb3_check_m64(PnvPHB3 *phb, uint32_t index)
     memory_region_add_subregion(parent, base, &phb->mr_m64[index]);
 }
 
-static void pnv_phb3_check_all_m64s(PnvPHB3 *phb)
+static void pnv_phb3_check_all_m64s(PnvPHB *phb)
 {
     uint64_t i;
 
@@ -211,7 +211,7 @@ static void pnv_phb3_check_all_m64s(PnvPHB3 *phb)
     }
 }
 
-static void pnv_phb3_lxivt_write(PnvPHB3 *phb, unsigned idx, uint64_t val)
+static void pnv_phb3_lxivt_write(PnvPHB *phb, unsigned idx, uint64_t val)
 {
     uint8_t server, prio;
 
@@ -230,7 +230,7 @@ static void pnv_phb3_lxivt_write(PnvPHB3 *phb, unsigned idx, uint64_t val)
     ics_write_xive(&phb->lsis, idx, server, prio, prio);
 }
 
-static uint64_t *pnv_phb3_ioda_access(PnvPHB3 *phb,
+static uint64_t *pnv_phb3_ioda_access(PnvPHB *phb,
                                       unsigned *out_table, unsigned *out_idx)
 {
     uint64_t adreg = phb->regs3[PHB_IODA_ADDR >> 3];
@@ -304,7 +304,7 @@ static uint64_t *pnv_phb3_ioda_access(PnvPHB3 *phb,
     return tptr;
 }
 
-static uint64_t pnv_phb3_ioda_read(PnvPHB3 *phb)
+static uint64_t pnv_phb3_ioda_read(PnvPHB *phb)
 {
         unsigned table;
         uint64_t *tptr;
@@ -317,7 +317,7 @@ static uint64_t pnv_phb3_ioda_read(PnvPHB3 *phb)
         return *tptr;
 }
 
-static void pnv_phb3_ioda_write(PnvPHB3 *phb, uint64_t val)
+static void pnv_phb3_ioda_write(PnvPHB *phb, uint64_t val)
 {
         unsigned table, idx;
         uint64_t *tptr;
@@ -345,7 +345,7 @@ static void pnv_phb3_ioda_write(PnvPHB3 *phb, uint64_t val)
  * This is called whenever the PHB LSI, MSI source ID register or
  * the PBCQ irq filters are written.
  */
-void pnv_phb3_remap_irqs(PnvPHB3 *phb)
+void pnv_phb3_remap_irqs(PnvPHB *phb)
 {
     ICSState *ics = &phb->lsis;
     uint32_t local, global, count, mask, comp;
@@ -408,7 +408,7 @@ void pnv_phb3_remap_irqs(PnvPHB3 *phb)
     pnv_phb3_msi_update_config(&phb->msis, comp, count - PNV_PHB3_NUM_LSI);
 }
 
-static void pnv_phb3_lsi_src_id_write(PnvPHB3 *phb, uint64_t val)
+static void pnv_phb3_lsi_src_id_write(PnvPHB *phb, uint64_t val)
 {
     /* Sanitize content */
     val &= PHB_LSI_SRC_ID;
@@ -416,7 +416,7 @@ static void pnv_phb3_lsi_src_id_write(PnvPHB3 *phb, uint64_t val)
     pnv_phb3_remap_irqs(phb);
 }
 
-static void pnv_phb3_rtc_invalidate(PnvPHB3 *phb, uint64_t val)
+static void pnv_phb3_rtc_invalidate(PnvPHB *phb, uint64_t val)
 {
     PnvPhb3DMASpace *ds;
 
@@ -456,7 +456,7 @@ static void pnv_phb3_update_msi_regions(PnvPhb3DMASpace *ds)
     }
 }
 
-static void pnv_phb3_update_all_msi_regions(PnvPHB3 *phb)
+static void pnv_phb3_update_all_msi_regions(PnvPHB *phb)
 {
     PnvPhb3DMASpace *ds;
 
@@ -467,7 +467,7 @@ static void pnv_phb3_update_all_msi_regions(PnvPHB3 *phb)
 
 void pnv_phb3_reg_write(void *opaque, hwaddr off, uint64_t val, unsigned size)
 {
-    PnvPHB3 *phb = opaque;
+    PnvPHB *phb = opaque;
     bool changed;
 
     /* Special case configuration data */
@@ -589,7 +589,7 @@ void pnv_phb3_reg_write(void *opaque, hwaddr off, uint64_t val, unsigned size)
 
 uint64_t pnv_phb3_reg_read(void *opaque, hwaddr off, unsigned size)
 {
-    PnvPHB3 *phb = opaque;
+    PnvPHB *phb = opaque;
     PCIHostState *pci = PCI_HOST_BRIDGE(phb);
     uint64_t val;
 
@@ -683,7 +683,7 @@ static int pnv_phb3_map_irq(PCIDevice *pci_dev, int irq_num)
 
 static void pnv_phb3_set_irq(void *opaque, int irq_num, int level)
 {
-    PnvPHB3 *phb = opaque;
+    PnvPHB *phb = opaque;
 
     /* LSI only ... */
     if (irq_num > 3) {
@@ -741,7 +741,7 @@ static void pnv_phb3_translate_tve(PnvPhb3DMASpace *ds, hwaddr addr,
     int32_t  lev = GETFIELD(IODA2_TVT_NUM_LEVELS, tve);
     uint32_t tts = GETFIELD(IODA2_TVT_TCE_TABLE_SIZE, tve);
     uint32_t tps = GETFIELD(IODA2_TVT_IO_PSIZE, tve);
-    PnvPHB3 *phb = ds->phb;
+    PnvPHB *phb = ds->phb;
 
     /* Invalid levels */
     if (lev > 4) {
@@ -848,7 +848,7 @@ static IOMMUTLBEntry pnv_phb3_translate_iommu(IOMMUMemoryRegion *iommu,
         .addr_mask = ~(hwaddr)0,
         .perm = IOMMU_NONE,
     };
-    PnvPHB3 *phb = ds->phb;
+    PnvPHB *phb = ds->phb;
 
     /* Resolve PE# */
     if (!pnv_phb3_resolve_pe(ds)) {
@@ -935,7 +935,7 @@ static const MemoryRegionOps pnv_phb3_msi_ops = {
 
 static AddressSpace *pnv_phb3_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 {
-    PnvPHB3 *phb = opaque;
+    PnvPHB *phb = opaque;
     PnvPhb3DMASpace *ds;
 
     QLIST_FOREACH(ds, &phb->v3_dma_spaces, list) {
@@ -968,7 +968,7 @@ static AddressSpace *pnv_phb3_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 
 void pnv_phb3_instance_init(Object *obj)
 {
-    PnvPHB3 *phb = PNV_PHB3(obj);
+    PnvPHB *phb = PNV_PHB(obj);
 
     QLIST_INIT(&phb->v3_dma_spaces);
 
@@ -988,7 +988,7 @@ void pnv_phb3_instance_init(Object *obj)
 
 void pnv_phb3_realize(DeviceState *dev, Error **errp)
 {
-    PnvPHB3 *phb = PNV_PHB3(dev);
+    PnvPHB *phb = PNV_PHB(dev);
     PCIHostState *pci = PCI_HOST_BRIDGE(dev);
     PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
     int i;
@@ -1055,7 +1055,7 @@ void pnv_phb3_realize(DeviceState *dev, Error **errp)
     pnv_phb_attach_root_port(PCI_HOST_BRIDGE(phb), TYPE_PNV_PHB3_ROOT_PORT);
 }
 
-void pnv_phb3_update_regions(PnvPHB3 *phb)
+void pnv_phb3_update_regions(PnvPHB *phb)
 {
     PnvPBCQState *pbcq = &phb->pbcq;
 
@@ -1076,43 +1076,6 @@ void pnv_phb3_update_regions(PnvPHB3 *phb)
     }
     pnv_phb3_check_all_m64s(phb);
 }
-
-static const char *pnv_phb3_root_bus_path(PCIHostState *host_bridge,
-                                          PCIBus *rootbus)
-{
-    PnvPHB3 *phb = PNV_PHB3(host_bridge);
-
-    snprintf(phb->bus_path, sizeof(phb->bus_path), "00%02x:%02x",
-             phb->chip_id, phb->phb_id);
-    return phb->bus_path;
-}
-
-static Property pnv_phb3_properties[] = {
-        DEFINE_PROP_UINT32("index", PnvPHB3, phb_id, 0),
-        DEFINE_PROP_UINT32("chip-id", PnvPHB3, chip_id, 0),
-        DEFINE_PROP_LINK("chip", PnvPHB3, chip, TYPE_PNV_CHIP, PnvChip *),
-        DEFINE_PROP_END_OF_LIST(),
-};
-
-static void pnv_phb3_class_init(ObjectClass *klass, void *data)
-{
-    PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    hc->root_bus_path = pnv_phb3_root_bus_path;
-    dc->realize = pnv_phb3_realize;
-    device_class_set_props(dc, pnv_phb3_properties);
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-    dc->user_creatable = false;
-}
-
-static const TypeInfo pnv_phb3_type_info = {
-    .name          = TYPE_PNV_PHB3,
-    .parent        = TYPE_PCIE_HOST_BRIDGE,
-    .instance_size = sizeof(PnvPHB3),
-    .class_init    = pnv_phb3_class_init,
-    .instance_init = pnv_phb3_instance_init,
-};
 
 static void pnv_phb3_root_bus_class_init(ObjectClass *klass, void *data)
 {
@@ -1140,15 +1103,15 @@ static void pnv_phb3_root_port_realize(DeviceState *dev, Error **errp)
     PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(dev);
     PCIDevice *pci = PCI_DEVICE(dev);
     PCIBus *bus = pci_get_bus(pci);
-    PnvPHB3 *phb = NULL;
+    PnvPHB *phb = NULL;
     Error *local_err = NULL;
 
-    phb = (PnvPHB3 *) object_dynamic_cast(OBJECT(bus->qbus.parent),
-                                          TYPE_PNV_PHB3);
+    phb = (PnvPHB *) object_dynamic_cast(OBJECT(bus->qbus.parent),
+                                          TYPE_PNV_PHB);
 
     if (!phb) {
         error_setg(errp,
-"pnv_phb3_root_port devices must be connected to pnv-phb3 buses");
+"pnv_phb3_root_port devices must be connected to pnv-phb buses");
         return;
     }
 
@@ -1195,7 +1158,6 @@ static void pnv_phb3_register_types(void)
 {
     type_register_static(&pnv_phb3_root_bus_info);
     type_register_static(&pnv_phb3_root_port_info);
-    type_register_static(&pnv_phb3_type_info);
     type_register_static(&pnv_phb3_iommu_memory_region_info);
 }
 

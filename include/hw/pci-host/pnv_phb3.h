@@ -16,7 +16,6 @@
 #include "hw/ppc/xics.h"
 #include "qom/object.h"
 
-typedef struct PnvPHB3 PnvPHB3;
 typedef struct PnvChip PnvChip;
 
 /*
@@ -50,11 +49,6 @@ typedef struct PnvPHB3RootPort {
     PCIESlot parent_obj;
 } PnvPHB3RootPort;
 
-/*
- * PHB3 PCIe Host Bridge for PowerNV machines (POWER8)
- */
-#define TYPE_PNV_PHB3 "pnv-phb3"
-OBJECT_DECLARE_SIMPLE_TYPE(PnvPHB3, PNV_PHB3)
 
 #define PNV_PHB3_NUM_M64      16
 #define PNV_PHB3_NUM_REGS     (0x1000 >> 3)
@@ -63,44 +57,11 @@ OBJECT_DECLARE_SIMPLE_TYPE(PnvPHB3, PNV_PHB3)
 
 #define PCI_MMIO_TOTAL_SIZE   (0x1ull << 60)
 
-struct PnvPHB3 {
-    PCIExpressHost parent_obj;
-
-    uint32_t chip_id;
-    uint32_t phb_id;
-    char bus_path[8];
-
-    uint64_t regs3[PNV_PHB3_NUM_REGS];
-    MemoryRegion mr_regs3;
-
-    MemoryRegion mr_m32;
-    MemoryRegion mr_m64[PNV_PHB3_NUM_M64];
-    MemoryRegion pci_mmio;
-    MemoryRegion pci_io;
-
-    uint64_t ioda2_LIST[8];
-    uint64_t ioda2_LXIVT[8];
-    uint64_t ioda2_TVT[512];
-    uint64_t ioda2_M64BT[16];
-    uint64_t ioda2_MDT[256];
-    uint64_t ioda2_PEEV[4];
-
-    uint32_t total_irq;
-    ICSState lsis;
-    qemu_irq *qirqs;
-    Phb3MsiState msis;
-
-    PnvPBCQState pbcq;
-
-    QLIST_HEAD(, PnvPhb3DMASpace) v3_dma_spaces;
-
-    PnvChip *chip;
-};
 
 uint64_t pnv_phb3_reg_read(void *opaque, hwaddr off, unsigned size);
 void pnv_phb3_reg_write(void *opaque, hwaddr off, uint64_t val, unsigned size);
-void pnv_phb3_update_regions(PnvPHB3 *phb);
-void pnv_phb3_remap_irqs(PnvPHB3 *phb);
+void pnv_phb3_update_regions(PnvPHB *phb);
+void pnv_phb3_remap_irqs(PnvPHB *phb);
 
 void pnv_phb3_instance_init(Object *obj);
 void pnv_phb3_realize(DeviceState *dev, Error **errp);

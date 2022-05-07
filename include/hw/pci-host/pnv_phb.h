@@ -21,14 +21,14 @@
 #define PNV_PHB3_NUM_REGS     (0x1000 >> 3)
 #define PHB3_MAX_MSI     2048
 
-typedef struct PnvPHB3 PnvPHB3;
 typedef struct PnvChip PnvChip;
+typedef struct PnvPHB PnvPHB;
 
 typedef struct Phb3MsiState {
     ICSState ics;
     qemu_irq *qirqs;
 
-    PnvPHB3 *phb;
+    PnvPHB *phb;
     uint64_t rba[PHB3_MAX_MSI / 64];
     uint32_t rba_sum;
 } Phb3MsiState;
@@ -53,7 +53,7 @@ typedef struct PnvPBCQState {
     uint64_t mmio0_size;
     uint64_t mmio1_base;
     uint64_t mmio1_size;
-    PnvPHB3 *phb;
+    PnvPHB *phb;
 
     MemoryRegion xscom_nest_regs;
     MemoryRegion xscom_pci_regs;
@@ -76,7 +76,7 @@ typedef struct PnvPhb3DMASpace {
     uint8_t devfn;
     int pe_num;         /* Cached PE number */
 #define PHB_INVALID_PE (-1)
-    PnvPHB3 *phb;
+    PnvPHB *phb;
     AddressSpace dma_as;
     IOMMUMemoryRegion dma_mr;
     MemoryRegion msi32_mr;
@@ -100,7 +100,6 @@ typedef struct PnvPhb4PecState PnvPhb4PecState;
 /*
  * Unified PHB PCIe Host Bridge for PowerNV machines
  */
-typedef struct PnvPHB PnvPHB;
 #define TYPE_PNV_PHB "pnv-phb"
 OBJECT_DECLARE_SIMPLE_TYPE(PnvPHB, PNV_PHB)
 
