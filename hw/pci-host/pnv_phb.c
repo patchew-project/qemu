@@ -55,7 +55,10 @@ static void pnv_phb_instance_init(Object *obj)
         !strcmp(chip_typename, TYPE_PNV_CHIP_POWER8E) ||
         !strcmp(chip_typename, TYPE_PNV_CHIP_POWER8NVL)) {
         pnv_phb3_instance_init(obj);
+        return;
     }
+
+    pnv_phb4_instance_init(obj);
 }
 
 static void pnv_phb_realize(DeviceState *dev, Error **errp)
@@ -69,7 +72,10 @@ static void pnv_phb_realize(DeviceState *dev, Error **errp)
         !strcmp(chip_typename, TYPE_PNV_CHIP_POWER8NVL)) {
         /* PnvPHB3 */
         pnv_phb3_realize(dev, errp);
+        return;
     }
+
+    pnv_phb4_realize(dev, errp);
 }
 
 static const char *pnv_phb_root_bus_path(PCIHostState *host_bridge,
@@ -86,6 +92,8 @@ static Property pnv_phb_properties[] = {
     DEFINE_PROP_UINT32("index", PnvPHB, phb_id, 0),
     DEFINE_PROP_UINT32("chip-id", PnvPHB, chip_id, 0),
     DEFINE_PROP_LINK("chip", PnvPHB, chip, TYPE_PNV_CHIP, PnvChip *),
+    DEFINE_PROP_LINK("pec", PnvPHB, pec, TYPE_PNV_PHB4_PEC,
+                     PnvPhb4PecState *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -93,12 +101,15 @@ static void pnv_phb_class_init(ObjectClass *klass, void *data)
 {
     PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
+    XiveNotifierClass *xfc = XIVE_NOTIFIER_CLASS(klass);
 
     hc->root_bus_path = pnv_phb_root_bus_path;
     dc->realize = pnv_phb_realize;
     device_class_set_props(dc, pnv_phb_properties);
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->user_creatable = true;
+
+    xfc->notify         = pnv_phb4_xive_notify;
 }
 
 static const TypeInfo pnv_phb_type_info = {
@@ -107,6 +118,10 @@ static const TypeInfo pnv_phb_type_info = {
     .instance_size = sizeof(PnvPHB),
     .class_init    = pnv_phb_class_init,
     .instance_init = pnv_phb_instance_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_XIVE_NOTIFIER },
+        { },
+    },
 };
 
 static void pnv_phb_register_types(void)

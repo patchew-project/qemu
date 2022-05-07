@@ -47,7 +47,7 @@ static inline uint64_t SETFIELD(uint64_t mask, uint64_t word,
     return (word & ~mask) | ((value << ctz64(mask)) & mask);
 }
 
-static PCIDevice *pnv_phb4_find_cfg_dev(PnvPHB4 *phb)
+static PCIDevice *pnv_phb4_find_cfg_dev(PnvPHB *phb)
 {
     PCIHostState *pci = PCI_HOST_BRIDGE(phb);
     uint64_t addr = phb->regs[PHB_CONFIG_ADDRESS >> 3];
@@ -70,7 +70,7 @@ static PCIDevice *pnv_phb4_find_cfg_dev(PnvPHB4 *phb)
  * The CONFIG_DATA register expects little endian accesses, but as the
  * region is big endian, we have to swap the value.
  */
-static void pnv_phb4_config_write(PnvPHB4 *phb, unsigned off,
+static void pnv_phb4_config_write(PnvPHB *phb, unsigned off,
                                   unsigned size, uint64_t val)
 {
     uint32_t cfg_addr, limit;
@@ -105,7 +105,7 @@ static void pnv_phb4_config_write(PnvPHB4 *phb, unsigned off,
     pci_host_config_write_common(pdev, cfg_addr, limit, val, size);
 }
 
-static uint64_t pnv_phb4_config_read(PnvPHB4 *phb, unsigned off,
+static uint64_t pnv_phb4_config_read(PnvPHB *phb, unsigned off,
                                      unsigned size)
 {
     uint32_t cfg_addr, limit;
@@ -142,7 +142,7 @@ static uint64_t pnv_phb4_config_read(PnvPHB4 *phb, unsigned off,
 /*
  * Root complex register accesses are memory mapped.
  */
-static void pnv_phb4_rc_config_write(PnvPHB4 *phb, unsigned off,
+static void pnv_phb4_rc_config_write(PnvPHB *phb, unsigned off,
                                      unsigned size, uint64_t val)
 {
     PCIHostState *pci = PCI_HOST_BRIDGE(phb);
@@ -163,7 +163,7 @@ static void pnv_phb4_rc_config_write(PnvPHB4 *phb, unsigned off,
                                  bswap32(val), 4);
 }
 
-static uint64_t pnv_phb4_rc_config_read(PnvPHB4 *phb, unsigned off,
+static uint64_t pnv_phb4_rc_config_read(PnvPHB *phb, unsigned off,
                                         unsigned size)
 {
     PCIHostState *pci = PCI_HOST_BRIDGE(phb);
@@ -185,7 +185,7 @@ static uint64_t pnv_phb4_rc_config_read(PnvPHB4 *phb, unsigned off,
     return bswap32(val);
 }
 
-static void pnv_phb4_check_mbt(PnvPHB4 *phb, uint32_t index)
+static void pnv_phb4_check_mbt(PnvPHB *phb, uint32_t index)
 {
     uint64_t base, start, size, mbe0, mbe1;
     MemoryRegion *parent;
@@ -248,7 +248,7 @@ static void pnv_phb4_check_mbt(PnvPHB4 *phb, uint32_t index)
     memory_region_add_subregion(parent, base, &phb->mr_mmio[index]);
 }
 
-static void pnv_phb4_check_all_mbt(PnvPHB4 *phb)
+static void pnv_phb4_check_all_mbt(PnvPHB *phb)
 {
     uint64_t i;
     uint32_t num_windows = phb->big_phb ? PNV_PHB4_MAX_MMIO_WINDOWS :
@@ -259,7 +259,7 @@ static void pnv_phb4_check_all_mbt(PnvPHB4 *phb)
     }
 }
 
-static uint64_t *pnv_phb4_ioda_access(PnvPHB4 *phb,
+static uint64_t *pnv_phb4_ioda_access(PnvPHB *phb,
                                       unsigned *out_table, unsigned *out_idx)
 {
     uint64_t adreg = phb->regs[PHB_IODA_ADDR >> 3];
@@ -336,7 +336,7 @@ static uint64_t *pnv_phb4_ioda_access(PnvPHB4 *phb,
     return tptr;
 }
 
-static uint64_t pnv_phb4_ioda_read(PnvPHB4 *phb)
+static uint64_t pnv_phb4_ioda_read(PnvPHB *phb)
 {
     unsigned table, idx;
     uint64_t *tptr;
@@ -355,7 +355,7 @@ static uint64_t pnv_phb4_ioda_read(PnvPHB4 *phb)
     return *tptr;
 }
 
-static void pnv_phb4_ioda_write(PnvPHB4 *phb, uint64_t val)
+static void pnv_phb4_ioda_write(PnvPHB *phb, uint64_t val)
 {
     unsigned table, idx;
     uint64_t *tptr;
@@ -419,7 +419,7 @@ static void pnv_phb4_ioda_write(PnvPHB4 *phb, uint64_t val)
     }
 }
 
-static void pnv_phb4_rtc_invalidate(PnvPHB4 *phb, uint64_t val)
+static void pnv_phb4_rtc_invalidate(PnvPHB *phb, uint64_t val)
 {
     PnvPhb4DMASpace *ds;
 
@@ -458,7 +458,7 @@ static void pnv_phb4_update_msi_regions(PnvPhb4DMASpace *ds)
     }
 }
 
-static void pnv_phb4_update_all_msi_regions(PnvPHB4 *phb)
+static void pnv_phb4_update_all_msi_regions(PnvPHB *phb)
 {
     PnvPhb4DMASpace *ds;
 
@@ -467,7 +467,7 @@ static void pnv_phb4_update_all_msi_regions(PnvPHB4 *phb)
     }
 }
 
-static void pnv_phb4_update_xsrc(PnvPHB4 *phb)
+static void pnv_phb4_update_xsrc(PnvPHB *phb)
 {
     int shift, flags, i, lsi_base;
     XiveSource *xsrc = &phb->xsrc;
@@ -518,7 +518,7 @@ static void pnv_phb4_update_xsrc(PnvPHB4 *phb)
 static void pnv_phb4_reg_write(void *opaque, hwaddr off, uint64_t val,
                                unsigned size)
 {
-    PnvPHB4 *phb = PNV_PHB4(opaque);
+    PnvPHB *phb = PNV_PHB(opaque);
     bool changed;
 
     /* Special case outbound configuration data */
@@ -656,7 +656,7 @@ static void pnv_phb4_reg_write(void *opaque, hwaddr off, uint64_t val,
 
 static uint64_t pnv_phb4_reg_read(void *opaque, hwaddr off, unsigned size)
 {
-    PnvPHB4 *phb = PNV_PHB4(opaque);
+    PnvPHB *phb = PNV_PHB(opaque);
     uint64_t val;
 
     if ((off & 0xfffc) == PHB_CONFIG_DATA) {
@@ -752,7 +752,7 @@ static const MemoryRegionOps pnv_phb4_reg_ops = {
 
 static uint64_t pnv_phb4_xscom_read(void *opaque, hwaddr addr, unsigned size)
 {
-    PnvPHB4 *phb = PNV_PHB4(opaque);
+    PnvPHB *phb = PNV_PHB(opaque);
     uint32_t reg = addr >> 3;
     uint64_t val;
     hwaddr offset;
@@ -805,7 +805,7 @@ static uint64_t pnv_phb4_xscom_read(void *opaque, hwaddr addr, unsigned size)
 static void pnv_phb4_xscom_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
-    PnvPHB4 *phb = PNV_PHB4(opaque);
+    PnvPHB *phb = PNV_PHB(opaque);
     uint32_t reg = addr >> 3;
     hwaddr offset;
 
@@ -868,7 +868,7 @@ const MemoryRegionOps pnv_phb4_xscom_ops = {
 static uint64_t pnv_pec_stk_nest_xscom_read(void *opaque, hwaddr addr,
                                             unsigned size)
 {
-    PnvPHB4 *phb = PNV_PHB4(opaque);
+    PnvPHB *phb = PNV_PHB(opaque);
     uint32_t reg = addr >> 3;
 
     /* TODO: add list of allowed registers and error out if not */
@@ -876,14 +876,14 @@ static uint64_t pnv_pec_stk_nest_xscom_read(void *opaque, hwaddr addr,
 }
 
 /*
- * Return the 'stack_no' of a PHB4. 'stack_no' is the order
+ * Return the 'stack_no' of a PHB. 'stack_no' is the order
  * the PHB4 occupies in the PEC. This is the reverse of what
  * pnv_phb4_pec_get_phb_id() does.
  *
  * E.g. a phb with phb_id = 4 and pec->index = 1 (PEC1) will
  * be the second phb (stack_no = 1) of the PEC.
  */
-static int pnv_phb4_get_phb_stack_no(PnvPHB4 *phb)
+static int pnv_phb4_get_phb_stack_no(PnvPHB *phb)
 {
     PnvPhb4PecState *pec = phb->pec;
     PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
@@ -897,7 +897,7 @@ static int pnv_phb4_get_phb_stack_no(PnvPHB4 *phb)
     return stack_no;
 }
 
-static void pnv_phb4_update_regions(PnvPHB4 *phb)
+static void pnv_phb4_update_regions(PnvPHB *phb)
 {
     /* Unmap first always */
     if (memory_region_is_mapped(&phb->mr_regs)) {
@@ -921,7 +921,7 @@ static void pnv_phb4_update_regions(PnvPHB4 *phb)
     pnv_phb4_check_all_mbt(phb);
 }
 
-static void pnv_pec_phb_update_map(PnvPHB4 *phb)
+static void pnv_pec_phb_update_map(PnvPHB *phb)
 {
     PnvPhb4PecState *pec = phb->pec;
     MemoryRegion *sysmem = get_system_memory();
@@ -1010,7 +1010,7 @@ static void pnv_pec_phb_update_map(PnvPHB4 *phb)
 static void pnv_pec_stk_nest_xscom_write(void *opaque, hwaddr addr,
                                          uint64_t val, unsigned size)
 {
-    PnvPHB4 *phb = PNV_PHB4(opaque);
+    PnvPHB *phb = PNV_PHB(opaque);
     PnvPhb4PecState *pec = phb->pec;
     uint32_t reg = addr >> 3;
 
@@ -1099,7 +1099,7 @@ static const MemoryRegionOps pnv_pec_stk_nest_xscom_ops = {
 static uint64_t pnv_pec_stk_pci_xscom_read(void *opaque, hwaddr addr,
                                            unsigned size)
 {
-    PnvPHB4 *phb = PNV_PHB4(opaque);
+    PnvPHB *phb = PNV_PHB(opaque);
     uint32_t reg = addr >> 3;
 
     /* TODO: add list of allowed registers and error out if not */
@@ -1109,7 +1109,7 @@ static uint64_t pnv_pec_stk_pci_xscom_read(void *opaque, hwaddr addr,
 static void pnv_pec_stk_pci_xscom_write(void *opaque, hwaddr addr,
                                         uint64_t val, unsigned size)
 {
-    PnvPHB4 *phb = PNV_PHB4(opaque);
+    PnvPHB *phb = PNV_PHB(opaque);
     uint32_t reg = addr >> 3;
 
     switch (reg) {
@@ -1172,7 +1172,7 @@ static int pnv_phb4_map_irq(PCIDevice *pci_dev, int irq_num)
 
 static void pnv_phb4_set_irq(void *opaque, int irq_num, int level)
 {
-    PnvPHB4 *phb = PNV_PHB4(opaque);
+    PnvPHB *phb = PNV_PHB(opaque);
     uint32_t lsi_base;
 
     /* LSI only ... */
@@ -1407,7 +1407,7 @@ static void pnv_phb4_msi_write(void *opaque, hwaddr addr,
                                uint64_t data, unsigned size)
 {
     PnvPhb4DMASpace *ds = opaque;
-    PnvPHB4 *phb = ds->phb;
+    PnvPHB *phb = ds->phb;
 
     uint32_t src = ((addr >> 4) & 0xffff) | (data & 0x1f);
 
@@ -1444,7 +1444,7 @@ static const MemoryRegionOps pnv_phb4_msi_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN
 };
 
-static PnvPhb4DMASpace *pnv_phb4_dma_find(PnvPHB4 *phb, PCIBus *bus, int devfn)
+static PnvPhb4DMASpace *pnv_phb4_dma_find(PnvPHB *phb, PCIBus *bus, int devfn)
 {
     PnvPhb4DMASpace *ds;
 
@@ -1458,7 +1458,7 @@ static PnvPhb4DMASpace *pnv_phb4_dma_find(PnvPHB4 *phb, PCIBus *bus, int devfn)
 
 static AddressSpace *pnv_phb4_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 {
-    PnvPHB4 *phb = opaque;
+    PnvPHB *phb = opaque;
     PnvPhb4DMASpace *ds;
     char name[32];
 
@@ -1488,7 +1488,7 @@ static AddressSpace *pnv_phb4_dma_iommu(PCIBus *bus, void *opaque, int devfn)
     return &ds->dma_as;
 }
 
-static void pnv_phb4_xscom_realize(PnvPHB4 *phb)
+static void pnv_phb4_xscom_realize(PnvPHB *phb)
 {
     PnvPhb4PecState *pec = phb->pec;
     PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
@@ -1534,9 +1534,9 @@ static void pnv_phb4_xscom_realize(PnvPHB4 *phb)
                             &phb->phb_regs_mr);
 }
 
-static void pnv_phb4_instance_init(Object *obj)
+void pnv_phb4_instance_init(Object *obj)
 {
-    PnvPHB4 *phb = PNV_PHB4(obj);
+    PnvPHB *phb = PNV_PHB(obj);
 
     QLIST_INIT(&phb->dma_spaces);
 
@@ -1544,9 +1544,9 @@ static void pnv_phb4_instance_init(Object *obj)
     object_initialize_child(obj, "source", &phb->xsrc, TYPE_XIVE_SOURCE);
 }
 
-static void pnv_phb4_realize(DeviceState *dev, Error **errp)
+void pnv_phb4_realize(DeviceState *dev, Error **errp)
 {
-    PnvPHB4 *phb = PNV_PHB4(dev);
+    PnvPHB *phb = PNV_PHB(dev);
     PCIHostState *pci = PCI_HOST_BRIDGE(dev);
     XiveSource *xsrc = &phb->xsrc;
     int nr_irqs;
@@ -1602,22 +1602,12 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
     pnv_phb4_xscom_realize(phb);
 }
 
-static const char *pnv_phb4_root_bus_path(PCIHostState *host_bridge,
-                                          PCIBus *rootbus)
-{
-    PnvPHB4 *phb = PNV_PHB4(host_bridge);
-
-    snprintf(phb->bus_path, sizeof(phb->bus_path), "00%02x:%02x",
-             phb->chip_id, phb->phb_id);
-    return phb->bus_path;
-}
-
 /*
  * Address base trigger mode (POWER10)
  *
  * Trigger directly the IC ESB page
  */
-static void pnv_phb4_xive_notify_abt(PnvPHB4 *phb, uint32_t srcno,
+static void pnv_phb4_xive_notify_abt(PnvPHB *phb, uint32_t srcno,
                                      bool pq_checked)
 {
     uint64_t notif_port = phb->regs[PHB_INT_NOTIFY_ADDR >> 3];
@@ -1657,7 +1647,7 @@ static void pnv_phb4_xive_notify_abt(PnvPHB4 *phb, uint32_t srcno,
     }
 }
 
-static void pnv_phb4_xive_notify_ic(PnvPHB4 *phb, uint32_t srcno,
+static void pnv_phb4_xive_notify_ic(PnvPHB *phb, uint32_t srcno,
                                     bool pq_checked)
 {
     uint64_t notif_port = phb->regs[PHB_INT_NOTIFY_ADDR >> 3];
@@ -1679,10 +1669,10 @@ static void pnv_phb4_xive_notify_ic(PnvPHB4 *phb, uint32_t srcno,
     }
 }
 
-static void pnv_phb4_xive_notify(XiveNotifier *xf, uint32_t srcno,
-                                 bool pq_checked)
+void pnv_phb4_xive_notify(XiveNotifier *xf, uint32_t srcno,
+                          bool pq_checked)
 {
-    PnvPHB4 *phb = PNV_PHB4(xf);
+    PnvPHB *phb = PNV_PHB(xf);
 
     if (phb->regs[PHB_CTRLR >> 3] & PHB_CTRLR_IRQ_ABT_MODE) {
         pnv_phb4_xive_notify_abt(phb, srcno, pq_checked);
@@ -1691,45 +1681,10 @@ static void pnv_phb4_xive_notify(XiveNotifier *xf, uint32_t srcno,
     }
 }
 
-static Property pnv_phb4_properties[] = {
-        DEFINE_PROP_UINT32("index", PnvPHB4, phb_id, 0),
-        DEFINE_PROP_UINT32("chip-id", PnvPHB4, chip_id, 0),
-        DEFINE_PROP_LINK("pec", PnvPHB4, pec, TYPE_PNV_PHB4_PEC,
-                         PnvPhb4PecState *),
-        DEFINE_PROP_END_OF_LIST(),
-};
-
-static void pnv_phb4_class_init(ObjectClass *klass, void *data)
-{
-    PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    XiveNotifierClass *xfc = XIVE_NOTIFIER_CLASS(klass);
-
-    hc->root_bus_path   = pnv_phb4_root_bus_path;
-    dc->realize         = pnv_phb4_realize;
-    device_class_set_props(dc, pnv_phb4_properties);
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-    dc->user_creatable  = false;
-
-    xfc->notify         = pnv_phb4_xive_notify;
-}
-
-static const TypeInfo pnv_phb4_type_info = {
-    .name          = TYPE_PNV_PHB4,
-    .parent        = TYPE_PCIE_HOST_BRIDGE,
-    .instance_init = pnv_phb4_instance_init,
-    .instance_size = sizeof(PnvPHB4),
-    .class_init    = pnv_phb4_class_init,
-    .interfaces = (InterfaceInfo[]) {
-            { TYPE_XIVE_NOTIFIER },
-            { },
-    }
-};
-
 static const TypeInfo pnv_phb5_type_info = {
     .name          = TYPE_PNV_PHB5,
-    .parent        = TYPE_PNV_PHB4,
-    .instance_size = sizeof(PnvPHB4),
+    .parent        = TYPE_PNV_PHB,
+    .instance_size = sizeof(PnvPHB),
 };
 
 static void pnv_phb4_root_bus_class_init(ObjectClass *klass, void *data)
@@ -1779,14 +1734,14 @@ static void pnv_phb4_root_port_realize(DeviceState *dev, Error **errp)
     PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(dev);
     PCIDevice *pci = PCI_DEVICE(dev);
     PCIBus *bus = pci_get_bus(pci);
-    PnvPHB4 *phb = NULL;
+    PnvPHB *phb = NULL;
     Error *local_err = NULL;
 
-    phb = (PnvPHB4 *) object_dynamic_cast(OBJECT(bus->qbus.parent),
-                                          TYPE_PNV_PHB4);
+    phb = (PnvPHB *) object_dynamic_cast(OBJECT(bus->qbus.parent),
+                                         TYPE_PNV_PHB);
 
     if (!phb) {
-        error_setg(errp, "%s must be connected to pnv-phb4 buses", dev->id);
+        error_setg(errp, "%s must be connected to pnv-phb buses", dev->id);
         return;
     }
 
@@ -1856,14 +1811,13 @@ static void pnv_phb4_register_types(void)
     type_register_static(&pnv_phb4_root_bus_info);
     type_register_static(&pnv_phb5_root_port_info);
     type_register_static(&pnv_phb4_root_port_info);
-    type_register_static(&pnv_phb4_type_info);
     type_register_static(&pnv_phb5_type_info);
     type_register_static(&pnv_phb4_iommu_memory_region_info);
 }
 
 type_init(pnv_phb4_register_types);
 
-void pnv_phb4_pic_print_info(PnvPHB4 *phb, Monitor *mon)
+void pnv_phb4_pic_print_info(PnvPHB *phb, Monitor *mon)
 {
     uint64_t notif_port =
         phb->regs[PHB_INT_NOTIFY_ADDR >> 3] & ~PHB_INT_NOTIFY_ADDR_64K;

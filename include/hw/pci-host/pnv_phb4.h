@@ -12,12 +12,12 @@
 
 #include "hw/pci/pcie_host.h"
 #include "hw/pci/pcie_port.h"
+#include "hw/pci-host/pnv_phb.h"
 #include "hw/ppc/xive.h"
 #include "qom/object.h"
 
 typedef struct PnvPhb4PecState PnvPhb4PecState;
 typedef struct PnvPhb4PecStack PnvPhb4PecStack;
-typedef struct PnvPHB4 PnvPHB4;
 typedef struct PnvChip PnvChip;
 
 /*
@@ -36,7 +36,7 @@ typedef struct PnvPhb4DMASpace {
     uint8_t devfn;
     int pe_num;         /* Cached PE number */
 #define PHB_INVALID_PE (-1)
-    PnvPHB4 *phb;
+    PnvPHB *phb;
     AddressSpace dma_as;
     IOMMUMemoryRegion dma_mr;
     MemoryRegion msi32_mr;
@@ -55,11 +55,9 @@ typedef struct PnvPHB4RootPort {
     PCIESlot parent_obj;
 } PnvPHB4RootPort;
 
-/*
- * PHB4 PCIe Host Bridge for PowerNV machines (POWER9)
- */
-#define TYPE_PNV_PHB4 "pnv-phb4"
-OBJECT_DECLARE_SIMPLE_TYPE(PnvPHB4, PNV_PHB4)
+struct PnvPHB4DeviceClass {
+    DeviceClass parent_class;
+};
 
 #define PNV_PHB4_MAX_LSIs          8
 #define PNV_PHB4_MAX_INTs          4096
@@ -77,85 +75,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(PnvPHB4, PNV_PHB4)
 
 #define PCI_MMIO_TOTAL_SIZE        (0x1ull << 60)
 
-struct PnvPHB4 {
-    PCIExpressHost parent_obj;
-
-    uint32_t chip_id;
-    uint32_t phb_id;
-
-    uint64_t version;
-
-    /* The owner PEC */
-    PnvPhb4PecState *pec;
-
-    char bus_path[8];
-
-    /* Main register images */
-    uint64_t regs[PNV_PHB4_NUM_REGS];
-    MemoryRegion mr_regs;
-
-    /* Extra SCOM-only register */
-    uint64_t scom_hv_ind_addr_reg;
-
-    /*
-     * Geometry of the PHB. There are two types, small and big PHBs, a
-     * number of resources (number of PEs, windows etc...) are doubled
-     * for a big PHB
-     */
-    bool big_phb;
-
-    /* Memory regions for MMIO space */
-    MemoryRegion mr_mmio[PNV_PHB4_MAX_MMIO_WINDOWS];
-
-    /* PCI side space */
-    MemoryRegion pci_mmio;
-    MemoryRegion pci_io;
-
-    /* PCI registers (excluding pass-through) */
-#define PHB4_PEC_PCI_STK_REGS_COUNT  0xf
-    uint64_t pci_regs[PHB4_PEC_PCI_STK_REGS_COUNT];
-    MemoryRegion pci_regs_mr;
-
-    /* Nest registers */
-#define PHB4_PEC_NEST_STK_REGS_COUNT  0x17
-    uint64_t nest_regs[PHB4_PEC_NEST_STK_REGS_COUNT];
-    MemoryRegion nest_regs_mr;
-
-    /* PHB pass-through XSCOM */
-    MemoryRegion phb_regs_mr;
-
-    /* Memory windows from PowerBus to PHB */
-    MemoryRegion phbbar;
-    MemoryRegion intbar;
-    MemoryRegion mmbar0;
-    MemoryRegion mmbar1;
-    uint64_t mmio0_base;
-    uint64_t mmio0_size;
-    uint64_t mmio1_base;
-    uint64_t mmio1_size;
-
-    /* On-chip IODA tables */
-    uint64_t ioda_LIST[PNV_PHB4_MAX_LSIs];
-    uint64_t ioda_MIST[PNV_PHB4_MAX_MIST];
-    uint64_t ioda_TVT[PNV_PHB4_MAX_TVEs];
-    uint64_t ioda_MBT[PNV_PHB4_MAX_MBEs];
-    uint64_t ioda_MDT[PNV_PHB4_MAX_PEs];
-    uint64_t ioda_PEEV[PNV_PHB4_MAX_PEEVs];
-
-    /*
-     * The internal PESTA/B is 2 bits per PE split into two tables, we
-     * store them in a single array here to avoid wasting space.
-     */
-    uint8_t  ioda_PEST_AB[PNV_PHB4_MAX_PEs];
-
-    /* P9 Interrupt generation */
-    XiveSource xsrc;
-    qemu_irq *qirqs;
-
-    QLIST_HEAD(, PnvPhb4DMASpace) dma_spaces;
-};
-
-void pnv_phb4_pic_print_info(PnvPHB4 *phb, Monitor *mon);
+void pnv_phb4_pic_print_info(PnvPHB *phb, Monitor *mon);
 int pnv_phb4_pec_get_phb_id(PnvPhb4PecState *pec, int stack_index);
 extern const MemoryRegionOps pnv_phb4_xscom_ops;
 
@@ -214,7 +134,7 @@ struct PnvPhb4PecClass {
 
 #define TYPE_PNV_PHB5 "pnv-phb5"
 #define PNV_PHB5(obj) \
-    OBJECT_CHECK(PnvPhb4, (obj), TYPE_PNV_PHB5)
+    OBJECT_CHECK(PnvPhb, (obj), TYPE_PNV_PHB5)
 
 #define PNV_PHB5_VERSION           0x000000a500000001ull
 #define PNV_PHB5_DEVICE_ID         0x0652
@@ -222,5 +142,9 @@ struct PnvPhb4PecClass {
 #define TYPE_PNV_PHB5_PEC "pnv-phb5-pec"
 #define PNV_PHB5_PEC(obj) \
     OBJECT_CHECK(PnvPhb4PecState, (obj), TYPE_PNV_PHB5_PEC)
+
+void pnv_phb4_instance_init(Object *obj);
+void pnv_phb4_realize(DeviceState *dev, Error **errp);
+void pnv_phb4_xive_notify(XiveNotifier *xf, uint32_t srcno, bool pq_checked);
 
 #endif /* PCI_HOST_PNV_PHB4_H */

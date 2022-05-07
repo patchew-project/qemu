@@ -676,7 +676,7 @@ static void pnv_chip_power8_pic_print_info(PnvChip *chip, Monitor *mon)
 static int pnv_chip_power9_pic_print_info_child(Object *child, void *opaque)
 {
     Monitor *mon = opaque;
-    PnvPHB4 *phb4 = (PnvPHB4 *) object_dynamic_cast(child, TYPE_PNV_PHB4);
+    PnvPHB *phb4 = (PnvPHB *) object_dynamic_cast(child, TYPE_PNV_PHB);
 
     if (phb4) {
         pnv_phb4_pic_print_info(phb4, mon);

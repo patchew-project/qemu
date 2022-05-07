@@ -116,7 +116,7 @@ static void pnv_pec_default_phb_realize(PnvPhb4PecState *pec,
                                         Error **errp)
 {
     PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
-    PnvPHB4 *phb = PNV_PHB4(qdev_new(pecc->phb_type));
+    PnvPHB *phb = PNV_PHB(qdev_new(pecc->phb_type));
     int phb_id = pnv_phb4_pec_get_phb_id(pec, stack_no);
 
     object_property_add_child(OBJECT(pec), "phb[*]", OBJECT(phb));
@@ -262,7 +262,7 @@ static void pnv_pec_class_init(ObjectClass *klass, void *data)
     pecc->stk_compat = stk_compat;
     pecc->stk_compat_size = sizeof(stk_compat);
     pecc->version = PNV_PHB4_VERSION;
-    pecc->phb_type = TYPE_PNV_PHB4;
+    pecc->phb_type = TYPE_PNV_PHB;
     pecc->num_phbs = pnv_pec_num_phbs;
     pecc->rp_model = TYPE_PNV_PHB4_ROOT_PORT;
 }
