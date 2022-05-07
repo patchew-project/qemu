@@ -133,8 +133,8 @@ struct PnvPHB3 {
     uint32_t phb_id;
     char bus_path[8];
 
-    uint64_t regs[PNV_PHB3_NUM_REGS];
-    MemoryRegion mr_regs;
+    uint64_t regs3[PNV_PHB3_NUM_REGS];
+    MemoryRegion mr_regs3;
 
     MemoryRegion mr_m32;
     MemoryRegion mr_m64[PNV_PHB3_NUM_M64];

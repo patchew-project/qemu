@@ -20,8 +20,8 @@
 
 static uint64_t phb3_msi_ive_addr(PnvPHB3 *phb, int srcno)
 {
-    uint64_t ivtbar = phb->regs[PHB_IVT_BAR >> 3];
-    uint64_t phbctl = phb->regs[PHB_CONTROL >> 3];
+    uint64_t ivtbar = phb->regs3[PHB_IVT_BAR >> 3];
+    uint64_t phbctl = phb->regs3[PHB_CONTROL >> 3];
 
     if (!(ivtbar & PHB_IVT_BAR_ENABLE)) {
         qemu_log_mask(LOG_GUEST_ERROR, "Failed access to disable IVT BAR !");
@@ -188,7 +188,7 @@ void pnv_phb3_msi_ffi(Phb3MsiState *msi, uint64_t val)
     pnv_phb3_msi_send(msi, val, 0, -1);
 
     /* Clear FFI lock */
-    msi->phb->regs[PHB_FFI_LOCK >> 3] = 0;
+    msi->phb->regs3[PHB_FFI_LOCK >> 3] = 0;
 }
 
 static void phb3_msi_reject(ICSState *ics, uint32_t nr)

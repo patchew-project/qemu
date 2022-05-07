@@ -27,7 +27,7 @@
 static PCIDevice *pnv_phb3_find_cfg_dev(PnvPHB3 *phb)
 {
     PCIHostState *pci = PCI_HOST_BRIDGE(phb);
-    uint64_t addr = phb->regs[PHB_CONFIG_ADDRESS >> 3];
+    uint64_t addr = phb->regs3[PHB_CONFIG_ADDRESS >> 3];
     uint8_t bus, devfn;
 
     if (!(addr >> 63)) {
@@ -53,7 +53,7 @@ static void pnv_phb3_config_write(PnvPHB3 *phb, unsigned off,
     if (!pdev) {
         return;
     }
-    cfg_addr = (phb->regs[PHB_CONFIG_ADDRESS >> 3] >> 32) & 0xffc;
+    cfg_addr = (phb->regs3[PHB_CONFIG_ADDRESS >> 3] >> 32) & 0xffc;
     cfg_addr |= off;
     limit = pci_config_size(pdev);
     if (limit <= cfg_addr) {
@@ -89,7 +89,7 @@ static uint64_t pnv_phb3_config_read(PnvPHB3 *phb, unsigned off,
     if (!pdev) {
         return ~0ull;
     }
-    cfg_addr = (phb->regs[PHB_CONFIG_ADDRESS >> 3] >> 32) & 0xffc;
+    cfg_addr = (phb->regs3[PHB_CONFIG_ADDRESS >> 3] >> 32) & 0xffc;
     cfg_addr |= off;
     limit = pci_config_size(pdev);
     if (limit <= cfg_addr) {
@@ -122,14 +122,14 @@ static void pnv_phb3_check_m32(PnvPHB3 *phb)
         memory_region_del_subregion(phb->mr_m32.container, &phb->mr_m32);
     }
 
-    if (!(phb->regs[PHB_PHB3_CONFIG >> 3] & PHB_PHB3C_M32_EN)) {
+    if (!(phb->regs3[PHB_PHB3_CONFIG >> 3] & PHB_PHB3C_M32_EN)) {
         return;
     }
 
     /* Grab geometry from registers */
-    base = phb->regs[PHB_M32_BASE_ADDR >> 3];
-    start = phb->regs[PHB_M32_START_ADDR >> 3];
-    size = ~(phb->regs[PHB_M32_BASE_MASK >> 3] | 0xfffc000000000000ull) + 1;
+    base = phb->regs3[PHB_M32_BASE_ADDR >> 3];
+    start = phb->regs3[PHB_M32_START_ADDR >> 3];
+    size = ~(phb->regs3[PHB_M32_BASE_MASK >> 3] | 0xfffc000000000000ull) + 1;
 
     /* Check if it matches an enabled MMIO region in the PBCQ */
     if (memory_region_is_mapped(&pbcq->mmbar0) &&
@@ -179,7 +179,7 @@ static void pnv_phb3_check_m64(PnvPHB3 *phb, uint32_t index)
     size = GETFIELD(IODA2_M64BT_MASK, m64) << 20;
     size |= 0xfffc000000000000ull;
     size = ~size + 1;
-    start = base | (phb->regs[PHB_M64_UPPER_BITS >> 3]);
+    start = base | (phb->regs3[PHB_M64_UPPER_BITS >> 3]);
 
     /* Check if it matches an enabled MMIO region in the PBCQ */
     if (memory_region_is_mapped(&pbcq->mmbar0) &&
@@ -233,7 +233,7 @@ static void pnv_phb3_lxivt_write(PnvPHB3 *phb, unsigned idx, uint64_t val)
 static uint64_t *pnv_phb3_ioda_access(PnvPHB3 *phb,
                                       unsigned *out_table, unsigned *out_idx)
 {
-    uint64_t adreg = phb->regs[PHB_IODA_ADDR >> 3];
+    uint64_t adreg = phb->regs3[PHB_IODA_ADDR >> 3];
     unsigned int index = GETFIELD(PHB_IODA_AD_TADR, adreg);
     unsigned int table = GETFIELD(PHB_IODA_AD_TSEL, adreg);
     unsigned int mask;
@@ -300,7 +300,7 @@ static uint64_t *pnv_phb3_ioda_access(PnvPHB3 *phb,
         index = (index + 1) & mask;
         adreg = SETFIELD(PHB_IODA_AD_TADR, adreg, index);
     }
-    phb->regs[PHB_IODA_ADDR >> 3] = adreg;
+    phb->regs3[PHB_IODA_ADDR >> 3] = adreg;
     return tptr;
 }
 
@@ -364,7 +364,7 @@ void pnv_phb3_remap_irqs(PnvPHB3 *phb)
     }
 
     /* Grab local LSI source ID */
-    local = GETFIELD(PHB_LSI_SRC_ID, phb->regs[PHB_LSI_SOURCE_ID >> 3]) << 3;
+    local = GETFIELD(PHB_LSI_SRC_ID, phb->regs3[PHB_LSI_SOURCE_ID >> 3]) << 3;
 
     /* Grab global one and compare */
     global = GETFIELD(PBCQ_NEST_LSI_SRC,
@@ -412,7 +412,7 @@ static void pnv_phb3_lsi_src_id_write(PnvPHB3 *phb, uint64_t val)
 {
     /* Sanitize content */
     val &= PHB_LSI_SRC_ID;
-    phb->regs[PHB_LSI_SOURCE_ID >> 3] = val;
+    phb->regs3[PHB_LSI_SOURCE_ID >> 3] = val;
     pnv_phb3_remap_irqs(phb);
 }
 
@@ -429,7 +429,7 @@ static void pnv_phb3_rtc_invalidate(PnvPHB3 *phb, uint64_t val)
 
 static void pnv_phb3_update_msi_regions(PnvPhb3DMASpace *ds)
 {
-    uint64_t cfg = ds->phb->regs[PHB_PHB3_CONFIG >> 3];
+    uint64_t cfg = ds->phb->regs3[PHB_PHB3_CONFIG >> 3];
 
     if (cfg & PHB_PHB3C_32BIT_MSI_EN) {
         if (!memory_region_is_mapped(&ds->msi32_mr)) {
@@ -501,16 +501,16 @@ void pnv_phb3_reg_write(void *opaque, hwaddr off, uint64_t val, unsigned size)
         break;
     /* LEM stuff */
     case PHB_LEM_FIR_AND_MASK:
-        phb->regs[PHB_LEM_FIR_ACCUM >> 3] &= val;
+        phb->regs3[PHB_LEM_FIR_ACCUM >> 3] &= val;
         return;
     case PHB_LEM_FIR_OR_MASK:
-        phb->regs[PHB_LEM_FIR_ACCUM >> 3] |= val;
+        phb->regs3[PHB_LEM_FIR_ACCUM >> 3] |= val;
         return;
     case PHB_LEM_ERROR_AND_MASK:
-        phb->regs[PHB_LEM_ERROR_MASK >> 3] &= val;
+        phb->regs3[PHB_LEM_ERROR_MASK >> 3] &= val;
         return;
     case PHB_LEM_ERROR_OR_MASK:
-        phb->regs[PHB_LEM_ERROR_MASK >> 3] |= val;
+        phb->regs3[PHB_LEM_ERROR_MASK >> 3] |= val;
         return;
     case PHB_LEM_WOF:
         val = 0;
@@ -518,10 +518,10 @@ void pnv_phb3_reg_write(void *opaque, hwaddr off, uint64_t val, unsigned size)
     }
 
     /* Record whether it changed */
-    changed = phb->regs[off >> 3] != val;
+    changed = phb->regs3[off >> 3] != val;
 
     /* Store in register cache first */
-    phb->regs[off >> 3] = val;
+    phb->regs3[off >> 3] = val;
 
     /* Handle side effects */
     switch (off) {
@@ -605,7 +605,7 @@ uint64_t pnv_phb3_reg_read(void *opaque, hwaddr off, unsigned size)
     }
 
     /* Default read from cache */
-    val = phb->regs[off >> 3];
+    val = phb->regs3[off >> 3];
 
     switch (off) {
     /* Simulate venice DD2.0 */
@@ -628,7 +628,7 @@ uint64_t pnv_phb3_reg_read(void *opaque, hwaddr off, unsigned size)
     /* FFI Lock */
     case PHB_FFI_LOCK:
         /* Set lock and return previous value */
-        phb->regs[off >> 3] |= PHB_FFI_LOCK_STATE;
+        phb->regs3[off >> 3] |= PHB_FFI_LOCK_STATE;
         return val;
 
     /* DMA read sync: make it look like it's complete */
@@ -704,7 +704,7 @@ static bool pnv_phb3_resolve_pe(PnvPhb3DMASpace *ds)
     }
 
     /* We need to lookup the RTT */
-    rtt = ds->phb->regs[PHB_RTT_BAR >> 3];
+    rtt = ds->phb->regs3[PHB_RTT_BAR >> 3];
     if (!(rtt & PHB_RTT_BAR_ENABLE)) {
         phb3_error(ds->phb, "DMA with RTT BAR disabled !");
         /* Set error bits ? fence ? ... */
@@ -861,7 +861,7 @@ static IOMMUTLBEntry pnv_phb3_translate_iommu(IOMMUMemoryRegion *iommu,
     switch (addr >> 60) {
     case 00:
         /* DMA or 32-bit MSI ? */
-        cfg = ds->phb->regs[PHB_PHB3_CONFIG >> 3];
+        cfg = ds->phb->regs3[PHB_PHB3_CONFIG >> 3];
         if ((cfg & PHB_PHB3C_32BIT_MSI_EN) &&
             ((addr & 0xffffffffffff0000ull) == 0xffff0000ull)) {
             phb3_error(phb, "xlate on 32-bit MSI region");
@@ -1032,7 +1032,7 @@ static void pnv_phb3_realize(DeviceState *dev, Error **errp)
     }
 
     /* Controller Registers */
-    memory_region_init_io(&phb->mr_regs, OBJECT(phb), &pnv_phb3_reg_ops, phb,
+    memory_region_init_io(&phb->mr_regs3, OBJECT(phb), &pnv_phb3_reg_ops, phb,
                           "phb3-regs", 0x1000);
 
     /*
@@ -1060,14 +1060,14 @@ void pnv_phb3_update_regions(PnvPHB3 *phb)
     PnvPBCQState *pbcq = &phb->pbcq;
 
     /* Unmap first always */
-    if (memory_region_is_mapped(&phb->mr_regs)) {
-        memory_region_del_subregion(&pbcq->phbbar, &phb->mr_regs);
+    if (memory_region_is_mapped(&phb->mr_regs3)) {
+        memory_region_del_subregion(&pbcq->phbbar, &phb->mr_regs3);
     }
 
     /* Map registers if enabled */
     if (memory_region_is_mapped(&pbcq->phbbar)) {
         /* TODO: We should use the PHB BAR 2 register but we don't ... */
-        memory_region_add_subregion(&pbcq->phbbar, 0, &phb->mr_regs);
+        memory_region_add_subregion(&pbcq->phbbar, 0, &phb->mr_regs3);
     }
 
     /* Check/update m32 */
