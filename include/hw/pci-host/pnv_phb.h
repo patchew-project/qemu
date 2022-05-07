@@ -210,4 +210,15 @@ struct PnvPHB {
     QLIST_HEAD(, PnvPhb4DMASpace) dma_spaces;
 };
 
+/*
+ * PHB PCIe Root port
+ */
+typedef struct PnvPHBRootPort {
+    PCIESlot parent_obj;
+} PnvPHBRootPort;
+
+#define TYPE_PNV_PHB_ROOT_PORT "pnv-phb-root-port"
+#define PNV_PHB_ROOT_PORT(obj) \
+    OBJECT_CHECK(PnvPHBRootPort, obj, TYPE_PNV_PHB_ROOT_PORT)
+
 #endif /* PCI_HOST_PNV_PHB_H */
