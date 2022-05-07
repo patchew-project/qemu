@@ -165,7 +165,7 @@ static void pnv_phb3_check_m64(PnvPHB3 *phb, uint32_t index)
     }
 
     /* Get table entry */
-    m64 = phb->ioda_M64BT[index];
+    m64 = phb->ioda2_M64BT[index];
 
     if (!(m64 & IODA2_M64BT_ENABLE)) {
         return;
@@ -215,7 +215,7 @@ static void pnv_phb3_lxivt_write(PnvPHB3 *phb, unsigned idx, uint64_t val)
 {
     uint8_t server, prio;
 
-    phb->ioda_LXIVT[idx] = val & (IODA2_LXIVT_SERVER |
+    phb->ioda2_LXIVT[idx] = val & (IODA2_LXIVT_SERVER |
                                   IODA2_LXIVT_PRIORITY |
                                   IODA2_LXIVT_NODE_ID);
     server = GETFIELD(IODA2_LXIVT_SERVER, val);
@@ -241,11 +241,11 @@ static uint64_t *pnv_phb3_ioda_access(PnvPHB3 *phb,
 
     switch (table) {
     case IODA2_TBL_LIST:
-        tptr = phb->ioda_LIST;
+        tptr = phb->ioda2_LIST;
         mask = 7;
         break;
     case IODA2_TBL_LXIVT:
-        tptr = phb->ioda_LXIVT;
+        tptr = phb->ioda2_LXIVT;
         mask = 7;
         break;
     case IODA2_TBL_IVC_CAM:
@@ -263,7 +263,7 @@ static uint64_t *pnv_phb3_ioda_access(PnvPHB3 *phb,
         mask = 255;
         break;
     case IODA2_TBL_TVT:
-        tptr = phb->ioda_TVT;
+        tptr = phb->ioda2_TVT;
         mask = 511;
         break;
     case IODA2_TBL_TCAM:
@@ -271,15 +271,15 @@ static uint64_t *pnv_phb3_ioda_access(PnvPHB3 *phb,
         mask = 63;
         break;
     case IODA2_TBL_M64BT:
-        tptr = phb->ioda_M64BT;
+        tptr = phb->ioda2_M64BT;
         mask = 15;
         break;
     case IODA2_TBL_M32DT:
-        tptr = phb->ioda_MDT;
+        tptr = phb->ioda2_MDT;
         mask = 255;
         break;
     case IODA2_TBL_PEEV:
-        tptr = phb->ioda_PEEV;
+        tptr = phb->ioda2_PEEV;
         mask = 3;
         break;
     default:
@@ -869,7 +869,7 @@ static IOMMUTLBEntry pnv_phb3_translate_iommu(IOMMUMemoryRegion *iommu,
         }
         /* Choose TVE XXX Use PHB3 Control Register */
         tve_sel = (addr >> 59) & 1;
-        tve = ds->phb->ioda_TVT[ds->pe_num * 2 + tve_sel];
+        tve = ds->phb->ioda2_TVT[ds->pe_num * 2 + tve_sel];
         pnv_phb3_translate_tve(ds, addr, flag & IOMMU_WO, tve, &ret);
         break;
     case 01:

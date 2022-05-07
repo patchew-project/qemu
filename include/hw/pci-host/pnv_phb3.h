@@ -141,12 +141,12 @@ struct PnvPHB3 {
     MemoryRegion pci_mmio;
     MemoryRegion pci_io;
 
-    uint64_t ioda_LIST[8];
-    uint64_t ioda_LXIVT[8];
-    uint64_t ioda_TVT[512];
-    uint64_t ioda_M64BT[16];
-    uint64_t ioda_MDT[256];
-    uint64_t ioda_PEEV[4];
+    uint64_t ioda2_LIST[8];
+    uint64_t ioda2_LXIVT[8];
+    uint64_t ioda2_TVT[512];
+    uint64_t ioda2_M64BT[16];
+    uint64_t ioda2_MDT[256];
+    uint64_t ioda2_PEEV[4];
 
     uint32_t total_irq;
     ICSState lsis;
