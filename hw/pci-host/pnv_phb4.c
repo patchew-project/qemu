@@ -1861,7 +1861,7 @@ static void pnv_phb5_root_port_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     dc->desc     = "IBM PHB5 PCIE Root Port";
-    dc->user_creatable = false;
+    dc->user_creatable = true;
 
     k->vendor_id = PCI_VENDOR_ID_IBM;
     k->device_id = PNV_PHB5_DEVICE_ID;
