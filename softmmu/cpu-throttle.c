@@ -44,6 +44,7 @@ static void cpu_throttle_thread(CPUState *cpu, run_on_cpu_data opaque)
     int64_t sleeptime_ns, endtime_ns;
 
     if (!cpu_throttle_get_percentage()) {
+        qatomic_set(&cpu->throttle_thread_scheduled, 0);
         return;
     }
 
