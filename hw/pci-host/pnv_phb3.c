@@ -966,7 +966,7 @@ static AddressSpace *pnv_phb3_dma_iommu(PCIBus *bus, void *opaque, int devfn)
     return &ds->dma_as;
 }
 
-static void pnv_phb3_instance_init(Object *obj)
+void pnv_phb3_instance_init(Object *obj)
 {
     PnvPHB3 *phb = PNV_PHB3(obj);
 
@@ -986,7 +986,7 @@ static void pnv_phb3_instance_init(Object *obj)
 
 }
 
-static void pnv_phb3_realize(DeviceState *dev, Error **errp)
+void pnv_phb3_realize(DeviceState *dev, Error **errp)
 {
     PnvPHB3 *phb = PNV_PHB3(dev);
     PCIHostState *pci = PCI_HOST_BRIDGE(dev);
