@@ -20,6 +20,10 @@
 #include "sysemu/sysemu.h"
 
 
+#define PNV_MACHINE_POWER8    1
+#define PNV_MACHINE_POWER9    2
+#define PNV_MACHINE_POWER10   3
+
 static char *pnv_phb_get_chip_typename(void)
 {
     Object *qdev_machine = qdev_get_machine();
@@ -39,7 +43,7 @@ static char *pnv_phb_get_chip_typename(void)
     return g_steal_pointer(&chip_typename);
 }
 
-static void pnv_phb_instance_init(Object *obj)
+static int pnv_phb_get_current_machine(void)
 {
     g_autofree char *chip_typename = pnv_phb_get_chip_typename();
 
@@ -48,12 +52,31 @@ static void pnv_phb_instance_init(Object *obj)
      * a valid machine->cpu_type value.
      */
     if (!chip_typename) {
-        return;
+        return 0;
     }
 
     if (!strcmp(chip_typename, TYPE_PNV_CHIP_POWER8) ||
         !strcmp(chip_typename, TYPE_PNV_CHIP_POWER8E) ||
         !strcmp(chip_typename, TYPE_PNV_CHIP_POWER8NVL)) {
+        return PNV_MACHINE_POWER8;
+    } else if (!strcmp(chip_typename, TYPE_PNV_CHIP_POWER9)) {
+        return PNV_MACHINE_POWER9;
+    } else if (!strcmp(chip_typename, TYPE_PNV_CHIP_POWER10)) {
+        return PNV_MACHINE_POWER10;
+    }
+
+    return 0;
+}
+
+static void pnv_phb_instance_init(Object *obj)
+{
+    int pnv_current_machine = pnv_phb_get_current_machine();
+
+    if (pnv_current_machine == 0) {
+        return;
+    }
+
+    if (pnv_current_machine == PNV_MACHINE_POWER8) {
         pnv_phb3_instance_init(obj);
         return;
     }
@@ -63,25 +86,24 @@ static void pnv_phb_instance_init(Object *obj)
 
 static void pnv_phb_realize(DeviceState *dev, Error **errp)
 {
+    int pnv_current_machine = pnv_phb_get_current_machine();
     PnvPHB *phb = PNV_PHB(dev);
-    g_autofree char *chip_typename = pnv_phb_get_chip_typename();
 
-    g_assert(chip_typename != NULL);
+    g_assert(pnv_current_machine != 0);
 
-    if (!strcmp(chip_typename, TYPE_PNV_CHIP_POWER8) ||
-        !strcmp(chip_typename, TYPE_PNV_CHIP_POWER8E) ||
-        !strcmp(chip_typename, TYPE_PNV_CHIP_POWER8NVL)) {
+    if (pnv_current_machine == PNV_MACHINE_POWER8) {
         /* PnvPHB3 */
         phb->version = PHB_VERSION_3;
         pnv_phb3_realize(dev, errp);
         return;
     }
 
-    if (!strcmp(chip_typename, TYPE_PNV_CHIP_POWER9)) {
+    if (pnv_current_machine == PNV_MACHINE_POWER9) {
         phb->version = PHB_VERSION_4;
-    } else if (!strcmp(chip_typename, TYPE_PNV_CHIP_POWER10)) {
+    } else if (pnv_current_machine == PNV_MACHINE_POWER10) {
         phb->version = PHB_VERSION_5;
     } else {
+        g_autofree char *chip_typename = pnv_phb_get_chip_typename();
         error_setg(errp, "unknown PNV chip: %s", chip_typename);
         return;
     }
