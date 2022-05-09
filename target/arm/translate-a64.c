@@ -2103,13 +2103,13 @@ static void disas_exc(DisasContext *s, uint32_t insn)
              * with our 32-bit semihosting).
              */
             if (s->current_el == 0) {
-                unsupported_encoding(s, insn);
+                unallocated_encoding(s);
                 break;
             }
 #endif
             gen_exception_internal_insn(s, s->pc_curr, EXCP_SEMIHOST);
         } else {
-            unsupported_encoding(s, insn);
+            unallocated_encoding(s);
         }
         break;
     case 5:
@@ -2118,7 +2118,7 @@ static void disas_exc(DisasContext *s, uint32_t insn)
             break;
         }
         /* DCPS1, DCPS2, DCPS3 */
-        unsupported_encoding(s, insn);
+        unallocated_encoding(s);
         break;
     default:
         unallocated_encoding(s);
@@ -2283,7 +2283,7 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
         if (op3 != 0 || op4 != 0 || rn != 0x1f) {
             goto do_unallocated;
         } else {
-            unsupported_encoding(s, insn);
+            unallocated_encoding(s);
         }
         return;
 
