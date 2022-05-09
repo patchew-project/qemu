@@ -741,6 +741,14 @@ aware that there are already potential security risks to blindly using
 ``qemu-img info`` to probe the format of an untrusted backing image,
 when deciding what format to add into an existing image.
 
+``loaded`` property of ``secret`` and ``secret_keyring`` objects (removed in 7.1)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``loaded=on`` option in the command line or QMP ``object-add`` either had
+no effect (if ``loaded`` was the last option) or caused options to be
+effectively ignored as if they were not given.  The property is therefore
+useless and should simply be removed.
+
 Block devices
 -------------
 
