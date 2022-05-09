@@ -329,7 +329,7 @@ static inline void float_zero_divide_excp(CPUPPCState *env, uintptr_t raddr)
     }
 }
 
-static inline void float_overflow_excp(CPUPPCState *env)
+static inline void float_overflow_excp(CPUPPCState *env, bool set_fi)
 {
     CPUState *cs = env_cpu(env);
 
@@ -345,7 +345,9 @@ static inline void float_overflow_excp(CPUPPCState *env)
         env->error_code = POWERPC_EXCP_FP | POWERPC_EXCP_FP_OX;
     } else {
         env->fpscr |= FP_XX;
-        env->fpscr |= FP_FI;
+        if (set_fi) {
+            env->fpscr |= FP_FI;
+        }
     }
 }
 
@@ -471,7 +473,7 @@ static void do_float_check_status(CPUPPCState *env, bool change_fi,
     int status = get_float_exception_flags(&env->fp_status);
 
     if (status & float_flag_overflow) {
-        float_overflow_excp(env);
+        float_overflow_excp(env, change_fi);
     } else if (status & float_flag_underflow) {
         float_underflow_excp(env);
     }
