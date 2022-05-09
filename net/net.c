@@ -54,6 +54,7 @@
 #include "net/colo-compare.h"
 #include "net/filter.h"
 #include "qapi/string-output-visitor.h"
+#include "qapi/qobject-input-visitor.h"
 
 /* Net bridge is currently not supported for W32. */
 #if !defined(_WIN32)
@@ -62,6 +63,16 @@
 
 static VMChangeStateEntry *net_change_state_entry;
 static QTAILQ_HEAD(, NetClientState) net_clients;
+
+typedef struct NetdevQueueEntry {
+    Netdev *nd;
+    Location loc;
+    QSIMPLEQ_ENTRY(NetdevQueueEntry) entry;
+} NetdevQueueEntry;
+
+typedef QSIMPLEQ_HEAD(, NetdevQueueEntry) NetdevQueue;
+
+static NetdevQueue nd_queue = QSIMPLEQ_HEAD_INITIALIZER(nd_queue);
 
 /***********************************************************/
 /* network device redirectors */
@@ -1003,6 +1014,7 @@ static int (* const net_client_init_fun[NET_CLIENT_DRIVER__MAX])(
 #endif
         [NET_CLIENT_DRIVER_TAP]       = net_init_tap,
         [NET_CLIENT_DRIVER_SOCKET]    = net_init_socket,
+        [NET_CLIENT_DRIVER_SOCKET_NG]  = net_init_socket_ng,
 #ifdef CONFIG_VDE
         [NET_CLIENT_DRIVER_VDE]       = net_init_vde,
 #endif
@@ -1085,6 +1097,7 @@ void show_netdevs(void)
     int idx;
     const char *available_netdevs[] = {
         "socket",
+        "socket-ng",
         "hubport",
         "tap",
 #ifdef CONFIG_SLIRP
@@ -1559,6 +1572,19 @@ int net_init_clients(Error **errp)
 
     QTAILQ_INIT(&net_clients);
 
+    while (!QSIMPLEQ_EMPTY(&nd_queue)) {
+        NetdevQueueEntry *nd = QSIMPLEQ_FIRST(&nd_queue);
+
+        QSIMPLEQ_REMOVE_HEAD(&nd_queue, entry);
+        loc_push_restore(&nd->loc);
+        if (net_client_init1(nd->nd, true, errp) < 0) {
+            return -1;
+        }
+        loc_pop(&nd->loc);
+        qapi_free_Netdev(nd->nd);
+        g_free(nd);
+    }
+
     if (qemu_opts_foreach(qemu_find_opts("netdev"),
                           net_init_netdev, NULL, errp)) {
         return -1;
@@ -1575,8 +1601,43 @@ int net_init_clients(Error **errp)
     return 0;
 }
 
+static bool netdev_is_socket_ng(const char *optarg)
+{
+    static QemuOptsList dummy_opts = {
+        .name = "netdev",
+        .implied_opt_name = "type",
+        .head = QTAILQ_HEAD_INITIALIZER(dummy_opts.head),
+        .desc = { { } },
+    };
+    QemuOpts *opts = qemu_opts_parse(&dummy_opts, optarg, true, &error_fatal);
+    bool is_socket_ng = strcmp(qemu_opt_get(opts, "type"), "socket-ng") == 0;
+
+    qemu_opts_reset(&dummy_opts);
+
+    return is_socket_ng;
+}
+
 int net_client_parse(QemuOptsList *opts_list, const char *optarg)
 {
+    if (netdev_is_socket_ng(optarg)) {
+            /*
+             * socket-ng must accept new style object SocketAddress
+             * like addr.type=inet, ...
+             */
+            Visitor *v;
+            NetdevQueueEntry *nd;
+
+            v = qobject_input_visitor_new_str(optarg, "type",
+                                              &error_fatal);
+            nd = g_new(NetdevQueueEntry, 1);
+            visit_type_Netdev(v, NULL, &nd->nd, &error_fatal);
+            visit_free(v);
+            loc_save(&nd->loc);
+
+            QSIMPLEQ_INSERT_TAIL(&nd_queue, nd, entry);
+            return 0;
+    }
+
     if (!qemu_opts_parse_noisily(opts_list, optarg, true)) {
         return -1;
     }

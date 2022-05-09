@@ -7,6 +7,7 @@
 ##
 
 { 'include': 'common.json' }
+{ 'include': 'sockets.json' }
 
 ##
 # @set_link:
@@ -453,6 +454,40 @@
     '*queues':       'int' } }
 
 ##
+# @NetdevSocketNGMode:
+#
+# @dgram: UDP mode
+#
+# @server: TCP server mode
+#
+# @client: TCP client mode
+#
+# Legacy NetdevSocketOptions only accepts one of:
+# "fd", "udp", "mcast" and "udp".
+# we map:
+#   "udp", "mcast" -> "dgram"
+#   "listen"       -> "server"
+#   "connect"      -> "client"
+#
+# Since: 7.1
+#
+##
+{ 'enum': 'NetdevSocketNGMode',
+  'data':  [ 'dgram', 'server', 'client' ] }
+
+##
+# @NetdevSocketNGOptions:
+#
+# Since: 7.1
+##
+{ 'struct': 'NetdevSocketNGOptions',
+  'data': {
+    'mode':    'NetdevSocketNGMode',
+    '*addr':   'SocketAddress',
+    '*remote': 'SocketAddress',
+    '*local':  'SocketAddress' } }
+
+##
 # @NetClientDriver:
 #
 # Available netdev drivers.
@@ -463,7 +498,8 @@
 ##
 { 'enum': 'NetClientDriver',
   'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde',
-            'bridge', 'hubport', 'netmap', 'vhost-user', 'vhost-vdpa' ] }
+            'bridge', 'hubport', 'netmap', 'vhost-user', 'vhost-vdpa',
+            'socket-ng' ] }
 
 ##
 # @Netdev:
@@ -492,7 +528,8 @@
     'hubport':  'NetdevHubPortOptions',
     'netmap':   'NetdevNetmapOptions',
     'vhost-user': 'NetdevVhostUserOptions',
-    'vhost-vdpa': 'NetdevVhostVDPAOptions' } }
+    'vhost-vdpa': 'NetdevVhostVDPAOptions',
+    'socket-ng': 'NetdevSocketNGOptions' } }
 
 ##
 # @RxState:

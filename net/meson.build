@@ -13,6 +13,7 @@ softmmu_ss.add(files(
   'net.c',
   'queue.c',
   'socket.c',
+  'socket-ng.c',
   'util.c',
 ))
 
