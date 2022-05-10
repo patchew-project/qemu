@@ -632,6 +632,8 @@ static void *multifd_send_thread(void *opaque)
                 p->flags |= MULTIFD_FLAG_SYNC;
                 p->sync_needed = false;
             }
+            qemu_mutex_unlock(&p->mutex);
+
             p->iovs_num = 1;
             p->normal_num = 0;
 
@@ -648,11 +650,6 @@ static void *multifd_send_thread(void *opaque)
                 }
             }
             multifd_send_fill_packet(p);
-            p->num_packets++;
-            p->total_normal_pages += p->normal_num;
-            p->pages->num = 0;
-            p->pages->block = NULL;
-            qemu_mutex_unlock(&p->mutex);
 
             trace_multifd_send(p->id, packet_num, p->normal_num, p->flags,
                                p->next_packet_size);
@@ -667,6 +664,10 @@ static void *multifd_send_thread(void *opaque)
             }
 
             qemu_mutex_lock(&p->mutex);
+            p->num_packets++;
+            p->total_normal_pages += p->normal_num;
+            p->pages->num = 0;
+            p->pages->block = NULL;
             p->sent_bytes += p->packet_len;;
             p->sent_bytes += p->next_packet_size;
             p->pending_job--;
