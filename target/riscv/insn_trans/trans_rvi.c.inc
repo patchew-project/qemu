@@ -18,6 +18,12 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define REQUIRE_ZIHINTPAUSE(ctx) do { \
+    if (!ctx->cfg_ptr->ext_zihintpause) {      \
+        return false;         \
+    }                         \
+} while (0)
+
 static bool trans_illegal(DisasContext *ctx, arg_empty *a)
 {
     gen_exception_illegal(ctx);
@@ -796,6 +802,18 @@ static bool trans_srad(DisasContext *ctx, arg_srad *a)
     return gen_shift(ctx, a, EXT_SIGN, tcg_gen_sar_tl, NULL);
 }
 
+static bool trans_pause(DisasContext *ctx, arg_pause *a)
+{
+    REQUIRE_ZIHINTPAUSE(ctx);
+
+    /*
+     * PAUSE is a no-op in QEMU,
+     * however we need to clear the reservation
+     */
+    tcg_gen_movi_tl(load_res, -1);
+
+    return true;
+}
 
 static bool trans_fence(DisasContext *ctx, arg_fence *a)
 {
