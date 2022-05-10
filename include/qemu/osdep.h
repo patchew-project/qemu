@@ -577,6 +577,8 @@ unsigned long qemu_getauxval(unsigned long type);
 void qemu_set_tty_echo(int fd, bool echo);
 
 void os_mem_prealloc(int fd, char *area, size_t sz, int smp_cpus,
+                     const unsigned long *host_nodes,
+                     unsigned long max_node,
                      Error **errp);
 
 /**

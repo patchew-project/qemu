@@ -314,6 +314,8 @@ int getpagesize(void)
 }
 
 void os_mem_prealloc(int fd, char *area, size_t memory, int smp_cpus,
+                     const unsigned long *host_nodes,
+                     unsigned long max_node,
                      Error **errp)
 {
     int i;

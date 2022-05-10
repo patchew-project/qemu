@@ -73,6 +73,10 @@
 #include "qemu/error-report.h"
 #endif
 
+#ifdef CONFIG_NUMA
+#include <numa.h>
+#endif
+
 #define MAX_MEM_PREALLOC_THREAD_COUNT 16
 
 struct MemsetThread;
@@ -82,6 +86,9 @@ typedef struct MemsetContext {
     bool any_thread_failed;
     struct MemsetThread *threads;
     int num_threads;
+#ifdef CONFIG_NUMA
+    struct bitmask *nodemask;
+#endif
 } MemsetContext;
 
 struct MemsetThread {
@@ -420,6 +427,12 @@ static void *do_touch_pages(void *arg)
     }
     qemu_mutex_unlock(&page_mutex);
 
+#ifdef CONFIG_NUMA
+    if (memset_args->context->nodemask) {
+        numa_run_on_node_mask(memset_args->context->nodemask);
+    }
+#endif
+
     /* unblock SIGBUS */
     sigemptyset(&set);
     sigaddset(&set, SIGBUS);
@@ -463,6 +476,12 @@ static void *do_madv_populate_write_pages(void *arg)
     }
     qemu_mutex_unlock(&page_mutex);
 
+#ifdef CONFIG_NUMA
+    if (memset_args->context->nodemask) {
+        numa_run_on_node_mask(memset_args->context->nodemask);
+    }
+#endif
+
     if (size && qemu_madvise(addr, size, QEMU_MADV_POPULATE_WRITE)) {
         ret = -errno;
     }
@@ -489,7 +508,9 @@ static inline int get_memset_num_threads(size_t hpagesize, size_t numpages,
 }
 
 static int touch_all_pages(char *area, size_t hpagesize, size_t numpages,
-                           int smp_cpus, bool use_madv_populate_write)
+                           int smp_cpus, const unsigned long *host_nodes,
+                           unsigned long max_node,
+                           bool use_madv_populate_write)
 {
     static gsize initialized = 0;
     MemsetContext context = {
@@ -499,6 +520,7 @@ static int touch_all_pages(char *area, size_t hpagesize, size_t numpages,
     void *(*touch_fn)(void *);
     int ret = 0, i = 0;
     char *addr = area;
+    unsigned long value = max_node;
 
     if (g_once_init_enter(&initialized)) {
         qemu_mutex_init(&page_mutex);
@@ -518,6 +540,48 @@ static int touch_all_pages(char *area, size_t hpagesize, size_t numpages,
         touch_fn = do_madv_populate_write_pages;
     } else {
         touch_fn = do_touch_pages;
+    }
+
+    if (host_nodes) {
+        value = find_first_bit(host_nodes, max_node);
+    }
+    if (value != max_node) {
+#ifdef CONFIG_NUMA
+        struct bitmask *cpus = numa_allocate_cpumask();
+        g_autofree unsigned long *zerocpumask;
+        size_t zerocpumasklen;
+        g_autofree unsigned long *zeronodemask;
+        size_t zeronodemasklen;
+
+        context.nodemask = numa_bitmask_alloc(max_node);
+
+        zerocpumasklen = cpus->size / sizeof(unsigned long);
+        zerocpumask = g_new0(unsigned long, zerocpumasklen);
+
+        for (; value != max_node;
+             value = find_next_bit(host_nodes, max_node, value + 1)) {
+            if (numa_node_to_cpus(value, cpus) ||
+                memcmp(cpus->maskp, zerocpumask, zerocpumasklen) == 0)
+                continue;
+
+            /* If given NUMA node has CPUs run threads on them. */
+            numa_bitmask_setbit(context.nodemask, value);
+        }
+
+        numa_bitmask_free(cpus);
+
+        zeronodemasklen = max_node / sizeof(unsigned long);
+        zeronodemask = g_new0(unsigned long, zeronodemasklen);
+
+        if (memcmp(context.nodemask->maskp,
+                   zeronodemask, zeronodemasklen) == 0) {
+            /* If no NUMA has a CPU available, then don't pin threads. */
+            g_clear_pointer(&context.nodemask, numa_bitmask_free);
+        }
+#else
+        errno = -EINVAL;
+        return -1;
+#endif
     }
 
     context.threads = g_new0(MemsetThread, context.num_threads);
@@ -554,6 +618,10 @@ static int touch_all_pages(char *area, size_t hpagesize, size_t numpages,
     if (!use_madv_populate_write) {
         sigbus_memset_context = NULL;
     }
+
+#ifdef CONFIG_NUMA
+    g_clear_pointer(&context.nodemask, numa_bitmask_free);
+#endif
     g_free(context.threads);
 
     return ret;
@@ -566,6 +634,8 @@ static bool madv_populate_write_possible(char *area, size_t pagesize)
 }
 
 void os_mem_prealloc(int fd, char *area, size_t memory, int smp_cpus,
+                     const unsigned long *host_nodes,
+                     unsigned long max_node,
                      Error **errp)
 {
     static gsize initialized;
@@ -608,7 +678,7 @@ void os_mem_prealloc(int fd, char *area, size_t memory, int smp_cpus,
 
     /* touch pages simultaneously */
     ret = touch_all_pages(area, hpagesize, numpages, smp_cpus,
-                          use_madv_populate_write);
+                          host_nodes, max_node, use_madv_populate_write);
     if (ret) {
         error_setg_errno(errp, -ret,
                          "os_mem_prealloc: preallocating memory failed");
