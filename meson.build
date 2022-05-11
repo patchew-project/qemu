@@ -504,7 +504,7 @@ if 'ust' in get_option('trace_backends')
 endif
 pixman = not_found
 if have_system or have_tools
-  pixman = dependency('pixman-1', required: have_system, version:'>=0.21.8',
+  pixman = dependency('pixman-1', required: have_system, version:'>=0.34.0',
                       method: 'pkg-config', kwargs: static_kwargs)
 endif
 zlib = dependency('zlib', required: true, kwargs: static_kwargs)
