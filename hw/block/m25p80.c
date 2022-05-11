@@ -35,6 +35,7 @@
 #include "qapi/error.h"
 #include "trace.h"
 #include "qom/object.h"
+#include "qapi/visitor.h"
 
 /* Fields for FlashPartInfo->flags */
 
@@ -1621,6 +1622,31 @@ static const VMStateDescription vmstate_m25p80 = {
     }
 };
 
+static void m25p80_get_wel(Object *obj, Visitor *v, const char *name,
+                            void *opaque, Error **errp)
+{
+    Flash *s = M25P80(obj);
+
+    assert(strcmp(name, "WEL") == 0);
+
+    visit_type_bool(v, name, &s->write_enable, errp);
+}
+
+static void m25p80_set_wel(Object *obj, Visitor *v, const char *name,
+                            void *opaque, Error **errp)
+{
+    Flash *s = M25P80(obj);
+    bool value;
+
+    assert(strcmp(name, "WEL") == 0);
+
+    if (!visit_type_bool(v, name, &value, errp)) {
+        return;
+    }
+
+    s->write_enable = value;
+}
+
 static void m25p80_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1635,6 +1661,10 @@ static void m25p80_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, m25p80_properties);
     dc->reset = m25p80_reset;
     mc->pi = data;
+
+    object_class_property_add(klass, "WEL", "bool",
+                            m25p80_get_wel,
+                            m25p80_set_wel, NULL, NULL);
 }
 
 static const TypeInfo m25p80_info = {

@@ -49,6 +49,7 @@
  */
 enum {
     JEDEC_READ = 0x9f,
+    RDSR = 0x5,
     BULK_ERASE = 0xc7,
     READ = 0x03,
     PP = 0x02,
@@ -348,6 +349,24 @@ static void test_write_page_mem(void)
     flash_reset();
 }
 
+static void test_read_status_reg(void)
+{
+    uint8_t r;
+
+	qmp("{ 'execute': 'qom-set', 'arguments': "
+       "{'path': '/machine/soc/fmc/ssi.0/child[0]', 'property': 'WEL', 'value': true}}");
+
+    spi_conf(CONF_ENABLE_W0);
+	spi_ctrl_start_user();
+	writeb(ASPEED_FLASH_BASE, RDSR);
+	r = readb(ASPEED_FLASH_BASE);
+	spi_ctrl_stop_user();
+
+	g_assert_cmphex(r, ==, 0x2);
+
+	flash_reset();
+}
+
 static char tmp_path[] = "/tmp/qtest.m25p80.XXXXXX";
 
 int main(int argc, char **argv)
@@ -373,6 +392,7 @@ int main(int argc, char **argv)
     qtest_add_func("/ast2400/smc/write_page", test_write_page);
     qtest_add_func("/ast2400/smc/read_page_mem", test_read_page_mem);
     qtest_add_func("/ast2400/smc/write_page_mem", test_write_page_mem);
+    qtest_add_func("/ast2400/smc/read_status_reg", test_read_status_reg);
 
     ret = g_test_run();
 
