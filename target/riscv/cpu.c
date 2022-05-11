@@ -541,6 +541,40 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         set_priv_version(env, priv_version);
     }
 
+    /* Force disable extensions if priv spec version does not match */
+    if (env->priv_ver < PRIV_VERSION_1_12_0) {
+        cpu->cfg.ext_h = false;
+        cpu->cfg.ext_v = false;
+        cpu->cfg.ext_zfh = false;
+        cpu->cfg.ext_zfhmin = false;
+        cpu->cfg.ext_zfinx = false;
+        cpu->cfg.ext_zhinx = false;
+        cpu->cfg.ext_zhinxmin = false;
+        cpu->cfg.ext_zdinx = false;
+        cpu->cfg.ext_zba = false;
+        cpu->cfg.ext_zbb = false;
+        cpu->cfg.ext_zbc = false;
+        cpu->cfg.ext_zbkb = false;
+        cpu->cfg.ext_zbkc = false;
+        cpu->cfg.ext_zbkx = false;
+        cpu->cfg.ext_zbs = false;
+        cpu->cfg.ext_zk = false;
+        cpu->cfg.ext_zkn = false;
+        cpu->cfg.ext_zknd = false;
+        cpu->cfg.ext_zkne = false;
+        cpu->cfg.ext_zknh = false;
+        cpu->cfg.ext_zkr = false;
+        cpu->cfg.ext_zks = false;
+        cpu->cfg.ext_zksed = false;
+        cpu->cfg.ext_zksh = false;
+        cpu->cfg.ext_zkt = false;
+        cpu->cfg.ext_zve32f = false;
+        cpu->cfg.ext_zve64f = false;
+        cpu->cfg.ext_svinval = false;
+        cpu->cfg.ext_svnapot = false;
+        cpu->cfg.ext_svpbmt = false;
+    }
+
     if (cpu->cfg.mmu) {
         riscv_set_feature(env, RISCV_FEATURE_MMU);
     }
