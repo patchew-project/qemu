@@ -40,6 +40,8 @@ static struct sdl2_console *sdl2_console;
 
 static SDL_Surface *guest_sprite_surface;
 static int gui_grab; /* if true, all keyboard/mouse events are grabbed */
+static bool alt_grab;
+static bool ctrl_grab;
 
 static int gui_saved_grab;
 static int gui_fullscreen;
@@ -852,6 +854,17 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
     SDL_VERSION(&info.version);
 
     gui_fullscreen = o->has_full_screen && o->full_screen;
+
+    if (o->u.sdl.has_grab_mod) {
+        if (g_str_equal(o->u.sdl.grab_mod, "lshift-lctrl-lalt")) {
+            alt_grab = true;
+        } else if (g_str_equal(o->u.sdl.grab_mod, "rctrl")) {
+            ctrl_grab = true;
+        } else {
+            error_report("Unsupported grab-mod: %s", o->u.sdl.grab_mod);
+            exit(1);
+        }
+    }
 
     for (i = 0;; i++) {
         QemuConsole *con = qemu_console_lookup_by_index(i);
