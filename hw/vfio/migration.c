@@ -89,8 +89,16 @@ static int vfio_migration_set_state(VFIODevice *vbasedev,
         /* Try to put the device in some good state */
         mig_state->device_state = recover_state;
         if (ioctl(vbasedev->fd, VFIO_DEVICE_FEATURE, feature)) {
-            hw_error("%s: Device in error state, can't recover",
-                     vbasedev->name);
+            if (ioctl(vbasedev->fd, VFIO_DEVICE_RESET)) {
+                hw_error("%s: Device in error state, can't recover",
+                         vbasedev->name);
+            }
+
+            error_report(
+                "%s: Device was reset due to failure in changing device state to recover state %s",
+                vbasedev->name, mig_state_to_str(recover_state));
+
+            return -1;
         }
 
         error_report("%s: Failed changing device state to %s", vbasedev->name,
