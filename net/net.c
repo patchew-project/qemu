@@ -1015,6 +1015,8 @@ static int (* const net_client_init_fun[NET_CLIENT_DRIVER__MAX])(
 #endif
         [NET_CLIENT_DRIVER_TAP]       = net_init_tap,
         [NET_CLIENT_DRIVER_SOCKET]    = net_init_socket,
+        [NET_CLIENT_DRIVER_STREAM]    = net_init_stream,
+        [NET_CLIENT_DRIVER_DGRAM]     = net_init_dgram,
 #ifdef CONFIG_VDE
         [NET_CLIENT_DRIVER_VDE]       = net_init_vde,
 #endif
@@ -1097,6 +1099,8 @@ void show_netdevs(void)
     int idx;
     const char *available_netdevs[] = {
         "socket",
+        "stream",
+        "dgram",
         "hubport",
         "tap",
 #ifdef CONFIG_SLIRP
@@ -1606,7 +1610,25 @@ int net_init_clients(Error **errp)
  */
 static bool netdev_is_modern(const char *optarg)
 {
-    return false;
+    static QemuOptsList dummy_opts = {
+        .name = "netdev",
+        .implied_opt_name = "type",
+        .head = QTAILQ_HEAD_INITIALIZER(dummy_opts.head),
+        .desc = { { } },
+    };
+    const char *netdev;
+    QemuOpts *opts;
+    bool is_modern;
+
+    opts = qemu_opts_parse(&dummy_opts, optarg, true, &error_fatal);
+    netdev = qemu_opt_get(opts, "type");
+
+    is_modern = strcmp(netdev, "stream") == 0 ||
+                strcmp(netdev, "dgram") == 0;
+
+    qemu_opts_reset(&dummy_opts);
+
+    return is_modern;
 }
 
 int net_client_parse(QemuOptsList *opts_list, const char *optarg)
