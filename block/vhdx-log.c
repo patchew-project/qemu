@@ -88,6 +88,7 @@ static int vhdx_log_peek_hdr(BlockDriverState *bs, VHDXLogEntries *log,
     if (ret < 0) {
         goto exit;
     }
+    ret = sizeof(VHDXLogEntryHeader);
     vhdx_log_entry_hdr_le_import(hdr);
 
 exit:
@@ -148,6 +149,7 @@ static int vhdx_log_read_sectors(BlockDriverState *bs, VHDXLogEntries *log,
         if (ret < 0) {
             goto exit;
         }
+        ret = VHDX_LOG_SECTOR_SIZE;
         read = vhdx_log_inc_idx(read, log->length);
 
         *sectors_read = *sectors_read + 1;
@@ -199,6 +201,7 @@ static int vhdx_log_write_sectors(BlockDriverState *bs, VHDXLogEntries *log,
         if (ret < 0) {
             goto exit;
         }
+        ret = VHDX_LOG_SECTOR_SIZE;
         buffer_tmp += VHDX_LOG_SECTOR_SIZE;
 
         log->write = write;
