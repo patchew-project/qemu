@@ -2783,6 +2783,93 @@ GuestMemoryBlockInfo *qmp_guest_get_memory_block_info(Error **errp)
     return info;
 }
 
+#define MAX_NAME_LEN 128
+static GuestDiskStatsInfoList *guest_get_diskstats(Error **errp)
+{
+#ifdef CONFIG_LINUX
+    GuestDiskStatsInfoList *head = NULL, **tail = &head;
+    const char *diskstats = "/proc/diskstats";
+    FILE *fp;
+    size_t n;
+    char *line = NULL;
+    char dev_name[MAX_NAME_LEN];
+    int i;
+    unsigned int ios_pgr, tot_ticks, rq_ticks, wr_ticks, dc_ticks, fl_ticks;
+    unsigned long rd_ios, rd_merges_or_rd_sec, rd_ticks_or_wr_sec, wr_ios;
+    unsigned long wr_merges, rd_sec_or_wr_ios, wr_sec;
+    unsigned long dc_ios, dc_merges, dc_sec, fl_ios;
+    unsigned int major, minor;
+
+    fp = fopen(diskstats, "r");
+    if (fp  == NULL) {
+        error_setg_errno(errp, errno, "open(\"%s\")", diskstats);
+        return NULL;
+    }
+    while (getline(&line, &n, fp) != -1) {
+        i = sscanf(line, "%u %u %s %lu %lu %lu"
+                   "%lu %lu %lu %lu %u %u %u %u"
+                   "%lu %lu %lu %u %lu %u",
+                  &major, &minor, dev_name,
+                  &rd_ios, &rd_merges_or_rd_sec, &rd_sec_or_wr_ios,
+                  &rd_ticks_or_wr_sec, &wr_ios, &wr_merges, &wr_sec,
+                  &wr_ticks, &ios_pgr, &tot_ticks, &rq_ticks,
+                  &dc_ios, &dc_merges, &dc_sec, &dc_ticks,
+                  &fl_ios, &fl_ticks);
+        GuestDiskStatsInfo *diskstatinfo = g_malloc0(sizeof *diskstatinfo);
+        GuestDiskStats *diskstat = g_malloc0(sizeof *diskstat);
+        if (i >= 14) {
+            diskstatinfo->name = g_strdup(dev_name);
+            diskstatinfo->major = major;
+            diskstatinfo->minor = minor;
+            diskstat->rd_ios = rd_ios;
+            diskstat->rd_merges = rd_merges_or_rd_sec;
+            diskstat->rd_sectors = rd_sec_or_wr_ios;
+            diskstat->rd_ticks = rd_ticks_or_wr_sec;
+            diskstat->wr_ios = wr_ios;
+            diskstat->wr_merges = wr_merges;
+            diskstat->wr_sectors = wr_sec;
+            diskstat->wr_ticks = wr_ticks;
+            diskstat->ios_pgr = ios_pgr;
+            diskstat->tot_ticks = tot_ticks;
+            diskstat->rq_ticks = rq_ticks;
+            if (i >= 18) {
+                diskstat->dc_ios = dc_ios;
+                diskstat->dc_merges = dc_merges;
+                diskstat->dc_sectors = dc_sec;
+                diskstat->dc_ticks = dc_ticks;
+            }
+            if (i >= 20) {
+                diskstat->fl_ios = fl_ios;
+                diskstat->fl_ticks = fl_ticks;
+            }
+            diskstatinfo->stats = diskstat;
+            QAPI_LIST_APPEND(tail, diskstatinfo);
+        } else if (i == 7) {
+            diskstatinfo->name = g_strdup(dev_name);
+            diskstatinfo->major = major;
+            diskstatinfo->minor = minor;
+            diskstat->rd_ios = rd_ios;
+            diskstat->rd_sectors = rd_merges_or_rd_sec;
+            diskstat->wr_ios = rd_sec_or_wr_ios;
+            diskstat->wr_sectors = rd_ticks_or_wr_sec;
+        } else {
+            g_free(diskstat);
+            g_free(diskstatinfo);
+        }
+    }
+    fclose(fp);
+    return head;
+#else
+    g_debug("disk stats reporting available only for Linux");
+    return NULL;
+#endif
+}
+
+GuestDiskStatsInfoList *qmp_guest_get_diskstats(Error **errp)
+{
+    return guest_get_diskstats(errp);
+}
+
 #else /* defined(__linux__) */
 
 void qmp_guest_suspend_disk(Error **errp)
@@ -3130,6 +3217,13 @@ GuestDiskInfoList *qmp_guest_get_disks(Error **errp)
     error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
 }
+
+GuestDiskStatsInfoList *qmp_guest_get_diskstats(Error **errp)
+{
+    error_setg(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
 
 #endif /* CONFIG_FSFREEZE */
 

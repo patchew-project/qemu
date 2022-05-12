@@ -1490,3 +1490,89 @@
 { 'command': 'guest-ssh-remove-authorized-keys',
   'data': { 'username': 'str', 'keys': ['str'] },
   'if': 'CONFIG_POSIX' }
+
+##
+# @GuestDiskStats:
+#
+# @rd-sectors: of sectors read
+#
+# @wr-sectors: of sectors write
+#
+# @dc-sectors: of sectors discard
+#
+# @rd-ios: of read operations issued to the device
+#
+# @rd-merges: of read requests merged
+#
+# @wr-ios: of write operations issued to the device
+#
+# @wr-merges: of write requests merged
+#
+# @dc-ios: of discard operations issued to the device
+#
+# @dc-merges: of discard requests merged
+#
+# @fl-ios: of flush requests issued to the device
+#
+# @rd-ticks: Time of read requests in queue
+#
+# @wr-ticks: Time of write requests in queue
+#
+# @dc-ticks: Time of discard requests in queue
+#
+# @fl-ticks: Time of flush requests in queue
+#
+# @ios-pgr: of I/Os in progress
+#
+# @tot-ticks: of ticks total (for this device) for I/O
+#
+# @rq-ticks: of ticks requests spent in queue
+#
+# Since: 7.1
+##
+{ 'struct': 'GuestDiskStats',
+  'data': {'rd-sectors': 'uint64',
+            'wr-sectors': 'uint64',
+            'dc-sectors': 'uint64',
+            'rd-ios': 'uint64',
+            'rd-merges': 'uint64',
+            'wr-ios': 'uint64',
+            'wr-merges': 'uint64',
+            'dc-ios': 'uint64',
+            'dc-merges': 'uint64',
+            'fl-ios': 'uint64',
+            'rd-ticks': 'uint64',
+            'wr-ticks': 'uint64',
+            'dc-ticks': 'uint64',
+            'fl-ticks': 'uint64',
+            'ios-pgr': 'uint64',
+            'tot-ticks': 'uint64',
+            'rq-ticks': 'uint64'
+           } }
+
+##
+# @GuestDiskStatsInfo:
+#
+# @name disk name
+#
+# @major major of disk
+#
+# @minor minor of disk
+##
+{ 'struct': 'GuestDiskStatsInfo',
+  'data': {'name': 'str',
+           'major': 'uint64',
+           'minor': 'uint64',
+           'stats': 'GuestDiskStats' } }
+
+##
+# @guest-get-diskstats:
+#
+# Retrieve information about disk io.
+# Returns: List of disk stats of guest.
+#
+# Since: 7.1
+##
+{ 'command': 'guest-get-diskstats',
+  'returns': ['GuestDiskStatsInfo']
+}
