@@ -332,6 +332,9 @@ struct MigrationState {
      * This save hostname when out-going migration starts
      */
     char *hostname;
+
+    /* Whether to skip pre-copy phase of migration or not */
+    bool skip_precopy;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);

@@ -3593,6 +3593,11 @@ static MigIterateState migration_iteration_run(MigrationState *s)
     uint64_t pending_size, pend_pre, pend_compat, pend_post;
     bool in_postcopy = s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE;
 
+    if (s->skip_precopy) {
+        migration_completion(s);
+        return MIG_ITERATE_BREAK;
+    }
+
     qemu_savevm_state_pending(s->to_dst_file, s->threshold_size, &pend_pre,
                               &pend_compat, &pend_post);
     pending_size = pend_pre + pend_compat + pend_post;
