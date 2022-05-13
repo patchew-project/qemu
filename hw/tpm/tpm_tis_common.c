@@ -295,6 +295,8 @@ static void tpm_tis_dump_state(TPMState *s, hwaddr addr)
     uint8_t locty = tpm_tis_locality_from_addr(addr);
     hwaddr base = addr & ~0xfff;
 
+    assert(TPM_TIS_IS_VALID_LOCTY(locty));
+
     printf("tpm_tis: active locality      : %d\n"
            "tpm_tis: state of locality %d : %d\n"
            "tpm_tis: register dump:\n",
@@ -335,6 +337,8 @@ static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
     uint8_t locty = tpm_tis_locality_from_addr(addr);
     uint32_t avail;
     uint8_t v;
+
+    assert(TPM_TIS_IS_VALID_LOCTY(locty));
 
     if (tpm_backend_had_startup_error(s->be_driver)) {
         return 0;
@@ -457,6 +461,8 @@ static void tpm_tis_mmio_write(void *opaque, hwaddr addr,
     int c, set_new_locty = 1;
     uint16_t len;
     uint32_t mask = (size == 1) ? 0xff : ((size == 2) ? 0xffff : ~0);
+
+    assert(TPM_TIS_IS_VALID_LOCTY(locty));
 
     trace_tpm_tis_mmio_write(size, addr, val);
 
