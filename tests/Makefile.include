@@ -154,10 +154,17 @@ check-acceptance-deprecated-warning:
 
 check-acceptance: check-acceptance-deprecated-warning | check-avocado
 
+# Before we delegate to meson, create the python venv for block tests.
+.PHONY: check-block
+check-block: check-venv
+	@echo  # Without some rule, this doesn't run at all. Why?
+
+
 # Consolidated targets
 
 .PHONY: check check-clean get-vm-images
-check:
+check: check-venv
+	@echo # ???
 
 check-build: run-ninja
 
