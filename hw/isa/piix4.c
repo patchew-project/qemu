@@ -301,21 +301,12 @@ static void piix4_register_types(void)
 
 type_init(piix4_register_types)
 
-DeviceState *piix4_create(PCIBus *pci_bus, I2CBus **smbus)
+PCIDevice *piix4_create(PCIBus *pci_bus)
 {
     PCIDevice *pci;
-    DeviceState *dev;
-    int devfn = PCI_DEVFN(10, 0);
 
-    pci = pci_create_simple_multifunction(pci_bus, devfn,  true,
+    pci = pci_create_simple_multifunction(pci_bus, PCI_DEVFN(10, 0), true,
                                           TYPE_PIIX4_PCI_DEVICE);
-    dev = DEVICE(pci);
 
-    if (smbus) {
-        *smbus = piix4_pm_init(pci_bus, devfn + 3, 0x1100,
-                               qdev_get_gpio_in_named(dev, "isa", 9),
-                               NULL, 0, NULL);
-    }
-
-    return dev;
+    return pci;
 }
