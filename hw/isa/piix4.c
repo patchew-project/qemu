@@ -300,13 +300,3 @@ static void piix4_register_types(void)
 }
 
 type_init(piix4_register_types)
-
-PCIDevice *piix4_create(PCIBus *pci_bus)
-{
-    PCIDevice *pci;
-
-    pci = pci_create_simple_multifunction(pci_bus, PCI_DEVFN(10, 0), true,
-                                          TYPE_PIIX4_PCI_DEVICE);
-
-    return pci;
-}
