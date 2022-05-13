@@ -104,10 +104,13 @@ else
 	AVOCADO_CMDLINE_TAGS=$(addprefix -t , $(AVOCADO_TAGS))
 endif
 
-$(TESTS_VENV_DIR): $(TESTS_VENV_REQ)
+$(TESTS_VENV_DIR): $(TESTS_VENV_REQ) $(SRC_PATH)/python/setup.cfg
 	$(call quiet-command, \
             $(PYTHON) -m venv $@, \
             VENV, $@)
+	$(call quiet-command, \
+            $(TESTS_PYTHON) -m pip -q install \
+            -e "$(SRC_PATH)/python/", PIP, "$(SRC_PATH)/python/")
 	$(call quiet-command, \
             $(TESTS_PYTHON) -m pip -q install -r $(TESTS_VENV_REQ), \
             PIP, $(TESTS_VENV_REQ))
