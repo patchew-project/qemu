@@ -48,6 +48,9 @@ static const hwaddr aspeed_soc_ast2400_memmap[] = {
     [ASPEED_DEV_ETH1]   = 0x1E660000,
     [ASPEED_DEV_ETH2]   = 0x1E680000,
     [ASPEED_DEV_UART1]  = 0x1E783000,
+    [ASPEED_DEV_UART2]  = 0x1E78D000,
+    [ASPEED_DEV_UART3]  = 0x1E78E000,
+    [ASPEED_DEV_UART4]  = 0x1E78F000,
     [ASPEED_DEV_UART5]  = 0x1E784000,
     [ASPEED_DEV_VUART]  = 0x1E787000,
     [ASPEED_DEV_SDRAM]  = 0x40000000,
@@ -80,6 +83,9 @@ static const hwaddr aspeed_soc_ast2500_memmap[] = {
     [ASPEED_DEV_ETH1]   = 0x1E660000,
     [ASPEED_DEV_ETH2]   = 0x1E680000,
     [ASPEED_DEV_UART1]  = 0x1E783000,
+    [ASPEED_DEV_UART2]  = 0x1E78D000,
+    [ASPEED_DEV_UART3]  = 0x1E78E000,
+    [ASPEED_DEV_UART4]  = 0x1E78F000,
     [ASPEED_DEV_UART5]  = 0x1E784000,
     [ASPEED_DEV_VUART]  = 0x1E787000,
     [ASPEED_DEV_SDRAM]  = 0x80000000,
@@ -222,7 +228,7 @@ static void aspeed_soc_init(Object *obj)
 
 static void aspeed_soc_realize(DeviceState *dev, Error **errp)
 {
-    int i;
+    int i, uart;
     AspeedSoCState *s = ASPEED_SOC(dev);
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
     Error *err = NULL;
@@ -297,10 +303,30 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->adc), 0,
                        aspeed_soc_get_irq(s, ASPEED_DEV_ADC));
 
-    /* UART - attach an 8250 to the IO space as our UART */
+    /*
+     * UART - Attach the first serial device to the machine's default UART
+     * memory region, usually corresponding to the serial0 device in the device
+     * tree.
+     */
     serial_mm_init(get_system_memory(), sc->memmap[s->uart_default], 2,
                    aspeed_soc_get_irq(s, s->uart_default), 38400,
                    serial_hd(0), DEVICE_LITTLE_ENDIAN);
+    /*
+     * UART - Then, initialize the remaining UART memory regions with whatever
+     * other serial devices are present. If a serial device isn't present, then
+     * the memory region still gets initialized as a UART, it just won't respond
+     * to the guest OS.
+     */
+    for (i = 1, uart = ASPEED_DEV_UART1; i < 5; i++, uart++) {
+        if (uart == s->uart_default) {
+            uart++;
+        }
+        assert(uart <= ASPEED_DEV_UART5);
+
+        serial_mm_init(get_system_memory(), sc->memmap[uart], 2,
+                       aspeed_soc_get_irq(s, s->uart_default), 38400,
+                       serial_hd(i), DEVICE_LITTLE_ENDIAN);
+    }
 
     /* I2C */
     object_property_set_link(OBJECT(&s->i2c), "dram", OBJECT(s->dram_mr),
