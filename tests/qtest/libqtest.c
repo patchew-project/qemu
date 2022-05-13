@@ -19,6 +19,9 @@
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <sys/un.h>
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif /* __linux__ */
 
 #include "libqtest.h"
 #include "libqmp.h"
@@ -301,6 +304,21 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
     s->expected_status = 0;
     s->qemu_pid = fork();
     if (s->qemu_pid == 0) {
+#ifdef __linux__
+        /*
+         * If the controlling qtest process exits without calling
+         * the qtest_quit() method, the QEMU processes will get
+         * orphaned and remain running forever in the background.
+         *
+         * Missing qtest_quit() calls are, unfortunately, exactly
+         * what happen when a g_assert() check triggers abort() in
+         * a failing test scenario.
+         *
+         * This PR_SET_PDEATHSIG setup will ensure QEMU will
+         * get terminated with SIGKILL.
+         */
+        prctl(PR_SET_PDEATHSIG, SIGKILL, 0, 0, 0);
+#endif /* __linux__ */
         if (!g_setenv("QEMU_AUDIO_DRV", "none", true)) {
             exit(1);
         }
