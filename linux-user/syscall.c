@@ -1024,6 +1024,10 @@ static inline abi_ulong host_to_target_rlim(rlim_t rlim)
 }
 #endif
 
+#ifndef RLIMIT_RTTIME
+#define RLIMIT_RTTIME 15
+#endif
+
 static inline int target_to_host_resource(int code)
 {
     switch (code) {
