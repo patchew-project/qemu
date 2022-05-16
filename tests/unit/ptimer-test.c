@@ -768,7 +768,7 @@ static void add_ptimer_tests(uint8_t policy)
     char policy_name[256] = "";
     char *tmp;
 
-    if (policy == PTIMER_POLICY_DEFAULT) {
+    if (policy == PTIMER_POLICY_LEGACY) {
         g_sprintf(policy_name, "default");
     }
 
@@ -862,7 +862,7 @@ static void add_ptimer_tests(uint8_t policy)
 static void add_all_ptimer_policies_comb_tests(void)
 {
     int last_policy = PTIMER_POLICY_TRIGGER_ONLY_ON_DECREMENT;
-    int policy = PTIMER_POLICY_DEFAULT;
+    int policy = PTIMER_POLICY_LEGACY;
 
     for (; policy < (last_policy << 1); policy++) {
         if ((policy & PTIMER_POLICY_TRIGGER_ONLY_ON_DECREMENT) &&
