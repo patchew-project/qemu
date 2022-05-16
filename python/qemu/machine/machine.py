@@ -51,6 +51,11 @@ from . import console_socket
 
 
 LOG = logging.getLogger(__name__)
+PSERIES_DEFAULT_CAPABILITIES = ("cap-cfpc=broken,"
+                                "cap-sbbc=broken,"
+                                "cap-ibs=broken,"
+                                "cap-ccf-assist=off,"
+                                "cap-fwnmi=off")
 
 
 class QEMUMachineError(Exception):
@@ -447,6 +452,14 @@ class QEMUMachine:
         """
         Launch the VM and establish a QMP connection
         """
+
+        # pseries needs extra machine options to disable Spectre/Meltdown
+        # KVM related capabilities that might not be available in the
+        # host.
+        if "qemu-system-ppc64" in self._binary:
+            if self._machine is None or "pseries" in self._machine:
+                self._args.extend(['-machine', PSERIES_DEFAULT_CAPABILITIES])
+
         self._pre_launch()
         LOG.debug('VM launch command: %r', ' '.join(self._qemu_full_args))
 
