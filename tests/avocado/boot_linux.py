@@ -61,7 +61,6 @@ class BootLinuxAarch64(LinuxTest):
     """
     :avocado: tags=arch:aarch64
     :avocado: tags=machine:virt
-    :avocado: tags=machine:gic-version=2
     """
 
     def add_common_args(self):
@@ -80,7 +79,7 @@ class BootLinuxAarch64(LinuxTest):
         self.require_accelerator("tcg")
         self.vm.add_args("-accel", "tcg")
         self.vm.add_args("-cpu", "max,lpa2=off")
-        self.vm.add_args("-machine", "virt,gic-version=2")
+        self.vm.add_args("-machine", "gic-version=2")
         self.add_common_args()
         self.launch_and_wait(set_up_ssh_connection=False)
 
@@ -93,7 +92,7 @@ class BootLinuxAarch64(LinuxTest):
         self.require_accelerator("tcg")
         self.vm.add_args("-accel", "tcg")
         self.vm.add_args("-cpu", "max,lpa2=off")
-        self.vm.add_args("-machine", "virt,gic-version=3")
+        self.vm.add_args("-machine", "gic-version=3")
         self.add_common_args()
         self.launch_and_wait(set_up_ssh_connection=False)
 
@@ -104,7 +103,7 @@ class BootLinuxAarch64(LinuxTest):
         """
         self.require_accelerator("kvm")
         self.vm.add_args("-accel", "kvm")
-        self.vm.add_args("-machine", "virt,gic-version=host")
+        self.vm.add_args("-machine", "gic-version=host")
         self.add_common_args()
         self.launch_and_wait(set_up_ssh_connection=False)
 
