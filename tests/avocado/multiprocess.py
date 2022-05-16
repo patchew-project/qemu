@@ -19,7 +19,7 @@ class Multiprocess(QemuSystemTest):
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
 
     def do_test(self, kernel_url, initrd_url, kernel_command_line,
-                machine_type):
+                machine_opts=None):
         """Main test method"""
         self.require_accelerator('kvm')
 
@@ -43,7 +43,8 @@ class Multiprocess(QemuSystemTest):
 
         # Create proxy process
         self.vm.set_console()
-        self.vm.add_args('-machine', machine_type)
+        if machine_opts:
+            self.vm.add_args('-machine', machine_opts)
         self.vm.add_args('-accel', 'kvm')
         self.vm.add_args('-cpu', 'host')
         self.vm.add_args('-object',
@@ -67,6 +68,7 @@ class Multiprocess(QemuSystemTest):
     def test_multiprocess_x86_64(self):
         """
         :avocado: tags=arch:x86_64
+        :avocado: tags=machine:pc
         """
         kernel_url = ('https://archives.fedoraproject.org/pub/archive/fedora'
                       '/linux/releases/31/Everything/x86_64/os/images'
@@ -76,12 +78,12 @@ class Multiprocess(QemuSystemTest):
                       '/pxeboot/initrd.img')
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
                                'console=ttyS0 rdinit=/bin/bash')
-        machine_type = 'pc'
-        self.do_test(kernel_url, initrd_url, kernel_command_line, machine_type)
+        self.do_test(kernel_url, initrd_url, kernel_command_line)
 
     def test_multiprocess_aarch64(self):
         """
         :avocado: tags=arch:aarch64
+        :avocado: tags=machine:virt
         """
         kernel_url = ('https://archives.fedoraproject.org/pub/archive/fedora'
                       '/linux/releases/31/Everything/aarch64/os/images'
@@ -91,5 +93,5 @@ class Multiprocess(QemuSystemTest):
                       '/pxeboot/initrd.img')
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
                                'rdinit=/bin/bash console=ttyAMA0')
-        machine_type = 'virt,gic-version=3'
-        self.do_test(kernel_url, initrd_url, kernel_command_line, machine_type)
+        machine_opts = 'gic-version=3'
+        self.do_test(kernel_url, initrd_url, kernel_command_line, machine_opts)
