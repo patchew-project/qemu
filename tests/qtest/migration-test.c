@@ -481,6 +481,10 @@ typedef struct {
     bool only_target;
     /* Use dirty ring if true; dirty logging otherwise */
     bool use_dirty_ring;
+    /* Whether use TLS channels for postcopy test? */
+    bool postcopy_tls;
+    /* Used only if postcopy_tls==true, to cache the data object */
+    void *postcopy_tls_data;
     const char *opts_source;
     const char *opts_target;
 } MigrateStart;
@@ -980,6 +984,10 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
         return -1;
     }
 
+    if (args->postcopy_tls) {
+        args->postcopy_tls_data = test_migrate_tls_psk_start_match(from, to);
+    }
+
     migrate_set_capability(from, "postcopy-ram", true);
     migrate_set_capability(to, "postcopy-ram", true);
     migrate_set_capability(to, "postcopy-blocktime", true);
@@ -1004,7 +1012,8 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
     return 0;
 }
 
-static void migrate_postcopy_complete(QTestState *from, QTestState *to)
+static void migrate_postcopy_complete(QTestState *from, QTestState *to,
+                                      MigrateStart *args)
 {
     wait_for_migration_complete(from);
 
@@ -1015,19 +1024,38 @@ static void migrate_postcopy_complete(QTestState *from, QTestState *to)
         read_blocktime(to);
     }
 
+    if (args->postcopy_tls) {
+        assert(args->postcopy_tls_data);
+        test_migrate_tls_psk_finish(from, to, args->postcopy_tls_data);
+        args->postcopy_tls_data = NULL;
+    }
+
     test_migrate_end(from, to, true);
+}
+
+static void test_postcopy_common(MigrateStart *args)
+{
+    QTestState *from, *to;
+
+    if (migrate_postcopy_prepare(&from, &to, args)) {
+        return;
+    }
+    migrate_postcopy_start(from, to);
+    migrate_postcopy_complete(from, to, args);
 }
 
 static void test_postcopy(void)
 {
-    MigrateStart args = {};
-    QTestState *from, *to;
+    MigrateStart args = { };
 
-    if (migrate_postcopy_prepare(&from, &to, &args)) {
-        return;
-    }
-    migrate_postcopy_start(from, to);
-    migrate_postcopy_complete(from, to);
+    test_postcopy_common(&args);
+}
+
+static void test_postcopy_tls_psk(void)
+{
+    MigrateStart args = { .postcopy_tls = true };
+
+    test_postcopy_common(&args);
 }
 
 static void test_postcopy_recovery(void)
@@ -1089,7 +1117,7 @@ static void test_postcopy_recovery(void)
     /* Restore the postcopy bandwidth to unlimited */
     migrate_set_parameter_int(from, "max-postcopy-bandwidth", 0);
 
-    migrate_postcopy_complete(from, to);
+    migrate_postcopy_complete(from, to, &args);
 }
 
 static void test_baddest(void)
@@ -2133,7 +2161,15 @@ int main(int argc, char **argv)
 
     module_call_init(MODULE_INIT_QOM);
 
-    qtest_add_func("/migration/postcopy/unix", test_postcopy);
+    qtest_add_func("/migration/postcopy/plain", test_postcopy);
+#ifdef CONFIG_GNUTLS
+    /*
+     * NOTE: psk test is enough for postcopy, as other types of TLS
+     * channels are tested under precopy.  Here what we want to test is the
+     * general postcopy path that has TLS channel enabled.
+     */
+    qtest_add_func("/migration/postcopy/tls/psk", test_postcopy_tls_psk);
+#endif /* CONFIG_GNUTLS */
     qtest_add_func("/migration/postcopy/recovery", test_postcopy_recovery);
     qtest_add_func("/migration/bad_dest", test_baddest);
     qtest_add_func("/migration/precopy/unix/plain", test_precopy_unix_plain);
