@@ -607,7 +607,8 @@ static void gen_mffs(DisasContext *ctx)
     tcg_temp_free_i64(t0);
 }
 
-static void do_mffsc(int rt, uint64_t set_mask)
+static void do_mffsc(int rt, TCGv_i64 t1, uint64_t set_mask,
+                     uint64_t clear_mask, uint32_t fpscr_mask)
 {
     TCGv_i64 fpscr;
 
@@ -618,6 +619,12 @@ static void do_mffsc(int rt, uint64_t set_mask)
     tcg_gen_andi_i64(fpscr, fpscr, set_mask);
     set_fpr(rt, fpscr);
 
+    if (fpscr_mask) {
+        tcg_gen_andi_i64(fpscr, fpscr, clear_mask);
+        tcg_gen_or_i64(fpscr, fpscr, t1);
+        gen_helper_store_fpscr(cpu_env, fpscr, tcg_constant_i32(fpscr_mask));
+    }
+
     tcg_temp_free_i64(fpscr);
 }
 
@@ -625,7 +632,7 @@ static bool trans_MFFS(DisasContext *ctx, arg_X_t_rc *a)
 {
     REQUIRE_FPU(ctx);
 
-    do_mffsc(a->rt, 0xFFFFFFFFFFFFFFFFULL);
+    do_mffsc(a->rt, tcg_constant_i64(0), 0xFFFFFFFFFFFFFFFFULL, 0, 0);
     if (a->rc) {
         gen_set_cr1_from_fpscr(ctx);
     }
@@ -638,39 +645,21 @@ static bool trans_MFFSL(DisasContext *ctx, arg_X_t *a)
     REQUIRE_INSNS_FLAGS2(ctx, ISA300);
     REQUIRE_FPU(ctx);
 
-    do_mffsc(a->rt, FP_DRN | FP_STATUS | FP_ENABLES | FP_NI | FP_RN);
+    do_mffsc(a->rt, tcg_constant_i64(0),
+        FP_DRN | FP_STATUS | FP_ENABLES | FP_NI | FP_RN, 0, 0);
 
     return true;
 }
 
-/* mffsce */
-static void gen_mffsce(DisasContext *ctx)
+static bool trans_MFFSCE(DisasContext *ctx, arg_X_t *a)
 {
-    TCGv_i64 t0;
-    TCGv_i32 mask;
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    REQUIRE_FPU(ctx);
 
-    if (unlikely(!(ctx->insns_flags2 & PPC2_ISA300))) {
-        return gen_mffs(ctx);
-    }
+    do_mffsc(a->rt, tcg_constant_i64(0), 0xFFFFFFFFFFFFFFFFULL,
+             ~FP_ENABLES, 0x0003);
 
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-
-    t0 = tcg_temp_new_i64();
-
-    gen_reset_fpstatus();
-    tcg_gen_extu_tl_i64(t0, cpu_fpscr);
-    set_fpr(rD(ctx->opcode), t0);
-
-    /* Clear exception enable bits in the FPSCR.  */
-    tcg_gen_andi_i64(t0, t0, ~FP_ENABLES);
-    mask = tcg_const_i32(0x0003);
-    gen_helper_store_fpscr(cpu_env, t0, mask);
-
-    tcg_temp_free_i32(mask);
-    tcg_temp_free_i64(t0);
+    return true;
 }
 
 static void gen_helper_mffscrn(DisasContext *ctx, TCGv_i64 t1)
