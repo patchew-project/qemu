@@ -29,8 +29,12 @@ static int long_cb(void *opaque)
     if (qatomic_cmpxchg(&data->n, 0, 1) == 0) {
         g_usleep(2000000);
         qatomic_or(&data->n, 2);
+        return 0;
     }
-    return 0;
+    /* In rare cases that reach here, this job will be done,
+     * but should be treated as canceled.
+     */
+    return -ECANCELED;
 }
 
 static void done_cb(void *opaque, int ret)
