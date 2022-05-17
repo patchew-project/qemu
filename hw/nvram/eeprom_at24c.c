@@ -163,7 +163,7 @@ void at24c_eeprom_reset(DeviceState *state)
     memset(ee->mem, 0, ee->rsize);
 
     if (ee->blk) {
-        int len = blk_pread(ee->blk, 0, ee->mem, ee->rsize);
+        int len = blk_pread(ee->blk, 0, ee->mem, ee->rsize, 0);
 
         if (len < 0) {
             ERR(TYPE_AT24C_EE
