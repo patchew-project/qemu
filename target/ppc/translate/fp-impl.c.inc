@@ -607,6 +607,31 @@ static void gen_mffs(DisasContext *ctx)
     tcg_temp_free_i64(t0);
 }
 
+static void do_mffsc(int rt)
+{
+    TCGv_i64 fpscr;
+
+    fpscr = tcg_temp_new_i64();
+
+    gen_reset_fpstatus();
+    tcg_gen_extu_tl_i64(fpscr, cpu_fpscr);
+    set_fpr(rt, fpscr);
+
+    tcg_temp_free_i64(fpscr);
+}
+
+static bool trans_MFFS(DisasContext *ctx, arg_X_t_rc *a)
+{
+    REQUIRE_FPU(ctx);
+
+    do_mffsc(a->rt);
+    if (a->rc) {
+        gen_set_cr1_from_fpscr(ctx);
+    }
+
+    return true;
+}
+
 /* mffsl */
 static void gen_mffsl(DisasContext *ctx)
 {
