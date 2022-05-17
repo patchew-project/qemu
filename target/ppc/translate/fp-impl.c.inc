@@ -607,7 +607,7 @@ static void gen_mffs(DisasContext *ctx)
     tcg_temp_free_i64(t0);
 }
 
-static void do_mffsc(int rt)
+static void do_mffsc(int rt, uint64_t set_mask)
 {
     TCGv_i64 fpscr;
 
@@ -615,6 +615,7 @@ static void do_mffsc(int rt)
 
     gen_reset_fpstatus();
     tcg_gen_extu_tl_i64(fpscr, cpu_fpscr);
+    tcg_gen_andi_i64(fpscr, fpscr, set_mask);
     set_fpr(rt, fpscr);
 
     tcg_temp_free_i64(fpscr);
@@ -624,7 +625,7 @@ static bool trans_MFFS(DisasContext *ctx, arg_X_t_rc *a)
 {
     REQUIRE_FPU(ctx);
 
-    do_mffsc(a->rt);
+    do_mffsc(a->rt, 0xFFFFFFFFFFFFFFFFULL);
     if (a->rc) {
         gen_set_cr1_from_fpscr(ctx);
     }
@@ -632,26 +633,14 @@ static bool trans_MFFS(DisasContext *ctx, arg_X_t_rc *a)
     return true;
 }
 
-/* mffsl */
-static void gen_mffsl(DisasContext *ctx)
+static bool trans_MFFSL(DisasContext *ctx, arg_X_t *a)
 {
-    TCGv_i64 t0;
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    REQUIRE_FPU(ctx);
 
-    if (unlikely(!(ctx->insns_flags2 & PPC2_ISA300))) {
-        return gen_mffs(ctx);
-    }
+    do_mffsc(a->rt, FP_DRN | FP_STATUS | FP_ENABLES | FP_NI | FP_RN);
 
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    t0 = tcg_temp_new_i64();
-    gen_reset_fpstatus();
-    tcg_gen_extu_tl_i64(t0, cpu_fpscr);
-    /* Mask everything except mode, status, and enables.  */
-    tcg_gen_andi_i64(t0, t0, FP_DRN | FP_STATUS | FP_ENABLES | FP_RN);
-    set_fpr(rD(ctx->opcode), t0);
-    tcg_temp_free_i64(t0);
+    return true;
 }
 
 /* mffsce */
