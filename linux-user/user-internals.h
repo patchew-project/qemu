@@ -35,7 +35,7 @@ typedef abi_long do_ioctl_fn(const IOCTLEntry *ie, uint8_t *buf_temp,
                              int fd, int cmd, abi_long arg);
 
 struct IOCTLEntry {
-    int target_cmd;
+    unsigned int target_cmd;
     unsigned int host_cmd;
     const char *name;
     int access;
