@@ -92,6 +92,11 @@ static void pcie_cap_fill_slot_lnk(PCIDevice *dev)
         return;
     }
 
+    /* Use default LNKCAP setting */
+    if (s->speed == 0 || s->width == 0) {
+        return;
+    }
+
     /* Clear and fill LNKCAP from what was configured above */
     pci_long_test_and_clear_mask(exp_cap + PCI_EXP_LNKCAP,
                                  PCI_EXP_LNKCAP_MLW | PCI_EXP_LNKCAP_SLS);
