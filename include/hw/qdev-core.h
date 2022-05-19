@@ -909,4 +909,18 @@ extern bool phase_check(MachineInitPhase phase);
  */
 extern void phase_advance(MachineInitPhase phase);
 
+/**
+ * @phase_until:
+ * @phase: the target phase
+ * @errp: error report
+ *
+ * Make the machine init progress until the target phase is reached.
+ *
+ * Its is a no-op is the target phase is the current or an earlier
+ * phase.
+ *
+ * Returns true in case of success.
+ */
+extern bool phase_until(MachineInitPhase phase, Error **errp);
+
 #endif
