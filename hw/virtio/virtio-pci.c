@@ -18,7 +18,6 @@
 #include "qemu/osdep.h"
 
 #include "exec/memop.h"
-#include "standard-headers/linux/virtio_pci.h"
 #include "hw/boards.h"
 #include "hw/virtio/virtio.h"
 #include "migration/qemu-file-types.h"
@@ -222,7 +221,7 @@ static bool virtio_pci_ioeventfd_enabled(DeviceState *d)
 
 #define QEMU_VIRTIO_PCI_QUEUE_MEM_MULT 0x1000
 
-static inline int virtio_pci_queue_mem_mult(struct VirtIOPCIProxy *proxy)
+inline int virtio_pci_queue_mem_mult(struct VirtIOPCIProxy *proxy)
 {
     return (proxy->flags & VIRTIO_PCI_FLAG_PAGE_PER_VQ) ?
         QEMU_VIRTIO_PCI_QUEUE_MEM_MULT : 4;
@@ -1558,11 +1557,11 @@ static void virtio_pci_modern_regions_init(VirtIOPCIProxy *proxy,
                           proxy->notify_pio.size);
 }
 
-static void virtio_pci_modern_region_map(VirtIOPCIProxy *proxy,
-                                         VirtIOPCIRegion *region,
-                                         struct virtio_pci_cap *cap,
-                                         MemoryRegion *mr,
-                                         uint8_t bar)
+void virtio_pci_modern_region_map(VirtIOPCIProxy *proxy,
+                                  VirtIOPCIRegion *region,
+                                  struct virtio_pci_cap *cap,
+                                  MemoryRegion *mr,
+                                  uint8_t bar)
 {
     memory_region_add_subregion(mr, region->offset, &region->mr);
 

@@ -324,6 +324,8 @@ void virtio_queue_aio_attach_host_notifier_no_poll(VirtQueue *vq, AioContext *ct
 void virtio_queue_aio_detach_host_notifier(VirtQueue *vq, AioContext *ctx);
 VirtQueue *virtio_vector_first_queue(VirtIODevice *vdev, uint16_t vector);
 VirtQueue *virtio_vector_next_queue(VirtQueue *vq);
+void virtio_set_isr(VirtIODevice *vdev, int value);
+void virtio_notify_vector(VirtIODevice *vdev, uint16_t vector);
 
 static inline void virtio_add_feature(uint64_t *features, unsigned int fbit)
 {

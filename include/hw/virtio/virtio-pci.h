@@ -18,6 +18,7 @@
 #include "hw/pci/msi.h"
 #include "hw/virtio/virtio-bus.h"
 #include "qom/object.h"
+#include "standard-headers/linux/virtio_pci.h"
 
 
 /* virtio-pci-bus */
@@ -252,4 +253,10 @@ void virtio_pci_types_register(const VirtioPCIDeviceTypeInfo *t);
  */
 unsigned virtio_pci_optimal_num_queues(unsigned fixed_queues);
 
+int virtio_pci_queue_mem_mult(struct VirtIOPCIProxy *proxy);
+void virtio_pci_modern_region_map(VirtIOPCIProxy *proxy,
+                                  VirtIOPCIRegion *region,
+                                  struct virtio_pci_cap *cap,
+                                  MemoryRegion *mr,
+                                  uint8_t bar);
 #endif
