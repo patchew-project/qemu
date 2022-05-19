@@ -887,7 +887,26 @@ typedef enum MachineInitPhase {
     PHASE_MACHINE_READY,
 } MachineInitPhase;
 
+/*
+ * phase_get:
+ * Returns the current phase
+ */
+MachineInitPhase phase_get(void);
+
+/**
+ * phase_check:
+ * Test if current phase is at least @phase.
+ *
+ * Returns true if this is the case.
+ */
 extern bool phase_check(MachineInitPhase phase);
+
+/**
+ * @phase_advance:
+ * Update the current phase to @phase.
+ *
+ * Must only be used to make a single phase step.
+ */
 extern void phase_advance(MachineInitPhase phase);
 
 #endif
