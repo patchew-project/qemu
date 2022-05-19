@@ -28,10 +28,14 @@ typedef struct SVQElement {
     bool not_from_guest;
 } SVQElement;
 
+typedef struct VhostShadowVirtqueue VhostShadowVirtqueue;
+typedef int (*ShadowVirtQueueStart)(VhostShadowVirtqueue *svq,
+                                    struct vhost_dev *dev);
 typedef void (*VirtQueueElementCallback)(VirtIODevice *vdev,
                                          const VirtQueueElement *elem);
 
 typedef struct VhostShadowVirtqueueOps {
+    ShadowVirtQueueStart start;
     VirtQueueElementCallback used_elem_handler;
 } VhostShadowVirtqueueOps;
 

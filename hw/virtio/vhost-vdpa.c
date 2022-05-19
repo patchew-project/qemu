@@ -1141,6 +1141,20 @@ static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
         if (unlikely(r)) {
             return r;
         }
+
+        if (v->shadow_vqs_enabled) {
+            for (unsigned i = 0; i < v->shadow_vqs->len; ++i) {
+                VhostShadowVirtqueue *svq = g_ptr_array_index(v->shadow_vqs,
+                                                              i);
+                if (svq->ops && svq->ops->start) {
+                    r = svq->ops->start(svq, dev);
+                    if (unlikely(r)) {
+                        return r;
+                    }
+                }
+            }
+        }
+
         vhost_vdpa_set_vring_ready(dev);
     } else {
         vhost_vdpa_reset_device(dev);
