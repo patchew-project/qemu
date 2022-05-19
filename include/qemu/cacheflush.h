@@ -28,6 +28,10 @@ static inline void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
 
 #else
 
+#if defined(__powerpc__)
+extern bool have_coherent_icache;
+#endif
+
 void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len);
 
 #endif

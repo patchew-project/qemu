@@ -108,7 +108,16 @@ void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
     size_t isize = qemu_icache_linesize;
 
     b = rw & ~(dsize - 1);
+
+    if (have_coherent_icache) {
+        asm volatile ("sync" : : : "memory");
+        asm volatile ("icbi 0,%0" : : "r"(b) : "memory");
+        asm volatile ("isync" : : : "memory");
+        return;
+    }
+
     e = (rw + len + dsize - 1) & ~(dsize - 1);
+
     for (p = b; p < e; p += dsize) {
         asm volatile ("dcbst 0,%0" : : "r"(p) : "memory");
     }

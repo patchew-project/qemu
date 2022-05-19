@@ -133,18 +133,30 @@ static void arch_cache_info(int *isize, int *dsize)
     }
 }
 
-#elif defined(_ARCH_PPC) && defined(__linux__)
-# include "elf.h"
+#elif defined(__powerpc__)
 
+bool have_coherent_icache = false;
+
+# if defined(_ARCH_PPC) && defined(__linux__)
+#  include "elf.h"
 static void arch_cache_info(int *isize, int *dsize)
 {
+#  ifdef PPC_FEATURE_ICACHE_SNOOP
+    unsigned long hwcap = qemu_getauxval(AT_HWCAP);
+#  endif
+
     if (*isize == 0) {
         *isize = qemu_getauxval(AT_ICACHEBSIZE);
     }
     if (*dsize == 0) {
         *dsize = qemu_getauxval(AT_DCACHEBSIZE);
     }
+
+#  ifdef PPC_FEATURE_ICACHE_SNOOP
+    have_coherent_icache = (hwcap & PPC_FEATURE_ICACHE_SNOOP) != 0;
+#  endif
 }
+# endif
 
 #else
 static void arch_cache_info(int *isize, int *dsize) { }
