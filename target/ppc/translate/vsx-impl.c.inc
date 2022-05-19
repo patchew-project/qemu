@@ -1045,7 +1045,31 @@ GEN_VSX_HELPER_R2(xscvqpuwz, 0x04, 0x1A, 0x01, PPC2_ISA300)
 GEN_VSX_HELPER_X2(xscvhpdp, 0x16, 0x15, 0x10, PPC2_ISA300)
 GEN_VSX_HELPER_R2(xscvsdqp, 0x04, 0x1A, 0x0A, PPC2_ISA300)
 GEN_VSX_HELPER_X2(xscvspdp, 0x12, 0x14, 0, PPC2_VSX)
-GEN_VSX_HELPER_XT_XB_ENV(xscvspdpn, 0x16, 0x14, 0, PPC2_VSX207)
+
+bool trans_XSCVSPDPN(DisasContext *ctx, arg_XX2 *a)
+{
+    TCGv_i64 t;
+    TCGv_i32 b;
+
+    REQUIRE_INSNS_FLAGS2(ctx, VSX207);
+    REQUIRE_VSX(ctx);
+
+    t = tcg_temp_new_i64();
+    b = tcg_temp_new_i32();
+
+    tcg_gen_ld_i32(b, cpu_env, offsetof(CPUPPCState, vsr[a->xb].VsrW(0)));
+
+    gen_helper_todouble(t, b);
+
+    set_cpu_vsr(a->xt, t, true);
+    set_cpu_vsr(a->xt, tcg_constant_i64(0), false);
+
+    tcg_temp_free_i64(t);
+    tcg_temp_free_i32(b);
+
+    return true;
+}
+
 GEN_VSX_HELPER_X2(xscvdpsxds, 0x10, 0x15, 0, PPC2_VSX)
 GEN_VSX_HELPER_X2(xscvdpsxws, 0x10, 0x05, 0, PPC2_VSX)
 GEN_VSX_HELPER_X2(xscvdpuxds, 0x10, 0x14, 0, PPC2_VSX)

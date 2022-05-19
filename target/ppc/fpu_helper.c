@@ -2875,11 +2875,6 @@ uint64_t helper_xscvdpspn(CPUPPCState *env, uint64_t xb)
     return (result << 32) | result;
 }
 
-uint64_t helper_xscvspdpn(CPUPPCState *env, uint64_t xb)
-{
-    return helper_todouble(xb >> 32);
-}
-
 /*
  * VSX_CVT_FP_TO_INT - VSX floating point to integer conversion
  *   op    - instruction mnemonic
