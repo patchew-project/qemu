@@ -313,6 +313,43 @@ static void vhost_svq_kick(VhostShadowVirtqueue *svq)
 }
 
 /**
+ * Inject a chain of buffers to the device
+ *
+ * @svq: Shadow VirtQueue
+ * @iov: Descriptors buffer
+ * @out_num: Number of out elements
+ * @in_num: Number of in elements
+ */
+int vhost_svq_inject(VhostShadowVirtqueue *svq, const struct iovec *iov,
+                     size_t out_num, size_t in_num)
+{
+    SVQElement *svq_elem;
+    uint16_t num_slots = (in_num ? 1 : 0) + (out_num ? 1 : 0);
+
+    /*
+     * To inject buffers in a SVQ that does not copy descriptors is not
+     * supported. All vhost_svq_inject calls are controlled by qemu so we won't
+     * hit these assertions.
+     */
+    assert(svq->copy_descs);
+    assert(num_slots > 0);
+
+    if (unlikely(svq->next_guest_avail_elem)) {
+        error_report("Injecting in a full queue");
+        return -ENOMEM;
+    }
+
+    svq_elem = virtqueue_alloc_element(sizeof(*svq_elem), out_num, in_num);
+    iov_copy(svq_elem->elem.in_sg, in_num, iov + out_num, in_num, 0, SIZE_MAX);
+    iov_copy(svq_elem->elem.out_sg, out_num, iov, out_num, 0, SIZE_MAX);
+    svq_elem->not_from_guest = true;
+    vhost_svq_add(svq, svq_elem);
+    vhost_svq_kick(svq);
+
+    return 0;
+}
+
+/**
  * Forward available buffers.
  *
  * @svq: Shadow VirtQueue
@@ -350,6 +387,7 @@ static void vhost_handle_guest_kick(VhostShadowVirtqueue *svq)
                 break;
             }
 
+            svq_elem->not_from_guest = false;
             elem = &svq_elem->elem;
             needed_slots = svq->copy_descs ? 1 : elem->out_num + elem->in_num;
             if (needed_slots > vhost_svq_available_slots(svq)) {
@@ -575,19 +613,24 @@ static void vhost_svq_flush(VhostShadowVirtqueue *svq,
                 svq->ops->used_elem_handler(svq->vdev, elem);
             }
 
-            if (unlikely(i >= svq->vring.num)) {
-                qemu_log_mask(LOG_GUEST_ERROR,
-                         "More than %u used buffers obtained in a %u size SVQ",
-                         i, svq->vring.num);
-                virtqueue_fill(vq, elem, len, i);
-                virtqueue_flush(vq, i);
-                return;
+            if (!svq_elem->not_from_guest) {
+                if (unlikely(i >= svq->vring.num)) {
+                    qemu_log_mask(
+                        LOG_GUEST_ERROR,
+                        "More than %u used buffers obtained in a %u size SVQ",
+                        i, svq->vring.num);
+                    virtqueue_fill(vq, elem, len, i);
+                    virtqueue_flush(vq, i);
+                    return;
+                }
+                virtqueue_fill(vq, elem, len, i++);
             }
-            virtqueue_fill(vq, elem, len, i++);
         }
 
-        virtqueue_flush(vq, i);
-        event_notifier_set(&svq->svq_call);
+        if (i > 0) {
+            virtqueue_flush(vq, i);
+            event_notifier_set(&svq->svq_call);
+        }
 
         if (check_for_avail_queue && svq->next_guest_avail_elem) {
             /*
@@ -755,7 +798,10 @@ void vhost_svq_stop(VhostShadowVirtqueue *svq)
             if (svq->copy_descs) {
                 vhost_svq_unmap_elem(svq, svq_elem, 0, false);
             }
-            virtqueue_detach_element(svq->vq, &svq_elem->elem, 0);
+
+            if (!svq_elem->not_from_guest) {
+                virtqueue_detach_element(svq->vq, &svq_elem->elem, 0);
+            }
         }
     }
 
@@ -764,7 +810,9 @@ void vhost_svq_stop(VhostShadowVirtqueue *svq)
         if (svq->copy_descs) {
             vhost_svq_unmap_elem(svq, next_avail_elem, 0, false);
         }
-        virtqueue_detach_element(svq->vq, &next_avail_elem->elem, 0);
+        if (!next_avail_elem->not_from_guest) {
+            virtqueue_detach_element(svq->vq, &next_avail_elem->elem, 0);
+        }
     }
     svq->vq = NULL;
     g_free(svq->desc_next);
