@@ -188,6 +188,66 @@ static NetClientInfo net_vhost_vdpa_info = {
         .check_peer_type = vhost_vdpa_check_peer_type,
 };
 
+static int vhost_vdpa_start_control_svq(VhostShadowVirtqueue *svq,
+                                        struct vhost_dev *dev)
+{
+    struct vhost_vring_state state = {
+        .index = virtio_get_queue_index(svq->vq),
+        .num = 1,
+    };
+    struct vhost_vdpa *v = dev->opaque;
+    VirtIONet *n = VIRTIO_NET(dev->vdev);
+    uint64_t features = dev->vdev->host_features;
+    int r;
+    size_t num = 0;
+
+    assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_VDPA);
+
+    r = ioctl(v->device_fd, VHOST_VDPA_SET_VRING_ENABLE, &state);
+    if (r < 0) {
+        return -errno;
+    }
+
+    if (features & BIT_ULL(VIRTIO_NET_F_CTRL_MAC_ADDR)) {
+        const struct virtio_net_ctrl_hdr ctrl = {
+            .class = VIRTIO_NET_CTRL_MAC,
+            .cmd = VIRTIO_NET_CTRL_MAC_ADDR_SET,
+        };
+        uint8_t mac[6];
+        virtio_net_ctrl_ack ack;
+        const struct iovec data[] = {
+            {
+                .iov_base = (void *)&ctrl,
+                .iov_len = sizeof(ctrl),
+            },{
+                .iov_base = mac,
+                .iov_len = sizeof(mac),
+            },{
+                .iov_base = &ack,
+                .iov_len = sizeof(ack),
+            }
+        };
+
+        memcpy(mac, n->mac, sizeof(mac));
+        r = vhost_svq_inject(svq, data, 2, 1);
+        if (unlikely(r)) {
+            return r;
+        }
+        num++;
+    }
+
+    while (num) {
+        /*
+         * We can call vhost_svq_poll here because BQL protects calls to run.
+         */
+        size_t used = vhost_svq_poll(svq);
+        assert(used <= num);
+        num -= used;
+    }
+
+    return 0;
+}
+
 static void vhost_vdpa_net_handle_ctrl(VirtIODevice *vdev,
                                        const VirtQueueElement *elem)
 {
@@ -226,6 +286,7 @@ static void vhost_vdpa_net_handle_ctrl(VirtIODevice *vdev,
 
 static const VhostShadowVirtqueueOps vhost_vdpa_net_svq_ops = {
     .used_elem_handler = vhost_vdpa_net_handle_ctrl,
+    .start = vhost_vdpa_start_control_svq,
 };
 
 static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
