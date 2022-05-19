@@ -16,6 +16,7 @@
 #include "qemu/log.h"
 #include "qemu/memalign.h"
 #include "linux-headers/linux/vhost.h"
+#include "qemu/iov.h"
 
 /**
  * Validate the transport device features that both guests can use with the SVQ
@@ -68,6 +69,30 @@ bool vhost_svq_valid_features(uint64_t features, Error **errp)
 static uint16_t vhost_svq_available_slots(const VhostShadowVirtqueue *svq)
 {
     return svq->vring.num - (svq->shadow_avail_idx - svq->shadow_used_idx);
+}
+
+static void vhost_svq_alloc_buffer(void **base, size_t *len,
+                                   const struct iovec *iov, size_t num,
+                                   bool write)
+{
+    *len = iov_size(iov, num);
+    size_t buf_size = ROUND_UP(*len, 4096);
+
+    if (!num) {
+        return;
+    }
+
+    /*
+     * Linearize element. If guest had a descriptor chain, we expose the device
+     * a single buffer.
+     */
+    *base = qemu_memalign(4096, buf_size);
+    if (!write) {
+        iov_to_buf(iov, num, 0, *base, *len);
+        memset(*base + *len, 0, buf_size - *len);
+    } else {
+        memset(*base, 0, *len);
+    }
 }
 
 /**
@@ -126,7 +151,9 @@ static bool vhost_svq_translate_addr(const VhostShadowVirtqueue *svq,
  * Write descriptors to SVQ vring
  *
  * @svq: The shadow virtqueue
+ * @svq_elem: The shadow virtqueue element
  * @sg: Cache for hwaddr
+ * @descs_len: Total written buffer if svq->copy_descs.
  * @iovec: The iovec from the guest
  * @num: iovec length
  * @more_descs: True if more descriptors come in the chain
@@ -134,7 +161,9 @@ static bool vhost_svq_translate_addr(const VhostShadowVirtqueue *svq,
  *
  * Return true if success, false otherwise and print error.
  */
-static bool vhost_svq_vring_write_descs(VhostShadowVirtqueue *svq, hwaddr *sg,
+static bool vhost_svq_vring_write_descs(VhostShadowVirtqueue *svq,
+                                        SVQElement *svq_elem, hwaddr *sg,
+                                        size_t *descs_len,
                                         const struct iovec *iovec, size_t num,
                                         bool more_descs, bool write)
 {
@@ -142,18 +171,41 @@ static bool vhost_svq_vring_write_descs(VhostShadowVirtqueue *svq, hwaddr *sg,
     unsigned n;
     uint16_t flags = write ? cpu_to_le16(VRING_DESC_F_WRITE) : 0;
     vring_desc_t *descs = svq->vring.desc;
-    bool ok;
-
     if (num == 0) {
         return true;
     }
 
-    ok = vhost_svq_translate_addr(svq, sg, iovec, num);
-    if (unlikely(!ok)) {
-        return false;
+    if (svq->copy_descs) {
+        void *buf;
+        DMAMap map = {};
+        int r;
+
+        vhost_svq_alloc_buffer(&buf, descs_len, iovec, num, write);
+        map.translated_addr = (hwaddr)(uintptr_t)buf;
+        map.size = ROUND_UP(*descs_len, 4096) - 1;
+        map.perm = write ? IOMMU_RW : IOMMU_RO,
+        r = vhost_iova_tree_map_alloc(svq->iova_tree, &map);
+        if (unlikely(r != IOVA_OK)) {
+            error_report("Cannot map injected element");
+            return false;
+        }
+
+        r = svq->map_ops->map(map.iova, map.size + 1,
+                              (void *)map.translated_addr, !write,
+                              svq->map_ops_opaque);
+        /* TODO: Handle error */
+        assert(r == 0);
+        num = 1;
+        sg[0] = map.iova;
+    } else {
+        bool ok = vhost_svq_translate_addr(svq, sg, iovec, num);
+        if (unlikely(!ok)) {
+            return false;
+        }
     }
 
     for (n = 0; n < num; n++) {
+        uint32_t len = svq->copy_descs ? *descs_len : iovec[n].iov_len;
         if (more_descs || (n + 1 < num)) {
             descs[i].flags = flags | cpu_to_le16(VRING_DESC_F_NEXT);
             descs[i].next = cpu_to_le16(svq->desc_next[i]);
@@ -161,7 +213,7 @@ static bool vhost_svq_vring_write_descs(VhostShadowVirtqueue *svq, hwaddr *sg,
             descs[i].flags = flags;
         }
         descs[i].addr = cpu_to_le64(sg[n]);
-        descs[i].len = cpu_to_le32(iovec[n].iov_len);
+        descs[i].len = cpu_to_le32(len);
 
         last = i;
         i = cpu_to_le16(svq->desc_next[i]);
@@ -178,7 +230,8 @@ static bool vhost_svq_add_split(VhostShadowVirtqueue *svq, SVQElement *svq_elem,
     unsigned avail_idx;
     vring_avail_t *avail = svq->vring.avail;
     bool ok;
-    g_autofree hwaddr *sgs = g_new(hwaddr, MAX(elem->out_num, elem->in_num));
+    g_autofree hwaddr *sgs = NULL;
+    hwaddr *in_sgs, *out_sgs;
 
     *head = svq->free_head;
 
@@ -189,15 +242,24 @@ static bool vhost_svq_add_split(VhostShadowVirtqueue *svq, SVQElement *svq_elem,
         return false;
     }
 
-    ok = vhost_svq_vring_write_descs(svq, sgs, elem->out_sg, elem->out_num,
+    if (!svq->copy_descs) {
+        sgs = g_new(hwaddr, MAX(elem->out_num, elem->in_num));
+        in_sgs = out_sgs = sgs;
+    } else {
+        in_sgs = &svq_elem->in_iova;
+        out_sgs = &svq_elem->out_iova;
+    }
+    ok = vhost_svq_vring_write_descs(svq, svq_elem, out_sgs, (size_t[]){},
+                                     elem->out_sg, elem->out_num,
                                      elem->in_num > 0, false);
     if (unlikely(!ok)) {
         return false;
     }
 
-    ok = vhost_svq_vring_write_descs(svq, sgs, elem->in_sg, elem->in_num, false,
-                                     true);
+    ok = vhost_svq_vring_write_descs(svq, svq_elem, in_sgs, &svq_elem->in_len,
+                                     elem->in_sg, elem->in_num, false, true);
     if (unlikely(!ok)) {
+        /* TODO unwind out_sg */
         return false;
     }
 
@@ -276,6 +338,7 @@ static void vhost_handle_guest_kick(VhostShadowVirtqueue *svq)
             SVQElement *svq_elem;
             VirtQueueElement *elem;
             bool ok;
+            uint32_t needed_slots;
 
             if (svq->next_guest_avail_elem) {
                 svq_elem = g_steal_pointer(&svq->next_guest_avail_elem);
@@ -288,7 +351,8 @@ static void vhost_handle_guest_kick(VhostShadowVirtqueue *svq)
             }
 
             elem = &svq_elem->elem;
-            if (elem->out_num + elem->in_num > vhost_svq_available_slots(svq)) {
+            needed_slots = svq->copy_descs ? 1 : elem->out_num + elem->in_num;
+            if (needed_slots > vhost_svq_available_slots(svq)) {
                 /*
                  * This condition is possible since a contiguous buffer in GPA
                  * does not imply a contiguous buffer in qemu's VA
@@ -411,6 +475,76 @@ static SVQElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq, uint32_t *len)
     return g_steal_pointer(&svq->ring_id_maps[used_elem.id]);
 }
 
+/**
+ * Unmap a descriptor chain of a SVQ element, optionally copying its in buffers
+ *
+ * @svq: Shadow VirtQueue
+ * @iova: SVQ IO Virtual address of descriptor
+ * @iov: Optional iovec to store device writable buffer
+ * @iov_cnt: iov length
+ * @buf_len: Length written by the device
+ *
+ * Print error message in case of error
+ */
+static bool vhost_svq_unmap_iov(VhostShadowVirtqueue *svq, hwaddr iova,
+                                const struct iovec *iov, size_t iov_cnt,
+                                size_t buf_len)
+{
+    DMAMap needle = {
+        /*
+         * No need to specify size since contiguous iova chunk was allocated
+         * by SVQ.
+         */
+        .iova = iova,
+    };
+    const DMAMap *map = vhost_iova_tree_find(svq->iova_tree, &needle);
+    int r;
+
+    if (!map) {
+        error_report("Cannot locate expected map");
+        return false;
+    }
+
+    r = svq->map_ops->unmap(map->iova, map->size + 1, svq->map_ops_opaque);
+    if (unlikely(r != 0)) {
+        error_report("Device cannot unmap: %s(%d)", g_strerror(r), r);
+        return false;
+    }
+
+    if (iov) {
+        iov_from_buf(iov, iov_cnt, 0, (const void *)map->translated_addr, buf_len);
+    }
+    qemu_vfree((void *)map->translated_addr);
+    vhost_iova_tree_remove(svq->iova_tree, &needle);
+    return true;
+}
+
+/**
+ * Unmap shadow virtqueue element
+ *
+ * @svq_elem: Shadow VirtQueue Element
+ * @copy_in: Copy in buffer to the element at unmapping
+ */
+static bool vhost_svq_unmap_elem(VhostShadowVirtqueue *svq, SVQElement *svq_elem, uint32_t len, bool copy_in)
+{
+    VirtQueueElement *elem = &svq_elem->elem;
+    const struct iovec *in_iov = copy_in ? elem->in_sg : NULL;
+    size_t in_count = copy_in ? elem->in_num : 0;
+    if (elem->out_num) {
+        bool ok = vhost_svq_unmap_iov(svq, svq_elem->out_iova, NULL, 0, 0);
+        if (unlikely(!ok)) {
+            return false;
+        }
+    }
+
+    if (elem->in_num) {
+        return vhost_svq_unmap_iov(svq, svq_elem->in_iova, in_iov, in_count,
+                                   len);
+    }
+
+    return true;
+}
+
 static void vhost_svq_flush(VhostShadowVirtqueue *svq,
                             bool check_for_avail_queue)
 {
@@ -427,6 +561,13 @@ static void vhost_svq_flush(VhostShadowVirtqueue *svq,
             VirtQueueElement *elem;
             if (!svq_elem) {
                 break;
+            }
+
+            if (svq->copy_descs) {
+                bool ok = vhost_svq_unmap_elem(svq, svq_elem, len, true);
+                if (unlikely(!ok)) {
+                    return;
+                }
             }
 
             elem = &svq_elem->elem;
@@ -611,12 +752,18 @@ void vhost_svq_stop(VhostShadowVirtqueue *svq)
         g_autofree SVQElement *svq_elem = NULL;
         svq_elem = g_steal_pointer(&svq->ring_id_maps[i]);
         if (svq_elem) {
+            if (svq->copy_descs) {
+                vhost_svq_unmap_elem(svq, svq_elem, 0, false);
+            }
             virtqueue_detach_element(svq->vq, &svq_elem->elem, 0);
         }
     }
 
     next_avail_elem = g_steal_pointer(&svq->next_guest_avail_elem);
     if (next_avail_elem) {
+        if (svq->copy_descs) {
+            vhost_svq_unmap_elem(svq, next_avail_elem, 0, false);
+        }
         virtqueue_detach_element(svq->vq, &next_avail_elem->elem, 0);
     }
     svq->vq = NULL;
@@ -632,6 +779,7 @@ void vhost_svq_stop(VhostShadowVirtqueue *svq)
  *
  * @iova_tree: Tree to perform descriptors translations
  * @ops: SVQ operations hooks
+ * @copy_descs: Copy each descriptor to QEMU iova
  * @map_ops: SVQ mapping operation hooks
  * @map_ops_opaque: Opaque data to pass to mapping operations
  *
@@ -641,6 +789,7 @@ void vhost_svq_stop(VhostShadowVirtqueue *svq)
  */
 VhostShadowVirtqueue *vhost_svq_new(VhostIOVATree *iova_tree,
                                     const VhostShadowVirtqueueOps *ops,
+                                    bool copy_descs,
                                     const VhostShadowVirtqueueMapOps *map_ops,
                                     void *map_ops_opaque)
 {
@@ -665,6 +814,7 @@ VhostShadowVirtqueue *vhost_svq_new(VhostIOVATree *iova_tree,
     event_notifier_set_handler(&svq->hdev_call, vhost_svq_handle_call);
     svq->iova_tree = iova_tree;
     svq->ops = ops;
+    svq->copy_descs = copy_descs;
     svq->map_ops = map_ops;
     svq->map_ops_opaque = map_ops_opaque;
     return g_steal_pointer(&svq);
