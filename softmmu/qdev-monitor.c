@@ -43,6 +43,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/clock.h"
 #include "hw/boards.h"
+#include "hw/loader.h"
 
 /*
  * Aliases were a bad idea from the start.  Let's keep them
@@ -673,6 +674,10 @@ DeviceState *qdev_device_add_from_qdict(const QDict *opts,
         return NULL;
     }
 
+    if (!is_hotplug) {
+        rom_set_order_override(FW_CFG_ORDER_OVERRIDE_DEVICE);
+    }
+
     /* create device */
     dev = qdev_new(driver);
 
@@ -714,12 +719,18 @@ DeviceState *qdev_device_add_from_qdict(const QDict *opts,
     if (!qdev_realize(DEVICE(dev), bus, errp)) {
         goto err_del_dev;
     }
+    if (!is_hotplug) {
+        rom_reset_order_override();
+    }
     return dev;
 
 err_del_dev:
     if (dev) {
         object_unparent(OBJECT(dev));
         object_unref(OBJECT(dev));
+    }
+    if (!is_hotplug) {
+        rom_reset_order_override();
     }
     return NULL;
 }
