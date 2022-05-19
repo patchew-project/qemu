@@ -77,7 +77,8 @@
 { 'command': 'device_add',
   'data': {'driver': 'str', '*bus': 'str', '*id': 'str'},
   'gen': false, # so we can get the additional arguments
-  'features': ['json-cli', 'json-cli-hotplug'] }
+  'features': ['json-cli', 'json-cli-hotplug'],
+  'allow-preconfig': true }
 
 ##
 # @device_del:

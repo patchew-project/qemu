@@ -672,6 +672,7 @@ ERST
         .help       = "add device, like -device on the command line",
         .cmd        = hmp_device_add,
         .command_completion = device_add_completion,
+        .flags      = "p",
     },
 
 SRST
