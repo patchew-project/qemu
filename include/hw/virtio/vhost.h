@@ -84,6 +84,7 @@ struct vhost_dev {
     int vq_index_end;
     /* if non-zero, minimum required value for max_queues */
     int num_queues;
+    uint32_t address_space_id;
     /* Must be a vq group different than any other vhost dev */
     bool independent_vq_group;
     uint64_t features;
