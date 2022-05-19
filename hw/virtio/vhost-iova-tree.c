@@ -28,6 +28,9 @@ struct VhostIOVATree {
 
     /* IOVA address to qemu memory maps. */
     IOVATree *iova_taddr_map;
+
+    /* Reference count */
+    size_t refcnt;
 };
 
 /**
@@ -44,14 +47,28 @@ VhostIOVATree *vhost_iova_tree_new(hwaddr iova_first, hwaddr iova_last)
     tree->iova_last = iova_last;
 
     tree->iova_taddr_map = iova_tree_new();
+    tree->refcnt = 1;
     return tree;
 }
 
 /**
- * Delete an iova tree
+ * Increases the reference count of the iova tree
  */
-void vhost_iova_tree_delete(VhostIOVATree *iova_tree)
+VhostIOVATree *vhost_iova_tree_acquire(VhostIOVATree *iova_tree)
 {
+    ++iova_tree->refcnt;
+    return iova_tree;
+}
+
+/**
+ * Decrease reference counter of iova tree, freeing if it reaches 0
+ */
+void vhost_iova_tree_release(VhostIOVATree *iova_tree)
+{
+    if (--iova_tree->refcnt) {
+        return;
+    }
+
     iova_tree_destroy(iova_tree->iova_taddr_map);
     g_free(iova_tree);
 }
