@@ -2702,11 +2702,17 @@ void qmp_x_exit_preconfig(Error **errp)
         error_setg(errp, "The command is permitted only before machine initialization");
         return;
     }
+    phase_until(PHASE_MACHINE_READY, errp);
+}
 
+static void qemu_phase_ready(Error **errp)
+{
     qemu_init_board();
+    /* phase is now PHASE_MACHINE_INITIALIZED. */
     qemu_create_cli_devices();
     cxl_fixed_memory_window_link_targets(errp);
     qemu_machine_creation_done();
+    /* Phase is now PHASE_MACHINE_READY. */
 
     if (loadvm) {
         load_snapshot(loadvm, NULL, false, NULL, &error_fatal);
@@ -2727,6 +2733,46 @@ void qmp_x_exit_preconfig(Error **errp)
     } else if (autostart) {
         qmp_cont(NULL);
     }
+}
+
+bool phase_until(MachineInitPhase phase, Error **errp)
+{
+    ERRP_GUARD();
+    if (!phase_check(PHASE_ACCEL_CREATED)) {
+        error_setg(errp, "Phase transition is not supported until accelerator"
+                   " is created");
+        return false;
+    }
+
+    while (!phase_check(phase)) {
+        MachineInitPhase cur_phase = phase_get();
+
+        switch (cur_phase) {
+        case PHASE_ACCEL_CREATED:
+            qemu_phase_ready(errp);
+            break;
+
+        default:
+            /*
+             * If we end up here, it is because we miss a case above.
+             */
+            error_setg(&error_abort, "Requested phase transition is not"
+                       " implemented");
+            return false;
+        }
+
+        if (*errp) {
+            return false;
+        }
+
+        /*
+         * Ensure we made some progress.
+         * With the default case above, it should be enough to prevent
+         * any infinite loop.
+         */
+        assert(cur_phase < phase_get());
+    }
+    return true;
 }
 
 void qemu_init(int argc, char **argv, char **envp)
