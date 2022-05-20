@@ -46,21 +46,21 @@ static bool do_tlbie(DisasContext *ctx, arg_X_tlbie *a, bool local)
     }
 
     if (ctx->pr) {
-        /* tlbie is privileged... */
+        /* tlbie[l] is privileged... */
         gen_priv_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return true;
     } else if (!ctx->hv) {
-        if (!ctx->gtse || (!a->prs && ctx->hr)) {
+        if ((!a->prs && ctx->hr) || (!local && !ctx->gtse)) {
             /*
-             * ... except when GTSE=0 or when PRS=0 and HR=1, making it
-             * hypervisor privileged.
+             * ... except when PRS=0 and HR=1, or when GTSE=0 for tlbie,
+             * making it hypervisor privileged.
              */
             gen_priv_exception(ctx, POWERPC_EXCP_PRIV_OPC);
             return true;
         }
     }
 
-    if (NARROW_MODE(ctx)) {
+    if (!local && NARROW_MODE(ctx)) {
         TCGv t0 = tcg_temp_new();
         tcg_gen_ext32u_tl(t0, cpu_gpr[rb]);
         gen_helper_tlbie(cpu_env, t0);
@@ -68,6 +68,11 @@ static bool do_tlbie(DisasContext *ctx, arg_X_tlbie *a, bool local)
     } else {
         gen_helper_tlbie(cpu_env, cpu_gpr[rb]);
     }
+
+    if (local) {
+        return true;
+    }
+
     t1 = tcg_temp_new_i32();
     tcg_gen_ld_i32(t1, cpu_env, offsetof(CPUPPCState, tlb_need_flush));
     tcg_gen_ori_i32(t1, t1, TLB_NEED_GLOBAL_FLUSH);
@@ -79,3 +84,4 @@ static bool do_tlbie(DisasContext *ctx, arg_X_tlbie *a, bool local)
 }
 
 TRANS_FLAGS(MEM_TLBIE, TLBIE, do_tlbie, false)
+TRANS_FLAGS(MEM_TLBIE, TLBIEL, do_tlbie, true)
