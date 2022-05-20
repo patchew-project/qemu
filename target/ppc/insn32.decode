@@ -710,3 +710,10 @@ XVTLSBB         111100 ... -- 00010 ..... 111011011 . - @XX2_bf_xb
 &XL_s           s:uint8_t
 @XL_s           ......-------------- s:1 .......... -   &XL_s
 RFEBB           010011-------------- .   0010010010 -   @XL_s
+
+## TLB Management Instructions
+
+&X_tlbie        rb rs ric prs:bool r:bool
+@X_tlbie        ...... rs:5 - ric:2 prs:1 r:1 rb:5 .......... .     &X_tlbie
+
+TLBIE           011111 ..... - .. . . ..... 0100110010 -            @X_tlbie
