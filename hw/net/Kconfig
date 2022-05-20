@@ -61,6 +61,9 @@ config LAN9118
     bool
     select PTIMER
 
+config LITEETH
+    bool
+
 config NE2000_ISA
     bool
     default y
