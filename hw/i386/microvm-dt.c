@@ -209,7 +209,7 @@ static void dt_add_isa_rtc(MicrovmMachineState *mms, ISADevice *dev)
 {
     const char compat[] = "motorola,mc146818";
     uint32_t irq = object_property_get_uint(OBJECT(dev), "irq", NULL);
-    hwaddr base = RTC_ISA_BASE;
+    hwaddr base = object_property_get_int(OBJECT(dev), "iobase", NULL);
     hwaddr size = 8;
     char *nodename;
 
