@@ -2041,8 +2041,7 @@ static void qemu_create_late_backends(void)
         exit(1);
 
     /* now chardevs have been created we may have semihosting to connect */
-    qemu_semihosting_connect_chardevs();
-    qemu_semihosting_console_init();
+    qemu_semihosting_chardev_init();
 }
 
 static void cxl_set_opts(void)
