@@ -42,6 +42,7 @@
 #define GDB_ENAMETOOLONG   91
 #define GDB_EUNKNOWN       9999
 #define GDB_ENOTTY         GDB_EUNKNOWN
+#define GDB_EOVERFLOW      GDB_EUNKNOWN
 
 /* For gdb file i/o remote protocol lseek whence. */
 #define GDB_SEEK_SET  0
