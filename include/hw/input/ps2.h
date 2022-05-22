@@ -35,6 +35,8 @@
 
 struct PS2DeviceClass {
     DeviceClass parent_class;
+
+    DeviceReset parent_reset;
 };
 
 /*
