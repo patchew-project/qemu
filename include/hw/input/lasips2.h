@@ -22,6 +22,8 @@ typedef struct LASIPS2Port {
     bool irq;
 } LASIPS2Port;
 
+#define LASIPS2_IRQ    0
+
 struct LASIPS2State {
     SysBusDevice parent_obj;
 
