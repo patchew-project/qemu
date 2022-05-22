@@ -117,6 +117,9 @@ static const char *lasips2_write_reg_name(uint64_t addr)
     }
 }
 
+#define LASIPS2_KBD_INPUT_IRQ      0
+#define LASIPS2_MOUSE_INPUT_IRQ    1
+
 static void lasips2_update_irq(LASIPS2State *s)
 {
     trace_lasips2_intr(s->kbd.irq | s->mouse.irq);
@@ -237,9 +240,10 @@ static const MemoryRegionOps lasips2_reg_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void lasips2_port_set_irq(void *opaque, int level)
+static void lasips2_set_irq(void *opaque, int n, int level)
 {
-    LASIPS2Port *port = opaque;
+    LASIPS2State *s = LASIPS2(opaque);
+    LASIPS2Port *port = (n ? &s->mouse : &s->kbd);
 
     port->irq = level;
     lasips2_update_irq(port->parent);
@@ -263,8 +267,12 @@ static void lasips2_realize(DeviceState *dev, Error **errp)
 
     vmstate_register(NULL, s->base, &vmstate_lasips2, s);
 
-    s->kbd.dev = ps2_kbd_init(lasips2_port_set_irq, &s->kbd);
-    s->mouse.dev = ps2_mouse_init(lasips2_port_set_irq, &s->mouse);
+    s->kbd.dev = ps2_kbd_init(NULL, NULL);
+    qdev_connect_gpio_out(DEVICE(s->kbd.dev), PS2_DEVICE_IRQ,
+                          qdev_get_gpio_in(dev, LASIPS2_KBD_INPUT_IRQ));
+    s->mouse.dev = ps2_mouse_init(NULL, NULL);
+    qdev_connect_gpio_out(DEVICE(s->mouse.dev), PS2_DEVICE_IRQ,
+                          qdev_get_gpio_in(dev, LASIPS2_MOUSE_INPUT_IRQ));
 }
 
 static void lasips2_init(Object *obj)
@@ -285,6 +293,7 @@ static void lasips2_init(Object *obj)
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mouse.reg);
 
     qdev_init_gpio_out(DEVICE(obj), &s->irq, 1);
+    qdev_init_gpio_in(DEVICE(obj), lasips2_set_irq, 2);
 }
 
 static Property lasips2_properties[] = {
