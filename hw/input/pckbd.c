@@ -665,6 +665,21 @@ static const MemoryRegionOps i8042_mmio_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+#define I8042_KBD_INPUT_IRQ        0
+#define I8042_MOUSE_INPUT_IRQ      1
+
+static void i8042_mmio_set_irq(void *opaque, int n, int level)
+{
+    MMIOKBDState *s = I8042_MMIO(opaque);
+    KBDState *ks = &s->kbd;
+
+    if (n) {
+        kbd_update_aux_irq(ks, level);
+    } else {
+        kbd_update_kbd_irq(ks, level);
+    }
+}
+
 static void i8042_mmio_reset(DeviceState *dev)
 {
     MMIOKBDState *s = I8042_MMIO(dev);
@@ -685,15 +700,23 @@ static void i8042_mmio_realize(DeviceState *dev, Error **errp)
     /* Note we can't use dc->vmsd without breaking migration compatibility */
     vmstate_register(NULL, 0, &vmstate_kbd, ks);
 
-    ks->kbd = ps2_kbd_init(kbd_update_kbd_irq, ks);
-    ks->mouse = ps2_mouse_init(kbd_update_aux_irq, ks);
+    ks->kbd = ps2_kbd_init(NULL, NULL);
+    qdev_connect_gpio_out(DEVICE(ks->kbd), PS2_DEVICE_IRQ,
+                          qdev_get_gpio_in(dev, I8042_KBD_INPUT_IRQ));
+    ks->mouse = ps2_mouse_init(NULL, NULL);
+    qdev_connect_gpio_out(DEVICE(ks->mouse), PS2_DEVICE_IRQ,
+                          qdev_get_gpio_in(dev, I8042_MOUSE_INPUT_IRQ));
 }
 
 static void i8042_mmio_init(Object *obj)
 {
     MMIOKBDState *s = I8042_MMIO(obj);
+    KBDState *ks = &s->kbd;
 
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->region);
+
+    qdev_init_gpio_out(DEVICE(obj), ks->irqs, 2);
+    qdev_init_gpio_in(DEVICE(obj), i8042_mmio_set_irq, 2);
 }
 
 static Property i8042_mmio_properties[] = {
@@ -716,16 +739,14 @@ MMIOKBDState *i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
                             ram_addr_t size, hwaddr mask)
 {
     DeviceState *dev;
-    KBDState *s;
 
     dev = qdev_new(TYPE_I8042_MMIO);
     qdev_prop_set_uint64(dev, "mask", mask);
     qdev_prop_set_uint32(dev, "size", size);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    s = &I8042_MMIO(dev)->kbd;
 
-    s->irqs[I8042_KBD_IRQ] = kbd_irq;
-    s->irqs[I8042_MOUSE_IRQ] = mouse_irq;
+    qdev_connect_gpio_out(dev, I8042_KBD_IRQ, kbd_irq);
+    qdev_connect_gpio_out(dev, I8042_MOUSE_IRQ, mouse_irq);
 
     return I8042_MMIO(dev);
 }
