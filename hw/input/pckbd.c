@@ -700,10 +700,10 @@ static void i8042_mmio_realize(DeviceState *dev, Error **errp)
     /* Note we can't use dc->vmsd without breaking migration compatibility */
     vmstate_register(NULL, 0, &vmstate_kbd, ks);
 
-    ks->kbd = ps2_kbd_init(NULL, NULL);
+    ks->kbd = ps2_kbd_init();
     qdev_connect_gpio_out(DEVICE(ks->kbd), PS2_DEVICE_IRQ,
                           qdev_get_gpio_in(dev, I8042_KBD_INPUT_IRQ));
-    ks->mouse = ps2_mouse_init(NULL, NULL);
+    ks->mouse = ps2_mouse_init();
     qdev_connect_gpio_out(DEVICE(ks->mouse), PS2_DEVICE_IRQ,
                           qdev_get_gpio_in(dev, I8042_MOUSE_INPUT_IRQ));
 }
@@ -861,10 +861,10 @@ static void i8042_realizefn(DeviceState *dev, Error **errp)
     isa_register_ioport(isadev, isa_s->io + 0, 0x60);
     isa_register_ioport(isadev, isa_s->io + 1, 0x64);
 
-    s->kbd = ps2_kbd_init(NULL, NULL);
+    s->kbd = ps2_kbd_init();
     qdev_connect_gpio_out(DEVICE(s->kbd), PS2_DEVICE_IRQ,
                           qdev_get_gpio_in(dev, I8042_KBD_INPUT_IRQ));
-    s->mouse = ps2_mouse_init(NULL, NULL);
+    s->mouse = ps2_mouse_init();
     qdev_connect_gpio_out(DEVICE(s->mouse), PS2_DEVICE_IRQ,
                           qdev_get_gpio_in(dev, I8042_MOUSE_INPUT_IRQ));
     if (isa_s->kbd_throttle && !isa_s->kbd.extended_state) {
