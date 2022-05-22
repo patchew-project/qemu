@@ -206,6 +206,7 @@ static void piix4_realize(PCIDevice *dev, Error **errp)
     PIIX4State *s = PIIX4_PCI_DEVICE(dev);
     PCIDevice *pci;
     PCIBus *pci_bus = pci_get_bus(dev);
+    I2CBus *smbus;
     ISABus *isa_bus;
     qemu_irq *i8259_out_irq;
 
@@ -251,6 +252,11 @@ static void piix4_realize(PCIDevice *dev, Error **errp)
 
     /* USB */
     pci_create_simple(pci_bus, dev->devfn + 2, "piix4-usb-uhci");
+
+    /* ACPI controller */
+    smbus = piix4_pm_init(pci_bus, pci->devfn + 3, 0x1100, s->isa[9],
+                          NULL, 0, NULL);
+    object_property_add_const_link(OBJECT(s), "smbus", OBJECT(smbus));
 
     pci_bus_irqs(pci_bus, piix4_set_irq, pci_slot_get_pirq, s, PIIX_NUM_PIRQS);
 }
@@ -301,7 +307,7 @@ static void piix4_register_types(void)
 
 type_init(piix4_register_types)
 
-DeviceState *piix4_create(PCIBus *pci_bus, I2CBus **smbus)
+DeviceState *piix4_create(PCIBus *pci_bus)
 {
     PCIDevice *pci;
     DeviceState *dev;
@@ -310,12 +316,6 @@ DeviceState *piix4_create(PCIBus *pci_bus, I2CBus **smbus)
     pci = pci_create_simple_multifunction(pci_bus, devfn,  true,
                                           TYPE_PIIX4_PCI_DEVICE);
     dev = DEVICE(pci);
-
-    if (smbus) {
-        *smbus = piix4_pm_init(pci_bus, devfn + 3, 0x1100,
-                               qdev_get_gpio_in_named(dev, "isa", 9),
-                               NULL, 0, NULL);
-    }
 
     return dev;
 }
