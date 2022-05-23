@@ -125,6 +125,14 @@ G_NORETURN void raise_exception_ra(CPUARMState *env, uint32_t excp,
                                    uint32_t syndrome,
                                    uint32_t cur_or_target_el, uintptr_t ra);
 
+/**
+ * raise_exception_debug:
+ * Similarly.  If @excp != EXCPBKPT, modify syndrome to indicate
+ * when origin and target EL are the same.
+ */
+G_NORETURN void raise_exception_debug(CPUARMState *env, uint32_t excp,
+                                      uint32_t syndrome);
+
 /*
  * For AArch64, map a given EL to an index in the banked_spsr array.
  * Note that this mapping and the AArch32 mapping defined in bank_number()

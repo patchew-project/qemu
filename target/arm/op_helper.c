@@ -65,21 +65,50 @@ int exception_target_el(CPUARMState *env, int cur_el, uint32_t *psyn)
     return 1;
 }
 
-void raise_exception(CPUARMState *env, uint32_t excp, uint32_t syndrome,
-                     uint32_t cur_or_target_el)
+G_NORETURN static
+void raise_exception_int(CPUARMState *env, uint32_t excp,
+                         uint32_t syndrome, uint32_t target_el)
 {
     CPUState *cs = env_cpu(env);
-    int target_el = cur_or_target_el;
-
-    if (cur_or_target_el <= 1) {
-        target_el = exception_target_el(env, cur_or_target_el, &syndrome);
-    }
 
     assert(!excp_is_internal(excp));
     cs->exception_index = excp;
     env->exception.syndrome = syndrome;
     env->exception.target_el = target_el;
     cpu_loop_exit(cs);
+}
+
+void raise_exception(CPUARMState *env, uint32_t excp, uint32_t syndrome,
+                     uint32_t cur_or_target_el)
+{
+    int target_el = cur_or_target_el;
+    if (cur_or_target_el <= 1) {
+        target_el = exception_target_el(env, cur_or_target_el, &syndrome);
+    }
+    raise_exception_int(env, excp, syndrome, target_el);
+}
+
+void raise_exception_debug(CPUARMState *env, uint32_t excp, uint32_t syndrome)
+{
+    int cur_el = arm_current_el(env);
+    int debug_el = arm_debug_target_el(env);
+
+    /*
+     * Most kinds of architectural debug exception are ignored if
+     * they target an exception level below the current (in QEMU
+     * this is checked by arm_generate_debug_exceptions()).
+     * Breakpoint instructions are special because they always generate
+     * an exception to somewhere: if they can't go to the configured
+     * debug exception level they are taken to the current exception level.
+     */
+    if (excp == EXCP_BKPT) {
+        debug_el = MAX(cur_el, debug_el);
+    } else {
+        assert(debug_el >= cur_el);
+        syndrome |= (debug_el == cur_el) << ARM_EL_EC_SHIFT;
+    }
+
+    raise_exception_int(env, excp, syndrome, debug_el);
 }
 
 void raise_exception_ra(CPUARMState *env, uint32_t excp, uint32_t syndrome,
