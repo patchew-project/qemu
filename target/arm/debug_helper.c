@@ -13,9 +13,8 @@
 
 
 /* See AArch64.GenerateDebugExceptionsFrom() in ARM ARM pseudocode */
-static bool aa64_generate_debug_exceptions(CPUARMState *env)
+static bool aa64_generate_debug_exceptions(CPUARMState *env, int cur_el)
 {
-    int cur_el = arm_current_el(env);
     int debug_el;
 
     if (cur_el == 3) {
@@ -43,18 +42,16 @@ static bool aa64_generate_debug_exceptions(CPUARMState *env)
     return debug_el > cur_el;
 }
 
-static bool aa32_generate_debug_exceptions(CPUARMState *env)
+static bool aa32_generate_debug_exceptions(CPUARMState *env, int cur_el)
 {
-    int el = arm_current_el(env);
-
-    if (el == 0 && arm_el_is_aa64(env, 1)) {
-        return aa64_generate_debug_exceptions(env);
+    if (cur_el == 0 && arm_el_is_aa64(env, 1)) {
+        return aa64_generate_debug_exceptions(env, cur_el);
     }
 
     if (arm_is_secure(env)) {
         int spd;
 
-        if (el == 0 && (env->cp15.sder & 1)) {
+        if (cur_el == 0 && (env->cp15.sder & 1)) {
             /*
              * SDER.SUIDEN means debug exceptions from Secure EL0
              * are always enabled. Otherwise they are controlled by
@@ -82,7 +79,7 @@ static bool aa32_generate_debug_exceptions(CPUARMState *env)
         }
     }
 
-    return el != 2;
+    return cur_el != 2;
 }
 
 /*
@@ -99,10 +96,12 @@ static bool aa32_generate_debug_exceptions(CPUARMState *env)
  */
 bool arm_generate_debug_exceptions(CPUARMState *env)
 {
+    int cur_el = arm_current_el(env);
+
     if (env->aarch64) {
-        return aa64_generate_debug_exceptions(env);
+        return aa64_generate_debug_exceptions(env, cur_el);
     } else {
-        return aa32_generate_debug_exceptions(env);
+        return aa32_generate_debug_exceptions(env, cur_el);
     }
 }
 
