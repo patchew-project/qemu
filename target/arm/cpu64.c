@@ -1025,7 +1025,7 @@ static void aarch64_a64fx_initfn(Object *obj)
     cpu->gic_vprebits = 5;
     cpu->gic_pribits = 5;
 
-    /* Suppport of A64FX's vector length are 128,256 and 512bit only */
+    /* Support of A64FX's vector length are 128,256 and 512bit only */
     aarch64_add_sve_properties(obj);
     bitmap_zero(cpu->sve_vq_supported, ARM_MAX_VQ);
     set_bit(0, cpu->sve_vq_supported); /* 128bit */
