@@ -30,17 +30,39 @@
 
 int exception_target_el(CPUARMState *env, int cur_el, uint32_t *psyn)
 {
-    int target_el = MAX(1, cur_el);
+    /*
+     * FIXME: The following tests really apply to an EL0 origin,
+     * not to a target of EL1.  However, the origin will never be
+     * EL1 for these cases (no aa32 secure EL1, can't enter EL1
+     * with TGE set).  Delay fixing this until all places that
+     * might perform MAX(cur_el, 1) are audited.
+     */
+    if (cur_el >= 2) {
+        return 2;
+    }
 
     /*
      * No such thing as secure EL1 if EL3 is aarch32,
      * so update the target EL to EL3 in this case.
      */
-    if (arm_is_secure(env) && !arm_el_is_aa64(env, 3) && target_el == 1) {
-        target_el = 3;
+    if (arm_is_secure(env) && !arm_el_is_aa64(env, 3)) {
+        return 3;
     }
 
-    return target_el;
+    if (arm_hcr_el2_eff(env) & HCR_TGE) {
+        /*
+         * Redirect NS EL1 exceptions to NS EL2. These are reported with
+         * their original syndrome register value, with the exception of
+         * SIMD/FP access traps, which are reported as uncategorized
+         * (see DDI0487 H.a rule RJNBTN).
+         */
+        if (psyn && syn_get_ec(*psyn) == EC_ADVSIMDFPACCESSTRAP) {
+            *psyn = syn_uncategorized();
+        }
+        return 2;
+    }
+
+    return 1;
 }
 
 void raise_exception(CPUARMState *env, uint32_t excp, uint32_t syndrome,
@@ -49,21 +71,8 @@ void raise_exception(CPUARMState *env, uint32_t excp, uint32_t syndrome,
     CPUState *cs = env_cpu(env);
     int target_el = cur_or_target_el;
 
-    if (cur_or_target_el == 0) {
-        target_el = exception_target_el(env, 0, &syndrome);
-    }
-
-    if (target_el == 1 && (arm_hcr_el2_eff(env) & HCR_TGE)) {
-        /*
-         * Redirect NS EL1 exceptions to NS EL2. These are reported with
-         * their original syndrome register value, with the exception of
-         * SIMD/FP access traps, which are reported as uncategorized
-         * (see DDI0478C.a D1.10.4)
-         */
-        target_el = 2;
-        if (syn_get_ec(syndrome) == EC_ADVSIMDFPACCESSTRAP) {
-            syndrome = syn_uncategorized();
-        }
+    if (cur_or_target_el <= 1) {
+        target_el = exception_target_el(env, cur_or_target_el, &syndrome);
     }
 
     assert(!excp_is_internal(excp));
