@@ -85,11 +85,13 @@ void arm_deliver_fault(ARMCPU *cpu, vaddr addr,
                        int mmu_idx, ARMMMUFaultInfo *fi)
 {
     CPUARMState *env = &cpu->env;
-    int target_el;
+    int cur_el, target_el;
     bool same_el;
     uint32_t syn, exc, fsr, fsc;
 
-    target_el = exception_target_el(env);
+    cur_el = arm_current_el(env);
+    target_el = exception_target_el(env, cur_el, NULL);
+
     if (fi->stage2) {
         target_el = 2;
         env->cp15.hpfar_el2 = extract64(fi->s2addr, 12, 47) << 4;
@@ -97,7 +99,7 @@ void arm_deliver_fault(ARMCPU *cpu, vaddr addr,
             env->cp15.hpfar_el2 |= HPFAR_NS;
         }
     }
-    same_el = (arm_current_el(env) == target_el);
+    same_el = cur_el == target_el;
 
     fsr = compute_fsr_fsc(env, fi, target_el, mmu_idx, &fsc);
 
@@ -139,7 +141,7 @@ void arm_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
 void helper_exception_pc_alignment(CPUARMState *env, target_ulong pc)
 {
     ARMMMUFaultInfo fi = { .type = ARMFault_Alignment };
-    int target_el = exception_target_el(env);
+    int target_el = exception_target_el(env, arm_current_el(env), NULL);
     int mmu_idx = cpu_mmu_index(env, true);
     uint32_t fsc;
 

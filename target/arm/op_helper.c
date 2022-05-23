@@ -28,6 +28,21 @@
 #define SIGNBIT (uint32_t)0x80000000
 #define SIGNBIT64 ((uint64_t)1 << 63)
 
+int exception_target_el(CPUARMState *env, int cur_el, uint32_t *psyn)
+{
+    int target_el = MAX(1, cur_el);
+
+    /*
+     * No such thing as secure EL1 if EL3 is aarch32,
+     * so update the target EL to EL3 in this case.
+     */
+    if (arm_is_secure(env) && !arm_el_is_aa64(env, 3) && target_el == 1) {
+        target_el = 3;
+    }
+
+    return target_el;
+}
+
 void raise_exception(CPUARMState *env, uint32_t excp, uint32_t syndrome,
                      uint32_t cur_or_target_el)
 {
@@ -35,7 +50,7 @@ void raise_exception(CPUARMState *env, uint32_t excp, uint32_t syndrome,
     int target_el = cur_or_target_el;
 
     if (cur_or_target_el == 0) {
-        target_el = exception_target_el(env);
+        target_el = exception_target_el(env, 0, &syndrome);
     }
 
     if (target_el == 1 && (arm_hcr_el2_eff(env) & HCR_TGE)) {
