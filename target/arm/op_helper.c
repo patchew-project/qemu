@@ -28,10 +28,15 @@
 #define SIGNBIT (uint32_t)0x80000000
 #define SIGNBIT64 ((uint64_t)1 << 63)
 
-void raise_exception(CPUARMState *env, uint32_t excp,
-                     uint32_t syndrome, uint32_t target_el)
+void raise_exception(CPUARMState *env, uint32_t excp, uint32_t syndrome,
+                     uint32_t cur_or_target_el)
 {
     CPUState *cs = env_cpu(env);
+    int target_el = cur_or_target_el;
+
+    if (cur_or_target_el == 0) {
+        target_el = exception_target_el(env);
+    }
 
     if (target_el == 1 && (arm_hcr_el2_eff(env) & HCR_TGE)) {
         /*
@@ -54,7 +59,7 @@ void raise_exception(CPUARMState *env, uint32_t excp,
 }
 
 void raise_exception_ra(CPUARMState *env, uint32_t excp, uint32_t syndrome,
-                        uint32_t target_el, uintptr_t ra)
+                        uint32_t cur_or_target_el, uintptr_t ra)
 {
     CPUState *cs = env_cpu(env);
 
@@ -64,7 +69,7 @@ void raise_exception_ra(CPUARMState *env, uint32_t excp, uint32_t syndrome,
      * the caller passed us, and cannot use cpu_loop_exit_restore().
      */
     cpu_restore_state(cs, ra, true);
-    raise_exception(env, excp, syndrome, target_el);
+    raise_exception(env, excp, syndrome, cur_or_target_el);
 }
 
 uint64_t HELPER(neon_tbl)(CPUARMState *env, uint32_t desc,

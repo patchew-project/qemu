@@ -111,18 +111,19 @@ FIELD(DBGWCR, SSCE, 29, 1)
 /**
  * raise_exception: Raise the specified exception.
  * Raise a guest exception with the specified value, syndrome register
- * and target exception level. This should be called from helper functions,
- * and never returns because we will longjump back up to the CPU main loop.
+ * and the current or target exception level. This should be called from
+ * helper functions, and never returns because we will longjump back up
+ * to the CPU main loop.
  */
 G_NORETURN void raise_exception(CPUARMState *env, uint32_t excp,
-                                uint32_t syndrome, uint32_t target_el);
+                                uint32_t syndrome, uint32_t cur_or_target_el);
 
 /*
  * Similarly, but also use unwinding to restore cpu state.
  */
 G_NORETURN void raise_exception_ra(CPUARMState *env, uint32_t excp,
-                                      uint32_t syndrome, uint32_t target_el,
-                                      uintptr_t ra);
+                                   uint32_t syndrome,
+                                   uint32_t cur_or_target_el, uintptr_t ra);
 
 /*
  * For AArch64, map a given EL to an index in the banked_spsr array.
