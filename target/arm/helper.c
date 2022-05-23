@@ -3232,14 +3232,10 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
              * Synchronous external aborts during a translation table walk
              * are taken as Data Abort exceptions.
              */
-            if (fi.stage2) {
-                if (current_el == 3) {
-                    target_el = 3;
-                } else {
-                    target_el = 2;
-                }
+            if (fi.stage2 && current_el < 2) {
+                target_el = 2;
             } else {
-                target_el = exception_target_el(env);
+                target_el = current_el;
             }
             take_exc = true;
         }

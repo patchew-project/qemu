@@ -503,7 +503,7 @@ uint32_t HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
          * Other UNPREDICTABLE and UNDEF cases were caught at translate time.
          */
         raise_exception(env, EXCP_UDEF, syn_uncategorized(),
-                        exception_target_el(env));
+                        arm_current_el(env));
     }
 
     if ((env->uncached_cpsr & CPSR_M) == mode) {
@@ -567,8 +567,7 @@ static void msr_mrs_banked_exc_checks(CPUARMState *env, uint32_t tgtmode,
     return;
 
 undef:
-    raise_exception(env, EXCP_UDEF, syn_uncategorized(),
-                    exception_target_el(env));
+    raise_exception(env, EXCP_UDEF, syn_uncategorized(), arm_current_el(env));
 }
 
 void HELPER(msr_banked)(CPUARMState *env, uint32_t value, uint32_t tgtmode,
@@ -697,7 +696,7 @@ void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome,
     target_el = res & CP_ACCESS_EL_MASK;
     switch (target_el) {
     case 0:
-        target_el = exception_target_el(env);
+        target_el = arm_current_el(env);
         break;
     case 2:
         assert(arm_current_el(env) != 3);
@@ -808,7 +807,7 @@ void HELPER(pre_hvc)(CPUARMState *env)
 
     if (undef) {
         raise_exception(env, EXCP_UDEF, syn_uncategorized(),
-                        exception_target_el(env));
+                        arm_current_el(env));
     }
 }
 
@@ -870,7 +869,7 @@ void HELPER(pre_smc)(CPUARMState *env, uint32_t syndrome)
          * This handles the very last line of the previous table.
          */
         raise_exception(env, EXCP_UDEF, syn_uncategorized(),
-                        exception_target_el(env));
+                        arm_current_el(env));
     }
 
     if (cur_el == 1 && (arm_hcr_el2_eff(env) & HCR_TSC)) {
@@ -889,7 +888,7 @@ void HELPER(pre_smc)(CPUARMState *env, uint32_t syndrome)
     if (!arm_is_psci_call(cpu, EXCP_SMC) &&
         (smd || !arm_feature(env, ARM_FEATURE_EL3))) {
         raise_exception(env, EXCP_UDEF, syn_uncategorized(),
-                        exception_target_el(env));
+                        arm_current_el(env));
     }
 }
 
