@@ -924,7 +924,7 @@ void HELPER(exception_return)(CPUARMState *env, uint64_t new_pc)
      * We check 1 here and 2 after we've done the pstate/cpsr write() to
      * transition to the EL we're going to.
      */
-    if (arm_generate_debug_exceptions(env)) {
+    if (arm_generate_debug_exceptions(env, cur_el)) {
         spsr &= ~PSTATE_SS;
     }
 

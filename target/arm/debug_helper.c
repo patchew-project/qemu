@@ -94,10 +94,8 @@ static bool aa32_generate_debug_exceptions(CPUARMState *env, int cur_el)
  * CheckSoftwareStep(), where it is elided because both branches would
  * always return the same value.
  */
-bool arm_generate_debug_exceptions(CPUARMState *env)
+bool arm_generate_debug_exceptions(CPUARMState *env, int cur_el)
 {
-    int cur_el = arm_current_el(env);
-
     if (is_a64(env)) {
         return aa64_generate_debug_exceptions(env, cur_el);
     } else {
@@ -111,9 +109,10 @@ bool arm_generate_debug_exceptions(CPUARMState *env)
  */
 bool arm_singlestep_active(CPUARMState *env)
 {
+    int cur_el = arm_current_el(env);
     return extract32(env->cp15.mdscr_el1, 0, 1)
         && arm_el_is_aa64(env, arm_debug_target_el(env))
-        && arm_generate_debug_exceptions(env);
+        && arm_generate_debug_exceptions(env, cur_el);
 }
 
 /* Return true if the linked breakpoint entry lbn passes its checks */
@@ -309,7 +308,7 @@ static bool check_watchpoints(ARMCPU *cpu)
      * exceptions here then watchpoint firings are ignored.
      */
     if (extract32(env->cp15.mdscr_el1, 15, 1) == 0
-        || !arm_generate_debug_exceptions(env)) {
+        || !arm_generate_debug_exceptions(env, arm_current_el(env))) {
         return false;
     }
 
@@ -333,7 +332,7 @@ bool arm_debug_check_breakpoint(CPUState *cs)
      * exceptions here then breakpoint firings are ignored.
      */
     if (extract32(env->cp15.mdscr_el1, 15, 1) == 0
-        || !arm_generate_debug_exceptions(env)) {
+        || !arm_generate_debug_exceptions(env, arm_current_el(env))) {
         return false;
     }
 
