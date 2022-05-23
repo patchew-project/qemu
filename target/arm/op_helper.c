@@ -28,7 +28,8 @@
 #define SIGNBIT (uint32_t)0x80000000
 #define SIGNBIT64 ((uint64_t)1 << 63)
 
-int exception_target_el(CPUARMState *env, int cur_el, uint32_t *psyn)
+int exception_target_el(CPUARMState *env, int cur_el,
+                        uint32_t *psyn, bool debug)
 {
     /*
      * FIXME: The following tests really apply to an EL0 origin,
@@ -62,6 +63,12 @@ int exception_target_el(CPUARMState *env, int cur_el, uint32_t *psyn)
         return 2;
     }
 
+    if (debug
+        && (env->cp15.mdcr_el2 & MDCR_TDE)
+        && arm_is_el2_enabled(env)) {
+        return 2;
+    }
+
     return 1;
 }
 
@@ -83,7 +90,8 @@ void raise_exception(CPUARMState *env, uint32_t excp, uint32_t syndrome,
 {
     int target_el = cur_or_target_el;
     if (cur_or_target_el <= 1) {
-        target_el = exception_target_el(env, cur_or_target_el, &syndrome);
+        target_el = exception_target_el(env, cur_or_target_el,
+                                        &syndrome, false);
     }
     raise_exception_int(env, excp, syndrome, target_el);
 }

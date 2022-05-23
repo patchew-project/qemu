@@ -90,7 +90,7 @@ void arm_deliver_fault(ARMCPU *cpu, vaddr addr,
     uint32_t syn, exc, fsr, fsc;
 
     cur_el = arm_current_el(env);
-    target_el = exception_target_el(env, cur_el, NULL);
+    target_el = exception_target_el(env, cur_el, NULL, false);
 
     if (fi->stage2) {
         target_el = 2;
@@ -141,7 +141,7 @@ void arm_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
 void helper_exception_pc_alignment(CPUARMState *env, target_ulong pc)
 {
     ARMMMUFaultInfo fi = { .type = ARMFault_Alignment };
-    int target_el = exception_target_el(env, arm_current_el(env), NULL);
+    int target_el = exception_target_el(env, arm_current_el(env), NULL, false);
     int mmu_idx = cpu_mmu_index(env, true);
     uint32_t fsc;
 
