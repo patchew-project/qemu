@@ -300,6 +300,7 @@ static const VMStateDescription vmstate_pmu_ctr_state = {
         VMSTATE_UINTTL(mhpmcounterh_val, PMUCTRState),
         VMSTATE_UINTTL(mhpmcounter_prev, PMUCTRState),
         VMSTATE_UINTTL(mhpmcounterh_prev, PMUCTRState),
+        VMSTATE_UINT8(write_done, PMUCTRState),
         VMSTATE_BOOL(started, PMUCTRState),
         VMSTATE_END_OF_LIST()
     }
@@ -355,6 +356,9 @@ const VMStateDescription vmstate_riscv_cpu = {
         VMSTATE_STRUCT_ARRAY(env.pmu_ctrs, RISCVCPU, RV_MAX_MHPMCOUNTERS, 0,
                              vmstate_pmu_ctr_state, PMUCTRState),
         VMSTATE_UINTTL_ARRAY(env.mhpmevent_val, RISCVCPU, RV_MAX_MHPMEVENTS),
+        VMSTATE_UINT8_ARRAY(env.mhpmevent_write_done, RISCVCPU,
+                            RV_MAX_MHPMEVENTS),
+        VMSTATE_UINTTL_ARRAY(env.mhpmeventh_val, RISCVCPU, RV_MAX_MHPMEVENTS),
         VMSTATE_UINTTL(env.sscratch, RISCVCPU),
         VMSTATE_UINTTL(env.mscratch, RISCVCPU),
         VMSTATE_UINT64(env.mfromhost, RISCVCPU),
