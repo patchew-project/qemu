@@ -19,6 +19,7 @@
 #include "qapi/error.h"
 #include "hw/vfio/vfio-migration-plugin.h"
 #include "sysemu/sysemu.h"
+#include "trace.h"
 
 #define CHUNK_SIZE (1024 * 1024)
 
@@ -128,7 +129,7 @@ static int vfio_migration_update_pending_plugin(VFIODevice *vbasedev)
         return ret;
     }
     migration->pending_bytes = pending_bytes;
-
+    trace_vfio_update_pending(vbasedev->name, pending_bytes);
     return 0;
 }
 
@@ -159,7 +160,7 @@ static int vfio_migration_set_state_plugin(VFIODevice *vbasedev, uint32_t mask,
     }
 
     vbasedev->migration->device_state = device_state;
-
+    trace_vfio_migration_set_state(vbasedev->name, device_state);
     return 0;
 }
 
@@ -179,6 +180,7 @@ static int vfio_migration_save_buffer_plugin(QEMUFile *f, VFIODevice *vbasedev,
     qemu_put_be64(f, data_size);
     tmp_size = data_size;
 
+    trace_vfio_save_buffer_plugin(vbasedev->name, data_size);
     while (tmp_size) {
         uint64_t sz = tmp_size <= CHUNK_SIZE ? tmp_size : CHUNK_SIZE;
         void *buf = g_try_malloc(sz);
@@ -214,6 +216,7 @@ static int vfio_migration_load_buffer_plugin(QEMUFile *f, VFIODevice *vbasedev,
     int ret = 0;
     VFIOMigrationPlugin *plugin = vbasedev->migration->plugin;
 
+    trace_vfio_load_state_device_data_plugin(vbasedev->name, data_size);
     while (data_size) {
         uint64_t sz = data_size <= CHUNK_SIZE ? data_size : CHUNK_SIZE;
         void *buf = g_try_malloc(sz);
@@ -257,6 +260,7 @@ int vfio_migration_probe_plugin(VFIODevice *vbasedev)
     }
 
     migration->ops = &vfio_plugin_method;
-
+    trace_vfio_migration_probe_plugin(vbasedev->name, vbasedev->desc.path,
+                                      vbasedev->desc.arg);
     return 0;
 }
