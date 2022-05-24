@@ -882,6 +882,38 @@ static int vfio_migration_check(VFIODevice *vbasedev)
     return 0;
 }
 
+static int vfio_migration_register_handlers(VFIODevice *vbasedev)
+{
+    Object *obj;
+    char id[256] = "";
+    g_autofree char *path = NULL, *oid = NULL;
+    VFIOMigration *migration = vbasedev->migration;
+
+    obj = vbasedev->ops->vfio_get_object(vbasedev);
+    if (!obj) {
+        return -EINVAL;
+    }
+
+    oid = vmstate_if_get_id(VMSTATE_IF(DEVICE(obj)));
+    if (oid) {
+        path = g_strdup_printf("%s/vfio", oid);
+    } else {
+        path = g_strdup("vfio");
+    }
+    strpadcpy(id, sizeof(id), path, '\0');
+
+    register_savevm_live(id, VMSTATE_INSTANCE_ID_ANY, 1, &savevm_vfio_handlers,
+                         vbasedev);
+
+    migration->vm_state = qdev_add_vm_change_state_handler(vbasedev->dev,
+                                                           vfio_vmstate_change,
+                                                           vbasedev);
+    migration->migration_state.notify = vfio_migration_state_notifier;
+    add_migration_state_change_notifier(&migration->migration_state);
+
+    return 0;
+}
+
 static VFIOMigrationOps vfio_local_method = {
     .save_setup = vfio_migration_save_setup_local,
     .load_setup = vfio_migration_load_setup_local,
@@ -897,9 +929,7 @@ static int vfio_migration_probe_local(VFIODevice *vbasedev)
 {
     int ret;
     Object *obj;
-    char id[256] = "";
     struct vfio_region_info *info = NULL;
-    g_autofree char *path = NULL, *oid = NULL;
     VFIOMigration *migration = vbasedev->migration;
 
     obj = vbasedev->ops->vfio_get_object(vbasedev);
@@ -929,23 +959,6 @@ static int vfio_migration_probe_local(VFIODevice *vbasedev)
         ret = -EINVAL;
         goto err;
     }
-
-    oid = vmstate_if_get_id(VMSTATE_IF(DEVICE(obj)));
-    if (oid) {
-        path = g_strdup_printf("%s/vfio", oid);
-    } else {
-        path = g_strdup("vfio");
-    }
-    strpadcpy(id, sizeof(id), path, '\0');
-
-    register_savevm_live(id, VMSTATE_INSTANCE_ID_ANY, 1, &savevm_vfio_handlers,
-                         vbasedev);
-
-    migration->vm_state = qdev_add_vm_change_state_handler(vbasedev->dev,
-                                                           vfio_vmstate_change,
-                                                           vbasedev);
-    migration->migration_state.notify = vfio_migration_state_notifier;
-    add_migration_state_change_notifier(&migration->migration_state);
 
     trace_vfio_migration_probe_local(vbasedev->name, info->index);
     migration->ops = &vfio_local_method;
@@ -978,6 +991,11 @@ int vfio_migration_probe(VFIODevice *vbasedev, Error **errp)
     vbasedev->migration->vbasedev = vbasedev;
 
     ret = vfio_migration_probe_local(vbasedev);
+    if (ret) {
+        goto add_blocker;
+    }
+
+    ret = vfio_migration_register_handlers(vbasedev);
     if (ret) {
         goto add_blocker;
     }
