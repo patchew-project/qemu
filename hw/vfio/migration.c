@@ -787,6 +787,21 @@ static void vfio_migration_exit(VFIODevice *vbasedev)
     vbasedev->migration = NULL;
 }
 
+static int vfio_migration_check(VFIODevice *vbasedev)
+{
+    VFIOContainer *container = vbasedev->group->container;
+
+    if (!vbasedev->enable_migration || !container->dirty_pages_supported) {
+        return -EINVAL;
+    }
+
+    if (!vbasedev->ops->vfio_get_object) {
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
 static int vfio_migration_init(VFIODevice *vbasedev,
                                struct vfio_region_info *info)
 {
@@ -795,10 +810,6 @@ static int vfio_migration_init(VFIODevice *vbasedev,
     VFIOMigration *migration;
     char id[256] = "";
     g_autofree char *path = NULL, *oid = NULL;
-
-    if (!vbasedev->ops->vfio_get_object) {
-        return -EINVAL;
-    }
 
     obj = vbasedev->ops->vfio_get_object(vbasedev);
     if (!obj) {
@@ -857,11 +868,11 @@ int64_t vfio_mig_bytes_transferred(void)
 
 int vfio_migration_probe(VFIODevice *vbasedev, Error **errp)
 {
-    VFIOContainer *container = vbasedev->group->container;
     struct vfio_region_info *info = NULL;
     int ret = -ENOTSUP;
 
-    if (!vbasedev->enable_migration || !container->dirty_pages_supported) {
+    ret = vfio_migration_check(vbasedev);
+    if (ret) {
         goto add_blocker;
     }
 
