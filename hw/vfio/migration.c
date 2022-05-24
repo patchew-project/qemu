@@ -802,17 +802,25 @@ static int vfio_migration_check(VFIODevice *vbasedev)
     return 0;
 }
 
-static int vfio_migration_init(VFIODevice *vbasedev,
-                               struct vfio_region_info *info)
+static int vfio_migration_init(VFIODevice *vbasedev)
 {
     int ret;
     Object *obj;
     char id[256] = "";
+    struct vfio_region_info *info = NULL;
     g_autofree char *path = NULL, *oid = NULL;
     VFIOMigration *migration = vbasedev->migration;
 
     obj = vbasedev->ops->vfio_get_object(vbasedev);
     if (!obj) {
+        return -EINVAL;
+    }
+
+    ret = vfio_get_dev_region_info(vbasedev,
+                                   VFIO_REGION_TYPE_MIGRATION_DEPRECATED,
+                                   VFIO_REGION_SUBTYPE_MIGRATION_DEPRECATED,
+                                   &info);
+    if (ret) {
         return -EINVAL;
     }
 
@@ -847,10 +855,14 @@ static int vfio_migration_init(VFIODevice *vbasedev,
                                                            vbasedev);
     migration->migration_state.notify = vfio_migration_state_notifier;
     add_migration_state_change_notifier(&migration->migration_state);
+
+    trace_vfio_migration_probe(vbasedev->name, info->index);
+    g_free(info);
     return 0;
 
 err:
     vfio_migration_exit(vbasedev);
+    g_free(info);
     return ret;
 }
 
@@ -863,7 +875,6 @@ int64_t vfio_mig_bytes_transferred(void)
 
 int vfio_migration_probe(VFIODevice *vbasedev, Error **errp)
 {
-    struct vfio_region_info *info = NULL;
     int ret = -ENOTSUP;
 
     ret = vfio_migration_check(vbasedev);
@@ -874,27 +885,16 @@ int vfio_migration_probe(VFIODevice *vbasedev, Error **errp)
     vbasedev->migration = g_new0(VFIOMigration, 1);
     vbasedev->migration->vbasedev = vbasedev;
 
-    ret = vfio_get_dev_region_info(vbasedev,
-                                   VFIO_REGION_TYPE_MIGRATION_DEPRECATED,
-                                   VFIO_REGION_SUBTYPE_MIGRATION_DEPRECATED,
-                                   &info);
+    ret = vfio_migration_init(vbasedev);
     if (ret) {
         goto add_blocker;
     }
 
-    ret = vfio_migration_init(vbasedev, info);
-    if (ret) {
-        goto add_blocker;
-    }
-
-    trace_vfio_migration_probe(vbasedev->name, info->index);
-    g_free(info);
     return 0;
 
 add_blocker:
     error_setg(&vbasedev->migration_blocker,
                "VFIO device doesn't support migration");
-    g_free(info);
 
     ret = migrate_add_blocker(vbasedev->migration_blocker, errp);
     if (ret < 0) {
