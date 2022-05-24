@@ -160,3 +160,34 @@
 ##
 { 'event': 'DEVICE_UNPLUG_GUEST_ERROR',
   'data': { '*device': 'str', 'path': 'str' } }
+
+##
+# @sysbus-mmio-map:
+#
+# Map a sysbus device mmio onto the main system bus.
+#
+# @device: the device's QOM path
+#
+# @mmio: The mmio number to be mapped (defaults to 0).
+#
+# @addr: The base address for the mapping.
+#
+# @priority: The priority of the mapping (defaults to 0).
+#
+# Features:
+# @unstable: Command is meant to map sysbus devices
+#            while in preconfig mode.
+#
+# Since: 7.1
+#
+# Returns: Nothing on success
+#
+##
+
+{ 'command': 'sysbus-mmio-map',
+  'data': { 'device': 'str',
+            '*mmio': 'uint8',
+            'addr': 'uint64',
+            '*priority': 'int32' },
+  'features': ['unstable'],
+  'allow-preconfig' : true }
