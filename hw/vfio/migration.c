@@ -807,16 +807,14 @@ static int vfio_migration_init(VFIODevice *vbasedev,
 {
     int ret;
     Object *obj;
-    VFIOMigration *migration;
     char id[256] = "";
     g_autofree char *path = NULL, *oid = NULL;
+    VFIOMigration *migration = vbasedev->migration;
 
     obj = vbasedev->ops->vfio_get_object(vbasedev);
     if (!obj) {
         return -EINVAL;
     }
-
-    vbasedev->migration = g_new0(VFIOMigration, 1);
 
     ret = vfio_region_setup(obj, vbasedev, &vbasedev->migration->region,
                             info->index, "migration");
@@ -832,9 +830,6 @@ static int vfio_migration_init(VFIODevice *vbasedev,
         ret = -EINVAL;
         goto err;
     }
-
-    migration = vbasedev->migration;
-    migration->vbasedev = vbasedev;
 
     oid = vmstate_if_get_id(VMSTATE_IF(DEVICE(obj)));
     if (oid) {
@@ -876,6 +871,9 @@ int vfio_migration_probe(VFIODevice *vbasedev, Error **errp)
         goto add_blocker;
     }
 
+    vbasedev->migration = g_new0(VFIOMigration, 1);
+    vbasedev->migration->vbasedev = vbasedev;
+
     ret = vfio_get_dev_region_info(vbasedev,
                                    VFIO_REGION_TYPE_MIGRATION_DEPRECATED,
                                    VFIO_REGION_SUBTYPE_MIGRATION_DEPRECATED,
@@ -903,6 +901,8 @@ add_blocker:
         error_free(vbasedev->migration_blocker);
         vbasedev->migration_blocker = NULL;
     }
+    g_free(vbasedev->migration);
+    vbasedev->migration = NULL;
     return ret;
 }
 
