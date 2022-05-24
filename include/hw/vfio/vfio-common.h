@@ -22,6 +22,7 @@
 #define HW_VFIO_VFIO_COMMON_H
 
 #include "exec/memory.h"
+#include "qemu/iov.h"
 #include "qemu/queue.h"
 #include "qemu/notify.h"
 #include "ui/console.h"
@@ -30,6 +31,9 @@
 #include <linux/vfio.h>
 #endif
 #include "sysemu/sysemu.h"
+#include "vfio-migration-plugin.h"
+#include <gmodule.h>
+#include <glib.h>
 
 #define VFIO_MSG_PREFIX "vfio %s: "
 
@@ -58,6 +62,12 @@ typedef struct VFIORegion {
     uint8_t nr; /* cache the region number for debug */
 } VFIORegion;
 
+typedef struct VFIOMigrationPlugin {
+    GModule *module;
+    VFIOMigrationPluginOps *ops;
+    void *handle;
+} VFIOMigrationPlugin;
+
 struct vfio_migration_plugin_desc {
     char *path;
     char *arg;
@@ -70,6 +80,7 @@ typedef struct VFIOMigration {
     VMChangeStateEntry *vm_state;
     VFIORegion region;
     VFIOMigrationOps *ops;
+    VFIOMigrationPlugin *plugin;
     uint32_t device_state;
     int vm_running;
     Notifier migration_state;
@@ -263,6 +274,7 @@ int vfio_spapr_remove_window(VFIOContainer *container,
 
 int vfio_migration_probe(VFIODevice *vbasedev, Error **errp);
 int vfio_migration_probe_local(VFIODevice *vbasedev);
+int vfio_migration_probe_plugin(VFIODevice *vbasedev);
 void vfio_migration_finalize(VFIODevice *vbasedev);
 
 #endif /* HW_VFIO_VFIO_COMMON_H */

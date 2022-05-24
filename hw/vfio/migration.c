@@ -569,9 +569,16 @@ int vfio_migration_probe(VFIODevice *vbasedev, Error **errp)
     vbasedev->migration = g_new0(VFIOMigration, 1);
     vbasedev->migration->vbasedev = vbasedev;
 
-    ret = vfio_migration_probe_local(vbasedev);
-    if (ret) {
-        goto add_blocker;
+    if (vbasedev->desc.arg != NULL && vbasedev->desc.path != NULL) {
+        ret = vfio_migration_probe_plugin(vbasedev);
+        if (ret) {
+            goto add_blocker;
+        }
+    } else {
+        ret = vfio_migration_probe_local(vbasedev);
+        if (ret) {
+            goto add_blocker;
+        }
     }
 
     ret = vfio_migration_register_handlers(vbasedev);
