@@ -74,13 +74,17 @@ struct QEMUFile {
  */
 int qemu_file_shutdown(QEMUFile *f)
 {
-    int ret;
+    int ret = 0;
 
     f->shutdown = true;
-    if (!f->ops->shut_down) {
+    if (!qio_channel_has_feature(f->ioc,
+                                 QIO_CHANNEL_FEATURE_SHUTDOWN)) {
         return -ENOSYS;
     }
-    ret = f->ops->shut_down(f->ioc, true, true, NULL);
+
+    if (qio_channel_shutdown(f->ioc, QIO_CHANNEL_SHUTDOWN_BOTH, NULL) < 0) {
+        ret = -EIO;
+    }
 
     if (!f->last_error) {
         qemu_file_set_error(f, -EIO);
