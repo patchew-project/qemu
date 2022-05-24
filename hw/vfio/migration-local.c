@@ -98,7 +98,7 @@ static int vfio_migration_set_state_local(VFIODevice *vbasedev, uint32_t mask,
                                           uint32_t value)
 {
     VFIOMigration *migration = vbasedev->migration;
-    VFIORegion *region = &migration->region;
+    VFIORegion *region = migration->region;
     off_t dev_state_off = region->fd_offset +
                           VFIO_MIG_STRUCT_OFFSET(device_state);
     uint32_t device_state;
@@ -184,7 +184,7 @@ static int vfio_migration_save_buffer_local(QEMUFile *f, VFIODevice *vbasedev,
                                             uint64_t *size)
 {
     VFIOMigration *migration = vbasedev->migration;
-    VFIORegion *region = &migration->region;
+    VFIORegion *region = migration->region;
     uint64_t data_offset = 0, data_size = 0, sz;
     int ret;
 
@@ -250,7 +250,7 @@ static int vfio_migration_save_buffer_local(QEMUFile *f, VFIODevice *vbasedev,
 static int vfio_migration_load_buffer_local(QEMUFile *f, VFIODevice *vbasedev,
                                             uint64_t data_size)
 {
-    VFIORegion *region = &vbasedev->migration->region;
+    VFIORegion *region = vbasedev->migration->region;
     uint64_t data_offset = 0, size, report_size;
     int ret;
 
@@ -322,7 +322,7 @@ static int vfio_migration_load_buffer_local(QEMUFile *f, VFIODevice *vbasedev,
 static int vfio_migration_update_pending_local(VFIODevice *vbasedev)
 {
     VFIOMigration *migration = vbasedev->migration;
-    VFIORegion *region = &migration->region;
+    VFIORegion *region = migration->region;
     uint64_t pending_bytes = 0;
     int ret;
 
@@ -342,8 +342,8 @@ static void vfio_migration_cleanup_local(VFIODevice *vbasedev)
 {
     VFIOMigration *migration = vbasedev->migration;
 
-    if (migration->region.mmaps) {
-        vfio_region_unmap(&migration->region);
+    if (migration->region->mmaps) {
+        vfio_region_unmap(migration->region);
     }
 }
 
@@ -352,14 +352,14 @@ static int vfio_migration_save_setup_local(VFIODevice *vbasedev)
     VFIOMigration *migration = vbasedev->migration;
     int ret = -1;
 
-    if (migration->region.mmaps) {
+    if (migration->region->mmaps) {
         /*
          * Calling vfio_region_mmap() from migration thread. Memory API called
          * from this function require locking the iothread when called from
          * outside the main loop thread.
          */
         qemu_mutex_lock_iothread();
-        ret = vfio_region_mmap(&migration->region);
+        ret = vfio_region_mmap(migration->region);
         qemu_mutex_unlock_iothread();
         if (ret) {
             error_report("%s: Failed to mmap VFIO migration region: %s",
@@ -375,11 +375,11 @@ static int vfio_migration_load_setup_local(VFIODevice *vbasedev)
     VFIOMigration *migration = vbasedev->migration;
     int ret = -1;
 
-    if (migration->region.mmaps) {
-        ret = vfio_region_mmap(&migration->region);
+    if (migration->region->mmaps) {
+        ret = vfio_region_mmap(migration->region);
         if (ret) {
             error_report("%s: Failed to mmap VFIO migration region %d: %s",
-                         vbasedev->name, migration->region.nr,
+                         vbasedev->name, migration->region->nr,
                          strerror(-ret));
             error_report("%s: Falling back to slow path", vbasedev->name);
         }
@@ -391,8 +391,10 @@ static void vfio_migration_exit_local(VFIODevice *vbasedev)
 {
     VFIOMigration *migration = vbasedev->migration;
 
-    vfio_region_exit(&migration->region);
-    vfio_region_finalize(&migration->region);
+    vfio_region_exit(migration->region);
+    vfio_region_finalize(migration->region);
+    g_free(migration->region);
+    migration->region = NULL;
 }
 
 static VFIOMigrationOps vfio_local_method = {
@@ -426,7 +428,8 @@ int vfio_migration_probe_local(VFIODevice *vbasedev)
         return -EINVAL;
     }
 
-    ret = vfio_region_setup(obj, vbasedev, &vbasedev->migration->region,
+    migration->region = g_new0(VFIORegion, 1);
+    ret = vfio_region_setup(obj, vbasedev, vbasedev->migration->region,
                             info->index, "migration");
     if (ret) {
         error_report("%s: Failed to setup VFIO migration region %d: %s",
@@ -434,7 +437,7 @@ int vfio_migration_probe_local(VFIODevice *vbasedev)
         goto err;
     }
 
-    if (!vbasedev->migration->region.size) {
+    if (!vbasedev->migration->region->size) {
         error_report("%s: Invalid zero-sized VFIO migration region %d",
                      vbasedev->name, info->index);
         ret = -EINVAL;

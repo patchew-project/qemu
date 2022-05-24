@@ -78,9 +78,11 @@ typedef struct VFIOMigrationOps VFIOMigrationOps;
 typedef struct VFIOMigration {
     struct VFIODevice *vbasedev;
     VMChangeStateEntry *vm_state;
-    VFIORegion region;
     VFIOMigrationOps *ops;
-    VFIOMigrationPlugin *plugin;
+    union {
+        VFIORegion *region;
+        VFIOMigrationPlugin *plugin;
+    };
     uint32_t device_state;
     int vm_running;
     Notifier migration_state;
