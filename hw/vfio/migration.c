@@ -257,7 +257,6 @@ static int vfio_migration_save_buffer_local(QEMUFile *f, VFIODevice *vbasedev,
         *size = data_size;
     }
 
-    bytes_transferred += data_size;
     return ret;
 }
 
@@ -540,6 +539,7 @@ static int vfio_save_iterate(QEMUFile *f, void *opaque)
                          vbasedev->name, strerror(errno));
             return ret;
         }
+        bytes_transferred += data_size;
     }
 
     qemu_put_be64(f, VFIO_MIG_FLAG_END_OF_STATE);
@@ -592,6 +592,7 @@ static int vfio_save_complete_precopy(QEMUFile *f, void *opaque)
                 error_report("%s: Failed to save buffer", vbasedev->name);
                 return ret;
             }
+            bytes_transferred += data_size;
         }
 
         if (data_size == 0) {
