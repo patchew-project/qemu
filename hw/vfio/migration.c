@@ -394,7 +394,7 @@ static int vfio_load_device_config_state(QEMUFile *f, void *opaque)
     return qemu_file_get_error(f);
 }
 
-static void vfio_migration_cleanup(VFIODevice *vbasedev)
+static void vfio_migration_cleanup_local(VFIODevice *vbasedev)
 {
     VFIOMigration *migration = vbasedev->migration;
 
@@ -403,17 +403,17 @@ static void vfio_migration_cleanup(VFIODevice *vbasedev)
     }
 }
 
+static void vfio_migration_cleanup(VFIODevice *vbasedev)
+{
+    vfio_migration_cleanup_local(vbasedev);
+}
+
 /* ---------------------------------------------------------------------- */
 
-static int vfio_save_setup(QEMUFile *f, void *opaque)
+static int vfio_migration_save_setup_local(VFIODevice *vbasedev)
 {
-    VFIODevice *vbasedev = opaque;
     VFIOMigration *migration = vbasedev->migration;
-    int ret;
-
-    trace_vfio_save_setup(vbasedev->name);
-
-    qemu_put_be64(f, VFIO_MIG_FLAG_DEV_SETUP_STATE);
+    int ret = -1;
 
     if (migration->region.mmaps) {
         /*
@@ -429,6 +429,24 @@ static int vfio_save_setup(QEMUFile *f, void *opaque)
                          vbasedev->name, strerror(-ret));
             error_report("%s: Falling back to slow path", vbasedev->name);
         }
+    }
+    return ret;
+}
+
+static int vfio_save_setup(QEMUFile *f, void *opaque)
+{
+    VFIODevice *vbasedev = opaque;
+    int ret;
+
+    trace_vfio_save_setup(vbasedev->name);
+
+    qemu_put_be64(f, VFIO_MIG_FLAG_DEV_SETUP_STATE);
+
+    ret = vfio_migration_save_setup_local(vbasedev);
+    if (ret) {
+        error_report("%s: Failed to vfio lm save setup:%s",
+                     vbasedev->name, strerror(-ret));
+        return ret;
     }
 
     ret = vfio_migration_set_state(vbasedev, VFIO_DEVICE_STATE_MASK,
@@ -592,11 +610,10 @@ static void vfio_save_state(QEMUFile *f, void *opaque)
     }
 }
 
-static int vfio_load_setup(QEMUFile *f, void *opaque)
+static int vfio_migration_load_setup_local(VFIODevice *vbasedev)
 {
-    VFIODevice *vbasedev = opaque;
     VFIOMigration *migration = vbasedev->migration;
-    int ret = 0;
+    int ret = -1;
 
     if (migration->region.mmaps) {
         ret = vfio_region_mmap(&migration->region);
@@ -607,14 +624,26 @@ static int vfio_load_setup(QEMUFile *f, void *opaque)
             error_report("%s: Falling back to slow path", vbasedev->name);
         }
     }
+    return ret;
+}
+
+static int vfio_load_setup(QEMUFile *f, void *opaque)
+{
+    VFIODevice *vbasedev = opaque;
+    int ret = 0;
+
+    ret = vfio_migration_load_setup_local(vbasedev);
+    if (ret < 0) {
+        error_report("%s: Failed to migration load setup", vbasedev->name);
+        return ret;
+    }
 
     ret = vfio_migration_set_state(vbasedev, ~VFIO_DEVICE_STATE_MASK,
                                    VFIO_DEVICE_STATE_V1_RESUMING);
     if (ret) {
         error_report("%s: Failed to set state RESUMING", vbasedev->name);
-        if (migration->region.mmaps) {
-            vfio_region_unmap(&migration->region);
-        }
+        vfio_migration_cleanup(vbasedev);
+        return ret;
     }
     return ret;
 }
@@ -777,12 +806,17 @@ static void vfio_migration_state_notifier(Notifier *notifier, void *data)
     }
 }
 
-static void vfio_migration_exit(VFIODevice *vbasedev)
+static void vfio_migration_exit_local(VFIODevice *vbasedev)
 {
     VFIOMigration *migration = vbasedev->migration;
 
     vfio_region_exit(&migration->region);
     vfio_region_finalize(&migration->region);
+}
+
+static void vfio_migration_exit(VFIODevice *vbasedev)
+{
+    vfio_migration_exit_local(vbasedev);
     g_free(vbasedev->migration);
     vbasedev->migration = NULL;
 }
