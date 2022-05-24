@@ -3,6 +3,7 @@ vfio_ss.add(files(
   'common.c',
   'spapr.c',
   'migration.c',
+  'migration-local.c',
 ))
 vfio_ss.add(when: 'CONFIG_VFIO_PCI', if_true: files(
   'display.c',

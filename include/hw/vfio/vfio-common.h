@@ -256,6 +256,7 @@ int vfio_spapr_remove_window(VFIOContainer *container,
                              hwaddr offset_within_address_space);
 
 int vfio_migration_probe(VFIODevice *vbasedev, Error **errp);
+int vfio_migration_probe_local(VFIODevice *vbasedev);
 void vfio_migration_finalize(VFIODevice *vbasedev);
 
 #endif /* HW_VFIO_VFIO_COMMON_H */
