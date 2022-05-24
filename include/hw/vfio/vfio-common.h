@@ -58,6 +58,11 @@ typedef struct VFIORegion {
     uint8_t nr; /* cache the region number for debug */
 } VFIORegion;
 
+struct vfio_migration_plugin_desc {
+    char *path;
+    char *arg;
+};
+
 typedef struct VFIOMigrationOps VFIOMigrationOps;
 
 typedef struct VFIOMigration {
@@ -144,6 +149,7 @@ typedef struct VFIODevice {
     unsigned int num_regions;
     unsigned int flags;
     VFIOMigration *migration;
+    struct vfio_migration_plugin_desc desc;
     Error *migration_blocker;
     OnOffAuto pre_copy_dirty_page_tracking;
 } VFIODevice;

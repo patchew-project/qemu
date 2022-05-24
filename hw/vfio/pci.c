@@ -3309,6 +3309,8 @@ static Property vfio_pci_dev_properties[] = {
                                    qdev_prop_nv_gpudirect_clique, uint8_t),
     DEFINE_PROP_OFF_AUTO_PCIBAR("x-msix-relocation", VFIOPCIDevice, msix_relo,
                                 OFF_AUTOPCIBAR_OFF),
+    DEFINE_PROP_STRING("x-plugin-path", VFIOPCIDevice, vbasedev.desc.path),
+    DEFINE_PROP_STRING("x-plugin-arg", VFIOPCIDevice, vbasedev.desc.arg),
     /*
      * TODO - support passed fds... is this necessary?
      * DEFINE_PROP_STRING("vfiofd", VFIOPCIDevice, vfiofd_name),
