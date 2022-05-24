@@ -58,10 +58,13 @@ typedef struct VFIORegion {
     uint8_t nr; /* cache the region number for debug */
 } VFIORegion;
 
+typedef struct VFIOMigrationOps VFIOMigrationOps;
+
 typedef struct VFIOMigration {
     struct VFIODevice *vbasedev;
     VMChangeStateEntry *vm_state;
     VFIORegion region;
+    VFIOMigrationOps *ops;
     uint32_t device_state;
     int vm_running;
     Notifier migration_state;
@@ -153,6 +156,17 @@ struct VFIODeviceOps {
     void (*vfio_save_config)(VFIODevice *vdev, QEMUFile *f);
     int (*vfio_load_config)(VFIODevice *vdev, QEMUFile *f);
 };
+
+typedef struct VFIOMigrationOps {
+    int (*save_setup)(VFIODevice *vbasedev);
+    int (*load_setup)(VFIODevice *vbasedev);
+    int (*update_pending)(VFIODevice *vbasedev);
+    int (*save_buffer)(QEMUFile *f, VFIODevice *vbasedev, uint64_t *size);
+    int (*load_buffer)(QEMUFile *f, VFIODevice *vbasedev, uint64_t data_size);
+    int (*set_state)(VFIODevice *vbasedev, uint32_t mask, uint32_t value);
+    void (*cleanup)(VFIODevice *vbasedev);
+    void (*exit)(VFIODevice *vbasedev);
+} VFIOMigrationOps;
 
 typedef struct VFIOGroup {
     int fd;

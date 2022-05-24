@@ -407,7 +407,11 @@ static void vfio_migration_cleanup_local(VFIODevice *vbasedev)
 
 static void vfio_migration_cleanup(VFIODevice *vbasedev)
 {
-    vfio_migration_cleanup_local(vbasedev);
+    VFIOMigration *migration = vbasedev->migration;
+
+    if (migration->ops->cleanup) {
+        migration->ops->cleanup(vbasedev);
+    }
 }
 
 /* ---------------------------------------------------------------------- */
@@ -438,24 +442,29 @@ static int vfio_migration_save_setup_local(VFIODevice *vbasedev)
 static int vfio_save_setup(QEMUFile *f, void *opaque)
 {
     VFIODevice *vbasedev = opaque;
+    VFIOMigration *migration = vbasedev->migration;
     int ret;
 
     trace_vfio_save_setup(vbasedev->name);
 
     qemu_put_be64(f, VFIO_MIG_FLAG_DEV_SETUP_STATE);
 
-    ret = vfio_migration_save_setup_local(vbasedev);
-    if (ret) {
-        error_report("%s: Failed to vfio lm save setup:%s",
-                     vbasedev->name, strerror(-ret));
-        return ret;
+    if (migration->ops->save_setup) {
+        ret = migration->ops->save_setup(vbasedev);
+        if (ret) {
+            error_report("%s: Failed to vfio lm save setup:%s",
+                         vbasedev->name, strerror(-ret));
+            return ret;
+        }
     }
 
-    ret = vfio_migration_set_state_local(vbasedev, VFIO_DEVICE_STATE_MASK,
-                                         VFIO_DEVICE_STATE_V1_SAVING);
-    if (ret) {
-        error_report("%s: Failed to set state SAVING", vbasedev->name);
-        return ret;
+    if (migration->ops->set_state) {
+        ret = migration->ops->set_state(vbasedev, VFIO_DEVICE_STATE_MASK,
+                                        VFIO_DEVICE_STATE_V1_SAVING);
+        if (ret) {
+            error_report("%s: Failed to set state SAVING", vbasedev->name);
+            return ret;
+        }
     }
 
     qemu_put_be64(f, VFIO_MIG_FLAG_END_OF_STATE);
@@ -486,9 +495,11 @@ static void vfio_save_pending(QEMUFile *f, void *opaque,
     VFIOMigration *migration = vbasedev->migration;
     int ret;
 
-    ret = vfio_migration_update_pending_local(vbasedev);
-    if (ret) {
-        return;
+    if (migration->ops->update_pending) {
+        ret = migration->ops->update_pending(vbasedev);
+        if (ret) {
+            return;
+        }
     }
 
     *res_precopy_only += migration->pending_bytes;
@@ -507,9 +518,11 @@ static int vfio_save_iterate(QEMUFile *f, void *opaque)
     qemu_put_be64(f, VFIO_MIG_FLAG_DEV_DATA_STATE);
 
     if (migration->pending_bytes == 0) {
-        ret = vfio_migration_update_pending_local(vbasedev);
-        if (ret) {
-            return ret;
+        if (migration->ops->update_pending) {
+            ret = migration->ops->update_pending(vbasedev);
+            if (ret) {
+                return ret;
+            }
         }
 
         if (migration->pending_bytes == 0) {
@@ -520,11 +533,13 @@ static int vfio_save_iterate(QEMUFile *f, void *opaque)
         }
     }
 
-    ret = vfio_migration_save_buffer_local(f, vbasedev, &data_size);
-    if (ret) {
-        error_report("%s: vfio_miragion_save_buffer_local failed %s",
-                     vbasedev->name, strerror(errno));
-        return ret;
+    if (migration->ops->save_buffer) {
+        ret = migration->ops->save_buffer(f, vbasedev, &data_size);
+        if (ret) {
+            error_report("%s: vfio_miragion_save_buffer_local failed %s",
+                         vbasedev->name, strerror(errno));
+            return ret;
+        }
     }
 
     qemu_put_be64(f, VFIO_MIG_FLAG_END_OF_STATE);
@@ -551,35 +566,43 @@ static int vfio_save_complete_precopy(QEMUFile *f, void *opaque)
     uint64_t data_size;
     int ret;
 
-    ret = vfio_migration_set_state_local(vbasedev,
-                                         ~VFIO_DEVICE_STATE_V1_RUNNING,
-                                         VFIO_DEVICE_STATE_V1_SAVING);
-    if (ret) {
-        error_report("%s: Failed to set state STOP and SAVING",
-                     vbasedev->name);
-        return ret;
+    if (migration->ops->set_state) {
+        ret = migration->ops->set_state(vbasedev,
+                                        ~VFIO_DEVICE_STATE_V1_RUNNING,
+                                        VFIO_DEVICE_STATE_V1_SAVING);
+        if (ret) {
+            error_report("%s: Failed to set state STOP and SAVING",
+                         vbasedev->name);
+            return ret;
+        }
     }
 
-    ret = vfio_migration_update_pending_local(vbasedev);
-    if (ret) {
-        return ret;
+    if (migration->ops->update_pending) {
+        ret = migration->ops->update_pending(vbasedev);
+        if (ret) {
+            return ret;
+        }
     }
 
     while (migration->pending_bytes > 0) {
         qemu_put_be64(f, VFIO_MIG_FLAG_DEV_DATA_STATE);
-        ret = vfio_migration_save_buffer_local(f, vbasedev, &data_size);
-        if (ret < 0) {
-            error_report("%s: Failed to save buffer", vbasedev->name);
-            return ret;
+        if (migration->ops->save_buffer) {
+            ret = migration->ops->save_buffer(f, vbasedev, &data_size);
+            if (ret < 0) {
+                error_report("%s: Failed to save buffer", vbasedev->name);
+                return ret;
+            }
         }
 
         if (data_size == 0) {
             break;
         }
 
-        ret = vfio_migration_update_pending_local(vbasedev);
-        if (ret) {
-            return ret;
+        if (migration->ops->update_pending) {
+            ret = migration->ops->update_pending(vbasedev);
+            if (ret) {
+                return ret;
+            }
         }
     }
 
@@ -590,11 +613,13 @@ static int vfio_save_complete_precopy(QEMUFile *f, void *opaque)
         return ret;
     }
 
-    ret = vfio_migration_set_state_local(vbasedev, ~VFIO_DEVICE_STATE_V1_SAVING,
-                                         0);
-    if (ret) {
-        error_report("%s: Failed to set state STOPPED", vbasedev->name);
-        return ret;
+    if (migration->ops->set_state) {
+        ret = migration->ops->set_state(vbasedev, ~VFIO_DEVICE_STATE_V1_SAVING,
+                                        0);
+        if (ret) {
+            error_report("%s: Failed to set state STOPPED", vbasedev->name);
+            return ret;
+        }
     }
 
     trace_vfio_save_complete_precopy(vbasedev->name);
@@ -634,20 +659,25 @@ static int vfio_migration_load_setup_local(VFIODevice *vbasedev)
 static int vfio_load_setup(QEMUFile *f, void *opaque)
 {
     VFIODevice *vbasedev = opaque;
+    VFIOMigration *migration = vbasedev->migration;
     int ret = 0;
 
-    ret = vfio_migration_load_setup_local(vbasedev);
-    if (ret < 0) {
-        error_report("%s: Failed to migration load setup", vbasedev->name);
-        return ret;
+    if (migration->ops->load_setup) {
+        ret = migration->ops->load_setup(vbasedev);
+        if (ret < 0) {
+            error_report("%s: Failed to migration load setup", vbasedev->name);
+            return ret;
+        }
     }
 
-    ret = vfio_migration_set_state_local(vbasedev, ~VFIO_DEVICE_STATE_MASK,
-                                   VFIO_DEVICE_STATE_V1_RESUMING);
-    if (ret) {
-        error_report("%s: Failed to set state RESUMING", vbasedev->name);
-        vfio_migration_cleanup(vbasedev);
-        return ret;
+    if (migration->ops->set_state) {
+        ret = migration->ops->set_state(vbasedev, ~VFIO_DEVICE_STATE_MASK,
+                                        VFIO_DEVICE_STATE_V1_RESUMING);
+        if (ret) {
+            error_report("%s: Failed to set state RESUMING", vbasedev->name);
+            vfio_migration_cleanup(vbasedev);
+            return ret;
+        }
     }
     return ret;
 }
@@ -692,11 +722,14 @@ static int vfio_load_state(QEMUFile *f, void *opaque, int version_id)
         case VFIO_MIG_FLAG_DEV_DATA_STATE:
         {
             uint64_t data_size = qemu_get_be64(f);
+            VFIOMigration *migration = vbasedev->migration;
 
             if (data_size) {
-                ret = vfio_migration_load_buffer_local(f, vbasedev, data_size);
-                if (ret < 0) {
-                    return ret;
+                if (migration->ops->load_buffer) {
+                    ret = migration->ops->load_buffer(f, vbasedev, data_size);
+                    if (ret < 0) {
+                        return ret;
+                    }
                 }
             }
             break;
@@ -736,7 +769,7 @@ static void vfio_vmstate_change(void *opaque, bool running, RunState state)
     uint32_t value, mask;
     int ret;
 
-    if (vbasedev->migration->vm_running == running) {
+    if (migration->vm_running == running) {
         return;
     }
 
@@ -769,17 +802,19 @@ static void vfio_vmstate_change(void *opaque, bool running, RunState state)
         }
     }
 
-    ret = vfio_migration_set_state_local(vbasedev, mask, value);
-    if (ret) {
-        /*
-         * Migration should be aborted in this case, but vm_state_notify()
-         * currently does not support reporting failures.
-         */
-        error_report("%s: Failed to set device state 0x%x", vbasedev->name,
-                     (migration->device_state & mask) | value);
-        qemu_file_set_error(migrate_get_current()->to_dst_file, ret);
+    if (migration->ops->set_state) {
+        ret = migration->ops->set_state(vbasedev, mask, value);
+        if (ret) {
+            /*
+             * Migration should be aborted in this case, but vm_state_notify()
+             * currently does not support reporting failures.
+             */
+            error_report("%s: Failed to set device state 0x%x", vbasedev->name,
+                         (migration->device_state & mask) | value);
+            qemu_file_set_error(migrate_get_current()->to_dst_file, ret);
+        }
     }
-    vbasedev->migration->vm_running = running;
+    migration->vm_running = running;
     trace_vfio_vmstate_change(vbasedev->name, running, RunState_str(state),
             (migration->device_state & mask) | value);
 }
@@ -800,12 +835,14 @@ static void vfio_migration_state_notifier(Notifier *notifier, void *data)
     case MIGRATION_STATUS_CANCELLED:
     case MIGRATION_STATUS_FAILED:
         bytes_transferred = 0;
-        ret = vfio_migration_set_state_local(vbasedev,
-                                             ~(VFIO_DEVICE_STATE_V1_SAVING |
-                                             VFIO_DEVICE_STATE_V1_RESUMING),
-                                             VFIO_DEVICE_STATE_V1_RUNNING);
-        if (ret) {
-            error_report("%s: Failed to set state RUNNING", vbasedev->name);
+        if (migration->ops->set_state) {
+            ret = migration->ops->set_state(vbasedev,
+                                            ~(VFIO_DEVICE_STATE_V1_SAVING |
+                                            VFIO_DEVICE_STATE_V1_RESUMING),
+                                            VFIO_DEVICE_STATE_V1_RUNNING);
+            if (ret) {
+                error_report("%s: Failed to set state RUNNING", vbasedev->name);
+            }
         }
     }
 }
@@ -820,7 +857,11 @@ static void vfio_migration_exit_local(VFIODevice *vbasedev)
 
 static void vfio_migration_exit(VFIODevice *vbasedev)
 {
-    vfio_migration_exit_local(vbasedev);
+    VFIOMigration *migration = vbasedev->migration;
+
+    if (migration->ops->exit) {
+        migration->ops->exit(vbasedev);
+    }
     g_free(vbasedev->migration);
     vbasedev->migration = NULL;
 }
@@ -839,6 +880,17 @@ static int vfio_migration_check(VFIODevice *vbasedev)
 
     return 0;
 }
+
+static VFIOMigrationOps vfio_local_method = {
+    .save_setup = vfio_migration_save_setup_local,
+    .load_setup = vfio_migration_load_setup_local,
+    .update_pending = vfio_migration_update_pending_local,
+    .save_buffer = vfio_migration_save_buffer_local,
+    .load_buffer = vfio_migration_load_buffer_local,
+    .set_state = vfio_migration_set_state_local,
+    .cleanup = vfio_migration_cleanup_local,
+    .exit = vfio_migration_exit_local,
+};
 
 static int vfio_migration_probe_local(VFIODevice *vbasedev)
 {
@@ -895,6 +947,7 @@ static int vfio_migration_probe_local(VFIODevice *vbasedev)
     add_migration_state_change_notifier(&migration->migration_state);
 
     trace_vfio_migration_probe_local(vbasedev->name, info->index);
+    migration->ops = &vfio_local_method;
     g_free(info);
     return 0;
 
