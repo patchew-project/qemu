@@ -300,6 +300,16 @@ Options are:
 Device options
 --------------
 
+CPU options
+'''''''''''
+
+Capitalized property names on RISC-V ``-cpu`` (since 7.1)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Using capitalized RISC-V CPU property names like ``-cpu rv64,Counters=on`` is
+deprecated.  Use lowercase names instead (e.g. ``-cpu rv64,counters=on``).
+
+
 Emulated device options
 '''''''''''''''''''''''
 
