@@ -2323,7 +2323,16 @@ char *qemu_console_get_label(QemuConsole *con)
 {
     if (con->console_type == GRAPHIC_CONSOLE) {
         if (con->device) {
-            return g_strdup(object_get_typename(con->device));
+            DeviceState *dev;
+
+            dev = DEVICE(con->device);
+            if (dev->id) {
+                return g_strdup_printf("%s.%d", dev->id, con->head);
+            } else {
+                return g_strdup_printf("%s.%d",
+                                       object_get_typename(con->device),
+                                       con->head);
+            }
         }
         return g_strdup("VGA");
     } else {
