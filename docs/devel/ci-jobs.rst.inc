@@ -98,6 +98,18 @@ Contributor controlled runtime variables
 The following variables may be set by contributors to control
 job execution
 
+QEMU_CI
+~~~~~~~
+
+By default, no pipelines will be created on contributor forks
+in order to preserve CI credits
+
+Set this variable to 1 to create the pipelines, but leave all
+the jobs to be manually started from the UI
+
+Set this variable to 2 to create the pipelines and run all
+the jobs immediately, as was historicaly behaviour
+
 QEMU_CI_AVOCADO_TESTING
 ~~~~~~~~~~~~~~~~~~~~~~~
 By default, tests using the Avocado framework are not run automatically in
