@@ -91,7 +91,8 @@ enum {
 
 /* Privileged specification version */
 enum {
-    PRIV_VERSION_1_10_0 = 0,
+    PRIV_VERSION_UNKNOWN = 0,
+    PRIV_VERSION_1_10_0,
     PRIV_VERSION_1_11_0,
     PRIV_VERSION_1_12_0,
 };
