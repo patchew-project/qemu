@@ -217,10 +217,10 @@ class TestEnv(ContextManager['TestEnv']):
             self.build_iotests = os.path.dirname(os.path.abspath(sys.argv[0]))
         else:
             # called from the source tree
-            self.source_iotests = os.getcwd()
+            self.source_iotests = str(Path(__file__, '..').resolve())
             self.build_iotests = self.source_iotests
 
-        self.build_root = os.path.join(self.build_iotests, '..', '..')
+        self.build_root = str(Path(self.build_iotests, '../..').resolve())
 
         self.init_directories()
         self.init_binaries()
