@@ -28,6 +28,7 @@
 #include "qemu/qemu-print.h"
 #include "exec/cpu_ldst.h"
 #include "exec/translator.h"
+#include "semihosting/semihost.h"
 
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
@@ -780,6 +781,11 @@ static bool trans_l_sh(DisasContext *dc, arg_store *a)
 
 static bool trans_l_nop(DisasContext *dc, arg_l_nop *a)
 {
+    if (semihosting_enabled() &&
+        a->k != 0) {
+        gen_helper_nop(cpu_env, tcg_constant_i32(a->k));
+    }
+
     return true;
 }
 

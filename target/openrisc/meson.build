@@ -10,6 +10,7 @@ openrisc_ss.add(files(
   'fpu_helper.c',
   'gdbstub.c',
   'interrupt_helper.c',
+  'openrisc-semi.c',
   'sys_helper.c',
   'translate.c',
 ))

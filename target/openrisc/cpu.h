@@ -407,4 +407,6 @@ void cpu_set_fpcsr(CPUOpenRISCState *env, uint32_t val);
 
 #define CPU_INTERRUPT_TIMER   CPU_INTERRUPT_TGT_INT_0
 
+void do_or1k_semihosting(CPUOpenRISCState *env, uint32_t k);
+
 #endif /* OPENRISC_CPU_H */

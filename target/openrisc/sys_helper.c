@@ -314,3 +314,8 @@ target_ulong HELPER(mfspr)(CPUOpenRISCState *env, target_ulong rd,
     /* for rd is passed in, if rd unchanged, just keep it back.  */
     return rd;
 }
+
+void HELPER(nop)(CPUOpenRISCState *env, target_ulong k)
+{
+    do_or1k_semihosting(env, k);
+}
