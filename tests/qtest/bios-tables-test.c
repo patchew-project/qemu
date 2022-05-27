@@ -100,6 +100,8 @@ typedef struct {
     smbios_entry_point smbios_ep_table;
     uint16_t smbios_cpu_max_speed;
     uint16_t smbios_cpu_curr_speed;
+    uint8_t smbios_core_count;
+    uint16_t smbios_core_count2;
     uint8_t *required_struct_types;
     int required_struct_types_len;
     QTestState *qts;
@@ -640,8 +642,9 @@ static inline bool smbios_single_instance(uint8_t type)
 
 static bool smbios_cpu_test(test_data *data, uint32_t addr)
 {
+    uint8_t real_cc, expect_cc = data->smbios_core_count;
+    uint16_t real, real_cc2, expect_cc2 = data->smbios_core_count2;
     uint16_t expect_speed[2];
-    uint16_t real;
     int offset[2];
     int i;
 
@@ -658,6 +661,20 @@ static bool smbios_cpu_test(test_data *data, uint32_t addr)
                     real, expect_speed[i]);
             return false;
         }
+    }
+
+    real_cc = qtest_readb(data->qts, addr + offsetof(struct smbios_type_4, core_count));
+    real_cc2 = qtest_readw(data->qts, addr + offsetof(struct smbios_type_4, core_count2));
+
+    if (expect_cc && (real_cc != expect_cc)) {
+        fprintf(stderr, "Unexpected SMBIOS CPU count: real %u expect %u\n",
+                real_cc, expect_cc);
+        return false;
+    }
+    if ((expect_cc == 0xFF) && (real_cc2 != expect_cc2)) {
+        fprintf(stderr, "Unexpected SMBIOS CPU count2: real %u expect %u\n",
+                real_cc2, expect_cc2);
+        return false;
     }
 
     return true;
@@ -902,6 +919,21 @@ static void test_acpi_q35_tcg(void)
     data.smbios_cpu_max_speed = 3000;
     data.smbios_cpu_curr_speed = 2600;
     test_acpi_one("-smbios type=4,max-speed=3000,current-speed=2600", &data);
+    free_test_data(&data);
+}
+
+static void test_acpi_q35_tcg_core_count2(void)
+{
+    test_data data = {
+        .machine = MACHINE_Q35,
+        .variant = ".core-count2",
+        .required_struct_types = base_required_struct_types,
+        .required_struct_types_len = ARRAY_SIZE(base_required_struct_types),
+        .smbios_core_count = 0xFF,
+        .smbios_core_count2 = 275,
+    };
+
+    test_acpi_one("-machine smbios-entry-point-type=64 -smp 275", &data);
     free_test_data(&data);
 }
 
@@ -1787,6 +1819,7 @@ int main(int argc, char *argv[])
         qtest_add_func("acpi/piix4/pci-hotplug/off",
                        test_acpi_piix4_no_acpi_pci_hotplug);
         qtest_add_func("acpi/q35", test_acpi_q35_tcg);
+        qtest_add_func("acpi/q35/core-count2", test_acpi_q35_tcg_core_count2);
         qtest_add_func("acpi/q35/bridge", test_acpi_q35_tcg_bridge);
         qtest_add_func("acpi/q35/multif-bridge", test_acpi_q35_multif_bridge);
         qtest_add_func("acpi/q35/mmio64", test_acpi_q35_tcg_mmio64);
