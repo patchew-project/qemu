@@ -29,6 +29,9 @@ void tpm_util_write_fatal_error_response(uint8_t *out, uint32_t out_len);
 
 bool tpm_util_is_selftest(const uint8_t *in, uint32_t in_len);
 
+uint32_t tpm_util_get_ordinal(const uint8_t *in, uint32_t in_len);
+#define TPM_ORDINAL_NONE 0x0
+
 int tpm_util_test_tpmdev(int tpm_fd, TPMVersion *tpm_version);
 
 static inline uint16_t tpm_cmd_get_tag(const void *b)

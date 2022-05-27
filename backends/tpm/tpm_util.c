@@ -103,6 +103,15 @@ bool tpm_util_is_selftest(const uint8_t *in, uint32_t in_len)
     return false;
 }
 
+uint32_t tpm_util_get_ordinal(const uint8_t *in, uint32_t in_len)
+{
+    if (in_len >= sizeof(struct tpm_req_hdr)) {
+        return tpm_cmd_get_ordinal(in);
+    }
+
+    return TPM_ORDINAL_NONE;
+}
+
 /*
  * Send request to a TPM device. We expect a response within one second.
  */

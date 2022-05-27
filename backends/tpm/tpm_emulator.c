@@ -81,6 +81,8 @@ struct TPMEmulator {
     unsigned int established_flag_cached:1;
 
     TPMBlobBuffers state_blobs;
+
+    uint32_t last_command; /* last command sent to TPM */
 };
 
 struct tpm_error {
@@ -155,6 +157,12 @@ static int tpm_emulator_unix_tx_bufs(TPMEmulator *tpm_emu,
 {
     ssize_t ret;
     bool is_selftest = false;
+    uint32_t command;
+
+    command = tpm_util_get_ordinal(in, in_len);
+    if (command != TPM_ORDINAL_NONE) {
+        tpm_emu->last_command = command;
+    }
 
     if (selftest_done) {
         *selftest_done = false;
@@ -910,6 +918,7 @@ static void tpm_emulator_inst_init(Object *obj)
 
     tpm_emu->options = g_new0(TPMEmulatorOptions, 1);
     tpm_emu->cur_locty_number = ~0;
+    tpm_emu->last_command = TPM_ORDINAL_NONE;
     qemu_mutex_init(&tpm_emu->mutex);
 
     vmstate_register(NULL, VMSTATE_INSTANCE_ID_ANY,
