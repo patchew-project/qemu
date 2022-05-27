@@ -3075,22 +3075,6 @@ DISAS_INSN(addsubq)
     tcg_temp_free(dest);
 }
 
-DISAS_INSN(tpf)
-{
-    switch (insn & 7) {
-    case 2: /* One extension word.  */
-        s->pc += 2;
-        break;
-    case 3: /* Two extension words.  */
-        s->pc += 4;
-        break;
-    case 4: /* No extension words.  */
-        break;
-    default:
-        disas_undef(env, s, insn);
-    }
-}
-
 DISAS_INSN(branch)
 {
     int32_t offset;
@@ -6099,7 +6083,7 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(scc,       50c0, f0c0, M68000);   /* Scc.B <EA> */
     INSN(dbcc,      50c8, f0f8, M68000);
     INSN(trapcc,    50f8, f0f8, TRAPCC);
-    INSN(tpf,       51f8, fff8, CF_ISA_A);
+    INSN(trapcc,    51f8, fff8, CF_ISA_A); /* TPF (trapf) */
 
     /* Branch instructions.  */
     BASE(branch,    6000, f000);
