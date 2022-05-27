@@ -193,6 +193,9 @@ struct DeviceState {
     int instance_id_alias;
     int alias_required_for_version;
     ResettableState reset;
+
+    /* Is the device currently in mmio/pio/dma? Used to prevent re-entrancy */
+    int engaged_in_io;
 };
 
 struct DeviceListener {
