@@ -389,8 +389,43 @@ err_exit:
     return -1;
 }
 
+static void tpm_emulator_send_tpm2_shutdown(TPMEmulator *tpm_emu)
+{
+    const struct tpm2_shutdown {
+        struct tpm_req_hdr hdr;
+        uint16_t shutdownType;
+    } tpm2_shutdown_clear = {
+        .hdr = {
+            .tag = cpu_to_be16(TPM2_ST_NO_SESSIONS),
+            .len = cpu_to_be32(sizeof(tpm2_shutdown_clear)),
+            .ordinal = cpu_to_be32(TPM2_CC_Shutdown),
+        },
+        .shutdownType = cpu_to_be16(TPM2_SU_CLEAR),
+    };
+    Error *local_err = NULL;
+    uint8_t result[10];
+
+    trace_tpm_emulator_send_tpm2_shutdown(tpm_emu->last_command);
+
+    if (tpm_emulator_unix_tx_bufs(tpm_emu, (uint8_t *)&tpm2_shutdown_clear,
+                                  sizeof(tpm2_shutdown_clear),
+                                  result, sizeof(result),
+                                  NULL, &local_err) < 0) {
+        error_report_err(local_err);
+    }
+}
+
 static int tpm_emulator_startup_tpm(TPMBackend *tb, size_t buffersize)
 {
+    TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
+
+    /* In case of VM reset we may need to send a TPM2_Shutdown command */
+    if (tpm_emu->tpm_version == TPM_VERSION_2_0 &&
+        tpm_emu->last_command != TPM_ORDINAL_NONE &&
+        tpm_emu->last_command != TPM2_CC_Shutdown) {
+        tpm_emulator_send_tpm2_shutdown(tpm_emu);
+    }
+
     return tpm_emulator_startup_tpm_resume(tb, buffersize, false);
 }
 

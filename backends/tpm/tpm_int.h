@@ -64,12 +64,15 @@ struct tpm_resp_hdr {
 /* TPM2 defines */
 #define TPM2_ST_NO_SESSIONS       0x8001
 
+#define TPM2_CC_Shutdown          0x00000145
 #define TPM2_CC_ReadClock         0x00000181
 #define TPM2_CC_GetCapability     0x0000017a
 
 #define TPM2_CAP_TPM_PROPERTIES   0x6
 
 #define TPM2_PT_MAX_COMMAND_SIZE  0x11e
+
+#define TPM2_SU_CLEAR             0x0
 
 #define TPM_RC_INSUFFICIENT       0x9a
 #define TPM_RC_FAILURE            0x101

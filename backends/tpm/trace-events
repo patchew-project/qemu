@@ -31,3 +31,4 @@ tpm_emulator_set_state_blobs_error(const char *msg) "error while setting state b
 tpm_emulator_set_state_blobs_done(void) "Done setting state blobs"
 tpm_emulator_pre_save(void) ""
 tpm_emulator_inst_init(void) ""
+tpm_emulator_send_tpm2_shutdown(uint32_t ord) "Sending TPM2_Shutdown(TPM2_SU_CLEAR); last ordinal from VM was: 0x%08x"
