@@ -288,7 +288,15 @@ static MemTxResult dma_buf_rw(void *buf, dma_addr_t len, dma_addr_t *residual,
     uint8_t *ptr = buf;
     dma_addr_t xresidual;
     int sg_cur_index;
+    DeviceState *dev;
+    bool prior_engaged_state;
     MemTxResult res = MEMTX_OK;
+
+    dev = sg->dev;
+    if (dev) {
+        prior_engaged_state = dev->engaged_in_io;
+        dev->engaged_in_io = true;
+    }
 
     xresidual = sg->size;
     sg_cur_index = 0;
@@ -300,6 +308,10 @@ static MemTxResult dma_buf_rw(void *buf, dma_addr_t len, dma_addr_t *residual,
         ptr += xfer;
         len -= xfer;
         xresidual -= xfer;
+    }
+
+    if (dev) {
+        dev->engaged_in_io = prior_engaged_state;
     }
 
     if (residual) {
