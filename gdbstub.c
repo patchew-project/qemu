@@ -29,6 +29,7 @@
 #include "qemu/ctype.h"
 #include "qemu/cutils.h"
 #include "qemu/module.h"
+#include "qemu/thread.h"
 #include "trace/trace-root.h"
 #include "exec/gdbstub.h"
 #ifdef CONFIG_USER_ONLY
@@ -370,8 +371,103 @@ typedef struct GDBState {
     int sstep_flags;
     int supported_sstep_flags;
 } GDBState;
+typedef struct GDBSignal {
+    CPUState *cpu;
+    int sig;
+} GDBSignal;
 
 static GDBState gdbserver_state;
+#ifdef CONFIG_USER_ONLY
+static GDBSignal *waiting_signal;
+static QemuMutex signal_wait_mutex;
+static QemuMutex signal_done_mutex;
+static QemuMutex another_thread_is_stepping;
+static int signal_result;
+#endif
+
+static void *gdb_signal_handler_loop(void* args)
+{
+    while (TRUE) {
+        if (NULL != waiting_signal) {
+            signal_result = gdb_handlesig(waiting_signal->cpu,
+                    waiting_signal->sig);
+            waiting_signal = NULL;
+            qemu_mutex_unlock(&signal_done_mutex);
+        }
+    }
+    /* Should never return */
+    return NULL;
+}
+
+int gdb_thread_handle_signal(CPUState *cpu, int sig)
+{
+    GDBSignal signal = {
+        .cpu = cpu,
+        .sig = sig
+    };
+    if (!cpu->singlestep_enabled) {
+        /*
+         * This mutex is locked by all threads that are not stepping to allow
+         * only the thread that is currently stepping to handle signals until
+         * it finished stepping. Without this, pending signals that are queued
+         * up while the stepping thread handles its signal will race with the
+         * stepping thread to get the next signal handled. This is bad, because
+         * the gdb client expects the stepping thread to be the first response
+         * back to the step command that was sent.
+         */
+        qemu_mutex_lock(&another_thread_is_stepping);
+    }
+    /*
+     * This mutex is locked to allow only one thread at a time to be
+     * handling a signal. This is necessary, because otherwise multiple
+     * threads will try to talk to the gdb client simultaneously and can
+     * race each other sending and receiving packets, potentially going
+     * out of order or simulatenously reading off of the same socket.
+     */
+    qemu_mutex_lock(&signal_wait_mutex);
+    {
+        /*
+         * This mutex is first locked here to ensure that it is in a locked
+         * state before the gdb_signal_handler_loop handles the next signal
+         * and unlocks it.
+         */
+        qemu_mutex_lock(&signal_done_mutex);
+        waiting_signal = &signal;
+        /*
+         * The thread locks this mutex again to wait until the
+         * gdb_signal_handler_loop is finished handling the signal and has
+         * unlocked the mutex.
+         */
+        qemu_mutex_lock(&signal_done_mutex);
+        /*
+         * Finally, unlock this mutex in preparation for the next call to
+         * this function
+         */
+        qemu_mutex_unlock(&signal_done_mutex);
+        sig = signal_result;
+        if (!cpu->singlestep_enabled) {
+            /*
+             * If this thread is not stepping and is handling its signal
+             * then it can always safely unlock this mutex.
+             */
+            qemu_mutex_unlock(&another_thread_is_stepping);
+        } else {
+            /*
+             * If this thread was already stepping it will already be holding
+             * this mutex so here try to lock instead of waiting on a lock.
+             * This lock will prevent other non-stepping threads from handling
+             * a signal until stepping is done.
+             */
+            qemu_mutex_trylock(&another_thread_is_stepping);
+        }
+    }
+    /*
+     * Unlock here to because we are done handling the signal and
+     * another thread can now start handling a pending signal.
+     */
+    qemu_mutex_unlock(&signal_wait_mutex);
+    return sig;
+}
 
 static void init_gdbserver_state(void)
 {
@@ -381,6 +477,15 @@ static void init_gdbserver_state(void)
     gdbserver_state.str_buf = g_string_new(NULL);
     gdbserver_state.mem_buf = g_byte_array_sized_new(MAX_PACKET_LENGTH);
     gdbserver_state.last_packet = g_byte_array_sized_new(MAX_PACKET_LENGTH + 4);
+#ifdef CONFIG_USER_ONLY
+    waiting_signal = NULL;
+    qemu_mutex_init(&signal_wait_mutex);
+    qemu_mutex_init(&signal_done_mutex);
+    qemu_mutex_init(&another_thread_is_stepping);
+    pthread_t signal_thread;
+    pthread_create(&signal_thread, NULL, gdb_signal_handler_loop, NULL);
+    pthread_setname_np(signal_thread, "gdbstub_handler");
+#endif
 
     /*
      * In replay mode all events will come from the log and can't be

@@ -1068,7 +1068,11 @@ static void handle_pending_signal(CPUArchState *cpu_env, int sig,
     /* dequeue signal */
     k->pending = 0;
 
+#ifdef CONFIG_USER_ONLY
+    sig = gdb_thread_handle_signal(cpu, sig);
+#else
     sig = gdb_handlesig(cpu, sig);
+#endif
     if (!sig) {
         sa = NULL;
         handler = TARGET_SIG_IGN;

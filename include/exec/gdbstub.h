@@ -48,6 +48,19 @@ int use_gdb_syscalls(void);
 
 #ifdef CONFIG_USER_ONLY
 /**
+ * gdb_thread_handle_signal
+ * @cpu_env: The guest thread's cpu env
+ * @sig: The signal being handled for the guest thread
+ *
+ * This function is a layer in between the gdb_handlesig function and the
+ * guest cpu threads. Instead of directly handling signals in the guest
+ * threads, this function passes off a signal to a handler loop thread running
+ * in the gdbstub that will handle each thread's signal atomically to avoid
+ * having races between threads to read and send data on the gdb socket. The
+ * function returns the signal value from gdb_handlesig
+ */
+int gdb_thread_handle_signal(CPUState *cpu_env, int sig);
+/**
  * gdb_handlesig: yield control to gdb
  * @cpu: CPU
  * @sig: if non-zero, the signal number which caused us to stop
