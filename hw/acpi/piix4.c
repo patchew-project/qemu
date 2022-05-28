@@ -506,8 +506,7 @@ static void piix4_pm_init(Object *obj)
 }
 
 PIIX4PMState *piix4_pm_initfn(PCIBus *bus, int devfn, uint32_t smb_io_base,
-                              qemu_irq sci_irq, qemu_irq smi_irq,
-                              int smm_enabled)
+                              qemu_irq smi_irq, int smm_enabled)
 {
     PCIDevice *pci_dev;
     DeviceState *dev;
@@ -519,7 +518,6 @@ PIIX4PMState *piix4_pm_initfn(PCIBus *bus, int devfn, uint32_t smb_io_base,
     qdev_prop_set_bit(dev, "smm-enabled", smm_enabled);
 
     s = PIIX4_PM(dev);
-    s->irq = sci_irq;
     s->smi_irq = smi_irq;
 
     pci_realize_and_unref(pci_dev, bus, &error_fatal);
