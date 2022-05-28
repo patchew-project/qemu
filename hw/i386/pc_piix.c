@@ -285,9 +285,9 @@ static void pc_init1(MachineState *machine,
 
         smi_irq = qemu_allocate_irq(pc_acpi_smi_interrupt, first_cpu, 0);
         /* TODO: Populate SPD eeprom data.  */
-        piix4_pm = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100,
-                                 x86ms->gsi[9], smi_irq,
-                                 x86_machine_is_smm_enabled(x86ms));
+        piix4_pm = piix4_pm_initfn(pci_bus, piix3_devfn + 3, 0xb100,
+                                   x86ms->gsi[9], smi_irq,
+                                   x86_machine_is_smm_enabled(x86ms));
         pcms->smbus = I2C_BUS(qdev_get_child_bus(DEVICE(piix4_pm), "i2c"));
         smbus_eeprom_init(pcms->smbus, 8, NULL, 0);
 
