@@ -497,6 +497,14 @@ static void piix4_pm_realize(PCIDevice *dev, Error **errp)
     piix4_pm_add_properties(s);
 }
 
+static void piix4_pm_init(Object *obj)
+{
+    PIIX4PMState *s = PIIX4_PM(obj);
+
+    qdev_init_gpio_out(DEVICE(obj), &s->irq, 1);
+    qdev_init_gpio_out_named(DEVICE(obj), &s->smi_irq, "smi-irq", 1);
+}
+
 PIIX4PMState *piix4_pm_initfn(PCIBus *bus, int devfn, uint32_t smb_io_base,
                               qemu_irq sci_irq, qemu_irq smi_irq,
                               int smm_enabled)
@@ -663,6 +671,7 @@ static void piix4_pm_class_init(ObjectClass *klass, void *data)
 static const TypeInfo piix4_pm_info = {
     .name          = TYPE_PIIX4_PM,
     .parent        = TYPE_PCI_DEVICE,
+    .instance_init  = piix4_pm_init,
     .instance_size = sizeof(PIIX4PMState),
     .class_init    = piix4_pm_class_init,
     .interfaces = (InterfaceInfo[]) {
