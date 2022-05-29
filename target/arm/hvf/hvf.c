@@ -25,6 +25,7 @@
 #include "qemu/main-loop.h"
 #include "sysemu/cpus.h"
 #include "arm-powerctl.h"
+#include "target/arm/cpregs.h"
 #include "target/arm/cpu.h"
 #include "target/arm/internals.h"
 #include "trace/trace-target_arm_hvf.h"
