@@ -129,6 +129,7 @@ struct SDCardClass {
     bool (*get_readonly)(SDState *sd);
 
     const struct SDProto *proto;
+    void (*set_csd)(SDState *sd, uint64_t size);
 };
 
 #define TYPE_SD_BUS "sd-bus"
