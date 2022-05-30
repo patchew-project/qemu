@@ -849,9 +849,13 @@ nvdimm_dsm_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
     nvdimm_debug("Revision 0x%x Handler 0x%x Function 0x%x.\n", in->revision,
                  in->handle, in->function);
 
-    if (in->revision != 0x1 /* Currently we only support DSM Spec Rev1. */) {
-        nvdimm_debug("Revision 0x%x is not supported, expect 0x%x.\n",
-                     in->revision, 0x1);
+    /*
+     * Current NVDIMM _DSM Spec supports Rev1 and Rev2
+     * Intel® OptanePersistent Memory Module DSM Interface, Revision 2.0
+     */
+    if (in->revision != 0x1 && in->revision != 0x2) {
+        nvdimm_debug("Revision 0x%x is not supported, expect 0x1 or 0x2.\n",
+                     in->revision);
         nvdimm_dsm_no_payload(NVDIMM_DSM_RET_STATUS_UNSUPPORT, dsm_mem_addr);
         goto exit;
     }
