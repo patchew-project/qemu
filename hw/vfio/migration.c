@@ -863,8 +863,15 @@ int vfio_migration_probe(VFIODevice *vbasedev, Error **errp)
     struct vfio_region_info *info = NULL;
     int ret = -ENOTSUP;
 
-    if (!vbasedev->enable_migration || !container->dirty_pages_supported) {
+    if (!vbasedev->enable_migration) {
         goto add_blocker;
+    }
+
+    if (!container->dirty_pages_supported) {
+        warn_report_once(
+            "%s: IOMMU of the device's VFIO container doesn't support dirty page tracking, migration pre-copy phase will be skipped",
+            vbasedev->name);
+        migrate_get_current()->skip_precopy = true;
     }
 
     ret = vfio_get_dev_region_info(vbasedev,
