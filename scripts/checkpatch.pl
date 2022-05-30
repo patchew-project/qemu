@@ -305,6 +305,7 @@ our @typeList = (
 	qr{${Ident}_handler},
 	qr{${Ident}_handler_fn},
 	qr{target_(?:u)?long},
+	qr{arg_${Ident}},
 	qr{hwaddr},
         # external libraries
 	qr{xen\w+_handle},
