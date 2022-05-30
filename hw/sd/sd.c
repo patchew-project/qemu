@@ -2207,6 +2207,17 @@ static sd_rsp_type_t sd_emmc_cmd_APP_CMD(SDState *sd, SDRequest req)
     return sd_r0;
 }
 
+static sd_rsp_type_t sd_emmc_cmd_SEND_TUNING_BLOCK(SDState *sd, SDRequest req)
+{
+    if (sd->state != sd_transfer_state) {
+        sd_invalid_state_for_cmd(sd, req);
+    }
+
+    sd->state = sd_sendingdata_state;
+    sd->data_offset = 0;
+    return sd_r1;
+}
+
 static const SDProto sd_proto_emmc = {
     .name = "eMMC",
     .cmd = {
@@ -2216,6 +2227,7 @@ static const SDProto sd_proto_emmc = {
         [3]         = sd_emmc_cmd_SEND_RELATIVE_ADDR,
         [5]         = sd_cmd_illegal,
         [19]        = sd_cmd_SEND_TUNING_BLOCK,
+        [21]        = sd_emmc_cmd_SEND_TUNING_BLOCK,
         [41]        = sd_cmd_illegal,
         [52 ... 54] = sd_cmd_illegal,
         [55]        = sd_emmc_cmd_APP_CMD,
