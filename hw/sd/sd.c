@@ -1048,6 +1048,25 @@ static sd_rsp_type_t sd_cmd_ALL_SEND_CID(SDState *sd, SDRequest req)
     return sd_r2_i;
 }
 
+static void sd_emmc_set_rca(SDState *sd, uint16_t value)
+{
+    sd->rca = value;
+}
+
+static sd_rsp_type_t sd_emmc_cmd_SEND_RELATIVE_ADDR(SDState *sd, SDRequest req)
+{
+    switch (sd->state) {
+    case sd_identification_state:
+    case sd_standby_state:
+        sd->state = sd_standby_state;
+        sd_emmc_set_rca(sd, req.arg >> 16);
+        return sd_r1;
+
+    default:
+        return sd_invalid_state_for_cmd(sd, req);
+    }
+}
+
 static sd_rsp_type_t sd_cmd_SEND_RELATIVE_ADDR(SDState *sd, SDRequest req)
 {
     switch (sd->state) {
@@ -2189,6 +2208,7 @@ static const SDProto sd_proto_emmc = {
         [0]         = sd_cmd_GO_IDLE_STATE,
         [1]         = sd_emmc_cmd_SEND_OP_CMD,
         [2]         = sd_emmc_cmd_ALL_SEND_CID,
+        [3]         = sd_emmc_cmd_SEND_RELATIVE_ADDR,
         [5]         = sd_cmd_illegal,
         [19]        = sd_cmd_SEND_TUNING_BLOCK,
         [41]        = sd_cmd_illegal,
