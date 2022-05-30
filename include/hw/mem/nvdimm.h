@@ -37,6 +37,12 @@
         }                                                     \
     } while (0)
 
+/* NVDIMM ACPI Methods */
+#define NVDIMM_METHOD_DSM   0
+#define NVDIMM_METHOD_LSI   0x100
+#define NVDIMM_METHOD_LSR   0x101
+#define NVDIMM_METHOD_LSW   0x102
+
 /*
  * The minimum label data size is required by NVDIMM Namespace
  * specification, see the chapter 2 Namespaces:
