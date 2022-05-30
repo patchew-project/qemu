@@ -37,6 +37,7 @@
 #include "hw/ide.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"
+#include "hw/pci-bridge/pci_expander_bridge.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/timer/hpet.h"
 #include "hw/firmware/smbios.h"
@@ -733,7 +734,23 @@ void pc_machine_done(Notifier *notifier, void *data)
                                         PCMachineState, machine_done);
     X86MachineState *x86ms = X86_MACHINE(pcms);
     MachineState *ms = MACHINE(pcms);
+    PCIBus *bus = pcms->bus;
 
+    /* Walk the pci busses looking for pxb busses to hook up */
+    if (bus) {
+        QLIST_FOREACH(bus, &bus->child, sibling) {
+            if (!pci_bus_is_root(bus)) {
+                continue;
+            }
+            if (pci_bus_is_cxl(bus)) {
+                if (!ms->cxl_devices_state->is_enabled) {
+                    error_report("CXL host bridges present, but cxl=off");
+                    exit(EXIT_FAILURE);
+                }
+                pxb_cxl_hook_up_registers(ms->cxl_devices_state, bus, &error_fatal);
+            }
+        }
+    }
     if (ms->cxl_devices_state) {
         cxl_fmws_link_targets(ms->cxl_devices_state, &error_fatal);
     }
