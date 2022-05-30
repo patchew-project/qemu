@@ -733,7 +733,6 @@ void pc_machine_done(Notifier *notifier, void *data)
     PCMachineState *pcms = container_of(notifier,
                                         PCMachineState, machine_done);
     X86MachineState *x86ms = X86_MACHINE(pcms);
-    MachineState *ms = MACHINE(pcms);
     PCIBus *bus = pcms->bus;
 
     /* Walk the pci busses looking for pxb busses to hook up */
@@ -743,16 +742,16 @@ void pc_machine_done(Notifier *notifier, void *data)
                 continue;
             }
             if (pci_bus_is_cxl(bus)) {
-                if (!ms->cxl_devices_state->is_enabled) {
+                if (!pcms->cxl_devices_state.is_enabled) {
                     error_report("CXL host bridges present, but cxl=off");
                     exit(EXIT_FAILURE);
                 }
-                pxb_cxl_hook_up_registers(ms->cxl_devices_state, bus, &error_fatal);
+                pxb_cxl_hook_up_registers(&pcms->cxl_devices_state, bus, &error_fatal);
             }
         }
     }
-    if (ms->cxl_devices_state) {
-        cxl_fmws_link_targets(ms->cxl_devices_state, &error_fatal);
+    if (pcms->cxl_devices_state.is_enabled) {
+        cxl_fmws_link_targets(&pcms->cxl_devices_state, &error_fatal);
     }
 
     /* set the number of CPUs */
@@ -922,8 +921,8 @@ void pc_memory_init(PCMachineState *pcms,
                                     &machine->device_memory->mr);
     }
 
-    if (machine->cxl_devices_state->is_enabled) {
-        MemoryRegion *mr = &machine->cxl_devices_state->host_mr;
+    if (pcms->cxl_devices_state.is_enabled) {
+        MemoryRegion *mr = &pcms->cxl_devices_state.host_mr;
         hwaddr cxl_size = MiB;
 
         if (pcmc->has_reserved_memory && machine->device_memory->base) {
@@ -941,12 +940,12 @@ void pc_memory_init(PCMachineState *pcms,
         memory_region_init(mr, OBJECT(machine), "cxl_host_reg", cxl_size);
         memory_region_add_subregion(system_memory, cxl_base, mr);
         cxl_resv_end = cxl_base + cxl_size;
-        if (machine->cxl_devices_state->fixed_windows) {
+        if (pcms->cxl_devices_state.fixed_windows) {
             hwaddr cxl_fmw_base;
             GList *it;
 
             cxl_fmw_base = ROUND_UP(cxl_base + cxl_size, 256 * MiB);
-            for (it = machine->cxl_devices_state->fixed_windows; it; it = it->next) {
+            for (it = pcms->cxl_devices_state.fixed_windows; it; it = it->next) {
                 CXLFixedWindow *fw = it->data;
 
                 fw->base = cxl_fmw_base;
@@ -988,7 +987,7 @@ void pc_memory_init(PCMachineState *pcms,
             res_mem_end += memory_region_size(&machine->device_memory->mr);
         }
 
-        if (machine->cxl_devices_state->is_enabled) {
+        if (pcms->cxl_devices_state.is_enabled) {
             res_mem_end = cxl_resv_end;
         }
         *val = cpu_to_le64(ROUND_UP(res_mem_end, 1 * GiB));
@@ -1024,12 +1023,12 @@ uint64_t pc_pci_hole64_start(void)
     X86MachineState *x86ms = X86_MACHINE(pcms);
     uint64_t hole64_start = 0;
 
-    if (ms->cxl_devices_state->host_mr.addr) {
-        hole64_start = ms->cxl_devices_state->host_mr.addr +
-            memory_region_size(&ms->cxl_devices_state->host_mr);
-        if (ms->cxl_devices_state->fixed_windows) {
+    if (pcms->cxl_devices_state.host_mr.addr) {
+        hole64_start = pcms->cxl_devices_state.host_mr.addr +
+            memory_region_size(&pcms->cxl_devices_state.host_mr);
+        if (pcms->cxl_devices_state.fixed_windows) {
             GList *it;
-            for (it = ms->cxl_devices_state->fixed_windows; it; it = it->next) {
+            for (it = pcms->cxl_devices_state.fixed_windows; it; it = it->next) {
                 CXLFixedWindow *fw = it->data;
                 hole64_start = fw->mr.addr + memory_region_size(&fw->mr);
             }
@@ -1705,7 +1704,6 @@ static void pc_machine_set_max_fw_size(Object *obj, Visitor *v,
 static void pc_machine_initfn(Object *obj)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
-    MachineState *ms = MACHINE(obj);
 
 #ifdef CONFIG_VMPORT
     pcms->vmport = ON_OFF_AUTO_AUTO;
@@ -1730,7 +1728,7 @@ static void pc_machine_initfn(Object *obj)
     pcms->pcspk = isa_new(TYPE_PC_SPEAKER);
     object_property_add_alias(OBJECT(pcms), "pcspk-audiodev",
                               OBJECT(pcms->pcspk), "audiodev");
-    cxl_machine_init(obj, ms->cxl_devices_state);
+    cxl_machine_init(obj, &pcms->cxl_devices_state);
 }
 
 static void pc_machine_reset(MachineState *machine)
