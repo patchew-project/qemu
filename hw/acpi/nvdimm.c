@@ -35,6 +35,7 @@
 #include "hw/nvram/fw_cfg.h"
 #include "hw/mem/nvdimm.h"
 #include "qemu/nvdimm-utils.h"
+#include "trace.h"
 
 /*
  * define Byte Addressable Persistent Memory (PM) Region according to
@@ -558,8 +559,8 @@ static void nvdimm_dsm_func_read_fit(NVDIMMState *state, NvdimmDsmIn *in,
 
     fit = fit_buf->fit;
 
-    nvdimm_debug("Read FIT: offset 0x%x FIT size 0x%x Dirty %s.\n",
-                 read_fit->offset, fit->len, fit_buf->dirty ? "Yes" : "No");
+    trace_acpi_nvdimm_read_fit(read_fit->offset, fit->len,
+                               fit_buf->dirty ? "Yes" : "No");
 
     if (read_fit->offset > fit->len) {
         func_ret_status = NVDIMM_DSM_RET_STATUS_INVALID;
@@ -667,7 +668,7 @@ static void nvdimm_dsm_label_size(NVDIMMDevice *nvdimm, hwaddr dsm_mem_addr)
     label_size = nvdimm->label_size;
     mxfer = nvdimm_get_max_xfer_label_size();
 
-    nvdimm_debug("label_size 0x%x, max_xfer 0x%x.\n", label_size, mxfer);
+    trace_acpi_nvdimm_label_info(label_size, mxfer);
 
     label_size_out.func_ret_status = cpu_to_le32(NVDIMM_DSM_RET_STATUS_SUCCESS);
     label_size_out.label_size = cpu_to_le32(label_size);
@@ -683,20 +684,18 @@ static uint32_t nvdimm_rw_label_data_check(NVDIMMDevice *nvdimm,
     uint32_t ret = NVDIMM_DSM_RET_STATUS_INVALID;
 
     if (offset + length < offset) {
-        nvdimm_debug("offset 0x%x + length 0x%x is overflow.\n", offset,
-                     length);
+        trace_acpi_nvdimm_label_overflow(offset, length);
         return ret;
     }
 
     if (nvdimm->label_size < offset + length) {
-        nvdimm_debug("position 0x%x is beyond label data (len = %" PRIx64 ").\n",
-                     offset + length, nvdimm->label_size);
+        trace_acpi_nvdimm_label_oversize(offset + length, nvdimm->label_size);
         return ret;
     }
 
     if (length > nvdimm_get_max_xfer_label_size()) {
-        nvdimm_debug("length (0x%x) is larger than max_xfer (0x%x).\n",
-                     length, nvdimm_get_max_xfer_label_size());
+        trace_acpi_nvdimm_label_xfer_exceed(length,
+                                            nvdimm_get_max_xfer_label_size());
         return ret;
     }
 
@@ -718,8 +717,8 @@ static void nvdimm_dsm_get_label_data(NVDIMMDevice *nvdimm,
     get_label_data->offset = le32_to_cpu(get_label_data->offset);
     get_label_data->length = le32_to_cpu(get_label_data->length);
 
-    nvdimm_debug("Read Label Data: offset 0x%x length 0x%x.\n",
-                 get_label_data->offset, get_label_data->length);
+    trace_acpi_nvdimm_read_label(get_label_data->offset,
+                                 get_label_data->length);
 
     status = nvdimm_rw_label_data_check(nvdimm, get_label_data->offset,
                                         get_label_data->length);
@@ -755,8 +754,8 @@ static void nvdimm_dsm_set_label_data(NVDIMMDevice *nvdimm,
     set_label_data->offset = le32_to_cpu(set_label_data->offset);
     set_label_data->length = le32_to_cpu(set_label_data->length);
 
-    nvdimm_debug("Write Label Data: offset 0x%x length 0x%x.\n",
-                 set_label_data->offset, set_label_data->length);
+    trace_acpi_nvdimm_write_label(set_label_data->offset,
+                                  set_label_data->length);
 
     status = nvdimm_rw_label_data_check(nvdimm, set_label_data->offset,
                                         set_label_data->length);
@@ -833,7 +832,7 @@ static void nvdimm_dsm_device(uint32_t nv_handle, NvdimmDsmIn *dsm_in,
 static uint64_t
 nvdimm_method_read(void *opaque, hwaddr addr, unsigned size)
 {
-    nvdimm_debug("BUG: we never read NVDIMM Method IO Port.\n");
+    trace_acpi_nvdimm_read_io_port();
     return 0;
 }
 
@@ -843,20 +842,19 @@ nvdimm_dsm_handle(void *opaque, NvdimmMthdIn *method_in, hwaddr dsm_mem_addr)
     NVDIMMState *state = opaque;
     NvdimmDsmIn *dsm_in = (NvdimmDsmIn *)method_in->args;
 
-    nvdimm_debug("dsm memory address 0x%" HWADDR_PRIx ".\n", dsm_mem_addr);
+    trace_acpi_nvdimm_dsm_mem_addr(dsm_mem_addr);
 
     dsm_in->revision = le32_to_cpu(dsm_in->revision);
     dsm_in->function = le32_to_cpu(dsm_in->function);
 
-    nvdimm_debug("Revision 0x%x Handler 0x%x Function 0x%x.\n",
-                 dsm_in->revision, method_in->handle, dsm_in->function);
+    trace_acpi_nvdimm_dsm_info(dsm_in->revision,
+                 method_in->handle, dsm_in->function);
     /*
      * Current NVDIMM _DSM Spec supports Rev1 and Rev2
      * Intel® OptanePersistent Memory Module DSM Interface, Revision 2.0
      */
     if (dsm_in->revision != 0x1 && dsm_in->revision != 0x2) {
-        nvdimm_debug("Revision 0x%x is not supported, expect 0x1 or 0x2.\n",
-                     dsm_in->revision);
+        trace_acpi_nvdimm_invalid_revision(dsm_in->revision);
         nvdimm_dsm_no_payload(NVDIMM_DSM_RET_STATUS_UNSUPPORT, dsm_mem_addr);
         return;
     }
@@ -943,7 +941,7 @@ nvdimm_method_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
         nvdimm_lsw_handle(method_in->handle, method_in->args, dsm_mem_addr);
         break;
     default:
-        nvdimm_debug("%s: Unkown method 0x%x\n", __func__, method_in->method);
+        trace_acpi_nvdimm_invalid_method(method_in->method);
         break;
     }
 
