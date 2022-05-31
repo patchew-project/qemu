@@ -652,10 +652,15 @@ static ISABus *pnv_isa_create(PnvChip *chip, Error **errp)
     return PNV_CHIP_GET_CLASS(chip)->isa_create(chip, errp);
 }
 
+static PnvPHB3 *pnv_get_phb3_child(Object *child)
+{
+    return (PnvPHB3 *)object_dynamic_cast(child, TYPE_PNV_PHB3);
+}
+
 static int pnv_chip_power8_pic_print_info_child(Object *child, void *opaque)
 {
     Monitor *mon = opaque;
-    PnvPHB3 *phb3 = (PnvPHB3 *) object_dynamic_cast(child, TYPE_PNV_PHB3);
+    PnvPHB3 *phb3 = pnv_get_phb3_child(child);
 
     if (phb3) {
         pnv_phb3_msi_pic_print_info(&phb3->msis, mon);
@@ -1942,7 +1947,7 @@ typedef struct ForeachPhb3Args {
 static int pnv_ics_get_child(Object *child, void *opaque)
 {
     ForeachPhb3Args *args = opaque;
-    PnvPHB3 *phb3 = (PnvPHB3 *) object_dynamic_cast(child, TYPE_PNV_PHB3);
+    PnvPHB3 *phb3 = pnv_get_phb3_child(child);
 
     if (phb3) {
         if (ics_valid_irq(&phb3->lsis, args->irq)) {
@@ -1992,7 +1997,7 @@ PnvChip *pnv_get_chip(PnvMachineState *pnv, uint32_t chip_id)
 
 static int pnv_ics_resend_child(Object *child, void *opaque)
 {
-    PnvPHB3 *phb3 = (PnvPHB3 *) object_dynamic_cast(child, TYPE_PNV_PHB3);
+    PnvPHB3 *phb3 = pnv_get_phb3_child(child);
 
     if (phb3) {
         ics_resend(&phb3->lsis);
