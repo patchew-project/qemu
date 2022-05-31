@@ -879,7 +879,6 @@ PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "755", "755_v2.8" },
     { "goldfinger", "755_v2.8" },
     { "7400", "7400_v2.9" },
-    { "max", "7400_v2.9" },
     { "g4",  "7400_v2.9" },
     { "7410", "7410_v1.4" },
     { "nitro", "7410_v1.4" },
@@ -910,6 +909,8 @@ PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "power8nvl", "power8nvl_v1.0" },
     { "power9", "power9_v2.0" },
     { "power10", "power10_v2.0" },
+    /* Update the 'max' alias to the latest CPU model */
+    { "max", "power10_v2.0" },
 #endif
 
     /* Generic PowerPCs */
