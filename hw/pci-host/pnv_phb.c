@@ -17,6 +17,7 @@
 #include "hw/ppc/pnv.h"
 #include "hw/qdev-properties.h"
 #include "qom/object.h"
+#include "sysemu/sysemu.h"
 
 
 static void pnv_phb_realize(DeviceState *dev, Error **errp)
@@ -71,7 +72,9 @@ static void pnv_phb_realize(DeviceState *dev, Error **errp)
         pnv_phb3_bus_init(dev, (PnvPHB3 *)phb->backend);
     }
 
-    pnv_phb_attach_root_port(pci, phb_rootport_typename);
+    if (defaults_enabled()) {
+        pnv_phb_attach_root_port(pci, phb_rootport_typename);
+    }
 }
 
 static const char *pnv_phb_root_bus_path(PCIHostState *host_bridge,
