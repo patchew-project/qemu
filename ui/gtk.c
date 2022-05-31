@@ -2304,6 +2304,8 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
     GtkDisplayState *s = g_malloc0(sizeof(*s));
     GdkDisplay *window_display;
     GtkIconTheme *theme;
+    int n_gfx_vcs = 0;
+    int i;
     char *dir;
 
     if (!gtkinit) {
@@ -2374,7 +2376,14 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
     gtk_widget_set_sensitive(s->copy_item,
                              vc && vc->type == GD_VC_VTE);
 #endif
-
+    for (i = 0; i < s->nb_vcs; i++) {
+        if (qemu_console_is_graphic(s->vc[i].gfx.dcl.con)) {
+            if (n_gfx_vcs > 0) {
+                gtk_menu_item_activate(GTK_MENU_ITEM(s->untabify_item));
+            }
+            n_gfx_vcs++;
+        }
+    }
     if (opts->has_full_screen &&
         opts->full_screen) {
         gtk_menu_item_activate(GTK_MENU_ITEM(s->full_screen_item));
