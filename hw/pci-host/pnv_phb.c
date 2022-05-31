@@ -25,7 +25,6 @@ static void pnv_phb_realize(DeviceState *dev, Error **errp)
     PnvPHB *phb = PNV_PHB(dev);
     PCIHostState *pci = PCI_HOST_BRIDGE(dev);
     g_autofree char *phb_typename = NULL;
-    g_autofree char *phb_rootport_typename = NULL;
 
     if (!phb->version) {
         error_setg(errp, "version not specified");
@@ -35,15 +34,12 @@ static void pnv_phb_realize(DeviceState *dev, Error **errp)
     switch (phb->version) {
     case 3:
         phb_typename = g_strdup(TYPE_PNV_PHB3);
-        phb_rootport_typename = g_strdup(TYPE_PNV_PHB_ROOT_PORT);
         break;
     case 4:
         phb_typename = g_strdup(TYPE_PNV_PHB4);
-        phb_rootport_typename = g_strdup(TYPE_PNV_PHB_ROOT_PORT);
         break;
     case 5:
         phb_typename = g_strdup(TYPE_PNV_PHB5);
-        phb_rootport_typename = g_strdup(TYPE_PNV_PHB_ROOT_PORT);
         break;
     default:
         g_assert_not_reached();
@@ -75,7 +71,7 @@ static void pnv_phb_realize(DeviceState *dev, Error **errp)
     }
 
     if (defaults_enabled()) {
-        pnv_phb_attach_root_port(pci, phb_rootport_typename);
+        pnv_phb_attach_root_port(pci, TYPE_PNV_PHB_ROOT_PORT);
     }
 }
 
