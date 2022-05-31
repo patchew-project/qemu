@@ -1544,29 +1544,16 @@ static void pnv_phb4_instance_init(Object *obj)
     object_initialize_child(obj, "source", &phb->xsrc, TYPE_XIVE_SOURCE);
 }
 
-static void pnv_phb4_realize(DeviceState *dev, Error **errp)
+void pnv_phb4_bus_init(DeviceState *dev, PnvPHB4 *phb)
 {
-    PnvPHB4 *phb = PNV_PHB4(dev);
     PCIHostState *pci = PCI_HOST_BRIDGE(dev);
-    XiveSource *xsrc = &phb->xsrc;
-    int nr_irqs;
     char name[32];
-
-    /* Set the "big_phb" flag */
-    phb->big_phb = phb->phb_id == 0 || phb->phb_id == 3;
-
-    /* Controller Registers */
-    snprintf(name, sizeof(name), "phb4-%d.%d-regs", phb->chip_id,
-             phb->phb_id);
-    memory_region_init_io(&phb->mr_regs, OBJECT(phb), &pnv_phb4_reg_ops, phb,
-                          name, 0x2000);
 
     /*
      * PHB4 doesn't support IO space. However, qemu gets very upset if
      * we don't have an IO region to anchor IO BARs onto so we just
      * initialize one which we never hook up to anything
      */
-
     snprintf(name, sizeof(name), "phb4-%d.%d-pci-io", phb->chip_id,
              phb->phb_id);
     memory_region_init(&phb->pci_io, OBJECT(phb), name, 0x10000);
@@ -1582,6 +1569,25 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
                                      0, 4, TYPE_PNV_PHB4_ROOT_BUS);
     pci_setup_iommu(pci->bus, pnv_phb4_dma_iommu, phb);
     pci->bus->flags |= PCI_BUS_EXTENDED_CONFIG_SPACE;
+}
+
+static void pnv_phb4_realize(DeviceState *dev, Error **errp)
+{
+    PnvPHB4 *phb = PNV_PHB4(dev);
+    XiveSource *xsrc = &phb->xsrc;
+    int nr_irqs;
+    char name[32];
+
+    /* Set the "big_phb" flag */
+    phb->big_phb = phb->phb_id == 0 || phb->phb_id == 3;
+
+    /* Controller Registers */
+    snprintf(name, sizeof(name), "phb4-%d.%d-regs", phb->chip_id,
+             phb->phb_id);
+    memory_region_init_io(&phb->mr_regs, OBJECT(phb), &pnv_phb4_reg_ops, phb,
+                          name, 0x2000);
+
+    pnv_phb4_bus_init(dev, phb);
 
     /* Setup XIVE Source */
     if (phb->big_phb) {

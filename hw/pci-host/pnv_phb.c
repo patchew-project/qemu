@@ -70,6 +70,8 @@ static void pnv_phb_realize(DeviceState *dev, Error **errp)
 
     if (phb->version == 3) {
         pnv_phb3_bus_init(dev, (PnvPHB3 *)phb->backend);
+    } else {
+        pnv_phb4_bus_init(dev, (PnvPHB4 *)phb->backend);
     }
 
     if (defaults_enabled()) {
