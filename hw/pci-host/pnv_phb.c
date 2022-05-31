@@ -35,7 +35,7 @@ static void pnv_phb_realize(DeviceState *dev, Error **errp)
     switch (phb->version) {
     case 3:
         phb_typename = g_strdup(TYPE_PNV_PHB3);
-        phb_rootport_typename = g_strdup(TYPE_PNV_PHB3_ROOT_PORT);
+        phb_rootport_typename = g_strdup(TYPE_PNV_PHB_ROOT_PORT);
         break;
     case 4:
         phb_typename = g_strdup(TYPE_PNV_PHB4);
@@ -170,6 +170,11 @@ static void pnv_phb_root_port_realize(DeviceState *dev, Error **errp)
     pci_config_set_interrupt_pin(pci->config, 0);
 }
 
+static Property pnv_phb_root_port_properties[] = {
+    DEFINE_PROP_UINT32("version", PnvPHB, version, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void pnv_phb_root_port_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -180,11 +185,10 @@ static void pnv_phb_root_port_class_init(ObjectClass *klass, void *data)
 
     device_class_set_parent_realize(dc, pnv_phb_root_port_realize,
                                     &rpc->parent_realize);
-
     device_class_set_parent_reset(dc, pnv_phb_root_port_reset,
                                   &rpc->parent_reset);
     dc->reset = &pnv_phb_root_port_reset;
-
+    device_class_set_props(dc, pnv_phb_root_port_properties);
     dc->user_creatable = true;
 
     k->vendor_id = PCI_VENDOR_ID_IBM;
