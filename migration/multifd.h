@@ -102,6 +102,8 @@ typedef struct {
     uint32_t flags;
     /* global number of generated multifd packets */
     uint64_t packet_num;
+    /* How many bytes have we sent on the last packet */
+    uint64_t sent_bytes;
     /* thread has work to do */
     int pending_job;
     /* array of pages to sent.
