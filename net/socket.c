@@ -239,6 +239,22 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr,
         return -1;
     }
 
+#ifdef __APPLE__
+    val = 1;
+    ret = qemu_setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &val, sizeof(val));
+    if (ret < 0) {
+        error_setg_errno(errp, errno,
+                         "can't set socket option SO_REUSEPORT");
+        goto fail;
+    }
+
+    struct sockaddr_in bindaddr;
+    memset(&bindaddr, 0, sizeof(bindaddr));
+    bindaddr.sin_family = AF_INET;
+    bindaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    bindaddr.sin_port = mcastaddr->sin_port;
+    ret = bind(fd, (struct sockaddr *)&bindaddr, sizeof(bindaddr));
+#else
     /* Allow multiple sockets to bind the same multicast ip and port by setting
      * SO_REUSEADDR. This is the only situation where SO_REUSEADDR should be set
      * on windows. Use socket_set_fast_reuse otherwise as it sets SO_REUSEADDR
@@ -253,6 +269,8 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr,
     }
 
     ret = bind(fd, (struct sockaddr *)mcastaddr, sizeof(*mcastaddr));
+#endif
+
     if (ret < 0) {
         error_setg_errno(errp, errno, "can't bind ip=%s to socket",
                          inet_ntoa(mcastaddr->sin_addr));
