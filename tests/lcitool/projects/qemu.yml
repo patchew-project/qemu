@@ -26,7 +26,6 @@ packages:
  - genisoimage
  - glib2
  - glib2-static
- - glibc-static
  - glusterfs
  - gnutls
  - gtk3
@@ -35,6 +34,7 @@ packages:
  - libattr
  - libasan
  - libbpf
+ - libc-static
  - libcacard
  - libcap-ng
  - libcurl
