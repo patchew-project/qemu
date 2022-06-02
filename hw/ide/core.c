@@ -1025,23 +1025,20 @@ static void ide_sector_write_cb(void *opaque, int ret)
 
     block_acct_done(blk_get_stats(s->blk), &s->acct);
 
-    n = s->nsector;
-    if (n > s->req_nb_sectors) {
-        n = s->req_nb_sectors;
-    }
-    s->nsector -= n;
-
+    n = (s->data_end - s->io_buffer) >> BDRV_SECTOR_BITS;
     ide_set_sector(s, ide_get_sector(s) + n);
+    n %= s->req_nb_sectors;
+    s->nsector -= n ? n : s->req_nb_sectors;
+
     if (s->nsector == 0) {
         /* no more sectors to write */
         ide_transfer_stop(s);
     } else {
-        int n1 = s->nsector;
-        if (n1 > s->req_nb_sectors) {
-            n1 = s->req_nb_sectors;
-        }
-        ide_transfer_start(s, s->io_buffer, n1 * BDRV_SECTOR_SIZE,
-                           ide_sector_write);
+        const int n1 =
+            (MIN(IDE_DMA_BUF_SECTORS, s->nsector)) << BDRV_SECTOR_BITS;
+        s->octets_until_irq =
+            (MIN(s->nsector, s->req_nb_sectors)) << BDRV_SECTOR_BITS;
+        ide_transfer_start(s, s->io_buffer, n1, ide_sector_write);
     }
 
     if (win2k_install_hack && ((++s->irq_count % 16) == 0)) {
@@ -1063,13 +1060,20 @@ static void ide_sector_write(IDEState *s)
     int64_t sector_num;
     int n;
 
+    assert(s->octets_until_irq == 0);
+
+    if (s->data_ptr < s->data_end) {
+        s->nsector -= s->req_nb_sectors;
+        s->octets_until_irq =
+            (MIN(s->nsector, s->req_nb_sectors)) << BDRV_SECTOR_BITS;
+        s->status = READY_STAT | SEEK_STAT | DRQ_STAT;
+        ide_set_irq(s->bus);
+        return;
+    }
+
     s->status = READY_STAT | SEEK_STAT | BUSY_STAT;
     sector_num = ide_get_sector(s);
-
-    n = s->nsector;
-    if (n > s->req_nb_sectors) {
-        n = s->req_nb_sectors;
-    }
+    n = (s->data_end - s->io_buffer) >> BDRV_SECTOR_BITS;
 
     trace_ide_sector_write(sector_num, n);
 
@@ -1378,6 +1382,7 @@ static void ide_reset(IDEState *s)
     /* ATA DMA state */
     s->io_buffer_size = 0;
     s->req_nb_sectors = 0;
+    s->octets_until_irq = 0;
 
     ide_set_signature(s);
     /* init the transfer handler so that 0xffff is returned on data
@@ -1500,10 +1505,11 @@ static bool cmd_write_multiple(IDEState *s, uint8_t cmd)
     ide_cmd_lba48_transform(s, lba48);
 
     s->req_nb_sectors = s->mult_sectors;
-    n = MIN(s->nsector, s->req_nb_sectors);
-
+    n = (MIN(IDE_DMA_BUF_SECTORS, s->nsector)) << BDRV_SECTOR_BITS;
+    s->octets_until_irq =
+        (MIN(s->nsector, s->req_nb_sectors)) << BDRV_SECTOR_BITS;
     s->status = SEEK_STAT | READY_STAT;
-    ide_transfer_start(s, s->io_buffer, 512 * n, ide_sector_write);
+    ide_transfer_start(s, s->io_buffer, n, ide_sector_write);
 
     s->media_changed = 1;
 
@@ -1535,6 +1541,7 @@ static bool cmd_read_pio(IDEState *s, uint8_t cmd)
 static bool cmd_write_pio(IDEState *s, uint8_t cmd)
 {
     bool lba48 = (cmd == WIN_WRITE_EXT);
+    int n;
 
     if (!s->blk) {
         ide_abort_command(s);
@@ -1544,8 +1551,10 @@ static bool cmd_write_pio(IDEState *s, uint8_t cmd)
     ide_cmd_lba48_transform(s, lba48);
 
     s->req_nb_sectors = 1;
+    n = (MIN(IDE_DMA_BUF_SECTORS, s->nsector)) << BDRV_SECTOR_BITS;
+    s->octets_until_irq = BDRV_SECTOR_SIZE;
     s->status = SEEK_STAT | READY_STAT;
-    ide_transfer_start(s, s->io_buffer, 512, ide_sector_write);
+    ide_transfer_start(s, s->io_buffer, n, ide_sector_write);
 
     s->media_changed = 1;
 
@@ -1699,7 +1708,7 @@ static bool cmd_identify_packet(IDEState *s, uint8_t cmd)
 {
     ide_atapi_identify(s);
     s->status = READY_STAT | SEEK_STAT;
-    ide_transfer_start(s, s->io_buffer, 512, ide_transfer_stop);
+    ide_transfer_start(s, s->io_buffer, BDRV_SECTOR_SIZE, ide_transfer_stop);
     ide_set_irq(s->bus);
     return false;
 }
@@ -1739,6 +1748,7 @@ static bool cmd_packet(IDEState *s, uint8_t cmd)
         s->dma_cmd = IDE_DMA_ATAPI;
     }
     s->nsector = 1;
+    s->octets_until_irq = ATAPI_PACKET_SIZE;
     ide_transfer_start(s, s->io_buffer, ATAPI_PACKET_SIZE,
                        ide_atapi_cmd);
     return false;
@@ -2352,7 +2362,9 @@ void ide_data_writew(void *opaque, uint32_t addr, uint32_t val)
     *(uint16_t *)p = le16_to_cpu(val);
     p += 2;
     s->data_ptr = p;
-    if (p >= s->data_end) {
+    s->octets_until_irq -= 2;
+
+    if (s->octets_until_irq == 0) {
         s->status &= ~DRQ_STAT;
         s->end_transfer_func(s);
     }
@@ -2410,7 +2422,9 @@ void ide_data_writel(void *opaque, uint32_t addr, uint32_t val)
     *(uint32_t *)p = le32_to_cpu(val);
     p += 4;
     s->data_ptr = p;
-    if (p >= s->data_end) {
+    s->octets_until_irq -= 4;
+
+    if (s->octets_until_irq == 0) {
         s->status &= ~DRQ_STAT;
         s->end_transfer_func(s);
     }

@@ -428,6 +428,7 @@ struct IDEState {
     QEMUSGList sg;
     /* PIO transfer handling */
     int req_nb_sectors; /* number of sectors per interrupt */
+    int octets_until_irq;
     EndTransferFunc *end_transfer_func;
     uint8_t *data_ptr;
     uint8_t *data_end;
