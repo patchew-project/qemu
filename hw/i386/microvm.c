@@ -707,6 +707,12 @@ static void microvm_class_init(ObjectClass *oc, void *data)
         "Set off to disable adding virtio-mmio devices to the kernel cmdline");
 
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_RAMFB_DEVICE);
+
+    /*
+     * pcie host bridge (gpex) on microvm has no io address window,
+     * so reserving io space is not going to work.  Turn it off.
+     */
+    object_register_sugar_prop("pcie-root-port", "io-reserve", "0", true);
 }
 
 static const TypeInfo microvm_machine_info = {
