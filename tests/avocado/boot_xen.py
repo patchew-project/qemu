@@ -66,7 +66,7 @@ class BootXen(BootXenBase):
         """
         :avocado: tags=arch:aarch64
         :avocado: tags=accel:tcg
-        :avocado: tags=cpu:cortex-a57
+        :avocado: tags=cpu:max
         :avocado: tags=machine:virt
         """
 
@@ -84,7 +84,7 @@ class BootXen(BootXenBase):
         """
         :avocado: tags=arch:aarch64
         :avocado: tags=accel:tcg
-        :avocado: tags=cpu:cortex-a57
+        :avocado: tags=cpu:max
         :avocado: tags=machine:virt
         """
 
@@ -102,7 +102,7 @@ class BootXen(BootXenBase):
         """
         :avocado: tags=arch:aarch64
         :avocado: tags=accel:tcg
-        :avocado: tags=cpu:cortex-a57
+        :avocado: tags=cpu:max
         :avocado: tags=machine:virt
         """
 

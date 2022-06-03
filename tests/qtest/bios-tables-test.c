@@ -1270,7 +1270,7 @@ static void test_acpi_virt_tcg_memhp(void)
 
     data.variant = ".memhp";
     test_acpi_one(" -machine nvdimm=on"
-                  " -cpu cortex-a57"
+                  " -cpu max"
                   " -m 256M,slots=3,maxmem=1G"
                   " -object memory-backend-ram,id=ram0,size=128M"
                   " -object memory-backend-ram,id=ram1,size=128M"
@@ -1363,7 +1363,7 @@ static void test_acpi_virt_tcg_numamem(void)
     };
 
     data.variant = ".numamem";
-    test_acpi_one(" -cpu cortex-a57"
+    test_acpi_one(" -cpu max"
                   " -object memory-backend-ram,id=ram0,size=128M"
                   " -numa node,memdev=ram0",
                   &data);
@@ -1397,7 +1397,7 @@ static void test_acpi_virt_tcg_pxb(void)
                   "if=none,media=cdrom,id=drive-scsi0-0-0-1,readonly=on"
                   " -device scsi-cd,bus=scsi0.0,scsi-id=0,"
                   "drive=drive-scsi0-0-0-1,id=scsi0-0-0-1,bootindex=1"
-                  " -cpu cortex-a57"
+                  " -cpu max"
                   " -device pxb-pcie,bus_nr=128",
                   &data);
 
@@ -1511,7 +1511,7 @@ static void test_acpi_virt_tcg(void)
 
     data.smbios_cpu_max_speed = 2900;
     data.smbios_cpu_curr_speed = 2700;
-    test_acpi_one("-cpu cortex-a57 "
+    test_acpi_one("-cpu max "
                   "-smbios type=4,max-speed=2900,current-speed=2700", &data);
     free_test_data(&data);
 }
@@ -1591,7 +1591,7 @@ static void test_acpi_virt_viot(void)
         .scan_len = 128ULL * 1024 * 1024,
     };
 
-    test_acpi_one("-cpu cortex-a57 "
+    test_acpi_one("-cpu max "
                   "-device virtio-iommu-pci", &data);
     free_test_data(&data);
 }
@@ -1699,7 +1699,7 @@ static void test_acpi_oem_fields_virt(void)
     char *args;
 
     args = test_acpi_create_args(&data,
-                                 "-cpu cortex-a57 "OEM_TEST_ARGS, true);
+                                 "-cpu max "OEM_TEST_ARGS, true);
     data.qts = qtest_init(args);
     test_acpi_load_tables(&data, true);
     test_oem_fields(&data);

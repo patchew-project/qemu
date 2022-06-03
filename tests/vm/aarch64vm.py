@@ -31,7 +31,7 @@ QEMU_AARCH64_MIN_VERSION = 3
 # parameters that works for backwards compatibility.
 DEFAULT_CONFIG = {'kvm' : {'cpu'          : "host",
                            'machine'      : "virt,gic-version=host"},
-                  'tcg' : {'cpu'          : "cortex-a57",
+                  'tcg' : {'cpu'          : "max",
                            'machine'      : "virt"},
 }
 
