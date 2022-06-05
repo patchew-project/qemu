@@ -1,5 +1,6 @@
 Block I/O error injection using blkdebug
-----------------------------------------
+========================================
+
 Copyright (C) 2014-2015 Red Hat Inc
 
 This work is licensed under the terms of the GNU GPL, version 2 or later.  See
@@ -13,6 +14,7 @@ This document gives an overview of the features available in blkdebug.
 
 Background
 ----------
+
 Block drivers have many error code paths that handle I/O errors.  Image formats
 are especially complex since metadata I/O errors during cluster allocation or
 while updating tables happen halfway through request processing and require
@@ -23,6 +25,7 @@ This way, all error paths can be tested to make sure they are correct.
 
 Rules
 -----
+
 The blkdebug block driver takes a list of "rules" that tell the error injection
 engine when to fail an I/O request.
 
@@ -77,6 +80,7 @@ Rules support the following attributes:
 
 Events
 ------
+
 Block drivers provide information about the type of I/O request they are about
 to make so rules can match specific types of requests.  For example, the qcow2
 block driver tells blkdebug when it accesses the L1 table so rules can match
@@ -98,6 +102,7 @@ meaning of specific events.
 
 State transitions
 -----------------
+
 There are cases where more power is needed to match a particular I/O request in
 a longer sequence of requests.  For example:
 
@@ -149,6 +154,7 @@ State transition rules support the following attributes:
 
 Suspend and resume
 ------------------
+
 Exercising code paths in block drivers may require specific ordering amongst
 concurrent requests.  The "breakpoint" feature allows requests to be halted on
 a blkdebug event and resumed later.  This makes it possible to achieve

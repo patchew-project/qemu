@@ -1,6 +1,8 @@
-= Block driver correctness testing with blkverify =
+Block driver correctness testing with blkverify
+===============================================
 
-== Introduction ==
+Introduction
+------------
 
 This document describes how to use the blkverify protocol to test that a block
 driver is operating correctly.
@@ -14,7 +16,8 @@ driver.
 Blkverify solves this problem by catching data corruption inside QEMU the first
 time bad data is read and reporting the disk sector that is corrupted.
 
-== How it works ==
+How it works
+------------
 
 The blkverify protocol has two child block devices, the "test" device and the
 "raw" device.  Read/write operations are mirrored to both devices so their
@@ -29,7 +32,8 @@ After a mirrored read operation completes, blkverify will compare the data and
 raise an error if it is not identical.  This makes it possible to catch the
 first instance where corrupt data is read.
 
-== Example ==
+Example
+-------
 
 Imagine raw.img has 0xcd repeated throughout its first sector:
 

@@ -11,6 +11,8 @@ the basics if you are adding new files and targets to the build.
    build-system
    kconfig
    testing
+   blkdebug
+   blkverify
    qtest
    ci
    qapi-code-gen

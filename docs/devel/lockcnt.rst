@@ -1,9 +1,10 @@
-DOCUMENTATION FOR LOCKED COUNTERS (aka QemuLockCnt)
-===================================================
+=================================
+Locked Counters (aka QemuLockCnt)
+=================================
 
 QEMU often uses reference counts to track data structures that are being
 accessed and should not be freed.  For example, a loop that invoke
-callbacks like this is not safe:
+callbacks like this is not safe::
 
     QLIST_FOREACH_SAFE(ioh, &io_handlers, next, pioh) {
         if (ioh->revents & G_IO_OUT) {
@@ -15,7 +16,7 @@ QLIST_FOREACH_SAFE protects against deletion of the current node (ioh)
 by stashing away its "next" pointer.  However, ioh->fd_write could
 actually delete the next node from the list.  The simplest way to
 avoid this is to mark the node as deleted, and remove it from the
-list in the above loop:
+list in the above loop::
 
     QLIST_FOREACH_SAFE(ioh, &io_handlers, next, pioh) {
         if (ioh->deleted) {
@@ -29,7 +30,7 @@ list in the above loop:
     }
 
 If however this loop must also be reentrant, i.e. it is possible that
-ioh->fd_write invokes the loop again, some kind of counting is needed:
+ioh->fd_write invokes the loop again, some kind of counting is needed::
 
     walking_handlers++;
     QLIST_FOREACH_SAFE(ioh, &io_handlers, next, pioh) {
@@ -101,7 +102,7 @@ can happen concurrently with the read.  The RCU API ensures that the
 processor and the compiler see all required memory barriers.
 
 This could be implemented simply by protecting the counter with the
-mutex, for example:
+mutex, for example::
 
     // (1)
     qemu_mutex_lock(&walking_handlers_mutex);
@@ -183,7 +184,7 @@ QemuLockCnt usage
 This section explains the typical usage patterns for QemuLockCnt functions.
 
 Setting a variable to a non-NULL value can be done between
-qemu_lockcnt_lock and qemu_lockcnt_unlock:
+qemu_lockcnt_lock and qemu_lockcnt_unlock::
 
     qemu_lockcnt_lock(&xyz_lockcnt);
     if (!xyz) {
@@ -194,7 +195,7 @@ qemu_lockcnt_lock and qemu_lockcnt_unlock:
     qemu_lockcnt_unlock(&xyz_lockcnt);
 
 Accessing the value can be done between qemu_lockcnt_inc and
-qemu_lockcnt_dec:
+qemu_lockcnt_dec::
 
     qemu_lockcnt_inc(&xyz_lockcnt);
     if (xyz) {
@@ -208,7 +209,7 @@ Freeing the object can similarly use qemu_lockcnt_lock and
 qemu_lockcnt_unlock, but you also need to ensure that the count
 is zero (i.e. there is no concurrent visit).  Because qemu_lockcnt_inc
 takes the QemuLockCnt's lock, the count cannot become non-zero while
-the object is being freed.  Freeing an object looks like this:
+the object is being freed.  Freeing an object looks like this::
 
     qemu_lockcnt_lock(&xyz_lockcnt);
     if (!qemu_lockcnt_count(&xyz_lockcnt)) {
@@ -218,7 +219,7 @@ the object is being freed.  Freeing an object looks like this:
     qemu_lockcnt_unlock(&xyz_lockcnt);
 
 If an object has to be freed right after a visit, you can combine
-the decrement, the locking and the check on count as follows:
+the decrement, the locking and the check on count as follows::
 
     qemu_lockcnt_inc(&xyz_lockcnt);
     if (xyz) {
@@ -232,7 +233,7 @@ the decrement, the locking and the check on count as follows:
         qemu_lockcnt_unlock(&xyz_lockcnt);
     }
 
-QemuLockCnt can also be used to access a list as follows:
+QemuLockCnt can also be used to access a list as follows::
 
     qemu_lockcnt_inc(&io_handlers_lockcnt);
     QLIST_FOREACH_RCU(ioh, &io_handlers, pioh) {
@@ -255,7 +256,7 @@ Again, the RCU primitives are used because new items can be added to the
 list during the walk.  QLIST_FOREACH_RCU ensures that the processor and
 the compiler see the appropriate memory barriers.
 
-An alternative pattern uses qemu_lockcnt_dec_if_lock:
+An alternative pattern uses qemu_lockcnt_dec_if_lock::
 
     qemu_lockcnt_inc(&io_handlers_lockcnt);
     QLIST_FOREACH_SAFE_RCU(ioh, &io_handlers, next, pioh) {

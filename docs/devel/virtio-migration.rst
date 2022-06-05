@@ -22,7 +22,7 @@ caveats.
 
 
 Save state procedure
-====================
+--------------------
 
 virtio core               virtio transport          virtio device
 -----------               ----------------          -------------
@@ -58,7 +58,7 @@ virtio_save()                                       <----------
 
 
 Load state procedure
-====================
+--------------------
 
 virtio core               virtio transport          virtio device
 -----------               ----------------          -------------
@@ -95,7 +95,7 @@ virtio_load()                                       <----------
 
 
 Implications of this setup
-==========================
+--------------------------
 
 Devices need to be careful in their state processing during load: The
 load_device() procedure is invoked by the core before subsections have
