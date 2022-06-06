@@ -134,5 +134,12 @@ class AST2x00Machine(QemuSystemTest):
         image_path = self.fetch_asset(image_url, asset_hash=image_hash,
                                       algorithm='sha256')
 
+        self.vm.add_args('-device',
+                         'tmp423,bus=aspeed.i2c.bus.15,address=0x4c');
         self.do_test_arm_aspeed_buidroot_start(image_path, '0xf00')
+        exec_command_and_wait_for_pattern(self,
+                                          'i2cget -y 15 0x4c 0xff', '0x23');
+        exec_command_and_wait_for_pattern(self,
+                                          'i2cget -y 15 0x4c 0xfe', '0x55');
+
         self.do_test_arm_aspeed_buidroot_poweroff()
