@@ -648,6 +648,7 @@ static void aspeed_i2c_ctrl_write(void *opaque, hwaddr offset,
 
     switch (offset) {
     case I2C_CTRL_GLOBAL:
+        value &= ~s->ctrl_global_rsvd;
         s->ctrl_global = value;
         break;
     case I2C_CTRL_STATUS:
@@ -730,6 +731,7 @@ static const VMStateDescription aspeed_i2c_vmstate = {
     .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(intr_status, AspeedI2CState),
+        VMSTATE_UINT32(ctrl_global_rsvd, AspeedI2CState),
         VMSTATE_STRUCT_ARRAY(busses, AspeedI2CState,
                              ASPEED_I2C_NR_BUSSES, 1, aspeed_i2c_bus_vmstate,
                              AspeedI2CBus),
@@ -828,6 +830,8 @@ static void aspeed_i2c_realize(DeviceState *dev, Error **errp)
 static Property aspeed_i2c_properties[] = {
     DEFINE_PROP_LINK("dram", AspeedI2CState, dram_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),
+    DEFINE_PROP_UINT32("ctrl-global-rsvd", AspeedI2CState, ctrl_global_rsvd,
+                       0xfffffffe),
     DEFINE_PROP_END_OF_LIST(),
 };
 
