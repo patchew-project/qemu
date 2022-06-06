@@ -78,6 +78,10 @@ int main(int argc, char *argv[])
                          ")\n", \
                 #TAG, STRINGIZE(ATTRIBS)); \
     } while (0);
+
+/* Change the store macros so we can track the size during translation */
+#define fSTORE(NUM, SIZE, EA, SRC) fSTORE##SIZE(EA, SRC)
+
 #include "imported/allidefs.def"
 #undef Q6INSN
 #undef EXTINSN
@@ -101,6 +105,28 @@ int main(int argc, char *argv[])
                      ")\n", \
             #MNAME, STRINGIZE(BEH), STRINGIZE(ATTRS));
 #include "imported/macros.def"
+
+/* These macros give the size of the store used during translation */
+DEF_MACRO(fSTORE1,
+    QEMU_ONLY,
+    (A_STORE, A_MEMLIKE, A_STORE_SIZE1)
+)
+
+DEF_MACRO(fSTORE2,
+    QEMU_ONLY,
+    (A_STORE, A_MEMLIKE, A_STORE_SIZE2)
+)
+
+DEF_MACRO(fSTORE4,
+    QEMU_ONLY,
+    (A_STORE, A_MEMLIKE, A_STORE_SIZE4)
+)
+
+DEF_MACRO(fSTORE8,
+    QEMU_ONLY,
+    (A_STORE, A_MEMLIKE, A_STORE_SIZE8)
+)
+
 #undef DEF_MACRO
 
 /*

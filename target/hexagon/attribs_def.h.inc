@@ -38,6 +38,10 @@ DEF_ATTRIB(SUBINSN, "sub-instruction", "", "")
 /* Load and Store attributes */
 DEF_ATTRIB(LOAD, "Loads from memory", "", "")
 DEF_ATTRIB(STORE, "Stores to memory", "", "")
+DEF_ATTRIB(STORE_SIZE1, "Stores 1 byte to memory", "", "")
+DEF_ATTRIB(STORE_SIZE2, "Stores 2 bytes to memory", "", "")
+DEF_ATTRIB(STORE_SIZE4, "Stores 4 bytes to memory", "", "")
+DEF_ATTRIB(STORE_SIZE8, "Stores 8 bytes to memory", "", "")
 DEF_ATTRIB(MEMLIKE, "Memory-like instruction", "", "")
 DEF_ATTRIB(MEMLIKE_PACKET_RULES, "follows Memory-like packet rules", "", "")
 

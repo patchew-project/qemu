@@ -139,7 +139,7 @@
         __builtin_choose_expr(TYPE_TCGV(X), \
             gen_store1, (void)0))
 #define MEM_STORE1(VA, DATA, SLOT) \
-    MEM_STORE1_FUNC(DATA)(cpu_env, VA, DATA, ctx, SLOT)
+    MEM_STORE1_FUNC(DATA)(cpu_env, VA, DATA, SLOT)
 
 #define MEM_STORE2_FUNC(X) \
     __builtin_choose_expr(TYPE_INT(X), \
@@ -147,7 +147,7 @@
         __builtin_choose_expr(TYPE_TCGV(X), \
             gen_store2, (void)0))
 #define MEM_STORE2(VA, DATA, SLOT) \
-    MEM_STORE2_FUNC(DATA)(cpu_env, VA, DATA, ctx, SLOT)
+    MEM_STORE2_FUNC(DATA)(cpu_env, VA, DATA, SLOT)
 
 #define MEM_STORE4_FUNC(X) \
     __builtin_choose_expr(TYPE_INT(X), \
@@ -155,7 +155,7 @@
         __builtin_choose_expr(TYPE_TCGV(X), \
             gen_store4, (void)0))
 #define MEM_STORE4(VA, DATA, SLOT) \
-    MEM_STORE4_FUNC(DATA)(cpu_env, VA, DATA, ctx, SLOT)
+    MEM_STORE4_FUNC(DATA)(cpu_env, VA, DATA, SLOT)
 
 #define MEM_STORE8_FUNC(X) \
     __builtin_choose_expr(TYPE_INT(X), \
@@ -163,7 +163,7 @@
         __builtin_choose_expr(TYPE_TCGV_I64(X), \
             gen_store8, (void)0))
 #define MEM_STORE8(VA, DATA, SLOT) \
-    MEM_STORE8_FUNC(DATA)(cpu_env, VA, DATA, ctx, SLOT)
+    MEM_STORE8_FUNC(DATA)(cpu_env, VA, DATA, SLOT)
 #else
 #define MEM_LOAD1s(VA) ((int8_t)mem_load1(env, slot, VA))
 #define MEM_LOAD1u(VA) ((uint8_t)mem_load1(env, slot, VA))
@@ -600,8 +600,16 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 
 #ifdef QEMU_GENERATE
 #define fSTORE(NUM, SIZE, EA, SRC) MEM_STORE##SIZE(EA, SRC, insn->slot)
+#define fSTORE1(EA, SRC) MEM_STORE1(EA, SRC, insn->slot)
+#define fSTORE2(EA, SRC) MEM_STORE2(EA, SRC, insn->slot)
+#define fSTORE4(EA, SRC) MEM_STORE4(EA, SRC, insn->slot)
+#define fSTORE8(EA, SRC) MEM_STORE8(EA, SRC, insn->slot)
 #else
 #define fSTORE(NUM, SIZE, EA, SRC) MEM_STORE##SIZE(EA, SRC, slot)
+#define fSTORE1(EA, SRC) MEM_STORE1(EA, SRC, slot)
+#define fSTORE2(EA, SRC) MEM_STORE2(EA, SRC, slot)
+#define fSTORE4(EA, SRC) MEM_STORE4(EA, SRC, slot)
+#define fSTORE8(EA, SRC) MEM_STORE8(EA, SRC, slot)
 #endif
 
 #ifdef QEMU_GENERATE
