@@ -138,6 +138,8 @@ class AST2x00Machine(QemuSystemTest):
                          'tmp423,bus=aspeed.i2c.bus.15,address=0x4c');
         self.vm.add_args('-device',
                          'ds1338,bus=aspeed.i2c.bus.15,address=0x32');
+        self.vm.add_args('-device',
+                         'i2c-echo,bus=aspeed.i2c.bus.15,address=0x42');
         self.do_test_arm_aspeed_buidroot_start(image_path, '0xf00')
         exec_command_and_wait_for_pattern(self,
                                           'i2cget -y 15 0x4c 0xff', '0x23');
@@ -149,5 +151,14 @@ class AST2x00Machine(QemuSystemTest):
              'i2c i2c-15: new_device: Instantiated device ds1307 at 0x32');
         year = time.strftime("%Y")
         exec_command_and_wait_for_pattern(self, 'hwclock -f /dev/rtc1', year);
+
+        exec_command_and_wait_for_pattern(self,
+             'echo slave-24c02 0x1064 > /sys/bus/i2c/devices/i2c-15/new_device',
+             'i2c i2c-15: new_device: Instantiated device slave-24c02 at 0x64');
+        exec_command(self, 'i2cset -y 15 0x42 0x64 0x00 0xaa i');
+        time.sleep(0.1)
+        exec_command_and_wait_for_pattern(self,
+             'hexdump /sys/bus/i2c/devices/15-1064/slave-eeprom',
+             '0000000 ffaa ffff ffff ffff ffff ffff ffff ffff');
 
         self.do_test_arm_aspeed_buidroot_poweroff()
