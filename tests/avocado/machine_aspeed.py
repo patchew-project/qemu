@@ -136,10 +136,18 @@ class AST2x00Machine(QemuSystemTest):
 
         self.vm.add_args('-device',
                          'tmp423,bus=aspeed.i2c.bus.15,address=0x4c');
+        self.vm.add_args('-device',
+                         'ds1338,bus=aspeed.i2c.bus.15,address=0x32');
         self.do_test_arm_aspeed_buidroot_start(image_path, '0xf00')
         exec_command_and_wait_for_pattern(self,
                                           'i2cget -y 15 0x4c 0xff', '0x23');
         exec_command_and_wait_for_pattern(self,
                                           'i2cget -y 15 0x4c 0xfe', '0x55');
+
+        exec_command_and_wait_for_pattern(self,
+             'echo ds1307 0x32 > /sys/class/i2c-dev/i2c-15/device/new_device',
+             'i2c i2c-15: new_device: Instantiated device ds1307 at 0x32');
+        year = time.strftime("%Y")
+        exec_command_and_wait_for_pattern(self, 'hwclock -f /dev/rtc1', year);
 
         self.do_test_arm_aspeed_buidroot_poweroff()
