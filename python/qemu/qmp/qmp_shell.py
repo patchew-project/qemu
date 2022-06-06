@@ -195,7 +195,7 @@ class QMPShell(QEMUMonitorProtocol):
 
     def _fill_completion(self) -> None:
         try:
-            cmds = self.command('query-commands')
+            cmds = self.cmd('query-commands')
             for cmd in cmds:
                 self._completer.append(cmd['name'])
         except ExecuteError:
