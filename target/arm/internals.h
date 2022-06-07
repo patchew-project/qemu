@@ -1316,5 +1316,6 @@ void define_cortex_a72_a57_a53_cp_reginfo(ARMCPU *cpu);
 void aa32_max_features(ARMCPU *cpu);
 int exception_target_el(CPUARMState *env);
 bool arm_singlestep_active(CPUARMState *env);
+bool arm_generate_debug_exceptions(CPUARMState *env);
 
 #endif
