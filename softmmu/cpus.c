@@ -146,7 +146,7 @@ void cpu_synchronize_all_post_reset(void)
     }
 }
 
-void cpu_synchronize_all_post_init(void)
+void cpu_synchronize_all_post_init(Error **errp)
 {
     CPUState *cpu;
 
