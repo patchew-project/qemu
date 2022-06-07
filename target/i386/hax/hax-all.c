@@ -651,7 +651,7 @@ static void do_hax_cpu_synchronize_post_init(CPUState *cpu, run_on_cpu_data arg)
     cpu->vcpu_dirty = false;
 }
 
-void hax_cpu_synchronize_post_init(CPUState *cpu)
+void hax_cpu_synchronize_post_init(CPUState *cpu, Error **errp)
 {
     run_on_cpu(cpu, do_hax_cpu_synchronize_post_init, RUN_ON_CPU_NULL);
 }

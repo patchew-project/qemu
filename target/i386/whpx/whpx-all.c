@@ -2123,7 +2123,7 @@ void whpx_cpu_synchronize_post_reset(CPUState *cpu)
     run_on_cpu(cpu, do_whpx_cpu_synchronize_post_reset, RUN_ON_CPU_NULL);
 }
 
-void whpx_cpu_synchronize_post_init(CPUState *cpu)
+void whpx_cpu_synchronize_post_init(CPUState *cpu, Error **errp)
 {
     run_on_cpu(cpu, do_whpx_cpu_synchronize_post_init, RUN_ON_CPU_NULL);
 }

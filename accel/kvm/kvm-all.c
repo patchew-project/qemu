@@ -2767,7 +2767,7 @@ static void do_kvm_cpu_synchronize_post_init(CPUState *cpu, run_on_cpu_data arg)
     cpu->vcpu_dirty = false;
 }
 
-void kvm_cpu_synchronize_post_init(CPUState *cpu)
+void kvm_cpu_synchronize_post_init(CPUState *cpu, Error **errp)
 {
     run_on_cpu(cpu, do_kvm_cpu_synchronize_post_init, RUN_ON_CPU_NULL);
 }
