@@ -74,6 +74,119 @@ bool is_error(abi_long ret)
 }
 
 /*
+ * Unlocks a iovec. Unlike unlock_iovec, it assumes the tvec array itself is
+ * already locked from target_addr. It will be unlocked as well as all the iovec
+ * elements.
+ */
+static void helper_unlock_iovec(struct target_iovec *target_vec,
+                                abi_ulong target_addr, struct iovec *vec,
+                                int count, int copy)
+{
+    for (int i = 0; i < count; i++) {
+        abi_ulong base = tswapal(target_vec[i].iov_base);
+        abi_long len = tswapal(target_vec[i].iov_len);
+        if (len < 0) {
+            /*
+             * Can't really happen: we'll fail to lock if any elements have a
+             * length < 0. Better to fail-safe though.
+             */
+            break;
+        }
+        if (vec[i].iov_base) {
+            unlock_user(vec[i].iov_base, base, copy ? vec[i].iov_len : 0);
+        }
+    }
+    unlock_user(target_vec, target_addr, 0);
+}
+
+struct iovec *lock_iovec(int type, abi_ulong target_addr,
+        int count, int copy)
+{
+    struct target_iovec *target_vec;
+    struct iovec *vec;
+    abi_ulong total_len, max_len;
+    int i;
+    int err = 0;
+    bool bad_address = false;
+
+    if (count == 0) {
+        errno = 0;
+        return NULL;
+    }
+    if (count < 0 || count > IOV_MAX) {
+        errno = EINVAL;
+        return NULL;
+    }
+
+    vec = g_try_new(struct iovec, count);
+    if (vec == NULL) {
+        errno = ENOMEM;
+        return NULL;
+    }
+
+    target_vec = lock_user(VERIFY_READ, target_addr,
+                           count * sizeof(struct target_iovec), 1);
+    if (target_vec == NULL) {
+        err = EFAULT;
+        goto fail2;
+    }
+
+    /*
+     * ??? If host page size > target page size, this will result in a value
+     * larger than what we can actually support.
+     * ??? Should we just assert something for new 16k page size on aarch64?
+     */
+    max_len = 0x7fffffff & TARGET_PAGE_MASK;
+    total_len = 0;
+
+    for (i = 0; i < count; i++) {
+        abi_ulong base = tswapal(target_vec[i].iov_base);
+        abi_long len = tswapal(target_vec[i].iov_len);
+
+        if (len < 0) {
+            err = EINVAL;
+            goto fail;
+        } else if (len == 0 || bad_address) {
+            /* Zero length pointer is ignored. */
+            len = 0;
+            vec[i].iov_base = 0;
+        } else {
+            vec[i].iov_base = lock_user(type, base, len, copy);
+            /*
+             * If the first buffer pointer is bad, this is a fault.  But
+             * subsequent bad buffers will result in a partial write; this is
+             * realized by filling the vector with null pointers and zero
+             * lengths.
+             */
+            if (!vec[i].iov_base) {
+                if (i == 0) {
+                    err = EFAULT;
+                    goto fail;
+                } else {
+                    bad_address = true;
+                    len = 0;
+                }
+            }
+            if (len > max_len - total_len) {
+                len = max_len - total_len;
+            }
+        }
+        vec[i].iov_len = len;
+        total_len += len;
+    }
+
+    unlock_user(target_vec, target_addr, 0);
+    return vec;
+
+fail:
+    helper_unlock_iovec(target_vec, target_addr, vec, i, copy);
+fail2:
+    g_free(vec);
+    errno = err;
+    return NULL;
+}
+
+/*
  * do_syscall() should always have a single exit point at the end so that
  * actions, such as logging of syscall results, can be performed.  All errnos
  * that do_syscall() returns must be -TARGET_<errcode>.
