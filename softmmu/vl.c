@@ -164,6 +164,19 @@ typedef struct DeviceOption {
     QTAILQ_ENTRY(DeviceOption) next;
 } DeviceOption;
 
+/*
+ * qemu_full_version_decl is for debugging. Assume you have coredump file, but
+ * don't know the version neither have original qemu binary file. You need to
+ * download a package with corresponding binary (and debug package with
+ * symbols), but which one? You need the version.
+ *
+ * This variable makes it simple to get the version by command
+ *
+ *     strings path/to/core | grep QEMU_FULL_VERSION
+ */
+static volatile const char qemu_full_version_decl[] =
+    "QEMU_FULL_VERSION: " QEMU_FULL_VERSION;
+
 static const char *cpu_option;
 static const char *mem_path;
 static const char *incoming;
