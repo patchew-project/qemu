@@ -230,7 +230,9 @@ static bool vfp_access_check_a(DisasContext *s, bool ignore_vfp_enabled)
         int coproc = arm_dc_feature(s, ARM_FEATURE_V8) ? 0 : 0xa;
         uint32_t syn = syn_fp_access_trap(1, 0xe, false, coproc);
 
-        gen_exception_insn(s, s->pc_curr, EXCP_UDEF, syn, s->fp_excp_el);
+        gen_set_condexec(s);
+        gen_set_pc_im(s, s->pc_curr);
+        gen_exception_advsimdfp_access(s, syn);
         return false;
     }
 

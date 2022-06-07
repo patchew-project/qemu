@@ -1161,9 +1161,8 @@ static bool fp_access_check(DisasContext *s)
         assert(!s->fp_access_checked);
         s->fp_access_checked = true;
 
-        gen_exception_insn(s, s->pc_curr, EXCP_UDEF,
-                           syn_fp_access_trap(1, 0xe, false, 0),
-                           s->fp_excp_el);
+        gen_a64_set_pc_im(s->pc_curr);
+        gen_exception_advsimdfp_access(s, syn_fp_access_trap(1, 0xe, false, 0));
         return false;
     }
     s->fp_access_checked = true;

@@ -337,6 +337,15 @@ static inline void gen_exception(int excp, uint32_t syndrome,
                                        tcg_constant_i32(target_el));
 }
 
+static inline void gen_exception_advsimdfp_access(DisasContext *s,
+                                                  uint32_t syndrome)
+{
+    gen_helper_exception_advsimdfp_access(cpu_env,
+                                          tcg_constant_i32(syndrome),
+                                          tcg_constant_i32(s->fp_excp_el));
+    s->base.is_jmp = DISAS_NORETURN;
+}
+
 /* Generate an architectural singlestep exception */
 static inline void gen_swstep_exception(DisasContext *s, int isv, int ex)
 {

@@ -34,16 +34,8 @@ void raise_exception(CPUARMState *env, uint32_t excp,
     CPUState *cs = env_cpu(env);
 
     if (target_el == 1 && (arm_hcr_el2_eff(env) & HCR_TGE)) {
-        /*
-         * Redirect NS EL1 exceptions to NS EL2. These are reported with
-         * their original syndrome register value, with the exception of
-         * SIMD/FP access traps, which are reported as uncategorized
-         * (see DDI0478C.a D1.10.4)
-         */
+        /* Redirect NS EL1 exceptions to NS EL2. */
         target_el = 2;
-        if (syn_get_ec(syndrome) == EC_ADVSIMDFPACCESSTRAP) {
-            syndrome = syn_uncategorized();
-        }
     }
 
     assert(!excp_is_internal(excp));
@@ -382,6 +374,28 @@ void HELPER(exception_with_syndrome)(CPUARMState *env, uint32_t excp,
                                      uint32_t syndrome, uint32_t target_el)
 {
     raise_exception(env, excp, syndrome, target_el);
+}
+
+/* Raise an exception with EC_ADVSIMDFPACCESS. */
+void HELPER(exception_advsimdfp_access)(CPUARMState *env,
+                                        uint32_t syndrome, uint32_t target_el)
+{
+    if (target_el == 1 && (arm_hcr_el2_eff(env) & HCR_TGE)) {
+        /*
+         * SIMD/FP access traps, when re-routed to EL2, are reported with
+         * uncategorized syndrome.  See DDI0487H.a rule RJNBTN.
+         */
+        target_el = 2;
+        syndrome = syn_uncategorized();
+    } else if (arm_el_is_aa64(env, target_el)) {
+        /*
+         * From AArch32, we will have filled in TA and/or COPROC for use
+         * by aa32 HSR.  But in aa64 ESR_ELx, the low 20 bits are RES0.
+         */
+        syndrome &= 0xfff00000;
+    }
+
+    raise_exception(env, EXCP_UDEF, syndrome, target_el);
 }
 
 /* Raise an EXCP_BKPT with the specified syndrome register value,
