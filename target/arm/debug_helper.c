@@ -15,22 +15,24 @@
 /* Return the Exception Level targeted by debug exceptions. */
 static int arm_debug_target_el(CPUARMState *env)
 {
-    bool secure = arm_is_secure(env);
-    bool route_to_el2 = false;
-
-    if (arm_is_el2_enabled(env)) {
-        route_to_el2 = env->cp15.hcr_el2 & HCR_TGE ||
-                       env->cp15.mdcr_el2 & MDCR_TDE;
-    }
-
-    if (route_to_el2) {
-        return 2;
-    } else if (arm_feature(env, ARM_FEATURE_EL3) &&
-               !arm_el_is_aa64(env, 3) && secure) {
+    /*
+     * No such thing as secure EL1 if EL3 is AArch32.
+     * Remap Secure PL1 to EL3.
+     */
+    if (arm_is_secure(env) && !arm_el_is_aa64(env, 3)) {
         return 3;
-    } else {
-        return 1;
     }
+
+    /*
+     * HCR.TGE redirects EL0 exceptions from EL1 to EL2.
+     * MDCR.TDE redirects both EL0 and EL1 debug exceptions to EL2.
+     */
+    if (arm_is_el2_enabled(env) &&
+        (env->cp15.hcr_el2 & HCR_TGE || env->cp15.mdcr_el2 & MDCR_TDE)) {
+        return 2;
+    }
+
+    return 1;
 }
 
 /*
