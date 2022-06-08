@@ -2574,7 +2574,7 @@ F: qapi/transaction.json
 T: git https://repo.or.cz/qemu/armbru.git block-next
 
 Compute Express Link
-M: Ben Widawsky <ben.widawsky@intel.com>
+M: Ben Widawsky <ben@bwidawsk.net>
 M: Jonathan Cameron <jonathan.cameron@huawei.com>
 S: Supported
 F: hw/cxl/
