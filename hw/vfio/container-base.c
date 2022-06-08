@@ -47,6 +47,17 @@ int vfio_container_dma_map(VFIOContainer *container,
     return container->ops->dma_map(container, iova, size, vaddr, readonly);
 }
 
+int vfio_container_dma_copy(VFIOContainer *src, VFIOContainer *dst,
+                            hwaddr iova, ram_addr_t size, bool readonly)
+{
+    if (!src->ops->dma_copy || src->ops->dma_copy != dst->ops->dma_copy) {
+        error_report("Incompatible container: unable to copy dma");
+        return -EINVAL;
+    }
+
+    return src->ops->dma_copy(src, dst, iova, size, readonly);
+}
+
 int vfio_container_dma_unmap(VFIOContainer *container,
                              hwaddr iova, ram_addr_t size,
                              IOMMUTLBEntry *iotlb)
@@ -136,8 +147,6 @@ void vfio_container_destroy(VFIOContainer *container)
     VFIORamDiscardListener *vrdl, *vrdl_tmp;
     VFIOGuestIOMMU *giommu, *tmp;
     VFIOHostDMAWindow *hostwin, *next;
-
-    QLIST_SAFE_REMOVE(container, next);
 
     QLIST_FOREACH_SAFE(vrdl, &container->vrdl_list, next, vrdl_tmp) {
         RamDiscardManager *rdm;

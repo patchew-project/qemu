@@ -34,7 +34,6 @@
 
 #define VFIO_MSG_PREFIX "vfio %s: "
 
-extern const MemoryListener vfio_memory_listener;
 extern const VFIOContainerOps legacy_container_ops;
 extern const VFIOContainerOps iommufd_container_ops;
 
@@ -186,6 +185,10 @@ void vfio_host_win_add(VFIOContainer *bcontainer,
 int vfio_host_win_del(VFIOContainer *bcontainer, hwaddr min_iova,
                       hwaddr max_iova);
 VFIOAddressSpace *vfio_get_address_space(AddressSpace *as);
+void vfio_as_add_container(VFIOAddressSpace *space,
+                           VFIOContainer *bcontainer);
+void vfio_as_del_container(VFIOAddressSpace *space,
+                           VFIOContainer *container);
 void vfio_put_address_space(VFIOAddressSpace *space);
 
 void vfio_put_base_device(VFIODevice *vbasedev);
