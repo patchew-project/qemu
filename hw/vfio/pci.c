@@ -3191,6 +3191,16 @@ static void vfio_pci_reset(DeviceState *dev)
         goto post_reset;
     }
 
+    /*
+     * This is a temporary check, long term iommufd should
+     * support hot reset as well
+     */
+    if (vdev->vbasedev.be == VFIO_IOMMU_BACKEND_TYPE_IOMMUFD) {
+        error_report("Dangerous: iommufd BE doesn't support hot "
+                     "reset, please stop the VM");
+        goto post_reset;
+    }
+
     /* See if we can do our own bus reset */
     if (!vfio_pci_hot_reset_one(vdev)) {
         goto post_reset;
