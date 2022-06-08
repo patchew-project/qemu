@@ -872,6 +872,18 @@ const MemoryListener vfio_memory_listener = {
     .log_sync = vfio_listener_log_sync,
 };
 
+void vfio_reset_handler(void *opaque)
+{
+    VFIOAddressSpace *space;
+    VFIOContainer *bcontainer;
+
+    QLIST_FOREACH(space, &vfio_address_spaces, list) {
+         QLIST_FOREACH(bcontainer, &space->containers, next) {
+             vfio_container_reset(bcontainer);
+         }
+    }
+}
+
 VFIOAddressSpace *vfio_get_address_space(AddressSpace *as)
 {
     VFIOAddressSpace *space;
@@ -887,6 +899,9 @@ VFIOAddressSpace *vfio_get_address_space(AddressSpace *as)
     space->as = as;
     QLIST_INIT(&space->containers);
 
+    if (QLIST_EMPTY(&vfio_address_spaces)) {
+        qemu_register_reset(vfio_reset_handler, NULL);
+    }
     QLIST_INSERT_HEAD(&vfio_address_spaces, space, list);
 
     return space;
@@ -897,6 +912,9 @@ void vfio_put_address_space(VFIOAddressSpace *space)
     if (QLIST_EMPTY(&space->containers)) {
         QLIST_REMOVE(space, list);
         g_free(space);
+    }
+    if (QLIST_EMPTY(&vfio_address_spaces)) {
+        qemu_unregister_reset(vfio_reset_handler, NULL);
     }
 }
 
