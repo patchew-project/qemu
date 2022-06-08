@@ -66,6 +66,8 @@ typedef struct VFIOHostDMAWindow {
     QLIST_ENTRY(VFIOHostDMAWindow) hostwin_next;
 } VFIOHostDMAWindow;
 
+typedef struct VFIODevice VFIODevice;
+
 typedef struct VFIOContainerOps {
     /* required */
     bool (*check_extension)(VFIOContainer *container,
@@ -88,6 +90,8 @@ typedef struct VFIOContainerOps {
                       Error **errp);
     void (*del_window)(VFIOContainer *container,
                        MemoryRegionSection *section);
+    int (*attach_device)(VFIODevice *vbasedev, AddressSpace *as, Error **errp);
+    void (*detach_device)(VFIODevice *vbasedev);
 } VFIOContainerOps;
 
 /*

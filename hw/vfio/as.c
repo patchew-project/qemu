@@ -899,3 +899,33 @@ void vfio_put_address_space(VFIOAddressSpace *space)
         g_free(space);
     }
 }
+
+static const VFIOContainerOps *
+vfio_get_container_ops(VFIOIOMMUBackendType be)
+{
+    switch (be) {
+    case VFIO_IOMMU_BACKEND_TYPE_LEGACY:
+        return &legacy_container_ops;
+    default:
+        return NULL;
+    }
+}
+
+int vfio_attach_device(VFIODevice *vbasedev, AddressSpace *as, Error **errp)
+{
+    const VFIOContainerOps *ops;
+
+    ops = vfio_get_container_ops(VFIO_IOMMU_BACKEND_TYPE_LEGACY);
+    if (!ops) {
+        return -ENOENT;
+    }
+    return ops->attach_device(vbasedev, as, errp);
+}
+
+void vfio_detach_device(VFIODevice *vbasedev)
+{
+    if (!vbasedev->container) {
+        return;
+    }
+    vbasedev->container->ops->detach_device(vbasedev);
+}

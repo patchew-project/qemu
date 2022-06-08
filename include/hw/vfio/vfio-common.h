@@ -84,9 +84,15 @@ typedef struct VFIOLegacyContainer {
 
 typedef struct VFIODeviceOps VFIODeviceOps;
 
+typedef enum VFIOIOMMUBackendType {
+    VFIO_IOMMU_BACKEND_TYPE_LEGACY = 0,
+    VFIO_IOMMU_BACKEND_TYPE_IOMMUFD = 1,
+} VFIOIOMMUBackendType;
+
 typedef struct VFIODevice {
     QLIST_ENTRY(VFIODevice) next;
     struct VFIOGroup *group;
+    VFIOContainer *container;
     char *sysfsdev;
     char *name;
     DeviceState *dev;
@@ -98,6 +104,7 @@ typedef struct VFIODevice {
     bool ram_block_discard_allowed;
     bool enable_migration;
     VFIODeviceOps *ops;
+    VFIOIOMMUBackendType be;
     unsigned int num_irqs;
     unsigned int num_regions;
     unsigned int flags;
