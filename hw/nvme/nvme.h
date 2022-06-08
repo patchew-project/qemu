@@ -120,6 +120,8 @@ typedef struct NvmeNamespaceParams {
     uint32_t numzrwa;
     uint64_t zrwas;
     uint64_t zrwafg;
+
+    uint16_t ready_delay;
 } NvmeNamespaceParams;
 
 typedef struct NvmeNamespace {
@@ -129,6 +131,7 @@ typedef struct NvmeNamespace {
     int64_t      size;
     int64_t      moff;
     NvmeIdNs     id_ns;
+    NvmeIdNsCsIndep id_indep_ns;
     NvmeIdNsNvm  id_ns_nvm;
     NvmeLBAF     lbaf;
     unsigned int nlbaf;
@@ -138,6 +141,7 @@ typedef struct NvmeNamespace {
     uint16_t     status;
     int          attached;
     uint8_t      pif;
+    QEMUTimer    *ready_delay_timer;
 
     struct {
         uint16_t zrwas;
@@ -398,6 +402,7 @@ typedef struct NvmeParams {
     uint32_t num_queues; /* deprecated since 5.1 */
     uint32_t max_ioqpairs;
     uint16_t msix_qsize;
+    uint16_t crwmt;
     uint32_t cmb_size_mb;
     uint8_t  aerl;
     uint32_t aer_max_queued;
@@ -512,6 +517,7 @@ static inline uint16_t nvme_cid(NvmeRequest *req)
     return le16_to_cpu(req->cqe.cid);
 }
 
+void nvme_ns_ready_cb(void *opaque);
 void nvme_attach_ns(NvmeCtrl *n, NvmeNamespace *ns);
 uint16_t nvme_bounce_data(NvmeCtrl *n, void *ptr, uint32_t len,
                           NvmeTxDirection dir, NvmeRequest *req);
