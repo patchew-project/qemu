@@ -387,15 +387,6 @@ void mips_semihosting(CPUMIPSState *env)
         gpr[2] = write_to_file(env, gpr[4], gpr[5], gpr[6], gpr[7]);
         gpr[3] = errno_mips(errno);
         break;
-#ifndef _WIN32
-    case UHI_link:
-        GET_TARGET_STRINGS_2(p, gpr[4], p2, gpr[5]);
-        gpr[2] = link(p, p2);
-        gpr[3] = errno_mips(errno);
-        FREE_TARGET_STRING(p2, gpr[5]);
-        FREE_TARGET_STRING(p, gpr[4]);
-        break;
-#endif
     default:
         error_report("Unknown UHI operation %d", op);
         abort();
