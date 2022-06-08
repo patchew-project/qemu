@@ -260,6 +260,7 @@ enum {
     EXC_USER,
     EXC_DOUBLE,
     EXC_DEBUG,
+    EXC_SEMIHOST,
     EXC_MAX
 };
 
@@ -576,6 +577,7 @@ void xtensa_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
                                       unsigned size, MMUAccessType access_type,
                                       int mmu_idx, MemTxAttrs attrs,
                                       MemTxResult response, uintptr_t retaddr);
+void xtensa_semihosting(CPUXtensaState *env);
 #endif
 void xtensa_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
 hwaddr xtensa_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
