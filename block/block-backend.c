@@ -60,7 +60,7 @@ struct BlockBackend {
      * can be used to restore those options in the new BDS on insert) */
     BlockBackendRootState root_state;
 
-    bool enable_write_cache;
+    bool enable_write_cache; /* Atomic */
 
     /* I/O stats (display with "info blockstats"). */
     BlockAcctStats stats;
@@ -1972,13 +1972,13 @@ bool blk_is_sg(BlockBackend *blk)
 bool blk_enable_write_cache(BlockBackend *blk)
 {
     IO_CODE();
-    return blk->enable_write_cache;
+    return qatomic_read(&blk->enable_write_cache);
 }
 
 void blk_set_enable_write_cache(BlockBackend *blk, bool wce)
 {
     GLOBAL_STATE_CODE();
-    blk->enable_write_cache = wce;
+    qatomic_set(&blk->enable_write_cache, wce);
 }
 
 void blk_activate(BlockBackend *blk, Error **errp)
