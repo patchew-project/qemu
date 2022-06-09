@@ -855,7 +855,7 @@ void virtio_blk_process_queued_requests(VirtIOBlock *s, bool is_bh)
     aio_context_release(blk_get_aio_context(s->conf.conf.blk));
 }
 
-static void virtio_blk_dma_restart_bh(void *opaque)
+void virtio_blk_restart_bh(void *opaque)
 {
     VirtIOBlock *s = opaque;
 
@@ -882,7 +882,7 @@ static void virtio_blk_dma_restart_cb(void *opaque, bool running,
      */
     if (!s->bh && !virtio_bus_ioeventfd_enabled(bus)) {
         s->bh = aio_bh_new(blk_get_aio_context(s->conf.conf.blk),
-                           virtio_blk_dma_restart_bh, s);
+                           virtio_blk_restart_bh, s);
         blk_inc_in_flight(s->conf.conf.blk);
         qemu_bh_schedule(s->bh);
     }

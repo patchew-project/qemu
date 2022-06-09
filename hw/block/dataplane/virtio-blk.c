@@ -234,8 +234,16 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
         goto fail_aio_context;
     }
 
+    blk_inc_in_flight(s->conf->conf.blk);
+    /*
+     * vblk->bh is only set in virtio_blk_dma_restart_cb, which
+     * is called only on vcpu start or stop.
+     * Therefore it must be null.
+     */
+    assert(vblk->bh == NULL);
     /* Process queued requests before the ones in vring */
-    virtio_blk_process_queued_requests(vblk, false);
+    vblk->bh = aio_bh_new(blk_get_aio_context(s->conf->conf.blk),
+                          virtio_blk_restart_bh, vblk);
 
     /* Kick right away to begin processing requests already in vring */
     for (i = 0; i < nvqs; i++) {
