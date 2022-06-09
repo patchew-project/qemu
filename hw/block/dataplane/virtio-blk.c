@@ -167,6 +167,8 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
     Error *local_err = NULL;
     int r;
 
+    GLOBAL_STATE_CODE();
+
     if (vblk->dataplane_started || s->starting) {
         return 0;
     }
@@ -243,13 +245,11 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
     }
 
     /* Get this show started by hooking up our callbacks */
-    aio_context_acquire(s->ctx);
     for (i = 0; i < nvqs; i++) {
         VirtQueue *vq = virtio_get_queue(s->vdev, i);
 
         virtio_queue_aio_attach_host_notifier(vq, s->ctx);
     }
-    aio_context_release(s->ctx);
     return 0;
 
   fail_aio_context:
@@ -304,6 +304,8 @@ void virtio_blk_data_plane_stop(VirtIODevice *vdev)
     unsigned i;
     unsigned nvqs = s->conf->num_queues;
 
+    GLOBAL_STATE_CODE();
+
     if (!vblk->dataplane_started || s->stopping) {
         return;
     }
@@ -318,6 +320,14 @@ void virtio_blk_data_plane_stop(VirtIODevice *vdev)
     trace_virtio_blk_data_plane_stop(s);
 
     aio_context_acquire(s->ctx);
+    /*
+     * TODO: virtio_blk_data_plane_stop_bh() does not need the AioContext lock,
+     * because even though virtio_queue_aio_detach_host_notifier() runs in
+     * Iothread context, such calls are serialized by the BQL held (this
+     * function runs in the main loop).
+     * On the other side, virtio_queue_aio_attach_host_notifier* always runs
+     * in the main loop, therefore it doesn't need the AioContext lock.
+     */
     aio_wait_bh_oneshot(s->ctx, virtio_blk_data_plane_stop_bh, s);
 
     /* Drain and try to switch bs back to the QEMU main loop. If other users

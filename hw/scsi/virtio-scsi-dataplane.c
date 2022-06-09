@@ -91,6 +91,8 @@ int virtio_scsi_dataplane_start(VirtIODevice *vdev)
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
 
+    GLOBAL_STATE_CODE();
+
     if (s->dataplane_started ||
         s->dataplane_starting ||
         s->dataplane_fenced) {
@@ -136,7 +138,6 @@ int virtio_scsi_dataplane_start(VirtIODevice *vdev)
 
     memory_region_transaction_commit();
 
-    aio_context_acquire(s->ctx);
     virtio_queue_aio_attach_host_notifier(vs->ctrl_vq, s->ctx);
     virtio_queue_aio_attach_host_notifier_no_poll(vs->event_vq, s->ctx);
 
@@ -146,7 +147,6 @@ int virtio_scsi_dataplane_start(VirtIODevice *vdev)
 
     s->dataplane_starting = false;
     s->dataplane_started = true;
-    aio_context_release(s->ctx);
     return 0;
 
 fail_host_notifiers:
@@ -193,6 +193,14 @@ void virtio_scsi_dataplane_stop(VirtIODevice *vdev)
     s->dataplane_stopping = true;
 
     aio_context_acquire(s->ctx);
+    /*
+     * TODO: virtio_scsi_dataplane_stop_bh() does not need the AioContext lock,
+     * because even though virtio_queue_aio_detach_host_notifier() runs in
+     * Iothread context, such calls are serialized by the BQL held (this
+     * function runs in the main loop).
+     * On the other side, virtio_queue_aio_attach_host_notifier* always runs
+     * in the main loop, therefore it doesn't need the AioContext lock.
+     */
     aio_wait_bh_oneshot(s->ctx, virtio_scsi_dataplane_stop_bh, s);
     aio_context_release(s->ctx);
 
