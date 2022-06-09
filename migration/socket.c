@@ -32,6 +32,17 @@ struct SocketOutgoingArgs {
     SocketAddress *saddr;
 } outgoing_args;
 
+struct SocketArgs {
+    struct SrcDestAddr data;
+    uint8_t multifd_channels;
+};
+
+struct OutgoingMigrateParams {
+    struct SocketArgs *socket_args;
+    size_t length;
+    uint64_t total_multifd_channel;
+} outgoing_migrate_params;
+
 void socket_send_channel_create(QIOTaskFunc f, void *data)
 {
     QIOChannelSocket *sioc = qio_channel_socket_new();
@@ -46,6 +57,14 @@ int socket_send_channel_destroy(QIOChannel *send)
     if (outgoing_args.saddr) {
         qapi_free_SocketAddress(outgoing_args.saddr);
         outgoing_args.saddr = NULL;
+    }
+
+    if (outgoing_migrate_params.socket_args != NULL) {
+        g_free(outgoing_migrate_params.socket_args);
+        outgoing_migrate_params.socket_args = NULL;
+    }
+    if (outgoing_migrate_params.length) {
+        outgoing_migrate_params.length = 0;
     }
     return 0;
 }
@@ -117,13 +136,41 @@ socket_start_outgoing_migration_internal(MigrationState *s,
 }
 
 void socket_start_outgoing_migration(MigrationState *s,
-                                     const char *str,
+                                     const char *dst_str,
                                      Error **errp)
 {
     Error *err = NULL;
-    SocketAddress *saddr = socket_parse(str, &err);
+    SocketAddress *dst_saddr = socket_parse(dst_str, &err);
     if (!err) {
-        socket_start_outgoing_migration_internal(s, saddr, &err);
+        socket_start_outgoing_migration_internal(s, dst_saddr, &err);
+    }
+    error_propagate(errp, err);
+}
+
+void init_multifd_array(int length)
+{
+    outgoing_migrate_params.socket_args = g_new0(struct SocketArgs, length);
+    outgoing_migrate_params.length = length;
+    outgoing_migrate_params.total_multifd_channel = 0;
+}
+
+void store_multifd_migration_params(const char *dst_uri,
+                                    const char *src_uri,
+                                    uint8_t multifd_channels,
+                                    int idx, Error **errp)
+{
+    Error *err = NULL;
+    SocketAddress *src_addr = NULL;
+    SocketAddress *dst_addr = socket_parse(dst_uri, &err);
+    if (src_uri) {
+        src_addr = socket_parse(src_uri, &err);
+    }
+    if (!err) {
+        outgoing_migrate_params.socket_args[idx].data.dst_addr = dst_addr;
+        outgoing_migrate_params.socket_args[idx].data.src_addr = src_addr;
+        outgoing_migrate_params.socket_args[idx].multifd_channels
+                                                         = multifd_channels;
+        outgoing_migrate_params.total_multifd_channel += multifd_channels;
     }
     error_propagate(errp, err);
 }

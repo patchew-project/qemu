@@ -56,4 +56,13 @@ int parse_qapi_name(const char *name, bool complete);
     (tail) = &(*(tail))->next; \
 } while (0)
 
+#define QAPI_LIST_LENGTH(list) ({ \
+    int _len = 0; \
+    typeof(list) _elem; \
+    for (_elem = list; _elem != NULL; _elem = _elem->next) { \
+        _len++; \
+    } \
+    _len; \
+})
+
 #endif

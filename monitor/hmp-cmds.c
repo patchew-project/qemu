@@ -56,6 +56,9 @@
 #include "migration/snapshot.h"
 #include "migration/misc.h"
 
+/* Default number of multi-fd channels */
+#define DEFAULT_MIGRATE_MULTIFD_CHANNELS 2
+
 #ifdef CONFIG_SPICE
 #include <spice/enums.h>
 #endif
@@ -1574,10 +1577,25 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
     bool inc = qdict_get_try_bool(qdict, "inc", false);
     bool resume = qdict_get_try_bool(qdict, "resume", false);
     const char *uri = qdict_get_str(qdict, "uri");
-    Error *err = NULL;
 
-    qmp_migrate(uri, !!blk, blk, !!inc, inc,
-                false, false, true, resume, &err);
+    const char *src_uri = qdict_get_str(qdict, "source-uri");
+    const char *dst_uri = qdict_get_str(qdict, "destination-uri");
+    uint8_t multifd_channels = qdict_get_try_int(qdict, "multifd-channels",
+                                        DEFAULT_MIGRATE_MULTIFD_CHANNELS);
+    Error *err = NULL;
+    MigrateUriParameterList *caps = NULL;
+    MigrateUriParameter *value;
+
+    value = g_malloc0(sizeof(*value));
+    value->source_uri = (char *)src_uri;
+    value->destination_uri = (char *)dst_uri;
+    value->multifd_channels = multifd_channels;
+    QAPI_LIST_PREPEND(caps, value);
+
+    qmp_migrate(uri, !!caps, caps, !!blk, blk, !!inc,
+                inc, false, false, true, resume, &err);
+    qapi_free_MigrateUriParameterList(caps);
+
     if (hmp_handle_error(mon, err)) {
         return;
     }
