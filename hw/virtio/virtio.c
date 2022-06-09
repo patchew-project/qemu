@@ -1977,6 +1977,8 @@ int virtio_set_status(VirtIODevice *vdev, uint8_t val)
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     trace_virtio_set_status(vdev, val);
 
+    GLOBAL_STATE_CODE();
+
     if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
         if (!(vdev->status & VIRTIO_CONFIG_S_FEATURES_OK) &&
             val & VIRTIO_CONFIG_S_FEATURES_OK) {
@@ -2024,6 +2026,8 @@ void virtio_reset(void *opaque)
     VirtIODevice *vdev = opaque;
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     int i;
+
+    GLOBAL_STATE_CODE();
 
     virtio_set_status(vdev, 0);
     if (current_cpu) {
@@ -2882,6 +2886,8 @@ int virtio_save(VirtIODevice *vdev, QEMUFile *f)
     uint32_t guest_features_lo = (vdev->guest_features & 0xffffffff);
     int i;
 
+    GLOBAL_STATE_CODE();
+
     if (k->save_config) {
         k->save_config(qbus->parent, f);
     }
@@ -3023,6 +3029,8 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+
+    GLOBAL_STATE_CODE();
 
     /*
      * We poison the endianness to ensure it does not get used before

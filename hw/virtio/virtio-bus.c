@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/main-loop.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
@@ -224,6 +225,8 @@ int virtio_bus_start_ioeventfd(VirtioBusState *bus)
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
     int r;
 
+    GLOBAL_STATE_CODE();
+
     if (!k->ioeventfd_assign || !k->ioeventfd_enabled(proxy)) {
         return -ENOSYS;
     }
@@ -247,6 +250,8 @@ void virtio_bus_stop_ioeventfd(VirtioBusState *bus)
 {
     VirtIODevice *vdev;
     VirtioDeviceClass *vdc;
+
+    GLOBAL_STATE_CODE();
 
     if (!bus->ioeventfd_started) {
         return;
