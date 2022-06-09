@@ -47,7 +47,7 @@ void socket_send_channel_create(QIOTaskFunc f, void *data)
 {
     QIOChannelSocket *sioc = qio_channel_socket_new();
     qio_channel_socket_connect_async(sioc, outgoing_args.saddr,
-                                     f, data, NULL, NULL);
+                                     f, data, NULL, NULL, NULL);
 }
 
 int socket_send_channel_destroy(QIOChannel *send)
@@ -110,7 +110,7 @@ out:
 
 static void
 socket_start_outgoing_migration_internal(MigrationState *s,
-                                         SocketAddress *saddr,
+                                         SocketAddress *dst_addr,
                                          Error **errp)
 {
     QIOChannelSocket *sioc = qio_channel_socket_new();
@@ -118,20 +118,17 @@ socket_start_outgoing_migration_internal(MigrationState *s,
 
     data->s = s;
 
-    /* in case previous migration leaked it */
-    qapi_free_SocketAddress(outgoing_args.saddr);
-    outgoing_args.saddr = saddr;
-
-    if (saddr->type == SOCKET_ADDRESS_TYPE_INET) {
-        data->hostname = g_strdup(saddr->u.inet.host);
+    if (dst_addr->type == SOCKET_ADDRESS_TYPE_INET) {
+        data->hostname = g_strdup(dst_addr->u.inet.host);
     }
 
     qio_channel_set_name(QIO_CHANNEL(sioc), "migration-socket-outgoing");
     qio_channel_socket_connect_async(sioc,
-                                     saddr,
+                                     dst_addr,
                                      socket_outgoing_migration,
                                      data,
                                      socket_connect_data_free,
+                                     NULL,
                                      NULL);
 }
 
