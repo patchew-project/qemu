@@ -27,7 +27,9 @@ struct SrcDestAddr {
     SocketAddress *src_addr;
 };
 
-void socket_send_channel_create(QIOTaskFunc f, void *data);
+int total_multifd_channels(void);
+int multifd_index(int i);
+void socket_send_channel_create(QIOTaskFunc f, void *data, int idx);
 int socket_send_channel_destroy(QIOChannel *send);
 
 void socket_start_incoming_migration(const char *str, uint8_t number,

@@ -28,9 +28,6 @@
 #include "trace.h"
 
 
-struct SocketOutgoingArgs {
-    SocketAddress *saddr;
-} outgoing_args;
 
 struct SocketArgs {
     struct SrcDestAddr data;
@@ -43,20 +40,47 @@ struct OutgoingMigrateParams {
     uint64_t total_multifd_channel;
 } outgoing_migrate_params;
 
-void socket_send_channel_create(QIOTaskFunc f, void *data)
+
+int total_multifd_channels(void)
+{
+    return outgoing_migrate_params.total_multifd_channel;
+}
+
+int multifd_index(int i)
+{
+    int length = outgoing_migrate_params.length;
+    int j = 0;
+    int runn_sum = 0;
+    while (j < length) {
+        runn_sum += outgoing_migrate_params.socket_args[j].multifd_channels;
+        if (i >= runn_sum) {
+            j++;
+        } else {
+            break;
+        }
+    }
+    return j;
+}
+
+void socket_send_channel_create(QIOTaskFunc f, void *data, int idx)
 {
     QIOChannelSocket *sioc = qio_channel_socket_new();
-    qio_channel_socket_connect_async(sioc, outgoing_args.saddr,
-                                     f, data, NULL, NULL, NULL);
+    qio_channel_socket_connect_async(sioc,
+                       outgoing_migrate_params.socket_args[idx].data.dst_addr,
+                       f, data, NULL, NULL,
+                       outgoing_migrate_params.socket_args[idx].data.src_addr);
 }
 
 int socket_send_channel_destroy(QIOChannel *send)
 {
     /* Remove channel */
     object_unref(OBJECT(send));
-    if (outgoing_args.saddr) {
-        qapi_free_SocketAddress(outgoing_args.saddr);
-        outgoing_args.saddr = NULL;
+    if (outgoing_migrate_params.socket_args != NULL) {
+        g_free(outgoing_migrate_params.socket_args);
+        outgoing_migrate_params.socket_args = NULL;
+    }
+    if (outgoing_migrate_params.length) {
+        outgoing_migrate_params.length = 0;
     }
 
     if (outgoing_migrate_params.socket_args != NULL) {

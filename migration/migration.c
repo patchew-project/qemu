@@ -1585,9 +1585,6 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     if (params->has_block_incremental) {
         dest->block_incremental = params->block_incremental;
     }
-    if (params->has_multifd_channels) {
-        dest->multifd_channels = params->multifd_channels;
-    }
     if (params->has_multifd_compression) {
         dest->multifd_compression = params->multifd_compression;
     }
@@ -1701,9 +1698,6 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
 
     if (params->has_block_incremental) {
         s->parameters.block_incremental = params->block_incremental;
-    }
-    if (params->has_multifd_channels) {
-        s->parameters.multifd_channels = params->multifd_channels;
     }
     if (params->has_multifd_compression) {
         s->parameters.multifd_compression = params->multifd_compression;
@@ -2684,15 +2678,6 @@ bool migrate_pause_before_switchover(void)
 
     return s->enabled_capabilities[
         MIGRATION_CAPABILITY_PAUSE_BEFORE_SWITCHOVER];
-}
-
-int migrate_multifd_channels(void)
-{
-    MigrationState *s;
-
-    s = migrate_get_current();
-
-    return s->parameters.multifd_channels;
 }
 
 MultiFDCompression migrate_multifd_compression(void)

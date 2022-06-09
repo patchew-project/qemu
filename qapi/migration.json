@@ -877,11 +877,6 @@
 #                     migrated and the destination must already have access to the
 #                     same backing chain as was used on the source.  (since 2.10)
 #
-# @multifd-channels: Number of channels used to migrate data in
-#                    parallel. This is the same number that the
-#                    number of sockets used for migration.  The
-#                    default value is 2 (since 4.0)
-#
 # @xbzrle-cache-size: cache size to be used by XBZRLE migration.  It
 #                     needs to be a multiple of the target page size
 #                     and a power of 2
@@ -965,7 +960,6 @@
             '*x-checkpoint-delay': { 'type': 'uint32',
                                      'features': [ 'unstable' ] },
             '*block-incremental': 'bool',
-            '*multifd-channels': 'uint8',
             '*xbzrle-cache-size': 'size',
             '*max-postcopy-bandwidth': 'size',
             '*max-cpu-throttle': 'uint8',
