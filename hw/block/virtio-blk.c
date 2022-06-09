@@ -109,8 +109,10 @@ static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
         /* Break the link as the next request is going to be parsed from the
          * ring again. Otherwise we may end up doing a double completion! */
         req->mr_next = NULL;
-        req->next = s->rq;
-        s->rq = req;
+        WITH_QEMU_LOCK_GUARD(&s->req_mutex) {
+            req->next = s->rq;
+            s->rq = req;
+        }
     } else if (action == BLOCK_ERROR_ACTION_REPORT) {
         virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
         if (acct_failed) {
@@ -860,10 +862,16 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 
 void virtio_blk_process_queued_requests(VirtIOBlock *s, bool is_bh)
 {
-    VirtIOBlockReq *req = s->rq;
+    VirtIOBlockReq *req;
     MultiReqBuffer mrb = {};
 
-    s->rq = NULL;
+    IO_CODE();
+
+    /* Detach queue from s->rq and process everything here */
+    WITH_QEMU_LOCK_GUARD(&s->req_mutex) {
+        req = s->rq;
+        s->rq = NULL;
+    }
 
     aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
     while (req) {
@@ -896,6 +904,7 @@ void virtio_blk_restart_bh(void *opaque)
 {
     VirtIOBlock *s = opaque;
 
+    IO_CODE();
     qemu_bh_delete(s->bh);
     s->bh = NULL;
 
@@ -946,17 +955,20 @@ static void virtio_blk_reset(VirtIODevice *vdev)
      * stops all Iothreads.
      */
     blk_drain(s->blk);
+    aio_context_release(ctx);
 
     /* We drop queued requests after blk_drain() because blk_drain() itself can
      * produce them. */
+    qemu_mutex_lock(&s->req_mutex);
     while (s->rq) {
         req = s->rq;
         s->rq = req->next;
+        qemu_mutex_unlock(&s->req_mutex);
         virtqueue_detach_element(req->vq, &req->elem, 0);
         virtio_blk_free_request(req);
+        qemu_mutex_lock(&s->req_mutex);
     }
-
-    aio_context_release(ctx);
+    qemu_mutex_unlock(&s->req_mutex);
 
     assert(!s->dataplane_started);
     blk_set_enable_write_cache(s->blk, s->original_wce);
@@ -1120,9 +1132,13 @@ static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
 static void virtio_blk_save_device(VirtIODevice *vdev, QEMUFile *f)
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
-    VirtIOBlockReq *req = s->rq;
+    VirtIOBlockReq *req;
 
     GLOBAL_STATE_CODE();
+
+    WITH_QEMU_LOCK_GUARD(&s->req_mutex) {
+        req = s->rq;
+    }
 
     while (req) {
         qemu_put_sbyte(f, 1);
@@ -1165,8 +1181,10 @@ static int virtio_blk_load_device(VirtIODevice *vdev, QEMUFile *f,
 
         req = qemu_get_virtqueue_element(vdev, f, sizeof(VirtIOBlockReq));
         virtio_blk_init_request(s, virtio_get_queue(vdev, vq_idx), req);
-        req->next = s->rq;
-        s->rq = req;
+        WITH_QEMU_LOCK_GUARD(&s->req_mutex) {
+            req->next = s->rq;
+            s->rq = req;
+        }
     }
 
     return 0;
@@ -1272,6 +1290,7 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
 
     virtio_init(vdev, VIRTIO_ID_BLOCK, s->config_size);
 
+    qemu_mutex_init(&s->req_mutex);
     s->blk = conf->conf.blk;
     s->rq = NULL;
     s->sector_mask = (s->conf.conf.logical_block_size / BDRV_SECTOR_SIZE) - 1;
@@ -1318,6 +1337,7 @@ static void virtio_blk_device_unrealize(DeviceState *dev)
     qemu_coroutine_dec_pool_size(conf->num_queues * conf->queue_size / 2);
     qemu_del_vm_change_state_handler(s->change);
     blockdev_mark_auto_del(s->blk);
+    qemu_mutex_destroy(&s->req_mutex);
     virtio_cleanup(vdev);
 }
 
