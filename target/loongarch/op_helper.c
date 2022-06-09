@@ -49,14 +49,24 @@ target_ulong helper_bitswap(target_ulong v)
 void helper_asrtle_d(CPULoongArchState *env, target_ulong rj, target_ulong rk)
 {
     if (rj > rk) {
+#ifdef CONFIG_USER_ONLY
+        cpu_loop_exit_sigsegv(env_cpu(env), GETPC(),
+                              MMU_DATA_LOAD, true, GETPC());
+#else
         do_raise_exception(env, EXCCODE_ADEM, GETPC());
+#endif
     }
 }
 
 void helper_asrtgt_d(CPULoongArchState *env, target_ulong rj, target_ulong rk)
 {
     if (rj <= rk) {
+#ifdef CONFIG_USER_ONLY
+        cpu_loop_exit_sigsegv(env_cpu(env), GETPC(),
+                              MMU_DATA_LOAD, true, GETPC());
+#else
         do_raise_exception(env, EXCCODE_ADEM, GETPC());
+#endif
     }
 }
 
@@ -84,6 +94,7 @@ target_ulong helper_cpucfg(CPULoongArchState *env, target_ulong rj)
     return rj > 21 ? 0 : env->cpucfg[rj];
 }
 
+#ifndef CONFIG_USER_ONLY
 uint64_t helper_rdtime_d(CPULoongArchState *env)
 {
     uint64_t plv;
@@ -131,3 +142,4 @@ void helper_idle(CPULoongArchState *env)
     cs->halted = 1;
     do_raise_exception(env, EXCP_HLT, 0);
 }
+#endif
