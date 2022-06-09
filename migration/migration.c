@@ -477,28 +477,39 @@ void migrate_add_address(SocketAddress *address)
                       QAPI_CLONE(SocketAddress, address));
 }
 
-static void qemu_start_incoming_migration(const char *uri, Error **errp)
+static void qemu_start_incoming_migration(const char *uri, uint8_t number,
+                                          int idx, Error **errp)
 {
     const char *p = NULL;
 
-    migrate_protocol_allow_multi_channels(false); /* reset it anyway */
-    qapi_event_send_migration(MIGRATION_STATUS_SETUP);
-    if (strstart(uri, "tcp:", &p) ||
-        strstart(uri, "unix:", NULL) ||
-        strstart(uri, "vsock:", NULL)) {
-        migrate_protocol_allow_multi_channels(true);
-        socket_start_incoming_migration(p ? p : uri, errp);
-#ifdef CONFIG_RDMA
-    } else if (strstart(uri, "rdma:", &p)) {
-        rdma_start_incoming_migration(p, errp);
-#endif
-    } else if (strstart(uri, "exec:", &p)) {
-        exec_start_incoming_migration(p, errp);
-    } else if (strstart(uri, "fd:", &p)) {
-        fd_start_incoming_migration(p, errp);
+    if (number ==  0) {
+        migrate_protocol_allow_multi_channels(false); /* reset it anyway */
+        qapi_event_send_migration(MIGRATION_STATUS_SETUP);
+        if (strstart(uri, "tcp:", &p) ||
+            strstart(uri, "unix:", NULL) ||
+            strstart(uri, "vsock:", NULL)) {
+            migrate_protocol_allow_multi_channels(true);
+    #ifdef CONFIG_RDMA
+        } else if (strstart(uri, "rdma:", &p)) {
+            rdma_start_incoming_migration(p, errp);
+    #endif
+        } else if (strstart(uri, "exec:", &p)) {
+            exec_start_incoming_migration(p, errp);
+        } else if (strstart(uri, "fd:", &p)) {
+            fd_start_incoming_migration(p, errp);
+        } else {
+            error_setg(errp, "unknown migration protocol: %s", uri);
+        }
     } else {
-        error_setg(errp, "unknown migration protocol: %s", uri);
+        /* multi-FD parameters only support tcp network protocols */
+        if (!strstart(uri, "tcp:", &p)) {
+            error_setg(errp, "multifd-destination uri supports "
+                                "tcp protocol only");
+            return;
+        }
+        store_multifd_migration_params(p ? p : uri, NULL, number, idx, errp);
     }
+    socket_start_incoming_migration(p ? p : uri, number, errp);
 }
 
 static void process_incoming_migration_bh(void *opaque)
@@ -2140,7 +2151,17 @@ void migrate_del_blocker(Error *reason)
     migration_blockers = g_slist_remove(migration_blockers, reason);
 }
 
-void qmp_migrate_incoming(const char *uri, Error **errp)
+static inline int incoming_multi_fd_uri_parse(const char *str, char delim)
+{
+    int count = 0;
+    for (int i = 0; i < strlen(str); i++) {
+        count += (str[i] == delim);
+    }
+    return count;
+}
+
+/* migrate_incoming comes from -incoming flag in qemu process */
+void migrate_incoming(const char *uri, Error **errp)
 {
     Error *local_err = NULL;
     static bool once = true;
@@ -2154,11 +2175,99 @@ void qmp_migrate_incoming(const char *uri, Error **errp)
         return;
     }
 
+    qemu_start_incoming_migration(uri, 0, 0, &local_err);
+
     if (!yank_register_instance(MIGRATION_YANK_INSTANCE, errp)) {
         return;
     }
 
-    qemu_start_incoming_migration(uri, &local_err);
+    if (local_err) {
+        yank_unregister_instance(MIGRATION_YANK_INSTANCE);
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    once = false;
+}
+
+/* multi_fd_migrate_incoming comes from -multi-fd-migrate-incoming flag in qemu process */
+void multi_fd_migrate_incoming(const char *uri, Error **errp)
+{
+    Error *local_err = NULL;
+    static bool once = true;
+
+    if (!once) {
+        error_setg(errp, "The incoming migration has already been started");
+        return;
+    }
+    if (!runstate_check(RUN_STATE_INMIGRATE)) {
+        error_setg(errp, "'-multi-fd-incoming' was not specified on the command line");
+        return;
+    }
+
+    strList *st = strList_from_string(uri, ',');
+    strList *r = st;
+    int length = QAPI_LIST_LENGTH(st);
+    init_multifd_array(length);
+
+    for (int i = 0; i < length; i++) {
+        const char *uri = NULL, *ret = NULL;
+        const char *str = r->value;
+        uint8_t multifd_channels = DEFAULT_MIGRATE_MULTIFD_CHANNELS;
+        int parse_count = incoming_multi_fd_uri_parse(str, ':');
+        if (parse_count < 2 || parse_count > 3) {
+            error_setg(errp, "Invalid format of string-id %d in "
+                             "'-multi-fd-incoming' flag", i);
+            return;
+        }
+        if (parse_count == 3) {
+            ret = strrchr(str, ':');
+            uri = g_strndup(str, strlen(str) - strlen(ret));
+            multifd_channels = atoi(ret + 1);
+        }
+        qemu_start_incoming_migration(parse_count == 2 ? str : uri,
+                                      multifd_channels, i, &local_err);
+        r = r->next;
+    }
+
+    if (local_err) {
+        yank_unregister_instance(MIGRATION_YANK_INSTANCE);
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    once = false;
+}
+
+/* qmp_migrate_incoming comes from qemu qmp monitor command */
+void qmp_migrate_incoming(const char *uri, bool has_multi_fd_uri_list,
+                          MigrateIncomingUriList *cap, Error **errp)
+{
+    Error *local_err = NULL;
+    static bool once = true;
+
+    if (!once) {
+        error_setg(errp, "The incoming migration has already been started");
+        return;
+    }
+
+    if (!yank_register_instance(MIGRATION_YANK_INSTANCE, errp)) {
+        return;
+    }
+
+    /* For migration thread */
+    qemu_start_incoming_migration(uri, 0, 0, &local_err);
+
+    /* For Multi-FD */
+    int length = QAPI_LIST_LENGTH(cap);
+    init_multifd_array(length);
+    for (int i = 0; i < length; i++) {
+        const char *multifd_dst_uri = cap->value->destination_uri;
+        uint8_t multifd_channels = cap->value->multifd_channels;
+        qemu_start_incoming_migration(multifd_dst_uri, multifd_channels,
+                                      i, &local_err);
+        cap = cap->next;
+    }
 
     if (local_err) {
         yank_unregister_instance(MIGRATION_YANK_INSTANCE);
@@ -2194,7 +2303,7 @@ void qmp_migrate_recover(const char *uri, Error **errp)
      * only re-setup the migration stream and poke existing migration
      * to continue using that newly established channel.
      */
-    qemu_start_incoming_migration(uri, errp);
+    qemu_start_incoming_migration(uri, 0, 0, errp);
 }
 
 void qmp_migrate_pause(Error **errp)
