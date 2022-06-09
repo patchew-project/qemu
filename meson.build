@@ -1527,6 +1527,21 @@ if get_option('fuse_lseek').allowed()
   endif
 endif
 
+have_libvduse = (targetos == 'linux')
+if get_option('libvduse').enabled()
+    if targetos != 'linux'
+        error('libvduse requires linux')
+    endif
+elif get_option('libvduse').disabled()
+    have_libvduse = false
+endif
+
+libvduse = not_found
+if have_libvduse
+  libvduse_proj = subproject('libvduse')
+  libvduse = libvduse_proj.get_variable('libvduse_dep')
+endif
+
 # libbpf
 libbpf = dependency('libbpf', required: get_option('bpf'), method: 'pkg-config')
 if libbpf.found() and not cc.links('''
