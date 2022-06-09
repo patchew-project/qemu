@@ -62,6 +62,8 @@ static void virtio_blk_set_config_size(VirtIOBlock *s, uint64_t host_features)
 static void virtio_blk_init_request(VirtIOBlock *s, VirtQueue *vq,
                                     VirtIOBlockReq *req)
 {
+    IO_CODE();
+
     req->dev = s;
     req->vq = vq;
     req->qiov.size = 0;
@@ -79,6 +81,8 @@ static void virtio_blk_req_complete(VirtIOBlockReq *req, unsigned char status)
 {
     VirtIOBlock *s = req->dev;
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
+
+    IO_CODE();
 
     trace_virtio_blk_req_complete(vdev, req, status);
 
@@ -98,6 +102,8 @@ static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
 {
     VirtIOBlock *s = req->dev;
     BlockErrorAction action = blk_get_error_action(s->blk, is_read, error);
+
+    IO_CODE();
 
     if (action == BLOCK_ERROR_ACTION_STOP) {
         /* Break the link as the next request is going to be parsed from the
@@ -166,7 +172,9 @@ static void virtio_blk_flush_complete(void *opaque, int ret)
     VirtIOBlockReq *req = opaque;
     VirtIOBlock *s = req->dev;
 
+    IO_CODE();
     aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
+
     if (ret) {
         if (virtio_blk_handle_rw_error(req, -ret, 0, true)) {
             goto out;
@@ -188,7 +196,9 @@ static void virtio_blk_discard_write_zeroes_complete(void *opaque, int ret)
     bool is_write_zeroes = (virtio_ldl_p(VIRTIO_DEVICE(s), &req->out.type) &
                             ~VIRTIO_BLK_T_BARRIER) == VIRTIO_BLK_T_WRITE_ZEROES;
 
+    IO_CODE();
     aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
+
     if (ret) {
         if (virtio_blk_handle_rw_error(req, -ret, false, is_write_zeroes)) {
             goto out;
@@ -220,6 +230,8 @@ static void virtio_blk_ioctl_complete(void *opaque, int status)
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
     struct virtio_scsi_inhdr *scsi;
     struct sg_io_hdr *hdr;
+
+    IO_CODE();
 
     scsi = (void *)req->elem.in_sg[req->elem.in_num - 2].iov_base;
 
@@ -262,6 +274,8 @@ static VirtIOBlockReq *virtio_blk_get_request(VirtIOBlock *s, VirtQueue *vq)
 {
     VirtIOBlockReq *req = virtqueue_pop(vq, sizeof(VirtIOBlockReq));
 
+    IO_CODE();
+
     if (req) {
         virtio_blk_init_request(s, vq, req);
     }
@@ -281,6 +295,8 @@ static int virtio_blk_handle_scsi_req(VirtIOBlockReq *req)
     VirtIOBlockIoctlReq *ioctl_req;
     BlockAIOCB *acb;
 #endif
+
+    IO_CODE();
 
     /*
      * We require at least one output segment each for the virtio_blk_outhdr
@@ -380,6 +396,7 @@ fail:
 static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
 {
     int status;
+    IO_CODE();
 
     status = virtio_blk_handle_scsi_req(req);
     if (status != -EINPROGRESS) {
@@ -394,6 +411,8 @@ static inline void submit_requests(BlockBackend *blk, MultiReqBuffer *mrb,
     QEMUIOVector *qiov = &mrb->reqs[start]->qiov;
     int64_t sector_num = mrb->reqs[start]->sector_num;
     bool is_write = mrb->is_write;
+
+    IO_CODE();
 
     if (num_reqs > 1) {
         int i;
@@ -438,6 +457,8 @@ static int multireq_compare(const void *a, const void *b)
     const VirtIOBlockReq *req1 = *(VirtIOBlockReq **)a,
                          *req2 = *(VirtIOBlockReq **)b;
 
+    IO_CODE();
+
     /*
      * Note that we can't simply subtract sector_num1 from sector_num2
      * here as that could overflow the return value.
@@ -456,6 +477,8 @@ static void virtio_blk_submit_multireq(BlockBackend *blk, MultiReqBuffer *mrb)
     int i = 0, start = 0, num_reqs = 0, niov = 0, nb_sectors = 0;
     uint32_t max_transfer;
     int64_t sector_num = 0;
+
+    IO_CODE();
 
     if (mrb->num_reqs == 1) {
         submit_requests(blk, mrb, 0, 1, -1);
@@ -506,6 +529,8 @@ static void virtio_blk_handle_flush(VirtIOBlockReq *req, MultiReqBuffer *mrb)
 {
     VirtIOBlock *s = req->dev;
 
+    IO_CODE();
+
     block_acct_start(blk_get_stats(s->blk), &req->acct, 0,
                      BLOCK_ACCT_FLUSH);
 
@@ -523,6 +548,8 @@ static bool virtio_blk_sect_range_ok(VirtIOBlock *dev,
 {
     uint64_t nb_sectors = size >> BDRV_SECTOR_BITS;
     uint64_t total_sectors;
+
+    IO_CODE();
 
     if (nb_sectors > BDRV_REQUEST_MAX_SECTORS) {
         return false;
@@ -549,6 +576,8 @@ static uint8_t virtio_blk_handle_discard_write_zeroes(VirtIOBlockReq *req,
     uint32_t num_sectors, flags, max_sectors;
     uint8_t err_status;
     int bytes;
+
+    IO_CODE();
 
     sector = virtio_ldq_p(vdev, &dwz_hdr->sector);
     num_sectors = virtio_ldl_p(vdev, &dwz_hdr->num_sectors);
@@ -627,6 +656,8 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
     unsigned out_num = req->elem.out_num;
     VirtIOBlock *s = req->dev;
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
+
+    IO_CODE();
 
     if (req->elem.out_num < 1 || req->elem.in_num < 1) {
         virtio_error(vdev, "virtio-blk missing headers");
@@ -778,6 +809,8 @@ void virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)
     MultiReqBuffer mrb = {};
     bool suppress_notifications = virtio_queue_get_notification(vq);
 
+    IO_CODE();
+
     aio_context_acquire(blk_get_aio_context(s->blk));
     blk_io_plug(s->blk);
 
@@ -810,6 +843,8 @@ void virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)
 static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOBlock *s = (VirtIOBlock *)vdev;
+
+    IO_CODE();
 
     if (s->dataplane && !s->dataplane_started) {
         /* Some guests kick before setting VIRTIO_CONFIG_S_DRIVER_OK so start

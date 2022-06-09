@@ -63,6 +63,8 @@ static void notify_guest_bh(void *opaque)
     unsigned long bitmap[BITS_TO_LONGS(nvqs)];
     unsigned j;
 
+    IO_CODE();
+
     memcpy(bitmap, s->batch_notify_vqs, sizeof(bitmap));
     memset(s->batch_notify_vqs, 0, sizeof(bitmap));
 
@@ -298,6 +300,8 @@ static void virtio_blk_data_plane_stop_bh(void *opaque)
 {
     VirtIOBlockDataPlane *s = opaque;
     unsigned i;
+
+    IO_CODE();
 
     for (i = 0; i < s->conf->num_queues; i++) {
         VirtQueue *vq = virtio_get_queue(s->vdev, i);
