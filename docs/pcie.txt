@@ -48,6 +48,11 @@ Place only the following kinds of devices directly on the Root Complex:
         strangely when PCI Express devices are integrated
         with the Root Complex.
 
+        An exception to this rule is PCI Express devices which will be
+        accessed using IO ports.  For example, guests using BIOS firmware
+        require IO port access for graphics devices to provide VESA BIOS
+        Extensions (VBE).
+
     (2) PCI Express Root Ports (ioh3420), for starting exclusively PCI Express
         hierarchies.
 
