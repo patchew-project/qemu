@@ -51,6 +51,8 @@ static const VirtIOFeature feature_sizes[] = {
 
 static void virtio_blk_set_config_size(VirtIOBlock *s, uint64_t host_features)
 {
+    GLOBAL_STATE_CODE();
+
     s->config_size = MAX(VIRTIO_BLK_CFG_SIZE,
         virtio_feature_get_config_size(feature_sizes, host_features));
 
@@ -865,12 +867,18 @@ void virtio_blk_restart_bh(void *opaque)
     virtio_blk_process_queued_requests(s, true);
 }
 
+/*
+ * Only called when VM is started or stopped in cpus.c.
+ * No iothread runs in parallel
+ */
 static void virtio_blk_dma_restart_cb(void *opaque, bool running,
                                       RunState state)
 {
     VirtIOBlock *s = opaque;
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(s)));
     VirtioBusState *bus = VIRTIO_BUS(qbus);
+
+    GLOBAL_STATE_CODE();
 
     if (!running) {
         return;
@@ -894,8 +902,14 @@ static void virtio_blk_reset(VirtIODevice *vdev)
     AioContext *ctx;
     VirtIOBlockReq *req;
 
+    GLOBAL_STATE_CODE();
+
     ctx = blk_get_aio_context(s->blk);
     aio_context_acquire(ctx);
+    /*
+     * This drain together with ->stop_ioeventfd() in virtio_pci_reset()
+     * stops all Iothreads.
+     */
     blk_drain(s->blk);
 
     /* We drop queued requests after blk_drain() because blk_drain() itself can
@@ -1064,10 +1078,16 @@ static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
     }
 }
 
+/*
+ * VM is stopped while doing migration, so iothread has
+ * no requests to process.
+ */
 static void virtio_blk_save_device(VirtIODevice *vdev, QEMUFile *f)
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
     VirtIOBlockReq *req = s->rq;
+
+    GLOBAL_STATE_CODE();
 
     while (req) {
         qemu_put_sbyte(f, 1);
@@ -1082,10 +1102,16 @@ static void virtio_blk_save_device(VirtIODevice *vdev, QEMUFile *f)
     qemu_put_sbyte(f, 0);
 }
 
+/*
+ * VM is stopped while doing migration, so iothread has
+ * no requests to process.
+ */
 static int virtio_blk_load_device(VirtIODevice *vdev, QEMUFile *f,
                                   int version_id)
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
+
+    GLOBAL_STATE_CODE();
 
     while (qemu_get_sbyte(f)) {
         unsigned nvqs = s->conf.num_queues;
@@ -1135,6 +1161,7 @@ static const BlockDevOps virtio_block_ops = {
     .resize_cb = virtio_blk_resize,
 };
 
+/* Iothread is not yet created */
 static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -1142,6 +1169,8 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     VirtIOBlkConf *conf = &s->conf;
     Error *err = NULL;
     unsigned i;
+
+    GLOBAL_STATE_CODE();
 
     if (!conf->conf.blk) {
         error_setg(errp, "drive property not set");
