@@ -144,7 +144,8 @@ def make_qemu_venv(
     with enter_venv(venv_path):
         if do_initialize:
             install("-e", str(pysrc_path), offline=offline)
-            install(str(test_src_path), offline=offline)
+            install("--no-binary", "qemu.dummy-tests",
+                    str(test_src_path), offline=offline)
             venv_path.touch()
 
         for option in options:
