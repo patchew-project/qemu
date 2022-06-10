@@ -318,7 +318,24 @@ int arm_gen_dynamic_sysreg_xml(CPUState *cs, int base_reg)
     g_string_append_printf(s, "<feature name=\"org.qemu.gdb.arm.sys.regs\">");
     g_hash_table_foreach(cpu->cp_regs, arm_register_sysreg_for_xml, &param);
     g_string_append_printf(s, "</feature>");
-    cpu->dyn_sysreg_xml.desc = g_string_free(s, false);
+
+    /* De-duplicate system register descriptions */
+    if (cs != first_cpu) {
+        CPUState *other_cs;
+        CPU_FOREACH(other_cs) {
+            ARMCPU *other_arm = ARM_CPU(other_cs);
+            if (g_strcmp0(other_arm->dyn_sysreg_xml.desc, s->str) == 0) {
+                cpu->dyn_sysreg_xml.desc = other_arm->dyn_sysreg_xml.desc;
+                g_string_free(s, true);
+                s = NULL;
+                break;
+            }
+        }
+    }
+
+    if (s) {
+        cpu->dyn_sysreg_xml.desc = g_string_free(s, false);
+    }
     return cpu->dyn_sysreg_xml.num;
 }
 
@@ -436,7 +453,24 @@ int arm_gen_dynamic_svereg_xml(CPUState *cs, int base_reg)
                            base_reg++);
     info->num += 2;
     g_string_append_printf(s, "</feature>");
-    cpu->dyn_svereg_xml.desc = g_string_free(s, false);
+
+    /* De-duplicate SVE register descriptions */
+    if (cs != first_cpu) {
+        CPUState *other_cs;
+        CPU_FOREACH(other_cs) {
+            ARMCPU *other_arm = ARM_CPU(other_cs);
+            if (g_strcmp0(other_arm->dyn_svereg_xml.desc, s->str) == 0) {
+                cpu->dyn_sysreg_xml.desc = other_arm->dyn_svereg_xml.desc;
+                g_string_free(s, true);
+                s = NULL;
+                break;
+            }
+        }
+    }
+
+    if (s) {
+        cpu->dyn_svereg_xml.desc = g_string_free(s, false);
+    }
 
     return cpu->dyn_svereg_xml.num;
 }
