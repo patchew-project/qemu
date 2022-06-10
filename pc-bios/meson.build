@@ -97,4 +97,3 @@ foreach f : blobs
 endforeach
 
 subdir('descriptors')
-subdir('keymaps')
