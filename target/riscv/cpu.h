@@ -289,6 +289,7 @@ struct CPUArchState {
 
     /* trigger module */
     target_ulong trigger_cur;
+    target_ulong trigger_prev;
     target_ulong tdata1[RV_MAX_TRIGGERS];
     target_ulong tdata2[RV_MAX_TRIGGERS];
     target_ulong tdata3[RV_MAX_TRIGGERS];
