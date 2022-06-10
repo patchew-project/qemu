@@ -126,10 +126,6 @@ bool tdata_available(CPURISCVState *env, int tdata_index)
         return false;
     }
 
-    if (unlikely(env->trigger_cur >= RV_MAX_TRIGGERS)) {
-        return false;
-    }
-
     return tdata_mapping[trigger_type][tdata_index];
 }
 
@@ -140,8 +136,9 @@ target_ulong tselect_csr_read(CPURISCVState *env)
 
 void tselect_csr_write(CPURISCVState *env, target_ulong val)
 {
-    /* all target_ulong bits of tselect are implemented */
-    env->trigger_cur = val;
+    if (val < RV_MAX_TRIGGERS) {
+        env->trigger_cur = val;
+    }
 }
 
 static target_ulong tdata1_validate(CPURISCVState *env, target_ulong val,
