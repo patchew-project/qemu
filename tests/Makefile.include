@@ -104,21 +104,17 @@ else
 	AVOCADO_CMDLINE_TAGS=$(addprefix -t , $(AVOCADO_TAGS))
 endif
 
-quiet-venv-pip = $(quiet-@)$(call quiet-command-run, \
-    $(TESTS_PYTHON) -m pip -q --disable-pip-version-check $1, \
-    "VENVPIP","$1")
-
 # Core dependencies for tests/venv
 $(TESTS_VENV_DIR): $(SRC_PATH)/tests/setup.cfg $(SRC_PATH)/python/setup.cfg
-	$(call quiet-command, $(PYTHON) -m venv $@, VENV, $@)
-	$(call quiet-venv-pip,install -e "$(SRC_PATH)/python/")
-	$(call quiet-venv-pip,install "$(SRC_PATH)/tests/")
-	$(call quiet-command, touch $@)
+	$(call quiet-command, \
+            $(PYTHON) "$(SRC_PATH)/tests/mkvenv.py" "$@", \
+            MKVENV, $@)
 
 # Optional avocado dependencies for tests/venv
 $(TESTS_VENV_DIR)/avocado: $(TESTS_VENV_DIR)
-	$(call quiet-venv-pip,install "$(SRC_PATH)/tests/[avocado]")
-	$(call quiet-command, touch $@)
+	$(call quiet-command, \
+            $(PYTHON) "$(SRC_PATH)/tests/mkvenv.py" --opt avocado "$<", \
+            MKVENV, $@)
 
 $(TESTS_RESULTS_DIR):
 	$(call quiet-command, mkdir -p $@, \
