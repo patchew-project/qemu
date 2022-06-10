@@ -112,10 +112,10 @@ class TestEnv(ContextManager['TestEnv']):
         """
         venv_path = Path(self.build_root, 'tests/venv/')
         if not venv_path.exists():
-            raise FileNotFoundError(
-                f"Virtual environment \"{venv_path!s}\" isn't found."
-                " (Maybe you need to run 'make check-venv'"
-                " from the build dir?)"
+            mkvenv = Path(self.source_iotests, '../mkvenv.py')
+            subprocess.run(
+                (sys.executable, str(mkvenv), str(venv_path)),
+                check=True,
             )
         self.virtual_env: str = str(venv_path)
 
