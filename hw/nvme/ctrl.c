@@ -6697,8 +6697,13 @@ static void nvme_init_subnqn(NvmeCtrl *n)
     NvmeIdCtrl *id = &n->id_ctrl;
 
     if (!subsys) {
-        snprintf((char *)id->subnqn, sizeof(id->subnqn),
+        if (n->params.nqn_override) {
+            snprintf((char *)id->subnqn, sizeof(id->subnqn),
+                 "%s", n->params.nqn_override);
+        } else {
+            snprintf((char *)id->subnqn, sizeof(id->subnqn),
                  "nqn.2019-08.org.qemu:%s", n->params.serial);
+        }
     } else {
         pstrcpy((char *)id->subnqn, sizeof(id->subnqn), (char*)subsys->subnqn);
     }
@@ -6712,8 +6717,10 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
 
     id->vid = cpu_to_le16(pci_get_word(pci_conf + PCI_VENDOR_ID));
     id->ssvid = cpu_to_le16(pci_get_word(pci_conf + PCI_SUBSYSTEM_VENDOR_ID));
-    strpadcpy((char *)id->mn, sizeof(id->mn), "QEMU NVMe Ctrl", ' ');
-    strpadcpy((char *)id->fr, sizeof(id->fr), QEMU_VERSION, ' ');
+    strpadcpy((char *)id->mn, sizeof(id->mn),
+            n->params.model ? n->params.model : "QEMU NVMe Ctrl", ' ');
+    strpadcpy((char *)id->fr, sizeof(id->fr),
+            n->params.firmware ? n->params.firmware : QEMU_VERSION, ' ');
     strpadcpy((char *)id->sn, sizeof(id->sn), n->params.serial, ' ');
 
     id->cntlid = cpu_to_le16(n->cntlid);
@@ -6913,6 +6920,9 @@ static Property nvme_props[] = {
     DEFINE_PROP_LINK("subsys", NvmeCtrl, subsys, TYPE_NVME_SUBSYS,
                      NvmeSubsystem *),
     DEFINE_PROP_STRING("serial", NvmeCtrl, params.serial),
+    DEFINE_PROP_STRING("model", NvmeCtrl, params.model),
+    DEFINE_PROP_STRING("nqn_override", NvmeCtrl, params.nqn_override),
+    DEFINE_PROP_STRING("firmware", NvmeCtrl, params.firmware),
     DEFINE_PROP_UINT32("cmb_size_mb", NvmeCtrl, params.cmb_size_mb, 0),
     DEFINE_PROP_UINT32("num_queues", NvmeCtrl, params.num_queues, 0),
     DEFINE_PROP_UINT32("max_ioqpairs", NvmeCtrl, params.max_ioqpairs, 64),
