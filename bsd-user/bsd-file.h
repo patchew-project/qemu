@@ -55,6 +55,7 @@ extern struct iovec *lock_iovec(int type, abi_ulong target_addr, int count,
         int copy);
 extern void unlock_iovec(struct iovec *vec, abi_ulong target_addr, int count,
         int copy);
+extern int __getcwd(char *path, size_t len);
 
 int safe_open(const char *path, int flags, mode_t mode);
 int safe_openat(int fd, const char *path, int flags, mode_t mode);
@@ -459,6 +460,35 @@ static abi_long do_bsd_mkdirat(abi_long arg1, abi_long arg2,
     UNLOCK_PATH(p, arg2);
 
     return ret;
+}
+
+/* rmdir(2) */
+static abi_long do_bsd_rmdir(abi_long arg1)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(rmdir(p)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* undocumented __getcwd(char *buf, size_t len)  system call */
+static abi_long do_bsd___getcwd(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+
+    p = lock_user(VERIFY_WRITE, arg1, arg2, 0);
+    if (p == NULL) {
+        return -TARGET_EFAULT;
+    }
+    ret = __getcwd(p, arg2);
+    unlock_user(p, arg1, ret == 0 ? strlen(p) + 1 : 0);
+
+    return get_errno(ret);
 }
 
 #endif /* BSD_FILE_H */
