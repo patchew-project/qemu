@@ -48,13 +48,17 @@ Place only the following kinds of devices directly on the Root Complex:
         strangely when PCI Express devices are integrated
         with the Root Complex.
 
-    (2) PCI Express Root Ports (ioh3420), for starting exclusively PCI Express
+    (2) Assigned PCI Express GPUs that offer legacy VGA compatibility, and
+        that such compatibility is expected of (due to booting with SeaBIOS,
+        or due to UEFI driver bugs or native OS driver bugs).
+
+    (3) PCI Express Root Ports (ioh3420), for starting exclusively PCI Express
         hierarchies.
 
-    (3) PCI Express to PCI Bridge (pcie-pci-bridge), for starting legacy PCI
+    (4) PCI Express to PCI Bridge (pcie-pci-bridge), for starting legacy PCI
         hierarchies.
 
-    (4) Extra Root Complexes (pxb-pcie), if multiple PCI Express Root Buses
+    (5) Extra Root Complexes (pxb-pcie), if multiple PCI Express Root Buses
         are needed.
 
    pcie.0 bus
