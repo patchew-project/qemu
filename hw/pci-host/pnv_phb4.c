@@ -1781,7 +1781,6 @@ static void pnv_phb4_root_port_reset(DeviceState *dev)
 static void pnv_phb4_root_port_realize(DeviceState *dev, Error **errp)
 {
     PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(dev);
-    PCIDevice *pci = PCI_DEVICE(dev);
     PnvPHB4 *phb = NULL;
     Error *local_err = NULL;
 
@@ -1799,8 +1798,8 @@ static void pnv_phb4_root_port_realize(DeviceState *dev, Error **errp)
     }
 
     /* Set unique chassis/slot values for the root port */
-    qdev_prop_set_uint8(&pci->qdev, "chassis", phb->chip_id);
-    qdev_prop_set_uint16(&pci->qdev, "slot", phb->phb_id);
+    qdev_prop_set_uint8(dev, "chassis", phb->chip_id);
+    qdev_prop_set_uint16(dev, "slot", phb->phb_id);
 
     rpc->parent_realize(dev, &local_err);
     if (local_err) {
