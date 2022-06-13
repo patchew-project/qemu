@@ -1553,6 +1553,18 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
     int nr_irqs;
     char name[32];
 
+    /*
+     * We need the PEC to parent the PHB to allow the DT
+     * to build correctly (via pnv_xscom_dt()).
+     */
+    pnv_parent_qom_fixup(OBJECT(phb->pec), OBJECT(phb), phb->phb_id);
+
+    /*
+     * pnv-phb4 buses are child of the main-system-bus, same as
+     * the chip.
+     */
+    pnv_parent_bus_fixup(DEVICE(phb->pec->chip), dev);
+
     /* Set the "big_phb" flag */
     phb->big_phb = phb->phb_id == 0 || phb->phb_id == 3;
 
