@@ -7,6 +7,7 @@ crypto_ss.add(files(
   'block.c',
   'cipher.c',
   'der.c',
+  'ecdsakey.c',
   'hash.c',
   'hmac.c',
   'ivgen-essiv.c',
