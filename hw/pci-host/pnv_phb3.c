@@ -998,6 +998,20 @@ static void pnv_phb3_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /*
+     * We need the chip to parent the PHB to allow the DT
+     * to build correctly (via pnv_xscom_dt()).
+     *
+     * TODO: the PHB should be parented by a PHB3 PEC device.
+     */
+    pnv_parent_qom_fixup(OBJECT(phb->chip), OBJECT(phb), phb->phb_id);
+
+    /*
+     * pnv-phb3 buses are child of the main-system-bus, same as
+     * the chip.
+     */
+    pnv_parent_bus_fixup(DEVICE(phb->chip), dev);
+
     /* LSI sources */
     object_property_set_link(OBJECT(&phb->lsis), "xics", OBJECT(pnv),
                              &error_abort);

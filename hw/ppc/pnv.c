@@ -1130,8 +1130,6 @@ static void pnv_chip_power10_intc_print_info(PnvChip *chip, PowerPCCPU *cpu,
 static void pnv_chip_power8_instance_init(Object *obj)
 {
     Pnv8Chip *chip8 = PNV8_CHIP(obj);
-    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(obj);
-    int i;
 
     object_property_add_link(obj, "xics", TYPE_XICS_FABRIC,
                              (Object **)&chip8->xics,
@@ -1145,22 +1143,6 @@ static void pnv_chip_power8_instance_init(Object *obj)
     object_initialize_child(obj, "occ", &chip8->occ, TYPE_PNV8_OCC);
 
     object_initialize_child(obj, "homer", &chip8->homer, TYPE_PNV8_HOMER);
-
-    chip8->num_phbs = pcc->num_phbs;
-
-    for (i = 0; i < chip8->num_phbs; i++) {
-        PnvPHB3 *phb3 = PNV_PHB3(object_new(TYPE_PNV_PHB3));
-
-        /*
-         * We need the chip to parent the PHB to allow the DT
-         * to build correctly (via pnv_xscom_dt()).
-         *
-         * TODO: the PHB should be parented by a PEC device.
-         */
-        object_property_add_child(obj, "phb[*]", OBJECT(phb3));
-        chip8->phbs[i] = phb3;
-    }
-
 }
 
 static void pnv_chip_icp_realize(Pnv8Chip *chip8, Error **errp)
@@ -1286,8 +1268,12 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
                                 &chip8->homer.regs);
 
     /* PHB3 controllers */
+    chip8->num_phbs = pcc->num_phbs;
+
     for (i = 0; i < chip8->num_phbs; i++) {
-        PnvPHB3 *phb = chip8->phbs[i];
+        PnvPHB3 *phb = PNV_PHB3(object_new(TYPE_PNV_PHB3));
+
+        chip8->phbs[i] = phb;
 
         object_property_set_int(OBJECT(phb), "index", i, &error_fatal);
         object_property_set_int(OBJECT(phb), "chip-id", chip->chip_id,
