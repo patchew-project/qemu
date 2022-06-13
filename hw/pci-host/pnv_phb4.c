@@ -1782,12 +1782,16 @@ static void pnv_phb4_root_port_realize(DeviceState *dev, Error **errp)
 {
     PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(dev);
     PCIDevice *pci = PCI_DEVICE(dev);
-    PCIBus *bus = pci_get_bus(pci);
     PnvPHB4 *phb = NULL;
     Error *local_err = NULL;
 
-    phb = (PnvPHB4 *) object_dynamic_cast(OBJECT(bus->qbus.parent),
-                                          TYPE_PNV_PHB4);
+    /*
+     * dev->parent_bus gives access to the pnv-phb-root bus.
+     * The PnvPHB4 is the owner (parent) of the bus.
+     */
+    if (dev && dev->parent_bus) {
+        phb = PNV_PHB4(dev->parent_bus->parent);
+    }
 
     if (!phb) {
         error_setg(errp, "%s must be connected to pnv-phb4 buses", dev->id);

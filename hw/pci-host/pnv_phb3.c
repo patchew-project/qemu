@@ -1139,12 +1139,16 @@ static void pnv_phb3_root_port_realize(DeviceState *dev, Error **errp)
 {
     PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(dev);
     PCIDevice *pci = PCI_DEVICE(dev);
-    PCIBus *bus = pci_get_bus(pci);
     PnvPHB3 *phb = NULL;
     Error *local_err = NULL;
 
-    phb = (PnvPHB3 *) object_dynamic_cast(OBJECT(bus->qbus.parent),
-                                          TYPE_PNV_PHB3);
+    /*
+     * dev->parent_bus gives access to the pnv-phb-root bus.
+     * The PnvPHB3 is the owner (parent) of the bus.
+     */
+    if (dev && dev->parent_bus) {
+        phb = PNV_PHB3(dev->parent_bus->parent);
+    }
 
     if (!phb) {
         error_setg(errp,
