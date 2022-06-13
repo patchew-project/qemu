@@ -2226,6 +2226,10 @@ for f in $LINKS ; do
     fi
 done
 
+# Keymaps needs slightly different location in build
+# dir as we are simulating the installed data dir layout
+symlink "$source_path/ui/keymaps" "pc-bios/keymaps"
+
 # Mac OS X ships with a broken assembler
 roms=
 probe_target_compilers i386 x86_64
