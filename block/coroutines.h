@@ -81,6 +81,10 @@ blk_co_do_pdiscard(BlockBackend *blk, int64_t offset, int64_t bytes);
 
 int coroutine_fn blk_co_do_flush(BlockBackend *blk);
 
+int coroutine_fn blk_co_zone_report(BlockBackend *blk);
+
+int coroutine_fn blk_co_zone_mgmt(BlockBackend *blk, enum zone_op op);
+
 
 /*
  * "I/O or GS" API functions. These functions can run without
@@ -128,5 +132,7 @@ int generated_co_wrapper
 blk_do_pdiscard(BlockBackend *blk, int64_t offset, int64_t bytes);
 
 int generated_co_wrapper blk_do_flush(BlockBackend *blk);
+
+
 
 #endif /* BLOCK_COROUTINES_H */

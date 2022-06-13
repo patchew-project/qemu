@@ -73,6 +73,7 @@
 #include <linux/hdreg.h>
 #include <linux/magic.h>
 #include <scsi/sg.h>
+#include <linux/blkzoned.h>
 #ifdef __s390__
 #include <asm/dasd.h>
 #endif
@@ -177,6 +178,167 @@ typedef struct BDRVRawReopenState {
     bool drop_cache;
     bool check_cache_dropped;
 } BDRVRawReopenState;
+
+
+enum zone_type {
+    BLK_ZT_CONV = BLK_ZONE_TYPE_CONVENTIONAL,
+    BLK_ZT_SWR = BLK_ZONE_TYPE_SEQWRITE_REQ,
+    BLK_ZT_SWP = BLK_ZONE_TYPE_SEQWRITE_PREF,
+};
+
+enum zone_cond {
+    BLK_ZS_NOT_WP = BLK_ZONE_COND_NOT_WP,
+    BLK_ZS_EMPTY = BLK_ZONE_COND_EMPTY,
+    BLK_ZS_IOPEN = BLK_ZONE_COND_IMP_OPEN,
+    BLK_ZS_EOPEN = BLK_ZONE_COND_EXP_OPEN,
+    BLK_ZS_CLOSED = BLK_ZONE_COND_CLOSED,
+    BLK_ZS_RDONLY = BLK_ZONE_COND_READONLY,
+    BLK_ZS_FULL = BLK_ZONE_COND_FULL,
+    BLK_ZS_OFFLINE = BLK_ZONE_COND_OFFLINE,
+};
+
+/*
+ * Zone descriptor data structure.
+ * Provide information on a zone with all position and size values in bytes.
+ */
+struct BlockZoneDescriptor {
+    uint64_t start;
+    uint32_t length;
+    uint32_t cap;
+    uint64_t wp;
+    enum zone_type type;
+    enum zone_cond cond;
+};
+
+enum zone_model {
+    ZBD_HOST_MANAGED,
+    ZBD_HOST_AWARE,
+};
+
+/**
+ * Zone device information data structure.
+ * Provide information on a device.
+ */
+typedef struct zbd_dev {
+    enum zone_model model;
+    uint32_t block_size;
+    uint32_t write_granularity;
+    uint32_t nr_zones;
+    struct BlockZoneDescriptor *zones; /* array of zones */
+    uint32_t max_nr_open_zones; /* maximum number of explicitly open zones */
+    uint32_t max_nr_active_zones;
+} zbd_dev;
+
+/**
+ * zone report - Get a zone block device's information in the
+ * form of an array of zone descriptors.
+ *
+ * @param bs: passing zone block device file descriptor
+ * @param zones: Space to hold zone information on reply
+ * @param offset: the location in the zone block device
+ * @param len: the length of reported zone information*
+ * @param partial: if partial has zero value, it is the number
+ * of zones that can be reported; else, set the nr_zones to the
+ * number of fully transferred zone descriptors in the data buffer.
+ * @return 0 on success, -1 on failure
+ */
+static int raw_co_zone_report(BlockDriverState *bs,
+                       struct BlockZoneDescriptor *zones, uint32_t *nr_zones,
+                       int64_t offset, int64_t len, uint8_t partial) {
+    printf("%s\n", "start to report zone");
+    BDRVRawState *s = bs->opaque;
+
+    struct blk_zone_report *rep;
+    uint32_t rep_nr_zones = 0;
+    int ret = 0, i = 0, start_sector = 0;
+
+    if (ioctl(s->fd, BLKGETNRZONES, &rep_nr_zones)) {
+        /* Done */
+        error_report("number of zones not available");
+    }
+
+    fprintf(stdout, "Got %u zone descriptors\n", rep_nr_zones);
+    rep = malloc(sizeof(struct blk_zone_report) +
+            rep_nr_zones * sizeof(struct blk_zone));
+    if (!rep) {
+        return -1;
+    }
+
+    rep->nr_zones = rep_nr_zones;
+    rep->sector = start_sector;
+
+    while (i < rep_nr_zones) {
+        ret = ioctl(s->fd, BLKREPORTZONE, rep);
+        if (ret != 0) {
+            error_report("can't report zone");
+        }
+
+        fprintf(stdout, "start: 0x%llx, len 0x%llx, cap 0x%llx, "
+                        "wptr 0x%llx reset: %u non-seq:%u, zcond:%u, [type: %u]\n",
+                        rep->zones[i].start, rep->zones[i].len,
+                        rep->zones[i].capacity, rep->zones[i].wp,
+                        rep->zones[i].reset, rep->zones[i].non_seq,
+                        rep->zones[i].cond, rep->zones[i].type);
+        ++i;
+    }
+
+    free(rep);
+
+    return ret;
+}
+
+/**
+ * zone management operations - Execute an operation on a zone
+ */
+static int raw_co_zone_mgmt(BlockDriverState *bs, enum zone_op op,
+        int64_t offset, int64_t len) {
+    BDRVRawState *s = bs->opaque;
+    struct blk_zone_range range;
+    const char *ioctl_name;
+    uint64_t ioctl_op;
+    int ret;
+
+    switch (op) {
+    case zone_open:
+        ioctl_name = "BLKOPENZONE";
+        ioctl_op = BLKOPENZONE;
+        break;
+    case zone_close:
+        ioctl_name = "BLKCLOSEZONE";
+        ioctl_op = BLKCLOSEZONE;
+        break;
+    case zone_finish:
+        ioctl_name = "BLKFINISHZONE";
+        ioctl_op = BLKFINISHZONE;
+        break;
+    case zone_reset:
+        ioctl_name = "BLKRESETZONE";
+        ioctl_op = BLKRESETZONE;
+        break;
+    default:
+        error_report("Invalid zone operation 0x%x", op);
+        errno = -EINVAL;
+        return -1;
+    }
+
+    /* Execute the operation */
+    range.sector = 0;
+    range.nr_sectors = 100;
+    ret = ioctl(s->fd, ioctl_op, &range);
+    if (ret != 0) {
+        if (errno == ENOTTY) {
+            error_report("ioctl %s is not supported", ioctl_name);
+            errno = ENOTSUP;
+        } else {
+            error_report("ioctl %s failed %d",
+                         ioctl_name, errno);
+        }
+        return -1;
+    }
+
+    return 0;
+}
+
 
 static int fd_open(BlockDriverState *bs)
 {
@@ -3324,6 +3486,9 @@ BlockDriver bdrv_file = {
     .bdrv_abort_perm_update = raw_abort_perm_update,
     .create_opts = &raw_create_opts,
     .mutable_opts = mutable_opts,
+
+    .bdrv_co_zone_report = raw_co_zone_report,
+    .bdrv_co_zone_mgmt = raw_co_zone_mgmt,
 };
 
 /***********************************************/
@@ -3697,6 +3862,9 @@ static BlockDriver bdrv_host_device = {
     .bdrv_probe_blocksizes = hdev_probe_blocksizes,
     .bdrv_probe_geometry = hdev_probe_geometry,
 
+    .bdrv_co_zone_report = raw_co_zone_report,
+    .bdrv_co_zone_mgmt = raw_co_zone_mgmt,
+
     /* generic scsi device */
 #ifdef __linux__
     .bdrv_co_ioctl          = hdev_co_ioctl,
@@ -3808,6 +3976,9 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_io_plug = raw_aio_plug,
     .bdrv_io_unplug = raw_aio_unplug,
     .bdrv_attach_aio_context = raw_aio_attach_aio_context,
+
+    .bdrv_co_zone_report = raw_co_zone_report,
+    .bdrv_co_zone_mgmt = raw_co_zone_mgmt,
 
     .bdrv_co_truncate    = raw_co_truncate,
     .bdrv_getlength      = raw_getlength,
@@ -3938,6 +4109,9 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_io_plug = raw_aio_plug,
     .bdrv_io_unplug = raw_aio_unplug,
     .bdrv_attach_aio_context = raw_aio_attach_aio_context,
+
+    .bdrv_co_zone_report = raw_co_zone_report,
+    .bdrv_co_zone_mgmt = raw_co_zone_mgmt,
 
     .bdrv_co_truncate    = raw_co_truncate,
     .bdrv_getlength      = raw_getlength,

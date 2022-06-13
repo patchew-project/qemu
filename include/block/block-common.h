@@ -48,6 +48,14 @@
 typedef struct BlockDriver BlockDriver;
 typedef struct BdrvChild BdrvChild;
 typedef struct BdrvChildClass BdrvChildClass;
+/* zone descriptor data structure */
+typedef struct BlockZoneDescriptor BlockZoneDescriptor;
+enum zone_op {
+    zone_open,
+    zone_close,
+    zone_finish,
+    zone_reset,
+};
 
 typedef struct BlockDriverInfo {
     /* in bytes, 0 if irrelevant */
