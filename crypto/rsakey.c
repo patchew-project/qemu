@@ -19,6 +19,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "rsakey.h"
 
 void qcrypto_akcipher_rsakey_free(QCryptoAkCipherRSAKey *rsa_key)
