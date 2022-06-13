@@ -1944,41 +1944,39 @@ typedef struct ForeachPhb3Args {
     ICSState *ics;
 } ForeachPhb3Args;
 
-static int pnv_ics_get_child(Object *child, void *opaque)
+static void pnv_ics_get_phb_ics(PnvPHB3 *phb3, ForeachPhb3Args *args)
 {
-    ForeachPhb3Args *args = opaque;
-    PnvPHB3 *phb3 = (PnvPHB3 *) object_dynamic_cast(child, TYPE_PNV_PHB3);
-
-    if (phb3) {
-        if (ics_valid_irq(&phb3->lsis, args->irq)) {
-            args->ics = &phb3->lsis;
-        }
-        if (ics_valid_irq(ICS(&phb3->msis), args->irq)) {
-            args->ics = ICS(&phb3->msis);
-        }
+    if (ics_valid_irq(&phb3->lsis, args->irq)) {
+        args->ics = &phb3->lsis;
     }
-    return args->ics ? 1 : 0;
+
+    if (ics_valid_irq(ICS(&phb3->msis), args->irq)) {
+        args->ics = ICS(&phb3->msis);
+    }
 }
 
 static ICSState *pnv_ics_get(XICSFabric *xi, int irq)
 {
     PnvMachineState *pnv = PNV_MACHINE(xi);
     ForeachPhb3Args args = { irq, NULL };
-    int i;
+    int i, j;
 
     for (i = 0; i < pnv->num_chips; i++) {
-        PnvChip *chip = pnv->chips[i];
         Pnv8Chip *chip8 = PNV8_CHIP(pnv->chips[i]);
 
         if (ics_valid_irq(&chip8->psi.ics, irq)) {
             return &chip8->psi.ics;
         }
 
-        object_child_foreach(OBJECT(chip), pnv_ics_get_child, &args);
-        if (args.ics) {
-            return args.ics;
+        for (j = 0; j < chip8->num_phbs; j++) {
+            pnv_ics_get_phb_ics(&chip8->phbs[j], &args);
+
+            if (args.ics) {
+                return args.ics;
+            }
         }
     }
+
     return NULL;
 }
 
