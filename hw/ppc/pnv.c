@@ -660,7 +660,7 @@ static void pnv_chip_power8_pic_print_info(PnvChip *chip, Monitor *mon)
     ics_pic_print_info(&chip8->psi.ics, mon);
 
     for (i = 0; i < chip8->num_phbs; i++) {
-        PnvPHB3 *phb3 = &chip8->phbs[i];
+        PnvPHB3 *phb3 = chip8->phbs[i];
 
         pnv_phb3_msi_pic_print_info(&phb3->msis, mon);
         ics_pic_print_info(&phb3->lsis, mon);
@@ -1149,7 +1149,16 @@ static void pnv_chip_power8_instance_init(Object *obj)
     chip8->num_phbs = pcc->num_phbs;
 
     for (i = 0; i < chip8->num_phbs; i++) {
-        object_initialize_child(obj, "phb[*]", &chip8->phbs[i], TYPE_PNV_PHB3);
+        PnvPHB3 *phb3 = PNV_PHB3(object_new(TYPE_PNV_PHB3));
+
+        /*
+         * We need the chip to parent the PHB to allow the DT
+         * to build correctly (via pnv_xscom_dt()).
+         *
+         * TODO: the PHB should be parented by a PEC device.
+         */
+        object_property_add_child(obj, "phb[*]", OBJECT(phb3));
+        chip8->phbs[i] = phb3;
     }
 
 }
@@ -1278,7 +1287,7 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
 
     /* PHB3 controllers */
     for (i = 0; i < chip8->num_phbs; i++) {
-        PnvPHB3 *phb = &chip8->phbs[i];
+        PnvPHB3 *phb = chip8->phbs[i];
 
         object_property_set_int(OBJECT(phb), "index", i, &error_fatal);
         object_property_set_int(OBJECT(phb), "chip-id", chip->chip_id,
@@ -1963,7 +1972,7 @@ static ICSState *pnv_ics_get(XICSFabric *xi, int irq)
         }
 
         for (j = 0; j < chip8->num_phbs; j++) {
-            pnv_ics_get_phb_ics(&chip8->phbs[j], &args);
+            pnv_ics_get_phb_ics(chip8->phbs[j], &args);
 
             if (args.ics) {
                 return args.ics;
@@ -1996,7 +2005,7 @@ static void pnv_ics_resend(XICSFabric *xi)
         Pnv8Chip *chip8 = PNV8_CHIP(pnv->chips[i]);
 
         for (j = 0; j < chip8->num_phbs; j++) {
-            PnvPHB3 *phb3 = &chip8->phbs[j];
+            PnvPHB3 *phb3 = chip8->phbs[j];
 
             ics_resend(&phb3->lsis);
             ics_resend(ICS(&phb3->msis));
