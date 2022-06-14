@@ -60,6 +60,8 @@ void fd_start_incoming_migration(const char *fdname, Error **errp)
         return;
     }
 
+    qemu_socket_set_block(fd);
+
     trace_migration_fd_incoming(fd);
 
     ioc = qio_channel_new_fd(fd, errp);
