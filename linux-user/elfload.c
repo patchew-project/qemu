@@ -957,7 +957,7 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
     }
 
     (*regs)[TARGET_EF_CSR_ERA] = tswapreg(env->pc);
-    (*regs)[TARGET_EF_CSR_BADV] = tswapreg(env->badaddr);
+    (*regs)[TARGET_EF_CSR_BADV] = tswapreg(env->badvaddr);
 }
 
 #define USE_ELF_CORE_DUMP
