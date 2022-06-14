@@ -422,6 +422,7 @@ typedef enum {
     STATE_COLLECTING_DATA,
     STATE_COLLECTING_VAR_LEN_DATA,
     STATE_READING_DATA,
+    STATE_STANDBY,
 } CMDState;
 
 typedef enum {
@@ -1407,6 +1408,9 @@ static uint32_t m25p80_transfer8(SSIPeripheral *ss, uint32_t tx)
                           s->cur_addr, (uint8_t)tx);
 
     switch (s->state) {
+    case STATE_STANDBY:
+        r = 0xFFFFFFFF; /* StandBy state SO shall be HiZ */
+        break;
 
     case STATE_PAGE_PROGRAM:
         trace_m25p80_page_program(s, s->cur_addr, (uint8_t)tx);
