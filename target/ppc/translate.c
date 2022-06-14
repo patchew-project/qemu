@@ -5424,26 +5424,6 @@ static void gen_tlbia(DisasContext *ctx)
 #endif  /* defined(CONFIG_USER_ONLY) */
 }
 
-/* tlbiel */
-static void gen_tlbiel(DisasContext *ctx)
-{
-#if defined(CONFIG_USER_ONLY)
-    GEN_PRIV;
-#else
-    bool psr = (ctx->opcode >> 17) & 0x1;
-
-    if (ctx->pr || (!ctx->hv && !psr && ctx->hr)) {
-        /*
-         * tlbiel is privileged except when PSR=0 and HR=1, making it
-         * hypervisor privileged.
-         */
-        GEN_PRIV;
-    }
-
-    gen_helper_tlbie(cpu_env, cpu_gpr[rB(ctx->opcode)]);
-#endif /* defined(CONFIG_USER_ONLY) */
-}
-
 /* tlbsync */
 static void gen_tlbsync(DisasContext *ctx)
 {
@@ -6901,8 +6881,6 @@ GEN_HANDLER(tlbia, 0x1F, 0x12, 0x0B, 0x03FFFC01, PPC_MEM_TLBIA),
  * XXX Those instructions will need to be handled differently for
  * different ISA versions
  */
-GEN_HANDLER(tlbiel, 0x1F, 0x12, 0x08, 0x001F0001, PPC_MEM_TLBIE),
-GEN_HANDLER_E(tlbiel, 0x1F, 0x12, 0x08, 0x00100001, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER(tlbsync, 0x1F, 0x16, 0x11, 0x03FFF801, PPC_MEM_TLBSYNC),
 #if defined(TARGET_PPC64)
 GEN_HANDLER(slbia, 0x1F, 0x12, 0x0F, 0x031FFC01, PPC_SLBI),
