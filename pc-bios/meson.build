@@ -1,3 +1,5 @@
+run_command('mkdir', '-p', qemu_bundledir / qemu_datadir, check: true)
+
 roms = []
 if unpack_edk2_blobs
   fds = [
@@ -20,6 +22,9 @@ if unpack_edk2_blobs
                   install: get_option('install_blobs'),
                   install_dir: qemu_datadir,
                   command: [ bzip2, '-dc', '@INPUT0@' ])
+
+    run_command('ln', '-sf', '../../../pc-bios' / f, qemu_bundledir / qemu_datadir,
+                check: true)
   endforeach
 endif
 
@@ -85,15 +90,11 @@ blobs = [
   'vof-nvram.bin',
 ]
 
-ln_s = [find_program('ln', required: true), '-sf']
+install_data(blobs, install_dir: qemu_datadir)
+
 foreach f : blobs
-  roms += custom_target(f,
-                build_by_default: have_system,
-                output: f,
-                input: files('meson.build'),            # dummy input
-                install: get_option('install_blobs'),
-                install_dir: qemu_datadir,
-                command: [ ln_s, meson.project_source_root() / 'pc-bios' / f, '@OUTPUT@' ])
+  run_command('ln', '-sf', meson.current_source_dir() / f, qemu_bundledir / qemu_datadir,
+              check: true)
 endforeach
 
 subdir('descriptors')
