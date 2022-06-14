@@ -193,6 +193,18 @@ int tap_probe_vnet_hdr_len(int fd, int len)
     return 1;
 }
 
+bool tap_probe_enabled(int fd)
+{
+    struct ifreq ifr;
+
+    if (ioctl(fd, TUNGETIFF, &ifr) != 0) {
+        error_report("TUNGETIFF ioctl() failed: %s",
+                     strerror(errno));
+        return false;
+    }
+    return !(ifr.ifr_flags & IFF_DETACH_QUEUE);
+}
+
 void tap_fd_set_vnet_hdr_len(int fd, int len)
 {
     if (ioctl(fd, TUNSETVNETHDRSZ, &len) == -1) {

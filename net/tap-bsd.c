@@ -217,6 +217,11 @@ int tap_probe_vnet_hdr_len(int fd, int len)
     return 0;
 }
 
+bool tap_probe_enabled(int fd)
+{
+    return true;
+}
+
 void tap_fd_set_vnet_hdr_len(int fd, int len)
 {
 }

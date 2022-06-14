@@ -399,7 +399,7 @@ static TAPState *net_tap_fd_init(NetClientState *peer,
     s->host_vnet_hdr_len = vnet_hdr ? sizeof(struct virtio_net_hdr) : 0;
     s->using_vnet_hdr = false;
     s->has_ufo = tap_probe_has_ufo(s->fd);
-    s->enabled = true;
+    s->enabled = tap_probe_enabled(s->fd);
     tap_set_offload(&s->nc, 0, 0, 0, 0, 0);
     /*
      * Make sure host header length is set correctly in tap:
