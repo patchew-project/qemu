@@ -1562,21 +1562,24 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
 - (IBAction) do_about_menu_item: (id) sender
 {
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-    char *icon_path_c = get_relocated_path(CONFIG_QEMU_ICONDIR "/hicolor/512x512/apps/qemu.png");
-    NSString *icon_path = [NSString stringWithUTF8String:icon_path_c];
-    g_free(icon_path_c);
-    NSImage *icon = [[NSImage alloc] initWithContentsOfFile:icon_path];
+    char *icon_path_c = find_bundle(CONFIG_QEMU_BUNDLE_ICONDIR "/hicolor/512x512/apps/qemu.png");
     NSString *version = @"QEMU emulator version " QEMU_FULL_VERSION;
     NSString *copyright = @QEMU_COPYRIGHT;
-    NSDictionary *options;
-    if (icon) {
-        options = @{
-            NSAboutPanelOptionApplicationIcon : icon,
-            NSAboutPanelOptionApplicationVersion : version,
-            @"Copyright" : copyright,
-        };
-        [icon release];
-    } else {
+    NSDictionary *options = nil;
+    if (icon_path_c) {
+        NSString *icon_path = [NSString stringWithUTF8String:icon_path_c];
+        g_free(icon_path_c);
+        NSImage *icon = [[NSImage alloc] initWithContentsOfFile:icon_path];
+        if (icon) {
+            options = @{
+                NSAboutPanelOptionApplicationIcon : icon,
+                NSAboutPanelOptionApplicationVersion : version,
+                @"Copyright" : copyright,
+            };
+            [icon release];
+        }
+    }
+    if (!options) {
         options = @{
             NSAboutPanelOptionApplicationVersion : version,
             @"Copyright" : copyright,
