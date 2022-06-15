@@ -29,4 +29,10 @@
 
 QEMUFile *qemu_fopen_channel_input(QIOChannel *ioc);
 QEMUFile *qemu_fopen_channel_output(QIOChannel *ioc);
+
+QEMUFile *qemu_fopen_file(const char *path, int flags, int mode,
+                         const char *name, Error **errp);
+
+QEMUFile *qemu_fopen_fd(int fd, bool writable, const char *name);
+
 #endif
