@@ -51,6 +51,7 @@
 #include "hw/hw.h"
 #include "disas/disas.h"
 #include "migration/vmstate.h"
+#include "migration/cpr.h"
 #include "monitor/monitor.h"
 #include "sysemu/reset.h"
 #include "sysemu/sysemu.h"
@@ -1153,6 +1154,7 @@ ssize_t rom_add_option(const char *file, int32_t bootindex)
 static void rom_reset(void *unused)
 {
     Rom *rom;
+    bool cpr_is_active = (cpr_get_mode() != CPR_MODE_NONE);
 
     QTAILQ_FOREACH(rom, &roms, next) {
         if (rom->fw_file) {
@@ -1163,7 +1165,7 @@ static void rom_reset(void *unused)
          * the data in during the next incoming migration in all cases.  Note
          * that some of those RAMs can actually be modified by the guest.
          */
-        if (runstate_check(RUN_STATE_INMIGRATE)) {
+        if (runstate_check(RUN_STATE_INMIGRATE) || cpr_is_active) {
             if (rom->data && rom->isrom) {
                 /*
                  * Free it so that a rom_reset after migration doesn't
