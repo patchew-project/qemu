@@ -27,6 +27,7 @@
 #include "qemu/option.h"
 #include "qemu/sockets.h"
 #include "qapi/error.h"
+#include "migration/cpr.h"
 #include "chardev/char.h"
 
 #ifdef _WIN32
@@ -44,6 +45,7 @@ static int old_fd0_flags;
 static bool stdio_in_use;
 static bool stdio_allow_signal;
 static bool stdio_echo_state;
+static Notifier cpr_notifier;
 
 static void term_exit(void)
 {
@@ -51,6 +53,11 @@ static void term_exit(void)
         tcsetattr(0, TCSANOW, &oldtty);
         fcntl(0, F_SETFL, old_fd0_flags);
     }
+}
+
+static void term_cpr_exec_notifier(Notifier *notifier, void *data)
+{
+    term_exit();
 }
 
 static void qemu_chr_set_echo_stdio(Chardev *chr, bool echo)
@@ -117,6 +124,8 @@ static void qemu_chr_open_stdio(Chardev *chr,
 
     stdio_allow_signal = !opts->has_signal || opts->signal;
     qemu_chr_set_echo_stdio(chr, false);
+    qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_CPR);
+    cpr_add_notifier(&cpr_notifier, term_cpr_exec_notifier, CPR_NOTIFY_EXEC);
 }
 #endif
 
@@ -147,6 +156,7 @@ static void char_stdio_finalize(Object *obj)
 {
 #ifndef _WIN32
     term_exit();
+    cpr_remove_notifier(&cpr_notifier);
 #endif
 }
 
