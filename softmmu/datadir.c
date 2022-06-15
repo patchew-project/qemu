@@ -27,102 +27,121 @@
 #include "qemu/cutils.h"
 #include "trace.h"
 
-static const char *data_dir[16];
-static int data_dir_idx;
+/* User specified data directory */
+static char *user_data_dir;
+
+/* Extra build time defined search locations for firmware (NULL terminated) */
+static char **extra_firmware_dirs;
+
+/* Default built-in directories */
+static char *default_data_dir;
+
+/* Whether we're known to be executing from a build tree */
+static bool in_build_dir;
 
 char *qemu_find_file(int type, const char *name)
 {
-    int i;
-    const char *subdir;
-    char *buf;
-
-    /* Try the name as a straight path first */
-    if (access(name, R_OK) == 0) {
-        trace_load_file(name, name);
-        return g_strdup(name);
-    }
+    const char *user_install_dir = NULL;
+    char **extra_install_dirs = NULL;
+    const char *rel_build_dir;
+    const char *rel_install_dir;
+    const char *default_install_dir;
+    char *maybepath = NULL;
+    size_t i;
+    int ret;
 
     switch (type) {
     case QEMU_FILE_TYPE_BIOS:
-        subdir = "";
+        user_install_dir = user_data_dir;
+        extra_install_dirs = extra_firmware_dirs;
+        rel_install_dir = "";
+        rel_build_dir = "pc-bios";
+        default_install_dir = default_data_dir;
         break;
+
     case QEMU_FILE_TYPE_KEYMAP:
-        subdir = "keymaps/";
+        user_install_dir = user_data_dir;
+        rel_install_dir = "keymaps";
+        rel_build_dir = "pc-bios/keymaps";
+        default_install_dir = default_data_dir;
         break;
+
     default:
         abort();
     }
 
-    for (i = 0; i < data_dir_idx; i++) {
-        buf = g_strdup_printf("%s/%s%s", data_dir[i], subdir, name);
-        if (access(buf, R_OK) == 0) {
-            trace_load_file(name, buf);
-            return buf;
-        }
-        g_free(buf);
+#define TRY_LOAD(path)                                                  \
+    do {                                                                \
+        ret = access(path, R_OK);                                       \
+        trace_datadir_load_file(name, path, ret == 0 ? 0 : errno);      \
+        if (ret == 0) {                                                 \
+            return maybepath;                                           \
+        }                                                               \
+        g_clear_pointer(&path, g_free);                                 \
+    } while (0)
+
+    if (user_install_dir) {
+        maybepath = g_build_filename(user_install_dir, rel_install_dir,
+                                     name, NULL);
+        TRY_LOAD(maybepath);
     }
+
+    if (in_build_dir) {
+        maybepath = g_build_filename(qemu_get_exec_dir(), rel_build_dir,
+                                     name, NULL);
+    } else {
+        if (extra_install_dirs) {
+            for (i = 0; extra_install_dirs[i] != NULL; i++) {
+                maybepath = g_build_filename(extra_install_dirs[i],
+                                             name, NULL);
+                TRY_LOAD(maybepath);
+            }
+        }
+
+        maybepath = g_build_filename(default_install_dir, rel_install_dir,
+                                     name, NULL);
+    }
+    TRY_LOAD(maybepath);
+
     return NULL;
 }
 
-void qemu_add_data_dir(char *path)
+void qemu_set_user_data_dir(const char *path)
 {
-    int i;
-
-    if (path == NULL) {
-        return;
-    }
-    if (data_dir_idx == ARRAY_SIZE(data_dir)) {
-        return;
-    }
-    for (i = 0; i < data_dir_idx; i++) {
-        if (strcmp(data_dir[i], path) == 0) {
-            g_free(path); /* duplicate */
-            return;
-        }
-    }
-    data_dir[data_dir_idx++] = path;
-}
-
-/*
- * Find a likely location for support files using the location of the binary.
- * When running from the build tree this will be "$bindir/pc-bios".
- * Otherwise, this is CONFIG_QEMU_DATADIR (possibly relocated).
- *
- * The caller must use g_free() to free the returned data when it is
- * no longer required.
- */
-static char *find_datadir(void)
-{
-    g_autofree char *dir = NULL;
-
-    dir = g_build_filename(qemu_get_exec_dir(), "pc-bios", NULL);
-    if (g_file_test(dir, G_FILE_TEST_IS_DIR)) {
-        return g_steal_pointer(&dir);
-    }
-
-    return get_relocated_path(CONFIG_QEMU_DATADIR);
+    g_free(user_data_dir);
+    user_data_dir = g_strdup(path);
 }
 
 void qemu_add_default_firmwarepath(void)
 {
-    char **dirs;
     size_t i;
+    g_autofree char *builddir = NULL;
+
+    builddir = g_build_filename(qemu_get_exec_dir(), "pc-bios", NULL);
+    if (access(builddir, R_OK) == 0) {
+        in_build_dir = true;
+    }
 
     /* add configured firmware directories */
-    dirs = g_strsplit(CONFIG_QEMU_FIRMWAREPATH, G_SEARCHPATH_SEPARATOR_S, 0);
-    for (i = 0; dirs[i] != NULL; i++) {
-        qemu_add_data_dir(get_relocated_path(dirs[i]));
+    extra_firmware_dirs = g_strsplit(CONFIG_QEMU_FIRMWAREPATH,
+                                     G_SEARCHPATH_SEPARATOR_S, 0);
+    for (i = 0; extra_firmware_dirs[i] != NULL ; i++) {
+        g_autofree char *path = extra_firmware_dirs[i];
+        extra_firmware_dirs[i] = get_relocated_path(path);
     }
-    g_strfreev(dirs);
 
-    /* try to find datadir relative to the executable path */
-    qemu_add_data_dir(find_datadir());
+    /* Add default dirs relative to the executable path */
+    default_data_dir = get_relocated_path(CONFIG_QEMU_DATADIR);
+
+    trace_datadir_init(default_data_dir, in_build_dir);
 }
 
 void qemu_list_data_dirs(void)
 {
     int i;
-    for (i = 0; i < data_dir_idx; i++) {
-        printf("%s\n", data_dir[i]);
+    for (i = 0; extra_firmware_dirs[i] != NULL; i++) {
+        printf("%s\n", extra_firmware_dirs[i]);
     }
+
+    printf("%s\n", default_data_dir);
 }

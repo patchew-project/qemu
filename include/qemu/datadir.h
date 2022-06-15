@@ -15,6 +15,9 @@
  * configured at build time (DATADIR) or registered with the -L command
  * line option.
  *
+ * @name may be NULL to indicate the caller just wants the
+ * first search directory that is found.
+ *
  * The caller must use g_free() to free the returned data when it is
  * no longer required.
  *
@@ -22,7 +25,7 @@
  */
 char *qemu_find_file(int type, const char *name);
 void qemu_add_default_firmwarepath(void);
-void qemu_add_data_dir(char *path);
+void qemu_set_user_data_dir(const char *path);
 void qemu_list_data_dirs(void);
 
 #endif

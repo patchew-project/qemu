@@ -186,7 +186,7 @@ int LLVMFuzzerInitialize(int *argc, char ***argv, char ***envp)
         bindir = qemu_get_exec_dir();
         datadir = g_build_filename(bindir, "pc-bios", NULL);
         if (g_file_test(datadir, G_FILE_TEST_IS_DIR)) {
-            qemu_add_data_dir(datadir);
+            qemu_set_data_dir(datadir);
         } else {
             g_free(datadir);
 	}

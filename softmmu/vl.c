@@ -2898,7 +2898,7 @@ void qemu_init(int argc, char **argv, char **envp)
                 if (is_help_option(optarg)) {
                     list_data_dirs = true;
                 } else {
-                    qemu_add_data_dir(g_strdup(optarg));
+                    qemu_set_user_data_dir(optarg);
                 }
                 break;
             case QEMU_OPTION_bios:
