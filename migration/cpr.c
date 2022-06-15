@@ -22,6 +22,7 @@ static int cpr_enabled_modes;
 void cpr_init(int modes)
 {
     cpr_enabled_modes = modes;
+    cpr_state_load(&error_fatal);
 }
 
 bool cpr_enabled(CprMode mode)
@@ -153,6 +154,37 @@ err:
     cpr_set_mode(CPR_MODE_NONE);
 }
 
+static int preserve_fd(const char *name, int id, int fd, void *opaque)
+{
+    qemu_clear_cloexec(fd);
+    return 0;
+}
+
+static int unpreserve_fd(const char *name, int id, int fd, void *opaque)
+{
+    qemu_set_cloexec(fd);
+    return 0;
+}
+
+void qmp_cpr_exec(strList *args, Error **errp)
+{
+    if (!runstate_check(RUN_STATE_SAVE_VM)) {
+        error_setg(errp, "runstate is not save-vm");
+        return;
+    }
+    if (cpr_get_mode() != CPR_MODE_RESTART) {
+        error_setg(errp, "cpr-exec requires cpr-save with restart mode");
+        return;
+    }
+
+    cpr_walk_fd(preserve_fd, 0);
+    if (cpr_state_save(errp)) {
+        return;
+    }
+
+    assert(qemu_system_exec_request(args, errp) == 0);
+}
+
 void qmp_cpr_load(const char *filename, CprMode mode, Error **errp)
 {
     QEMUFile *f;
@@ -188,6 +220,9 @@ void qmp_cpr_load(const char *filename, CprMode mode, Error **errp)
         error_setg(errp, "Error %d while loading VM state", ret);
         goto out;
     }
+
+    /* Clear cloexec to prevent fd leaks until the next cpr-save */
+    cpr_walk_fd(unpreserve_fd, 0);
 
     state = global_state_get_runstate();
     if (state == RUN_STATE_RUNNING) {

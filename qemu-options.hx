@@ -4484,7 +4484,7 @@ SRST
 ERST
 
 DEF("cpr-enable", HAS_ARG, QEMU_OPTION_cpr_enable, \
-    "-cpr-enable reboot    enable the cpr mode\n",
+    "-cpr-enable reboot|restart    enable the cpr mode\n",
     QEMU_ARCH_ALL)
 SRST
 ``-cpr-enable reboot``
