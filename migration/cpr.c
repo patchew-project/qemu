@@ -29,11 +29,90 @@ void cpr_set_mode(CprMode mode)
     cpr_mode = mode;
 }
 
+static GSList *cpr_blockers[CPR_MODE__MAX];
+
+/*
+ * Add blocker for each mode in varargs list, or for all modes if CPR_MODE_ALL
+ * is specified.  Caller terminates the list with 0 or CPR_MODE_ALL.  This
+ * function takes ownership of *reasonp, and frees it on error, or in
+ * cpr_del_blocker.  errp is set in a later patch.
+ */
+int cpr_add_blocker(Error **reasonp, Error **errp, CprMode mode, ...)
+{
+    int modes = 0;
+    va_list ap;
+    ERRP_GUARD();
+
+    va_start(ap, mode);
+    while (mode != CPR_MODE_NONE && mode != CPR_MODE_ALL) {
+        assert(mode > CPR_MODE_NONE && mode < CPR_MODE__MAX);
+        modes |= BIT(mode);
+        mode = va_arg(ap, CprMode);
+    }
+    va_end(ap);
+    if (mode == CPR_MODE_ALL) {
+        modes = BIT(CPR_MODE__MAX) - 1;
+    }
+
+    for (mode = 0; mode < CPR_MODE__MAX; mode++) {
+        if (modes & BIT(mode)) {
+            cpr_blockers[mode] = g_slist_prepend(cpr_blockers[mode], *reasonp);
+        }
+    }
+    return 0;
+}
+
+/*
+ * Delete the blocker from all modes it is associated with.
+ */
+void cpr_del_blocker(Error **reasonp)
+{
+    CprMode mode;
+
+    if (*reasonp) {
+        for (mode = 0; mode < CPR_MODE__MAX; mode++) {
+            cpr_blockers[mode] = g_slist_remove(cpr_blockers[mode], *reasonp);
+        }
+        error_free(*reasonp);
+        *reasonp = NULL;
+    }
+}
+
+/*
+ * Add a blocker which will not be deleted.  Simpler for some callers.
+ */
+int cpr_add_blocker_str(const char *msg, Error **errp, CprMode mode, ...)
+{
+    int ret;
+    va_list ap;
+    Error *reason = NULL;
+
+    error_setg(&reason, "%s", msg);
+    va_start(ap, mode);
+    ret = cpr_add_blocker(&reason, errp, mode, ap);
+    va_end(ap);
+    return ret;
+}
+
+static bool cpr_is_blocked(Error **errp, CprMode mode)
+{
+    if (cpr_blockers[mode]) {
+        error_propagate(errp, error_copy(cpr_blockers[mode]->data));
+        return true;
+    }
+
+    return false;
+}
+
 void qmp_cpr_save(const char *filename, CprMode mode, Error **errp)
 {
     int ret;
     QEMUFile *f;
     int saved_vm_running = runstate_is_running();
+
+    if (cpr_is_blocked(errp, mode)) {
+        return;
+    }
 
     if (global_state_store()) {
         error_setg(errp, "Error saving global state");

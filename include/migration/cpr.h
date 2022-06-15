@@ -13,4 +13,10 @@
 void cpr_set_mode(CprMode mode);
 CprMode cpr_get_mode(void);
 
+#define CPR_MODE_ALL CPR_MODE__MAX
+
+int cpr_add_blocker(Error **reasonp, Error **errp, CprMode mode, ...);
+int cpr_add_blocker_str(const char *reason, Error **errp, CprMode mode, ...);
+void cpr_del_blocker(Error **reasonp);
+
 #endif
