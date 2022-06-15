@@ -335,6 +335,7 @@ static inline const char *nvme_adm_opc_str(uint8_t opc)
     case NVME_ADM_CMD_GET_FEATURES:     return "NVME_ADM_CMD_GET_FEATURES";
     case NVME_ADM_CMD_ASYNC_EV_REQ:     return "NVME_ADM_CMD_ASYNC_EV_REQ";
     case NVME_ADM_CMD_NS_ATTACHMENT:    return "NVME_ADM_CMD_NS_ATTACHMENT";
+    case NVME_ADM_CMD_DBBUF_CONFIG:     return "NVME_ADM_CMD_DBBUF_CONFIG";
     case NVME_ADM_CMD_FORMAT_NVM:       return "NVME_ADM_CMD_FORMAT_NVM";
     default:                            return "NVME_ADM_CMD_UNKNOWN";
     }
@@ -366,6 +367,8 @@ typedef struct NvmeSQueue {
     uint32_t    tail;
     uint32_t    size;
     uint64_t    dma_addr;
+    uint64_t    db_addr;
+    uint64_t    ei_addr;
     QEMUTimer   *timer;
     NvmeRequest *io_req;
     QTAILQ_HEAD(, NvmeRequest) req_list;
@@ -383,6 +386,8 @@ typedef struct NvmeCQueue {
     uint32_t    vector;
     uint32_t    size;
     uint64_t    dma_addr;
+    uint64_t    db_addr;
+    uint64_t    ei_addr;
     QEMUTimer   *timer;
     QTAILQ_HEAD(, NvmeSQueue) sq_list;
     QTAILQ_HEAD(, NvmeRequest) req_list;
@@ -433,6 +438,9 @@ typedef struct NvmeCtrl {
     uint64_t    starttime_ms;
     uint16_t    temperature;
     uint8_t     smart_critical_warning;
+    uint64_t    dbbuf_dbs;
+    uint64_t    dbbuf_eis;
+    bool        dbbuf_enabled;
 
     struct {
         MemoryRegion mem;
