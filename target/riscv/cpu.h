@@ -289,6 +289,7 @@ struct CPUArchState {
 
     /* trigger module */
     target_ulong trigger_cur;
+    bool wp_hit;
     type2_trigger_t type2_trig[TRIGGER_TYPE2_NUM];
 
     /* machine specific rdtime callback */

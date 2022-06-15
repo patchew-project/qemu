@@ -407,6 +407,8 @@ bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
         if ((wp->flags & flags) && (wp->vaddr == addr)) {
             /* check U/S/M bit against current privilege level */
             if ((ctrl >> 3) & BIT(env->priv)) {
+                env->wp_hit = true;
+                env->badaddr = addr;
                 return true;
             }
         }

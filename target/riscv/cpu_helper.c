@@ -1345,6 +1345,12 @@ void riscv_cpu_do_interrupt(CPUState *cs)
     target_ulong htval = 0;
     target_ulong mtval2 = 0;
 
+    /* only update tval for watchpoint */
+    if (cause == RISCV_EXCP_BREAKPOINT && env->wp_hit) {
+        env->wp_hit = false;
+        tval = env->badaddr;
+    }
+
     if  (cause == RISCV_EXCP_SEMIHOST) {
         if (env->priv >= PRV_S) {
             env->gpr[xA0] = do_common_semihosting(cs);
