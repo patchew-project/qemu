@@ -23,6 +23,7 @@
 #include "standard-headers/linux/vhost_types.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
+#include "migration/cpr.h"
 #include "migration/blocker.h"
 #include "migration/qemu-file-types.h"
 #include "sysemu/dma.h"
@@ -1306,6 +1307,17 @@ static void vhost_virtqueue_cleanup(struct vhost_virtqueue *vq)
     event_notifier_cleanup(&vq->masked_notifier);
 }
 
+static void vhost_cpr_exec_notifier(Notifier *notifier, void *data)
+{
+    struct vhost_dev *dev = container_of(notifier, struct vhost_dev,
+                                         cpr_notifier);
+    int r = dev->vhost_ops->vhost_reset_device(dev);
+
+    if (r < 0) {
+        VHOST_OPS_DEBUG(r, "vhost_reset_device failed");
+    }
+}
+
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
                    VhostBackendType backend_type, uint32_t busyloop_timeout,
                    Error **errp)
@@ -1405,6 +1417,8 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     hdev->log_enabled = false;
     hdev->started = false;
     memory_listener_register(&hdev->memory_listener, &address_space_memory);
+    cpr_add_notifier(&hdev->cpr_notifier, vhost_cpr_exec_notifier,
+                     CPR_NOTIFY_EXEC);
     QLIST_INSERT_HEAD(&vhost_devices, hdev, entry);
 
     if (used_memslots > hdev->vhost_ops->vhost_backend_memslots_limit(hdev)) {
@@ -1443,6 +1457,9 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
     if (hdev->migration_blocker) {
         migrate_del_blocker(hdev->migration_blocker);
         error_free(hdev->migration_blocker);
+    }
+    if (hdev->cpr_notifier.notify) {
+        cpr_remove_notifier(&hdev->cpr_notifier);
     }
     g_free(hdev->mem);
     g_free(hdev->mem_sections);
