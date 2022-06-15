@@ -1066,3 +1066,26 @@ char *get_relocated_path(const char *dir)
 
     return g_string_free(result, false);
 }
+
+char *find_bundle(const char *path)
+{
+    char *bundle = g_strdup_printf("%s/qemu-bundle/%s", qemu_get_exec_dir(), path);
+    if (access(bundle, R_OK) == 0) {
+        return bundle;
+    }
+
+    g_free(bundle);
+
+    return get_relocated_path(path);
+}
+
+void list_bundle_candidates(const char *path)
+{
+    const char *dir = qemu_get_exec_dir();
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(bundle_formats); i++) {
+        printf(bundle_formats[i], dir, path);
+        putc('\n', stdout);
+    }
+}
