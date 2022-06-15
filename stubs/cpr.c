@@ -21,3 +21,13 @@ int cpr_add_blocker_str(const char *reason, Error **errp, CprMode mode, ...)
 void cpr_del_blocker(Error **reasonp)
 {
 }
+
+void cpr_add_notifier(Notifier *notify,
+                      void (*cb)(Notifier *notifier, void *data),
+                      CprNotifyState state)
+{
+}
+
+void cpr_remove_notifier(Notifier *notify)
+{
+}

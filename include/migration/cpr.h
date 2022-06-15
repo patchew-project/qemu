@@ -9,6 +9,7 @@
 #define MIGRATION_CPR_H
 
 #include "qapi/qapi-types-cpr.h"
+#include "qemu/notify.h"
 
 void cpr_init(int modes);
 void cpr_set_mode(CprMode mode);
@@ -36,5 +37,17 @@ void cpr_state_print(void);
 int cpr_add_blocker(Error **reasonp, Error **errp, CprMode mode, ...);
 int cpr_add_blocker_str(const char *reason, Error **errp, CprMode mode, ...);
 void cpr_del_blocker(Error **reasonp);
+
+typedef enum CprNotifyState {
+    CPR_NOTIFY_EXEC,
+    CPR_NOTIFY_SAVE_FAILED,
+    CPR_NOTIFY_LOAD_FAILED,
+    CPR_NOTIFY_NUM
+} CprNotifyState;
+
+void cpr_add_notifier(Notifier *notify,
+                      void (*cb)(Notifier *notifier, void *data),
+                      CprNotifyState state);
+void cpr_remove_notifier(Notifier *notify);
 
 #endif

@@ -105,6 +105,28 @@ static bool cpr_is_blocked(Error **errp, CprMode mode)
     return false;
 }
 
+static NotifierList cpr_notifiers[CPR_NOTIFY_NUM];
+
+void cpr_add_notifier(Notifier *notify,
+                      void (*cb)(Notifier *notifier, void *data),
+                      CprNotifyState state)
+{
+    assert(state >= 0 && state < CPR_NOTIFY_NUM);
+    notify->notify = cb;
+    notifier_list_add(&cpr_notifiers[state], notify);
+}
+
+void cpr_remove_notifier(Notifier *notify)
+{
+    notifier_remove(notify);
+    notify->notify = NULL;
+}
+
+static void cpr_call_notifiers(CprNotifyState state)
+{
+    notifier_list_notify(&cpr_notifiers[state], 0);
+}
+
 void qmp_cpr_save(const char *filename, CprMode mode, Error **errp)
 {
     int ret;
@@ -142,6 +164,7 @@ void qmp_cpr_save(const char *filename, CprMode mode, Error **errp)
     qemu_fclose(f);
     if (ret < 0) {
         error_setg(errp, "Error %d while saving VM state", ret);
+        cpr_call_notifiers(CPR_NOTIFY_SAVE_FAILED);
         goto err;
     }
 
@@ -182,6 +205,7 @@ void qmp_cpr_exec(strList *args, Error **errp)
         return;
     }
 
+    cpr_call_notifiers(CPR_NOTIFY_EXEC);
     assert(qemu_system_exec_request(args, errp) == 0);
 }
 
@@ -218,6 +242,7 @@ void qmp_cpr_load(const char *filename, CprMode mode, Error **errp)
     qemu_fclose(f);
     if (ret < 0) {
         error_setg(errp, "Error %d while loading VM state", ret);
+        cpr_call_notifiers(CPR_NOTIFY_LOAD_FAILED);
         goto out;
     }
 
