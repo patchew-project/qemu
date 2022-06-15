@@ -681,6 +681,9 @@ address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr addr,
     AddressSpaceDispatch *d =
         qatomic_rcu_read(&cpu->cpu_ases[asidx].memory_dispatch);
 
+    /* Record the original phys page for use by the translate_fail path. */
+    *xlat = addr;
+
     for (;;) {
         section = address_space_translate_internal(d, addr, &addr, plen, false);
 
