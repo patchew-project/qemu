@@ -4,6 +4,7 @@
 #define QEMU_FILE_TYPE_BIOS   0
 #define QEMU_FILE_TYPE_KEYMAP 1
 #define QEMU_FILE_TYPE_ICON   2
+#define QEMU_FILE_TYPE_HELPER 3
 
 /**
  * qemu_find_file:

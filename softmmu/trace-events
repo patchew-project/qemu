@@ -6,7 +6,7 @@ balloon_event(void *opaque, unsigned long addr) "opaque %p addr %lu"
 
 # datadir.c
 datadir_load_file(const char *name, const char *path, int err) "name %s location %s errno %d"
-datadir_init(const char *defdatadir, const char *deficondir, bool inbuilddir) "default data dir %s icon dir %s in build dir %d"
+datadir_init(const char *defdatadir, const char *deficondir, const char *defhelperdir, bool inbuilddir) "default data dir %s icon dir %s helper dir %s in build dir %d"
 
 # ioport.c
 cpu_in(unsigned int addr, char size, unsigned int val) "addr 0x%x(%c) value %u"

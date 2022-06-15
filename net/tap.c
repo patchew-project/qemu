@@ -42,6 +42,7 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qemu/sockets.h"
+#include "qemu/datadir.h"
 
 #include "net/tap.h"
 
@@ -507,9 +508,11 @@ static int net_bridge_run_helper(const char *helper, const char *bridge,
     sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
     if (!helper) {
-        helper = default_helper = get_relocated_path(DEFAULT_BRIDGE_HELPER);
+        helper = default_helper = qemu_find_file(QEMU_FILE_TYPE_HELPER,
+                                                 DEFAULT_BRIDGE_HELPER);
     }
 
+    g_printerr("Helper %s\n", helper);
     if (socketpair(PF_UNIX, SOCK_STREAM, 0, sv) == -1) {
         error_setg_errno(errp, errno, "socketpair() failed");
         return -1;

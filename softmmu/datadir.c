@@ -36,6 +36,7 @@ static char **extra_firmware_dirs;
 /* Default built-in directories */
 static char *default_data_dir;
 static char *default_icon_dir;
+static char *default_helper_dir;
 
 /* Whether we're known to be executing from a build tree */
 static bool in_build_dir;
@@ -71,6 +72,12 @@ char *qemu_find_file(int type, const char *name)
         rel_install_dir = "hicolor";
         rel_build_dir = "ui/icons";
         default_install_dir = default_icon_dir;
+        break;
+
+    case QEMU_FILE_TYPE_HELPER:
+        rel_install_dir = "";
+        rel_build_dir = "";
+        default_install_dir = default_helper_dir;
         break;
 
     default:
@@ -140,9 +147,11 @@ void qemu_add_default_firmwarepath(void)
     /* Add default dirs relative to the executable path */
     default_data_dir = get_relocated_path(CONFIG_QEMU_DATADIR);
     default_icon_dir = get_relocated_path(CONFIG_QEMU_ICONDIR);
+    default_helper_dir = get_relocated_path(CONFIG_QEMU_HELPERDIR);
 
     trace_datadir_init(default_data_dir,
                        default_icon_dir,
+                       default_helper_dir,
                        in_build_dir);
 }
 
