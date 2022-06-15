@@ -225,7 +225,7 @@ const char *qemu_get_exec_dir(void);
  *
  * Returns a path for @dir that uses the directory of the running executable
  * as the prefix.  For example, if `bindir` is `/usr/bin` and @dir is
- * `/usr/share/qemu`, the function will append `../share/qemu` to the
+ * `share/qemu`, the function will append `../share/qemu` to the
  * directory that contains the running executable and return the result.
  * The returned string should be freed by the caller.
  */
