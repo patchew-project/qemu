@@ -180,9 +180,9 @@ if LooseVersion(sphinx_rtd_theme.__version__) >= LooseVersion("0.4.3"):
         "navigation_with_keys": True,
     }
 
-html_logo = os.path.join(qemu_docdir, "../ui/icons/qemu_128x128.png")
+html_logo = os.path.join(qemu_docdir, "../ui/icons/128x128/apps/qemu.png")
 
-html_favicon = os.path.join(qemu_docdir, "../ui/icons/qemu_32x32.png")
+html_favicon = os.path.join(qemu_docdir, "../ui/icons/32x32/apps/qemu.png")
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

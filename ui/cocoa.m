@@ -46,6 +46,7 @@
 #include "qemu/cutils.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
+#include "qemu/datadir.h"
 #include <Carbon/Carbon.h>
 #include "hw/core/cpu.h"
 
@@ -1562,7 +1563,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
 - (IBAction) do_about_menu_item: (id) sender
 {
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-    char *icon_path_c = get_relocated_path(CONFIG_QEMU_ICONDIR "/hicolor/512x512/apps/qemu.png");
+    char *icon_path_c = qemu_find_file(QEMU_FILE_TYPE_ICON, "512x512/apps/qemu.png");
     NSString *icon_path = [NSString stringWithUTF8String:icon_path_c];
     g_free(icon_path_c);
     NSImage *icon = [[NSImage alloc] initWithContentsOfFile:icon_path];

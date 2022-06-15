@@ -31,6 +31,7 @@
 #define LOCALEDIR "po"
 
 #include "qemu/osdep.h"
+#include "qemu/datadir.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-control.h"
 #include "qapi/qapi-commands-machine.h"
@@ -2321,7 +2322,7 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
     s->opts = opts;
 
     theme = gtk_icon_theme_get_default();
-    dir = get_relocated_path(CONFIG_QEMU_ICONDIR);
+    dir = qemu_find_file(QEMU_FILE_TYPE_ICON, NULL);
     gtk_icon_theme_prepend_search_path(theme, dir);
     g_free(dir);
     g_set_prgname("qemu");
