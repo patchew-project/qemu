@@ -332,6 +332,11 @@ class QEMUMachine:
         """Returns the list of arguments given to the QEMU binary."""
         return self._args
 
+    @property
+    def full_args(self) -> List[str]:
+        """Returns the full list of arguments used to launch QEMU."""
+        return list(self._qemu_full_args)
+
     def _pre_launch(self) -> None:
         if self._console_set:
             self._remove_files.append(self._console_address)
@@ -485,6 +490,15 @@ class QEMUMachine:
                 raise
         finally:
             self._qmp_connection = None
+
+    def reopen_qmp_connection(self):
+        self._close_qmp_connection()
+        self._qmp_connection = QEMUMonitorProtocol(
+            self._monitor_address,
+            server=True,
+            nickname=self._name
+        )
+        self._qmp.accept(self._qmp_timer)
 
     def _early_cleanup(self) -> None:
         """
