@@ -1,0 +1,62 @@
+# -*- Mode: Python -*-
+#
+# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+#
+# This work is licensed under the terms of the GNU GPL, version 2.
+# See the COPYING file in the top-level directory.
+
+##
+# = CPR - CheckPoint and Restart
+##
+
+{ 'include': 'common.json' }
+
+##
+# @CprMode:
+#
+# @reboot: checkpoint can be cpr-load'ed after a host reboot.
+#
+# Since: 7.1
+##
+{ 'enum': 'CprMode',
+  'data': [ 'none', 'reboot' ] }
+
+##
+# @cpr-save:
+#
+# Pause the VCPUs, and create a checkpoint of the virtual machine device state
+# in @filename.  Unlike snapshot-save, this command completes synchronously,
+# saves state to an ordinary file, does not save guest block device blocks,
+# and does not require that guest RAM be saved in the file.  The caller must
+# not modify guest block devices between cpr-save and cpr-load.
+#
+# If @mode is 'reboot', the checkpoint remains valid after a host reboot.
+# The guest RAM memory-backend should be shared and non-volatile across
+# reboot, else it will be saved to the file.  To resume from the checkpoint,
+# issue the quit command, reboot the system, start qemu using the same
+# arguments plus -S, and issue the cpr-load command.
+#
+# @filename: name of checkpoint file
+# @mode: @CprMode mode
+#
+# Since: 7.1
+##
+{ 'command': 'cpr-save',
+  'data': { 'filename': 'str',
+            'mode': 'CprMode' } }
+
+##
+# @cpr-load:
+#
+# Load a virtual machine from the checkpoint file @filename that was created
+# earlier by the cpr-save command, and continue the VCPUs.  @mode must match
+# the mode specified for cpr-save.
+#
+# @filename: name of checkpoint file
+# @mode: @CprMode mode
+#
+# Since: 7.1
+##
+{ 'command': 'cpr-load',
+  'data': { 'filename': 'str',
+            'mode': 'CprMode' } }
