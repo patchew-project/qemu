@@ -32,6 +32,7 @@ if get_option('qemu_suffix').startswith('/')
   error('qemu_suffix cannot start with a /')
 endif
 
+qemu_bundledir = meson.project_build_root() / 'qemu-bundle'
 qemu_confdir = get_option('sysconfdir') / get_option('qemu_suffix')
 qemu_datadir = get_option('datadir') / get_option('qemu_suffix')
 qemu_docdir = get_option('docdir') / get_option('qemu_suffix')
@@ -2868,6 +2869,8 @@ target_arch = {}
 target_softmmu_arch = {}
 target_user_arch = {}
 
+bundles = {}
+
 ###############
 # Trace files #
 ###############
@@ -3637,6 +3640,15 @@ if host_machine.system() == 'windows'
                        command: nsis_cmd + ['@INPUT@'])
   alias_target('installer', nsis)
 endif
+
+###########
+# Bundles #
+###########
+
+foreach dst, src: bundles
+  run_command('mkdir', '-p', qemu_bundledir / fs.parent(dst), check: true)
+  run_command('ln', '-sf', src, qemu_bundledir / dst, check: true)
+endforeach
 
 #########################
 # Configuration summary #
