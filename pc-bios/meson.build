@@ -20,6 +20,8 @@ if unpack_edk2_blobs
                   install: get_option('install_blobs'),
                   install_dir: qemu_datadir,
                   command: [ bzip2, '-dc', '@INPUT0@' ])
+
+    bundles += { qemu_datadir / f: '../../../pc-bios' / f  }
   endforeach
 endif
 
@@ -85,16 +87,13 @@ blobs = [
   'vof-nvram.bin',
 ]
 
-ln_s = [find_program('ln', required: true), '-sf']
-foreach f : blobs
-  roms += custom_target(f,
-                build_by_default: have_system,
-                output: f,
-                input: files('meson.build'),            # dummy input
-                install: get_option('install_blobs'),
-                install_dir: qemu_datadir,
-                command: [ ln_s, meson.project_source_root() / 'pc-bios' / f, '@OUTPUT@' ])
-endforeach
+if get_option('install_blobs')
+  install_data(blobs, install_dir: qemu_datadir)
+
+  foreach f : blobs
+    bundles += { qemu_datadir / f: meson.current_source_dir() / f }
+  endforeach
+endif
 
 subdir('descriptors')
 subdir('keymaps')
