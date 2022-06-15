@@ -1968,6 +1968,53 @@ static bool memory_region_is_backend(MemoryRegion *mr)
     return !!object_dynamic_cast(mr->parent_obj.parent, TYPE_MEMORY_BACKEND);
 }
 
+/*
+ * Return true if ram contents would be lost during cpr for CPR_MODE_RESTART.
+ * Return false for ram_device because it is remapped after restart.  Do not
+ * exclude rom, even though it is readonly, because the rom file could change
+ * in the new qemu.  Return false for non-migratable blocks.  They are either
+ * re-created after restart, or are handled specially, or are covered by a
+ * device-level cpr blocker.  Return false for an fd, because it is visible and
+ * can be remapped in the new process.
+ */
+static bool ram_is_volatile(RAMBlock *rb)
+{
+    MemoryRegion *mr = rb->mr;
+
+    return mr &&
+        memory_region_is_ram(mr) &&
+        !memory_region_is_ram_device(mr) &&
+        (!qemu_ram_is_shared(rb) || ramblock_is_anon(rb)) &&
+        qemu_ram_is_migratable(rb) &&
+        rb->fd < 0;
+}
+
+/*
+ * Add a CPR_MODE_RESTART blocker for each volatile ram block.  This cannot be
+ * performed in ram_block_add because the migratable flag has not been set yet.
+ */
+void ram_block_add_cpr_blockers(Error **errp)
+{
+    RAMBlock *rb;
+
+    RAMBLOCK_FOREACH(rb) {
+        if (ram_is_volatile(rb)) {
+            const char *name = memory_region_name(rb->mr);
+            rb->cpr_blocker = NULL;
+            if (memory_region_is_backend(rb->mr)) {
+                error_setg(&rb->cpr_blocker,
+                    "Memory region %s is volatile. A memory-backend-memfd or"
+                    " memory-backend-file with share=on is required.", name);
+            } else {
+                error_setg(&rb->cpr_blocker,
+                    "Memory region %s is volatile. "
+                    "-cpr-enable restart is required.", name);
+            }
+            cpr_add_blocker(&rb->cpr_blocker, errp, CPR_MODE_RESTART, 0);
+        }
+    }
+}
+
 static void *qemu_anon_memfd_alloc(RAMBlock *rb, size_t maxlen, Error **errp)
 {
     size_t len, align;
@@ -2275,6 +2322,7 @@ void qemu_ram_free(RAMBlock *block)
 
     qemu_mutex_lock_ramlist();
     cpr_delete_memfd(memory_region_name(block->mr));
+    cpr_del_blocker(&block->cpr_blocker);
     QLIST_REMOVE_RCU(block, next);
     ram_list.mru_block = NULL;
     /* Write list before version */
