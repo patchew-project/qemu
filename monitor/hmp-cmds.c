@@ -33,6 +33,7 @@
 #include "qapi/qapi-commands-block.h"
 #include "qapi/qapi-commands-char.h"
 #include "qapi/qapi-commands-control.h"
+#include "qapi/qapi-commands-cpr.h"
 #include "qapi/qapi-commands-machine.h"
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/qapi-commands-misc.h"
@@ -1120,6 +1121,32 @@ void hmp_announce_self(Monitor *mon, const QDict *qdict)
     params->has_id = !!params->id;
     qmp_announce_self(params, NULL);
     qapi_free_AnnounceParameters(params);
+}
+
+void hmp_cpr_save(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    const char *filename = qdict_get_try_str(qdict, "filename");
+    const char *str = qdict_get_try_str(qdict, "mode");
+    CprMode mode = qapi_enum_parse(&CprMode_lookup, str, -1, &err);
+
+    if (mode != -1) {
+        qmp_cpr_save(filename, mode, &err);
+    }
+    hmp_handle_error(mon, err);
+}
+
+void hmp_cpr_load(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    const char *filename = qdict_get_try_str(qdict, "filename");
+    const char *str = qdict_get_try_str(qdict, "mode");
+    CprMode mode = qapi_enum_parse(&CprMode_lookup, str, -1, &err);
+
+    if (mode != -1) {
+        qmp_cpr_load(filename, mode, &err);
+    }
+    hmp_handle_error(mon, err);
 }
 
 void hmp_migrate_cancel(Monitor *mon, const QDict *qdict)

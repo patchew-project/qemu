@@ -355,6 +355,45 @@ SRST
 ERST
 
     {
+        .name       = "cpr-save",
+        .args_type  = "filename:s,mode:s",
+        .params     = "filename 'reboot'",
+        .help       = "create a checkpoint of the VM in file",
+        .cmd        = hmp_cpr_save,
+    },
+
+SRST
+``cpr-save`` *filename* *mode*
+  Pause the VCPUs, and create a checkpoint of the virtual machine device state
+  in *filename*.  Unlike snapshot-save, this command completes synchronously,
+  saves state to an ordinary file, does not save guest block device blocks,
+  and does not require that guest RAM be saved in the file.  The caller must
+  not modify guest block devices between cpr-save and cpr-load.
+
+  If *mode* is 'reboot', the checkpoint remains valid after a host reboot.
+  The guest RAM memory-backend should be shared and non-volatile across
+  reboot, else it will be saved to the file.  To resume from the checkpoint,
+  issue the quit command, reboot the system, start qemu using the same
+  arguments plus -S, and issue the cpr-load command.
+ERST
+
+    {
+        .name       = "cpr-load",
+        .args_type  = "filename:s,mode:s",
+        .params     = "filename 'reboot'",
+
+        .help       = "load VM checkpoint from file",
+        .cmd        = hmp_cpr_load,
+    },
+
+SRST
+``cpr-load`` *filename* *mode*
+  Load a virtual machine from the checkpoint file *filename* that was created
+  earlier by the cpr-save command, and continue the VCPUs.  *mode* must match
+  the mode specified for cpr-save.
+ERST
+
+    {
         .name       = "delvm",
         .args_type  = "name:s",
         .params     = "tag",
