@@ -33,6 +33,12 @@ bool qapi_bool_parse(const char *name, const char *value, bool *obj,
 int parse_qapi_name(const char *name, bool complete);
 
 /*
+ * Produce and return a NULL-terminated array of strings from @args.
+ * All strings are g_strdup'd.
+ */
+GStrv strv_from_strList(const struct strList *args);
+
+/*
  * Produce a strList from the character delimited string @in.
  * All strings are g_strdup'd.
  * A NULL or empty input string returns NULL.
