@@ -1081,11 +1081,7 @@ char *find_bundle(const char *path)
 
 void list_bundle_candidates(const char *path)
 {
-    const char *dir = qemu_get_exec_dir();
-    int i;
-
-    for (i = 0; i < ARRAY_SIZE(bundle_formats); i++) {
-        printf(bundle_formats[i], dir, path);
-        putc('\n', stdout);
-    }
+    char *relocated = get_relocated_path(path);
+    printf("%s/qemu-bundle/%s\n%s\n", qemu_get_exec_dir(), path, relocated);
+    g_free(relocated);
 }

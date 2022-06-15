@@ -67,3 +67,5 @@ if native_qemu_keymap.found()
 endif
 
 install_data(['sl', 'sv'], install_dir: qemu_datadir / 'keymaps')
+
+bundles += { qemu_datadir / 'keymaps': '../../../pc-bios/keymaps' }
