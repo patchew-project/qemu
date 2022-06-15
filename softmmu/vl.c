@@ -2604,6 +2604,7 @@ void qemu_init(int argc, char **argv, char **envp)
     bool userconfig = true;
     FILE *vmstate_dump_file = NULL;
     int cpr_modes = 0;
+    bool only_cpr_capable = false;
 
     qemu_add_opts(&qemu_drive_opts);
     qemu_add_drive_opts(&qemu_legacy_drive_opts);
@@ -3321,6 +3322,9 @@ void qemu_init(int argc, char **argv, char **envp)
                 cpr_modes |= BIT(qapi_enum_parse(&CprMode_lookup, optarg, -1,
                                                  &error_fatal));
                 break;
+            case QEMU_OPTION_only_cpr_capable:
+                only_cpr_capable = true;
+                break;
             case QEMU_OPTION_nodefaults:
                 has_defaults = 0;
                 break;
@@ -3472,7 +3476,7 @@ void qemu_init(int argc, char **argv, char **envp)
     qemu_validate_options(machine_opts_dict);
     qemu_process_sugar_options();
 
-    cpr_init(cpr_modes);
+    cpr_init(cpr_modes, only_cpr_capable);
 
     /*
      * These options affect everything else and should be processed

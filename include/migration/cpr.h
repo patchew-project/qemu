@@ -11,7 +11,7 @@
 #include "qapi/qapi-types-cpr.h"
 #include "qemu/notify.h"
 
-void cpr_init(int modes);
+void cpr_init(int modes, bool only_cpr_capable);
 void cpr_set_mode(CprMode mode);
 CprMode cpr_get_mode(void);
 bool cpr_enabled(CprMode mode);

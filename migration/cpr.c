@@ -18,9 +18,11 @@
 #include "sysemu/sysemu.h"
 
 static int cpr_enabled_modes;
+static bool only_cpr_capable;
 
-void cpr_init(int modes)
+void cpr_init(int modes, bool only_cpr)
 {
+    only_cpr_capable = only_cpr;
     cpr_enabled_modes = modes;
     cpr_state_load(&error_fatal);
 }
@@ -36,7 +38,7 @@ static GSList *cpr_blockers[CPR_MODE__MAX];
  * Add blocker for each mode in varargs list, or for all modes if CPR_MODE_ALL
  * is specified.  Caller terminates the list with 0 or CPR_MODE_ALL.  This
  * function takes ownership of *reasonp, and frees it on error, or in
- * cpr_del_blocker.  errp is set in a later patch.
+ * cpr_del_blocker.
  */
 int cpr_add_blocker(Error **reasonp, Error **errp, CprMode mode, ...)
 {
@@ -53,6 +55,13 @@ int cpr_add_blocker(Error **reasonp, Error **errp, CprMode mode, ...)
     va_end(ap);
     if (mode == CPR_MODE_ALL) {
         modes = BIT(CPR_MODE__MAX) - 1;
+    }
+
+    if (only_cpr_capable && (cpr_enabled_modes & modes)) {
+        error_propagate_prepend(errp, *reasonp,
+                                "-only-cpr-capable specified, but: ");
+        *reasonp = NULL;
+        return -EACCES;
     }
 
     for (mode = 0; mode < CPR_MODE__MAX; mode++) {
