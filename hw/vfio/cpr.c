@@ -32,6 +32,15 @@ vfio_dma_unmap_vaddr_all(VFIOContainer *container, Error **errp)
     return 0;
 }
 
+static int
+vfio_region_remap(MemoryRegionSection *section, void *handle, Error **errp)
+{
+    VFIOContainer *container = handle;
+    vfio_container_region_add(container, section, true);
+    container->vaddr_unmapped = false;
+    return 0;
+}
+
 static bool vfio_is_cpr_capable(VFIOContainer *container, Error **errp)
 {
     if (!ioctl(container->fd, VFIO_CHECK_EXTENSION, VFIO_UPDATE_VADDR) ||
@@ -98,6 +107,22 @@ static const VMStateDescription vfio_container_vmstate = {
     }
 };
 
+static void vfio_cpr_save_failed_notifier(Notifier *notifier, void *data)
+{
+    Error *err;
+    VFIOContainer *container =
+        container_of(notifier, VFIOContainer, cpr_notifier);
+
+    /* Set reused so vfio_dma_map restores vaddr */
+    container->reused = true;
+    if (address_space_flat_for_each_section(container->space->as,
+                                            vfio_region_remap,
+                                            container, &err)) {
+        error_report_err(err);
+    }
+    container->reused = false;
+}
+
 int vfio_cpr_register_container(VFIOContainer *container, Error **errp)
 {
     container->cpr_blocker = NULL;
@@ -108,6 +133,8 @@ int vfio_cpr_register_container(VFIOContainer *container, Error **errp)
 
     vmstate_register(NULL, -1, &vfio_container_vmstate, container);
 
+    cpr_add_notifier(&container->cpr_notifier, vfio_cpr_save_failed_notifier,
+                     CPR_NOTIFY_SAVE_FAILED);
     return 0;
 }
 
@@ -116,4 +143,6 @@ void vfio_cpr_unregister_container(VFIOContainer *container)
     cpr_del_blocker(&container->cpr_blocker);
 
     vmstate_unregister(NULL, &vfio_container_vmstate, container);
+
+    cpr_remove_notifier(&container->cpr_notifier);
 }
