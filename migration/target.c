@@ -8,6 +8,7 @@
 #include "qemu/osdep.h"
 #include "qapi/qapi-types-migration.h"
 #include "migration.h"
+#include CONFIG_DEVICES
 
 #ifdef CONFIG_VFIO
 #include "hw/vfio/vfio-common.h"
