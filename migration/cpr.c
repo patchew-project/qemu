@@ -17,18 +17,6 @@
 #include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 
-static CprMode cpr_mode = CPR_MODE_NONE;
-
-CprMode cpr_get_mode(void)
-{
-    return cpr_mode;
-}
-
-void cpr_set_mode(CprMode mode)
-{
-    cpr_mode = mode;
-}
-
 static int cpr_enabled_modes;
 
 void cpr_init(int modes)

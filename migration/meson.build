@@ -16,6 +16,7 @@ softmmu_ss.add(files(
   'colo-failover.c',
   'colo.c',
   'cpr.c',
+  'cpr-state.c',
   'exec.c',
   'fd.c',
   'global_state.c',

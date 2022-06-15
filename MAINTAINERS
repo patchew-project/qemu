@@ -3163,6 +3163,8 @@ F: migration/cpr.c
 F: qapi/cpr.json
 F: stubs/cpr.c
 F: tests/unit/test-strlist.c
+F: migration/cpr-state.c
+F: stubs/cpr-state.c
 
 Record/replay
 M: Pavel Dovgalyuk <pavel.dovgaluk@ispras.ru>
