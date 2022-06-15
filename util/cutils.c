@@ -917,13 +917,6 @@ int qemu_pstrcmp0(const char **str1, const char **str2)
     return g_strcmp0(*str1, *str2);
 }
 
-static inline bool starts_with_prefix(const char *dir)
-{
-    size_t prefix_len = strlen(CONFIG_PREFIX);
-    return !memcmp(dir, CONFIG_PREFIX, prefix_len) &&
-        (!dir[prefix_len] || G_IS_DIR_SEPARATOR(dir[prefix_len]));
-}
-
 /* Return the next path component in dir, and store its length in *p_len.  */
 static inline const char *next_component(const char *dir, int *p_len)
 {
@@ -967,7 +960,7 @@ void qemu_init_exec_dir(const char *argv0)
     if (access(buf, R_OK) == 0) {
         exec_dir = g_strdup(buf);
     } else {
-        exec_dir = CONFIG_BINDIR;
+        exec_dir = CONFIG_PREFIX G_DIR_SEPARATOR_S CONFIG_BINDIR;
     }
 #else
     char *p = NULL;
@@ -1038,7 +1031,7 @@ void qemu_init_exec_dir(const char *argv0)
     if (p) {
         exec_dir = g_path_get_dirname(p);
     } else {
-        exec_dir = CONFIG_BINDIR;
+        exec_dir = CONFIG_PREFIX G_DIR_SEPARATOR_S CONFIG_BINDIR;
     }
 #endif
 }
@@ -1050,39 +1043,26 @@ const char *qemu_get_exec_dir(void)
 
 char *get_relocated_path(const char *dir)
 {
-    size_t prefix_len = strlen(CONFIG_PREFIX);
     const char *bindir = CONFIG_BINDIR;
     const char *exec_dir = qemu_get_exec_dir();
     GString *result;
-    int len_dir, len_bindir;
+    int len_bindir;
 
     /* Fail if qemu_init_exec_dir was not called.  */
     assert(exec_dir[0]);
-    if (!starts_with_prefix(dir) || !starts_with_prefix(bindir)) {
-        return g_strdup(dir);
-    }
 
     result = g_string_new(exec_dir);
 
-    /* Advance over common components.  */
-    len_dir = len_bindir = prefix_len;
-    do {
-        dir += len_dir;
-        bindir += len_bindir;
-        dir = next_component(dir, &len_dir);
-        bindir = next_component(bindir, &len_bindir);
-    } while (len_dir && len_dir == len_bindir && !memcmp(dir, bindir, len_dir));
-
     /* Ascend from bindir to the common prefix with dir.  */
+    len_bindir = 0;
     while (len_bindir) {
         bindir += len_bindir;
         g_string_append(result, "/..");
         bindir = next_component(bindir, &len_bindir);
     }
 
-    if (*dir) {
-        assert(G_IS_DIR_SEPARATOR(dir[-1]));
-        g_string_append(result, dir - 1);
-    }
+    g_string_append_c(result, G_DIR_SEPARATOR);
+    g_string_append(result, dir);
+
     return g_string_free(result, false);
 }
