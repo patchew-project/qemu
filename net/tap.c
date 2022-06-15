@@ -507,7 +507,7 @@ static int net_bridge_run_helper(const char *helper, const char *bridge,
     sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
     if (!helper) {
-        helper = default_helper = get_relocated_path(DEFAULT_BRIDGE_HELPER);
+        helper = default_helper = find_bundle(DEFAULT_BRIDGE_HELPER);
     }
 
     if (socketpair(PF_UNIX, SOCK_STREAM, 0, sv) == -1) {
