@@ -32,6 +32,7 @@
 #include "savevm.h"
 #include "qemu-file-channel.h"
 #include "qemu-file.h"
+#include "migration/cpr.h"
 #include "migration/vmstate.h"
 #include "block/block.h"
 #include "qapi/error.h"
@@ -1281,6 +1282,11 @@ static bool migrate_caps_check(bool *cap_list,
         cap_list[MIGRATION_CAPABILITY_MULTIFD]) {
         error_setg(errp, "multifd is not supported by current protocol");
         return false;
+    }
+
+    if (cap_list[MIGRATION_CAPABILITY_X_COLO]) {
+        return cpr_add_blocker_str("x-colo is not compatible with cpr",
+                                   errp, CPR_MODE_ALL);
     }
 
     return true;

@@ -16,6 +16,7 @@
 #include "qapi/error.h"
 #include "sysemu/hostmem.h"
 #include "hw/i386/hostmem-epc.h"
+#include "migration/cpr.h"
 
 static void
 sgx_epc_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
@@ -23,6 +24,7 @@ sgx_epc_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
     uint32_t ram_flags;
     char *name;
     int fd;
+    Error *blocker = NULL;
 
     if (!backend->size) {
         error_setg(errp, "can't create backend with size 0");
@@ -41,6 +43,10 @@ sgx_epc_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
     memory_region_init_ram_from_fd(&backend->mr, OBJECT(backend),
                                    name, backend->size, ram_flags,
                                    fd, 0, errp);
+
+    error_setg(&blocker, "RAM_PROTECTED block %s does not support cpr", name);
+    cpr_add_blocker(&blocker, errp, CPR_MODE_ALL);
+
     g_free(name);
 }
 

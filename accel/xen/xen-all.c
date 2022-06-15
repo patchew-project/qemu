@@ -21,6 +21,7 @@
 #include "sysemu/runstate.h"
 #include "migration/misc.h"
 #include "migration/global_state.h"
+#include "migration/cpr.h"
 #include "hw/boards.h"
 
 //#define DEBUG_XEN
@@ -181,6 +182,8 @@ static int xen_init(MachineState *ms)
      * opt out of system RAM being allocated by generic code
      */
     mc->default_ram_id = NULL;
+
+    cpr_add_blocker_str("xen does not support cpr", &error_fatal, CPR_MODE_ALL);
     return 0;
 }
 
