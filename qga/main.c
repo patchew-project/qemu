@@ -270,7 +270,7 @@ QEMU_HELP_BOTTOM "\n"
     , cmd, QGA_VIRTIO_PATH_DEFAULT, QGA_SERIAL_PATH_DEFAULT,
     dfl_pathnames.pidfile,
 #ifdef CONFIG_FSFREEZE
-    QGA_FSFREEZE_HOOK_DEFAULT,
+    get_relocated_path(QGA_FSFREEZE_HOOK_DEFAULT),
 #endif
     dfl_pathnames.state_dir);
 }
