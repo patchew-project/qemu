@@ -357,7 +357,7 @@ ERST
     {
         .name       = "cpr-save",
         .args_type  = "filename:s,mode:s",
-        .params     = "filename 'reboot'",
+        .params     = "filename 'reboot'|'restart'",
         .help       = "create a checkpoint of the VM in file",
         .cmd        = hmp_cpr_save,
     },
@@ -377,13 +377,36 @@ SRST
   reboot, else it will be saved to the file.  To resume from the checkpoint,
   issue the quit command, reboot the system, start qemu using the same
   arguments plus -S, and issue the cpr-load command.
+
+  If *mode* is 'restart', the checkpoint remains valid after restarting
+  qemu using a subsequent cpr-exec.  Guest RAM must be backed by a
+  memory-backend-file with share=on.
+  To resume from the checkpoint, issue the cpr-load command.
+ERST
+
+    {
+        .name       = "cpr-exec",
+        .args_type  = "command:S",
+        .params     = "command",
+        .help       = "Restart qemu by directly exec'ing command",
+        .cmd        = hmp_cpr_exec,
+    },
+
+SRST
+``cpr-exec`` *command*
+  Restart qemu by directly exec'ing *command*, replacing the qemu process.
+  The PID remains the same.  Must be called after cpr-save restart.
+
+  *command*[0] should be the path of a new qemu binary, or a prefix command that
+  in turn exec's the new qemu binary.  The arguments must match those used
+  to initially start qemu, plus the -S option so new qemu starts in a paused
+  state.
 ERST
 
     {
         .name       = "cpr-load",
         .args_type  = "filename:s,mode:s",
-        .params     = "filename 'reboot'",
-
+        .params     = "filename 'reboot'|'restart'",
         .help       = "load VM checkpoint from file",
         .cmd        = hmp_cpr_load,
     },
