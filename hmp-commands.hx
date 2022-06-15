@@ -380,7 +380,7 @@ SRST
 
   If *mode* is 'restart', the checkpoint remains valid after restarting
   qemu using a subsequent cpr-exec.  Guest RAM must be backed by a
-  memory-backend-file with share=on.
+  memory-backend-memfd or memory-backend-file object with share=on.
   To resume from the checkpoint, issue the cpr-load command.
 ERST
 
