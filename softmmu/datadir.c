@@ -62,7 +62,7 @@ char *qemu_find_file(int type, const char *name)
     case QEMU_FILE_TYPE_KEYMAP:
         user_install_dir = user_data_dir;
         rel_install_dir = "keymaps";
-        rel_build_dir = "pc-bios/keymaps";
+        rel_build_dir = "ui/keymaps";
         default_install_dir = default_data_dir;
         break;
 
