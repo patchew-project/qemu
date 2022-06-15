@@ -66,7 +66,9 @@
 
 #include "qemu/pmem.h"
 
+#include "migration/cpr.h"
 #include "migration/vmstate.h"
+#include "migration/qemu-file.h"
 
 #include "qemu/range.h"
 #ifndef _WIN32
@@ -2448,6 +2450,71 @@ ram_addr_t qemu_ram_addr_from_host(void *ptr)
     }
 
     return block->offset + offset;
+}
+
+static int put_ram_block(QEMUFile *f, void *pv, size_t size,
+                         const VMStateField *field, JSONWriter *vmdesc)
+{
+    RAMBlock *rb = pv;
+
+    if (rb->used_length > 1024 * 1024) {
+        warn_report("Large RAM block %s size %ld saved to state file. "
+                    "Use a shared file memory backend to avoid the copy.",
+                    rb->idstr, rb->used_length);
+    }
+    qemu_put_buffer(f, rb->host, rb->used_length);
+    return 0;
+}
+
+static int get_ram_block(QEMUFile *f, void *pv, size_t size,
+                         const VMStateField *field)
+{
+    RAMBlock *rb = pv;
+    qemu_get_buffer(f, rb->host, rb->used_length);
+    return 0;
+}
+
+static const VMStateInfo vmstate_info_ram_block = {
+    .name = "ram block host",
+    .get  = get_ram_block,
+    .put  = put_ram_block,
+};
+
+#define VMSTATE_RAM_BLOCK() {           \
+    .name  = "ram_block_host",          \
+    .info  = &vmstate_info_ram_block,   \
+    .flags = VMS_SINGLE,                \
+}
+
+static bool ram_block_needed(void *opaque)
+{
+    RAMBlock *rb = opaque;
+
+    return cpr_get_mode() == CPR_MODE_REBOOT &&
+        qemu_ram_is_migratable(rb) &&
+        (!qemu_ram_is_shared(rb) || ramblock_is_anon(rb));
+}
+
+const VMStateDescription vmstate_ram_block = {
+    .name = "RAMBlock",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = ram_block_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(used_length, RAMBlock),
+        VMSTATE_RAM_BLOCK(),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+void ram_block_register(RAMBlock *rb)
+{
+    vmstate_register(VMSTATE_IF(rb->mr), 0, &vmstate_ram_block, rb);
+}
+
+void ram_block_unregister(RAMBlock *rb)
+{
+    vmstate_unregister(VMSTATE_IF(rb->mr), &vmstate_ram_block, rb);
 }
 
 static MemTxResult flatview_read(FlatView *fv, hwaddr addr,

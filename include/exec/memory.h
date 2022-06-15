@@ -3005,6 +3005,12 @@ bool ram_block_discard_is_disabled(void);
  */
 bool ram_block_discard_is_required(void);
 
+/*
+ * Register/unregister a ram block for cpr.
+ */
+void ram_block_register(RAMBlock *rb);
+void ram_block_unregister(RAMBlock *rb);
+
 #endif
 
 #endif

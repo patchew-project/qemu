@@ -3541,13 +3541,31 @@ void __attribute__((weak)) fuzz_dma_read_cb(size_t addr,
 }
 #endif
 
+static char *
+memory_region_vmstate_if_get_id(VMStateIf *obj)
+{
+    MemoryRegion *mr = MEMORY_REGION(obj);
+    return strdup(mr->ram_block->idstr);
+}
+
+static void memory_region_class_init(ObjectClass *class, void *data)
+{
+    VMStateIfClass *vc = VMSTATE_IF_CLASS(class);
+    vc->get_id = memory_region_vmstate_if_get_id;
+}
+
 static const TypeInfo memory_region_info = {
     .parent             = TYPE_OBJECT,
     .name               = TYPE_MEMORY_REGION,
     .class_size         = sizeof(MemoryRegionClass),
+    .class_init         = memory_region_class_init,
     .instance_size      = sizeof(MemoryRegion),
     .instance_init      = memory_region_initfn,
     .instance_finalize  = memory_region_finalize,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_VMSTATE_IF },
+        { }
+    }
 };
 
 static const TypeInfo iommu_memory_region_info = {
