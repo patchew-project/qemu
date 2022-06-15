@@ -164,7 +164,8 @@ out:
 bool ramblock_is_ignored(RAMBlock *block)
 {
     return !qemu_ram_is_migratable(block) ||
-           (migrate_ignore_shared() && qemu_ram_is_shared(block));
+           (migrate_ignore_shared() && qemu_ram_is_shared(block) &&
+            !ramblock_is_anon(block));
 }
 
 #undef RAMBLOCK_FOREACH

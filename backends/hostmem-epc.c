@@ -37,7 +37,7 @@ sgx_epc_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
     }
 
     name = object_get_canonical_path(OBJECT(backend));
-    ram_flags = (backend->share ? RAM_SHARED : 0) | RAM_PROTECTED;
+    ram_flags = (backend->share ? RAM_SHARED : 0) | RAM_PROTECTED | MAP_ANON;
     memory_region_init_ram_from_fd(&backend->mr, OBJECT(backend),
                                    name, backend->size, ram_flags,
                                    fd, 0, errp);

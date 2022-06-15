@@ -1975,6 +1975,7 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
     new_block->offset = find_ram_offset(new_block->max_length);
 
     if (!new_block->host) {
+        new_block->flags |= RAM_ANON;
         if (xen_enabled()) {
             xen_ram_alloc(new_block->offset, new_block->max_length,
                           new_block->mr, &err);
@@ -2059,7 +2060,7 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
 
     /* Just support these ram flags by now. */
     assert((ram_flags & ~(RAM_SHARED | RAM_PMEM | RAM_NORESERVE |
-                          RAM_PROTECTED)) == 0);
+                          RAM_PROTECTED | RAM_ANON)) == 0);
 
     if (xen_enabled()) {
         error_setg(errp, "-mem-path not supported with Xen");
@@ -2151,7 +2152,7 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
     Error *local_err = NULL;
 
     assert((ram_flags & ~(RAM_SHARED | RAM_RESIZEABLE | RAM_PREALLOC |
-                          RAM_NORESERVE)) == 0);
+                          RAM_NORESERVE | RAM_ANON)) == 0);
     assert(!host ^ (ram_flags & RAM_PREALLOC));
 
     size = HOST_PAGE_ALIGN(size);
@@ -2185,7 +2186,7 @@ RAMBlock *qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
 RAMBlock *qemu_ram_alloc(ram_addr_t size, uint32_t ram_flags,
                          MemoryRegion *mr, Error **errp)
 {
-    assert((ram_flags & ~(RAM_SHARED | RAM_NORESERVE)) == 0);
+    assert((ram_flags & ~(RAM_SHARED | RAM_NORESERVE | RAM_ANON)) == 0);
     return qemu_ram_alloc_internal(size, size, NULL, NULL, ram_flags, mr, errp);
 }
 
@@ -3662,6 +3663,11 @@ err:
 bool ramblock_is_pmem(RAMBlock *rb)
 {
     return rb->flags & RAM_PMEM;
+}
+
+bool ramblock_is_anon(RAMBlock *rb)
+{
+    return rb->flags & RAM_ANON;
 }
 
 static void mtree_print_phys_entries(int start, int end, int skip, int ptr)
