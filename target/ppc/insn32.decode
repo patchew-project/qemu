@@ -793,6 +793,7 @@ XVF64GERNN      111011 ... -- .... 0 ..... 11111010 ..-  @XX3_at xa=%xx_xa_pair
 ## SLB Management Instructions
 
 SLBIE           011111 ----- ----- ..... 0110110010 -   @X_rb
+SLBIEG          011111 ..... ----- ..... 0111010010 -   @X_tb
 
 ## TLB Management Instructions
 
