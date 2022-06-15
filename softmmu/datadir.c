@@ -105,15 +105,8 @@ static char *find_datadir(void)
 
 void qemu_add_default_firmwarepath(void)
 {
-    char **dirs;
-    size_t i;
-
-    /* add configured firmware directories */
-    dirs = g_strsplit(CONFIG_QEMU_FIRMWAREPATH, G_SEARCHPATH_SEPARATOR_S, 0);
-    for (i = 0; dirs[i] != NULL; i++) {
-        qemu_add_data_dir(get_relocated_path(dirs[i]));
-    }
-    g_strfreev(dirs);
+    /* add the configured firmware directory */
+    qemu_add_data_dir(get_relocated_path(CONFIG_QEMU_FIRMWAREPATH));
 
     /* try to find datadir relative to the executable path */
     qemu_add_data_dir(find_datadir());
