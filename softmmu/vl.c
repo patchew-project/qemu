@@ -78,6 +78,7 @@
 #include "hw/i386/pc.h"
 #include "migration/misc.h"
 #include "migration/snapshot.h"
+#include "migration/cpr.h"
 #include "sysemu/tpm.h"
 #include "sysemu/dma.h"
 #include "hw/audio/soundhw.h"
@@ -2600,6 +2601,7 @@ void qemu_init(int argc, char **argv, char **envp)
     MachineClass *machine_class;
     bool userconfig = true;
     FILE *vmstate_dump_file = NULL;
+    int cpr_modes = 0;
 
     qemu_add_opts(&qemu_drive_opts);
     qemu_add_drive_opts(&qemu_legacy_drive_opts);
@@ -3313,6 +3315,10 @@ void qemu_init(int argc, char **argv, char **envp)
             case QEMU_OPTION_only_migratable:
                 only_migratable = 1;
                 break;
+            case QEMU_OPTION_cpr_enable:
+                cpr_modes |= BIT(qapi_enum_parse(&CprMode_lookup, optarg, -1,
+                                                 &error_fatal));
+                break;
             case QEMU_OPTION_nodefaults:
                 has_defaults = 0;
                 break;
@@ -3463,6 +3469,8 @@ void qemu_init(int argc, char **argv, char **envp)
 
     qemu_validate_options(machine_opts_dict);
     qemu_process_sugar_options();
+
+    cpr_init(cpr_modes);
 
     /*
      * These options affect everything else and should be processed

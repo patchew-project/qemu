@@ -4483,6 +4483,16 @@ SRST
     an unmigratable state.
 ERST
 
+DEF("cpr-enable", HAS_ARG, QEMU_OPTION_cpr_enable, \
+    "-cpr-enable reboot    enable the cpr mode\n",
+    QEMU_ARCH_ALL)
+SRST
+``-cpr-enable reboot``
+    Enable the specified cpr mode.  May be supplied multiple times, once
+    per mode.  This is a pre-requisite for calling the cpr-save and cpr-load
+    commands.
+ERST
+
 DEF("nodefaults", 0, QEMU_OPTION_nodefaults, \
     "-nodefaults     don't create default devices\n", QEMU_ARCH_ALL)
 SRST

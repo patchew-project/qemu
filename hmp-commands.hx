@@ -370,6 +370,8 @@ SRST
   and does not require that guest RAM be saved in the file.  The caller must
   not modify guest block devices between cpr-save and cpr-load.
 
+  cpr-save requires that qemu was started with -cpr-enable for *mode*.
+
   If *mode* is 'reboot', the checkpoint remains valid after a host reboot.
   The guest RAM memory-backend should be shared and non-volatile across
   reboot, else it will be saved to the file.  To resume from the checkpoint,
@@ -391,6 +393,8 @@ SRST
   Load a virtual machine from the checkpoint file *filename* that was created
   earlier by the cpr-save command, and continue the VCPUs.  *mode* must match
   the mode specified for cpr-save.
+
+  cpr-load requires that qemu was started with -cpr-enable for *mode*.
 ERST
 
     {

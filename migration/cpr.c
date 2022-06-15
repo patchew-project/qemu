@@ -29,6 +29,18 @@ void cpr_set_mode(CprMode mode)
     cpr_mode = mode;
 }
 
+static int cpr_enabled_modes;
+
+void cpr_init(int modes)
+{
+    cpr_enabled_modes = modes;
+}
+
+bool cpr_enabled(CprMode mode)
+{
+    return !!(cpr_enabled_modes & BIT(mode));
+}
+
 static GSList *cpr_blockers[CPR_MODE__MAX];
 
 /*
@@ -110,6 +122,11 @@ void qmp_cpr_save(const char *filename, CprMode mode, Error **errp)
     QEMUFile *f;
     int saved_vm_running = runstate_is_running();
 
+    if (!(cpr_enabled_modes & BIT(mode))) {
+        error_setg(errp, "cpr mode is not enabled.  Use -cpr-enable.");
+        return;
+    }
+
     if (cpr_is_blocked(errp, mode)) {
         return;
     }
@@ -153,6 +170,11 @@ void qmp_cpr_load(const char *filename, CprMode mode, Error **errp)
     QEMUFile *f;
     int ret;
     RunState state;
+
+    if (!(cpr_enabled_modes & BIT(mode))) {
+        error_setg(errp, "cpr mode is not enabled.  Use -cpr-enable.");
+        return;
+    }
 
     if (runstate_is_running()) {
         error_setg(errp, "cpr-load called for a running VM");

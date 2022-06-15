@@ -10,8 +10,10 @@
 
 #include "qapi/qapi-types-cpr.h"
 
+void cpr_init(int modes);
 void cpr_set_mode(CprMode mode);
 CprMode cpr_get_mode(void);
+bool cpr_enabled(CprMode mode);
 
 #define CPR_MODE_ALL CPR_MODE__MAX
 
