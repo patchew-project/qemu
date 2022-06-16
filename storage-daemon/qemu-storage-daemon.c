@@ -379,7 +379,7 @@ int main(int argc, char *argv[])
     signal(SIGPIPE, SIG_IGN);
 #endif
 
-    error_init(argv[0], error_is_detailed);
+    error_init(argv[0], error_is_detailed, monitor_error_vprintf);
     qemu_init_exec_dir(argv[0]);
     os_setup_signal_handling();
 

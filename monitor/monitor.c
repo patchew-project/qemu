@@ -263,7 +263,7 @@ int monitor_printf(Monitor *mon, const char *fmt, ...)
 /*
  * Print to current monitor if we have one, else to stderr.
  */
-int error_vprintf(const char *fmt, va_list ap)
+int monitor_error_vprintf(const char *fmt, va_list ap)
 {
     Monitor *cur_mon = monitor_cur();
 

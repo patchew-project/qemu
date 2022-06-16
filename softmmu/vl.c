@@ -2639,7 +2639,7 @@ void qemu_init(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_action_opts);
     module_call_init(MODULE_INIT_OPTS);
 
-    error_init(argv[0], error_is_detailed);
+    error_init(argv[0], error_is_detailed, monitor_error_vprintf);
     qemu_init_exec_dir(argv[0]);
 
     qemu_init_arch_modules();

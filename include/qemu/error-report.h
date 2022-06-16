@@ -14,6 +14,7 @@
 #define QEMU_ERROR_REPORT_H
 
 typedef bool (*ErrorReportDetailedFunc)(void);
+typedef int (*ErrorReportVPrintfFunc)(const char *fmt, va_list ap) G_GNUC_PRINTF(1, 0);
 
 typedef struct Location {
     /* all members are private to qemu-error.c */
@@ -32,7 +33,6 @@ void loc_set_none(void);
 void loc_set_cmdline(char **argv, int idx, int cnt);
 void loc_set_file(const char *fname, int lno);
 
-int error_vprintf(const char *fmt, va_list ap) G_GNUC_PRINTF(1, 0);
 int error_printf(const char *fmt, ...) G_GNUC_PRINTF(1, 2);
 
 void error_vreport(const char *fmt, va_list ap) G_GNUC_PRINTF(1, 0);
@@ -48,7 +48,9 @@ bool error_report_once_cond(bool *printed, const char *fmt, ...)
 bool warn_report_once_cond(bool *printed, const char *fmt, ...)
     G_GNUC_PRINTF(2, 3);
 
-void error_init(const char *argv0, ErrorReportDetailedFunc detailed_fn);
+void error_init(const char *argv0,
+                ErrorReportDetailedFunc detailed_fn,
+                ErrorReportVPrintfFunc vprintf_fn);
 
 /*
  * Similar to error_report(), except it prints the message just once.

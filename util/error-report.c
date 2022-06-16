@@ -23,11 +23,14 @@ typedef enum {
     REPORT_TYPE_INFO,
 } report_type;
 
+static int error_vprintf(const char *fmt, va_list ap);
+
 /* Prepend timestamp to messages */
 bool message_with_timestamp;
 bool error_with_guestname;
 const char *error_guest_name;
 ErrorReportDetailedFunc detailed_fn = NULL;
+ErrorReportVPrintfFunc vprintf_fn = error_vprintf;
 
 int error_printf(const char *fmt, ...)
 {
@@ -35,7 +38,7 @@ int error_printf(const char *fmt, ...)
     int ret;
 
     va_start(ap, fmt);
-    ret = error_vprintf(fmt, ap);
+    ret = vprintf_fn(fmt, ap);
     va_end(ap);
     return ret;
 }
@@ -222,7 +225,7 @@ static void vreport(report_type type, const char *fmt, va_list ap)
         break;
     }
 
-    error_vprintf(fmt, ap);
+    vprintf_fn(fmt, ap);
     error_printf("\n");
 }
 
@@ -387,7 +390,24 @@ static void qemu_log_func(const gchar *log_domain,
     }
 }
 
-void error_init(const char *argv0, ErrorReportDetailedFunc detailed)
+static int error_vprintf(const char *fmt, va_list ap)
+{
+    int ret;
+
+    if (g_test_initialized() && !g_test_subprocess() &&
+        getenv("QTEST_SILENT_ERRORS")) {
+        char *msg = g_strdup_vprintf(fmt, ap);
+        g_test_message("%s", msg);
+        ret = strlen(msg);
+        g_free(msg);
+        return ret;
+    }
+    return vfprintf(stderr, fmt, ap);
+}
+
+void error_init(const char *argv0,
+                ErrorReportDetailedFunc detailed,
+                ErrorReportVPrintfFunc vprintf)
 {
     const char *p = strrchr(argv0, '/');
 
@@ -403,4 +423,5 @@ void error_init(const char *argv0, ErrorReportDetailedFunc detailed)
     qemu_glog_domains = g_strdup(g_getenv("G_MESSAGES_DEBUG"));
 
     detailed_fn = detailed;
+    vprintf_fn = vprintf ?: error_vprintf;
 }
