@@ -138,14 +138,14 @@ void loc_set_file(const char *fname, int lno)
 /*
  * Print current location to current monitor if we have one, else to stderr.
  */
-static void print_loc(void)
+static void print_loc(const char *prefix)
 {
     const char *sep = "";
     int i;
     const char *const *argp;
 
-    if (!monitor_cur() && g_get_prgname()) {
-        error_printf("%s:", g_get_prgname());
+    if (prefix) {
+        error_printf("%s:", prefix);
         sep = " ";
     }
     switch (cur_loc->kind) {
@@ -209,7 +209,7 @@ static void vreport(report_type type, const char *fmt, va_list ap)
         error_printf("%s ", error_guest_name);
     }
 
-    print_loc();
+    print_loc(detailed ? g_get_prgname() : NULL);
 
     switch (type) {
     case REPORT_TYPE_ERROR:
