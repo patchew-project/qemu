@@ -1207,7 +1207,13 @@ static void build_guest_fsinfo_for_device(char const *devpath,
 
     syspath = realpath(devpath, NULL);
     if (!syspath) {
-        error_setg_errno(errp, errno, "realpath(\"%s\")", devpath);
+        if (errno == ENOENT) {
+            /* This devpath may not exist because of container config, etc. */
+            fprintf(stderr, "realpath(%s) returned NULL/ENOENT\n", devpath);
+            fs->name = g_strdup("??\?-ENOENT");
+        } else {
+            error_setg_errno(errp, errno, "realpath(\"%s\")", devpath);
+        }
         return;
     }
 
