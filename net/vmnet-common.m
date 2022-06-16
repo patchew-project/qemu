@@ -47,7 +47,7 @@ const char *vmnet_status_map_str(vmnet_return_t status)
     case VMNET_TOO_MANY_PACKETS:
         return "packet count exceeds limit";
 #if defined(MAC_OS_VERSION_11_0) && \
-    MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_VERSION_11_0
+    MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_VERSION_11_0
     case VMNET_SHARING_SERVICE_BUSY:
         return "conflict, sharing service is in use";
 #endif
