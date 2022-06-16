@@ -99,6 +99,12 @@ class BaseVM(object):
         self._source_path = args.source_path
         # Allow input config to override defaults.
         self._config = DEFAULT_CONFIG.copy()
+
+        if args.jobs and args.jobs > 4:
+            # Add a gig per every 2 jobs over 4
+            overage = (args.jobs - 4) // 2
+            self._config['memory'] = f"{4 + overage}G"
+
         if config != None:
             self._config.update(config)
         self.validate_ssh_keys()
