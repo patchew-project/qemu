@@ -273,7 +273,8 @@ int error_vprintf(const char *fmt, va_list ap)
     return vfprintf(stderr, fmt, ap);
 }
 
-int error_vprintf_unless_qmp(const char *fmt, va_list ap)
+G_GNUC_PRINTF(1, 0)
+static int error_vprintf_unless_qmp(const char *fmt, va_list ap)
 {
     Monitor *cur_mon = monitor_cur();
 
