@@ -11,7 +11,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "monitor/monitor.h"
 #include "qemu/error-report.h"
 
 /*
@@ -28,6 +27,7 @@ typedef enum {
 bool message_with_timestamp;
 bool error_with_guestname;
 const char *error_guest_name;
+ErrorReportDetailedFunc detailed_fn = NULL;
 
 int error_printf(const char *fmt, ...)
 {
@@ -195,7 +195,7 @@ real_time_iso8601(void)
  */
 static void vreport(report_type type, const char *fmt, va_list ap)
 {
-    bool detailed = !monitor_cur();
+    bool detailed = detailed_fn ? detailed_fn() : TRUE;
     gchar *timestr;
 
     if (message_with_timestamp && detailed) {
@@ -387,7 +387,7 @@ static void qemu_log_func(const gchar *log_domain,
     }
 }
 
-void error_init(const char *argv0)
+void error_init(const char *argv0, ErrorReportDetailedFunc detailed)
 {
     const char *p = strrchr(argv0, '/');
 
@@ -401,4 +401,6 @@ void error_init(const char *argv0)
     g_log_set_default_handler(qemu_log_func, NULL);
     g_warn_if_fail(qemu_glog_domains == NULL);
     qemu_glog_domains = g_strdup(g_getenv("G_MESSAGES_DEBUG"));
+
+    detailed_fn = detailed;
 }

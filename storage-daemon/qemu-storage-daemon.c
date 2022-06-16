@@ -368,13 +368,18 @@ static void pid_file_init(void)
     atexit(pid_file_cleanup);
 }
 
+static bool error_is_detailed(void)
+{
+    return !monitor_cur();
+}
+
 int main(int argc, char *argv[])
 {
 #ifdef CONFIG_POSIX
     signal(SIGPIPE, SIG_IGN);
 #endif
 
-    error_init(argv[0]);
+    error_init(argv[0], error_is_detailed);
     qemu_init_exec_dir(argv[0]);
     os_setup_signal_handling();
 

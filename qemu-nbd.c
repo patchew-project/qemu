@@ -587,7 +587,7 @@ int main(int argc, char **argv)
 #endif
 
     socket_init();
-    error_init(argv[0]);
+    error_init(argv[0], NULL);
     module_call_init(MODULE_INIT_TRACE);
     qcrypto_init(&error_fatal);
 
