@@ -170,9 +170,9 @@ def to_c_string(string: str) -> str:
 
 class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
 
-    def __init__(self, prefix: str, unmask: bool):
+    def __init__(self, prefix: str, include: List[str], unmask: bool):
         super().__init__(
-            prefix, 'qapi-introspect',
+            prefix, include, 'qapi-introspect',
             ' * QAPI/QMP schema introspection', __doc__)
         self._unmask = unmask
         self._schema: Optional[QAPISchema] = None
@@ -180,10 +180,12 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
         self._used_types: List[QAPISchemaType] = []
         self._name_map: Dict[str, str] = {}
         self._genc.add(mcgen('''
-#include "qemu/osdep.h"
+%(include)s
+
 #include "%(prefix)sqapi-introspect.h"
 
 ''',
+                             include=self.genc_include(),
                              prefix=prefix))
 
     def visit_begin(self, schema: QAPISchema) -> None:
@@ -384,7 +386,8 @@ const QLitObject %(c_name)s = %(c_string)s;
 
 
 def gen_introspect(schema: QAPISchema, output_dir: str, prefix: str,
+                   include: List[str],
                    opt_unmask: bool) -> None:
-    vis = QAPISchemaGenIntrospectVisitor(prefix, opt_unmask)
+    vis = QAPISchemaGenIntrospectVisitor(prefix, include, opt_unmask)
     schema.visit(vis)
     vis.write(output_dir)

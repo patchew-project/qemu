@@ -9,7 +9,7 @@ This is the main entry point for generating C code from the QAPI schema.
 
 import argparse
 import sys
-from typing import Optional
+from typing import List, Optional
 
 from .commands import gen_commands
 from .common import must_match
@@ -31,6 +31,7 @@ def invalid_prefix_char(prefix: str) -> Optional[str]:
 def generate(schema_file: str,
              output_dir: str,
              prefix: str,
+             include: List[str],
              unmask: bool = False,
              builtins: bool = False,
              gen_tracing: bool = False) -> None:
@@ -48,11 +49,11 @@ def generate(schema_file: str,
     assert invalid_prefix_char(prefix) is None
 
     schema = QAPISchema(schema_file)
-    gen_types(schema, output_dir, prefix, builtins)
-    gen_visit(schema, output_dir, prefix, builtins)
-    gen_commands(schema, output_dir, prefix, gen_tracing)
-    gen_events(schema, output_dir, prefix)
-    gen_introspect(schema, output_dir, prefix, unmask)
+    gen_types(schema, output_dir, prefix, include, builtins)
+    gen_visit(schema, output_dir, prefix, include, builtins)
+    gen_commands(schema, output_dir, prefix, include, gen_tracing)
+    gen_events(schema, output_dir, prefix, include)
+    gen_introspect(schema, output_dir, prefix, include, unmask)
 
 
 def main() -> int:
@@ -75,6 +76,9 @@ def main() -> int:
     parser.add_argument('-u', '--unmask-non-abi-names', action='store_true',
                         dest='unmask',
                         help="expose non-ABI names in introspection")
+    parser.add_argument('-i', '--include', nargs='*',
+                        default=['qemu/osdep.h'],
+                        help="top-level include headers")
 
     # Option --suppress-tracing exists so we can avoid solving build system
     # problems.  TODO Drop it when we no longer need it.
@@ -94,6 +98,7 @@ def main() -> int:
         generate(args.schema,
                  output_dir=args.output_dir,
                  prefix=args.prefix,
+                 include=args.include,
                  unmask=args.unmask,
                  builtins=args.builtins,
                  gen_tracing=not args.suppress_tracing)

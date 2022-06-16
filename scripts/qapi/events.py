@@ -175,9 +175,9 @@ def gen_event_send(name: str,
 
 class QAPISchemaGenEventVisitor(QAPISchemaModularCVisitor):
 
-    def __init__(self, prefix: str):
+    def __init__(self, prefix: str, include: List[str]):
         super().__init__(
-            prefix, 'qapi-events',
+            prefix, include, 'qapi-events',
             ' * Schema-defined QAPI/QMP events', None, __doc__)
         self._event_enum_name = c_name(prefix + 'QAPIEvent', protect=False)
         self._event_enum_members: List[QAPISchemaEnumMember] = []
@@ -188,7 +188,8 @@ class QAPISchemaGenEventVisitor(QAPISchemaModularCVisitor):
         types = self._module_basename('qapi-types', name)
         visit = self._module_basename('qapi-visit', name)
         self._genc.add(mcgen('''
-#include "qemu/osdep.h"
+%(include)s
+
 #include "%(prefix)sqapi-emit-events.h"
 #include "%(events)s.h"
 #include "%(visit)s.h"
@@ -198,6 +199,7 @@ class QAPISchemaGenEventVisitor(QAPISchemaModularCVisitor):
 #include "qapi/qmp-event.h"
 
 ''',
+                             include=self.genc_include(),
                              events=events, visit=visit,
                              prefix=self._prefix))
         self._genh.add(mcgen('''
@@ -209,9 +211,11 @@ class QAPISchemaGenEventVisitor(QAPISchemaModularCVisitor):
     def visit_end(self) -> None:
         self._add_module('./emit', ' * QAPI Events emission')
         self._genc.preamble_add(mcgen('''
-#include "qemu/osdep.h"
+%(include)s
+
 #include "%(prefix)sqapi-emit-events.h"
 ''',
+                                      include=self.genc_include(),
                                       prefix=self._prefix))
         self._genh.preamble_add(mcgen('''
 #include "qapi/util.h"
@@ -246,7 +250,8 @@ void %(event_emit)s(%(event_enum)s event, QDict *qdict);
 
 def gen_events(schema: QAPISchema,
                output_dir: str,
-               prefix: str) -> None:
-    vis = QAPISchemaGenEventVisitor(prefix)
+               prefix: str,
+               include: List[str]) -> None:
+    vis = QAPISchemaGenEventVisitor(prefix, include)
     schema.visit(vis)
     vis.write(output_dir)
