@@ -1158,7 +1158,7 @@ static void mirror_complete(Job *job, Error **errp)
     /* If the job is paused, it will be re-entered when it is resumed */
     WITH_JOB_LOCK_GUARD() {
         if (!job->paused) {
-            job_enter_cond(job, NULL);
+            job_enter_cond_locked(job, NULL);
         }
     }
 }

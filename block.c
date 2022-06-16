@@ -4979,7 +4979,7 @@ static void bdrv_close(BlockDriverState *bs)
 void bdrv_close_all(void)
 {
     WITH_JOB_LOCK_GUARD() {
-        assert(job_next(NULL) == NULL);
+        assert(job_next_locked(NULL) == NULL);
     }
     GLOBAL_STATE_CODE();
 

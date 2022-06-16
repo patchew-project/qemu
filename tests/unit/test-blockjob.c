@@ -212,7 +212,7 @@ static CancelJob *create_common(Job **pjob)
                   JOB_MANUAL_FINALIZE | JOB_MANUAL_DISMISS);
     job = &bjob->job;
     WITH_JOB_LOCK_GUARD() {
-        job_ref(job);
+        job_ref_locked(job);
         assert(job->status == JOB_STATUS_CREATED);
     }
 
@@ -234,13 +234,13 @@ static void cancel_common(CancelJob *s)
     aio_context_acquire(ctx);
 
     WITH_JOB_LOCK_GUARD() {
-        job_cancel_sync(&job->job, true);
+        job_cancel_sync_locked(&job->job, true);
         if (sts != JOB_STATUS_CREATED && sts != JOB_STATUS_CONCLUDED) {
             Job *dummy = &job->job;
-            job_dismiss(&dummy, &error_abort);
+            job_dismiss_locked(&dummy, &error_abort);
         }
         assert(job->job.status == JOB_STATUS_NULL);
-        job_unref(&job->job);
+        job_unref_locked(&job->job);
     }
     destroy_blk(blk);
 
@@ -288,7 +288,7 @@ static void test_cancel_paused(void)
     assert(job->status == JOB_STATUS_RUNNING);
 
     WITH_JOB_LOCK_GUARD() {
-        job_user_pause(job, &error_abort);
+        job_user_pause_locked(job, &error_abort);
     }
     job_enter(job);
     assert(job->status == JOB_STATUS_PAUSED);
@@ -336,7 +336,7 @@ static void test_cancel_standby(void)
     assert(job->status == JOB_STATUS_READY);
 
     WITH_JOB_LOCK_GUARD() {
-        job_user_pause(job, &error_abort);
+        job_user_pause_locked(job, &error_abort);
     }
     job_enter(job);
     assert(job->status == JOB_STATUS_STANDBY);
@@ -363,7 +363,7 @@ static void test_cancel_pending(void)
     assert(job->status == JOB_STATUS_READY);
 
     WITH_JOB_LOCK_GUARD() {
-        job_complete(job, &error_abort);
+        job_complete_locked(job, &error_abort);
     }
     job_enter(job);
     while (!job->deferred_to_main_loop) {
@@ -395,7 +395,7 @@ static void test_cancel_concluded(void)
     assert(job->status == JOB_STATUS_READY);
 
     WITH_JOB_LOCK_GUARD() {
-        job_complete(job, &error_abort);
+        job_complete_locked(job, &error_abort);
     }
     job_enter(job);
     while (!job->deferred_to_main_loop) {
@@ -407,7 +407,7 @@ static void test_cancel_concluded(void)
 
     aio_context_acquire(job->aio_context);
     WITH_JOB_LOCK_GUARD() {
-        job_finalize(job, &error_abort);
+        job_finalize_locked(job, &error_abort);
     }
     aio_context_release(job->aio_context);
     assert(job->status == JOB_STATUS_CONCLUDED);
@@ -456,7 +456,7 @@ static const BlockJobDriver test_yielding_driver = {
 };
 
 /*
- * Test that job_complete() works even on jobs that are in a paused
+ * Test that job_complete_locked() works even on jobs that are in a paused
  * state (i.e., STANDBY).
  *
  * To do this, run YieldingJob in an IO thread, get it into the READY
@@ -464,7 +464,7 @@ static const BlockJobDriver test_yielding_driver = {
  * acquire the context so the job will not be entered and will thus
  * remain on STANDBY.
  *
- * job_complete() should still work without error.
+ * job_complete_locked() should still work without error.
  *
  * Note that on the QMP interface, it is impossible to lock an IO
  * thread before a drained section ends.  In practice, the
@@ -526,16 +526,16 @@ static void test_complete_in_standby(void)
         assert(job->status == JOB_STATUS_STANDBY);
 
         /* Even though the job is on standby, this should work */
-        job_complete(job, &error_abort);
+        job_complete_locked(job, &error_abort);
 
         /* The test is done now, clean up. */
-        job_finish_sync(job, NULL, &error_abort);
+        job_finish_sync_locked(job, NULL, &error_abort);
         assert(job->status == JOB_STATUS_PENDING);
 
-        job_finalize(job, &error_abort);
+        job_finalize_locked(job, &error_abort);
         assert(job->status == JOB_STATUS_CONCLUDED);
 
-        job_dismiss(&job, &error_abort);
+        job_dismiss_locked(&job, &error_abort);
     }
 
     destroy_blk(blk);

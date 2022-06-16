@@ -1018,7 +1018,7 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
 
     aio_context_acquire(ctx);
     WITH_JOB_LOCK_GUARD() {
-        ret = job_complete_sync(&job->job, &error_abort);
+        ret = job_complete_sync_locked(&job->job, &error_abort);
     }
     g_assert_cmpint(ret, ==, (result == TEST_JOB_SUCCESS ? 0 : -EIO));
 

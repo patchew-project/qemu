@@ -157,7 +157,7 @@ void blockdev_mark_auto_del(BlockBackend *blk)
             AioContext *aio_context = job->job.aio_context;
             aio_context_acquire(aio_context);
 
-            job_cancel(&job->job, false);
+            job_cancel_locked(&job->job, false);
 
             aio_context_release(aio_context);
         }
@@ -1841,7 +1841,7 @@ static void drive_backup_abort(BlkActionState *common)
         aio_context_acquire(aio_context);
 
         WITH_JOB_LOCK_GUARD() {
-            job_cancel_sync(&state->job->job, true);
+            job_cancel_sync_locked(&state->job->job, true);
         }
 
         aio_context_release(aio_context);
@@ -1944,7 +1944,7 @@ static void blockdev_backup_abort(BlkActionState *common)
         aio_context_acquire(aio_context);
 
         WITH_JOB_LOCK_GUARD() {
-            job_cancel_sync(&state->job->job, true);
+            job_cancel_sync_locked(&state->job->job, true);
         }
 
         aio_context_release(aio_context);
@@ -2396,7 +2396,7 @@ exit:
     }
 
     WITH_JOB_LOCK_GUARD() {
-        job_txn_unref(block_job_txn);
+        job_txn_unref_locked(block_job_txn);
     }
 }
 
@@ -3371,14 +3371,14 @@ void qmp_block_job_cancel(const char *device,
         force = false;
     }
 
-    if (job_user_paused(&job->job) && !force) {
+    if (job_user_paused_locked(&job->job) && !force) {
         error_setg(errp, "The block job for device '%s' is currently paused",
                    device);
         goto out;
     }
 
     trace_qmp_block_job_cancel(job);
-    job_user_cancel(&job->job, force, errp);
+    job_user_cancel_locked(&job->job, force, errp);
 out:
     aio_context_release(aio_context);
 }
@@ -3396,7 +3396,7 @@ void qmp_block_job_pause(const char *device, Error **errp)
     }
 
     trace_qmp_block_job_pause(job);
-    job_user_pause(&job->job, errp);
+    job_user_pause_locked(&job->job, errp);
     aio_context_release(aio_context);
 }
 
@@ -3413,7 +3413,7 @@ void qmp_block_job_resume(const char *device, Error **errp)
     }
 
     trace_qmp_block_job_resume(job);
-    job_user_resume(&job->job, errp);
+    job_user_resume_locked(&job->job, errp);
     aio_context_release(aio_context);
 }
 
@@ -3430,7 +3430,7 @@ void qmp_block_job_complete(const char *device, Error **errp)
     }
 
     trace_qmp_block_job_complete(job);
-    job_complete(&job->job, errp);
+    job_complete_locked(&job->job, errp);
     aio_context_release(aio_context);
 }
 
@@ -3447,16 +3447,16 @@ void qmp_block_job_finalize(const char *id, Error **errp)
     }
 
     trace_qmp_block_job_finalize(job);
-    job_ref(&job->job);
-    job_finalize(&job->job, errp);
+    job_ref_locked(&job->job);
+    job_finalize_locked(&job->job, errp);
 
     /*
-     * Job's context might have changed via job_finalize (and job_txn_apply
-     * automatically acquires the new one), so make sure we release the correct
-     * one.
+     * Job's context might have changed via job_finalize_locked
+     * (and job_txn_apply automatically acquires the new one),
+     * so make sure we release the correct one.
      */
     aio_context = block_job_get_aio_context(job);
-    job_unref(&job->job);
+    job_unref_locked(&job->job);
     aio_context_release(aio_context);
 }
 
@@ -3475,7 +3475,7 @@ void qmp_block_job_dismiss(const char *id, Error **errp)
 
     trace_qmp_block_job_dismiss(bjob);
     job = &bjob->job;
-    job_dismiss(&job, errp);
+    job_dismiss_locked(&job, errp);
     aio_context_release(aio_context);
 }
 

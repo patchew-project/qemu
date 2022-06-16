@@ -65,7 +65,7 @@ BlockJob *block_job_next(BlockJob *bjob)
     GLOBAL_STATE_CODE();
 
     do {
-        job = job_next(job);
+        job = job_next_locked(job);
     } while (job && !is_block_job(job));
 
     return job ? container_of(job, BlockJob, job) : NULL;
@@ -73,7 +73,7 @@ BlockJob *block_job_next(BlockJob *bjob)
 
 BlockJob *block_job_get(const char *id)
 {
-    Job *job = job_get(id);
+    Job *job = job_get_locked(id);
     GLOBAL_STATE_CODE();
 
     if (job && is_block_job(job)) {
@@ -103,7 +103,7 @@ static void child_job_drained_begin(BdrvChild *c)
 {
     BlockJob *job = c->opaque;
     WITH_JOB_LOCK_GUARD() {
-        job_pause(&job->job);
+        job_pause_locked(&job->job);
     }
 }
 
@@ -135,7 +135,7 @@ static void child_job_drained_end(BdrvChild *c, int *drained_end_counter)
 {
     BlockJob *job = c->opaque;
     WITH_JOB_LOCK_GUARD() {
-        job_resume(&job->job);
+        job_resume_locked(&job->job);
     }
 }
 
@@ -284,7 +284,7 @@ bool block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 
     GLOBAL_STATE_CODE();
 
-    if (job_apply_verb(&job->job, JOB_VERB_SET_SPEED, errp) < 0) {
+    if (job_apply_verb_locked(&job->job, JOB_VERB_SET_SPEED, errp) < 0) {
         return false;
     }
     if (speed < 0) {
@@ -308,7 +308,7 @@ bool block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
     }
 
     /* kick only if a timer is pending */
-    job_enter_cond(&job->job, job_timer_pending);
+    job_enter_cond_locked(&job->job, job_timer_pending);
 
     return true;
 }
@@ -563,7 +563,7 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
     if (action == BLOCK_ERROR_ACTION_STOP) {
         WITH_JOB_LOCK_GUARD() {
             if (!job->job.user_paused) {
-                job_pause(&job->job);
+                job_pause_locked(&job->job);
                 /*
                  * make the pause user visible, which will be
                  * resumed from QMP.
