@@ -10,6 +10,10 @@ config SGX
     bool
     depends on KVM
 
+config POST_CARD
+    bool
+    depends on ISA_BUS
+
 config PC
     bool
     imply APPLESMC
@@ -40,6 +44,7 @@ config PC
     select PCSPK
     select I8257
     select MC146818RTC
+    select POST_CARD
     # For ACPI builder:
     select SERIAL_ISA
     select ACPI_PCI

@@ -32,6 +32,7 @@
 #include "hw/i386/topology.h"
 #include "hw/i386/fw_cfg.h"
 #include "hw/i386/vmport.h"
+#include "hw/i386/postcard.h"
 #include "sysemu/cpus.h"
 #include "hw/block/fdc.h"
 #include "hw/ide.h"
@@ -401,16 +402,6 @@ GSIState *pc_gsi_create(qemu_irq **irqs, bool pci_enabled)
     *irqs = qemu_allocate_irqs(gsi_handler, s, GSI_NUM_PINS);
 
     return s;
-}
-
-static void ioport80_write(void *opaque, hwaddr addr, uint64_t data,
-                           unsigned size)
-{
-}
-
-static uint64_t ioport80_read(void *opaque, hwaddr addr, unsigned size)
-{
-    return 0xffffffffffffffffULL;
 }
 
 /* MSDOS compatibility mode FPU exception support */
@@ -1059,16 +1050,6 @@ DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus)
     return dev;
 }
 
-static const MemoryRegionOps ioport80_io_ops = {
-    .write = ioport80_write,
-    .read = ioport80_read,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl = {
-        .min_access_size = 1,
-        .max_access_size = 1,
-    },
-};
-
 static const MemoryRegionOps ioportF0_io_ops = {
     .write = ioportF0_write,
     .read = ioportF0_read,
@@ -1139,12 +1120,10 @@ void pc_basic_device_init(struct PCMachineState *pcms,
     qemu_irq pit_alt_irq = NULL;
     qemu_irq rtc_irq = NULL;
     ISADevice *pit = NULL;
-    MemoryRegion *ioport80_io = g_new(MemoryRegion, 1);
     MemoryRegion *ioportF0_io = g_new(MemoryRegion, 1);
     X86MachineState *x86ms = X86_MACHINE(pcms);
 
-    memory_region_init_io(ioport80_io, NULL, &ioport80_io_ops, NULL, "ioport80", 1);
-    memory_region_add_subregion(isa_bus->address_space_io, 0x80, ioport80_io);
+    (void)post_card_init(isa_bus, POST_CARD_PORT_DEFAULT);
 
     memory_region_init_io(ioportF0_io, NULL, &ioportF0_io_ops, NULL, "ioportF0", 1);
     memory_region_add_subregion(isa_bus->address_space_io, 0xf0, ioportF0_io);

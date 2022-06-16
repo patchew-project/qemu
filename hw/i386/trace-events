@@ -119,3 +119,6 @@ x86_pic_interrupt(int irqn, int level) "PIC interrupt #%d level:%d"
 # port92.c
 port92_read(uint8_t val) "port92: read 0x%02x"
 port92_write(uint8_t val) "port92: write 0x%02x"
+
+# postcard.c
+post_card_write(uint8_t new_val, uint8_t old_val) "[%.2x %.2x]"
