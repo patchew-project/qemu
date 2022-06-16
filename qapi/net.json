@@ -167,6 +167,8 @@
 #
 # @tftp-server-name: RFC2132 "TFTP server name" string (Since 3.1)
 #
+# @mfr-id: Manufacturer ID (Private Enterprise Number: IANA)
+#
 # Since: 1.2
 ##
 { 'struct': 'NetdevUserOptions',
@@ -192,7 +194,8 @@
     '*smbserver': 'str',
     '*hostfwd':   ['String'],
     '*guestfwd':  ['String'],
-    '*tftp-server-name': 'str' } }
+    '*tftp-server-name': 'str',
+    '*mfr-id': 'uint32' } }
 
 ##
 # @NetdevTapOptions:
