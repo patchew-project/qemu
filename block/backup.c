@@ -316,8 +316,8 @@ static void coroutine_fn backup_set_speed(BlockJob *job, int64_t speed)
     BackupBlockJob *s = container_of(job, BackupBlockJob, common);
 
     /*
-     * block_job_set_speed() is called first from block_job_create(), when we
-     * don't yet have s->bcs.
+     * block_job_set_speed_locked() is called first from block_job_create(),
+     * when we don't yet have s->bcs.
      */
     if (s->bcs) {
         block_copy_set_speed(s->bcs, speed);
