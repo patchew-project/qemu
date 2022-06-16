@@ -169,6 +169,8 @@
 #
 # @mfr-id: Manufacturer ID (Private Enterprise Number: IANA)
 #
+# @oob-eth-addr: Out-of-band ethernet address for BMC
+#
 # Since: 1.2
 ##
 { 'struct': 'NetdevUserOptions',
@@ -195,7 +197,8 @@
     '*hostfwd':   ['String'],
     '*guestfwd':  ['String'],
     '*tftp-server-name': 'str',
-    '*mfr-id': 'uint32' } }
+    '*mfr-id': 'uint32',
+    '*oob-eth-addr': 'str' } }
 
 ##
 # @NetdevTapOptions:
