@@ -2771,15 +2771,22 @@ void kvm_cpu_synchronize_post_reset(CPUState *cpu)
     run_on_cpu(cpu, do_kvm_cpu_synchronize_post_reset, RUN_ON_CPU_NULL);
 }
 
-static void do_kvm_cpu_synchronize_post_init(CPUState *cpu, run_on_cpu_data arg)
+static void do_kvm_cpu_synchronize_post_init(CPUState *cpu, run_on_cpu_data arg,
+                                             Error **errp)
 {
-    kvm_arch_put_registers(cpu, KVM_PUT_FULL_STATE);
+    int ret = kvm_arch_put_registers(cpu, KVM_PUT_FULL_STATE);
+
+    if (ret) {
+        error_setg(errp, "kvm_arch_put_registers() failed with retval=%d", ret);
+        return;
+    }
+
     cpu->vcpu_dirty = false;
 }
 
 void kvm_cpu_synchronize_post_init(CPUState *cpu, Error **errp)
 {
-    run_on_cpu(cpu, do_kvm_cpu_synchronize_post_init, RUN_ON_CPU_NULL);
+    run_on_cpu2(cpu, do_kvm_cpu_synchronize_post_init, RUN_ON_CPU_NULL, errp);
 }
 
 static void do_kvm_cpu_synchronize_pre_loadvm(CPUState *cpu, run_on_cpu_data arg)

@@ -151,7 +151,10 @@ void cpu_synchronize_all_post_init(Error **errp)
     CPUState *cpu;
 
     CPU_FOREACH(cpu) {
-        cpu_synchronize_post_init(cpu);
+        cpu_synchronize_post_init_full(cpu, errp);
+        if (errp && *errp) {
+            break;
+        }
     }
 }
 
