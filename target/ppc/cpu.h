@@ -47,6 +47,11 @@
                                  PPC_BIT32(bs))
 #define PPC_BITMASK8(bs, be)    ((PPC_BIT8(bs) - PPC_BIT8(be)) | PPC_BIT8(bs))
 
+#define GETFIELD(mask, word)   \
+    (((word) & (mask)) >> __builtin_ctzl(mask))
+#define SETFIELD(mask, word, val)   \
+    (((word) & ~(mask)) | (((uint64_t)(val) << __builtin_ctzl(mask)) & (mask)))
+
 /*****************************************************************************/
 /* Exception vectors definitions                                             */
 enum {
