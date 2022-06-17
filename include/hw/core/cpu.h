@@ -710,6 +710,19 @@ void do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data,
                    QemuMutex *mutex);
 
 /**
+ * do_run_on_cpu2:
+ * @cpu: The vCPU to run on.
+ * @func2: The function to be executed.
+ * @data: Data to pass to the function.
+ * @mutex: Mutex to release while waiting for @func2 to run.
+ * @errp: The Error** pointer to be passed into @func2.
+ *
+ * Used internally in the implementation of run_on_cpu2.
+ */
+void do_run_on_cpu2(CPUState *cpu, run_on_cpu_func2 func2, run_on_cpu_data data,
+                    QemuMutex *mutex, Error **errp);
+
+/**
  * run_on_cpu:
  * @cpu: The vCPU to run on.
  * @func: The function to be executed.
@@ -718,6 +731,19 @@ void do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data,
  * Schedules the function @func for execution on the vCPU @cpu.
  */
 void run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data);
+
+/**
+ * run_on_cpu2:
+ * @cpu: The vCPU to run on.
+ * @func: The function to be executed.
+ * @data: Data to pass to the function.
+ * @errp: The Error** pointer to be passed into @func2.
+ *
+ * Schedules the function @func2 for execution on the vCPU @cpu, capture
+ * any error and put it into *@errp when provided.
+ */
+void run_on_cpu2(CPUState *cpu, run_on_cpu_func2 func2, run_on_cpu_data data,
+                 Error **errp);
 
 /**
  * async_run_on_cpu:

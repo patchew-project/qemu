@@ -167,6 +167,33 @@ void do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data,
     }
 }
 
+void do_run_on_cpu2(CPUState *cpu, run_on_cpu_func2 func2, run_on_cpu_data data,
+                    QemuMutex *mutex, Error **errp)
+{
+    struct qemu_work_item wi;
+
+    if (qemu_cpu_is_self(cpu)) {
+        func2(cpu, data, errp);
+        return;
+    }
+
+    wi.func2 = func2;
+    wi.data = data;
+    wi.done = false;
+    wi.free = false;
+    wi.exclusive = false;
+    wi.has_errp = true;
+    wi.errp = errp;
+
+    queue_work_on_cpu(cpu, &wi);
+    while (!qatomic_mb_read(&wi.done)) {
+        CPUState *self_cpu = current_cpu;
+
+        qemu_cond_wait(&qemu_work_cond, mutex);
+        current_cpu = self_cpu;
+    }
+}
+
 void async_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data)
 {
     struct qemu_work_item *wi;
