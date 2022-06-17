@@ -28,7 +28,66 @@ from .schema import (
 )
 from .source import QAPISourceInfo
 
+# Only variable is @unm_cases to handle
+# all events's names and associated types.
+TEMPLATE_EVENT = '''
+type Timestamp struct {{
+    Seconds      int64 `json:"seconds"`
+    Microseconds int64 `json:"microseconds"`
+}}
 
+type Event interface {{
+    GetName()      string
+    GetTimestamp() Timestamp
+}}
+
+func MarshalEvent(e Event) ([]byte, error) {{
+    baseStruct := struct {{
+        Name           string    `json:"event"`
+        EventTimestamp Timestamp `json:"timestamp"`
+    }}{{
+        Name:           e.GetName(),
+        EventTimestamp: e.GetTimestamp(),
+    }}
+    base, err := json.Marshal(baseStruct)
+    if err != nil {{
+        return []byte{{}}, err
+    }}
+
+    dataStruct := struct {{
+        Payload Event `json:"data"`
+    }}{{
+        Payload: e,
+    }}
+    data, err := json.Marshal(dataStruct)
+    if err != nil {{
+        return []byte{{}}, err
+    }}
+
+    if len(data) == len(`{{"data":{{}}}}`) {{
+        return base, nil
+    }}
+
+    // Combines Event's base and data in a single JSON object
+    result := fmt.Sprintf("%s,%s", base[:len(base)-1], data[1:])
+    return []byte(result), nil
+}}
+
+func UnmarshalEvent(data []byte) (Event, error) {{
+    base := struct {{
+        Name           string    `json:"event"`
+        EventTimestamp Timestamp `json:"timestamp"`
+    }}{{}}
+    if err := json.Unmarshal(data, &base); err != nil {{
+        return nil, errors.New(fmt.Sprintf("Failed to decode event: %s", string(data)))
+    }}
+
+    switch base.Name {{
+    {unm_cases}
+    }}
+    return nil, errors.New("Failed to recognize event")
+}}
+'''
 TEMPLATE_HELPER = '''
 // Alias for go version lower than 1.18
 type Any = interface{}
@@ -53,10 +112,12 @@ class QAPISchemaGenGolangVisitor(QAPISchemaVisitor):
 
     def __init__(self, prefix: str):
         super().__init__()
-        self.target = {name: "" for name in ["alternate", "enum", "helper", "struct",
+        self.target = {name: "" for name in ["alternate", "enum",
+                                             "event", "helper", "struct",
                                              "union"]}
         self.objects_seen = {}
         self.schema = None
+        self.events = {}
         self.golang_package_name = "qapi"
 
     def visit_begin(self, schema):
@@ -70,6 +131,24 @@ class QAPISchemaGenGolangVisitor(QAPISchemaVisitor):
 
     def visit_end(self):
         self.schema = None
+
+        unm_cases = ""
+        for name in sorted(self.events):
+            case_type = self.events[name]
+            unm_cases += f'''
+    case "{name}":
+        event := struct {{
+            Data {case_type} `json:"data"`
+        }}{{}}
+
+        if err := json.Unmarshal(data, &event); err != nil {{
+            return nil, errors.New(fmt.Sprintf("Failed to unmarshal: %s", string(data)))
+        }}
+        event.Data.EventTimestamp = base.EventTimestamp
+        return &event.Data, nil
+'''
+        self.target["event"] += TEMPLATE_EVENT.format(unm_cases=unm_cases)
+
 
     def visit_object_type(self: QAPISchemaGenGolangVisitor,
                           name: str,
@@ -232,7 +311,37 @@ const (
         pass
 
     def visit_event(self, name, info, ifcond, features, arg_type, boxed):
-        pass
+        assert name == info.defn_name
+        type_name = qapi_to_go_type_name(name, info.defn_meta)
+        self.events[name] = type_name
+
+        self_contained = True
+        if arg_type and arg_type.name.startswith("q_obj"):
+            self_contained = False
+
+        content = ""
+        if self_contained:
+            content = generate_struct_type(type_name, '''EventTimestamp Timestamp `json:"-"`''')
+        else:
+            assert isinstance(arg_type, QAPISchemaObjectType)
+            content = qapi_to_golang_struct(name,
+                                            arg_type.info,
+                                            arg_type.ifcond,
+                                            arg_type.features,
+                                            arg_type.base,
+                                            arg_type.members,
+                                            arg_type.variants)
+
+        methods = f'''
+func (s *{type_name}) GetName() string {{
+    return "{name}"
+}}
+
+func (s *{type_name}) GetTimestamp() Timestamp {{
+    return s.EventTimestamp
+}}
+'''
+        self.target["event"] += content + methods
 
     def write(self, output_dir: str) -> None:
         for module_name, content in self.target.items():
@@ -274,6 +383,8 @@ def qapi_to_golang_struct(name: str,
     type_name = qapi_to_go_type_name(name, info.defn_meta)
 
     fields = ""
+    if info.defn_meta == "event":
+        fields += '''\tEventTimestamp Timestamp `json:"-"`\n'''
 
     if base:
         base_fields = ""
@@ -457,4 +568,9 @@ def qapi_to_go_type_name(name: str, meta: str) -> str:
         name = name.title()
 
     name += ''.join(word.title() for word in words[1:])
+
+    if meta in ["event"]:
+        name = name[:-3] if name.endswith("Arg") else name
+        name += meta.title().replace(" ", "")
+
     return name
