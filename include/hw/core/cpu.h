@@ -252,6 +252,8 @@ typedef union {
 #define RUN_ON_CPU_NULL           RUN_ON_CPU_HOST_PTR(NULL)
 
 typedef void (*run_on_cpu_func)(CPUState *cpu, run_on_cpu_data data);
+/* Same as run_on_cpu_func but allows to return an error */
+typedef void (*run_on_cpu_func2)(CPUState *cpu, run_on_cpu_data data, Error **errp);
 
 struct qemu_work_item;
 

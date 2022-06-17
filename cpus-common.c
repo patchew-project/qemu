@@ -116,9 +116,20 @@ __thread CPUState *current_cpu;
 
 struct qemu_work_item {
     QSIMPLEQ_ENTRY(qemu_work_item) node;
-    run_on_cpu_func func;
+    union {
+        run_on_cpu_func func;     /* When has_errp==false */
+        run_on_cpu_func2 func2;   /* When has_errp==true  */
+    };
     run_on_cpu_data data;
     bool free, exclusive, done;
+
+    /*
+     * Below are only used by v2 of work item, where we allow to return
+     * errors for cpu work items.  When has_errp==true, then: (1) we call
+     * func2 rather than func, and (2) we pass in errp into func2() call.
+     */
+    bool has_errp;
+    Error **errp;
 };
 
 static void queue_work_on_cpu(CPUState *cpu, struct qemu_work_item *wi)
@@ -314,6 +325,17 @@ void async_safe_run_on_cpu(CPUState *cpu, run_on_cpu_func func,
     queue_work_on_cpu(cpu, wi);
 }
 
+static void process_one_work_item(struct qemu_work_item *wi, CPUState *cpu)
+{
+    if (wi->has_errp) {
+        /* V2 of work item, allows errors */
+        wi->func2(cpu, wi->data, wi->errp);
+    } else {
+        /* Old version of work item, no error returned */
+        wi->func(cpu, wi->data);
+    }
+}
+
 void process_queued_cpu_work(CPUState *cpu)
 {
     struct qemu_work_item *wi;
@@ -336,11 +358,11 @@ void process_queued_cpu_work(CPUState *cpu)
              */
             qemu_mutex_unlock_iothread();
             start_exclusive();
-            wi->func(cpu, wi->data);
+            process_one_work_item(wi, cpu);
             end_exclusive();
             qemu_mutex_lock_iothread();
         } else {
-            wi->func(cpu, wi->data);
+            process_one_work_item(wi, cpu);
         }
         qemu_mutex_lock(&cpu->work_mutex);
         if (wi->free) {
