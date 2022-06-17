@@ -53,7 +53,8 @@ class QAPISchemaGenGolangVisitor(QAPISchemaVisitor):
 
     def __init__(self, prefix: str):
         super().__init__()
-        self.target = {name: "" for name in ["alternate", "enum", "helper", "struct"]}
+        self.target = {name: "" for name in ["alternate", "enum", "helper", "struct",
+                                             "union"]}
         self.objects_seen = {}
         self.schema = None
         self.golang_package_name = "qapi"
@@ -79,10 +80,14 @@ class QAPISchemaGenGolangVisitor(QAPISchemaVisitor):
                           members: List[QAPISchemaObjectTypeMember],
                           variants: Optional[QAPISchemaVariants]
                           ) -> None:
-        # Do not handle anything besides structs
+        # Do not handle anything besides struct and unions.
         if (name == self.schema.the_empty_object_type.name or
                 not isinstance(name, str) or
-                info.defn_meta not in ["struct"]):
+                info.defn_meta not in ["struct", "union"]):
+            return
+
+        # Base structs are embed
+        if qapi_name_is_base(name):
             return
 
         # Safety checks.
@@ -110,6 +115,10 @@ class QAPISchemaGenGolangVisitor(QAPISchemaVisitor):
                                                              base,
                                                              members,
                                                              variants)
+        if info.defn_meta == "union":
+            self.target[info.defn_meta] += qapi_to_golang_methods_union(name,
+                                                                        info,
+                                                                        variants)
 
     def visit_alternate_type(self: QAPISchemaGenGolangVisitor,
                              name: str,
@@ -311,12 +320,97 @@ def qapi_to_golang_struct(name: str,
             # Variant's are handled in the Marshal/Unmarshal methods
             fieldtag = '`json:"-"`'
             fields += f"\t{field} *{member_type}{fieldtag}\n"
-            member_type = qapi_schema_type_to_go_type(var.type.name)
-            # Variant's are handled in the Marshal/Unmarshal methods
-            fieldtag = '`json:"-"`'
-            fields += f"\t{field} *{member_type}{fieldtag}\n"
 
     return generate_struct_type(type_name, fields)
+
+
+def qapi_to_golang_methods_union(name: str,
+                                 info: Optional[QAPISourceInfo],
+                                 variants: Optional[QAPISchemaVariants]
+                                 ) -> str:
+
+    type_name = qapi_to_go_type_name(name, info.defn_meta)
+
+    driverCases = ""
+    checkFields = ""
+    if variants:
+        for var in variants.variants:
+            if var.type.is_implicit():
+                continue
+
+            field = qapi_to_field_name(var.name)
+            member_type = qapi_schema_type_to_go_type(var.type.name)
+
+            if len(checkFields) > 0:
+                checkFields += "\t} else "
+            checkFields += f'''if s.{field} != nil {{
+        driver = "{var.name}"
+        payload, err = json.Marshal(s.{field})
+'''
+            # for Unmarshal method
+            driverCases += f'''
+    case "{var.name}":
+        s.{field} = new({member_type})
+        if err := json.Unmarshal(data, s.{field}); err != nil {{
+            s.{field} = nil
+            return err
+        }}'''
+
+        checkFields += "}"
+
+    return f'''
+func (s {type_name}) MarshalJSON() ([]byte, error) {{
+    type Alias {type_name}
+    alias := Alias(s)
+    base, err := json.Marshal(alias)
+    if err != nil {{
+        return nil, err
+    }}
+
+    driver := ""
+    payload := []byte{{}}
+    {checkFields}
+
+    if err != nil {{
+        return nil, err
+    }}
+
+    if len(base) == len("{{}}") {{
+        base = []byte("")
+    }} else {{
+        base = append([]byte{{','}}, base[1:len(base)-1]...)
+    }}
+
+    if len(payload) == 0 || len(payload) == len("{{}}") {{
+        payload = []byte("")
+    }} else {{
+        payload = append([]byte{{','}}, payload[1:len(payload)-1]...)
+    }}
+
+    result := fmt.Sprintf(`{{"{variants.tag_member.name}":"%s"%s%s}}`, driver, base, payload)
+    return []byte(result), nil
+}}
+
+func (s *{type_name}) UnmarshalJSON(data []byte) error {{
+    type Alias {type_name}
+    peek := struct {{
+        Alias
+        Driver string `json:"{variants.tag_member.name}"`
+    }}{{}}
+
+
+    if err := json.Unmarshal(data, &peek); err != nil {{
+        return err
+    }}
+    *s = {type_name}(peek.Alias)
+
+    switch peek.Driver {{
+    {driverCases}
+    }}
+    // Unrecognizer drivers are silently ignored.
+    return nil
+}}
+'''
 
 
 def qapi_schema_type_to_go_type(type: str) -> str:
@@ -343,6 +437,10 @@ def qapi_to_field_name_enum(name: str) -> str:
 
 def qapi_to_field_name(name: str) -> str:
     return name.title().replace("_", "").replace("-", "")
+
+
+def qapi_name_is_base(name: str) -> bool:
+    return name.startswith("q_obj_") and name.endswith("-base")
 
 
 def qapi_to_go_type_name(name: str, meta: str) -> str:
