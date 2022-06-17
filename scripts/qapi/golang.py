@@ -88,6 +88,63 @@ func UnmarshalEvent(data []byte) (Event, error) {{
     return nil, errors.New("Failed to recognize event")
 }}
 '''
+
+# Only variable is @unm_cases to handle all command's names and associated types.
+TEMPLATE_COMMAND = '''
+type Command interface {{
+    GetId()         string
+    GetName()       string
+    GetReturnType() CommandReturn
+}}
+
+func MarshalCommand(c Command) ([]byte, error) {{
+    baseStruct := struct {{
+        CommandId   string `json:"id,omitempty"`
+        Name        string `json:"execute"`
+    }}{{
+        CommandId: c.GetId(),
+        Name:      c.GetName(),
+    }}
+    base, err := json.Marshal(baseStruct)
+    if err != nil {{
+        return []byte{{}}, err
+    }}
+
+    argsStruct := struct {{
+        Args Command `json:"arguments,omitempty"`
+    }}{{
+        Args: c,
+    }}
+    args, err := json.Marshal(argsStruct)
+    if err != nil {{
+        return []byte{{}}, err
+    }}
+
+    if len(args) == len(`{{"arguments":{{}}}}`) {{
+        return base, nil
+    }}
+
+    // Combines Event's base and data in a single JSON object
+    result := fmt.Sprintf("%s,%s", base[:len(base)-1], args[1:])
+    return []byte(result), nil
+}}
+
+func UnmarshalCommand(data []byte) (Command, error) {{
+    base := struct {{
+        CommandId string `json:"id,omitempty"`
+        Name      string `json:"execute"`
+    }}{{}}
+    if err := json.Unmarshal(data, &base); err != nil {{
+        return nil, errors.New(fmt.Sprintf("Failed to decode command: %s", string(data)))
+    }}
+
+    switch base.Name {{
+    {unm_cases}
+    }}
+    return nil, errors.New("Failed to recognize command")
+}}
+'''
+
 TEMPLATE_HELPER = '''
 // Alias for go version lower than 1.18
 type Any = interface{}
@@ -112,12 +169,13 @@ class QAPISchemaGenGolangVisitor(QAPISchemaVisitor):
 
     def __init__(self, prefix: str):
         super().__init__()
-        self.target = {name: "" for name in ["alternate", "enum",
+        self.target = {name: "" for name in ["alternate", "command", "enum",
                                              "event", "helper", "struct",
                                              "union"]}
         self.objects_seen = {}
         self.schema = None
         self.events = {}
+        self.commands = {}
         self.golang_package_name = "qapi"
 
     def visit_begin(self, schema):
@@ -148,6 +206,23 @@ class QAPISchemaGenGolangVisitor(QAPISchemaVisitor):
         return &event.Data, nil
 '''
         self.target["event"] += TEMPLATE_EVENT.format(unm_cases=unm_cases)
+
+        unm_cases = ""
+        for name in sorted(self.commands):
+            case_type = self.commands[name]
+            unm_cases += f'''
+    case "{name}":
+        command := struct {{
+            Args {case_type} `json:"arguments"`
+        }}{{}}
+
+        if err := json.Unmarshal(data, &command); err != nil {{
+            return nil, errors.New(fmt.Sprintf("Failed to unmarshal: %s", string(data)))
+        }}
+        command.Args.CommandId = base.CommandId
+        return &command.Args, nil
+'''
+        self.target["command"] += TEMPLATE_COMMAND.format(unm_cases=unm_cases)
 
 
     def visit_object_type(self: QAPISchemaGenGolangVisitor,
@@ -308,7 +383,47 @@ const (
                       allow_oob: bool,
                       allow_preconfig: bool,
                       coroutine: bool) -> None:
-        pass
+        # Safety check
+        assert name == info.defn_name
+
+        type_name = qapi_to_go_type_name(name, info.defn_meta)
+        self.commands[name] = type_name
+        command_ret = ""
+        init_ret_type_name = f'''EmptyCommandReturn {{ Name: "{name}" }}'''
+
+        self_contained = True
+        if arg_type and arg_type.name.startswith("q_obj"):
+            self_contained = False
+
+        content = ""
+        if boxed or self_contained:
+            args = "" if not arg_type else "\n" + arg_type.name
+            args += '''\n\tCommandId   string `json:"-"`'''
+            content = generate_struct_type(type_name, args)
+        else:
+            assert isinstance(arg_type, QAPISchemaObjectType)
+            content = qapi_to_golang_struct(name,
+                                            arg_type.info,
+                                            arg_type.ifcond,
+                                            arg_type.features,
+                                            arg_type.base,
+                                            arg_type.members,
+                                            arg_type.variants)
+
+        methods = f'''
+func (c *{type_name}) GetName() string {{
+    return "{name}"
+}}
+
+func (s *{type_name}) GetId() string {{
+    return s.CommandId
+}}
+
+func (s *{type_name}) GetReturnType() CommandReturn {{
+    return &{init_ret_type_name}
+}}
+'''
+        self.target["command"] += content + methods
 
     def visit_event(self, name, info, ifcond, features, arg_type, boxed):
         assert name == info.defn_name
@@ -385,6 +500,8 @@ def qapi_to_golang_struct(name: str,
     fields = ""
     if info.defn_meta == "event":
         fields += '''\tEventTimestamp Timestamp `json:"-"`\n'''
+    elif info.defn_meta == "command":
+        fields += '''\tCommandId string `json:"-"`\n'''
 
     if base:
         base_fields = ""
@@ -569,7 +686,7 @@ def qapi_to_go_type_name(name: str, meta: str) -> str:
 
     name += ''.join(word.title() for word in words[1:])
 
-    if meta in ["event"]:
+    if meta in ["event", "command"]:
         name = name[:-3] if name.endswith("Arg") else name
         name += meta.title().replace(" ", "")
 
