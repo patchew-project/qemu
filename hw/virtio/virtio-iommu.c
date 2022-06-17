@@ -708,7 +708,8 @@ static int virtio_iommu_handle_probe(VirtIOIOMMU *s,
                                      uint8_t *buf)
 {
     struct virtio_iommu_req_probe req;
-    int ret = virtio_iommu_iov_to_req(iov, iov_cnt, &req, sizeof(req));
+    int ret = virtio_iommu_iov_to_req(iov, iov_cnt, &req,
+                    sizeof(req) + sizeof(struct virtio_iommu_req_tail));
 
     return ret ? ret : virtio_iommu_probe(s, &req, buf);
 }
