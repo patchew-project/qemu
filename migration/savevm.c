@@ -2005,7 +2005,17 @@ static void loadvm_postcopy_handle_run_bh(void *opaque)
     /* TODO we should move all of this lot into postcopy_ram.c or a shared code
      * in migration.c
      */
-    cpu_synchronize_all_post_init();
+    cpu_synchronize_all_post_init(&local_err);
+    if (local_err) {
+        /*
+         * TODO: a better way to do this is to tell the src that we cannot
+         * run the VM here so hopefully we can keep the VM running on src
+         * and immediately halt the switch-over.  But that needs work.
+         */
+        error_report_err(local_err);
+        local_err = NULL;
+        autostart = false;
+    }
 
     trace_loadvm_postcopy_handle_run_bh("after cpu sync");
 
@@ -2772,7 +2782,11 @@ int qemu_loadvm_state(QEMUFile *f)
     }
 
     qemu_loadvm_state_cleanup();
-    cpu_synchronize_all_post_init();
+    cpu_synchronize_all_post_init(&local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        return -EINVAL;
+    }
 
     return ret;
 }
@@ -2789,7 +2803,7 @@ int qemu_load_device_state(QEMUFile *f)
         return ret;
     }
 
-    cpu_synchronize_all_post_init();
+    cpu_synchronize_all_post_init(NULL);
     return 0;
 }
 

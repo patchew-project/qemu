@@ -1419,7 +1419,7 @@ void qemu_remove_machine_init_done_notifier(Notifier *notify)
 
 void qdev_machine_creation_done(void)
 {
-    cpu_synchronize_all_post_init();
+    cpu_synchronize_all_post_init(NULL);
 
     if (current_machine->boot_config.has_once) {
         qemu_boot_set(current_machine->boot_config.once, &error_fatal);
