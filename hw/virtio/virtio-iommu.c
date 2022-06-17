@@ -656,19 +656,16 @@ static int virtio_iommu_probe(VirtIOIOMMU *s,
                               uint8_t *buf)
 {
     uint32_t ep_id = le32_to_cpu(req->endpoint);
-    size_t free = VIOMMU_PROBE_SIZE;
     ssize_t count;
 
     if (!virtio_iommu_mr(s, ep_id)) {
         return VIRTIO_IOMMU_S_NOENT;
     }
 
-    count = virtio_iommu_fill_resv_mem_prop(s, ep_id, buf, free);
+    count = virtio_iommu_fill_resv_mem_prop(s, ep_id, buf, VIOMMU_PROBE_SIZE);
     if (count < 0) {
         return VIRTIO_IOMMU_S_INVAL;
     }
-    buf += count;
-    free -= count;
 
     return VIRTIO_IOMMU_S_OK;
 }
@@ -708,7 +705,8 @@ static int virtio_iommu_handle_probe(VirtIOIOMMU *s,
                                      uint8_t *buf)
 {
     struct virtio_iommu_req_probe req;
-    int ret = virtio_iommu_iov_to_req(iov, iov_cnt, &req, sizeof(req));
+    int ret = virtio_iommu_iov_to_req(iov, iov_cnt, &req,
+                    sizeof(req) + sizeof(struct virtio_iommu_req_tail));
 
     return ret ? ret : virtio_iommu_probe(s, &req, buf);
 }
