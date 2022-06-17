@@ -178,11 +178,17 @@ void cpu_synchronize_post_reset(CPUState *cpu)
     }
 }
 
-void cpu_synchronize_post_init(CPUState *cpu)
+void cpu_synchronize_post_init_full(CPUState *cpu, Error **errp)
 {
     if (cpus_accel->synchronize_post_init) {
-        cpus_accel->synchronize_post_init(cpu);
+        cpus_accel->synchronize_post_init(cpu, errp);
     }
+}
+
+void cpu_synchronize_post_init(CPUState *cpu)
+{
+    /* errp=NULL means we won't capture any error */
+    cpu_synchronize_post_init_full(cpu, NULL);
 }
 
 void cpu_synchronize_pre_loadvm(CPUState *cpu)

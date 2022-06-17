@@ -869,7 +869,7 @@ void nvmm_cpu_synchronize_post_reset(CPUState *cpu)
     run_on_cpu(cpu, do_nvmm_cpu_synchronize_post_reset, RUN_ON_CPU_NULL);
 }
 
-void nvmm_cpu_synchronize_post_init(CPUState *cpu)
+void nvmm_cpu_synchronize_post_init(CPUState *cpu, Error **errp)
 {
     run_on_cpu(cpu, do_nvmm_cpu_synchronize_post_init, RUN_ON_CPU_NULL);
 }

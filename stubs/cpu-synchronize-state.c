@@ -7,3 +7,6 @@ void cpu_synchronize_state(CPUState *cpu)
 void cpu_synchronize_post_init(CPUState *cpu)
 {
 }
+void cpu_synchronize_post_init_full(CPUState *cpu, Error **errp)
+{
+}
