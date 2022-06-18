@@ -1157,8 +1157,8 @@ static void pnv_phb3_root_port_realize(DeviceState *dev, Error **errp)
     }
 
     /* Set unique chassis/slot values for the root port */
-    qdev_prop_set_uint8(&pci->qdev, "chassis", phb->chip_id);
-    qdev_prop_set_uint16(&pci->qdev, "slot", phb->phb_id);
+    qdev_prop_set_uint8(dev, "chassis", phb->chip_id);
+    qdev_prop_set_uint16(dev, "slot", phb->phb_id);
 
     rpc->parent_realize(dev, &local_err);
     if (local_err) {
