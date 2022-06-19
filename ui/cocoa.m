@@ -636,6 +636,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
     if (isFullscreen) {
         [[fullScreenWindow contentView] setFrame:[[NSScreen mainScreen] frame]];
         [normalWindow setFrame:NSMakeRect([normalWindow frame].origin.x, [normalWindow frame].origin.y - h + oldh, w, h + [normalWindow frame].size.height - oldh) display:NO animate:NO];
+        [self setFrame:NSMakeRect(cx, cy, cw, ch)];
     } else {
         if (qemu_name)
             [normalWindow setTitle:[NSString stringWithFormat:@"QEMU %s", qemu_name]];
