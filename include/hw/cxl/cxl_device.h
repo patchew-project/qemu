@@ -230,6 +230,14 @@ REG64(CXL_MEM_DEV_STS, 0)
     FIELD(CXL_MEM_DEV_STS, MBOX_READY, 4, 1)
     FIELD(CXL_MEM_DEV_STS, RESET_NEEDED, 5, 3)
 
+typedef struct CXLPoison {
+    uint64_t start, length;
+    uint8_t type;
+    QLIST_ENTRY(CXLPoison) node;
+} CXLPoison;
+
+typedef QLIST_HEAD(, CXLPoison) CXLPoisonList;
+
 struct CXLType3Dev {
     /* Private */
     PCIDevice parent_obj;
@@ -242,6 +250,10 @@ struct CXLType3Dev {
     AddressSpace hostmem_as;
     CXLComponentState cxl_cstate;
     CXLDeviceState cxl_dstate;
+
+    /* Poison Injection - cache */
+    uint64_t poison_start, poison_length;
+    CXLPoisonList poison_list;
 };
 
 #define TYPE_CXL_TYPE3 "cxl-type3"
@@ -258,6 +270,8 @@ struct CXLType3Class {
                         uint64_t offset);
     void (*set_lsa)(CXLType3Dev *ct3d, const void *buf, uint64_t size,
                     uint64_t offset);
+
+    CXLPoisonList* (*get_poison_list)(CXLType3Dev *ct3d);
 };
 
 MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,

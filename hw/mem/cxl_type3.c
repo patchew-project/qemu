@@ -133,6 +133,19 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
     return true;
 }
 
+static void ct3_inject_poison(Object *obj, Visitor *v, const char *name,
+                              void *opaque, Error **errp)
+{
+    CXLType3Dev *ct3d = CXL_TYPE3(obj);
+    CXLPoison *p = g_new0(CXLPoison, 1);
+    /* should check if bool is true, but meh */
+
+    p->length = ct3d->poison_length;
+    p->start = ct3d->poison_start;
+
+    QLIST_INSERT_HEAD(&ct3d->poison_list, p, node);
+}
+
 static void ct3_realize(PCIDevice *pci_dev, Error **errp)
 {
     CXLType3Dev *ct3d = CXL_TYPE3(pci_dev);
@@ -140,6 +153,15 @@ static void ct3_realize(PCIDevice *pci_dev, Error **errp)
     ComponentRegisters *regs = &cxl_cstate->crb;
     MemoryRegion *mr = &regs->component_registers;
     uint8_t *pci_conf = pci_dev->config;
+
+    object_property_add_uint64_ptr(OBJECT(pci_dev), "poison_start",
+                                   &ct3d->poison_start,
+                                   OBJ_PROP_FLAG_READ | OBJ_PROP_FLAG_WRITE);
+    object_property_add_uint64_ptr(OBJECT(pci_dev), "poison_length",
+                                   &ct3d->poison_length,
+                                   OBJ_PROP_FLAG_READ | OBJ_PROP_FLAG_WRITE);
+    object_property_add(OBJECT(pci_dev), "poison_inject", "bool", NULL,
+                        ct3_inject_poison, NULL, ct3d);
 
     if (!cxl_setup_memory(ct3d, errp)) {
         return;
@@ -327,6 +349,12 @@ static void set_lsa(CXLType3Dev *ct3d, const void *buf, uint64_t size,
      */
 }
 
+static CXLPoisonList *get_poison_list(CXLType3Dev *ct3d)
+{
+    /* This will get more complex  - for now it's a bit pointless */
+    return &ct3d->poison_list;
+}
+
 static void ct3_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -348,6 +376,8 @@ static void ct3_class_init(ObjectClass *oc, void *data)
     cvc->get_lsa_size = get_lsa_size;
     cvc->get_lsa = get_lsa;
     cvc->set_lsa = set_lsa;
+    cvc->get_poison_list = get_poison_list;
+
 }
 
 static const TypeInfo ct3d_info = {
