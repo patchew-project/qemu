@@ -835,3 +835,71 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
     mmap_unlock();
     return new_addr;
 }
+
+static bool can_passthrough_madv_dontneed(abi_ulong start, abi_ulong end)
+{
+    ulong addr;
+
+    if ((start | end) & ~qemu_host_page_mask) {
+        return false;
+    }
+
+    for (addr = start; addr < end; addr += TARGET_PAGE_SIZE) {
+        if (!(page_get_flags(addr) & PAGE_ANON)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+int target_madvise(abi_ulong start, abi_ulong len_in, int advice)
+{
+    abi_ulong len, end;
+    int ret = 0;
+
+    if (start & ~TARGET_PAGE_MASK) {
+        errno = EINVAL;
+        return -1;
+    }
+    len = TARGET_PAGE_ALIGN(len_in);
+
+    if (len_in && !len) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    end = start + len;
+    if (end < start) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (end == start) {
+        return 0;
+    }
+
+    if (!guest_range_valid_untagged(start, len)) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    /*
+     * A straight passthrough may not be safe because qemu sometimes turns
+     * private file-backed mappings into anonymous mappings.
+     *
+     * This is a hint, so ignoring and returning success is ok.
+     *
+     * This breaks MADV_DONTNEED, completely implementing which is quite
+     * complicated. However, there is one low-hanging fruit: host-page-aligned
+     * anonymous mappings. In this case passthrough is safe, so do it.
+     */
+    mmap_lock();
+    if ((advice & MADV_DONTNEED) &&
+        can_passthrough_madv_dontneed(start, end)) {
+        ret = madvise(g2h_untagged(start), len, MADV_DONTNEED);
+    }
+    mmap_unlock();
+
+    return ret;
+}
