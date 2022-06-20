@@ -1490,7 +1490,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         }
     }
 
-    if (kvm_enabled()) {
+    if (kvm_enabled() || hvf_enabled()) {
         /*
          * Catch all the cases which might cause us to create more than one
          * address space for the CPU (otherwise we will assert() later in
@@ -1498,17 +1498,17 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
          */
         if (arm_feature(env, ARM_FEATURE_M)) {
             error_setg(errp,
-                       "Cannot enable KVM when using an M-profile guest CPU");
+                       "Cannot enable KVM or HVF when using an M-profile guest CPU");
             return;
         }
         if (cpu->has_el3) {
             error_setg(errp,
-                       "Cannot enable KVM when guest CPU has EL3 enabled");
+                       "Cannot enable KVM or HVF when guest CPU has EL3 enabled");
             return;
         }
         if (cpu->tag_memory) {
             error_setg(errp,
-                       "Cannot enable KVM when guest CPUs has MTE enabled");
+                       "Cannot enable KVM or HVF when guest CPUs has MTE enabled");
             return;
         }
     }
