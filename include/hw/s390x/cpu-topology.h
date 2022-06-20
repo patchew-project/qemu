@@ -84,6 +84,8 @@ struct S390TopologyNode {
     BusState *bus;
     uint8_t node_id;
     int cnt;
+    bool mtcr;
+    bool topology_needed;
 };
 typedef struct S390TopologyNode S390TopologyNode;
 OBJECT_DECLARE_SIMPLE_TYPE(S390TopologyNode, S390_TOPOLOGY_NODE)
