@@ -51,6 +51,16 @@ do {                                        \
     unlock_user(p1, arg1, 0);               \
 } while (0)
 
+#ifndef BSD_HAVE_INO64
+#define freebsd11_mknod         mknod
+#define freebsd11_mknodat       mknodat
+#else
+int freebsd11_mknod(char *path, mode_t mode, uint32_t dev);
+__sym_compat(mknod, freebsd11_mknod, FBSD_1.0);
+int freebsd11_mknodat(int fd, char *path, mode_t mode, uint32_t dev);
+__sym_compat(mknodat, freebsd11_mknodat, FBSD_1.1);
+#endif
+
 extern struct iovec *lock_iovec(int type, abi_ulong target_addr, int count,
         int copy);
 extern void unlock_iovec(struct iovec *vec, abi_ulong target_addr, int count,
@@ -721,5 +731,54 @@ static abi_long do_bsd_fchmodat(abi_long arg1, abi_long arg2,
 
     return ret;
 }
+
+/* pre-ino64 mknod(2) */
+static abi_long do_bsd_freebsd11_mknod(abi_long arg1, abi_long arg2, abi_long arg3)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(freebsd11_mknod(p, arg2, arg3)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* pre-ino64 mknodat(2) */
+static abi_long do_bsd_freebsd11_mknodat(abi_long arg1, abi_long arg2,
+        abi_long arg3, abi_long arg4)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg2);
+    ret = get_errno(freebsd11_mknodat(arg1, p, arg3, arg4));
+    UNLOCK_PATH(p, arg2);
+
+    return ret;
+}
+
+#ifdef BSD_HAVE_INO64
+/* post-ino64 mknodat(2) */
+static abi_long do_bsd_mknodat(void *cpu_env, abi_long arg1,
+        abi_long arg2, abi_long arg3, abi_long arg4, abi_long arg5,
+        abi_long arg6)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg2);
+       /* 32-bit arch's use two 32 registers for 64 bit return value */
+    if (regpairs_aligned(cpu_env) != 0) {
+        ret = get_errno(mknodat(arg1, p, arg3, target_arg64(arg5, arg6)));
+    } else {
+        ret = get_errno(mknodat(arg1, p, arg3, target_arg64(arg4, arg5)));
+    }
+    UNLOCK_PATH(p, arg2);
+
+    return ret;
+}
+#endif
 
 #endif /* BSD_FILE_H */
