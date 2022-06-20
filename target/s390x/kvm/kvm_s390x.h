@@ -46,4 +46,6 @@ void kvm_s390_restart_interrupt(S390CPU *cpu);
 void kvm_s390_stop_interrupt(S390CPU *cpu);
 void kvm_s390_set_diag318(CPUState *cs, uint64_t diag318_info);
 
+void kvm_s390_cpu_topology_reset(void);
+
 #endif /* KVM_S390X_H */
