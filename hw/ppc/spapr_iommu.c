@@ -242,7 +242,7 @@ static int spapr_tce_table_post_load(void *opaque, int version_id)
     if (tcet->mig_nb_table) {
         if (!tcet->nb_table) {
             spapr_tce_table_enable(tcet, old_page_shift, old_bus_offset,
-                                   tcet->mig_nb_table);
+                                   tcet->mig_nb_table, tcet->def_win);
         }
 
         memcpy(tcet->table, tcet->mig_table,
@@ -279,7 +279,7 @@ static const VMStateDescription vmstate_spapr_tce_table_ex = {
 
 static const VMStateDescription vmstate_spapr_tce_table = {
     .name = "spapr_iommu",
-    .version_id = 2,
+    .version_id = 3,
     .minimum_version_id = 2,
     .pre_save = spapr_tce_table_pre_save,
     .post_load = spapr_tce_table_post_load,
@@ -292,6 +292,7 @@ static const VMStateDescription vmstate_spapr_tce_table = {
         VMSTATE_BOOL(bypass, SpaprTceTable),
         VMSTATE_VARRAY_UINT32_ALLOC(mig_table, SpaprTceTable, mig_nb_table, 0,
                                     vmstate_info_uint64, uint64_t),
+        VMSTATE_BOOL_V(def_win, SpaprTceTable, 3),
 
         VMSTATE_END_OF_LIST()
     },
@@ -380,7 +381,7 @@ SpaprTceTable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn)
 
 void spapr_tce_table_enable(SpaprTceTable *tcet,
                             uint32_t page_shift, uint64_t bus_offset,
-                            uint32_t nb_table)
+                            uint32_t nb_table, bool def_win)
 {
     if (tcet->nb_table) {
         warn_report("trying to enable already enabled TCE table");
@@ -390,6 +391,7 @@ void spapr_tce_table_enable(SpaprTceTable *tcet,
     tcet->bus_offset = bus_offset;
     tcet->page_shift = page_shift;
     tcet->nb_table = nb_table;
+    tcet->def_win = def_win;
     tcet->table = spapr_tce_alloc_table(tcet->liobn,
                                         tcet->page_shift,
                                         tcet->bus_offset,

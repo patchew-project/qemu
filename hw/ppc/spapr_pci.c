@@ -2066,7 +2066,7 @@ void spapr_phb_dma_reset(SpaprPhbState *sphb)
     /* Register default 32bit DMA window */
     tcet = spapr_tce_find_by_liobn(sphb->dma_liobn[0]);
     spapr_tce_table_enable(tcet, SPAPR_TCE_PAGE_SHIFT, sphb->dma_win_addr,
-                           sphb->dma_win_size >> SPAPR_TCE_PAGE_SHIFT);
+                           sphb->dma_win_size >> SPAPR_TCE_PAGE_SHIFT, true);
 }
 
 static void spapr_phb_reset(DeviceState *qdev)

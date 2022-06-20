@@ -902,6 +902,7 @@ struct SpaprTceTable {
     bool bypass;
     bool need_vfio;
     bool skipping_replay;
+    bool def_win;
     int fd;
     MemoryRegion root;
     IOMMUMemoryRegion iommu;
@@ -928,7 +929,7 @@ void spapr_check_mmu_mode(bool guest_radix);
 SpaprTceTable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn);
 void spapr_tce_table_enable(SpaprTceTable *tcet,
                             uint32_t page_shift, uint64_t bus_offset,
-                            uint32_t nb_table);
+                            uint32_t nb_table, bool def_win);
 void spapr_tce_table_disable(SpaprTceTable *tcet);
 void spapr_tce_set_need_vfio(SpaprTceTable *tcet, bool need_vfio);
 
