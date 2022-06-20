@@ -23,7 +23,7 @@
  */
 #ifndef BLOCK_COMMON_H
 #define BLOCK_COMMON_H
-
+#include <linux/blkzoned.h>
 #include "block/aio.h"
 #include "block/aio-wait.h"
 #include "qemu/iov.h"
@@ -48,6 +48,47 @@
 typedef struct BlockDriver BlockDriver;
 typedef struct BdrvChild BdrvChild;
 typedef struct BdrvChildClass BdrvChildClass;
+enum zone_type {
+    BLK_ZT_CONV = BLK_ZONE_TYPE_CONVENTIONAL,
+    BLK_ZT_SWR = BLK_ZONE_TYPE_SEQWRITE_REQ,
+    BLK_ZT_SWP = BLK_ZONE_TYPE_SEQWRITE_PREF,
+};
+
+enum zone_cond {
+    BLK_ZS_NOT_WP = BLK_ZONE_COND_NOT_WP,
+    BLK_ZS_EMPTY = BLK_ZONE_COND_EMPTY,
+    BLK_ZS_IOPEN = BLK_ZONE_COND_IMP_OPEN,
+    BLK_ZS_EOPEN = BLK_ZONE_COND_EXP_OPEN,
+    BLK_ZS_CLOSED = BLK_ZONE_COND_CLOSED,
+    BLK_ZS_RDONLY = BLK_ZONE_COND_READONLY,
+    BLK_ZS_FULL = BLK_ZONE_COND_FULL,
+    BLK_ZS_OFFLINE = BLK_ZONE_COND_OFFLINE,
+};
+
+enum zone_op {
+    zone_open,
+    zone_close,
+    zone_finish,
+    zone_reset,
+};
+
+/*
+ * Zone descriptor data structure.
+ * Provide information on a zone with all position and size values in bytes.
+ */
+typedef struct BlockZoneDescriptor {
+    uint64_t start;
+    uint64_t length;
+    uint64_t cap;
+    uint64_t wp;
+    enum zone_type type;
+    enum zone_cond cond;
+} BlockZoneDescriptor;
+
+enum zone_model {
+    BLK_Z_HM,
+    BLK_Z_HA,
+};
 
 typedef struct BlockDriverInfo {
     /* in bytes, 0 if irrelevant */

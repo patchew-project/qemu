@@ -178,6 +178,137 @@ typedef struct BDRVRawReopenState {
     bool check_cache_dropped;
 } BDRVRawReopenState;
 
+/*
+ * parse_zone - Fill a zone descriptor
+ */
+static inline void parse_zone(struct BlockZoneDescriptor *zone,
+        struct blk_zone *blkz) {
+    zone->start = blkz->start << BDRV_SECTOR_BITS;
+    zone->length = blkz->len << BDRV_SECTOR_BITS;
+    zone->cap = blkz->capacity << BDRV_SECTOR_BITS;
+    zone->wp = blkz->wp << BDRV_SECTOR_BITS;
+    zone->type = blkz->type;
+    zone->cond = blkz->type;
+}
+
+/**
+ * zone report - Get a zone block device's information in the
+ * form of an array of zone descriptors.
+ *
+ * @param bs: passing zone block device file descriptor
+ * @param zones: Space to hold zone information on reply
+ * @param offset: the location in the zone block device
+ * @return 0 on success, -1 on failure
+ */
+static int raw_co_zone_report(BlockDriverState *bs, int64_t offset, int64_t len,
+                              int64_t *nr_zones,
+                              struct BlockZoneDescriptor *zones) {
+    BDRVRawState *s = bs->opaque;
+    struct blk_zone_report *rep;
+    struct BlockZoneDescriptor bzd;
+    struct blk_zone *blkz;
+    int64_t zone_size_mask, end, rep_size, nrz;
+    int ret, n = 0, i = 0;
+
+    printf("%s\n", "start to report zone");
+    nrz = *nr_zones;
+    rep_size = sizeof(struct blk_zone_report) + nrz * sizeof(struct blk_zone);
+    rep = (struct blk_zone_report *)malloc(rep_size);
+    if (!rep) {
+        return -1;
+    }
+
+    zone_size_mask = zone_start_sector - 1;
+    /* align up */
+    end = ((offset + len + zone_size_mask) & (~zone_size_mask))
+            >> BDRV_SECTOR_BITS;
+
+    blkz = (struct blk_zone *)(rep + 1);
+    while (offset < end) {
+        memset(rep, 0, rep_size);
+        rep->sector = offset;
+        rep->nr_zones = nrz;
+
+        ret = ioctl(s->fd, BLKREPORTZONE, rep);
+        if (ret != 0) {
+            ret = -errno;
+            error_report("%d: ioctl BLKREPORTZONE at %ld failed %d",
+                         s->fd, offset, errno);
+            free(rep);
+            return ret;
+        }
+
+        if (!rep->nr_zones) {
+            break;
+        }
+
+        for (i = 0; i < rep->nr_zones; i++) {
+            parse_zone(&bzd, &blkz[i]);
+            if (zones) {
+                memcpy(&zones[n], &bzd, sizeof(bzd));
+            }
+        }
+
+        offset = blkz[i].start + blkz[i].len;
+    }
+
+    return ret;
+}
+
+/**
+ * zone management operations - Execute an operation on a zone
+ */
+static int raw_co_zone_mgmt(BlockDriverState *bs, enum zone_op op,
+        int64_t offset, int64_t len) {
+    BDRVRawState *s = bs->opaque;
+    struct blk_zone_range range;
+    const char *ioctl_name;
+    uint64_t ioctl_op;
+    int64_t zone_size_mask, end;
+    int ret;
+
+    zone_size_mask = zone_start_sector - 1;
+    /* align up */
+    end = ((offset + len + zone_size_mask) & (~zone_size_mask))
+            >> BDRV_SECTOR_BITS;
+    offset = (offset & (~zone_size_mask)) >> BDRV_SECTOR_BITS; /* align down */
+
+    switch (op) {
+    case zone_open:
+        ioctl_name = "BLKOPENZONE";
+        ioctl_op = BLKOPENZONE;
+        break;
+    case zone_close:
+        ioctl_name = "BLKCLOSEZONE";
+        ioctl_op = BLKCLOSEZONE;
+        break;
+    case zone_finish:
+        ioctl_name = "BLKFINISHZONE";
+        ioctl_op = BLKFINISHZONE;
+        break;
+    case zone_reset:
+        ioctl_name = "BLKRESETZONE";
+        ioctl_op = BLKRESETZONE;
+        break;
+    default:
+        error_report("Invalid zone operation 0x%x", op);
+        errno = -EINVAL;
+        return -1;
+    }
+
+    /* Execute the operation */
+    range.sector = offset;
+    range.nr_sectors = end - offset;
+    ret = ioctl(s->fd, ioctl_op, &range);
+    if (ret != 0) {
+        error_report("ioctl %s failed %d",
+                         ioctl_name, errno);
+        return -1;
+    }
+
+    return 0;
+}
+
 static int fd_open(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
@@ -3324,6 +3455,9 @@ BlockDriver bdrv_file = {
     .bdrv_abort_perm_update = raw_abort_perm_update,
     .create_opts = &raw_create_opts,
     .mutable_opts = mutable_opts,
+
+    .bdrv_co_zone_report = raw_co_zone_report,
+    .bdrv_co_zone_mgmt = raw_co_zone_mgmt,
 };
 
 /***********************************************/
@@ -3703,6 +3837,53 @@ static BlockDriver bdrv_host_device = {
 #endif
 };
 
+static BlockDriver bdrv_zoned_host_device = {
+        .format_name = "zoned_host_device",
+        .protocol_name = "zoned_host_device",
+        .instance_size = sizeof(BDRVRawState),
+        .bdrv_needs_filename = true,
+        .bdrv_probe_device  = hdev_probe_device,
+        .bdrv_parse_filename = hdev_parse_filename,
+        .bdrv_file_open     = hdev_open,
+        .bdrv_close         = raw_close,
+        .bdrv_reopen_prepare = raw_reopen_prepare,
+        .bdrv_reopen_commit  = raw_reopen_commit,
+        .bdrv_reopen_abort   = raw_reopen_abort,
+        .bdrv_co_create_opts = bdrv_co_create_opts_simple,
+        .create_opts         = &bdrv_create_opts_simple,
+        .mutable_opts        = mutable_opts,
+        .bdrv_co_invalidate_cache = raw_co_invalidate_cache,
+        .bdrv_co_pwrite_zeroes = hdev_co_pwrite_zeroes,
+
+        .bdrv_co_preadv         = raw_co_preadv,
+        .bdrv_co_pwritev        = raw_co_pwritev,
+        .bdrv_co_flush_to_disk  = raw_co_flush_to_disk,
+        .bdrv_co_pdiscard       = hdev_co_pdiscard,
+        .bdrv_co_copy_range_from = raw_co_copy_range_from,
+        .bdrv_co_copy_range_to  = raw_co_copy_range_to,
+        .bdrv_refresh_limits = raw_refresh_limits,
+        .bdrv_io_plug = raw_aio_plug,
+        .bdrv_io_unplug = raw_aio_unplug,
+        .bdrv_attach_aio_context = raw_aio_attach_aio_context,
+
+        .bdrv_co_truncate       = raw_co_truncate,
+        .bdrv_getlength = raw_getlength,
+        .bdrv_get_info = raw_get_info,
+        .bdrv_get_allocated_file_size
+                            = raw_get_allocated_file_size,
+        .bdrv_get_specific_stats = hdev_get_specific_stats,
+        .bdrv_check_perm = raw_check_perm,
+        .bdrv_set_perm   = raw_set_perm,
+        .bdrv_abort_perm_update = raw_abort_perm_update,
+        .bdrv_probe_blocksizes = hdev_probe_blocksizes,
+        .bdrv_probe_geometry = hdev_probe_geometry,
+        .bdrv_co_ioctl = hdev_co_ioctl,
+
+        /* zone management operations */
+        .bdrv_co_zone_report = raw_co_zone_report,
+        .bdrv_co_zone_mgmt = raw_co_zone_mgmt,
+};
+
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 static void cdrom_parse_filename(const char *filename, QDict *options,
                                  Error **errp)
@@ -3964,6 +4145,7 @@ static void bdrv_file_init(void)
 #if defined(HAVE_HOST_BLOCK_DEVICE)
     bdrv_register(&bdrv_host_device);
 #ifdef __linux__
+    bdrv_register(&bdrv_zoned_host_device);
     bdrv_register(&bdrv_host_cdrom);
 #endif
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)

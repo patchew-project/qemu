@@ -63,6 +63,7 @@
 #define BLOCK_OPT_EXTL2             "extended_l2"
 
 #define BLOCK_PROBE_BUF_SIZE        512
+#define zone_start_sector           512
 
 enum BdrvTrackedRequestType {
     BDRV_TRACKED_READ,
@@ -94,6 +95,19 @@ typedef struct BdrvTrackedRequest {
     struct BdrvTrackedRequest *waiting_for;
 } BdrvTrackedRequest;
 
+/**
+ * Zone device information data structure.
+ * Provide information on a device.
+ */
+typedef struct zbd_dev {
+    enum zone_model model;
+    uint32_t block_size;
+    uint32_t write_granularity;
+    uint32_t nr_zones;
+    struct BlockZoneDescriptor *zones; /* array of zones */
+    uint32_t max_nr_open_zones; /* maximum number of explicitly open zones */
+    uint32_t max_nr_active_zones;
+} zbd_dev;
 
 struct BlockDriver {
     /*
@@ -690,6 +704,12 @@ struct BlockDriver {
     int coroutine_fn (*bdrv_load_vmstate)(BlockDriverState *bs,
                                           QEMUIOVector *qiov,
                                           int64_t pos);
+
+    int coroutine_fn (*bdrv_co_zone_report)(BlockDriverState *bs,
+            int64_t offset, int64_t len, int64_t *nr_zones,
+            struct BlockZoneDescriptor *zones);
+    int coroutine_fn (*bdrv_co_zone_mgmt)(BlockDriverState *bs, enum zone_op op,
+            int64_t offset, int64_t len);
 
     /* removable device specific */
     bool (*bdrv_is_inserted)(BlockDriverState *bs);
