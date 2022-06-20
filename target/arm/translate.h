@@ -102,6 +102,9 @@ typedef struct DisasContext {
     bool pstate_sm;
     /* True if PSTATE.ZA is set. */
     bool pstate_za;
+    /* True if AdvSIMD insns should raise an SME Streaming exception. */
+    bool sme_trap_simd;
+    bool sme_trap_this_insn;
     /* True if MVE insns are definitely not predicated by VPR or LTPSIZE */
     bool mve_no_pred;
     /*

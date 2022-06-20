@@ -9378,6 +9378,7 @@ static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
             dc->vec_len = EX_TBFLAG_A32(tb_flags, VECLEN);
             dc->vec_stride = EX_TBFLAG_A32(tb_flags, VECSTRIDE);
         }
+        dc->sme_trap_simd = EX_TBFLAG_A32(tb_flags, SME_TRAP_SIMD);
     }
     dc->cp_regs = cpu->cp_regs;
     dc->features = env->features;
