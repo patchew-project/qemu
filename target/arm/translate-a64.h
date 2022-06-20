@@ -31,6 +31,7 @@ bool logic_imm_decode_wmask(uint64_t *result, unsigned int immn,
 bool sve_access_check(DisasContext *s);
 bool sme_enabled_check(DisasContext *s);
 bool sme_za_enabled_check(DisasContext *s);
+bool sme_smza_enabled_check(DisasContext *s);
 TCGv_i64 clean_data_tbi(DisasContext *s, TCGv_i64 addr);
 TCGv_i64 gen_mte_check1(DisasContext *s, TCGv_i64 addr, bool is_write,
                         bool tag_checked, int log2_size);
@@ -145,6 +146,14 @@ static inline int size_for_gvec(int size)
 static inline int pred_gvec_reg_size(DisasContext *s)
 {
     return size_for_gvec(pred_full_reg_size(s));
+}
+
+/* Return a newly allocated pointer to the predicate register.  */
+static inline TCGv_ptr pred_full_reg_ptr(DisasContext *s, int regno)
+{
+    TCGv_ptr ret = tcg_temp_new_ptr();
+    tcg_gen_addi_ptr(ret, cpu_env, pred_full_reg_offset(s, regno));
+    return ret;
 }
 
 bool disas_sve(DisasContext *, uint32_t);
