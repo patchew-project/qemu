@@ -236,13 +236,31 @@ static void ppc_radix64_set_rc(PowerPCCPU *cpu, MMUAccessType access_type,
     }
 }
 
+static bool ppc_radix64_is_valid_level(int level, int psize, uint64_t nls)
+{
+    /*
+     * Check if this is a valid level, according to POWER9 and POWER10
+     * Processor User's Manuals, sections 4.10.4.1 and 5.10.6.1, respectively:
+     * Supported Radix Tree Configurations and Resulting Page Sizes.
+     */
+    switch (level) {
+    case 0:     return psize == 52 && nls == 13;    /* Root Page Dir */
+    case 1:     return psize == 39 && nls == 9;
+    case 2:     return psize == 30 && nls == 9;
+    case 3:     return psize == 21 && (nls == 9 || nls == 5);
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "invalid radix level: %d\n", level);
+        return false;
+    }
+}
+
 static int ppc_radix64_next_level(AddressSpace *as, vaddr eaddr,
-                                  uint64_t *pte_addr, uint64_t *nls,
+                                  uint64_t *pte_addr, int *level, uint64_t *nls,
                                   int *psize, uint64_t *pte, int *fault_cause)
 {
     uint64_t index, pde;
 
-    if (*nls < 5) { /* Directory maps less than 2**5 entries */
+    if (!ppc_radix64_is_valid_level(*level, *psize, *nls)) {
         *fault_cause |= DSISR_R_BADCONFIG;
         return 1;
     }
@@ -257,6 +275,7 @@ static int ppc_radix64_next_level(AddressSpace *as, vaddr eaddr,
     *pte = pde;
     *psize -= *nls;
     if (!(pde & R_PTE_LEAF)) { /* Prepare for next iteration */
+        ++*level;
         *nls = pde & R_PDE_NLS;
         index = eaddr >> (*psize - *nls);       /* Shift */
         index &= ((1UL << *nls) - 1);           /* Mask */
@@ -270,9 +289,10 @@ static int ppc_radix64_walk_tree(AddressSpace *as, vaddr eaddr,
                                  hwaddr *raddr, int *psize, uint64_t *pte,
                                  int *fault_cause, hwaddr *pte_addr)
 {
-    uint64_t index, pde, rpn , mask;
+    uint64_t index, pde, rpn, mask;
+    int level = 0;
 
-    if (nls < 5) { /* Directory maps less than 2**5 entries */
+    if (!ppc_radix64_is_valid_level(level, *psize, nls)) {
         *fault_cause |= DSISR_R_BADCONFIG;
         return 1;
     }
@@ -283,8 +303,8 @@ static int ppc_radix64_walk_tree(AddressSpace *as, vaddr eaddr,
     do {
         int ret;
 
-        ret = ppc_radix64_next_level(as, eaddr, pte_addr, &nls, psize, &pde,
-                                     fault_cause);
+        ret = ppc_radix64_next_level(as, eaddr, pte_addr, &level, &nls, psize,
+                                     &pde, fault_cause);
         if (ret) {
             return ret;
         }
@@ -456,6 +476,7 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu,
         }
     } else {
         uint64_t rpn, mask;
+        int level = 0;
 
         index = (eaddr & R_EADDR_MASK) >> (*g_page_size - nls); /* Shift */
         index &= ((1UL << nls) - 1);                            /* Mask */
@@ -476,7 +497,8 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu,
             }
 
             ret = ppc_radix64_next_level(cs->as, eaddr & R_EADDR_MASK, &h_raddr,
-                                         &nls, g_page_size, &pte, &fault_cause);
+                                         &level, &nls, g_page_size, &pte,
+                                         &fault_cause);
             if (ret) {
                 /* No valid pte */
                 if (guest_visible) {
