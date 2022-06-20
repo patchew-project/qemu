@@ -28,12 +28,45 @@
 #include "hw/pci-host/ls7a.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/misc/unimp.h"
-
+#include "hw/loongarch/fw_cfg.h"
 #include "target/loongarch/cpu.h"
 
 #define PM_BASE 0x10080000
 #define PM_SIZE 0x100
 #define PM_CTRL 0x10
+
+struct la_memmap_entry {
+    uint64_t address;
+    uint64_t length;
+    uint32_t type;
+    uint32_t reserved;
+};
+
+static struct la_memmap_entry *la_memmap_table;
+static unsigned la_memmap_entries;
+
+static int la_memmap_add_entry(uint64_t address, uint64_t length, uint32_t type)
+{
+    int i;
+
+    for (i = 0; i < la_memmap_entries; i++) {
+        if (la_memmap_table[i].address == address) {
+            fprintf(stderr, "%s address:0x%lx length:0x%lx already exists\n",
+                     __func__, address, length);
+            return 0;
+        }
+    }
+
+    la_memmap_table = g_renew(struct la_memmap_entry, la_memmap_table,
+                                                      la_memmap_entries + 1);
+    la_memmap_table[la_memmap_entries].address = cpu_to_le64(address);
+    la_memmap_table[la_memmap_entries].length = cpu_to_le64(length);
+    la_memmap_table[la_memmap_entries].type = cpu_to_le32(type);
+    la_memmap_entries++;
+
+    return la_memmap_entries;
+}
+
 
 /*
  * This is a placeholder for missing ACPI,
@@ -279,6 +312,38 @@ static void loongarch_irq_init(LoongArchMachineState *lams)
     loongarch_devices_init(pch_pic);
 }
 
+static bool loongarch_firmware_init(LoongArchMachineState *lams)
+{
+    char *filename = MACHINE(lams)->firmware;
+    char *bios_name = NULL;
+    bool loaded = false;
+    int bios_size;
+
+    if (filename) {
+        bios_name = qemu_find_file(QEMU_FILE_TYPE_BIOS, filename);
+        if (!bios_name) {
+            error_report("Could not find ROM image '%s'", filename);
+            exit(1);
+        }
+
+        bios_size = load_image_targphys(bios_name, LA_BIOS_BASE, LA_BIOS_SIZE);
+        if (bios_size < 0) {
+            error_report("Could not load ROM image '%s'", bios_name);
+            exit(1);
+        }
+
+        g_free(bios_name);
+
+        memory_region_init_ram(&lams->bios, NULL, "loongarch.bios",
+                               LA_BIOS_SIZE, &error_fatal);
+        memory_region_set_readonly(&lams->bios, true);
+        memory_region_add_subregion(get_system_memory(), LA_BIOS_BASE, &lams->bios);
+        loaded = true;
+    }
+
+    return loaded;
+}
+
 static void reset_load_elf(void *opaque)
 {
     LoongArchCPU *cpu = opaque;
@@ -301,6 +366,7 @@ static void loongarch_init(MachineState *machine)
     LoongArchMachineState *lams = LOONGARCH_MACHINE(machine);
     LoongArchCPU *lacpu;
     int i;
+    bool firmware_loaded;
     int64_t kernel_addr = 0;
 
     if (!cpu_model) {
@@ -327,15 +393,28 @@ static void loongarch_init(MachineState *machine)
                              machine->ram, 0, 256 * MiB);
     memory_region_add_subregion(address_space_mem, offset, &lams->lowmem);
     offset += 256 * MiB;
+    la_memmap_add_entry(0, 256 * MiB, 1);
     highram_size = ram_size - 256 * MiB;
     memory_region_init_alias(&lams->highmem, NULL, "loongarch.highmem",
                              machine->ram, offset, highram_size);
     memory_region_add_subregion(address_space_mem, 0x90000000, &lams->highmem);
+    la_memmap_add_entry(0x90000000, highram_size, 1);
     /* Add isa io region */
     memory_region_init_alias(&lams->isa_io, NULL, "isa-io",
                              get_system_io(), 0, LOONGARCH_ISA_IO_SIZE);
     memory_region_add_subregion(address_space_mem, LOONGARCH_ISA_IO_BASE,
                                 &lams->isa_io);
+    /* load the BIOS image. */
+    firmware_loaded = loongarch_firmware_init(lams);
+    lams->fw_cfg = loongarch_fw_cfg_init(ram_size, machine);
+    rom_set_fw(lams->fw_cfg);
+
+    if (lams->fw_cfg != NULL) {
+        fw_cfg_add_file(lams->fw_cfg, "etc/memmap",
+                        la_memmap_table,
+                        sizeof(struct la_memmap_entry) * (la_memmap_entries));
+    }
+
     if (kernel_filename) {
         loaderparams.ram_size = ram_size;
         loaderparams.kernel_filename = kernel_filename;
