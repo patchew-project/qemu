@@ -104,6 +104,8 @@ typedef struct BlockBackendAIOCB {
     int ret;
 } BlockBackendAIOCB;
 
+
+
 static const AIOCBInfo block_backend_aiocb_info = {
     .get_aio_context = blk_aiocb_get_aio_context,
     .aiocb_size = sizeof(BlockBackendAIOCB),
@@ -1810,6 +1812,25 @@ int blk_flush(BlockBackend *blk)
     return ret;
 }
 
+int blk_co_zone_report(BlockBackend *blk, int64_t offset, int64_t len,
+                       int64_t *nr_zones,
+                       struct BlockZoneDescriptor *zones)
+{
+    int ret;
+    ret = bdrv_co_zone_report(blk->root->bs, offset, len, nr_zones, zones);
+    return ret;
+}
+
+int blk_co_zone_mgmt(BlockBackend *blk, enum zone_op op,
+        int64_t offset, int64_t len)
+{
+    int ret;
+    ret = bdrv_co_zone_mgmt(blk->root->bs, op, offset, len);
+
+    return ret;
+}
+
+
 void blk_drain(BlockBackend *blk)
 {
     BlockDriverState *bs = blk_bs(blk);
@@ -2634,3 +2655,4 @@ int blk_make_empty(BlockBackend *blk, Error **errp)
 
     return bdrv_make_empty(blk->root, errp);
 }
+
