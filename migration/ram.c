@@ -2288,6 +2288,13 @@ static int ram_find_and_save_block(RAMState *rs)
     rs->last_seen_block = pss.block;
     rs->last_page = pss.page;
 
+    if (pss.complete_round && migrate_use_zero_copy_send()) {
+        int ret = multifd_zero_copy_flush();
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
     return pages;
 }
 
