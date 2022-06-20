@@ -2794,7 +2794,8 @@ void qemu_init(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_netdev:
                 default_net = 0;
-                if (net_client_parse(qemu_find_opts("netdev"), optarg) == -1) {
+                if (netdev_parse_modern(optarg) == -1 &&
+                    net_client_parse(qemu_find_opts("netdev"), optarg) == -1) {
                     exit(1);
                 }
                 break;
