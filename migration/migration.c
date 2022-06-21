@@ -2534,6 +2534,13 @@ bool migrate_use_multifd(void)
     return s->enabled_capabilities[MIGRATION_CAPABILITY_MULTIFD];
 }
 
+bool migrate_multifd_sync_each_iteration(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->multifd_sync_each_iteration;
+}
+
 bool migrate_pause_before_switchover(void)
 {
     MigrationState *s;
@@ -4265,6 +4272,9 @@ static Property migration_properties[] = {
     DEFINE_PROP_SIZE("announce-step", MigrationState,
                       parameters.announce_step,
                       DEFAULT_MIGRATE_ANNOUNCE_STEP),
+    /* We will change to false when we introduce the new mechanism */
+    DEFINE_PROP_BOOL("multifd-sync-each-iteration", MigrationState,
+                      multifd_sync_each_iteration, true),
 
     /* Migration capabilities */
     DEFINE_PROP_MIG_CAP("x-xbzrle", MIGRATION_CAPABILITY_XBZRLE),

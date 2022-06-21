@@ -332,6 +332,11 @@ struct MigrationState {
      * This save hostname when out-going migration starts
      */
     char *hostname;
+    /*
+     * Synchronize channels after each iteration.
+     * We used to do that on the past, but it is suboptimal.
+     */
+    bool multifd_sync_each_iteration;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);
@@ -374,6 +379,7 @@ int migrate_multifd_channels(void);
 MultiFDCompression migrate_multifd_compression(void);
 int migrate_multifd_zlib_level(void);
 int migrate_multifd_zstd_level(void);
+bool migrate_multifd_sync_each_iteration(void);
 
 #ifdef CONFIG_LINUX
 bool migrate_use_zero_copy_send(void);
