@@ -195,7 +195,7 @@ void HELPER(simcall)(CPUXtensaState *env)
 
     switch (regs[2]) {
     case TARGET_SYS_exit:
-        exit(regs[3]);
+        semihosting_exit_request(regs[3]);
         break;
 
     case TARGET_SYS_read:
