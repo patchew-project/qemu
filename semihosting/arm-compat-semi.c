@@ -1255,8 +1255,7 @@ target_ulong do_common_semihosting(CPUState *cs)
              */
             ret = (args == ADP_Stopped_ApplicationExit) ? 0 : 1;
         }
-        gdb_exit(ret);
-        exit(ret);
+        semihosting_exit_request(ret);
     case TARGET_SYS_ELAPSED:
         elapsed = get_clock() - clock_start;
         if (sizeof(target_ulong) == 8) {
