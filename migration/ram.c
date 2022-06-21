@@ -1481,13 +1481,16 @@ retry:
  * find_dirty_block: find the next dirty page and update any state
  * associated with the search process.
  *
- * Returns true if a page is found
+ * Returns:
+ *         0: no page found, give up
+ *         1: no page found, retry
+ *         2: page found
  *
  * @rs: current RAM state
  * @pss: data about the state of the current dirty page scan
  * @again: set to false if the search has scanned the whole of RAM
  */
-static bool find_dirty_block(RAMState *rs, PageSearchStatus *pss, bool *again)
+static int find_dirty_block(RAMState *rs, PageSearchStatus *pss)
 {
     /* This is not a postcopy requested page */
     pss->postcopy_requested = false;
@@ -1499,8 +1502,7 @@ static bool find_dirty_block(RAMState *rs, PageSearchStatus *pss, bool *again)
          * We've been once around the RAM and haven't found anything.
          * Give up.
          */
-        *again = false;
-        return false;
+        return 0;
     }
     if (!offset_in_ramblock(pss->block,
                             ((ram_addr_t)pss->page) << TARGET_PAGE_BITS)) {
@@ -1529,13 +1531,10 @@ static bool find_dirty_block(RAMState *rs, PageSearchStatus *pss, bool *again)
             }
         }
         /* Didn't find anything this time, but try again on the new block */
-        *again = true;
-        return false;
+        return 1;
     } else {
-        /* Can go around again, but... */
-        *again = true;
-        /* We've found something so probably don't need to */
-        return true;
+        /* We've found something */
+        return 2;
     }
 }
 
@@ -2270,18 +2269,20 @@ static int ram_find_and_save_block(RAMState *rs)
         pss.block = QLIST_FIRST_RCU(&ram_list.blocks);
     }
 
-    do {
+    while (true){
         if (!get_queued_page(rs, &pss)) {
             /* priority queue empty, so just search for something dirty */
-            bool again = true;
-            if (!find_dirty_block(rs, &pss, &again)) {
-                if (!again) {
-                    break;
-                }
-            }
+            int res = find_dirty_block(rs, &pss);
+            if (res == 0) {
+                break;
+            } else if (res == 1)
+                continue;
         }
         pages = ram_save_host_page(rs, &pss);
-    } while (!pages);
+        if (pages) {
+            break;
+        }
+    }
 
     rs->last_seen_block = pss.block;
     rs->last_page = pss.page;
