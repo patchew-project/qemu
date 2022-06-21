@@ -56,6 +56,10 @@ static inline Chardev *semihosting_get_chardev(void)
 {
     return NULL;
 }
+static inline G_NORETURN void semihosting_exit_request(int status)
+{
+    g_assert_not_reached();
+}
 static inline void qemu_semihosting_console_init(void)
 {
 }
@@ -67,6 +71,7 @@ int semihosting_get_argc(void);
 const char *semihosting_get_cmdline(void);
 void semihosting_arg_fallback(const char *file, const char *cmd);
 Chardev *semihosting_get_chardev(void);
+G_NORETURN void semihosting_exit_request(int status);
 /* for vl.c hooks */
 void qemu_semihosting_enable(void);
 int qemu_semihosting_config_options(const char *opt);

@@ -24,6 +24,11 @@
 #include "qemu/error-report.h"
 #include "semihosting/semihost.h"
 #include "chardev/char.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
+#include "sysemu/cpus.h"
+#include "exec/exec-all.h"
+#include "exec/gdbstub.h"
 
 QemuOptsList qemu_semihosting_config_opts = {
     .name = "semihosting-config",
@@ -184,4 +189,15 @@ void qemu_semihosting_connect_chardevs(void)
         }
         semihosting.chardev = chr;
     }
+}
+
+void semihosting_exit_request(int status)
+{
+    qemu_set_exit_status(status);
+    qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SEMI_EXIT);
+    cpu_stop_current();
+
+    current_cpu->exception_index = EXCP_HLT;
+    current_cpu->halted = 1;
+    cpu_loop_exit(current_cpu);
 }
