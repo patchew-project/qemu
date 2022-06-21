@@ -82,6 +82,7 @@
 #define RAM_SAVE_FLAG_XBZRLE   0x40
 /* 0x80 is reserved in migration.h start with 0x100 next */
 #define RAM_SAVE_FLAG_COMPRESS_PAGE    0x100
+#define RAM_SAVE_FLAG_MULTIFD_SYNC     0x200
 
 XBZRLECacheStats xbzrle_counters;
 
@@ -1482,6 +1483,7 @@ retry:
  * associated with the search process.
  *
  * Returns:
+ *        <0: An error happened
  *         0: no page found, give up
  *         1: no page found, retry
  *         2: page found
@@ -1510,6 +1512,13 @@ static int find_dirty_block(RAMState *rs, PageSearchStatus *pss)
         pss->page = 0;
         pss->block = QLIST_NEXT_RCU(pss->block, next);
         if (!pss->block) {
+            if (!migrate_multifd_sync_each_iteration()) {
+                int ret = multifd_send_sync_main(rs->f);
+                if (ret < 0) {
+                    return ret;
+                }
+                qemu_put_be64(rs->f, RAM_SAVE_FLAG_MULTIFD_SYNC);
+            }
             /*
              * If memory migration starts over, we will meet a dirtied page
              * which may still exists in compression threads's ring, so we
@@ -2273,7 +2282,8 @@ static int ram_find_and_save_block(RAMState *rs)
         if (!get_queued_page(rs, &pss)) {
             /* priority queue empty, so just search for something dirty */
             int res = find_dirty_block(rs, &pss);
-            if (res == 0) {
+            if (res <= 0) {
+                pages = res;
                 break;
             } else if (res == 1)
                 continue;
@@ -2943,11 +2953,13 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     ram_control_before_iterate(f, RAM_CONTROL_SETUP);
     ram_control_after_iterate(f, RAM_CONTROL_SETUP);
 
-    if (migrate_multifd_sync_each_iteration()) {
-        ret =  multifd_send_sync_main(f);
-        if (ret < 0) {
-            return ret;
-        }
+    ret =  multifd_send_sync_main(f);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (!migrate_multifd_sync_each_iteration()) {
+        qemu_put_be64(f, RAM_SAVE_FLAG_MULTIFD_SYNC);
     }
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
     qemu_fflush(f);
@@ -3127,13 +3139,14 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
         return ret;
     }
 
-    if (migrate_multifd_sync_each_iteration()) {
-        ret = multifd_send_sync_main(rs->f);
-        if (ret < 0) {
-            return ret;
-        }
+    ret = multifd_send_sync_main(rs->f);
+    if (ret < 0) {
+        return ret;
     }
 
+    if (migrate_multifd_sync_each_iteration()) {
+        qemu_put_be64(f, RAM_SAVE_FLAG_MULTIFD_SYNC);
+    }
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
     qemu_fflush(f);
 
@@ -3800,7 +3813,9 @@ int ram_load_postcopy(QEMUFile *f)
             }
             decompress_data_with_multi_threads(f, page_buffer, len);
             break;
-
+        case RAM_SAVE_FLAG_MULTIFD_SYNC:
+            multifd_recv_sync_main();
+            break;
         case RAM_SAVE_FLAG_EOS:
             /* normal exit */
             if (migrate_multifd_sync_each_iteration()) {
@@ -4078,6 +4093,9 @@ static int ram_load_precopy(QEMUFile *f)
                 ret = -EINVAL;
                 break;
             }
+            break;
+        case RAM_SAVE_FLAG_MULTIFD_SYNC:
+            multifd_recv_sync_main();
             break;
         case RAM_SAVE_FLAG_EOS:
             /* normal exit */

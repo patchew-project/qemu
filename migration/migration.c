@@ -4274,7 +4274,7 @@ static Property migration_properties[] = {
                       DEFAULT_MIGRATE_ANNOUNCE_STEP),
     /* We will change to false when we introduce the new mechanism */
     DEFINE_PROP_BOOL("multifd-sync-each-iteration", MigrationState,
-                      multifd_sync_each_iteration, true),
+                      multifd_sync_each_iteration, false),
 
     /* Migration capabilities */
     DEFINE_PROP_MIG_CAP("x-xbzrle", MIGRATION_CAPABILITY_XBZRLE),
