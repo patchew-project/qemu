@@ -36,7 +36,7 @@ int qemu_main(int argc, char **argv, char **envp)
     qemu_main_loop();
     qemu_cleanup();
 
-    return 0;
+    return qemu_get_exit_status();
 }
 
 #ifndef CONFIG_COCOA

@@ -338,6 +338,7 @@ void vm_state_notify(bool running, RunState state)
 static ShutdownCause reset_requested;
 static ShutdownCause shutdown_requested;
 static int shutdown_signal;
+static int exit_status;
 static pid_t shutdown_pid;
 static int powerdown_requested;
 static int debug_requested;
@@ -352,6 +353,16 @@ static NotifierList wakeup_notifiers =
 static NotifierList shutdown_notifiers =
     NOTIFIER_LIST_INITIALIZER(shutdown_notifiers);
 static uint32_t wakeup_reason_mask = ~(1 << QEMU_WAKEUP_REASON_NONE);
+
+void qemu_set_exit_status(int status)
+{
+    exit_status = status;
+}
+
+int qemu_get_exit_status(void)
+{
+    return exit_status;
+}
 
 ShutdownCause qemu_shutdown_requested_get(void)
 {
@@ -781,7 +792,7 @@ void qemu_init_subsystems(void)
 
 void qemu_cleanup(void)
 {
-    gdb_exit(0);
+    gdb_exit(qemu_get_exit_status());
 
     /*
      * cleaning up the migration object cancels any existing migration

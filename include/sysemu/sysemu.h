@@ -105,6 +105,8 @@ bool defaults_enabled(void);
 void qemu_init(int argc, char **argv, char **envp);
 void qemu_main_loop(void);
 void qemu_cleanup(void);
+void qemu_set_exit_status(int status);
+int qemu_get_exit_status(void);
 
 extern QemuOptsList qemu_legacy_drive_opts;
 extern QemuOptsList qemu_common_drive_opts;
