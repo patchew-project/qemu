@@ -48,6 +48,12 @@ Place only the following kinds of devices directly on the Root Complex:
         strangely when PCI Express devices are integrated
         with the Root Complex.
 
+        VGA compatible devices which support VESA BIOS Extensions (VBE) must
+        be placed on the Root Complex for the VBE registers to be accessible,
+        as the IO port access is not forwarded over bridges or root ports.
+        VBE may be used on systems with BIOS firmware (e.g. SeaBIOS).  It is
+        not generally used on systems with UEFI firmware (e.g. OVMF).
+
     (2) PCI Express Root Ports (ioh3420), for starting exclusively PCI Express
         hierarchies.
 
