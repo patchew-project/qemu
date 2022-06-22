@@ -20,6 +20,8 @@
  */
 
 #include <nettle/rsa.h>
+#include <nettle/ecc-curve.h>
+#include <nettle/ecdsa.h>
 
 #include "qemu/osdep.h"
 #include "qemu/host-utils.h"
@@ -28,6 +30,7 @@
 #include "qapi/error.h"
 #include "sysemu/cryptodev.h"
 #include "rsakey.h"
+#include "ecdsakey.h"
 
 typedef struct QCryptoNettleRSA {
     QCryptoAkCipher akcipher;
@@ -36,6 +39,32 @@ typedef struct QCryptoNettleRSA {
     QCryptoRSAPaddingAlgorithm padding_alg;
     QCryptoHashAlgorithm hash_alg;
 } QCryptoNettleRSA;
+
+typedef struct QCryptoNettleECDSA {
+    QCryptoAkCipher akcipher;
+    QCryptoCurveID curve_id;
+    const struct ecc_curve *curve;
+    struct ecc_point pubkey;
+    struct ecc_scalar privkey;
+} QCryptoNettleECDSA;
+
+static int qcrypto_nettle_invalid_encrypt(QCryptoAkCipher *akcipher,
+                                          const void *data, size_t data_len,
+                                          void *enc, size_t enc_len,
+                                          Error **errp)
+{
+    error_setg(errp, "Invalid operation");
+    return -1;
+}
+
+static int qcrypto_nettle_invalid_decrypt(QCryptoAkCipher *akcipher,
+                                          const void *enc, size_t enc_len,
+                                          void *data, size_t data_len,
+                                          Error **errp)
+{
+    error_setg(errp, "Invalid operation");
+    return -1;
+}
 
 static void qcrypto_nettle_rsa_free(QCryptoAkCipher *akcipher)
 {
@@ -55,6 +84,12 @@ static QCryptoAkCipher *qcrypto_nettle_rsa_new(
     const uint8_t *key,  size_t keylen,
     Error **errp);
 
+static QCryptoAkCipher *qcrypto_nettle_ecdsa_new(
+    const QCryptoAkCipherOptionsECDSA *opts,
+    QCryptoAkCipherKeyType type,
+    const uint8_t *key, size_t keylen,
+    Error **errp);
+
 QCryptoAkCipher *qcrypto_akcipher_new(const QCryptoAkCipherOptions *opts,
                                       QCryptoAkCipherKeyType type,
                                       const uint8_t *key, size_t keylen,
@@ -63,6 +98,10 @@ QCryptoAkCipher *qcrypto_akcipher_new(const QCryptoAkCipherOptions *opts,
     switch (opts->alg) {
     case QCRYPTO_AKCIPHER_ALG_RSA:
         return qcrypto_nettle_rsa_new(&opts->u.rsa, type, key, keylen, errp);
+
+    case QCRYPTO_AKCIPHER_ALG_ECDSA:
+        return qcrypto_nettle_ecdsa_new(&opts->u.ecdsa, type,
+                                        key, keylen, errp);
 
     default:
         error_setg(errp, "Unsupported algorithm: %u", opts->alg);
@@ -421,6 +460,238 @@ error:
     return NULL;
 }
 
+static int qcrypto_nettle_parse_curve_id(
+    QCryptoNettleECDSA *ecdsa,
+    const QCryptoAkCipherOptionsECDSA *opts, Error **errp)
+{
+    /* ECDSA algorithm can't used for encryption */
+    ecdsa->akcipher.max_plaintext_len = 0;
+    ecdsa->akcipher.max_ciphertext_len = 0;
+
+    switch (opts->curve_id) {
+    case QCRYPTO_CURVE_ID_NIST_P192:
+        ecdsa->akcipher.max_signature_len =
+            qcrypto_akcipher_ecdsasig_x9_62_size(192 / 8);
+        ecdsa->akcipher.max_dgst_len = 192 / 8;
+        ecdsa->curve = nettle_get_secp_192r1();
+        break;
+
+    case QCRYPTO_CURVE_ID_NIST_P256:
+        ecdsa->akcipher.max_signature_len =
+            qcrypto_akcipher_ecdsasig_x9_62_size(256 / 8);
+        ecdsa->akcipher.max_dgst_len = 256 / 8;
+        ecdsa->curve = nettle_get_secp_256r1();
+        break;
+
+    case QCRYPTO_CURVE_ID_NIST_P384:
+        ecdsa->akcipher.max_signature_len =
+            qcrypto_akcipher_ecdsasig_x9_62_size(384 / 8);
+        ecdsa->akcipher.max_dgst_len = 256 / 8;
+        ecdsa->curve = nettle_get_secp_384r1();
+        break;
+
+    default:
+        error_setg(errp, "Unknown curve id: %d", opts->curve_id);
+        return -1;
+    }
+
+    return 0;
+}
+
+static void qcrypto_nettle_ecdsa_free(QCryptoAkCipher *akcipher)
+{
+    QCryptoNettleECDSA *ecdsa = (QCryptoNettleECDSA *)akcipher;
+    if (!ecdsa) {
+        return;
+    }
+    ecc_point_clear(&ecdsa->pubkey);
+    ecc_scalar_clear(&ecdsa->privkey);
+    g_free(ecdsa);
+}
+
+static int qcrypt_nettle_parse_ecdsa_private_key(
+    QCryptoNettleECDSA *ecdsa,
+    const uint8_t *key,
+    size_t keylen,
+    Error **errp)
+{
+    g_autoptr(QCryptoAkCipherECDSAKey) ecdsa_key =
+        qcrypto_akcipher_ecdsakey_parse(QCRYPTO_AKCIPHER_KEY_TYPE_PRIVATE,
+                                        key, keylen, errp);
+    mpz_t scalar, x, y;
+    int ret = -1;
+
+    if (!ecdsa_key) {
+        return ret;
+    }
+
+    mpz_init(x);
+    mpz_init(y);
+    nettle_mpz_init_set_str_256_u(
+        scalar, ecdsa_key->priv.len, ecdsa_key->priv.data);
+    if (ecc_scalar_set(&ecdsa->privkey, scalar) != 1) {
+        goto cleanup;
+    }
+
+    if (ecdsa_key->pub_x.len && ecdsa_key->pub_y.len) {
+        nettle_mpz_set_str_256_u(x,
+            ecdsa_key->pub_x.len, ecdsa_key->pub_x.data);
+        nettle_mpz_set_str_256_u(y,
+            ecdsa_key->pub_y.len, ecdsa_key->pub_y.data);
+        if (ecc_point_set(&ecdsa->pubkey, x, y) != 1) {
+            goto cleanup;
+        }
+    }
+    ret = 0;
+
+cleanup:
+    mpz_clear(scalar);
+    mpz_clear(x);
+    mpz_clear(y);
+    return ret;
+}
+
+static int qcrypt_nettle_parse_ecdsa_public_key(
+    QCryptoNettleECDSA *ecdsa,
+    const uint8_t *key,
+    size_t keylen,
+    Error **errp)
+{
+    g_autoptr(QCryptoAkCipherECDSAKey) ecdsa_key =
+        qcrypto_akcipher_ecdsakey_parse(QCRYPTO_AKCIPHER_KEY_TYPE_PUBLIC,
+                                        key, keylen, errp);
+    mpz_t x, y;
+    int ret = -1;
+
+    if (!ecdsa_key) {
+        return ret;
+    }
+    nettle_mpz_init_set_str_256_u(
+        x, ecdsa_key->pub_x.len, ecdsa_key->pub_x.data);
+    nettle_mpz_init_set_str_256_u(
+        y, ecdsa_key->pub_y.len, ecdsa_key->pub_y.data);
+    if (ecc_point_set(&ecdsa->pubkey, x, y) != 1) {
+        goto cleanup;
+    }
+    ret = 0;
+
+cleanup:
+    mpz_clear(x);
+    mpz_clear(y);
+    return ret;
+}
+
+static int qcrypto_nettle_ecdsa_sign(QCryptoAkCipher *akcipher,
+                                     const void *data, size_t data_len,
+                                     void *sig, size_t sig_len, Error **errp)
+{
+    QCryptoNettleECDSA *ecdsa = (QCryptoNettleECDSA *)akcipher;
+    int ret = -1;
+    size_t actual_len;
+    struct dsa_signature nettle_sig;
+    g_autoptr(QCryptoAkCipherECDSASig) qcrypto_sig = NULL;
+
+    if (sig_len < akcipher->max_signature_len) {
+        error_setg(errp, "Signature buffer should be not less than: %d",
+                   akcipher->max_signature_len);
+        return ret;
+    }
+    dsa_signature_init(&nettle_sig);
+    qcrypto_sig = qcrypto_akcipher_ecdsasig_alloc(ecdsa->curve_id, errp);
+    ecdsa_sign(&ecdsa->privkey, NULL, wrap_nettle_random_func,
+               data_len, data, &nettle_sig);
+    qcrypto_sig->r.len = nettle_mpz_sizeinbase_256_s(nettle_sig.r);
+    qcrypto_sig->s.len = nettle_mpz_sizeinbase_256_s(nettle_sig.s);
+    nettle_mpz_get_str_256(
+        qcrypto_sig->r.len, qcrypto_sig->r.data, nettle_sig.r);
+    nettle_mpz_get_str_256(
+        qcrypto_sig->s.len, qcrypto_sig->s.data, nettle_sig.s);
+    qcrypto_akcipher_ecdsasig_x9_62_encode(qcrypto_sig, sig, &actual_len);
+    ret = actual_len;
+
+    dsa_signature_clear(&nettle_sig);
+    return ret;
+}
+
+static int qcrypto_nettle_ecdsa_verify(QCryptoAkCipher *akcipher,
+                                       const void *sig, size_t sig_len,
+                                       const void *data, size_t data_len,
+                                       Error **errp)
+{
+    QCryptoNettleECDSA *ecdsa = (QCryptoNettleECDSA *)akcipher;
+    int ret = -1;
+    struct dsa_signature nettle_sig;
+    g_autoptr(QCryptoAkCipherECDSASig) qcrypto_sig = NULL;
+
+    qcrypto_sig = qcrypto_akcipher_ecdsasig_parse(sig, sig_len, errp);
+    if (!qcrypto_sig) {
+        return ret;
+    }
+    dsa_signature_init(&nettle_sig);
+    nettle_mpz_init_set_str_256_u(
+        nettle_sig.r, qcrypto_sig->r.len, qcrypto_sig->r.data);
+    nettle_mpz_init_set_str_256_u(
+        nettle_sig.s, qcrypto_sig->s.len, qcrypto_sig->s.data);
+    if (ecdsa_verify(&ecdsa->pubkey, data_len, data, &nettle_sig) == 1) {
+        ret = 0;
+    } else {
+        error_setg(errp, "Failed to verify signature");
+    }
+
+    dsa_signature_clear(&nettle_sig);
+    return ret;
+}
+
+static QCryptoAkCipherDriver nettle_ecdsa = {
+    .encrypt = qcrypto_nettle_invalid_encrypt,
+    .decrypt = qcrypto_nettle_invalid_decrypt,
+    .sign = qcrypto_nettle_ecdsa_sign,
+    .verify = qcrypto_nettle_ecdsa_verify,
+    .free = qcrypto_nettle_ecdsa_free,
+};
+
+static QCryptoAkCipher *qcrypto_nettle_ecdsa_new(
+    const QCryptoAkCipherOptionsECDSA *opts,
+    QCryptoAkCipherKeyType type,
+    const uint8_t *key, size_t keylen,
+    Error **errp)
+{
+    QCryptoNettleECDSA *ecdsa = g_new0(QCryptoNettleECDSA, 1);
+    if (qcrypto_nettle_parse_curve_id(ecdsa, opts, errp) != 0) {
+        goto error;
+    }
+
+    ecdsa->akcipher.driver = &nettle_ecdsa;
+    ecdsa->curve_id = opts->curve_id;
+    ecc_scalar_init(&ecdsa->privkey, ecdsa->curve);
+    ecc_point_init(&ecdsa->pubkey, ecdsa->curve);
+
+    switch (type) {
+    case QCRYPTO_AKCIPHER_KEY_TYPE_PRIVATE:
+        if (qcrypt_nettle_parse_ecdsa_private_key(
+            ecdsa, key, keylen, errp) != 0) {
+            goto error;
+        }
+        break;
+
+    case QCRYPTO_AKCIPHER_KEY_TYPE_PUBLIC:
+        if (qcrypt_nettle_parse_ecdsa_public_key(
+            ecdsa, key, keylen, errp) != 0) {
+            goto error;
+        }
+        break;
+
+    default:
+        error_setg(errp, "Unknown akcipher key type %d", type);
+        goto error;
+    }
+
+    return (QCryptoAkCipher *)ecdsa;
+
+error:
+    qcrypto_nettle_ecdsa_free((QCryptoAkCipher *)ecdsa);
+    return NULL;
+}
 
 bool qcrypto_akcipher_supports(QCryptoAkCipherOptions *opts)
 {
@@ -444,6 +715,17 @@ bool qcrypto_akcipher_supports(QCryptoAkCipherOptions *opts)
             return false;
         }
         break;
+
+    case QCRYPTO_AKCIPHER_ALG_ECDSA:
+        switch (opts->u.ecdsa.curve_id) {
+        case QCRYPTO_CURVE_ID_NIST_P192:
+        case QCRYPTO_CURVE_ID_NIST_P256:
+        case QCRYPTO_CURVE_ID_NIST_P384:
+            return true;
+
+        default:
+            return false;
+        }
 
     default:
         return false;
