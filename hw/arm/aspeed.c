@@ -988,17 +988,29 @@ static void fby35_i2c_init(AspeedMachineState *bmc)
      */
 }
 
+static void qcom_dc_scm_fru_init(I2CBus *bus, uint8_t addr, uint32_t rsize)
+{
+    I2CSlave *i2c_dev = i2c_slave_new("at24c-eeprom", addr);
+    DeviceState *dev = DEVICE(i2c_dev);
+    /* Use First Index for DC-SCM FRU */
+    DriveInfo *dinfo = drive_get(IF_NONE, 0, 0);
+
+    qdev_prop_set_uint32(dev, "rom-size", rsize);
+
+    if (dinfo) {
+        qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(dinfo));
+    }
+
+    i2c_slave_realize_and_unref(i2c_dev, bus, &error_abort);
+}
+
 static void qcom_dc_scm_bmc_i2c_init(AspeedMachineState *bmc)
 {
     AspeedSoCState *soc = &bmc->soc;
 
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 15), "tmp105", 0x4d);
 
-    uint8_t *eeprom_buf = g_malloc0(128 * 1024);
-    if (eeprom_buf) {
-        smbus_eeprom_init_one(aspeed_i2c_get_bus(&soc->i2c, 15), 0x53,
-                              eeprom_buf);
-    }
+    qcom_dc_scm_fru_init(aspeed_i2c_get_bus(&soc->i2c, 15), 0x53, 128 * 1024);
 }
 
 static bool aspeed_get_mmio_exec(Object *obj, Error **errp)
