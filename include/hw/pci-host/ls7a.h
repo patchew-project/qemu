@@ -18,8 +18,8 @@
 #define LS7A_PCI_MEM_BASE        0x40000000UL
 #define LS7A_PCI_MEM_SIZE        0x40000000UL
 #define LS7A_PCI_IO_OFFSET      0x4000
-#define LS_PCIECFG_BASE         0x20000000
-#define LS_PCIECFG_SIZE         0x08000000
+#define LS7A_PCI_CFG_BASE         0x20000000
+#define LS7A_PCI_CFG_SIZE         0x08000000
 #define LS7A_PCI_IO_BASE        0x18004000UL
 #define LS7A_PCI_IO_SIZE        0xC000
 

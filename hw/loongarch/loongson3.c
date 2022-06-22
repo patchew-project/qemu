@@ -121,8 +121,8 @@ static void loongarch_devices_init(DeviceState *pch_pic)
     ecam_alias = g_new0(MemoryRegion, 1);
     ecam_reg = sysbus_mmio_get_region(d, 0);
     memory_region_init_alias(ecam_alias, OBJECT(gpex_dev), "pcie-ecam",
-                             ecam_reg, 0, LS_PCIECFG_SIZE);
-    memory_region_add_subregion(get_system_memory(), LS_PCIECFG_BASE,
+                             ecam_reg, 0, LS7A_PCI_CFG_SIZE);
+    memory_region_add_subregion(get_system_memory(), LS7A_PCI_CFG_BASE,
                                 ecam_alias);
 
     /* Map PCI mem space */
