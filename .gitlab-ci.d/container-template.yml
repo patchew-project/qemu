@@ -1,3 +1,8 @@
+#
+# This container job uses QEMU's wrapper scripts to build a container
+# which we can use for the basis of other tests. Generally these
+# containers setup build environments for building QEMU or its tests.
+#
 .container_job_template:
   extends: .base_job_template
   image: docker:stable
@@ -20,3 +25,31 @@
     - docker push "$TAG"
   after_script:
     - docker logout
+
+#
+# This container job uses the native docker tools to build and run and
+# container. Here the container may include the build itself which is
+# used for things like preparing binary images.
+#
+.container_native_template:
+  extends: .base_job_template
+  image: docker:stable
+  stage: containers
+  services:
+    - docker:dind
+  before_script:
+    - export TAG="$CI_REGISTRY_IMAGE/qemu/$NAME:latest"
+    - export COMMON_TAG="$CI_REGISTRY/qemu-project/qemu/$NAME:latest"
+    - apk add python3
+    - docker info
+    - docker login $CI_REGISTRY -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD"
+  script:
+    - echo "TAG:$TAG"
+    - echo "COMMON_TAG:$COMMON_TAG"
+    - DOCKER_BUILDKIT=1 docker build
+          -t "qemu/$NAME" -f ".gitlab-ci.d/binary-builds/$NAME.docker" .
+    - docker tag "qemu/$NAME" "$TAG"
+    - docker push "$TAG"
+  after_script:
+    - docker logout
+    

@@ -1,0 +1,18 @@
+#
+# QEMU Binary Builds, in docker form
+#
+#
+
+# Build stage, assumes workdir
+FROM registry.gitlab.com/qemu-project/qemu/qemu/debian-amd64
+ADD . /src
+RUN mkdir -p /src/build
+WORKDIR /src/build
+RUN ../configure --disable-user --disable-plugins --disable-docs \
+  --target-list-exclude=avr-softmmu,cris-softmmu,microblaze-softmmu,microblazeel-softmmu,or1k-softmmu,rx-softmmu,sh4-softmmu,sh4eb-softmmu,tricore-softmmu \
+  --prefix=/opt/qemu
+RUN ninja
+RUN make install
+
+FROM registry.gitlab.com/qemu-project/qemu/qemu/debian11
+COPY --from=0 /opt/qemu /opt/qemu

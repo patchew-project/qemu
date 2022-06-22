@@ -1,0 +1,19 @@
+#
+# Binary Builds
+#
+# These are docker images with built QEMU binaries which could form
+# the basis of inputs for other projects that want recent QEMU builds
+# for their own CI.
+#
+
+include:
+  - local: '/.gitlab-ci.d/container-template.yml'
+
+build-binary-debian11:
+  extends: .container_native_template
+  needs:
+    - job: amd64-debian11-container
+      artifacts: true
+  timeout: 90m
+  variables:
+    NAME: debian-amd64-binaries
