@@ -291,7 +291,6 @@ static uint8_t pmbus_receive_byte(SMBusDevice *smd)
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: tried to read from all pages\n",
                       __func__);
-        pmbus_cml_error(pmdev);
     } else if (pmdev->page > pmdev->num_pages - 1) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: page %d is out of range\n",
