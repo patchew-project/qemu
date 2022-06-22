@@ -8263,6 +8263,10 @@ static int do_openat(CPUArchState *cpu_env, int dirfd, const char *pathname, int
         snprintf(filename, sizeof(filename), "%s/qemu-open.XXXXXX", tmpdir);
         fd = mkstemp(filename);
         if (fd < 0) {
+            fprintf(stderr,
+                    "qemu-user: Could not create temporary file for "
+                    "fake_open, set $TMPDIR to a valid path or create /tmp. "
+                    "Returning error for open() of %s\n", pathname);
             return fd;
         }
         unlink(filename);
