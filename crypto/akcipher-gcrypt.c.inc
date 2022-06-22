@@ -28,6 +28,7 @@
 #include "qapi/error.h"
 #include "sysemu/cryptodev.h"
 #include "rsakey.h"
+#include "ecdsakey.h"
 
 typedef struct QCryptoGcryptRSA {
     QCryptoAkCipher akcipher;
@@ -35,6 +36,13 @@ typedef struct QCryptoGcryptRSA {
     QCryptoRSAPaddingAlgorithm padding_alg;
     QCryptoHashAlgorithm hash_alg;
 } QCryptoGcryptRSA;
+
+typedef struct QCryptoGcryptECDSA {
+    QCryptoAkCipher akcipher;
+    gcry_sexp_t key;
+    QCryptoCurveID curve_id;
+    const char *curve_name;
+} QCryptoGcryptECDSA;
 
 static void qcrypto_gcrypt_rsa_free(QCryptoAkCipher *akcipher)
 {
@@ -53,6 +61,12 @@ static QCryptoGcryptRSA *qcrypto_gcrypt_rsa_new(
     const uint8_t *key,  size_t keylen,
     Error **errp);
 
+static QCryptoGcryptECDSA *qcrypto_gcrypt_ecdsa_new(
+    const QCryptoAkCipherOptionsECDSA *opts,
+    QCryptoAkCipherKeyType type,
+    const uint8_t *key, size_t keylen,
+    Error **errp);
+
 QCryptoAkCipher *qcrypto_akcipher_new(const QCryptoAkCipherOptions *opts,
                                       QCryptoAkCipherKeyType type,
                                       const uint8_t *key, size_t keylen,
@@ -62,6 +76,10 @@ QCryptoAkCipher *qcrypto_akcipher_new(const QCryptoAkCipherOptions *opts,
     case QCRYPTO_AKCIPHER_ALG_RSA:
         return (QCryptoAkCipher *)qcrypto_gcrypt_rsa_new(
             &opts->u.rsa, type, key, keylen, errp);
+
+    case QCRYPTO_AKCIPHER_ALG_ECDSA:
+        return (QCryptoAkCipher *)qcrypto_gcrypt_ecdsa_new(
+            &opts->u.ecdsa, type, key, keylen, errp);
 
     default:
         error_setg(errp, "Unsupported algorithm: %u", opts->alg);
@@ -470,6 +488,7 @@ static int qcrypto_gcrypt_rsa_verify(QCryptoAkCipher *akcipher,
     gcry_sexp_t sig_sexp = NULL, dgst_sexp = NULL;
     gcry_error_t err;
 
+
     if (in_len > akcipher->max_signature_len) {
         error_setg(errp, "Signature length is greater than key size: %d",
                    akcipher->max_signature_len);
@@ -564,6 +583,385 @@ error:
     return NULL;
 }
 
+static int qcrypto_gcrypt_parse_curve_id(QCryptoGcryptECDSA *ecdsa,
+    const QCryptoAkCipherOptionsECDSA *opts, Error **errp)
+{
+    /* ECDSA algorithm can't used for encryption */
+    ecdsa->akcipher.max_plaintext_len = 0;
+    ecdsa->akcipher.max_ciphertext_len = 0;
+
+    switch (opts->curve_id) {
+    case QCRYPTO_CURVE_ID_NIST_P192:
+        ecdsa->curve_name = "nistp192";
+        ecdsa->akcipher.max_signature_len =
+            qcrypto_akcipher_ecdsasig_x9_62_size(192 / 8);
+        ecdsa->akcipher.max_dgst_len = 192 / 8;
+        break;
+
+    case QCRYPTO_CURVE_ID_NIST_P256:
+        ecdsa->curve_name = "nistp256";
+        ecdsa->akcipher.max_signature_len =
+            qcrypto_akcipher_ecdsasig_x9_62_size(256 / 8);
+        ecdsa->akcipher.max_dgst_len = 256 / 8;
+        break;
+
+    case QCRYPTO_CURVE_ID_NIST_P384:
+        ecdsa->curve_name = "nistp384";
+        ecdsa->akcipher.max_signature_len =
+            qcrypto_akcipher_ecdsasig_x9_62_size(384 / 8);
+        ecdsa->akcipher.max_dgst_len = 256 / 8;
+        break;
+
+    default:
+        error_setg(errp, "Unknown curve id: %d", opts->curve_id);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int qcrypto_gcrypt_parse_ecdsa_private_key(
+    QCryptoGcryptECDSA *ecdsa, const char *curve_name,
+    const uint8_t *key, size_t keylen,
+    Error **errp)
+{
+    g_autoptr(QCryptoAkCipherECDSAKey) ecdsa_key =
+        qcrypto_akcipher_ecdsakey_parse(QCRYPTO_AKCIPHER_KEY_TYPE_PRIVATE,
+                                        key, keylen, errp);
+    gcry_mpi_t d = NULL;
+    gcry_error_t err;
+    g_autofree uint8_t *pubkey = NULL;
+    int ret = -1, pubkey_len;
+
+    if (!ecdsa_key) {
+        return ret;
+    }
+
+    err = gcry_mpi_scan(&d, GCRYMPI_FMT_USG, ecdsa_key->priv.data,
+                        ecdsa_key->priv.len, NULL);
+    if (gcry_err_code(err) != 0) {
+        error_setg(errp, "Failed to parse ECDSA parivate key: %s/%s",
+                   gcry_strsource(err), gcry_strerror(err));
+        return ret;
+    }
+
+    /**
+     * Note: Gcrypt cannot automatically calculate the public key from the
+     * private key. If we do not add the public key into private key's
+     * S-expression, the private key will not be able to used for verification.
+     */
+    if (ecdsa_key->pub_x.len != 0 && ecdsa_key->pub_y.len != 0) {
+        /* if public key is found, add it into private key's S-expression */
+        pubkey_len = ecdsa_key->pub_x.len + ecdsa_key->pub_y.len + 1;
+        pubkey = g_new0(uint8_t, pubkey_len);
+        /* 0x04 for uncompressed public key format */
+        pubkey[0] = 0x04;
+        memcpy(pubkey + 1, ecdsa_key->pub_x.data, ecdsa_key->pub_x.len);
+        memcpy(pubkey + 1 + ecdsa_key->pub_x.len,
+            ecdsa_key->pub_y.data, ecdsa_key->pub_y.len);
+
+        err = gcry_sexp_build(&ecdsa->key, NULL,
+            "(private-key (ecc (curve %s) (q %b) (d %m)))",
+            curve_name, pubkey_len, pubkey, d);
+    } else {
+      err = gcry_sexp_build(&ecdsa->key, NULL,
+          "(private-key (ecc (curve %s) (d %m)))", curve_name, d);
+    }
+
+    if (gcry_err_code(err) != 0) {
+        error_setg(errp, "Failed to build ECDSA parivate key: %s/%s",
+                   gcry_strsource(err), gcry_strerror(err));
+        goto cleanup;
+    }
+
+    ret = 0;
+
+cleanup:
+    gcry_mpi_release(d);
+    return ret;
+}
+
+static int qcrypto_gcrypt_parse_ecdsa_public_key(
+    QCryptoGcryptECDSA *ecdsa, const char *curve_name,
+    const uint8_t *key, size_t keylen,
+    Error **errp)
+{
+    gcry_error_t err;
+    int ret = -1;
+
+    err = gcry_sexp_build(&ecdsa->key, NULL,
+        "(public-key (ecc (curve %s) (q %b)))", curve_name, keylen, key);
+    if (gcry_err_code(err) != 0) {
+        error_setg(errp, "Failed to build ECDSA public key: %s/%s",
+                   gcry_strsource(err), gcry_strerror(err));
+        goto cleanup;
+    }
+    ret = 0;
+
+cleanup:
+    return ret;
+}
+
+static void qcrypto_gcrypt_ecdsa_free(QCryptoAkCipher *akcipher)
+{
+    QCryptoGcryptECDSA *ecdsa = (QCryptoGcryptECDSA *)akcipher;
+    if (!ecdsa) {
+        return;
+    }
+    gcry_sexp_release(ecdsa->key);
+    g_free(ecdsa);
+}
+
+static int qcrypto_gcrypt_invalid_encrypt(QCryptoAkCipher *akcipher,
+                                          const void *in, size_t in_len,
+                                          void *out, size_t out_len,
+                                          Error **errp)
+{
+    error_setg(errp, "Operation is invalid");
+    return -1;
+}
+
+static int qcrypto_gcrypt_invalid_decrypt(QCryptoAkCipher *akcipher,
+                                          const void *in, size_t in_len,
+                                          void *out, size_t out_len,
+                                          Error **errp)
+{
+    error_setg(errp, "Operation is invalid");
+    return -1;
+}
+
+static int qcrypto_gcrypt_ecdsa_sign(QCryptoAkCipher *akcipher,
+                                     const void *in, size_t in_len,
+                                     void *out, size_t out_len, Error **errp)
+{
+    QCryptoGcryptECDSA *ecdsa = (QCryptoGcryptECDSA *)akcipher;
+    int ret = -1;
+    gcry_mpi_t data = NULL, r_mpi = NULL, s_mpi = NULL;
+    gcry_sexp_t dgst_sexp = NULL, sig_sexp = NULL;
+    gcry_sexp_t r_sexp_item = NULL, s_sexp_item = NULL;
+    size_t actual_len;
+    gcry_error_t err;
+    g_autoptr(QCryptoAkCipherECDSASig) sig = NULL;
+
+    if (out_len < akcipher->max_signature_len) {
+        error_setg(errp, "Signature buffer should be not less than: %d",
+                   akcipher->max_signature_len);
+        return -1;
+    }
+    /**
+     * Note:
+     * 1. for ECDSA, digest length less than key length is recommended but not
+     * required, truncation occurs when digest is too long, see FIPS 186-4:
+     * https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf.
+     * 2. in order for gcrypt to truncate(if needed) the digest correctly, we
+     * must use the S-expression '(hash hash-alg block)' to store the digest.
+     * When the flags is 'raw', gcrypt will ignore the paramter 'hash-alg'(
+     * in below code, hard encoded as 'sha1').
+     */
+    err = gcry_sexp_build(&dgst_sexp, NULL,
+                          "(data (flags raw) (hash sha1 %b))", in_len, in);
+    if (gcry_err_code(err) != 0) {
+        error_setg(errp, "Failed to build dgst signature: %s/%s",
+                   gcry_strsource(err), gcry_strerror(err));
+        goto cleanup;
+    }
+
+    err = gcry_pk_sign(&sig_sexp, dgst_sexp, ecdsa->key);
+    if (gcry_err_code(err) != 0) {
+        error_setg(errp, "Failed to make signature: %s/%s",
+                   gcry_strsource(err), gcry_strerror(err));
+        goto cleanup;
+    }
+
+    sig = qcrypto_akcipher_ecdsasig_alloc(ecdsa->curve_id, errp);
+    if (!sig) {
+        goto cleanup;
+    }
+
+    /* S-expression of signature: (sig-val (ecdsa (r r-mpi) (s s-mpi))) */
+    r_sexp_item = gcry_sexp_find_token(sig_sexp, "r", 0);
+    if (!r_sexp_item || gcry_sexp_length(r_sexp_item) != 2) {
+        error_setg(errp, "Invalid signature result");
+        goto cleanup;
+    }
+    r_mpi = gcry_sexp_nth_mpi(r_sexp_item, 1, GCRYMPI_FMT_USG);
+    if (!r_mpi) {
+        error_setg(errp, "Invalid signature result");
+    }
+    err = gcry_mpi_print(GCRYMPI_FMT_STD, sig->r.data, sig->r.len,
+                         &actual_len, r_mpi);
+    if (gcry_err_code(err) != 0) {
+        error_setg(errp, "Failed to print MPI: %s/%s",
+                   gcry_strsource(err), gcry_strerror(err));
+        goto cleanup;
+    }
+    if (unlikely(actual_len > sig->r.len)) {
+        error_setg(errp, "Internal error: signature buffer is too small");
+        goto cleanup;
+    }
+    sig->r.len = actual_len;
+
+    s_sexp_item = gcry_sexp_find_token(sig_sexp, "s", 0);
+    if (!s_sexp_item || gcry_sexp_length(s_sexp_item) != 2) {
+        error_setg(errp, "Invalid signature result");
+        goto cleanup;
+    }
+    s_mpi = gcry_sexp_nth_mpi(s_sexp_item, 1, GCRYMPI_FMT_USG);
+    if (!s_mpi) {
+        error_setg(errp, "Invalid signature result");
+    }
+    err = gcry_mpi_print(GCRYMPI_FMT_STD, sig->s.data, sig->s.len,
+                         &actual_len, s_mpi);
+    if (gcry_err_code(err) != 0) {
+        error_setg(errp, "Failed to print MPI: %s/%s",
+                   gcry_strsource(err), gcry_strerror(err));
+        goto cleanup;
+    }
+    if (unlikely(actual_len > sig->s.len)) {
+        error_setg(errp, "Internal error: signature buffer is too small");
+        goto cleanup;
+    }
+    sig->s.len = actual_len;
+
+    qcrypto_akcipher_ecdsasig_x9_62_encode(sig, out, &out_len);
+    ret = out_len;
+
+cleanup:
+    gcry_mpi_release(data);
+    gcry_mpi_release(r_mpi);
+    gcry_mpi_release(s_mpi);
+    gcry_sexp_release(dgst_sexp);
+    gcry_sexp_release(sig_sexp);
+    gcry_sexp_release(r_sexp_item);
+
+    return ret;
+}
+
+static int qcrypto_gcrypt_ecdsa_verify(QCryptoAkCipher *akcipher,
+                                       const void *in, size_t in_len,
+                                       const void *in2, size_t in2_len,
+                                       Error **errp)
+{
+    QCryptoGcryptECDSA *ecdsa = (QCryptoGcryptECDSA *)akcipher;
+    int ret = -1;
+    QCryptoAkCipherECDSASig *sig;
+    gcry_mpi_t sig_s = NULL, sig_r = NULL, dgst_mpi = NULL;
+    gcry_sexp_t sig_sexp = NULL, dgst_sexp = NULL;
+    gcry_error_t err;
+
+    /*
+     * We only check the signature length, dgst length will be handled
+     * by gcrypt, see qcrypto_gcrypt_ecdsa_sign.
+     */
+    if (in_len > akcipher->max_signature_len) {
+        error_setg(errp, "Signature length is greater than %d",
+                   akcipher->max_signature_len);
+        return ret;
+    }
+
+    sig = qcrypto_akcipher_ecdsasig_parse(in, in_len, errp);
+    if (!sig) {
+        return ret;
+    }
+
+    err = gcry_mpi_scan(&sig_r, GCRYMPI_FMT_STD, sig->r.data, sig->r.len, NULL);
+    if (gcry_err_code(err) != 0) {
+        error_setg(errp, "Failed to parse ECDSA signature: %s/%s",
+                   gcry_strsource(err), gcry_strerror(err));
+        goto cleanup;
+    }
+    err = gcry_mpi_scan(&sig_s, GCRYMPI_FMT_STD, sig->s.data, sig->s.len, NULL);
+    if (gcry_err_code(err) != 0) {
+        error_setg(errp, "Failed to parse ECDSA signature: %s/%s",
+                   gcry_strsource(err), gcry_strerror(err));
+        goto cleanup;
+    }
+    err = gcry_sexp_build(&sig_sexp, NULL,
+                          "(sig-val (ecdsa (r %m) (s %m)))", sig_r, sig_s);
+    if (gcry_err_code(err) != 0) {
+        error_setg(errp, "Failed to build signature: %s/%s",
+                   gcry_strsource(err), gcry_strerror(err));
+        goto cleanup;
+    }
+
+    /**
+     * gcrypt will ignore the paremeter 'sha1', see commment in function:
+     * qcrypto_gcrypt_ecdsa_verify
+     */
+    err = gcry_sexp_build(&dgst_sexp, NULL,
+                          "(data (flags raw) (hash sha1 %b))", in2_len, in2);
+    if (gcry_err_code(err) != 0) {
+        error_setg(errp, "Failed to build dgst: %s/%s",
+                   gcry_strsource(err), gcry_strerror(err));
+        goto cleanup;
+    }
+
+    err = gcry_pk_verify(sig_sexp, dgst_sexp, ecdsa->key);
+    if (gcry_err_code(err) != 0) {
+        error_setg(errp, "Failed to verify signature: %s/%s",
+                   gcry_strsource(err), gcry_strerror(err));
+        goto cleanup;
+    }
+    ret = 0;
+
+cleanup:
+    gcry_mpi_release(sig_s);
+    gcry_mpi_release(sig_r);
+    gcry_mpi_release(dgst_mpi);
+    gcry_sexp_release(dgst_sexp);
+    gcry_sexp_release(sig_sexp);
+    qcrypto_akcipher_ecdsasig_free(sig);
+
+    return ret;
+}
+
+static QCryptoAkCipherDriver gcrypt_ecdsa = {
+    .encrypt = qcrypto_gcrypt_invalid_encrypt,
+    .decrypt = qcrypto_gcrypt_invalid_decrypt,
+    .sign = qcrypto_gcrypt_ecdsa_sign,
+    .verify = qcrypto_gcrypt_ecdsa_verify,
+    .free = qcrypto_gcrypt_ecdsa_free,
+};
+
+static QCryptoGcryptECDSA *qcrypto_gcrypt_ecdsa_new(
+    const QCryptoAkCipherOptionsECDSA *opts,
+    QCryptoAkCipherKeyType type,
+    const uint8_t *key, size_t keylen,
+    Error **errp)
+{
+    QCryptoGcryptECDSA *ecdsa = g_new0(QCryptoGcryptECDSA, 1);
+    if (qcrypto_gcrypt_parse_curve_id(ecdsa, opts, errp) != 0) {
+        goto error;
+    }
+    ecdsa->curve_id = opts->curve_id;
+    ecdsa->akcipher.driver = &gcrypt_ecdsa;
+
+    switch (type) {
+    case QCRYPTO_AKCIPHER_KEY_TYPE_PRIVATE:
+        if (qcrypto_gcrypt_parse_ecdsa_private_key(
+            ecdsa, ecdsa->curve_name, key, keylen, errp) != 0) {
+            goto error;
+        }
+        break;
+
+    case QCRYPTO_AKCIPHER_KEY_TYPE_PUBLIC:
+        if (qcrypto_gcrypt_parse_ecdsa_public_key(
+            ecdsa, ecdsa->curve_name, key, keylen, errp) != 0) {
+            goto error;
+        }
+        break;
+
+    default:
+        error_setg(errp, "Unknown akcipher key type %d", type);
+        goto error;
+    }
+
+    return ecdsa;
+
+error:
+    qcrypto_gcrypt_ecdsa_free((QCryptoAkCipher *)ecdsa);
+    return NULL;
+}
 
 bool qcrypto_akcipher_supports(QCryptoAkCipherOptions *opts)
 {
@@ -584,6 +982,17 @@ bool qcrypto_akcipher_supports(QCryptoAkCipherOptions *opts)
             default:
                 return false;
             }
+
+        default:
+            return false;
+        }
+
+    case QCRYPTO_AKCIPHER_ALG_ECDSA:
+        switch (opts->u.ecdsa.curve_id) {
+        case QCRYPTO_CURVE_ID_NIST_P192:
+        case QCRYPTO_CURVE_ID_NIST_P256:
+        case QCRYPTO_CURVE_ID_NIST_P384:
+            return true;
 
         default:
             return false;
