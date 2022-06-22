@@ -545,7 +545,7 @@
 ##
 { 'enum': 'QCryptoAkCipherAlgorithm',
   'prefix': 'QCRYPTO_AKCIPHER_ALG',
-  'data': ['rsa']}
+  'data': ['rsa', 'ecdsa']}
 
 ##
 # @QCryptoAkCipherKeyType:
@@ -587,6 +587,29 @@
             'padding-alg': 'QCryptoRSAPaddingAlgorithm'}}
 
 ##
+# @QCryptoCurveID:
+#
+# The known curved for ECC algorithms.
+#
+# Since: 7.1
+##
+{ 'enum': 'QCryptoCurveID',
+  'prefix': 'QCRYPTO_CURVE_ID',
+  'data': ['nist-p192', 'nist-p256', 'nist-p384']}
+
+##
+# @QCryptoAkCipherOptionsECDSA:
+#
+# Specific parameters for ECDSA algorithm.
+#
+# @curve-id: QCryptoCurveId
+#
+# Since: 7.1
+##
+{ 'struct': 'QCryptoAkCipherOptionsECDSA',
+  'data': { 'curve-id': 'QCryptoCurveID' }}
+
+##
 # @QCryptoAkCipherOptions:
 #
 # The options that are available for all asymmetric key algorithms
@@ -597,4 +620,5 @@
 { 'union': 'QCryptoAkCipherOptions',
   'base': { 'alg': 'QCryptoAkCipherAlgorithm' },
   'discriminator': 'alg',
-  'data': { 'rsa': 'QCryptoAkCipherOptionsRSA' }}
+  'data': { 'rsa': 'QCryptoAkCipherOptionsRSA',
+            'ecdsa': 'QCryptoAkCipherOptionsECDSA' }}
