@@ -408,6 +408,7 @@ config NPCM7XX
     select SSI
     select UNIMP
     select PCA954X
+    select MAX31785
 
 config FSL_IMX25
     bool
