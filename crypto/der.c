@@ -27,14 +27,66 @@ enum QCryptoDERTypeTag {
     QCRYPTO_DER_TYPE_TAG_INT = 0x2,
     QCRYPTO_DER_TYPE_TAG_BIT_STR = 0x3,
     QCRYPTO_DER_TYPE_TAG_OCT_STR = 0x4,
-    QCRYPTO_DER_TYPE_TAG_OCT_NULL = 0x5,
-    QCRYPTO_DER_TYPE_TAG_OCT_OID = 0x6,
+    QCRYPTO_DER_TYPE_TAG_NULL = 0x5,
+    QCRYPTO_DER_TYPE_TAG_OID = 0x6,
     QCRYPTO_DER_TYPE_TAG_SEQ = 0x10,
     QCRYPTO_DER_TYPE_TAG_SET = 0x11,
 };
 
-#define QCRYPTO_DER_CONSTRUCTED_MASK 0x20
+enum QCryptoDERTagClass {
+    QCRYPTO_DER_TAG_CLASS_UNIV = 0x0,
+    QCRYPTO_DER_TAG_CLASS_APPL = 0x1,
+    QCRYPTO_DER_TAG_CLASS_CONT = 0x2,
+    QCRYPTO_DER_TAG_CLASS_PRIV = 0x3,
+};
+
+enum QCryptoDERTagEnc {
+    QCRYPTO_DER_TAG_ENC_PRIM = 0x0,
+    QCRYPTO_DER_TAG_ENC_CONS = 0x1,
+};
+
+#define QCRYPTO_DER_TAG_ENC_MASK 0x20
+#define QCRYPTO_DER_TAG_ENC_SHIFT 5
+
+#define QCRYPTO_DER_TAG_CLASS_MASK 0xc0
+#define QCRYPTO_DER_TAG_CLASS_SHIFT 6
+
+#define QCRYPTO_DER_TAG_VAL_MASK 0x1f
 #define QCRYPTO_DER_SHORT_LEN_MASK 0x80
+
+#define QCRYPTO_DER_TAG(class, enc, val)           \
+    (((class) << QCRYPTO_DER_TAG_CLASS_SHIFT) |    \
+     ((enc) << QCRYPTO_DER_TAG_ENC_SHIFT) | (val))
+
+static void qcrypto_der_encode_data(const uint8_t *src, size_t src_len,
+                                    uint8_t *dst, size_t *dst_len)
+{
+    size_t max_length = 0xFF;
+    uint8_t length_bytes = 0, header_byte;
+
+    if (src_len < QCRYPTO_DER_SHORT_LEN_MASK) {
+        header_byte = src_len;
+        *dst_len = src_len + 1;
+    } else {
+        for (length_bytes = 1; max_length < src_len; length_bytes++) {
+            max_length = (max_length << 8) + max_length;
+        }
+        header_byte = length_bytes;
+        header_byte |= QCRYPTO_DER_SHORT_LEN_MASK;
+        *dst_len = src_len + length_bytes + 1;
+    }
+    if (!dst) {
+        return;
+    }
+    *dst++ = header_byte;
+    /* Bigendian length bytes */
+    while (length_bytes) {
+        *dst++ = (src_len >> (length_bytes - 1) * 8);
+        src_len >>= 8;
+        length_bytes--;
+    }
+    memcpy(dst, src, src_len);
+}
 
 static uint8_t qcrypto_der_peek_byte(const uint8_t **data, size_t *dlen)
 {
@@ -150,40 +202,119 @@ static int qcrypto_der_extract_data(const uint8_t **data, size_t *dlen,
     return qcrypto_der_extract_definite_data(data, dlen, cb, ctx, errp);
 }
 
-int qcrypto_der_decode_int(const uint8_t **data, size_t *dlen,
-                           QCryptoDERDecodeCb cb, void *ctx, Error **errp)
+static int qcrypto_der_decode_tlv(const uint8_t expected_tag,
+                                  const uint8_t **data, size_t *dlen,
+                                  QCryptoDERDecodeCb cb,
+                                  void *ctx, Error **errp)
 {
+    const uint8_t *saved_data = *data;
+    size_t saved_dlen = *dlen;
     uint8_t tag;
+    int data_length;
+
     if (*dlen < 1) {
         error_setg(errp, "Need more data");
         return -1;
     }
     tag = qcrypto_der_cut_byte(data, dlen);
-
-    /* INTEGER must encoded in primitive-form */
-    if (tag != QCRYPTO_DER_TYPE_TAG_INT) {
-        error_setg(errp, "Invalid integer type tag: %u", tag);
-        return -1;
+    if (tag != expected_tag) {
+        error_setg(errp, "Unexpected tag: expected: %u, actual: %u",
+                   expected_tag, tag);
+        goto error;
     }
 
-    return qcrypto_der_extract_data(data, dlen, cb, ctx, errp);
+    data_length = qcrypto_der_extract_data(data, dlen, cb, ctx, errp);
+    if (data_length < 0) {
+        goto error;
+    }
+    return data_length;
+
+error:
+    *data = saved_data;
+    *dlen = saved_dlen;
+    return -1;
+}
+
+int qcrypto_der_decode_int(const uint8_t **data, size_t *dlen,
+                           QCryptoDERDecodeCb cb, void *ctx, Error **errp)
+{
+    const uint8_t tag = QCRYPTO_DER_TAG(QCRYPTO_DER_TAG_CLASS_UNIV,
+                                        QCRYPTO_DER_TAG_ENC_PRIM,
+                                        QCRYPTO_DER_TYPE_TAG_INT);
+    return qcrypto_der_decode_tlv(tag, data, dlen, cb, ctx, errp);
 }
 
 int qcrypto_der_decode_seq(const uint8_t **data, size_t *dlen,
                            QCryptoDERDecodeCb cb, void *ctx, Error **errp)
 {
-    uint8_t tag;
-    if (*dlen < 1) {
-        error_setg(errp, "Need more data");
-        return -1;
-    }
-    tag = qcrypto_der_cut_byte(data, dlen);
+    uint8_t tag = QCRYPTO_DER_TAG(QCRYPTO_DER_TAG_CLASS_UNIV,
+                                  QCRYPTO_DER_TAG_ENC_CONS,
+                                  QCRYPTO_DER_TYPE_TAG_SEQ);
+    return qcrypto_der_decode_tlv(tag, data, dlen, cb, ctx, errp);
+}
 
-    /* SEQUENCE must use constructed form */
-    if (tag != (QCRYPTO_DER_TYPE_TAG_SEQ | QCRYPTO_DER_CONSTRUCTED_MASK)) {
-        error_setg(errp, "Invalid type sequence tag: %u", tag);
-        return -1;
-    }
+int qcrypto_der_decode_octet_str(const uint8_t **data, size_t *dlen,
+                                 QCryptoDERDecodeCb cb, void *ctx, Error **errp)
+{
+    uint8_t tag = QCRYPTO_DER_TAG(QCRYPTO_DER_TAG_CLASS_UNIV,
+                                  QCRYPTO_DER_TAG_ENC_PRIM,
+                                  QCRYPTO_DER_TYPE_TAG_OCT_STR);
+    return qcrypto_der_decode_tlv(tag, data, dlen, cb, ctx, errp);
+}
 
-    return qcrypto_der_extract_data(data, dlen, cb, ctx, errp);
+int qcrypto_der_decode_bit_str(const uint8_t **data, size_t *dlen,
+                               QCryptoDERDecodeCb cb, void *ctx, Error **errp)
+{
+    uint8_t tag = QCRYPTO_DER_TAG(QCRYPTO_DER_TAG_CLASS_UNIV,
+                                  QCRYPTO_DER_TAG_ENC_PRIM,
+                                  QCRYPTO_DER_TYPE_TAG_BIT_STR);
+    return qcrypto_der_decode_tlv(tag, data, dlen, cb, ctx, errp);
+}
+
+int qcrypto_der_decode_oid(const uint8_t **data, size_t *dlen,
+                           QCryptoDERDecodeCb cb, void *ctx, Error **errp)
+{
+    uint8_t tag = QCRYPTO_DER_TAG(QCRYPTO_DER_TAG_CLASS_UNIV,
+                                  QCRYPTO_DER_TAG_ENC_PRIM,
+                                  QCRYPTO_DER_TYPE_TAG_OID);
+    return qcrypto_der_decode_tlv(tag, data, dlen, cb, ctx, errp);
+}
+
+int qcrypto_der_decode_ctx_tag(const uint8_t **data, size_t *dlen, int tag_id,
+                               QCryptoDERDecodeCb cb, void *ctx, Error **errp)
+{
+    uint8_t tag = QCRYPTO_DER_TAG(QCRYPTO_DER_TAG_CLASS_CONT,
+                                  QCRYPTO_DER_TAG_ENC_CONS,
+                                  tag_id);
+    return qcrypto_der_decode_tlv(tag, data, dlen, cb, ctx, errp);
+}
+
+void qcrypto_der_encode_int(const uint8_t *src, size_t src_len,
+                            uint8_t *dst, size_t *dst_len)
+{
+    if (!dst) {
+        qcrypto_der_encode_data(src, src_len, NULL, dst_len);
+        *dst_len += 1;
+        return;
+    }
+    *dst++ = QCRYPTO_DER_TAG(QCRYPTO_DER_TAG_CLASS_UNIV,
+                             QCRYPTO_DER_TAG_ENC_PRIM,
+                             QCRYPTO_DER_TYPE_TAG_INT);
+    qcrypto_der_encode_data(src, src_len, dst, dst_len);
+    *dst_len += 1;
+}
+
+void qcrypto_der_encode_seq(const uint8_t *src, size_t src_len,
+                            uint8_t *dst, size_t *dst_len)
+{
+    if (!dst) {
+        qcrypto_der_encode_data(src, src_len, NULL, dst_len);
+        *dst_len += 1;
+        return;
+    }
+    *dst++ = QCRYPTO_DER_TAG(QCRYPTO_DER_TAG_CLASS_UNIV,
+                             QCRYPTO_DER_TAG_ENC_CONS,
+                             QCRYPTO_DER_TYPE_TAG_SEQ);
+    qcrypto_der_encode_data(src, src_len, dst, dst_len);
+    *dst_len += 1;
 }
