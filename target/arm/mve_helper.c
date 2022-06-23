@@ -1345,9 +1345,9 @@ static int32_t do_vqdmladh_w(int32_t a, int32_t b, int32_t c, int32_t d,
      * So we add half the rounding constant before doubling rather
      * than adding the rounding constant after the doubling.
      */
-    if (sadd64_overflow(m1, m2, &r) ||
-        sadd64_overflow(r, (round << 30), &r) ||
-        sadd64_overflow(r, r, &r)) {
+    if (__builtin_add_overflow(m1, m2, &r) ||
+        __builtin_add_overflow(r, (round << 30), &r) ||
+        __builtin_add_overflow(r, r, &r)) {
         *sat = true;
         return r < 0 ? INT32_MAX : INT32_MIN;
     }
@@ -1375,9 +1375,9 @@ static int32_t do_vqdmlsdh_w(int32_t a, int32_t b, int32_t c, int32_t d,
     int64_t m2 = (int64_t)c * d;
     int64_t r;
     /* The same ordering issue as in do_vqdmladh_w applies here too */
-    if (ssub64_overflow(m1, m2, &r) ||
-        sadd64_overflow(r, (round << 30), &r) ||
-        sadd64_overflow(r, r, &r)) {
+    if (__builtin_sub_overflow(m1, m2, &r) ||
+        __builtin_add_overflow(r, (round << 30), &r) ||
+        __builtin_add_overflow(r, r, &r)) {
         *sat = true;
         return r < 0 ? INT32_MAX : INT32_MIN;
     }
@@ -1561,9 +1561,9 @@ static int32_t do_vqdmlah_w(int32_t a, int32_t b, int32_t c,
     int64_t m1 = (int64_t)a * b;
     int64_t m2 = (int64_t)c << 31;
     int64_t r;
-    if (sadd64_overflow(m1, m2, &r) ||
-        sadd64_overflow(r, (round << 30), &r) ||
-        sadd64_overflow(r, r, &r)) {
+    if (__builtin_add_overflow(m1, m2, &r) ||
+        __builtin_add_overflow(r, (round << 30), &r) ||
+        __builtin_add_overflow(r, r, &r)) {
         *sat = true;
         return r < 0 ? INT32_MAX : INT32_MIN;
     }

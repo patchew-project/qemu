@@ -909,7 +909,7 @@ static void parts128_log2(FloatParts128 *a, float_status *s, const FloatFmt *f);
 
 static bool frac64_add(FloatParts64 *r, FloatParts64 *a, FloatParts64 *b)
 {
-    return uadd64_overflow(a->frac, b->frac, &r->frac);
+    return __builtin_add_overflow(a->frac, b->frac, &r->frac);
 }
 
 static bool frac128_add(FloatParts128 *r, FloatParts128 *a, FloatParts128 *b)
@@ -934,13 +934,13 @@ static bool frac256_add(FloatParts256 *r, FloatParts256 *a, FloatParts256 *b)
 
 static bool frac64_addi(FloatParts64 *r, FloatParts64 *a, uint64_t c)
 {
-    return uadd64_overflow(a->frac, c, &r->frac);
+    return __builtin_add_overflow(a->frac, c, &r->frac);
 }
 
 static bool frac128_addi(FloatParts128 *r, FloatParts128 *a, uint64_t c)
 {
-    c = uadd64_overflow(a->frac_lo, c, &r->frac_lo);
-    return uadd64_overflow(a->frac_hi, c, &r->frac_hi);
+    c = __builtin_add_overflow(a->frac_lo, c, &r->frac_lo);
+    return __builtin_add_overflow(a->frac_hi, c, &r->frac_hi);
 }
 
 #define frac_addi(R, A, C)  FRAC_GENERIC_64_128(addi, R)(R, A, C)
@@ -1516,7 +1516,7 @@ static void frac256_shrjam(FloatParts256 *a, int c)
 
 static bool frac64_sub(FloatParts64 *r, FloatParts64 *a, FloatParts64 *b)
 {
-    return usub64_overflow(a->frac, b->frac, &r->frac);
+    return __builtin_sub_overflow(a->frac, b->frac, &r->frac);
 }
 
 static bool frac128_sub(FloatParts128 *r, FloatParts128 *a, FloatParts128 *b)

@@ -574,8 +574,8 @@ void decNumberIntegralToInt128(const decNumber *dn, decContext *set,
             /* overflow */
             goto Invalid;
         }
-        if (uadd64_overflow(lo, up[d], &lo)) {
-            if (uadd64_overflow(hi, 1, &hi)) {
+        if (__builtin_add_overflow(lo, up[d], &lo)) {
+            if (__builtin_add_overflow(hi, 1, &hi)) {
                 /* overflow */
                 goto Invalid;
             }

@@ -1074,7 +1074,7 @@ void HELPER(gvec_ssadd32)(void *d, void *a, void *b, uint32_t desc)
         int32_t ai = *(int32_t *)(a + i);
         int32_t bi = *(int32_t *)(b + i);
         int32_t di;
-        if (sadd32_overflow(ai, bi, &di)) {
+        if (__builtin_add_overflow(ai, bi, &di)) {
             di = (di < 0 ? INT32_MAX : INT32_MIN);
         }
         *(int32_t *)(d + i) = di;
@@ -1091,7 +1091,7 @@ void HELPER(gvec_ssadd64)(void *d, void *a, void *b, uint32_t desc)
         int64_t ai = *(int64_t *)(a + i);
         int64_t bi = *(int64_t *)(b + i);
         int64_t di;
-        if (sadd64_overflow(ai, bi, &di)) {
+        if (__builtin_add_overflow(ai, bi, &di)) {
             di = (di < 0 ? INT64_MAX : INT64_MIN);
         }
         *(int64_t *)(d + i) = di;
@@ -1142,7 +1142,7 @@ void HELPER(gvec_sssub32)(void *d, void *a, void *b, uint32_t desc)
         int32_t ai = *(int32_t *)(a + i);
         int32_t bi = *(int32_t *)(b + i);
         int32_t di;
-        if (ssub32_overflow(ai, bi, &di)) {
+        if (__builtin_sub_overflow(ai, bi, &di)) {
             di = (di < 0 ? INT32_MAX : INT32_MIN);
         }
         *(int32_t *)(d + i) = di;
@@ -1159,7 +1159,7 @@ void HELPER(gvec_sssub64)(void *d, void *a, void *b, uint32_t desc)
         int64_t ai = *(int64_t *)(a + i);
         int64_t bi = *(int64_t *)(b + i);
         int64_t di;
-        if (ssub64_overflow(ai, bi, &di)) {
+        if (__builtin_sub_overflow(ai, bi, &di)) {
             di = (di < 0 ? INT64_MAX : INT64_MIN);
         }
         *(int64_t *)(d + i) = di;
@@ -1206,7 +1206,7 @@ void HELPER(gvec_usadd32)(void *d, void *a, void *b, uint32_t desc)
         uint32_t ai = *(uint32_t *)(a + i);
         uint32_t bi = *(uint32_t *)(b + i);
         uint32_t di;
-        if (uadd32_overflow(ai, bi, &di)) {
+        if (__builtin_add_overflow(ai, bi, &di)) {
             di = UINT32_MAX;
         }
         *(uint32_t *)(d + i) = di;
@@ -1223,7 +1223,7 @@ void HELPER(gvec_usadd64)(void *d, void *a, void *b, uint32_t desc)
         uint64_t ai = *(uint64_t *)(a + i);
         uint64_t bi = *(uint64_t *)(b + i);
         uint64_t di;
-        if (uadd64_overflow(ai, bi, &di)) {
+        if (__builtin_add_overflow(ai, bi, &di)) {
             di = UINT64_MAX;
         }
         *(uint64_t *)(d + i) = di;
@@ -1270,7 +1270,7 @@ void HELPER(gvec_ussub32)(void *d, void *a, void *b, uint32_t desc)
         uint32_t ai = *(uint32_t *)(a + i);
         uint32_t bi = *(uint32_t *)(b + i);
         uint32_t di;
-        if (usub32_overflow(ai, bi, &di)) {
+        if (__builtin_sub_overflow(ai, bi, &di)) {
             di = 0;
         }
         *(uint32_t *)(d + i) = di;
@@ -1287,7 +1287,7 @@ void HELPER(gvec_ussub64)(void *d, void *a, void *b, uint32_t desc)
         uint64_t ai = *(uint64_t *)(a + i);
         uint64_t bi = *(uint64_t *)(b + i);
         uint64_t di;
-        if (usub64_overflow(ai, bi, &di)) {
+        if (__builtin_sub_overflow(ai, bi, &di)) {
             di = 0;
         }
         *(uint64_t *)(d + i) = di;
