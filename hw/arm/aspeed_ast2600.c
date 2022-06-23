@@ -197,8 +197,6 @@ static void aspeed_soc_ast2600_init(Object *obj)
     object_initialize_child(obj, "sdmc", &s->sdmc, typename);
     object_property_add_alias(obj, "ram-size", OBJECT(&s->sdmc),
                               "ram-size");
-    object_property_add_alias(obj, "max-ram-size", OBJECT(&s->sdmc),
-                              "max-ram-size");
 
     for (i = 0; i < sc->wdts_num; i++) {
         snprintf(typename, sizeof(typename), "aspeed.wdt-%s", socname);
@@ -271,6 +269,10 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     /* IO space */
     create_unimplemented_device("aspeed_soc.io", sc->memmap[ASPEED_DEV_IOMEM],
                                 ASPEED_SOC_IOMEM_SIZE);
+    /* RAM */
+    if (!aspeed_soc_dram_init(s, errp)) {
+        return;
+    }
 
     /* Video engine stub */
     create_unimplemented_device("aspeed.video", sc->memmap[ASPEED_DEV_VIDEO],
