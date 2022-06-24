@@ -672,6 +672,24 @@ DEF_HELPER_FLAGS_1(tlbia, TCG_CALL_NO_RWG, void, env)
 DEF_HELPER_FLAGS_2(tlbie, TCG_CALL_NO_RWG, void, env, tl)
 DEF_HELPER_FLAGS_2(tlbiva, TCG_CALL_NO_RWG, void, env, tl)
 #if defined(TARGET_PPC64)
+
+/*
+ * tlbie[l] helper flags
+ *
+ * RIC, PRS, R and local are passed as flags in the last argument.
+ */
+#define TLBIE_F_RIC_SHIFT       0
+#define TLBIE_F_PRS_SHIFT       2
+#define TLBIE_F_R_SHIFT         3
+#define TLBIE_F_LOCAL_SHIFT     4
+
+#define TLBIE_F_RIC_MASK        (3 << TLBIE_F_RIC_SHIFT)
+#define TLBIE_F_PRS             (1 << TLBIE_F_PRS_SHIFT)
+#define TLBIE_F_R               (1 << TLBIE_F_R_SHIFT)
+#define TLBIE_F_LOCAL           (1 << TLBIE_F_LOCAL_SHIFT)
+
+DEF_HELPER_FLAGS_4(tlbie_isa300, TCG_CALL_NO_WG, void, \
+        env, tl, tl, i32)
 DEF_HELPER_FLAGS_3(store_slb, TCG_CALL_NO_RWG, void, env, tl, tl)
 DEF_HELPER_2(load_slb_esid, tl, env, tl)
 DEF_HELPER_2(load_slb_vsid, tl, env, tl)
