@@ -669,50 +669,51 @@ static void do_version(QVirtio9P *v9p)
     g_assert_cmpmem(server_version, server_len, version, strlen(version));
 }
 
+/* options for 'Twalk' 9p request */
+typedef struct TWalkOpt {
+    /* 9P client being used (mandatory) */
+    QVirtio9P *client;
+    /* path to walk to (mandatory) */
+    const char *path;
+    /* data being received from 9p server as 'Rwalk' response (optional) */
+    struct {
+        uint16_t *nwqid;
+        v9fs_qid **wqid;
+    } Rwalk;
+    /* do we expect an Rlerror response, if yes which error code? (optional) */
+    uint32_t expectErr;
+} TWalkOpt;
+
 /*
  * utility function: walk to requested dir and return fid for that dir and
  * the QIDs of server response
  */
-static uint32_t do_walk_rqids(QVirtio9P *v9p, const char *path, uint16_t *nwqid,
-                              v9fs_qid **wqid)
+static uint32_t Twalk(TWalkOpt opt)
 {
     char **wnames;
     P9Req *req;
+    uint32_t err;
     const uint32_t fid = genfid();
 
-    int nwnames = split(path, "/", &wnames);
+    g_assert(opt.client);
+    g_assert(opt.path);
+    /* you can expect either Rwalk or Rlerror, but obviously not both */
+    g_assert(!opt.expectErr || !(opt.Rwalk.nwqid || opt.Rwalk.wqid));
 
-    req = v9fs_twalk(v9p, 0, fid, nwnames, wnames, 0);
+    int nwnames = split(opt.path, "/", &wnames);
+
+    req = v9fs_twalk(opt.client, 0, fid, nwnames, wnames, 0);
     v9fs_req_wait_for_reply(req, NULL);
-    v9fs_rwalk(req, nwqid, wqid);
+
+    if (opt.expectErr) {
+        v9fs_rlerror(req, &err);
+        g_assert_cmpint(err, ==, opt.expectErr);
+    } else {
+        v9fs_rwalk(req, opt.Rwalk.nwqid, opt.Rwalk.wqid);
+    }
 
     split_free(&wnames);
     return fid;
-}
-
-/* utility function: walk to requested dir and return fid for that dir */
-static uint32_t do_walk(QVirtio9P *v9p, const char *path)
-{
-    return do_walk_rqids(v9p, path, NULL, NULL);
-}
-
-/* utility function: walk to requested dir and expect passed error response */
-static void do_walk_expect_error(QVirtio9P *v9p, const char *path, uint32_t err)
-{
-    char **wnames;
-    P9Req *req;
-    uint32_t _err;
-    const uint32_t fid = genfid();
-
-    int nwnames = split(path, "/", &wnames);
-
-    req = v9fs_twalk(v9p, 0, fid, nwnames, wnames, 0);
-    v9fs_req_wait_for_reply(req, NULL);
-    v9fs_rlerror(req, &_err);
-
-    g_assert_cmpint(_err, ==, err);
-
-    split_free(&wnames);
 }
 
 static void fs_version(void *obj, void *data, QGuestAllocator *t_alloc)
@@ -1098,7 +1099,9 @@ static void fs_walk_nonexistent(void *obj, void *data, QGuestAllocator *t_alloc)
      * The 9p2000 protocol spec says: "If the first element cannot be walked
      * for any reason, Rerror is returned."
      */
-    do_walk_expect_error(v9p, "non-existent", ENOENT);
+    Twalk((TWalkOpt) {
+        .client = v9p, .path = "non-existent", .expectErr = ENOENT
+    });
 }
 
 static void fs_walk_2nd_nonexistent(void *obj, void *data,
@@ -1116,7 +1119,9 @@ static void fs_walk_2nd_nonexistent(void *obj, void *data,
     );
 
     do_attach_rqid(v9p, &root_qid);
-    fid = do_walk_rqids(v9p, path, &nwqid, &wqid);
+    fid = Twalk((TWalkOpt) {
+        .client = v9p, .path = path, .Rwalk.nwqid = &nwqid, .Rwalk.wqid = &wqid
+    });
     /*
      * The 9p2000 protocol spec says: "nwqid is therefore either nwname or the
      * index of the first elementwise walk that failed."
@@ -1311,7 +1316,7 @@ static void do_mkdir(QVirtio9P *v9p, const char *path, const char *cname)
     uint32_t fid;
     P9Req *req;
 
-    fid = do_walk(v9p, path);
+    fid = Twalk((TWalkOpt) { .client = v9p, .path = path });
 
     req = v9fs_tmkdir(v9p, fid, name, 0750, 0, 0);
     v9fs_req_wait_for_reply(req, NULL);
@@ -1326,7 +1331,7 @@ static uint32_t do_lcreate(QVirtio9P *v9p, const char *path,
     uint32_t fid;
     P9Req *req;
 
-    fid = do_walk(v9p, path);
+    fid = Twalk((TWalkOpt) { .client = v9p, .path = path });
 
     req = v9fs_tlcreate(v9p, fid, name, 0, 0750, 0, 0);
     v9fs_req_wait_for_reply(req, NULL);
@@ -1344,7 +1349,7 @@ static void do_symlink(QVirtio9P *v9p, const char *path, const char *clink,
     uint32_t fid;
     P9Req *req;
 
-    fid = do_walk(v9p, path);
+    fid = Twalk((TWalkOpt) { .client = v9p, .path = path });
 
     req = v9fs_tsymlink(v9p, fid, name, dst, 0, 0);
     v9fs_req_wait_for_reply(req, NULL);
@@ -1358,8 +1363,8 @@ static void do_hardlink(QVirtio9P *v9p, const char *path, const char *clink,
     uint32_t dfid, fid;
     P9Req *req;
 
-    dfid = do_walk(v9p, path);
-    fid = do_walk(v9p, to);
+    dfid = Twalk((TWalkOpt) { .client = v9p, .path = path });
+    fid = Twalk((TWalkOpt) { .client = v9p, .path = to });
 
     req = v9fs_tlink(v9p, dfid, fid, clink, 0);
     v9fs_req_wait_for_reply(req, NULL);
@@ -1373,7 +1378,7 @@ static void do_unlinkat(QVirtio9P *v9p, const char *atpath, const char *rpath,
     uint32_t fid;
     P9Req *req;
 
-    fid = do_walk(v9p, atpath);
+    fid = Twalk((TWalkOpt) { .client = v9p, .path = atpath });
 
     req = v9fs_tunlinkat(v9p, fid, name, flags, 0);
     v9fs_req_wait_for_reply(req, NULL);
