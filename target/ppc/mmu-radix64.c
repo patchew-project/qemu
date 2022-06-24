@@ -280,6 +280,14 @@ static int ppc_radix64_next_level(AddressSpace *as, vaddr eaddr,
     *psize -= *nls;
     if (!(pde & R_PTE_LEAF)) { /* Prepare for next iteration */
         *nls = pde & R_PDE_NLS;
+
+        if ((pde & R_PDE_NLB) & MAKE_64BIT_MASK(0, *nls + 3)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                "%s: misaligned page dir/table base: 0x%"VADDR_PRIx
+                " page dir size: 0x"TARGET_FMT_lx"\n",
+                __func__, (pde & R_PDE_NLB), BIT(*nls + 3));
+        }
+
         index = eaddr >> (*psize - *nls);       /* Shift */
         index &= ((1UL << *nls) - 1);           /* Mask */
         *pte_addr = (pde & R_PDE_NLB) + (index * sizeof(pde));
@@ -294,6 +302,13 @@ static int ppc_radix64_walk_tree(AddressSpace *as, vaddr eaddr,
 {
     uint64_t index, pde, rpn, mask;
     int level = 0;
+
+    if (base_addr & MAKE_64BIT_MASK(0, nls + 3)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+            "%s: misaligned page dir base: 0x%"VADDR_PRIx
+            " page dir size: 0x"TARGET_FMT_lx"\n",
+            __func__, base_addr, BIT(nls + 3));
+    }
 
     index = eaddr >> (*psize - nls);    /* Shift */
     index &= ((1UL << nls) - 1);       /* Mask */
