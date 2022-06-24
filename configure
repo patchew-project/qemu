@@ -676,6 +676,29 @@ fi
 
 werror=""
 
+meson_option_build_array() {
+  local a
+  local ifs
+
+  if test "$targetos" == windows; then
+    ifs=\;
+  else
+    ifs=:
+  fi
+
+  echo -n "["
+
+  while IFS="$ifs" read -ra a; do
+    for e in "${a[@]}"; do
+      echo -n '"""'
+      echo -n "$e" | sed 's/\\/\\\\/g; s/"/\\"/g'
+      echo -n '"""',
+    done
+  done <<< "$1"
+
+  echo "]"
+}
+
 . $source_path/scripts/meson-buildoptions.sh
 
 meson_options=
