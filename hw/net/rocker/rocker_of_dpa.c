@@ -2039,6 +2039,11 @@ static int of_dpa_cmd_add_l2_flood(OfDpa *of_dpa, OfDpaGroup *group,
     rocker_tlv_parse_nested(tlvs, group->l2_flood.group_count,
                             group_tlvs[ROCKER_TLV_OF_DPA_GROUP_IDS]);
 
+    if (!tlvs) {
+        err = -ROCKER_EINVAL;
+        goto err_out;
+    }
+
     for (i = 0; i < group->l2_flood.group_count; i++) {
         group->l2_flood.group_ids[i] = rocker_tlv_get_le32(tlvs[i + 1]);
     }
