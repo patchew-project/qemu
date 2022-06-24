@@ -2132,6 +2132,7 @@ static void pnv_machine_power9_class_init(ObjectClass *oc, void *data)
 
     static GlobalProperty phb_compat[] = {
         { TYPE_PNV_PHB, "version", "4" },
+        { TYPE_PNV_PHB_ROOT_PORT, "version", "4" },
     };
 
     mc->desc = "IBM PowerNV (Non-Virtualized) POWER9";
@@ -2156,6 +2157,7 @@ static void pnv_machine_power10_class_init(ObjectClass *oc, void *data)
 
     static GlobalProperty phb_compat[] = {
         { TYPE_PNV_PHB, "version", "5" },
+        { TYPE_PNV_PHB_ROOT_PORT, "version", "5" },
     };
 
     mc->desc = "IBM PowerNV (Non-Virtualized) POWER10";
