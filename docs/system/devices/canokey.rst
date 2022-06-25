@@ -156,6 +156,11 @@ to it, for example
 
    |qemu_system| -device piix3-usb-uhci,id=uhci -device canokey,bus=uhci.0
 
+The other limitation is that this device is not compatible with ``usb-ehci``
+since the device only provides the full-speed mode. However, when a
+full-speed device attach to a high-speed port, ``usb-ehci`` would complain
+about speed mismatch.
+
 References
 ==========
 
