@@ -81,9 +81,10 @@ void isa_bus_irqs(ISABus *bus, qemu_irq *irqs)
  */
 qemu_irq isa_get_irq(ISADevice *dev, unsigned isairq)
 {
-    assert(!dev || ISA_BUS(qdev_get_parent_bus(DEVICE(dev))) == isabus);
+    assert(dev);
     assert(isairq < ISA_NUM_IRQS);
-    return isabus->irqs[isairq];
+
+    return isa_bus_from_device(dev)->irqs[isairq];
 }
 
 void isa_connect_gpio_out(ISADevice *isadev, int gpioirq, unsigned isairq)
