@@ -1706,6 +1706,122 @@ static const cmdinfo_t flush_cmd = {
     .oneline    = "flush all in-core file state to disk",
 };
 
+static int zone_report_f(BlockBackend *blk, int argc, char **argv)
+{
+    int ret;
+    int64_t offset, len, nr_zones;
+    int i = 0;
+
+    ++optind;
+    offset = cvtnum(argv[optind]);
+    ++optind;
+    len = cvtnum(argv[optind]);
+    ++optind;
+    nr_zones = cvtnum(argv[optind]);
+
+    g_autofree BlockZoneDescriptor *zones = g_new(BlockZoneDescriptor, nr_zones);
+    ret = blk_zone_report(blk, offset, len, &nr_zones, zones);
+    while (i < nr_zones) {
+        fprintf(stdout, "start: 0x%lx, len 0x%lx, cap 0x%lx, wptr 0x%lx, "
+                        "zcond:%u, [type: %u]\n",
+                zones[i].start, zones[i].length, zones[i].cap, zones[i].wp,
+                zones[i].cond, zones[i].type);
+        ++i;
+    }
+    return ret;
+}
+
+static const cmdinfo_t zone_report_cmd = {
+        .name = "zone_report",
+        .altname = "f",
+        .cfunc = zone_report_f,
+        .argmin = 3,
+        .argmax = 3,
+        .args = "offset [offset..] len [len..] number [num..]",
+        .oneline = "report a number of zones",
+};
+
+static int zone_open_f(BlockBackend *blk, int argc, char **argv)
+{
+    int64_t offset, len;
+    ++optind;
+    offset = cvtnum(argv[optind]);
+    ++optind;
+    len = cvtnum(argv[optind]);
+    return blk_zone_mgmt(blk, zone_open, offset, len);
+}
+
+static const cmdinfo_t zone_open_cmd = {
+        .name = "zone_open",
+        .altname = "f",
+        .cfunc = zone_open_f,
+        .argmin = 2,
+        .argmax = 2,
+        .args = "offset [offset..] len [len..]",
+        .oneline = "explicit open a range of zones in zone block device",
+};
+
+static int zone_close_f(BlockBackend *blk, int argc, char **argv)
+{
+    int64_t offset, len;
+    ++optind;
+    offset = cvtnum(argv[optind]);
+    ++optind;
+    len = cvtnum(argv[optind]);
+    return blk_zone_mgmt(blk, zone_close, offset, len);
+}
+
+static const cmdinfo_t zone_close_cmd = {
+        .name = "zone_close",
+        .altname = "f",
+        .cfunc = zone_close_f,
+        .argmin = 2,
+        .argmax = 2,
+        .args = "offset [offset..] len [len..]",
+        .oneline = "close a range of zones in zone block device",
+};
+
+static int zone_finish_f(BlockBackend *blk, int argc, char **argv)
+{
+    int64_t offset, len;
+    ++optind;
+    offset = cvtnum(argv[optind]);
+    ++optind;
+    len = cvtnum(argv[optind]);
+    return blk_zone_mgmt(blk, zone_finish, offset, len);
+}
+
+static const cmdinfo_t zone_finish_cmd = {
+        .name = "zone_finish",
+        .altname = "f",
+        .cfunc = zone_finish_f,
+        .argmin = 2,
+        .argmax = 2,
+        .args = "offset [offset..] len [len..]",
+        .oneline = "finish a range of zones in zone block device",
+};
+
+static int zone_reset_f(BlockBackend *blk, int argc, char **argv)
+{
+    int64_t offset, len;
+    ++optind;
+    offset = cvtnum(argv[optind]);
+    ++optind;
+    len = cvtnum(argv[optind]);
+    return blk_zone_mgmt(blk, zone_reset, offset, len);
+}
+
+static const cmdinfo_t zone_reset_cmd = {
+        .name = "zone_reset",
+        .altname = "f",
+        .cfunc = zone_reset_f,
+        .argmin = 2,
+        .argmax = 2,
+        .args = "offset [offset..] len [len..]",
+        .oneline = "reset a zone write pointer in zone block device",
+};
+
+
 static int truncate_f(BlockBackend *blk, int argc, char **argv);
 static const cmdinfo_t truncate_cmd = {
     .name       = "truncate",
@@ -2498,6 +2614,11 @@ static void __attribute((constructor)) init_qemuio_commands(void)
     qemuio_add_command(&aio_write_cmd);
     qemuio_add_command(&aio_flush_cmd);
     qemuio_add_command(&flush_cmd);
+    qemuio_add_command(&zone_report_cmd);
+    qemuio_add_command(&zone_open_cmd);
+    qemuio_add_command(&zone_close_cmd);
+    qemuio_add_command(&zone_finish_cmd);
+    qemuio_add_command(&zone_reset_cmd);
     qemuio_add_command(&truncate_cmd);
     qemuio_add_command(&length_cmd);
     qemuio_add_command(&info_cmd);

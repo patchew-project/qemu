@@ -3243,6 +3243,27 @@ out:
     return co.ret;
 }
 
+int bdrv_co_zone_report(BlockDriverState *bs, int64_t offset,
+                        int64_t len, int64_t *nr_zones,
+                        BlockZoneDescriptor *zones)
+{
+    if (!bs->drv->bdrv_co_zone_report) {
+        return -ENOTSUP;
+    }
+
+    return bs->drv->bdrv_co_zone_report(bs, offset, len, nr_zones, zones);
+}
+
+int bdrv_co_zone_mgmt(BlockDriverState *bs, enum zone_op op,
+        int64_t offset, int64_t len)
+{
+    if (!bs->drv->bdrv_co_zone_mgmt) {
+        return -ENOTSUP;
+    }
+
+    return bs->drv->bdrv_co_zone_mgmt(bs, op, offset, len);
+}
+
 void *qemu_blockalign(BlockDriverState *bs, size_t size)
 {
     IO_CODE();
