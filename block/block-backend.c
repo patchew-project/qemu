@@ -1806,6 +1806,62 @@ int blk_flush(BlockBackend *blk)
     return ret;
 }
 
+/*
+ * Return zone_report from BlockDriver. Offset can be any number within
+ * the zone size. No alignment for offset and len.
+ */
+int coroutine_fn blk_co_zone_report(BlockBackend *blk, int64_t offset,
+                       int64_t len, int64_t *nr_zones,
+                       BlockZoneDescriptor *zones)
+{
+    int ret;
+    BlockDriverState *bs;
+    IO_CODE();
+
+    blk_inc_in_flight(blk); /* increase before waiting */
+    blk_wait_while_drained(blk);
+    bs = blk_bs(blk);
+
+    ret = blk_check_byte_request(blk, offset, len);
+    if (ret < 0) {
+        return ret;
+    }
+
+    bdrv_inc_in_flight(bs);
+    ret = bdrv_co_zone_report(blk->root->bs, offset, len,
+                              nr_zones, zones);
+    bdrv_dec_in_flight(bs);
+    blk_dec_in_flight(blk);
+    return ret;
+}
+
+/*
+ * Return zone_mgmt from BlockDriver.
+ * Offset is the start of a zone and len is aligned to zones.
+ */
+int coroutine_fn blk_co_zone_mgmt(BlockBackend *blk, enum zone_op op,
+        int64_t offset, int64_t len)
+{
+    int ret;
+    BlockDriverState *bs;
+    IO_CODE();
+
+    blk_inc_in_flight(blk);
+    blk_wait_while_drained(blk);
+    bs = blk_bs(blk);
+
+    ret = blk_check_byte_request(blk, offset, len);
+    if (ret < 0) {
+        return ret;
+    }
+
+    bdrv_inc_in_flight(bs);
+    ret = bdrv_co_zone_mgmt(blk->root->bs, op, offset, len);
+    bdrv_dec_in_flight(bs);
+    blk_dec_in_flight(blk);
+    return ret;
+}
+
 void blk_drain(BlockBackend *blk)
 {
     BlockDriverState *bs = blk_bs(blk);
