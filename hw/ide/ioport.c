@@ -25,6 +25,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/isa/isa.h"
+#include "hw/pci/pci_bus.h"
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
 #include "sysemu/blockdev.h"
@@ -59,6 +60,19 @@ void isa_ide_init_ioport(IDEBus *bus, ISADevice *dev, int iobase, int iobase2)
 
     if (iobase2) {
         isa_register_portio_list(dev, &bus->portio2_list,
+                                 iobase2, ide_portio2_list, bus, "ide");
+    }
+}
+
+void pci_ide_init_ioport(IDEBus *bus, PCIDevice *dev, int iobase, int iobase2)
+{
+    assert(dev);
+
+    pci_register_portio_list(dev, &bus->portio_list,
+                             iobase, ide_portio_list, bus, "ide");
+
+    if (iobase2) {
+        pci_register_portio_list(dev, &bus->portio2_list,
                                  iobase2, ide_portio2_list, bus, "ide");
     }
 }

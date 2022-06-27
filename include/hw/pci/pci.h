@@ -522,6 +522,27 @@ void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque);
 pcibus_t pci_bar_address(PCIDevice *d,
                          int reg, uint8_t type, pcibus_t size);
 
+/**
+ * pci_register_portio_list: Initialize a set of io ports
+ *
+ * Several ISA devices have many dis-joint I/O ports.  Worse, these I/O
+ * ports can be interleaved with I/O ports from other devices.  This
+ * function makes it easy to create multiple MemoryRegions for a single
+ * device and use the legacy portio routines.
+ *
+ * @dev: the PCIDevice against which these are registered
+ * @piolist: the PortioList associated with the io ports
+ * @start: the base I/O port against which the portio->offset is applied.
+ * @portio: the ports, sorted by offset.
+ * @opaque: passed into the portio callbacks.
+ * @name: passed into memory_region_init_io.
+ */
+void pci_register_portio_list(PCIDevice *dev,
+                              PortioList *piolist,
+                              uint16_t start,
+                              const MemoryRegionPortio *portio,
+                              void *opaque, const char *name);
+
 static inline void
 pci_set_byte(uint8_t *config, uint8_t val)
 {

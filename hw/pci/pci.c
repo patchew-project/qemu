@@ -1440,6 +1440,24 @@ pcibus_t pci_bar_address(PCIDevice *d,
     return new_addr;
 }
 
+void pci_register_portio_list(PCIDevice *dev,
+                              PortioList *piolist, uint16_t start,
+                              const MemoryRegionPortio *pio_start,
+                              void *opaque, const char *name)
+{
+    PCIBus *bus;
+
+    assert(dev);
+    assert(piolist && !piolist->owner);
+
+    bus = pci_get_bus(dev);
+
+    assert(bus);
+
+    portio_list_init(piolist, OBJECT(dev), pio_start, opaque, name);
+    portio_list_add(piolist, bus->address_space_io, start);
+}
+
 static void pci_update_mappings(PCIDevice *d)
 {
     PCIIORegion *r;
