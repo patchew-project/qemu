@@ -136,6 +136,17 @@ static int pci_piix_init_ports(PCIIDEState *d)
     };
     int i, ret;
 
+    {
+        ISABus *isa_bus;
+        bool ambiguous;
+
+        isa_bus = ISA_BUS(object_resolve_path_type("", TYPE_ISA_BUS,
+                                                   &ambiguous));
+        if (!isa_bus || ambiguous) {
+            return -ENODEV;
+        }
+    }
+
     for (i = 0; i < 2; i++) {
         ide_bus_init(&d->bus[i], sizeof(d->bus[i]), DEVICE(d), i, 2);
         ret = ide_init_ioport(&d->bus[i], NULL, port_info[i].iobase,
