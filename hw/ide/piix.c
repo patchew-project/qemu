@@ -161,8 +161,8 @@ static int pci_piix_init_ports(PCIIDEState *d)
 
     for (i = 0; i < 2; i++) {
         ide_bus_init(&d->bus[i], sizeof(d->bus[i]), dev, i, 2);
-        ide_init_ioport(&d->bus[i], NULL, port_info[i].iobase,
-                        port_info[i].iobase2);
+        isa_ide_init_ioport(&d->bus[i], NULL, port_info[i].iobase,
+                            port_info[i].iobase2);
         ide_init2(&d->bus[i], qdev_get_gpio_in(dev, i));
 
         bmdma_init(&d->bus[i], &d->bmdma[i], d);
