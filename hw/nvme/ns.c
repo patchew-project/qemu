@@ -661,6 +661,7 @@ static Property nvme_ns_props[] = {
     DEFINE_PROP_BOOL("eui64-default", NvmeNamespace, params.eui64_default,
                      false),
     DEFINE_PROP_UINT16("ready_delay", NvmeNamespace, params.ready_delay, 0),
+    DEFINE_PROP_BOOL("never_ready", NvmeNamespace, params.never_ready, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

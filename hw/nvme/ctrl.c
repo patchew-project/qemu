@@ -168,6 +168,12 @@
  *   before being marked ready. Only applicable if CC.CRIME is set by the user.
  *   The value is in units of 500 milliseconds (to be consistent with `crwmt`).
  *
+ * - `never_ready`
+ *   This parameter specifies that a namespace should never be marked as ready.
+ *   When `crwmt` amount of time has passed after enabling the controller,
+ *   status code "Namespace Not Ready" will have the DNR bit set. If specified
+ *   together with `ready_delay`, `never_ready` will take precedence.
+ *
  * Setting `zoned` to true selects Zoned Command Set at the namespace.
  * In this case, the following namespace properties are available to configure
  * zoned operation:
@@ -4144,6 +4150,14 @@ static uint16_t nvme_zone_mgmt_recv(NvmeCtrl *n, NvmeRequest *req)
     return status;
 }
 
+static bool nvme_ready_has_passed_timeout(NvmeCtrl *n)
+{
+    int64_t current_time = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL);
+    int64_t elapsed_time = current_time - n->cc_enable_timestamp;
+
+    return elapsed_time > n->params.crwmt * 500;
+}
+
 static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req)
 {
     NvmeNamespace *ns;
@@ -4190,7 +4204,11 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req)
     }
 
     if (!(ns->id_indep_ns.nstat & NVME_NSTAT_NRDY)) {
-        return NVME_NS_NOT_READY;
+        uint16_t ret = NVME_NS_NOT_READY;
+        if (ns->params.never_ready && nvme_ready_has_passed_timeout(n)) {
+            ret |= NVME_DNR;
+        }
+        return ret;
     }
 
     if (ns->status) {
@@ -5595,6 +5613,10 @@ static void nvme_set_ready_or_start_timer(NvmeCtrl *n, NvmeNamespace *ns)
 {
     int64_t expire_time;
 
+    if (ns->params.never_ready) {
+        return;
+    }
+
     if (!NVME_CC_CRIME(ldl_le_p(&n->bar.cc)) || ns->params.ready_delay == 0) {
         ns->id_indep_ns.nstat |= NVME_NSTAT_NRDY;
         return;
@@ -6254,6 +6276,7 @@ static void nvme_ctrl_reset(NvmeCtrl *n, NvmeResetType rst)
         }
     }
 
+    n->cc_enable_timestamp = 0;
     n->aer_queued = 0;
     n->aer_mask = 0;
     n->outstanding_aers = 0;
@@ -6293,6 +6316,8 @@ static void nvme_ctrl_shutdown(NvmeCtrl *n)
 
         nvme_ns_shutdown(ns);
     }
+
+    n->cc_enable_timestamp = 0;
 }
 
 static void nvme_ctrl_per_ns_action_on_start(NvmeCtrl *n)
@@ -6410,6 +6435,7 @@ static int nvme_start_ctrl(NvmeCtrl *n)
     NVME_CAP_SET_TO(cap, new_cap_timeout);
     stq_le_p(&n->bar.cap, cap);
 
+    n->cc_enable_timestamp = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL);
     n->page_bits = page_bits;
     n->page_size = page_size;
     n->max_prp_ents = n->page_size / sizeof(uint64_t);

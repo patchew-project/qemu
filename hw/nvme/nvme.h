@@ -127,6 +127,7 @@ typedef struct NvmeNamespaceParams {
     uint64_t zrwafg;
 
     uint16_t ready_delay;
+    bool     never_ready;
 } NvmeNamespaceParams;
 
 typedef struct NvmeNamespace {
@@ -446,6 +447,7 @@ typedef struct NvmeCtrl {
     int         cq_pending;
     uint64_t    host_timestamp;                 /* Timestamp sent by the host */
     uint64_t    timestamp_set_qemu_clock_ms;    /* QEMU clock time */
+    uint64_t    cc_enable_timestamp;            /* QEMU clock time */
     uint64_t    starttime_ms;
     uint16_t    temperature;
     uint8_t     smart_critical_warning;
