@@ -947,7 +947,10 @@ static void vduse_queue_disable(VduseVirtq *vq)
 
     eventfd.index = vq->index;
     eventfd.fd = VDUSE_EVENTFD_DEASSIGN;
-    ioctl(dev->fd, VDUSE_VQ_SETUP_KICKFD, &eventfd);
+    if (ioctl(dev->fd, VDUSE_VQ_SETUP_KICKFD, &eventfd)) {
+        fprintf(stderr, "Failed to disable eventfd for vq[%d]: %s\n",
+                vq->index, strerror(errno));
+    }
     close(vq->fd);
 
     assert(vq->inuse == 0);
@@ -1337,7 +1340,10 @@ VduseDev *vduse_dev_create(const char *name, uint32_t device_id,
 
     return dev;
 err:
-    ioctl(ctrl_fd, VDUSE_DESTROY_DEV, name);
+    if (ioctl(ctrl_fd, VDUSE_DESTROY_DEV, name)) {
+        fprintf(stderr, "Failed to destroy vduse device %s: %s\n",
+                name, strerror(errno));
+    }
 err_dev:
     close(ctrl_fd);
 err_ctrl:
