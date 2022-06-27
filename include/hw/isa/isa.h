@@ -108,7 +108,7 @@ void isa_register_ioport(ISADevice *dev, MemoryRegion *io, uint16_t start);
  * function makes it easy to create multiple MemoryRegions for a single
  * device and use the legacy portio routines.
  *
- * @dev: the ISADevice against which these are registered; may be NULL.
+ * @dev: the ISADevice against which these are registered
  * @piolist: the PortioList associated with the io ports
  * @start: the base I/O port against which the portio->offset is applied.
  * @portio: the ports, sorted by offset.
