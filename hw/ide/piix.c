@@ -103,6 +103,13 @@ static void bmdma_setup_bar(PCIIDEState *d)
     }
 }
 
+static void piix_ide_set_irq(void *opaque, int n, int level)
+{
+    PCIIDEState *d = opaque;
+
+    qemu_set_irq(d->isa_irqs[n], level);
+}
+
 static void piix_ide_reset(DeviceState *dev)
 {
     PCIIDEState *d = PCI_IDE(dev);
@@ -129,14 +136,14 @@ static int pci_piix_init_ports(PCIIDEState *d)
     static const struct {
         int iobase;
         int iobase2;
-        int isairq;
     } port_info[] = {
-        {0x1f0, 0x3f6, 14},
-        {0x170, 0x376, 15},
+        {0x1f0, 0x3f6},
+        {0x170, 0x376},
     };
+    DeviceState *dev = DEVICE(d);
     int i;
 
-    {
+    if (d->user_created) {
         ISABus *isa_bus;
         bool ambiguous;
 
@@ -145,13 +152,18 @@ static int pci_piix_init_ports(PCIIDEState *d)
         if (!isa_bus || ambiguous) {
             return -ENODEV;
         }
+
+        d->isa_irqs[0] = isa_bus->irqs[14];
+        d->isa_irqs[1] = isa_bus->irqs[15];
+    } else {
+        qdev_init_gpio_out(dev, d->isa_irqs, 2);
     }
 
     for (i = 0; i < 2; i++) {
-        ide_bus_init(&d->bus[i], sizeof(d->bus[i]), DEVICE(d), i, 2);
+        ide_bus_init(&d->bus[i], sizeof(d->bus[i]), dev, i, 2);
         ide_init_ioport(&d->bus[i], NULL, port_info[i].iobase,
                         port_info[i].iobase2);
-        ide_init2(&d->bus[i], isa_get_irq(NULL, port_info[i].isairq));
+        ide_init2(&d->bus[i], qdev_get_gpio_in(dev, i));
 
         bmdma_init(&d->bus[i], &d->bmdma[i], d);
         d->bmdma[i].bus = &d->bus[i];
@@ -181,6 +193,14 @@ static void pci_piix_ide_realize(PCIDevice *dev, Error **errp)
     }
 }
 
+static void pci_piix_ide_init(Object *obj)
+{
+    PCIIDEState *d = PCI_IDE(obj);
+    DeviceState *dev = DEVICE(d);
+
+    qdev_init_gpio_in(dev, piix_ide_set_irq, 2);
+}
+
 static void pci_piix_ide_exitfn(PCIDevice *dev)
 {
     PCIIDEState *d = PCI_IDE(dev);
@@ -191,6 +211,11 @@ static void pci_piix_ide_exitfn(PCIDevice *dev)
         memory_region_del_subregion(&d->bmdma_bar, &d->bmdma[i].addr_ioport);
     }
 }
+
+static Property piix_ide_properties[] = {
+    DEFINE_PROP_BOOL("user-created", PCIIDEState, user_created, true),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 /* NOTE: for the PIIX3, the IRQs and IOports are hardcoded */
 static void piix3_ide_class_init(ObjectClass *klass, void *data)
@@ -206,11 +231,13 @@ static void piix3_ide_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_STORAGE_IDE;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->hotpluggable = false;
+    device_class_set_props(dc, piix_ide_properties);
 }
 
 static const TypeInfo piix3_ide_info = {
     .name          = "piix3-ide",
     .parent        = TYPE_PCI_IDE,
+    .instance_init = pci_piix_ide_init,
     .class_init    = piix3_ide_class_init,
 };
 
@@ -228,11 +255,13 @@ static void piix4_ide_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_STORAGE_IDE;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->hotpluggable = false;
+    device_class_set_props(dc, piix_ide_properties);
 }
 
 static const TypeInfo piix4_ide_info = {
     .name          = "piix4-ide",
     .parent        = TYPE_PCI_IDE,
+    .instance_init = pci_piix_ide_init,
     .class_init    = piix4_ide_class_init,
 };
 

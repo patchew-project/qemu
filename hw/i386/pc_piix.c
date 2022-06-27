@@ -253,8 +253,11 @@ static void pc_init1(MachineState *machine,
         PCIDevice *dev;
 
         dev = pci_new_multifunction(piix3_devfn + 1, false, "piix3-ide");
+        qdev_prop_set_bit(DEVICE(dev), "user-created", false);
         pci_realize_and_unref(dev, pci_bus, &error_fatal);
         pci_ide_create_devs(dev);
+        qdev_connect_gpio_out(DEVICE(dev), 0, x86ms->gsi[14]);
+        qdev_connect_gpio_out(DEVICE(dev), 1, x86ms->gsi[15]);
         idebus[0] = qdev_get_child_bus(&dev->qdev, "ide.0");
         idebus[1] = qdev_get_child_bus(&dev->qdev, "ide.1");
         pc_cmos_init(pcms, idebus[0], idebus[1], rtc_state);

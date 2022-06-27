@@ -251,10 +251,13 @@ static void piix4_realize(PCIDevice *dev, Error **errp)
 
     /* IDE */
     qdev_prop_set_int32(DEVICE(&s->ide), "addr", dev->devfn + 1);
+    qdev_prop_set_bit(DEVICE(&s->ide), "user-created", false);
     if (!qdev_realize(DEVICE(&s->ide), BUS(pci_bus), errp)) {
         return;
     }
     pci_ide_create_devs(PCI_DEVICE(&s->ide));
+    qdev_connect_gpio_out(DEVICE(&s->ide), 0, s->isa[14]);
+    qdev_connect_gpio_out(DEVICE(&s->ide), 1, s->isa[15]);
 
     /* USB */
     qdev_prop_set_int32(DEVICE(&s->uhci), "addr", dev->devfn + 2);
