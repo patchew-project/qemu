@@ -20,7 +20,11 @@ typedef struct QEMU_PACKED NvmeBar {
     uint64_t    bpmbl;
     uint64_t    cmbmsc;
     uint32_t    cmbsts;
-    uint8_t     rsvd92[3492];
+    uint32_t    cmbebs;
+    uint32_t    cmbswtp;
+    uint32_t    nssd;
+    uint32_t    crto;
+    uint8_t     rsvd108[3476];
     uint32_t    pmrcap;
     uint32_t    pmrctl;
     uint32_t    pmrsts;
@@ -49,6 +53,10 @@ enum NvmeBarRegs {
     NVME_REG_BPMBL   = offsetof(NvmeBar, bpmbl),
     NVME_REG_CMBMSC  = offsetof(NvmeBar, cmbmsc),
     NVME_REG_CMBSTS  = offsetof(NvmeBar, cmbsts),
+    NVME_REG_CMBEBS  = offsetof(NvmeBar, cmbebs),
+    NVME_REG_CMBSWTP = offsetof(NvmeBar, cmbswtp),
+    NVME_REG_NSSD    = offsetof(NvmeBar, nssd),
+    NVME_REG_CRTO    = offsetof(NvmeBar, crto),
     NVME_REG_PMRCAP  = offsetof(NvmeBar, pmrcap),
     NVME_REG_PMRCTL  = offsetof(NvmeBar, pmrctl),
     NVME_REG_PMRSTS  = offsetof(NvmeBar, pmrsts),
@@ -70,6 +78,7 @@ enum NvmeCapShift {
     CAP_MPSMAX_SHIFT   = 52,
     CAP_PMRS_SHIFT     = 56,
     CAP_CMBS_SHIFT     = 57,
+    CAP_CRMS_SHIFT     = 59,
 };
 
 enum NvmeCapMask {
@@ -84,6 +93,7 @@ enum NvmeCapMask {
     CAP_MPSMAX_MASK    = 0xf,
     CAP_PMRS_MASK      = 0x1,
     CAP_CMBS_MASK      = 0x1,
+    CAP_CRMS_MASK      = 0x3,
 };
 
 #define NVME_CAP_MQES(cap)  (((cap) >> CAP_MQES_SHIFT)   & CAP_MQES_MASK)
@@ -97,6 +107,7 @@ enum NvmeCapMask {
 #define NVME_CAP_MPSMAX(cap)(((cap) >> CAP_MPSMAX_SHIFT) & CAP_MPSMAX_MASK)
 #define NVME_CAP_PMRS(cap)  (((cap) >> CAP_PMRS_SHIFT)   & CAP_PMRS_MASK)
 #define NVME_CAP_CMBS(cap)  (((cap) >> CAP_CMBS_SHIFT)   & CAP_CMBS_MASK)
+#define NVME_CAP_CRMS(cap)  (((cap) >> CAP_CRMS_SHIFT)   & CAP_CRMS_MASK)
 
 #define NVME_CAP_SET_MQES(cap, val)   (cap |= (uint64_t)(val & CAP_MQES_MASK)  \
                                                            << CAP_MQES_SHIFT)
@@ -120,6 +131,8 @@ enum NvmeCapMask {
                                                            << CAP_PMRS_SHIFT)
 #define NVME_CAP_SET_CMBS(cap, val)   (cap |= (uint64_t)(val & CAP_CMBS_MASK)  \
                                                            << CAP_CMBS_SHIFT)
+#define NVME_CAP_SET_CRMS(cap, val)   (cap |= (uint64_t)(val & CAP_CRMS_MASK)  \
+                                                           << CAP_CRMS_SHIFT)
 
 enum NvmeCapCss {
     NVME_CAP_CSS_NVM        = 1 << 0,
@@ -135,6 +148,7 @@ enum NvmeCcShift {
     CC_SHN_SHIFT    = 14,
     CC_IOSQES_SHIFT = 16,
     CC_IOCQES_SHIFT = 20,
+    CC_CRIME_SHIFT  = 24,
 };
 
 enum NvmeCcMask {
@@ -145,6 +159,7 @@ enum NvmeCcMask {
     CC_SHN_MASK     = 0x3,
     CC_IOSQES_MASK  = 0xf,
     CC_IOCQES_MASK  = 0xf,
+    CC_CRIME_MASK   = 0x1,
 };
 
 #define NVME_CC_EN(cc)     ((cc >> CC_EN_SHIFT)     & CC_EN_MASK)
@@ -154,6 +169,7 @@ enum NvmeCcMask {
 #define NVME_CC_SHN(cc)    ((cc >> CC_SHN_SHIFT)    & CC_SHN_MASK)
 #define NVME_CC_IOSQES(cc) ((cc >> CC_IOSQES_SHIFT) & CC_IOSQES_MASK)
 #define NVME_CC_IOCQES(cc) ((cc >> CC_IOCQES_SHIFT) & CC_IOCQES_MASK)
+#define NVME_CC_CRIME(cc)  ((cc >> CC_CRIME_SHIFT)  & CC_CRIME_MASK)
 
 enum NvmeCcCss {
     NVME_CC_CSS_NVM        = 0x0,
@@ -175,6 +191,8 @@ enum NvmeCcCss {
     (cc |= (uint32_t)((val) & CC_IOSQES_MASK) << CC_IOSQES_SHIFT)
 #define NVME_SET_CC_IOCQES(cc, val) \
     (cc |= (uint32_t)((val) & CC_IOCQES_MASK) << CC_IOCQES_SHIFT)
+#define NVME_SET_CC_CRIME(cc, val) \
+    (cc |= (uint32_t)((val) & CC_CRIME_MASK) << CC_CRIME_SHIFT)
 
 enum NvmeCstsShift {
     CSTS_RDY_SHIFT      = 0,
@@ -361,6 +379,26 @@ enum NvmeCmbstsMask {
 
 #define NVME_CMBSTS_SET_CBAI(cmbsts, val)  \
     (cmbsts |= (uint64_t)(val & CMBSTS_CBAI_MASK) << CMBSTS_CBAI_SHIFT)
+
+enum NvmeCrtoShift {
+    CRTO_CRWMT_SHIFT = 0,
+    CRTO_CRIMT_SHIFT = 16,
+};
+
+enum NvmeCrtoMask {
+    CRTO_CRWMT_MASK  = 0xffff,
+    CRTO_CRIMT_MASK  = 0xffff,
+};
+
+#define NVME_CRTO_CRWMT(crto)    \
+    ((crto >> CRTO_CRWMT_SHIFT)   & CRTO_CRWMT_MASK)
+#define NVME_CRTO_CRIMT(crto)    \
+    ((crto >> CRTO_CRIMT_SHIFT)   & CRTO_CRIMT_MASK)
+
+#define NVME_CRTO_SET_CRWMT(crto, val)   \
+    (crto |= (uint32_t)(val & CRTO_CRWMT_MASK) << CRTO_CRWMT_SHIFT)
+#define NVME_CRTO_SET_CRIMT(crto, val)   \
+    (crto |= (uint32_t)(val & CRTO_CRIMT_MASK) << CRTO_CRIMT_SHIFT)
 
 enum NvmePmrcapShift {
     PMRCAP_RDS_SHIFT      = 3,
@@ -1034,6 +1072,7 @@ enum NvmeIdCns {
     NVME_ID_CNS_CS_NS                 = 0x05,
     NVME_ID_CNS_CS_CTRL               = 0x06,
     NVME_ID_CNS_CS_NS_ACTIVE_LIST     = 0x07,
+    NVME_ID_CNS_CS_INDEPENDENT_NS     = 0x08,
     NVME_ID_CNS_NS_PRESENT_LIST       = 0x10,
     NVME_ID_CNS_NS_PRESENT            = 0x11,
     NVME_ID_CNS_NS_ATTACHED_CTRL_LIST = 0x12,
@@ -1343,6 +1382,24 @@ typedef struct QEMU_PACKED NvmeIdNs {
     uint8_t     vs[3712];
 } NvmeIdNs;
 
+enum NvmeIdNsCsIndepNstat {
+    NVME_NSTAT_NRDY             = 1 << 0,
+};
+
+typedef struct QEMU_PACKED NvmeIdNsCsIndep {
+    uint8_t     nsfeat;
+    uint8_t     nmic;
+    uint8_t     rescap;
+    uint8_t     fpi;
+    uint32_t    anagrpid;
+    uint8_t     nsattr;
+    uint8_t     rsvd9;
+    uint16_t    nvmsetid;
+    uint16_t    endgid;
+    uint8_t     nstat;
+    uint8_t     rsvd15[4081];
+} NvmeIdNsCsIndep;
+
 #define NVME_ID_NS_NVM_ELBAF_PIF(elbaf) (((elbaf) >> 7) & 0x3)
 
 typedef struct QEMU_PACKED NvmeIdNsNvm {
@@ -1644,6 +1701,7 @@ static inline void _nvme_check_size(void)
     QEMU_BUILD_BUG_ON(sizeof(NvmeLBAF) != 4);
     QEMU_BUILD_BUG_ON(sizeof(NvmeLBAFE) != 16);
     QEMU_BUILD_BUG_ON(sizeof(NvmeIdNs) != 4096);
+    QEMU_BUILD_BUG_ON(sizeof(NvmeIdNsCsIndep) != 4096);
     QEMU_BUILD_BUG_ON(sizeof(NvmeIdNsNvm) != 4096);
     QEMU_BUILD_BUG_ON(sizeof(NvmeIdNsZoned) != 4096);
     QEMU_BUILD_BUG_ON(sizeof(NvmeSglDescriptor) != 16);

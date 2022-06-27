@@ -60,6 +60,7 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
     static uint64_t ns_count;
     NvmeIdNs *id_ns = &ns->id_ns;
     NvmeIdNsNvm *id_ns_nvm = &ns->id_ns_nvm;
+    NvmeIdNsCsIndep *id_indep_ns = &ns->id_indep_ns;
     uint8_t ds;
     uint16_t ms;
     int i;
@@ -73,6 +74,8 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
     id_ns->nsfeat |= (0x4 | 0x10);
 
     if (ns->params.shared) {
+        id_indep_ns->nmic |= NVME_NMIC_NS_SHARED;
+        /* This field is a mirror of id_indep_ns->nmic */
         id_ns->nmic |= NVME_NMIC_NS_SHARED;
     }
 
@@ -502,6 +505,9 @@ int nvme_ns_setup(NvmeNamespace *ns, Error **errp)
         nvme_ns_init_zoned(ns);
     }
 
+    ns->ready_delay_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
+                                         nvme_ns_ready_cb, ns);
+
     return 0;
 }
 
@@ -525,6 +531,7 @@ void nvme_ns_cleanup(NvmeNamespace *ns)
         g_free(ns->zone_array);
         g_free(ns->zd_extensions);
     }
+    timer_free(ns->ready_delay_timer);
 }
 
 static void nvme_ns_unrealize(DeviceState *dev)
@@ -557,6 +564,11 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
          * controller device), reparent the device.
          */
         if (!qdev_set_parent_bus(dev, &subsys->bus.parent_bus, errp)) {
+            return;
+        }
+        if (ns->params.ready_delay) {
+            error_setg(errp, "ready-delay requires that the nvme device is not "
+                       "linked to an nvme-subsys device");
             return;
         }
         ns->subsys = subsys;
@@ -607,6 +619,11 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
         }
     }
 
+    if (ns->params.ready_delay >= n->params.crwmt) {
+        error_setg(errp, "ready_delay on namespace id '%d' has to be smaller "
+                   "than crwmt", nsid);
+        return;
+    }
     nvme_attach_ns(n, ns);
 }
 
@@ -643,6 +660,7 @@ static Property nvme_ns_props[] = {
     DEFINE_PROP_SIZE("zoned.zrwafg", NvmeNamespace, params.zrwafg, -1),
     DEFINE_PROP_BOOL("eui64-default", NvmeNamespace, params.eui64_default,
                      false),
+    DEFINE_PROP_UINT16("ready_delay", NvmeNamespace, params.ready_delay, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

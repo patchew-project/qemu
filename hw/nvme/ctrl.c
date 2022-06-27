@@ -88,6 +88,12 @@
  *   completion when there are no outstanding AERs. When the maximum number of
  *   enqueued events are reached, subsequent events will be dropped.
  *
+ * - `crwmt`
+ *   This is the Controller Ready With Media Timeout (CRWMT) field that is
+ *   defined in the CRTO register. This specifies the worst-case time that host
+ *   software should wait for the controller and all attached namespaces to
+ *   become ready. The value is in units of 500 milliseconds.
+ *
  * - `mdts`
  *   Indicates the maximum data transfer size for a command that transfers data
  *   between host-accessible memory and the controller. The value is specified
@@ -157,6 +163,11 @@
  *   namespace will be available in the subsystem but not attached to any
  *   controllers.
  *
+ * - `ready_delay`
+ *   This parameter specifies the amount of time that the namespace should wait
+ *   before being marked ready. Only applicable if CC.CRIME is set by the user.
+ *   The value is in units of 500 milliseconds (to be consistent with `crwmt`).
+ *
  * Setting `zoned` to true selects Zoned Command Set at the namespace.
  * In this case, the following namespace properties are available to configure
  * zoned operation:
@@ -216,6 +227,8 @@
 #define NVME_VF_RES_GRANULARITY 1
 #define NVME_VF_OFFSET 0x1
 #define NVME_VF_STRIDE 1
+#define NVME_DEFAULT_CRIMT 0xa
+#define NVME_DEFAULT_CRWMT 0xf
 
 #define NVME_GUEST_ERR(trace, fmt, ...) \
     do { \
@@ -4176,6 +4189,10 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req)
         return NVME_INVALID_OPCODE | NVME_DNR;
     }
 
+    if (!(ns->id_indep_ns.nstat & NVME_NSTAT_NRDY)) {
+        return NVME_NS_NOT_READY;
+    }
+
     if (ns->status) {
         return ns->status;
     }
@@ -4770,6 +4787,27 @@ static uint16_t nvme_identify_ns(NvmeCtrl *n, NvmeRequest *req, bool active)
     return NVME_INVALID_CMD_SET | NVME_DNR;
 }
 
+static uint16_t nvme_identify_cs_indep_ns(NvmeCtrl *n, NvmeRequest *req)
+{
+    NvmeNamespace *ns;
+    NvmeIdentify *c = (NvmeIdentify *)&req->cmd;
+    uint32_t nsid = le32_to_cpu(c->nsid);
+
+    trace_pci_nvme_identify_cs_indep_ns(nsid);
+
+    if (!nvme_nsid_valid(n, nsid) || nsid == NVME_NSID_BROADCAST) {
+        return NVME_INVALID_NSID | NVME_DNR;
+    }
+
+    ns = nvme_ns(n, nsid);
+    if (unlikely(!ns)) {
+            return nvme_rpt_empty_id_struct(n, req);
+    }
+
+    return nvme_c2h(n, (uint8_t *)&ns->id_indep_ns, sizeof(NvmeIdNsCsIndep),
+                    req);
+}
+
 static uint16_t nvme_identify_ctrl_list(NvmeCtrl *n, NvmeRequest *req,
                                         bool attached)
 {
@@ -5060,6 +5098,8 @@ static uint16_t nvme_identify(NvmeCtrl *n, NvmeRequest *req)
         return nvme_identify_ns(n, req, true);
     case NVME_ID_CNS_NS_PRESENT:
         return nvme_identify_ns(n, req, false);
+    case NVME_ID_CNS_CS_INDEPENDENT_NS:
+        return nvme_identify_cs_indep_ns(n, req);
     case NVME_ID_CNS_NS_ATTACHED_CTRL_LIST:
         return nvme_identify_ctrl_list(n, req, true);
     case NVME_ID_CNS_CTRL_LIST:
@@ -5535,6 +5575,44 @@ static void nvme_select_iocs_ns(NvmeCtrl *n, NvmeNamespace *ns)
     }
 }
 
+void nvme_ns_ready_cb(void *opaque)
+{
+    NvmeNamespace *ns = opaque;
+    DeviceState *dev = &ns->parent_obj;
+    BusState *s = qdev_get_parent_bus(dev);
+    NvmeCtrl *n = NVME(s->parent);
+
+    ns->id_indep_ns.nstat |= NVME_NSTAT_NRDY;
+
+    if (!test_and_set_bit(ns->params.nsid, n->changed_nsids)) {
+        nvme_enqueue_event(n, NVME_AER_TYPE_NOTICE,
+                           NVME_AER_INFO_NOTICE_NS_ATTR_CHANGED,
+                           NVME_LOG_CHANGED_NSLIST);
+    }
+}
+
+static void nvme_set_ready_or_start_timer(NvmeCtrl *n, NvmeNamespace *ns)
+{
+    int64_t expire_time;
+
+    if (!NVME_CC_CRIME(ldl_le_p(&n->bar.cc)) || ns->params.ready_delay == 0) {
+        ns->id_indep_ns.nstat |= NVME_NSTAT_NRDY;
+        return;
+    }
+
+    expire_time = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL);
+    expire_time += ns->params.ready_delay * 500;
+    timer_mod(ns->ready_delay_timer, expire_time);
+}
+
+static inline void nvme_ns_clear_ready_and_stop_timer(NvmeNamespace *ns)
+{
+    if (!ns->subsys) {
+        timer_del(ns->ready_delay_timer);
+        ns->id_indep_ns.nstat &= ~NVME_NSTAT_NRDY;
+    }
+}
+
 static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
 {
     NvmeNamespace *ns;
@@ -5586,6 +5664,12 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
             }
 
             nvme_attach_ns(ctrl, ns);
+
+            /*
+             * The ready_delay param only delays a ns when enabling the
+             * controller. No delay is added when attaching a detached ns.
+             */
+            ns->id_indep_ns.nstat |= NVME_NSTAT_NRDY;
             nvme_select_iocs_ns(ctrl, ns);
 
             break;
@@ -5597,6 +5681,8 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
 
             ctrl->namespaces[nsid] = NULL;
             ns->attached--;
+
+            nvme_ns_clear_ready_and_stop_timer(ns);
 
             nvme_update_dmrsl(ctrl);
 
@@ -6130,6 +6216,8 @@ static void nvme_ctrl_reset(NvmeCtrl *n, NvmeResetType rst)
         }
 
         nvme_ns_drain(ns);
+
+        nvme_ns_clear_ready_and_stop_timer(ns);
     }
 
     for (i = 0; i < n->params.max_ioqpairs + 1; i++) {
@@ -6201,11 +6289,13 @@ static void nvme_ctrl_shutdown(NvmeCtrl *n)
             continue;
         }
 
+        nvme_ns_clear_ready_and_stop_timer(ns);
+
         nvme_ns_shutdown(ns);
     }
 }
 
-static void nvme_select_iocs(NvmeCtrl *n)
+static void nvme_ctrl_per_ns_action_on_start(NvmeCtrl *n)
 {
     NvmeNamespace *ns;
     int i;
@@ -6217,6 +6307,7 @@ static void nvme_select_iocs(NvmeCtrl *n)
         }
 
         nvme_select_iocs_ns(n, ns);
+        nvme_set_ready_or_start_timer(n, ns);
     }
 }
 
@@ -6227,9 +6318,11 @@ static int nvme_start_ctrl(NvmeCtrl *n)
     uint32_t aqa = ldl_le_p(&n->bar.aqa);
     uint64_t asq = ldq_le_p(&n->bar.asq);
     uint64_t acq = ldq_le_p(&n->bar.acq);
+    uint32_t crto = ldl_le_p(&n->bar.crto);
     uint32_t page_bits = NVME_CC_MPS(cc) + 12;
     uint32_t page_size = 1 << page_bits;
     NvmeSecCtrlEntry *sctrl = nvme_sctrl(n);
+    uint16_t new_cap_timeout;
 
     if (pci_is_vf(&n->parent_obj) && !sctrl->scs) {
         trace_pci_nvme_err_startfail_virt_state(le16_to_cpu(sctrl->nvi),
@@ -6308,6 +6401,15 @@ static int nvme_start_ctrl(NvmeCtrl *n)
         return -1;
     }
 
+    if (!n->subsys && NVME_CC_CRIME(cc)) {
+        new_cap_timeout = NVME_CRTO_CRIMT(crto);
+    } else {
+        new_cap_timeout = NVME_CRTO_CRWMT(crto);
+    }
+    new_cap_timeout = MIN(0xff, new_cap_timeout);
+    NVME_CAP_SET_TO(cap, new_cap_timeout);
+    stq_le_p(&n->bar.cap, cap);
+
     n->page_bits = page_bits;
     n->page_size = page_size;
     n->max_prp_ents = n->page_size / sizeof(uint64_t);
@@ -6318,7 +6420,7 @@ static int nvme_start_ctrl(NvmeCtrl *n)
 
     nvme_set_timestamp(n, 0ULL);
 
-    nvme_select_iocs(n);
+    nvme_ctrl_per_ns_action_on_start(n);
 
     return 0;
 }
@@ -6865,6 +6967,12 @@ static void nvme_check_constraints(NvmeCtrl *n, Error **errp)
         return;
     }
 
+    if (n->params.crwmt < NVME_DEFAULT_CRIMT) {
+        error_setg(errp, "crwmt must be greater than or equal to %d",
+                   NVME_DEFAULT_CRIMT);
+        return;
+    }
+
     if (!n->params.vsl) {
         error_setg(errp, "vsl must be non-zero");
         return;
@@ -7204,6 +7312,7 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
     NvmeIdCtrl *id = &n->id_ctrl;
     uint8_t *pci_conf = pci_dev->config;
     uint64_t cap = ldq_le_p(&n->bar.cap);
+    uint32_t crto = ldl_le_p(&n->bar.crto);
     NvmeSecCtrlEntry *sctrl = nvme_sctrl(n);
 
     id->vid = cpu_to_le16(pci_get_word(pci_conf + PCI_VENDOR_ID));
@@ -7285,17 +7394,24 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
 
     NVME_CAP_SET_MQES(cap, 0x7ff);
     NVME_CAP_SET_CQR(cap, 1);
-    NVME_CAP_SET_TO(cap, 0xf);
+    /* NOTE: nvme_start_ctrl() may change CAP.TO if CC.CRIME is enabled. */
+    NVME_CAP_SET_TO(cap, n->params.crwmt > 0xff ? 0xff : n->params.crwmt);
     NVME_CAP_SET_CSS(cap, NVME_CAP_CSS_NVM);
     NVME_CAP_SET_CSS(cap, NVME_CAP_CSS_CSI_SUPP);
     NVME_CAP_SET_CSS(cap, NVME_CAP_CSS_ADMIN_ONLY);
     NVME_CAP_SET_MPSMAX(cap, 4);
     NVME_CAP_SET_CMBS(cap, n->params.cmb_size_mb ? 1 : 0);
     NVME_CAP_SET_PMRS(cap, n->pmr.dev ? 1 : 0);
+    /* We only support CRIMS if we do not have a subsys */
+    NVME_CAP_SET_CRMS(cap, n->subsys ? 0x1 : 0x3);
     stq_le_p(&n->bar.cap, cap);
 
     stl_le_p(&n->bar.vs, NVME_SPEC_VER);
     n->bar.intmc = n->bar.intms = 0;
+
+    NVME_CRTO_SET_CRIMT(crto, n->subsys ? 0 : NVME_DEFAULT_CRIMT);
+    NVME_CRTO_SET_CRWMT(crto, n->params.crwmt);
+    stl_le_p(&n->bar.crto, crto);
 
     if (pci_is_vf(&n->parent_obj) && !sctrl->scs) {
         stl_le_p(&n->bar.csts, NVME_CSTS_FAILED);
@@ -7430,6 +7546,7 @@ static Property nvme_props[] = {
     DEFINE_PROP_UINT32("num_queues", NvmeCtrl, params.num_queues, 0),
     DEFINE_PROP_UINT32("max_ioqpairs", NvmeCtrl, params.max_ioqpairs, 64),
     DEFINE_PROP_UINT16("msix_qsize", NvmeCtrl, params.msix_qsize, 65),
+    DEFINE_PROP_UINT16("crwmt", NvmeCtrl, params.crwmt, NVME_DEFAULT_CRWMT),
     DEFINE_PROP_UINT8("aerl", NvmeCtrl, params.aerl, 3),
     DEFINE_PROP_UINT32("aer_max_queued", NvmeCtrl, params.aer_max_queued, 64),
     DEFINE_PROP_UINT8("mdts", NvmeCtrl, params.mdts, 7),
