@@ -1216,15 +1216,19 @@ static int hdev_get_max_hw_transfer(int fd, struct stat *st)
 #endif
 }
 
-static int hdev_get_max_segments(int fd, struct stat *st)
-{
+/*
+ * Get zoned device information (chunk_sectors, zoned_append_max_bytes,
+ * max_open_zones, max_active_zones) through sysfs attribute files.
+ */
+static long get_sysfs_long_val(int fd, struct stat *st,
+                               const char *attribute) {
 #ifdef CONFIG_LINUX
     char buf[32];
     const char *end;
     char *sysfspath = NULL;
     int ret;
     int sysfd = -1;
-    long max_segments;
+    long val;
 
     if (S_ISCHR(st->st_mode)) {
         if (ioctl(fd, SG_GET_SG_TABLESIZE, &ret) == 0) {
@@ -1237,8 +1241,9 @@ static int hdev_get_max_segments(int fd, struct stat *st)
         return -ENOTSUP;
     }
 
-    sysfspath = g_strdup_printf("/sys/dev/block/%u:%u/queue/max_segments",
-                                major(st->st_rdev), minor(st->st_rdev));
+    sysfspath = g_strdup_printf("/sys/dev/block/%u:%u/queue/%s",
+                                major(st->st_rdev), minor(st->st_rdev),
+                                attribute);
     sysfd = open(sysfspath, O_RDONLY);
     if (sysfd == -1) {
         ret = -errno;
@@ -1256,9 +1261,9 @@ static int hdev_get_max_segments(int fd, struct stat *st)
     }
     buf[ret] = 0;
     /* The file is ended with '\n', pass 'end' to accept that. */
-    ret = qemu_strtol(buf, &end, 10, &max_segments);
+    ret = qemu_strtol(buf, &end, 10, &val);
     if (ret == 0 && end && *end == '\n') {
-        ret = max_segments;
+        ret = val;
     }
 
 out:
@@ -1270,6 +1275,15 @@ out:
 #else
     return -ENOTSUP;
 #endif
+}
+
+static int hdev_get_max_segments(int fd, struct stat *st) {
+    int ret;
+    ret = get_sysfs_long_val(fd, st, "max_segments");
+    if (ret < 0) {
+        return -1;
+    }
+    return ret;
 }
 
 static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
@@ -1872,6 +1886,7 @@ static int handle_aiocb_zone_report(void *opaque) {
 
 static int handle_aiocb_zone_mgmt(void *opaque) {
     RawPosixAIOData *aiocb = opaque;
+    BlockDriverState *s = aiocb->bs;
     int fd = aiocb->aio_fildes;
     int64_t offset = aiocb->aio_offset;
     int64_t len = aiocb->aio_nbytes;
@@ -1884,11 +1899,9 @@ static int handle_aiocb_zone_mgmt(void *opaque) {
     int64_t zone_size_mask;
     int ret;
 
-    ret = ioctl(fd, BLKGETZONESZ, &zone_size);
-    if (ret) {
-        return -1;
-    }
-
+    g_autofree struct stat *file = g_new(struct stat, 1);
+    stat(s->filename, file);
+    zone_size = get_sysfs_long_val(fd, file, "chunk_sectors");
     zone_size_mask = zone_size - 1;
     if (offset & zone_size_mask) {
         error_report("offset is not the start of a zone");
