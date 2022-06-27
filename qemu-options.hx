@@ -1937,7 +1937,7 @@ DEF("display", HAS_ARG, QEMU_OPTION_display,
     "            [,window-close=on|off]\n"
 #endif
 #if defined(CONFIG_GTK)
-    "-display gtk[,full-screen=on|off][,gl=on|off][,grab-on-hover=on|off]\n"
+    "-display gtk[,full-screen=on|off][,gl=on|off][,grab-on-hover=on|off][,show-tabs=on|off]\n"
     "            [,show-cursor=on|off][,window-close=on|off]\n"
 #endif
 #if defined(CONFIG_VNC)
