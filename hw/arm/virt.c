@@ -221,6 +221,16 @@ static bool cpu_type_valid(const char *cpu)
     return false;
 }
 
+static void create_rng_seed(MachineState *ms, const char *node)
+{
+    uint8_t seed[32];
+
+    if (qemu_guest_getrandom(&seed, sizeof(seed), NULL)) {
+        return;
+    }
+    qemu_fdt_setprop(ms->fdt, node, "rng-seed", seed, sizeof(seed));
+}
+
 static void create_kaslr_seed(MachineState *ms, const char *node)
 {
     uint64_t seed;
@@ -251,6 +261,9 @@ static void create_fdt(VirtMachineState *vms)
 
     /* /chosen must exist for load_dtb to fill in necessary properties later */
     qemu_fdt_add_subnode(fdt, "/chosen");
+    if (vms->dtb_rng_seed) {
+        create_rng_seed(ms, "/chosen");
+    }
     if (vms->dtb_kaslr_seed) {
         create_kaslr_seed(ms, "/chosen");
     }
@@ -259,6 +272,9 @@ static void create_fdt(VirtMachineState *vms)
         qemu_fdt_add_subnode(fdt, "/secure-chosen");
         if (vms->dtb_kaslr_seed) {
             create_kaslr_seed(ms, "/secure-chosen");
+        }
+        if (vms->dtb_rng_seed) {
+            create_rng_seed(ms, "/secure-chosen");
         }
     }
 
@@ -2348,6 +2364,20 @@ static void virt_set_its(Object *obj, bool value, Error **errp)
     vms->its = value;
 }
 
+static bool virt_get_dtb_rng_seed(Object *obj, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    return vms->dtb_rng_seed;
+}
+
+static void virt_set_dtb_rng_seed(Object *obj, bool value, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    vms->dtb_rng_seed = value;
+}
+
 static bool virt_get_dtb_kaslr_seed(Object *obj, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
@@ -2988,6 +3018,13 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
                                           "Set on/off to enable/disable "
                                           "ITS instantiation");
 
+    object_class_property_add_bool(oc, "dtb-rng-seed",
+                                   virt_get_dtb_rng_seed,
+                                   virt_set_dtb_rng_seed);
+    object_class_property_set_description(oc, "dtb-rng-seed",
+                                          "Set off to disable passing of rng-seed "
+                                          "dtb node to guest");
+
     object_class_property_add_bool(oc, "dtb-kaslr-seed",
                                    virt_get_dtb_kaslr_seed,
                                    virt_set_dtb_kaslr_seed);
@@ -3060,6 +3097,9 @@ static void virt_instance_init(Object *obj)
 
     /* MTE is disabled by default.  */
     vms->mte = false;
+
+    /* Supply a rng-seed by default */
+    vms->dtb_rng_seed = true;
 
     /* Supply a kaslr-seed by default */
     vms->dtb_kaslr_seed = true;
