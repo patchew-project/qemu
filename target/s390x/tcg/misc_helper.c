@@ -158,6 +158,10 @@ void HELPER(spx)(CPUS390XState *env, uint64_t a1)
     if (prefix == old_prefix) {
         return;
     }
+    if (!mmu_absolute_addr_valid(prefix, true) ||
+        !mmu_absolute_addr_valid(prefix + TARGET_PAGE_SIZE, true)) {
+        tcg_s390_program_interrupt(env, PGM_ADDRESSING, GETPC());
+    }
 
     env->psa = prefix;
     HELPER_LOG("prefix: %#x\n", prefix);
