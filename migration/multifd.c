@@ -624,6 +624,9 @@ int multifd_send_sync_main(QEMUFile *f)
             if (ret < 0) {
                 error_report_err(err);
                 return -1;
+            } else if (ret == 1) {
+                warn_report("The network device is not able to use "
+                            "zero-copy-send: copying is being used");
             }
         }
     }
