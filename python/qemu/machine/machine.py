@@ -17,6 +17,7 @@ which provides facilities for managing the lifetime of a QEMU VM.
 # Based on qmp.py.
 #
 
+import asyncio
 import errno
 from itertools import chain
 import locale
@@ -30,6 +31,7 @@ import tempfile
 from types import TracebackType
 from typing import (
     Any,
+    Awaitable,
     BinaryIO,
     Dict,
     List,
@@ -180,7 +182,7 @@ class QEMUMachine:
         # Runstate
         self._qemu_log_path: Optional[str] = None
         self._qemu_log_file: Optional[BinaryIO] = None
-        self._popen: Optional['subprocess.Popen[bytes]'] = None
+        self._subproc: Optional['asyncio.subprocess.Process'] = None
         self._events: List[QMPMessage] = []
         self._iolog: Optional[str] = None
         self._qmp_set = True   # Enable QMP monitor by default.
@@ -198,6 +200,7 @@ class QEMUMachine:
         self._remove_files: List[str] = []
         self._user_killed = False
         self._quit_issued = False
+        self._aloop = asyncio.get_event_loop()
 
     def __enter__(self: _T) -> _T:
         return self
@@ -269,19 +272,19 @@ class QEMUMachine:
 
     def is_running(self) -> bool:
         """Returns true if the VM is running."""
-        return self._popen is not None and self._popen.poll() is None
+        return self._subproc is not None and self._subproc.returncode is None
 
     @property
-    def _subp(self) -> 'subprocess.Popen[bytes]':
-        if self._popen is None:
+    def _subp(self) -> 'asyncio.subprocess.Process':
+        if self._subproc is None:
             raise QEMUMachineError('Subprocess pipe not present')
-        return self._popen
+        return self._subproc
 
     def exitcode(self) -> Optional[int]:
         """Returns the exit code if possible, or None."""
-        if self._popen is None:
+        if self._subproc is None:
             return None
-        return self._popen.poll()
+        return self._subproc.returncode
 
     def get_pid(self) -> Optional[int]:
         """Returns the PID of the running process, or None."""
@@ -443,6 +446,13 @@ class QEMUMachine:
             # that exception. However, we still want to clean up.
             raise
 
+    def _sync(
+            self, future: Awaitable[_T], timeout: Optional[float] = None
+    ) -> _T:
+        return self._aloop.run_until_complete(
+            asyncio.wait_for(future, timeout=timeout)
+        )
+
     def _launch(self) -> None:
         """
         Launch the VM and establish a QMP connection
@@ -452,12 +462,13 @@ class QEMUMachine:
 
         # Cleaning up of this subprocess is guaranteed by _do_shutdown.
         # pylint: disable=consider-using-with
-        self._popen = subprocess.Popen(self._qemu_full_args,
-                                       stdin=subprocess.DEVNULL,
-                                       stdout=self._qemu_log_file,
-                                       stderr=subprocess.STDOUT,
-                                       shell=False,
-                                       close_fds=False)
+        self._subproc = self._sync(
+            asyncio.create_subprocess_exec(*self._qemu_full_args,
+                                           stdin=asyncio.subprocess.DEVNULL,
+                                           stdout=self._qemu_log_file,
+                                           stderr=asyncio.subprocess.STDOUT,
+                                           close_fds=False)
+        )
         self._launched = True
         self._post_launch()
 
@@ -508,8 +519,10 @@ class QEMUMachine:
             waiting for the QEMU process to terminate.
         """
         self._early_cleanup()
-        self._subp.kill()
-        self._subp.wait(timeout=60)
+        self._sync(
+            self._subp.kill(),
+            asyncio.wait_for(self._subp.wait(), timeout=60)
+        )
 
     def _soft_shutdown(self, timeout: Optional[int]) -> None:
         """
@@ -536,7 +549,9 @@ class QEMUMachine:
                 self._close_qmp_connection()
 
         # May raise subprocess.TimeoutExpired
-        self._subp.wait(timeout=timeout)
+        self._sync(
+            asyncio.wait_for(self._subp.wait(), timeout=timeout)
+        )
 
     def _do_shutdown(self, timeout: Optional[int]) -> None:
         """
