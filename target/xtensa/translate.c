@@ -2377,7 +2377,8 @@ static void translate_simcall(DisasContext *dc, const OpcodeArg arg[],
 {
 #ifndef CONFIG_USER_ONLY
     if (semihosting_enabled()) {
-        gen_helper_simcall(cpu_env);
+        tcg_gen_movi_i32(cpu_pc, dc->base.pc_next);
+        gen_exception(dc, EXC_SEMIHOST);
     }
 #endif
 }

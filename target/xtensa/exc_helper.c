@@ -219,6 +219,10 @@ void xtensa_cpu_do_interrupt(CPUState *cs)
     }
 
     switch (cs->exception_index) {
+    case EXC_SEMIHOST:
+        xtensa_semihosting(env);
+        return;
+
     case EXC_WINDOW_OVERFLOW4:
     case EXC_WINDOW_UNDERFLOW4:
     case EXC_WINDOW_OVERFLOW8:

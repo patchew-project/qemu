@@ -28,7 +28,6 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "chardev/char-fe.h"
-#include "exec/helper-proto.h"
 #include "semihosting/semihost.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
@@ -188,7 +187,7 @@ void xtensa_sim_open_console(Chardev *chr)
     sim_console = &console;
 }
 
-void HELPER(simcall)(CPUXtensaState *env)
+void xtensa_semihosting(CPUXtensaState *env)
 {
     CPUState *cs = env_cpu(env);
     uint32_t *regs = env->regs;
