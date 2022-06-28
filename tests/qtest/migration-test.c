@@ -2085,32 +2085,11 @@ static bool kvm_dirty_ring_supported(void)
 int main(int argc, char **argv)
 {
     char template[] = "/tmp/migration-test-XXXXXX";
-    const bool has_kvm = qtest_has_accel("kvm");
     int ret;
 
     g_test_init(&argc, &argv, NULL);
 
     if (!ufd_version_check()) {
-        return g_test_run();
-    }
-
-    /*
-     * On ppc64, the test only works with kvm-hv, but not with kvm-pr and TCG
-     * is touchy due to race conditions on dirty bits (especially on PPC for
-     * some reason)
-     */
-    if (g_str_equal(qtest_get_arch(), "ppc64") &&
-        (!has_kvm || access("/sys/module/kvm_hv", F_OK))) {
-        g_test_message("Skipping test: kvm_hv not available");
-        return g_test_run();
-    }
-
-    /*
-     * Similar to ppc64, s390x seems to be touchy with TCG, so disable it
-     * there until the problems are resolved
-     */
-    if (g_str_equal(qtest_get_arch(), "s390x") && !has_kvm) {
-        g_test_message("Skipping test: s390x host with KVM is required");
         return g_test_run();
     }
 
