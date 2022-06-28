@@ -362,9 +362,18 @@ class QEMUMachine:
             self._args
         ))
 
+    async def _async_accept(self) -> bool:
+        accept = asyncio.create_task(self._qmp.async_accept())
+        wait = asyncio.create_task(self._subproc.wait())
+        done, pending = await asyncio.wait([accept, wait],
+                                           return_when=asyncio.FIRST_COMPLETED)
+        return accept in done
+
     def _post_launch(self) -> None:
         if self._qmp_connection:
-            self._qmp.accept(self._qmp_timer)
+            accepted = self._sync(self._async_accept())
+            if not accepted:
+                raise QEMUMachineError('VM returned before QMP accept')
 
     def _close_qemu_log_file(self) -> None:
         if self._qemu_log_file is not None:

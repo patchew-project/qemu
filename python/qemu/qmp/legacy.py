@@ -167,6 +167,16 @@ class QEMUMonitorProtocol:
         assert ret is not None
         return ret
 
+    async def async_accept(self) -> QMPMessage:
+        self._qmp.await_greeting = True
+        self._qmp.negotiate = True
+
+        await self._qmp.accept()
+
+        ret = self._get_greeting()
+        assert ret is not None
+        return ret
+
     def cmd_obj(self, qmp_cmd: QMPMessage) -> QMPMessage:
         """
         Send a QMP command to the QMP Monitor.
