@@ -1799,6 +1799,7 @@ static int read_cpuinfo(const char *field, char *value, int len)
 
     f = fopen("/proc/cpuinfo", "r");
     if (!f) {
+        fprintf(stderr, "Error opening /proc/cpuinfo: %s\n", strerror(errno));
         return -1;
     }
 
@@ -1907,6 +1908,7 @@ static uint64_t kvmppc_read_int_dt(const char *filename)
 
     f = fopen(filename, "rb");
     if (!f) {
+        fprintf(stderr, "Error opening %s: %s\n", filename, strerror(errno));
         return -1;
     }
 
