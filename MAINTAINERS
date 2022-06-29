@@ -1068,6 +1068,7 @@ F: include/hw/net/ftgmac100.h
 F: docs/system/arm/aspeed.rst
 F: tests/qtest/*aspeed*
 F: hw/misc/fby35_sb_cpld.c
+F: hw/misc/intel_me.c
 
 NRF51
 M: Joel Stanley <joel@jms.id.au>
