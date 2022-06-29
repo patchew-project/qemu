@@ -1045,11 +1045,14 @@ static void job_completed_txn_abort_locked(Job *job)
 /* Called with job_mutex held, but releases it temporarily */
 static int job_prepare_locked(Job *job)
 {
+    int ret;
+
     GLOBAL_STATE_CODE();
     if (job->ret == 0 && job->driver->prepare) {
         job_unlock();
-        job->ret = job->driver->prepare(job);
+        ret = job->driver->prepare(job);
         job_lock();
+        job->ret = ret;
         job_update_rc_locked(job);
     }
     return job->ret;
@@ -1235,10 +1238,10 @@ void job_cancel_locked(Job *job, bool force)
          * job_cancel_async() ignores soft-cancel requests for jobs
          * that are already done (i.e. deferred to the main loop).  We
          * have to check again whether the job is really cancelled.
-         * (job_cancel_requested() and job_is_cancelled() are equivalent
-         * here, because job_cancel_async() will make soft-cancel
-         * requests no-ops when deferred_to_main_loop is true.  We
-         * choose to call job_is_cancelled() to show that we invoke
+         * (job_cancel_requested_locked() and job_is_cancelled_locked()
+         * are equivalent here, because job_cancel_async() will
+         * make soft-cancel requests no-ops when deferred_to_main_loop is true.
+         * We choose to call job_is_cancelled_locked() to show that we invoke
          * job_completed_txn_abort() only for force-cancelled jobs.)
          */
         if (job_is_cancelled_locked(job)) {
