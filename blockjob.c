@@ -56,12 +56,6 @@ BlockJob *block_job_next_locked(BlockJob *bjob)
     return job ? container_of(job, BlockJob, job) : NULL;
 }
 
-BlockJob *block_job_next(BlockJob *bjob)
-{
-    JOB_LOCK_GUARD();
-    return block_job_next_locked(bjob);
-}
-
 BlockJob *block_job_get_locked(const char *id)
 {
     Job *job = job_get_locked(id);
@@ -72,12 +66,6 @@ BlockJob *block_job_get_locked(const char *id)
     } else {
         return NULL;
     }
-}
-
-BlockJob *block_job_get(const char *id)
-{
-    JOB_LOCK_GUARD();
-    return block_job_get_locked(id);
 }
 
 void block_job_free(Job *job)
@@ -312,12 +300,6 @@ bool block_job_set_speed_locked(BlockJob *job, int64_t speed, Error **errp)
     return true;
 }
 
-bool block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
-{
-    JOB_LOCK_GUARD();
-    return block_job_set_speed_locked(job, speed, errp);
-}
-
 int64_t block_job_ratelimit_get_delay(BlockJob *job, uint64_t n)
 {
     IO_CODE();
@@ -359,12 +341,6 @@ BlockJobInfo *block_job_query_locked(BlockJob *job, Error **errp)
                         g_strdup(strerror(-job->job.ret));
     }
     return info;
-}
-
-BlockJobInfo *block_job_query(BlockJob *job, Error **errp)
-{
-    JOB_LOCK_GUARD();
-    return block_job_query_locked(job, errp);
 }
 
 static void block_job_iostatus_set_err(BlockJob *job, int error)
@@ -529,12 +505,6 @@ void block_job_iostatus_reset_locked(BlockJob *job)
     }
     assert(job->job.user_paused && job->job.pause_count > 0);
     job->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
-}
-
-void block_job_iostatus_reset(BlockJob *job)
-{
-    JOB_LOCK_GUARD();
-    block_job_iostatus_reset_locked(job);
 }
 
 void block_job_user_resume(Job *job)
