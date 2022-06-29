@@ -320,7 +320,8 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
     cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
 
     cflags = curr_cflags(cpu);
-    if (check_for_breakpoints(cpu, pc, &cflags)) {
+    if (check_for_breakpoints(cpu, pc, &cflags) ||
+        unlikely(qatomic_read(&cpu->interrupt_request))) {
         cpu_loop_exit(cpu);
     }
 
