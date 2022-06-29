@@ -64,6 +64,7 @@ struct SevGuestState {
     uint32_t cbitpos;
     uint32_t reduced_phys_bits;
     bool kernel_hashes;
+    int accept_all_memory;
 
     /* runtime state */
     uint32_t handle;
@@ -153,6 +154,15 @@ static const char *const sev_fw_errlist[] = {
     [SEV_RET_INVALID_PARAM]          = "Invalid parameter",
     [SEV_RET_RESOURCE_LIMIT]         = "Required firmware resource depleted",
     [SEV_RET_SECURE_DATA_INVALID]    = "Part-specific integrity check failure",
+};
+
+static QEnumLookup memory_acceptance_lookup = {
+    .array = (const char *const[]) {
+        "default",
+        "true",
+        "false",
+    },
+    .size = 3,
 };
 
 #define SEV_FW_MAX_ERROR      ARRAY_SIZE(sev_fw_errlist)
@@ -353,6 +363,21 @@ static void sev_guest_set_kernel_hashes(Object *obj, bool value, Error **errp)
     sev->kernel_hashes = value;
 }
 
+static int sev_guest_get_accept_all_memory(Object *obj, Error **errp)
+{
+    SevGuestState *sev = SEV_GUEST(obj);
+
+    return sev->accept_all_memory;
+}
+
+static void
+sev_guest_set_accept_all_memory(Object *obj, int value, Error **errp)
+{
+    SevGuestState *sev = SEV_GUEST(obj);
+
+    sev->accept_all_memory = value;
+}
+
 static void
 sev_guest_class_init(ObjectClass *oc, void *data)
 {
@@ -376,6 +401,14 @@ sev_guest_class_init(ObjectClass *oc, void *data)
                                    sev_guest_set_kernel_hashes);
     object_class_property_set_description(oc, "kernel-hashes",
             "add kernel hashes to guest firmware for measured Linux boot");
+    object_class_property_add_enum(oc, "accept-all-memory",
+                                   "MemoryAcceptance",
+                                   &memory_acceptance_lookup,
+        sev_guest_get_accept_all_memory, sev_guest_set_accept_all_memory);
+    object_class_property_set_description(
+        oc, "accept-all-memory",
+        "false: Accept all memory, true: Accept up to 4G and leave the rest unaccepted (UEFI"
+        " v2.9 memory type), default: default firmware behavior.");
 }
 
 static void
@@ -904,6 +937,22 @@ sev_vm_state_change(void *opaque, bool running, RunState state)
             sev_launch_finish(sev);
         }
     }
+}
+
+int sev_has_accept_all_memory(ConfidentialGuestSupport *cgs)
+{
+    SevGuestState *sev
+        = (SevGuestState *)object_dynamic_cast(OBJECT(cgs), TYPE_SEV_GUEST);
+
+    return sev && sev->accept_all_memory != 0;
+}
+
+int sev_accept_all_memory(ConfidentialGuestSupport *cgs)
+{
+    SevGuestState *sev
+        = (SevGuestState *)object_dynamic_cast(OBJECT(cgs), TYPE_SEV_GUEST);
+
+    return sev && sev->accept_all_memory == 1;
 }
 
 int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)

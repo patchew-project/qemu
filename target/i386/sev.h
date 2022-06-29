@@ -58,5 +58,7 @@ int sev_es_save_reset_vector(void *flash_ptr, uint64_t flash_size);
 void sev_es_set_reset_vector(CPUState *cpu);
 
 int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp);
+int sev_has_accept_all_memory(ConfidentialGuestSupport *cgs);
+int sev_accept_all_memory(ConfidentialGuestSupport *cgs);
 
 #endif

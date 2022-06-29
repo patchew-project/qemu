@@ -23,6 +23,7 @@
 #include "e820_memory_layout.h"
 #include "kvm/kvm_i386.h"
 #include "qapi/error.h"
+#include "target/i386/sev.h"
 #include CONFIG_DEVICES
 
 struct hpet_fw_config hpet_cfg = {.count = UINT8_MAX};
@@ -131,6 +132,11 @@ FWCfgState *fw_cfg_arch_create(MachineState *ms,
                      &e820_reserve, sizeof(e820_reserve));
     fw_cfg_add_file(fw_cfg, "etc/e820", e820_table,
                     sizeof(struct e820_entry) * e820_get_num_entries());
+    if (sev_has_accept_all_memory(ms->cgs)) {
+        bool accept_all = sev_accept_all_memory(ms->cgs);
+        fw_cfg_add_file(fw_cfg, "opt/ovmf/AcceptAllMemory",
+                        &accept_all, sizeof(accept_all));
+    }
 
     fw_cfg_add_bytes(fw_cfg, FW_CFG_HPET, &hpet_cfg, sizeof(hpet_cfg));
     /* allocate memory for the NUMA channel: one (64bit) word for the number
