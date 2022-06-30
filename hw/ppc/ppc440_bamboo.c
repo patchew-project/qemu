@@ -50,6 +50,10 @@
 
 #define PPC440EP_SDRAM_NR_BANKS 4
 
+#define PPC440EP_TB_FREQ        400000000
+#define PPC440EP_CLOCK_FREQ     400000000
+
+
 static const ram_addr_t ppc440ep_sdram_bank_sizes[] = {
     256 * MiB, 128 * MiB, 64 * MiB, 32 * MiB, 16 * MiB, 8 * MiB, 0
 };
@@ -67,8 +71,8 @@ static int bamboo_load_device_tree(hwaddr addr,
     char *filename;
     int fdt_size;
     void *fdt;
-    uint32_t tb_freq = 400000000;
-    uint32_t clock_freq = 400000000;
+    uint32_t tb_freq = PPC440EP_TB_FREQ;
+    uint32_t clock_freq = PPC440EP_CLOCK_FREQ;
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
     if (!filename) {
@@ -106,8 +110,15 @@ static int bamboo_load_device_tree(hwaddr addr,
      * directly access the timebase without host involvement, we must expose
      * the correct frequencies. */
     if (kvm_enabled()) {
+        Error *local_err = NULL;
+
         tb_freq = kvmppc_get_tbfreq();
-        clock_freq = kvmppc_get_clockfreq(NULL);
+        clock_freq = kvmppc_get_clockfreq(&local_err);
+
+        /* Use default clock if we're unable to read it from the DT */
+        if (local_err) {
+            clock_freq = PPC440EP_CLOCK_FREQ;
+        }
     }
 
     qemu_fdt_setprop_cell(fdt, "/cpus/cpu@0", "clock-frequency",
