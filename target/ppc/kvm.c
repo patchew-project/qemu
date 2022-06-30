@@ -1907,7 +1907,7 @@ static uint64_t kvmppc_read_int_dt(const char *filename)
 
     f = fopen(filename, "rb");
     if (!f) {
-        return -1;
+        return 0;
     }
 
     len = fread(&u, 1, sizeof(u), f);
@@ -1934,7 +1934,7 @@ static uint64_t kvmppc_read_int_cpu_dt(const char *propname)
     uint64_t val;
 
     if (kvmppc_find_cpu_dt(buf, sizeof(buf))) {
-        return -1;
+        return 0;
     }
 
     tmp = g_strdup_printf("%s/%s", buf, propname);
