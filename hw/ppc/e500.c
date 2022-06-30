@@ -404,8 +404,14 @@ static int ppce500_load_device_tree(PPCE500MachineState *pms,
         fprintf(stderr, "couldn't set /chosen/bootargs\n");
 
     if (kvm_enabled()) {
+        Error *local_err = NULL;
+
         /* Read out host's frequencies */
-        clock_freq = kvmppc_get_clockfreq(NULL);
+        clock_freq = kvmppc_get_clockfreq(&local_err);
+        if (local_err) {
+            clock_freq = PLATFORM_CLK_FREQ_HZ;
+        }
+
         tb_freq = kvmppc_get_tbfreq();
 
         /* indicate KVM hypercall interface */
