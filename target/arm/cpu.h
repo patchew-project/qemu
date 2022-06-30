@@ -500,6 +500,7 @@ typedef struct CPUArchState {
         uint64_t dbgwcr[16]; /* watchpoint control registers */
         uint64_t mdscr_el1;
         uint64_t oslsr_el1; /* OS Lock Status */
+        uint64_t osdlr_el1; /* OS DoubleLock status */
         uint64_t mdcr_el2;
         uint64_t mdcr_el3;
         /* Stores the architectural value of the counter *the last time it was
@@ -2253,6 +2254,15 @@ FIELD(DBGDIDR, CTX_CMPS, 20, 4)
 FIELD(DBGDIDR, BRPS, 24, 4)
 FIELD(DBGDIDR, WRPS, 28, 4)
 
+FIELD(DBGDEVID, PCSAMPLE, 0, 4)
+FIELD(DBGDEVID, WPADDRMASK, 4, 4)
+FIELD(DBGDEVID, BPADDRMASK, 8, 4)
+FIELD(DBGDEVID, VECTORCATCH, 12, 4)
+FIELD(DBGDEVID, VIRTEXTNS, 16, 4)
+FIELD(DBGDEVID, DOUBLELOCK, 20, 4)
+FIELD(DBGDEVID, AUXREGS, 24, 4)
+FIELD(DBGDEVID, CIDMASK, 28, 4)
+
 FIELD(MVFR0, SIMDREG, 0, 4)
 FIELD(MVFR0, FPSP, 4, 4)
 FIELD(MVFR0, FPDP, 8, 4)
@@ -3731,6 +3741,11 @@ static inline bool isar_feature_aa32_debugv8p2(const ARMISARegisters *id)
     return FIELD_EX32(id->id_dfr0, ID_DFR0, COPDBG) >= 8;
 }
 
+static inline bool isar_feature_aa32_doublelock(const ARMISARegisters *id)
+{
+    return FIELD_EX32(id->dbgdevid, DBGDEVID, DOUBLELOCK) > 0;
+}
+
 /*
  * 64-bit feature tests via id registers.
  */
@@ -4155,6 +4170,11 @@ static inline bool isar_feature_aa64_sme_fa64(const ARMISARegisters *id)
     return FIELD_EX64(id->id_aa64smfr0, ID_AA64SMFR0, FA64);
 }
 
+static inline bool isar_feature_aa64_doublelock(const ARMISARegisters *id)
+{
+    return FIELD_SEX64(id->id_aa64dfr0, ID_AA64DFR0, DOUBLELOCK) >= 0;
+}
+
 /*
  * Feature tests for "does this exist in either 32-bit or 64-bit?"
  */
@@ -4196,6 +4216,22 @@ static inline bool isar_feature_any_debugv8p2(const ARMISARegisters *id)
 static inline bool isar_feature_any_ras(const ARMISARegisters *id)
 {
     return isar_feature_aa64_ras(id) || isar_feature_aa32_ras(id);
+}
+
+static inline bool isar_feature_any_doublelock(const ARMISARegisters *id)
+{
+    /*
+     * We can't just OR together the aa32 and aa64 checks, because
+     * if there is no AArch64 support the aa64 function will default
+     * to returning true for a zero id_aa64dfr0.
+     * We use "is id_aa64pfr0 non-zero" as a proxy for "do we have
+     * the AArch64 ID register values in id", because it's always the
+     * case that ID_AA64PFR0_EL1.EL0 at least will be non-zero.
+     */
+    if (id->id_aa64pfr0) {
+        return isar_feature_aa64_doublelock(id);
+    }
+    return isar_feature_aa32_doublelock(id);
 }
 
 /*
