@@ -6620,11 +6620,18 @@ static void s390x_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 
     dc->base.is_jmp = translate_one(env, dc);
     if (dc->base.is_jmp == DISAS_NEXT) {
-        uint64_t page_start;
-
-        page_start = dc->base.pc_first & TARGET_PAGE_MASK;
-        if (dc->base.pc_next - page_start >= TARGET_PAGE_SIZE || dc->ex_value) {
-            dc->base.is_jmp = DISAS_TOO_MANY;
+        if (unlikely(dc->ex_value)) {
+            /*
+             * Because ex_value was set, s390_cpu_exec_interrupt may
+             * have skipped an interrupt.  Exit to the main loop to
+             * re-evaluate interrupts, as we do for LCTL.
+             */
+            dc->base.is_jmp = DISAS_PC_STALE_NOCHAIN;
+        } else {
+            uint64_t page_start = dc->base.pc_first & TARGET_PAGE_MASK;
+            if (dc->base.pc_next - page_start >= TARGET_PAGE_SIZE) {
+                dc->base.is_jmp = DISAS_TOO_MANY;
+            }
         }
     }
 }
