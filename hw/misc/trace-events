@@ -273,3 +273,11 @@ virt_ctrl_instance_init(void *dev) "ctrl: %p"
 lasi_chip_mem_valid(uint64_t addr, uint32_t val) "access to addr 0x%"PRIx64" is %d"
 lasi_chip_read(uint64_t addr, uint32_t val) "addr 0x%"PRIx64" val 0x%08x"
 lasi_chip_write(uint64_t addr, uint32_t val) "addr 0x%"PRIx64" val 0x%08x"
+
+# intel_me.c
+intel_me_rx_start(uint8_t addr) "addr 0x%02x"
+intel_me_rx_data(uint8_t addr, uint8_t data) "addr 0x%02x data 0x%02x"
+intel_me_rx_end(uint8_t addr) "addr 0x%02x"
+intel_me_tx_start(uint8_t addr, uint8_t target_addr) "addr 0x%02x target_addr 0x%02x"
+intel_me_tx_data(uint8_t addr, uint8_t data) "addr 0x%02x data 0x%02x"
+intel_me_tx_end(uint8_t addr) "addr 0x%02x"
