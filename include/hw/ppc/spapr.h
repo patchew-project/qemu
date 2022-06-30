@@ -26,6 +26,7 @@ typedef struct SpaprPendingHpt SpaprPendingHpt;
 #define SPAPR_ENTRY_POINT       0x100
 
 #define SPAPR_TIMEBASE_FREQ     512000000ULL
+#define SPAPR_CLOCK_FREQ        1000000000ULL
 
 #define TYPE_SPAPR_RTC "spapr-rtc"
 

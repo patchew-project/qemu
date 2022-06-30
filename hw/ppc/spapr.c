@@ -654,7 +654,7 @@ static void spapr_dt_cpu(CPUState *cs, void *fdt, int offset,
                        0xffffffff, 0xffffffff};
     uint32_t tbfreq = kvm_enabled() ? kvmppc_get_tbfreq()
         : SPAPR_TIMEBASE_FREQ;
-    uint32_t cpufreq = kvm_enabled() ? kvmppc_get_clockfreq(NULL) : 1000000000;
+    uint32_t cpufreq = SPAPR_CLOCK_FREQ;
     uint32_t page_sizes_prop[64];
     size_t page_sizes_prop_size;
     unsigned int smp_threads = ms->smp.threads;
@@ -699,6 +699,16 @@ static void spapr_dt_cpu(CPUState *cs, void *fdt, int offset,
     }
 
     _FDT((fdt_setprop_cell(fdt, offset, "timebase-frequency", tbfreq)));
+
+    if (kvm_enabled()) {
+        Error *local_err = NULL;
+
+        cpufreq = kvmppc_get_clockfreq(&local_err);
+        if (local_err) {
+            cpufreq = SPAPR_CLOCK_FREQ;
+        }
+    }
+
     _FDT((fdt_setprop_cell(fdt, offset, "clock-frequency", cpufreq)));
     _FDT((fdt_setprop_cell(fdt, offset, "slb-size", cpu->hash64_opts->slb_size)));
     _FDT((fdt_setprop_cell(fdt, offset, "ibm,slb-size", cpu->hash64_opts->slb_size)));
