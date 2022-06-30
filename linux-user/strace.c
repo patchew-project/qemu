@@ -16,6 +16,7 @@
 #include <sched.h>
 #include "qemu.h"
 #include "user-internals.h"
+#include "user-mmap.h"
 #include "strace.h"
 
 struct syscallname {
@@ -3532,9 +3533,9 @@ print_utimensat(CPUArchState *cpu_env, const struct syscallname *name,
 
 #if defined(TARGET_NR_mmap) || defined(TARGET_NR_mmap2)
 static void
-print_mmap(CPUArchState *cpu_env, const struct syscallname *name,
-           abi_long arg0, abi_long arg1, abi_long arg2,
-           abi_long arg3, abi_long arg4, abi_long arg5)
+print_mmap2(CPUArchState *cpu_env, const struct syscallname *name,
+            abi_long arg0, abi_long arg1, abi_long arg2,
+            abi_long arg3, abi_long arg4, abi_long arg5)
 {
     print_syscall_prologue(name);
     print_pointer(arg0, 0);
@@ -3545,7 +3546,22 @@ print_mmap(CPUArchState *cpu_env, const struct syscallname *name,
     print_raw_param("%#x", arg5, 1);
     print_syscall_epilogue(name);
 }
-#define print_mmap2     print_mmap
+#endif
+
+#if defined(TARGET_NR_mmap)
+static void
+print_mmap(CPUArchState *cpu_env, const struct syscallname *name,
+           abi_long arg0, abi_long arg1, abi_long arg2,
+           abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    if (mmap_get_args(&arg0, &arg1, &arg2, &arg3, &arg4, &arg5)) {
+        print_syscall_prologue(name);
+        print_pointer(arg0, 0);
+        print_syscall_epilogue(name);
+        return;
+    }
+    print_mmap2(cpu_env, name, arg0, arg1, arg2, arg3, arg4, arg5);
+}
 #endif
 
 #ifdef TARGET_NR_mprotect

@@ -899,3 +899,23 @@ abi_long target_madvise(abi_ulong start, abi_ulong len_in, int advice)
 
     return ret;
 }
+
+abi_long old_mmap_get_args(abi_long *arg1, abi_long *arg2, abi_long *arg3,
+                           abi_long *arg4, abi_long *arg5, abi_long *arg6)
+{
+    abi_long orig_arg1 = *arg1, *v;
+
+    v = lock_user(VERIFY_READ, orig_arg1, 6 * sizeof(abi_ulong), 1);
+    if (!v) {
+        return -TARGET_EFAULT;
+    }
+    *arg1 = tswapal(v[0]);
+    *arg2 = tswapal(v[1]);
+    *arg3 = tswapal(v[2]);
+    *arg4 = tswapal(v[3]);
+    *arg5 = tswapal(v[4]);
+    *arg6 = tswapal(v[5]);
+    unlock_user(v, orig_arg1, 0);
+
+    return 0;
+}

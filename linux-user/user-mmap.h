@@ -31,5 +31,17 @@ extern abi_ulong mmap_next_start;
 abi_ulong mmap_find_vma(abi_ulong, abi_ulong, abi_ulong);
 void mmap_fork_start(void);
 void mmap_fork_end(int child);
+abi_long old_mmap_get_args(abi_long *arg1, abi_long *arg2, abi_long *arg3,
+                           abi_long *arg4, abi_long *arg5, abi_long *arg6);
+
+#if (defined(TARGET_I386) && defined(TARGET_ABI32)) || \
+    (defined(TARGET_ARM) && defined(TARGET_ABI32)) || \
+    defined(TARGET_M68K) || defined(TARGET_CRIS) || \
+    defined(TARGET_MICROBLAZE) || defined(TARGET_S390X)
+/* __ARCH_WANT_SYS_OLD_MMAP */
+#define mmap_get_args old_mmap_get_args
+#else
+#define mmap_get_args(arg1, arg2, arg3, arg4, arg5, arg6) 0
+#endif
 
 #endif /* LINUX_USER_USER_MMAP_H */
