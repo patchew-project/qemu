@@ -405,7 +405,7 @@ static int ppce500_load_device_tree(PPCE500MachineState *pms,
 
     if (kvm_enabled()) {
         /* Read out host's frequencies */
-        clock_freq = kvmppc_get_clockfreq();
+        clock_freq = kvmppc_get_clockfreq(NULL);
         tb_freq = kvmppc_get_tbfreq();
 
         /* indicate KVM hypercall interface */

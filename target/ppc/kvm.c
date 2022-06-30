@@ -1945,9 +1945,9 @@ static uint64_t kvmppc_read_int_cpu_dt(const char *propname, Error **errp)
     return kvmppc_read_int_dt(tmp, errp);
 }
 
-uint64_t kvmppc_get_clockfreq(void)
+uint64_t kvmppc_get_clockfreq(Error **errp)
 {
-    return kvmppc_read_int_cpu_dt("clock-frequency", NULL);
+    return kvmppc_read_int_cpu_dt("clock-frequency", errp);
 }
 
 static int kvmppc_get_dec_bits(void)

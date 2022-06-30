@@ -107,7 +107,7 @@ static int bamboo_load_device_tree(hwaddr addr,
      * the correct frequencies. */
     if (kvm_enabled()) {
         tb_freq = kvmppc_get_tbfreq();
-        clock_freq = kvmppc_get_clockfreq();
+        clock_freq = kvmppc_get_clockfreq(NULL);
     }
 
     qemu_fdt_setprop_cell(fdt, "/cpus/cpu@0", "clock-frequency",

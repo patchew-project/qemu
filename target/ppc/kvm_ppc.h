@@ -14,7 +14,7 @@
 #ifdef CONFIG_KVM
 
 uint32_t kvmppc_get_tbfreq(void);
-uint64_t kvmppc_get_clockfreq(void);
+uint64_t kvmppc_get_clockfreq(Error **errp);
 bool kvmppc_get_host_model(char **buf);
 bool kvmppc_get_host_serial(char **buf);
 int kvmppc_get_hasidle(CPUPPCState *env);
