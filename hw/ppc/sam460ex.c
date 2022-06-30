@@ -178,8 +178,14 @@ static int sam460ex_load_device_tree(hwaddr addr,
      * directly access the timebase without host involvement, we must expose
      * the correct frequencies. */
     if (kvm_enabled()) {
+        Error *local_err = NULL;
+
         tb_freq = kvmppc_get_tbfreq();
-        clock_freq = kvmppc_get_clockfreq(NULL);
+        clock_freq = kvmppc_get_clockfreq(&local_err);
+
+        if (local_err) {
+            clock_freq = CPU_FREQ;
+        }
     }
 
     qemu_fdt_setprop_cell(fdt, "/cpus/cpu@0", "clock-frequency",
