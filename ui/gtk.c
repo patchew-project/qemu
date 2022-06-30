@@ -2316,6 +2316,10 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
     GtkDisplayState *s = g_malloc0(sizeof(*s));
     GdkDisplay *window_display;
     GtkIconTheme *theme;
+    GtkWidget *win;
+    GdkRectangle dest;
+    uint16List *mon;
+    int n_mon;
     int i;
     char *dir;
 
@@ -2393,10 +2397,33 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
             gtk_menu_item_activate(GTK_MENU_ITEM(s->untabify_item));
         }
     }
-    if (opts->has_full_screen &&
-        opts->full_screen) {
+
+    if (opts->u.gtk.has_monitor) {
+        i = 0;
+        n_mon = gdk_display_get_n_monitors(window_display);
+        for (mon = opts->u.gtk.monitor; mon; mon = mon->next) {
+            if (mon->value < n_mon && i < s->nb_vcs) {
+                win = s->vc[i].window ? s->vc[i].window : s->window;
+                if (opts->has_full_screen && opts->full_screen) {
+                    gtk_window_fullscreen_on_monitor(
+                        GTK_WINDOW(win),
+                        gdk_display_get_default_screen(window_display),
+                        mon->value);
+                } else {
+                    gdk_monitor_get_geometry(
+                        gdk_display_get_monitor(window_display, mon->value),
+                        &dest);
+                    gtk_window_move(GTK_WINDOW(win),
+                                    dest.x, dest.y);
+                }
+                i++;
+            }
+        }
+    } else if (opts->has_full_screen &&
+               opts->full_screen) {
         gtk_menu_item_activate(GTK_MENU_ITEM(s->full_screen_item));
     }
+
     if (opts->u.gtk.has_grab_on_hover &&
         opts->u.gtk.grab_on_hover) {
         gtk_menu_item_activate(GTK_MENU_ITEM(s->grab_on_hover_item));
