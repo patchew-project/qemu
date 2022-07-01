@@ -2893,6 +2893,73 @@ GuestDiskStatsInfoList *qmp_guest_get_diskstats(Error **errp)
     return guest_get_diskstats(errp);
 }
 
+GuestCpuStatsList *qmp_guest_get_cpustats(Error **errp)
+{
+    GuestCpuStatsList *head = NULL, **tail = &head;
+    const char *cpustats = "/proc/stat";
+    FILE *fp;
+    size_t n;
+    char *line = NULL;
+
+    fp = fopen(cpustats, "r");
+    if (fp  == NULL) {
+        error_setg_errno(errp, errno, "open(\"%s\")", cpustats);
+        return NULL;
+    }
+
+    while (getline(&line, &n, fp) != -1) {
+        GuestCpuStats *cpustat = NULL;
+        int i;
+        unsigned long user, system, idle, iowait, irq, softirq, steal, guest;
+        unsigned long nice, guest_nice;
+        char name[64];
+
+        i = sscanf(line, "%s %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu",
+                   name, &user, &nice, &system, &idle, &iowait, &irq, &softirq,
+                   &steal, &guest, &guest_nice);
+
+        /* drop "cpu 1 2 3 ...", get "cpuX 1 2 3 ..." only */
+        if (strncmp(name, "cpu", 3) || (name[3] == '\0')) {
+            continue;
+        }
+
+        cpustat = g_new0(GuestCpuStats, 1);
+        cpustat->cpu = atoi(&name[3]);
+        cpustat->has_user = true;
+        cpustat->user = user * 10;
+        cpustat->has_system = true;
+        cpustat->system = system * 10;
+        cpustat->has_idle = true;
+        cpustat->idle = idle * 10;
+
+        /* Linux version >= 2.6 */
+        if (i > 5) {
+            cpustat->has_iowait = true;
+            cpustat->iowait = iowait * 10;
+            cpustat->has_irq = true;
+            cpustat->irq = irq * 10;
+            cpustat->has_softirq = true;
+            cpustat->softirq = softirq * 10;
+        }
+
+        if (i > 8) {
+            cpustat->has_steal = true;
+            cpustat->steal = steal * 10;
+        }
+
+        if (i > 9) {
+            cpustat->has_guest = true;
+            cpustat->guest = guest * 10;
+        }
+
+        QAPI_LIST_APPEND(tail, cpustat);
+    }
+
+    free(line);
+    fclose(fp);
+    return head;
+}
+
 #else /* defined(__linux__) */
 
 void qmp_guest_suspend_disk(Error **errp)
@@ -3247,6 +3314,11 @@ GuestDiskStatsInfoList *qmp_guest_get_diskstats(Error **errp)
     return NULL;
 }
 
+GuestCpuStatsList *qmp_guest_get_cpustats(Error **errp)
+{
+    error_setg(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
 
 #endif /* CONFIG_FSFREEZE */
 

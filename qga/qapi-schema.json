@@ -1576,3 +1576,52 @@
 { 'command': 'guest-get-diskstats',
   'returns': ['GuestDiskStatsInfo']
 }
+
+##
+# @GuestCpuStats:
+#
+# Get statistics of each CPU in millisecond.
+#
+# @cpu: CPU index in guest OS
+#
+# @user: CPU time of user mode
+#
+# @system: CPU time of system mode
+#
+# @idle: CPU time of idle state
+#
+# @iowait: CPU time waiting IO
+#
+# @irq: CPU time of hardware interrupt
+#
+# @softirq: CPU time of soft interrupt
+#
+# @steal: CPU time stolen by host
+#
+# @guest: CPU time of running guest mode
+#
+# Since: 7.1
+##
+{ 'struct': 'GuestCpuStats',
+  'data': {'cpu': 'int',
+           '*user': 'uint64',
+           '*system': 'uint64',
+           '*idle': 'uint64',
+           '*iowait': 'uint64',
+           '*irq': 'uint64',
+           '*softirq': 'uint64',
+           '*steal': 'uint64',
+           '*guest': 'uint64'
+           } }
+
+##
+# @guest-get-cpustats:
+#
+# Retrieve information about CPU stats.
+# Returns: List of CPU stats of guest.
+#
+# Since: 7.1
+##
+{ 'command': 'guest-get-cpustats',
+  'returns': ['GuestCpuStats']
+}
