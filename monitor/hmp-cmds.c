@@ -307,6 +307,10 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
             monitor_printf(mon, "postcopy ram: %" PRIu64 " kbytes\n",
                            info->ram->postcopy_bytes >> 10);
         }
+        if (info->ram->zero_copy_copied) {
+            monitor_printf(mon, "zero-copy copied: %" PRIu64 " iterations\n",
+                           info->ram->zero_copy_copied);
+        }
     }
 
     if (info->has_disk) {

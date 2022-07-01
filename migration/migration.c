@@ -1034,6 +1034,7 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
     info->ram->precopy_bytes = ram_counters.precopy_bytes;
     info->ram->downtime_bytes = ram_counters.downtime_bytes;
     info->ram->postcopy_bytes = ram_counters.postcopy_bytes;
+    info->ram->zero_copy_copied = ram_counters.zero_copy_copied;
 
     if (migrate_use_xbzrle()) {
         info->has_xbzrle_cache = true;
