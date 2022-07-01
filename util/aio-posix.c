@@ -519,7 +519,7 @@ static bool remove_idle_poll_handlers(AioContext *ctx,
  * Returns: true if progress was made, false otherwise
  */
 static bool run_poll_handlers(AioContext *ctx, AioHandlerList *ready_list,
-                              int64_t max_ns, int64_t *timeout)
+                              int64_t max_ns, int64_t *timeout, bool *success)
 {
     bool progress;
     int64_t start_time, elapsed_time;
@@ -553,6 +553,8 @@ static bool run_poll_handlers(AioContext *ctx, AioHandlerList *ready_list,
         progress = true;
     }
 
+    *success = !*timeout;
+
     /* If time has passed with no successful polling, adjust *timeout to
      * keep the same ending time.
      */
@@ -577,22 +579,28 @@ static bool run_poll_handlers(AioContext *ctx, AioHandlerList *ready_list,
 static bool try_poll_mode(AioContext *ctx, AioHandlerList *ready_list,
                           int64_t *timeout)
 {
-    int64_t max_ns;
+    int64_t max_ns, start_time;
+    bool success = false;
 
     if (QLIST_EMPTY_RCU(&ctx->poll_aio_handlers)) {
         return false;
+    }
+
+    if (!*timeout) {
+        start_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+        return run_poll_handlers_once(ctx, ready_list, start_time, timeout);
     }
 
     max_ns = qemu_soonest_timeout(*timeout, ctx->poll_ns);
     if (max_ns && !ctx->fdmon_ops->need_wait(ctx)) {
         poll_set_started(ctx, ready_list, true);
 
-        if (run_poll_handlers(ctx, ready_list, max_ns, timeout)) {
+        if (run_poll_handlers(ctx, ready_list, max_ns, timeout, &success)) {
             return true;
         }
     }
 
-    if (poll_set_started(ctx, ready_list, false)) {
+    if (!success && poll_set_started(ctx, ready_list, false)) {
         *timeout = 0;
         return true;
     }
