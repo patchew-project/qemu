@@ -407,6 +407,11 @@ static void ram_transferred_add(uint64_t bytes)
     ram_counters.transferred += bytes;
 }
 
+void zero_copy_copied(void)
+{
+    ram_counters.zero_copy_copied++;
+}
+
 /* used by the search for pages to send */
 struct PageSearchStatus {
     /* Current block being searched */
