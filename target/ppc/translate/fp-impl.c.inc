@@ -880,7 +880,7 @@ static void gen_lfdepx(DisasContext *ctx)
 {
     TCGv EA;
     TCGv_i64 t0;
-    CHK_SV;
+    CHK_SV(ctx);
     if (unlikely(!ctx->fpu_enabled)) {
         gen_exception(ctx, POWERPC_EXCP_FPU);
         return;
@@ -1037,7 +1037,7 @@ static void gen_stfdepx(DisasContext *ctx)
 {
     TCGv EA;
     TCGv_i64 t0;
-    CHK_SV;
+    CHK_SV(ctx);
     if (unlikely(!ctx->fpu_enabled)) {
         gen_exception(ctx, POWERPC_EXCP_FPU);
         return;
