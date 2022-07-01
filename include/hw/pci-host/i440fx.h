@@ -45,5 +45,6 @@ PCIBus *i440fx_init(const char *pci_type,
                     MemoryRegion *pci_memory,
                     MemoryRegion *ram_memory);
 
+uint64_t i440fx_pci_hole64_size(DeviceState *i440fx_dev);
 
 #endif
