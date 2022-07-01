@@ -857,6 +857,19 @@ static uint64_t pc_get_cxl_range_end(PCMachineState *pcms)
                 start = fw->mr.addr + memory_region_size(&fw->mr);
             }
         }
+    } else {
+        hwaddr cxl_size = MiB;
+
+        start = pc_get_cxl_range_start(pcms);
+        if (pcms->cxl_devices_state.fixed_windows) {
+            GList *it;
+
+            start = ROUND_UP(start + cxl_size, 256 * MiB);
+            for (it = pcms->cxl_devices_state.fixed_windows; it; it = it->next) {
+                CXLFixedWindow *fw = it->data;
+                start += fw->size;
+            }
+        }
     }
 
     return start;
