@@ -440,6 +440,81 @@ def check_return_value_never_used(
             log(cursor, f"{cursor.spelling}() return value is never used")
 
 
+@check("coroutine-annotation-validity")
+def check_coroutine_annotation_validity(
+    translation_unit: TranslationUnit,
+    translation_unit_path: str,
+    log: Callable[[Cursor, str], None],
+) -> None:
+
+    for [*ancestors, node] in all_paths(translation_unit.cursor):
+
+        # validate annotation usage
+
+        if is_annotation(node, "coroutine_fn") and (
+            ancestors[-1] is None
+            or not is_valid_coroutine_fn_usage(ancestors[-1])
+        ):
+            log(node, "invalid coroutine_fn usage")
+
+        if is_comma_wrapper(
+            node, "__allow_coroutine_fn_call"
+        ) and not is_valid_allow_coroutine_fn_call_usage(node):
+            log(node, "invalid __allow_coroutine_fn_call usage")
+
+        # reject re-declarations with inconsistent annotations
+
+        if node.kind == CursorKind.FUNCTION_DECL:
+
+            def log_annotation_disagreement(annotation: str) -> None:
+                log(
+                    node,
+                    f"{annotation} annotation disagreement with"
+                    f" {format_location(node.canonical)}",
+                )
+
+            if is_coroutine_fn(node) != is_coroutine_fn(node.canonical):
+                log_annotation_disagreement("coroutine_fn")
+
+
+@check("coroutine-calls")
+def check_coroutine_calls(
+    translation_unit: TranslationUnit,
+    translation_unit_path: str,
+    log: Callable[[Cursor, str], None],
+) -> None:
+
+    for caller in subtrees_matching(
+        translation_unit.cursor,
+        lambda n: n.kind == CursorKind.FUNCTION_DECL and n.is_definition(),
+    ):
+
+        caller_is_coroutine = is_coroutine_fn(caller)
+
+        for [*_, call_parent, call] in filter(
+            lambda path: path[-1].kind == CursorKind.CALL_EXPR,
+            all_paths(caller),
+        ):
+
+            # We can get some "calls" that are actually things like top-level
+            # macro invocations.
+            if call.referenced is None:
+                continue
+
+            callee = call.referenced.canonical
+
+            # reject calls from non-coroutine_fn to coroutine_fn
+
+            if (
+                not caller_is_coroutine
+                and is_coroutine_fn(callee)
+                and not is_comma_wrapper(
+                    call_parent, "__allow_coroutine_fn_call"
+                )
+            ):
+                log(call, "non-coroutine_fn function calls coroutine_fn")
+
+
 # ---------------------------------------------------------------------------- #
 # Traversal
 
@@ -462,6 +537,138 @@ def all_paths(root: Cursor) -> Iterable[Sequence[Cursor]]:
             path.pop()
 
     return aux(root)
+
+
+# Doesn't traverse yielded subtrees.
+def subtrees_matching(
+    root: Cursor, predicate: Callable[[Cursor], bool]
+) -> Iterable[Cursor]:
+
+    if predicate(root):
+        yield root
+    else:
+        for child in root.get_children():
+            yield from subtrees_matching(child, predicate)
+
+
+# ---------------------------------------------------------------------------- #
+# Node predicates
+
+
+def is_valid_coroutine_fn_usage(parent: Cursor) -> bool:
+    """
+    Check if an occurrence of `coroutine_fn` represented by a node with parent
+    `parent` appears at a valid point in the AST. This is the case if `parent`
+    is:
+
+      - A function declaration/definition, OR
+      - A field/variable/parameter declaration with a function pointer type, OR
+      - A typedef of a function type or function pointer type.
+    """
+
+    if parent.kind == CursorKind.FUNCTION_DECL:
+        return True
+
+    canonical_type = parent.type.get_canonical()
+
+    def parent_type_is_function() -> bool:
+        return canonical_type.kind == TypeKind.FUNCTIONPROTO
+
+    def parent_type_is_function_pointer() -> bool:
+        return (
+            canonical_type.kind == TypeKind.POINTER
+            and canonical_type.get_pointee().kind == TypeKind.FUNCTIONPROTO
+        )
+
+    if parent.kind in [
+        CursorKind.FIELD_DECL,
+        CursorKind.VAR_DECL,
+        CursorKind.PARM_DECL,
+    ]:
+        return parent_type_is_function_pointer()
+
+    if parent.kind == CursorKind.TYPEDEF_DECL:
+        return parent_type_is_function() or parent_type_is_function_pointer()
+
+    return False
+
+
+def is_valid_allow_coroutine_fn_call_usage(node: Cursor) -> bool:
+    """
+    Check if an occurrence of `__allow_coroutine_fn_call()` represented by node
+    `node` appears at a valid point in the AST. This is the case if its right
+    operand is a call to:
+
+      - A function declared with the `coroutine_fn` annotation.
+
+    TODO: Ensure that `__allow_coroutine_fn_call()` is in the body of a
+    non-`coroutine_fn` function.
+    """
+
+    [_, call] = node.get_children()
+
+    if call.kind != CursorKind.CALL_EXPR:
+        return False
+
+    return is_coroutine_fn(call.referenced)
+
+
+def is_coroutine_fn(node: Cursor) -> bool:
+    """
+    Check whether the given `node` should be considered to be `coroutine_fn`.
+
+    This assumes valid usage of `coroutine_fn`.
+    """
+
+    while node.kind in [CursorKind.PAREN_EXPR, CursorKind.UNEXPOSED_EXPR]:
+        children = list(node.get_children())
+        if len(children) == 1:
+            node = children[0]
+        else:
+            break
+
+    return node.kind == CursorKind.FUNCTION_DECL and is_annotated_with(
+        node, "coroutine_fn"
+    )
+
+
+def is_annotated_with(node: Cursor, annotation: str) -> bool:
+    return any(is_annotation(c, annotation) for c in node.get_children())
+
+
+def is_annotation(node: Cursor, annotation: str) -> bool:
+    return node.kind == CursorKind.ANNOTATE_ATTR and node.spelling == annotation
+
+
+# A "comma wrapper" is the pattern `((void)string_literal, expr)`. The `expr` is
+# said to be "comma wrapped".
+def is_comma_wrapper(node: Cursor, literal: str) -> bool:
+
+    # TODO: Do we need to check that the operator is `,`? Is there another
+    # operator that can combine void and an expr?
+
+    if node.kind != CursorKind.BINARY_OPERATOR:
+        return False
+
+    [left, _right] = node.get_children()
+
+    if (
+        left.kind != CursorKind.CSTYLE_CAST_EXPR
+        or left.type.kind != TypeKind.VOID
+    ):
+        return False
+
+    [unexposed_expr] = left.get_children()
+
+    if unexposed_expr.kind != CursorKind.UNEXPOSED_EXPR:
+        return False
+
+    [string_literal] = unexposed_expr.get_children()
+
+    return (
+        string_literal.kind == CursorKind.STRING_LITERAL
+        and string_literal.spelling == f'"{literal}"'
+    )
 
 
 # ---------------------------------------------------------------------------- #

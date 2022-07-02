@@ -42,7 +42,20 @@
  *       ....
  *   }
  */
+#ifdef __clang__
+#define coroutine_fn __attribute__((__annotate__("coroutine_fn")))
+#else
 #define coroutine_fn
+#endif
+
+/**
+ * This can wrap a call to a coroutine_fn from a non-coroutine_fn function and
+ * suppress the static analyzer's complaints.
+ *
+ * You don't want to use this.
+ */
+#define __allow_coroutine_fn_call(call) \
+    ((void)"__allow_coroutine_fn_call", call)
 
 typedef struct Coroutine Coroutine;
 
