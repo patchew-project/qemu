@@ -1233,7 +1233,7 @@ int coroutine_fn qcow2_flush_caches(BlockDriverState *bs)
         return ret;
     }
 
-    return bdrv_flush(bs->file->bs);
+    return bdrv_co_flush(bs->file->bs);
 }
 
 /*********************************************************/
