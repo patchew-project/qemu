@@ -459,6 +459,12 @@ def check_coroutine_annotation_validity(
         ):
             log(node, "invalid coroutine_fn usage")
 
+        if is_annotation(node, "no_coroutine_fn") and (
+            ancestors[-1] is None
+            or not is_valid_no_coroutine_fn_usage(ancestors[-1])
+        ):
+            log(node, "invalid no_coroutine_fn usage")
+
         if is_comma_wrapper(
             node, "__allow_coroutine_fn_call"
         ) and not is_valid_allow_coroutine_fn_call_usage(node):
@@ -477,6 +483,9 @@ def check_coroutine_annotation_validity(
 
             if is_coroutine_fn(node) != is_coroutine_fn(node.canonical):
                 log_annotation_disagreement("coroutine_fn")
+
+            if is_no_coroutine_fn(node) != is_no_coroutine_fn(node.canonical):
+                log_annotation_disagreement("no_coroutine_fn")
 
 
 @check("coroutine-calls")
@@ -515,6 +524,11 @@ def check_coroutine_calls(
                 )
             ):
                 log(call, "non-coroutine_fn function calls coroutine_fn")
+
+            # reject calls from coroutine_fn to no_coroutine_fn
+
+            if caller_is_coroutine and is_no_coroutine_fn(callee):
+                log(call, f"coroutine_fn calls no_coroutine_fn function")
 
 
 @check("coroutine-pointers")
@@ -704,6 +718,16 @@ def is_valid_coroutine_fn_usage(parent: Cursor) -> bool:
     return False
 
 
+def is_valid_no_coroutine_fn_usage(parent: Cursor) -> bool:
+    """
+    Checks if an occurrence of `no_coroutine_fn` represented by a node with
+    parent `parent` appears at a valid point in the AST. This is the case if the
+    parent is a function declaration/definition.
+    """
+
+    return parent.kind == CursorKind.FUNCTION_DECL
+
+
 def is_valid_allow_coroutine_fn_call_usage(node: Cursor) -> bool:
     """
     Check if an occurrence of `__allow_coroutine_fn_call()` represented by node
@@ -769,6 +793,17 @@ def is_coroutine_fn(node: Cursor) -> bool:
         return is_annotated_with(node, "coroutine_fn")
 
     return False
+
+
+def is_no_coroutine_fn(node: Cursor) -> bool:
+    """
+    Checks whether the given `node` should be considered to be
+    `no_coroutine_fn`.
+
+    This assumes valid usage of `no_coroutine_fn`.
+    """
+
+    return is_annotated_with(node, "no_coroutine_fn")
 
 
 def is_annotated_with(node: Cursor, annotation: str) -> bool:
