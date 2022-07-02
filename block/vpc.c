@@ -777,11 +777,10 @@ static int coroutine_fn vpc_co_block_status(BlockDriverState *bs,
  * Note that the geometry doesn't always exactly match total_sectors but
  * may round it down.
  *
- * Returns 0 on success, -EFBIG if the size is larger than 2040 GiB. Override
- * the hardware EIDE and ATA-2 limit of 16 heads (max disk size of 127 GB)
- * and instead allow up to 255 heads.
+ * Override the hardware EIDE and ATA-2 limit of 16 heads (max disk size of 127
+ * GB) and instead allow up to 255 heads.
  */
-static int calculate_geometry(int64_t total_sectors, uint16_t *cyls,
+static void calculate_geometry(int64_t total_sectors, uint16_t *cyls,
     uint8_t *heads, uint8_t *secs_per_cyl)
 {
     uint32_t cyls_times_heads;
@@ -815,8 +814,6 @@ static int calculate_geometry(int64_t total_sectors, uint16_t *cyls,
     }
 
     *cyls = cyls_times_heads / *heads;
-
-    return 0;
 }
 
 static int create_dynamic_disk(BlockBackend *blk, VHDFooter *footer,

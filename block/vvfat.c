@@ -154,9 +154,9 @@ static inline int array_remove_slice(array_t* array,int index, int count)
     return 0;
 }
 
-static int array_remove(array_t* array,int index)
+static void array_remove(array_t* array,int index)
 {
-    return array_remove_slice(array, index, 1);
+    array_remove_slice(array, index, 1);
 }
 
 /* return the index for a given member */
@@ -2967,13 +2967,12 @@ DLOG(checkpoint());
     return 0;
 }
 
-static int try_commit(BDRVVVFATState* s)
+static void try_commit(BDRVVVFATState* s)
 {
     vvfat_close_current_file(s);
 DLOG(checkpoint());
-    if(!is_consistent(s))
-        return -1;
-    return do_commit(s);
+    if (is_consistent(s))
+        do_commit(s);
 }
 
 static int vvfat_write(BlockDriverState *bs, int64_t sector_num,

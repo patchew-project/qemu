@@ -257,14 +257,14 @@ fail:
     return ret;
 }
 
-static int free_bitmap_clusters(BlockDriverState *bs, Qcow2BitmapTable *tb)
+static void free_bitmap_clusters(BlockDriverState *bs, Qcow2BitmapTable *tb)
 {
     int ret;
     uint64_t *bitmap_table;
 
     ret = bitmap_table_load(bs, tb, &bitmap_table);
     if (ret < 0) {
-        return ret;
+        return;
     }
 
     clear_bitmap_table(bs, bitmap_table, tb->size);
@@ -274,8 +274,6 @@ static int free_bitmap_clusters(BlockDriverState *bs, Qcow2BitmapTable *tb)
 
     tb->offset = 0;
     tb->size = 0;
-
-    return 0;
 }
 
 /* load_bitmap_data

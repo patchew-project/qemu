@@ -934,20 +934,18 @@ void bdrv_dec_in_flight(BlockDriverState *bs)
     bdrv_wakeup(bs);
 }
 
-static bool coroutine_fn bdrv_wait_serialising_requests(BdrvTrackedRequest *self)
+static void coroutine_fn
+bdrv_wait_serialising_requests(BdrvTrackedRequest *self)
 {
     BlockDriverState *bs = self->bs;
-    bool waited = false;
 
     if (!qatomic_read(&bs->serialising_in_flight)) {
-        return false;
+        return;
     }
 
     qemu_co_mutex_lock(&bs->reqs_lock);
-    waited = bdrv_wait_serialising_requests_locked(self);
+    bdrv_wait_serialising_requests_locked(self);
     qemu_co_mutex_unlock(&bs->reqs_lock);
-
-    return waited;
 }
 
 bool coroutine_fn bdrv_make_request_serialising(BdrvTrackedRequest *req,
@@ -1689,10 +1687,10 @@ static bool bdrv_init_padding(BlockDriverState *bs,
     return true;
 }
 
-static int bdrv_padding_rmw_read(BdrvChild *child,
-                                 BdrvTrackedRequest *req,
-                                 BdrvRequestPadding *pad,
-                                 bool zero_middle)
+static void bdrv_padding_rmw_read(BdrvChild *child,
+                                  BdrvTrackedRequest *req,
+                                  BdrvRequestPadding *pad,
+                                  bool zero_middle)
 {
     QEMUIOVector local_qiov;
     BlockDriverState *bs = child->bs;
@@ -1715,7 +1713,7 @@ static int bdrv_padding_rmw_read(BdrvChild *child,
         ret = bdrv_aligned_preadv(child, req, req->overlap_offset, bytes,
                                   align, &local_qiov, 0, 0);
         if (ret < 0) {
-            return ret;
+            return;
         }
         if (pad->head) {
             bdrv_debug_event(bs, BLKDBG_PWRITEV_RMW_AFTER_HEAD);
@@ -1738,7 +1736,7 @@ static int bdrv_padding_rmw_read(BdrvChild *child,
                 req->overlap_offset + req->overlap_bytes - align,
                 align, align, &local_qiov, 0, 0);
         if (ret < 0) {
-            return ret;
+            return;
         }
         bdrv_debug_event(bs, BLKDBG_PWRITEV_RMW_AFTER_TAIL);
     }
@@ -1748,7 +1746,7 @@ zero_mem:
         memset(pad->buf + pad->head, 0, pad->buf_len - pad->head - pad->tail);
     }
 
-    return 0;
+    return;
 }
 
 static void bdrv_padding_destroy(BdrvRequestPadding *pad)
