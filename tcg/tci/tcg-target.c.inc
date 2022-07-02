@@ -824,9 +824,15 @@ static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
 static void tcg_target_init(TCGContext *s)
 {
 #if defined(CONFIG_DEBUG_TCG_INTERPRETER)
+    Error *err = NULL;
     const char *envval = getenv("DEBUG_TCG");
     if (envval) {
-        qemu_set_log(strtol(envval, NULL, 0));
+        if (qemu_set_log(strtol(envval, NULL, 0), &err)) {
+            error_report("DEBUG_TCG got an errr, envval %s", envval);
+        }
+        if (err) {
+            g_error_free(err);
+        }
     }
 #endif
 
