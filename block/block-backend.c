@@ -1537,8 +1537,9 @@ static void blk_aio_read_entry(void *opaque)
     QEMUIOVector *qiov = rwco->iobuf;
 
     assert(qiov->size == acb->bytes);
-    rwco->ret = blk_co_do_preadv(rwco->blk, rwco->offset, acb->bytes,
-                                 qiov, rwco->flags);
+    rwco->ret = __allow_coroutine_fn_call(
+        blk_co_do_preadv(rwco->blk, rwco->offset, acb->bytes, qiov,
+                         rwco->flags));
     blk_aio_complete(acb);
 }
 
@@ -1682,7 +1683,8 @@ static void blk_aio_ioctl_entry(void *opaque)
     BlkAioEmAIOCB *acb = opaque;
     BlkRwCo *rwco = &acb->rwco;
 
-    rwco->ret = blk_co_do_ioctl(rwco->blk, rwco->offset, rwco->iobuf);
+    rwco->ret = __allow_coroutine_fn_call(
+        blk_co_do_ioctl(rwco->blk, rwco->offset, rwco->iobuf));
 
     blk_aio_complete(acb);
 }
@@ -1716,7 +1718,8 @@ static void blk_aio_pdiscard_entry(void *opaque)
     BlkAioEmAIOCB *acb = opaque;
     BlkRwCo *rwco = &acb->rwco;
 
-    rwco->ret = blk_co_do_pdiscard(rwco->blk, rwco->offset, acb->bytes);
+    rwco->ret = __allow_coroutine_fn_call(
+        blk_co_do_pdiscard(rwco->blk, rwco->offset, acb->bytes));
     blk_aio_complete(acb);
 }
 
@@ -1772,7 +1775,7 @@ static void blk_aio_flush_entry(void *opaque)
     BlkAioEmAIOCB *acb = opaque;
     BlkRwCo *rwco = &acb->rwco;
 
-    rwco->ret = blk_co_do_flush(rwco->blk);
+    rwco->ret = __allow_coroutine_fn_call(blk_co_do_flush(rwco->blk));
     blk_aio_complete(acb);
 }
 

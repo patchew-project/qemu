@@ -259,7 +259,7 @@ static CachedL2Table *qed_new_l2_table(BDRVQEDState *s)
     return l2_table;
 }
 
-static bool qed_plug_allocating_write_reqs(BDRVQEDState *s)
+static bool coroutine_fn qed_plug_allocating_write_reqs(BDRVQEDState *s)
 {
     qemu_co_mutex_lock(&s->table_lock);
 
@@ -278,7 +278,7 @@ static bool qed_plug_allocating_write_reqs(BDRVQEDState *s)
     return true;
 }
 
-static void qed_unplug_allocating_write_reqs(BDRVQEDState *s)
+static void coroutine_fn qed_unplug_allocating_write_reqs(BDRVQEDState *s)
 {
     qemu_co_mutex_lock(&s->table_lock);
     assert(s->allocating_write_reqs_plugged);
@@ -568,7 +568,7 @@ static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
 
     bdrv_qed_init_state(bs);
     if (qemu_in_coroutine()) {
-        bdrv_qed_open_entry(&qoc);
+        __allow_coroutine_fn_call(bdrv_qed_open_entry(&qoc));
     } else {
         assert(qemu_get_current_aio_context() == qemu_get_aio_context());
         qemu_coroutine_enter(qemu_coroutine_create(bdrv_qed_open_entry, &qoc));
