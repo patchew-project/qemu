@@ -245,10 +245,6 @@ bool arm_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
             extra.x = FIELD_DP64(extra.x, PAGEENTRYEXTRA, SHAREABILITY,
                                  cacheattrs.shareability);
         }
-        /* Notice and record tagged memory. */
-        if (cpu_isar_feature(aa64_mte, cpu) && cacheattrs.attrs == 0xf0) {
-            arm_tlb_mte_tagged(&attrs) = true;
-        }
 
         tlb_set_page_with_extra(cs, address, phys_addr, attrs, extra,
                                 prot, mmu_idx, page_size);
