@@ -90,6 +90,7 @@ static bool regime_translation_big_endian(CPUARMState *env, ARMMMUIdx mmu_idx)
 static bool regime_is_user(CPUARMState *env, ARMMMUIdx mmu_idx)
 {
     switch (mmu_idx) {
+    case ARMMMUIdx_E10_0:
     case ARMMMUIdx_E20_0:
     case ARMMMUIdx_Stage1_E0:
     case ARMMMUIdx_MUser:
@@ -99,10 +100,6 @@ static bool regime_is_user(CPUARMState *env, ARMMMUIdx mmu_idx)
         return true;
     default:
         return false;
-    case ARMMMUIdx_E10_0:
-    case ARMMMUIdx_E10_1:
-    case ARMMMUIdx_E10_1_PAN:
-        g_assert_not_reached();
     }
 }
 
@@ -2530,10 +2527,6 @@ bool get_phys_addr_with_secure(CPUARMState *env, target_ulong address,
                                           s1_mmu_idx, is_secure,
                                           result, fi);
         }
-        /*
-         * For non-EL2 CPUs a stage1+stage2 translation is just stage 1.
-         */
-        mmu_idx = s1_mmu_idx;
     }
 
     /*
