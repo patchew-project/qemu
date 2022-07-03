@@ -1133,11 +1133,18 @@ typedef struct ARMCacheAttrs {
     bool guarded:1;              /* guarded bit of the v8-64 PTE */
 } ARMCacheAttrs;
 
+/* Fields that are valid upon success. */
+typedef struct GetPhysAddrResult {
+    hwaddr phys;
+    target_ulong page_size;
+    int prot;
+    MemTxAttrs attrs;
+    ARMCacheAttrs cacheattrs;
+} GetPhysAddrResult;
+
 bool get_phys_addr(CPUARMState *env, target_ulong address,
                    MMUAccessType access_type, ARMMMUIdx mmu_idx,
-                   hwaddr *phys_ptr, MemTxAttrs *attrs, int *prot,
-                   target_ulong *page_size,
-                   ARMMMUFaultInfo *fi, ARMCacheAttrs *cacheattrs)
+                   GetPhysAddrResult *result, ARMMMUFaultInfo *fi)
     __attribute__((nonnull));
 
 void arm_log_exception(CPUState *cs);

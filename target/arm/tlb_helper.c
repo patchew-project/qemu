@@ -209,11 +209,8 @@ bool arm_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 {
     ARMCPU *cpu = ARM_CPU(cs);
     ARMMMUFaultInfo fi = {};
-    hwaddr phys_addr;
-    target_ulong page_size;
-    int prot, ret;
-    MemTxAttrs attrs = {};
-    ARMCacheAttrs cacheattrs = {};
+    GetPhysAddrResult res = {};
+    int ret;
 
     /*
      * Walk the page table and (if the mapping exists) add the page
@@ -223,8 +220,7 @@ bool arm_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
      */
     ret = get_phys_addr(&cpu->env, address, access_type,
                         core_to_arm_mmu_idx(&cpu->env, mmu_idx),
-                        &phys_addr, &attrs, &prot, &page_size,
-                        &fi, &cacheattrs);
+                        &res, &fi);
     if (likely(!ret)) {
         PageEntryExtra extra = {};
 
@@ -234,22 +230,22 @@ bool arm_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
          * pass in the exact addresses.  This only happens for M-profile,
          * which does not use or require PageEntryExtra.
          */
-        if (page_size >= TARGET_PAGE_SIZE) {
-            phys_addr &= TARGET_PAGE_MASK;
+        if (res.page_size >= TARGET_PAGE_SIZE) {
+            res.phys &= TARGET_PAGE_MASK;
             address &= TARGET_PAGE_MASK;
 
             /* Record some particulars for later lookup. */
-            extra.x = phys_addr;
+            extra.x = res.phys;
             extra.x = FIELD_DP64(extra.x, PAGEENTRYEXTRA, ATTRS,
-                                 cacheattrs.attrs);
+                                 res.cacheattrs.attrs);
             extra.x = FIELD_DP64(extra.x, PAGEENTRYEXTRA, SHAREABILITY,
-                                 cacheattrs.shareability);
+                                 res.cacheattrs.shareability);
             extra.x = FIELD_DP64(extra.x, PAGEENTRYEXTRA, GUARDED,
-                                 cacheattrs.guarded);
+                                 res.cacheattrs.guarded);
         }
 
-        tlb_set_page_with_extra(cs, address, phys_addr, attrs, extra,
-                                prot, mmu_idx, page_size);
+        tlb_set_page_with_extra(cs, address, res.phys, res.attrs, extra,
+                                res.prot, mmu_idx, res.page_size);
         return true;
     } else if (probe) {
         return false;
