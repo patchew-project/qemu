@@ -40,6 +40,6 @@ struct PageEntryExtra {
 };
 #endif
 
-#define NB_MMU_MODES 15
+#define NB_MMU_MODES 8
 
 #endif
