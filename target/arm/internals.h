@@ -74,6 +74,11 @@ FIELD(V7M_EXCRET, DCRS, 5, 1)
 FIELD(V7M_EXCRET, S, 6, 1)
 FIELD(V7M_EXCRET, RES1, 7, 25) /* including the must-be-1 prefix */
 
+/* Bit definitions for PageEntryExtra */
+FIELD(PAGEENTRYEXTRA, ATTRS, 0, 8)
+FIELD(PAGEENTRYEXTRA, SHAREABILITY, 8, 2)
+FIELD(PAGEENTRYEXTRA, PA, 12, 52)
+
 /* Minimum value which is a magic number for exception return */
 #define EXC_RETURN_MIN_MAGIC 0xff000000
 /* Minimum number which is a magic number for function or exception return

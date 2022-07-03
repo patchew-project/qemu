@@ -30,6 +30,14 @@
  */
 # define TARGET_PAGE_BITS_VARY
 # define TARGET_PAGE_BITS_MIN  10
+/*
+ * Extra information stored in softmmu page tables.
+ */
+# define TARGET_PAGE_ENTRY_EXTRA
+struct PageEntryExtra {
+    /* See PAGEENTRYEXTRA fields in cpu.h */
+    uint64_t x;
+};
 #endif
 
 #define NB_MMU_MODES 15

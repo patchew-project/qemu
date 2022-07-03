@@ -226,21 +226,31 @@ bool arm_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                         &phys_addr, &attrs, &prot, &page_size,
                         &fi, &cacheattrs);
     if (likely(!ret)) {
+        PageEntryExtra extra = {};
+
         /*
          * Map a single [sub]page. Regions smaller than our declared
          * target page size are handled specially, so for those we
-         * pass in the exact addresses.
+         * pass in the exact addresses.  This only happens for M-profile,
+         * which does not use or require PageEntryExtra.
          */
         if (page_size >= TARGET_PAGE_SIZE) {
             phys_addr &= TARGET_PAGE_MASK;
             address &= TARGET_PAGE_MASK;
+
+            /* Record some particulars for later lookup. */
+            extra.x = phys_addr;
+            extra.x = FIELD_DP64(extra.x, PAGEENTRYEXTRA, ATTRS,
+                                 cacheattrs.attrs);
+            extra.x = FIELD_DP64(extra.x, PAGEENTRYEXTRA, SHAREABILITY,
+                                 cacheattrs.shareability);
         }
         /* Notice and record tagged memory. */
         if (cpu_isar_feature(aa64_mte, cpu) && cacheattrs.attrs == 0xf0) {
             arm_tlb_mte_tagged(&attrs) = true;
         }
 
-        tlb_set_page_with_attrs(cs, address, phys_addr, attrs,
+        tlb_set_page_with_extra(cs, address, phys_addr, attrs, extra,
                                 prot, mmu_idx, page_size);
         return true;
     } else if (probe) {
