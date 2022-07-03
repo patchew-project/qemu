@@ -2433,9 +2433,10 @@ bool get_phys_addr_with_secure(CPUARMState *env, target_ulong address,
     if (mmu_idx != s1_mmu_idx) {
         /*
          * Call ourselves recursively to do the stage 1 and then stage 2
-         * translations if mmu_idx is a two-stage regime.
+         * translations if mmu_idx is a two-stage regime, and stage2 enabled.
          */
-        if (arm_feature(env, ARM_FEATURE_EL2)) {
+        if (arm_feature(env, ARM_FEATURE_EL2) &&
+            !regime_translation_disabled(env, ARMMMUIdx_Stage2, is_secure)) {
             hwaddr ipa;
             int s1_prot;
             int ret;
@@ -2448,9 +2449,8 @@ bool get_phys_addr_with_secure(CPUARMState *env, target_ulong address,
             ret = get_phys_addr_with_secure(env, address, access_type,
                                             s1_mmu_idx, is_secure, result, fi);
 
-            /* If S1 fails or S2 is disabled, return early.  */
-            if (ret || regime_translation_disabled(env, ARMMMUIdx_Stage2,
-                                                   is_secure)) {
+            /* If S1 fails, return early.  */
+            if (ret) {
                 return ret;
             }
 
