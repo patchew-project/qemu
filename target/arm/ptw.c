@@ -1697,8 +1697,8 @@ static bool get_phys_addr_pmsav7(CPUARMState *env, uint32_t address,
 
 bool pmsav8_mpu_lookup(CPUARMState *env, uint32_t address,
                        MMUAccessType access_type, ARMMMUIdx mmu_idx,
-                       GetPhysAddrResult *result, bool *is_subpage,
-                       ARMMMUFaultInfo *fi, uint32_t *mregion)
+                       GetPhysAddrResult *result, ARMMMUFaultInfo *fi,
+                       uint32_t *mregion)
 {
     /*
      * Perform a PMSAv8 MPU lookup (without also doing the SAU check
@@ -1715,10 +1715,10 @@ bool pmsav8_mpu_lookup(CPUARMState *env, uint32_t address,
     int n;
     int matchregion = -1;
     bool hit = false;
+    bool is_subpage = false;
     uint32_t addr_page_base = address & TARGET_PAGE_MASK;
     uint32_t addr_page_limit = addr_page_base + (TARGET_PAGE_SIZE - 1);
 
-    *is_subpage = false;
     result->phys = address;
     result->prot = 0;
     if (mregion) {
@@ -1770,13 +1770,13 @@ bool pmsav8_mpu_lookup(CPUARMState *env, uint32_t address,
                     ranges_overlap(base, limit - base + 1,
                                    addr_page_base,
                                    TARGET_PAGE_SIZE)) {
-                    *is_subpage = true;
+                    is_subpage = true;
                 }
                 continue;
             }
 
             if (base > addr_page_base || limit < addr_page_limit) {
-                *is_subpage = true;
+                is_subpage = true;
             }
 
             if (matchregion != -1) {
@@ -1793,6 +1793,7 @@ bool pmsav8_mpu_lookup(CPUARMState *env, uint32_t address,
             hit = true;
         }
     }
+    result->page_size = is_subpage ? 1 : TARGET_PAGE_SIZE;
 
     if (!hit) {
         /* background fault */
@@ -1968,7 +1969,6 @@ static bool get_phys_addr_pmsav8(CPUARMState *env, uint32_t address,
     uint32_t secure = regime_is_secure(env, mmu_idx);
     V8M_SAttributes sattrs = {};
     bool ret;
-    bool mpu_is_subpage;
 
     if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
         v8m_security_lookup(env, address, access_type, mmu_idx, &sattrs);
@@ -2031,9 +2031,10 @@ static bool get_phys_addr_pmsav8(CPUARMState *env, uint32_t address,
     }
 
     ret = pmsav8_mpu_lookup(env, address, access_type, mmu_idx,
-                            result, &mpu_is_subpage, fi, NULL);
-    result->page_size =
-        sattrs.subpage || mpu_is_subpage ? 1 : TARGET_PAGE_SIZE;
+                            result, fi, NULL);
+    if (sattrs.subpage) {
+        result->page_size = 1;
+    }
     return ret;
 }
 
