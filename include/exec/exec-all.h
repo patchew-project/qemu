@@ -259,11 +259,12 @@ void tlb_flush_range_by_mmuidx_all_cpus_synced(CPUState *cpu,
                                                unsigned bits);
 
 /**
- * tlb_set_page_with_attrs:
+ * tlb_set_page_with_extra:
  * @cpu: CPU to add this TLB entry for
  * @vaddr: virtual address of page to add entry for
  * @paddr: physical address of the page
  * @attrs: memory transaction attributes
+ * @extra: cpu specific extra information
  * @prot: access permissions (PAGE_READ/PAGE_WRITE/PAGE_EXEC bits)
  * @mmu_idx: MMU index to insert TLB entry for
  * @size: size of the page in bytes
@@ -279,11 +280,25 @@ void tlb_flush_range_by_mmuidx_all_cpus_synced(CPUState *cpu,
  * At most one entry for a given virtual address is permitted. Only a
  * single TARGET_PAGE_SIZE region is mapped; the supplied @size is only
  * used by tlb_flush_page.
+ *
+ * The @extra information is target-specific, and may be retrieved
+ * by calling probe_access_extra().
+ */
+void tlb_set_page_with_extra(CPUState *cpu, target_ulong vaddr, hwaddr paddr,
+                             MemTxAttrs attrs, PageEntryExtra extra,
+                             int prot, int mmu_idx, target_ulong size);
+
+/**
+ * tlb_set_page_with_attrs:
+ *
+ * This function is equivalent to calling tlb_set_page_with_extra()
+ * with an @extra argument of all zeros.
  */
 void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
                              hwaddr paddr, MemTxAttrs attrs,
                              int prot, int mmu_idx, target_ulong size);
-/* tlb_set_page:
+/**
+ * tlb_set_page:
  *
  * This function is equivalent to calling tlb_set_page_with_attrs()
  * with an @attrs argument of MEMTXATTRS_UNSPECIFIED. It's provided
@@ -434,6 +449,13 @@ static inline void *probe_read(CPUArchState *env, target_ulong addr, int size,
 int probe_access_flags(CPUArchState *env, target_ulong addr,
                        MMUAccessType access_type, int mmu_idx,
                        bool nonfault, void **phost, uintptr_t retaddr);
+
+#ifdef CONFIG_SOFTMMU
+int probe_access_extra(CPUArchState *env, target_ulong addr,
+                       MMUAccessType access_type, int mmu_idx,
+                       bool nonfault, void **phost, MemTxAttrs *pattrs,
+                       PageEntryExtra *pextra, uintptr_t retaddr);
+#endif
 
 #define CODE_GEN_ALIGN           16 /* must be >= of the size of a icache line */
 

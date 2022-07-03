@@ -82,6 +82,7 @@ typedef struct NodeInfo NodeInfo;
 typedef struct NumaNodeMem NumaNodeMem;
 typedef struct Object Object;
 typedef struct ObjectClass ObjectClass;
+typedef struct PageEntryExtra PageEntryExtra;
 typedef struct PCIBridge PCIBridge;
 typedef struct PCIBus PCIBus;
 typedef struct PCIDevice PCIDevice;

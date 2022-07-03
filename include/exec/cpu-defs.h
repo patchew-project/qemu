@@ -76,6 +76,10 @@ typedef uint64_t target_ulong;
 
 #if !defined(CONFIG_USER_ONLY) && defined(CONFIG_TCG)
 
+#ifndef TARGET_PAGE_ENTRY_EXTRA
+struct PageEntryExtra { };
+#endif
+
 /* use a fully associative victim tlb of 8 entries */
 #define CPU_VTLB_SIZE 8
 
@@ -148,6 +152,7 @@ typedef struct CPUIOTLBEntry {
      */
     hwaddr addr;
     MemTxAttrs attrs;
+    PageEntryExtra extra;
 } CPUIOTLBEntry;
 
 /*

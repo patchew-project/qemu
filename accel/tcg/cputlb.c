@@ -1095,16 +1095,21 @@ static void tlb_add_large_page(CPUArchState *env, int mmu_idx,
     env_tlb(env)->d[mmu_idx].large_page_mask = lp_mask;
 }
 
-/* Add a new TLB entry. At most one entry for a given virtual address
+/*
+ * Add a new TLB entry. At most one entry for a given virtual address
  * is permitted. Only a single TARGET_PAGE_SIZE region is mapped, the
  * supplied size is only used by tlb_flush_page.
  *
  * Called from TCG-generated code, which is under an RCU read-side
  * critical section.
+ *
+ * Returns a pointer to the iotlb entry, with env_tlb(env)->c.lock
+ * still locked, for final additions to the iotlb entry.  The caller
+ * must unlock the lock.
  */
-void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
-                             hwaddr paddr, MemTxAttrs attrs, int prot,
-                             int mmu_idx, target_ulong size)
+void tlb_set_page_with_extra(CPUState *cpu, target_ulong vaddr, hwaddr paddr,
+                             MemTxAttrs attrs, PageEntryExtra extra,
+                             int prot, int mmu_idx, target_ulong size)
 {
     CPUArchState *env = cpu->env_ptr;
     CPUTLB *tlb = env_tlb(env);
@@ -1238,6 +1243,7 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
      */
     desc->iotlb[index].addr = iotlb - vaddr_page;
     desc->iotlb[index].attrs = attrs;
+    desc->iotlb[index].extra = extra;
 
     /* Now calculate the new entry */
     tn.addend = addend - vaddr_page;
@@ -1272,7 +1278,23 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
     qemu_spin_unlock(&tlb->c.lock);
 }
 
-/* Add a new TLB entry, but without specifying the memory
+/*
+ * Add a new TLB entry, specifying the memory transaction
+ * attributes to be used.
+ */
+void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
+                             hwaddr paddr, MemTxAttrs attrs, int prot,
+                             int mmu_idx, target_ulong size)
+{
+    PageEntryExtra extra;
+
+    memset(&extra, 0, sizeof(extra));
+    tlb_set_page_with_extra(cpu, vaddr, paddr, attrs, extra,
+                            prot, mmu_idx, size);
+}
+
+/*
+ * Add a new TLB entry, but without specifying the memory
  * transaction attributes to be used.
  */
 void tlb_set_page(CPUState *cpu, target_ulong vaddr,
@@ -1633,25 +1655,38 @@ static int probe_access_internal(CPUArchState *env, target_ulong addr,
     return flags;
 }
 
+int probe_access_extra(CPUArchState *env, target_ulong addr,
+                       MMUAccessType access_type, int mmu_idx,
+                       bool nonfault, void **phost, MemTxAttrs *pattrs,
+                       PageEntryExtra *pextra, uintptr_t retaddr)
+{
+    int flags = probe_access_internal(env, addr, 0, access_type, mmu_idx,
+                                      nonfault, phost, retaddr);
+
+    if (likely(!(flags & TLB_INVALID_MASK))) {
+        uintptr_t index = tlb_index(env, mmu_idx, addr);
+        CPUIOTLBEntry *iotlbentry = &env_tlb(env)->d[mmu_idx].iotlb[index];
+
+        /* Handle clean RAM pages.  */
+        if (unlikely(flags & TLB_NOTDIRTY)) {
+            notdirty_write(env_cpu(env), addr, 1, iotlbentry, retaddr);
+            flags &= ~TLB_NOTDIRTY;
+        }
+        *pattrs = iotlbentry->attrs;
+        *pextra = iotlbentry->extra;
+    }
+    return flags;
+}
+
 int probe_access_flags(CPUArchState *env, target_ulong addr,
                        MMUAccessType access_type, int mmu_idx,
                        bool nonfault, void **phost, uintptr_t retaddr)
 {
-    int flags;
+    MemTxAttrs attrs;
+    PageEntryExtra extra;
 
-    flags = probe_access_internal(env, addr, 0, access_type, mmu_idx,
-                                  nonfault, phost, retaddr);
-
-    /* Handle clean RAM pages.  */
-    if (unlikely(flags & TLB_NOTDIRTY)) {
-        uintptr_t index = tlb_index(env, mmu_idx, addr);
-        CPUIOTLBEntry *iotlbentry = &env_tlb(env)->d[mmu_idx].iotlb[index];
-
-        notdirty_write(env_cpu(env), addr, 1, iotlbentry, retaddr);
-        flags &= ~TLB_NOTDIRTY;
-    }
-
-    return flags;
+    return probe_access_extra(env, addr, access_type, mmu_idx, nonfault,
+                              phost, &attrs, &extra, retaddr);
 }
 
 void *probe_access(CPUArchState *env, target_ulong addr, int size,
