@@ -43,6 +43,23 @@ uint32_t cpu_openrisc_count_get(OpenRISCCPU *cpu)
     return or1k_timer->ttcr;
 }
 
+/*
+ * Check to see if calling cpu_openrisc_count_update will
+ * actually advance the time.
+ *
+ * Used in hot spots to avoid taking expensive locks.
+ */
+bool cpu_openrisc_timer_has_advanced(OpenRISCCPU *cpu)
+{
+    uint64_t now;
+
+    if (!cpu->env.is_counting) {
+        return false;
+    }
+    now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    return (now - or1k_timer->last_clk) >= TIMER_PERIOD;
+}
+
 /* Add elapsed ticks to ttcr */
 void cpu_openrisc_count_update(OpenRISCCPU *cpu)
 {
