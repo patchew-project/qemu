@@ -1320,8 +1320,8 @@ static bool get_phys_addr_lpae(CPUARMState *env, uint64_t address,
         txattrs->secure = false;
     }
     /* When in aarch64 mode, and BTI is enabled, remember GP in the IOTLB.  */
-    if (aarch64 && guarded && cpu_isar_feature(aa64_bti, cpu)) {
-        arm_tlb_bti_gp(txattrs) = true;
+    if (aarch64 && cpu_isar_feature(aa64_bti, cpu)) {
+        cacheattrs->guarded = guarded;
     }
 
     if (mmu_idx == ARMMMUIdx_Stage2 || mmu_idx == ARMMMUIdx_Stage2_S) {

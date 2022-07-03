@@ -244,6 +244,8 @@ bool arm_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                                  cacheattrs.attrs);
             extra.x = FIELD_DP64(extra.x, PAGEENTRYEXTRA, SHAREABILITY,
                                  cacheattrs.shareability);
+            extra.x = FIELD_DP64(extra.x, PAGEENTRYEXTRA, GUARDED,
+                                 cacheattrs.guarded);
         }
 
         tlb_set_page_with_extra(cs, address, phys_addr, attrs, extra,

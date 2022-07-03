@@ -14543,22 +14543,16 @@ static bool is_guarded_page(CPUARMState *env, DisasContext *s)
 #ifdef CONFIG_USER_ONLY
     return page_get_flags(addr) & PAGE_BTI;
 #else
+    MemTxAttrs attrs;
+    PageEntryExtra extra;
+    void *host;
     int mmu_idx = arm_to_core_mmu_idx(s->mmu_idx);
-    unsigned int index = tlb_index(env, mmu_idx, addr);
-    CPUTLBEntry *entry = tlb_entry(env, mmu_idx, addr);
+    int flags;
 
-    /*
-     * We test this immediately after reading an insn, which means
-     * that any normal page must be in the TLB.  The only exception
-     * would be for executing from flash or device memory, which
-     * does not retain the TLB entry.
-     *
-     * FIXME: Assume false for those, for now.  We could use
-     * arm_cpu_get_phys_page_attrs_debug to re-read the page
-     * table entry even for that case.
-     */
-    return (tlb_hit(entry->addr_code, addr) &&
-            arm_tlb_bti_gp(&env_tlb(env)->d[mmu_idx].iotlb[index].attrs));
+    flags = probe_access_extra(env, addr, MMU_INST_FETCH, mmu_idx,
+                               false, &host, &attrs, &extra, 0);
+    assert(!(flags & TLB_INVALID_MASK));
+    return FIELD_EX64(extra.x, PAGEENTRYEXTRA, GUARDED);
 #endif
 }
 

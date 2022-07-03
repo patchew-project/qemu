@@ -77,6 +77,7 @@ FIELD(V7M_EXCRET, RES1, 7, 25) /* including the must-be-1 prefix */
 /* Bit definitions for PageEntryExtra */
 FIELD(PAGEENTRYEXTRA, ATTRS, 0, 8)
 FIELD(PAGEENTRYEXTRA, SHAREABILITY, 8, 2)
+FIELD(PAGEENTRYEXTRA, GUARDED, 10, 1)
 FIELD(PAGEENTRYEXTRA, PA, 12, 52)
 
 /* Minimum value which is a magic number for exception return */
@@ -1129,6 +1130,7 @@ typedef struct ARMCacheAttrs {
     unsigned int attrs:8;
     unsigned int shareability:2; /* as in the SH field of the VMSAv8-64 PTEs */
     bool is_s2_format:1;
+    bool guarded:1;              /* guarded bit of the v8-64 PTE */
 } ARMCacheAttrs;
 
 bool get_phys_addr(CPUARMState *env, target_ulong address,
