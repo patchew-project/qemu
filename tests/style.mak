@@ -52,3 +52,9 @@ sc_prohibit_doubled_word:
 	  | $(GREP) .							\
 	  && { echo '$(ME): doubled words' 1>&2; exit 1; }		\
 	  || :
+
+sc_c_file_osdep_h:
+	@require='#include "qemu/osdep.h"' \
+	in_vc_files='\.c$$' \
+	halt='all C files must include qemu/osdep.h' \
+	$(_sc_search_regexp)
