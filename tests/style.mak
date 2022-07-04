@@ -22,3 +22,9 @@
 
 include tests/style-infra.mak
 include tests/style-excludes.mak
+
+# Use 'bool', not 'int', when assigning true or false
+sc_int_assign_bool:
+	@prohibit='\<int\>.*= *(true|false)\b' \
+	halt='use bool type for boolean values' \
+	$(_sc_search_regexp)
