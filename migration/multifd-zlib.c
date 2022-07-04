@@ -27,6 +27,8 @@ struct zlib_data {
     uint8_t *zbuff;
     /* size of compressed buffer */
     uint32_t zbuff_len;
+    /* uncompressed buffer */
+    uint8_t buf[];
 };
 
 /* Multifd zlib compression */
@@ -43,9 +45,18 @@ struct zlib_data {
  */
 static int zlib_send_setup(MultiFDSendParams *p, Error **errp)
 {
-    struct zlib_data *z = g_new0(struct zlib_data, 1);
-    z_stream *zs = &z->zs;
+    /* This is the maximum size of the compressed buffer */
+    uint32_t zbuff_len = compressBound(MULTIFD_PACKET_SIZE);
+    size_t buf_len = qemu_target_page_size();
+    struct zlib_data *z;
+    z_stream *zs;
 
+    z = g_try_malloc0(sizeof(struct zlib_data) + buf_len + zbuff_len);
+    if (!z) {
+        error_setg(errp, "multifd %u: out of memory for zlib_data", p->id);
+        return -1;
+    }
+    zs = &z->zs;
     zs->zalloc = Z_NULL;
     zs->zfree = Z_NULL;
     zs->opaque = Z_NULL;
@@ -54,15 +65,8 @@ static int zlib_send_setup(MultiFDSendParams *p, Error **errp)
         error_setg(errp, "multifd %u: deflate init failed", p->id);
         return -1;
     }
-    /* This is the maxium size of the compressed buffer */
-    z->zbuff_len = compressBound(MULTIFD_PACKET_SIZE);
-    z->zbuff = g_try_malloc(z->zbuff_len);
-    if (!z->zbuff) {
-        deflateEnd(&z->zs);
-        g_free(z);
-        error_setg(errp, "multifd %u: out of memory for zbuff", p->id);
-        return -1;
-    }
+    z->zbuff_len = zbuff_len;
+    z->zbuff = z->buf + buf_len;
     p->data = z;
     return 0;
 }
@@ -80,7 +84,6 @@ static void zlib_send_cleanup(MultiFDSendParams *p, Error **errp)
     struct zlib_data *z = p->data;
 
     deflateEnd(&z->zs);
-    g_free(z->zbuff);
     z->zbuff = NULL;
     g_free(p->data);
     p->data = NULL;
@@ -114,8 +117,14 @@ static int zlib_send_prepare(MultiFDSendParams *p, Error **errp)
             flush = Z_SYNC_FLUSH;
         }
 
+        /*
+         * Since the VM might be running, the page may be changing concurrently
+         * with compression. zlib does not guarantee that this is safe,
+         * therefore copy the page before calling deflate().
+         */
+        memcpy(z->buf, p->pages->block->host + p->normal[i], page_size);
         zs->avail_in = page_size;
-        zs->next_in = p->pages->block->host + p->normal[i];
+        zs->next_in = z->buf;
 
         zs->avail_out = available;
         zs->next_out = z->zbuff + out_size;
