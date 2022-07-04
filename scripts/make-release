@@ -61,6 +61,8 @@ https://github.com/open-power/skiboot/archive/${skibootrev}.tar.gz
 EOF
 cd ../..
 
+rm .*.yml
 popd
-tar --exclude=.git -cjf ${destination}.tar.bz2 ${destination}
+
+tar --exclude=".git*" -cjf ${destination}.tar.bz2 ${destination}
 rm -rf ${destination}
