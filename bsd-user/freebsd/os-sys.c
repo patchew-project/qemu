@@ -17,6 +17,8 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/osdep.h"
+
 #include "qemu.h"
 #include "target_arch_sysarch.h"
 
