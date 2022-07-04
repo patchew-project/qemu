@@ -89,6 +89,25 @@ if get_option('tcg').allowed()
   endif
 endif
 
+if in_gitrepo
+  rc = run_command(
+    'sed', '-n',
+    's/^sc_\\([a-zA-Z0-9_-]*\\):.*/\\1/p',
+    meson.current_source_dir() / 'style.mak',
+    check: true,
+  )
+
+  sc_tests = rc.stdout().strip().split()
+
+  foreach check: sc_tests
+     test(check,
+          make,
+          args: [ '-f', files('style.mak'), 'sc_' + check ],
+          workdir: meson.project_source_root(),
+          suite: 'style')
+  endforeach
+endif
+
 subdir('unit')
 subdir('qapi-schema')
 subdir('qtest')

@@ -18,6 +18,9 @@ config_host = keyval.load(meson.current_build_dir() / 'config-host.mak')
 enable_modules = 'CONFIG_MODULES' in config_host
 enable_static = 'CONFIG_STATIC' in config_host
 
+make = find_program(config_host['MAKE'])
+in_gitrepo = run_command('test', '-d', '.git', check: false).returncode() == 0
+
 # Allow both shared and static libraries unless --enable-static
 static_kwargs = enable_static ? {'static': true} : {}
 
