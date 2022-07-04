@@ -137,6 +137,12 @@ docker-image-debian-nios2-cross: $(DOCKER_FILES_DIR)/debian-toolchain.docker \
     $(DOCKER_FILES_DIR)/debian-nios2-cross.d/build-toolchain.sh
 	$(call debian-toolchain, $@)
 
+docker-image-debian-s390x-wasmtime-cross: \
+    $(DOCKER_FILES_DIR)/debian-s390x-wasmtime-cross.docker \
+    $(DOCKER_FILES_DIR)/debian-s390x-wasmtime-cross.d/build-toolchain.sh
+	$(call debian-toolchain, $@)
+docker-image-debian-s390x-wasmtime-cross: docker-image-debian-s390x-cross
+
 # Specialist build images, sometimes very limited tools
 docker-image-debian-tricore-cross: docker-image-debian10
 docker-image-debian-all-test-cross: docker-image-debian10

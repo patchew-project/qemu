@@ -1,0 +1,16 @@
+# Image containing pre-built wasmtime tests for s390x.
+
+FROM registry.gitlab.com/qemu-project/qemu/qemu/debian-s390x-cross:latest
+
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    eatmydata apt-get update && \
+    eatmydata apt-get dist-upgrade -y && \
+    eatmydata apt-get install --no-install-recommends -y \
+            curl \
+            libglib2.0-dev && \
+    eatmydata apt-get autoremove -y && \
+    eatmydata apt-get autoclean -y
+
+RUN mkdir /build
+ADD build-toolchain.sh /build
+RUN cd /build && ./build-toolchain.sh s390x --no-run

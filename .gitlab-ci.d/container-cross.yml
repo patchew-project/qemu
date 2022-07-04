@@ -138,6 +138,16 @@ s390x-debian-cross-container:
   variables:
     NAME: debian-s390x-cross
 
+s390x-debian-wasmtime-cross-container:
+  extends: .container_job_template
+  stage: containers
+  needs: ['s390x-debian-cross-container']
+  variables:
+    NAME: debian-s390x-wasmtime-cross
+    DOCKER_SCRIPT_ARGS: >
+      --extra-files
+      tests/docker/dockerfiles/debian-s390x-wasmtime-cross.d/build-toolchain.sh
+
 sh4-debian-cross-container:
   extends: .container_job_template
   stage: containers-layer2

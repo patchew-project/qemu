@@ -1,0 +1,39 @@
+#!/bin/sh
+
+# Build qemu-user in the current directory, build the stable wasmtime
+# testsuite, and test them together. ".rustup", ".cargo" and "wasmtime"
+# subdirectories, as well as qemu build files, will be created or updated in
+# the current directory.
+#
+# Based on https://github.com/bytecodealliance/wasmtime/blob/v0.37.0/.github/workflows/main.yml#L208.
+#
+# Usage:
+#
+#     ./test TARGET_ARCH [CARGO_ARGS ...]
+#
+# where TARGET_ARCH is the architecture to test (aarch64 or s390x) and
+# CARGO_ARGS are the extra arguments passed to cargo test.
+
+set -e -u -x
+
+# Script arguments.
+arch=$1
+shift
+
+# Build QEMU.
+srcdir=$(cd "$(dirname "$0")" && pwd)/../..
+docker_files_dir="$srcdir"/tests/docker/dockerfiles
+"$srcdir"/configure \
+    --target-list="$arch"-linux-user \
+    --disable-tools \
+    --disable-slirp \
+    --disable-fdt \
+    --disable-capstone \
+    --disable-docs
+make --output-sync -j"$(nproc)"
+export PATH="$PWD:$PATH"
+
+# Run wasmtime tests.
+exec \
+    "$docker_files_dir"/debian-s390x-wasmtime-cross.d/build-toolchain.sh \
+    "$arch" "$@"

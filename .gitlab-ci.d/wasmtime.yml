@@ -1,0 +1,9 @@
+include:
+  - local: '/.gitlab-ci.d/wasmtime-template.yml'
+
+wasmtime-s390x:
+  extends: .wasmtime_job_template
+  needs: ['s390x-debian-wasmtime-cross-container']
+  variables:
+    IMAGE: debian-s390x-wasmtime-cross
+    ARCH: s390x

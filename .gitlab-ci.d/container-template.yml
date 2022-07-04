@@ -15,7 +15,7 @@
     - echo "COMMON_TAG:$COMMON_TAG"
     - ./tests/docker/docker.py --engine docker build
           -t "qemu/$NAME" -f "tests/docker/dockerfiles/$NAME.docker"
-          -r $CI_REGISTRY/qemu-project/qemu
+          -r $CI_REGISTRY/qemu-project/qemu $DOCKER_SCRIPT_ARGS
     - docker tag "qemu/$NAME" "$TAG"
     - docker push "$TAG"
   after_script:

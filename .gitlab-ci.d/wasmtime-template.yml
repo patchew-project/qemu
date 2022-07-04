@@ -1,0 +1,6 @@
+.wasmtime_job_template:
+  extends: .base_job_template
+  image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
+  stage: test
+  script:
+    - srcdir=$(pwd) && cd /build && "$srcdir"/tests/wasmtime/test "$ARCH"
