@@ -28,3 +28,27 @@ sc_int_assign_bool:
 	@prohibit='\<int\>.*= *(true|false)\b' \
 	halt='use bool type for boolean values' \
 	$(_sc_search_regexp)
+
+prohibit_doubled_words_ = \
+    the then in an on if is it but for or at and do to can
+# expand the regex before running the check to avoid using expensive captures
+prohibit_doubled_word_expanded_ = \
+    $(join $(prohibit_doubled_words_),$(addprefix \s+,$(prohibit_doubled_words_)))
+prohibit_doubled_word_RE_ ?= \
+    /\b(?:$(subst $(_sp),|,$(prohibit_doubled_word_expanded_)))\b/gims
+prohibit_doubled_word_ =						\
+    -e 'while ($(prohibit_doubled_word_RE_))'				\
+    $(perl_filename_lineno_text_)
+
+# Define this to a regular expression that matches
+# any filename:dd:match lines you want to ignore.
+# The default is to ignore no matches.
+ignore_doubled_word_match_RE_ ?= ^$$
+
+sc_prohibit_doubled_word:
+	@$(VC_LIST_EXCEPT)						\
+	  | xargs perl -n -0777 $(prohibit_doubled_word_)		\
+	  | $(GREP) -vE '$(ignore_doubled_word_match_RE_)'		\
+	  | $(GREP) .							\
+	  && { echo '$(ME): doubled words' 1>&2; exit 1; }		\
+	  || :
