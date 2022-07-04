@@ -19,7 +19,6 @@ pushd ${destination}
 git checkout "v${version}"
 git submodule update --init
 (cd roms/seabios && git describe --tags --long --dirty > .version)
-(cd roms/skiboot && ./make_version.sh > .version)
 
 # Fetch edk2 submodule's submodules to get their license information.
 # Edk2 is distributed under permissive licenses, so we don't have to
@@ -45,6 +44,20 @@ cat > sources.txt <<EOF
 The edk2 sources can be downloaded from:
 
 https://github.com/tianocore/edk2/archive/${edk2rev}.tar.gz
+EOF
+cd ../..
+
+# Same for skiboot - it has a permissive Apache license, so we don't
+# need to ship the sources for this.
+cd roms/skiboot
+skibootrev=$(git rev-parse --short=12 HEAD)
+head -n 38 libstb/tss2/ibmtpm20tss/utils/tss.c > LICENSE-tss.txt
+head -n 50 libfdt/fdt.c > LICENSE-libfdt.txt
+rm -r $(ls | grep -v LICEN) .[a-z]*
+cat > sources.txt <<EOF
+The skiboot sources can be downloaded from:
+
+https://github.com/open-power/skiboot/archive/${skibootrev}.tar.gz
 EOF
 cd ../..
 
