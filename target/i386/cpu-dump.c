@@ -275,7 +275,8 @@ static void dump_apic_icr(APICCommonState *s, CPUX86State *env)
 static void dump_apic_interrupt(const char *name, uint32_t *ireg_tab,
                                 uint32_t *tmr_tab)
 {
-    int i, empty = true;
+    int i;
+    bool empty = true;
 
     qemu_printf("%s\t ", name);
     for (i = 0; i < 256; i++) {

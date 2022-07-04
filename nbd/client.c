@@ -832,8 +832,8 @@ static int nbd_list_meta_contexts(QIOChannel *ioc,
                                   Error **errp)
 {
     int ret;
-    int seen_any = false;
-    int seen_qemu = false;
+    bool seen_any = false;
+    bool seen_qemu = false;
 
     if (nbd_send_meta_query(ioc, NBD_OPT_LIST_META_CONTEXT,
                             info->name, NULL, errp) < 0) {

@@ -541,14 +541,14 @@ static int interface_get_command(QXLInstance *sin, QXLCommandExt *ext)
 {
     SimpleSpiceDisplay *ssd = container_of(sin, SimpleSpiceDisplay, qxl);
     SimpleSpiceUpdate *update;
-    int ret = false;
+    int ret = 0;
 
     qemu_mutex_lock(&ssd->lock);
     update = QTAILQ_FIRST(&ssd->updates);
     if (update != NULL) {
         QTAILQ_REMOVE(&ssd->updates, update, next);
         *ext = update->ext;
-        ret = true;
+        ret = 1;
     }
     qemu_mutex_unlock(&ssd->lock);
 

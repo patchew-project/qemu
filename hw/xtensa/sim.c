@@ -97,9 +97,9 @@ void xtensa_sim_load_kernel(XtensaCPU *cpu, MachineState *machine)
 {
     const char *kernel_filename = machine->kernel_filename;
 #if TARGET_BIG_ENDIAN
-    int big_endian = true;
+    int big_endian = 1;
 #else
-    int big_endian = false;
+    int big_endian = 0;
 #endif
 
     if (kernel_filename) {

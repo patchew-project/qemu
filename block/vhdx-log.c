@@ -215,7 +215,7 @@ exit:
 static bool vhdx_log_hdr_is_valid(VHDXLogEntries *log, VHDXLogEntryHeader *hdr,
                                   BDRVVHDXState *s)
 {
-    int valid = false;
+    bool valid = false;
 
     if (hdr->signature != VHDX_LOG_SIGNATURE) {
         goto exit;
