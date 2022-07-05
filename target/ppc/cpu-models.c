@@ -918,6 +918,6 @@ PowerPCCPUAlias ppc_cpu_aliases[] = {
 #endif
     { "ppc32", "604" },
     { "ppc", "604" },
-    { "default", "604" },
+
     { NULL, NULL }
 };
