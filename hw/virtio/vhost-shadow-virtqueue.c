@@ -405,19 +405,21 @@ static void vhost_svq_flush(VhostShadowVirtqueue *svq,
         vhost_svq_disable_notification(svq);
         while (true) {
             uint32_t len;
-            g_autofree VirtQueueElement *elem = vhost_svq_get_buf(svq, &len);
-            if (!elem) {
-                break;
-            }
+            g_autofree VirtQueueElement *elem = NULL;
 
             if (unlikely(i >= svq->vring.num)) {
                 qemu_log_mask(LOG_GUEST_ERROR,
                          "More than %u used buffers obtained in a %u size SVQ",
                          i, svq->vring.num);
-                virtqueue_fill(vq, elem, len, i);
-                virtqueue_flush(vq, i);
+                virtqueue_flush(vq, svq->vring.num);
                 return;
             }
+
+            elem = vhost_svq_get_buf(svq, &len);
+            if (!elem) {
+                break;
+            }
+
             virtqueue_fill(vq, elem, len, i++);
         }
 
