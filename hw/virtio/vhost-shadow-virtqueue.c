@@ -10,6 +10,8 @@
 #include "qemu/osdep.h"
 #include "hw/virtio/vhost-shadow-virtqueue.h"
 
+#include <glib/gpoll.h>
+
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu/main-loop.h"
@@ -490,10 +492,11 @@ void vhost_svq_push_elem(VhostShadowVirtqueue *svq,
     }
 }
 
-static void vhost_svq_flush(VhostShadowVirtqueue *svq,
-                            bool check_for_avail_queue)
+static size_t vhost_svq_flush(VhostShadowVirtqueue *svq,
+                              bool check_for_avail_queue)
 {
     VirtQueue *vq = svq->vq;
+    size_t ret = 0;
 
     /* Forward as many used buffers as possible. */
     do {
@@ -510,7 +513,7 @@ static void vhost_svq_flush(VhostShadowVirtqueue *svq,
                          "More than %u used buffers obtained in a %u size SVQ",
                          i, svq->vring.num);
                 virtqueue_flush(vq, svq->vring.num);
-                return;
+                return ret;
             }
 
             svq_elem = vhost_svq_get_buf(svq, &len);
@@ -520,6 +523,7 @@ static void vhost_svq_flush(VhostShadowVirtqueue *svq,
 
             elem = g_steal_pointer(&svq_elem.opaque);
             virtqueue_fill(vq, elem, len, i++);
+            ret++;
         }
 
         virtqueue_flush(vq, i);
@@ -533,6 +537,50 @@ static void vhost_svq_flush(VhostShadowVirtqueue *svq,
             vhost_handle_guest_kick(svq);
         }
     } while (!vhost_svq_enable_notification(svq));
+
+    return ret;
+}
+
+/**
+ * Poll the SVQ for device used buffers.
+ *
+ * This function race with main event loop SVQ polling, so extra
+ * synchronization is needed.
+ *
+ * Return the number of descriptors read from the device.
+ */
+ssize_t vhost_svq_poll(VhostShadowVirtqueue *svq)
+{
+    int fd = event_notifier_get_fd(&svq->hdev_call);
+    GPollFD poll_fd = {
+        .fd = fd,
+        .events = G_IO_IN,
+    };
+    assert(fd >= 0);
+    int r = g_poll(&poll_fd, 1, -1);
+
+    if (unlikely(r < 0)) {
+        error_report("Cannot poll device call fd "G_POLLFD_FORMAT": (%d) %s",
+                     poll_fd.fd, errno, g_strerror(errno));
+        return -errno;
+    }
+
+    if (r == 0) {
+        return 0;
+    }
+
+    if (unlikely(poll_fd.revents & ~(G_IO_IN))) {
+        error_report(
+            "Error polling device call fd "G_POLLFD_FORMAT": revents=%d",
+            poll_fd.fd, poll_fd.revents);
+        return -1;
+    }
+
+    /*
+     * Max return value of vhost_svq_flush is (uint16_t)-1, so it's safe to
+     * convert to ssize_t.
+     */
+    return vhost_svq_flush(svq, false);
 }
 
 /**
