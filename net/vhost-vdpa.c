@@ -370,6 +370,24 @@ static CVQElement *vhost_vdpa_cvq_alloc_elem(VhostVDPAState *s,
     return g_steal_pointer(&cvq_elem);
 }
 
+static int vhost_vdpa_start_control_svq(VhostShadowVirtqueue *svq,
+                                        void *opaque)
+{
+    struct vhost_vring_state state = {
+        .index = virtio_get_queue_index(svq->vq),
+        .num = 1,
+    };
+    VhostVDPAState *s = opaque;
+    struct vhost_dev *dev = s->vhost_vdpa.dev;
+    struct vhost_vdpa *v = dev->opaque;
+    int r;
+
+    assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_VDPA);
+
+    r = ioctl(v->device_fd, VHOST_VDPA_SET_VRING_ENABLE, &state);
+    return r < 0 ? -errno : r;
+}
+
 /**
  * iov_size with an upper limit. It's assumed UINT64_MAX is an invalid
  * iov_size.
@@ -554,6 +572,7 @@ static const VhostShadowVirtqueueOps vhost_vdpa_net_svq_ops = {
     .avail_handler = vhost_vdpa_net_handle_ctrl_avail,
     .used_handler = vhost_vdpa_net_handle_ctrl_used,
     .detach_handler = vhost_vdpa_net_handle_ctrl_detach,
+    .start = vhost_vdpa_start_control_svq,
 };
 
 static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
