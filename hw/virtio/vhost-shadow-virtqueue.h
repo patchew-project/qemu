@@ -16,7 +16,8 @@
 #include "hw/virtio/vhost-iova-tree.h"
 
 typedef struct SVQElement {
-    VirtQueueElement *elem;
+    /* Opaque data */
+    void *opaque;
 
     /* Last descriptor of the chain */
     uint32_t last_chain_id;

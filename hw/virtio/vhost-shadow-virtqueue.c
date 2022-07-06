@@ -237,7 +237,7 @@ static uint16_t vhost_svq_last_desc_of_chain(const VhostShadowVirtqueue *svq,
  */
 static bool vhost_svq_add(VhostShadowVirtqueue *svq, const struct iovec *out_sg,
                           size_t out_num, const struct iovec *in_sg,
-                          size_t in_num, VirtQueueElement *elem)
+                          size_t in_num, void *opaque)
 {
     SVQElement *svq_elem;
     unsigned qemu_head;
@@ -245,13 +245,12 @@ static bool vhost_svq_add(VhostShadowVirtqueue *svq, const struct iovec *out_sg,
     bool ok = vhost_svq_add_split(svq, out_sg, out_num, in_sg, in_num,
                                   &qemu_head);
     if (unlikely(!ok)) {
-        g_free(elem);
         return false;
     }
 
     n = out_num + in_num;
     svq_elem = &svq->ring_id_maps[qemu_head];
-    svq_elem->elem = elem;
+    svq_elem->opaque = opaque;
     svq_elem->last_chain_id = vhost_svq_last_desc_of_chain(svq, n, qemu_head);
     return true;
 }
@@ -277,6 +276,8 @@ static bool vhost_svq_add_element(VhostShadowVirtqueue *svq,
                             elem->in_num, elem);
     if (ok) {
         vhost_svq_kick(svq);
+    } else {
+        g_free(elem);
     }
 
     return ok;
@@ -392,7 +393,7 @@ static void vhost_svq_disable_notification(VhostShadowVirtqueue *svq)
 
 static bool vhost_svq_is_empty_elem(SVQElement elem)
 {
-    return elem.elem == NULL;
+    return elem.opaque == NULL;
 }
 
 static SVQElement vhost_svq_empty_elem(void)
@@ -483,7 +484,7 @@ static void vhost_svq_flush(VhostShadowVirtqueue *svq,
                 break;
             }
 
-            elem = g_steal_pointer(&svq_elem.elem);
+            elem = g_steal_pointer(&svq_elem.opaque);
             virtqueue_fill(vq, elem, len, i++);
         }
 
@@ -651,7 +652,7 @@ void vhost_svq_stop(VhostShadowVirtqueue *svq)
 
     for (unsigned i = 0; i < svq->vring.num; ++i) {
         g_autofree VirtQueueElement *elem = NULL;
-        elem = g_steal_pointer(&svq->ring_id_maps[i].elem);
+        elem = g_steal_pointer(&svq->ring_id_maps[i].opaque);
         if (elem) {
             virtqueue_detach_element(svq->vq, elem, 0);
         }
