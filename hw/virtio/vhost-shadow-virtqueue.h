@@ -27,8 +27,13 @@ typedef struct VhostShadowVirtqueue VhostShadowVirtqueue;
 typedef int (*ShadowVirtQueueStart)(VhostShadowVirtqueue *svq,
                                     void *opaque);
 
+typedef void (*VirtQueueUsedCallback)(VhostShadowVirtqueue *svq,
+                                      void *used_elem_opaque,
+                                      uint32_t written);
+
 typedef struct VhostShadowVirtqueueOps {
     ShadowVirtQueueStart start;
+    VirtQueueUsedCallback used_handler;
 } VhostShadowVirtqueueOps;
 
 /* Shadow virtqueue to relay notifications */

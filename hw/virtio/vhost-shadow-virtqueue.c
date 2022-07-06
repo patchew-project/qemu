@@ -506,7 +506,6 @@ static size_t vhost_svq_flush(VhostShadowVirtqueue *svq,
         while (true) {
             uint32_t len;
             SVQElement svq_elem;
-            g_autofree VirtQueueElement *elem = NULL;
 
             if (unlikely(i >= svq->vring.num)) {
                 qemu_log_mask(LOG_GUEST_ERROR,
@@ -521,13 +520,20 @@ static size_t vhost_svq_flush(VhostShadowVirtqueue *svq,
                 break;
             }
 
-            elem = g_steal_pointer(&svq_elem.opaque);
-            virtqueue_fill(vq, elem, len, i++);
+            if (svq->ops) {
+                svq->ops->used_handler(svq, svq_elem.opaque, len);
+            } else {
+                g_autofree VirtQueueElement *elem = NULL;
+                elem = g_steal_pointer(&svq_elem.opaque);
+                virtqueue_fill(vq, elem, len, i++);
+            }
             ret++;
         }
 
-        virtqueue_flush(vq, i);
-        event_notifier_set(&svq->svq_call);
+        if (i > 0) {
+            virtqueue_flush(vq, i);
+            event_notifier_set(&svq->svq_call);
+        }
 
         if (check_for_avail_queue && svq->next_guest_avail_elem) {
             /*
