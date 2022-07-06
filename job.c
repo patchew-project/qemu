@@ -1046,11 +1046,14 @@ static void job_completed_txn_abort_locked(Job *job)
 /* Called with job_mutex held, but releases it temporarily */
 static int job_prepare_locked(Job *job)
 {
+    int ret;
+
     GLOBAL_STATE_CODE();
     if (job->ret == 0 && job->driver->prepare) {
         job_unlock();
-        job->ret = job->driver->prepare(job);
+        ret = job->driver->prepare(job);
         job_lock();
+        job->ret = ret;
         job_update_rc_locked(job);
     }
     return job->ret;
