@@ -3420,6 +3420,11 @@ unsigned int virtio_queue_get_last_avail_idx(VirtIODevice *vdev, int n)
     }
 }
 
+unsigned int virtio_queue_get_in_use(const VirtQueue *vq)
+{
+    return vq->inuse;
+}
+
 static void virtio_queue_packed_set_last_avail_idx(VirtIODevice *vdev,
                                                    int n, unsigned int idx)
 {
