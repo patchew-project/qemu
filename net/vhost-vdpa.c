@@ -380,12 +380,59 @@ static int vhost_vdpa_start_control_svq(VhostShadowVirtqueue *svq,
     VhostVDPAState *s = opaque;
     struct vhost_dev *dev = s->vhost_vdpa.dev;
     struct vhost_vdpa *v = dev->opaque;
+    VirtIONet *n = VIRTIO_NET(dev->vdev);
+    uint64_t features = dev->vdev->host_features;
+    size_t num = 0;
     int r;
 
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_VDPA);
 
     r = ioctl(v->device_fd, VHOST_VDPA_SET_VRING_ENABLE, &state);
-    return r < 0 ? -errno : r;
+    if (unlikely(r < 0)) {
+        return -errno;
+    }
+
+    if (features & BIT_ULL(VIRTIO_NET_F_CTRL_MAC_ADDR)) {
+        CVQElement *cvq_elem;
+        const struct virtio_net_ctrl_hdr ctrl = {
+            .class = VIRTIO_NET_CTRL_MAC,
+            .cmd = VIRTIO_NET_CTRL_MAC_ADDR_SET,
+        };
+        uint8_t mac[6];
+        const struct iovec out[] = {
+            {
+                .iov_base = (void *)&ctrl,
+                .iov_len = sizeof(ctrl),
+            },{
+                .iov_base = mac,
+                .iov_len = sizeof(mac),
+            },
+        };
+
+        memcpy(mac, n->mac, sizeof(mac));
+        cvq_elem = vhost_vdpa_cvq_alloc_elem(s, ctrl, out, ARRAY_SIZE(out),
+                                             iov_size(out, ARRAY_SIZE(out)),
+                                             NULL);
+        assert(cvq_elem);
+        r = vhost_vdpa_net_cvq_svq_inject(svq, cvq_elem,
+                                          sizeof(ctrl) + sizeof(mac));
+        if (unlikely(r)) {
+            assert(!"Need to test for pending buffers etc");
+            return r;
+        }
+        num++;
+    }
+
+    while (num) {
+        /*
+         * We can call vhost_svq_poll here because BQL protects calls to run.
+         */
+        size_t used = vhost_svq_poll(svq);
+        assert(used <= num);
+        num -= used;
+    }
+
+    return 0;
 }
 
 /**
