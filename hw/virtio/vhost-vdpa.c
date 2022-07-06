@@ -418,7 +418,8 @@ static int vhost_vdpa_init_svq(struct vhost_dev *hdev, struct vhost_vdpa *v,
 
     shadow_vqs = g_ptr_array_new_full(hdev->nvqs, vhost_svq_free);
     for (unsigned n = 0; n < hdev->nvqs; ++n) {
-        g_autoptr(VhostShadowVirtqueue) svq = vhost_svq_new(v->iova_tree);
+        g_autoptr(VhostShadowVirtqueue) svq = vhost_svq_new(v->iova_tree, NULL,
+                                                            NULL);
 
         if (unlikely(!svq)) {
             error_setg(errp, "Cannot create svq %u", n);
@@ -1122,6 +1123,20 @@ static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
         if (unlikely(r)) {
             return r;
         }
+
+        if (v->shadow_vqs_enabled) {
+            for (unsigned i = 0; i < v->shadow_vqs->len; ++i) {
+                VhostShadowVirtqueue *svq = g_ptr_array_index(v->shadow_vqs,
+                                                              i);
+                if (svq->ops) {
+                    r = svq->ops->start(svq, svq->ops_opaque);
+                    if (unlikely(r)) {
+                        return r;
+                    }
+                }
+            }
+        }
+
         vhost_vdpa_set_vring_ready(dev);
     } else {
         vhost_vdpa_reset_device(dev);
