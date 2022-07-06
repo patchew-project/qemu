@@ -218,6 +218,16 @@ static bool vhost_svq_add_split(VhostShadowVirtqueue *svq,
     return true;
 }
 
+static uint16_t vhost_svq_last_desc_of_chain(const VhostShadowVirtqueue *svq,
+                                             uint16_t num, uint16_t i)
+{
+    for (uint16_t j = 0; j < (num - 1); ++j) {
+        i = le16_to_cpu(svq->desc_next[i]);
+    }
+
+    return i;
+}
+
 /**
  * Add an element to a SVQ.
  *
@@ -373,16 +383,6 @@ static bool vhost_svq_enable_notification(VhostShadowVirtqueue *svq)
 static void vhost_svq_disable_notification(VhostShadowVirtqueue *svq)
 {
     svq->vring.avail->flags |= cpu_to_le16(VRING_AVAIL_F_NO_INTERRUPT);
-}
-
-static uint16_t vhost_svq_last_desc_of_chain(const VhostShadowVirtqueue *svq,
-                                             uint16_t num, uint16_t i)
-{
-    for (uint16_t j = 0; j < (num - 1); ++j) {
-        i = le16_to_cpu(svq->desc_next[i]);
-    }
-
-    return i;
 }
 
 static bool vhost_svq_is_empty_elem(SVQElement elem)
