@@ -1102,7 +1102,7 @@ char *socket_uri(SocketAddress *addr)
 {
     switch (addr->type) {
     case SOCKET_ADDRESS_TYPE_INET:
-        return g_strdup_printf("tcp:%s:%s",
+        return g_strdup_printf("%s:%s",
                                addr->u.inet.host,
                                addr->u.inet.port);
     case SOCKET_ADDRESS_TYPE_UNIX:
@@ -1111,7 +1111,7 @@ char *socket_uri(SocketAddress *addr)
     case SOCKET_ADDRESS_TYPE_FD:
         return g_strdup_printf("fd:%s", addr->u.fd.str);
     case SOCKET_ADDRESS_TYPE_VSOCK:
-        return g_strdup_printf("tcp:%s:%s",
+        return g_strdup_printf("vsock:%s:%s",
                                addr->u.vsock.cid,
                                addr->u.vsock.port);
     default:
