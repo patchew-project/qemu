@@ -284,6 +284,40 @@ static bool vhost_svq_add_element(VhostShadowVirtqueue *svq,
 }
 
 /**
+ * Inject a chain of buffers to the device
+ *
+ * @svq: Shadow VirtQueue
+ * @iov: I/O vector
+ * @out_num: Number of front out descriptors
+ * @in_num: Number of last input descriptors
+ * @opaque: Contextual data to store in descriptor
+ *
+ * Return 0 on success, -ENOMEM if cannot inject
+ */
+int vhost_svq_inject(VhostShadowVirtqueue *svq, const struct iovec *iov,
+                     size_t out_num, size_t in_num, void *opaque)
+{
+    bool ok;
+
+    /*
+     * All vhost_svq_inject calls are controlled by qemu so we won't hit this
+     * assertions.
+     */
+    assert(out_num || in_num);
+    assert(svq->ops);
+
+    if (unlikely(svq->next_guest_avail_elem)) {
+        error_report("Injecting in a full queue");
+        return -ENOMEM;
+    }
+
+    ok = vhost_svq_add(svq, iov, out_num, iov + out_num, in_num, opaque);
+    assert(ok);
+    vhost_svq_kick(svq);
+    return 0;
+}
+
+/**
  * Forward available buffers.
  *
  * @svq: Shadow VirtQueue
