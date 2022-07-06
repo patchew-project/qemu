@@ -27,12 +27,28 @@ typedef struct VhostShadowVirtqueue VhostShadowVirtqueue;
 typedef int (*ShadowVirtQueueStart)(VhostShadowVirtqueue *svq,
                                     void *opaque);
 
+/**
+ * Callback to handle an avail buffer.
+ *
+ * @svq:  Shadow virtqueue
+ * @elem:  Element placed in the queue by the guest
+ * @vq_callback_opaque:  Opaque
+ *
+ * Returns true if the vq is running as expected, false otherwise.
+ *
+ * Note that ownership of elem is transferred to the callback.
+ */
+typedef bool (*VirtQueueAvailCallback)(VhostShadowVirtqueue *svq,
+                                       VirtQueueElement *elem,
+                                       void *vq_callback_opaque);
+
 typedef void (*VirtQueueUsedCallback)(VhostShadowVirtqueue *svq,
                                       void *used_elem_opaque,
                                       uint32_t written);
 
 typedef struct VhostShadowVirtqueueOps {
     ShadowVirtQueueStart start;
+    VirtQueueAvailCallback avail_handler;
     VirtQueueUsedCallback used_handler;
 } VhostShadowVirtqueueOps;
 

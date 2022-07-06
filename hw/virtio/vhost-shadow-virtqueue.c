@@ -371,7 +371,13 @@ static void vhost_handle_guest_kick(VhostShadowVirtqueue *svq)
                 return;
             }
 
-            ok = vhost_svq_add_element(svq, g_steal_pointer(&elem));
+            if (svq->ops) {
+                ok = svq->ops->avail_handler(svq, g_steal_pointer(&elem),
+                                             svq->ops_opaque);
+            } else {
+                ok = vhost_svq_add_element(svq, g_steal_pointer(&elem));
+            }
+
             if (unlikely(!ok)) {
                 /* VQ is broken, just return and ignore any other kicks */
                 return;
