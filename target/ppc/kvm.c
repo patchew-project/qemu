@@ -1932,8 +1932,8 @@ static uint64_t kvmppc_read_int_dt(const char *filename, Error **errp)
  */
 static uint64_t kvmppc_read_int_cpu_dt(const char *propname, Error **errp)
 {
-    char buf[PATH_MAX], *tmp;
-    uint64_t val;
+    g_autofree char *tmp = NULL;
+    char buf[PATH_MAX];
 
     if (kvmppc_find_cpu_dt(buf, sizeof(buf))) {
         error_setg(errp, "Failed to read CPU property %s", propname);
@@ -1941,10 +1941,8 @@ static uint64_t kvmppc_read_int_cpu_dt(const char *propname, Error **errp)
     }
 
     tmp = g_strdup_printf("%s/%s", buf, propname);
-    val = kvmppc_read_int_dt(tmp, errp);
-    g_free(tmp);
 
-    return val;
+    return kvmppc_read_int_dt(tmp, errp);
 }
 
 uint64_t kvmppc_get_clockfreq(void)
