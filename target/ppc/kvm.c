@@ -1945,9 +1945,24 @@ static uint64_t kvmppc_read_int_cpu_dt(const char *propname, Error **errp)
     return kvmppc_read_int_dt(tmp, errp);
 }
 
+/*
+ * Read the clock-frequency from the DT. On error (e.g.
+ * 'clock-frequency' is not present in the DT) will
+ * report an error and exit(1).
+ */
 uint64_t kvmppc_get_clockfreq(void)
 {
-    return kvmppc_read_int_cpu_dt("clock-frequency", NULL);
+    Error *local_err = NULL;
+    int ret;
+
+    ret = kvmppc_read_int_cpu_dt("clock-frequency", &local_err);
+
+    if (local_err) {
+        error_report_err(local_err);
+        exit(1);
+    }
+
+    return ret;
 }
 
 static int kvmppc_get_dec_bits(void)
