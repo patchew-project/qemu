@@ -1896,7 +1896,7 @@ static int kvmppc_find_cpu_dt(char *buf, int buf_len)
     return 0;
 }
 
-static uint64_t kvmppc_read_int_dt(const char *filename)
+static uint64_t kvmppc_read_int_dt(const char *filename, Error **errp)
 {
     union {
         uint32_t v32;
@@ -1907,7 +1907,8 @@ static uint64_t kvmppc_read_int_dt(const char *filename)
 
     f = fopen(filename, "rb");
     if (!f) {
-        return -1;
+        error_setg_errno(errp, errno, "error opening %s", filename);
+        return 0;
     }
 
     len = fread(&u, 1, sizeof(u), f);
@@ -1938,7 +1939,7 @@ static uint64_t kvmppc_read_int_cpu_dt(const char *propname)
     }
 
     tmp = g_strdup_printf("%s/%s", buf, propname);
-    val = kvmppc_read_int_dt(tmp);
+    val = kvmppc_read_int_dt(tmp, NULL);
     g_free(tmp);
 
     return val;
