@@ -32,13 +32,13 @@ DEFAULT_CONFIG = {
 class UbuntuAarch64VM(ubuntuvm.UbuntuVM):
     name = "ubuntu.aarch64"
     arch = "aarch64"
-    # NOTE: The Ubuntu 18.04 cloud images are updated weekly. The
-    # release below has been chosen as the latest at time of writing.
-    # Using the rolling latest release means the SHA will be wrong
-    # within a week.
-    image_name = "ubuntu-18.04-server-cloudimg-arm64.img"
-    image_link = "https://cloud-images.ubuntu.com/releases/bionic/release-20220610/" + image_name
-    image_sha256="0eacc5142238788365576b15f1d0b6f23dda6d3e545ee22f5306af7bd6ec47bd"
+    # NOTE: The Ubuntu 20.04 cloud images are periodically updated. The
+    # fixed image chosen below is the latest release at time of
+    # writing. Using a rolling latest instead would mean that the SHA
+    # would be incorrect at an indeterminate point in the future.
+    image_name = "focal-server-cloudimg-arm64.img"
+    image_link = "https://cloud-images.ubuntu.com/focal/20220615/" + image_name
+    image_sha256="95a027336e197debe88c92ff2e554598e23c409139e1e750b71b3b820b514832"
     BUILD_SCRIPT = """
         set -e;
         cd $(mktemp -d);
