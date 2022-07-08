@@ -11,11 +11,14 @@
 
 #include "qemu/osdep.h"
 #include "clients.h"
+#include "hw/virtio/virtio-net.h"
 #include "net/vhost_net.h"
 #include "net/vhost-vdpa.h"
 #include "hw/virtio/vhost-vdpa.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
+#include "qemu/log.h"
+#include "qemu/memalign.h"
 #include "qemu/option.h"
 #include "qapi/error.h"
 #include <linux/vhost.h>
@@ -187,6 +190,58 @@ static NetClientInfo net_vhost_vdpa_info = {
         .check_peer_type = vhost_vdpa_check_peer_type,
 };
 
+/**
+ * Forward buffer for the moment.
+ */
+static bool vhost_vdpa_net_handle_ctrl_avail(VhostShadowVirtqueue *svq,
+                                             VirtQueueElement *guest_elem,
+                                             void *opaque)
+{
+    g_autofree VirtQueueElement *elem = guest_elem;
+    unsigned int n = elem->out_num + elem->in_num;
+    g_autofree struct iovec *iov = g_new(struct iovec, n);
+    size_t in_len;
+    virtio_net_ctrl_ack status = VIRTIO_NET_ERR;
+    int r;
+
+    memcpy(iov, elem->out_sg, elem->out_num);
+    memcpy(iov + elem->out_num, elem->in_sg, elem->in_num);
+
+    r = vhost_svq_inject(svq, iov, elem->out_num, elem->in_num, elem);
+    if (unlikely(r != 0)) {
+        goto err;
+    }
+
+    /* Now elem belongs to SVQ */
+    g_steal_pointer(&elem);
+    return true;
+
+err:
+    in_len = iov_from_buf(elem->in_sg, elem->in_num, 0, &status,
+                          sizeof(status));
+    vhost_svq_push_elem(svq, elem, in_len);
+    return true;
+}
+
+static VirtQueueElement *vhost_vdpa_net_handle_ctrl_detach(void *elem_opaque)
+{
+    return elem_opaque;
+}
+
+static void vhost_vdpa_net_handle_ctrl_used(VhostShadowVirtqueue *svq,
+                                            void *vq_elem_opaque,
+                                            uint32_t dev_written)
+{
+    g_autofree VirtQueueElement *guest_elem = vq_elem_opaque;
+    vhost_svq_push_elem(svq, guest_elem, sizeof(virtio_net_ctrl_ack));
+}
+
+static const VhostShadowVirtqueueOps vhost_vdpa_net_svq_ops = {
+    .avail_handler = vhost_vdpa_net_handle_ctrl_avail,
+    .used_handler = vhost_vdpa_net_handle_ctrl_used,
+    .detach_handler = vhost_vdpa_net_handle_ctrl_detach,
+};
+
 static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
                                            const char *device,
                                            const char *name,
@@ -211,6 +266,10 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
 
     s->vhost_vdpa.device_fd = vdpa_device_fd;
     s->vhost_vdpa.index = queue_pair_index;
+    if (!is_datapath) {
+        s->vhost_vdpa.shadow_vq_ops = &vhost_vdpa_net_svq_ops;
+        s->vhost_vdpa.shadow_vq_ops_opaque = s;
+    }
     ret = vhost_vdpa_add(nc, (void *)&s->vhost_vdpa, queue_pair_index, nvqs);
     if (ret) {
         qemu_del_net_client(nc);
