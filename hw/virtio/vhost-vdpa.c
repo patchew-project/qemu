@@ -20,6 +20,7 @@
 #include "hw/virtio/vhost-shadow-virtqueue.h"
 #include "hw/virtio/vhost-vdpa.h"
 #include "exec/address-spaces.h"
+#include "migration/blocker.h"
 #include "qemu/cutils.h"
 #include "qemu/main-loop.h"
 #include "cpu.h"
@@ -1016,6 +1017,13 @@ static bool vhost_vdpa_svqs_start(struct vhost_dev *dev)
         return true;
     }
 
+    if (v->migration_blocker) {
+        int r = migrate_add_blocker(v->migration_blocker, &err);
+        if (unlikely(r < 0)) {
+            goto err_migration_blocker;
+        }
+    }
+
     for (i = 0; i < v->shadow_vqs->len; ++i) {
         VirtQueue *vq = virtio_get_queue(dev->vdev, dev->vq_index + i);
         VhostShadowVirtqueue *svq = g_ptr_array_index(v->shadow_vqs, i);
@@ -1057,6 +1065,9 @@ err_svq_setup:
         vhost_svq_stop(svq);
     }
 
+err_migration_blocker:
+    error_reportf_err(err, "Cannot setup SVQ %u: ", i);
+
     return false;
 }
 
@@ -1073,6 +1084,9 @@ static void vhost_vdpa_svqs_stop(struct vhost_dev *dev)
         vhost_vdpa_svq_unmap_rings(dev, svq);
     }
 
+    if (v->migration_blocker) {
+        migrate_del_blocker(v->migration_blocker);
+    }
 }
 
 static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
