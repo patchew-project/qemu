@@ -749,7 +749,16 @@ void vhost_svq_stop(VhostShadowVirtqueue *svq)
 
     for (unsigned i = 0; i < svq->vring.num; ++i) {
         g_autofree VirtQueueElement *elem = NULL;
-        elem = g_steal_pointer(&svq->ring_id_maps[i].opaque);
+        void *opaque = g_steal_pointer(&svq->ring_id_maps[i].opaque);
+
+        if (!opaque) {
+            continue;
+        } else if (svq->ops) {
+            elem = svq->ops->detach_handler(opaque);
+        } else {
+            elem = opaque;
+        }
+
         if (elem) {
             virtqueue_detach_element(svq->vq, elem, 0);
         }

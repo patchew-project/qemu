@@ -44,9 +44,20 @@ typedef void (*VirtQueueUsedCallback)(VhostShadowVirtqueue *svq,
                                       void *used_elem_opaque,
                                       uint32_t written);
 
+/**
+ * Detach the element from the shadow virtqueue.  SVQ needs to free it and it
+ * cannot be pushed or discarded.
+ *
+ * @elem_opaque: The element opaque
+ *
+ * Return the guest element to detach and free if any.
+ */
+typedef VirtQueueElement *(*VirtQueueDetachCallback)(void *elem_opaque);
+
 typedef struct VhostShadowVirtqueueOps {
     VirtQueueAvailCallback avail_handler;
     VirtQueueUsedCallback used_handler;
+    VirtQueueDetachCallback detach_handler;
 } VhostShadowVirtqueueOps;
 
 /* Shadow virtqueue to relay notifications */
