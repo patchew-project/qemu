@@ -1024,7 +1024,7 @@ static bool vhost_vdpa_svqs_start(struct vhost_dev *dev)
         int r;
         bool ok = vhost_vdpa_svq_setup(dev, svq, i, &err);
         if (unlikely(!ok)) {
-            goto err;
+            goto err_svq_setup;
         }
 
         vhost_svq_start(svq, dev->vdev, vq);
@@ -1049,8 +1049,7 @@ err_set_addr:
 err_map:
     vhost_svq_stop(g_ptr_array_index(v->shadow_vqs, i));
 
-err:
-    error_reportf_err(err, "Cannot setup SVQ %u: ", i);
+err_svq_setup:
     for (unsigned j = 0; j < i; ++j) {
         VhostShadowVirtqueue *svq = g_ptr_array_index(v->shadow_vqs, j);
         vhost_vdpa_svq_unmap_rings(dev, svq);
