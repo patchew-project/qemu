@@ -28,6 +28,26 @@
 #include "monitor/monitor.h"
 #include "hw/virtio/vhost.h"
 
+typedef struct CVQElement {
+    /* Device's in and out buffer */
+    void *in_buf, *out_buf;
+
+    /* Optional guest element from where this cvqelement was created */
+    VirtQueueElement *guest_elem;
+
+    /* Control header sent by the guest. */
+    struct virtio_net_ctrl_hdr ctrl;
+
+    /* vhost-vdpa device, for cleanup reasons */
+    struct vhost_vdpa *vdpa;
+
+    /* Length of out data */
+    size_t out_len;
+
+    /* Copy of the out data sent by the guest excluding ctrl. */
+    uint8_t out_data[];
+} CVQElement;
+
 /* Todo:need to add the multiqueue support here */
 typedef struct VhostVDPAState {
     NetClientState nc;
@@ -191,29 +211,277 @@ static NetClientInfo net_vhost_vdpa_info = {
 };
 
 /**
- * Forward buffer for the moment.
+ * Unmap a descriptor chain of a SVQ element, optionally copying its in buffers
+ *
+ * @svq: Shadow VirtQueue
+ * @iova: SVQ IO Virtual address of descriptor
+ * @iov: Optional iovec to store device writable buffer
+ * @iov_cnt: iov length
+ * @buf_len: Length written by the device
+ *
+ * TODO: Use me! and adapt to net/vhost-vdpa format
+ * Print error message in case of error
+ */
+static void vhost_vdpa_cvq_unmap_buf(CVQElement *elem, void *addr)
+{
+    struct vhost_vdpa *v = elem->vdpa;
+    VhostIOVATree *tree = v->iova_tree;
+    DMAMap needle = {
+        /*
+         * No need to specify size or to look for more translations since
+         * this contiguous chunk was allocated by us.
+         */
+        .translated_addr = (hwaddr)(uintptr_t)addr,
+    };
+    const DMAMap *map = vhost_iova_tree_find_iova(tree, &needle);
+    int r;
+
+    if (unlikely(!map)) {
+        error_report("Cannot locate expected map");
+        goto err;
+    }
+
+    r = vhost_vdpa_dma_unmap(v, map->iova, map->size + 1);
+    if (unlikely(r != 0)) {
+        error_report("Device cannot unmap: %s(%d)", g_strerror(r), r);
+    }
+
+    vhost_iova_tree_remove(tree, map);
+
+err:
+    qemu_vfree(addr);
+}
+
+static void vhost_vdpa_cvq_delete_elem(CVQElement *elem)
+{
+    if (elem->out_buf) {
+        vhost_vdpa_cvq_unmap_buf(elem, g_steal_pointer(&elem->out_buf));
+    }
+
+    if (elem->in_buf) {
+        vhost_vdpa_cvq_unmap_buf(elem, g_steal_pointer(&elem->in_buf));
+    }
+
+    /* Guest element must have been returned to the guest or free otherway */
+    assert(!elem->guest_elem);
+
+    g_free(elem);
+}
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(CVQElement, vhost_vdpa_cvq_delete_elem);
+
+static int vhost_vdpa_net_cvq_svq_inject(VhostShadowVirtqueue *svq,
+                                         CVQElement *cvq_elem,
+                                         size_t out_len)
+{
+    const struct iovec iov[] = {
+        {
+            .iov_base = cvq_elem->out_buf,
+            .iov_len = out_len,
+        },{
+            .iov_base = cvq_elem->in_buf,
+            .iov_len = sizeof(virtio_net_ctrl_ack),
+        }
+    };
+
+    return vhost_svq_inject(svq, iov, 1, 1, cvq_elem);
+}
+
+static void *vhost_vdpa_cvq_alloc_buf(struct vhost_vdpa *v,
+                                      const uint8_t *out_data, size_t data_len,
+                                      bool write)
+{
+    DMAMap map = {};
+    size_t buf_len = ROUND_UP(data_len, qemu_real_host_page_size());
+    void *buf = qemu_memalign(qemu_real_host_page_size(), buf_len);
+    int r;
+
+    if (!write) {
+        memcpy(buf, out_data, data_len);
+        memset(buf + data_len, 0, buf_len - data_len);
+    } else {
+        memset(buf, 0, data_len);
+    }
+
+    map.translated_addr = (hwaddr)(uintptr_t)buf;
+    map.size = buf_len - 1;
+    map.perm = write ? IOMMU_RW : IOMMU_RO,
+    r = vhost_iova_tree_map_alloc(v->iova_tree, &map);
+    if (unlikely(r != IOVA_OK)) {
+        error_report("Cannot map injected element");
+        goto err;
+    }
+
+    r = vhost_vdpa_dma_map(v, map.iova, buf_len, buf, !write);
+    if (unlikely(r < 0)) {
+        goto dma_map_err;
+    }
+
+    return buf;
+
+dma_map_err:
+    vhost_iova_tree_remove(v->iova_tree, &map);
+
+err:
+    qemu_vfree(buf);
+    return NULL;
+}
+
+/**
+ * Allocate an element suitable to be injected
+ *
+ * @iov: The iovec
+ * @out_num: Number of out elements, placed first in iov
+ * @in_num: Number of in elements, placed after out ones
+ * @elem: Optional guest element from where this one was created
+ *
+ * TODO: Do we need a sg for out_num? I think not
+ */
+static CVQElement *vhost_vdpa_cvq_alloc_elem(VhostVDPAState *s,
+                                             struct virtio_net_ctrl_hdr ctrl,
+                                             const struct iovec *out_sg,
+                                             size_t out_num, size_t out_size,
+                                             VirtQueueElement *elem)
+{
+    g_autoptr(CVQElement) cvq_elem = g_malloc(sizeof(CVQElement) + out_size);
+    g_autofree VirtQueueElement *guest_elem = elem;
+    uint8_t *out_cursor = cvq_elem->out_data;
+    struct vhost_vdpa *v = &s->vhost_vdpa;
+
+    /* Start with a clean base */
+    memset(cvq_elem, 0, sizeof(*cvq_elem));
+    cvq_elem->vdpa = &s->vhost_vdpa;
+
+    /*
+     * Linearize element. If guest had a descriptor chain, we expose the device
+     * a single buffer.
+     */
+    cvq_elem->out_len = out_size;
+    memcpy(out_cursor, &ctrl, sizeof(ctrl));
+    out_size -= sizeof(ctrl);
+    out_cursor += sizeof(ctrl);
+    iov_to_buf(out_sg, out_num, 0, out_cursor, out_size);
+
+    cvq_elem->out_buf = vhost_vdpa_cvq_alloc_buf(v, cvq_elem->out_data,
+                                                 out_size, false);
+    if (unlikely(!cvq_elem->out_buf)) {
+        return NULL;
+    }
+
+    cvq_elem->in_buf = vhost_vdpa_cvq_alloc_buf(v, NULL,
+                                                sizeof(virtio_net_ctrl_ack),
+                                                true);
+    if (unlikely(!cvq_elem->in_buf)) {
+        return NULL;
+    }
+
+    cvq_elem->guest_elem = g_steal_pointer(&guest_elem);
+    cvq_elem->ctrl = ctrl;
+    return g_steal_pointer(&cvq_elem);
+}
+
+/**
+ * iov_size with an upper limit. It's assumed UINT64_MAX is an invalid
+ * iov_size.
+ */
+static uint64_t vhost_vdpa_net_iov_len(const struct iovec *iov,
+                                       unsigned int iov_cnt, size_t max)
+{
+    uint64_t len = 0;
+
+    for (unsigned int i = 0; len < max && i < iov_cnt; i++) {
+        bool overflow = uadd64_overflow(iov[i].iov_len, len, &len);
+        if (unlikely(overflow)) {
+            return UINT64_MAX;
+        }
+    }
+
+    return len;
+}
+
+static CVQElement *vhost_vdpa_net_cvq_copy_elem(VhostVDPAState *s,
+                                                VirtQueueElement *elem)
+{
+    struct virtio_net_ctrl_hdr ctrl;
+    g_autofree struct iovec *iov = NULL;
+    struct iovec *iov2;
+    unsigned int out_num = elem->out_num;
+    size_t n, out_size = 0;
+
+    /* TODO: in buffer MUST have only a single entry with a char? size */
+    if (unlikely(vhost_vdpa_net_iov_len(elem->in_sg, elem->in_num,
+                                        sizeof(virtio_net_ctrl_ack))
+                                              < sizeof(virtio_net_ctrl_ack))) {
+        return NULL;
+    }
+
+    n = iov_to_buf(elem->out_sg, out_num, 0, &ctrl, sizeof(ctrl));
+    if (unlikely(n != sizeof(ctrl))) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid out size\n", __func__);
+        return NULL;
+    }
+
+    iov = iov2 = g_memdup2(elem->out_sg, sizeof(struct iovec) * elem->out_num);
+    iov_discard_front(&iov2, &out_num, sizeof(ctrl));
+    switch (ctrl.class) {
+    case VIRTIO_NET_CTRL_MAC:
+        switch (ctrl.cmd) {
+        case VIRTIO_NET_CTRL_MAC_ADDR_SET:
+            if (likely(vhost_vdpa_net_iov_len(iov2, out_num, 6))) {
+                out_size += 6;
+                break;
+            }
+
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid mac size\n", __func__);
+            return NULL;
+        default:
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid mac cmd %u\n",
+                          __func__, ctrl.cmd);
+            return NULL;
+        };
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid control class %u\n",
+                      __func__, ctrl.class);
+        return NULL;
+    };
+
+    return vhost_vdpa_cvq_alloc_elem(s, ctrl, iov2, out_num,
+                                     sizeof(ctrl) + out_size, elem);
+}
+
+/**
+ * Validate and copy control virtqueue commands.
+ *
+ * Following QEMU guidelines, we offer a copy of the buffers to the device to
+ * prevent TOCTOU bugs.  This functions check that the buffers length are
+ * expected too.
  */
 static bool vhost_vdpa_net_handle_ctrl_avail(VhostShadowVirtqueue *svq,
                                              VirtQueueElement *guest_elem,
                                              void *opaque)
 {
+    VhostVDPAState *s = opaque;
+    g_autoptr(CVQElement) cvq_elem = NULL;
     g_autofree VirtQueueElement *elem = guest_elem;
-    unsigned int n = elem->out_num + elem->in_num;
-    g_autofree struct iovec *iov = g_new(struct iovec, n);
-    size_t in_len;
+    size_t out_size, in_len;
     virtio_net_ctrl_ack status = VIRTIO_NET_ERR;
     int r;
 
-    memcpy(iov, elem->out_sg, elem->out_num);
-    memcpy(iov + elem->out_num, elem->in_sg, elem->in_num);
+    cvq_elem = vhost_vdpa_net_cvq_copy_elem(s, elem);
+    if (unlikely(!cvq_elem)) {
+        goto err;
+    }
 
-    r = vhost_svq_inject(svq, iov, elem->out_num, elem->in_num, elem);
+    /* out size validated at vhost_vdpa_net_cvq_copy_elem */
+    out_size = iov_size(elem->out_sg, elem->out_num);
+    r = vhost_vdpa_net_cvq_svq_inject(svq, cvq_elem, out_size);
     if (unlikely(r != 0)) {
         goto err;
     }
 
-    /* Now elem belongs to SVQ */
-    g_steal_pointer(&elem);
+    cvq_elem->guest_elem = g_steal_pointer(&elem);
+    /* Now CVQ elem belongs to SVQ */
+    g_steal_pointer(&cvq_elem);
     return true;
 
 err:
@@ -225,15 +493,57 @@ err:
 
 static VirtQueueElement *vhost_vdpa_net_handle_ctrl_detach(void *elem_opaque)
 {
-    return elem_opaque;
+    g_autoptr(CVQElement) cvq_elem = elem_opaque;
+    return g_steal_pointer(&cvq_elem->guest_elem);
 }
 
 static void vhost_vdpa_net_handle_ctrl_used(VhostShadowVirtqueue *svq,
                                             void *vq_elem_opaque,
                                             uint32_t dev_written)
 {
-    g_autofree VirtQueueElement *guest_elem = vq_elem_opaque;
-    vhost_svq_push_elem(svq, guest_elem, sizeof(virtio_net_ctrl_ack));
+    g_autoptr(CVQElement) cvq_elem = vq_elem_opaque;
+    virtio_net_ctrl_ack status = VIRTIO_NET_ERR;
+    const struct iovec out = {
+        .iov_base = cvq_elem->out_data,
+        .iov_len = cvq_elem->out_len,
+    };
+    const struct iovec in = {
+        .iov_base = &status,
+        .iov_len = sizeof(status),
+    };
+    g_autofree VirtQueueElement *guest_elem = NULL;
+
+    if (unlikely(dev_written < sizeof(status))) {
+        error_report("Insufficient written data (%llu)",
+                     (long long unsigned)dev_written);
+        goto out;
+    }
+
+    switch (cvq_elem->ctrl.class) {
+    case VIRTIO_NET_CTRL_MAC_ADDR_SET:
+        break;
+    default:
+        error_report("Unexpected ctrl class %u", cvq_elem->ctrl.class);
+        goto out;
+    };
+
+    memcpy(&status, cvq_elem->in_buf, sizeof(status));
+    if (status != VIRTIO_NET_OK) {
+        goto out;
+    }
+
+    status = VIRTIO_NET_ERR;
+    virtio_net_handle_ctrl_iov(svq->vdev, &in, 1, &out, 1);
+    if (status != VIRTIO_NET_OK) {
+        error_report("Bad CVQ processing in model");
+        goto out;
+    }
+
+out:
+    guest_elem = g_steal_pointer(&cvq_elem->guest_elem);
+    iov_from_buf(guest_elem->in_sg, guest_elem->in_num, 0, &status,
+                 sizeof(status));
+    vhost_svq_push_elem(svq, guest_elem, sizeof(status));
 }
 
 static const VhostShadowVirtqueueOps vhost_vdpa_net_svq_ops = {
