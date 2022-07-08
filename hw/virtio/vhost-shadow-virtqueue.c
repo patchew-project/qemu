@@ -238,7 +238,9 @@ static bool vhost_svq_add(VhostShadowVirtqueue *svq, const struct iovec *out_sg,
                           size_t out_num, const struct iovec *in_sg,
                           size_t in_num, VirtQueueElement *elem)
 {
+    SVQElement *svq_elem;
     unsigned qemu_head;
+    size_t n;
     bool ok = vhost_svq_add_split(svq, out_sg, out_num, in_sg, in_num,
                                   &qemu_head);
     if (unlikely(!ok)) {
@@ -246,7 +248,10 @@ static bool vhost_svq_add(VhostShadowVirtqueue *svq, const struct iovec *out_sg,
         return false;
     }
 
-    svq->ring_id_maps[qemu_head].elem = elem;
+    n = out_num + in_num;
+    svq_elem = &svq->ring_id_maps[qemu_head];
+    svq_elem->elem = elem;
+    svq_elem->last_chain_id = vhost_svq_last_desc_of_chain(svq, n, qemu_head);
     return true;
 }
 
@@ -399,7 +404,7 @@ static SVQElement vhost_svq_get_buf(VhostShadowVirtqueue *svq, uint32_t *len)
     const vring_used_t *used = svq->vring.used;
     vring_used_elem_t used_elem;
     SVQElement svq_elem = vhost_svq_empty_elem();
-    uint16_t last_used, last_used_chain, num;
+    uint16_t last_used;
 
     if (!vhost_svq_more_used(svq)) {
         return svq_elem;
@@ -427,11 +432,8 @@ static SVQElement vhost_svq_get_buf(VhostShadowVirtqueue *svq, uint32_t *len)
         return svq_elem;
     }
 
-    num = svq_elem.elem->in_num + svq_elem.elem->out_num;
-    last_used_chain = vhost_svq_last_desc_of_chain(svq, num, used_elem.id);
-    svq->desc_next[last_used_chain] = svq->free_head;
+    svq->desc_next[svq_elem.last_chain_id] = svq->free_head;
     svq->free_head = used_elem.id;
-
     *len = used_elem.len;
     return svq_elem;
 }

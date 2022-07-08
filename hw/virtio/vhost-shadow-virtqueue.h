@@ -17,6 +17,9 @@
 
 typedef struct SVQElement {
     VirtQueueElement *elem;
+
+    /* Last descriptor of the chain */
+    uint32_t last_chain_id;
 } SVQElement;
 
 /* Shadow virtqueue to relay notifications */
