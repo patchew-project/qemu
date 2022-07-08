@@ -246,7 +246,7 @@ static bool vhost_svq_add(VhostShadowVirtqueue *svq, const struct iovec *out_sg,
         return false;
     }
 
-    svq->ring_id_maps[qemu_head] = elem;
+    svq->ring_id_maps[qemu_head].elem = elem;
     return true;
 }
 
@@ -384,15 +384,25 @@ static void vhost_svq_disable_notification(VhostShadowVirtqueue *svq)
     svq->vring.avail->flags |= cpu_to_le16(VRING_AVAIL_F_NO_INTERRUPT);
 }
 
-static VirtQueueElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
-                                           uint32_t *len)
+static bool vhost_svq_is_empty_elem(SVQElement elem)
+{
+    return elem.elem == NULL;
+}
+
+static SVQElement vhost_svq_empty_elem(void)
+{
+    return (SVQElement){};
+}
+
+static SVQElement vhost_svq_get_buf(VhostShadowVirtqueue *svq, uint32_t *len)
 {
     const vring_used_t *used = svq->vring.used;
     vring_used_elem_t used_elem;
+    SVQElement svq_elem = vhost_svq_empty_elem();
     uint16_t last_used, last_used_chain, num;
 
     if (!vhost_svq_more_used(svq)) {
-        return NULL;
+        return svq_elem;
     }
 
     /* Only get used array entries after they have been exposed by dev */
@@ -405,24 +415,25 @@ static VirtQueueElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
     if (unlikely(used_elem.id >= svq->vring.num)) {
         qemu_log_mask(LOG_GUEST_ERROR, "Device %s says index %u is used",
                       svq->vdev->name, used_elem.id);
-        return NULL;
+        return svq_elem;
     }
 
-    if (unlikely(!svq->ring_id_maps[used_elem.id])) {
+    svq_elem = svq->ring_id_maps[used_elem.id];
+    svq->ring_id_maps[used_elem.id] = vhost_svq_empty_elem();
+    if (unlikely(vhost_svq_is_empty_elem(svq_elem))) {
         qemu_log_mask(LOG_GUEST_ERROR,
             "Device %s says index %u is used, but it was not available",
             svq->vdev->name, used_elem.id);
-        return NULL;
+        return svq_elem;
     }
 
-    num = svq->ring_id_maps[used_elem.id]->in_num +
-          svq->ring_id_maps[used_elem.id]->out_num;
+    num = svq_elem.elem->in_num + svq_elem.elem->out_num;
     last_used_chain = vhost_svq_last_desc_of_chain(svq, num, used_elem.id);
     svq->desc_next[last_used_chain] = svq->free_head;
     svq->free_head = used_elem.id;
 
     *len = used_elem.len;
-    return g_steal_pointer(&svq->ring_id_maps[used_elem.id]);
+    return svq_elem;
 }
 
 static void vhost_svq_flush(VhostShadowVirtqueue *svq,
@@ -437,6 +448,7 @@ static void vhost_svq_flush(VhostShadowVirtqueue *svq,
         vhost_svq_disable_notification(svq);
         while (true) {
             uint32_t len;
+            SVQElement svq_elem;
             g_autofree VirtQueueElement *elem = NULL;
 
             if (unlikely(i >= svq->vring.num)) {
@@ -447,11 +459,12 @@ static void vhost_svq_flush(VhostShadowVirtqueue *svq,
                 return;
             }
 
-            elem = vhost_svq_get_buf(svq, &len);
-            if (!elem) {
+            svq_elem = vhost_svq_get_buf(svq, &len);
+            if (vhost_svq_is_empty_elem(svq_elem)) {
                 break;
             }
 
+            elem = g_steal_pointer(&svq_elem.elem);
             virtqueue_fill(vq, elem, len, i++);
         }
 
@@ -594,7 +607,7 @@ void vhost_svq_start(VhostShadowVirtqueue *svq, VirtIODevice *vdev,
     memset(svq->vring.desc, 0, driver_size);
     svq->vring.used = qemu_memalign(qemu_real_host_page_size(), device_size);
     memset(svq->vring.used, 0, device_size);
-    svq->ring_id_maps = g_new0(VirtQueueElement *, svq->vring.num);
+    svq->ring_id_maps = g_new0(SVQElement, svq->vring.num);
     svq->desc_next = g_new0(uint16_t, svq->vring.num);
     for (unsigned i = 0; i < svq->vring.num - 1; i++) {
         svq->desc_next[i] = cpu_to_le16(i + 1);
@@ -619,7 +632,7 @@ void vhost_svq_stop(VhostShadowVirtqueue *svq)
 
     for (unsigned i = 0; i < svq->vring.num; ++i) {
         g_autofree VirtQueueElement *elem = NULL;
-        elem = g_steal_pointer(&svq->ring_id_maps[i]);
+        elem = g_steal_pointer(&svq->ring_id_maps[i].elem);
         if (elem) {
             virtqueue_detach_element(svq->vq, elem, 0);
         }
