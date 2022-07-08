@@ -23,6 +23,15 @@ typedef struct SVQElement {
     uint32_t last_chain_id;
 } SVQElement;
 
+typedef struct VhostShadowVirtqueue VhostShadowVirtqueue;
+typedef void (*VirtQueueUsedCallback)(VhostShadowVirtqueue *svq,
+                                      void *used_elem_opaque,
+                                      uint32_t written);
+
+typedef struct VhostShadowVirtqueueOps {
+    VirtQueueUsedCallback used_handler;
+} VhostShadowVirtqueueOps;
+
 /* Shadow virtqueue to relay notifications */
 typedef struct VhostShadowVirtqueue {
     /* Shadow vring */
@@ -67,6 +76,9 @@ typedef struct VhostShadowVirtqueue {
      */
     uint16_t *desc_next;
 
+    /* Caller callbacks */
+    const VhostShadowVirtqueueOps *ops;
+
     /* Next head to expose to the device */
     uint16_t shadow_avail_idx;
 
@@ -98,7 +110,8 @@ void vhost_svq_start(VhostShadowVirtqueue *svq, VirtIODevice *vdev,
                      VirtQueue *vq);
 void vhost_svq_stop(VhostShadowVirtqueue *svq);
 
-VhostShadowVirtqueue *vhost_svq_new(VhostIOVATree *iova_tree);
+VhostShadowVirtqueue *vhost_svq_new(VhostIOVATree *iova_tree,
+                                    const VhostShadowVirtqueueOps *ops);
 
 void vhost_svq_free(gpointer vq);
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(VhostShadowVirtqueue, vhost_svq_free);

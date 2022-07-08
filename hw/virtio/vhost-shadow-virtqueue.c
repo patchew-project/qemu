@@ -306,6 +306,7 @@ int vhost_svq_inject(VhostShadowVirtqueue *svq, const struct iovec *iov,
      * assertions.
      */
     assert(out_num || in_num);
+    assert(svq->ops);
 
     if (unlikely(num > vhost_svq_available_slots(svq))) {
         error_report("Injecting in a full queue");
@@ -508,7 +509,6 @@ static size_t vhost_svq_flush(VhostShadowVirtqueue *svq,
         while (true) {
             uint32_t len;
             SVQElement svq_elem;
-            g_autofree VirtQueueElement *elem = NULL;
 
             if (unlikely(i >= svq->vring.num)) {
                 qemu_log_mask(LOG_GUEST_ERROR,
@@ -523,13 +523,20 @@ static size_t vhost_svq_flush(VhostShadowVirtqueue *svq,
                 break;
             }
 
-            elem = g_steal_pointer(&svq_elem.opaque);
-            virtqueue_fill(vq, elem, len, i++);
+            if (svq->ops) {
+                svq->ops->used_handler(svq, svq_elem.opaque, len);
+            } else {
+                g_autofree VirtQueueElement *elem = NULL;
+                elem = g_steal_pointer(&svq_elem.opaque);
+                virtqueue_fill(vq, elem, len, i++);
+            }
             ret++;
         }
 
-        virtqueue_flush(vq, i);
-        event_notifier_set(&svq->svq_call);
+        if (i > 0) {
+            virtqueue_flush(vq, i);
+            event_notifier_set(&svq->svq_call);
+        }
 
         if (check_for_avail_queue && svq->next_guest_avail_elem) {
             /*
@@ -758,12 +765,14 @@ void vhost_svq_stop(VhostShadowVirtqueue *svq)
  * shadow methods and file descriptors.
  *
  * @iova_tree: Tree to perform descriptors translations
+ * @ops: SVQ owner callbacks
  *
  * Returns the new virtqueue or NULL.
  *
  * In case of error, reason is reported through error_report.
  */
-VhostShadowVirtqueue *vhost_svq_new(VhostIOVATree *iova_tree)
+VhostShadowVirtqueue *vhost_svq_new(VhostIOVATree *iova_tree,
+                                    const VhostShadowVirtqueueOps *ops)
 {
     g_autofree VhostShadowVirtqueue *svq = g_new0(VhostShadowVirtqueue, 1);
     int r;
@@ -785,6 +794,7 @@ VhostShadowVirtqueue *vhost_svq_new(VhostIOVATree *iova_tree)
     event_notifier_init_fd(&svq->svq_kick, VHOST_FILE_UNBIND);
     event_notifier_set_handler(&svq->hdev_call, vhost_svq_handle_call);
     svq->iova_tree = iova_tree;
+    svq->ops = ops;
     return g_steal_pointer(&svq);
 
 err_init_hdev_call:
