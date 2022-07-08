@@ -6206,6 +6206,9 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
                                       unavailable_features & env->user_features[d->to.index],
                                       "This feature depends on other features that were not requested");
 
+            if (cpu->force_features) {
+                unavailable_features &= ~env->user_features[d->to.index];
+            }
             env->features[d->to.index] &= ~unavailable_features;
         }
     }
