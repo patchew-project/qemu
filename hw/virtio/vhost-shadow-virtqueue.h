@@ -24,11 +24,28 @@ typedef struct SVQElement {
 } SVQElement;
 
 typedef struct VhostShadowVirtqueue VhostShadowVirtqueue;
+
+/**
+ * Callback to handle an avail buffer.
+ *
+ * @svq:  Shadow virtqueue
+ * @elem:  Element placed in the queue by the guest
+ * @vq_callback_opaque:  Opaque
+ *
+ * Returns true if the vq is running as expected, false otherwise.
+ *
+ * Note that ownership of elem is transferred to the callback.
+ */
+typedef bool (*VirtQueueAvailCallback)(VhostShadowVirtqueue *svq,
+                                       VirtQueueElement *elem,
+                                       void *vq_callback_opaque);
+
 typedef void (*VirtQueueUsedCallback)(VhostShadowVirtqueue *svq,
                                       void *used_elem_opaque,
                                       uint32_t written);
 
 typedef struct VhostShadowVirtqueueOps {
+    VirtQueueAvailCallback avail_handler;
     VirtQueueUsedCallback used_handler;
 } VhostShadowVirtqueueOps;
 
@@ -79,6 +96,9 @@ typedef struct VhostShadowVirtqueue {
     /* Caller callbacks */
     const VhostShadowVirtqueueOps *ops;
 
+    /* Caller callbacks opaque */
+    void *ops_opaque;
+
     /* Next head to expose to the device */
     uint16_t shadow_avail_idx;
 
@@ -111,7 +131,8 @@ void vhost_svq_start(VhostShadowVirtqueue *svq, VirtIODevice *vdev,
 void vhost_svq_stop(VhostShadowVirtqueue *svq);
 
 VhostShadowVirtqueue *vhost_svq_new(VhostIOVATree *iova_tree,
-                                    const VhostShadowVirtqueueOps *ops);
+                                    const VhostShadowVirtqueueOps *ops,
+                                    void *ops_opaque);
 
 void vhost_svq_free(gpointer vq);
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(VhostShadowVirtqueue, vhost_svq_free);
