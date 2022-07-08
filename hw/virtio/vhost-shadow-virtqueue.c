@@ -172,30 +172,32 @@ static bool vhost_svq_vring_write_descs(VhostShadowVirtqueue *svq, hwaddr *sg,
 }
 
 static bool vhost_svq_add_split(VhostShadowVirtqueue *svq,
-                                VirtQueueElement *elem, unsigned *head)
+                                const struct iovec *out_sg, size_t out_num,
+                                const struct iovec *in_sg, size_t in_num,
+                                unsigned *head)
 {
     unsigned avail_idx;
     vring_avail_t *avail = svq->vring.avail;
     bool ok;
-    g_autofree hwaddr *sgs = g_new(hwaddr, MAX(elem->out_num, elem->in_num));
+    g_autofree hwaddr *sgs = NULL;
 
     *head = svq->free_head;
 
     /* We need some descriptors here */
-    if (unlikely(!elem->out_num && !elem->in_num)) {
+    if (unlikely(!out_num && !in_num)) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "Guest provided element with no descriptors");
         return false;
     }
 
-    ok = vhost_svq_vring_write_descs(svq, sgs, elem->out_sg, elem->out_num,
-                                     elem->in_num > 0, false);
+    sgs = g_new(hwaddr, MAX(out_num, in_num));
+    ok = vhost_svq_vring_write_descs(svq, sgs, out_sg, out_num, in_num > 0,
+                                     false);
     if (unlikely(!ok)) {
         return false;
     }
 
-    ok = vhost_svq_vring_write_descs(svq, sgs, elem->in_sg, elem->in_num, false,
-                                     true);
+    ok = vhost_svq_vring_write_descs(svq, sgs, in_sg, in_num, false, true);
     if (unlikely(!ok)) {
         return false;
     }
@@ -222,10 +224,13 @@ static bool vhost_svq_add_split(VhostShadowVirtqueue *svq,
  * takes ownership of the element: In case of failure, it is free and the SVQ
  * is considered broken.
  */
-static bool vhost_svq_add(VhostShadowVirtqueue *svq, VirtQueueElement *elem)
+static bool vhost_svq_add(VhostShadowVirtqueue *svq, const struct iovec *out_sg,
+                          size_t out_num, const struct iovec *in_sg,
+                          size_t in_num, VirtQueueElement *elem)
 {
     unsigned qemu_head;
-    bool ok = vhost_svq_add_split(svq, elem, &qemu_head);
+    bool ok = vhost_svq_add_split(svq, out_sg, out_num, in_sg, in_num,
+                                  &qemu_head);
     if (unlikely(!ok)) {
         g_free(elem);
         return false;
@@ -247,6 +252,18 @@ static void vhost_svq_kick(VhostShadowVirtqueue *svq)
     }
 
     event_notifier_set(&svq->hdev_kick);
+}
+
+static bool vhost_svq_add_element(VhostShadowVirtqueue *svq,
+                                  VirtQueueElement *elem)
+{
+    bool ok = vhost_svq_add(svq, elem->out_sg, elem->out_num, elem->in_sg,
+                            elem->in_num, elem);
+    if (ok) {
+        vhost_svq_kick(svq);
+    }
+
+    return ok;
 }
 
 /**
@@ -301,12 +318,11 @@ static void vhost_handle_guest_kick(VhostShadowVirtqueue *svq)
                 return;
             }
 
-            ok = vhost_svq_add(svq, elem);
+            ok = vhost_svq_add_element(svq, g_steal_pointer(&elem));
             if (unlikely(!ok)) {
                 /* VQ is broken, just return and ignore any other kicks */
                 return;
             }
-            vhost_svq_kick(svq);
         }
 
         virtio_queue_set_notification(svq->vq, true);
