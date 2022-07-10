@@ -1,0 +1,129 @@
+=============================================================================
+ACPI/SMBIOS PYTESTS USING BIOSBITS
+=============================================================================
+
+Biosbits is a software written by Josh Triplett that can be downloaded by
+visiting https://biosbits.org/. The github codebase can be found here:
+https://github.com/biosbits/bits/tree/master. It is a software that executes
+the bios components such as acpi and smbios tables directly through acpica
+bios interpreter (a freely available C based library written by Intel,
+downloadable from https://acpica.org/ and is included with biosbits) without an
+operating system getting involved in between.
+There are several advantages to directly testing the bios in a real physical
+machine or VM as opposed to indirectly discovering bios issues through the
+operating system. For one thing, the OSes tend to hide bios problems from the
+end user. The other is that we have more control of what we wanted to test
+and how by directly using acpica interpreter on top of the bios on a running
+system. More details on the inspiration for developing biosbits and its real
+life uses can be found in (a) and (b).
+This directory contains QEMU pytests written in python that tests the QEMU
+bios components using biosbits and reports test failures.
+
+These tests use python virtual environment. In debian/ubuntu system, the tests
+would require python3.8-venv and python3-pip packages to be installed.
+
+A brief description of the contents of this directory follows:
+
+├── acpi-bits-test.py
+├── acpi-bits-test-venv.sh
+├── bits-config
+│   ├── bits-cfg.txt
+│   └── meson.build
+├── bits-tests
+│   ├── meson.build
+│   ├── smbios.py
+│   ├── smilatency.py
+│   ├── testacpi.py
+│   └── testcpuid.py
+├── meson.build
+├── README
+└── requirements.txt
+
+acpi-bits:
+ - acpi-bits-test-venv.sh: This is a shell script that sets up the virtual
+   environment necessary for the actual python test script to run. Amongst
+   other things, it makes sure that QEMU python library is available within
+   that venv so that QEMU machines can be forked. QEMU python library can be
+   found within python/ directory in QEMU source.
+   After setting up the virtual environment, it runs the python test script
+   from within that environment.
+   If you want to enable verbose mode only for bits test and run make check,
+   one trick is to add V=1 before the call to execute the python script in
+   this file.
+ - acpi-bits-test.py: This is the main python test script that generates a
+   biosbits iso. It then spawns a QEMU VM with it, collects the logs and reports
+   test failures. This is the script one would be interested in if they wanted
+   to add or change some component of the log parsing, add a new command line to
+   how QEMU is spawned etc. Test writers typically would not need to modify
+   this script unless they wanted to enhance or change the log parsing for
+   their tests. Following environment variables are used in this test:
+     - PYTEST_QEMU_BINARY : This should point to the QEMU binary that is being
+       tested. Passing this environment variable is mandatory.
+     - PYTEST_BITSLOC : This is the location that should point to the grub tar
+       archive and the bios bits zip archive needed for this test. If they are
+       absent in that location, the test is skipped. If this environment
+       variable is not passed, the test would first check within the prebuilt/
+       subdirectory to see if those binaries already exists. If they do, then
+       the test would use them. If those binaries are absent, the test would
+       try to download them from a remote repository. If the download fails,
+       the test is skipped. If the download succeeds, the test uses the
+       downloaded binaries.
+       When the user wants to run the test in offline mode, this environment
+       variable is very useful. The user can check out the bios bits archive
+       earlier when connectivity existed. Then in the offline mode, the user
+       can point this environment variable to the location where the archives
+       were downloaded and run the test.
+     - V=1 : This enables verbose mode for the test. It dumps the entire log
+       from bios bits and also more details in case failure happens. It is
+       useful for debugging the test failures or tests themselves.
+     - PYTEST_PWD : Present working directory where the test would look for
+       the QEMU binary. Optional.
+
+- requirements.txt: This text file contains the dependent python libraries
+   needed for the tests to run. If a new dependent library is needed, it would
+   be added here as a new entry and then acpi-bits-test-venv.sh would install
+   it when setting up the python virtual environment using pip.
+ - README: This text file.
+
+acpi-bits/bits-config:
+   This location contains biosbits config files that determine how the software
+   runs the tests.
+ - bits-config.txt: this is the biosbits config file that determines what tests
+   or actions are performed by bits. The description of the config options are
+   provided in the file itself.
+
+acpi-bits/bits-tests:
+   This directory contains biosbits python based tests that are run from within
+   the biosbits environment in the spawned VM. New additions of test cases can
+   be made in the appropriate test file. For example, new acpi tests can go
+   into testacpi.py and one would call testsuite.add_test() to register the new
+   test so that it gets executed as a part of the ACPI tests.
+   It might be occasionally necessary to disable some subtests or add a new
+   test that belongs to a test suite not already present in this directory. To
+   do this, please extract the bits source from the zip file mentioned above.
+   Copy the test suite/script that needs modification (addition of new tests
+   or disabling them) from boot/python location of the extracted directory
+   into this directory.
+
+   step (a): copy unmodified test script to this directory.
+   step (b): update meson.build and add this file to the list.
+   Commit (a) and (b) together in the same commit.
+
+   step (c): perform modifications to the test.
+   Commit (c) in a separate commit.
+
+   The test framework will then use your modified test script to run the test.
+   No further changes would be needed. Please check the logs to make sure that
+   appropriate changes have taken effect.
+
+meson.build files makes sure that the bits pytests are appropriately integrated
+into the QEMU pytest framework and are run with "make check-pytest".
+Currently, the bits test is configured to run only for x86_64 architectures. Bits
+has been built only for this architecture.
+
+
+Author: Ani Sinha <ani@anisinha.ca>
+
+References:
+(a) https://blog.linuxplumbersconf.org/2011/ocw/system/presentations/867/original/bits.pdf
+(b) https://www.youtube.com/watch?v=36QIepyUuhg
