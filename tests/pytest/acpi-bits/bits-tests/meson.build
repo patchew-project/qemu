@@ -1,4 +1,4 @@
-test_files = ['smbios.py', 'testacpi.py', 'testcpuid.py']
+test_files = ['smbios.py', 'smilatency.py', 'testacpi.py', 'testcpuid.py']
 
 copytestfiles = custom_target('copy test files',
   input : test_files,
