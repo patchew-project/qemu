@@ -155,6 +155,9 @@ check-acceptance-deprecated-warning:
 
 check-acceptance: check-acceptance-deprecated-warning | check-avocado
 
+# The do-meson-check and do-meson-bench targets are defined in Makefile.mtest
+do-meson-check do-meson-bench: check-venv
+
 # Consolidated targets
 
 .PHONY: check check-clean get-vm-images
