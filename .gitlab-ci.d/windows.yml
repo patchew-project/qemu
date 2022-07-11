@@ -11,6 +11,9 @@
   needs: []
   stage: build
   timeout: 70m
+  artifacts:
+    paths:
+      - "build/meson-logs"
   before_script:
   - If ( !(Test-Path -Path msys64\var\cache ) ) {
       mkdir msys64\var\cache
@@ -89,8 +92,8 @@ msys2-32bit:
       mingw-w64-i686-usbredir "
   - $env:CHERE_INVOKING = 'yes'  # Preserve the current working directory
   - $env:MSYSTEM = 'MINGW32'     # Start a 32-bit MinG environment
-  - mkdir output
-  - cd output
+  - mkdir build
+  - cd build
   - ..\msys64\usr\bin\bash -lc "../configure --target-list=ppc64-softmmu"
   - ..\msys64\usr\bin\bash -lc 'make -j2'
   - ..\msys64\usr\bin\bash -lc 'make check'
