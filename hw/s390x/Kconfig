@@ -5,6 +5,7 @@ config S390_CCW_VIRTIO
     imply VFIO_AP
     imply VFIO_CCW
     imply WDT_DIAG288
+    imply MMIO_DEBUGEXIT
     select PCI
     select S390_FLIC
     select SCLPCONSOLE

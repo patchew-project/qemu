@@ -15,6 +15,9 @@ config ISA_DEBUG
     bool
     depends on ISA_BUS
 
+config MMIO_DEBUGEXIT
+    bool
+
 config SGA
     bool
     depends on ISA_BUS
