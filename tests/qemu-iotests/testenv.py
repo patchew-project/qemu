@@ -65,8 +65,9 @@ class TestEnv(ContextManager['TestEnv']):
     # lot of them. Silence pylint:
     # pylint: disable=too-many-instance-attributes
 
-    env_variables = ['PYTHONPATH', 'TEST_DIR', 'SOCK_DIR', 'SAMPLE_IMG_DIR',
-                     'PYTHON', 'QEMU_PROG', 'QEMU_IMG_PROG',
+    env_variables = ['PYTHONPATH', 'VIRTUAL_ENV', 'PYTHON', 'PATH',
+                     'TEST_DIR', 'SOCK_DIR', 'SAMPLE_IMG_DIR',
+                     'QEMU_PROG', 'QEMU_IMG_PROG',
                      'QEMU_IO_PROG', 'QEMU_NBD_PROG', 'QSD_PROG',
                      'QEMU_OPTIONS', 'QEMU_IMG_OPTIONS',
                      'QEMU_IO_OPTIONS', 'QEMU_IO_OPTIONS_NO_FMT',
@@ -102,18 +103,29 @@ class TestEnv(ContextManager['TestEnv']):
 
     def init_directories(self) -> None:
         """Init directory variables:
+             VIRTUAL_ENV
+             PATH
              PYTHONPATH
              TEST_DIR
              SOCK_DIR
              SAMPLE_IMG_DIR
         """
+        venv_path = Path(self.build_root, 'tests/venv/')
+        if not venv_path.exists():
+            raise FileNotFoundError(
+                f"Virtual environment \"{venv_path!s}\" isn't found."
+                " (Maybe you need to run 'make check-venv'"
+                " from the build dir?)"
+            )
+        self.virtual_env: str = str(venv_path)
 
-        # Path where qemu goodies live in this source tree.
-        qemu_srctree_path = Path(__file__, '../../../python').resolve()
+        self.path = os.pathsep.join((
+            str(venv_path / 'bin'),
+            os.environ['PATH'],
+        ))
 
         self.pythonpath = os.pathsep.join(filter(None, (
             self.source_iotests,
-            str(qemu_srctree_path),
             os.getenv('PYTHONPATH'),
         )))
 
@@ -138,7 +150,7 @@ class TestEnv(ContextManager['TestEnv']):
              PYTHON (for bash tests)
              QEMU_PROG, QEMU_IMG_PROG, QEMU_IO_PROG, QEMU_NBD_PROG, QSD_PROG
         """
-        self.python = sys.executable
+        self.python: str = os.path.join(self.virtual_env, 'bin', 'python3')
 
         def root(*names: str) -> str:
             return os.path.join(self.build_root, *names)
@@ -300,6 +312,7 @@ class TestEnv(ContextManager['TestEnv']):
 {prefix}GDB_OPTIONS   -- {GDB_OPTIONS}
 {prefix}VALGRIND_QEMU -- {VALGRIND_QEMU}
 {prefix}PRINT_QEMU_OUTPUT -- {PRINT_QEMU}
+{prefix}VIRTUAL_ENV   -- {VIRTUAL_ENV}
 {prefix}"""
 
         args = collections.defaultdict(str, self.get_env())
