@@ -45,6 +45,8 @@ struct EEPROMState {
     bool changed;
     /* during WRITE, # of address bytes transfered */
     uint8_t haveaddr;
+    /* whether it's 8-bit addressed or 16-bit */
+    bool eightbit;
 
     uint8_t *mem;
 
@@ -87,7 +89,7 @@ uint8_t at24c_eeprom_recv(I2CSlave *s)
     EEPROMState *ee = AT24C_EE(s);
     uint8_t ret;
 
-    if (ee->haveaddr == 1) {
+    if (ee->haveaddr == 1 && !ee->eightbit) {
         return 0xff;
     }
 
@@ -104,26 +106,35 @@ int at24c_eeprom_send(I2CSlave *s, uint8_t data)
 {
     EEPROMState *ee = AT24C_EE(s);
 
-    if (ee->haveaddr < 2) {
-        ee->cur <<= 8;
-        ee->cur |= data;
+    if (ee->haveaddr < 1) {
+        ee->cur = data;
         ee->haveaddr++;
-        if (ee->haveaddr == 2) {
-            ee->cur %= ee->rsize;
+        if (ee->eightbit) {
             DPRINTK("Set pointer %04x\n", ee->cur);
         }
+        return 0;
+    } else if (ee->haveaddr < 2) {
+        if (!ee->eightbit) {
+            ee->cur <<= 8;
+            ee->cur |= data;
+            ee->haveaddr++;
+            if (ee->haveaddr == 2) {
+                ee->cur %= ee->rsize;
+                DPRINTK("Set pointer %04x\n", ee->cur);
+            }
 
-    } else {
-        if (ee->writable) {
-            DPRINTK("Send %02x\n", data);
-            ee->mem[ee->cur] = data;
-            ee->changed = true;
-        } else {
-            DPRINTK("Send error %02x read-only\n", data);
+            return 0;
         }
-        ee->cur = (ee->cur + 1u) % ee->rsize;
-
     }
+
+    if (ee->writable) {
+        DPRINTK("Send %02x\n", data);
+        ee->mem[ee->cur] = data;
+        ee->changed = true;
+    } else {
+        DPRINTK("Send error %02x read-only\n", data);
+    }
+    ee->cur = (ee->cur + 1u) % ee->rsize;
 
     return 0;
 }
@@ -133,12 +144,16 @@ static void at24c_eeprom_realize(DeviceState *dev, Error **errp)
     EEPROMState *ee = AT24C_EE(dev);
 
     if (ee->blk) {
+        /* blk length is a minimum of 1 sector. */
         int64_t len = blk_getlength(ee->blk);
 
         if (len != ee->rsize) {
-            error_setg(errp, "%s: Backing file size %" PRId64 " != %u",
-                       TYPE_AT24C_EE, len, ee->rsize);
-            return;
+            /* for the at24c01 and at24c02, they are smaller than a sector. */
+            if (ee->rsize >= BDRV_SECTOR_SIZE) {
+                error_setg(errp, "%s: Backing file size %" PRId64 " != %u",
+                           TYPE_AT24C_EE, len, ee->rsize);
+                return;
+            }
         }
 
         if (blk_set_perm(ee->blk, BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE,
@@ -150,6 +165,13 @@ static void at24c_eeprom_realize(DeviceState *dev, Error **errp)
         }
     }
 
+    /*
+     * The eeprom sizes are 2**x based, so if it's strictly less than 512, we
+     * expect it to be 256 or 128.
+     */
+    if (ee->rsize < 512) {
+        ee->eightbit = true;
+    }
     ee->mem = g_malloc0(ee->rsize);
 }
 
