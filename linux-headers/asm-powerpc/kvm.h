@@ -648,6 +648,7 @@ struct kvm_ppc_cpu_char {
 #define KVM_REG_PPC_DAWRX1	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0xc5)
 /* FIXME: KVM hasn't exposed these registers yet */
 #define KVM_REG_PPC_HASHKEYR    (KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x00)
+#define KVM_REG_PPC_HASHPKEYR   (KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x00)
 
 /* Transactional Memory checkpointed state:
  * This is all GPRs, all VSX regs and a subset of SPRs
