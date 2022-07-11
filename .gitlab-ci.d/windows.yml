@@ -14,6 +14,8 @@
   artifacts:
     paths:
       - "build/meson-logs"
+    reports:
+      junit: "build/meson-logs/testlog.junit.xml"
   before_script:
   - If ( !(Test-Path -Path msys64\var\cache ) ) {
       mkdir msys64\var\cache
