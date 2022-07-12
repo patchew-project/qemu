@@ -101,6 +101,11 @@ static void bcm2835_peripherals_init(Object *obj)
     /* DMA Channels */
     object_initialize_child(obj, "dma", &s->dma, TYPE_BCM2835_DMA);
 
+    object_initialize_child(obj, "dma-11-14-irq-orgate",
+                            &s->dma_11_14_irq_orgate, TYPE_OR_IRQ);
+    object_property_set_int(OBJECT(&s->dma_11_14_irq_orgate), "num-lines", 4,
+                            &error_abort);
+
     object_property_add_const_link(OBJECT(&s->dma), "dma-mr",
                                    OBJECT(&s->gpu_bus_mr));
 
@@ -322,12 +327,26 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(&s->peri_mr, DMA15_OFFSET,
                 sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->dma), 1));
 
-    for (n = 0; n <= 12; n++) {
+    for (n = 0; n <= 10; n++) {
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->dma), n,
                            qdev_get_gpio_in_named(DEVICE(&s->ic),
                                                   BCM2835_IC_GPU_IRQ,
                                                   INTERRUPT_DMA0 + n));
     }
+
+    /* According to DTS, dma channels 11-14 share one irq */
+    if (!qdev_realize(DEVICE(&s->dma_11_14_irq_orgate), NULL, errp)) {
+        return;
+    }
+    for (n = 11; n <= 14; n++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->dma), n,
+                           qdev_get_gpio_in(DEVICE(&s->dma_11_14_irq_orgate),
+                                            n - 11));
+    }
+    qdev_connect_gpio_out(DEVICE(&s->dma_11_14_irq_orgate), 0,
+                          qdev_get_gpio_in_named(DEVICE(&s->ic),
+                                                 BCM2835_IC_GPU_IRQ,
+                                                 INTERRUPT_DMA0 + 11));
 
     /* THERMAL */
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->thermal), errp)) {
