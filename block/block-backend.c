@@ -1806,6 +1806,47 @@ int blk_flush(BlockBackend *blk)
     return ret;
 }
 
+/*
+ * Send a zone_report command.
+ * offset can be any number within the zone size. No alignment for offset.
+ * nr_zones represents IN maximum and OUT actual.
+ */
+int coroutine_fn blk_co_zone_report(BlockBackend *blk, int64_t offset,
+                                    int64_t *nr_zones,
+                                    BlockZoneDescriptor *zones)
+{
+    int ret;
+    IO_CODE();
+
+    blk_inc_in_flight(blk); /* increase before waiting */
+    blk_wait_while_drained(blk);
+    ret = bdrv_co_zone_report(blk->root->bs, offset, nr_zones, zones);
+    blk_dec_in_flight(blk);
+    return ret;
+}
+
+/*
+ * Send a zone_management command.
+ * Offset is the start of a zone and len is aligned to zones.
+ */
+int coroutine_fn blk_co_zone_mgmt(BlockBackend *blk, enum zone_op op,
+        int64_t offset, int64_t len)
+{
+    int ret;
+    IO_CODE();
+
+    blk_inc_in_flight(blk);
+    blk_wait_while_drained(blk);
+    ret = blk_check_byte_request(blk, offset, len);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = bdrv_co_zone_mgmt(blk->root->bs, op, offset, len);
+    blk_dec_in_flight(blk);
+    return ret;
+}
+
 void blk_drain(BlockBackend *blk)
 {
     BlockDriverState *bs = blk_bs(blk);

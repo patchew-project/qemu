@@ -23,7 +23,6 @@
  */
 #ifndef BLOCK_COMMON_H
 #define BLOCK_COMMON_H
-
 #include "block/aio.h"
 #include "block/aio-wait.h"
 #include "qemu/iov.h"
@@ -48,6 +47,48 @@
 typedef struct BlockDriver BlockDriver;
 typedef struct BdrvChild BdrvChild;
 typedef struct BdrvChildClass BdrvChildClass;
+
+typedef enum zone_op {
+    zone_open,
+    zone_close,
+    zone_finish,
+    zone_reset,
+} zone_op;
+
+typedef enum zone_model {
+    BLK_Z_HM,
+    BLK_Z_HA,
+} zone_model;
+
+typedef enum BlkZoneCondition {
+    BLK_ZS_NOT_WP = 0x0,
+    BLK_ZS_EMPTY = 0x1,
+    BLK_ZS_IOPEN = 0x2,
+    BLK_ZS_EOPEN = 0x3,
+    BLK_ZS_CLOSED = 0x4,
+    BLK_ZS_RDONLY = 0xD,
+    BLK_ZS_FULL = 0xE,
+    BLK_ZS_OFFLINE = 0xF,
+} BlkZoneCondition;
+
+typedef enum BlkZoneType {
+    BLK_ZT_CONV = 0x1,
+    BLK_ZT_SWR = 0x2,
+    BLK_ZT_SWP = 0x3,
+} BlkZoneType;
+
+/*
+ * Zone descriptor data structure.
+ * Provide information on a zone with all position and size values in bytes.
+ */
+typedef struct BlockZoneDescriptor {
+    uint64_t start;
+    uint64_t length;
+    uint64_t cap;
+    uint64_t wp;
+    BlkZoneType type;
+    BlkZoneCondition cond;
+} BlockZoneDescriptor;
 
 typedef struct BlockDriverInfo {
     /* in bytes, 0 if irrelevant */
