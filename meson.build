@@ -1588,6 +1588,8 @@ if libbpf.found() and not cc.links('''
 endif
 
 qemu_common = subproject('qemu-common')
+qapi_gen = qemu_common.get_variable('qapi_gen')
+qapi_gen_depends = qemu_common.get_variable('qapi_gen_depends')
 qemu_common = qemu_common.get_variable('qemu_common_dep')
 
 #################
@@ -2795,23 +2797,6 @@ genh += configure_file(output: 'config-host.h', configuration: config_host_data)
 
 hxtool = find_program('scripts/hxtool')
 shaderinclude = find_program('scripts/shaderinclude.pl')
-qapi_gen = find_program('scripts/qapi-gen.py')
-qapi_gen_depends = [ meson.current_source_dir() / 'scripts/qapi/__init__.py',
-                     meson.current_source_dir() / 'scripts/qapi/commands.py',
-                     meson.current_source_dir() / 'scripts/qapi/common.py',
-                     meson.current_source_dir() / 'scripts/qapi/error.py',
-                     meson.current_source_dir() / 'scripts/qapi/events.py',
-                     meson.current_source_dir() / 'scripts/qapi/expr.py',
-                     meson.current_source_dir() / 'scripts/qapi/gen.py',
-                     meson.current_source_dir() / 'scripts/qapi/introspect.py',
-                     meson.current_source_dir() / 'scripts/qapi/parser.py',
-                     meson.current_source_dir() / 'scripts/qapi/schema.py',
-                     meson.current_source_dir() / 'scripts/qapi/source.py',
-                     meson.current_source_dir() / 'scripts/qapi/types.py',
-                     meson.current_source_dir() / 'scripts/qapi/visit.py',
-                     meson.current_source_dir() / 'scripts/qapi/common.py',
-                     meson.current_source_dir() / 'scripts/qapi-gen.py'
-]
 
 tracetool = [
   python, files('scripts/tracetool.py'),

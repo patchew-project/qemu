@@ -1,5 +1,5 @@
 test_env = environment()
-test_env.set('PYTHONPATH', meson.project_source_root() / 'scripts')
+test_env.set('PYTHONPATH', meson.project_source_root() / 'subprojects/qemu-common/scripts')
 test_env.set('PYTHONIOENCODING', 'utf-8')
 
 schemas = [
