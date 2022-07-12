@@ -30,6 +30,8 @@
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
 #include <glib.h>
+#include <stdbool.h>
+
 #if defined(G_OS_UNIX)
 #include <glib-unix.h>
 #include <sys/types.h>
@@ -133,7 +135,7 @@ qemu_g_test_slow(void)
 {
     static int cached = -1;
     if (cached == -1) {
-        cached = g_test_slow() || getenv("G_TEST_SLOW") != NULL;
+        cached = g_test_slow() || g_getenv("G_TEST_SLOW") != NULL;
     }
     return cached;
 }
