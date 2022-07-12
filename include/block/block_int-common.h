@@ -892,10 +892,6 @@ struct BdrvChildClass {
     int (*update_filename)(BdrvChild *child, BlockDriverState *new_base,
                            const char *filename, Error **errp);
 
-    bool (*can_set_aio_ctx)(BdrvChild *child, AioContext *ctx,
-                        GSList **ignore, Error **errp);
-    void (*set_aio_ctx)(BdrvChild *child, AioContext *ctx, GSList **ignore);
-
     bool (*change_aio_ctx)(BdrvChild *child, AioContext *ctx,
                            GSList **ignore, Transaction *tran, Error **errp);
 
