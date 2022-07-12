@@ -2966,17 +2966,18 @@ static void bdrv_attach_child_common_abort(void *opaque)
     }
 
     if (bdrv_child_get_parent_aio_context(child) != s->old_parent_ctx) {
+        Transaction *tran;
         GSList *ignore;
+        bool ret;
+
+        tran = tran_new();
 
         /* No need to ignore `child`, because it has been detached already */
         ignore = NULL;
-        child->klass->can_set_aio_ctx(child, s->old_parent_ctx, &ignore,
-                                      &error_abort);
+        ret = child->klass->change_aio_ctx(child, s->old_parent_ctx, &ignore,
+                                           tran, &error_abort);
         g_slist_free(ignore);
-
-        ignore = NULL;
-        child->klass->set_aio_ctx(child, s->old_parent_ctx, &ignore);
-        g_slist_free(ignore);
+        tran_finalize(tran, ret ? ret : -1);
     }
 
     bdrv_unref(bs);
@@ -3037,17 +3038,18 @@ static int bdrv_attach_child_common(BlockDriverState *child_bs,
         Error *local_err = NULL;
         int ret = bdrv_try_set_aio_context(child_bs, parent_ctx, &local_err);
 
-        if (ret < 0 && child_class->can_set_aio_ctx) {
+        if (ret < 0 && child_class->change_aio_ctx) {
+            Transaction *tran = tran_new();
             GSList *ignore = g_slist_prepend(NULL, new_child);
-            if (child_class->can_set_aio_ctx(new_child, child_ctx, &ignore,
-                                             NULL))
-            {
+            bool ret_child;
+
+            ret_child = child_class->change_aio_ctx(new_child, child_ctx,
+                                                    &ignore, tran, NULL);
+            if (ret_child) {
                 error_free(local_err);
                 ret = 0;
-                g_slist_free(ignore);
-                ignore = g_slist_prepend(NULL, new_child);
-                child_class->set_aio_ctx(new_child, child_ctx, &ignore);
             }
+            tran_finalize(tran, ret_child ? ret_child : -1);
             g_slist_free(ignore);
         }
 
@@ -7708,7 +7710,7 @@ int bdrv_try_set_aio_context(BlockDriverState *bs, AioContext *ctx,
                              Error **errp)
 {
     GLOBAL_STATE_CODE();
-    return bdrv_child_try_set_aio_context(bs, ctx, NULL, errp);
+    return bdrv_child_try_change_aio_context(bs, ctx, NULL, errp);
 }
 
 void bdrv_add_aio_context_notifier(BlockDriverState *bs,
