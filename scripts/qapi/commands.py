@@ -294,9 +294,9 @@ def gen_register_command(name: str,
 
 
 class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
-    def __init__(self, prefix: str, gen_tracing: bool):
+    def __init__(self, prefix: str, include: List[str], gen_tracing: bool):
         super().__init__(
-            prefix, 'qapi-commands',
+            prefix, include, 'qapi-commands',
             ' * Schema-defined QAPI/QMP commands', None, __doc__,
             gen_tracing=gen_tracing)
         self._visited_ret_types: Dict[QAPIGenC, Set[QAPISchemaType]] = {}
@@ -308,7 +308,8 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
         types = self._module_basename('qapi-types', name)
         visit = self._module_basename('qapi-visit', name)
         self._genc.add(mcgen('''
-#include "qemu/osdep.h"
+%(include)s
+
 #include "qapi/compat-policy.h"
 #include "qapi/visitor.h"
 #include "qapi/qmp/qdict.h"
@@ -318,6 +319,7 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
 #include "%(commands)s.h"
 
 ''',
+                             include=self.genc_include(),
                              commands=commands, visit=visit))
 
         if self._gen_tracing and commands != 'qapi-commands':
@@ -344,7 +346,8 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
 ''',
                              c_prefix=c_name(self._prefix, protect=False)))
         self._genc.add(mcgen('''
-#include "qemu/osdep.h"
+%(include)s
+
 #include "%(prefix)sqapi-commands.h"
 #include "%(prefix)sqapi-init-commands.h"
 
@@ -353,6 +356,7 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds)
     QTAILQ_INIT(cmds);
 
 ''',
+                             include=self.genc_include(),
                              prefix=self._prefix,
                              c_prefix=c_name(self._prefix, protect=False)))
 
@@ -404,7 +408,8 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds)
 def gen_commands(schema: QAPISchema,
                  output_dir: str,
                  prefix: str,
+                 include: List[str],
                  gen_tracing: bool) -> None:
-    vis = QAPISchemaGenCommandVisitor(prefix, gen_tracing)
+    vis = QAPISchemaGenCommandVisitor(prefix, include, gen_tracing)
     schema.visit(vis)
     vis.write(output_dir)
