@@ -2611,6 +2611,11 @@ void qmp_x_exit_preconfig(Error **errp)
     }
 }
 
+bool error_is_detailed(void)
+{
+    return !monitor_cur();
+}
+
 void qemu_init(int argc, char **argv, char **envp)
 {
     QemuOpts *opts;

@@ -11,7 +11,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "monitor/monitor.h"
 #include "qemu/error-report.h"
 
 /*
@@ -195,7 +194,7 @@ real_time_iso8601(void)
  */
 static void vreport(report_type type, const char *fmt, va_list ap)
 {
-    bool detailed = !monitor_cur();
+    bool detailed = error_is_detailed();
     gchar *timestr;
 
     if (message_with_timestamp && detailed) {
