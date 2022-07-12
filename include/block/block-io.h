@@ -80,6 +80,13 @@ int bdrv_co_ioctl(BlockDriverState *bs, int req, void *buf);
 /* Ensure contents are flushed to disk.  */
 int coroutine_fn bdrv_co_flush(BlockDriverState *bs);
 
+/* Report zone information of zone block device. */
+int coroutine_fn bdrv_co_zone_report(BlockDriverState *bs, int64_t offset,
+                                     int64_t *nr_zones,
+                                     BlockZoneDescriptor *zones);
+int coroutine_fn bdrv_co_zone_mgmt(BlockDriverState *bs, zone_op op,
+                                   int64_t offset, int64_t len);
+
 int bdrv_co_pdiscard(BdrvChild *child, int64_t offset, int64_t bytes);
 bool bdrv_can_write_zeroes_with_unmap(BlockDriverState *bs);
 int bdrv_block_status(BlockDriverState *bs, int64_t offset,
@@ -288,6 +295,12 @@ int generated_co_wrapper
 bdrv_readv_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos);
 int generated_co_wrapper
 bdrv_writev_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos);
+
+int generated_co_wrapper
+blk_zone_report(BlockBackend *blk, int64_t offset, int64_t *nr_zones,
+                BlockZoneDescriptor *zones);
+int generated_co_wrapper
+blk_zone_mgmt(BlockBackend *blk, enum zone_op op, int64_t offset, int64_t len);
 
 /**
  * bdrv_parent_drained_begin_single:

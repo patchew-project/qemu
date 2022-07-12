@@ -3243,6 +3243,63 @@ out:
     return co.ret;
 }
 
+int bdrv_co_zone_report(BlockDriverState *bs, int64_t offset,
+                        int64_t *nr_zones,
+                        BlockZoneDescriptor *zones)
+{
+    BlockDriver *drv = bs->drv;
+    CoroutineIOCompletion co = {
+            .coroutine = qemu_coroutine_self(),
+    };
+    IO_CODE();
+
+    bdrv_inc_in_flight(bs);
+    if (!drv || (!drv->bdrv_co_zone_report)) {
+        co.ret = -ENOTSUP;
+        goto out;
+    }
+
+    if (drv->bdrv_co_zone_report) {
+        co.ret = drv->bdrv_co_zone_report(bs, offset, nr_zones, zones);
+    } else {
+        co.ret = -ENOTSUP;
+        goto out;
+        qemu_coroutine_yield();
+    }
+
+out:
+    bdrv_dec_in_flight(bs);
+    return co.ret;
+}
+
+int bdrv_co_zone_mgmt(BlockDriverState *bs, enum zone_op op,
+        int64_t offset, int64_t len)
+{
+    BlockDriver *drv = bs->drv;
+    CoroutineIOCompletion co = {
+            .coroutine = qemu_coroutine_self(),
+    };
+    IO_CODE();
+
+    bdrv_inc_in_flight(bs);
+    if (!drv || (!drv->bdrv_co_zone_mgmt)) {
+        co.ret = -ENOTSUP;
+        goto out;
+    }
+
+    if (drv->bdrv_co_zone_mgmt) {
+        co.ret = drv->bdrv_co_zone_mgmt(bs, op, offset, len);
+    } else {
+        co.ret = -ENOTSUP;
+        goto out;
+        qemu_coroutine_yield();
+    }
+
+out:
+    bdrv_dec_in_flight(bs);
+    return co.ret;
+}
+
 void *qemu_blockalign(BlockDriverState *bs, size_t size)
 {
     IO_CODE();
