@@ -1279,6 +1279,65 @@ out:
 #endif
 }
 
+/*
+ * Convert the zoned attribute file in sysfs to internal value.
+ */
+static zone_model get_sysfs_str_val(int fd, struct stat *st) {
+#ifdef CONFIG_LINUX
+    char buf[32];
+    char *sysfspath = NULL;
+    int ret, offset;
+    int sysfd = -1;
+
+    if (S_ISCHR(st->st_mode)) {
+        if (ioctl(fd, SG_GET_SG_TABLESIZE, &ret) == 0) {
+            return ret;
+        }
+        return -ENOTSUP;
+    }
+
+    if (!S_ISBLK(st->st_mode)) {
+        return -ENOTSUP;
+    }
+
+    sysfspath = g_strdup_printf("/sys/dev/block/%u:%u/queue/zoned",
+                                major(st->st_rdev), minor(st->st_rdev));
+    sysfd = open(sysfspath, O_RDONLY);
+    if (sysfd == -1) {
+        ret = -errno;
+        goto out;
+    }
+    offset = 0;
+    do {
+        ret = read(sysfd, buf + offset, sizeof(buf) - 1 + offset);
+        if (ret > 0) {
+            offset += ret;
+        }
+    } while (ret == -1);
+    /* The file is ended with '\n' */
+    if (buf[ret - 1] == '\n') {
+        buf[ret - 1] = '\0';
+    }
+
+    if (strcmp(buf, "host-managed") == 0) {
+        return BLK_Z_HM;
+    } else if (strcmp(buf, "host-aware") == 0) {
+        return BLK_Z_HA;
+    } else {
+        return -ENOTSUP;
+    }
+
+out:
+    if (sysfd != -1) {
+        close(sysfd);
+    }
+    g_free(sysfspath);
+    return ret;
+#else
+    return -ENOTSUP;
+#endif
+}
+
 static int hdev_get_max_segments(int fd, struct stat *st) {
     return get_sysfs_long_val(fd, st, "max_segments");
 }
@@ -1885,6 +1944,7 @@ static int handle_aiocb_zone_mgmt(void *opaque) {
     int64_t len = aiocb->aio_nbytes;
     zone_op op = aiocb->zone_mgmt.op;
 
+    zone_model mod;
     struct blk_zone_range range;
     const char *ioctl_name;
     unsigned long ioctl_op;

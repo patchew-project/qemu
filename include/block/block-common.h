@@ -56,8 +56,8 @@ typedef enum zone_op {
 } zone_op;
 
 typedef enum zone_model {
-    BLK_Z_HM,
-    BLK_Z_HA,
+    BLK_Z_HM = 0x1,
+    BLK_Z_HA = 0x2,
 } zone_model;
 
 typedef enum BlkZoneCondition {
