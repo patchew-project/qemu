@@ -7,7 +7,7 @@ linux_user_ss = ss.source_set()
 common_user_inc += include_directories('include/host/' / host_arch)
 common_user_inc += include_directories('include')
 
-linux_user_ss.add(files(
+linux_user_ss.add([files(
   'elfload.c',
   'exit.c',
   'fd-trans.c',
@@ -20,7 +20,7 @@ linux_user_ss.add(files(
   'thunk.c',
   'uaccess.c',
   'uname.c',
-))
+), qemu_common])
 linux_user_ss.add(rt)
 
 linux_user_ss.add(when: 'TARGET_HAS_BFLT', if_true: files('flatload.c'))
