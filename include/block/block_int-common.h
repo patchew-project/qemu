@@ -142,6 +142,11 @@ struct BlockDriver {
     bool is_format;
 
     /*
+     * Set to true if the BlockDriver is a zoned block driver.
+     */
+    bool is_zoned;
+
+    /*
      * Drivers not implementing bdrv_parse_filename nor bdrv_open should have
      * this field set to true, except ones that are defined only by their
      * child's bs.
