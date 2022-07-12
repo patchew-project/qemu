@@ -51,8 +51,11 @@ def process_tests(test, targets, suites):
 
     test_suites = test['suite'] or ['default']
     for s in test_suites:
-        # The suite name in the introspection info is "PROJECT:SUITE"
-        s = s.split(':')[1]
+        # The suite name in the introspection info is "PROJECT" or "PROJECT:SUITE"
+        try:
+            s = s.split(':')[1]
+        except IndexError:
+            continue
         if s == 'slow' or s == 'thorough':
             continue
         if s.endswith('-slow'):
