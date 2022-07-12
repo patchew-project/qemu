@@ -3737,6 +3737,12 @@ static void hdev_parse_filename(const char *filename, QDict *options,
     bdrv_parse_filename_strip_prefix(filename, "host_device:", options);
 }
 
+static void zoned_host_device_parse_filename(const char *filename, QDict *options,
+                                Error **errp)
+{
+    bdrv_parse_filename_strip_prefix(filename, "zoned_host_device:", options);
+}
+
 static bool hdev_is_sg(BlockDriverState *bs)
 {
 
@@ -3975,7 +3981,7 @@ static BlockDriver bdrv_zoned_host_device = {
         .is_zoned = true,
         .bdrv_needs_filename = true,
         .bdrv_probe_device  = hdev_probe_device,
-        .bdrv_parse_filename = hdev_parse_filename,
+        .bdrv_parse_filename = zoned_host_device_parse_filename,
         .bdrv_file_open     = hdev_open,
         .bdrv_close         = raw_close,
         .bdrv_reopen_prepare = raw_reopen_prepare,

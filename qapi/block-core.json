@@ -2955,7 +2955,8 @@
             'luks', 'nbd', 'nfs', 'null-aio', 'null-co', 'nvme', 'parallels',
             'preallocate', 'qcow', 'qcow2', 'qed', 'quorum', 'raw', 'rbd',
             { 'name': 'replication', 'if': 'CONFIG_REPLICATION' },
-            'ssh', 'throttle', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat' ] }
+            'ssh', 'throttle', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat',
+            { 'name': 'zoned_host_device', 'if': 'HAVE_HOST_BLOCK_DEVICE' } ] }
 
 ##
 # @BlockdevOptionsFile:
@@ -4329,7 +4330,9 @@
       'vhdx':       'BlockdevOptionsGenericFormat',
       'vmdk':       'BlockdevOptionsGenericCOWFormat',
       'vpc':        'BlockdevOptionsGenericFormat',
-      'vvfat':      'BlockdevOptionsVVFAT'
+      'vvfat':      'BlockdevOptionsVVFAT',
+      'zoned_host_device': { 'type': 'BlockdevOptionsFile',
+                             'if': 'HAVE_HOST_BLOCK_DEVICE' }
   } }
 
 ##
