@@ -50,7 +50,16 @@ typedef struct TransactionActionDrv {
 typedef struct Transaction Transaction;
 
 Transaction *tran_new(void);
+/*
+ * Add transaction at the beginning of the transaction list.
+ * @tran will be the first transaction to be processed in finalize/commit/abort.
+ */
 void tran_add(Transaction *tran, TransactionActionDrv *drv, void *opaque);
+/*
+ * Add transaction at the end of the transaction list.
+ * @tran will be the last transaction to be processed in finalize/commit/abort.
+ */
+void tran_add_tail(Transaction *tran, TransactionActionDrv *drv, void *opaque);
 void tran_abort(Transaction *tran);
 void tran_commit(Transaction *tran);
 
