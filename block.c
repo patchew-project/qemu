@@ -1235,6 +1235,14 @@ static int bdrv_child_cb_inactivate(BdrvChild *child)
     return 0;
 }
 
+static bool bdrv_child_cb_change_aio_ctx(BdrvChild *child, AioContext *ctx,
+                                         GSList **visited, Transaction *tran,
+                                         Error **errp)
+{
+    BlockDriverState *bs = child->opaque;
+    return bdrv_change_aio_context(bs, ctx, visited, tran, errp);
+}
+
 static bool bdrv_child_cb_can_set_aio_ctx(BdrvChild *child, AioContext *ctx,
                                           GSList **ignore, Error **errp)
 {
@@ -1491,6 +1499,7 @@ const BdrvChildClass child_of_bds = {
     .inactivate      = bdrv_child_cb_inactivate,
     .can_set_aio_ctx = bdrv_child_cb_can_set_aio_ctx,
     .set_aio_ctx     = bdrv_child_cb_set_aio_ctx,
+    .change_aio_ctx  = bdrv_child_cb_change_aio_ctx,
     .update_filename = bdrv_child_cb_update_filename,
     .get_parent_aio_context = child_of_bds_get_parent_aio_context,
 };
