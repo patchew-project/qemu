@@ -342,6 +342,8 @@ class QAPISchemaGenVisitVisitor(QAPISchemaModularCVisitor):
         visit = self._module_basename('qapi-visit', name)
         self._genc.preamble_add(mcgen('''
 %(include)s
+#include <assert.h>
+#include <stdlib.h>
 
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
