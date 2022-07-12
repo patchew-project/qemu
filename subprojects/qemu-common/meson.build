@@ -22,3 +22,5 @@ qemu_common_dep = declare_dependency(
   include_directories: inc,
   dependencies: [glib_dep],
 )
+
+subdir('tests')
