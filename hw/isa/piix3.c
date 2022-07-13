@@ -328,6 +328,13 @@ static void pci_piix3_realize(PCIDevice *dev, Error **errp)
         return;
     }
 
+    /* IDE */
+    qdev_prop_set_int32(DEVICE(&d->ide), "addr", dev->devfn + 1);
+    if (!qdev_realize(DEVICE(&d->ide), BUS(pci_bus), errp)) {
+        return;
+    }
+    pci_ide_create_devs(PCI_DEVICE(&d->ide));
+
     /* USB */
     if (d->has_usb) {
         qdev_prop_set_int32(DEVICE(&d->uhci), "addr", dev->devfn + 2);
@@ -368,6 +375,7 @@ static void pci_piix3_init(Object *obj)
 
     object_initialize_child(obj, "pic", &d->pic, TYPE_ISA_PIC);
     object_initialize_child(obj, "rtc", &d->rtc, TYPE_MC146818_RTC);
+    object_initialize_child(obj, "ide", &d->ide, "piix3-ide");
     object_initialize_child(obj, "uhci", &d->uhci, "piix3-usb-uhci");
 
     object_initialize_child(obj, "pm", &d->pm, TYPE_PIIX4_PM);

@@ -34,6 +34,7 @@ config PC87312
 config PIIX3
     bool
     select ISA_BUS
+    select IDE_PIIX
 
 config PIIX4
     bool
