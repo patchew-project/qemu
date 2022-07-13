@@ -342,30 +342,73 @@ static void write_elf_phdr_note(DumpState *s, Error **errp)
     }
 }
 
-static void write_elf_section(DumpState *s, int type, Error **errp)
+static size_t write_elf_section_hdr_zero(DumpState *s, void *buff)
 {
-    Elf32_Shdr shdr32;
-    Elf64_Shdr shdr64;
-    int shdr_size;
-    void *shdr;
-    int ret;
+    if (dump_is_64bit(s)) {
+        Elf64_Shdr *shdr64 = buff;
 
-    if (type == 0) {
-        shdr_size = sizeof(Elf32_Shdr);
-        memset(&shdr32, 0, shdr_size);
-        shdr32.sh_info = cpu_to_dump32(s, s->phdr_num);
-        shdr = &shdr32;
+        memset(buff, 0, sizeof(Elf64_Shdr));
+        shdr64->sh_info = cpu_to_dump32(s, s->phdr_num);
     } else {
-        shdr_size = sizeof(Elf64_Shdr);
-        memset(&shdr64, 0, shdr_size);
-        shdr64.sh_info = cpu_to_dump32(s, s->phdr_num);
-        shdr = &shdr64;
+        Elf32_Shdr *shdr32 = buff;
+
+        memset(buff, 0, sizeof(Elf32_Shdr));
+        shdr32->sh_info = cpu_to_dump32(s, s->phdr_num);
     }
 
-    ret = fd_write_vmcore(shdr, shdr_size, s);
+    return dump_is_64bit(s) ? sizeof(Elf64_Shdr) : sizeof(Elf32_Shdr);
+}
+
+static void prepare_elf_section_hdrs(DumpState *s)
+{
+    uint8_t *buff_hdr;
+    size_t len, sizeof_shdr;
+
+    /*
+     * Section ordering:
+     * - HDR zero (if needed)
+     */
+    sizeof_shdr = dump_is_64bit(s) ? sizeof(Elf64_Shdr) : sizeof(Elf32_Shdr);
+    len = sizeof_shdr * s->shdr_num;
+    s->elf_section_hdrs = g_malloc0(len);
+    buff_hdr = s->elf_section_hdrs;
+
+    /* Write special section first */
+    if (s->phdr_num == PN_XNUM) {
+            write_elf_section_hdr_zero(s, buff_hdr);
+    }
+}
+
+static void prepare_elf_sections(DumpState *s, Error **errp)
+{
+    if (!s->shdr_num) {
+        return;
+    }
+
+    prepare_elf_section_hdrs(s);
+}
+
+static void write_elf_section_headers(DumpState *s, Error **errp)
+{
+    size_t sizeof_shdr;
+    int ret;
+
+    sizeof_shdr = dump_is_64bit(s) ? sizeof(Elf64_Shdr) : sizeof(Elf32_Shdr);
+
+    ret = fd_write_vmcore(s->elf_section_hdrs, s->shdr_num * sizeof_shdr, s);
     if (ret < 0) {
-        error_setg_errno(errp, -ret,
-                         "dump: failed to write section header table");
+        error_setg_errno(errp, -ret, "dump: failed to write section data");
+    }
+}
+
+static void write_elf_sections(DumpState *s, Error **errp)
+{
+    int ret;
+
+    /* Write section zero */
+    ret = fd_write_vmcore(s->elf_section_data, s->elf_section_data_size, s);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "dump: failed to write section data");
     }
 }
 
@@ -557,8 +600,18 @@ static void dump_begin(DumpState *s, Error **errp)
     /* Write elf header to buffer */
     prepare_elf_header(s);
 
+    prepare_elf_sections(s, errp);
+    if (*errp) {
+        return;
+    }
+
     /* Start to write stuff into files*/
     write_elf_header(s, errp);
+    if (*errp) {
+        return;
+    }
+
+    write_elf_section_headers(s, errp);
     if (*errp) {
         return;
     }
@@ -573,14 +626,6 @@ static void dump_begin(DumpState *s, Error **errp)
     write_elf_loads(s, errp);
     if (*errp) {
         return;
-    }
-
-    /* write section to vmcore */
-    if (s->shdr_num) {
-        write_elf_section(s, 1, errp);
-        if (*errp) {
-            return;
-        }
     }
 
     /* write notes to vmcore */
@@ -610,6 +655,19 @@ static void dump_iterate(DumpState *s, Error **errp)
     }
 }
 
+static void dump_end(DumpState *s, Error **errp)
+{
+    ERRP_GUARD();
+
+    if (!s->elf_section_data_size) {
+        return;
+    }
+    s->elf_section_data = g_malloc0(s->elf_section_data_size);
+
+    /* write sections to vmcore */
+    write_elf_sections(s, errp);
+}
+
 static void create_vmcore(DumpState *s, Error **errp)
 {
     ERRP_GUARD();
@@ -620,6 +678,12 @@ static void create_vmcore(DumpState *s, Error **errp)
     }
 
     dump_iterate(s, errp);
+    if (*errp) {
+        return;
+    }
+
+    /* Write section data after memory has been dumped */
+    dump_end(s, errp);
 }
 
 static int write_start_flat_header(int fd)
