@@ -6493,6 +6493,9 @@ static void init_proc_POWER10(CPUPPCState *env)
     spr_register_kvm(env, SPR_POWER_HASHKEYR, "HASHKEYR",
         SPR_NOACCESS, SPR_NOACCESS, &spr_read_generic, &spr_write_generic,
         KVM_REG_PPC_HASHKEYR, 0x0);
+    spr_register_kvm(env, SPR_POWER_HASHPKEYR, "HASHPKEYR",
+        SPR_NOACCESS, SPR_NOACCESS, &spr_read_generic, &spr_write_generic,
+        KVM_REG_PPC_HASHPKEYR, 0x0);
 
     /* env variables */
     env->dcache_line_size = 128;
