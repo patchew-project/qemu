@@ -27,6 +27,7 @@
 #include "qapi/error.h"
 #include "hw/dma/i8257.h"
 #include "hw/southbridge/piix.h"
+#include "hw/ide/pci.h"
 #include "hw/irq.h"
 #include "hw/isa/isa.h"
 #include "hw/xen/xen.h"
@@ -296,6 +297,7 @@ static const MemoryRegionOps rcr_ops = {
 static void pci_piix3_realize(PCIDevice *dev, Error **errp)
 {
     PIIX3State *d = PIIX3_PCI_DEVICE(dev);
+    PCIBus *pci_bus = pci_get_bus(dev);
     ISABus *isa_bus;
 
     isa_bus = isa_bus_new(DEVICE(d), get_system_memory(),
@@ -312,6 +314,16 @@ static void pci_piix3_realize(PCIDevice *dev, Error **errp)
     qemu_register_reset(piix3_reset, d);
 
     i8257_dma_init(isa_bus, 0);
+
+    /* USB */
+    if (d->has_usb) {
+        qdev_prop_set_int32(DEVICE(&d->uhci), "addr", dev->devfn + 2);
+        if (!qdev_realize(DEVICE(&d->uhci), BUS(pci_bus), errp)) {
+            return;
+        }
+    } else {
+        object_unparent(OBJECT(&d->uhci));
+    }
 }
 
 static void build_pci_isa_aml(AcpiDevAmlIf *adev, Aml *scope)
@@ -326,6 +338,18 @@ static void build_pci_isa_aml(AcpiDevAmlIf *adev, Aml *scope)
         call_dev_aml_func(DEVICE(kid->child), scope);
     }
 }
+
+static void pci_piix3_init(Object *obj)
+{
+    PIIX3State *d = PIIX3_PCI_DEVICE(obj);
+
+    object_initialize_child(obj, "uhci", &d->uhci, "piix3-usb-uhci");
+}
+
+static Property pci_piix3_props[] = {
+    DEFINE_PROP_BOOL("has-usb", PIIX3State, has_usb, true),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 static void pci_piix3_class_init(ObjectClass *klass, void *data)
 {
@@ -345,12 +369,14 @@ static void pci_piix3_class_init(ObjectClass *klass, void *data)
      * pc_piix.c's pc_init1()
      */
     dc->user_creatable = false;
+    device_class_set_props(dc, pci_piix3_props);
     adevc->build_dev_aml = build_pci_isa_aml;
 }
 
 static const TypeInfo piix3_pci_type_info = {
     .name = TYPE_PIIX3_PCI_DEVICE,
     .parent = TYPE_PCI_DEVICE,
+    .instance_init  = pci_piix3_init,
     .instance_size = sizeof(PIIX3State),
     .abstract = true,
     .class_init = pci_piix3_class_init,
