@@ -315,6 +315,12 @@ static void pci_piix3_realize(PCIDevice *dev, Error **errp)
 
     i8257_dma_init(isa_bus, 0);
 
+    /* RTC */
+    qdev_prop_set_int32(DEVICE(&d->rtc), "base_year", 2000);
+    if (!qdev_realize(DEVICE(&d->rtc), BUS(isa_bus), errp)) {
+        return;
+    }
+
     /* USB */
     if (d->has_usb) {
         qdev_prop_set_int32(DEVICE(&d->uhci), "addr", dev->devfn + 2);
@@ -353,6 +359,7 @@ static void pci_piix3_init(Object *obj)
 {
     PIIX3State *d = PIIX3_PCI_DEVICE(obj);
 
+    object_initialize_child(obj, "rtc", &d->rtc, TYPE_MC146818_RTC);
     object_initialize_child(obj, "uhci", &d->uhci, "piix3-usb-uhci");
 
     object_initialize_child(obj, "pm", &d->pm, TYPE_PIIX4_PM);
