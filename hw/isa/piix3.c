@@ -324,6 +324,16 @@ static void pci_piix3_realize(PCIDevice *dev, Error **errp)
     } else {
         object_unparent(OBJECT(&d->uhci));
     }
+
+    /* ACPI */
+    if (d->has_acpi) {
+        qdev_prop_set_int32(DEVICE(&d->pm), "addr", dev->devfn + 3);
+        if (!qdev_realize(DEVICE(&d->pm), BUS(pci_bus), errp)) {
+            return;
+        }
+    } else {
+        object_unparent(OBJECT(&d->pm));
+    }
 }
 
 static void build_pci_isa_aml(AcpiDevAmlIf *adev, Aml *scope)
@@ -344,9 +354,15 @@ static void pci_piix3_init(Object *obj)
     PIIX3State *d = PIIX3_PCI_DEVICE(obj);
 
     object_initialize_child(obj, "uhci", &d->uhci, "piix3-usb-uhci");
+
+    object_initialize_child(obj, "pm", &d->pm, TYPE_PIIX4_PM);
+    qdev_prop_set_uint32(DEVICE(&d->pm), "smb_io_base", 0xb100);
+    object_property_add_alias(obj, "smm-enabled",
+                              OBJECT(&d->pm), "smm-enabled");
 }
 
 static Property pci_piix3_props[] = {
+    DEFINE_PROP_BOOL("has-acpi", PIIX3State, has_acpi, true),
     DEFINE_PROP_BOOL("has-usb", PIIX3State, has_usb, true),
     DEFINE_PROP_END_OF_LIST(),
 };
