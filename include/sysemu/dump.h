@@ -178,6 +178,7 @@ typedef struct DumpState {
     void *elf_section_hdrs;
     uint64_t elf_section_data_size;
     void *elf_section_data;
+    GArray *string_table_buf;  /* String table section */
 
     uint8_t *note_buf;          /* buffer for notes */
     size_t note_buf_offset;     /* the writing place in note_buf */

@@ -99,6 +99,7 @@ static int dump_cleanup(DumpState *s)
     close(s->fd);
     g_free(s->guest_note);
     g_free(s->elf_header);
+    g_array_unref(s->string_table_buf);
     s->guest_note = NULL;
     if (s->resume) {
         if (s->detached) {
@@ -359,14 +360,47 @@ static size_t write_elf_section_hdr_zero(DumpState *s, void *buff)
     return dump_is_64bit(s) ? sizeof(Elf64_Shdr) : sizeof(Elf32_Shdr);
 }
 
+static void write_elf_section_hdr_string(DumpState *s, void *buff)
+{
+    Elf32_Shdr shdr32;
+    Elf64_Shdr shdr64;
+    int shdr_size;
+    void *shdr = buff;
+
+    if (dump_is_64bit(s)) {
+        shdr_size = sizeof(Elf64_Shdr);
+        memset(&shdr64, 0, shdr_size);
+        shdr64.sh_type = SHT_STRTAB;
+        shdr64.sh_offset = s->section_offset + s->elf_section_data_size;
+        shdr64.sh_name = s->string_table_buf->len;
+        g_array_append_vals(s->string_table_buf, ".strtab", sizeof(".strtab"));
+        shdr64.sh_size = s->string_table_buf->len;
+        shdr = &shdr64;
+    } else {
+        shdr_size = sizeof(Elf32_Shdr);
+        memset(&shdr32, 0, shdr_size);
+        shdr32.sh_type = SHT_STRTAB;
+        shdr32.sh_offset = s->section_offset + s->elf_section_data_size;
+        shdr32.sh_name = s->string_table_buf->len;
+        g_array_append_vals(s->string_table_buf, ".strtab", sizeof(".strtab"));
+        shdr32.sh_size = s->string_table_buf->len;
+        shdr = &shdr32;
+    }
+
+    memcpy(buff, shdr, shdr_size);
+}
+
 static void prepare_elf_section_hdrs(DumpState *s)
 {
     uint8_t *buff_hdr;
-    size_t len, sizeof_shdr;
+    size_t len, size = 0, sizeof_shdr;
+    Elf64_Ehdr *hdr64 = s->elf_header;
+    Elf32_Ehdr *hdr32 = s->elf_header;
 
     /*
      * Section ordering:
      * - HDR zero (if needed)
+     * - String table hdr
      */
     sizeof_shdr = dump_is_64bit(s) ? sizeof(Elf64_Shdr) : sizeof(Elf32_Shdr);
     len = sizeof_shdr * s->shdr_num;
@@ -376,6 +410,22 @@ static void prepare_elf_section_hdrs(DumpState *s)
     /* Write special section first */
     if (s->phdr_num == PN_XNUM) {
             write_elf_section_hdr_zero(s, buff_hdr);
+    }
+    buff_hdr += size;
+
+    if (s->shdr_num < 2) {
+        return;
+    }
+
+    /*
+     * String table needs to be last section since strings are added
+     * via arch_sections_write_hdr().
+     */
+    write_elf_section_hdr_string(s, buff_hdr);
+    if (dump_is_64bit(s)) {
+        hdr64->e_shstrndx = cpu_to_dump16(s, s->shdr_num - 1);
+    } else {
+        hdr32->e_shstrndx = cpu_to_dump16(s, s->shdr_num - 1);
     }
 }
 
@@ -405,10 +455,17 @@ static void write_elf_sections(DumpState *s, Error **errp)
 {
     int ret;
 
-    /* Write section zero */
+    /* Write section zero and arch sections */
     ret = fd_write_vmcore(s->elf_section_data, s->elf_section_data_size, s);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "dump: failed to write section data");
+    }
+
+    /* Write string table data */
+    ret = fd_write_vmcore(s->string_table_buf->data,
+                          s->string_table_buf->len, s);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "dump: failed to write string table data");
     }
 }
 
@@ -592,6 +649,9 @@ static void dump_begin(DumpState *s, Error **errp)
      *   --------------
      *   |  memory     |
      *   --------------
+     *   |  sectn data |
+     *   --------------
+
      *
      * we only know where the memory is saved after we write elf note into
      * vmcore.
@@ -677,6 +737,7 @@ static void create_vmcore(DumpState *s, Error **errp)
         return;
     }
 
+    /* Iterate over memory and dump it to file */
     dump_iterate(s, errp);
     if (*errp) {
         return;
@@ -1659,6 +1720,13 @@ static void dump_init(DumpState *s, int fd, bool has_format,
     s->has_filter = has_filter;
     s->begin = begin;
     s->length = length;
+    /* First index is 0, it's the special null name */
+    s->string_table_buf = g_array_new(FALSE, TRUE, 1);
+    /*
+     * Allocate the null name, due to the clearing option set to true
+     * it will be 0.
+     */
+    g_array_set_size(s->string_table_buf, 1);
 
     memory_mapping_list_init(&s->list);
 
@@ -1819,18 +1887,30 @@ static void dump_init(DumpState *s, int fd, bool has_format,
         }
     }
 
-    if (dump_is_64bit(s)) {
-        s->phdr_offset = sizeof(Elf64_Ehdr);
-        s->shdr_offset = s->phdr_offset + sizeof(Elf64_Phdr) * s->phdr_num;
-        s->note_offset = s->shdr_offset + sizeof(Elf64_Shdr) * s->shdr_num;
-        s->memory_offset = s->note_offset + s->note_size;
-    } else {
-
-        s->phdr_offset = sizeof(Elf32_Ehdr);
-        s->shdr_offset = s->phdr_offset + sizeof(Elf32_Phdr) * s->phdr_num;
-        s->note_offset = s->shdr_offset + sizeof(Elf32_Shdr) * s->shdr_num;
-        s->memory_offset = s->note_offset + s->note_size;
+    /*
+     * calculate shdr_num and elf_section_data_size so we know the offsets and
+     * sizes of all parts.
+     *
+     * If phdr_num overflowed we have at least one section header
+     * More sections/hdrs can be added by the architectures
+     */
+    if (s->shdr_num > 1) {
+        /* Reserve the string table */
+        s->shdr_num += 1;
     }
+
+    tmp = (s->phdr_num == PN_XNUM) ? s->sh_info : s->phdr_num;
+    if (dump_is_64bit(s)) {
+        s->shdr_offset = sizeof(Elf64_Ehdr);
+        s->phdr_offset = s->shdr_offset + sizeof(Elf64_Shdr) * s->shdr_num;
+        s->note_offset = s->phdr_offset + sizeof(Elf64_Phdr) * tmp;
+    } else {
+        s->shdr_offset = sizeof(Elf32_Ehdr);
+        s->phdr_offset = s->shdr_offset + sizeof(Elf32_Shdr) * s->shdr_num;
+        s->note_offset = s->phdr_offset + sizeof(Elf32_Phdr) * tmp;
+    }
+    s->memory_offset = s->note_offset + s->note_size;
+    s->section_offset = s->memory_offset + s->total_size;
 
     return;
 
