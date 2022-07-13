@@ -400,6 +400,7 @@ static void prepare_elf_section_hdrs(DumpState *s)
     /*
      * Section ordering:
      * - HDR zero (if needed)
+     * - Arch section hdrs
      * - String table hdr
      */
     sizeof_shdr = dump_is_64bit(s) ? sizeof(Elf64_Shdr) : sizeof(Elf32_Shdr);
@@ -416,6 +417,9 @@ static void prepare_elf_section_hdrs(DumpState *s)
     if (s->shdr_num < 2) {
         return;
     }
+
+    size = dump_arch_sections_write_hdr(&s->dump_info, s, buff_hdr);
+    buff_hdr += size;
 
     /*
      * String table needs to be last section since strings are added
@@ -567,14 +571,23 @@ static void get_offset_range(hwaddr phys_addr,
     }
 }
 
-static void write_elf_loads(DumpState *s, Error **errp)
+static void write_elf_phdr_loads(DumpState *s, Error **errp)
 {
     ERRP_GUARD();
     hwaddr offset, filesz;
     MemoryMapping *memory_mapping;
     uint32_t phdr_index = 1;
+    hwaddr min = 0, max = 0;
 
     QTAILQ_FOREACH(memory_mapping, &s->list.head, next) {
+        if (memory_mapping->phys_addr < min) {
+            min = memory_mapping->phys_addr;
+        }
+        if (memory_mapping->phys_addr + memory_mapping->length > max) {
+            max = memory_mapping->phys_addr + memory_mapping->length;
+        }
+
+
         get_offset_range(memory_mapping->phys_addr,
                          memory_mapping->length,
                          s, &offset, &filesz);
@@ -682,8 +695,8 @@ static void dump_begin(DumpState *s, Error **errp)
         return;
     }
 
-    /* write all PT_LOAD to vmcore */
-    write_elf_loads(s, errp);
+    /* write all PT_LOADs to vmcore */
+    write_elf_phdr_loads(s, errp);
     if (*errp) {
         return;
     }
@@ -723,6 +736,7 @@ static void dump_end(DumpState *s, Error **errp)
         return;
     }
     s->elf_section_data = g_malloc0(s->elf_section_data_size);
+    dump_arch_sections_write(&s->dump_info, s, s->elf_section_data);
 
     /* write sections to vmcore */
     write_elf_sections(s, errp);
@@ -1894,6 +1908,7 @@ static void dump_init(DumpState *s, int fd, bool has_format,
      * If phdr_num overflowed we have at least one section header
      * More sections/hdrs can be added by the architectures
      */
+    dump_arch_sections_add(&s->dump_info, (void *)s);
     if (s->shdr_num > 1) {
         /* Reserve the string table */
         s->shdr_num += 1;
