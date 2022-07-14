@@ -240,7 +240,7 @@ static void vhost_svq_kick(VhostShadowVirtqueue *svq)
  */
 static int vhost_svq_add(VhostShadowVirtqueue *svq, const struct iovec *out_sg,
                           size_t out_num, const struct iovec *in_sg,
-                          size_t in_num, VirtQueueElement *elem)
+                          size_t in_num, SVQElement *svq_elem)
 {
     unsigned qemu_head;
     unsigned ndescs = in_num + out_num;
@@ -252,21 +252,22 @@ static int vhost_svq_add(VhostShadowVirtqueue *svq, const struct iovec *out_sg,
 
     ok = vhost_svq_add_split(svq, out_sg, out_num, in_sg, in_num, &qemu_head);
     if (unlikely(!ok)) {
-        g_free(elem);
+        g_free(svq_elem);
         return -EINVAL;
     }
 
-    svq->ring_id_maps[qemu_head] = elem;
+    svq->ring_id_maps[qemu_head] = svq_elem;
     vhost_svq_kick(svq);
     return 0;
 }
 
 /* Convenience wrapper to add a guest's element to SVQ */
 static int vhost_svq_add_element(VhostShadowVirtqueue *svq,
-                                 VirtQueueElement *elem)
+                                 SVQElement *svq_elem)
 {
+    VirtQueueElement *elem = &svq_elem->elem;
     return vhost_svq_add(svq, elem->out_sg, elem->out_num, elem->in_sg,
-                         elem->in_num, elem);
+                         elem->in_num, svq_elem);
 }
 
 /**
@@ -292,7 +293,7 @@ static void vhost_handle_guest_kick(VhostShadowVirtqueue *svq)
         virtio_queue_set_notification(svq->vq, false);
 
         while (true) {
-            VirtQueueElement *elem;
+            SVQElement *elem;
             int r;
 
             if (svq->next_guest_avail_elem) {
@@ -386,9 +387,10 @@ static uint16_t vhost_svq_last_desc_of_chain(const VhostShadowVirtqueue *svq,
     return i;
 }
 
-static VirtQueueElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
-                                           uint32_t *len)
+static SVQElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
+                                     uint32_t *len)
 {
+    SVQElement *elem;
     const vring_used_t *used = svq->vring.used;
     vring_used_elem_t used_elem;
     uint16_t last_used, last_used_chain, num;
@@ -417,8 +419,8 @@ static VirtQueueElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
         return NULL;
     }
 
-    num = svq->ring_id_maps[used_elem.id]->in_num +
-          svq->ring_id_maps[used_elem.id]->out_num;
+    elem = svq->ring_id_maps[used_elem.id];
+    num = elem->elem.in_num + elem->elem.out_num;
     last_used_chain = vhost_svq_last_desc_of_chain(svq, num, used_elem.id);
     svq->desc_next[last_used_chain] = svq->free_head;
     svq->free_head = used_elem.id;
@@ -439,8 +441,8 @@ static void vhost_svq_flush(VhostShadowVirtqueue *svq,
         vhost_svq_disable_notification(svq);
         while (true) {
             uint32_t len;
-            g_autofree VirtQueueElement *elem = vhost_svq_get_buf(svq, &len);
-            if (!elem) {
+            g_autofree SVQElement *svq_elem = vhost_svq_get_buf(svq, &len);
+            if (!svq_elem) {
                 break;
             }
 
@@ -448,11 +450,11 @@ static void vhost_svq_flush(VhostShadowVirtqueue *svq,
                 qemu_log_mask(LOG_GUEST_ERROR,
                          "More than %u used buffers obtained in a %u size SVQ",
                          i, svq->vring.num);
-                virtqueue_fill(vq, elem, len, i);
+                virtqueue_fill(vq, &svq_elem->elem, len, i);
                 virtqueue_flush(vq, i);
                 return;
             }
-            virtqueue_fill(vq, elem, len, i++);
+            virtqueue_fill(vq, &svq_elem->elem, len, i++);
         }
 
         virtqueue_flush(vq, i);
@@ -594,7 +596,7 @@ void vhost_svq_start(VhostShadowVirtqueue *svq, VirtIODevice *vdev,
     memset(svq->vring.desc, 0, driver_size);
     svq->vring.used = qemu_memalign(qemu_real_host_page_size(), device_size);
     memset(svq->vring.used, 0, device_size);
-    svq->ring_id_maps = g_new0(VirtQueueElement *, svq->vring.num);
+    svq->ring_id_maps = g_new0(SVQElement *, svq->vring.num);
     svq->desc_next = g_new0(uint16_t, svq->vring.num);
     for (unsigned i = 0; i < svq->vring.num - 1; i++) {
         svq->desc_next[i] = cpu_to_le16(i + 1);
