@@ -110,7 +110,9 @@ A *fixedbit_elt* describes a contiguous sequence of bits that must
 be 1, 0, or don't care.  The difference between '.' and '-'
 is that '.' means that the bit will be covered with a field or a
 final 0 or 1 from the pattern, and '-' means that the bit is really
-ignored by the cpu and will not be specified.
+ignored by the cpu and will not be specified.  The same format can
+be reused in multiple patterns by using '.' and let the pattern
+decide whether the given bit will be ignored or not.
 
 A *field_elt* describes a simple field only given a width; the position of
 the field is implied by its position with respect to other *fixedbit_elt*
