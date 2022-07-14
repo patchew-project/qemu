@@ -7899,6 +7899,15 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .accessfn = access_aa64_tid1,
               .type = ARM_CP_CONST, .resetvalue = cpu->revidr },
         };
+        ARMCPRegInfo id_v8r_midr_cp_reginfo[] = {
+            { .name = "MIDR",
+              .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = CP_ANY,
+              .access = PL1_R, .resetvalue = cpu->midr,
+              .writefn = arm_cp_write_ignore, .raw_writefn = raw_write,
+              .readfn = midr_read,
+              .fieldoffset = offsetof(CPUARMState, cp15.c0_cpuid),
+              .type = ARM_CP_OVERRIDE },
+        };
         ARMCPRegInfo id_cp_reginfo[] = {
             /* These are common to v8 and pre-v8 */
             { .name = "CTR",
@@ -7962,7 +7971,9 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             id_mpuir_reginfo.access = PL1_RW;
             id_tlbtr_reginfo.access = PL1_RW;
         }
-        if (arm_feature(env, ARM_FEATURE_V8)) {
+        if (arm_feature(env, ARM_FEATURE_V8_R)) {
+            define_arm_cp_regs(cpu, id_v8r_midr_cp_reginfo);
+        } else if (arm_feature(env, ARM_FEATURE_V8)) {
             define_arm_cp_regs(cpu, id_v8_midr_cp_reginfo);
         } else {
             define_arm_cp_regs(cpu, id_pre_v8_midr_cp_reginfo);
