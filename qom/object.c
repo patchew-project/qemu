@@ -2450,6 +2450,26 @@ static char *object_get_type(Object *obj, Error **errp)
     return g_strdup(object_get_typename(obj));
 }
 
+static void property_get_int8_ptr(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
+{
+    int8_t value = *(int8_t *)opaque;
+    visit_type_int8(v, name, &value, errp);
+}
+
+static void property_set_int8_ptr(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
+{
+    int8_t *field = opaque;
+    int8_t value;
+
+    if (!visit_type_int8(v, name, &value, errp)) {
+        return;
+    }
+
+    *field = value;
+}
+
 static void property_get_uint8_ptr(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
@@ -2528,6 +2548,46 @@ static void property_set_uint64_ptr(Object *obj, Visitor *v, const char *name,
     }
 
     *field = value;
+}
+
+ObjectProperty *
+object_property_add_int8_ptr(Object *obj, const char *name,
+                              const int8_t *v,
+                              ObjectPropertyFlags flags)
+{
+    ObjectPropertyAccessor *getter = NULL;
+    ObjectPropertyAccessor *setter = NULL;
+
+    if ((flags & OBJ_PROP_FLAG_READ) == OBJ_PROP_FLAG_READ) {
+        getter = property_get_int8_ptr;
+    }
+
+    if ((flags & OBJ_PROP_FLAG_WRITE) == OBJ_PROP_FLAG_WRITE) {
+        setter = property_set_int8_ptr;
+    }
+
+    return object_property_add(obj, name, "int8",
+                               getter, setter, NULL, (void *)v);
+}
+
+ObjectProperty *
+object_class_property_add_int8_ptr(ObjectClass *klass, const char *name,
+                                    const int8_t *v,
+                                    ObjectPropertyFlags flags)
+{
+    ObjectPropertyAccessor *getter = NULL;
+    ObjectPropertyAccessor *setter = NULL;
+
+    if ((flags & OBJ_PROP_FLAG_READ) == OBJ_PROP_FLAG_READ) {
+        getter = property_get_int8_ptr;
+    }
+
+    if ((flags & OBJ_PROP_FLAG_WRITE) == OBJ_PROP_FLAG_WRITE) {
+        setter = property_set_int8_ptr;
+    }
+
+    return object_class_property_add(klass, name, "int8",
+                                     getter, setter, NULL, (void *)v);
 }
 
 ObjectProperty *

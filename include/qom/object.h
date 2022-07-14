@@ -1765,6 +1765,27 @@ typedef enum {
 } ObjectPropertyFlags;
 
 /**
+ * object_property_add_int8_ptr:
+ * @obj: the object to add a property to
+ * @name: the name of the property
+ * @v: pointer to value
+ * @flags: bitwise-or'd ObjectPropertyFlags
+ *
+ * Add a signed integer property in memory.  This function will add a
+ * property of type 'int8'.
+ *
+ * Returns: The newly added property on success, or %NULL on failure.
+ */
+ObjectProperty *object_property_add_int8_ptr(Object *obj, const char *name,
+                                              const int8_t *v,
+                                              ObjectPropertyFlags flags);
+
+ObjectProperty *object_class_property_add_int8_ptr(ObjectClass *klass,
+                                         const char *name,
+                                         const int8_t *v,
+                                         ObjectPropertyFlags flags);
+
+/**
  * object_property_add_uint8_ptr:
  * @obj: the object to add a property to
  * @name: the name of the property
