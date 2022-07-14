@@ -1346,6 +1346,8 @@ static void nvme_post_cqes(void *opaque)
     bool pending = cq->head != cq->tail;
     int ret;
 
+    trace_pci_nvme_post_cqes(cq->cqid);
+
     QTAILQ_FOREACH_SAFE(req, &cq->req_list, entry, next) {
         NvmeSQueue *sq;
         hwaddr addr;
@@ -4238,6 +4240,8 @@ static void nvme_cq_notifier(EventNotifier *e)
     NvmeCQueue *cq = container_of(e, NvmeCQueue, notifier);
     NvmeCtrl *n = cq->ctrl;
 
+    trace_pci_nvme_cq_notify(cq->cqid);
+
     event_notifier_test_and_clear(&cq->notifier);
 
     nvme_update_cq_head(cq);
@@ -4274,6 +4278,8 @@ static int nvme_init_cq_ioeventfd(NvmeCQueue *cq)
 static void nvme_sq_notifier(EventNotifier *e)
 {
     NvmeSQueue *sq = container_of(e, NvmeSQueue, notifier);
+
+    trace_pci_nvme_sq_notify(sq->sqid);
 
     event_notifier_test_and_clear(&sq->notifier);
 
@@ -6239,6 +6245,8 @@ static void nvme_process_sq(void *opaque)
     NvmeSQueue *sq = opaque;
     NvmeCtrl *n = sq->ctrl;
     NvmeCQueue *cq = n->cq[sq->cqid];
+
+    trace_pci_nvme_process_sq(sq->sqid);
 
     uint16_t status;
     hwaddr addr;
