@@ -746,8 +746,18 @@ typedef struct CPUArchState {
          */
         uint32_t *rbar[M_REG_NUM_BANKS];
         uint32_t *rlar[M_REG_NUM_BANKS];
+        uint32_t prbarn[255];
+        uint32_t prlarn[255];
+        uint32_t hprbarn[255];
+        uint32_t hprlarn[255];
         uint32_t mair0[M_REG_NUM_BANKS];
         uint32_t mair1[M_REG_NUM_BANKS];
+        uint32_t prbar;
+        uint32_t prlar;
+        uint32_t prselr;
+        uint32_t hprbar;
+        uint32_t hprlar;
+        uint32_t hprselr;
     } pmsav8;
 
     /* v8M SAU */
