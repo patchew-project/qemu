@@ -8222,12 +8222,20 @@ static gint arm_cpu_list_compare(gconstpointer a, gconstpointer b)
 static void arm_cpu_list_entry(gpointer data, gpointer user_data)
 {
     ObjectClass *oc = data;
+    CPUClass *cc = CPU_CLASS(oc);
     const char *typename;
     char *name;
+    g_autofree char *details = NULL;
+
+    if (cc->deprecation_note) {
+        details = g_strdup_printf(" (deprecated: %s)", cc->deprecation_note);
+    } else {
+        details = g_strdup("");
+    }
 
     typename = object_class_get_name(oc);
     name = g_strndup(typename, strlen(typename) - strlen("-" TYPE_ARM_CPU));
-    qemu_printf("  %s\n", name);
+    qemu_printf("  %s%s\n", name, details);
     g_free(name);
 }
 
