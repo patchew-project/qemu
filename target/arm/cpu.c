@@ -272,6 +272,9 @@ static void arm_cpu_reset(DeviceState *dev)
         if (arm_feature(env, ARM_FEATURE_V8_R)) {
             env->cp15.rvbar = cpu->rvbar_prop;
             env->regs[15] = cpu->rvbar_prop;
+            env->cp15.tcr_el[0].raw_tcr = TTBCR_EAE;
+            env->cp15.tcr_el[1].raw_tcr = TTBCR_EAE;
+            env->cp15.tcr_el[2].raw_tcr = TTBCR_EAE;
         }
     }
 
