@@ -17,6 +17,12 @@
 
 typedef struct SVQElement {
     VirtQueueElement elem;
+
+    /*
+     * Number of descriptors exposed to the device. May or may not match
+     * guest's
+     */
+    unsigned int ndescs;
 } SVQElement;
 
 /* Shadow virtqueue to relay notifications */

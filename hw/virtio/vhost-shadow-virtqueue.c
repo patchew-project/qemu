@@ -243,10 +243,10 @@ static int vhost_svq_add(VhostShadowVirtqueue *svq, const struct iovec *out_sg,
                           size_t in_num, SVQElement *svq_elem)
 {
     unsigned qemu_head;
-    unsigned ndescs = in_num + out_num;
+    svq_elem->ndescs = in_num + out_num;
     bool ok;
 
-    if (unlikely(ndescs > vhost_svq_available_slots(svq))) {
+    if (unlikely(svq_elem->ndescs > vhost_svq_available_slots(svq))) {
         return -ENOSPC;
     }
 
@@ -393,7 +393,7 @@ static SVQElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
     SVQElement *elem;
     const vring_used_t *used = svq->vring.used;
     vring_used_elem_t used_elem;
-    uint16_t last_used, last_used_chain, num;
+    uint16_t last_used, last_used_chain;
 
     if (!vhost_svq_more_used(svq)) {
         return NULL;
@@ -420,8 +420,8 @@ static SVQElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
     }
 
     elem = svq->ring_id_maps[used_elem.id];
-    num = elem->elem.in_num + elem->elem.out_num;
-    last_used_chain = vhost_svq_last_desc_of_chain(svq, num, used_elem.id);
+    last_used_chain = vhost_svq_last_desc_of_chain(svq, elem->ndescs,
+                                                   used_elem.id);
     svq->desc_next[last_used_chain] = svq->free_head;
     svq->free_head = used_elem.id;
 
