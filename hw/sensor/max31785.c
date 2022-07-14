@@ -164,6 +164,7 @@ typedef struct MAX31785State {
     uint64_t mfr_date;
     uint64_t mfr_serial;
     uint16_t mfr_revision;
+    int8_t  tach_margin_percent[MAX31785_FAN_PAGES];
 } MAX31785State;
 
 static uint8_t max31785_read_byte(PMBusDevice *pmdev)
@@ -530,6 +531,27 @@ static void max31785_init(Object *obj)
 
     for (int i = MAX31785_MIN_FAN_PAGE; i <= MAX31785_MAX_FAN_PAGE; i++) {
         pmbus_page_config(pmdev, i, PB_HAS_VOUT_MODE);
+
+        /* STATUS_FANS_1_2 (81h) for FAULT and WARN bits */
+        object_property_add_uint8_ptr(obj, "status_fans_1_2[*]",
+                            &pmdev->pages[i].status_fans_1_2,
+                            OBJ_PROP_FLAG_READWRITE);
+
+        /* FAN_COMMAND_1 (3Bh)  target fan speed (pwm/rpm) */
+        object_property_add_uint16_ptr(obj, "fan_target[*]",
+                            &pmdev->pages[i].fan_command_1,
+                            OBJ_PROP_FLAG_READWRITE);
+
+        /* margin fan speed in percent (could be +ve or -ve) */
+        object_property_add_int8_ptr(obj, "tach_margin_percent[*]",
+                            &(MAX31785(obj))->tach_margin_percent[i],
+                            OBJ_PROP_FLAG_READWRITE);
+
+        /* READ_FAN_SPEED_1 (90h) returns the fan speed in RPM */
+        object_property_add_uint16_ptr(obj, "fan_input[*]",
+                            &pmdev->pages[i].read_fan_speed_1,
+                            OBJ_PROP_FLAG_READWRITE);
+
     }
 
     for (int i = MAX31785_MIN_TEMP_PAGE; i <= MAX31785_MAX_TEMP_PAGE; i++) {
