@@ -567,3 +567,8 @@ config ARMSSE
     select UNIMP
     select SSE_COUNTER
     select SSE_TIMER
+
+config CORTEX_R52_VIRT
+    bool
+    select ARM_GIC
+    select PL011
