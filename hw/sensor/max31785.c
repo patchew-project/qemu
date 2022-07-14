@@ -71,7 +71,7 @@
 /* FAN_CONFIG_1_2 */
 #define MAX31785_MFR_FAN_CONFIG                0xF1
 #define MAX31785_FAN_CONFIG_ENABLE             BIT(7)
-#define MAX31785_FAN_CONFIG_RPM_PWM            BIT(6)
+#define MAX31785_FAN_CONFIG_FAN_MODE_RPM       BIT(6)
 #define MAX31785_FAN_CONFIG_PULSE(pulse)       (pulse << 4)
 #define MAX31785_DEFAULT_FAN_CONFIG_1_2(pulse)                                 \
     (MAX31785_FAN_CONFIG_ENABLE | MAX31785_FAN_CONFIG_PULSE(pulse))
@@ -316,6 +316,8 @@ static int max31785_write_data(PMBusDevice *pmdev, const uint8_t *buf,
                                uint8_t len)
 {
     MAX31785State *s = MAX31785(pmdev);
+    int16_t   tach_margin = 0;
+
     if (len == 0) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: writing empty data\n", __func__);
         return -1;
@@ -342,9 +344,23 @@ static int max31785_write_data(PMBusDevice *pmdev, const uint8_t *buf,
     case PMBUS_FAN_COMMAND_1:
         if (pmdev->page <= MAX31785_MAX_FAN_PAGE) {
             pmdev->pages[pmdev->page].fan_command_1 = pmbus_receive16(pmdev);
-            pmdev->pages[pmdev->page].read_fan_speed_1 =
-                ((MAX31785_DEFAULT_FAN_SPEED / MAX31785_DEFAULT_FAN_MAX_PWM) *
-                pmdev->pages[pmdev->page].fan_command_1);
+            if ((pmdev->pages[pmdev->page].fan_config_1_2 &
+                 MAX31785_FAN_CONFIG_FAN_MODE_RPM)
+                  == MAX31785_FAN_CONFIG_FAN_MODE_RPM) {
+                /* calculate the tach margin (+ve or -ve) */
+                tach_margin = (int16_t)pmdev->pages[pmdev->page].fan_command_1 *
+                        ((float)s->tach_margin_percent[pmdev->page] / 100.0);
+
+                /* set the tach */
+                pmdev->pages[pmdev->page].read_fan_speed_1 =
+                 (uint16_t)(pmdev->pages[pmdev->page].fan_command_1 +
+                            tach_margin);
+            } else {
+                /* pwm mode */
+                pmdev->pages[pmdev->page].read_fan_speed_1 =
+                  ((MAX31785_DEFAULT_FAN_SPEED / MAX31785_DEFAULT_FAN_MAX_PWM) *
+                   pmdev->pages[pmdev->page].fan_command_1);
+            }
         }
         break;
 
