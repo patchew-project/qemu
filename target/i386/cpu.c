@@ -4833,8 +4833,19 @@ static void x86_cpu_list_entry(gpointer data, gpointer user_data)
     if (!desc && cc->model && cc->model->note) {
         desc = g_strdup_printf("%s [%s]", model_id, cc->model->note);
     }
-    if (!desc) {
+    if (!desc && *model_id) {
         desc = g_strdup_printf("%s", model_id);
+    }
+
+    if (cc->model && cc->model->cpudef->deprecation_note) {
+        g_autofree char *dep = g_strdup_printf(
+            "(deprecated: %s)", cc->model->cpudef->deprecation_note);
+        if (desc) {
+            g_autofree char *olddesc = desc;
+            desc = g_strdup_printf("%s %s", olddesc, dep);
+        } else {
+            desc = g_steal_pointer(&dep);
+        }
     }
 
     qemu_printf("x86 %-20s  %s\n", name, desc);
