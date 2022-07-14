@@ -3423,6 +3423,9 @@ static const X86CPUDefinition builtin_x86_defs[] = {
             {
                 .version = 3,
                 .props = (PropValue[]) {
+                    /* Restore TSX features removed by -v2 above */
+                    { "hle", "on" },
+                    { "rtm", "on" },
                     { "arch-capabilities", "on" },
                     { "rdctl-no", "on" },
                     { "ibrs-all", "on" },
