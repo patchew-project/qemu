@@ -487,6 +487,28 @@ static void vhost_svq_flush(VhostShadowVirtqueue *svq,
 }
 
 /**
+ * Poll the SVQ for one device used buffer.
+ *
+ * This function race with main event loop SVQ polling, so extra
+ * synchronization is needed.
+ *
+ * Return the length written by the device.
+ */
+size_t vhost_svq_poll(VhostShadowVirtqueue *svq)
+{
+    do {
+        uint32_t len;
+        SVQElement *elem = vhost_svq_get_buf(svq, &len);
+        if (elem) {
+            return len;
+        }
+
+        /* Make sure we read new used_idx */
+        smp_rmb();
+    } while (true);
+}
+
+/**
  * Forward used buffers.
  *
  * @n: hdev call event notifier, the one that device set to notify svq.
