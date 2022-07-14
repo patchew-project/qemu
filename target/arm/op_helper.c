@@ -522,6 +522,11 @@ static void msr_mrs_banked_exc_checks(CPUARMState *env, uint32_t tgtmode,
         return;
     }
 
+    if (curmode == ARM_CPU_MODE_HYP && tgtmode == ARM_CPU_MODE_HYP
+        && arm_feature(env, ARM_FEATURE_V8_R)) {
+        return;
+    }
+
     if (curmode == tgtmode) {
         goto undef;
     }
@@ -570,6 +575,9 @@ void HELPER(msr_banked)(CPUARMState *env, uint32_t value, uint32_t tgtmode,
     switch (regno) {
     case 16: /* SPSRs */
         env->banked_spsr[bank_number(tgtmode)] = value;
+        if (arm_feature(env, ARM_FEATURE_V8_R)) {
+            env->spsr = value;
+        }
         break;
     case 17: /* ELR_Hyp */
         env->elr_el[2] = value;

@@ -2881,8 +2881,9 @@ static bool msr_banked_access_decode(DisasContext *s, int r, int sysm, int rn,
          * can be accessed also from Hyp mode, so forbid accesses from
          * EL0 or EL1.
          */
-        if (!arm_dc_feature(s, ARM_FEATURE_EL2) || s->current_el < 2 ||
-            (s->current_el < 3 && *regno != 17)) {
+        if (!arm_dc_feature(s, ARM_FEATURE_V8_R)
+            && (!arm_dc_feature(s, ARM_FEATURE_EL2)
+            || s->current_el < 2 || (s->current_el < 3 && *regno != 17))) {
             goto undef;
         }
         break;
