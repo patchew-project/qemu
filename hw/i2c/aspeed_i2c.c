@@ -226,10 +226,17 @@ static int aspeed_i2c_dma_read(AspeedI2CBus *bus, uint8_t *data)
     return 0;
 }
 
-static int aspeed_i2c_bus_send(AspeedI2CBus *bus, uint8_t pool_start)
+typedef enum AsyncResult AsyncResult;
+enum AsyncResult {
+    DONE,
+    YIELD,
+    ERROR,
+};
+
+static AsyncResult aspeed_i2c_bus_send(AspeedI2CBus *bus)
 {
     AspeedI2CClass *aic = ASPEED_I2C_GET_CLASS(bus->controller);
-    int ret = -1;
+    AsyncResult ret = DONE;
     int i;
     uint32_t reg_cmd = aspeed_i2c_bus_cmd_offset(bus);
     uint32_t reg_pool_ctrl = aspeed_i2c_bus_pool_ctrl_offset(bus);
@@ -239,41 +246,49 @@ static int aspeed_i2c_bus_send(AspeedI2CBus *bus, uint8_t pool_start)
                                                 TX_COUNT);
 
     if (SHARED_ARRAY_FIELD_EX32(bus->regs, reg_cmd, TX_BUFF_EN)) {
-        for (i = pool_start; i < pool_tx_count; i++) {
+        while (bus->pool_pos < pool_tx_count) {
             uint8_t *pool_base = aic->bus_pool_base(bus);
 
-            trace_aspeed_i2c_bus_send("BUF", i + 1, pool_tx_count,
+            trace_aspeed_i2c_bus_send("BUF", bus->pool_pos + 1, pool_tx_count,
                                       pool_base[i]);
-            ret = i2c_send(bus->bus, pool_base[i]);
-            if (ret) {
+            ret = i2c_send_async(bus->bus, pool_base[bus->pool_pos]);
+            if (ret == ERROR) {
                 break;
+            }
+            bus->pool_pos++;
+            if (ret == YIELD) {
+                return YIELD;
             }
         }
         SHARED_ARRAY_FIELD_DP32(bus->regs, reg_cmd, TX_BUFF_EN, 0);
     } else if (SHARED_ARRAY_FIELD_EX32(bus->regs, reg_cmd, TX_DMA_EN)) {
         /* In new mode, clear how many bytes we TXed */
-        if (aspeed_i2c_is_new_mode(bus->controller)) {
+        if (aspeed_i2c_is_new_mode(bus->controller) && bus->pool_pos == 0) {
             ARRAY_FIELD_DP32(bus->regs, I2CM_DMA_LEN_STS, TX_LEN, 0);
         }
         while (bus->regs[reg_dma_len]) {
             uint8_t data;
             aspeed_i2c_dma_read(bus, &data);
-            trace_aspeed_i2c_bus_send("DMA", bus->regs[reg_dma_len],
+            trace_aspeed_i2c_bus_send("DMA", bus->regs[bus->pool_pos],
                                       bus->regs[reg_dma_len], data);
-            ret = i2c_send(bus->bus, data);
-            if (ret) {
+            ret = i2c_send_async(bus->bus, data);
+            if (ret == ERROR) {
                 break;
             }
+            bus->pool_pos++;
             /* In new mode, keep track of how many bytes we TXed */
             if (aspeed_i2c_is_new_mode(bus->controller)) {
                 ARRAY_FIELD_DP32(bus->regs, I2CM_DMA_LEN_STS, TX_LEN,
                                  ARRAY_FIELD_EX32(bus->regs, I2CM_DMA_LEN_STS,
                                                   TX_LEN) + 1);
             }
+            if (ret == YIELD) {
+                return YIELD;
+            }
         }
         SHARED_ARRAY_FIELD_DP32(bus->regs, reg_cmd, TX_DMA_EN, 0);
     } else {
-        trace_aspeed_i2c_bus_send("BYTE", pool_start, 1,
+        trace_aspeed_i2c_bus_send("BYTE", 1, 1,
                                   bus->regs[reg_byte_buf]);
         ret = i2c_send(bus->bus, bus->regs[reg_byte_buf]);
     }
