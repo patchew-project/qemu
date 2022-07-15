@@ -571,11 +571,12 @@ static void loongarch_cpu_init(Object *obj)
 static ObjectClass *loongarch_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
-    char *typename;
 
-    typename = g_strdup_printf(LOONGARCH_CPU_TYPE_NAME("%s"), cpu_model);
-    oc = object_class_by_name(typename);
-    g_free(typename);
+    oc = object_class_by_name(cpu_model);
+    if (!oc || !object_class_dynamic_cast(oc, TYPE_LOONGARCH_CPU) ||
+        object_class_is_abstract(oc)) {
+        return NULL;
+    }
     return oc;
 }
 
