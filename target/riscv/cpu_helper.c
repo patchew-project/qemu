@@ -981,6 +981,15 @@ restart:
 
             /* Page table updates need to be atomic with MTTCG enabled */
             if (updated_pte != pte) {
+                if (!cpu->cfg.ext_ssptwad) {
+                    /*
+                     * If A/D bits are managed by SW, HW just raises the
+                     * page fault exception corresponding to the original
+                     * access type when A/D bits need to be updated.
+                     */
+                    return TRANSLATE_FAIL;
+                }
+
                 /*
                  * - if accessed or dirty bits need updating, and the PTE is
                  *   in RAM, then we do so atomically with a compare and swap.

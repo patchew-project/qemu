@@ -857,6 +857,7 @@ static void riscv_cpu_init(Object *obj)
 
     cpu->cfg.ext_ifencei = true;
     cpu->cfg.ext_icsr = true;
+    cpu->cfg.ext_ssptwad = true;
     cpu->cfg.mmu = true;
     cpu->cfg.pmp = true;
 
@@ -900,6 +901,7 @@ static Property riscv_cpu_extensions[] = {
     DEFINE_PROP_BOOL("svinval", RISCVCPU, cfg.ext_svinval, false),
     DEFINE_PROP_BOOL("svnapot", RISCVCPU, cfg.ext_svnapot, false),
     DEFINE_PROP_BOOL("svpbmt", RISCVCPU, cfg.ext_svpbmt, false),
+    DEFINE_PROP_BOOL("ssptwad", RISCVCPU, cfg.ext_ssptwad, true),
 
     DEFINE_PROP_BOOL("zba", RISCVCPU, cfg.ext_zba, true),
     DEFINE_PROP_BOOL("zbb", RISCVCPU, cfg.ext_zbb, true),

@@ -433,6 +433,7 @@ struct RISCVCPUConfig {
     bool ext_zve32f;
     bool ext_zve64f;
     bool ext_zmmul;
+    bool ext_ssptwad;
     bool rvv_ta_all_1s;
 
     uint32_t mvendorid;
