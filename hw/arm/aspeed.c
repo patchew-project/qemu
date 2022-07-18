@@ -440,6 +440,23 @@ static void at24c_eeprom_init(I2CBus *bus, uint8_t addr, uint32_t rsize)
     i2c_slave_realize_and_unref(i2c_dev, bus, &error_abort);
 }
 
+static void at24c_eeprom_init_from_drive(I2CBus *i2c_bus, uint8_t addr,
+                                         uint32_t rsize, int drv_bus,
+                                         int drv_unit)
+{
+    I2CSlave *i2c_dev = i2c_slave_new("at24c-eeprom", addr);
+    DeviceState *dev = DEVICE(i2c_dev);
+    DriveInfo *dinfo = drive_get(IF_NONE, drv_bus, drv_unit);
+
+    qdev_prop_set_uint32(dev, "rom-size", rsize);
+
+    if (dinfo) {
+        qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(dinfo));
+    }
+
+    i2c_slave_realize_and_unref(i2c_dev, i2c_bus, &error_abort);
+}
+
 static void palmetto_bmc_i2c_init(AspeedMachineState *bmc)
 {
     AspeedSoCState *soc = &bmc->soc;
@@ -975,6 +992,9 @@ static void qcom_dc_scm_bmc_i2c_init(AspeedMachineState *bmc)
     AspeedSoCState *soc = &bmc->soc;
 
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 15), "tmp105", 0x4d);
+
+    at24c_eeprom_init_from_drive(aspeed_i2c_get_bus(&soc->i2c, 15), 0x53,
+                                 128 * 1024, 0, 0);
 }
 
 static void qcom_dc_scm_firework_i2c_init(AspeedMachineState *bmc)
@@ -986,6 +1006,10 @@ static void qcom_dc_scm_firework_i2c_init(AspeedMachineState *bmc)
     qcom_dc_scm_bmc_i2c_init(bmc);
 
     /* Now create the Firework specific hardware */
+
+    /* I2C4 */
+    at24c_eeprom_init_from_drive(aspeed_i2c_get_bus(&soc->i2c, 4), 0x50,
+                                 128 * 1024, 0, 1);
 
     /* I2C7 CPUVR MUX */
     cpuvr_mux = i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 7),
