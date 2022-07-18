@@ -267,6 +267,8 @@ struct scrub_regions {
     int fd_idx;
 };
 
+static int enforce_reply(struct vhost_dev *dev, const VhostUserMsg *msg);
+
 static bool ioeventfd_enabled(void)
 {
     return !kvm_enabled() || kvm_eventfds_enabled();
@@ -1198,6 +1200,49 @@ static int vhost_user_set_vring_base(struct vhost_dev *dev,
     return vhost_set_vring(dev, VHOST_USER_SET_VRING_BASE, ring);
 }
 
+
+static int vhost_user_set_single_vring_enable(struct vhost_dev *dev,
+                                              int index,
+                                              int enable,
+                                              bool wait_for_reply)
+{
+    int ret;
+
+    if (index < dev->vq_index || index >= dev->vq_index + dev->nvqs) {
+        return -EINVAL;
+    }
+
+    struct vhost_vring_state state = {
+        .index = index,
+        .num   = enable,
+    };
+
+    VhostUserMsg msg = {
+        .hdr.request = VHOST_USER_SET_VRING_ENABLE,
+        .hdr.flags = VHOST_USER_VERSION,
+        .payload.state = state,
+        .hdr.size = sizeof(msg.payload.state),
+    };
+
+    bool reply_supported = virtio_has_feature(dev->protocol_features,
+                                              VHOST_USER_PROTOCOL_F_REPLY_ACK);
+
+    if (reply_supported && wait_for_reply) {
+        msg.hdr.flags |= VHOST_USER_NEED_REPLY_MASK;
+    }
+
+    ret = vhost_user_write(dev, &msg, NULL, 0);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (wait_for_reply) {
+        return enforce_reply(dev, &msg);
+    }
+
+    return ret;
+}
+
 static int vhost_user_set_vring_enable(struct vhost_dev *dev, int enable)
 {
     int i;
@@ -1207,13 +1252,8 @@ static int vhost_user_set_vring_enable(struct vhost_dev *dev, int enable)
     }
 
     for (i = 0; i < dev->nvqs; ++i) {
-        int ret;
-        struct vhost_vring_state state = {
-            .index = dev->vq_index + i,
-            .num   = enable,
-        };
-
-        ret = vhost_set_vring(dev, VHOST_USER_SET_VRING_ENABLE, &state);
+        int ret = vhost_user_set_single_vring_enable(dev, dev->vq_index + i,
+                                                     enable, false);
         if (ret < 0) {
             /*
              * Restoring the previous state is likely infeasible, as well as
@@ -2627,6 +2667,7 @@ const VhostOps user_ops = {
         .vhost_set_owner = vhost_user_set_owner,
         .vhost_reset_device = vhost_user_reset_device,
         .vhost_get_vq_index = vhost_user_get_vq_index,
+        .vhost_set_single_vring_enable = vhost_user_set_single_vring_enable,
         .vhost_set_vring_enable = vhost_user_set_vring_enable,
         .vhost_requires_shm_log = vhost_user_requires_shm_log,
         .vhost_migration_done = vhost_user_migration_done,
