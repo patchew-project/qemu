@@ -2180,6 +2180,10 @@ void kvm_arch_reset_vcpu(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
 
+    /* Disable BTS feature which is unsupported on KVM */
+    env->msr_ia32_misc_enable |= MSR_IA32_MISC_ENABLE_BTS_UNAVAIL;
+    env->msr_ia32_misc_enable |= MSR_IA32_MISC_ENABLE_PEBS_UNAVAIL;
+
     env->xcr0 = 1;
     if (kvm_irqchip_in_kernel()) {
         env->mp_state = cpu_is_bsp(cpu) ? KVM_MP_STATE_RUNNABLE :
