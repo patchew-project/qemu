@@ -277,6 +277,12 @@ bool vhost_has_free_slot(void);
 int vhost_net_set_backend(struct vhost_dev *hdev,
                           struct vhost_vring_file *file);
 
+
+void vhost_dev_virtqueue_release(struct vhost_dev *hdev, VirtIODevice *vdev,
+                                 int vq_index);
+int vhost_dev_virtqueue_restart(struct vhost_dev *hdev, VirtIODevice *vdev,
+                                int vq_index);
+
 int vhost_device_iotlb_miss(struct vhost_dev *dev, uint64_t iova, int write);
 
 void vhost_dev_reset_inflight(struct vhost_inflight *inflight);

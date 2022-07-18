@@ -1904,3 +1904,32 @@ int vhost_net_set_backend(struct vhost_dev *hdev,
 
     return -ENOSYS;
 }
+
+void vhost_dev_virtqueue_release(struct vhost_dev *hdev, VirtIODevice *vdev,
+                                 int vq_index)
+{
+    int idx = vq_index - hdev->vq_index;
+
+    idx = hdev->vhost_ops->vhost_get_vq_index(hdev, idx);
+
+    vhost_virtqueue_unmap(hdev,
+                          vdev,
+                          hdev->vqs + idx,
+                          hdev->vq_index + idx);
+}
+
+int vhost_dev_virtqueue_restart(struct vhost_dev *hdev, VirtIODevice *vdev,
+                                int vq_index)
+{
+    int idx = vq_index - hdev->vq_index;
+    int r = 0;
+
+    idx = hdev->vhost_ops->vhost_get_vq_index(hdev, idx);
+
+    r = vhost_virtqueue_start(hdev,
+                              vdev,
+                              hdev->vqs + idx,
+                              hdev->vq_index + idx);
+
+    return r;
+}
