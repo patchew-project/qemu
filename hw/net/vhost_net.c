@@ -514,3 +514,58 @@ int vhost_net_set_mtu(struct vhost_net *net, uint16_t mtu)
 
     return vhost_ops->vhost_net_set_mtu(&net->dev, mtu);
 }
+
+void vhost_virtqueue_stop(VirtIODevice *vdev, NetClientState *nc,
+                          int vq_index)
+{
+    VHostNetState *net = get_vhost_net(nc->peer);
+    const VhostOps *vhost_ops = net->dev.vhost_ops;
+    int r;
+
+    assert(vhost_ops);
+
+    r = vhost_ops->vhost_set_single_vring_enable(&net->dev, vq_index, 0, true);
+    if (r < 0) {
+        goto err_queue_disable;
+    }
+
+    vhost_dev_virtqueue_release(&net->dev, vdev, vq_index);
+
+    return;
+
+err_queue_disable:
+    error_report("Error when releasing the qeuue.");
+}
+
+int vhost_virtqueue_restart(VirtIODevice *vdev, NetClientState *nc,
+                            int vq_index)
+{
+    VHostNetState *net = get_vhost_net(nc->peer);
+    const VhostOps *vhost_ops = net->dev.vhost_ops;
+    int r;
+
+    if (!net->dev.started) {
+        return 0;
+    }
+
+    assert(vhost_ops);
+
+    r = vhost_dev_virtqueue_restart(&net->dev, vdev, vq_index);
+    if (r < 0) {
+        goto err_start;
+    }
+
+    r = vhost_ops->vhost_set_single_vring_enable(&net->dev, vq_index, 1,
+                                                 false);
+    if (r < 0) {
+        goto err_start;
+    }
+
+    return 0;
+
+err_start:
+    error_report("Error when restarting the queue.");
+    vhost_dev_stop(&net->dev, vdev);
+
+    return r;
+}
