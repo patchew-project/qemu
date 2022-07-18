@@ -756,6 +756,8 @@ static uint64_t virtio_net_get_features(VirtIODevice *vdev, uint64_t features,
 
     virtio_add_feature(&features, VIRTIO_NET_F_MAC);
 
+    virtio_add_feature(&features, VIRTIO_F_RING_RESET);
+
     if (!peer_has_vnet_hdr(n)) {
         virtio_clear_feature(&features, VIRTIO_NET_F_CSUM);
         virtio_clear_feature(&features, VIRTIO_NET_F_HOST_TSO4);
@@ -776,7 +778,6 @@ static uint64_t virtio_net_get_features(VirtIODevice *vdev, uint64_t features,
     }
 
     if (!get_vhost_net(nc->peer)) {
-        virtio_add_feature(&features, VIRTIO_F_RING_RESET);
         return features;
     }
 
