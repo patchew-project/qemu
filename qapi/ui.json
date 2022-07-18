@@ -1195,12 +1195,19 @@
 #               assuming the guest will resize the display to match
 #               the window size then.  Otherwise it defaults to "off".
 #               Since 3.1
+# @monitor:     List of physical monitor numbers where the GTK windows
+#               containing the virtual consoles VC0, VC1, ... are to be
+#               placed. If a mapping exists for a VC, then it is to be
+#               placed on that specific physical monitor; otherwise,
+#               it defaults to the monitor from where it was launched.
+#               (Since 7.1)
 #
 # Since: 2.12
 ##
 { 'struct'  : 'DisplayGTK',
   'data'    : { '*grab-on-hover' : 'bool',
-                '*zoom-to-fit'   : 'bool'  } }
+                '*zoom-to-fit'   : 'bool',
+                '*monitor'       : ['uint16']  } }
 
 ##
 # @DisplayEGLHeadless:
