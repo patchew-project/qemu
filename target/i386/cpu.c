@@ -6376,6 +6376,7 @@ static void x86_cpu_hyperv_realize(X86CPU *cpu)
 
 static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 {
+    MachineState *machine = MACHINE(qdev_get_machine());
     CPUState *cs = CPU(dev);
     X86CPU *cpu = X86_CPU(dev);
     X86CPUClass *xcc = X86_CPU_GET_CLASS(dev);
@@ -6539,6 +6540,15 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         } else {
             cpu->phys_bits = 32;
         }
+    }
+
+    if (BIT_ULL(cpu->phys_bits) < machine->maxram_size) {
+        error_setg(&local_err, "cannot setup guest memory: "
+                   "%s memory(%lu MiB) exceeds addressable limit(%llu MiB)",
+                   machine->maxram_size == machine->ram_size ? "" : "max",
+                   machine->maxram_size / MiB,
+                   BIT_ULL(cpu->phys_bits) / MiB);
+        goto out;
     }
 
     /* Cache information initialization */
