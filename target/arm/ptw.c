@@ -1716,7 +1716,8 @@ bool pmsav8_mpu_lookup(CPUARMState *env, uint32_t address,
                        MMUAccessType access_type, ARMMMUIdx mmu_idx,
                        hwaddr *phys_ptr, MemTxAttrs *txattrs,
                        int *prot, bool *is_subpage,
-                       ARMMMUFaultInfo *fi, uint32_t *mregion)
+                       ARMMMUFaultInfo *fi, uint32_t *mregion,
+                       ARMCacheAttrs *cacheattrs)
 {
     /*
      * Perform a PMSAv8 MPU lookup (without also doing the SAU check
@@ -1982,7 +1983,7 @@ static bool get_phys_addr_pmsav8(CPUARMState *env, uint32_t address,
                                  MMUAccessType access_type, ARMMMUIdx mmu_idx,
                                  hwaddr *phys_ptr, MemTxAttrs *txattrs,
                                  int *prot, target_ulong *page_size,
-                                 ARMMMUFaultInfo *fi)
+                                 ARMMMUFaultInfo *fi, ARMCacheAttrs *cacheattrs)
 {
     uint32_t secure = regime_is_secure(env, mmu_idx);
     V8M_SAttributes sattrs = {};
@@ -2050,7 +2051,8 @@ static bool get_phys_addr_pmsav8(CPUARMState *env, uint32_t address,
     }
 
     ret = pmsav8_mpu_lookup(env, address, access_type, mmu_idx, phys_ptr,
-                            txattrs, prot, &mpu_is_subpage, fi, NULL);
+                            txattrs, prot, &mpu_is_subpage, fi,
+                            NULL, cacheattrs);
     *page_size = sattrs.subpage || mpu_is_subpage ? 1 : TARGET_PAGE_SIZE;
     return ret;
 }
@@ -2430,7 +2432,8 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
         if (arm_feature(env, ARM_FEATURE_V8)) {
             /* PMSAv8 */
             ret = get_phys_addr_pmsav8(env, address, access_type, mmu_idx,
-                                       phys_ptr, attrs, prot, page_size, fi);
+                                       phys_ptr, attrs, prot, page_size,
+                                       fi, cacheattrs);
         } else if (arm_feature(env, ARM_FEATURE_V7)) {
             /* PMSAv7 */
             ret = get_phys_addr_pmsav7(env, address, access_type, mmu_idx,
