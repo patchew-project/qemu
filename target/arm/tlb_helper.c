@@ -20,7 +20,8 @@ bool regime_using_lpae_format(CPUARMState *env, ARMMMUIdx mmu_idx)
         return true;
     }
     if (arm_feature(env, ARM_FEATURE_LPAE)
-        && (regime_tcr(env, mmu_idx)->raw_tcr & TTBCR_EAE)) {
+        && ((regime_tcr(env, mmu_idx)->raw_tcr & TTBCR_EAE)
+        || arm_feature(env, ARM_FEATURE_V8_R))) {
         return true;
     }
     return false;

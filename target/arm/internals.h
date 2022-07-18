@@ -254,7 +254,8 @@ static inline bool extended_addresses_enabled(CPUARMState *env)
 {
     TCR *tcr = &env->cp15.tcr_el[arm_is_secure(env) ? 3 : 1];
     return arm_el_is_aa64(env, 1) ||
-           (arm_feature(env, ARM_FEATURE_LPAE) && (tcr->raw_tcr & TTBCR_EAE));
+           (arm_feature(env, ARM_FEATURE_LPAE) && ((tcr->raw_tcr & TTBCR_EAE)
+           || arm_feature(env, ARM_FEATURE_V8_R)));
 }
 
 /* Update a QEMU watchpoint based on the information the guest has set in the
