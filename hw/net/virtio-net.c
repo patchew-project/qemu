@@ -539,6 +539,10 @@ static void virtio_net_queue_reset(VirtIODevice *vdev, uint32_t queue_index)
         return;
     }
 
+    if (nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_USER) {
+        vhost_virtqueue_stop(vdev, nc, queue_index);
+    }
+
     qemu_flush_or_purge_queued_packets(nc->peer, true);
     assert(!virtio_net_get_subqueue(nc)->async_tx.elem);
 }
