@@ -5955,7 +5955,12 @@ static void x86_cpu_reset(DeviceState *dev)
         env->tsc = 0;
     }
 
-    env->msr_ia32_misc_enable = MSR_IA32_MISC_ENABLE_DEFAULT;
+    /* Disable BTS feature which is unsupported on KVM */
+    env->msr_ia32_misc_enable = MSR_IA32_MISC_ENABLE_DEFAULT |
+                                MSR_IA32_MISC_ENABLE_BTS_UNAVAIL;
+    if (cpu->enable_pmu) {
+        env->msr_ia32_misc_enable |= MSR_IA32_MISC_ENABLE_EMON;
+    }
     if (env->features[FEAT_1_ECX] & CPUID_EXT_MONITOR) {
         env->msr_ia32_misc_enable |= MSR_IA32_MISC_ENABLE_MWAIT;
     }
