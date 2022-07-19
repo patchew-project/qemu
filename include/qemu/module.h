@@ -73,6 +73,8 @@ bool module_load_one(const char *prefix, const char *lib_name, bool mayfail);
 void module_load_qom_one(const char *type);
 void module_load_qom_all(void);
 void module_allow_arch(const char *arch);
+bool load_external_modules(const char *mods_list);
+bool add_modinfo(const char *filename);
 
 /**
  * DOC: module info annotation macros
@@ -154,7 +156,7 @@ void module_allow_arch(const char *arch);
 typedef struct QemuModinfo QemuModinfo;
 struct QemuModinfo {
     const char *name;
-    const char *arch;
+    const char **arch;
     const char **objs;
     const char **deps;
     const char **opts;

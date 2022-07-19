@@ -21,6 +21,10 @@
 #include "qemu/module.h"
 #include "qemu/cutils.h"
 #include "qemu/config-file.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qjson.h"
+#include "qapi/qmp/qlist.h"
+#include "qapi/qmp/qstring.h"
 #ifdef CONFIG_MODULE_UPGRADES
 #include "qemu-version.h"
 #endif
@@ -124,6 +128,7 @@ void module_init_info(const QemuModinfo *info)
     module_info = info;
 }
 
+
 void module_allow_arch(const char *arch)
 {
     module_arch = arch;
@@ -136,10 +141,20 @@ static bool module_check_arch(const QemuModinfo *modinfo)
             /* no arch set -> ignore all */
             return false;
         }
-        if (strcmp(module_arch, modinfo->arch) != 0) {
-            /* mismatch */
-            return false;
+
+        const char **arch_list = modinfo->arch;
+        const char *arch;
+
+        while ((arch = *(arch_list++))) {
+
+            if (strcmp(module_arch, arch) == 0) {
+                return true;
+            }
         }
+
+        /* modinfo->arch is not empty but no match found */
+        /* current arch is not supported */
+        return false;
     }
     return true;
 }
@@ -314,6 +329,32 @@ bool module_load_one(const char *prefix, const char *lib_name, bool mayfail)
 
 static bool module_loaded_qom_all;
 
+static void modinfo_prepend(QemuModinfo **modinfo, uint32_t mod_count,
+                     const QemuModinfo *modinfo_ext) {
+    const QemuModinfo *pinfo;
+    uint32_t mod_count_new;
+    uint32_t mod_count_ext = 0;
+    uint32_t i;
+
+    for (pinfo = modinfo_ext; pinfo->name != NULL; ++pinfo) {
+        ++mod_count_ext;
+    }
+
+    /* 1 for end of list */
+    mod_count_new = mod_count + mod_count_ext + 1;
+    *modinfo = g_realloc(*modinfo, mod_count_new * sizeof(**modinfo));
+    memmove((*modinfo) + mod_count_ext,
+            *modinfo,
+            mod_count * sizeof(**modinfo));
+    /* last entry with null name treat as end of array */
+    (*modinfo)[mod_count_new - 1].name = NULL;
+
+    for (pinfo = modinfo_ext, i = 0; pinfo->name != NULL; ++pinfo, ++i) {
+        (*modinfo)[i] = *pinfo;
+    }
+}
+
+
 void module_load_qom_one(const char *type)
 {
     const QemuModinfo *modinfo;
@@ -376,11 +417,213 @@ void qemu_load_module_for_opts(const char *group)
     }
 }
 
+bool load_external_modules(const char *mods_list)
+{
+    bool res = false;
+    g_auto(GStrv) mod_names = NULL;
+
+    mod_names = g_strsplit(mods_list, ",", -1);
+    for (int i = 0; mod_names[i]; ++i) {
+        res = module_load_one("", mod_names[i], false);
+        if (!res) {
+            error_report("Module %s not found", mod_names[i]);
+            break;
+        }
+        info_report("Module %s loaded", mod_names[i]);
+    }
+
+    return res;
+}
+
+bool add_modinfo(const char *filename)
+{
+    g_autofree char *buf = NULL;
+    gsize buflen;
+    GError *gerr = NULL;
+    QDict *modinfo_dict;
+    QList *arch;
+    QList *objs;
+    QList *deps;
+    QList *opts;
+    const QDictEntry *entry;
+    uint32_t i = 0;
+    uint32_t mod_count = 0;
+    QemuModinfo *modinfo_ext;
+
+    if (!g_file_get_contents(filename, &buf, &buflen, &gerr)) {
+        fprintf(stderr, "Cannot open modinfo extension file %s: %s\n",
+                filename, gerr->message);
+        g_error_free(gerr);
+        return false;
+    }
+
+    modinfo_dict = qdict_from_json_nofail_nofmt(buf);
+
+    if (!modinfo_dict) {
+        fprintf(stderr, "Invalid modinfo (%s) format: parsing json error\n",
+                filename);
+        g_error_free(gerr);
+        return false;
+    }
+
+    for (entry = qdict_first(modinfo_dict); entry;
+         entry = qdict_next(modinfo_dict, entry)) {
+        mod_count++;
+    }
+    if (mod_count == 0) {
+        return true;
+    }
+
+    modinfo_ext = g_malloc0(sizeof(*modinfo_ext) * (mod_count + 1));
+    /* last entry with null name treat as end of array */
+    modinfo_ext[mod_count].name = NULL;
+
+    for (entry = qdict_first(modinfo_dict), i = 0; entry;
+         entry = qdict_next(modinfo_dict, entry), ++i) {
+
+        QListEntry *qlist_entry;
+        QDict *module_dict;
+        QemuModinfo *modinfo;
+        size_t list_size;
+        uint32_t n = 0;
+
+        if (qobject_type(entry->value) != QTYPE_QDICT) {
+            fprintf(stderr, "Invalid modinfo (%s) format: entry is"
+                    " not dictionary\n", filename);
+            return false;
+        }
+
+        module_dict = qobject_to(QDict, entry->value);
+        modinfo = &modinfo_ext[i];
+
+        modinfo->name = g_strdup(qdict_get_str(module_dict, "name"));
+
+        arch = qdict_get_qlist(module_dict, "arch");
+        if (arch) {
+            n = 0;
+            list_size = qlist_size(arch);
+            modinfo->arch = g_malloc((list_size + 1) * sizeof(*modinfo->arch));
+            modinfo->arch[list_size] = NULL;
+            QLIST_FOREACH_ENTRY(arch, qlist_entry) {
+                if (qobject_type(qlist_entry->value) != QTYPE_QSTRING) {
+                    fprintf(stderr, "Invalid modinfo (%s) format: arch\n\n",
+                            filename);
+                    return false;
+                }
+                QString *qstr = qobject_to(QString, qlist_entry->value);
+                modinfo->arch[n++] = g_strdup(qstring_get_str(qstr));
+            }
+        } else {
+             modinfo->arch = NULL;
+        }
+
+        objs = qdict_get_qlist(module_dict, "objs");
+        if (objs) {
+            n = 0;
+            list_size = qlist_size(objs);
+            modinfo->objs = g_malloc((list_size + 1) * sizeof(*modinfo->objs));
+            modinfo->objs[list_size] = NULL;
+            QLIST_FOREACH_ENTRY(objs, qlist_entry) {
+                if (qobject_type(qlist_entry->value) != QTYPE_QSTRING) {
+                    fprintf(stderr, "Invalid modinfo (%s) format: objs\n\n",
+                            filename);
+                    return false;
+                }
+                QString *qstr = qobject_to(QString, qlist_entry->value);
+                modinfo->objs[n++] = g_strdup(qstring_get_str(qstr));
+            }
+        } else {
+             modinfo->objs = NULL;
+        }
+
+        deps = qdict_get_qlist(module_dict, "deps");
+        if (deps) {
+            n = 0;
+            list_size = qlist_size(deps);
+            modinfo->deps = g_malloc((list_size + 1) * sizeof(*modinfo->deps));
+            modinfo->deps[list_size] = NULL;
+            QLIST_FOREACH_ENTRY(deps, qlist_entry) {
+                if (qobject_type(qlist_entry->value) != QTYPE_QSTRING) {
+                    fprintf(stderr, "Invalid modinfo (%s) format: deps",
+                            filename);
+                    return false;
+                }
+                QString *qstr = qobject_to(QString, qlist_entry->value);
+                modinfo->deps[n++] = g_strdup(qstring_get_str(qstr));
+            }
+        } else {
+             modinfo->deps = NULL;
+        }
+
+        opts = qdict_get_qlist(module_dict, "opts");
+        if (opts) {
+            n = 0;
+            list_size = qlist_size(opts);
+            modinfo->opts = g_malloc((list_size + 1) * sizeof(*modinfo->opts));
+            modinfo->opts[list_size] = NULL;
+            QLIST_FOREACH_ENTRY(opts, qlist_entry) {
+                if (qobject_type(qlist_entry->value) != QTYPE_QSTRING) {
+                    fprintf(stderr, "Invalid modinfo (%s) format: opts\n",
+                            filename);
+                    return false;
+                }
+                QString *qstr = qobject_to(QString, qlist_entry->value);
+                modinfo->opts[n++] = g_strdup(qstring_get_str(qstr));
+            }
+        } else {
+             modinfo->opts = NULL;
+        }
+    }
+
+    qobject_unref(modinfo_dict);
+
+    modinfo_prepend(&modinfo_ext, mod_count, module_info);
+    module_init_info(modinfo_ext);
+    return true;
+}
+
+void modinfo_prepend(QemuModinfo **modinfo, uint32_t mod_count,
+                     const QemuModinfo *modinfo_ext)
+{
+    const QemuModinfo *pinfo;
+    uint32_t mod_count_new;
+    uint32_t mod_count_ext = 0;
+    uint32_t i;
+
+    for (pinfo = modinfo_ext; pinfo->name != NULL; ++pinfo) {
+        ++mod_count_ext;
+    }
+
+    /* 1 for end of list */
+    mod_count_new = mod_count + mod_count_ext + 1;
+    *modinfo = g_realloc(*modinfo, mod_count_new * sizeof(**modinfo));
+    memmove((*modinfo) + mod_count_ext,
+            *modinfo,
+            mod_count * sizeof(**modinfo));
+    /* last entry with null name treat as end of array */
+    (*modinfo)[mod_count_new - 1].name = NULL;
+
+    for (pinfo = modinfo_ext, i = 0; pinfo->name != NULL; ++pinfo, ++i) {
+        (*modinfo)[i] = *pinfo;
+    }
+}
+
+
 #else
 
 void module_allow_arch(const char *arch) {}
 void qemu_load_module_for_opts(const char *group) {}
 void module_load_qom_one(const char *type) {}
 void module_load_qom_all(void) {}
+bool load_external_modules(const char *mods_list)
+{
+    fprintf(stderr, "Modules are not enabled\n");
+    return false;
+}
+bool add_modinfo(const char *filename)
+{
+    fprintf(stderr, "Modules are not enabled\n");
+    return false;
+}
 
 #endif

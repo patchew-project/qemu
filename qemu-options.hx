@@ -5476,6 +5476,44 @@ SRST
             (qemu) qom-set /objects/iothread1 poll-max-ns 100000
 ERST
 
+DEF("add_machines", HAS_ARG, QEMU_OPTION_add_machines, \
+    "-add_machines libname[,...]\n",
+    QEMU_ARCH_ALL)
+SRST
+``-add_machines libname[,...]``
+    Add machines from external modules.
+    For example:
+
+    ::
+
+        -add_machines custom-arm-machine,custom-arm-machine2
+ERST
+
+DEF("add_modinfo", HAS_ARG, QEMU_OPTION_add_modinfo, \
+    "-add_modinfo filename\n",
+    QEMU_ARCH_ALL)
+SRST
+``-add_modinfo filename``
+    Extend modinfo from file. Used to add devices from external modules.
+    Modinfo extention file is a JSON file with dictionary of modules:
+    {
+    "short name of module": {"name": "module-name",
+                             "arch": ["supported_arch_1", "supported_arch_2",],
+                             "objs": ["object1_description", "object2_description",],
+                             "deps": ["depend_of_module_name1", "depend_of_module_name2",],
+                             "opts": ["option1", "option2",]
+                            }
+    }
+
+    Architectures should be designated as they are printed by ./configure --help in target list
+    without "-softmmu" or "-linux-user" suffixes. e.g.: "arm", "x86_64", "riscv32", etc.
+
+    For example:
+
+    ::
+
+        -add_modinfo modinfo_extention.json
+ERST
 
 HXCOMM This is the last statement. Insert new options before this line!
 
