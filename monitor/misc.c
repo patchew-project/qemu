@@ -307,6 +307,7 @@ int monitor_get_cpu_index(Monitor *mon)
 static void hmp_info_registers(Monitor *mon, const QDict *qdict)
 {
     bool all_cpus = qdict_get_try_bool(qdict, "cpustate_all", false);
+    int vcpu = qdict_get_try_int(qdict, "vcpu", -1);
     CPUState *cs;
 
     if (all_cpus) {
@@ -314,6 +315,24 @@ static void hmp_info_registers(Monitor *mon, const QDict *qdict)
             monitor_printf(mon, "\nCPU#%d\n", cs->cpu_index);
             cpu_dump_state(cs, NULL, CPU_DUMP_FPU);
         }
+    } else if (vcpu >= 0) {
+        CPUState *target_cs = NULL;
+
+        CPU_FOREACH(cs) {
+            if (cs->cpu_index == vcpu) {
+                target_cs = cs;
+                break;
+            }
+        }
+
+        if (!target_cs) {
+            monitor_printf(mon, "CPU#%d not available\n", vcpu);
+            return;
+        }
+
+        monitor_printf(mon, "\nCPU#%d\n", target_cs->cpu_index);
+        cpu_dump_state(target_cs, NULL, CPU_DUMP_FPU);
+        return;
     } else {
         cs = mon_get_cpu(mon);
 
