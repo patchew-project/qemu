@@ -148,6 +148,20 @@ QDict *qdict_from_jsonf_nofail(const char *string, ...)
     return qdict;
 }
 
+/*
+ * Parse @string as JSON object without %-escapes interpolated.
+ * Abort on error.  Do not use with untrusted @string.
+ * Return the resulting QDict.  It is never null.
+ */
+QDict *qdict_from_json_nofail_nofmt(const char *string)
+{
+    QDict *qdict;
+    qdict = qobject_to(QDict, qobject_from_json(string, &error_abort));
+    assert(qdict);
+    return qdict;
+}
+
+
 static void to_json(JSONWriter *writer, const char *name,
                     const QObject *obj)
 {
