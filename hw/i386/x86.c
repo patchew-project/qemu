@@ -26,6 +26,7 @@
 #include "qemu/cutils.h"
 #include "qemu/units.h"
 #include "qemu/datadir.h"
+#include "qemu/guest-random.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qapi-visit-common.h"
@@ -1045,6 +1046,16 @@ void x86_load_linux(X86MachineState *x86ms,
     }
     fclose(f);
 
+    setup_data_offset = QEMU_ALIGN_UP(kernel_size, 16);
+    kernel_size = setup_data_offset + sizeof(struct setup_data) + 32;
+    kernel = g_realloc(kernel, kernel_size);
+    stq_p(header + 0x250, prot_addr + setup_data_offset);
+    setup_data = (struct setup_data *)(kernel + setup_data_offset);
+    setup_data->next = 0;
+    setup_data->type = cpu_to_le32(SETUP_RNG_SEED);
+    setup_data->len = cpu_to_le32(32);
+    qemu_guest_getrandom_nofail(setup_data->data, 32);
+
     /* append dtb to kernel */
     if (dtb_filename) {
         if (protocol < 0x209) {
@@ -1059,13 +1070,11 @@ void x86_load_linux(X86MachineState *x86ms,
             exit(1);
         }
 
-        setup_data_offset = QEMU_ALIGN_UP(kernel_size, 16);
-        kernel_size = setup_data_offset + sizeof(struct setup_data) + dtb_size;
+        kernel_size += sizeof(struct setup_data) + dtb_size;
         kernel = g_realloc(kernel, kernel_size);
 
-        stq_p(header + 0x250, prot_addr + setup_data_offset);
-
-        setup_data = (struct setup_data *)(kernel + setup_data_offset);
+        setup_data->next = prot_addr + setup_data_offset + sizeof(*setup_data) + setup_data->len;
+        ++setup_data;
         setup_data->next = 0;
         setup_data->type = cpu_to_le32(SETUP_DTB);
         setup_data->len = cpu_to_le32(dtb_size);
