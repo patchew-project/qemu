@@ -55,9 +55,9 @@ static gboolean io_watch_poll_prepare(GSource *source,
             iwp->ioc, G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL);
         g_source_set_callback(iwp->src, iwp->fd_read, iwp->opaque, NULL);
         g_source_add_child_source(source, iwp->src);
-        g_source_unref(iwp->src);
     } else {
         g_source_remove_child_source(source, iwp->src);
+        g_source_unref(iwp->src);
         iwp->src = NULL;
     }
     return FALSE;
@@ -69,9 +69,17 @@ static gboolean io_watch_poll_dispatch(GSource *source, GSourceFunc callback,
     return G_SOURCE_CONTINUE;
 }
 
+static void io_watch_poll_finalize(GSource *source)
+{
+    IOWatchPoll *iwp = io_watch_poll_from_source(source);
+    g_clear_pointer(&iwp->src, g_source_unref);
+    g_clear_pointer(&iwp->ioc, object_unref);
+}
+
 static GSourceFuncs io_watch_poll_funcs = {
     .prepare = io_watch_poll_prepare,
     .dispatch = io_watch_poll_dispatch,
+    .finalize = io_watch_poll_finalize,
 };
 
 GSource *io_add_watch_poll(Chardev *chr,
@@ -88,7 +96,7 @@ GSource *io_add_watch_poll(Chardev *chr,
                                        sizeof(IOWatchPoll));
     iwp->fd_can_read = fd_can_read;
     iwp->opaque = user_data;
-    iwp->ioc = ioc;
+    iwp->ioc = object_ref(ioc);
     iwp->fd_read = (GSourceFunc) fd_read;
     iwp->src = NULL;
 
