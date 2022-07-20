@@ -4257,6 +4257,7 @@ static int nvme_init_cq_ioeventfd(NvmeCQueue *cq)
 {
     NvmeCtrl *n = cq->ctrl;
     uint16_t offset = (cq->cqid << 3) + (1 << 2);
+    bool in_iothread = !qemu_in_main_thread();
     int ret;
 
     ret = event_notifier_init(&cq->notifier, 0);
@@ -4264,10 +4265,19 @@ static int nvme_init_cq_ioeventfd(NvmeCQueue *cq)
         return ret;
     }
 
-    event_notifier_set_handler(&cq->notifier, nvme_cq_notifier);
+    if (in_iothread) {
+        qemu_mutex_lock_iothread();
+    }
+
+    aio_set_event_notifier(n->ctx, &cq->notifier, true, nvme_cq_notifier,
+                           NULL, NULL);
     memory_region_add_eventfd(&n->iomem,
                               0x1000 + offset, 4, false, 0, &cq->notifier);
 
+    if (in_iothread) {
+        qemu_mutex_unlock_iothread();
+    }
+    
     return 0;
 }
 
@@ -4284,6 +4294,7 @@ static int nvme_init_sq_ioeventfd(NvmeSQueue *sq)
 {
     NvmeCtrl *n = sq->ctrl;
     uint16_t offset = sq->sqid << 3;
+    bool in_iothread = !qemu_in_main_thread();
     int ret;
 
     ret = event_notifier_init(&sq->notifier, 0);
@@ -4291,9 +4302,16 @@ static int nvme_init_sq_ioeventfd(NvmeSQueue *sq)
         return ret;
     }
 
-    event_notifier_set_handler(&sq->notifier, nvme_sq_notifier);
+    if (in_iothread) {
+        qemu_mutex_lock_iothread();
+    }
+    aio_set_event_notifier(n->ctx, &sq->notifier, true, nvme_sq_notifier,
+                           NULL, NULL);
     memory_region_add_eventfd(&n->iomem,
                               0x1000 + offset, 4, false, 0, &sq->notifier);
+    if (in_iothread) {
+        qemu_mutex_unlock_iothread();
+    }
 
     return 0;
 }
@@ -4301,13 +4319,22 @@ static int nvme_init_sq_ioeventfd(NvmeSQueue *sq)
 static void nvme_free_sq(NvmeSQueue *sq, NvmeCtrl *n)
 {
     uint16_t offset = sq->sqid << 3;
+    bool in_iothread = !qemu_in_main_thread();
 
     n->sq[sq->sqid] = NULL;
     timer_free(sq->timer);
     if (sq->ioeventfd_enabled) {
+        if (in_iothread) {
+            qemu_mutex_lock_iothread();
+        }
+
         memory_region_del_eventfd(&n->iomem,
                                   0x1000 + offset, 4, false, 0, &sq->notifier);
         event_notifier_cleanup(&sq->notifier);
+
+        if (in_iothread) {
+            qemu_mutex_unlock_iothread();
+        }
     }
     g_free(sq->io_req);
     if (sq->sqid) {
@@ -4376,8 +4403,9 @@ static void nvme_init_sq(NvmeSQueue *sq, NvmeCtrl *n, uint64_t dma_addr,
         sq->io_req[i].sq = sq;
         QTAILQ_INSERT_TAIL(&(sq->req_list), &sq->io_req[i], entry);
     }
-    sq->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, nvme_process_sq, sq);
 
+    sq->timer = aio_timer_new(n->ctx, QEMU_CLOCK_VIRTUAL, SCALE_NS,
+                              nvme_process_sq, sq);
     if (n->dbbuf_enabled) {
         sq->db_addr = n->dbbuf_dbs + (sqid << 3);
         sq->ei_addr = n->dbbuf_eis + (sqid << 3);
@@ -4691,13 +4719,22 @@ static uint16_t nvme_get_log(NvmeCtrl *n, NvmeRequest *req)
 static void nvme_free_cq(NvmeCQueue *cq, NvmeCtrl *n)
 {
     uint16_t offset = (cq->cqid << 3) + (1 << 2);
+    bool in_iothread = !qemu_in_main_thread();
 
     n->cq[cq->cqid] = NULL;
     timer_free(cq->timer);
     if (cq->ioeventfd_enabled) {
+        if (in_iothread) {
+            qemu_mutex_lock_iothread();
+        }
+        
         memory_region_del_eventfd(&n->iomem,
                                   0x1000 + offset, 4, false, 0, &cq->notifier);
         event_notifier_cleanup(&cq->notifier);
+        
+        if (in_iothread) {
+            qemu_mutex_unlock_iothread();
+        }
     }
     if (msix_enabled(&n->parent_obj)) {
         msix_vector_unuse(&n->parent_obj, cq->vector);
@@ -4765,7 +4802,8 @@ static void nvme_init_cq(NvmeCQueue *cq, NvmeCtrl *n, uint64_t dma_addr,
         }
     }
     n->cq[cqid] = cq;
-    cq->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, nvme_post_cqes, cq);
+    cq->timer = aio_timer_new(n->ctx, QEMU_CLOCK_VIRTUAL, SCALE_NS,
+                              nvme_post_cqes, cq);
 }
 
 static uint16_t nvme_create_cq(NvmeCtrl *n, NvmeRequest *req)
@@ -6557,6 +6595,7 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
     uint32_t intms = ldl_le_p(&n->bar.intms);
     uint32_t csts = ldl_le_p(&n->bar.csts);
     uint32_t pmrsts = ldl_le_p(&n->bar.pmrsts);
+    bool in_iothread = !qemu_in_main_thread();
 
     if (unlikely(offset & (sizeof(uint32_t) - 1))) {
         NVME_GUEST_ERR(pci_nvme_ub_mmiowr_misaligned32,
@@ -6726,10 +6765,22 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
 
         stl_le_p(&n->bar.pmrctl, data);
         if (NVME_PMRCTL_EN(data)) {
+            if (in_iothread) {
+                qemu_mutex_lock_iothread();
+            }
             memory_region_set_enabled(&n->pmr.dev->mr, true);
+            if (in_iothread) {
+                qemu_mutex_unlock_iothread();
+            }
             pmrsts = 0;
         } else {
+            if (in_iothread) {
+                qemu_mutex_lock_iothread();
+            }
             memory_region_set_enabled(&n->pmr.dev->mr, false);
+            if (in_iothread) {
+                qemu_mutex_unlock_iothread();
+            }
             NVME_PMRSTS_SET_NRDY(pmrsts, 1);
             n->pmr.cmse = false;
         }
@@ -7528,6 +7579,14 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
     if (pci_is_vf(&n->parent_obj) && !sctrl->scs) {
         stl_le_p(&n->bar.csts, NVME_CSTS_FAILED);
     }
+
+    if (n->params.iothread) {
+        n->iothread = n->params.iothread;
+        object_ref(OBJECT(n->iothread));
+        n->ctx = iothread_get_aio_context(n->iothread);
+    } else {
+        n->ctx = qemu_get_aio_context();
+    }
 }
 
 static int nvme_init_subsys(NvmeCtrl *n, Error **errp)
@@ -7600,7 +7659,7 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
         ns = &n->namespace;
         ns->params.nsid = 1;
 
-        if (nvme_ns_setup(ns, errp)) {
+        if (nvme_ns_setup(n, ns, errp)) {
             return;
         }
 
@@ -7630,6 +7689,15 @@ static void nvme_exit(PCIDevice *pci_dev)
     g_free(n->cq);
     g_free(n->sq);
     g_free(n->aer_reqs);
+
+    aio_context_acquire(n->ctx);
+    blk_set_aio_context(n->namespace.blkconf.blk, qemu_get_aio_context(), NULL);
+    aio_context_release(n->ctx);
+
+    if (n->iothread) {
+        object_unref(OBJECT(n->iothread));
+        n->iothread = NULL;
+    }
 
     if (n->params.cmb_size_mb) {
         g_free(n->cmb.buf);
@@ -7665,6 +7733,8 @@ static Property nvme_props[] = {
     DEFINE_PROP_BOOL("use-intel-id", NvmeCtrl, params.use_intel_id, false),
     DEFINE_PROP_BOOL("legacy-cmb", NvmeCtrl, params.legacy_cmb, false),
     DEFINE_PROP_BOOL("ioeventfd", NvmeCtrl, params.ioeventfd, true),
+    DEFINE_PROP_LINK("iothread", NvmeCtrl, params.iothread, TYPE_IOTHREAD,
+                     IOThread *),
     DEFINE_PROP_UINT8("zoned.zasl", NvmeCtrl, params.zasl, 0),
     DEFINE_PROP_BOOL("zoned.auto_transition", NvmeCtrl,
                      params.auto_transition_zones, true),

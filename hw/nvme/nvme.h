@@ -21,6 +21,7 @@
 #include "qemu/uuid.h"
 #include "hw/pci/pci.h"
 #include "hw/block/block.h"
+#include "sysemu/iothread.h"
 
 #include "block/nvme.h"
 
@@ -275,7 +276,7 @@ static inline void nvme_aor_dec_active(NvmeNamespace *ns)
 }
 
 void nvme_ns_init_format(NvmeNamespace *ns);
-int nvme_ns_setup(NvmeNamespace *ns, Error **errp);
+int nvme_ns_setup(NvmeCtrl *n, NvmeNamespace *ns, Error **errp);
 void nvme_ns_drain(NvmeNamespace *ns);
 void nvme_ns_shutdown(NvmeNamespace *ns);
 void nvme_ns_cleanup(NvmeNamespace *ns);
@@ -427,6 +428,7 @@ typedef struct NvmeParams {
     uint16_t sriov_vi_flexible;
     uint8_t  sriov_max_vq_per_vf;
     uint8_t  sriov_max_vi_per_vf;
+    IOThread *iothread;
 } NvmeParams;
 
 typedef struct NvmeCtrl {
@@ -458,6 +460,8 @@ typedef struct NvmeCtrl {
     uint64_t    dbbuf_dbs;
     uint64_t    dbbuf_eis;
     bool        dbbuf_enabled;
+    IOThread    *iothread;
+    AioContext  *ctx;
 
     struct {
         MemoryRegion mem;
