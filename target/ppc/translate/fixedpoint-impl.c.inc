@@ -82,10 +82,14 @@ static bool do_ldst_quad(DisasContext *ctx, arg_D *a, bool store, bool prefixed)
         /* lq and stq were privileged prior to V. 2.07 */
         REQUIRE_SV(ctx);
 
+#if !defined(CONFIG_USER_ONLY)
         if (ctx->le_mode) {
             gen_align_no_le(ctx);
             return true;
         }
+#else
+    qemu_build_not_reached();
+#endif
     }
 
     if (!store && unlikely(a->ra == a->rt)) {
