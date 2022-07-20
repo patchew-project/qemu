@@ -90,7 +90,7 @@ fi
 # Prepare a preinstalled tree
 make install DESTDIR=$DEST_DIR/qemu-bundle
 
-targets=$(./qemu-fuzz-i386 | awk '$1 ~ /\*/  {print $2}')
+targets=$(./qemu-fuzz-i386 | grep generic-fuzz | awk '$1 ~ /\*/  {print $2}')
 base_copy="$DEST_DIR/qemu-fuzz-i386-target-$(echo "$targets" | head -n 1)"
 
 cp "./qemu-fuzz-i386" "$base_copy"
