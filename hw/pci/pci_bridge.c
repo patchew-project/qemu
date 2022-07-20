@@ -33,6 +33,7 @@
 #include "qemu/units.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
+#include "hw/pci/pcie_port.h"
 #include "qemu/module.h"
 #include "qemu/range.h"
 #include "qapi/error.h"
@@ -386,6 +387,11 @@ void pci_bridge_initfn(PCIDevice *dev, const char *typename)
     br->windows = pci_bridge_region_init(br);
     QLIST_INIT(&sec_bus->child);
     QLIST_INSERT_HEAD(&parent->child, sec_bus, sibling);
+
+    /* PCIe slot derivatives are bridges with a single slot; enforce that */
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PCIE_SLOT)) {
+        sec_bus->slot_reserved_mask = ~1u;
+    }
 }
 
 /* default qdev clean up function for PCI-to-PCI bridge */
