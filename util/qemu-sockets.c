@@ -52,10 +52,10 @@ static int inet_getport(struct addrinfo *e)
 
     switch (e->ai_family) {
     case PF_INET6:
-        i6 = (void*)e->ai_addr;
+        i6 = (void *)e->ai_addr;
         return ntohs(i6->sin6_port);
     case PF_INET:
-        i4 = (void*)e->ai_addr;
+        i4 = (void *)e->ai_addr;
         return ntohs(i4->sin_port);
     default:
         return 0;
@@ -69,11 +69,11 @@ static void inet_setport(struct addrinfo *e, int port)
 
     switch (e->ai_family) {
     case PF_INET6:
-        i6 = (void*)e->ai_addr;
+        i6 = (void *)e->ai_addr;
         i6->sin6_port = htons(port);
         break;
     case PF_INET:
-        i4 = (void*)e->ai_addr;
+        i4 = (void *)e->ai_addr;
         i4->sin_port = htons(port);
         break;
     }
@@ -210,9 +210,9 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
                              int num,
                              Error **errp)
 {
-    struct addrinfo ai,*res,*e;
+    struct addrinfo ai, *res, *e;
     char port[33];
-    char uaddr[INET6_ADDRSTRLEN+1];
+    char uaddr[INET6_ADDRSTRLEN + 1];
     char uport[33];
     int rc, port_min, port_max, p;
     int slisten = -1;
@@ -226,7 +226,7 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
         return -1;
     }
 
-    memset(&ai,0, sizeof(ai));
+    memset(&ai, 0, sizeof(ai));
     ai.ai_flags = AI_PASSIVE;
     if (saddr->has_numeric && saddr->numeric) {
         ai.ai_flags |= AI_NUMERICHOST | AI_NUMERICSERV;
@@ -282,8 +282,8 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
             e->ai_protocol = IPPROTO_MPTCP;
         }
 #endif
-        getnameinfo((struct sockaddr*)e->ai_addr,e->ai_addrlen,
-                        uaddr,INET6_ADDRSTRLEN,uport,32,
+        getnameinfo((struct sockaddr *)e->ai_addr, e->ai_addrlen,
+                        uaddr, INET6_ADDRSTRLEN, uport, 32,
                         NI_NUMERICHOST | NI_NUMERICSERV);
 
         port_min = inet_getport(e);
@@ -548,7 +548,7 @@ static int inet_dgram_saddr(InetSocketAddress *sraddr,
     Error *err = NULL;
 
     /* lookup peer addr */
-    memset(&ai,0,sizeof(ai));
+    memset(&ai, 0, sizeof(ai));
     ai.ai_flags = AI_CANONNAME | AI_V4MAPPED | AI_ADDRCONFIG;
     ai.ai_family = inet_ai_family_from_address(sraddr, &err);
     ai.ai_socktype = SOCK_DGRAM;
@@ -575,7 +575,7 @@ static int inet_dgram_saddr(InetSocketAddress *sraddr,
     }
 
     /* lookup local addr */
-    memset(&ai,0, sizeof(ai));
+    memset(&ai, 0, sizeof(ai));
     ai.ai_flags = AI_PASSIVE;
     ai.ai_family = peer->ai_family;
     ai.ai_socktype = SOCK_DGRAM;
@@ -616,7 +616,7 @@ static int inet_dgram_saddr(InetSocketAddress *sraddr,
     }
 
     /* connect to peer */
-    if (connect(sock,peer->ai_addr,peer->ai_addrlen) < 0) {
+    if (connect(sock, peer->ai_addr, peer->ai_addrlen) < 0) {
         error_setg_errno(errp, errno, "Failed to connect to '%s:%s'",
                          addr, port);
         goto err;
