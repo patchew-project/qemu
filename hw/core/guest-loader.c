@@ -31,6 +31,7 @@
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "qemu/guest-random.h"
 #include "guest-loader.h"
 #include "sysemu/device_tree.h"
 #include "hw/boards.h"
@@ -46,6 +47,7 @@ static void loader_insert_platform_data(GuestLoaderState *s, int size,
     g_autofree char *node = g_strdup_printf("/chosen/module@0x%08" PRIx64,
                                             s->addr);
     uint64_t reg_attr[2] = {cpu_to_be64(s->addr), cpu_to_be64(size)};
+    uint8_t rng_seed[32];
 
     if (!fdt) {
         error_setg(errp, "Cannot modify FDT fields if the machine has none");
@@ -54,6 +56,9 @@ static void loader_insert_platform_data(GuestLoaderState *s, int size,
 
     qemu_fdt_add_subnode(fdt, node);
     qemu_fdt_setprop(fdt, node, "reg", &reg_attr, sizeof(reg_attr));
+
+    qemu_guest_getrandom_nofail(rng_seed, sizeof(rng_seed));
+    qemu_fdt_setprop(fdt, node, "rng-seed", rng_seed, sizeof(rng_seed));
 
     if (s->kernel) {
         const char *compat[2] = { "multiboot,module", "multiboot,kernel" };
