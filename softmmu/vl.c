@@ -45,7 +45,7 @@
 #include "sysemu/seccomp.h"
 #include "sysemu/tcg.h"
 #include "sysemu/xen.h"
-
+#include "migration/migration.h"
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "qemu/accel.h"
@@ -160,6 +160,7 @@ typedef struct DeviceOption {
 static const char *cpu_option;
 static const char *mem_path;
 static const char *incoming;
+static const char *multi_fd_incoming;
 static const char *loadvm;
 static const char *accelerators;
 static bool have_custom_ram_size;
@@ -2312,6 +2313,11 @@ static void qemu_validate_options(const QDict *machine_opts)
         error_report("'preconfig' supports '-incoming defer' only");
         exit(EXIT_FAILURE);
     }
+    if (multi_fd_incoming && preconfig_requested &&
+        strcmp(multi_fd_incoming, "defer") != 0) {
+        error_report("'preconfig' supports '-multi-fd-incoming defer' only");
+        exit(EXIT_FAILURE);
+    }
 
 #ifdef CONFIG_CURSES
     if (is_daemonized() && dpy.type == DISPLAY_TYPE_CURSES) {
@@ -2600,9 +2606,23 @@ void qmp_x_exit_preconfig(Error **errp)
     if (incoming) {
         Error *local_err = NULL;
         if (strcmp(incoming, "defer") != 0) {
-            qmp_migrate_incoming(incoming, &local_err);
+            migrate_incoming(incoming, &local_err);
             if (local_err) {
                 error_reportf_err(local_err, "-incoming %s: ", incoming);
+                exit(1);
+            }
+        }
+    } else if (autostart) {
+        qmp_cont(NULL);
+    }
+
+    if (multi_fd_incoming) {
+        Error *local_err = NULL;
+        if (strcmp(multi_fd_incoming, "defer") != 0) {
+            multi_fd_migrate_incoming(multi_fd_incoming, &local_err);
+            if (local_err) {
+                error_reportf_err(local_err, "-multi-fd-incoming %s: ",
+                                multi_fd_incoming);
                 exit(1);
             }
         }
@@ -3330,6 +3350,12 @@ void qemu_init(int argc, char **argv, char **envp)
                     runstate_set(RUN_STATE_INMIGRATE);
                 }
                 incoming = optarg;
+                break;
+            case QEMU_OPTION_multi_fd_incoming:
+                if (!multi_fd_incoming) {
+                    runstate_set(RUN_STATE_INMIGRATE);
+                }
+                multi_fd_incoming = optarg;
                 break;
             case QEMU_OPTION_only_migratable:
                 only_migratable = 1;

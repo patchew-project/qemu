@@ -4479,6 +4479,24 @@ SRST
     to issuing the migrate\_incoming to allow the migration to begin.
 ERST
 
+DEF("multi-fd-incoming", HAS_ARG, QEMU_OPTION_multi_fd_incoming, \
+    "-multi-fd-incoming tcp:[host]:port[:channel][,to=maxport][,ipv4=on|off][,ipv6=on|off]\n" \
+    "-multi-fd-incoming defer\n" \
+    "                wait for the URI to be specified via\n" \
+    "                multi_fd_migrate_incoming\n",
+    QEMU_ARCH_ALL)
+SRST
+``-multi-fd-incoming tcp:[host]:port[:channel][,to=maxport][,ipv4=on|off][,ipv6=on|off]``
+    Prepare for multi-fd incoming migration, with multi-fd listening sockets
+    on that connection. Default number of multi-fd channels is 2.
+
+``-multi-fd-incoming defer``
+    Wait for the URI to be specified via multi_fd_migrate\_incoming. The
+    monitor can be used to change settings (such as migration parameters)
+    prior to issuing the multi_fd_migrate\_incoming to allow the migration
+    to begin.
+ERST
+
 DEF("only-migratable", 0, QEMU_OPTION_only_migratable, \
     "-only-migratable     allow only migratable devices\n", QEMU_ARCH_ALL)
 SRST

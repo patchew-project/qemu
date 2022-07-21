@@ -1527,13 +1527,35 @@
            '*resume': 'bool' } }
 
 ##
+# @MigrateIncomingUri:
+#
+# Information regarding which destination listening interface to be connected
+# and number of multifd channels over that interface.
+#
+# @destination-uri: the Uniform Resource Identifier of the destination VM
+#
+# @multifd-channels: number of channels used to migrate data in parallel for
+#                    for specific source-uri and destination-uri.
+#                    Default value in this case is 2 (Since 4.0)
+#
+##
+{ 'struct' : 'MigrateIncomingUri',
+  'data' : { 'destination-uri' : 'str',
+           '*multifd-channels' : 'uint8'} }
+
+##
 # @migrate-incoming:
 #
 # Start an incoming migration, the qemu must have been started
-# with -incoming defer
+# with -incoming defer. qemu can also be started with optional
+# -multi-fd-incoming defer for opening multifd listening sockets
 #
 # @uri: The Uniform Resource Identifier identifying the source or
-#       address to listen on
+#       address to listen on.
+#
+# @multi-fd-uri-list: list of pair of source and destination VM Uniform
+#                     Resource Identifiers with number of multifd-channels
+#                     for each pair.
 #
 # Returns: nothing on success
 #
@@ -1545,19 +1567,31 @@
 #    compatible with -incoming and the format of the uri is already exposed
 #    above libvirt.
 #
-# 2. QEMU must be started with -incoming defer to allow migrate-incoming to
+# 2. multi-fd-uri-list will have list of destination uri as listening sockets
+#    and multi-fd number of channels on each listening socket.
+#
+# 3. QEMU must be started with -incoming defer to allow migrate-incoming to
 #    be used.
 #
-# 3. The uri format is the same as for -incoming
+# 4. multi-fd-uri-list format is not the same as for -multi-fd-incoming flag.
+#    For -multi-fd-incoming flag, it is a comma separated list of listener
+#    sockets with multifd channels.
+#    Example: -multi-fd-incoming "tcp::6900:4,tcp:11.0.0.0:7789:5".
 #
 # Example:
 #
 # -> { "execute": "migrate-incoming",
-#      "arguments": { "uri": "tcp::4446" } }
+#      "arguments": {
+#          "uri": "tcp::6789",
+#          "multi-fd-uri-list" : [ { "destination-uri" : "tcp::6900",
+#                                    "multifd-channels": 4},
+#                                  { "destination-uri" : "tcp:11.0.0.0:7789",
+#                                    "multifd-channels": 5} ] } }
 # <- { "return": {} }
 #
 ##
-{ 'command': 'migrate-incoming', 'data': {'uri': 'str' } }
+{ 'command': 'migrate-incoming',
+  'data': {'uri': 'str', '*multi-fd-uri-list': ['MigrateIncomingUri'] } }
 
 ##
 # @xen-save-devices-state:

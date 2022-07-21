@@ -227,17 +227,17 @@ socket_incoming_migration_end(void *opaque)
 
 static void
 socket_start_incoming_migration_internal(SocketAddress *saddr,
-                                         Error **errp)
+                                         uint8_t multifd_count, Error **errp)
 {
     QIONetListener *listener = qio_net_listener_new();
     MigrationIncomingState *mis = migration_incoming_get_current();
     size_t i;
-    int num = 1;
+    uint8_t num = 1;
 
     qio_net_listener_set_name(listener, "migration-socket-listener");
 
     if (migrate_use_multifd()) {
-        num = migrate_multifd_channels();
+        num = multifd_count;
     } else if (migrate_postcopy_preempt()) {
         num = RAM_CHANNEL_MAX;
     }
@@ -266,12 +266,13 @@ socket_start_incoming_migration_internal(SocketAddress *saddr,
     }
 }
 
-void socket_start_incoming_migration(const char *str, Error **errp)
+void socket_start_incoming_migration(const char *str,
+                                     uint8_t multifd_count, Error **errp)
 {
     Error *err = NULL;
     SocketAddress *saddr = socket_parse(str, &err);
     if (!err) {
-        socket_start_incoming_migration_internal(saddr, &err);
+        socket_start_incoming_migration_internal(saddr, multifd_count, &err);
     }
     qapi_free_SocketAddress(saddr);
     error_propagate(errp, err);

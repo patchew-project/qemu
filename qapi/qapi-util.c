@@ -15,6 +15,7 @@
 #include "qapi/error.h"
 #include "qemu/ctype.h"
 #include "qapi/qmp/qerror.h"
+#include "qapi/qapi-builtin-types.h"
 
 CompatPolicy compat_policy;
 
@@ -157,7 +158,7 @@ int parse_qapi_name(const char *str, bool complete)
  * Produce a strList from a delimiter separated list.
  * A NULL or empty input string return NULL.
  */
-strList *strList_from_string(const char *in, char c)
+struct strList *strList_from_string(const char *in, char c)
 {
     strList *res = NULL;
     strList **tail = &res;
