@@ -358,8 +358,10 @@ listen_ok:
     ((rc) == -EINPROGRESS)
 #endif
 
-static int inet_connect_addr(const InetSocketAddress *saddr,
-                             struct addrinfo *addr, Error **errp)
+static int inet_connect_addr(const InetSocketAddress *dst_addr,
+                             const InetSocketAddress *src_addr,
+                             struct addrinfo *addr, struct addrinfo *saddr,
+                             Error **errp)
 {
     int sock, rc;
 
@@ -371,8 +373,28 @@ static int inet_connect_addr(const InetSocketAddress *saddr,
     }
     socket_set_fast_reuse(sock);
 
+    /* to bind the socket if src_addr is available */
+
+    if (src_addr) {
+        struct sockaddr_in servaddr;
+
+        /* bind to a specific interface in the internet domain */
+        /* to make sure the sin_zero filed is cleared */
+        memset(&servaddr, 0, sizeof(servaddr));
+
+        servaddr.sin_family = AF_INET;
+        servaddr.sin_addr.s_addr = inet_addr(src_addr->host);
+        servaddr.sin_port = 0;
+
+        if (bind(sock, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) {
+            error_setg_errno(errp, errno, "Failed to bind socket");
+            return -1;
+        }
+    }
+
     /* connect to peer */
     do {
+
         rc = 0;
         if (connect(sock, addr->ai_addr, addr->ai_addrlen) < 0) {
             rc = -errno;
@@ -380,8 +402,14 @@ static int inet_connect_addr(const InetSocketAddress *saddr,
     } while (rc == -EINTR);
 
     if (rc < 0) {
-        error_setg_errno(errp, errno, "Failed to connect to '%s:%s'",
-                         saddr->host, saddr->port);
+        if (src_addr) {
+            error_setg_errno(errp, errno, "Failed to connect '%s:%s' to "
+                             "'%s:%s'", dst_addr->host, dst_addr->port,
+                             src_addr->host, src_addr->port);
+        } else {
+            error_setg_errno(errp, errno, "Failed to connect '%s:%s'",
+                             dst_addr->host, dst_addr->port);
+        }
         closesocket(sock);
         return -1;
     }
@@ -446,41 +474,55 @@ static struct addrinfo *inet_parse_connect_saddr(InetSocketAddress *saddr,
  *
  * Returns: -1 on error, file descriptor on success.
  */
-int inet_connect_saddr(InetSocketAddress *saddr, Error **errp)
+int inet_connect_saddr(InetSocketAddress *dst_addr,
+                       InetSocketAddress *src_addr, Error **errp)
 {
     Error *local_err = NULL;
-    struct addrinfo *res, *e;
+    struct addrinfo *res_d, *res_s, *e, *x;
     int sock = -1;
 
-    res = inet_parse_connect_saddr(saddr, errp);
-    if (!res) {
+    res_d = inet_parse_connect_saddr(dst_addr, errp);
+    if (!res_d) {
         return -1;
     }
 
-    for (e = res; e != NULL; e = e->ai_next) {
+    if (src_addr) {
+        res_s = inet_parse_connect_saddr(src_addr, errp);
+        if (!res_s) {
+            return -1;
+        }
+    }
+
+    for (e = res_d; e != NULL; e = e->ai_next) {
         error_free(local_err);
         local_err = NULL;
 
 #ifdef HAVE_IPPROTO_MPTCP
-        if (saddr->has_mptcp && saddr->mptcp) {
+        if (dst_addr->has_mptcp && dst_addr->mptcp) {
             e->ai_protocol = IPPROTO_MPTCP;
         }
 #endif
+        for (x = res_s; x != NULL; x = x->ai_next) {
+            if (!src_addr || e->ai_family == x->ai_family) {
 
-        sock = inet_connect_addr(saddr, e, &local_err);
-        if (sock >= 0) {
-            break;
+                sock = inet_connect_addr(dst_addr, src_addr,
+                                         e, x, &local_err);
+                if (sock >= 0) {
+                    break;
+                }
+            }
         }
     }
 
-    freeaddrinfo(res);
+    freeaddrinfo(res_d);
+    freeaddrinfo(res_s);
 
     if (sock < 0) {
         error_propagate(errp, local_err);
         return sock;
     }
 
-    if (saddr->keep_alive) {
+    if (dst_addr->keep_alive) {
         int val = 1;
         int ret = setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
                              &val, sizeof(val));
@@ -506,7 +548,7 @@ static int inet_dgram_saddr(InetSocketAddress *sraddr,
     Error *err = NULL;
 
     /* lookup peer addr */
-    memset(&ai,0, sizeof(ai));
+    memset(&ai,0,sizeof(ai));
     ai.ai_flags = AI_CANONNAME | AI_V4MAPPED | AI_ADDRCONFIG;
     ai.ai_family = inet_ai_family_from_address(sraddr, &err);
     ai.ai_socktype = SOCK_DGRAM;
@@ -727,7 +769,7 @@ int inet_connect(const char *str, Error **errp)
     InetSocketAddress *addr = g_new(InetSocketAddress, 1);
 
     if (!inet_parse(addr, str, errp)) {
-        sock = inet_connect_saddr(addr, errp);
+        sock = inet_connect_saddr(addr, NULL, errp);
     }
     qapi_free_InetSocketAddress(addr);
     return sock;
@@ -1182,25 +1224,27 @@ int socket_address_parse_named_fd(SocketAddress *addr, Error **errp)
     return 0;
 }
 
-int socket_connect(SocketAddress *addr, Error **errp)
+int socket_connect(SocketAddress *dst_addr,
+                   SocketAddress *src_addr, Error **errp)
 {
     int fd;
 
-    switch (addr->type) {
+    switch (dst_addr->type) {
     case SOCKET_ADDRESS_TYPE_INET:
-        fd = inet_connect_saddr(&addr->u.inet, errp);
+        fd = inet_connect_saddr(&dst_addr->u.inet, src_addr ?
+                                &src_addr->u.inet : NULL, errp);
         break;
 
     case SOCKET_ADDRESS_TYPE_UNIX:
-        fd = unix_connect_saddr(&addr->u.q_unix, errp);
+        fd = unix_connect_saddr(&dst_addr->u.q_unix, errp);
         break;
 
     case SOCKET_ADDRESS_TYPE_FD:
-        fd = socket_get_fd(addr->u.fd.str, errp);
+        fd = socket_get_fd(dst_addr->u.fd.str, errp);
         break;
 
     case SOCKET_ADDRESS_TYPE_VSOCK:
-        fd = vsock_connect_saddr(&addr->u.vsock, errp);
+        fd = vsock_connect_saddr(&dst_addr->u.vsock, errp);
         break;
 
     default:

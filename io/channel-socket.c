@@ -144,14 +144,15 @@ qio_channel_socket_new_fd(int fd,
 }
 
 
-int qio_channel_socket_connect_sync(QIOChannelSocket *ioc,
-                                    SocketAddress *addr,
-                                    Error **errp)
+int qio_channel_socket_connect_all_sync(QIOChannelSocket *ioc,
+                                        SocketAddress *dst_addr,
+                                        SocketAddress *src_addr,
+                                        Error **errp)
 {
     int fd;
 
-    trace_qio_channel_socket_connect_sync(ioc, addr);
-    fd = socket_connect(addr, errp);
+    trace_qio_channel_socket_connect_sync(ioc, dst_addr);
+    fd = socket_connect(dst_addr, src_addr, errp);
     if (fd < 0) {
         trace_qio_channel_socket_connect_fail(ioc);
         return -1;
@@ -177,16 +178,75 @@ int qio_channel_socket_connect_sync(QIOChannelSocket *ioc,
 }
 
 
-static void qio_channel_socket_connect_worker(QIOTask *task,
-                                              gpointer opaque)
+struct ConnectData {
+    SocketAddress *dst_addr;
+    SocketAddress *src_addr;
+};
+
+
+static void qio_channel_socket_all_worker_free(gpointer opaque)
+{
+    struct ConnectData *data = opaque;
+    if (!data) {
+        return;
+    }
+    qapi_free_SocketAddress(data->dst_addr);
+    qapi_free_SocketAddress(data->src_addr);
+    g_free(data);
+}
+
+static void qio_channel_socket_connect_all_worker(QIOTask *task,
+                                                  gpointer opaque)
 {
     QIOChannelSocket *ioc = QIO_CHANNEL_SOCKET(qio_task_get_source(task));
-    SocketAddress *addr = opaque;
+    struct ConnectData *data = opaque;
     Error *err = NULL;
 
-    qio_channel_socket_connect_sync(ioc, addr, &err);
+    qio_channel_socket_connect_all_sync(ioc, data->dst_addr,
+                                        data->src_addr, &err);
 
     qio_task_set_error(task, err);
+}
+
+
+void qio_channel_socket_connect_all_async(QIOChannelSocket *ioc,
+                                          SocketAddress *dst_addr,
+                                          QIOTaskFunc callback,
+                                          gpointer opaque,
+                                          GDestroyNotify destroy,
+                                          GMainContext *context,
+                                          SocketAddress *src_addr)
+{
+    QIOTask *task = qio_task_new(
+        OBJECT(ioc), callback, opaque, destroy);
+    struct ConnectData *data = g_new0(struct ConnectData, 1);
+
+    data->dst_addr = QAPI_CLONE(SocketAddress, dst_addr);
+    if (src_addr) {
+        data->src_addr = QAPI_CLONE(SocketAddress, src_addr);
+    } else {
+        data->src_addr = NULL;
+    }
+    /*
+     * socket_connect() does a non-blocking connect(), but it
+     * still blocks in DNS lookups, so we must use a thread
+     */
+    trace_qio_channel_socket_connect_async(ioc, dst_addr);
+    qio_task_run_in_thread(task,
+                           qio_channel_socket_connect_all_worker,
+                           data,
+                           qio_channel_socket_all_worker_free,
+                           context);
+}
+
+
+int qio_channel_socket_connect_sync(QIOChannelSocket *ioc,
+                                    SocketAddress *addr,
+                                    Error **errp)
+{
+    qio_channel_socket_connect_all_sync(ioc, addr, NULL, errp);
+
+    return 0;
 }
 
 
@@ -197,20 +257,9 @@ void qio_channel_socket_connect_async(QIOChannelSocket *ioc,
                                       GDestroyNotify destroy,
                                       GMainContext *context)
 {
-    QIOTask *task = qio_task_new(
-        OBJECT(ioc), callback, opaque, destroy);
-    SocketAddress *addrCopy;
+    qio_channel_socket_connect_all_async(ioc, addr, callback, opaque,
+                                         destroy, context, NULL);
 
-    addrCopy = QAPI_CLONE(SocketAddress, addr);
-
-    /* socket_connect() does a non-blocking connect(), but it
-     * still blocks in DNS lookups, so we must use a thread */
-    trace_qio_channel_socket_connect_async(ioc, addr);
-    qio_task_run_in_thread(task,
-                           qio_channel_socket_connect_worker,
-                           addrCopy,
-                           (GDestroyNotify)qapi_free_SocketAddress,
-                           context);
 }
 
 

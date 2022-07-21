@@ -212,6 +212,50 @@ void qio_channel_socket_dgram_async(QIOChannelSocket *ioc,
 
 
 /**
+ * qio_channel_socket_connect_all_sync:
+ * @ioc: the socket channel object
+ * @dst_addr: the destination address to connect to
+ * @src_addr: the source address to be connected
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Attempt to connect to the address @dst_addr with @src_addr.
+ * This method will run in the foreground so the caller will not
+ * regain execution control until the connection is established or
+ * an error occurs.
+ */
+int qio_channel_socket_connect_all_sync(QIOChannelSocket *ioc,
+                                    SocketAddress *dst_addr,
+                                    SocketAddress *src_addr,
+                                    Error **errp);
+
+/**
+ * qio_channel_socket_connect_all_async:
+ * @ioc: the socket channel object
+ * @dst_addr: the destination address to connect to
+ * @callback: the function to invoke on completion
+ * @opaque: user data to pass to @callback
+ * @destroy: the function to free @opaque
+ * @context: the context to run the async task. If %NULL, the default
+ *           context will be used.
+ * @src_addr: the source address to be connected
+ *
+ * Attempt to connect to the address @dst_addr with the @src_addr.
+ * This method will run in the background so the caller will regain
+ * execution control immediately. The function @callback
+ * will be invoked on completion or failure. The @dst_addr
+ * parameter will be copied, so may be freed as soon
+ * as this function returns without waiting for completion.
+ */
+void qio_channel_socket_connect_all_async(QIOChannelSocket *ioc,
+                                          SocketAddress *dst_addr,
+                                          QIOTaskFunc callback,
+                                          gpointer opaque,
+                                          GDestroyNotify destroy,
+                                          GMainContext *context,
+                                          SocketAddress *src_addr);
+
+
+/**
  * qio_channel_socket_get_local_address:
  * @ioc: the socket channel object
  * @errp: pointer to a NULL-initialized error object

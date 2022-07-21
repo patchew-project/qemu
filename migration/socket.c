@@ -57,8 +57,8 @@ int outgoing_param_total_multifds(void)
 void socket_send_channel_create(QIOTaskFunc f, void *data)
 {
     QIOChannelSocket *sioc = qio_channel_socket_new();
-    qio_channel_socket_connect_async(sioc, outgoing_args.saddr,
-                                     f, data, NULL, NULL);
+    qio_channel_socket_connect_all_async(sioc, outgoing_args.saddr,
+                                     f, data, NULL, NULL, NULL);
 }
 
 QIOChannel *socket_send_channel_create_sync(Error **errp)
