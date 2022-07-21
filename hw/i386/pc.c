@@ -112,6 +112,7 @@ const size_t pc_compat_7_0_len = G_N_ELEMENTS(pc_compat_7_0);
 
 GlobalProperty pc_compat_6_2[] = {
     { "virtio-mem", "unplugged-inaccessible", "off" },
+    { TYPE_X86_MACHINE, "linuxboot-seed", "off" },
 };
 const size_t pc_compat_6_2_len = G_N_ELEMENTS(pc_compat_6_2);
 

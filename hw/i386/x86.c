@@ -26,6 +26,7 @@
 #include "qemu/cutils.h"
 #include "qemu/units.h"
 #include "qemu/datadir.h"
+#include "qemu/guest-random.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qapi-visit-common.h"
@@ -1088,6 +1089,12 @@ void x86_load_linux(X86MachineState *x86ms,
     }
     fclose(f);
 
+    if (x86ms->linuxboot_seed != ON_OFF_AUTO_OFF &&
+        (data.protocol >= 0x209 || x86ms->linuxboot_seed == ON_OFF_AUTO_ON)) {
+        void *seed = add_setup_data(&data, 32, SETUP_RNG_SEED);
+        qemu_guest_getrandom_nofail(seed, 32);
+    }
+
     /* append dtb to kernel */
     if (dtb_filename) {
         dtb_size = get_image_size(dtb_filename);
@@ -1247,6 +1254,23 @@ static void x86_machine_set_smm(Object *obj, Visitor *v, const char *name,
     visit_type_OnOffAuto(v, name, &x86ms->smm, errp);
 }
 
+static void x86_machine_get_linuxboot_seed(Object *obj, Visitor *v, const char *name,
+                                           void *opaque, Error **errp)
+{
+    X86MachineState *x86ms = X86_MACHINE(obj);
+    OnOffAuto linuxboot_seed = x86ms->linuxboot_seed;
+
+    visit_type_OnOffAuto(v, name, &linuxboot_seed, errp);
+}
+
+static void x86_machine_set_linuxboot_seed(Object *obj, Visitor *v, const char *name,
+                                           void *opaque, Error **errp)
+{
+    X86MachineState *x86ms = X86_MACHINE(obj);
+
+    visit_type_OnOffAuto(v, name, &x86ms->linuxboot_seed, errp);
+}
+
 bool x86_machine_is_acpi_enabled(const X86MachineState *x86ms)
 {
     if (x86ms->acpi == ON_OFF_AUTO_OFF) {
@@ -1397,6 +1421,7 @@ static void x86_machine_initfn(Object *obj)
     x86ms->acpi = ON_OFF_AUTO_AUTO;
     x86ms->pit = ON_OFF_AUTO_AUTO;
     x86ms->pic = ON_OFF_AUTO_AUTO;
+    x86ms->linuxboot_seed = ON_OFF_AUTO_AUTO;
     x86ms->pci_irq_mask = ACPI_BUILD_PCI_IRQS;
     x86ms->oem_id = g_strndup(ACPI_BUILD_APPNAME6, 6);
     x86ms->oem_table_id = g_strndup(ACPI_BUILD_APPNAME8, 8);
@@ -1434,6 +1459,12 @@ static void x86_machine_class_init(ObjectClass *oc, void *data)
                               NULL, NULL);
     object_class_property_set_description(oc, X86_MACHINE_PIT,
         "Enable i8254 PIT");
+
+    object_class_property_add(oc, X86_MACHINE_LINUXBOOT_SEED, "OnOffAuto",
+        x86_machine_get_linuxboot_seed, x86_machine_set_linuxboot_seed,
+        NULL, NULL);
+    object_class_property_set_description(oc, X86_MACHINE_LINUXBOOT_SEED,
+        "Pass random number seed to -kernel Linux image");
 
     object_class_property_add(oc, X86_MACHINE_PIC, "OnOffAuto",
                               x86_machine_get_pic,
