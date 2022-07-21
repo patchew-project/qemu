@@ -903,7 +903,7 @@ int multifd_save_setup(Error **errp)
     int thread_count;
     uint32_t page_count = MULTIFD_PACKET_SIZE / qemu_target_page_size();
     uint8_t i;
-
+    int idx;
     if (!migrate_use_multifd()) {
         return 0;
     }
@@ -945,8 +945,8 @@ int multifd_save_setup(Error **errp)
         } else {
             p->write_flags = 0;
         }
-
-        socket_send_channel_create(multifd_new_send_channel_async, p);
+        idx = multifd_index(i);
+        socket_send_channel_create(multifd_new_send_channel_async, p, idx);
     }
 
     for (i = 0; i < thread_count; i++) {

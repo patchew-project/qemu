@@ -29,7 +29,8 @@ typedef struct SrcDestAddr {
 
 
 int outgoing_param_total_multifds(void);
-void socket_send_channel_create(QIOTaskFunc f, void *data);
+int multifd_index(int i);
+void socket_send_channel_create(QIOTaskFunc f, void *data, int idx);
 QIOChannel *socket_send_channel_create_sync(Error **errp);
 int socket_send_channel_destroy(QIOChannel *send);
 

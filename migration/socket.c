@@ -28,10 +28,6 @@
 #include "trace.h"
 #include "postcopy-ram.h"
 
-struct SocketOutgoingArgs {
-    SocketAddress *saddr;
-} outgoing_args;
-
 struct SocketArgs {
     struct SrcDestAddr address;
     uint8_t multifd_channels;
@@ -54,11 +50,30 @@ int outgoing_param_total_multifds(void)
     return total_multifd_channels;
 }
 
-void socket_send_channel_create(QIOTaskFunc f, void *data)
+
+int multifd_index(int i)
+{
+    int length = outgoing_migrate_params.socket_args_arr_len;
+    int j = 0;
+    int runn_sum = 0;
+    while (j < length) {
+        runn_sum += outgoing_migrate_params.socket_args[j].multifd_channels;
+        if (i >= runn_sum) {
+            j++;
+        } else {
+            break;
+        }
+    }
+    return j;
+}
+
+ void socket_send_channel_create(QIOTaskFunc f, void *data, int idx)
 {
     QIOChannelSocket *sioc = qio_channel_socket_new();
-    qio_channel_socket_connect_all_async(sioc, outgoing_args.saddr,
-                                     f, data, NULL, NULL, NULL);
+    qio_channel_socket_connect_all_async(sioc,
+                    outgoing_migrate_params.socket_args[idx].address.dst_addr,
+                    f, data, NULL, NULL,
+                    outgoing_migrate_params.socket_args[idx].address.src_addr);
 }
 
 QIOChannel *socket_send_channel_create_sync(Error **errp)
@@ -83,10 +98,6 @@ int socket_send_channel_destroy(QIOChannel *send)
 {
     /* Remove channel */
     object_unref(OBJECT(send));
-    if (outgoing_args.saddr) {
-        qapi_free_SocketAddress(outgoing_args.saddr);
-        outgoing_args.saddr = NULL;
-    }
     g_free(outgoing_migrate_params.socket_args);
     outgoing_migrate_params.socket_args = NULL;
     outgoing_migrate_params.socket_args_arr_len = 0;
@@ -141,10 +152,6 @@ socket_start_outgoing_migration_internal(MigrationState *s,
     struct SocketConnectData *data = g_new0(struct SocketConnectData, 1);
 
     data->s = s;
-
-    /* in case previous migration leaked it */
-    qapi_free_SocketAddress(outgoing_args.saddr);
-    outgoing_args.saddr = saddr;
 
     if (saddr->type == SOCKET_ADDRESS_TYPE_INET) {
         data->hostname = g_strdup(saddr->u.inet.host);
