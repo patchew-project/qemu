@@ -838,10 +838,15 @@
 # @cpu-affinity: the CPU affinity for all threads created in the thread
 #                context (default: QEMU main thread affinity)
 #
+# @node-affinity: shortcut for looking up the current CPUs for the given nodes
+#                 and setting @cpu-affinity (default: QEMU main thread
+#                 affinity)
+#
 # Since: 7.2
 ##
 { 'struct': 'ThreadContextProperties',
-  'data': { '*cpu-affinity': ['uint16'] } }
+  'data': { '*cpu-affinity': ['uint16'],
+            '*node-affinity': ['uint16'] } }
 
 
 ##
