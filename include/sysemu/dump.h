@@ -203,4 +203,41 @@ typedef struct DumpState {
 uint16_t cpu_to_dump16(DumpState *s, uint16_t val);
 uint32_t cpu_to_dump32(DumpState *s, uint32_t val);
 uint64_t cpu_to_dump64(DumpState *s, uint64_t val);
+
+static inline int64_t dump_get_memblock_size(GuestPhysBlock *block, int64_t filter_area_start,
+                                             int64_t filter_area_length)
+{
+    int64_t size, left, right;
+
+    /* No filter, return full size */
+    if (!filter_area_length) {
+        return block->target_end - block->target_start;
+    }
+
+    /* calculate the overlapped region. */
+    left = MAX(filter_area_start, block->target_start);
+    right = MIN(filter_area_start + filter_area_length, block->target_end);
+    size = right - left;
+    size = size > 0 ? size : 0;
+
+    return size;
+}
+
+static inline int64_t dump_get_memblock_start(GuestPhysBlock *block, int64_t filter_area_start,
+                                  int64_t filter_area_length)
+{
+    if (filter_area_length) {
+        /* return -1 if the block is not within filter area */
+        if (block->target_start >= filter_area_start + filter_area_length ||
+            block->target_end <= filter_area_start) {
+            return -1;
+        }
+
+        if (filter_area_start > block->target_start) {
+            return filter_area_start - block->target_start;
+        }
+    }
+
+    return 0;
+}
 #endif
