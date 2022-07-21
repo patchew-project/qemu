@@ -819,22 +819,30 @@ static bool load_pvh(X86MachineState *x86ms, FWCfgState *fw_cfg, const char *ker
     return true;
 }
 
+typedef struct LinuxBootData {
+    uint16_t protocol;
+    uint8_t header[8192];
+    hwaddr prot_addr;
+    size_t kernel_size;
+    uint8_t *kernel;
+    size_t setup_data_offset;
+} LinuxBootData;
+
 void x86_load_linux(X86MachineState *x86ms,
                     FWCfgState *fw_cfg,
                     int acpi_data_size,
                     bool pvh_enabled)
 {
     bool linuxboot_dma_enabled = X86_MACHINE_GET_CLASS(x86ms)->fwcfg_dma_enabled;
-    uint16_t protocol;
-    int setup_size, kernel_size, cmdline_size;
-    int dtb_size, setup_data_offset;
+    int setup_size, cmdline_size;
+    int dtb_size;
     uint32_t initrd_max;
-    uint8_t header[8192], *setup, *kernel;
-    hwaddr real_addr, prot_addr, cmdline_addr;
+    uint8_t *setup;
+    hwaddr real_addr, cmdline_addr;
     FILE *f;
     char *vmode;
     MachineState *machine = MACHINE(x86ms);
-    struct setup_data *setup_data;
+    LinuxBootData data = { 0 };
     const char *kernel_filename = machine->kernel_filename;
     const char *initrd_filename = machine->initrd_filename;
     const char *dtb_filename = machine->dtb;
@@ -854,17 +862,17 @@ void x86_load_linux(X86MachineState *x86ms,
         exit(1);
     }
 
-    kernel_size = get_file_size(f);
-    if (!kernel_size ||
-        fread(header, 1, MIN(ARRAY_SIZE(header), kernel_size), f) !=
-        MIN(ARRAY_SIZE(header), kernel_size)) {
+    data.kernel_size = get_file_size(f);
+    if (!data.kernel_size ||
+        fread(data.header, 1, MIN(ARRAY_SIZE(data.header), data.kernel_size), f) !=
+        MIN(ARRAY_SIZE(data.header), data.kernel_size)) {
         fprintf(stderr, "qemu: could not load kernel '%s': %s\n",
                 kernel_filename, strerror(errno));
         exit(1);
     }
 
     /* kernel protocol version */
-    if (ldl_p(header + 0x202) != 0x53726448) {
+    if (ldl_p(data.header + 0x202) != 0x53726448) {
         /*
          * This could be a multiboot kernel. If it is, let's stop treating it
          * like a Linux kernel.
@@ -873,7 +881,7 @@ void x86_load_linux(X86MachineState *x86ms,
          * header before to load it.
          */
         if (load_multiboot(x86ms, fw_cfg, f, kernel_filename, initrd_filename,
-                           kernel_cmdline, kernel_size, header)) {
+                           kernel_cmdline, data.kernel_size, data.header)) {
             return;
         }
         /*
@@ -883,35 +891,35 @@ void x86_load_linux(X86MachineState *x86ms,
          */
         if (pvh_enabled &&
             load_pvh(x86ms, fw_cfg, kernel_filename, initrd_filename,
-                     initrd_max, kernel_cmdline, kernel_size, header)) {
+                     initrd_max, kernel_cmdline, data.kernel_size, data.header)) {
             fclose(f);
             return;
             }
-        protocol = 0;
+        data.protocol = 0;
     } else  {
-        protocol = lduw_p(header + 0x206);
+        data.protocol = lduw_p(data.header + 0x206);
     }
 
-    if (protocol < 0x200 || !(header[0x211] & 0x01)) {
+    if (data.protocol < 0x200 || !(data.header[0x211] & 0x01)) {
         /* Low kernel */
         real_addr    = 0x90000;
         cmdline_addr = 0x9a000 - cmdline_size;
-        prot_addr    = 0x10000;
-    } else if (protocol < 0x202) {
+        data.prot_addr = 0x10000;
+    } else if (data.protocol < 0x202) {
         /* High but ancient kernel */
         real_addr    = 0x90000;
         cmdline_addr = 0x9a000 - cmdline_size;
-        prot_addr    = 0x100000;
+        data.prot_addr = 0x100000;
     } else {
         /* High and recent kernel */
         real_addr    = 0x10000;
         cmdline_addr = 0x20000;
-        prot_addr    = 0x100000;
+        data.prot_addr = 0x100000;
     }
 
     /* highest address for loading the initrd */
-    if (protocol >= 0x20c &&
-        lduw_p(header + 0x236) & XLF_CAN_BE_LOADED_ABOVE_4G) {
+    if (data.protocol >= 0x20c &&
+        lduw_p(data.header + 0x236) & XLF_CAN_BE_LOADED_ABOVE_4G) {
         /*
          * Linux has supported initrd up to 4 GB for a very long time (2007,
          * long before XLF_CAN_BE_LOADED_ABOVE_4G which was added in 2013),
@@ -928,8 +936,8 @@ void x86_load_linux(X86MachineState *x86ms,
          *
          * Therefore here just limit initrd_max to the available memory below 4G.
          */
-    } else if (protocol >= 0x203) {
-        initrd_max = MIN(initrd_max, ldl_p(header + 0x22c));
+    } else if (data.protocol >= 0x203) {
+        initrd_max = MIN(initrd_max, ldl_p(data.header + 0x22c));
     } else {
         initrd_max = MIN(initrd_max, 0x37ffffff);
     }
@@ -940,11 +948,11 @@ void x86_load_linux(X86MachineState *x86ms,
     sev_load_ctx.cmdline_data = (char *)kernel_cmdline;
     sev_load_ctx.cmdline_size = strlen(kernel_cmdline) + 1;
 
-    if (protocol >= 0x202) {
-        stl_p(header + 0x228, cmdline_addr);
+    if (data.protocol >= 0x202) {
+        stl_p(data.header + 0x228, cmdline_addr);
     } else {
-        stw_p(header + 0x20, 0xA33F);
-        stw_p(header + 0x22, cmdline_addr - real_addr);
+        stw_p(data.header + 0x20, 0xA33F);
+        stw_p(data.header + 0x22, cmdline_addr - real_addr);
     }
 
     /* handle vga= parameter */
@@ -968,7 +976,7 @@ void x86_load_linux(X86MachineState *x86ms,
                 exit(1);
             }
         }
-        stw_p(header + 0x1fa, video_mode);
+        stw_p(data.header + 0x1fa, video_mode);
     }
 
     /* loader type */
@@ -977,13 +985,13 @@ void x86_load_linux(X86MachineState *x86ms,
      * If this code is substantially changed, you may want to consider
      * incrementing the revision.
      */
-    if (protocol >= 0x200) {
-        header[0x210] = 0xB0;
+    if (data.protocol >= 0x200) {
+        data.header[0x210] = 0xB0;
     }
     /* heap */
-    if (protocol >= 0x201) {
-        header[0x211] |= 0x80; /* CAN_USE_HEAP */
-        stw_p(header + 0x224, cmdline_addr - real_addr - 0x200);
+    if (data.protocol >= 0x201) {
+        data.header[0x211] |= 0x80; /* CAN_USE_HEAP */
+        stw_p(data.header + 0x224, cmdline_addr - real_addr - 0x200);
     }
 
     /* load initrd */
@@ -993,7 +1001,7 @@ void x86_load_linux(X86MachineState *x86ms,
         gchar *initrd_data;
         GError *gerr = NULL;
 
-        if (protocol < 0x200) {
+        if (data.protocol < 0x200) {
             fprintf(stderr, "qemu: linux kernel too old to load a ram disk\n");
             exit(1);
         }
@@ -1023,30 +1031,30 @@ void x86_load_linux(X86MachineState *x86ms,
         sev_load_ctx.initrd_data = initrd_data;
         sev_load_ctx.initrd_size = initrd_size;
 
-        stl_p(header + 0x218, initrd_addr);
-        stl_p(header + 0x21c, initrd_size);
+        stl_p(data.header + 0x218, initrd_addr);
+        stl_p(data.header + 0x21c, initrd_size);
     }
 
     /* load kernel and setup */
-    setup_size = header[0x1f1];
+    setup_size = data.header[0x1f1];
     if (setup_size == 0) {
         setup_size = 4;
     }
     setup_size = (setup_size + 1) * 512;
-    if (setup_size > kernel_size) {
+    if (setup_size > data.kernel_size) {
         fprintf(stderr, "qemu: invalid kernel header\n");
         exit(1);
     }
-    kernel_size -= setup_size;
+    data.kernel_size -= setup_size;
 
     setup  = g_malloc(setup_size);
-    kernel = g_malloc(kernel_size);
+    data.kernel = g_malloc(data.kernel_size);
     fseek(f, 0, SEEK_SET);
     if (fread(setup, 1, setup_size, f) != setup_size) {
         fprintf(stderr, "fread() failed\n");
         exit(1);
     }
-    if (fread(kernel, 1, kernel_size, f) != kernel_size) {
+    if (fread(data.kernel, 1, data.kernel_size, f) != data.kernel_size) {
         fprintf(stderr, "fread() failed\n");
         exit(1);
     }
@@ -1054,7 +1062,7 @@ void x86_load_linux(X86MachineState *x86ms,
 
     /* append dtb to kernel */
     if (dtb_filename) {
-        if (protocol < 0x209) {
+        if (data.protocol < 0x209) {
             fprintf(stderr, "qemu: Linux kernel too old to load a dtb\n");
             exit(1);
         }
@@ -1066,13 +1074,13 @@ void x86_load_linux(X86MachineState *x86ms,
             exit(1);
         }
 
-        setup_data_offset = QEMU_ALIGN_UP(kernel_size, 16);
-        kernel_size = setup_data_offset + sizeof(struct setup_data) + dtb_size;
-        kernel = g_realloc(kernel, kernel_size);
+        data.setup_data_offset = QEMU_ALIGN_UP(data.kernel_size, 16);
+        data.kernel_size = data.setup_data_offset + sizeof(struct setup_data) + dtb_size;
+        data.kernel = g_realloc(data.kernel, data.kernel_size);
 
-        stq_p(header + 0x250, prot_addr + setup_data_offset);
+        stq_p(data.header + 0x250, data.prot_addr + data.setup_data_offset);
 
-        setup_data = (struct setup_data *)(kernel + setup_data_offset);
+        struct setup_data *setup_data = (struct setup_data *)(data.kernel + data.setup_data_offset);
         setup_data->next = 0;
         setup_data->type = cpu_to_le32(SETUP_DTB);
         setup_data->len = cpu_to_le32(dtb_size);
@@ -1088,14 +1096,14 @@ void x86_load_linux(X86MachineState *x86ms,
      * file the user passed in.
      */
     if (!sev_enabled()) {
-        memcpy(setup, header, MIN(sizeof(header), setup_size));
+        memcpy(setup, data.header, MIN(sizeof(data.header), setup_size));
     }
 
-    fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_ADDR, prot_addr);
-    fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_SIZE, kernel_size);
-    fw_cfg_add_bytes(fw_cfg, FW_CFG_KERNEL_DATA, kernel, kernel_size);
-    sev_load_ctx.kernel_data = (char *)kernel;
-    sev_load_ctx.kernel_size = kernel_size;
+    fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_ADDR, data.prot_addr);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_SIZE, data.kernel_size);
+    fw_cfg_add_bytes(fw_cfg, FW_CFG_KERNEL_DATA, data.kernel, data.kernel_size);
+    sev_load_ctx.kernel_data = (char *)data.kernel;
+    sev_load_ctx.kernel_size = data.kernel_size;
 
     fw_cfg_add_i32(fw_cfg, FW_CFG_SETUP_ADDR, real_addr);
     fw_cfg_add_i32(fw_cfg, FW_CFG_SETUP_SIZE, setup_size);
