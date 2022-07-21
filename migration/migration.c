@@ -2380,13 +2380,14 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
     return true;
 }
 
-void qmp_migrate(const char *uri, bool has_blk, bool blk,
+void qmp_migrate(const char *uri, bool has_multi_fd_uri_list,
+                 MigrateUriParameterList *cap, bool has_blk, bool blk,
                  bool has_inc, bool inc, bool has_detach, bool detach,
                  bool has_resume, bool resume, Error **errp)
 {
     Error *local_err = NULL;
     MigrationState *s = migrate_get_current();
-    const char *p = NULL;
+    const char *dst_ptr = NULL;
 
     if (!migrate_prepare(s, has_blk && blk, has_inc && inc,
                          has_resume && resume, errp)) {
@@ -2400,20 +2401,51 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         }
     }
 
+    /*
+     * In case of Multi-FD migration, source and destination uri
+     * supports only tcp network protocol.
+     */
+    if (has_multi_fd_uri_list) {
+        int length = QAPI_LIST_LENGTH(cap);
+        init_multifd_array(length);
+        for (int i = 0; i < length; i++) {
+            const char *pd = NULL, *ps = NULL;
+            const char *multifd_dst_uri = cap->value->destination_uri;
+            const char *multifd_src_uri = cap->value->source_uri;
+            uint8_t multifd_channels = cap->value->multifd_channels;
+            if (!strstart(multifd_dst_uri, "tcp:", &pd) ||
+                !strstart(multifd_src_uri, "tcp:", &ps)) {
+                error_setg(errp, "multi-fd destination and multi-fd source "
+                "uri, both should be present and follows tcp protocol only");
+                return;
+            } else {
+                store_multifd_migration_params(pd ? pd : multifd_dst_uri,
+                                            ps ? ps : multifd_src_uri,
+                                            multifd_channels, i, &local_err);
+            }
+            cap = cap->next;
+        }
+
+        if (outgoing_param_total_multifds() != migrate_multifd_channels()) {
+            error_setg(errp, "Total multifd channel number mismatch");
+            return;
+        }
+    }
+
     migrate_protocol_allow_multi_channels(false);
-    if (strstart(uri, "tcp:", &p) ||
+    if (strstart(uri, "tcp:", &dst_ptr) ||
         strstart(uri, "unix:", NULL) ||
         strstart(uri, "vsock:", NULL)) {
         migrate_protocol_allow_multi_channels(true);
-        socket_start_outgoing_migration(s, p ? p : uri, &local_err);
+        socket_start_outgoing_migration(s, dst_ptr ? dst_ptr : uri, &local_err);
 #ifdef CONFIG_RDMA
-    } else if (strstart(uri, "rdma:", &p)) {
-        rdma_start_outgoing_migration(s, p, &local_err);
+    } else if (strstart(uri, "rdma:", &dst_ptr)) {
+        rdma_start_outgoing_migration(s, dst_ptr, &local_err);
 #endif
-    } else if (strstart(uri, "exec:", &p)) {
-        exec_start_outgoing_migration(s, p, &local_err);
-    } else if (strstart(uri, "fd:", &p)) {
-        fd_start_outgoing_migration(s, p, &local_err);
+    } else if (strstart(uri, "exec:", &dst_ptr)) {
+        exec_start_outgoing_migration(s, dst_ptr, &local_err);
+    } else if (strstart(uri, "fd:", &dst_ptr)) {
+        fd_start_outgoing_migration(s, dst_ptr, &local_err);
     } else {
         if (!(has_resume && resume)) {
             yank_unregister_instance(MIGRATION_YANK_INSTANCE);

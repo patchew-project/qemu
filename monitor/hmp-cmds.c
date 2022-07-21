@@ -59,6 +59,7 @@
 #include "migration/snapshot.h"
 #include "migration/misc.h"
 
+
 #ifdef CONFIG_SPICE
 #include <spice/enums.h>
 #endif

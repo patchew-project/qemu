@@ -1450,11 +1450,36 @@
 { 'command': 'migrate-continue', 'data': {'state': 'MigrationStatus'} }
 
 ##
+# @MigrateUriParameter:
+#
+# Information regarding which source interface is connected to which
+# destination interface and number of multifd channels over each interface.
+#
+# @source-uri: uri of the source VM. Default port number is 0.
+#
+# @destination-uri: uri of the destination VM
+#
+# @multifd-channels: number of parallel multifd channels used to migrate data
+#                    for specific source-uri and destination-uri. Default value
+#                    in this case is 2 (Since 7.1)
+#
+##
+{ 'struct' : 'MigrateUriParameter',
+  'data' : { 'source-uri' : 'str',
+             'destination-uri' : 'str',
+             '*multifd-channels' : 'uint8'} }
+
+##
 # @migrate:
 #
 # Migrates the current running guest to another Virtual Machine.
 #
 # @uri: the Uniform Resource Identifier of the destination VM
+#       for migration thread
+#
+# @multi-fd-uri-list: list of pair of source and destination VM Uniform
+#                     Resource Identifiers with number of multifd-channels
+#                     for each pair
 #
 # @blk: do block migration (full disk copy)
 #
@@ -1474,20 +1499,32 @@
 # 1. The 'query-migrate' command should be used to check migration's progress
 #    and final result (this information is provided by the 'status' member)
 #
-# 2. All boolean arguments default to false
+# 2. The uri argument should have the Uniform Resource Identifier of default
+#    destination VM. This connection will be bound to default network
 #
-# 3. The user Monitor's "detach" argument is invalid in QMP and should not
+# 3. All boolean arguments default to false
+#
+# 4. The user Monitor's "detach" argument is invalid in QMP and should not
 #    be used
 #
 # Example:
 #
-# -> { "execute": "migrate", "arguments": { "uri": "tcp:0:4446" } }
+# -> { "execute": "migrate",
+#      "arguments": {
+#          "uri": "tcp:0:4446",
+#          "multi-fd-uri-list": [ { "source-uri": "tcp::6900",
+#                                   "destination-uri": "tcp:0:4480",
+#                                   "multifd-channels": 4},
+#                                 { "source-uri": "tcp:10.0.0.0: ",
+#                                   "destination-uri": "tcp:11.0.0.0:7789",
+#                                   "multifd-channels": 5} ] } }
 # <- { "return": {} }
 #
 ##
 { 'command': 'migrate',
-  'data': {'uri': 'str', '*blk': 'bool', '*inc': 'bool',
-           '*detach': 'bool', '*resume': 'bool' } }
+  'data': {'uri': 'str', '*multi-fd-uri-list': ['MigrateUriParameter'],
+           '*blk': 'bool', '*inc': 'bool', '*detach': 'bool',
+           '*resume': 'bool' } }
 
 ##
 # @migrate-incoming:

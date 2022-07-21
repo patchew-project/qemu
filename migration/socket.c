@@ -32,6 +32,28 @@ struct SocketOutgoingArgs {
     SocketAddress *saddr;
 } outgoing_args;
 
+struct SocketArgs {
+    struct SrcDestAddr address;
+    uint8_t multifd_channels;
+};
+
+struct OutgoingMigrateParams {
+    struct SocketArgs *socket_args;
+    size_t socket_args_arr_len;
+} outgoing_migrate_params;
+
+int outgoing_param_total_multifds(void)
+{
+    size_t len = outgoing_migrate_params.socket_args_arr_len;
+    uint64_t total_multifd_channels = 0;
+
+    for (int i = 0; i < len; i++) {
+        total_multifd_channels +=
+                outgoing_migrate_params.socket_args[i].multifd_channels;
+    }
+    return total_multifd_channels;
+}
+
 void socket_send_channel_create(QIOTaskFunc f, void *data)
 {
     QIOChannelSocket *sioc = qio_channel_socket_new();
@@ -65,6 +87,9 @@ int socket_send_channel_destroy(QIOChannel *send)
         qapi_free_SocketAddress(outgoing_args.saddr);
         outgoing_args.saddr = NULL;
     }
+    g_free(outgoing_migrate_params.socket_args);
+    outgoing_migrate_params.socket_args = NULL;
+    outgoing_migrate_params.socket_args_arr_len = 0;
     return 0;
 }
 
@@ -135,15 +160,44 @@ socket_start_outgoing_migration_internal(MigrationState *s,
 }
 
 void socket_start_outgoing_migration(MigrationState *s,
-                                     const char *str,
+                                     const char *dst_str,
                                      Error **errp)
 {
     Error *err = NULL;
-    SocketAddress *saddr = socket_parse(str, &err);
+    SocketAddress *dst_saddr = socket_parse(dst_str, &err);
     if (!err) {
-        socket_start_outgoing_migration_internal(s, saddr, &err);
+        socket_start_outgoing_migration_internal(s, dst_saddr, &err);
     }
     error_propagate(errp, err);
+}
+
+void init_multifd_array(int length)
+{
+    outgoing_migrate_params.socket_args = g_new0(struct SocketArgs, length);
+    outgoing_migrate_params.socket_args_arr_len = length;
+}
+
+void store_multifd_migration_params(const char *dst_uri,
+                                    const char *src_uri,
+                                    uint8_t multifd_channels,
+                                    int idx, Error **errp)
+{
+    struct SocketArgs *sa = &outgoing_migrate_params.socket_args[idx];
+    SocketAddress *src_addr, *dst_addr;
+
+    src_addr = socket_parse(src_uri, errp);
+    if (!src_addr) {
+        return;
+    }
+
+    dst_addr = socket_parse(dst_uri, errp);
+    if (!dst_addr) {
+        return;
+    }
+
+    sa->address.dst_addr = dst_addr;
+    sa->address.src_addr = src_addr;
+    sa->multifd_channels = multifd_channels;
 }
 
 static void socket_accept_incoming_migration(QIONetListener *listener,
