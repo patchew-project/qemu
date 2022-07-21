@@ -828,6 +828,34 @@ typedef struct LinuxBootData {
     size_t setup_data_offset;
 } LinuxBootData;
 
+static void *add_setup_data(LinuxBootData *data, uint32_t size, uint32_t type)
+{
+    struct setup_data *setup_data;
+    size_t prev_setup_data_offset = data->setup_data_offset;
+
+    if (data->protocol < 0x209) {
+        fprintf(stderr, "qemu: Linux kernel too old to add setup data\n");
+        exit(1);
+    }
+
+    data->setup_data_offset = QEMU_ALIGN_UP(data->kernel_size, 16);
+    data->kernel_size = data->setup_data_offset + sizeof(struct setup_data) + size;
+    data->kernel = g_realloc(data->kernel, data->kernel_size);
+
+    if (prev_setup_data_offset) {
+        setup_data = (struct setup_data *)(data->kernel + prev_setup_data_offset);
+        setup_data->next = cpu_to_le64(data->prot_addr + data->setup_data_offset);
+    } else {
+        stq_p(data->header + 0x250, data->prot_addr + data->setup_data_offset);
+    }
+
+    setup_data = (struct setup_data *)(data->kernel + data->setup_data_offset);
+    setup_data->next = 0;
+    setup_data->type = cpu_to_le32(type);
+    setup_data->len = cpu_to_le32(size);
+    return setup_data->data;
+}
+
 void x86_load_linux(X86MachineState *x86ms,
                     FWCfgState *fw_cfg,
                     int acpi_data_size,
@@ -1062,11 +1090,6 @@ void x86_load_linux(X86MachineState *x86ms,
 
     /* append dtb to kernel */
     if (dtb_filename) {
-        if (data.protocol < 0x209) {
-            fprintf(stderr, "qemu: Linux kernel too old to load a dtb\n");
-            exit(1);
-        }
-
         dtb_size = get_image_size(dtb_filename);
         if (dtb_size <= 0) {
             fprintf(stderr, "qemu: error reading dtb %s: %s\n",
@@ -1074,18 +1097,8 @@ void x86_load_linux(X86MachineState *x86ms,
             exit(1);
         }
 
-        data.setup_data_offset = QEMU_ALIGN_UP(data.kernel_size, 16);
-        data.kernel_size = data.setup_data_offset + sizeof(struct setup_data) + dtb_size;
-        data.kernel = g_realloc(data.kernel, data.kernel_size);
-
-        stq_p(data.header + 0x250, data.prot_addr + data.setup_data_offset);
-
-        struct setup_data *setup_data = (struct setup_data *)(data.kernel + data.setup_data_offset);
-        setup_data->next = 0;
-        setup_data->type = cpu_to_le32(SETUP_DTB);
-        setup_data->len = cpu_to_le32(dtb_size);
-
-        load_image_size(dtb_filename, setup_data->data, dtb_size);
+        void *dtb = add_setup_data(&data, dtb_size, SETUP_DTB);
+        load_image_size(dtb_filename, dtb, dtb_size);
     }
 
     /*
