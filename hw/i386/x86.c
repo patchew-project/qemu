@@ -763,6 +763,62 @@ static bool load_elfboot(const char *kernel_filename,
     return true;
 }
 
+static bool load_pvh(X86MachineState *x86ms, FWCfgState *fw_cfg, const char *kernel_filename,
+                     const char *initrd_filename, uint32_t initrd_max, const char *kernel_cmdline,
+                     size_t kernel_size, uint8_t *header)
+{
+    if (!load_elfboot(kernel_filename, kernel_size,
+                      header, pvh_start_addr, fw_cfg)) {
+        return false;
+    }
+
+    fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE,
+        strlen(kernel_cmdline) + 1);
+    fw_cfg_add_string(fw_cfg, FW_CFG_CMDLINE_DATA, kernel_cmdline);
+
+    fw_cfg_add_i32(fw_cfg, FW_CFG_SETUP_SIZE, sizeof(header));
+    fw_cfg_add_bytes(fw_cfg, FW_CFG_SETUP_DATA,
+                     header, sizeof(header));
+
+    /* load initrd */
+    if (initrd_filename) {
+        GMappedFile *mapped_file;
+        gsize initrd_size;
+        gchar *initrd_data;
+        GError *gerr = NULL;
+
+        mapped_file = g_mapped_file_new(initrd_filename, false, &gerr);
+        if (!mapped_file) {
+            fprintf(stderr, "qemu: error reading initrd %s: %s\n",
+                    initrd_filename, gerr->message);
+            exit(1);
+        }
+        x86ms->initrd_mapped_file = mapped_file;
+
+        initrd_data = g_mapped_file_get_contents(mapped_file);
+        initrd_size = g_mapped_file_get_length(mapped_file);
+        if (initrd_size >= initrd_max) {
+            fprintf(stderr, "qemu: initrd is too large, cannot support."
+                    "(max: %"PRIu32", need %"PRId64")\n",
+                    initrd_max, (uint64_t)initrd_size);
+            exit(1);
+        }
+
+        hwaddr initrd_addr = (initrd_max - initrd_size) & ~4095;
+
+        fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_ADDR, initrd_addr);
+        fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_SIZE, initrd_size);
+        fw_cfg_add_bytes(fw_cfg, FW_CFG_INITRD_DATA, initrd_data,
+                         initrd_size);
+    }
+
+    option_rom[nb_option_roms].bootindex = 0;
+    option_rom[nb_option_roms].name = "pvh.bin";
+    nb_option_roms++;
+
+    return true;
+}
+
 void x86_load_linux(X86MachineState *x86ms,
                     FWCfgState *fw_cfg,
                     int acpi_data_size,
@@ -774,7 +830,7 @@ void x86_load_linux(X86MachineState *x86ms,
     int dtb_size, setup_data_offset;
     uint32_t initrd_max;
     uint8_t header[8192], *setup, *kernel;
-    hwaddr real_addr, prot_addr, cmdline_addr, initrd_addr = 0;
+    hwaddr real_addr, prot_addr, cmdline_addr;
     FILE *f;
     char *vmode;
     MachineState *machine = MACHINE(x86ms);
@@ -784,6 +840,8 @@ void x86_load_linux(X86MachineState *x86ms,
     const char *dtb_filename = machine->dtb;
     const char *kernel_cmdline = machine->kernel_cmdline;
     SevKernelLoaderContext sev_load_ctx = {};
+
+    initrd_max = x86ms->below_4g_mem_size - acpi_data_size - 1;
 
     /* Align to 16 bytes as a paranoia measure */
     cmdline_size = (strlen(kernel_cmdline) + 16) & ~15;
@@ -806,9 +864,7 @@ void x86_load_linux(X86MachineState *x86ms,
     }
 
     /* kernel protocol version */
-    if (ldl_p(header + 0x202) == 0x53726448) {
-        protocol = lduw_p(header + 0x206);
-    } else {
+    if (ldl_p(header + 0x202) != 0x53726448) {
         /*
          * This could be a multiboot kernel. If it is, let's stop treating it
          * like a Linux kernel.
@@ -826,58 +882,14 @@ void x86_load_linux(X86MachineState *x86ms,
          * If load_elfboot() is successful, populate the fw_cfg info.
          */
         if (pvh_enabled &&
-            load_elfboot(kernel_filename, kernel_size,
-                         header, pvh_start_addr, fw_cfg)) {
+            load_pvh(x86ms, fw_cfg, kernel_filename, initrd_filename,
+                     initrd_max, kernel_cmdline, kernel_size, header)) {
             fclose(f);
-
-            fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE,
-                strlen(kernel_cmdline) + 1);
-            fw_cfg_add_string(fw_cfg, FW_CFG_CMDLINE_DATA, kernel_cmdline);
-
-            fw_cfg_add_i32(fw_cfg, FW_CFG_SETUP_SIZE, sizeof(header));
-            fw_cfg_add_bytes(fw_cfg, FW_CFG_SETUP_DATA,
-                             header, sizeof(header));
-
-            /* load initrd */
-            if (initrd_filename) {
-                GMappedFile *mapped_file;
-                gsize initrd_size;
-                gchar *initrd_data;
-                GError *gerr = NULL;
-
-                mapped_file = g_mapped_file_new(initrd_filename, false, &gerr);
-                if (!mapped_file) {
-                    fprintf(stderr, "qemu: error reading initrd %s: %s\n",
-                            initrd_filename, gerr->message);
-                    exit(1);
-                }
-                x86ms->initrd_mapped_file = mapped_file;
-
-                initrd_data = g_mapped_file_get_contents(mapped_file);
-                initrd_size = g_mapped_file_get_length(mapped_file);
-                initrd_max = x86ms->below_4g_mem_size - acpi_data_size - 1;
-                if (initrd_size >= initrd_max) {
-                    fprintf(stderr, "qemu: initrd is too large, cannot support."
-                            "(max: %"PRIu32", need %"PRId64")\n",
-                            initrd_max, (uint64_t)initrd_size);
-                    exit(1);
-                }
-
-                initrd_addr = (initrd_max - initrd_size) & ~4095;
-
-                fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_ADDR, initrd_addr);
-                fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_SIZE, initrd_size);
-                fw_cfg_add_bytes(fw_cfg, FW_CFG_INITRD_DATA, initrd_data,
-                                 initrd_size);
-            }
-
-            option_rom[nb_option_roms].bootindex = 0;
-            option_rom[nb_option_roms].name = "pvh.bin";
-            nb_option_roms++;
-
             return;
-        }
+            }
         protocol = 0;
+    } else  {
+        protocol = lduw_p(header + 0x206);
     }
 
     if (protocol < 0x200 || !(header[0x211] & 0x01)) {
@@ -914,17 +926,12 @@ void x86_load_linux(X86MachineState *x86ms,
          * support the 64-bit boot protocol (specifically the ext_ramdisk_image
          * field).
          *
-         * Therefore here just limit initrd_max to UINT32_MAX simply as well.
+         * Therefore here just limit initrd_max to the available memory below 4G.
          */
-        initrd_max = UINT32_MAX;
     } else if (protocol >= 0x203) {
-        initrd_max = ldl_p(header + 0x22c);
+        initrd_max = MIN(initrd_max, ldl_p(header + 0x22c));
     } else {
-        initrd_max = 0x37ffffff;
-    }
-
-    if (initrd_max >= x86ms->below_4g_mem_size - acpi_data_size) {
-        initrd_max = x86ms->below_4g_mem_size - acpi_data_size - 1;
+        initrd_max = MIN(initrd_max, 0x37ffffff);
     }
 
     fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_ADDR, cmdline_addr);
@@ -1008,7 +1015,7 @@ void x86_load_linux(X86MachineState *x86ms,
             exit(1);
         }
 
-        initrd_addr = (initrd_max - initrd_size) & ~4095;
+        hwaddr initrd_addr = (initrd_max - initrd_size) & ~4095;
 
         fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_ADDR, initrd_addr);
         fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_SIZE, initrd_size);
