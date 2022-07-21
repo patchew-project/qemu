@@ -108,7 +108,7 @@
 # Since: 2.6
 ##
 { 'enum': 'DumpStatus',
-  'data': [ 'none', 'active', 'completed', 'failed' ] }
+  'data': [ 'none', 'active', 'completed', 'failed', 'cancelling', 'cancelled' ] }
 
 ##
 # @DumpQueryResult:
@@ -200,3 +200,22 @@
 ##
 { 'command': 'query-dump-guest-memory-capability',
   'returns': 'DumpGuestMemoryCapability' }
+
+##
+# @dump-cancel:
+#
+# Cancel the current executing dump process.
+#
+# Returns: nothing on success
+#
+# Notes: This command succeeds even if there is no dump process running.
+#
+# Since: 7.2
+#
+# Example:
+#
+# -> { "execute": "dump-cancel" }
+# <- { "return": {} }
+#
+##
+{ 'command': 'dump-cancel' }

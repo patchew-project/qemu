@@ -118,6 +118,10 @@ static int fd_write_vmcore(const void *buf, size_t size, void *opaque)
     DumpState *s = opaque;
     size_t written_size;
 
+    if (qemu_system_dump_cancelling()) {
+        return -ECANCELED;
+    }
+
     written_size = qemu_write_full(s->fd, buf, size);
     if (written_size != size) {
         return -errno;
@@ -627,6 +631,10 @@ static void dump_iterate(DumpState *s, Error **errp)
 
     do {
         block = s->next_block;
+        if (qemu_system_dump_cancelling()) {
+            error_setg(errp, "dump: job cancelled");
+            return;
+        }
 
         size = block->target_end - block->target_start;
         if (s->has_filter) {
@@ -1321,6 +1329,11 @@ static void write_dump_pages(DumpState *s, Error **errp)
      * first page of page section
      */
     while (get_next_page(&block_iter, &pfn_iter, &buf, s)) {
+        if (qemu_system_dump_cancelling()) {
+            error_setg(errp, "dump: job cancelled");
+            goto out;
+        }
+
         /* check zero page */
         if (buffer_is_zero(buf, s->dump_info.page_size)) {
             ret = write_cache(&page_desc, &pd_zero, sizeof(PageDescriptor),
@@ -1539,6 +1552,22 @@ bool qemu_system_dump_in_progress(void)
     DumpState *state = &dump_state_global;
     return (qatomic_read(&state->status) == DUMP_STATUS_ACTIVE);
 }
+
+bool qemu_system_dump_cancelling(void)
+{
+    DumpState *state = &dump_state_global;
+    return (qatomic_read(&state->status) == DUMP_STATUS_CANCELLING);
+}
+
+void qmp_dump_cancel(Error **errp)
+{
+    DumpState *state = &dump_state_global;
+    if (!qemu_system_dump_in_progress()) {
+        return;
+    }
+    qatomic_set(&state->status, DUMP_STATUS_CANCELLING);
+}
+
 
 /* calculate total size of memory to be dumped (taking filter into
  * acoount.) */
@@ -1838,8 +1867,13 @@ static void dump_process(DumpState *s, Error **errp)
 
     /* make sure status is written after written_size updates */
     smp_wmb();
-    qatomic_set(&s->status,
-               (*errp ? DUMP_STATUS_FAILED : DUMP_STATUS_COMPLETED));
+    if (qemu_system_dump_cancelling()) {
+        qatomic_set(&s->status, DUMP_STATUS_CANCELLED);
+    } else if (*errp) {
+        qatomic_set(&s->status, DUMP_STATUS_FAILED);
+    } else {
+        qatomic_set(&s->status, DUMP_STATUS_COMPLETED);
+    }
 
     /* send DUMP_COMPLETED message (unconditionally) */
     result = qmp_query_dump(NULL);
