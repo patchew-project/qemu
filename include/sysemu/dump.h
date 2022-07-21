@@ -172,6 +172,10 @@ typedef struct DumpState {
     int64_t length;            /* Length of the dump we want to dump */
 
     void *elf_header;
+    void *elf_section_hdrs;
+    uint64_t elf_section_data_size;
+    void *elf_section_data;
+
     uint8_t *note_buf;          /* buffer for notes */
     size_t note_buf_offset;     /* the writing place in note_buf */
     uint32_t nr_cpus;           /* number of guest's cpu */
