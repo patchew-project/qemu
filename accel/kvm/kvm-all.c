@@ -4006,7 +4006,7 @@ static void query_stats(StatsResultList **result, StatsTarget target,
                         stats_list);
         break;
     default:
-        break;
+        g_assert_not_reached();
     }
 }
 
