@@ -152,3 +152,38 @@ int parse_qapi_name(const char *str, bool complete)
     }
     return p - str;
 }
+
+/*
+ * Produce a strList from a delimiter separated list.
+ * A NULL or empty input string return NULL.
+ */
+strList *strList_from_string(const char *in, char c)
+{
+    strList *res = NULL;
+    strList **tail = &res;
+
+    while (in && in[0]) {
+        char *ch = strchr(in, c);
+        char *value;
+
+        if (ch) {
+            value = g_strndup(in, ch - in);
+            in = ch + 1; /* skip the , */
+        } else {
+            value = g_strdup(in);
+            in = NULL;
+        }
+        QAPI_LIST_APPEND(tail, value);
+    }
+
+    return res;
+}
+
+int qemu_string_count_delim(const char *str, char delim)
+{
+    int count = 0;
+    for (int i = 0; i < strlen(str); i++) {
+        count += (str[i] == delim);
+    }
+    return count;
+}

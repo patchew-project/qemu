@@ -29,6 +29,8 @@ bool qapi_bool_parse(const char *name, const char *value, bool *obj,
                      Error **errp);
 
 int parse_qapi_name(const char *name, bool complete);
+struct strList *strList_from_string(const char *in, char c);
+int qemu_string_count_delim(const char *str, char delim);
 
 /*
  * For any GenericList @list, insert @element at the front.
@@ -55,5 +57,15 @@ int parse_qapi_name(const char *name, bool complete);
     (*(tail))->value = (element); \
     (tail) = &(*(tail))->next; \
 } while (0)
+
+/* provides the length of any type of list */
+#define QAPI_LIST_LENGTH(list) ({ \
+    size_t _len = 0; \
+    typeof(list) _elem; \
+    for (_elem = list; _elem != NULL; _elem = _elem->next) { \
+        _len++; \
+    } \
+    _len; \
+})
 
 #endif
