@@ -26,6 +26,7 @@
 #include "qemu/cutils.h"
 #include "qemu/units.h"
 #include "qemu/datadir.h"
+#include "qemu/guest-random.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qapi-visit-common.h"
@@ -771,7 +772,7 @@ void x86_load_linux(X86MachineState *x86ms,
     bool linuxboot_dma_enabled = X86_MACHINE_GET_CLASS(x86ms)->fwcfg_dma_enabled;
     uint16_t protocol;
     int setup_size, kernel_size, cmdline_size;
-    int dtb_size, setup_data_offset;
+    int dtb_size, setup_data_offset, last_setup_data_offset = 0;
     uint32_t initrd_max;
     uint8_t header[8192], *setup, *kernel;
     hwaddr real_addr, prot_addr, cmdline_addr, initrd_addr = 0;
@@ -1063,15 +1064,29 @@ void x86_load_linux(X86MachineState *x86ms,
         kernel_size = setup_data_offset + sizeof(struct setup_data) + dtb_size;
         kernel = g_realloc(kernel, kernel_size);
 
-        stq_p(header + 0x250, prot_addr + setup_data_offset);
 
         setup_data = (struct setup_data *)(kernel + setup_data_offset);
-        setup_data->next = 0;
+        setup_data->next = last_setup_data_offset;
         setup_data->type = cpu_to_le32(SETUP_DTB);
         setup_data->len = cpu_to_le32(dtb_size);
 
         load_image_size(dtb_filename, setup_data->data, dtb_size);
+
+        last_setup_data_offset = prot_addr + setup_data_offset;
     }
+
+    setup_data_offset = QEMU_ALIGN_UP(kernel_size, 16);
+    kernel_size = setup_data_offset + sizeof(struct setup_data) + 32;
+    kernel = g_realloc(kernel, kernel_size);
+    setup_data = (struct setup_data *)(kernel + setup_data_offset);
+    setup_data->next = last_setup_data_offset;
+    setup_data->type = cpu_to_le32(SETUP_RNG_SEED);
+    setup_data->len = cpu_to_le32(32);
+    qemu_guest_getrandom_nofail(setup_data->data, 32);
+
+    last_setup_data_offset = prot_addr + setup_data_offset;
+
+    stq_p(header + 0x250, last_setup_data_offset);
 
     /*
      * If we're starting an encrypted VM, it will be OVMF based, which uses the
