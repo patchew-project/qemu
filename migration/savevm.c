@@ -3309,3 +3309,87 @@ void qmp_snapshot_delete(const char *job_id,
 
     job_start(&s->common);
 }
+
+// saves the cpu and devices state
+QIOChannelBuffer* qemu_snapshot_save_cpu_state(void)
+{
+    QEMUFile *f;
+    QIOChannelBuffer *ioc;
+    MigrationState *ms = migrate_get_current();
+    int ret;
+
+    /* This is a hack to trick vm_stop() into thinking it is not in vcpu thread.
+     * This is needed to properly stop the VM for a snapshot.
+     */
+    CPUState *cpu = current_cpu;
+    current_cpu = NULL;
+    vm_stop(RUN_STATE_SAVE_VM);
+    current_cpu = cpu;
+
+    global_state_store_running();
+
+    ioc = qio_channel_buffer_new(0x10000);
+    qio_channel_set_name(QIO_CHANNEL(ioc), "snapshot-buffer");
+    f = qemu_file_new_output(QIO_CHANNEL(ioc));
+
+    /* We need to initialize migration otherwise qemu_save_device_state() will
+     * complain.
+     */
+    migrate_init(ms);
+    ms->state = MIGRATION_STATUS_NONE;
+    ms->send_configuration = false;
+
+    cpu_synchronize_all_states();
+
+    ret = qemu_save_device_state(f);
+    if (ret < 0) {
+        fprintf(stderr, "[QEMU] save device err: %d\n", ret);
+    }
+
+    // clean up and restart vm
+    qemu_fflush(f);
+    g_free(f);
+
+    vm_start();
+
+    /* Needed so qemu_loadvm_state does not error with:
+     * qemu-system-x86_64: Expected vmdescription section, but got 0
+     */
+    ms->state = MIGRATION_STATUS_POSTCOPY_ACTIVE;
+
+    return ioc;
+}
+
+// loads the cpu and devices state
+static void do_snapshot_load(void* opaque) {
+    QIOChannelBuffer *ioc = opaque;
+    QEMUFile *f;
+    int ret;
+
+    vm_stop(RUN_STATE_RESTORE_VM);
+
+    // seek back to beginning of file
+    qio_channel_io_seek(QIO_CHANNEL(ioc), 0, 0, NULL);
+    f = qemu_file_new_input(QIO_CHANNEL(ioc));
+
+    ret = qemu_loadvm_state(f);
+    if (ret < 0) {
+        fprintf(stderr, "[QEMU] loadvm err: %d\n", ret);
+    }
+
+    vm_start();
+
+    g_free(f);
+
+    // print time to debug speed
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    fprintf(stderr, "loaded snapshot at %ld.%ld\n", ts.tv_sec, ts.tv_nsec);
+}
+
+void qemu_snapshot_load_cpu_state(QIOChannelBuffer *ioc) {
+    /* Run in a bh because otherwise qemu_loadvm_state won't work
+     */
+    QEMUBH *bh = qemu_bh_new(do_snapshot_load, ioc);
+    qemu_bh_schedule(bh);
+}

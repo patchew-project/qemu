@@ -68,4 +68,7 @@ int qemu_load_device_state(QEMUFile *f);
 int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
         bool in_postcopy, bool inactivate_disks);
 
+QIOChannelBuffer* qemu_snapshot_save_cpu_state(void);
+void qemu_snapshot_load_cpu_state(QIOChannelBuffer *ioc);
+
 #endif

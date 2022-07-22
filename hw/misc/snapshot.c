@@ -55,6 +55,9 @@ static void save_snapshot(struct SnapshotState *s) {
     // map as MAP_PRIVATE to avoid carrying writes back to the saved file
     fd = open(filepath, O_RDONLY);
     mmap(guest_mem, guest_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_FIXED, fd, 0);
+
+    // save cpu and device state
+    s->ioc = qemu_snapshot_save_cpu_state();
 }
 
 static void restore_snapshot(struct SnapshotState *s) {
@@ -73,6 +76,9 @@ static void restore_snapshot(struct SnapshotState *s) {
     fd = open(filepath, O_RDONLY);
     mmap(guest_mem, guest_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_FIXED, fd, 0);
     close(fd);
+
+    // restore cpu and device state
+    qemu_snapshot_load_cpu_state(s->ioc);
 }
 
 static uint64_t snapshot_mmio_read(void *opaque, hwaddr addr, unsigned size)
