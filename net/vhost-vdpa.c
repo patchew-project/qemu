@@ -211,16 +211,6 @@ static ssize_t vhost_vdpa_receive(NetClientState *nc, const uint8_t *buf,
     return 0;
 }
 
-static NetClientInfo net_vhost_vdpa_info = {
-        .type = NET_CLIENT_DRIVER_VHOST_VDPA,
-        .size = sizeof(VhostVDPAState),
-        .receive = vhost_vdpa_receive,
-        .cleanup = vhost_vdpa_cleanup,
-        .has_vnet_hdr = vhost_vdpa_has_vnet_hdr,
-        .has_ufo = vhost_vdpa_has_ufo,
-        .check_peer_type = vhost_vdpa_check_peer_type,
-};
-
 static void vhost_vdpa_cvq_unmap_buf(struct vhost_vdpa *v, void *addr)
 {
     VhostIOVATree *tree = v->iova_tree;
@@ -374,6 +364,16 @@ static virtio_net_ctrl_ack vhost_vdpa_net_cvq_add(VhostShadowVirtqueue *svq,
 
     return VIRTIO_NET_OK;
 }
+
+static NetClientInfo net_vhost_vdpa_info = {
+        .type = NET_CLIENT_DRIVER_VHOST_VDPA,
+        .size = sizeof(VhostVDPAState),
+        .receive = vhost_vdpa_receive,
+        .cleanup = vhost_vdpa_cleanup,
+        .has_vnet_hdr = vhost_vdpa_has_vnet_hdr,
+        .has_ufo = vhost_vdpa_has_ufo,
+        .check_peer_type = vhost_vdpa_check_peer_type,
+};
 
 /**
  * Do not forward commands not supported by SVQ. Otherwise, the device could
