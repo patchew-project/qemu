@@ -18,7 +18,62 @@ DECLARE_INSTANCE_CHECKER(SnapshotState, SNAPSHOT,
 struct SnapshotState {
     PCIDevice pdev;
     MemoryRegion mmio;
+
+    // track saved stated to prevent re-saving
+    bool is_saved;
+
+    // saved cpu and devices state
+    QIOChannelBuffer *ioc;
 };
+
+// memory save location (for better performance, use tmpfs)
+const char *filepath = "/Volumes/RAMDisk/snapshot_0";
+
+static void save_snapshot(struct SnapshotState *s) {
+    if (s->is_saved) {
+        return;
+    }
+    s->is_saved = true;
+
+    // save memory state to file
+    int fd = -1;
+    uint8_t *guest_mem = current_machine->ram->ram_block->host;
+    size_t guest_size = current_machine->ram->ram_block->max_length;
+
+    fd = open(filepath, O_RDWR | O_CREAT | O_TRUNC, (mode_t)0600);
+    ftruncate(fd, guest_size);
+
+    char *map = mmap(0, guest_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    memcpy(map, guest_mem, guest_size);
+    msync(map, guest_size, MS_SYNC);
+    munmap(map, guest_size);
+    close(fd);
+
+    // unmap the guest, we will now use a MAP_PRIVATE
+    munmap(guest_mem, guest_size);
+
+    // map as MAP_PRIVATE to avoid carrying writes back to the saved file
+    fd = open(filepath, O_RDONLY);
+    mmap(guest_mem, guest_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_FIXED, fd, 0);
+}
+
+static void restore_snapshot(struct SnapshotState *s) {
+    int fd = -1;
+    uint8_t *guest_mem = current_machine->ram->ram_block->host;
+    size_t guest_size = current_machine->ram->ram_block->max_length;
+
+    if (!s->is_saved) {
+        fprintf(stderr, "[QEMU] ERROR: attempting to restore but state has not been saved!\n");
+        return;
+    }
+
+    munmap(guest_mem, guest_size);
+
+    // remap the snapshot at the same location
+    fd = open(filepath, O_RDONLY);
+    mmap(guest_mem, guest_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_FIXED, fd, 0);
+    close(fd);
+}
 
 static uint64_t snapshot_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
@@ -28,6 +83,21 @@ static uint64_t snapshot_mmio_read(void *opaque, hwaddr addr, unsigned size)
 static void snapshot_mmio_write(void *opaque, hwaddr addr, uint64_t val,
                 unsigned size)
 {
+    SnapshotState *snapshot = opaque;
+    (void)snapshot;
+
+    switch (addr) {
+    case 0x00:
+        switch (val) {
+        case 0x101:
+            save_snapshot(snapshot);
+            break;
+        case 0x102:
+            restore_snapshot(snapshot);
+            break;
+        }
+        break;
+    }
 }
 
 static const MemoryRegionOps snapshot_mmio_ops = {
@@ -48,6 +118,8 @@ static const MemoryRegionOps snapshot_mmio_ops = {
 static void pci_snapshot_realize(PCIDevice *pdev, Error **errp)
 {
     SnapshotState *snapshot = SNAPSHOT(pdev);
+    snapshot->is_saved = false;
+    snapshot->ioc = NULL;
 
     memory_region_init_io(&snapshot->mmio, OBJECT(snapshot), &snapshot_mmio_ops, snapshot,
                     "snapshot-mmio", 1 * MiB);
