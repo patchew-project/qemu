@@ -46,6 +46,7 @@ config PC
     select ACPI_VMGENID
     select VIRTIO_PMEM_SUPPORTED
     select VIRTIO_MEM_SUPPORTED
+    select SNAPSHOT
 
 config PC_PCI
     bool

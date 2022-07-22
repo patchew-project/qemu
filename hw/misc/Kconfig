@@ -174,4 +174,7 @@ config VIRT_CTRL
 config LASI
     bool
 
+config SNAPSHOT
+    bool
+
 source macio/Kconfig
