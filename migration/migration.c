@@ -61,6 +61,7 @@
 #include "sysemu/cpus.h"
 #include "yank_functions.h"
 #include "sysemu/qtest.h"
+#include "sysemu/dirtylimit.h"
 
 #define MAX_THROTTLE  (128 << 20)      /* Migration transfer speed throttling */
 
@@ -1108,6 +1109,15 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
     if (s->state != MIGRATION_STATUS_COMPLETED) {
         info->ram->remaining = ram_bytes_remaining();
         info->ram->dirty_pages_rate = ram_counters.dirty_pages_rate;
+    }
+
+    if (migrate_dirty_limit() && dirtylimit_in_service()) {
+        info->has_dirty_limit_throttle_us_per_full = true;
+        info->dirty_limit_throttle_us_per_full =
+                            dirtylimit_throttle_us_per_full();
+
+        info->has_dirty_limit_us_ring_full = true;
+        info->dirty_limit_us_ring_full = dirtylimit_us_ring_full();
     }
 }
 
