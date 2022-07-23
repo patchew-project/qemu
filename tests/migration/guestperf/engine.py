@@ -103,6 +103,8 @@ class Engine(object):
             info.get("expected-downtime", 0),
             info.get("setup-time", 0),
             info.get("cpu-throttle-percentage", 0),
+            info.get("dirty-limit-throttle-us-per-full", 0),
+            info.get("dirty-limit-us-ring-full", 0),
         )
 
     def _migrate(self, hardware, scenario, src, dst, connect_uri):
@@ -203,6 +205,30 @@ class Engine(object):
                                ])
             resp = dst.command("migrate-set-parameters",
                                multifd_channels=scenario._multifd_channels)
+
+        if scenario._dirty_limit:
+            if not hardware._dirty_ring_size:
+                raise Exception("dirty ring size must be configured when "
+                                "testing dirty limit migration")
+
+            resp = src.command("migrate-set-capabilities",
+                               capabilities = [
+                                   { "capability": "dirty-limit",
+                                     "state": True }
+                               ])
+            resp = src.command("migrate-set-parameters",
+                x_vcpu_dirty_limit_period=scenario._x_vcpu_dirty_limit_period)
+            resp = src.command("migrate-set-parameters",
+                               vcpu_dirty_limit=scenario._vcpu_dirty_limit)
+            resp = dst.command("migrate-set-capabilities",
+                               capabilities = [
+                                   { "capability": "dirty-limit",
+                                     "state": True }
+                               ])
+            resp = dst.command("migrate-set-parameters",
+                x_vcpu_dirty_limit_period=scenario._x_vcpu_dirty_limit_period)
+            resp = dst.command("migrate-set-parameters",
+                               vcpu_dirty_limit=scenario._vcpu_dirty_limit)
 
         resp = src.command("migrate", uri=connect_uri)
 
