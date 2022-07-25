@@ -336,6 +336,9 @@ have_vhost_kernel = get_option('vhost_kernel') \
 have_vhost_user_crypto = get_option('vhost_crypto') \
   .require(have_vhost_user,
            error_message: 'vhost-crypto requires vhost-user to be enabled').allowed()
+have_vhost_blk = get_option('vhost_blk') \
+  .require(targetos == 'linux',
+           error_message: 'vhost-kernel is only available on Linux').allowed()
 
 have_vhost = have_vhost_user or have_vhost_vdpa or have_vhost_kernel
 
@@ -1814,6 +1817,7 @@ config_host_data.set('CONFIG_VHOST_KERNEL', have_vhost_kernel)
 config_host_data.set('CONFIG_VHOST_USER', have_vhost_user)
 config_host_data.set('CONFIG_VHOST_CRYPTO', have_vhost_user_crypto)
 config_host_data.set('CONFIG_VHOST_VDPA', have_vhost_vdpa)
+config_host_data.set('CONFIG_VHOST_BLK', have_vhost_blk)
 config_host_data.set('CONFIG_VMNET', vmnet.found())
 config_host_data.set('CONFIG_VHOST_USER_BLK_SERVER', have_vhost_user_blk_server)
 config_host_data.set('CONFIG_VDUSE_BLK_EXPORT', have_vduse_blk_export)
@@ -3756,6 +3760,7 @@ summary_info += {'vhost-user support': have_vhost_user}
 summary_info += {'vhost-user-crypto support': have_vhost_user_crypto}
 summary_info += {'vhost-user-blk server support': have_vhost_user_blk_server}
 summary_info += {'vhost-vdpa support': have_vhost_vdpa}
+summary_info += {'vhost-blk support': have_vhost_blk}
 summary_info += {'build guest agent': have_ga}
 summary(summary_info, bool_yn: true, section: 'Configurable features')
 
