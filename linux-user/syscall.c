@@ -8265,9 +8265,11 @@ static int do_openat(CPUArchState *cpu_env, int dirfd, const char *pathname, int
     }
 
     if (fake_open->filename) {
+        int fd, r;
+
+#ifndef CONFIG_MEMFD
         const char *tmpdir;
         char filename[PATH_MAX];
-        int fd, r;
 
         /* create temporary file to map stat to */
         tmpdir = getenv("TMPDIR");
@@ -8279,6 +8281,12 @@ static int do_openat(CPUArchState *cpu_env, int dirfd, const char *pathname, int
             return fd;
         }
         unlink(filename);
+#else
+        fd = memfd_create("qemu-open", 0);
+        if (fd < 0) {
+            return fd;
+        }
+#endif
 
         if ((r = fake_open->fill(cpu_env, fd))) {
             int e = errno;
