@@ -1024,7 +1024,7 @@ static bool vhost_vdpa_svqs_start(struct vhost_dev *dev)
     }
 
     if (v->migration_blocker) {
-        int r = migrate_add_blocker(v->migration_blocker, &err);
+        int r = migrate_add_blocker(&v->migration_blocker, &err);
         if (unlikely(r < 0)) {
             return false;
         }
@@ -1073,7 +1073,7 @@ err:
     }
 
     if (v->migration_blocker) {
-        migrate_del_blocker(v->migration_blocker);
+        migrate_remove_blocker(v->migration_blocker);
     }
 
     return false;
@@ -1096,7 +1096,7 @@ static bool vhost_vdpa_svqs_stop(struct vhost_dev *dev)
     }
 
     if (v->migration_blocker) {
-        migrate_del_blocker(v->migration_blocker);
+        migrate_remove_blocker(v->migration_blocker);
     }
     return true;
 }

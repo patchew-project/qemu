@@ -323,8 +323,7 @@ static void s390_machine_unprotect(S390CcwMachineState *ms)
 {
     s390_pv_vm_disable();
     ms->pv = false;
-    migrate_del_blocker(pv_mig_blocker);
-    error_free_or_abort(&pv_mig_blocker);
+    migrate_del_blocker(&pv_mig_blocker);
     ram_block_discard_disable(false);
 }
 
@@ -347,11 +346,10 @@ static int s390_machine_protect(S390CcwMachineState *ms)
 
     error_setg(&pv_mig_blocker,
                "protected VMs are currently not migrateable.");
-    rc = migrate_add_blocker(pv_mig_blocker, &local_err);
+    rc = migrate_add_blocker(&pv_mig_blocker, &local_err);
     if (rc) {
         ram_block_discard_disable(false);
         error_report_err(local_err);
-        error_free_or_abort(&pv_mig_blocker);
         return rc;
     }
 
@@ -359,8 +357,7 @@ static int s390_machine_protect(S390CcwMachineState *ms)
     rc = s390_pv_vm_enable();
     if (rc) {
         ram_block_discard_disable(false);
-        migrate_del_blocker(pv_mig_blocker);
-        error_free_or_abort(&pv_mig_blocker);
+        migrate_del_blocker(&pv_mig_blocker);
         return rc;
     }
 

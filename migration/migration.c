@@ -2198,35 +2198,48 @@ void migrate_init(MigrationState *s)
     s->threshold_size = 0;
 }
 
-int migrate_add_blocker_internal(Error *reason, Error **errp)
+int migrate_add_blocker_internal(Error **reasonp, Error **errp)
 {
     /* Snapshots are similar to migrations, so check RUN_STATE_SAVE_VM too. */
     if (runstate_check(RUN_STATE_SAVE_VM) || !migration_is_idle()) {
-        error_propagate_prepend(errp, error_copy(reason),
+        error_propagate_prepend(errp, *reasonp,
                                 "disallowing migration blocker "
                                 "(migration/snapshot in progress) for: ");
+        *reasonp = NULL;
         return -EBUSY;
     }
 
-    migration_blockers = g_slist_prepend(migration_blockers, reason);
+    migration_blockers = g_slist_prepend(migration_blockers, *reasonp);
     return 0;
 }
 
-int migrate_add_blocker(Error *reason, Error **errp)
+int migrate_add_blocker(Error **reasonp, Error **errp)
 {
     if (only_migratable) {
-        error_propagate_prepend(errp, error_copy(reason),
+        error_propagate_prepend(errp, *reasonp,
                                 "disallowing migration blocker "
                                 "(--only-migratable) for: ");
+        *reasonp = NULL;
         return -EACCES;
     }
 
-    return migrate_add_blocker_internal(reason, errp);
+    return migrate_add_blocker_internal(reasonp, errp);
 }
 
-void migrate_del_blocker(Error *reason)
+void migrate_del_blocker(Error **reasonp)
 {
-    migration_blockers = g_slist_remove(migration_blockers, reason);
+    if (*reasonp) {
+        migrate_remove_blocker(*reasonp);
+        error_free(*reasonp);
+        *reasonp = NULL;
+    }
+}
+
+void migrate_remove_blocker(Error *reason)
+{
+    if (reason) {
+        migration_blockers = g_slist_remove(migration_blockers, reason);
+    }
 }
 
 void qmp_migrate_incoming(const char *uri, Error **errp)
