@@ -759,6 +759,9 @@ static void vfio_migration_state_notifier(Notifier *notifier, void *data)
     VFIODevice *vbasedev = migration->vbasedev;
     int ret;
 
+    if (migrate_mode_of(s) != MIG_MODE_NORMAL) {
+        return;
+    }
     trace_vfio_migration_state_notifier(vbasedev->name,
                                         MigrationStatus_str(s->state));
 

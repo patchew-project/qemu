@@ -558,7 +558,7 @@ static void migration_state_notifier(Notifier *notifier, void *data)
 {
     MigrationState *s = data;
 
-    if (!spice_have_target_host) {
+    if (!spice_have_target_host || migrate_mode_of(s) != MIG_MODE_NORMAL) {
         return;
     }
 

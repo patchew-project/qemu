@@ -3351,6 +3351,10 @@ static void virtio_net_handle_migration_primary(VirtIONet *n, MigrationState *s)
 static void virtio_net_migration_state_notifier(Notifier *notifier, void *data)
 {
     MigrationState *s = data;
+
+    if (migrate_mode_of(s) != MIG_MODE_NORMAL) {
+        return;
+    }
     VirtIONet *n = container_of(notifier, VirtIONet, migration_state);
     virtio_net_handle_migration_primary(n, s);
 }
