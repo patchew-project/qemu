@@ -923,6 +923,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->cpu_throttle_increment = s->parameters.cpu_throttle_increment;
     params->has_cpu_throttle_tailslow = true;
     params->cpu_throttle_tailslow = s->parameters.cpu_throttle_tailslow;
+    params->has_cpr_exec_args = true;
+    params->cpr_exec_args = QAPI_CLONE(strList, s->parameters.cpr_exec_args);
     params->has_tls_creds = true;
     params->tls_creds = g_strdup(s->parameters.tls_creds);
     params->has_tls_hostname = true;
@@ -1615,6 +1617,10 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
         dest->cpu_throttle_tailslow = params->cpu_throttle_tailslow;
     }
 
+    if (params->has_cpr_exec_args) {
+        dest->cpr_exec_args = params->cpr_exec_args;
+    }
+
     if (params->has_tls_creds) {
         assert(params->tls_creds->type == QTYPE_QSTRING);
         dest->tls_creds = params->tls_creds->u.s;
@@ -1714,6 +1720,12 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
 
     if (params->has_cpu_throttle_tailslow) {
         s->parameters.cpu_throttle_tailslow = params->cpu_throttle_tailslow;
+    }
+
+    if (params->has_cpr_exec_args) {
+        qapi_free_strList(s->parameters.cpr_exec_args);
+        s->parameters.cpr_exec_args =
+            QAPI_CLONE(strList, params->cpr_exec_args);
     }
 
     if (params->has_tls_creds) {
@@ -4481,6 +4493,8 @@ static Property migration_properties[] = {
                       DEFAULT_MIGRATE_CPU_THROTTLE_INCREMENT),
     DEFINE_PROP_BOOL("x-cpu-throttle-tailslow", MigrationState,
                       parameters.cpu_throttle_tailslow, false),
+    DEFINE_PROP_STRLIST("cpr-exec-args", MigrationState,
+                      parameters.cpr_exec_args),
     DEFINE_PROP_SIZE("x-max-bandwidth", MigrationState,
                       parameters.max_bandwidth, MAX_THROTTLE),
     DEFINE_PROP_UINT64("x-downtime-limit", MigrationState,
@@ -4597,6 +4611,7 @@ static void migration_instance_init(Object *obj)
     params->has_compress_threads = true;
     params->has_decompress_threads = true;
     params->has_throttle_trigger_threshold = true;
+    params->has_cpr_exec_args = true;
     params->has_cpu_throttle_initial = true;
     params->has_cpu_throttle_increment = true;
     params->has_cpu_throttle_tailslow = true;

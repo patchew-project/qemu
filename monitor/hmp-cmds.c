@@ -387,6 +387,18 @@ void hmp_info_migrate_capabilities(Monitor *mon, const QDict *qdict)
     qapi_free_MigrationCapabilityStatusList(caps);
 }
 
+static void monitor_print_cpr_exec_args(Monitor *mon, strList *args)
+{
+    monitor_printf(mon, "%s:",
+        MigrationParameter_str(MIGRATION_PARAMETER_CPR_EXEC_ARGS));
+
+    while (args) {
+        monitor_printf(mon, " %s", args->value);
+        args = args->next;
+    }
+    monitor_printf(mon, "\n");
+}
+
 void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
 {
     MigrationParameters *params;
@@ -446,6 +458,8 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "%s: %u\n",
             MigrationParameter_str(MIGRATION_PARAMETER_MAX_CPU_THROTTLE),
             params->max_cpu_throttle);
+        assert(params->has_cpr_exec_args);
+        monitor_print_cpr_exec_args(mon, params->cpr_exec_args);
         assert(params->has_tls_creds);
         monitor_printf(mon, "%s: '%s'\n",
             MigrationParameter_str(MIGRATION_PARAMETER_TLS_CREDS),
@@ -1190,6 +1204,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     uint64_t valuebw = 0;
     uint64_t cache_size;
     Error *err = NULL;
+    g_autofree char *str = NULL;
     int val, ret;
 
     val = qapi_enum_parse(&MigrationParameter_lookup, param, -1, &err);
@@ -1237,6 +1252,11 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     case MIGRATION_PARAMETER_MAX_CPU_THROTTLE:
         p->has_max_cpu_throttle = true;
         visit_type_uint8(v, param, &p->max_cpu_throttle, &err);
+        break;
+    case MIGRATION_PARAMETER_CPR_EXEC_ARGS:
+        p->has_cpr_exec_args = true;
+        visit_type_str(v, param, &str, &err);
+        p->cpr_exec_args = strList_from_string(str, ' ');
         break;
     case MIGRATION_PARAMETER_TLS_CREDS:
         p->has_tls_creds = true;
