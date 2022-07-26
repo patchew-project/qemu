@@ -32,6 +32,7 @@
 #include "migration.h"
 #include "savevm.h"
 #include "qemu-file.h"
+#include "migration/cpr.h"
 #include "migration/vmstate.h"
 #include "block/block.h"
 #include "qapi/error.h"
@@ -231,6 +232,7 @@ void migration_object_init(void)
     blk_mig_init();
     ram_mig_init();
     dirty_bitmap_mig_init();
+    cpr_init();
 }
 
 void migration_cancel(const Error *error)
@@ -1964,6 +1966,7 @@ static void migrate_fd_cleanup(MigrationState *s)
     }
     migration_call_notifiers(s);
     block_cleanup_parameters(s);
+    cpr_exec();
     yank_unregister_instance(MIGRATION_YANK_INSTANCE);
 }
 
@@ -2486,6 +2489,12 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
     }
 
     if (migrate_check_enabled(errp)) {
+        return false;
+    }
+
+    if (migrate_mode_of(s) == MIG_MODE_CPR_EXEC &&
+        !s->parameters.has_cpr_exec_args) {
+        error_setg(errp, "cpr-exec mode requires setting cpr-exec-args");
         return false;
     }
 

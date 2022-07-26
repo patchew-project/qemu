@@ -586,10 +586,21 @@
 #              arguments must match those used to initially start qemu, plus
 #              the -incoming option.
 #
+# @cpr-exec: The migrate command saves state to a file, directly exec's a
+#            new version of qemu on the same host, replacing the original
+#            process while retaining its PID, and loads the file via the
+#            migrate-incoming command.  The caller must specify a migration URI
+#            that writes to and reads from a file.  Guest RAM must be backed by
+#            a memory backend with share=on, and cannot be memory-backend-ram.
+#            Guest RAM is not copied, and storage blocks are not migrated, so
+#            all capabilities related to page and block copy must be disabled,
+#            and all related parameters are ignored.  Arguments for the new
+#            qemu process are taken from the @cpr-exec-args parameter.
+#
 # Since: 7.1
 ##
 { 'enum': 'MigMode',
-  'data': [ 'normal', 'cpr-reboot' ] }
+  'data': [ 'normal', 'cpr-reboot', 'cpr-exec' ] }
 
 ##
 # @BitmapMigrationBitmapAliasTransform:
@@ -712,7 +723,11 @@
 #                         at tail stage.
 #                         The default value is false. (Since 5.1)
 #
-# @cpr-exec-args: defined in a subsequent patch.
+# @cpr-exec-args: arguments passed to new qemu for cpr-exec mode.  The first
+#                 argument should be the path of a new qemu binary, or a prefix
+#                 command that exec's the new qemu binary.  The arguments must
+#                 match those used to initially start qemu, plus the -incoming
+#                 option. (Since 7.1)
 #
 # @tls-creds: ID of the 'tls-creds' object that provides credentials for
 #             establishing a TLS connection over the migration data channel.
@@ -885,7 +900,8 @@
 #                         at tail stage.
 #                         The default value is false. (Since 5.1)
 #
-# @cpr-exec-args: defined in a subsequent patch.
+# @cpr-exec-args: Arguments passed to new qemu for cpr-exec mode.
+#                 See description in @MigrationParameter. (Since 7.1)
 #
 # @tls-creds: ID of the 'tls-creds' object that provides credentials
 #             for establishing a TLS connection over the migration data
@@ -1090,7 +1106,8 @@
 #                         at tail stage.
 #                         The default value is false. (Since 5.1)
 #
-# @cpr-exec-args: defined in a subsequent patch.
+# @cpr-exec-args: Arguments passed to new qemu for cpr-exec mode.
+#                 See description in @MigrationParameter. (Since 7.1)
 #
 # @tls-creds: ID of the 'tls-creds' object that provides credentials
 #             for establishing a TLS connection over the migration data

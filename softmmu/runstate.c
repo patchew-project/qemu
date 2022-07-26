@@ -32,6 +32,7 @@
 #include "exec/cpu-common.h"
 #include "exec/gdbstub.h"
 #include "hw/boards.h"
+#include "migration/cpr.h"
 #include "migration/misc.h"
 #include "migration/postcopy-ram.h"
 #include "monitor/monitor.h"
@@ -692,9 +693,10 @@ static bool main_loop_should_exit(void)
 
         if (qemu_exec_requested()) {
             Error *err = NULL;
+            cpr_preserve_fds();
             execvp(exec_argv[0], exec_argv);
             error_setg_errno(&err, errno, "execvp %s failed", exec_argv[0]);
-            error_report_err(err);
+            cpr_exec_failed(err);
             g_strfreev(exec_argv);
             exec_argv = NULL;
             return false;

@@ -15,6 +15,7 @@ softmmu_ss.add(files(
   'channel-block.c',
   'colo-failover.c',
   'colo.c',
+  'cpr.c',
   'cpr-state.c',
   'exec.c',
   'fd.c',
