@@ -568,6 +568,16 @@
             { 'name': 'zstd', 'if': 'CONFIG_ZSTD' } ] }
 
 ##
+# @MigMode:
+#
+# @normal: the original form of migration.
+#
+# Since: 7.1
+##
+{ 'enum': 'MigMode',
+  'data': [ 'normal' ] }
+
+##
 # @BitmapMigrationBitmapAliasTransform:
 #
 # @persistent: If present, the bitmap will be made persistent
@@ -626,6 +636,9 @@
 # @MigrationParameter:
 #
 # Migration parameters enumeration
+#
+# @mode: Migration mode. See description in @MigMode. Default is 'normal'.
+#        (Since 7.1)
 #
 # @announce-initial: Initial delay (in milliseconds) before sending the first
 #                    announce (Since 4.0)
@@ -782,7 +795,8 @@
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
-  'data': ['announce-initial', 'announce-max',
+  'data': ['mode',
+           'announce-initial', 'announce-max',
            'announce-rounds', 'announce-step',
            'compress-level', 'compress-threads', 'decompress-threads',
            'compress-wait-thread', 'throttle-trigger-threshold',
@@ -800,6 +814,9 @@
 
 ##
 # @MigrateSetParameters:
+#
+# @mode: Migration mode. See description in @MigMode. Default is 'normal'.
+#        (Since 7.1)
 #
 # @announce-initial: Initial delay (in milliseconds) before sending the first
 #                    announce (Since 4.0)
@@ -949,7 +966,8 @@
 # TODO either fuse back into MigrationParameters, or make
 # MigrationParameters members mandatory
 { 'struct': 'MigrateSetParameters',
-  'data': { '*announce-initial': 'size',
+  'data': { '*mode': 'MigMode',
+            '*announce-initial': 'size',
             '*announce-max': 'size',
             '*announce-rounds': 'size',
             '*announce-step': 'size',
@@ -998,6 +1016,9 @@
 # @MigrationParameters:
 #
 # The optional members aren't actually optional.
+#
+# @mode: Migration mode. See description in @MigMode. Default is 'normal'.
+#        (Since 7.1)
 #
 # @announce-initial: Initial delay (in milliseconds) before sending the
 #                    first announce (Since 4.0)
@@ -1147,7 +1168,8 @@
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
-  'data': { '*announce-initial': 'size',
+  'data': { '*mode': 'MigMode',
+            '*announce-initial': 'size',
             '*announce-max': 'size',
             '*announce-rounds': 'size',
             '*announce-step': 'size',
