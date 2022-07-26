@@ -172,6 +172,7 @@ typedef struct DumpState {
     hwaddr shdr_offset;
     hwaddr phdr_offset;
     hwaddr note_offset;
+    hwaddr section_offset;
 
     void *elf_header;
     void *elf_section_hdrs;
