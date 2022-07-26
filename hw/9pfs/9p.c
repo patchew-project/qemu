@@ -1487,7 +1487,8 @@ static void coroutine_fn v9fs_attach(void *opaque)
         error_setg(&s->migration_blocker,
                    "Migration is disabled when VirtFS export path '%s' is mounted in the guest using mount_tag '%s'",
                    s->ctx.fs_root ? s->ctx.fs_root : "NULL", s->tag);
-        err = migrate_add_blocker(&s->migration_blocker, NULL);
+        err = migrate_add_blockers(&s->migration_blocker, NULL, MIG_MODE_NORMAL,
+                                   -1);
         if (err < 0) {
             clunk_fid(s, fid);
             goto out;

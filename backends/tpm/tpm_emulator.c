@@ -492,7 +492,8 @@ static int tpm_emulator_block_migration(TPMEmulator *tpm_emu)
         error_setg(&tpm_emu->migration_blocker,
                    "Migration disabled: TPM emulator does not support "
                    "migration");
-        if (migrate_add_blocker(&tpm_emu->migration_blocker, &err) < 0) {
+        if (migrate_add_blockers(&tpm_emu->migration_blocker, &err,
+                                 MIG_MODE_NORMAL, -1) < 0) {
             error_report_err(err);
             return -1;
         }
