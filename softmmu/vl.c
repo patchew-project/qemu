@@ -77,6 +77,7 @@
 #include "hw/block/block.h"
 #include "hw/i386/x86.h"
 #include "hw/i386/pc.h"
+#include "migration/cpr.h"
 #include "migration/misc.h"
 #include "migration/snapshot.h"
 #include "sysemu/tpm.h"
@@ -3335,6 +3336,9 @@ void qemu_init(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_only_migratable:
                 only_migratable = 1;
+                break;
+            case QEMU_OPTION_only_cpr_capable:
+                only_cpr_capable = true;
                 break;
             case QEMU_OPTION_migrate_mode_enable:
                 migrate_enable_mode(qapi_enum_parse(&MigMode_lookup, optarg, -1,

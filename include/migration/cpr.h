@@ -8,6 +8,8 @@
 #ifndef MIGRATION_CPR_H
 #define MIGRATION_CPR_H
 
+#define CPR_MODES     (BIT(MIG_MODE_CPR_REBOOT) | BIT(MIG_MODE_CPR_EXEC))
+
 extern bool only_cpr_capable;
 
 void cpr_init(void);

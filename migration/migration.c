@@ -2181,6 +2181,11 @@ bool migrate_mode_enabled(MigMode mode)
     return !!(migrate_enabled_modes & BIT(mode));
 }
 
+static bool migrate_modes_enabled(int modes)
+{
+    return (modes & migrate_enabled_modes) == modes;
+}
+
 static int migrate_check_enabled(Error **errp)
 {
     MigMode mode = migrate_mode();
@@ -2258,6 +2263,14 @@ static int check_blockers(Error **reasonp, Error **errp, int modes)
         error_propagate_prepend(errp, *reasonp,
                                 "disallowing migration blocker "
                                 "(--only-migratable) for: ");
+        *reasonp = NULL;
+        return -EACCES;
+    }
+
+    if (only_cpr_capable && (modes & CPR_MODES) &&
+        migrate_modes_enabled(modes & CPR_MODES)) {
+        error_propagate_prepend(errp, *reasonp,
+                                "-only-cpr-capable specified, but: ");
         *reasonp = NULL;
         return -EACCES;
     }
