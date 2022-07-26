@@ -895,15 +895,35 @@ static bool vfio_known_safe_misalignment(MemoryRegionSection *section)
     return true;
 }
 
+static VFIORamDiscardListener *vfio_find_ram_discard_listener(
+    VFIOContainer *container, MemoryRegionSection *section)
+{
+    VFIORamDiscardListener *vrdl;
+
+    QLIST_FOREACH(vrdl, &container->vrdl_list, next) {
+        if (vrdl->mr == section->mr &&
+            vrdl->offset_within_address_space ==
+            section->offset_within_address_space) {
+            break;
+        }
+    }
+
+    if (!vrdl) {
+        hw_error("vfio: Trying to sync missing RAM discard listener");
+        /* does not return */
+    }
+    return vrdl;
+}
+
 static void vfio_listener_region_add(MemoryListener *listener,
                                      MemoryRegionSection *section)
 {
     VFIOContainer *container = container_of(listener, VFIOContainer, listener);
-    vfio_container_region_add(container, section);
+    vfio_container_region_add(container, section, false);
 }
 
 void vfio_container_region_add(VFIOContainer *container,
-                               MemoryRegionSection *section)
+                               MemoryRegionSection *section, bool remap)
 {
     hwaddr iova, end;
     Int128 llend, llsize;
@@ -1033,6 +1053,30 @@ void vfio_container_region_add(VFIOContainer *container,
         int iommu_idx;
 
         trace_vfio_listener_region_add_iommu(iova, end);
+
+        /*
+         * If remap, then VFIO_DMA_UNMAP_FLAG_VADDR has been called, and we
+         * want to remap the vaddr.  vfio_container_region_add was already
+         * called in the past, so the giommu already exists.  Find it and
+         * replay it, which calls vfio_dma_map further down the stack.
+         */
+
+        if (remap) {
+            hwaddr as_offset = section->offset_within_address_space;
+            hwaddr iommu_offset = as_offset - section->offset_within_region;
+
+            QLIST_FOREACH(giommu, &container->giommu_list, giommu_next) {
+                if (giommu->iommu_mr == iommu_mr &&
+                    giommu->iommu_offset == iommu_offset) {
+                    memory_region_iommu_replay(giommu->iommu_mr, &giommu->n);
+                    return;
+                }
+            }
+            error_report("Container cannot find iommu region %s offset %lx",
+                memory_region_name(section->mr), iommu_offset);
+            goto fail;
+        }
+
         /*
          * FIXME: For VFIO iommu types which have KVM acceleration to
          * avoid bouncing all map/unmaps through qemu this way, this
@@ -1083,7 +1127,21 @@ void vfio_container_region_add(VFIOContainer *container,
      * about changes.
      */
     if (memory_region_has_ram_discard_manager(section->mr)) {
-        vfio_register_ram_discard_listener(container, section);
+        /*
+         * If remap, then VFIO_DMA_UNMAP_FLAG_VADDR has been called, and we
+         * want to remap the vaddr.  vfio_container_region_add was already
+         * called in the past, so the ram discard listener already exists.
+         * Call its populate function directly, which calls vfio_dma_map.
+         */
+        if (remap)  {
+            VFIORamDiscardListener *vrdl =
+                vfio_find_ram_discard_listener(container, section);
+            if (vrdl->listener.notify_populate(&vrdl->listener, section)) {
+                error_report("listener.notify_populate failed");
+            }
+        } else {
+            vfio_register_ram_discard_listener(container, section);
+        }
         return;
     }
 
@@ -1417,19 +1475,8 @@ static int vfio_sync_ram_discard_listener_dirty_bitmap(VFIOContainer *container,
                                                    MemoryRegionSection *section)
 {
     RamDiscardManager *rdm = memory_region_get_ram_discard_manager(section->mr);
-    VFIORamDiscardListener *vrdl = NULL;
-
-    QLIST_FOREACH(vrdl, &container->vrdl_list, next) {
-        if (vrdl->mr == section->mr &&
-            vrdl->offset_within_address_space ==
-            section->offset_within_address_space) {
-            break;
-        }
-    }
-
-    if (!vrdl) {
-        hw_error("vfio: Trying to sync missing RAM discard listener");
-    }
+    VFIORamDiscardListener *vrdl =
+        vfio_find_ram_discard_listener(container, section);
 
     /*
      * We only want/can synchronize the bitmap for actually mapped parts -
