@@ -179,11 +179,13 @@ static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev, Error **errp)
         return;
     }
 
-    /* Get to a known interrupt state */
-    qemu_set_fd_handler(irq_fd, NULL, NULL, vdev);
-    vfio_mask_single_irqindex(&vdev->vbasedev, VFIO_PCI_INTX_IRQ_INDEX);
-    vdev->intx.pending = false;
-    pci_irq_deassert(&vdev->pdev);
+    if (!vdev->vbasedev.reused) {
+        /* Get to a known interrupt state */
+        qemu_set_fd_handler(irq_fd, NULL, NULL, vdev);
+        vfio_mask_single_irqindex(&vdev->vbasedev, VFIO_PCI_INTX_IRQ_INDEX);
+        vdev->intx.pending = false;
+        pci_irq_deassert(&vdev->pdev);
+    }
 
     /* Get an eventfd for resample/unmask */
     if (vfio_notifier_init(vdev, &vdev->intx.unmask, "intx-unmask", 0)) {
@@ -199,15 +201,17 @@ static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev, Error **errp)
         goto fail_irqfd;
     }
 
-    if (vfio_set_irq_signaling(&vdev->vbasedev, VFIO_PCI_INTX_IRQ_INDEX, 0,
-                               VFIO_IRQ_SET_ACTION_UNMASK,
-                               event_notifier_get_fd(&vdev->intx.unmask),
-                               errp)) {
-        goto fail_vfio;
-    }
+    if (!vdev->vbasedev.reused) {
+        if (vfio_set_irq_signaling(&vdev->vbasedev, VFIO_PCI_INTX_IRQ_INDEX, 0,
+                                   VFIO_IRQ_SET_ACTION_UNMASK,
+                                   event_notifier_get_fd(&vdev->intx.unmask),
+                                   errp)) {
+            goto fail_vfio;
+        }
 
-    /* Let'em rip */
-    vfio_unmask_single_irqindex(&vdev->vbasedev, VFIO_PCI_INTX_IRQ_INDEX);
+        /* Let'em rip */
+        vfio_unmask_single_irqindex(&vdev->vbasedev, VFIO_PCI_INTX_IRQ_INDEX);
+    }
 
     vdev->intx.kvm_accel = true;
 
@@ -323,7 +327,13 @@ static int vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
         return 0;
     }
 
-    vfio_disable_interrupts(vdev);
+    /*
+     * Do not alter interrupt state during vfio_realize and cpr load.  The
+     * reused flag is cleared thereafter.
+     */
+    if (!vdev->vbasedev.reused) {
+        vfio_disable_interrupts(vdev);
+    }
 
     vdev->intx.pin = pin - 1; /* Pin A (1) -> irq[0] */
     pci_config_set_interrupt_pin(vdev->pdev.config, pin);
@@ -348,7 +358,8 @@ static int vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
     fd = event_notifier_get_fd(&vdev->intx.interrupt);
     qemu_set_fd_handler(fd, vfio_intx_interrupt, NULL, vdev);
 
-    if (vfio_set_irq_signaling(&vdev->vbasedev, VFIO_PCI_INTX_IRQ_INDEX, 0,
+    if (!vdev->vbasedev.reused &&
+        vfio_set_irq_signaling(&vdev->vbasedev, VFIO_PCI_INTX_IRQ_INDEX, 0,
                                VFIO_IRQ_SET_ACTION_TRIGGER, fd, errp)) {
         qemu_set_fd_handler(fd, NULL, NULL, vdev);
         vfio_notifier_cleanup(vdev, &vdev->intx.interrupt, "intx-interrupt", 0);
@@ -3189,9 +3200,13 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
                                              vfio_intx_routing_notifier);
         vdev->irqchip_change_notifier.notify = vfio_irqchip_change;
         kvm_irqchip_add_change_notifier(&vdev->irqchip_change_notifier);
-        ret = vfio_intx_enable(vdev, errp);
-        if (ret) {
-            goto out_deregister;
+
+        /* Wait until cpr load reads intx routing data to enable */
+        if (!vdev->vbasedev.reused) {
+            ret = vfio_intx_enable(vdev, errp);
+            if (ret) {
+                goto out_deregister;
+            }
         }
     }
 
@@ -3471,6 +3486,7 @@ static int vfio_pci_post_load(void *opaque, int version_id)
     VFIOPCIDevice *vdev = opaque;
     PCIDevice *pdev = &vdev->pdev;
     int nr_vectors;
+    int ret = 0;
 
     if (msix_enabled(pdev)) {
         msix_set_vector_notifiers(pdev, vfio_msix_vector_use,
@@ -3483,10 +3499,34 @@ static int vfio_pci_post_load(void *opaque, int version_id)
         vfio_claim_vectors(vdev, nr_vectors, false);
 
     } else if (vfio_pci_read_config(pdev, PCI_INTERRUPT_PIN, 1)) {
-        assert(0);      /* completed in a subsequent patch */
+        Error *err = 0;
+        ret = vfio_intx_enable(vdev, &err);
+        if (ret) {
+            error_report_err(err);
+        }
     }
 
-    return 0;
+    return ret;
+}
+
+static const VMStateDescription vfio_intx_vmstate = {
+    .name = "vfio-intx",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(pending, VFIOINTx),
+        VMSTATE_UINT32(route.mode, VFIOINTx),
+        VMSTATE_INT32(route.irq, VFIOINTx),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+#define VMSTATE_VFIO_INTX(_field, _state) {                         \
+    .name       = (stringify(_field)),                              \
+    .size       = sizeof(VFIOINTx),                                 \
+    .vmsd       = &vfio_intx_vmstate,                               \
+    .flags      = VMS_STRUCT,                                       \
+    .offset     = vmstate_offset_value(_state, _field, VFIOINTx),   \
 }
 
 static bool vfio_pci_needed(void *opaque)
@@ -3505,6 +3545,7 @@ static const VMStateDescription vfio_pci_vmstate = {
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(pdev, VFIOPCIDevice),
         VMSTATE_MSIX_TEST(pdev, VFIOPCIDevice, vfio_msix_present),
+        VMSTATE_VFIO_INTX(intx, VFIOPCIDevice),
         VMSTATE_END_OF_LIST()
     }
 };
