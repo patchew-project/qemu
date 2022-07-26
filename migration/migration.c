@@ -1348,6 +1348,11 @@ static bool migrate_caps_check(bool *cap_list,
         }
     }
 
+    if (cap_list[MIGRATION_CAPABILITY_X_COLO]) {
+        return migrate_add_blocker_always("x-colo is not compatible with cpr",
+                                          errp, MIG_MODE_CPR_EXEC, -1);
+    }
+
     return true;
 }
 

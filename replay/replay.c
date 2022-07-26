@@ -19,6 +19,7 @@
 #include "qemu/option.h"
 #include "sysemu/cpus.h"
 #include "qemu/error-report.h"
+#include "migration/blocker.h"
 
 /* Current version of the replay mechanism.
    Increase it when file format changes. */
@@ -231,6 +232,9 @@ static void replay_enable(const char *fname, int mode)
 {
     const char *fmode = NULL;
     assert(!replay_file);
+
+    migrate_add_blocker_always("replay is not compatible with cpr",
+                                &error_fatal, MIG_MODE_CPR_EXEC, -1);
 
     switch (mode) {
     case REPLAY_MODE_RECORD:

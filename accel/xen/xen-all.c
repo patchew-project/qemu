@@ -181,6 +181,9 @@ static int xen_init(MachineState *ms)
      * opt out of system RAM being allocated by generic code
      */
     mc->default_ram_id = NULL;
+
+    migrate_add_blocker_always("xen does not support cpr exec",
+                               &error_fatal, MIG_MODE_CPR_EXEC, -1);
     return 0;
 }
 
