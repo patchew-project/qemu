@@ -175,7 +175,7 @@ static MigrationState *current_migration;
 static MigrationIncomingState *current_incoming;
 static int migrate_enabled_modes = BIT(MIG_MODE_NORMAL);
 
-static GSList *migration_blockers;
+static GSList *migration_blockers[MIG_MODE__MAX];
 
 static bool migration_object_check(MigrationState *ms, Error **errp);
 static int migration_maybe_pause(MigrationState *s,
@@ -1123,7 +1123,7 @@ static void fill_source_migration_info(MigrationInfo *info)
 {
     MigrationState *s = migrate_get_current();
     int state = qatomic_read(&s->state);
-    GSList *cur_blocker = migration_blockers;
+    GSList *cur_blocker = migration_blockers[migrate_mode()];
 
     info->blocked_reasons = NULL;
 
@@ -2198,8 +2198,10 @@ void migrate_init(MigrationState *s)
     s->threshold_size = 0;
 }
 
-int migrate_add_blocker_internal(Error **reasonp, Error **errp)
+static int add_blockers(Error **reasonp, Error **errp, int modes)
 {
+    MigMode mode;
+
     /* Snapshots are similar to migrations, so check RUN_STATE_SAVE_VM too. */
     if (runstate_check(RUN_STATE_SAVE_VM) || !migration_is_idle()) {
         error_propagate_prepend(errp, *reasonp,
@@ -2209,13 +2211,20 @@ int migrate_add_blocker_internal(Error **reasonp, Error **errp)
         return -EBUSY;
     }
 
-    migration_blockers = g_slist_prepend(migration_blockers, *reasonp);
+    for (mode = 0; mode < MIG_MODE__MAX; mode++) {
+        if (modes & BIT(mode)) {
+            migration_blockers[mode] = g_slist_prepend(migration_blockers[mode],
+                                                       *reasonp);
+        }
+    }
     return 0;
 }
 
-int migrate_add_blocker(Error **reasonp, Error **errp)
+static int check_blockers(Error **reasonp, Error **errp, int modes)
 {
-    if (only_migratable) {
+    ERRP_GUARD();
+
+    if (only_migratable && (modes & BIT(MIG_MODE_NORMAL))) {
         error_propagate_prepend(errp, *reasonp,
                                 "disallowing migration blocker "
                                 "(--only-migratable) for: ");
@@ -2223,7 +2232,60 @@ int migrate_add_blocker(Error **reasonp, Error **errp)
         return -EACCES;
     }
 
-    return migrate_add_blocker_internal(reasonp, errp);
+    return add_blockers(reasonp, errp, modes);
+}
+
+int migrate_add_blocker(Error **reasonp, Error **errp)
+{
+    return migrate_add_blockers(reasonp, errp, MIG_MODE_ALL);
+}
+
+int migrate_add_blocker_internal(Error **reasonp, Error **errp)
+{
+    int modes = BIT(MIG_MODE__MAX) - 1;
+
+    return add_blockers(reasonp, errp, modes);
+}
+
+static int get_modes(MigMode mode, va_list ap)
+{
+    int modes = 0;
+
+    while (mode != -1 && mode != MIG_MODE_ALL) {
+        assert(mode >= MIG_MODE_NORMAL && mode < MIG_MODE__MAX);
+        modes |= BIT(mode);
+        mode = va_arg(ap, MigMode);
+    }
+    if (mode == MIG_MODE_ALL) {
+        modes = BIT(MIG_MODE__MAX) - 1;
+    }
+    return modes;
+}
+
+int migrate_add_blockers(Error **reasonp, Error **errp, MigMode mode, ...)
+{
+    int modes;
+    va_list ap;
+
+    va_start(ap, mode);
+    modes = get_modes(mode, ap);
+    va_end(ap);
+
+    return check_blockers(reasonp, errp, modes);
+}
+
+int migrate_add_blocker_always(const char *msg, Error **errp, MigMode mode, ...)
+{
+    int modes;
+    va_list ap;
+    Error *reason = NULL;
+
+    va_start(ap, mode);
+    modes = get_modes(mode, ap);
+    va_end(ap);
+
+    error_setg(&reason, "%s", msg);
+    return check_blockers(&reason, errp, modes);
 }
 
 void migrate_del_blocker(Error **reasonp)
@@ -2238,7 +2300,10 @@ void migrate_del_blocker(Error **reasonp)
 void migrate_remove_blocker(Error *reason)
 {
     if (reason) {
-        migration_blockers = g_slist_remove(migration_blockers, reason);
+        for (MigMode mode = 0; mode < MIG_MODE__MAX; mode++) {
+            migration_blockers[mode] = g_slist_remove(migration_blockers[mode],
+                                                      reason);
+        }
     }
 }
 
@@ -2333,12 +2398,14 @@ void qmp_migrate_pause(Error **errp)
 
 bool migration_is_blocked(Error **errp)
 {
+    GSList *blockers = migration_blockers[migrate_mode()];
+
     if (qemu_savevm_state_blocked(errp)) {
         return true;
     }
 
-    if (migration_blockers) {
-        error_propagate(errp, error_copy(migration_blockers->data));
+    if (blockers) {
+        error_propagate(errp, error_copy(blockers->data));
         return true;
     }
 
