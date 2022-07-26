@@ -27,6 +27,7 @@ if libaio.found()
   stub_ss.add(files('linux-aio.c'))
 endif
 stub_ss.add(files('migr-blocker.c'))
+stub_ss.add(files('migration.c'))
 stub_ss.add(files('module-opts.c'))
 stub_ss.add(files('monitor.c'))
 stub_ss.add(files('monitor-core.c'))

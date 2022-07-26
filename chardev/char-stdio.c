@@ -27,6 +27,7 @@
 #include "qemu/option.h"
 #include "qemu/sockets.h"
 #include "qapi/error.h"
+#include "migration/misc.h"
 #include "chardev/char.h"
 
 #ifdef _WIN32
@@ -40,16 +41,43 @@
 #ifndef _WIN32
 /* init terminal so that we can grab keys */
 static struct termios oldtty;
+static struct termios newtty;
 static int old_fd0_flags;
+static int new_fd0_flags;
 static bool stdio_in_use;
 static bool stdio_allow_signal;
 static bool stdio_echo_state;
+static Notifier cpr_notifier;
 
 static void term_exit(void)
 {
     if (stdio_in_use) {
+        tcgetattr(0, &newtty);
+        new_fd0_flags = fcntl(0, F_GETFL);
+
         tcsetattr(0, TCSANOW, &oldtty);
         fcntl(0, F_SETFL, old_fd0_flags);
+    }
+}
+
+static void term_reenter(void)
+{
+    if (stdio_in_use) {
+        tcsetattr(0, TCSANOW, &newtty);
+        fcntl(0, F_SETFL, new_fd0_flags);
+    }
+}
+
+static void term_cpr_exec_notifier(Notifier *notifier, void *data)
+{
+    MigrationState *s = data;
+
+    if (migrate_mode_of(s) == MIG_MODE_CPR_EXEC) {
+        if (migration_has_finished(s)) {
+            term_exit();
+        } else if (migration_has_failed(s)) {
+            term_reenter();
+        }
     }
 }
 
@@ -117,6 +145,8 @@ static void qemu_chr_open_stdio(Chardev *chr,
 
     stdio_allow_signal = !opts->has_signal || opts->signal;
     qemu_chr_set_echo_stdio(chr, false);
+    qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_CPR);
+    migration_add_notifier(&cpr_notifier, term_cpr_exec_notifier);
 }
 #endif
 
@@ -147,6 +177,7 @@ static void char_stdio_finalize(Object *obj)
 {
 #ifndef _WIN32
     term_exit();
+    migration_remove_notifier(&cpr_notifier);
 #endif
 }
 
