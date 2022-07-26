@@ -890,7 +890,8 @@ add_blocker:
                "VFIO device doesn't support migration");
     g_free(info);
 
-    return migrate_add_blocker(&vbasedev->migration_blocker, errp);
+    return migrate_add_blockers(&vbasedev->migration_blocker, errp,
+                                MIG_MODE_NORMAL, -1);
 }
 
 void vfio_migration_finalize(VFIODevice *vbasedev)

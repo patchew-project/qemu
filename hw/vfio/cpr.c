@@ -10,6 +10,7 @@
 #include <linux/vfio.h>
 #include "hw/vfio/vfio-common.h"
 #include "sysemu/kvm.h"
+#include "sysemu/runstate.h"
 #include "qapi/error.h"
 #include "migration/blocker.h"
 #include "migration/migration.h"
@@ -132,8 +133,26 @@ static void vfio_cpr_fail_notifier(Notifier *notifier, void *data)
     }
 }
 
+static void vfio_cpr_reboot_notifier(Notifier *notifier, void *data)
+{
+    MigrationState *s = data;
+
+    if (migrate_mode_of(s) == MIG_MODE_CPR_REBOOT &&
+        !migration_has_failed(s) &&
+        !runstate_check(RUN_STATE_SUSPENDED)) {
+
+        Error *err = NULL;
+        error_setg(&err, "VFIO device only supports cpr-reboot for "
+                         "runstate suspended");
+        migration_notifier_set_error(s, err);
+    }
+}
+
 int vfio_cpr_register_container(VFIOContainer *container, Error **errp)
 {
+    migration_add_notifier(&container->cpr_reboot_notifier,
+                           vfio_cpr_reboot_notifier);
+
     container->cpr_blocker = NULL;
     if (!vfio_is_cpr_capable(container, &container->cpr_blocker)) {
         return migrate_add_blockers(&container->cpr_blocker, errp,
@@ -148,6 +167,8 @@ int vfio_cpr_register_container(VFIOContainer *container, Error **errp)
 
 void vfio_cpr_unregister_container(VFIOContainer *container)
 {
+    migration_remove_notifier(&container->cpr_reboot_notifier);
+
     migrate_del_blocker(&container->cpr_blocker);
 
     vmstate_unregister(NULL, &vfio_container_vmstate, container);

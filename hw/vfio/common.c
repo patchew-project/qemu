@@ -1355,14 +1355,18 @@ static void vfio_listener_log_global_start(MemoryListener *listener)
 {
     VFIOContainer *container = container_of(listener, VFIOContainer, listener);
 
-    vfio_set_dirty_page_tracking(container, true);
+    if (!runstate_check(RUN_STATE_SUSPENDED)) {
+        vfio_set_dirty_page_tracking(container, true);
+    }
 }
 
 static void vfio_listener_log_global_stop(MemoryListener *listener)
 {
     VFIOContainer *container = container_of(listener, VFIOContainer, listener);
 
-    vfio_set_dirty_page_tracking(container, false);
+    if (!runstate_check(RUN_STATE_SUSPENDED)) {
+        vfio_set_dirty_page_tracking(container, false);
+    }
 }
 
 static int vfio_get_dirty_bitmap(VFIOContainer *container, uint64_t iova,

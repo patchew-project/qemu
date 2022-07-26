@@ -83,6 +83,7 @@ typedef struct VFIOContainer {
     MemoryListener prereg_listener;
     Notifier cpr_notifier;
     Error *cpr_blocker;
+    Notifier cpr_reboot_notifier;
     unsigned iommu_type;
     Error *error;
     bool initialized;
