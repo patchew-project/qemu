@@ -905,6 +905,7 @@ static void dcr_write_dma(void *opaque, int dcrn, uint32_t val)
                     uint8_t *rptr, *wptr;
                     hwaddr rlen, wlen;
                     hwaddr xferlen;
+                    bool fastpathed = false;
 
                     sidx = didx = 0;
                     width = 1 << ((val & DMA0_CR_PW) >> 25);
@@ -915,6 +916,7 @@ static void dcr_write_dma(void *opaque, int dcrn, uint32_t val)
                     wptr = cpu_physical_memory_map(dma->ch[chnl].da, &wlen,
                                                    true);
                     if (rptr && rlen == xferlen && wptr && wlen == xferlen) {
+                        fastpathed = true;
                         if (!(val & DMA0_CR_DEC) &&
                             val & DMA0_CR_SAI && val & DMA0_CR_DAI) {
                             /* optimise common case */
@@ -939,6 +941,33 @@ static void dcr_write_dma(void *opaque, int dcrn, uint32_t val)
                     }
                     if (rptr) {
                         cpu_physical_memory_unmap(rptr, rlen, 0, sidx);
+                    }
+                    if (!fastpathed) {
+                        /* Fast-path failed, do each access one at a time */
+                        for (sidx = didx = i = 0; i < count; i++) {
+                            uint8_t buf[8];
+                            assert(width <= sizeof(buf));
+                            if (address_space_read(&address_space_memory,
+                                                   dma->ch[chnl].sa + sidx,
+                                                   MEMTXATTRS_UNSPECIFIED,
+                                                   buf, width) != MEMTX_OK) {
+                                /* FIXME: model correct behaviour on errors */
+                                break;
+                            }
+                            if (address_space_write(&address_space_memory,
+                                                    dma->ch[chnl].da + didx,
+                                                    MEMTXATTRS_UNSPECIFIED,
+                                                    buf, width) != MEMTX_OK) {
+                                /* FIXME: model correct behaviour on errors */
+                                break;
+                            }
+                            if (val & DMA0_CR_SAI) {
+                                sidx += width;
+                            }
+                            if (val & DMA0_CR_DAI) {
+                                didx += width;
+                            }
+                        }
                     }
                 }
             }
