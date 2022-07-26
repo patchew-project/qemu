@@ -3160,6 +3160,12 @@ F: net/filter-rewriter.c
 F: net/filter-mirror.c
 F: tests/qtest/test-filter*
 
+CPR
+M: Steve Sistare <steven.sistare@oracle.com>
+R: Mark Kanda <mark.kanda@oracle.com>
+S: Maintained
+F: tests/unit/test-strlist.c
+
 Record/replay
 M: Pavel Dovgalyuk <pavel.dovgaluk@ispras.ru>
 R: Paolo Bonzini <pbonzini@redhat.com>
