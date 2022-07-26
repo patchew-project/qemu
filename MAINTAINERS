@@ -3170,6 +3170,7 @@ F: migration/cpr-state.c
 F: stubs/cpr-state.c
 F: include/migration/cpr.h
 F: migration/cpr.c
+F: hw/vfio/cpr.c
 
 Record/replay
 M: Pavel Dovgalyuk <pavel.dovgaluk@ispras.ru>

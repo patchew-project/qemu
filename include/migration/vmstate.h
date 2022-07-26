@@ -157,6 +157,8 @@ typedef enum {
     MIG_PRI_GICV3_ITS,          /* Must happen before PCI devices */
     MIG_PRI_GICV3,              /* Must happen before the ITS */
     MIG_PRI_MAX,
+    MIG_PRI_VFIO_PCI =
+        MIG_PRI_DEFAULT + 1,   /* Must happen before vfio containers */
 } MigrationPriority;
 
 struct VMStateField {
