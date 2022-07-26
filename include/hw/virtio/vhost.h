@@ -101,6 +101,7 @@ struct vhost_dev {
     QLIST_ENTRY(vhost_dev) entry;
     QLIST_HEAD(, vhost_iommu) iommu_list;
     IOMMUNotifier n;
+    Notifier cpr_notifier;
     const VhostDevConfigOps *config_ops;
 };
 
