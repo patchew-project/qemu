@@ -78,5 +78,7 @@ void dirty_bitmap_mig_init(void);
 
 MigMode migrate_mode(void);
 MigMode migrate_mode_of(MigrationState *s);
+void migrate_enable_mode(MigMode mode);
+bool migrate_mode_enabled(MigMode mode);
 
 #endif

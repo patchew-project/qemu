@@ -3334,6 +3334,10 @@ void qemu_init(int argc, char **argv, char **envp)
             case QEMU_OPTION_only_migratable:
                 only_migratable = 1;
                 break;
+            case QEMU_OPTION_migrate_mode_enable:
+                migrate_enable_mode(qapi_enum_parse(&MigMode_lookup, optarg, -1,
+                                                    &error_fatal));
+                break;
             case QEMU_OPTION_nodefaults:
                 has_defaults = 0;
                 break;

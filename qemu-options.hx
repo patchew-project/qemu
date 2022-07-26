@@ -4491,6 +4491,16 @@ SRST
     an unmigratable state.
 ERST
 
+DEF("migrate-mode-enable", HAS_ARG, QEMU_OPTION_migrate_mode_enable, \
+    "-migrate-mode-enable <mode>    enable the migration mode.\n",
+    QEMU_ARCH_ALL)
+SRST
+``-migrate-mode-enable <mode>``
+    Enable the specified migrate mode.  May be supplied
+    multiple times, once per mode.  This is a pre-requisite for performing a
+    migration using any mode except 'normal'.
+ERST
+
 DEF("nodefaults", 0, QEMU_OPTION_nodefaults, \
     "-nodefaults     don't create default devices\n", QEMU_ARCH_ALL)
 SRST

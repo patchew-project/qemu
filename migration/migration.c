@@ -173,6 +173,7 @@ INITIALIZE_MIGRATE_CAPS_SET(check_caps_background_snapshot,
 
 static MigrationState *current_migration;
 static MigrationIncomingState *current_incoming;
+static int migrate_enabled_modes = BIT(MIG_MODE_NORMAL);
 
 static GSList *migration_blockers;
 
@@ -2140,6 +2141,29 @@ bool migration_is_active(MigrationState *s)
             s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE);
 }
 
+void migrate_enable_mode(MigMode mode)
+{
+    migrate_enabled_modes |= BIT(mode);
+}
+
+bool migrate_mode_enabled(MigMode mode)
+{
+    return !!(migrate_enabled_modes & BIT(mode));
+}
+
+static int migrate_check_enabled(Error **errp)
+{
+    MigMode mode = migrate_mode();
+
+    if (!migrate_mode_enabled(mode)) {
+        error_setg(errp, "migrate mode is not enabled.  "
+                         "Use '-migrate-mode-enable %s'.",
+                   MigMode_str(mode));
+        return -1;
+    }
+    return 0;
+}
+
 void migrate_init(MigrationState *s)
 {
     /*
@@ -2210,6 +2234,9 @@ void qmp_migrate_incoming(const char *uri, Error **errp)
     Error *local_err = NULL;
     static bool once = true;
 
+    if (migrate_check_enabled(errp)) {
+        return;
+    }
     if (!once) {
         error_setg(errp, "The incoming migration has already been started");
         return;
@@ -2353,6 +2380,10 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
     if (runstate_check(RUN_STATE_POSTMIGRATE)) {
         error_setg(errp, "Can't migrate the vm that was paused due to "
                    "previous migration");
+        return false;
+    }
+
+    if (migrate_check_enabled(errp)) {
         return false;
     }
 
