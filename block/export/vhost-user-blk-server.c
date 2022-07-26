@@ -125,8 +125,7 @@ static uint64_t vu_blk_get_features(VuDev *dev)
                1ull << VIRTIO_BLK_F_MQ |
                1ull << VIRTIO_F_VERSION_1 |
                1ull << VIRTIO_RING_F_INDIRECT_DESC |
-               1ull << VIRTIO_RING_F_EVENT_IDX |
-               1ull << VHOST_USER_F_PROTOCOL_FEATURES;
+               1ull << VIRTIO_RING_F_EVENT_IDX ;
 
     if (!vexp->handler.writable) {
         features |= 1ull << VIRTIO_BLK_F_RO;
