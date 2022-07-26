@@ -4314,13 +4314,16 @@ static int ram_load_precopy(QEMUFile *f)
                     }
                     if (migrate_ignore_shared()) {
                         hwaddr addr = qemu_get_be64(f);
-                        if (ramblock_is_ignored(block) &&
-                            block->mr->addr != addr) {
-                            error_report("Mismatched GPAs for block %s "
-                                         "%" PRId64 "!= %" PRId64,
-                                         id, (uint64_t)addr,
-                                         (uint64_t)block->mr->addr);
-                            ret = -EINVAL;
+                        if (ramblock_is_ignored(block)) {
+                            if (!block->mr->has_addr) {
+                                memory_region_set_address_only(block->mr, addr);
+                            } else if (block->mr->addr != addr) {
+                                error_report("Mismatched GPAs for block %s "
+                                             "%" PRId64 "!= %" PRId64,
+                                             id, (uint64_t)addr,
+                                             (uint64_t)block->mr->addr);
+                                ret = -EINVAL;
+                            }
                         }
                     }
                     ram_control_load_hook(f, RAM_CONTROL_BLOCK_REG,

@@ -738,6 +738,7 @@ struct MemoryRegion {
     bool flush_coalesced_mmio;
     uint8_t dirty_log_mask;
     bool is_iommu;
+    bool has_addr;
     RAMBlock *ram_block;
     Object *owner;
 
@@ -2266,6 +2267,17 @@ void memory_region_set_enabled(MemoryRegion *mr, bool enabled);
  * @addr: new address, relative to container region
  */
 void memory_region_set_address(MemoryRegion *mr, hwaddr addr);
+
+/*
+ * memory_region_set_address_only: set the address of a region.
+ *
+ * Same as memory_region_set_address, but without causing transaction side
+ * effects.
+ *
+ * @mr: the region to be updated
+ * @addr: new address, relative to container region
+ */
+void memory_region_set_address_only(MemoryRegion *mr, hwaddr addr);
 
 /*
  * memory_region_set_size: dynamically update the size of a region.
