@@ -1924,6 +1924,8 @@ static void block_cleanup_parameters(MigrationState *s)
 
 static void migrate_fd_cleanup(MigrationState *s)
 {
+    bool already_failed;
+
     qemu_bh_delete(s->cleanup_bh);
     s->cleanup_bh = NULL;
 
@@ -1973,7 +1975,15 @@ static void migrate_fd_cleanup(MigrationState *s)
         /* It is used on info migrate.  We can't free it */
         error_report_err(error_copy(s->error));
     }
-    migration_call_notifiers(s);
+
+    already_failed = migration_has_failed(s);
+    if (migration_call_notifiers(s)) {
+        if (!already_failed) {
+            migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
+            /* Notify again to recover from this late failure. */
+            migration_call_notifiers(s);
+        }
+    }
     block_cleanup_parameters(s);
     cpr_exec();
     yank_unregister_instance(MIGRATION_YANK_INSTANCE);
@@ -2084,9 +2094,16 @@ void migration_remove_notifier(Notifier *notify)
     }
 }
 
-void migration_call_notifiers(MigrationState *s)
+int migration_call_notifiers(MigrationState *s)
 {
     notifier_list_notify(&migration_state_notifiers, s);
+    return (s->error != NULL);
+}
+
+void migration_notifier_set_error(MigrationState *s, Error *err)
+{
+    migrate_set_error(s, err);
+    error_report_err(err);
 }
 
 bool migration_in_setup(MigrationState *s)
@@ -3381,7 +3398,9 @@ static int postcopy_start(MigrationState *ms)
      * spice needs to trigger a transition now
      */
     ms->postcopy_after_devices = true;
-    migration_call_notifiers(ms);
+    if (migration_call_notifiers(ms)) {
+        goto fail;
+    }
 
     ms->downtime =  qemu_clock_get_ms(QEMU_CLOCK_REALTIME) - time_at_stop;
 
@@ -4412,7 +4431,11 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
         rate_limit = s->parameters.max_bandwidth / XFER_LIMIT_RATIO;
 
         /* Notify before starting migration thread */
-        migration_call_notifiers(s);
+        if (migration_call_notifiers(s)) {
+            migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
+            migrate_fd_cleanup(s);
+            return;
+        }
     }
 
     qemu_file_set_rate_limit(s->to_dst_file, rate_limit);
