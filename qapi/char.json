@@ -204,12 +204,17 @@
 # @logfile: The name of a logfile to save output
 # @logappend: true to append instead of truncate
 #             (default to false to truncate)
+# @reopen-on-cpr: if true, close device's fd on cpr-save and reopen it after
+#                 cpr-exec. Set this to allow CPR on a device that does not
+#                 support QEMU_CHAR_FEATURE_CPR. defaults to false.
+#                 since 7.1.
 #
 # Since: 2.6
 ##
 { 'struct': 'ChardevCommon',
   'data': { '*logfile': 'str',
-            '*logappend': 'bool' } }
+            '*logappend': 'bool',
+            '*reopen-on-cpr': 'bool' } }
 
 ##
 # @ChardevFile:

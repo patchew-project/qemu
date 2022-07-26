@@ -36,6 +36,8 @@
 #include "qemu/help_option.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
+#include "migration/cpr-state.h"
+#include "migration/blocker.h"
 #include "qemu/id.h"
 #include "qemu/coroutine.h"
 #include "qemu/yank.h"
@@ -236,26 +238,55 @@ int qemu_chr_add_client(Chardev *s, int fd)
 static void qemu_char_open(Chardev *chr, ChardevBackend *backend,
                            bool *be_opened, Error **errp)
 {
+    ERRP_GUARD();
+    g_autofree char *fdname = NULL;
+
     ChardevClass *cc = CHARDEV_GET_CLASS(chr);
     /* Any ChardevCommon member would work */
     ChardevCommon *common = backend ? backend->u.null.data : NULL;
+    bool has_logfile = (common && common->has_logfile);
+    bool has_feature_cpr;
 
-    if (common && common->has_logfile) {
+    if (has_logfile) {
         int flags = O_WRONLY;
+        fdname = g_strdup_printf("%s_log", chr->label);
         if (common->has_logappend &&
             common->logappend) {
             flags |= O_APPEND;
         } else {
             flags |= O_TRUNC;
         }
-        chr->logfd = qemu_create(common->logfile, flags, 0666, errp);
+        chr->logfd = cpr_find_fd(fdname, 0);
+        if (chr->logfd < 0) {
+            chr->logfd = qemu_create(common->logfile, flags, 0666, errp);
+        }
         if (chr->logfd < 0) {
             return;
         }
     }
 
+    chr->reopen_on_cpr = (common && common->reopen_on_cpr);
+
     if (cc->open) {
         cc->open(chr, backend, be_opened, errp);
+        if (*errp) {
+            return;
+        }
+    }
+
+    /* Evaluate this after the open method sets the feature */
+    has_feature_cpr = qemu_chr_has_feature(chr, QEMU_CHAR_FEATURE_CPR);
+    chr->cpr_enabled = !chr->reopen_on_cpr && has_feature_cpr;
+
+    if (!chr->reopen_on_cpr && !has_feature_cpr) {
+        chr->cpr_blocker = NULL;
+        error_setg(&chr->cpr_blocker,
+                "chardev %s -> %s does not allow cpr. See reopen-on-cpr.",
+                chr->label, chr->filename);
+        migrate_add_blockers(&chr->cpr_blocker, errp, MIG_MODE_CPR_EXEC, -1);
+
+    } else if (chr->cpr_enabled && has_logfile) {
+        cpr_resave_fd(fdname, 0, chr->logfd);
     }
 }
 
@@ -297,11 +328,16 @@ static void char_finalize(Object *obj)
     if (chr->be) {
         chr->be->chr = NULL;
     }
-    g_free(chr->filename);
-    g_free(chr->label);
     if (chr->logfd != -1) {
+        g_autofree char *fdname = g_strdup_printf("%s_log", chr->label);
+        if (chr->cpr_enabled) {
+            cpr_delete_fd(fdname, 0);
+        }
         close(chr->logfd);
     }
+    migrate_del_blocker(&chr->cpr_blocker);
+    g_free(chr->filename);
+    g_free(chr->label);
     qemu_mutex_destroy(&chr->chr_write_lock);
 }
 
@@ -501,6 +537,8 @@ void qemu_chr_parse_common(QemuOpts *opts, ChardevCommon *backend)
 
     backend->has_logappend = true;
     backend->logappend = qemu_opt_get_bool(opts, "logappend", false);
+
+    backend->reopen_on_cpr = qemu_opt_get_bool(opts, "reopen-on-cpr", false);
 }
 
 static const ChardevClass *char_get_class(const char *driver, Error **errp)
@@ -941,6 +979,9 @@ QemuOptsList qemu_chardev_opts = {
             .def_value_str = "on",
         },{
             .name = "abstract",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "reopen-on-cpr",
             .type = QEMU_OPT_BOOL,
 #endif
         },
