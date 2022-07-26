@@ -27,6 +27,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
+#include "qemu/error-report.h"
 #include "chardev/char.h"
 
 #ifdef _WIN32
@@ -142,6 +143,9 @@ static void qemu_chr_open_pipe(Chardev *chr,
         if (fd_out >= 0) {
             close(fd_out);
         }
+        warn_report("Support for bidirectional pipe is deprecated,");
+        warn_report("please use portable one-way pipes instead (%s.in & %s.out).",
+                    filename, filename);
         TFR(fd_in = fd_out = qemu_open_old(filename, O_RDWR | O_BINARY));
         if (fd_in < 0) {
             error_setg_file_open(errp, errno, filename);

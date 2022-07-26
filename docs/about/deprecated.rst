@@ -45,6 +45,12 @@ transmit audio through the VNC protocol.
 ``tty`` and ``parport`` are aliases that will be removed. Instead, the
 actual backend names ``serial`` and ``parallel`` should be used.
 
+``-chardev pipe`` support for bidirectional pipes (since 7.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+For portability reasons, the support for bidirectional ``pipe`` will
+be removed. Instead, use ``file.in`` & ``file.out`` unidirectional pipes.
+
 Short-form boolean options (since 6.0)
 ''''''''''''''''''''''''''''''''''''''
 
