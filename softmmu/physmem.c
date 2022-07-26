@@ -67,6 +67,7 @@
 
 #include "qemu/pmem.h"
 
+#include "migration/blocker.h"
 #include "migration/cpr-state.h"
 #include "migration/misc.h"
 #include "migration/vmstate.h"
@@ -1979,6 +1980,49 @@ static bool memory_region_is_backend(MemoryRegion *mr)
     return !!object_dynamic_cast(OBJECT(mr)->parent, TYPE_MEMORY_BACKEND);
 }
 
+/*
+ * Return true if ram contents would be lost during cpr for MIG_MODE_CPR_EXEC.
+ * Return false for ram_device because it is remapped after exec.  Do not
+ * exclude rom, even though it is readonly, because the rom file could change
+ * in the new qemu.  Return false for non-migratable blocks.  They are either
+ * re-created after exec, or are handled specially, or are covered by a
+ * device-level cpr blocker.  Return false for an fd, because it is visible and
+ * can be remapped in the new process.
+ */
+static bool ram_is_volatile(RAMBlock *rb)
+{
+    MemoryRegion *mr = rb->mr;
+
+    return mr &&
+        memory_region_is_ram(mr) &&
+        !memory_region_is_ram_device(mr) &&
+        (!qemu_ram_is_shared(rb) || !ramblock_is_named_file(rb)) &&
+        qemu_ram_is_migratable(rb) &&
+        rb->fd < 0;
+}
+
+/*
+ * Add a MIG_MODE_CPR_EXEC blocker for each volatile ram block.  This cannot be
+ * performed in ram_block_add because the migratable flag has not been set yet.
+ * No need to examine anonymous (non-backend) blocks, because they are
+ * created using memfd if cpr-exec mode is enabled.
+ */
+void ram_block_add_cpr_blockers(Error **errp)
+{
+    RAMBlock *rb;
+
+    RAMBLOCK_FOREACH(rb) {
+        if (ram_is_volatile(rb) && memory_region_is_backend(rb->mr)) {
+            const char *name = memory_region_name(rb->mr);
+            rb->cpr_blocker = NULL;
+            error_setg(&rb->cpr_blocker,
+                    "Memory region %s is volatile. A memory-backend-memfd or"
+                    " memory-backend-file with share=on is required.", name);
+            migrate_add_blockers(&rb->cpr_blocker, errp, MIG_MODE_CPR_EXEC, -1);
+        }
+    }
+}
+
 static void *qemu_anon_memfd_alloc(RAMBlock *rb, size_t maxlen, Error **errp)
 {
     size_t len, align;
@@ -2285,6 +2329,7 @@ void qemu_ram_free(RAMBlock *block)
 
     qemu_mutex_lock_ramlist();
     cpr_delete_memfd(memory_region_name(block->mr));
+    migrate_del_blocker(&block->cpr_blocker);
     QLIST_REMOVE_RCU(block, next);
     ram_list.mru_block = NULL;
     /* Write list before version */

@@ -28,6 +28,7 @@
 #include "qemu/units.h"
 #include "exec/cpu-common.h"
 #include "exec/page-vary.h"
+#include "exec/memory.h"
 #include "hw/qdev-properties.h"
 #include "qapi/compat-policy.h"
 #include "qapi/error.h"
@@ -2589,6 +2590,7 @@ void qmp_x_exit_preconfig(Error **errp)
     qemu_init_board();
     qemu_create_cli_devices();
     qemu_machine_creation_done();
+    ram_block_add_cpr_blockers(&error_fatal);
 
     if (loadvm) {
         load_snapshot(loadvm, NULL, false, NULL, &error_fatal);
