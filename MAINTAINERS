@@ -3165,6 +3165,9 @@ M: Steve Sistare <steven.sistare@oracle.com>
 R: Mark Kanda <mark.kanda@oracle.com>
 S: Maintained
 F: tests/unit/test-strlist.c
+F: include/migration/cpr-state.h
+F: migration/cpr-state.c
+F: stubs/cpr-state.c
 
 Record/replay
 M: Pavel Dovgalyuk <pavel.dovgaluk@ispras.ru>
