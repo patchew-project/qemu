@@ -9,6 +9,7 @@
 #include "qemu/units.h"
 #include "qemu/cutils.h"
 #include "qdev-prop-internal.h"
+#include "qapi/qapi-builtin-visit.h"
 
 void qdev_prop_set_after_realize(DeviceState *dev, const char *name,
                                   Error **errp)
@@ -488,6 +489,49 @@ const PropertyInfo qdev_prop_string = {
     .release = release_string,
     .get   = get_string,
     .set   = set_string,
+};
+
+/* --- strList --- */
+
+static void release_strList(Object *obj, const char *name, void *opaque)
+{
+    Property *prop = opaque;
+    g_free(*(char **)object_field_prop_ptr(obj, prop));
+}
+
+static void get_strList(Object *obj, Visitor *v, const char *name,
+                       void *opaque, Error **errp)
+{
+    Property *prop = opaque;
+    strList **ptr = object_field_prop_ptr(obj, prop);
+
+    if (!*ptr) {
+        strList *str = NULL;
+        visit_type_strList(v, name, &str, errp);
+    } else {
+        visit_type_strList(v, name, ptr, errp);
+    }
+}
+
+static void set_strList(Object *obj, Visitor *v, const char *name,
+                       void *opaque, Error **errp)
+{
+    Property *prop = opaque;
+    strList **ptr = object_field_prop_ptr(obj, prop);
+    strList *str;
+
+    if (!visit_type_strList(v, name, &str, errp)) {
+        return;
+    }
+    g_free(*ptr);
+    *ptr = str;
+}
+
+const PropertyInfo qdev_prop_strlist = {
+    .name  = "strList",
+    .release = release_strList,
+    .get   = get_strList,
+    .set   = set_strList,
 };
 
 /* --- on/off/auto --- */
