@@ -535,4 +535,8 @@ void monitor_init_qmp(Chardev *chr, bool pretty, Error **errp)
                                  NULL, &mon->common, NULL, true);
         monitor_list_append(&mon->common);
     }
+
+    /* Monitor cannot yet be preserved across cpr */
+    chr->reopen_on_cpr = true;
+    chr->cpr_enabled = false;
 }

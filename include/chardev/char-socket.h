@@ -78,6 +78,7 @@ struct SocketChardev {
     bool connect_err_reported;
 
     QIOTask *connect_task;
+    Error *cpr_blocker;
 };
 typedef struct SocketChardev SocketChardev;
 
