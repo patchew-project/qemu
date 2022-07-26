@@ -16,7 +16,8 @@
 #include "s390x-internal.h"
 #include "elf.h"
 #include "sysemu/dump.h"
-
+#include "hw/s390x/pv.h"
+#include "kvm/kvm_s390x.h"
 
 struct S390xUserRegsStruct {
     uint64_t psw[2];
@@ -76,8 +77,15 @@ typedef struct noteStruct {
         uint64_t todcmp;
         uint32_t todpreg;
         uint64_t ctrs[16];
+        uint8_t dynamic[1];  /*
+                              * Would be a flexible array member, if
+                              * that was legal inside a union. Real
+                              * size comes from PV info interface.
+                              */
     } contents;
 } QEMU_PACKED Note;
+
+static bool pv_dump_initialized;
 
 static void s390x_write_elf64_prstatus(Note *note, S390CPU *cpu, int id)
 {
@@ -177,52 +185,82 @@ static void s390x_write_elf64_prefix(Note *note, S390CPU *cpu, int id)
     note->contents.prefix = cpu_to_be32((uint32_t)(cpu->env.psa));
 }
 
+static void s390x_write_elf64_pv(Note *note, S390CPU *cpu, int id)
+{
+    note->hdr.n_type = cpu_to_be32(NT_S390_PV_CPU_DATA);
+    if (!pv_dump_initialized) {
+        return;
+    }
+    kvm_s390_dump_cpu(cpu, &note->contents.dynamic);
+}
 
 typedef struct NoteFuncDescStruct {
     int contents_size;
+    uint64_t (*note_size_func)(void); /* NULL for non-dynamic sized contents */
     void (*note_contents_func)(Note *note, S390CPU *cpu, int id);
+    bool pvonly;
 } NoteFuncDesc;
 
 static const NoteFuncDesc note_core[] = {
-    {sizeof_field(Note, contents.prstatus), s390x_write_elf64_prstatus},
-    {sizeof_field(Note, contents.fpregset), s390x_write_elf64_fpregset},
-    { 0, NULL}
+    {sizeof_field(Note, contents.prstatus), NULL, s390x_write_elf64_prstatus, false},
+    {sizeof_field(Note, contents.fpregset), NULL, s390x_write_elf64_fpregset, false},
+    { 0, NULL, NULL}
 };
 
 static const NoteFuncDesc note_linux[] = {
-    {sizeof_field(Note, contents.prefix),   s390x_write_elf64_prefix},
-    {sizeof_field(Note, contents.ctrs),     s390x_write_elf64_ctrs},
-    {sizeof_field(Note, contents.timer),    s390x_write_elf64_timer},
-    {sizeof_field(Note, contents.todcmp),   s390x_write_elf64_todcmp},
-    {sizeof_field(Note, contents.todpreg),  s390x_write_elf64_todpreg},
-    {sizeof_field(Note, contents.vregslo),  s390x_write_elf64_vregslo},
-    {sizeof_field(Note, contents.vregshi),  s390x_write_elf64_vregshi},
-    {sizeof_field(Note, contents.gscb),     s390x_write_elf64_gscb},
-    { 0, NULL}
+    {sizeof_field(Note, contents.prefix),   NULL, s390x_write_elf64_prefix,  false},
+    {sizeof_field(Note, contents.ctrs),     NULL, s390x_write_elf64_ctrs,    false},
+    {sizeof_field(Note, contents.timer),    NULL, s390x_write_elf64_timer,   false},
+    {sizeof_field(Note, contents.todcmp),   NULL, s390x_write_elf64_todcmp,  false},
+    {sizeof_field(Note, contents.todpreg),  NULL, s390x_write_elf64_todpreg, false},
+    {sizeof_field(Note, contents.vregslo),  NULL, s390x_write_elf64_vregslo, false},
+    {sizeof_field(Note, contents.vregshi),  NULL, s390x_write_elf64_vregshi, false},
+    {sizeof_field(Note, contents.gscb),     NULL, s390x_write_elf64_gscb,    false},
+    {0, kvm_s390_pv_dmp_get_size_cpu,       s390x_write_elf64_pv, true},
+    { 0, NULL, NULL}
 };
 
 static int s390x_write_elf64_notes(const char *note_name,
-                                       WriteCoreDumpFunction f,
-                                       S390CPU *cpu, int id,
-                                       void *opaque,
-                                       const NoteFuncDesc *funcs)
+                                   WriteCoreDumpFunction f,
+                                   S390CPU *cpu, int id,
+                                   void *opaque,
+                                   const NoteFuncDesc *funcs)
 {
-    Note note;
+    Note note, *notep;
     const NoteFuncDesc *nf;
-    int note_size;
+    int note_size, content_size;
     int ret = -1;
 
     assert(strlen(note_name) < sizeof(note.name));
 
     for (nf = funcs; nf->note_contents_func; nf++) {
-        memset(&note, 0, sizeof(note));
-        note.hdr.n_namesz = cpu_to_be32(strlen(note_name) + 1);
-        note.hdr.n_descsz = cpu_to_be32(nf->contents_size);
-        g_strlcpy(note.name, note_name, sizeof(note.name));
-        (*nf->note_contents_func)(&note, cpu, id);
+        notep = &note;
+        if (nf->pvonly && !s390_is_pv()) {
+            continue;
+        }
 
-        note_size = sizeof(note) - sizeof(note.contents) + nf->contents_size;
-        ret = f(&note, note_size, opaque);
+        content_size = nf->contents_size ? nf->contents_size : nf->note_size_func();
+        note_size = sizeof(note) - sizeof(notep->contents) + content_size;
+
+        /* Notes with dynamic sizes need to allocate a note */
+        if (nf->note_size_func) {
+            notep = g_malloc0(note_size);
+        }
+
+        memset(notep, 0, sizeof(note));
+
+        /* Setup note header data */
+        notep->hdr.n_descsz = cpu_to_be32(content_size);
+        notep->hdr.n_namesz = cpu_to_be32(strlen(note_name) + 1);
+        g_strlcpy(notep->name, note_name, sizeof(notep->name));
+
+        /* Get contents and write them out */
+        (*nf->note_contents_func)(notep, cpu, id);
+        ret = f(notep, note_size, opaque);
+
+        if (nf->note_size_func) {
+            g_free(notep);
+        }
 
         if (ret < 0) {
             return -1;
@@ -247,12 +285,159 @@ int s390_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
     return s390x_write_elf64_notes("LINUX", f, cpu, cpuid, opaque, note_linux);
 }
 
+/* PV dump section size functions */
+static uint64_t get_dump_stor_state_size_from_len(uint64_t len)
+{
+    return (len / (1 << 20)) * kvm_s390_pv_dmp_get_size_stor_state();
+}
+
+static uint64_t get_size_stor_state(DumpState *s)
+{
+    return get_dump_stor_state_size_from_len(s->total_size);
+}
+
+static uint64_t get_size_complete(DumpState *s)
+{
+    return kvm_s390_pv_dmp_get_size_complete();
+}
+
+/* PV dump section data functions*/
+static int get_data_complete(DumpState *s, uint8_t *buff)
+{
+    int rc;
+
+    if (!pv_dump_initialized) {
+        return 0;
+    }
+    rc = kvm_s390_dump_complete(buff);
+    if (!rc) {
+            pv_dump_initialized = false;
+    }
+    return rc;
+}
+
+static int dump_mem(DumpState *s, uint64_t gaddr, uint8_t *buff, uint64_t buff_len)
+{
+    /* We need the gaddr + len and something to write to */
+    if (!pv_dump_initialized) {
+        return 0;
+    }
+    return kvm_s390_dump_mem(gaddr, buff_len, buff);
+}
+
+static int get_data_mem(DumpState *s, uint8_t *buff)
+{
+    int64_t memblock_size, memblock_start;
+    GuestPhysBlock *block;
+    uint64_t off;
+
+    QTAILQ_FOREACH(block, &s->guest_phys_blocks.head, next) {
+        memblock_start = dump_get_memblock_start(block, s->begin, s->length);
+        if (memblock_start == -1) {
+            continue;
+        }
+
+        memblock_size = dump_get_memblock_size(block, s->begin, s->length);
+
+        off = get_dump_stor_state_size_from_len(block->target_start);
+        dump_mem(s, block->target_start, buff + off,
+                 get_dump_stor_state_size_from_len(memblock_size));
+    }
+
+    return 0;
+}
+
+struct sections {
+    uint64_t (*sections_size_func)(DumpState *s);
+    int (*sections_contents_func)(DumpState *s, uint8_t *buff);
+    char sctn_str[12];
+} sections[] = {
+    { get_size_stor_state, get_data_mem, "pv_mem_meta"},
+    { get_size_complete, get_data_complete, "pv_compl"},
+    {NULL , NULL, ""}
+};
+
+static uint64_t arch_sections_write_hdr(void *opaque, uint8_t *buff)
+{
+    DumpState *s = opaque;
+    Elf64_Shdr *shdr = (void *)buff;
+    struct sections *sctn = sections;
+    uint64_t off = s->section_offset;
+
+    if (!s390_is_pv()) {
+        return 0;
+    }
+
+    for (; sctn->sections_size_func; off += shdr->sh_size, sctn++, shdr++) {
+        memset(shdr, 0, sizeof(*shdr));
+        shdr->sh_type = SHT_PROGBITS;
+        shdr->sh_offset = off;
+        shdr->sh_size = sctn->sections_size_func(s);
+        shdr->sh_name = s->string_table_buf->len;
+        g_array_append_vals(s->string_table_buf, sctn->sctn_str, sizeof(sctn->sctn_str));
+    }
+
+    return (uintptr_t)shdr - (uintptr_t)buff;
+}
+
+
+/* Add arch specific number of sections and their respective sizes */
+static void arch_sections_add(void *opaque)
+{
+    DumpState *s = opaque;
+    struct sections *sctn = sections;
+
+    /*
+     * We only do a PV dump if we are running a PV guest, KVM supports
+     * the dump API and we got valid dump length information.
+     */
+    if (!s390_is_pv() || !kvm_s390_get_protected_dump() ||
+        !kvm_s390_pv_info_basic_valid()) {
+        return;
+    }
+
+    /*
+     * Start the UV dump process by doing the initialize dump call via
+     * KVM as the proxy.
+     */
+    if (!kvm_s390_dump_init()) {
+            pv_dump_initialized = true;
+    }
+
+    for (; sctn->sections_size_func; sctn++) {
+        s->shdr_num += 1;
+        s->elf_section_data_size += sctn->sections_size_func(s);
+    }
+}
+
+/*
+ * After the PV dump has been initialized, the CPU data has been
+ * fetched and memory has been dumped, we need to grab the tweak data
+ * and the completion data.
+ */
+static void arch_sections_write(void *opaque, uint8_t *buff)
+{
+    DumpState *s = opaque;
+    struct sections *sctn = sections;
+
+    /* shdr_num should only have been set > 1 if we are protected */
+    assert(s390_is_pv());
+
+    for (; sctn->sections_size_func; sctn++) {
+        sctn->sections_contents_func(s, buff);
+        buff += sctn->sections_size_func(s);
+    }
+}
+
 int cpu_get_dump_info(ArchDumpInfo *info,
                       const struct GuestPhysBlockList *guest_phys_blocks)
 {
     info->d_machine = EM_S390;
     info->d_endian = ELFDATA2MSB;
     info->d_class = ELFCLASS64;
+    info->arch_sections_add_fn = *arch_sections_add;
+    info->arch_sections_write_hdr_fn = *arch_sections_write_hdr;
+    info->arch_sections_write_fn = *arch_sections_write;
 
     return 0;
 }
@@ -261,7 +446,7 @@ ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
 {
     int name_size = 8; /* "LINUX" or "CORE" + pad */
     size_t elf_note_size = 0;
-    int note_head_size;
+    int note_head_size, content_size;
     const NoteFuncDesc *nf;
 
     assert(class == ELFCLASS64);
@@ -270,12 +455,15 @@ ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
     note_head_size = sizeof(Elf64_Nhdr);
 
     for (nf = note_core; nf->note_contents_func; nf++) {
-        elf_note_size = elf_note_size + note_head_size + name_size +
-                        nf->contents_size;
+        elf_note_size = elf_note_size + note_head_size + name_size + nf->contents_size;
     }
     for (nf = note_linux; nf->note_contents_func; nf++) {
+        if (nf->pvonly && !s390_is_pv()) {
+            continue;
+        }
+        content_size = nf->contents_size ? nf->contents_size : nf->note_size_func();
         elf_note_size = elf_note_size + note_head_size + name_size +
-                        nf->contents_size;
+                        content_size;
     }
 
     return (elf_note_size) * nr_cpus;
