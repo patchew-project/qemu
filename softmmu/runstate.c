@@ -37,6 +37,7 @@
 #include "monitor/monitor.h"
 #include "net/net.h"
 #include "net/vhost_net.h"
+#include "qapi/util.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-run-state.h"
 #include "qapi/qapi-events-run-state.h"
@@ -353,6 +354,7 @@ static NotifierList wakeup_notifiers =
 static NotifierList shutdown_notifiers =
     NOTIFIER_LIST_INITIALIZER(shutdown_notifiers);
 static uint32_t wakeup_reason_mask = ~(1 << QEMU_WAKEUP_REASON_NONE);
+static GStrv exec_argv;
 
 ShutdownCause qemu_shutdown_requested_get(void)
 {
@@ -367,6 +369,11 @@ ShutdownCause qemu_reset_requested_get(void)
 static int qemu_shutdown_requested(void)
 {
     return qatomic_xchg(&shutdown_requested, SHUTDOWN_CAUSE_NONE);
+}
+
+static int qemu_exec_requested(void)
+{
+    return exec_argv != NULL;
 }
 
 static void qemu_kill_report(void)
@@ -627,6 +634,13 @@ void qemu_system_shutdown_request(ShutdownCause reason)
     qemu_notify_event();
 }
 
+void qemu_system_exec_request(const strList *args)
+{
+    exec_argv = strv_from_strList(args);
+    shutdown_requested = 1;
+    qemu_notify_event();
+}
+
 static void qemu_system_powerdown(void)
 {
     qapi_event_send_powerdown();
@@ -675,6 +689,16 @@ static bool main_loop_should_exit(void)
     }
     request = qemu_shutdown_requested();
     if (request) {
+
+        if (qemu_exec_requested()) {
+            Error *err = NULL;
+            execvp(exec_argv[0], exec_argv);
+            error_setg_errno(&err, errno, "execvp %s failed", exec_argv[0]);
+            error_report_err(err);
+            g_strfreev(exec_argv);
+            exec_argv = NULL;
+            return false;
+        }
         qemu_kill_report();
         qemu_system_shutdown(request);
         if (shutdown_action == SHUTDOWN_ACTION_PAUSE) {
