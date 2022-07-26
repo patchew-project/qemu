@@ -166,11 +166,10 @@ typedef struct DumpState {
     hwaddr memory_offset;
     int fd;
 
-    GuestPhysBlock *next_block;
-    ram_addr_t start;
-    bool has_filter;
-    int64_t begin;
-    int64_t length;
+    /* Guest memory related data */
+    bool has_filter;           /* Are we dumping parts of the memory? */
+    int64_t begin;             /* Start address of the chunk we want to dump */
+    int64_t length;            /* Length of the dump we want to dump */
 
     uint8_t *note_buf;          /* buffer for notes */
     size_t note_buf_offset;     /* the writing place in note_buf */
