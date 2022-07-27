@@ -150,6 +150,7 @@
           - libepoxy-devel
           - libgcrypt-devel
           - lzo-devel
+          - ninja-build
           - make
           - mesa-libEGL-devel
           - nettle-devel
