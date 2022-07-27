@@ -880,7 +880,7 @@ static int vsock_parse(VsockSocketAddress *addr, const char *str,
 }
 #endif /* CONFIG_AF_VSOCK */
 
-#ifndef _WIN32
+#ifdef CONFIG_AF_UNIX
 
 static bool saddr_is_abstract(UnixSocketAddress *saddr)
 {
@@ -900,6 +900,23 @@ static bool saddr_is_tight(UnixSocketAddress *saddr)
 #endif
 }
 
+#ifdef CONFIG_WIN32
+/*
+ * AF_UNIX support is available since Windows 10 build 17063
+ * See https://devblogs.microsoft.com/commandline/af_unix-comes-to-windows/
+ */
+#define WIN_BUILD_AF_UNIX 17063
+
+static bool afunix_available(void)
+{
+    OSVERSIONINFOEXW os_version = { 0 };
+
+    os_get_win_version(&os_version);
+
+    return os_version.dwBuildNumber >= WIN_BUILD_AF_UNIX;
+}
+#endif
+
 static int unix_listen_saddr(UnixSocketAddress *saddr,
                              int num,
                              Error **errp)
@@ -911,6 +928,13 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
     const char *path;
     size_t pathlen;
     size_t addrlen;
+
+#ifdef CONFIG_WIN32
+    if (!afunix_available()) {
+        error_setg(errp, "AF_UNIX is not available on your Windows");
+        return -1;
+    }
+#endif
 
     sock = qemu_socket(PF_UNIX, SOCK_STREAM, 0);
     if (sock < 0) {
@@ -1004,6 +1028,13 @@ static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
         return -1;
     }
 
+#ifdef CONFIG_WIN32
+    if (!afunix_available()) {
+        error_setg(errp, "AF_UNIX is not available on your Windows");
+        return -1;
+    }
+#endif
+
     sock = qemu_socket(PF_UNIX, SOCK_STREAM, 0);
     if (sock < 0) {
         error_setg_errno(errp, errno, "Failed to create socket");
@@ -1060,14 +1091,14 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
                              int num,
                              Error **errp)
 {
-    error_setg(errp, "unix sockets are not available on windows");
+    error_setg(errp, "unix sockets are not available on your host");
     errno = ENOTSUP;
     return -1;
 }
 
 static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
 {
-    error_setg(errp, "unix sockets are not available on windows");
+    error_setg(errp, "unix sockets are not available on your host");
     errno = ENOTSUP;
     return -1;
 }
@@ -1335,7 +1366,7 @@ socket_sockaddr_to_address_inet(struct sockaddr_storage *sa,
 }
 
 
-#ifndef WIN32
+#ifdef CONFIG_AF_UNIX
 static SocketAddress *
 socket_sockaddr_to_address_unix(struct sockaddr_storage *sa,
                                 socklen_t salen,
@@ -1362,7 +1393,7 @@ socket_sockaddr_to_address_unix(struct sockaddr_storage *sa,
     addr->u.q_unix.path = g_strndup(su->sun_path, salen);
     return addr;
 }
-#endif /* WIN32 */
+#endif /* CONFIG_AF_UNIX */
 
 #ifdef CONFIG_AF_VSOCK
 static SocketAddress *
@@ -1394,10 +1425,10 @@ socket_sockaddr_to_address(struct sockaddr_storage *sa,
     case AF_INET6:
         return socket_sockaddr_to_address_inet(sa, salen, errp);
 
-#ifndef WIN32
+#ifdef CONFIG_AF_UNIX
     case AF_UNIX:
         return socket_sockaddr_to_address_unix(sa, salen, errp);
-#endif /* WIN32 */
+#endif
 
 #ifdef CONFIG_AF_VSOCK
     case AF_VSOCK:

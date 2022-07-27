@@ -2327,6 +2327,12 @@ have_afalg = get_option('crypto_afalg') \
   '''), error_message: 'AF_ALG requested but could not be detected').allowed()
 config_host_data.set('CONFIG_AF_ALG', have_afalg)
 
+if targetos != 'windows'
+  config_host_data.set('CONFIG_AF_UNIX', true)
+else
+  config_host_data.set('CONFIG_AF_UNIX', cc.has_header('afunix.h'))
+endif
+
 config_host_data.set('CONFIG_AF_VSOCK', cc.has_header_symbol(
   'linux/vm_sockets.h', 'AF_VSOCK',
   prefix: '#include <sys/socket.h>',

@@ -30,6 +30,10 @@
 #include <windows.h>
 #include <ws2tcpip.h>
 
+#ifdef CONFIG_AF_UNIX
+# include <afunix.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
