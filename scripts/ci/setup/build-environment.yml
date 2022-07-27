@@ -31,9 +31,11 @@
         update_cache: yes
         upgrade: yes
       when:
-        - ansible_facts['distribution'] == 'Ubuntu'
+        - |
+            ansible_facts['distribution'] == 'Ubuntu' or
+            ansible_facts['distribution'] == 'Debian'
 
-    - name: Install basic packages to build QEMU on Ubuntu 20.04
+    - name: Install basic packages to build QEMU on Ubuntu 20.04 or Debian11
       package:
         name:
           - ccache
@@ -56,7 +58,6 @@
           - libibverbs-dev
           - libiscsi-dev
           - libjemalloc-dev
-          - libjpeg-turbo8-dev
           - liblzo2-dev
           - libncurses5-dev
           - libncursesw5-dev
@@ -87,16 +88,36 @@
           - xfslibs-dev
         state: present
       when:
+        - |
+            ansible_facts['distribution'] == 'Ubuntu' or
+            ansible_facts['distribution'] == 'Debian'
+
+    - name: Install Ubuntu exclusive packages to build QEMU
+      package:
+        name:
+          - libjpeg-turbo8-dev
+        state: present
+      when:
         - ansible_facts['distribution'] == 'Ubuntu'
 
-    - name: Install packages to build QEMU on Ubuntu 20.04 on non-s390x
+    - name: Install Debian exclusive packages to build QEMU
+      package:
+        name:
+          - libjpeg62-turbo-dev
+        state: present
+      when:
+        - ansible_facts['distribution'] == 'Debian'
+
+    - name: Install packages to build QEMU on Ubuntu 20.04 or Debian11 on non-s390x
       package:
         name:
           - libspice-server-dev
           - libxen-dev
         state: present
       when:
-        - ansible_facts['distribution'] == 'Ubuntu'
+        - |
+            ansible_facts['distribution'] == 'Ubuntu' or
+            ansible_facts['distribution'] == 'Debian'
         - ansible_facts['architecture'] == 'aarch64' or ansible_facts['architecture'] == 'x86_64'
 
     - name: Install basic packages to build QEMU on Ubuntu 20.04
