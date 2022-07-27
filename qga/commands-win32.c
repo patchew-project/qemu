@@ -2178,26 +2178,6 @@ static ga_win_10_0_t const WIN_10_0_CLIENT_VERSION_MATRIX[3] = {
     {0, 0}
 };
 
-static void ga_get_win_version(RTL_OSVERSIONINFOEXW *info, Error **errp)
-{
-    typedef NTSTATUS(WINAPI *rtl_get_version_t)(
-        RTL_OSVERSIONINFOEXW *os_version_info_ex);
-
-    info->dwOSVersionInfoSize = sizeof(RTL_OSVERSIONINFOEXW);
-
-    HMODULE module = GetModuleHandle("ntdll");
-    PVOID fun = GetProcAddress(module, "RtlGetVersion");
-    if (fun == NULL) {
-        error_setg(errp, QERR_QGA_COMMAND_FAILED,
-            "Failed to get address of RtlGetVersion");
-        return;
-    }
-
-    rtl_get_version_t rtl_get_version = (rtl_get_version_t)fun;
-    rtl_get_version(info);
-    return;
-}
-
 static char *ga_get_win_name(OSVERSIONINFOEXW const *os_version, bool id)
 {
     DWORD major = os_version->dwMajorVersion;
@@ -2312,17 +2292,12 @@ static char *ga_get_current_arch(void)
 
 GuestOSInfo *qmp_guest_get_osinfo(Error **errp)
 {
-    Error *local_err = NULL;
     OSVERSIONINFOEXW os_version = {0};
     bool server;
     char *product_name;
     GuestOSInfo *info;
 
-    ga_get_win_version(&os_version, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return NULL;
-    }
+    os_get_win_version(&os_version);
 
     server = os_version.wProductType != VER_NT_WORKSTATION;
     product_name = ga_get_win_product_name(errp);
