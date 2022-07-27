@@ -165,8 +165,10 @@
           - zlib-devel
         state: present
       when:
-        - ansible_facts['distribution_file_variety'] == 'RedHat'
-        - ansible_facts['distribution_version'] == '8'
+        - |
+           (ansible_facts['distribution'] == 'RedHat' and
+            ansible_facts['distribution_version'] == '8') or
+            ansible_facts['distribution'] == 'Fedora'
 
     - name: Install packages only available on x86 and aarch64
       dnf:
@@ -175,6 +177,8 @@
           - spice-server
         state: present
       when:
-        - ansible_facts['distribution_file_variety'] == 'RedHat'
-        - ansible_facts['distribution_version'] == '8'
+        - |
+           (ansible_facts['distribution'] == 'RedHat' and
+            ansible_facts['distribution_version'] == '8') or
+            ansible_facts['distribution'] == 'Fedora'
         - ansible_facts['architecture'] == 'aarch64' or ansible_facts['architecture'] == 'x86_64'
