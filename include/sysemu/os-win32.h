@@ -204,6 +204,8 @@ ssize_t qemu_recv_wrap(int sockfd, void *buf, size_t len, int flags);
 ssize_t qemu_recvfrom_wrap(int sockfd, void *buf, size_t len, int flags,
                            struct sockaddr *addr, socklen_t *addrlen);
 
+void os_get_win_version(RTL_OSVERSIONINFOEXW *info);
+
 #ifdef __cplusplus
 }
 #endif

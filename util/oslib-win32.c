@@ -547,3 +547,18 @@ int qemu_msync(void *addr, size_t length, int fd)
      */
     return qemu_fdatasync(fd);
 }
+
+void os_get_win_version(RTL_OSVERSIONINFOEXW *info)
+{
+    typedef LONG (WINAPI *rtl_get_version_t)(PRTL_OSVERSIONINFOEXW);
+
+    /* RtlGetVersion is available starting with Windows 2000 */
+    HMODULE module = GetModuleHandle("ntdll");
+    PVOID fun = GetProcAddress(module, "RtlGetVersion");
+    rtl_get_version_t rtl_get_version = (rtl_get_version_t)fun;
+
+    info->dwOSVersionInfoSize = sizeof(RTL_OSVERSIONINFOEXW);
+    rtl_get_version(info);
+
+    return;
+}
