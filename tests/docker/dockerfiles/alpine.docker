@@ -21,6 +21,7 @@ RUN apk update && \
         cdrkit \
         ceph-dev \
         clang \
+        coreutils \
         ctags \
         curl-dev \
         cyrus-sasl-dev \
