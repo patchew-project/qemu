@@ -14,6 +14,7 @@
 import os
 import sys
 import subprocess
+import platform
 import json
 import hashlib
 import atexit
@@ -207,8 +208,15 @@ def _read_qemu_dockerfile(img_name):
 
 def _dockerfile_preprocess(df):
     out = ""
+    ignore_list = []
     for l in df.splitlines():
-        if len(l.strip()) == 0 or l.startswith("#"):
+        if len(l.strip()) == 0:
+            continue
+        if l.startswith("#"):
+            if len(l.split()) >= 3:
+                if l.split()[1] == "ignore":
+                    if platform.processor() in l.split()[2].split(','):
+                        ignore_list += l.split()[3].split(',')
             continue
         from_pref = "FROM qemu/"
         if l.startswith(from_pref):
@@ -219,7 +227,8 @@ def _dockerfile_preprocess(df):
             inlining = _read_qemu_dockerfile(l[len(from_pref):])
             out += _dockerfile_preprocess(inlining)
             continue
-        out += l + "\n"
+        if not any(x in l.split() for x in ignore_list):
+            out += l + "\n"
     return out
 
 
@@ -330,7 +339,7 @@ class Docker(object):
         tmp_df = tempfile.NamedTemporaryFile(mode="w+t",
                                              encoding='utf-8',
                                              dir=docker_dir, suffix=".docker")
-        tmp_df.write(dockerfile)
+        tmp_df.write(_dockerfile_preprocess(dockerfile))
 
         if user:
             uid = os.getuid()

@@ -6,6 +6,8 @@
 
 FROM docker.io/library/alpine:edge
 
+# Lines to by ignored when this file is read by the python script
+# ignore ppc64le,ppc64 xen-dev
 RUN apk update && \
     apk upgrade && \
     apk add \
