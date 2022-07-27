@@ -2363,11 +2363,18 @@ static void whpx_process_section(MemoryRegionSection *section, int add)
     MemoryRegion *mr = section->mr;
     hwaddr start_pa = section->offset_within_address_space;
     ram_addr_t size = int128_get64(section->size);
+    bool is_romd = false;
     unsigned int delta;
     uint64_t host_va;
 
     if (!memory_region_is_ram(mr)) {
-        return;
+        if (memory_region_is_romd(mr)) {
+            is_romd = true;
+            warn_report("WHPX: ROMD region 0x%016" PRIx64 "->0x%016" PRIx64,
+                        start_pa, start_pa + size);
+        } else {
+            return;
+        }
     }
 
     delta = qemu_real_host_page_size() - (start_pa & ~qemu_real_host_page_mask());
@@ -2386,7 +2393,7 @@ static void whpx_process_section(MemoryRegionSection *section, int add)
             + section->offset_within_region + delta;
 
     whpx_update_mapping(start_pa, size, (void *)(uintptr_t)host_va, add,
-                        memory_region_is_rom(mr), mr->name);
+                        memory_region_is_rom(mr) || is_romd, mr->name);
 }
 
 static void whpx_region_add(MemoryListener *listener,
