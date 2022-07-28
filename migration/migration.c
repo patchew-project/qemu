@@ -2592,6 +2592,13 @@ bool migrate_use_multifd(void)
     return s->enabled_capabilities[MIGRATION_CAPABILITY_MULTIFD];
 }
 
+bool migrate_multifd_sync_after_each_section(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->multifd_sync_after_each_section;
+}
+
 bool migrate_pause_before_switchover(void)
 {
     MigrationState *s;
@@ -4384,7 +4391,9 @@ static Property migration_properties[] = {
     DEFINE_PROP_STRING("tls-creds", MigrationState, parameters.tls_creds),
     DEFINE_PROP_STRING("tls-hostname", MigrationState, parameters.tls_hostname),
     DEFINE_PROP_STRING("tls-authz", MigrationState, parameters.tls_authz),
-
+    /* We will change to false when we introduce the new mechanism */
+    DEFINE_PROP_BOOL("multifd-sync-after-each-section", MigrationState,
+                      multifd_sync_after_each_section, true),
     /* Migration capabilities */
     DEFINE_PROP_MIG_CAP("x-xbzrle", MIGRATION_CAPABILITY_XBZRLE),
     DEFINE_PROP_MIG_CAP("x-rdma-pin-all", MIGRATION_CAPABILITY_RDMA_PIN_ALL),
