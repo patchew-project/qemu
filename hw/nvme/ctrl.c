@@ -487,6 +487,29 @@ static int nvme_check_cqid(NvmeCtrl *n, uint16_t cqid)
 {
     return cqid < n->conf_ioqpairs + 1 && n->cq[cqid] != NULL ? 0 : -1;
 }
+static inline bool nvme_db_offset_is_cq(NvmeCtrl *n, hwaddr offset)
+{
+    hwaddr stride = 4 << NVME_CAP_DSTRD(ldq_le_p(&n->bar.cap));
+    return (offset / stride) & 1;
+}
+
+static inline uint16_t nvme_db_offset_to_qid(NvmeCtrl *n, hwaddr offset)
+{
+    hwaddr stride = 4 << NVME_CAP_DSTRD(ldq_le_p(&n->bar.cap));
+    return offset / (2 * stride);
+}
+
+static inline hwaddr nvme_cqid_to_db_offset(NvmeCtrl *n, uint16_t cqid)
+{
+    hwaddr stride = 4 << NVME_CAP_DSTRD(ldq_le_p(&n->bar.cap));
+    return stride * (cqid * 2 + 1);
+}
+
+static inline hwaddr nvme_sqid_to_db_offset(NvmeCtrl *n, uint16_t sqid)
+{
+    hwaddr stride = 4 << NVME_CAP_DSTRD(ldq_le_p(&n->bar.cap));
+    return stride * sqid * 2;
+}
 
 static void nvme_inc_cq_tail(NvmeCQueue *cq)
 {
@@ -4256,7 +4279,7 @@ static void nvme_cq_notifier(EventNotifier *e)
 static int nvme_init_cq_ioeventfd(NvmeCQueue *cq)
 {
     NvmeCtrl *n = cq->ctrl;
-    uint16_t offset = (cq->cqid << 3) + (1 << 2);
+    uint16_t offset = nvme_cqid_to_db_offset(n, cq->cqid);
     int ret;
 
     ret = event_notifier_init(&cq->notifier, 0);
@@ -4283,7 +4306,7 @@ static void nvme_sq_notifier(EventNotifier *e)
 static int nvme_init_sq_ioeventfd(NvmeSQueue *sq)
 {
     NvmeCtrl *n = sq->ctrl;
-    uint16_t offset = sq->sqid << 3;
+    uint16_t offset = nvme_sqid_to_db_offset(n, sq->sqid);
     int ret;
 
     ret = event_notifier_init(&sq->notifier, 0);
@@ -4300,7 +4323,7 @@ static int nvme_init_sq_ioeventfd(NvmeSQueue *sq)
 
 static void nvme_free_sq(NvmeSQueue *sq, NvmeCtrl *n)
 {
-    uint16_t offset = sq->sqid << 3;
+    uint16_t offset = nvme_sqid_to_db_offset(n, sq->sqid);
 
     n->sq[sq->sqid] = NULL;
     timer_free(sq->timer);
@@ -4379,8 +4402,8 @@ static void nvme_init_sq(NvmeSQueue *sq, NvmeCtrl *n, uint64_t dma_addr,
     sq->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, nvme_process_sq, sq);
 
     if (n->dbbuf_enabled) {
-        sq->db_addr = n->dbbuf_dbs + (sqid << 3);
-        sq->ei_addr = n->dbbuf_eis + (sqid << 3);
+        sq->db_addr = n->dbbuf_dbs + nvme_sqid_to_db_offset(n, sqid);
+        sq->ei_addr = n->dbbuf_eis + nvme_sqid_to_db_offset(n, sqid);
 
         if (n->params.ioeventfd && sq->sqid != 0) {
             if (!nvme_init_sq_ioeventfd(sq)) {
@@ -4690,8 +4713,8 @@ static uint16_t nvme_get_log(NvmeCtrl *n, NvmeRequest *req)
 
 static void nvme_free_cq(NvmeCQueue *cq, NvmeCtrl *n)
 {
-    uint16_t offset = (cq->cqid << 3) + (1 << 2);
-
+    uint16_t offset = nvme_cqid_to_db_offset(n, cq->cqid);
+    
     n->cq[cq->cqid] = NULL;
     timer_free(cq->timer);
     if (cq->ioeventfd_enabled) {
@@ -4755,8 +4778,8 @@ static void nvme_init_cq(NvmeCQueue *cq, NvmeCtrl *n, uint64_t dma_addr,
     QTAILQ_INIT(&cq->req_list);
     QTAILQ_INIT(&cq->sq_list);
     if (n->dbbuf_enabled) {
-        cq->db_addr = n->dbbuf_dbs + (cqid << 3) + (1 << 2);
-        cq->ei_addr = n->dbbuf_eis + (cqid << 3) + (1 << 2);
+        cq->db_addr = n->dbbuf_dbs + nvme_cqid_to_db_offset(n, cqid);
+        cq->ei_addr = n->dbbuf_eis + nvme_cqid_to_db_offset(n, cqid);
 
         if (n->params.ioeventfd && cqid != 0) {
             if (!nvme_init_cq_ioeventfd(cq)) {
@@ -6128,13 +6151,8 @@ static uint16_t nvme_dbbuf_config(NvmeCtrl *n, const NvmeRequest *req)
         NvmeCQueue *cq = n->cq[i];
 
         if (sq) {
-            /*
-             * CAP.DSTRD is 0, so offset of ith sq db_addr is (i<<3)
-             * nvme_process_db() uses this hard-coded way to calculate
-             * doorbell offsets. Be consistent with that here.
-             */
-            sq->db_addr = dbs_addr + (i << 3);
-            sq->ei_addr = eis_addr + (i << 3);
+            sq->db_addr = dbs_addr + nvme_sqid_to_db_offset(n, i);
+            sq->ei_addr = eis_addr + nvme_sqid_to_db_offset(n, i);
             pci_dma_write(&n->parent_obj, sq->db_addr, &sq->tail,
                     sizeof(sq->tail));
 
@@ -6146,9 +6164,8 @@ static uint16_t nvme_dbbuf_config(NvmeCtrl *n, const NvmeRequest *req)
         }
 
         if (cq) {
-            /* CAP.DSTRD is 0, so offset of ith cq db_addr is (i<<3)+(1<<2) */
-            cq->db_addr = dbs_addr + (i << 3) + (1 << 2);
-            cq->ei_addr = eis_addr + (i << 3) + (1 << 2);
+            cq->db_addr = dbs_addr + nvme_cqid_to_db_offset(n, i);
+            cq->ei_addr = eis_addr + nvme_cqid_to_db_offset(n, i);
             pci_dma_write(&n->parent_obj, cq->db_addr, &cq->head,
                     sizeof(cq->head));
 
@@ -6843,14 +6860,14 @@ static void nvme_process_db(NvmeCtrl *n, hwaddr addr, int val)
         return;
     }
 
-    if (((addr - 0x1000) >> 2) & 1) {
+    if (nvme_db_offset_is_cq(n, addr - 0x1000)) {
         /* Completion queue doorbell write */
 
         uint16_t new_head = val & 0xffff;
         int start_sqs;
         NvmeCQueue *cq;
 
-        qid = (addr - (0x1000 + (1 << 2))) >> 3;
+        qid = nvme_db_offset_to_qid(n, addr - 0x1000);
         if (unlikely(nvme_check_cqid(n, qid))) {
             NVME_GUEST_ERR(pci_nvme_ub_db_wr_invalid_cq,
                            "completion queue doorbell write"
@@ -6925,7 +6942,7 @@ static void nvme_process_db(NvmeCtrl *n, hwaddr addr, int val)
         uint16_t new_tail = val & 0xffff;
         NvmeSQueue *sq;
 
-        qid = (addr - 0x1000) >> 3;
+        qid = nvme_db_offset_to_qid(n, addr - 0x1000);
         if (unlikely(nvme_check_sqid(n, qid))) {
             NVME_GUEST_ERR(pci_nvme_ub_db_wr_invalid_sq,
                            "submission queue doorbell write"
