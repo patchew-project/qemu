@@ -1532,17 +1532,23 @@ retry:
     return pages;
 }
 
+#define PAGE_ALL_CLEAN 0
+#define PAGE_TRY_AGAIN 1
+#define PAGE_DIRTY_FOUND 2
 /**
  * find_dirty_block: find the next dirty page and update any state
  * associated with the search process.
  *
- * Returns true if a page is found
+ * Returns:
+ *         PAGE_ALL_CLEAN: no dirty page found, give up
+ *         PAGE_TRY_AGAIN: no dirty page found, retry for next block
+ *         PAGE_DIRTY_FOUND: dirty page found
  *
  * @rs: current RAM state
  * @pss: data about the state of the current dirty page scan
  * @again: set to false if the search has scanned the whole of RAM
  */
-static bool find_dirty_block(RAMState *rs, PageSearchStatus *pss, bool *again)
+static int find_dirty_block(RAMState *rs, PageSearchStatus *pss)
 {
     /*
      * This is not a postcopy requested page, mark it "not urgent", and use
@@ -1558,8 +1564,7 @@ static bool find_dirty_block(RAMState *rs, PageSearchStatus *pss, bool *again)
          * We've been once around the RAM and haven't found anything.
          * Give up.
          */
-        *again = false;
-        return false;
+        return PAGE_ALL_CLEAN;
     }
     if (!offset_in_ramblock(pss->block,
                             ((ram_addr_t)pss->page) << TARGET_PAGE_BITS)) {
@@ -1588,13 +1593,10 @@ static bool find_dirty_block(RAMState *rs, PageSearchStatus *pss, bool *again)
             }
         }
         /* Didn't find anything this time, but try again on the new block */
-        *again = true;
-        return false;
+        return PAGE_TRY_AGAIN;
     } else {
-        /* Can go around again, but... */
-        *again = true;
-        /* We've found something so probably don't need to */
-        return true;
+        /* We've found something */
+        return PAGE_DIRTY_FOUND;
     }
 }
 
@@ -2538,7 +2540,7 @@ static int ram_find_and_save_block(RAMState *rs)
         pss.block = QLIST_FIRST_RCU(&ram_list.blocks);
     }
 
-    do {
+    while (true){
         if (!get_queued_page(rs, &pss)) {
             /*
              * Recover previous precopy ramblock/offset if postcopy has
@@ -2548,16 +2550,21 @@ static int ram_find_and_save_block(RAMState *rs)
                 postcopy_preempt_restore(rs, &pss, false);
             } else {
                 /* priority queue empty, so just search for something dirty */
-                bool again = true;
-                if (!find_dirty_block(rs, &pss, &again)) {
-                    if (!again) {
+                int res = find_dirty_block(rs, &pss);
+                if (res != PAGE_DIRTY_FOUND) {
+                    if (res == PAGE_ALL_CLEAN) {
                         break;
+                    } else if (res == PAGE_TRY_AGAIN) {
+                        continue;
                     }
                 }
             }
         }
         pages = ram_save_host_page(rs, &pss);
-    } while (!pages);
+        if (pages) {
+            break;
+        }
+    }
 
     rs->last_seen_block = pss.block;
     rs->last_page = pss.page;
