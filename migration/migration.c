@@ -4393,7 +4393,7 @@ static Property migration_properties[] = {
     DEFINE_PROP_STRING("tls-authz", MigrationState, parameters.tls_authz),
     /* We will change to false when we introduce the new mechanism */
     DEFINE_PROP_BOOL("multifd-sync-after-each-section", MigrationState,
-                      multifd_sync_after_each_section, true),
+                      multifd_sync_after_each_section, false),
     /* Migration capabilities */
     DEFINE_PROP_MIG_CAP("x-xbzrle", MIGRATION_CAPABILITY_XBZRLE),
     DEFINE_PROP_MIG_CAP("x-rdma-pin-all", MIGRATION_CAPABILITY_RDMA_PIN_ALL),
