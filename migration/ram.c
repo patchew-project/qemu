@@ -2524,7 +2524,6 @@ static int ram_find_and_save_block(RAMState *rs)
 {
     PageSearchStatus pss;
     int pages = 0;
-    bool again, found;
 
     /* No dirty page as there is zero RAM */
     if (!ram_bytes_total()) {
@@ -2540,27 +2539,25 @@ static int ram_find_and_save_block(RAMState *rs)
     }
 
     do {
-        again = true;
-        found = get_queued_page(rs, &pss);
-
-        if (!found) {
+        if (!get_queued_page(rs, &pss)) {
             /*
              * Recover previous precopy ramblock/offset if postcopy has
              * preempted precopy.  Otherwise find the next dirty bit.
              */
             if (postcopy_preempt_triggered(rs)) {
                 postcopy_preempt_restore(rs, &pss, false);
-                found = true;
             } else {
                 /* priority queue empty, so just search for something dirty */
-                found = find_dirty_block(rs, &pss, &again);
+                bool again = true;
+                if (!find_dirty_block(rs, &pss, &again)) {
+                    if (!again) {
+                        break;
+                    }
+                }
             }
         }
-
-        if (found) {
-            pages = ram_save_host_page(rs, &pss);
-        }
-    } while (!pages && again);
+        pages = ram_save_host_page(rs, &pss);
+    } while (!pages);
 
     rs->last_seen_block = pss.block;
     rs->last_page = pss.page;
