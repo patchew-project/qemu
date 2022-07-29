@@ -8530,6 +8530,30 @@ static int do_getdents64(abi_long dirfd, abi_long arg2, abi_long count)
 _syscall2(int, pivot_root, const char *, new_root, const char *, put_old)
 #endif
 
+static int do_faccessat2(int dirfd, abi_ptr pathname, int mode, int flags)
+{
+    char *p = lock_user_string(pathname);
+    bool nosys = true;
+    int ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+
+    /* Use the raw host syscall if possible, in case we have an old libc. */
+#ifdef __NR_faccessat2
+    ret = syscall(__NR_faccessat2, dirfd, p, mode, flags);
+    nosys = ret < 0 && errno == ENOSYS;
+#endif
+    /* If we don't have the syscall, defer to libc emulation. */
+    if (nosys) {
+        ret = faccessat(dirfd, p, mode, flags);
+    }
+
+    unlock_user(p, pathname, 0);
+    return get_errno(ret);
+}
+
 /* This is an internal helper for do_syscall so that it is easier
  * to have a single return point, so that actions, such as logging
  * of syscall results, can be performed.
@@ -9058,21 +9082,15 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_access
     case TARGET_NR_access:
-        if (!(p = lock_user_string(arg1))) {
-            return -TARGET_EFAULT;
-        }
-        ret = get_errno(access(path(p), arg2));
-        unlock_user(p, arg1, 0);
-        return ret;
+        return do_faccessat2(AT_FDCWD, arg1, arg2, 0);
 #endif
-#if defined(TARGET_NR_faccessat) && defined(__NR_faccessat)
+#ifdef TARGET_NR_faccessat
     case TARGET_NR_faccessat:
-        if (!(p = lock_user_string(arg2))) {
-            return -TARGET_EFAULT;
-        }
-        ret = get_errno(faccessat(arg1, p, arg3, 0));
-        unlock_user(p, arg2, 0);
-        return ret;
+        return do_faccessat2(arg1, arg2, arg3, 0);
+#endif
+#ifdef TARGET_NR_faccessat2
+    case TARGET_NR_faccessat2:
+        return do_faccessat2(arg1, arg2, arg3, arg4);
 #endif
 #ifdef TARGET_NR_nice /* not on alpha */
     case TARGET_NR_nice:
