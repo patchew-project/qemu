@@ -419,7 +419,8 @@ int bdrv_remove_persistent_dirty_bitmap(BlockDriverState *bs, const char *name,
                                         Error **errp)
 {
     if (qemu_in_coroutine()) {
-        return bdrv_co_remove_persistent_dirty_bitmap(bs, name, errp);
+        return __allow_coroutine_fn_call(
+            bdrv_co_remove_persistent_dirty_bitmap(bs, name, errp));
     } else {
         Coroutine *co;
         BdrvRemovePersistentDirtyBitmapCo s = {
@@ -495,7 +496,8 @@ bool bdrv_can_store_new_dirty_bitmap(BlockDriverState *bs, const char *name,
 {
     IO_CODE();
     if (qemu_in_coroutine()) {
-        return bdrv_co_can_store_new_dirty_bitmap(bs, name, granularity, errp);
+        return __allow_coroutine_fn_call(
+            bdrv_co_can_store_new_dirty_bitmap(bs, name, granularity, errp));
     } else {
         Coroutine *co;
         BdrvCanStoreNewDirtyBitmapCo s = {

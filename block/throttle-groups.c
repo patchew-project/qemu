@@ -337,7 +337,8 @@ static void schedule_next_request(ThrottleGroupMember *tgm, bool is_write)
     if (!must_wait) {
         /* Give preference to requests from the current tgm */
         if (qemu_in_coroutine() &&
-            throttle_group_co_restart_queue(tgm, is_write)) {
+            __allow_coroutine_fn_call(
+                throttle_group_co_restart_queue(tgm, is_write))) {
             token = tgm;
         } else {
             ThrottleTimers *tt = &token->throttle_timers;

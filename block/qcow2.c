@@ -1905,7 +1905,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
 
     if (qemu_in_coroutine()) {
         /* From bdrv_co_create.  */
-        qcow2_open_entry(&qoc);
+        __allow_coroutine_fn_call(qcow2_open_entry(&qoc));
     } else {
         assert(qemu_get_current_aio_context() == qemu_get_aio_context());
         qemu_coroutine_enter(qemu_coroutine_create(qcow2_open_entry, &qoc));
@@ -5226,7 +5226,7 @@ static int qcow2_has_zero_init(BlockDriverState *bs)
     bool preallocated;
 
     if (qemu_in_coroutine()) {
-        qemu_co_mutex_lock(&s->lock);
+        __allow_coroutine_fn_call(qemu_co_mutex_lock(&s->lock));
     }
     /*
      * Check preallocation status: Preallocated images have all L2
@@ -5235,7 +5235,7 @@ static int qcow2_has_zero_init(BlockDriverState *bs)
      */
     preallocated = s->l1_size > 0 && s->l1_table[0] != 0;
     if (qemu_in_coroutine()) {
-        qemu_co_mutex_unlock(&s->lock);
+        __allow_coroutine_fn_call(qemu_co_mutex_unlock(&s->lock));
     }
 
     if (!preallocated) {
@@ -5274,8 +5274,8 @@ static int64_t qcow2_check_vmstate_request(BlockDriverState *bs,
     return pos;
 }
 
-static int qcow2_save_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
-                              int64_t pos)
+static coroutine_fn int qcow2_save_vmstate(BlockDriverState *bs,
+                                           QEMUIOVector *qiov, int64_t pos)
 {
     int64_t offset = qcow2_check_vmstate_request(bs, qiov, pos);
     if (offset < 0) {
@@ -5286,8 +5286,8 @@ static int qcow2_save_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
     return bs->drv->bdrv_co_pwritev_part(bs, offset, qiov->size, qiov, 0, 0);
 }
 
-static int qcow2_load_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
-                              int64_t pos)
+static coroutine_fn int qcow2_load_vmstate(BlockDriverState *bs,
+                                           QEMUIOVector *qiov, int64_t pos)
 {
     int64_t offset = qcow2_check_vmstate_request(bs, qiov, pos);
     if (offset < 0) {

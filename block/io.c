@@ -449,8 +449,9 @@ static void bdrv_do_drained_begin(BlockDriverState *bs, bool recursive,
     BdrvChild *child, *next;
 
     if (qemu_in_coroutine()) {
-        bdrv_co_yield_to_drain(bs, true, recursive, parent, ignore_bds_parents,
-                               poll, NULL);
+        __allow_coroutine_fn_call(
+            bdrv_co_yield_to_drain(bs, true, recursive, parent,
+                                   ignore_bds_parents, poll, NULL));
         return;
     }
 
@@ -516,8 +517,10 @@ static void bdrv_do_drained_end(BlockDriverState *bs, bool recursive,
     assert(drained_end_counter != NULL);
 
     if (qemu_in_coroutine()) {
-        bdrv_co_yield_to_drain(bs, false, recursive, parent, ignore_bds_parents,
-                               false, drained_end_counter);
+        __allow_coroutine_fn_call(
+            bdrv_co_yield_to_drain(bs, false, recursive, parent,
+                                   ignore_bds_parents, false,
+                                   drained_end_counter));
         return;
     }
     assert(bs->quiesce_counter > 0);
@@ -643,7 +646,8 @@ void bdrv_drain_all_begin(void)
     GLOBAL_STATE_CODE();
 
     if (qemu_in_coroutine()) {
-        bdrv_co_yield_to_drain(NULL, true, false, NULL, true, true, NULL);
+        __allow_coroutine_fn_call(
+            bdrv_co_yield_to_drain(NULL, true, false, NULL, true, true, NULL));
         return;
     }
 
@@ -2742,8 +2746,8 @@ int coroutine_fn bdrv_co_is_zero_fast(BlockDriverState *bs, int64_t offset,
     return (pnum == bytes) && (ret & BDRV_BLOCK_ZERO);
 }
 
-int coroutine_fn bdrv_is_allocated(BlockDriverState *bs, int64_t offset,
-                                   int64_t bytes, int64_t *pnum)
+int bdrv_is_allocated(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                      int64_t *pnum)
 {
     int ret;
     int64_t dummy;
