@@ -3,16 +3,20 @@
 from ctypes import CFUNCTYPE, c_int, py_object
 from dataclasses import dataclass
 from enum import Enum
+import inspect
 import os
 import os.path
 from pathlib import Path
 from importlib import import_module
+import textwrap
 from typing import (
     Any,
     Callable,
     Dict,
+    Iterable,
     List,
     Optional,
+    Sequence,
     Union,
 )
 
@@ -218,16 +222,47 @@ class CheckContext:
 
 Checker = Callable[[CheckContext], None]
 
-CHECKS: Dict[str, Checker] = {}
+
+class CheckTestGroup:
+
+    inputs: Sequence[str]
+    expected_output: str
+
+    location: str
+
+    def __init__(self, inputs: Iterable[str], expected_output: str) -> None:
+        def reformat_string(s: str) -> str:
+            return "".join(
+                line + "\n" for line in textwrap.dedent(s).strip().splitlines()
+            )
+
+        self.inputs = [reformat_string(input) for input in inputs]
+        self.expected_output = reformat_string(expected_output)
+
+        caller = inspect.stack()[1]
+        self.location = f"{os.path.relpath(caller.filename)}:{caller.lineno}"
+
+
+@dataclass
+class Check:
+    checker: Checker
+    test_groups: List[CheckTestGroup]
+
+
+CHECKS: Dict[str, Check] = {}
 
 
 def check(name: str) -> Callable[[Checker], Checker]:
     def decorator(checker: Checker) -> Checker:
         assert name not in CHECKS
-        CHECKS[name] = checker
+        CHECKS[name] = Check(checker=checker, test_groups=[])
         return checker
 
     return decorator
+
+
+def add_check_tests(check_name: str, *groups: CheckTestGroup) -> None:
+    CHECKS[check_name].test_groups.extend(groups)
 
 
 # ---------------------------------------------------------------------------- #

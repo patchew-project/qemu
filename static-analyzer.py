@@ -11,17 +11,26 @@ import shlex
 import subprocess
 import sys
 import re
-from argparse import ArgumentParser, Namespace, RawDescriptionHelpFormatter
+from argparse import (
+    Action,
+    ArgumentParser,
+    Namespace,
+    RawDescriptionHelpFormatter,
+)
 from multiprocessing import Pool
 from pathlib import Path
+from tempfile import TemporaryDirectory
 import textwrap
 import time
+from traceback import print_exc
 from typing import (
+    Callable,
     Iterable,
     Iterator,
     List,
     Mapping,
     NoReturn,
+    Optional,
     Sequence,
     Union,
 )
@@ -37,7 +46,7 @@ from static_analyzer import CHECKS, CheckContext
 def parse_args() -> Namespace:
 
     available_checks = "\n".join(
-        f"  {name}   {' '.join((CHECKS[name].__doc__ or '').split())}"
+        f"  {name}   {' '.join((CHECKS[name].checker.__doc__ or '').split())}"
         for name in sorted(CHECKS)
     )
 
@@ -134,12 +143,35 @@ def parse_args() -> Namespace:
         help="Do everything except actually running the checks.",
     )
 
+    dev_options.add_argument(
+        "--test",
+        action=TestAction,
+        nargs=0,
+        help="Run tests for all checks and exit.",
+    )
+
     # parse arguments
 
-    args = parser.parse_args()
+    try:
+        args = parser.parse_args()
+    except TestSentinelError:
+        # --test was specified
+        if len(sys.argv) > 2:
+            parser.error("--test must be given alone")
+        return Namespace(test=True)
+
     args.check_names = sorted(set(args.check_names or CHECKS))
 
     return args
+
+
+class TestAction(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        raise TestSentinelError
+
+
+class TestSentinelError(Exception):
+    pass
 
 
 # ---------------------------------------------------------------------------- #
@@ -150,7 +182,11 @@ def main() -> int:
 
     args = parse_args()
 
-    if args.profile:
+    if args.test:
+
+        return test()
+
+    elif args.profile:
 
         import cProfile
         import pstats
@@ -168,6 +204,18 @@ def main() -> int:
     else:
 
         return analyze(args)
+
+
+def test() -> int:
+
+    for (check_name, check) in CHECKS.items():
+        for group in check.test_groups:
+            for input in group.inputs:
+                run_test(
+                    check_name, group.location, input, group.expected_output
+                )
+
+    return 0
 
 
 def analyze(args: Namespace) -> int:
@@ -247,6 +295,7 @@ class TranslationUnit:
     build_command: str
     system_include_paths: Sequence[str]
     check_names: Sequence[str]
+    custom_printer: Optional[Callable[[str], None]]
 
 
 def get_translation_units(args: Namespace) -> Sequence["TranslationUnit"]:
@@ -264,6 +313,7 @@ def get_translation_units(args: Namespace) -> Sequence["TranslationUnit"]:
             build_command=cmd["command"],
             system_include_paths=system_include_paths,
             check_names=args.check_names,
+            custom_printer=None,
         )
         for cmd in compile_commands
     )
@@ -380,7 +430,7 @@ def analyze_translation_unit(tr_unit: TranslationUnit) -> bool:
 
     try:
         for name in tr_unit.check_names:
-            CHECKS[name](check_context)
+            CHECKS[name].checker(check_context)
     except Exception as e:
         raise RuntimeError(f"Error analyzing {check_context._rel_path}") from e
 
@@ -428,7 +478,9 @@ def get_check_context(tr_unit: TranslationUnit) -> CheckContext:
         except clang.cindex.TranslationUnitLoadError as e:
             raise RuntimeError(f"Failed to load {rel_path}") from e
 
-    if sys.stdout.isatty():
+    if tr_unit.custom_printer is not None:
+        printer = tr_unit.custom_printer
+    elif sys.stdout.isatty():
         # add padding to fully overwrite progress message
         printer = lambda s: print(s.ljust(50))
     else:
@@ -455,6 +507,75 @@ def get_check_context(tr_unit: TranslationUnit) -> CheckContext:
             )
 
     return check_context
+
+
+# ---------------------------------------------------------------------------- #
+# Tests
+
+
+def run_test(
+    check_name: str, location: str, input: str, expected_output: str
+) -> None:
+
+    with TemporaryDirectory() as temp_dir:
+
+        os.chdir(temp_dir)
+
+        input_path = Path(temp_dir) / "file.c"
+        input_path.write_text(input)
+
+        actual_output_list = []
+
+        tu_context = TranslationUnit(
+            absolute_path=str(input_path),
+            build_working_dir=str(input_path.parent),
+            build_command=f"cc {shlex.quote(str(input_path))}",
+            system_include_paths=[],
+            check_names=[check_name],
+            custom_printer=lambda s: actual_output_list.append(s + "\n"),
+        )
+
+        check_context = get_check_context(tu_context)
+
+        # analyze translation unit
+
+        try:
+
+            for name in tu_context.check_names:
+                CHECKS[name].checker(check_context)
+
+        except Exception:
+
+            print(
+                f"\033[0;31mTest defined at {location} raised an"
+                f" exception.\033[0m"
+            )
+            print(f"\033[0;31mInput:\033[0m")
+            print(input, end="")
+            print(f"\033[0;31mExpected output:\033[0m")
+            print(expected_output, end="")
+            print(f"\033[0;31mException:\033[0m")
+            print_exc(file=sys.stdout)
+            print(f"\033[0;31mAST:\033[0m")
+            check_context.print_tree(check_context.translation_unit.cursor)
+
+            sys.exit(1)
+
+        actual_output = "".join(actual_output_list)
+
+        if actual_output != expected_output:
+
+            print(f"\033[0;33mTest defined at {location} failed.\033[0m")
+            print(f"\033[0;33mInput:\033[0m")
+            print(input, end="")
+            print(f"\033[0;33mExpected output:\033[0m")
+            print(expected_output, end="")
+            print(f"\033[0;33mActual output:\033[0m")
+            print(actual_output, end="")
+            print(f"\033[0;33mAST:\033[0m")
+            check_context.print_tree(check_context.translation_unit.cursor)
+
+            sys.exit(3)
 
 
 # ---------------------------------------------------------------------------- #

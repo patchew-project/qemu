@@ -11,7 +11,9 @@ from clang.cindex import (  # type: ignore
 
 from static_analyzer import (
     CheckContext,
+    CheckTestGroup,
     VisitorResult,
+    add_check_tests,
     check,
     might_have_attribute,
     visit,
@@ -113,5 +115,106 @@ def function_occurrence_might_use_return_value(node: Cursor) -> bool:
 def get_parent_if_unexposed_expr(node: Cursor) -> Cursor:
     return node.parent if node.kind == CursorKind.UNEXPOSED_EXPR else node
 
+
+# ---------------------------------------------------------------------------- #
+
+add_check_tests(
+    "return-value-never-used",
+    CheckTestGroup(
+        inputs=[
+            R"""
+                static void f(void) { }
+                """,
+            R"""
+                static __attribute__((unused)) int f(void) { }
+                """,
+            R"""
+                #define ATTR __attribute__((unused))
+                static __attribute__((unused)) int f(void) { }
+                """,
+            R"""
+                #define FUNC static __attribute__((unused)) int f(void) { }
+                FUNC
+                """,
+            R"""
+                static __attribute__((unused, constructor)) int f(void) { }
+                """,
+            R"""
+                static __attribute__((constructor, unused)) int f(void) { }
+                """,
+            R"""
+                static int f(void) { return 42; }
+                static void g(void) {
+                    int x = f();
+                }
+                """,
+            R"""
+                static int f(void) { return 42; }
+                static void g(void) {
+                    for (0; f(); 0) { }
+                }
+                """,
+            R"""
+                static int f(void) { return 42; }
+                static void g(void) {
+                    for (f(); ; ) { }
+                }
+                """,
+            R"""
+                static int f(void) { return 42; }
+                static void g(void) {
+                    for ( ; f(); ) { }
+                }
+                """,
+            R"""
+                static int f(void) { return 42; }
+                static void g(void) {
+                    for ( ; ; f()) { }
+                }
+                """,
+            R"""
+                static int f(void) { return 42; }
+                static void g(void) {
+                    int (*ptr)(void) = 0;
+                    __atomic_store_n(&ptr, f, __ATOMIC_RELAXED);
+                }
+                """,
+        ],
+        expected_output=R"""
+            """,
+    ),
+    CheckTestGroup(
+        inputs=[
+            R"""
+                static int f(void) { return 42; }
+                """,
+            R"""
+                static int f(void) { return 42; }
+                static void g(void) {
+                    f();
+                }
+                """,
+            R"""
+                static int f(void) { return 42; }
+                static void g(void) {
+                    for (f(); 0; f()) { }
+                }
+                """,
+        ],
+        expected_output=R"""
+            file.c:1:12: f() return value is never used
+            """,
+    ),
+    CheckTestGroup(
+        inputs=[
+            R"""
+                static __attribute__((constructor)) int f(void) { }
+                """,
+        ],
+        expected_output=R"""
+            file.c:1:41: f() return value is never used
+            """,
+    ),
+)
 
 # ---------------------------------------------------------------------------- #
