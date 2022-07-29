@@ -23,8 +23,9 @@ from typing import (
 from clang.cindex import (  # type: ignore
     Cursor,
     CursorKind,
-    TranslationUnit,
     SourceLocation,
+    TranslationUnit,
+    TypeKind,
     conf,
 )
 
@@ -144,6 +145,49 @@ def might_have_attribute(node: Cursor, attr: Union[CursorKind, str]) -> bool:
             return len(tokens) != 1 or tokens[0].spelling == attr
 
     return any(map(matcher, node.get_children()))
+
+
+def is_annotated_with(node: Cursor, annotation: str) -> bool:
+    return any(is_annotation(c, annotation) for c in node.get_children())
+
+
+def is_annotation(node: Cursor, annotation: str) -> bool:
+    return node.kind == CursorKind.ANNOTATE_ATTR and node.spelling == annotation
+
+
+def is_comma_wrapper(node: Cursor, literal: str) -> bool:
+    """
+    Check if `node` is a "comma-wrapper" with the given string literal.
+
+    A "comma-wrapper" is the pattern `((void)string_literal, expr)`. The `expr`
+    is said to be "comma-wrapped".
+    """
+
+    # TODO: Do we need to check that the operator is `,`? Is there another
+    # operator that can combine void and an expr?
+
+    if node.kind != CursorKind.BINARY_OPERATOR:
+        return False
+
+    [left, _right] = node.get_children()
+
+    if (
+        left.kind != CursorKind.CSTYLE_CAST_EXPR
+        or left.type.kind != TypeKind.VOID
+    ):
+        return False
+
+    [unexposed_expr] = left.get_children()
+
+    if unexposed_expr.kind != CursorKind.UNEXPOSED_EXPR:
+        return False
+
+    [string_literal] = unexposed_expr.get_children()
+
+    return (
+        string_literal.kind == CursorKind.STRING_LITERAL
+        and string_literal.spelling == f'"{literal}"'
+    )
 
 
 # ---------------------------------------------------------------------------- #
