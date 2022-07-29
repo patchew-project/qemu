@@ -24,6 +24,8 @@ from clang.cindex import (  # type: ignore
     Cursor,
     CursorKind,
     SourceLocation,
+    SourceRange,
+    TokenGroup,
     TranslationUnit,
     TypeKind,
     conf,
@@ -115,6 +117,31 @@ def visit(root: Cursor, visitor: Callable[[Cursor], VisitorResult]) -> bool:
 
 # ---------------------------------------------------------------------------- #
 # Node predicates
+
+
+def is_binary_operator(node: Cursor, operator: str) -> bool:
+    return (
+        node.kind == CursorKind.BINARY_OPERATOR
+        and get_binary_operator_spelling(node) == operator
+    )
+
+
+def get_binary_operator_spelling(node: Cursor) -> Optional[str]:
+
+    assert node.kind == CursorKind.BINARY_OPERATOR
+
+    [left, right] = node.get_children()
+
+    op_range = SourceRange.from_locations(left.extent.end, right.extent.start)
+
+    tokens = list(TokenGroup.get_tokens(node.translation_unit, op_range))
+    if not tokens:
+        # Can occur when left and right children extents overlap due to
+        # misparsing.
+        return None
+
+    [op_token, *_] = tokens
+    return op_token.spelling
 
 
 def might_have_attribute(node: Cursor, attr: Union[CursorKind, str]) -> bool:
