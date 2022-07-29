@@ -42,7 +42,7 @@
  *
  * Read more in docs/devel/block-coroutine-wrapper.rst
  */
-#define generated_co_wrapper
+#define generated_co_wrapper no_coroutine_fn
 
 /* block.c */
 typedef struct BlockDriver BlockDriver;

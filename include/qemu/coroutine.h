@@ -49,6 +49,18 @@
 #endif
 
 /**
+ * Mark a function that should never be called from a coroutine context
+ *
+ * This typically means that there is an analogous, coroutine_fn function that
+ * should be used instead.
+ */
+#ifdef __clang__
+#define no_coroutine_fn __attribute__((__annotate__("no_coroutine_fn")))
+#else
+#define no_coroutine_fn
+#endif
+
+/**
  * This can wrap a call to a coroutine_fn from a non-coroutine_fn function and
  * suppress the static analyzer's complaints.
  *
