@@ -349,7 +349,7 @@ static QOSStackElement *qos_tos(void)
 }
 
 /* qos_pop(): pops an element from the tos, setting it unvisited*/
-static QOSStackElement *qos_pop(void)
+static void qos_pop(void)
 {
     if (qos_node_tos == 0) {
         g_printerr("QOSStack: empty stack, cannot pop");
@@ -358,7 +358,6 @@ static QOSStackElement *qos_pop(void)
     QOSStackElement *e = qos_tos();
     e->node->visited = false;
     qos_node_tos--;
-    return e;
 }
 
 /**

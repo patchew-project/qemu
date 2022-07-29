@@ -289,16 +289,14 @@ static QemuOptsList qemu_source_opts = {
     },
 };
 
-static int G_GNUC_PRINTF(2, 3) qprintf(bool quiet, const char *fmt, ...)
+static void G_GNUC_PRINTF(2, 3) qprintf(bool quiet, const char *fmt, ...)
 {
-    int ret = 0;
     if (!quiet) {
         va_list args;
         va_start(args, fmt);
-        ret = vprintf(fmt, args);
+        vprintf(fmt, args);
         va_end(args);
     }
-    return ret;
 }
 
 

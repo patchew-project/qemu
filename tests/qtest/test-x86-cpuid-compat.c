@@ -149,10 +149,9 @@ static void test_feature_flag(const void *data)
  * either "feature-words" or "filtered-features", when running QEMU
  * using cmdline
  */
-static FeatureTestArgs *add_feature_test(const char *name, const char *cmdline,
-                                         uint32_t eax, uint32_t ecx,
-                                         const char *reg, int bitnr,
-                                         bool expected_value)
+static void add_feature_test(const char *name, const char *cmdline,
+                             uint32_t eax, uint32_t ecx, const char *reg,
+                             int bitnr, bool expected_value)
 {
     FeatureTestArgs *args = g_new0(FeatureTestArgs, 1);
     args->cmdline = cmdline;
@@ -162,7 +161,6 @@ static FeatureTestArgs *add_feature_test(const char *name, const char *cmdline,
     args->bitnr = bitnr;
     args->expected_value = expected_value;
     qtest_add_data_func(name, args, test_feature_flag);
-    return args;
 }
 
 static void test_plus_minus_subprocess(void)

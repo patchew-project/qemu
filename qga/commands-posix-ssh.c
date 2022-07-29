@@ -111,7 +111,7 @@ check_openssh_pub_keys(strList *keys, size_t *nkeys, Error **errp)
     return true;
 }
 
-static bool
+static void
 write_authkeys(const char *path, const GStrv keys,
                const struct passwd *p, Error **errp)
 {
@@ -121,22 +121,20 @@ write_authkeys(const char *path, const GStrv keys,
     contents = g_strjoinv("\n", keys);
     if (!g_file_set_contents(path, contents, -1, &err)) {
         error_setg(errp, "failed to write to '%s': %s", path, err->message);
-        return false;
+        return;
     }
 
     if (chown(path, p->pw_uid, p->pw_gid) == -1) {
         error_setg(errp, "failed to set ownership of directory '%s': %s",
                    path, g_strerror(errno));
-        return false;
+        return;
     }
 
     if (chmod(path, 0600) == -1) {
         error_setg(errp, "failed to set permissions of '%s': %s",
                    path, g_strerror(errno));
-        return false;
+        return;
     }
-
-    return true;
 }
 
 static GStrv

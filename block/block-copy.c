@@ -820,7 +820,7 @@ void block_copy_kick(BlockCopyCallState *call_state)
  * it means that some I/O operation failed in context of _this_ block_copy call,
  * not some parallel operation.
  */
-static int coroutine_fn block_copy_common(BlockCopyCallState *call_state)
+static void coroutine_fn block_copy_common(BlockCopyCallState *call_state)
 {
     int ret;
     BlockCopyState *s = call_state->s;
@@ -879,8 +879,6 @@ static int coroutine_fn block_copy_common(BlockCopyCallState *call_state)
     qemu_co_mutex_lock(&s->lock);
     QLIST_REMOVE(call_state, list);
     qemu_co_mutex_unlock(&s->lock);
-
-    return ret;
 }
 
 static void coroutine_fn block_copy_async_co_entry(void *opaque)

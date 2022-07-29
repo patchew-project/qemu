@@ -61,7 +61,7 @@ struct pcap_sf_pkthdr {
     uint32_t len;
 };
 
-static ssize_t dump_receive_iov(DumpState *s, const struct iovec *iov, int cnt)
+static void dump_receive_iov(DumpState *s, const struct iovec *iov, int cnt)
 {
     struct pcap_sf_pkthdr hdr;
     int64_t ts;
@@ -71,7 +71,7 @@ static ssize_t dump_receive_iov(DumpState *s, const struct iovec *iov, int cnt)
 
     /* Early return in case of previous error. */
     if (s->fd < 0) {
-        return size;
+        return;
     }
 
     ts = qemu_clock_get_us(QEMU_CLOCK_VIRTUAL);
@@ -91,8 +91,6 @@ static ssize_t dump_receive_iov(DumpState *s, const struct iovec *iov, int cnt)
         close(s->fd);
         s->fd = -1;
     }
-
-    return size;
 }
 
 static void dump_cleanup(DumpState *s)
@@ -101,8 +99,8 @@ static void dump_cleanup(DumpState *s)
     s->fd = -1;
 }
 
-static int net_dump_state_init(DumpState *s, const char *filename,
-                               int len, Error **errp)
+static void net_dump_state_init(DumpState *s, const char *filename,
+                                int len, Error **errp)
 {
     struct pcap_file_hdr hdr;
     struct tm tm;
@@ -111,7 +109,7 @@ static int net_dump_state_init(DumpState *s, const char *filename,
     fd = open(filename, O_CREAT | O_TRUNC | O_WRONLY | O_BINARY, 0644);
     if (fd < 0) {
         error_setg_errno(errp, errno, "net dump: can't open %s", filename);
-        return -1;
+        return;
     }
 
     hdr.magic = PCAP_MAGIC;
@@ -125,7 +123,7 @@ static int net_dump_state_init(DumpState *s, const char *filename,
     if (write(fd, &hdr, sizeof(hdr)) < sizeof(hdr)) {
         error_setg_errno(errp, errno, "net dump write error");
         close(fd);
-        return -1;
+        return;
     }
 
     s->fd = fd;
@@ -133,8 +131,6 @@ static int net_dump_state_init(DumpState *s, const char *filename,
 
     qemu_get_timedate(&tm, 0);
     s->start_ts = mktime(&tm);
-
-    return 0;
 }
 
 #define TYPE_FILTER_DUMP "filter-dump"

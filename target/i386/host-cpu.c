@@ -114,7 +114,7 @@ bool host_cpu_realizefn(CPUState *cs, Error **errp)
  * The function does NOT add a null terminator to the string
  * automatically.
  */
-static int host_cpu_fill_model_id(char *str)
+static void host_cpu_fill_model_id(char *str)
 {
     uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
     int i;
@@ -126,7 +126,6 @@ static int host_cpu_fill_model_id(char *str)
         memcpy(str + i * 16 +  8, &ecx, 4);
         memcpy(str + i * 16 + 12, &edx, 4);
     }
-    return 0;
 }
 
 void host_cpu_vendor_fms(char *vendor, int *family, int *model, int *stepping)

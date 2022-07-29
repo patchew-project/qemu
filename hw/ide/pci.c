@@ -381,7 +381,7 @@ static int ide_bmdma_pre_save(void *opaque)
 /* This function accesses bm->bus->error_status which is loaded only after
  * BMDMA itself. This is why the function is called from ide_pci_post_load
  * instead of being registered with VMState where it would run too early. */
-static int ide_bmdma_post_load(void *opaque, int version_id)
+static void ide_bmdma_post_load(void *opaque, int version_id)
 {
     BMDMAState *bm = opaque;
     uint8_t abused_bits = BM_MIGRATION_COMPAT_STATUS_BITS;
@@ -395,8 +395,6 @@ static int ide_bmdma_post_load(void *opaque, int version_id)
         bm->bus->retry_nsector = bm->migration_retry_nsector;
         bm->bus->retry_unit = bm->migration_retry_unit;
     }
-
-    return 0;
 }
 
 static const VMStateDescription vmstate_bmdma_current = {

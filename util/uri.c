@@ -1364,15 +1364,13 @@ void uri_free(URI *uri)
  * Section 5.2, steps 6.c through 6.g.
  *
  * Normalization occurs directly on the string, no new allocation is done
- *
- * Returns 0 or an error code
  */
-static int normalize_uri_path(char *path)
+static void normalize_uri_path(char *path)
 {
     char *cur, *out;
 
     if (path == NULL) {
-        return -1;
+        return;
     }
 
     /* Skip all initial "/" chars.  We want to get to the beginning of the
@@ -1383,7 +1381,7 @@ static int normalize_uri_path(char *path)
         ++cur;
     }
     if (cur[0] == '\0') {
-        return 0;
+        return;
     }
 
     /* Keep everything we've seen so far.  */
@@ -1437,7 +1435,7 @@ done_cd:
         ++cur;
     }
     if (cur[0] == '\0') {
-        return 0;
+        return;
     }
 
     /*
@@ -1558,8 +1556,6 @@ done_cd:
             out[0] = 0;
         }
     }
-
-    return 0;
 }
 
 static int is_hex(char c)
@@ -2213,8 +2209,8 @@ struct QueryParams *query_params_new(int init_alloc)
 /* Ensure there is space to store at least one more parameter
  * at the end of the set.
  */
-static int query_params_append(struct QueryParams *ps, const char *name,
-                               const char *value)
+static void query_params_append(struct QueryParams *ps, const char *name,
+                                const char *value)
 {
     if (ps->n >= ps->alloc) {
         ps->p = g_renew(QueryParam, ps->p, ps->alloc * 2);
@@ -2225,8 +2221,6 @@ static int query_params_append(struct QueryParams *ps, const char *name,
     ps->p[ps->n].value = g_strdup(value);
     ps->p[ps->n].ignore = 0;
     ps->n++;
-
-    return 0;
 }
 
 void query_params_free(struct QueryParams *ps)

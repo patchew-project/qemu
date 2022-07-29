@@ -265,7 +265,7 @@ static inline uint32_t fw_cfg_max_entry(const FWCfgState *s)
     return FW_CFG_FILE_FIRST + fw_cfg_file_slots(s);
 }
 
-static int fw_cfg_select(FWCfgState *s, uint16_t key)
+static void fw_cfg_select(FWCfgState *s, uint16_t key)
 {
     int arch, ret;
     FWCfgEntry *e;
@@ -286,7 +286,6 @@ static int fw_cfg_select(FWCfgState *s, uint16_t key)
     }
 
     trace_fw_cfg_select(s, key, trace_key_name(key), ret);
-    return ret;
 }
 
 static uint64_t fw_cfg_data_read(void *opaque, hwaddr addr, unsigned size)

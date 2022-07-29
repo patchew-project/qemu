@@ -66,8 +66,8 @@ static size_t vub_iov_size(const struct iovec *iov,
     return len;
 }
 
-static size_t vub_iov_to_buf(const struct iovec *iov,
-                             const unsigned int iov_cnt, void *buf)
+static void vub_iov_to_buf(const struct iovec *iov,
+                           const unsigned int iov_cnt, void *buf)
 {
     size_t len;
     unsigned int i;
@@ -77,7 +77,6 @@ static size_t vub_iov_to_buf(const struct iovec *iov,
         memcpy(buf + len,  iov[i].iov_base, iov[i].iov_len);
         len += iov[i].iov_len;
     }
-    return len;
 }
 
 static void vub_panic_cb(VuDev *vu_dev, const char *buf)

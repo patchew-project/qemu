@@ -609,7 +609,7 @@ vmxnet3_pop_next_tx_descr(VMXNET3State *s,
     return false;
 }
 
-static bool
+static void
 vmxnet3_send_packet(VMXNET3State *s, uint32_t qidx)
 {
     Vmxnet3PktStatus status = VMXNET3_PKT_STATUS_OK;
@@ -630,7 +630,6 @@ vmxnet3_send_packet(VMXNET3State *s, uint32_t qidx)
 
 func_exit:
     vmxnet3_on_tx_done_update_stats(s, qidx, status);
-    return (status == VMXNET3_PKT_STATUS_OK);
 }
 
 static void vmxnet3_process_tx_queue(VMXNET3State *s, int qidx)

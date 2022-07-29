@@ -730,7 +730,7 @@ static int vhost_vdpa_get_vq_index(struct vhost_dev *dev, int idx)
     return idx;
 }
 
-static int vhost_vdpa_set_vring_ready(struct vhost_dev *dev)
+static void vhost_vdpa_set_vring_ready(struct vhost_dev *dev)
 {
     int i;
     trace_vhost_vdpa_set_vring_ready(dev);
@@ -741,7 +741,6 @@ static int vhost_vdpa_set_vring_ready(struct vhost_dev *dev)
         };
         vhost_vdpa_call(dev, VHOST_VDPA_SET_VRING_ENABLE, &state);
     }
-    return 0;
 }
 
 static void vhost_vdpa_dump_config(struct vhost_dev *dev, const uint8_t *config,

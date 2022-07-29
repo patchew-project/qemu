@@ -696,12 +696,12 @@ static int cirrus_bitblt_common_patterncopy(CirrusVGAState *s)
 
 /* fill */
 
-static int cirrus_bitblt_solidfill(CirrusVGAState *s, int blt_rop)
+static void cirrus_bitblt_solidfill(CirrusVGAState *s, int blt_rop)
 {
     cirrus_fill_t rop_func;
 
     if (blit_is_unsafe(s, true)) {
-        return 0;
+        return;
     }
     rop_func = cirrus_fill[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
     rop_func(s, s->cirrus_blt_dstaddr,
@@ -711,7 +711,6 @@ static int cirrus_bitblt_solidfill(CirrusVGAState *s, int blt_rop)
 			     s->cirrus_blt_dstpitch, s->cirrus_blt_width,
 			     s->cirrus_blt_height);
     cirrus_bitblt_reset(s);
-    return 1;
 }
 
 /***************************************

@@ -114,13 +114,13 @@ static void pcspk_callback(void *opaque, int free)
     }
 }
 
-static int pcspk_audio_init(PCSpkState *s)
+static void pcspk_audio_init(PCSpkState *s)
 {
     struct audsettings as = {PCSPK_SAMPLE_RATE, 1, AUDIO_FORMAT_U8, 0};
 
     if (s->voice) {
         /* already initialized */
-        return 0;
+        return;
     }
 
     AUD_register_card(s_spk, &s->card);
@@ -128,10 +128,7 @@ static int pcspk_audio_init(PCSpkState *s)
     s->voice = AUD_open_out(&s->card, s->voice, s_spk, s, pcspk_callback, &as);
     if (!s->voice) {
         AUD_log(s_spk, "Could not open voice\n");
-        return -1;
     }
-
-    return 0;
 }
 
 static uint64_t pcspk_io_read(void *opaque, hwaddr addr,

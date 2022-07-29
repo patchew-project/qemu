@@ -106,17 +106,17 @@ static void vhost_dev_sync_region(struct vhost_dev *dev,
     }
 }
 
-static int vhost_sync_dirty_bitmap(struct vhost_dev *dev,
-                                   MemoryRegionSection *section,
-                                   hwaddr first,
-                                   hwaddr last)
+static void vhost_sync_dirty_bitmap(struct vhost_dev *dev,
+                                    MemoryRegionSection *section,
+                                    hwaddr first,
+                                    hwaddr last)
 {
     int i;
     hwaddr start_addr;
     hwaddr end_addr;
 
     if (!dev->log_enabled || !dev->started) {
-        return 0;
+        return;
     }
     start_addr = section->offset_within_address_space;
     end_addr = range_get_last(start_addr, int128_get64(section->size));
@@ -140,7 +140,6 @@ static int vhost_sync_dirty_bitmap(struct vhost_dev *dev,
         vhost_dev_sync_region(dev, section, start_addr, end_addr, vq->used_phys,
                               range_get_last(vq->used_phys, vq->used_size));
     }
-    return 0;
 }
 
 static void vhost_log_sync(MemoryListener *listener,

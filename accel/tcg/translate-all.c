@@ -329,8 +329,8 @@ static int encode_search(TranslationBlock *tb, uint8_t *block)
  * When reset_icount is true, current TB will be interrupted and
  * icount should be recalculated.
  */
-static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
-                                     uintptr_t searched_pc, bool reset_icount)
+static void cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
+                                      uintptr_t searched_pc, bool reset_icount)
 {
     target_ulong data[TARGET_INSN_START_WORDS] = { tb->pc };
     uintptr_t host_pc = (uintptr_t)tb->tc.ptr;
@@ -345,7 +345,7 @@ static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
     searched_pc -= GETPC_ADJ;
 
     if (searched_pc < host_pc) {
-        return -1;
+        return;
     }
 
     /* Reconstruct the stored insn data while looking for the point at
@@ -359,7 +359,7 @@ static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
             goto found;
         }
     }
-    return -1;
+    return;
 
  found:
     if (reset_icount && (tb_cflags(tb) & CF_USE_ICOUNT)) {
@@ -375,7 +375,6 @@ static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
                 prof->restore_time + profile_getclock() - ti);
     qatomic_set(&prof->restore_count, prof->restore_count + 1);
 #endif
-    return 0;
 }
 
 bool cpu_restore_state(CPUState *cpu, uintptr_t host_pc, bool will_exit)

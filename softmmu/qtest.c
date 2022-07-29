@@ -875,7 +875,7 @@ void qtest_server_init(const char *qtest_chrdev, const char *qtest_log, Error **
     object_unref(qtest);
 }
 
-static bool qtest_server_start(QTest *q, Error **errp)
+static void qtest_server_start(QTest *q, Error **errp)
 {
     Chardev *chr = q->chr;
     const char *qtest_log = q->log;
@@ -889,7 +889,7 @@ static bool qtest_server_start(QTest *q, Error **errp)
     }
 
     if (!qemu_chr_fe_init(&q->qtest_chr, chr, errp)) {
-        return false;
+        return;
     }
     qemu_chr_fe_set_handlers(&q->qtest_chr, qtest_can_read, qtest_read,
                              qtest_event, NULL, &q->qtest_chr, NULL, true);
@@ -901,7 +901,6 @@ static bool qtest_server_start(QTest *q, Error **errp)
         qtest_server_set_send_handler(qtest_server_char_be_send, &q->qtest_chr);
     }
     qtest = q;
-    return true;
 }
 
 void qtest_server_set_send_handler(void (*send)(void*, const char*),

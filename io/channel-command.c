@@ -172,8 +172,8 @@ qio_channel_command_new_spawn(const char *const argv[],
 #endif /* WIN32 */
 
 #ifndef WIN32
-static int qio_channel_command_abort(QIOChannelCommand *ioc,
-                                     Error **errp)
+static void qio_channel_command_abort(QIOChannelCommand *ioc,
+                                      Error **errp)
 {
     pid_t ret;
     int status;
@@ -193,7 +193,7 @@ static int qio_channel_command_abort(QIOChannelCommand *ioc,
             error_setg_errno(errp, errno,
                              "Cannot wait on pid %llu",
                              (unsigned long long)ioc->pid);
-            return -1;
+            return;
         }
     } else if (ret == 0) {
         if (step == 0) {
@@ -204,14 +204,12 @@ static int qio_channel_command_abort(QIOChannelCommand *ioc,
             error_setg(errp,
                        "Process %llu refused to die",
                        (unsigned long long)ioc->pid);
-            return -1;
+            return;
         }
         step++;
         usleep(10 * 1000);
         goto rewait;
     }
-
-    return 0;
 }
 #endif /* ! WIN32 */
 

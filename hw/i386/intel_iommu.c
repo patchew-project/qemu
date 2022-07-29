@@ -146,12 +146,11 @@ static void vtd_set_quad_raw(IntelIOMMUState *s, hwaddr addr, uint64_t val)
     stq_le_p(&s->csr[addr], val);
 }
 
-static uint32_t vtd_set_clear_mask_long(IntelIOMMUState *s, hwaddr addr,
-                                        uint32_t clear, uint32_t mask)
+static void vtd_set_clear_mask_long(IntelIOMMUState *s, hwaddr addr,
+                                    uint32_t clear, uint32_t mask)
 {
     uint32_t new_val = (ldl_le_p(&s->csr[addr]) & ~clear) | mask;
     stl_le_p(&s->csr[addr], new_val);
-    return new_val;
 }
 
 static uint64_t vtd_set_clear_mask_quad(IntelIOMMUState *s, hwaddr addr,
@@ -1312,15 +1311,15 @@ next:
  * @end: IOVA range end address (start <= addr < end)
  * @info: page walking information struct
  */
-static int vtd_page_walk(IntelIOMMUState *s, VTDContextEntry *ce,
-                         uint64_t start, uint64_t end,
-                         vtd_page_walk_info *info)
+static void vtd_page_walk(IntelIOMMUState *s, VTDContextEntry *ce,
+                          uint64_t start, uint64_t end,
+                          vtd_page_walk_info *info)
 {
     dma_addr_t addr = vtd_get_iova_pgtbl_base(s, ce);
     uint32_t level = vtd_get_iova_level(s, ce);
 
     if (!vtd_iova_range_check(s, start, ce, info->aw)) {
-        return -VTD_FR_ADDR_BEYOND_MGAW;
+        return;
     }
 
     if (!vtd_iova_range_check(s, end, ce, info->aw)) {
@@ -1328,7 +1327,7 @@ static int vtd_page_walk(IntelIOMMUState *s, VTDContextEntry *ce,
         end = vtd_iova_limit(s, ce, info->aw);
     }
 
-    return vtd_page_walk_level(addr, start, end, level, true, true, info);
+    vtd_page_walk_level(addr, start, end, level, true, true, info);
 }
 
 static int vtd_root_entry_rsvd_bits_check(IntelIOMMUState *s,
@@ -1488,7 +1487,7 @@ static uint16_t vtd_get_domain_id(IntelIOMMUState *s,
     return VTD_CONTEXT_ENTRY_DID(ce->hi);
 }
 
-static int vtd_sync_shadow_page_table_range(VTDAddressSpace *vtd_as,
+static void vtd_sync_shadow_page_table_range(VTDAddressSpace *vtd_as,
                                             VTDContextEntry *ce,
                                             hwaddr addr, hwaddr size)
 {
@@ -1502,17 +1501,17 @@ static int vtd_sync_shadow_page_table_range(VTDAddressSpace *vtd_as,
         .domain_id = vtd_get_domain_id(s, ce),
     };
 
-    return vtd_page_walk(s, ce, addr, addr + size, &info);
+    vtd_page_walk(s, ce, addr, addr + size, &info);
 }
 
-static int vtd_sync_shadow_page_table(VTDAddressSpace *vtd_as)
+static void vtd_sync_shadow_page_table(VTDAddressSpace *vtd_as)
 {
     int ret;
     VTDContextEntry ce;
     IOMMUNotifier *n;
 
     if (!(vtd_as->iommu.iommu_notify_flags & IOMMU_NOTIFIER_IOTLB_EVENTS)) {
-        return 0;
+        return;
     }
 
     ret = vtd_dev_to_context_entry(vtd_as->iommu_state,
@@ -1532,12 +1531,11 @@ static int vtd_sync_shadow_page_table(VTDAddressSpace *vtd_as)
             IOMMU_NOTIFIER_FOREACH(n, &vtd_as->iommu) {
                 vtd_address_space_unmap(vtd_as, n);
             }
-            ret = 0;
         }
-        return ret;
+        return;
     }
 
-    return vtd_sync_shadow_page_table_range(vtd_as, &ce, 0, UINT64_MAX);
+    vtd_sync_shadow_page_table_range(vtd_as, &ce, 0, UINT64_MAX);
 }
 
 /*

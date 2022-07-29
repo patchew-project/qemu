@@ -92,7 +92,7 @@ uint64_t cpu_to_dump64(DumpState *s, uint64_t val)
     return val;
 }
 
-static int dump_cleanup(DumpState *s)
+static void dump_cleanup(DumpState *s)
 {
     guest_phys_blocks_free(&s->guest_phys_blocks);
     memory_mapping_list_free(&s->list);
@@ -109,8 +109,6 @@ static int dump_cleanup(DumpState *s)
         }
     }
     migrate_del_blocker(dump_migration_blocker);
-
-    return 0;
 }
 
 static int fd_write_vmcore(const void *buf, size_t size, void *opaque)

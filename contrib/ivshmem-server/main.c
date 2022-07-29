@@ -143,7 +143,7 @@ ivshmem_server_parse_args(IvshmemServerArgs *args, int argc, char *argv[])
 
 /* wait for events on listening server unix socket and connected client
  * sockets */
-static int
+static void
 ivshmem_server_poll_events(IvshmemServer *server)
 {
     fd_set fds;
@@ -174,8 +174,6 @@ ivshmem_server_poll_events(IvshmemServer *server)
             break;
         }
     }
-
-    return ret;
 }
 
 static void

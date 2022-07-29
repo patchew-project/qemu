@@ -76,7 +76,7 @@ static const struct ehci_companions ich9_1a[] = {
     { .name = "ich9-usb-uhci6", .func = 2, .port = 4 },
 };
 
-static int ehci_create_ich9_with_companions(PCIBus *bus, int slot)
+static void ehci_create_ich9_with_companions(PCIBus *bus, int slot)
 {
     const struct ehci_companions *comp;
     PCIDevice *ehci, *uhci;
@@ -94,7 +94,7 @@ static int ehci_create_ich9_with_companions(PCIBus *bus, int slot)
         comp = ich9_1a;
         break;
     default:
-        return -1;
+        return;
     }
 
     ehci = pci_new_multifunction(PCI_DEVFN(slot, 7), true, name);
@@ -108,7 +108,6 @@ static int ehci_create_ich9_with_companions(PCIBus *bus, int slot)
         qdev_prop_set_uint32(&uhci->qdev, "firstport", comp[i].port);
         pci_realize_and_unref(uhci, bus, &error_fatal);
     }
-    return 0;
 }
 
 /* PC hardware initialisation */

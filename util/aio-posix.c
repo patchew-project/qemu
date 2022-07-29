@@ -403,16 +403,13 @@ static bool aio_dispatch_ready_handlers(AioContext *ctx,
 }
 
 /* Slower than aio_dispatch_ready_handlers() but only used via glib */
-static bool aio_dispatch_handlers(AioContext *ctx)
+static void aio_dispatch_handlers(AioContext *ctx)
 {
     AioHandler *node, *tmp;
-    bool progress = false;
 
     QLIST_FOREACH_SAFE_RCU(node, &ctx->aio_handlers, node, tmp) {
-        progress = aio_dispatch_handler(ctx, node) || progress;
+        aio_dispatch_handler(ctx, node);
     }
-
-    return progress;
 }
 
 void aio_dispatch(AioContext *ctx)

@@ -20,7 +20,7 @@
 static char *scsibus_get_dev_path(DeviceState *dev);
 static char *scsibus_get_fw_dev_path(DeviceState *dev);
 static void scsi_req_dequeue(SCSIRequest *req);
-static uint8_t *scsi_target_alloc_buf(SCSIRequest *req, size_t len);
+static void scsi_target_alloc_buf(SCSIRequest *req, size_t len);
 static void scsi_target_free_buf(SCSIRequest *req);
 
 static int next_scsi_bus;
@@ -649,14 +649,12 @@ static uint8_t *scsi_target_get_buf(SCSIRequest *req)
     return r->buf;
 }
 
-static uint8_t *scsi_target_alloc_buf(SCSIRequest *req, size_t len)
+static void scsi_target_alloc_buf(SCSIRequest *req, size_t len)
 {
     SCSITargetReq *r = DO_UPCAST(SCSITargetReq, req, req);
 
     r->buf = g_malloc(len);
     r->buf_len = len;
-
-    return r->buf;
 }
 
 static void scsi_target_free_buf(SCSIRequest *req)

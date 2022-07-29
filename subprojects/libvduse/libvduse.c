@@ -278,33 +278,27 @@ static int vduse_queue_check_inflights(VduseVirtq *vq)
     return 0;
 }
 
-static int vduse_queue_inflight_get(VduseVirtq *vq, int desc_idx)
+static void vduse_queue_inflight_get(VduseVirtq *vq, int desc_idx)
 {
     vq->log->inflight.desc[desc_idx].counter = vq->counter++;
 
     barrier();
 
     vq->log->inflight.desc[desc_idx].inflight = 1;
-
-    return 0;
 }
 
-static int vduse_queue_inflight_pre_put(VduseVirtq *vq, int desc_idx)
+static void vduse_queue_inflight_pre_put(VduseVirtq *vq, int desc_idx)
 {
     vq->log->inflight.last_batch_head = desc_idx;
-
-    return 0;
 }
 
-static int vduse_queue_inflight_post_put(VduseVirtq *vq, int desc_idx)
+static void vduse_queue_inflight_post_put(VduseVirtq *vq, int desc_idx)
 {
     vq->log->inflight.desc[desc_idx].inflight = 0;
 
     barrier();
 
     vq->log->inflight.used_idx = vq->used_idx;
-
-    return 0;
 }
 
 static void vduse_iova_remove_region(VduseDev *dev, uint64_t start,

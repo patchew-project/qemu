@@ -208,7 +208,7 @@ bool kvm_hv_vpindex_settable(void)
     return hv_vpindex_settable;
 }
 
-static int kvm_get_tsc(CPUState *cs)
+static void kvm_get_tsc(CPUState *cs)
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
@@ -216,18 +216,17 @@ static int kvm_get_tsc(CPUState *cs)
     int ret;
 
     if (env->tsc_valid) {
-        return 0;
+        return;
     }
 
     env->tsc_valid = !runstate_is_running();
 
     ret = kvm_get_one_msr(cpu, MSR_IA32_TSC, &value);
     if (ret < 0) {
-        return ret;
+        return;
     }
 
     env->tsc = value;
-    return 0;
 }
 
 static inline void do_kvm_synchronize_tsc(CPUState *cpu, run_on_cpu_data arg)
@@ -2212,16 +2211,16 @@ void kvm_arch_do_init_vcpu(X86CPU *cpu)
     }
 }
 
-static int kvm_get_supported_feature_msrs(KVMState *s)
+static void kvm_get_supported_feature_msrs(KVMState *s)
 {
     int ret = 0;
 
     if (kvm_feature_msrs != NULL) {
-        return 0;
+        return;
     }
 
     if (!kvm_check_extension(s, KVM_CAP_GET_MSR_FEATURES)) {
-        return 0;
+        return;
     }
 
     struct kvm_msr_list msr_list;
@@ -2231,7 +2230,7 @@ static int kvm_get_supported_feature_msrs(KVMState *s)
     if (ret < 0 && ret != -E2BIG) {
         error_report("Fetch KVM feature MSR list failed: %s",
             strerror(-ret));
-        return ret;
+        return;
     }
 
     assert(msr_list.nmsrs > 0);
@@ -2247,10 +2246,8 @@ static int kvm_get_supported_feature_msrs(KVMState *s)
             strerror(-ret));
         g_free(kvm_feature_msrs);
         kvm_feature_msrs = NULL;
-        return ret;
+        return;
     }
-
-    return 0;
 }
 
 static int kvm_get_supported_msrs(KVMState *s)

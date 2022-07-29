@@ -728,9 +728,8 @@ bool vmbus_channel_is_open(VMBusChannel *chan)
  * flag (more recent guests) or setting a bit in the interrupt page and firing
  * the VMBus SINT (older guests).
  */
-static int vmbus_channel_notify_guest(VMBusChannel *chan)
+static void vmbus_channel_notify_guest(VMBusChannel *chan)
 {
-    int res = 0;
     unsigned long *int_map, mask;
     unsigned idx;
     hwaddr addr = chan->vmbus->int_page_gpa;
@@ -739,25 +738,24 @@ static int vmbus_channel_notify_guest(VMBusChannel *chan)
     trace_vmbus_channel_notify_guest(chan->id);
 
     if (!addr) {
-        return hyperv_set_event_flag(chan->notify_route, chan->id);
+        hyperv_set_event_flag(chan->notify_route, chan->id);
+        return;
     }
 
     int_map = cpu_physical_memory_map(addr, &len, 1);
     if (len != TARGET_PAGE_SIZE / 2) {
-        res = -ENXIO;
         goto unmap;
     }
 
     idx = BIT_WORD(chan->id);
     mask = BIT_MASK(chan->id);
     if ((qatomic_fetch_or(&int_map[idx], mask) & mask) != mask) {
-        res = hyperv_sint_route_set_sint(chan->notify_route);
+        hyperv_sint_route_set_sint(chan->notify_route);
         dirty = len;
     }
 
 unmap:
     cpu_physical_memory_unmap(int_map, len, 1, dirty);
-    return res;
 }
 
 #define VMBUS_PKT_TRAILER      sizeof(uint64_t)

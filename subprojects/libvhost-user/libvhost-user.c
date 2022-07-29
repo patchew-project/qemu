@@ -2632,48 +2632,44 @@ vu_queue_map_desc(VuDev *dev, VuVirtq *vq, unsigned int idx, size_t sz)
     return elem;
 }
 
-static int
+static void
 vu_queue_inflight_get(VuDev *dev, VuVirtq *vq, int desc_idx)
 {
     if (!vu_has_protocol_feature(dev, VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD)) {
-        return 0;
+        return;
     }
 
     if (unlikely(!vq->inflight)) {
-        return -1;
+        return;
     }
 
     vq->inflight->desc[desc_idx].counter = vq->counter++;
     vq->inflight->desc[desc_idx].inflight = 1;
-
-    return 0;
 }
 
-static int
+static void
 vu_queue_inflight_pre_put(VuDev *dev, VuVirtq *vq, int desc_idx)
 {
     if (!vu_has_protocol_feature(dev, VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD)) {
-        return 0;
+        return;
     }
 
     if (unlikely(!vq->inflight)) {
-        return -1;
+        return;
     }
 
     vq->inflight->last_batch_head = desc_idx;
-
-    return 0;
 }
 
-static int
+static void
 vu_queue_inflight_post_put(VuDev *dev, VuVirtq *vq, int desc_idx)
 {
     if (!vu_has_protocol_feature(dev, VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD)) {
-        return 0;
+        return;
     }
 
     if (unlikely(!vq->inflight)) {
-        return -1;
+        return;
     }
 
     barrier();
@@ -2683,8 +2679,6 @@ vu_queue_inflight_post_put(VuDev *dev, VuVirtq *vq, int desc_idx)
     barrier();
 
     vq->inflight->used_idx = vq->used_idx;
-
-    return 0;
 }
 
 void *

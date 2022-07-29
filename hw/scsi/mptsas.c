@@ -287,9 +287,9 @@ static int mptsas_scsi_device_find(MPTSASState *s, int bus, int target,
     return 0;
 }
 
-static int mptsas_process_scsi_io_request(MPTSASState *s,
-                                          MPIMsgSCSIIORequest *scsi_io,
-                                          hwaddr addr)
+static void mptsas_process_scsi_io_request(MPTSASState *s,
+                                           MPIMsgSCSIIORequest *scsi_io,
+                                           hwaddr addr)
 {
     MPTSASRequest *req;
     MPIMsgSCSIIOReply reply;
@@ -352,7 +352,7 @@ static int mptsas_process_scsi_io_request(MPTSASState *s,
     if (scsi_req_enqueue(req->sreq)) {
         scsi_req_continue(req->sreq);
     }
-    return 0;
+    return;
 
 overrun:
     trace_mptsas_scsi_overflow(s, scsi_io->MsgContext, req->sreq->cmd.xfer,
@@ -374,8 +374,6 @@ bad:
 
     mptsas_fix_scsi_io_reply_endianness(&reply);
     mptsas_reply(s, (MPIDefaultReply *)&reply);
-
-    return 0;
 }
 
 typedef struct {
@@ -944,7 +942,7 @@ disable:
     s->diagnostic_idx = 0;
 }
 
-static int mptsas_hard_reset(MPTSASState *s)
+static void mptsas_hard_reset(MPTSASState *s)
 {
     mptsas_soft_reset(s);
 
@@ -955,8 +953,6 @@ static int mptsas_hard_reset(MPTSASState *s)
     s->reply_frame_size = 0;
     s->max_devices = MPTSAS_NUM_PORTS;
     s->max_buses = 1;
-
-    return 0;
 }
 
 static void mptsas_interrupt_status_write(MPTSASState *s)

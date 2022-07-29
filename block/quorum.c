@@ -293,7 +293,7 @@ static void quorum_rewrite_entry(void *opaque)
     }
 }
 
-static bool quorum_rewrite_bad_versions(QuorumAIOCB *acb,
+static void quorum_rewrite_bad_versions(QuorumAIOCB *acb,
                                         QuorumVoteValue *value)
 {
     QuorumVoteVersion *version;
@@ -331,9 +331,6 @@ static bool quorum_rewrite_bad_versions(QuorumAIOCB *acb,
             qemu_coroutine_enter(co);
         }
     }
-
-    /* return true if any rewrite is done else false */
-    return count;
 }
 
 static void quorum_count_vote(QuorumVotes *votes,

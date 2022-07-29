@@ -283,7 +283,7 @@ static void intel_hda_update_irq(IntelHDAState *d)
     }
 }
 
-static int intel_hda_send_command(IntelHDAState *d, uint32_t verb)
+static void intel_hda_send_command(IntelHDAState *d, uint32_t verb)
 {
     uint32_t cad, nid, data;
     HDACodecDevice *codec;
@@ -293,7 +293,7 @@ static int intel_hda_send_command(IntelHDAState *d, uint32_t verb)
     if (verb & (1 << 27)) {
         /* indirect node addressing, not specified in HDA 1.0 */
         dprint(d, 1, "%s: indirect node addressing (guest bug?)\n", __func__);
-        return -1;
+        return;
     }
     nid = (verb >> 20) & 0x7f;
     data = verb & 0xfffff;
@@ -301,11 +301,10 @@ static int intel_hda_send_command(IntelHDAState *d, uint32_t verb)
     codec = hda_codec_find(&d->codecs, cad);
     if (codec == NULL) {
         dprint(d, 1, "%s: addressed non-existing codec\n", __func__);
-        return -1;
+        return;
     }
     cdc = HDA_CODEC_DEVICE_GET_CLASS(codec);
     cdc->command(codec, nid, data);
-    return 0;
 }
 
 static void intel_hda_corb_run(IntelHDAState *d)

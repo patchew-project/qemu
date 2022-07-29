@@ -1390,8 +1390,8 @@ static int vfio_ram_discard_get_dirty_bitmap(MemoryRegionSection *section,
     return vfio_get_dirty_bitmap(vrdl->container, iova, size, ram_addr);
 }
 
-static int vfio_sync_ram_discard_listener_dirty_bitmap(VFIOContainer *container,
-                                                   MemoryRegionSection *section)
+static void vfio_sync_ram_discard_listener_dirty_bitmap(
+    VFIOContainer *container, MemoryRegionSection *section)
 {
     RamDiscardManager *rdm = memory_region_get_ram_discard_manager(section->mr);
     VFIORamDiscardListener *vrdl = NULL;
@@ -1412,13 +1412,13 @@ static int vfio_sync_ram_discard_listener_dirty_bitmap(VFIOContainer *container,
      * We only want/can synchronize the bitmap for actually mapped parts -
      * which correspond to populated parts. Replay all populated parts.
      */
-    return ram_discard_manager_replay_populated(rdm, section,
-                                              vfio_ram_discard_get_dirty_bitmap,
-                                                &vrdl);
+    ram_discard_manager_replay_populated(rdm, section,
+                                         vfio_ram_discard_get_dirty_bitmap,
+                                         &vrdl);
 }
 
-static int vfio_sync_dirty_bitmap(VFIOContainer *container,
-                                  MemoryRegionSection *section)
+static void vfio_sync_dirty_bitmap(VFIOContainer *container,
+                                   MemoryRegionSection *section)
 {
     ram_addr_t ram_addr;
 
@@ -1447,15 +1447,16 @@ static int vfio_sync_dirty_bitmap(VFIOContainer *container,
                 break;
             }
         }
-        return 0;
+        return;
     } else if (memory_region_has_ram_discard_manager(section->mr)) {
-        return vfio_sync_ram_discard_listener_dirty_bitmap(container, section);
+        vfio_sync_ram_discard_listener_dirty_bitmap(container, section);
+        return;
     }
 
     ram_addr = memory_region_get_ram_addr(section->mr) +
                section->offset_within_region;
 
-    return vfio_get_dirty_bitmap(container,
+    vfio_get_dirty_bitmap(container,
                    REAL_HOST_PAGE_ALIGN(section->offset_within_address_space),
                    int128_get64(section->size), ram_addr);
 }

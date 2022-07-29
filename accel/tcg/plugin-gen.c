@@ -239,21 +239,18 @@ static TCGOp *find_op(TCGOp *op, TCGOpcode opc)
     return NULL;
 }
 
-static TCGOp *rm_ops_range(TCGOp *begin, TCGOp *end)
+static void rm_ops_range(TCGOp *begin, TCGOp *end)
 {
-    TCGOp *ret = QTAILQ_NEXT(end, link);
-
     QTAILQ_REMOVE_SEVERAL(&tcg_ctx->ops, begin, end, link);
-    return ret;
 }
 
 /* remove all ops until (and including) plugin_cb_end */
-static TCGOp *rm_ops(TCGOp *op)
+static void rm_ops(TCGOp *op)
 {
     TCGOp *end_op = find_op(op, INDEX_op_plugin_cb_end);
 
     tcg_debug_assert(end_op);
-    return rm_ops_range(op, end_op);
+    rm_ops_range(op, end_op);
 }
 
 static TCGOp *copy_op_nocheck(TCGOp **begin_op, TCGOp *op)

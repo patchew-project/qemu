@@ -258,10 +258,10 @@ static int virtio_mem_for_each_plugged_section(const VirtIOMEM *vmem,
     return ret;
 }
 
-static int virtio_mem_for_each_unplugged_section(const VirtIOMEM *vmem,
-                                                 MemoryRegionSection *s,
-                                                 void *arg,
-                                                 virtio_mem_section_cb cb)
+static void virtio_mem_for_each_unplugged_section(const VirtIOMEM *vmem,
+                                                  MemoryRegionSection *s,
+                                                  void *arg,
+                                                  virtio_mem_section_cb cb)
 {
     unsigned long first_bit, last_bit;
     uint64_t offset, size;
@@ -287,7 +287,6 @@ static int virtio_mem_for_each_unplugged_section(const VirtIOMEM *vmem,
         first_bit = find_next_zero_bit(vmem->bitmap, vmem->bitmap_size,
                                        last_bit + 2);
     }
-    return ret;
 }
 
 static int virtio_mem_notify_populate_cb(MemoryRegionSection *s, void *arg)

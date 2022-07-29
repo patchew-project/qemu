@@ -829,7 +829,7 @@ static int process_reply(int sock, int type,
     return 0;
 }
 
-static int process_requests(int sock)
+static void process_requests(int sock)
 {
     int flags;
     int size = 0;
@@ -1016,7 +1016,6 @@ static int process_requests(int sock)
 err_out:
     g_free(in_iovec.iov_base);
     g_free(out_iovec.iov_base);
-    return -1;
 }
 
 int main(int argc, char **argv)

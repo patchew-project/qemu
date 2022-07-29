@@ -175,7 +175,7 @@ static MigrationIncomingState *current_incoming;
 
 static GSList *migration_blockers;
 
-static bool migration_object_check(MigrationState *ms, Error **errp);
+static void migration_object_check(MigrationState *ms, Error **errp);
 static int migration_maybe_pause(MigrationState *s,
                                  int *current_active_state,
                                  int new_state);
@@ -4485,15 +4485,15 @@ static void migration_instance_init(Object *obj)
  * Return true if check pass, false otherwise. Error will be put
  * inside errp if provided.
  */
-static bool migration_object_check(MigrationState *ms, Error **errp)
+static void migration_object_check(MigrationState *ms, Error **errp)
 {
     MigrationCapabilityStatusList *head = NULL;
     /* Assuming all off */
-    bool cap_list[MIGRATION_CAPABILITY__MAX] = { 0 }, ret;
+    bool cap_list[MIGRATION_CAPABILITY__MAX] = { 0 };
     int i;
 
     if (!migrate_params_check(&ms->parameters, errp)) {
-        return false;
+        return;
     }
 
     for (i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
@@ -4502,12 +4502,10 @@ static bool migration_object_check(MigrationState *ms, Error **errp)
         }
     }
 
-    ret = migrate_caps_check(cap_list, head, errp);
+    migrate_caps_check(cap_list, head, errp);
 
     /* It works with head == NULL */
     qapi_free_MigrationCapabilityStatusList(head);
-
-    return ret;
 }
 
 static const TypeInfo migration_type = {

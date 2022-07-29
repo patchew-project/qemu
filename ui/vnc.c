@@ -68,7 +68,7 @@ static const struct timeval VNC_REFRESH_LOSSY = { 2, 0 };
 static QTAILQ_HEAD(, VncDisplay) vnc_displays =
     QTAILQ_HEAD_INITIALIZER(vnc_displays);
 
-static int vnc_cursor_define(VncState *vs);
+static void vnc_cursor_define(VncState *vs);
 static void vnc_update_throttle_offset(VncState *vs);
 
 static void vnc_set_share_mode(VncState *vs, VncShareMode mode)
@@ -996,13 +996,13 @@ static void vnc_mouse_set(DisplayChangeListener *dcl,
     /* can we ask the client(s) to move the pointer ??? */
 }
 
-static int vnc_cursor_define(VncState *vs)
+static void vnc_cursor_define(VncState *vs)
 {
     QEMUCursor *c = vs->vd->cursor;
     int isize;
 
     if (!vs->vd->cursor) {
-        return -1;
+        return;
     }
 
     if (vnc_has_feature(vs, VNC_FEATURE_ALPHA_CURSOR)) {
@@ -1015,9 +1015,7 @@ static int vnc_cursor_define(VncState *vs)
         vnc_write_s32(vs, VNC_ENCODING_RAW);
         vnc_write(vs, c->data, c->width * c->height * 4);
         vnc_unlock_output(vs);
-        return 0;
-    }
-    if (vnc_has_feature(vs, VNC_FEATURE_RICH_CURSOR)) {
+    } else if (vnc_has_feature(vs, VNC_FEATURE_RICH_CURSOR)) {
         vnc_lock_output(vs);
         vnc_write_u8(vs,  VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
         vnc_write_u8(vs,  0);  /*  padding     */
@@ -1028,9 +1026,7 @@ static int vnc_cursor_define(VncState *vs)
         vnc_write_pixels_generic(vs, c->data, isize);
         vnc_write(vs, vs->vd->cursor_mask, vs->vd->cursor_msize);
         vnc_unlock_output(vs);
-        return 0;
     }
-    return -1;
 }
 
 static void vnc_dpy_cursor_define(DisplayChangeListener *dcl,
@@ -1438,11 +1434,10 @@ size_t vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen)
  * as possible without blocking. If all buffered data is written,
  * will switch the FD poll() handler back to read monitoring.
  *
- * Returns the number of bytes written, which may be less than
- * the buffered output data if the socket would block.  Returns
- * 0 on I/O error, and disconnects the client socket.
+ * May write less than the buffered output data if the socket would
+ * block. On I/O error, disconnects the client socket.
  */
-static size_t vnc_client_write_plain(VncState *vs)
+static void vnc_client_write_plain(VncState *vs)
 {
     size_t offset;
     size_t ret;
@@ -1462,7 +1457,7 @@ static size_t vnc_client_write_plain(VncState *vs)
 #endif /* CONFIG_VNC_SASL */
         ret = vnc_client_write_buf(vs, vs->output.buffer, vs->output.offset);
     if (!ret)
-        return 0;
+        return;
 
     if (ret >= vs->force_update_offset) {
         if (vs->force_update_offset != 0) {
@@ -1487,8 +1482,6 @@ static size_t vnc_client_write_plain(VncState *vs)
             vs->ioc, G_IO_IN | G_IO_HUP | G_IO_ERR,
             vnc_client_io, vs, NULL);
     }
-
-    return ret;
 }
 
 

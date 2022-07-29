@@ -600,15 +600,16 @@ static void streambuf_fini(struct streambuf *buf)
     buf->data = NULL;
 }
 
-static int streambuf_put(struct streambuf *buf, USBPacket *p, uint32_t channels)
+static void streambuf_put(struct streambuf *buf, USBPacket *p,
+                          uint32_t channels)
 {
     int64_t free = buf->size - (buf->prod - buf->cons);
 
     if (free < USBAUDIO_PACKET_SIZE(channels)) {
-        return 0;
+        return;
     }
     if (p->iov.size != USBAUDIO_PACKET_SIZE(channels)) {
-        return 0;
+        return;
     }
 
     /* can happen if prod overflows */
@@ -616,7 +617,6 @@ static int streambuf_put(struct streambuf *buf, USBPacket *p, uint32_t channels)
     usb_packet_copy(p, buf->data + (buf->prod % buf->size),
                     USBAUDIO_PACKET_SIZE(channels));
     buf->prod += USBAUDIO_PACKET_SIZE(channels);
-    return USBAUDIO_PACKET_SIZE(channels);
 }
 
 static uint8_t *streambuf_get(struct streambuf *buf, size_t *len)
@@ -681,7 +681,7 @@ static void output_callback(void *opaque, int avail)
     }
 }
 
-static int usb_audio_set_output_altset(USBAudioState *s, int altset)
+static void usb_audio_set_output_altset(USBAudioState *s, int altset)
 {
     switch (altset) {
     case ALTSET_OFF:
@@ -697,14 +697,13 @@ static int usb_audio_set_output_altset(USBAudioState *s, int altset)
         AUD_set_active_out(s->out.voice, true);
         break;
     default:
-        return -1;
+        return;
     }
 
     if (s->debug) {
         fprintf(stderr, "usb-audio: set interface %d\n", altset);
     }
     s->out.altset = altset;
-    return 0;
 }
 
 /*

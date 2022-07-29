@@ -1895,7 +1895,7 @@ static int handle_aiocb_discard(void *opaque)
  * Returns: 0 on success, -errno on failure. Since this is an optimization,
  * caller may ignore failures.
  */
-static int allocate_first_block(int fd, size_t max_size)
+static void allocate_first_block(int fd, size_t max_size)
 {
     size_t write_size = (max_size < MAX_BLOCKSIZE)
         ? BDRV_SECTOR_SIZE
@@ -1903,7 +1903,6 @@ static int allocate_first_block(int fd, size_t max_size)
     size_t max_align = MAX(MAX_BLOCKSIZE, qemu_real_host_page_size());
     void *buf;
     ssize_t n;
-    int ret;
 
     buf = qemu_memalign(max_align, write_size);
     memset(buf, 0, write_size);
@@ -1912,10 +1911,7 @@ static int allocate_first_block(int fd, size_t max_size)
         n = pwrite(fd, buf, write_size, 0);
     } while (n == -1 && errno == EINTR);
 
-    ret = (n == -1) ? -errno : 0;
-
     qemu_vfree(buf);
-    return ret;
 }
 
 static int handle_aiocb_truncate(void *opaque)

@@ -114,14 +114,14 @@ static int count_retry;
 static int count_here;
 static int count_other;
 
-static bool schedule_next(int n)
+static void schedule_next(int n)
 {
     Coroutine *co;
 
     co = qatomic_xchg(&to_schedule[n], NULL);
     if (!co) {
         qatomic_inc(&count_retry);
-        return false;
+        return;
     }
 
     if (n == id) {
@@ -131,7 +131,6 @@ static bool schedule_next(int n)
     }
 
     aio_co_schedule(ctx[n], co);
-    return true;
 }
 
 static void finish_cb(void *opaque)

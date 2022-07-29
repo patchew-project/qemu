@@ -392,7 +392,7 @@ static inline int get_dwords(EHCIState *ehci, uint32_t addr,
 }
 
 /* Put an array of dwords in to main memory */
-static inline int put_dwords(EHCIState *ehci, uint32_t addr,
+static inline void put_dwords(EHCIState *ehci, uint32_t addr,
                              uint32_t *buf, int num)
 {
     int i;
@@ -401,7 +401,7 @@ static inline int put_dwords(EHCIState *ehci, uint32_t addr,
         ehci_raise_irq(ehci, USBSTS_HSE);
         ehci->usbcmd &= ~USBCMD_RUNSTOP;
         trace_usb_ehci_dma_error();
-        return -1;
+        return;
     }
 
     for (i = 0; i < num; i++, buf++, addr += sizeof(*buf)) {
@@ -409,8 +409,6 @@ static inline int put_dwords(EHCIState *ehci, uint32_t addr,
         dma_memory_write(ehci->as, addr, &tmp, sizeof(tmp),
                          MEMTXATTRS_UNSPECIFIED);
     }
-
-    return num;
 }
 
 static int ehci_get_pid(EHCIqtd *qtd)

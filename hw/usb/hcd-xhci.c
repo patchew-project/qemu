@@ -304,8 +304,8 @@ typedef struct XHCIEvRingSeg {
 static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
                          unsigned int epid, unsigned int streamid);
 static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid);
-static TRBCCode xhci_disable_ep(XHCIState *xhci, unsigned int slotid,
-                                unsigned int epid);
+static void xhci_disable_ep(XHCIState *xhci, unsigned int slotid,
+                            unsigned int epid);
 static void xhci_xfer_report(XHCITransfer *xfer);
 static void xhci_event(XHCIState *xhci, XHCIEvent *event, int v);
 static void xhci_write_event(XHCIState *xhci, XHCIEvent *event, int v);
@@ -1215,8 +1215,8 @@ static int xhci_ep_nuke_xfers(XHCIState *xhci, unsigned int slotid,
     return killed;
 }
 
-static TRBCCode xhci_disable_ep(XHCIState *xhci, unsigned int slotid,
-                               unsigned int epid)
+static void xhci_disable_ep(XHCIState *xhci, unsigned int slotid,
+                            unsigned int epid)
 {
     XHCISlot *slot;
     XHCIEPContext *epctx;
@@ -1229,7 +1229,7 @@ static TRBCCode xhci_disable_ep(XHCIState *xhci, unsigned int slotid,
 
     if (!slot->eps[epid-1]) {
         DPRINTF("xhci: slot %d ep %d already disabled\n", slotid, epid);
-        return CC_SUCCESS;
+        return;
     }
 
     xhci_ep_nuke_xfers(xhci, slotid, epid, 0);
@@ -1248,8 +1248,6 @@ static TRBCCode xhci_disable_ep(XHCIState *xhci, unsigned int slotid,
     timer_free(epctx->kick_timer);
     g_free(epctx);
     slot->eps[epid-1] = NULL;
-
-    return CC_SUCCESS;
 }
 
 static TRBCCode xhci_stop_ep(XHCIState *xhci, unsigned int slotid,
@@ -1390,7 +1388,7 @@ static TRBCCode xhci_set_ep_dequeue(XHCIState *xhci, unsigned int slotid,
     return CC_SUCCESS;
 }
 
-static int xhci_xfer_create_sgl(XHCITransfer *xfer, int in_xfer)
+static void xhci_xfer_create_sgl(XHCITransfer *xfer, int in_xfer)
 {
     XHCIState *xhci = xfer->epctx->xhci;
     int i;
@@ -1430,12 +1428,11 @@ static int xhci_xfer_create_sgl(XHCITransfer *xfer, int in_xfer)
         }
     }
 
-    return 0;
+    return;
 
 err:
     qemu_sglist_destroy(&xfer->sgl);
     xhci_die(xhci);
-    return -1;
 }
 
 static void xhci_xfer_unmap(XHCITransfer *xfer)
@@ -1580,20 +1577,20 @@ static int xhci_setup_packet(XHCITransfer *xfer)
     return 0;
 }
 
-static int xhci_try_complete_packet(XHCITransfer *xfer)
+static void xhci_try_complete_packet(XHCITransfer *xfer)
 {
     if (xfer->packet.status == USB_RET_ASYNC) {
         trace_usb_xhci_xfer_async(xfer);
         xfer->running_async = 1;
         xfer->running_retry = 0;
         xfer->complete = 0;
-        return 0;
+        return;
     } else if (xfer->packet.status == USB_RET_NAK) {
         trace_usb_xhci_xfer_nak(xfer);
         xfer->running_async = 0;
         xfer->running_retry = 1;
         xfer->complete = 0;
-        return 0;
+        return;
     } else {
         xfer->running_async = 0;
         xfer->running_retry = 0;
@@ -1605,7 +1602,7 @@ static int xhci_try_complete_packet(XHCITransfer *xfer)
         trace_usb_xhci_xfer_success(xfer, xfer->packet.actual_length);
         xfer->status = CC_SUCCESS;
         xhci_xfer_report(xfer);
-        return 0;
+        return;
     }
 
     /* error */
@@ -1632,10 +1629,9 @@ static int xhci_try_complete_packet(XHCITransfer *xfer)
                 xfer->packet.status);
         FIXME("unhandled USB_RET_*");
     }
-    return 0;
 }
 
-static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
+static void xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
 {
     XHCITRB *trb_setup, *trb_status;
     uint8_t bmRequestType;
@@ -1655,21 +1651,21 @@ static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
     if (TRB_TYPE(*trb_setup) != TR_SETUP) {
         DPRINTF("xhci: ep0 first TD not SETUP: %d\n",
                 TRB_TYPE(*trb_setup));
-        return -1;
+        return;
     }
     if (TRB_TYPE(*trb_status) != TR_STATUS) {
         DPRINTF("xhci: ep0 last TD not STATUS: %d\n",
                 TRB_TYPE(*trb_status));
-        return -1;
+        return;
     }
     if (!(trb_setup->control & TRB_TR_IDT)) {
         DPRINTF("xhci: Setup TRB doesn't have IDT set\n");
-        return -1;
+        return;
     }
     if ((trb_setup->status & 0x1ffff) != 8) {
         DPRINTF("xhci: Setup TRB has bad length (%d)\n",
                 (trb_setup->status & 0x1ffff));
-        return -1;
+        return;
     }
 
     bmRequestType = trb_setup->parameter;
@@ -1679,13 +1675,12 @@ static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
     xfer->timed_xfer = false;
 
     if (xhci_setup_packet(xfer) < 0) {
-        return -1;
+        return;
     }
     xfer->packet.parameter = trb_setup->parameter;
 
     usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
     xhci_try_complete_packet(xfer);
-    return 0;
 }
 
 static void xhci_calc_intr_kick(XHCIState *xhci, XHCITransfer *xfer,
@@ -1736,7 +1731,8 @@ static void xhci_check_intr_iso_kick(XHCIState *xhci, XHCITransfer *xfer,
 }
 
 
-static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx)
+static void xhci_submit(XHCIState *xhci, XHCITransfer *xfer,
+                        XHCIEPContext *epctx)
 {
     uint64_t mfindex;
 
@@ -1754,7 +1750,7 @@ static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx
         xhci_calc_intr_kick(xhci, xfer, epctx, mfindex);
         xhci_check_intr_iso_kick(xhci, xfer, epctx, mfindex);
         if (xfer->running_retry) {
-            return -1;
+            return;
         }
         break;
     case ET_BULK_OUT:
@@ -1772,27 +1768,27 @@ static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx
         xhci_calc_iso_kick(xhci, xfer, epctx, mfindex);
         xhci_check_intr_iso_kick(xhci, xfer, epctx, mfindex);
         if (xfer->running_retry) {
-            return -1;
+            return;
         }
         break;
     default:
         trace_usb_xhci_unimplemented("endpoint type", epctx->type);
-        return -1;
+        return;
     }
 
     if (xhci_setup_packet(xfer) < 0) {
-        return -1;
+        return;
     }
     usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
     xhci_try_complete_packet(xfer);
-    return 0;
 }
 
-static int xhci_fire_transfer(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx)
+static void xhci_fire_transfer(XHCIState *xhci, XHCITransfer *xfer,
+                               XHCIEPContext *epctx)
 {
     trace_usb_xhci_xfer_start(xfer, xfer->epctx->slotid,
                               xfer->epctx->epid, xfer->streamid);
-    return xhci_submit(xhci, xfer, epctx);
+    xhci_submit(xhci, xfer, epctx);
 }
 
 static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,

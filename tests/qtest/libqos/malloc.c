@@ -52,7 +52,7 @@ static MemBlock *mlist_find_space(MemList *head, uint64_t size)
     return NULL;
 }
 
-static MemBlock *mlist_sort_insert(MemList *head, MemBlock *insr)
+static void mlist_sort_insert(MemList *head, MemBlock *insr)
 {
     MemBlock *node;
     g_assert(head && insr);
@@ -60,12 +60,11 @@ static MemBlock *mlist_sort_insert(MemList *head, MemBlock *insr)
     QTAILQ_FOREACH(node, head, MLIST_ENTNAME) {
         if (insr->addr < node->addr) {
             QTAILQ_INSERT_BEFORE(node, insr, MLIST_ENTNAME);
-            return insr;
+            return;
         }
     }
 
     QTAILQ_INSERT_TAIL(head, insr, MLIST_ENTNAME);
-    return insr;
 }
 
 static inline uint64_t mlist_boundary(MemBlock *node)

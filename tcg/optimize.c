@@ -1200,7 +1200,7 @@ static bool fold_bswap(OptContext *ctx, TCGOp *op)
     return fold_masks(ctx, op);
 }
 
-static bool fold_call(OptContext *ctx, TCGOp *op)
+static void fold_call(OptContext *ctx, TCGOp *op)
 {
     TCGContext *s = ctx->tcg;
     int nb_oargs = TCGOP_CALLO(op);
@@ -1229,7 +1229,6 @@ static bool fold_call(OptContext *ctx, TCGOp *op)
 
     /* Stop optimizing MB across calls. */
     ctx->prev_mb = NULL;
-    return true;
 }
 
 static bool fold_count_zeros(OptContext *ctx, TCGOp *op)

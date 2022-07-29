@@ -71,7 +71,7 @@ static int ringbuf_chr_write(Chardev *chr, const uint8_t *buf, int len)
     return len;
 }
 
-static int ringbuf_chr_read(Chardev *chr, uint8_t *buf, int len)
+static void ringbuf_chr_read(Chardev *chr, uint8_t *buf, int len)
 {
     RingBufChardev *d = RINGBUF_CHARDEV(chr);
     int i;
@@ -81,8 +81,6 @@ static int ringbuf_chr_read(Chardev *chr, uint8_t *buf, int len)
         buf[i] = d->cbuf[d->cons++ & (d->size - 1)];
     }
     qemu_mutex_unlock(&chr->chr_write_lock);
-
-    return i;
 }
 
 static void char_ringbuf_finalize(Object *obj)

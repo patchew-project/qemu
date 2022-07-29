@@ -1226,7 +1226,7 @@ static void ohci_frame_boundary(void *opaque)
 /* Start sending SOF tokens across the USB bus, lists are processed in
  * next frame
  */
-static int ohci_bus_start(OHCIState *ohci)
+static void ohci_bus_start(OHCIState *ohci)
 {
     trace_usb_ohci_start(ohci->name);
 
@@ -1237,8 +1237,6 @@ static int ohci_bus_start(OHCIState *ohci)
 
     ohci->sof_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     ohci_eof_timer(ohci);
-
-    return 1;
 }
 
 /* Stop sending SOF tokens on the bus */

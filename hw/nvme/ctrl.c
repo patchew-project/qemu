@@ -1815,7 +1815,7 @@ static uint16_t nvme_zrm_close(NvmeNamespace *ns, NvmeZone *zone)
     }
 }
 
-static uint16_t nvme_zrm_reset(NvmeNamespace *ns, NvmeZone *zone)
+static void nvme_zrm_reset(NvmeNamespace *ns, NvmeZone *zone)
 {
     switch (nvme_get_zone_state(zone)) {
     case NVME_ZONE_STATE_EXPLICITLY_OPEN:
@@ -1837,11 +1837,8 @@ static uint16_t nvme_zrm_reset(NvmeNamespace *ns, NvmeZone *zone)
         zone->d.wp = zone->w_ptr;
         nvme_assign_zone_state(ns, zone, NVME_ZONE_STATE_EMPTY);
         /* fallthrough */
-    case NVME_ZONE_STATE_EMPTY:
-        return NVME_SUCCESS;
-
     default:
-        return NVME_ZONE_INVAL_TRANSITION;
+        break;
     }
 }
 
@@ -7319,16 +7316,14 @@ static void nvme_init_sriov(NvmeCtrl *n, PCIDevice *pci_dev, uint16_t offset)
                               PCI_BASE_ADDRESS_MEM_TYPE_64, bar_size);
 }
 
-static int nvme_add_pm_capability(PCIDevice *pci_dev, uint8_t offset)
+static void nvme_add_pm_capability(PCIDevice *pci_dev, uint8_t offset)
 {
     Error *err = NULL;
-    int ret;
 
-    ret = pci_add_capability(pci_dev, PCI_CAP_ID_PM, offset,
-                             PCI_PM_SIZEOF, &err);
+    pci_add_capability(pci_dev, PCI_CAP_ID_PM, offset, PCI_PM_SIZEOF, &err);
     if (err) {
         error_report_err(err);
-        return ret;
+        return;
     }
 
     pci_set_word(pci_dev->config + offset + PCI_PM_PMC,
@@ -7337,8 +7332,6 @@ static int nvme_add_pm_capability(PCIDevice *pci_dev, uint8_t offset)
                  PCI_PM_CTRL_NO_SOFT_RESET);
     pci_set_word(pci_dev->wmask + offset + PCI_PM_CTRL,
                  PCI_PM_CTRL_STATE_MASK);
-
-    return 0;
 }
 
 static int nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)

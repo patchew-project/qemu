@@ -85,22 +85,21 @@ vubr_die(const char *s)
     exit(1);
 }
 
-static int
+static void
 dispatcher_init(Dispatcher *dispr)
 {
     FD_ZERO(&dispr->fdset);
     dispr->max_sock = -1;
-    return 0;
 }
 
-static int
+static void
 dispatcher_add(Dispatcher *dispr, int sock, void *ctx, CallbackFunc cb)
 {
     if (sock >= FD_SETSIZE) {
         fprintf(stderr,
                 "Error: Failed to add new event. sock %d should be less than %d\n",
                 sock, FD_SETSIZE);
-        return -1;
+        return;
     }
 
     dispr->events[sock].ctx = ctx;
@@ -112,26 +111,24 @@ dispatcher_add(Dispatcher *dispr, int sock, void *ctx, CallbackFunc cb)
     }
     DPRINT("Added sock %d for watching. max_sock: %d\n",
            sock, dispr->max_sock);
-    return 0;
 }
 
-static int
+static void
 dispatcher_remove(Dispatcher *dispr, int sock)
 {
     if (sock >= FD_SETSIZE) {
         fprintf(stderr,
                 "Error: Failed to remove event. sock %d should be less than %d\n",
                 sock, FD_SETSIZE);
-        return -1;
+        return;
     }
 
     FD_CLR(sock, &dispr->fdset);
     DPRINT("Sock %d removed from dispatcher watch.\n", sock);
-    return 0;
 }
 
 /* timeout in us */
-static int
+static void
 dispatcher_wait(Dispatcher *dispr, uint32_t timeout)
 {
     struct timeval tv;
@@ -149,7 +146,7 @@ dispatcher_wait(Dispatcher *dispr, uint32_t timeout)
 
     /* Timeout */
     if (rc == 0) {
-        return 0;
+        return;
     }
 
     /* Now call callback for every ready socket. */
@@ -165,8 +162,6 @@ dispatcher_wait(Dispatcher *dispr, uint32_t timeout)
             e->callback(sock, e->ctx);
         }
     }
-
-    return 0;
 }
 
 static void

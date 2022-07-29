@@ -759,7 +759,7 @@ static uint32_t kvm_dirty_ring_reap_one(KVMState *s, CPUState *cpu)
 }
 
 /* Must be with slots_lock held */
-static uint64_t kvm_dirty_ring_reap_locked(KVMState *s, CPUState* cpu)
+static void kvm_dirty_ring_reap_locked(KVMState *s, CPUState* cpu)
 {
     int ret;
     uint64_t total = 0;
@@ -785,18 +785,14 @@ static uint64_t kvm_dirty_ring_reap_locked(KVMState *s, CPUState* cpu)
     if (total) {
         trace_kvm_dirty_ring_reap(total, stamp / 1000);
     }
-
-    return total;
 }
 
 /*
  * Currently for simplicity, we must hold BQL before calling this.  We can
  * consider to drop the BQL if we're clear with all the race conditions.
  */
-static uint64_t kvm_dirty_ring_reap(KVMState *s, CPUState *cpu)
+static void kvm_dirty_ring_reap(KVMState *s, CPUState *cpu)
 {
-    uint64_t total;
-
     /*
      * We need to lock all kvm slots for all address spaces here,
      * because:
@@ -813,10 +809,8 @@ static uint64_t kvm_dirty_ring_reap(KVMState *s, CPUState *cpu)
      *     reset below.
      */
     kvm_slots_lock();
-    total = kvm_dirty_ring_reap_locked(s, cpu);
+    kvm_dirty_ring_reap_locked(s, cpu);
     kvm_slots_unlock();
-
-    return total;
 }
 
 static void do_kvm_cpu_synchronize_kick(CPUState *cpu, run_on_cpu_data arg)

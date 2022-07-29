@@ -1158,8 +1158,8 @@ hwaddr memory_region_section_get_iotlb(CPUState *cpu,
     return section - d->map.sections;
 }
 
-static int subpage_register(subpage_t *mmio, uint32_t start, uint32_t end,
-                            uint16_t section);
+static void subpage_register(subpage_t *mmio, uint32_t start, uint32_t end,
+                             uint16_t section);
 static subpage_t *subpage_init(FlatView *fv, hwaddr base);
 
 static uint16_t phys_section_add(PhysPageMap *map,
@@ -1823,14 +1823,14 @@ size_t qemu_ram_pagesize_largest(void)
     return largest;
 }
 
-static int memory_try_enable_merging(void *addr, size_t len)
+static void memory_try_enable_merging(void *addr, size_t len)
 {
     if (!machine_mem_merge(current_machine)) {
         /* disabled by the user */
-        return 0;
+        return;
     }
 
-    return qemu_madvise(addr, len, QEMU_MADV_MERGEABLE);
+    qemu_madvise(addr, len, QEMU_MADV_MERGEABLE);
 }
 
 /*
@@ -2526,13 +2526,13 @@ static const MemoryRegionOps subpage_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int subpage_register(subpage_t *mmio, uint32_t start, uint32_t end,
-                            uint16_t section)
+static void subpage_register(subpage_t *mmio, uint32_t start, uint32_t end,
+                             uint16_t section)
 {
     int idx, eidx;
 
     if (start >= TARGET_PAGE_SIZE || end >= TARGET_PAGE_SIZE)
-        return -1;
+        return;
     idx = SUBPAGE_IDX(start);
     eidx = SUBPAGE_IDX(end);
 #if defined(DEBUG_SUBPAGE)
@@ -2542,8 +2542,6 @@ static int subpage_register(subpage_t *mmio, uint32_t start, uint32_t end,
     for (; idx <= eidx; idx++) {
         mmio->sub_section[idx] = section;
     }
-
-    return 0;
 }
 
 static subpage_t *subpage_init(FlatView *fv, hwaddr base)

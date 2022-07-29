@@ -325,7 +325,7 @@ unmap:
 /*
  * passthrough sense and io sense are at the same offset
  */
-static int megasas_build_sense(MegasasCmd *cmd, uint8_t *sense_ptr,
+static void megasas_build_sense(MegasasCmd *cmd, uint8_t *sense_ptr,
     uint8_t sense_len)
 {
     PCIDevice *pcid = PCI_DEVICE(cmd->state);
@@ -346,7 +346,6 @@ static int megasas_build_sense(MegasasCmd *cmd, uint8_t *sense_ptr,
         pci_dma_write(pcid, pa, sense_ptr, sense_len);
         cmd->frame->header.sense_len = sense_len;
     }
-    return sense_len;
 }
 
 static void megasas_write_sense(MegasasCmd *cmd, SCSISense sense)
@@ -376,7 +375,7 @@ static void megasas_copy_sense(MegasasCmd *cmd)
 /*
  * Format an INQUIRY CDB
  */
-static int megasas_setup_inquiry(uint8_t *cdb, int pg, int len)
+static void megasas_setup_inquiry(uint8_t *cdb, int pg, int len)
 {
     memset(cdb, 0, 6);
     cdb[0] = INQUIRY;
@@ -385,7 +384,6 @@ static int megasas_setup_inquiry(uint8_t *cdb, int pg, int len)
         cdb[2] = pg;
     }
     stw_be_p(&cdb[3], len);
-    return len;
 }
 
 /*

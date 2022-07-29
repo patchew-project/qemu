@@ -478,7 +478,7 @@ static void audio_detach_capture (HWVoiceOut *hw)
     }
 }
 
-static int audio_attach_capture (HWVoiceOut *hw)
+static void audio_attach_capture(HWVoiceOut *hw)
 {
     AudioState *s = hw->s;
     CaptureVoiceOut *cap;
@@ -504,7 +504,7 @@ static int audio_attach_capture (HWVoiceOut *hw)
         if (!sw->rate) {
             dolog ("Could not start rate conversion for `%s'\n", SW_NAME (sw));
             g_free (sw);
-            return -1;
+            return;
         }
         QLIST_INSERT_HEAD (&hw_cap->sw_head, sw, entries);
         QLIST_INSERT_HEAD (&hw->cap_head, sc, entries);
@@ -518,7 +518,6 @@ static int audio_attach_capture (HWVoiceOut *hw)
             audio_capture_maybe_changed (cap, 1);
         }
     }
-    return 0;
 }
 
 /*

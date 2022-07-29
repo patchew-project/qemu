@@ -506,10 +506,9 @@ static inline void gdb_continue(void)
  * Resume execution, per CPU actions. For user-mode emulation it's
  * equivalent to gdb_continue.
  */
-static int gdb_continue_partial(char *newstates)
+static void gdb_continue_partial(char *newstates)
 {
     CPUState *cpu;
-    int res = 0;
 #ifdef CONFIG_USER_ONLY
     /*
      * This is not exactly accurate, but it's an improvement compared to the
@@ -535,7 +534,7 @@ static int gdb_continue_partial(char *newstates)
         }
 
         if (vm_prepare_start(step_requested)) {
-            return 0;
+            return;
         }
 
         CPU_FOREACH(cpu) {
@@ -555,7 +554,6 @@ static int gdb_continue_partial(char *newstates)
                 flag = 1;
                 break;
             default:
-                res = -1;
                 break;
             }
         }
@@ -564,7 +562,6 @@ static int gdb_continue_partial(char *newstates)
         qemu_clock_enable(QEMU_CLOCK_VIRTUAL, true);
     }
 #endif
-    return res;
 }
 
 static void put_buffer(const uint8_t *buf, int len)
@@ -665,8 +662,7 @@ static void hexdump(const char *buf, int len,
     }
 }
 
-/* return -1 if error, 0 if OK */
-static int put_packet_binary(const char *buf, int len, bool dump)
+static void put_packet_binary(const char *buf, int len, bool dump)
 {
     int csum, i;
     uint8_t footer[3];
@@ -696,22 +692,20 @@ static int put_packet_binary(const char *buf, int len, bool dump)
 #ifdef CONFIG_USER_ONLY
         i = get_char();
         if (i < 0)
-            return -1;
+            return;
         if (i == '+')
             break;
 #else
         break;
 #endif
     }
-    return 0;
 }
 
-/* return -1 if error, 0 if OK */
-static int put_packet(const char *buf)
+static void put_packet(const char *buf)
 {
     trace_gdbstub_io_reply(buf);
 
-    return put_packet_binary(buf, strlen(buf), false);
+    put_packet_binary(buf, strlen(buf), false);
 }
 
 static void put_strbuf(void)

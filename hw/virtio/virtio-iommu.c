@@ -98,7 +98,7 @@ unlock:
 }
 
 /* Return whether the device is using IOMMU translation. */
-static bool virtio_iommu_switch_address_space(IOMMUDevice *sdev)
+static void virtio_iommu_switch_address_space(IOMMUDevice *sdev)
 {
     bool use_remapping;
 
@@ -119,8 +119,6 @@ static bool virtio_iommu_switch_address_space(IOMMUDevice *sdev)
         memory_region_set_enabled(MEMORY_REGION(&sdev->iommu_mr), false);
         memory_region_set_enabled(&sdev->bypass_mr, true);
     }
-
-    return use_remapping;
 }
 
 static void virtio_iommu_switch_address_space_all(VirtIOIOMMU *s)

@@ -221,19 +221,19 @@ static void flush_queued_data(VirtIOSerialPort *port)
     do_flush_queued_data(port, port->ovq, VIRTIO_DEVICE(port->vser));
 }
 
-static size_t send_control_msg(VirtIOSerial *vser, void *buf, size_t len)
+static void send_control_msg(VirtIOSerial *vser, void *buf, size_t len)
 {
     VirtQueueElement *elem;
     VirtQueue *vq;
 
     vq = vser->c_ivq;
     if (!virtio_queue_ready(vq)) {
-        return 0;
+        return;
     }
 
     elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
     if (!elem) {
-        return 0;
+        return;
     }
 
     /* TODO: detect a buffer that's too short, set NEEDS_RESET */
@@ -242,12 +242,10 @@ static size_t send_control_msg(VirtIOSerial *vser, void *buf, size_t len)
     virtqueue_push(vq, elem, len);
     virtio_notify(VIRTIO_DEVICE(vser), vq);
     g_free(elem);
-
-    return len;
 }
 
-static size_t send_control_event(VirtIOSerial *vser, uint32_t port_id,
-                                 uint16_t event, uint16_t value)
+static void send_control_event(VirtIOSerial *vser, uint32_t port_id,
+                               uint16_t event, uint16_t value)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(vser);
     struct virtio_console_control cpkt;
@@ -257,7 +255,7 @@ static size_t send_control_event(VirtIOSerial *vser, uint32_t port_id,
     virtio_stw_p(vdev, &cpkt.value, value);
 
     trace_virtio_serial_send_control_event(port_id, event, value);
-    return send_control_msg(vser, &cpkt, sizeof(cpkt));
+    send_control_msg(vser, &cpkt, sizeof(cpkt));
 }
 
 /* Functions for use inside qemu to open and read from/write to ports */

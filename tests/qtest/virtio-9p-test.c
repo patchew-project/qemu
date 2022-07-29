@@ -1319,8 +1319,8 @@ static void do_mkdir(QVirtio9P *v9p, const char *path, const char *cname)
 }
 
 /* create a regular file with Tlcreate and return file's fid */
-static uint32_t do_lcreate(QVirtio9P *v9p, const char *path,
-                           const char *cname)
+static void do_lcreate(QVirtio9P *v9p, const char *path,
+                       const char *cname)
 {
     g_autofree char *name = g_strdup(cname);
     uint32_t fid;
@@ -1331,8 +1331,6 @@ static uint32_t do_lcreate(QVirtio9P *v9p, const char *path,
     req = v9fs_tlcreate(v9p, fid, name, 0, 0750, 0, 0);
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rlcreate(req, NULL, NULL);
-
-    return fid;
 }
 
 /* create symlink named @a clink in directory @a path pointing to @a to */
