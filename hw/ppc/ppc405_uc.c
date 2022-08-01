@@ -1466,12 +1466,13 @@ static void ppc405_soc_instance_init(Object *obj)
     object_initialize_child(obj, "pob", &s->pob, TYPE_PPC405_POB);
 
     object_initialize_child(obj, "plb", &s->plb, TYPE_PPC405_PLB);
+
+    object_initialize_child(obj, "mal", &s->mal, TYPE_PPC4xx_MAL);
 }
 
 static void ppc405_soc_realize(DeviceState *dev, Error **errp)
 {
     Ppc405SoCState *s = PPC405_SOC(dev);
-    qemu_irq mal_irqs[4];
     CPUPPCState *env;
     Error *err = NULL;
     int i;
@@ -1612,11 +1613,18 @@ static void ppc405_soc_realize(DeviceState *dev, Error **errp)
     }
 
     /* MAL */
-    mal_irqs[0] = qdev_get_gpio_in(s->uic, 11);
-    mal_irqs[1] = qdev_get_gpio_in(s->uic, 12);
-    mal_irqs[2] = qdev_get_gpio_in(s->uic, 13);
-    mal_irqs[3] = qdev_get_gpio_in(s->uic, 14);
-    ppc4xx_mal_init(env, 4, 2, mal_irqs);
+    object_property_set_int(OBJECT(&s->mal), "txc-num", 4, &error_abort);
+    object_property_set_int(OBJECT(&s->mal), "rxc-num", 2, &error_abort);
+    object_property_set_link(OBJECT(&s->mal), "cpu", OBJECT(&s->cpu),
+                             &error_abort);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->mal), errp)) {
+        return;
+    }
+
+    for (i = 0; i < ARRAY_SIZE(s->mal.irqs); i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->mal), i,
+                           qdev_get_gpio_in(s->uic, 11 + i));
+    }
 
     /* Ethernet */
     /* Uses UIC IRQs 9, 15, 17 */

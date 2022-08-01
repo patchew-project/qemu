@@ -259,6 +259,7 @@ struct Ppc405SoCState {
     Ppc405OpbaState opba;
     Ppc405PobState pob;
     Ppc405PlbState plb;
+    Ppc4xxMalState mal;
 };
 
 /* PowerPC 405 core */
