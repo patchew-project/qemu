@@ -1829,6 +1829,27 @@ EOF
 fi
 
 ##########################################
+# check for backtrace support
+
+have_backtrace=no
+
+cat > $TMPC << EOF
+#include <execinfo.h>
+#include <stdio.h>
+int main(void) {
+    int nptrs;
+    void *buffer[100];
+
+    nptrs = backtrace(buffer, 100);
+    printf("backtrace() returned %d addresses\n", nptrs);
+}
+EOF
+
+if compile_prog "$CPU_CFLAGS -rdynamic" ""; then
+    have_backtrace=yes
+fi
+
+##########################################
 # check for slirp
 
 case "$slirp" in
@@ -2275,6 +2296,10 @@ if test "$have_ubsan" = "yes"; then
   QEMU_CFLAGS="-fsanitize=undefined $QEMU_CFLAGS"
   QEMU_LDFLAGS="-fsanitize=undefined $QEMU_LDFLAGS"
 fi
+if test "$have_backtrace" = "yes" ; then
+  QEMU_CFLAGS="-rdynamic $QEMU_CFLAGS"
+  QEMU_LDFLAGS="-rdynamic $QEMU_LDFLAGS"
+fi
 
 ##########################################
 
@@ -2477,6 +2502,10 @@ fi
 
 if test "$have_tsan" = "yes" && test "$have_tsan_iface_fiber" = "yes" ; then
     echo "CONFIG_TSAN=y" >> $config_host_mak
+fi
+
+if test "$have_backtrace" = "yes" ; then
+    echo "CONFIG_BACKTRACE=y" >> $config_host_mak
 fi
 
 if test "$plugins" = "yes" ; then

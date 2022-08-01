@@ -55,6 +55,7 @@ util_ss.add(files('guest-random.c'))
 util_ss.add(files('yank.c'))
 util_ss.add(files('int128.c'))
 util_ss.add(files('memalign.c'))
+util_ss.add(when: 'CONFIG_BACKTRACE', if_true: files('backtrace.c'))
 
 if have_user
   util_ss.add(files('selfmap.c'))
