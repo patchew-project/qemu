@@ -744,6 +744,10 @@ void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
 {
     VGACommonState *s = opaque;
 
+    static size_t cursorCounter;
+    static uint8_t cursorData[16 * 16 * 4];
+    QEMUCursor *cursor;
+
     if (s->vbe_index <= VBE_DISPI_INDEX_NB) {
         trace_vga_vbe_write(s->vbe_index, val);
         switch(s->vbe_index) {
@@ -796,6 +800,37 @@ void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
             s->vbe_regs[s->vbe_index] = val;
             vga_update_memory_access(s);
             break;
+
+        case VBE_DISPI_INDEX_CURSOR_IMG:
+            cursorData[cursorCounter++] = val >> 8;
+            cursorData[cursorCounter++] = val;
+            cursorCounter &= sizeof(cursorData) - 1;
+            break;
+
+        case VBE_DISPI_INDEX_CURSOR_HOTSPOT:
+            cursor = cursor_alloc(16, 16);
+            
+            if (val == 0x8080) { // blank cursor
+                for (int i = 0; i < 16*16; i++) {
+                    cursor->data[i] = 0;
+                }
+            } else {
+                for (int i = 0; i < 16*16; i++) {
+                    cursor->data[i] = 
+                        ((uint32_t)cursorData[i*4] << 24) |
+                        ((uint32_t)cursorData[i*4+1] << 16) |
+                        ((uint32_t)cursorData[i*4+2] << 8) |
+                        (uint32_t)cursorData[i*4+3];
+                }
+
+                cursor->hot_x = (int8_t)(val >> 8);
+                cursor->hot_y = (int8_t)val;
+            }
+
+            dpy_cursor_define(s->con, cursor);
+            cursor_put(cursor); // dealloc
+            break;
+
         default:
             break;
         }

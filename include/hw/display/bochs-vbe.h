@@ -19,7 +19,10 @@
 #define VBE_DISPI_INDEX_VIRT_HEIGHT     0x7
 #define VBE_DISPI_INDEX_X_OFFSET        0x8
 #define VBE_DISPI_INDEX_Y_OFFSET        0x9
-#define VBE_DISPI_INDEX_NB              0xa /* size of vbe_regs[] */
+#define VBE_DISPI_INDEX_CURSOR_IMG      0xb
+#define VBE_DISPI_INDEX_CURSOR_HOTSPOT  0xc
+#define VBE_DISPI_INDEX_CURSOR_ABS      0xd
+#define VBE_DISPI_INDEX_NB              0xe /* size of vbe_regs[] */
 #define VBE_DISPI_INDEX_VIDEO_MEMORY_64K 0xa /* read-only, not in vbe_regs */
 
 /* VBE_DISPI_INDEX_ID */
@@ -54,7 +57,7 @@
 
 /* bochs vbe register region */
 #define PCI_VGA_BOCHS_OFFSET  0x500
-#define PCI_VGA_BOCHS_SIZE    (0x0b * 2)
+#define PCI_VGA_BOCHS_SIZE    (VBE_DISPI_INDEX_NB * 2)
 
 /* qemu extension register region */
 #define PCI_VGA_QEXT_OFFSET   0x600
