@@ -302,16 +302,16 @@ dma_map_err:
 }
 
 /**
- * Copy the guest element into a dedicated buffer suitable to be sent to NIC
+ * Maps out sg and in buffer into dedicated buffers suitable to be sent to NIC
  */
-static bool vhost_vdpa_net_cvq_map_elem(VhostVDPAState *s,
-                                        VirtQueueElement *elem,
-                                        size_t *out_len)
+static bool vhost_vdpa_net_cvq_map_sg(VhostVDPAState *s,
+                                      const struct iovec *out, size_t out_num,
+                                      size_t *out_len)
 {
     size_t in_copied;
     bool ok;
 
-    ok = vhost_vdpa_cvq_map_buf(&s->vhost_vdpa, elem->out_sg, elem->out_num,
+    ok = vhost_vdpa_cvq_map_buf(&s->vhost_vdpa, out, out_num,
                                 vhost_vdpa_net_cvq_cmd_len(),
                                 s->cvq_cmd_out_buffer, out_len, false);
     if (unlikely(!ok)) {
@@ -435,7 +435,8 @@ static int vhost_vdpa_net_handle_ctrl_avail(VhostShadowVirtqueue *svq,
     };
     bool ok;
 
-    ok = vhost_vdpa_net_cvq_map_elem(s, elem, &dev_buffers[0].iov_len);
+    ok = vhost_vdpa_net_cvq_map_sg(s, elem->out_sg, elem->out_num,
+                                   &dev_buffers[0].iov_len);
     if (unlikely(!ok)) {
         goto out;
     }
