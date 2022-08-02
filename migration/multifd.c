@@ -667,8 +667,8 @@ static void *multifd_send_thread(void *opaque)
 {
     MultiFDSendParams *p = opaque;
     Error *local_err = NULL;
-    /* qemu older than 7.0 don't understand zero page on multifd channel */
-    bool use_zero_page = migrate_use_multifd_zero_page();
+    /* older qemu don't understand zero page on multifd channel */
+    bool use_multifd_zero_page = !migrate_use_main_zero_page();
     int ret = 0;
     bool use_zero_copy_send = migrate_use_zero_copy_send();
 
@@ -711,7 +711,7 @@ static void *multifd_send_thread(void *opaque)
 
             for (int i = 0; i < p->pages->num; i++) {
                 uint64_t offset = p->pages->offset[i];
-                if (use_zero_page &&
+                if (use_multifd_zero_page &&
                     buffer_is_zero(rb->host + offset, p->page_size)) {
                     p->zero[p->zero_num] = offset;
                     p->zero_num++;

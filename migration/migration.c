@@ -2599,9 +2599,7 @@ bool migrate_use_main_zero_page(void)
 
     s = migrate_get_current();
 
-    // We will enable this when we add the right code.
-    // return s->enabled_capabilities[MIGRATION_CAPABILITY_MAIN_ZERO_PAGE];
-    return true;
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_MAIN_ZERO_PAGE];
 }
 
 bool migrate_pause_before_switchover(void)
