@@ -491,7 +491,7 @@ static void vhost_svq_flush(VhostShadowVirtqueue *svq,
 /**
  * Poll the SVQ for one device used buffer.
  *
- * This function race with main event loop SVQ polling, so extra
+ * This function races with main event loop SVQ polling, so extra
  * synchronization is needed.
  *
  * Return the length written by the device.
@@ -499,20 +499,20 @@ static void vhost_svq_flush(VhostShadowVirtqueue *svq,
 size_t vhost_svq_poll(VhostShadowVirtqueue *svq)
 {
     int64_t start_us = g_get_monotonic_time();
-    do {
+    while (true) {
         uint32_t len;
-        VirtQueueElement *elem = vhost_svq_get_buf(svq, &len);
-        if (elem) {
-            return len;
-        }
 
         if (unlikely(g_get_monotonic_time() - start_us > 10e6)) {
             return 0;
         }
 
-        /* Make sure we read new used_idx */
-        smp_rmb();
-    } while (true);
+        if (!vhost_svq_more_used(svq)) {
+            continue;
+        }
+
+        vhost_svq_get_buf(svq, &len);
+        return len;
+    }
 }
 
 /**
