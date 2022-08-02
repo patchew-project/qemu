@@ -996,9 +996,6 @@ static uint64_t virtio_blk_get_features(VirtIODevice *vdev, uint64_t features,
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
 
-    /* Firstly sync all virtio-blk possible supported features */
-    features |= s->host_features;
-
     virtio_add_feature(&features, VIRTIO_BLK_F_SEG_MAX);
     virtio_add_feature(&features, VIRTIO_BLK_F_GEOMETRY);
     virtio_add_feature(&features, VIRTIO_BLK_F_TOPOLOGY);
