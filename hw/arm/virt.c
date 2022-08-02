@@ -1691,6 +1691,7 @@ static uint64_t virt_cpu_mp_affinity(VirtMachineState *vms, int idx)
 static void virt_memmap_fits(VirtMachineState *vms, int index,
                              bool *enabled, hwaddr *base, int pa_bits)
 {
+    const char *region_name;
     hwaddr size = extended_memmap[index].size;
 
     /* The region will be disabled if its size isn't given */
@@ -1713,6 +1714,23 @@ static void virt_memmap_fits(VirtMachineState *vms, int index,
         vms->highest_gpa = *base + size - 1;
 
 	*base = *base + size;
+    } else {
+        switch (index) {
+        case VIRT_HIGH_GIC_REDIST2:
+            region_name = "GIC_REDIST2";
+            break;
+        case VIRT_HIGH_PCIE_ECAM:
+            region_name = "PCIE_ECAM";
+            break;
+        case VIRT_HIGH_PCIE_MMIO:
+            region_name = "PCIE_MMIO";
+            break;
+        default:
+            region_name = "unknown";
+        }
+
+        warn_report("Disabled %s high memory region due to PA limit",
+                    region_name);
     }
 }
 
