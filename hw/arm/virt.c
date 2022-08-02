@@ -1688,6 +1688,34 @@ static uint64_t virt_cpu_mp_affinity(VirtMachineState *vms, int idx)
     return arm_cpu_mp_affinity(idx, clustersz);
 }
 
+static void virt_memmap_fits(VirtMachineState *vms, int index,
+                             bool *enabled, hwaddr *base, int pa_bits)
+{
+    hwaddr size = extended_memmap[index].size;
+
+    /* The region will be disabled if its size isn't given */
+    if (!*enabled || !size) {
+        *enabled = false;
+        vms->memmap[index].base = 0;
+        vms->memmap[index].size = 0;
+        return;
+    }
+
+    /*
+     * Check if the memory region fits in the PA space. The memory map
+     * and highest_gpa are updated if it fits. Otherwise, it's disabled.
+     */
+    *enabled = (ROUND_UP(*base, size) + size <= BIT_ULL(pa_bits));
+    if (*enabled) {
+        *base = ROUND_UP(*base, size);
+        vms->memmap[index].base = *base;
+        vms->memmap[index].size = size;
+        vms->highest_gpa = *base + size - 1;
+
+	*base = *base + size;
+    }
+}
+
 static void virt_set_memmap(VirtMachineState *vms, int pa_bits)
 {
     MachineState *ms = MACHINE(vms);
@@ -1744,37 +1772,17 @@ static void virt_set_memmap(VirtMachineState *vms, int pa_bits)
     vms->highest_gpa = memtop - 1;
 
     for (i = VIRT_LOWMEMMAP_LAST; i < ARRAY_SIZE(extended_memmap); i++) {
-        hwaddr size = extended_memmap[i].size;
-        bool fits;
-
-        base = ROUND_UP(base, size);
-        vms->memmap[i].base = base;
-        vms->memmap[i].size = size;
-
-        /*
-         * Check each device to see if they fit in the PA space,
-         * moving highest_gpa as we go.
-         *
-         * For each device that doesn't fit, disable it.
-         */
-        fits = (base + size) <= BIT_ULL(pa_bits);
-        if (fits) {
-            vms->highest_gpa = base + size - 1;
-        }
-
         switch (i) {
         case VIRT_HIGH_GIC_REDIST2:
-            vms->highmem_redists &= fits;
+            virt_memmap_fits(vms, i, &vms->highmem_redists, &base, pa_bits);
             break;
         case VIRT_HIGH_PCIE_ECAM:
-            vms->highmem_ecam &= fits;
+            virt_memmap_fits(vms, i, &vms->highmem_ecam, &base, pa_bits);
             break;
         case VIRT_HIGH_PCIE_MMIO:
-            vms->highmem_mmio &= fits;
+            virt_memmap_fits(vms, i, &vms->highmem_mmio, &base, pa_bits);
             break;
         }
-
-        base += size;
     }
 
     if (device_memory_size > 0) {
