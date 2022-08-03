@@ -20,6 +20,15 @@ guest operating system notices the change, and is then able to react as
 appropriate by marking its copies of distributed databases as dirty,
 re-initializing its random number generator etc.
 
+Currently, in Linux the UUID exposed by vmgenid is consumed by the guest kernel
+to reseed its RNG and not exposed in the user-space, hence leaving applications
+without a mechanism which would help them detect a VM restore event.
+
+To address the use-case of user-space applications we extend the vmgenid
+specification to include a 32-bit generation counter. The counter needs to be
+incremented every time a VM is loaded from a saved state by the user. The guest
+kernel needs to expose to user-space applications which should monitor it for
+detecting the VM-load event.
 
 Requirements
 ------------
@@ -53,12 +62,24 @@ R2 to R5. [These AML requirements are isolated well enough in the Microsoft
 R6. The hypervisor shall expose a _HID (hardware identifier) object in the
     VMGenId device's scope that is unique to the hypervisor vendor.
 
+The generation counter and the buffer holding it shall adhere to the same
+requirements as the generation ID. Moreover,
+
+R7. The BIOS will need to include an object below the device named "CTRA",
+    which, similarly to "ADDR", will evaluate to a package of two integers. The
+    first integer must be the low 32-bits of the guest physical address of the
+    buffer that contains generation counter. The second integer must be the
+    hight 32 bits of the guest physical address of the same buffer.
+
+R8. The buffer holding the generation counter will be page aligned and 1 page
+    long.
+
 
 QEMU Implementation
 -------------------
 
 The above-mentioned specification does not dictate which ACPI descriptor table
-will contain the VM Generation ID device.  Other implementations (Hyper-V and
+will contain the VM Generation ID device. Other implementations (Hyper-V and
 Xen) put it in the main descriptor table (Differentiated System Description
 Table or DSDT).  For ease of debugging and implementation, we have decided to
 put it in its own Secondary System Description Table, or SSDT.
@@ -72,8 +93,8 @@ ASL+ Optimizing Compiler version 20150717-64
 Copyright (c) 2000 - 2015 Intel Corporation
 
 Reading ACPI table from file /sys/firmware/acpi/tables/SSDT - Length
-00000198 (0x0000C6)
-ACPI: SSDT 0x0000000000000000 0000C6 (v01 BOCHS  VMGENID  00000001 BXPC
+00000236 (0x0000EC)
+ACPI: SSDT 0x0000000000000000 0000EC (v01 BOCHS  VMGENID  00000001 BXPC
 00000001)
 Acpi table [SSDT] successfully installed and loaded
 Pass 1 parse of [SSDT]
@@ -95,9 +116,9 @@ ASL Output:    ./SSDT.dsl - 1631 bytes
  *
  * Original Table Header:
  *     Signature        "SSDT"
- *     Length           0x000000CA (202)
+ *     Length           0x000000EC (236)
  *     Revision         0x01
- *     Checksum         0x4B
+ *     Checksum         0x63
  *     OEM ID           "BOCHS "
  *     OEM Table ID     "VMGENID"
  *     OEM Revision     0x00000001 (1)
@@ -133,6 +154,14 @@ DefinitionBlock ("/sys/firmware/acpi/tables/SSDT.aml", "SSDT", 1, "BOCHS ",
                 Index (Local0, One) = Zero
                 Return (Local0)
             }
+
+            Method (CTRA, 0, NotSerialized)
+            {
+                Local0 = Package (0x02) {}
+                Local0 [Zero] = (VGIA + 0x1000)
+                Local0 [One] = Zero
+                Return (Local0)
+            }
         }
     }
 
@@ -161,7 +190,8 @@ More information about fw_cfg can be found in "docs/specs/fw_cfg.txt"
 
 Two fw_cfg blobs are used in this case:
 
-/etc/vmgenid_guid - contains the actual VM Generation ID GUID
+/etc/vmgenid_data - contains the actual VM Generation ID GUID and Generation
+                    counter
                   - read-only to the guest
 /etc/vmgenid_addr - contains the address of the downloaded vmgenid blob
                   - writable by the guest
@@ -169,14 +199,14 @@ Two fw_cfg blobs are used in this case:
 
 QEMU sends the following commands to the guest at startup:
 
-1. Allocate memory for vmgenid_guid fw_cfg blob.
-2. Write the address of vmgenid_guid into the SSDT (VGIA ACPI variable as
+1. Allocate memory for vmgenid_data fw_cfg blob.
+2. Write the address of vmgenid_data into the SSDT (VGIA ACPI variable as
    shown above in the iasl dump).  Note that this change is not propagated
    back to QEMU.
-3. Write the address of vmgenid_guid back to QEMU's copy of vmgenid_addr
+3. Write the address of vmgenid_data back to QEMU's copy of vmgenid_addr
    via the fw_cfg DMA interface.
 
-After step 3, QEMU is able to update the contents of vmgenid_guid at will.
+After step 3, QEMU is able to update the contents of vmgenid_data at will.
 
 Since BIOS or UEFI does not necessarily run when we wish to change the GUID,
 the value of VGIA is persisted via the VMState mechanism.
@@ -196,46 +226,53 @@ All GUID passed in via command line or monitor are treated as big-endian.
 GUID values displayed via monitor are shown in big-endian format.
 
 
-GUID Storage Format:
+vmgenid Storage Format:
 --------------------
 
-In order to implement an OVMF "SDT Header Probe Suppressor", the contents of
-the vmgenid_guid fw_cfg blob are not simply a 128-bit GUID.  There is also
-significant padding in order to align and fill a memory page, as shown in the
-following diagram:
+The contents of the vmgenid_data fw_cfg blob are two memory pages. In beginning
+of the first page lives the OVMF SDT Header probe padded so that GUID is stored
+in an 8-byte aligned address. Immediately after that is stored the GUID
+followed by padding until the end of the page. The genration counter lives
+in the beginning of the second page. The rest of the page is padded with zeros.
+The layout is shown in the following diagram:
 
 +----------------------------------+
 | SSDT with OEM Table ID = VMGENID |
 +----------------------------------+
 | ...                              |       TOP OF PAGE
-| VGIA dword object ---------------|-----> +---------------------------+
-| ...                              |       | fw-allocated array for    |
-| _STA method referring to VGIA    |       | "etc/vmgenid_guid"        |
-| ...                              |       +---------------------------+
-| ADDR method referring to VGIA    |       |  0: OVMF SDT Header probe |
-| ...                              |       |     suppressor            |
-+----------------------------------+       | 36: padding for 8-byte    |
-                                           |     alignment             |
-                                           | 40: GUID                  |
-                                           | 56: padding to page size  |
-                                           +---------------------------+
-                                           END OF PAGE
+| VGIA dword object ---------------|-----> +------------------------------------+
+| ...                              |       | fw-allocated array for             |
+| _STA method referring to VGIA    |       | "etc/vmgenid_data"                 |
+| ...                              |       +------------------------------------+
+| ADDR method referring to VGIA    |       |  0: OVMF SDT Header probe          |
+| ...                              |       |     suppressor                     |
++----------------------------------+       | 36: padding for 8-byte             |
+                                           |     alignment                      |
+                                           | 40: GUID                           |
+                                           | 56: padding to page size           |
+                                           |                                    |
+                                           | ...                                |
+                                           | PAGE_SIZE    : Gen counter         |
+                                           | PAGE_SIZE + 4: padding to page size|
+                                           +------------------------------------+
 
 
 Device Usage:
 -------------
 
-The device has two properties, which may be only be set using the command line:
+The device has three properties, which may be only be set using the command
+line:
 
   guid - sets the value of the GUID. A special value "auto" instructs
          QEMU to generate a new random GUID.
   page-size - sets the target machines page size. Currently accepted values
               are 4096 (default) and 65536.
+  genctr - sets the Generation counter of the VM.
 
 For example:
 
-  QEMU  -device vmgenid,guid="324e6eaf-d1d1-4bf6-bf41-b9bb6c91fb87",page-size=65536
-  QEMU  -device vmgenid,guid=auto
+  QEMU  -device vmgenid,guid="324e6eaf-d1d1-4bf6-bf41-b9bb6c91fb87",page-size=65536,genctr=0
+  QEMU  -device vmgenid,guid=auto,genctr=42
 
 The property may be queried via QMP/HMP:
 

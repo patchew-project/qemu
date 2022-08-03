@@ -9,7 +9,8 @@
 #define TYPE_VMGENID                  "vmgenid"
 #define VMGENID_GUID                  "guid"
 #define VMGENID_PAGE_SIZE             "page-size"
-#define VMGENID_GUID_FW_CFG_FILE      "etc/vmgenid_guid"
+#define VMGENID_GEN_CTR               "genctr"
+#define VMGENID_DATA_FW_CFG_FILE      "etc/vmgenid_data"
 #define VMGENID_ADDR_FW_CFG_FILE      "etc/vmgenid_addr"
 
 #define VMGENID_DEFAULT_FW_PAGE_SIZE  4096 /* Assume 4K page by default */
@@ -22,6 +23,12 @@ OBJECT_DECLARE_SIMPLE_TYPE(VmGenIdState, VMGENID)
 struct VmGenIdState {
     DeviceState parent_obj;
     QemuUUID guid;                /* The 128-bit GUID seen by the guest */
+    uint32_t gen_ctr;             /* A 32bit generation counter meant to
+                                   * be exposed in the guest user-space
+                                   */
+    bool has_gen_ctr;             /* Backwards compatibility: Only update a
+                                   * guest when generation current present
+                                   */
     uint8_t vmgenid_addr_le[8];   /* Address of the GUID (little-endian) */
     uint32_t page_size;           /* Page size to use as a the allocation unit */
 };

@@ -24,7 +24,7 @@
 #include "migration/vmstate.h"
 #include "sysemu/reset.h"
 
-void vmgenid_build_acpi(VmGenIdState *vms, GArray *table_data, GArray *guid,
+void vmgenid_build_acpi(VmGenIdState *vms, GArray *table_data, GArray *vmgenid,
                         BIOSLinker *linker, const char *oem_id)
 {
     Aml *ssdt, *dev, *scope, *method, *addr, *if_ctx;
@@ -34,16 +34,25 @@ void vmgenid_build_acpi(VmGenIdState *vms, GArray *table_data, GArray *guid,
                         .oem_id = oem_id, .oem_table_id = "VMGENID" };
 
     /* Fill in the GUID values.  These need to be converted to little-endian
-     * first, since that's what the guest expects
+     * first, since that's what the guest expects. Allocate two pages, so that
+     * we can dedicate a full page (the second one) to the generation counter.
      */
-    g_array_set_size(guid, vms->page_size - ARRAY_SIZE(guid_le.data));
+    g_array_set_size(vmgenid, 2 * vms->page_size - ARRAY_SIZE(guid_le.data)
+                     - sizeof(vms->gen_ctr));
     guid_le = qemu_uuid_bswap(vms->guid);
     /* The GUID is written at a fixed offset into the fw_cfg file
      * in order to implement the "OVMF SDT Header probe suppressor"
      * see docs/specs/vmgenid.txt for more details
      */
-    g_array_insert_vals(guid, VMGENID_GUID_OFFSET, guid_le.data,
+    g_array_insert_vals(vmgenid, VMGENID_GUID_OFFSET, guid_le.data,
                         ARRAY_SIZE(guid_le.data));
+
+    /* Write the generation counter at the beginning of the second page of
+     * the fw_cfg file.
+     */
+    g_array_insert_vals(vmgenid, vms->page_size, (uint8_t *)&vms->gen_ctr,
+                        sizeof(vms->gen_ctr));
+    vms->has_gen_ctr = true;
 
     /* Put VMGNEID into a separate SSDT table */
     acpi_table_begin(&table, table_data);
@@ -84,6 +93,23 @@ void vmgenid_build_acpi(VmGenIdState *vms, GArray *table_data, GArray *guid,
     aml_append(method, aml_return(addr));
 
     aml_append(dev, method);
+
+    /* the CTRA method returns two 32-bit words representing the lower and
+     * upper halves of the physical address of the Generation counter inside
+     * the fw_cfg blob
+     */
+    method = aml_method("CTRA", 0, AML_NOTSERIALIZED);
+
+    addr = aml_local(0);
+    aml_append(method, aml_store(aml_package(2), addr));
+    aml_append(method, aml_store(aml_add(aml_name("VGIA"),
+                                         aml_int(vms->page_size), NULL),
+                                 aml_index(addr, aml_int(0))));
+    aml_append(method, aml_store(aml_int(0), aml_index(addr, aml_int(1))));
+    aml_append(method, aml_return(addr));
+
+    aml_append(dev, method);
+
     aml_append(scope, dev);
     aml_append(ssdt, scope);
 
@@ -95,8 +121,8 @@ void vmgenid_build_acpi(VmGenIdState *vms, GArray *table_data, GArray *guid,
     g_array_append_vals(table_data, ssdt->buf->data, ssdt->buf->len);
 
     /* Allocate guest memory for the Data fw_cfg blob */
-    bios_linker_loader_alloc(linker, VMGENID_GUID_FW_CFG_FILE, guid,
-                             vms->page_size,
+    bios_linker_loader_alloc(linker, VMGENID_DATA_FW_CFG_FILE, vmgenid,
+                             2 * vms->page_size,
                              false /* page boundary, high memory */);
 
     /* Patch address of GUID fw_cfg blob into the ADDR fw_cfg blob
@@ -108,7 +134,7 @@ void vmgenid_build_acpi(VmGenIdState *vms, GArray *table_data, GArray *guid,
      */
     bios_linker_loader_write_pointer(linker,
         VMGENID_ADDR_FW_CFG_FILE, 0, sizeof(uint64_t),
-        VMGENID_GUID_FW_CFG_FILE, VMGENID_GUID_OFFSET);
+        VMGENID_DATA_FW_CFG_FILE, VMGENID_GUID_OFFSET);
 
     /* Patch address of GUID fw_cfg blob into the AML so OSPM can retrieve
      * and read it.  Note that while we provide storage for 64 bits, only
@@ -116,17 +142,18 @@ void vmgenid_build_acpi(VmGenIdState *vms, GArray *table_data, GArray *guid,
      */
     bios_linker_loader_add_pointer(linker,
         ACPI_BUILD_TABLE_FILE, vgia_offset, sizeof(uint32_t),
-        VMGENID_GUID_FW_CFG_FILE, 0);
+        VMGENID_DATA_FW_CFG_FILE, 0);
 
     /* must be called after above command to ensure correct table checksum */
     acpi_table_end(linker, &table);
     free_aml_allocator();
 }
 
-void vmgenid_add_fw_cfg(VmGenIdState *vms, FWCfgState *s, GArray *guid)
+void vmgenid_add_fw_cfg(VmGenIdState *vms, FWCfgState *s, GArray *vmgenid)
 {
-    /* Create a read-only fw_cfg file for GUID */
-    fw_cfg_add_file(s, VMGENID_GUID_FW_CFG_FILE, guid->data, vms->page_size);
+    /* Create a read-only fw_cfg file for vmgenid data */
+    fw_cfg_add_file(s, VMGENID_DATA_FW_CFG_FILE, vmgenid->data,
+                    2 * vms->page_size);
     /* Create a read-write fw_cfg file for Address */
     fw_cfg_add_file_callback(s, VMGENID_ADDR_FW_CFG_FILE, NULL, NULL, NULL,
                              vms->vmgenid_addr_le,
@@ -136,7 +163,7 @@ void vmgenid_add_fw_cfg(VmGenIdState *vms, FWCfgState *s, GArray *guid)
 static void vmgenid_update_guest(VmGenIdState *vms)
 {
     Object *obj = object_resolve_path_type("", TYPE_ACPI_DEVICE_IF, NULL);
-    uint32_t vmgenid_addr;
+    uint32_t vmgenid_addr, vmgenid_gen_ctr_addr;
     QemuUUID guid_le;
 
     if (obj) {
@@ -146,22 +173,36 @@ static void vmgenid_update_guest(VmGenIdState *vms)
         /* A zero value in vmgenid_addr means that BIOS has not yet written
          * the address
          */
-        if (vmgenid_addr) {
-            /* QemuUUID has the first three words as big-endian, and expect
-             * that any GUIDs passed in will always be BE.  The guest,
-             * however, will expect the fields to be little-endian.
-             * Perform a byte swap immediately before writing.
-             */
-            guid_le = qemu_uuid_bswap(vms->guid);
-            /* The GUID is written at a fixed offset into the fw_cfg file
-             * in order to implement the "OVMF SDT Header probe suppressor"
-             * see docs/specs/vmgenid.txt for more details.
-             */
-            cpu_physical_memory_write(vmgenid_addr, guid_le.data,
-                                      sizeof(guid_le.data));
-            /* Send _GPE.E05 event */
-            acpi_send_event(DEVICE(obj), ACPI_VMGENID_CHANGE_STATUS);
+        if (!vmgenid_addr) {
+            return;
         }
+
+        /* Only update the generation counter if the original guest supported
+         * it.
+         */
+        if (vms->has_gen_ctr) {
+            /* The generation counter address is in the second page of the blob */
+            vmgenid_gen_ctr_addr = vmgenid_addr - VMGENID_GUID_OFFSET
+                                   + vms->page_size;
+
+            cpu_physical_memory_write(vmgenid_gen_ctr_addr, &vms->gen_ctr,
+                                      sizeof(vms->gen_ctr));
+        }
+
+        /* QemuUUID has the first three words as big-endian, and expect
+         * that any GUIDs passed in will always be BE.  The guest,
+         * however, will expect the fields to be little-endian.
+         * Perform a byte swap immediately before writing.
+         */
+        guid_le = qemu_uuid_bswap(vms->guid);
+        /* The GUID is written at a fixed offset into the fw_cfg file
+         * in order to implement the "OVMF SDT Header probe suppressor"
+         * see docs/specs/vmgenid.txt for more details.
+         */
+        cpu_physical_memory_write(vmgenid_addr, guid_le.data,
+                sizeof(guid_le.data));
+        /* Send _GPE.E05 event */
+        acpi_send_event(DEVICE(obj), ACPI_VMGENID_CHANGE_STATUS);
     }
 }
 
@@ -266,6 +307,7 @@ static Property vmgenid_device_properties[] = {
     DEFINE_PROP_UUID(VMGENID_GUID, VmGenIdState, guid),
     DEFINE_PROP_UNSIGNED(VMGENID_PAGE_SIZE, VmGenIdState, page_size, 0,
                          vmgenid_prop_page_size, uint32_t),
+    DEFINE_PROP_UINT32(VMGENID_GEN_CTR, VmGenIdState, gen_ctr, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
