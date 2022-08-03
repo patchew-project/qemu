@@ -715,9 +715,6 @@ static uint64_t virtio_net_get_features(VirtIODevice *vdev, uint64_t features,
     VirtIONet *n = VIRTIO_NET(vdev);
     NetClientState *nc = qemu_get_queue(n->nic);
 
-    /* Firstly sync all virtio-net possible supported features */
-    features |= n->host_features;
-
     virtio_add_feature(&features, VIRTIO_NET_F_MAC);
 
     if (!peer_has_vnet_hdr(n)) {

@@ -816,10 +816,6 @@ static uint64_t virtio_scsi_get_features(VirtIODevice *vdev,
                                          uint64_t requested_features,
                                          Error **errp)
 {
-    VirtIOSCSI *s = VIRTIO_SCSI(vdev);
-
-    /* Firstly sync all virtio-scsi possible supported features */
-    requested_features |= s->host_features;
     return requested_features;
 }
 
