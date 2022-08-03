@@ -65,6 +65,23 @@ struct ppc4xx_bd_info_t {
 
 typedef struct Ppc405SoCState Ppc405SoCState;
 
+/* On Chip Memory */
+#define TYPE_PPC405_OCM "ppc405-ocm"
+OBJECT_DECLARE_SIMPLE_TYPE(Ppc405OcmState, PPC405_OCM);
+struct Ppc405OcmState {
+    SysBusDevice parent_obj;
+
+    PowerPCCPU *cpu;
+
+    MemoryRegion ram;
+    MemoryRegion isarc_ram;
+    MemoryRegion dsarc_ram;
+    uint32_t isarc;
+    uint32_t isacntl;
+    uint32_t dsarc;
+    uint32_t dsacntl;
+};
+
 /* General purpose timers */
 #define TYPE_PPC405_GPT "ppc405-gpt"
 OBJECT_DECLARE_SIMPLE_TYPE(Ppc405GptState, PPC405_GPT);
@@ -141,6 +158,7 @@ struct Ppc405SoCState {
     DeviceState *uic;
     Ppc405CpcState cpc;
     Ppc405GptState gpt;
+    Ppc405OcmState ocm;
 };
 
 /* PowerPC 405 core */
