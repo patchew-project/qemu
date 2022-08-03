@@ -37,7 +37,7 @@
 #include "qapi/error.h"
 #include "trace.h"
 
-static void ppc4xx_reset(void *opaque)
+void ppc4xx_reset(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
 
