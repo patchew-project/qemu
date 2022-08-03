@@ -67,6 +67,21 @@ static int virtio_scsi_set_host_notifier(VirtIOSCSI *s, VirtQueue *vq, int n)
 }
 
 /* Context: BH in IOThread */
+static void virtio_scsi_dataplane_start_bh(void *opaque)
+{
+    VirtIOSCSI *s = opaque;
+    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
+    int i;
+
+    virtio_queue_aio_attach_host_notifier(vs->ctrl_vq, s->ctx);
+    virtio_queue_aio_attach_host_notifier_no_poll(vs->event_vq, s->ctx);
+
+    for (i = 0; i < vs->conf.num_queues; i++) {
+        virtio_queue_aio_attach_host_notifier(vs->cmd_vqs[i], s->ctx);
+    }
+}
+
+/* Context: BH in IOThread */
 static void virtio_scsi_dataplane_stop_bh(void *opaque)
 {
     VirtIOSCSI *s = opaque;
@@ -136,16 +151,18 @@ int virtio_scsi_dataplane_start(VirtIODevice *vdev)
 
     memory_region_transaction_commit();
 
-    aio_context_acquire(s->ctx);
-    virtio_queue_aio_attach_host_notifier(vs->ctrl_vq, s->ctx);
-    virtio_queue_aio_attach_host_notifier_no_poll(vs->event_vq, s->ctx);
-
-    for (i = 0; i < vs->conf.num_queues; i++) {
-        virtio_queue_aio_attach_host_notifier(vs->cmd_vqs[i], s->ctx);
-    }
-
     s->dataplane_starting = false;
     s->dataplane_started = true;
+
+    /*
+     * Attach notifiers from within the IOThread. It's possible to attach
+     * notifiers from our thread directly but this approach has the advantages
+     * that virtio_scsi_dataplane_start_bh() is symmetric with
+     * virtio_scsi_dataplane_stop_bh() and the s->dataplane_started assignment
+     * above doesn't require explicit synchronization.
+     */
+    aio_context_acquire(s->ctx);
+    aio_wait_bh_oneshot(s->ctx, virtio_scsi_dataplane_start_bh, s);
     aio_context_release(s->ctx);
     return 0;
 
