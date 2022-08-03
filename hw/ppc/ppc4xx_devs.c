@@ -491,32 +491,10 @@ enum {
     MAL0_RCBS1    = 0x1E1,
 };
 
-typedef struct ppc4xx_mal_t ppc4xx_mal_t;
-struct ppc4xx_mal_t {
-    qemu_irq irqs[4];
-    uint32_t cfg;
-    uint32_t esr;
-    uint32_t ier;
-    uint32_t txcasr;
-    uint32_t txcarr;
-    uint32_t txeobisr;
-    uint32_t txdeir;
-    uint32_t rxcasr;
-    uint32_t rxcarr;
-    uint32_t rxeobisr;
-    uint32_t rxdeir;
-    uint32_t *txctpr;
-    uint32_t *rxctpr;
-    uint32_t *rcbs;
-    uint8_t  txcnum;
-    uint8_t  rxcnum;
-};
-
-static void ppc4xx_mal_reset(void *opaque)
+static void ppc4xx_mal_reset(DeviceState *dev)
 {
-    ppc4xx_mal_t *mal;
+    Ppc4xxMalState *mal = PPC4xx_MAL(dev);
 
-    mal = opaque;
     mal->cfg = 0x0007C000;
     mal->esr = 0x00000000;
     mal->ier = 0x00000000;
@@ -530,10 +508,9 @@ static void ppc4xx_mal_reset(void *opaque)
 
 static uint32_t dcr_read_mal(void *opaque, int dcrn)
 {
-    ppc4xx_mal_t *mal;
+    Ppc4xxMalState *mal = PPC4xx_MAL(opaque);
     uint32_t ret;
 
-    mal = opaque;
     switch (dcrn) {
     case MAL0_CFG:
         ret = mal->cfg;
@@ -587,13 +564,12 @@ static uint32_t dcr_read_mal(void *opaque, int dcrn)
 
 static void dcr_write_mal(void *opaque, int dcrn, uint32_t val)
 {
-    ppc4xx_mal_t *mal;
+    Ppc4xxMalState *mal = PPC4xx_MAL(opaque);
 
-    mal = opaque;
     switch (dcrn) {
     case MAL0_CFG:
         if (val & 0x80000000) {
-            ppc4xx_mal_reset(mal);
+            ppc4xx_mal_reset(DEVICE(mal));
         }
         mal->cfg = val & 0x00FFC087;
         break;
@@ -644,23 +620,30 @@ static void dcr_write_mal(void *opaque, int dcrn, uint32_t val)
     }
 }
 
-void ppc4xx_mal_init(CPUPPCState *env, uint8_t txcnum, uint8_t rxcnum,
-                     qemu_irq irqs[4])
+static void ppc4xx_mal_realize(DeviceState *dev, Error **errp)
 {
-    ppc4xx_mal_t *mal;
+    Ppc4xxMalState *mal = PPC4xx_MAL(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    CPUPPCState *env;
     int i;
 
-    assert(txcnum <= 32 && rxcnum <= 32);
-    mal = g_malloc0(sizeof(*mal));
-    mal->txcnum = txcnum;
-    mal->rxcnum = rxcnum;
-    mal->txctpr = g_new0(uint32_t, txcnum);
-    mal->rxctpr = g_new0(uint32_t, rxcnum);
-    mal->rcbs = g_new0(uint32_t, rxcnum);
-    for (i = 0; i < 4; i++) {
-        mal->irqs[i] = irqs[i];
+    assert(mal->cpu);
+
+    env = &mal->cpu->env;
+
+    if (mal->txcnum > 32 || mal->rxcnum > 32) {
+        error_setg(errp, "invalid TXC/RXC number");
+        return;
     }
-    qemu_register_reset(&ppc4xx_mal_reset, mal);
+
+    mal->txctpr = g_new0(uint32_t, mal->txcnum);
+    mal->rxctpr = g_new0(uint32_t, mal->rxcnum);
+    mal->rcbs = g_new0(uint32_t, mal->rxcnum);
+
+    for (i = 0; i < ARRAY_SIZE(mal->irqs); i++) {
+        sysbus_init_irq(sbd, &mal->irqs[i]);
+    }
+
     ppc_dcr_register(env, MAL0_CFG,
                      mal, &dcr_read_mal, &dcr_write_mal);
     ppc_dcr_register(env, MAL0_ESR,
@@ -683,16 +666,63 @@ void ppc4xx_mal_init(CPUPPCState *env, uint8_t txcnum, uint8_t rxcnum,
                      mal, &dcr_read_mal, &dcr_write_mal);
     ppc_dcr_register(env, MAL0_RXDEIR,
                      mal, &dcr_read_mal, &dcr_write_mal);
-    for (i = 0; i < txcnum; i++) {
+    for (i = 0; i < mal->txcnum; i++) {
         ppc_dcr_register(env, MAL0_TXCTP0R + i,
                          mal, &dcr_read_mal, &dcr_write_mal);
     }
-    for (i = 0; i < rxcnum; i++) {
+    for (i = 0; i < mal->rxcnum; i++) {
         ppc_dcr_register(env, MAL0_RXCTP0R + i,
                          mal, &dcr_read_mal, &dcr_write_mal);
     }
-    for (i = 0; i < rxcnum; i++) {
+    for (i = 0; i < mal->rxcnum; i++) {
         ppc_dcr_register(env, MAL0_RCBS0 + i,
                          mal, &dcr_read_mal, &dcr_write_mal);
     }
 }
+
+static Property ppc4xx_mal_properties[] = {
+    DEFINE_PROP_UINT8("txc-num", Ppc4xxMalState, txcnum, 0),
+    DEFINE_PROP_UINT8("rxc-num", Ppc4xxMalState, rxcnum, 0),
+    DEFINE_PROP_LINK("cpu", Ppc4xxMalState, cpu, TYPE_POWERPC_CPU,
+                     PowerPCCPU *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void ppc4xx_mal_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = ppc4xx_mal_realize;
+    dc->user_creatable = false;
+    dc->reset = ppc4xx_mal_reset;
+    device_class_set_props(dc, ppc4xx_mal_properties);
+}
+
+void ppc4xx_mal_init(CPUPPCState *env, uint8_t txcnum, uint8_t rxcnum,
+                     qemu_irq irqs[4])
+{
+    PowerPCCPU *cpu = env_archcpu(env);
+    DeviceState *dev = qdev_new(TYPE_PPC4xx_MAL);
+    Ppc4xxMalState *mal = PPC4xx_MAL(dev);
+    int i;
+
+    qdev_prop_set_uint32(dev, "txc-num", txcnum);
+    qdev_prop_set_uint32(dev, "rxc-num", rxcnum);
+    object_property_set_link(OBJECT(cpu), "cpu", OBJECT(dev), &error_abort);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
+
+    for (i = 0; i < ARRAY_SIZE(mal->irqs); i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, irqs[i]);
+    }
+}
+
+static const TypeInfo ppc4xx_types[] = {
+    {
+        .name           = TYPE_PPC4xx_MAL,
+        .parent         = TYPE_SYS_BUS_DEVICE,
+        .instance_size  = sizeof(Ppc4xxMalState),
+        .class_init     = ppc4xx_mal_class_init,
+    }
+};
+
+DEFINE_TYPES(ppc4xx_types)
