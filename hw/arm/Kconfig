@@ -458,6 +458,11 @@ config ASPEED_SOC
     select PMBUS
     select MAX31785
 
+config FBOBMC_AST
+    bool
+    select ASPEED_SOC
+    select TPM_TIS_SPI
+
 config MPS2
     bool
     imply I2C_DEVICES

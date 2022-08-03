@@ -8,6 +8,11 @@ config TPM_TIS_SYSBUS
     depends on TPM
     select TPM_TIS
 
+config TPM_TIS_SPI
+    bool
+    depends on TPM
+    select TPM_TIS
+
 config TPM_TIS
     bool
     depends on TPM
