@@ -30,6 +30,7 @@
 #include "hw/ppc/ppc.h"
 #include "hw/i2c/ppc4xx_i2c.h"
 #include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "ppc405.h"
 #include "hw/char/serial.h"
 #include "qemu/timer.h"
@@ -1530,3 +1531,51 @@ PowerPCCPU *ppc405ep_init(MemoryRegion *address_space_mem,
 
     return cpu;
 }
+
+static void ppc405_soc_realize(DeviceState *dev, Error **errp)
+{
+    Ppc405SoCState *s = PPC405_SOC(dev);
+    Error *err = NULL;
+
+    memory_region_init_alias(&s->ram_memories[0], OBJECT(s),
+                             "ppc405.ram.alias", s->dram_mr, 0, s->ram_size);
+    s->ram_bases[0] = 0;
+    s->ram_sizes[0] = s->ram_size;
+
+    /* allocate SRAM */
+    memory_region_init_ram(&s->sram, OBJECT(s), "ppc405.sram",
+                           PPC405EP_SRAM_SIZE,  &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    memory_region_add_subregion(get_system_memory(), PPC405EP_SRAM_BASE,
+                                &s->sram);
+}
+
+static Property ppc405_soc_properties[] = {
+    DEFINE_PROP_LINK("dram", Ppc405SoCState, dram_mr, TYPE_MEMORY_REGION,
+                     MemoryRegion *),
+    DEFINE_PROP_UINT64("ram-size", Ppc405SoCState, ram_size, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void ppc405_soc_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = ppc405_soc_realize;
+    dc->user_creatable = false;
+    device_class_set_props(dc, ppc405_soc_properties);
+}
+
+static const TypeInfo ppc405_types[] = {
+    {
+        .name           = TYPE_PPC405_SOC,
+        .parent         = TYPE_DEVICE,
+        .instance_size  = sizeof(Ppc405SoCState),
+        .class_init     = ppc405_soc_class_init,
+    }
+};
+
+DEFINE_TYPES(ppc405_types)
