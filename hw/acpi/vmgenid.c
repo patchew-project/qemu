@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/visitor.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-machine.h"
 #include "qemu/module.h"
@@ -35,7 +36,7 @@ void vmgenid_build_acpi(VmGenIdState *vms, GArray *table_data, GArray *guid,
     /* Fill in the GUID values.  These need to be converted to little-endian
      * first, since that's what the guest expects
      */
-    g_array_set_size(guid, VMGENID_FW_CFG_SIZE - ARRAY_SIZE(guid_le.data));
+    g_array_set_size(guid, vms->page_size - ARRAY_SIZE(guid_le.data));
     guid_le = qemu_uuid_bswap(vms->guid);
     /* The GUID is written at a fixed offset into the fw_cfg file
      * in order to implement the "OVMF SDT Header probe suppressor"
@@ -94,7 +95,8 @@ void vmgenid_build_acpi(VmGenIdState *vms, GArray *table_data, GArray *guid,
     g_array_append_vals(table_data, ssdt->buf->data, ssdt->buf->len);
 
     /* Allocate guest memory for the Data fw_cfg blob */
-    bios_linker_loader_alloc(linker, VMGENID_GUID_FW_CFG_FILE, guid, 4096,
+    bios_linker_loader_alloc(linker, VMGENID_GUID_FW_CFG_FILE, guid,
+                             vms->page_size,
                              false /* page boundary, high memory */);
 
     /* Patch address of GUID fw_cfg blob into the ADDR fw_cfg blob
@@ -124,8 +126,7 @@ void vmgenid_build_acpi(VmGenIdState *vms, GArray *table_data, GArray *guid,
 void vmgenid_add_fw_cfg(VmGenIdState *vms, FWCfgState *s, GArray *guid)
 {
     /* Create a read-only fw_cfg file for GUID */
-    fw_cfg_add_file(s, VMGENID_GUID_FW_CFG_FILE, guid->data,
-                    VMGENID_FW_CFG_SIZE);
+    fw_cfg_add_file(s, VMGENID_GUID_FW_CFG_FILE, guid->data, vms->page_size);
     /* Create a read-write fw_cfg file for Address */
     fw_cfg_add_file_callback(s, VMGENID_ADDR_FW_CFG_FILE, NULL, NULL, NULL,
                              vms->vmgenid_addr_le,
@@ -215,8 +216,56 @@ static void vmgenid_realize(DeviceState *dev, Error **errp)
     vmgenid_update_guest(vms);
 }
 
+static void get_page_size(Object *obj, Visitor *v, const char *name,
+                         void *opaque, Error **errp)
+{
+    Property *prop = opaque;
+    uint32_t *page_size = object_field_prop_ptr(obj, prop);
+
+    visit_type_uint32(v, name, page_size, errp);
+}
+
+static void set_page_size(Object *obj, Visitor *v, const char *name,
+                         void *opaque, Error **errp)
+{
+    Property *prop = opaque;
+    uint32_t *page_size = object_field_prop_ptr(obj, prop);
+    uint32_t val;
+    char str[10];
+
+    if (!visit_type_uint32(v, name, &val, errp)) {
+        return;
+    }
+
+    switch (val) {
+    case 4096:
+    case 65536:
+        *page_size = val;
+        break;
+    default:
+        snprintf(str, 10, "%d", val);
+        error_set_from_qdev_prop_error(errp, EINVAL, obj, name, str);
+    }
+}
+
+static void set_default_page_size(ObjectProperty *op, const Property *prop)
+{
+    object_property_set_default_uint(op, VMGENID_DEFAULT_FW_PAGE_SIZE);
+}
+
+const PropertyInfo vmgenid_prop_page_size = {
+    .name = "uint32",
+    .description = "Page size to use for allocating device memory. \""
+                   "\"Valid values: 4096(default) 65536",
+    .get = get_page_size,
+    .set = set_page_size,
+    .set_default_value = set_default_page_size,
+};
+
 static Property vmgenid_device_properties[] = {
     DEFINE_PROP_UUID(VMGENID_GUID, VmGenIdState, guid),
+    DEFINE_PROP_UNSIGNED(VMGENID_PAGE_SIZE, VmGenIdState, page_size, 0,
+                         vmgenid_prop_page_size, uint32_t),
     DEFINE_PROP_END_OF_LIST(),
 };
 

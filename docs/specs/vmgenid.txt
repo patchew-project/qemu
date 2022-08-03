@@ -225,14 +225,16 @@ following diagram:
 Device Usage:
 -------------
 
-The device has one property, which may be only be set using the command line:
+The device has two properties, which may be only be set using the command line:
 
-  guid - sets the value of the GUID.  A special value "auto" instructs
+  guid - sets the value of the GUID. A special value "auto" instructs
          QEMU to generate a new random GUID.
+  page-size - sets the target machines page size. Currently accepted values
+              are 4096 (default) and 65536.
 
 For example:
 
-  QEMU  -device vmgenid,guid="324e6eaf-d1d1-4bf6-bf41-b9bb6c91fb87"
+  QEMU  -device vmgenid,guid="324e6eaf-d1d1-4bf6-bf41-b9bb6c91fb87",page-size=65536
   QEMU  -device vmgenid,guid=auto
 
 The property may be queried via QMP/HMP:

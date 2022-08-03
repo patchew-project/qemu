@@ -6,15 +6,16 @@
 #include "qemu/uuid.h"
 #include "qom/object.h"
 
-#define TYPE_VMGENID           "vmgenid"
-#define VMGENID_GUID             "guid"
+#define TYPE_VMGENID                  "vmgenid"
+#define VMGENID_GUID                  "guid"
+#define VMGENID_PAGE_SIZE             "page-size"
 #define VMGENID_GUID_FW_CFG_FILE      "etc/vmgenid_guid"
 #define VMGENID_ADDR_FW_CFG_FILE      "etc/vmgenid_addr"
 
-#define VMGENID_FW_CFG_SIZE      4096 /* Occupy a page of memory */
-#define VMGENID_GUID_OFFSET      40   /* allow space for
-                                       * OVMF SDT Header Probe Supressor
-                                       */
+#define VMGENID_DEFAULT_FW_PAGE_SIZE  4096 /* Assume 4K page by default */
+#define VMGENID_GUID_OFFSET           40   /* allow space for OVMF SDT Header
+                                            * Probe Supressor
+                                            */
 
 OBJECT_DECLARE_SIMPLE_TYPE(VmGenIdState, VMGENID)
 
@@ -22,6 +23,7 @@ struct VmGenIdState {
     DeviceState parent_obj;
     QemuUUID guid;                /* The 128-bit GUID seen by the guest */
     uint8_t vmgenid_addr_le[8];   /* Address of the GUID (little-endian) */
+    uint32_t page_size;           /* Page size to use as a the allocation unit */
 };
 
 /* returns NULL unless there is exactly one device */
