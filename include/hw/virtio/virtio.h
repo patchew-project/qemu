@@ -120,9 +120,29 @@ struct VirtioDeviceClass {
     /* This is what a VirtioDevice must implement */
     DeviceRealize realize;
     DeviceUnrealize unrealize;
+
+    /**
+     * get_features:
+     * @vdev: the VirtIODevice
+     * @requested_features: existing device feature bits from
+     *                      vdev->host_features
+     * @errp: pointer to error object
+     *
+     * Get the device feature bits.
+     *
+     * The ->get_features() function typically sets always-on device feature
+     * bits as well as conditional feature bits that require some logic to
+     * compute.
+     *
+     * Device feature bits can also be set in vdev->host_features before this
+     * function is called using DEFINE_PROP_BIT64() qdev properties.
+     *
+     * Returns: the final device feature bits to store in vdev->host_features.
+     */
     uint64_t (*get_features)(VirtIODevice *vdev,
                              uint64_t requested_features,
                              Error **errp);
+
     uint64_t (*bad_features)(VirtIODevice *vdev);
     void (*set_features)(VirtIODevice *vdev, uint64_t val);
     int (*validate_features)(VirtIODevice *vdev);
