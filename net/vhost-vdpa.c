@@ -363,11 +363,54 @@ static ssize_t vhost_vdpa_net_cvq_add(VhostVDPAState *s, size_t out_len,
     return vhost_svq_poll(svq);
 }
 
+static int vhost_vdpa_net_load(NetClientState *nc)
+{
+    VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, nc);
+    struct vhost_vdpa *v = &s->vhost_vdpa;
+    VirtIONet *n;
+    uint64_t features;
+
+    assert(nc->info->type == NET_CLIENT_DRIVER_VHOST_VDPA);
+
+    if (!v->shadow_vqs_enabled) {
+        return 0;
+    }
+
+    n = VIRTIO_NET(v->dev->vdev);
+    features = v->dev->vdev->host_features;
+    if (features & BIT_ULL(VIRTIO_NET_F_CTRL_MAC_ADDR)) {
+        const struct virtio_net_ctrl_hdr ctrl = {
+            .class = VIRTIO_NET_CTRL_MAC,
+            .cmd = VIRTIO_NET_CTRL_MAC_ADDR_SET,
+        };
+        char *cursor = s->cvq_cmd_out_buffer;
+        ssize_t dev_written;
+        virtio_net_ctrl_ack state;
+
+        memcpy(cursor, &ctrl, sizeof(ctrl));
+        cursor += sizeof(ctrl);
+        memcpy(cursor, n->mac, sizeof(n->mac));
+        cursor += sizeof(n->mac);
+
+        dev_written = vhost_vdpa_net_cvq_add(s, sizeof(ctrl) + sizeof(n->mac),
+                                             sizeof(state));
+        if (unlikely(dev_written < 0)) {
+            return dev_written;
+        }
+
+        memcpy(&state, s->cvq_cmd_in_buffer, sizeof(state));
+        return state == VIRTIO_NET_OK ? 0 : -1;
+    }
+
+    return 0;
+}
+
 static NetClientInfo net_vhost_vdpa_cvq_info = {
     .type = NET_CLIENT_DRIVER_VHOST_VDPA,
     .size = sizeof(VhostVDPAState),
     .receive = vhost_vdpa_receive,
     .prepare = vhost_vdpa_net_cvq_prepare,
+    .load = vhost_vdpa_net_load,
     .stop = vhost_vdpa_net_cvq_stop,
     .cleanup = vhost_vdpa_cleanup,
     .has_vnet_hdr = vhost_vdpa_has_vnet_hdr,
