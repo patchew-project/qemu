@@ -38,7 +38,8 @@ static void ssi_cs_default(void *opaque, int n, int level)
     bool cs = !!level;
     assert(n == 0);
     if (s->cs != cs) {
-        SSIPeripheralClass *ssc = SSI_PERIPHERAL_GET_CLASS(s);
+        /* SSIPeripheralClass *ssc = SSI_PERIPHERAL_GET_CLASS(s); */
+        SSIPeripheralClass *ssc = s->spc;
         if (ssc->set_cs) {
             ssc->set_cs(s, cs);
         }
@@ -48,7 +49,8 @@ static void ssi_cs_default(void *opaque, int n, int level)
 
 static uint32_t ssi_transfer_raw_default(SSIPeripheral *dev, uint32_t val)
 {
-    SSIPeripheralClass *ssc = SSI_PERIPHERAL_GET_CLASS(dev);
+    /* SSIPeripheralClass *ssc = SSI_PERIPHERAL_GET_CLASS(dev); */
+    SSIPeripheralClass *ssc = dev->spc;
 
     if ((dev->cs && ssc->cs_polarity == SSI_CS_HIGH) ||
             (!dev->cs && ssc->cs_polarity == SSI_CS_LOW) ||
@@ -67,6 +69,7 @@ static void ssi_peripheral_realize(DeviceState *dev, Error **errp)
             ssc->cs_polarity != SSI_CS_NONE) {
         qdev_init_gpio_in_named(dev, ssi_cs_default, SSI_GPIO_CS, 1);
     }
+    s->spc = ssc;
 
     ssc->realize(s, errp);
 }
@@ -120,7 +123,8 @@ uint32_t ssi_transfer(SSIBus *bus, uint32_t val)
 
     QTAILQ_FOREACH(kid, &b->children, sibling) {
         SSIPeripheral *peripheral = SSI_PERIPHERAL(kid->child);
-        ssc = SSI_PERIPHERAL_GET_CLASS(peripheral);
+        /* ssc = SSI_PERIPHERAL_GET_CLASS(peripheral); */
+        ssc = peripheral->spc;
         r |= ssc->transfer_raw(peripheral, val);
     }
 

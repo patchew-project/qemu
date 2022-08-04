@@ -198,6 +198,35 @@ struct Object
     OBJ_NAME##_CLASS(const void *klass) \
     { return OBJECT_CLASS_CHECK(ClassType, klass, TYPENAME); }
 
+#if 0
+/**
+ * DECLARE_CACHED_CLASS_CHECKER:
+ * @InstanceType: instance struct name
+ * @ClassType: class struct name
+ * @OBJ_NAME: the object name in uppercase with underscore separators
+ * @TYPENAME: type name
+ *
+ * This variant of DECLARE_CLASS_CHECKERS allows for the caching of
+ * class in the parent object instance. This is useful for very hot
+ * path code at the expense of an extra indirection and check. As per
+ * the original direct usage of this macro should be avoided if the
+ * complete OBJECT_DECLARE_TYPE macro has been used.
+ *
+ * This macro will provide the class type cast functions for a
+ * QOM type.
+ */
+#define DECLARE_CACHED_CLASS_CHECKERS(InstanceType, ClassType, OBJ_NAME, TYPENAME) \
+    DECLARE_CLASS_CHECKERS(ClassType, OBJ_NAME, TYPENAME) \
+    static inline G_GNUC_UNUSED ClassType * \
+    OBJ_NAME##_GET_CACHED_CLASS(const void *obj) \
+    { \
+        InstanceType *p = (InstanceType *) obj; \
+        p->cc = p->cc ? p->cc : OBJECT_GET_CLASS(ClassType, obj, TYPENAME);\
+        return p->cc;                                                   \
+    }
+
+#endif
+
 /**
  * DECLARE_OBJ_CHECKERS:
  * @InstanceType: instance struct name

@@ -1303,8 +1303,9 @@ static inline ram_addr_t qemu_ram_addr_from_host_nofail(void *ptr)
 static void tlb_fill(CPUState *cpu, target_ulong addr, int size,
                      MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    CPUClass *cc = cpu->cc ? cpu->cc : CPU_GET_CLASS(cpu);
     bool ok;
+    cpu->cc = cc;
 
     /*
      * This is not a probe, so only valid return is success; failure
@@ -1319,7 +1320,8 @@ static inline void cpu_unaligned_access(CPUState *cpu, vaddr addr,
                                         MMUAccessType access_type,
                                         int mmu_idx, uintptr_t retaddr)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    CPUClass *cc = cpu->cc ? cpu->cc : CPU_GET_CLASS(cpu);
+    cpu->cc = cc;
 
     cc->tcg_ops->do_unaligned_access(cpu, addr, access_type, mmu_idx, retaddr);
 }
@@ -1331,7 +1333,8 @@ static inline void cpu_transaction_failed(CPUState *cpu, hwaddr physaddr,
                                           MemTxResult response,
                                           uintptr_t retaddr)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    CPUClass *cc = cpu->cc ? cpu->cc : CPU_GET_CLASS(cpu);
+    cpu->cc = cc;
 
     if (!cpu->ignore_memory_transaction_failures &&
         cc->tcg_ops->do_transaction_failed) {
@@ -1606,7 +1609,8 @@ static int probe_access_internal(CPUArchState *env, target_ulong addr,
     if (!tlb_hit_page(tlb_addr, page_addr)) {
         if (!victim_tlb_hit(env, mmu_idx, index, elt_ofs, page_addr)) {
             CPUState *cs = env_cpu(env);
-            CPUClass *cc = CPU_GET_CLASS(cs);
+            CPUClass *cc = cs->cc ? cs->cc : CPU_GET_CLASS(cs);
+            cs->cc = cc;
 
             if (!cc->tcg_ops->tlb_fill(cs, addr, fault_size, access_type,
                                        mmu_idx, nonfault, retaddr)) {
