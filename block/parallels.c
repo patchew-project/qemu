@@ -429,7 +429,7 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
     int ret, n;
     uint32_t i, idx_host, *reversed_bat;
     int64_t *cluster_buf;
-    bool flush_bat = false;
+    bool flush_bat = false, truncate_silently = false;
 
     size = bdrv_getlength(bs->file->bs);
     if (size < 0) {
@@ -547,6 +547,7 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
 
                 res->corruptions_fixed++;
                 flush_bat = true;
+                truncate_silently = true;
             }
         }
         reversed_bat[idx_host] = i;
@@ -576,10 +577,13 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
     if (size > res->image_end_offset) {
         int64_t count;
         count = DIV_ROUND_UP(size - res->image_end_offset, s->cluster_size);
-        fprintf(stderr, "%s space leaked at the end of the image %" PRId64 "\n",
-                fix & BDRV_FIX_LEAKS ? "Repairing" : "ERROR",
-                size - res->image_end_offset);
-        res->leaks += count;
+        if (!truncate_silently) {
+            fprintf(stderr,
+                    "%s space leaked at the end of the image %" PRId64 "\n",
+                    fix & BDRV_FIX_LEAKS ? "Repairing" : "ERROR",
+                    size - res->image_end_offset);
+            res->leaks += count;
+        }
         if (fix & BDRV_FIX_LEAKS) {
             Error *local_err = NULL;
 
@@ -594,7 +598,10 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
                 res->check_errors++;
                 goto out;
             }
-            res->leaks_fixed += count;
+
+            if (!truncate_silently) {
+                res->leaks_fixed += count;
+            }
         }
     }
 
