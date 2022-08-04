@@ -54,6 +54,7 @@ typedef struct DisasContext {
     int qreg_log_idx;
     bool pre_commit;
     uint32_t npc;
+    bool insn_is_noshuf_pload;
 } DisasContext;
 
 static inline void ctx_log_reg_write(DisasContext *ctx, int rnum)
@@ -147,6 +148,7 @@ extern TCGv hex_QRegs_updated;
 extern TCGv hex_vstore_addr[VSTORES_MAX];
 extern TCGv hex_vstore_size[VSTORES_MAX];
 extern TCGv hex_vstore_pending[VSTORES_MAX];
+extern TCGv hex_did_s1_store;
 
 bool is_gather_store_insn(Insn *insn, Packet *pkt);
 void process_store(DisasContext *ctx, Packet *pkt, int slot_num);

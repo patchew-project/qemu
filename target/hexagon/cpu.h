@@ -107,6 +107,14 @@ typedef struct CPUArchState {
     target_ulong llsc_val;
     uint64_t     llsc_val_i64;
 
+    /*
+     * Global state which keeps tracks of whether or not a process_store was
+     * actually executed at runtime. Used only for :mem_noshuf packets with a
+     * pload instruction to execute the process_store at packet commit if the
+     * predicated branch is not taken.
+     */
+    target_ulong did_s1_store;
+
     MMVector VRegs[NUM_VREGS] QEMU_ALIGNED(16);
     MMVector future_VRegs[VECTOR_TEMPS_MAX] QEMU_ALIGNED(16);
     MMVector tmp_VRegs[VECTOR_TEMPS_MAX] QEMU_ALIGNED(16);

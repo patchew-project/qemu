@@ -53,6 +53,7 @@ TCGv hex_QRegs_updated;
 TCGv hex_vstore_addr[VSTORES_MAX];
 TCGv hex_vstore_size[VSTORES_MAX];
 TCGv hex_vstore_pending[VSTORES_MAX];
+TCGv hex_did_s1_store;
 
 static const char * const hexagon_prednames[] = {
   "p0", "p1", "p2", "p3"
@@ -238,6 +239,9 @@ static void gen_start_packet(DisasContext *ctx, Packet *pkt)
         gen_helper_debug_start_packet(cpu_env);
         tcg_gen_movi_tl(hex_this_PC, ctx->base.pc_next);
     }
+
+    ctx->insn_is_noshuf_pload = false;
+    tcg_gen_movi_tl(hex_did_s1_store, 0);
 
     /* Initialize the runtime state for packet semantics */
     if (need_pc(pkt)) {
@@ -494,6 +498,22 @@ void process_store(DisasContext *ctx, Packet *pkt, int slot_num)
 
 static void process_store_log(DisasContext *ctx, Packet *pkt)
 {
+    /*
+     * Here we deal with the special case of a :mem_noshuf packet with a
+     * predicated load in slot 0 with a store in slot 1. If the predicated
+     * branch wasn't taken during packet execution, then store in slot 1
+     * will not have been executed, corresponding to hex_did_store_s1 being 0.
+     * If this is the case, process the store here.
+     */
+    if (ctx->insn_is_noshuf_pload) {
+        TCGLabel *l = gen_new_label();
+        /* Reset s1_store_processed so process_store actually emits a store */
+        ctx->s1_store_processed = false;
+        tcg_gen_brcondi_tl(TCG_COND_EQ, hex_did_s1_store, 1, l);
+        process_store(ctx, pkt, 1);
+        gen_set_label(l);
+    }
+
     /*
      *  When a packet has two stores, the hardware processes
      *  slot 1 and then slot 0.  This will be important when
@@ -925,6 +945,8 @@ void hexagon_translate_init(void)
         offsetof(CPUHexagonState, llsc_val), "llsc_val");
     hex_llsc_val_i64 = tcg_global_mem_new_i64(cpu_env,
         offsetof(CPUHexagonState, llsc_val_i64), "llsc_val_i64");
+    hex_did_s1_store = tcg_global_mem_new(cpu_env,
+        offsetof(CPUHexagonState, did_s1_store), "did_s1_store");
     hex_VRegs_updated = tcg_global_mem_new(cpu_env,
         offsetof(CPUHexagonState, VRegs_updated), "VRegs_updated");
     hex_QRegs_updated = tcg_global_mem_new(cpu_env,
