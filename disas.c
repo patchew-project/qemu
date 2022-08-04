@@ -176,6 +176,8 @@ static void initialize_debug_host(CPUDebug *s)
 #else
 #error unsupported RISC-V ABI
 #endif
+#elif defined(__loongarch__)
+    s->info.print_insn = print_insn_loongarch;
 #elif defined(__aarch64__)
     s->info.cap_arch = CS_ARCH_ARM64;
 #elif defined(__alpha__)
