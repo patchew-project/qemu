@@ -64,6 +64,11 @@ static QEnumLookup prealloc_mode_lookup = {
 #define PARALLELS_OPT_PREALLOC_MODE     "prealloc-mode"
 #define PARALLELS_OPT_PREALLOC_SIZE     "prealloc-size"
 
+#define REVERSED_BAT_UNTOUCHED  0xFFFFFFFF
+
+#define HOST_CLUSTER_INDEX(s, off) \
+    ((off - ((s->header->data_off) << BDRV_SECTOR_BITS)) / (s->cluster_size))
+
 static QemuOptsList parallels_runtime_opts = {
     .name = "parallels",
     .head = QTAILQ_HEAD_INITIALIZER(parallels_runtime_opts.head),
@@ -419,9 +424,11 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
                                            BdrvCheckMode fix)
 {
     BDRVParallelsState *s = bs->opaque;
-    int64_t size, prev_off, high_off;
-    int ret;
-    uint32_t i;
+    QEMUIOVector qiov;
+    int64_t size, prev_off, high_off, sector_num;
+    int ret, n;
+    uint32_t i, idx_host, *reversed_bat;
+    int64_t *cluster_buf;
     bool flush_bat = false;
 
     size = bdrv_getlength(bs->file->bs);
@@ -443,7 +450,30 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
     }
 
     res->bfi.total_clusters = s->bat_size;
+    res->bfi.allocated_clusters = 0;
     res->bfi.compressed_clusters = 0; /* compression is not supported */
+
+    cluster_buf = g_malloc(s->cluster_size);
+    qemu_iovec_init(&qiov, 0);
+    qemu_iovec_add(&qiov, cluster_buf, s->cluster_size);
+
+    /*
+     * Make a reversed BAT. The table has the same size as BAT.
+     * Initially the table is filled with REVERSED_BAT_UNTOUCHED values.
+     * A position in the table is defined by a host index
+     * (a number of a cluster in the data area):
+     *     index = (cluster_offset - data_area_offset) / cluster_size
+     * In the main loop fill the table with guest indexes
+     * (a number of entry in BAT).
+     * Before this, check if the relevant entry in the reversed table
+     * is REVERSED_BAT_UNTOUCHED. If that's not true, a guest index was
+     * written to the reversed table on a previous step.
+     * It means there is a duplicate offset.
+     */
+    reversed_bat = g_malloc(s->bat_size * sizeof(uint32_t));
+    for (i = 0; i < s->bat_size; i++) {
+        reversed_bat[i] = REVERSED_BAT_UNTOUCHED;
+    }
 
     high_off = 0;
     prev_off = 0;
@@ -468,6 +498,59 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
             }
         }
 
+        /* Checking bat entry uniqueness. */
+        idx_host = HOST_CLUSTER_INDEX(s, off);
+        if (reversed_bat[idx_host] != REVERSED_BAT_UNTOUCHED) {
+            /* duplicated offset in BAT */
+            fprintf(stderr,
+                    "%s BAT offset in entry %u duplicates offset in entry %u\n",
+                    fix & BDRV_FIX_ERRORS ? "Repairing" : "ERROR",
+                    i, reversed_bat[idx_host]);
+            res->corruptions++;
+
+            if (fix & BDRV_FIX_ERRORS) {
+                /* copy data to a new cluster */
+                sector_num = bat2sect(s, reversed_bat[idx_host]);
+
+                ret = bdrv_pread(bs->file, sector_num << BDRV_SECTOR_BITS,
+                                 s->cluster_size, cluster_buf, 0);
+                if (ret < 0) {
+                    res->check_errors++;
+                    goto out;
+                }
+
+                s->bat_bitmap[i] = 0;
+
+                sector_num = (i * s->cluster_size) >> BDRV_SECTOR_BITS;
+                off = allocate_clusters(bs, sector_num, s->tracks, &n);
+                if (off < 0) {
+                    res->check_errors++;
+                    goto out;
+                }
+                off <<= BDRV_SECTOR_BITS;
+
+                /* off is new and we should repair idx_host accordingly. */
+                idx_host = HOST_CLUSTER_INDEX(s, off);
+
+                ret = bdrv_co_pwritev(bs->file, off, s->cluster_size, &qiov, 0);
+                if (ret < 0) {
+                    res->check_errors++;
+                    goto out;
+                }
+
+                size = bdrv_getlength(bs->file->bs);
+                if (size < 0) {
+                    res->check_errors++;
+                    ret = size;
+                    goto out;
+                }
+
+                res->corruptions_fixed++;
+                flush_bat = true;
+            }
+        }
+        reversed_bat[idx_host] = i;
+
         res->bfi.allocated_clusters++;
         if (off > high_off) {
             high_off = off;
@@ -477,6 +560,7 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
             res->bfi.fragmented_clusters++;
         }
         prev_off = off;
+
     }
 
     ret = 0;
@@ -515,6 +599,9 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
     }
 
 out:
+    qemu_iovec_destroy(&qiov);
+    g_free(cluster_buf);
+    g_free(reversed_bat);
     qemu_co_mutex_unlock(&s->lock);
     return ret;
 }
