@@ -57,6 +57,18 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
     uint32_t cflags = tb_cflags(tb);
     bool plugin_enabled;
 
+    /*
+     * In case translate_insn hook touched an unreadable page, redo the
+     * translation until the problematic instruction.  We cannot just throw
+     * away the trailing ops, because the hook could have changed DisasContext.
+     */
+    tcg_debug_assert(!cpu->translator_jmp);
+    if (sigsetjmp(cpu->translator_jmp_env, 1) != 0) {
+        cpu->translator_jmp = false;
+        tcg_remove_ops_after(NULL);
+        max_insns = db->num_insns - 1;
+    }
+
     /* Initialize DisasContext */
     db->tb = tb;
     db->pc_first = tb->pc;
@@ -122,7 +134,20 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
             db->is_jmp = DISAS_TOO_MANY;
             break;
         }
+
+        /*
+         * Propagate SEGVs from the first instruction to the guest and handle
+         * the rest. This way guest's siginfo_t gets accurate pc and si_addr.
+         */
+        cpu->translator_jmp = true;
     }
+
+    /*
+     * Clear translator_jmp on all ways out of this function, otherwise
+     * instructions that fetch code as part of their operation will be
+     * confused.
+     */
+    cpu->translator_jmp = false;
 
     /* Emit code to exit the TB, as indicated by db->is_jmp.  */
     ops->tb_stop(db, cpu);

@@ -2295,12 +2295,18 @@ void page_set_flags(target_ulong start, target_ulong end, int flags)
          len != 0;
          len -= TARGET_PAGE_SIZE, addr += TARGET_PAGE_SIZE) {
         PageDesc *p = page_find_alloc(addr >> TARGET_PAGE_BITS, 1);
+        bool invalidate;
 
-        /* If the write protection bit is set, then we invalidate
-           the code inside.  */
-        if (!(p->flags & PAGE_WRITE) &&
-            (flags & PAGE_WRITE) &&
-            p->first_tb) {
+        /*
+         * If the write protection bit is set, then we invalidate the code
+         * inside.  For qemu-user, we need to do this when PAGE_READ is cleared
+         * as well, in order to force a SEGV when trying to run this code.
+         */
+        invalidate = !(p->flags & PAGE_WRITE) && (flags & PAGE_WRITE);
+#ifdef CONFIG_USER_ONLY
+        invalidate |= (p->flags & PAGE_READ) && !(flags & PAGE_READ);
+#endif
+        if (invalidate && p->first_tb) {
             tb_invalidate_phys_page(addr, 0);
         }
         if (reset_target_data) {

@@ -833,6 +833,11 @@ static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
         abi_ptr guest_addr;
         bool is_write;
 
+        /* Translator wants to handle this. */
+        if (helper_retaddr == 1 && cpu->translator_jmp) {
+            siglongjmp(cpu->translator_jmp_env, 1);
+        }
+
         host_addr = (uintptr_t)info->si_addr;
 
         /*

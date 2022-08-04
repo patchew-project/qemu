@@ -349,6 +349,8 @@ struct CPUState {
     int64_t icount_extra;
     uint64_t random_seed;
     sigjmp_buf jmp_env;
+    bool translator_jmp;
+    sigjmp_buf translator_jmp_env;
 
     QemuMutex work_mutex;
     QSIMPLEQ_HEAD(, qemu_work_item) work_list;
