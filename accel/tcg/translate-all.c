@@ -2295,12 +2295,19 @@ void page_set_flags(target_ulong start, target_ulong end, int flags)
          len != 0;
          len -= TARGET_PAGE_SIZE, addr += TARGET_PAGE_SIZE) {
         PageDesc *p = page_find_alloc(addr >> TARGET_PAGE_BITS, 1);
+        bool write_set, read_cleared;
 
-        /* If the write protection bit is set, then we invalidate
-           the code inside.  */
-        if (!(p->flags & PAGE_WRITE) &&
-            (flags & PAGE_WRITE) &&
-            p->first_tb) {
+        /*
+         * If the write protection bit is set, then we invalidate the code
+         * inside.
+         */
+        write_set = !(p->flags & PAGE_WRITE) && (flags & PAGE_WRITE);
+        /*
+         * If PAGE_READ is cleared, we also need to invalidate the code in
+         * order to force a fault when trying to run it.
+         */
+        read_cleared = (p->flags & PAGE_READ) && !(flags & PAGE_READ);
+        if ((write_set || read_cleared) && p->first_tb) {
             tb_invalidate_phys_page(addr, 0);
         }
         if (reset_target_data) {
