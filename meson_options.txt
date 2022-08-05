@@ -104,6 +104,34 @@ option('avx2', type: 'feature', value: 'auto',
        description: 'AVX2 optimizations')
 option('avx512f', type: 'feature', value: 'disabled',
        description: 'AVX512F optimizations')
+       option('avx512bw', type: 'feature', value: 'auto',
+       description: 'AVX512BW optimizations')
+option('avx512cd', type: 'feature', value: 'disabled',
+       description: 'AVX512CD optimizations')
+option('avx512dq', type: 'feature', value: 'disabled',
+       description: 'AVX512DQ optimizations')
+option('avx512er', type: 'feature', value: 'disabled',
+       description: 'AVX512ER optimizations')
+option('avx512ifma52', type: 'feature', value: 'disabled',
+       description: 'AVX512ifma52 optimizations')
+option('avx512pf', type: 'feature', value: 'disabled',
+       description: 'AVX512pf optimizations')
+option('avx512vpopcntdq', type: 'feature', value: 'disabled',
+       description: 'AVX512VPOPCNTDQ optimizations')
+option('avx5124vnniw', type: 'feature', value: 'disabled',
+       description: 'AVX5124VNNIW optimizations')
+option('avx512bitalg', type: 'feature', value: 'disabled',
+       description: 'AVX512BITALG optimizations')
+option('avx512bitalg', type: 'feature', value: 'disabled',
+       description: 'AVX512BITALG optimizations')
+option('avx512vbmi', type: 'feature', value: 'disabled',
+       description: 'AVX512VBMI optimizations')
+option('avx512vbmi2', type: 'feature', value: 'disabled',
+       description: 'AVX512VBMI2 optimizations')
+option('avx512vnni', type: 'feature', value: 'disabled',
+       description: 'AVX512VNNI optimizations')
+option('avx512fp16', type: 'feature', value: 'disabled',
+       description: 'AVX512FP16 optimizations')
 option('keyring', type: 'feature', value: 'auto',
        description: 'Linux keyring support')
 

@@ -2262,6 +2262,217 @@ config_host_data.set('CONFIG_AVX512F_OPT', get_option('avx512f') \
     int main(int argc, char *argv[]) { return bar(argv[0]); }
   '''), error_message: 'AVX512F not available').allowed())
 
+config_host_data.set('CONFIG_AVX512BW_OPT', get_option('avx512bw') \
+  .require(have_cpuid_h, error_message: 'cpuid.h not available, cannot enable AVX512BW') \
+  .require(cc.links('''
+    #pragma GCC push_options
+    #pragma GCC target("avx512bw")
+    #include <cpuid.h>
+    #include <immintrin.h>
+    static int bar(void *a) {
+
+      __m512i x = *(__m512i *)a;
+      __m512i res= _mm512_abs_epi8(x);
+      return res[1];
+    }
+    int main(int argc, char *argv[]) { return bar(argv[0]); }
+  '''), error_message: 'AVX512BW not available').allowed())
+
+config_host_data.set('CONFIG_AVX512CD_OPT', get_option('avx512cd') \
+  .require(have_cpuid_h, error_message: 'cpuid.h not available, cannot enable AVX512CD') \
+  .require(cc.links('''
+    #pragma GCC push_options
+    #pragma GCC target("avx512cd")
+    #include <cpuid.h>
+    #include <immintrin.h>
+    static int bar(void *a) {
+
+      __m512i x = *(__m512i *)a;
+      __mmask16 k;
+      __m512i res= _mm512_maskz_lzcnt_epi32 (k, x);
+      return res[1];
+    }
+    int main(int argc, char *argv[]) { return bar(argv[0]); }
+  '''), error_message: 'AVX512CD not available').allowed())
+
+config_host_data.set('CONFIG_AVX512DQ_OPT', get_option('avx512dq') \
+  .require(have_cpuid_h, error_message: 'cpuid.h not available, cannot enable AVX512D') \
+  .require(cc.links('''
+    #pragma GCC push_options
+    #pragma GCC target("avx512dq")
+    #include <cpuid.h>
+    #include <immintrin.h>
+    static int bar(void *a) {
+
+      __mmask x = *(__mmask *)a;
+      __mmask8 b;
+      return _kxor_mask8(x,b);
+    }
+    int main(int argc, char *argv[]) { return bar(argv[0]); }
+  '''), error_message: 'AVX512DQ not available').allowed())
+
+config_host_data.set('CONFIG_AVX512ER_OPT', get_option('avx512er') \
+  .require(have_cpuid_h, error_message: 'cpuid.h not available, cannot enable AVX512ER') \
+  .require(cc.links('''
+    #pragma GCC push_options
+    #pragma GCC target("avx512er")
+    #include <cpuid.h>
+    #include <immintrin.h>
+    static int bar(void *a) {
+
+      __m512d x = *(__m512d *)a;
+      __m512d res=_mm512_rsqrt28_pd(x);
+      return res[1];
+    }
+    int main(int argc, char *argv[]) { return bar(argv[0]); }
+  '''), error_message: 'AVX512ER not available').allowed())
+
+
+config_host_data.set('CONFIG_AVX512IFMA52_OPT', get_option('avx512ifma52') \
+  .require(have_cpuid_h, error_message: 'cpuid.h not available, cannot enable AVX512ER') \
+  .require(cc.links('''
+    #pragma GCC push_options
+    #pragma GCC target("avx512ifma")
+    #include <cpuid.h>
+    #include <immintrin.h>
+    static int bar(void *a) {
+
+      __m512i x = *(__m512i *)a;
+      __m512i b,c;
+      __m512i res= _mm512_madd52lo_epu64 (x, b, c);
+      return res[1];
+    }
+    int main(int argc, char *argv[]) { return bar(argv[0]); }
+  '''), error_message: 'AVX512IFMA52 not available').allowed())
+
+
+config_host_data.set('CONFIG_AVX512PF_OPT', get_option('avx512pf') \
+  .require(have_cpuid_h, error_message: 'cpuid.h not available, cannot enable AVX512PF') \
+  .require(cc.links('''
+    #pragma GCC push_options
+    #pragma GCC target("avx512pf")
+    #include <cpuid.h>
+    #include <immintrin.h>
+    static void bar(void *a) {
+      char* base_addr;
+      __mmask8 k;
+      __m512i vindex = *(__m512i *)a;
+      _mm512_mask_prefetch_i64scatter_pd (base_addr, k, vindex, 1, 2);
+    }
+    int main(int argc, char *argv[]) { bar(argv[0]); return 0;}
+  '''), error_message: 'AVX512PF not available').allowed())
+
+
+config_host_data.set('CONFIG_AVX512VPOPCNTDQ_OPT', get_option('avx512vpopcntdq') \
+  .require(have_cpuid_h, error_message: 'cpuid.h not available, cannot enable AVX512VPOPCNTDQ') \
+  .require(cc.links('''
+    #pragma GCC push_options
+    #pragma GCC target("avx512vpopcntdq")
+    #include <cpuid.h>
+    #include <immintrin.h>
+    static int bar(void *a) {
+      __m512i x = *(__m512i *)a;
+      __mmask8 k;
+      __m512i res= _mm512_maskz_popcnt_epi64(k,a);
+     return res[0];
+    }
+    int main(int argc, char *argv[]) { bar(argv[0]); return 0;}
+  '''), error_message: 'AVX512VPOPCNTDQ not available').allowed())
+
+
+config_host_data.set('CONFIG_AVX5124VNNIW_OPT', get_option('avx5124vnniw') \
+  .require(have_cpuid_h, error_message: 'cpuid.h not available, cannot enable AVX5124VNNIW') \
+  .require(cc.links('''
+    #pragma GCC push_options
+    #pragma GCC target("avx5124vnniw")
+    #include <cpuid.h>
+    #include <immintrin.h>
+    static int bar(void *a) {
+     __m512i x = *(__m512i *)a,b,c,d,e;
+     __m128 g;
+     __m512i res= _mm512_4dpwssd_epi32 (x, b, c, d, e, &g);
+     return res[0];
+    }
+    int main(int argc, char *argv[]) { bar(argv[0]); return 0;}
+  '''), error_message: 'AVX5124VNNIW not available').allowed())
+
+
+config_host_data.set('CONFIG_AVX512BITALG_OPT', get_option('avx512bitalg') \
+  .require(have_cpuid_h, error_message: 'cpuid.h not available, cannot enable AVX512BITALG') \
+  .require(cc.links('''
+    #pragma GCC push_options
+    #pragma GCC target("avx512bitalg")
+    #include <cpuid.h>
+    #include <immintrin.h>
+    static int bar(void *a) {
+    __m512i x  = *(__m512i *)a,b,c,d,e;
+    __m512i res= _mm512_popcnt_epi16 (x);
+    return res[0];
+    }
+    int main(int argc, char *argv[]) { bar(argv[0]); return 0;}
+  '''), error_message: 'AVX512BITALG not available').allowed())
+
+config_host_data.set('CONFIG_AVX512VBMI_OPT', get_option('avx512vbmi') \
+  .require(have_cpuid_h, error_message: 'cpuid.h not available, cannot enable AVX512VBMI') \
+  .require(cc.links('''
+    #pragma GCC push_options
+    #pragma GCC target("avx512vbmi")
+    #include <cpuid.h>
+    #include <immintrin.h>
+    static int bar(void *a) {
+    __m512i x  = *(__m512i *)a,b,c;
+    __m512i res=  _mm512_permutex2var_epi8  (x, b, c);
+    return res[0];
+    }
+    int main(int argc, char *argv[]) { bar(argv[0]); return 0;}
+  '''), error_message: 'AVX512VBMI not available').allowed())
+
+config_host_data.set('CONFIG_AVX512VBMI2_OPT', get_option('avx512vbmi2') \
+  .require(have_cpuid_h, error_message: 'cpuid.h not available, cannot enable AVX512VBMI') \
+  .require(cc.links('''
+    #pragma GCC push_options
+    #pragma GCC target("avx512vbmi2")
+    #include <cpuid.h>
+    #include <immintrin.h>
+    static int bar(void *a) {
+    __m512i x  = *(__m512i *)a,b,c;
+    __m512i res=  _mm512_shrdv_epi64  (x, b, c);
+    return res[0];
+    }
+    int main(int argc, char *argv[]) { bar(argv[0]); return 0;}
+  '''), error_message: 'AVX512VBMI2 not available').allowed())
+
+config_host_data.set('CONFIG_AVX512VNNI_OPT', get_option('avx512vnni') \
+  .require(have_cpuid_h, error_message: 'cpuid.h not available, cannot enable AVX512VNNI') \
+  .require(cc.links('''
+    #pragma GCC push_options
+    #pragma GCC target("avx512vnni")
+    #include <cpuid.h>
+    #include <immintrin.h>
+    static int bar(void *a) {
+    __m512i x  = *(__m512i *)a,b,c;
+    __mmask16 k;
+    __m512i res=  _mm512_maskz_dpwssds_epi32 (k,x, b, c);
+    return res[0];
+    }
+    int main(int argc, char *argv[]) { bar(argv[0]); return 0;}
+  '''), error_message: 'AVX512VNNI not available').allowed())
+
+config_host_data.set('CONFIG_AVX512FP16_OPT', get_option('avx512fp16') \
+  .require(have_cpuid_h, error_message: 'cpuid.h not available, cannot enable AVX512FP16') \
+  .require(cc.links('''
+    #pragma GCC push_options
+    #pragma GCC target("avx512fp16")
+    #include <cpuid.h>
+    #include <immintrin.h>
+    static int bar(void *a) {
+    __m128h x= *(__m128h *)a;
+    __m128 res=  _mm_castph_ps (x);
+    return res[0];
+    }
+    int main(int argc, char *argv[]) { bar(argv[0]); return 0;}
+  '''), error_message: 'AVX512fp16 not available').allowed())
+
 have_pvrdma = get_option('pvrdma') \
   .require(rdma.found(), error_message: 'PVRDMA requires OpenFabrics libraries') \
   .require(cc.compiles(gnu_source_prefix + '''

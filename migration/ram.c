@@ -83,6 +83,35 @@
 /* 0x80 is reserved in migration.h start with 0x100 next */
 #define RAM_SAVE_FLAG_COMPRESS_PAGE    0x100
 
+#if defined(CONFIG_AVX512BW_OPT)
+static bool IS_CPU_SUPPORT_AVX512BW;
+#include "qemu/cpuid.h"
+static void __attribute__((constructor)) init_cpu_flag(void)
+{
+    unsigned max = __get_cpuid_max(0, NULL);
+    int a, b, c, d;
+    IS_CPU_SUPPORT_AVX512BW = false;
+    if (max >= 1) {
+        __cpuid(1, a, b, c, d);
+         /* We must check that AVX is not just available, but usable.  */
+        if ((c & bit_OSXSAVE) && (c & bit_AVX) && max >= 7) {
+            int bv;
+            __asm("xgetbv" : "=a"(bv), "=d"(d) : "c"(0));
+            __cpuid_count(7, 0, a, b, c, d);
+           /* 0xe6:
+            *  XCR0[7:5] = 111b (OPMASK state, upper 256-bit of ZMM0-ZMM15
+            *                    and ZMM16-ZMM31 state are enabled by OS)
+            *  XCR0[2:1] = 11b (XMM state and YMM state are enabled by OS)
+            */
+            if ((bv & 0xe6) == 0xe6 && (b & bit_AVX512BW)) {
+                IS_CPU_SUPPORT_AVX512BW = true;
+            }
+        }
+    }
+    return ;
+}
+#endif
+
 XBZRLECacheStats xbzrle_counters;
 
 /* struct contains XBZRLE cache and a static page
@@ -802,9 +831,21 @@ static int save_xbzrle_page(RAMState *rs, uint8_t **current_data,
     memcpy(XBZRLE.current_buf, *current_data, TARGET_PAGE_SIZE);
 
     /* XBZRLE encoding (if there is no overflow) */
+    #if defined(CONFIG_AVX512BW_OPT)
+    if (likely(IS_CPU_SUPPORT_AVX512BW)) {
+        encoded_len = xbzrle_encode_buffer_512(prev_cached_page, XBZRLE.current_buf,
+                                               TARGET_PAGE_SIZE, XBZRLE.encoded_buf,
+                                               TARGET_PAGE_SIZE);
+    } else {
+        encoded_len = xbzrle_encode_buffer(prev_cached_page, XBZRLE.current_buf,
+                                           TARGET_PAGE_SIZE, XBZRLE.encoded_buf,
+                                           TARGET_PAGE_SIZE);
+    }
+    #else
     encoded_len = xbzrle_encode_buffer(prev_cached_page, XBZRLE.current_buf,
                                        TARGET_PAGE_SIZE, XBZRLE.encoded_buf,
                                        TARGET_PAGE_SIZE);
+    #endif
 
     /*
      * Update the cache contents, so that it corresponds to the data
