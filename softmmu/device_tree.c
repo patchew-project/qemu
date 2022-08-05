@@ -681,6 +681,53 @@ static bool fdt_prop_is_string(const void *data, int size)
     return true;
 }
 
+static bool fdt_prop_is_uint32_array(int size)
+{
+    return size % 4 == 0;
+}
+
+static void fdt_prop_format_uint32_array(GString *buf,
+                                         const char *propname,
+                                         const void *data,
+                                         int prop_size, int padding)
+{
+    const fdt32_t *array = data;
+    int array_len = prop_size / 4;
+    int i;
+
+    g_string_append_printf(buf, "%*s%s = <", padding, "", propname);
+
+    for (i = 0; i < array_len; i++) {
+        g_string_append_printf(buf, "0x%" PRIx32, fdt32_to_cpu(array[i]));
+
+        if (i < array_len - 1) {
+            g_string_append_printf(buf, " ");
+        }
+    }
+
+    g_string_append_printf(buf, ">\n");
+}
+
+static void fdt_prop_format_val(GString *buf, const char *propname,
+                                const void *data, int prop_size,
+                                int padding)
+{
+    const char *val = data;
+    int i;
+
+    g_string_append_printf(buf, "%*s%s = [", padding, "", propname);
+
+    for (i = 0; i < prop_size; i++) {
+        g_string_append_printf(buf, "%x", val[i]);
+
+        if (i < prop_size - 1) {
+            g_string_append_printf(buf, " ");
+        }
+    }
+
+    g_string_append_printf(buf, "]\n");
+}
+
 static void fdt_format_node(GString *buf, int node, int depth)
 {
     const struct fdt_property *prop = NULL;
@@ -699,11 +746,20 @@ static void fdt_format_node(GString *buf, int node, int depth)
         prop = fdt_get_property_by_offset(fdt, property, &prop_size);
         propname = fdt_string(fdt, fdt32_to_cpu(prop->nameoff));
 
+        if (prop_size == 0) {
+            g_string_append_printf(buf, "%*s%s;\n", padding, "", propname);
+            continue;
+        }
+
         if (fdt_prop_is_string(prop->data, prop_size)) {
             g_string_append_printf(buf, "%*s%s = '%s'\n",
                                    padding, "", propname, prop->data);
+        } else if (fdt_prop_is_uint32_array(prop_size)) {
+            fdt_prop_format_uint32_array(buf, propname, prop->data, prop_size,
+                                         padding);
         } else {
-            g_string_append_printf(buf, "%*s%s;\n", padding, "", propname);
+            fdt_prop_format_val(buf, propname, prop->data,
+                                prop_size, padding);
         }
     }
 
