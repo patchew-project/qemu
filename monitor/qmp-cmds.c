@@ -45,6 +45,7 @@
 #include "hw/intc/intc.h"
 #include "hw/rdma/rdma.h"
 #include "monitor/stats.h"
+#include "sysemu/device_tree.h"
 
 NameInfo *qmp_query_name(Error **errp)
 {
@@ -596,3 +597,15 @@ bool apply_str_list_filter(const char *string, strList *list)
     }
     return false;
 }
+
+#ifdef CONFIG_FDT
+void qmp_dumpdtb(const char *filename, Error **errp)
+{
+    return qemu_fdt_qmp_dumpdtb(filename, errp);
+}
+#else
+void qmp_dumpdtb(const char *filename, Error **errp)
+{
+    error_setg(errp, "dumpdtb requires libfdt");
+}
+#endif
