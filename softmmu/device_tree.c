@@ -18,6 +18,7 @@
 #endif
 
 #include "qapi/error.h"
+#include "qapi/type-helpers.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "qemu/bswap.h"
@@ -660,4 +661,50 @@ void qemu_fdt_qmp_dumpdtb(const char *filename, Error **errp)
     }
 
     error_setg(errp, "Error when saving machine FDT to file %s", filename);
+}
+
+static void fdt_format_node(GString *buf, int node, int depth)
+{
+    const struct fdt_property *prop = NULL;
+    const char *propname = NULL;
+    void *fdt = current_machine->fdt;
+    int padding = depth * 4;
+    int property = 0;
+    int prop_size;
+
+    g_string_append_printf(buf, "%*s%s {\n", padding, "",
+                           fdt_get_name(fdt, node, NULL));
+
+    padding += 4;
+
+    fdt_for_each_property_offset(property, fdt, node) {
+        prop = fdt_get_property_by_offset(fdt, property, &prop_size);
+        propname = fdt_string(fdt, fdt32_to_cpu(prop->nameoff));
+
+        g_string_append_printf(buf, "%*s%s;\n", padding, "", propname);
+    }
+
+    padding -= 4;
+    g_string_append_printf(buf, "%*s}\n", padding, "");
+}
+
+HumanReadableText *qemu_fdt_qmp_query_fdt(const char *nodepath, Error **errp)
+{
+    g_autoptr(GString) buf = g_string_new("");
+    int node;
+
+    if (!current_machine->fdt) {
+        error_setg(errp, "Unable to find the machine FDT");
+        return NULL;
+    }
+
+    node = fdt_path_offset(current_machine->fdt, nodepath);
+    if (node < 0) {
+        error_setg(errp, "node '%s' not found in FDT", nodepath);
+        return NULL;
+    }
+
+    fdt_format_node(buf, node, 0);
+
+    return human_readable_text_from_str(buf);
 }

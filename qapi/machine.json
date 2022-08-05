@@ -1681,3 +1681,22 @@
 ##
 { 'command': 'dumpdtb',
   'data': { 'filename': 'str' } }
+
+##
+# @x-query-fdt:
+#
+# Query for FDT element (node or property). Requires 'libfdt'.
+#
+# @nodepath: the path of the FDT node to be retrieved
+#
+# Features:
+# @unstable: This command is meant for debugging.
+#
+# Returns: FDT node
+#
+# Since: 7.2
+##
+{ 'command': 'x-query-fdt',
+  'data': { 'nodepath': 'str' },
+  'returns': 'HumanReadableText',
+  'features': [ 'unstable' ]  }
