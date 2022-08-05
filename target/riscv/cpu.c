@@ -1122,7 +1122,23 @@ char *riscv_isa_string(RISCVCPU *cpu)
     char *p = isa_str + snprintf(isa_str, maxlen, "rv%d", TARGET_LONG_BITS);
     for (i = 0; i < sizeof(riscv_single_letter_exts) - 1; i++) {
         if (cpu->env.misa_ext & RV(riscv_single_letter_exts[i])) {
-            *p++ = qemu_tolower(riscv_single_letter_exts[i]);
+            char lower = qemu_tolower(riscv_single_letter_exts[i]);
+            switch (lower) {
+                case 's':
+                case 'u':
+                    /*
+                    * The 's' and 'u' letters shouldn't show up in ISA strings as
+                    * they're not extensions, but they should show up in MISA.
+                    * Since we use these letters interally as a pseudo ISA string
+                    * to set MISA it's easier to just strip them out when
+                    * formatting the ISA string.
+                    */
+                    break;
+
+                default:
+                    *p++ = lower;
+                    break;
+            }
         }
     }
     *p = '\0';
