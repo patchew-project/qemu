@@ -924,13 +924,14 @@ ERST
 
     {
         .name       = "fdt",
-        .args_type  = "nodepath:s",
-        .params     = "nodepath",
-        .help       = "show firmware device tree node given its path",
+        .args_type  = "nodepath:s,propname:s?",
+        .params     = "nodepath [propname]",
+        .help       = "show firmware device tree node or property given its path",
         .cmd        = hmp_info_fdt,
     },
 
 SRST
   ``info fdt``
-    Show a firmware device tree node given its path. Requires libfdt.
+    Show a firmware device tree node or property given its path.
+    Requires libfdt.
 ERST

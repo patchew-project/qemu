@@ -785,23 +785,42 @@ static void fdt_format_node(GString *buf, int node, int depth,
     g_string_append_printf(buf, "%*s}\n", padding, "");
 }
 
-HumanReadableText *qemu_fdt_qmp_query_fdt(const char *nodepath, Error **errp)
+HumanReadableText *qemu_fdt_qmp_query_fdt(const char *nodepath,
+                                          bool has_propname,
+                                          const char *propname,
+                                          Error **errp)
 {
     g_autoptr(GString) buf = g_string_new("");
-    int node;
+    const struct fdt_property *prop = NULL;
+    void *fdt = current_machine->fdt;
+    int node, prop_size;
 
-    if (!current_machine->fdt) {
+    if (!fdt) {
         error_setg(errp, "Unable to find the machine FDT");
         return NULL;
     }
 
-    node = fdt_path_offset(current_machine->fdt, nodepath);
+    node = fdt_path_offset(fdt, nodepath);
     if (node < 0) {
         error_setg(errp, "node '%s' not found in FDT", nodepath);
         return NULL;
     }
 
-    fdt_format_node(buf, node, 0, nodepath);
+    if (!has_propname) {
+        fdt_format_node(buf, node, 0, nodepath);
+    } else {
+        g_autofree char *proppath = g_strdup_printf("%s/%s", nodepath,
+                                                    propname);
+
+        prop = fdt_get_property(fdt, node, propname, &prop_size);
+        if (!prop) {
+            error_setg(errp, "property '%s' not found in node '%s' in FDT",
+                       propname, nodepath);
+            return NULL;
+        }
+
+        fdt_format_property(buf, proppath, prop->data, prop_size, 0);
+    }
 
     return human_readable_text_from_str(buf);
 }
