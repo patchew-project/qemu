@@ -4048,6 +4048,7 @@ static BlockDriver bdrv_zoned_host_device = {
         .format_name = "zoned_host_device",
         .protocol_name = "zoned_host_device",
         .instance_size = sizeof(BDRVRawState),
+        .is_zoned = true,
         .bdrv_needs_filename = true,
         .bdrv_probe_device  = hdev_probe_device,
         .bdrv_parse_filename = zoned_host_device_parse_filename,
