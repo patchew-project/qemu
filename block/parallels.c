@@ -413,24 +413,41 @@ static coroutine_fn int parallels_co_readv(BlockDriverState *bs,
     return ret;
 }
 
-
-static int coroutine_fn parallels_co_check(BlockDriverState *bs,
-                                           BdrvCheckResult *res,
-                                           BdrvCheckMode fix)
+static int sync_header(BlockDriverState *bs, BdrvCheckResult *res)
 {
     BDRVParallelsState *s = bs->opaque;
-    int64_t size, prev_off, high_off;
     int ret;
-    uint32_t i;
-    bool flush_bat = false;
 
-    size = bdrv_getlength(bs->file->bs);
-    if (size < 0) {
+    ret = bdrv_co_pwrite_sync(bs->file, 0, s->header_size, s->header, 0);
+    if (ret < 0) {
         res->check_errors++;
-        return size;
     }
+    return ret;
+}
 
-    qemu_co_mutex_lock(&s->lock);
+static int truncate_file(BlockDriverState *bs, int64_t size)
+{
+    Error *local_err = NULL;
+    int ret;
+
+    /*
+     * In order to really repair the image, we must shrink it.
+     * That means we have to pass exact=true.
+     */
+    ret = bdrv_truncate(bs->file, size, true,
+                        PREALLOC_MODE_OFF, 0, &local_err);
+    if (ret < 0) {
+        error_report_err(local_err);
+    }
+    return ret;
+}
+
+static void check_unclean(BlockDriverState *bs,
+                          BdrvCheckResult *res,
+                          BdrvCheckMode fix)
+{
+    BDRVParallelsState *s = bs->opaque;
+
     if (s->header_unclean) {
         fprintf(stderr, "%s image was not closed correctly\n",
                 fix & BDRV_FIX_ERRORS ? "Repairing" : "ERROR");
@@ -441,78 +458,147 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
             s->header_unclean = false;
         }
     }
+}
 
-    res->bfi.total_clusters = s->bat_size;
-    res->bfi.compressed_clusters = 0; /* compression is not supported */
+static int check_cluster_outside_image(BlockDriverState *bs,
+                                       BdrvCheckResult *res,
+                                       BdrvCheckMode fix)
+{
+    BDRVParallelsState *s = bs->opaque;
+    int64_t size;
+    uint32_t i;
+    bool sync = false;
 
-    high_off = 0;
-    prev_off = 0;
+    size = bdrv_getlength(bs->file->bs);
+    if (size < 0) {
+        res->check_errors++;
+        return size;
+    }
+
     for (i = 0; i < s->bat_size; i++) {
-        int64_t off = bat2sect(s, i) << BDRV_SECTOR_BITS;
-        if (off == 0) {
-            prev_off = 0;
-            continue;
-        }
-
-        /* cluster outside the image */
-        if (off > size) {
+        if ((bat2sect(s, i) << BDRV_SECTOR_BITS) > size) {
             fprintf(stderr, "%s cluster %u is outside image\n",
                     fix & BDRV_FIX_ERRORS ? "Repairing" : "ERROR", i);
             res->corruptions++;
             if (fix & BDRV_FIX_ERRORS) {
-                prev_off = 0;
                 s->bat_bitmap[i] = 0;
                 res->corruptions_fixed++;
-                flush_bat = true;
-                continue;
+                sync = true;
             }
         }
+    }
 
-        res->bfi.allocated_clusters++;
-        if (off > high_off) {
-            high_off = off;
+    if (sync) {
+        return sync_header(bs, res);
+    }
+
+    return 0;
+}
+
+static void check_fragmentation(BlockDriverState *bs,
+                                BdrvCheckResult *res,
+                                BdrvCheckMode fix)
+{
+    BDRVParallelsState *s = bs->opaque;
+    int64_t off, prev_off;
+    uint32_t i;
+
+    prev_off = 0;
+    for (i = 0; i < s->bat_size; i++) {
+        off = bat2sect(s, i) << BDRV_SECTOR_BITS;
+        if (off == 0) {
+            prev_off = 0;
+            continue;
         }
-
         if (prev_off != 0 && (prev_off + s->cluster_size) != off) {
             res->bfi.fragmented_clusters++;
         }
         prev_off = off;
     }
+}
 
-    ret = 0;
-    if (flush_bat) {
-        ret = bdrv_co_pwrite_sync(bs->file, 0, s->header_size, s->header, 0);
-        if (ret < 0) {
-            res->check_errors++;
-            goto out;
+static int check_leak(BlockDriverState *bs,
+                      BdrvCheckResult *res,
+                      BdrvCheckMode fix)
+{
+    BDRVParallelsState *s = bs->opaque;
+    int64_t size, off, high_off, count;
+    uint32_t i;
+
+    size = bdrv_getlength(bs->file->bs);
+    if (size < 0) {
+        res->check_errors++;
+        return size;
+    }
+
+    high_off = 0;
+    for (i = 0; i < s->bat_size; i++) {
+        off = bat2sect(s, i) << BDRV_SECTOR_BITS;
+        if (off > high_off) {
+            high_off = off;
         }
     }
 
     res->image_end_offset = high_off + s->cluster_size;
     if (size > res->image_end_offset) {
-        int64_t count;
         count = DIV_ROUND_UP(size - res->image_end_offset, s->cluster_size);
         fprintf(stderr, "%s space leaked at the end of the image %" PRId64 "\n",
                 fix & BDRV_FIX_LEAKS ? "Repairing" : "ERROR",
                 size - res->image_end_offset);
         res->leaks += count;
         if (fix & BDRV_FIX_LEAKS) {
-            Error *local_err = NULL;
+            int ret;
 
-            /*
-             * In order to really repair the image, we must shrink it.
-             * That means we have to pass exact=true.
-             */
-            ret = bdrv_truncate(bs->file, res->image_end_offset, true,
-                                PREALLOC_MODE_OFF, 0, &local_err);
+            ret = truncate_file(bs, res->image_end_offset);
             if (ret < 0) {
-                error_report_err(local_err);
-                res->check_errors++;
-                goto out;
+                return ret;
             }
             res->leaks_fixed += count;
         }
     }
+    return 0;
+}
+
+static void collect_statistics(BlockDriverState *bs, BdrvCheckResult *res)
+{
+    BDRVParallelsState *s = bs->opaque;
+    uint32_t i;
+
+    res->bfi.total_clusters = s->bat_size;
+    res->bfi.compressed_clusters = 0; /* compression is not supported */
+    res->bfi.allocated_clusters = 0;
+
+    for (i = 0; i < s->bat_size; i++) {
+        if ((bat2sect(s, i) << BDRV_SECTOR_BITS) > 0) {
+            res->bfi.allocated_clusters++;
+        }
+    }
+}
+
+static int coroutine_fn parallels_co_check(BlockDriverState *bs,
+                                           BdrvCheckResult *res,
+                                           BdrvCheckMode fix)
+{
+    BDRVParallelsState *s = bs->opaque;
+    int ret;
+
+    qemu_co_mutex_lock(&s->lock);
+
+    check_unclean(bs, res, fix);
+
+    ret = check_cluster_outside_image(bs, res, fix);
+    if (ret != 0) {
+        goto out;
+    }
+
+    check_fragmentation(bs, res, fix);
+
+    ret = check_leak(bs, res, fix);
+    if (ret != 0) {
+        goto out;
+    }
+
+    collect_statistics(bs, res);
 
 out:
     qemu_co_mutex_unlock(&s->lock);
