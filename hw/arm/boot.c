@@ -684,7 +684,13 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
      */
     rom_add_blob_fixed_as("dtb", fdt, size, addr, as);
 
-    g_free(fdt);
+    /*
+     * Update the ms->fdt pointer to enable support for 'dumpdtb'
+     * and 'info fdt' commands. Use fdt_pack() to shrink the blob
+     * size we're going to store.
+     */
+    fdt_pack(fdt);
+    ms->fdt = fdt;
 
     return size;
 
