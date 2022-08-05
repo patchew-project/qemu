@@ -23,7 +23,6 @@
  */
 #ifndef BLOCK_COMMON_H
 #define BLOCK_COMMON_H
-
 #include "block/aio.h"
 #include "block/aio-wait.h"
 #include "qemu/iov.h"
