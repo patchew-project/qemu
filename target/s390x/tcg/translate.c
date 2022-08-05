@@ -6305,14 +6305,13 @@ static void extract_field(DisasFields *o, const DisasField *f, uint64_t insn)
     o->c[f->indexC] = r;
 }
 
-/* Lookup the insn at the current PC, extracting the operands into O and
-   returning the info struct for the insn.  Returns NULL for invalid insn.  */
+/* Lookup the insn at the current PC, filling the info struct.  */
 
-static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s)
+static DisasJumpType extract_insn(CPUS390XState *env, DisasContext *s,
+                                  const DisasInsn **info)
 {
     uint64_t insn, pc = s->base.pc_next;
     int op, op2, ilen;
-    const DisasInsn *info;
 
     if (unlikely(s->ex_value)) {
         /* Drop the EX data now, so that it's clear on exception paths.  */
@@ -6325,9 +6324,13 @@ static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s)
         ilen = s->ex_value & 0xf;
         op = insn >> 56;
     } else {
+        assert(s->base.num_insns == 1 || is_same_page(&s->base, pc));
         insn = ld_code2(env, s, pc);
         op = (insn >> 8) & 0xff;
         ilen = get_ilen(op);
+        if (s->base.num_insns > 1 && !is_same_page(&s->base, pc + ilen - 1)) {
+            return DISAS_TOO_MANY;
+        }
         switch (ilen) {
         case 2:
             insn = insn << 48;
@@ -6394,19 +6397,19 @@ static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s)
     s->fields.op2 = op2;
 
     /* Lookup the instruction.  */
-    info = lookup_opc(op << 8 | op2);
-    s->insn = info;
+    *info = lookup_opc(op << 8 | op2);
+    s->insn = *info;
 
     /* If we found it, extract the operands.  */
-    if (info != NULL) {
-        DisasFormat fmt = info->fmt;
+    if (*info != NULL) {
+        DisasFormat fmt = (*info)->fmt;
         int i;
 
         for (i = 0; i < NUM_C_FIELD; ++i) {
             extract_field(&s->fields, &format_info[fmt].op[i], insn);
         }
     }
-    return info;
+    return DISAS_NEXT;
 }
 
 static bool is_afp_reg(int reg)
@@ -6423,12 +6426,17 @@ static bool is_fp_pair(int reg)
 static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
 {
     const DisasInsn *insn;
-    DisasJumpType ret = DISAS_NEXT;
+    DisasJumpType ret;
     DisasOps o = {};
     bool icount = false;
 
     /* Search for the insn in the table.  */
-    insn = extract_insn(env, s);
+    ret = extract_insn(env, s, &insn);
+
+    /* This is a subsequent insn that crosses a page boundary.  */
+    if (ret == DISAS_TOO_MANY) {
+        goto out;
+    }
 
     /* Update insn_start now that we know the ILEN.  */
     tcg_set_insn_start_param(s->insn_start, 2, s->ilen);
@@ -6616,10 +6624,7 @@ static void s390x_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 
     dc->base.is_jmp = translate_one(env, dc);
     if (dc->base.is_jmp == DISAS_NEXT) {
-        uint64_t page_start;
-
-        page_start = dc->base.pc_first & TARGET_PAGE_MASK;
-        if (dc->base.pc_next - page_start >= TARGET_PAGE_SIZE || dc->ex_value) {
+        if (!is_same_page(dcbase, dc->base.pc_next) || dc->ex_value) {
             dc->base.is_jmp = DISAS_TOO_MANY;
         }
     }
