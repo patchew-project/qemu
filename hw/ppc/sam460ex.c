@@ -280,7 +280,7 @@ static void sam460ex_init(MachineState *machine)
     hwaddr ram_sizes[SDRAM_NR_BANKS] = {0};
     MemoryRegion *l2cache_ram = g_new(MemoryRegion, 1);
     DeviceState *uic[4];
-    qemu_irq mal_irqs[4];
+    Ppc4xxMalState *mal;
     int i;
     PCIBus *pci_bus;
     PowerPCCPU *cpu;
@@ -387,10 +387,18 @@ static void sam460ex_init(MachineState *machine)
     ppc4xx_sdr_init(env);
 
     /* MAL */
-    for (i = 0; i < ARRAY_SIZE(mal_irqs); i++) {
-        mal_irqs[i] = qdev_get_gpio_in(uic[2], 3 + i);
+    dev = qdev_new(TYPE_PPC4xx_MAL);
+    mal = PPC4xx_MAL(dev);
+
+    qdev_prop_set_uint32(dev, "txc-num", 4);
+    qdev_prop_set_uint32(dev, "rxc-num", 16);
+    ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(mal), cpu, &error_fatal);
+    object_unref(OBJECT(mal));
+
+    for (i = 0; i < ARRAY_SIZE(mal->irqs); i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i,
+                           qdev_get_gpio_in(uic[2], 3 + i));
     }
-    ppc4xx_mal_init(env, 4, 16, mal_irqs);
 
     /* DMA */
     ppc4xx_dma_init(env, 0x200);
