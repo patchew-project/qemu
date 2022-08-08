@@ -469,7 +469,7 @@ static int parallels_check_outside_image(BlockDriverState *bs,
     }
 
     if (flush_bat) {
-        ret = bdrv_co_pwrite_sync(bs->file, 0, s->header_size, s->header, 0);
+        ret = bdrv_co_flush(bs);
         if (ret < 0) {
             res->check_errors++;
             return ret;
