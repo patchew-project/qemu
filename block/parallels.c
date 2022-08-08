@@ -530,13 +530,16 @@ static int parallels_check_leak(BlockDriverState *bs,
     return 0;
 }
 
-static void parallels_check_fragmentation(BlockDriverState *bs,
-                                          BdrvCheckResult *res,
-                                          BdrvCheckMode fix)
+static void parallels_collect_statistics(BlockDriverState *bs,
+                                         BdrvCheckResult *res,
+                                         BdrvCheckMode fix)
 {
     BDRVParallelsState *s = bs->opaque;
-    uint32_t i;
     int64_t off, prev_off;
+    uint32_t i;
+
+    res->bfi.total_clusters = s->bat_size;
+    res->bfi.compressed_clusters = 0; /* compression is not supported */
 
     prev_off = 0;
     for (i = 0; i < s->bat_size; i++) {
@@ -549,24 +552,8 @@ static void parallels_check_fragmentation(BlockDriverState *bs,
             res->bfi.fragmented_clusters++;
         }
         prev_off = off;
-    }
 
-}
-
-static void parallels_collect_statistics(BlockDriverState *bs,
-                                         BdrvCheckResult *res,
-                                         BdrvCheckMode fix)
-{
-    BDRVParallelsState *s = bs->opaque;
-    uint32_t i;
-
-    res->bfi.total_clusters = s->bat_size;
-    res->bfi.compressed_clusters = 0; /* compression is not supported */
-
-    for (i = 0; i < s->bat_size; i++) {
-        if (bat2sect(s, i) != 0) {
-            res->bfi.allocated_clusters++;
-        }
+        res->bfi.allocated_clusters++;
     }
 }
 
@@ -590,8 +577,6 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
     if (ret < 0) {
         return ret;
     }
-
-    parallels_check_fragmentation(bs, res, fix);
 
     parallels_collect_statistics(bs, res, fix);
 
