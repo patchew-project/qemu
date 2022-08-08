@@ -29,6 +29,7 @@
 #include "exec/memory.h"
 
 /* PowerPC 4xx core initialization */
+void ppc4xx_reset(void *opaque);
 PowerPCCPU *ppc4xx_init(const char *cpu_model,
                         clk_setup_t *cpu_clk, clk_setup_t *tb_clk,
                         uint32_t sysclk);
