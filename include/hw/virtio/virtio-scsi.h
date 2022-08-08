@@ -85,9 +85,8 @@ struct VirtIOSCSI {
     /* Fields for dataplane below */
     AioContext *ctx; /* one iothread per virtio-scsi-pci for now */
 
-    bool dataplane_started;
-    bool dataplane_starting;
-    bool dataplane_stopping;
+    enum VirtIODataplaneStates dataplane_state;
+
     bool dataplane_fenced;
     uint32_t host_features;
 };

@@ -110,7 +110,8 @@ static void virtio_scsi_complete_req(VirtIOSCSIReq *req)
 
     qemu_iovec_from_buf(&req->resp_iov, 0, &req->resp, req->resp_size);
     virtqueue_push(vq, &req->elem, req->qsgl.size + req->resp_iov.size);
-    if (s->dataplane_started && !s->dataplane_fenced) {
+    if (qatomic_read(&s->dataplane_state) == DATAPLANE_STARTED &&
+        !s->dataplane_fenced) {
         virtio_notify_irqfd(vdev, vq);
     } else {
         virtio_notify(vdev, vq);
@@ -288,7 +289,8 @@ static void virtio_scsi_cancel_notify(Notifier *notifier, void *data)
 
 static inline void virtio_scsi_ctx_check(VirtIOSCSI *s, SCSIDevice *d)
 {
-    if (s->dataplane_started && d && blk_is_available(d->conf.blk)) {
+    if (qatomic_read(&s->dataplane_state) == DATAPLANE_STARTED && d &&
+        blk_is_available(d->conf.blk)) {
         assert(blk_get_aio_context(d->conf.blk) == s->ctx);
     }
 }
@@ -516,7 +518,7 @@ static void virtio_scsi_handle_ctrl_vq(VirtIOSCSI *s, VirtQueue *vq)
  */
 static bool virtio_scsi_defer_to_dataplane(VirtIOSCSI *s)
 {
-    if (!s->ctx || s->dataplane_started) {
+    if (!s->ctx || qatomic_read(&s->dataplane_state) <= DATAPLANE_STARTED) {
         return false;
     }
 
@@ -828,7 +830,7 @@ static void virtio_scsi_reset(VirtIODevice *vdev)
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
 
-    assert(!s->dataplane_started);
+    assert(qatomic_read(&s->dataplane_state) != DATAPLANE_STARTED);
     s->resetting++;
     qbus_reset_all(BUS(&s->bus));
     s->resetting--;

@@ -106,13 +106,12 @@ int virtio_scsi_dataplane_start(VirtIODevice *vdev)
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
 
-    if (s->dataplane_started ||
-        s->dataplane_starting ||
+    if (qatomic_read(&s->dataplane_state) <= DATAPLANE_STARTED ||
         s->dataplane_fenced) {
         return 0;
     }
 
-    s->dataplane_starting = true;
+    qatomic_set(&s->dataplane_state, DATAPLANE_STARTING);
 
     /* Set up guest notifier (irq) */
     rc = k->set_guest_notifiers(qbus->parent, vs->conf.num_queues + 2, true);
@@ -151,8 +150,7 @@ int virtio_scsi_dataplane_start(VirtIODevice *vdev)
 
     memory_region_transaction_commit();
 
-    s->dataplane_starting = false;
-    s->dataplane_started = true;
+    qatomic_set(&s->dataplane_state, DATAPLANE_STARTED);
 
     /*
      * Attach notifiers from within the IOThread. It's possible to attach
@@ -183,8 +181,8 @@ fail_host_notifiers:
     k->set_guest_notifiers(qbus->parent, vs->conf.num_queues + 2, false);
 fail_guest_notifiers:
     s->dataplane_fenced = true;
-    s->dataplane_starting = false;
-    s->dataplane_started = true;
+    qatomic_set(&s->dataplane_state, DATAPLANE_STARTED);
+
     return -ENOSYS;
 }
 
@@ -197,17 +195,17 @@ void virtio_scsi_dataplane_stop(VirtIODevice *vdev)
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
     int i;
 
-    if (!s->dataplane_started || s->dataplane_stopping) {
+    if (qatomic_read(&s->dataplane_state) != DATAPLANE_STARTED) {
         return;
     }
 
     /* Better luck next time. */
     if (s->dataplane_fenced) {
         s->dataplane_fenced = false;
-        s->dataplane_started = false;
+        qatomic_set(&s->dataplane_state, DATAPLANE_STOPPED);
         return;
     }
-    s->dataplane_stopping = true;
+    qatomic_set(&s->dataplane_state, DATAPLANE_STOPPING);
 
     aio_context_acquire(s->ctx);
     aio_wait_bh_oneshot(s->ctx, virtio_scsi_dataplane_stop_bh, s);
@@ -237,6 +235,5 @@ void virtio_scsi_dataplane_stop(VirtIODevice *vdev)
 
     /* Clean up guest notifier (irq) */
     k->set_guest_notifiers(qbus->parent, vs->conf.num_queues + 2, false);
-    s->dataplane_stopping = false;
-    s->dataplane_started = false;
+    qatomic_set(&s->dataplane_state, DATAPLANE_STOPPED);
 }
