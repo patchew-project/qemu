@@ -27,9 +27,6 @@
 #include "qom/object_interfaces.h"
 
 struct VirtIOBlockDataPlane {
-    bool starting;
-    bool stopping;
-
     VirtIOBlkConf *conf;
     VirtIODevice *vdev;
     QEMUBH *bh;                     /* bh for guest notification */
@@ -145,7 +142,7 @@ void virtio_blk_data_plane_destroy(VirtIOBlockDataPlane *s)
     }
 
     vblk = VIRTIO_BLK(s->vdev);
-    assert(!vblk->dataplane_started);
+    assert(qatomic_read(&vblk->dataplane_state) != DATAPLANE_STARTED);
     g_free(s->batch_notify_vqs);
     qemu_bh_delete(s->bh);
     if (s->iothread) {
@@ -167,11 +164,11 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
     Error *local_err = NULL;
     int r;
 
-    if (vblk->dataplane_started || s->starting) {
+    if (qatomic_read(&vblk->dataplane_state) <= DATAPLANE_STARTED) {
         return 0;
     }
 
-    s->starting = true;
+    qatomic_set(&vblk->dataplane_state, DATAPLANE_STARTING);
 
     if (!virtio_vdev_has_feature(vdev, VIRTIO_RING_F_EVENT_IDX)) {
         s->batch_notifications = true;
@@ -219,8 +216,7 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
 
     memory_region_transaction_commit();
 
-    s->starting = false;
-    vblk->dataplane_started = true;
+    qatomic_set(&vblk->dataplane_state, DATAPLANE_STARTED);
     trace_virtio_blk_data_plane_start(s);
 
     old_context = blk_get_aio_context(s->conf->conf.blk);
@@ -273,8 +269,7 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
      */
     virtio_blk_process_queued_requests(vblk, false);
     vblk->dataplane_disabled = true;
-    s->starting = false;
-    vblk->dataplane_started = true;
+    qatomic_set(&vblk->dataplane_state, DATAPLANE_STARTED);
     return -ENOSYS;
 }
 
@@ -304,17 +299,17 @@ void virtio_blk_data_plane_stop(VirtIODevice *vdev)
     unsigned i;
     unsigned nvqs = s->conf->num_queues;
 
-    if (!vblk->dataplane_started || s->stopping) {
+    if (qatomic_read(&vblk->dataplane_state) != DATAPLANE_STARTED) {
         return;
     }
 
     /* Better luck next time. */
     if (vblk->dataplane_disabled) {
         vblk->dataplane_disabled = false;
-        vblk->dataplane_started = false;
+        qatomic_set(&vblk->dataplane_state, DATAPLANE_STOPPED);
         return;
     }
-    s->stopping = true;
+    qatomic_set(&vblk->dataplane_state, DATAPLANE_STOPPING);
     trace_virtio_blk_data_plane_stop(s);
 
     aio_context_acquire(s->ctx);
@@ -352,6 +347,5 @@ void virtio_blk_data_plane_stop(VirtIODevice *vdev)
     /* Clean up guest notifier (irq) */
     k->set_guest_notifiers(qbus->parent, nvqs, false);
 
-    vblk->dataplane_started = false;
-    s->stopping = false;
+    qatomic_set(&vblk->dataplane_state, DATAPLANE_STOPPED);
 }

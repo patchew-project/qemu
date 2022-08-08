@@ -60,7 +60,7 @@ struct VirtIOBlock {
     bool original_wce;
     VMChangeStateEntry *change;
     bool dataplane_disabled;
-    bool dataplane_started;
+    enum VirtIODataplaneStates dataplane_state;
     struct VirtIOBlockDataPlane *dataplane;
     uint64_t host_features;
     size_t config_size;

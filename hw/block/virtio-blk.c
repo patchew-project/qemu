@@ -84,7 +84,8 @@ static void virtio_blk_req_complete(VirtIOBlockReq *req, unsigned char status)
     iov_discard_undo(&req->inhdr_undo);
     iov_discard_undo(&req->outhdr_undo);
     virtqueue_push(req->vq, &req->elem, req->in_len);
-    if (s->dataplane_started && !s->dataplane_disabled) {
+    if (qatomic_read(&s->dataplane_state) == DATAPLANE_STARTED &&
+        !s->dataplane_disabled) {
         virtio_blk_data_plane_notify(s->dataplane, req->vq);
     } else {
         virtio_notify(vdev, req->vq);
@@ -807,7 +808,7 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOBlock *s = (VirtIOBlock *)vdev;
 
-    if (s->dataplane && !s->dataplane_started) {
+    if (s->dataplane && qatomic_read(&s->dataplane_state) > DATAPLANE_STARTED) {
         /* Some guests kick before setting VIRTIO_CONFIG_S_DRIVER_OK so start
          * dataplane here instead of waiting for .set_status().
          */
@@ -907,7 +908,7 @@ static void virtio_blk_reset(VirtIODevice *vdev)
 
     aio_context_release(ctx);
 
-    assert(!s->dataplane_started);
+    assert(qatomic_read(&s->dataplane_state) != DATAPLANE_STARTED);
     blk_set_enable_write_cache(s->blk, s->original_wce);
 }
 
@@ -1033,7 +1034,7 @@ static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
     VirtIOBlock *s = VIRTIO_BLK(vdev);
 
     if (!(status & (VIRTIO_CONFIG_S_DRIVER | VIRTIO_CONFIG_S_DRIVER_OK))) {
-        assert(!s->dataplane_started);
+        assert(qatomic_read(&s->dataplane_state) != DATAPLANE_STARTED);
     }
 
     if (!(status & VIRTIO_CONFIG_S_DRIVER_OK)) {
