@@ -1178,36 +1178,7 @@ enum {
 #endif
 };
 
-enum {
-    PPC405EP_CPU_CLK   = 0,
-    PPC405EP_PLB_CLK   = 1,
-    PPC405EP_OPB_CLK   = 2,
-    PPC405EP_EBC_CLK   = 3,
-    PPC405EP_MAL_CLK   = 4,
-    PPC405EP_PCI_CLK   = 5,
-    PPC405EP_UART0_CLK = 6,
-    PPC405EP_UART1_CLK = 7,
-    PPC405EP_CLK_NB    = 8,
-};
-
-typedef struct ppc405ep_cpc_t ppc405ep_cpc_t;
-struct ppc405ep_cpc_t {
-    uint32_t sysclk;
-    clk_setup_t clk_setup[PPC405EP_CLK_NB];
-    uint32_t boot;
-    uint32_t epctl;
-    uint32_t pllmr[2];
-    uint32_t ucr;
-    uint32_t srr;
-    uint32_t jtagid;
-    uint32_t pci;
-    /* Clock and power management */
-    uint32_t er;
-    uint32_t fr;
-    uint32_t sr;
-};
-
-static void ppc405ep_compute_clocks (ppc405ep_cpc_t *cpc)
+static void ppc405ep_compute_clocks(Ppc405CpcState *cpc)
 {
     uint32_t CPU_clk, PLB_clk, OPB_clk, EBC_clk, MAL_clk, PCI_clk;
     uint32_t UART0_clk, UART1_clk;
@@ -1302,10 +1273,9 @@ static void ppc405ep_compute_clocks (ppc405ep_cpc_t *cpc)
 
 static uint32_t dcr_read_epcpc (void *opaque, int dcrn)
 {
-    ppc405ep_cpc_t *cpc;
+    Ppc405CpcState *cpc = PPC405_CPC(opaque);
     uint32_t ret;
 
-    cpc = opaque;
     switch (dcrn) {
     case PPC405EP_CPC0_BOOT:
         ret = cpc->boot;
@@ -1342,9 +1312,8 @@ static uint32_t dcr_read_epcpc (void *opaque, int dcrn)
 
 static void dcr_write_epcpc (void *opaque, int dcrn, uint32_t val)
 {
-    ppc405ep_cpc_t *cpc;
+    Ppc405CpcState *cpc = PPC405_CPC(opaque);
 
-    cpc = opaque;
     switch (dcrn) {
     case PPC405EP_CPC0_BOOT:
         /* Read-only register */
@@ -1377,9 +1346,9 @@ static void dcr_write_epcpc (void *opaque, int dcrn, uint32_t val)
     }
 }
 
-static void ppc405ep_cpc_reset (void *opaque)
+static void ppc405_cpc_reset(DeviceState *opaque)
 {
-    ppc405ep_cpc_t *cpc = opaque;
+    Ppc405CpcState *cpc = PPC405_CPC(opaque);
 
     cpc->boot = 0x00000010;     /* Boot from PCI - IIC EEPROM disabled */
     cpc->epctl = 0x00000000;
@@ -1391,45 +1360,56 @@ static void ppc405ep_cpc_reset (void *opaque)
     cpc->er = 0x00000000;
     cpc->fr = 0x00000000;
     cpc->sr = 0x00000000;
+    cpc->jtagid = 0x20267049;
     ppc405ep_compute_clocks(cpc);
 }
 
 /* XXX: sysclk should be between 25 and 100 MHz */
-static void ppc405ep_cpc_init (CPUPPCState *env, clk_setup_t clk_setup[8],
-                               uint32_t sysclk)
+static void ppc405_cpc_realize(DeviceState *dev, Error **errp)
 {
-    ppc405ep_cpc_t *cpc;
+    Ppc405CpcState *cpc = PPC405_CPC(dev);
+    Ppc4xxDcrDeviceState *dcr = PPC4xx_DCR_DEVICE(dev);
+    CPUPPCState *env;
 
-    cpc = g_new0(ppc405ep_cpc_t, 1);
-    memcpy(cpc->clk_setup, clk_setup,
-           PPC405EP_CLK_NB * sizeof(clk_setup_t));
-    cpc->jtagid = 0x20267049;
-    cpc->sysclk = sysclk;
-    qemu_register_reset(&ppc405ep_cpc_reset, cpc);
-    ppc_dcr_register(env, PPC405EP_CPC0_BOOT, cpc,
+    assert(dcr->cpu);
+
+    env = &dcr->cpu->env;
+
+    cpc->clk_setup[PPC405EP_CPU_CLK].cb =
+        ppc_40x_timers_init(env, cpc->sysclk, PPC_INTERRUPT_PIT);
+    cpc->clk_setup[PPC405EP_CPU_CLK].opaque = env;
+
+    ppc4xx_dcr_register(dcr, PPC405EP_CPC0_BOOT,
                      &dcr_read_epcpc, &dcr_write_epcpc);
-    ppc_dcr_register(env, PPC405EP_CPC0_EPCTL, cpc,
+    ppc4xx_dcr_register(dcr, PPC405EP_CPC0_EPCTL,
                      &dcr_read_epcpc, &dcr_write_epcpc);
-    ppc_dcr_register(env, PPC405EP_CPC0_PLLMR0, cpc,
+    ppc4xx_dcr_register(dcr, PPC405EP_CPC0_PLLMR0,
                      &dcr_read_epcpc, &dcr_write_epcpc);
-    ppc_dcr_register(env, PPC405EP_CPC0_PLLMR1, cpc,
+    ppc4xx_dcr_register(dcr, PPC405EP_CPC0_PLLMR1,
                      &dcr_read_epcpc, &dcr_write_epcpc);
-    ppc_dcr_register(env, PPC405EP_CPC0_UCR, cpc,
+    ppc4xx_dcr_register(dcr, PPC405EP_CPC0_UCR,
                      &dcr_read_epcpc, &dcr_write_epcpc);
-    ppc_dcr_register(env, PPC405EP_CPC0_SRR, cpc,
+    ppc4xx_dcr_register(dcr, PPC405EP_CPC0_SRR,
                      &dcr_read_epcpc, &dcr_write_epcpc);
-    ppc_dcr_register(env, PPC405EP_CPC0_JTAGID, cpc,
+    ppc4xx_dcr_register(dcr, PPC405EP_CPC0_JTAGID,
                      &dcr_read_epcpc, &dcr_write_epcpc);
-    ppc_dcr_register(env, PPC405EP_CPC0_PCI, cpc,
+    ppc4xx_dcr_register(dcr, PPC405EP_CPC0_PCI,
                      &dcr_read_epcpc, &dcr_write_epcpc);
-#if 0
-    ppc_dcr_register(env, PPC405EP_CPC0_ER, cpc,
-                     &dcr_read_epcpc, &dcr_write_epcpc);
-    ppc_dcr_register(env, PPC405EP_CPC0_FR, cpc,
-                     &dcr_read_epcpc, &dcr_write_epcpc);
-    ppc_dcr_register(env, PPC405EP_CPC0_SR, cpc,
-                     &dcr_read_epcpc, &dcr_write_epcpc);
-#endif
+}
+
+static Property ppc405_cpc_properties[] = {
+    DEFINE_PROP_UINT32("sys-clk", Ppc405CpcState, sysclk, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void ppc405_cpc_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = ppc405_cpc_realize;
+    dc->user_creatable = false;
+    device_class_set_props(dc, ppc405_cpc_properties);
+    dc->reset = ppc405_cpc_reset;
 }
 
 static void ppc405_soc_instance_init(Object *obj)
@@ -1438,16 +1418,16 @@ static void ppc405_soc_instance_init(Object *obj)
 
     object_initialize_child(obj, "cpu", &s->cpu,
                             POWERPC_CPU_TYPE_NAME("405ep"));
+
+    object_initialize_child(obj, "cpc", &s->cpc, TYPE_PPC405_CPC);
+    object_property_add_alias(obj, "sys-clk", OBJECT(&s->cpc), "sys-clk");
 }
 
 static void ppc405_soc_realize(DeviceState *dev, Error **errp)
 {
     Ppc405SoCState *s = PPC405_SOC(dev);
-    clk_setup_t clk_setup[PPC405EP_CLK_NB];
     qemu_irq dma_irqs[4], gpt_irqs[5], mal_irqs[4];
     CPUPPCState *env;
-
-    memset(clk_setup, 0, sizeof(clk_setup));
 
     /* init CPUs */
     if (!qdev_realize(DEVICE(&s->cpu), NULL, errp)) {
@@ -1457,14 +1437,12 @@ static void ppc405_soc_realize(DeviceState *dev, Error **errp)
 
     env = &s->cpu.env;
 
-    clk_setup[PPC405EP_CPU_CLK].cb =
-        ppc_40x_timers_init(env, s->sysclk, PPC_INTERRUPT_PIT);
-    clk_setup[PPC405EP_CPU_CLK].opaque = env;
-
     ppc_dcr_init(env, NULL, NULL);
 
     /* CPU control */
-    ppc405ep_cpc_init(env, clk_setup, s->sysclk);
+    if (!ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(&s->cpc), &s->cpu, errp)) {
+        return;
+    }
 
     /* PLB arbitrer */
     ppc4xx_plb_init(env);
@@ -1556,7 +1534,6 @@ static void ppc405_soc_realize(DeviceState *dev, Error **errp)
 static Property ppc405_soc_properties[] = {
     DEFINE_PROP_LINK("dram", Ppc405SoCState, dram_mr, TYPE_MEMORY_REGION,
                      MemoryRegion *),
-    DEFINE_PROP_UINT32("sys-clk", Ppc405SoCState, sysclk, 0),
     DEFINE_PROP_BOOL("dram-init", Ppc405SoCState, do_dram_init, 0),
     DEFINE_PROP_UINT64("ram-size", Ppc405SoCState, ram_size, 0),
     DEFINE_PROP_END_OF_LIST(),
@@ -1573,6 +1550,11 @@ static void ppc405_soc_class_init(ObjectClass *oc, void *data)
 
 static const TypeInfo ppc405_types[] = {
     {
+        .name           = TYPE_PPC405_CPC,
+        .parent         = TYPE_PPC4xx_DCR_DEVICE,
+        .instance_size  = sizeof(Ppc405CpcState),
+        .class_init     = ppc405_cpc_class_init,
+    }, {
         .name           = TYPE_PPC405_SOC,
         .parent         = TYPE_DEVICE,
         .instance_size  = sizeof(Ppc405SoCState),
