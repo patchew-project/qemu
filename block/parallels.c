@@ -553,13 +553,29 @@ static void parallels_check_fragmentation(BlockDriverState *bs,
 
 }
 
+static void parallels_collect_statistics(BlockDriverState *bs,
+                                         BdrvCheckResult *res,
+                                         BdrvCheckMode fix)
+{
+    BDRVParallelsState *s = bs->opaque;
+    uint32_t i;
+
+    res->bfi.total_clusters = s->bat_size;
+    res->bfi.compressed_clusters = 0; /* compression is not supported */
+
+    for (i = 0; i < s->bat_size; i++) {
+        if (bat2sect(s, i) != 0) {
+            res->bfi.allocated_clusters++;
+        }
+    }
+}
+
 static int coroutine_fn parallels_co_check(BlockDriverState *bs,
                                            BdrvCheckResult *res,
                                            BdrvCheckMode fix)
 {
     BDRVParallelsState *s = bs->opaque;
     int ret;
-    uint32_t i;
 
     qemu_co_mutex_lock(&s->lock);
 
@@ -577,12 +593,7 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
 
     parallels_check_fragmentation(bs, res, fix);
 
-    res->bfi.total_clusters = s->bat_size;
-    res->bfi.compressed_clusters = 0; /* compression is not supported */
-
-    for (i = 0; i < s->bat_size; i++) {
-        res->bfi.allocated_clusters++;
-    }
+    parallels_collect_statistics(bs, res, fix);
 
     ret = 0;
 out:
