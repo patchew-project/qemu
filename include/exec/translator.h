@@ -31,6 +31,8 @@
  * DisasJumpType:
  * @DISAS_NEXT: Next instruction in program order.
  * @DISAS_TOO_MANY: Too many instructions translated.
+ * @DISAS_TOO_MANY_UNDO: Too many instructions translated. Everything that was
+ *                       done for the current instruction must be undone.
  * @DISAS_NORETURN: Following code is dead.
  * @DISAS_TARGET_*: Start of target-specific conditions.
  *
@@ -39,6 +41,7 @@
 typedef enum DisasJumpType {
     DISAS_NEXT,
     DISAS_TOO_MANY,
+    DISAS_TOO_MANY_UNDO,
     DISAS_NORETURN,
     DISAS_TARGET_0,
     DISAS_TARGET_1,

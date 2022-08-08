@@ -56,6 +56,7 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
 {
     uint32_t cflags = tb_cflags(tb);
     bool plugin_enabled;
+    TCGOp *last_op;
 
     /* Initialize DisasContext */
     db->tb = tb;
@@ -82,6 +83,7 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
 
     while (true) {
         db->num_insns++;
+        last_op = tcg_last_op();
         ops->insn_start(db, cpu);
         tcg_debug_assert(db->is_jmp == DISAS_NEXT);  /* no early exit */
 
@@ -101,6 +103,12 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
             /* we should only see CF_MEMI_ONLY for io_recompile */
             tcg_debug_assert(!(cflags & CF_MEMI_ONLY));
             ops->translate_insn(db, cpu);
+        }
+
+        if (db->is_jmp == DISAS_TOO_MANY_UNDO) {
+            db->num_insns--;
+            tcg_remove_ops_after(last_op);
+            db->is_jmp = DISAS_TOO_MANY;
         }
 
         /* Stop translation if translate_insn so indicated.  */
