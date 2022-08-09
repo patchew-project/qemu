@@ -87,4 +87,36 @@ struct Ppc4xxMalState {
 void ppc4xx_mal_init(CPUPPCState *env, uint8_t txcnum, uint8_t rxcnum,
                      qemu_irq irqs[4]);
 
+/* SDRAM controller */
+#define TYPE_PPC4xx_SDRAM "ppc4xx-sdram"
+OBJECT_DECLARE_SIMPLE_TYPE(Ppc4xxSdramState, PPC4xx_SDRAM);
+struct Ppc4xxSdramState {
+    Ppc4xxDcrDeviceState parent_obj;
+
+    MemoryRegion *dram_mr;
+    bool dram_init;
+
+    MemoryRegion containers[4]; /* used for clipping */
+    MemoryRegion *ram_memories;
+    hwaddr *ram_bases;
+    hwaddr *ram_sizes;
+    uint32_t nb_ram_bases;
+    uint32_t nb_ram_sizes;
+    uint32_t nbanks; /* Redundant */
+
+    uint32_t addr;
+    uint32_t besr0;
+    uint32_t besr1;
+    uint32_t bear;
+    uint32_t cfg;
+    uint32_t status;
+    uint32_t rtr;
+    uint32_t pmit;
+    uint32_t bcr[4];
+    uint32_t tr;
+    uint32_t ecccfg;
+    uint32_t eccesr;
+    qemu_irq irq;
+};
+
 #endif /* PPC4XX_H */

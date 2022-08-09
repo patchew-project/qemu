@@ -39,28 +39,6 @@
 
 /*****************************************************************************/
 /* SDRAM controller */
-typedef struct ppc4xx_sdram_t ppc4xx_sdram_t;
-struct ppc4xx_sdram_t {
-    uint32_t addr;
-    int nbanks;
-    MemoryRegion containers[4]; /* used for clipping */
-    MemoryRegion *ram_memories;
-    hwaddr ram_bases[4];
-    hwaddr ram_sizes[4];
-    uint32_t besr0;
-    uint32_t besr1;
-    uint32_t bear;
-    uint32_t cfg;
-    uint32_t status;
-    uint32_t rtr;
-    uint32_t pmit;
-    uint32_t bcr[4];
-    uint32_t tr;
-    uint32_t ecccfg;
-    uint32_t eccesr;
-    qemu_irq irq;
-};
-
 enum {
     SDRAM0_CFGADDR = 0x010,
     SDRAM0_CFGDATA = 0x011,
@@ -128,7 +106,7 @@ static target_ulong sdram_size (uint32_t bcr)
     return size;
 }
 
-static void sdram_set_bcr(ppc4xx_sdram_t *sdram, int i,
+static void sdram_set_bcr(Ppc4xxSdramState *sdram, int i,
                           uint32_t bcr, int enabled)
 {
     if (sdram->bcr[i] & 0x00000001) {
@@ -154,7 +132,7 @@ static void sdram_set_bcr(ppc4xx_sdram_t *sdram, int i,
     }
 }
 
-static void sdram_map_bcr (ppc4xx_sdram_t *sdram)
+static void sdram_map_bcr(Ppc4xxSdramState *sdram)
 {
     int i;
 
@@ -168,7 +146,7 @@ static void sdram_map_bcr (ppc4xx_sdram_t *sdram)
     }
 }
 
-static void sdram_unmap_bcr (ppc4xx_sdram_t *sdram)
+static void sdram_unmap_bcr(Ppc4xxSdramState *sdram)
 {
     int i;
 
@@ -182,7 +160,7 @@ static void sdram_unmap_bcr (ppc4xx_sdram_t *sdram)
 
 static uint32_t dcr_read_sdram (void *opaque, int dcrn)
 {
-    ppc4xx_sdram_t *sdram;
+    Ppc4xxSdramState *sdram;
     uint32_t ret;
 
     sdram = opaque;
@@ -250,7 +228,7 @@ static uint32_t dcr_read_sdram (void *opaque, int dcrn)
 
 static void dcr_write_sdram (void *opaque, int dcrn, uint32_t val)
 {
-    ppc4xx_sdram_t *sdram;
+    Ppc4xxSdramState *sdram;
 
     sdram = opaque;
     switch (dcrn) {
@@ -329,11 +307,10 @@ static void dcr_write_sdram (void *opaque, int dcrn, uint32_t val)
     }
 }
 
-static void sdram_reset (void *opaque)
+static void ppc4xx_sdram_reset(DeviceState *dev)
 {
-    ppc4xx_sdram_t *sdram;
+    Ppc4xxSdramState *sdram = (Ppc4xxSdramState *) dev;
 
-    sdram = opaque;
     sdram->addr = 0x00000000;
     sdram->bear = 0x00000000;
     sdram->besr0 = 0x00000000; /* No error */
@@ -349,21 +326,88 @@ static void sdram_reset (void *opaque)
     sdram->cfg = 0x00800000;
 }
 
+static void sdram_reset(void *opaque)
+{
+    ppc4xx_sdram_reset(opaque);
+}
+
+static void ppc4xx_sdram_realize(DeviceState *dev, Error **errp)
+{
+    Ppc4xxSdramState *s = PPC4xx_SDRAM(dev);
+    Ppc4xxDcrDeviceState *dcr = PPC4xx_DCR_DEVICE(dev);
+    int i;
+
+    sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq);
+
+    ppc4xx_dcr_register(dcr, SDRAM0_CFGADDR, &dcr_read_sdram, &dcr_write_sdram);
+    ppc4xx_dcr_register(dcr, SDRAM0_CFGDATA, &dcr_read_sdram, &dcr_write_sdram);
+
+    if (!s->nb_ram_bases || s->nb_ram_bases != s->nb_ram_sizes) {
+        error_setg(errp, "Invalid number of RAM banks");
+        return;
+    }
+
+    s->ram_memories = g_new0(MemoryRegion, s->nb_ram_bases);
+    for (i = 0; i < s->nb_ram_bases; i++) {
+        g_autofree char *name = g_strdup_printf(TYPE_PPC4xx_SDRAM "%d", i);
+
+        if (!sdram_bcr(s->ram_bases[i], s->ram_sizes[i])) {
+            error_setg(errp, "Invalid RAM size 0x%" HWADDR_PRIx,
+                       s->ram_sizes[i]);
+            return;
+        }
+
+        memory_region_init_alias(&s->ram_memories[i], OBJECT(s), name,
+                                 s->dram_mr, s->ram_bases[i], s->ram_sizes[i]);
+    }
+
+    s->nbanks = s->nb_ram_sizes;
+    if (s->dram_init) {
+        sdram_map_bcr(s);
+    }
+}
+
+static Property ppc4xx_sdram_properties[] = {
+    DEFINE_PROP_LINK("dram", Ppc4xxSdramState, dram_mr, TYPE_MEMORY_REGION,
+                     MemoryRegion *),
+    DEFINE_PROP_BOOL("dram-init", Ppc4xxSdramState, dram_init, false),
+    DEFINE_PROP_ARRAY("ram-sizes", Ppc4xxSdramState, nb_ram_sizes,
+                      ram_sizes, qdev_prop_uint64, uint64_t),
+    DEFINE_PROP_ARRAY("ram-bases", Ppc4xxSdramState, nb_ram_bases,
+                      ram_bases, qdev_prop_uint64, uint64_t),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void ppc4xx_sdram_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = ppc4xx_sdram_realize;
+    dc->user_creatable = false;
+    dc->reset = ppc4xx_sdram_reset;
+    device_class_set_props(dc, ppc4xx_sdram_properties);
+}
+
 void ppc4xx_sdram_init (CPUPPCState *env, qemu_irq irq, int nbanks,
                         MemoryRegion *ram_memories,
                         hwaddr *ram_bases,
                         hwaddr *ram_sizes,
                         int do_init)
 {
-    ppc4xx_sdram_t *sdram;
+    Ppc4xxSdramState *sdram;
 
-    sdram = g_new0(ppc4xx_sdram_t, 1);
+    sdram = g_new0(Ppc4xxSdramState, 1);
     sdram->irq = irq;
     sdram->nbanks = nbanks;
     sdram->ram_memories = ram_memories;
+
+    sdram->ram_bases = g_new0(hwaddr, 4);
+
     memset(sdram->ram_bases, 0, 4 * sizeof(hwaddr));
     memcpy(sdram->ram_bases, ram_bases,
            nbanks * sizeof(hwaddr));
+
+    sdram->ram_sizes = g_new0(hwaddr, 4);
     memset(sdram->ram_sizes, 0, 4 * sizeof(hwaddr));
     memcpy(sdram->ram_sizes, ram_sizes,
            nbanks * sizeof(hwaddr));
@@ -683,6 +727,11 @@ static void ppc4xx_dcr_class_init(ObjectClass *oc, void *data)
 
 static const TypeInfo ppc4xx_types[] = {
     {
+        .name           = TYPE_PPC4xx_SDRAM,
+        .parent         = TYPE_PPC4xx_DCR_DEVICE,
+        .instance_size  = sizeof(Ppc4xxSdramState),
+        .class_init     = ppc4xx_sdram_class_init,
+    }, {
         .name           = TYPE_PPC4xx_MAL,
         .parent         = TYPE_PPC4xx_DCR_DEVICE,
         .instance_size  = sizeof(Ppc4xxMalState),

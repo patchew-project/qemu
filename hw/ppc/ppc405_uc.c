@@ -1361,6 +1361,9 @@ static void ppc405_soc_instance_init(Object *obj)
 
     object_initialize_child(obj, "gpio", &s->gpio, TYPE_PPC405_GPIO);
 
+    object_initialize_child(obj, "sdram", &s->sdram, TYPE_PPC4xx_SDRAM);
+    object_property_add_alias(obj, "dram-init", OBJECT(&s->sdram), "dram-init");
+
     object_initialize_child(obj, "dma", &s->dma, TYPE_PPC405_DMA);
 
     object_initialize_child(obj, "i2c", &s->i2c, TYPE_PPC4xx_I2C);
@@ -1432,15 +1435,28 @@ static void ppc405_soc_realize(DeviceState *dev, Error **errp)
 
     /* SDRAM controller */
         /* XXX 405EP has no ECC interrupt */
-    s->ram_bases[0] = 0;
-    s->ram_sizes[0] = s->ram_size;
-    memory_region_init_alias(&s->ram_banks[0], OBJECT(s),
-                             "ppc405.sdram0", s->dram_mr,
-                             s->ram_bases[0], s->ram_sizes[0]);
+    object_property_set_link(OBJECT(&s->sdram), "dram", OBJECT(s->dram_mr),
+                             &error_abort);
 
-    ppc4xx_sdram_init(env, qdev_get_gpio_in(DEVICE(&s->uic), 17), 1,
-                      s->ram_banks, s->ram_bases, s->ram_sizes,
-                      s->do_dram_init);
+    qdev_prop_set_uint32(DEVICE(&s->sdram), "len-ram-sizes", s->nr_banks);
+    qdev_prop_set_uint32(DEVICE(&s->sdram), "len-ram-bases", s->nr_banks);
+
+    for (i = 0; i < s->nr_banks; i++) {
+        char name[32];
+        snprintf(name, sizeof(name), "ram-bases[%d]", i);
+        qdev_prop_set_uint32(DEVICE(&s->sdram), name,
+                             i * s->ram_size / s->nr_banks);
+
+        snprintf(name, sizeof(name), "ram-sizes[%d]", i);
+        qdev_prop_set_uint32(DEVICE(&s->sdram), name,
+                             s->ram_size / s->nr_banks);
+    }
+
+    if (!ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(&s->sdram), &s->cpu, errp)) {
+        return;
+    }
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->sdram), 0,
+                       qdev_get_gpio_in(DEVICE(&s->uic), 17));
 
     /* External bus controller */
     if (!ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(&s->ebc), &s->cpu, errp)) {
@@ -1520,7 +1536,7 @@ static void ppc405_soc_realize(DeviceState *dev, Error **errp)
 static Property ppc405_soc_properties[] = {
     DEFINE_PROP_LINK("dram", Ppc405SoCState, dram_mr, TYPE_MEMORY_REGION,
                      MemoryRegion *),
-    DEFINE_PROP_BOOL("dram-init", Ppc405SoCState, do_dram_init, 0),
+    DEFINE_PROP_UINT32("nr-banks", Ppc405SoCState, nr_banks, 2),
     DEFINE_PROP_UINT64("ram-size", Ppc405SoCState, ram_size, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
