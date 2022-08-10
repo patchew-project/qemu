@@ -17,6 +17,7 @@ import re
 from typing import (
     Dict,
     Iterator,
+    List,
     Optional,
     Sequence,
     Tuple,
@@ -43,6 +44,10 @@ def gen_special_features(features: Sequence[QAPISchemaFeature]) -> str:
     special_features = [f"1u << QAPI_{feat.name.upper()}"
                         for feat in features if feat.is_special()]
     return ' | '.join(special_features) or '0'
+
+
+def genc_include(include: List[str]) -> str:
+    return '\n'.join([f'#include "{inc}"' for inc in include])
 
 
 class QAPIGen:
@@ -228,15 +233,20 @@ def ifcontext(ifcond: QAPISchemaIfCond, *args: QAPIGenCCode) -> Iterator[None]:
 class QAPISchemaMonolithicCVisitor(QAPISchemaVisitor):
     def __init__(self,
                  prefix: str,
+                 include: List[str],
                  what: str,
                  blurb: str,
                  pydoc: str):
         self._prefix = prefix
+        self._include = include
         self._what = what
         self._genc = QAPIGenC(self._prefix + self._what + '.c',
                               blurb, pydoc)
         self._genh = QAPIGenH(self._prefix + self._what + '.h',
                               blurb, pydoc)
+
+    def genc_include(self) -> str:
+        return genc_include(self._include)
 
     def write(self, output_dir: str) -> None:
         self._genc.write(output_dir)
@@ -246,12 +256,14 @@ class QAPISchemaMonolithicCVisitor(QAPISchemaVisitor):
 class QAPISchemaModularCVisitor(QAPISchemaVisitor):
     def __init__(self,
                  prefix: str,
+                 include: List[str],
                  what: str,
                  user_blurb: str,
                  builtin_blurb: Optional[str],
                  pydoc: str,
                  gen_tracing: bool = False):
         self._prefix = prefix
+        self._include = include
         self._what = what
         self._user_blurb = user_blurb
         self._builtin_blurb = builtin_blurb
@@ -261,6 +273,9 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
                                       Optional[QAPIGenTrace]]] = {}
         self._main_module: Optional[str] = None
         self._gen_tracing = gen_tracing
+
+    def genc_include(self) -> str:
+        return genc_include(self._include)
 
     @property
     def _genc(self) -> QAPIGenC:

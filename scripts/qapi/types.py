@@ -282,18 +282,20 @@ void qapi_free_%(c_name)s(%(c_name)s *obj)
 
 class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
 
-    def __init__(self, prefix: str):
+    def __init__(self, prefix: str, include: List[str]):
         super().__init__(
-            prefix, 'qapi-types', ' * Schema-defined QAPI types',
+            prefix, include, 'qapi-types', ' * Schema-defined QAPI types',
             ' * Built-in QAPI types', __doc__)
 
     def _begin_builtin_module(self) -> None:
         self._genc.preamble_add(mcgen('''
-#include "qemu/osdep.h"
+%(include)s
+
 #include "qapi/dealloc-visitor.h"
 #include "qapi/qapi-builtin-types.h"
 #include "qapi/qapi-builtin-visit.h"
-'''))
+''',
+                                      include=self.genc_include()))
         self._genh.preamble_add(mcgen('''
 #include "qapi/util.h"
 '''))
@@ -302,11 +304,13 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
         types = self._module_basename('qapi-types', name)
         visit = self._module_basename('qapi-visit', name)
         self._genc.preamble_add(mcgen('''
-#include "qemu/osdep.h"
+%(include)s
+
 #include "qapi/dealloc-visitor.h"
 #include "%(types)s.h"
 #include "%(visit)s.h"
 ''',
+                                      include=self.genc_include(),
                                       types=types, visit=visit))
         self._genh.preamble_add(mcgen('''
 #include "qapi/qapi-builtin-types.h"
@@ -381,7 +385,8 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
 def gen_types(schema: QAPISchema,
               output_dir: str,
               prefix: str,
+              include: List[str],
               opt_builtins: bool) -> None:
-    vis = QAPISchemaGenTypeVisitor(prefix)
+    vis = QAPISchemaGenTypeVisitor(prefix, include)
     schema.visit(vis)
     vis.write(output_dir, opt_builtins)
