@@ -34,10 +34,16 @@ OBJECT_DECLARE_TYPE(HostMemoryBackend, HostMemoryBackendClass,
 /* hostmem-file.c */
 /**
  * @TYPE_MEMORY_BACKEND_FILE:
- * name of backend that uses mmap on a file descriptor
+ * name of backend that uses mmap on a file
  */
 #define TYPE_MEMORY_BACKEND_FILE "memory-backend-file"
 
+/* hostmem-memfd.c */
+/**
+ * @TYPE_MEMORY_BACKEND_MEMFD:
+ * name of backend that uses mmap on a memfd file descriptor
+ */
+#define TYPE_MEMORY_BACKEND_MEMFD "memory-backend-memfd"
 
 /**
  * HostMemoryBackendClass:
