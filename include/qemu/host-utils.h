@@ -32,7 +32,6 @@
 
 #include "qemu/compiler.h"
 #include "qemu/bswap.h"
-#include "qemu/int128.h"
 
 #ifdef CONFIG_INT128
 static inline void mulu64(uint64_t *plow, uint64_t *phigh,
@@ -784,6 +783,4 @@ static inline uint64_t udiv_qrnnd(uint64_t *r, uint64_t n1,
 #endif
 }
 
-Int128 divu256(Int128 *plow, Int128 *phigh, Int128 divisor);
-Int128 divs256(Int128 *plow, Int128 *phigh, Int128 divisor);
 #endif
