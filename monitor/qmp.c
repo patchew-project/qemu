@@ -156,9 +156,10 @@ static void do_qmp_dispatch_bh(void *opaque)
  * Runs outside of coroutine context for OOB commands, but in coroutine
  * context for everything else.
  */
-void qmp_dispatch_exec(const QmpCommand *cmd, bool oob, Monitor *cur_mon,
+void qmp_dispatch_exec(const QmpCommand *cmd, bool oob, void *exec_data,
                        QDict *args, QObject **ret, Error **errp)
 {
+    Monitor *cur_mon = exec_data;
     assert(!(oob && qemu_in_coroutine()));
     assert(monitor_cur() == NULL);
 

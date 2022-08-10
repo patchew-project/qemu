@@ -108,7 +108,7 @@ bool qmp_is_oob(const QDict *dict)
 }
 
 QDict *qmp_dispatch(const QmpCommandList *cmds, QObject *request,
-                    bool allow_oob, Monitor *cur_mon)
+                    bool allow_oob, void *exec_data)
 {
     Error *err = NULL;
     bool oob;
@@ -176,7 +176,7 @@ QDict *qmp_dispatch(const QmpCommandList *cmds, QObject *request,
         qobject_ref(args);
     }
 
-    qmp_dispatch_exec(cmd, oob, cur_mon, args, &ret, &err);
+    qmp_dispatch_exec(cmd, oob, exec_data, args, &ret, &err);
 
     qobject_unref(args);
     if (err) {
