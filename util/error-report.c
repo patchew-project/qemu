@@ -390,7 +390,7 @@ void error_init(const char *argv0)
 {
     const char *p = strrchr(argv0, '/');
 
-    /* Set the program name for error_print_loc(). */
+    /* Set the program name for print_loc(). */
     g_set_prgname(p ? p + 1 : argv0);
 
     /*
