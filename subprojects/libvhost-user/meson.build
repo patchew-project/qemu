@@ -5,6 +5,8 @@ project('libvhost-user', 'c',
 threads = dependency('threads')
 glib = dependency('glib-2.0')
 
+qemu_common = subproject('qemu-common')
+
 vhost_user = static_library('vhost-user',
                             files('libvhost-user.c'),
                             dependencies: threads,

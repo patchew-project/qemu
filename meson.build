@@ -169,6 +169,10 @@ if 'dtrace' in get_option('trace_backends')
   endif
 endif
 
+add_project_arguments('-I' + meson.current_source_dir() / 'subprojects/qemu-common/include',
+  language: ['c', 'cpp', 'objc'],
+)
+
 if get_option('iasl') == ''
   iasl = find_program('iasl', required: false)
 else
@@ -1582,6 +1586,9 @@ if libbpf.found() and not cc.links('''
     warning('libbpf skeleton test failed, disabling')
   endif
 endif
+
+qemu_common = subproject('qemu-common')
+qemu_common = qemu_common.get_variable('qemu_common_dep')
 
 #################
 # config-host.h #
@@ -3057,7 +3064,7 @@ util_ss.add_all(trace_ss)
 util_ss = util_ss.apply(config_all, strict: false)
 libqemuutil = static_library('qemuutil',
                              sources: util_ss.sources() + stub_ss.sources() + genh,
-                             dependencies: [util_ss.dependencies(), libm, threads, glib, socket, malloc, pixman])
+                             dependencies: [util_ss.dependencies(), libm, threads, glib, socket, malloc, pixman, qemu_common])
 qemuutil = declare_dependency(link_with: libqemuutil,
                               sources: genh + version_res,
                               dependencies: [event_loop_base])
