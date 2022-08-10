@@ -2848,8 +2848,8 @@ F: tests/unit/test-*-visitor.c
 F: tests/unit/test-qapi-*.c
 F: tests/unit/test-qmp-*.c
 F: tests/unit/test-visitor-serialization.c
-F: scripts/qapi-gen.py
-F: scripts/qapi/*
+F: subprojects/qemu-common/scripts/qapi-gen.py
+F: subprojects/qemu-common/scripts/qapi/*
 F: docs/sphinx/qapidoc.py
 F: docs/devel/qapi*
 T: git https://repo.or.cz/qemu/armbru.git qapi-next

@@ -56,7 +56,7 @@ except NameError:
 # Our extensions are in docs/sphinx; the qapidoc extension requires
 # the QAPI modules from scripts/.
 sys.path.insert(0, os.path.join(qemu_docdir, "sphinx"))
-sys.path.insert(0, os.path.join(qemu_docdir, "../scripts"))
+sys.path.insert(0, os.path.join(qemu_docdir, "../subprojects/qemu-common/scripts"))
 
 
 # -- General configuration ------------------------------------------------

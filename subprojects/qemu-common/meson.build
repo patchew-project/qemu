@@ -6,3 +6,5 @@ project('qemu-common', 'c',
 qemu_common_dep = declare_dependency(
   include_directories: include_directories('include'),
 )
+
+subdir('scripts')

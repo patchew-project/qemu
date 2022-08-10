@@ -1,0 +1,16 @@
+qapi_gen_depends = files(
+  '__init__.py',
+  'commands.py',
+  'common.py',
+  'error.py',
+  'events.py',
+  'expr.py',
+  'gen.py',
+  'introspect.py',
+  'parser.py',
+  'schema.py',
+  'source.py',
+  'types.py',
+  'visit.py',
+  'common.py',
+)
