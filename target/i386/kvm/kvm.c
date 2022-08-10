@@ -4529,18 +4529,34 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
 
     assert(cpu_is_stopped(cpu) || qemu_cpu_is_self(cpu));
 
-    /* must be before kvm_put_nested_state so that EFER.SVME is set */
+    /*
+     * When resetting a vCPU, make sure to reset nested state first to
+     * e.g clear VMXON state and unlock certain CR4 bits.
+     */
+    if (level == KVM_PUT_RESET_STATE) {
+        ret = kvm_put_nested_state(x86_cpu);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
     ret = has_sregs2 ? kvm_put_sregs2(x86_cpu) : kvm_put_sregs(x86_cpu);
     if (ret < 0) {
         return ret;
     }
 
-    if (level >= KVM_PUT_RESET_STATE) {
+    /*
+     * When putting full CPU state, kvm_put_nested_state() must happen after
+     * kvm_put_sregs{,2} so that e.g. EFER.SVME is already set.
+     */
+    if (level == KVM_PUT_FULL_STATE) {
         ret = kvm_put_nested_state(x86_cpu);
         if (ret < 0) {
             return ret;
         }
+    }
 
+    if (level >= KVM_PUT_RESET_STATE) {
         ret = kvm_put_msr_feature_control(x86_cpu);
         if (ret < 0) {
             return ret;
