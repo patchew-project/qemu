@@ -430,7 +430,7 @@ static void prepare_elf_section_hdr_string(DumpState *s, void *buff)
     memcpy(buff, shdr, shdr_size);
 }
 
-static void prepare_elf_section_hdrs(DumpState *s)
+static void prepare_elf_section_hdrs(DumpState *s, Error **errp)
 {
     size_t len, sizeof_shdr;
     void *buff_hdr;
@@ -438,6 +438,7 @@ static void prepare_elf_section_hdrs(DumpState *s)
     /*
      * Section ordering:
      * - HDR zero
+     * - Arch section hdrs
      * - String table hdr
      */
     sizeof_shdr = dump_is_64bit(s) ? sizeof(Elf64_Shdr) : sizeof(Elf32_Shdr);
@@ -465,6 +466,16 @@ static void prepare_elf_section_hdrs(DumpState *s)
         return;
     }
 
+    /* Add architecture defined section headers */
+    if (s->dump_info.arch_sections_write_hdr_fn) {
+        buff_hdr += s->dump_info.arch_sections_write_hdr_fn(s, buff_hdr);
+
+        if (s->shdr_num >= SHN_LORESERVE) {
+            error_setg_errno(errp, EINVAL, "dump: too many architecture defined sections");
+            return;
+        }
+    }
+
     /*
      * String table is the last section since strings are added via
      * arch_sections_write_hdr().
@@ -477,11 +488,38 @@ static void write_elf_section_headers(DumpState *s, Error **errp)
     size_t sizeof_shdr = dump_is_64bit(s) ? sizeof(Elf64_Shdr) : sizeof(Elf32_Shdr);
     int ret;
 
-    prepare_elf_section_hdrs(s);
+    prepare_elf_section_hdrs(s, errp);
+    if (*errp) {
+        return;
+    }
 
     ret = fd_write_vmcore(s->elf_section_hdrs, s->shdr_num * sizeof_shdr, s);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "dump: failed to write section headers");
+    }
+}
+
+static void write_elf_sections(DumpState *s, Error **errp)
+{
+    int ret;
+
+    if (!s->elf_section_data_size) {
+        return;
+    }
+
+    /* Write architecture section data */
+    ret = fd_write_vmcore(s->elf_section_data,
+                          s->elf_section_data_size, s);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "dump: failed to write architecture section  data");
+        return;
+    }
+
+    /* Write string table */
+    ret = fd_write_vmcore(s->string_table_buf->data,
+                          s->string_table_buf->len, s);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "dump: failed to write string table data");
     }
 }
 
@@ -744,6 +782,24 @@ static void dump_iterate(DumpState *s, Error **errp)
     }
 }
 
+static void dump_end(DumpState *s, Error **errp)
+{
+    ERRP_GUARD();
+
+    if (!s->elf_section_data_size) {
+        return;
+    }
+    s->elf_section_data = g_malloc0(s->elf_section_data_size);
+
+    /* Adds the architecture defined section data to s->elf_section_data  */
+    if (s->dump_info.arch_sections_write_fn) {
+        s->dump_info.arch_sections_write_fn(s, s->elf_section_data);
+    }
+
+    /* write sections to vmcore */
+    write_elf_sections(s, errp);
+}
+
 static void create_vmcore(DumpState *s, Error **errp)
 {
     ERRP_GUARD();
@@ -758,6 +814,9 @@ static void create_vmcore(DumpState *s, Error **errp)
     if (*errp) {
         return;
     }
+
+    /* Write the section data */
+    dump_end(s, errp);
 }
 
 static int write_start_flat_header(int fd)
@@ -1883,38 +1942,53 @@ static void dump_init(DumpState *s, int fd, bool has_format,
     }
 
     /*
-     * calculate phdr_num
-     *
-     * the type of ehdr->e_phnum is uint16_t, so we should avoid overflow
+     * Adds the number of architecture sections to shdr_num, sets
+     * string_table_usage and sets elf_section_data_size so we know
+     * the offsets and sizes of all parts.
      */
-    s->phdr_num = 1; /* PT_NOTE */
-    if (s->list.num < UINT16_MAX - 2) {
-        s->shdr_num = 0;
-        s->phdr_num += s->list.num;
-    } else {
-        /* sh_info of section 0 holds the real number of phdrs */
-        s->shdr_num = 1;
+    if (s->dump_info.arch_sections_add_fn) {
+        s->dump_info.arch_sections_add_fn(s);
 
-        /* the type of shdr->sh_info is uint32_t, so we should avoid overflow */
-        if (s->list.num <= UINT32_MAX - 1) {
-            s->phdr_num += s->list.num;
-        } else {
-            s->phdr_num = UINT32_MAX;
+        if (s->shdr_num) {
+            s->string_table_usage = true;
         }
     }
 
     /*
-     * calculate shdr_num and elf_section_data_size so we know the offsets and
-     * sizes of all parts.
+     * Calculate phdr_num
      *
-     * If phdr_num overflowed we have at least one section header
-     * More sections/hdrs can be added by the architectures
+     * The absolute maximum amount of phdrs is UINT32_MAX - 1 as
+     * sh_info is 32 bit. There's special handling once we go over
+     * UINT16_MAX - 1 but that is handled in the ehdr and section
+     * code.
      */
-    if (s->shdr_num > 1) {
-        /* Reserve the string table */
+    s->phdr_num = 1; /* Reserve PT_NOTE */
+    if (s->list.num <= UINT32_MAX - 1) {
+        s->phdr_num += s->list.num;
+    } else {
+        s->phdr_num = UINT32_MAX;
+    }
+
+    /*
+     * The first section header is always a special one in which most
+     * fields are 0.
+     *
+     * We need it if we have custom sections and if phdr_num >=
+     * PN_XNUM so we can write the real phdr_num into sh_info.
+     */
+    if (s->shdr_num || s->phdr_num >= PN_XNUM) {
         s->shdr_num += 1;
     }
 
+    /* Reserve the string table for the arch sections if needed */
+    if (s->string_table_usage) {
+        s->shdr_num += 1;
+    }
+
+    /*
+     * Now that the number of section and program headers is known we
+     * can calculate the offsets of the headers and data.
+     */
     if (dump_is_64bit(s)) {
         s->shdr_offset = sizeof(Elf64_Ehdr);
         s->phdr_offset = s->shdr_offset + sizeof(Elf64_Shdr) * s->shdr_num;
