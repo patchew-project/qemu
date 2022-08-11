@@ -1377,11 +1377,13 @@ static void nvme_post_cqes(void *opaque)
         QTAILQ_INSERT_TAIL(&sq->req_list, req, entry);
     }
     if (cq->tail != cq->head) {
-        if (cq->irq_enabled && !pending) {
-            n->cq_pending++;
-        }
+        if (cq->irq_enabled) {
+            if (!pending) {
+                n->cq_pending++;
+            }
 
-        nvme_irq_assert(n, cq);
+            nvme_irq_assert(n, cq);
+        }
     }
 }
 
@@ -4244,12 +4246,11 @@ static void nvme_cq_notifier(EventNotifier *e)
 
     nvme_update_cq_head(cq);
 
-    if (cq->tail == cq->head) {
-        if (cq->irq_enabled) {
-            n->cq_pending--;
+    if (cq->irq_enabled && cq->tail == cq->head) {
+        n->cq_pending--;
+        if (!msix_enabled(&n->parent_obj)) {
+            nvme_irq_deassert(n, cq);
         }
-
-        nvme_irq_deassert(n, cq);
     }
 
     nvme_post_cqes(cq);
@@ -4730,11 +4731,15 @@ static uint16_t nvme_del_cq(NvmeCtrl *n, NvmeRequest *req)
         return NVME_INVALID_QUEUE_DEL;
     }
 
-    if (cq->irq_enabled && cq->tail != cq->head) {
-        n->cq_pending--;
-    }
+    if (cq->irq_enabled) {
+        if (cq->tail != cq->head) {
+            n->cq_pending--;
+        }
 
-    nvme_irq_deassert(n, cq);
+        if (!msix_enabled(&n->parent_obj)) {
+            nvme_irq_deassert(n, cq);
+        }
+    }
     trace_pci_nvme_del_cq(qid);
     nvme_free_cq(cq, n);
     return NVME_SUCCESS;
@@ -6918,12 +6923,11 @@ static void nvme_process_db(NvmeCtrl *n, hwaddr addr, int val)
             timer_mod(cq->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 500);
         }
 
-        if (cq->tail == cq->head) {
-            if (cq->irq_enabled) {
-                n->cq_pending--;
+        if (cq->irq_enabled && cq->tail == cq->head) {
+            n->cq_pending--;
+            if (!msix_enabled(&n->parent_obj)) {
+                nvme_irq_deassert(n, cq);
             }
-
-            nvme_irq_deassert(n, cq);
         }
     } else {
         /* Submission queue doorbell write */
