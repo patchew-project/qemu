@@ -23,6 +23,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "sysemu/numa.h"
+#include "migration/vmstate.h"
 #include "hw/boards.h"
 #include "qom/object.h"
 
@@ -404,7 +405,27 @@ static Property pxb_dev_properties[] = {
     DEFINE_PROP_UINT8("bus_nr", PXBDev, bus_nr, 0),
     DEFINE_PROP_UINT16("numa_node", PXBDev, numa_node, NUMA_NODE_UNASSIGNED),
     DEFINE_PROP_BOOL("bypass_iommu", PXBDev, bypass_iommu, false),
+    DEFINE_PROP_BOOL("x-config-reg-migration-enabled", PXBDev,
+                     migratable, true),
     DEFINE_PROP_END_OF_LIST(),
+};
+
+static bool pxb_vmstate_needed(void *opaque)
+{
+    PXBDev *pxb = opaque;
+
+    return pxb->migratable;
+}
+
+static const VMStateDescription vmstate_pxb_device = {
+    .name = "pxb-pci",
+    .needed = pxb_vmstate_needed,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_PCI_DEVICE(parent_obj, PXBDev),
+        VMSTATE_END_OF_LIST()
+    }
 };
 
 static void pxb_dev_class_init(ObjectClass *klass, void *data)
@@ -422,6 +443,7 @@ static void pxb_dev_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, pxb_dev_properties);
     dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    dc->vmsd = &vmstate_pxb_device;
 }
 
 static const TypeInfo pxb_dev_info = {
@@ -460,6 +482,7 @@ static void pxb_pcie_dev_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, pxb_dev_properties);
     dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    dc->vmsd = &vmstate_pxb_device;
 }
 
 static const TypeInfo pxb_pcie_dev_info = {
@@ -504,6 +527,7 @@ static void pxb_cxl_dev_class_init(ObjectClass *klass, void *data)
     /* Host bridges aren't hotpluggable. FIXME: spec reference */
     dc->hotpluggable = false;
     dc->reset = pxb_dev_reset;
+    dc->vmsd = &vmstate_pxb_device;
 }
 
 static const TypeInfo pxb_cxl_dev_info = {

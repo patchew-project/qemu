@@ -43,6 +43,9 @@
 GlobalProperty hw_compat_7_0[] = {
     { "arm-gicv3-common", "force-8-bit-prio", "on" },
     { "nvme-ns", "eui64-default", "on"},
+    { "pxb", "x-config-reg-migration-enabled", "off" },
+    { "pxb-cxl", "x-config-reg-migration-enabled", "off" },
+    { "pxb-pcie", "x-config-reg-migration-enabled", "off" },
 };
 const size_t hw_compat_7_0_len = G_N_ELEMENTS(hw_compat_7_0);
 
