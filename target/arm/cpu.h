@@ -1333,6 +1333,7 @@ FIELD(CPTR_EL3, TAM, 30, 1)
 FIELD(CPTR_EL3, TCPAC, 31, 1)
 
 #define MDCR_MCCD     (1ULL << 34) /* MDCR_EL3 */
+#define MDCR_HLP      (1U << 26)  /* MDCR_EL2 */
 #define MDCR_HCCD     (1U << 23)  /* MDCR_EL2 */
 #define MDCR_EPMAD    (1U << 21)
 #define MDCR_EDAD     (1U << 20)
