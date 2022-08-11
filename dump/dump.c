@@ -103,6 +103,7 @@ static int dump_cleanup(DumpState *s)
     memory_mapping_list_free(&s->list);
     close(s->fd);
     g_free(s->guest_note);
+    g_array_unref(s->string_table_buf);
     s->guest_note = NULL;
     if (s->resume) {
         if (s->detached) {
@@ -156,6 +157,9 @@ static void prepare_elf64_header(DumpState *s, Elf64_Ehdr *elf_header)
         elf_header->e_shoff = cpu_to_dump64(s, s->shdr_offset);
         elf_header->e_shentsize = cpu_to_dump16(s, sizeof(Elf64_Shdr));
         elf_header->e_shnum = cpu_to_dump16(s, s->shdr_num);
+        if (s->string_table_usage) {
+            elf_header->e_shstrndx = cpu_to_dump16(s, s->shdr_num - 1);
+        }
     }
 }
 
@@ -184,6 +188,9 @@ static void prepare_elf32_header(DumpState *s, Elf32_Ehdr *elf_header)
         elf_header->e_shoff = cpu_to_dump32(s, s->shdr_offset);
         elf_header->e_shentsize = cpu_to_dump16(s, sizeof(Elf32_Shdr));
         elf_header->e_shnum = cpu_to_dump16(s, s->shdr_num);
+        if (s->string_table_usage) {
+            elf_header->e_shstrndx = cpu_to_dump16(s, s->shdr_num - 1);
+        }
     }
 }
 
@@ -393,17 +400,50 @@ static void prepare_elf_section_hdr_zero(DumpState *s)
     }
 }
 
+static void prepare_elf_section_hdr_string(DumpState *s, void *buff)
+{
+    Elf32_Shdr shdr32;
+    Elf64_Shdr shdr64;
+    int shdr_size;
+    void *shdr;
+
+    if (dump_is_64bit(s)) {
+        shdr_size = sizeof(Elf64_Shdr);
+        memset(&shdr64, 0, shdr_size);
+        shdr64.sh_type = SHT_STRTAB;
+        shdr64.sh_offset = s->section_offset + s->elf_section_data_size;
+        shdr64.sh_name = s->string_table_buf->len;
+        g_array_append_vals(s->string_table_buf, ".strtab", sizeof(".strtab"));
+        shdr64.sh_size = s->string_table_buf->len;
+        shdr = &shdr64;
+    } else {
+        shdr_size = sizeof(Elf32_Shdr);
+        memset(&shdr32, 0, shdr_size);
+        shdr32.sh_type = SHT_STRTAB;
+        shdr32.sh_offset = s->section_offset + s->elf_section_data_size;
+        shdr32.sh_name = s->string_table_buf->len;
+        g_array_append_vals(s->string_table_buf, ".strtab", sizeof(".strtab"));
+        shdr32.sh_size = s->string_table_buf->len;
+        shdr = &shdr32;
+    }
+
+    memcpy(buff, shdr, shdr_size);
+}
+
 static void prepare_elf_section_hdrs(DumpState *s)
 {
     size_t len, sizeof_shdr;
+    void *buff_hdr;
 
     /*
      * Section ordering:
      * - HDR zero
+     * - String table hdr
      */
     sizeof_shdr = dump_is_64bit(s) ? sizeof(Elf64_Shdr) : sizeof(Elf32_Shdr);
     len = sizeof_shdr * s->shdr_num;
     s->elf_section_hdrs = g_malloc0(len);
+    buff_hdr = s->elf_section_hdrs;
 
     /*
      * The first section header is ALWAYS a special initial section
@@ -419,6 +459,17 @@ static void prepare_elf_section_hdrs(DumpState *s)
     if (s->phdr_num >= PN_XNUM) {
         prepare_elf_section_hdr_zero(s);
     }
+    buff_hdr += sizeof_shdr;
+
+    if (s->shdr_num < 2) {
+        return;
+    }
+
+    /*
+     * String table is the last section since strings are added via
+     * arch_sections_write_hdr().
+     */
+    prepare_elf_section_hdr_string(s, buff_hdr);
 }
 
 static void write_elf_section_headers(DumpState *s, Error **errp)
@@ -1688,6 +1739,14 @@ static void dump_init(DumpState *s, int fd, bool has_format,
     s->filter_area_begin = begin;
     s->filter_area_length = length;
 
+    /* First index is 0, it's the special null name */
+    s->string_table_buf = g_array_new(FALSE, TRUE, 1);
+    /*
+     * Allocate the null name, due to the clearing option set to true
+     * it will be 0.
+     */
+    g_array_set_size(s->string_table_buf, 1);
+
     memory_mapping_list_init(&s->list);
 
     guest_phys_blocks_init(&s->guest_phys_blocks);
@@ -1842,6 +1901,18 @@ static void dump_init(DumpState *s, int fd, bool has_format,
         } else {
             s->phdr_num = UINT32_MAX;
         }
+    }
+
+    /*
+     * calculate shdr_num and elf_section_data_size so we know the offsets and
+     * sizes of all parts.
+     *
+     * If phdr_num overflowed we have at least one section header
+     * More sections/hdrs can be added by the architectures
+     */
+    if (s->shdr_num > 1) {
+        /* Reserve the string table */
+        s->shdr_num += 1;
     }
 
     if (dump_is_64bit(s)) {
