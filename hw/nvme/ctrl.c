@@ -1338,6 +1338,54 @@ static void nvme_update_cq_head(NvmeCQueue *cq)
     trace_pci_nvme_shadow_doorbell_cq(cq->cqid, cq->head);
 }
 
+static void nvme_assert_notifier_read(EventNotifier *e)
+{
+    NvmeCQueue *cq = container_of(e, NvmeCQueue, assert_notifier);
+    if (event_notifier_test_and_clear(e)) {
+        nvme_irq_assert(cq->ctrl, cq);
+    }
+}
+
+static void nvme_deassert_notifier_read(EventNotifier *e)
+{
+    NvmeCQueue *cq = container_of(e, NvmeCQueue, deassert_notifier);
+    if (event_notifier_test_and_clear(e)) {
+        nvme_irq_deassert(cq->ctrl, cq);
+    }
+}
+
+static void nvme_init_irq_notifier(NvmeCtrl *n, NvmeCQueue *cq)
+{
+    int ret;
+
+    ret = event_notifier_init(&cq->assert_notifier, 0);
+    if (ret < 0) {
+        goto fail_assert_handler;
+    }
+
+    event_notifier_set_handler(&cq->assert_notifier,
+                                nvme_assert_notifier_read);
+
+    if (!msix_enabled(&n->parent_obj)) {
+        ret = event_notifier_init(&cq->deassert_notifier, 0);
+        if (ret < 0) {
+            goto fail_deassert_handler;
+        }
+
+        event_notifier_set_handler(&cq->deassert_notifier,
+                                   nvme_deassert_notifier_read);
+    }
+
+    return;
+
+fail_deassert_handler:
+    event_notifier_set_handler(&cq->deassert_notifier, NULL);
+    event_notifier_cleanup(&cq->deassert_notifier);
+fail_assert_handler:
+    event_notifier_set_handler(&cq->assert_notifier, NULL);
+    event_notifier_cleanup(&cq->assert_notifier);
+}
+
 static void nvme_post_cqes(void *opaque)
 {
     NvmeCQueue *cq = opaque;
@@ -1382,7 +1430,23 @@ static void nvme_post_cqes(void *opaque)
                 n->cq_pending++;
             }
 
-            nvme_irq_assert(n, cq);
+            if (unlikely(cq->first_io_cqe)) {
+                /*
+                 * Initilize event notifier when first cqe is posted. For irqfd 
+                 * support we need to register the MSI message in KVM. We
+                 * can not do this registration at CQ creation time because
+                 * Linux's NVMe driver changes the MSI message after CQ creation.
+                 */
+                cq->first_io_cqe = false;
+
+                nvme_init_irq_notifier(n, cq);
+            }
+
+            if (cq->assert_notifier.initialized) {
+                event_notifier_set(&cq->assert_notifier);
+            } else {
+                nvme_irq_assert(n, cq);
+            }
         }
     }
 }
@@ -4249,7 +4313,11 @@ static void nvme_cq_notifier(EventNotifier *e)
     if (cq->irq_enabled && cq->tail == cq->head) {
         n->cq_pending--;
         if (!msix_enabled(&n->parent_obj)) {
-            nvme_irq_deassert(n, cq);
+            if (cq->deassert_notifier.initialized) {
+                event_notifier_set(&cq->deassert_notifier);
+            } else {
+                nvme_irq_deassert(n, cq);
+            }
         }
     }
 
@@ -4706,6 +4774,14 @@ static void nvme_free_cq(NvmeCQueue *cq, NvmeCtrl *n)
         event_notifier_set_handler(&cq->notifier, NULL);
         event_notifier_cleanup(&cq->notifier);
     }
+    if (cq->assert_notifier.initialized) {
+        event_notifier_set_handler(&cq->assert_notifier, NULL);
+        event_notifier_cleanup(&cq->assert_notifier);
+    }
+    if (cq->deassert_notifier.initialized) {
+        event_notifier_set_handler(&cq->deassert_notifier, NULL);
+        event_notifier_cleanup(&cq->deassert_notifier);
+    }
     if (msix_enabled(&n->parent_obj)) {
         msix_vector_unuse(&n->parent_obj, cq->vector);
     }
@@ -4737,6 +4813,7 @@ static uint16_t nvme_del_cq(NvmeCtrl *n, NvmeRequest *req)
         }
 
         if (!msix_enabled(&n->parent_obj)) {
+            /* Do not use eventfd since this is always called in main loop */
             nvme_irq_deassert(n, cq);
         }
     }
@@ -4777,6 +4854,7 @@ static void nvme_init_cq(NvmeCQueue *cq, NvmeCtrl *n, uint64_t dma_addr,
     }
     n->cq[cqid] = cq;
     cq->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, nvme_post_cqes, cq);
+    cq->first_io_cqe = cqid != 0;
 }
 
 static uint16_t nvme_create_cq(NvmeCtrl *n, NvmeRequest *req)
@@ -6926,7 +7004,11 @@ static void nvme_process_db(NvmeCtrl *n, hwaddr addr, int val)
         if (cq->irq_enabled && cq->tail == cq->head) {
             n->cq_pending--;
             if (!msix_enabled(&n->parent_obj)) {
-                nvme_irq_deassert(n, cq);
+                if (cq->deassert_notifier.initialized) {
+                    event_notifier_set(&cq->deassert_notifier);
+                } else {
+                    nvme_irq_deassert(n, cq);
+                }
             }
         }
     } else {
@@ -7675,6 +7757,7 @@ static Property nvme_props[] = {
     DEFINE_PROP_BOOL("use-intel-id", NvmeCtrl, params.use_intel_id, false),
     DEFINE_PROP_BOOL("legacy-cmb", NvmeCtrl, params.legacy_cmb, false),
     DEFINE_PROP_BOOL("ioeventfd", NvmeCtrl, params.ioeventfd, false),
+    DEFINE_PROP_BOOL("irq-eventfd", NvmeCtrl, params.irq_eventfd, false),
     DEFINE_PROP_UINT8("zoned.zasl", NvmeCtrl, params.zasl, 0),
     DEFINE_PROP_BOOL("zoned.auto_transition", NvmeCtrl,
                      params.auto_transition_zones, true),
