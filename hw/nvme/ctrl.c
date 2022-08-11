@@ -192,6 +192,7 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/kvm.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/hostmem.h"
 #include "hw/pci/msix.h"
@@ -1354,8 +1355,26 @@ static void nvme_deassert_notifier_read(EventNotifier *e)
     }
 }
 
+static int nvme_kvm_msix_vector_use(NvmeCtrl *n,
+                                    NvmeCQueue *cq,
+                                    uint32_t vector)
+{
+    int ret;
+
+    KVMRouteChange c = kvm_irqchip_begin_route_changes(kvm_state);
+    ret = kvm_irqchip_add_msi_route(&c, vector, &n->parent_obj);
+    if (ret < 0) {
+        return ret;
+    }
+    kvm_irqchip_commit_route_changes(&c);
+    cq->virq = ret;
+    return 0;
+}
+
 static void nvme_init_irq_notifier(NvmeCtrl *n, NvmeCQueue *cq)
 {
+    bool with_irqfd = msix_enabled(&n->parent_obj) &&
+                      kvm_msi_via_irqfd_enabled();
     int ret;
 
     ret = event_notifier_init(&cq->assert_notifier, 0);
@@ -1363,8 +1382,21 @@ static void nvme_init_irq_notifier(NvmeCtrl *n, NvmeCQueue *cq)
         goto fail_assert_handler;
     }
 
-    event_notifier_set_handler(&cq->assert_notifier,
-                                nvme_assert_notifier_read);
+    if (with_irqfd) {
+        ret = nvme_kvm_msix_vector_use(n, cq, cq->vector);
+        if (ret < 0) {
+            goto fail_assert_handler;
+        }
+        ret = kvm_irqchip_add_irqfd_notifier_gsi(kvm_state,
+                                                 &cq->assert_notifier, NULL, 
+                                                 cq->virq);
+        if (ret < 0) {
+            goto fail_kvm;
+         }
+    } else {
+        event_notifier_set_handler(&cq->assert_notifier,
+                                   nvme_assert_notifier_read);
+    }
 
     if (!msix_enabled(&n->parent_obj)) {
         ret = event_notifier_init(&cq->deassert_notifier, 0);
@@ -1381,6 +1413,12 @@ static void nvme_init_irq_notifier(NvmeCtrl *n, NvmeCQueue *cq)
 fail_deassert_handler:
     event_notifier_set_handler(&cq->deassert_notifier, NULL);
     event_notifier_cleanup(&cq->deassert_notifier);
+    if (with_irqfd) {
+        kvm_irqchip_remove_irqfd_notifier_gsi(kvm_state, &cq->assert_notifier,
+                                              cq->virq);
+fail_kvm:
+        kvm_irqchip_release_virq(kvm_state, cq->virq);
+    }
 fail_assert_handler:
     event_notifier_set_handler(&cq->assert_notifier, NULL);
     event_notifier_cleanup(&cq->assert_notifier);
@@ -4764,6 +4802,8 @@ static uint16_t nvme_get_log(NvmeCtrl *n, NvmeRequest *req)
 
 static void nvme_free_cq(NvmeCQueue *cq, NvmeCtrl *n)
 {
+    bool with_irqfd = msix_enabled(&n->parent_obj) &&
+                      kvm_msi_via_irqfd_enabled();
     uint16_t offset = (cq->cqid << 3) + (1 << 2);
 
     n->cq[cq->cqid] = NULL;
@@ -4775,6 +4815,12 @@ static void nvme_free_cq(NvmeCQueue *cq, NvmeCtrl *n)
         event_notifier_cleanup(&cq->notifier);
     }
     if (cq->assert_notifier.initialized) {
+        if (with_irqfd) {
+            kvm_irqchip_remove_irqfd_notifier_gsi(kvm_state,
+                                                  &cq->assert_notifier, 
+                                                  cq->virq);
+            kvm_irqchip_release_virq(kvm_state, cq->virq);
+        }
         event_notifier_set_handler(&cq->assert_notifier, NULL);
         event_notifier_cleanup(&cq->assert_notifier);
     }
