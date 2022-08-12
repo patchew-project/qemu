@@ -11,9 +11,10 @@
 
 #include "exec/exec-all.h"
 
-TranslationBlock *tb_gen_code(CPUState *cpu, target_ulong pc,
-                              target_ulong cs_base, uint32_t flags,
-                              int cflags);
+TranslationBlock *tb_gen_code(CPUState *cpu,
+                              tb_page_addr_t phys_pc, void *host_pc,
+                              target_ulong pc, target_ulong cs_base,
+                              uint32_t flags, int cflags);
 G_NORETURN void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr);
 void page_init(void);
 void tb_htable_init(void);

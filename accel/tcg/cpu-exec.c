@@ -485,6 +485,7 @@ void cpu_exec_step_atomic(CPUState *cpu)
     target_ulong cs_base, pc;
     uint32_t flags, cflags;
     tb_page_addr_t phys_pc;
+    void *host_pc;
     int tb_exit;
 
     if (sigsetjmp(cpu->jmp_env, 0) == 0) {
@@ -507,17 +508,17 @@ void cpu_exec_step_atomic(CPUState *cpu)
          * Any breakpoint for this insn will have been recognized earlier.
          */
 
-        phys_pc = get_page_addr_code(env, pc);
+        mmap_lock();
+        phys_pc = get_page_addr_code_hostp(env, pc, true, &host_pc);
         if (phys_pc == -1) {
             tb = NULL;
         } else {
             tb = tb_lookup(cpu, phys_pc, pc, cs_base, flags, cflags);
         }
         if (tb == NULL) {
-            mmap_lock();
-            tb = tb_gen_code(cpu, pc, cs_base, flags, cflags);
-            mmap_unlock();
+            tb = tb_gen_code(cpu, phys_pc, host_pc, pc, cs_base, flags, cflags);
         }
+        mmap_unlock();
 
         cpu_exec_enter(cpu);
         /* execute the generated code */
@@ -958,6 +959,7 @@ int cpu_exec(CPUState *cpu)
             target_ulong cs_base, pc;
             uint32_t flags, cflags;
             tb_page_addr_t phys_pc;
+            void *host_pc;
 
             cpu_get_tb_cpu_state(cpu->env_ptr, &pc, &cs_base, &flags);
 
@@ -979,22 +981,24 @@ int cpu_exec(CPUState *cpu)
                 break;
             }
 
-            phys_pc = get_page_addr_code(cpu->env_ptr, pc);
+            mmap_lock();
+            phys_pc = get_page_addr_code_hostp(cpu->env_ptr, pc,
+                                               true, &host_pc);
             if (phys_pc == -1) {
                 tb = NULL;
             } else {
                 tb = tb_lookup(cpu, phys_pc, pc, cs_base, flags, cflags);
             }
             if (tb == NULL) {
-                mmap_lock();
-                tb = tb_gen_code(cpu, pc, cs_base, flags, cflags);
-                mmap_unlock();
+                tb = tb_gen_code(cpu, phys_pc, host_pc, pc,
+                                 cs_base, flags, cflags);
                 /*
                  * We add the TB in the virtual pc hash table
                  * for the fast lookup
                  */
                 qatomic_set(&cpu->tb_jmp_cache[tb_jmp_cache_hash_func(pc)], tb);
             }
+            mmap_unlock();
 
 #ifndef CONFIG_USER_ONLY
             /*
