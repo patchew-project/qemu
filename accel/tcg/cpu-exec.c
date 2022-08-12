@@ -209,13 +209,12 @@ static bool tb_lookup_cmp(const void *p, const void *d)
 }
 
 /* Might cause an exception, so have a longjmp destination ready */
-static TranslationBlock *tb_lookup(CPUState *cpu, target_ulong pc,
-                                   target_ulong cs_base,
+static TranslationBlock *tb_lookup(CPUState *cpu, tb_page_addr_t phys_pc,
+                                   target_ulong pc, target_ulong cs_base,
                                    uint32_t flags, uint32_t cflags)
 {
     CPUArchState *env = cpu->env_ptr;
     TranslationBlock *tb;
-    tb_page_addr_t phys_pc;
     struct tb_desc desc;
     uint32_t jmp_hash, tb_hash;
 
@@ -240,11 +239,8 @@ static TranslationBlock *tb_lookup(CPUState *cpu, target_ulong pc,
     desc.cflags = cflags;
     desc.trace_vcpu_dstate = *cpu->trace_dstate;
     desc.pc = pc;
-    phys_pc = get_page_addr_code(desc.env, pc);
-    if (phys_pc == -1) {
-        return NULL;
-    }
     desc.phys_page1 = phys_pc & TARGET_PAGE_MASK;
+
     tb_hash = tb_hash_func(phys_pc, pc, flags, cflags, *cpu->trace_dstate);
     tb = qht_lookup_custom(&tb_ctx.htable, &desc, tb_hash, tb_lookup_cmp);
     if (tb == NULL) {
@@ -371,6 +367,7 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
     TranslationBlock *tb;
     target_ulong cs_base, pc;
     uint32_t flags, cflags;
+    tb_page_addr_t phys_pc;
 
     cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
 
@@ -379,7 +376,12 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
         cpu_loop_exit(cpu);
     }
 
-    tb = tb_lookup(cpu, pc, cs_base, flags, cflags);
+    phys_pc = get_page_addr_code(env, pc);
+    if (phys_pc == -1) {
+        return tcg_code_gen_epilogue;
+    }
+
+    tb = tb_lookup(cpu, phys_pc, pc, cs_base, flags, cflags);
     if (tb == NULL) {
         return tcg_code_gen_epilogue;
     }
@@ -482,6 +484,7 @@ void cpu_exec_step_atomic(CPUState *cpu)
     TranslationBlock *tb;
     target_ulong cs_base, pc;
     uint32_t flags, cflags;
+    tb_page_addr_t phys_pc;
     int tb_exit;
 
     if (sigsetjmp(cpu->jmp_env, 0) == 0) {
@@ -504,7 +507,12 @@ void cpu_exec_step_atomic(CPUState *cpu)
          * Any breakpoint for this insn will have been recognized earlier.
          */
 
-        tb = tb_lookup(cpu, pc, cs_base, flags, cflags);
+        phys_pc = get_page_addr_code(env, pc);
+        if (phys_pc == -1) {
+            tb = NULL;
+        } else {
+            tb = tb_lookup(cpu, phys_pc, pc, cs_base, flags, cflags);
+        }
         if (tb == NULL) {
             mmap_lock();
             tb = tb_gen_code(cpu, pc, cs_base, flags, cflags);
@@ -949,6 +957,7 @@ int cpu_exec(CPUState *cpu)
             TranslationBlock *tb;
             target_ulong cs_base, pc;
             uint32_t flags, cflags;
+            tb_page_addr_t phys_pc;
 
             cpu_get_tb_cpu_state(cpu->env_ptr, &pc, &cs_base, &flags);
 
@@ -970,7 +979,12 @@ int cpu_exec(CPUState *cpu)
                 break;
             }
 
-            tb = tb_lookup(cpu, pc, cs_base, flags, cflags);
+            phys_pc = get_page_addr_code(cpu->env_ptr, pc);
+            if (phys_pc == -1) {
+                tb = NULL;
+            } else {
+                tb = tb_lookup(cpu, phys_pc, pc, cs_base, flags, cflags);
+            }
             if (tb == NULL) {
                 mmap_lock();
                 tb = tb_gen_code(cpu, pc, cs_base, flags, cflags);
