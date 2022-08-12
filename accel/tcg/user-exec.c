@@ -200,11 +200,11 @@ void *probe_access(CPUArchState *env, target_ulong addr, int size,
 }
 
 tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env, target_ulong addr,
-                                        void **hostp)
+                                        bool nofault, void **hostp)
 {
     int flags;
 
-    flags = probe_access_internal(env, addr, 1, MMU_INST_FETCH, true, 0);
+    flags = probe_access_internal(env, addr, 1, MMU_INST_FETCH, nofault, 0);
     if (unlikely(flags)) {
         return -1;
     }

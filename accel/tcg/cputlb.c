@@ -1644,16 +1644,16 @@ void *tlb_vaddr_to_host(CPUArchState *env, abi_ptr addr,
  * of RAM.  This will force us to execute by loading and translating
  * one insn at a time, without caching.
  *
- * NOTE: This function will trigger an exception if the page is
- * not executable.
+ * NOTE: Unless @nofault, this function will trigger an exception
+ * if the page is not executable.
  */
 tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env, target_ulong addr,
-                                        void **hostp)
+                                        bool nofault, void **hostp)
 {
     void *p;
 
     (void)probe_access_internal(env, addr, 1, MMU_INST_FETCH,
-                                cpu_mmu_index(env, true), true, &p, 0);
+                                cpu_mmu_index(env, true), nofault, &p, 0);
     if (p == NULL) {
         return -1;
     }
