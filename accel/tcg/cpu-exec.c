@@ -376,7 +376,7 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
         cpu_loop_exit(cpu);
     }
 
-    phys_pc = get_page_addr_code(env, pc);
+    phys_pc = get_page_addr_code_hostp(env, pc, false, NULL);
     if (phys_pc == -1) {
         return tcg_code_gen_epilogue;
     }
@@ -509,7 +509,7 @@ void cpu_exec_step_atomic(CPUState *cpu)
          */
 
         mmap_lock();
-        phys_pc = get_page_addr_code_hostp(env, pc, true, &host_pc);
+        phys_pc = get_page_addr_code_hostp(env, pc, false, &host_pc);
         if (phys_pc == -1) {
             tb = NULL;
         } else {
@@ -983,7 +983,7 @@ int cpu_exec(CPUState *cpu)
 
             mmap_lock();
             phys_pc = get_page_addr_code_hostp(cpu->env_ptr, pc,
-                                               true, &host_pc);
+                                               false, &host_pc);
             if (phys_pc == -1) {
                 tb = NULL;
             } else {
