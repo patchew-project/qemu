@@ -34,7 +34,6 @@
  *              aerl=<N[optional]>,aer_max_queued=<N[optional]>, \
  *              mdts=<N[optional]>,vsl=<N[optional]>, \
  *              zoned.zasl=<N[optional]>, \
- *              zoned.auto_transition=<on|off[optional]>, \
  *              sriov_max_vfs=<N[optional]> \
  *              sriov_vq_flexible=<N[optional]> \
  *              sriov_vi_flexible=<N[optional]> \
@@ -105,11 +104,6 @@
  *   `mdts`, the value is specified as a power of two (2^n) and is in units of
  *   the minimum memory page size (CAP.MPSMIN). The default value is 0 (i.e.
  *   defaulting to the value of `mdts`).
- *
- * - `zoned.auto_transition`
- *   Indicates if zones in zone state implicitly opened can be automatically
- *   transitioned to zone state closed for resource management purposes.
- *   Defaults to 'on'.
  *
  * - `sriov_max_vfs`
  *   Indicates the maximum number of PCIe virtual functions supported
@@ -1867,8 +1861,8 @@ enum {
     NVME_ZRM_ZRWA = 1 << 1,
 };
 
-static uint16_t nvme_zrm_open_flags(NvmeCtrl *n, NvmeNamespace *ns,
-                                    NvmeZone *zone, int flags)
+static uint16_t nvme_zrm_open_flags(NvmeNamespace *ns, NvmeZone *zone,
+                                    int flags)
 {
     int act = 0;
     uint16_t status;
@@ -1880,9 +1874,7 @@ static uint16_t nvme_zrm_open_flags(NvmeCtrl *n, NvmeNamespace *ns,
         /* fallthrough */
 
     case NVME_ZONE_STATE_CLOSED:
-        if (n->params.auto_transition_zones) {
-            nvme_zrm_auto_transition_zone(ns);
-        }
+        nvme_zrm_auto_transition_zone(ns);
         status = nvme_zns_check_resources(ns, act, 1,
                                           (flags & NVME_ZRM_ZRWA) ? 1 : 0);
         if (status) {
@@ -1925,10 +1917,9 @@ static uint16_t nvme_zrm_open_flags(NvmeCtrl *n, NvmeNamespace *ns,
     }
 }
 
-static inline uint16_t nvme_zrm_auto(NvmeCtrl *n, NvmeNamespace *ns,
-                                     NvmeZone *zone)
+static inline uint16_t nvme_zrm_auto(NvmeNamespace *ns, NvmeZone *zone)
 {
-    return nvme_zrm_open_flags(n, ns, zone, NVME_ZRM_AUTO);
+    return nvme_zrm_open_flags(ns, zone, NVME_ZRM_AUTO);
 }
 
 static void nvme_advance_zone_wp(NvmeNamespace *ns, NvmeZone *zone,
@@ -3065,7 +3056,7 @@ static uint16_t nvme_copy(NvmeCtrl *n, NvmeRequest *req)
             goto invalid;
         }
 
-        status = nvme_zrm_auto(n, ns, iocb->zone);
+        status = nvme_zrm_auto(ns, iocb->zone);
         if (status) {
             goto invalid;
         }
@@ -3471,7 +3462,7 @@ static uint16_t nvme_do_write(NvmeCtrl *n, NvmeRequest *req, bool append,
             goto invalid;
         }
 
-        status = nvme_zrm_auto(n, ns, zone);
+        status = nvme_zrm_auto(ns, zone);
         if (status) {
             goto invalid;
         }
@@ -3579,7 +3570,7 @@ static uint16_t nvme_open_zone(NvmeNamespace *ns, NvmeZone *zone,
         flags = NVME_ZRM_ZRWA;
     }
 
-    return nvme_zrm_open_flags(nvme_ctrl(req), ns, zone, flags);
+    return nvme_zrm_open_flags(ns, zone, flags);
 }
 
 static uint16_t nvme_close_zone(NvmeNamespace *ns, NvmeZone *zone,
@@ -3854,8 +3845,8 @@ done:
     }
 }
 
-static uint16_t nvme_zone_mgmt_send_zrwa_flush(NvmeCtrl *n, NvmeZone *zone,
-                                               uint64_t elba, NvmeRequest *req)
+static uint16_t nvme_zone_mgmt_send_zrwa_flush(NvmeZone *zone, uint64_t elba,
+                                               NvmeRequest *req)
 {
     NvmeNamespace *ns = req->ns;
     uint16_t ozcs = le16_to_cpu(ns->id_ns_zoned->ozcs);
@@ -3880,7 +3871,7 @@ static uint16_t nvme_zone_mgmt_send_zrwa_flush(NvmeCtrl *n, NvmeZone *zone,
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
-    status = nvme_zrm_auto(n, ns, zone);
+    status = nvme_zrm_auto(ns, zone);
     if (status) {
         return status;
     }
@@ -3999,7 +3990,7 @@ static uint16_t nvme_zone_mgmt_send(NvmeCtrl *n, NvmeRequest *req)
             return NVME_INVALID_FIELD | NVME_DNR;
         }
 
-        return nvme_zone_mgmt_send_zrwa_flush(n, zone, slba, req);
+        return nvme_zone_mgmt_send_zrwa_flush(zone, slba, req);
 
     default:
         trace_pci_nvme_err_invalid_mgmt_action(action);
@@ -7672,8 +7663,6 @@ static Property nvme_props[] = {
     DEFINE_PROP_BOOL("legacy-cmb", NvmeCtrl, params.legacy_cmb, false),
     DEFINE_PROP_BOOL("ioeventfd", NvmeCtrl, params.ioeventfd, false),
     DEFINE_PROP_UINT8("zoned.zasl", NvmeCtrl, params.zasl, 0),
-    DEFINE_PROP_BOOL("zoned.auto_transition", NvmeCtrl,
-                     params.auto_transition_zones, true),
     DEFINE_PROP_UINT8("sriov_max_vfs", NvmeCtrl, params.sriov_max_vfs, 0),
     DEFINE_PROP_UINT16("sriov_vq_flexible", NvmeCtrl,
                        params.sriov_vq_flexible, 0),
