@@ -73,6 +73,8 @@ struct BostonState {
 
     hwaddr kernel_entry;
     hwaddr fdt_base;
+    hwaddr initrd_base;
+    hwaddr initrd_end;
 };
 
 enum {
@@ -381,6 +383,14 @@ static const void *boston_fdt_filter(void *opaque, const void *fdt_orig,
     if (err < 0) {
         fprintf(stderr, "couldn't set /chosen/bootargs\n");
         return NULL;
+    }
+
+    if (s->initrd_base) {
+        qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-start",
+                             s->initrd_base);
+
+        qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-end",
+                             s->initrd_end);
     }
 
     ram_low_sz = MIN(256 * MiB, machine->ram_size);
@@ -802,6 +812,35 @@ static void boston_mach_init(MachineState *machine)
                 dtb_file_data = load_device_tree(machine->dtb, &dt_size);
             } else {
                 dtb_file_data = create_fdt(s, boston_memmap, &dt_size);
+            }
+
+            if (machine->initrd_filename) {
+                /* We want to leave low 128 MiB memory for kernelrelocation */
+                hwaddr initrd_paddr = MAX(128 * MiB,
+                                         QEMU_ALIGN_UP(dtb_paddr + dt_size,
+                                         64 * KiB));
+                int maxsz = boston_memmap[BOSTON_LOWDDR].size - initrd_paddr;
+
+                if (maxsz <= 0) {
+                        error_report("no space left for ramdisk '%s'",
+                                     machine->initrd_filename);
+                        exit(1);
+                }
+
+                int size = load_ramdisk(machine->initrd_filename,
+                                        initrd_paddr, maxsz);
+                if (size < 0) {
+                    size = load_image_targphys(machine->initrd_filename,
+                                               initrd_paddr, maxsz);
+                    if (size < 0) {
+                        error_report("could not load ramdisk '%s'",
+                                     machine->initrd_filename);
+                        exit(1);
+                    }
+                }
+
+                s->initrd_base = initrd_paddr;
+                s->initrd_end = s->initrd_base + size;
             }
 
             dtb_load_data = boston_fdt_filter(s, dtb_file_data,
