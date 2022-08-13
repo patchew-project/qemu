@@ -3148,6 +3148,9 @@ void qemu_init(int argc, char **argv)
                 add_device_config(DEV_DEBUGCON, optarg);
                 break;
             case QEMU_OPTION_loadvm:
+                if (!loadvm) {
+                    runstate_set(RUN_STATE_RESTORE_VM);
+                }
                 loadvm = optarg;
                 break;
             case QEMU_OPTION_full_screen:
