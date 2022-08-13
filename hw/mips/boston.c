@@ -400,6 +400,7 @@ static const void *boston_fdt_filter(void *opaque, const void *fdt_orig,
                         1, boston_memmap[BOSTON_HIGHDDR].base + ram_low_sz,
                         1, ram_high_sz);
 
+    fdt_pack(fdt);
     fdt = g_realloc(fdt, fdt_totalsize(fdt));
     qemu_fdt_dumpdtb(fdt, fdt_sz);
 
