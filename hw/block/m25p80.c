@@ -127,6 +127,7 @@ typedef struct FlashPartInfo {
     .die_cnt = _die_cnt
 
 #define JEDEC_NUMONYX 0x20
+#define JEDEC_MICRON 0x2C
 #define JEDEC_WINBOND 0xEF
 #define JEDEC_SPANSION 0x01
 
@@ -148,6 +149,9 @@ typedef struct FlashPartInfo {
 #define EVCFG_QUAD_IO_DISABLED (1 << 7)
 #define NVCFG_4BYTE_ADDR_MASK (1 << 0)
 #define NVCFG_LOWER_SEGMENT_MASK (1 << 1)
+
+/* Micron configuration register macros */
+#define NVCFG_OCTAL_IO_MASK (1 << 5)
 
 /* Numonyx (Micron) Flag Status Register macros */
 #define FSR_4BYTE_ADDR_MODE_ENABLED 0x1
@@ -360,6 +364,9 @@ typedef enum {
     READ4 = 0x13,
     FAST_READ = 0x0b,
     FAST_READ4 = 0x0c,
+    O_FAST_READ = 0x9d,
+    O_FAST_READ4 = 0xfc,
+    OIOR_DDR = 0xfd,
     DOR = 0x3b,
     DOR4 = 0x3c,
     QOR = 0x6b,
@@ -368,6 +375,11 @@ typedef enum {
     DIOR4 = 0xbc,
     QIOR = 0xeb,
     QIOR4 = 0xec,
+    OOR = 0x8b,
+    OOR4 = 0x8c,
+    OOR4_MT35X = 0x7c, /* according mt35x datasheet */
+    OIOR = 0xcb,
+    OIOR4 = 0xcc,
 
     PP = 0x02,
     PP4 = 0x12,
@@ -378,6 +390,8 @@ typedef enum {
     RDID_90 = 0x90,
     RDID_AB = 0xab,
     AAI_WP = 0xad,
+    OPP = 0x82,
+    OPP4 = 0x84,
 
     ERASE_4K = 0x20,
     ERASE4_4K = 0x21,
@@ -427,6 +441,7 @@ typedef enum {
     MAN_SPANSION,
     MAN_MACRONIX,
     MAN_NUMONYX,
+    MAN_MICRON,
     MAN_WINBOND,
     MAN_SST,
     MAN_ISSI,
@@ -462,6 +477,9 @@ struct Flash {
     /* Configuration register for Macronix */
     uint32_t volatile_cfg;
     uint32_t enh_volatile_cfg;
+    /* Configuration register arrays for Micron */
+    uint32_t micron_volatile_cfg[8];
+    uint32_t micron_nonvolatile_cfg[8];
     /* Spansion cfg registers. */
     uint8_t spansion_cr1nv;
     uint8_t spansion_cr2nv;
@@ -476,6 +494,7 @@ struct Flash {
     bool four_bytes_address_mode;
     bool reset_enable;
     bool quad_enable;
+    bool octal_enable;
     bool aai_enable;
     bool block_protect0;
     bool block_protect1;
@@ -504,6 +523,8 @@ static inline Manufacturer get_man(Flash *s)
     switch (s->pi->id[0]) {
     case 0x20:
         return MAN_NUMONYX;
+    case 0x2C:
+        return MAN_MICRON;
     case 0xEF:
         return MAN_WINBOND;
     case 0x01:
@@ -684,12 +705,17 @@ static inline int get_addr_length(Flash *s)
    case QPP_4:
    case READ4:
    case QIOR4:
+   case OIOR4:
    case ERASE4_4K:
    case ERASE4_32K:
    case ERASE4_SECTOR:
    case FAST_READ4:
+   case O_FAST_READ4:
+   case OIOR_DDR:
    case DOR4:
    case QOR4:
+   case OOR4:
+   case OOR4_MT35X:
    case DIOR4:
        return 4;
    default:
@@ -719,9 +745,10 @@ static void complete_collecting_data(Flash *s)
     case DPP:
     case QPP:
     case QPP_4:
+    case OPP:
     case PP:
+    case OPP4:
     case PP4:
-    case PP4_4:
         s->state = STATE_PAGE_PROGRAM;
         break;
     case AAI_WP:
@@ -732,15 +759,23 @@ static void complete_collecting_data(Flash *s)
     case READ:
     case READ4:
     case FAST_READ:
-    case FAST_READ4:
+    case O_FAST_READ:
     case DOR:
-    case DOR4:
     case QOR:
-    case QOR4:
+    case OOR:
     case DIOR:
-    case DIOR4:
     case QIOR:
+    case OIOR:
+    case FAST_READ4:
+    case O_FAST_READ4:
+    case OIOR_DDR:
+    case DOR4:
+    case QOR4:
+    case OOR4:
+    case OOR4_MT35X:
+    case DIOR4:
     case QIOR4:
+    case OIOR4:
         s->state = STATE_READ;
         break;
     case ERASE_4K:
@@ -785,15 +820,40 @@ static void complete_collecting_data(Flash *s)
             s->write_enable = false;
         }
         break;
-    case BRWR:
     case EXTEND_ADDR_WRITE:
         s->ear = s->data[0];
         break;
+    case RNVCR:
+        g_assert(get_man(s) == MAN_MICRON);
+        s->data[0] = s->micron_volatile_cfg[s->cur_addr & 0xFF];
+        s->pos = 0;
+        s->len = 1;
+        s->state = STATE_READING_DATA;
+        s->data_read_loop = true;
+        break;
+    case RVCR:
+        g_assert(get_man(s) == MAN_MICRON);
+        s->data[0] = s->micron_nonvolatile_cfg[s->cur_addr & 0xFF];
+        s->pos = 0;
+        s->len = 1;
+        s->state = STATE_READING_DATA;
+        s->data_read_loop = true;
+        break;
     case WNVCR:
-        s->nonvolatile_cfg = s->data[0] | (s->data[1] << 8);
+        if (get_man(s) == MAN_MICRON) {
+            s->micron_nonvolatile_cfg[s->cur_addr & 0xFF] = s->data[0];
+            s->octal_enable = !extract32(s->data[0], 5, 1);
+        } else {
+            s->nonvolatile_cfg = s->data[0] | (s->data[1] << 8);
+        }
         break;
     case WVCR:
-        s->volatile_cfg = s->data[0];
+        if (get_man(s) == MAN_MICRON) {
+            s->micron_nonvolatile_cfg[s->cur_addr & 0xFF] = s->data[0];
+            s->octal_enable = !extract32(s->data[0], 5, 1);
+        } else {
+            s->volatile_cfg = s->data[0];
+        }
         break;
     case WEVCR:
         s->enh_volatile_cfg = s->data[0];
@@ -841,6 +901,7 @@ static void reset_memory(Flash *s)
     s->write_enable = false;
     s->reset_enable = false;
     s->quad_enable = false;
+    s->octal_enable = false;
     s->aai_enable = false;
 
     switch (get_man(s)) {
@@ -875,6 +936,13 @@ static void reset_memory(Flash *s)
         }
         if (!(s->nonvolatile_cfg & NVCFG_LOWER_SEGMENT_MASK)) {
             s->ear = s->size / MAX_3BYTES_SIZE - 1;
+        }
+        break;
+    case MAN_MICRON:
+        s->micron_nonvolatile_cfg[0] = 0xe7;
+        s->micron_nonvolatile_cfg[1] = 0x1f;
+        if (!(s->micron_nonvolatile_cfg[0] & NVCFG_OCTAL_IO_MASK)) {
+            s->octal_enable = true;
         }
         break;
     case MAN_MACRONIX:
@@ -949,6 +1017,9 @@ static void decode_fast_read_cmd(Flash *s)
         break;
     case MAN_NUMONYX:
         s->needed_bytes += numonyx_extract_cfg_num_dummies(s);
+        break;
+    case MAN_MICRON:
+        s->needed_bytes += s->micron_volatile_cfg[1];
         break;
     case MAN_MACRONIX:
         if (extract32(s->volatile_cfg, 6, 2) == 1) {
@@ -1079,6 +1150,7 @@ static void decode_qio_read_cmd(Flash *s)
         s->needed_bytes += 3;
         break;
     default:
+        s->needed_bytes += 5;
         break;
     }
     s->pos = 0;
@@ -1107,28 +1179,42 @@ static void decode_new_cmd(Flash *s, uint32_t value)
                       "M25P80: Invalid cmd within AAI programming sequence");
     }
 
+    s->needed_bytes = 0;
+
     switch (value) {
 
-    case ERASE_4K:
-    case ERASE4_4K:
-    case ERASE_32K:
-    case ERASE4_32K:
-    case ERASE_SECTOR:
     case ERASE4_SECTOR:
+        if (s->four_bytes_address_mode == false) {
+            s->needed_bytes += 1;
+        }
+        /* fall-through */
+    case ERASE_4K:
+    case ERASE_32K:
+    case ERASE_SECTOR:
+    case OPP:
     case PP:
-    case PP4:
+    case QOR:
+    case OOR:
+    case FAST_READ:
+    case O_FAST_READ:
+    case OIOR_DDR:
+    case DOR:
     case DIE_ERASE:
     case RDID_90:
     case RDID_AB:
-        s->needed_bytes = get_addr_length(s);
+        s->needed_bytes += get_addr_length(s);
         s->pos = 0;
         s->len = 0;
         s->state = STATE_COLLECTING_DATA;
         break;
-    case READ:
     case READ4:
+        if (s->four_bytes_address_mode == false) {
+            s->needed_bytes += 1;
+        }
+        /* fall-through */
+    case READ:
         if (get_man(s) != MAN_NUMONYX || numonyx_mode(s) == MODE_STD) {
-            s->needed_bytes = get_addr_length(s);
+            s->needed_bytes += get_addr_length(s);
             s->pos = 0;
             s->len = 0;
             s->state = STATE_COLLECTING_DATA;
@@ -1139,7 +1225,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         break;
     case DPP:
         if (get_man(s) != MAN_NUMONYX || numonyx_mode(s) != MODE_QIO) {
-            s->needed_bytes = get_addr_length(s);
+            s->needed_bytes += get_addr_length(s);
             s->pos = 0;
             s->len = 0;
             s->state = STATE_COLLECTING_DATA;
@@ -1151,8 +1237,11 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     case QPP:
     case QPP_4:
     case PP4_4:
+        if (s->four_bytes_address_mode == false) {
+            s->needed_bytes += 1;
+        }
         if (get_man(s) != MAN_NUMONYX || numonyx_mode(s) != MODE_DIO) {
-            s->needed_bytes = get_addr_length(s);
+            s->needed_bytes += get_addr_length(s);
             s->pos = 0;
             s->len = 0;
             s->state = STATE_COLLECTING_DATA;
@@ -1162,11 +1251,9 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         }
         break;
 
-    case FAST_READ:
     case FAST_READ4:
         decode_fast_read_cmd(s);
         break;
-    case DOR:
     case DOR4:
         if (get_man(s) != MAN_NUMONYX || numonyx_mode(s) != MODE_QIO) {
             decode_fast_read_cmd(s);
@@ -1175,14 +1262,13 @@ static void decode_new_cmd(Flash *s, uint32_t value)
                           "QIO mode\n", s->cmd_in_progress);
         }
         break;
-    case QOR:
     case QOR4:
-        if (get_man(s) != MAN_NUMONYX || numonyx_mode(s) != MODE_DIO) {
-            decode_fast_read_cmd(s);
-        } else {
-            qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Cannot execute cmd %x in "
-                          "DIO mode\n", s->cmd_in_progress);
-        }
+    case OOR4:
+    case OOR4_MT35X:
+        s->needed_bytes += 4;
+        s->pos = 0;
+        s->len = 0;
+        s->state = STATE_COLLECTING_DATA;
         break;
 
     case DIOR:
@@ -1329,6 +1415,8 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         s->four_bytes_address_mode = false;
         break;
     case BRRD:
+        s->data_read_loop = false;
+        /* fall-through */
     case EXTEND_ADDR_READ:
         s->data[0] = s->ear;
         s->pos = 0;
@@ -1345,22 +1433,39 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         }
         break;
     case RNVCR:
-        s->data[0] = s->nonvolatile_cfg & 0xFF;
-        s->data[1] = (s->nonvolatile_cfg >> 8) & 0xFF;
+        if (get_man(s) == MAN_MICRON) {
+            s->needed_bytes = get_addr_length(s);
+            s->state = STATE_COLLECTING_DATA;
+            s->len = 0;
+        } else {
+            s->data[0] = s->nonvolatile_cfg & 0xFF;
+            s->data[1] = (s->nonvolatile_cfg >> 8) & 0xFF;
+            s->len = 2;
+        }
         s->pos = 0;
-        s->len = 2;
         s->state = STATE_READING_DATA;
         break;
     case WNVCR:
-        if (s->write_enable && get_man(s) == MAN_NUMONYX) {
-            s->needed_bytes = 2;
+        if (s->write_enable) {
+            if (get_man(s) == MAN_NUMONYX) {
+                s->needed_bytes = 2;
+            } else if (get_man(s) == MAN_MICRON) {
+                s->needed_bytes += get_addr_length(s);
+            } else {
+                break;
+            }
             s->pos = 0;
             s->len = 0;
             s->state = STATE_COLLECTING_DATA;
         }
         break;
     case RVCR:
-        s->data[0] = s->volatile_cfg & 0xFF;
+        if (get_man(s) == MAN_MICRON) {
+            s->data[0] = s->micron_nonvolatile_cfg[s->cur_addr & 0xFF];
+        } else {
+            s->data[0] = s->volatile_cfg & 0xFF;
+        }
+        s->len = 1;
         s->pos = 0;
         s->len = 1;
         s->state = STATE_READING_DATA;
@@ -1368,6 +1473,9 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     case WVCR:
         if (s->write_enable) {
             s->needed_bytes = 1;
+            if (get_man(s) == MAN_MICRON) {
+                s->needed_bytes += get_addr_length(s);
+            }
             s->pos = 0;
             s->len = 0;
             s->state = STATE_COLLECTING_DATA;
@@ -1737,6 +1845,7 @@ static const VMStateDescription vmstate_m25p80 = {
         VMSTATE_UINT32(volatile_cfg, Flash),
         VMSTATE_UINT32(enh_volatile_cfg, Flash),
         VMSTATE_BOOL(quad_enable, Flash),
+        VMSTATE_BOOL(octal_enable, Flash),
         VMSTATE_UINT8(spansion_cr1nv, Flash),
         VMSTATE_UINT8(spansion_cr2nv, Flash),
         VMSTATE_UINT8(spansion_cr3nv, Flash),
