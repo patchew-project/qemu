@@ -2580,6 +2580,8 @@ static const VMStateDescription vmstate_nvic = {
 static Property props_nvic[] = {
     /* Number of external IRQ lines (so excluding the 16 internal exceptions) */
     DEFINE_PROP_UINT32("num-irq", NVICState, num_irq, 64),
+    /* Number of the maximum priority bits that can be used */
+    DEFINE_PROP_UINT8("num-prio-bits", NVICState, num_prio_bits, 8),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -2690,7 +2692,9 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
     /* include space for internal exception vectors */
     s->num_irq += NVIC_FIRST_IRQ;
 
-    s->num_prio_bits = arm_feature(&s->cpu->env, ARM_FEATURE_V7) ? 8 : 2;
+    if (!arm_feature(&s->cpu->env, ARM_FEATURE_V7)) {
+        s->num_prio_bits = 2;
+    }
 
     /*
      * This device provides a single memory region which covers the
