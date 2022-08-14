@@ -626,22 +626,12 @@ static void loongarch_direct_kernel_boot(LoongArchMachineState *lams)
 static void loongarch_init(MachineState *machine)
 {
     LoongArchCPU *lacpu;
-    const char *cpu_model = machine->cpu_type;
     ram_addr_t offset = 0;
     ram_addr_t ram_size = machine->ram_size;
     uint64_t highram_size = 0;
     MemoryRegion *address_space_mem = get_system_memory();
     LoongArchMachineState *lams = LOONGARCH_MACHINE(machine);
     int i;
-
-    if (!cpu_model) {
-        cpu_model = LOONGARCH_CPU_TYPE_NAME("la464");
-    }
-
-    if (!strstr(cpu_model, "la464")) {
-        error_report("LoongArch/TCG needs cpu type la464");
-        exit(1);
-    }
 
     if (ram_size < 1 * GiB) {
         error_report("ram_size must be greater than 1G.");
@@ -749,10 +739,10 @@ static void loongarch_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->desc = "Loongson-3A5000 LS7A1000 machine";
+    mc->desc = "LoongArch64 v1.00-compatible LS7A1000 machine";
     mc->init = loongarch_init;
     mc->default_ram_size = 1 * GiB;
-    mc->default_cpu_type = LOONGARCH_CPU_TYPE_NAME("la464");
+    mc->default_cpu_type = LOONGARCH_CPU_TYPE_NAME("qemu64-v1.00");
     mc->default_ram_id = "loongarch.ram";
     mc->max_cpus = LOONGARCH_MAX_VCPUS;
     mc->is_default = 1;

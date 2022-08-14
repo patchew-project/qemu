@@ -527,9 +527,9 @@ static uint64_t loongarch_qemu_read(void *opaque, hwaddr addr, unsigned size)
         return 1ULL << IOCSRF_MSI | 1ULL << IOCSRF_EXTIOI |
                1ULL << IOCSRF_CSRIPI;
     case VENDOR_REG:
-        return 0x6e6f73676e6f6f4cULL; /* "Loongson" */
+        return 0x3436554d4551ULL; /* "QEMU64" */
     case CPUNAME_REG:
-        return 0x303030354133ULL;     /* "3A5000" */
+        return 0x30302e3176ULL;   /* "v1.00" */
     case MISC_FUNC_REG:
         return 1ULL << IOCSRM_EXTIOI_EN;
     }
@@ -715,7 +715,7 @@ static const TypeInfo loongarch_cpu_type_infos[] = {
         .class_size = sizeof(LoongArchCPUClass),
         .class_init = loongarch_cpu_class_init,
     },
-    DEFINE_LOONGARCH_CPU_TYPE("la464", loongarch_la464_initfn),
+    DEFINE_LOONGARCH_CPU_TYPE("qemu64-v1.00", loongarch_la464_initfn),
 };
 
 DEFINE_TYPES(loongarch_cpu_type_infos)
