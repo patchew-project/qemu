@@ -573,14 +573,11 @@ static ObjectClass *loongarch_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
 
-    oc = object_class_by_name(cpu_model);
+    g_autofree char *typename = g_strdup_printf(LOONGARCH_CPU_TYPE_NAME("%s"),
+                                                cpu_model);
+    oc = object_class_by_name(typename);
     if (!oc) {
-        g_autofree char *typename 
-            = g_strdup_printf(LOONGARCH_CPU_TYPE_NAME("%s"), cpu_model);
-        oc = object_class_by_name(typename);
-        if (!oc) {
-            return NULL;
-        }
+        return NULL;
     }
 
     if (object_class_dynamic_cast(oc, TYPE_LOONGARCH_CPU)
