@@ -428,7 +428,6 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
     int64_t size, prev_off, high_off;
     int ret;
     uint32_t i;
-    bool flush_bat = false;
 
     size = bdrv_getlength(bs->file->bs);
     if (size < 0) {
@@ -467,9 +466,8 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
             res->corruptions++;
             if (fix & BDRV_FIX_ERRORS) {
                 prev_off = 0;
-                s->bat_bitmap[i] = 0;
+                parallels_set_bat_entry(s, i, 0);
                 res->corruptions_fixed++;
-                flush_bat = true;
                 continue;
             }
         }
@@ -483,15 +481,6 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
             res->bfi.fragmented_clusters++;
         }
         prev_off = off;
-    }
-
-    ret = 0;
-    if (flush_bat) {
-        ret = bdrv_co_pwrite_sync(bs->file, 0, s->header_size, s->header, 0);
-        if (ret < 0) {
-            res->check_errors++;
-            goto out;
-        }
     }
 
     res->image_end_offset = high_off + s->cluster_size;
@@ -522,6 +511,12 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
 
 out:
     qemu_co_mutex_unlock(&s->lock);
+
+    ret = bdrv_co_flush(bs);
+    if (ret < 0) {
+        res->check_errors++;
+    }
+
     return ret;
 }
 
