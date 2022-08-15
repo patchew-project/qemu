@@ -1744,11 +1744,11 @@ static void virt_set_memmap(VirtMachineState *vms, int pa_bits)
     vms->highest_gpa = memtop - 1;
 
     for (i = VIRT_LOWMEMMAP_LAST; i < ARRAY_SIZE(extended_memmap); i++) {
+        hwaddr region_base = ROUND_UP(base, extended_memmap[i].size);
         hwaddr region_size = extended_memmap[i].size;
         bool fits;
 
-        base = ROUND_UP(base, region_size);
-        vms->memmap[i].base = base;
+        vms->memmap[i].base = region_base;
         vms->memmap[i].size = region_size;
 
         /*
@@ -1757,9 +1757,9 @@ static void virt_set_memmap(VirtMachineState *vms, int pa_bits)
          *
          * For each device that doesn't fit, disable it.
          */
-        fits = (base + region_size) <= BIT_ULL(pa_bits);
+        fits = (region_base + region_size) <= BIT_ULL(pa_bits);
         if (fits) {
-            vms->highest_gpa = base + region_size - 1;
+            vms->highest_gpa = region_base + region_size - 1;
         }
 
         switch (i) {
@@ -1774,7 +1774,7 @@ static void virt_set_memmap(VirtMachineState *vms, int pa_bits)
             break;
         }
 
-        base += region_size;
+        base = region_base + region_size;
     }
 
     if (device_memory_size > 0) {
