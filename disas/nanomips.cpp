@@ -638,7 +638,7 @@ static uint64 extract_op_code_value(const uint16 *data, int size)
  *      disassembly string  - on error will constain error string
  */
 static int Disassemble(const uint16 *data, char *dis,
-                       TABLE_ENTRY_TYPE *type, const Pool *table,
+                       TABLE_ENTRY_TYPE *type, const struct Pool *table,
                        int table_size)
 {
     for (int i = 0; i < table_size; i++) {
