@@ -1678,6 +1678,163 @@ void ppc_cpu_do_interrupt(CPUState *cs)
     powerpc_excp(cpu, cs->exception_index);
 }
 
+static int ppc_pending_interrupt_p9(CPUPPCState *env)
+{
+    CPUState *cs = env_cpu(env);
+    bool async_deliver = false;
+
+    /* External reset */
+    if (env->pending_interrupts & PPC_INTERRUPT_RESET) {
+        return PPC_INTERRUPT_RESET;
+    }
+
+    if (cs->halted) {
+        uint64_t psscr = env->spr[SPR_PSSCR];
+
+        if (!(psscr & PSSCR_EC)) {
+            /* If EC is clear, return any system-caused interrupt */
+            async_deliver = true;
+        } else {
+            /* External Exception */
+            if ((env->pending_interrupts & PPC_INTERRUPT_EXT) &&
+                (env->spr[SPR_LPCR] & LPCR_EEE)) {
+                bool heic = !!(env->spr[SPR_LPCR] & LPCR_HEIC);
+                if (!heic || !FIELD_EX64_HV(env->msr) ||
+                    FIELD_EX64(env->msr, MSR, PR)) {
+                    return PPC_INTERRUPT_EXT;
+                }
+            }
+            /* Decrementer Exception */
+            if ((env->pending_interrupts & PPC_INTERRUPT_DECR) &&
+                (env->spr[SPR_LPCR] & LPCR_DEE)) {
+                return PPC_INTERRUPT_DECR;
+            }
+            /* Machine Check or Hypervisor Maintenance Exception */
+            if (env->spr[SPR_LPCR] & LPCR_OEE) {
+                if (env->pending_interrupts & PPC_INTERRUPT_MCK) {
+                    return PPC_INTERRUPT_MCK;
+                }
+                if (env->pending_interrupts & PPC_INTERRUPT_HMI) {
+                    return PPC_INTERRUPT_HMI;
+                }
+            }
+            /* Privileged Doorbell Exception */
+            if ((env->pending_interrupts & PPC_INTERRUPT_DOORBELL) &&
+                (env->spr[SPR_LPCR] & LPCR_PDEE)) {
+                return PPC_INTERRUPT_DOORBELL;
+            }
+            /* Hypervisor Doorbell Exception */
+            if ((env->pending_interrupts & PPC_INTERRUPT_HDOORBELL) &&
+                (env->spr[SPR_LPCR] & LPCR_HDEE)) {
+                return PPC_INTERRUPT_HDOORBELL;
+            }
+            /* Hypervisor virtualization exception */
+            if ((env->pending_interrupts & PPC_INTERRUPT_HVIRT) &&
+                (env->spr[SPR_LPCR] & LPCR_HVEE)) {
+                return PPC_INTERRUPT_HVIRT;
+            }
+            return 0;
+        }
+    }
+
+    /* Machine check exception */
+    if (env->pending_interrupts & PPC_INTERRUPT_MCK) {
+        return PPC_INTERRUPT_MCK;
+    }
+
+    /*
+     * For interrupts that gate on MSR:EE, we need to do something a
+     * bit more subtle, as we need to let them through even when EE is
+     * clear when coming out of some power management states (in order
+     * for them to become a 0x100).
+     */
+    async_deliver |= FIELD_EX64(env->msr, MSR, EE) || env->resume_as_sreset;
+
+    /* Hypervisor decrementer exception */
+    if (env->pending_interrupts & PPC_INTERRUPT_HDECR) {
+        /* LPCR will be clear when not supported so this will work */
+        bool hdice = !!(env->spr[SPR_LPCR] & LPCR_HDICE);
+        if ((async_deliver || !FIELD_EX64_HV(env->msr)) && hdice) {
+            /* HDEC clears on delivery */
+            return PPC_INTERRUPT_HDECR;
+        }
+    }
+
+    /* Hypervisor virtualization interrupt */
+    if (env->pending_interrupts & PPC_INTERRUPT_HVIRT) {
+        /* LPCR will be clear when not supported so this will work */
+        bool hvice = !!(env->spr[SPR_LPCR] & LPCR_HVICE);
+        if ((async_deliver || !FIELD_EX64_HV(env->msr)) && hvice) {
+            return PPC_INTERRUPT_HVIRT;
+        }
+    }
+
+    /* External interrupt can ignore MSR:EE under some circumstances */
+    if (env->pending_interrupts & PPC_INTERRUPT_EXT) {
+        bool lpes0 = !!(env->spr[SPR_LPCR] & LPCR_LPES0);
+        bool heic = !!(env->spr[SPR_LPCR] & LPCR_HEIC);
+        /* HEIC blocks delivery to the hypervisor */
+        if ((async_deliver && !(heic && FIELD_EX64_HV(env->msr) &&
+            !FIELD_EX64(env->msr, MSR, PR))) ||
+            (env->has_hv_mode && !FIELD_EX64_HV(env->msr) && !lpes0)) {
+            return PPC_INTERRUPT_EXT;
+        }
+    }
+    if (FIELD_EX64(env->msr, MSR, CE)) {
+        /* External critical interrupt */
+        if (env->pending_interrupts & PPC_INTERRUPT_CEXT) {
+            return PPC_INTERRUPT_CEXT;
+        }
+    }
+    if (async_deliver != 0) {
+        /* Watchdog timer on embedded PowerPC */
+        if (env->pending_interrupts & PPC_INTERRUPT_WDT) {
+            return PPC_INTERRUPT_WDT;
+        }
+        if (env->pending_interrupts & PPC_INTERRUPT_CDOORBELL) {
+            return PPC_INTERRUPT_CDOORBELL;
+        }
+        /* Fixed interval timer on embedded PowerPC */
+        if (env->pending_interrupts & PPC_INTERRUPT_FIT) {
+            return PPC_INTERRUPT_FIT;
+        }
+        /* Programmable interval timer on embedded PowerPC */
+        if (env->pending_interrupts & PPC_INTERRUPT_PIT) {
+            return PPC_INTERRUPT_PIT;
+        }
+        /* Decrementer exception */
+        if (env->pending_interrupts & PPC_INTERRUPT_DECR) {
+            return PPC_INTERRUPT_DECR;
+        }
+        if (env->pending_interrupts & PPC_INTERRUPT_DOORBELL) {
+            return PPC_INTERRUPT_DOORBELL;
+        }
+        if (env->pending_interrupts & PPC_INTERRUPT_HDOORBELL) {
+            return PPC_INTERRUPT_HDOORBELL;
+        }
+        if (env->pending_interrupts & PPC_INTERRUPT_PERFM) {
+            return PPC_INTERRUPT_PERFM;
+        }
+        /* Thermal interrupt */
+        if (env->pending_interrupts & PPC_INTERRUPT_THERM) {
+            return PPC_INTERRUPT_THERM;
+        }
+        /* EBB exception */
+        if (env->pending_interrupts & PPC_INTERRUPT_EBB) {
+            /*
+             * EBB exception must be taken in problem state and
+             * with BESCR_GE set.
+             */
+            if (FIELD_EX64(env->msr, MSR, PR) &&
+                (env->spr[SPR_BESCR] & BESCR_GE)) {
+                return PPC_INTERRUPT_EBB;
+            }
+        }
+    }
+
+    return 0;
+}
+
 static int ppc_pending_interrupt_legacy(CPUPPCState *env)
 {
     bool async_deliver;
@@ -1793,6 +1950,9 @@ static int ppc_pending_interrupt_legacy(CPUPPCState *env)
 static int ppc_pending_interrupt(CPUPPCState *env)
 {
     switch (env->excp_model) {
+    case POWERPC_EXCP_POWER9:
+    case POWERPC_EXCP_POWER10:
+        return ppc_pending_interrupt_p9(env);
     default:
         return ppc_pending_interrupt_legacy(env);
     }
