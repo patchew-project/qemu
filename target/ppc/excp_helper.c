@@ -1678,7 +1678,7 @@ void ppc_cpu_do_interrupt(CPUState *cs)
     powerpc_excp(cpu, cs->exception_index);
 }
 
-static int ppc_pending_interrupt(CPUPPCState *env)
+static int ppc_pending_interrupt_legacy(CPUPPCState *env)
 {
     bool async_deliver;
 
@@ -1788,6 +1788,14 @@ static int ppc_pending_interrupt(CPUPPCState *env)
     }
 
     return 0;
+}
+
+static int ppc_pending_interrupt(CPUPPCState *env)
+{
+    switch (env->excp_model) {
+    default:
+        return ppc_pending_interrupt_legacy(env);
+    }
 }
 
 static void ppc_hw_interrupt(CPUPPCState *env, int pending_interrupt)
