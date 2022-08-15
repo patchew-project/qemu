@@ -65,19 +65,10 @@ class NMD
 {
 public:
 
-    NMD(img_address pc, TABLE_ATTRIBUTE_TYPE requested_instruction_categories)
-        : m_pc(pc)
-        , m_requested_instruction_categories(requested_instruction_categories)
-    {
-    }
-
     int Disassemble(const uint16 *data, std::string & dis,
                     TABLE_ENTRY_TYPE & type);
 
 private:
-
-    img_address           m_pc;
-    TABLE_ATTRIBUTE_TYPE   m_requested_instruction_categories;
 
     typedef std::string(NMD:: *disassembly_function)(uint64 instruction);
     typedef bool(NMD:: *conditional_function)(uint64 instruction);

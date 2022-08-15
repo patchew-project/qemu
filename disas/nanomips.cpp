@@ -40,6 +40,8 @@
 
 #define IMGASSERTONCE(test)
 
+static img_address           m_pc;
+static TABLE_ATTRIBUTE_TYPE   m_requested_instruction_categories;
 
 int nanomips_dis(char *buf,
                  unsigned address,
@@ -51,7 +53,9 @@ int nanomips_dis(char *buf,
     uint16 bits[3] = {one, two, three};
 
     TABLE_ENTRY_TYPE type;
-    NMD d(address, ALL_ATTRIBUTES);
+    m_pc = address;
+    m_requested_instruction_categories = ALL_ATTRIBUTES;
+    NMD d;
     int size = d.Disassemble(bits, disasm, type);
 
     strcpy(buf, disasm.c_str());
