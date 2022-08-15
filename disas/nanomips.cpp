@@ -31,7 +31,6 @@
 #include "disas/dis-asm.h"
 
 #include <string.h>
-#include <stdexcept>
 #include <stdio.h>
 #include <stdarg.h>
 
@@ -90,6 +89,8 @@ struct Pool {
 
 static img_address           m_pc;
 static TABLE_ATTRIBUTE_TYPE   m_requested_instruction_categories;
+static struct disassemble_info *disassm_info;
+static jmp_buf j_buf;
 
 static const char *img_format(const char *format, ...)
 {
@@ -133,10 +134,13 @@ static uint64 renumber_registers(uint64 index, uint64 *register_list,
         return register_list[index];
     }
 
-    throw std::runtime_error(img_format(
-                   "Invalid register mapping index %" PRIu64
-                   ", size of list = %zu",
-                   index, register_list_size));
+    const char *err = img_format(
+                      "Invalid register mapping index %" PRIu64
+                      ", size of list = %zu",
+                      index, register_list_size);
+    (*disassm_info->fprintf_func)(disassm_info->stream, "%s", err);
+    free((char *)err);
+    siglongjmp(j_buf, 1);
 }
 
 
@@ -513,8 +517,11 @@ static const char *GPR(uint64 reg)
         return gpr_reg[reg];
     }
 
-    throw std::runtime_error(img_format("Invalid GPR register index %" PRIu64,
-                                         reg));
+    const char *err = img_format("Invalid GPR register index %" PRIu64,
+                                 reg);
+    (*disassm_info->fprintf_func)(disassm_info->stream, "%s", err);
+    free((char *)err);
+    siglongjmp(j_buf, 1);
 }
 
 
@@ -548,8 +555,11 @@ static const char *FPR(uint64 reg)
         return fpr_reg[reg];
     }
 
-    throw std::runtime_error(img_format("Invalid FPR register index %" PRIu64,
-                                         reg));
+    const char *err = img_format("Invalid FPR register index %" PRIu64,
+                                 reg);
+    (*disassm_info->fprintf_func)(disassm_info->stream, "%s", err);
+    free((char *)err);
+    siglongjmp(j_buf, 1);
 }
 
 
@@ -563,8 +573,11 @@ static const char *AC(uint64 reg)
         return ac_reg[reg];
     }
 
-    throw std::runtime_error(img_format("Invalid AC register index %" PRIu64,
-                                         reg));
+    const char *err = img_format("Invalid AC register index %" PRIu64,
+                                 reg);
+    (*disassm_info->fprintf_func)(disassm_info->stream, "%s", err);
+    free((char *)err);
+    siglongjmp(j_buf, 1);
 }
 
 
@@ -628,67 +641,50 @@ static int Disassemble(const uint16 *data, char *dis,
                        TABLE_ENTRY_TYPE & type, const Pool *table,
                        int table_size)
 {
-    try
-    {
-        for (int i = 0; i < table_size; i++) {
-            uint64 op_code = extract_op_code_value(data,
-                                 table[i].instructions_size);
-            if ((op_code & table[i].mask) == table[i].value) {
-                /* possible match */
-                conditional_function cond = table[i].condition;
-                if ((cond == 0) || (cond)(op_code)) {
-                    try
-                    {
-                        if (table[i].type == pool) {
-                            return Disassemble(data, dis, type,
-                                               table[i].next_table,
-                                               table[i].next_table_size);
-                        } else if ((table[i].type == instruction) ||
-                                   (table[i].type == call_instruction) ||
-                                   (table[i].type == branch_instruction) ||
-                                   (table[i].type == return_instruction)) {
-                            if ((table[i].attributes != 0) &&
-                                (m_requested_instruction_categories &
-                                 table[i].attributes) == 0) {
-                                /*
-                                 * failed due to instruction having
-                                 * an ASE attribute and the requested version
-                                 * not having that attribute
-                                 */
-                                strcpy(dis, "ASE attribute mismatch");
-                                return -5;
-                            }
-                            disassembly_function dis_fn = table[i].disassembly;
-                            if (dis_fn == 0) {
-                                strcpy(dis,
-                                "disassembler failure - bad table entry");
-                                return -6;
-                            }
-                            type = table[i].type;
-                            const char *dis_str = dis_fn(op_code);
-                            strcpy(dis, dis_str);
-                            free((char *)dis_str);
-                            return table[i].instructions_size;
-                        } else {
-                            strcpy(dis, "reserved instruction");
-                            return -2;
-                        }
+    for (int i = 0; i < table_size; i++) {
+        uint64 op_code = extract_op_code_value(data,
+                             table[i].instructions_size);
+        if ((op_code & table[i].mask) == table[i].value) {
+            /* possible match */
+            conditional_function cond = table[i].condition;
+            if ((cond == 0) || (cond)(op_code)) {
+                if (table[i].type == pool) {
+                    return Disassemble(data, dis, type,
+                                       table[i].next_table,
+                                       table[i].next_table_size);
+                } else if ((table[i].type == instruction) ||
+                           (table[i].type == call_instruction) ||
+                           (table[i].type == branch_instruction) ||
+                           (table[i].type == return_instruction)) {
+                    if ((table[i].attributes != 0) &&
+                        (m_requested_instruction_categories &
+                         table[i].attributes) == 0) {
+                        /*
+                         * failed due to instruction having
+                         * an ASE attribute and the requested version
+                         * not having that attribute
+                         */
+                        strcpy(dis, "ASE attribute mismatch");
+                        return -5;
                     }
-                    catch (std::runtime_error & e)
-                    {
-                        strcpy(dis, e.what());
-                        return -3;          /* runtime error */
+                    disassembly_function dis_fn = table[i].disassembly;
+                    if (dis_fn == 0) {
+                        strcpy(dis,
+                        "disassembler failure - bad table entry");
+                        return -6;
                     }
+                    type = table[i].type;
+                    const char *dis_str = dis_fn(op_code);
+                    strcpy(dis, dis_str);
+                    free((char *)dis_str);
+                    return table[i].instructions_size;
+                } else {
+                    strcpy(dis, "reserved instruction");
+                    return -2;
                 }
             }
         }
     }
-    catch (std::exception & e)
-    {
-        strcpy(dis, e.what());
-        return -4;          /* runtime error */
-    }
-
     strcpy(dis, "failed to disassemble");
     return -1;      /* failed to disassemble        */
 }
@@ -22817,6 +22813,7 @@ int print_insn_nanomips(bfd_vma memaddr, struct disassemble_info *info)
     info->insn_type = dis_nonbranch;
     info->target = 0;
     info->target2 = 0;
+    disassm_info = info;
 
     status = (*info->read_memory_func)(memaddr, buffer, 2, info);
     if (status != 0) {
@@ -22864,6 +22861,12 @@ int print_insn_nanomips(bfd_vma memaddr, struct disassemble_info *info)
         (*info->fprintf_func)(info->stream, "%04x ", insn3);
     } else {
         (*info->fprintf_func)(info->stream, "     ");
+    }
+
+    /* Handle runtime errors. */
+    if (sigsetjmp(j_buf, 0) != 0) {
+        info->insn_type = dis_noninsn;
+        return insn3 ? 6 : insn2 ? 4 : 2;
     }
 
     int length = nanomips_dis(buf, memaddr, insn1, insn2, insn3);
