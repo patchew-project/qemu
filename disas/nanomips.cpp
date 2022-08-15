@@ -114,13 +114,13 @@ static const char *to_string(img_address a)
 }
 
 
-uint64 extract_bits(uint64 data, uint32 bit_offset, uint32 bit_size)
+static uint64 extract_bits(uint64 data, uint32 bit_offset, uint32 bit_size)
 {
     return (data << (64 - (bit_size + bit_offset))) >> (64 - bit_size);
 }
 
 
-int64 sign_extend(int64 data, int msb)
+static int64 sign_extend(int64 data, int msb)
 {
     uint64 shift = 63 - msb;
     return (data << shift) >> shift;
@@ -463,7 +463,7 @@ static uint64 encode_shift3_from_shift(uint64 d)
 
 
 /* special value for load literal */
-int64 encode_eu_from_s_li16(uint64 d)
+static int64 encode_eu_from_s_li16(uint64 d)
 {
     IMGASSERTONCE(d < 128);
     return d == 127 ? -1 : (int64)d;
@@ -22780,7 +22780,7 @@ static struct Pool MAJOR[2] = {
 };
 
 
-int nanomips_dis(char *buf,
+static int nanomips_dis(char *buf,
                  unsigned address,
                  unsigned short one,
                  unsigned short two,
