@@ -31,6 +31,8 @@ typedef uint32_t uint32;
 typedef uint16_t uint16;
 typedef uint64_t img_address;
 
+typedef bool(*conditional_function)(uint64 instruction);
+
 enum TABLE_ENTRY_TYPE {
     instruction,
     call_instruction,
@@ -71,7 +73,6 @@ public:
 private:
 
     typedef std::string(NMD:: *disassembly_function)(uint64 instruction);
-    typedef bool(NMD:: *conditional_function)(uint64 instruction);
 
     struct Pool {
         TABLE_ENTRY_TYPE     type;
@@ -88,17 +89,6 @@ private:
     uint64 extract_op_code_value(const uint16 *data, int size);
     int Disassemble(const uint16 *data, std::string & dis,
                     TABLE_ENTRY_TYPE & type, const Pool *table, int table_size);
-
-    bool ADDIU_32__cond(uint64 instruction);
-    bool ADDIU_RS5__cond(uint64 instruction);
-    bool BALRSC_cond(uint64 instruction);
-    bool BEQC_16__cond(uint64 instruction);
-    bool BNEC_16__cond(uint64 instruction);
-    bool MOVE_cond(uint64 instruction);
-    bool P16_BR1_cond(uint64 instruction);
-    bool PREF_S9__cond(uint64 instruction);
-    bool PREFE_cond(uint64 instruction);
-    bool SLTU_cond(uint64 instruction);
 
     std::string ABS_D(uint64 instruction);
     std::string ABS_S(uint64 instruction);
