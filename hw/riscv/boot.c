@@ -327,6 +327,10 @@ void riscv_setup_rom_reset_vec(MachineState *machine, RISCVHartArrayState *harts
     riscv_rom_copy_firmware_info(machine, rom_base, rom_size, sizeof(reset_vec),
                                  kernel_entry);
 
+    /* change reset vector address */
+    for (i = 0; i < harts->num_harts; i++) {
+        harts->harts[i].env.resetvec = rom_base;
+    }
     return;
 }
 
