@@ -2472,3 +2472,15 @@ exit:
 exit_no_print:
     error_free(err);
 }
+
+void hmp_dumpdtb(Monitor *mon, const QDict *qdict)
+{
+    const char *filename = qdict_get_str(qdict, "filename");
+    Error *local_err = NULL;
+
+    qmp_dumpdtb(filename, &local_err);
+
+    if (local_err) {
+        error_report_err(local_err);
+    }
+}

@@ -643,3 +643,21 @@ out:
     g_free(propcells);
     return ret;
 }
+
+void qemu_fdt_qmp_dumpdtb(const char *filename, Error **errp)
+{
+    int size;
+
+    if (!current_machine->fdt) {
+        error_setg(errp, "Unable to find the machine FDT");
+        return;
+    }
+
+    size = fdt_totalsize(current_machine->fdt);
+
+    if (g_file_set_contents(filename, current_machine->fdt, size, NULL)) {
+        return;
+    }
+
+    error_setg(errp, "Error when saving machine FDT to file %s", filename);
+}

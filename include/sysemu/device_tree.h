@@ -136,6 +136,7 @@ int qemu_fdt_add_path(void *fdt, const char *path);
     } while (0)
 
 void qemu_fdt_dumpdtb(void *fdt, int size);
+void qemu_fdt_qmp_dumpdtb(const char *filename, Error **errp);
 
 /**
  * qemu_fdt_setprop_sized_cells_from_array:
