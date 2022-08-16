@@ -1912,10 +1912,29 @@ int vhost_net_set_backend(struct vhost_dev *hdev,
 void vhost_dev_virtqueue_stop(struct vhost_dev *hdev, VirtIODevice *vdev,
                               int idx)
 {
+    const VhostOps *vhost_ops = hdev->vhost_ops;
+    struct vhost_vring_state state;
+    int r;
+
+    assert(vhost_ops);
+
+    if (vhost_ops->vhost_reset_vring) {
+        state.index = hdev->vq_index + idx;
+        r = vhost_ops->vhost_reset_vring(hdev, &state);
+        if (r < 0) {
+            goto err_queue_reset;
+        }
+    }
+
     vhost_virtqueue_unmap(hdev,
                           vdev,
                           hdev->vqs + idx,
                           idx);
+
+    return;
+
+err_queue_reset:
+    error_report("Error when stopping the qeuue.");
 }
 
 int vhost_dev_virtqueue_restart(struct vhost_dev *hdev, VirtIODevice *vdev,
