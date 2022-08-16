@@ -766,17 +766,26 @@ static void fdt_prop_format_val(GString *buf, const char *propname,
     g_string_append_printf(buf, "];\n");
 }
 
-static void fdt_format_node(GString *buf, int node, int depth)
+
+static void fdt_format_node(GString *buf, int node, int depth,
+                            const char *fullpath)
 {
     const struct fdt_property *prop = NULL;
+    const char *nodename = NULL;
     const char *propname = NULL;
     void *fdt = current_machine->fdt;
     int padding = depth * 4;
     int property = 0;
+    int parent = node;
     int prop_size;
 
-    g_string_append_printf(buf, "%*s%s {\n", padding, "",
-                           fdt_get_name(fdt, node, NULL));
+    if (fullpath != NULL) {
+        nodename = fullpath;
+    } else {
+        nodename = fdt_get_name(fdt, node, NULL);
+    }
+
+    g_string_append_printf(buf, "%*s%s {\n", padding, "", nodename);
 
     padding += 4;
 
@@ -801,6 +810,10 @@ static void fdt_format_node(GString *buf, int node, int depth)
         }
     }
 
+    fdt_for_each_subnode(node, fdt, parent) {
+        fdt_format_node(buf, node, depth + 1, NULL);
+    }
+
     padding -= 4;
     g_string_append_printf(buf, "%*s}\n", padding, "");
 }
@@ -821,7 +834,7 @@ HumanReadableText *qemu_fdt_qmp_query_fdt(const char *nodepath, Error **errp)
         return NULL;
     }
 
-    fdt_format_node(buf, node, 0);
+    fdt_format_node(buf, node, 0, nodepath);
 
     return human_readable_text_from_str(buf);
 }
