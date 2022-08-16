@@ -12,6 +12,12 @@ typedef struct DisasContext {
 
     /* The address of the current instruction being translated. */
     target_ulong pc_curr;
+    /*
+     * For TARGET_TB_PCREL, the value relative to pc_curr against which
+     * offsets must be computed for cpu_pc.  -1 if unknown due to jump.
+     */
+    target_ulong pc_save;
+    target_ulong pc_cond_save;
     target_ulong page_start;
     uint32_t insn;
     /* Nonzero if this instruction has been conditionally skipped.  */
