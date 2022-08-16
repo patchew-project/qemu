@@ -604,9 +604,10 @@ void qmp_dumpdtb(const char *filename, Error **errp)
     return qemu_fdt_qmp_dumpdtb(filename, errp);
 }
 
-HumanReadableText *qmp_x_query_fdt(const char *nodepath, Error **errp)
+HumanReadableText *qmp_x_query_fdt(const char *nodepath, bool has_propname,
+                                   const char *propname, Error **errp)
 {
-    return qemu_fdt_qmp_query_fdt(nodepath, errp);
+    return qemu_fdt_qmp_query_fdt(nodepath, has_propname, propname, errp);
 }
 #else
 void qmp_dumpdtb(const char *filename, Error **errp)
@@ -614,7 +615,8 @@ void qmp_dumpdtb(const char *filename, Error **errp)
     error_setg(errp, "dumpdtb requires libfdt");
 }
 
-HumanReadableText *qmp_x_query_fdt(const char *nodepath, Error **errp)
+HumanReadableText *qmp_x_query_fdt(const char *nodepath, bool has_propname,
+                                   const char *propname, Error **errp)
 {
     error_setg(errp, "this command requires libfdt");
 

@@ -140,6 +140,8 @@ int qemu_fdt_add_path(void *fdt, const char *path);
 void qemu_fdt_dumpdtb(void *fdt, int size);
 void qemu_fdt_qmp_dumpdtb(const char *filename, Error **errp);
 HumanReadableText *qemu_fdt_qmp_query_fdt(const char *nodepath,
+                                          bool has_propname,
+                                          const char *propname,
                                           Error **errp);
 
 /**
