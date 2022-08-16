@@ -83,6 +83,8 @@ typedef int (*vhost_reset_vring_op)(struct vhost_dev *dev,
                                     struct vhost_vring_state *ring);
 typedef int (*vhost_reset_device_op)(struct vhost_dev *dev);
 typedef int (*vhost_get_vq_index_op)(struct vhost_dev *dev, int idx);
+typedef int (*vhost_set_single_vring_enable_op)(struct vhost_dev *dev,
+                                                int index, int enable);
 typedef int (*vhost_set_vring_enable_op)(struct vhost_dev *dev,
                                          int enable);
 typedef bool (*vhost_requires_shm_log_op)(struct vhost_dev *dev);
@@ -158,6 +160,7 @@ typedef struct VhostOps {
     vhost_reset_device_op vhost_reset_device;
     vhost_reset_vring_op vhost_reset_vring;
     vhost_get_vq_index_op vhost_get_vq_index;
+    vhost_set_single_vring_enable_op vhost_set_single_vring_enable;
     vhost_set_vring_enable_op vhost_set_vring_enable;
     vhost_requires_shm_log_op vhost_requires_shm_log;
     vhost_migration_done_op vhost_migration_done;
