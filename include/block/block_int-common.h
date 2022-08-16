@@ -94,7 +94,6 @@ typedef struct BdrvTrackedRequest {
     struct BdrvTrackedRequest *waiting_for;
 } BdrvTrackedRequest;
 
-
 struct BlockDriver {
     /*
      * These fields are initialized when this object is created,
@@ -691,6 +690,12 @@ struct BlockDriver {
                                           QEMUIOVector *qiov,
                                           int64_t pos);
 
+    int coroutine_fn (*bdrv_co_zone_report)(BlockDriverState *bs,
+            int64_t offset, unsigned int *nr_zones,
+            BlockZoneDescriptor *zones);
+    int coroutine_fn (*bdrv_co_zone_mgmt)(BlockDriverState *bs, BlockZoneOp op,
+            int64_t offset, int64_t len);
+
     /* removable device specific */
     bool (*bdrv_is_inserted)(BlockDriverState *bs);
     void (*bdrv_eject)(BlockDriverState *bs, bool eject_flag);
@@ -828,6 +833,21 @@ typedef struct BlockLimits {
 
     /* device zone model */
     BlockZoneModel zoned;
+
+    /* zone size expressed in 512-byte sectors */
+    uint32_t zone_sectors;
+
+    /* total number of zones */
+    unsigned int nr_zones;
+
+    /* maximum size in bytes of a zone append write operation */
+    int64_t zone_append_max_bytes;
+
+    /* maximum number of open zones */
+    int64_t max_open_zones;
+
+    /* maximum number of active zones */
+    int64_t max_active_zones;
 } BlockLimits;
 
 typedef struct BdrvOpBlocker BdrvOpBlocker;
