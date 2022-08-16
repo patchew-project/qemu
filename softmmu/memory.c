@@ -1076,7 +1076,9 @@ static void address_space_update_topology(AddressSpace *as)
     if (!g_hash_table_lookup(flat_views, physmr)) {
         generate_memory_topology(physmr);
     }
+    MEMORY_LISTENER_CALL_GLOBAL(begin, Forward);
     address_space_set_flatview(as);
+    MEMORY_LISTENER_CALL_GLOBAL(commit, Forward);
 }
 
 void memory_region_transaction_begin(void)
