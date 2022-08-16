@@ -30,9 +30,15 @@ typedef struct KVMSlot
     ram_addr_t ram_start_offset;
 } KVMSlot;
 
+typedef struct MemoryRegionNode {
+    struct kvm_userspace_memory_region *mem;
+    QTAILQ_ENTRY(MemoryRegionNode) list;
+} MemoryRegionNode;
+
 typedef struct KVMMemoryListener {
     MemoryListener listener;
     KVMSlot *slots;
+    QTAILQ_HEAD(, MemoryRegionNode) mem_list;
     int as_id;
 } KVMMemoryListener;
 

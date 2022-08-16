@@ -357,39 +357,40 @@ int kvm_physical_memory_addr_from_host(KVMState *s, void *ram,
     return ret;
 }
 
+static void kvm_memory_region_node_add(KVMMemoryListener *kml,
+                                       struct kvm_userspace_memory_region *mem)
+{
+    MemoryRegionNode *node;
+
+    node = g_malloc(sizeof(MemoryRegionNode));
+    *node = (MemoryRegionNode) {
+        .mem = mem,
+    };
+    QTAILQ_INSERT_TAIL(&kml->mem_list, node, list);
+}
+
 static int kvm_set_user_memory_region(KVMMemoryListener *kml, KVMSlot *slot, bool new)
 {
-    KVMState *s = kvm_state;
-    struct kvm_userspace_memory_region mem;
-    int ret;
+    struct kvm_userspace_memory_region *mem;
 
-    mem.slot = slot->slot | (kml->as_id << 16);
-    mem.guest_phys_addr = slot->start_addr;
-    mem.userspace_addr = (unsigned long)slot->ram;
-    mem.flags = slot->flags;
+    mem = g_malloc(sizeof(struct kvm_userspace_memory_region));
 
-    if (slot->memory_size && !new && (mem.flags ^ slot->old_flags) & KVM_MEM_READONLY) {
+    mem->slot = slot->slot | (kml->as_id << 16);
+    mem->guest_phys_addr = slot->start_addr;
+    mem->userspace_addr = (unsigned long)slot->ram;
+    mem->flags = slot->flags;
+
+    if (slot->memory_size && !new && (mem->flags ^ slot->old_flags) &
+        KVM_MEM_READONLY) {
         /* Set the slot size to 0 before setting the slot to the desired
          * value. This is needed based on KVM commit 75d61fbc. */
-        mem.memory_size = 0;
-        ret = kvm_vm_ioctl(s, KVM_SET_USER_MEMORY_REGION, &mem);
-        if (ret < 0) {
-            goto err;
-        }
+        mem->memory_size = 0;
+        kvm_memory_region_node_add(kml, mem);
     }
-    mem.memory_size = slot->memory_size;
-    ret = kvm_vm_ioctl(s, KVM_SET_USER_MEMORY_REGION, &mem);
-    slot->old_flags = mem.flags;
-err:
-    trace_kvm_set_user_memory(mem.slot, mem.flags, mem.guest_phys_addr,
-                              mem.memory_size, mem.userspace_addr, ret);
-    if (ret < 0) {
-        error_report("%s: KVM_SET_USER_MEMORY_REGION failed, slot=%d,"
-                     " start=0x%" PRIx64 ", size=0x%" PRIx64 ": %s",
-                     __func__, mem.slot, slot->start_addr,
-                     (uint64_t)mem.memory_size, strerror(errno));
-    }
-    return ret;
+    mem->memory_size = slot->memory_size;
+    kvm_memory_region_node_add(kml, mem);
+    slot->old_flags = mem->flags;
+    return 0;
 }
 
 static int do_kvm_destroy_vcpu(CPUState *cpu)
@@ -1517,10 +1518,50 @@ static void kvm_region_add(MemoryListener *listener,
 static void kvm_region_del(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
-    KVMMemoryListener *kml = container_of(listener, KVMMemoryListener, listener);
+    KVMMemoryListener *kml = container_of(listener, KVMMemoryListener,
+                                          listener);
 
     kvm_set_phys_mem(kml, section, false);
     memory_region_unref(section->mr);
+}
+
+static void kvm_begin(MemoryListener *listener)
+{
+    KVMMemoryListener *kml = container_of(listener, KVMMemoryListener,
+                                          listener);
+    assert(QTAILQ_EMPTY(&kml->mem_list));
+}
+
+static void kvm_commit(MemoryListener *listener)
+{
+    KVMMemoryListener *kml = container_of(listener, KVMMemoryListener,
+                                          listener);
+    MemoryRegionNode *node, *next;
+    KVMState *s = kvm_state;
+
+    QTAILQ_FOREACH_SAFE(node, &kml->mem_list, list, next) {
+        struct kvm_userspace_memory_region *mem = node->mem;
+        int ret;
+
+        ret = kvm_vm_ioctl(s, KVM_SET_USER_MEMORY_REGION, mem);
+
+        trace_kvm_set_user_memory(mem->slot, mem->flags, mem->guest_phys_addr,
+                                  mem->memory_size, mem->userspace_addr, 0);
+
+        if (ret < 0) {
+            error_report("%s: KVM_SET_USER_MEMORY_REGION failed, slot=%d,"
+                         " start=0x%" PRIx64 ": %s",
+                         __func__, mem->slot,
+                         (uint64_t)mem->memory_size, strerror(errno));
+        }
+
+        QTAILQ_REMOVE(&kml->mem_list, node, list);
+        g_free(mem);
+        g_free(node);
+    }
+
+
+
 }
 
 static void kvm_log_sync(MemoryListener *listener,
@@ -1664,8 +1705,12 @@ void kvm_memory_listener_register(KVMState *s, KVMMemoryListener *kml,
         kml->slots[i].slot = i;
     }
 
+    QTAILQ_INIT(&kml->mem_list);
+
     kml->listener.region_add = kvm_region_add;
     kml->listener.region_del = kvm_region_del;
+    kml->listener.begin = kvm_begin;
+    kml->listener.commit = kvm_commit;
     kml->listener.log_start = kvm_log_start;
     kml->listener.log_stop = kvm_log_stop;
     kml->listener.priority = 10;
