@@ -291,4 +291,6 @@ int vhost_dev_get_inflight(struct vhost_dev *dev, uint16_t queue_size,
 
 void vhost_dev_virtqueue_stop(struct vhost_dev *hdev, VirtIODevice *vdev,
                               int idx);
+int vhost_dev_virtqueue_restart(struct vhost_dev *hdev, VirtIODevice *vdev,
+                                int idx);
 #endif

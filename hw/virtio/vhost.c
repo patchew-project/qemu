@@ -1917,3 +1917,16 @@ void vhost_dev_virtqueue_stop(struct vhost_dev *hdev, VirtIODevice *vdev,
                           hdev->vqs + idx,
                           idx);
 }
+
+int vhost_dev_virtqueue_restart(struct vhost_dev *hdev, VirtIODevice *vdev,
+                                int idx)
+{
+    const VhostOps *vhost_ops = hdev->vhost_ops;
+
+    assert(vhost_ops);
+
+    return vhost_virtqueue_start(hdev,
+                                 vdev,
+                                 hdev->vqs + idx,
+                                 hdev->vq_index + idx);
+}
