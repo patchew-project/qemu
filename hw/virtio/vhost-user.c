@@ -126,6 +126,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_GET_MAX_MEM_SLOTS = 36,
     VHOST_USER_ADD_MEM_REG = 37,
     VHOST_USER_REM_MEM_REG = 38,
+    VHOST_USER_RESET_VRING = 41,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -1498,6 +1499,45 @@ static int vhost_user_get_max_memslots(struct vhost_dev *dev,
     return 0;
 }
 
+static int vhost_user_reset_vring(struct vhost_dev *dev,
+                                  struct vhost_vring_state *ring)
+{
+    int ret;
+    VhostUserMsg msg = {
+        .hdr.request = VHOST_USER_RESET_VRING,
+        .hdr.flags = VHOST_USER_VERSION,
+        .payload.state = *ring,
+        .hdr.size = sizeof(msg.payload.state),
+    };
+
+    if (!virtio_has_feature(dev->acked_features, VIRTIO_F_RING_RESET)) {
+        return -ENOTSUP;
+    }
+
+    ret = vhost_user_write(dev, &msg, NULL, 0);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = vhost_user_read(dev, &msg);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (msg.hdr.request != VHOST_USER_RESET_VRING) {
+        error_report("Received unexpected msg type. Expected %d received %d",
+                     VHOST_USER_RESET_VRING, msg.hdr.request);
+        return -EPROTO;
+    }
+
+    if (msg.hdr.size != sizeof(msg.payload.state)) {
+        error_report("Received bad msg size.");
+        return -EPROTO;
+    }
+
+    return 0;
+}
+
 static int vhost_user_reset_device(struct vhost_dev *dev)
 {
     VhostUserMsg msg = {
@@ -2625,6 +2665,7 @@ const VhostOps user_ops = {
         .vhost_set_features = vhost_user_set_features,
         .vhost_get_features = vhost_user_get_features,
         .vhost_set_owner = vhost_user_set_owner,
+        .vhost_reset_vring = vhost_user_reset_vring,
         .vhost_reset_device = vhost_user_reset_device,
         .vhost_get_vq_index = vhost_user_get_vq_index,
         .vhost_set_vring_enable = vhost_user_set_vring_enable,
