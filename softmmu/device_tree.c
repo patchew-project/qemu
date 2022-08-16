@@ -663,6 +663,63 @@ void qemu_fdt_qmp_dumpdtb(const char *filename, Error **errp)
     error_setg(errp, "Error when saving machine FDT to file %s", filename);
 }
 
+static bool fdt_prop_is_string_array(const void *data, int size)
+{
+    const char *str_arr, *str;
+    int i, str_len;
+
+    str_arr = str = data;
+
+    if (size <= 0 || str_arr[size - 1] != '\0') {
+        return false;
+    }
+
+    while (str < str_arr + size) {
+        str_len = strlen(str);
+
+        /*
+         * Do not consider empty strings (consecutives \0\0)
+         * as valid.
+         */
+        if (str_len == 0) {
+            return false;
+        }
+
+        for (i = 0; i < str_len; i++) {
+            if (!g_ascii_isprint(str[i])) {
+                return false;
+            }
+        }
+
+        str += str_len + 1;
+    }
+
+    return true;
+}
+
+static void fdt_prop_format_string_array(GString *buf,
+                                         const char *propname,
+                                         const char *data,
+                                         int prop_size, int padding)
+{
+    const char *str = data;
+
+    g_string_append_printf(buf, "%*s%s = ", padding, "", propname);
+
+    while (str < data + prop_size) {
+        /* appends up to the next '\0' */
+        g_string_append_printf(buf, "\"%s\"", str);
+
+        str += strlen(str) + 1;
+        if (str < data + prop_size) {
+            /* add a comma separator for the next string */
+            g_string_append_printf(buf, ",");
+        }
+    }
+
+    g_string_append_printf(buf, ";\n");
+}
+
 static void fdt_format_node(GString *buf, int node, int depth)
 {
     const struct fdt_property *prop = NULL;
@@ -681,7 +738,12 @@ static void fdt_format_node(GString *buf, int node, int depth)
         prop = fdt_get_property_by_offset(fdt, property, &prop_size);
         propname = fdt_string(fdt, fdt32_to_cpu(prop->nameoff));
 
-        g_string_append_printf(buf, "%*s%s;\n", padding, "", propname);
+        if (fdt_prop_is_string_array(prop->data, prop_size)) {
+            fdt_prop_format_string_array(buf, propname, prop->data,
+                                         prop_size, padding);
+        } else {
+            g_string_append_printf(buf, "%*s%s;\n", padding, "", propname);
+        }
     }
 
     padding -= 4;
