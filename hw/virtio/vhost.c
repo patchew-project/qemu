@@ -1908,3 +1908,12 @@ int vhost_net_set_backend(struct vhost_dev *hdev,
 
     return -ENOSYS;
 }
+
+void vhost_dev_virtqueue_stop(struct vhost_dev *hdev, VirtIODevice *vdev,
+                              int idx)
+{
+    vhost_virtqueue_unmap(hdev,
+                          vdev,
+                          hdev->vqs + idx,
+                          idx);
+}
