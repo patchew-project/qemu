@@ -921,3 +921,16 @@ SRST
   ``stats``
     Show runtime-collected statistics
 ERST
+
+    {
+        .name       = "fdt",
+        .args_type  = "nodepath:s",
+        .params     = "nodepath",
+        .help       = "show firmware device tree node given its path",
+        .cmd        = hmp_info_fdt,
+    },
+
+SRST
+  ``info fdt``
+    Show a firmware device tree node given its path. Requires libfdt.
+ERST

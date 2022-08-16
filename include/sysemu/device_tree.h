@@ -14,6 +14,8 @@
 #ifndef DEVICE_TREE_H
 #define DEVICE_TREE_H
 
+#include "qapi/qapi-types-common.h"
+
 void *create_device_tree(int *sizep);
 void *load_device_tree(const char *filename_path, int *sizep);
 #ifdef CONFIG_LINUX
@@ -137,6 +139,8 @@ int qemu_fdt_add_path(void *fdt, const char *path);
 
 void qemu_fdt_dumpdtb(void *fdt, int size);
 void qemu_fdt_qmp_dumpdtb(const char *filename, Error **errp);
+HumanReadableText *qemu_fdt_qmp_query_fdt(const char *nodepath,
+                                          Error **errp);
 
 /**
  * qemu_fdt_setprop_sized_cells_from_array:

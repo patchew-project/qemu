@@ -2484,3 +2484,16 @@ void hmp_dumpdtb(Monitor *mon, const QDict *qdict)
         error_report_err(local_err);
     }
 }
+
+void hmp_info_fdt(Monitor *mon, const QDict *qdict)
+{
+    const char *nodepath = qdict_get_str(qdict, "nodepath");
+    Error *err = NULL;
+    g_autoptr(HumanReadableText) info = qmp_x_query_fdt(nodepath, &err);
+
+    if (hmp_handle_error(mon, err)) {
+        return;
+    }
+
+    monitor_printf(mon, "%s", info->human_readable_text);
+}
