@@ -117,6 +117,7 @@ typedef struct VirtIOPCIRegion {
 typedef struct VirtIOPCIQueue {
   uint16_t num;
   bool enabled;
+  bool reset;
   uint32_t desc[2];
   uint32_t avail[2];
   uint32_t used[2];
