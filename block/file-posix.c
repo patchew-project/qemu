@@ -1258,6 +1258,33 @@ static int get_sysfs_zoned_model(struct stat *st, BlockZoneModel *zoned) {
     return 0;
 }
 
+/*
+ * Get zoned device information (chunk_sectors, zoned_append_max_bytes,
+ * max_open_zones, max_active_zones) through sysfs attribute files.
+ */
+static long get_sysfs_long_val(struct stat *st, const char *attribute) {
+#ifdef CONFIG_LINUX
+    g_autofree char *str = NULL;
+    const char *end;
+    long val;
+    int ret;
+
+    ret = get_sysfs_str_val(st, attribute, &str);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /* The file is ended with '\n', pass 'end' to accept that. */
+    ret = qemu_strtol(str, &end, 10, &val);
+    if (ret == 0 && end && *end == '\n') {
+        ret = val;
+    }
+    return ret;
+#else
+    return -ENOTSUP;
+#endif
+}
+
 static int hdev_get_max_segments(int fd, struct stat *st) {
     int ret;
     if (S_ISCHR(st->st_mode)) {
