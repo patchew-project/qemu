@@ -1422,6 +1422,16 @@ Front-end message types
   query the back-end for its device status as defined in the Virtio
   specification.
 
+``VHOST_USER_RESET_VRING``
+  :id: 41
+  :equivalent ioctl: N/A
+  :request payload: vring state description
+  :reply payload: ``u64``
+
+  When the feature ``VIRTIO_F_RING_RESET`` feature has been successfully
+  negotiated, this message is submitted by the front-end to reset an
+  individual virtqueue to initial states in the back-end. It will ask
+  for a reply to ensure the virtqueue is successfully reset in the back-end.
 
 Back-end message types
 ----------------------
