@@ -556,6 +556,10 @@ int vhost_net_virtqueue_restart(VirtIODevice *vdev, NetClientState *nc,
 
     idx =  vhost_ops->vhost_get_vq_index(&net->dev, vq_index);
 
+    if (net->nc->info->type == NET_CLIENT_DRIVER_VHOST_USER) {
+        idx = idx - net->dev.vq_index;
+    }
+
     r = vhost_dev_virtqueue_restart(&net->dev, vdev, idx);
     if (r < 0) {
         goto err_start;
