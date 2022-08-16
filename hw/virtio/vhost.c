@@ -1941,11 +1941,29 @@ int vhost_dev_virtqueue_restart(struct vhost_dev *hdev, VirtIODevice *vdev,
                                 int idx)
 {
     const VhostOps *vhost_ops = hdev->vhost_ops;
+    int r;
 
     assert(vhost_ops);
 
-    return vhost_virtqueue_start(hdev,
-                                 vdev,
-                                 hdev->vqs + idx,
-                                 hdev->vq_index + idx);
+    r = vhost_virtqueue_start(hdev,
+                              vdev,
+                              hdev->vqs + idx,
+                              hdev->vq_index + idx);
+    if (r < 0) {
+        goto err_start;
+    }
+
+    if (vhost_ops->vhost_set_single_vring_enable) {
+        r = vhost_ops->vhost_set_single_vring_enable(hdev,
+                                                     hdev->vq_index + idx,
+                                                     1);
+        if (r < 0) {
+            goto err_start;
+        }
+    }
+
+    return 0;
+
+err_start:
+    return r;
 }
