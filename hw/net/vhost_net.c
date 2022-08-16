@@ -533,6 +533,10 @@ void vhost_net_virtqueue_stop(VirtIODevice *vdev, NetClientState *nc,
         assert(r >= 0);
     }
 
+    if (net->nc->info->type == NET_CLIENT_DRIVER_VHOST_USER) {
+        idx = idx - net->dev.vq_index;
+    }
+
     vhost_dev_virtqueue_stop(&net->dev, vdev, idx);
 }
 
