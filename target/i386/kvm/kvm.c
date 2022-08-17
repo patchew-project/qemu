@@ -2597,6 +2597,20 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
             ratelimit_set_speed(&bus_lock_ratelimit_ctrl,
                                 x86ms->bus_lock_ratelimit, BUS_LOCK_SLICE_TIME);
         }
+
+        if (x86ms->notify_vmexit &&
+            kvm_check_extension(s, KVM_CAP_X86_NOTIFY_VMEXIT)) {
+            uint64_t notify_window_flags = ((uint64_t)x86ms->notify_window << 32) |
+                                           KVM_X86_NOTIFY_VMEXIT_ENABLED |
+                                           KVM_X86_NOTIFY_VMEXIT_USER;
+            ret = kvm_vm_enable_cap(s, KVM_CAP_X86_NOTIFY_VMEXIT, 0,
+                                    notify_window_flags);
+            if (ret < 0) {
+                error_report("kvm: Failed to enable notify vmexit cap: %s",
+                             strerror(-ret));
+                return ret;
+            }
+        }
     }
 
     return 0;
@@ -5141,6 +5155,7 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
     X86CPU *cpu = X86_CPU(cs);
     uint64_t code;
     int ret;
+    struct kvm_vcpu_events events = {};
 
     switch (run->exit_reason) {
     case KVM_EXIT_HLT:
@@ -5195,6 +5210,19 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
     case KVM_EXIT_X86_BUS_LOCK:
         /* already handled in kvm_arch_post_run */
         ret = 0;
+        break;
+    case KVM_EXIT_NOTIFY:
+        ret = 0;
+        if (run->notify.flags & KVM_NOTIFY_CONTEXT_INVALID) {
+            warn_report("KVM: invalid context due to notify vmexit");
+            if (has_triple_fault_event) {
+                events.flags |= KVM_VCPUEVENT_VALID_TRIPLE_FAULT;
+                events.triple_fault.pending = true;
+                ret = kvm_vcpu_ioctl(cs, KVM_SET_VCPU_EVENTS, &events);
+            } else {
+                ret = -1;
+            }
+        }
         break;
     default:
         fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);
