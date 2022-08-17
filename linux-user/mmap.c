@@ -115,6 +115,7 @@ int target_mprotect(abi_ulong start, abi_ulong len, int target_prot)
 {
     abi_ulong end, host_start, host_end, addr;
     int prot1, ret, page_flags, host_prot;
+    CPUState *cpu;
 
     trace_target_mprotect(start, len, target_prot);
 
@@ -178,6 +179,19 @@ int target_mprotect(abi_ulong start, abi_ulong len, int target_prot)
         }
     }
     page_set_flags(start, start + len, page_flags);
+
+    /*
+     * Unlike target_mmap(), target_munmap() and target_mremap(), we don't need
+     * to call tb_invalidate_phys_range() here, since pages still hold the same
+     * data.  However, tb_jmp_cache needs to be cleared, otherwise after
+     * clearing PAGE_EXEC it would still be possible to jump to the existing
+     * translation blocks.  We just clear the whole cache here: mprotect() is
+     * rare enough, so a more fine-grained approach is not necessary.
+     */
+    CPU_FOREACH(cpu) {
+        cpu_tb_jmp_cache_clear(cpu);
+    }
+
     mmap_unlock();
     return 0;
 error:
