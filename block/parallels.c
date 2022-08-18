@@ -513,7 +513,15 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
             res->leaks_fixed += count;
         }
     }
-
+    /*
+     * If there were an out-of-image cluster it would be repaired,
+     * but s->data_end still would point outside image.
+     * Fix s->data_end by the file size.
+     */
+    size >>= BDRV_SECTOR_BITS;
+    if (s->data_end > size) {
+        s->data_end = size;
+    }
 out:
     qemu_co_mutex_unlock(&s->lock);
     return ret;
