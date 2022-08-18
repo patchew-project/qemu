@@ -2542,8 +2542,10 @@ static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
     VirtIONet *n = q->n;
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
     VirtQueueElement *elem;
+    VirtQueueElement *elems[VIRTQUEUE_MAX_SIZE];
     int32_t num_packets = 0;
     int queue_index = vq2q(virtio_get_queue_index(q->tx_vq));
+    size_t j;
     if (!(vdev->status & VIRTIO_CONFIG_S_DRIVER_OK)) {
         return num_packets;
     }
@@ -2621,14 +2623,35 @@ static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
         }
 
 drop:
-        virtqueue_push(q->tx_vq, elem, 0);
-        virtio_notify(vdev, q->tx_vq);
-        g_free(elem);
+        if (!virtio_vdev_has_feature(vdev, VIRTIO_F_IN_ORDER)) {
+            virtqueue_push(q->tx_vq, elem, 0);
+            virtio_notify(vdev, q->tx_vq);
+            g_free(elem);
+        } else {
+            elems[num_packets] = elem;
+        }
 
         if (++num_packets >= n->tx_burst) {
             break;
         }
     }
+
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_IN_ORDER) && num_packets) {
+        /**
+         * If in order feature negotiated, devices can notify the use of a batch
+         * of buffers to the driver by only writing out a single used ring entry
+         * with the id corresponding to the head entry of the descriptor chain
+         * describing the last buffer in the batch.
+         */
+        virtqueue_fill(q->tx_vq, elems[num_packets - 1], 0, 0);
+        for (j = 0; j < num_packets; j++) {
+            g_free(elems[j]);
+        }
+
+        virtqueue_flush(q->tx_vq, num_packets);
+        virtio_notify(vdev, q->tx_vq);
+    }
+
     return num_packets;
 }
 
