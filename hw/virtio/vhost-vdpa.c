@@ -898,7 +898,12 @@ static bool vhost_vdpa_svq_unmap_ring(struct vhost_vdpa *v,
 
     size = ROUND_UP(result->size, qemu_real_host_page_size());
     r = vhost_vdpa_dma_unmap(v, result->iova, size);
-    return r == 0;
+    if (unlikely(r < 0)) {
+        return false;
+    }
+
+    vhost_iova_tree_remove(v->iova_tree, result);
+    return 0;
 }
 
 static bool vhost_vdpa_svq_unmap_rings(struct vhost_dev *dev,
