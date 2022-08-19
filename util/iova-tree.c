@@ -166,9 +166,11 @@ void iova_tree_foreach(IOVATree *tree, iova_tree_iterator iterator)
 
 void iova_tree_remove(IOVATree *tree, const DMAMap *map)
 {
+    /* Just in case caller is calling iova_tree_remove from a result of find */
+    const DMAMap needle = *map;
     const DMAMap *overlap;
 
-    while ((overlap = iova_tree_find(tree, map))) {
+    while ((overlap = iova_tree_find(tree, &needle))) {
         g_tree_remove(tree->tree, overlap);
     }
 }
