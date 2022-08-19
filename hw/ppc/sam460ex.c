@@ -345,7 +345,13 @@ static void sam460ex_init(MachineState *machine)
     ppc4xx_sdram_banks(machine->ram, 1, ram_banks, ppc460ex_sdram_bank_sizes);
 
     /* FIXME: does 460EX have ECC interrupts? */
-    ppc440_sdram_init(env, 1, ram_banks, 1);
+    ppc440_sdram_init(env, 1, ram_banks);
+    /* Enable SDRAM memory regions as we may boot without firmware */
+    if (ppc_dcr_write(env->dcr_env, SDRAM0_CFGADDR, 0x21) ||
+        ppc_dcr_write(env->dcr_env, SDRAM0_CFGDATA, 0x08000000)) {
+        error_report("Couldn't enable memory regions");
+        exit(1);
+    }
 
     /* IIC controllers and devices */
     dev = sysbus_create_simple(TYPE_PPC4xx_I2C, 0x4ef600700,
