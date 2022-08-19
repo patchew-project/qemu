@@ -872,7 +872,7 @@ bool plugin_gen_tb_start(CPUState *cpu, const TranslationBlock *tb, bool mem_onl
 
         ptb->vaddr = tb->pc;
         ptb->vaddr2 = -1;
-        get_page_addr_code_hostp(cpu->env_ptr, tb->pc, &ptb->haddr1);
+        get_page_addr_code_hostp(cpu->env_ptr, tb->pc, true, &ptb->haddr1);
         ptb->haddr2 = NULL;
         ptb->mem_only = mem_only;
 
@@ -902,7 +902,7 @@ void plugin_gen_insn_start(CPUState *cpu, const DisasContextBase *db)
         unlikely((db->pc_next & TARGET_PAGE_MASK) !=
                  (db->pc_first & TARGET_PAGE_MASK))) {
         get_page_addr_code_hostp(cpu->env_ptr, db->pc_next,
-                                 &ptb->haddr2);
+                                 true, &ptb->haddr2);
         ptb->vaddr2 = db->pc_next;
     }
     if (likely(ptb->vaddr2 == -1)) {
