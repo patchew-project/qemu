@@ -1396,7 +1396,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     assert_memory_lock();
     qemu_thread_jit_write();
 
-    phys_pc = get_page_addr_code(env, pc);
+    phys_pc = get_page_addr_code_hostp(env, pc, false, NULL);
 
     if (phys_pc == -1) {
         /* Generate a one-shot TB with 1 insn in it */
