@@ -263,6 +263,13 @@ static void boot_from_kernel(MachineState *machine, PowerPCCPU *cpu)
         boot_info.cmdline_size = bdloc + len;
     }
 
+    /* Enable SDRAM memory regions */
+    if (ppc_dcr_write(env->dcr_env, SDRAM0_CFGADDR, 0x20) ||
+        ppc_dcr_write(env->dcr_env, SDRAM0_CFGDATA, 0x80000000)) {
+        error_report("Could not enable memory regions");
+        exit(1);
+    }
+
     /* Install our custom reset handler to start from Linux */
     qemu_register_reset(main_cpu_reset, cpu);
     env->load_info = &boot_info;
@@ -288,8 +295,6 @@ static void ppc405_init(MachineState *machine)
                              machine->ram_size, &error_fatal);
     object_property_set_link(OBJECT(&ppc405->soc), "dram",
                              OBJECT(machine->ram), &error_abort);
-    object_property_set_bool(OBJECT(&ppc405->soc), "dram-init",
-                             kernel_filename != NULL, &error_abort);
     object_property_set_uint(OBJECT(&ppc405->soc), "sys-clk", 33333333,
                              &error_abort);
     qdev_realize(DEVICE(&ppc405->soc), NULL, &error_fatal);
