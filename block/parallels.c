@@ -732,6 +732,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     BDRVParallelsState *s = bs->opaque;
     ParallelsHeader ph;
     int ret, size, i;
+    int64_t file_size;
     QemuOpts *opts = NULL;
     Error *local_err = NULL;
     char *buf;
@@ -809,6 +810,19 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         if (off >= s->data_end) {
             s->data_end = off + s->tracks;
         }
+    }
+
+    file_size = bdrv_getlength(bs->file->bs);
+    if (file_size < 0) {
+        ret = file_size;
+        goto fail;
+    }
+
+    file_size >>= BDRV_SECTOR_BITS;
+    if (s->data_end > file_size && !(flags & BDRV_O_CHECK)) {
+        error_setg(errp, "parallels: Offset in BAT is out of image");
+        ret = -EINVAL;
+        goto fail;
     }
 
     if (le32_to_cpu(ph.inuse) == HEADER_INUSE_MAGIC) {
