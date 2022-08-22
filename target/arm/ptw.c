@@ -2404,6 +2404,95 @@ static bool get_phys_addr_disabled(CPUARMState *env, target_ulong address,
     return 0;
 }
 
+static bool get_phys_addr_twostage(CPUARMState *env, target_ulong address,
+                                   MMUAccessType access_type,
+                                   ARMMMUIdx s1_mmu_idx, bool is_secure,
+                                   GetPhysAddrResult *result,
+                                   ARMMMUFaultInfo *fi)
+{
+    hwaddr ipa;
+    int s1_prot;
+    int ret;
+    bool ipa_secure;
+    ARMCacheAttrs cacheattrs1;
+    ARMMMUIdx s2_mmu_idx;
+    bool is_el0;
+    uint64_t hcr;
+
+    ret = get_phys_addr_with_secure(env, address, access_type, s1_mmu_idx,
+                                    is_secure, result, fi);
+
+    /* If S1 fails, return early.  */
+    if (ret) {
+        return ret;
+    }
+
+    ipa = result->f.phys_addr;
+    if (is_secure) {
+        /* Select TCR based on the NS bit from the S1 walk. */
+        ipa_secure = !(result->f.attrs.secure
+                       ? env->cp15.vstcr_el2 & VSTCR_SW
+                       : env->cp15.vtcr_el2 & VTCR_NSW);
+    } else {
+        ipa_secure = false;
+    }
+
+    s2_mmu_idx = (ipa_secure ? ARMMMUIdx_Stage2_S : ARMMMUIdx_Stage2);
+    is_el0 = s1_mmu_idx == ARMMMUIdx_Stage1_E0;
+
+    /*
+     * S1 is done, now do S2 translation.
+     * Save the stage1 results so that we may merge
+     * prot and cacheattrs later.
+     */
+    s1_prot = result->f.prot;
+    cacheattrs1 = result->cacheattrs;
+    memset(result, 0, sizeof(*result));
+
+    ret = get_phys_addr_lpae(env, ipa, access_type, s2_mmu_idx,
+                             ipa_secure, is_el0, result, fi);
+    fi->s2addr = ipa;
+
+    /* Combine the S1 and S2 perms.  */
+    result->f.prot &= s1_prot;
+
+    /* If S2 fails, return early.  */
+    if (ret) {
+        return ret;
+    }
+
+    /* Combine the S1 and S2 cache attributes. */
+    hcr = arm_hcr_el2_eff_secstate(env, is_secure);
+    if (hcr & HCR_DC) {
+        /*
+         * HCR.DC forces the first stage attributes to
+         *  Normal Non-Shareable,
+         *  Inner Write-Back Read-Allocate Write-Allocate,
+         *  Outer Write-Back Read-Allocate Write-Allocate.
+         * Do not overwrite Tagged within attrs.
+         */
+        if (cacheattrs1.attrs != 0xf0) {
+            cacheattrs1.attrs = 0xff;
+        }
+        cacheattrs1.shareability = 0;
+    }
+    result->cacheattrs = combine_cacheattrs(hcr, cacheattrs1,
+                                            result->cacheattrs);
+
+    /* Check if IPA translates to secure or non-secure PA space. */
+    if (is_secure) {
+        if (ipa_secure) {
+            result->f.attrs.secure =
+                !(env->cp15.vstcr_el2 & (VSTCR_SA | VSTCR_SW));
+        } else {
+            result->f.attrs.secure =
+                !((env->cp15.vtcr_el2 & (VTCR_NSA | VTCR_NSW))
+                || (env->cp15.vstcr_el2 & (VSTCR_SA | VSTCR_SW)));
+        }
+    }
+    return 0;
+}
+
 /**
  * get_phys_addr - get the physical address for this virtual address
  *
@@ -2441,93 +2530,14 @@ bool get_phys_addr_with_secure(CPUARMState *env, target_ulong address,
          */
         if (arm_feature(env, ARM_FEATURE_EL2) &&
             !regime_translation_disabled(env, ARMMMUIdx_Stage2, is_secure)) {
-            hwaddr ipa;
-            int s1_prot;
-            int ret;
-            bool ipa_secure;
-            ARMCacheAttrs cacheattrs1;
-            ARMMMUIdx s2_mmu_idx;
-            bool is_el0;
-            uint64_t hcr;
-
-            ret = get_phys_addr_with_secure(env, address, access_type,
-                                            s1_mmu_idx, is_secure, result, fi);
-
-            /* If S1 fails, return early.  */
-            if (ret) {
-                return ret;
-            }
-
-            ipa = result->f.phys_addr;
-            if (is_secure) {
-                /* Select TCR based on the NS bit from the S1 walk. */
-                ipa_secure = !(result->f.attrs.secure
-                               ? env->cp15.vstcr_el2 & VSTCR_SW
-                               : env->cp15.vtcr_el2 & VTCR_NSW);
-            } else {
-                ipa_secure = false;
-            }
-
-            s2_mmu_idx = (ipa_secure ? ARMMMUIdx_Stage2_S : ARMMMUIdx_Stage2);
-            is_el0 = mmu_idx == ARMMMUIdx_E10_0;
-
-            /*
-             * S1 is done, now do S2 translation.
-             * Save the stage1 results so that we may merge
-             * prot and cacheattrs later.
-             */
-            s1_prot = result->f.prot;
-            cacheattrs1 = result->cacheattrs;
-            memset(result, 0, sizeof(*result));
-
-            ret = get_phys_addr_lpae(env, ipa, access_type, s2_mmu_idx,
-                                     ipa_secure, is_el0, result, fi);
-            fi->s2addr = ipa;
-
-            /* Combine the S1 and S2 perms.  */
-            result->f.prot &= s1_prot;
-
-            /* If S2 fails, return early.  */
-            if (ret) {
-                return ret;
-            }
-
-            /* Combine the S1 and S2 cache attributes. */
-            hcr = arm_hcr_el2_eff_secstate(env, is_secure);
-            if (hcr & HCR_DC) {
-                /*
-                 * HCR.DC forces the first stage attributes to
-                 *  Normal Non-Shareable,
-                 *  Inner Write-Back Read-Allocate Write-Allocate,
-                 *  Outer Write-Back Read-Allocate Write-Allocate.
-                 * Do not overwrite Tagged within attrs.
-                 */
-                if (cacheattrs1.attrs != 0xf0) {
-                    cacheattrs1.attrs = 0xff;
-                }
-                cacheattrs1.shareability = 0;
-            }
-            result->cacheattrs = combine_cacheattrs(hcr, cacheattrs1,
-                                                    result->cacheattrs);
-
-            /* Check if IPA translates to secure or non-secure PA space. */
-            if (is_secure) {
-                if (ipa_secure) {
-                    result->f.attrs.secure =
-                        !(env->cp15.vstcr_el2 & (VSTCR_SA | VSTCR_SW));
-                } else {
-                    result->f.attrs.secure =
-                        !((env->cp15.vtcr_el2 & (VTCR_NSA | VTCR_NSW))
-                        || (env->cp15.vstcr_el2 & (VSTCR_SA | VSTCR_SW)));
-                }
-            }
-            return 0;
-        } else {
-            /*
-             * For non-EL2 CPUs a stage1+stage2 translation is just stage 1.
-             */
-            mmu_idx = stage_1_mmu_idx(mmu_idx);
+            return get_phys_addr_twostage(env, address, access_type,
+                                          s1_mmu_idx, is_secure,
+                                          result, fi);
         }
+        /*
+         * For non-EL2 CPUs a stage1+stage2 translation is just stage 1.
+         */
+        mmu_idx = s1_mmu_idx;
     }
 
     /*
