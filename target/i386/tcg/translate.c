@@ -2847,9 +2847,9 @@ static const SSEFunc_0_epp sse_op_table1[256][4] = {
     [0x61] = MMX_OP2(punpcklwd),
     [0x62] = MMX_OP2(punpckldq),
     [0x63] = MMX_OP2(packsswb),
-    [0x64] = MMX_OP2(pcmpgtb),
-    [0x65] = MMX_OP2(pcmpgtw),
-    [0x66] = MMX_OP2(pcmpgtl),
+    [0x64] = { SSE_DUMMY, SSE_DUMMY },  /* pcmpgtb */
+    [0x65] = { SSE_DUMMY, SSE_DUMMY },  /* pcmpgtw */
+    [0x66] = { SSE_DUMMY, SSE_DUMMY },  /* pcmpgtl */
     [0x67] = MMX_OP2(packuswb),
     [0x68] = MMX_OP2(punpckhbw),
     [0x69] = MMX_OP2(punpckhwd),
@@ -2866,9 +2866,9 @@ static const SSEFunc_0_epp sse_op_table1[256][4] = {
     [0x71] = { SSE_SPECIAL, SSE_SPECIAL }, /* shiftw */
     [0x72] = { SSE_SPECIAL, SSE_SPECIAL }, /* shiftd */
     [0x73] = { SSE_SPECIAL, SSE_SPECIAL }, /* shiftq */
-    [0x74] = MMX_OP2(pcmpeqb),
-    [0x75] = MMX_OP2(pcmpeqw),
-    [0x76] = MMX_OP2(pcmpeql),
+    [0x74] = { SSE_DUMMY, SSE_DUMMY },     /* pcmpeqb */
+    [0x75] = { SSE_DUMMY, SSE_DUMMY },     /* pcmpeqw */
+    [0x76] = { SSE_DUMMY, SSE_DUMMY },     /* pcmpeql */
     [0x77] = { SSE_DUMMY }, /* emms */
     [0x78] = { NULL, SSE_SPECIAL, NULL, SSE_SPECIAL }, /* extrq_i, insertq_i */
     [0x79] = { NULL, gen_helper_extrq_r, NULL, gen_helper_insertq_r },
@@ -4415,6 +4415,9 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
             return;
         }
     } else {
+        int vec_len = is_xmm ? 16 : 8;
+        int xmm_ofs = is_xmm ? offsetof(ZMMReg, ZMM_X(0)) : 0;
+
         /* generic MMX or SSE operation */
         switch(b) {
         case 0x70: /* pshufx insn */
@@ -4531,6 +4534,22 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
             /* XXX: introduce a new table? */
             sse_fn_eppt = (SSEFunc_0_eppt)sse_fn_epp;
             sse_fn_eppt(cpu_env, s->ptr0, s->ptr1, s->A0);
+            break;
+        case 0x64: /* pcmpgtb */
+        case 0x65: /* pcmpgtw */
+        case 0x66: /* pcmpgtl */
+            op1_offset += xmm_ofs;
+            op2_offset += xmm_ofs;
+            tcg_gen_gvec_cmp(TCG_COND_GT, b - 0x64, op1_offset, op1_offset,
+                             op2_offset, vec_len, vec_len);
+            break;
+        case 0x74: /* pcmpeqb */
+        case 0x75: /* pcmpeqw */
+        case 0x76: /* pcmpeql */
+            op1_offset += xmm_ofs;
+            op2_offset += xmm_ofs;
+            tcg_gen_gvec_cmp(TCG_COND_EQ, b - 0x74, op1_offset, op1_offset,
+                             op2_offset, vec_len, vec_len);
             break;
         default:
             tcg_gen_addi_ptr(s->ptr0, cpu_env, op1_offset);
