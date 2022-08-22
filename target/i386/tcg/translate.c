@@ -2882,7 +2882,7 @@ static const SSEFunc_0_epp sse_op_table1[256][4] = {
     [0xd1] = MMX_OP2(psrlw),
     [0xd2] = MMX_OP2(psrld),
     [0xd3] = MMX_OP2(psrlq),
-    [0xd4] = MMX_OP2(paddq),
+    [0xd4] = { SSE_DUMMY, SSE_DUMMY },  /* paddq */
     [0xd5] = MMX_OP2(pmullw),
     [0xd6] = { NULL, SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL },
     [0xd7] = { SSE_SPECIAL, SSE_SPECIAL }, /* pmovmskb */
@@ -2919,13 +2919,13 @@ static const SSEFunc_0_epp sse_op_table1[256][4] = {
     [0xf6] = MMX_OP2(psadbw),
     [0xf7] = { (SSEFunc_0_epp)gen_helper_maskmov_mmx,
                (SSEFunc_0_epp)gen_helper_maskmov_xmm }, /* XXX: casts */
-    [0xf8] = MMX_OP2(psubb),
-    [0xf9] = MMX_OP2(psubw),
-    [0xfa] = MMX_OP2(psubl),
-    [0xfb] = MMX_OP2(psubq),
-    [0xfc] = MMX_OP2(paddb),
-    [0xfd] = MMX_OP2(paddw),
-    [0xfe] = MMX_OP2(paddl),
+    [0xf8] = { SSE_DUMMY, SSE_DUMMY },  /* psubb */
+    [0xf9] = { SSE_DUMMY, SSE_DUMMY },  /* psubw */
+    [0xfa] = { SSE_DUMMY, SSE_DUMMY },  /* psubl */
+    [0xfb] = { SSE_DUMMY, SSE_DUMMY },  /* psubq */
+    [0xfc] = { SSE_DUMMY, SSE_DUMMY },  /* paddb */
+    [0xfd] = { SSE_DUMMY, SSE_DUMMY },  /* paddw */
+    [0xfe] = { SSE_DUMMY, SSE_DUMMY },  /* paddl */
 };
 
 static const SSEFunc_0_epp sse_op_table2[3 * 8][2] = {
@@ -4549,6 +4549,29 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
             op1_offset += xmm_ofs;
             op2_offset += xmm_ofs;
             tcg_gen_gvec_cmp(TCG_COND_EQ, b - 0x74, op1_offset, op1_offset,
+                             op2_offset, vec_len, vec_len);
+            break;
+        case 0xf8: /* psubb */
+        case 0xf9: /* psubw */
+        case 0xfa: /* psubl */
+        case 0xfb: /* psubq */
+            op1_offset += xmm_ofs;
+            op2_offset += xmm_ofs;
+            tcg_gen_gvec_sub(b - 0xf8, op1_offset, op1_offset,
+                             op2_offset, vec_len, vec_len);
+            break;
+        case 0xfc: /* paddb */
+        case 0xfd: /* paddw */
+        case 0xfe: /* paddl */
+            op1_offset += xmm_ofs;
+            op2_offset += xmm_ofs;
+            tcg_gen_gvec_add(b - 0xfc, op1_offset, op1_offset,
+                             op2_offset, vec_len, vec_len);
+            break;
+        case 0xd4: /* paddq */
+            op1_offset += xmm_ofs;
+            op2_offset += xmm_ofs;
+            tcg_gen_gvec_add(MO_64, op1_offset, op1_offset,
                              op2_offset, vec_len, vec_len);
             break;
         default:
