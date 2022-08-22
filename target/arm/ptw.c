@@ -2281,64 +2281,83 @@ static bool get_phys_addr_disabled(CPUARMState *env, target_ulong address,
                                    GetPhysAddrResult *result,
                                    ARMMMUFaultInfo *fi)
 {
-    uint64_t hcr;
-    uint8_t memattr;
+    uint64_t hcr = arm_hcr_el2_eff_secstate(env, is_secure);
+    uint8_t memattr, shareability;
 
-    if (mmu_idx != ARMMMUIdx_Stage2 && mmu_idx != ARMMMUIdx_Stage2_S) {
-        int r_el = regime_el(env, mmu_idx);
-        if (arm_el_is_aa64(env, r_el)) {
-            int pamax = arm_pamax(env_archcpu(env));
-            uint64_t tcr = env->cp15.tcr_el[r_el];
-            int addrtop, tbi;
+    switch (mmu_idx) {
+    case ARMMMUIdx_Stage2:
+    case ARMMMUIdx_Stage2_S:
+        memattr = 0x00;    /* unused, but Device, nGnRnE */
+        shareability = 0;  /* unused, but non-shareable */
+        break;
 
-            tbi = aa64_va_parameter_tbi(tcr, mmu_idx);
-            if (access_type == MMU_INST_FETCH) {
-                tbi &= ~aa64_va_parameter_tbid(tcr, mmu_idx);
+    case ARMMMUIdx_E10_0:
+    case ARMMMUIdx_E10_1:
+    case ARMMMUIdx_E10_1_PAN:
+        if (hcr & HCR_DC) {
+            if (hcr & HCR_DCT) {
+                memattr = 0xf0;  /* Tagged, Normal, WB, RWA */
+            } else {
+                memattr = 0xff;  /* Normal, WB, RWA */
             }
-            tbi = (tbi >> extract64(address, 55, 1)) & 1;
-            addrtop = (tbi ? 55 : 63);
-
-            if (extract64(address, pamax, addrtop - pamax + 1) != 0) {
-                fi->type = ARMFault_AddressSize;
-                fi->level = 0;
-                fi->stage2 = false;
-                return 1;
-            }
-
-            /*
-             * When TBI is disabled, we've just validated that all of the
-             * bits above PAMax are zero, so logically we only need to
-             * clear the top byte for TBI.  But it's clearer to follow
-             * the pseudocode set of addrdesc.paddress.
-             */
-            address = extract64(address, 0, 52);
+            shareability = 0;    /* non-shareable */
+            goto check_range;
         }
+        /* fall through */
+
+    default:
+        if (access_type == MMU_INST_FETCH) {
+            if (regime_sctlr(env, mmu_idx) & SCTLR_I) {
+                memattr = 0xee;  /* Normal, WT, RA, NT */
+            } else {
+                memattr = 0x44;  /* Normal, NC, No */
+            }
+            shareability = 2;    /* Outer sharable */
+        } else {
+            memattr = 0x00;      /* unused, but Device, nGnRnE */
+            shareability = 0;    /* non-shareable */
+        }
+        /* fall through */
+
+    check_range:
+        {
+            int r_el = regime_el(env, mmu_idx);
+            if (arm_el_is_aa64(env, r_el)) {
+                int pamax = arm_pamax(env_archcpu(env));
+                uint64_t tcr = env->cp15.tcr_el[r_el];
+                int addrtop, tbi;
+
+                tbi = aa64_va_parameter_tbi(tcr, mmu_idx);
+                if (access_type == MMU_INST_FETCH) {
+                    tbi &= ~aa64_va_parameter_tbid(tcr, mmu_idx);
+                }
+                tbi = (tbi >> extract64(address, 55, 1)) & 1;
+                addrtop = (tbi ? 55 : 63);
+
+                if (extract64(address, pamax, addrtop - pamax + 1) != 0) {
+                    fi->type = ARMFault_AddressSize;
+                    fi->level = 0;
+                    fi->stage2 = false;
+                    return 1;
+                }
+
+                /*
+                 * When TBI is disabled, we've just validated that all of
+                 * the bits above PAMax are zero, so logically we only
+                 * need to clear the top byte for TBI.  But it's clearer
+                 * to follow the pseudocode set of addrdesc.paddress.
+                 */
+                address = extract64(address, 0, 52);
+            }
+        }
+        break;
     }
 
     result->phys = address;
     result->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
     result->page_size = TARGET_PAGE_SIZE;
-
-    /* Fill in cacheattr a-la AArch64.TranslateAddressS1Off. */
-    hcr = arm_hcr_el2_eff_secstate(env, is_secure);
-    result->cacheattrs.shareability = 0;
     result->cacheattrs.is_s2_format = false;
-    if (hcr & HCR_DC) {
-        if (hcr & HCR_DCT) {
-            memattr = 0xf0;  /* Tagged, Normal, WB, RWA */
-        } else {
-            memattr = 0xff;  /* Normal, WB, RWA */
-        }
-    } else if (access_type == MMU_INST_FETCH) {
-        if (regime_sctlr(env, mmu_idx) & SCTLR_I) {
-            memattr = 0xee;  /* Normal, WT, RA, NT */
-        } else {
-            memattr = 0x44;  /* Normal, NC, No */
-        }
-        result->cacheattrs.shareability = 2; /* outer sharable */
-    } else {
-        memattr = 0x00;      /* Device, nGnRnE */
-    }
+    result->cacheattrs.shareability = shareability;
     result->cacheattrs.attrs = memattr;
     return 0;
 }
