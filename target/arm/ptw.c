@@ -2380,7 +2380,7 @@ static bool get_phys_addr_disabled(CPUARMState *env, target_ulong address,
                     fi->type = ARMFault_AddressSize;
                     fi->level = 0;
                     fi->stage2 = false;
-                    return 1;
+                    return true;
                 }
 
                 /*
@@ -2401,7 +2401,7 @@ static bool get_phys_addr_disabled(CPUARMState *env, target_ulong address,
     result->cacheattrs.is_s2_format = false;
     result->cacheattrs.shareability = shareability;
     result->cacheattrs.attrs = memattr;
-    return 0;
+    return false;
 }
 
 static bool get_phys_addr_twostage(CPUARMState *env, target_ulong address,
@@ -2412,7 +2412,7 @@ static bool get_phys_addr_twostage(CPUARMState *env, target_ulong address,
 {
     hwaddr ipa;
     int s1_prot;
-    int ret;
+    bool ret;
     bool ipa_secure;
     ARMCacheAttrs cacheattrs1;
     ARMMMUIdx s2_mmu_idx;
@@ -2490,7 +2490,7 @@ static bool get_phys_addr_twostage(CPUARMState *env, target_ulong address,
                 || (env->cp15.vstcr_el2 & (VSTCR_SA | VSTCR_SW)));
         }
     }
-    return 0;
+    return false;
 }
 
 /**
