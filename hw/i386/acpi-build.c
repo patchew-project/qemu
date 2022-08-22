@@ -60,6 +60,7 @@
 #include "hw/i386/fw_cfg.h"
 #include "hw/i386/ich9.h"
 #include "hw/pci/pci_bus.h"
+#include "hw/pci/pcie_port.h"
 #include "hw/pci-host/q35.h"
 #include "hw/i386/x86-iommu.h"
 
@@ -2119,6 +2120,60 @@ dmar_host_bridges(Object *obj, void *opaque)
 }
 
 /*
+ * Insert DMAR scope for PCIE root ports
+ */
+static void
+insert_pcie_root_port_scope(PCIBus *bus, PCIDevice *dev, void *opaque)
+{
+    const size_t device_scope_size = 6 + 2;
+                                   /* device scope structure + 1 path entry */
+    GArray *scope_blob = opaque;
+
+    /*
+     * We are only interested in PCIE root ports. We can extend
+     * this to check for specific properties of PCIE root ports and based
+     * on that remove some ports from having ATS capability.
+     */
+    if (!object_dynamic_cast(OBJECT(dev), TYPE_PCIE_ROOT_PORT)) {
+        return;
+    }
+
+    /* Dmar Scope Type: 0x02 for all PCIE root ports */
+    build_append_int_noprefix(scope_blob, 0x02, 1);
+
+    /* length */
+    build_append_int_noprefix(scope_blob, device_scope_size, 1);
+    /* reserved */
+    build_append_int_noprefix(scope_blob, 0, 2);
+    /* enumeration_id */
+    build_append_int_noprefix(scope_blob, 0, 1);
+    /* bus */
+    build_append_int_noprefix(scope_blob, pci_bus_num(bus), 1);
+    /* device */
+    build_append_int_noprefix(scope_blob, PCI_SLOT(dev->devfn), 1);
+    /* function */
+    build_append_int_noprefix(scope_blob, PCI_FUNC(dev->devfn), 1);
+}
+
+/* For a given PCI host bridge, walk and insert DMAR scope */
+static int
+dmar_pcie_root_ports(Object *obj, void *opaque)
+{
+    GArray *scope_blob = opaque;
+
+    if (object_dynamic_cast(obj, TYPE_PCI_HOST_BRIDGE)) {
+        PCIBus *bus = PCI_HOST_BRIDGE(obj)->bus;
+
+        if (bus && !pci_bus_bypass_iommu(bus)) {
+            pci_for_each_device_under_bus(bus, insert_pcie_root_port_scope,
+                                          scope_blob);
+        }
+    }
+
+    return 0;
+}
+
+/*
  * Intel ® Virtualization Technology for Directed I/O
  * Architecture Specification. Revision 3.3
  * 8.1 DMA Remapping Reporting Structure
@@ -2190,11 +2245,26 @@ build_dmar_q35(GArray *table_data, BIOSLinker *linker, const char *oem_id,
 
     if (iommu->dt_supported) {
         /* 8.5 Root Port ATS Capability Reporting Structure */
+        /*
+         * A PCI bus walk, for each PCIE root port.
+         * Since we did not enable ALL_PORTS bit in the flags above, we
+         * need to add the scope for each pcie root port explicitly
+         * that are attached to bus0 with iommu enabled.
+         */
+        scope_blob = g_array_new(false, true, 1);
+        object_child_foreach_recursive(object_get_root(),
+                                       dmar_pcie_root_ports, scope_blob);
+
         build_append_int_noprefix(table_data, 2, 2); /* Type */
-        build_append_int_noprefix(table_data, 8, 2); /* Length */
-        build_append_int_noprefix(table_data, 1 /* ALL_PORTS */, 1); /* Flags */
+        build_append_int_noprefix(table_data,
+                                  8 + scope_blob->len, 2); /* Length */
+        build_append_int_noprefix(table_data, 0, 1); /* Flags */
         build_append_int_noprefix(table_data, 0, 1); /* Reserved */
         build_append_int_noprefix(table_data, 0, 2); /* Segment Number */
+
+        /* now add the scope to the sub-table */
+        g_array_append_vals(table_data, scope_blob->data, scope_blob->len);
+        g_array_free(scope_blob, true);
     }
 
     acpi_table_end(linker, &table);
