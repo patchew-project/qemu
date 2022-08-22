@@ -25,6 +25,8 @@ QDict *qdict_from_vjsonf_nofail(const char *string, va_list ap)
 QDict *qdict_from_jsonf_nofail(const char *string, ...)
     G_GNUC_PRINTF(1, 2);
 
+QDict *qdict_from_json_nofail_nofmt(const char *string);
+
 GString *qobject_to_json(const QObject *obj);
 GString *qobject_to_json_pretty(const QObject *obj, bool pretty);
 

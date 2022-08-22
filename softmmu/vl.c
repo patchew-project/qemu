@@ -3460,6 +3460,20 @@ void qemu_init(int argc, char **argv, char **envp)
             case QEMU_OPTION_enable_sync_profile:
                 qsp_enable();
                 break;
+            case QEMU_OPTION_add_machines:
+                info_report("External machines loading: %s", optarg);
+                if (!load_external_modules(optarg)) {
+                    error_report("Modules loading error. Modules %s", optarg);
+                    exit(1);
+                }
+                break;
+            case QEMU_OPTION_add_modinfo:
+                info_report("Modinfo parsing: %s", optarg);
+                if (!add_modinfo(optarg)) {
+                    error_report("Modinfo (%s) adding error", optarg);
+                    exit(1);
+                }
+                break;
             case QEMU_OPTION_nouserconfig:
                 /* Nothing to be parsed here. Especially, do not error out below. */
                 break;

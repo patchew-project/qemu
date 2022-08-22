@@ -33,7 +33,7 @@ def parse_line(line):
     return (kind, data)
 
 def generate(name, lines, enabled):
-    arch = ""
+    arch = []
     objs = []
     deps = []
     opts = []
@@ -47,7 +47,7 @@ def generate(name, lines, enabled):
             elif kind == 'opts':
                 opts.append(data)
             elif kind == 'arch':
-                arch = data;
+                arch.append(data)
             elif kind == 'kconfig':
                 # don't add a module which dependency is not enabled
                 # in kconfig
@@ -61,8 +61,7 @@ def generate(name, lines, enabled):
                 exit(1)
 
     print("    .name = \"%s\"," % name)
-    if arch != "":
-        print("    .arch = %s," % arch)
+    print_array("arch", arch)
     print_array("objs", objs)
     print_array("deps", deps)
     print_array("opts", opts)
