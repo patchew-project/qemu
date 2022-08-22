@@ -2820,10 +2820,10 @@ static const SSEFunc_0_epp sse_op_table1[256][4] = {
     [0x51] = SSE_FOP(sqrt),
     [0x52] = { gen_helper_rsqrtps, NULL, gen_helper_rsqrtss, NULL },
     [0x53] = { gen_helper_rcpps, NULL, gen_helper_rcpss, NULL },
-    [0x54] = { gen_helper_pand_xmm, gen_helper_pand_xmm }, /* andps, andpd */
-    [0x55] = { gen_helper_pandn_xmm, gen_helper_pandn_xmm }, /* andnps, andnpd */
-    [0x56] = { gen_helper_por_xmm, gen_helper_por_xmm }, /* orps, orpd */
-    [0x57] = { gen_helper_pxor_xmm, gen_helper_pxor_xmm }, /* xorps, xorpd */
+    [0x54] = { SSE_DUMMY, SSE_DUMMY }, /* andps, andpd */
+    [0x55] = { SSE_DUMMY, SSE_DUMMY }, /* andnps, andnpd */
+    [0x56] = { SSE_DUMMY, SSE_DUMMY }, /* orps, orpd */
+    [0x57] = { SSE_DUMMY, SSE_DUMMY }, /* xorps, xorpd */
     [0x58] = SSE_FOP(add),
     [0x59] = SSE_FOP(mul),
     [0x5a] = { gen_helper_cvtps2pd, gen_helper_cvtpd2ps,
@@ -2889,11 +2889,11 @@ static const SSEFunc_0_epp sse_op_table1[256][4] = {
     [0xd8] = MMX_OP2(psubusb),
     [0xd9] = MMX_OP2(psubusw),
     [0xda] = MMX_OP2(pminub),
-    [0xdb] = MMX_OP2(pand),
+    [0xdb] = { SSE_DUMMY, SSE_DUMMY }, /* pand */
     [0xdc] = MMX_OP2(paddusb),
     [0xdd] = MMX_OP2(paddusw),
     [0xde] = MMX_OP2(pmaxub),
-    [0xdf] = MMX_OP2(pandn),
+    [0xdf] = { SSE_DUMMY, SSE_DUMMY }, /* pandn */
     [0xe0] = MMX_OP2(pavgb),
     [0xe1] = MMX_OP2(psraw),
     [0xe2] = MMX_OP2(psrad),
@@ -2905,11 +2905,11 @@ static const SSEFunc_0_epp sse_op_table1[256][4] = {
     [0xe8] = MMX_OP2(psubsb),
     [0xe9] = MMX_OP2(psubsw),
     [0xea] = MMX_OP2(pminsw),
-    [0xeb] = MMX_OP2(por),
+    [0xeb] = { SSE_DUMMY, SSE_DUMMY },  /* por */
     [0xec] = MMX_OP2(paddsb),
     [0xed] = MMX_OP2(paddsw),
     [0xee] = MMX_OP2(pmaxsw),
-    [0xef] = MMX_OP2(pxor),
+    [0xef] = { SSE_DUMMY, SSE_DUMMY },  /* pxor */
     [0xf0] = { NULL, NULL, NULL, SSE_SPECIAL }, /* lddqu */
     [0xf1] = MMX_OP2(psllw),
     [0xf2] = MMX_OP2(pslld),
@@ -4534,6 +4534,35 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
             /* XXX: introduce a new table? */
             sse_fn_eppt = (SSEFunc_0_eppt)sse_fn_epp;
             sse_fn_eppt(cpu_env, s->ptr0, s->ptr1, s->A0);
+            break;
+        case 0x54: /* andps, andpd */
+        case 0xdb: /* pand */
+            op1_offset += xmm_ofs;
+            op2_offset += xmm_ofs;
+            tcg_gen_gvec_and(MO_64, op1_offset, op1_offset,
+                             op2_offset, vec_len, vec_len);
+            break;
+        case 0x55: /* andnps, andnpd */
+        case 0xdf: /* pandn */
+            op1_offset += xmm_ofs;
+            op2_offset += xmm_ofs;
+            /* x86 inverts the first operand; tcg inverts the second. */
+            tcg_gen_gvec_andc(MO_64, op1_offset, op2_offset,
+                              op1_offset, vec_len, vec_len);
+            break;
+        case 0x56: /* orps, orpd */
+        case 0xeb: /* por */
+            op1_offset += xmm_ofs;
+            op2_offset += xmm_ofs;
+            tcg_gen_gvec_or(MO_64, op1_offset, op1_offset,
+                            op2_offset, vec_len, vec_len);
+            break;
+        case 0x57: /* xorps, xorpd */
+        case 0xef: /* pxor */
+            op1_offset += xmm_ofs;
+            op2_offset += xmm_ofs;
+            tcg_gen_gvec_xor(MO_64, op1_offset, op1_offset,
+                             op2_offset, vec_len, vec_len);
             break;
         case 0x64: /* pcmpgtb */
         case 0x65: /* pcmpgtw */
