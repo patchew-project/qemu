@@ -9,6 +9,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/range.h"
+#include "exec/exec-all.h"
 #include "cpu.h"
 #include "internals.h"
 #include "idau.h"
@@ -191,52 +192,57 @@ static bool regime_translation_disabled(CPUARMState *env, ARMMMUIdx mmu_idx,
     return (regime_sctlr(env, mmu_idx) & SCTLR_M) == 0;
 }
 
-static bool ptw_attrs_are_device(uint64_t hcr, ARMCacheAttrs cacheattrs)
-{
-    /*
-     * For an S1 page table walk, the stage 1 attributes are always
-     * some form of "this is Normal memory". The combined S1+S2
-     * attributes are therefore only Device if stage 2 specifies Device.
-     * With HCR_EL2.FWB == 0 this is when descriptor bits [5:4] are 0b00,
-     * ie when cacheattrs.attrs bits [3:2] are 0b00.
-     * With HCR_EL2.FWB == 1 this is when descriptor bit [4] is 0, ie
-     * when cacheattrs.attrs bit [2] is 0.
-     */
-    assert(cacheattrs.is_s2_format);
-    if (hcr & HCR_FWB) {
-        return (cacheattrs.attrs & 0x4) == 0;
-    } else {
-        return (cacheattrs.attrs & 0xc) == 0;
-    }
-}
-
 /* Translate a S1 pagetable walk through S2 if needed.  */
-static hwaddr S1_ptw_translate(CPUARMState *env, ARMMMUIdx mmu_idx,
-                               hwaddr addr, bool *is_secure_ptr,
-                               ARMMMUFaultInfo *fi)
+static bool S1_ptw_translate(CPUARMState *env, ARMMMUIdx mmu_idx, hwaddr addr,
+                             bool *is_secure_ptr, void **hphys, hwaddr *gphys,
+                             ARMMMUFaultInfo *fi)
 {
     bool is_secure = *is_secure_ptr;
     ARMMMUIdx s2_mmu_idx = is_secure ? ARMMMUIdx_Stage2_S : ARMMMUIdx_Stage2;
+    CPUTLBEntryFull *full;
+    int flags;
 
-    if (arm_mmu_idx_is_stage1_of_2(mmu_idx) &&
-        !regime_translation_disabled(env, s2_mmu_idx, is_secure)) {
-        GetPhysAddrResult s2 = {};
-        uint64_t hcr;
-        int ret;
+    if (!arm_mmu_idx_is_stage1_of_2(mmu_idx)
+        || regime_translation_disabled(env, s2_mmu_idx, is_secure)) {
+        s2_mmu_idx = is_secure ? ARMMMUIdx_Phys_S : ARMMMUIdx_Phys_NS;
+    }
 
-        ret = get_phys_addr_lpae(env, addr, MMU_DATA_LOAD, s2_mmu_idx,
-                                 is_secure, false, &s2, fi);
-        if (ret) {
-            assert(fi->type != ARMFault_None);
-            fi->s2addr = addr;
-            fi->stage2 = true;
-            fi->s1ptw = true;
-            fi->s1ns = !is_secure;
-            return ~0;
+    env->tlb_fi = fi;
+    flags = probe_access_full(env, addr, MMU_DATA_LOAD,
+                              arm_to_core_mmu_idx(s2_mmu_idx),
+                              true, hphys, &full, 0);
+    env->tlb_fi = NULL;
+
+    if (unlikely(flags & TLB_INVALID_MASK)) {
+        assert(fi->type != ARMFault_None);
+        fi->s2addr = addr;
+        fi->stage2 = true;
+        fi->s1ptw = true;
+        fi->s1ns = !is_secure;
+        return false;
+    }
+
+    if (s2_mmu_idx == ARMMMUIdx_Stage2 || s2_mmu_idx == ARMMMUIdx_Stage2_S) {
+        uint64_t hcr = arm_hcr_el2_eff_secstate(env, is_secure);
+        uint8_t s2attrs = full->pte_attrs;
+        bool is_device;
+
+        /*
+         * For an S1 page table walk, the stage 1 attributes are always
+         * some form of "this is Normal memory". The combined S1+S2
+         * attributes are therefore only Device if stage 2 specifies Device.
+         * With HCR_EL2.FWB == 0 this is when descriptor bits [5:4] are 0b00,
+         * ie when s2attrs bits [3:2] are 0b00.
+         * With HCR_EL2.FWB == 1 this is when descriptor bit [4] is 0, ie
+         * when s2attrs bit [2] is 0.
+         */
+        if (hcr & HCR_FWB) {
+            is_device = (s2attrs & 0x4) == 0;
+        } else {
+            is_device = (s2attrs & 0xc) == 0;
         }
 
-        hcr = arm_hcr_el2_eff_secstate(env, is_secure);
-        if ((hcr & HCR_PTW) && ptw_attrs_are_device(hcr, s2.cacheattrs)) {
+        if ((hcr & HCR_PTW) && is_device) {
             /*
              * PTW set and S1 walk touched S2 Device memory:
              * generate Permission fault.
@@ -246,24 +252,19 @@ static hwaddr S1_ptw_translate(CPUARMState *env, ARMMMUIdx mmu_idx,
             fi->stage2 = true;
             fi->s1ptw = true;
             fi->s1ns = !is_secure;
-            return ~0;
+            return false;
         }
-
-        if (arm_is_secure_below_el3(env)) {
-            /* Check if page table walk is to secure or non-secure PA space. */
-            if (is_secure) {
-                is_secure = !(env->cp15.vstcr_el2 & VSTCR_SW);
-            } else {
-                is_secure = !(env->cp15.vtcr_el2 & VTCR_NSW);
-            }
-            *is_secure_ptr = is_secure;
-        } else {
-            assert(!is_secure);
-        }
-
-        addr = s2.f.phys_addr;
     }
-    return addr;
+
+    if (is_secure) {
+        /* Check if page table walk is to secure or non-secure PA space. */
+        *is_secure_ptr = !(full->attrs.secure
+                           ? env->cp15.vstcr_el2 & VSTCR_SW
+                           : env->cp15.vtcr_el2 & VTCR_NSW);
+    }
+
+    *gphys = full->phys_addr;
+    return true;
 }
 
 /* All loads done in the course of a page table walk go through here. */
@@ -271,56 +272,88 @@ static uint32_t arm_ldl_ptw(CPUARMState *env, hwaddr addr, bool is_secure,
                             ARMMMUIdx mmu_idx, ARMMMUFaultInfo *fi)
 {
     CPUState *cs = env_cpu(env);
-    MemTxAttrs attrs = {};
-    MemTxResult result = MEMTX_OK;
-    AddressSpace *as;
+    void *hphys;
+    hwaddr gphys;
     uint32_t data;
+    bool be;
 
-    addr = S1_ptw_translate(env, mmu_idx, addr, &is_secure, fi);
-    attrs.secure = is_secure;
-    as = arm_addressspace(cs, attrs);
-    if (fi->s1ptw) {
+    if (!S1_ptw_translate(env, mmu_idx, addr, &is_secure,
+                          &hphys, &gphys, fi)) {
+        /* Failure. */
+        assert(fi->s1ptw);
         return 0;
     }
-    if (regime_translation_big_endian(env, mmu_idx)) {
-        data = address_space_ldl_be(as, addr, attrs, &result);
+
+    be = regime_translation_big_endian(env, mmu_idx);
+    if (likely(hphys)) {
+        /* Page tables are in RAM, and we have the host address. */
+        if (be) {
+            data = ldl_be_p(hphys);
+        } else {
+            data = ldl_le_p(hphys);
+        }
     } else {
-        data = address_space_ldl_le(as, addr, attrs, &result);
+        /* Page tables are in MMIO. */
+        MemTxAttrs attrs = { .secure = is_secure };
+        AddressSpace *as = arm_addressspace(cs, attrs);
+        MemTxResult result = MEMTX_OK;
+
+        if (be) {
+            data = address_space_ldl_be(as, gphys, attrs, &result);
+        } else {
+            data = address_space_ldl_le(as, gphys, attrs, &result);
+        }
+        if (unlikely(result != MEMTX_OK)) {
+            fi->type = ARMFault_SyncExternalOnWalk;
+            fi->ea = arm_extabort_type(result);
+            return 0;
+        }
     }
-    if (result == MEMTX_OK) {
-        return data;
-    }
-    fi->type = ARMFault_SyncExternalOnWalk;
-    fi->ea = arm_extabort_type(result);
-    return 0;
+    return data;
 }
 
 static uint64_t arm_ldq_ptw(CPUARMState *env, hwaddr addr, bool is_secure,
                             ARMMMUIdx mmu_idx, ARMMMUFaultInfo *fi)
 {
     CPUState *cs = env_cpu(env);
-    MemTxAttrs attrs = {};
-    MemTxResult result = MEMTX_OK;
-    AddressSpace *as;
+    void *hphys;
+    hwaddr gphys;
     uint64_t data;
+    bool be;
 
-    addr = S1_ptw_translate(env, mmu_idx, addr, &is_secure, fi);
-    attrs.secure = is_secure;
-    as = arm_addressspace(cs, attrs);
-    if (fi->s1ptw) {
+    if (!S1_ptw_translate(env, mmu_idx, addr, &is_secure,
+                          &hphys, &gphys, fi)) {
+        /* Failure. */
+        assert(fi->s1ptw);
         return 0;
     }
-    if (regime_translation_big_endian(env, mmu_idx)) {
-        data = address_space_ldq_be(as, addr, attrs, &result);
+
+    be = regime_translation_big_endian(env, mmu_idx);
+    if (likely(hphys)) {
+        /* Page tables are in RAM, and we have the host address. */
+        if (be) {
+            data = ldq_be_p(hphys);
+        } else {
+            data = ldq_le_p(hphys);
+        }
     } else {
-        data = address_space_ldq_le(as, addr, attrs, &result);
+        /* Page tables are in MMIO. */
+        MemTxAttrs attrs = { .secure = is_secure };
+        AddressSpace *as = arm_addressspace(cs, attrs);
+        MemTxResult result = MEMTX_OK;
+
+        if (be) {
+            data = address_space_ldq_be(as, gphys, attrs, &result);
+        } else {
+            data = address_space_ldq_le(as, gphys, attrs, &result);
+        }
+        if (unlikely(result != MEMTX_OK)) {
+            fi->type = ARMFault_SyncExternalOnWalk;
+            fi->ea = arm_extabort_type(result);
+            return 0;
+        }
     }
-    if (result == MEMTX_OK) {
-        return data;
-    }
-    fi->type = ARMFault_SyncExternalOnWalk;
-    fi->ea = arm_extabort_type(result);
-    return 0;
+    return data;
 }
 
 static bool get_level1_table_address(CPUARMState *env, ARMMMUIdx mmu_idx,
