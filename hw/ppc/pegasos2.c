@@ -165,10 +165,6 @@ static void pegasos2_init(MachineState *machine)
     qdev_connect_gpio_out(DEVICE(dev), 0,
                           qdev_get_gpio_in_named(pm->mv, "gpp", 31));
 
-    /* VT8231 function 1: IDE Controller */
-    dev = pci_create_simple(pci_bus, PCI_DEVFN(12, 1), "via-ide");
-    pci_ide_create_devs(dev);
-
     /* VT8231 function 2-3: USB Ports */
     pci_create_simple(pci_bus, PCI_DEVFN(12, 2), "vt82c686b-usb-uhci");
     pci_create_simple(pci_bus, PCI_DEVFN(12, 3), "vt82c686b-usb-uhci");
