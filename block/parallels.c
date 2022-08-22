@@ -513,7 +513,15 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
             res->leaks_fixed += count;
         }
     }
-
+    /*
+     * If res->image_end_offset less than the file size,
+     * a leak was fixed and we should set the new offset to s->data_end.
+     * Otherwise set the file size to s->data_end.
+     */
+    if (res->image_end_offset < size && fix & BDRV_FIX_LEAKS) {
+        size = res->image_end_offset;
+    }
+    s->data_end = size >> BDRV_SECTOR_BITS;
 out:
     qemu_co_mutex_unlock(&s->lock);
     return ret;
