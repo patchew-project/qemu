@@ -2776,6 +2776,77 @@ static inline void gen_op_movq_env_0(DisasContext *s, int d_offset)
     tcg_gen_st_i64(s->tmp1_i64, cpu_env, d_offset);
 }
 
+static void gen_pmovmskb_i64(TCGv_i64 d, TCGv_i64 s)
+{
+    TCGv_i64 t = tcg_temp_new_i64();
+
+    tcg_gen_andi_i64(d, s, 0x8080808080808080ull);
+
+    /*
+     * After each shift+or pair:
+     * 0:  a.......b.......c.......d.......e.......f.......g.......h.......
+     * 7:  ab......bc......cd......de......ef......fg......gh......h.......
+     * 14: abcd....bcde....cdef....defg....efgh....fgh.....gh......h.......
+     * 28: abcdefghbcdefgh.cdefgh..defgh...efgh....fgh.....gh......h.......
+     * The result is left in the high bits of the word.
+     */
+    tcg_gen_shli_i64(t, d, 7);
+    tcg_gen_or_i64(d, d, t);
+    tcg_gen_shli_i64(t, d, 14);
+    tcg_gen_or_i64(d, d, t);
+    tcg_gen_shli_i64(t, d, 28);
+    tcg_gen_or_i64(d, d, t);
+}
+
+static void gen_pmovmskb_vec(unsigned vece, TCGv_vec d, TCGv_vec s)
+{
+    TCGv_vec t = tcg_temp_new_vec_matching(d);
+    TCGv_vec m = tcg_constant_vec_matching(d, MO_8, 0x80);
+
+    /* See above */
+    tcg_gen_and_vec(vece, d, s, m);
+    tcg_gen_shli_vec(vece, t, d, 7);
+    tcg_gen_or_vec(vece, d, d, t);
+    tcg_gen_shli_vec(vece, t, d, 14);
+    tcg_gen_or_vec(vece, d, d, t);
+    if (vece == MO_64) {
+        tcg_gen_shli_vec(vece, t, d, 28);
+        tcg_gen_or_vec(vece, d, d, t);
+    }
+}
+
+static void gen_gvec_pmovmskb(TCGv out, int s_reg, bool is_xmm)
+{
+    static const TCGOpcode vecop_list[] = { INDEX_op_shli_vec, 0 };
+    static const GVecGen2 g = {
+        .fni8 = gen_pmovmskb_i64,
+        .fniv = gen_pmovmskb_vec,
+        .opt_opc = vecop_list,
+        .vece = MO_64,
+        .prefer_i64 = TCG_TARGET_REG_BITS == 64
+    };
+
+    int s_ofs = (is_xmm
+                 ? offsetof(CPUX86State, xmm_regs[s_reg].ZMM_X(0))
+                 : offsetof(CPUX86State, fpregs[s_reg].mmx));
+    int d_ofs = (is_xmm
+                 ? offsetof(CPUX86State, xmm_t0.ZMM_X(0))
+                 : offsetof(CPUX86State, mmx_t0));
+    int vec_len = is_xmm ? 16 : 8;
+
+    tcg_gen_gvec_2(d_ofs, s_ofs, vec_len, vec_len, &g);
+
+    if (is_xmm) {
+        TCGv t = tcg_temp_new();
+        tcg_gen_ld8u_tl(t, cpu_env, d_ofs + offsetof(XMMReg, XMM_B(15)));
+        tcg_gen_ld8u_tl(out, cpu_env, d_ofs + offsetof(XMMReg, XMM_B(7)));
+        tcg_gen_deposit_tl(out, out, t, 8, TARGET_LONG_BITS - 8);
+        tcg_temp_free(t);
+    } else {
+        tcg_gen_ld8u_tl(out, cpu_env, d_ofs + offsetof(MMXReg, MMX_B(7)));
+    }
+}
+
 typedef void (*SSEFunc_i_ep)(TCGv_i32 val, TCGv_ptr env, TCGv_ptr reg);
 typedef void (*SSEFunc_l_ep)(TCGv_i64 val, TCGv_ptr env, TCGv_ptr reg);
 typedef void (*SSEFunc_0_epi)(TCGv_ptr env, TCGv_ptr reg, TCGv_i32 val);
@@ -3742,21 +3813,12 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
             break;
         case 0xd7: /* pmovmskb */
         case 0x1d7:
-            if (mod != 3)
+            if (mod != 3) {
                 goto illegal_op;
-            if (b1) {
-                rm = (modrm & 7) | REX_B(s);
-                tcg_gen_addi_ptr(s->ptr0, cpu_env,
-                                 offsetof(CPUX86State, xmm_regs[rm]));
-                gen_helper_pmovmskb_xmm(s->tmp2_i32, cpu_env, s->ptr0);
-            } else {
-                rm = (modrm & 7);
-                tcg_gen_addi_ptr(s->ptr0, cpu_env,
-                                 offsetof(CPUX86State, fpregs[rm].mmx));
-                gen_helper_pmovmskb_mmx(s->tmp2_i32, cpu_env, s->ptr0);
             }
+            rm = (modrm & 7) | (is_xmm ? REX_B(s) : 0);
             reg = ((modrm >> 3) & 7) | REX_R(s);
-            tcg_gen_extu_i32_tl(cpu_regs[reg], s->tmp2_i32);
+            gen_gvec_pmovmskb(cpu_regs[reg], rm, is_xmm);
             break;
 
         case 0x138:

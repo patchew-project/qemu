@@ -201,7 +201,6 @@ DEF_HELPER_2(movmskps, i32, env, Reg)
 DEF_HELPER_2(movmskpd, i32, env, Reg)
 #endif
 
-DEF_HELPER_2(glue(pmovmskb, SUFFIX), i32, env, Reg)
 DEF_HELPER_3(glue(packsswb, SUFFIX), void, env, Reg, Reg)
 DEF_HELPER_3(glue(packuswb, SUFFIX), void, env, Reg, Reg)
 DEF_HELPER_3(glue(packssdw, SUFFIX), void, env, Reg, Reg)
