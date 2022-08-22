@@ -1141,7 +1141,8 @@ static void test_acpi_q35_kvm_dmar(void)
     data.machine = MACHINE_Q35;
     data.variant = ".dmar";
     test_acpi_one("-machine kernel-irqchip=split -accel kvm"
-                  " -device intel-iommu,intremap=on,device-iotlb=on", &data);
+                  " -device intel-iommu,intremap=on,device-iotlb=on"
+                  " -device pcie-root-port,bus=pcie.0", &data);
     free_test_data(&data);
 }
 
