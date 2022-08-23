@@ -523,6 +523,11 @@ static void vhost_commit(MemoryListener *listener)
     /* Rebuild the regions list from the new sections list */
     regions_size = offsetof(struct vhost_memory, regions) +
                        dev->n_mem_sections * sizeof dev->mem->regions[0];
+    if (dev->mem && dev->started) {
+        g_free(dev->old_mem);
+        dev->old_mem = dev->mem;
+        dev->mem = NULL;
+    }
     dev->mem = g_realloc(dev->mem, regions_size);
     dev->mem->nregions = dev->n_mem_sections;
     used_memslots = dev->mem->nregions;
@@ -542,6 +547,12 @@ static void vhost_commit(MemoryListener *listener)
         goto out;
     }
 
+    if (dev->old_mem && dev->regions_size == regions_size &&
+            memcmp(dev->mem, dev->old_mem, dev->regions_size) == 0) {
+        goto out;
+    }
+
+    dev->regions_size = regions_size;
     for (i = 0; i < dev->mem->nregions; i++) {
         if (vhost_verify_ring_mappings(dev,
                        (void *)(uintptr_t)dev->mem->regions[i].userspace_addr,
@@ -1445,6 +1456,8 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     hdev->mem = g_malloc0(offsetof(struct vhost_memory, regions));
     hdev->n_mem_sections = 0;
     hdev->mem_sections = NULL;
+    hdev->old_mem = NULL;
+    hdev->regions_size = 0;
     hdev->log = NULL;
     hdev->log_size = 0;
     hdev->log_enabled = false;
@@ -1491,6 +1504,7 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
     }
     g_free(hdev->mem);
     g_free(hdev->mem_sections);
+    g_free(hdev->old_mem);
     if (hdev->vhost_ops) {
         hdev->vhost_ops->vhost_backend_cleanup(hdev);
     }

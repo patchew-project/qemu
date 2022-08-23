@@ -73,6 +73,8 @@ struct vhost_dev {
     MemoryListener memory_listener;
     MemoryListener iommu_listener;
     struct vhost_memory *mem;
+    struct vhost_memory *old_mem;
+    int regions_size;
     int n_mem_sections;
     MemoryRegionSection *mem_sections;
     int n_tmp_sections;
