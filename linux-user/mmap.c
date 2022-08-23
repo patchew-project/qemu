@@ -115,6 +115,7 @@ int target_mprotect(abi_ulong start, abi_ulong len, int target_prot)
 {
     abi_ulong end, host_start, host_end, addr;
     int prot1, ret, page_flags, host_prot;
+    CPUState *cpu;
 
     trace_target_mprotect(start, len, target_prot);
 
@@ -177,7 +178,14 @@ int target_mprotect(abi_ulong start, abi_ulong len, int target_prot)
             goto error;
         }
     }
+
     page_set_flags(start, start + len, page_flags);
+    tb_invalidate_phys_range(start, start + len);
+
+    CPU_FOREACH(cpu) {
+        cpu_tb_jmp_cache_clear(cpu);
+    }
+
     mmap_unlock();
     return 0;
 error:
