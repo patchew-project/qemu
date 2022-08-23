@@ -339,6 +339,7 @@ enum RSState {
     RS_GETLINE_RLE,
     RS_CHKSUM1,
     RS_CHKSUM2,
+    RS_HANDLING_CMD,
 };
 typedef struct GDBState {
     bool init;       /* have we been initialised? */
@@ -2562,6 +2563,7 @@ static int gdb_handle_packet(const char *line_buf)
 {
     const GdbCmdParseEntry *cmd_parser = NULL;
 
+    gdbserver_state.state = RS_HANDLING_CMD;
     trace_gdbstub_io_command(line_buf);
 
     switch (line_buf[0]) {
@@ -2821,6 +2823,23 @@ void gdb_set_stop_cpu(CPUState *cpu)
 }
 
 #ifndef CONFIG_USER_ONLY
+static bool cmd_allows_stop_reply(const char *cmd)
+{
+    if (strlen(cmd) != 1) {
+        return false;
+    }
+    switch (cmd[0]) {
+    case 'C':
+    case 'c':
+    case 'S':
+    case 's':
+    case '?':
+        return true;
+    default:
+        return false;
+    }
+}
+
 static void gdb_vm_state_change(void *opaque, bool running, RunState state)
 {
     CPUState *cpu = gdbserver_state.c_cpu;
@@ -2829,7 +2848,8 @@ static void gdb_vm_state_change(void *opaque, bool running, RunState state)
     const char *type;
     int ret;
 
-    if (running || gdbserver_state.state == RS_INACTIVE) {
+    if (running || gdbserver_state.state != RS_HANDLING_CMD ||
+        !cmd_allows_stop_reply(gdbserver_state.line_buf)) {
         return;
     }
     /* Is there a GDB syscall waiting to be sent?  */
