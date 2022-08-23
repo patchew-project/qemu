@@ -147,7 +147,7 @@ static int s390_probe_access(CPUArchState *env, target_ulong addr, int size,
 #if defined(CONFIG_USER_ONLY)
     flags = page_get_flags(addr);
     if (!(flags & (access_type == MMU_DATA_LOAD ?  PAGE_READ : PAGE_WRITE_ORG))) {
-        env->__excp_addr = addr;
+        env->__excp_addr = addr & TARGET_PAGE_MASK;
         flags = (flags & PAGE_VALID) ? PGM_PROTECTION : PGM_ADDRESSING;
         if (nonfault) {
             return flags;
