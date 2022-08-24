@@ -32,31 +32,9 @@
 #include "hw/virtio/virtio-bus.h"
 #include "migration/qemu-file-types.h"
 #include "hw/virtio/virtio-access.h"
+#include "hw/virtio/virtio-blk-common.h"
 #include "qemu/coroutine.h"
 
-/* Config size before the discard support (hide associated config fields) */
-#define VIRTIO_BLK_CFG_SIZE offsetof(struct virtio_blk_config, \
-                                     max_discard_sectors)
-/*
- * Starting from the discard feature, we can use this array to properly
- * set the config size depending on the features enabled.
- */
-static const VirtIOFeature feature_sizes[] = {
-    {.flags = 1ULL << VIRTIO_BLK_F_DISCARD,
-     .end = endof(struct virtio_blk_config, discard_sector_alignment)},
-    {.flags = 1ULL << VIRTIO_BLK_F_WRITE_ZEROES,
-     .end = endof(struct virtio_blk_config, write_zeroes_may_unmap)},
-    {}
-};
-
-static size_t virtio_blk_common_get_config_size(uint64_t host_features)
-{
-    size_t config_size = MAX(VIRTIO_BLK_CFG_SIZE,
-        virtio_feature_get_config_size(feature_sizes, host_features));
-
-    assert(config_size <= sizeof(struct virtio_blk_config));
-    return config_size;
-}
 
 static void virtio_blk_init_request(VirtIOBlock *s, VirtQueue *vq,
                                     VirtIOBlockReq *req)
