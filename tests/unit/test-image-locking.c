@@ -76,7 +76,7 @@ static void check_locked_bytes(int fd, uint64_t perm_locks,
 static void test_image_locking_basic(void)
 {
     BlockBackend *blk1, *blk2, *blk3;
-    char img_path[] = "/tmp/qtest.XXXXXX";
+    char *img_path = g_strdup_printf("%s/qtest.XXXXXX", g_get_tmp_dir());
     uint64_t perm, shared_perm;
 
     int fd = mkstemp(img_path);
@@ -112,12 +112,13 @@ static void test_image_locking_basic(void)
     blk_unref(blk3);
     close(fd);
     unlink(img_path);
+    g_free(img_path);
 }
 
 static void test_set_perm_abort(void)
 {
     BlockBackend *blk1, *blk2;
-    char img_path[] = "/tmp/qtest.XXXXXX";
+    char *img_path = g_strdup_printf("%s/qtest.XXXXXX", g_get_tmp_dir());
     uint64_t perm, shared_perm;
     int r;
     int fd = mkstemp(img_path);
@@ -140,6 +141,7 @@ static void test_set_perm_abort(void)
     check_locked_bytes(fd, perm, ~shared_perm);
     blk_unref(blk1);
     blk_unref(blk2);
+    g_free(img_path);
 }
 
 int main(int argc, char **argv)

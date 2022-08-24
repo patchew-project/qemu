@@ -161,11 +161,12 @@ static void test_qmp_protocol(void)
 
 /* Out-of-band tests */
 
-char tmpdir[] = "/tmp/qmp-test-XXXXXX";
+char *tmpdir;
 char *fifo_name;
 
 static void setup_blocking_cmd(void)
 {
+    tmpdir = g_strdup_printf("%s/qmp-test-XXXXXX", g_get_tmp_dir());
     if (!g_mkdtemp(tmpdir)) {
         g_error("g_mkdtemp: %s", strerror(errno));
     }
@@ -179,6 +180,7 @@ static void cleanup_blocking_cmd(void)
 {
     unlink(fifo_name);
     rmdir(tmpdir);
+    g_free(tmpdir);
 }
 
 static void send_cmd_that_blocks(QTestState *s, const char *id)

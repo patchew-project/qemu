@@ -268,7 +268,7 @@ static void test_iothread_attach_node(void *obj, void *data,
     QVirtioSCSIPCI *scsi_pci = obj;
     QVirtioSCSI *scsi = &scsi_pci->scsi;
     QVirtioSCSIQueues *vs;
-    char tmp_path[] = "/tmp/qtest.XXXXXX";
+    char *tmp_path = g_strdup_printf("%s/qtest.XXXXXX", g_get_tmp_dir());
     int fd;
     int ret;
 
@@ -309,6 +309,7 @@ static void test_iothread_attach_node(void *obj, void *data,
 fail:
     qvirtio_scsi_pci_free(vs);
     unlink(tmp_path);
+    g_free(tmp_path);
 }
 
 static void *virtio_scsi_hotplug_setup(GString *cmd_line, void *arg)

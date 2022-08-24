@@ -181,7 +181,7 @@ static void drive_destroy(void *path)
 static char *drive_create(void)
 {
     int fd, ret;
-    char *t_path = g_strdup("/tmp/qtest.XXXXXX");
+    char *t_path = g_strdup_printf("%s/qtest.XXXXXX", g_get_tmp_dir());
 
     /* Create a temporary raw image */
     fd = mkstemp(t_path);

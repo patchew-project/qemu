@@ -631,7 +631,7 @@ static void *notifier_thread(void *arg)
 static void
 vubr_host_notifier_setup(VubrDev *dev)
 {
-    char template[] = "/tmp/vubr-XXXXXX";
+    char *template = g_strdup_printf("%s/vubr-XXXXXX", g_get_tmp_dir());
     pthread_t thread;
     size_t length;
     void *addr;
@@ -640,6 +640,7 @@ vubr_host_notifier_setup(VubrDev *dev)
     length = qemu_real_host_page_size() * VHOST_USER_BRIDGE_MAX_QUEUES;
 
     fd = mkstemp(template);
+    g_free(template);
     if (fd < 0) {
         vubr_die("mkstemp()");
     }

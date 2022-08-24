@@ -608,7 +608,7 @@ static void test_write_block_protect_bottom_bit(void)
     flash_reset();
 }
 
-static char tmp_path[] = "/tmp/qtest.m25p80.XXXXXX";
+static char *tmp_path;
 
 int main(int argc, char **argv)
 {
@@ -617,6 +617,7 @@ int main(int argc, char **argv)
 
     g_test_init(&argc, &argv, NULL);
 
+    tmp_path = g_strdup_printf("%s/qtest.m25p80.XXXXXX", g_get_tmp_dir());
     fd = mkstemp(tmp_path);
     g_assert(fd >= 0);
     ret = ftruncate(fd, FLASH_SIZE);
@@ -646,5 +647,6 @@ int main(int argc, char **argv)
 
     qtest_quit(global_qtest);
     unlink(tmp_path);
+    g_free(tmp_path);
     return ret;
 }

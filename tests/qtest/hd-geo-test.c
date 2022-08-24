@@ -27,7 +27,7 @@
 
 static char *create_test_img(int secs)
 {
-    char *template = strdup("/tmp/qtest.XXXXXX");
+    char *template = g_strdup_printf("%s/qtest.XXXXXX", g_get_tmp_dir());
     int fd, ret;
 
     fd = mkstemp(template);
@@ -36,7 +36,7 @@ static char *create_test_img(int secs)
     close(fd);
 
     if (ret) {
-        free(template);
+        g_free(template);
         template = NULL;
     }
 
@@ -422,7 +422,7 @@ static MBRpartitions empty_mbr = { {false, 0, 0, 0, 0, 0, 0, 0, 0},
 
 static char *create_qcow2_with_mbr(MBRpartitions mbr, uint64_t sectors)
 {
-    const char *template = "/tmp/qtest.XXXXXX";
+    const char *template = g_strdup_printf("%s/qtest.XXXXXX", g_get_tmp_dir());
     char *raw_path = strdup(template);
     char *qcow2_path = strdup(template);
     char cmd[100 + 2 * PATH_MAX];
@@ -987,7 +987,7 @@ test_add_done:
     for (i = 0; i < backend_last; i++) {
         if (img_file_name[i]) {
             unlink(img_file_name[i]);
-            free(img_file_name[i]);
+            g_free(img_file_name[i]);
         }
     }
 

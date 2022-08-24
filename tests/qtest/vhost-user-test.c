@@ -482,7 +482,7 @@ static TestServer *test_server_new(const gchar *name,
         struct vhost_user_ops *ops)
 {
     TestServer *server = g_new0(TestServer, 1);
-    char template[] = "/tmp/vhost-test-XXXXXX";
+    char *template = g_strdup_printf("%s/vhost-test-XXXXXX", g_get_tmp_dir());
     const char *tmpfs;
 
     server->context = g_main_context_new();
@@ -501,6 +501,7 @@ static TestServer *test_server_new(const gchar *name,
     server->socket_path = g_strdup_printf("%s/%s.sock", tmpfs, name);
     server->mig_path = g_strdup_printf("%s/%s.mig", tmpfs, name);
     server->chr_name = g_strdup_printf("chr-%s", name);
+    g_free(template);
 
     g_mutex_init(&server->data_mutex);
     g_cond_init(&server->data_cond);

@@ -20,13 +20,15 @@ typedef struct generic_fuzz_config {
 } generic_fuzz_config;
 
 static inline gchar *generic_fuzzer_virtio_9p_args(void){
-    char tmpdir[] = "/tmp/qemu-fuzz.XXXXXX";
+    char *tmpdir = g_strdup_printf("%s/qemu-fuzz.XXXXXX", g_get_tmp_dir());
     g_assert_nonnull(g_mkdtemp(tmpdir));
 
-    return g_strdup_printf("-machine q35 -nodefaults "
+    gchar *args = g_strdup_printf("-machine q35 -nodefaults "
     "-device virtio-9p,fsdev=hshare,mount_tag=hshare "
     "-fsdev local,id=hshare,path=%s,security_model=mapped-xattr,"
     "writeout=immediate,fmode=0600,dmode=0700", tmpdir);
+    g_free(tmpdir);
+    return args;
 }
 
 const generic_fuzz_config predefined_configs[] = {

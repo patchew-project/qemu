@@ -121,8 +121,8 @@ enum {
 static QPCIBus *pcibus = NULL;
 static QGuestAllocator guest_malloc;
 
-static char tmp_path[] = "/tmp/qtest.XXXXXX";
-static char debug_path[] = "/tmp/qtest-blkdebug.XXXXXX";
+static char *tmp_path;
+static char *debug_path;
 
 static QTestState *ide_test_start(const char *cmdline_fmt, ...)
 {
@@ -1015,11 +1015,13 @@ int main(int argc, char **argv)
     int ret;
 
     /* Create temporary blkdebug instructions */
+    debug_path = g_strdup_printf("%s/qtest-blkdebug.XXXXXX", g_get_tmp_dir());
     fd = mkstemp(debug_path);
     g_assert(fd >= 0);
     close(fd);
 
     /* Create a temporary raw image */
+    tmp_path = g_strdup_printf("%s/qtest.XXXXXX", g_get_tmp_dir());
     fd = mkstemp(tmp_path);
     g_assert(fd >= 0);
     ret = ftruncate(fd, TEST_IMAGE_SIZE);
@@ -1049,7 +1051,9 @@ int main(int argc, char **argv)
 
     /* Cleanup */
     unlink(tmp_path);
+    g_free(tmp_path);
     unlink(debug_path);
+    g_free(debug_path);
 
     return ret;
 }

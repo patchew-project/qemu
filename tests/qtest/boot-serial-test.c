@@ -224,8 +224,10 @@ static bool check_guest_output(QTestState *qts, const testdef_t *test, int fd)
 static void test_machine(const void *data)
 {
     const testdef_t *test = data;
-    char serialtmp[] = "/tmp/qtest-boot-serial-sXXXXXX";
-    char codetmp[] = "/tmp/qtest-boot-serial-cXXXXXX";
+    char *serialtmp = g_strdup_printf("%s/qtest-boot-serial-sXXXXXX",
+                                      g_get_tmp_dir());
+    char *codetmp = g_strdup_printf("%s/qtest-boot-serial-cXXXXXX",
+                                    g_get_tmp_dir());
     const char *codeparam = "";
     const uint8_t *code = NULL;
     QTestState *qts;
@@ -264,6 +266,7 @@ static void test_machine(const void *data)
                       serialtmp, test->extra);
     if (code) {
         unlink(codetmp);
+        g_free(codetmp);
     }
 
     if (!check_guest_output(qts, test, ser_fd)) {
@@ -271,6 +274,7 @@ static void test_machine(const void *data)
                 serialtmp);
     }
     unlink(serialtmp);
+    g_free(serialtmp);
 
     qtest_quit(qts);
 

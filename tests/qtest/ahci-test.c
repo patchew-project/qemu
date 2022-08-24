@@ -44,9 +44,9 @@
 #define TEST_IMAGE_SIZE_MB_SMALL 64
 
 /*** Globals ***/
-static char tmp_path[] = "/tmp/qtest.XXXXXX";
-static char debug_path[] = "/tmp/qtest-blkdebug.XXXXXX";
-static char mig_socket[] = "/tmp/qtest-migration.XXXXXX";
+static char *tmp_path;
+static char *debug_path;
+static char *mig_socket;
 static bool ahci_pedantic;
 static const char *imgfmt;
 static unsigned test_image_size_mb;
@@ -1437,7 +1437,7 @@ static void test_ncq_simple(void)
 
 static int prepare_iso(size_t size, unsigned char **buf, char **name)
 {
-    char cdrom_path[] = "/tmp/qtest.iso.XXXXXX";
+    char *cdrom_path = g_strdup_printf("%s/qtest.iso.XXXXXX", g_get_tmp_dir());
     unsigned char *patt;
     ssize_t ret;
     int fd = mkstemp(cdrom_path);
@@ -1454,6 +1454,7 @@ static int prepare_iso(size_t size, unsigned char **buf, char **name)
 
     *name = g_strdup(cdrom_path);
     *buf = patt;
+    g_free(cdrom_path);
     return fd;
 }
 
@@ -1872,6 +1873,7 @@ int main(int argc, char **argv)
     }
 
     /* Create a temporary image */
+    tmp_path = g_strdup_printf("%s/qtest.XXXXXX", g_get_tmp_dir());
     fd = mkstemp(tmp_path);
     g_assert(fd >= 0);
     if (have_qemu_img()) {
@@ -1889,11 +1891,13 @@ int main(int argc, char **argv)
     close(fd);
 
     /* Create temporary blkdebug instructions */
+    debug_path = g_strdup_printf("%s/qtest-blkdebug.XXXXXX", g_get_tmp_dir());
     fd = mkstemp(debug_path);
     g_assert(fd >= 0);
     close(fd);
 
     /* Reserve a hollow file to use as a socket for migration tests */
+    mig_socket = g_strdup_printf("%s/qtest-migration.XXXXXX", g_get_tmp_dir());
     fd = mkstemp(mig_socket);
     g_assert(fd >= 0);
     close(fd);
@@ -1947,8 +1951,11 @@ int main(int argc, char **argv)
 
     /* Cleanup */
     unlink(tmp_path);
+    g_free(tmp_path);
     unlink(debug_path);
+    g_free(debug_path);
     unlink(mig_socket);
+    g_free(mig_socket);
 
     return ret;
 }

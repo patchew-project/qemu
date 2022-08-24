@@ -2422,7 +2422,8 @@ static bool kvm_dirty_ring_supported(void)
 
 int main(int argc, char **argv)
 {
-    char template[] = "/tmp/migration-test-XXXXXX";
+    char *template = g_strdup_printf("%s/migration-test-XXXXXX",
+                                     g_get_tmp_dir());
     const bool has_kvm = qtest_has_accel("kvm");
     const bool has_uffd = ufd_version_check();
     const char *arch = qtest_get_arch();
@@ -2576,6 +2577,7 @@ int main(int argc, char **argv)
         g_test_message("unable to rmdir: path (%s): %s",
                        tmpfs, strerror(errno));
     }
+    g_free(template);
 
     return ret;
 }
