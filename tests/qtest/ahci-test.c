@@ -1453,7 +1453,7 @@ static int prepare_iso(size_t size, unsigned char **buf, char **name)
      * Close the file and reopen it.
      */
     close(fd);
-    fd = open(cdrom_path, O_WRONLY);
+    fd = open(cdrom_path, O_WRONLY | O_BINARY);
     g_assert(fd != -1);
 #endif
 
