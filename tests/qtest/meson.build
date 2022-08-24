@@ -1,6 +1,5 @@
-# All QTests for now are POSIX-only, but the dependencies are
-# really in libqtest, not in the testcases themselves.
-if not config_host.has_key('CONFIG_POSIX')
+# Build all QTests for POSIX and Windows
+if not config_host.has_key('CONFIG_POSIX') and not config_host.has_key('CONFIG_WIN32')
   subdir_done()
 endif
 
