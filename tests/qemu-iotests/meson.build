@@ -2,6 +2,11 @@ if not have_tools or targetos == 'windows' or get_option('gprof')
   subdir_done()
 endif
 
+# Skip iotests if configured without a default selection of devices
+if not get_option('default_devices')
+  subdir_done()
+endif
+
 foreach cflag: config_host['QEMU_CFLAGS'].split()
   if cflag.startswith('-fsanitize') and \
      not cflag.contains('safe-stack') and not cflag.contains('cfi-icall')

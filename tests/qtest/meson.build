@@ -4,6 +4,11 @@ if not config_host.has_key('CONFIG_POSIX')
   subdir_done()
 endif
 
+# Skip QTests if configured without a default selection of devices
+if not get_option('default_devices')
+  subdir_done()
+endif
+
 slow_qtests = {
   'ahci-test' : 60,
   'bios-tables-test' : 120,
