@@ -51,6 +51,8 @@ struct VHostUserBlk {
     bool connected;
     /* vhost_user_blk_start/vhost_user_blk_stop */
     bool started_vu;
+
+    uint64_t host_features;
 };
 
 #endif
