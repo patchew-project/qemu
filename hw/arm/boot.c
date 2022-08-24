@@ -493,7 +493,7 @@ static void fdt_add_psci_node(void *fdt)
             const char comp[] = "arm,psci-0.2\0arm,psci";
             qemu_fdt_setprop(fdt, "/psci", "compatible", comp, sizeof(comp));
         } else {
-            const char comp[] = "arm,psci-1.0\0arm,psci-0.2\0arm,psci";
+            const char comp[] = "arm,psci-1.0\0arm,psci-0.2";
             qemu_fdt_setprop(fdt, "/psci", "compatible", comp, sizeof(comp));
         }
 
