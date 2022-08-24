@@ -350,6 +350,7 @@ typedef struct GDBState {
     int line_buf_index;
     int line_sum; /* running checksum */
     int line_csum; /* checksum at the end of the packet */
+    char last_cmd[MAX_PACKET_LENGTH];
     GByteArray *last_packet;
     int signal;
 #ifdef CONFIG_USER_ONLY
@@ -412,6 +413,7 @@ static void reset_gdbserver_state(void)
     g_free(gdbserver_state.processes);
     gdbserver_state.processes = NULL;
     gdbserver_state.process_num = 0;
+    gdbserver_state.last_cmd[0] = '\0';
 }
 #endif
 
@@ -2558,7 +2560,7 @@ static void handle_target_halt(GArray *params, void *user_ctx)
     gdb_breakpoint_remove_all();
 }
 
-static int gdb_handle_packet(const char *line_buf)
+static void gdb_handle_packet(const char *line_buf)
 {
     const GdbCmdParseEntry *cmd_parser = NULL;
 
@@ -2800,8 +2802,6 @@ static int gdb_handle_packet(const char *line_buf)
     if (cmd_parser) {
         run_cmd_parser(line_buf, cmd_parser);
     }
-
-    return RS_IDLE;
 }
 
 void gdb_set_stop_cpu(CPUState *cpu)
@@ -2821,8 +2821,14 @@ void gdb_set_stop_cpu(CPUState *cpu)
 }
 
 #ifndef CONFIG_USER_ONLY
+static inline bool char_in(char c, const char *str)
+{
+    return strchr(str, c) != NULL;
+}
+
 static void gdb_vm_state_change(void *opaque, bool running, RunState state)
 {
+    const char *cmd = gdbserver_state.last_cmd;
     CPUState *cpu = gdbserver_state.c_cpu;
     g_autoptr(GString) buf = g_string_new(NULL);
     g_autoptr(GString) tid = g_string_new(NULL);
@@ -2840,6 +2846,18 @@ static void gdb_vm_state_change(void *opaque, bool running, RunState state)
 
     if (cpu == NULL) {
         /* No process attached */
+        return;
+    }
+
+    /*
+     * We don't implement notification packets, so we should only send a
+     * stop-reply in response to a previous GDB command. Commands that accept
+     * stop-reply packages are: C, c, S, s, ?, vCont, vAttach, vRun, and
+     * vStopped. We don't implement vRun, and vStopped. For vAttach and ?, the
+     * stop-reply is already sent from their respective cmd handler functions.
+     */
+    if (gdbserver_state.state != RS_IDLE || /* still parsing the cmd */
+        !(startswith(cmd, "vCont;") || (strlen(cmd) == 1 && char_in(cmd[0], "cCsS")))) {
         return;
     }
 
@@ -3130,11 +3148,14 @@ static void gdb_read_byte(uint8_t ch)
                 reply = '-';
                 put_buffer(&reply, 1);
                 gdbserver_state.state = RS_IDLE;
+                gdbserver_state.last_cmd[0] = '\0';
             } else {
                 /* send ACK reply */
                 reply = '+';
                 put_buffer(&reply, 1);
-                gdbserver_state.state = gdb_handle_packet(gdbserver_state.line_buf);
+                strcpy(gdbserver_state.last_cmd, gdbserver_state.line_buf);
+                gdbserver_state.state = RS_IDLE;
+                gdb_handle_packet(gdbserver_state.line_buf);
             }
             break;
         default:
