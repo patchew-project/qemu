@@ -565,25 +565,6 @@ typedef enum {
 /* structures */
 
 typedef struct {
-    uint64_t  pc;
-    uint64_t  inst;
-    int32_t   imm;
-    uint16_t  op;
-    uint8_t   codec;
-    uint8_t   rd;
-    uint8_t   rs1;
-    uint8_t   rs2;
-    uint8_t   rs3;
-    uint8_t   rm;
-    uint8_t   pred;
-    uint8_t   succ;
-    uint8_t   aq;
-    uint8_t   rl;
-    uint8_t   bs;
-    uint8_t   rnum;
-} rv_decode;
-
-typedef struct {
     const int op;
     const rvc_constraint *constraints;
 } rv_comp_data;
@@ -602,6 +583,25 @@ typedef struct {
     const short decomp_rv128;
     const short decomp_data;
 } rv_opcode_data;
+
+typedef struct {
+    uint64_t  pc;
+    uint64_t  inst;
+    int32_t   imm;
+    uint16_t  op;
+    uint8_t   codec;
+    uint8_t   rd;
+    uint8_t   rs1;
+    uint8_t   rs2;
+    uint8_t   rs3;
+    uint8_t   rm;
+    uint8_t   pred;
+    uint8_t   succ;
+    uint8_t   aq;
+    uint8_t   rl;
+    uint8_t   bs;
+    uint8_t   rnum;
+} rv_decode;
 
 /* register names */
 
