@@ -59,7 +59,7 @@ static bool
 mkdir_for_user(const char *path, const struct passwd *p,
                mode_t mode, Error **errp)
 {
-    if (g_mkdir(path, mode) == -1) {
+    if (g_mkdir_with_parents(path, mode) == -1) {
         error_setg(errp, "failed to create directory '%s': %s",
                    path, g_strerror(errno));
         return false;
