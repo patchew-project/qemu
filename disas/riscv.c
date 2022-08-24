@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "disas/dis-asm.h"
+#include "target/riscv/custom.h"
 
 
 /* types */
@@ -562,6 +563,11 @@ typedef enum {
     rv_op_xperm8 = 398,
 } rv_op;
 
+typedef enum {
+    Ventana_op_vt_maskc = 0,
+    Ventana_op_vt_maskcn = 1,
+} rv_Ventana_op;
+
 /* structures */
 
 typedef struct {
@@ -602,6 +608,7 @@ typedef struct {
     uint8_t   bs;
     uint8_t   rnum;
     const rv_opcode_data *used_opcode_data;
+    const rv_opcode_data *custom_opcode_data;
 } rv_decode;
 
 /* register names */
@@ -1285,6 +1292,11 @@ const rv_opcode_data opcode_data[] = {
     { "zip", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
     { "xperm4", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
     { "xperm8", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 }
+};
+
+const rv_opcode_data Ventana_opcode_data[] = {
+    { "vt.maskc", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    { "vt.maskcn", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
 };
 
 /* CSR names */
@@ -2244,6 +2256,18 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
             case 0: op = rv_op_addd; break;
             case 1: op = rv_op_slld; break;
             case 5: op = rv_op_srld; break;
+            case 6: /* Todo: Move custom decode to sperate decode function */
+                if (dec->custom_opcode_data == Ventana_opcode_data) {
+                    op = Ventana_op_vt_maskc;
+                    dec->used_opcode_data = dec->custom_opcode_data;
+                }
+                break;
+            case 7:
+                if (dec->custom_opcode_data == Ventana_opcode_data) {
+                    op = Ventana_op_vt_maskcn;
+                    dec->used_opcode_data = dec->custom_opcode_data;
+                }
+                break;
             case 8: op = rv_op_muld; break;
             case 12: op = rv_op_divd; break;
             case 13: op = rv_op_divud; break;
@@ -3190,15 +3214,43 @@ static void decode_inst_decompress(rv_decode *dec, rv_isa isa)
     }
 }
 
+static const struct {
+    enum RISCVCustom ext;
+    const rv_opcode_data *opcode_data;
+} custom_opcode_table[] = {
+    { VENTANA_CUSTOM,   Ventana_opcode_data },
+};
+
+static const rv_opcode_data *
+get_custom_opcode_data(struct disassemble_info *info)
+{
+    for (size_t i = 0; i < ARRAY_SIZE(custom_opcode_table); ++i) {
+        if (info->target_info & (1ULL << custom_opcode_table[i].ext)) {
+            return custom_opcode_table[i].opcode_data;
+        }
+    }
+    return NULL;
+}
+
 /* disassemble instruction */
 
 static void
-disasm_inst(char *buf, size_t buflen, rv_isa isa, uint64_t pc, rv_inst inst)
+disasm_inst(char *buf, size_t buflen, rv_isa isa, uint64_t pc, rv_inst inst,
+            struct disassemble_info *info)
 {
     rv_decode dec = { 0 };
     dec.pc = pc;
     dec.inst = inst;
+
+    /*
+     * Set default opcode_data.
+     * Only overide the default opcode_data only when
+     * 1. There is a custom opcode data.
+     * 2. The instruction belongs to the custom extension.
+     */
     dec.used_opcode_data = opcode_data;
+    dec.custom_opcode_data = get_custom_opcode_data(info);
+
     decode_inst_opcode(&dec, isa);
     decode_inst_operands(&dec);
     decode_inst_decompress(&dec, isa);
@@ -3253,7 +3305,7 @@ print_insn_riscv(bfd_vma memaddr, struct disassemble_info *info, rv_isa isa)
         break;
     }
 
-    disasm_inst(buf, sizeof(buf), isa, memaddr, inst);
+    disasm_inst(buf, sizeof(buf), isa, memaddr, inst, info);
     (*info->fprintf_func)(info->stream, "%s", buf);
 
     return len;

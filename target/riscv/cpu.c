@@ -31,6 +31,7 @@
 #include "fpu/softfloat-helpers.h"
 #include "sysemu/kvm.h"
 #include "kvm_riscv.h"
+#include "custom.h"
 
 /* RISC-V CPU definitions */
 
@@ -504,10 +505,28 @@ static void riscv_cpu_reset(DeviceState *dev)
 #endif
 }
 
+static bool has_Ventana_ext(const RISCVCPUConfig *cfg_ptr)
+{
+    return cfg_ptr->ext_XVentanaCondOps;
+}
+
 static void riscv_cpu_disas_set_info(CPUState *s, disassemble_info *info)
 {
     RISCVCPU *cpu = RISCV_CPU(s);
     CPURISCVState *env = &cpu->env;
+
+    static const struct {
+        bool (*guard_func)(const RISCVCPUConfig *);
+        enum RISCVCustom ext;
+    } customs[] = {
+        { has_Ventana_ext, VENTANA_CUSTOM },
+    };
+
+    for (size_t i = 0; i < ARRAY_SIZE(customs); ++i) {
+        if (customs[i].guard_func(&(cpu->cfg))) {
+            info->target_info |= 1ULL << customs[i].ext;
+        }
+    }
 
     switch (env->xl) {
     case MXL_RV32:
