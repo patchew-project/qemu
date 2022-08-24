@@ -52,6 +52,7 @@ struct VHostUserBlk {
     bool started_vu;
 
     uint64_t host_features;
+    size_t config_size;
 };
 
 #endif
