@@ -49,12 +49,13 @@ static const VirtIOFeature feature_sizes[] = {
     {}
 };
 
-static void virtio_blk_set_config_size(VirtIOBlock *s, uint64_t host_features)
+static size_t virtio_blk_common_get_config_size(uint64_t host_features)
 {
-    s->config_size = MAX(VIRTIO_BLK_CFG_SIZE,
+    size_t config_size = MAX(VIRTIO_BLK_CFG_SIZE,
         virtio_feature_get_config_size(feature_sizes, host_features));
 
-    assert(s->config_size <= sizeof(struct virtio_blk_config));
+    assert(config_size <= sizeof(struct virtio_blk_config));
+    return config_size;
 }
 
 static void virtio_blk_init_request(VirtIOBlock *s, VirtQueue *vq,
@@ -1204,7 +1205,7 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    virtio_blk_set_config_size(s, s->host_features);
+    s->config_size = virtio_blk_common_get_config_size(s->host_features);
 
     virtio_init(vdev, VIRTIO_ID_BLOCK, s->config_size);
 
