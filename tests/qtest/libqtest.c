@@ -65,6 +65,8 @@ struct QTestState
     GList *pending_events;
 };
 
+QTestState *global_qtest;
+
 static GHookList abrt_hooks;
 static struct sigaction sigact_old;
 

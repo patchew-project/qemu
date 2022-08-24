@@ -13,7 +13,7 @@
 
 #include "libqtest.h"
 
-QTestState *global_qtest __attribute__((common, weak));
+extern QTestState *global_qtest;
 
 /**
  * qtest_start:
