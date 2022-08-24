@@ -2132,6 +2132,10 @@ static void test_multifd_tcp_cancel(void)
     wait_for_migration_pass(from);
 
     migrate_cancel(from);
+    /* Make sure QEMU process "to" is killed */
+    if (qtest_probe_child(to)) {
+        qtest_kill_qemu(to);
+    }
 
     args = (MigrateStart){
         .only_target = true,
