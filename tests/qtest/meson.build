@@ -258,7 +258,6 @@ qos_test_ss.add(
   'usb-hcd-ohci-test.c',
   'virtio-test.c',
   'virtio-blk-test.c',
-  'virtio-net-test.c',
   'virtio-rng-test.c',
   'virtio-scsi-test.c',
   'virtio-serial-test.c',
@@ -266,7 +265,7 @@ qos_test_ss.add(
   'vmxnet3-test.c',
 )
 if config_host.has_key('CONFIG_POSIX')
-  qos_test_ss.add(files('e1000e-test.c'))
+  qos_test_ss.add(files('e1000e-test.c', 'virtio-net-test.c'))
 endif
 if have_virtfs
   qos_test_ss.add(files('virtio-9p-test.c'))

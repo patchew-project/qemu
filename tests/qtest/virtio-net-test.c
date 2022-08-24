@@ -26,8 +26,6 @@
 #define QVIRTIO_NET_TIMEOUT_US (30 * 1000 * 1000)
 #define VNET_HDR_SIZE sizeof(struct virtio_net_hdr_mrg_rxbuf)
 
-#ifndef _WIN32
-
 static void rx_test(QVirtioDevice *dev,
                     QGuestAllocator *alloc, QVirtQueue *vq,
                     int socket)
@@ -164,8 +162,6 @@ static void stop_cont_test(void *obj, void *data, QGuestAllocator *t_alloc)
 
     rx_stop_cont_test(dev, t_alloc, rx, sv[0]);
 }
-
-#endif
 
 static void hotplug(void *obj, void *data, QGuestAllocator *t_alloc)
 {
@@ -324,10 +320,8 @@ static void register_virtio_net_test(void)
     };
 
     qos_add_test("hotplug", "virtio-net-pci", hotplug, &opts);
-#ifndef _WIN32
     qos_add_test("basic", "virtio-net", send_recv_test, &opts);
     qos_add_test("rx_stop_cont", "virtio-net", stop_cont_test, &opts);
-#endif
     qos_add_test("announce-self", "virtio-net", announce_self, &opts);
 
     /* These tests do not need a loopback backend.  */
