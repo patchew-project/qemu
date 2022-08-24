@@ -6,16 +6,23 @@
 # basic compilers for as many targets as possible. We shall use this
 # to build and run linux-user tests on GitLab
 #
-FROM qemu/debian10
+FROM docker.io/library/debian:bullseye-slim
+
+# Duplicate deb line as deb-src
+RUN cat /etc/apt/sources.list | sed "s/^deb\ /deb-src /" >> /etc/apt/sources.list
 
 # What we need to build QEMU itself
 RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive apt install -yy eatmydata && \
     DEBIAN_FRONTEND=noninteractive eatmydata \
     apt build-dep -yy qemu
 
 # Add the foreign architecture we want and install dependencies
 RUN DEBIAN_FRONTEND=noninteractive eatmydata \
         apt install -y --no-install-recommends \
+        clang \
+        git \
+        gdb-multiarch \
         gcc-aarch64-linux-gnu \
         libc6-dev-arm64-cross \
         gcc-alpha-linux-gnu \
