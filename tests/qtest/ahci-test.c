@@ -1443,6 +1443,20 @@ static int prepare_iso(size_t size, unsigned char **buf, char **name)
     int fd = mkstemp(cdrom_path);
 
     g_assert(fd != -1);
+#ifdef _WIN32
+    /*
+     * On Windows, the MinGW provided mkstemp() API opens the file with
+     * exclusive access, denying other processes to read/write the file.
+     * Such behavior prevents the QEMU executable from opening the file,
+     * (e.g.: CreateFile returns ERROR_SHARING_VIOLATION).
+     *
+     * Close the file and reopen it.
+     */
+    close(fd);
+    fd = open(cdrom_path, O_WRONLY);
+    g_assert(fd != -1);
+#endif
+
     g_assert(buf);
     g_assert(name);
     patt = g_malloc(size);

@@ -235,6 +235,19 @@ static void test_machine(const void *data)
 
     ser_fd = mkstemp(serialtmp);
     g_assert(ser_fd != -1);
+#ifdef _WIN32
+    /*
+     * On Windows, the MinGW provided mkstemp() API opens the file with
+     * exclusive access, denying other processes to read/write the file.
+     * Such behavior prevents the QEMU executable from opening the file,
+     * (e.g.: CreateFile returns ERROR_SHARING_VIOLATION).
+     *
+     * Close the file and reopen it.
+     */
+    close(ser_fd);
+    ser_fd = open(serialtmp, O_RDONLY);
+    g_assert(ser_fd != -1);
+#endif
 
     if (test->kernel) {
         code = test->kernel;
