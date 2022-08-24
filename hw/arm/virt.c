@@ -857,7 +857,7 @@ static void create_uart(const VirtMachineState *vms, int uart,
                                 sysbus_mmio_get_region(s, 0));
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(vms->gic, irq));
 
-    nodename = g_strdup_printf("/pl011@%" PRIx64, base);
+    nodename = g_strdup_printf("/serial@%" PRIx64, base);
     qemu_fdt_add_subnode(ms->fdt, nodename);
     /* Note that we can't use setprop_string because of the embedded NUL */
     qemu_fdt_setprop(ms->fdt, nodename, "compatible",
@@ -897,7 +897,7 @@ static void create_rtc(const VirtMachineState *vms)
 
     sysbus_create_simple("pl031", base, qdev_get_gpio_in(vms->gic, irq));
 
-    nodename = g_strdup_printf("/pl031@%" PRIx64, base);
+    nodename = g_strdup_printf("/rtc@%" PRIx64, base);
     qemu_fdt_add_subnode(ms->fdt, nodename);
     qemu_fdt_setprop(ms->fdt, nodename, "compatible", compat, sizeof(compat));
     qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg",
@@ -999,7 +999,7 @@ static void create_gpio_devices(const VirtMachineState *vms, int gpio,
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(vms->gic, irq));
 
     uint32_t phandle = qemu_fdt_alloc_phandle(ms->fdt);
-    nodename = g_strdup_printf("/pl061@%" PRIx64, base);
+    nodename = g_strdup_printf("/gpio@%" PRIx64, base);
     qemu_fdt_add_subnode(ms->fdt, nodename);
     qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg",
                                  2, base, 2, size);
