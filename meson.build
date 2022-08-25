@@ -718,6 +718,24 @@ if not get_option('virglrenderer').auto() or have_system or have_vhost_user_gpu
                      method: 'pkg-config',
                      required: get_option('virglrenderer'),
                      kwargs: static_kwargs)
+
+  if virgl.found()
+    virgl_compile_args = [
+      '-DVIRGL_RENDERER_VERSION_MAJOR=' + virgl.version().split('.')[0],
+      '-DVIRGL_RENDERER_VERSION_MINOR=' + virgl.version().split('.')[1],
+      '-DVIRGL_RENDERER_VERSION_MICRO=' + virgl.version().split('.')[2],
+    ]
+    if cc.has_function('virgl_renderer_context_create_with_flags',
+                       prefix: '#include <virglrenderer.h>',
+                       dependencies: virgl)
+                       message('context_init')
+      virgl_compile_args += ['-DVIRGL_RENDERER_HAS_CONTEXT_INIT']
+    endif
+
+    virgl = declare_dependency(version: virgl.version(),
+                               compile_args: virgl_compile_args,
+                               dependencies: virgl)
+  endif
 endif
 curl = not_found
 if not get_option('curl').auto() or have_block
