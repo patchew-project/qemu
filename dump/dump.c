@@ -1094,49 +1094,79 @@ static uint64_t dump_pfn_to_paddr(DumpState *s, uint64_t pfn)
 }
 
 /*
- * exam every page and return the page frame number and the address of the page.
- * bufptr can be NULL. note: the blocks here is supposed to reflect guest-phys
- * blocks, so block->target_start and block->target_end should be interal
- * multiples of the target page size.
+ * Return the page frame number and the page content in *bufptr.
+ * bufptr and allocptr can be NULL. If alloced, *bufptr must be freed.
  */
 static bool get_next_page(GuestPhysBlock **blockptr, uint64_t *pfnptr,
-                          uint8_t **bufptr, DumpState *s)
+                          uint8_t **bufptr, bool *allocptr, DumpState *s)
 {
     GuestPhysBlock *block = *blockptr;
-    hwaddr addr, target_page_mask = ~((hwaddr)s->dump_info.page_size - 1);
-    uint8_t *buf;
+    uint32_t page_size = s->dump_info.page_size;
+    bool alloced = false;
+    uint8_t *buf = NULL, *hbuf;
+    hwaddr addr;
 
     /* block == NULL means the start of the iteration */
     if (block == NULL) {
         *blockptr = block = QTAILQ_FIRST(&s->guest_phys_blocks.head);
         addr = block->target_start;
+        *pfnptr = dump_paddr_to_pfn(s, addr);
     } else {
-        addr = dump_pfn_to_paddr(s, *pfnptr + 1);
+        assert(block != NULL);
+        *pfnptr += 1;
+        addr = dump_pfn_to_paddr(s, *pfnptr);
     }
     assert(block != NULL);
 
-    if ((addr >= block->target_start) &&
-        (addr + s->dump_info.page_size <= block->target_end)) {
-        buf = block->host_addr + (addr - block->target_start);
-    } else {
-        /* the next page is in the next block */
-        *blockptr = block = QTAILQ_NEXT(block, next);
-        if (!block) {
-            return false;
+    while (1) {
+        if (addr >= block->target_start && addr < block->target_end) {
+            size_t n = MIN(block->target_end - addr, page_size - addr % page_size);
+            hbuf = block->host_addr + (addr - block->target_start);
+            if (!alloced) {
+                if (n == page_size) {
+                    /* this is a whole host page, go for it */
+                    assert(addr % page_size == 0);
+                    buf = hbuf;
+                    break;
+                } else {
+                    buf = g_malloc0(page_size);
+                    alloced = true;
+                }
+            }
+
+            memcpy(buf + addr % page_size, hbuf, n);
+            addr += n;
+            if (addr % page_size == 0) {
+                /* we filled up the alloc page */
+                break;
+            }
+        } else {
+            /* the next page is in the next block */
+            *blockptr = block = QTAILQ_NEXT(block, next);
+            if (!block) {
+                break;
+            }
+
+            addr = block->target_start;
+            /* are we still in the same page? */
+            if (dump_paddr_to_pfn(s, addr) != *pfnptr) {
+                if (alloced) {
+                    /* no, but we already filled something earlier, return it */
+                    break;
+                } else {
+                    /* else continue from there */
+                    *pfnptr = dump_paddr_to_pfn(s, addr);
+                }
+            }
         }
-        addr = block->target_start;
-        buf = block->host_addr;
     }
 
-    /* those checks are going away next */
-    assert((block->target_start & ~target_page_mask) == 0);
-    assert((block->target_end & ~target_page_mask) == 0);
-    *pfnptr = dump_paddr_to_pfn(s, addr);
     if (bufptr) {
         *bufptr = buf;
+        *allocptr = alloced;
     }
 
-    return true;
+    return buf != NULL;
 }
 
 static void write_dump_bitmap(DumpState *s, Error **errp)
@@ -1159,7 +1189,7 @@ static void write_dump_bitmap(DumpState *s, Error **errp)
      * exam memory page by page, and set the bit in dump_bitmap corresponded
      * to the existing page.
      */
-    while (get_next_page(&block_iter, &pfn, NULL, s)) {
+    while (get_next_page(&block_iter, &pfn, NULL, NULL, s)) {
         ret = set_dump_bitmap(last_pfn, pfn, true, dump_bitmap_buf, s);
         if (ret < 0) {
             error_setg(errp, "dump: failed to set dump_bitmap");
@@ -1274,6 +1304,7 @@ static void write_dump_pages(DumpState *s, Error **errp)
     uint8_t *buf;
     GuestPhysBlock *block_iter = NULL;
     uint64_t pfn_iter;
+    bool freebuf = false;
 
     /* get offset of page_desc and page_data in dump file */
     offset_desc = s->offset_page;
@@ -1314,7 +1345,7 @@ static void write_dump_pages(DumpState *s, Error **errp)
      * dump memory to vmcore page by page. zero page will all be resided in the
      * first page of page section
      */
-    while (get_next_page(&block_iter, &pfn_iter, &buf, s)) {
+    while (get_next_page(&block_iter, &pfn_iter, &buf, &freebuf, s)) {
         /* check zero page */
         if (buffer_is_zero(buf, s->dump_info.page_size)) {
             ret = write_cache(&page_desc, &pd_zero, sizeof(PageDescriptor),
@@ -1403,6 +1434,10 @@ static void write_dump_pages(DumpState *s, Error **errp)
                 error_setg(errp, "dump: failed to write page desc");
                 goto out;
             }
+            if (freebuf) {
+                g_free(buf);
+                freebuf = false;
+            }
         }
         s->written_size += s->dump_info.page_size;
     }
@@ -1419,6 +1454,10 @@ static void write_dump_pages(DumpState *s, Error **errp)
     }
 
 out:
+    if (freebuf) {
+        g_free(buf);
+    }
+
     free_data_cache(&page_desc);
     free_data_cache(&page_data);
 
