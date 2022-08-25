@@ -398,6 +398,9 @@ typedef struct NvmeCQueue {
     uint64_t    ei_addr;
     QEMUTimer   *timer;
     EventNotifier notifier;
+    EventNotifier assert_notifier;
+    EventNotifier deassert_notifier;
+    bool        first_io_cqe;
     bool        ioeventfd_enabled;
     QTAILQ_HEAD(, NvmeSQueue) sq_list;
     QTAILQ_HEAD(, NvmeRequest) req_list;
@@ -422,6 +425,7 @@ typedef struct NvmeParams {
     bool     auto_transition_zones;
     bool     legacy_cmb;
     bool     ioeventfd;
+    bool     irq_eventfd;
     uint8_t  sriov_max_vfs;
     uint16_t sriov_vq_flexible;
     uint16_t sriov_vi_flexible;
