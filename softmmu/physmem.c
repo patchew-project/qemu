@@ -3450,9 +3450,9 @@ address_space_read_cached_slow(MemoryRegionCache *cache, hwaddr addr,
     l = len;
     mr = address_space_translate_cached(cache, addr, &addr1, &l, false,
                                         MEMTXATTRS_UNSPECIFIED);
-    return flatview_read_continue(cache->fv,
-                                  addr, MEMTXATTRS_UNSPECIFIED, buf, len,
-                                  addr1, l, mr);
+    return flatview_read_continue(cache->fv, cache->xlat + addr,
+                                  MEMTXATTRS_UNSPECIFIED, buf, len, addr1, l,
+                                  mr);
 }
 
 /* Called from RCU critical section. address_space_write_cached uses this
@@ -3468,9 +3468,9 @@ address_space_write_cached_slow(MemoryRegionCache *cache, hwaddr addr,
     l = len;
     mr = address_space_translate_cached(cache, addr, &addr1, &l, true,
                                         MEMTXATTRS_UNSPECIFIED);
-    return flatview_write_continue(cache->fv,
-                                   addr, MEMTXATTRS_UNSPECIFIED, buf, len,
-                                   addr1, l, mr);
+    return flatview_write_continue(cache->fv, cache->xlat + addr,
+                                   MEMTXATTRS_UNSPECIFIED, buf, len, addr1, l,
+                                   mr);
 }
 
 #define ARG1_DECL                MemoryRegionCache *cache
