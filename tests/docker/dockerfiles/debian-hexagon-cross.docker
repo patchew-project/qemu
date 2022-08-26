@@ -7,7 +7,7 @@
 # triggered by re-builds on other base images given it takes a long
 # time to build.
 #
-FROM qemu/debian10
+FROM docker.io/library/debian:bullseye-slim
 
 # Install common build utilities
 RUN apt update && \
@@ -15,11 +15,18 @@ RUN apt update && \
     DEBIAN_FRONTEND=noninteractive eatmydata \
     apt install -y --no-install-recommends \
         bison \
+        ca-certificates \
+        clang \
         cmake \
         flex \
+        gcc \
         lld \
+        make \
+        ninja-build \
+        python3 \
         rsync \
-        wget
+        wget \
+        xz-utils
 
 ENV TOOLCHAIN_INSTALL /usr/local
 ENV ROOTFS /usr/local
@@ -32,7 +39,7 @@ ADD build-toolchain.sh /root/hexagon-toolchain/build-toolchain.sh
 
 RUN cd /root/hexagon-toolchain && ./build-toolchain.sh
 
-FROM debian:buster-slim
+FROM docker.io/library/debian:bullseye-slim
 # Duplicate deb line as deb-src
 RUN cat /etc/apt/sources.list | sed "s/^deb\ /deb-src /" >> /etc/apt/sources.list
 # Install QEMU build deps for use in CI

@@ -1,8 +1,7 @@
 #
 # Docker cross-compiler target
 #
-# This docker target builds on the debian11 base image,
-# using a prebuilt toolchains for LoongArch64 from:
+# This docker target uses prebuilt toolchains for LoongArch64 from:
 # https://github.com/loongson/build-tools/releases
 #
 FROM docker.io/library/debian:bullseye-slim
