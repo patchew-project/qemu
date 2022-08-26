@@ -1688,6 +1688,7 @@
 # Query for FDT element (node or property). Requires 'libfdt'.
 #
 # @nodepath: the path of the FDT node to be retrieved
+# @propname: name of the property inside the node
 #
 # Features:
 # @unstable: This command is meant for debugging.
@@ -1697,6 +1698,7 @@
 # Since: 7.2
 ##
 { 'command': 'x-query-fdt',
-  'data': { 'nodepath': 'str' },
+  'data': { 'nodepath': 'str',
+            '*propname': 'str' },
   'returns': 'HumanReadableText',
   'features': [ 'unstable' ]  }

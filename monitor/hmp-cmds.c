@@ -2488,8 +2488,11 @@ void hmp_dumpdtb(Monitor *mon, const QDict *qdict)
 void hmp_info_fdt(Monitor *mon, const QDict *qdict)
 {
     const char *nodepath = qdict_get_str(qdict, "nodepath");
+    const char *propname = qdict_get_try_str(qdict, "propname");
     Error *err = NULL;
-    g_autoptr(HumanReadableText) info = qmp_x_query_fdt(nodepath, &err);
+    g_autoptr(HumanReadableText) info = NULL;
+
+    info = qmp_x_query_fdt(nodepath, propname != NULL, propname, &err);
 
     if (hmp_handle_error(mon, err)) {
         return;
