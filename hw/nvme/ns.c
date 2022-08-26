@@ -146,9 +146,11 @@ lbaf_found:
     return 0;
 }
 
-static int nvme_ns_init_blk(NvmeNamespace *ns, Error **errp)
+static int nvme_ns_init_blk(NvmeNamespace *ns, AioContext *ctx, Error **errp)
 {
     bool read_only;
+    AioContext *old_context;
+    int ret;
 
     if (!blkconf_blocksizes(&ns->blkconf, errp)) {
         return -1;
@@ -169,6 +171,17 @@ static int nvme_ns_init_blk(NvmeNamespace *ns, Error **errp)
         error_setg_errno(errp, -ns->size, "could not get blockdev size");
         return -1;
     }
+
+    old_context = blk_get_aio_context(ns->blkconf.blk);
+    aio_context_acquire(old_context);
+    ret = blk_set_aio_context(ns->blkconf.blk, ctx, errp);
+    aio_context_release(old_context);
+
+    if (ret) {
+        error_setg(errp, "Set AioContext on BlockBackend failed");
+        return ret;
+    }
+
 
     return 0;
 }
@@ -482,13 +495,13 @@ static int nvme_ns_check_constraints(NvmeNamespace *ns, Error **errp)
     return 0;
 }
 
-int nvme_ns_setup(NvmeNamespace *ns, Error **errp)
+int nvme_ns_setup(NvmeNamespace *ns, AioContext *ctx, Error **errp)
 {
     if (nvme_ns_check_constraints(ns, errp)) {
         return -1;
     }
 
-    if (nvme_ns_init_blk(ns, errp)) {
+    if (nvme_ns_init_blk(ns, ctx, errp)) {
         return -1;
     }
 
@@ -563,7 +576,7 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    if (nvme_ns_setup(ns, errp)) {
+    if (nvme_ns_setup(ns, n->ctx, errp)) {
         return;
     }
 
