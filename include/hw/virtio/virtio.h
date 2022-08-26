@@ -53,9 +53,6 @@ typedef struct VirtIOConfigSizeParams {
 size_t virtio_get_config_size(const VirtIOConfigSizeParams *params,
                               uint64_t host_features);
 
-size_t virtio_feature_get_config_size(const VirtIOFeature *features,
-                                      uint64_t host_features);
-
 typedef struct VirtQueue VirtQueue;
 
 #define VIRTQUEUE_MAX_SIZE 1024
