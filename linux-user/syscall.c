@@ -399,6 +399,9 @@ _syscall3(int, ioprio_set, int, which, int, who, int, ioprio)
 #if defined(TARGET_NR_getrandom) && defined(__NR_getrandom)
 _syscall3(int, getrandom, void *, buf, size_t, buflen, unsigned int, flags)
 #endif
+#if defined(TARGET_NR_faccessat2) && defined(__NR_faccessat2)
+_syscall4(int, faccessat2, int, dirfd, char *, pathname, int, mode, int, flags)
+#endif
 
 #if defined(TARGET_NR_kcmp) && defined(__NR_kcmp)
 _syscall5(int, kcmp, pid_t, pid1, pid_t, pid2, int, type,
@@ -9095,6 +9098,15 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             return -TARGET_EFAULT;
         }
         ret = get_errno(faccessat(arg1, p, arg3, 0));
+        unlock_user(p, arg2, 0);
+        return ret;
+#endif
+#if defined(TARGET_NR_faccessat2) && defined(__NR_faccessat2)
+    case TARGET_NR_faccessat2:
+        if (!(p = lock_user_string(arg2))) {
+            return -TARGET_EFAULT;
+        }
+        ret = get_errno(faccessat2(arg1, p, arg3, arg4));
         unlock_user(p, arg2, 0);
         return ret;
 #endif
