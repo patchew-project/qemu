@@ -6,11 +6,21 @@
 # basic compilers for as many targets as possible. We shall use this
 # to build and run linux-user tests on GitLab
 #
-FROM qemu/debian10
+FROM docker.io/library/debian:11-slim
 
-# What we need to build QEMU itself
-RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive eatmydata \
+# Duplicate deb line as deb-src
+RUN cat /etc/apt/sources.list | sed "s/^deb\ /deb-src /" >> /etc/apt/sources.list
+
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    apt-get update && \
+    apt-get install -y eatmydata && \
+    eatmydata apt-get dist-upgrade -y && \
+    apt install -y --no-install-recommends \
+      ccache \
+      clang  \
+      git \
+      ninja-build \
+    && \
     apt build-dep -yy qemu
 
 # Add the foreign architecture we want and install dependencies
