@@ -2476,9 +2476,10 @@ exit_no_print:
 void hmp_dumpdtb(Monitor *mon, const QDict *qdict)
 {
     const char *filename = qdict_get_str(qdict, "filename");
+    bool textformat = qdict_get_try_bool(qdict, "textformat", false);
     Error *local_err = NULL;
 
-    qmp_dumpdtb(filename, &local_err);
+    qmp_dumpdtb(true, textformat, filename, &local_err);
 
     if (local_err) {
         hmp_handle_error(mon, local_err);

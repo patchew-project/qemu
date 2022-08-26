@@ -645,8 +645,10 @@ out:
     return ret;
 }
 
-void qemu_fdt_qmp_dumpdtb(const char *filename, Error **errp)
+void qemu_fdt_qmp_dumpdtb(const char *filename, bool textformat, Error **errp)
 {
+    g_autoptr(HumanReadableText) txt = NULL;
+    void *contents = NULL;
     int size;
 
     if (!current_machine->fdt) {
@@ -654,9 +656,26 @@ void qemu_fdt_qmp_dumpdtb(const char *filename, Error **errp)
         return;
     }
 
-    size = fdt_totalsize(current_machine->fdt);
+    if (textformat) {
+        /*
+         * 'info fdt /' returns all the FDT in text format, formatted
+         * with a style close to what 'dtc' uses to decode the blob
+         * to a .dts.
+         */
+        txt = qemu_fdt_qmp_query_fdt("/", false, NULL, errp);
 
-    if (g_file_set_contents(filename, current_machine->fdt, size, NULL)) {
+        if (!txt) {
+            return;
+        }
+
+        contents = txt->human_readable_text;
+        size = strlen(txt->human_readable_text);
+    } else {
+        contents = current_machine->fdt;
+        size = fdt_totalsize(current_machine->fdt);
+    }
+
+    if (g_file_set_contents(filename, contents, size, NULL)) {
         return;
     }
 

@@ -1808,8 +1808,9 @@ SRST
 ERST
     {
         .name       = "dumpdtb",
-        .args_type  = "filename:F",
-        .params     = "filename",
-        .help       = "save the FDT in the 'filename' file to be decoded using dtc",
+        .args_type  = "textformat:-t,filename:F",
+        .params     = "[-t] filename",
+        .help       = "save the FDT in the 'filename' file to be decoded using dtc."
+                       "Use '-t' to save the file in text (dts) format.",
         .cmd        = hmp_dumpdtb,
     },

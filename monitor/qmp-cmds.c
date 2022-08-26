@@ -599,9 +599,10 @@ bool apply_str_list_filter(const char *string, strList *list)
 }
 
 #ifdef CONFIG_FDT
-void qmp_dumpdtb(const char *filename, Error **errp)
+void qmp_dumpdtb(bool has_textformat, bool textformat,
+                 const char *filename, Error **errp)
 {
-    return qemu_fdt_qmp_dumpdtb(filename, errp);
+    return qemu_fdt_qmp_dumpdtb(filename, textformat, errp);
 }
 
 HumanReadableText *qmp_x_query_fdt(const char *nodepath, bool has_propname,
@@ -610,7 +611,8 @@ HumanReadableText *qmp_x_query_fdt(const char *nodepath, bool has_propname,
     return qemu_fdt_qmp_query_fdt(nodepath, has_propname, propname, errp);
 }
 #else
-void qmp_dumpdtb(const char *filename, Error **errp)
+void qmp_dumpdtb(bool has_textformat, bool textformat,
+                 const char *filename, Error **errp)
 {
     error_setg(errp, "dumpdtb requires libfdt");
 }

@@ -1680,7 +1680,7 @@
 #
 ##
 { 'command': 'dumpdtb',
-  'data': { 'filename': 'str' } }
+  'data': { '*textformat':'bool', 'filename': 'str' } }
 
 ##
 # @x-query-fdt:
