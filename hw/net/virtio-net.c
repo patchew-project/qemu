@@ -106,6 +106,11 @@ static const VirtIOFeature feature_sizes[] = {
     {}
 };
 
+static const VirtIOConfigSizeParams cfg_size_params = {
+    .max_size = sizeof(struct virtio_net_config),
+    .feature_sizes = feature_sizes
+};
+
 static VirtIONetQueue *virtio_net_get_subqueue(NetClientState *nc)
 {
     VirtIONet *n = qemu_get_nic_opaque(nc);
@@ -3246,8 +3251,7 @@ static void virtio_net_set_config_size(VirtIONet *n, uint64_t host_features)
 {
     virtio_add_feature(&host_features, VIRTIO_NET_F_MAC);
 
-    n->config_size = virtio_feature_get_config_size(feature_sizes,
-                                                    host_features);
+    n->config_size = virtio_get_config_size(&cfg_size_params, host_features);
 }
 
 void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
