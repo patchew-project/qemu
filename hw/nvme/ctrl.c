@@ -192,6 +192,7 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/kvm.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/hostmem.h"
 #include "hw/pci/msix.h"
@@ -1377,8 +1378,115 @@ static void nvme_deassert_notifier_read(EventNotifier *e)
     }
 }
 
+static int nvme_kvm_vector_use(NvmeCtrl *n, NvmeCQueue *cq, uint32_t vector)
+{
+    KVMRouteChange c = kvm_irqchip_begin_route_changes(kvm_state);
+    int ret;
+
+    ret = kvm_irqchip_add_msi_route(&c, vector, &n->parent_obj);
+    if (ret < 0) {
+        return ret;
+    }
+
+    kvm_irqchip_commit_route_changes(&c);
+
+    cq->virq = ret;
+
+    return 0;
+}
+
+static int nvme_kvm_vector_unmask(PCIDevice *pci_dev, unsigned vector,
+                                  MSIMessage msg)
+{
+    NvmeCtrl *n = NVME(pci_dev);
+    int ret;
+
+    trace_pci_nvme_irq_unmask(vector, msg.address, msg.data);
+
+    for (uint32_t i = 1; i <= n->params.max_ioqpairs; i++) {
+        NvmeCQueue *cq = n->cq[i];
+
+        if (!cq) {
+            continue;
+        }
+
+        if (cq->vector == vector) {
+            if (cq->msg.data != msg.data || cq->msg.address != msg.address) {
+                ret = kvm_irqchip_update_msi_route(kvm_state, cq->virq, msg,
+                                                   pci_dev);
+                if (ret < 0) {
+                    return ret;
+                }
+
+                kvm_irqchip_commit_routes(kvm_state);
+
+                cq->msg = msg;
+            }
+
+            ret = kvm_irqchip_add_irqfd_notifier_gsi(kvm_state,
+                                                     &cq->assert_notifier,
+                                                     NULL, cq->virq);
+            if (ret < 0) {
+                return ret;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static void nvme_kvm_vector_mask(PCIDevice *pci_dev, unsigned vector)
+{
+    NvmeCtrl *n = NVME(pci_dev);
+
+    trace_pci_nvme_irq_mask(vector);
+
+    for (uint32_t i = 1; i <= n->params.max_ioqpairs; i++) {
+        NvmeCQueue *cq = n->cq[i];
+
+        if (!cq) {
+            continue;
+        }
+
+        if (cq->vector == vector) {
+            kvm_irqchip_remove_irqfd_notifier_gsi(kvm_state,
+                                                  &cq->assert_notifier,
+                                                  cq->virq);
+        }
+    }
+}
+
+static void nvme_kvm_vector_poll(PCIDevice *pci_dev, unsigned int vector_start,
+                                 unsigned int vector_end)
+{
+    NvmeCtrl *n = NVME(pci_dev);
+
+    trace_pci_nvme_irq_poll(vector_start, vector_end);
+
+    for (uint32_t i = 1; i <= n->params.max_ioqpairs; i++) {
+        NvmeCQueue *cq = n->cq[i];
+
+        if (!cq) {
+            continue;
+        }
+
+        if (!msix_is_masked(pci_dev, cq->vector)) {
+            continue;
+        }
+
+        if (cq->vector >= vector_start && cq->vector <= vector_end) {
+            if (event_notifier_test_and_clear(&cq->assert_notifier)) {
+                msix_set_pending(pci_dev, i);
+            }
+        }
+    }
+}
+
+
 static void nvme_init_irq_notifier(NvmeCtrl *n, NvmeCQueue *cq)
 {
+    bool with_irqfd = msix_enabled(&n->parent_obj) &&
+                      kvm_msi_via_irqfd_enabled();
     int ret;
 
     ret = event_notifier_init(&cq->assert_notifier, 0);
@@ -1386,12 +1494,27 @@ static void nvme_init_irq_notifier(NvmeCtrl *n, NvmeCQueue *cq)
         return;
     }
 
-    event_notifier_set_handler(&cq->assert_notifier,
-                                nvme_assert_notifier_read);
+    if (with_irqfd) {
+        ret = nvme_kvm_vector_use(n, cq, cq->vector);
+        if (ret < 0) {
+            event_notifier_cleanup(&cq->assert_notifier);
+
+            return;
+        }
+    } else {
+        event_notifier_set_handler(&cq->assert_notifier,
+                                   nvme_assert_notifier_read);
+    }
 
     if (!msix_enabled(&n->parent_obj)) {
         ret = event_notifier_init(&cq->deassert_notifier, 0);
         if (ret < 0) {
+            if (with_irqfd) {
+                kvm_irqchip_remove_irqfd_notifier_gsi(kvm_state,
+                                                      &cq->assert_notifier,
+                                                      cq->virq);
+            }
+
             event_notifier_set_handler(&cq->assert_notifier, NULL);
             event_notifier_cleanup(&cq->assert_notifier);
 
@@ -4764,6 +4887,8 @@ static uint16_t nvme_get_log(NvmeCtrl *n, NvmeRequest *req)
 
 static void nvme_free_cq(NvmeCQueue *cq, NvmeCtrl *n)
 {
+    bool with_irqfd = msix_enabled(&n->parent_obj) &&
+                      kvm_msi_via_irqfd_enabled();
     uint16_t offset = (cq->cqid << 3) + (1 << 2);
 
     n->cq[cq->cqid] = NULL;
@@ -4775,6 +4900,12 @@ static void nvme_free_cq(NvmeCQueue *cq, NvmeCtrl *n)
         event_notifier_cleanup(&cq->notifier);
     }
     if (cq->assert_notifier.initialized) {
+        if (with_irqfd) {
+            kvm_irqchip_remove_irqfd_notifier_gsi(kvm_state,
+                                                  &cq->assert_notifier,
+                                                  cq->virq);
+            kvm_irqchip_release_virq(kvm_state, cq->virq);
+        }
         event_notifier_set_handler(&cq->assert_notifier, NULL);
         event_notifier_cleanup(&cq->assert_notifier);
     }
@@ -6528,6 +6659,9 @@ static int nvme_start_ctrl(NvmeCtrl *n)
     uint32_t page_size = 1 << page_bits;
     NvmeSecCtrlEntry *sctrl = nvme_sctrl(n);
 
+    bool with_irqfd = msix_enabled(&n->parent_obj) &&
+                      kvm_msi_via_irqfd_enabled();
+
     if (pci_is_vf(&n->parent_obj) && !sctrl->scs) {
         trace_pci_nvme_err_startfail_virt_state(le16_to_cpu(sctrl->nvi),
                                                 le16_to_cpu(sctrl->nvq),
@@ -6616,6 +6750,12 @@ static int nvme_start_ctrl(NvmeCtrl *n)
     nvme_set_timestamp(n, 0ULL);
 
     nvme_select_iocs(n);
+
+    if (n->params.irq_eventfd && with_irqfd) {
+        return msix_set_vector_notifiers(PCI_DEVICE(n), nvme_kvm_vector_unmask,
+                                         nvme_kvm_vector_mask,
+                                         nvme_kvm_vector_poll);
+    }
 
     return 0;
 }
@@ -7734,6 +7874,7 @@ static void nvme_exit(PCIDevice *pci_dev)
         pcie_sriov_pf_exit(pci_dev);
     }
 
+    msix_unset_vector_notifiers(pci_dev);
     msix_uninit(pci_dev, &n->bar0, &n->bar0);
     memory_region_del_subregion(&n->bar0, &n->iomem);
 }
