@@ -380,6 +380,7 @@ typedef struct NvmeSQueue {
     QEMUTimer   *timer;
     EventNotifier notifier;
     bool        ioeventfd_enabled;
+    bool        suppress_db;
     NvmeRequest *io_req;
     QTAILQ_HEAD(, NvmeRequest) req_list;
     QTAILQ_HEAD(, NvmeRequest) out_req_list;

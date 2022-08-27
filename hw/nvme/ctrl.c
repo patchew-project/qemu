@@ -298,6 +298,8 @@ static const uint32_t nvme_cse_iocs_zoned[256] = {
 
 static void nvme_process_sq(void *opaque);
 static void nvme_ctrl_reset(NvmeCtrl *n, NvmeResetType rst);
+static void nvme_update_sq_eventidx(const NvmeSQueue *sq);
+static void nvme_update_sq_tail(NvmeSQueue *sq);
 
 static uint16_t nvme_sqid(NvmeRequest *req)
 {
@@ -4447,6 +4449,21 @@ static void nvme_cq_notifier(EventNotifier *e)
     nvme_post_cqes(cq);
 }
 
+static bool nvme_cq_notifier_aio_poll(void *opaque)
+{
+    /*
+     * We already "poll" the CQ tail shadow doorbell value in nvme_post_cqes(),
+     * so we do not need to check the value here. However, QEMU's AioContext
+     * polling requires us to provide io_poll and io_poll_ready handlers, so
+     * use dummy functions for CQ.
+     */
+    return false;
+}
+
+static void nvme_cq_notifier_aio_poll_ready(EventNotifier *n)
+{
+}
+
 static int nvme_init_cq_ioeventfd(NvmeCQueue *cq)
 {
     NvmeCtrl *n = cq->ctrl;
@@ -4459,8 +4476,10 @@ static int nvme_init_cq_ioeventfd(NvmeCQueue *cq)
     }
 
     if (cq->cqid) {
-        aio_set_event_notifier(n->ctx, &cq->notifier, true, nvme_cq_notifier,
-                               NULL, NULL);
+        aio_set_event_notifier(n->ctx, &cq->notifier, true,
+                               nvme_cq_notifier,
+                               nvme_cq_notifier_aio_poll,
+                               nvme_cq_notifier_aio_poll_ready);
     } else {
         event_notifier_set_handler(&cq->notifier, nvme_cq_notifier);
     }
@@ -4482,6 +4501,44 @@ static void nvme_sq_notifier(EventNotifier *e)
     nvme_process_sq(sq);
 }
 
+static void nvme_sq_notifier_aio_poll_begin(EventNotifier *n)
+{
+    NvmeSQueue *sq = container_of(n, NvmeSQueue, notifier);
+
+    nvme_update_sq_eventidx(sq);
+
+    /* Stop host doorbell writes by stop updating eventidx */
+    sq->suppress_db = true;
+}
+
+static bool nvme_sq_notifier_aio_poll(void *opaque)
+{
+    EventNotifier *n = opaque;
+    NvmeSQueue *sq = container_of(n, NvmeSQueue, notifier);
+    uint32_t old_tail = sq->tail;
+
+    nvme_update_sq_tail(sq);
+
+    return sq->tail != old_tail;
+}
+
+static void nvme_sq_notifier_aio_poll_ready(EventNotifier *n)
+{
+    NvmeSQueue *sq = container_of(n, NvmeSQueue, notifier);
+
+    nvme_process_sq(sq);
+}
+
+static void nvme_sq_notifier_aio_poll_end(EventNotifier *n)
+{
+    NvmeSQueue *sq = container_of(n, NvmeSQueue, notifier);
+
+    nvme_update_sq_eventidx(sq);
+
+    /* Resume host doorbell writes */
+    sq->suppress_db = false;
+}
+
 static int nvme_init_sq_ioeventfd(NvmeSQueue *sq)
 {
     NvmeCtrl *n = sq->ctrl;
@@ -4494,8 +4551,13 @@ static int nvme_init_sq_ioeventfd(NvmeSQueue *sq)
     }
 
     if (sq->sqid) {
-        aio_set_event_notifier(n->ctx, &sq->notifier, true, nvme_sq_notifier,
-                               NULL, NULL);
+        aio_set_event_notifier(n->ctx, &sq->notifier, true,
+                               nvme_sq_notifier,
+                               nvme_sq_notifier_aio_poll,
+                               nvme_sq_notifier_aio_poll_ready);
+        aio_set_event_notifier_poll(n->ctx, &sq->notifier,
+                                    nvme_sq_notifier_aio_poll_begin,
+                                    nvme_sq_notifier_aio_poll_end);
     } else {
         event_notifier_set_handler(&sq->notifier, nvme_sq_notifier);
     }
@@ -6530,7 +6592,9 @@ static void nvme_process_sq(void *opaque)
         }
 
         if (n->dbbuf_enabled) {
-            nvme_update_sq_eventidx(sq);
+            if (!sq->suppress_db) {
+                nvme_update_sq_eventidx(sq);
+            }
             nvme_update_sq_tail(sq);
         }
     }
