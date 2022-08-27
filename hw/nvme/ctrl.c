@@ -4458,7 +4458,13 @@ static int nvme_init_cq_ioeventfd(NvmeCQueue *cq)
         return ret;
     }
 
-    event_notifier_set_handler(&cq->notifier, nvme_cq_notifier);
+    if (cq->cqid) {
+        aio_set_event_notifier(n->ctx, &cq->notifier, true, nvme_cq_notifier,
+                               NULL, NULL);
+    } else {
+        event_notifier_set_handler(&cq->notifier, nvme_cq_notifier);
+    }
+
     memory_region_add_eventfd(&n->iomem,
                               0x1000 + offset, 4, false, 0, &cq->notifier);
 
@@ -4487,7 +4493,13 @@ static int nvme_init_sq_ioeventfd(NvmeSQueue *sq)
         return ret;
     }
 
-    event_notifier_set_handler(&sq->notifier, nvme_sq_notifier);
+    if (sq->sqid) {
+        aio_set_event_notifier(n->ctx, &sq->notifier, true, nvme_sq_notifier,
+                               NULL, NULL);
+    } else {
+        event_notifier_set_handler(&sq->notifier, nvme_sq_notifier);
+    }
+
     memory_region_add_eventfd(&n->iomem,
                               0x1000 + offset, 4, false, 0, &sq->notifier);
 
@@ -4503,7 +4515,12 @@ static void nvme_free_sq(NvmeSQueue *sq, NvmeCtrl *n)
     if (sq->ioeventfd_enabled) {
         memory_region_del_eventfd(&n->iomem,
                                   0x1000 + offset, 4, false, 0, &sq->notifier);
-        event_notifier_set_handler(&sq->notifier, NULL);
+        if (sq->sqid) {
+            aio_set_event_notifier(n->ctx, &sq->notifier, true, NULL, NULL,
+                                   NULL);
+        } else {
+            event_notifier_set_handler(&sq->notifier, NULL);
+        }
         event_notifier_cleanup(&sq->notifier);
     }
     g_free(sq->io_req);
@@ -4573,7 +4590,13 @@ static void nvme_init_sq(NvmeSQueue *sq, NvmeCtrl *n, uint64_t dma_addr,
         sq->io_req[i].sq = sq;
         QTAILQ_INSERT_TAIL(&(sq->req_list), &sq->io_req[i], entry);
     }
-    sq->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, nvme_process_sq, sq);
+
+    if (sq->sqid) {
+        sq->timer = aio_timer_new(n->ctx, QEMU_CLOCK_VIRTUAL, SCALE_NS,
+                                  nvme_process_sq, sq);
+    } else {
+        sq->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, nvme_process_sq, sq);
+    }
 
     if (n->dbbuf_enabled) {
         sq->db_addr = n->dbbuf_dbs + (sqid << 3);
@@ -4896,7 +4919,12 @@ static void nvme_free_cq(NvmeCQueue *cq, NvmeCtrl *n)
     if (cq->ioeventfd_enabled) {
         memory_region_del_eventfd(&n->iomem,
                                   0x1000 + offset, 4, false, 0, &cq->notifier);
-        event_notifier_set_handler(&cq->notifier, NULL);
+        if (cq->cqid) {
+            aio_set_event_notifier(n->ctx, &cq->notifier, true, NULL, NULL,
+                                   NULL);
+        } else {
+            event_notifier_set_handler(&cq->notifier, NULL);
+        }
         event_notifier_cleanup(&cq->notifier);
     }
     if (cq->assert_notifier.initialized) {
@@ -4979,7 +5007,13 @@ static void nvme_init_cq(NvmeCQueue *cq, NvmeCtrl *n, uint64_t dma_addr,
         }
     }
     n->cq[cqid] = cq;
-    cq->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, nvme_post_cqes, cq);
+
+    if (cq->cqid) {
+        cq->timer = aio_timer_new(n->ctx, QEMU_CLOCK_VIRTUAL, SCALE_NS,
+                                  nvme_post_cqes, cq);
+    } else {
+        cq->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, nvme_post_cqes, cq);
+    }
 
     /*
      * Only enable irq eventfd for IO queues since we always emulate admin
@@ -7759,6 +7793,14 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
     if (pci_is_vf(&n->parent_obj) && !sctrl->scs) {
         stl_le_p(&n->bar.csts, NVME_CSTS_FAILED);
     }
+
+    if (n->params.iothread) {
+        n->iothread = n->params.iothread;
+        object_ref(OBJECT(n->iothread));
+        n->ctx = iothread_get_aio_context(n->iothread);
+    } else {
+        n->ctx = qemu_get_aio_context();
+    }
 }
 
 static int nvme_init_subsys(NvmeCtrl *n, Error **errp)
@@ -7831,7 +7873,7 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
         ns = &n->namespace;
         ns->params.nsid = 1;
 
-        if (nvme_ns_setup(ns, errp)) {
+        if (nvme_ns_setup(ns, n->ctx, errp)) {
             return;
         }
 
@@ -7862,6 +7904,15 @@ static void nvme_exit(PCIDevice *pci_dev)
     g_free(n->sq);
     g_free(n->aer_reqs);
 
+    aio_context_acquire(n->ctx);
+    blk_set_aio_context(n->namespace.blkconf.blk, qemu_get_aio_context(), NULL);
+    aio_context_release(n->ctx);
+
+    if (n->iothread) {
+        object_unref(OBJECT(n->iothread));
+        n->iothread = NULL;
+    }
+
     if (n->params.cmb_size_mb) {
         g_free(n->cmb.buf);
     }
@@ -7885,6 +7936,8 @@ static Property nvme_props[] = {
                      HostMemoryBackend *),
     DEFINE_PROP_LINK("subsys", NvmeCtrl, subsys, TYPE_NVME_SUBSYS,
                      NvmeSubsystem *),
+    DEFINE_PROP_LINK("iothread", NvmeCtrl, params.iothread, TYPE_IOTHREAD,
+                     IOThread *),
     DEFINE_PROP_STRING("serial", NvmeCtrl, params.serial),
     DEFINE_PROP_UINT32("cmb_size_mb", NvmeCtrl, params.cmb_size_mb, 0),
     DEFINE_PROP_UINT32("num_queues", NvmeCtrl, params.num_queues, 0),
