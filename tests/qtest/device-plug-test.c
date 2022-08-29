@@ -165,6 +165,26 @@ static void test_spapr_phb_unplug_request(void)
     qtest_quit(qtest);
 }
 
+static void test_q35_pci_unplug_request(void)
+{
+
+    QTestState *qtest = qtest_initf("-machine q35 "
+                                    "-device pcie-root-port,id=p1 "
+                                    "-device pcie-pci-bridge,bus=p1,id=b1 "
+                                    "-device virtio-mouse-pci,bus=b1,id=dev0");
+
+    /*
+     * Request device removal. As the guest is not running, the request won't
+     * be processed. However during system reset, the removal will be
+     * handled, removing the device.
+     */
+    device_del(qtest, "dev0");
+    system_reset(qtest);
+    wait_device_deleted_event(qtest, "dev0");
+
+    qtest_quit(qtest);
+}
+
 int main(int argc, char **argv)
 {
     const char *arch = qtest_get_arch();
@@ -193,6 +213,12 @@ int main(int argc, char **argv)
                        test_spapr_memory_unplug_request);
         qtest_add_func("/device-plug/spapr-phb-unplug-request",
                        test_spapr_phb_unplug_request);
+    }
+
+    if (!strcmp(arch, "x86_64")) {
+        qtest_add_func("/device-plug/q35-pci-unplug-request",
+                   test_q35_pci_unplug_request);
+
     }
 
     return g_test_run();
