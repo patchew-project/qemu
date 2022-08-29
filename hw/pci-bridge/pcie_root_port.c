@@ -74,12 +74,7 @@ static void rp_realize(PCIDevice *d, Error **errp)
     }
     pcie_port_init_reg(d);
 
-    rc = pci_bridge_ssvid_init(d, rpc->ssvid_offset, dc->vendor_id,
-                               rpc->ssid, errp);
-    if (rc < 0) {
-        error_append_hint(errp, "Can't init SSV ID, error %d\n", rc);
-        goto err_bridge;
-    }
+    pci_bridge_ssvid_init(d, rpc->ssvid_offset, dc->vendor_id, rpc->ssid);
 
     if (rpc->interrupts_init) {
         rc = rpc->interrupts_init(d, errp);
@@ -88,13 +83,7 @@ static void rp_realize(PCIDevice *d, Error **errp)
         }
     }
 
-    rc = pcie_cap_init(d, rpc->exp_offset, PCI_EXP_TYPE_ROOT_PORT,
-                       p->port, errp);
-    if (rc < 0) {
-        error_append_hint(errp, "Can't add Root Port capability, "
-                          "error %d\n", rc);
-        goto err_int;
-    }
+    pcie_cap_init(d, rpc->exp_offset, PCI_EXP_TYPE_ROOT_PORT, p->port);
 
     pcie_cap_arifwd_init(d);
     pcie_cap_deverr_init(d);
@@ -125,7 +114,6 @@ err:
     pcie_chassis_del_slot(s);
 err_pcie_cap:
     pcie_cap_exit(d);
-err_int:
     if (rpc->interrupts_uninit) {
         rpc->interrupts_uninit(d);
     }

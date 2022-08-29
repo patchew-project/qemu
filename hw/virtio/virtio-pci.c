@@ -1153,14 +1153,13 @@ static bool virtio_pci_queue_enabled(DeviceState *d, int n)
     return virtio_queue_enabled_legacy(vdev, n);
 }
 
-static int virtio_pci_add_mem_cap(VirtIOPCIProxy *proxy,
-                                   struct virtio_pci_cap *cap)
+static uint8_t virtio_pci_add_mem_cap(VirtIOPCIProxy *proxy,
+                                      struct virtio_pci_cap *cap)
 {
     PCIDevice *dev = &proxy->pci_dev;
-    int offset;
+    uint8_t offset;
 
-    offset = pci_add_capability(dev, PCI_CAP_ID_VNDR, 0,
-                                cap->cap_len, &error_abort);
+    offset = pci_add_capability(dev, PCI_CAP_ID_VNDR, 0, cap->cap_len);
 
     assert(cap->cap_len >= sizeof *cap);
     memcpy(dev->config + offset + PCI_CAP_FLAGS, &cap->cap_len,
@@ -1864,18 +1863,11 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
     }
 
     if (pcie_port && pci_is_express(pci_dev)) {
-        int pos;
+        uint8_t pos;
         uint16_t last_pcie_cap_offset = PCI_CONFIG_SPACE_SIZE;
 
-        pos = pcie_endpoint_cap_init(pci_dev, 0);
-        assert(pos > 0);
-
-        pos = pci_add_capability(pci_dev, PCI_CAP_ID_PM, 0,
-                                 PCI_PM_SIZEOF, errp);
-        if (pos < 0) {
-            return;
-        }
-
+        pcie_endpoint_cap_init(pci_dev, 0);
+        pos = pci_add_capability(pci_dev, PCI_CAP_ID_PM, 0, PCI_PM_SIZEOF);
         pci_dev->exp.pm_cap = pos;
 
         /*
