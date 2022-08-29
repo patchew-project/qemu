@@ -2470,6 +2470,7 @@ static int ram_save_host_page(RAMState *rs, PageSearchStatus *pss)
     unsigned long hostpage_boundary =
         QEMU_ALIGN_UP(pss->page + 1, pagesize_bits);
     unsigned long start_page = pss->page;
+    bool page_dirty;
     int res;
 
     if (ramblock_is_ignored(pss->block)) {
@@ -2487,22 +2488,41 @@ static int ram_save_host_page(RAMState *rs, PageSearchStatus *pss)
             break;
         }
 
-        /* Check the pages is dirty and if it is send it */
-        if (migration_bitmap_clear_dirty(rs, pss->block, pss->page)) {
-            tmppages = ram_save_target_page(rs, pss);
-            if (tmppages < 0) {
-                return tmppages;
-            }
-
-            pages += tmppages;
-            /*
-             * Allow rate limiting to happen in the middle of huge pages if
-             * something is sent in the current iteration.
-             */
-            if (pagesize_bits > 1 && tmppages > 0) {
-                migration_rate_limit();
-            }
+        page_dirty = migration_bitmap_clear_dirty(rs, pss->block, pss->page);
+        /*
+         * Properly yield the lock only in postcopy preempt mode because
+         * both migration thread and rp-return thread can operate on the
+         * bitmaps.
+         */
+        if (postcopy_preempt_active()) {
+            qemu_mutex_unlock(&rs->bitmap_mutex);
         }
+
+        /* Check the pages is dirty and if it is send it */
+        if (page_dirty) {
+            tmppages = ram_save_target_page(rs, pss);
+            if (tmppages >= 0) {
+                pages += tmppages;
+                /*
+                 * Allow rate limiting to happen in the middle of huge pages if
+                 * something is sent in the current iteration.
+                 */
+                if (pagesize_bits > 1 && tmppages > 0) {
+                    migration_rate_limit();
+                }
+            }
+        } else {
+            tmppages = 0;
+        }
+
+        if (postcopy_preempt_active()) {
+            qemu_mutex_lock(&rs->bitmap_mutex);
+        }
+
+        if (tmppages < 0) {
+            return tmppages;
+        }
+
         pss->page = migration_bitmap_find_dirty(rs, pss->block, pss->page);
     } while ((pss->page < hostpage_boundary) &&
              offset_in_ramblock(pss->block,
