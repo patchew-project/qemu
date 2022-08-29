@@ -181,3 +181,11 @@ void helper_boundl(CPUX86State *env, target_ulong a0, int v)
         raise_exception_ra(env, EXCP05_BOUND, GETPC());
     }
 }
+
+void helper_raise_gp_if_unaligned(CPUX86State *env, target_ulong addr,
+                                  target_ulong align_mask)
+{
+    if (unlikely((addr & align_mask) != 0)) {
+        raise_exception_ra(env, EXCP0D_GPF, GETPC());
+    }
+}
