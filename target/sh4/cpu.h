@@ -84,7 +84,7 @@
 #define DELAY_SLOT_RTE         (1 << 2)
 
 #define TB_FLAG_PENDING_MOVCA  (1 << 3)
-#define TB_FLAG_UNALIGN        (1 << 4)
+#define TB_FLAG_UNALIGN        (1 << 13)
 
 #define GUSA_SHIFT             4
 #ifdef CONFIG_USER_ONLY
