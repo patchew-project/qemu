@@ -1542,9 +1542,7 @@
 #      "arguments": { "driver": "qcow2",
 #                     "node-name": "node1534",
 #                     "data-file": { "driver": "file",
-#                                    "filename": "hd1.qcow2" },
-#                     "backing": null } }
-#
+#                                    "filename": "hd1.qcow2" } } }
 # <- { "return": {} }
 #
 # -> { "execute": "blockdev-snapshot",
