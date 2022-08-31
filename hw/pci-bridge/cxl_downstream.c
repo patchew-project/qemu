@@ -155,12 +155,8 @@ static void cxl_dsp_realize(PCIDevice *d, Error **errp)
         goto err_bridge;
     }
 
-    rc = pcie_cap_init(d, CXL_DOWNSTREAM_PORT_EXP_OFFSET,
-                       PCI_EXP_TYPE_DOWNSTREAM, p->port,
-                       errp);
-    if (rc < 0) {
-        goto err_msi;
-    }
+    pcie_cap_init(d, CXL_DOWNSTREAM_PORT_EXP_OFFSET,
+                  PCI_EXP_TYPE_DOWNSTREAM, p->port);
 
     pcie_cap_flr_init(d);
     pcie_cap_deverr_init(d);
@@ -195,7 +191,6 @@ static void cxl_dsp_realize(PCIDevice *d, Error **errp)
     pcie_chassis_del_slot(s);
  err_pcie_cap:
     pcie_cap_exit(d);
- err_msi:
     msi_uninit(d);
  err_bridge:
     pci_bridge_exitfn(d);

@@ -150,8 +150,7 @@ static void usb_xhci_pci_realize(struct PCIDevice *dev, Error **errp)
 
     if (pci_bus_is_express(pci_get_bus(dev)) ||
         xhci_get_flag(&s->xhci, XHCI_FLAG_FORCE_PCIE_ENDCAP)) {
-        ret = pcie_endpoint_cap_init(dev, 0xa0);
-        assert(ret > 0);
+        pcie_endpoint_cap_init(dev, 0xa0);
     }
 
     if (s->msix != ON_OFF_AUTO_OFF) {
