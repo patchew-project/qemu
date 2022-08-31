@@ -54,6 +54,8 @@
 #include "kvm/kvm_i386.h"
 #include "hw/xen/start_info.h"
 
+#include "standard-headers/asm-x86/kvm_para.h"
+
 #define MICROVM_QBOOT_FILENAME "qboot.rom"
 #define MICROVM_BIOS_FILENAME  "bios-microvm.bin"
 
@@ -424,7 +426,9 @@ static void microvm_device_pre_plug_cb(HotplugHandler *hotplug_dev,
 {
     X86CPU *cpu = X86_CPU(dev);
 
-    cpu->host_phys_bits = true; /* need reliable phys-bits */
+    /* need reliable phys-bits */
+    cpu->env.features[FEAT_KVM_HINTS] |= (1 << KVM_HINTS_HOST_PHYS_BITS);
+
     x86_cpu_pre_plug(hotplug_dev, dev, errp);
 }
 

@@ -1898,9 +1898,6 @@ struct ArchCPU {
     /* if true fill the top bits of the MTRR_PHYSMASKn variable range */
     bool fill_mtrr_mask;
 
-    /* if true override the phys_bits value with a value read from the host */
-    bool host_phys_bits;
-
     /* if set, limit maximum value for phys_bits when host_phys_bits is true */
     uint8_t host_phys_bits_limit;
 

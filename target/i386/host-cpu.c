@@ -13,6 +13,8 @@
 #include "qapi/error.h"
 #include "sysemu/sysemu.h"
 
+#include "standard-headers/asm-x86/kvm_para.h"
+
 /* Note: Only safe for use on x86(-64) hosts */
 static uint32_t host_cpu_phys_bits(void)
 {
@@ -68,7 +70,7 @@ static uint32_t host_cpu_adjust_phys_bits(X86CPU *cpu)
         warned = true;
     }
 
-    if (cpu->host_phys_bits) {
+    if (cpu->env.features[FEAT_KVM_HINTS] & (1 << KVM_HINTS_HOST_PHYS_BITS)) {
         /* The user asked for us to use the host physical bits */
         phys_bits = host_phys_bits;
         if (cpu->host_phys_bits_limit &&
