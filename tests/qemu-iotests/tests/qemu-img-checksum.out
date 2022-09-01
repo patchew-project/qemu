@@ -1,0 +1,74 @@
+
+=== Test images ===
+
+TEST_DIR/PID-raw
+[{ "start": 0, "length": 4194304, "depth": 0, "present": true, "zero": false, "data": true, "offset": 0},
+{ "start": 4194304, "length": 6291456, "depth": 0, "present": true, "zero": true, "data": false, "offset": 4194304}]
+
+TEST_DIR/PID-qcow2
+[{ "start": 0, "length": 4194304, "depth": 0, "present": true, "zero": false, "data": true, "offset": 327680},
+{ "start": 4194304, "length": 4194304, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 8388608, "length": 2097152, "depth": 0, "present": false, "zero": true, "data": false}]
+
+TEST_DIR/PID-compressed
+[{ "start": 0, "length": 2097152, "depth": 0, "present": true, "zero": false, "data": true},
+{ "start": 2097152, "length": 8388608, "depth": 0, "present": false, "zero": true, "data": false}]
+
+TEST_DIR/PID-base
+[{ "start": 0, "length": 4194304, "depth": 0, "present": true, "zero": false, "data": true, "offset": 0},
+{ "start": 4194304, "length": 6291456, "depth": 0, "present": true, "zero": true, "data": false, "offset": 4194304}]
+
+TEST_DIR/PID-top
+[{ "start": 0, "length": 4194304, "depth": 1, "present": true, "zero": false, "data": true, "offset": 0},
+{ "start": 4194304, "length": 4194304, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 8388608, "length": 2097152, "depth": 1, "present": true, "zero": true, "data": false, "offset": 8388608}]
+
+
+=== Checksums - file ===
+
+57cd8ef0cfad106d737f8fb0de3a0306a8a1a41db7bf7c0c36e2dfe75ee9bd26  TEST_DIR/PID-raw
+
+57cd8ef0cfad106d737f8fb0de3a0306a8a1a41db7bf7c0c36e2dfe75ee9bd26  TEST_DIR/PID-qcow2
+
+57cd8ef0cfad106d737f8fb0de3a0306a8a1a41db7bf7c0c36e2dfe75ee9bd26  TEST_DIR/PID-compressed
+
+57cd8ef0cfad106d737f8fb0de3a0306a8a1a41db7bf7c0c36e2dfe75ee9bd26  TEST_DIR/PID-top
+
+57cd8ef0cfad106d737f8fb0de3a0306a8a1a41db7bf7c0c36e2dfe75ee9bd26  TEST_DIR/PID-base
+
+
+=== Checksums - nbd ===
+
+Start NBD server
+57cd8ef0cfad106d737f8fb0de3a0306a8a1a41db7bf7c0c36e2dfe75ee9bd26  nbd+unix:///raw?socket=SOCK_DIR/PID-nbd.sock
+
+Kill NBD server
+Start NBD server
+57cd8ef0cfad106d737f8fb0de3a0306a8a1a41db7bf7c0c36e2dfe75ee9bd26  nbd+unix:///qcow2?socket=SOCK_DIR/PID-nbd.sock
+
+Kill NBD server
+Start NBD server
+57cd8ef0cfad106d737f8fb0de3a0306a8a1a41db7bf7c0c36e2dfe75ee9bd26  nbd+unix:///compressed?socket=SOCK_DIR/PID-nbd.sock
+
+Kill NBD server
+Start NBD server
+57cd8ef0cfad106d737f8fb0de3a0306a8a1a41db7bf7c0c36e2dfe75ee9bd26  nbd+unix:///base?socket=SOCK_DIR/PID-nbd.sock
+
+Kill NBD server
+Start NBD server
+57cd8ef0cfad106d737f8fb0de3a0306a8a1a41db7bf7c0c36e2dfe75ee9bd26  nbd+unix:///top?socket=SOCK_DIR/PID-nbd.sock
+
+Kill NBD server
+
+=== Command line options ===
+
+57cd8ef0cfad106d737f8fb0de3a0306a8a1a41db7bf7c0c36e2dfe75ee9bd26  TEST_DIR/PID-top
+
+57cd8ef0cfad106d737f8fb0de3a0306a8a1a41db7bf7c0c36e2dfe75ee9bd26  TEST_DIR/PID-top
+
+57cd8ef0cfad106d737f8fb0de3a0306a8a1a41db7bf7c0c36e2dfe75ee9bd26  TEST_DIR/PID-top
+
+=== Incorrect usage ===
+
+qemu-img: Could not open 'TEST_DIR/PID-raw': Image is not in qcow2 format
+

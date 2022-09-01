@@ -1,0 +1,149 @@
+#!/usr/bin/env python3
+# group: rw auto quick
+#
+# Test cases for qemu-img checksum.
+#
+# Copyright (C) 2022 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import re
+
+import iotests
+
+from iotests import (
+    filter_testfiles,
+    qemu_img,
+    qemu_img_log,
+    qemu_io,
+    qemu_nbd_popen,
+)
+
+
+def checksum_available():
+    out = qemu_img("--help").stdout
+    return re.search(r"\bchecksum .+ filename\b", out) is not None
+
+
+if not checksum_available():
+    iotests.notrun("checksum command not available")
+
+iotests.script_initialize(
+    supported_fmts=["raw", "qcow2"],
+    supported_cache_modes=["none", "writeback"],
+    supported_protocols=["file", "nbd"],
+    required_fmts=["raw", "qcow2"],
+)
+
+print()
+print("=== Test images ===")
+print()
+
+disk_raw = iotests.file_path('raw')
+qemu_img("create", "-f", "raw", disk_raw, "10m")
+qemu_io("-f", "raw",
+        "-c", "write -P 0x1 0 2m",      # data
+        "-c", "write -P 0x0 2m 2m",     # data with zeroes
+        "-c", "write -z 4m 2m",         # zero allocated
+        "-c", "write -z -u 6m 2m",      # zero hole
+                                        # unallocated
+        disk_raw)
+print(filter_testfiles(disk_raw))
+qemu_img_log("map", "--output", "json", disk_raw)
+
+disk_qcow2 = iotests.file_path('qcow2')
+qemu_img("create", "-f", "qcow2", disk_qcow2, "10m")
+qemu_io("-f", "qcow2",
+        "-c", "write -P 0x1 0 2m",      # data
+        "-c", "write -P 0x0 2m 2m",     # data with zeroes
+        "-c", "write -z 4m 2m",         # zero allocated
+        "-c", "write -z -u 6m 2m",      # zero hole
+                                        # unallocated
+        disk_qcow2)
+print(filter_testfiles(disk_qcow2))
+qemu_img_log("map", "--output", "json", disk_qcow2)
+
+disk_compressed = iotests.file_path('compressed')
+qemu_img("convert", "-f", "qcow2", "-O", "qcow2", "-c",
+         disk_qcow2, disk_compressed)
+print(filter_testfiles(disk_compressed))
+qemu_img_log("map", "--output", "json", disk_compressed)
+
+disk_base = iotests.file_path('base')
+qemu_img("create", "-f", "raw", disk_base, "10m")
+qemu_io("-f", "raw",
+        "-c", "write -P 0x1 0 2m",
+        "-c", "write -P 0x0 2m 2m",
+        disk_base)
+print(filter_testfiles(disk_base))
+qemu_img_log("map", "--output", "json", disk_base)
+
+disk_top = iotests.file_path('top')
+qemu_img("create", "-f", "qcow2", "-b", disk_base, "-F", "raw",
+         disk_top)
+qemu_io("-f", "qcow2",
+        "-c", "write -z 4m 2m",
+        "-c", "write -z -u 6m 2m",
+        disk_top)
+print(filter_testfiles(disk_top))
+qemu_img_log("map", "--output", "json", disk_top)
+
+print()
+print("=== Checksums - file ===")
+print()
+
+qemu_img_log("checksum", disk_raw)
+qemu_img_log("checksum", disk_qcow2)
+qemu_img_log("checksum", disk_compressed)
+qemu_img_log("checksum", disk_top)
+qemu_img_log("checksum", disk_base)
+
+print()
+print("=== Checksums - nbd ===")
+print()
+
+nbd_sock = iotests.file_path("nbd.sock", base_dir=iotests.sock_dir)
+nbd_uri = f"nbd+unix:///{{}}?socket={nbd_sock}"
+
+with qemu_nbd_popen("-k", nbd_sock, "-f", "raw", "-x", "raw", disk_raw):
+    qemu_img_log("checksum", nbd_uri.format("raw"))
+
+with qemu_nbd_popen("-k", nbd_sock, "-f", "qcow2", "-x", "qcow2", disk_qcow2):
+    qemu_img_log("checksum", nbd_uri.format("qcow2"))
+
+with qemu_nbd_popen("-k", nbd_sock, "-f", "qcow2", "-x", "compressed", disk_compressed):
+    qemu_img_log("checksum", nbd_uri.format("compressed"))
+
+with qemu_nbd_popen("-k", nbd_sock, "-f", "raw", "-x", "base", disk_base):
+    qemu_img_log("checksum", nbd_uri.format("base"))
+
+with qemu_nbd_popen("-k", nbd_sock, "-f", "qcow2", "-x", "top", disk_top):
+    qemu_img_log("checksum", nbd_uri.format("top"))
+
+print()
+print("=== Command line options ===")
+print()
+
+qemu_img_log("checksum", "-f", "qcow2", disk_top)
+qemu_img_log("checksum", "-T", "none", disk_top)
+
+out = qemu_img("checksum", "-p", disk_top).stdout
+last = out.splitlines()[-1]  # Filter progress lines.
+print(filter_testfiles(last))
+
+print()
+print("=== Incorrect usage ===")
+print()
+
+qemu_img_log("checksum", "-f", "qcow2", disk_raw, check=False)
