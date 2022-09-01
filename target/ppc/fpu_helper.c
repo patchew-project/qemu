@@ -2912,22 +2912,20 @@ uint64_t helper_XSCVSPDPN(uint64_t xb)
 #define VSX_CVT_FP_TO_INT(op, nels, stp, ttp, sfld, tfld, sfi, rnan)         \
 void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)             \
 {                                                                            \
-    int all_flags = env->fp_status.float_exception_flags, flags;             \
     ppc_vsr_t t = { };                                                       \
-    int i;                                                                   \
+    int i, flags;                                                            \
+                                                                             \
+    helper_reset_fpstatus(env);                                              \
                                                                              \
     for (i = 0; i < nels; i++) {                                             \
-        env->fp_status.float_exception_flags = 0;                            \
         t.tfld = stp##_to_##ttp##_round_to_zero(xb->sfld, &env->fp_status);  \
         flags = env->fp_status.float_exception_flags;                        \
         if (unlikely(flags & float_flag_invalid)) {                          \
             t.tfld = float_invalid_cvt(env, flags, t.tfld, rnan, 0, GETPC());\
         }                                                                    \
-        all_flags |= flags;                                                  \
     }                                                                        \
                                                                              \
     *xt = t;                                                                 \
-    env->fp_status.float_exception_flags = all_flags;                        \
     do_float_check_status(env, sfi, GETPC());                                \
 }
 
