@@ -2717,6 +2717,8 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)      \
     ppc_vsr_t t = { };                                                \
     int i;                                                            \
                                                                       \
+    helper_reset_fpstatus(env);                                       \
+                                                                      \
     for (i = 0; i < nels; i++) {                                      \
         t.VsrW(2 * i) = stp##_to_##ttp(xb->VsrD(i), &env->fp_status); \
         if (unlikely(stp##_is_signaling_nan(xb->VsrD(i),              \
@@ -2863,6 +2865,7 @@ uint64_t helper_xscvdpspn(CPUPPCState *env, uint64_t xb)
 {
     uint64_t result, sign, exp, frac;
 
+    helper_reset_fpstatus(env);
     float_status tstat = env->fp_status;
     set_float_exception_flags(0, &tstat);
 
