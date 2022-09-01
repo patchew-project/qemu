@@ -2840,6 +2840,8 @@ void helper_XSCVQPDP(CPUPPCState *env, uint32_t ro, ppc_vsr_t *xt,
     ppc_vsr_t t = { };
     float_status tstat;
 
+    helper_reset_fpstatus(env);
+
     tstat = env->fp_status;
     if (ro != 0) {
         tstat.float_rounding_mode = float_round_to_odd;
