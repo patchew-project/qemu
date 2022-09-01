@@ -115,6 +115,34 @@
                   R_ ## reg ## _ ## field ## _LENGTH, _v.v);              \
     _d; })
 
+/* Get the max value (uint) discribed by `num_bits` bits */
+#define MAX_N_BITS(num_bits) ((1 << (num_bits)) - 1)
+
+/*
+ * Clear the specified field in reg_val if
+ * all field bits are set, else no changes made. Implements
+ * single/multi-bit `rw1c`
+ */
+#define FIELD8_1CLEAR(reg_val, reg, field)                                \
+    ((FIELD_EX8(reg_val, reg, field) ==                                   \
+      MAX_N_BITS(R_ ## reg ## _ ## field ## _LENGTH)) ?                   \
+      FIELD_DP8(reg_val, reg, field, 0x00) : reg_val)
+
+#define FIELD16_1CLEAR(reg_val, reg, field)                               \
+    ((FIELD_EX16(reg_val, reg, field) ==                                  \
+      MAX_N_BITS(R_ ## reg ## _ ## field ## _LENGTH)) ?                   \
+      FIELD_DP16(reg_val, reg, field, 0x00) : reg_val)
+
+#define FIELD32_1CLEAR(reg_val, reg, field)                               \
+    ((FIELD_EX32(reg_val, reg, field) ==                                  \
+      MAX_N_BITS(R_ ## reg ## _ ## field ## _LENGTH)) ?                   \
+      FIELD_DP32(reg_val, reg, field, 0x00) : reg_val)
+
+#define FIELD64_1CLEAR(reg_val, reg, field)                               \
+    ((FIELD_EX64(reg_val, reg, field) ==                                  \
+      MAX_N_BITS(R_ ## reg ## _ ## field ## _LENGTH)) ?                   \
+      FIELD_DP64(reg_val, reg, field, 0x00) : reg_val)
+
 #define FIELD_SDP8(storage, reg, field, val) ({                           \
     struct {                                                              \
         signed int v:R_ ## reg ## _ ## field ## _LENGTH;                  \
