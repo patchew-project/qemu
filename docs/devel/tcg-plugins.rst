@@ -441,3 +441,79 @@ The plugin has a number of arguments, all of them are optional:
   associativity of the L2 cache, respectively. Setting any of the L2
   configuration arguments implies ``l2=on``.
   (default: N = 2097152 (2MB), B = 64, A = 16)
+
+Plugin-to-Plugin Interactions
+-----------------------------
+
+Plugins may interact with other plugins through the QEMU Plugin-to-Plugin
+("QPP") API by including ``qemu/plugin-qpp.h``. This API supports direct
+function calls between plugins as well as an inter-plugin callback system.
+This API allows for composition of plugins: plugins can make use of logic in
+other plugins without the need for code duplication.
+
+Plugin names
+~~~~~~~~~~~~
+Plugins are automatically given a name by removing the suffix from their
+filename.  These plugin names will be used during QPP interactions as
+described below.  A plugin can access its own name through the preprocessor
+variable ``CURRENT_PLUGIN``.
+
+QPP function calls
+~~~~~~~~~~~~~~~~~~
+When a plugin (e.g. ``plugin_a``) wishes to make some of its functions (e.g.
+``func_1``) available to other plugins, it must:
+
+1. Mark the function definition with the ``QEMU_PLUGIN_EXPORT`` macro. For
+example : ``QEMU_PLUGIN_EXPORT int func_1(int x) {...}``.
+2. Provide prototypes for exported functions in a header file (e.g.
+``plugin_a.h``) using the macro ``QPP_FUN_PROTOTYPE`` with arguments of the
+plugin's name, the function's return type, the function's name, and any
+arguments the function takes. For example:
+``QPP_FUN_PROTOTYPE(plugin_a, int, func_1, int);``.
+3. Import this header from the plugin.
+
+When other plugins wish to use the functions exported by ``plugin_a``, they
+must:
+
+1. Import the header file (e.g. ``plugin_a.h``) with the function prototype(s).
+2. Call the function when desired by combining the target plugin name, an
+   underscore, and the target function name, e.g. ``plugin_a_func_1()``.
+
+QPP callbacks
+~~~~~~~~~~~~~
+
+The QPP API also allows a plugin to define callback events and for other plugins
+to request to be notified whenever these events happens. The plugin that defines
+the callback is responsible for triggering the callback when it so wishes. Other
+plugins that wish to be notified on these events must define a function of an
+appropriate type and register it to run on this event.
+
+When a plugin (e.g. ``plugin_a``) wishes to define a callback (an event that
+other plugins can request to be notified about), it must:
+
+1. Define the callback using the ``QPP_CREATE_CB`` macro with a single argument
+   of the callback's name. For example: ``QPP_CREATE_CB(on_some_event);``.
+2. In a header file (e.g. ``plugin_a.h``) create a prototype for the callback
+   type with ``QPP_CB_PROTOTYPE`` with arguments of the callback's return type
+   (only ``void`` is currently supported), the name of the callback, and any
+   arguments the callback function will be called with. For example with a
+   callback named ``on_some_event`` that returns a void and takes an int and
+   a bool as an argument, you would use: ``QPP_CB_PROTOTYPE(void,
+   on_some_event, int, bool)``.
+3. Import this header from the plugin.
+4. When the plugin wishes to run any registered callback functions, it should
+   use the macro ``QPP_RUN_CB`` with the first argument set to the callback
+   name followed by the arguments as specified in the header. For example:
+   ``QPP_RUN_CB(on_some_event, 2, true);``.
+
+When other plugins wish to register a function to run on such an event, they
+must:
+
+1. Import the header file with the callback prototype(s) (e.g. ``plugin_a.h``)
+2. Define a function that matches the callback signature. For example:
+   ``void plugin_b_callback(int, bool) {...}``.
+3. Register this function to be run on the callback using the ``QPP_REG_CB``
+   macro with the first argument being the name of the plugin that provides the
+   callback (as a string), the second being the callback name, and the third as
+   the function that should be run. For example: ``QPP_REG_CB("plugin_a",
+   on_some_event, plugin_b_callback);``
