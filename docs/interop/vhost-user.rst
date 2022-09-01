@@ -906,9 +906,9 @@ Front-end message types
   ``VHOST_USER_SET_FEATURES``.
 
 .. Note::
-   Back-ends that report ``VHOST_USER_F_PROTOCOL_FEATURES`` must
-   support this message even before ``VHOST_USER_SET_FEATURES`` was
-   called.
+   While QEMU should acknowledge ``VHOST_USER_F_PROTOCOL_FEATURES``, a
+   back-end must allow ``VHOST_USER_GET_PROTOCOL_FEATURES`` even if
+   ``VHOST_USER_F_PROTOCOL_FEATURES`` has not been acknowledged yet.
 
 ``VHOST_USER_SET_PROTOCOL_FEATURES``
   :id: 16
@@ -923,8 +923,12 @@ Front-end message types
   ``VHOST_USER_SET_FEATURES``.
 
 .. Note::
-   Back-ends that report ``VHOST_USER_F_PROTOCOL_FEATURES`` must support
-   this message even before ``VHOST_USER_SET_FEATURES`` was called.
+   While QEMU should acknowledge ``VHOST_USER_F_PROTOCOL_FEATURES``, a
+   back-end must allow ``VHOST_USER_SET_PROTOCOL_FEATURES`` even if
+   ``VHOST_USER_F_PROTOCOL_FEATURES`` has not been acknowledged yet.
+   The back-end must not wait for ``VHOST_USER_SET_FEATURES`` before
+   enabling protocol features requested with
+   ``VHOST_USER_SET_PROTOCOL_FEATURES``.
 
 ``VHOST_USER_SET_OWNER``
   :id: 3
