@@ -3022,6 +3022,8 @@ void helper_##op(CPUPPCState *env, uint32_t opcode,                          \
     ppc_vsr_t t = { };                                                       \
     int flags;                                                               \
                                                                              \
+    helper_reset_fpstatus(env);                                              \
+                                                                             \
     t.tfld = stp##_to_##ttp##_round_to_zero(xb->sfld, &env->fp_status);      \
     flags = get_float_exception_flags(&env->fp_status);                      \
     if (flags & float_flag_invalid) {                                        \
@@ -3034,7 +3036,6 @@ void helper_##op(CPUPPCState *env, uint32_t opcode,                          \
 
 VSX_CVT_FP_TO_INT_VECTOR(xscvqpsdz, float128, int64, f128, VsrD(0),          \
                   0x8000000000000000ULL)
-
 VSX_CVT_FP_TO_INT_VECTOR(xscvqpswz, float128, int32, f128, VsrD(0),          \
                   0xffffffff80000000ULL)
 VSX_CVT_FP_TO_INT_VECTOR(xscvqpudz, float128, uint64, f128, VsrD(0), 0x0ULL)
