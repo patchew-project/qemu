@@ -79,6 +79,12 @@ enum {
     HEX_REG_QEMU_HVX_CNT      = 54,
     HEX_REG_UTIMERLO          = 62,
     HEX_REG_UTIMERHI          = 63,
+    HEX_REG_LAST_VALUE        = 64,
 };
 
+
+typedef struct {
+    bool present;
+    target_ulong mask;
+} hexagon_mut_entry;
 #endif

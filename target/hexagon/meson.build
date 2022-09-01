@@ -168,6 +168,7 @@ hexagon_ss.add(files(
     'op_helper.c',
     'gdbstub.c',
     'genptr.c',
+    'gen_masked.c',
     'reg_fields.c',
     'decode.c',
     'iclass.c',

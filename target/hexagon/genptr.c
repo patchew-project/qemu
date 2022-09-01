@@ -29,6 +29,7 @@
 #undef QEMU_GENERATE
 #include "gen_tcg.h"
 #include "gen_tcg_hvx.h"
+#include "gen_masked.h"
 
 static inline void gen_log_predicated_reg_write(int rnum, TCGv val, int slot)
 {
@@ -53,9 +54,24 @@ static inline void gen_log_predicated_reg_write(int rnum, TCGv val, int slot)
     tcg_temp_free(slot_mask);
 }
 
+static const hexagon_mut_entry gpr_mut_masks[HEX_REG_LAST_VALUE] = {
+    [HEX_REG_PC] = {true, 0x00000000},
+    [HEX_REG_GP] = {true, 0xffffffc0},
+    [HEX_REG_USR] = {true, 0x3ecfff3f},
+    [HEX_REG_UTIMERLO] = {true, 0x00000000},
+    [HEX_REG_UTIMERHI] = {true, 0x00000000},
+};
+
+
 static inline void gen_log_reg_write(int rnum, TCGv val)
 {
-    tcg_gen_mov_tl(hex_new_value[rnum], val);
+    const hexagon_mut_entry entry = gpr_mut_masks[rnum];
+    if (entry.present) {
+        gen_masked_reg_write(hex_gpr[rnum], val, hex_new_value[rnum],
+            entry.mask);
+    } else {
+        tcg_gen_mov_tl(hex_new_value[rnum], val);
+    }
     if (HEX_DEBUG) {
         /* Do this so HELPER(debug_commit_end) will know */
         tcg_gen_movi_tl(hex_reg_written[rnum], 1);
@@ -64,18 +80,32 @@ static inline void gen_log_reg_write(int rnum, TCGv val)
 
 static void gen_log_predicated_reg_write_pair(int rnum, TCGv_i64 val, int slot)
 {
+    const hexagon_mut_entry entry0 = gpr_mut_masks[rnum];
+    const hexagon_mut_entry entry1 = gpr_mut_masks[rnum + 1];
     TCGv val32 = tcg_temp_new();
     TCGv zero = tcg_constant_tl(0);
     TCGv slot_mask = tcg_temp_new();
+    TCGv tmp_val = tcg_temp_new();
 
     tcg_gen_andi_tl(slot_mask, hex_slot_cancelled, 1 << slot);
+
     /* Low word */
     tcg_gen_extrl_i64_i32(val32, val);
+    if (entry0.present) {
+        tcg_gen_mov_tl(tmp_val, val32);
+        gen_masked_reg_write(hex_gpr[rnum], tmp_val, val32, entry0.mask);
+        tcg_temp_free(tmp_val);
+    }
     tcg_gen_movcond_tl(TCG_COND_EQ, hex_new_value[rnum],
                        slot_mask, zero,
                        val32, hex_new_value[rnum]);
+
     /* High word */
     tcg_gen_extrh_i64_i32(val32, val);
+    if (entry1.present) {
+        tcg_gen_mov_tl(tmp_val, val32);
+        gen_masked_reg_write(hex_gpr[rnum], tmp_val, val32, entry1.mask);
+    }
     tcg_gen_movcond_tl(TCG_COND_EQ, hex_new_value[rnum + 1],
                        slot_mask, zero,
                        val32, hex_new_value[rnum + 1]);
@@ -95,6 +125,7 @@ static void gen_log_predicated_reg_write_pair(int rnum, TCGv_i64 val, int slot)
 
     tcg_temp_free(val32);
     tcg_temp_free(slot_mask);
+    tcg_temp_free(tmp_val);
 }
 
 static void gen_log_reg_write_pair(int rnum, TCGv_i64 val)
