@@ -2789,6 +2789,8 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)   \
     ppc_vsr_t t = { };                                             \
     int i;                                                         \
                                                                    \
+    helper_reset_fpstatus(env);                                    \
+                                                                   \
     for (i = 0; i < nels; i++) {                                   \
         t.tfld = stp##_to_##ttp(xb->sfld, 1, &env->fp_status);     \
         if (unlikely(stp##_is_signaling_nan(xb->sfld,              \
