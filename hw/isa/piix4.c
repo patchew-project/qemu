@@ -128,7 +128,7 @@ static void piix4_isa_reset(DeviceState *dev)
     d->rcr = 0;
 }
 
-static int piix4_ide_post_load(void *opaque, int version_id)
+static int piix4_post_load(void *opaque, int version_id)
 {
     PIIXState *s = opaque;
 
@@ -143,7 +143,7 @@ static const VMStateDescription vmstate_piix4 = {
     .name = "PIIX4",
     .version_id = 3,
     .minimum_version_id = 2,
-    .post_load = piix4_ide_post_load,
+    .post_load = piix4_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, PIIXState),
         VMSTATE_UINT8_V(rcr, PIIXState, 3),
