@@ -24,7 +24,7 @@
  */
 #define PIIX_RCR_IOPORT 0xcf9
 
-#define TYPE_PIIX3_PCI_DEVICE "pci-piix3"
+#define TYPE_PIIX_PCI_DEVICE "pci-piix"
 #define TYPE_PIIX3_DEVICE "PIIX3"
 #define TYPE_PIIX3_XEN_DEVICE "PIIX3-xen"
 #define TYPE_PIIX4_PCI_DEVICE "piix4-isa"
