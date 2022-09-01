@@ -3170,6 +3170,8 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)       \
     int i;                                                             \
     FloatRoundMode curr_rounding_mode;                                 \
                                                                        \
+    helper_reset_fpstatus(env);                                        \
+                                                                       \
     if (rmode != FLOAT_ROUND_CURRENT) {                                \
         curr_rounding_mode = get_float_rounding_mode(&env->fp_status); \
         set_float_rounding_mode(rmode, &env->fp_status);               \
