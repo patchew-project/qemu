@@ -26,7 +26,6 @@
 #include "qemu/sockets.h"
 #include "trace.h"
 
-#ifndef WIN32
 /**
  * qio_channel_command_new_pid:
  * @writefd: the FD connected to the command's stdin
@@ -69,107 +68,35 @@ qio_channel_command_new_spawn(const char *const argv[],
                               int flags,
                               Error **errp)
 {
-    pid_t pid = -1;
-    int stdinfd[2] = { -1, -1 };
-    int stdoutfd[2] = { -1, -1 };
-    int devnull = -1;
-    bool stdinnull = false, stdoutnull = false;
+    g_autoptr(GError) err = NULL;
+    GPid pid = 0;
     QIOChannelCommand *ioc;
+    GSpawnFlags gflags = G_SPAWN_CLOEXEC_PIPES;
+    int stdinfd = -1, stdoutfd = -1;
 
     flags = flags & O_ACCMODE;
+    gflags |= flags == O_WRONLY ? G_SPAWN_STDOUT_TO_DEV_NULL : 0;
 
-    if (flags == O_RDONLY) {
-        stdinnull = true;
-    }
-    if (flags == O_WRONLY) {
-        stdoutnull = true;
-    }
-
-    if (stdinnull || stdoutnull) {
-        devnull = open("/dev/null", O_RDWR);
-        if (devnull < 0) {
-            error_setg_errno(errp, errno,
-                             "Unable to open /dev/null");
-            goto error;
-        }
+    if (!g_spawn_async_with_pipes(NULL, (char **)argv, NULL, gflags, NULL, NULL,
+                                  &pid,
+                                  flags == O_RDONLY ? NULL : &stdinfd,
+                                  flags == O_WRONLY ? NULL : &stdoutfd,
+                                  NULL, &err)) {
+        error_setg(errp, "%s", err->message);
+        return NULL;
     }
 
-    if ((!stdinnull && !g_unix_open_pipe(stdinfd, FD_CLOEXEC, NULL)) ||
-        (!stdoutnull && !g_unix_open_pipe(stdoutfd, FD_CLOEXEC, NULL))) {
-        error_setg_errno(errp, errno,
-                         "Unable to open pipe");
-        goto error;
-    }
 
-    pid = qemu_fork(errp);
-    if (pid < 0) {
-        goto error;
-    }
-
-    if (pid == 0) { /* child */
-        dup2(stdinnull ? devnull : stdinfd[0], STDIN_FILENO);
-        dup2(stdoutnull ? devnull : stdoutfd[1], STDOUT_FILENO);
-        /* Leave stderr connected to qemu's stderr */
-
-        if (!stdinnull) {
-            close(stdinfd[0]);
-            close(stdinfd[1]);
-        }
-        if (!stdoutnull) {
-            close(stdoutfd[0]);
-            close(stdoutfd[1]);
-        }
-        if (devnull != -1) {
-            close(devnull);
-        }
-
-        execv(argv[0], (char * const *)argv);
-        _exit(1);
-    }
-
-    if (!stdinnull) {
-        close(stdinfd[0]);
-    }
-    if (!stdoutnull) {
-        close(stdoutfd[1]);
-    }
-
-    ioc = qio_channel_command_new_pid(stdinnull ? devnull : stdinfd[1],
-                                      stdoutnull ? devnull : stdoutfd[0],
-                                      pid);
-    trace_qio_channel_command_new_spawn(ioc, argv[0], flags);
+    ioc = qio_channel_command_new_pid(stdinfd,
+                                      stdoutfd,
+#ifdef _WIN32
+                                      GetProcessId(pid)
+#else
+                                      pid
+#endif
+        );
     return ioc;
-
- error:
-    if (devnull != -1) {
-        close(devnull);
-    }
-    if (stdinfd[0] != -1) {
-        close(stdinfd[0]);
-    }
-    if (stdinfd[1] != -1) {
-        close(stdinfd[1]);
-    }
-    if (stdoutfd[0] != -1) {
-        close(stdoutfd[0]);
-    }
-    if (stdoutfd[1] != -1) {
-        close(stdoutfd[1]);
-    }
-    return NULL;
 }
-
-#else /* WIN32 */
-QIOChannelCommand *
-qio_channel_command_new_spawn(const char *const argv[],
-                              int flags,
-                              Error **errp)
-{
-    error_setg_errno(errp, ENOSYS,
-                     "Command spawn not supported on this platform");
-    return NULL;
-}
-#endif /* WIN32 */
 
 #ifndef WIN32
 static int qio_channel_command_abort(QIOChannelCommand *ioc,
