@@ -26,19 +26,71 @@
 #include "qemu/osdep.h"
 #include "qemu/range.h"
 #include "qapi/error.h"
+#include "qom/object.h"
+#include "hw/acpi/piix4.h"
 #include "hw/dma/i8257.h"
+#include "hw/ide/pci.h"
 #include "hw/intc/i8259.h"
 #include "hw/southbridge/piix.h"
 #include "hw/timer/i8254.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/isa/isa.h"
+#include "hw/pci/pci.h"
+#include "hw/qdev-properties.h"
+#include "hw/rtc/mc146818rtc.h"
+#include "hw/usb/hcd-uhci.h"
 #include "hw/xen/xen.h"
 #include "sysemu/runstate.h"
 #include "migration/vmstate.h"
 #include "hw/acpi/acpi_aml_interface.h"
 
+#define PIIX_NUM_PIRQS          4ULL    /* PIRQ[A-D] */
 #define XEN_PIIX_NUM_PIRQS      128ULL
+
+struct PIIXState {
+    PCIDevice dev;
+
+    /*
+     * bitmap to track pic levels.
+     * The pic level is the logical OR of all the PCI irqs mapped to it
+     * So one PIC level is tracked by PIIX_NUM_PIRQS bits.
+     *
+     * PIRQ is mapped to PIC pins, we track it by
+     * PIIX_NUM_PIRQS * ISA_NUM_IRQS = 64 bits with
+     * pic_irq * PIIX_NUM_PIRQS + pirq
+     */
+#if ISA_NUM_IRQS * PIIX_NUM_PIRQS > 64
+#error "unable to encode pic state in 64bit in pic_levels."
+#endif
+    uint64_t pic_levels;
+
+    /* This member isn't used. Just for save/load compatibility */
+    int32_t pci_irq_levels_vmstate[PIIX_NUM_PIRQS];
+    uint8_t pci_irq_reset_mappings[PIIX_NUM_PIRQS];
+
+    ISAPICState pic;
+    RTCState rtc;
+    PCIIDEState ide;
+    UHCIState uhci;
+    PIIX4PMState pm;
+
+    uint32_t smb_io_base;
+
+    /* Reset Control Register contents */
+    uint8_t rcr;
+
+    /* IO memory region for Reset Control Register (PIIX_RCR_IOPORT) */
+    MemoryRegion rcr_mem;
+
+    bool has_acpi;
+    bool has_usb;
+    bool smm_enabled;
+};
+typedef struct PIIXState PIIXState;
+
+DECLARE_INSTANCE_CHECKER(PIIXState, PIIX_PCI_DEVICE,
+                         TYPE_PIIX3_PCI_DEVICE)
 
 static void piix_set_irq_pic(PIIXState *piix, int pic_irq)
 {

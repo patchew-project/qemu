@@ -12,14 +12,6 @@
 #ifndef HW_SOUTHBRIDGE_PIIX_H
 #define HW_SOUTHBRIDGE_PIIX_H
 
-#include "hw/pci/pci.h"
-#include "qom/object.h"
-#include "hw/acpi/piix4.h"
-#include "hw/ide/pci.h"
-#include "hw/intc/i8259.h"
-#include "hw/rtc/mc146818rtc.h"
-#include "hw/usb/hcd-uhci.h"
-
 /* PIRQRC[A:D]: PIRQx Route Control Registers */
 #define PIIX_PIRQCA 0x60
 #define PIIX_PIRQCB 0x61
@@ -32,53 +24,7 @@
  */
 #define PIIX_RCR_IOPORT 0xcf9
 
-#define PIIX_NUM_PIRQS          4ULL    /* PIRQ[A-D] */
-
-struct PIIXState {
-    PCIDevice dev;
-
-    /*
-     * bitmap to track pic levels.
-     * The pic level is the logical OR of all the PCI irqs mapped to it
-     * So one PIC level is tracked by PIIX_NUM_PIRQS bits.
-     *
-     * PIRQ is mapped to PIC pins, we track it by
-     * PIIX_NUM_PIRQS * ISA_NUM_IRQS = 64 bits with
-     * pic_irq * PIIX_NUM_PIRQS + pirq
-     */
-#if ISA_NUM_IRQS * PIIX_NUM_PIRQS > 64
-#error "unable to encode pic state in 64bit in pic_levels."
-#endif
-    uint64_t pic_levels;
-
-    /* This member isn't used. Just for save/load compatibility */
-    int32_t pci_irq_levels_vmstate[PIIX_NUM_PIRQS];
-    uint8_t pci_irq_reset_mappings[PIIX_NUM_PIRQS];
-
-    ISAPICState pic;
-    RTCState rtc;
-    PCIIDEState ide;
-    UHCIState uhci;
-    PIIX4PMState pm;
-
-    uint32_t smb_io_base;
-
-    /* Reset Control Register contents */
-    uint8_t rcr;
-
-    /* IO memory region for Reset Control Register (PIIX_RCR_IOPORT) */
-    MemoryRegion rcr_mem;
-
-    bool has_acpi;
-    bool has_usb;
-    bool smm_enabled;
-};
-typedef struct PIIXState PIIXState;
-
 #define TYPE_PIIX3_PCI_DEVICE "pci-piix3"
-DECLARE_INSTANCE_CHECKER(PIIXState, PIIX_PCI_DEVICE,
-                         TYPE_PIIX3_PCI_DEVICE)
-
 #define TYPE_PIIX3_DEVICE "PIIX3"
 #define TYPE_PIIX3_XEN_DEVICE "PIIX3-xen"
 #define TYPE_PIIX4_PCI_DEVICE "piix4-isa"
