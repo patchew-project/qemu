@@ -242,6 +242,12 @@
 #                   Present and non-empty when migration is blocked.
 #                   (since 6.0)
 #
+# @dirty-limit-throttle-us-per-full: Throttle time (us) during the period of
+#                                    dirty ring full (since 7.0)
+#
+# @dirty-limit-us-ring-full: Estimated periodic time (us) of dirty ring full.
+#                            (since 7.0)
+#
 # Since: 0.14
 ##
 { 'struct': 'MigrationInfo',
@@ -259,7 +265,9 @@
            '*postcopy-blocktime' : 'uint32',
            '*postcopy-vcpu-blocktime': ['uint32'],
            '*compression': 'CompressionStats',
-           '*socket-address': ['SocketAddress'] } }
+           '*socket-address': ['SocketAddress'],
+           '*dirty-limit-throttle-us-per-full': 'int64',
+           '*dirty-limit-us-ring-full': 'int64'} }
 
 ##
 # @query-migrate:
