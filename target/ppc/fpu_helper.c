@@ -3124,6 +3124,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode,                     \
 {                                                                       \
     ppc_vsr_t t = *xt;                                                  \
                                                                         \
+    helper_reset_fpstatus(env);                                         \
     t.tfld = stp##_to_##ttp(xb->sfld, &env->fp_status);                 \
     helper_compute_fprf_##ttp(env, t.tfld);                             \
                                                                         \
