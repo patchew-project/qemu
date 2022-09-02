@@ -109,6 +109,9 @@ typedef struct DisasContext {
     /* PointerMasking extension */
     bool pm_mask_enabled;
     bool pm_base_enabled;
+#ifdef TCG_TARGET_SUPPORTS_MCTCG_RVTSO
+    bool ztso;
+#endif
     /* TCG of the current insn_start */
     TCGOp *insn_start;
 } DisasContext;
@@ -1109,6 +1112,9 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     memset(ctx->ftemp, 0, sizeof(ctx->ftemp));
     ctx->pm_mask_enabled = FIELD_EX32(tb_flags, TB_FLAGS, PM_MASK_ENABLED);
     ctx->pm_base_enabled = FIELD_EX32(tb_flags, TB_FLAGS, PM_BASE_ENABLED);
+#ifdef TCG_TARGET_SUPPORTS_MCTCG_RVTSO
+    ctx->ztso = cpu->cfg.ext_ztso;
+#endif
     ctx->zero = tcg_constant_tl(0);
 }
 

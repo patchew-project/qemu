@@ -236,6 +236,7 @@ static inline void tb_target_set_jmp_target(uintptr_t tc_ptr, uintptr_t jmp_rx,
 #include "tcg/tcg-mo.h"
 
 #define TCG_TARGET_DEFAULT_MO (TCG_MO_ALL & ~TCG_MO_ST_LD)
+#define TCG_TARGET_SUPPORTS_MCTCG_RVTSO 1
 
 #define TCG_TARGET_HAS_MEMORY_BSWAP  have_movbe
 

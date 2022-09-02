@@ -27,8 +27,19 @@
 #include "qom/object.h"
 #include "qemu/int128.h"
 #include "cpu_bits.h"
+#include "tcg-target.h"
 
-#define TCG_GUEST_DEFAULT_MO 0
+/*
+ * RISC-V has two memory models: TSO is a bit weaker than Intel (MMIO and
+ * fetch), and WMO is approximately equivilant to Arm MCA.  Rather than
+ * enforcing orderings on most accesses, just default to the target memory
+ * order.
+ */
+#ifdef TCG_TARGET_SUPPORTS_MCTCG_RVTSO
+# define TCG_GUEST_DEFAULT_MO (TCG_MO_ALL & ~TCG_MO_ST_LD)
+#else
+# define TCG_GUEST_DEFAULT_MO (0)
+#endif
 
 /*
  * RISC-V-specific extra insn start words:
@@ -433,6 +444,9 @@ struct RISCVCPUConfig {
     bool ext_zve32f;
     bool ext_zve64f;
     bool ext_zmmul;
+#ifdef TCG_TARGET_SUPPORTS_MCTCG_RVTSO
+    bool ext_ztso;
+#endif
     bool rvv_ta_all_1s;
 
     uint32_t mvendorid;

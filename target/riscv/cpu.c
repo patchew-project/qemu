@@ -919,6 +919,15 @@ static Property riscv_cpu_extensions[] = {
     DEFINE_PROP_BOOL("zhinx", RISCVCPU, cfg.ext_zhinx, false),
     DEFINE_PROP_BOOL("zhinxmin", RISCVCPU, cfg.ext_zhinxmin, false),
 
+#ifdef TCG_TARGET_SUPPORTS_MCTCG_RVTSO
+    /*
+     * We only support Ztso on targets that themselves are already TSO, which
+     * means there's no way to provide just RVWMO on those targets.  Instead
+     * just default to telling the guest that Ztso is enabled.:
+     */
+    DEFINE_PROP_BOOL("ztso", RISCVCPU, cfg.ext_ztso, true),
+#endif
+
     /* Vendor-specific custom extensions */
     DEFINE_PROP_BOOL("xventanacondops", RISCVCPU, cfg.ext_XVentanaCondOps, false),
 
@@ -1094,6 +1103,9 @@ static void riscv_isa_string_ext(RISCVCPU *cpu, char **isa_str, int max_str_len)
         ISA_EDATA_ENTRY(zksed, ext_zksed),
         ISA_EDATA_ENTRY(zksh, ext_zksh),
         ISA_EDATA_ENTRY(zkt, ext_zkt),
+#ifdef TCG_TARGET_SUPPORTS_MCTCG_RVTSO
+        ISA_EDATA_ENTRY(ztso, ext_ztso),
+#endif
         ISA_EDATA_ENTRY(zve32f, ext_zve32f),
         ISA_EDATA_ENTRY(zve64f, ext_zve64f),
         ISA_EDATA_ENTRY(zhinx, ext_zhinx),
