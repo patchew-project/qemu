@@ -282,36 +282,37 @@ QemuOptsList *qemu_find_opts_err(const char *group, Error **errp)
     return find_list(vm_config_groups, group, errp);
 }
 
-void qemu_add_drive_opts(QemuOptsList *list)
+static int fill_config_groups(QemuOptsList *groups[], int entries,
+                              QemuOptsList *list)
 {
-    int entries, i;
+    int i;
 
-    entries = ARRAY_SIZE(drive_config_groups);
     entries--; /* keep list NULL terminated */
     for (i = 0; i < entries; i++) {
-        if (drive_config_groups[i] == NULL) {
-            drive_config_groups[i] = list;
-            return;
+        if (groups[i] == NULL) {
+            groups[i] = list;
+            return 0;
         }
     }
-    fprintf(stderr, "ran out of space in drive_config_groups");
-    abort();
+    return -1;
+}
+
+void qemu_add_drive_opts(QemuOptsList *list)
+{
+    if (fill_config_groups(drive_config_groups, ARRAY_SIZE(drive_config_groups),
+                           list) < 0) {
+        fprintf(stderr, "ran out of space in drive_config_groups");
+        abort();
+    }
 }
 
 void qemu_add_opts(QemuOptsList *list)
 {
-    int entries, i;
-
-    entries = ARRAY_SIZE(vm_config_groups);
-    entries--; /* keep list NULL terminated */
-    for (i = 0; i < entries; i++) {
-        if (vm_config_groups[i] == NULL) {
-            vm_config_groups[i] = list;
-            return;
-        }
+    if (fill_config_groups(vm_config_groups, ARRAY_SIZE(vm_config_groups),
+                           list) < 0) {
+        fprintf(stderr, "ran out of space in vm_config_groups");
+        abort();
     }
-    fprintf(stderr, "ran out of space in vm_config_groups");
-    abort();
 }
 
 /* Returns number of config groups on success, -errno on error */
