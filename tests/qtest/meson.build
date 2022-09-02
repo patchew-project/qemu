@@ -35,34 +35,48 @@ endif
 qtests_cxl = \
   (config_all_devices.has_key('CONFIG_CXL') ? ['cxl-test'] : [])
 
+qtests_i386_require_default = \
+  (config_all_devices.has_key('CONFIG_VGA') ? ['display-vga-test'] : []) +		    \
+  (config_host.has_key('CONFIG_POSIX') and
+   config_all_devices.has_key('CONFIG_ACPI_ERST') ? ['erst-test'] : []) +		    \
+  (config_all_devices.has_key('CONFIG_SDHCI_PCI') ? ['fuzz-sdcard-test'] : []) +	    \
+  (config_host.has_key('CONFIG_LINUX') and
+   config_all_devices.has_key('CONFIG_ISA_IPMI_BT') ? ['ipmi-bt-test'] : []) +		    \
+  (config_all_devices.has_key('CONFIG_ISA_IPMI_KCS') ? ['ipmi-kcs-test'] : []) +	    \
+  (config_all_devices.has_key('CONFIG_PVPANIC_ISA') ? ['pvpanic-test'] : []) + 		    \
+  (config_all_devices.has_key('CONFIG_PVPANIC_PCI') ? ['pvpanic-pci-test'] : []) +	    \
+  (config_all_devices.has_key('CONFIG_RTL8139_PCI') ? ['rtl8139-test'] : []) +	 	    \
+  (config_all_devices.has_key('CONFIG_WDT_IB700') ? ['wdt_ib700-test'] : []) +              \
+  (config_host.has_key('CONFIG_POSIX') ? ['test-filter-mirror'] : []) +			    \
+  (config_all_devices.has_key('CONFIG_USB_UHCI') ? ['usb-hcd-uhci-test'] : []) +	    \
+  (config_all_devices.has_key('CONFIG_USB_XHCI_NEC') ? ['usb-hcd-xhci-test'] : []) +	    \
+  ['boot-order-test',
+   'fw_cfg-test',
+   'migration-test',
+   'numa-test',
+   'rtc-test',
+   'test-filter-redirector',
+   'test-x86-cpuid-compat',
+   'vmgenid-test'
+  ]
+
 qtests_i386 = \
   (slirp.found() ? ['pxe-test', 'test-netfilter'] : []) +             \
-  (config_host.has_key('CONFIG_POSIX') ? ['test-filter-mirror'] : []) +                     \
   (have_tools ? ['ahci-test'] : []) +                                                       \
   (config_all_devices.has_key('CONFIG_ISA_TESTDEV') ? ['endianness-test'] : []) +           \
   (config_all_devices.has_key('CONFIG_SGA') ? ['boot-serial-test'] : []) +                  \
-  (config_all_devices.has_key('CONFIG_ISA_IPMI_KCS') ? ['ipmi-kcs-test'] : []) +            \
-  (config_host.has_key('CONFIG_LINUX') and                                                  \
-   config_all_devices.has_key('CONFIG_ISA_IPMI_BT') ? ['ipmi-bt-test'] : []) +              \
-  (config_all_devices.has_key('CONFIG_WDT_IB700') ? ['wdt_ib700-test'] : []) +              \
-  (config_all_devices.has_key('CONFIG_PVPANIC_ISA') ? ['pvpanic-test'] : []) +              \
-  (config_all_devices.has_key('CONFIG_PVPANIC_PCI') ? ['pvpanic-pci-test'] : []) +          \
   (config_all_devices.has_key('CONFIG_HDA') ? ['intel-hda-test'] : []) +		    \
   (config_all_devices.has_key('CONFIG_I82801B11') ? ['i82801b11-test'] : []) +             \
   (config_all_devices.has_key('CONFIG_IOH3420') ? ['ioh3420-test'] : []) +                  \
   (config_all_devices.has_key('CONFIG_LPC_ICH9') and
    config_all_devices.has_key('CONFIG_Q35') ? ['lpc-ich9-test'] : []) +			    \
-  (config_all_devices.has_key('CONFIG_USB_UHCI') and
-   config_all_devices.has_key('CONFIG_Q35') ? ['usb-hcd-uhci-test'] : []) +		    \
   (config_all_devices.has_key('CONFIG_USB_UHCI') and                                        \
    config_all_devices.has_key('CONFIG_USB_EHCI') and
    config_all_devices.has_key('CONFIG_Q35') ? ['usb-hcd-ehci-test'] : []) +		    \
-  (config_all_devices.has_key('CONFIG_USB_XHCI_NEC') ? ['usb-hcd-xhci-test'] : []) +        \
   (config_all_devices.has_key('CONFIG_TPM_CRB') ? ['tpm-crb-test'] : []) +                  \
   (config_all_devices.has_key('CONFIG_TPM_CRB') ? ['tpm-crb-swtpm-test'] : []) +            \
   (config_all_devices.has_key('CONFIG_TPM_TIS_ISA') ? ['tpm-tis-test'] : []) +              \
   (config_all_devices.has_key('CONFIG_TPM_TIS_ISA') ? ['tpm-tis-swtpm-test'] : []) +        \
-  (config_all_devices.has_key('CONFIG_RTL8139_PCI') ? ['rtl8139-test'] : []) +              \
   (config_all_devices.has_key('CONFIG_E1000E_PCI_EXPRESS') ? ['fuzz-e1000e-test'] : []) +   \
   (config_all_devices.has_key('CONFIG_MEGASAS_SCSI_PCI') and
    config_all_devices.has_key('CONFIG_Q35') ? ['fuzz-megasas-test'] : []) +    \
@@ -72,36 +86,25 @@ qtests_i386 = \
    config_all_devices.has_key('CONFIG_Q35') ? ['fuzz-virtio-scsi-test'] : []) +		    \
   (config_all_devices.has_key('CONFIG_SB16') and
    config_all_devices.has_key('CONFIG_Q35') ? ['fuzz-sb16-test'] : []) +		    \
-  (config_all_devices.has_key('CONFIG_SDHCI_PCI') ? ['fuzz-sdcard-test'] : []) +            \
   (config_all_devices.has_key('CONFIG_ESP_PCI') ? ['am53c974-test'] : []) +                 \
-  (config_host.has_key('CONFIG_POSIX') and                                                  \
-   config_all_devices.has_key('CONFIG_ACPI_ERST') ? ['erst-test'] : []) +                   \
   (config_all_devices.has_key('CONFIG_VIRTIO_NET') and                                      \
    config_all_devices.has_key('CONFIG_Q35') and                                             \
    config_all_devices.has_key('CONFIG_VIRTIO_PCI') and                                      \
    slirp.found() ? ['virtio-net-failover'] : []) +                                          \
-  (config_all_devices.has_key('CONFIG_VGA') ? ['display-vga-test'] : []) +		    \
-  (config_all_devices.has_key('CONFIG_IVSHMEM_DEVICE') ? ['ivshmem-test'] : []) +	    \
+  (config_all_devices.has_key('CONFIG_IVSHMEM_DEVICE') and
+   config_all_devices.has_key('CONFIG_I440FX') ? ['ivshmem-test'] : []) +		    \
   (config_all_devices.has_key('CONFIG_Q35') ? ['q35-test'] : []) +			    \
   (config_all_devices.has_key('CONFIG_Q35') ? ['tco-test'] : []) +			    \
+  (config_all_devices.has_key('CONFIG_I440FX') ? ['device-plug-test'] : []) +		    \
+  (config_all_devices.has_key('CONFIG_I440FX') ? ['drive_del-test'] : []) +		    \
+  (config_all_devices.has_key('CONFIG_I440FX') ? ['fdc-test'] : []) +			    \
+  (config_all_devices.has_key('CONFIG_I440FX') ? ['hd-geo-test'] : []) +		    \
+  (config_all_devices.has_key('CONFIG_I440FX') ? ['i440fx-test'] : []) +		    \
+  (config_all_devices.has_key('CONFIG_I440FX') ? ['ide-test'] : []) +  			    \
   (unpack_edk2_blobs ? ['bios-tables-test'] : []) +                                         \
+  (config_all_devices.has_key('CONFIG_I440FX') ? qtests_i386_require_default: []) +	    \
   qtests_cxl +                                                                              \
-  ['fdc-test',
-   'ide-test',
-   'hd-geo-test',
-   'boot-order-test',
-   'rtc-test',
-   'i440fx-test',
-   'fw_cfg-test',
-   'device-plug-test',
-   'drive_del-test',
-   'cpu-plug-test',
-   'vmgenid-test',
-   'migration-test',
-   'test-x86-cpuid-compat',
-   'numa-test',
-   'test-filter-redirector'
-  ]
+  ['cpu-plug-test']
 
 if dbus_display
   qtests_i386 += ['dbus-display-test']
