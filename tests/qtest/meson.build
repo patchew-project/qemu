@@ -32,10 +32,6 @@ if config_host.has_key('CONFIG_MODULES')
   qtests_generic += [ 'modules-test' ]
 endif
 
-qtests_pci = \
-  (config_all_devices.has_key('CONFIG_VGA') ? ['display-vga-test'] : []) +                  \
-  (config_all_devices.has_key('CONFIG_IVSHMEM_DEVICE') ? ['ivshmem-test'] : [])
-
 qtests_cxl = \
   (config_all_devices.has_key('CONFIG_CXL') ? ['cxl-test'] : [])
 
@@ -84,10 +80,11 @@ qtests_i386 = \
    config_all_devices.has_key('CONFIG_Q35') and                                             \
    config_all_devices.has_key('CONFIG_VIRTIO_PCI') and                                      \
    slirp.found() ? ['virtio-net-failover'] : []) +                                          \
+  (config_all_devices.has_key('CONFIG_VGA') ? ['display-vga-test'] : []) +		    \
+  (config_all_devices.has_key('CONFIG_IVSHMEM_DEVICE') ? ['ivshmem-test'] : []) +	    \
   (config_all_devices.has_key('CONFIG_Q35') ? ['q35-test'] : []) +			    \
   (config_all_devices.has_key('CONFIG_Q35') ? ['tco-test'] : []) +			    \
   (unpack_edk2_blobs ? ['bios-tables-test'] : []) +                                         \
-  qtests_pci +                                                                              \
   qtests_cxl +                                                                              \
   ['fdc-test',
    'ide-test',
@@ -175,7 +172,9 @@ qtests_ppc64 = \
   (slirp.found() ? ['pxe-test'] : []) +              \
   (config_all_devices.has_key('CONFIG_USB_UHCI') ? ['usb-hcd-uhci-test'] : []) +             \
   (config_all_devices.has_key('CONFIG_USB_XHCI_NEC') ? ['usb-hcd-xhci-test'] : []) +         \
-  qtests_pci + ['migration-test', 'numa-test', 'cpu-plug-test', 'drive_del-test']
+  (config_all_devices.has_key('CONFIG_VGA') ? ['display-vga-test'] : []) +		     \
+  (config_all_devices.has_key('CONFIG_IVSHMEM_DEVICE') ? ['ivshmem-test'] : []) +	     \
+  ['migration-test', 'numa-test', 'cpu-plug-test', 'drive_del-test']
 
 qtests_sh4 = (config_all_devices.has_key('CONFIG_ISA_TESTDEV') ? ['endianness-test'] : [])
 qtests_sh4eb = (config_all_devices.has_key('CONFIG_ISA_TESTDEV') ? ['endianness-test'] : [])
