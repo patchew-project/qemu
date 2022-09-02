@@ -26,7 +26,6 @@
 #include "qemu/sockets.h"
 #include "trace.h"
 
-#ifndef WIN32
 /**
  * qio_channel_command_new_pid:
  * @writefd: the FD connected to the command's stdin
@@ -60,7 +59,13 @@ qio_channel_command_new_pid(int writefd,
     ioc->writefd = writefd;
     ioc->pid = pid;
 
-    trace_qio_channel_command_new_pid(ioc, writefd, readfd, pid);
+    trace_qio_channel_command_new_pid(ioc, writefd, readfd,
+#ifdef WIN32
+                                      GetProcessId(pid)
+#else
+                                      pid
+#endif
+        );
     return ioc;
 }
 
@@ -88,18 +93,6 @@ qio_channel_command_new_spawn(const char *const argv[],
 
     return qio_channel_command_new_pid(stdinfd, stdoutfd, pid);
 }
-
-#else /* WIN32 */
-QIOChannelCommand *
-qio_channel_command_new_spawn(const char *const argv[],
-                              int flags,
-                              Error **errp)
-{
-    error_setg_errno(errp, ENOSYS,
-                     "Command spawn not supported on this platform");
-    return NULL;
-}
-#endif /* WIN32 */
 
 #ifndef WIN32
 static int qio_channel_command_abort(QIOChannelCommand *ioc,
@@ -143,6 +136,23 @@ static int qio_channel_command_abort(QIOChannelCommand *ioc,
 
     return 0;
 }
+#else
+static int qio_channel_command_abort(QIOChannelCommand *ioc,
+                                     Error **errp)
+{
+    DWORD ret;
+
+    TerminateProcess(ioc->pid, 0);
+    ret = WaitForSingleObject(ioc->pid, 1000);
+    if (ret != WAIT_OBJECT_0) {
+        error_setg(errp,
+                   "Process %llu refused to die",
+                   (unsigned long long)GetProcessId(ioc->pid));
+        return -1;
+    }
+
+    return 0;
+}
 #endif /* ! WIN32 */
 
 
@@ -166,9 +176,7 @@ static void qio_channel_command_finalize(Object *obj)
     }
     ioc->writefd = ioc->readfd = -1;
     if (ioc->pid > 0) {
-#ifndef WIN32
         qio_channel_command_abort(ioc, NULL);
-#endif
         g_spawn_close_pid(ioc->pid);
     }
 }
@@ -233,14 +241,20 @@ static int qio_channel_command_set_blocking(QIOChannel *ioc,
                                             bool enabled,
                                             Error **errp)
 {
-#ifdef WIN32
-    /* command spawn is not supported on win32 */
-    g_assert_not_reached();
-#else
     QIOChannelCommand *cioc = QIO_CHANNEL_COMMAND(ioc);
 
-    if (!g_unix_set_fd_nonblocking(cioc->writefd, !enabled, NULL) ||
-        !g_unix_set_fd_nonblocking(cioc->readfd, !enabled, NULL)) {
+#ifdef WIN32
+    DWORD dwMode = PIPE_READMODE_BYTE | enabled ? PIPE_WAIT : PIPE_NOWAIT;
+
+    if ((cioc->writefd >= 0 && !SetNamedPipeHandleState((HANDLE)_get_osfhandle(cioc->writefd), &dwMode, NULL, NULL)) ||
+        (cioc->readfd >= 0 &&!SetNamedPipeHandleState((HANDLE)_get_osfhandle(cioc->readfd), &dwMode, NULL, NULL))) {
+        error_setg_win32(errp, GetLastError(), "Failed to set nonblocking");
+        return -1;
+    }
+#else
+
+    if ((cioc->writefd >= 0 && !g_unix_set_fd_nonblocking(cioc->writefd, !enabled, NULL)) ||
+        (cioc->readfd >= 0 && !g_unix_set_fd_nonblocking(cioc->readfd, !enabled, NULL))) {
         error_setg_errno(errp, errno, "Failed to set FD nonblocking");
         return -1;
     }
@@ -281,6 +295,8 @@ static int qio_channel_command_close(QIOChannel *ioc,
                          (unsigned long long)cioc->pid);
         return -1;
     }
+#else
+    WaitForSingleObject(cioc->pid, INFINITE);
 #endif
 
     if (rv < 0) {
