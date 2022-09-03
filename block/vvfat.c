@@ -2993,11 +2993,27 @@ DLOG(checkpoint());
 
     vvfat_close_current_file(s);
 
+    if (sector_num == s->offset_to_bootsector && nb_sectors == 1) {
+        /*
+         * Write on bootsector. Allow only changing the reserved1 field,
+         * used to mark volume dirtiness
+         */
+        const unsigned char *initial = s->first_sectors
+                                       + s->offset_to_bootsector * 0x200;
+        for (i = 0; i < 0x200; i++) {
+            if (i != offsetof(bootsector_t, u.fat16.reserved1) &&
+                initial[i] != buf[i]) {
+                fprintf(stderr, "Tried to write to protected bootsector\n");
+                return -1;
+            }
+        }
+        return 0;
+    }
+
     /*
      * Some sanity checks:
      * - do not allow writing to the boot sector
      */
-
     if (sector_num < s->offset_to_fat)
         return -1;
 
