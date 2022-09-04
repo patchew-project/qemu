@@ -1088,8 +1088,15 @@ void x86_load_linux(X86MachineState *x86ms,
         qemu_guest_getrandom_nofail(setup_data->data, RNG_SEED_LENGTH);
     }
 
-    /* Offset 0x250 is a pointer to the first setup_data link. */
-    stq_p(header + 0x250, first_setup_data);
+    /*
+     * Only modify the header if doing so won't crash EFI boot, which is the
+     * case only for newer boot protocols, and don't do so either if SEV is
+     * enabled.
+     */
+    if (protocol >= 0x210 && !sev_enabled()) {
+        /* Offset 0x250 is a pointer to the first setup_data link. */
+        stq_p(header + 0x250, first_setup_data);
+    }
 
     /*
      * If we're starting an encrypted VM, it will be OVMF based, which uses the
