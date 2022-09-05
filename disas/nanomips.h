@@ -76,21 +76,4 @@ struct Pool {
     uint64               attributes;
 };
 
-
-class NMD
-{
-public:
-
-    int Disassemble(const uint16 *data, std::string & dis,
-                    TABLE_ENTRY_TYPE & type, img_address m_pc);
-
-private:
-
-    uint64 extract_op_code_value(const uint16 *data, int size);
-    int Disassemble(const uint16 *data, std::string & dis,
-                    TABLE_ENTRY_TYPE & type, const Pool *table,
-                    int table_size, img_address m_pc);
-
-};
-
 #endif
