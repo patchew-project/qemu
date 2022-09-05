@@ -525,11 +525,7 @@ static const char *GPR(uint64 reg, struct Dis_info *info)
 static char *save_restore_list(uint64 rt, uint64 count, uint64 gp,
                                struct Dis_info *info)
 {
-    /*
-     * Currently, this file compiles as a cpp file, so the explicit cast here
-     * is necessary. Later, the cast will be removed.
-     */
-    char *str = (char *)g_malloc(200);
+    char *str = g_malloc(200);
     str[0] = '\0';
 
     for (uint64 counter = 0; counter != count; counter++) {
