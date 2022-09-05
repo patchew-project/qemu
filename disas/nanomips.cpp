@@ -51,16 +51,16 @@ typedef bool (*conditional_function)(uint64 instruction);
 typedef char * (*disassembly_function)(uint64 instruction,
                                        struct Dis_info *info);
 
-enum TABLE_ENTRY_TYPE {
+typedef enum {
     instruction,
     call_instruction,
     branch_instruction,
     return_instruction,
     reserved_block,
     pool,
-};
+} TABLE_ENTRY_TYPE;
 
-enum TABLE_ATTRIBUTE_TYPE {
+typedef enum {
     MIPS64_    = 0x00000001,
     XNP_       = 0x00000002,
     XMMS_      = 0x00000004,
@@ -78,7 +78,7 @@ enum TABLE_ATTRIBUTE_TYPE {
     TLB_       = 0x00004000,
     MVH_       = 0x00008000,
     ALL_ATTRIBUTES = 0xffffffffull,
-};
+} TABLE_ATTRIBUTE_TYPE;
 
 struct Pool {
     TABLE_ENTRY_TYPE     type;
