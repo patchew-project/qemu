@@ -3420,6 +3420,14 @@ static inline MemoryRegion *address_space_translate_cached(
     return section.mr;
 }
 
+/* Converts `addr` from the address space of `cache` to that of `cache->fv`. */
+static inline hwaddr addr_in_cache_to_in_flat_view(MemoryRegionCache *cache,
+                                                   hwaddr addr)
+{
+    hwaddr addr_in_mrs = addr + cache->xlat - cache->mrs.offset_within_region;
+    return addr_in_mrs + cache->mrs.offset_within_address_space;
+}
+
 /* Called from RCU critical section. address_space_read_cached uses this
  * out of line function when the target is an MMIO or IOMMU region.
  */
@@ -3434,8 +3442,9 @@ address_space_read_cached_slow(MemoryRegionCache *cache, hwaddr addr,
     mr = address_space_translate_cached(cache, addr, &addr1, &l, false,
                                         MEMTXATTRS_UNSPECIFIED);
     return flatview_read_continue(cache->fv,
-                                  addr, MEMTXATTRS_UNSPECIFIED, buf, len,
-                                  addr1, l, mr);
+                                  addr_in_cache_to_in_flat_view(cache, addr),
+                                  MEMTXATTRS_UNSPECIFIED, buf, len, addr1, l,
+                                  mr);
 }
 
 /* Called from RCU critical section. address_space_write_cached uses this
@@ -3452,8 +3461,9 @@ address_space_write_cached_slow(MemoryRegionCache *cache, hwaddr addr,
     mr = address_space_translate_cached(cache, addr, &addr1, &l, true,
                                         MEMTXATTRS_UNSPECIFIED);
     return flatview_write_continue(cache->fv,
-                                   addr, MEMTXATTRS_UNSPECIFIED, buf, len,
-                                   addr1, l, mr);
+                                   addr_in_cache_to_in_flat_view(cache, addr),
+                                   MEMTXATTRS_UNSPECIFIED, buf, len, addr1, l,
+                                   mr);
 }
 
 #define ARG1_DECL                MemoryRegionCache *cache
