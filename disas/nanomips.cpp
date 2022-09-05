@@ -635,7 +635,7 @@ static uint64 extract_op_code_value(const uint16 *data, int size)
  *      disassembly string  - on error will constain error string
  */
 static int Disassemble(const uint16 *data, char *dis,
-                       TABLE_ENTRY_TYPE & type, const Pool *table,
+                       TABLE_ENTRY_TYPE *type, const Pool *table,
                        int table_size, struct Dis_info *info)
 {
     for (int i = 0; i < table_size; i++) {
@@ -669,7 +669,7 @@ static int Disassemble(const uint16 *data, char *dis,
                             "disassembler failure - bad table entry");
                             return -6;
                         }
-                        type = table[i].type;
+                        *type = table[i].type;
                         g_autofree char *dis_str = dis_fn(op_code, info);
                         strcpy(dis, dis_str);
                         return table[i].instructions_size;
@@ -22248,7 +22248,7 @@ static int nanomips_dis(char *buf,
     uint16 bits[3] = {one, two, three};
 
     TABLE_ENTRY_TYPE type;
-    int size = Disassemble(bits, disasm, type, MAJOR, 2, info);
+    int size = Disassemble(bits, disasm, &type, MAJOR, 2, info);
 
     strcpy(buf, disasm);
     return size;
