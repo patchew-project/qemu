@@ -1285,6 +1285,18 @@ static void virt_machine_done(Notifier *notifier, void *data)
         start_addr = virt_memmap[VIRT_FLASH].base;
     }
 
+    if (drive_get(IF_PFLASH, 0, 1)) {
+        /*
+         * Assume second pflash unit (unit=1) to hold the S-mode firmware
+         * like EDK2. Set kernel_entry to flash address if kernel argument
+         * is not set and pflash unit 1 is configured.
+         */
+        if (!kernel_entry) {
+            kernel_entry = virt_memmap[VIRT_FLASH].base +
+                             virt_memmap[VIRT_FLASH].size / 2;
+        }
+    }
+
     /*
      * Init fw_cfg.  Must be done before riscv_load_fdt, otherwise the device
      * tree cannot be altered and we get FDT_ERR_NOSPACE.
