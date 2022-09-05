@@ -1348,10 +1348,12 @@ static Aml *build_q35_osc_method(bool enable_native_pcie_hotplug)
 {
     Aml *if_ctx;
     Aml *if_ctx2;
+    Aml *if_ctx3;
     Aml *else_ctx;
     Aml *method;
     Aml *a_cwd1 = aml_name("CDW1");
     Aml *a_ctrl = aml_local(0);
+    Aml *a_pcie_nhp_ctl = aml_local(1);
 
     method = aml_method("_OSC", 4, AML_NOTSERIALIZED);
     aml_append(method, aml_create_dword_field(aml_arg(3), aml_int(0), "CDW1"));
@@ -1366,11 +1368,26 @@ static Aml *build_q35_osc_method(bool enable_native_pcie_hotplug)
     /*
      * Always allow native PME, AER (no dependencies)
      * Allow SHPC (PCI bridges can have SHPC controller)
-     * Disable PCIe Native Hot-plug if ACPI PCI Hot-plug is enabled.
      */
-    aml_append(if_ctx, aml_and(a_ctrl,
-        aml_int(0x1E | (enable_native_pcie_hotplug ? 0x1 : 0x0)), a_ctrl));
+    aml_append(if_ctx, aml_and(a_ctrl, aml_int(0x1F), a_ctrl));
 
+    /*
+     * if ACPI PCI Hot-plug is enabled, do not let OSPM set OSC PCIE
+     * Native hotplug ctrl bit.
+     */
+    if (!enable_native_pcie_hotplug) {
+        /* check if the ACPI native hotplug bit is set by the OS in DWORD3 */
+        aml_append(if_ctx, aml_and(aml_name("CDW3"),
+                                   aml_int(0x01), a_pcie_nhp_ctl));
+        if_ctx3 = aml_if(aml_equal(aml_int(1), a_pcie_nhp_ctl));
+        /*
+         * ACPI spec 5.1, section 6.2.11
+         * bit 1 in first DWORD - _OSC failure
+         * bit 4 in first DWORD - capabilities masked
+         */
+        aml_append(if_ctx3, aml_or(a_cwd1, aml_int(0x12), a_cwd1));
+        aml_append(if_ctx, if_ctx3);
+    }
     if_ctx2 = aml_if(aml_lnot(aml_equal(aml_arg(1), aml_int(1))));
     /* Unknown revision */
     aml_append(if_ctx2, aml_or(a_cwd1, aml_int(0x08), a_cwd1));
