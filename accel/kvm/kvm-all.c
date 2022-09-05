@@ -3892,7 +3892,7 @@ exit:
 typedef struct StatsDescriptors {
     const char *ident; /* cache key, currently the StatsTarget */
     struct kvm_stats_desc *kvm_stats_desc;
-    struct kvm_stats_header *kvm_stats_header;
+    struct kvm_stats_header kvm_stats_header;
     QTAILQ_ENTRY(StatsDescriptors) next;
 } StatsDescriptors;
 
@@ -3923,7 +3923,7 @@ static StatsDescriptors *find_stats_descriptors(StatsTarget target, int stats_fd
     descriptors = g_new0(StatsDescriptors, 1);
 
     /* Read stats header */
-    kvm_stats_header = g_malloc(sizeof(*kvm_stats_header));
+    kvm_stats_header = &descriptors->kvm_stats_header;
     ret = read(stats_fd, kvm_stats_header, sizeof(*kvm_stats_header));
     if (ret != sizeof(*kvm_stats_header)) {
         error_setg(errp, "KVM stats: failed to read stats header: "
@@ -3948,7 +3948,6 @@ static StatsDescriptors *find_stats_descriptors(StatsTarget target, int stats_fd
         g_free(kvm_stats_desc);
         return NULL;
     }
-    descriptors->kvm_stats_header = kvm_stats_header;
     descriptors->kvm_stats_desc = kvm_stats_desc;
     descriptors->ident = ident;
     QTAILQ_INSERT_TAIL(&stats_descriptors, descriptors, next);
@@ -3973,7 +3972,7 @@ static void query_stats(StatsResultList **result, StatsTarget target,
         return;
     }
 
-    kvm_stats_header = descriptors->kvm_stats_header;
+    kvm_stats_header = &descriptors->kvm_stats_header;
     kvm_stats_desc = descriptors->kvm_stats_desc;
     size_desc = sizeof(*kvm_stats_desc) + kvm_stats_header->name_size;
 
@@ -4038,7 +4037,7 @@ static void query_stats_schema(StatsSchemaList **result, StatsTarget target,
         return;
     }
 
-    kvm_stats_header = descriptors->kvm_stats_header;
+    kvm_stats_header = &descriptors->kvm_stats_header;
     kvm_stats_desc = descriptors->kvm_stats_desc;
     size_desc = sizeof(*kvm_stats_desc) + kvm_stats_header->name_size;
 
