@@ -2969,6 +2969,73 @@ print_stat(CPUArchState *cpu_env, const struct syscallname *name,
 #define print_lstat64   print_stat
 #endif
 
+#if defined(TARGET_NR_madvise)
+#define TARGET_MADV_NORMAL 0
+#define TARGET_MADV_RANDOM 1
+#define TARGET_MADV_SEQUENTIAL 2
+#define TARGET_MADV_WILLNEED 3
+#define TARGET_MADV_DONTNEED 4
+#define TARGET_MADV_FREE 8
+#define TARGET_MADV_REMOVE 9
+#define TARGET_MADV_DONTFORK 10
+#define TARGET_MADV_DOFORK 11
+#define TARGET_MADV_HWPOISON 100
+#define TARGET_MADV_SOFT_OFFLINE 101
+#define TARGET_MADV_MERGEABLE 12
+#define TARGET_MADV_UNMERGEABLE 13
+#define TARGET_MADV_HUGEPAGE 14
+#define TARGET_MADV_NOHUGEPAGE 15
+#define TARGET_MADV_DONTDUMP 16
+#define TARGET_MADV_DODUMP 17
+#define TARGET_MADV_WIPEONFORK 18
+#define TARGET_MADV_KEEPONFORK 19
+#define TARGET_MADV_COLD 20
+#define TARGET_MADV_PAGEOUT 21
+#define TARGET_MADV_POPULATE_READ 22
+#define TARGET_MADV_POPULATE_WRITE 23
+#define TARGET_MADV_DONTNEED_LOCKED 24
+
+static struct enums madvise_advice[] = {
+    ENUM_TARGET(MADV_NORMAL),
+    ENUM_TARGET(MADV_RANDOM),
+    ENUM_TARGET(MADV_SEQUENTIAL),
+    ENUM_TARGET(MADV_WILLNEED),
+    ENUM_TARGET(MADV_DONTNEED),
+    ENUM_TARGET(MADV_FREE),
+    ENUM_TARGET(MADV_REMOVE),
+    ENUM_TARGET(MADV_DONTFORK),
+    ENUM_TARGET(MADV_DOFORK),
+    ENUM_TARGET(MADV_HWPOISON),
+    ENUM_TARGET(MADV_SOFT_OFFLINE),
+    ENUM_TARGET(MADV_MERGEABLE),
+    ENUM_TARGET(MADV_UNMERGEABLE),
+    ENUM_TARGET(MADV_HUGEPAGE),
+    ENUM_TARGET(MADV_NOHUGEPAGE),
+    ENUM_TARGET(MADV_DONTDUMP),
+    ENUM_TARGET(MADV_DODUMP),
+    ENUM_TARGET(MADV_WIPEONFORK),
+    ENUM_TARGET(MADV_KEEPONFORK),
+    ENUM_TARGET(MADV_COLD),
+    ENUM_TARGET(MADV_PAGEOUT),
+    ENUM_TARGET(MADV_POPULATE_READ),
+    ENUM_TARGET(MADV_POPULATE_WRITE),
+    ENUM_TARGET(MADV_DONTNEED_LOCKED),
+    ENUM_END,
+};
+
+static void
+print_madvise(CPUArchState *cpu_env, const struct syscallname *name,
+              abi_long arg0, abi_long arg1, abi_long arg2,
+              abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    print_syscall_prologue(name);
+    print_pointer(arg0, 0);
+    print_raw_param("%d", arg1, 0);
+    print_enums(madvise_advice, arg2, 1);
+    print_syscall_epilogue(name);
+}
+#endif
+
 #if defined(TARGET_NR_fstat) || defined(TARGET_NR_fstat64)
 static void
 print_fstat(CPUArchState *cpu_env, const struct syscallname *name,
