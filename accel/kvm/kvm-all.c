@@ -3946,6 +3946,7 @@ static StatsDescriptors *find_stats_descriptors(StatsTarget target, int stats_fd
                    size_desc * kvm_stats_header->num_desc, ret);
         g_free(descriptors);
         g_free(kvm_stats_desc);
+        g_free(kvm_stats_header);
         return NULL;
     }
     descriptors->kvm_stats_header = kvm_stats_header;
