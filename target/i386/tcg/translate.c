@@ -8740,6 +8740,9 @@ static void i386_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
     case DISAS_NORETURN:
         break;
     case DISAS_TOO_MANY:
+        gen_update_cc_op(dc);
+        gen_jmp_rel(dc, MO_32, 0, 0);
+        break;
     case DISAS_EOB_NEXT:
         gen_update_cc_op(dc);
         gen_update_eip_cur(dc);
