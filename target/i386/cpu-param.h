@@ -24,5 +24,6 @@
 #endif
 #define TARGET_PAGE_BITS 12
 #define NB_MMU_MODES 3
+#define TARGET_TB_PCREL 1
 
 #endif
