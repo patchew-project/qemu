@@ -533,6 +533,18 @@ struct TranslationBlock {
     uintptr_t jmp_dest[2];
 };
 
+/* Hide the read to avoid ifdefs for TARGET_TB_PCREL. */
+static inline target_ulong tb_pc(const TranslationBlock *tb)
+{
+    return tb->pc;
+}
+
+/* Similarly, but for logs. */
+static inline target_ulong tb_pc_log(const TranslationBlock *tb)
+{
+    return tb->pc;
+}
+
 /* Hide the qatomic_read to make code a little easier on the eyes */
 static inline uint32_t tb_cflags(const TranslationBlock *tb)
 {
