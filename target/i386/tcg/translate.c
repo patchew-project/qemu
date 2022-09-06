@@ -516,6 +516,11 @@ static inline void gen_op_st_rm_T0_A0(DisasContext *s, int idx, int d)
     }
 }
 
+static TCGv gen_eip_cur(DisasContext *s)
+{
+    return tcg_constant_tl(s->base.pc_next - s->cs_base);
+}
+
 static void gen_jmp_im(DisasContext *s, target_ulong pc)
 {
     gen_op_jmp_v(tcg_constant_tl(pc));
@@ -6574,7 +6579,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
                                offsetof(CPUX86State, segs[R_CS].selector));
                 tcg_gen_st16_i32(s->tmp2_i32, cpu_env,
                                  offsetof(CPUX86State, fpcs));
-                tcg_gen_st_tl(tcg_constant_tl(s->base.pc_next - s->cs_base),
+                tcg_gen_st_tl(gen_eip_cur(s),
                               cpu_env, offsetof(CPUX86State, fpip));
             }
         }
