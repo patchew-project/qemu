@@ -34,4 +34,6 @@
 
 #define NB_MMU_MODES 15
 
+#define TARGET_TB_PCREL 1
+
 #endif
