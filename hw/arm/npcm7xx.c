@@ -45,6 +45,7 @@
 #define NPCM7XX_CLK_BA          (0xf0801000)
 #define NPCM7XX_MC_BA           (0xf0824000)
 #define NPCM7XX_RNG_BA          (0xf000b000)
+#define NPCM7XX_PECI_BA         (0xf0100000)
 
 /* USB Host modules */
 #define NPCM7XX_EHCI_BA         (0xf0806000)
@@ -83,6 +84,7 @@ enum NPCM7xxInterrupt {
     NPCM7XX_UART1_IRQ,
     NPCM7XX_UART2_IRQ,
     NPCM7XX_UART3_IRQ,
+    NPCM7XX_PECI_IRQ            = 6,
     NPCM7XX_EMC1RX_IRQ          = 15,
     NPCM7XX_EMC1TX_IRQ,
     NPCM7XX_MMC_IRQ             = 26,
@@ -445,6 +447,7 @@ static void npcm7xx_init(Object *obj)
     }
 
     object_initialize_child(obj, "mmc", &s->mmc, TYPE_NPCM7XX_SDHCI);
+    object_initialize_child(obj, "peci", &s->peci, TYPE_NPCM7XX_PECI);
 }
 
 static void npcm7xx_realize(DeviceState *dev, Error **errp)
@@ -714,6 +717,12 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->mmc), 0, NPCM7XX_MMC_BA);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->mmc), 0,
             npcm7xx_irq(s, NPCM7XX_MMC_IRQ));
+
+     /* PECI */
+    sysbus_realize(SYS_BUS_DEVICE(&s->peci), &error_abort);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->peci), 0, NPCM7XX_PECI_BA);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->peci), 0,
+                       npcm7xx_irq(s, NPCM7XX_PECI_IRQ));
 
     create_unimplemented_device("npcm7xx.shm",          0xc0001000,   4 * KiB);
     create_unimplemented_device("npcm7xx.vdmx",         0xe0800000,   4 * KiB);
