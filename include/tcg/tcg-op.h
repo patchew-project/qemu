@@ -850,6 +850,7 @@ static inline void tcg_gen_plugin_cb_end(void)
 #define tcg_temp_local_new() tcg_temp_local_new_i32()
 #define tcg_temp_ebb_new() tcg_temp_ebb_new_i32()
 #define tcg_temp_free tcg_temp_free_i32
+#define tcg_temp_is_normal tcg_temp_is_normal_i32
 #define tcg_gen_qemu_ld_tl tcg_gen_qemu_ld_i32
 #define tcg_gen_qemu_st_tl tcg_gen_qemu_st_i32
 #else
@@ -858,6 +859,7 @@ static inline void tcg_gen_plugin_cb_end(void)
 #define tcg_temp_local_new() tcg_temp_local_new_i64()
 #define tcg_temp_ebb_new() tcg_temp_ebb_new_i64()
 #define tcg_temp_free tcg_temp_free_i64
+#define tcg_temp_is_normal tcg_temp_is_normal_i64
 #define tcg_gen_qemu_ld_tl tcg_gen_qemu_ld_i64
 #define tcg_gen_qemu_st_tl tcg_gen_qemu_st_i64
 #endif

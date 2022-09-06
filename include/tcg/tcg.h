@@ -871,6 +871,21 @@ static inline void tcg_temp_free_vec(TCGv_vec arg)
     tcg_temp_free_internal(tcgv_vec_temp(arg));
 }
 
+static inline bool tcg_temp_is_normal_i32(TCGv_i32 arg)
+{
+    return tcgv_i32_temp(arg)->kind == TEMP_NORMAL;
+}
+
+static inline bool tcg_temp_is_normal_i64(TCGv_i64 arg)
+{
+    return tcgv_i64_temp(arg)->kind == TEMP_NORMAL;
+}
+
+static inline bool tcg_temp_is_normal_ptr(TCGv_ptr arg)
+{
+    return tcgv_ptr_temp(arg)->kind == TEMP_NORMAL;
+}
+
 static inline TCGv_i32 tcg_global_mem_new_i32(TCGv_ptr reg, intptr_t offset,
                                               const char *name)
 {
