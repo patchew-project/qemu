@@ -224,7 +224,6 @@ STUB_HELPER(wrmsr, TCGv_env env)
 
 static void gen_eob(DisasContext *s);
 static void gen_jr(DisasContext *s);
-static void gen_jmp(DisasContext *s, target_ulong eip);
 static void gen_jmp_tb(DisasContext *s, target_ulong eip, int tb_num);
 static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num);
 static void gen_op(DisasContext *s1, int op, MemOp ot, int d);
@@ -1277,7 +1276,7 @@ static void gen_repz(DisasContext *s, MemOp ot,
     if (s->repz_opt) {
         gen_op_jz_ecx(s, s->aflag, l2);
     }
-    gen_jmp(s, s->base.pc_next - s->cs_base);
+    gen_jmp_rel(s, MO_32, -cur_insn_len(s), 0);
 }
 
 #define GEN_REPZ(op) \
@@ -1297,7 +1296,7 @@ static void gen_repz2(DisasContext *s, MemOp ot, int nz,
     if (s->repz_opt) {
         gen_op_jz_ecx(s, s->aflag, l2);
     }
-    gen_jmp(s, s->base.pc_next - s->cs_base);
+    gen_jmp_rel(s, MO_32, -cur_insn_len(s), 0);
 }
 
 #define GEN_REPZ2(op) \
@@ -2749,11 +2748,6 @@ static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num)
         dest &= 0xffffffff;
     }
     gen_jmp_tb(s, dest, tb_num);
-}
-
-static void gen_jmp(DisasContext *s, target_ulong eip)
-{
-    gen_jmp_tb(s, eip, 0);
 }
 
 static inline void gen_ldq_env_A0(DisasContext *s, int offset)
