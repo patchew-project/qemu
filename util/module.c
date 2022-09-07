@@ -21,6 +21,7 @@
 #include "qemu/module.h"
 #include "qemu/cutils.h"
 #include "qemu/config-file.h"
+#include "qapi/error.h"
 #ifdef CONFIG_MODULE_UPGRADES
 #include "qemu-version.h"
 #endif
@@ -144,7 +145,22 @@ static bool module_check_arch(const QemuModinfo *modinfo)
     return true;
 }
 
-static int module_load_file(const char *fname, bool export_symbols)
+/*
+ * module_load_file: attempt to load a dso file
+ *
+ * fname:          full pathname of the file to load
+ * export_symbols: if true, add the symbols to the global name space
+ * errp:           error to set.
+ *
+ * Return value:   0 on success (found and loaded), < 0 on failure.
+ *                 A return value of -ENOENT or -ENOTDIR means 'not found'.
+ *                 -EINVAL is used as the generic error condition.
+ *
+ * Error:          If fname is found, but could not be loaded, errp is set
+ *                 with the error encountered during load.
+ */
+static int module_load_file(const char *fname, bool export_symbols,
+                            Error **errp)
 {
     GModule *g_module;
     void (*sym)(void);
@@ -152,16 +168,19 @@ static int module_load_file(const char *fname, bool export_symbols)
     int len = strlen(fname);
     int suf_len = strlen(dsosuf);
     ModuleEntry *e, *next;
-    int ret, flags;
+    int flags;
 
     if (len <= suf_len || strcmp(&fname[len - suf_len], dsosuf)) {
-        /* wrong suffix */
-        ret = -EINVAL;
-        goto out;
+        error_setg(errp, "wrong filename, missing suffix %s", dsosuf);
+        return -EINVAL;
     }
-    if (access(fname, F_OK)) {
-        ret = -ENOENT;
-        goto out;
+    if (access(fname, F_OK) != 0) {
+        int ret = errno;
+        if (ret != ENOENT && ret != ENOTDIR) {
+            error_setg_errno(errp, ret, "error trying to access %s", fname);
+        }
+        /* most likely is EACCES here */
+        return -ret;
     }
 
     assert(QTAILQ_EMPTY(&dso_init_list));
@@ -172,41 +191,52 @@ static int module_load_file(const char *fname, bool export_symbols)
     }
     g_module = g_module_open(fname, flags);
     if (!g_module) {
-        fprintf(stderr, "Failed to open module: %s\n",
-                g_module_error());
-        ret = -EINVAL;
-        goto out;
+        error_setg(errp, "failed to open module: %s", g_module_error());
+        return -EINVAL;
     }
     if (!g_module_symbol(g_module, DSO_STAMP_FUN_STR, (gpointer *)&sym)) {
-        fprintf(stderr, "Failed to initialize module: %s\n",
-                fname);
-        /* Print some info if this is a QEMU module (but from different build),
-         * this will make debugging user problems easier. */
+        error_setg(errp, "failed to initialize module: %s", fname);
+        /*
+         * Print some info if this is a QEMU module (but from different build),
+         * this will make debugging user problems easier.
+         */
         if (g_module_symbol(g_module, "qemu_module_dummy", (gpointer *)&sym)) {
-            fprintf(stderr,
-                    "Note: only modules from the same build can be loaded.\n");
+            error_append_hint(errp,
+                              "Only modules from the same build can be loaded");
         }
         g_module_close(g_module);
-        ret = -EINVAL;
-    } else {
-        QTAILQ_FOREACH(e, &dso_init_list, node) {
-            e->init();
-            register_module_init(e->init, e->type);
-        }
-        ret = 0;
+        return -EINVAL;
     }
 
+    QTAILQ_FOREACH(e, &dso_init_list, node) {
+        e->init();
+        register_module_init(e->init, e->type);
+    }
     trace_module_load_module(fname);
     QTAILQ_FOREACH_SAFE(e, &dso_init_list, node, next) {
         QTAILQ_REMOVE(&dso_init_list, e, node);
         g_free(e);
     }
-out:
-    return ret;
+    return 0;
 }
-#endif
+#endif /* CONFIG_MODULES */
 
-bool module_load_one(const char *prefix, const char *lib_name)
+/*
+ * module_load_one: attempt to load a module from a set of directories
+ *
+ * directories searched are:
+ * - getenv("QEMU_MODULE_DIR")
+ * - get_relocated_path(CONFIG_QEMU_MODDIR);
+ * - /var/run/qemu/${version_dir}
+ *
+ * prefix:         a subsystem prefix, or the empty string ("audio-", "")
+ * name:           name of the module
+ * errp:           error to set.
+ *
+ * Return value:   true on success (found and loaded), false on failure.
+ *                 If module is found, but could not be loaded, errp will be set
+ */
+bool module_load_one(const char *prefix, const char *name, Error **errp)
 {
     bool success = false;
 
@@ -226,7 +256,7 @@ bool module_load_one(const char *prefix, const char *lib_name)
     const char **sl;
 
     if (!g_module_supported()) {
-        fprintf(stderr, "Module is not supported by system.\n");
+        error_setg(errp, "%s", "this platform does not support GLib modules");
         return false;
     }
 
@@ -234,7 +264,7 @@ bool module_load_one(const char *prefix, const char *lib_name)
         loaded_modules = g_hash_table_new(g_str_hash, g_str_equal);
     }
 
-    module_name = g_strdup_printf("%s%s", prefix, lib_name);
+    module_name = g_strdup_printf("%s%s", prefix, name);
 
     if (g_hash_table_contains(loaded_modules, module_name)) {
         g_free(module_name);
@@ -246,6 +276,8 @@ bool module_load_one(const char *prefix, const char *lib_name)
         if (modinfo->arch) {
             if (strcmp(modinfo->name, module_name) == 0) {
                 if (!module_check_arch(modinfo)) {
+                    error_setg(errp, "module arch does not match: "
+                        "expected '%s', got '%s'", module_arch, modinfo->arch);
                     return false;
                 }
             }
@@ -254,7 +286,9 @@ bool module_load_one(const char *prefix, const char *lib_name)
             if (strcmp(modinfo->name, module_name) == 0) {
                 /* we depend on other module(s) */
                 for (sl = modinfo->deps; *sl != NULL; sl++) {
-                    module_load_one("", *sl);
+                    if (!(module_load_one("", *sl, errp))) {
+                        return false;
+                    }
                 }
             } else {
                 for (sl = modinfo->deps; *sl != NULL; sl++) {
@@ -285,14 +319,20 @@ bool module_load_one(const char *prefix, const char *lib_name)
     for (i = 0; i < n_dirs; i++) {
         fname = g_strdup_printf("%s/%s%s",
                 dirs[i], module_name, CONFIG_HOST_DSOSUF);
-        ret = module_load_file(fname, export_symbols);
+        ret = module_load_file(fname, export_symbols, errp);
         g_free(fname);
         fname = NULL;
-        /* Try loading until loaded a module file */
-        if (!ret) {
-            success = true;
-            break;
+        /*
+         * Try to find the file in all directories until we either fail badly,
+         * load the file successfully, or exhaust all directories in the list.
+         */
+        if (ret == -ENOENT || ret == -ENOTDIR) {
+            continue;
         }
+        if (ret == 0) {
+            success = true;
+        }
+        break;
     }
 
     if (!success) {
@@ -312,13 +352,25 @@ bool module_load_one(const char *prefix, const char *lib_name)
 
 static bool module_loaded_qom_all;
 
-void module_load_qom_one(const char *type)
+/*
+ * module_load_qom_one: attempt to load a module to provide a QOM type
+ *
+ * type:           the type to be provided
+ * errp:           error to set.
+ *
+ * Return value:   true on success (found and loaded), false on failure.
+ *                 If a module is simply not found for the type,
+ *                 errp will not be set.
+ */
+bool module_load_qom_one(const char *type, Error **errp)
 {
+    bool found = false;
     const QemuModinfo *modinfo;
     const char **sl;
 
     if (!type) {
-        return;
+        error_setg(errp, "%s", "type is NULL");
+        return false;
     }
 
     trace_module_lookup_object_type(type);
@@ -331,15 +383,26 @@ void module_load_qom_one(const char *type)
         }
         for (sl = modinfo->objs; *sl != NULL; sl++) {
             if (strcmp(type, *sl) == 0) {
-                module_load_one("", modinfo->name);
+                if (found) {
+                    error_setg(errp, "multiple modules providing '%s'", type);
+                    found = false;
+                    break;
+                }
+                found = module_load_one("", modinfo->name, errp);
+                if (!found) {
+                    /* errp optionally set in module_load_one */
+                    break;
+                }
             }
         }
     }
+    return found;
 }
 
 void module_load_qom_all(void)
 {
     const QemuModinfo *modinfo;
+    Error *local_err = NULL;
 
     if (module_loaded_qom_all) {
         return;
@@ -352,7 +415,9 @@ void module_load_qom_all(void)
         if (!module_check_arch(modinfo)) {
             continue;
         }
-        module_load_one("", modinfo->name);
+        if (!module_load_one("", modinfo->name, &local_err) && local_err) {
+            error_report_err(local_err);
+        }
     }
     module_loaded_qom_all = true;
 }
@@ -368,7 +433,11 @@ void qemu_load_module_for_opts(const char *group)
         }
         for (sl = modinfo->opts; *sl != NULL; sl++) {
             if (strcmp(group, *sl) == 0) {
-                module_load_one("", modinfo->name);
+                Error *local_err = NULL;
+                if (!module_load_one("", modinfo->name, &local_err)
+                    && local_err) {
+                    error_report_err(local_err);
+                }
             }
         }
     }
@@ -378,7 +447,7 @@ void qemu_load_module_for_opts(const char *group)
 
 void module_allow_arch(const char *arch) {}
 void qemu_load_module_for_opts(const char *group) {}
-void module_load_qom_one(const char *type) {}
+bool module_load_qom_one(const char *type, Error **errp) { return true; }
 void module_load_qom_all(void) {}
 
 #endif
