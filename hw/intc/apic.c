@@ -793,6 +793,11 @@ static void apic_mem_write(void *opaque, hwaddr addr, uint64_t val,
         break;
     case 0x0f:
         s->spurious_vec = val & 0x1ff;
+        if (!(val & APIC_SPURIO_ENABLED)) {
+            for (int i = 0; i < APIC_LVT_NB; i++) {
+                s->lvt[i] |= APIC_LVT_MASKED;
+            }
+        }
         apic_update_irq(s);
         break;
     case 0x10 ... 0x17:
@@ -812,6 +817,9 @@ static void apic_mem_write(void *opaque, hwaddr addr, uint64_t val,
     case 0x32 ... 0x37:
         {
             int n = index - 0x32;
+            if (!(s->spurious_vec & APIC_SPURIO_ENABLED)) {
+                val |= APIC_LVT_MASKED;
+            }
             s->lvt[n] = val;
             if (n == APIC_LVT_TIMER) {
                 apic_timer_update(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
