@@ -729,7 +729,7 @@ qcrypto_block_luks_store_key(QCryptoBlock *block,
     QCryptoBlockLUKS *luks = block->opaque;
     QCryptoBlockLUKSKeySlot *slot;
     g_autofree uint8_t *splitkey = NULL;
-    size_t splitkeylen;
+    size_t splitkeylen = 0;
     g_autofree uint8_t *slotkey = NULL;
     g_autoptr(QCryptoCipher) cipher = NULL;
     g_autoptr(QCryptoIVGen) ivgen = NULL;
@@ -901,7 +901,7 @@ qcrypto_block_luks_load_key(QCryptoBlock *block,
     QCryptoBlockLUKS *luks = block->opaque;
     const QCryptoBlockLUKSKeySlot *slot;
     g_autofree uint8_t *splitkey = NULL;
-    size_t splitkeylen;
+    size_t splitkeylen = 0;
     g_autofree uint8_t *possiblekey = NULL;
     int rv;
     g_autoptr(QCryptoCipher) cipher = NULL;
@@ -1147,7 +1147,7 @@ qcrypto_block_luks_erase_key(QCryptoBlock *block,
     QCryptoBlockLUKS *luks = block->opaque;
     QCryptoBlockLUKSKeySlot *slot;
     g_autofree uint8_t *garbagesplitkey = NULL;
-    size_t splitkeylen;
+    size_t splitkeylen = 0;
     size_t i;
     Error *local_err = NULL;
     int ret;
