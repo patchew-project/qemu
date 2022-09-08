@@ -30,9 +30,14 @@
 #include "qemu-file.h"
 #include "trace.h"
 #include "qapi/error.h"
+#include "qemu/memalign.h"
+#include "qemu/error-report.h"
+#include "migration.h"
+#include "io/channel-file.h"
 
 #define IO_BUF_SIZE 32768
 #define MAX_IOV_SIZE MIN_CONST(IOV_MAX, 64)
+#define DIO_BUF_SIZE (8*IO_BUF_SIZE)
 
 struct QEMUFile {
     const QEMUFileHooks *hooks;
@@ -56,6 +61,8 @@ struct QEMUFile {
     int buf_index;
     int buf_size; /* 0 when writing */
     uint8_t buf[IO_BUF_SIZE];
+    uint8_t *dio_buf;
+    int dio_buf_index;
 
     DECLARE_BITMAP(may_free, MAX_IOV_SIZE);
     struct iovec iov[MAX_IOV_SIZE];
@@ -65,6 +72,7 @@ struct QEMUFile {
     Error *last_error_obj;
     /* has the file has been shutdown */
     bool shutdown;
+    bool closing;
 };
 
 /*
@@ -115,6 +123,7 @@ static QEMUFile *qemu_file_new_impl(QIOChannel *ioc, bool is_writable)
     object_ref(ioc);
     f->ioc = ioc;
     f->is_writable = is_writable;
+    f->dio_buf = qemu_memalign(64*1024, DIO_BUF_SIZE);
 
     return f;
 }
@@ -260,6 +269,76 @@ static void qemu_iovec_release_ram(QEMUFile *f)
     memset(f->may_free, 0, sizeof(f->may_free));
 }
 
+#define in_range(b, first, len) ((uintptr_t)(b) >= (uintptr_t)(first) && (uintptr_t)(b) < (uintptr_t)(first) + (len))
+
+static void qemu_fflush_dio(QEMUFile *f)
+{
+	do  {
+		int i;
+		int new_ioveccnt = 0;
+		for (i = 0; i < f->iovcnt && f->dio_buf_index < DIO_BUF_SIZE; i++) {
+			struct iovec *vec = &f->iov[i];
+			size_t copy_len = MIN(vec->iov_len, DIO_BUF_SIZE - f->dio_buf_index);
+
+			/* if the iovec contains inline buf, adjust buf_index
+			 * accordingly
+			 */
+			if (in_range(vec->iov_base, f->buf, IO_BUF_SIZE)) {
+				f->buf_index -= copy_len;
+			}
+
+			memcpy(f->dio_buf+f->dio_buf_index, vec->iov_base, copy_len);
+			f->dio_buf_index += copy_len;
+			/* In case we couldn't fit the full iovec */
+			if (copy_len < vec->iov_len) {
+				// partial write or no write at all;
+				vec->iov_base += copy_len;
+				vec->iov_len -= copy_len;
+				break;
+			}
+		}
+
+		new_ioveccnt = f->iovcnt - i;
+		/*
+		 * DIO buf has been filled but we still have outstanding iovecs
+		 * so shift them to the beginning of iov array for subsequent
+		 * flushing
+		 */
+		for (int j = 0; i < f->iovcnt; j++, i++) {
+			f->iov[j] = f->iov[i];
+		}
+		f->iovcnt = new_ioveccnt;
+
+
+		/*
+		 * DIO BUFF is either full or this is the final flush, in the
+		 * latter case it's guaranteed that the fd is now in buffered
+		 * mode so we simply write anything which is outstanding
+		 */
+		if (f->dio_buf_index == DIO_BUF_SIZE || f->closing) {
+			Error *local_error = NULL;
+			struct iovec dio_iovec = {.iov_base = f->dio_buf,
+				.iov_len = f->dio_buf_index };
+
+			/*
+			 * This is the last flush so revert back to buffered
+			 * write
+			 */
+			if (f->closing) {
+				qio_channel_file_disable_dio(QIO_CHANNEL_FILE(f->ioc));
+			}
+
+			if (qio_channel_writev_all(f->ioc, &dio_iovec, 1, &local_error) < 0) {
+				qemu_file_set_error_obj(f, -EIO, local_error);
+			} else {
+				f->total_transferred += dio_iovec.iov_len;
+			}
+
+			f->dio_buf_index = 0;
+		}
+	} while (f->iovcnt);
+
+}
 
 /**
  * Flushes QEMUFile buffer
@@ -276,6 +355,12 @@ void qemu_fflush(QEMUFile *f)
     if (f->shutdown) {
         return;
     }
+
+    if (qio_channel_has_feature(f->ioc, QIO_CHANNEL_FEATURE_DIO)) {
+	    qemu_fflush_dio(f);
+	    return;
+    }
+
     if (f->iovcnt > 0) {
         Error *local_error = NULL;
         if (qio_channel_writev_all(f->ioc,
@@ -434,6 +519,8 @@ void qemu_file_credit_transfer(QEMUFile *f, size_t size)
 int qemu_fclose(QEMUFile *f)
 {
     int ret, ret2;
+
+    f->closing = true;
     qemu_fflush(f);
     ret = qemu_file_get_error(f);
 
@@ -450,6 +537,7 @@ int qemu_fclose(QEMUFile *f)
         ret = f->last_error;
     }
     error_free(f->last_error_obj);
+    qemu_vfree(f->dio_buf);
     g_free(f);
     trace_qemu_file_fclose();
     return ret;
@@ -706,6 +794,10 @@ int64_t qemu_file_total_transferred_fast(QEMUFile *f)
     int64_t ret = f->total_transferred;
     int i;
 
+    if (qio_channel_has_feature(f->ioc, QIO_CHANNEL_FEATURE_DIO)) {
+	    ret += f->dio_buf_index;
+    }
+
     for (i = 0; i < f->iovcnt; i++) {
         ret += f->iov[i].iov_len;
     }
@@ -715,8 +807,18 @@ int64_t qemu_file_total_transferred_fast(QEMUFile *f)
 
 int64_t qemu_file_total_transferred(QEMUFile *f)
 {
+    int64_t total_transferred = 0;
     qemu_fflush(f);
-    return f->total_transferred;
+    total_transferred += f->total_transferred;
+    /*
+     * If we are a DIO channel then adjust total transferred with possible bytes
+     * which might not have been totally written but are in the staging dio
+     * buffer
+     */
+    if (qio_channel_has_feature(f->ioc, QIO_CHANNEL_FEATURE_DIO)) {
+	    total_transferred += f->dio_buf_index;
+    }
+    return total_transferred;
 }
 
 int qemu_file_rate_limit(QEMUFile *f)

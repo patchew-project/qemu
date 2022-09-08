@@ -89,4 +89,5 @@ qio_channel_file_new_path(const char *path,
                           mode_t mode,
                           Error **errp);
 
+void qio_channel_file_disable_dio(QIOChannelFile *ioc);
 #endif /* QIO_CHANNEL_FILE_H */

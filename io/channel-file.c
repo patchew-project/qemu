@@ -59,6 +59,10 @@ qio_channel_file_new_path(const char *path,
         return NULL;
     }
 
+    if (flags & O_DIRECT) {
+	    qio_channel_set_feature(QIO_CHANNEL(ioc), QIO_CHANNEL_FEATURE_DIO);
+    }
+
     trace_qio_channel_file_new_path(ioc, path, flags, mode, ioc->fd);
 
     return ioc;
@@ -107,6 +111,19 @@ static ssize_t qio_channel_file_readv(QIOChannel *ioc,
     }
 
     return ret;
+}
+
+
+void qio_channel_file_disable_dio(QIOChannelFile *ioc)
+{
+	int flags = fcntl(ioc->fd, F_GETFL);
+	if (flags == -1) {
+		//handle failure
+	}
+
+	if (fcntl(ioc->fd, F_SETFL, (flags & ~O_DIRECT)) == -1) {
+		error_report("Can't disable O_DIRECT");
+	}
 }
 
 static ssize_t qio_channel_file_writev(QIOChannel *ioc,

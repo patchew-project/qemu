@@ -336,6 +336,8 @@ struct MigrationState {
      */
     bool store_global_state;
 
+    bool use_dio;
+
     /* Whether we send QEMU_VM_CONFIGURATION during migration */
     bool send_configuration;
     /* Whether we send section footer during migration */
