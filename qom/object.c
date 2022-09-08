@@ -526,8 +526,14 @@ void object_initialize(void *data, size_t size, const char *typename)
 
 #ifdef CONFIG_MODULES
     if (!type) {
-        module_load_qom_one(typename);
-        type = type_get_by_name(typename);
+        Error *local_err = NULL;
+        if (!module_load_qom_one(typename, &local_err)) {
+            if (local_err) {
+                error_report_err(local_err);
+            }
+        } else {
+            type = type_get_by_name(typename);
+        }
     }
 #endif
     if (!type) {
@@ -1033,7 +1039,13 @@ ObjectClass *module_object_class_by_name(const char *typename)
     oc = object_class_by_name(typename);
 #ifdef CONFIG_MODULES
     if (!oc) {
-        module_load_qom_one(typename);
+        Error *local_err = NULL;
+        if (!module_load_qom_one(typename, &local_err)) {
+            if (local_err) {
+                error_report_err(local_err);
+            }
+            return NULL;
+        }
         oc = object_class_by_name(typename);
     }
 #endif

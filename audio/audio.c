@@ -73,6 +73,7 @@ void audio_driver_register(audio_driver *drv)
 audio_driver *audio_driver_lookup(const char *name)
 {
     struct audio_driver *d;
+    Error *local_err = NULL;
 
     QLIST_FOREACH(d, &audio_drivers, next) {
         if (strcmp(name, d->name) == 0) {
@@ -80,7 +81,13 @@ audio_driver *audio_driver_lookup(const char *name)
         }
     }
 
-    audio_module_load_one(name);
+    if (!audio_module_load_one(name, &local_err)) {
+        if (local_err) {
+            error_report_err(local_err);
+        }
+        return NULL;
+    }
+
     QLIST_FOREACH(d, &audio_drivers, next) {
         if (strcmp(name, d->name) == 0) {
             return d;

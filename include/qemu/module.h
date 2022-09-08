@@ -61,16 +61,44 @@ typedef enum {
 #define fuzz_target_init(function) module_init(function, \
                                                MODULE_INIT_FUZZ_TARGET)
 #define migration_init(function) module_init(function, MODULE_INIT_MIGRATION)
-#define block_module_load_one(lib) module_load_one("block-", lib)
-#define ui_module_load_one(lib) module_load_one("ui-", lib)
-#define audio_module_load_one(lib) module_load_one("audio-", lib)
+#define block_module_load_one(lib, errp) module_load_one("block-", lib, errp)
+#define ui_module_load_one(lib, errp) module_load_one("ui-", lib, errp)
+#define audio_module_load_one(lib, errp) module_load_one("audio-", lib, errp)
 
 void register_module_init(void (*fn)(void), module_init_type type);
 void register_dso_module_init(void (*fn)(void), module_init_type type);
 
 void module_call_init(module_init_type type);
-bool module_load_one(const char *prefix, const char *lib_name);
-void module_load_qom_one(const char *type);
+
+/*
+ * module_load_one: attempt to load a module from a set of directories
+ *
+ * directories searched are:
+ * - getenv("QEMU_MODULE_DIR")
+ * - get_relocated_path(CONFIG_QEMU_MODDIR);
+ * - /var/run/qemu/${version_dir}
+ *
+ * prefix:         a subsystem prefix, or the empty string ("audio-", ..., "")
+ * name:           name of the module
+ * errp:           error to set in case the module is found, but load failed.
+ *
+ * Return value:   true on success (found and loaded);
+ *                 if module if found, but load failed, errp will be set.
+ *                 if module is not found, errp will not be set.
+ */
+bool module_load_one(const char *prefix, const char *name, Error **errp);
+
+/*
+ * module_load_qom_one: attempt to load a module to provide a QOM type
+ *
+ * type:           the type to be provided
+ * errp:           error to set.
+ *
+ * Return value:   true on success (found and loaded), false on failure.
+ *                 If a module is simply not found for the type,
+ *                 errp will not be set.
+ */
+bool module_load_qom_one(const char *type, Error **errp);
 void module_load_qom_all(void);
 void module_allow_arch(const char *arch);
 
