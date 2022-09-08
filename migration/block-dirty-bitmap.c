@@ -782,7 +782,10 @@ static void dirty_bitmap_save_pending(QEMUFile *f, void *opaque,
     }
 
     qemu_mutex_unlock_iothread();
-
+    /*we set the fake pending size  when the dirty bitmap size more than max_size */
+    if(pending > max_size && max_size != 0){
+        pending = max_size - 1;
+    }
     trace_dirty_bitmap_save_pending(pending, max_size);
 
     *res_postcopy_only += pending;
