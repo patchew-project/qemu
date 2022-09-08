@@ -459,6 +459,7 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
         }
     } else if (function == KVM_CPUID_FEATURES && reg == R_EDX) {
         ret |= 1U << KVM_HINTS_REALTIME;
+        ret |= 1U << KVM_HINTS_PHYS_ADDRESS_SIZE_DATA_VALID;
     }
 
     return ret;
