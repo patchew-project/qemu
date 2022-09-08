@@ -34,15 +34,15 @@ hotplugged by using any combination of the available memory slots.
 
 Two monitor commands are used to hotplug memory:
 
- - "object_add": creates a memory backend object
+ - "object-add": creates a memory backend object
  - "device_add": creates a front-end pc-dimm device and inserts it
                  into the first empty slot
 
 For example, the following commands add another 1GB to the guest
 discussed earlier:
 
-  (qemu) object_add memory-backend-ram,id=mem1,size=1G
-  (qemu) device_add pc-dimm,id=dimm1,memdev=mem1
+  (qemu) object-add qom-type=memory-backend-ram id=mem1 size=1073741824
+  (qemu) device_add driver=pc-dimm id=dimm1 memdev=mem1
 
 Using the file backend
 ----------------------
@@ -55,7 +55,7 @@ For example, assuming that the host has 1GB hugepages available in
 the /mnt/hugepages-1GB directory, a 1GB hugepage could be hotplugged
 into the guest from the previous section with the following commands:
 
-  (qemu) object_add memory-backend-file,id=mem1,size=1G,mem-path=/mnt/hugepages-1GB
+  (qemu) object-add qom-type=memory-backend-file id=mem1  size=1073741824 mem-path=/mnt/hugepages-1GB 
   (qemu) device_add pc-dimm,id=dimm1,memdev=mem1
 
 It's also possible to start a guest with memory cold-plugged into the
