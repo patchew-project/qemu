@@ -1847,14 +1847,69 @@ static void tcg_out_mb(TCGContext *s, TCGArg a0)
     tcg_out32(s, insn);
 }
 
+static inline void ppc_replace_insn(uintptr_t rx, uintptr_t rw,
+    uint32_t offs, tcg_insn_unit i)
+{
+    rx += offs;
+    rw += offs;
+
+    qatomic_set((uint32_t *)rw, i);
+    smp_wmb();      /* Make sure this instruction is modified before others */
+    flush_idcache_range(rx, rw, 4);
+}
+
+static inline void ppc64_replace_insn_pair(uintptr_t rx, uintptr_t rw,
+    uint32_t offs, tcg_insn_unit i1, tcg_insn_unit i2)
+{
+    uint64_t pair;
+
+    rx += offs;
+    rw += offs;
+
+#if HOST_BIG_ENDIAN
+    pair = (uint64_t)i1 << 32 | i2;
+#else
+    pair = (uint64_t)i2 << 32 | i1;
+#endif
+
+    /*
+     * This function is only called on ppc64. Avoid the _Static_assert
+     * within qatomic_set that would fail to build a ppc32 host.
+     */
+    qatomic_set__nocheck((uint64_t *)rw, pair);
+    smp_wmb();  /* Make sure these instructions are modified before others */
+    flush_idcache_range(rx, rw, 8);
+}
+
 void tb_target_set_jmp_target(uintptr_t tc_ptr, uintptr_t jmp_rx,
                               uintptr_t jmp_rw, uintptr_t addr)
 {
     if (TCG_TARGET_REG_BITS == 64) {
-        tcg_insn_unit i1, i2;
+        tcg_insn_unit i1, i2, i3;
         intptr_t tb_diff = addr - tc_ptr;
         intptr_t br_diff = addr - (jmp_rx + 4);
-        uint64_t pair;
+
+        /*
+         * Here we need to change (up to) 3 instructions in an atomic way.
+         * As it's not possible to change all 3 at the same time, we perform
+         * the changes in multiple steps, in a way that results in valid code
+         * in each step.
+         *
+         * We handle 3 jump sizes: 16, 26 and 32 bits.
+         *
+         * The first step is to restore the last instruction, if needed,
+         * that is only changed by 26-bit jumps, that would become an
+         * equivalent 32-bit jump.
+         */
+        i3 = MTSPR | RS(TCG_REG_TB) | CTR;
+        if ((uint32_t)jmp_rw != i3) {
+            ppc_replace_insn(jmp_rx, jmp_rw, 8, i3);
+        }
+
+        /*
+         * Next, for the 16-bit and 32-bit cases, we just need to replace the
+         * first 2 instructions and we're done.
+         */
 
         /* This does not exercise the range of the branch, but we do
            still need to be able to load the new value of TCG_REG_TB.
@@ -1862,28 +1917,33 @@ void tb_target_set_jmp_target(uintptr_t tc_ptr, uintptr_t jmp_rx,
         if (tb_diff == (int16_t)tb_diff) {
             i1 = ADDI | TAI(TCG_REG_TB, TCG_REG_TB, tb_diff);
             i2 = B | (br_diff & 0x3fffffc);
+            ppc64_replace_insn_pair(jmp_rx, jmp_rw, 0, i1, i2);
+
         } else {
             intptr_t lo = (int16_t)tb_diff;
             intptr_t hi = (int32_t)(tb_diff - lo);
             assert(tb_diff == hi + lo);
             i1 = ADDIS | TAI(TCG_REG_TB, TCG_REG_TB, hi >> 16);
             i2 = ADDI | TAI(TCG_REG_TB, TCG_REG_TB, lo);
-        }
-#if HOST_BIG_ENDIAN
-        pair = (uint64_t)i1 << 32 | i2;
-#else
-        pair = (uint64_t)i2 << 32 | i1;
-#endif
+            ppc64_replace_insn_pair(jmp_rx, jmp_rw, 0, i1, i2);
 
-        /* As per the enclosing if, this is ppc64.  Avoid the _Static_assert
-           within qatomic_set that would fail to build a ppc32 host.  */
-        qatomic_set__nocheck((uint64_t *)jmp_rw, pair);
-        flush_idcache_range(jmp_rx, jmp_rw, 8);
+            /*
+             * For the 26-bit case, the final step is to replace the
+             * last instruction with a direct branch. Note that in this case
+             * the branch is performed 1 instruction after the 16-bit case,
+             * so br_diff needs to be adjusted properly.
+             */
+            br_diff -= 4;
+            if (br_diff >= -0x2000000 && br_diff <= 0x1fffffc) {
+                i3 = B | (br_diff & 0x3fffffc);
+                ppc_replace_insn(jmp_rx, jmp_rw, 8, i3);
+            }
+        }
+
     } else {
         intptr_t diff = addr - jmp_rx;
         tcg_debug_assert(in_range_b(diff));
-        qatomic_set((uint32_t *)jmp_rw, B | (diff & 0x3fffffc));
-        flush_idcache_range(jmp_rx, jmp_rw, 4);
+        ppc_replace_insn(jmp_rx, jmp_rw, 0, B | (diff & 0x3fffffc));
     }
 }
 
