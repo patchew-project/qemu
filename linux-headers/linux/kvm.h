@@ -103,6 +103,24 @@ struct kvm_userspace_memory_region {
 	__u64 userspace_addr; /* start of the userspace allocated memory */
 };
 
+/* for KVM_SET_USER_MEMORY_REGION_LIST */
+struct kvm_userspace_memory_region_entry {
+	__u32 slot;
+	__u32 flags;
+	__u64 guest_phys_addr;
+	__u64 memory_size; /* bytes */
+	__u64 userspace_addr; /* start of the userspace allocated memory */
+	__u8 invalidate_slot;
+	__u8 padding[31];
+};
+
+/* for KVM_SET_USER_MEMORY_REGION_LIST */
+struct kvm_userspace_memory_region_list {
+	__u32 nent;
+	__u32 flags;
+	struct kvm_userspace_memory_region_entry entries[0];
+};
+
 /*
  * The bit 0 ~ bit 15 of kvm_memory_region::flags are visible for userspace,
  * other bits are reserved for kvm internal use which are defined in
@@ -1426,6 +1444,8 @@ struct kvm_vfio_spapr_tce {
 					struct kvm_userspace_memory_region)
 #define KVM_SET_TSS_ADDR          _IO(KVMIO,   0x47)
 #define KVM_SET_IDENTITY_MAP_ADDR _IOW(KVMIO,  0x48, __u64)
+#define KVM_SET_USER_MEMORY_REGION_LIST _IOW(KVMIO, 0x49, \
+					struct kvm_userspace_memory_region_list)
 
 /* enable ucontrol for s390 */
 struct kvm_s390_ucas_mapping {
