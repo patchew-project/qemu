@@ -30,9 +30,17 @@ typedef struct KVMSlot
     ram_addr_t ram_start_offset;
 } KVMSlot;
 
+#define DEFAULT_KVM_MEMORY_REGION_ARRAY_GROW 10
+
+struct MemoryRegionNodeArray {
+    struct kvm_userspace_memory_region_list *list;
+    int max_entries;
+};
+
 typedef struct KVMMemoryListener {
     MemoryListener listener;
     KVMSlot *slots;
+    struct MemoryRegionNodeArray mem_array;
     int as_id;
 } KVMMemoryListener;
 

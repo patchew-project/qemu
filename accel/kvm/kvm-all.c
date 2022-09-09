@@ -357,56 +357,50 @@ int kvm_physical_memory_addr_from_host(KVMState *s, void *ram,
     return ret;
 }
 
+static struct kvm_userspace_memory_region_entry *kvm_memory_region_entry_get(
+                                                        KVMMemoryListener *kml)
+{
+    struct MemoryRegionNodeArray *arr = &kml->mem_array;
+    struct kvm_userspace_memory_region_list *list = arr->list;
+
+    if (list->nent == arr->max_entries) {
+        arr->max_entries += DEFAULT_KVM_MEMORY_REGION_ARRAY_GROW;
+        list = g_realloc(list,
+                              sizeof(struct kvm_userspace_memory_region_list) +
+                              arr->max_entries *
+                              sizeof(struct kvm_userspace_memory_region_entry));
+    }
+
+    return &list->entries[list->nent++];
+}
+
 static int kvm_set_user_memory_region(KVMMemoryListener *kml, KVMSlot *slot, bool new)
 {
-    KVMState *s = kvm_state;
-    struct kvm_userspace_memory_region_entry mem;
-    int ret;
+    struct kvm_userspace_memory_region_entry *mem;
 
-    mem.slot = slot->slot | (kml->as_id << 16);
-    mem.guest_phys_addr = slot->start_addr;
-    mem.userspace_addr = (unsigned long)slot->ram;
-    mem.flags = slot->flags;
+    mem = kvm_memory_region_entry_get(kml);
 
-    if (slot->memory_size && !new && (mem.flags ^ slot->old_flags) & KVM_MEM_READONLY) {
+    mem->slot = slot->slot | (kml->as_id << 16);
+    mem->guest_phys_addr = slot->start_addr;
+    mem->userspace_addr = (unsigned long)slot->ram;
+    mem->flags = slot->flags;
+
+    if (slot->memory_size && !new && (mem->flags ^ slot->old_flags) &
+        KVM_MEM_READONLY) {
+        struct kvm_userspace_memory_region_entry *mem2 = mem;
+
+        mem = kvm_memory_region_entry_get(kml);
+        memcpy(mem, mem2, sizeof(struct kvm_userspace_memory_region_entry));
         /* Set the slot size to 0 before setting the slot to the desired
          * value. This is needed based on KVM commit 75d61fbc. */
-        mem.memory_size = 0;
-        mem.invalidate_slot = 1;
-        /*
-         * Note that mem is struct kvm_userspace_memory_region_entry, while the
-         * kernel expects a kvm_userspace_memory_region, so it will currently
-         * ignore mem->invalidate_slot and mem->padding.
-         */
-        ret = kvm_vm_ioctl(s, KVM_SET_USER_MEMORY_REGION, &mem);
-        if (ret < 0) {
-            goto err;
-        }
+        mem2->memory_size = 0;
+        mem2->invalidate_slot = 1;
     }
-    mem.memory_size = slot->memory_size;
-    /*
-     * Invalidate if it's a kvm memslot MOVE or DELETE operation, but
-     * currently QEMU does not perform any memslot MOVE operation.
-     */
-    mem.invalidate_slot = slot->memory_size == 0;
+    mem->memory_size = slot->memory_size;
+    mem->invalidate_slot = slot->memory_size == 0;
 
-    /*
-     * Note that mem is struct kvm_userspace_memory_region_entry, while the
-     * kernel expects a kvm_userspace_memory_region, so it will currently
-     * ignore mem->invalidate_slot and mem->padding.
-     */
-    ret = kvm_vm_ioctl(s, KVM_SET_USER_MEMORY_REGION, &mem);
-    slot->old_flags = mem.flags;
-err:
-    trace_kvm_set_user_memory(mem.slot, mem.flags, mem.guest_phys_addr,
-                              mem.memory_size, mem.userspace_addr, ret);
-    if (ret < 0) {
-        error_report("%s: KVM_SET_USER_MEMORY_REGION failed, slot=%d,"
-                     " start=0x%" PRIx64 ", size=0x%" PRIx64 ": %s",
-                     __func__, mem.slot, slot->start_addr,
-                     (uint64_t)mem.memory_size, strerror(errno));
-    }
-    return ret;
+    slot->old_flags = mem->flags;
+    return 0;
 }
 
 static int do_kvm_destroy_vcpu(CPUState *cpu)
@@ -1554,10 +1548,52 @@ static void kvm_region_add(MemoryListener *listener,
 static void kvm_region_del(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
-    KVMMemoryListener *kml = container_of(listener, KVMMemoryListener, listener);
+    KVMMemoryListener *kml = container_of(listener, KVMMemoryListener,
+                                          listener);
 
     kvm_set_phys_mem(kml, section, false);
     memory_region_unref(section->mr);
+}
+
+static void kvm_begin(MemoryListener *listener)
+{
+    KVMMemoryListener *kml = container_of(listener, KVMMemoryListener,
+                                          listener);
+    assert(kml->mem_array.list->nent == 0);
+}
+
+static void kvm_commit(MemoryListener *listener)
+{
+    KVMMemoryListener *kml = container_of(listener, KVMMemoryListener,
+                                          listener);
+    KVMState *s = kvm_state;
+    int i;
+
+    for (i = 0; i < kml->mem_array.list->nent; i++) {
+        struct kvm_userspace_memory_region_entry *mem;
+        int ret;
+
+        mem = &kml->mem_array.list->entries[i];
+
+        /*
+         * Note that mem is struct kvm_userspace_memory_region_entry, while the
+         * kernel expects a kvm_userspace_memory_region, so it will currently
+         * ignore mem->invalidate_slot and mem->padding.
+         */
+        ret = kvm_vm_ioctl(s, KVM_SET_USER_MEMORY_REGION, mem);
+
+        trace_kvm_set_user_memory(mem->slot, mem->flags, mem->guest_phys_addr,
+                                  mem->memory_size, mem->userspace_addr, 0);
+
+        if (ret < 0) {
+            error_report("%s: KVM_SET_USER_MEMORY_REGION failed, slot=%d,"
+                         " start=0x%" PRIx64 ": %s",
+                         __func__, mem->slot,
+                         (uint64_t)mem->memory_size, strerror(errno));
+        }
+    }
+
+    kml->mem_array.list->nent = 0;
 }
 
 static void kvm_log_sync(MemoryListener *listener,
@@ -1701,8 +1737,16 @@ void kvm_memory_listener_register(KVMState *s, KVMMemoryListener *kml,
         kml->slots[i].slot = i;
     }
 
+    kml->mem_array.max_entries = DEFAULT_KVM_MEMORY_REGION_ARRAY_GROW;
+    kml->mem_array.list = g_malloc0(
+                            sizeof(struct kvm_userspace_memory_region_list) +
+                            sizeof(struct kvm_userspace_memory_region_entry) *
+                            kml->mem_array.max_entries);
+
     kml->listener.region_add = kvm_region_add;
     kml->listener.region_del = kvm_region_del;
+    kml->listener.begin = kvm_begin;
+    kml->listener.commit = kvm_commit;
     kml->listener.log_start = kvm_log_start;
     kml->listener.log_stop = kvm_log_stop;
     kml->listener.priority = 10;
@@ -2711,6 +2755,7 @@ err:
         close(s->fd);
     }
     g_free(s->memory_listener.slots);
+    g_free(s->memory_listener.mem_array.list);
 
     return ret;
 }
