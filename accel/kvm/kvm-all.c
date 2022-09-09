@@ -360,7 +360,7 @@ int kvm_physical_memory_addr_from_host(KVMState *s, void *ram,
 static int kvm_set_user_memory_region(KVMMemoryListener *kml, KVMSlot *slot, bool new)
 {
     KVMState *s = kvm_state;
-    struct kvm_userspace_memory_region mem;
+    struct kvm_userspace_memory_region_entry mem;
     int ret;
 
     mem.slot = slot->slot | (kml->as_id << 16);
@@ -372,12 +372,29 @@ static int kvm_set_user_memory_region(KVMMemoryListener *kml, KVMSlot *slot, boo
         /* Set the slot size to 0 before setting the slot to the desired
          * value. This is needed based on KVM commit 75d61fbc. */
         mem.memory_size = 0;
+        mem.invalidate_slot = 1;
+        /*
+         * Note that mem is struct kvm_userspace_memory_region_entry, while the
+         * kernel expects a kvm_userspace_memory_region, so it will currently
+         * ignore mem->invalidate_slot and mem->padding.
+         */
         ret = kvm_vm_ioctl(s, KVM_SET_USER_MEMORY_REGION, &mem);
         if (ret < 0) {
             goto err;
         }
     }
     mem.memory_size = slot->memory_size;
+    /*
+     * Invalidate if it's a kvm memslot MOVE or DELETE operation, but
+     * currently QEMU does not perform any memslot MOVE operation.
+     */
+    mem.invalidate_slot = slot->memory_size == 0;
+
+    /*
+     * Note that mem is struct kvm_userspace_memory_region_entry, while the
+     * kernel expects a kvm_userspace_memory_region, so it will currently
+     * ignore mem->invalidate_slot and mem->padding.
+     */
     ret = kvm_vm_ioctl(s, KVM_SET_USER_MEMORY_REGION, &mem);
     slot->old_flags = mem.flags;
 err:
