@@ -1567,30 +1567,25 @@ static void kvm_commit(MemoryListener *listener)
     KVMMemoryListener *kml = container_of(listener, KVMMemoryListener,
                                           listener);
     KVMState *s = kvm_state;
-    int i;
+    int i, ret;
 
     for (i = 0; i < kml->mem_array.list->nent; i++) {
         struct kvm_userspace_memory_region_entry *mem;
-        int ret;
 
         mem = &kml->mem_array.list->entries[i];
 
-        /*
-         * Note that mem is struct kvm_userspace_memory_region_entry, while the
-         * kernel expects a kvm_userspace_memory_region, so it will currently
-         * ignore mem->invalidate_slot and mem->padding.
-         */
-        ret = kvm_vm_ioctl(s, KVM_SET_USER_MEMORY_REGION, mem);
-
         trace_kvm_set_user_memory(mem->slot, mem->flags, mem->guest_phys_addr,
                                   mem->memory_size, mem->userspace_addr, 0);
+    }
 
-        if (ret < 0) {
-            error_report("%s: KVM_SET_USER_MEMORY_REGION failed, slot=%d,"
-                         " start=0x%" PRIx64 ": %s",
-                         __func__, mem->slot,
-                         (uint64_t)mem->memory_size, strerror(errno));
-        }
+    ret = kvm_vm_ioctl(s, KVM_SET_USER_MEMORY_REGION_LIST, kml->mem_array.list);
+
+    if (ret < 0) {
+        error_report("%s: KVM_SET_USER_MEMORY_REGION_LIST failed, size=0x%"
+                     PRIx64 " flags=0x%" PRIx64 ": %s",
+                     __func__, (uint64_t)kml->mem_array.list->nent,
+                     (uint64_t)kml->mem_array.list->flags,
+                     strerror(errno));
     }
 
     kml->mem_array.list->nent = 0;
