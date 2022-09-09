@@ -300,6 +300,7 @@ bool pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
     int i = 0;
     int ret = -1;
     int pmp_size = 0;
+    uint64_t satp_mode;
     target_ulong s = 0;
     target_ulong e = 0;
 
@@ -310,10 +311,17 @@ bool pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
     }
 
     if (size == 0) {
-        if (riscv_feature(env, RISCV_FEATURE_MMU)) {
+        if (riscv_cpu_mxl(env) == MXL_RV32) {
+            satp_mode = SATP32_MODE;
+        } else {
+            satp_mode = SATP64_MODE;
+        }
+
+        if (riscv_feature(env, RISCV_FEATURE_MMU)
+            && get_field(env->satp, satp_mode)) {
             /*
-             * If size is unknown (0), assume that all bytes
-             * from addr to the end of the page will be accessed.
+             * If size is unknown (0) and virtual memory is enabled, assume that
+             * all bytes from addr to the end of the page will be accessed.
              */
             pmp_size = -(addr | TARGET_PAGE_MASK);
         } else {
