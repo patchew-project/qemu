@@ -1940,6 +1940,7 @@ static int vfio_init_container(VFIOContainer *container, int group_fd,
     return 0;
 }
 
+/* The caller is responsible for g_free(*info) */
 static int vfio_get_iommu_info(VFIOContainer *container,
                                struct vfio_iommu_type1_info **info)
 {
@@ -1951,8 +1952,6 @@ again:
     (*info)->argsz = argsz;
 
     if (ioctl(container->fd, VFIO_IOMMU_GET_INFO, *info)) {
-        g_free(*info);
-        *info = NULL;
         return -errno;
     }
 
