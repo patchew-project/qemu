@@ -31,6 +31,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qdict.h"
 #include "qom/qom-qobject.h"
+#include "monitor/hmp-target.h"
 
 static GICCapability *gic_cap_new(int version)
 {
@@ -227,4 +228,32 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     object_unref(obj);
 
     return expansion_info;
+}
+
+static target_long monitor_get_cpsr(Monitor *mon, const struct MonitorDef *md,
+                                    int val)
+{
+    CPUArchState *env = mon_get_cpu_env(mon);
+    return cpsr_read(env);
+}
+
+const MonitorDef monitor_defs[] = {
+    { "sp|r13", offsetof(CPUARMState, regs[13])},
+    { "lr|r14", offsetof(CPUARMState, regs[14])},
+#ifndef TARGET_AARCH64
+    { "pc|r15|ip", offsetof(CPUARMState, regs[15]) },
+#else
+    { "pc|ip", offsetof(CPUARMState, pc) },
+#endif
+
+    /* State registers */
+    { "cpsr", 0, &monitor_get_cpsr},
+    { "fpscr", offsetof(CPUARMState, vfp.fp_status)},
+
+    { NULL }
+};
+
+const MonitorDef *target_monitor_defs(void)
+{
+    return monitor_defs;
 }
