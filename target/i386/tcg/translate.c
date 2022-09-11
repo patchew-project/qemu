@@ -5592,10 +5592,12 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
                     gen_op_mov_reg_v(s, ot, R_EAX, oldv);
                 }
             }
-            tcg_gen_mov_tl(cpu_cc_src, oldv);
-            tcg_gen_mov_tl(s->cc_srcT, cmpv);
-            tcg_gen_sub_tl(cpu_cc_dst, cmpv, oldv);
-            set_cc_op(s, CC_OP_SUBB + ot);
+
+            gen_compute_eflags(s);
+            tcg_gen_andi_tl(cpu_cc_src, cpu_cc_src, ~CC_Z);
+            tcg_gen_addi_tl(s->T0, cpu_cc_src, CC_Z);
+            tcg_gen_movcond_tl(TCG_COND_EQ, cpu_cc_src, oldv, cmpv, s->T0, cpu_cc_src);
+
             tcg_temp_free(oldv);
             tcg_temp_free(newv);
             tcg_temp_free(cmpv);
