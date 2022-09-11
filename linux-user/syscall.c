@@ -8721,6 +8721,18 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
     case TARGET_NR_close:
         fd_trans_unregister(arg1);
         return get_errno(close(arg1));
+#ifdef TARGET_NR_close_range
+    case TARGET_NR_close_range:
+        {
+            abi_long fd;
+            abi_long maxfd = (arg2 == (abi_long)-1) ? target_fd_max : arg2;
+
+            for (fd = arg1; fd <= maxfd; fd++) {
+                fd_trans_unregister(fd);
+            }
+        }
+        return get_errno(close_range(arg1, arg2, arg3));
+#endif
 
     case TARGET_NR_brk:
         return do_brk(arg1);
