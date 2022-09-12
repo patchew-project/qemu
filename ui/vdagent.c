@@ -533,6 +533,7 @@ static void vdagent_clipboard_recv_grab(VDAgentChardev *vd, uint8_t s, uint32_t 
         info->has_serial = true;
         info->serial = *(uint32_t *)data;
         if (info->serial < vd->last_serial[s]) {
+            trace_vdagent_cb_grab_discard(GET_NAME(sel_name, s), vd->last_serial[s], info->serial);
             /* discard lower-ordering guest grab */
             return;
         }
@@ -853,6 +854,8 @@ static void vdagent_chr_accept_input(Chardev *chr)
 
 static void vdagent_disconnect(VDAgentChardev *vd)
 {
+    trace_vdagent_disconnect();
+
     buffer_reset(&vd->outbuf);
     vdagent_reset_bufs(vd);
     vd->caps = 0;
