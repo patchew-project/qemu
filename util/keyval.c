@@ -329,8 +329,10 @@ static void keyval_do_merge(QDict *dest, const QDict *merged, GString *str, Erro
         old_value = qdict_get(dest, ent->key);
         if (old_value) {
             if (qobject_type(old_value) != qobject_type(ent->value)) {
-                error_setg(errp, "Parameter '%s%s' used inconsistently",
-                           str->str, ent->key);
+                error_setg(errp, "Parameter '%s%s' used inconsistently (%s/%s)",
+                           str->str, ent->key,
+                           QType_str(qobject_type(old_value)),
+                           QType_str(qobject_type(ent->value)));
                 return;
             } else if (qobject_type(ent->value) == QTYPE_QDICT) {
                 /* Merge sub-dictionaries.  */
