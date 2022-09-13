@@ -139,4 +139,18 @@ struct Ppc4xxSdramDdrState {
     uint32_t eccesr;
 };
 
+/* SDRAM DDR2 controller */
+#define TYPE_PPC4xx_SDRAM_DDR2 "ppc4xx-sdram-ddr2"
+OBJECT_DECLARE_SIMPLE_TYPE(Ppc4xxSdramDdr2State, PPC4xx_SDRAM_DDR2);
+struct Ppc4xxSdramDdr2State {
+    Ppc4xxDcrDeviceState parent_obj;
+
+    MemoryRegion *dram_mr;
+    uint32_t nbanks; /* Banks to use from 4, e.g. when board has less slots */
+    Ppc4xxSdramBank bank[4];
+
+    uint32_t addr;
+    uint32_t mcopt2;
+};
+
 #endif /* PPC4XX_H */
