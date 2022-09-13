@@ -456,8 +456,7 @@ patch need not say "v1", just [PATCH] is sufficient.) For patch series,
 the version applies to the whole series -- even if you only change one
 patch, you resend the entire series and mark it as "v2". Don't try to
 track versions of different patches in the series separately.  `git
-format-patch <http://git-scm.com/docs/git-format-patch>`__ and `git
-send-email <http://git-scm.com/docs/git-send-email>`__ both understand
+format-patch <http://git-scm.com/docs/git-format-patch>`__ understands
 the ``-v2`` option to make this easier. Send each new revision as a new
 top-level thread, rather than burying it in-reply-to an earlier
 revision, as many reviewers are not looking inside deep threads for new
