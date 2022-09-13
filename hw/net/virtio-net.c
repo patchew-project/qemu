@@ -149,7 +149,8 @@ static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
      * Is this VDPA? No peer means not VDPA: there's no way to
      * disconnect/reconnect a VDPA peer.
      */
-    if (nc->peer && nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_VDPA) {
+    if ((nc->peer && nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_VDPA) ||
+        (nc->peer && nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_USER)) {
         ret = vhost_net_get_config(get_vhost_net(nc->peer), (uint8_t *)&netcfg,
                                    n->config_size);
         if (ret != -1) {
