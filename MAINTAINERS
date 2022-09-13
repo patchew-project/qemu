@@ -3218,6 +3218,7 @@ S: Maintained
 F: hw/peci/peci-core.c
 F: hw/peci/peci-client.c
 F: include/hw/peci/peci.h
+F: hw/peci/npcm7xx_peci.c
 
 Firmware schema specifications
 M: Philippe Mathieu-Daudé <f4bug@amsat.org>
