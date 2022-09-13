@@ -489,8 +489,6 @@ typedef struct ppc440_sdram_t {
 } ppc440_sdram_t;
 
 enum {
-    SDRAM0_CFGADDR = 0x10,
-    SDRAM0_CFGDATA,
     SDRAM_R0BAS = 0x40,
     SDRAM_R1BAS,
     SDRAM_R2BAS,
