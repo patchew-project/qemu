@@ -83,7 +83,7 @@ static uint64_t bochs_display_vbe_read(void *ptr, hwaddr addr,
     }
 
     if (index >= ARRAY_SIZE(s->vbe_regs)) {
-        return -1;
+        return 0;
     }
     return s->vbe_regs[index];
 }
