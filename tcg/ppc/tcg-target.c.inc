@@ -1847,38 +1847,86 @@ static void tcg_out_mb(TCGContext *s, TCGArg a0)
     tcg_out32(s, insn);
 }
 
+#if TCG_TARGET_REG_BITS == 64
+
+static inline uint64_t make_pair(tcg_insn_unit i1, tcg_insn_unit i2)
+{
+#if HOST_BIG_ENDIAN
+    return (uint64_t)i1 << 32 | i2;
+#else
+    return (uint64_t)i2 << 32 | i1;
+#endif
+}
+
+static inline void ppc64_stq(uintptr_t dst, uint64_t src0, uint64_t src1)
+{
+    asm volatile (
+        "mr  %%r6, %0\n\t"
+        "mr  %%r7, %1\n\t"
+        "stq %%r6, 0(%2)"
+        : : "r" (src0), "r" (src1), "r" (dst) : "r6", "r7", "memory");
+}
+
+#endif
+
+static inline void ppc64_replace_insns(uintptr_t rx, uintptr_t rw,
+    tcg_insn_unit *insn)
+{
+#if TCG_TARGET_REG_BITS == 64
+    uint64_t pair[2];
+
+    pair[0] = make_pair(insn[0], insn[1]);
+    if (have_isa_2_07) {
+        pair[1] = make_pair(insn[2], insn[3]);
+#if HOST_BIG_ENDIAN
+        ppc64_stq(rw, pair[0], pair[1]);
+#else
+        ppc64_stq(rw, pair[1], pair[0]);
+#endif
+        flush_idcache_range(rx, rw, 16);
+    } else {
+        qatomic_set((uint64_t *)rw, pair[0]);
+        flush_idcache_range(rx, rw, 8);
+    }
+#endif
+}
+
 void tb_target_set_jmp_target(uintptr_t tc_ptr, uintptr_t jmp_rx,
                               uintptr_t jmp_rw, uintptr_t addr)
 {
     if (TCG_TARGET_REG_BITS == 64) {
-        tcg_insn_unit i1, i2;
+        tcg_insn_unit i[4];
         intptr_t tb_diff = addr - tc_ptr;
         intptr_t br_diff = addr - (jmp_rx + 4);
-        uint64_t pair;
 
-        /* This does not exercise the range of the branch, but we do
-           still need to be able to load the new value of TCG_REG_TB.
-           But this does still happen quite often.  */
+        /*
+         * This does not exercise the range of the branch, but we do
+         * still need to be able to load the new value of TCG_REG_TB.
+         * But this does still happen quite often.
+         */
         if (tb_diff == (int16_t)tb_diff) {
-            i1 = ADDI | TAI(TCG_REG_TB, TCG_REG_TB, tb_diff);
-            i2 = B | (br_diff & 0x3fffffc);
+            i[0] = ADDI | TAI(TCG_REG_TB, TCG_REG_TB, tb_diff);
+            i[1] = B | (br_diff & 0x3fffffc);
+            i[2] = MTSPR | RS(TCG_REG_TB) | CTR;
+
         } else {
             intptr_t lo = (int16_t)tb_diff;
             intptr_t hi = (int32_t)(tb_diff - lo);
             assert(tb_diff == hi + lo);
-            i1 = ADDIS | TAI(TCG_REG_TB, TCG_REG_TB, hi >> 16);
-            i2 = ADDI | TAI(TCG_REG_TB, TCG_REG_TB, lo);
-        }
-#if HOST_BIG_ENDIAN
-        pair = (uint64_t)i1 << 32 | i2;
-#else
-        pair = (uint64_t)i2 << 32 | i1;
-#endif
+            i[0] = ADDIS | TAI(TCG_REG_TB, TCG_REG_TB, hi >> 16);
+            i[1] = ADDI | TAI(TCG_REG_TB, TCG_REG_TB, lo);
 
-        /* As per the enclosing if, this is ppc64.  Avoid the _Static_assert
-           within qatomic_set that would fail to build a ppc32 host.  */
-        qatomic_set__nocheck((uint64_t *)jmp_rw, pair);
-        flush_idcache_range(jmp_rx, jmp_rw, 8);
+            br_diff -= 4;
+            if (have_isa_2_07 && in_range_b(br_diff)) {
+                i[2] = B | (br_diff & 0x3fffffc);
+            } else {
+                i[2] = MTSPR | RS(TCG_REG_TB) | CTR;
+            }
+        }
+
+        i[3] = BCCTR | BO_ALWAYS;
+        ppc64_replace_insns(jmp_rx, jmp_rw, i);
+
     } else {
         intptr_t diff = addr - jmp_rx;
         tcg_debug_assert(in_range_b(diff));
