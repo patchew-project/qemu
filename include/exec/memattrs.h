@@ -43,7 +43,9 @@ typedef struct MemTxAttrs {
      * (see MEMTX_ACCESS_ERROR).
      */
     unsigned int memory:1;
-    /* Requester ID (for MSI for example) */
+    /* Requester is CPU (or as CPU, e.g. debug) */
+    unsigned int requester_cpu:1;
+    /* Requester ID (for MSI for example) or cpu_index */
     unsigned int requester_id:16;
     /* Invert endianness for this page */
     unsigned int byte_swap:1;
