@@ -274,6 +274,7 @@ static void ppc405_init(MachineState *machine)
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     const char *kernel_filename = machine->kernel_filename;
     MemoryRegion *sysmem = get_system_memory();
+    CPUPPCState *env;
 
     if (machine->ram_size != mc->default_ram_size) {
         char *sz = size_to_str(mc->default_ram_size);
@@ -288,11 +289,18 @@ static void ppc405_init(MachineState *machine)
                              machine->ram_size, &error_fatal);
     object_property_set_link(OBJECT(&ppc405->soc), "dram",
                              OBJECT(machine->ram), &error_abort);
-    object_property_set_bool(OBJECT(&ppc405->soc), "dram-init",
-                             kernel_filename != NULL, &error_abort);
     object_property_set_uint(OBJECT(&ppc405->soc), "sys-clk", 33333333,
                              &error_abort);
     qdev_realize(DEVICE(&ppc405->soc), NULL, &error_fatal);
+
+    /* Enable SDRAM memory regions */
+    /* FIXME This shouldn't be needed with firmware but we lack SPD data */
+    env = &ppc405->soc.cpu.env;
+    if (ppc_dcr_write(env->dcr_env, SDRAM0_CFGADDR, 0x20) ||
+        ppc_dcr_write(env->dcr_env, SDRAM0_CFGDATA, 0x80000000)) {
+        error_report("Could not enable memory regions");
+        exit(1);
+    }
 
     /* allocate and load BIOS */
     if (machine->firmware) {
