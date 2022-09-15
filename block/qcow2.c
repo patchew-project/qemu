@@ -3495,7 +3495,7 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     if (!qcow2_opts->has_preallocation) {
         qcow2_opts->preallocation = PREALLOC_MODE_OFF;
     }
-    if (qcow2_opts->has_backing_file &&
+    if (qcow2_opts->backing_file &&
         qcow2_opts->preallocation != PREALLOC_MODE_OFF &&
         !qcow2_opts->extended_l2)
     {
@@ -3504,7 +3504,7 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
         ret = -EINVAL;
         goto out;
     }
-    if (qcow2_opts->has_backing_fmt && !qcow2_opts->has_backing_file) {
+    if (qcow2_opts->has_backing_fmt && !qcow2_opts->backing_file) {
         error_setg(errp, "Backing format cannot be used without backing file");
         ret = -EINVAL;
         goto out;
@@ -3545,7 +3545,7 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
         ret = -EINVAL;
         goto out;
     }
-    if (qcow2_opts->data_file_raw && qcow2_opts->has_backing_file) {
+    if (qcow2_opts->data_file_raw && qcow2_opts->backing_file) {
         error_setg(errp, "Backing file and data-file-raw cannot be used at "
                    "the same time");
         ret = -EINVAL;
@@ -3571,7 +3571,7 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
          * backing file when specifying data_file_raw is an error
          * anyway.
          */
-        assert(!qcow2_opts->has_backing_file);
+        assert(!qcow2_opts->backing_file);
     }
 
     if (qcow2_opts->data_file) {
@@ -3739,7 +3739,7 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     }
 
     /* Want a backing file? There you go. */
-    if (qcow2_opts->has_backing_file) {
+    if (qcow2_opts->backing_file) {
         const char *backing_format = NULL;
 
         if (qcow2_opts->has_backing_fmt) {
@@ -3757,7 +3757,7 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     }
 
     /* Want encryption? There you go. */
-    if (qcow2_opts->has_encrypt) {
+    if (qcow2_opts->encrypt) {
         ret = qcow2_set_up_encryption(blk_bs(blk), qcow2_opts->encrypt, errp);
         if (ret < 0) {
             goto out;
@@ -5182,7 +5182,6 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs,
             .refcount_bits      = s->refcount_bits,
             .has_bitmaps        = !!bitmaps,
             .bitmaps            = bitmaps,
-            .has_data_file      = !!s->image_data_file,
             .data_file          = g_strdup(s->image_data_file),
             .has_data_file_raw  = has_data_file(bs),
             .data_file_raw      = data_file_is_raw(bs),
@@ -5213,7 +5212,6 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs,
         memset(&encrypt_info->u, 0, sizeof(encrypt_info->u));
         qapi_free_QCryptoBlockInfo(encrypt_info);
 
-        spec_info->u.qcow2.data->has_encrypt = true;
         spec_info->u.qcow2.data->encrypt = qencrypt;
     }
 
@@ -5833,7 +5831,7 @@ static int coroutine_fn qcow2_co_amend(BlockDriverState *bs,
     BDRVQcow2State *s = bs->opaque;
     int ret = 0;
 
-    if (qopts->has_encrypt) {
+    if (qopts->encrypt) {
         if (!s->crypto) {
             error_setg(errp, "image is not encrypted, can't amend");
             return -EOPNOTSUPP;
@@ -5898,7 +5896,7 @@ void qcow2_signal_corruption(BlockDriverState *bs, bool fatal, int64_t offset,
 
     node_name = bdrv_get_node_name(bs);
     qapi_event_send_block_image_corrupted(bdrv_get_device_name(bs),
-                                          *node_name != '\0', node_name,
+                                          *node_name ? node_name : NULL,
                                           message, offset >= 0, offset,
                                           size >= 0, size,
                                           fatal);
