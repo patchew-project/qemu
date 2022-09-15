@@ -767,7 +767,6 @@ class QAPISchemaObjectTypeMember(QAPISchemaMember):
             'qapi/char.json',
             'qapi/crypto.json',
             'qapi/dump.json',
-            'qapi/introspect.json',
             'qapi/job.json',
             'qapi/machine.json',
             'qapi/machine-target.json',
@@ -784,8 +783,7 @@ class QAPISchemaObjectTypeMember(QAPISchemaMember):
             'qapi/tpm.json',
             'qapi/transaction.json',
             'qapi/ui.json',
-            'qga/qapi-schema.json',
-            'tests/qapi-schema/qapi-schema-test.json']
+            'qga/qapi-schema.json']
         if self.info and any(self.info.fname.endswith(mod)
                              for mod in opt_out):
             return self.optional
