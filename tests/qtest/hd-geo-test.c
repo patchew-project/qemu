@@ -693,7 +693,8 @@ static void add_virtio_disk(TestArgs *args,
     args->n_virtio_disks++;
 }
 
-static void test_override(TestArgs *args, CHSResult expected[])
+static void test_override(TestArgs *args, const char *arch,
+                          CHSResult expected[])
 {
     QTestState *qts;
     char *joined_args;
@@ -702,7 +703,7 @@ static void test_override(TestArgs *args, CHSResult expected[])
 
     joined_args = g_strjoinv(" ", args->argv);
 
-    qts = qtest_initf("-machine pc %s", joined_args);
+    qts = qtest_initf("-machine %s %s", arch, joined_args);
     fw_cfg = pc_fw_cfg_init(qts);
 
     read_bootdevices(fw_cfg, expected);
@@ -739,7 +740,28 @@ static void test_override_ide(void)
     add_ide_disk(args, 1, 0, 1, 9000, 120, 30);
     add_ide_disk(args, 2, 1, 0, 0, 1, 1);
     add_ide_disk(args, 3, 1, 1, 1, 0, 0);
-    test_override(args, expected);
+    test_override(args, "pc", expected);
+}
+
+static void test_override_sata(void)
+{
+    TestArgs *args = create_args();
+    CHSResult expected[] = {
+        {"/pci@i0cf8/pci8086,2922@1f,2/drive@0/disk@0", {10000, 120, 30} },
+        {"/pci@i0cf8/pci8086,2922@1f,2/drive@1/disk@0", {9000, 120, 30} },
+        {"/pci@i0cf8/pci8086,2922@1f,2/drive@2/disk@0", {0, 1, 1} },
+        {"/pci@i0cf8/pci8086,2922@1f,2/drive@3/disk@0", {1, 0, 0} },
+        {NULL, {0, 0, 0} }
+    };
+    add_drive_with_mbr(args, empty_mbr, 1);
+    add_drive_with_mbr(args, empty_mbr, 1);
+    add_drive_with_mbr(args, empty_mbr, 1);
+    add_drive_with_mbr(args, empty_mbr, 1);
+    add_ide_disk(args, 0, 0, 0, 10000, 120, 30);
+    add_ide_disk(args, 1, 1, 0, 9000, 120, 30);
+    add_ide_disk(args, 2, 2, 0, 0, 1, 1);
+    add_ide_disk(args, 3, 3, 0, 1, 0, 0);
+    test_override(args, "q35", expected);
 }
 
 static void test_override_scsi(void)
@@ -761,7 +783,43 @@ static void test_override_scsi(void)
     add_scsi_disk(args, 1, 0, 0, 1, 0, 9000, 120, 30);
     add_scsi_disk(args, 2, 0, 0, 2, 0, 1, 0, 0);
     add_scsi_disk(args, 3, 0, 0, 3, 0, 0, 1, 0);
-    test_override(args, expected);
+    test_override(args, "pc", expected);
+}
+
+static void setup_pci_bridge(TestArgs *args, const char *id, const char *rootid)
+{
+
+    char *root, *br;
+    root = g_strdup_printf("-device pcie-root-port,id=%s", rootid);
+    br = g_strdup_printf("-device pcie-pci-bridge,bus=%s,id=%s", rootid, id);
+
+    args->argc = append_arg(args->argc, args->argv, ARGV_SIZE, root);
+    args->argc = append_arg(args->argc, args->argv, ARGV_SIZE, br);
+}
+
+static void test_override_scsi_q35(void)
+{
+    TestArgs *args = create_args();
+    CHSResult expected[] = {
+        {   "/pci@i0cf8/pci-bridge@1/scsi@3/channel@0/disk@0,0",
+            {10000, 120, 30}
+        },
+        {"/pci@i0cf8/pci-bridge@1/scsi@3/channel@0/disk@1,0", {9000, 120, 30} },
+        {"/pci@i0cf8/pci-bridge@1/scsi@3/channel@0/disk@2,0", {1, 0, 0} },
+        {"/pci@i0cf8/pci-bridge@1/scsi@3/channel@0/disk@3,0", {0, 1, 0} },
+        {NULL, {0, 0, 0} }
+    };
+    add_drive_with_mbr(args, empty_mbr, 1);
+    add_drive_with_mbr(args, empty_mbr, 1);
+    add_drive_with_mbr(args, empty_mbr, 1);
+    add_drive_with_mbr(args, empty_mbr, 1);
+    setup_pci_bridge(args, "pcie.0", "br");
+    add_scsi_controller(args, "lsi53c895a", "br", 3);
+    add_scsi_disk(args, 0, 0, 0, 0, 0, 10000, 120, 30);
+    add_scsi_disk(args, 1, 0, 0, 1, 0, 9000, 120, 30);
+    add_scsi_disk(args, 2, 0, 0, 2, 0, 1, 0, 0);
+    add_scsi_disk(args, 3, 0, 0, 3, 0, 0, 1, 0);
+    test_override(args, "q35", expected);
 }
 
 static void test_override_scsi_2_controllers(void)
@@ -784,7 +842,7 @@ static void test_override_scsi_2_controllers(void)
     add_scsi_disk(args, 1, 0, 0, 1, 0, 9000, 120, 30);
     add_scsi_disk(args, 2, 1, 0, 0, 1, 1, 0, 0);
     add_scsi_disk(args, 3, 1, 0, 1, 2, 0, 1, 0);
-    test_override(args, expected);
+    test_override(args, "pc", expected);
 }
 
 static void test_override_virtio_blk(void)
@@ -799,7 +857,23 @@ static void test_override_virtio_blk(void)
     add_drive_with_mbr(args, empty_mbr, 1);
     add_virtio_disk(args, 0, "pci.0", 3, 10000, 120, 30);
     add_virtio_disk(args, 1, "pci.0", 4, 9000, 120, 30);
-    test_override(args, expected);
+    test_override(args, "pc", expected);
+}
+
+static void test_override_virtio_blk_q35(void)
+{
+    TestArgs *args = create_args();
+    CHSResult expected[] = {
+        {"/pci@i0cf8/pci-bridge@2/scsi@3/disk@0,0", {10000, 120, 30} },
+        {"/pci@i0cf8/pci-bridge@2/scsi@4/disk@0,0", {9000, 120, 30} },
+        {NULL, {0, 0, 0} }
+    };
+    add_drive_with_mbr(args, empty_mbr, 1);
+    add_drive_with_mbr(args, empty_mbr, 1);
+    setup_pci_bridge(args, "pcie.0", "br");
+    add_virtio_disk(args, 0, "br", 3, 10000, 120, 30);
+    add_virtio_disk(args, 1, "br", 4, 9000, 120, 30);
+    test_override(args, "pc", expected);
 }
 
 static void test_override_zero_chs(void)
@@ -810,7 +884,18 @@ static void test_override_zero_chs(void)
     };
     add_drive_with_mbr(args, empty_mbr, 1);
     add_ide_disk(args, 0, 1, 1, 0, 0, 0);
-    test_override(args, expected);
+    test_override(args, "pc", expected);
+}
+
+static void test_override_zero_chs_q35(void)
+{
+    TestArgs *args = create_args();
+    CHSResult expected[] = {
+        {NULL, {0, 0, 0} }
+    };
+    add_drive_with_mbr(args, empty_mbr, 1);
+    add_ide_disk(args, 0, 0, 0, 0, 0, 0);
+    test_override(args, "q35", expected);
 }
 
 static void test_override_scsi_hot_unplug(void)
@@ -1108,13 +1193,19 @@ int main(int argc, char **argv)
     qtest_add_func("hd-geo/ide/device/user/chst", test_ide_device_user_chst);
     if (have_qemu_img()) {
         qtest_add_func("hd-geo/override/ide", test_override_ide);
+        qtest_add_func("hd-geo/override/sata", test_override_sata);
         if (qtest_has_device("lsi53c895a")) {
             qtest_add_func("hd-geo/override/scsi", test_override_scsi);
+            qtest_add_func("hd-geo/override/scsiq35", test_override_scsi_q35);
             qtest_add_func("hd-geo/override/scsi_2_controllers",
                            test_override_scsi_2_controllers);
         }
         qtest_add_func("hd-geo/override/virtio_blk", test_override_virtio_blk);
+        qtest_add_func("hd-geo/override/virtio_blk_q35",
+                       test_override_virtio_blk_q35);
         qtest_add_func("hd-geo/override/zero_chs", test_override_zero_chs);
+        qtest_add_func("hd-geo/override/zero_chs_q35",
+                       test_override_zero_chs_q35);
         qtest_add_func("hd-geo/override/scsi_hot_unplug",
                        test_override_scsi_hot_unplug);
         qtest_add_func("hd-geo/override/scsi_hot_unplug_q35",
