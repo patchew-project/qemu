@@ -228,13 +228,6 @@ static void ppc_core99_init(MachineState *machine)
         }
     }
 
-    /* UniN init */
-    dev = qdev_new(TYPE_UNI_NORTH);
-    s = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(s, &error_fatal);
-    memory_region_add_subregion(get_system_memory(), 0xf8000000,
-                                sysbus_mmio_get_region(s, 0));
-
     openpic_irqs = g_new0(IrqLines, machine->smp.cpus);
     for (i = 0; i < machine->smp.cpus; i++) {
         /* Mac99 IRQ connection between OpenPIC outputs pins
@@ -275,56 +268,51 @@ static void ppc_core99_init(MachineState *machine)
         }
     }
 
+    /* UniN init */
+    sysbus_create_simple(TYPE_UNI_NORTH, 0xf8000000, NULL);
+
     if (PPC_INPUT(env) == PPC_FLAGS_INPUT_970) {
+        machine_arch = ARCH_MAC99_U3;
         /* 970 gets a U3 bus */
         /* Uninorth AGP bus */
-        dev = qdev_new(TYPE_U3_AGP_HOST_BRIDGE);
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-        uninorth_pci = U3_AGP_HOST_BRIDGE(dev);
-        s = SYS_BUS_DEVICE(dev);
+        s = SYS_BUS_DEVICE(sysbus_create_simple(TYPE_U3_AGP_HOST_BRIDGE,
+                                                0xf0800000, NULL));
+        uninorth_pci = U3_AGP_HOST_BRIDGE(s);
+        sysbus_mmio_map(s, 1, 0xf0c00000);
         /* PCI hole */
         memory_region_add_subregion(get_system_memory(), 0x80000000ULL,
                                     sysbus_mmio_get_region(s, 2));
         /* Register 8 MB of ISA IO space */
         memory_region_add_subregion(get_system_memory(), 0xf2000000,
                                     sysbus_mmio_get_region(s, 3));
-        sysbus_mmio_map(s, 0, 0xf0800000);
-        sysbus_mmio_map(s, 1, 0xf0c00000);
-
-        machine_arch = ARCH_MAC99_U3;
     } else {
+        machine_arch = ARCH_MAC99;
         /* Use values found on a real PowerMac */
         /* Uninorth AGP bus */
-        uninorth_agp_dev = qdev_new(TYPE_UNI_NORTH_AGP_HOST_BRIDGE);
-        s = SYS_BUS_DEVICE(uninorth_agp_dev);
-        sysbus_realize_and_unref(s, &error_fatal);
-        sysbus_mmio_map(s, 0, 0xf0800000);
-        sysbus_mmio_map(s, 1, 0xf0c00000);
+        uninorth_agp_dev = sysbus_create_simple(TYPE_UNI_NORTH_AGP_HOST_BRIDGE,
+                                                0xf0800000, NULL);
+        sysbus_mmio_map(SYS_BUS_DEVICE(uninorth_agp_dev), 1, 0xf0c00000);
 
         /* Uninorth internal bus */
-        uninorth_internal_dev = qdev_new(
-                                TYPE_UNI_NORTH_INTERNAL_PCI_HOST_BRIDGE);
-        s = SYS_BUS_DEVICE(uninorth_internal_dev);
-        sysbus_realize_and_unref(s, &error_fatal);
-        sysbus_mmio_map(s, 0, 0xf4800000);
-        sysbus_mmio_map(s, 1, 0xf4c00000);
+        uninorth_internal_dev = sysbus_create_simple(
+                                       TYPE_UNI_NORTH_INTERNAL_PCI_HOST_BRIDGE,
+                                                     0xf4800000, NULL);
+        sysbus_mmio_map(SYS_BUS_DEVICE(uninorth_internal_dev), 1, 0xf4c00000);
 
         /* Uninorth main bus */
         dev = qdev_new(TYPE_UNI_NORTH_PCI_HOST_BRIDGE);
         qdev_prop_set_uint32(dev, "ofw-addr", 0xf2000000);
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
         uninorth_pci = UNI_NORTH_PCI_HOST_BRIDGE(dev);
         s = SYS_BUS_DEVICE(dev);
+        sysbus_realize_and_unref(s, &error_fatal);
+        sysbus_mmio_map(s, 0, 0xf2800000);
+        sysbus_mmio_map(s, 1, 0xf2c00000);
         /* PCI hole */
         memory_region_add_subregion(get_system_memory(), 0x80000000ULL,
                                     sysbus_mmio_get_region(s, 2));
         /* Register 8 MB of ISA IO space */
         memory_region_add_subregion(get_system_memory(), 0xf2000000,
                                     sysbus_mmio_get_region(s, 3));
-        sysbus_mmio_map(s, 0, 0xf2800000);
-        sysbus_mmio_map(s, 1, 0xf2c00000);
-
-        machine_arch = ARCH_MAC99;
     }
 
     machine->usb |= defaults_enabled() && !machine->usb_disabled;
