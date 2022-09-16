@@ -2678,7 +2678,7 @@ static void ram_save_cleanup(void *opaque)
         }
     }
 
-    RAMBLOCK_FOREACH_NOT_IGNORED(block) {
+    RAMBLOCK_FOREACH_MIGRATABLE(block) {
         g_free(block->clear_bmap);
         block->clear_bmap = NULL;
         g_free(block->bmap);
