@@ -34,6 +34,7 @@
 #include "trace.h"
 #include "qom/object.h"
 
+#define TYPE_GRACKLE_PCI_HOST_BRIDGE "grackle-pcihost"
 OBJECT_DECLARE_SIMPLE_TYPE(GrackleState, GRACKLE_PCI_HOST_BRIDGE)
 
 struct GrackleState {

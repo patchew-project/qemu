@@ -214,7 +214,7 @@ static void ppc_heathrow_init(MachineState *machine)
     }
 
     /* Grackle PCI host bridge */
-    grackle_dev = qdev_new(TYPE_GRACKLE_PCI_HOST_BRIDGE);
+    grackle_dev = qdev_new("grackle-pcihost");
     qdev_prop_set_uint32(grackle_dev, "ofw-addr", 0x80000000);
     s = SYS_BUS_DEVICE(grackle_dev);
     sysbus_realize_and_unref(s, &error_fatal);
