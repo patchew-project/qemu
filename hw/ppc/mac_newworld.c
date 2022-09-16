@@ -111,11 +111,11 @@ static void ppc_core99_init(MachineState *machine)
     CPUPPCState *env = NULL;
     char *filename;
     IrqLines *openpic_irqs;
-    int i, j, k, ppc_boot_device, machine_arch, bios_size;
+    int i, j, k, ppc_boot_device, machine_arch, bios_size = -1;
     const char *bios_name = machine->firmware ?: PROM_FILENAME;
     MemoryRegion *bios = g_new(MemoryRegion, 1);
-    hwaddr kernel_base, initrd_base, cmdline_base = 0;
-    long kernel_size, initrd_size;
+    hwaddr kernel_base = 0, initrd_base = 0, cmdline_base = 0;
+    long kernel_size = 0, initrd_size = 0;
     UNINHostState *uninorth_pci;
     PCIBus *pci_bus;
     PCIDevice *macio;
@@ -130,7 +130,7 @@ static void ppc_core99_init(MachineState *machine)
     DeviceState *dev, *pic_dev;
     DeviceState *uninorth_internal_dev = NULL, *uninorth_agp_dev = NULL;
     hwaddr nvram_addr = 0xFFF04000;
-    uint64_t tbfreq;
+    uint64_t tbfreq = kvm_enabled() ? kvmppc_get_tbfreq() : TBFREQ;
 
     /* init CPUs */
     for (i = 0; i < machine->smp.cpus; i++) {
@@ -165,8 +165,6 @@ static void ppc_core99_init(MachineState *machine)
             bios_size = load_image_targphys(filename, PROM_BASE, PROM_SIZE);
         }
         g_free(filename);
-    } else {
-        bios_size = -1;
     }
     if (bios_size < 0 || bios_size > PROM_SIZE) {
         error_report("could not load PowerPC bios '%s'", bios_name);
@@ -174,15 +172,12 @@ static void ppc_core99_init(MachineState *machine)
     }
 
     if (machine->kernel_filename) {
-        int bswap_needed;
+        int bswap_needed = 0;
 
 #ifdef BSWAP_NEEDED
         bswap_needed = 1;
-#else
-        bswap_needed = 0;
 #endif
         kernel_base = KERNEL_LOAD_ADDR;
-
         kernel_size = load_elf(machine->kernel_filename, NULL,
                                translate_kernel_address, NULL, NULL, NULL,
                                NULL, NULL, 1, PPC_ELF_MACHINE, 0, 0);
@@ -212,16 +207,10 @@ static void ppc_core99_init(MachineState *machine)
             }
             cmdline_base = TARGET_PAGE_ALIGN(initrd_base + initrd_size);
         } else {
-            initrd_base = 0;
-            initrd_size = 0;
             cmdline_base = TARGET_PAGE_ALIGN(kernel_base + kernel_size + KERNEL_GAP);
         }
         ppc_boot_device = 'm';
     } else {
-        kernel_base = 0;
-        kernel_size = 0;
-        initrd_base = 0;
-        initrd_size = 0;
         ppc_boot_device = '\0';
         /* We consider that NewWorld PowerMac never have any floppy drive
          * For now, OHW cannot boot from the network.
@@ -342,13 +331,6 @@ static void ppc_core99_init(MachineState *machine)
     has_pmu = (core99_machine->via_config != CORE99_VIA_CONFIG_CUDA);
     has_adb = (core99_machine->via_config == CORE99_VIA_CONFIG_CUDA ||
                core99_machine->via_config == CORE99_VIA_CONFIG_PMU_ADB);
-
-    /* Timebase Frequency */
-    if (kvm_enabled()) {
-        tbfreq = kvmppc_get_tbfreq();
-    } else {
-        tbfreq = TBFREQ;
-    }
 
     /* init basic PC hardware */
     pci_bus = PCI_HOST_BRIDGE(uninorth_pci)->bus;

@@ -84,11 +84,11 @@ static void ppc_heathrow_init(MachineState *machine)
     PowerPCCPU *cpu = NULL;
     CPUPPCState *env = NULL;
     char *filename;
-    int i, bios_size;
+    int i, bios_size = -1;
     MemoryRegion *bios = g_new(MemoryRegion, 1);
     uint64_t bios_addr;
-    uint32_t kernel_base, initrd_base, cmdline_base = 0;
-    int32_t kernel_size, initrd_size;
+    uint32_t kernel_base = 0, initrd_base = 0, cmdline_base = 0;
+    int32_t kernel_size = 0, initrd_size = 0;
     PCIBus *pci_bus;
     PCIDevice *macio;
     MACIOIDEState *macio_ide;
@@ -99,7 +99,7 @@ static void ppc_heathrow_init(MachineState *machine)
     uint16_t ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
-    uint64_t tbfreq;
+    uint64_t tbfreq = kvm_enabled() ? kvmppc_get_tbfreq() : TBFREQ;
 
     /* init CPUs */
     for (i = 0; i < machine->smp.cpus; i++) {
@@ -139,8 +139,6 @@ static void ppc_heathrow_init(MachineState *machine)
             bios_addr = PROM_BASE;
         }
         g_free(filename);
-    } else {
-        bios_size = -1;
     }
     if (bios_size < 0 || bios_addr - PROM_BASE + bios_size > PROM_SIZE) {
         error_report("could not load PowerPC bios '%s'", bios_name);
@@ -148,12 +146,10 @@ static void ppc_heathrow_init(MachineState *machine)
     }
 
     if (machine->kernel_filename) {
-        int bswap_needed;
+        int bswap_needed = 0;
 
 #ifdef BSWAP_NEEDED
         bswap_needed = 1;
-#else
-        bswap_needed = 0;
 #endif
         kernel_base = KERNEL_LOAD_ADDR;
         kernel_size = load_elf(machine->kernel_filename, NULL,
@@ -186,16 +182,10 @@ static void ppc_heathrow_init(MachineState *machine)
             }
             cmdline_base = TARGET_PAGE_ALIGN(initrd_base + initrd_size);
         } else {
-            initrd_base = 0;
-            initrd_size = 0;
             cmdline_base = TARGET_PAGE_ALIGN(kernel_base + kernel_size + KERNEL_GAP);
         }
         ppc_boot_device = 'm';
     } else {
-        kernel_base = 0;
-        kernel_size = 0;
-        initrd_base = 0;
-        initrd_size = 0;
         ppc_boot_device = '\0';
         for (i = 0; machine->boot_config.order[i] != '\0'; i++) {
             /*
@@ -221,13 +211,6 @@ static void ppc_heathrow_init(MachineState *machine)
             error_report("No valid boot device for G3 Beige machine");
             exit(1);
         }
-    }
-
-    /* Timebase Frequency */
-    if (kvm_enabled()) {
-        tbfreq = kvmppc_get_tbfreq();
-    } else {
-        tbfreq = TBFREQ;
     }
 
     /* Grackle PCI host bridge */
