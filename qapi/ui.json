@@ -1199,13 +1199,20 @@
 #               interfaces (e.g. VGA and virtual console character devices)
 #               by default.
 #               Since 7.1
+# @connector:   List of physical monitor/connector names where the GTK windows
+#               containing the respective graphics virtual consoles (VCs) are
+#               to be placed. If a mapping exists for a VC, it will be
+#               fullscreened on that specific monitor or else it would not be
+#               displayed anywhere and would appear disconnected to the guest.
+#               Since 7.2
 #
 # Since: 2.12
 ##
 { 'struct'  : 'DisplayGTK',
   'data'    : { '*grab-on-hover' : 'bool',
                 '*zoom-to-fit'   : 'bool',
-                '*show-tabs'     : 'bool'  } }
+                '*show-tabs'     : 'bool',
+                '*connector'     : ['str']  } }
 
 ##
 # @DisplayEGLHeadless:

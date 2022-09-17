@@ -37,6 +37,7 @@
 #include "qapi/qapi-commands-misc.h"
 #include "qemu/cutils.h"
 #include "qemu/main-loop.h"
+#include "qemu/option.h"
 
 #include "ui/console.h"
 #include "ui/gtk.h"
@@ -115,6 +116,7 @@
 #endif
 
 #define HOTKEY_MODIFIERS        (GDK_CONTROL_MASK | GDK_MOD1_MASK)
+#define MAX_NUM_ATTEMPTS 5
 
 static const guint16 *keycode_map;
 static size_t keycode_maplen;
@@ -125,6 +127,15 @@ struct VCChardev {
     bool echo;
 };
 typedef struct VCChardev VCChardev;
+
+struct gd_monitor_data {
+    GtkDisplayState *s;
+    GdkDisplay *dpy;
+    GdkMonitor *monitor;
+    QEMUTimer *hp_timer;
+    int attempt;
+};
+typedef struct gd_monitor_data gd_monitor_data;
 
 #define TYPE_CHARDEV_VC "chardev-vc"
 DECLARE_INSTANCE_CHECKER(VCChardev, VC_CHARDEV,
@@ -1385,6 +1396,147 @@ static void gd_menu_untabify(GtkMenuItem *item, void *opaque)
     }
 }
 
+static void gd_monitor_fullscreen(GdkDisplay *dpy, VirtualConsole *vc,
+                                  gint monitor_num)
+{
+    GtkDisplayState *s = vc->s;
+
+    if (!vc->window) {
+        gd_tab_window_create(vc);
+    }
+    gtk_window_fullscreen_on_monitor(GTK_WINDOW(vc->window),
+                                     gdk_display_get_default_screen(dpy),
+                                     monitor_num);
+    s->full_screen = TRUE;
+    gd_update_cursor(vc);
+}
+
+static int gd_monitor_lookup(GdkDisplay *dpy, char *label)
+{
+    GdkMonitor *monitor;
+    const char *monitor_name;
+    int i, total_monitors;
+
+    total_monitors = gdk_display_get_n_monitors(dpy);
+    for (i = 0; i < total_monitors; i++) {
+        monitor = gdk_display_get_monitor(dpy, i);
+        if (monitor) {
+            monitor_name = gdk_monitor_get_model(monitor);
+            if (monitor_name && !strcmp(monitor_name, label)) {
+                return i;
+            }
+        }
+    }
+    return -1;
+}
+
+static void gd_monitor_check_vcs(GdkDisplay *dpy, GdkMonitor *monitor,
+                                 GtkDisplayState *s)
+{
+    VirtualConsole *vc;
+    const char *monitor_name = gdk_monitor_get_model(monitor);
+    int i;
+
+    for (i = 0; i < s->nb_vcs; i++) {
+        vc = &s->vc[i];
+        if (!strcmp(vc->label, monitor_name)) {
+            gd_monitor_fullscreen(dpy, vc, gd_monitor_lookup(dpy, vc->label));
+            gd_set_ui_size(vc, surface_width(vc->gfx.ds),
+                           surface_height(vc->gfx.ds));
+            break;
+        }
+    }
+}
+
+static void gd_monitor_hotplug_timer(void *opaque)
+{
+    gd_monitor_data *data = opaque;
+    const char *monitor_name = gdk_monitor_get_model(data->monitor);
+
+    if (monitor_name) {
+        gd_monitor_check_vcs(data->dpy, data->monitor, data->s);
+    }
+    if (monitor_name || data->attempt == MAX_NUM_ATTEMPTS) {
+        timer_del(data->hp_timer);
+        g_free(data);
+    } else {
+        data->attempt++;
+        timer_mod(data->hp_timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 50);
+    }
+}
+
+static void gd_monitor_add(GdkDisplay *dpy, GdkMonitor *monitor,
+                           void *opaque)
+{
+    GtkDisplayState *s = opaque;
+    gd_monitor_data *data;
+    const char *monitor_name = gdk_monitor_get_model(monitor);
+
+    if (!monitor_name) {
+        data = g_malloc0(sizeof(*data));
+        data->s = s;
+        data->dpy = dpy;
+        data->monitor = monitor;
+        data->hp_timer = timer_new_ms(QEMU_CLOCK_REALTIME,
+                                      gd_monitor_hotplug_timer, data);
+        timer_mod(data->hp_timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 50);
+    } else {
+        gd_monitor_check_vcs(dpy, monitor, s);
+    }
+}
+
+static void gd_monitor_remove(GdkDisplay *dpy, GdkMonitor *monitor,
+                              void *opaque)
+{
+    GtkDisplayState *s = opaque;
+    VirtualConsole *vc;
+    const char *monitor_name = gdk_monitor_get_model(monitor);
+    int i;
+
+    if (!monitor_name) {
+        return;
+    }
+    for (i = 0; i < s->nb_vcs; i++) {
+        vc = &s->vc[i];
+        if (!strcmp(vc->label, monitor_name)) {
+            gd_tab_window_close(NULL, NULL, vc);
+            gd_set_ui_size(vc, 0, 0);
+            break;
+        }
+    }
+}
+
+static void gd_connectors_init(GdkDisplay *dpy, GtkDisplayState *s)
+{
+    VirtualConsole *vc;
+    strList *connector = s->opts->u.gtk.connector;
+    gint page_num = 0, monitor_num;
+
+    gtk_notebook_set_show_tabs(GTK_NOTEBOOK(s->notebook), FALSE);
+    gtk_widget_hide(s->menu_bar);
+    for (; connector; connector = connector->next) {
+        vc = gd_vc_find_by_page(s, page_num);
+        if (!vc) {
+            break;
+        }
+        if (page_num == 0) {
+            vc->window = s->window;
+        }
+
+        g_free(vc->label);
+        vc->label = g_strdup(connector->value);
+        monitor_num = gd_monitor_lookup(dpy, vc->label);
+        if (monitor_num >= 0) {
+            gd_monitor_fullscreen(dpy, vc, monitor_num);
+            gd_set_ui_size(vc, surface_width(vc->gfx.ds),
+                           surface_height(vc->gfx.ds));
+        } else {
+            gd_set_ui_size(vc, 0, 0);
+        }
+        page_num++;
+    }
+}
+
 static void gd_menu_show_menubar(GtkMenuItem *item, void *opaque)
 {
     GtkDisplayState *s = opaque;
@@ -1705,7 +1857,14 @@ static gboolean gd_configure(GtkWidget *widget,
                              GdkEventConfigure *cfg, gpointer opaque)
 {
     VirtualConsole *vc = opaque;
+    GtkDisplayState *s = vc->s;
+    GtkWidget *parent = gtk_widget_get_parent(widget);
 
+    if (s->opts->u.gtk.has_connector) {
+        if (!parent || !GTK_IS_WINDOW(parent)) {
+            return FALSE;
+        }
+    }
     gd_set_ui_size(vc, cfg->width, cfg->height);
     return FALSE;
 }
@@ -2038,6 +2197,12 @@ static void gd_connect_signals(GtkDisplayState *s)
                      G_CALLBACK(gd_menu_grab_input), s);
     g_signal_connect(s->notebook, "switch-page",
                      G_CALLBACK(gd_change_page), s);
+    if (s->opts->u.gtk.has_connector) {
+        g_signal_connect(gtk_widget_get_display(s->window), "monitor-added",
+                         G_CALLBACK(gd_monitor_add), s);
+        g_signal_connect(gtk_widget_get_display(s->window), "monitor-removed",
+                         G_CALLBACK(gd_monitor_remove), s);
+    }
 }
 
 static GtkWidget *gd_create_menu_machine(GtkDisplayState *s)
@@ -2401,6 +2566,9 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
     if (opts->u.gtk.has_show_tabs &&
         opts->u.gtk.show_tabs) {
         gtk_menu_item_activate(GTK_MENU_ITEM(s->show_tabs_item));
+    }
+    if (s->opts->u.gtk.has_connector) {
+        gd_connectors_init(window_display, s);
     }
     gd_clipboard_init(s);
 }
