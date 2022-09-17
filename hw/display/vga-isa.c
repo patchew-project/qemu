@@ -84,7 +84,7 @@ static void vga_isa_realizefn(DeviceState *dev, Error **errp)
                                 VBE_DISPI_LFB_PHYSICAL_ADDRESS,
                                 &s->vram);
     /* ROM BIOS */
-    rom_add_vga(VGABIOS_FILENAME);
+    rom_add_vga(VGABIOS_ISAVGA_FILENAME);
 }
 
 static Property vga_isa_properties[] = {

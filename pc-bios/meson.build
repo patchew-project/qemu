@@ -29,7 +29,7 @@ blobs = [
   'bios-microvm.bin',
   'qboot.rom',
   'sgabios.bin',
-  'vgabios.bin',
+  'vgabios-isavga.bin',
   'vgabios-cirrus.bin',
   'vgabios-stdvga.bin',
   'vgabios-vmware.bin',

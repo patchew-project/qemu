@@ -183,7 +183,7 @@ void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val);
 extern const uint8_t sr_mask[8];
 extern const uint8_t gr_mask[16];
 
-#define VGABIOS_FILENAME "vgabios.bin"
+#define VGABIOS_ISAVGA_FILENAME "vgabios-isavga.bin"
 #define VGABIOS_CIRRUS_FILENAME "vgabios-cirrus.bin"
 
 extern const MemoryRegionOps vga_mem_ops;
