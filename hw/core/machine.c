@@ -1097,6 +1097,9 @@ static void machine_initfn(Object *obj)
     ms->smp.threads = 1;
 
     machine_copy_boot_config(ms, &(BootConfiguration){ 0 });
+
+    qbus_init(&ms->main_system_bus, sizeof(ms->main_system_bus),
+              TYPE_SYSTEM_BUS, NULL, "main-system-bus");
 }
 
 static void machine_finalize(Object *obj)

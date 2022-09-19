@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "hw/boards.h"
 #include "hw/sysbus.h"
 #include "monitor/monitor.h"
 #include "exec/address-spaces.h"
@@ -336,26 +337,13 @@ static const TypeInfo sysbus_device_type_info = {
     .class_init = sysbus_device_class_init,
 };
 
-static BusState *main_system_bus;
-
-static void main_system_bus_create(void)
-{
-    /*
-     * assign main_system_bus before qbus_init()
-     * in order to make "if (bus != sysbus_get_default())" work
-     */
-    main_system_bus = g_malloc0(system_bus_info.instance_size);
-    qbus_init(main_system_bus, system_bus_info.instance_size,
-              TYPE_SYSTEM_BUS, NULL, "main-system-bus");
-    OBJECT(main_system_bus)->free = g_free;
-}
-
 BusState *sysbus_get_default(void)
 {
-    if (!main_system_bus) {
-        main_system_bus_create();
+    if (!current_machine) {
+        return NULL;
     }
-    return main_system_bus;
+
+    return &current_machine->main_system_bus;
 }
 
 static void sysbus_register_types(void)
