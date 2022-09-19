@@ -13,7 +13,6 @@
 #include "hw/registerfields.h"
 #include "qemu/timer.h"
 #include "exec/memory.h"
-#include "hw/sysbus.h"
 
 #define IOCSRF_TEMP             0
 #define IOCSRF_NODECNT          1
