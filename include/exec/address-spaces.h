@@ -23,17 +23,28 @@
 
 #ifndef CONFIG_USER_ONLY
 
-/* Get the root memory region.  This interface should only be used temporarily
- * until a proper bus interface is available.
+/**
+ * Get the root memory region.  This is a legacy function, provided for
+ * compatibility. Prefer using SysBusState::system_memory directly.
  */
 MemoryRegion *get_system_memory(void);
 
-/* Get the root I/O port region.  This interface should only be used
- * temporarily until a proper bus interface is available.
+/**
+ * Get the root I/O port region.  This is a legacy function, provided for
+ * compatibility. Prefer using SysBusState::system_io directly.
  */
 MemoryRegion *get_system_io(void);
 
+/**
+ * Get the root memory address space.  This is a legacy function, provided for
+ * compatibility. Prefer using SysBusState::address_space_memory directly.
+ */
 AddressSpace *get_address_space_memory(void);
+
+/**
+ * Get the root I/O port address space.  This is a legacy function, provided
+ * for compatibility. Prefer using SysBusState::address_space_io directly.
+ */
 AddressSpace *get_address_space_io(void);
 
 #endif
