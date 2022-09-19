@@ -1118,7 +1118,7 @@ static FWCfgState *create_fw_cfg(const MachineState *mc)
     FWCfgState *fw_cfg;
 
     fw_cfg = fw_cfg_init_mem_wide(base + 8, base, 8, base + 16,
-                                  &address_space_memory);
+                                  get_address_space_memory());
     fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, (uint16_t)mc->smp.cpus);
 
     return fw_cfg;

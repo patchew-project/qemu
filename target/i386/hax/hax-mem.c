@@ -319,5 +319,5 @@ static struct RAMBlockNotifier hax_ram_notifier = {
 void hax_memory_init(void)
 {
     ram_block_notifier_add(&hax_ram_notifier);
-    memory_listener_register(&hax_memory_listener, &address_space_memory);
+    memory_listener_register(&hax_memory_listener, get_address_space_memory());
 }

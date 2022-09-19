@@ -220,7 +220,7 @@ static void lasi_set_irq(void *opaque, int irq, int level)
             uint32_t iar = s->iar;
             s->irr |= bit;
             if ((s->icr & ICR_BUS_ERROR_BIT) == 0) {
-                stl_be_phys(&address_space_memory, iar & -32, iar & 31);
+                stl_be_phys(get_address_space_memory(), iar & -32, iar & 31);
             }
         }
     }

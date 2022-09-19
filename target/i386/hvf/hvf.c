@@ -106,7 +106,7 @@ void hvf_handle_io(CPUArchState *env, uint16_t port, void *buffer,
     uint8_t *ptr = buffer;
 
     for (i = 0; i < count; i++) {
-        address_space_rw(&address_space_io, port, MEMTXATTRS_UNSPECIFIED,
+        address_space_rw(get_address_space_io(), port, MEMTXATTRS_UNSPECIFIED,
                          ptr, size,
                          direction);
         ptr += size;

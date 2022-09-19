@@ -70,7 +70,7 @@ static void main_cpu_reset(void *opaque)
 static uint64_t rtc_read(void *opaque, hwaddr addr, unsigned size)
 {
     uint8_t val;
-    address_space_read(&address_space_memory, 0x90000071,
+    address_space_read(get_address_space_memory(), 0x90000071,
                        MEMTXATTRS_UNSPECIFIED, &val, 1);
     return val;
 }
@@ -79,7 +79,7 @@ static void rtc_write(void *opaque, hwaddr addr,
                       uint64_t val, unsigned size)
 {
     uint8_t buf = val & 0xff;
-    address_space_write(&address_space_memory, 0x90000071,
+    address_space_write(get_address_space_memory(), 0x90000071,
                         MEMTXATTRS_UNSPECIFIED, &buf, 1);
 }
 

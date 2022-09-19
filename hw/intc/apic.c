@@ -123,7 +123,7 @@ static void apic_sync_vapic(APICCommonState *s, int sync_type)
         }
         vapic_state.irr = vector & 0xff;
 
-        address_space_write_rom(&address_space_memory,
+        address_space_write_rom(get_address_space_memory(),
                                 s->vapic_paddr + start,
                                 MEMTXATTRS_UNSPECIFIED,
                                 ((void *)&vapic_state) + start, length);

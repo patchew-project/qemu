@@ -2298,7 +2298,7 @@ static void vmbus_dev_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    vdev->dma_as = &address_space_memory;
+    vdev->dma_as = get_address_space_memory();
 
     create_channels(vmbus, vdev, &err);
     if (err) {

@@ -679,7 +679,7 @@ uint16_t hyperv_hcall_signal_event(uint64_t param, bool fast)
             return HV_STATUS_INVALID_ALIGNMENT;
         }
 
-        param = ldq_phys(&address_space_memory, addr);
+        param = ldq_phys(get_address_space_memory(), addr);
     }
 
     /*

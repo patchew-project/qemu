@@ -662,7 +662,7 @@ static void pnv_psi_notify(XiveNotifier *xf, uint32_t srcno, bool pq_checked)
         return;
     }
 
-    address_space_stq_be(&address_space_memory, notify_addr, data,
+    address_space_stq_be(get_address_space_memory(), notify_addr, data,
                          MEMTXATTRS_UNSPECIFIED, &result);
     if (result != MEMTX_OK) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: trigger failed @%"

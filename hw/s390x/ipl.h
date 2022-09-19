@@ -251,7 +251,7 @@ static inline bool ipl_valid_pv_header(IplParameterBlock *iplb)
             return false;
         }
 
-        if (!address_space_access_valid(&address_space_memory,
+        if (!address_space_access_valid(get_address_space_memory(),
                                         ipib_pv->pv_header_addr,
                                         ipib_pv->pv_header_len,
                                         false,

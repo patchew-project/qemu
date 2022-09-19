@@ -393,7 +393,7 @@ void kvm_arm_register_device(MemoryRegion *mr, uint64_t devid, uint64_t group,
     }
 
     if (QSLIST_EMPTY(&kvm_devices_head)) {
-        memory_listener_register(&devlistener, &address_space_memory);
+        memory_listener_register(&devlistener, get_address_space_memory());
         qemu_add_machine_init_done_notifier(&notify);
     }
     kd = g_new0(KVMDevice, 1);
@@ -1004,7 +1004,7 @@ int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
     MemoryRegionSection mrs;
     MemoryRegion *mr;
 
-    if (as == &address_space_memory) {
+    if (as == get_address_space_memory()) {
         return 0;
     }
 

@@ -208,7 +208,7 @@ static void update_irq(struct HPETTimer *timer, int set)
             qemu_irq_lower(s->irqs[route]);
         }
     } else if (timer_fsb_route(timer)) {
-        address_space_stl_le(&address_space_memory, timer->fsb >> 32,
+        address_space_stl_le(get_address_space_memory(), timer->fsb >> 32,
                              timer->fsb & 0xffffffff, MEMTXATTRS_UNSPECIFIED,
                              NULL);
     } else if (timer->config & HPET_TN_TYPE_LEVEL) {

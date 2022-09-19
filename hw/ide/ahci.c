@@ -1789,7 +1789,7 @@ static void sysbus_ahci_realize(DeviceState *dev, Error **errp)
 {
     SysbusAHCIState *s = SYSBUS_AHCI(dev);
 
-    ahci_realize(&s->ahci, dev, &address_space_memory, s->num_ports);
+    ahci_realize(&s->ahci, dev, get_address_space_memory(), s->num_ports);
 }
 
 static Property sysbus_ahci_properties[] = {

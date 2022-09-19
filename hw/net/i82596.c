@@ -88,28 +88,28 @@ enum commands {
 
 static uint8_t get_byte(uint32_t addr)
 {
-    return ldub_phys(&address_space_memory, addr);
+    return ldub_phys(get_address_space_memory(), addr);
 }
 
 static void set_byte(uint32_t addr, uint8_t c)
 {
-    return stb_phys(&address_space_memory, addr, c);
+    return stb_phys(get_address_space_memory(), addr, c);
 }
 
 static uint16_t get_uint16(uint32_t addr)
 {
-    return lduw_be_phys(&address_space_memory, addr);
+    return lduw_be_phys(get_address_space_memory(), addr);
 }
 
 static void set_uint16(uint32_t addr, uint16_t w)
 {
-    return stw_be_phys(&address_space_memory, addr, w);
+    return stw_be_phys(get_address_space_memory(), addr, w);
 }
 
 static uint32_t get_uint32(uint32_t addr)
 {
-    uint32_t lo = lduw_be_phys(&address_space_memory, addr);
-    uint32_t hi = lduw_be_phys(&address_space_memory, addr + 2);
+    uint32_t lo = lduw_be_phys(get_address_space_memory(), addr);
+    uint32_t hi = lduw_be_phys(get_address_space_memory(), addr + 2);
     return (hi << 16) | lo;
 }
 
@@ -150,7 +150,7 @@ static void i82596_transmit(I82596State *s, uint32_t addr)
 
         if (s->nic && len) {
             assert(len <= sizeof(s->tx_buffer));
-            address_space_read(&address_space_memory, tba,
+            address_space_read(get_address_space_memory(), tba,
                                MEMTXATTRS_UNSPECIFIED, s->tx_buffer, len);
             DBG(PRINT_PKTHDR("Send", &s->tx_buffer));
             DBG(printf("Sending %d bytes\n", len));
@@ -174,7 +174,7 @@ static void set_individual_address(I82596State *s, uint32_t addr)
 
     nc = qemu_get_queue(s->nic);
     m = s->conf.macaddr.a;
-    address_space_read(&address_space_memory, addr + 8,
+    address_space_read(get_address_space_memory(), addr + 8,
                        MEMTXATTRS_UNSPECIFIED, m, ETH_ALEN);
     qemu_format_nic_info_str(nc, m);
     trace_i82596_new_mac(nc->info_str);
@@ -192,7 +192,7 @@ static void set_multicast_list(I82596State *s, uint32_t addr)
     }
     for (i = 0; i < mc_count; i++) {
         uint8_t multicast_addr[ETH_ALEN];
-        address_space_read(&address_space_memory, addr + i * ETH_ALEN,
+        address_space_read(get_address_space_memory(), addr + i * ETH_ALEN,
                            MEMTXATTRS_UNSPECIFIED, multicast_addr, ETH_ALEN);
         DBG(printf("Add multicast entry " MAC_FMT "\n",
                     MAC_ARG(multicast_addr)));
@@ -261,7 +261,7 @@ static void command_loop(I82596State *s)
             byte_cnt = MAX(byte_cnt, 4);
             byte_cnt = MIN(byte_cnt, sizeof(s->config));
             /* copy byte_cnt max. */
-            address_space_read(&address_space_memory, s->cmd_p + 8,
+            address_space_read(get_address_space_memory(), s->cmd_p + 8,
                                MEMTXATTRS_UNSPECIFIED, s->config, byte_cnt);
             /* config byte according to page 35ff */
             s->config[2] &= 0x82; /* mask valid bits */
@@ -654,7 +654,7 @@ ssize_t i82596_receive(NetClientState *nc, const uint8_t *buf, size_t sz)
                 /* Still some of the actual data buffer to transfer */
                 assert(bufsz >= bufcount);
                 bufsz -= bufcount;
-                address_space_write(&address_space_memory, rba,
+                address_space_write(get_address_space_memory(), rba,
                                     MEMTXATTRS_UNSPECIFIED, buf, bufcount);
                 rba += bufcount;
                 buf += bufcount;
@@ -663,7 +663,7 @@ ssize_t i82596_receive(NetClientState *nc, const uint8_t *buf, size_t sz)
 
             /* Write as much of the CRC as fits */
             if (crccount > 0) {
-                address_space_write(&address_space_memory, rba,
+                address_space_write(get_address_space_memory(), rba,
                                     MEMTXATTRS_UNSPECIFIED, crc_ptr, crccount);
                 rba += crccount;
                 crc_ptr += crccount;

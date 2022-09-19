@@ -47,7 +47,7 @@ static void xhci_sysbus_realize(DeviceState *dev, Error **errp)
         s->xhci.as =  g_malloc0(sizeof(AddressSpace));
         address_space_init(s->xhci.as, s->xhci.dma_mr, NULL);
     } else {
-        s->xhci.as = &address_space_memory;
+        s->xhci.as = get_address_space_memory();
     }
 
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->xhci.mem);

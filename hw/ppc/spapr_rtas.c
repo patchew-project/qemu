@@ -259,7 +259,7 @@ static inline int sysparm_st(target_ulong addr, target_ulong len,
     if (len < 2) {
         return RTAS_OUT_SYSPARM_PARAM_ERROR;
     }
-    stw_be_phys(&address_space_memory, phys, vallen);
+    stw_be_phys(get_address_space_memory(), phys, vallen);
     cpu_physical_memory_write(phys + 2, val, MIN(len - 2, vallen));
     return RTAS_OUT_SUCCESS;
 }

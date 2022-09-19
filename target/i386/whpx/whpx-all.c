@@ -792,7 +792,7 @@ static HRESULT CALLBACK whpx_emu_ioport_callback(
     WHV_EMULATOR_IO_ACCESS_INFO *IoAccess)
 {
     MemTxAttrs attrs = { 0 };
-    address_space_rw(&address_space_io, IoAccess->Port, attrs,
+    address_space_rw(get_address_space_io(), IoAccess->Port, attrs,
                      &IoAccess->Data, IoAccess->AccessSize,
                      IoAccess->Direction);
     return S_OK;
@@ -2435,7 +2435,7 @@ static MemoryListener whpx_memory_listener = {
 
 static void whpx_memory_init(void)
 {
-    memory_listener_register(&whpx_memory_listener, &address_space_memory);
+    memory_listener_register(&whpx_memory_listener, get_address_space_memory());
 }
 
 /*

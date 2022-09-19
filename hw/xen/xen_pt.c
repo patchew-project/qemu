@@ -913,8 +913,8 @@ out:
         }
     }
 
-    memory_listener_register(&s->memory_listener, &address_space_memory);
-    memory_listener_register(&s->io_listener, &address_space_io);
+    memory_listener_register(&s->memory_listener, get_address_space_memory());
+    memory_listener_register(&s->io_listener, get_address_space_io());
     s->listener_set = true;
     XEN_PT_LOG(d,
                "Real physical device %02x:%02x.%d registered successfully\n",

@@ -506,7 +506,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
         if (!ccw.cda) {
             ret = -EFAULT;
         } else {
-            address_space_stb(&address_space_memory, ccw.cda, vdev->status,
+            address_space_stb(get_address_space_memory(), ccw.cda, vdev->status,
                                         MEMTXATTRS_UNSPECIFIED, NULL);
             sch->curr_status.scsw.count = ccw.count - sizeof(vdev->status);
             ret = 0;
@@ -893,12 +893,12 @@ static void virtio_ccw_notify(DeviceState *d, uint16_t vector)
             }
         } else {
             assert(vector < NR_CLASSIC_INDICATOR_BITS);
-            indicators = address_space_ldq(&address_space_memory,
+            indicators = address_space_ldq(get_address_space_memory(),
                                            dev->indicators->addr,
                                            MEMTXATTRS_UNSPECIFIED,
                                            NULL);
             indicators |= 1ULL << vector;
-            address_space_stq(&address_space_memory, dev->indicators->addr,
+            address_space_stq(get_address_space_memory(), dev->indicators->addr,
                               indicators, MEMTXATTRS_UNSPECIFIED, NULL);
             css_conditional_io_interrupt(sch);
         }
@@ -906,12 +906,12 @@ static void virtio_ccw_notify(DeviceState *d, uint16_t vector)
         if (!dev->indicators2) {
             return;
         }
-        indicators = address_space_ldq(&address_space_memory,
+        indicators = address_space_ldq(get_address_space_memory(),
                                        dev->indicators2->addr,
                                        MEMTXATTRS_UNSPECIFIED,
                                        NULL);
         indicators |= 1ULL;
-        address_space_stq(&address_space_memory, dev->indicators2->addr,
+        address_space_stq(get_address_space_memory(), dev->indicators2->addr,
                           indicators, MEMTXATTRS_UNSPECIFIED, NULL);
         css_conditional_io_interrupt(sch);
     }

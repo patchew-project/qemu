@@ -159,7 +159,7 @@ static void amdvi_generate_msi_interrupt(AMDVIState *s)
 
     if (msi_enabled(&s->pci.dev)) {
         msg = msi_get_message(&s->pci.dev, 0);
-        address_space_stl_le(&address_space_memory, msg.address, msg.data,
+        address_space_stl_le(get_address_space_memory(), msg.address, msg.data,
                              attrs, NULL);
     }
 }
@@ -180,7 +180,7 @@ static void amdvi_log_event(AMDVIState *s, uint64_t *evt)
         return;
     }
 
-    if (dma_memory_write(&address_space_memory, s->evtlog + s->evtlog_tail,
+    if (dma_memory_write(get_address_space_memory(), s->evtlog + s->evtlog_tail,
                          evt, AMDVI_EVENT_LEN, MEMTXATTRS_UNSPECIFIED)) {
         trace_amdvi_evntlog_fail(s->evtlog, s->evtlog_tail);
     }
@@ -379,7 +379,7 @@ static void amdvi_completion_wait(AMDVIState *s, uint64_t *cmd)
                                    s->cmdbuf + s->cmdbuf_head);
     }
     if (extract64(cmd[0], 0, 1)) {
-        if (dma_memory_write(&address_space_memory, addr, &data,
+        if (dma_memory_write(get_address_space_memory(), addr, &data,
                              AMDVI_COMPLETION_DATA_SIZE,
                              MEMTXATTRS_UNSPECIFIED)) {
             trace_amdvi_completion_wait_fail(addr);
@@ -506,7 +506,7 @@ static void amdvi_cmdbuf_exec(AMDVIState *s)
 {
     uint64_t cmd[2];
 
-    if (dma_memory_read(&address_space_memory, s->cmdbuf + s->cmdbuf_head,
+    if (dma_memory_read(get_address_space_memory(), s->cmdbuf + s->cmdbuf_head,
                         cmd, AMDVI_COMMAND_SIZE, MEMTXATTRS_UNSPECIFIED)) {
         trace_amdvi_command_read_fail(s->cmdbuf, s->cmdbuf_head);
         amdvi_log_command_error(s, s->cmdbuf + s->cmdbuf_head);
@@ -840,7 +840,7 @@ static bool amdvi_get_dte(AMDVIState *s, int devid, uint64_t *entry)
 {
     uint32_t offset = devid * AMDVI_DEVTAB_ENTRY_SIZE;
 
-    if (dma_memory_read(&address_space_memory, s->devtab + offset, entry,
+    if (dma_memory_read(get_address_space_memory(), s->devtab + offset, entry,
                         AMDVI_DEVTAB_ENTRY_SIZE, MEMTXATTRS_UNSPECIFIED)) {
         trace_amdvi_dte_get_fail(s->devtab, offset);
         /* log error accessing dte */
@@ -886,7 +886,7 @@ static inline uint64_t amdvi_get_pte_entry(AMDVIState *s, uint64_t pte_addr,
 {
     uint64_t pte;
 
-    if (dma_memory_read(&address_space_memory, pte_addr,
+    if (dma_memory_read(get_address_space_memory(), pte_addr,
                         &pte, sizeof(pte), MEMTXATTRS_UNSPECIFIED)) {
         trace_amdvi_get_pte_hwerror(pte_addr);
         amdvi_log_pagetab_error(s, devid, pte_addr, 0);
@@ -1010,7 +1010,7 @@ static IOMMUTLBEntry amdvi_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
     AMDVIAddressSpace *as = container_of(iommu, AMDVIAddressSpace, iommu);
     AMDVIState *s = as->iommu_state;
     IOMMUTLBEntry ret = {
-        .target_as = &address_space_memory,
+        .target_as = get_address_space_memory(),
         .iova = addr,
         .translated_addr = 0,
         .addr_mask = ~(hwaddr)0,
@@ -1050,7 +1050,7 @@ static int amdvi_get_irte(AMDVIState *s, MSIMessage *origin, uint64_t *dte,
 
     trace_amdvi_ir_irte(irte_root, offset);
 
-    if (dma_memory_read(&address_space_memory, irte_root + offset,
+    if (dma_memory_read(get_address_space_memory(), irte_root + offset,
                         irte, sizeof(*irte), MEMTXATTRS_UNSPECIFIED)) {
         trace_amdvi_ir_err("failed to get irte");
         return -AMDVI_IR_GET_IRTE;
@@ -1110,7 +1110,7 @@ static int amdvi_get_irte_ga(AMDVIState *s, MSIMessage *origin, uint64_t *dte,
     offset = (origin->data & AMDVI_IRTE_OFFSET) << 4;
     trace_amdvi_ir_irte(irte_root, offset);
 
-    if (dma_memory_read(&address_space_memory, irte_root + offset,
+    if (dma_memory_read(get_address_space_memory(), irte_root + offset,
                         irte, sizeof(*irte), MEMTXATTRS_UNSPECIFIED)) {
         trace_amdvi_ir_err("failed to get irte_ga");
         return -AMDVI_IR_GET_IRTE;

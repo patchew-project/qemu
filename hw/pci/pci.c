@@ -2829,7 +2829,7 @@ AddressSpace *pci_device_iommu_address_space(PCIDevice *dev)
     if (!pci_bus_bypass_iommu(bus) && iommu_bus && iommu_bus->iommu_fn) {
         return iommu_bus->iommu_fn(bus, iommu_bus->iommu_opaque, devfn);
     }
-    return &address_space_memory;
+    return get_address_space_memory();
 }
 
 void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque)

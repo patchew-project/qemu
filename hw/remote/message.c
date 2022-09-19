@@ -143,7 +143,7 @@ static void process_bar_write(QIOChannel *ioc, MPQemuMsg *msg, Error **errp)
     ERRP_GUARD();
     BarAccessMsg *bar_access = &msg->data.bar_access;
     AddressSpace *as =
-        bar_access->memory ? &address_space_memory : &address_space_io;
+        bar_access->memory ? get_address_space_memory() : get_address_space_io();
     MPQemuMsg ret = { 0 };
     MemTxResult res;
     uint64_t val;
@@ -184,7 +184,7 @@ static void process_bar_read(QIOChannel *ioc, MPQemuMsg *msg, Error **errp)
     MemTxResult res;
     uint64_t val = 0;
 
-    as = bar_access->memory ? &address_space_memory : &address_space_io;
+    as = bar_access->memory ? get_address_space_memory() : get_address_space_io();
 
     if (!is_power_of_2(bar_access->size) ||
        (bar_access->size > sizeof(uint64_t))) {

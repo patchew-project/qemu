@@ -1192,7 +1192,7 @@ static bool pnv_phb4_resolve_pe(PnvPhb4DMASpace *ds)
     bus_num = pci_bus_num(ds->bus);
     addr = rtt & PHB_RTT_BASE_ADDRESS_MASK;
     addr += 2 * PCI_BUILD_BDF(bus_num, ds->devfn);
-    if (dma_memory_read(&address_space_memory, addr, &rte,
+    if (dma_memory_read(get_address_space_memory(), addr, &rte,
                         sizeof(rte), MEMTXATTRS_UNSPECIFIED)) {
         phb_error(ds->phb, "Failed to read RTT entry at 0x%"PRIx64, addr);
         /* Set error bits ? fence ? ... */
@@ -1264,7 +1264,7 @@ static void pnv_phb4_translate_tve(PnvPhb4DMASpace *ds, hwaddr addr,
 
             /* Grab the TCE address */
             taddr = base | (((addr >> sh) & ((1ul << tbl_shift) - 1)) << 3);
-            if (dma_memory_read(&address_space_memory, taddr, &tce,
+            if (dma_memory_read(get_address_space_memory(), taddr, &tce,
                                 sizeof(tce), MEMTXATTRS_UNSPECIFIED)) {
                 phb_error(ds->phb, "Failed to read TCE at 0x%"PRIx64, taddr);
                 return;
@@ -1310,7 +1310,7 @@ static IOMMUTLBEntry pnv_phb4_translate_iommu(IOMMUMemoryRegion *iommu,
     int tve_sel;
     uint64_t tve, cfg;
     IOMMUTLBEntry ret = {
-        .target_as = &address_space_memory,
+        .target_as = get_address_space_memory(),
         .iova = addr,
         .translated_addr = 0,
         .addr_mask = ~(hwaddr)0,
@@ -1633,7 +1633,7 @@ static void pnv_phb4_xive_notify_abt(PnvPHB4 *phb, uint32_t srcno,
 
     trace_pnv_phb4_xive_notify_ic(addr, data);
 
-    address_space_stq_be(&address_space_memory, addr, data,
+    address_space_stq_be(get_address_space_memory(), addr, data,
                          MEMTXATTRS_UNSPECIFIED, &result);
     if (result != MEMTX_OK) {
         phb_error(phb, "trigger failed @%"HWADDR_PRIx "\n", addr);
@@ -1655,7 +1655,7 @@ static void pnv_phb4_xive_notify_ic(PnvPHB4 *phb, uint32_t srcno,
 
     trace_pnv_phb4_xive_notify_ic(notif_port, data);
 
-    address_space_stq_be(&address_space_memory, notif_port, data,
+    address_space_stq_be(get_address_space_memory(), notif_port, data,
                          MEMTXATTRS_UNSPECIFIED, &result);
     if (result != MEMTX_OK) {
         phb_error(phb, "trigger failed @%"HWADDR_PRIx "\n", notif_port);

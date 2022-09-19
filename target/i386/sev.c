@@ -1336,7 +1336,7 @@ bool sev_add_kernel_loader_hashes(SevKernelLoaderContext *ctx, Error **errp)
      * Populate the hashes table in the guest's memory at the OVMF-designated
      * area for the SEV hashes table
      */
-    padded_ht = address_space_map(&address_space_memory, area->base,
+    padded_ht = address_space_map(get_address_space_memory(), area->base,
                                   &mapped_len, true, attrs);
     if (!padded_ht || mapped_len != sizeof(*padded_ht)) {
         error_setg(errp, "SEV: cannot map hashes table guest memory area");
@@ -1366,7 +1366,7 @@ bool sev_add_kernel_loader_hashes(SevKernelLoaderContext *ctx, Error **errp)
         ret = false;
     }
 
-    address_space_unmap(&address_space_memory, padded_ht,
+    address_space_unmap(get_address_space_memory(), padded_ht,
                         mapped_len, true, mapped_len);
 
     return ret;

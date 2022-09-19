@@ -68,7 +68,7 @@ static void ehci_sysbus_init(Object *obj)
     s->opregbase = sec->opregbase;
     s->portscbase = sec->portscbase;
     s->portnr = sec->portnr;
-    s->as = &address_space_memory;
+    s->as = get_address_space_memory();
 
     usb_ehci_init(s, DEVICE(obj));
     sysbus_init_mmio(d, &s->mem);

@@ -54,10 +54,10 @@ struct VofMachineIfClass {
 #define VOF_STACK_SIZE       0x8000
 
 #define VOF_MEM_READ(pa, buf, size) \
-    address_space_read(&address_space_memory, \
+    address_space_read(get_address_space_memory(), \
     (pa), MEMTXATTRS_UNSPECIFIED, (buf), (size))
 #define VOF_MEM_WRITE(pa, buf, size) \
-    address_space_write(&address_space_memory, \
+    address_space_write(get_address_space_memory(), \
     (pa), MEMTXATTRS_UNSPECIFIED, (buf), (size))
 
 #define PROM_ERROR          (~0U)

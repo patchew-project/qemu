@@ -287,7 +287,7 @@ void guest_phys_blocks_append(GuestPhysBlockList *list)
 
     g.list = list;
     g.listener.region_add = &guest_phys_blocks_region_add;
-    memory_listener_register(&g.listener, &address_space_memory);
+    memory_listener_register(&g.listener, get_address_space_memory());
     memory_listener_unregister(&g.listener);
 }
 

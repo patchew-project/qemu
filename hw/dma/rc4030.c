@@ -501,7 +501,7 @@ static IOMMUTLBEntry rc4030_dma_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
 {
     rc4030State *s = container_of(iommu, rc4030State, dma_mr);
     IOMMUTLBEntry ret = {
-        .target_as = &address_space_memory,
+        .target_as = get_address_space_memory(),
         .iova = addr & ~(DMA_PAGESIZE - 1),
         .translated_addr = 0,
         .addr_mask = DMA_PAGESIZE - 1,

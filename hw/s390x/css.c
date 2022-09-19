@@ -830,7 +830,7 @@ static int ccw_dstream_rw_noflags(CcwDataStream *cds, void *buff, int len,
         goto incr;
     }
     if (!cds->do_skip) {
-        ret = address_space_rw(&address_space_memory, cds->cda,
+        ret = address_space_rw(get_address_space_memory(), cds->cda,
                                MEMTXATTRS_UNSPECIFIED, buff, len, op);
     } else {
         ret = MEMTX_OK;
@@ -872,7 +872,7 @@ static inline int ida_read_next_idaw(CcwDataStream *cds)
         if (idaw_addr & 0x07 || !cds_ccw_addrs_ok(idaw_addr, 0, ccw_fmt1)) {
             return -EINVAL; /* channel program check */
         }
-        ret = address_space_read(&address_space_memory, idaw_addr,
+        ret = address_space_read(get_address_space_memory(), idaw_addr,
                                  MEMTXATTRS_UNSPECIFIED, &idaw.fmt2,
                                  sizeof(idaw.fmt2));
         cds->cda = be64_to_cpu(idaw.fmt2);
@@ -881,7 +881,7 @@ static inline int ida_read_next_idaw(CcwDataStream *cds)
         if (idaw_addr & 0x03 || !cds_ccw_addrs_ok(idaw_addr, 0, ccw_fmt1)) {
             return -EINVAL; /* channel program check */
         }
-        ret = address_space_read(&address_space_memory, idaw_addr,
+        ret = address_space_read(get_address_space_memory(), idaw_addr,
                                  MEMTXATTRS_UNSPECIFIED, &idaw.fmt1,
                                  sizeof(idaw.fmt1));
         cds->cda = be64_to_cpu(idaw.fmt1);
@@ -932,7 +932,7 @@ static int ccw_dstream_rw_ida(CcwDataStream *cds, void *buff, int len,
         iter_len = MIN(len, cont_left);
         if (op != CDS_OP_A) {
             if (!cds->do_skip) {
-                ret = address_space_rw(&address_space_memory, cds->cda,
+                ret = address_space_rw(get_address_space_memory(), cds->cda,
                                        MEMTXATTRS_UNSPECIFIED, buff, iter_len,
                                        op);
             } else {
@@ -1578,12 +1578,12 @@ static void css_update_chnmon(SubchDev *sch)
         /* Format 1, per-subchannel area. */
         uint32_t count;
 
-        count = address_space_ldl(&address_space_memory,
+        count = address_space_ldl(get_address_space_memory(),
                                   sch->curr_status.mba,
                                   MEMTXATTRS_UNSPECIFIED,
                                   NULL);
         count++;
-        address_space_stl(&address_space_memory, sch->curr_status.mba, count,
+        address_space_stl(get_address_space_memory(), sch->curr_status.mba, count,
                           MEMTXATTRS_UNSPECIFIED, NULL);
     } else {
         /* Format 0, global area. */
@@ -1591,12 +1591,12 @@ static void css_update_chnmon(SubchDev *sch)
         uint16_t count;
 
         offset = sch->curr_status.pmcw.mbi << 5;
-        count = address_space_lduw(&address_space_memory,
+        count = address_space_lduw(get_address_space_memory(),
                                    channel_subsys.chnmon_area + offset,
                                    MEMTXATTRS_UNSPECIFIED,
                                    NULL);
         count++;
-        address_space_stw(&address_space_memory,
+        address_space_stw(get_address_space_memory(),
                           channel_subsys.chnmon_area + offset, count,
                           MEMTXATTRS_UNSPECIFIED, NULL);
     }

@@ -111,7 +111,7 @@ static void sifive_e_machine_init(MachineState *machine)
         reset_vec[i] = cpu_to_le32(reset_vec[i]);
     }
     rom_add_blob_fixed_as("mrom.reset", reset_vec, sizeof(reset_vec),
-                          memmap[SIFIVE_E_DEV_MROM].base, &address_space_memory);
+                          memmap[SIFIVE_E_DEV_MROM].base, get_address_space_memory());
 
     if (machine->kernel_filename) {
         riscv_load_kernel(machine->kernel_filename,

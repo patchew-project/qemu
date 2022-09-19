@@ -44,7 +44,7 @@ static void hppa_powerdown_req(Notifier *n, void *opaque)
     hwaddr soft_power_reg = HPA_POWER_BUTTON;
     uint32_t val;
 
-    val = ldl_be_phys(&address_space_memory, soft_power_reg);
+    val = ldl_be_phys(get_address_space_memory(), soft_power_reg);
     if ((val >> 8) == 0) {
         /* immediately shut down when under hardware control */
         qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
@@ -53,7 +53,7 @@ static void hppa_powerdown_req(Notifier *n, void *opaque)
 
     /* clear bit 31 to indicate that the power switch was pressed. */
     val &= ~1;
-    stl_be_phys(&address_space_memory, soft_power_reg, val);
+    stl_be_phys(get_address_space_memory(), soft_power_reg, val);
 }
 
 static Notifier hppa_system_powerdown_notifier = {

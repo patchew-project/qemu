@@ -57,7 +57,7 @@ const MemoryRegionOps unassigned_io_ops = {
 void cpu_outb(uint32_t addr, uint8_t val)
 {
     trace_cpu_out(addr, 'b', val);
-    address_space_write(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
+    address_space_write(get_address_space_io(), addr, MEMTXATTRS_UNSPECIFIED,
                         &val, 1);
 }
 
@@ -67,7 +67,7 @@ void cpu_outw(uint32_t addr, uint16_t val)
 
     trace_cpu_out(addr, 'w', val);
     stw_p(buf, val);
-    address_space_write(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
+    address_space_write(get_address_space_io(), addr, MEMTXATTRS_UNSPECIFIED,
                         buf, 2);
 }
 
@@ -77,7 +77,7 @@ void cpu_outl(uint32_t addr, uint32_t val)
 
     trace_cpu_out(addr, 'l', val);
     stl_p(buf, val);
-    address_space_write(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
+    address_space_write(get_address_space_io(), addr, MEMTXATTRS_UNSPECIFIED,
                         buf, 4);
 }
 
@@ -85,7 +85,7 @@ uint8_t cpu_inb(uint32_t addr)
 {
     uint8_t val;
 
-    address_space_read(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
+    address_space_read(get_address_space_io(), addr, MEMTXATTRS_UNSPECIFIED,
                        &val, 1);
     trace_cpu_in(addr, 'b', val);
     return val;
@@ -96,7 +96,7 @@ uint16_t cpu_inw(uint32_t addr)
     uint8_t buf[2];
     uint16_t val;
 
-    address_space_read(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED, buf, 2);
+    address_space_read(get_address_space_io(), addr, MEMTXATTRS_UNSPECIFIED, buf, 2);
     val = lduw_p(buf);
     trace_cpu_in(addr, 'w', val);
     return val;
@@ -107,7 +107,7 @@ uint32_t cpu_inl(uint32_t addr)
     uint8_t buf[4];
     uint32_t val;
 
-    address_space_read(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED, buf, 4);
+    address_space_read(get_address_space_io(), addr, MEMTXATTRS_UNSPECIFIED, buf, 4);
     val = ldl_p(buf);
     trace_cpu_in(addr, 'l', val);
     return val;

@@ -651,7 +651,7 @@ size_t xlnx_dpdma_start_operation(XlnxDPDMAState *s, uint8_t channel,
             desc_addr = xlnx_dpdma_descriptor_next_address(s, channel);
         }
 
-        if (dma_memory_read(&address_space_memory, desc_addr, &desc,
+        if (dma_memory_read(get_address_space_memory(), desc_addr, &desc,
                             sizeof(DPDMADescriptor), MEMTXATTRS_UNSPECIFIED)) {
             s->registers[DPDMA_EISR] |= ((1 << 1) << channel);
             xlnx_dpdma_update_irq(s);
@@ -705,7 +705,7 @@ size_t xlnx_dpdma_start_operation(XlnxDPDMAState *s, uint8_t channel,
             if (xlnx_dpdma_desc_is_contiguous(&desc)) {
                 source_addr[0] = xlnx_dpdma_desc_get_source_address(&desc, 0);
                 while (transfer_len != 0) {
-                    if (dma_memory_read(&address_space_memory,
+                    if (dma_memory_read(get_address_space_memory(),
                                         source_addr[0],
                                         &s->data[channel][ptr],
                                         line_size,
@@ -734,7 +734,7 @@ size_t xlnx_dpdma_start_operation(XlnxDPDMAState *s, uint8_t channel,
                     size_t fragment_len = DPDMA_FRAG_MAX_SZ
                                     - (source_addr[frag] % DPDMA_FRAG_MAX_SZ);
 
-                    if (dma_memory_read(&address_space_memory,
+                    if (dma_memory_read(get_address_space_memory(),
                                         source_addr[frag],
                                         &(s->data[channel][ptr]),
                                         fragment_len,
@@ -755,7 +755,7 @@ size_t xlnx_dpdma_start_operation(XlnxDPDMAState *s, uint8_t channel,
             /* The descriptor need to be updated when it's completed. */
             DPRINTF("update the descriptor with the done flag set.\n");
             xlnx_dpdma_desc_set_done(&desc);
-            dma_memory_write(&address_space_memory, desc_addr, &desc,
+            dma_memory_write(get_address_space_memory(), desc_addr, &desc,
                              sizeof(DPDMADescriptor), MEMTXATTRS_UNSPECIFIED);
         }
 

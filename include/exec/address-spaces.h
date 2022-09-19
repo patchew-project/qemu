@@ -33,8 +33,8 @@ MemoryRegion *get_system_memory(void);
  */
 MemoryRegion *get_system_io(void);
 
-extern AddressSpace address_space_memory;
-extern AddressSpace address_space_io;
+AddressSpace *get_address_space_memory(void);
+AddressSpace *get_address_space_io(void);
 
 #endif
 

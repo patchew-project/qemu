@@ -930,7 +930,7 @@ static void rom_insert(Rom *rom)
 
     /* The user didn't specify an address space, this is the default */
     if (!rom->as) {
-        rom->as = &address_space_memory;
+        rom->as = get_address_space_memory();
     }
 
     rom->committed = false;

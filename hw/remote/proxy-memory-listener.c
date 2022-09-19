@@ -222,5 +222,5 @@ void proxy_memory_listener_configure(ProxyMemoryListener *proxy_listener,
     proxy_listener->listener.name = "proxy";
 
     memory_listener_register(&proxy_listener->listener,
-                             &address_space_memory);
+                             get_address_space_memory());
 }

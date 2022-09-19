@@ -254,7 +254,7 @@ static uint32_t iommu_page_get_flags(IOMMUState *s, hwaddr addr)
     iopte = s->regs[IOMMU_BASE] << 4;
     addr &= ~s->iostart;
     iopte += (addr >> (IOMMU_PAGE_SHIFT - 2)) & ~3;
-    ret = address_space_ldl_be(&address_space_memory, iopte,
+    ret = address_space_ldl_be(get_address_space_memory(), iopte,
                                MEMTXATTRS_UNSPECIFIED, NULL);
     trace_sun4m_iommu_page_get_flags(pa, iopte, ret);
     return ret;
@@ -294,7 +294,7 @@ static IOMMUTLBEntry sun4m_translate_iommu(IOMMUMemoryRegion *iommu,
     int is_write = (flags & IOMMU_WO) ? 1 : 0;
     uint32_t pte;
     IOMMUTLBEntry ret = {
-        .target_as = &address_space_memory,
+        .target_as = get_address_space_memory(),
         .iova = 0,
         .translated_addr = 0,
         .addr_mask = ~(hwaddr)0,

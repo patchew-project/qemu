@@ -104,7 +104,7 @@ static MemTxResult dino_chip_read_with_attrs(void *opaque, hwaddr addr,
     switch (addr) {
     case DINO_PCI_IO_DATA ... DINO_PCI_IO_DATA + 3:
         /* Read from PCI IO space. */
-        io = &address_space_io;
+        io = get_address_space_io();
         ioaddr = phb->config_reg + (addr & 3);
         switch (size) {
         case 1:
@@ -199,7 +199,7 @@ static MemTxResult dino_chip_write_with_attrs(void *opaque, hwaddr addr,
     switch (addr) {
     case DINO_IO_DATA ... DINO_PCI_IO_DATA + 3:
         /* Write into PCI IO space.  */
-        io = &address_space_io;
+        io = get_address_space_io();
         ioaddr = phb->config_reg + (addr & 3);
         switch (size) {
         case 1:
@@ -382,7 +382,7 @@ static void dino_set_irq(void *opaque, int irq, int level)
         s->ilr = old_ilr | bit;
         if (ena & s->imr) {
             uint32_t iar = (ena & s->icr ? s->iar1 : s->iar0);
-            stl_be_phys(&address_space_memory, iar & -32, iar & 31);
+            stl_be_phys(get_address_space_memory(), iar & -32, iar & 31);
         }
     } else {
         s->ilr = old_ilr & ~bit;

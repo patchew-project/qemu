@@ -1491,11 +1491,11 @@ void xen_hvm_init_pc(PCMachineState *pcms, MemoryRegion **ram_memory)
     qemu_add_vm_change_state_handler(xen_hvm_change_state_handler, state);
 
     state->memory_listener = xen_memory_listener;
-    memory_listener_register(&state->memory_listener, &address_space_memory);
+    memory_listener_register(&state->memory_listener, get_address_space_memory());
     state->log_for_dirtybit = NULL;
 
     state->io_listener = xen_io_listener;
-    memory_listener_register(&state->io_listener, &address_space_io);
+    memory_listener_register(&state->io_listener, get_address_space_io());
 
     state->device_listener = xen_device_listener;
     QLIST_INIT(&state->dev_list);

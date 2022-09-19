@@ -89,8 +89,8 @@ RAMList ram_list = { .blocks = QLIST_HEAD_INITIALIZER(ram_list.blocks) };
 static MemoryRegion *system_memory;
 static MemoryRegion *system_io;
 
-AddressSpace address_space_io;
-AddressSpace address_space_memory;
+static AddressSpace address_space_io;
+static AddressSpace address_space_memory;
 
 static MemoryRegion io_mem_unassigned;
 
@@ -2690,6 +2690,16 @@ MemoryRegion *get_system_io(void)
     return system_io;
 }
 
+AddressSpace *get_address_space_memory(void)
+{
+    return &address_space_memory;
+}
+
+AddressSpace *get_address_space_io(void)
+{
+    return &address_space_io;
+}
+
 static void invalidate_and_set_dirty(MemoryRegion *mr, hwaddr addr,
                                      hwaddr length)
 {
@@ -3319,7 +3329,8 @@ void *cpu_physical_memory_map(hwaddr addr,
 void cpu_physical_memory_unmap(void *buffer, hwaddr len,
                                bool is_write, hwaddr access_len)
 {
-    return address_space_unmap(&address_space_memory, buffer, len, is_write, access_len);
+    return address_space_unmap(&address_space_memory, buffer, len,
+                               is_write, access_len);
 }
 
 #define ARG1_DECL                AddressSpace *as

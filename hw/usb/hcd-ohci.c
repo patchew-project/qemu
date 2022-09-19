@@ -1901,7 +1901,7 @@ static void ohci_realize_pxa(DeviceState *dev, Error **errp)
 
     usb_ohci_init(&s->ohci, dev, s->num_ports, s->dma_offset,
                   s->masterbus, s->firstport,
-                  &address_space_memory, ohci_sysbus_die, &err);
+                  get_address_space_memory(), ohci_sysbus_die, &err);
     if (err) {
         error_propagate(errp, err);
         return;

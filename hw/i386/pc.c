@@ -1130,7 +1130,7 @@ void pc_memory_init(PCMachineState *pcms,
     x86ms->fw_cfg = fw_cfg;
 
     /* Init default IOAPIC address space */
-    x86ms->ioapic_as = &address_space_memory;
+    x86ms->ioapic_as = get_address_space_memory();
 
     /* Init ACPI memory hotplug IO base address */
     pcms->memhp_io_base = ACPI_MEMORY_HOTPLUG_BASE;

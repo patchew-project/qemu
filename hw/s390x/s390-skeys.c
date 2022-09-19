@@ -87,7 +87,7 @@ void hmp_info_skeys(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    if (!address_space_access_valid(&address_space_memory,
+    if (!address_space_access_valid(get_address_space_memory(),
                                     addr & TARGET_PAGE_MASK, TARGET_PAGE_SIZE,
                                     false, MEMTXATTRS_UNSPECIFIED)) {
         monitor_printf(mon, "Error: The given address is not valid\n");

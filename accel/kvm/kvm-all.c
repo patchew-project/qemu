@@ -2655,13 +2655,13 @@ static int kvm_init(MachineState *ms)
     s->memory_listener.listener.coalesced_io_del = kvm_uncoalesce_mmio_region;
 
     kvm_memory_listener_register(s, &s->memory_listener,
-                                 &address_space_memory, 0, "kvm-memory");
+                                 get_address_space_memory(), 0, "kvm-memory");
     if (kvm_eventfds_allowed) {
         memory_listener_register(&kvm_io_listener,
-                                 &address_space_io);
+                                 get_address_space_io());
     }
     memory_listener_register(&kvm_coalesced_pio_listener,
-                             &address_space_io);
+                             get_address_space_io());
 
     s->many_ioeventfds = kvm_check_many_ioeventfds();
 
@@ -2710,7 +2710,7 @@ static void kvm_handle_io(uint16_t port, MemTxAttrs attrs, void *data, int direc
     uint8_t *ptr = data;
 
     for (i = 0; i < count; i++) {
-        address_space_rw(&address_space_io, port, attrs,
+        address_space_rw(get_address_space_io(), port, attrs,
                          ptr, size,
                          direction == KVM_EXIT_IO_OUT);
         ptr += size;
@@ -2761,7 +2761,7 @@ void kvm_flush_coalesced_mmio_buffer(void)
             ent = &ring->coalesced_mmio[ring->first];
 
             if (ent->pio == 1) {
-                address_space_write(&address_space_io, ent->phys_addr,
+                address_space_write(get_address_space_io(), ent->phys_addr,
                                     MEMTXATTRS_UNSPECIFIED, ent->data,
                                     ent->len);
             } else {
@@ -2971,7 +2971,7 @@ int kvm_cpu_exec(CPUState *cpu)
         case KVM_EXIT_MMIO:
             DPRINTF("handle_mmio\n");
             /* Called outside BQL */
-            address_space_rw(&address_space_memory,
+            address_space_rw(get_address_space_memory(),
                              run->mmio.phys_addr, attrs,
                              run->mmio.data,
                              run->mmio.len,

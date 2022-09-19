@@ -81,7 +81,7 @@ static IOMMUTLBEntry sun4u_translate_iommu(IOMMUMemoryRegion *iommu,
     uint64_t tte;
     uint32_t tsbsize;
     IOMMUTLBEntry ret = {
-        .target_as = &address_space_memory,
+        .target_as = get_address_space_memory(),
         .iova = 0,
         .translated_addr = 0,
         .addr_mask = ~(hwaddr)0,
@@ -156,7 +156,7 @@ static IOMMUTLBEntry sun4u_translate_iommu(IOMMUMemoryRegion *iommu,
         }
     }
 
-    tte = address_space_ldq_be(&address_space_memory, baseaddr + offset,
+    tte = address_space_ldq_be(get_address_space_memory(), baseaddr + offset,
                                MEMTXATTRS_UNSPECIFIED, NULL);
 
     if (!(tte & IOMMU_TTE_DATA_V)) {

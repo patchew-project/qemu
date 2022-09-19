@@ -1134,7 +1134,7 @@ static bool virtio_pci_iommu_enabled(DeviceState *d)
     PCIDevice *dev = &proxy->pci_dev;
     AddressSpace *dma_as = pci_device_iommu_address_space(dev);
 
-    if (dma_as == &address_space_memory) {
+    if (dma_as == get_address_space_memory()) {
         return false;
     }
 

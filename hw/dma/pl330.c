@@ -1573,7 +1573,7 @@ static void pl330_realize(DeviceState *dev, Error **errp)
         return;
     } else if (s->mem_mr == get_system_memory()) {
         /* Avoid creating new AS for system memory. */
-        s->mem_as = &address_space_memory;
+        s->mem_as = get_address_space_memory();
     } else {
         s->mem_as = g_new0(AddressSpace, 1);
         address_space_init(s->mem_as, s->mem_mr,

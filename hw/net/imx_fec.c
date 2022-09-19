@@ -387,7 +387,7 @@ static void imx_phy_write(IMXFECState *s, int reg, uint32_t val)
 
 static void imx_fec_read_bd(IMXFECBufDesc *bd, dma_addr_t addr)
 {
-    dma_memory_read(&address_space_memory, addr, bd, sizeof(*bd),
+    dma_memory_read(get_address_space_memory(), addr, bd, sizeof(*bd),
                     MEMTXATTRS_UNSPECIFIED);
 
     trace_imx_fec_read_bd(addr, bd->flags, bd->length, bd->data);
@@ -395,13 +395,13 @@ static void imx_fec_read_bd(IMXFECBufDesc *bd, dma_addr_t addr)
 
 static void imx_fec_write_bd(IMXFECBufDesc *bd, dma_addr_t addr)
 {
-    dma_memory_write(&address_space_memory, addr, bd, sizeof(*bd),
+    dma_memory_write(get_address_space_memory(), addr, bd, sizeof(*bd),
                      MEMTXATTRS_UNSPECIFIED);
 }
 
 static void imx_enet_read_bd(IMXENETBufDesc *bd, dma_addr_t addr)
 {
-    dma_memory_read(&address_space_memory, addr, bd, sizeof(*bd),
+    dma_memory_read(get_address_space_memory(), addr, bd, sizeof(*bd),
                     MEMTXATTRS_UNSPECIFIED);
 
     trace_imx_enet_read_bd(addr, bd->flags, bd->length, bd->data,
@@ -410,7 +410,7 @@ static void imx_enet_read_bd(IMXENETBufDesc *bd, dma_addr_t addr)
 
 static void imx_enet_write_bd(IMXENETBufDesc *bd, dma_addr_t addr)
 {
-    dma_memory_write(&address_space_memory, addr, bd, sizeof(*bd),
+    dma_memory_write(get_address_space_memory(), addr, bd, sizeof(*bd),
                      MEMTXATTRS_UNSPECIFIED);
 }
 
@@ -478,7 +478,7 @@ static void imx_fec_do_tx(IMXFECState *s)
             len = ENET_MAX_FRAME_SIZE - frame_size;
             s->regs[ENET_EIR] |= ENET_INT_BABT;
         }
-        dma_memory_read(&address_space_memory, bd.data, ptr, len,
+        dma_memory_read(get_address_space_memory(), bd.data, ptr, len,
                         MEMTXATTRS_UNSPECIFIED);
         ptr += len;
         frame_size += len;
@@ -560,7 +560,7 @@ static void imx_enet_do_tx(IMXFECState *s, uint32_t index)
             len = ENET_MAX_FRAME_SIZE - frame_size;
             s->regs[ENET_EIR] |= ENET_INT_BABT;
         }
-        dma_memory_read(&address_space_memory, bd.data, ptr, len,
+        dma_memory_read(get_address_space_memory(), bd.data, ptr, len,
                         MEMTXATTRS_UNSPECIFIED);
         ptr += len;
         frame_size += len;
@@ -1109,11 +1109,11 @@ static ssize_t imx_fec_receive(NetClientState *nc, const uint8_t *buf,
             buf_len += size - 4;
         }
         buf_addr = bd.data;
-        dma_memory_write(&address_space_memory, buf_addr, buf, buf_len,
+        dma_memory_write(get_address_space_memory(), buf_addr, buf, buf_len,
                          MEMTXATTRS_UNSPECIFIED);
         buf += buf_len;
         if (size < 4) {
-            dma_memory_write(&address_space_memory, buf_addr + buf_len,
+            dma_memory_write(get_address_space_memory(), buf_addr + buf_len,
                              crc_ptr, 4 - size, MEMTXATTRS_UNSPECIFIED);
             crc_ptr += 4 - size;
         }
@@ -1217,7 +1217,7 @@ static ssize_t imx_enet_receive(NetClientState *nc, const uint8_t *buf,
              */
             const uint8_t zeros[2] = { 0 };
 
-            dma_memory_write(&address_space_memory, buf_addr, zeros,
+            dma_memory_write(get_address_space_memory(), buf_addr, zeros,
                              sizeof(zeros), MEMTXATTRS_UNSPECIFIED);
 
             buf_addr += sizeof(zeros);
@@ -1227,11 +1227,11 @@ static ssize_t imx_enet_receive(NetClientState *nc, const uint8_t *buf,
             shift16 = false;
         }
 
-        dma_memory_write(&address_space_memory, buf_addr, buf, buf_len,
+        dma_memory_write(get_address_space_memory(), buf_addr, buf, buf_len,
                          MEMTXATTRS_UNSPECIFIED);
         buf += buf_len;
         if (size < 4) {
-            dma_memory_write(&address_space_memory, buf_addr + buf_len,
+            dma_memory_write(get_address_space_memory(), buf_addr + buf_len,
                              crc_ptr, 4 - size, MEMTXATTRS_UNSPECIFIED);
             crc_ptr += 4 - size;
         }

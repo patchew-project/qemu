@@ -505,7 +505,7 @@ nvmm_io_callback(struct nvmm_io *io)
     MemTxAttrs attrs = { 0 };
     int ret;
 
-    ret = address_space_rw(&address_space_io, io->port, attrs, io->data,
+    ret = address_space_rw(get_address_space_io(), io->port, attrs, io->data,
         io->size, !io->in);
     if (ret != MEMTX_OK) {
         error_report("NVMM: I/O Transaction Failed "
@@ -1198,7 +1198,7 @@ nvmm_accel_init(MachineState *ms)
         return -err;
     }
 
-    memory_listener_register(&nvmm_memory_listener, &address_space_memory);
+    memory_listener_register(&nvmm_memory_listener, get_address_space_memory());
     ram_block_notifier_add(&nvmm_ram_notifier);
 
     printf("NetBSD Virtual Machine Monitor accelerator is operational\n");

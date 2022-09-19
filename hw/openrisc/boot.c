@@ -110,7 +110,7 @@ uint32_t openrisc_load_fdt(void *fdt, hwaddr load_start,
     qemu_fdt_dumpdtb(fdt, fdtsize);
 
     rom_add_blob_fixed_as("fdt", fdt, fdtsize, fdt_addr,
-                          &address_space_memory);
+                          get_address_space_memory());
 
     return fdt_addr;
 }

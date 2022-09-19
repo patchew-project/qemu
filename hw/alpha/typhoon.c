@@ -609,7 +609,7 @@ static const MemoryRegionOps pchip_ops = {
 static bool make_iommu_tlbe(hwaddr taddr, hwaddr mask, IOMMUTLBEntry *ret)
 {
     *ret = (IOMMUTLBEntry) {
-        .target_as = &address_space_memory,
+        .target_as = get_address_space_memory(),
         .translated_addr = taddr,
         .addr_mask = mask,
         .perm = IOMMU_RW,
@@ -621,7 +621,7 @@ static bool make_iommu_tlbe(hwaddr taddr, hwaddr mask, IOMMUTLBEntry *ret)
    translation, given the address of the PTE.  */
 static bool pte_translate(hwaddr pte_addr, IOMMUTLBEntry *ret)
 {
-    uint64_t pte = address_space_ldq(&address_space_memory, pte_addr,
+    uint64_t pte = address_space_ldq(get_address_space_memory(), pte_addr,
                                      MEMTXATTRS_UNSPECIFIED, NULL);
 
     /* Check valid bit.  */

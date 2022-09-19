@@ -1519,7 +1519,7 @@ static void sdhci_sysbus_realize(DeviceState *dev, Error **errp)
         address_space_init(s->dma_as, s->dma_mr, "sdhci-dma");
     } else {
         /* use system_memory() if property "dma" not set */
-        s->dma_as = &address_space_memory;
+        s->dma_as = get_address_space_memory();
     }
 
     sysbus_init_irq(sbd, &s->irq);

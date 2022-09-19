@@ -325,14 +325,14 @@ static bool get_pio_address(address_range *result,
      * up fuzzing a completely different MemoryRegion/Device. Therefore, check
      * that the address here is within the PIO space limits.
      */
-    bool found = get_io_address(result, &address_space_io, index, offset);
+    bool found = get_io_address(result, get_address_space_io(), index, offset);
     return result->addr <= 0xFFFF ? found : false;
 }
 
 static bool get_mmio_address(address_range *result,
                              uint8_t index, uint32_t offset)
 {
-    return get_io_address(result, &address_space_memory, index, offset);
+    return get_io_address(result, get_address_space_memory(), index, offset);
 }
 
 static void op_in(QTestState *s, const unsigned char * data, size_t len)

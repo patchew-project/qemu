@@ -244,7 +244,7 @@ target_ulong helper_inb(CPUAVRState *env, uint32_t port)
         break;
     default:
         /* not a special register, pass to normal memory access */
-        data = address_space_ldub(&address_space_memory,
+        data = address_space_ldub(get_address_space_memory(),
                                   OFFSET_IO_REGISTERS + port,
                                   MEMTXATTRS_UNSPECIFIED, NULL);
     }
@@ -303,7 +303,7 @@ void helper_outb(CPUAVRState *env, uint32_t port, uint32_t data)
         break;
     default:
         /* not a special register, pass to normal memory access */
-        address_space_stb(&address_space_memory, OFFSET_IO_REGISTERS + port,
+        address_space_stb(get_address_space_memory(), OFFSET_IO_REGISTERS + port,
                           data, MEMTXATTRS_UNSPECIFIED, NULL);
     }
 }
@@ -326,7 +326,7 @@ target_ulong helper_fullrd(CPUAVRState *env, uint32_t addr)
         data = helper_inb(env, addr - NUMBER_OF_CPU_REGISTERS);
     } else {
         /* memory */
-        data = address_space_ldub(&address_space_memory, OFFSET_DATA + addr,
+        data = address_space_ldub(get_address_space_memory(), OFFSET_DATA + addr,
                                   MEMTXATTRS_UNSPECIFIED, NULL);
     }
     return data;
@@ -353,7 +353,7 @@ void helper_fullwr(CPUAVRState *env, uint32_t data, uint32_t addr)
         helper_outb(env, addr - NUMBER_OF_CPU_REGISTERS, data);
     } else {
         /* memory */
-        address_space_stb(&address_space_memory, OFFSET_DATA + addr, data,
+        address_space_stb(get_address_space_memory(), OFFSET_DATA + addr, data,
                           MEMTXATTRS_UNSPECIFIED, NULL);
     }
 }

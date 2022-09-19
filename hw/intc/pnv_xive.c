@@ -152,7 +152,7 @@ static uint64_t pnv_xive_vst_addr_indirect(PnvXive *xive, uint32_t type,
 
     /* Get the page size of the indirect table. */
     vsd_addr = vsd & VSD_ADDRESS_MASK;
-    if (ldq_be_dma(&address_space_memory, vsd_addr, &vsd,
+    if (ldq_be_dma(get_address_space_memory(), vsd_addr, &vsd,
                     MEMTXATTRS_UNSPECIFIED)) {
         xive_error(xive, "VST: failed to access %s entry %x @0x%" PRIx64,
                    info->name, idx, vsd_addr);
@@ -180,7 +180,7 @@ static uint64_t pnv_xive_vst_addr_indirect(PnvXive *xive, uint32_t type,
     /* Load the VSD we are looking for, if not already done */
     if (vsd_idx) {
         vsd_addr = vsd_addr + vsd_idx * XIVE_VSD_SIZE;
-        if (ldq_be_dma(&address_space_memory, vsd_addr, &vsd,
+        if (ldq_be_dma(get_address_space_memory(), vsd_addr, &vsd,
                        MEMTXATTRS_UNSPECIFIED)) {
             xive_error(xive, "VST: failed to access %s entry %x @0x%"
                        PRIx64, info->name, vsd_idx, vsd_addr);
@@ -560,7 +560,7 @@ static uint64_t pnv_xive_vst_per_subpage(PnvXive *xive, uint32_t type)
 
     /* Get the page size of the indirect table. */
     vsd_addr = vsd & VSD_ADDRESS_MASK;
-    if (ldq_be_dma(&address_space_memory, vsd_addr, &vsd,
+    if (ldq_be_dma(get_address_space_memory(), vsd_addr, &vsd,
                    MEMTXATTRS_UNSPECIFIED)) {
         xive_error(xive, "VST: failed to access %s entry @0x%" PRIx64,
                    info->name, vsd_addr);

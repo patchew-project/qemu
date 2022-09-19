@@ -447,7 +447,7 @@ static uint64_t table_translate(S390IOTLBEntry *entry, uint64_t to, int8_t ett,
     uint16_t err = 0;
 
     tx = get_table_index(entry->iova, ett);
-    te = address_space_ldq(&address_space_memory, to + tx * sizeof(uint64_t),
+    te = address_space_ldq(get_address_space_memory(), to + tx * sizeof(uint64_t),
                            MEMTXATTRS_UNSPECIFIED, NULL);
 
     if (!te) {
@@ -529,7 +529,7 @@ static IOMMUTLBEntry s390_translate_iommu(IOMMUMemoryRegion *mr, hwaddr addr,
     uint64_t iova = addr & TARGET_PAGE_MASK;
     uint16_t error = 0;
     IOMMUTLBEntry ret = {
-        .target_as = &address_space_memory,
+        .target_as = get_address_space_memory(),
         .iova = 0,
         .translated_addr = 0,
         .addr_mask = ~(hwaddr)0,

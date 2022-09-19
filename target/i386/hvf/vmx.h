@@ -130,7 +130,7 @@ static inline void macvm_set_cr0(hv_vcpuid_t vcpu, uint64_t cr0)
 
     if ((cr0 & CR0_PG_MASK) && (rvmcs(vcpu, VMCS_GUEST_CR4) & CR4_PAE_MASK) &&
         !(efer & MSR_EFER_LME)) {
-        address_space_read(&address_space_memory,
+        address_space_read(get_address_space_memory(),
                            rvmcs(vcpu, VMCS_GUEST_CR3) & ~0x1f,
                            MEMTXATTRS_UNSPECIFIED, pdpte, 32);
         /* Only set PDPTE when appropriate. */

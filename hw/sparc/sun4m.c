@@ -560,7 +560,7 @@ static void idreg_init(hwaddr addr)
     sysbus_realize_and_unref(s, &error_fatal);
 
     sysbus_mmio_map(s, 0, addr);
-    address_space_write_rom(&address_space_memory, addr,
+    address_space_write_rom(get_address_space_memory(), addr,
                             MEMTXATTRS_UNSPECIFIED,
                             idreg_data, sizeof(idreg_data));
 }

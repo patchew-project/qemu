@@ -97,7 +97,7 @@ static void goldfish_tty_cmd(GoldfishTTYState *s, uint32_t cmd)
         while (len) {
             to_copy = MIN(GOLFISH_TTY_BUFFER_SIZE, len);
 
-            address_space_rw(&address_space_memory, ptr,
+            address_space_rw(get_address_space_memory(), ptr,
                              MEMTXATTRS_UNSPECIFIED, data_out, to_copy, 0);
             qemu_chr_fe_write_all(&s->chr, data_out, to_copy);
 
@@ -110,7 +110,7 @@ static void goldfish_tty_cmd(GoldfishTTYState *s, uint32_t cmd)
         ptr = s->data_ptr;
         while (len && !fifo8_is_empty(&s->rx_fifo)) {
             buf = (uint8_t *)fifo8_pop_buf(&s->rx_fifo, len, &to_copy);
-            address_space_rw(&address_space_memory, ptr,
+            address_space_rw(get_address_space_memory(), ptr,
                             MEMTXATTRS_UNSPECIFIED, buf, to_copy, 1);
 
             len -= to_copy;

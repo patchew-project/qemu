@@ -67,7 +67,7 @@ void remote_iommu_unplug_dev(PCIDevice *pci_dev)
     AddressSpace *as = pci_device_iommu_address_space(pci_dev);
     RemoteIommuElem *elem = NULL;
 
-    if (as == &address_space_memory) {
+    if (as == get_address_space_memory()) {
         return;
     }
 

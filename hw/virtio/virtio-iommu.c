@@ -240,7 +240,7 @@ static void virtio_iommu_notify_map(IOMMUMemoryRegion *mr, hwaddr virt_start,
                                   paddr, perm);
 
     event.type = IOMMU_NOTIFIER_MAP;
-    event.entry.target_as = &address_space_memory;
+    event.entry.target_as = get_address_space_memory();
     event.entry.perm = perm;
     event.entry.translated_addr = paddr;
 
@@ -259,7 +259,7 @@ static void virtio_iommu_notify_unmap(IOMMUMemoryRegion *mr, hwaddr virt_start,
     trace_virtio_iommu_notify_unmap(mr->parent_obj.name, virt_start, virt_end);
 
     event.type = IOMMU_NOTIFIER_UNMAP;
-    event.entry.target_as = &address_space_memory;
+    event.entry.target_as = get_address_space_memory();
     event.entry.perm = IOMMU_NONE;
     event.entry.translated_addr = 0;
 
@@ -859,7 +859,7 @@ static IOMMUTLBEntry virtio_iommu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
     interval.high = addr + 1;
 
     IOMMUTLBEntry entry = {
-        .target_as = &address_space_memory,
+        .target_as = get_address_space_memory(),
         .iova = addr,
         .translated_addr = addr,
         .addr_mask = (1 << ctz32(s->config.page_size_mask)) - 1,

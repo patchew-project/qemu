@@ -163,14 +163,14 @@ static target_ulong vector_addr(target_ulong table_addr, int vector)
     uint16_t vector_count, vector_len;
     int i;
 
-    vector_count = ldub_phys(&address_space_memory, table_addr) + 1;
+    vector_count = ldub_phys(get_address_space_memory(), table_addr) + 1;
     if (vector > vector_count) {
         return 0;
     }
     table_addr++; /* skip nr option vectors */
 
     for (i = 0; i < vector - 1; i++) {
-        vector_len = ldub_phys(&address_space_memory, table_addr) + 1;
+        vector_len = ldub_phys(get_address_space_memory(), table_addr) + 1;
         table_addr += vector_len + 1; /* bit-vector + length byte */
     }
     return table_addr;
@@ -192,12 +192,12 @@ SpaprOptionVector *spapr_ovec_parse_vector(target_ulong table_addr, int vector)
         return NULL;
     }
 
-    vector_len = ldub_phys(&address_space_memory, addr++) + 1;
+    vector_len = ldub_phys(get_address_space_memory(), addr++) + 1;
     g_assert(vector_len <= OV_MAXBYTES);
     ov = spapr_ovec_new();
 
     for (i = 0; i < vector_len; i++) {
-        uint8_t entry = ldub_phys(&address_space_memory, addr + i);
+        uint8_t entry = ldub_phys(get_address_space_memory(), addr + i);
         if (entry) {
             trace_spapr_ovec_parse_vector(vector, i + 1, vector_len, entry);
             guest_byte_to_bitmap(entry, ov->bitmap, i * BITS_PER_BYTE);

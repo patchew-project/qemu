@@ -132,7 +132,7 @@ static void usb_ehci_pci_write_config(PCIDevice *dev, uint32_t addr,
         return;
     }
     busmaster = pci_get_word(dev->config + PCI_COMMAND) & PCI_COMMAND_MASTER;
-    i->ehci.as = busmaster ? pci_get_address_space(dev) : &address_space_memory;
+    i->ehci.as = busmaster ? pci_get_address_space(dev) : get_address_space_memory();
 }
 
 static Property ehci_pci_properties[] = {

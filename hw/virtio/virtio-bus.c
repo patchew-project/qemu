@@ -78,7 +78,7 @@ void virtio_bus_device_plugged(VirtIODevice *vdev, Error **errp)
         return;
     }
 
-    vdev->dma_as = &address_space_memory;
+    vdev->dma_as = get_address_space_memory();
     if (has_iommu) {
         vdev_has_iommu = virtio_host_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM);
         /*
@@ -89,7 +89,7 @@ void virtio_bus_device_plugged(VirtIODevice *vdev, Error **errp)
         virtio_add_feature(&vdev->host_features, VIRTIO_F_IOMMU_PLATFORM);
         if (klass->get_dma_as) {
             vdev->dma_as = klass->get_dma_as(qbus->parent);
-            if (!vdev_has_iommu && vdev->dma_as != &address_space_memory) {
+            if (!vdev_has_iommu && vdev->dma_as != get_address_space_memory()) {
                 error_setg(errp,
                        "iommu_platform=true is not supported by the device");
                 return;

@@ -3450,8 +3450,8 @@ void spapr_do_system_reset_on_cpu(CPUState *cs, run_on_cpu_data arg)
         }
 
         addr = rtas_addr + RTAS_ERROR_LOG_MAX + cs->cpu_index * sizeof(uint64_t)*2;
-        stq_be_phys(&address_space_memory, addr, env->gpr[3]);
-        stq_be_phys(&address_space_memory, addr + sizeof(uint64_t), 0);
+        stq_be_phys(get_address_space_memory(), addr, env->gpr[3]);
+        stq_be_phys(get_address_space_memory(), addr + sizeof(uint64_t), 0);
         env->gpr[3] = addr;
     }
     ppc_cpu_do_system_reset(cs);

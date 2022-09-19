@@ -393,7 +393,7 @@ static int hax_handle_io(CPUArchState *env, uint32_t df, uint16_t port,
         ptr = buffer + size * count - size;
     }
     for (i = 0; i < count; i++) {
-        address_space_rw(&address_space_io, port, attrs,
+        address_space_rw(get_address_space_io(), port, attrs,
                          ptr, size, direction == HAX_EXIT_IO_OUT);
         if (!df) {
             ptr += size;
