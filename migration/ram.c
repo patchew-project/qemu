@@ -1551,7 +1551,7 @@ static bool find_dirty_block(RAMState *rs, PageSearchStatus *pss, bool *again)
     pss->postcopy_requested = false;
     pss->postcopy_target_channel = RAM_CHANNEL_PRECOPY;
 
-    pss->page = migration_bitmap_find_dirty(rs, pss->block, pss->page);
+    pss->page = migration_bitmap_find_dirty(rs, pss->block, pss->page + 1);
     if (pss->complete_round && pss->block == rs->last_seen_block &&
         pss->page >= rs->last_page) {
         /*
@@ -1564,7 +1564,7 @@ static bool find_dirty_block(RAMState *rs, PageSearchStatus *pss, bool *again)
     if (!offset_in_ramblock(pss->block,
                             ((ram_addr_t)pss->page) << TARGET_PAGE_BITS)) {
         /* Didn't find anything in this RAM Block */
-        pss->page = 0;
+        pss->page = -1;
         pss->block = QLIST_NEXT_RCU(pss->block, next);
         if (!pss->block) {
             /*
@@ -2694,7 +2694,7 @@ static void ram_state_reset(RAMState *rs)
 {
     rs->last_seen_block = NULL;
     rs->last_sent_block = NULL;
-    rs->last_page = 0;
+    rs->last_page = -1;
     rs->last_version = ram_list.version;
     rs->xbzrle_enabled = false;
     postcopy_preempt_reset(rs);
@@ -2889,7 +2889,7 @@ void ram_postcopy_send_discard_bitmap(MigrationState *ms)
     /* Easiest way to make sure we don't resume in the middle of a host-page */
     rs->last_seen_block = NULL;
     rs->last_sent_block = NULL;
-    rs->last_page = 0;
+    rs->last_page = -1;
 
     postcopy_each_ram_send_discard(ms);
 
