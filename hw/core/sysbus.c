@@ -84,7 +84,7 @@ static void system_bus_class_init(ObjectClass *klass, void *data)
 static const TypeInfo system_bus_info = {
     .name = TYPE_SYSTEM_BUS,
     .parent = TYPE_BUS,
-    .instance_size = sizeof(BusState),
+    .instance_size = sizeof(SysBusState),
     .class_init = system_bus_class_init,
 };
 
@@ -343,7 +343,7 @@ BusState *sysbus_get_default(void)
         return NULL;
     }
 
-    return &current_machine->main_system_bus;
+    return &current_machine->main_system_bus.parent_obj;
 }
 
 static void sysbus_register_types(void)

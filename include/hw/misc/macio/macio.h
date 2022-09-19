@@ -44,7 +44,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(MacIOBusState, MACIO_BUS)
 
 struct MacIOBusState {
     /*< private >*/
-    BusState parent_obj;
+    SysBusState parent_obj;
 };
 
 /* MacIO IDE */

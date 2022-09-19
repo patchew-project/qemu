@@ -11,9 +11,13 @@
 #define QDEV_MAX_PIO 32
 
 #define TYPE_SYSTEM_BUS "System"
-DECLARE_INSTANCE_CHECKER(BusState, SYSTEM_BUS,
-                         TYPE_SYSTEM_BUS)
+OBJECT_DECLARE_SIMPLE_TYPE(SysBusState, SYSTEM_BUS)
 
+struct SysBusState {
+    /*< private >*/
+    BusState parent_obj;
+    /*< public >*/
+};
 
 #define TYPE_SYS_BUS_DEVICE "sys-bus-device"
 OBJECT_DECLARE_TYPE(SysBusDevice, SysBusDeviceClass,

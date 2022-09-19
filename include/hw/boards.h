@@ -11,6 +11,7 @@
 #include "qemu/module.h"
 #include "qom/object.h"
 #include "hw/core/cpu.h"
+#include "hw/sysbus.h"
 
 #define TYPE_MACHINE_SUFFIX "-machine"
 
@@ -346,7 +347,7 @@ struct MachineState {
      */
     MemoryRegion *ram;
     DeviceMemoryState *device_memory;
-    BusState main_system_bus;
+    SysBusState main_system_bus;
 
     ram_addr_t ram_size;
     ram_addr_t maxram_size;
