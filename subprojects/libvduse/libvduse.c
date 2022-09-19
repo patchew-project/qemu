@@ -1309,7 +1309,7 @@ VduseDev *vduse_dev_create(const char *name, uint32_t device_id,
         goto err_dev;
     }
 
-    strncpy(dev_config->name, name, VDUSE_NAME_MAX);
+    strncpy(dev_config->name, name, VDUSE_NAME_MAX - 1);
     dev_config->name[VDUSE_NAME_MAX - 1] = '\0';
     dev_config->device_id = device_id;
     dev_config->vendor_id = vendor_id;
