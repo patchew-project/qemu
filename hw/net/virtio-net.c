@@ -52,12 +52,11 @@
 #define MAX_VLAN    (1 << 12)   /* Per 802.1Q definition */
 
 /* previously fixed value */
-#define VIRTIO_NET_RX_QUEUE_DEFAULT_SIZE 256
-#define VIRTIO_NET_TX_QUEUE_DEFAULT_SIZE 256
+#define VIRTIO_NET_VHOST_USER_DEFAULT_SIZE 2048
 
 /* for now, only allow larger queue_pairs; with virtio-1, guest can downsize */
-#define VIRTIO_NET_RX_QUEUE_MIN_SIZE VIRTIO_NET_RX_QUEUE_DEFAULT_SIZE
-#define VIRTIO_NET_TX_QUEUE_MIN_SIZE VIRTIO_NET_TX_QUEUE_DEFAULT_SIZE
+#define VIRTIO_NET_RX_QUEUE_MIN_SIZE 256
+#define VIRTIO_NET_TX_QUEUE_MIN_SIZE 256
 
 #define VIRTIO_NET_IP4_ADDR_SIZE   8        /* ipv4 saddr + daddr */
 
@@ -594,6 +593,28 @@ static int peer_has_ufo(VirtIONet *n)
     return n->has_ufo;
 }
 
+static void virtio_net_set_default_queue_size(VirtIONet *n)
+{
+    NetClientState *peer = n->nic_conf.peers.ncs[0];
+
+    /* Default value is 0 if not set */
+    if (n->net_conf.rx_queue_size == 0) {
+        if (peer && peer->info->type == NET_CLIENT_DRIVER_VHOST_USER) {
+            n->net_conf.rx_queue_size = VIRTIO_NET_VHOST_USER_DEFAULT_SIZE;
+        } else {
+            n->net_conf.rx_queue_size = VIRTIO_NET_VQ_MAX_SIZE;
+        }
+    }
+
+    if (n->net_conf.tx_queue_size == 0) {
+        if (peer && peer->info->type == NET_CLIENT_DRIVER_VHOST_USER) {
+            n->net_conf.tx_queue_size = VIRTIO_NET_VHOST_USER_DEFAULT_SIZE;
+        } else {
+            n->net_conf.tx_queue_size = VIRTIO_NET_VQ_MAX_SIZE;
+        }
+    }
+}
+
 static void virtio_net_set_mrg_rx_bufs(VirtIONet *n, int mergeable_rx_bufs,
                                        int version_1, int hash_report)
 {
@@ -633,7 +654,7 @@ static int virtio_net_max_tx_queue_size(VirtIONet *n)
      * size.
      */
     if (!peer) {
-        return VIRTIO_NET_TX_QUEUE_DEFAULT_SIZE;
+        return VIRTIO_NET_VQ_MAX_SIZE;
     }
 
     switch(peer->info->type) {
@@ -641,7 +662,7 @@ static int virtio_net_max_tx_queue_size(VirtIONet *n)
     case NET_CLIENT_DRIVER_VHOST_VDPA:
         return VIRTQUEUE_MAX_SIZE;
     default:
-        return VIRTIO_NET_TX_QUEUE_DEFAULT_SIZE;
+        return VIRTIO_NET_VQ_MAX_SIZE;
     };
 }
 
@@ -3450,30 +3471,30 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
 
     virtio_net_set_config_size(n, n->host_features);
     virtio_init(vdev, VIRTIO_ID_NET, n->config_size);
-
+    virtio_net_set_default_queue_size(n);
     /*
      * We set a lower limit on RX queue size to what it always was.
      * Guests that want a smaller ring can always resize it without
      * help from us (using virtio 1 and up).
      */
     if (n->net_conf.rx_queue_size < VIRTIO_NET_RX_QUEUE_MIN_SIZE ||
-        n->net_conf.rx_queue_size > VIRTQUEUE_MAX_SIZE ||
+        n->net_conf.rx_queue_size > VIRTIO_NET_VQ_MAX_SIZE ||
         !is_power_of_2(n->net_conf.rx_queue_size)) {
         error_setg(errp, "Invalid rx_queue_size (= %" PRIu16 "), "
                    "must be a power of 2 between %d and %d.",
                    n->net_conf.rx_queue_size, VIRTIO_NET_RX_QUEUE_MIN_SIZE,
-                   VIRTQUEUE_MAX_SIZE);
+                   VIRTIO_NET_VQ_MAX_SIZE );
         virtio_cleanup(vdev);
         return;
     }
 
     if (n->net_conf.tx_queue_size < VIRTIO_NET_TX_QUEUE_MIN_SIZE ||
-        n->net_conf.tx_queue_size > VIRTQUEUE_MAX_SIZE ||
+        n->net_conf.tx_queue_size > VIRTIO_NET_VQ_MAX_SIZE ||
         !is_power_of_2(n->net_conf.tx_queue_size)) {
         error_setg(errp, "Invalid tx_queue_size (= %" PRIu16 "), "
                    "must be a power of 2 between %d and %d",
                    n->net_conf.tx_queue_size, VIRTIO_NET_TX_QUEUE_MIN_SIZE,
-                   VIRTQUEUE_MAX_SIZE);
+                   VIRTIO_NET_VQ_MAX_SIZE);
         virtio_cleanup(vdev);
         return;
     }
@@ -3751,9 +3772,9 @@ static Property virtio_net_properties[] = {
     DEFINE_PROP_INT32("x-txburst", VirtIONet, net_conf.txburst, TX_BURST),
     DEFINE_PROP_STRING("tx", VirtIONet, net_conf.tx),
     DEFINE_PROP_UINT16("rx_queue_size", VirtIONet, net_conf.rx_queue_size,
-                       VIRTIO_NET_RX_QUEUE_DEFAULT_SIZE),
+                       0),
     DEFINE_PROP_UINT16("tx_queue_size", VirtIONet, net_conf.tx_queue_size,
-                       VIRTIO_NET_TX_QUEUE_DEFAULT_SIZE),
+                       0),
     DEFINE_PROP_UINT16("host_mtu", VirtIONet, net_conf.mtu, 0),
     DEFINE_PROP_BOOL("x-mtu-bypass-backend", VirtIONet, mtu_bypass_backend,
                      true),
