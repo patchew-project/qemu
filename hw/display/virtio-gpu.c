@@ -367,7 +367,9 @@ static void virtio_gpu_resource_create_blob(VirtIOGPU *g,
         return;
     }
 
-    virtio_gpu_init_udmabuf(res);
+    if (cblob.blob_mem == VIRTIO_GPU_BLOB_MEM_GUEST) {
+        virtio_gpu_init_udmabuf(res);
+    }
     QTAILQ_INSERT_HEAD(&g->reslist, res, next);
 }
 
@@ -1319,19 +1321,13 @@ void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
     VirtIOGPU *g = VIRTIO_GPU(qdev);
 
-    if (virtio_gpu_blob_enabled(g->parent_obj.conf)) {
-        if (!virtio_gpu_have_udmabuf()) {
-            error_setg(errp, "cannot enable blob resources without udmabuf");
-            return;
-        }
-
 #ifndef HAVE_VIRGL_RESOURCE_BLOB
-        if (virtio_gpu_virgl_enabled(g->parent_obj.conf)) {
-            error_setg(errp, "Linked virglrenderer does not support blob resources");
-            return;
-        }
-#endif
+    if (virtio_gpu_blob_enabled(g->parent_obj.conf) &&
+        virtio_gpu_virgl_enabled(g->parent_obj.conf)) {
+        error_setg(errp, "Linked virglrenderer does not support blob resources");
+        return;
     }
+#endif
 
     if (!virtio_gpu_base_device_realize(qdev,
                                         virtio_gpu_handle_ctrl_cb,
