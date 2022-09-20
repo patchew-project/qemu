@@ -1534,6 +1534,10 @@ static void external_snapshot_prepare(BlkActionState *common,
 
     state->new_bs = bdrv_open(new_image_file, snapshot_ref, options, flags,
                               errp);
+
+    state->new_bs->dirty_bitmaps = state->old_bs->dirty_bitmaps;
+    QLIST_INIT(&state->old_bs->dirty_bitmaps);
+
     /* We will manually add the backing_hd field to the bs later */
     if (!state->new_bs) {
         goto out;
