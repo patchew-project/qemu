@@ -898,32 +898,18 @@ static void test_override_zero_chs_q35(void)
     test_override(args, "q35", expected);
 }
 
-static void test_override_scsi_hot_unplug(void)
+static void test_override_hot_unplug(TestArgs *args, const char *devid,
+                                     CHSResult expected[], CHSResult expected2[])
 {
     QTestState *qts;
     char *joined_args;
     QFWCFG *fw_cfg;
     QDict *response;
     int i;
-    TestArgs *args = create_args();
-    CHSResult expected[] = {
-        {"/pci@i0cf8/scsi@2/channel@0/disk@0,0", {10000, 120, 30} },
-        {"/pci@i0cf8/scsi@2/channel@0/disk@1,0", {20, 20, 20} },
-        {NULL, {0, 0, 0} }
-    };
-    CHSResult expected2[] = {
-        {"/pci@i0cf8/scsi@2/channel@0/disk@1,0", {20, 20, 20} },
-        {NULL, {0, 0, 0} }
-    };
-    add_drive_with_mbr(args, empty_mbr, 1);
-    add_drive_with_mbr(args, empty_mbr, 1);
-    add_scsi_controller(args, "virtio-scsi-pci", "pci.0", 2);
-    add_scsi_disk(args, 0, 0, 0, 0, 0, 10000, 120, 30);
-    add_scsi_disk(args, 1, 0, 0, 1, 0, 20, 20, 20);
 
     joined_args = g_strjoinv(" ", args->argv);
 
-    qts = qtest_initf("-machine pc %s", joined_args);
+    qts = qtest_initf("%s", joined_args);
     fw_cfg = pc_fw_cfg_init(qts);
 
     read_bootdevices(fw_cfg, expected);
@@ -931,7 +917,7 @@ static void test_override_scsi_hot_unplug(void)
     /* unplug device an restart */
     response = qtest_qmp(qts,
                          "{ 'execute': 'device_del',"
-                         "  'arguments': {'id': 'scsi-disk0' }}");
+                         "  'arguments': {'id': %s }}", devid);
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     qobject_unref(response);
@@ -959,13 +945,32 @@ static void test_override_scsi_hot_unplug(void)
     g_free(args);
 }
 
+static void test_override_scsi_hot_unplug(void)
+{
+    TestArgs *args = create_args();
+    CHSResult expected[] = {
+        {"/pci@i0cf8/scsi@2/channel@0/disk@0,0", {10000, 120, 30} },
+        {"/pci@i0cf8/scsi@2/channel@0/disk@1,0", {20, 20, 20} },
+        {NULL, {0, 0, 0} }
+    };
+    CHSResult expected2[] = {
+        {"/pci@i0cf8/scsi@2/channel@0/disk@1,0", {20, 20, 20} },
+        {NULL, {0, 0, 0} }
+    };
+    add_drive_with_mbr(args, empty_mbr, 1);
+    add_drive_with_mbr(args, empty_mbr, 1);
+    add_scsi_controller(args, "virtio-scsi-pci", "pci.0", 2);
+    add_scsi_disk(args, 0, 0, 0, 0, 0, 10000, 120, 30);
+    add_scsi_disk(args, 1, 0, 0, 1, 0, 20, 20, 20);
+
+    args->argc = append_arg(args->argc, args->argv, ARGV_SIZE,
+                            g_strdup("-machine pc"));
+
+    test_override_hot_unplug(args, "scsi-disk0", expected, expected2);
+}
+
 static void test_override_virtio_hot_unplug(void)
 {
-    QTestState *qts;
-    char *joined_args;
-    QFWCFG *fw_cfg;
-    QDict *response;
-    int i;
     TestArgs *args = create_args();
     CHSResult expected[] = {
         {"/pci@i0cf8/scsi@2/disk@0,0", {10000, 120, 30} },
@@ -981,42 +986,10 @@ static void test_override_virtio_hot_unplug(void)
     add_virtio_disk(args, 0, "pci.0", 2, 10000, 120, 30);
     add_virtio_disk(args, 1, "pci.0", 3, 20, 20, 20);
 
-    joined_args = g_strjoinv(" ", args->argv);
+    args->argc = append_arg(args->argc, args->argv, ARGV_SIZE,
+                            g_strdup("-machine pc"));
 
-    qts = qtest_initf("-machine pc %s", joined_args);
-    fw_cfg = pc_fw_cfg_init(qts);
-
-    read_bootdevices(fw_cfg, expected);
-
-    /* unplug device an restart */
-    response = qtest_qmp(qts,
-                         "{ 'execute': 'device_del',"
-                         "  'arguments': {'id': 'virtio-disk0' }}");
-    g_assert(response);
-    g_assert(!qdict_haskey(response, "error"));
-    qobject_unref(response);
-    response = qtest_qmp(qts,
-                         "{ 'execute': 'system_reset', 'arguments': { }}");
-    g_assert(response);
-    g_assert(!qdict_haskey(response, "error"));
-    qobject_unref(response);
-
-    qtest_qmp_eventwait(qts, "RESET");
-
-    read_bootdevices(fw_cfg, expected2);
-
-    g_free(joined_args);
-    qtest_quit(qts);
-
-    g_free(fw_cfg);
-
-    for (i = 0; i < args->n_drives; i++) {
-        unlink(args->drives[i]);
-        free(args->drives[i]);
-    }
-    g_free(args->drives);
-    g_strfreev(args->argv);
-    g_free(args);
+    test_override_hot_unplug(args, "virtio-disk0", expected, expected2);
 }
 
 int main(int argc, char **argv)
