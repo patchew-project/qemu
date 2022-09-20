@@ -27,6 +27,7 @@
 #include "qemu/units.h"
 #include "hw/qdev-clock.h"
 #include "sysemu/sysemu.h"
+#include "hw/misc/latching_switch.h"
 
 static struct arm_boot_info aspeed_board_binfo = {
     .board_id = -1, /* device-tree-only board */
@@ -666,6 +667,25 @@ static void g220a_bmc_i2c_init(AspeedMachineState *bmc)
     };
     smbus_eeprom_init_one(aspeed_i2c_get_bus(&soc->i2c, 4), 0x57,
                           eeprom_buf);
+
+    /* Add a host-power device */
+    LatchingSwitchState *power =
+        latching_switch_create_simple(OBJECT(bmc),
+                                      false, TRIGGER_EDGE_FALLING);
+
+    /*
+     * connect the input to soc(out, power button)
+     * the power button in g220a is 215
+     */
+    qdev_connect_gpio_out(DEVICE(&bmc->soc.gpio), 215,
+                          qdev_get_gpio_in(DEVICE(power), 0));
+
+    /*
+     * connect the output to soc(in, power good signal)
+     * the power good in g220a is 209
+     */
+    qdev_connect_gpio_out(DEVICE(power), 0,
+                          qdev_get_gpio_in(DEVICE(&bmc->soc.gpio), 209));
 }
 
 static void aspeed_eeprom_init(I2CBus *bus, uint8_t addr, uint32_t rsize)
