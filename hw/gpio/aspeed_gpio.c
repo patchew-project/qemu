@@ -1013,6 +1013,17 @@ static void aspeed_gpio_reset(DeviceState *dev)
     memset(s->sets, 0, sizeof(s->sets));
 }
 
+static void aspeed_gpio_set(void *opaque, int line, int new_state)
+{
+    AspeedGPIOState *s = ASPEED_GPIO(opaque);
+    uint32_t set_idx, pin;
+
+    set_idx = line / ASPEED_GPIOS_PER_SET;
+    pin = line % ASPEED_GPIOS_PER_SET;
+
+    aspeed_gpio_set_pin_level(s, set_idx, pin, new_state);
+}
+
 static void aspeed_gpio_realize(DeviceState *dev, Error **errp)
 {
     AspeedGPIOState *s = ASPEED_GPIO(dev);
@@ -1036,6 +1047,12 @@ static void aspeed_gpio_realize(DeviceState *dev, Error **errp)
 
     memory_region_init_io(&s->iomem, OBJECT(s), &aspeed_gpio_ops, s,
             TYPE_ASPEED_GPIO, 0x800);
+
+    /* TODO: Maybe could in named, not anonymous is better */
+    qdev_init_gpio_out(dev, &s->gpios[0][0],
+                       ASPEED_GPIO_MAX_NR_SETS * ASPEED_GPIOS_PER_SET);
+    qdev_init_gpio_in(dev, aspeed_gpio_set,
+                      ASPEED_GPIO_MAX_NR_SETS * ASPEED_GPIOS_PER_SET);
 
     sysbus_init_mmio(sbd, &s->iomem);
 }
