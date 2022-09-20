@@ -77,9 +77,17 @@ static uint64_t bochs_display_vbe_read(void *ptr, hwaddr addr,
 
     switch (index) {
     case VBE_DISPI_INDEX_ID:
-        return VBE_DISPI_ID5;
+        return VBE_DISPI_ID6;
     case VBE_DISPI_INDEX_VIDEO_MEMORY_64K:
         return s->vgamem / (64 * KiB);
+    case VBE_DISPI_VIDEO_MEMORY_PHYSICAL_ADDRESS1:
+        return (s->vram.addr) & 0xffff;
+    case VBE_DISPI_VIDEO_MEMORY_PHYSICAL_ADDRESS2:
+        return (s->vram.addr >> 16) & 0xffff;
+    case VBE_DISPI_VIDEO_MEMORY_PHYSICAL_ADDRESS3:
+        return (s->vram.addr >> 32) & 0xffff;
+    case VBE_DISPI_VIDEO_MEMORY_PHYSICAL_ADDRESS4:
+        return (s->vram.addr >> 48) & 0xffff;
     }
 
     if (index >= ARRAY_SIZE(s->vbe_regs)) {

@@ -727,6 +727,14 @@ uint32_t vbe_ioport_read_data(void *opaque, uint32_t addr)
         }
     } else if (s->vbe_index == VBE_DISPI_INDEX_VIDEO_MEMORY_64K) {
         val = s->vbe_size / (64 * KiB);
+    } else if (s->vbe_index == VBE_DISPI_VIDEO_MEMORY_PHYSICAL_ADDRESS1) {
+        val = (s->vram.addr) & 0xffff;
+    } else if (s->vbe_index == VBE_DISPI_VIDEO_MEMORY_PHYSICAL_ADDRESS2) {
+        val = (s->vram.addr >> 16) & 0xffff;
+    } else if (s->vbe_index == VBE_DISPI_VIDEO_MEMORY_PHYSICAL_ADDRESS3) {
+        val = (s->vram.addr >> 32) & 0xffff;
+    } else if (s->vbe_index == VBE_DISPI_VIDEO_MEMORY_PHYSICAL_ADDRESS4) {
+        val = (s->vram.addr >> 48) & 0xffff;
     } else {
         val = 0;
     }
@@ -753,7 +761,8 @@ void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
                 val == VBE_DISPI_ID2 ||
                 val == VBE_DISPI_ID3 ||
                 val == VBE_DISPI_ID4 ||
-                val == VBE_DISPI_ID5) {
+                val == VBE_DISPI_ID5 ||
+                val == VBE_DISPI_ID6) {
                 s->vbe_regs[s->vbe_index] = val;
             }
             break;
@@ -1830,7 +1839,7 @@ void vga_common_reset(VGACommonState *s)
     s->bank_offset = 0;
     s->vbe_index = 0;
     memset(s->vbe_regs, '\0', sizeof(s->vbe_regs));
-    s->vbe_regs[VBE_DISPI_INDEX_ID] = VBE_DISPI_ID5;
+    s->vbe_regs[VBE_DISPI_INDEX_ID] = VBE_DISPI_ID6;
     s->vbe_start_addr = 0;
     s->vbe_line_offset = 0;
     s->vbe_bank_mask = (s->vram_size >> 16) - 1;
