@@ -1066,6 +1066,8 @@ F: include/hw/net/ftgmac100.h
 F: docs/system/arm/aspeed.rst
 F: tests/qtest/*aspeed*
 F: hw/arm/fby35.c
+F: include/hw/misc/latching_switch.h
+F: hw/misc/latching_switch.c
 
 NRF51
 M: Joel Stanley <joel@jms.id.au>

@@ -139,6 +139,9 @@ config UNIMP
 config LED
     bool
 
+config LATCHING_SWITCH
+    bool
+
 config MAC_VIA
     bool
     select MOS6522
