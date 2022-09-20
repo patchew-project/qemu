@@ -24,6 +24,7 @@
 #include "qemu/ratelimit.h"
 #include "qemu/bitmap.h"
 #include "qemu/memalign.h"
+#include "qemu/queue.h"
 
 #define MAX_IN_FLIGHT 16
 #define MAX_IO_BYTES (1 << 20) /* 1 Mb */
@@ -654,7 +655,10 @@ static int mirror_exit_common(Job *job)
     BlockDriverState *target_bs;
     BlockDriverState *mirror_top_bs;
     Error *local_err = NULL;
+    BdrvDirtyBitmap *bm, *next, *bt_mp;
+    HBitmap *hb;
     bool abort = job->ret < 0;
+    int i, j;
     int ret = 0;
 
     if (s->prepared) {
@@ -669,6 +673,31 @@ static int mirror_exit_common(Job *job)
 
     if (bdrv_chain_contains(src, target_bs)) {
         bdrv_unfreeze_backing_chain(mirror_top_bs, target_bs);
+    }
+
+    QLIST_INIT(&target_bs->dirty_bitmaps);
+    QLIST_FOREACH_SAFE(bm, &src->dirty_bitmaps, list, next) {
+        if (bm->name) {
+            bt_mp = g_new0(BdrvDirtyBitmap, 1);
+            hb = g_new0(struct HBitmap, 1);
+            hb->count = bm->bitmap->count;
+            hb->size = bm->bitmap->size;
+            hb->granularity = bm->bitmap->granularity;
+            for (i = 0; i < HBITMAP_LEVELS; i++) {
+                hb->sizes[i] = bm->bitmap->sizes[i];
+                hb->levels[i] = g_new0(unsigned long, bm->bitmap->sizes[i]);
+                for (j = 0; j < bm->bitmap->sizes[i]; j++) {
+                    hb->levels[i][j] = bm->bitmap->levels[i][j];
+                }
+            }
+            bt_mp->mutex = &target_bs->dirty_bitmap_mutex;
+            bt_mp->bitmap = hb;
+            bt_mp->size = bm->size;
+            bt_mp->name = g_strdup(bm->name);
+            qemu_mutex_lock(&target_bs->dirty_bitmap_mutex);
+            QLIST_INSERT_HEAD(&target_bs->dirty_bitmaps, bt_mp, list);
+            qemu_mutex_unlock(&target_bs->dirty_bitmap_mutex);
+        }
     }
 
     bdrv_release_dirty_bitmap(s->dirty_bitmap);
