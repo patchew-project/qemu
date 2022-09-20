@@ -69,7 +69,7 @@ static inline int64_t ratelimit_calculate_delay(RateLimit *limit, uint64_t n)
     delay_slices = (double)limit->dispatched / limit->slice_quota;
     limit->slice_end_time = limit->slice_start_time +
         (uint64_t)(delay_slices * limit->slice_ns);
-    return limit->slice_end_time - now;
+    return MAX(limit->slice_end_time - now, 0);
 }
 
 static inline void ratelimit_init(RateLimit *limit)
