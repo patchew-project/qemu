@@ -38,6 +38,9 @@
 #include "fpu_helper.h"
 #include "translate.h"
 
+/* Include the generated ISA decoders */
+#include "decode-legacy.c.inc"
+
 /*
  * Many sysemu-only helpers are not reachable for user-only.
  * Define stub generators here, so that we need not either sprinkle
@@ -1196,16 +1199,6 @@ enum {
     MMI_OPC_MADDU1     = 0x21 | MMI_OPC_CLASS_MMI,
 };
 
-/*
- * If an operation is being performed on less than TARGET_LONG_BITS,
- * it may require the inputs to be sign- or zero-extended; which will
- * depend on the exact operation being performed.
- */
-typedef enum {
-    EXT_NONE,
-    EXT_SIGN,
-    EXT_ZERO
-} DisasExtend;
 
 /* global register indices */
 TCGv cpu_gpr[32], cpu_PC;
@@ -12262,6 +12255,9 @@ static void gen_sync(int stype)
     tcg_gen_mb(tcg_mo);
 }
 
+/* ISA base */
+#include "insn_trans/trans_arith.c.inc"
+
 /* ISA extensions (ASEs) */
 
 /* MIPS16 extension to MIPS32 */
@@ -16088,6 +16084,10 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
 
     /* ISA (from latest to oldest) */
     if (cpu_supports_isa(env, ISA_MIPS_R6) && decode_isa_rel6(ctx, ctx->opcode)) {
+        return;
+    }
+
+    if (decode_isa_legacy(ctx, ctx->opcode)) {
         return;
     }
 
