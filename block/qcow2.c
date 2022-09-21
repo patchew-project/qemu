@@ -4194,6 +4194,55 @@ fail:
     return ret;
 }
 
+void qcow2_get_cluster(BlockDriverState *bs, uint64_t size)
+{
+    BDRVQcow2State *s = bs->opaque;
+    int l1_size = s->l1_size;
+    int cluster_size = s->cluster_size;
+    int i;
+    int j;
+    uint64_t *l2_table = (uint64_t *)malloc(cluster_size);
+    int l2_entries = cluster_size / sizeof(uint64_t);
+    int total = (size + cluster_size + 1) / cluster_size;
+    for (i = 0; i < l1_size; i++) {
+        uint64_t l1_entry = s->l1_table[i];
+        uint64_t l2_offset = l1_entry & L1E_OFFSET_MASK;
+        if (l2_offset == 0) {
+            if (l2_entries < total) {
+                char *buf = (char *)malloc(l2_entries * sizeof(char));
+                memset(buf, '0', l2_entries);
+                printf("%s", buf);
+                free(buf);
+                total -= l2_entries;
+            } else {
+                char *buf = (char *)malloc(total * sizeof(char));
+                memset(buf, '0', total);
+                printf("%s", buf);
+                free(buf);
+                total -= total;
+            }
+            continue;
+        }
+        int ret = bdrv_pread(bs->file, l2_offset, l2_table, cluster_size);
+        if (ret < 0) {
+            error_report("can't get l2_table");
+            abort();
+        }
+        for (j = 0; j < l2_entries; j++) {
+            if (total) {
+                if (l2_table[j] == 0) {
+                    printf("0");
+                } else {
+                    printf("1");
+                }
+                total--;
+            }
+        }
+    }
+    free(l2_table);
+    printf("\n");
+}
+
 static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
                                           bool exact, PreallocMode prealloc,
                                           BdrvRequestFlags flags, Error **errp)

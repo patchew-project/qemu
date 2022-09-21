@@ -998,6 +998,7 @@ int qcow2_co_remove_persistent_dirty_bitmap(BlockDriverState *bs,
                                             const char *name,
                                             Error **errp);
 bool qcow2_supports_persistent_dirty_bitmap(BlockDriverState *bs);
+void qcow2_get_cluster(BlockDriverState *bs, uint64_t size);
 uint64_t qcow2_get_persistent_dirty_bitmap_size(BlockDriverState *bs,
                                                 uint32_t cluster_size);
 
