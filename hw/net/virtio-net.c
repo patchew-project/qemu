@@ -166,6 +166,13 @@ static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
             }
             memcpy(config, &netcfg, n->config_size);
         }
+    } else if (nc->peer && nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_USER) {
+        ret = vhost_net_get_config(get_vhost_net(nc->peer), (uint8_t *)&netcfg,
+                                   n->config_size);
+        if (ret != -1) {
+		/* Automatically obtain the mac address of the vdpa device
+		 * when using the dpdk vdpa */
+                memcpy(config, &netcfg, ETH_ALEN);
     }
 }
 
