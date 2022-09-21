@@ -94,6 +94,10 @@ highmem
   address space above 32 bits. The default is ``on`` for machine types
   later than ``virt-2.12``.
 
+highmem-compact
+  Set ``on``/``off`` to enable/disable compact space for high memory regions.
+  The default is ``on`` for machine types later than ``virt-7.2``
+
 gic-version
   Specify the version of the Generic Interrupt Controller (GIC) to provide.
   Valid values are:
