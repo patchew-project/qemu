@@ -20,7 +20,8 @@
 #include <getopt.h>
 #include <libgen.h>
 #include <pthread.h>
-
+#include <sys/types.h>
+#include <sys/socket.h>
 #include "qemu/help-texts.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
@@ -365,6 +366,26 @@ static void nbd_accept(QIONetListener *listener, QIOChannelSocket *cioc,
     nb_fds++;
     nbd_update_server_watch();
     nbd_client_new(cioc, tlscreds, tlsauthz, nbd_client_closed);
+    int tcp_keepalive_intvl = 5;
+    int tcp_keepalive_probes = 5;
+    int tcp_keepalive_time = 60;
+    int tcp_keepalive_on = 1;
+    if (setsockopt(cioc->fd, SOL_TCP, TCP_KEEPINTVL,
+                   &tcp_keepalive_intvl, sizeof(tcp_keepalive_intvl)) < 0) {
+        perror("setsockopt failed\n");
+    }
+    if (setsockopt(cioc->fd, SOL_TCP, TCP_KEEPCNT,
+                   &tcp_keepalive_probes, sizeof(tcp_keepalive_probes)) < 0) {
+        perror("setsockopt failed\n");
+    }
+    if (setsockopt(cioc->fd, SOL_TCP, TCP_KEEPIDLE,
+                   &tcp_keepalive_time, sizeof(tcp_keepalive_time)) < 0) {
+        perror("setsockopt failed\n");
+    }
+    if (setsockopt(cios->fd, SOL_SOCKET, SO_KEEPALIVE,
+                   &tcp_keepalive_on, sizeof(tcp_keepalive_on)) < 0) {
+        perror("setsockopt failed\n");
+    }
 }
 
 static void nbd_update_server_watch(void)
