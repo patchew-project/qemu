@@ -96,6 +96,9 @@ static const char *emc_reg_name(int regno)
 #undef REG
 }
 
+static void npcm7xx_emc_write(void *opaque, hwaddr offset,
+                              uint64_t v, unsigned size);
+
 static void emc_reset(NPCM7xxEMCState *emc)
 {
     trace_npcm7xx_emc_reset(emc->emc_num);
@@ -112,6 +115,18 @@ static void emc_reset(NPCM7xxEMCState *emc)
 
     emc->tx_active = false;
     emc->rx_active = false;
+
+    /* Set the MAC address in the register space. */
+    uint32_t value = (emc->conf.macaddr.a[0] << 24) |
+        (emc->conf.macaddr.a[1] << 16) |
+        (emc->conf.macaddr.a[2] << 8) |
+        emc->conf.macaddr.a[3];
+    npcm7xx_emc_write(emc, REG_CAMM_BASE * sizeof(uint32_t), value,
+                      sizeof(uint32_t));
+
+    value = (emc->conf.macaddr.a[4] << 24) | (emc->conf.macaddr.a[5] << 16);
+    npcm7xx_emc_write(emc, REG_CAML_BASE * sizeof(uint32_t), value,
+                      sizeof(uint32_t));
 }
 
 static void npcm7xx_emc_reset(DeviceState *dev)
