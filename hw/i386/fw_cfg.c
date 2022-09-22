@@ -219,3 +219,15 @@ void fw_cfg_add_acpi_dsdt(Aml *scope, FWCfgState *fw_cfg)
     aml_append(dev, aml_name_decl("_CRS", crs));
     aml_append(scope, dev);
 }
+
+void fw_cfg_phys_bits(FWCfgState *fw_cfg)
+{
+    X86CPU *cpu = X86_CPU(first_cpu);
+    uint64_t phys_bits = cpu->phys_bits;
+
+    if (cpu->host_phys_bits) {
+        fw_cfg_add_file(fw_cfg, "etc/phys-bits",
+                        g_memdup2(&phys_bits, sizeof(phys_bits)),
+                        sizeof(phys_bits));
+    }
+}
