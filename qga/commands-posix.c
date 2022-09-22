@@ -31,6 +31,10 @@
 #include <utmpx.h>
 #endif
 
+#ifdef __FreeBSD__
+#undef HAVE_GETIFADDRS
+#endif
+
 #ifdef HAVE_GETIFADDRS
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -763,7 +767,7 @@ void qmp_guest_file_flush(int64_t handle, Error **errp)
     }
 }
 
-#if !defined(__linux__)
+#if !(defined(__linux__) || defined(__FreeBSD__))
 
 void qmp_guest_suspend_disk(Error **errp)
 {
