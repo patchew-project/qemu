@@ -43,6 +43,12 @@
 #define CONFIG_FSFREEZE
 #endif
 #endif
+#ifdef __FreeBSD__
+#include <ufs/ffs/fs.h>
+#ifdef UFSSUSPEND
+#define CONFIG_FSFREEZE
+#endif
+#endif
 
 #ifndef _WIN32
 #ifdef __FreeBSD__
