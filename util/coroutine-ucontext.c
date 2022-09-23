@@ -105,7 +105,7 @@ void finish_switch_fiber(void *fake_stack_save)
     __sanitizer_finish_switch_fiber(fake_stack_save, &bottom_old, &size_old);
 
     if (!leaderp->stack) {
-        leaderp->stack = (void *)bottom_old;
+        leaderp->stack = bottom_old;
         leaderp->stack_size = size_old;
     }
 #endif
