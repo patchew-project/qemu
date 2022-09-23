@@ -15,21 +15,24 @@
 
 #define LOONGARCH_MAX_VCPUS     4
 
-#define VIRT_ISA_IO_BASE        0x18000000UL
-#define VIRT_ISA_IO_SIZE        0x0004000
-#define VIRT_FWCFG_BASE         0x1e020000UL
-#define VIRT_BIOS_BASE          0x1c000000UL
-#define VIRT_BIOS_SIZE          (4 * MiB)
-
-#define VIRT_LOWMEM_BASE        0
-#define VIRT_LOWMEM_SIZE        0x10000000
-#define VIRT_HIGHMEM_BASE       0x90000000
-#define VIRT_GED_EVT_ADDR       0x100e0000
-#define VIRT_GED_MEM_ADDR       (VIRT_GED_EVT_ADDR + ACPI_GED_EVT_SEL_LEN)
-#define VIRT_GED_REG_ADDR       (VIRT_GED_MEM_ADDR + MEMORY_HOTPLUG_IO_LEN)
-
-#define VIRT_FDT_BASE           0x1c400000
-#define VIRT_FDT_SIZE           0x100000
+enum {
+    VIRT_LOWDDR,
+    VIRT_PCH,
+    VIRT_PM,
+    VIRT_RTC,
+    VIRT_ACPI_GED,
+    VIRT_ISA_IO,
+    VIRT_PCI_IO,
+    VIRT_BIOS,
+    VIRT_FDT,
+    VIRT_FW_CFG,
+    VIRT_UART,
+    VIRT_PCI_CFG,
+    VIRT_MSI,
+    VIRT_PCI_MEM,
+    VIRT_HIGHDDR,
+    VIRT_PLATFORM_BUS,
+};
 
 struct LoongArchMachineState {
     /*< private >*/
@@ -51,6 +54,7 @@ struct LoongArchMachineState {
     int          fdt_size;
     DeviceState *platform_bus_dev;
     PCIBus       *pci_bus;
+    MemMapEntry  *memmap;
 };
 
 #define TYPE_LOONGARCH_MACHINE  MACHINE_TYPE_NAME("virt")
