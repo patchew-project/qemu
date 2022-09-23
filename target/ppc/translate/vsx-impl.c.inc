@@ -1121,16 +1121,85 @@ GEN_VSX_HELPER_X2(xscvhpdp, 0x16, 0x15, 0x10, PPC2_ISA300)
 GEN_VSX_HELPER_R2(xscvsdqp, 0x04, 0x1A, 0x0A, PPC2_ISA300)
 GEN_VSX_HELPER_X2(xscvspdp, 0x12, 0x14, 0, PPC2_VSX)
 
+static void do_xvtstdc_vec(unsigned vece, TCGv_vec t, TCGv_vec b, int64_t imm)
+{
+    TCGv_vec match = tcg_const_ones_vec_matching(t);
+    TCGv_vec temp;
+    TCGv_vec mask;
+    uint64_t exp_msk = (vece == MO_32) ? (uint32_t)EXP_MASK_SP : EXP_MASK_DP;
+    uint64_t sgn_msk = (vece == MO_32) ? (uint32_t)SGN_MASK_SP : SGN_MASK_DP;
+    uint64_t frc_msk = ~(exp_msk | sgn_msk);
+    mask = tcg_constant_vec_matching(t, vece, 0);
+    tcg_gen_mov_vec(t, mask);
+    if (imm & (0x3 << 0)) {
+        /* test if Denormal */
+        temp = tcg_temp_new_vec_matching(t);
+        mask = tcg_constant_vec_matching(t, vece, ~sgn_msk);
+        tcg_gen_and_vec(vece, t, b, mask);
+        mask = tcg_constant_vec_matching(t, vece, frc_msk);
+        tcg_gen_cmp_vec(TCG_COND_LE, vece, temp, t, mask);
+        mask = tcg_constant_vec_matching(t, vece, 0);
+        tcg_gen_cmpsel_vec(TCG_COND_NE, vece, temp, t, mask, temp, mask);
+
+        tcg_gen_mov_vec(t, mask);
+        mask = tcg_constant_vec_matching(t, vece, sgn_msk);
+        if (imm & (0x1)) {
+            /* test if negative */
+            tcg_gen_cmpsel_vec(TCG_COND_GTU, vece, t, b, mask, temp, t);
+        }
+        if (imm & (0x2)) {
+            /* test if positive */
+            tcg_gen_cmpsel_vec(TCG_COND_LTU, vece, t, b, mask, temp, t);
+        }
+        tcg_temp_free_vec(temp);
+    }
+    if (imm & (1 << 2)) {
+        /* test if -0 */
+        mask = tcg_constant_vec_matching(t, vece, sgn_msk);
+        tcg_gen_cmpsel_vec(TCG_COND_EQ, vece, t, b, mask, match, t);
+    }
+    if (imm & (1 << 3)) {
+        /* test if +0 */
+        mask = tcg_constant_vec_matching(t, vece, 0);
+        tcg_gen_cmpsel_vec(TCG_COND_EQ, vece, t, b, mask, match, t);
+    }
+    if (imm & (1 << 4)) {
+        /* test if -Inf */
+        mask = tcg_constant_vec_matching(t, vece, exp_msk | sgn_msk);
+        tcg_gen_cmpsel_vec(TCG_COND_EQ, vece, t, b, mask, match, t);
+    }
+    if (imm & (1 << 5)) {
+        /* test if +Inf */
+        mask = tcg_constant_vec_matching(t, vece, exp_msk);
+        tcg_gen_cmpsel_vec(TCG_COND_EQ, vece, t, b, mask, match, t);
+    }
+    if (imm & (1 << 6)) {
+        /* test if NaN */
+        mask = tcg_constant_vec_matching(t, vece, ~sgn_msk);
+        tcg_gen_and_vec(vece, b, b, mask);
+        mask = tcg_constant_vec_matching(t, vece, exp_msk);
+        tcg_gen_cmpsel_vec(TCG_COND_GT, vece, t, b, mask, match, t);
+    }
+    tcg_temp_free_vec(match);
+}
+
 static bool do_xvtstdc(DisasContext *ctx, arg_XX2_uim *a, unsigned vece)
 {
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_cmp_vec, INDEX_op_cmpsel_vec, 0
+    };
     static const GVecGen2i op[] = {
         {
             .fnoi = gen_helper_XVTSTDCSP,
-            .vece = MO_32
+            .fniv = do_xvtstdc_vec,
+            .vece = MO_32,
+            .opt_opc = vecop_list
         },
         {
             .fnoi = gen_helper_XVTSTDCDP,
-            .vece = MO_64
+            .fniv = do_xvtstdc_vec,
+            .vece = MO_64,
+            .opt_opc = vecop_list
         },
     };
 
