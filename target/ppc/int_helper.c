@@ -502,7 +502,7 @@ void helper_VADDCUW(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t v)
 }
 
 /* vprtybw */
-void helper_vprtybw(ppc_avr_t *r, ppc_avr_t *b)
+void helper_VPRTYBW(ppc_avr_t *r, ppc_avr_t *b, uint32_t v)
 {
     int i;
     for (i = 0; i < ARRAY_SIZE(r->u32); i++) {
@@ -513,7 +513,7 @@ void helper_vprtybw(ppc_avr_t *r, ppc_avr_t *b)
 }
 
 /* vprtybd */
-void helper_vprtybd(ppc_avr_t *r, ppc_avr_t *b)
+void helper_VPRTYBD(ppc_avr_t *r, ppc_avr_t *b, uint32_t v)
 {
     int i;
     for (i = 0; i < ARRAY_SIZE(r->u64); i++) {
@@ -525,7 +525,7 @@ void helper_vprtybd(ppc_avr_t *r, ppc_avr_t *b)
 }
 
 /* vprtybq */
-void helper_vprtybq(ppc_avr_t *r, ppc_avr_t *b)
+void helper_VPRTYBQ(ppc_avr_t *r, ppc_avr_t *b, uint32_t v)
 {
     uint64_t res = b->u64[0] ^ b->u64[1];
     res ^= res >> 32;
