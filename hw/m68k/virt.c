@@ -250,7 +250,7 @@ static void virt_init(MachineState *machine)
 
 	/* Pass seed to RNG. */
 	qemu_guest_getrandom_nofail(rng_seed, sizeof(rng_seed));
-	BOOTINFODATA(cs->as, parameters_base, BI_VIRT_RNG_SEED,
+	BOOTINFODATA(cs->as, parameters_base, BI_RNG_SEED,
 		     rng_seed, sizeof(rng_seed));
 
         /* load initrd */
