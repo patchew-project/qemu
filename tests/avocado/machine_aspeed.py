@@ -92,7 +92,7 @@ class AST2x00Machine(QemuSystemTest):
 
         self.do_test_arm_aspeed(image_path)
 
-    def do_test_arm_aspeed_buidroot_start(self, image, cpu_id):
+    def do_test_arm_aspeed_buildroot_start(self, image, cpu_id):
         self.vm.set_console()
         self.vm.add_args('-drive', 'file=' + image + ',if=mtd,format=raw',
                          '-net', 'nic', '-net', 'user')
@@ -109,11 +109,11 @@ class AST2x00Machine(QemuSystemTest):
         exec_command(self, 'root')
         time.sleep(0.1)
 
-    def do_test_arm_aspeed_buidroot_poweroff(self):
+    def do_test_arm_aspeed_buildroot_poweroff(self):
         exec_command_and_wait_for_pattern(self, 'poweroff',
                                           'reboot: System halted');
 
-    def test_arm_ast2500_evb_builroot(self):
+    def test_arm_ast2500_evb_buildroot(self):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:ast2500-evb
@@ -127,7 +127,7 @@ class AST2x00Machine(QemuSystemTest):
 
         self.vm.add_args('-device',
                          'tmp105,bus=aspeed.i2c.bus.3,address=0x4d,id=tmp-test');
-        self.do_test_arm_aspeed_buidroot_start(image_path, '0x0')
+        self.do_test_arm_aspeed_buildroot_start(image_path, '0x0')
 
         exec_command_and_wait_for_pattern(self,
              'echo lm75 0x4d > /sys/class/i2c-dev/i2c-3/device/new_device',
@@ -139,9 +139,9 @@ class AST2x00Machine(QemuSystemTest):
         exec_command_and_wait_for_pattern(self,
                              'cat /sys/class/hwmon/hwmon1/temp1_input', '18000')
 
-        self.do_test_arm_aspeed_buidroot_poweroff()
+        self.do_test_arm_aspeed_buildroot_poweroff()
 
-    def test_arm_ast2600_evb_builroot(self):
+    def test_arm_ast2600_evb_buildroot(self):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:ast2600-evb
@@ -157,7 +157,7 @@ class AST2x00Machine(QemuSystemTest):
                          'tmp105,bus=aspeed.i2c.bus.3,address=0x4d,id=tmp-test');
         self.vm.add_args('-device',
                          'ds1338,bus=aspeed.i2c.bus.3,address=0x32');
-        self.do_test_arm_aspeed_buidroot_start(image_path, '0xf00')
+        self.do_test_arm_aspeed_buildroot_start(image_path, '0xf00')
 
         exec_command_and_wait_for_pattern(self,
              'echo lm75 0x4d > /sys/class/i2c-dev/i2c-3/device/new_device',
@@ -175,7 +175,7 @@ class AST2x00Machine(QemuSystemTest):
         year = time.strftime("%Y")
         exec_command_and_wait_for_pattern(self, 'hwclock -f /dev/rtc1', year);
 
-        self.do_test_arm_aspeed_buidroot_poweroff()
+        self.do_test_arm_aspeed_buildroot_poweroff()
 
 
 class AST2x00MachineSDK(QemuSystemTest):
