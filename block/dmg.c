@@ -434,6 +434,8 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
     uint64_t plist_xml_offset, plist_xml_length;
     int64_t offset;
     int ret;
+    int module_rv;
+    Error *local_err = NULL;
 
     ret = bdrv_apply_auto_read_only(bs, NULL, errp);
     if (ret < 0) {
@@ -446,8 +448,21 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
         return -EINVAL;
     }
 
-    block_module_load("dmg-bz2");
-    block_module_load("dmg-lzfse");
+    module_rv = block_module_load("dmg-bz2", &local_err);
+    if (module_rv < 0) {
+        error_report_err(local_err);
+        return -EINVAL;
+    } else if (module_rv == 0) {
+        warn_report("dmg-bz2 module not present, bz2 decomp unavailable");
+    }
+    local_err = NULL;
+    module_rv = block_module_load("dmg-lzfse", &local_err);
+    if (module_rv < 0) {
+        error_report_err(local_err);
+        return -EINVAL;
+    } else if (module_rv == 0) {
+        warn_report("dmg-lzfse module not present, lzfse decomp unavailable");
+    }
 
     s->n_chunks = 0;
     s->offsets = s->lengths = s->sectors = s->sectorcounts = NULL;
