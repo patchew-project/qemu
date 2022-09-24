@@ -1200,12 +1200,16 @@
 #               by default.
 #               Since 7.1
 #
+# @show-menubar:  Display the main window menubar
+#                 Since 8.0
+#
 # Since: 2.12
 ##
 { 'struct'  : 'DisplayGTK',
   'data'    : { '*grab-on-hover' : 'bool',
                 '*zoom-to-fit'   : 'bool',
-                '*show-tabs'     : 'bool'  } }
+                '*show-tabs'     : 'bool',
+                '*show-menubar'  : 'bool'  } }
 
 ##
 # @DisplayEGLHeadless:

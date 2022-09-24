@@ -1946,7 +1946,7 @@ DEF("display", HAS_ARG, QEMU_OPTION_display,
 #endif
 #if defined(CONFIG_GTK)
     "-display gtk[,full-screen=on|off][,gl=on|off][,grab-on-hover=on|off]\n"
-    "            [,show-tabs=on|off][,show-cursor=on|off][,window-close=on|off]\n"
+    "            [,show-tabs=on|off][,show-cursor=on|off][,window-close=on|off][,show-menubar=on|off]\n"
 #endif
 #if defined(CONFIG_VNC)
     "-display vnc=<display>[,<optargs>]\n"
@@ -2038,6 +2038,8 @@ SRST
         ``show-cursor=on|off`` :  Force showing the mouse cursor
 
         ``window-close=on|off`` : Allow to quit qemu with window close button
+
+        ``show-menubar=on|off`` : Display then main window menubar
 
     ``curses[,charset=<encoding>]``
         Display video output via curses. For graphics device models
