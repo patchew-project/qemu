@@ -105,6 +105,8 @@ static int validate_prot_to_pageflags(int *host_prot, int prot)
             page_flags |= PAGE_MTE;
         }
     }
+#elif TARGET_HPPA
+    valid |= PROT_GROWSDOWN | PROT_GROWSUP;
 #endif
 
     return prot & ~valid ? 0 : page_flags;
