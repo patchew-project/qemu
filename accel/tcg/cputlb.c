@@ -1146,7 +1146,7 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx,
         /* Repeat the MMU check and TLB fill on every access.  */
         address |= TLB_INVALID_MASK;
     }
-    if (full->byte_swap) {
+    if (full->byte_swap || full->force_aligned) {
         address |= TLB_SLOW_PATH;
     }
 
@@ -1944,15 +1944,18 @@ load_helper(CPUArchState *env, target_ulong addr, MemOpIdx oi,
 
     /* Handle anything that isn't just a straight memory access.  */
     if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
-        CPUTLBEntryFull *full;
+        CPUTLBEntryFull *full = &env_tlb(env)->d[mmu_idx].fulltlb[index];
         bool need_swap;
 
         /* For anything that is unaligned, recurse through full_load.  */
         if ((addr & (size - 1)) != 0) {
+            /* Honor per-page alignment requirements. */
+            if (full->force_aligned) {
+                cpu_unaligned_access(env_cpu(env), addr, access_type,
+                                     mmu_idx, retaddr);
+            }
             goto do_unaligned_access;
         }
-
-        full = &env_tlb(env)->d[mmu_idx].fulltlb[index];
 
         /* Handle watchpoints.  */
         if (unlikely(tlb_addr & TLB_WATCHPOINT)) {
@@ -2349,15 +2352,18 @@ store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
 
     /* Handle anything that isn't just a straight memory access.  */
     if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
-        CPUTLBEntryFull *full;
+        CPUTLBEntryFull *full = &env_tlb(env)->d[mmu_idx].fulltlb[index];
         bool need_swap;
 
         /* For anything that is unaligned, recurse through byte stores.  */
         if ((addr & (size - 1)) != 0) {
+            /* Honor per-page alignment requirements. */
+            if (full->force_aligned) {
+                cpu_unaligned_access(env_cpu(env), addr, MMU_DATA_STORE,
+                                     mmu_idx, retaddr);
+            }
             goto do_unaligned_access;
         }
-
-        full = &env_tlb(env)->d[mmu_idx].fulltlb[index];
 
         /* Handle watchpoints.  */
         if (unlikely(tlb_addr & TLB_WATCHPOINT)) {

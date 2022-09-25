@@ -167,6 +167,9 @@ typedef struct CPUTLBEntryFull {
     /* @byte_swap indicates that all accesses use inverted endianness. */
     bool byte_swap;
 
+    /* @force_aligned indicates that all accesses must be aligned. */
+    bool force_aligned;
+
     /*
      * Allow target-specific additions to this structure.
      * This may be used to cache items from the guest cpu
