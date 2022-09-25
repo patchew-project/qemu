@@ -40,7 +40,12 @@ typedef struct BMDMAState {
 } BMDMAState;
 
 #define TYPE_PCI_IDE "pci-ide"
-OBJECT_DECLARE_SIMPLE_TYPE(PCIIDEState, PCI_IDE)
+OBJECT_DECLARE_TYPE(PCIIDEState, PCIIDEClass, PCI_IDE)
+
+struct PCIIDEClass {
+    IDEDeviceClass parent_class;
+    int (*post_load)(PCIIDEState *s, int version_id);
+};
 
 struct PCIIDEState {
     /*< private >*/

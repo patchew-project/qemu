@@ -447,6 +447,7 @@ static const VMStateDescription vmstate_bmdma = {
 
 static int ide_pci_post_load(void *opaque, int version_id)
 {
+    PCIIDEClass *dc = PCI_IDE_GET_CLASS(opaque);
     PCIIDEState *d = opaque;
     int i;
 
@@ -455,6 +456,10 @@ static int ide_pci_post_load(void *opaque, int version_id)
            stored bigger values. We only need last bit */
         d->bmdma[i].migration_retry_unit &= 1;
         ide_bmdma_post_load(&d->bmdma[i], -1);
+    }
+
+    if (dc->post_load) {
+        dc->post_load(d, version_id);
     }
 
     return 0;
