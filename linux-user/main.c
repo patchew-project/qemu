@@ -64,6 +64,7 @@
 #endif
 
 char *exec_path;
+int execfd;
 
 int singlestep;
 static const char *argv0;
@@ -646,7 +647,6 @@ int main(int argc, char **argv, char **envp)
     int target_argc;
     int i;
     int ret;
-    int execfd;
     unsigned long max_reserved_va;
     bool preserve_argv0;
 
@@ -845,7 +845,12 @@ int main(int argc, char **argv, char **envp)
 
     fd_trans_init();
 
-    ret = loader_exec(execfd, exec_path, target_argv, target_environ, regs,
+    /*
+     * loader_exec() closes the file descriptor provided by the caller.
+     * As we need to keep it available for execve("/proc/self/exe")
+     * we provide a copy to loader_exec().
+     */
+    ret = loader_exec(dup(execfd), exec_path, target_argv, target_environ, regs,
         info, &bprm);
     if (ret != 0) {
         printf("Error while loading %s: %s\n", exec_path, strerror(-ret));

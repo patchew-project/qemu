@@ -23,6 +23,7 @@
 #include "qemu/log.h"
 
 extern char *exec_path;
+extern int execfd;
 void init_task_state(TaskState *ts);
 void task_settid(TaskState *);
 void stop_all_tasks(void);
