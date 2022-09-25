@@ -24,6 +24,8 @@
 #include "nbd-internal.h"
 #include "qemu/cutils.h"
 
+#define NBD_DEFAULT_TIMEOUT 30
+
 /* Definitions for opaque data types */
 
 static QTAILQ_HEAD(, NBDExport) exports = QTAILQ_HEAD_INITIALIZER(exports);
@@ -1299,6 +1301,12 @@ int nbd_init(int fd, QIOChannelSocket *sioc, NBDExportInfo *info,
             error_setg(errp, "Failed setting flags");
             return -serrno;
         }
+    }
+
+    if (ioctl(fd, NBD_SET_TIMEOUT, NBD_DEFAULT_TIMEOUT) < 0) {
+        int serrno = errno;
+        error_setg(errp, "Failed setting timeout");
+        return -serrno;
     }
 
     trace_nbd_init_finish();
