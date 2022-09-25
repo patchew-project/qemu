@@ -390,8 +390,8 @@ CPUArchState *cpu_copy(CPUArchState *env);
 #define TLB_MMIO            (1 << (TARGET_PAGE_BITS_MIN - 3))
 /* Set if TLB entry contains a watchpoint.  */
 #define TLB_WATCHPOINT      (1 << (TARGET_PAGE_BITS_MIN - 4))
-/* Set if TLB entry requires byte swap.  */
-#define TLB_BSWAP           (1 << (TARGET_PAGE_BITS_MIN - 5))
+/* Set if TLB entry requires slow path handling.  */
+#define TLB_SLOW_PATH       (1 << (TARGET_PAGE_BITS_MIN - 5))
 /* Set if TLB entry writes ignored.  */
 #define TLB_DISCARD_WRITE   (1 << (TARGET_PAGE_BITS_MIN - 6))
 
@@ -400,7 +400,7 @@ CPUArchState *cpu_copy(CPUArchState *env);
  */
 #define TLB_FLAGS_MASK \
     (TLB_INVALID_MASK | TLB_NOTDIRTY | TLB_MMIO \
-    | TLB_WATCHPOINT | TLB_BSWAP | TLB_DISCARD_WRITE)
+    | TLB_WATCHPOINT | TLB_SLOW_PATH | TLB_DISCARD_WRITE)
 
 /**
  * tlb_hit_page: return true if page aligned @addr is a hit against the

@@ -164,6 +164,9 @@ typedef struct CPUTLBEntryFull {
     /* @lg_page_size contains the log2 of the page size. */
     uint8_t lg_page_size;
 
+    /* @byte_swap indicates that all accesses use inverted endianness. */
+    bool byte_swap;
+
     /*
      * Allow target-specific additions to this structure.
      * This may be used to cache items from the guest cpu

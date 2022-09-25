@@ -1146,8 +1146,8 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx,
         /* Repeat the MMU check and TLB fill on every access.  */
         address |= TLB_INVALID_MASK;
     }
-    if (full->attrs.byte_swap) {
-        address |= TLB_BSWAP;
+    if (full->byte_swap) {
+        address |= TLB_SLOW_PATH;
     }
 
     is_ram = memory_region_is_ram(section->mr);
@@ -1961,7 +1961,7 @@ load_helper(CPUArchState *env, target_ulong addr, MemOpIdx oi,
                                  full->attrs, BP_MEM_READ, retaddr);
         }
 
-        need_swap = size > 1 && (tlb_addr & TLB_BSWAP);
+        need_swap = size > 1 && full->byte_swap;
 
         /* Handle I/O access.  */
         if (likely(tlb_addr & TLB_MMIO)) {
@@ -2366,7 +2366,7 @@ store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
                                  full->attrs, BP_MEM_WRITE, retaddr);
         }
 
-        need_swap = size > 1 && (tlb_addr & TLB_BSWAP);
+        need_swap = size > 1 && full->byte_swap;
 
         /* Handle I/O access.  */
         if (tlb_addr & TLB_MMIO) {
