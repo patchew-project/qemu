@@ -218,16 +218,12 @@ static void ppc_heathrow_init(MachineState *machine)
     qdev_prop_set_uint32(grackle_dev, "ofw-addr", 0x80000000);
     s = SYS_BUS_DEVICE(grackle_dev);
     sysbus_realize_and_unref(s, &error_fatal);
-
     sysbus_mmio_map(s, 0, GRACKLE_BASE);
     sysbus_mmio_map(s, 1, GRACKLE_BASE + 0x200000);
     /* PCI hole */
-    memory_region_add_subregion(get_system_memory(), 0x80000000ULL,
-                                sysbus_mmio_get_region(s, 2));
+    sysbus_mmio_map(s, 2, 0x80000000);
     /* Register 2 MB of ISA IO space */
-    memory_region_add_subregion(get_system_memory(), 0xfe000000,
-                                sysbus_mmio_get_region(s, 3));
-
+    sysbus_mmio_map(s, 3, 0xfe000000);
     pci_bus = PCI_HOST_BRIDGE(grackle_dev)->bus;
 
     /* MacIO */
