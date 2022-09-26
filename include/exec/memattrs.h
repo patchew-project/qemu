@@ -14,6 +14,15 @@
 #ifndef MEMATTRS_H
 #define MEMATTRS_H
 
+/*
+ * Where the memory transaction comes from
+ */
+typedef enum MemTxRequesterType {
+    MEMTXATTRS_CPU,
+    MEMTXATTRS_MSI,
+} MemTxRequesterType;
+
+
 /* Every memory transaction has associated with it a set of
  * attributes. Some of these are generic (such as the ID of
  * the bus master); some are specific to a particular kind of
@@ -43,7 +52,9 @@ typedef struct MemTxAttrs {
      * (see MEMTX_ACCESS_ERROR).
      */
     unsigned int memory:1;
-    /* Requester ID (for MSI for example) */
+    /* Requester type (e.g. CPU or PCI MSI) */
+    MemTxRequesterType requester_type:2;
+    /* Requester ID */
     unsigned int requester_id:16;
     /* Invert endianness for this page */
     unsigned int byte_swap:1;
@@ -65,6 +76,10 @@ typedef struct MemTxAttrs {
  * from "didn't specify" if necessary).
  */
 #define MEMTXATTRS_UNSPECIFIED ((MemTxAttrs) { .unspecified = 1 })
+
+/* Helper for setting a basic CPU sourced transaction */
+#define MEMTXATTRS_CPU(id) ((MemTxAttrs) \
+                            {.requester_type = MEMTXATTRS_CPU, .requester_id = id})
 
 /* New-style MMIO accessors can indicate that the transaction failed.
  * A zero (MEMTX_OK) response means success; anything else is a failure
