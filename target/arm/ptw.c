@@ -2289,6 +2289,9 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
     ARMMMUIdx s1_mmu_idx = stage_1_mmu_idx(mmu_idx);
     bool is_secure = regime_is_secure(env, mmu_idx);
 
+    attrs->requester_type = MEMTXATTRS_CPU;
+    attrs->requester_id = env_cpu(env)->cpu_index;
+
     if (mmu_idx != s1_mmu_idx) {
         /*
          * Call ourselves recursively to do the stage 1 and then stage 2
