@@ -110,6 +110,22 @@ bool qmp_is_oob(const QDict *dict)
         && !qdict_haskey(dict, "execute");
 }
 
+static void add_timestamps(QDict *qdict, uint64_t start_ms, uint64_t end_ms)
+{
+    QDict *start_dict, *end_dict;
+
+    start_dict = qdict_new();
+    qdict_put_int(start_dict, "seconds", start_ms / G_USEC_PER_SEC);
+    qdict_put_int(start_dict, "microseconds", start_ms % G_USEC_PER_SEC);
+
+    end_dict = qdict_new();
+    qdict_put_int(end_dict, "seconds", end_ms / G_USEC_PER_SEC);
+    qdict_put_int(end_dict, "microseconds", end_ms % G_USEC_PER_SEC);
+
+    qdict_put_obj(qdict, "start", QOBJECT(start_dict));
+    qdict_put_obj(qdict, "end", QOBJECT(end_dict));
+}
+
 typedef struct QmpDispatchBH {
     const QmpCommand *cmd;
     Monitor *cur_mon;
@@ -135,7 +151,7 @@ static void do_qmp_dispatch_bh(void *opaque)
  * context for everything else.
  */
 QDict *qmp_dispatch(const QmpCommandList *cmds, QObject *request,
-                    bool allow_oob, Monitor *cur_mon)
+                    bool allow_oob, bool timestamp, Monitor *cur_mon)
 {
     Error *err = NULL;
     bool oob;
@@ -146,6 +162,11 @@ QDict *qmp_dispatch(const QmpCommandList *cmds, QObject *request,
     QObject *id;
     QObject *ret = NULL;
     QDict *rsp = NULL;
+    uint64_t ts_start = -1;
+
+    if (timestamp) {
+        ts_start = g_get_real_time();
+    }
 
     dict = qobject_to(QDict, request);
     if (!dict) {
@@ -268,6 +289,11 @@ out:
 
     if (id) {
         qdict_put_obj(rsp, "id", qobject_ref(id));
+    }
+
+    if (timestamp) {
+        uint64_t ts_end = g_get_real_time();
+        add_timestamps(rsp, ts_start, ts_end);
     }
 
     return rsp;

@@ -136,6 +136,7 @@ typedef struct {
     Monitor common;
     JSONMessageParser parser;
     bool pretty;
+    bool timestamp;
     /*
      * When a client connects, we're in capabilities negotiation mode.
      * @commands is &qmp_cap_negotiation_commands then.  When command

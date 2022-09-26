@@ -726,7 +726,7 @@ int monitor_init(MonitorOptions *opts, bool allow_hmp, Error **errp)
 
     switch (opts->mode) {
     case MONITOR_MODE_CONTROL:
-        monitor_init_qmp(chr, opts->pretty, &local_err);
+        monitor_init_qmp(chr, opts->pretty, opts->timestamp, &local_err);
         break;
     case MONITOR_MODE_READLINE:
         if (!allow_hmp) {
@@ -735,6 +735,10 @@ int monitor_init(MonitorOptions *opts, bool allow_hmp, Error **errp)
         }
         if (opts->pretty) {
             error_setg(errp, "'pretty' is not compatible with HMP monitors");
+            return -1;
+        }
+        if (opts->timestamp) {
+            error_setg(errp, "'timestamp' is not compatible with HMP monitors");
             return -1;
         }
         monitor_init_hmp(chr, true, &local_err);
@@ -781,6 +785,9 @@ QemuOptsList qemu_mon_opts = {
             .type = QEMU_OPT_STRING,
         },{
             .name = "pretty",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "timestamp",
             .type = QEMU_OPT_BOOL,
         },
         { /* end of list */ }

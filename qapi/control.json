@@ -199,6 +199,8 @@
 #
 # @pretty: Enables pretty printing (QMP only)
 #
+# @timestamp: Enables qmp command start and end timestamps printing (QMP only)
+#
 # @chardev: Name of a character device to expose the monitor on
 #
 # Since: 5.0
@@ -208,5 +210,6 @@
       '*id': 'str',
       '*mode': 'MonitorMode',
       '*pretty': 'bool',
+      '*timestamp': 'bool',
       'chardev': 'str'
   } }
