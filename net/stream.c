@@ -38,6 +38,7 @@
 #include "io/channel.h"
 #include "io/channel-socket.h"
 #include "io/net-listener.h"
+#include "qapi/qapi-events-net.h"
 
 typedef struct NetStreamState {
     NetClientState nc;
@@ -169,6 +170,8 @@ static gboolean net_stream_send(QIOChannel *ioc,
         s->nc.link_down = true;
         memset(s->nc.info_str, 0, sizeof(s->nc.info_str));
 
+        qapi_event_send_netdev_stream_eoc(s->nc.name);
+
         return G_SOURCE_REMOVE;
     }
     buf = buf1;
@@ -244,9 +247,10 @@ static void net_stream_listen(QIONetListener *listener,
     g_assert(addr != NULL);
     uri = socket_uri(addr);
     pstrcpy(s->nc.info_str, sizeof(s->nc.info_str), uri);
-    g_free(uri);
     qapi_free_SocketAddress(addr);
 
+    qapi_event_send_netdev_stream_connected(s->nc.name, uri);
+    g_free(uri);
 }
 
 static void net_stream_server_listening(QIOTask *task, gpointer opaque)
@@ -319,13 +323,13 @@ static void net_stream_client_connected(QIOTask *task, gpointer opaque)
     g_assert(addr != NULL);
     uri = socket_uri(addr);
     pstrcpy(s->nc.info_str, sizeof(s->nc.info_str), uri);
-    g_free(uri);
 
     ret = qemu_socket_try_set_nonblock(sioc->fd);
     if (addr->type == SOCKET_ADDRESS_TYPE_FD && ret < 0) {
         snprintf(s->nc.info_str, sizeof(s->nc.info_str),
                  "can't use file descriptor %s (errno %d)",
                  addr->u.fd.str, -ret);
+        g_free(uri);
         return;
     }
     g_assert(ret == 0);
@@ -338,6 +342,9 @@ static void net_stream_client_connected(QIOTask *task, gpointer opaque)
 
     s->ioc_read_tag = qio_channel_add_watch(s->ioc, G_IO_IN, net_stream_send,
                                             s, NULL);
+
+    qapi_event_send_netdev_stream_connected(s->nc.name, uri);
+    g_free(uri);
 }
 
 static int net_stream_client_init(NetClientState *peer,
