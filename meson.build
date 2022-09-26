@@ -723,6 +723,10 @@ if not get_option('virglrenderer').auto() or have_system or have_vhost_user_gpu
                        cc.has_function('virgl_renderer_resource_create_blob',
                                        prefix: '#include <virglrenderer.h>',
                                        dependencies: virgl))
+  config_host_data.set('HAVE_VIRGL_CONTEXT_INIT',
+                       cc.has_function('virgl_renderer_context_create_with_flags',
+                                       prefix: '#include <virglrenderer.h>',
+                                       dependencies: virgl))
 endif
 curl = not_found
 if not get_option('curl').auto() or have_block
