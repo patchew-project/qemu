@@ -304,6 +304,7 @@ a socket interface. They do not need to be run as root.
   mkdir /tmp/mytpm1
   swtpm socket --tpmstate dir=/tmp/mytpm1 \
     --ctrl type=unixio,path=/tmp/mytpm1/swtpm-sock \
+    --tpm2 \
     --log level=20
 
 Command line to start QEMU with the TPM emulator device communicating
