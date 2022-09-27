@@ -17,6 +17,12 @@
 #include "migration/vmstate.h"
 #include "trace.h"
 
+static inline int get_current_cpu(void)
+{
+    int cpu_id = current_cpu ? current_cpu->cpu_index : 0;
+
+    return cpu_id;
+}
 
 static void extioi_update_irq(LoongArchExtIOI *s, int irq, int level)
 {
@@ -92,8 +98,8 @@ static uint64_t extioi_readw(void *opaque, hwaddr addr, unsigned size)
         ret = s->bounce[index];
         break;
     case EXTIOI_COREISR_START ... EXTIOI_COREISR_END - 1:
-        index = ((offset - EXTIOI_COREISR_START) & 0x1f) >> 2;
-        cpu = ((offset - EXTIOI_COREISR_START) >> 8) & 0x3;
+        index = (offset - EXTIOI_COREISR_START) >> 2;
+        cpu = get_current_cpu();
         ret = s->coreisr[cpu][index];
         break;
     case EXTIOI_COREMAP_START ... EXTIOI_COREMAP_END - 1:
@@ -183,8 +189,8 @@ static void extioi_writew(void *opaque, hwaddr addr,
         s->bounce[index] = val;
         break;
     case EXTIOI_COREISR_START ... EXTIOI_COREISR_END - 1:
-        index = ((offset - EXTIOI_COREISR_START) & 0x1f) >> 2;
-        cpu = ((offset - EXTIOI_COREISR_START) >> 8) & 0x3;
+        index = (offset - EXTIOI_COREISR_START) >> 2;
+        cpu = get_current_cpu();
         old_data = s->coreisr[cpu][index];
         s->coreisr[cpu][index] = old_data & ~val;
         /* write 1 to clear interrrupt */
@@ -284,9 +290,6 @@ static void loongarch_extioi_instance_init(Object *obj)
             qdev_init_gpio_out(DEVICE(obj), &s->parent_irq[cpu][pin], 1);
         }
     }
-    memory_region_init_io(&s->extioi_system_mem, OBJECT(s), &extioi_ops,
-                          s, "extioi_system_mem", 0x900);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->extioi_system_mem);
 }
 
 static void loongarch_extioi_class_init(ObjectClass *klass, void *data)
