@@ -322,6 +322,13 @@ uint64_t helper_flogb_s(CPULoongArchState *env, uint64_t fj)
     fp = float32_log2((uint32_t)fj, status);
     fd = nanbox_s(float32_round_to_int(fp, status));
     set_float_rounding_mode(old_mode, status);
+    /*
+     * LoongArch host if fj == 0 or INT32_MIN , set the fcsr cause FP_DIV0
+     * so we need set exception flags float_flag_divbyzero.
+     */
+    if (((uint32_t)fj == 0) | ((uint32_t)fj == INT32_MIN)) {
+        set_float_exception_flags(float_flag_divbyzero, status);
+    }
     update_fcsr0_mask(env, GETPC(), float_flag_inexact);
     return fd;
 }
@@ -336,6 +343,13 @@ uint64_t helper_flogb_d(CPULoongArchState *env, uint64_t fj)
     fd = float64_log2(fj, status);
     fd = float64_round_to_int(fd, status);
     set_float_rounding_mode(old_mode, status);
+    /*
+     * LoongArch host if fj == 0 or INT64_MIN , set the fcsr cause FP_DIV0
+     * so we need set exception flags float_flag_divbyzero.
+     */
+    if ((fj == 0) | (fj == INT64_MIN)) {
+        set_float_exception_flags(float_flag_divbyzero, status);
+    }
     update_fcsr0_mask(env, GETPC(), float_flag_inexact);
     return fd;
 }
