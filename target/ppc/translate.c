@@ -6175,6 +6175,7 @@ static void gen_wrtee(DisasContext *ctx)
     tcg_gen_andi_tl(t0, cpu_gpr[rD(ctx->opcode)], (1 << MSR_EE));
     tcg_gen_andi_tl(cpu_msr, cpu_msr, ~(1 << MSR_EE));
     tcg_gen_or_tl(cpu_msr, cpu_msr, t0);
+    gen_helper_ppc_maybe_interrupt(cpu_env);
     tcg_temp_free(t0);
     /*
      * Stop translation to have a chance to raise an exception if we
@@ -6193,6 +6194,7 @@ static void gen_wrteei(DisasContext *ctx)
     CHK_SV(ctx);
     if (ctx->opcode & 0x00008000) {
         tcg_gen_ori_tl(cpu_msr, cpu_msr, (1 << MSR_EE));
+        gen_helper_ppc_maybe_interrupt(cpu_env);
         /* Stop translation to have a chance to raise an exception */
         ctx->base.is_jmp = DISAS_EXIT_UPDATE;
     } else {

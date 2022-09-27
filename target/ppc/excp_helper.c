@@ -390,6 +390,7 @@ static void powerpc_set_excp_state(PowerPCCPU *cpu, target_ulong vector,
     env->nip = vector;
     env->msr = msr;
     hreg_compute_hflags(env);
+    ppc_maybe_interrupt(env);
 
     powerpc_reset_excp_state(cpu);
 
@@ -2039,6 +2040,27 @@ static int ppc_next_unmasked_interrupt(CPUPPCState *env)
     }
 }
 
+void ppc_maybe_interrupt(CPUPPCState *env)
+{
+    CPUState *cs = env_cpu(env);
+    bool locked = false;
+
+    if (!qemu_mutex_iothread_locked()) {
+        locked = true;
+        qemu_mutex_lock_iothread();
+    }
+
+    if (ppc_next_unmasked_interrupt(env)) {
+        cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+    } else {
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
+    }
+
+    if (locked) {
+        qemu_mutex_unlock_iothread();
+    }
+}
+
 #if defined(TARGET_PPC64)
 static void p7_deliver_interrupt(CPUPPCState *env, int interrupt)
 {
@@ -2474,6 +2496,11 @@ void helper_store_msr(CPUPPCState *env, target_ulong val)
     }
 }
 
+void helper_ppc_maybe_interrupt(CPUPPCState *env)
+{
+    ppc_maybe_interrupt(env);
+}
+
 #if defined(TARGET_PPC64)
 void helper_scv(CPUPPCState *env, uint32_t lev)
 {
@@ -2494,6 +2521,8 @@ void helper_pminsn(CPUPPCState *env, powerpc_pm_insn_t insn)
     /* Condition for waking up at 0x100 */
     env->resume_as_sreset = (insn != PPC_PM_STOP) ||
         (env->spr[SPR_PSSCR] & PSSCR_EC);
+
+    ppc_maybe_interrupt(env);
 }
 #endif /* defined(TARGET_PPC64) */
 
