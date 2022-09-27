@@ -115,6 +115,28 @@
                   R_ ## reg ## _ ## field ## _LENGTH, _v.v);              \
     _d; })
 
+/*
+ * Clear the specified field in reg_val if
+ * any field bits are set, else no changes made. Implements
+ * single/multi-bit `w1c`
+ *
+ */
+#define FIELD8_1CLEAR(reg_val, reg, field)                                \
+    (FIELD_EX8(reg_val, reg, field) ?                                     \
+    FIELD_DP8(reg_val, reg, field, 0x00) : reg_val)
+
+#define FIELD16_1CLEAR(reg_val, reg, field)                               \
+    (FIELD_EX16(reg_val, reg, field) ?                                    \
+    FIELD_DP16(reg_val, reg, field, 0x00) : reg_val)
+
+#define FIELD32_1CLEAR(reg_val, reg, field)                               \
+    (FIELD_EX32(reg_val, reg, field) ?                                    \
+    FIELD_DP32(reg_val, reg, field, 0x00) : reg_val)
+
+#define FIELD64_1CLEAR(reg_val, reg, field)                               \
+    (FIELD_EX64(reg_val, reg, field) ?                                    \
+    FIELD_DP64(reg_val, reg, field, 0x00) : reg_val)
+
 #define FIELD_SDP8(storage, reg, field, val) ({                           \
     struct {                                                              \
         signed int v:R_ ## reg ## _ ## field ## _LENGTH;                  \
