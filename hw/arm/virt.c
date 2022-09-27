@@ -933,12 +933,12 @@ static void create_gpio_keys(char *fdt, DeviceState *pl061_dev,
     qemu_fdt_add_subnode(fdt, "/gpio-keys");
     qemu_fdt_setprop_string(fdt, "/gpio-keys", "compatible", "gpio-keys");
 
-    qemu_fdt_add_subnode(fdt, "/gpio-keys/poweroff");
-    qemu_fdt_setprop_string(fdt, "/gpio-keys/poweroff",
+    qemu_fdt_add_subnode(fdt, "/gpio-keys/key-poweroff");
+    qemu_fdt_setprop_string(fdt, "/gpio-keys/key-poweroff",
                             "label", "GPIO Key Poweroff");
-    qemu_fdt_setprop_cell(fdt, "/gpio-keys/poweroff", "linux,code",
+    qemu_fdt_setprop_cell(fdt, "/gpio-keys/key-poweroff", "linux,code",
                           KEY_POWER);
-    qemu_fdt_setprop_cells(fdt, "/gpio-keys/poweroff",
+    qemu_fdt_setprop_cells(fdt, "/gpio-keys/key-poweroff",
                            "gpios", phandle, 3, 0);
 }
 
