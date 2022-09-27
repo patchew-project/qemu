@@ -20,11 +20,12 @@ static void fw_cfg_boot_set(void *opaque, const char *boot_device,
 FWCfgState *loongarch_fw_cfg_init(ram_addr_t ram_size, MachineState *ms)
 {
     FWCfgState *fw_cfg;
+    LoongArchMachineState *lams = LOONGARCH_MACHINE(ms);
     int max_cpus = ms->smp.max_cpus;
     int smp_cpus = ms->smp.cpus;
+    hwaddr base = lams->memmap[VIRT_FW_CFG].base;
 
-    fw_cfg = fw_cfg_init_mem_wide(VIRT_FWCFG_BASE + 8, VIRT_FWCFG_BASE, 8,
-                                  VIRT_FWCFG_BASE + 16, &address_space_memory);
+    fw_cfg = fw_cfg_init_mem_wide(base + 8, base, 8, base + 16, &address_space_memory);
     fw_cfg_add_i16(fw_cfg, FW_CFG_MAX_CPUS, (uint16_t)max_cpus);
     fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
     fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, (uint16_t)smp_cpus);
