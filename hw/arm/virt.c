@@ -482,7 +482,7 @@ static void fdt_add_its_gic_node(VirtMachineState *vms)
     MachineState *ms = MACHINE(vms);
 
     vms->msi_phandle = qemu_fdt_alloc_phandle(ms->fdt);
-    nodename = g_strdup_printf("/intc/its@%" PRIx64,
+    nodename = g_strdup_printf("/interrupt-controller/msi-controller@%" PRIx64,
                                vms->memmap[VIRT_GIC_ITS].base);
     qemu_fdt_add_subnode(ms->fdt, nodename);
     qemu_fdt_setprop_string(ms->fdt, nodename, "compatible",
@@ -501,7 +501,7 @@ static void fdt_add_v2m_gic_node(VirtMachineState *vms)
     MachineState *ms = MACHINE(vms);
     char *nodename;
 
-    nodename = g_strdup_printf("/intc/v2m@%" PRIx64,
+    nodename = g_strdup_printf("/interrupt-controller/v2m@%" PRIx64,
                                vms->memmap[VIRT_GIC_V2M].base);
     vms->msi_phandle = qemu_fdt_alloc_phandle(ms->fdt);
     qemu_fdt_add_subnode(ms->fdt, nodename);
@@ -523,7 +523,7 @@ static void fdt_add_gic_node(VirtMachineState *vms)
     vms->gic_phandle = qemu_fdt_alloc_phandle(ms->fdt);
     qemu_fdt_setprop_cell(ms->fdt, "/", "interrupt-parent", vms->gic_phandle);
 
-    nodename = g_strdup_printf("/intc@%" PRIx64,
+    nodename = g_strdup_printf("/interrupt-controller@%" PRIx64,
                                vms->memmap[VIRT_GIC_DIST].base);
     qemu_fdt_add_subnode(ms->fdt, nodename);
     qemu_fdt_setprop_cell(ms->fdt, nodename, "#interrupt-cells", 3);
@@ -858,7 +858,7 @@ static void create_uart(const VirtMachineState *vms, int uart,
                                 sysbus_mmio_get_region(s, 0));
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(vms->gic, irq));
 
-    nodename = g_strdup_printf("/pl011@%" PRIx64, base);
+    nodename = g_strdup_printf("/serial@%" PRIx64, base);
     qemu_fdt_add_subnode(ms->fdt, nodename);
     /* Note that we can't use setprop_string because of the embedded NUL */
     qemu_fdt_setprop(ms->fdt, nodename, "compatible",
@@ -898,7 +898,7 @@ static void create_rtc(const VirtMachineState *vms)
 
     sysbus_create_simple("pl031", base, qdev_get_gpio_in(vms->gic, irq));
 
-    nodename = g_strdup_printf("/pl031@%" PRIx64, base);
+    nodename = g_strdup_printf("/rtc@%" PRIx64, base);
     qemu_fdt_add_subnode(ms->fdt, nodename);
     qemu_fdt_setprop(ms->fdt, nodename, "compatible", compat, sizeof(compat));
     qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg",
@@ -1000,7 +1000,7 @@ static void create_gpio_devices(const VirtMachineState *vms, int gpio,
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(vms->gic, irq));
 
     uint32_t phandle = qemu_fdt_alloc_phandle(ms->fdt);
-    nodename = g_strdup_printf("/pl061@%" PRIx64, base);
+    nodename = g_strdup_printf("/gpio@%" PRIx64, base);
     qemu_fdt_add_subnode(ms->fdt, nodename);
     qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg",
                                  2, base, 2, size);
@@ -1349,7 +1349,7 @@ static void create_smmu(const VirtMachineState *vms,
                            qdev_get_gpio_in(vms->gic, irq + i));
     }
 
-    node = g_strdup_printf("/smmuv3@%" PRIx64, base);
+    node = g_strdup_printf("/iommu@%" PRIx64, base);
     qemu_fdt_add_subnode(ms->fdt, node);
     qemu_fdt_setprop(ms->fdt, node, "compatible", compat, sizeof(compat));
     qemu_fdt_setprop_sized_cells(ms->fdt, node, "reg", 2, base, 2, size);
@@ -1654,7 +1654,7 @@ void virt_machine_done(Notifier *notifier, void *data)
      * while qemu takes charge of the qom stuff.
      */
     if (info->dtb_filename == NULL) {
-        platform_bus_add_all_fdt_nodes(ms->fdt, "/intc",
+        platform_bus_add_all_fdt_nodes(ms->fdt, "/interrupt-controller",
                                        vms->memmap[VIRT_PLATFORM_BUS].base,
                                        vms->memmap[VIRT_PLATFORM_BUS].size,
                                        vms->irqmap[VIRT_PLATFORM_BUS]);
