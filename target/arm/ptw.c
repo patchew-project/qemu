@@ -252,7 +252,7 @@ static uint32_t arm_ldl_ptw(CPUARMState *env, hwaddr addr, bool is_secure,
                             ARMMMUIdx mmu_idx, ARMMMUFaultInfo *fi)
 {
     CPUState *cs = env_cpu(env);
-    MemTxAttrs attrs = {};
+    MemTxAttrs attrs = MEMTXATTRS_CPU(cs);
     MemTxResult result = MEMTX_OK;
     AddressSpace *as;
     uint32_t data;
@@ -280,7 +280,7 @@ static uint64_t arm_ldq_ptw(CPUARMState *env, hwaddr addr, bool is_secure,
                             ARMMMUIdx mmu_idx, ARMMMUFaultInfo *fi)
 {
     CPUState *cs = env_cpu(env);
-    MemTxAttrs attrs = {};
+    MemTxAttrs attrs = MEMTXATTRS_CPU(cs);
     MemTxResult result = MEMTX_OK;
     AddressSpace *as;
     uint64_t data;
@@ -2289,8 +2289,8 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
     ARMMMUIdx s1_mmu_idx = stage_1_mmu_idx(mmu_idx);
     bool is_secure = regime_is_secure(env, mmu_idx);
 
-    attrs->requester_type = MEMTXATTRS_CPU;
-    attrs->requester_id = env_cpu(env)->cpu_index;
+    result->attrs.requester_type = MTRT_CPU;
+    result->attrs.requester_id = env_cpu(env)->cpu_index;
 
     if (mmu_idx != s1_mmu_idx) {
         /*
