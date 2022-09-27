@@ -1679,24 +1679,22 @@ void ppc_cpu_do_interrupt(CPUState *cs)
 }
 
 #if defined(TARGET_PPC64)
+#define P8_UNUSED_INTERRUPTS \
+    (PPC_INTERRUPT_RESET | PPC_INTERRUPT_DEBUG | PPC_INTERRUPT_HVIRT |  \
+    PPC_INTERRUPT_CEXT | PPC_INTERRUPT_WDT | PPC_INTERRUPT_CDOORBELL |  \
+    PPC_INTERRUPT_FIT | PPC_INTERRUPT_PIT | PPC_INTERRUPT_DOORBELL |    \
+    PPC_INTERRUPT_HDOORBELL | PPC_INTERRUPT_THERM)
+
 static int p8_next_unmasked_interrupt(CPUPPCState *env)
 {
     bool async_deliver;
 
-    /* External reset */
-    if (env->pending_interrupts & PPC_INTERRUPT_RESET) {
-        return PPC_INTERRUPT_RESET;
-    }
+    assert((env->pending_interrupts & P8_UNUSED_INTERRUPTS) == 0);
+
     /* Machine check exception */
     if (env->pending_interrupts & PPC_INTERRUPT_MCK) {
         return PPC_INTERRUPT_MCK;
     }
-#if 0 /* TODO */
-    /* External debug exception */
-    if (env->pending_interrupts & PPC_INTERRUPT_DEBUG) {
-        return PPC_INTERRUPT_DEBUG;
-    }
-#endif
 
     /*
      * For interrupts that gate on MSR:EE, we need to do something a
@@ -1716,15 +1714,6 @@ static int p8_next_unmasked_interrupt(CPUPPCState *env)
         }
     }
 
-    /* Hypervisor virtualization interrupt */
-    if (env->pending_interrupts & PPC_INTERRUPT_HVIRT) {
-        /* LPCR will be clear when not supported so this will work */
-        bool hvice = !!(env->spr[SPR_LPCR] & LPCR_HVICE);
-        if ((async_deliver || !FIELD_EX64_HV(env->msr)) && hvice) {
-            return PPC_INTERRUPT_HVIRT;
-        }
-    }
-
     /* External interrupt can ignore MSR:EE under some circumstances */
     if (env->pending_interrupts & PPC_INTERRUPT_EXT) {
         bool lpes0 = !!(env->spr[SPR_LPCR] & LPCR_LPES0);
@@ -1736,44 +1725,13 @@ static int p8_next_unmasked_interrupt(CPUPPCState *env)
             return PPC_INTERRUPT_EXT;
         }
     }
-    if (FIELD_EX64(env->msr, MSR, CE)) {
-        /* External critical interrupt */
-        if (env->pending_interrupts & PPC_INTERRUPT_CEXT) {
-            return PPC_INTERRUPT_CEXT;
-        }
-    }
     if (async_deliver != 0) {
-        /* Watchdog timer on embedded PowerPC */
-        if (env->pending_interrupts & PPC_INTERRUPT_WDT) {
-            return PPC_INTERRUPT_WDT;
-        }
-        if (env->pending_interrupts & PPC_INTERRUPT_CDOORBELL) {
-            return PPC_INTERRUPT_CDOORBELL;
-        }
-        /* Fixed interval timer on embedded PowerPC */
-        if (env->pending_interrupts & PPC_INTERRUPT_FIT) {
-            return PPC_INTERRUPT_FIT;
-        }
-        /* Programmable interval timer on embedded PowerPC */
-        if (env->pending_interrupts & PPC_INTERRUPT_PIT) {
-            return PPC_INTERRUPT_PIT;
-        }
         /* Decrementer exception */
         if (env->pending_interrupts & PPC_INTERRUPT_DECR) {
             return PPC_INTERRUPT_DECR;
         }
-        if (env->pending_interrupts & PPC_INTERRUPT_DOORBELL) {
-            return PPC_INTERRUPT_DOORBELL;
-        }
-        if (env->pending_interrupts & PPC_INTERRUPT_HDOORBELL) {
-            return PPC_INTERRUPT_HDOORBELL;
-        }
         if (env->pending_interrupts & PPC_INTERRUPT_PERFM) {
             return PPC_INTERRUPT_PERFM;
-        }
-        /* Thermal interrupt */
-        if (env->pending_interrupts & PPC_INTERRUPT_THERM) {
-            return PPC_INTERRUPT_THERM;
         }
         /* EBB exception */
         if (env->pending_interrupts & PPC_INTERRUPT_EBB) {
