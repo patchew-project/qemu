@@ -518,7 +518,7 @@ uint64_t helper_frint_s(CPULoongArchState *env, uint64_t fj)
 {
     uint64_t fd;
 
-    fd = (uint64_t)(float32_round_to_int((uint32_t)fj, &env->fp_status));
+    fd = nanbox_s(float32_round_to_int((uint32_t)fj, &env->fp_status));
     update_fcsr0(env, GETPC());
     return fd;
 }
@@ -574,7 +574,7 @@ uint64_t helper_ftintrm_w_d(CPULoongArchState *env, uint64_t fj)
     FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status);
 
     set_float_rounding_mode(float_round_down, &env->fp_status);
-    fd = (uint64_t)float64_to_int32(fj, &env->fp_status);
+    fd = nanbox_s(float64_to_int32(fj, &env->fp_status));
     set_float_rounding_mode(old_mode, &env->fp_status);
 
     if (get_float_exception_flags(&env->fp_status) & (float_flag_invalid)) {
@@ -592,7 +592,7 @@ uint64_t helper_ftintrm_w_s(CPULoongArchState *env, uint64_t fj)
     FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status);
 
     set_float_rounding_mode(float_round_down, &env->fp_status);
-    fd = (uint64_t)float32_to_int32((uint32_t)fj, &env->fp_status);
+    fd = nanbox_s(float32_to_int32((uint32_t)fj, &env->fp_status));
     set_float_rounding_mode(old_mode, &env->fp_status);
 
     if (get_float_exception_flags(&env->fp_status) & (float_flag_invalid)) {
@@ -646,7 +646,7 @@ uint64_t helper_ftintrp_w_d(CPULoongArchState *env, uint64_t fj)
     FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status);
 
     set_float_rounding_mode(float_round_up, &env->fp_status);
-    fd = (uint64_t)float64_to_int32(fj, &env->fp_status);
+    fd = nanbox_s(float64_to_int32(fj, &env->fp_status));
     set_float_rounding_mode(old_mode, &env->fp_status);
 
     if (get_float_exception_flags(&env->fp_status) & (float_flag_invalid)) {
@@ -664,7 +664,7 @@ uint64_t helper_ftintrp_w_s(CPULoongArchState *env, uint64_t fj)
     FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status);
 
     set_float_rounding_mode(float_round_up, &env->fp_status);
-    fd = (uint64_t)float32_to_int32((uint32_t)fj, &env->fp_status);
+    fd = nanbox_s(float32_to_int32((uint32_t)fj, &env->fp_status));
     set_float_rounding_mode(old_mode, &env->fp_status);
 
     if (get_float_exception_flags(&env->fp_status) & (float_flag_invalid)) {
@@ -715,7 +715,7 @@ uint64_t helper_ftintrz_w_d(CPULoongArchState *env, uint64_t fj)
     uint64_t fd;
     FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status);
 
-    fd = (uint64_t)float64_to_int32_round_to_zero(fj, &env->fp_status);
+    fd = nanbox_s(float64_to_int32_round_to_zero(fj, &env->fp_status));
     set_float_rounding_mode(old_mode, &env->fp_status);
 
     if (get_float_exception_flags(&env->fp_status) & (float_flag_invalid)) {
@@ -786,7 +786,7 @@ uint64_t helper_ftintrne_w_d(CPULoongArchState *env, uint64_t fj)
     FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status);
 
     set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
-    fd = (uint64_t)float64_to_int32(fj, &env->fp_status);
+    fd = nanbox_s(float64_to_int32(fj, &env->fp_status));
     set_float_rounding_mode(old_mode, &env->fp_status);
 
     if (get_float_exception_flags(&env->fp_status) & (float_flag_invalid)) {
@@ -848,7 +848,7 @@ uint64_t helper_ftint_w_s(CPULoongArchState *env, uint64_t fj)
 {
     uint64_t fd;
 
-    fd = (uint64_t)float32_to_int32((uint32_t)fj, &env->fp_status);
+    fd = nanbox_s(float32_to_int32((uint32_t)fj, &env->fp_status));
     if (get_float_exception_flags(&env->fp_status) & (float_flag_invalid)) {
         if (float32_is_any_nan((uint32_t)fj)) {
             fd = 0;
@@ -862,7 +862,7 @@ uint64_t helper_ftint_w_d(CPULoongArchState *env, uint64_t fj)
 {
     uint64_t fd;
 
-    fd = (uint64_t)float64_to_int32(fj, &env->fp_status);
+    fd = nanbox_s(float64_to_int32(fj, &env->fp_status));
     if (get_float_exception_flags(&env->fp_status) & (float_flag_invalid)) {
         if (float64_is_any_nan(fj)) {
             fd = 0;
