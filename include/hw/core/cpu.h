@@ -326,6 +326,7 @@ struct CPUState {
 #ifdef _WIN32
     HANDLE hThread;
 #endif
+    QemuSemaphore sem;
     int thread_id;
     bool running, has_waiter;
     struct QemuCond *halt_cond;
