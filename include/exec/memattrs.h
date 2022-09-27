@@ -14,6 +14,24 @@
 #ifndef MEMATTRS_H
 #define MEMATTRS_H
 
+/*
+ * Every memory transaction comes from a specific place which defines
+ * how requester_id should be handled. For CPU's the requester_id is
+ * the global cpu_index which needs further processing if you need to
+ * work out which socket or complex it comes from. UNSPECIFIED is the
+ * default for otherwise undefined MemTxAttrs. PCI indicates the
+ * requester_id is a PCI id. MACHINE indicates a machine specific
+ * encoding which needs further processing to decode into its
+ * constituent parts.
+ */
+typedef enum MemTxRequesterType {
+    MTRT_CPU = 0,
+    MTRT_UNSPECIFIED,
+    MTRT_PCI,
+    MTRT_MACHINE
+} MemTxRequesterType;
+
+
 /* Every memory transaction has associated with it a set of
  * attributes. Some of these are generic (such as the ID of
  * the bus master); some are specific to a particular kind of
@@ -23,12 +41,6 @@
  * different semantics.
  */
 typedef struct MemTxAttrs {
-    /* Bus masters which don't specify any attributes will get this
-     * (via the MEMTXATTRS_UNSPECIFIED constant), so that we can
-     * distinguish "all attributes deliberately clear" from
-     * "didn't specify" if necessary.
-     */
-    unsigned int unspecified:1;
     /* ARM/AMBA: TrustZone Secure access
      * x86: System Management Mode access
      */
@@ -43,7 +55,9 @@ typedef struct MemTxAttrs {
      * (see MEMTX_ACCESS_ERROR).
      */
     unsigned int memory:1;
-    /* Requester ID (for MSI for example) */
+    /* Requester type (e.g. CPU or PCI MSI) */
+    MemTxRequesterType requester_type:2;
+    /* Requester ID */
     unsigned int requester_id:16;
     /* Invert endianness for this page */
     unsigned int byte_swap:1;
@@ -64,7 +78,16 @@ typedef struct MemTxAttrs {
  * (so that we can distinguish "all attributes deliberately clear"
  * from "didn't specify" if necessary).
  */
-#define MEMTXATTRS_UNSPECIFIED ((MemTxAttrs) { .unspecified = 1 })
+#define MEMTXATTRS_UNSPECIFIED ((MemTxAttrs) \
+                                { .requester_type = MTRT_UNSPECIFIED })
+
+/*
+ * Helper for setting a basic CPU sourced transaction, it expects a
+ * CPUState *
+ */
+#define MEMTXATTRS_CPU(cs) ((MemTxAttrs) \
+                            {.requester_type = MTRT_CPU, \
+                             .requester_id = cs->cpu_index})
 
 /* New-style MMIO accessors can indicate that the transaction failed.
  * A zero (MEMTX_OK) response means success; anything else is a failure

@@ -461,7 +461,7 @@ static int tz_mpc_attrs_to_index(IOMMUMemoryRegion *iommu, MemTxAttrs attrs)
      * All the real during-emulation transactions from the CPU will
      * specify attributes.
      */
-    return (attrs.unspecified || attrs.secure) ? IOMMU_IDX_S : IOMMU_IDX_NS;
+    return ((attrs.requester_type == MTRT_UNSPECIFIED) || attrs.secure) ? IOMMU_IDX_S : IOMMU_IDX_NS;
 }
 
 static int tz_mpc_num_indexes(IOMMUMemoryRegion *iommu)
