@@ -831,6 +831,20 @@
             '*kernel-hashes': 'bool' } }
 
 ##
+# @ThreadContextProperties:
+#
+# Properties for thread context objects.
+#
+# @cpu-affinity: the CPU affinity for all threads created in the thread
+#                context (default: QEMU main thread affinity)
+#
+# Since: 7.2
+##
+{ 'struct': 'ThreadContextProperties',
+  'data': { '*cpu-affinity': ['uint16'] } }
+
+
+##
 # @ObjectType:
 #
 # Features:
@@ -882,6 +896,7 @@
     { 'name': 'secret_keyring',
       'if': 'CONFIG_SECRET_KEYRING' },
     'sev-guest',
+    'thread-context',
     's390-pv-guest',
     'throttle-group',
     'tls-creds-anon',
@@ -948,6 +963,7 @@
       'secret_keyring':             { 'type': 'SecretKeyringProperties',
                                       'if': 'CONFIG_SECRET_KEYRING' },
       'sev-guest':                  'SevGuestProperties',
+      'thread-context':             'ThreadContextProperties',
       'throttle-group':             'ThrottleGroupProperties',
       'tls-creds-anon':             'TlsCredsAnonProperties',
       'tls-creds-psk':              'TlsCredsPskProperties',
