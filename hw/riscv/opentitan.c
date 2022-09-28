@@ -122,6 +122,8 @@ static void lowrisc_ibex_soc_init(Object *obj)
 
     object_initialize_child(obj, "timer", &s->timer, TYPE_IBEX_TIMER);
 
+    object_initialize_child(obj, "lifetime_ctrl", &s->lc, TYPE_IBEX_LC_CTRL);
+
     for (int i = 0; i < OPENTITAN_NUM_SPI_HOSTS; i++) {
         object_initialize_child(obj, "spi_host[*]", &s->spi_host[i],
                                 TYPE_IBEX_SPI_HOST);
@@ -243,6 +245,12 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
         }
     }
 
+    /* Life-Cycle Control */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->lc), errp)) {
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->lc), 0, memmap[IBEX_DEV_LC_CTRL].base);
+
     create_unimplemented_device("riscv.lowrisc.ibex.gpio",
         memmap[IBEX_DEV_GPIO].base, memmap[IBEX_DEV_GPIO].size);
     create_unimplemented_device("riscv.lowrisc.ibex.spi_device",
@@ -255,8 +263,6 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
         memmap[IBEX_DEV_SENSOR_CTRL].base, memmap[IBEX_DEV_SENSOR_CTRL].size);
     create_unimplemented_device("riscv.lowrisc.ibex.otp_ctrl",
         memmap[IBEX_DEV_OTP_CTRL].base, memmap[IBEX_DEV_OTP_CTRL].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.lc_ctrl",
-        memmap[IBEX_DEV_LC_CTRL].base, memmap[IBEX_DEV_LC_CTRL].size);
     create_unimplemented_device("riscv.lowrisc.ibex.pwrmgr",
         memmap[IBEX_DEV_PWRMGR].base, memmap[IBEX_DEV_PWRMGR].size);
     create_unimplemented_device("riscv.lowrisc.ibex.rstmgr",
