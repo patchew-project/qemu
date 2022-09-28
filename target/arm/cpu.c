@@ -1684,6 +1684,10 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         cpu->isar.id_isar6 = u;
 
         if (!arm_feature(env, ARM_FEATURE_M)) {
+            u = cpu->isar.mvfr0;
+            u = FIELD_DP32(u, MVFR0, SIMDREG, 1); /* 16 registers */
+            cpu->isar.mvfr0 = u;
+
             u = cpu->isar.mvfr1;
             u = FIELD_DP32(u, MVFR1, SIMDLS, 0);
             u = FIELD_DP32(u, MVFR1, SIMDINT, 0);
