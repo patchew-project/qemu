@@ -657,6 +657,10 @@ if not get_option('slirp').auto() or have_system
   endif
 endif
 
+if get_option('slirp').disabled()
+  config_host_data.set('CONFIG_SLIRP_DISABLED', true)
+endif
+
 vde = not_found
 if not get_option('vde').auto() or have_system or have_tools
   vde = cc.find_library('vdeplug', has_headers: ['libvdeplug.h'],

@@ -990,14 +990,29 @@ static int net_init_nic(const Netdev *netdev, const char *name,
     return idx;
 }
 
+#if (defined(CONFIG_SLIRP) || !defined(CONFIG_SLIRP_DISABLED))
+static int net_init_user(const Netdev *netdev, const char *name,
+                         NetClientState *peer, Error **errp)
+{
+#ifdef CONFIG_SLIRP
+    return net_init_slirp(netdev, name, peer, errp);
+#else
+    error_setg(errp,
+               "Type 'user' is not a supported netdev backend by this QEMU build "
+               "because the libslirp development files were not found during build "
+               "of QEMU.");
+#endif
+    return -1;
+}
+#endif
 
 static int (* const net_client_init_fun[NET_CLIENT_DRIVER__MAX])(
     const Netdev *netdev,
     const char *name,
     NetClientState *peer, Error **errp) = {
         [NET_CLIENT_DRIVER_NIC]       = net_init_nic,
-#ifdef CONFIG_SLIRP
-        [NET_CLIENT_DRIVER_USER]      = net_init_slirp,
+#if (defined(CONFIG_SLIRP) || !defined(CONFIG_SLIRP_DISABLED))
+        [NET_CLIENT_DRIVER_USER]      = net_init_user,
 #endif
         [NET_CLIENT_DRIVER_TAP]       = net_init_tap,
         [NET_CLIENT_DRIVER_SOCKET]    = net_init_socket,
