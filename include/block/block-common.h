@@ -49,6 +49,10 @@ typedef struct BlockDriver BlockDriver;
 typedef struct BdrvChild BdrvChild;
 typedef struct BdrvChildClass BdrvChildClass;
 
+#ifndef HAVE_BLK_ZONE_REP_CAPACITY
+#define BLK_ZONE_REP_CAPACITY (1 << 0)
+#endif
+
 typedef enum BlockZoneOp {
     BLK_ZO_OPEN,
     BLK_ZO_CLOSE,
