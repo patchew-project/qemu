@@ -19,12 +19,40 @@
 
 static bool name_threads;
 
+typedef HRESULT (WINAPI *pSetThreadDescription) (HANDLE hThread,
+                                                 PCWSTR lpThreadDescription);
+static pSetThreadDescription SetThreadDescriptionFunc = NULL;
+static HMODULE kernel32_module = NULL;
+
+static bool
+load_set_thread_description(void)
+{
+  static gsize _init_once = 0;
+
+  if (g_once_init_enter(&_init_once)) {
+      kernel32_module = LoadLibraryW(L"kernel32.dll");
+      if (kernel32_module) {
+          SetThreadDescriptionFunc =
+              (pSetThreadDescription)GetProcAddress(kernel32_module,
+                                                    "SetThreadDescription");
+          if (!SetThreadDescriptionFunc) {
+              FreeLibrary(kernel32_module);
+          }
+      }
+      g_once_init_leave(&_init_once, 1);
+  }
+
+  return !!SetThreadDescriptionFunc;
+}
+
 void qemu_thread_naming(bool enable)
 {
     /* But note we don't actually name them on Windows yet */
     name_threads = enable;
 
-    fprintf(stderr, "qemu: thread naming not supported on this host\n");
+    if (enable && !load_set_thread_description()) {
+        fprintf(stderr, "qemu: thread naming not supported on this host\n");
+    }
 }
 
 static void error_exit(int err, const char *msg)
@@ -400,6 +428,26 @@ void *qemu_thread_join(QemuThread *thread)
     return ret;
 }
 
+static bool
+set_thread_description(HANDLE h, const char *name)
+{
+  HRESULT hr;
+  g_autofree wchar_t *namew = NULL;
+
+  if (!load_set_thread_description() || !name) {
+      return false;
+  }
+
+  namew = g_utf8_to_utf16(name, -1, NULL, NULL, NULL);
+  if (!namew) {
+      return false;
+  }
+
+  hr = SetThreadDescriptionFunc(h, namew);
+
+  return SUCCEEDED(hr);
+}
+
 void qemu_thread_create(QemuThread *thread, const char *name,
                        void *(*start_routine)(void *),
                        void *arg, int mode)
@@ -423,7 +471,11 @@ void qemu_thread_create(QemuThread *thread, const char *name,
     if (!hThread) {
         error_exit(GetLastError(), __func__);
     }
+    if (name_threads) {
+        set_thread_description(hThread, name);
+    }
     CloseHandle(hThread);
+
     thread->data = data;
 }
 
