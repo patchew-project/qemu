@@ -20,6 +20,8 @@
 #include <sys/param.h>
 #include <sys/ucred.h>
 #include <sys/mount.h>
+#include <net/if_dl.h>
+#include <net/ethernet.h>
 #include <paths.h>
 
 #if defined(CONFIG_FSFREEZE) || defined(CONFIG_FSTRIM)
@@ -178,10 +180,15 @@ GuestCpuStatsList *qmp_guest_get_cpustats(Error **errp)
  */
 int guest_get_hw_addr(struct ifaddrs *ifa, unsigned char *buf, Error **errp)
 {
-    /*
-     * We can't get the hw addr of this interface,
-     * but that's not a fatal error.
-     */
-    return 0;
+    struct sockaddr_dl *sdp;
+
+    if (ifa->ifa_addr->sa_family != AF_LINK) {
+        /* We can get HW address only for AF_LINK family */
+        g_debug("failed to get MAC address of %s", ifa->ifa_name);
+        return 0;
+    }
+    sdp = (struct sockaddr_dl *)ifa->ifa_addr;
+    memcpy(buf, sdp->sdl_data + sdp->sdl_nlen, ETHER_ADDR_LEN);
+    return 1;
 }
 #endif /* HAVE_GETIFADDRS */
