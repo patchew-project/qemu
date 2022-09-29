@@ -169,6 +169,18 @@ def genptr_decl(f, tag, regtype, regid, regno):
             elif (hex_common.is_tmp_result(tag)):
                 f.write("        ctx_tmp_vreg_off(ctx, %s%sN, 1, true);\n" % \
                     (regtype, regid))
+                if ('A_CONDEXEC' in hex_common.attribdict[tag]):
+                    f.write("    if (!is_tmp_vreg_preloaded(ctx, %s)) {\n" % \
+                                     regN)
+                    f.write("        intptr_t src_off =")
+                    f.write(" offsetof(CPUHexagonState, VRegs[%s%sN]);\n"% \
+                                         (regtype, regid))
+                    f.write("        tcg_gen_gvec_mov(MO_64, %s%sV_off,\n" % \
+                                         (regtype, regid))
+                    f.write("                         src_off,\n")
+                    f.write("                         sizeof(MMVector),\n")
+                    f.write("                         sizeof(MMVector));\n")
+                    f.write("    }\n")
             else:
                 f.write("        ctx_future_vreg_off(ctx, %s%sN," % \
                     (regtype, regid))

@@ -541,6 +541,43 @@ static void test_vshuff(void)
     check_output_b(__LINE__, 1);
 }
 
+static void test_load_tmp_predicated(void)
+{
+    void *p0 = buffer0;
+    void *p1 = buffer1;
+    void *pout = output;
+
+    for (int i = 0; i < BUFSIZE; i++) {
+        /*
+         * Load into v12 as .tmp with a false predicate, then
+         * use it in the next packet
+         * Should get old new value within the same packet and
+         * the old value in the next packet
+         */
+        asm("v3 = vmem(%0 + #0)\n\t"
+            "r1 = #1\n\t"
+            "v12 = vsplat(r1)\n\t"
+            "p1 = cmp.gt(r0, r0)\n\t"
+            "{\n\t"
+            "    if (p1) v12.tmp = vmem(%1 + #0)\n\t"
+            "    v4.w = vadd(v12.w, v3.w)\n\t"
+            "}\n\t"
+            "v4.w = vadd(v4.w, v12.w)\n\t"
+            "vmem(%2 + #0) = v4\n\t"
+            : : "r"(p0), "r"(p1), "r"(pout)
+            : "r1", "p1", "v12", "v3", "v4", "v6", "memory");
+        p0 += sizeof(MMVector);
+        p1 += sizeof(MMVector);
+        pout += sizeof(MMVector);
+
+        for (int j = 0; j < MAX_VEC_SIZE_BYTES / 4; j++) {
+            expect[i].w[j] = buffer0[i].w[j] + 2;
+        }
+    }
+
+    check_output_w(__LINE__, BUFSIZE);
+}
+
 int main()
 {
     init_buffers();
@@ -577,6 +614,8 @@ int main()
     test_vsubuwsat_dv();
 
     test_vshuff();
+
+    test_load_tmp_predicated();
 
     puts(err ? "FAIL" : "PASS");
     return err ? 1 : 0;
