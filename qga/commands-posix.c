@@ -2123,111 +2123,6 @@ int64_t qmp_guest_set_vcpus(GuestLogicalProcessorList *vcpus, Error **errp)
     return processed;
 }
 
-void qmp_guest_set_user_password(const char *username,
-                                 const char *password,
-                                 bool crypted,
-                                 Error **errp)
-{
-    Error *local_err = NULL;
-    char *passwd_path = NULL;
-    pid_t pid;
-    int status;
-    int datafd[2] = { -1, -1 };
-    char *rawpasswddata = NULL;
-    size_t rawpasswdlen;
-    char *chpasswddata = NULL;
-    size_t chpasswdlen;
-
-    rawpasswddata = (char *)qbase64_decode(password, -1, &rawpasswdlen, errp);
-    if (!rawpasswddata) {
-        return;
-    }
-    rawpasswddata = g_renew(char, rawpasswddata, rawpasswdlen + 1);
-    rawpasswddata[rawpasswdlen] = '\0';
-
-    if (strchr(rawpasswddata, '\n')) {
-        error_setg(errp, "forbidden characters in raw password");
-        goto out;
-    }
-
-    if (strchr(username, '\n') ||
-        strchr(username, ':')) {
-        error_setg(errp, "forbidden characters in username");
-        goto out;
-    }
-
-    chpasswddata = g_strdup_printf("%s:%s\n", username, rawpasswddata);
-    chpasswdlen = strlen(chpasswddata);
-
-    passwd_path = g_find_program_in_path("chpasswd");
-
-    if (!passwd_path) {
-        error_setg(errp, "cannot find 'passwd' program in PATH");
-        goto out;
-    }
-
-    if (!g_unix_open_pipe(datafd, FD_CLOEXEC, NULL)) {
-        error_setg(errp, "cannot create pipe FDs");
-        goto out;
-    }
-
-    pid = fork();
-    if (pid == 0) {
-        close(datafd[1]);
-        /* child */
-        setsid();
-        dup2(datafd[0], 0);
-        reopen_fd_to_null(1);
-        reopen_fd_to_null(2);
-
-        if (crypted) {
-            execl(passwd_path, "chpasswd", "-e", NULL);
-        } else {
-            execl(passwd_path, "chpasswd", NULL);
-        }
-        _exit(EXIT_FAILURE);
-    } else if (pid < 0) {
-        error_setg_errno(errp, errno, "failed to create child process");
-        goto out;
-    }
-    close(datafd[0]);
-    datafd[0] = -1;
-
-    if (qemu_write_full(datafd[1], chpasswddata, chpasswdlen) != chpasswdlen) {
-        error_setg_errno(errp, errno, "cannot write new account password");
-        goto out;
-    }
-    close(datafd[1]);
-    datafd[1] = -1;
-
-    ga_wait_child(pid, &status, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        goto out;
-    }
-
-    if (!WIFEXITED(status)) {
-        error_setg(errp, "child process has terminated abnormally");
-        goto out;
-    }
-
-    if (WEXITSTATUS(status)) {
-        error_setg(errp, "child process has failed to set user password");
-        goto out;
-    }
-
-out:
-    g_free(chpasswddata);
-    g_free(rawpasswddata);
-    g_free(passwd_path);
-    if (datafd[0] != -1) {
-        close(datafd[0]);
-    }
-    if (datafd[1] != -1) {
-        close(datafd[1]);
-    }
-}
-
 static void ga_read_sysfs_file(int dirfd, const char *pathname, char *buf,
                                int size, Error **errp)
 {
@@ -2791,6 +2686,124 @@ GuestMemoryBlockInfo *qmp_guest_get_memory_block_info(Error **errp)
     return NULL;
 }
 
+#endif
+
+#if defined(__linux__) || defined(__FreeBSD__)
+void qmp_guest_set_user_password(const char *username,
+                                 const char *password,
+                                 bool crypted,
+                                 Error **errp)
+{
+    Error *local_err = NULL;
+    char *passwd_path = NULL;
+    pid_t pid;
+    int status;
+    int datafd[2] = { -1, -1 };
+    char *rawpasswddata = NULL;
+    size_t rawpasswdlen;
+    char *chpasswddata = NULL;
+    size_t chpasswdlen;
+
+    rawpasswddata = (char *)qbase64_decode(password, -1, &rawpasswdlen, errp);
+    if (!rawpasswddata) {
+        return;
+    }
+    rawpasswddata = g_renew(char, rawpasswddata, rawpasswdlen + 1);
+    rawpasswddata[rawpasswdlen] = '\0';
+
+    if (strchr(rawpasswddata, '\n')) {
+        error_setg(errp, "forbidden characters in raw password");
+        goto out;
+    }
+
+    if (strchr(username, '\n') ||
+        strchr(username, ':')) {
+        error_setg(errp, "forbidden characters in username");
+        goto out;
+    }
+
+#ifdef __FreeBSD__
+    chpasswddata = g_strdup(rawpasswddata);
+    passwd_path = g_find_program_in_path("pw");
+#else
+    chpasswddata = g_strdup_printf("%s:%s\n", username, rawpasswddata);
+    passwd_path = g_find_program_in_path("chpasswd");
+#endif
+
+    chpasswdlen = strlen(chpasswddata);
+
+    if (!passwd_path) {
+        error_setg(errp, "cannot find 'passwd' program in PATH");
+        goto out;
+    }
+
+    if (!g_unix_open_pipe(datafd, FD_CLOEXEC, NULL)) {
+        error_setg(errp, "cannot create pipe FDs");
+        goto out;
+    }
+
+    pid = fork();
+    if (pid == 0) {
+        close(datafd[1]);
+        /* child */
+        setsid();
+        dup2(datafd[0], 0);
+        reopen_fd_to_null(1);
+        reopen_fd_to_null(2);
+
+#ifdef __FreeBSD__
+        const char *h_arg;
+        h_arg = (crypted) ? "-H" : "-h";
+        execl(passwd_path, "pw", "usermod", "-n", username, h_arg, "0", NULL);
+#else
+        if (crypted) {
+            execl(passwd_path, "chpasswd", "-e", NULL);
+        } else {
+            execl(passwd_path, "chpasswd", NULL);
+        }
+#endif
+        _exit(EXIT_FAILURE);
+    } else if (pid < 0) {
+        error_setg_errno(errp, errno, "failed to create child process");
+        goto out;
+    }
+    close(datafd[0]);
+    datafd[0] = -1;
+
+    if (qemu_write_full(datafd[1], chpasswddata, chpasswdlen) != chpasswdlen) {
+        error_setg_errno(errp, errno, "cannot write new account password");
+        goto out;
+    }
+    close(datafd[1]);
+    datafd[1] = -1;
+
+    ga_wait_child(pid, &status, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        goto out;
+    }
+
+    if (!WIFEXITED(status)) {
+        error_setg(errp, "child process has terminated abnormally");
+        goto out;
+    }
+
+    if (WEXITSTATUS(status)) {
+        error_setg(errp, "child process has failed to set user password");
+        goto out;
+    }
+
+out:
+    g_free(chpasswddata);
+    g_free(rawpasswddata);
+    g_free(passwd_path);
+    if (datafd[0] != -1) {
+        close(datafd[0]);
+    }
+    if (datafd[1] != -1) {
+        close(datafd[1]);
+    }
+}
 #endif
 
 #ifdef HAVE_GETIFADDRS
