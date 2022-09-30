@@ -14,10 +14,15 @@
 
 /*
  * Accessed in parallel; all accesses to 'tb' must be atomic.
+ * For TARGET_TB_PCREL, accesses to 'pc' must be protected by
+ * a load_acquire/store_release to 'tb'.
  */
 struct CPUJumpCache {
     struct {
         TranslationBlock *tb;
+#if TARGET_TB_PCREL
+        target_ulong pc;
+#endif
     } array[TB_JMP_CACHE_SIZE];
 };
 
