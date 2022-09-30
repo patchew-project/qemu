@@ -1088,7 +1088,7 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
              ((opcode & 0xe003) == 0xe002))) {
             gen_exception_illegal(ctx);
         } else if (!(has_ext(ctx, RVC) || ctx->cfg_ptr->ext_zcd ||
-                     ctx->cfg_ptr->ext_zcmp) &&
+                     ctx->cfg_ptr->ext_zcmp || ctx->cfg_ptr->ext_zcmt) &&
                    (((opcode & 0xe003) == 0x2000) ||
                     ((opcode & 0xe003) == 0x2002) ||
                     ((opcode & 0xe003) == 0xa000) ||

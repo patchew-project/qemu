@@ -208,3 +208,37 @@ target_ulong HELPER(cm_popretz)(CPURISCVState *env, target_ulong sp,
 #undef X_Sn
 #undef ZCMP_POP
 #undef ZCMP_PUSH
+
+target_ulong HELPER(cm_jalt)(CPURISCVState *env, target_ulong index,
+                             target_ulong next_pc)
+{
+    target_ulong target = next_pc;
+    target_ulong val = 0;
+    int xlen = riscv_cpu_xlen(env);
+
+    val = env->jvt;
+
+    uint8_t mode = get_field(val, JVT_MODE);
+    target_ulong base = get_field(val, JVT_BASE);
+
+    target_ulong t0;
+
+    if (mode != 0) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+    }
+
+    if (xlen == 32) {
+        t0 = base + (index << 2);
+        target = cpu_ldl_code(env, t0);
+    } else {
+        t0 = base + (index << 3);
+        target = cpu_ldq_code(env, t0);
+    }
+
+    /* index >= 32 for cm.jalt, otherwise for cm.jt */
+    if (index >= 32) {
+        env->gpr[1] = next_pc;
+    }
+
+    return target & ~0x1;
+}

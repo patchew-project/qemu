@@ -1,5 +1,5 @@
 /*
- * RISC-V translation routines for the Zcb Standard Extension.
+ * RISC-V translation routines for the Zc[b,d,mp,mt] Standard Extension.
  *
  * Copyright (c) 2021-2022 PLCT Lab
  *
@@ -29,6 +29,11 @@
 
 #define REQUIRE_ZCMP(ctx) do {   \
     if (!ctx->cfg_ptr->ext_zcmp) \
+        return false;            \
+} while (0)
+
+#define REQUIRE_ZCMT(ctx) do {   \
+    if (!ctx->cfg_ptr->ext_zcmt) \
         return false;            \
 } while (0)
 
@@ -252,5 +257,23 @@ static bool trans_cm_mvsa01(DisasContext *ctx, arg_cm_mvsa01 *a)
     gen_set_gpr(ctx, a->rs1, a0);
     gen_set_gpr(ctx, a->rs2, a1);
 
+    return true;
+}
+
+static bool trans_cm_jalt(DisasContext *ctx, arg_cm_jalt *a)
+{
+    REQUIRE_ZCMT(ctx);
+
+    TCGv index = tcg_const_tl(a->zcmt_index);
+    TCGv next_pc = tcg_const_tl(ctx->pc_succ_insn);
+
+    gen_helper_cm_jalt(cpu_pc, cpu_env, index, next_pc);
+
+    tcg_gen_lookup_and_goto_ptr();
+
+    ctx->base.is_jmp = DISAS_NORETURN;
+
+    tcg_temp_free(index);
+    tcg_temp_free(next_pc);
     return true;
 }
