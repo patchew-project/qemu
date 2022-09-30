@@ -21,6 +21,17 @@
         return false;           \
 } while (0)
 
+#define REQUIRE_C_OR_ZCD(ctx) do { \
+    if (!ctx->cfg_ptr->ext_zcd) {  \
+        REQUIRE_EXT(ctx, RVC);     \
+    } \
+} while (0)
+
+#define REQUIRE_ZCMP(ctx) do {   \
+    if (!ctx->cfg_ptr->ext_zcmp) \
+        return false;            \
+} while (0)
+
 static bool trans_c_zext_b(DisasContext *ctx, arg_c_zext_b *a)
 {
     REQUIRE_ZCB(ctx);
@@ -130,4 +141,116 @@ static bool trans_c_sh(DisasContext *ctx, arg_c_sh *a)
     REQUIRE_ZCB(ctx);
     MemOp memop = MO_UW;
     return gen_zce_store(ctx, a, memop);
+}
+
+static bool trans_c_fld(DisasContext *ctx, arg_c_fld *a)
+{
+    REQUIRE_C_OR_ZCD(ctx);
+    return trans_fld(ctx, a);
+}
+
+static bool trans_c_fsd(DisasContext *ctx, arg_c_fsd *a)
+{
+    REQUIRE_C_OR_ZCD(ctx);
+    return trans_fsd(ctx, a);
+}
+
+static bool gen_zcmp_check(DisasContext *ctx, arg_zcmp *a)
+{
+    /* rlist 0 to 3 are reserved for a future EABI variant called cm.popret.e */
+    if (a->zcmp_rlist < 4) {
+        return false;
+    }
+
+    /* rlist <= 6 when RV32E/RV64E */
+    if (ctx->cfg_ptr->ext_e && a->zcmp_rlist > 6) {
+        return false;
+    }
+
+    return true;
+}
+
+static bool gen_pop(DisasContext *ctx, arg_zcmp *a, bool ret,
+                    void (*func)(TCGv, TCGv_env, TCGv, TCGv, TCGv))
+{
+    if (!gen_zcmp_check(ctx, a)) {
+        return false;
+    }
+
+    TCGv sp = get_gpr(ctx, xSP, EXT_NONE);
+    TCGv rlist = tcg_const_tl(a->zcmp_rlist);
+    TCGv spimm = tcg_const_tl(a->zcmp_spimm);
+
+    func(cpu_pc, cpu_env, sp, spimm, rlist);
+
+    if (ret) {
+        gen_set_pc(ctx, cpu_pc);
+        tcg_gen_lookup_and_goto_ptr();
+        ctx->base.is_jmp = DISAS_NORETURN;
+    }
+    tcg_temp_free(spimm);
+    tcg_temp_free(rlist);
+    return true;
+}
+
+static bool trans_cm_push(DisasContext *ctx, arg_cm_push *a)
+{
+    REQUIRE_ZCMP(ctx);
+
+    if (!gen_zcmp_check(ctx, a)) {
+        return false;
+    }
+
+    TCGv sp = get_gpr(ctx, xSP, EXT_NONE);
+    TCGv rlist = tcg_const_tl(a->zcmp_rlist);
+    TCGv spimm = tcg_const_tl(a->zcmp_spimm);
+    gen_helper_cm_push(cpu_env, sp, spimm, rlist);
+
+    tcg_temp_free(spimm);
+    tcg_temp_free(rlist);
+    return true;
+}
+
+static bool trans_cm_pop(DisasContext *ctx, arg_cm_pop *a)
+{
+    REQUIRE_ZCMP(ctx);
+    return gen_pop(ctx, a, false, gen_helper_cm_pop);
+}
+
+static bool trans_cm_popret(DisasContext *ctx, arg_cm_popret *a)
+{
+    REQUIRE_ZCMP(ctx);
+    return gen_pop(ctx, a, true, gen_helper_cm_popret);
+}
+
+static bool trans_cm_popretz(DisasContext *ctx, arg_cm_popret *a)
+{
+    REQUIRE_ZCMP(ctx);
+    return gen_pop(ctx, a, true, gen_helper_cm_popretz);
+}
+
+static bool trans_cm_mva01s(DisasContext *ctx, arg_cm_mva01s *a)
+{
+    REQUIRE_ZCMP(ctx);
+
+    TCGv src1 = get_gpr(ctx, a->rs1, EXT_NONE);
+    TCGv src2 = get_gpr(ctx, a->rs2, EXT_NONE);
+
+    gen_set_gpr(ctx, xA0, src1);
+    gen_set_gpr(ctx, xA1, src2);
+
+    return true;
+}
+
+static bool trans_cm_mvsa01(DisasContext *ctx, arg_cm_mvsa01 *a)
+{
+    REQUIRE_ZCMP(ctx);
+
+    TCGv a0 = get_gpr(ctx, xA0, EXT_NONE);
+    TCGv a1 = get_gpr(ctx, xA1, EXT_NONE);
+
+    gen_set_gpr(ctx, a->rs1, a0);
+    gen_set_gpr(ctx, a->rs2, a1);
+
+    return true;
 }

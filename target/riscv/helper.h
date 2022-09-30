@@ -1134,3 +1134,9 @@ DEF_HELPER_FLAGS_1(aes64im, TCG_CALL_NO_RWG_SE, tl, tl)
 
 DEF_HELPER_FLAGS_3(sm4ed, TCG_CALL_NO_RWG_SE, tl, tl, tl, tl)
 DEF_HELPER_FLAGS_3(sm4ks, TCG_CALL_NO_RWG_SE, tl, tl, tl, tl)
+
+/* Zce helper */
+DEF_HELPER_4(cm_pop, tl, env, tl, tl, tl)
+DEF_HELPER_4(cm_push, void, env, tl, tl, tl)
+DEF_HELPER_4(cm_popret, tl, env, tl, tl, tl)
+DEF_HELPER_4(cm_popretz, tl, env, tl, tl, tl)

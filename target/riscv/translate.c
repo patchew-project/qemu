@@ -707,6 +707,11 @@ static int ex_rvc_register(DisasContext *ctx, int reg)
     return 8 + reg;
 }
 
+static int ex_sreg_register(DisasContext *ctx, int reg)
+{
+    return reg < 2 ? reg + 8 : reg + 16;
+}
+
 static int ex_rvc_shiftli(DisasContext *ctx, int imm)
 {
     /* For RV128 a shamt of 0 means a shift by 64. */
@@ -1071,6 +1076,7 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
          * compressed floating point loads and stores
          * Zcf(RV32 only) support c.flw, c.flwsp, c.fsw, c.fswsp
          * Zcd support c.fld, c.fldsp, c.fsd, c.fsdsp
+         * Zcm* reuse the encode of Zcd
          */
         if (!(has_ext(ctx, RVC) || ctx->cfg_ptr->ext_zca)) {
             gen_exception_illegal(ctx);
@@ -1081,7 +1087,8 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
              ((opcode & 0xe003) == 0xe000) ||
              ((opcode & 0xe003) == 0xe002))) {
             gen_exception_illegal(ctx);
-        } else if (!(has_ext(ctx, RVC) || ctx->cfg_ptr->ext_zcd) &&
+        } else if (!(has_ext(ctx, RVC) || ctx->cfg_ptr->ext_zcd ||
+                     ctx->cfg_ptr->ext_zcmp) &&
                    (((opcode & 0xe003) == 0x2000) ||
                     ((opcode & 0xe003) == 0x2002) ||
                     ((opcode & 0xe003) == 0xa000) ||
