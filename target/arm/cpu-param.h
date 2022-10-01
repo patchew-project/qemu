@@ -32,12 +32,12 @@
 # define TARGET_PAGE_BITS_MIN  10
 
 /*
- * Cache the attrs and sharability fields from the page table entry.
+ * Cache the attrs, sharability, and gp fields from the page table entry.
  */
 # define TARGET_PAGE_ENTRY_EXTRA  \
-     uint8_t pte_attrs;           \
-     uint8_t shareability;
-
+    uint8_t pte_attrs;            \
+    uint8_t shareability;         \
+    bool guarded;
 #endif
 
 #define NB_MMU_MODES 8
