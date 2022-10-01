@@ -17,7 +17,8 @@
 
 static bool get_phys_addr_lpae(CPUARMState *env, uint64_t address,
                                MMUAccessType access_type, ARMMMUIdx mmu_idx,
-                               bool is_secure, bool s1_is_el0, bool debug,
+                               ARMMMUIdx ptw_idx, bool is_secure,
+                               bool s1_is_el0, bool debug,
                                GetPhysAddrResult *result, ARMMMUFaultInfo *fi)
     __attribute__((nonnull));
 
@@ -220,21 +221,16 @@ static bool S2_attrs_are_device(uint64_t hcr, uint8_t attrs)
 }
 
 /* Translate a S1 pagetable walk through S2 if needed.  */
-static bool S1_ptw_translate(CPUARMState *env, ARMMMUIdx mmu_idx, hwaddr addr,
+static bool S1_ptw_translate(CPUARMState *env, ARMMMUIdx mmu_idx,
+                             ARMMMUIdx s2_mmu_idx, hwaddr addr,
                              bool *is_secure_ptr, void **hphys, hwaddr *gphys,
                              bool debug, ARMMMUFaultInfo *fi)
 {
     bool is_secure = *is_secure_ptr;
-    ARMMMUIdx s2_mmu_idx = is_secure ? ARMMMUIdx_Stage2_S : ARMMMUIdx_Stage2;
-    bool s2_phys = false;
     uint8_t pte_attrs;
-    bool pte_secure;
+    bool s2_phys, pte_secure;
 
-    if (!arm_mmu_idx_is_stage1_of_2(mmu_idx)
-        || regime_translation_disabled(env, s2_mmu_idx, is_secure)) {
-        s2_mmu_idx = is_secure ? ARMMMUIdx_Phys_S : ARMMMUIdx_Phys_NS;
-        s2_phys = true;
-    }
+    s2_phys = s2_mmu_idx == ARMMMUIdx_Phys_S || s2_mmu_idx == ARMMMUIdx_Phys_NS;
 
     if (unlikely(debug)) {
         /*
@@ -247,8 +243,12 @@ static bool S1_ptw_translate(CPUARMState *env, ARMMMUIdx mmu_idx, hwaddr addr,
             pte_secure = is_secure;
         } else {
             GetPhysAddrResult s2 = { };
+            ARMMMUIdx phys_idx = (is_secure ? ARMMMUIdx_Phys_S
+                                  : ARMMMUIdx_Phys_NS);
+
             if (!get_phys_addr_lpae(env, addr, MMU_DATA_LOAD, s2_mmu_idx,
-                                    is_secure, false, debug, &s2, fi)) {
+                                    phys_idx, is_secure, false, debug,
+                                    &s2, fi)) {
                 goto fail;
             }
             *gphys = s2.f.phys_addr;
@@ -310,7 +310,8 @@ static bool S1_ptw_translate(CPUARMState *env, ARMMMUIdx mmu_idx, hwaddr addr,
 
 /* All loads done in the course of a page table walk go through here. */
 static uint32_t arm_ldl_ptw(CPUARMState *env, hwaddr addr, bool is_secure,
-                            ARMMMUIdx mmu_idx, bool debug, ARMMMUFaultInfo *fi)
+                            ARMMMUIdx mmu_idx, ARMMMUIdx ptw_idx,
+                            bool debug, ARMMMUFaultInfo *fi)
 {
     CPUState *cs = env_cpu(env);
     void *hphys;
@@ -318,7 +319,7 @@ static uint32_t arm_ldl_ptw(CPUARMState *env, hwaddr addr, bool is_secure,
     uint32_t data;
     bool be;
 
-    if (!S1_ptw_translate(env, mmu_idx, addr, &is_secure,
+    if (!S1_ptw_translate(env, mmu_idx, ptw_idx, addr, &is_secure,
                           &hphys, &gphys, debug, fi)) {
         /* Failure. */
         assert(fi->s1ptw);
@@ -354,7 +355,8 @@ static uint32_t arm_ldl_ptw(CPUARMState *env, hwaddr addr, bool is_secure,
 }
 
 static uint64_t arm_ldq_ptw(CPUARMState *env, hwaddr addr, bool is_secure,
-                            ARMMMUIdx mmu_idx, bool debug, ARMMMUFaultInfo *fi)
+                            ARMMMUIdx mmu_idx, ARMMMUIdx ptw_idx,
+                            bool debug, ARMMMUFaultInfo *fi)
 {
     CPUState *cs = env_cpu(env);
     void *hphys;
@@ -362,7 +364,7 @@ static uint64_t arm_ldq_ptw(CPUARMState *env, hwaddr addr, bool is_secure,
     uint64_t data;
     bool be;
 
-    if (!S1_ptw_translate(env, mmu_idx, addr, &is_secure,
+    if (!S1_ptw_translate(env, mmu_idx, ptw_idx, addr, &is_secure,
                           &hphys, &gphys, debug, fi)) {
         /* Failure. */
         assert(fi->s1ptw);
@@ -507,7 +509,7 @@ static int simple_ap_to_rw_prot(CPUARMState *env, ARMMMUIdx mmu_idx, int ap)
 
 static bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
                              MMUAccessType access_type, ARMMMUIdx mmu_idx,
-                             bool is_secure, bool debug,
+                             ARMMMUIdx ptw_idx, bool is_secure, bool debug,
                              GetPhysAddrResult *result, ARMMMUFaultInfo *fi)
 {
     int level = 1;
@@ -527,7 +529,7 @@ static bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
         fi->type = ARMFault_Translation;
         goto do_fault;
     }
-    desc = arm_ldl_ptw(env, table, is_secure, mmu_idx, debug, fi);
+    desc = arm_ldl_ptw(env, table, is_secure, mmu_idx, ptw_idx, debug, fi);
     if (fi->type != ARMFault_None) {
         goto do_fault;
     }
@@ -565,7 +567,7 @@ static bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
             /* Fine pagetable.  */
             table = (desc & 0xfffff000) | ((address >> 8) & 0xffc);
         }
-        desc = arm_ldl_ptw(env, table, is_secure, mmu_idx, debug, fi);
+        desc = arm_ldl_ptw(env, table, is_secure, mmu_idx, ptw_idx, debug, fi);
         if (fi->type != ARMFault_None) {
             goto do_fault;
         }
@@ -626,7 +628,7 @@ do_fault:
 
 static bool get_phys_addr_v6(CPUARMState *env, uint32_t address,
                              MMUAccessType access_type, ARMMMUIdx mmu_idx,
-                             bool is_secure, bool debug,
+                             ARMMMUIdx ptw_idx, bool is_secure, bool debug,
                              GetPhysAddrResult *result, ARMMMUFaultInfo *fi)
 {
     ARMCPU *cpu = env_archcpu(env);
@@ -650,7 +652,7 @@ static bool get_phys_addr_v6(CPUARMState *env, uint32_t address,
         fi->type = ARMFault_Translation;
         goto do_fault;
     }
-    desc = arm_ldl_ptw(env, table, is_secure, mmu_idx, debug, fi);
+    desc = arm_ldl_ptw(env, table, is_secure, mmu_idx, ptw_idx, debug, fi);
     if (fi->type != ARMFault_None) {
         goto do_fault;
     }
@@ -703,7 +705,7 @@ static bool get_phys_addr_v6(CPUARMState *env, uint32_t address,
         ns = extract32(desc, 3, 1);
         /* Lookup l2 entry.  */
         table = (desc & 0xfffffc00) | ((address >> 10) & 0x3fc);
-        desc = arm_ldl_ptw(env, table, is_secure, mmu_idx, debug, fi);
+        desc = arm_ldl_ptw(env, table, is_secure, mmu_idx, ptw_idx, debug, fi);
         if (fi->type != ARMFault_None) {
             goto do_fault;
         }
@@ -1058,7 +1060,8 @@ static bool check_s2_mmu_setup(ARMCPU *cpu, bool is_aa64, int level,
  */
 static bool get_phys_addr_lpae(CPUARMState *env, uint64_t address,
                                MMUAccessType access_type, ARMMMUIdx mmu_idx,
-                               bool is_secure, bool s1_is_el0, bool debug,
+                               ARMMMUIdx ptw_idx, bool is_secure,
+                               bool s1_is_el0, bool debug,
                                GetPhysAddrResult *result, ARMMMUFaultInfo *fi)
 {
     ARMCPU *cpu = env_archcpu(env);
@@ -1284,7 +1287,8 @@ static bool get_phys_addr_lpae(CPUARMState *env, uint64_t address,
         descaddr |= (address >> (stride * (4 - level))) & indexmask;
         descaddr &= ~7ULL;
         nstable = extract32(tableattrs, 4, 1);
-        descriptor = arm_ldq_ptw(env, descaddr, !nstable, mmu_idx, debug, fi);
+        descriptor = arm_ldq_ptw(env, descaddr, !nstable, mmu_idx,
+                                 ptw_idx, debug, fi);
         if (fi->type != ARMFault_None) {
             goto do_fault;
         }
@@ -2446,7 +2450,7 @@ static bool get_phys_addr_twostage(CPUARMState *env, target_ulong address,
     int s1_prot;
     bool ret, ipa_secure, s2walk_secure;
     ARMCacheAttrs cacheattrs1;
-    ARMMMUIdx s2_mmu_idx;
+    ARMMMUIdx s2_mmu_idx, s2_ptw_idx;
     bool is_el0;
     uint64_t hcr;
 
@@ -2471,7 +2475,13 @@ static bool get_phys_addr_twostage(CPUARMState *env, target_ulong address,
         s2walk_secure = false;
     }
 
-    s2_mmu_idx = (s2walk_secure ? ARMMMUIdx_Stage2_S : ARMMMUIdx_Stage2);
+    if (s2walk_secure) {
+        s2_mmu_idx = ARMMMUIdx_Stage2_S;
+        s2_ptw_idx = ARMMMUIdx_Phys_S;
+    } else {
+        s2_mmu_idx = ARMMMUIdx_Stage2;
+        s2_ptw_idx = ARMMMUIdx_Phys_NS;
+    }
     is_el0 = s1_mmu_idx == ARMMMUIdx_Stage1_E0;
 
     /*
@@ -2482,7 +2492,7 @@ static bool get_phys_addr_twostage(CPUARMState *env, target_ulong address,
     cacheattrs1 = result->cacheattrs;
     memset(result, 0, sizeof(*result));
 
-    ret = get_phys_addr_lpae(env, ipa, access_type, s2_mmu_idx,
+    ret = get_phys_addr_lpae(env, ipa, access_type, s2_mmu_idx, s2_ptw_idx,
                              s2walk_secure, is_el0, debug, result, fi);
     fi->s2addr = ipa;
 
@@ -2534,9 +2544,32 @@ static bool get_phys_addr_with_secure_debug(CPUARMState *env,
                                             GetPhysAddrResult *result,
                                             ARMMMUFaultInfo *fi)
 {
-    ARMMMUIdx s1_mmu_idx = stage_1_mmu_idx(mmu_idx);
+    ARMMMUIdx s1_mmu_idx, ptw_idx;
 
-    if (mmu_idx != s1_mmu_idx) {
+    switch (mmu_idx) {
+    case ARMMMUIdx_Phys_S:
+    case ARMMMUIdx_Phys_NS:
+    do_disabled:
+        /* Checking Phys early avoids special casing later vs regime_el. */
+        return get_phys_addr_disabled(env, address, access_type, mmu_idx,
+                                      is_secure, result, fi);
+
+    case ARMMMUIdx_Stage1_E0:
+    case ARMMMUIdx_Stage1_E1:
+    case ARMMMUIdx_Stage1_E1_PAN:
+        /* First stage lookup uses second stage for ptw. */
+        ptw_idx = is_secure ? ARMMMUIdx_Stage2_S : ARMMMUIdx_Stage2;
+        break;
+
+    case ARMMMUIdx_E10_0:
+        s1_mmu_idx = ARMMMUIdx_Stage1_E0;
+        goto do_twostage;
+    case ARMMMUIdx_E10_1:
+        s1_mmu_idx = ARMMMUIdx_Stage1_E1;
+        goto do_twostage;
+    case ARMMMUIdx_E10_1_PAN:
+        s1_mmu_idx = ARMMMUIdx_Stage1_E1_PAN;
+    do_twostage:
         /*
          * Call ourselves recursively to do the stage 1 and then stage 2
          * translations if mmu_idx is a two-stage regime.
@@ -2548,6 +2581,12 @@ static bool get_phys_addr_with_secure_debug(CPUARMState *env,
         }
         /* For non-EL2 CPUs a stage1+stage2 translation is just stage 1. */
         mmu_idx = s1_mmu_idx;
+        /* fall through */
+
+    default:
+        /* Single stage and second stage uses physical for ptw. */
+        ptw_idx = is_secure ? ARMMMUIdx_Phys_S : ARMMMUIdx_Phys_NS;
+        break;
     }
 
     /*
@@ -2604,18 +2643,17 @@ static bool get_phys_addr_with_secure_debug(CPUARMState *env,
     /* Definitely a real MMU, not an MPU */
 
     if (regime_translation_disabled(env, mmu_idx, is_secure)) {
-        return get_phys_addr_disabled(env, address, access_type, mmu_idx,
-                                      is_secure, result, fi);
+        goto do_disabled;
     }
     if (regime_using_lpae_format(env, mmu_idx)) {
         return get_phys_addr_lpae(env, address, access_type, mmu_idx,
-                                  is_secure, false, debug, result, fi);
+                                  ptw_idx, is_secure, false, debug, result, fi);
     } else if (regime_sctlr(env, mmu_idx) & SCTLR_XP) {
         return get_phys_addr_v6(env, address, access_type, mmu_idx,
-                                is_secure, debug, result, fi);
+                                ptw_idx, is_secure, debug, result, fi);
     } else {
         return get_phys_addr_v5(env, address, access_type, mmu_idx,
-                                is_secure, debug, result, fi);
+                                ptw_idx, is_secure, debug, result, fi);
     }
 }
 
