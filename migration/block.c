@@ -862,8 +862,7 @@ static int block_save_complete(QEMUFile *f, void *opaque)
     return 0;
 }
 
-static void block_state_pending(void *opaque, uint64_t max_size,
-                                uint64_t *res_precopy,
+static void block_state_pending(void *opaque, uint64_t *res_precopy,
                                 uint64_t *res_postcopy)
 {
     /* Estimate pending number of bytes to send */

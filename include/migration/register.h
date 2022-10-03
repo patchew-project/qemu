@@ -58,11 +58,10 @@ typedef struct SaveVMHandlers {
      * pending data.
      */
     /* This calculate the exact remaining data to transfer */
-    void (*state_pending_exact)(void *opaque,  uint64_t threshold_size,
-                                uint64_t *rest_precopy, uint64_t *rest_postcopy);
+    void (*state_pending_exact)(void *opaque, uint64_t *rest_precopy,
+                                uint64_t *rest_postcopy);
     /* This estimates the remaining data to transfer */
-    void (*state_pending_estimate)(void *opaque,  uint64_t threshold_size,
-                                   uint64_t *rest_precopy,
+    void (*state_pending_estimate)(void *opaque, uint64_t *rest_precopy,
                                    uint64_t *rest_postcopy);
 
     LoadStateHandler *load_state;

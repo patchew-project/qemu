@@ -456,8 +456,8 @@ static void vfio_save_cleanup(void *opaque)
     trace_vfio_save_cleanup(vbasedev->name);
 }
 
-static void vfio_state_pending(void *opaque,  uint64_t threshold_size,
-                               uint64_t *res_precopy, uint64_t *res_postcopy)
+static void vfio_state_pending(void *opaque, uint64_t *res_precopy,
+                               uint64_t *res_postcopy)
 {
     VFIODevice *vbasedev = opaque;
     VFIOMigration *migration = vbasedev->migration;
@@ -511,7 +511,7 @@ static int vfio_save_iterate(QEMUFile *f, void *opaque)
     }
 
     /*
-     * Reset pending_bytes as .save_live_pending is not called during savevm or
+     * Reset pending_bytes as .state_pending_* is not called during savevm or
      * snapshot case, in such case vfio_update_pending() at the start of this
      * function updates pending_bytes.
      */
