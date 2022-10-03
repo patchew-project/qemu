@@ -3734,13 +3734,18 @@ typedef enum {
  */
 static MigIterateState migration_iteration_run(MigrationState *s)
 {
-    uint64_t pending_size, pend_pre, pend_post;
+    uint64_t pend_pre, pend_post;
     bool in_postcopy = s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE;
 
-    qemu_savevm_state_pending(s->threshold_size, &pend_pre, &pend_post);
-    pending_size = pend_pre + pend_post;
+    qemu_savevm_state_pending_estimate(s->threshold_size, &pend_pre, &pend_post);
+    uint64_t pending_size = pend_pre + pend_post;
+    trace_migrate_pending_estimate(pending_size, s->threshold_size, pend_pre, pend_post);
 
-    trace_migrate_pending(pending_size, s->threshold_size, pend_pre, pend_post);
+    if (pend_pre <= s->threshold_size) {
+        qemu_savevm_state_pending_exact(s->threshold_size, &pend_pre, &pend_post);
+        pending_size = pend_pre + pend_post;
+        trace_migrate_pending_exact(pending_size, s->threshold_size, pend_pre, pend_post);
+    }
 
     if (pending_size && pending_size >= s->threshold_size) {
         /* Still a significant amount to transfer */

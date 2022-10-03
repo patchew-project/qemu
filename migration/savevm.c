@@ -1471,8 +1471,9 @@ flush:
  * the result is split into the amount for units that can and
  * for units that can't do postcopy.
  */
-void qemu_savevm_state_pending(uint64_t threshold_size, uint64_t *res_precopy,
-                               uint64_t *res_postcopy)
+void qemu_savevm_state_pending_exact(uint64_t threshold_size,
+                                     uint64_t *res_precopy,
+                                     uint64_t *res_postcopy)
 {
     SaveStateEntry *se;
 
@@ -1480,7 +1481,7 @@ void qemu_savevm_state_pending(uint64_t threshold_size, uint64_t *res_precopy,
     *res_postcopy = 0;
 
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
-        if (!se->ops || !se->ops->save_live_pending) {
+        if (!se->ops || !se->ops->state_pending_exact) {
             continue;
         }
         if (se->ops->is_active) {
@@ -1488,8 +1489,31 @@ void qemu_savevm_state_pending(uint64_t threshold_size, uint64_t *res_precopy,
                 continue;
             }
         }
-        se->ops->save_live_pending(se->opaque, threshold_size,
-                                   res_precopy, res_postcopy);
+        se->ops->state_pending_exact(se->opaque, threshold_size,
+                                     res_precopy, res_postcopy);
+    }
+}
+
+void qemu_savevm_state_pending_estimate(uint64_t threshold_size,
+                                        uint64_t *res_precopy,
+                                        uint64_t *res_postcopy)
+{
+    SaveStateEntry *se;
+
+    *res_precopy = 0;
+    *res_postcopy = 0;
+
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (!se->ops || !se->ops->state_pending_estimate) {
+            continue;
+        }
+        if (se->ops->is_active) {
+            if (!se->ops->is_active(se->opaque)) {
+                continue;
+            }
+        }
+        se->ops->state_pending_estimate(se->opaque, threshold_size,
+                                        res_precopy, res_postcopy);
     }
 }
 
