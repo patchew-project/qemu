@@ -2564,7 +2564,8 @@ int main(int argc, char **argv)
     qtest_add_func("/migration/validate_uuid_dst_not_set",
                    test_validate_uuid_dst_not_set);
 
-    qtest_add_func("/migration/auto_converge", test_migrate_auto_converge);
+    if (0)
+        qtest_add_func("/migration/auto_converge", test_migrate_auto_converge);
     qtest_add_func("/migration/multifd/tcp/plain/none",
                    test_multifd_tcp_none);
     qtest_add_func("/migration/multifd/tcp/plain/cancel",

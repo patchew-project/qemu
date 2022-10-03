@@ -3742,7 +3742,20 @@ static MigIterateState migration_iteration_run(MigrationState *s)
     trace_migrate_pending_estimate(pending_size, s->threshold_size, pend_pre, pend_post);
 
     if (pend_pre <= s->threshold_size) {
+        int old_state = s->state;
+        qemu_mutex_lock_iothread();
+        // is this really necessary?  it works for me both ways.
+        qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
+        s->vm_was_running = runstate_is_running();
+        vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
+        qemu_mutex_unlock_iothread();
         qemu_savevm_state_pending_exact(&pend_pre, &pend_post);
+        qemu_mutex_lock_iothread();
+        runstate_set(old_state);
+        if (s->vm_was_running) {
+            vm_start();
+        }
+        qemu_mutex_unlock_iothread();
         pending_size = pend_pre + pend_post;
         trace_migrate_pending_exact(pending_size, s->threshold_size, pend_pre, pend_post);
     }
