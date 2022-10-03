@@ -46,10 +46,8 @@ typedef struct SaveVMHandlers {
 
     /* This runs outside the iothread lock!  */
     int (*save_setup)(QEMUFile *f, void *opaque);
-    void (*save_live_pending)(QEMUFile *f, void *opaque,
-                              uint64_t threshold_size,
-                              uint64_t *rest_precopy,
-                              uint64_t *rest_postcopy);
+    void (*save_live_pending)(void *opaque,  uint64_t threshold_size,
+                              uint64_t *rest_precopy, uint64_t *rest_postcopy);
     /* Note for save_live_pending:
      * - res_precopy is for data which must be migrated in precopy
      *     phase or in stopped state, in other words - before target
