@@ -119,6 +119,18 @@ To boot the 32-bit Linux kernel:
       -initrd /path/to/rootfs.cpio \
       -append "root=/dev/ram"
 
+Rather than using a root file system on ram disk, it is possible to have it on
+emulated flash. Given an ext2 image whose size must be a power of two, it can
+be used as follows:
+
+.. code-block:: bash
+
+  $ qemu-system-ppc{64|32} -M ppce500 -cpu e500mc -smp 4 -m 2G \
+      -display none -serial stdio \
+      -kernel vmlinux \
+      -drive if=pflash,file=/path/to/rootfs.ext2,format=raw \
+      -append "rootwait root=/dev/mtdblock0"
+
 Running U-Boot
 --------------
 
