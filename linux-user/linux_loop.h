@@ -31,10 +31,6 @@ enum {
 #include <asm/posix_types.h>	/* for __kernel_old_dev_t */
 #include <asm/types.h>		/* for __u64 */
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0) /* This is a guess.  */
-#define __kernel_old_dev_t __kernel_dev_t
-#endif
-
 /* Backwards compatibility version */
 struct loop_info {
 	int		   lo_number;		/* ioctl r/o */
