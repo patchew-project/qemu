@@ -21,3 +21,18 @@ void file_start_outgoing_migration(MigrationState *s, const char *fname, Error *
 }
 
 
+void file_start_incoming_migration(const char *fname, Error **errp)
+{
+	QIOChannelFile *ioc;
+
+	ioc = qio_channel_file_new_path(fname, O_RDONLY, 0, errp);
+	if (!ioc) {
+		error_report("Error creating a channel");
+		return;
+	}
+
+	qio_channel_set_name(QIO_CHANNEL(ioc), "migration-file-incoming");
+	migration_channel_process_incoming(QIO_CHANNEL(ioc));
+	object_unref(OBJECT(ioc));
+}
+
