@@ -284,6 +284,18 @@ if targetos == 'linux'
   add_project_arguments('-isystem', meson.current_source_dir() / 'linux-headers',
                         '-isystem', 'linux-headers',
                         language: ['c', 'cpp'])
+
+  if not cc.compiles('''
+    #include <linux/version.h>
+    int main(void) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 18, 0)
+#error "QEMU requires Linux kernel headers version >= 4.18.0"
+#endif
+      return 0;
+    }''')
+  error('QEMU requires Linux kernel headers version >= 4.18.0')
+endif
+
 endif
 
 add_project_arguments('-iquote', '.',
