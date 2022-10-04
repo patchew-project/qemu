@@ -654,6 +654,26 @@ int main(int argc, char **argv, char **envp)
     unsigned long max_reserved_va;
     bool preserve_argv0;
 
+    /*
+     * Historically the g_slice custom allocator was not async
+     * signal safe with its mutexes, causing deadlocks when a
+     * threaded program forks. Setting G_SLICE=always-malloc
+     * forces use of system malloc which is generally safe.
+     *
+     * https://gitlab.com/qemu-project/qemu/-/issues/285
+     *
+     * Remove if we ever bump min GLib to a version that
+     * drops g_slice's custom allocator:
+     *
+     * https://gitlab.gnome.org/GNOME/glib/-/issues/1079
+     */
+    if (getenv("G_SLICE") == NULL) {
+        setenv("G_SLICE", "always-malloc", 1);
+        execvp(argv[0], argv);
+        perror("execvep");
+        abort();
+    }
+
     error_init(argv[0]);
     module_call_init(MODULE_INIT_TRACE);
     qemu_init_cpu_list();
