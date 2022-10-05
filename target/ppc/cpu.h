@@ -1080,6 +1080,10 @@ struct ppc_radix_page_info {
 #define PPC_CPU_OPCODES_LEN          0x40
 #define PPC_CPU_INDIRECT_OPCODES_LEN 0x20
 
+enum {
+    CACHED_FN_TYPE_NONE,
+};
+
 struct CPUArchState {
     /* Most commonly used resources during translated code execution first */
     target_ulong gpr[32];  /* general purpose registers */
@@ -1156,6 +1160,8 @@ struct CPUArchState {
     float_status vec_status;
     float_status fp_status; /* Floating point execution context */
     target_ulong fpscr;     /* Floating point status and control register */
+
+    int cached_fn_type;
 
     /* Internal devices resources */
     ppc_tb_t *tb_env;      /* Time base and decrementer */
