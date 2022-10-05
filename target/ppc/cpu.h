@@ -1082,6 +1082,14 @@ struct ppc_radix_page_info {
 
 enum {
     CACHED_FN_TYPE_NONE,
+    CACHED_FN_TYPE_F64_F64_FSTATUS,
+
+};
+
+struct cached_fn_f64_f64_fstatus {
+    float64 (*fn)(float64, float_status*);
+    float64 arg1;
+    float_status arg2;
 };
 
 struct CPUArchState {
@@ -1162,6 +1170,9 @@ struct CPUArchState {
     target_ulong fpscr;     /* Floating point status and control register */
 
     int cached_fn_type;
+    union {
+        struct cached_fn_f64_f64_fstatus f64_f64_fstatus;
+    } cached_fn;
 
     /* Internal devices resources */
     ppc_tb_t *tb_env;      /* Time base and decrementer */
