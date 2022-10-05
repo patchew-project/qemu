@@ -1083,6 +1083,7 @@ struct ppc_radix_page_info {
 enum {
     CACHED_FN_TYPE_NONE,
     CACHED_FN_TYPE_F64_F64_FSTATUS,
+    CACHED_FN_TYPE_F64_F64_F64_F64_I_FSTATUS,
 
 };
 
@@ -1090,6 +1091,15 @@ struct cached_fn_f64_f64_fstatus {
     float64 (*fn)(float64, float_status*);
     float64 arg1;
     float_status arg2;
+};
+
+struct cached_fn_f64_f64_f64_f64_i_fstatus {
+    float64 (*fn)(float64, float64, float64, int, float_status*);
+    float64 arg1;
+    float64 arg2;
+    float64 arg3;
+    int arg4;
+    float_status arg5;
 };
 
 struct CPUArchState {
@@ -1172,6 +1182,7 @@ struct CPUArchState {
     int cached_fn_type;
     union {
         struct cached_fn_f64_f64_fstatus f64_f64_fstatus;
+        struct cached_fn_f64_f64_f64_f64_i_fstatus f64_f64_f64_f64_i_fstatus;
     } cached_fn;
 
     /* Internal devices resources */
