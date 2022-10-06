@@ -948,17 +948,8 @@ TCGTemp *tcg_temp_new_internal(TCGType type, TCGTempKind kind)
     TCGTemp *ts;
     int idx, k;
 
-    switch (kind) {
-    case TEMP_NORMAL:
-        k = 0;
-        break;
-    case TEMP_LOCAL:
-        k = TCG_TYPE_COUNT;
-        break;
-    default:
-        g_assert_not_reached();
-    }
-    k += type;
+    assert(kind >= TEMP_NORMAL && kind <= TEMP_LOCAL);
+    k = TCG_TYPE_COUNT * kind + type;
 
     idx = find_first_bit(s->free_temps[k].l, TCG_MAX_TEMPS);
     if (idx < TCG_MAX_TEMPS) {
@@ -1046,6 +1037,7 @@ void tcg_temp_free_internal(TCGTemp *ts)
          */
         return;
     case TEMP_NORMAL:
+    case TEMP_EBB:
     case TEMP_LOCAL:
         break;
     default:
@@ -1063,7 +1055,7 @@ void tcg_temp_free_internal(TCGTemp *ts)
     ts->temp_allocated = 0;
 
     idx = temp_idx(ts);
-    k = ts->base_type + (ts->kind == TEMP_NORMAL ? 0 : TCG_TYPE_COUNT);
+    k = ts->base_type + ts->kind * TCG_TYPE_COUNT;
     set_bit(idx, s->free_temps[k].l);
 }
 
