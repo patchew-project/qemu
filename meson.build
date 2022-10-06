@@ -690,6 +690,13 @@ if not get_option('slirp').auto() or have_system
   endif
 endif
 
+# Remove this error after QEMU 8.1 has been released.
+if not get_option('slirp').disabled() and not slirp.found()
+  error('libslirp is not explicitely disabled and was not found. ' +
+        'Since qemu 7.2, libslirp is no longer included as a submodule ' +
+        'fallback, you must install it on your system or --disable-slirp.')
+endif
+
 vde = not_found
 if not get_option('vde').auto() or have_system or have_tools
   vde = cc.find_library('vdeplug', has_headers: ['libvdeplug.h'],
