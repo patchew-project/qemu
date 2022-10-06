@@ -130,11 +130,11 @@ int target_mprotect(abi_ulong start, abi_ulong len, int target_prot)
     }
     len = TARGET_PAGE_ALIGN(len);
     end = start + len;
-    if (!guest_range_valid_untagged(start, len)) {
-        return -TARGET_ENOMEM;
-    }
     if (len == 0) {
         return 0;
+    }
+    if (!guest_range_valid_untagged(start, len)) {
+        return -TARGET_ENOMEM;
     }
 
     mmap_lock();
