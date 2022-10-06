@@ -31,27 +31,40 @@
 
 #define QEMU_T3D "-object memory-backend-file,id=cxl-mem0,mem-path=%s,size=256M " \
                  "-object memory-backend-file,id=lsa0,mem-path=%s,size=256M "    \
-                 "-device cxl-type3,bus=rp0,memdev=cxl-mem0,lsa=lsa0,id=cxl-pmem0 "
+                 "-device cxl-type3,bus=rp0,pmem=false,memdev=cxl-mem0," \
+                  "lsa=lsa0,id=cxl-pmem0 "
+
+#define QEMU_T3DV "-object memory-backend-ram,id=cxl-mem0,size=256M " \
+                  "-object memory-backend-ram,id=lsa0,size=256M "    \
+                  "-device cxl-type3,bus=rp0,pmem=true,memdev=cxl-mem0," \
+                   "lsa=lsa0,id=cxl-pmem0 "
+
 
 #define QEMU_2T3D "-object memory-backend-file,id=cxl-mem0,mem-path=%s,size=256M "    \
                   "-object memory-backend-file,id=lsa0,mem-path=%s,size=256M "    \
-                  "-device cxl-type3,bus=rp0,memdev=cxl-mem0,lsa=lsa0,id=cxl-pmem0 " \
+                  "-device cxl-type3,bus=rp0,pmem=true,memdev=cxl-mem0," \
+                   "lsa=lsa0,id=cxl-pmem0 " \
                   "-object memory-backend-file,id=cxl-mem1,mem-path=%s,size=256M "    \
                   "-object memory-backend-file,id=lsa1,mem-path=%s,size=256M "    \
-                  "-device cxl-type3,bus=rp1,memdev=cxl-mem1,lsa=lsa1,id=cxl-pmem1 "
+                  "-device cxl-type3,bus=rp1,pmem=true,memdev=cxl-mem1," \
+                   "lsa=lsa1,id=cxl-pmem1 "
 
 #define QEMU_4T3D "-object memory-backend-file,id=cxl-mem0,mem-path=%s,size=256M " \
                   "-object memory-backend-file,id=lsa0,mem-path=%s,size=256M "    \
-                  "-device cxl-type3,bus=rp0,memdev=cxl-mem0,lsa=lsa0,id=cxl-pmem0 " \
+                  "-device cxl-type3,bus=rp0,pmem=true,memdev=cxl-mem0," \
+                   "lsa=lsa0,id=cxl-pmem0 " \
                   "-object memory-backend-file,id=cxl-mem1,mem-path=%s,size=256M "    \
                   "-object memory-backend-file,id=lsa1,mem-path=%s,size=256M "    \
-                  "-device cxl-type3,bus=rp1,memdev=cxl-mem1,lsa=lsa1,id=cxl-pmem1 " \
+                  "-device cxl-type3,bus=rp1,pmem=true,memdev=cxl-mem1," \
+                   "lsa=lsa1,id=cxl-pmem1 " \
                   "-object memory-backend-file,id=cxl-mem2,mem-path=%s,size=256M "    \
                   "-object memory-backend-file,id=lsa2,mem-path=%s,size=256M "    \
-                  "-device cxl-type3,bus=rp2,memdev=cxl-mem2,lsa=lsa2,id=cxl-pmem2 " \
+                  "-device cxl-type3,bus=rp2,pmem=true,memdev=cxl-mem2," \
+                   "lsa=lsa2,id=cxl-pmem2 " \
                   "-object memory-backend-file,id=cxl-mem3,mem-path=%s,size=256M "    \
                   "-object memory-backend-file,id=lsa3,mem-path=%s,size=256M "    \
-                  "-device cxl-type3,bus=rp3,memdev=cxl-mem3,lsa=lsa3,id=cxl-pmem3 "
+                  "-device cxl-type3,bus=rp3,pmem=true,memdev=cxl-mem3," \
+                   "lsa=lsa3,id=cxl-pmem3 "
 
 static void cxl_basic_hb(void)
 {
@@ -103,6 +116,19 @@ static void cxl_t3d(void)
     qtest_end();
 }
 
+static void cxl_t3d_vmem(void)
+{
+    g_autoptr(GString) cmdline = g_string_new(NULL);
+    g_autofree const char *tmpfs = NULL;
+
+    tmpfs = g_dir_make_tmp("cxl-test-XXXXXX", NULL);
+
+    g_string_printf(cmdline, QEMU_PXB_CMD QEMU_RP QEMU_T3DV);
+
+    qtest_start(cmdline->str);
+    qtest_end();
+}
+
 static void cxl_1pxb_2rp_2t3d(void)
 {
     g_autoptr(GString) cmdline = g_string_new(NULL);
@@ -145,6 +171,7 @@ int main(int argc, char **argv)
     qtest_add_func("/pci/cxl/rp_x2", cxl_2root_port);
 #ifdef CONFIG_POSIX
     qtest_add_func("/pci/cxl/type3_device", cxl_t3d);
+    qtest_add_func("/pci/cxl/type3_vmem_device", cxl_t3d_vmem);
     qtest_add_func("/pci/cxl/rp_x2_type3_x2", cxl_1pxb_2rp_2t3d);
     qtest_add_func("/pci/cxl/pxb_x2_root_port_x4_type3_x4", cxl_2pxb_4rp_4t3d);
 #endif

@@ -138,7 +138,7 @@ static ret_code cmd_firmware_update_get_info(struct cxl_cmd *cmd,
     } QEMU_PACKED *fw_info;
     QEMU_BUILD_BUG_ON(sizeof(*fw_info) != 0x50);
 
-    if (cxl_dstate->pmem_size < (256 << 20)) {
+    if (cxl_dstate->mem_size < (256 << 20)) {
         return CXL_MBOX_INTERNAL_ERROR;
     }
 
@@ -281,7 +281,7 @@ static ret_code cmd_identify_memory_device(struct cxl_cmd *cmd,
 
     CXLType3Dev *ct3d = container_of(cxl_dstate, CXLType3Dev, cxl_dstate);
     CXLType3Class *cvc = CXL_TYPE3_GET_CLASS(ct3d);
-    uint64_t size = cxl_dstate->pmem_size;
+    uint64_t size = cxl_dstate->mem_size;
 
     if (!QEMU_IS_ALIGNED(size, 256 << 20)) {
         return CXL_MBOX_INTERNAL_ERROR;
@@ -290,11 +290,13 @@ static ret_code cmd_identify_memory_device(struct cxl_cmd *cmd,
     id = (void *)cmd->payload;
     memset(id, 0, sizeof(*id));
 
-    /* PMEM only */
-    snprintf(id->fw_revision, 0x10, "BWFW VERSION %02d", 0);
+    /* Version 0: PMEM Only.  Version 1: PMEM and VMEM */
+    snprintf(id->fw_revision, 0x10, "BWFW VERSION %02d", 1);
 
-    id->total_capacity = size / (256 << 20);
-    id->persistent_capacity = size / (256 << 20);
+    size /= (256 << 20);
+    id->total_capacity = size;
+    id->persistent_capacity = ct3d->is_pmem ? size : 0;
+    id->volatile_capacity = ct3d->is_pmem ? 0 : size;
     id->lsa_size = cvc->get_lsa_size(ct3d);
 
     *len = sizeof(*id);
@@ -312,16 +314,18 @@ static ret_code cmd_ccls_get_partition_info(struct cxl_cmd *cmd,
         uint64_t next_pmem;
     } QEMU_PACKED *part_info = (void *)cmd->payload;
     QEMU_BUILD_BUG_ON(sizeof(*part_info) != 0x20);
-    uint64_t size = cxl_dstate->pmem_size;
+
+    CXLType3Dev *ct3d = container_of(cxl_dstate, CXLType3Dev, cxl_dstate);
+    uint64_t size = cxl_dstate->mem_size;
 
     if (!QEMU_IS_ALIGNED(size, 256 << 20)) {
         return CXL_MBOX_INTERNAL_ERROR;
     }
 
-    /* PMEM only */
-    part_info->active_vmem = 0;
+    size /= (256 << 20);
+    part_info->active_vmem = ct3d->is_pmem ? 0 : size;
     part_info->next_vmem = 0;
-    part_info->active_pmem = size / (256 << 20);
+    part_info->active_pmem = ct3d->is_pmem ? size : 0;
     part_info->next_pmem = 0;
 
     *len = sizeof(*part_info);

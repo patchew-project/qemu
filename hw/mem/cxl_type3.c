@@ -111,7 +111,7 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
         error_setg(errp, "memdev property must be set");
         return false;
     }
-    memory_region_set_nonvolatile(mr, true);
+    memory_region_set_nonvolatile(mr, ct3d->is_pmem);
     memory_region_set_enabled(mr, true);
     host_memory_backend_set_mapped(ct3d->hostmem, true);
 
@@ -123,7 +123,7 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
     address_space_init(&ct3d->hostmem_as, mr, name);
     g_free(name);
 
-    ct3d->cxl_dstate.pmem_size = ct3d->hostmem->size;
+    ct3d->cxl_dstate.mem_size = ct3d->hostmem->size;
 
     if (!ct3d->lsa) {
         error_setg(errp, "lsa property must be set");
@@ -271,12 +271,14 @@ static void ct3d_reset(DeviceState *dev)
 }
 
 static Property ct3_props[] = {
+    DEFINE_PROP_BOOL("pmem", CXLType3Dev, is_pmem, false),
     DEFINE_PROP_LINK("memdev", CXLType3Dev, hostmem, TYPE_MEMORY_BACKEND,
                      HostMemoryBackend *),
     DEFINE_PROP_LINK("lsa", CXLType3Dev, lsa, TYPE_MEMORY_BACKEND,
                      HostMemoryBackend *),
     DEFINE_PROP_END_OF_LIST(),
 };
+
 
 static uint64_t get_lsa_size(CXLType3Dev *ct3d)
 {
@@ -338,10 +340,10 @@ static void ct3_class_init(ObjectClass *oc, void *data)
     pc->class_id = PCI_CLASS_STORAGE_EXPRESS;
     pc->vendor_id = PCI_VENDOR_ID_INTEL;
     pc->device_id = 0xd93; /* LVF for now */
-    pc->revision = 1;
+    pc->revision = 2;
 
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    dc->desc = "CXL PMEM Device (Type 3)";
+    dc->desc = "CXL Memory Device (Type 3)";
     dc->reset = ct3d_reset;
     device_class_set_props(dc, ct3_props);
 

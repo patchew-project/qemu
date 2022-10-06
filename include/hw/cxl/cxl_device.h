@@ -117,8 +117,8 @@ typedef struct cxl_device_state {
         uint64_t host_set;
     } timestamp;
 
-    /* memory region for persistent memory, HDM */
-    uint64_t pmem_size;
+    /* memory region for persistent and volatile memory, HDM */
+    uint64_t mem_size;
 } CXLDeviceState;
 
 /* Initialize the register block for a device */
@@ -235,6 +235,7 @@ struct CXLType3Dev {
     PCIDevice parent_obj;
 
     /* Properties */
+    bool is_pmem;
     HostMemoryBackend *hostmem;
     HostMemoryBackend *lsa;
 
