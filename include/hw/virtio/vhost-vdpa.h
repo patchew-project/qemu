@@ -24,12 +24,25 @@ typedef struct VhostVDPAHostNotifier {
     void *addr;
 } VhostVDPAHostNotifier;
 
+
+typedef enum iotlb_batch_flag {
+    /* Notify IOTLB_BATCH start*/
+    VDPA_IOTLB_BATCH_SEND = 0x1,
+    /* Notify IOTLB_BATCH iommu start*/
+    VDPA_IOTLB_BATCH_IOMMU_SEND = 0x2,
+    /* Notify IOTLB_BATCH stop*/
+    VDPA_IOTLB_BATCH_SEND_STOP = 0x4,
+    /* Notify IOTLB_BATCH iommu stop*/
+    VDPA_IOTLB_BATCH_IOMMU_SEND_STOP = 0x08,
+} IotlbBatchFlag;
+
 typedef struct vhost_vdpa {
     int device_fd;
     int index;
     uint32_t msg_type;
-    bool iotlb_batch_begin_sent;
+    uint32_t iotlb_batch_begin_sent;
     MemoryListener listener;
+    MemoryListener iommu_listener;
     struct vhost_vdpa_iova_range iova_range;
     uint64_t acked_features;
     bool shadow_vqs_enabled;
@@ -40,7 +53,18 @@ typedef struct vhost_vdpa {
     void *shadow_vq_ops_opaque;
     struct vhost_dev *dev;
     VhostVDPAHostNotifier notifier[VIRTIO_QUEUE_MAX];
+    QLIST_HEAD(, vdpa_iommu) iommu_list;
+    IOMMUNotifier n;
+
 } VhostVDPA;
+
+struct vdpa_iommu {
+    struct vhost_vdpa *dev;
+    IOMMUMemoryRegion *iommu_mr;
+    hwaddr iommu_offset;
+    IOMMUNotifier n;
+    QLIST_ENTRY(vdpa_iommu) iommu_next;
+};
 
 int vhost_vdpa_dma_map(struct vhost_vdpa *v, hwaddr iova, hwaddr size,
                        void *vaddr, bool readonly);
