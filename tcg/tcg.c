@@ -942,14 +942,24 @@ TCGTemp *tcg_global_mem_new_internal(TCGType type, TCGv_ptr base,
     return ts;
 }
 
-TCGTemp *tcg_temp_new_internal(TCGType type, bool temp_local)
+TCGTemp *tcg_temp_new_internal(TCGType type, TCGTempKind kind)
 {
     TCGContext *s = tcg_ctx;
-    TCGTempKind kind = temp_local ? TEMP_LOCAL : TEMP_NORMAL;
     TCGTemp *ts;
     int idx, k;
 
-    k = type + (temp_local ? TCG_TYPE_COUNT : 0);
+    switch (kind) {
+    case TEMP_NORMAL:
+        k = 0;
+        break;
+    case TEMP_LOCAL:
+        k = TCG_TYPE_COUNT;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    k += type;
+
     idx = find_first_bit(s->free_temps[k].l, TCG_MAX_TEMPS);
     if (idx < TCG_MAX_TEMPS) {
         /* There is already an available temp with the right type.  */
@@ -1008,7 +1018,7 @@ TCGv_vec tcg_temp_new_vec(TCGType type)
     }
 #endif
 
-    t = tcg_temp_new_internal(type, 0);
+    t = tcg_temp_new_internal(type, TEMP_NORMAL);
     return temp_tcgv_vec(t);
 }
 
@@ -1019,7 +1029,7 @@ TCGv_vec tcg_temp_new_vec_matching(TCGv_vec match)
 
     tcg_debug_assert(t->temp_allocated != 0);
 
-    t = tcg_temp_new_internal(t->base_type, 0);
+    t = tcg_temp_new_internal(t->base_type, TEMP_NORMAL);
     return temp_tcgv_vec(t);
 }
 
