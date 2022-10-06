@@ -2140,6 +2140,10 @@ static void test_multifd_tcp_cancel(void)
     wait_for_migration_pass(from);
 
     migrate_cancel(from);
+    /* Make sure QEMU process "to" exited */
+    while (qtest_probe_child(to)) {
+        usleep(1);
+    }
 
     args = (MigrateStart){
         .only_target = true,
