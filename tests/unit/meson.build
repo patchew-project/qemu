@@ -1,4 +1,3 @@
-
 testblock = declare_dependency(dependencies: [block], sources: 'iothread.c')
 
 tests = {
@@ -164,6 +163,7 @@ endif
 test_env = environment()
 test_env.set('G_TEST_SRCDIR', meson.current_source_dir())
 test_env.set('G_TEST_BUILDDIR', meson.current_build_dir())
+test_env.set('SOCAT', find_program('socat').full_path())
 
 slow_tests = {
   'test-crypto-tlscredsx509': 45,
