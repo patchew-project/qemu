@@ -158,7 +158,9 @@ responses that have an unknown "id" field.
 
 The format of a success response is:
 
-{ "return": json-value, "id": json-value }
+{ "return": json-value, "id": json-value,
+  "start": {"seconds": json-value, "microseconds": json-value},
+  "end": {"seconds": json-value, "microseconds": json-value} }
 
  Where,
 
@@ -169,13 +171,21 @@ The format of a success response is:
   command does not return data
 - The "id" member contains the transaction identification associated
   with the command execution if issued by the Client
+- The "start" member contains the exact time of when the command has been
+  stated to be processed. It is a fixed json-object with time in
+  seconds and microseconds relative to the Unix Epoch (1 Jan 1970)
+- The "end" member contains the exact time of when the command has been
+  finished to be processed. It is a fixed json-object with time in
+  seconds and microseconds relative to the Unix Epoch (1 Jan 1970)
 
 2.4.2 error
 -----------
 
 The format of an error response is:
 
-{ "error": { "class": json-string, "desc": json-string }, "id": json-value }
+{ "error": { "class": json-string, "desc": json-string }, "id": json-value
+  "start": {"seconds": json-value, "microseconds": json-value},
+  "end": {"seconds": json-value, "microseconds": json-value} }
 
  Where,
 
@@ -184,6 +194,12 @@ The format of an error response is:
   not attempt to parse this message.
 - The "id" member contains the transaction identification associated with
   the command execution if issued by the Client
+- The "start" member contains the exact time of when the command has been
+  stated to be processed. It is a fixed json-object with time in
+  seconds and microseconds relative to the Unix Epoch (1 Jan 1970)
+- The "end" member contains the exact time of when the command has been
+  finished to be processed. It is a fixed json-object with time in
+  seconds and microseconds relative to the Unix Epoch (1 Jan 1970)
 
 NOTE: Some errors can occur before the Server is able to read the "id" member,
 in these cases the "id" member will not be part of the error response, even
