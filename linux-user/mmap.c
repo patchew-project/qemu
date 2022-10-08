@@ -124,17 +124,17 @@ int target_mprotect(abi_ulong start, abi_ulong len, int target_prot)
     if ((start & ~TARGET_PAGE_MASK) != 0) {
         return -TARGET_EINVAL;
     }
-    page_flags = validate_prot_to_pageflags(&host_prot, target_prot);
-    if (!page_flags) {
-        return -TARGET_EINVAL;
+    if (len == 0) {
+        return 0;
     }
     len = TARGET_PAGE_ALIGN(len);
-    end = start + len;
     if (!guest_range_valid_untagged(start, len)) {
         return -TARGET_ENOMEM;
     }
-    if (len == 0) {
-        return 0;
+    end = start + len;
+    page_flags = validate_prot_to_pageflags(&host_prot, target_prot);
+    if (!page_flags) {
+        return -TARGET_EINVAL;
     }
 
     mmap_lock();
