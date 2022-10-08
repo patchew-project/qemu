@@ -128,6 +128,50 @@ static inline void atomic16_set(Int128 *ptr, Int128 val)
 }
 
 # define HAVE_ATOMIC128 1
+#elif !defined(CONFIG_USER_ONLY) && defined(__x86_64__)
+/*
+ * The latest Intel SDM has added:
+ *     Processors that enumerate support for Intel® AVX (by setting
+ *     the feature flag CPUID.01H:ECX.AVX[bit 28]) guarantee that the
+ *     16-byte memory operations performed by the following instructions
+ *     will always be carried out atomically:
+ *      - MOVAPD, MOVAPS, and MOVDQA.
+ *      - VMOVAPD, VMOVAPS, and VMOVDQA when encoded with VEX.128.
+ *      - VMOVAPD, VMOVAPS, VMOVDQA32, and VMOVDQA64 when encoded
+ *        with EVEX.128 and k0 (masking disabled).
+ *    Note that these instructions require the linear addresses of their
+ *    memory operands to be 16-byte aligned.
+ *
+ * We do not yet have a similar guarantee from AMD, so we detect this
+ * at runtime rather than assuming the fact when __AVX__ is defined.
+ */
+extern bool have_atomic128;
+
+static inline Int128 atomic16_read(Int128 *ptr)
+{
+    Int128 ret;
+    if (have_atomic128) {
+        asm("vmovdqa %1, %0" : "=x" (ret) : "m" (*ptr));
+    } else {
+        ret = atomic16_cmpxchg(ptr, 0, 0);
+    }
+    return ret;
+}
+
+static inline void atomic16_set(Int128 *ptr, Int128 val)
+{
+    if (have_atomic128) {
+        asm("vmovdqa %1, %0" : "=m" (*ptr) : "x" (val));
+    } else {
+        Int128 old = *ptr, cmp;
+        do {
+            cmp = old;
+            old = atomic16_cmpxchg(ptr, cmp, val);
+        } while (old != cmp);
+    }
+}
+
+# define HAVE_ATOMIC128 1
 #elif !defined(CONFIG_USER_ONLY) && HAVE_CMPXCHG128
 static inline Int128 atomic16_read(Int128 *ptr)
 {
