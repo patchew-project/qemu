@@ -17,6 +17,7 @@
 #include "exec/cpu-common.h"
 #include "hw/qdev-core.h"
 #include "qapi/qapi-types-migration.h"
+#include "qapi/qmp/json-writer.h"
 #include "qemu/thread.h"
 #include "qemu/coroutine_int.h"
 #include "io/channel.h"
@@ -260,6 +261,8 @@ struct MigrationState {
     MigrationParameters parameters;
 
     int state;
+
+    JSONWriter *vmdesc;
 
     /* State related to return path */
     struct {
