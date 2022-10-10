@@ -165,7 +165,8 @@ INITIALIZE_MIGRATE_CAPS_SET(check_caps_background_snapshot,
     MIGRATION_CAPABILITY_XBZRLE,
     MIGRATION_CAPABILITY_X_COLO,
     MIGRATION_CAPABILITY_VALIDATE_UUID,
-    MIGRATION_CAPABILITY_ZERO_COPY_SEND);
+    MIGRATION_CAPABILITY_ZERO_COPY_SEND,
+    MIGRATION_CAPABILITY_FIXED_RAM);
 
 /* When we add fault tolerance, we could have several
    migrations at once.  For now we don't need to add
@@ -1326,6 +1327,27 @@ static bool migrate_caps_check(bool *cap_list,
     }
 #endif
 
+    if (cap_list[MIGRATION_CAPABILITY_FIXED_RAM]) {
+	    if (cap_list[MIGRATION_CAPABILITY_MULTIFD]) {
+		    error_setg(errp, "Directly mapped memory incompatible with multifd");
+		    return false;
+	    }
+
+	    if (cap_list[MIGRATION_CAPABILITY_XBZRLE]) {
+		    error_setg(errp, "Directly mapped memory incompatible with xbzrle");
+		    return false;
+	    }
+
+	    if (cap_list[MIGRATION_CAPABILITY_COMPRESS]) {
+		    error_setg(errp, "Directly mapped memory incompatible with compression");
+		    return false;
+	    }
+
+	    if (cap_list[MIGRATION_CAPABILITY_POSTCOPY_RAM]) {
+		    error_setg(errp, "Directly mapped memory incompatible with postcopy ram");
+		    return false;
+	    }
+    }
 
     /* incoming side only */
     if (runstate_check(RUN_STATE_INMIGRATE) &&
@@ -2628,6 +2650,11 @@ MultiFDCompression migrate_multifd_compression(void)
 
     assert(s->parameters.multifd_compression < MULTIFD_COMPRESSION__MAX);
     return s->parameters.multifd_compression;
+}
+
+int migrate_fixed_ram(void)
+{
+    return migrate_get_current()->enabled_capabilities[MIGRATION_CAPABILITY_FIXED_RAM];
 }
 
 int migrate_multifd_zlib_level(void)
@@ -4190,6 +4217,21 @@ fail:
     return NULL;
 }
 
+static int
+migrate_check_fixed_ram(MigrationState *s, Error **errp)
+{
+    if (!s->enabled_capabilities[MIGRATION_CAPABILITY_FIXED_RAM])
+        return 0;
+
+    if (!qemu_file_is_seekable(s->to_dst_file)) {
+        error_setg(errp, "Directly mapped memory requires a seekable transport");
+        return -1;
+    }
+
+    return 0;
+}
+
+
 void migrate_fd_connect(MigrationState *s, Error *error_in)
 {
     Error *local_err = NULL;
@@ -4263,6 +4305,12 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
                           MIGRATION_STATUS_FAILED);
         migrate_fd_cleanup(s);
         return;
+    }
+
+    if (migrate_check_fixed_ram(s, &local_err) < 0) {
+	    migrate_fd_cleanup(s);
+	    migrate_fd_error(s, local_err);
+	    return;
     }
 
     if (resume) {
@@ -4398,6 +4446,7 @@ static Property migration_properties[] = {
     DEFINE_PROP_STRING("tls-authz", MigrationState, parameters.tls_authz),
 
     /* Migration capabilities */
+    DEFINE_PROP_MIG_CAP("x-fixed-ram", MIGRATION_CAPABILITY_FIXED_RAM),
     DEFINE_PROP_MIG_CAP("x-xbzrle", MIGRATION_CAPABILITY_XBZRLE),
     DEFINE_PROP_MIG_CAP("x-rdma-pin-all", MIGRATION_CAPABILITY_RDMA_PIN_ALL),
     DEFINE_PROP_MIG_CAP("x-auto-converge", MIGRATION_CAPABILITY_AUTO_CONVERGE),
