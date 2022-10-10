@@ -89,4 +89,9 @@ qio_channel_file_new_path(const char *path,
                           mode_t mode,
                           Error **errp);
 
+ssize_t qio_channel_file_pwritev(QIOChannel *ioc,
+				 const struct iovec *iov,
+				 size_t niov,
+				 off_t offset,
+				 Error **errp);
 #endif /* QIO_CHANNEL_FILE_H */
