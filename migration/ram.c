@@ -1443,6 +1443,10 @@ static bool do_compress_ram_page(QEMUFile *f, z_stream *stream, RAMBlock *block,
 static void
 update_compress_thread_counts(const CompressParam *param, int bytes_xmit)
 {
+    if (bytes_xmit <= 0) {
+        return;
+    }
+
     ram_transferred_add(bytes_xmit);
 
     if (param->zero_page) {
