@@ -22,6 +22,7 @@
 #include "exec/exec-all.h"
 #include "internal.h"
 #include "fpu/softfloat.h"
+#include "tcg/tcg-gvec-desc.h"
 
 static inline float128 float128_snan_to_qnan(float128 x)
 {
@@ -3263,17 +3264,19 @@ VSX_TSTDC(float64)
 VSX_TSTDC(float128)
 #undef VSX_TSTDC
 
-void helper_XVTSTDCDP(ppc_vsr_t *t, ppc_vsr_t *b, uint64_t dcmx, uint32_t v)
+void helper_XVTSTDCDP(ppc_vsr_t *t, ppc_vsr_t *b, uint32_t dcmx)
 {
     int i;
+    dcmx = simd_data(dcmx);
     for (i = 0; i < 2; i++) {
         t->s64[i] = (int64_t)-float64_tstdc(b->f64[i], dcmx);
     }
 }
 
-void helper_XVTSTDCSP(ppc_vsr_t *t, ppc_vsr_t *b, uint64_t dcmx, uint32_t v)
+void helper_XVTSTDCSP(ppc_vsr_t *t, ppc_vsr_t *b, uint32_t dcmx)
 {
     int i;
+    dcmx = simd_data(dcmx);
     for (i = 0; i < 4; i++) {
         t->s32[i] = (int32_t)-float32_tstdc(b->f32[i], dcmx);
     }
