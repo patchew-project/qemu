@@ -54,6 +54,7 @@ typedef enum BlockZoneOp {
     BLK_ZO_CLOSE,
     BLK_ZO_FINISH,
     BLK_ZO_RESET,
+    BLK_ZO_RESET_ALL,
 } BlockZoneOp;
 
 typedef enum BlockZoneModel {
