@@ -23,6 +23,7 @@ import argparse
 import collections
 import struct
 import sys
+import math
 
 
 def mkdir_p(path):
@@ -119,11 +120,16 @@ class RamSection(object):
         self.file = file
         self.section_key = section_key
         self.TARGET_PAGE_SIZE = ramargs['page_size']
+        self.TARGET_PAGE_BITS = math.log2(self.TARGET_PAGE_SIZE)
         self.dump_memory = ramargs['dump_memory']
         self.write_memory = ramargs['write_memory']
+        self.fixed_ram = ramargs['fixed-ram']
         self.sizeinfo = collections.OrderedDict()
+        self.bitmap_offset = collections.OrderedDict()
+        self.pages_offset = collections.OrderedDict()
         self.data = collections.OrderedDict()
         self.data['section sizes'] = self.sizeinfo
+        self.ram_read = False
         self.name = ''
         if self.write_memory:
             self.files = { }
@@ -140,7 +146,13 @@ class RamSection(object):
     def getDict(self):
         return self.data
 
+    def write_or_dump_fixed_ram(self):
+        pass
+
     def read(self):
+        if self.fixed_ram and self.ram_read:
+            return
+
         # Read all RAM sections
         while True:
             addr = self.file.read64()
@@ -167,7 +179,25 @@ class RamSection(object):
                         f.truncate(0)
                         f.truncate(len)
                         self.files[self.name] = f
+
+                    if self.fixed_ram:
+                        bitmap_len = self.file.read32()
+                        # skip the pages_offset which we don't need
+                        offset = self.file.tell() + 8
+                        self.bitmap_offset[self.name] = offset
+                        offset = ((offset + bitmap_len + self.TARGET_PAGE_SIZE - 1) // self.TARGET_PAGE_SIZE) * self.TARGET_PAGE_SIZE
+                        self.pages_offset[self.name] = offset
+                        self.file.file.seek(offset + len)
+
                 flags &= ~self.RAM_SAVE_FLAG_MEM_SIZE
+                if self.fixed_ram:
+                    self.ram_read = True
+                # now we should rewind to the ram page offset of the first
+                # ram section
+                if self.fixed_ram:
+                    if self.write_memory or self.dump_memory:
+                        self.write_or_dump_fixed_ram()
+                        return
 
             if flags & self.RAM_SAVE_FLAG_COMPRESS:
                 if flags & self.RAM_SAVE_FLAG_CONTINUE:
@@ -208,7 +238,7 @@ class RamSection(object):
 
             # End of RAM section
             if flags & self.RAM_SAVE_FLAG_EOS:
-                break
+               return
 
             if flags != 0:
                 raise Exception("Unknown RAM flags: %x" % flags)
@@ -521,6 +551,7 @@ class MigrationDump(object):
         ramargs['page_size'] = self.vmsd_desc['page_size']
         ramargs['dump_memory'] = dump_memory
         ramargs['write_memory'] = write_memory
+        ramargs['fixed-ram'] = False
         self.section_classes[('ram',0)][1] = ramargs
 
         while True:
@@ -528,8 +559,20 @@ class MigrationDump(object):
             if section_type == self.QEMU_VM_EOF:
                 break
             elif section_type == self.QEMU_VM_CONFIGURATION:
-                section = ConfigurationSection(file)
-                section.read()
+                config_desc = self.vmsd_desc.get('configuration')
+                if config_desc is not None:
+                    config = VMSDSection(file, 1, config_desc, 'configuration')
+                    config.read()
+                    caps = config.data.get("configuration/capabilities")
+                    if caps is not None:
+                        caps = caps.data["capabilities"]
+                        if type(caps) != list:
+                            caps = [caps]
+                        for i in caps:
+                            # chomp out string length
+                            cap = i.data[1:].decode("utf8")
+                            if cap == "fixed-ram":
+                                ramargs['fixed-ram'] = True
             elif section_type == self.QEMU_VM_SECTION_START or section_type == self.QEMU_VM_SECTION_FULL:
                 section_id = file.read32()
                 name = file.readstr()
