@@ -18,6 +18,12 @@ TESTS+=signals-s390x
 TESTS+=branch-relative-long
 TESTS+=noexec
 
+Z13_TESTS=vf
+vf: LDFLAGS+=-lm
+$(Z13_TESTS): CFLAGS+=-march=z13 -O2
+TESTS+=$(if $(shell $(CC) -march=z13 -S -o /dev/null -xc /dev/null \
+			 >/dev/null 2>&1 && echo OK),$(Z13_TESTS))
+
 Z14_TESTS=vfminmax
 vfminmax: LDFLAGS+=-lm
 $(Z14_TESTS): CFLAGS+=-march=z14 -O2
