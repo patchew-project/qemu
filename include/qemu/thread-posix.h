@@ -9,6 +9,7 @@ struct QemuMutex {
 #ifdef CONFIG_DEBUG_MUTEX
     const char *file;
     int line;
+    bool locked;
 #endif
     bool initialized;
 };
