@@ -1484,10 +1484,30 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
     ap = extract32(attrs, 6, 2);
 
     if (mmu_idx == ARMMMUIdx_Stage2 || mmu_idx == ARMMMUIdx_Stage2_S) {
+        if (param.hd
+            && extract64(attrs, 51, 1)  /* DBM */
+            && access_type == MMU_DATA_STORE) {
+            /*
+             * Pre-emptively set S2AP[1], so that we compute EXEC properly.
+             * C.f. AArch64.S2ApplyOutputPerms, which does the same thing.
+             */
+            ap |= 2;
+            new_descriptor |= 1ull << 7;
+        }
         ns = mmu_idx == ARMMMUIdx_Stage2;
         xn = extract64(attrs, 54, 2);
         result->f.prot = get_S2prot(env, ap, xn, s1_is_el0);
     } else {
+        if (param.hd
+            && extract64(attrs, 51, 1)  /* DBM */
+            && access_type == MMU_DATA_STORE) {
+            /*
+             * Pre-emptively clear AP[2], so that we compute EXEC properly.
+             * C.f. AArch64.S1ApplyOutputPerms, which does the same thing.
+             */
+            ap &= ~2;
+            new_descriptor &= ~(1ull << 7);
+        }
         ns = extract32(attrs, 5, 1);
         xn = extract64(attrs, 54, 1);
         pxn = extract64(attrs, 53, 1);
