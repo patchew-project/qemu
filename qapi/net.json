@@ -895,3 +895,49 @@
 ##
 { 'event': 'FAILOVER_NEGOTIATED',
   'data': {'device-id': 'str'} }
+
+##
+# @NETDEV_STREAM_CONNECTED:
+#
+# Emitted when the netdev stream backend is connected
+#
+# @netdev-id: QEMU netdev id that is connected
+# @uri: The Uniform Resource Identifier identifying the destination address
+#
+# Since: 7.2
+#
+# Example:
+#
+# <- { 'event': 'NETDEV_STREAM_CONNECTED',
+#      'data': {'uri': 'tcp:::1:1234', 'netdev-id': 'netdev0'},
+#      'timestamp': {'seconds': 1663330564, 'microseconds': 804317} }
+#
+# or
+#
+# <- { 'event': 'NETDEV_STREAM_CONNECTED',
+#      'data': {'uri': ''unix:/tmp/qemu0', 'netdev-id': 'netdev0'},
+#      'timestamp': {'seconds': 1663330564, 'microseconds': 804317} }
+#
+##
+{ 'event': 'NETDEV_STREAM_CONNECTED',
+  'data': { 'netdev-id': 'str',
+            'uri': 'str' } }
+
+##
+# @NETDEV_STREAM_EOC:
+#
+# Emitted when the netdev stream backend is disconnected
+#
+# @netdev-id: QEMU netdev id that is disconnected
+#
+# Since: 7.2
+#
+# Example:
+#
+# <- { 'event': 'NETDEV_STREAM_EOC',
+#      'data': {'netdev-id': 'netdev0'},
+#      'timestamp': {'seconds': 1663330937, 'microseconds': 526695} }
+#
+##
+{ 'event': 'NETDEV_STREAM_EOC',
+  'data': { 'netdev-id': 'str' } }
