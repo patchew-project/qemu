@@ -811,7 +811,7 @@ static void boston_mach_init(MachineState *machine)
             /* Calculate real fdt size after filter */
             dt_size = fdt_totalsize(dtb_load_data);
             rom_add_blob_fixed("dtb", dtb_load_data, dt_size, dtb_paddr);
-            qemu_register_reset(qemu_fdt_randomize_seeds,
+            qemu_register_reset_nosnapshotload(qemu_fdt_randomize_seeds,
                                 rom_ptr(dtb_paddr, dt_size));
         } else {
             /* Try to load file as FIT */
