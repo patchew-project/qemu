@@ -1125,6 +1125,13 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_opc_nor(s, a0, a1, TCG_REG_ZERO);
         break;
 
+    case INDEX_op_neg_i32:
+        tcg_out_opc_sub_w(s, a0, TCG_REG_ZERO, a1);
+        break;
+    case INDEX_op_neg_i64:
+        tcg_out_opc_sub_d(s, a0, TCG_REG_ZERO, a1);
+        break;
+
     case INDEX_op_nor_i32:
     case INDEX_op_nor_i64:
         if (c2) {
@@ -1503,6 +1510,8 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_ext_i32_i64:
     case INDEX_op_not_i32:
     case INDEX_op_not_i64:
+    case INDEX_op_neg_i32:
+    case INDEX_op_neg_i64:
     case INDEX_op_extract_i32:
     case INDEX_op_extract_i64:
     case INDEX_op_bswap16_i32:
