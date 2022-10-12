@@ -52,6 +52,7 @@ struct QOSStackElement {
     QOSStackElement *parent;
     QOSGraphEdge *parent_edge;
     int length;
+    QSLIST_ENTRY(QOSStackElement) next;
 };
 
 /* Each enty in these hash table will consist of <string, node/edge> pair. */
@@ -59,8 +60,7 @@ static GHashTable *edge_table;
 static GHashTable *node_table;
 
 /* stack used by the DFS algorithm to store the path from machine to test */
-static QOSStackElement qos_node_stack[QOS_PATH_MAX_ELEMENT_SIZE];
-static int qos_node_tos;
+static QSLIST_HEAD(, QOSStackElement) qos_node_stack;
 
 /**
  * add_edge(): creates an edge of type @type
@@ -325,40 +325,27 @@ static void qos_print_cb(QOSGraphNode *path, int length)
 static void qos_push(QOSGraphNode *el, QOSStackElement *parent,
                      QOSGraphEdge *e)
 {
+    QOSStackElement *elem = g_new(QOSStackElement, 1);
     int len = 0; /* root is not counted */
-    if (qos_node_tos == QOS_PATH_MAX_ELEMENT_SIZE) {
-        g_printerr("QOSStack: full stack, cannot push");
-        abort();
-    }
-
     if (parent) {
         len = parent->length + 1;
     }
-    qos_node_stack[qos_node_tos++] = (QOSStackElement) {
+    *elem = (QOSStackElement) {
         .node = el,
         .parent = parent,
         .parent_edge = e,
         .length = len,
     };
-}
-
-/* qos_tos(): returns the top of stack, without popping */
-static QOSStackElement *qos_tos(void)
-{
-    return &qos_node_stack[qos_node_tos - 1];
+    QSLIST_INSERT_HEAD(qos_node_stack, elem, next);
 }
 
 /* qos_pop(): pops an element from the tos, setting it unvisited*/
-static QOSStackElement *qos_pop(void)
+static void qos_pop(void)
 {
-    if (qos_node_tos == 0) {
-        g_printerr("QOSStack: empty stack, cannot pop");
-        abort();
-    }
-    QOSStackElement *e = qos_tos();
+    QOSStackElement *e = QSLIST_FIRST(qos_node_stack);
     e->node->visited = false;
-    qos_node_tos--;
-    return e;
+    QSLIST_REMOVE_HEAD(qos_node_stack, next);
+    g_free(e);
 }
 
 /**
@@ -400,8 +387,8 @@ static void qos_traverse_graph(QOSGraphNode *root, QOSTestCallback callback)
 
     qos_push(root, NULL, NULL);
 
-    while (qos_node_tos > 0) {
-        s_el = qos_tos();
+    while (!QSLIST_EMPTY(qos_node_stack)) {
+        s_el = QSLIST_HEAD(qos_node_stack);
         v = s_el->node;
         if (v->visited) {
             qos_pop();
