@@ -227,7 +227,7 @@ cross_prefix=""
 host_cc="cc"
 stack_protector=""
 safe_stack=""
-use_containers="yes"
+use_containers="no"
 gdb_bin=$(command -v "gdb-multiarch" || command -v "gdb")
 
 if test -e "$source_path/.git"
@@ -1034,7 +1034,7 @@ Advanced options (experts only):
                            ucontext, sigaltstack, windows
   --enable-plugins
                            enable plugins via shared library loading
-  --disable-containers     don't use containers for cross-building
+  --enable-containers      use containers for cross-building
   --gdb=GDB-path           gdb to use for gdbstub tests [$gdb_bin]
 EOF
   meson_options_help

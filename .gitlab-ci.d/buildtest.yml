@@ -263,7 +263,7 @@ build-user:
     job: amd64-debian-user-cross-container
   variables:
     IMAGE: debian-all-test-cross
-    CONFIGURE_ARGS: --disable-tools --disable-system
+    CONFIGURE_ARGS: --disable-tools --disable-system --enable-containers
     MAKE_CHECK_ARGS: check-tcg
 
 build-user-static:
@@ -272,7 +272,7 @@ build-user-static:
     job: amd64-debian-user-cross-container
   variables:
     IMAGE: debian-all-test-cross
-    CONFIGURE_ARGS: --disable-tools --disable-system --static
+    CONFIGURE_ARGS: --disable-tools --disable-system --static --enable-containers
     MAKE_CHECK_ARGS: check-tcg
 
 # Because the hexagon cross-compiler takes so long to build we don't rely
@@ -286,7 +286,7 @@ build-user-hexagon:
   variables:
     IMAGE: debian-hexagon-cross
     TARGETS: hexagon-linux-user
-    CONFIGURE_ARGS: --disable-tools --disable-docs --enable-debug-tcg
+    CONFIGURE_ARGS: --disable-tools --disable-docs --enable-debug-tcg --enable-containers
     MAKE_CHECK_ARGS: check-tcg
 
 # Only build the softmmu targets we have check-tcg tests for
@@ -296,7 +296,7 @@ build-some-softmmu:
     job: amd64-debian-user-cross-container
   variables:
     IMAGE: debian-all-test-cross
-    CONFIGURE_ARGS: --disable-tools --enable-debug
+    CONFIGURE_ARGS: --disable-tools --enable-debug --enable-containers
     TARGETS: xtensa-softmmu arm-softmmu aarch64-softmmu alpha-softmmu
     MAKE_CHECK_ARGS: check-tcg
 
@@ -307,7 +307,7 @@ build-tricore-softmmu:
     job: tricore-debian-cross-container
   variables:
     IMAGE: debian-tricore-cross
-    CONFIGURE_ARGS: --disable-tools --disable-fdt --enable-debug
+    CONFIGURE_ARGS: --disable-tools --disable-fdt --enable-debug --enable-containers
     TARGETS: tricore-softmmu
     MAKE_CHECK_ARGS: check-tcg
 
@@ -317,7 +317,7 @@ clang-system:
     job: amd64-fedora-container
   variables:
     IMAGE: fedora
-    CONFIGURE_ARGS: --cc=clang --cxx=clang++
+    CONFIGURE_ARGS: --enable-containers --cc=clang --cxx=clang++
       --extra-cflags=-fsanitize=undefined --extra-cflags=-fno-sanitize-recover=undefined
     TARGETS: alpha-softmmu arm-softmmu m68k-softmmu mips64-softmmu
       ppc-softmmu s390x-softmmu
@@ -329,7 +329,7 @@ clang-user:
     job: amd64-debian-user-cross-container
   variables:
     IMAGE: debian-all-test-cross
-    CONFIGURE_ARGS: --cc=clang --cxx=clang++ --disable-system
+    CONFIGURE_ARGS: --enable-containers --cc=clang --cxx=clang++ --disable-system
       --target-list-exclude=microblazeel-linux-user,aarch64_be-linux-user,i386-linux-user,m68k-linux-user,mipsn32el-linux-user,xtensaeb-linux-user
       --extra-cflags=-fsanitize=undefined --extra-cflags=-fno-sanitize-recover=undefined
     MAKE_CHECK_ARGS: check-unit check-tcg
@@ -523,7 +523,7 @@ build-tci:
     - TARGETS="aarch64 alpha arm hppa m68k microblaze ppc64 s390x x86_64"
     - mkdir build
     - cd build
-    - ../configure --enable-tcg-interpreter
+    - ../configure --enable-containers --enable-tcg-interpreter
         --target-list="$(for tg in $TARGETS; do echo -n ${tg}'-softmmu '; done)" || { cat config.log meson-logs/meson-log.txt && exit 1; }
     - make -j"$JOBS"
     - make tests/qtest/boot-serial-test tests/qtest/cdrom-test tests/qtest/pxe-test

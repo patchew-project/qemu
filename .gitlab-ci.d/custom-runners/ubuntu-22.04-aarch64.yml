@@ -16,7 +16,7 @@ ubuntu-22.04-aarch64-all-linux-static:
  - cd build
  # Disable -static-pie due to build error with system libc:
  # https://bugs.launchpad.net/ubuntu/+source/glibc/+bug/1987438
- - ../configure --enable-debug --static --disable-system --disable-pie
+ - ../configure --enable-debug --static --disable-system --disable-pie --enable-containers
    || { cat config.log meson-logs/meson-log.txt; exit 1; }
  - make --output-sync -j`nproc --ignore=40`
  - make --output-sync -j`nproc --ignore=40` check V=1
