@@ -1058,11 +1058,24 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_goto_tb:
-        assert(s->tb_jmp_insn_offset == 0);
-        /* indirect jump method */
-        tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TMP0, TCG_REG_ZERO,
-                   (uintptr_t)(s->tb_jmp_target_addr + a0));
-        tcg_out_opc_jirl(s, TCG_REG_ZERO, TCG_REG_TMP0, 0);
+        if (s->tb_jmp_insn_offset != NULL) {
+            /* TCG_TARGET_HAS_direct_jump */
+            /* Ensure that PCADD+JIRL are 8-byte aligned so that an atomic
+               write can be used to patch the target address. */
+            if ((uintptr_t)s->code_ptr & 7) {
+                tcg_out32(s, NOP);
+            }
+            s->tb_jmp_insn_offset[a0] = tcg_current_code_size(s);
+            /* actual branch destination will be patched by
+               tb_target_set_jmp_target later. */
+            tcg_out_opc_pcaddu18i(s, TCG_REG_TMP0, 0);
+            tcg_out_opc_jirl(s, TCG_REG_ZERO, TCG_REG_TMP0, 0);
+        } else {
+            /* !TCG_TARGET_HAS_direct_jump */
+            tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TMP0, TCG_REG_ZERO,
+                    (uintptr_t)(s->tb_jmp_target_addr + a0));
+            tcg_out_opc_jirl(s, TCG_REG_ZERO, TCG_REG_TMP0, 0);
+        }
         set_jmp_reset_offset(s, a0);
         break;
 
@@ -1706,6 +1719,32 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_SP);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_TP);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_RESERVED);
+}
+
+void tb_target_set_jmp_target(uintptr_t tc_ptr, uintptr_t jmp_rx,
+                              uintptr_t jmp_rw, uintptr_t addr)
+{
+    tcg_insn_unit i1, i2;
+
+    ptrdiff_t offset = addr - jmp_rx;
+
+    if (offset == sextreg(offset, 0, 28)) {
+        i1 = OPC_B | ((offset >> 18) & 0x3ff) | ((offset << 8) & 0x3fffc00);
+        i2 = NOP;
+    } else {
+        offset >>= 2;
+
+        ptrdiff_t upper, lower;
+        upper = ((offset + (1 << 15)) >> 16) & 0xfffff;
+        lower = (offset & 0xffff);
+        /* patch pcaddu18i */
+        i1 = OPC_PCADDU18I | upper << 5 | TCG_REG_T0;
+        /* patch jirl */
+        i2 = OPC_JIRL | lower << 10 | TCG_REG_T0 << 5;
+    }
+    uint64_t pair = (uint64_t)i2 << 32 | i1;
+    qatomic_set((uint64_t *)jmp_rw, pair);
+    flush_idcache_range(jmp_rx, jmp_rw, 8);
 }
 
 typedef struct {

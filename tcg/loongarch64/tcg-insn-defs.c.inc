@@ -112,6 +112,9 @@ typedef enum {
     OPC_BLE = 0x64000000,
     OPC_BGTU = 0x68000000,
     OPC_BLEU = 0x6c000000,
+    /* pseudo-instruction */
+    NOP = 0x03400000,
+
 } LoongArchInsn;
 
 static int32_t __attribute__((unused))
