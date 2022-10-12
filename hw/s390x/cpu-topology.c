@@ -108,6 +108,17 @@ static void s390_topology_realize(DeviceState *dev, Error **errp)
 }
 
 /**
+ * s390_topology_reset:
+ * @dev: the device
+ *
+ * Calls the sysemu topology reset
+ */
+static void s390_topology_reset(DeviceState *dev)
+{
+    s390_cpu_topology_reset();
+}
+
+/**
  * topology_class_init:
  * @oc: Object class
  * @data: (not used)
@@ -120,6 +131,7 @@ static void topology_class_init(ObjectClass *oc, void *data)
 
     dc->realize = s390_topology_realize;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    dc->reset = s390_topology_reset;
 }
 
 static const TypeInfo cpu_topology_info = {
