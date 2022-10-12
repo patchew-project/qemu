@@ -13,6 +13,8 @@
 #include "hw/qdev-core.h"
 #include "qom/object.h"
 
+#define S390_TOPOLOGY_POLARITY_H  0x00
+
 typedef struct S390TopoContainer {
     int active_count;
 } S390TopoContainer;
@@ -29,6 +31,7 @@ struct S390Topology {
     S390TopoContainer *socket;
     S390TopoTLE *tle;
     MachineState *ms;
+    QemuMutex topo_mutex;
 };
 
 #define TYPE_S390_CPU_TOPOLOGY "s390-topology"

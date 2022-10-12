@@ -54,8 +54,6 @@ void s390_topology_new_cpu(int core_id)
         return;
     }
 
-    socket_id = core_id / topo->cpus;
-
     /*
      * At the core level, each CPU is represented by a bit in a 64bit
      * unsigned long which represent the presence of a CPU.
@@ -76,8 +74,13 @@ void s390_topology_new_cpu(int core_id)
     bit %= 64;
     bit = 63 - bit;
 
+    qemu_mutex_lock(&topo->topo_mutex);
+
+    socket_id = core_id / topo->cpus;
     topo->socket[socket_id].active_count++;
     set_bit(bit, &topo->tle[socket_id].mask[origin]);
+
+    qemu_mutex_unlock(&topo->topo_mutex);
 }
 
 /**
@@ -101,6 +104,7 @@ static void s390_topology_realize(DeviceState *dev, Error **errp)
     topo->tle = g_new0(S390TopoTLE, ms->smp.max_cpus);
 
     topo->ms = ms;
+    qemu_mutex_init(&topo->topo_mutex);
 }
 
 /**
