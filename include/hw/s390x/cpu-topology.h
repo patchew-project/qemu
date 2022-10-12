@@ -28,6 +28,7 @@ typedef struct S390TopoTLE {
 struct S390Topology {
     SysBusDevice parent_obj;
     int cpus;
+    bool topology_needed;
     S390TopoContainer *socket;
     S390TopoTLE *tle;
     MachineState *ms;
