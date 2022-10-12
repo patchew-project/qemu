@@ -85,7 +85,14 @@ out:
 static void s390_init_cpus(MachineState *machine)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
+    S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
     int i;
+
+    if (machine->smp.threads > s390mc->max_threads) {
+        error_report("S390 does not support more than %d threads.",
+                     s390mc->max_threads);
+        exit(1);
+    }
 
     /* initialize possible_cpus */
     mc->possible_cpu_arch_ids(machine);
@@ -617,6 +624,7 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     s390mc->css_migration_enabled = true;
     s390mc->hpage_1m_allowed = true;
     s390mc->topology_allowed = true;
+    s390mc->max_threads = 1;
     mc->init = ccw_init;
     mc->reset = s390_machine_reset;
     mc->block_default_type = IF_VIRTIO;
@@ -887,12 +895,14 @@ static void ccw_machine_7_2_class_options(MachineClass *mc)
     S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
     static GlobalProperty compat[] = {
         { TYPE_S390_CPU_TOPOLOGY, "topology-allowed", "off", },
+        { TYPE_S390_CPU_TOPOLOGY, "max_threads", "off", },
     };
 
     ccw_machine_7_3_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_7_2, hw_compat_7_2_len);
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
     s390mc->topology_allowed = false;
+    s390mc->max_threads = S390_MAX_CPUS;
 }
 DEFINE_CCW_MACHINE(7_2, "7.2", false);
 
