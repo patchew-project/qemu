@@ -12,6 +12,8 @@
 
 #include "hw/qdev-core.h"
 #include "qom/object.h"
+#include "cpu.h"
+#include "hw/s390x/s390-virtio-ccw.h"
 
 #define S390_TOPOLOGY_POLARITY_H  0x00
 
@@ -43,7 +45,21 @@ void s390_topology_new_cpu(int core_id);
 
 static inline bool s390_has_topology(void)
 {
-    return false;
+    static S390CcwMachineState *ccw;
+    Object *obj;
+
+    if (ccw) {
+        return !ccw->topology_disable;
+    }
+
+    /* we have to bail out for the "none" machine */
+    obj = object_dynamic_cast(qdev_get_machine(),
+                              TYPE_S390_CCW_MACHINE);
+    if (!obj) {
+        return false;
+    }
+    ccw = S390_CCW_MACHINE(obj);
+    return !ccw->topology_disable;
 }
 
 #endif

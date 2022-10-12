@@ -616,6 +616,7 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     s390mc->cpu_model_allowed = true;
     s390mc->css_migration_enabled = true;
     s390mc->hpage_1m_allowed = true;
+    s390mc->topology_allowed = true;
     mc->init = ccw_init;
     mc->reset = s390_machine_reset;
     mc->block_default_type = IF_VIRTIO;
@@ -726,6 +727,27 @@ bool hpage_1m_allowed(void)
     return get_machine_class()->hpage_1m_allowed;
 }
 
+static inline bool machine_get_topology_disable(Object *obj, Error **errp)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+
+    return ms->topology_disable;
+}
+
+static inline void machine_set_topology_disable(Object *obj, bool value,
+                                                Error **errp)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+
+    if (!get_machine_class()->topology_allowed) {
+        error_setg(errp, "Property topology-disable not available on machine %s",
+                   get_machine_class()->parent_class.name);
+        return;
+    }
+
+    ms->topology_disable = value;
+}
+
 static char *machine_get_loadparm(Object *obj, Error **errp)
 {
     S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
@@ -784,6 +806,13 @@ static inline void s390_machine_initfn(Object *obj)
     object_property_set_description(obj, "zpcii-disable",
             "disable zPCI interpretation facilties");
     object_property_set_bool(obj, "zpcii-disable", false, NULL);
+
+    object_property_add_bool(obj, "topology-disable",
+                             machine_get_topology_disable,
+                             machine_set_topology_disable);
+    object_property_set_description(obj, "topology-disable",
+            "disable CPU topology");
+    object_property_set_bool(obj, "topology-disable", false, NULL);
 }
 
 static const TypeInfo ccw_machine_info = {
@@ -836,14 +865,36 @@ bool css_migration_enabled(void)
     }                                                                         \
     type_init(ccw_machine_register_##suffix)
 
+static void ccw_machine_7_3_instance_options(MachineState *machine)
+{
+}
+
+static void ccw_machine_7_3_class_options(MachineClass *mc)
+{
+}
+DEFINE_CCW_MACHINE(7_3, "7.3", true);
+
 static void ccw_machine_7_2_instance_options(MachineState *machine)
 {
+    S390CcwMachineState *ms = S390_CCW_MACHINE(machine);
+
+    ccw_machine_7_3_instance_options(machine);
+    ms->topology_disable = true;
 }
 
 static void ccw_machine_7_2_class_options(MachineClass *mc)
 {
+    S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
+    static GlobalProperty compat[] = {
+        { TYPE_S390_CPU_TOPOLOGY, "topology-allowed", "off", },
+    };
+
+    ccw_machine_7_3_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_7_2, hw_compat_7_2_len);
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
+    s390mc->topology_allowed = false;
 }
-DEFINE_CCW_MACHINE(7_2, "7.2", true);
+DEFINE_CCW_MACHINE(7_2, "7.2", false);
 
 static void ccw_machine_7_1_instance_options(MachineState *machine)
 {
