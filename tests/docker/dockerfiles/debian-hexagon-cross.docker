@@ -48,3 +48,8 @@ RUN apt update && \
     apt build-dep -yy --arch-only qemu
 COPY --from=0 /usr/local /usr/local
 ENV PATH $PATH:/usr/local/bin/
+
+# As a final step configure the user (if env is defined)
+ARG USER
+ARG UID
+RUN if [ "${USER}" ]; then id ${USER} 2>/dev/null || useradd -u ${UID} -U ${USER}; fi

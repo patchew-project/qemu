@@ -7,6 +7,8 @@ SPACE := $(NULL) #
 COMMA := ,
 
 HOST_ARCH = $(if $(ARCH),$(ARCH),$(shell uname -m))
+USER = $(if $(NOUSER),,$(shell id -un))
+UID = $(if $(NOUSER),,$(shell id -u))
 
 DOCKER_FILES_DIR := $(SRC_PATH)/tests/docker/dockerfiles
 ifeq ($(HOST_ARCH),x86_64)
@@ -90,23 +92,25 @@ docker-image-debian-native: DOCKER_REGISTRY=
 # alpine has no adduser
 docker-image-alpine: NOUSER=1
 
-debian-toolchain-run = \
-	$(if $(NOCACHE), 						\
-		$(call quiet-command,					\
-			$(DOCKER_SCRIPT) build -t qemu/$1 -f $< 	\
-			$(if $V,,--quiet) --no-cache 			\
-			--registry $(DOCKER_REGISTRY) --extra-files	\
-			$(DOCKER_FILES_DIR)/$1.d/build-toolchain.sh,	\
-			"BUILD", $1),				        \
-		$(call quiet-command,					\
-			$(DOCKER_SCRIPT) fetch $(if $V,,--quiet)	\
-				qemu/$1 $(DOCKER_REGISTRY),		\
-			"FETCH", $1)					\
-		$(call quiet-command,					\
-			$(DOCKER_SCRIPT) update $(if $V,,--quiet) 	\
-				qemu/$1 				\
-				$(if $(NOUSER),,--add-current-user) 	\
-			"PREPARE", $1))
+debian-toolchain-run = 					\
+	$(call quiet-command,           	        \
+		$(RUNC) pull                            \
+                $(if $V,,--quiet)                       \
+                $(DOCKER_REGISTRY)/qemu/$1,             \
+                "FETCH", $1);				\
+         $(call quiet-command,                          \
+                $(RUNC) build                           \
+		$(if $V,,--quiet)                       \
+		$(if $(NOCACHE),--no-cache)		\
+		$(if $(NOUSER),,			\
+			--build-arg USER=$(USER)	\
+			--build-arg UID=$(UID))		\
+		-t qemu/$1                              \
+                -f -                                    \
+                $(DOCKER_FILES_DIR)/$1.d                \
+                <  $<,                                  \
+                "BUILD", $1)
+
 debian-toolchain = $(call debian-toolchain-run,$(patsubst docker-image-%,%,$1))
 
 docker-image-debian-hexagon-cross: $(DOCKER_FILES_DIR)/debian-hexagon-cross.docker \
