@@ -31,6 +31,7 @@
 #include "block/qdict.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
+#include "qemu/error-report.h"
 #include "qapi/qapi-visit-block-core.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qlist.h"
@@ -623,8 +624,13 @@ static int rule_check(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
 
     qemu_mutex_unlock(&s->lock);
     if (!immediately) {
-        aio_co_schedule(qemu_get_current_aio_context(), qemu_coroutine_self());
-        qemu_coroutine_yield();
+        if (qemu_in_coroutine()) {
+            aio_co_schedule(qemu_get_current_aio_context(), qemu_coroutine_self());
+            qemu_coroutine_yield();
+        } else {
+            error_report("Non-coroutine event %s needs immediately = off\n",
+                         BlkdebugEvent_lookup.array[rule->event]);
+        }
     }
 
     return -error;
@@ -858,7 +864,12 @@ static void blkdebug_debug_event(BlockDriverState *bs, BlkdebugEvent event)
     }
 
     while (actions_count[ACTION_SUSPEND] > 0) {
-        qemu_coroutine_yield();
+        if (qemu_in_coroutine()) {
+            qemu_coroutine_yield();
+        } else {
+            error_report("Non-coroutine event %s cannot suspend\n",
+                         BlkdebugEvent_lookup.array[event]);
+        }
         actions_count[ACTION_SUSPEND]--;
     }
 }
