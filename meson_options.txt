@@ -255,6 +255,8 @@ option('vhost_crypto', type: 'feature', value: 'auto',
        description: 'vhost-user crypto backend support')
 option('vhost_vdpa', type: 'feature', value: 'auto',
        description: 'vhost-vdpa kernel backend support')
+option('vhost_blk', type: 'feature', value: 'auto',
+       description: 'vhost-blk kernel backend support')
 option('vhost_user_blk_server', type: 'feature', value: 'auto',
        description: 'build vhost-user-blk server')
 option('virtfs', type: 'feature', value: 'auto',
