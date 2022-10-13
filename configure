@@ -1866,6 +1866,11 @@ probe_target_compiler() {
   container_cross_ranlib=
   container_cross_strip=
 
+  case " $target_list " in
+    " $1 ") ;;
+    *) return 1 ;;
+  esac
+
   target_arch=${1%%-*}
   case $target_arch in
     aarch64) container_hosts="x86_64 aarch64" ;;
