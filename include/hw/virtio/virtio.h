@@ -385,12 +385,12 @@ static inline bool virtio_is_big_endian(VirtIODevice *vdev)
 
 static inline bool virtio_device_started(VirtIODevice *vdev, uint8_t status)
 {
-    if (vdev->use_started) {
-        return vdev->started;
-    }
-
     if (!vdev->vm_running) {
         return false;
+    }
+
+    if (vdev->use_started) {
+        return vdev->started;
     }
 
     return status & VIRTIO_CONFIG_S_DRIVER_OK;
