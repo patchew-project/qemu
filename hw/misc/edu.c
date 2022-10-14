@@ -103,19 +103,18 @@ static void edu_lower_irq(EduState *edu, uint32_t val)
     }
 }
 
-static bool within(uint64_t addr, uint64_t start, uint64_t end)
-{
-    return start <= addr && addr < end;
-}
-
 static void edu_check_range(uint64_t addr, uint64_t size1, uint64_t start,
                 uint64_t size2)
 {
     uint64_t end1 = addr + size1;
     uint64_t end2 = start + size2;
 
-    if (within(addr, start, end2) &&
-            end1 > addr && within(end1, start, end2)) {
+    /*
+     * 1. ensure we aren't overflowing
+     * 2. ensure that [start, end2) is within [addr, end1)
+     */
+    if (end1 >= addr && end2 >= start && start >= addr && end2 <= end1)
+    {
         return;
     }
 
