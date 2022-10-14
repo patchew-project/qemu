@@ -248,16 +248,21 @@ static bool qemu_set_log_internal(const char *filename, bool changed_name,
 #endif
     qemu_loglevel = log_flags;
 
-    /*
-     * In all cases we only log if qemu_loglevel is set.
-     * Also:
-     *   If per-thread, open the file for each thread in qemu_log_lock.
-     *   If not daemonized we will always log either to stderr
-     *     or to a file (if there is a filename).
-     *   If we are daemonized, we will only log if there is a filename.
-     */
     daemonized = is_daemonized();
-    need_to_open_file = log_flags && !per_thread && (!daemonized || filename);
+    need_to_open_file = false;
+    if (!daemonized) {
+        /*
+         * If not daemonized we only log if qemu_loglevel is set, either to
+         * stderr or to a file (if there is a filename).
+         * If per-thread, open the file for each thread in qemu_log_trylock().
+         */
+        need_to_open_file = log_flags && !per_thread;
+    } else if (filename) {
+        /*
+         * If we are daemonized, we will only log if there is a filename.
+         */
+        need_to_open_file = true;
+    }
 
     if (logfile && (!need_to_open_file || changed_name)) {
         qatomic_rcu_set(&global_file, NULL);
@@ -271,10 +276,22 @@ static bool qemu_set_log_internal(const char *filename, bool changed_name,
 
     if (!logfile && need_to_open_file) {
         if (filename) {
-            logfile = fopen(filename, log_append ? "a" : "w");
+            g_autofree char *fname = NULL;
+
+            /*
+             * If per-thread, filename contains a single %d that should be
+             * converted.
+             */
+            if (per_thread) {
+                fname = g_strdup_printf(filename, getpid());
+            } else {
+                fname = g_strdup(filename);
+            }
+
+            logfile = fopen(fname, log_append ? "a" : "w");
             if (!logfile) {
                 error_setg_errno(errp, errno, "Error opening logfile %s",
-                                 filename);
+                                 fname);
                 return false;
             }
             /* In case we are a daemon redirect stderr to logfile */
