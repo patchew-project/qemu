@@ -3764,6 +3764,20 @@ F: docs/about/deprecated.rst
 
 Build System
 ------------
+Meson
+M: Paolo Bonzini <pbonzini@redhat.com>
+S: Odd Fixes
+F: meson.build
+F: meson_options.txt
+F: scripts/meson-buildoptions.py
+
+TL Makefile and configure
+R: Paolo Bonzini <pbonzini@redhat.com>
+R: Alex Bennée <alex.bennee@linaro.org>
+S: Odd Fixes
+F: Makefile
+F: configure
+
 GIT submodules
 M: Daniel P. Berrange <berrange@redhat.com>
 S: Odd Fixes
