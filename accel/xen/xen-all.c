@@ -100,7 +100,7 @@ void xenstore_store_pv_console_info(int i, Chardev *chr)
 }
 
 
-static void xenstore_record_dm_state(struct xs_handle *xs, const char *state)
+void xenstore_record_dm_state(struct xs_handle *xs, const char *state)
 {
     char path[50];
 
