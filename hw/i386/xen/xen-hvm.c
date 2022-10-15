@@ -34,6 +34,7 @@
 #include "trace.h"
 
 #include <xen/hvm/ioreq.h>
+#include "hw/xen/arch_hvm.h"
 #include <xen/hvm/e820.h>
 
 //#define DEBUG_XEN_HVM
@@ -476,10 +477,6 @@ static void xen_set_memory(struct MemoryListener *listener,
                            bool add)
 {
     XenIOState *state = container_of(listener, XenIOState, memory_listener);
-    hwaddr start_addr = section->offset_within_address_space;
-    ram_addr_t size = int128_get64(section->size);
-    bool log_dirty = memory_region_is_logging(section->mr, DIRTY_MEMORY_VGA);
-    hvmmem_type_t mem_type;
 
     if (section->mr == &ram_memory) {
         return;
@@ -492,38 +489,7 @@ static void xen_set_memory(struct MemoryListener *listener,
                                      section);
         }
     }
-
-    if (!memory_region_is_ram(section->mr)) {
-        return;
-    }
-
-    if (log_dirty != add) {
-        return;
-    }
-
-    trace_xen_client_set_memory(start_addr, size, log_dirty);
-
-    start_addr &= TARGET_PAGE_MASK;
-    size = TARGET_PAGE_ALIGN(size);
-
-    if (add) {
-        if (!memory_region_is_rom(section->mr)) {
-            xen_add_to_physmap(state, start_addr, size,
-                               section->mr, section->offset_within_region);
-        } else {
-            mem_type = HVMMEM_ram_ro;
-            if (xen_set_mem_type(xen_domid, mem_type,
-                                 start_addr >> TARGET_PAGE_BITS,
-                                 size >> TARGET_PAGE_BITS)) {
-                DPRINTF("xen_set_mem_type error, addr: "TARGET_FMT_plx"\n",
-                        start_addr);
-            }
-        }
-    } else {
-        if (xen_remove_from_physmap(state, start_addr, size) < 0) {
-            DPRINTF("physmapping does not exist at "TARGET_FMT_plx"\n", start_addr);
-        }
-    }
+    arch_xen_set_memory(state, section, add);
 }
 
 static void xen_region_add(MemoryListener *listener,
@@ -1051,9 +1017,6 @@ static void handle_ioreq(XenIOState *state, ioreq_t *req)
         case IOREQ_TYPE_COPY:
             cpu_ioreq_move(req);
             break;
-        case IOREQ_TYPE_VMWARE_PORT:
-            handle_vmport_ioreq(state, req);
-            break;
         case IOREQ_TYPE_TIMEOFFSET:
             break;
         case IOREQ_TYPE_INVALIDATE:
@@ -1063,7 +1026,7 @@ static void handle_ioreq(XenIOState *state, ioreq_t *req)
             cpu_ioreq_config(state, req);
             break;
         default:
-            hw_error("Invalid ioreq type 0x%x\n", req->type);
+            arch_handle_ioreq(state, req);
     }
     if (req->dir == IOREQ_READ) {
         trace_handle_ioreq_read(req, req->type, req->df, req->data_is_ptr,
@@ -1603,4 +1566,58 @@ void qmp_xen_set_global_dirty_log(bool enable, Error **errp)
     } else {
         memory_global_dirty_log_stop(GLOBAL_DIRTY_MIGRATION);
     }
+}
+
+void arch_xen_set_memory(XenIOState *state, MemoryRegionSection *section,
+                                bool add)
+{
+    hwaddr start_addr = section->offset_within_address_space;
+    ram_addr_t size = int128_get64(section->size);
+    bool log_dirty = memory_region_is_logging(section->mr, DIRTY_MEMORY_VGA);
+    hvmmem_type_t mem_type;
+
+    if (!memory_region_is_ram(section->mr)) {
+        return;
+    }
+
+    if (log_dirty != add) {
+        return;
+    }
+
+    trace_xen_client_set_memory(start_addr, size, log_dirty);
+
+    start_addr &= TARGET_PAGE_MASK;
+    size = TARGET_PAGE_ALIGN(size);
+
+    if (add) {
+        if (!memory_region_is_rom(section->mr)) {
+            xen_add_to_physmap(state, start_addr, size,
+                               section->mr, section->offset_within_region);
+        } else {
+            mem_type = HVMMEM_ram_ro;
+            if (xen_set_mem_type(xen_domid, mem_type,
+                                 start_addr >> TARGET_PAGE_BITS,
+                                 size >> TARGET_PAGE_BITS)) {
+                DPRINTF("xen_set_mem_type error, addr: "TARGET_FMT_plx"\n",
+                        start_addr);
+            }
+        }
+    } else {
+        if (xen_remove_from_physmap(state, start_addr, size) < 0) {
+            DPRINTF("physmapping does not exist at "TARGET_FMT_plx"\n", start_addr);
+        }
+    }
+}
+
+void arch_handle_ioreq(XenIOState *state, ioreq_t *req)
+{
+    switch (req->type) {
+    case IOREQ_TYPE_VMWARE_PORT:
+            handle_vmport_ioreq(state, req);
+        break;
+    default:
+        hw_error("Invalid ioreq type 0x%x\n", req->type);
+    }
+
+    return;
 }
