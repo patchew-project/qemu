@@ -777,7 +777,11 @@ void xen_register_ioreq(XenIOState *state, unsigned int max_cpus,
         goto err;
     }
 
-    xen_create_ioreq_server(xen_domid, &state->ioservid);
+    rc = xen_create_ioreq_server(xen_domid, &state->ioservid);
+    if (rc) {
+        DPRINTF("xen: failed to create ioreq server\n");
+        goto no_ioreq;
+    }
 
     state->exit.notify = xen_exit_notifier;
     qemu_add_exit_notifier(&state->exit);
@@ -842,6 +846,7 @@ void xen_register_ioreq(XenIOState *state, unsigned int max_cpus,
     QLIST_INIT(&state->dev_list);
     device_listener_register(&state->device_listener);
 
+no_ioreq:
     xen_bus_init();
 
     /* Initialize backend core & drivers */
