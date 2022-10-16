@@ -30,6 +30,12 @@ struct virtio_blk_inhdr
     unsigned char status;
 };
 
+struct virtio_blk_zone_append_inhdr {
+    unsigned char status;
+    uint8_t reserved[7];
+    int64_t append_sector;
+};
+
 #define VIRTIO_BLK_AUTO_NUM_QUEUES UINT16_MAX
 
 struct VirtIOBlkConf
@@ -73,7 +79,10 @@ typedef struct VirtIOBlockReq {
     VirtQueue *vq;
     IOVDiscardUndo inhdr_undo;
     IOVDiscardUndo outhdr_undo;
-    struct virtio_blk_inhdr *in;
+    union {
+        struct virtio_blk_inhdr *in_hdr;
+        struct virtio_blk_zone_append_inhdr *zone_append_inhdr;
+    } in;
     struct virtio_blk_outhdr out;
     QEMUIOVector qiov;
     size_t in_len;
