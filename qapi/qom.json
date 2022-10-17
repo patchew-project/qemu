@@ -735,6 +735,18 @@
   'data': { 'fd': 'str', 'devid': 'str' } }
 
 ##
+# @VFIOContainerProperties:
+#
+# Properties for vfio-container objects.
+#
+# @fd: file descriptor of vfio container
+#
+# Since: 7.2
+##
+{ 'struct': 'VFIOContainerProperties',
+  'data': { 'fd': 'str' } }
+
+##
 # @VfioUserServerProperties:
 #
 # Properties for x-vfio-user-server objects.
@@ -888,6 +900,7 @@
     'tls-creds-psk',
     'tls-creds-x509',
     'tls-cipher-suites',
+    'vfio-container',
     { 'name': 'x-remote-object', 'features': [ 'unstable' ] },
     { 'name': 'x-vfio-user-server', 'features': [ 'unstable' ] }
   ] }
@@ -953,6 +966,7 @@
       'tls-creds-psk':              'TlsCredsPskProperties',
       'tls-creds-x509':             'TlsCredsX509Properties',
       'tls-cipher-suites':          'TlsCredsProperties',
+      'vfio-container':             'VFIOContainerProperties',
       'x-remote-object':            'RemoteObjectProperties',
       'x-vfio-user-server':         'VfioUserServerProperties'
   } }

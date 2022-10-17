@@ -31,9 +31,11 @@
 #include "exec/memory.h"
 #include "exec/ram_addr.h"
 #include "hw/hw.h"
+#include "monitor/monitor.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qemu/range.h"
+#include "qom/object_interfaces.h"
 #include "sysemu/kvm.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
@@ -2013,7 +2015,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
                                   Error **errp)
 {
     VFIOContainer *container;
-    int ret, fd;
+    int ret;
     VFIOAddressSpace *space;
 
     space = vfio_get_address_space(as);
@@ -2069,30 +2071,14 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
         }
     }
 
-    fd = qemu_open_old("/dev/vfio/vfio", O_RDWR);
-    if (fd < 0) {
-        error_setg_errno(errp, errno, "failed to open /dev/vfio/vfio");
-        ret = -errno;
-        goto put_space_exit;
-    }
-
-    ret = ioctl(fd, VFIO_GET_API_VERSION);
-    if (ret != VFIO_API_VERSION) {
-        error_setg(errp, "supported vfio version: %d, "
-                   "reported version: %d", VFIO_API_VERSION, ret);
-        ret = -EINVAL;
-        goto close_fd_exit;
-    }
-
-    container = g_malloc0(sizeof(*container));
+    container = VFIO_CONTAINER(object_new(TYPE_VFIO_CONTAINER));
     container->space = space;
-    container->fd = fd;
-    container->error = NULL;
-    container->dirty_pages_supported = false;
-    container->dma_max_mappings = 0;
-    QLIST_INIT(&container->giommu_list);
-    QLIST_INIT(&container->hostwin_list);
-    QLIST_INIT(&container->vrdl_list);
+
+    user_creatable_complete(USER_CREATABLE(container), errp);
+    if (*errp) {
+        ret = -1;
+        goto free_container_exit;
+    }
 
     ret = vfio_init_container(container, group->fd, errp);
     if (ret) {
@@ -2150,7 +2136,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
          * in this file.
          */
         if (!v2) {
-            ret = ioctl(fd, VFIO_IOMMU_ENABLE);
+            ret = ioctl(container->fd, VFIO_IOMMU_ENABLE);
             if (ret) {
                 error_setg_errno(errp, errno, "failed to enable container");
                 ret = -errno;
@@ -2171,7 +2157,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
         }
 
         info.argsz = sizeof(info);
-        ret = ioctl(fd, VFIO_IOMMU_SPAPR_TCE_GET_INFO, &info);
+        ret = ioctl(container->fd, VFIO_IOMMU_SPAPR_TCE_GET_INFO, &info);
         if (ret) {
             error_setg_errno(errp, errno,
                              "VFIO_IOMMU_SPAPR_TCE_GET_INFO failed");
@@ -2209,7 +2195,6 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
 
     vfio_kvm_device_add_group(group);
 
-    QLIST_INIT(&container->group_list);
     QLIST_INSERT_HEAD(&space->containers, container, next);
 
     group->container = container;
@@ -2223,29 +2208,18 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
         ret = -1;
         error_propagate_prepend(errp, container->error,
             "memory listener initialization failed: ");
-        goto listener_release_exit;
+        goto free_container_exit;
     }
 
     container->initialized = true;
 
     return 0;
-listener_release_exit:
-    QLIST_REMOVE(group, container_next);
-    QLIST_REMOVE(container, next);
-    vfio_kvm_device_del_group(group);
-    vfio_listener_release(container);
 
 enable_discards_exit:
     vfio_ram_block_discard_disable(container, false);
 
 free_container_exit:
-    g_free(container);
-
-close_fd_exit:
-    close(fd);
-
-put_space_exit:
-    vfio_put_address_space(space);
+    object_unref(OBJECT(container));
 
     return ret;
 }
@@ -2271,32 +2245,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
                      group->groupid);
     }
 
-    if (QLIST_EMPTY(&container->group_list)) {
-        VFIOAddressSpace *space = container->space;
-        VFIOGuestIOMMU *giommu, *tmp;
-        VFIOHostDMAWindow *hostwin, *next;
-
-        QLIST_REMOVE(container, next);
-
-        QLIST_FOREACH_SAFE(giommu, &container->giommu_list, giommu_next, tmp) {
-            memory_region_unregister_iommu_notifier(
-                    MEMORY_REGION(giommu->iommu_mr), &giommu->n);
-            QLIST_REMOVE(giommu, giommu_next);
-            g_free(giommu);
-        }
-
-        QLIST_FOREACH_SAFE(hostwin, &container->hostwin_list, hostwin_next,
-                           next) {
-            QLIST_REMOVE(hostwin, hostwin_next);
-            g_free(hostwin);
-        }
-
-        trace_vfio_disconnect_container(container->fd);
-        close(container->fd);
-        g_free(container);
-
-        vfio_put_address_space(space);
-    }
+    object_unref(OBJECT(container));
 }
 
 VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
@@ -2628,3 +2577,107 @@ int vfio_eeh_as_op(AddressSpace *as, uint32_t op)
     }
     return vfio_eeh_container_op(container, op);
 }
+
+static void vfio_container_set_fd(Object *obj, const char *value,
+                                  Error **errp)
+{
+    VFIOContainer *ct = VFIO_CONTAINER(obj);
+
+    ct->fd = monitor_fd_param(monitor_cur(), value, errp);
+}
+
+static void vfio_container_complete(UserCreatable *uc, Error **errp)
+{
+    VFIOContainer *container = VFIO_CONTAINER(uc);
+    int ret;
+
+    if (container->fd < 0) {
+        int fd;
+
+        fd = qemu_open_old("/dev/vfio/vfio", O_RDWR);
+        if (fd < 0) {
+            error_setg_errno(errp, errno, "failed to open /dev/vfio/vfio");
+            return;
+        }
+        container->fd = fd;
+    }
+
+    ret = ioctl(container->fd, VFIO_GET_API_VERSION);
+    if (ret != VFIO_API_VERSION) {
+        error_setg(errp, "supported vfio version: %d, "
+                   "reported version: %d", VFIO_API_VERSION, ret);
+        return;
+    }
+}
+
+static void vfio_container_class_init(ObjectClass *class, void *data)
+{
+    UserCreatableClass *ucc = USER_CREATABLE_CLASS(class);
+    ucc->complete = vfio_container_complete;
+
+    object_class_property_add_str(class, "fd", NULL, vfio_container_set_fd);
+}
+
+static void vfio_container_instance_init(Object *obj)
+{
+    VFIOContainer *ct = VFIO_CONTAINER(obj);
+
+    ct->dirty_pages_supported = false;
+    ct->dma_max_mappings = 0;
+    ct->fd = -1;
+    QLIST_INIT(&ct->giommu_list);
+    QLIST_INIT(&ct->hostwin_list);
+    QLIST_INIT(&ct->group_list);
+    QLIST_INIT(&ct->vrdl_list);
+}
+
+static void
+vfio_container_instance_finalize(Object *obj)
+{
+    VFIOContainer *container = VFIO_CONTAINER(obj);
+    VFIOAddressSpace *space = container->space;
+    VFIOGuestIOMMU *giommu, *tmp;
+    VFIOHostDMAWindow *hostwin, *next;
+
+    QLIST_REMOVE(container, next);
+
+    QLIST_FOREACH_SAFE(giommu, &container->giommu_list, giommu_next, tmp) {
+        memory_region_unregister_iommu_notifier(
+            MEMORY_REGION(giommu->iommu_mr), &giommu->n);
+        QLIST_REMOVE(giommu, giommu_next);
+        g_free(giommu);
+    }
+    QLIST_FOREACH_SAFE(hostwin, &container->hostwin_list, hostwin_next,
+                       next) {
+        QLIST_REMOVE(hostwin, hostwin_next);
+        g_free(hostwin);
+    }
+
+
+    trace_vfio_container_instance_finalize(container->fd);
+    if (container->fd > 0) {
+        close(container->fd);
+    }
+    if (space) {
+        vfio_put_address_space(space);
+    }
+}
+
+static const TypeInfo vfio_container_info = {
+    .name = TYPE_VFIO_CONTAINER,
+    .parent = TYPE_OBJECT,
+    .class_init = vfio_container_class_init,
+    .instance_size = sizeof(VFIOContainer),
+    .instance_init = vfio_container_instance_init,
+    .instance_finalize = vfio_container_instance_finalize,
+    .interfaces = (InterfaceInfo[]) {
+        {TYPE_USER_CREATABLE},
+        {}
+    },
+};
+
+static void register_vfio_types(void)
+{
+    type_register_static(&vfio_container_info);
+}
+type_init(register_vfio_types)

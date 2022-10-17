@@ -77,6 +77,7 @@ typedef struct VFIOAddressSpace {
 struct VFIOGroup;
 
 typedef struct VFIOContainer {
+    Object parent;
     VFIOAddressSpace *space;
     int fd; /* /dev/vfio/vfio, empowered by the attached groups */
     MemoryListener listener;
@@ -189,6 +190,9 @@ typedef struct VFIODisplay {
         VFIODMABuf *cursor;
     } dmabuf;
 } VFIODisplay;
+
+#define TYPE_VFIO_CONTAINER "vfio-container"
+OBJECT_DECLARE_SIMPLE_TYPE(VFIOContainer, VFIO_CONTAINER)
 
 void vfio_put_base_device(VFIODevice *vbasedev);
 void vfio_disable_irqindex(VFIODevice *vbasedev, int index);
