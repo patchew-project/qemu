@@ -342,7 +342,7 @@ static void ibex_spi_host_write(void *opaque, hwaddr addr,
 {
     IbexSPIHostState *s = opaque;
     uint32_t val32 = val64;
-    uint32_t shift_mask = 0xff, status = 0, data = 0;
+    uint32_t shift_mask = 0xff, status = 0;
     uint8_t txqd_len;
 
     trace_ibex_spi_host_write(addr, size, val64);
@@ -355,12 +355,11 @@ static void ibex_spi_host_write(void *opaque, hwaddr addr,
     case IBEX_SPI_HOST_INTR_STATE:
         /* rw1c status register */
         if (FIELD_EX32(val32, INTR_STATE, ERROR)) {
-            data = FIELD_DP32(data, INTR_STATE, ERROR, 0);
+            s->regs[addr] = FIELD32_1CLEAR(s->regs[addr], INTR_STATE, ERROR);
         }
         if (FIELD_EX32(val32, INTR_STATE, SPI_EVENT)) {
-            data = FIELD_DP32(data, INTR_STATE, SPI_EVENT, 0);
+            s->regs[addr] = FIELD32_1CLEAR(s->regs[addr], INTR_STATE, SPI_EVENT);
         }
-        s->regs[addr] = data;
         break;
     case IBEX_SPI_HOST_INTR_ENABLE:
         s->regs[addr] = val32;
@@ -505,27 +504,25 @@ static void ibex_spi_host_write(void *opaque, hwaddr addr,
      *  When an error occurs, the corresponding bit must be cleared
      *  here before issuing any further commands
      */
-        status = s->regs[addr];
         /* rw1c status register */
         if (FIELD_EX32(val32, ERROR_STATUS, CMDBUSY)) {
-            status = FIELD_DP32(status, ERROR_STATUS, CMDBUSY, 0);
+            s->regs[addr] = FIELD32_1CLEAR(s->regs[addr], ERROR_STATUS, CMDBUSY);
         }
         if (FIELD_EX32(val32, ERROR_STATUS, OVERFLOW)) {
-            status = FIELD_DP32(status, ERROR_STATUS, OVERFLOW, 0);
+            s->regs[addr] = FIELD32_1CLEAR(s->regs[addr], ERROR_STATUS, OVERFLOW);
         }
         if (FIELD_EX32(val32, ERROR_STATUS, UNDERFLOW)) {
-            status = FIELD_DP32(status, ERROR_STATUS, UNDERFLOW, 0);
+            s->regs[addr] = FIELD32_1CLEAR(s->regs[addr], ERROR_STATUS, UNDERFLOW);
         }
         if (FIELD_EX32(val32, ERROR_STATUS, CMDINVAL)) {
-            status = FIELD_DP32(status, ERROR_STATUS, CMDINVAL, 0);
+            s->regs[addr] = FIELD32_1CLEAR(s->regs[addr], ERROR_STATUS, CMDINVAL);
         }
         if (FIELD_EX32(val32, ERROR_STATUS, CSIDINVAL)) {
-            status = FIELD_DP32(status, ERROR_STATUS, CSIDINVAL, 0);
+            s->regs[addr] = FIELD32_1CLEAR(s->regs[addr], ERROR_STATUS, CSIDINVAL);
         }
         if (FIELD_EX32(val32, ERROR_STATUS, ACCESSINVAL)) {
-            status = FIELD_DP32(status, ERROR_STATUS, ACCESSINVAL, 0);
+            s->regs[addr] = FIELD32_1CLEAR(s->regs[addr], ERROR_STATUS, ACCESSINVAL);
         }
-        s->regs[addr] = status;
         break;
     case IBEX_SPI_HOST_EVENT_ENABLE:
     /* Controls which classes of SPI events raise an interrupt. */
