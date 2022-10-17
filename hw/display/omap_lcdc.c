@@ -382,24 +382,24 @@ static uint64_t omap_lcdc_read(void *opaque, hwaddr addr,
     struct omap_lcd_panel_s *s = (struct omap_lcd_panel_s *) opaque;
 
     switch (addr) {
-    case 0x00:	/* LCD_CONTROL */
+    case 0x00:    /* LCD_CONTROL */
         return (s->tft << 23) | (s->plm << 20) |
                 (s->tft << 7) | (s->interrupts << 3) |
                 (s->mono << 1) | s->enable | s->ctrl | 0xfe000c34;
 
-    case 0x04:	/* LCD_TIMING0 */
+    case 0x04:    /* LCD_TIMING0 */
         return (s->timing[0] << 10) | (s->width - 1) | 0x0000000f;
 
-    case 0x08:	/* LCD_TIMING1 */
+    case 0x08:    /* LCD_TIMING1 */
         return (s->timing[1] << 10) | (s->height - 1);
 
-    case 0x0c:	/* LCD_TIMING2 */
+    case 0x0c:    /* LCD_TIMING2 */
         return s->timing[2] | 0xfc000000;
 
-    case 0x10:	/* LCD_STATUS */
+    case 0x10:    /* LCD_STATUS */
         return (s->palette_done << 6) | (s->sync_error << 2) | s->frame_done;
 
-    case 0x14:	/* LCD_SUBPANEL */
+    case 0x14:    /* LCD_SUBPANEL */
         return s->subpanel;
 
     default:
@@ -415,7 +415,7 @@ static void omap_lcdc_write(void *opaque, hwaddr addr,
     struct omap_lcd_panel_s *s = (struct omap_lcd_panel_s *) opaque;
 
     switch (addr) {
-    case 0x00:	/* LCD_CONTROL */
+    case 0x00:    /* LCD_CONTROL */
         s->plm = (value >> 20) & 3;
         s->tft = (value >> 7) & 1;
         s->interrupts = (value >> 3) & 3;
@@ -427,24 +427,24 @@ static void omap_lcdc_write(void *opaque, hwaddr addr,
         }
         break;
 
-    case 0x04:	/* LCD_TIMING0 */
+    case 0x04:    /* LCD_TIMING0 */
         s->timing[0] = value >> 10;
         s->width = (value & 0x3ff) + 1;
         break;
 
-    case 0x08:	/* LCD_TIMING1 */
+    case 0x08:    /* LCD_TIMING1 */
         s->timing[1] = value >> 10;
         s->height = (value & 0x3ff) + 1;
         break;
 
-    case 0x0c:	/* LCD_TIMING2 */
+    case 0x0c:    /* LCD_TIMING2 */
         s->timing[2] = value;
         break;
 
-    case 0x10:	/* LCD_STATUS */
+    case 0x10:    /* LCD_STATUS */
         break;
 
-    case 0x14:	/* LCD_SUBPANEL */
+    case 0x14:    /* LCD_SUBPANEL */
         s->subpanel = value & 0xa1ffffff;
         break;
 
