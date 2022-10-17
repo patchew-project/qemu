@@ -658,7 +658,7 @@ static int nbd_send_meta_query(QIOChannel *ioc, uint32_t opt,
     char *p;
 
     data_len = sizeof(export_len) + export_len + sizeof(queries);
-    assert(export_len <= NBD_MAX_STRING_SIZE);
+    assert(strlen(export) <= NBD_MAX_STRING_SIZE);
     if (query) {
         query_len = strlen(query);
         data_len += sizeof(query_len) + query_len;
