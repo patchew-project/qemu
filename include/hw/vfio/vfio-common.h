@@ -156,6 +156,7 @@ struct VFIODeviceOps {
 };
 
 typedef struct VFIOGroup {
+    Object parent;
     int fd;
     int groupid;
     VFIOContainer *container;
@@ -193,6 +194,9 @@ typedef struct VFIODisplay {
 
 #define TYPE_VFIO_CONTAINER "vfio-container"
 OBJECT_DECLARE_SIMPLE_TYPE(VFIOContainer, VFIO_CONTAINER)
+
+#define TYPE_VFIO_GROUP "vfio-group"
+OBJECT_DECLARE_SIMPLE_TYPE(VFIOGroup, VFIO_GROUP)
 
 void vfio_put_base_device(VFIODevice *vbasedev);
 void vfio_disable_irqindex(VFIODevice *vbasedev, int index);

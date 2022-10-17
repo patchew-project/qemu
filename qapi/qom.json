@@ -747,6 +747,19 @@
   'data': { 'fd': 'str' } }
 
 ##
+# @VFIOGroupProperties:
+#
+# Properties for vfio-group objects.
+#
+# @fd: file descriptor of vfio group
+# @container: container
+#
+# Since: 7.2
+##
+{ 'struct': 'VFIOGroupProperties',
+  'data': { 'fd': 'str', 'container': 'str'} }
+
+##
 # @VfioUserServerProperties:
 #
 # Properties for x-vfio-user-server objects.
@@ -901,6 +914,7 @@
     'tls-creds-x509',
     'tls-cipher-suites',
     'vfio-container',
+    'vfio-group',
     { 'name': 'x-remote-object', 'features': [ 'unstable' ] },
     { 'name': 'x-vfio-user-server', 'features': [ 'unstable' ] }
   ] }
@@ -967,6 +981,7 @@
       'tls-creds-x509':             'TlsCredsX509Properties',
       'tls-cipher-suites':          'TlsCredsProperties',
       'vfio-container':             'VFIOContainerProperties',
+      'vfio-group':                 'VFIOGroupProperties',
       'x-remote-object':            'RemoteObjectProperties',
       'x-vfio-user-server':         'VfioUserServerProperties'
   } }
