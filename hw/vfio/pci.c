@@ -29,6 +29,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "migration/vmstate.h"
+#include "monitor/monitor.h"
 #include "qapi/qmp/qdict.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
@@ -2902,7 +2903,8 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
 
     trace_vfio_realize(vbasedev->name, groupid);
 
-    group = vfio_get_group(groupid, pci_device_iommu_address_space(pdev), errp);
+    group = vfio_get_group(&vdev->vbasedev, groupid,
+                           pci_device_iommu_address_space(pdev), errp);
     if (!group) {
         goto error;
     }
@@ -3190,6 +3192,7 @@ static void vfio_instance_finalize(Object *obj)
 static void vfio_exitfn(PCIDevice *pdev)
 {
     VFIOPCIDevice *vdev = VFIO_PCI(pdev);
+    VFIOGroup *group = vdev->vbasedev.group;
 
     vfio_unregister_req_notifier(vdev);
     vfio_unregister_err_notifier(vdev);
@@ -3204,6 +3207,8 @@ static void vfio_exitfn(PCIDevice *pdev)
     vfio_teardown_msi(vdev);
     vfio_bars_exit(vdev);
     vfio_migration_finalize(&vdev->vbasedev);
+
+    vfio_put_group(group);
 }
 
 static void vfio_pci_reset(DeviceState *dev)
@@ -3330,6 +3335,9 @@ static void vfio_pci_dev_class_init(ObjectClass *klass, void *data)
     pdc->exit = vfio_exitfn;
     pdc->config_read = vfio_pci_read_config;
     pdc->config_write = vfio_pci_write_config;
+    object_class_property_add_link(klass, "group", TYPE_VFIO_GROUP,
+                                   offsetof(VFIOPCIDevice, vbasedev.group),
+                                   object_property_allow_set_link, 0);
 }
 
 static const TypeInfo vfio_pci_dev_info = {

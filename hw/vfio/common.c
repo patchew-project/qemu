@@ -2271,30 +2271,35 @@ static void vfio_disconnect_container(VFIOGroup *group)
     object_unref(OBJECT(container));
 }
 
-VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
+VFIOGroup *vfio_get_group(VFIODevice *vdev, int groupid, AddressSpace *as, Error **errp)
 {
     VFIOGroup *group;
     struct vfio_group_status status = { .argsz = sizeof(status) };
 
-    QLIST_FOREACH(group, &vfio_group_list, next) {
-        if (group->groupid == groupid) {
-            /* Found it.  Now is it already in the right context? */
-            if (group->container->space->as == as) {
-                return group;
-            } else {
-                error_setg(errp, "group %d used in multiple address spaces",
-                           group->groupid);
-                return NULL;
+    if (!vdev->group) {
+        QLIST_FOREACH(group, &vfio_group_list, next) {
+            if (group->groupid == groupid) {
+                /* Found it.  Now is it already in the right context? */
+                if (group->container->space->as == as) {
+                    return group;
+                } else {
+                    error_setg(errp, "group %d used in multiple address spaces",
+                               group->groupid);
+                    return NULL;
+                }
             }
         }
-    }
-
-    group = VFIO_GROUP(object_new(TYPE_VFIO_GROUP));
-    object_property_set_int(OBJECT(group), "groupid", groupid, errp);
-    user_creatable_complete(USER_CREATABLE(group), errp);
-    if (*errp) {
-        object_unref(OBJECT(group));
-        return NULL;
+        group = VFIO_GROUP(object_new(TYPE_VFIO_GROUP));
+        object_property_set_int(OBJECT(group), "groupid", groupid, errp);
+        user_creatable_complete(USER_CREATABLE(group), errp);
+        if (*errp) {
+            object_unref(OBJECT(group));
+            return NULL;
+        }
+    } else {
+        group = vdev->group;
+        group->groupid = groupid;
+        object_ref(OBJECT(group));
     }
 
     if (vfio_connect_container(group, as, errp)) {
@@ -2388,7 +2393,9 @@ void vfio_put_base_device(VFIODevice *vbasedev)
     if (!vbasedev->group) {
         return;
     }
-    QLIST_REMOVE(vbasedev, next);
+    if (!QLIST_EMPTY(&vbasedev->group->device_list)) {
+            QLIST_REMOVE(vbasedev, next);
+    }
     vbasedev->group = NULL;
     trace_vfio_put_base_device(vbasedev->fd);
     close(vbasedev->fd);
