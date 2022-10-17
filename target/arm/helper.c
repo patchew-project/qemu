@@ -3486,7 +3486,12 @@ static void ats_write64(CPUARMState *env, const ARMCPRegInfo *ri,
             }
             break;
         case 4: /* AT S1E2R, AT S1E2W */
-            mmu_idx = ARMMMUIdx_E2;
+            if (arm_hcr_el2_eff(env) & HCR_E2H) {
+                mmu_idx = env->pstate & PSTATE_PAN ?
+                    ARMMMUIdx_E20_2_PAN : ARMMMUIdx_E20_2;
+            } else {
+                mmu_idx = ARMMMUIdx_E2;
+            }
             break;
         case 6: /* AT S1E3R, AT S1E3W */
             mmu_idx = ARMMMUIdx_E3;
