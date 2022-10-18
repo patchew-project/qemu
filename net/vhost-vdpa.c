@@ -564,6 +564,9 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
     if (svq) {
         /* Add SVQ logging capabilities */
         s->vhost_vdpa.added_features |= BIT_ULL(VHOST_F_LOG_ALL);
+
+        /* We can emulate guest announce shadowing CVQ */
+        s->vhost_vdpa.added_features |= BIT_ULL(VIRTIO_NET_F_GUEST_ANNOUNCE);
     }
     if (!is_datapath) {
         s->cvq_cmd_out_buffer = qemu_memalign(qemu_real_host_page_size(),
