@@ -3057,11 +3057,18 @@ static int vtd_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu,
 {
     VTDAddressSpace *vtd_as = container_of(iommu, VTDAddressSpace, iommu);
     IntelIOMMUState *s = vtd_as->iommu_state;
+    X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(s);
 
     /* TODO: add support for VFIO and vhost users */
     if (s->snoop_control) {
         error_setg_errno(errp, ENOTSUP,
                          "Snoop Control with vhost or VFIO is not supported");
+        return -ENOTSUP;
+    }
+
+    if ((new & IOMMU_NOTIFIER_DEVIOTLB_UNMAP) && !x86_iommu->dt_supported) {
+        error_setg_errno(errp, ENOTSUP,
+                         "Device-iotlb not declared support for vIOMMU");
         return -ENOTSUP;
     }
 

@@ -1476,6 +1476,7 @@ static int amdvi_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu,
                                            Error **errp)
 {
     AMDVIAddressSpace *as = container_of(iommu, AMDVIAddressSpace, iommu);
+    X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(as->iommu_state);
 
     if (new & IOMMU_NOTIFIER_MAP) {
         error_setg(errp,
@@ -1484,6 +1485,13 @@ static int amdvi_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu,
                    PCI_FUNC(as->devfn));
         return -EINVAL;
     }
+
+    if ((new & IOMMU_NOTIFIER_DEVIOTLB_UNMAP) && !x86_iommu->dt_supported) {
+        error_setg_errno(errp, ENOTSUP,
+                         "Device-iotlb not declared support for vIOMMU");
+        return -ENOTSUP;
+    }
+
     return 0;
 }
 
