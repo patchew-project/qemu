@@ -1871,9 +1871,9 @@ static void vga_reset(void *opaque)
     vga_common_reset(s);
 }
 
-#define TEXTMODE_X(x)	((x) % width)
-#define TEXTMODE_Y(x)	((x) / width)
-#define VMEM2CHTYPE(v)	((v & 0xff0007ff) | \
+#define TEXTMODE_X(x)    ((x) % width)
+#define TEXTMODE_Y(x)    ((x) / width)
+#define VMEM2CHTYPE(v)    ((v & 0xff0007ff) | \
         ((v & 0x00000800) << 10) | ((v & 0x00007000) >> 1))
 /* relay text rendering to the display driver
  * instead of doing a full vga_update_display() */
