@@ -117,7 +117,35 @@ uint64_t vhost_net_get_features(struct vhost_net *net, uint64_t features)
 int vhost_net_get_config(struct vhost_net *net,  uint8_t *config,
                          uint32_t config_len)
 {
-    return vhost_dev_get_config(&net->dev, config, config_len, NULL);
+    VirtIODevice *vdev;
+    VirtIONet *n;
+    int r = vhost_dev_get_config(&net->dev, config, config_len, NULL);
+
+    if (unlikely(r != 0)) {
+        return r;
+    }
+
+    if (config_len < endof(struct virtio_net_config, status)) {
+        return 0;
+    }
+
+    /*
+     * TODO: To check for VIRTIO_NET_F_STATUS too.
+     * TODO: Perform this only if vhost_vdpa.
+     */
+    vdev = net->dev.vdev;
+    if (!vdev) {
+        /* Device is starting */
+        return 0;
+    }
+    if (!(net->dev.acked_features & BIT_ULL(VIRTIO_NET_F_GUEST_ANNOUNCE))) {
+        return 0;
+    }
+
+    n = VIRTIO_NET(vdev);
+    ((struct virtio_net_config *)config)->status |=
+                                           (n->status & VIRTIO_NET_S_ANNOUNCE);
+    return 0;
 }
 int vhost_net_set_config(struct vhost_net *net, const uint8_t *data,
                          uint32_t offset, uint32_t size, uint32_t flags)
