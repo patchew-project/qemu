@@ -1653,7 +1653,7 @@ static int nbd_export_create(BlockExport *blk_exp, BlockExportOptions *exp_args,
         return -EINVAL;
     }
 
-    if (!arg->has_name) {
+    if (!arg->name) {
         arg->name = exp_args->node_name;
     }
 
