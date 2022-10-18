@@ -173,6 +173,22 @@ def genptr_decl(f, tag, regtype, regid, regno):
                 f.write("        ctx_future_vreg_off(ctx, %s%sN," % \
                     (regtype, regid))
                 f.write(" 1, true);\n");
+            if regid != "y" and 'A_CONDEXEC' in hex_common.attribdict[tag]:
+                if hex_common.is_tmp_result(tag):
+                    preload_test_fn = "is_tmp_vreg_preloaded"
+                else:
+                    preload_test_fn = "is_future_vreg_preloaded"
+                f.write("    if (!%s(ctx, %s)) {\n" % (preload_test_fn, regN))
+                f.write("        intptr_t src_off =")
+                f.write(" offsetof(CPUHexagonState, VRegs[%s%sN]);\n"% \
+                                     (regtype, regid))
+                f.write("        tcg_gen_gvec_mov(MO_64, %s%sV_off,\n" % \
+                                     (regtype, regid))
+                f.write("                         src_off,\n")
+                f.write("                         sizeof(MMVector),\n")
+                f.write("                         sizeof(MMVector));\n")
+                f.write("    }\n")
+
             if (not hex_common.skip_qemu_helper(tag)):
                 f.write("    TCGv_ptr %s%sV = tcg_temp_new_ptr();\n" % \
                     (regtype, regid))

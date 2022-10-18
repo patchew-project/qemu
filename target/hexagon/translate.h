@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -81,6 +81,16 @@ static inline void ctx_log_pred_write(DisasContext *ctx, int pnum)
 static inline bool is_preloaded(DisasContext *ctx, int num)
 {
     return test_bit(num, ctx->regs_written);
+}
+
+static inline bool is_tmp_vreg_preloaded(DisasContext *ctx, int num)
+{
+    return test_bit(num, ctx->vregs_updated_tmp);
+}
+
+static inline bool is_future_vreg_preloaded(DisasContext *ctx, int num)
+{
+    return test_bit(num, ctx->vregs_select);
 }
 
 intptr_t ctx_future_vreg_off(DisasContext *ctx, int regnum,
