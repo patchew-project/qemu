@@ -697,7 +697,7 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
 #define fGEN_TCG_NEWVAL_VEC_STORE(GET_EA, INC) \
     do { \
         GET_EA; \
-        gen_vreg_store(ctx, insn, pkt, EA, OsN_off, insn->slot, true); \
+        gen_vreg_store(ctx, EA, OsN_off, insn->slot, true); \
         INC; \
     } while (0)
 
@@ -736,7 +736,7 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         PRED; \
         tcg_gen_brcondi_tl(TCG_COND_EQ, LSB, 0, false_label); \
         tcg_temp_free(LSB); \
-        gen_vreg_store(ctx, insn, pkt, EA, SRCOFF, insn->slot, ALIGN); \
+        gen_vreg_store(ctx, EA, SRCOFF, insn->slot, ALIGN); \
         INC; \
         tcg_gen_br(end_label); \
         gen_set_label(false_label); \

@@ -28,10 +28,7 @@ struct Instruction;
 struct Packet;
 struct DisasContext;
 
-typedef void (*SemanticInsn)(CPUHexagonState *env,
-                             struct DisasContext *ctx,
-                             struct Instruction *insn,
-                             struct Packet *pkt);
+typedef void (*SemanticInsn)(struct DisasContext *ctx);
 
 struct Instruction {
     SemanticInsn generate;            /* pointer to genptr routine */
