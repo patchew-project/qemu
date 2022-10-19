@@ -82,6 +82,11 @@ static int log_thread_id(void)
 #endif
 }
 
+static bool is_main_log_thread(void)
+{
+    return log_thread_id() == getpid();
+}
+
 /* Lock/unlock output. */
 
 FILE *qemu_log_trylock(void)
@@ -90,7 +95,8 @@ FILE *qemu_log_trylock(void)
 
     logfile = thread_file;
     if (!logfile) {
-        if (log_per_thread) {
+        /* Main thread to use the global file only */
+        if (log_per_thread && !is_main_log_thread()) {
             g_autofree char *filename
                 = g_strdup_printf(global_filename, log_thread_id());
             logfile = fopen(filename, "w");
@@ -124,7 +130,7 @@ void qemu_log_unlock(FILE *logfile)
     if (logfile) {
         fflush(logfile);
         qemu_funlockfile(logfile);
-        if (!log_per_thread) {
+        if (!thread_file) {
             rcu_read_unlock();
         }
     }
@@ -253,16 +259,21 @@ static bool qemu_set_log_internal(const char *filename, bool changed_name,
 #endif
     qemu_loglevel = log_flags;
 
-    /*
-     * In all cases we only log if qemu_loglevel is set.
-     * Also:
-     *   If per-thread, open the file for each thread in qemu_log_lock.
-     *   If not daemonized we will always log either to stderr
-     *     or to a file (if there is a filename).
-     *   If we are daemonized, we will only log if there is a filename.
-     */
     daemonized = is_daemonized();
-    need_to_open_file = log_flags && !per_thread && (!daemonized || filename);
+    need_to_open_file = false;
+    if (!daemonized) {
+        /*
+         * If not daemonized we only log if qemu_loglevel is set, either to
+         * stderr or to a file (if there is a filename).
+         * If per-thread, open the file for each thread in qemu_log_trylock().
+         */
+        need_to_open_file = qemu_loglevel && !log_per_thread;
+    } else {
+        /*
+         * If we are daemonized, we will only log if there is a filename.
+         */
+        need_to_open_file = filename != NULL;
+    }
 
     if (logfile && (!need_to_open_file || changed_name)) {
         qatomic_rcu_set(&global_file, NULL);
@@ -276,10 +287,22 @@ static bool qemu_set_log_internal(const char *filename, bool changed_name,
 
     if (!logfile && need_to_open_file) {
         if (filename) {
-            logfile = fopen(filename, log_append ? "a" : "w");
+            g_autofree char *fname = NULL;
+
+            /*
+             * If per-thread, filename contains a single %d that should be
+             * converted.
+             */
+            if (per_thread) {
+                fname = g_strdup_printf(filename, getpid());
+            } else {
+                fname = g_strdup(filename);
+            }
+
+            logfile = fopen(fname, log_append ? "a" : "w");
             if (!logfile) {
                 error_setg_errno(errp, errno, "Error opening logfile %s",
-                                 filename);
+                                 fname);
                 return false;
             }
             /* In case we are a daemon redirect stderr to logfile */
