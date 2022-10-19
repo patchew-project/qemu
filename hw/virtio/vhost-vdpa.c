@@ -660,8 +660,8 @@ static int vhost_vdpa_set_features(struct vhost_dev *dev,
 
         v->acked_features = features;
 
-        /* We must not ack _F_LOG if SVQ is enabled */
-        features &= ~BIT_ULL(VHOST_F_LOG_ALL);
+        /* Do not ack features emulated by qemu */
+        features &= ~v->added_features;
     }
 
     trace_vhost_vdpa_set_features(dev, features);
@@ -1244,8 +1244,8 @@ static int vhost_vdpa_get_features(struct vhost_dev *dev,
     int ret = vhost_vdpa_get_dev_features(dev, features);
 
     if (ret == 0 && v->shadow_vqs_enabled) {
-        /* Add SVQ logging capabilities */
-        *features |= BIT_ULL(VHOST_F_LOG_ALL);
+        /* Add emulated capabilities */
+        *features |= v->added_features;
     }
 
     return ret;
