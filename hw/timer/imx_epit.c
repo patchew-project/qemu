@@ -276,9 +276,12 @@ static void imx_epit_write(void *opaque, hwaddr offset, uint64_t value,
             ptimer_set_count(s->timer_reload, s->lr);
         }
 
+        // commit s->timer_reload before imx_epit_reload_compare_timer
+        // as timer_reload is read in imx_epit_reload_compare_timer
+        ptimer_transaction_commit(s->timer_reload);
+
         imx_epit_reload_compare_timer(s);
         ptimer_transaction_commit(s->timer_cmp);
-        ptimer_transaction_commit(s->timer_reload);
         break;
 
     case 3: /* CMP */
