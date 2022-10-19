@@ -54,6 +54,9 @@ typedef struct DisasContext {
     bool qreg_is_predicated[NUM_QREGS];
     int qreg_log_idx;
     bool pre_commit;
+    bool has_single_direct_branch;
+    TCGv branch_cond;
+    target_ulong branch_dest;
 } DisasContext;
 
 static inline void ctx_log_reg_write(DisasContext *ctx, int rnum)

@@ -505,15 +505,14 @@ static void gen_write_new_pc_pcrel(DisasContext *ctx, Packet *pkt,
             gen_set_label(pred_false);
         }
     } else {
-        TCGLabel *pred_false = NULL;
+        /* Defer this jump to the end of the TB */
+        g_assert(ctx->branch_cond == NULL);
+        ctx->has_single_direct_branch = true;
         if (pred != NULL) {
-            pred_false = gen_new_label();
-            tcg_gen_brcondi_tl(TCG_COND_EQ, pred, 0, pred_false);
+            ctx->branch_cond = tcg_temp_local_new();
+            tcg_gen_mov_tl(ctx->branch_cond, pred);
         }
-        tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], dest);
-        if (pred != NULL) {
-            gen_set_label(pred_false);
-        }
+        ctx->branch_dest = dest;
     }
 }
 

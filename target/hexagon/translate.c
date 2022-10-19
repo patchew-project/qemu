@@ -116,10 +116,44 @@ static void gen_exec_counters(DisasContext *ctx)
                     hex_gpr[HEX_REG_QEMU_HVX_CNT], ctx->num_hvx_insns);
 }
 
+static bool use_goto_tb(DisasContext *ctx, target_ulong dest)
+{
+    return translator_use_goto_tb(&ctx->base, dest);
+}
+
+static void gen_goto_tb(DisasContext *ctx, int idx, target_ulong dest)
+{
+    if (use_goto_tb(ctx, dest)) {
+        tcg_gen_goto_tb(idx);
+        tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], dest);
+        tcg_gen_exit_tb(ctx->base.tb, idx);
+    } else {
+        tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], dest);
+        tcg_gen_lookup_and_goto_ptr();
+    }
+}
+
 static void gen_end_tb(DisasContext *ctx)
 {
     gen_exec_counters(ctx);
-    tcg_gen_exit_tb(NULL, 0);
+
+    if (ctx->has_single_direct_branch) {
+        if (ctx->branch_cond != NULL) {
+            TCGLabel *skip = gen_new_label();
+            tcg_gen_brcondi_tl(TCG_COND_EQ, ctx->branch_cond, 0, skip);
+            gen_goto_tb(ctx, 0, ctx->branch_dest);
+            gen_set_label(skip);
+            gen_goto_tb(ctx, 1, ctx->next_PC);
+            tcg_temp_free(ctx->branch_cond);
+            ctx->branch_cond = NULL;
+        } else {
+            gen_goto_tb(ctx, 0, ctx->branch_dest);
+        }
+    } else {
+        tcg_gen_lookup_and_goto_ptr();
+    }
+
+    g_assert(ctx->branch_cond == NULL);
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
@@ -803,6 +837,9 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
 
 static void hexagon_tr_tb_start(DisasContextBase *db, CPUState *cpu)
 {
+    DisasContext *ctx = container_of(db, DisasContext, base);
+    ctx->has_single_direct_branch = false;
+    ctx->branch_cond = NULL;
 }
 
 static void hexagon_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
