@@ -72,8 +72,13 @@ static int log_thread_id(void)
 #elif defined(SYS_gettid)
     return syscall(SYS_gettid);
 #else
+    static __thread int my_id = -1;
     static int counter;
-    return qatomic_fetch_inc(&counter);
+
+    if (my_id == -1) {
+        my_id = getpid() + qatomic_fetch_inc(&counter);
+    }
+    return my_id;
 #endif
 }
 
