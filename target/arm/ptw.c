@@ -659,6 +659,13 @@ static bool get_phys_addr_v6(CPUARMState *env, uint32_t address,
             goto do_fault;
         }
 
+        if (regime_is_pan(env, mmu_idx) && !regime_is_user(env, mmu_idx) &&
+            simple_ap_to_rw_prot_is_user(ap >> 1, 1) &&
+            access_type != MMU_INST_FETCH) {
+            fi->type = ARMFault_Permission;
+            goto do_fault;
+        }
+
         if (arm_feature(env, ARM_FEATURE_V6K) &&
                 (regime_sctlr(env, mmu_idx) & SCTLR_AFE)) {
             /* The simplified model uses AP[0] as an access control bit.  */
@@ -2506,7 +2513,9 @@ bool get_phys_addr_with_secure(CPUARMState *env, target_ulong address,
     if (regime_using_lpae_format(env, mmu_idx)) {
         return get_phys_addr_lpae(env, address, access_type, mmu_idx,
                                   is_secure, false, result, fi);
-    } else if (regime_sctlr(env, mmu_idx) & SCTLR_XP) {
+    } else if (arm_feature(env, ARM_FEATURE_V7) ||
+               arm_feature(env, ARM_FEATURE_V8) || (
+               regime_sctlr(env, mmu_idx) & SCTLR_XP)) {
         return get_phys_addr_v6(env, address, access_type, mmu_idx,
                                 is_secure, result, fi);
     } else {

@@ -9052,6 +9052,11 @@ void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask,
     }
     mask &= ~CACHED_CPSR_BITS;
     env->uncached_cpsr = (env->uncached_cpsr & ~mask) | (val & mask);
+    if (env->uncached_cpsr & CPSR_PAN) {
+        env->pstate |= PSTATE_PAN;
+    } else {
+        env->pstate &= ~PSTATE_PAN;
+    }
     if (rebuild_hflags) {
         arm_rebuild_hflags(env);
     }
@@ -9592,6 +9597,7 @@ static void take_aarch32_exception(CPUARMState *env, int new_mode,
                 /* ... the target is EL1 and SCTLR.SPAN is 0.  */
                 if (!(env->cp15.sctlr_el[new_el] & SCTLR_SPAN)) {
                     env->uncached_cpsr |= CPSR_PAN;
+                    env->pstate |= PSTATE_PAN;
                 }
                 break;
             }
