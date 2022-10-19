@@ -118,6 +118,7 @@ int vhost_net_get_config(struct vhost_net *net,  uint8_t *config,
                          uint32_t config_len)
 {
     VirtIODevice *vdev;
+    VirtIONet *n;
     int r = vhost_dev_get_config(&net->dev, config, config_len, NULL);
 
     if (unlikely(r != 0)) {
@@ -142,6 +143,13 @@ int vhost_net_get_config(struct vhost_net *net,  uint8_t *config,
         ((struct virtio_net_config *)config)->status |= VIRTIO_NET_S_LINK_UP;
     }
 
+    if (!(net->dev.acked_features & BIT_ULL(VIRTIO_NET_F_GUEST_ANNOUNCE))) {
+        return 0;
+    }
+
+    n = VIRTIO_NET(vdev);
+    ((struct virtio_net_config *)config)->status |=
+                                           (n->status & VIRTIO_NET_S_ANNOUNCE);
     return 0;
 }
 int vhost_net_set_config(struct vhost_net *net, const uint8_t *data,
