@@ -324,6 +324,16 @@ static bool vhost_dev_has_iommu(struct vhost_dev *dev)
     }
 }
 
+static bool vhost_dev_ats_capable(struct vhost_dev *dev)
+{
+    VirtIODevice *vdev = dev->vdev;
+
+    if (vdev && virtio_bus_device_ats_capable(vdev)) {
+        return true;
+    }
+    return false;
+}
+
 static void *vhost_memory_map(struct vhost_dev *dev, hwaddr addr,
                               hwaddr *plen, bool is_write)
 {
@@ -737,6 +747,7 @@ static void vhost_iommu_region_add(MemoryListener *listener,
     Int128 end;
     int iommu_idx;
     IOMMUMemoryRegion *iommu_mr;
+    Error *err = NULL;
     int ret;
 
     if (!memory_region_is_iommu(section->mr)) {
@@ -760,8 +771,16 @@ static void vhost_iommu_region_add(MemoryListener *listener,
     iommu->iommu_offset = section->offset_within_address_space -
                           section->offset_within_region;
     iommu->hdev = dev;
-    ret = memory_region_register_iommu_notifier(section->mr, &iommu->n, NULL);
+    ret = memory_region_register_iommu_notifier(section->mr, &iommu->n, &err);
     if (ret) {
+        if (vhost_dev_ats_capable(dev)) {
+            error_reportf_err(err,
+                              "%s: Although the device exposes ATS capability, "
+                              "fallback to legacy IOMMU UNMAP notifier: ",
+                              iommu_mr->parent_obj.name);
+        } else {
+            error_free(err);
+        }
         /*
          * Some vIOMMUs do not support dev-iotlb yet.  If so, try to use the
          * UNMAP legacy message

@@ -94,6 +94,7 @@ struct VirtioBusClass {
     bool has_variable_vring_alignment;
     AddressSpace *(*get_dma_as)(DeviceState *d);
     bool (*iommu_enabled)(DeviceState *d);
+    bool (*ats_capable)(DeviceState *d);
 };
 
 struct VirtioBusState {
@@ -157,4 +158,6 @@ int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign);
 void virtio_bus_cleanup_host_notifier(VirtioBusState *bus, int n);
 /* Whether the IOMMU is enabled for this device */
 bool virtio_bus_device_iommu_enabled(VirtIODevice *vdev);
+/* Whether ATS is enabled for this device */
+bool virtio_bus_device_ats_capable(VirtIODevice *vdev);
 #endif /* VIRTIO_BUS_H */
