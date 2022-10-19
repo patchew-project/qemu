@@ -2522,6 +2522,69 @@ void helper_vpermd_ymm(Reg *d, Reg *v, Reg *s)
 }
 #endif
 
+/* FMA3 op helpers */
+#if SHIFT == 1
+#define SSE_HELPER_FMAS(name, elem, F)                                         \
+    void name(CPUX86State *env, Reg *d, Reg *a, Reg *b, Reg *c)                \
+    {                                                                          \
+        d->elem(0) = F(a->elem(0), b->elem(0), c->elem(0));                    \
+    }
+#define SSE_HELPER_FMAP(name, elem, num, F)                                    \
+    void glue(name, SUFFIX)(CPUX86State *env, Reg *d, Reg *a, Reg *b, Reg *c)  \
+    {                                                                          \
+        int i;                                                                 \
+        for (i = 0; i < num; i++) {                                            \
+            d->elem(i) = F(a->elem(i), b->elem(i), c->elem(i));                \
+        }                                                                      \
+    }
+
+#define FMADD32(a, b, c) float32_muladd(a, b, c, 0, &env->sse_status)
+#define FMADD64(a, b, c) float64_muladd(a, b, c, 0, &env->sse_status)
+
+#define FMNADD32(a, b, c) float32_muladd(a, b, c, float_muladd_negate_product, &env->sse_status)
+#define FMNADD64(a, b, c) float64_muladd(a, b, c, float_muladd_negate_product, &env->sse_status)
+
+#define FMSUB32(a, b, c) float32_muladd(a, b, c, float_muladd_negate_c, &env->sse_status)
+#define FMSUB64(a, b, c) float64_muladd(a, b, c, float_muladd_negate_c, &env->sse_status)
+
+#define FMNSUB32(a, b, c) float32_muladd(a, b, c, float_muladd_negate_c|float_muladd_negate_product, &env->sse_status)
+#define FMNSUB64(a, b, c) float64_muladd(a, b, c, float_muladd_negate_c|float_muladd_negate_product, &env->sse_status)
+
+#define FMADDSUB32(a, b, c) float32_muladd(a, b, c, (i & 1) ? 0 : float_muladd_negate_c, &env->sse_status)
+#define FMADDSUB64(a, b, c) float64_muladd(a, b, c, (i & 1) ? 0 : float_muladd_negate_c, &env->sse_status)
+
+#define FMSUBADD32(a, b, c) float32_muladd(a, b, c, (i & 1) ? float_muladd_negate_c : 0, &env->sse_status)
+#define FMSUBADD64(a, b, c) float64_muladd(a, b, c, (i & 1) ? float_muladd_negate_c : 0, &env->sse_status)
+
+SSE_HELPER_FMAS(helper_fmaddss,  ZMM_S,             FMADD32)
+SSE_HELPER_FMAS(helper_fmaddsd,  ZMM_D,             FMADD64)
+SSE_HELPER_FMAS(helper_fmnaddss, ZMM_S,             FMNADD32)
+SSE_HELPER_FMAS(helper_fmnaddsd, ZMM_D,             FMNADD64)
+SSE_HELPER_FMAS(helper_fmsubss,  ZMM_S,             FMSUB32)
+SSE_HELPER_FMAS(helper_fmsubsd,  ZMM_D,             FMSUB64)
+SSE_HELPER_FMAS(helper_fmnsubss, ZMM_S,             FMNSUB32)
+SSE_HELPER_FMAS(helper_fmnsubsd, ZMM_D,             FMNSUB64)
+#endif
+
+#if SHIFT >= 1
+SSE_HELPER_FMAP(helper_fmaddps,  ZMM_S, 2 << SHIFT, FMADD32)
+SSE_HELPER_FMAP(helper_fmaddpd,  ZMM_D, 1 << SHIFT, FMADD64)
+
+SSE_HELPER_FMAP(helper_fmnaddps, ZMM_S, 2 << SHIFT, FMNADD32)
+SSE_HELPER_FMAP(helper_fmnaddpd, ZMM_D, 1 << SHIFT, FMNADD64)
+
+SSE_HELPER_FMAP(helper_fmsubps,  ZMM_S, 2 << SHIFT, FMSUB32)
+SSE_HELPER_FMAP(helper_fmsubpd,  ZMM_D, 1 << SHIFT, FMSUB64)
+
+SSE_HELPER_FMAP(helper_fmnsubps, ZMM_S, 2 << SHIFT, FMNSUB32)
+SSE_HELPER_FMAP(helper_fmnsubpd, ZMM_D, 1 << SHIFT, FMNSUB64)
+
+SSE_HELPER_FMAP(helper_fmaddsubps,  ZMM_S, 2 << SHIFT, FMADDSUB32)
+SSE_HELPER_FMAP(helper_fmaddsubpd,  ZMM_D, 1 << SHIFT, FMADDSUB64)
+SSE_HELPER_FMAP(helper_fmsubaddps,  ZMM_S, 2 << SHIFT, FMSUBADD32)
+SSE_HELPER_FMAP(helper_fmsubaddpd,  ZMM_D, 1 << SHIFT, FMSUBADD64)
+#endif
+
 #undef SSE_HELPER_S
 
 #undef LANE_WIDTH

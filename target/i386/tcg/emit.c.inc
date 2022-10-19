@@ -491,6 +491,49 @@ FP_SSE(VMIN, min)
 FP_SSE(VDIV, div)
 FP_SSE(VMAX, max)
 
+#define FMA_SSE_PACKED(uname, lname, ptr0, ptr1, ptr2)                             \
+static void gen_##uname##Px(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode) \
+{                                                                                  \
+    SSEFunc_0_epppp xmm = s->vex_w ? gen_helper_##lname##pd_xmm : gen_helper_##lname##ps_xmm; \
+    SSEFunc_0_epppp ymm = s->vex_w ? gen_helper_##lname##pd_ymm : gen_helper_##lname##ps_ymm; \
+    SSEFunc_0_epppp fn = s->vex_l ? ymm : xmm;                                     \
+                                                                                   \
+    fn(cpu_env, OP_PTR0, ptr0, ptr1, ptr2);                                        \
+}
+
+#define FMA_SSE(uname, lname, ptr0, ptr1, ptr2)                                    \
+FMA_SSE_PACKED(uname, lname, ptr0, ptr1, ptr2)                                     \
+static void gen_##uname##Sx(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode) \
+{                                                                                  \
+    SSEFunc_0_epppp fn = s->vex_w ? gen_helper_##lname##sd : gen_helper_##lname##ss; \
+                                                                                   \
+    fn(cpu_env, OP_PTR0, ptr0, ptr1, ptr2);                                        \
+}                                                                                  \
+
+FMA_SSE(VFMADD231,    fmadd,    OP_PTR1, OP_PTR2, OP_PTR0)
+FMA_SSE(VFMADD213,    fmadd,    OP_PTR1, OP_PTR0, OP_PTR2)
+FMA_SSE(VFMADD132,    fmadd,    OP_PTR0, OP_PTR2, OP_PTR1)
+
+FMA_SSE(VFNMADD231,   fmnadd,   OP_PTR1, OP_PTR2, OP_PTR0)
+FMA_SSE(VFNMADD213,   fmnadd,   OP_PTR1, OP_PTR0, OP_PTR2)
+FMA_SSE(VFNMADD132,   fmnadd,   OP_PTR0, OP_PTR2, OP_PTR1)
+
+FMA_SSE(VFMSUB231,    fmsub,    OP_PTR1, OP_PTR2, OP_PTR0)
+FMA_SSE(VFMSUB213,    fmsub,    OP_PTR1, OP_PTR0, OP_PTR2)
+FMA_SSE(VFMSUB132,    fmsub,    OP_PTR0, OP_PTR2, OP_PTR1)
+
+FMA_SSE(VFNMSUB231,   fmnsub,   OP_PTR1, OP_PTR2, OP_PTR0)
+FMA_SSE(VFNMSUB213,   fmnsub,   OP_PTR1, OP_PTR0, OP_PTR2)
+FMA_SSE(VFNMSUB132,   fmnsub,   OP_PTR0, OP_PTR2, OP_PTR1)
+
+FMA_SSE_PACKED(VFMADDSUB231, fmaddsub, OP_PTR1, OP_PTR2, OP_PTR0)
+FMA_SSE_PACKED(VFMADDSUB213, fmaddsub, OP_PTR1, OP_PTR0, OP_PTR2)
+FMA_SSE_PACKED(VFMADDSUB132, fmaddsub, OP_PTR0, OP_PTR2, OP_PTR1)
+
+FMA_SSE_PACKED(VFMSUBADD231, fmsubadd, OP_PTR1, OP_PTR2, OP_PTR0)
+FMA_SSE_PACKED(VFMSUBADD213, fmsubadd, OP_PTR1, OP_PTR0, OP_PTR2)
+FMA_SSE_PACKED(VFMSUBADD132, fmsubadd, OP_PTR0, OP_PTR2, OP_PTR1)
+
 #define FP_UNPACK_SSE(uname, lname)                                                \
 static void gen_##uname(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode) \
 {                                                                                  \

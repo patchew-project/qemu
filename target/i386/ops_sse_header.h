@@ -359,6 +359,34 @@ DEF_HELPER_3(glue(cvtph2ps, SUFFIX), void, env, Reg, Reg)
 DEF_HELPER_4(glue(cvtps2ph, SUFFIX), void, env, Reg, Reg, int)
 #endif
 
+/* FMA3 helpers */
+#if SHIFT == 1
+DEF_HELPER_5(fmaddss, void, env, Reg, Reg, Reg, Reg)
+DEF_HELPER_5(fmaddsd, void, env, Reg, Reg, Reg, Reg)
+DEF_HELPER_5(fmnaddss, void, env, Reg, Reg, Reg, Reg)
+DEF_HELPER_5(fmnaddsd, void, env, Reg, Reg, Reg, Reg)
+DEF_HELPER_5(fmsubss, void, env, Reg, Reg, Reg, Reg)
+DEF_HELPER_5(fmsubsd, void, env, Reg, Reg, Reg, Reg)
+DEF_HELPER_5(fmnsubss, void, env, Reg, Reg, Reg, Reg)
+DEF_HELPER_5(fmnsubsd, void, env, Reg, Reg, Reg, Reg)
+#endif
+
+#if SHIFT >= 1
+DEF_HELPER_5(glue(fmaddps, SUFFIX), void, env, Reg, Reg, Reg, Reg)
+DEF_HELPER_5(glue(fmaddpd, SUFFIX), void, env, Reg, Reg, Reg, Reg)
+DEF_HELPER_5(glue(fmnaddps,SUFFIX), void, env, Reg, Reg, Reg, Reg)
+DEF_HELPER_5(glue(fmnaddpd,SUFFIX), void, env, Reg, Reg, Reg, Reg)
+DEF_HELPER_5(glue(fmsubps, SUFFIX), void, env, Reg, Reg, Reg, Reg)
+DEF_HELPER_5(glue(fmsubpd, SUFFIX), void, env, Reg, Reg, Reg, Reg)
+DEF_HELPER_5(glue(fmnsubps, SUFFIX), void, env, Reg, Reg, Reg, Reg)
+DEF_HELPER_5(glue(fmnsubpd, SUFFIX), void, env, Reg, Reg, Reg, Reg)
+
+DEF_HELPER_5(glue(fmaddsubps, SUFFIX), void, env, Reg, Reg, Reg, Reg)
+DEF_HELPER_5(glue(fmaddsubpd, SUFFIX), void, env, Reg, Reg, Reg, Reg)
+DEF_HELPER_5(glue(fmsubaddps, SUFFIX), void, env, Reg, Reg, Reg, Reg)
+DEF_HELPER_5(glue(fmsubaddpd, SUFFIX), void, env, Reg, Reg, Reg, Reg)
+#endif
+
 /* AVX helpers */
 #if SHIFT >= 1
 DEF_HELPER_4(glue(vpermilpd, SUFFIX), void, env, Reg, Reg, Reg)
