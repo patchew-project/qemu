@@ -488,6 +488,80 @@ static void gen_write_new_pc_pcrel(DisasContext *ctx, Packet *pkt,
     }
 }
 
+static void gen_compare(TCGCond cond, TCGv res, TCGv arg1, TCGv arg2)
+{
+    TCGv one = tcg_constant_tl(0xff);
+    TCGv zero = tcg_constant_tl(0);
+
+    tcg_gen_movcond_tl(cond, res, arg1, arg2, one, zero);
+}
+
+static void gen_cond_jump(DisasContext *ctx, Packet *pkt, TCGv pred, int pc_off)
+{
+    gen_write_new_pc_pcrel(ctx, pkt, pc_off, pred);
+}
+
+static void gen_cmpnd_cmp_jmp(DisasContext *ctx, Packet *pkt, Insn *insn,
+                              int pnum, TCGCond cond,
+                              bool sense, TCGv arg1, TCGv arg2,
+                              int pc_off)
+{
+    if (insn->part1) {
+        TCGv pred = tcg_temp_new();
+        gen_compare(cond, pred, arg1, arg2);
+        gen_log_pred_write(ctx, pnum, pred);
+        tcg_temp_free(pred);
+    } else {
+        TCGv pred = tcg_temp_new();
+
+        tcg_gen_mov_tl(pred, hex_new_pred_value[pnum]);
+        if (!sense) {
+            tcg_gen_xori_tl(pred, pred, 0xff);
+        }
+
+        gen_cond_jump(ctx, pkt, pred, pc_off);
+
+        tcg_temp_free(pred);
+    }
+}
+
+static void gen_cmpnd_cmpi_jmp(DisasContext *ctx, Packet *pkt, Insn *insn,
+                               int pnum, TCGCond cond,
+                               bool sense, TCGv arg1, int arg2,
+                               int pc_off)
+{
+    TCGv tmp = tcg_constant_tl(arg2);
+    gen_cmpnd_cmp_jmp(ctx, pkt, insn, pnum, cond, sense, arg1, tmp, pc_off);
+
+}
+
+static void gen_cmpnd_cmp_n1_jmp(DisasContext *ctx, Packet *pkt, Insn *insn,
+                                 int pnum, TCGCond cond,
+                                 bool sense, TCGv arg, int pc_off)
+{
+    gen_cmpnd_cmpi_jmp(ctx, pkt, insn, pnum, cond, sense, arg, -1, pc_off);
+}
+
+static void gen_cmpnd_tstbit0_jmp(DisasContext *ctx, Packet *pkt, Insn *insn,
+                                  int pnum, bool sense, TCGv arg, int pc_off)
+{
+    if (insn->part1) {
+        TCGv pred = tcg_temp_new();
+        tcg_gen_andi_tl(pred, arg, 1);
+        gen_8bitsof(pred, pred);
+        gen_log_pred_write(ctx, pnum, pred);
+        tcg_temp_free(pred);
+    } else {
+        TCGv pred = tcg_temp_new();
+        tcg_gen_mov_tl(pred, hex_new_pred_value[pnum]);
+        if (!sense) {
+            tcg_gen_xori_tl(pred, pred, 0xff);
+        }
+        gen_cond_jump(ctx, pkt, pred, pc_off);
+        tcg_temp_free(pred);
+    }
+}
+
 static void gen_call(DisasContext *ctx, Packet *pkt, int pc_off)
 {
     TCGv next_PC =
