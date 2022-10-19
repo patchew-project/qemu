@@ -566,6 +566,9 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
 
         /* VIRTIO_NET_F_STATUS is mandatory for _F_GUEST_ANNOUNCE. */
         s->vhost_vdpa.added_features |= BIT_ULL(VIRTIO_NET_F_STATUS);
+
+        /* We can emulate guest announce shadowing CVQ */
+        s->vhost_vdpa.added_features |= BIT_ULL(VIRTIO_NET_F_GUEST_ANNOUNCE);
     }
     if (!is_datapath) {
         s->cvq_cmd_out_buffer = qemu_memalign(qemu_real_host_page_size(),
