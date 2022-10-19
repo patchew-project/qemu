@@ -57,6 +57,7 @@ typedef struct DisasContext {
     bool has_single_direct_branch;
     TCGv branch_cond;
     target_ulong branch_dest;
+    bool is_tight_loop;
 } DisasContext;
 
 static inline void ctx_log_reg_write(DisasContext *ctx, int rnum)

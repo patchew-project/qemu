@@ -152,16 +152,23 @@ struct ArchCPU {
 
 #include "cpu_bits.h"
 
+typedef union {
+    uint32_t i;
+    struct {
+        bool is_tight_loop:1;
+    };
+} HexStateFlags;
+
 static inline void cpu_get_tb_cpu_state(CPUHexagonState *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)
 {
+    HexStateFlags hex_flags = { 0 };
     *pc = env->gpr[HEX_REG_PC];
     *cs_base = 0;
-#ifdef CONFIG_USER_ONLY
-    *flags = 0;
-#else
-#error System mode not supported on Hexagon yet
-#endif
+    if (*pc == env->gpr[HEX_REG_SA0]) {
+        hex_flags.is_tight_loop = true;
+    }
+    *flags = hex_flags.i;
 }
 
 static inline int cpu_mmu_index(CPUHexagonState *env, bool ifetch)

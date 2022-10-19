@@ -620,6 +620,9 @@
 #define fGEN_TCG_J2_callf(SHORTCODE) \
     gen_cond_call(ctx, pkt, PuV, false, riV)
 
+#define fGEN_TCG_J2_endloop0(SHORTCODE) \
+    gen_endloop0(ctx, pkt)
+
 /*
  * Compound compare and jump instructions
  * Here is a primer to understand the tag names
