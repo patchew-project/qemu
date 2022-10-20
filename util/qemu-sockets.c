@@ -1081,8 +1081,10 @@ char *socket_uri(SocketAddress *addr)
 {
     switch (addr->type) {
     case SOCKET_ADDRESS_TYPE_INET:
-        return g_strdup_printf("tcp:%s:%s",
+        return g_strdup_printf("tcp:%s%s%s:%s",
+                               addr->u.inet.ipv6 ? "[" : "",
                                addr->u.inet.host,
+                               addr->u.inet.ipv6 ? "]" : "",
                                addr->u.inet.port);
     case SOCKET_ADDRESS_TYPE_UNIX:
         return g_strdup_printf("unix:%s",

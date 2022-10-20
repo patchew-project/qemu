@@ -134,13 +134,13 @@ static void test_stream_inet_ipv6(void)
                        "addr.ipv4=off,addr.ipv6=on,"
                        "addr.host=localhost,addr.port=%d", port);
 
-    expect = g_strdup_printf("st0: index=0,type=stream,tcp:::1:%d\r\n",
+    expect = g_strdup_printf("st0: index=0,type=stream,tcp:[::1]:%d\r\n",
                              port);
     EXPECT_STATE(qts1, expect, 0);
     g_free(expect);
 
     /* the port is unknown, check only the address */
-    EXPECT_STATE(qts0, "st0: index=0,type=stream,tcp:::1", ':');
+    EXPECT_STATE(qts0, "st0: index=0,type=stream,tcp:[::1]", ':');
 
     qtest_quit(qts1);
     qtest_quit(qts0);
