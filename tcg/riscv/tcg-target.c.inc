@@ -705,9 +705,6 @@ static void tcg_out_addsub2(TCGContext *s,
                 tcg_out_opc_reg(s, OPC_SLTU, TCG_REG_TMP0,
                                 rl, al);
             }
-        } else if (rl == al && rl == bl) {
-            tcg_out_opc_imm(s, OPC_SLTI, TCG_REG_TMP0, al, 0);
-            tcg_out_opc_reg(s, opc_addi, rl, al, bl);
         } else {
             tcg_out_opc_reg(s, opc_add, rl, al, bl);
             tcg_out_opc_reg(s, OPC_SLTU, TCG_REG_TMP0,
