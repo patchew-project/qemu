@@ -668,7 +668,12 @@ static void tcg_out_addsub2(TCGContext *s,
     if (!cbh) {
         tcg_out_opc_reg(s, (is_sub ? opc_sub : opc_add), th, ah, bh);
     } else if (bh != 0 || ah == rl) {
-        tcg_out_opc_imm(s, opc_addi, th, ah, (is_sub ? -bh : bh));
+        if (bh == sextract(bh, 0, 12)) {
+            tcg_out_opc_imm(s, opc_addi, th, ah, (is_sub ? -bh : bh));
+        } else {
+            tcg_out_movi(s, TCG_TYPE_TL, th, (is_sub ? -bh : bh));
+            tcg_out_opc_reg(s, opc_add, th, ah, th);
+        }
     } else {
         th = ah;
     }
@@ -676,8 +681,14 @@ static void tcg_out_addsub2(TCGContext *s,
     /* Note that tcg optimization should eliminate the bl == 0 case.  */
     if (is_sub) {
         if (cbl) {
-            tcg_out_opc_imm(s, OPC_SLTIU, TCG_REG_TMP0, al, bl);
-            tcg_out_opc_imm(s, opc_addi, rl, al, -bl);
+            if (bl == sextract(bl, 0, 12)) {
+                tcg_out_opc_imm(s, OPC_SLTIU, TCG_REG_TMP0, al, bl);
+                tcg_out_opc_imm(s, opc_addi, rl, al, -bl);
+            } else {
+                tcg_out_movi(s, TCG_TYPE_TL, rl, bl);
+                tcg_out_opc_reg(s, OPC_SLTU, TCG_REG_TMP0, al, rl);
+                tcg_out_opc_reg(s, opc_sub, rl, al, TCG_REG_TMP0);
+            }
         } else {
             tcg_out_opc_reg(s, OPC_SLTU, TCG_REG_TMP0, al, bl);
             tcg_out_opc_reg(s, opc_sub, rl, al, bl);
@@ -685,8 +696,15 @@ static void tcg_out_addsub2(TCGContext *s,
         tcg_out_opc_reg(s, opc_sub, rh, th, TCG_REG_TMP0);
     } else {
         if (cbl) {
-            tcg_out_opc_imm(s, opc_addi, rl, al, bl);
-            tcg_out_opc_imm(s, OPC_SLTIU, TCG_REG_TMP0, rl, bl);
+            if (bl == sextract(bl, 0, 12)) {
+                tcg_out_opc_imm(s, opc_addi, rl, al, bl);
+                tcg_out_opc_imm(s, OPC_SLTIU, TCG_REG_TMP0, rl, bl);
+            } else {
+                tcg_out_movi(s, TCG_TYPE_TL, TCG_REG_TMP0, bl);
+                tcg_out_opc_reg(s, opc_add, rl, al, TCG_REG_TMP0);
+                tcg_out_opc_reg(s, OPC_SLTU, TCG_REG_TMP0,
+                                rl, al);
+            }
         } else if (rl == al && rl == bl) {
             tcg_out_opc_imm(s, OPC_SLTI, TCG_REG_TMP0, al, 0);
             tcg_out_opc_reg(s, opc_addi, rl, al, bl);
