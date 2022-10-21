@@ -38,6 +38,7 @@ typedef enum {
     TCG_CALL_RET_NORMAL,         /* by registers */
     TCG_CALL_RET_NORMAL_4,       /* for i128, by 4 registers */
     TCG_CALL_RET_BY_REF,         /* for i128, by reference as first arg */
+    TCG_CALL_RET_BY_VEC,         /* for i128, by vector register */
 } TCGCallReturnKind;
 
 typedef enum {

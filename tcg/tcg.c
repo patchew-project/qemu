@@ -768,6 +768,8 @@ static void init_call_layout(TCGHelperInfo *info)
                 cum.reg_slot = 1;
             }
             break;
+        case TCG_CALL_RET_BY_VEC:
+            break;
         default:
             g_assert_not_reached();
         }
@@ -4681,6 +4683,21 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
         /* The callee has performed a write through the reference. */
         for (i = 0; i < nb_oargs; i++) {
             TCGTemp *ts = arg_temp(op->args[i]);
+            ts->val_type = TEMP_VAL_MEM;
+        }
+        break;
+
+    case TCG_CALL_RET_BY_VEC:
+        {
+            TCGTemp *ts = arg_temp(op->args[0]);
+
+            tcg_debug_assert(ts->type == TCG_TYPE_I128);
+            if (!ts->mem_allocated) {
+                temp_allocate_frame(s, ts);
+            }
+            tcg_out_st(s, TCG_TYPE_V128,
+                       tcg_target_call_oarg_reg(TCG_CALL_RET_BY_VEC, 0),
+                       ts->mem_base->reg, ts->mem_offset + i * 4);
             ts->val_type = TEMP_VAL_MEM;
         }
         break;
