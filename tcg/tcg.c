@@ -760,12 +760,13 @@ static void init_call_layout(TCGHelperInfo *info)
         break;
     case dh_typecode_i128:
         /*
-         * No matter the call return method, we must have all of
-         * the temp subindexes in the call for liveness.
+         * For 32-bit hosts, do not split out individual temps.
+         * For 64-bit hosts, we need to add both temps for liveness
+         * no matter the backend calling convention.
          */
         info->nr_out = TCG_TARGET_REG_BITS == 32 ? 1 : 2;
-        info->out_kind = TCG_CALL_RET_NORMAL; /* TODO */
-        switch (/* TODO */ TCG_CALL_RET_NORMAL) {
+        info->out_kind = TCG_TARGET_CALL_RET_I128;
+        switch (TCG_TARGET_CALL_RET_I128) {
         case TCG_CALL_RET_NORMAL:
             if (TCG_TARGET_REG_BITS == 32) {
                 info->out_kind = TCG_CALL_RET_NORMAL_4;
@@ -827,7 +828,7 @@ static void init_call_layout(TCGHelperInfo *info)
             break;
         case dh_typecode_i128:
             type = TCG_TYPE_I128;
-            kind = TCG_CALL_ARG_NORMAL; /* TODO */
+            kind = TCG_TARGET_CALL_ARG_I128;
             break;
         default:
             g_assert_not_reached();
