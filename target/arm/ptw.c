@@ -2557,7 +2557,7 @@ static bool get_phys_addr_with_struct(CPUARMState *env, S1Translate *ptw,
      * Fast Context Switch Extension. This doesn't exist at all in v8.
      * In v7 and earlier it affects all stage 1 translations.
      */
-    if (address < 0x02000000 && mmu_idx != ARMMMUIdx_Stage2
+    if (address < 0x02000000 && !(mmu_idx == ARMMMUIdx_Stage2 || regime_is_phys(mmu_idx))
         && !arm_feature(env, ARM_FEATURE_V8)) {
         if (regime_el(env, mmu_idx) == 3) {
             address += env->cp15.fcseidr_s;
