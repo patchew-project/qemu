@@ -1510,15 +1510,42 @@ static void nvme_clear_events(NvmeCtrl *n, uint8_t event_type)
     }
 }
 
+static void nvme_zdc_list(NvmeNamespace *ns, NvmeZoneIdList *zlist, bool reset)
+{
+    NvmeZdc *zdc;
+    NvmeZdc *next;
+    int index = 0;
+
+    QTAILQ_FOREACH_SAFE(zdc, &ns->zdc_list, entry, next) {
+        if (index >= ARRAY_SIZE(zlist->zids)) {
+            break;
+        }
+        zlist->zids[index++] = zdc->zone->d.zslba;
+        if (reset) {
+            QTAILQ_REMOVE(&ns->zdc_list, zdc, entry);
+            zdc->zone->zdc_entry = NULL;
+            g_free(zdc);
+        }
+    }
+    zlist->nzid = cpu_to_le16(index);
+}
+
 static void nvme_check_finish(NvmeNamespace *ns, NvmeZoneListHead *list)
 {
     int64_t now = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL);
     NvmeZone *zone;
+    NvmeZdc  *zdc;
 
     QTAILQ_FOREACH(zone, list, entry) {
         if (zone->finish_ms <= now) {
             zone->finish_ms = INT64_MAX;
             zone->d.za |= NVME_ZA_FINISH_RECOMMENDED;
+            if (!zone->zdc_entry) {
+                zdc = g_malloc0(sizeof(*zdc));
+                zdc->zone = zone;
+                zone->zdc_entry = zdc;
+                QTAILQ_INSERT_TAIL(&ns->zdc_list, zdc, entry);
+            }
         } else if (zone->finish_ms != INT64_MAX) {
             timer_mod_anticipate(ns->active_timer, zone->finish_ms);
         }
@@ -4671,6 +4698,34 @@ static uint16_t nvme_cmd_effects(NvmeCtrl *n, uint8_t csi, uint32_t buf_len,
     return nvme_c2h(n, ((uint8_t *)&log) + off, trans_len, req);
 }
 
+static uint16_t nvme_changed_zones(NvmeCtrl *n, uint8_t rae, uint32_t buf_len,
+                                    uint64_t off, NvmeRequest *req)
+{
+    NvmeNamespace *ns;
+    NvmeCmd *cmd = &req->cmd;
+    uint32_t nsid = le32_to_cpu(cmd->nsid);
+    NvmeZoneIdList zlist = { };
+    uint32_t trans_len;
+
+    if (off >= sizeof(zlist)) {
+        trace_pci_nvme_err_invalid_log_page_offset(off, sizeof(zlist));
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    nsid = le32_to_cpu(cmd->nsid);
+    trace_pci_nvme_changed_zones(nsid);
+
+    ns = nvme_ns(n, nsid);
+    if (!ns) {
+        return NVME_INVALID_NSID | NVME_DNR;
+    }
+    nvme_zdc_list(ns, &zlist, !rae);
+
+    trans_len = MIN(sizeof(zlist) - off, buf_len);
+
+    return nvme_c2h(n, ((uint8_t *)&zlist) + off, trans_len, req);
+}
+
 static uint16_t nvme_get_log(NvmeCtrl *n, NvmeRequest *req)
 {
     NvmeCmd *cmd = &req->cmd;
@@ -4718,6 +4773,8 @@ static uint16_t nvme_get_log(NvmeCtrl *n, NvmeRequest *req)
         return nvme_changed_nslist(n, rae, len, off, req);
     case NVME_LOG_CMD_EFFECTS:
         return nvme_cmd_effects(n, csi, len, off, req);
+    case NVME_LOG_CHANGED_ZONE:
+        return nvme_changed_zones(n, rae, len, off, req);
     default:
         trace_pci_nvme_err_invalid_log_page(nvme_cid(req), lid);
         return NVME_INVALID_FIELD | NVME_DNR;
