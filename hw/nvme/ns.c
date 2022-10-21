@@ -241,6 +241,7 @@ static void nvme_ns_zoned_init_state(NvmeNamespace *ns)
     QTAILQ_INIT(&ns->closed_zones);
     QTAILQ_INIT(&ns->full_zones);
     QTAILQ_INIT(&ns->zdc_list);
+    QTAILQ_INIT(&ns->zdc_watchers);
 
     zone = ns->zone_array;
     for (i = 0; i < ns->num_zones; i++, zone++) {
