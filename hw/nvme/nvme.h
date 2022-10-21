@@ -32,6 +32,7 @@ QEMU_BUILD_BUG_ON(NVME_MAX_NAMESPACES > NVME_NSID_BROADCAST - 1);
 
 typedef struct NvmeCtrl NvmeCtrl;
 typedef struct NvmeNamespace NvmeNamespace;
+typedef struct NvmeZone NvmeZone;
 
 #define TYPE_NVME_BUS "nvme-bus"
 OBJECT_DECLARE_SIMPLE_TYPE(NvmeBus, NVME_BUS)
@@ -90,10 +91,16 @@ static inline NvmeNamespace *nvme_subsys_ns(NvmeSubsystem *subsys,
 #define NVME_NS(obj) \
     OBJECT_CHECK(NvmeNamespace, (obj), TYPE_NVME_NS)
 
+typedef struct NvmeZdc {
+    QTAILQ_ENTRY(NvmeZdc) entry;
+    NvmeZone *zone;
+} NvmeZdc;
+
 typedef struct NvmeZone {
     NvmeZoneDescr   d;
     uint64_t        w_ptr;
     int64_t         finish_ms;
+    NvmeZdc         *zdc_entry;
     QTAILQ_ENTRY(NvmeZone) entry;
 } NvmeZone;
 
@@ -172,6 +179,7 @@ typedef struct NvmeNamespace {
 
     int64_t         fto_ms;
     QEMUTimer       *active_timer;
+    QTAILQ_HEAD(, NvmeZdc) zdc_list;
 
     NvmeNamespaceParams params;
 

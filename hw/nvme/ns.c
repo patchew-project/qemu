@@ -240,6 +240,7 @@ static void nvme_ns_zoned_init_state(NvmeNamespace *ns)
     QTAILQ_INIT(&ns->imp_open_zones);
     QTAILQ_INIT(&ns->closed_zones);
     QTAILQ_INIT(&ns->full_zones);
+    QTAILQ_INIT(&ns->zdc_list);
 
     zone = ns->zone_array;
     for (i = 0; i < ns->num_zones; i++, zone++) {
@@ -526,8 +527,13 @@ void nvme_ns_shutdown(NvmeNamespace *ns)
 
 void nvme_ns_cleanup(NvmeNamespace *ns)
 {
+    NvmeZdc *zdc;
+
     if (ns->params.zoned) {
         timer_free(ns->active_timer);
+        while ((zdc = QTAILQ_FIRST(&ns->zdc_list))) {
+            g_free(zdc);
+        }
         g_free(ns->id_ns_zoned);
         g_free(ns->zone_array);
         g_free(ns->zd_extensions);
