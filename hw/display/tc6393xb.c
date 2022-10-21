@@ -22,42 +22,42 @@
 #include "ui/pixel_ops.h"
 #include "sysemu/blockdev.h"
 
-#define IRQ_TC6393_NAND		0
-#define IRQ_TC6393_MMC		1
-#define IRQ_TC6393_OHCI		2
-#define IRQ_TC6393_SERIAL	3
-#define IRQ_TC6393_FB		4
+#define IRQ_TC6393_NAND     0
+#define IRQ_TC6393_MMC      1
+#define IRQ_TC6393_OHCI     2
+#define IRQ_TC6393_SERIAL   3
+#define IRQ_TC6393_FB       4
 
-#define	TC6393XB_NR_IRQS	8
+#define TC6393XB_NR_IRQS    8
 
-#define TC6393XB_GPIOS  16
+#define TC6393XB_GPIOS      16
 
-#define SCR_REVID	0x08		/* b Revision ID	*/
-#define SCR_ISR		0x50		/* b Interrupt Status	*/
-#define SCR_IMR		0x52		/* b Interrupt Mask	*/
-#define SCR_IRR		0x54		/* b Interrupt Routing	*/
-#define SCR_GPER	0x60		/* w GP Enable		*/
-#define SCR_GPI_SR(i)	(0x64 + (i))	/* b3 GPI Status	*/
-#define SCR_GPI_IMR(i)	(0x68 + (i))	/* b3 GPI INT Mask	*/
-#define SCR_GPI_EDER(i)	(0x6c + (i))	/* b3 GPI Edge Detect Enable */
-#define SCR_GPI_LIR(i)	(0x70 + (i))	/* b3 GPI Level Invert	*/
-#define SCR_GPO_DSR(i)	(0x78 + (i))	/* b3 GPO Data Set	*/
-#define SCR_GPO_DOECR(i) (0x7c + (i))	/* b3 GPO Data OE Control */
-#define SCR_GP_IARCR(i)	(0x80 + (i))	/* b3 GP Internal Active Register Control */
-#define SCR_GP_IARLCR(i) (0x84 + (i))	/* b3 GP INTERNAL Active Register Level Control */
-#define SCR_GPI_BCR(i)	(0x88 + (i))	/* b3 GPI Buffer Control */
-#define SCR_GPA_IARCR	0x8c		/* w GPa Internal Active Register Control */
-#define SCR_GPA_IARLCR	0x90		/* w GPa Internal Active Register Level Control */
-#define SCR_GPA_BCR	0x94		/* w GPa Buffer Control */
-#define SCR_CCR		0x98		/* w Clock Control	*/
-#define SCR_PLL2CR	0x9a		/* w PLL2 Control	*/
-#define SCR_PLL1CR	0x9c		/* l PLL1 Control	*/
-#define SCR_DIARCR	0xa0		/* b Device Internal Active Register Control */
-#define SCR_DBOCR	0xa1		/* b Device Buffer Off Control */
-#define SCR_FER		0xe0		/* b Function Enable	*/
-#define SCR_MCR		0xe4		/* w Mode Control	*/
-#define SCR_CONFIG	0xfc		/* b Configuration Control */
-#define SCR_DEBUG	0xff		/* b Debug		*/
+#define SCR_REVID         0x08        /* b Revision ID    */
+#define SCR_ISR           0x50        /* b Interrupt Status    */
+#define SCR_IMR           0x52        /* b Interrupt Mask    */
+#define SCR_IRR           0x54        /* b Interrupt Routing    */
+#define SCR_GPER          0x60        /* w GP Enable        */
+#define SCR_GPI_SR(i)     (0x64 + (i))    /* b3 GPI Status    */
+#define SCR_GPI_IMR(i)    (0x68 + (i))    /* b3 GPI INT Mask    */
+#define SCR_GPI_EDER(i)   (0x6c + (i))    /* b3 GPI Edge Detect Enable */
+#define SCR_GPI_LIR(i)    (0x70 + (i))    /* b3 GPI Level Invert    */
+#define SCR_GPO_DSR(i)    (0x78 + (i))    /* b3 GPO Data Set    */
+#define SCR_GPO_DOECR(i)  (0x7c + (i))    /* b3 GPO Data OE Control */
+#define SCR_GP_IARCR(i)   (0x80 + (i))    /* b3 GP Internal Active Register Control */
+#define SCR_GP_IARLCR(i)  (0x84 + (i))    /* b3 GP INTERNAL Active Register Level Control */
+#define SCR_GPI_BCR(i)    (0x88 + (i))    /* b3 GPI Buffer Control */
+#define SCR_GPA_IARCR     0x8c        /* w GPa Internal Active Register Control */
+#define SCR_GPA_IARLCR    0x90        /* w GPa Internal Active Register Level Control */
+#define SCR_GPA_BCR       0x94        /* w GPa Buffer Control */
+#define SCR_CCR           0x98        /* w Clock Control    */
+#define SCR_PLL2CR        0x9a        /* w PLL2 Control    */
+#define SCR_PLL1CR        0x9c        /* l PLL1 Control    */
+#define SCR_DIARCR        0xa0        /* b Device Internal Active Register Control */
+#define SCR_DBOCR         0xa1        /* b Device Buffer Off Control */
+#define SCR_FER           0xe0        /* b Function Enable    */
+#define SCR_MCR           0xe4        /* w Mode Control    */
+#define SCR_CONFIG        0xfc        /* b Configuration Control */
+#define SCR_DEBUG         0xff        /* b Debug        */
 
 #define NAND_CFG_COMMAND    0x04    /* w Command        */
 #define NAND_CFG_BASE       0x10    /* l Control Base Address */
@@ -368,7 +368,7 @@ static uint32_t tc6393xb_nand_readb(TC6393xbState *s, hwaddr addr) {
 }
 static void tc6393xb_nand_writeb(TC6393xbState *s, hwaddr addr, uint32_t value) {
 //    fprintf(stderr, "tc6393xb_nand: write at %08x: %02x\n",
-//					(uint32_t) addr, value & 0xff);
+//                    (uint32_t) addr, value & 0xff);
     switch (addr) {
         case NAND_DATA + 0:
         case NAND_DATA + 1:
