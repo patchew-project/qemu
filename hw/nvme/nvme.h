@@ -477,6 +477,8 @@ typedef struct NvmeCtrl {
     uint64_t    dbbuf_eis;
     bool        dbbuf_enabled;
 
+    bool        zdc_event_queued;
+
     struct {
         MemoryRegion mem;
         uint8_t      *buf;

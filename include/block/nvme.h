@@ -837,6 +837,7 @@ typedef struct QEMU_PACKED NvmeAerResult {
     uint8_t event_info;
     uint8_t log_page;
     uint8_t resv;
+    uint32_t nsid;
 } NvmeAerResult;
 
 typedef struct QEMU_PACKED NvmeZonedResult {
@@ -1228,6 +1229,7 @@ enum NvmeNsAttachmentOperation {
 #define NVME_AEC_SMART(aec)         (aec & 0xff)
 #define NVME_AEC_NS_ATTR(aec)       ((aec >> 8) & 0x1)
 #define NVME_AEC_FW_ACTIVATION(aec) ((aec >> 9) & 0x1)
+#define NVME_AEC_ZONE_CHANGED(aec)  ((aec >> 27) & 0x1)
 
 #define NVME_ERR_REC_TLER(err_rec)  (err_rec & 0xffff)
 #define NVME_ERR_REC_DULBE(err_rec) (err_rec & 0x10000)
@@ -1627,7 +1629,7 @@ typedef struct QEMU_PACKED NvmeZoneIdList {
 static inline void _nvme_check_size(void)
 {
     QEMU_BUILD_BUG_ON(sizeof(NvmeBar) != 4096);
-    QEMU_BUILD_BUG_ON(sizeof(NvmeAerResult) != 4);
+    QEMU_BUILD_BUG_ON(sizeof(NvmeAerResult) != 8);
     QEMU_BUILD_BUG_ON(sizeof(NvmeZonedResult) != 8);
     QEMU_BUILD_BUG_ON(sizeof(NvmeCqe) != 16);
     QEMU_BUILD_BUG_ON(sizeof(NvmeDsmRange) != 16);
