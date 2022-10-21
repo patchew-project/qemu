@@ -37,6 +37,7 @@
 typedef enum {
     TCG_CALL_RET_NORMAL,         /* by registers */
     TCG_CALL_RET_NORMAL_4,       /* for i128, by 4 registers */
+    TCG_CALL_RET_BY_REF,         /* for i128, by reference as first arg */
 } TCGCallReturnKind;
 
 typedef enum {
@@ -46,12 +47,15 @@ typedef enum {
     TCG_CALL_ARG_EXTEND_U,       /*      ... as a zero-extended i64 */
     TCG_CALL_ARG_EXTEND_S,       /*      ... as a sign-extended i64 */
     TCG_CALL_ARG_NORMAL_4,       /* for i128, like normal with 4 slots */
+    TCG_CALL_ARG_BY_REF,         /*      ... by reference, first */
+    TCG_CALL_ARG_BY_REF_2,       /*      ... by reference, second */
 } TCGCallArgumentKind;
 
 typedef struct TCGCallArgumentLoc {
-    TCGCallArgumentKind kind    : 8;
-    unsigned reg_slot           : 8;
-    unsigned stk_slot           : 8;
+    TCGCallArgumentKind kind    : 4;
+    unsigned reg_slot           : 6;
+    unsigned stk_slot           : 6;
+    unsigned ref_slot           : 6;
     unsigned reg_n              : 2;
     unsigned arg_idx            : 4;
     unsigned tmp_subindex       : 1;

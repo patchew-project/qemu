@@ -103,8 +103,7 @@ static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1,
 static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg);
 static void tcg_out_movi(TCGContext *s, TCGType type,
                          TCGReg ret, tcg_target_long arg);
-static void tcg_out_addi_ptr(TCGContext *s, TCGReg, TCGReg, tcg_target_long)
-    __attribute__((unused));
+static void tcg_out_addi_ptr(TCGContext *s, TCGReg, TCGReg, tcg_target_long);
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS]);
@@ -684,6 +683,34 @@ static void layout_arg_normal_4(TCGCumulativeArgs *cum, TCGHelperInfo *info)
     cum->op_arg_idx++;
 }
 
+static void layout_arg_by_ref(TCGCumulativeArgs *cum, TCGHelperInfo *info)
+{
+    TCGCallArgumentLoc *loc = &info->in[cum->info_in_idx];
+    int n = 128 / TCG_TARGET_REG_BITS;
+
+    /* The first subindex carries the pointer. */
+    layout_arg_1(cum, info, TCG_CALL_ARG_BY_REF);
+
+    /*
+     * The callee is allowed to clobber memory associated with
+     * structure pass by-reference.  Therefore we must make copies.
+     * Allocate space from the top of TCG_STATIC_CALL_ARGS_SIZE.
+     */
+    cum->max_stk_slot -= n;
+    loc[0].ref_slot = cum->max_stk_slot;
+
+    /* Any other subindex is present for liveness. */
+    if (TCG_TARGET_REG_BITS == 64) {
+        loc[1] = (TCGCallArgumentLoc){
+            .kind = TCG_CALL_ARG_BY_REF_2,
+            .arg_idx = cum->arg_idx,
+            .tmp_subindex = 1,
+        };
+        cum->info_in_idx++;
+        cum->op_arg_idx++;
+    }
+}
+
 static void init_call_layout(TCGHelperInfo *info)
 {
     unsigned typemask = info->typemask;
@@ -728,6 +755,18 @@ static void init_call_layout(TCGHelperInfo *info)
                 assert(ARRAY_SIZE(tcg_target_call_oarg_regs) >= 2);
             }
             break;
+        case TCG_CALL_RET_BY_REF:
+            /*
+             * Allocate the first argument to the output.
+             * We don't need to store this anywhere, just make it
+             * unavailable for use in the input loop below.
+             */
+            if (cum.max_reg_slot == 0) {
+                cum.stk_slot = 1;
+            } else {
+                cum.reg_slot = 1;
+            }
+            break;
         default:
             g_assert_not_reached();
         }
@@ -764,6 +803,10 @@ static void init_call_layout(TCGHelperInfo *info)
         case dh_typecode_ptr:
             type = TCG_TYPE_PTR;
             kind = TCG_CALL_ARG_NORMAL;
+            break;
+        case dh_typecode_i128:
+            type = TCG_TYPE_I128;
+            kind = TCG_CALL_ARG_NORMAL; /* TODO */
             break;
         default:
             g_assert_not_reached();
@@ -808,6 +851,10 @@ static void init_call_layout(TCGHelperInfo *info)
         case TCG_CALL_ARG_EXTEND_S:
             assert(type == TCG_TYPE_I32);
             layout_arg_1(&cum, info, kind);
+            break;
+        case TCG_CALL_ARG_BY_REF:
+            assert(type == TCG_TYPE_I128);
+            layout_arg_by_ref(&cum, info);
             break;
         default:
             g_assert_not_reached();
@@ -1740,6 +1787,8 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
         switch (loc->kind) {
         case TCG_CALL_ARG_NORMAL:
         case TCG_CALL_ARG_NORMAL_4:
+        case TCG_CALL_ARG_BY_REF:
+        case TCG_CALL_ARG_BY_REF_2:
             op->args[pi++] = temp_arg(ts);
             break;
 
@@ -4466,6 +4515,27 @@ static void load_arg_normal_4(TCGContext *s, const TCGCallArgumentLoc *loc,
     }
 }
 
+static void load_arg_by_ref(TCGContext *s, const TCGCallArgumentLoc *loc,
+                            TCGReg ref_base, int ref_off,
+                            TCGRegSet *allocated_regs)
+{
+    TCGReg reg;
+
+    if (loc->reg_n) {
+        reg = tcg_target_call_iarg_regs[loc->reg_slot];
+        tcg_out_addi_ptr(s, reg, ref_base, ref_off);
+        tcg_regset_set_reg(*allocated_regs, reg);
+    } else {
+        int stk_off = TCG_TARGET_CALL_STACK_OFFSET
+                    + loc->stk_slot * sizeof(tcg_target_long);
+
+        reg = tcg_reg_alloc(s, tcg_target_available_regs[TCG_TYPE_PTR],
+                            *allocated_regs, 0, false);
+        tcg_out_addi_ptr(s, reg, ref_base, ref_off);
+        tcg_out_st(s, TCG_TYPE_PTR, reg, TCG_REG_CALL_STACK, stk_off);
+    }
+}
+
 static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
 {
     const int nb_oargs = TCGOP_CALLO(op);
@@ -4474,6 +4544,19 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
     const TCGHelperInfo *info = tcg_call_info(op);
     TCGRegSet allocated_regs = s->reserved_regs;
     int i;
+
+    /*
+     * The callee is allowed to clobber memory associated with
+     * structure pass by-reference.  Therefore we must make copies.
+     * Do this first, before we start allocating argument regs.
+     */
+    for (i = 0; i < nb_iargs; ++i) {
+        const TCGCallArgumentLoc *loc = &info->in[i];
+        if (loc->kind == TCG_CALL_ARG_BY_REF) {
+            TCGTemp *ts = arg_temp(op->args[nb_oargs + i]);
+            copy_to_stk_i128(s, loc->ref_slot, ts, 0, allocated_regs);
+        }
+    }
 
     /*
      * Move inputs into place in reverse order,
@@ -4491,6 +4574,15 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
             break;
         case TCG_CALL_ARG_NORMAL_4:
             load_arg_normal_4(s, loc, ts, &allocated_regs);
+            break;
+        case TCG_CALL_ARG_BY_REF:
+            load_arg_by_ref(s, loc, TCG_REG_CALL_STACK,
+                            TCG_TARGET_CALL_STACK_OFFSET +
+                            loc->ref_slot * sizeof(tcg_target_long),
+                            &allocated_regs);
+            break;
+        case TCG_CALL_ARG_BY_REF_2:
+            /* nothing to do */
             break;
         default:
             g_assert_not_reached();
@@ -4521,6 +4613,26 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
         sync_globals(s, allocated_regs);
     } else {
         save_globals(s, allocated_regs);
+    }
+
+    /*
+     * If the ABI passes a pointer to the returned struct as the first
+     * argument, load that now.  Pass a pointer to the output home slot.
+     */
+    if (info->out_kind == TCG_CALL_RET_BY_REF) {
+        static const TCGCallArgumentLoc ret_loc = {
+            .reg_n = ARRAY_SIZE(tcg_target_call_iarg_regs) != 0
+        };
+        TCGTemp *ts = arg_temp(op->args[0]);
+
+        tcg_debug_assert(ts->base_type == TCG_TYPE_I128);
+        tcg_debug_assert(ts->temp_subindex == 0);
+
+        if (!ts->mem_allocated) {
+            temp_allocate_frame(s, ts);
+        }
+        load_arg_by_ref(s, &ret_loc, ts->mem_base->reg, ts->mem_offset,
+                        &allocated_regs);
     }
 
     tcg_out_call(s, tcg_call_func(op), info);
@@ -4559,6 +4671,14 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
                 tcg_out_st(s, TCG_TYPE_I32, tcg_target_call_oarg_regs[i],
                            ts->mem_base->reg, ts->mem_offset + i * 4);
             }
+            ts->val_type = TEMP_VAL_MEM;
+        }
+        break;
+
+    case TCG_CALL_RET_BY_REF:
+        /* The callee has performed a write through the reference. */
+        for (i = 0; i < nb_oargs; i++) {
+            TCGTemp *ts = arg_temp(op->args[i]);
             ts->val_type = TEMP_VAL_MEM;
         }
         break;
