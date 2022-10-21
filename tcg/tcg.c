@@ -1250,18 +1250,39 @@ TCGTemp *tcg_temp_new_internal(TCGType type, bool temp_local)
         tcg_debug_assert(ts->base_type == type);
         tcg_debug_assert(ts->kind == kind);
     } else {
+        bool want_pair = false;
+        TCGType half = type;
+
+        switch (type) {
+        case TCG_TYPE_I32:
+        case TCG_TYPE_V64:
+        case TCG_TYPE_V128:
+        case TCG_TYPE_V256:
+            break;
+        case TCG_TYPE_I64:
+            half = TCG_TYPE_I32;
+            want_pair = TCG_TARGET_REG_BITS == 32;
+            break;
+        case TCG_TYPE_I128:
+            half = TCG_TYPE_I64;
+            want_pair = TCG_TARGET_REG_BITS == 64;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+
         ts = tcg_temp_alloc(s);
-        if (TCG_TARGET_REG_BITS == 32 && type == TCG_TYPE_I64) {
+        if (want_pair) {
             TCGTemp *ts2 = tcg_temp_alloc(s);
 
             ts->base_type = type;
-            ts->type = TCG_TYPE_I32;
+            ts->type = half;
             ts->temp_allocated = 1;
             ts->kind = kind;
 
             tcg_debug_assert(ts2 == ts + 1);
-            ts2->base_type = TCG_TYPE_I64;
-            ts2->type = TCG_TYPE_I32;
+            ts2->base_type = type;
+            ts2->type = half;
             ts2->temp_allocated = 1;
             ts2->temp_subindex = 1;
             ts2->kind = kind;
@@ -2773,7 +2794,7 @@ static void la_cross_call(TCGContext *s, int nt)
 
     for (i = 0; i < nt; i++) {
         TCGTemp *ts = &s->temps[i];
-        if (!(ts->state & TS_DEAD)) {
+        if (ts->type != TCG_TYPE_I128 && !(ts->state & TS_DEAD)) {
             TCGRegSet *pset = la_temp_pref(ts);
             TCGRegSet set = *pset;
 
@@ -3404,6 +3425,7 @@ static void temp_allocate_frame(TCGContext *s, TCGTemp *ts)
     case TCG_TYPE_V64:
         align = 8;
         break;
+    case TCG_TYPE_I128:
     case TCG_TYPE_V128:
     case TCG_TYPE_V256:
         /* Note that we do not require aligned storage for V256. */
