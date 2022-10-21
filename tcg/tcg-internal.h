@@ -42,11 +42,24 @@ typedef enum {
     TCG_CALL_ARG_EXTEND_S,       /*      ... as a sign-extended i64 */
 } TCGCallArgumentKind;
 
+typedef struct TCGCallArgumentLoc {
+    TCGCallArgumentKind kind    : 8;
+    unsigned reg_slot           : 8;
+    unsigned stk_slot           : 8;
+    unsigned reg_n              : 2;
+    unsigned arg_idx            : 4;
+    unsigned tmp_subindex       : 1;
+} TCGCallArgumentLoc;
+
 typedef struct TCGHelperInfo {
     void *func;
     const char *name;
-    unsigned flags;
-    unsigned typemask;
+    unsigned typemask           : 32;
+    unsigned flags              : 8;
+    unsigned nr_in              : 8;
+    unsigned nr_out             : 8;
+    TCGCallReturnKind out_kind  : 8;
+    TCGCallArgumentLoc in[MAX_OPC_PARAM_IARGS * MAX_OPC_PARAM_PER_ARG];
 } TCGHelperInfo;
 
 extern TCGContext tcg_init_ctx;
