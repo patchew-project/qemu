@@ -93,6 +93,7 @@ static inline NvmeNamespace *nvme_subsys_ns(NvmeSubsystem *subsys,
 typedef struct NvmeZone {
     NvmeZoneDescr   d;
     uint64_t        w_ptr;
+    int64_t         finish_ms;
     QTAILQ_ENTRY(NvmeZone) entry;
 } NvmeZone;
 
@@ -121,11 +122,14 @@ typedef struct NvmeNamespaceParams {
     uint32_t max_active_zones;
     uint32_t max_open_zones;
     uint32_t zd_extension_size;
+    uint32_t fto;
 
     uint32_t numzrwa;
     uint64_t zrwas;
     uint64_t zrwafg;
 } NvmeNamespaceParams;
+
+typedef QTAILQ_HEAD(, NvmeZone) NvmeZoneListHead;
 
 typedef struct NvmeNamespace {
     DeviceState  parent_obj;
@@ -154,10 +158,10 @@ typedef struct NvmeNamespace {
 
     NvmeIdNsZoned   *id_ns_zoned;
     NvmeZone        *zone_array;
-    QTAILQ_HEAD(, NvmeZone) exp_open_zones;
-    QTAILQ_HEAD(, NvmeZone) imp_open_zones;
-    QTAILQ_HEAD(, NvmeZone) closed_zones;
-    QTAILQ_HEAD(, NvmeZone) full_zones;
+    NvmeZoneListHead exp_open_zones;
+    NvmeZoneListHead imp_open_zones;
+    NvmeZoneListHead closed_zones;
+    NvmeZoneListHead full_zones;
     uint32_t        num_zones;
     uint64_t        zone_size;
     uint64_t        zone_capacity;
@@ -165,6 +169,9 @@ typedef struct NvmeNamespace {
     uint8_t         *zd_extensions;
     int32_t         nr_open_zones;
     int32_t         nr_active_zones;
+
+    int64_t         fto_ms;
+    QEMUTimer       *active_timer;
 
     NvmeNamespaceParams params;
 
@@ -273,6 +280,9 @@ static inline void nvme_aor_dec_active(NvmeNamespace *ns)
     }
     assert(ns->nr_active_zones >= 0);
 }
+
+void nvme_set_active_timeout(NvmeNamespace *ns, NvmeZone *zone);
+void nvme_finish_needed(void *opaque);
 
 void nvme_ns_init_format(NvmeNamespace *ns);
 int nvme_ns_setup(NvmeNamespace *ns, Error **errp);

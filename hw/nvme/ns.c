@@ -322,6 +322,11 @@ static void nvme_ns_init_zoned(NvmeNamespace *ns)
         ns->id_ns.nsfeat &= ~0x4;
     }
 
+    ns->fto_ms = ns->params.fto * INT64_C(1000);
+    if (ns->fto_ms) {
+        ns->active_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, nvme_finish_needed,
+                                        ns);
+    }
     ns->id_ns_zoned = id_ns_z;
 }
 
@@ -338,6 +343,7 @@ static void nvme_clear_zone(NvmeNamespace *ns, NvmeZone *zone)
             nvme_set_zone_state(zone, NVME_ZONE_STATE_CLOSED);
         }
         nvme_aor_inc_active(ns);
+        nvme_set_active_timeout(ns, zone);
         QTAILQ_INSERT_HEAD(&ns->closed_zones, zone, entry);
     } else {
         trace_pci_nvme_clear_ns_reset(state, zone->d.zslba);
@@ -521,6 +527,7 @@ void nvme_ns_shutdown(NvmeNamespace *ns)
 void nvme_ns_cleanup(NvmeNamespace *ns)
 {
     if (ns->params.zoned) {
+        timer_free(ns->active_timer);
         g_free(ns->id_ns_zoned);
         g_free(ns->zone_array);
         g_free(ns->zd_extensions);
@@ -644,6 +651,7 @@ static Property nvme_ns_props[] = {
     DEFINE_PROP_SIZE("zoned.zrwafg", NvmeNamespace, params.zrwafg, -1),
     DEFINE_PROP_BOOL("eui64-default", NvmeNamespace, params.eui64_default,
                      false),
+    DEFINE_PROP_UINT32("zoned.finish_time", NvmeNamespace, params.fto, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
