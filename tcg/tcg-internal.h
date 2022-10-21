@@ -110,9 +110,21 @@ static inline TCGv_i32 TCGV_HIGH(TCGv_i64 t)
 {
     return temp_tcgv_i32(tcgv_i64_temp(t) + !HOST_BIG_ENDIAN);
 }
+extern TCGv_i64 TCGV128_LOW(TCGv_i128)
+    QEMU_ERROR("64-bit code path is reachable");
+extern TCGv_i64 TCGV128_HIGH(TCGv_i128)
+    QEMU_ERROR("64-bit code path is reachable");
 #else
 extern TCGv_i32 TCGV_LOW(TCGv_i64) QEMU_ERROR("32-bit code path is reachable");
 extern TCGv_i32 TCGV_HIGH(TCGv_i64) QEMU_ERROR("32-bit code path is reachable");
+static inline TCGv_i64 TCGV128_LOW(TCGv_i128 t)
+{
+    return temp_tcgv_i64(tcgv_i128_temp(t) + HOST_BIG_ENDIAN);
+}
+static inline TCGv_i64 TCGV128_HIGH(TCGv_i128 t)
+{
+    return temp_tcgv_i64(tcgv_i128_temp(t) + !HOST_BIG_ENDIAN);
+}
 #endif
 
 #endif /* TCG_INTERNAL_H */

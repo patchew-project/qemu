@@ -2718,6 +2718,41 @@ void tcg_gen_extr32_i64(TCGv_i64 lo, TCGv_i64 hi, TCGv_i64 arg)
     tcg_gen_shri_i64(hi, arg, 32);
 }
 
+void tcg_gen_extr_i128_i64(TCGv_i64 lo, TCGv_i64 hi, TCGv_i128 arg)
+{
+    if (TCG_TARGET_REG_BITS == 32) {
+        TCGArg a_arg = tcgv_i128_arg(arg);
+        int be = HOST_BIG_ENDIAN ? 0xc : 0;
+
+        tcg_gen_op3(INDEX_op_extr_i128_i32, tcgv_i32_arg(TCGV_LOW(lo)),
+                    a_arg, 0x0 ^ be);
+        tcg_gen_op3(INDEX_op_extr_i128_i32, tcgv_i32_arg(TCGV_HIGH(lo)),
+                    a_arg, 0x4 ^ be);
+        tcg_gen_op3(INDEX_op_extr_i128_i32, tcgv_i32_arg(TCGV_LOW(hi)),
+                    a_arg, 0x8 ^ be);
+        tcg_gen_op3(INDEX_op_extr_i128_i32, tcgv_i32_arg(TCGV_HIGH(hi)),
+                    a_arg, 0xc ^ be);
+    } else {
+        tcg_gen_mov_i64(lo, TCGV128_LOW(arg));
+        tcg_gen_mov_i64(hi, TCGV128_HIGH(arg));
+    }
+}
+
+void tcg_gen_concat_i64_i128(TCGv_i128 ret, TCGv_i64 lo, TCGv_i64 hi)
+{
+    if (TCG_TARGET_REG_BITS == 32) {
+        tcg_gen_op5(INDEX_op_concat4_i32_i128,
+                    tcgv_i128_arg(ret),
+                    tcgv_i32_arg(TCGV_LOW(lo)),
+                    tcgv_i32_arg(TCGV_HIGH(lo)),
+                    tcgv_i32_arg(TCGV_LOW(hi)),
+                    tcgv_i32_arg(TCGV_HIGH(hi)));
+    } else {
+        tcg_gen_mov_i64(TCGV128_LOW(ret), lo);
+        tcg_gen_mov_i64(TCGV128_HIGH(ret), hi);
+    }
+}
+
 /* QEMU specific operations.  */
 
 void tcg_gen_exit_tb(const TranslationBlock *tb, unsigned idx)

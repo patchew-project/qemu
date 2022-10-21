@@ -158,6 +158,10 @@ DEF(extrh_i64_i32, 1, 1, 0,
     IMPL(TCG_TARGET_HAS_extrh_i64_i32)
     | (TCG_TARGET_REG_BITS == 32 ? TCG_OPF_NOT_PRESENT : 0))
 
+/* For 32-bit host only, implemented generically using ld/st/mov. */
+DEF(extr_i128_i32, 1, 1, 1, TCG_OPF_NOT_PRESENT)
+DEF(concat4_i32_i128, 1, 4, 0, TCG_OPF_NOT_PRESENT)
+
 DEF(brcond_i64, 0, 2, 2, TCG_OPF_BB_END | TCG_OPF_COND_BRANCH | IMPL64)
 DEF(ext8s_i64, 1, 1, 0, IMPL64 | IMPL(TCG_TARGET_HAS_ext8s_i64))
 DEF(ext16s_i64, 1, 1, 0, IMPL64 | IMPL(TCG_TARGET_HAS_ext16s_i64))

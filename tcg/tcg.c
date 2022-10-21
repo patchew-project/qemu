@@ -3950,6 +3950,85 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOp *op)
 }
 
 /*
+ * Specialized code generation for TCG_TYPE_I128 on 32-bit host.
+ * Here, 128-bit values are *always* in memory, never regs or constants.
+ * Move 32-bit pieces into and out of the 128-bit memory slot.
+ */
+static void tcg_reg_alloc_exrl_i128_i32(TCGContext *s, const TCGOp *op)
+{
+    const TCGLifeData arg_life = op->life;
+    TCGTemp *ots = arg_temp(op->args[0]);
+    TCGTemp *its = arg_temp(op->args[1]);
+    TCGArg ofs = op->args[2];
+    TCGReg reg;
+
+    assert(TCG_TARGET_REG_BITS == 32);
+    tcg_debug_assert(ots->type == TCG_TYPE_I32);
+    tcg_debug_assert(!temp_readonly(ots));
+    tcg_debug_assert(its->type == TCG_TYPE_I128);
+    tcg_debug_assert(its->val_type == TEMP_VAL_MEM);
+    tcg_debug_assert(ofs < 16);
+    tcg_debug_assert((ofs & 3) == 0);
+
+    if (ots->val_type == TEMP_VAL_REG) {
+        reg = ots->reg;
+    } else {
+        reg = tcg_reg_alloc(s, tcg_target_available_regs[TCG_TYPE_I32],
+                            s->reserved_regs, op->output_pref[0],
+                            ots->indirect_base);
+        ots->val_type = TEMP_VAL_REG;
+        ots->reg = reg;
+        s->reg_to_temp[reg] = ots;
+    }
+
+    tcg_out_ld(s, TCG_TYPE_I32, reg,
+               its->mem_base->reg, its->mem_offset + ofs);
+    ots->mem_coherent = 0;
+
+    if (IS_DEAD_ARG(1)) {
+        temp_dead(s, its);
+    }
+}
+
+static void tcg_reg_alloc_concat4_i32_i128(TCGContext *s, const TCGOp *op)
+{
+    const TCGLifeData arg_life = op->life;
+    TCGTemp *ots = arg_temp(op->args[0]);
+    int be = HOST_BIG_ENDIAN ? 0xc : 0;
+
+    assert(TCG_TARGET_REG_BITS == 32);
+    tcg_debug_assert(ots->type == TCG_TYPE_I128);
+    tcg_debug_assert(!temp_readonly(ots));
+    tcg_debug_assert(NEED_SYNC_ARG(0));
+
+    if (!ots->mem_allocated) {
+        temp_allocate_frame(s, ots);
+    }
+
+    for (int i = 0; i < 4; ++i) {
+        TCGTemp *its = arg_temp(op->args[i + 1]);
+        int ofs = ots->mem_offset + ((i * 4) ^ be);
+
+        if (its->val_type == TEMP_VAL_CONST &&
+            IS_DEAD_ARG(i + 1) &&
+            tcg_out_sti(s, TCG_TYPE_I32, its->val, ots->mem_base->reg, ofs)) {
+            continue;
+        }
+
+        temp_load(s, its, tcg_target_available_regs[TCG_TYPE_I32],
+                  s->reserved_regs, 0);
+        tcg_out_st(s, TCG_TYPE_I32, its->reg, ots->mem_base->reg, ofs);
+
+        if (IS_DEAD_ARG(i + 1)) {
+            temp_dead(s, its);
+        }
+    }
+
+    ots->val_type = TEMP_VAL_MEM;
+    ots->mem_coherent = 1;
+}
+
+/*
  * Specialized code generation for INDEX_op_dup_vec.
  */
 static void tcg_reg_alloc_dup(TCGContext *s, const TCGOp *op)
@@ -5008,6 +5087,12 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, target_ulong pc_start)
         case INDEX_op_mov_i64:
         case INDEX_op_mov_vec:
             tcg_reg_alloc_mov(s, op);
+            break;
+        case INDEX_op_extr_i128_i32:
+            tcg_reg_alloc_exrl_i128_i32(s, op);
+            break;
+        case INDEX_op_concat4_i32_i128:
+            tcg_reg_alloc_concat4_i32_i128(s, op);
             break;
         case INDEX_op_dup_vec:
             tcg_reg_alloc_dup(s, op);
