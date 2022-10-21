@@ -1510,6 +1510,38 @@ static void nvme_clear_events(NvmeCtrl *n, uint8_t event_type)
     }
 }
 
+static void nvme_check_finish(NvmeNamespace *ns, NvmeZoneListHead *list)
+{
+    int64_t now = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL);
+    NvmeZone *zone;
+
+    QTAILQ_FOREACH(zone, list, entry) {
+        if (zone->finish_ms <= now) {
+            zone->finish_ms = INT64_MAX;
+            zone->d.za |= NVME_ZA_FINISH_RECOMMENDED;
+        } else if (zone->finish_ms != INT64_MAX) {
+            timer_mod_anticipate(ns->active_timer, zone->finish_ms);
+        }
+    }
+}
+
+void nvme_finish_needed(void *opaque)
+{
+    NvmeNamespace *ns = opaque;
+
+    nvme_check_finish(ns, &ns->exp_open_zones);
+    nvme_check_finish(ns, &ns->imp_open_zones);
+    nvme_check_finish(ns, &ns->closed_zones);
+}
+
+void nvme_set_active_timeout(NvmeNamespace *ns, NvmeZone *zone)
+{
+    if (ns->fto_ms) {
+        zone->finish_ms = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + ns->fto_ms;
+        timer_mod_anticipate(ns->active_timer, zone->finish_ms);
+    }
+}
+
 static inline uint16_t nvme_check_mdts(NvmeCtrl *n, size_t len)
 {
     uint8_t mdts = n->params.mdts;
@@ -1785,6 +1817,7 @@ static uint16_t nvme_zrm_finish(NvmeNamespace *ns, NvmeZone *zone)
 
         /* fallthrough */
     case NVME_ZONE_STATE_EMPTY:
+        zone->d.za &= ~NVME_ZA_FINISH_RECOMMENDED;
         nvme_assign_zone_state(ns, zone, NVME_ZONE_STATE_FULL);
         return NVME_SUCCESS;
 
@@ -1885,6 +1918,7 @@ static uint16_t nvme_zrm_open_flags(NvmeCtrl *n, NvmeNamespace *ns,
 
         if (act) {
             nvme_aor_inc_active(ns);
+            nvme_set_active_timeout(ns, zone);
         }
 
         nvme_aor_inc_open(ns);
@@ -3614,6 +3648,7 @@ static uint16_t nvme_set_zd_ext(NvmeNamespace *ns, NvmeZone *zone)
             return status;
         }
         nvme_aor_inc_active(ns);
+        nvme_set_active_timeout(ns, zone);
         zone->d.za |= NVME_ZA_ZD_EXT_VALID;
         nvme_assign_zone_state(ns, zone, NVME_ZONE_STATE_CLOSED);
         return NVME_SUCCESS;

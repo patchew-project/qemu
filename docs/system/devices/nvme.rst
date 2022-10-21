@@ -212,6 +212,11 @@ The namespace may be configured with additional parameters
   the minimum memory page size (CAP.MPSMIN). The default value (``0``)
   has this property inherit the ``mdts`` value.
 
+``zoned.finish_time=UINT32`` (default: ``0``)
+  Set the time in seconds for how long a zone can be active before setting the
+  zone attribute ``Zone Finish Recommended``.  The default value (``0``)
+  disables this feature.
+
 Metadata
 --------
 
