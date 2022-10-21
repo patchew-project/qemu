@@ -304,15 +304,14 @@ static void log_cpu_exec(target_ulong pc, CPUState *cpu,
     }
 }
 
+#define have_breakpoints(cpu)   (likely(QTAILQ_EMPTY(&(cpu)->breakpoints)) ? \
+                                 false : true)
+
 static bool check_for_breakpoints(CPUState *cpu, target_ulong pc,
                                   uint32_t *cflags)
 {
     CPUBreakpoint *bp;
     bool match_page = false;
-
-    if (likely(QTAILQ_EMPTY(&cpu->breakpoints))) {
-        return false;
-    }
 
     /*
      * Singlestep overrides breakpoints.
@@ -392,7 +391,8 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
     cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
 
     cflags = curr_cflags(cpu);
-    if (check_for_breakpoints(cpu, pc, &cflags)) {
+
+    if (have_breakpoints(cpu) && check_for_breakpoints(cpu, pc, &cflags)) {
         cpu_loop_exit(cpu);
     }
 
@@ -990,7 +990,8 @@ int cpu_exec(CPUState *cpu)
                 cpu->cflags_next_tb = -1;
             }
 
-            if (check_for_breakpoints(cpu, pc, &cflags)) {
+            if (have_breakpoints(cpu) &&
+                check_for_breakpoints(cpu, pc, &cflags)) {
                 break;
             }
 
