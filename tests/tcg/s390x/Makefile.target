@@ -17,6 +17,7 @@ TESTS+=trap
 TESTS+=signals-s390x
 TESTS+=branch-relative-long
 TESTS+=noexec
+TESTS+=long-double
 
 Z14_TESTS=vfminmax
 vfminmax: LDFLAGS+=-lm
