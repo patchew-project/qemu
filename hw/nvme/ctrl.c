@@ -1513,6 +1513,52 @@ static void nvme_clear_events(NvmeCtrl *n, uint8_t event_type)
     }
 }
 
+static void nvme_zdc_watch(NvmeCtrl *n, NvmeNamespace *ns, NvmeNotifyFnc fnc)
+{
+    NvmeZdcNotify *watcher = g_malloc0(sizeof(*watcher));
+
+    watcher->n = n;
+    watcher->notify = fnc;
+    QTAILQ_INSERT_TAIL(&ns->zdc_watchers, watcher, entry);
+}
+
+static void nvme_zdc_unwatch(NvmeCtrl *n, NvmeNamespace *ns)
+{
+    NvmeZdcNotify *watcher;
+
+    QTAILQ_FOREACH(watcher, &ns->zdc_watchers, entry) {
+        if (watcher->n == n) {
+            QTAILQ_REMOVE(&ns->zdc_watchers, watcher, entry);
+            break;
+        }
+    }
+}
+
+static void nvme_zdc_notify(NvmeNamespace *ns)
+{
+    NvmeZdcNotify *watcher;
+
+    QTAILQ_FOREACH(watcher, &ns->zdc_watchers, entry) {
+        (*watcher->notify)(watcher->n, ns);
+    }
+}
+
+static void nvme_zdc_aen(NvmeCtrl *n, NvmeNamespace *ns)
+{
+    g_assert(n->id_ctrl.oaes & (1 << 27));
+
+    if (!NVME_AEC_ZONE_CHANGED(n->features.async_config)) {
+        return;
+    }
+
+    if (!n->zdc_event_queued) {
+        n->zdc_event_queued = true;
+        nvme_enqueue_event(n, NVME_AER_TYPE_NOTICE,
+                            NVME_AER_INFO_NOTICE_ZONE_DESC_CHANGED,
+                            NVME_LOG_CHANGED_ZONE, ns->params.nsid);
+    }
+}
+
 static void nvme_zdc_list(NvmeNamespace *ns, NvmeZoneIdList *zlist, bool reset)
 {
     NvmeZdc *zdc;
@@ -1548,6 +1594,7 @@ static void nvme_check_finish(NvmeNamespace *ns, NvmeZoneListHead *list)
                 zdc->zone = zone;
                 zone->zdc_entry = zdc;
                 QTAILQ_INSERT_TAIL(&ns->zdc_list, zdc, entry);
+                nvme_zdc_notify(ns);
             }
         } else if (zone->finish_ms != INT64_MAX) {
             timer_mod_anticipate(ns->active_timer, zone->finish_ms);
@@ -4723,6 +4770,14 @@ static uint16_t nvme_changed_zones(NvmeCtrl *n, uint8_t rae, uint32_t buf_len,
         return NVME_INVALID_NSID | NVME_DNR;
     }
     nvme_zdc_list(ns, &zlist, !rae);
+    if (!rae) {
+        n->zdc_event_queued = false;
+        nvme_clear_events(n, NVME_AER_TYPE_NOTICE);
+        /* send a new aen if there are still zdc entries */
+        if (!QTAILQ_EMPTY(&ns->zdc_list)) {
+            nvme_zdc_notify(ns);
+        }
+    }
 
     trans_len = MIN(sizeof(zlist) - off, buf_len);
 
@@ -5808,6 +5863,7 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
                 return NVME_NS_NOT_ATTACHED | NVME_DNR;
             }
 
+            nvme_zdc_unwatch(n, ns);
             ctrl->namespaces[nsid] = NULL;
             ns->attached--;
 
@@ -7536,7 +7592,7 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
 
     id->cntlid = cpu_to_le16(n->cntlid);
 
-    id->oaes = cpu_to_le32(NVME_OAES_NS_ATTR);
+    id->oaes = cpu_to_le32(NVME_OAES_NS_ATTR | NVME_OAES_ZDC);
     id->ctratt |= cpu_to_le32(NVME_CTRATT_ELBAS);
 
     id->rab = 6;
@@ -7653,6 +7709,10 @@ void nvme_attach_ns(NvmeCtrl *n, NvmeNamespace *ns)
 
     n->dmrsl = MIN_NON_ZERO(n->dmrsl,
                             BDRV_REQUEST_MAX_BYTES / nvme_l2b(ns, 1));
+
+    if (ns->params.fto) {
+        nvme_zdc_watch(n, ns, nvme_zdc_aen);
+    }
 }
 
 static void nvme_realize(PCIDevice *pci_dev, Error **errp)
@@ -7715,6 +7775,7 @@ static void nvme_exit(PCIDevice *pci_dev)
         for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
             ns = nvme_ns(n, i);
             if (ns) {
+                nvme_zdc_unwatch(n, ns);
                 ns->attached--;
             }
         }

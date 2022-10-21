@@ -91,6 +91,14 @@ static inline NvmeNamespace *nvme_subsys_ns(NvmeSubsystem *subsys,
 #define NVME_NS(obj) \
     OBJECT_CHECK(NvmeNamespace, (obj), TYPE_NVME_NS)
 
+typedef void (*NvmeNotifyFnc)(NvmeCtrl *n, NvmeNamespace *ns);
+
+typedef struct NvmeZdcNotify {
+    QTAILQ_ENTRY(NvmeZdcNotify) entry;
+    NvmeNotifyFnc notify;
+    NvmeCtrl *n;
+} NvmeZdcNotify;
+
 typedef struct NvmeZdc {
     QTAILQ_ENTRY(NvmeZdc) entry;
     NvmeZone *zone;
@@ -179,6 +187,7 @@ typedef struct NvmeNamespace {
 
     int64_t         fto_ms;
     QEMUTimer       *active_timer;
+    QTAILQ_HEAD(, NvmeZdcNotify) zdc_watchers;
     QTAILQ_HEAD(, NvmeZdc) zdc_list;
 
     NvmeNamespaceParams params;
@@ -476,6 +485,8 @@ typedef struct NvmeCtrl {
     uint64_t    dbbuf_dbs;
     uint64_t    dbbuf_eis;
     bool        dbbuf_enabled;
+
+    bool        zdc_event_queued;
 
     struct {
         MemoryRegion mem;

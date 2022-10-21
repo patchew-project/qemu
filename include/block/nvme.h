@@ -830,6 +830,7 @@ enum NvmeAsyncEventRequest {
     NVME_AER_INFO_SMART_TEMP_THRESH         = 1,
     NVME_AER_INFO_SMART_SPARE_THRESH        = 2,
     NVME_AER_INFO_NOTICE_NS_ATTR_CHANGED    = 0,
+    NVME_AER_INFO_NOTICE_ZONE_DESC_CHANGED  = 0xef,
 };
 
 typedef struct QEMU_PACKED NvmeAerResult {
@@ -1133,6 +1134,7 @@ typedef struct NvmeIdCtrlNvm {
 
 enum NvmeIdCtrlOaes {
     NVME_OAES_NS_ATTR   = 1 << 8,
+    NVME_OAES_ZDC       = 1 << 27,
 };
 
 enum NvmeIdCtrlCtratt {
