@@ -3282,24 +3282,25 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
                 }
                 a0 = tcg_temp_local_new();
                 t0 = tcg_temp_local_new();
+                t1 = tcg_temp_local_new();
                 label1 = gen_new_label();
 
                 tcg_gen_mov_tl(a0, s->A0);
                 tcg_gen_mov_tl(t0, s->T0);
 
                 gen_set_label(label1);
-                t1 = tcg_temp_new();
                 t2 = tcg_temp_new();
                 tcg_gen_mov_tl(t2, t0);
                 tcg_gen_neg_tl(t1, t0);
                 tcg_gen_atomic_cmpxchg_tl(t0, a0, t0, t1,
                                           s->mem_index, ot | MO_LE);
-                tcg_temp_free(t1);
                 tcg_gen_brcond_tl(TCG_COND_NE, t0, t2, label1);
 
                 tcg_temp_free(t2);
+
+                tcg_gen_mov_tl(s->T0, t1);
+                tcg_temp_free(t1);
                 tcg_temp_free(a0);
-                tcg_gen_mov_tl(s->T0, t0);
                 tcg_temp_free(t0);
             } else {
                 tcg_gen_neg_tl(s->T0, s->T0);
