@@ -658,6 +658,30 @@ static void layout_arg_normal_2(TCGCumulativeArgs *cum, TCGHelperInfo *info)
     loc[1].tmp_subindex = 1;
 }
 
+static void layout_arg_normal_4(TCGCumulativeArgs *cum, TCGHelperInfo *info)
+{
+    TCGCallArgumentLoc *loc = &info->in[cum->info_in_idx];
+    int reg_n = MIN(4, cum->max_reg_slot - cum->reg_slot);
+
+    *loc = (TCGCallArgumentLoc){
+        .kind = TCG_CALL_ARG_NORMAL_4,
+        .arg_idx = cum->arg_idx,
+    };
+
+    if (reg_n > 0) {
+        loc->reg_slot = cum->reg_slot;
+        loc->reg_n = reg_n;
+        cum->reg_slot += reg_n;
+    }
+    if (reg_n < 4) {
+        loc->stk_slot = cum->stk_slot;
+        cum->stk_slot += 4 - reg_n;
+    }
+
+    cum->info_in_idx++;
+    cum->op_arg_idx++;
+}
+
 static void init_call_layout(TCGHelperInfo *info)
 {
     unsigned typemask = info->typemask;
@@ -686,10 +710,29 @@ static void init_call_layout(TCGHelperInfo *info)
         info->nr_out = 64 / TCG_TARGET_REG_BITS;
         info->out_kind = TCG_CALL_RET_NORMAL;
         break;
+    case dh_typecode_i128:
+        /*
+         * No matter the call return method, we must have all of
+         * the temp subindexes in the call for liveness.
+         */
+        info->nr_out = TCG_TARGET_REG_BITS == 32 ? 1 : 2;
+        info->out_kind = TCG_CALL_RET_NORMAL; /* TODO */
+        switch (/* TODO */ TCG_CALL_RET_NORMAL) {
+        case TCG_CALL_RET_NORMAL:
+            if (TCG_TARGET_REG_BITS == 32) {
+                assert(ARRAY_SIZE(tcg_target_call_oarg_regs) >= 4);
+                info->out_kind = TCG_CALL_RET_NORMAL_4;
+            } else {
+                assert(ARRAY_SIZE(tcg_target_call_oarg_regs) >= 2);
+            }
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        break;
     default:
         g_assert_not_reached();
     }
-    assert(info->nr_out <= ARRAY_SIZE(tcg_target_call_oarg_regs));
 
     /*
      * The final two op->arg[] indexes are used for func & info.
@@ -743,6 +786,13 @@ static void init_call_layout(TCGHelperInfo *info)
                     layout_arg_normal_2(&cum, info);
                 } else {
                     layout_arg_1(&cum, info, TCG_CALL_ARG_NORMAL);
+                }
+                break;
+            case TCG_TYPE_I128:
+                if (TCG_TARGET_REG_BITS == 32) {
+                    layout_arg_normal_4(&cum, info);
+                } else {
+                    layout_arg_normal_2(&cum, info);
                 }
                 break;
             default:
@@ -1687,6 +1737,7 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
 
         switch (loc->kind) {
         case TCG_CALL_ARG_NORMAL:
+        case TCG_CALL_ARG_NORMAL_4:
             op->args[pi++] = temp_arg(ts);
             break;
 
@@ -4301,6 +4352,41 @@ static bool tcg_reg_alloc_dup2(TCGContext *s, const TCGOp *op)
     return true;
 }
 
+static void copy_to_stk_i128(TCGContext *s, int stk_slot, TCGTemp *ts,
+                             int slot, TCGRegSet allocated_regs)
+{
+    int stk_off = TCG_TARGET_CALL_STACK_OFFSET
+                + stk_slot * sizeof(tcg_target_long);
+
+    if (TCG_TARGET_REG_BITS == 32) {
+        TCGReg scratch;
+
+        tcg_debug_assert(ts->type == TCG_TYPE_I128);
+        tcg_debug_assert(ts->val_type == TEMP_VAL_MEM);
+        tcg_debug_assert(ts->mem_allocated);
+
+        scratch = tcg_reg_alloc(s, tcg_target_available_regs[TCG_TYPE_I32],
+                                allocated_regs, 0, false);
+
+        for (; slot < 4; slot++) {
+            tcg_out_ld(s, TCG_TYPE_I32, scratch,
+                       ts->mem_base->reg, ts->mem_offset + slot * 4);
+            tcg_out_st(s, TCG_TYPE_I32, scratch,
+                       TCG_REG_CALL_STACK, stk_off + slot * 4);
+        }
+    } else {
+        tcg_debug_assert(ts->base_type == TCG_TYPE_I128);
+        tcg_debug_assert(ts->temp_subindex == 0);
+
+        for (; slot < 2; slot++) {
+            temp_load(s, &ts[slot], tcg_target_available_regs[TCG_TYPE_I64],
+                      allocated_regs, 0);
+            tcg_out_st(s, TCG_TYPE_I64, ts[slot].reg,
+                       TCG_REG_CALL_STACK, stk_off + slot * 8);
+        }
+    }
+}
+
 static void load_arg_normal_1(TCGContext *s, const TCGCallArgumentLoc *loc,
                               TCGTemp *ts, TCGRegSet *allocated_regs)
 {
@@ -4346,6 +4432,24 @@ static void load_arg_normal_1(TCGContext *s, const TCGCallArgumentLoc *loc,
     tcg_regset_set_reg(*allocated_regs, reg);
 }
 
+static void load_arg_normal_4(TCGContext *s, const TCGCallArgumentLoc *loc,
+                              TCGTemp *ts, TCGRegSet *allocated_regs)
+{
+    int reg_n = loc->reg_n;
+
+    if (reg_n != 4) {
+        copy_to_stk_i128(s, loc->stk_slot, ts, reg_n, *allocated_regs);
+    }
+
+    for (reg_n--; reg_n >= 0; reg_n--) {
+        TCGReg reg = tcg_target_call_iarg_regs[loc->reg_slot + reg_n];
+
+        tcg_out_ld(s, TCG_TYPE_I32, reg,
+                   ts->mem_base->reg, ts->mem_offset + reg_n * 4);
+        tcg_regset_set_reg(*allocated_regs, reg);
+    }
+}
+
 static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
 {
     const int nb_oargs = TCGOP_CALLO(op);
@@ -4368,6 +4472,9 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
         case TCG_CALL_ARG_EXTEND_U:
         case TCG_CALL_ARG_EXTEND_S:
             load_arg_normal_1(s, loc, ts, &allocated_regs);
+            break;
+        case TCG_CALL_ARG_NORMAL_4:
+            load_arg_normal_4(s, loc, ts, &allocated_regs);
             break;
         default:
             g_assert_not_reached();
@@ -4422,6 +4529,24 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
             s->reg_to_temp[reg] = ts;
         }
         break;
+
+    case TCG_CALL_RET_NORMAL_4:
+        tcg_debug_assert(TCG_TARGET_REG_BITS == 32);
+        {
+            TCGTemp *ts = arg_temp(op->args[0]);
+
+            tcg_debug_assert(ts->type == TCG_TYPE_I128);
+            if (!ts->mem_allocated) {
+                temp_allocate_frame(s, ts);
+            }
+            for (i = 0; i < 4; i++) {
+                tcg_out_st(s, TCG_TYPE_I32, tcg_target_call_oarg_regs[i],
+                           ts->mem_base->reg, ts->mem_offset + i * 4);
+            }
+            ts->val_type = TEMP_VAL_MEM;
+        }
+        break;
+
     default:
         g_assert_not_reached();
     }
