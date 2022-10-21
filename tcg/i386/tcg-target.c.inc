@@ -109,12 +109,22 @@ static const int tcg_target_call_iarg_regs[] = {
 #endif
 };
 
-static const int tcg_target_call_oarg_regs[] = {
-    TCG_REG_EAX,
-#if TCG_TARGET_REG_BITS == 32
-    TCG_REG_EDX
-#endif
-};
+static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot)
+{
+    switch (kind) {
+    case TCG_CALL_RET_NORMAL:
+        switch (slot) {
+        case 0:
+            return TCG_REG_EAX;
+        case 1:
+            return TCG_REG_EDX;
+        }
+        break;
+    default:
+        break;
+    }
+    g_assert_not_reached();
+}
 
 /* Constants we accept.  */
 #define TCG_CT_CONST_S32 0x100

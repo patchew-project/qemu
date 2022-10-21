@@ -148,6 +148,7 @@ static bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
                         TCGReg base, intptr_t ofs);
 static void tcg_out_call(TCGContext *s, const tcg_insn_unit *target,
                          const TCGHelperInfo *info);
+static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot);
 static bool tcg_target_const_match(int64_t val, TCGType type, int ct);
 #ifdef TCG_TARGET_NEED_LDST_LABELS
 static int tcg_out_ldst_finalize(TCGContext *s);
@@ -749,11 +750,11 @@ static void init_call_layout(TCGHelperInfo *info)
         switch (/* TODO */ TCG_CALL_RET_NORMAL) {
         case TCG_CALL_RET_NORMAL:
             if (TCG_TARGET_REG_BITS == 32) {
-                assert(ARRAY_SIZE(tcg_target_call_oarg_regs) >= 4);
                 info->out_kind = TCG_CALL_RET_NORMAL_4;
-            } else {
-                assert(ARRAY_SIZE(tcg_target_call_oarg_regs) >= 2);
             }
+            /* Query the register now to trigger any assert early. */
+            (void)tcg_target_call_oarg_reg(info->out_kind,
+                                           127 / TCG_TARGET_REG_BITS);
             break;
         case TCG_CALL_RET_BY_REF:
             /*
@@ -2826,7 +2827,7 @@ static void liveness_pass_1(TCGContext *s)
                     ts->state = TS_DEAD;
                     la_reset_pref(ts);
 
-                    /* Not used -- it will be tcg_target_call_oarg_regs[i].  */
+                    /* Not used -- it will be tcg_target_call_oarg_reg().  */
                     op->output_pref[i] = 0;
                 }
 
@@ -4642,7 +4643,7 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
     case TCG_CALL_RET_NORMAL:
         for (i = 0; i < nb_oargs; i++) {
             TCGTemp *ts = arg_temp(op->args[i]);
-            TCGReg reg = tcg_target_call_oarg_regs[i];
+            TCGReg reg = tcg_target_call_oarg_reg(TCG_CALL_RET_NORMAL, i);
 
             /* ENV should not be modified.  */
             tcg_debug_assert(!temp_readonly(ts));
@@ -4668,7 +4669,8 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
                 temp_allocate_frame(s, ts);
             }
             for (i = 0; i < 4; i++) {
-                tcg_out_st(s, TCG_TYPE_I32, tcg_target_call_oarg_regs[i],
+                tcg_out_st(s, TCG_TYPE_I32,
+                           tcg_target_call_oarg_reg(TCG_CALL_RET_NORMAL_4, i),
                            ts->mem_base->reg, ts->mem_offset + i * 4);
             }
             ts->val_type = TEMP_VAL_MEM;
