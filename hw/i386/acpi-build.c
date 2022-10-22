@@ -1298,7 +1298,7 @@ static void build_piix4_isa_bridge(Aml *table)
      * once PCI is converted to AcpiDevAmlIf and would be ble to generate
      * AML for bridge itself
      */
-    obj = object_resolve_path_type("", TYPE_PIIX3_PCI_DEVICE, &ambiguous);
+    obj = object_resolve_path_type("", TYPE_PIIX_PCI_DEVICE, &ambiguous);
     assert(obj && !ambiguous);
 
     scope =  aml_scope("_SB.PCI0");

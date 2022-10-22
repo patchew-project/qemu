@@ -75,9 +75,9 @@ struct PIIXState {
 };
 typedef struct PIIXState PIIXState;
 
-#define TYPE_PIIX3_PCI_DEVICE "pci-piix3"
+#define TYPE_PIIX_PCI_DEVICE "pci-piix"
 DECLARE_INSTANCE_CHECKER(PIIXState, PIIX_PCI_DEVICE,
-                         TYPE_PIIX3_PCI_DEVICE)
+                         TYPE_PIIX_PCI_DEVICE)
 
 #define TYPE_PIIX3_DEVICE "PIIX3"
 #define TYPE_PIIX3_XEN_DEVICE "PIIX3-xen"

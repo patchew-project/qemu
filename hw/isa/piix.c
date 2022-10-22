@@ -463,7 +463,7 @@ static void pci_piix_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo piix_pci_type_info = {
-    .name = TYPE_PIIX3_PCI_DEVICE,
+    .name = TYPE_PIIX_PCI_DEVICE,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PIIXState),
     .instance_init = pci_piix_init,
@@ -513,7 +513,7 @@ static void piix3_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo piix3_info = {
     .name          = TYPE_PIIX3_DEVICE,
-    .parent        = TYPE_PIIX3_PCI_DEVICE,
+    .parent        = TYPE_PIIX_PCI_DEVICE,
     .instance_init = piix3_init,
     .class_init    = piix3_class_init,
 };
@@ -553,7 +553,7 @@ static void piix3_xen_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo piix3_xen_info = {
     .name          = TYPE_PIIX3_XEN_DEVICE,
-    .parent        = TYPE_PIIX3_PCI_DEVICE,
+    .parent        = TYPE_PIIX_PCI_DEVICE,
     .instance_init = piix3_init,
     .class_init    = piix3_xen_class_init,
 };
@@ -602,7 +602,7 @@ static void piix4_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo piix4_info = {
     .name          = TYPE_PIIX4_PCI_DEVICE,
-    .parent        = TYPE_PIIX3_PCI_DEVICE,
+    .parent        = TYPE_PIIX_PCI_DEVICE,
     .instance_init = piix4_init,
     .class_init    = piix4_class_init,
 };
