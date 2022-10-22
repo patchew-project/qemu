@@ -1403,6 +1403,10 @@ void mips_malta_init(MachineState *machine)
     piix4 = pci_new_multifunction(PCI_DEVFN(10, 0), true,
                                   TYPE_PIIX4_PCI_DEVICE);
     qdev_prop_set_uint32(DEVICE(piix4), "smb_io_base", 0x1100);
+    qdev_prop_set_uint8(DEVICE(piix4), "pirqa", 10);
+    qdev_prop_set_uint8(DEVICE(piix4), "pirqb", 10);
+    qdev_prop_set_uint8(DEVICE(piix4), "pirqc", 11);
+    qdev_prop_set_uint8(DEVICE(piix4), "pirqd", 11);
     pci_realize_and_unref(piix4, pci_bus, &error_fatal);
     isa_bus = ISA_BUS(qdev_get_child_bus(DEVICE(piix4), "isa.0"));
 
