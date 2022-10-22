@@ -151,21 +151,15 @@ static void pcie_cap_fill_slot_lnk(PCIDevice *dev)
     }
 }
 
-int pcie_cap_init(PCIDevice *dev, uint8_t offset,
-                  uint8_t type, uint8_t port,
-                  Error **errp)
+void pcie_cap_init(PCIDevice *dev, uint8_t offset, uint8_t type, uint8_t port)
 {
     /* PCIe cap v2 init */
-    int pos;
+    uint8_t pos;
     uint8_t *exp_cap;
 
     assert(pci_is_express(dev));
 
-    pos = pci_add_capability(dev, PCI_CAP_ID_EXP, offset,
-                             PCI_EXP_VER2_SIZEOF, errp);
-    if (pos < 0) {
-        return pos;
-    }
+    pos = pci_add_capability(dev, PCI_CAP_ID_EXP, offset, PCI_EXP_VER2_SIZEOF);
     dev->exp.exp_cap = pos;
     exp_cap = dev->config + pos;
 
@@ -185,38 +179,26 @@ int pcie_cap_init(PCIDevice *dev, uint8_t offset,
         /* read-only to behave like a 'NULL' Extended Capability Header */
         pci_set_long(dev->wmask + PCI_CONFIG_SPACE_SIZE, 0);
     }
-
-    return pos;
 }
 
-int pcie_cap_v1_init(PCIDevice *dev, uint8_t offset, uint8_t type,
-                     uint8_t port)
+void pcie_cap_v1_init(PCIDevice *dev, uint8_t offset, uint8_t type,
+                      uint8_t port)
 {
     /* PCIe cap v1 init */
-    int pos;
-    Error *local_err = NULL;
+    uint8_t pos;
 
     assert(pci_is_express(dev));
 
-    pos = pci_add_capability(dev, PCI_CAP_ID_EXP, offset,
-                             PCI_EXP_VER1_SIZEOF, &local_err);
-    if (pos < 0) {
-        error_report_err(local_err);
-        return pos;
-    }
+    pos = pci_add_capability(dev, PCI_CAP_ID_EXP, offset, PCI_EXP_VER1_SIZEOF);
     dev->exp.exp_cap = pos;
 
     pcie_cap_v1_fill(dev, port, type, PCI_EXP_FLAGS_VER1);
-
-    return pos;
 }
 
-static int
+static void
 pcie_endpoint_cap_common_init(PCIDevice *dev, uint8_t offset, uint8_t cap_size)
 {
     uint8_t type = PCI_EXP_TYPE_ENDPOINT;
-    Error *local_err = NULL;
-    int ret;
 
     /*
      * Windows guests will report Code 10, device cannot start, if
@@ -229,26 +211,20 @@ pcie_endpoint_cap_common_init(PCIDevice *dev, uint8_t offset, uint8_t cap_size)
     }
 
     if (cap_size == PCI_EXP_VER1_SIZEOF) {
-        return pcie_cap_v1_init(dev, offset, type, 0);
+        pcie_cap_v1_init(dev, offset, type, 0);
     } else {
-        ret = pcie_cap_init(dev, offset, type, 0, &local_err);
-
-        if (ret < 0) {
-            error_report_err(local_err);
-        }
-
-        return ret;
+        pcie_cap_init(dev, offset, type, 0);
     }
 }
 
-int pcie_endpoint_cap_init(PCIDevice *dev, uint8_t offset)
+void pcie_endpoint_cap_init(PCIDevice *dev, uint8_t offset)
 {
-    return pcie_endpoint_cap_common_init(dev, offset, PCI_EXP_VER2_SIZEOF);
+    pcie_endpoint_cap_common_init(dev, offset, PCI_EXP_VER2_SIZEOF);
 }
 
-int pcie_endpoint_cap_v1_init(PCIDevice *dev, uint8_t offset)
+void pcie_endpoint_cap_v1_init(PCIDevice *dev, uint8_t offset)
 {
-    return pcie_endpoint_cap_common_init(dev, offset, PCI_EXP_VER1_SIZEOF);
+    pcie_endpoint_cap_common_init(dev, offset, PCI_EXP_VER1_SIZEOF);
 }
 
 void pcie_cap_exit(PCIDevice *dev)

@@ -47,10 +47,7 @@ static void pcie_pci_bridge_realize(PCIDevice *d, Error **errp)
         goto error;
     }
 
-    rc = pcie_cap_init(d, 0, PCI_EXP_TYPE_PCI_BRIDGE, 0, errp);
-    if (rc < 0) {
-        goto cap_error;
-    }
+    pcie_cap_init(d, 0, PCI_EXP_TYPE_PCI_BRIDGE, 0);
 
     pos = pci_add_capability(d, PCI_CAP_ID_PM, 0, PCI_PM_SIZEOF, errp);
     if (pos < 0) {
@@ -90,7 +87,6 @@ msi_error:
 aer_error:
 pm_error:
     pcie_cap_exit(d);
-cap_error:
     shpc_cleanup(d, &pcie_br->shpc_bar);
 error:
     pci_bridge_exitfn(d);

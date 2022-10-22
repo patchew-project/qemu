@@ -282,9 +282,7 @@ static void xilinx_pcie_root_realize(PCIDevice *pci_dev, Error **errp)
 
     pci_bridge_initfn(pci_dev, TYPE_PCI_BUS);
 
-    if (pcie_endpoint_cap_v1_init(pci_dev, 0x80) < 0) {
-        error_setg(errp, "Failed to initialize PCIe capability");
-    }
+    pcie_endpoint_cap_v1_init(pci_dev, 0x80);
 }
 
 static void xilinx_pcie_root_class_init(ObjectClass *klass, void *data)

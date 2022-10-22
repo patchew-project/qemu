@@ -414,8 +414,7 @@ static void designware_pcie_root_realize(PCIDevice *dev, Error **errp)
 
     pcie_port_init_reg(dev);
 
-    pcie_cap_init(dev, 0x70, PCI_EXP_TYPE_ROOT_PORT,
-                  0, &error_fatal);
+    pcie_cap_init(dev, 0x70, PCI_EXP_TYPE_ROOT_PORT, 0);
 
     msi_nonbroken = true;
     msi_init(dev, 0x50, 32, true, true, &error_fatal);
