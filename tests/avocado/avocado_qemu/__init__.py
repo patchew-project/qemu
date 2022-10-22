@@ -423,12 +423,24 @@ class LinuxDistro:
     Holds information of known distros.
     """
     #: A collection of known distros and their respective image checksum
+    #
+    # 'get-vm-image-fedora-31' target from Makefile.include will
+    # download the images using avocado default 'sha1' algorithm.
+    # This happens because the command line 'avocado vmimage get'
+    # from Makefile.include is not able to handle an extra --algorithm
+    # argument.
+    #
+    # To avoid a re-download of a recent image download due to a sha
+    # mismatch in the first test run, all Fedora 31 images are using
+    # 'sha1' instead of 'sha256'.
+    #
+    # FIXME: revisit this change if/when avocado learns to do CHECKSUM
+    # matches using different algorithms.
     KNOWN_DISTROS = {
         'fedora': {
             '31': {
                 'x86_64':
-                {'checksum': ('e3c1b309d9203604922d6e255c2c5d09'
-                              '8a309c2d46215d8fc026954f3c5c27a0'),
+                {'checksum': ('f62f8eabbf3687ea610c495bd59551a0025f99b7'),
                  'pxeboot_url': ('https://archives.fedoraproject.org/'
                                  'pub/archive/fedora/linux/releases/31/'
                                  'Everything/x86_64/os/images/pxeboot/'),
@@ -438,8 +450,7 @@ class LinuxDistro:
                                    'console=ttyS0,115200n8'),
                 },
                 'aarch64':
-                {'checksum': ('1e18d9c0cf734940c4b5d5ec592facae'
-                              'd2af0ad0329383d5639c997fdf16fe49'),
+                {'checksum': ('39d1fe099cdecacae894480d421be57d18b4e854'),
                 'pxeboot_url': 'https://archives.fedoraproject.org/'
                                'pub/archive/fedora/linux/releases/31/'
                                'Everything/aarch64/os/images/pxeboot/',
@@ -450,11 +461,9 @@ class LinuxDistro:
                                   ' console=ttyAMA0'),
                 },
                 'ppc64':
-                {'checksum': ('7c3528b85a3df4b2306e892199a9e1e4'
-                              '3f991c506f2cc390dc4efa2026ad2f58')},
+                {'checksum': ('9993dc28e7c49ceb52125f9513130dfe2ace026c')},
                 's390x':
-                {'checksum': ('4caaab5a434fd4d1079149a072fdc789'
-                              '1e354f834d355069ca982fdcaf5a122d')},
+                {'checksum': ('455f017b82decf32f366e06e7a7d0f6da86f96a7')},
             },
             '32': {
                 'aarch64':
@@ -595,15 +604,18 @@ class LinuxTest(LinuxSSHMixIn, QemuSystemTest):
         self.log.info('Downloading/preparing boot image')
         # Fedora 31 only provides ppc64le images
         image_arch = self.arch
+        hash_algorithm = 'sha256'
         if self.distro.name == 'fedora':
             if image_arch == 'ppc64':
                 image_arch = 'ppc64le'
+            if self.distro.version == '31':
+                hash_algorithm = 'sha1'
 
         try:
             boot = vmimage.get(
                 self.distro.name, arch=image_arch, version=self.distro.version,
                 checksum=self.distro.checksum,
-                algorithm='sha256',
+                algorithm=hash_algorithm,
                 cache_dir=self.cache_dirs[0],
                 snapshot_dir=self.workdir)
         except:
