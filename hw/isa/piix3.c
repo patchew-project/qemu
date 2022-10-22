@@ -168,10 +168,10 @@ static void piix3_reset(DeviceState *dev)
     pci_conf[0x4c] = 0x4d;
     pci_conf[0x4e] = 0x03;
     pci_conf[0x4f] = 0x00;
-    pci_conf[0x60] = 0x80;
-    pci_conf[0x61] = 0x80;
-    pci_conf[0x62] = 0x80;
-    pci_conf[0x63] = 0x80;
+    pci_conf[PIIX_PIRQCA] = d->pci_irq_reset_mappings[0];
+    pci_conf[PIIX_PIRQCB] = d->pci_irq_reset_mappings[1];
+    pci_conf[PIIX_PIRQCC] = d->pci_irq_reset_mappings[2];
+    pci_conf[PIIX_PIRQCD] = d->pci_irq_reset_mappings[3];
     pci_conf[0x69] = 0x02;
     pci_conf[0x70] = 0x80;
     pci_conf[0x76] = 0x0c;
@@ -383,6 +383,10 @@ static void pci_piix3_init(Object *obj)
 
 static Property pci_piix3_props[] = {
     DEFINE_PROP_UINT32("smb_io_base", PIIX3State, smb_io_base, 0),
+    DEFINE_PROP_UINT8("pirqa", PIIX3State, pci_irq_reset_mappings[0], 0x80),
+    DEFINE_PROP_UINT8("pirqb", PIIX3State, pci_irq_reset_mappings[1], 0x80),
+    DEFINE_PROP_UINT8("pirqc", PIIX3State, pci_irq_reset_mappings[2], 0x80),
+    DEFINE_PROP_UINT8("pirqd", PIIX3State, pci_irq_reset_mappings[3], 0x80),
     DEFINE_PROP_BOOL("has-acpi", PIIX3State, has_acpi, true),
     DEFINE_PROP_BOOL("has-usb", PIIX3State, has_usb, true),
     DEFINE_PROP_BOOL("smm-enabled", PIIX3State, smm_enabled, false),
