@@ -63,7 +63,7 @@ static void piix4_set_irq(void *opaque, int irq_num, int level)
     }
 }
 
-static int pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num)
+static int piix4_pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num)
 {
     int slot;
 
@@ -249,7 +249,8 @@ static void piix4_realize(PCIDevice *dev, Error **errp)
                               qdev_get_gpio_in(DEVICE(&s->pic), 9));
     }
 
-    pci_bus_irqs(pci_bus, piix4_set_irq, pci_slot_get_pirq, s, PIIX_NUM_PIRQS);
+    pci_bus_irqs(pci_bus, piix4_set_irq, piix4_pci_slot_get_pirq, s,
+                 PIIX_NUM_PIRQS);
 }
 
 static void piix4_init(Object *obj)
