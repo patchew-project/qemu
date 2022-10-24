@@ -373,6 +373,7 @@ class QEMUMachine:
         Called to cleanup the VM instance after the process has exited.
         May also be called after a failed launch.
         """
+        LOG.debug("Cleaning up after VM process")
         try:
             self._close_qmp_connection()
         except Exception as err:  # pylint: disable=broad-except
@@ -497,6 +498,7 @@ class QEMUMachine:
         # for QEMU to exit, while QEMU is waiting for the socket to
         # become writable.
         if self._console_socket is not None:
+            LOG.debug("Closing console socket")
             self._console_socket.close()
             self._console_socket = None
 
@@ -507,6 +509,7 @@ class QEMUMachine:
         :raise subprocess.Timeout: When timeout is exceeds 60 seconds
             waiting for the QEMU process to terminate.
         """
+        LOG.debug("Performing hard shutdown")
         self._early_cleanup()
         self._subp.kill()
         self._subp.wait(timeout=60)
@@ -523,6 +526,13 @@ class QEMUMachine:
         :raise subprocess.TimeoutExpired: When timeout is exceeded waiting for
             the QEMU process to terminate.
         """
+        LOG.debug("Attempting graceful termination")
+        if self._quit_issued:
+            LOG.debug(
+                "Anticipating QEMU termination due to prior 'quit' command, "
+                "or explicit call to wait()"
+            )
+
         self._early_cleanup()
 
         if self._qmp_connection:
@@ -553,6 +563,10 @@ class QEMUMachine:
         try:
             self._soft_shutdown(timeout)
         except Exception as exc:
+            if isinstance(exc, subprocess.TimeoutExpired):
+                LOG.debug("Timed out waiting for QEMU process to exit")
+            LOG.debug("Graceful shutdown failed, "
+                      "falling back to hard shutdown")
             self._hard_shutdown()
             raise AbnormalShutdown("Could not perform graceful shutdown") \
                 from exc
@@ -574,6 +588,10 @@ class QEMUMachine:
         """
         if not self._launched:
             return
+
+        LOG.debug("Shutting down VM appliance; timeout=%s", timeout)
+        if hard:
+            LOG.debug("Caller requests immediate termination of QEMU process.")
 
         try:
             if hard:
