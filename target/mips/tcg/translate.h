@@ -241,6 +241,12 @@ void msa_translate_init(void);
 void mxu_translate_init(void);
 bool decode_ase_mxu(DisasContext *ctx, uint32_t insn);
 
+/* loongson */
+bool decode_ext_loongson2e(DisasContext *ctx, uint32_t insn);
+bool decode_ext_loongson2f(DisasContext *ctx, uint32_t insn);
+bool decode_ase_lext(DisasContext *ctx, uint32_t insn);
+bool decode_ase_lmmi(DisasContext *ctx, uint32_t insn);
+
 /* decodetree generated */
 bool decode_isa_rel6(DisasContext *ctx, uint32_t insn);
 bool decode_ase_msa(DisasContext *ctx, uint32_t insn);

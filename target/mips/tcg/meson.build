@@ -14,6 +14,7 @@ mips_ss.add(files(
   'fpu_helper.c',
   'ldst_helper.c',
   'lmmi_helper.c',
+  'loongson_translate.c',
   'msa_helper.c',
   'msa_translate.c',
   'op_helper.c',
