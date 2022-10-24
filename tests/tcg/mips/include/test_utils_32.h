@@ -29,6 +29,81 @@
 
 #define PRINT_RESULTS 0
 
+#define DO_MIPS32_r(mnemonic, id, input1, input2, expect)              \
+{                                                                      \
+    uint32_t output;                                                   \
+    uint32_t expect_val = expect;                                      \
+    __asm__ volatile (                                                 \
+      "li $t1, " #input1 "\n\t"                                        \
+      "li $t2, " #input2 "\n\t"                                        \
+      #mnemonic " $t0, $t1, $t2\n\t"                                   \
+      "sw $t0, 0(%0)\n\t"                                              \
+      :                                                                \
+      : "r" (&output)                                                  \
+      : "t0", "t1", "t2", "memory"                                     \
+    );                                                                 \
+    check_single_insn_32(id, &pass_count, &fail_count, 1, &expect_val, &output); \
+}
+
+#define DO_MIPS32_i(mnemonic, id, imm, input1, expect)                 \
+{                                                                      \
+    uint32_t output;                                                   \
+    uint32_t expect_val = expect;                                      \
+    __asm__ volatile (                                                 \
+      "li $t1, " #input1 "\n\t"                                        \
+      #mnemonic " $t0, $t1, " #imm "\n\t"                              \
+      "sw $t0, 0(%0)\n\t"                                              \
+      :                                                                \
+      : "r" (&output)                                                  \
+      : "t0", "t1", "memory"                                           \
+    );                                                                 \
+    check_single_insn_32(id, &pass_count, &fail_count, 1, &expect_val, &output); \
+}
+
+#define DO_MIPS32_r2_s(mnemonic, id, hi, lo, input1, input2, expect_hi, expect_lo) \
+{                                                                      \
+    uint32_t output[2];                                                \
+    uint32_t expect_val[2] = {expect_lo, expect_hi};                   \
+    __asm__ volatile (                                                 \
+      ".set noreorder \n\t"                                            \
+      "li $t0, " #hi "\n\t"                                            \
+      "mthi $t0       \n\t"                                            \
+      "li $t0, " #lo "\n\t"                                            \
+      "mtlo $t0       \n\t"                                            \
+      "li $t0, " #input1 "\n\t"                                        \
+      "li $t1, " #input2 "\n\t"                                        \
+      #mnemonic " $t0, $t1 \n\t"                                       \
+      "mfhi $t0       \n\t"                                            \
+      "sw $t0, 4(%0)\n\t"                                              \
+      "mflo $t0       \n\t"                                            \
+      "sw $t0, 0(%0)\n\t"                                              \
+      ".set reorder \n\t"                                              \
+      :                                                                \
+      : "r" (&output)                                                  \
+      : "t0", "t1", "hi", "lo", "memory"                              \
+    );                                                                 \
+    check_single_insn_32(id, &pass_count, &fail_count, 2, expect_val, output); \
+}
+
+static inline void check_single_insn_32(int id, int *pass, int *fail, int cnt,
+                                        uint32_t *expect, uint32_t *actual)
+{
+    int i;
+
+    if (memcmp(expect, actual, 4 * cnt) == 0) {
+        (*pass)++;
+        printf("Case %d pass:\n", id);
+        for (i = 0; i < cnt; i++) {
+            printf("    [%d]: actual: 0x%08x, expect: 0x%08x\n", i, actual[i], expect[i]);
+        }
+    } else {
+        (*fail)++;
+        printf("Case %d fail:\n", id);
+        for (i = 0; i < cnt; i++) {
+            printf("    [%d]: actual: 0x%08x, expect: 0x%08x\n", i, actual[i], expect[i]);
+        }
+    }
+}
 
 static inline int32_t check_results_32(const char *instruction_name,
                                        const uint32_t test_count,
