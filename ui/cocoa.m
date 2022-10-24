@@ -115,27 +115,17 @@ typedef bool (^BoolCodeBlock)(void);
 
 static void with_iothread_lock(CodeBlock block)
 {
-    bool locked = qemu_mutex_iothread_locked();
-    if (!locked) {
-        qemu_mutex_lock_iothread();
-    }
-    block();
-    if (!locked) {
-        qemu_mutex_unlock_iothread();
+    WITH_QEMU_IOTHREAD_LOCK {
+        block();
     }
 }
 
 static bool bool_with_iothread_lock(BoolCodeBlock block)
 {
-    bool locked = qemu_mutex_iothread_locked();
     bool val;
 
-    if (!locked) {
-        qemu_mutex_lock_iothread();
-    }
-    val = block();
-    if (!locked) {
-        qemu_mutex_unlock_iothread();
+    WITH_QEMU_IOTHREAD_LOCK {
+      val = block();
     }
     return val;
 }

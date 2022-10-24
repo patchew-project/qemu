@@ -341,6 +341,47 @@ void qemu_mutex_lock_iothread_impl(const char *file, int line);
  */
 void qemu_mutex_unlock_iothread(void);
 
+/**
+ * WITH_QEMU_IOTHREAD_LOCK - nested lock of iothread
+ *
+ * This is a specialised form of WITH_QEMU_LOCK_GUARD which is used to
+ * safely encapsulate code that needs the BQL. The main difference is
+ * the BQL is often nested so we need to save the state of it on entry
+ * so we know if we need to free it once we leave the scope of the gaurd.
+ */
+
+typedef struct {
+    bool taken;
+} IoThreadLocked;
+
+static inline IoThreadLocked * qemu_iothread_auto_lock(IoThreadLocked *x)
+{
+    bool locked = qemu_mutex_iothread_locked();
+    if (!locked) {
+        qemu_mutex_lock_iothread();
+        x->taken = true;
+    }
+    return x;
+}
+
+static inline void qemu_iothread_auto_unlock(IoThreadLocked *x)
+{
+    if (x->taken) {
+        qemu_mutex_unlock_iothread();
+    }
+}
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(IoThreadLocked, qemu_iothread_auto_unlock)
+
+#define WITH_QEMU_IOTHREAD_LOCK_(var) \
+    for (g_autoptr(IoThreadLocked) var = \
+             qemu_iothread_auto_lock(&(IoThreadLocked) {}); \
+         var; \
+         qemu_iothread_auto_unlock(var), var = NULL)
+
+#define WITH_QEMU_IOTHREAD_LOCK \
+    WITH_QEMU_IOTHREAD_LOCK_(glue(qemu_lockable_auto, __COUNTER__))
+
 /*
  * qemu_cond_wait_iothread: Wait on condition for the main loop mutex
  *

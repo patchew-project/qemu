@@ -70,14 +70,8 @@ CPUState *cpu_create(const char *typename)
  * BQL here if we need to.  cpu_interrupt assumes it is held.*/
 void cpu_reset_interrupt(CPUState *cpu, int mask)
 {
-    bool need_lock = !qemu_mutex_iothread_locked();
-
-    if (need_lock) {
-        qemu_mutex_lock_iothread();
-    }
-    cpu->interrupt_request &= ~mask;
-    if (need_lock) {
-        qemu_mutex_unlock_iothread();
+    WITH_QEMU_IOTHREAD_LOCK {
+        cpu->interrupt_request &= ~mask;
     }
 }
 

@@ -320,35 +320,27 @@ static void drain_rcu_callback(struct rcu_head *node)
 void drain_call_rcu(void)
 {
     struct rcu_drain rcu_drain;
-    bool locked = qemu_mutex_iothread_locked();
 
     memset(&rcu_drain, 0, sizeof(struct rcu_drain));
     qemu_event_init(&rcu_drain.drain_complete_event, false);
 
-    if (locked) {
-        qemu_mutex_unlock_iothread();
-    }
+    WITH_QEMU_IOTHREAD_LOCK {
+        /*
+         * RCU callbacks are invoked in the same order as in which they
+         * are registered, thus we can be sure that when 'drain_rcu_callback'
+         * is called, all RCU callbacks that were registered on this thread
+         * prior to calling this function are completed.
+         *
+         * Note that since we have only one global queue of the RCU callbacks,
+         * we also end up waiting for most of RCU callbacks that were registered
+         * on the other threads, but this is a side effect that shoudn't be
+         * assumed.
+         */
 
-
-    /*
-     * RCU callbacks are invoked in the same order as in which they
-     * are registered, thus we can be sure that when 'drain_rcu_callback'
-     * is called, all RCU callbacks that were registered on this thread
-     * prior to calling this function are completed.
-     *
-     * Note that since we have only one global queue of the RCU callbacks,
-     * we also end up waiting for most of RCU callbacks that were registered
-     * on the other threads, but this is a side effect that shoudn't be
-     * assumed.
-     */
-
-    qatomic_inc(&in_drain_call_rcu);
-    call_rcu1(&rcu_drain.rcu, drain_rcu_callback);
-    qemu_event_wait(&rcu_drain.drain_complete_event);
-    qatomic_dec(&in_drain_call_rcu);
-
-    if (locked) {
-        qemu_mutex_lock_iothread();
+        qatomic_inc(&in_drain_call_rcu);
+        call_rcu1(&rcu_drain.rcu, drain_rcu_callback);
+        qemu_event_wait(&rcu_drain.drain_complete_event);
+        qatomic_dec(&in_drain_call_rcu);
     }
 
 }
