@@ -40,6 +40,19 @@ typedef ram_addr_t tb_page_addr_t;
 #endif
 
 /**
+ * cpu_unwind_state_data:
+ * @cpu: the vCPU state is to be restore to
+ * @host_pc: the host PC the fault occurred at
+ * @data: output data
+ *
+ * Attempt to load the the unwind state for a host pc occurring in
+ * translated code.  If the searched_pc is not in translated code,
+ * the function returns false; otherwise @data is loaded.
+ * This is the same unwind info as given to restore_state_to_opc.
+ */
+bool cpu_unwind_state_data(CPUState *cpu, uintptr_t host_pc, uint64_t *data);
+
+/**
  * cpu_restore_state:
  * @cpu: the vCPU state is to be restore to
  * @searched_pc: the host PC the fault occurred at
