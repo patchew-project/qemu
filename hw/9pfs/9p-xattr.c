@@ -78,13 +78,13 @@ ssize_t v9fs_list_xattr(FsContext *ctx, const char *path,
     char *orig_value, *orig_value_start;
     ssize_t xattr_len, parsed_len = 0, attr_len;
     char *dirpath, *name;
-    int dirfd;
+    P9_FILE_ID dirfd;
 
     /* Get the actual len */
     dirpath = g_path_get_dirname(path);
     dirfd = local_opendir_nofollow(ctx, dirpath);
     g_free(dirpath);
-    if (dirfd == -1) {
+    if (dirfd == P9_INVALID_FILE) {
         return -1;
     }
 
@@ -168,11 +168,11 @@ ssize_t local_getxattr_nofollow(FsContext *ctx, const char *path,
 {
     char *dirpath = g_path_get_dirname(path);
     char *filename = g_path_get_basename(path);
-    int dirfd;
+    P9_FILE_ID dirfd;
     ssize_t ret = -1;
 
     dirfd = local_opendir_nofollow(ctx, dirpath);
-    if (dirfd == -1) {
+    if (dirfd == P9_INVALID_FILE) {
         goto out;
     }
 
@@ -196,11 +196,11 @@ ssize_t local_setxattr_nofollow(FsContext *ctx, const char *path,
 {
     char *dirpath = g_path_get_dirname(path);
     char *filename = g_path_get_basename(path);
-    int dirfd;
+    P9_FILE_ID dirfd;
     ssize_t ret = -1;
 
     dirfd = local_opendir_nofollow(ctx, dirpath);
-    if (dirfd == -1) {
+    if (dirfd == P9_INVALID_FILE) {
         goto out;
     }
 
@@ -223,11 +223,11 @@ ssize_t local_removexattr_nofollow(FsContext *ctx, const char *path,
 {
     char *dirpath = g_path_get_dirname(path);
     char *filename = g_path_get_basename(path);
-    int dirfd;
+    P9_FILE_ID dirfd;
     ssize_t ret = -1;
 
     dirfd = local_opendir_nofollow(ctx, dirpath);
-    if (dirfd == -1) {
+    if (dirfd == P9_INVALID_FILE) {
         goto out;
     }
 

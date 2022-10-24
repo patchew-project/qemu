@@ -13,8 +13,10 @@
 #ifndef QEMU_9P_LOCAL_H
 #define QEMU_9P_LOCAL_H
 
-int local_open_nofollow(FsContext *fs_ctx, const char *path, int flags,
-                        mode_t mode);
-int local_opendir_nofollow(FsContext *fs_ctx, const char *path);
+#include "9p-file-id.h"
+
+P9_FILE_ID local_open_nofollow(FsContext *fs_ctx, const char *path, int flags,
+                               mode_t mode);
+P9_FILE_ID local_opendir_nofollow(FsContext *fs_ctx, const char *path);
 
 #endif

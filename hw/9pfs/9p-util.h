@@ -13,6 +13,8 @@
 #ifndef QEMU_9P_UTIL_H
 #define QEMU_9P_UTIL_H
 
+#include "9p-file-id.h"
+
 #ifdef O_PATH
 #define O_PATH_9P_UTIL O_PATH
 #else
@@ -101,30 +103,31 @@ static inline int errno_to_dotl(int err) {
 #define qemu_utimensat  utimensat
 #define qemu_unlinkat   unlinkat
 
-static inline void close_preserve_errno(int fd)
+static inline void close_preserve_errno(P9_FILE_ID fd)
 {
     int serrno = errno;
     close(fd);
     errno = serrno;
 }
 
-static inline int openat_dir(int dirfd, const char *name)
+static inline P9_FILE_ID openat_dir(P9_FILE_ID dirfd, const char *name)
 {
     return qemu_openat(dirfd, name,
                        O_DIRECTORY | O_RDONLY | O_NOFOLLOW | O_PATH_9P_UTIL);
 }
 
-static inline int openat_file(int dirfd, const char *name, int flags,
-                              mode_t mode)
+static inline P9_FILE_ID openat_file(P9_FILE_ID dirfd, const char *name,
+                                     int flags, mode_t mode)
 {
-    int fd, serrno, ret;
+    int serrno, ret;
+    P9_FILE_ID fd;
 
 #ifndef CONFIG_DARWIN
 again:
 #endif
     fd = qemu_openat(dirfd, name, flags | O_NOFOLLOW | O_NOCTTY | O_NONBLOCK,
                      mode);
-    if (fd == -1) {
+    if (fd == P9_INVALID_FILE) {
 #ifndef CONFIG_DARWIN
         if (errno == EPERM && (flags & O_NOATIME)) {
             /*
@@ -155,13 +158,13 @@ again:
     return fd;
 }
 
-ssize_t fgetxattrat_nofollow(int dirfd, const char *path, const char *name,
-                             void *value, size_t size);
-int fsetxattrat_nofollow(int dirfd, const char *path, const char *name,
+ssize_t fgetxattrat_nofollow(P9_FILE_ID dirfd, const char *path,
+                             const char *name, void *value, size_t size);
+int fsetxattrat_nofollow(P9_FILE_ID dirfd, const char *path, const char *name,
                          void *value, size_t size, int flags);
-ssize_t flistxattrat_nofollow(int dirfd, const char *filename,
+ssize_t flistxattrat_nofollow(P9_FILE_ID dirfd, const char *filename,
                               char *list, size_t size);
-ssize_t fremovexattrat_nofollow(int dirfd, const char *filename,
+ssize_t fremovexattrat_nofollow(P9_FILE_ID dirfd, const char *filename,
                                 const char *name);
 
 /*
@@ -219,6 +222,7 @@ static inline struct dirent *qemu_dirent_dup(struct dirent *dent)
 #if defined CONFIG_DARWIN && defined CONFIG_PTHREAD_FCHDIR_NP
 int pthread_fchdir_np(int fd) __attribute__((weak_import));
 #endif
-int qemu_mknodat(int dirfd, const char *filename, mode_t mode, dev_t dev);
+int qemu_mknodat(P9_FILE_ID dirfd, const char *filename, mode_t mode,
+                 dev_t dev);
 
 #endif
