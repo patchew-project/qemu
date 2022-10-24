@@ -62,8 +62,11 @@ static inline uint64_t host_dev_to_dotl_dev(dev_t dev)
 #endif
 }
 
+#include "9p-linux-errno.h"
+
 /* Translates errno from host -> Linux if needed */
-static inline int errno_to_dotl(int err) {
+static inline int errno_to_dotl(int err)
+{
 #if defined(CONFIG_LINUX)
     /* nothing to translate (Linux -> Linux) */
 #elif defined(CONFIG_DARWIN)
@@ -73,18 +76,27 @@ static inline int errno_to_dotl(int err) {
      * FIXME: Only most important errnos translated here yet, this should be
      * extended to as many errnos being translated as possible in future.
      */
-    if (err == ENAMETOOLONG) {
-        err = 36; /* ==ENAMETOOLONG on Linux */
-    } else if (err == ENOTEMPTY) {
-        err = 39; /* ==ENOTEMPTY on Linux */
-    } else if (err == ELOOP) {
-        err = 40; /* ==ELOOP on Linux */
-    } else if (err == ENOATTR) {
-        err = 61; /* ==ENODATA on Linux */
-    } else if (err == ENOTSUP) {
-        err = 95; /* ==EOPNOTSUPP on Linux */
-    } else if (err == EOPNOTSUPP) {
-        err = 95; /* ==EOPNOTSUPP on Linux */
+    switch (err) {
+    case ENAMETOOLONG:
+        err = L_ENAMETOOLONG;
+        break;
+    case ENOTEMPTY:
+        err = L_ENOTEMPTY;
+        break;
+    case ELOOP:
+        err = L_ELOOP;
+        break;
+    case ENOATTR:
+        err = L_ENODATA;
+        break;
+    case ENOTSUP
+        err = L_EOPNOTSUPP;
+        break;
+    case EOPNOTSUPP:
+        err = L_EOPNOTSUPP;
+        break;
+    default:
+        break;
     }
 #else
 #error Missing errno translation to Linux for this host system
