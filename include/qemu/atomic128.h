@@ -41,16 +41,10 @@
  * Therefore, special case each platform.
  */
 
-#if defined(CONFIG_ATOMIC128)
+#if defined(CONFIG_ATOMIC128) || defined(CONFIG_CMPXCHG128)
 static inline Int128 atomic16_cmpxchg(Int128 *ptr, Int128 cmp, Int128 new)
 {
     return qatomic_cmpxchg__nocheck(ptr, cmp, new);
-}
-# define HAVE_CMPXCHG128 1
-#elif defined(CONFIG_CMPXCHG128)
-static inline Int128 atomic16_cmpxchg(Int128 *ptr, Int128 cmp, Int128 new)
-{
-    return __sync_val_compare_and_swap_16(ptr, cmp, new);
 }
 # define HAVE_CMPXCHG128 1
 #elif defined(__aarch64__)

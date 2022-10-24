@@ -2226,7 +2226,8 @@ if has_int128
       int main(void)
       {
         unsigned __int128 x = 0, y = 0;
-        __sync_val_compare_and_swap_16(&x, y, x);
+        __atomic_compare_exchange_n(&x, &y, x, 0,
+            __ATOMIC_RELAXED, __ATOMIC_RELAXED);
         return 0;
       }
     ''')
