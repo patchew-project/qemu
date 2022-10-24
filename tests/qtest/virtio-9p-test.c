@@ -34,6 +34,13 @@ static uint32_t genfid(void)
     return fid_generator++;
 }
 
+#ifdef CONFIG_WIN32
+static uint32_t getuid(void)
+{
+    return 0;
+}
+#endif
+
 /**
  * Splits the @a in string by @a delim into individual (non empty) strings
  * and outputs them to @a out. The output array @a out is NULL terminated.
