@@ -353,12 +353,11 @@ static int cpu_unwind_data_from_tb(TranslationBlock *tb, uintptr_t host_pc,
 }
 
 /*
- * The cpu state corresponding to 'host_pc' is restored.
- * When reset_icount is true, current TB will be interrupted and
- * icount should be recalculated.
+ * The cpu state corresponding to 'host_pc' is restored in
+ * preparation for exiting the TB.
  */
 static void cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
-                                      uintptr_t host_pc, bool reset_icount)
+                                      uintptr_t host_pc)
 {
     uint64_t data[TARGET_INSN_START_WORDS];
 #ifdef CONFIG_PROFILER
@@ -371,7 +370,7 @@ static void cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
         return;
     }
 
-    if (reset_icount && (tb_cflags(tb) & CF_USE_ICOUNT)) {
+    if (tb_cflags(tb) & CF_USE_ICOUNT) {
         assert(icount_enabled());
         /*
          * Reset the cycle counter to the start of the block and
@@ -404,7 +403,7 @@ bool cpu_restore_state(CPUState *cpu, uintptr_t host_pc)
     if (in_code_gen_buffer((const void *)(host_pc - tcg_splitwx_diff))) {
         TranslationBlock *tb = tcg_tb_lookup(host_pc);
         if (tb) {
-            cpu_restore_state_from_tb(cpu, tb, host_pc, true);
+            cpu_restore_state_from_tb(cpu, tb, host_pc);
             return true;
         }
     }
@@ -1715,7 +1714,7 @@ tb_invalidate_phys_page_range__locked(struct page_collection *pages,
                  * restore the CPU state.
                  */
                 current_tb_modified = true;
-                cpu_restore_state_from_tb(cpu, current_tb, retaddr, true);
+                cpu_restore_state_from_tb(cpu, current_tb, retaddr);
                 cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base,
                                      &current_flags);
             }
@@ -1874,7 +1873,7 @@ static bool tb_invalidate_phys_page(tb_page_addr_t addr, uintptr_t pc)
                    restore the CPU state */
 
             current_tb_modified = 1;
-            cpu_restore_state_from_tb(cpu, current_tb, pc, true);
+            cpu_restore_state_from_tb(cpu, current_tb, pc);
             cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base,
                                  &current_flags);
         }
@@ -1904,7 +1903,7 @@ void tb_check_watchpoint(CPUState *cpu, uintptr_t retaddr)
     tb = tcg_tb_lookup(retaddr);
     if (tb) {
         /* We can use retranslation to find the PC.  */
-        cpu_restore_state_from_tb(cpu, tb, retaddr, true);
+        cpu_restore_state_from_tb(cpu, tb, retaddr);
         tb_phys_invalidate(tb, -1);
     } else {
         /* The exception probably happened in a helper.  The CPU state should
@@ -1940,7 +1939,7 @@ void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
         cpu_abort(cpu, "cpu_io_recompile: could not find TB for pc=%p",
                   (void *)retaddr);
     }
-    cpu_restore_state_from_tb(cpu, tb, retaddr, true);
+    cpu_restore_state_from_tb(cpu, tb, retaddr);
 
     /*
      * Some guests must re-execute the branch when re-executing a delay
