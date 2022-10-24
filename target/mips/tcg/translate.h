@@ -49,6 +49,11 @@ typedef struct DisasContext {
     bool saar;
     bool mi;
     int gi;
+    TCGv zero;
+    TCGv temp[4];
+    uint8_t ntemp;
+    TCGv_i64 temp64[4];
+    uint8_t ntemp64;
 } DisasContext;
 
 #define DISAS_STOP       DISAS_TARGET_0
@@ -119,6 +124,17 @@ enum {
     OPC_BC1TANY4     = (0x01 << 16) | OPC_BC1ANY4,
 };
 
+/*
+ * If an operation is being performed on less than TARGET_LONG_BITS,
+ * it may require the inputs to be sign- or zero-extended; which will
+ * depend on the exact operation being performed.
+ */
+typedef enum {
+    EXT_NONE,
+    EXT_SIGN,
+    EXT_ZERO
+} DisasExtend;
+
 #define gen_helper_0e1i(name, arg1, arg2) do { \
     gen_helper_##name(cpu_env, arg1, tcg_constant_i32(arg2)); \
     } while (0)
@@ -149,6 +165,18 @@ void check_cp1_enabled(DisasContext *ctx);
 void check_cp1_64bitmode(DisasContext *ctx);
 void check_cp1_registers(DisasContext *ctx, int regs);
 void check_cop1x(DisasContext *ctx);
+
+void gen_extend(TCGv dst, TCGv src, DisasExtend src_ext);
+TCGv get_gpr(DisasContext *ctx, int reg_num, DisasExtend src_ext);
+TCGv_i64 get_hilo(DisasContext *ctx, int acc);
+TCGv dest_gpr(DisasContext *ctx, int reg_num);
+TCGv dest_lo(DisasContext *ctx, int acc);
+TCGv dest_hi(DisasContext *ctx, int acc);
+TCGv_i64 dest_hilo(DisasContext *ctx, int acc);
+void gen_set_gpr(int reg_num, TCGv t, DisasExtend dst_ext);
+void gen_set_lo(int acc, TCGv t, DisasExtend dst_ext);
+void gen_set_hi(int acc, TCGv t, DisasExtend dst_ext);
+void gen_set_hilo(int acc, TCGv_i64 t);
 
 void gen_base_offset_addr(DisasContext *ctx, TCGv addr, int base, int offset);
 void gen_move_low32(TCGv ret, TCGv_i64 arg);
@@ -230,6 +258,32 @@ bool decode_ext_vr54xx(DisasContext *ctx, uint32_t insn);
 #define TRANS(NAME, FUNC, ...) \
     static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a) \
     { return FUNC(ctx, a, __VA_ARGS__); }
+
+/* Instructions removed in Release 6 */
+#define TRANS_6R(NAME, FUNC, ...) \
+    static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a) \
+    { return !(ctx->insn_flags & ISA_MIPS_R6) & FUNC(ctx, a, __VA_ARGS__); }
+
+#if defined(TARGET_MIPS64)
+#define TRANS64(NAME, FUNC, ...) \
+    static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a) \
+    { check_mips_64(ctx); return FUNC(ctx, a, __VA_ARGS__); }
+#define TRANS64_6R(NAME, FUNC, ...) \
+    static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a) \
+    { if (ctx->insn_flags & ISA_MIPS_R6) return false; check_mips_64(ctx); \
+    return FUNC(ctx, a, __VA_ARGS__); }
+#else
+#define TRANS64(NAME, FUNC, ...) \
+    static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a) \
+    { return false; }
+#define TRANS64_6R(NAME, FUNC, ...) \
+    static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a) \
+    { return false; }
+#endif
+
+#define TRANS_FLAGS(NAME, FLAGS, ...) \
+    static bool trans_##NAME(DisasContext *s, arg_##NAME *a) \
+    { return (ctx->insn_flags & FLAGS) && FUNC(s, __VA_ARGS__); }
 
 static inline bool cpu_is_bigendian(DisasContext *ctx)
 {

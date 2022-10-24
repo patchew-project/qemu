@@ -1196,6 +1196,17 @@ enum {
     MMI_OPC_MADDU1     = 0x21 | MMI_OPC_CLASS_MMI,
 };
 
+/*
+ * If an operation is being performed on less than TARGET_LONG_BITS,
+ * it may require the inputs to be sign- or zero-extended; which will
+ * depend on the exact operation being performed.
+ */
+typedef enum {
+    EXT_NONE,
+    EXT_SIGN,
+    EXT_ZERO
+} DisasExtend;
+
 /* global register indices */
 TCGv cpu_gpr[32], cpu_PC;
 /*
@@ -1221,6 +1232,18 @@ static const char regnames_LO[][4] = {
     "LO0", "LO1", "LO2", "LO3",
 };
 
+static TCGv ctx_temp_new(DisasContext *ctx)
+{
+    assert(ctx->ntemp < ARRAY_SIZE(ctx->temp));
+    return ctx->temp[ctx->ntemp++] = tcg_temp_new();
+}
+
+static TCGv_i64 ctx_temp_new_i64(DisasContext *ctx)
+{
+    assert(ctx->ntemp64 < ARRAY_SIZE(ctx->temp64));
+    return ctx->temp64[ctx->ntemp64++] = tcg_temp_new_i64();
+}
+
 /* General purpose registers moves. */
 void gen_load_gpr(TCGv t, int reg)
 {
@@ -1236,6 +1259,106 @@ void gen_store_gpr(TCGv t, int reg)
     if (reg != 0) {
         tcg_gen_mov_tl(cpu_gpr[reg], t);
     }
+}
+
+void gen_extend(TCGv dst, TCGv src, DisasExtend src_ext)
+{
+    switch (src_ext) {
+    case EXT_NONE:
+        tcg_gen_mov_tl(dst, src);
+        return;
+    case EXT_SIGN:
+        tcg_gen_ext32s_tl(dst, src);
+        return;
+    case EXT_ZERO:
+        tcg_gen_ext32u_tl(dst, src);
+        return;
+    }
+    g_assert_not_reached();
+}
+
+TCGv get_gpr(DisasContext *ctx, int reg_num, DisasExtend src_ext)
+{
+    TCGv t;
+
+    if (reg_num == 0) {
+        return ctx->zero;
+    }
+
+    switch (src_ext) {
+    case EXT_NONE:
+        return cpu_gpr[reg_num];
+    default:
+        t = ctx_temp_new(ctx);
+        gen_extend(t, cpu_gpr[reg_num], src_ext);
+        return t;
+    }
+}
+
+TCGv_i64 get_hilo(DisasContext *ctx, int acc)
+{
+    TCGv_i64 t = ctx_temp_new_i64(ctx);
+    /* acc must be 0 when DSP is not implemented */
+    g_assert(acc == 0 || ctx->insn_flags & ASE_DSP);
+    tcg_gen_concat_tl_i64(t, cpu_LO[acc], cpu_HI[acc]);
+
+    return t;
+}
+
+TCGv dest_gpr(DisasContext *ctx, int reg_num)
+{
+    if (reg_num == 0) {
+        return ctx_temp_new(ctx);
+    }
+    return cpu_gpr[reg_num];
+}
+
+TCGv dest_lo(DisasContext *ctx, int acc)
+{
+    /* acc must be 0 when DSP is not implemented */
+    g_assert(acc == 0 || ctx->insn_flags & ASE_DSP);
+
+    return cpu_LO[acc];
+}
+
+TCGv dest_hi(DisasContext *ctx, int acc)
+{
+    /* acc must be 0 when DSP is not implemented */
+    g_assert(acc == 0 || ctx->insn_flags & ASE_DSP);
+
+    return cpu_HI[acc];
+}
+
+/* For 32 bit hilo pair */
+TCGv_i64 dest_hilo(DisasContext *ctx, int acc)
+{
+    /* acc must be 0 when DSP is not implemented */
+    g_assert(acc == 0 || ctx->insn_flags & ASE_DSP);
+    return ctx_temp_new_i64(ctx);
+}
+
+void gen_set_gpr(int reg_num, TCGv t, DisasExtend dst_ext)
+{
+    if (reg_num != 0) {
+        gen_extend(cpu_gpr[reg_num], t, dst_ext);
+    }
+}
+
+void gen_set_lo(int acc, TCGv t, DisasExtend dst_ext)
+{
+    gen_extend(cpu_LO[acc], t, dst_ext);
+}
+
+void gen_set_hi(int acc, TCGv t, DisasExtend dst_ext)
+{
+    gen_extend(cpu_HI[acc], t, dst_ext);
+}
+
+/* For 32 bit hilo pair */
+void gen_set_hilo(int acc, TCGv_i64 t)
+{
+    gen_move_low32(cpu_LO[acc], t);
+    gen_move_high32(cpu_HI[acc], t);
 }
 
 #if defined(TARGET_MIPS64)
@@ -2615,7 +2738,6 @@ static void gen_shift_imm(DisasContext *ctx, uint32_t opc,
     tcg_temp_free(t0);
 }
 
-/* Arithmetic */
 static void gen_arith(DisasContext *ctx, uint32_t opc,
                       int rd, int rs, int rt)
 {
@@ -16032,6 +16154,12 @@ static void mips_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
         ctx->base.max_insns = 2;
     }
 
+    ctx->ntemp = 0;
+    ctx->ntemp64 = 0;
+    memset(ctx->temp, 0, sizeof(ctx->temp));
+    memset(ctx->temp64, 0, sizeof(ctx->temp));
+    ctx->zero = tcg_constant_tl(0);
+
     LOG_DISAS("\ntb %p idx %d hflags %04x\n", ctx->base.tb, ctx->mem_idx,
               ctx->hflags);
 }
@@ -16054,6 +16182,7 @@ static void mips_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     int insn_bytes;
     int is_slot;
+    int i;
 
     is_slot = ctx->hflags & MIPS_HFLAG_BMASK;
     if (ctx->insn_flags & ISA_NANOMIPS32) {
@@ -16073,6 +16202,18 @@ static void mips_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
         gen_reserved_instruction(ctx);
         g_assert(ctx->base.is_jmp == DISAS_NORETURN);
         return;
+    }
+
+    for (i = ctx->ntemp - 1; i >= 0; --i) {
+        tcg_temp_free(ctx->temp[i]);
+        ctx->temp[i] = NULL;
+        ctx->ntemp--;
+    }
+
+    for (i = ctx->ntemp64 - 1; i >= 0; --i) {
+        tcg_temp_free_i64(ctx->temp64[i]);
+        ctx->temp64[i] = NULL;
+        ctx->ntemp64--;
     }
 
     if (ctx->hflags & MIPS_HFLAG_BMASK) {
