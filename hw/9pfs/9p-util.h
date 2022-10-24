@@ -53,8 +53,10 @@ static inline uint64_t makedev_dotl(uint32_t dev_major, uint32_t dev_minor)
  */
 static inline uint64_t host_dev_to_dotl_dev(dev_t dev)
 {
-#ifdef CONFIG_LINUX
+#if defined(CONFIG_LINUX)
     return dev;
+#elif defined(CONFIG_WIN32)
+    return 0;
 #else
     return makedev_dotl(major(dev), minor(dev));
 #endif
@@ -260,7 +262,9 @@ static inline struct dirent *qemu_dirent_dup(struct dirent *dent)
 #if defined CONFIG_DARWIN && defined CONFIG_PTHREAD_FCHDIR_NP
 int pthread_fchdir_np(int fd) __attribute__((weak_import));
 #endif
+#ifndef CONFIG_WIN32
 int qemu_mknodat(P9_FILE_ID dirfd, const char *filename, mode_t mode,
                  dev_t dev);
+#endif
 
 #endif
