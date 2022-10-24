@@ -13767,14 +13767,6 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
         decode_opc_special(env, ctx);
         break;
     case OPC_SPECIAL2:
-        if (TARGET_LONG_BITS == 32 && (ctx->insn_flags & ASE_MXU)) {
-            if (MASK_SPECIAL2(ctx->opcode) == OPC_MUL) {
-                gen_arith(ctx, OPC_MUL, rd, rs, rt);
-            } else {
-                decode_ase_mxu(ctx, ctx->opcode);
-            }
-            break;
-        }
         decode_opc_special2_legacy(env, ctx);
         break;
     case OPC_SPECIAL3:
@@ -14484,6 +14476,11 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
     }
     if (cpu_supports_isa(env, ASE_LMMI) && decode_ase_lmmi(ctx, ctx->opcode)) {
         return;
+    }
+    if (TARGET_LONG_BITS == 32) {
+        if (cpu_supports_isa(env, ASE_MXU) && decode_ase_mxu(ctx, ctx->opcode)) {
+            return;
+        }
     }
     if (ase_msa_available(env) && decode_ase_msa(ctx, ctx->opcode)) {
         return;

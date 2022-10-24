@@ -354,6 +354,8 @@
  *   Programming Manual", Ingenic Semiconductor Co, Ltd., revision June 2, 2017
  */
 
+#define OPC_SPECIAL2 (0x1C << 26)
+
 enum {
     OPC_MXU__POOL00  = 0x03,
     OPC_MXU_D16MUL   = 0x08,
@@ -1552,54 +1554,64 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
 {
     uint32_t opcode = extract32(insn, 0, 6);
 
-    if (opcode == OPC_MXU_S32M2I) {
+    if (MASK_OP_MAJOR(insn) != OPC_SPECIAL2) {
+        return false;
+    }
+
+    switch (opcode) {
+    case OPC_MXU_S32M2I:
         gen_mxu_s32m2i(ctx);
         return true;
-    }
-
-    if (opcode == OPC_MXU_S32I2M) {
+    case OPC_MXU_S32I2M:
         gen_mxu_s32i2m(ctx);
         return true;
-    }
+    case OPC_MXU__POOL00:
+    case OPC_MXU_D16MUL:
+    case OPC_MXU_D16MAC:
+    case OPC_MXU__POOL04:
+    case OPC_MXU_S8LDD:
+    case OPC_MXU__POOL16:
+    case OPC_MXU__POOL19:
+        {
+            TCGv t_mxu_cr = tcg_temp_new();
+            TCGLabel *l_exit = gen_new_label();
 
-    {
-        TCGv t_mxu_cr = tcg_temp_new();
-        TCGLabel *l_exit = gen_new_label();
+            gen_load_mxu_cr(t_mxu_cr);
+            tcg_gen_andi_tl(t_mxu_cr, t_mxu_cr, MXU_CR_MXU_EN);
+            tcg_gen_brcondi_tl(TCG_COND_NE, t_mxu_cr, MXU_CR_MXU_EN, l_exit);
 
-        gen_load_mxu_cr(t_mxu_cr);
-        tcg_gen_andi_tl(t_mxu_cr, t_mxu_cr, MXU_CR_MXU_EN);
-        tcg_gen_brcondi_tl(TCG_COND_NE, t_mxu_cr, MXU_CR_MXU_EN, l_exit);
+            switch (opcode) {
+            case OPC_MXU__POOL00:
+                decode_opc_mxu__pool00(ctx);
+                break;
+            case OPC_MXU_D16MUL:
+                gen_mxu_d16mul(ctx);
+                break;
+            case OPC_MXU_D16MAC:
+                gen_mxu_d16mac(ctx);
+                break;
+            case OPC_MXU__POOL04:
+                decode_opc_mxu__pool04(ctx);
+                break;
+            case OPC_MXU_S8LDD:
+                gen_mxu_s8ldd(ctx);
+                break;
+            case OPC_MXU__POOL16:
+                decode_opc_mxu__pool16(ctx);
+                break;
+            case OPC_MXU__POOL19:
+                decode_opc_mxu__pool19(ctx);
+                break;
+            default:
+                MIPS_INVAL("decode_opc_mxu");
+                gen_reserved_instruction(ctx);
+            }
 
-        switch (opcode) {
-        case OPC_MXU__POOL00:
-            decode_opc_mxu__pool00(ctx);
-            break;
-        case OPC_MXU_D16MUL:
-            gen_mxu_d16mul(ctx);
-            break;
-        case OPC_MXU_D16MAC:
-            gen_mxu_d16mac(ctx);
-            break;
-        case OPC_MXU__POOL04:
-            decode_opc_mxu__pool04(ctx);
-            break;
-        case OPC_MXU_S8LDD:
-            gen_mxu_s8ldd(ctx);
-            break;
-        case OPC_MXU__POOL16:
-            decode_opc_mxu__pool16(ctx);
-            break;
-        case OPC_MXU__POOL19:
-            decode_opc_mxu__pool19(ctx);
-            break;
-        default:
-            MIPS_INVAL("decode_opc_mxu");
-            gen_reserved_instruction(ctx);
+            gen_set_label(l_exit);
+            tcg_temp_free(t_mxu_cr);
         }
-
-        gen_set_label(l_exit);
-        tcg_temp_free(t_mxu_cr);
+        return true;
+    default:
+        return false;
     }
-
-    return true;
 }
