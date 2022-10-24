@@ -369,7 +369,7 @@ static bool trans_LQ(DisasContext *ctx, arg_i *a)
     return true;
 }
 
-static bool trans_SQ(DisasContext *ctx, arg_i *a)
+static bool gen_SQ(DisasContext *ctx, arg_i *a)
 {
     TCGv_i64 t0 = tcg_temp_new_i64();
     TCGv addr = tcg_temp_new();
@@ -394,6 +394,32 @@ static bool trans_SQ(DisasContext *ctx, arg_i *a)
     tcg_temp_free(t0);
 
     return true;
+}
+
+#define RDHWR_MASK(op) (op & 0xffe0063f)
+#define OPC_RDHWR 0x7c00003b
+
+static bool trans_SQ(DisasContext *ctx, arg_i *a)
+{
+#ifdef CONFIG_USER_ONLY
+    /*
+    * that is required, trapped and emulated by the Linux kernel. However, all
+    * RDHWR encodings yield address error exceptions on the TX79 since the SQ
+    * offset is odd. Therefore all valid SQ instructions can execute normally.
+    * In user mode, QEMU must verify the upper and lower 11 bits to distinguish
+    * between SQ and RDHWR, as the Linux kernel does.
+    */
+    if (RDHWR_MASK(ctx->opcode) == OPC_RDHWR) {
+        int rd = extract32(ctx->opcode, 11, 5);
+        int rt = extract32(ctx->opcode, 16, 5);
+        int sel = extract32(ctx->opcode, 6, 3);
+
+        gen_rdhwr(ctx, rt, rd, sel);
+        return true;
+    }
+#endif
+
+    return gen_SQ(ctx, a);
 }
 
 /*
@@ -683,3 +709,180 @@ static bool trans_PROT3W(DisasContext *ctx, arg_r *a)
 
     return true;
 }
+
+/*
+ * These MULT[U] and MADD[U] instructions implemented in for example
+ * the Toshiba/Sony R5900 and the Toshiba TX19, TX39 and TX79 core
+ * architectures are special three-operand variants with the syntax
+ *
+ *     MULT[U][1] rd, rs, rt
+ *
+ * such that
+ *
+ *     (rd, LO, HI) <- rs * rt
+ *
+ * and
+ *
+ *     MADD[U][1] rd, rs, rt
+ *
+ * such that
+ *
+ *     (rd, LO, HI) <- (LO, HI) + rs * rt
+ *
+ * where the low-order 32-bits of the result is placed into both the
+ * GPR rd and the special register LO. The high-order 32-bits of the
+ * result is placed into the special register HI.
+ *
+ * If the GPR rd is omitted in assembly language, it is taken to be 0,
+ * which is the zero register that always reads as 0.
+ */
+
+static bool gen_mult(DisasContext *ctx, arg_r *a, int acc,
+                       void (*func)(TCGv_i32, TCGv_i32, TCGv_i32, TCGv_i32))
+{
+    TCGv src1 = get_gpr(ctx, a->rs, EXT_NONE);
+    TCGv src2 = get_gpr(ctx, a->rt, EXT_NONE);
+    TCGv dst_lo = dest_lo(ctx, acc);
+    TCGv dst_hi = dest_hi(ctx, acc);
+    TCGv_i32 t1 = tcg_temp_new_i32();
+    TCGv_i32 t2 = tcg_temp_new_i32();
+
+    tcg_gen_trunc_tl_i32(t1, src1);
+    tcg_gen_trunc_tl_i32(t2, src2);
+
+    func(t1, t2, t1, t2);
+
+    tcg_gen_ext_i32_tl(dst_lo, t1);
+    tcg_gen_ext_i32_tl(dst_hi, t2);
+
+    gen_set_gpr(a->rd, dst_lo, EXT_NONE);
+    gen_set_lo(acc, dst_lo, EXT_NONE);
+    gen_set_hi(acc, dst_hi, EXT_NONE);
+
+    return true;
+}
+
+TRANS_6R(MULT, gen_mult, 0, tcg_gen_muls2_i32)
+TRANS_6R(MULTU, gen_mult, 0, tcg_gen_mulu2_i32)
+TRANS_6R(MULT1, gen_mult, 1, tcg_gen_muls2_i32)
+TRANS_6R(MULTU1, gen_mult, 1, tcg_gen_mulu2_i32)
+
+static bool gen_mul_addsub(DisasContext *ctx, arg_r *a, int acc, DisasExtend ext,
+                            void (*func)(TCGv_i64, TCGv_i64, TCGv_i64))
+{
+    TCGv src1 = get_gpr(ctx, a->rs, ext);
+    TCGv src2 = get_gpr(ctx, a->rt, ext);
+    TCGv_i64 src3 = get_hilo(ctx, acc);
+    TCGv_i64 dst = dest_hilo(ctx, acc);
+    TCGv_i64 t2 = tcg_temp_new_i64();
+    TCGv_i64 t3 = tcg_temp_new_i64();
+
+    switch (ext) {
+    case EXT_SIGN:
+        tcg_gen_ext_tl_i64(t2, src1);
+        tcg_gen_ext_tl_i64(t3, src2);
+        break;
+    case EXT_ZERO:
+        tcg_gen_extu_tl_i64(t2, src1);
+        tcg_gen_extu_tl_i64(t3, src2);
+        break;
+    default:
+        g_assert_not_reached();
+        break;
+    }
+
+    tcg_gen_mul_i64(dst, t2, t3);
+    tcg_temp_free_i64(t2);
+    tcg_temp_free_i64(t3);
+    func(dst, dst, src3);
+
+    gen_set_hilo(acc, dst);
+
+    return true;
+}
+
+TRANS(MADD, gen_mul_addsub, 0, EXT_SIGN, tcg_gen_add_i64)
+TRANS(MADDU, gen_mul_addsub, 0, EXT_ZERO, tcg_gen_add_i64)
+TRANS(MADD1, gen_mul_addsub, 1, EXT_SIGN, tcg_gen_add_i64)
+TRANS(MADDU1, gen_mul_addsub, 1, EXT_ZERO, tcg_gen_add_i64)
+
+static bool gen_div(DisasContext *ctx, arg_r *a, int acc,
+                    DisasExtend src_ext, DisasExtend dst_ext)
+{
+    TCGv temp1, temp2, zero, one, mone, min;
+    TCGv src1 = get_gpr(ctx, a->rs, src_ext);
+    TCGv src2 = get_gpr(ctx, a->rt, src_ext);
+    TCGv dst_lo = dest_lo(ctx, acc);
+    TCGv dst_hi = dest_hi(ctx, acc);
+
+    temp1 = tcg_temp_new();
+    temp2 = tcg_temp_new();
+    zero = tcg_constant_tl(0);
+    one = tcg_constant_tl(1);
+    mone = tcg_constant_tl(-1);
+    min = tcg_constant_tl(1ull << (TARGET_LONG_BITS - 1));
+
+    /*
+     * If overflow, set temp2 to 1, else source2.
+     * This produces the required result of min.
+     */
+    tcg_gen_setcond_tl(TCG_COND_EQ, temp1, src1, min);
+    tcg_gen_setcond_tl(TCG_COND_EQ, temp2, src2, mone);
+    tcg_gen_and_tl(temp1, temp1, temp2);
+    tcg_gen_movcond_tl(TCG_COND_NE, temp2, temp1, zero, one, src2);
+
+    /*
+     * If div by zero, set temp1 to -1 and temp2 to 1 to
+     * produce the required result of -1.
+     */
+    tcg_gen_movcond_tl(TCG_COND_EQ, temp1, src2, zero, mone, src1);
+    tcg_gen_movcond_tl(TCG_COND_EQ, temp2, src2, zero, one, src2);
+
+    tcg_gen_div_tl(dst_lo, temp1, temp2);
+    tcg_gen_rem_tl(dst_hi, temp1, temp2);
+
+    tcg_temp_free(temp1);
+    tcg_temp_free(temp2);
+
+    gen_set_lo(acc, dst_lo, dst_ext);
+    gen_set_hi(acc, dst_hi, dst_ext);
+
+    return true;
+}
+
+static bool gen_divu(DisasContext *ctx, arg_r *a, int acc,
+                    DisasExtend src_ext, DisasExtend dst_ext)
+{
+    TCGv temp1, temp2, zero, one, max;
+    TCGv src1 = get_gpr(ctx, a->rs, src_ext);
+    TCGv src2 = get_gpr(ctx, a->rt, src_ext);
+    TCGv dst_lo = dest_lo(ctx, acc);
+    TCGv dst_hi = dest_hi(ctx, acc);
+
+    temp1 = tcg_temp_new();
+    temp2 = tcg_temp_new();
+    zero = tcg_constant_tl(0);
+    one = tcg_constant_tl(1);
+    max = tcg_constant_tl(~0);
+
+    /*
+     * If div by zero, set temp1 to max and temp2 to 1 to
+     * produce the required result of max.
+     */
+    tcg_gen_movcond_tl(TCG_COND_EQ, temp1, src2, zero, max, src1);
+    tcg_gen_movcond_tl(TCG_COND_EQ, temp2, src2, zero, one, src2);
+
+    tcg_gen_divu_tl(dst_lo, temp1, temp2);
+    tcg_gen_remu_tl(dst_hi, temp1, temp2);
+
+    tcg_temp_free(temp1);
+    tcg_temp_free(temp2);
+
+    gen_set_lo(acc, dst_lo, dst_ext);
+    gen_set_hi(acc, dst_hi, dst_ext);
+
+    return true;
+}
+
+TRANS(DIV1, gen_div, 1, EXT_SIGN, EXT_SIGN)
+TRANS(DIVU1, gen_divu, 1, EXT_ZERO, EXT_SIGN)

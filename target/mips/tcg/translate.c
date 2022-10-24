@@ -956,82 +956,6 @@ enum {
     OPC_NMSUB_PS    = 0x3E | OPC_CP3,
 };
 
-/*
- *     MMI (MultiMedia Instruction) encodings
- *     ======================================
- *
- * MMI instructions encoding table keys:
- *
- *     *   This code is reserved for future use. An attempt to execute it
- *         causes a Reserved Instruction exception.
- *     %   This code indicates an instruction class. The instruction word
- *         must be further decoded by examining additional tables that show
- *         the values for other instruction fields.
- *     #   This code is reserved for the unsupported instructions DMULT,
- *         DMULTU, DDIV, DDIVU, LL, LLD, SC, SCD, LWC2 and SWC2. An attempt
- *         to execute it causes a Reserved Instruction exception.
- *
- * MMI instructions encoded by opcode field (MMI, LQ, SQ):
- *
- *  31    26                                        0
- * +--------+----------------------------------------+
- * | opcode |                                        |
- * +--------+----------------------------------------+
- *
- *   opcode  bits 28..26
- *     bits |   0   |   1   |   2   |   3   |   4   |   5   |   6   |   7
- *   31..29 |  000  |  001  |  010  |  011  |  100  |  101  |  110  |  111
- *   -------+-------+-------+-------+-------+-------+-------+-------+-------
- *    0 000 |SPECIAL| REGIMM|   J   |  JAL  |  BEQ  |  BNE  |  BLEZ |  BGTZ
- *    1 001 |  ADDI | ADDIU |  SLTI | SLTIU |  ANDI |  ORI  |  XORI |  LUI
- *    2 010 |  COP0 |  COP1 |   *   |   *   |  BEQL |  BNEL | BLEZL | BGTZL
- *    3 011 | DADDI | DADDIU|  LDL  |  LDR  |  MMI% |   *   |   LQ  |   SQ
- *    4 100 |   LB  |   LH  |  LWL  |   LW  |  LBU  |  LHU  |  LWR  |  LWU
- *    5 101 |   SB  |   SH  |  SWL  |   SW  |  SDL  |  SDR  |  SWR  | CACHE
- *    6 110 |   #   |  LWC1 |   #   |  PREF |   #   |  LDC1 |   #   |   LD
- *    7 111 |   #   |  SWC1 |   #   |   *   |   #   |  SDC1 |   #   |   SD
- */
-
-enum {
-    MMI_OPC_CLASS_MMI = 0x1C << 26,    /* Same as OPC_SPECIAL2 */
-    MMI_OPC_SQ        = 0x1F << 26,    /* Same as OPC_SPECIAL3 */
-};
-
-/*
- * MMI instructions with opcode field = MMI:
- *
- *  31    26                                 5      0
- * +--------+-------------------------------+--------+
- * |   MMI  |                               |function|
- * +--------+-------------------------------+--------+
- *
- * function  bits 2..0
- *     bits |   0   |   1   |   2   |   3   |   4   |   5   |   6   |   7
- *     5..3 |  000  |  001  |  010  |  011  |  100  |  101  |  110  |  111
- *   -------+-------+-------+-------+-------+-------+-------+-------+-------
- *    0 000 |  MADD | MADDU |   *   |   *   | PLZCW |   *   |   *   |   *
- *    1 001 | MMI0% | MMI2% |   *   |   *   |   *   |   *   |   *   |   *
- *    2 010 | MFHI1 | MTHI1 | MFLO1 | MTLO1 |   *   |   *   |   *   |   *
- *    3 011 | MULT1 | MULTU1|  DIV1 | DIVU1 |   *   |   *   |   *   |   *
- *    4 100 | MADD1 | MADDU1|   *   |   *   |   *   |   *   |   *   |   *
- *    5 101 | MMI1% | MMI3% |   *   |   *   |   *   |   *   |   *   |   *
- *    6 110 | PMFHL | PMTHL |   *   |   *   | PSLLH |   *   | PSRLH | PSRAH
- *    7 111 |   *   |   *   |   *   |   *   | PSLLW |   *   | PSRLW | PSRAW
- */
-
-#define MASK_MMI(op) (MASK_OP_MAJOR(op) | ((op) & 0x3F))
-enum {
-    MMI_OPC_MADD       = 0x00 | MMI_OPC_CLASS_MMI, /* Same as OPC_MADD */
-    MMI_OPC_MADDU      = 0x01 | MMI_OPC_CLASS_MMI, /* Same as OPC_MADDU */
-    MMI_OPC_MULT1      = 0x18 | MMI_OPC_CLASS_MMI, /* Same minor as OPC_MULT */
-    MMI_OPC_MULTU1     = 0x19 | MMI_OPC_CLASS_MMI, /* Same min. as OPC_MULTU */
-    MMI_OPC_DIV1       = 0x1A | MMI_OPC_CLASS_MMI, /* Same minor as OPC_DIV  */
-    MMI_OPC_DIVU1      = 0x1B | MMI_OPC_CLASS_MMI, /* Same minor as OPC_DIVU */
-    MMI_OPC_MADD1      = 0x20 | MMI_OPC_CLASS_MMI,
-    MMI_OPC_MADDU1     = 0x21 | MMI_OPC_CLASS_MMI,
-};
-
-
 /* global register indices */
 TCGv cpu_gpr[32], cpu_PC;
 /*
@@ -3270,65 +3194,6 @@ static void gen_r6_muldiv(DisasContext *ctx, int opc, int rd, int rs, int rt)
     tcg_temp_free(t1);
 }
 
-#if defined(TARGET_MIPS64)
-static void gen_div1_tx79(DisasContext *ctx, uint32_t opc, int rs, int rt)
-{
-    TCGv t0, t1;
-
-    t0 = tcg_temp_new();
-    t1 = tcg_temp_new();
-
-    gen_load_gpr(t0, rs);
-    gen_load_gpr(t1, rt);
-
-    switch (opc) {
-    case MMI_OPC_DIV1:
-        {
-            TCGv t2 = tcg_temp_new();
-            TCGv t3 = tcg_temp_new();
-            tcg_gen_ext32s_tl(t0, t0);
-            tcg_gen_ext32s_tl(t1, t1);
-            tcg_gen_setcondi_tl(TCG_COND_EQ, t2, t0, INT_MIN);
-            tcg_gen_setcondi_tl(TCG_COND_EQ, t3, t1, -1);
-            tcg_gen_and_tl(t2, t2, t3);
-            tcg_gen_setcondi_tl(TCG_COND_EQ, t3, t1, 0);
-            tcg_gen_or_tl(t2, t2, t3);
-            tcg_gen_movi_tl(t3, 0);
-            tcg_gen_movcond_tl(TCG_COND_NE, t1, t2, t3, t2, t1);
-            tcg_gen_div_tl(cpu_LO[1], t0, t1);
-            tcg_gen_rem_tl(cpu_HI[1], t0, t1);
-            tcg_gen_ext32s_tl(cpu_LO[1], cpu_LO[1]);
-            tcg_gen_ext32s_tl(cpu_HI[1], cpu_HI[1]);
-            tcg_temp_free(t3);
-            tcg_temp_free(t2);
-        }
-        break;
-    case MMI_OPC_DIVU1:
-        {
-            TCGv t2 = tcg_const_tl(0);
-            TCGv t3 = tcg_const_tl(1);
-            tcg_gen_ext32u_tl(t0, t0);
-            tcg_gen_ext32u_tl(t1, t1);
-            tcg_gen_movcond_tl(TCG_COND_EQ, t1, t1, t2, t3, t1);
-            tcg_gen_divu_tl(cpu_LO[1], t0, t1);
-            tcg_gen_remu_tl(cpu_HI[1], t0, t1);
-            tcg_gen_ext32s_tl(cpu_LO[1], cpu_LO[1]);
-            tcg_gen_ext32s_tl(cpu_HI[1], cpu_HI[1]);
-            tcg_temp_free(t3);
-            tcg_temp_free(t2);
-        }
-        break;
-    default:
-        MIPS_INVAL("div1 TX79");
-        gen_reserved_instruction(ctx);
-        goto out;
-    }
- out:
-    tcg_temp_free(t0);
-    tcg_temp_free(t1);
-}
-#endif
-
 static void gen_muldiv(DisasContext *ctx, uint32_t opc,
                        int acc, int rs, int rt)
 {
@@ -3516,138 +3381,6 @@ static void gen_muldiv(DisasContext *ctx, uint32_t opc,
         gen_reserved_instruction(ctx);
         goto out;
     }
- out:
-    tcg_temp_free(t0);
-    tcg_temp_free(t1);
-}
-
-/*
- * These MULT[U] and MADD[U] instructions implemented in for example
- * the Toshiba/Sony R5900 and the Toshiba TX19, TX39 and TX79 core
- * architectures are special three-operand variants with the syntax
- *
- *     MULT[U][1] rd, rs, rt
- *
- * such that
- *
- *     (rd, LO, HI) <- rs * rt
- *
- * and
- *
- *     MADD[U][1] rd, rs, rt
- *
- * such that
- *
- *     (rd, LO, HI) <- (LO, HI) + rs * rt
- *
- * where the low-order 32-bits of the result is placed into both the
- * GPR rd and the special register LO. The high-order 32-bits of the
- * result is placed into the special register HI.
- *
- * If the GPR rd is omitted in assembly language, it is taken to be 0,
- * which is the zero register that always reads as 0.
- */
-static void gen_mul_txx9(DisasContext *ctx, uint32_t opc,
-                         int rd, int rs, int rt)
-{
-    TCGv t0 = tcg_temp_new();
-    TCGv t1 = tcg_temp_new();
-    int acc = 0;
-
-    gen_load_gpr(t0, rs);
-    gen_load_gpr(t1, rt);
-
-    switch (opc) {
-    case MMI_OPC_MULT1:
-        acc = 1;
-        /* Fall through */
-    case OPC_MULT:
-        {
-            TCGv_i32 t2 = tcg_temp_new_i32();
-            TCGv_i32 t3 = tcg_temp_new_i32();
-            tcg_gen_trunc_tl_i32(t2, t0);
-            tcg_gen_trunc_tl_i32(t3, t1);
-            tcg_gen_muls2_i32(t2, t3, t2, t3);
-            if (rd) {
-                tcg_gen_ext_i32_tl(cpu_gpr[rd], t2);
-            }
-            tcg_gen_ext_i32_tl(cpu_LO[acc], t2);
-            tcg_gen_ext_i32_tl(cpu_HI[acc], t3);
-            tcg_temp_free_i32(t2);
-            tcg_temp_free_i32(t3);
-        }
-        break;
-    case MMI_OPC_MULTU1:
-        acc = 1;
-        /* Fall through */
-    case OPC_MULTU:
-        {
-            TCGv_i32 t2 = tcg_temp_new_i32();
-            TCGv_i32 t3 = tcg_temp_new_i32();
-            tcg_gen_trunc_tl_i32(t2, t0);
-            tcg_gen_trunc_tl_i32(t3, t1);
-            tcg_gen_mulu2_i32(t2, t3, t2, t3);
-            if (rd) {
-                tcg_gen_ext_i32_tl(cpu_gpr[rd], t2);
-            }
-            tcg_gen_ext_i32_tl(cpu_LO[acc], t2);
-            tcg_gen_ext_i32_tl(cpu_HI[acc], t3);
-            tcg_temp_free_i32(t2);
-            tcg_temp_free_i32(t3);
-        }
-        break;
-    case MMI_OPC_MADD1:
-        acc = 1;
-        /* Fall through */
-    case MMI_OPC_MADD:
-        {
-            TCGv_i64 t2 = tcg_temp_new_i64();
-            TCGv_i64 t3 = tcg_temp_new_i64();
-
-            tcg_gen_ext_tl_i64(t2, t0);
-            tcg_gen_ext_tl_i64(t3, t1);
-            tcg_gen_mul_i64(t2, t2, t3);
-            tcg_gen_concat_tl_i64(t3, cpu_LO[acc], cpu_HI[acc]);
-            tcg_gen_add_i64(t2, t2, t3);
-            tcg_temp_free_i64(t3);
-            gen_move_low32(cpu_LO[acc], t2);
-            gen_move_high32(cpu_HI[acc], t2);
-            if (rd) {
-                gen_move_low32(cpu_gpr[rd], t2);
-            }
-            tcg_temp_free_i64(t2);
-        }
-        break;
-    case MMI_OPC_MADDU1:
-        acc = 1;
-        /* Fall through */
-    case MMI_OPC_MADDU:
-        {
-            TCGv_i64 t2 = tcg_temp_new_i64();
-            TCGv_i64 t3 = tcg_temp_new_i64();
-
-            tcg_gen_ext32u_tl(t0, t0);
-            tcg_gen_ext32u_tl(t1, t1);
-            tcg_gen_extu_tl_i64(t2, t0);
-            tcg_gen_extu_tl_i64(t3, t1);
-            tcg_gen_mul_i64(t2, t2, t3);
-            tcg_gen_concat_tl_i64(t3, cpu_LO[acc], cpu_HI[acc]);
-            tcg_gen_add_i64(t2, t2, t3);
-            tcg_temp_free_i64(t3);
-            gen_move_low32(cpu_LO[acc], t2);
-            gen_move_high32(cpu_HI[acc], t2);
-            if (rd) {
-                gen_move_low32(cpu_gpr[rd], t2);
-            }
-            tcg_temp_free_i64(t2);
-        }
-        break;
-    default:
-        MIPS_INVAL("mul/madd TXx9");
-        gen_reserved_instruction(ctx);
-        goto out;
-    }
-
  out:
     tcg_temp_free(t0);
     tcg_temp_free(t1);
@@ -12921,53 +12654,6 @@ static void decode_opc_special_r6(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
-static void decode_opc_special_tx79(CPUMIPSState *env, DisasContext *ctx)
-{
-    int rs = extract32(ctx->opcode, 21, 5);
-    int rt = extract32(ctx->opcode, 16, 5);
-    int rd = extract32(ctx->opcode, 11, 5);
-    uint32_t op1 = MASK_SPECIAL(ctx->opcode);
-
-    switch (op1) {
-    case OPC_MOVN:         /* Conditional move */
-    case OPC_MOVZ:
-        gen_cond_move(ctx, op1, rd, rs, rt);
-        break;
-    case OPC_MFHI:          /* Move from HI/LO */
-    case OPC_MFLO:
-        gen_HILO(ctx, op1, 0, rd);
-        break;
-    case OPC_MTHI:
-    case OPC_MTLO:          /* Move to HI/LO */
-        gen_HILO(ctx, op1, 0, rs);
-        break;
-    case OPC_MULT:
-    case OPC_MULTU:
-        gen_mul_txx9(ctx, op1, rd, rs, rt);
-        break;
-    case OPC_DIV:
-    case OPC_DIVU:
-        gen_muldiv(ctx, op1, 0, rs, rt);
-        break;
-#if defined(TARGET_MIPS64)
-    case OPC_DMULT:
-    case OPC_DMULTU:
-    case OPC_DDIV:
-    case OPC_DDIVU:
-        check_insn_opc_user_only(ctx, INSN_R5900);
-        gen_muldiv(ctx, op1, 0, rs, rt);
-        break;
-#endif
-    case OPC_JR:
-        gen_compute_branch(ctx, op1, 4, rs, 0, 0, 4);
-        break;
-    default:            /* Invalid */
-        MIPS_INVAL("special_tx79");
-        gen_reserved_instruction(ctx);
-        break;
-    }
-}
-
 static void decode_opc_special_legacy(CPUMIPSState *env, DisasContext *ctx)
 {
     int rs, rt, rd;
@@ -13017,6 +12703,7 @@ static void decode_opc_special_legacy(CPUMIPSState *env, DisasContext *ctx)
     case OPC_DDIV:
     case OPC_DDIVU:
         check_insn(ctx, ISA_MIPS3);
+        check_insn_opc_user_only(ctx, INSN_R5900);
         check_mips_64(ctx);
         gen_muldiv(ctx, op1, 0, rs, rt);
         break;
@@ -13232,8 +12919,6 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
     default:
         if (ctx->insn_flags & ISA_MIPS_R6) {
             decode_opc_special_r6(env, ctx);
-        } else if (ctx->insn_flags & INSN_R5900) {
-            decode_opc_special_tx79(env, ctx);
         } else {
             decode_opc_special_legacy(env, ctx);
         }
@@ -13912,85 +13597,6 @@ static void decode_opc_special3_legacy(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
-
-#if defined(TARGET_MIPS64)
-
-static void decode_mmi(CPUMIPSState *env, DisasContext *ctx)
-{
-    uint32_t opc = MASK_MMI(ctx->opcode);
-    int rs = extract32(ctx->opcode, 21, 5);
-    int rt = extract32(ctx->opcode, 16, 5);
-    int rd = extract32(ctx->opcode, 11, 5);
-
-    switch (opc) {
-    case MMI_OPC_MULT1:
-    case MMI_OPC_MULTU1:
-    case MMI_OPC_MADD:
-    case MMI_OPC_MADDU:
-    case MMI_OPC_MADD1:
-    case MMI_OPC_MADDU1:
-        gen_mul_txx9(ctx, opc, rd, rs, rt);
-        break;
-    case MMI_OPC_DIV1:
-    case MMI_OPC_DIVU1:
-        gen_div1_tx79(ctx, opc, rs, rt);
-        break;
-    default:
-        MIPS_INVAL("TX79 MMI class");
-        gen_reserved_instruction(ctx);
-        break;
-    }
-}
-
-static void gen_mmi_sq(DisasContext *ctx, int base, int rt, int offset)
-{
-    gen_reserved_instruction(ctx);    /* TODO: MMI_OPC_SQ */
-}
-
-/*
- * The TX79-specific instruction Store Quadword
- *
- * +--------+-------+-------+------------------------+
- * | 011111 |  base |   rt  |           offset       | SQ
- * +--------+-------+-------+------------------------+
- *      6       5       5                 16
- *
- * has the same opcode as the Read Hardware Register instruction
- *
- * +--------+-------+-------+-------+-------+--------+
- * | 011111 | 00000 |   rt  |   rd  | 00000 | 111011 | RDHWR
- * +--------+-------+-------+-------+-------+--------+
- *      6       5       5       5       5        6
- *
- * that is required, trapped and emulated by the Linux kernel. However, all
- * RDHWR encodings yield address error exceptions on the TX79 since the SQ
- * offset is odd. Therefore all valid SQ instructions can execute normally.
- * In user mode, QEMU must verify the upper and lower 11 bits to distinguish
- * between SQ and RDHWR, as the Linux kernel does.
- */
-static void decode_mmi_sq(CPUMIPSState *env, DisasContext *ctx)
-{
-    int base = extract32(ctx->opcode, 21, 5);
-    int rt = extract32(ctx->opcode, 16, 5);
-    int offset = extract32(ctx->opcode, 0, 16);
-
-#ifdef CONFIG_USER_ONLY
-    uint32_t op1 = MASK_SPECIAL3(ctx->opcode);
-    uint32_t op2 = extract32(ctx->opcode, 6, 5);
-
-    if (base == 0 && op2 == 0 && op1 == OPC_RDHWR) {
-        int rd = extract32(ctx->opcode, 11, 5);
-
-        gen_rdhwr(ctx, rt, rd, 0);
-        return;
-    }
-#endif
-
-    gen_mmi_sq(ctx, base, rt, offset);
-}
-
-#endif
-
 static void decode_opc_special3(CPUMIPSState *env, DisasContext *ctx)
 {
     int rs, rt, rd, sa;
@@ -14161,12 +13767,6 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
         decode_opc_special(env, ctx);
         break;
     case OPC_SPECIAL2:
-#if defined(TARGET_MIPS64)
-        if ((ctx->insn_flags & INSN_R5900) && (ctx->insn_flags & ASE_MMI)) {
-            decode_mmi(env, ctx);
-            break;
-        }
-#endif
         if (TARGET_LONG_BITS == 32 && (ctx->insn_flags & ASE_MXU)) {
             if (MASK_SPECIAL2(ctx->opcode) == OPC_MUL) {
                 gen_arith(ctx, OPC_MUL, rd, rs, rt);
@@ -14178,15 +13778,7 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
         decode_opc_special2_legacy(env, ctx);
         break;
     case OPC_SPECIAL3:
-#if defined(TARGET_MIPS64)
-        if (ctx->insn_flags & INSN_R5900) {
-            decode_mmi_sq(env, ctx);    /* MMI_OPC_SQ */
-        } else {
-            decode_opc_special3(env, ctx);
-        }
-#else
         decode_opc_special3(env, ctx);
-#endif
         break;
     case OPC_REGIMM:
         op1 = MASK_REGIMM(ctx->opcode);
