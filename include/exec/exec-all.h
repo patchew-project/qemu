@@ -56,16 +56,15 @@ bool cpu_unwind_state_data(CPUState *cpu, uintptr_t host_pc, uint64_t *data);
  * cpu_restore_state:
  * @cpu: the vCPU state is to be restore to
  * @searched_pc: the host PC the fault occurred at
- * @will_exit: true if the TB executed will be interrupted after some
-               cpu adjustments. Required for maintaining the correct
-               icount valus
  * @return: true if state was restored, false otherwise
  *
  * Attempt to restore the state for a fault occurring in translated
  * code. If the searched_pc is not in translated code no state is
- * restored and the function returns false.
+ * restored and the function returns false.  After calling this function,
+ * we must return to the main loop -- required for maintaining the
+ * correct icount values.
  */
-bool cpu_restore_state(CPUState *cpu, uintptr_t searched_pc, bool will_exit);
+bool cpu_restore_state(CPUState *cpu, uintptr_t searched_pc);
 
 G_NORETURN void cpu_loop_exit_noexc(CPUState *cpu);
 G_NORETURN void cpu_loop_exit(CPUState *cpu);
