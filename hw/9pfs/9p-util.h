@@ -69,9 +69,9 @@ static inline int errno_to_dotl(int err)
 {
 #if defined(CONFIG_LINUX)
     /* nothing to translate (Linux -> Linux) */
-#elif defined(CONFIG_DARWIN)
+#elif defined(CONFIG_DARWIN) || defined(CONFIG_WIN32)
     /*
-     * translation mandatory for macOS hosts
+     * translation mandatory for different hosts
      *
      * FIXME: Only most important errnos translated here yet, this should be
      * extended to as many errnos being translated as possible in future.
@@ -86,6 +86,7 @@ static inline int errno_to_dotl(int err)
     case ELOOP:
         err = L_ELOOP;
         break;
+#ifdef CONFIG_DARWIN
     case ENOATTR:
         err = L_ENODATA;
         break;
@@ -95,6 +96,21 @@ static inline int errno_to_dotl(int err)
     case EOPNOTSUPP:
         err = L_EOPNOTSUPP;
         break;
+#endif
+#ifdef CONFIG_WIN32
+    case EDEADLK:
+        err = L_EDEADLK;
+        break;
+    case ENOLCK:
+        err = L_ENOLCK;
+        break;
+    case ENOSYS:
+        err = L_ENOSYS;
+        break;
+    case EILSEQ:
+        err = L_EILSEQ;
+        break;
+#endif
     default:
         break;
     }
