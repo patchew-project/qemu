@@ -11,11 +11,19 @@
 /*
  * 9pfs file id
  *
- * This is file descriptor on POSIX platforms
+ * This is file descriptor on POSIX platforms, handle on Windows
  */
+#ifndef CONFIG_WIN32
 typedef int P9_FILE_ID;
+#else
+typedef HANDLE P9_FILE_ID;
+#endif
 
 /* invalid value for P9_FILE_ID */
+#ifndef CONFIG_WIN32
 #define P9_INVALID_FILE -1
+#else
+#define P9_INVALID_FILE INVALID_HANDLE_VALUE
+#endif
 
 #endif
