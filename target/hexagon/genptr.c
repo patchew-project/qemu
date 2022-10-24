@@ -495,6 +495,12 @@ static void gen_compare(TCGCond cond, TCGv res, TCGv arg1, TCGv arg2)
     tcg_gen_movcond_tl(cond, res, arg1, arg2, one, zero);
 }
 
+static void gen_cond_jumpr(DisasContext *ctx, Packet *pkt,
+                           TCGv pred, TCGv dst_pc)
+{
+    gen_write_new_pc_addr(ctx, pkt, dst_pc, pred);
+}
+
 static void gen_cond_jump(DisasContext *ctx, Packet *pkt, TCGv pred, int pc_off)
 {
     gen_write_new_pc_pcrel(ctx, pkt, pc_off, pred);
@@ -561,6 +567,28 @@ static void gen_cmpnd_tstbit0_jmp(DisasContext *ctx, Packet *pkt, Insn *insn,
     }
 }
 
+static void gen_testbit0_jumpnv(DisasContext *ctx, Packet *pkt,
+                                bool sense, TCGv arg, int pc_off)
+{
+    TCGv pred = tcg_temp_new();
+    tcg_gen_andi_tl(pred, arg, 1);
+    if (!sense) {
+        tcg_gen_xori_tl(pred, pred, 1);
+    }
+    gen_cond_jump(ctx, pkt, pred, pc_off);
+    tcg_temp_free(pred);
+}
+
+static void gen_jump(DisasContext *ctx, Packet *pkt, int pc_off)
+{
+    gen_write_new_pc_pcrel(ctx, pkt, pc_off, NULL);
+}
+
+static void gen_jumpr(DisasContext *ctx, Packet *pkt, TCGv new_pc)
+{
+    gen_write_new_pc_addr(ctx, pkt, new_pc, NULL);
+}
+
 static void gen_call(DisasContext *ctx, Packet *pkt, int pc_off)
 {
     TCGv next_PC =
@@ -586,6 +614,24 @@ static void gen_cond_call(DisasContext *ctx, Packet *pkt,
         tcg_constant_tl(pkt->pc + pkt->encod_pkt_size_in_bytes);
     gen_log_reg_write(HEX_REG_LR, next_PC);
     gen_set_label(skip);
+}
+
+static void gen_cmp_jumpnv(DisasContext *ctx, Packet *pkt,
+                           TCGCond cond, TCGv val, TCGv src, int pc_off)
+{
+    TCGv pred = tcg_temp_new();
+    tcg_gen_setcond_tl(cond, pred, val, src);
+    gen_cond_jump(ctx, pkt, pred, pc_off);
+    tcg_temp_free(pred);
+}
+
+static void gen_cmpi_jumpnv(DisasContext *ctx, Packet *pkt,
+                            TCGCond cond, TCGv val, int src, int pc_off)
+{
+    TCGv pred = tcg_temp_new();
+    tcg_gen_setcondi_tl(cond, pred, val, src);
+    gen_cond_jump(ctx, pkt, pred, pc_off);
+    tcg_temp_free(pred);
 }
 
 static intptr_t vreg_src_off(DisasContext *ctx, int num)
