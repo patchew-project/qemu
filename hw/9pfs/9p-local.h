@@ -15,6 +15,13 @@
 
 #include "9p-file-id.h"
 
+typedef struct {
+    P9_FILE_ID mountfd;
+#ifdef CONFIG_WIN32
+    char *root_path;
+#endif
+} LocalData;
+
 P9_FILE_ID local_open_nofollow(FsContext *fs_ctx, const char *path, int flags,
                                mode_t mode);
 P9_FILE_ID local_opendir_nofollow(FsContext *fs_ctx, const char *path);

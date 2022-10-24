@@ -53,10 +53,6 @@
 #define BTRFS_SUPER_MAGIC 0x9123683E
 #endif
 
-typedef struct {
-    P9_FILE_ID mountfd;
-} LocalData;
-
 P9_FILE_ID local_open_nofollow(FsContext *fs_ctx, const char *path, int flags,
                                mode_t mode)
 {
