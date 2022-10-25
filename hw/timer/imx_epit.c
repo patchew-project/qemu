@@ -62,18 +62,6 @@ static const IMXClk imx_epit_clocks[] =  {
 };
 
 /*
- * Update interrupt status
- */
-static void imx_epit_update_int(IMXEPITState *s)
-{
-    if (s->sr && (s->cr & CR_OCIEN) && (s->cr & CR_EN)) {
-        qemu_irq_raise(s->irq);
-    } else {
-        qemu_irq_lower(s->irq);
-    }
-}
-
-/*
  * Must be called from within a ptimer_transaction_begin/commit block
  * for both s->timer_cmp and s->timer_reload.
  */
@@ -253,10 +241,10 @@ static void imx_epit_write(void *opaque, hwaddr offset, uint64_t value,
         break;
 
     case 1: /* SR - ACK*/
-        /* writing 1 to OCIF clears the OCIF bit */
+        /* writing 1 to OCIF clears the OCIF bit and the interrupt */
         if (value & 0x01) {
             s->sr = 0;
-            imx_epit_update_int(s);
+            qemu_irq_lower(s->irq);
         }
         break;
 
@@ -305,10 +293,17 @@ static void imx_epit_cmp(void *opaque)
 {
     IMXEPITState *s = IMX_EPIT(opaque);
 
+    /* Set the interrupt status flag to signaled. */
     DPRINTF("sr was %d\n", s->sr);
-
     s->sr = 1;
-    imx_epit_update_int(s);
+
+    /*
+     * An actual interrupt is generated only if the peripheral is enabled
+     * and the interrupt generation is enabled.
+     */
+    if ((s->cr & (CR_EN | CR_OCIEN)) == (CR_EN | CR_OCIEN)) {
+        qemu_irq_raise(s->irq);
+    }
 }
 
 static void imx_epit_reload(void *opaque)
