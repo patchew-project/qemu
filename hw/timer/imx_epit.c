@@ -254,7 +254,7 @@ static void imx_epit_write(void *opaque, hwaddr offset, uint64_t value,
         break;
 
     case 1: /* SR - ACK*/
-        /* writing 1 to OCIF clear the OCIF bit */
+        /* writing 1 to OCIF clears the OCIF bit */
         if (value & 0x01) {
             s->sr = 0;
             imx_epit_update_int(s);
