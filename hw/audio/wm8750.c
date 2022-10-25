@@ -15,10 +15,10 @@
 #include "audio/audio.h"
 #include "qom/object.h"
 
-#define IN_PORT_N	3
-#define OUT_PORT_N	3
+#define IN_PORT_N       3
+#define OUT_PORT_N      3
 
-#define CODEC		"wm8750"
+#define CODEC           "wm8750"
 
 typedef struct {
     int adc;
@@ -64,8 +64,8 @@ static const uint8_t wm8750_vol_db_table[] = {
     4, 4, 3, 3, 3, 2, 2
 };
 
-#define WM8750_OUTVOL_TRANSFORM(x)	wm8750_vol_db_table[(0x7f - x) / 3]
-#define WM8750_INVOL_TRANSFORM(x)	(x << 2)
+#define WM8750_OUTVOL_TRANSFORM(x)      wm8750_vol_db_table[(0x7f - x) / 3]
+#define WM8750_INVOL_TRANSFORM(x)       (x << 2)
 
 static inline void wm8750_in_load(WM8750State *s)
 {
@@ -107,38 +107,38 @@ static void wm8750_audio_out_cb(void *opaque, int free_b)
 }
 
 static const WMRate wm_rate_table[] = {
-    {  256, 48000,  256, 48000 },	/* SR: 00000 */
-    {  384, 48000,  384, 48000 },	/* SR: 00001 */
-    {  256, 48000, 1536,  8000 },	/* SR: 00010 */
-    {  384, 48000, 2304,  8000 },	/* SR: 00011 */
-    { 1536,  8000,  256, 48000 },	/* SR: 00100 */
-    { 2304,  8000,  384, 48000 },	/* SR: 00101 */
-    { 1536,  8000, 1536,  8000 },	/* SR: 00110 */
-    { 2304,  8000, 2304,  8000 },	/* SR: 00111 */
-    { 1024, 12000, 1024, 12000 },	/* SR: 01000 */
-    { 1526, 12000, 1536, 12000 },	/* SR: 01001 */
-    {  768, 16000,  768, 16000 },	/* SR: 01010 */
-    { 1152, 16000, 1152, 16000 },	/* SR: 01011 */
-    {  384, 32000,  384, 32000 },	/* SR: 01100 */
-    {  576, 32000,  576, 32000 },	/* SR: 01101 */
-    {  128, 96000,  128, 96000 },	/* SR: 01110 */
-    {  192, 96000,  192, 96000 },	/* SR: 01111 */
-    {  256, 44100,  256, 44100 },	/* SR: 10000 */
-    {  384, 44100,  384, 44100 },	/* SR: 10001 */
-    {  256, 44100, 1408,  8018 },	/* SR: 10010 */
-    {  384, 44100, 2112,  8018 },	/* SR: 10011 */
-    { 1408,  8018,  256, 44100 },	/* SR: 10100 */
-    { 2112,  8018,  384, 44100 },	/* SR: 10101 */
-    { 1408,  8018, 1408,  8018 },	/* SR: 10110 */
-    { 2112,  8018, 2112,  8018 },	/* SR: 10111 */
-    { 1024, 11025, 1024, 11025 },	/* SR: 11000 */
-    { 1536, 11025, 1536, 11025 },	/* SR: 11001 */
-    {  512, 22050,  512, 22050 },	/* SR: 11010 */
-    {  768, 22050,  768, 22050 },	/* SR: 11011 */
-    {  512, 24000,  512, 24000 },	/* SR: 11100 */
-    {  768, 24000,  768, 24000 },	/* SR: 11101 */
-    {  128, 88200,  128, 88200 },	/* SR: 11110 */
-    {  192, 88200,  192, 88200 },	/* SR: 11111 */
+    {  256, 48000,  256, 48000 },       /* SR: 00000 */
+    {  384, 48000,  384, 48000 },       /* SR: 00001 */
+    {  256, 48000, 1536,  8000 },       /* SR: 00010 */
+    {  384, 48000, 2304,  8000 },       /* SR: 00011 */
+    { 1536,  8000,  256, 48000 },       /* SR: 00100 */
+    { 2304,  8000,  384, 48000 },       /* SR: 00101 */
+    { 1536,  8000, 1536,  8000 },       /* SR: 00110 */
+    { 2304,  8000, 2304,  8000 },       /* SR: 00111 */
+    { 1024, 12000, 1024, 12000 },       /* SR: 01000 */
+    { 1526, 12000, 1536, 12000 },       /* SR: 01001 */
+    {  768, 16000,  768, 16000 },       /* SR: 01010 */
+    { 1152, 16000, 1152, 16000 },       /* SR: 01011 */
+    {  384, 32000,  384, 32000 },       /* SR: 01100 */
+    {  576, 32000,  576, 32000 },       /* SR: 01101 */
+    {  128, 96000,  128, 96000 },       /* SR: 01110 */
+    {  192, 96000,  192, 96000 },       /* SR: 01111 */
+    {  256, 44100,  256, 44100 },       /* SR: 10000 */
+    {  384, 44100,  384, 44100 },       /* SR: 10001 */
+    {  256, 44100, 1408,  8018 },       /* SR: 10010 */
+    {  384, 44100, 2112,  8018 },       /* SR: 10011 */
+    { 1408,  8018,  256, 44100 },       /* SR: 10100 */
+    { 2112,  8018,  384, 44100 },       /* SR: 10101 */
+    { 1408,  8018, 1408,  8018 },       /* SR: 10110 */
+    { 2112,  8018, 2112,  8018 },       /* SR: 10111 */
+    { 1024, 11025, 1024, 11025 },       /* SR: 11000 */
+    { 1536, 11025, 1536, 11025 },       /* SR: 11001 */
+    {  512, 22050,  512, 22050 },       /* SR: 11010 */
+    {  768, 22050,  768, 22050 },       /* SR: 11011 */
+    {  512, 24000,  512, 24000 },       /* SR: 11100 */
+    {  768, 24000,  768, 24000 },       /* SR: 11101 */
+    {  128, 88200,  128, 88200 },       /* SR: 11110 */
+    {  192, 88200,  192, 88200 },       /* SR: 11111 */
 };
 
 static void wm8750_vol_update(WM8750State *s)
@@ -327,42 +327,42 @@ static int wm8750_event(I2CSlave *i2c, enum i2c_event event)
     return 0;
 }
 
-#define WM8750_LINVOL	0x00
-#define WM8750_RINVOL	0x01
-#define WM8750_LOUT1V	0x02
-#define WM8750_ROUT1V	0x03
-#define WM8750_ADCDAC	0x05
-#define WM8750_IFACE	0x07
-#define WM8750_SRATE	0x08
-#define WM8750_LDAC	0x0a
-#define WM8750_RDAC	0x0b
-#define WM8750_BASS	0x0c
-#define WM8750_TREBLE	0x0d
-#define WM8750_RESET	0x0f
-#define WM8750_3D	0x10
-#define WM8750_ALC1	0x11
-#define WM8750_ALC2	0x12
-#define WM8750_ALC3	0x13
-#define WM8750_NGATE	0x14
-#define WM8750_LADC	0x15
-#define WM8750_RADC	0x16
-#define WM8750_ADCTL1	0x17
-#define WM8750_ADCTL2	0x18
-#define WM8750_PWR1	0x19
-#define WM8750_PWR2	0x1a
-#define WM8750_ADCTL3	0x1b
-#define WM8750_ADCIN	0x1f
-#define WM8750_LADCIN	0x20
-#define WM8750_RADCIN	0x21
-#define WM8750_LOUTM1	0x22
-#define WM8750_LOUTM2	0x23
-#define WM8750_ROUTM1	0x24
-#define WM8750_ROUTM2	0x25
-#define WM8750_MOUTM1	0x26
-#define WM8750_MOUTM2	0x27
-#define WM8750_LOUT2V	0x28
-#define WM8750_ROUT2V	0x29
-#define WM8750_MOUTV	0x2a
+#define WM8750_LINVOL   0x00
+#define WM8750_RINVOL   0x01
+#define WM8750_LOUT1V   0x02
+#define WM8750_ROUT1V   0x03
+#define WM8750_ADCDAC   0x05
+#define WM8750_IFACE    0x07
+#define WM8750_SRATE    0x08
+#define WM8750_LDAC     0x0a
+#define WM8750_RDAC     0x0b
+#define WM8750_BASS     0x0c
+#define WM8750_TREBLE   0x0d
+#define WM8750_RESET    0x0f
+#define WM8750_3D       0x10
+#define WM8750_ALC1     0x11
+#define WM8750_ALC2     0x12
+#define WM8750_ALC3     0x13
+#define WM8750_NGATE    0x14
+#define WM8750_LADC     0x15
+#define WM8750_RADC     0x16
+#define WM8750_ADCTL1   0x17
+#define WM8750_ADCTL2   0x18
+#define WM8750_PWR1     0x19
+#define WM8750_PWR2     0x1a
+#define WM8750_ADCTL3   0x1b
+#define WM8750_ADCIN    0x1f
+#define WM8750_LADCIN   0x20
+#define WM8750_RADCIN   0x21
+#define WM8750_LOUTM1   0x22
+#define WM8750_LOUTM2   0x23
+#define WM8750_ROUTM1   0x24
+#define WM8750_ROUTM2   0x25
+#define WM8750_MOUTM1   0x26
+#define WM8750_MOUTM2   0x27
+#define WM8750_LOUT2V   0x28
+#define WM8750_ROUT2V   0x29
+#define WM8750_MOUTV    0x2a
 
 static int wm8750_tx(I2CSlave *i2c, uint8_t data)
 {
@@ -384,174 +384,174 @@ static int wm8750_tx(I2CSlave *i2c, uint8_t data)
     value = ((s->i2c_data[0] << 8) | s->i2c_data[1]) & 0x1ff;
 
     switch (cmd) {
-    case WM8750_LADCIN:	/* ADC Signal Path Control (Left) */
-        s->diff[0] = (((value >> 6) & 3) == 3);	/* LINSEL */
+    case WM8750_LADCIN: /* ADC Signal Path Control (Left) */
+        s->diff[0] = (((value >> 6) & 3) == 3); /* LINSEL */
         if (s->diff[0])
             s->in[0] = &s->adc_voice[0 + s->ds * 1];
         else
             s->in[0] = &s->adc_voice[((value >> 6) & 3) * 1 + 0];
         break;
 
-    case WM8750_RADCIN:	/* ADC Signal Path Control (Right) */
-        s->diff[1] = (((value >> 6) & 3) == 3);	/* RINSEL */
+    case WM8750_RADCIN: /* ADC Signal Path Control (Right) */
+        s->diff[1] = (((value >> 6) & 3) == 3); /* RINSEL */
         if (s->diff[1])
             s->in[1] = &s->adc_voice[0 + s->ds * 1];
         else
             s->in[1] = &s->adc_voice[((value >> 6) & 3) * 1 + 0];
         break;
 
-    case WM8750_ADCIN:	/* ADC Input Mode */
-        s->ds = (value >> 8) & 1;	/* DS */
+    case WM8750_ADCIN:  /* ADC Input Mode */
+        s->ds = (value >> 8) & 1;       /* DS */
         if (s->diff[0])
             s->in[0] = &s->adc_voice[0 + s->ds * 1];
         if (s->diff[1])
             s->in[1] = &s->adc_voice[0 + s->ds * 1];
-        s->monomix[0] = (value >> 6) & 3;	/* MONOMIX */
+        s->monomix[0] = (value >> 6) & 3;       /* MONOMIX */
         break;
 
-    case WM8750_ADCTL1:	/* Additional Control (1) */
-        s->monomix[1] = (value >> 1) & 1;	/* DMONOMIX */
+    case WM8750_ADCTL1: /* Additional Control (1) */
+        s->monomix[1] = (value >> 1) & 1;       /* DMONOMIX */
         break;
 
-    case WM8750_PWR1:	/* Power Management (1) */
-        s->enable = ((value >> 6) & 7) == 3;	/* VMIDSEL, VREF */
+    case WM8750_PWR1:   /* Power Management (1) */
+        s->enable = ((value >> 6) & 7) == 3;    /* VMIDSEL, VREF */
         wm8750_set_format(s);
         break;
 
-    case WM8750_LINVOL:	/* Left Channel PGA */
-        s->invol[0] = value & 0x3f;		/* LINVOL */
-        s->inmute[0] = (value >> 7) & 1;	/* LINMUTE */
+    case WM8750_LINVOL: /* Left Channel PGA */
+        s->invol[0] = value & 0x3f;             /* LINVOL */
+        s->inmute[0] = (value >> 7) & 1;        /* LINMUTE */
         wm8750_vol_update(s);
         break;
 
-    case WM8750_RINVOL:	/* Right Channel PGA */
-        s->invol[1] = value & 0x3f;		/* RINVOL */
-        s->inmute[1] = (value >> 7) & 1;	/* RINMUTE */
+    case WM8750_RINVOL: /* Right Channel PGA */
+        s->invol[1] = value & 0x3f;             /* RINVOL */
+        s->inmute[1] = (value >> 7) & 1;        /* RINMUTE */
         wm8750_vol_update(s);
         break;
 
-    case WM8750_ADCDAC:	/* ADC and DAC Control */
-        s->pol = (value >> 5) & 3;		/* ADCPOL */
-        s->mute = (value >> 3) & 1;		/* DACMU */
+    case WM8750_ADCDAC: /* ADC and DAC Control */
+        s->pol = (value >> 5) & 3;              /* ADCPOL */
+        s->mute = (value >> 3) & 1;             /* DACMU */
         wm8750_vol_update(s);
         break;
 
-    case WM8750_ADCTL3:	/* Additional Control (3) */
+    case WM8750_ADCTL3: /* Additional Control (3) */
         break;
 
-    case WM8750_LADC:	/* Left ADC Digital Volume */
-        s->invol[2] = value & 0xff;		/* LADCVOL */
+    case WM8750_LADC:   /* Left ADC Digital Volume */
+        s->invol[2] = value & 0xff;             /* LADCVOL */
         wm8750_vol_update(s);
         break;
 
-    case WM8750_RADC:	/* Right ADC Digital Volume */
-        s->invol[3] = value & 0xff;		/* RADCVOL */
+    case WM8750_RADC:   /* Right ADC Digital Volume */
+        s->invol[3] = value & 0xff;             /* RADCVOL */
         wm8750_vol_update(s);
         break;
 
-    case WM8750_ALC1:	/* ALC Control (1) */
-        s->alc = (value >> 7) & 3;		/* ALCSEL */
+    case WM8750_ALC1:   /* ALC Control (1) */
+        s->alc = (value >> 7) & 3;              /* ALCSEL */
         break;
 
-    case WM8750_NGATE:	/* Noise Gate Control */
-    case WM8750_3D:	/* 3D enhance */
+    case WM8750_NGATE:  /* Noise Gate Control */
+    case WM8750_3D:     /* 3D enhance */
         break;
 
-    case WM8750_LDAC:	/* Left Channel Digital Volume */
-        s->outvol[0] = value & 0xff;		/* LDACVOL */
+    case WM8750_LDAC:   /* Left Channel Digital Volume */
+        s->outvol[0] = value & 0xff;            /* LDACVOL */
         wm8750_vol_update(s);
         break;
 
-    case WM8750_RDAC:	/* Right Channel Digital Volume */
-        s->outvol[1] = value & 0xff;		/* RDACVOL */
+    case WM8750_RDAC:   /* Right Channel Digital Volume */
+        s->outvol[1] = value & 0xff;            /* RDACVOL */
         wm8750_vol_update(s);
         break;
 
-    case WM8750_BASS:	/* Bass Control */
+    case WM8750_BASS:   /* Bass Control */
         break;
 
-    case WM8750_LOUTM1:	/* Left Mixer Control (1) */
-        s->path[0] = (value >> 8) & 1;		/* LD2LO */
+    case WM8750_LOUTM1: /* Left Mixer Control (1) */
+        s->path[0] = (value >> 8) & 1;          /* LD2LO */
         /* TODO: mute/unmute respective paths */
         wm8750_vol_update(s);
         break;
 
-    case WM8750_LOUTM2:	/* Left Mixer Control (2) */
-        s->path[1] = (value >> 8) & 1;		/* RD2LO */
+    case WM8750_LOUTM2: /* Left Mixer Control (2) */
+        s->path[1] = (value >> 8) & 1;          /* RD2LO */
         /* TODO: mute/unmute respective paths */
         wm8750_vol_update(s);
         break;
 
-    case WM8750_ROUTM1:	/* Right Mixer Control (1) */
-        s->path[2] = (value >> 8) & 1;		/* LD2RO */
+    case WM8750_ROUTM1: /* Right Mixer Control (1) */
+        s->path[2] = (value >> 8) & 1;          /* LD2RO */
         /* TODO: mute/unmute respective paths */
         wm8750_vol_update(s);
         break;
 
-    case WM8750_ROUTM2:	/* Right Mixer Control (2) */
-        s->path[3] = (value >> 8) & 1;		/* RD2RO */
+    case WM8750_ROUTM2: /* Right Mixer Control (2) */
+        s->path[3] = (value >> 8) & 1;          /* RD2RO */
         /* TODO: mute/unmute respective paths */
         wm8750_vol_update(s);
         break;
 
-    case WM8750_MOUTM1:	/* Mono Mixer Control (1) */
-        s->mpath[0] = (value >> 8) & 1;		/* LD2MO */
+    case WM8750_MOUTM1: /* Mono Mixer Control (1) */
+        s->mpath[0] = (value >> 8) & 1;         /* LD2MO */
         /* TODO: mute/unmute respective paths */
         wm8750_vol_update(s);
         break;
 
-    case WM8750_MOUTM2:	/* Mono Mixer Control (2) */
-        s->mpath[1] = (value >> 8) & 1;		/* RD2MO */
+    case WM8750_MOUTM2: /* Mono Mixer Control (2) */
+        s->mpath[1] = (value >> 8) & 1;         /* RD2MO */
         /* TODO: mute/unmute respective paths */
         wm8750_vol_update(s);
         break;
 
-    case WM8750_LOUT1V:	/* LOUT1 Volume */
-        s->outvol[2] = value & 0x7f;		/* LOUT1VOL */
+    case WM8750_LOUT1V: /* LOUT1 Volume */
+        s->outvol[2] = value & 0x7f;            /* LOUT1VOL */
         wm8750_vol_update(s);
         break;
 
-    case WM8750_LOUT2V:	/* LOUT2 Volume */
-        s->outvol[4] = value & 0x7f;		/* LOUT2VOL */
+    case WM8750_LOUT2V: /* LOUT2 Volume */
+        s->outvol[4] = value & 0x7f;            /* LOUT2VOL */
         wm8750_vol_update(s);
         break;
 
-    case WM8750_ROUT1V:	/* ROUT1 Volume */
-        s->outvol[3] = value & 0x7f;		/* ROUT1VOL */
+    case WM8750_ROUT1V: /* ROUT1 Volume */
+        s->outvol[3] = value & 0x7f;            /* ROUT1VOL */
         wm8750_vol_update(s);
         break;
 
-    case WM8750_ROUT2V:	/* ROUT2 Volume */
-        s->outvol[5] = value & 0x7f;		/* ROUT2VOL */
+    case WM8750_ROUT2V: /* ROUT2 Volume */
+        s->outvol[5] = value & 0x7f;            /* ROUT2VOL */
         wm8750_vol_update(s);
         break;
 
-    case WM8750_MOUTV:	/* MONOOUT Volume */
-        s->outvol[6] = value & 0x7f;		/* MONOOUTVOL */
+    case WM8750_MOUTV:  /* MONOOUT Volume */
+        s->outvol[6] = value & 0x7f;            /* MONOOUTVOL */
         wm8750_vol_update(s);
         break;
 
-    case WM8750_ADCTL2:	/* Additional Control (2) */
+    case WM8750_ADCTL2: /* Additional Control (2) */
         break;
 
-    case WM8750_PWR2:	/* Power Management (2) */
+    case WM8750_PWR2:   /* Power Management (2) */
         s->power = value & 0x7e;
         /* TODO: mute/unmute respective paths */
         wm8750_vol_update(s);
         break;
 
-    case WM8750_IFACE:	/* Digital Audio Interface Format */
+    case WM8750_IFACE:  /* Digital Audio Interface Format */
         s->format = value;
-        s->master = (value >> 6) & 1;			/* MS */
+        s->master = (value >> 6) & 1;                   /* MS */
         wm8750_clk_update(s, s->master);
         break;
 
-    case WM8750_SRATE:	/* Clocking and Sample Rate Control */
+    case WM8750_SRATE:  /* Clocking and Sample Rate Control */
         s->rate = &wm_rate_table[(value >> 1) & 0x1f];
         wm8750_clk_update(s, 0);
         break;
 
-    case WM8750_RESET:	/* Reset */
+    case WM8750_RESET:  /* Reset */
         wm8750_reset(I2C_SLAVE(s));
         break;
 
