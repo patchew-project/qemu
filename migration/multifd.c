@@ -569,12 +569,13 @@ void multifd_save_cleanup(void)
     multifd_send_state = NULL;
 }
 
-static int multifd_zero_copy_flush(QIOChannel *c)
+static int multifd_zero_copy_flush(QIOChannel *c,
+                                   int max_remaining)
 {
     int ret;
     Error *err = NULL;
 
-    ret = qio_channel_flush(c, 0, &err);
+    ret = qio_channel_flush(c, max_remaining, &err);
     if (ret < 0) {
         error_report_err(err);
         return -1;
@@ -636,7 +637,7 @@ int multifd_send_sync_main(QEMUFile *f)
         qemu_mutex_unlock(&p->mutex);
         qemu_sem_post(&p->sem);
 
-        if (flush_zero_copy && p->c && (multifd_zero_copy_flush(p->c) < 0)) {
+        if (flush_zero_copy && p->c && (multifd_zero_copy_flush(p->c, 0) < 0)) {
             return -1;
         }
     }
@@ -719,12 +720,17 @@ static void *multifd_send_thread(void *opaque)
 
             if (use_zero_copy_send) {
                 p->packet_idx = (p->packet_idx + 1) % HEADER_ARR_SZ;
-
-                if (!p->packet_idx && (multifd_zero_copy_flush(p->c) < 0)) {
+                /*
+                 * When half the array have been used, flush to make sure the
+                 * next half is available
+                 */
+                if (!(p->packet_idx % (HEADER_ARR_SZ / 2)) &&
+                    (multifd_zero_copy_flush(p->c, HEADER_ARR_SZ / 2) < 0)) {
                     break;
                 }
                 header = (void *)p->packet + p->packet_idx * p->packet_len;
             }
+
             qemu_mutex_lock(&p->mutex);
             p->pending_job--;
             qemu_mutex_unlock(&p->mutex);
