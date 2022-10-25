@@ -48,6 +48,9 @@ static void test_io_channel_command_fifo(bool async)
     }
 
     unlink(TEST_FIFO);
+    if (mkfifo(TEST_FIFO, 0600) < 0) {
+        abort();
+    }
     src = QIO_CHANNEL(qio_channel_command_new_spawn(srcargv,
                                                     O_WRONLY,
                                                     &error_abort));
