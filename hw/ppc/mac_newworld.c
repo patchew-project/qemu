@@ -194,9 +194,11 @@ static void ppc_core99_init(MachineState *machine)
                          machine->kernel_filename);
             exit(1);
         }
+        cmdline_base = TARGET_PAGE_ALIGN(kernel_base + kernel_size +
+                                         KERNEL_GAP);
         /* load initrd */
         if (machine->initrd_filename) {
-            initrd_base = TARGET_PAGE_ALIGN(kernel_base + kernel_size + KERNEL_GAP);
+            initrd_base = cmdline_base;
             initrd_size = load_image_targphys(machine->initrd_filename,
                                               initrd_base,
                                               machine->ram_size - initrd_base);
@@ -206,8 +208,6 @@ static void ppc_core99_init(MachineState *machine)
                 exit(1);
             }
             cmdline_base = TARGET_PAGE_ALIGN(initrd_base + initrd_size);
-        } else {
-            cmdline_base = TARGET_PAGE_ALIGN(kernel_base + kernel_size + KERNEL_GAP);
         }
         ppc_boot_device = 'm';
     } else {
