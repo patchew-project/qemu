@@ -61,27 +61,16 @@ static const IMXClk imx_epit_clocks[] =  {
     CLK_32k,       /* 11 ipg_clk_32k -- ~32kHz */
 };
 
-/*
- * Must be called from within a ptimer_transaction_begin/commit block
- * for both s->timer_cmp and s->timer_reload.
- */
-static void imx_epit_set_freq(IMXEPITState *s)
+static uint32_t imx_epit_get_freq(IMXEPITState *s)
 {
-    uint32_t clksrc;
-    uint32_t prescaler;
-
-    clksrc = extract32(s->cr, CR_CLKSRC_SHIFT, CR_CLKSRC_BITS);
-    prescaler = 1 + extract32(s->cr, CR_PRESCALE_SHIFT, CR_PRESCALE_BITS);
-
-    s->freq = imx_ccm_get_clock_frequency(s->ccm,
-                                imx_epit_clocks[clksrc]) / prescaler;
-
-    DPRINTF("Setting ptimer frequency to %u\n", s->freq);
-
-    if (s->freq) {
-        ptimer_set_freq(s->timer_reload, s->freq);
-        ptimer_set_freq(s->timer_cmp, s->freq);
-    }
+    uint32_t clksrc = extract32(s->cr, CR_CLKSRC_SHIFT, CR_CLKSRC_BITS);
+    uint32_t prescaler = 1 + extract32(s->cr, CR_PRESCALE_SHIFT,
+                                       CR_PRESCALE_BITS);
+    uint32_t f_in = imx_ccm_get_clock_frequency(s->ccm,
+                                                imx_epit_clocks[clksrc]);
+    uint32_t freq = f_in / prescaler;
+    DPRINTF("ptimer frequency is %u\n", freq);
+    return freq;
 }
 
 static void imx_epit_reset(DeviceState *dev)
@@ -93,34 +82,24 @@ static void imx_epit_reset(DeviceState *dev)
     s->sr = 0;
     s->lr = EPIT_TIMER_MAX;
     s->cmp = 0;
-    s->cnt = 0;
-
     /* clear the interrupt */
     qemu_irq_lower(s->irq);
 
     ptimer_transaction_begin(s->timer_cmp);
     ptimer_transaction_begin(s->timer_reload);
-    /* stop both timers */
+
+    /*
+     * The reset switches off the input clock, so even if the CR.EN is still
+     * set, the timers are no longer running.
+     */
+    assert(0 == imx_epit_get_freq(s));
     ptimer_stop(s->timer_cmp);
     ptimer_stop(s->timer_reload);
-    /* compute new frequency */
-    imx_epit_set_freq(s);
     /* init both timers to EPIT_TIMER_MAX */
     ptimer_set_limit(s->timer_cmp, EPIT_TIMER_MAX, 1);
     ptimer_set_limit(s->timer_reload, EPIT_TIMER_MAX, 1);
-    if (s->freq && (s->cr & CR_EN)) {
-        /* if the timer is still enabled, restart it */
-        ptimer_run(s->timer_reload, 0);
-    }
     ptimer_transaction_commit(s->timer_cmp);
     ptimer_transaction_commit(s->timer_reload);
-}
-
-static uint32_t imx_epit_update_count(IMXEPITState *s)
-{
-    s->cnt = ptimer_get_count(s->timer_reload);
-
-    return s->cnt;
 }
 
 static uint64_t imx_epit_read(void *opaque, hwaddr offset, unsigned size)
@@ -146,8 +125,7 @@ static uint64_t imx_epit_read(void *opaque, hwaddr offset, unsigned size)
         break;
 
     case 4: /* CNT */
-        imx_epit_update_count(s);
-        reg_value = s->cnt;
+        reg_value = ptimer_get_count(s->timer_reload);
         break;
 
     default:
@@ -166,7 +144,7 @@ static void imx_epit_reload_compare_timer(IMXEPITState *s)
 {
     if ((s->cr & (CR_EN | CR_OCIEN)) == (CR_EN | CR_OCIEN))  {
         /* if the compare feature is on and timers are running */
-        uint32_t tmp = imx_epit_update_count(s);
+        uint32_t tmp = ptimer_get_count(s->timer_reload);
         uint64_t next;
         if (tmp > s->cmp) {
             /* It'll fire in this round of the timer */
@@ -182,6 +160,7 @@ static void imx_epit_write(void *opaque, hwaddr offset, uint64_t value,
                            unsigned size)
 {
     IMXEPITState *s = IMX_EPIT(opaque);
+    uint64_t freq = 0;
     uint64_t oldcr;
 
     DPRINTF("(%s, value = 0x%08x)\n", imx_epit_reg_name(offset >> 2),
@@ -205,12 +184,19 @@ static void imx_epit_write(void *opaque, hwaddr offset, uint64_t value,
         ptimer_transaction_begin(s->timer_cmp);
         ptimer_transaction_begin(s->timer_reload);
 
-        /* Update the frequency. Has been done already in case of a reset. */
+        /*
+         * Update the frequency. In case of a reset the input clock was
+         * switched off, so this can be skipped.
+         */
         if (!(value & CR_SWR)) {
-            imx_epit_set_freq(s);
+            freq = imx_epit_get_freq(s);
+            if (freq) {
+                ptimer_set_freq(s->timer_reload, freq);
+                ptimer_set_freq(s->timer_cmp, freq);
+            }
         }
 
-        if (s->freq && (s->cr & CR_EN) && !(oldcr & CR_EN)) {
+        if (freq && (s->cr & CR_EN) && !(oldcr & CR_EN)) {
             if (s->cr & CR_ENMOD) {
                 if (s->cr & CR_RLD) {
                     ptimer_set_limit(s->timer_reload, s->lr, 1);
@@ -324,15 +310,13 @@ static const MemoryRegionOps imx_epit_ops = {
 
 static const VMStateDescription vmstate_imx_timer_epit = {
     .name = TYPE_IMX_EPIT,
-    .version_id = 2,
-    .minimum_version_id = 2,
+    .version_id = 3,
+    .minimum_version_id = 3,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(cr, IMXEPITState),
         VMSTATE_UINT32(sr, IMXEPITState),
         VMSTATE_UINT32(lr, IMXEPITState),
         VMSTATE_UINT32(cmp, IMXEPITState),
-        VMSTATE_UINT32(cnt, IMXEPITState),
-        VMSTATE_UINT32(freq, IMXEPITState),
         VMSTATE_PTIMER(timer_reload, IMXEPITState),
         VMSTATE_PTIMER(timer_cmp, IMXEPITState),
         VMSTATE_END_OF_LIST()
