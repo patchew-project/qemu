@@ -97,6 +97,9 @@ static void imx_epit_reset(DeviceState *dev)
     s->sr = 0;
     s->lr = EPIT_TIMER_MAX;
     s->cmp = 0;
+    /* clear the interrupt */
+    qemu_irq_lower(s->irq);
+
     ptimer_transaction_begin(s->timer_cmp);
     ptimer_transaction_begin(s->timer_reload);
     /* stop both timers */
