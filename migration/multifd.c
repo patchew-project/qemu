@@ -34,6 +34,8 @@
 #define MULTIFD_MAGIC 0x11223344U
 #define MULTIFD_VERSION 1
 
+#define HEADER_ARR_SZ 1024
+
 typedef struct {
     uint32_t magic;
     uint32_t version;
@@ -255,9 +257,9 @@ static void multifd_pages_clear(MultiFDPages_t *pages)
     g_free(pages);
 }
 
-static void multifd_send_fill_packet(MultiFDSendParams *p)
+static void multifd_send_fill_packet(MultiFDSendParams *p,
+                                     MultiFDPacket_t *packet)
 {
-    MultiFDPacket_t *packet = p->packet;
     int i;
 
     packet->flags = cpu_to_be32(p->flags);
@@ -547,6 +549,7 @@ void multifd_save_cleanup(void)
         p->packet_len = 0;
         g_free(p->packet);
         p->packet = NULL;
+        p->packet_idx = 0;
         g_free(p->iov);
         p->iov = NULL;
         g_free(p->normal);
@@ -651,6 +654,7 @@ int multifd_send_sync_main(QEMUFile *f)
 static void *multifd_send_thread(void *opaque)
 {
     MultiFDSendParams *p = opaque;
+    MultiFDPacket_t *header = p->packet;
     Error *local_err = NULL;
     int ret = 0;
     bool use_zero_copy_send = migrate_use_zero_copy_send();
@@ -676,13 +680,9 @@ static void *multifd_send_thread(void *opaque)
         if (p->pending_job) {
             uint64_t packet_num = p->packet_num;
             uint32_t flags = p->flags;
-            p->normal_num = 0;
 
-            if (use_zero_copy_send) {
-                p->iovs_num = 0;
-            } else {
-                p->iovs_num = 1;
-            }
+            p->normal_num = 0;
+            p->iovs_num = 1;
 
             for (int i = 0; i < p->pages->num; i++) {
                 p->normal[p->normal_num] = p->pages->offset[i];
@@ -696,7 +696,8 @@ static void *multifd_send_thread(void *opaque)
                     break;
                 }
             }
-            multifd_send_fill_packet(p);
+
+            multifd_send_fill_packet(p, header);
             p->flags = 0;
             p->num_packets++;
             p->total_normal_pages += p->normal_num;
@@ -707,18 +708,8 @@ static void *multifd_send_thread(void *opaque)
             trace_multifd_send(p->id, packet_num, p->normal_num, flags,
                                p->next_packet_size);
 
-            if (use_zero_copy_send) {
-                /* Send header first, without zerocopy */
-                ret = qio_channel_write_all(p->c, (void *)p->packet,
-                                            p->packet_len, &local_err);
-                if (ret != 0) {
-                    break;
-                }
-            } else {
-                /* Send header using the same writev call */
-                p->iov[0].iov_len = p->packet_len;
-                p->iov[0].iov_base = p->packet;
-            }
+            p->iov[0].iov_len = p->packet_len;
+            p->iov[0].iov_base = header;
 
             ret = qio_channel_writev_full_all(p->c, p->iov, p->iovs_num, NULL,
                                               0, p->write_flags, &local_err);
@@ -726,6 +717,14 @@ static void *multifd_send_thread(void *opaque)
                 break;
             }
 
+            if (use_zero_copy_send) {
+                p->packet_idx = (p->packet_idx + 1) % HEADER_ARR_SZ;
+
+                if (!p->packet_idx && (multifd_zero_copy_flush(p->c) < 0)) {
+                    break;
+                }
+                header = (void *)p->packet + p->packet_idx * p->packet_len;
+            }
             qemu_mutex_lock(&p->mutex);
             p->pending_job--;
             qemu_mutex_unlock(&p->mutex);
@@ -930,6 +929,7 @@ int multifd_save_setup(Error **errp)
 
     for (i = 0; i < thread_count; i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
+        int j;
 
         qemu_mutex_init(&p->mutex);
         qemu_sem_init(&p->sem, 0);
@@ -940,9 +940,13 @@ int multifd_save_setup(Error **errp)
         p->pages = multifd_pages_init(page_count);
         p->packet_len = sizeof(MultiFDPacket_t)
                       + sizeof(uint64_t) * page_count;
-        p->packet = g_malloc0(p->packet_len);
-        p->packet->magic = cpu_to_be32(MULTIFD_MAGIC);
-        p->packet->version = cpu_to_be32(MULTIFD_VERSION);
+        p->packet = g_malloc0_n(HEADER_ARR_SZ, p->packet_len);
+        for (j = 0; j < HEADER_ARR_SZ ; j++) {
+            MultiFDPacket_t *packet = (void *)p->packet + j * p->packet_len;
+            packet->magic = cpu_to_be32(MULTIFD_MAGIC);
+            packet->version = cpu_to_be32(MULTIFD_VERSION);
+        }
+        p->packet_idx = 0;
         p->name = g_strdup_printf("multifdsend_%d", i);
         /* We need one extra place for the packet header */
         p->iov = g_new0(struct iovec, page_count + 1);

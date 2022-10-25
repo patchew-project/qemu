@@ -90,6 +90,7 @@ typedef struct {
 
     /* this mutex protects the following parameters */
     QemuMutex mutex;
+
     /* is this channel thread running */
     bool running;
     /* should this thread finish */
@@ -109,8 +110,10 @@ typedef struct {
 
     /* thread local variables. No locking required */
 
-    /* pointer to the packet */
+    /* pointer to the packet array */
     MultiFDPacket_t *packet;
+    /* index of the packet array */
+    uint32_t packet_idx;
     /* size of the next packet that contains pages */
     uint32_t next_packet_size;
     /* packets sent through this channel */
