@@ -490,7 +490,8 @@ off_t qio_channel_io_seek(QIOChannel *ioc,
 }
 
 int qio_channel_flush(QIOChannel *ioc,
-                                Error **errp)
+                      int max_pending,
+                      Error **errp)
 {
     QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
 
@@ -499,7 +500,7 @@ int qio_channel_flush(QIOChannel *ioc,
         return 0;
     }
 
-    return klass->io_flush(ioc, errp);
+    return klass->io_flush(ioc, max_pending, errp);
 }
 
 

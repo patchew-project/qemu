@@ -708,6 +708,7 @@ static ssize_t qio_channel_socket_writev(QIOChannel *ioc,
 
 #ifdef QEMU_MSG_ZEROCOPY
 static int qio_channel_socket_flush(QIOChannel *ioc,
+                                    int max_pending,
                                     Error **errp)
 {
     QIOChannelSocket *sioc = QIO_CHANNEL_SOCKET(ioc);
@@ -718,7 +719,7 @@ static int qio_channel_socket_flush(QIOChannel *ioc,
     int received;
     int ret;
 
-    if (sioc->zero_copy_queued == sioc->zero_copy_sent) {
+    if (sioc->zero_copy_queued - sioc->zero_copy_sent <= max_pending) {
         return 0;
     }
 
@@ -728,7 +729,7 @@ static int qio_channel_socket_flush(QIOChannel *ioc,
 
     ret = 1;
 
-    while (sioc->zero_copy_sent < sioc->zero_copy_queued) {
+    while (sioc->zero_copy_queued - sioc->zero_copy_sent > max_pending) {
         received = recvmsg(sioc->fd, &msg, MSG_ERRQUEUE);
         if (received < 0) {
             switch (errno) {

@@ -141,6 +141,7 @@ struct QIOChannelClass {
                                   IOHandler *io_write,
                                   void *opaque);
     int (*io_flush)(QIOChannel *ioc,
+                    int max_pending,
                     Error **errp);
 };
 
@@ -875,11 +876,12 @@ int qio_channel_writev_full_all(QIOChannel *ioc,
 /**
  * qio_channel_flush:
  * @ioc: the channel object
+ * @max_pending: Maximum remaining writes allowed in queue upon returning
  * @errp: pointer to a NULL-initialized error object
  *
- * Will block until every packet queued with
+ * Will block until there are at most max_pending writes called with
  * qio_channel_writev_full() + QIO_CHANNEL_WRITE_FLAG_ZERO_COPY
- * is sent, or return in case of any error.
+ * pending, or return in case of any error.
  *
  * If not implemented, acts as a no-op, and returns 0.
  *
@@ -889,6 +891,7 @@ int qio_channel_writev_full_all(QIOChannel *ioc,
  */
 
 int qio_channel_flush(QIOChannel *ioc,
+                      int max_pending,
                       Error **errp);
 
 #endif /* QIO_CHANNEL_H */

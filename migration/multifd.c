@@ -574,7 +574,7 @@ static int multifd_zero_copy_flush(QIOChannel *c)
     int ret;
     Error *err = NULL;
 
-    ret = qio_channel_flush(c, &err);
+    ret = qio_channel_flush(c, 0, &err);
     if (ret < 0) {
         error_report_err(err);
         return -1;
