@@ -165,6 +165,12 @@ static void ppc_core99_init(MachineState *machine)
         qemu_register_reset(ppc_core99_reset, cpu);
     }
 
+    if (object_property_find(OBJECT(machine), "via")) {
+        if (PPC_INPUT(env) == PPC_FLAGS_INPUT_970) {
+            warn_report("mac99 with G5 CPU is deprecated, "
+                        "use powermac7_3 instead");
+        }
+    }
     /* allocate RAM */
     if (machine->ram_size > 2 * GiB) {
         error_report("RAM size more than 2 GiB is not supported");
