@@ -175,9 +175,12 @@ static void imx_epit_reload_compare_timer(IMXEPITState *s)
 static void imx_epit_write_cr(IMXEPITState *s, uint32_t value)
 {
     uint32_t freq = 0;
+
+    /* SWR bit is never persisted, it clears itself once reset is done */
     uint32_t oldcr = s->cr;
-    s->cr = value & 0x03ffffff;
-    if (s->cr & CR_SWR) {
+    s->cr = (value & ~CR_SWR) & 0x03ffffff;
+
+    if (value & CR_SWR) {
         /* handle the reset */
         imx_epit_reset(DEVICE(s));
         /*
@@ -189,7 +192,7 @@ static void imx_epit_write_cr(IMXEPITState *s, uint32_t value)
     ptimer_transaction_begin(s->timer_cmp);
     ptimer_transaction_begin(s->timer_reload);
 
-    if (!(s->cr & CR_SWR)) {
+    if (!(value & CR_SWR)) {
         freq = imx_epit_set_freq(s);
     }
 
