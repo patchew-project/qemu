@@ -109,10 +109,22 @@ static const int *vhost_net_get_feature_bits(struct vhost_net *net)
     return feature_bits;
 }
 
+static uint64_t vhost_net_add_feature_bits(struct vhost_net *net)
+{
+    if (net->nc->info->type == NET_CLIENT_DRIVER_VHOST_VDPA) {
+        return vhost_vdpa_net_added_feature_bits;
+    }
+
+    return 0;
+}
+
 uint64_t vhost_net_get_features(struct vhost_net *net, uint64_t features)
 {
-    return vhost_get_features(&net->dev, vhost_net_get_feature_bits(net),
-            features);
+    uint64_t ret = vhost_get_features(&net->dev,
+                                      vhost_net_get_feature_bits(net),
+                                      features);
+
+    return ret | vhost_net_add_feature_bits(net);
 }
 int vhost_net_get_config(struct vhost_net *net,  uint8_t *config,
                          uint32_t config_len)
