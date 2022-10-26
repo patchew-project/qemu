@@ -1337,6 +1337,24 @@ static gboolean gd_tab_window_close(GtkWidget *widget, GdkEvent *event,
     return TRUE;
 }
 
+static gboolean gd_window_state_event(GtkWidget *widget, GdkEvent *event,
+                                      void *opaque)
+{
+    VirtualConsole *vc = opaque;
+
+    if (!vc) {
+        return TRUE;
+    }
+
+    if (event->window_state.new_window_state & GDK_WINDOW_STATE_ICONIFIED) {
+	vc->gfx.visible = false;
+    } else {
+        vc->gfx.visible = true;
+    }
+
+    return TRUE;
+}
+
 static gboolean gd_win_grab(void *opaque)
 {
     VirtualConsole *vc = opaque;
@@ -1378,6 +1396,9 @@ static void gd_menu_untabify(GtkMenuItem *item, void *opaque)
 
         g_signal_connect(vc->window, "delete-event",
                          G_CALLBACK(gd_tab_window_close), vc);
+        g_signal_connect(vc->window, "window-state-event",
+                         G_CALLBACK(gd_window_state_event), vc);
+
         gtk_widget_show_all(vc->window);
 
         if (qemu_console_is_graphic(vc->gfx.dcl.con)) {
@@ -2027,7 +2048,9 @@ static void gd_connect_signals(GtkDisplayState *s)
 
     g_signal_connect(s->window, "delete-event",
                      G_CALLBACK(gd_window_close), s);
-
+    g_signal_connect(s->window, "window-state-event",
+                     G_CALLBACK(gd_window_state_event),
+                     gd_vc_find_current(s));
     g_signal_connect(s->pause_item, "activate",
                      G_CALLBACK(gd_menu_pause), s);
     g_signal_connect(s->reset_item, "activate",
