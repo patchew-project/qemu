@@ -30,8 +30,24 @@
                  float_flag_inexact));                                        \
         env->cached_fn_type = CACHED_FN_TYPE_NONE;                            \
     } while (0)
+
+#define CACHE_FN_3(env, FN, ARG1, ARG2, FIELD, TYPE)                          \
+    do {                                                                      \
+        if (env->fpscr & FP_XX) {                                             \
+            env->cached_fn_type = TYPE;                                       \
+            env->cached_fn.FIELD.fn = FN;                                     \
+            env->cached_fn.FIELD.arg1 = ARG1;                                 \
+            env->cached_fn.FIELD.arg2 = ARG2;                                 \
+            env->fp_status.float_exception_flags |= float_flag_inexact;       \
+        } else {                                                              \
+            assert(!(env->fp_status.float_exception_flags &                   \
+                     float_flag_inexact));                                    \
+            env->cached_fn_type = CACHED_FN_TYPE_NONE;                        \
+        }                                                                     \
+    } while (0)
 #else
 #define CACHE_FN_NONE(env)
+#define CACHE_FN_3(env, FN, ARG1, ARG2, FIELD, TYPE)
 #endif
 
 static inline float128 float128_snan_to_qnan(float128 x)
@@ -535,6 +551,27 @@ void helper_execute_fp_cached(CPUPPCState *env)
          * so no need to execute it again
          */
         break;
+    case CACHED_FN_TYPE_F64_F64_FSTATUS:
+        /*
+         * execute the cached insn. At this point, float_exception_flags
+         * should have FI not set, otherwise the result will not be correct
+         */
+        assert((env->cached_fn.f64_f64_fstatus.arg2.float_exception_flags &
+               float_flag_inexact) == 0);
+        env->cached_fn.f64_f64_fstatus.fn(
+            env->cached_fn.f64_f64_fstatus.arg1,
+            &env->cached_fn.f64_f64_fstatus.arg2);
+
+        env->fpscr &= ~FP_FI;
+        /*
+         * if the cached instruction resulted in FI being set
+         * then we update fpscr with this value
+         */
+        if (env->cached_fn.f64_f64_fstatus.arg2.float_exception_flags &
+            float_flag_inexact) {
+            env->fpscr |= FP_FI | FP_XX;
+        }
+        break;
     default:
         g_assert_not_reached();
     }
@@ -878,7 +915,8 @@ static void float_invalid_op_sqrt(CPUPPCState *env, int flags,
 #define FPU_FSQRT(name, op)                                                   \
 float64 helper_##name(CPUPPCState *env, float64 arg)                          \
 {                                                                             \
-    CACHE_FN_NONE(env);                                                       \
+    CACHE_FN_3(env, op, arg, env->fp_status, f64_f64_fstatus,                 \
+        CACHED_FN_TYPE_F64_F64_FSTATUS);                                      \
     float64 ret = op(arg, &env->fp_status);                                   \
     int flags = get_float_exception_flags(&env->fp_status);                   \
                                                                               \
