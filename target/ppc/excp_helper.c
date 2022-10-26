@@ -1910,6 +1910,8 @@ void raise_exception_err_ra(CPUPPCState *env, uint32_t exception,
 {
     CPUState *cs = env_cpu(env);
 
+    helper_execute_fp_cached(env);
+
     cs->exception_index = exception;
     env->error_code = error_code;
     cpu_loop_exit_restore(cs, raddr);

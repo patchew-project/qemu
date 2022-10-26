@@ -633,6 +633,7 @@ static bool trans_MFFS(DisasContext *ctx, arg_X_t_rc *a)
     REQUIRE_FPU(ctx);
 
     gen_reset_fpstatus();
+    gen_helper_execute_fp_cached(cpu_env);
     fpscr = place_from_fpscr(a->rt, UINT64_MAX);
     if (a->rc) {
         gen_set_cr1_from_fpscr(ctx);

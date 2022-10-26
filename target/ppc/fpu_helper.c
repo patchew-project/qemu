@@ -23,6 +23,17 @@
 #include "internal.h"
 #include "fpu/softfloat.h"
 
+#if defined(CONFIG_USER_ONLY) && defined(CONFIG_LINUX_USER)
+#define CACHE_FN_NONE(env)                                                    \
+    do {                                                                      \
+        assert(!(env->fp_status.float_exception_flags &                       \
+                 float_flag_inexact));                                        \
+        env->cached_fn_type = CACHED_FN_TYPE_NONE;                            \
+    } while (0)
+#else
+#define CACHE_FN_NONE(env)
+#endif
+
 static inline float128 float128_snan_to_qnan(float128 x)
 {
     float128 r;
@@ -514,6 +525,24 @@ void helper_reset_fpstatus(CPUPPCState *env)
     set_float_exception_flags(0, &env->fp_status);
 }
 
+void helper_execute_fp_cached(CPUPPCState *env)
+{
+#if defined(CONFIG_USER_ONLY) && defined(CONFIG_LINUX_USER)
+    switch (env->cached_fn_type) {
+    case CACHED_FN_TYPE_NONE:
+        /*
+         * the last fp instruction was executed in softfloat
+         * so no need to execute it again
+         */
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    env->cached_fn_type = CACHED_FN_TYPE_NONE;
+#endif
+}
+
 static void float_invalid_op_addsub(CPUPPCState *env, int flags,
                                     bool set_fpcc, uintptr_t retaddr)
 {
@@ -527,6 +556,7 @@ static void float_invalid_op_addsub(CPUPPCState *env, int flags,
 /* fadd - fadd. */
 float64 helper_fadd(CPUPPCState *env, float64 arg1, float64 arg2)
 {
+    CACHE_FN_NONE(env);
     float64 ret = float64_add(arg1, arg2, &env->fp_status);
     int flags = get_float_exception_flags(&env->fp_status);
 
@@ -540,6 +570,7 @@ float64 helper_fadd(CPUPPCState *env, float64 arg1, float64 arg2)
 /* fadds - fadds. */
 float64 helper_fadds(CPUPPCState *env, float64 arg1, float64 arg2)
 {
+    CACHE_FN_NONE(env);
     float64 ret = float64r32_add(arg1, arg2, &env->fp_status);
     int flags = get_float_exception_flags(&env->fp_status);
 
@@ -552,6 +583,7 @@ float64 helper_fadds(CPUPPCState *env, float64 arg1, float64 arg2)
 /* fsub - fsub. */
 float64 helper_fsub(CPUPPCState *env, float64 arg1, float64 arg2)
 {
+    CACHE_FN_NONE(env);
     float64 ret = float64_sub(arg1, arg2, &env->fp_status);
     int flags = get_float_exception_flags(&env->fp_status);
 
@@ -565,6 +597,7 @@ float64 helper_fsub(CPUPPCState *env, float64 arg1, float64 arg2)
 /* fsubs - fsubs. */
 float64 helper_fsubs(CPUPPCState *env, float64 arg1, float64 arg2)
 {
+    CACHE_FN_NONE(env);
     float64 ret = float64r32_sub(arg1, arg2, &env->fp_status);
     int flags = get_float_exception_flags(&env->fp_status);
 
@@ -587,6 +620,7 @@ static void float_invalid_op_mul(CPUPPCState *env, int flags,
 /* fmul - fmul. */
 float64 helper_fmul(CPUPPCState *env, float64 arg1, float64 arg2)
 {
+    CACHE_FN_NONE(env);
     float64 ret = float64_mul(arg1, arg2, &env->fp_status);
     int flags = get_float_exception_flags(&env->fp_status);
 
@@ -600,6 +634,7 @@ float64 helper_fmul(CPUPPCState *env, float64 arg1, float64 arg2)
 /* fmuls - fmuls. */
 float64 helper_fmuls(CPUPPCState *env, float64 arg1, float64 arg2)
 {
+    CACHE_FN_NONE(env);
     float64 ret = float64r32_mul(arg1, arg2, &env->fp_status);
     int flags = get_float_exception_flags(&env->fp_status);
 
@@ -624,6 +659,7 @@ static void float_invalid_op_div(CPUPPCState *env, int flags,
 /* fdiv - fdiv. */
 float64 helper_fdiv(CPUPPCState *env, float64 arg1, float64 arg2)
 {
+    CACHE_FN_NONE(env);
     float64 ret = float64_div(arg1, arg2, &env->fp_status);
     int flags = get_float_exception_flags(&env->fp_status);
 
@@ -640,6 +676,7 @@ float64 helper_fdiv(CPUPPCState *env, float64 arg1, float64 arg2)
 /* fdivs - fdivs. */
 float64 helper_fdivs(CPUPPCState *env, float64 arg1, float64 arg2)
 {
+    CACHE_FN_NONE(env);
     float64 ret = float64r32_div(arg1, arg2, &env->fp_status);
     int flags = get_float_exception_flags(&env->fp_status);
 
@@ -672,6 +709,7 @@ static uint64_t float_invalid_cvt(CPUPPCState *env, int flags,
 #define FPU_FCTI(op, cvt, nanval)                                      \
 uint64_t helper_##op(CPUPPCState *env, float64 arg)                    \
 {                                                                      \
+    CACHE_FN_NONE(env);                                                \
     uint64_t ret = float64_to_##cvt(arg, &env->fp_status);             \
     int flags = get_float_exception_flags(&env->fp_status);            \
     if (unlikely(flags & float_flag_invalid)) {                        \
@@ -694,6 +732,8 @@ uint64_t helper_##op(CPUPPCState *env, uint64_t arg)       \
 {                                                          \
     CPU_DoubleU farg;                                      \
                                                            \
+    CACHE_FN_NONE(env);                                    \
+                                                           \
     if (is_single) {                                       \
         float32 tmp = cvtr(arg, &env->fp_status);          \
         farg.d = float32_to_float64(tmp, &env->fp_status); \
@@ -714,6 +754,8 @@ static uint64_t do_fri(CPUPPCState *env, uint64_t arg,
 {
     FloatRoundMode old_rounding_mode = get_float_rounding_mode(&env->fp_status);
     int flags;
+
+    CACHE_FN_NONE(env);
 
     set_float_rounding_mode(rounding_mode, &env->fp_status);
     arg = float64_round_to_int(arg, &env->fp_status);
@@ -764,6 +806,7 @@ static void float_invalid_op_madd(CPUPPCState *env, int flags,
 static float64 do_fmadd(CPUPPCState *env, float64 a, float64 b,
                          float64 c, int madd_flags, uintptr_t retaddr)
 {
+    CACHE_FN_NONE(env);
     float64 ret = float64_muladd(a, b, c, madd_flags, &env->fp_status);
     int flags = get_float_exception_flags(&env->fp_status);
 
@@ -776,6 +819,7 @@ static float64 do_fmadd(CPUPPCState *env, float64 a, float64 b,
 static uint64_t do_fmadds(CPUPPCState *env, float64 a, float64 b,
                           float64 c, int madd_flags, uintptr_t retaddr)
 {
+    CACHE_FN_NONE(env);
     float64 ret = float64r32_muladd(a, b, c, madd_flags, &env->fp_status);
     int flags = get_float_exception_flags(&env->fp_status);
 
@@ -817,6 +861,7 @@ static uint64_t do_frsp(CPUPPCState *env, uint64_t arg, uintptr_t retaddr)
 
 uint64_t helper_frsp(CPUPPCState *env, uint64_t arg)
 {
+    CACHE_FN_NONE(env);
     return do_frsp(env, arg, GETPC());
 }
 
@@ -833,6 +878,7 @@ static void float_invalid_op_sqrt(CPUPPCState *env, int flags,
 #define FPU_FSQRT(name, op)                                                   \
 float64 helper_##name(CPUPPCState *env, float64 arg)                          \
 {                                                                             \
+    CACHE_FN_NONE(env);                                                       \
     float64 ret = op(arg, &env->fp_status);                                   \
     int flags = get_float_exception_flags(&env->fp_status);                   \
                                                                               \
@@ -849,6 +895,7 @@ FPU_FSQRT(FSQRTS, float64r32_sqrt)
 /* fre - fre. */
 float64 helper_fre(CPUPPCState *env, float64 arg)
 {
+    CACHE_FN_NONE(env);
     /* "Estimate" the reciprocal with actual division.  */
     float64 ret = float64_div(float64_one, arg, &env->fp_status);
     int flags = get_float_exception_flags(&env->fp_status);
@@ -868,6 +915,7 @@ float64 helper_fre(CPUPPCState *env, float64 arg)
 /* fres - fres. */
 uint64_t helper_fres(CPUPPCState *env, uint64_t arg)
 {
+    CACHE_FN_NONE(env);
     /* "Estimate" the reciprocal with actual division.  */
     float64 ret = float64r32_div(float64_one, arg, &env->fp_status);
     int flags = get_float_exception_flags(&env->fp_status);
@@ -887,6 +935,7 @@ uint64_t helper_fres(CPUPPCState *env, uint64_t arg)
 /* frsqrte  - frsqrte. */
 float64 helper_frsqrte(CPUPPCState *env, float64 arg)
 {
+    CACHE_FN_NONE(env);
     /* "Estimate" the reciprocal with actual division.  */
     float64 rets = float64_sqrt(arg, &env->fp_status);
     float64 retd = float64_div(float64_one, rets, &env->fp_status);
@@ -906,6 +955,7 @@ float64 helper_frsqrte(CPUPPCState *env, float64 arg)
 /* frsqrtes  - frsqrtes. */
 float64 helper_frsqrtes(CPUPPCState *env, float64 arg)
 {
+    CACHE_FN_NONE(env);
     /* "Estimate" the reciprocal with actual division.  */
     float64 rets = float64_sqrt(arg, &env->fp_status);
     float64 retd = float64r32_div(float64_one, rets, &env->fp_status);
@@ -1706,6 +1756,7 @@ void helper_##name(CPUPPCState *env, ppc_vsr_t *xt,                          \
     int i;                                                                   \
                                                                              \
     helper_reset_fpstatus(env);                                              \
+    CACHE_FN_NONE(env);                                                      \
                                                                              \
     for (i = 0; i < nels; i++) {                                             \
         float_status tstat = env->fp_status;                                 \
@@ -1746,6 +1797,7 @@ void helper_xsaddqp(CPUPPCState *env, uint32_t opcode,
     float_status tstat;
 
     helper_reset_fpstatus(env);
+    CACHE_FN_NONE(env);
 
     tstat = env->fp_status;
     if (unlikely(Rc(opcode) != 0)) {
@@ -1853,6 +1905,7 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                             \
     int i;                                                                    \
                                                                               \
     helper_reset_fpstatus(env);                                               \
+    CACHE_FN_NONE(env);                                                       \
                                                                               \
     for (i = 0; i < nels; i++) {                                              \
         float_status tstat = env->fp_status;                                  \
@@ -2684,6 +2737,7 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)   \
     int i;                                                         \
                                                                    \
     helper_reset_fpstatus(env);                                    \
+    CACHE_FN_NONE(env);                                            \
                                                                    \
     for (i = 0; i < nels; i++) {                                   \
         t.tfld = stp##_to_##ttp(xb->sfld, &env->fp_status);        \
@@ -2711,6 +2765,7 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)      \
     int i;                                                            \
                                                                       \
     helper_reset_fpstatus(env);                                       \
+    CACHE_FN_NONE(env);                                               \
                                                                       \
     for (i = 0; i < nels; i++) {                                      \
         t.VsrW(2 * i) = stp##_to_##ttp(xb->VsrD(i), &env->fp_status); \
@@ -2750,6 +2805,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode,                     \
     int i;                                                              \
                                                                         \
     helper_reset_fpstatus(env);                                         \
+    CACHE_FN_NONE(env);                                                 \
                                                                         \
     for (i = 0; i < nels; i++) {                                        \
         t.tfld = stp##_to_##ttp(xb->sfld, &env->fp_status);             \
@@ -2787,6 +2843,7 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)   \
     int i;                                                         \
                                                                    \
     helper_reset_fpstatus(env);                                    \
+    CACHE_FN_NONE(env);                                            \
                                                                    \
     for (i = 0; i < nels; i++) {                                   \
         t.tfld = stp##_to_##ttp(xb->sfld, 1, &env->fp_status);     \
@@ -2836,6 +2893,7 @@ void helper_XSCVQPDP(CPUPPCState *env, uint32_t ro, ppc_vsr_t *xt,
     float_status tstat;
 
     helper_reset_fpstatus(env);
+    CACHE_FN_NONE(env);
 
     tstat = env->fp_status;
     if (ro != 0) {
@@ -2861,6 +2919,8 @@ uint64_t helper_xscvdpspn(CPUPPCState *env, uint64_t xb)
     helper_reset_fpstatus(env);
     float_status tstat = env->fp_status;
     set_float_exception_flags(0, &tstat);
+
+    CACHE_FN_NONE(env);
 
     sign = extract64(xb, 63,  1);
     exp  = extract64(xb, 52, 11);
@@ -2897,6 +2957,7 @@ uint64_t helper_xscvdpspn(CPUPPCState *env, uint64_t xb)
 
 uint64_t helper_XSCVSPDPN(uint64_t xb)
 {
+    /* TODO: missing env for CACHE_FN_NONE(env); */
     return helper_todouble(xb >> 32);
 }
 
@@ -2918,6 +2979,8 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)             \
     int i, flags;                                                            \
                                                                              \
     helper_reset_fpstatus(env);                                              \
+                                                                             \
+    CACHE_FN_NONE(env);                                                      \
                                                                              \
     for (i = 0; i < nels; i++) {                                             \
         t.tfld = stp##_to_##ttp##_round_to_zero(xb->sfld, &env->fp_status);  \
@@ -2953,6 +3016,7 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)               \
     int flags;                                                                 \
                                                                                \
     helper_reset_fpstatus(env);                                                \
+    CACHE_FN_NONE(env);                                                        \
     t.s128 = float128_to_##tp##_round_to_zero(xb->f128, &env->fp_status);      \
     flags = get_float_exception_flags(&env->fp_status);                        \
     if (unlikely(flags & float_flag_invalid)) {                                \
@@ -2983,6 +3047,8 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)             \
     int i, flags;                                                            \
                                                                              \
     helper_reset_fpstatus(env);                                              \
+                                                                             \
+    CACHE_FN_NONE(env);                                                      \
                                                                              \
     for (i = 0; i < nels; i++) {                                             \
         t.VsrW(2 * i) = stp##_to_##ttp##_round_to_zero(xb->VsrD(i),          \
@@ -3021,6 +3087,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode,                          \
     int flags;                                                               \
                                                                              \
     helper_reset_fpstatus(env);                                              \
+    CACHE_FN_NONE(env);                                                      \
                                                                              \
     t.tfld = stp##_to_##ttp##_round_to_zero(xb->sfld, &env->fp_status);      \
     flags = get_float_exception_flags(&env->fp_status);                      \
@@ -3057,6 +3124,7 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)        \
     int i;                                                              \
                                                                         \
     helper_reset_fpstatus(env);                                         \
+    CACHE_FN_NONE(env);                                                 \
                                                                         \
     for (i = 0; i < nels; i++) {                                        \
         t.tfld = stp##_to_##ttp(xb->sfld, &env->fp_status);             \
@@ -3105,6 +3173,7 @@ VSX_CVT_INT_TO_FP2(xvcvuxdsp, uint64, float32)
 void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)\
 {                                                               \
     helper_reset_fpstatus(env);                                 \
+    CACHE_FN_NONE(env);                                         \
     xt->f128 = tp##_to_float128(xb->s128, &env->fp_status);     \
     helper_compute_fprf_float128(env, xt->f128);                \
     do_float_check_status(env, true, GETPC());                  \
@@ -3128,6 +3197,8 @@ void helper_##op(CPUPPCState *env, uint32_t opcode,                     \
     ppc_vsr_t t = *xt;                                                  \
                                                                         \
     helper_reset_fpstatus(env);                                         \
+    CACHE_FN_NONE(env);                                                 \
+                                                                        \
     t.tfld = stp##_to_##ttp(xb->sfld, &env->fp_status);                 \
     helper_compute_fprf_##ttp(env, t.tfld);                             \
                                                                         \
