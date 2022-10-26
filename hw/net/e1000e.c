@@ -462,9 +462,7 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
 
     e1000e_init_msix(s);
 
-    if (pcie_endpoint_cap_v1_init(pci_dev, e1000e_pcie_offset) < 0) {
-        hw_error("Failed to initialize PCIe capability");
-    }
+    pcie_endpoint_cap_v1_init(pci_dev, e1000e_pcie_offset);
 
     ret = msi_init(PCI_DEVICE(s), 0xD0, 1, true, false, NULL);
     if (ret) {
