@@ -3753,10 +3753,20 @@
 ##
 # @RbdImageEncryptionFormat:
 #
+# luks
+#
+# luks2
+#
+# luks-all: Used for opening either luks or luks2. (Since 7.2)
+#
+# luks-layered: Layered encryption. Only used for info. (Since 7.2)
+#
+# luks2-layered: Layered encryption. Only used for info. (Since 7.2)
+#
 # Since: 6.1
 ##
 { 'enum': 'RbdImageEncryptionFormat',
-  'data': [ 'luks', 'luks2' ] }
+  'data': [ 'luks', 'luks2', 'luks-all', 'luks-layered', 'luks2-layered' ] }
 
 ##
 # @RbdEncryptionOptionsLUKSBase:
@@ -3799,6 +3809,15 @@
   'data': { } }
 
 ##
+# @RbdEncryptionOptionsLUKSAll:
+#
+# Since: 7.2
+##
+{ 'struct': 'RbdEncryptionOptionsLUKSAll',
+  'base': 'RbdEncryptionOptionsLUKSBase',
+  'data': { } }
+
+##
 # @RbdEncryptionCreateOptionsLUKS:
 #
 # Since: 6.1
@@ -3819,13 +3838,21 @@
 ##
 # @RbdEncryptionOptions:
 #
+# @format: Encryption format.
+#
+# @parent: Parent image encryption options (for cloned images).
+#          Can be left unspecified if all ancestor images are encrypted
+#          the same way as the child image.  (Since 7.2)
+#
 # Since: 6.1
 ##
 { 'union': 'RbdEncryptionOptions',
-  'base': { 'format': 'RbdImageEncryptionFormat' },
+  'base': { 'format': 'RbdImageEncryptionFormat',
+            '*parent': 'RbdEncryptionOptions' },
   'discriminator': 'format',
   'data': { 'luks': 'RbdEncryptionOptionsLUKS',
-            'luks2': 'RbdEncryptionOptionsLUKS2' } }
+            'luks2': 'RbdEncryptionOptionsLUKS2',
+            'luks-all': 'RbdEncryptionOptionsLUKSAll'} }
 
 ##
 # @RbdEncryptionCreateOptions:
