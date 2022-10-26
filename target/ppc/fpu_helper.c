@@ -46,6 +46,22 @@
         }                                                                     \
     } while (0)
 
+#define CACHE_FN_4(env, FN, ARG1, ARG2, ARG3, FIELD, TYPE)                    \
+    do {                                                                      \
+        if (env->fpscr & FP_XX) {                                             \
+            env->cached_fn_type = TYPE;                                       \
+            env->cached_fn.FIELD.fn = FN;                                     \
+            env->cached_fn.FIELD.arg1 = ARG1;                                 \
+            env->cached_fn.FIELD.arg2 = ARG2;                                 \
+            env->cached_fn.FIELD.arg3 = ARG3;                                 \
+            env->fp_status.float_exception_flags |= float_flag_inexact;       \
+        } else {                                                              \
+            assert(!(env->fp_status.float_exception_flags &                   \
+                     float_flag_inexact));                                    \
+            env->cached_fn_type = CACHED_FN_TYPE_NONE;                        \
+        }                                                                     \
+    } while (0)
+
 #define CACHE_FN_5(env, FN, ARG1, ARG2, ARG3, ARG4, FIELD, TYPE)              \
     do {                                                                      \
         if (env->fpscr & FP_XX) {                                             \
@@ -65,6 +81,7 @@
 #else
 #define CACHE_FN_NONE(env)
 #define CACHE_FN_3(env, FN, ARG1, ARG2, FIELD, TYPE)
+#define CACHE_FN_4(env, FN, ARG1, ARG2, ARG3, FIELD, TYPE)
 #define CACHE_FN_5(env, FN, ARG1, ARG2, ARG3, ARG4, FIELD, TYPE)
 #endif
 
@@ -590,6 +607,24 @@ void helper_execute_fp_cached(CPUPPCState *env)
             env->fpscr |= FP_FI | FP_XX;
         }
         break;
+    case CACHED_FN_TYPE_F64_F64_F64_FSTATUS:
+        assert((env->cached_fn.f64_f64_f64_fstatus.arg3.float_exception_flags &
+               float_flag_inexact) == 0);
+        env->cached_fn.f64_f64_f64_fstatus.fn(
+            env->cached_fn.f64_f64_f64_fstatus.arg1,
+            env->cached_fn.f64_f64_f64_fstatus.arg2,
+            &env->cached_fn.f64_f64_f64_fstatus.arg3);
+
+        env->fpscr &= ~FP_FI;
+        /*
+         * if the cached instruction resulted in FI being set
+         * then we update fpscr with this value
+         */
+        if (env->cached_fn.f64_f64_f64_fstatus.arg3.float_exception_flags &
+            float_flag_inexact) {
+            env->fpscr |= FP_FI | FP_XX;
+        }
+        break;
     case CACHED_FN_TYPE_F64_F64_F64_F64_I_FSTATUS:
         ; /* hack to allow declaration below */
         struct cached_fn_f64_f64_f64_f64_i_fstatus args =
@@ -622,7 +657,8 @@ static void float_invalid_op_addsub(CPUPPCState *env, int flags,
 /* fadd - fadd. */
 float64 helper_fadd(CPUPPCState *env, float64 arg1, float64 arg2)
 {
-    CACHE_FN_NONE(env);
+    CACHE_FN_4(env, float64_add, arg1, arg2, env->fp_status,
+        f64_f64_f64_fstatus, CACHED_FN_TYPE_F64_F64_F64_FSTATUS);
     float64 ret = float64_add(arg1, arg2, &env->fp_status);
     int flags = get_float_exception_flags(&env->fp_status);
 
@@ -636,7 +672,8 @@ float64 helper_fadd(CPUPPCState *env, float64 arg1, float64 arg2)
 /* fadds - fadds. */
 float64 helper_fadds(CPUPPCState *env, float64 arg1, float64 arg2)
 {
-    CACHE_FN_NONE(env);
+    CACHE_FN_4(env, float64r32_add, arg1, arg2, env->fp_status,
+        f64_f64_f64_fstatus, CACHED_FN_TYPE_F64_F64_F64_FSTATUS);
     float64 ret = float64r32_add(arg1, arg2, &env->fp_status);
     int flags = get_float_exception_flags(&env->fp_status);
 
@@ -649,7 +686,8 @@ float64 helper_fadds(CPUPPCState *env, float64 arg1, float64 arg2)
 /* fsub - fsub. */
 float64 helper_fsub(CPUPPCState *env, float64 arg1, float64 arg2)
 {
-    CACHE_FN_NONE(env);
+    CACHE_FN_4(env, float64_sub, arg1, arg2, env->fp_status,
+        f64_f64_f64_fstatus, CACHED_FN_TYPE_F64_F64_F64_FSTATUS);
     float64 ret = float64_sub(arg1, arg2, &env->fp_status);
     int flags = get_float_exception_flags(&env->fp_status);
 
@@ -663,7 +701,8 @@ float64 helper_fsub(CPUPPCState *env, float64 arg1, float64 arg2)
 /* fsubs - fsubs. */
 float64 helper_fsubs(CPUPPCState *env, float64 arg1, float64 arg2)
 {
-    CACHE_FN_NONE(env);
+    CACHE_FN_4(env, float64r32_sub, arg1, arg2, env->fp_status,
+        f64_f64_f64_fstatus, CACHED_FN_TYPE_F64_F64_F64_FSTATUS);
     float64 ret = float64r32_sub(arg1, arg2, &env->fp_status);
     int flags = get_float_exception_flags(&env->fp_status);
 
@@ -686,7 +725,8 @@ static void float_invalid_op_mul(CPUPPCState *env, int flags,
 /* fmul - fmul. */
 float64 helper_fmul(CPUPPCState *env, float64 arg1, float64 arg2)
 {
-    CACHE_FN_NONE(env);
+    CACHE_FN_4(env, float64_mul, arg1, arg2, env->fp_status,
+        f64_f64_f64_fstatus, CACHED_FN_TYPE_F64_F64_F64_FSTATUS);
     float64 ret = float64_mul(arg1, arg2, &env->fp_status);
     int flags = get_float_exception_flags(&env->fp_status);
 
@@ -701,6 +741,8 @@ float64 helper_fmul(CPUPPCState *env, float64 arg1, float64 arg2)
 float64 helper_fmuls(CPUPPCState *env, float64 arg1, float64 arg2)
 {
     CACHE_FN_NONE(env);
+    CACHE_FN_4(env, float64r32_mul, arg1, arg2, env->fp_status,
+        f64_f64_f64_fstatus, CACHED_FN_TYPE_F64_F64_F64_FSTATUS);
     float64 ret = float64r32_mul(arg1, arg2, &env->fp_status);
     int flags = get_float_exception_flags(&env->fp_status);
 
@@ -726,6 +768,8 @@ static void float_invalid_op_div(CPUPPCState *env, int flags,
 float64 helper_fdiv(CPUPPCState *env, float64 arg1, float64 arg2)
 {
     CACHE_FN_NONE(env);
+    CACHE_FN_4(env, float64_div, arg1, arg2, env->fp_status,
+        f64_f64_f64_fstatus, CACHED_FN_TYPE_F64_F64_F64_FSTATUS);
     float64 ret = float64_div(arg1, arg2, &env->fp_status);
     int flags = get_float_exception_flags(&env->fp_status);
 
@@ -743,6 +787,8 @@ float64 helper_fdiv(CPUPPCState *env, float64 arg1, float64 arg2)
 float64 helper_fdivs(CPUPPCState *env, float64 arg1, float64 arg2)
 {
     CACHE_FN_NONE(env);
+    CACHE_FN_4(env, float64r32_div, arg1, arg2, env->fp_status,
+        f64_f64_f64_fstatus, CACHED_FN_TYPE_F64_F64_F64_FSTATUS);
     float64 ret = float64r32_div(arg1, arg2, &env->fp_status);
     int flags = get_float_exception_flags(&env->fp_status);
 

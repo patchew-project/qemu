@@ -1083,6 +1083,7 @@ struct ppc_radix_page_info {
 enum {
     CACHED_FN_TYPE_NONE,
     CACHED_FN_TYPE_F64_F64_FSTATUS,
+    CACHED_FN_TYPE_F64_F64_F64_FSTATUS,
     CACHED_FN_TYPE_F64_F64_F64_F64_I_FSTATUS,
 
 };
@@ -1091,6 +1092,13 @@ struct cached_fn_f64_f64_fstatus {
     float64 (*fn)(float64, float_status*);
     float64 arg1;
     float_status arg2;
+};
+
+struct cached_fn_f64_f64_f64_fstatus {
+    float64 (*fn)(float64, float64, float_status*);
+    float64 arg1;
+    float64 arg2;
+    float_status arg3;
 };
 
 struct cached_fn_f64_f64_f64_f64_i_fstatus {
@@ -1182,6 +1190,7 @@ struct CPUArchState {
     int cached_fn_type;
     union {
         struct cached_fn_f64_f64_fstatus f64_f64_fstatus;
+        struct cached_fn_f64_f64_f64_fstatus f64_f64_f64_fstatus;
         struct cached_fn_f64_f64_f64_f64_i_fstatus f64_f64_f64_f64_i_fstatus;
     } cached_fn;
 
