@@ -45,9 +45,27 @@
             env->cached_fn_type = CACHED_FN_TYPE_NONE;                        \
         }                                                                     \
     } while (0)
+
+#define CACHE_FN_5(env, FN, ARG1, ARG2, ARG3, ARG4, FIELD, TYPE)              \
+    do {                                                                      \
+        if (env->fpscr & FP_XX) {                                             \
+            env->cached_fn_type = TYPE;                                       \
+            env->cached_fn.FIELD.fn = FN;                                     \
+            env->cached_fn.FIELD.arg1 = ARG1;                                 \
+            env->cached_fn.FIELD.arg2 = ARG2;                                 \
+            env->cached_fn.FIELD.arg3 = ARG3;                                 \
+            env->cached_fn.FIELD.arg4 = ARG4;                                 \
+            env->fp_status.float_exception_flags |= float_flag_inexact;       \
+        } else {                                                              \
+            assert(!(env->fp_status.float_exception_flags &                   \
+                     float_flag_inexact));                                    \
+            env->cached_fn_type = CACHED_FN_TYPE_NONE;                        \
+        }                                                                     \
+    } while (0)
 #else
 #define CACHE_FN_NONE(env)
 #define CACHE_FN_3(env, FN, ARG1, ARG2, FIELD, TYPE)
+#define CACHE_FN_5(env, FN, ARG1, ARG2, ARG3, ARG4, FIELD, TYPE)
 #endif
 
 static inline float128 float128_snan_to_qnan(float128 x)
@@ -572,6 +590,17 @@ void helper_execute_fp_cached(CPUPPCState *env)
             env->fpscr |= FP_FI | FP_XX;
         }
         break;
+    case CACHED_FN_TYPE_F64_F64_F64_F64_I_FSTATUS:
+        ; /* hack to allow declaration below */
+        struct cached_fn_f64_f64_f64_f64_i_fstatus args =
+            env->cached_fn.f64_f64_f64_f64_i_fstatus;
+        assert(!(args.arg5.float_exception_flags & float_flag_inexact));
+        args.fn(args.arg1, args.arg2, args.arg3, args.arg4, &args.arg5);
+        env->fpscr &= ~FP_FI;
+        if (args.arg5.float_exception_flags & float_flag_inexact) {
+            env->fpscr |= FP_FI | FP_XX;
+        }
+        break;
     default:
         g_assert_not_reached();
     }
@@ -843,7 +872,8 @@ static void float_invalid_op_madd(CPUPPCState *env, int flags,
 static float64 do_fmadd(CPUPPCState *env, float64 a, float64 b,
                          float64 c, int madd_flags, uintptr_t retaddr)
 {
-    CACHE_FN_NONE(env);
+    CACHE_FN_5(env, float64_muladd, a, b, c, madd_flags,
+        f64_f64_f64_f64_i_fstatus, CACHED_FN_TYPE_F64_F64_F64_F64_I_FSTATUS);
     float64 ret = float64_muladd(a, b, c, madd_flags, &env->fp_status);
     int flags = get_float_exception_flags(&env->fp_status);
 
@@ -856,7 +886,8 @@ static float64 do_fmadd(CPUPPCState *env, float64 a, float64 b,
 static uint64_t do_fmadds(CPUPPCState *env, float64 a, float64 b,
                           float64 c, int madd_flags, uintptr_t retaddr)
 {
-    CACHE_FN_NONE(env);
+    CACHE_FN_5(env, float64r32_muladd, a, b, c, madd_flags,
+        f64_f64_f64_f64_i_fstatus, CACHED_FN_TYPE_F64_F64_F64_F64_I_FSTATUS);
     float64 ret = float64r32_muladd(a, b, c, madd_flags, &env->fp_status);
     int flags = get_float_exception_flags(&env->fp_status);
 
