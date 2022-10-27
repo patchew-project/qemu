@@ -458,7 +458,7 @@ static void test_acpi_asl(test_data *data)
                 "for instructions on how to update expected files.\n",
                 exp_sdt->aml, sdt->aml_file, exp_sdt->aml_file);
 
-        all_tables_match = all_tables_match &&
+        all_tables_match = all_tables_match ||
             test_acpi_find_diff_allowed(exp_sdt);
 
         /*
