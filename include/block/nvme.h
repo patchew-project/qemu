@@ -592,6 +592,7 @@ enum NvmeAdminCommands {
     NVME_ADM_CMD_SET_FEATURES   = 0x09,
     NVME_ADM_CMD_GET_FEATURES   = 0x0a,
     NVME_ADM_CMD_ASYNC_EV_REQ   = 0x0c,
+    NVME_ADM_CMD_NS_MGMT        = 0x0d,
     NVME_ADM_CMD_ACTIVATE_FW    = 0x10,
     NVME_ADM_CMD_DOWNLOAD_FW    = 0x11,
     NVME_ADM_CMD_NS_ATTACHMENT  = 0x15,
@@ -897,14 +898,18 @@ enum NvmeStatusCodes {
     NVME_FEAT_NOT_CHANGEABLE    = 0x010e,
     NVME_FEAT_NOT_NS_SPEC       = 0x010f,
     NVME_FW_REQ_SUSYSTEM_RESET  = 0x0110,
+    NVME_NS_INSUFFICIENT_CAPAC  = 0x0115,
+    NVME_NS_IDNTIFIER_UNAVAIL   = 0x0116,
     NVME_NS_ALREADY_ATTACHED    = 0x0118,
     NVME_NS_PRIVATE             = 0x0119,
     NVME_NS_NOT_ATTACHED        = 0x011a,
+    NVME_THIN_PROVISION_NOTSPRD = 0x011b,
     NVME_NS_CTRL_LIST_INVALID   = 0x011c,
     NVME_INVALID_CTRL_ID        = 0x011f,
     NVME_INVALID_SEC_CTRL_STATE = 0x0120,
     NVME_INVALID_NUM_RESOURCES  = 0x0121,
     NVME_INVALID_RESOURCE_ID    = 0x0122,
+    NVME_NS_ATTACH_MGMT_NOTSPRD = 0x0129,
     NVME_CONFLICTING_ATTRS      = 0x0180,
     NVME_INVALID_PROT_INFO      = 0x0181,
     NVME_WRITE_TO_RO            = 0x0182,
@@ -1184,6 +1189,10 @@ enum NvmeIdCtrlCmic {
     NVME_CMIC_MULTI_CTRL    = 1 << 1,
 };
 
+enum NvmeNsManagementOperation {
+    NVME_NS_MANAGEMENT_CREATE = 0x0,
+};
+
 enum NvmeNsAttachmentOperation {
     NVME_NS_ATTACHMENT_ATTACH = 0x0,
     NVME_NS_ATTACHMENT_DETACH = 0x1,
@@ -1344,6 +1353,26 @@ typedef struct QEMU_PACKED NvmeIdNs {
     NvmeLBAF    lbaf[NVME_MAX_NLBAF];
     uint8_t     vs[3712];
 } NvmeIdNs;
+
+typedef struct QEMU_PACKED NvmeIdNsMgmt {
+    uint64_t    nsze;
+    uint64_t    ncap;
+    uint8_t     rsvd16[10];
+    uint8_t     flbas;
+    uint8_t     rsvd27[2];
+    uint8_t     dps;
+    uint8_t     nmic;
+    uint8_t     rsvd31[61];
+    uint32_t    anagrpid;
+    uint8_t     rsvd96[4];
+    uint16_t    nvmsetid;
+    uint16_t    endgid;
+    uint8_t     rsvd104[280];
+    uint64_t    lbstm;
+    uint8_t     rsvd392[120];
+    uint8_t     rsvd512[512];
+    uint8_t     vs[3072];
+} NvmeIdNsMgmt;
 
 #define NVME_ID_NS_NVM_ELBAF_PIF(elbaf) (((elbaf) >> 7) & 0x3)
 
@@ -1646,6 +1675,7 @@ static inline void _nvme_check_size(void)
     QEMU_BUILD_BUG_ON(sizeof(NvmeLBAF) != 4);
     QEMU_BUILD_BUG_ON(sizeof(NvmeLBAFE) != 16);
     QEMU_BUILD_BUG_ON(sizeof(NvmeIdNs) != 4096);
+    QEMU_BUILD_BUG_ON(sizeof(NvmeIdNsMgmt) != 4096);
     QEMU_BUILD_BUG_ON(sizeof(NvmeIdNsNvm) != 4096);
     QEMU_BUILD_BUG_ON(sizeof(NvmeIdNsZoned) != 4096);
     QEMU_BUILD_BUG_ON(sizeof(NvmeSglDescriptor) != 16);
