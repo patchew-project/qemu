@@ -25,6 +25,13 @@ typedef enum FeatureWordType {
    MSR_FEATURE_WORD,
 } FeatureWordType;
 
+typedef struct MultiBitFeatureInfo {
+    const char *feat_name;
+    uint64_t mask;
+    unsigned high_bit_position;
+    unsigned low_bit_position;
+} MultiBitFeatureInfo;
+
 typedef struct FeatureWordInfo {
     FeatureWordType type;
     /* feature flags names are taken from "Intel Processor Identification and
@@ -51,6 +58,8 @@ typedef struct FeatureWordInfo {
     uint64_t migratable_flags; /* Feature flags known to be migratable */
     /* Features that shouldn't be auto-enabled by "-cpu host" */
     uint64_t no_autoenable_flags;
+    unsigned num_multi_bit_features;
+    MultiBitFeatureInfo *multi_bit_features;
 } FeatureWordInfo;
 
 extern FeatureWordInfo feature_word_info[];
