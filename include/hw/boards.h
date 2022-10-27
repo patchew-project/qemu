@@ -305,6 +305,7 @@ typedef struct DeviceMemoryState {
  * @cores: the number of cores in one cluster
  * @threads: the number of threads in one core
  * @max_cpus: the maximum number of logical processors on the machine
+ * @build_cluster: build cluster topology or not
  */
 typedef struct CpuTopology {
     unsigned int cpus;
@@ -314,6 +315,7 @@ typedef struct CpuTopology {
     unsigned int cores;
     unsigned int threads;
     unsigned int max_cpus;
+    bool build_cluster;
 } CpuTopology;
 
 /**

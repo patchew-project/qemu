@@ -342,6 +342,8 @@ SRST
     were preferred over threads), however, this behaviour is considered
     liable to change. Prior to 6.2 the preference was sockets over cores
     over threads. Since 6.2 the preference is cores over sockets over threads.
+    The cluster topology will only be generated if explicitly specified
+    by the "-cluster" option.
 
     For example, the following option defines a machine board with 2 sockets
     of 1 core before 6.2 and 1 socket of 2 cores after 6.2:
