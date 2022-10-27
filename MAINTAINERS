@@ -2688,6 +2688,7 @@ F: gdbstub/*
 F: include/exec/gdbstub.h
 F: gdb-xml/
 F: tests/tcg/multiarch/gdbstub/
+F: scripts/feature_to_c.sh
 
 Memory API
 M: Paolo Bonzini <pbonzini@redhat.com>
