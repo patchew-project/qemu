@@ -30,6 +30,8 @@ typedef struct MultiBitFeatureInfo {
     uint64_t mask;
     unsigned high_bit_position;
     unsigned low_bit_position;
+    void (*mark_unavailable_bits)(X86CPU *cpu, FeatureWord w, int index,
+                                  const char *verbose_prefix);
 } MultiBitFeatureInfo;
 
 typedef struct FeatureWordInfo {
