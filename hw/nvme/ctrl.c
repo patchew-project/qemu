@@ -144,12 +144,12 @@
  *
  * - `auto-ns-path`
  *   If specified indicates a support for dynamic management of nvme namespaces
- *   by means of nvme create-ns command. This path pointing
+ *   by means of nvme create-ns and nvme delete-ns commands. This path pointing
  *   to a storage area for backend images must exist. Additionally it requires
  *   that parameter `ns-subsys` must be specified whereas parameter `drive`
  *   must not. The legacy namespace backend is disabled, instead, a pair of
  *   files 'nvme_<ctrl SN>_ns_<NS-ID>.cfg' and 'nvme_<ctrl SN>_ns_<NS-ID>.img'
- *   will refer to respective namespaces. The create-ns, attach-ns
+ *   will refer to respective namespaces. The create-ns, delete-ns, attach-ns
  *   and detach-ns commands, issued at the guest side, will make changes to
  *   those files accordingly.
  *   For each namespace exists an image file in raw format and a config file
@@ -5738,6 +5738,23 @@ static NvmeNamespace *nvme_ns_mgmt_create(NvmeCtrl *n, uint32_t nsid, NvmeIdNsMg
     return ns;
 }
 
+static void nvme_ns_mgmt_delete(NvmeCtrl *n, uint32_t nsid, Error **errp)
+{
+    Error *local_err = NULL;
+
+    if (!n->params.ns_directory) {
+        error_setg(&local_err, "delete-ns not supported if 'auto-ns-path' is not specified");
+    } else if (n->namespace.blkconf.blk) {
+        error_setg(&local_err, "delete-ns not supported if 'drive' is specified");
+    } else {
+        nvme_ns_delete(n, nsid, &local_err);
+    }
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+    }
+}
+
 static uint16_t nvme_ns_mgmt(NvmeCtrl *n, NvmeRequest *req)
 {
     NvmeIdCtrl *id = &n->id_ctrl;
@@ -5750,6 +5767,7 @@ static uint16_t nvme_ns_mgmt(NvmeCtrl *n, NvmeRequest *req)
     uint8_t sel = dw10 & 0xf;
     uint8_t csi = (dw11 >> 24) & 0xf;
     uint16_t i;
+    uint64_t image_size;
     uint16_t ret;
     Error *local_err = NULL;
 
@@ -5807,17 +5825,77 @@ static uint16_t nvme_ns_mgmt(NvmeCtrl *n, NvmeRequest *req)
                 return NVME_INVALID_FIELD | NVME_DNR;
             }
 
+            /* ns->size is the real image size after creation */
             if (nvme_cfg_update(n, ns->size, NVME_NS_ALLOC_CHK)) {
-                /* place for delete-ns */
+                nvme_ns_mgmt_delete(n, nsid, NULL);
                 return NVME_NS_INSUFFICIENT_CAPAC | NVME_DNR;
             }
             (void)nvme_cfg_update(n, ns->size, NVME_NS_ALLOC);
             if (nvme_cfg_save(n)) {
                 (void)nvme_cfg_update(n, ns->size, NVME_NS_DEALLOC);
-                /* place for delete-ns */
+                nvme_ns_mgmt_delete(n, nsid, NULL);
                 return NVME_INVALID_FIELD | NVME_DNR;
             }
             req->cqe.result = cpu_to_le32(nsid);
+            break;
+        case NVME_CSI_ZONED:
+            /* fall through for now */
+        default:
+            return NVME_INVALID_FIELD | NVME_DNR;
+	    }
+        break;
+    case NVME_NS_MANAGEMENT_DELETE:
+        switch (csi) {
+        case NVME_CSI_NVM:
+            if (!nsid) {
+                return NVME_INVALID_FIELD | NVME_DNR;
+            }
+
+            if (nsid != NVME_NSID_BROADCAST) {
+                ns = nvme_subsys_ns(n->subsys, nsid);
+                if (n->params.ns_directory && ns && ns_auto_check(n, ns, nsid)) {
+                    error_setg(&local_err, "ns[%"PRIu32"] cannot be deleted, configured via '-device nvme-ns...'", nsid);
+                } else if (ns) {
+                    image_size = ns->size;
+                    nvme_ns_mgmt_delete(n, nsid, &local_err);
+                    if (!local_err) {
+                        (void)nvme_cfg_update(n, image_size, NVME_NS_DEALLOC);
+                        if (nvme_cfg_save(n)) {
+                            error_setg(&local_err, "Could not save nvme-cfg");
+                        }
+                    }
+                } else {
+                    return NVME_INVALID_FIELD | NVME_DNR;
+                }
+            } else {
+                for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
+                    ns = nvme_subsys_ns(n->subsys, (uint32_t)i);
+                    if (n->params.ns_directory && ns && ns_auto_check(n, ns, (uint32_t)i)) {
+                        error_setg(&local_err, "ns[%"PRIu32"] cannot be deleted, configured via '-device nvme-ns...'", i);
+                        error_report_err(local_err);
+                        local_err = NULL;       /* we are skipping */
+                    } else if (ns) {
+                        image_size = ns->size;
+                        nvme_ns_mgmt_delete(n, (uint16_t)i, &local_err);
+                        if (!local_err) {
+                            (void)nvme_cfg_update(n, image_size, NVME_NS_DEALLOC);
+                            if (nvme_cfg_save(n)) {
+                                error_setg(&local_err, "Could not save nvme-cfg");
+                            }
+                        }
+                    }
+                    if (local_err) {
+                        break;
+                    }
+                }
+            }
+
+            if (local_err) {
+                error_report_err(local_err);
+                return NVME_INVALID_FIELD | NVME_DNR;
+            }
+
+            nvme_update_dmrsl(n);
             break;
         case NVME_CSI_ZONED:
             /* fall through for now */

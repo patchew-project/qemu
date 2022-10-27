@@ -592,12 +592,86 @@ NvmeNamespace * nvme_ns_create(NvmeCtrl *n, uint32_t nsid, NvmeIdNsMgmt *id_ns, 
                 blk = NULL;
             }
             object_unref(OBJECT(dev));
+        } else if (ns) {                /* in a very rare case when ns_cfg_save() failed */
+            nvme_ns_delete(n, nsid, NULL);
         }
         error_propagate(errp, local_err);
         ns = NULL;
     }
 
     return ns;
+}
+
+static void nvme_ns_unrealize(DeviceState *dev);
+
+void nvme_ns_delete(NvmeCtrl *n, uint32_t nsid, Error **errp)
+{
+    NvmeNamespace *ns = NULL;
+    NvmeSubsystem *subsys = n->subsys;
+    int i;
+    int ret = 0;
+    Error *local_err = NULL;
+
+    trace_pci_nvme_ns_delete(nsid);
+
+    if (subsys) {
+        ns = nvme_subsys_ns(subsys, (uint32_t)nsid);
+        if (ns) {
+            if (ns->params.shared) {
+                for (i = 0; i < ARRAY_SIZE(subsys->ctrls); i++) {
+                    NvmeCtrl *ctrl = subsys->ctrls[i];
+
+                    if (ctrl && ctrl->namespaces[nsid]) {
+                        ctrl->namespaces[nsid] = NULL;
+                        ns->attached--;
+                    }
+                }
+            }
+            subsys->namespaces[nsid] = NULL;
+        }
+    }
+
+    if (!ns) {
+        ns = nvme_ns(n, (uint32_t)nsid);
+    }
+
+    if (!ns) {
+        error_setg(&local_err, "Namespace %d does not exist", nsid);
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    n->namespaces[nsid] = NULL;
+    if (ns->attached > 0) {
+        error_setg(&local_err, "Could not detach all ns references for ns[%d], still %d left", nsid, ns->attached);
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    /* here is actual deletion */
+    nvme_ns_unrealize(&ns->parent_obj);
+    qdev_unrealize(&ns->parent_obj);
+    ns_blockdev_deactivate(ns->blkconf.blk, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    ns->params.detached = true;
+    ns_cfg_clear(ns);
+    ret = ns_cfg_save(n, ns, nsid);
+    if (ret == -1) {
+        error_setg(&local_err, "Unable to save ns-cnf");
+        error_propagate(errp, local_err);
+        return;
+    } else if (ret == 1) {  /* should not occur here, check and error message prior to call to nvme_ns_delete() */
+        return;
+    }
+
+    /* disassociating refernces to the back-end and keeping it as preloaded */
+    n->preloaded_blk[nsid] = ns->blkconf.blk;
+    ns->blkconf.blk = NULL;
+
 }
 
 int nvme_ns_setup(NvmeNamespace *ns, Error **errp)

@@ -1191,6 +1191,7 @@ enum NvmeIdCtrlCmic {
 
 enum NvmeNsManagementOperation {
     NVME_NS_MANAGEMENT_CREATE = 0x0,
+    NVME_NS_MANAGEMENT_DELETE = 0x1,
 };
 
 enum NvmeNsAttachmentOperation {
