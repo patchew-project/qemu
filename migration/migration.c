@@ -1897,6 +1897,8 @@ static void migrate_fd_cleanup(MigrationState *s)
     g_free(s->hostname);
     s->hostname = NULL;
 
+    json_writer_free(s->vmdesc);
+
     qemu_savevm_state_cleanup();
 
     if (s->to_dst_file) {
@@ -2155,6 +2157,7 @@ void migrate_init(MigrationState *s)
     error_free(s->error);
     s->error = NULL;
     s->hostname = NULL;
+    s->vmdesc = NULL;
 
     migrate_set_state(&s->state, MIGRATION_STATUS_NONE, MIGRATION_STATUS_SETUP);
 
@@ -4269,6 +4272,8 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
         qemu_sem_post(&s->postcopy_pause_sem);
         return;
     }
+
+    s->vmdesc = json_writer_new(false);
 
     if (multifd_save_setup(&local_err) != 0) {
         error_report_err(local_err);
