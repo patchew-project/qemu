@@ -265,7 +265,6 @@ static void bochs_display_realize(PCIDevice *dev, Error **errp)
 {
     BochsDisplayState *s = BOCHS_DISPLAY(dev);
     Object *obj = OBJECT(dev);
-    int ret;
 
     if (s->vgamem < 4 * MiB) {
         error_setg(errp, "bochs-display: video memory too small");
@@ -302,8 +301,7 @@ static void bochs_display_realize(PCIDevice *dev, Error **errp)
     }
 
     if (pci_bus_is_express(pci_get_bus(dev))) {
-        ret = pcie_endpoint_cap_init(dev, 0x80);
-        assert(ret > 0);
+        pcie_endpoint_cap_init(dev, 0x80);
     } else {
         dev->cap_present &= ~QEMU_PCI_CAP_EXPRESS;
     }
