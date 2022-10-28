@@ -241,6 +241,11 @@ static void tb_jmp_cache_inval_tb(TranslationBlock *tb)
         CPU_FOREACH(cpu) {
             CPUJumpCache *jc = cpu->tb_jmp_cache;
 
+            if (unlikely(!jc)) {
+                /* This is a new CPU that is not initialized yet. */
+                continue;
+            }
+
             if (qatomic_read(&jc->array[h].tb) == tb) {
                 qatomic_set(&jc->array[h].tb, NULL);
             }
