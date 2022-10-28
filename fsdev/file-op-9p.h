@@ -24,6 +24,8 @@
 #endif
 #ifdef CONFIG_DARWIN
 # include <sys/param.h>
+#endif
+#ifndef CONFIG_WIN32
 # include <sys/mount.h>
 #endif
 
