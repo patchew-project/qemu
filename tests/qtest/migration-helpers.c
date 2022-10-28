@@ -130,6 +130,25 @@ void migrate_qmp(QTestState *who, const char *uri, const char *fmt, ...)
     qobject_unref(rsp);
 }
 
+
+void migrate_incoming_qmp(QTestState *who, const char *uri, const char *fmt, ...)
+{
+    va_list ap;
+    QDict *args, *rsp;
+
+    va_start(ap, fmt);
+    args = qdict_from_vjsonf_nofail(fmt, ap);
+    va_end(ap);
+
+    g_assert(!qdict_haskey(args, "uri"));
+    qdict_put_str(args, "uri", uri);
+
+    rsp = qtest_qmp(who, "{ 'execute': 'migrate-incoming', 'arguments': %p}", args);
+
+    g_assert(qdict_haskey(rsp, "return"));
+    qobject_unref(rsp);
+}
+
 /*
  * Note: caller is responsible to free the returned object via
  * qobject_unref() after use
