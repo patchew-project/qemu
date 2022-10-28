@@ -585,6 +585,7 @@ static void sdhci_sdma_transfer_multi_blocks(SDHCIState *s)
     const uint16_t block_size = s->blksize & BLOCK_SIZE_MASK;
     uint32_t boundary_chk = 1 << (((s->blksize & ~BLOCK_SIZE_MASK) >> 12) + 12);
     uint32_t boundary_count = boundary_chk - (s->sdmasysad % boundary_chk);
+    const MemTxAttrs attrs = { .memory = true };
 
     if (!(s->trnmod & SDHC_TRNS_BLK_CNT_EN) || !s->blkcnt) {
         qemu_log_mask(LOG_UNIMP, "infinite transfer is not supported\n");
@@ -617,7 +618,7 @@ static void sdhci_sdma_transfer_multi_blocks(SDHCIState *s)
                 }
             }
             dma_memory_write(s->dma_as, s->sdmasysad, &s->fifo_buffer[begin],
-                             s->data_count - begin, MEMTXATTRS_UNSPECIFIED);
+                             s->data_count - begin, attrs);
             s->sdmasysad += s->data_count - begin;
             if (s->data_count == block_size) {
                 s->data_count = 0;
@@ -638,7 +639,7 @@ static void sdhci_sdma_transfer_multi_blocks(SDHCIState *s)
                 boundary_count -= block_size - begin;
             }
             dma_memory_read(s->dma_as, s->sdmasysad, &s->fifo_buffer[begin],
-                            s->data_count - begin, MEMTXATTRS_UNSPECIFIED);
+                            s->data_count - begin, attrs);
             s->sdmasysad += s->data_count - begin;
             if (s->data_count == block_size) {
                 sdbus_write_data(&s->sdbus, s->fifo_buffer, block_size);
@@ -667,14 +668,15 @@ static void sdhci_sdma_transfer_multi_blocks(SDHCIState *s)
 static void sdhci_sdma_transfer_single_block(SDHCIState *s)
 {
     uint32_t datacnt = s->blksize & BLOCK_SIZE_MASK;
+    const MemTxAttrs attrs = { .memory = true };
 
     if (s->trnmod & SDHC_TRNS_READ) {
         sdbus_read_data(&s->sdbus, s->fifo_buffer, datacnt);
         dma_memory_write(s->dma_as, s->sdmasysad, s->fifo_buffer, datacnt,
-                         MEMTXATTRS_UNSPECIFIED);
+                         attrs);
     } else {
         dma_memory_read(s->dma_as, s->sdmasysad, s->fifo_buffer, datacnt,
-                        MEMTXATTRS_UNSPECIFIED);
+                        attrs);
         sdbus_write_data(&s->sdbus, s->fifo_buffer, datacnt);
     }
     s->blkcnt--;
@@ -693,11 +695,13 @@ static void get_adma_description(SDHCIState *s, ADMADescr *dscr)
 {
     uint32_t adma1 = 0;
     uint64_t adma2 = 0;
+    const MemTxAttrs attrs = { .memory = true };
     hwaddr entry_addr = (hwaddr)s->admasysaddr;
+
     switch (SDHC_DMA_TYPE(s->hostctl1)) {
     case SDHC_CTRL_ADMA2_32:
         dma_memory_read(s->dma_as, entry_addr, &adma2, sizeof(adma2),
-                        MEMTXATTRS_UNSPECIFIED);
+                        attrs);
         adma2 = le64_to_cpu(adma2);
         /* The spec does not specify endianness of descriptor table.
          * We currently assume that it is LE.
@@ -709,7 +713,7 @@ static void get_adma_description(SDHCIState *s, ADMADescr *dscr)
         break;
     case SDHC_CTRL_ADMA1_32:
         dma_memory_read(s->dma_as, entry_addr, &adma1, sizeof(adma1),
-                        MEMTXATTRS_UNSPECIFIED);
+                        attrs);
         adma1 = le32_to_cpu(adma1);
         dscr->addr = (hwaddr)(adma1 & 0xFFFFF000);
         dscr->attr = (uint8_t)extract32(adma1, 0, 7);
@@ -722,12 +726,12 @@ static void get_adma_description(SDHCIState *s, ADMADescr *dscr)
         break;
     case SDHC_CTRL_ADMA2_64:
         dma_memory_read(s->dma_as, entry_addr, &dscr->attr, 1,
-                        MEMTXATTRS_UNSPECIFIED);
+                        attrs);
         dma_memory_read(s->dma_as, entry_addr + 2, &dscr->length, 2,
-                        MEMTXATTRS_UNSPECIFIED);
+                        attrs);
         dscr->length = le16_to_cpu(dscr->length);
         dma_memory_read(s->dma_as, entry_addr + 4, &dscr->addr, 8,
-                        MEMTXATTRS_UNSPECIFIED);
+                        attrs);
         dscr->addr = le64_to_cpu(dscr->addr);
         dscr->attr &= (uint8_t) ~0xC0;
         dscr->incr = 12;
