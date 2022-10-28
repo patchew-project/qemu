@@ -4330,6 +4330,90 @@ static int parse_ramblocks(QEMUFile *f, ram_addr_t total_ram_bytes)
     return ret;
 }
 
+
+static int parse_ramblocks_fixed_ram(QEMUFile *f)
+{
+    int ret = 0;
+
+    while (!ret) {
+        char id[256];
+        RAMBlock *block;
+        ram_addr_t length;
+        unsigned long clear_bit_idx;
+        long num_pages, bitmap_size;
+        int len = qemu_get_byte(f);
+        g_autofree unsigned long *dirty_bitmap = NULL;
+
+        qemu_get_buffer(f, (uint8_t *)id, len);
+        id[len] = 0;
+        length = qemu_get_be64(f);
+
+        block = qemu_ram_block_by_name(id);
+        if (block) {
+            ret = parse_ramblock(f, block, length);
+            if (ret < 0) {
+                return ret;
+            }
+        } else {
+            error_report("Unknown ramblock \"%s\", cannot accept "
+                         "migration", id);
+            ret = -EINVAL;
+            continue;
+        }
+
+        /* 1. read the bitmap size */
+        num_pages = length >> TARGET_PAGE_BITS;
+        bitmap_size = qemu_get_be32(f);
+
+        assert(bitmap_size == BITS_TO_LONGS(num_pages)*sizeof(unsigned long));
+
+        block->pages_offset = qemu_get_be64(f);
+
+        /* 2. read the actual bitmap */
+        dirty_bitmap = g_malloc0(bitmap_size);
+        if (qemu_get_buffer(f, (uint8_t *)dirty_bitmap, bitmap_size) != bitmap_size) {
+            error_report("Error parsing dirty bitmap");
+            return -EINVAL;
+        }
+
+#define BUFSIZE (4*1024*1024)
+        for (unsigned long set_bit_idx = find_first_bit(dirty_bitmap, num_pages);
+             set_bit_idx < num_pages;
+             set_bit_idx = find_next_bit(dirty_bitmap, num_pages, clear_bit_idx + 1)) {
+
+            clear_bit_idx = find_next_zero_bit(dirty_bitmap, num_pages, set_bit_idx + 1);
+            unsigned long len = TARGET_PAGE_SIZE * (clear_bit_idx - set_bit_idx);
+            ram_addr_t offset = set_bit_idx << TARGET_PAGE_BITS;
+
+            for (size_t read = 0, completed = 0; completed < len; offset += read) {
+                void *host = host_from_ram_block_offset(block, offset);
+                size_t read_len = MIN(len, BUFSIZE);
+
+                read = qemu_get_buffer_at(f, host, read_len,
+                                          block->pages_offset + offset);
+                completed += read;
+            }
+        }
+
+        /* Skip pages array */
+        qemu_set_offset(f, block->pages_offset + length, SEEK_SET);
+
+        /* Check if this is the last ramblock */
+        if (qemu_get_be64(f) == RAM_SAVE_FLAG_EOS) {
+            ret = 1;
+        } else {
+            /*
+             * If not, adjust the internal file index to account for the
+             * previous 64 bit read
+             */
+            qemu_file_skip(f, -8);
+            ret = 0;
+        }
+    }
+
+    return ret;
+}
+
 /**
  * ram_load_precopy: load pages in precopy case
  *
@@ -4349,7 +4433,7 @@ static int ram_load_precopy(QEMUFile *f)
         invalid_flags |= RAM_SAVE_FLAG_COMPRESS_PAGE;
     }
 
-    while (!ret && !(flags & RAM_SAVE_FLAG_EOS)) {
+    while (!ret && !(flags & RAM_SAVE_FLAG_EOS) && !mis->ram_migrated) {
         ram_addr_t addr;
         void *host = NULL, *host_bak = NULL;
         uint8_t ch;
@@ -4421,7 +4505,14 @@ static int ram_load_precopy(QEMUFile *f)
 
         switch (flags & ~RAM_SAVE_FLAG_CONTINUE) {
         case RAM_SAVE_FLAG_MEM_SIZE:
-            ret = parse_ramblocks(f, addr);
+            if (migrate_fixed_ram()) {
+                ret = parse_ramblocks_fixed_ram(f);
+                if (ret == 1) {
+                    mis->ram_migrated = true;
+                }
+            } else {
+                ret = parse_ramblocks(f, addr);
+            }
             break;
 
         case RAM_SAVE_FLAG_ZERO:
