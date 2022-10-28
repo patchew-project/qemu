@@ -36,7 +36,7 @@ int usb_packet_map(USBPacket *p, QEMUSGList *sgl)
 
         while (len) {
             dma_addr_t xlen = len;
-            mem = dma_memory_map(sgl->as, base, &xlen, dir,
+            mem = dma_memory_map_guarded(sgl->dev, sgl->as, base, &xlen, dir,
                                  MEMTXATTRS_UNSPECIFIED);
             if (!mem) {
                 goto err;
@@ -63,7 +63,7 @@ void usb_packet_unmap(USBPacket *p, QEMUSGList *sgl)
     int i;
 
     for (i = 0; i < p->iov.niov; i++) {
-        dma_memory_unmap(sgl->as, p->iov.iov[i].iov_base,
+        dma_memory_unmap_guarded(sgl->dev, sgl->as, p->iov.iov[i].iov_base,
                          p->iov.iov[i].iov_len, dir,
                          p->iov.iov[i].iov_len);
     }
