@@ -90,9 +90,9 @@ static void dma_blk_unmap(DMAAIOCB *dbs)
     int i;
 
     for (i = 0; i < dbs->iov.niov; ++i) {
-        dma_memory_unmap(dbs->sg->as, dbs->iov.iov[i].iov_base,
-                         dbs->iov.iov[i].iov_len, dbs->dir,
-                         dbs->iov.iov[i].iov_len);
+        dma_memory_unmap_guarded(dbs->sg->dev, dbs->sg->as,
+                dbs->iov.iov[i].iov_base, dbs->iov.iov[i].iov_len, dbs->dir,
+                dbs->iov.iov[i].iov_len);
     }
     qemu_iovec_reset(&dbs->iov);
 }
@@ -130,8 +130,8 @@ static void dma_blk_cb(void *opaque, int ret)
     while (dbs->sg_cur_index < dbs->sg->nsg) {
         cur_addr = dbs->sg->sg[dbs->sg_cur_index].base + dbs->sg_cur_byte;
         cur_len = dbs->sg->sg[dbs->sg_cur_index].len - dbs->sg_cur_byte;
-        mem = dma_memory_map(dbs->sg->as, cur_addr, &cur_len, dbs->dir,
-                             MEMTXATTRS_UNSPECIFIED);
+        mem = dma_memory_map_guarded(dbs->sg->dev, dbs->sg->as, cur_addr,
+                &cur_len, dbs->dir, MEMTXATTRS_UNSPECIFIED);
         /*
          * Make reads deterministic in icount mode. Windows sometimes issues
          * disk read requests with overlapping SGs. It leads
@@ -145,7 +145,7 @@ static void dma_blk_cb(void *opaque, int ret)
                 if (ranges_overlap((intptr_t)dbs->iov.iov[i].iov_base,
                                    dbs->iov.iov[i].iov_len, (intptr_t)mem,
                                    cur_len)) {
-                    dma_memory_unmap(dbs->sg->as, mem, cur_len,
+                    dma_memory_unmap_guarded(dbs->sg->dev, dbs->sg->as, mem, cur_len,
                                      dbs->dir, cur_len);
                     mem = NULL;
                     break;
@@ -296,7 +296,8 @@ static MemTxResult dma_buf_rw(void *buf, dma_addr_t len, dma_addr_t *residual,
     while (len > 0) {
         ScatterGatherEntry entry = sg->sg[sg_cur_index++];
         dma_addr_t xfer = MIN(len, entry.len);
-        res |= dma_memory_rw(sg->as, entry.base, ptr, xfer, dir, attrs);
+        res |= dma_memory_rw_guarded(sg->dev, sg->as, entry.base, ptr, xfer,
+                                     dir, attrs);
         ptr += xfer;
         len -= xfer;
         xresidual -= xfer;
