@@ -15,6 +15,10 @@
 #include "block/block.h"
 #include "block/accounting.h"
 
+typedef struct {
+    bool engaged_in_io;
+} MemReentrancyGuard;
+
 typedef enum {
     DMA_DIRECTION_TO_DEVICE = 0,
     DMA_DIRECTION_FROM_DEVICE = 1,
@@ -320,5 +324,42 @@ void dma_acct_start(BlockBackend *blk, BlockAcctCookie *cookie,
  */
 uint64_t dma_aligned_pow2_mask(uint64_t start, uint64_t end,
                                int max_addr_bits);
+
+#define REENTRANCY_GUARD(func, ret_type, dev, ...) \
+    ({\
+     ret_type retval;\
+     MemReentrancyGuard prior_guard_state = dev->mem_reentrancy_guard;\
+     dev->mem_reentrancy_guard.engaged_in_io = 1;\
+     retval = func(__VA_ARGS__);\
+     dev->mem_reentrancy_guard = prior_guard_state;\
+     retval;\
+     })
+#define REENTRANCY_GUARD_NORET(func, dev, ...) \
+    ({\
+     MemReentrancyGuard prior_guard_state = dev->mem_reentrancy_guard;\
+     dev->mem_reentrancy_guard.engaged_in_io = 1;\
+     func(__VA_ARGS__);\
+     dev->mem_reentrancy_guard = prior_guard_state;\
+     })
+#define dma_memory_rw_guarded(dev, ...) \
+    REENTRANCY_GUARD(dma_memory_rw, MemTxResult, dev, __VA_ARGS__)
+#define dma_memory_read_guarded(dev, ...) \
+    REENTRANCY_GUARD(dma_memory_read, MemTxResult, dev, __VA_ARGS__)
+#define dma_memory_write_guarded(dev, ...) \
+    REENTRANCY_GUARD(dma_memory_write, MemTxResult, dev, __VA_ARGS__)
+#define dma_memory_set_guarded(dev, ...) \
+    REENTRANCY_GUARD(dma_memory_set, MemTxResult, dev, __VA_ARGS__)
+#define dma_memory_map_guarded(dev, ...) \
+    REENTRANCY_GUARD(dma_memory_map, void*, dev, __VA_ARGS__)
+#define dma_memory_unmap_guarded(dev, ...) \
+    REENTRANCY_GUARD_NORET(dma_memory_unmap, dev, __VA_ARGS__)
+#define ldub_dma_guarded(dev, ...) \
+    REENTRANCY_GUARD(ldub_dma, MemTxResult, dev, __VA_ARGS__)
+#define stb_dma_guarded(dev, ...) \
+    REENTRANCY_GUARD(stb_dma, MemTxResult, dev, __VA_ARGS__)
+#define dma_buf_read_guarded(dev, ...) \
+    REENTRANCY_GUARD(dma_buf_read, MemTxResult, dev, __VA_ARGS__)
+#define dma_buf_write_guarded(dev, ...) \
+    REENTRANCY_GUARD(dma_buf_read, MemTxResult, dev, __VA_ARGS__)
 
 #endif

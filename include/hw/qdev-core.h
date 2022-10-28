@@ -8,6 +8,7 @@
 #include "qom/object.h"
 #include "hw/hotplug.h"
 #include "hw/resettable.h"
+#include "sysemu/dma.h"
 
 enum {
     DEV_NVECTORS_UNSPECIFIED = -1,
@@ -194,6 +195,7 @@ struct DeviceState {
     int alias_required_for_version;
     ResettableState reset;
     GSList *unplug_blockers;
+    MemReentrancyGuard mem_reentrancy_guard;
 };
 
 struct DeviceListener {
