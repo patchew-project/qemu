@@ -564,6 +564,29 @@ void qemu_put_buffer_at(QEMUFile *f, const uint8_t *buf, size_t buflen, off_t po
     return;
 }
 
+
+size_t qemu_get_buffer_at(QEMUFile *f, const uint8_t *buf, size_t buflen, off_t pos)
+{
+    Error *err = NULL;
+    struct iovec iov = { .iov_base = (char *)buf, .iov_len = buflen };
+    ssize_t ret;
+
+    if (f->last_error) {
+        return 0;
+    }
+
+    ret = qio_channel_io_preadv(f->ioc, &iov, 1, pos, &err);
+    if (ret == -1) {
+	    goto error;
+    }
+
+    return (size_t)ret;
+
+ error:
+    qemu_file_set_error_obj(f, -EIO, err);
+    return 0;
+}
+
 void qemu_set_offset(QEMUFile *f, off_t off, int whence)
 {
     Error *err = NULL;
