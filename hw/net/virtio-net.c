@@ -156,8 +156,9 @@ static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
      * disconnect/reconnect a VDPA peer.
      */
     if (nc->peer && nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_VDPA) {
-        ret = vhost_net_get_config(get_vhost_net(nc->peer), (uint8_t *)&netcfg,
-                                   n->config_size);
+        struct vhost_net *net = get_vhost_net(nc->peer);
+
+        ret = vhost_net_get_config(net, (uint8_t *)&netcfg, n->config_size);
         if (ret == -1) {
             return;
         }
@@ -171,6 +172,12 @@ static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
         if (memcmp(&netcfg.mac, &zero, sizeof(zero)) == 0) {
             info_report("Zero hardware mac address detected. Ignoring.");
             memcpy(netcfg.mac, n->mac, ETH_ALEN);
+        }
+
+        if (vdev->guest_features & BIT_ULL(VIRTIO_NET_F_STATUS) &&
+            !(net->dev.features & BIT_ULL(VIRTIO_NET_F_STATUS))) {
+            /* Emulating link up in qemu */
+            netcfg.status |= virtio_tswap16(vdev, VIRTIO_NET_S_LINK_UP);
         }
 
         memcpy(config, &netcfg, n->config_size);
