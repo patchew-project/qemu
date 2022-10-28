@@ -127,8 +127,21 @@ int vhost_net_set_config(struct vhost_net *net, const uint8_t *data,
 
 void vhost_net_ack_features(struct vhost_net *net, uint64_t features)
 {
+    static const int status_feature_bit[] = {
+        VIRTIO_NET_F_STATUS,
+        VHOST_INVALID_FEATURE_BIT,
+    };
+
     net->dev.acked_features = net->dev.backend_features;
     vhost_ack_features(&net->dev, vhost_net_get_feature_bits(net), features);
+    if (net->dev.features & BIT_ULL(VIRTIO_NET_F_STATUS)) {
+        /*
+         * If device support _F_STATUS qemu should ack it so it reports link
+         * status changes. If not supported qemu emulates it reporting an
+         * always up link.
+         */
+        vhost_ack_features(&net->dev, status_feature_bit, features);
+    }
 }
 
 uint64_t vhost_net_get_max_queues(VHostNetState *net)
