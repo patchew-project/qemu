@@ -748,6 +748,7 @@ static void test_migrate_end(QTestState *from, QTestState *to, bool test_dest)
     cleanup("migsocket");
     cleanup("src_serial");
     cleanup("dest_serial");
+    cleanup("migfile");
 }
 
 #ifdef CONFIG_GNUTLS
@@ -1359,6 +1360,14 @@ static void test_precopy_common(MigrateCommon *args)
          * hanging forever if migration didn't converge */
         wait_for_migration_complete(from);
 
+        /*
+         * For file based migration the target must begin its migration after
+         * the source has finished
+         */
+        if (strstr(args->connect_uri, "file:")) {
+            migrate_incoming_qmp(to, args->connect_uri, "{}");
+        }
+
         if (!got_stop) {
             qtest_qmp_eventwait(from, "STOP");
         }
@@ -1509,6 +1518,39 @@ static void test_precopy_unix_xbzrle(void)
         .start_hook = test_migrate_xbzrle_start,
 
         .iterations = 2,
+    };
+
+    test_precopy_common(&args);
+}
+
+static void test_precopy_unix_file(void)
+{
+    g_autofree char *uri = g_strdup_printf("file:%s/migfile", tmpfs);
+    MigrateCommon args = {
+        .connect_uri = uri,
+        .listen_uri = "defer",
+    };
+
+    test_precopy_common(&args);
+}
+
+static void *
+test_migrate_fixed_ram_start(QTestState *from,
+                             QTestState *to)
+{
+    migrate_set_capability(from, "fixed-ram", true);
+    migrate_set_capability(to, "fixed-ram", true);
+
+    return NULL;
+}
+
+static void test_precopy_unix_fixed_ram(void)
+{
+    g_autofree char *uri = g_strdup_printf("file:%s/migfile", tmpfs);
+    MigrateCommon args = {
+        .connect_uri = uri,
+        .listen_uri = "defer",
+        .start_hook = test_migrate_fixed_ram_start,
     };
 
     test_precopy_common(&args);
@@ -2505,6 +2547,10 @@ int main(int argc, char **argv)
     qtest_add_func("/migration/precopy/unix/tls/psk",
                    test_precopy_unix_tls_psk);
 #endif
+
+    qtest_add_func("/migration/precopy/unix/file", test_precopy_unix_file);
+    qtest_add_func("/migration/precopy/unix/fixed-ram",
+                   test_precopy_unix_fixed_ram);
 
     if (has_uffd) {
         /*
