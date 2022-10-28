@@ -494,7 +494,7 @@ static inline void xhci_dma_read_u32s(XHCIState *xhci, dma_addr_t addr,
 
     assert((len % sizeof(uint32_t)) == 0);
 
-    if (dma_memory_read(xhci->as, addr, buf, len,
+    if (dma_memory_read_guarded(DEVICE(xhci), xhci->as, addr, buf, len,
                         MEMTXATTRS_UNSPECIFIED) != MEMTX_OK) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: DMA memory access failed!\n",
                       __func__);
@@ -521,7 +521,7 @@ static inline void xhci_dma_write_u32s(XHCIState *xhci, dma_addr_t addr,
     for (i = 0; i < n; i++) {
         tmp[i] = cpu_to_le32(buf[i]);
     }
-    if (dma_memory_write(xhci->as, addr, tmp, len,
+    if (dma_memory_write_guarded(DEVICE(xhci), xhci->as, addr, tmp, len,
                          MEMTXATTRS_UNSPECIFIED) != MEMTX_OK) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: DMA memory access failed!\n",
                       __func__);
@@ -632,8 +632,8 @@ static void xhci_write_event(XHCIState *xhci, XHCIEvent *event, int v)
                                ev_trb.status, ev_trb.control);
 
     addr = intr->er_start + TRB_SIZE*intr->er_ep_idx;
-    if (dma_memory_write(xhci->as, addr, &ev_trb, TRB_SIZE,
-                         MEMTXATTRS_UNSPECIFIED) != MEMTX_OK) {
+    if (dma_memory_write_guarded(DEVICE(xhci), xhci->as, addr, &ev_trb,
+                TRB_SIZE, MEMTXATTRS_UNSPECIFIED) != MEMTX_OK) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: DMA memory access failed!\n",
                       __func__);
         xhci_die(xhci);
@@ -698,8 +698,8 @@ static TRBType xhci_ring_fetch(XHCIState *xhci, XHCIRing *ring, XHCITRB *trb,
 
     while (1) {
         TRBType type;
-        if (dma_memory_read(xhci->as, ring->dequeue, trb, TRB_SIZE,
-                            MEMTXATTRS_UNSPECIFIED) != MEMTX_OK) {
+        if (dma_memory_read_guarded(DEVICE(xhci), xhci->as, ring->dequeue, trb,
+                    TRB_SIZE, MEMTXATTRS_UNSPECIFIED) != MEMTX_OK) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: DMA memory access failed!\n",
                           __func__);
             return 0;
@@ -750,8 +750,8 @@ static int xhci_ring_chain_length(XHCIState *xhci, const XHCIRing *ring)
 
     do {
         TRBType type;
-        if (dma_memory_read(xhci->as, dequeue, &trb, TRB_SIZE,
-                        MEMTXATTRS_UNSPECIFIED) != MEMTX_OK) {
+        if (dma_memory_read_guarded(DEVICE(xhci), xhci->as, dequeue, &trb,
+                    TRB_SIZE, MEMTXATTRS_UNSPECIFIED) != MEMTX_OK) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: DMA memory access failed!\n",
                           __func__);
             return -1;
@@ -820,8 +820,8 @@ static void xhci_er_reset(XHCIState *xhci, int v)
         xhci_die(xhci);
         return;
     }
-    if (dma_memory_read(xhci->as, erstba, &seg, sizeof(seg),
-                    MEMTXATTRS_UNSPECIFIED) != MEMTX_OK) {
+    if (dma_memory_read_guarded(DEVICE(xhci), xhci->as, erstba, &seg,
+                sizeof(seg), MEMTXATTRS_UNSPECIFIED) != MEMTX_OK) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: DMA memory access failed!\n",
                       __func__);
         xhci_die(xhci);
@@ -2445,8 +2445,8 @@ static TRBCCode xhci_get_port_bandwidth(XHCIState *xhci, uint64_t pctx)
     /* TODO: actually implement real values here */
     bw_ctx[0] = 0;
     memset(&bw_ctx[1], 80, xhci->numports); /* 80% */
-    if (dma_memory_write(xhci->as, ctx, bw_ctx, sizeof(bw_ctx),
-                     MEMTXATTRS_UNSPECIFIED) != MEMTX_OK) {
+    if (dma_memory_write_guarded(DEVICE(xhci), xhci->as, ctx, bw_ctx,
+                sizeof(bw_ctx), MEMTXATTRS_UNSPECIFIED) != MEMTX_OK) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: DMA memory write failed!\n",
                       __func__);
         return CC_TRB_ERROR;
