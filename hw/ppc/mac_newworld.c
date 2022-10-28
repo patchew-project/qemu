@@ -169,6 +169,15 @@ static void ppc_core99_init(MachineState *machine)
         if (PPC_INPUT(env) == PPC_FLAGS_INPUT_970) {
             warn_report("mac99 with G5 CPU is deprecated, "
                         "use powermac7_3 instead");
+        } else {
+            if (core99_machine->via_config == CORE99_VIA_CONFIG_PMU) {
+                warn_report("mac99,via=pmu is deprecated, "
+                            "use powermac3_1 instead");
+            }
+            if (core99_machine->via_config == CORE99_VIA_CONFIG_PMU_ADB) {
+                warn_report("mac99,via=pmu-adb is deprecated, "
+                            "use powerbook3_2 instead");
+            }
         }
     }
     /* allocate RAM */
