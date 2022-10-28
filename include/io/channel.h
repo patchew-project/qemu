@@ -124,6 +124,16 @@ struct QIOChannelClass {
                            Error **errp);
 
     /* Optional callbacks */
+    ssize_t (*io_pwritev)(QIOChannel *ioc,
+                       const struct iovec *iov,
+                       size_t niov,
+                       off_t offset,
+                       Error **errp);
+    ssize_t (*io_preadv)(QIOChannel *ioc,
+                      const struct iovec *iov,
+                      size_t niov,
+                      off_t offset,
+                      Error **errp);
     int (*io_shutdown)(QIOChannel *ioc,
                        QIOChannelShutdown how,
                        Error **errp);
@@ -504,6 +514,45 @@ int qio_channel_set_blocking(QIOChannel *ioc,
 int qio_channel_close(QIOChannel *ioc,
                       Error **errp);
 
+
+/**
+ * qio_channel_io_pwritev
+ * @ioc: the channel object
+ * @iov: the array of memory regions to write data from
+ * @niov: the length of the @iov array
+ * @offset: offset in the channel where writes should begin
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Not all implementations will support this facility, so may report an error.
+ * To avoid errors, the caller may check for the feature flag
+ * QIO_CHANNEL_FEATURE_SEEKABLE prior to calling this method.
+ *
+ * Behaves as qio_channel_writev_full, apart from not supporting sending of file
+ * handles as well as beginning the write at the passed @offset
+ *
+ */
+ssize_t qio_channel_io_pwritev(QIOChannel *ioc, const struct iovec *iov,
+                               size_t niov, off_t offset, Error **errp);
+
+
+/**
+ * qio_channel_io_preadv
+ * @ioc: the channel object
+ * @iov: the array of memory regions to read data into
+ * @niov: the length of the @iov array
+ * @offset: offset in the channel where writes should begin
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Not all implementations will support this facility, so may report an error.
+ * To avoid errors, the caller may check for the feature flag
+ * QIO_CHANNEL_FEATURE_SEEKABLE prior to calling this method.
+ *
+ * Behaves as qio_channel_readv_full, apart from not supporting receiving of file
+ * handles as well as beginning the read at the passed @offset
+ *
+ */
+ssize_t qio_channel_io_preadv(QIOChannel *ioc, const struct iovec *iov,
+                             size_t niov, off_t offset, Error **errp);
 /**
  * qio_channel_shutdown:
  * @ioc: the channel object
