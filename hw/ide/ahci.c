@@ -240,19 +240,21 @@ static void ahci_trigger_irq(AHCIState *s, AHCIDevice *d,
     ahci_check_irq(s);
 }
 
-static void map_page(AddressSpace *as, uint8_t **ptr, uint64_t addr,
+static void map_page(AHCIDevice *ad, uint8_t **ptr, uint64_t addr,
                      uint32_t wanted)
 {
     hwaddr len = wanted;
 
     if (*ptr) {
-        dma_memory_unmap(as, *ptr, len, DMA_DIRECTION_FROM_DEVICE, len);
+        dma_memory_unmap_guarded(DEVICE(ad), ad->hba->as,
+                *ptr, len, DMA_DIRECTION_FROM_DEVICE, len);
     }
 
-    *ptr = dma_memory_map(as, addr, &len, DMA_DIRECTION_FROM_DEVICE,
-                          MEMTXATTRS_UNSPECIFIED);
+    *ptr = dma_memory_map_guarded(DEVICE(ad), ad->hba->as, addr, &len,
+                DMA_DIRECTION_FROM_DEVICE, MEMTXATTRS_UNSPECIFIED);
     if (len < wanted && *ptr) {
-        dma_memory_unmap(as, *ptr, len, DMA_DIRECTION_FROM_DEVICE, len);
+        dma_memory_unmap_guarded(DEVICE(ad), ad->hba->as, *ptr, len,
+                DMA_DIRECTION_FROM_DEVICE, len);
         *ptr = NULL;
     }
 }
@@ -720,7 +722,7 @@ static char *ahci_pretty_buffer_fis(const uint8_t *fis, int cmd_len)
 static bool ahci_map_fis_address(AHCIDevice *ad)
 {
     AHCIPortRegs *pr = &ad->port_regs;
-    map_page(ad->hba->as, &ad->res_fis,
+    map_page(ad, &ad->res_fis,
              ((uint64_t)pr->fis_addr_hi << 32) | pr->fis_addr, 256);
     if (ad->res_fis != NULL) {
         pr->cmd |= PORT_CMD_FIS_ON;
@@ -747,7 +749,7 @@ static bool ahci_map_clb_address(AHCIDevice *ad)
 {
     AHCIPortRegs *pr = &ad->port_regs;
     ad->cur_cmd = NULL;
-    map_page(ad->hba->as, &ad->lst,
+    map_page(ad, &ad->lst,
              ((uint64_t)pr->lst_addr_hi << 32) | pr->lst_addr, 1024);
     if (ad->lst != NULL) {
         pr->cmd |= PORT_CMD_LIST_ON;
