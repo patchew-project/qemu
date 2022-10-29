@@ -38,7 +38,7 @@ static bool trans_BBIT(DisasContext *ctx, arg_BBIT *a)
     }
 
     ctx->hflags |= MIPS_HFLAG_BC;
-    ctx->btarget = ctx->base.pc_next + 4 + a->offset * 4;
+    ctx->btarget = ctx->base.pc_next + 4 + (int16_t)a->offset * 4;
     ctx->hflags |= MIPS_HFLAG_BDS32;
 
     tcg_temp_free(t0);
