@@ -198,13 +198,10 @@ static void imx_epit_write_cr(IMXEPITState *s, uint32_t value)
 
     if (freq && (s->cr & CR_EN) && !(oldcr & CR_EN)) {
         if (s->cr & CR_ENMOD) {
-            if (s->cr & CR_RLD) {
-                ptimer_set_limit(s->timer_reload, s->lr, 1);
-                ptimer_set_limit(s->timer_cmp, s->lr, 1);
-            } else {
-                ptimer_set_limit(s->timer_reload, EPIT_TIMER_MAX, 1);
-                ptimer_set_limit(s->timer_cmp, EPIT_TIMER_MAX, 1);
-            }
+            uint64_t limit = (s->cr & CR_RLD) ? s->lr : EPIT_TIMER_MAX;
+            /* set new limit and also set timer to this value right now */
+            ptimer_set_limit(s->timer_reload, limit, 1);
+            ptimer_set_limit(s->timer_cmp, limit, 1);
         }
 
         imx_epit_reload_compare_timer(s);
