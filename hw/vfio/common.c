@@ -574,92 +574,6 @@ static bool vfio_listener_skipped_section(MemoryRegionSection *section)
            section->offset_within_address_space & (1ULL << 63);
 }
 
-/* Called with rcu_read_lock held.  */
-static bool vfio_get_xlat_addr(IOMMUTLBEntry *iotlb, void **vaddr,
-                               ram_addr_t *ram_addr, bool *read_only)
-{
-    MemoryRegion *mr;
-    hwaddr xlat;
-    hwaddr len = iotlb->addr_mask + 1;
-    bool writable = iotlb->perm & IOMMU_WO;
-
-    /*
-     * The IOMMU TLB entry we have just covers translation through
-     * this IOMMU to its immediate target.  We need to translate
-     * it the rest of the way through to memory.
-     */
-    mr = address_space_translate(&address_space_memory,
-                                 iotlb->translated_addr,
-                                 &xlat, &len, writable,
-                                 MEMTXATTRS_UNSPECIFIED);
-    if (!memory_region_is_ram(mr)) {
-        error_report("iommu map to non memory area %"HWADDR_PRIx"",
-                     xlat);
-        return false;
-    } else if (memory_region_has_ram_discard_manager(mr)) {
-        RamDiscardManager *rdm = memory_region_get_ram_discard_manager(mr);
-        MemoryRegionSection tmp = {
-            .mr = mr,
-            .offset_within_region = xlat,
-            .size = int128_make64(len),
-        };
-
-        /*
-         * Malicious VMs can map memory into the IOMMU, which is expected
-         * to remain discarded. vfio will pin all pages, populating memory.
-         * Disallow that. vmstate priorities make sure any RamDiscardManager
-         * were already restored before IOMMUs are restored.
-         */
-        if (!ram_discard_manager_is_populated(rdm, &tmp)) {
-            error_report("iommu map to discarded memory (e.g., unplugged via"
-                         " virtio-mem): %"HWADDR_PRIx"",
-                         iotlb->translated_addr);
-            return false;
-        }
-
-        /*
-         * Malicious VMs might trigger discarding of IOMMU-mapped memory. The
-         * pages will remain pinned inside vfio until unmapped, resulting in a
-         * higher memory consumption than expected. If memory would get
-         * populated again later, there would be an inconsistency between pages
-         * pinned by vfio and pages seen by QEMU. This is the case until
-         * unmapped from the IOMMU (e.g., during device reset).
-         *
-         * With malicious guests, we really only care about pinning more memory
-         * than expected. RLIMIT_MEMLOCK set for the user/process can never be
-         * exceeded and can be used to mitigate this problem.
-         */
-        warn_report_once("Using vfio with vIOMMUs and coordinated discarding of"
-                         " RAM (e.g., virtio-mem) works, however, malicious"
-                         " guests can trigger pinning of more memory than"
-                         " intended via an IOMMU. It's possible to mitigate "
-                         " by setting/adjusting RLIMIT_MEMLOCK.");
-    }
-
-    /*
-     * Translation truncates length to the IOMMU page size,
-     * check that it did not truncate too much.
-     */
-    if (len & iotlb->addr_mask) {
-        error_report("iommu has granularity incompatible with target AS");
-        return false;
-    }
-
-    if (vaddr) {
-        *vaddr = memory_region_get_ram_ptr(mr) + xlat;
-    }
-
-    if (ram_addr) {
-        *ram_addr = memory_region_get_ram_addr(mr) + xlat;
-    }
-
-    if (read_only) {
-        *read_only = !writable || mr->readonly;
-    }
-
-    return true;
-}
-
 static void vfio_iommu_map_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
 {
     VFIOGuestIOMMU *giommu = container_of(n, VFIOGuestIOMMU, n);
@@ -681,9 +595,31 @@ static void vfio_iommu_map_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
 
     if ((iotlb->perm & IOMMU_RW) != IOMMU_NONE) {
         bool read_only;
+        bool mr_has_discard_manager;
 
-        if (!vfio_get_xlat_addr(iotlb, &vaddr, NULL, &read_only)) {
+        if (!memory_get_xlat_addr(iotlb, &vaddr, NULL, &read_only,
+                                  &mr_has_discard_manager)) {
             goto out;
+        }
+        if (mr_has_discard_manager) {
+            /*
+             * Malicious VMs might trigger discarding of IOMMU-mapped memory.
+             * The pages will remain pinned inside vfio until unmapped,
+             * resulting in a higher memory consumption than expected. If memory
+             * would get populated again later, there would be an inconsistency
+             * between pages pinned by vfio and pages seen by QEMU. This is the
+             * case until unmapped from the IOMMU (e.g., during device reset).
+             *
+             * With malicious guests, we really only care about pinning more
+             * memory than expected. RLIMIT_MEMLOCK set for the user/process can
+             * never be exceeded and can be used to mitigate this problem.
+             */
+            warn_report_once(
+                "Using vfio with vIOMMUs and coordinated discarding of"
+                " RAM (e.g., virtio-mem) works, however, malicious"
+                " guests can trigger pinning of more memory than"
+                " intended via an IOMMU. It's possible to mitigate "
+                " by setting/adjusting RLIMIT_MEMLOCK.");
         }
         /*
          * vaddr is only valid until rcu_read_unlock(). But after
@@ -1349,6 +1285,7 @@ static void vfio_iommu_map_dirty_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
     VFIOContainer *container = giommu->container;
     hwaddr iova = iotlb->iova + giommu->iommu_offset;
     ram_addr_t translated_addr;
+    bool mr_has_discard_manager;
 
     trace_vfio_iommu_map_dirty_notify(iova, iova + iotlb->addr_mask);
 
@@ -1359,9 +1296,9 @@ static void vfio_iommu_map_dirty_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
     }
 
     rcu_read_lock();
-    if (vfio_get_xlat_addr(iotlb, NULL, &translated_addr, NULL)) {
+    if (memory_get_xlat_addr(iotlb, NULL, &translated_addr, NULL,
+                             &mr_has_discard_manager)) {
         int ret;
-
         ret = vfio_get_dirty_bitmap(container, iova, iotlb->addr_mask + 1,
                                     translated_addr);
         if (ret) {
@@ -1369,6 +1306,26 @@ static void vfio_iommu_map_dirty_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
                          "0x%"HWADDR_PRIx") = %d (%m)",
                          container, iova,
                          iotlb->addr_mask + 1, ret);
+        }
+        if (mr_has_discard_manager) {
+            /*
+             * Malicious VMs might trigger discarding of IOMMU-mapped memory.
+             * The pages will remain pinned inside vfio until unmapped,
+             * resulting in a higher memory consumption than expected. If memory
+             * would get populated again later, there would be an inconsistency
+             * between pages pinned by vfio and pages seen by QEMU. This is the
+             * case until unmapped from the IOMMU (e.g., during device reset).
+             *
+             * With malicious guests, we really only care about pinning more
+             * memory than expected. RLIMIT_MEMLOCK set for the user/process can
+             * never be exceeded and can be used to mitigate this problem.
+             */
+            warn_report_once(
+                "Using vfio with vIOMMUs and coordinated discarding of"
+                " RAM (e.g., virtio-mem) works, however, malicious"
+                " guests can trigger pinning of more memory than"
+                " intended via an IOMMU. It's possible to mitigate "
+                " by setting/adjusting RLIMIT_MEMLOCK.");
         }
     }
     rcu_read_unlock();
