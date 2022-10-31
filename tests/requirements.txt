@@ -4,3 +4,4 @@
 # Note that qemu.git/python/ is always implicitly installed.
 avocado-framework==88.1
 pycdlib==1.11.0
+codespell
