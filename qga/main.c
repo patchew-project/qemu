@@ -40,9 +40,9 @@
 #include "commands-common.h"
 
 #ifndef _WIN32
-#ifdef __FreeBSD__
+#ifdef CONFIG_BSD
 #define QGA_VIRTIO_PATH_DEFAULT "/dev/vtcon/org.qemu.guest_agent.0"
-#else /* __FreeBSD__ */
+#else /* CONFIG_BSD */
 #define QGA_VIRTIO_PATH_DEFAULT "/dev/virtio-ports/org.qemu.guest_agent.0"
 #endif /* __FreeBSD__ */
 #define QGA_SERIAL_PATH_DEFAULT "/dev/ttyS0"
