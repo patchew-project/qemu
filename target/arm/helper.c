@@ -3501,19 +3501,33 @@ static void ats_write64(CPUARMState *env, const ARMCPRegInfo *ri,
     MMUAccessType access_type = ri->opc2 & 1 ? MMU_DATA_STORE : MMU_DATA_LOAD;
     ARMMMUIdx mmu_idx;
     int secure = arm_is_secure_below_el3(env);
+    bool regime_e20 = (arm_hcr_el2_eff(env) & (HCR_E2H | HCR_TGE)) ==
+                      (HCR_E2H | HCR_TGE);
 
     switch (ri->opc2 & 6) {
     case 0:
         switch (ri->opc1) {
         case 0: /* AT S1E1R, AT S1E1W, AT S1E1RP, AT S1E1WP */
             if (ri->crm == 9 && (env->pstate & PSTATE_PAN)) {
-                mmu_idx = ARMMMUIdx_Stage1_E1_PAN;
+                if (regime_e20) {
+                    mmu_idx = ARMMMUIdx_E20_2_PAN;
+                } else {
+                    mmu_idx = ARMMMUIdx_Stage1_E1_PAN;
+                }
             } else {
-                mmu_idx = ARMMMUIdx_Stage1_E1;
+                if (regime_e20) {
+                    mmu_idx = ARMMMUIdx_E20_2;
+                } else {
+                    mmu_idx = ARMMMUIdx_Stage1_E1;
+                }
             }
             break;
         case 4: /* AT S1E2R, AT S1E2W */
-            mmu_idx = ARMMMUIdx_E2;
+            if ((arm_hcr_el2_eff(env) & HCR_E2H) == HCR_E2H) {
+                mmu_idx = ARMMMUIdx_E20_2;
+            } else {
+                mmu_idx = ARMMMUIdx_E2;
+            }
             break;
         case 6: /* AT S1E3R, AT S1E3W */
             mmu_idx = ARMMMUIdx_E3;
@@ -3524,13 +3538,25 @@ static void ats_write64(CPUARMState *env, const ARMCPRegInfo *ri,
         }
         break;
     case 2: /* AT S1E0R, AT S1E0W */
-        mmu_idx = ARMMMUIdx_Stage1_E0;
+        if (regime_e20) {
+            mmu_idx = ARMMMUIdx_E20_0;
+        } else {
+            mmu_idx = ARMMMUIdx_Stage1_E0;
+        }
         break;
     case 4: /* AT S12E1R, AT S12E1W */
-        mmu_idx = ARMMMUIdx_E10_1;
+        if (regime_e20) {
+            mmu_idx = ARMMMUIdx_E20_2;
+        } else {
+            mmu_idx = ARMMMUIdx_E10_1;
+        }
         break;
     case 6: /* AT S12E0R, AT S12E0W */
-        mmu_idx = ARMMMUIdx_E10_0;
+        if (regime_e20) {
+            mmu_idx = ARMMMUIdx_E20_0;
+        } else {
+            mmu_idx = ARMMMUIdx_E10_0;
+        }
         break;
     default:
         g_assert_not_reached();
