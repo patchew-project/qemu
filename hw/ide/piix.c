@@ -25,6 +25,8 @@
  * References:
  *  [1] 82371FB (PIIX) AND 82371SB (PIIX3) PCI ISA IDE XCELERATOR,
  *      290550-002, Intel Corporation, April 1997.
+ *  [2] 82371AB PCI-TO-ISA / IDE XCELERATOR (PIIX4), 290562-001,
+ *      Intel Corporation, April 1997.
  */
 
 #include "qemu/osdep.h"
@@ -161,6 +163,21 @@ static void pci_piix_ide_realize(PCIDevice *dev, Error **errp)
     uint8_t *pci_conf = dev->config;
     int rc;
 
+    /*
+     * Mask all IDE PCI command register bits except for Bus Master
+     * Function Enable (bit 2) and I/O Space Enable (bit 0), as the
+     * remainder are hardwired to 0 [1, p.48] [2, p.89-90].
+     *
+     * NOTE: According to the PIIX3 datasheet [1], the Memory Space
+     * Enable (MSE, bit 1) is hardwired to 1, but this is contradicted
+     * by actual PIIX3 hardware, the datasheet itself (viz., Default
+     * Value: 0000h), and the PIIX4 datasheet [2].
+     */
+    if (d->filter_pcicmd) {
+        pci_set_word(dev->wmask + PCI_COMMAND,
+                     PCI_COMMAND_MASTER | PCI_COMMAND_IO);
+    }
+
     pci_conf[PCI_CLASS_PROG] = 0x80; // legacy ATA mode
 
     bmdma_setup_bar(d);
@@ -186,6 +203,11 @@ static void pci_piix_ide_exitfn(PCIDevice *dev)
     }
 }
 
+static Property pci_piix_ide_properties[] = {
+    DEFINE_PROP_BOOL("x-filter-pcicmd", PCIIDEState, filter_pcicmd, TRUE),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 /* NOTE: for the PIIX3, the IRQs and IOports are hardcoded */
 static void piix3_ide_class_init(ObjectClass *klass, void *data)
 {
@@ -199,6 +221,7 @@ static void piix3_ide_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_INTEL_82371SB_1;
     k->class_id = PCI_CLASS_STORAGE_IDE;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+    device_class_set_props(dc, pci_piix_ide_properties);
     dc->hotpluggable = false;
 }
 
@@ -221,6 +244,7 @@ static void piix4_ide_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_INTEL_82371AB;
     k->class_id = PCI_CLASS_STORAGE_IDE;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+    device_class_set_props(dc, pci_piix_ide_properties);
     dc->hotpluggable = false;
 }
 

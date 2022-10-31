@@ -53,6 +53,7 @@ struct PCIIDEState {
     MemoryRegion bmdma_bar;
     MemoryRegion cmd_bar[2];
     MemoryRegion data_bar[2];
+    bool filter_pcicmd; /* used only for piix3/4 */
 };
 
 static inline IDEState *bmdma_active_if(BMDMAState *bmdma)

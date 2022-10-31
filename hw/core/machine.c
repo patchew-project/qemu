@@ -42,6 +42,8 @@
 
 GlobalProperty hw_compat_7_1[] = {
     { "virtio-device", "queue_reset", "false" },
+    { "piix3-ide", "x-filter-pcicmd", "false" },
+    { "piix4-ide", "x-filter-pcicmd", "false" },
 };
 const size_t hw_compat_7_1_len = G_N_ELEMENTS(hw_compat_7_1);
 
