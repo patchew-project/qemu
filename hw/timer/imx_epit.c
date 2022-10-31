@@ -61,29 +61,12 @@ static const IMXClk imx_epit_clocks[] =  {
     CLK_32k,       /* 11 ipg_clk_32k -- ~32kHz */
 };
 
-/*
- * Must be called from within a ptimer_transaction_begin/commit block
- * for both s->timer_cmp and s->timer_reload.
- */
-static uint32_t imx_epit_set_freq(IMXEPITState *s)
+static uint32_t imx_epit_get_freq(IMXEPITState *s)
 {
-    uint32_t clksrc;
-    uint32_t prescaler;
-    uint32_t freq;
-
-    clksrc = extract32(s->cr, CR_CLKSRC_SHIFT, CR_CLKSRC_BITS);
-    prescaler = 1 + extract32(s->cr, CR_PRESCALE_SHIFT, CR_PRESCALE_BITS);
-
-    freq = imx_ccm_get_clock_frequency(s->ccm,
-                                imx_epit_clocks[clksrc]) / prescaler;
-
-    DPRINTF("Setting ptimer frequency to %u\n", freq);
-
-    if (freq) {
-        ptimer_set_freq(s->timer_reload, freq);
-        ptimer_set_freq(s->timer_cmp, freq);
-    }
-    return freq;
+    uint32_t clksrc = extract32(s->cr, CR_CLKSRC_SHIFT, CR_CLKSRC_BITS);
+    uint32_t prescaler = 1 + extract32(s->cr, CR_PRESCALE_SHIFT, CR_PRESCALE_BITS);
+    uint32_t f_in = imx_ccm_get_clock_frequency(s->ccm, imx_epit_clocks[clksrc]);
+    return f_in / prescaler;
 }
 
 static void imx_epit_reset(DeviceState *dev)
@@ -106,7 +89,12 @@ static void imx_epit_reset(DeviceState *dev)
     ptimer_stop(s->timer_cmp);
     ptimer_stop(s->timer_reload);
     /* compute new frequency */
-    uint32_t freq = imx_epit_set_freq(s);
+    uint32_t freq = imx_epit_get_freq(s);
+    DPRINTF("Setting ptimer frequency to %u\n", freq);
+    if (freq) {
+        ptimer_set_freq(s->timer_reload, freq);
+        ptimer_set_freq(s->timer_cmp, freq);
+    }
     /* init both timers to EPIT_TIMER_MAX */
     ptimer_set_limit(s->timer_cmp, EPIT_TIMER_MAX, 1);
     ptimer_set_limit(s->timer_reload, EPIT_TIMER_MAX, 1);
@@ -155,21 +143,51 @@ static uint64_t imx_epit_read(void *opaque, hwaddr offset, unsigned size)
     return reg_value;
 }
 
-/* Must be called from ptimer_transaction_begin/commit block for s->timer_cmp */
-static void imx_epit_reload_compare_timer(IMXEPITState *s)
+/*
+ * Must be called from a ptimer_transaction_begin/commit block for
+ * s->timer_cmp, but outside of a transaction block of s->timer_reload,
+ * so the proper counter value is read.
+ */
+static void imx_epit_update_compare_timer(IMXEPITState *s)
 {
-    if ((s->cr & (CR_EN | CR_OCIEN)) == (CR_EN | CR_OCIEN))  {
-        /* if the compare feature is on and timers are running */
-        uint32_t tmp = ptimer_get_count(s->timer_reload);
-        uint64_t next;
-        if (tmp > s->cmp) {
-            /* It'll fire in this round of the timer */
-            next = tmp - s->cmp;
-        } else { /* catch it next time around */
-            next = tmp - s->cmp + ((s->cr & CR_RLD) ? EPIT_TIMER_MAX : s->lr);
-        }
-        ptimer_set_count(s->timer_cmp, next);
+    int is_oneshot = 0;
+
+    /*
+     * The compare time will only be active when the EPIT timer is enabled
+     * (CR_EN), the compare interrupt generation is enabled (CR_OCIEN) and
+     *  the input clock if not off.
+     */
+    uint32_t freq = imx_epit_get_freq(s);
+    if (!freq || ((s->cr & (CR_EN | CR_OCIEN)) != (CR_EN | CR_OCIEN))) {
+        ptimer_stop(s->timer_cmp);
+        return;
     }
+
+    /* calculate the next timeout for the compare timer. */
+    uint64_t tmp = ptimer_get_count(s->timer_reload);
+    uint64_t max = (s->cr & CR_RLD) ? EPIT_TIMER_MAX : s->lr;
+    if (s->cmp <= tmp) {
+        /* fire in this round */
+        tmp -= s->cmp;
+        /* if the reload value is less than the compare value, the timer will
+         * only fire once
+         */
+        is_oneshot = (s->cmp > max);
+    } else {
+        /*
+         * fire after a reload - but only if the reload value is equal
+         * or higher than the compare value.
+         */
+        if (s->cmp > max) {
+            ptimer_stop(s->timer_cmp);
+            return;
+        }
+        tmp += max - s->cmp;
+    }
+
+    /* re-initialize the compare timer and run it */
+    ptimer_set_count(s->timer_cmp, tmp);
+    ptimer_run(s->timer_cmp, is_oneshot);
 }
 
 static void imx_epit_write_cr(IMXEPITState *s, uint32_t value)
@@ -193,7 +211,12 @@ static void imx_epit_write_cr(IMXEPITState *s, uint32_t value)
     ptimer_transaction_begin(s->timer_reload);
 
     if (!(value & CR_SWR)) {
-        freq = imx_epit_set_freq(s);
+        uint32_t freq = imx_epit_get_freq(s);
+        DPRINTF("Setting ptimer frequency to %u\n", freq);
+        if (freq) {
+            ptimer_set_freq(s->timer_reload, freq);
+            ptimer_set_freq(s->timer_cmp, freq);
+        }
     }
 
     if (freq && (s->cr & CR_EN) && !(oldcr & CR_EN)) {
@@ -203,22 +226,15 @@ static void imx_epit_write_cr(IMXEPITState *s, uint32_t value)
             ptimer_set_limit(s->timer_reload, limit, 1);
             ptimer_set_limit(s->timer_cmp, limit, 1);
         }
-
-        imx_epit_reload_compare_timer(s);
         ptimer_run(s->timer_reload, 0);
-        if (s->cr & CR_OCIEN) {
-            ptimer_run(s->timer_cmp, 0);
-        } else {
-            ptimer_stop(s->timer_cmp);
-        }
+        imx_epit_update_compare_timer(s);
     } else if (!(s->cr & CR_EN)) {
         /* stop both timers */
         ptimer_stop(s->timer_reload);
         ptimer_stop(s->timer_cmp);
     } else if (s->cr & CR_OCIEN) {
         if (!(oldcr & CR_OCIEN)) {
-            imx_epit_reload_compare_timer(s);
-            ptimer_run(s->timer_cmp, 0);
+            imx_epit_update_compare_timer(s);
         }
     } else {
         ptimer_stop(s->timer_cmp);
@@ -255,11 +271,11 @@ static void imx_epit_write_lr(IMXEPITState *s, uint32_t value)
     /*
      * Commit the change to s->timer_reload, so it can propagate. Otherwise
      * the timer interrupt may not fire properly. The commit must happen
-     * before calling imx_epit_reload_compare_timer(), which reads
+     * before calling imx_epit_update_compare_timer(), which reads
      * s->timer_reload internally again.
      */
     ptimer_transaction_commit(s->timer_reload);
-    imx_epit_reload_compare_timer(s);
+    imx_epit_update_compare_timer(s);
     ptimer_transaction_commit(s->timer_cmp);
 }
 
@@ -268,7 +284,7 @@ static void imx_epit_write_cmp(IMXEPITState *s, uint32_t value)
     s->cmp = value;
 
     ptimer_transaction_begin(s->timer_cmp);
-    imx_epit_reload_compare_timer(s);
+    imx_epit_update_compare_timer(s);
     ptimer_transaction_commit(s->timer_cmp);
 }
 
