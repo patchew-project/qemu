@@ -74,11 +74,7 @@ static void xio3130_upstream_realize(PCIDevice *d, Error **errp)
     pci_bridge_ssvid_init(d, XIO3130_SSVID_OFFSET,
                           XIO3130_SSVID_SVID, XIO3130_SSVID_SSID);
 
-    rc = pcie_cap_init(d, XIO3130_EXP_OFFSET, PCI_EXP_TYPE_UPSTREAM,
-                       p->port, errp);
-    if (rc < 0) {
-        goto err_msi;
-    }
+    pcie_cap_init(d, XIO3130_EXP_OFFSET, PCI_EXP_TYPE_UPSTREAM, p->port);
     pcie_cap_flr_init(d);
     pcie_cap_deverr_init(d);
 
@@ -92,7 +88,6 @@ static void xio3130_upstream_realize(PCIDevice *d, Error **errp)
 
 err:
     pcie_cap_exit(d);
-err_msi:
     msi_uninit(d);
 err_bridge:
     pci_bridge_exitfn(d);
