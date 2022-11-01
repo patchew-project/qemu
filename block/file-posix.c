@@ -355,31 +355,6 @@ static bool raw_needs_alignment(BlockDriverState *bs)
     return s->force_alignment;
 }
 
-/* Check if read is allowed with given memory buffer and length.
- *
- * This function is used to check O_DIRECT memory buffer and request alignment.
- */
-static bool raw_is_io_aligned(int fd, void *buf, size_t len)
-{
-    ssize_t ret = pread(fd, buf, len, 0);
-
-    if (ret >= 0) {
-        return true;
-    }
-
-#ifdef __linux__
-    /* The Linux kernel returns EINVAL for misaligned O_DIRECT reads.  Ignore
-     * other errors (e.g. real I/O error), which could happen on a failed
-     * drive, since we only care about probing alignment.
-     */
-    if (errno != EINVAL) {
-        return true;
-    }
-#endif
-
-    return false;
-}
-
 static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
 {
     BDRVRawState *s = bs->opaque;
@@ -426,34 +401,47 @@ static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
      * try to detect buf_align, which cannot be detected in some cases (e.g.
      * Gluster). If buf_align cannot be detected, we fallback to the value of
      * request_alignment.
+     *
+     * The probing loop keeps track of the last errno so that the alignment of
+     * offline disks can be probed. On Linux pread(2) returns with errno EINVAL
+     * for most file descriptors when O_DIRECT alignment constraints are unmet.
+     * Offline disks fail correctly aligned pread(2) with EIO. Therefore it's
+     * possible to detect alignment on offline disks by observing when the
+     * errno changes from EINVAL to something else.
      */
 
     if (!bs->bl.request_alignment) {
+        int last_errno = 0;
         int i;
         size_t align;
         buf = qemu_memalign(max_align, max_align);
         for (i = 0; i < ARRAY_SIZE(alignments); i++) {
             align = alignments[i];
-            if (raw_is_io_aligned(fd, buf, align)) {
+            if (pread(fd, buf, align, 0) >= 0 ||
+                (errno != EINVAL && last_errno == EINVAL)) {
                 /* Fallback to safe value. */
                 bs->bl.request_alignment = (align != 1) ? align : max_align;
                 break;
             }
+            last_errno = errno;
         }
         qemu_vfree(buf);
     }
 
     if (!s->buf_align) {
+        int last_errno = 0;
         int i;
         size_t align;
         buf = qemu_memalign(max_align, 2 * max_align);
         for (i = 0; i < ARRAY_SIZE(alignments); i++) {
             align = alignments[i];
-            if (raw_is_io_aligned(fd, buf + align, max_align)) {
+            if (pread(fd, buf + align, max_align, 0) >= 0 ||
+                (errno != EINVAL && last_errno == EINVAL)) {
                 /* Fallback to request_alignment. */
                 s->buf_align = (align != 1) ? align : bs->bl.request_alignment;
                 break;
             }
+            last_errno = errno;
         }
         qemu_vfree(buf);
     }
