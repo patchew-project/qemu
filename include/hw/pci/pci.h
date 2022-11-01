@@ -397,6 +397,13 @@ void pci_register_vga(PCIDevice *pci_dev, MemoryRegion *mem,
 void pci_unregister_vga(PCIDevice *pci_dev);
 pcibus_t pci_get_bar_addr(PCIDevice *pci_dev, int region_num);
 
+/*
+ * If there is no overlap, pci_check_capability_overlap() returns true.
+ * Otherise, it sets an error and returns false.
+ */
+bool pci_check_capability_overlap(PCIDevice *pdev, uint8_t cap_id,
+                                  uint8_t offset, uint8_t size, Error **errp);
+
 int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
                        uint8_t offset, uint8_t size,
                        Error **errp);
