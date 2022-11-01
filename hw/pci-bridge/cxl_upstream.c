@@ -138,11 +138,8 @@ static void cxl_usp_realize(PCIDevice *d, Error **errp)
         goto err_bridge;
     }
 
-    rc = pcie_cap_init(d, CXL_UPSTREAM_PORT_PCIE_CAP_OFFSET,
-                       PCI_EXP_TYPE_UPSTREAM, p->port, errp);
-    if (rc < 0) {
-        goto err_msi;
-    }
+    pcie_cap_init(d, CXL_UPSTREAM_PORT_PCIE_CAP_OFFSET,
+                  PCI_EXP_TYPE_UPSTREAM, p->port);
 
     pcie_cap_flr_init(d);
     pcie_cap_deverr_init(d);
@@ -165,7 +162,6 @@ static void cxl_usp_realize(PCIDevice *d, Error **errp)
 
 err_cap:
     pcie_cap_exit(d);
-err_msi:
     msi_uninit(d);
 err_bridge:
     pci_bridge_exitfn(d);
