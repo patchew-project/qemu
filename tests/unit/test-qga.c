@@ -217,6 +217,34 @@ static void test_qga_ping(gconstpointer fix)
     qmp_assert_no_error(ret);
 }
 
+static void test_qga_timestamps(gconstpointer fix)
+{
+    QDict *start, *end;
+    int64_t start_s, start_us, end_s, end_us, start_ts, end_ts;
+    const TestFixture *fixture = fix;
+    g_autoptr(QDict) ret = NULL;
+
+    ret = qmp_fd(fixture->fd, "{'execute': 'guest-ping'}");
+    g_assert_nonnull(ret);
+    qmp_assert_no_error(ret);
+
+    start = qdict_get_qdict(ret, "start");
+    g_assert(start);
+    end = qdict_get_qdict(ret, "end");
+    g_assert(end);
+
+    start_s = qdict_get_int(start, "seconds");
+    start_us = qdict_get_int(start, "microseconds");
+
+    end_s = qdict_get_int(end, "seconds");
+    end_us = qdict_get_int(end, "microseconds");
+
+    start_ts = (start_s * G_USEC_PER_SEC) + start_us;
+    end_ts = (end_s * G_USEC_PER_SEC) + end_us;
+
+    g_assert(end_ts > start_ts);
+}
+
 static void test_qga_id(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
@@ -948,6 +976,7 @@ int main(int argc, char **argv)
     g_test_add_data_func("/qga/sync-delimited", &fix, test_qga_sync_delimited);
     g_test_add_data_func("/qga/sync", &fix, test_qga_sync);
     g_test_add_data_func("/qga/ping", &fix, test_qga_ping);
+    g_test_add_data_func("/qga/timestamps", &fix, test_qga_timestamps);
     g_test_add_data_func("/qga/info", &fix, test_qga_info);
     g_test_add_data_func("/qga/network-get-interfaces", &fix,
                          test_qga_network_get_interfaces);
