@@ -35,8 +35,8 @@ static void test_io_channel_command_fifo(bool async)
     g_autofree gchar *fifo = g_strdup_printf("%s/%s", tmpdir, TEST_FIFO);
     g_autoptr(GString) srcargs = g_string_new(socat);
     g_autoptr(GString) dstargs = g_string_new(socat);
-    g_auto(GStrv) srcargv;
-    g_auto(GStrv) dstargv;
+    g_auto(GStrv) srcargv = NULL;
+    g_auto(GStrv) dstargv = NULL;
     QIOChannel *src, *dst;
     QIOChannelTest *test;
 
