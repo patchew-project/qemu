@@ -4377,6 +4377,28 @@ static bool x86_cpu_have_filtered_features(X86CPU *cpu)
     return false;
 }
 
+static void mark_unavailable_multi_bit_default(X86CPU *cpu, FeatureWord w,
+                                               int index,
+                                               const char *verbose_prefix)
+{
+    FeatureWordInfo *f = &feature_word_info[w];
+    g_autofree char *feat_word_str = feature_word_description(f);
+    uint64_t host_feat = x86_cpu_get_supported_feature_word(w, false);
+    MultiBitFeatureInfo mf = f->multi_bit_features[index];
+
+    if ((cpu->env.features[w] & mf.mask) &&
+        ((cpu->env.features[w] ^ host_feat) & mf.mask)) {
+        if (!cpu->force_features) {
+            cpu->env.features[w] &= ~mf.mask;
+        }
+        cpu->filtered_features[w] |= mf.mask;
+        if (verbose_prefix)
+            warn_report("%s: %s.%s [%u:%u]", verbose_prefix, feat_word_str,
+                        mf.feat_name, mf.high_bit_position,
+                        mf.low_bit_position);
+    }
+}
+
 static void mark_unavailable_features(X86CPU *cpu, FeatureWord w, uint64_t mask,
                                       const char *verbose_prefix)
 {
@@ -6441,6 +6463,20 @@ static void x86_cpu_filter_features(X86CPU *cpu, bool verbose)
             x86_cpu_get_supported_feature_word(w, false);
         uint64_t requested_features = env->features[w];
         uint64_t unavailable_features = requested_features & ~host_feat;
+        FeatureWordInfo f = feature_word_info[w];
+        int i;
+
+        for (i = 0; i < f.num_multi_bit_features; i++) {
+            MultiBitFeatureInfo mf = f.multi_bit_features[i];
+            if (mf.mark_unavailable_multi_bit) {
+                mf.mark_unavailable_multi_bit(cpu, w, i, prefix);
+            } else {
+                mark_unavailable_multi_bit_default(cpu, w, i, prefix);
+            }
+
+            unavailable_features &= ~mf.mask;
+        }
+
         mark_unavailable_features(cpu, w, unavailable_features, prefix);
     }
 
