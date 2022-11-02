@@ -576,16 +576,16 @@ static CPUCacheInfo legacy_l3_cache = {
 #define INTEL_PT_PSB_BITMAP      (0x003f << 16) /* Support 2K,4K,8K,16K,32K,64K */
 
 /* CPUID Leaf 0x1D constants: */
-#define INTEL_AMX_TILE_MAX_SUBLEAF     0x1
-#define INTEL_AMX_TOTAL_TILE_BYTES     0x2000
-#define INTEL_AMX_BYTES_PER_TILE       0x400
-#define INTEL_AMX_BYTES_PER_ROW        0x40
-#define INTEL_AMX_TILE_MAX_NAMES       0x8
-#define INTEL_AMX_TILE_MAX_ROWS        0x10
+#define INTEL_SPR_AMX_TILE_MAX_SUBLEAF     0x1
+#define INTEL_SPR_AMX_TOTAL_TILE_BYTES     0x2000
+#define INTEL_SPR_AMX_BYTES_PER_TILE       0x400
+#define INTEL_SPR_AMX_BYTES_PER_ROW        0x40
+#define INTEL_SPR_AMX_TILE_MAX_NAMES       0x8
+#define INTEL_SPR_AMX_TILE_MAX_ROWS        0x10
 
 /* CPUID Leaf 0x1E constants: */
-#define INTEL_AMX_TMUL_MAX_K           0x10
-#define INTEL_AMX_TMUL_MAX_N           0x40
+#define INTEL_SPR_AMX_TMUL_MAX_K           0x10
+#define INTEL_SPR_AMX_TMUL_MAX_N           0x40
 
 void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,
                               uint32_t vendor2, uint32_t vendor3)
@@ -5765,12 +5765,11 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
 
         if (count == 0) {
             /* Highest numbered palette subleaf */
-            *eax = INTEL_AMX_TILE_MAX_SUBLEAF;
+            *eax = INTEL_SPR_AMX_TILE_MAX_SUBLEAF;
         } else if (count == 1) {
-            *eax = INTEL_AMX_TOTAL_TILE_BYTES |
-                   (INTEL_AMX_BYTES_PER_TILE << 16);
-            *ebx = INTEL_AMX_BYTES_PER_ROW | (INTEL_AMX_TILE_MAX_NAMES << 16);
-            *ecx = INTEL_AMX_TILE_MAX_ROWS;
+            *eax = env->features[FEAT_1D_1_EAX];
+            *ebx = env->features[FEAT_1D_1_EBX];
+            *ecx = env->features[FEAT_1D_1_ECX];
         }
         break;
     }
@@ -5786,7 +5785,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
 
         if (count == 0) {
             /* Highest numbered palette subleaf */
-            *ebx = INTEL_AMX_TMUL_MAX_K | (INTEL_AMX_TMUL_MAX_N << 8);
+            *ebx = env->features[FEAT_1E_0_EBX];
         }
         break;
     }
