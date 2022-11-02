@@ -191,8 +191,9 @@ static void imx_epit_write(void *opaque, hwaddr offset, uint64_t value,
     case 0: /* CR */
 
         oldcr = s->cr;
-        s->cr = value & 0x03ffffff;
-        if (s->cr & CR_SWR) {
+        /* SWR bit is never persisted, it clears itself once reset is done */
+        s->cr = (value & ~CR_SWR) & 0x03ffffff;
+        if (value & CR_SWR) {
             /* handle the reset */
             imx_epit_reset(DEVICE(s));
             /*
@@ -205,7 +206,7 @@ static void imx_epit_write(void *opaque, hwaddr offset, uint64_t value,
         ptimer_transaction_begin(s->timer_reload);
 
         /* Update the frequency. Has been done already in case of a reset. */
-        if (!(s->cr & CR_SWR)) {
+        if (!(value & CR_SWR)) {
             imx_epit_set_freq(s);
         }
 
