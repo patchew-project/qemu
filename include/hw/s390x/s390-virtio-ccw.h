@@ -29,6 +29,7 @@ struct S390CcwMachineState {
     bool pv;
     bool zpcii_disable;
     uint8_t loadparm[8];
+    void *topology;
 };
 
 struct S390CcwMachineClass {

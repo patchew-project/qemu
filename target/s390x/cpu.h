@@ -175,6 +175,8 @@ struct ArchCPU {
     /* needed for live migration */
     void *irqstate;
     uint32_t irqstate_saved_size;
+    /* Topology this CPU belongs too */
+    void *topology;
 };
 
 

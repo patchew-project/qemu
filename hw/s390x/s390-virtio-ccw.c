@@ -44,6 +44,7 @@
 #include "hw/s390x/pv.h"
 #include "migration/blocker.h"
 #include "qapi/visitor.h"
+#include "hw/s390x/cpu-topology.h"
 
 static Error *pv_mig_blocker;
 
@@ -99,6 +100,19 @@ static void s390_init_cpus(MachineState *machine)
 
     for (i = 0; i < machine->smp.cpus; i++) {
         s390x_new_cpu(machine->cpu_type, i, &error_fatal);
+    }
+}
+
+static void s390_init_topology(MachineState *machine)
+{
+    DeviceState *dev;
+
+    if (s390_has_topology()) {
+        dev = qdev_new(TYPE_S390_CPU_TOPOLOGY);
+        object_property_add_child(&machine->parent_obj,
+                                  TYPE_S390_CPU_TOPOLOGY, OBJECT(dev));
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+        S390_CCW_MACHINE(machine)->topology = dev;
     }
 }
 
@@ -252,6 +266,9 @@ static void ccw_init(MachineState *machine)
     /* init memory + setup max page size. Required for the CPU model */
     s390_memory_init(machine->ram);
 
+    /* Adding the topology must be done before CPU initialization */
+    s390_init_topology(machine);
+
     /* init CPUs (incl. CPU model) early so s390_has_feature() works */
     s390_init_cpus(machine);
 
@@ -313,6 +330,12 @@ static void s390_cpu_plug(HotplugHandler *hotplug_dev,
 
     g_assert(!ms->possible_cpus->cpus[cpu->env.core_id].cpu);
     ms->possible_cpus->cpus[cpu->env.core_id].cpu = OBJECT(dev);
+
+    /* Inserting the CPU in the Topology can not fail */
+    if (S390_CCW_MACHINE(ms)->topology) {
+        cpu->topology = S390_CCW_MACHINE(ms)->topology;
+        s390_topology_new_cpu(cpu);
+    }
 
     if (dev->hotplugged) {
         raise_irq_cpu_hotplug();
