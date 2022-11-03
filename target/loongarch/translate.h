@@ -41,5 +41,6 @@ void generate_exception(DisasContext *ctx, int excp);
 extern TCGv cpu_gpr[32], cpu_pc;
 extern TCGv_i32 cpu_fscr0;
 extern TCGv_i64 cpu_fpr[32];
+extern TCGv_i64 cpu_euen;
 
 #endif

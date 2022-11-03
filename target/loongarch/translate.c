@@ -18,11 +18,13 @@
 #include "fpu/softfloat.h"
 #include "translate.h"
 #include "internals.h"
+#include "cpu-csr.h"
 
 /* Global register indices */
 TCGv cpu_gpr[32], cpu_pc;
 static TCGv cpu_lladdr, cpu_llval;
 TCGv_i64 cpu_fpr[32];
+TCGv_i64 cpu_euen;
 
 #include "exec/gen-icount.h"
 
@@ -267,6 +269,8 @@ void loongarch_translate_init(void)
     }
 
     cpu_pc = tcg_global_mem_new(cpu_env, offsetof(CPULoongArchState, pc), "pc");
+    cpu_euen = tcg_global_mem_new(cpu_env,
+                    offsetof(CPULoongArchState, CSR_EUEN), "cpu_euen");
     cpu_lladdr = tcg_global_mem_new(cpu_env,
                     offsetof(CPULoongArchState, lladdr), "lladdr");
     cpu_llval = tcg_global_mem_new(cpu_env,
