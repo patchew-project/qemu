@@ -6,11 +6,17 @@
   script:
     - mkdir build
     - cd build
+    - echo "../configure --enable-werror --disable-docs $QEMU_CONFIGURE_OPTS
+        --disable-user --target-list-exclude=\"arm-softmmu cris-softmmu
+          i386-softmmu microblaze-softmmu mips-softmmu mipsel-softmmu
+          mips64-softmmu ppc-softmmu riscv32-softmmu sh4-softmmu
+          sparc-softmmu xtensa-softmmu $CROSS_SKIP_TARGETS\""
     - ../configure --enable-werror --disable-docs $QEMU_CONFIGURE_OPTS
         --disable-user --target-list-exclude="arm-softmmu cris-softmmu
           i386-softmmu microblaze-softmmu mips-softmmu mipsel-softmmu
           mips64-softmmu ppc-softmmu riscv32-softmmu sh4-softmmu
           sparc-softmmu xtensa-softmmu $CROSS_SKIP_TARGETS"
+    - echo "make -j$(expr $(nproc) + 1) all check-build $MAKE_CHECK_ARGS"
     - make -j$(expr $(nproc) + 1) all check-build $MAKE_CHECK_ARGS
     - if grep -q "EXESUF=.exe" config-host.mak;
       then make installer;
@@ -31,8 +37,11 @@
   script:
     - mkdir build
     - cd build
+    - echo "../configure --enable-werror --disable-docs $QEMU_CONFIGURE_OPTS
+        --disable-tools --enable-${ACCEL:-kvm} $EXTRA_CONFIGURE_OPTS"
     - ../configure --enable-werror --disable-docs $QEMU_CONFIGURE_OPTS
         --disable-tools --enable-${ACCEL:-kvm} $EXTRA_CONFIGURE_OPTS
+    - echo "make -j$(expr $(nproc) + 1) all check-build $MAKE_CHECK_ARGS"
     - make -j$(expr $(nproc) + 1) all check-build $MAKE_CHECK_ARGS
 
 .cross_user_build_job:
@@ -42,9 +51,15 @@
   script:
     - mkdir build
     - cd build
+    - echo "../configure --enable-werror --disable-docs $QEMU_CONFIGURE_OPTS
+        --disable-system --target-list-exclude=\"aarch64_be-linux-user
+          alpha-linux-user cris-linux-user m68k-linux-user microblazeel-linux-user
+          nios2-linux-user or1k-linux-user ppc-linux-user sparc-linux-user
+          xtensa-linux-user $CROSS_SKIP_TARGETS\""
     - ../configure --enable-werror --disable-docs $QEMU_CONFIGURE_OPTS
         --disable-system --target-list-exclude="aarch64_be-linux-user
           alpha-linux-user cris-linux-user m68k-linux-user microblazeel-linux-user
           nios2-linux-user or1k-linux-user ppc-linux-user sparc-linux-user
           xtensa-linux-user $CROSS_SKIP_TARGETS"
+    - echo "make -j$(expr $(nproc) + 1) all check-build $MAKE_CHECK_ARGS"
     - make -j$(expr $(nproc) + 1) all check-build $MAKE_CHECK_ARGS

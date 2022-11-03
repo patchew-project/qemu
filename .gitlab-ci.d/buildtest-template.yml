@@ -13,8 +13,10 @@
     - cd build
     - if test -n "$TARGETS";
       then
+        echo "../configure --enable-werror --disable-docs ${LD_JOBS:+--meson=git} $CONFIGURE_ARGS --target-list=\"$TARGETS\"" ;
         ../configure --enable-werror --disable-docs ${LD_JOBS:+--meson=git} $CONFIGURE_ARGS --target-list="$TARGETS" ;
       else
+        echo "../configure --enable-werror --disable-docs ${LD_JOBS:+--meson=git} $CONFIGURE_ARGS" ;
         ../configure --enable-werror --disable-docs ${LD_JOBS:+--meson=git} $CONFIGURE_ARGS ;
       fi || { cat config.log meson-logs/meson-log.txt && exit 1; }
     - if test -n "$LD_JOBS";
@@ -24,6 +26,7 @@
     - make -j"$JOBS"
     - if test -n "$MAKE_CHECK_ARGS";
       then
+        echo "make -j\"$JOBS\" $MAKE_CHECK_ARGS" ;
         make -j"$JOBS" $MAKE_CHECK_ARGS ;
       fi
 
@@ -37,6 +40,7 @@
     - cd build
     - find . -type f -exec touch {} +
     # Avoid recompiling by hiding ninja with NINJA=":"
+    - echo "make NINJA=\":\" $MAKE_CHECK_ARGS"
     - make NINJA=":" $MAKE_CHECK_ARGS
 
 .native_test_job_template:
