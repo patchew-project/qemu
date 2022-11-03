@@ -81,3 +81,14 @@
     - du -chs ${CI_PROJECT_DIR}/avocado-cache
   variables:
     QEMU_JOB_AVOCADO: 1
+
+.clang-user-template:
+  extends: .native_build_job_template
+  needs:
+    job: amd64-debian-user-cross-container
+  variables:
+    IMAGE: debian-all-test-cross
+    CONFIGURE_ARGS: --cc=clang --cxx=clang++ --disable-system
+      --extra-cflags=-fsanitize=undefined
+      --extra-cflags=-fno-sanitize-recover=undefined
+    MAKE_CHECK_ARGS: check-unit check-tcg

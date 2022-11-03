@@ -323,16 +323,16 @@ clang-system:
       ppc-softmmu s390x-softmmu
     MAKE_CHECK_ARGS: check-qtest check-tcg
 
-clang-user:
-  extends: .native_build_job_template
-  needs:
-    job: amd64-debian-user-cross-container
+# clang-user takes too long so split it into parts
+clang-user-part1:
+  extends: .clang-user-template
   variables:
-    IMAGE: debian-all-test-cross
-    CONFIGURE_ARGS: --cc=clang --cxx=clang++ --disable-system
-      --target-list-exclude=microblazeel-linux-user,aarch64_be-linux-user,i386-linux-user,m68k-linux-user,mipsn32el-linux-user,xtensaeb-linux-user
-      --extra-cflags=-fsanitize=undefined --extra-cflags=-fno-sanitize-recover=undefined
-    MAKE_CHECK_ARGS: check-unit check-tcg
+    TARGETS: aarch64-linux-user,alpha-linux-user,armeb-linux-user,arm-linux-user,cris-linux-user,hexagon-linux-user,hppa-linux-user,loongarch64-linux-user,microblaze-linux-user,mips64el-linux-user,mips64-linux-user,mipsel-linux-user,mips-linux-user,mipsn32-linux-user
+
+clang-user-part2:
+  extends: .clang-user-template
+  variables:
+    TARGETS: nios2-linux-user,or1k-linux-user,ppc64le-linux-user,ppc64-linux-user,ppc-linux-user,riscv32-linux-user,riscv64-linux-user,s390x-linux-user,sh4eb-linux-user,sh4-linux-user,sparc32plus-linux-user,sparc64-linux-user,sparc-linux-user,x86_64-linux-user,xtensa-linux-user
 
 # Set LD_JOBS=1 because this requires LTO and ld consumes a large amount of memory.
 # On gitlab runners, default value sometimes end up calling 2 lds concurrently and
