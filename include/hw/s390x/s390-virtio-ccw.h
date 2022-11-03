@@ -48,6 +48,7 @@ struct S390CcwMachineClass {
     bool css_migration_enabled;
     bool hpage_1m_allowed;
     int max_threads;
+    bool topology_capable;
 };
 
 /* runtime-instrumentation allowed by the machine */

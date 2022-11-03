@@ -763,6 +763,7 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     s390mc->css_migration_enabled = true;
     s390mc->hpage_1m_allowed = true;
     s390mc->max_threads = 1;
+    s390mc->topology_capable = true;
     mc->init = ccw_init;
     mc->reset = s390_machine_reset;
     mc->block_default_type = IF_VIRTIO;
@@ -896,6 +897,7 @@ static void ccw_machine_7_1_class_options(MachineClass *mc)
     ccw_machine_7_2_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_7_1, hw_compat_7_1_len);
     s390mc->max_threads = S390_MAX_CPUS;
+    s390mc->topology_capable = false;
 }
 DEFINE_CCW_MACHINE(7_1, "7.1", false);
 
