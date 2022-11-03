@@ -240,6 +240,10 @@ static QemuOptsList machine_opts = {
             .name = "zpcii-disable",
             .type = QEMU_OPT_BOOL,
             .help = "disable zPCI interpretation facilities",
+        },{
+            .name = "topology",
+            .type = QEMU_OPT_BOOL,
+            .help = "disable CPU topology",
         },
         { /* End of list */ }
     }

@@ -12,6 +12,8 @@
 
 #include "hw/qdev-core.h"
 #include "qom/object.h"
+#include "cpu.h"
+#include "hw/s390x/s390-virtio-ccw.h"
 
 #define S390_TOPOLOGY_CPU_IFL 0x03
 #define S390_TOPOLOGY_MAX_ORIGIN ((63 + S390_MAX_CPUS) / 64)
@@ -38,10 +40,6 @@ struct S390Topology {
 OBJECT_DECLARE_SIMPLE_TYPE(S390Topology, S390_CPU_TOPOLOGY)
 
 void s390_topology_new_cpu(S390CPU *cpu);
-
-static inline bool s390_has_topology(void)
-{
-    return false;
-}
+bool s390_has_topology(void);
 
 #endif

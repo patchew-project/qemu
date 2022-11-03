@@ -710,6 +710,26 @@ bool hpage_1m_allowed(void)
     return get_machine_class()->hpage_1m_allowed;
 }
 
+static inline bool machine_get_topology(Object *obj, Error **errp)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+
+    return ms->cpu_topology;
+}
+
+static inline void machine_set_topology(Object *obj, bool value, Error **errp)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+
+    if (!get_machine_class()->topology_capable) {
+        error_setg(errp, "Property cpu-topology not available on machine %s",
+                   get_machine_class()->parent_class.name);
+        return;
+    }
+
+    ms->cpu_topology = value;
+}
+
 static void machine_get_loadparm(Object *obj, Visitor *v,
                                  const char *name, void *opaque,
                                  Error **errp)
@@ -809,6 +829,12 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
                                    machine_set_zpcii_disable);
     object_class_property_set_description(oc, "zpcii-disable",
             "disable zPCI interpretation facilties");
+
+    object_class_property_add_bool(oc, "topology",
+                                   machine_get_topology,
+                                   machine_set_topology);
+    object_class_property_set_description(oc, "topology",
+            "enable CPU topology");
 }
 
 static inline void s390_machine_initfn(Object *obj)
@@ -818,6 +844,7 @@ static inline void s390_machine_initfn(Object *obj)
     ms->aes_key_wrap = true;
     ms->dea_key_wrap = true;
     ms->zpcii_disable = false;
+    ms->cpu_topology = true;
 }
 
 static const TypeInfo ccw_machine_info = {
@@ -888,6 +915,7 @@ static void ccw_machine_7_1_instance_options(MachineState *machine)
     s390_cpudef_featoff_greater(16, 1, S390_FEAT_PAIE);
     s390_set_qemu_cpu_model(0x8561, 15, 1, qemu_cpu_feat);
     ms->zpcii_disable = true;
+    ms->cpu_topology = true;
 }
 
 static void ccw_machine_7_1_class_options(MachineClass *mc)

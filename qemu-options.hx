@@ -38,7 +38,8 @@ DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
     "                hmat=on|off controls ACPI HMAT support (default=off)\n"
     "                memory-backend='backend-id' specifies explicitly provided backend for main RAM (default=none)\n"
     "                cxl-fmw.0.targets.0=firsttarget,cxl-fmw.0.targets.1=secondtarget,cxl-fmw.0.size=size[,cxl-fmw.0.interleave-granularity=granularity]\n"
-    "                zpcii-disable=on|off disables zPCI interpretation facilities (default=off)\n",
+    "                zpcii-disable=on|off disables zPCI interpretation facilities (default=off)\n"
+    "                topology=on|off disables CPU topology (default=off)\n",
     QEMU_ARCH_ALL)
 SRST
 ``-machine [type=]name[,prop=value[,...]]``
@@ -163,6 +164,9 @@ SRST
         Disables zPCI interpretation facilties on s390-ccw hosts.
         This feature can be used to disable hardware virtual assists
         related to zPCI devices. The default is off.
+
+    ``topology=on|off``
+        Disables CPU topology on for S390 machines starting with s390-ccw-virtio-7.3.
 ERST
 
 DEF("M", HAS_ARG, QEMU_OPTION_M,

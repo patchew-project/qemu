@@ -28,6 +28,7 @@ struct S390CcwMachineState {
     bool dea_key_wrap;
     bool pv;
     bool zpcii_disable;
+    bool cpu_topology;
     uint8_t loadparm[8];
     void *topology;
 };
