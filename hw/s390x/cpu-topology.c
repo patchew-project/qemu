@@ -44,7 +44,6 @@ void s390_topology_new_cpu(S390CPU *cpu)
     int socket_id;
 
     socket_id = core_id / topo->nr_cpus;
-
     /*
      * At the core level, each CPU is represented by a bit in a 64bit
      * uint64_t which represent the presence of a CPU.

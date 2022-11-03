@@ -16,6 +16,11 @@
 #define S390_TOPOLOGY_CPU_IFL 0x03
 #define S390_TOPOLOGY_MAX_ORIGIN ((63 + S390_MAX_CPUS) / 64)
 
+#define S390_TOPOLOGY_POLARITY_HORIZONTAL      0x00
+#define S390_TOPOLOGY_POLARITY_VERTICAL_LOW    0x01
+#define S390_TOPOLOGY_POLARITY_VERTICAL_MEDIUM 0x02
+#define S390_TOPOLOGY_POLARITY_VERTICAL_HIGH   0x03
+
 typedef struct S390TopoSocket {
     int active_count;
     uint64_t mask[S390_TOPOLOGY_MAX_ORIGIN];
@@ -26,6 +31,7 @@ struct S390Topology {
     uint32_t nr_cpus;
     uint32_t nr_sockets;
     S390TopoSocket *socket;
+    bool topology_needed;
 };
 
 #define TYPE_S390_CPU_TOPOLOGY "s390-topology"
