@@ -14,6 +14,7 @@
 #include "qemu/timer.h"
 #include "exec/memory.h"
 #include "hw/sysbus.h"
+#include "cpu-csr.h"
 
 #define IOCSRF_TEMP             0
 #define IOCSRF_NODECNT          1
@@ -387,6 +388,14 @@ static inline int cpu_mmu_index(CPULoongArchState *env, bool ifetch)
 #endif
 }
 
+/*
+ * LoongArch CPUs hardware flags.
+ * bit[2..0] for MMU index.
+ * bit[7..4] for CSR.EUEN.{ BTE, ASXE, SXE, FPE }.
+ */
+#define HW_FLAGS_MMU_MASK   0x07
+#define HW_FLAGS_EUEN_FPE   0x10
+
 static inline void cpu_get_tb_cpu_state(CPULoongArchState *env,
                                         target_ulong *pc,
                                         target_ulong *cs_base,
@@ -395,6 +404,10 @@ static inline void cpu_get_tb_cpu_state(CPULoongArchState *env,
     *pc = env->pc;
     *cs_base = 0;
     *flags = cpu_mmu_index(env, false);
+
+    if (FIELD_EX64(env->CSR_EUEN, CSR_EUEN, FPE)) {
+        *flags |= HW_FLAGS_EUEN_FPE;
+    }
 }
 
 void loongarch_cpu_list(void);
