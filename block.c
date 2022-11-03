@@ -1637,12 +1637,34 @@ out:
     g_free(gen_node_name);
 }
 
+typedef struct DrainCo {
+    BlockDriverState *bs;
+    int ret;
+} DrainCo;
+
+static void coroutine_fn bdrv_co_drain_begin(void *opaque)
+{
+    int i;
+    DrainCo *co = opaque;
+    BlockDriverState *bs = co->bs;
+
+    for (i = 0; i < bs->quiesce_counter; i++) {
+        bs->drv->bdrv_co_drain_begin(bs);
+    }
+    co->ret = 0;
+}
+
 static int bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv,
                             const char *node_name, QDict *options,
                             int open_flags, Error **errp)
 {
     Error *local_err = NULL;
-    int i, ret;
+    int ret;
+    Coroutine *co;
+    DrainCo dco = {
+        .bs = bs,
+        .ret = NOT_DONE,
+    };
     GLOBAL_STATE_CODE();
 
     bdrv_assign_node_name(bs, node_name, &local_err);
@@ -1704,10 +1726,10 @@ static int bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv,
     assert(bdrv_min_mem_align(bs) != 0);
     assert(is_power_of_2(bs->bl.request_alignment));
 
-    for (i = 0; i < bs->quiesce_counter; i++) {
-        if (drv->bdrv_co_drain_begin) {
-            drv->bdrv_co_drain_begin(bs);
-        }
+    if (drv->bdrv_co_drain_begin) {
+        co = qemu_coroutine_create(bdrv_co_drain_begin, &dco);
+        qemu_coroutine_enter(co);
+        AIO_WAIT_WHILE(qemu_get_aio_context(), dco.ret == NOT_DONE);
     }
 
     return 0;
