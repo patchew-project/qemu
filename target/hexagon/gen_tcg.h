@@ -612,6 +612,14 @@
         tcg_temp_free(tmp); \
     } while (0)
 
+#define fGEN_TCG_J2_call(SHORTCODE) \
+    gen_call(ctx, riV)
+
+#define fGEN_TCG_J2_callt(SHORTCODE) \
+    gen_cond_call(ctx, PuV, true, riV)
+#define fGEN_TCG_J2_callf(SHORTCODE) \
+    gen_cond_call(ctx, PuV, false, riV)
+
 #define fGEN_TCG_J2_pause(SHORTCODE) \
     do { \
         uiV = uiV; \
