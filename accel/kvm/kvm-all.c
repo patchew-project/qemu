@@ -2811,6 +2811,18 @@ static void kvm_eat_signals(CPUState *cpu)
     } while (sigismember(&chkset, SIG_IPI));
 }
 
+static void kvm_cpu_set_in_ioctl(CPUState *cpu, bool in_ioctl)
+{
+    if (unlikely(qemu_mutex_iothread_locked())) {
+        return;
+    }
+    if (in_ioctl) {
+        qemu_lockcnt_inc(&cpu->in_ioctl_lock);
+    } else {
+        qemu_lockcnt_dec(&cpu->in_ioctl_lock);
+    }
+}
+
 static void kvm_set_in_ioctl(bool in_ioctl)
 {
     if (likely(qemu_mutex_iothread_locked())) {
@@ -3049,7 +3061,9 @@ int kvm_vcpu_ioctl(CPUState *cpu, int type, ...)
     va_end(ap);
 
     trace_kvm_vcpu_ioctl(cpu->cpu_index, type, arg);
+    kvm_cpu_set_in_ioctl(cpu, true);
     ret = ioctl(cpu->kvm_fd, type, arg);
+    kvm_cpu_set_in_ioctl(cpu, false);
     if (ret == -1) {
         ret = -errno;
     }
