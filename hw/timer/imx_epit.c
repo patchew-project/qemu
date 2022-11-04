@@ -73,35 +73,6 @@ static uint32_t imx_epit_get_freq(IMXEPITState *s)
     return freq;
 }
 
-static void imx_epit_reset(DeviceState *dev)
-{
-    IMXEPITState *s = IMX_EPIT(dev);
-
-    /* Soft reset doesn't touch some bits; hard reset clears them */
-    s->cr &= (CR_EN|CR_ENMOD|CR_STOPEN|CR_DOZEN|CR_WAITEN|CR_DBGEN);
-    s->sr = 0;
-    s->lr = EPIT_TIMER_MAX;
-    s->cmp = 0;
-    /* clear the interrupt */
-    qemu_irq_lower(s->irq);
-
-    ptimer_transaction_begin(s->timer_cmp);
-    ptimer_transaction_begin(s->timer_reload);
-
-    /*
-     * The reset switches off the input clock, so even if the CR.EN is still
-     * set, the timers are no longer running.
-     */
-    assert(0 == imx_epit_get_freq(s));
-    ptimer_stop(s->timer_cmp);
-    ptimer_stop(s->timer_reload);
-    /* init both timers to EPIT_TIMER_MAX */
-    ptimer_set_limit(s->timer_cmp, EPIT_TIMER_MAX, 1);
-    ptimer_set_limit(s->timer_reload, EPIT_TIMER_MAX, 1);
-    ptimer_transaction_commit(s->timer_cmp);
-    ptimer_transaction_commit(s->timer_reload);
-}
-
 static uint64_t imx_epit_read(void *opaque, hwaddr offset, unsigned size)
 {
     IMXEPITState *s = IMX_EPIT(opaque);
@@ -164,23 +135,23 @@ static void imx_epit_write_cr(IMXEPITState *s, uint32_t value)
     /* SWR bit is never persisted, it clears itself once reset is done */
     s->cr = (value & ~CR_SWR) & 0x03ffffff;
 
-    if (value & CR_SWR) {
-        /* handle the reset */
-        imx_epit_reset(DEVICE(s));
-        /*
-         * TODO: could we 'break' here? following operations appear
-         * to duplicate the work imx_epit_reset() already did.
-         */
-    }
-
     ptimer_transaction_begin(s->timer_cmp);
     ptimer_transaction_begin(s->timer_reload);
 
-    /*
-     * Update the frequency. In case of a reset the input clock was
-     * switched off, so this can be skipped.
-     */
-    if (!(value & CR_SWR)) {
+    if (value & CR_SWR) {
+        /* Soft reset doesn't touch some bits; only a hard reset clears them */
+        s->cr &= (CR_EN|CR_ENMOD|CR_STOPEN|CR_DOZEN|CR_WAITEN|CR_DBGEN);
+        s->sr = 0;
+        s->lr = EPIT_TIMER_MAX;
+        s->cmp = 0;
+        /* reset is supposed to disable the input clock */
+        assert(0 == imx_epit_get_freq(s));
+        /* turn interrupt off since SR and the OCIEN bit got cleared */
+        qemu_irq_lower(s->irq);
+        /* reset timer limits, set timer values to these limits */
+        ptimer_set_limit(s->timer_cmp, EPIT_TIMER_MAX, 1);
+        ptimer_set_limit(s->timer_reload, EPIT_TIMER_MAX, 1);
+    } else {
         freq = imx_epit_get_freq(s);
         if (freq) {
             ptimer_set_freq(s->timer_reload, freq);
@@ -367,6 +338,15 @@ static void imx_epit_realize(DeviceState *dev, Error **errp)
      * in a state that will generate compare interrupts.
      */
     s->timer_cmp = ptimer_init(imx_epit_cmp, s, PTIMER_POLICY_LEGACY);
+}
+
+static void imx_epit_reset(DeviceState *dev)
+{
+    IMXEPITState *s = IMX_EPIT(dev);
+
+    /* initialize CR and perform a software reset */
+    s->cr = 0;
+    imx_epit_write_cr(s, CR_SWR);
 }
 
 static void imx_epit_class_init(ObjectClass *klass, void *data)
