@@ -482,7 +482,18 @@ static void gen_write_new_pc_addr(DisasContext *ctx, TCGv addr, TCGv pred)
 static void gen_write_new_pc_pcrel(DisasContext *ctx, int pc_off, TCGv pred)
 {
     target_ulong dest = ctx->pkt->pc + pc_off;
-    gen_write_new_pc_addr(ctx, tcg_constant_tl(dest), pred);
+    if (ctx->pkt->pkt_has_multi_cof) {
+        gen_write_new_pc_addr(ctx, tcg_constant_tl(dest), pred);
+    } else {
+        /* Defer this jump to the end of the TB */
+        g_assert(ctx->branch_cond == NULL);
+        ctx->has_single_direct_branch = true;
+        if (pred != NULL) {
+            ctx->branch_cond = tcg_temp_local_new();
+            tcg_gen_mov_tl(ctx->branch_cond, pred);
+        }
+        ctx->branch_dest = dest;
+    }
 }
 
 static void gen_set_usr_field(int field, TCGv val)
