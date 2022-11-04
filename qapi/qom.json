@@ -576,7 +576,7 @@
 #
 # @prealloc: if true, preallocate memory (default: false)
 #
-# @prealloc-threads: number of CPU threads to use for prealloc (default: 1)
+# @prealloc-threads: number of CPU threads to use for prealloc (default: smp-cpus) (since 5.0)
 #
 # @prealloc-context: thread context to use for creation of preallocation threads
 #                    (default: none) (since 7.2)
