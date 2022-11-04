@@ -418,24 +418,20 @@ bdrv_co_remove_persistent_dirty_bitmap_entry(void *opaque)
 int bdrv_remove_persistent_dirty_bitmap(BlockDriverState *bs, const char *name,
                                         Error **errp)
 {
-    if (qemu_in_coroutine()) {
-        return bdrv_co_remove_persistent_dirty_bitmap(bs, name, errp);
-    } else {
-        Coroutine *co;
-        BdrvRemovePersistentDirtyBitmapCo s = {
-            .bs = bs,
-            .name = name,
-            .errp = errp,
-            .ret = -EINPROGRESS,
-        };
+    Coroutine *co;
+    BdrvRemovePersistentDirtyBitmapCo s = {
+        .bs = bs,
+        .name = name,
+        .errp = errp,
+        .ret = -EINPROGRESS,
+    };
+    assert(!qemu_in_coroutine());
+    co = qemu_coroutine_create(bdrv_co_remove_persistent_dirty_bitmap_entry,
+                                &s);
+    bdrv_coroutine_enter(bs, co);
+    BDRV_POLL_WHILE(bs, s.ret == -EINPROGRESS);
 
-        co = qemu_coroutine_create(bdrv_co_remove_persistent_dirty_bitmap_entry,
-                                   &s);
-        bdrv_coroutine_enter(bs, co);
-        BDRV_POLL_WHILE(bs, s.ret == -EINPROGRESS);
-
-        return s.ret;
-    }
+    return s.ret;
 }
 
 bool
@@ -494,25 +490,21 @@ bool bdrv_can_store_new_dirty_bitmap(BlockDriverState *bs, const char *name,
                                      uint32_t granularity, Error **errp)
 {
     IO_CODE();
-    if (qemu_in_coroutine()) {
-        return bdrv_co_can_store_new_dirty_bitmap(bs, name, granularity, errp);
-    } else {
-        Coroutine *co;
-        BdrvCanStoreNewDirtyBitmapCo s = {
-            .bs = bs,
-            .name = name,
-            .granularity = granularity,
-            .errp = errp,
-            .in_progress = true,
-        };
+    Coroutine *co;
+    BdrvCanStoreNewDirtyBitmapCo s = {
+        .bs = bs,
+        .name = name,
+        .granularity = granularity,
+        .errp = errp,
+        .in_progress = true,
+    };
+    assert(!qemu_in_coroutine());
+    co = qemu_coroutine_create(bdrv_co_can_store_new_dirty_bitmap_entry,
+                                &s);
+    bdrv_coroutine_enter(bs, co);
+    BDRV_POLL_WHILE(bs, s.in_progress);
 
-        co = qemu_coroutine_create(bdrv_co_can_store_new_dirty_bitmap_entry,
-                                   &s);
-        bdrv_coroutine_enter(bs, co);
-        BDRV_POLL_WHILE(bs, s.in_progress);
-
-        return s.ret;
-    }
+    return s.ret;
 }
 
 void bdrv_disable_dirty_bitmap(BdrvDirtyBitmap *bitmap)
