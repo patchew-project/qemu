@@ -635,6 +635,63 @@ static void gen_cond_call(DisasContext *ctx, TCGv pred, bool sense, int pc_off)
     gen_set_label(skip);
 }
 
+static void gen_endloop0(DisasContext *ctx)
+{
+    TCGv lpcfg = tcg_temp_local_new();
+
+    GET_USR_FIELD(USR_LPCFG, lpcfg);
+
+    /*
+     *    if (lpcfg == 1) {
+     *        hex_new_pred_value[3] = 0xff;
+     *        hex_pred_written |= 1 << 3;
+     *    }
+     */
+    TCGLabel *label1 = gen_new_label();
+    tcg_gen_brcondi_tl(TCG_COND_NE, lpcfg, 1, label1);
+    {
+        tcg_gen_movi_tl(hex_new_pred_value[3], 0xff);
+        tcg_gen_ori_tl(hex_pred_written, hex_pred_written, 1 << 3);
+    }
+    gen_set_label(label1);
+
+    /*
+     *    if (lpcfg) {
+     *        SET_USR_FIELD(USR_LPCFG, lpcfg - 1);
+     *    }
+     */
+    TCGLabel *label2 = gen_new_label();
+    tcg_gen_brcondi_tl(TCG_COND_EQ, lpcfg, 0, label2);
+    {
+        tcg_gen_subi_tl(lpcfg, lpcfg, 1);
+        SET_USR_FIELD(USR_LPCFG, lpcfg);
+    }
+    gen_set_label(label2);
+
+    /*
+     * If we're in a tight loop, we'll do this at the end of the TB to take
+     * advantage of direct block chaining.
+     */
+    if (!ctx->is_tight_loop) {
+        /*
+         *    if (hex_gpr[HEX_REG_LC0] > 1) {
+         *        PC = hex_gpr[HEX_REG_SA0];
+         *        hex_new_value[HEX_REG_LC0] = hex_gpr[HEX_REG_LC0] - 1;
+         *    }
+         */
+        TCGLabel *label3 = gen_new_label();
+        tcg_gen_brcondi_tl(TCG_COND_LEU, hex_gpr[HEX_REG_LC0], 1, label3);
+        {
+            gen_jumpr(ctx, hex_gpr[HEX_REG_SA0]);
+            tcg_gen_subi_tl(hex_new_value[HEX_REG_LC0],
+                            hex_gpr[HEX_REG_LC0], 1);
+        }
+        gen_set_label(label3);
+    }
+
+    tcg_temp_free(lpcfg);
+}
+
 static void gen_cmp_jumpnv(DisasContext *ctx,
                            TCGCond cond, TCGv val, TCGv src, int pc_off)
 {
