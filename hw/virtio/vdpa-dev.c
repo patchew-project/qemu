@@ -138,7 +138,7 @@ static void vhost_vdpa_device_realize(DeviceState *dev, Error **errp)
         goto free_config;
     }
 
-    virtio_init(vdev, "vhost-vdpa", v->vdev_id, v->config_size);
+    virtio_init(vdev, v->vdev_id, v->config_size);
 
     v->virtqs = g_new0(VirtQueue *, v->dev.nvqs);
     for (i = 0; i < v->dev.nvqs; i++) {
