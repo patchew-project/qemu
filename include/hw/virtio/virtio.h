@@ -389,10 +389,6 @@ static inline bool virtio_device_started(VirtIODevice *vdev, uint8_t status)
         return vdev->started;
     }
 
-    if (!vdev->vm_running) {
-        return false;
-    }
-
     return status & VIRTIO_CONFIG_S_DRIVER_OK;
 }
 
