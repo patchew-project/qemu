@@ -14,6 +14,7 @@
 #include "qemu/timer.h"
 #include "exec/memory.h"
 #include "hw/sysbus.h"
+#include "cpu-csr.h"
 
 #define IOCSRF_TEMP             0
 #define IOCSRF_NODECNT          1
@@ -369,23 +370,29 @@ struct LoongArchCPUClass {
  * 0 for kernel mode, 3 for user mode.
  * Define an extra index for DA(direct addressing) mode.
  */
-#define MMU_KERNEL_IDX   0
-#define MMU_USER_IDX     3
-#define MMU_DA_IDX       4
+#define MMU_PLV_KERNEL   0
+#define MMU_PLV_USER     3
+#define MMU_IDX_KERNEL   MMU_PLV_KERNEL
+#define MMU_IDX_USER     MMU_PLV_USER
+#define MMU_IDX_DA       4
 
 static inline int cpu_mmu_index(CPULoongArchState *env, bool ifetch)
 {
 #ifdef CONFIG_USER_ONLY
-    return MMU_USER_IDX;
+    return MMU_IDX_USER;
 #else
-    uint8_t pg = FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PG);
-
-    if (!pg) {
-        return MMU_DA_IDX;
+    if (FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PG)) {
+        return FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PLV);
     }
-    return FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PLV);
+    return MMU_IDX_DA;
 #endif
 }
+
+/*
+ * LoongArch CPUs hardware flags.
+ */
+#define HW_FLAGS_PLV_MASK   R_CSR_CRMD_PLV_MASK  /* 0x03 */
+#define HW_FLAGS_CRMD_PG    R_CSR_CRMD_PG_MASK   /* 0x10 */
 
 static inline void cpu_get_tb_cpu_state(CPULoongArchState *env,
                                         target_ulong *pc,
@@ -394,7 +401,7 @@ static inline void cpu_get_tb_cpu_state(CPULoongArchState *env,
 {
     *pc = env->pc;
     *cs_base = 0;
-    *flags = cpu_mmu_index(env, false);
+    *flags = env->CSR_CRMD & (R_CSR_CRMD_PLV_MASK | R_CSR_CRMD_PG_MASK);
 }
 
 void loongarch_cpu_list(void);
