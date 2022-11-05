@@ -743,6 +743,8 @@ void page_collection_unlock(struct page_collection *set)
 #endif /* !CONFIG_USER_ONLY */
 
 /* Called with mmap_lock held for user mode emulation.  */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wclobbered"
 TranslationBlock *tb_gen_code(CPUState *cpu,
                               target_ulong pc, target_ulong cs_base,
                               uint32_t flags, int cflags)
@@ -1020,6 +1022,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     }
     return tb;
 }
+#pragma GCC diagnostic pop
 
 /* user-mode: call with mmap_lock held */
 void tb_check_watchpoint(CPUState *cpu, uintptr_t retaddr)
