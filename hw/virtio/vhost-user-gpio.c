@@ -152,7 +152,7 @@ static void vu_gpio_stop(VirtIODevice *vdev)
 static void vu_gpio_set_status(VirtIODevice *vdev, uint8_t status)
 {
     VHostUserGPIO *gpio = VHOST_USER_GPIO(vdev);
-    bool should_start = virtio_device_started(vdev, status);
+    bool should_start = virtio_device_running(vdev, status);
 
     trace_virtio_gpio_set_status(status);
 
@@ -228,7 +228,7 @@ static int vu_gpio_connect(DeviceState *dev, Error **errp)
     }
 
     /* restore vhost state */
-    if (virtio_device_started(vdev, vdev->status)) {
+    if (virtio_device_running(vdev, vdev->status)) {
         vu_gpio_start(vdev);
     }
 
