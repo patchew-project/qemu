@@ -49,6 +49,7 @@
 #include "hw/pci/pci.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/display/ramfb.h"
+#include "sysemu/block-backend.h"
 
 /*
  * The virt machine physical address space used by some of the devices
@@ -144,10 +145,17 @@ static void virt_flash_map1(PFlashCFI01 *flash,
                             MemoryRegion *sysmem)
 {
     DeviceState *dev = DEVICE(flash);
+    BlockBackend *blk;
+    hwaddr real_size;
 
-    assert(QEMU_IS_ALIGNED(size, VIRT_FLASH_SECTOR_SIZE));
-    assert(size / VIRT_FLASH_SECTOR_SIZE <= UINT32_MAX);
-    qdev_prop_set_uint32(dev, "num-blocks", size / VIRT_FLASH_SECTOR_SIZE);
+    blk = pflash_cfi01_get_blk(flash);
+
+    real_size = blk ? blk_getlength(blk): size;
+
+    assert(real_size);
+    assert(QEMU_IS_ALIGNED(real_size, VIRT_FLASH_SECTOR_SIZE));
+    assert(real_size / VIRT_FLASH_SECTOR_SIZE <= UINT32_MAX);
+    qdev_prop_set_uint32(dev, "num-blocks", real_size / VIRT_FLASH_SECTOR_SIZE);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     memory_region_add_subregion(sysmem, base,
@@ -971,15 +979,24 @@ static void create_fdt_flash(RISCVVirtState *s, const MemMapEntry *memmap)
 {
     char *name;
     MachineState *mc = MACHINE(s);
-    hwaddr flashsize = virt_memmap[VIRT_FLASH].size / 2;
-    hwaddr flashbase = virt_memmap[VIRT_FLASH].base;
+    MemoryRegion *flash_mem;
+    hwaddr flashsize[2];
+    hwaddr flashbase[2];
 
-    name = g_strdup_printf("/flash@%" PRIx64, flashbase);
+    flash_mem = pflash_cfi01_get_memory(s->flash[0]);
+    flashbase[0] = flash_mem->addr;
+    flashsize[0] = flash_mem->size;
+
+    flash_mem = pflash_cfi01_get_memory(s->flash[1]);
+    flashbase[1] = flash_mem->addr;
+    flashsize[1] = flash_mem->size;
+
+    name = g_strdup_printf("/flash@%" PRIx64, flashbase[0]);
     qemu_fdt_add_subnode(mc->fdt, name);
     qemu_fdt_setprop_string(mc->fdt, name, "compatible", "cfi-flash");
     qemu_fdt_setprop_sized_cells(mc->fdt, name, "reg",
-                                 2, flashbase, 2, flashsize,
-                                 2, flashbase + flashsize, 2, flashsize);
+                                 2, flashbase[0], 2, flashsize[0],
+                                 2, flashbase[1], 2, flashsize[1]);
     qemu_fdt_setprop_cell(mc->fdt, name, "bank-width", 4);
     g_free(name);
 }
