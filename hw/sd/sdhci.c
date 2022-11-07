@@ -909,6 +909,7 @@ static void sdhci_data_transfer(void *opaque)
     SDHCIState *s = (SDHCIState *)opaque;
 
     if (s->trnmod & SDHC_TRNS_DMA) {
+        /* DMA Data transfer: DMA functionality available and enabled */
         switch (SDHC_DMA_TYPE(s->hostctl1)) {
         case SDHC_CTRL_SDMA:
             if ((s->blkcnt == 1) || !(s->trnmod & SDHC_TRNS_MULTI)) {
@@ -948,13 +949,13 @@ static void sdhci_data_transfer(void *opaque)
             break;
         }
     } else {
+        /* Non-DMA data transfer: DMA functionality not available or disabled */
+        s->prnsts |= SDHC_DAT_LINE_ACTIVE | SDHC_DATA_INHIBIT;
         if ((s->trnmod & SDHC_TRNS_READ) && sdbus_data_ready(&s->sdbus)) {
-            s->prnsts |= SDHC_DOING_READ | SDHC_DATA_INHIBIT |
-                    SDHC_DAT_LINE_ACTIVE;
+            s->prnsts |= SDHC_DOING_READ;
             sdhci_read_block_from_card(s);
         } else {
-            s->prnsts |= SDHC_DOING_WRITE | SDHC_DAT_LINE_ACTIVE |
-                                           SDHC_DATA_INHIBIT;
+            s->prnsts |= SDHC_DOING_WRITE;
             sdhci_write_block_to_card(s);
         }
     }
