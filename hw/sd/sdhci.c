@@ -954,7 +954,7 @@ static void sdhci_data_transfer(void *opaque)
             sdhci_read_block_from_card(s);
         } else {
             s->prnsts |= SDHC_DOING_WRITE | SDHC_DAT_LINE_ACTIVE |
-                    SDHC_SPACE_AVAILABLE | SDHC_DATA_INHIBIT;
+                                           SDHC_DATA_INHIBIT;
             sdhci_write_block_to_card(s);
         }
     }
