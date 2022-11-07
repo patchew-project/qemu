@@ -49,6 +49,7 @@
 #include "hw/pci/pci.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/display/ramfb.h"
+#include "sysemu/block-backend.h"
 
 /*
  * The virt machine physical address space used by some of the devices
@@ -140,14 +141,32 @@ static void virt_flash_create(RISCVVirtState *s)
 }
 
 static void virt_flash_map1(PFlashCFI01 *flash,
-                            hwaddr base, hwaddr size,
+                            hwaddr base, hwaddr max_size,
                             MemoryRegion *sysmem)
 {
     DeviceState *dev = DEVICE(flash);
+    BlockBackend *blk;
+    int64_t flash_size;
 
-    assert(QEMU_IS_ALIGNED(size, VIRT_FLASH_SECTOR_SIZE));
-    assert(size / VIRT_FLASH_SECTOR_SIZE <= UINT32_MAX);
-    qdev_prop_set_uint32(dev, "num-blocks", size / VIRT_FLASH_SECTOR_SIZE);
+    blk = pflash_cfi01_get_blk(flash);
+
+    if (blk) {
+        flash_size = blk_getlength(blk);
+        if (flash_size < 0) {
+            error_report("can't get size of block device %s: %s",
+                         blk_name(blk), strerror(-flash_size));
+            exit(1);
+        }
+    } else {
+        flash_size = max_size;
+    }
+
+    assert(flash_size > 0);
+    assert(flash_size <= max_size);
+    assert(QEMU_IS_ALIGNED(flash_size, VIRT_FLASH_SECTOR_SIZE));
+    assert(flash_size / VIRT_FLASH_SECTOR_SIZE <= UINT32_MAX);
+    qdev_prop_set_uint32(dev, "num-blocks",
+                         flash_size / VIRT_FLASH_SECTOR_SIZE);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     memory_region_add_subregion(sysmem, base,
@@ -161,6 +180,14 @@ static void virt_flash_map(RISCVVirtState *s,
     hwaddr flashsize = virt_memmap[VIRT_FLASH].size / 2;
     hwaddr flashbase = virt_memmap[VIRT_FLASH].base;
 
+    /*
+     * The flash devices are created at fixed base addresses passed
+     * to virt_flash_map1().
+     * However, the flashsize passed here to virt_flash_map1()
+     * is the maximum size of the flash possible. The actual size
+     * is determined inside virt_flash_map1() and can be smaller
+     * than this maximum size based on the backend file size.
+     */
     virt_flash_map1(s->flash[0], flashbase, flashsize,
                     sysmem);
     virt_flash_map1(s->flash[1], flashbase + flashsize, flashsize,
@@ -971,15 +998,24 @@ static void create_fdt_flash(RISCVVirtState *s, const MemMapEntry *memmap)
 {
     char *name;
     MachineState *mc = MACHINE(s);
-    hwaddr flashsize = virt_memmap[VIRT_FLASH].size / 2;
-    hwaddr flashbase = virt_memmap[VIRT_FLASH].base;
+    MemoryRegion *flash_mem;
+    hwaddr flashsize[2];
+    hwaddr flashbase[2];
 
-    name = g_strdup_printf("/flash@%" PRIx64, flashbase);
+    flash_mem = pflash_cfi01_get_memory(s->flash[0]);
+    flashbase[0] = flash_mem->addr;
+    flashsize[0] = flash_mem->size;
+
+    flash_mem = pflash_cfi01_get_memory(s->flash[1]);
+    flashbase[1] = flash_mem->addr;
+    flashsize[1] = flash_mem->size;
+
+    name = g_strdup_printf("/flash@%" PRIx64, flashbase[0]);
     qemu_fdt_add_subnode(mc->fdt, name);
     qemu_fdt_setprop_string(mc->fdt, name, "compatible", "cfi-flash");
     qemu_fdt_setprop_sized_cells(mc->fdt, name, "reg",
-                                 2, flashbase, 2, flashsize,
-                                 2, flashbase + flashsize, 2, flashsize);
+                                 2, flashbase[0], 2, flashsize[0],
+                                 2, flashbase[1], 2, flashsize[1]);
     qemu_fdt_setprop_cell(mc->fdt, name, "bank-width", 4);
     g_free(name);
 }
@@ -1242,6 +1278,7 @@ static void virt_machine_done(Notifier *notifier, void *data)
     target_ulong firmware_end_addr, kernel_start_addr;
     uint32_t fdt_load_addr;
     uint64_t kernel_entry;
+    MemoryRegion *flash_mem;
 
     /*
      * Only direct boot kernel is currently supported for KVM VM,
@@ -1288,8 +1325,8 @@ static void virt_machine_done(Notifier *notifier, void *data)
          * In either case, the next_addr for opensbi will be the flash address.
          */
         riscv_setup_firmware_boot(machine);
-        kernel_entry = virt_memmap[VIRT_FLASH].base +
-                       virt_memmap[VIRT_FLASH].size / 2;
+        flash_mem = pflash_cfi01_get_memory(s->flash[1]);
+        kernel_entry = flash_mem->addr;
     } else if (machine->kernel_filename) {
         kernel_start_addr = riscv_calc_kernel_start_addr(&s->soc[0],
                                                          firmware_end_addr);
