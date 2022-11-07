@@ -978,6 +978,10 @@ static bool sdhci_can_issue_command(SDHCIState *s)
 static inline bool
 sdhci_buff_access_is_sequential(SDHCIState *s, unsigned byte_num)
 {
+    if (s->data_count >= (s->blksize & BLOCK_SIZE_MASK)) {
+        s->data_count = 0;
+    }
+
     if ((s->data_count & 0x3) != byte_num) {
         trace_sdhci_error("Non-sequential access to Buffer Data Port register"
                           "is prohibited\n");
