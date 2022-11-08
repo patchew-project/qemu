@@ -108,7 +108,6 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
 
     IO_CODE();
 
-    aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
     while (next) {
         VirtIOBlockReq *req = next;
         next = req->mr_next;
@@ -141,7 +140,6 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
         block_acct_done(blk_get_stats(s->blk), &req->acct);
         virtio_blk_free_request(req);
     }
-    aio_context_release(blk_get_aio_context(s->conf.conf.blk));
 }
 
 static void virtio_blk_flush_complete(void *opaque, int ret)
@@ -150,20 +148,16 @@ static void virtio_blk_flush_complete(void *opaque, int ret)
     VirtIOBlock *s = req->dev;
 
     IO_CODE();
-    aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
 
     if (ret) {
         if (virtio_blk_handle_rw_error(req, -ret, 0, true)) {
-            goto out;
+            return;
         }
     }
 
     virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
     block_acct_done(blk_get_stats(s->blk), &req->acct);
     virtio_blk_free_request(req);
-
-out:
-    aio_context_release(blk_get_aio_context(s->conf.conf.blk));
 }
 
 static void virtio_blk_discard_write_zeroes_complete(void *opaque, int ret)
@@ -174,11 +168,10 @@ static void virtio_blk_discard_write_zeroes_complete(void *opaque, int ret)
                             ~VIRTIO_BLK_T_BARRIER) == VIRTIO_BLK_T_WRITE_ZEROES;
 
     IO_CODE();
-    aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
 
     if (ret) {
         if (virtio_blk_handle_rw_error(req, -ret, false, is_write_zeroes)) {
-            goto out;
+            return;
         }
     }
 
@@ -187,9 +180,6 @@ static void virtio_blk_discard_write_zeroes_complete(void *opaque, int ret)
         block_acct_done(blk_get_stats(s->blk), &req->acct);
     }
     virtio_blk_free_request(req);
-
-out:
-    aio_context_release(blk_get_aio_context(s->conf.conf.blk));
 }
 
 #ifdef __linux__
@@ -238,10 +228,8 @@ static void virtio_blk_ioctl_complete(void *opaque, int status)
     virtio_stl_p(vdev, &scsi->data_len, hdr->dxfer_len);
 
 out:
-    aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
     virtio_blk_req_complete(req, status);
     virtio_blk_free_request(req);
-    aio_context_release(blk_get_aio_context(s->conf.conf.blk));
     g_free(ioctl_req);
 }
 
@@ -852,7 +840,6 @@ static void virtio_blk_dma_restart_bh(void *opaque)
 
     s->rq = NULL;
 
-    aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
     while (req) {
         VirtIOBlockReq *next = req->next;
         if (virtio_blk_handle_request(req, &mrb)) {
@@ -876,8 +863,6 @@ static void virtio_blk_dma_restart_bh(void *opaque)
 
     /* Paired with inc in virtio_blk_dma_restart_cb() */
     blk_dec_in_flight(s->conf.conf.blk);
-
-    aio_context_release(blk_get_aio_context(s->conf.conf.blk));
 }
 
 /*
