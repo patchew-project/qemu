@@ -303,8 +303,7 @@ void bdrv_parent_drained_end_single(BdrvChild *c);
 /**
  * bdrv_drain_poll:
  *
- * Poll for pending requests in @bs, its parents (except for @ignore_parent),
- * and if @recursive is true its children as well (used for subtree drain).
+ * Poll for pending requests in @bs and its parents (except for @ignore_parent).
  *
  * If @ignore_bds_parents is true, parents that are BlockDriverStates must
  * ignore the drain request because they will be drained separately (used for
@@ -312,8 +311,8 @@ void bdrv_parent_drained_end_single(BdrvChild *c);
  *
  * This is part of bdrv_drained_begin.
  */
-bool bdrv_drain_poll(BlockDriverState *bs, bool recursive,
-                     BdrvChild *ignore_parent, bool ignore_bds_parents);
+bool bdrv_drain_poll(BlockDriverState *bs, BdrvChild *ignore_parent,
+                     bool ignore_bds_parents);
 
 /**
  * bdrv_drained_begin:
@@ -335,12 +334,6 @@ void bdrv_do_drained_begin_quiesce(BlockDriverState *bs,
                                    BdrvChild *parent, bool ignore_bds_parents);
 
 /**
- * Like bdrv_drained_begin, but recursively begins a quiesced section for
- * exclusive access to all child nodes as well.
- */
-void bdrv_subtree_drained_begin(BlockDriverState *bs);
-
-/**
  * bdrv_drained_end:
  *
  * End a quiescent section started by bdrv_drained_begin().
@@ -352,10 +345,5 @@ void bdrv_subtree_drained_begin(BlockDriverState *bs);
  * in the caller's AioContext.
  */
 void bdrv_drained_end(BlockDriverState *bs);
-
-/**
- * End a quiescent section started by bdrv_subtree_drained_begin().
- */
-void bdrv_subtree_drained_end(BlockDriverState *bs);
 
 #endif /* BLOCK_IO_H */
