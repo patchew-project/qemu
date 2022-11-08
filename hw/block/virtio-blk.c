@@ -898,6 +898,7 @@ static void virtio_blk_reset(VirtIODevice *vdev)
     ctx = blk_get_aio_context(s->blk);
     aio_context_acquire(ctx);
     blk_drain(s->blk);
+    aio_context_release(ctx);
 
     /* We drop queued requests after blk_drain() because blk_drain() itself can
      * produce them. */
@@ -907,8 +908,6 @@ static void virtio_blk_reset(VirtIODevice *vdev)
         virtqueue_detach_element(req->vq, &req->elem, 0);
         virtio_blk_free_request(req);
     }
-
-    aio_context_release(ctx);
 
     assert(!s->dataplane_started);
     blk_set_enable_write_cache(s->blk, s->original_wce);
