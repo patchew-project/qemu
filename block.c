@@ -2419,7 +2419,7 @@ static void bdrv_replace_child_abort(void *opaque)
          * new_bs drained when calling bdrv_replace_child_tran() is not a
          * requirement any more.
          */
-        bdrv_parent_drained_begin_single(s->child, false);
+        bdrv_parent_drained_begin_single(s->child);
         assert(!bdrv_parent_drained_poll_single(s->child));
     }
     assert(s->child->parent_quiesce_counter);
@@ -3026,7 +3026,7 @@ static BdrvChild *bdrv_attach_child_common(BlockDriverState *child_bs,
      * bdrv_replace_child_noperm() will undrain it if the child node is not
      * drained. The child was only just created, so polling is not necessary.
      */
-    bdrv_parent_drained_begin_single(new_child, false);
+    bdrv_parent_drained_begin_single(new_child);
     bdrv_replace_child_noperm(new_child, child_bs);
 
     BdrvAttachChildCommonState *s = g_new(BdrvAttachChildCommonState, 1);
