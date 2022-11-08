@@ -1243,6 +1243,8 @@ if nettle.found() and gmp.found()
 endif
 
 
+have_gtk_clipboard = false
+
 gtk = not_found
 gtkx11 = not_found
 vte = not_found
@@ -1258,11 +1260,17 @@ if not get_option('gtk').auto() or have_system
                         kwargs: static_kwargs)
     gtk = declare_dependency(dependencies: [gtk, gtkx11])
 
+    have_gtk_clipboard = get_option('gtk_clipboard').enabled()
+
     if not get_option('vte').auto() or have_system
       vte = dependency('vte-2.91',
                        method: 'pkg-config',
                        required: get_option('vte'),
                        kwargs: static_kwargs)
+    endif
+  else
+    if get_option('gtk_clipboard').enabled()
+      error('GTK clipboard requested, but GTK not found')
     endif
   endif
 endif
@@ -1842,6 +1850,7 @@ if glusterfs.found()
 endif
 config_host_data.set('CONFIG_GTK', gtk.found())
 config_host_data.set('CONFIG_VTE', vte.found())
+config_host_data.set('CONFIG_GTK_CLIPBOARD', have_gtk_clipboard)
 config_host_data.set('CONFIG_LIBATTR', have_old_libattr)
 config_host_data.set('CONFIG_LIBCAP_NG', libcap_ng.found())
 config_host_data.set('CONFIG_EBPF', libbpf.found())
