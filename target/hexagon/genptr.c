@@ -456,6 +456,110 @@ static TCGv gen_8bitsof(TCGv result, TCGv value)
     return result;
 }
 
+/* Shift left with saturation */
+static void gen_shl_sat(TCGv dst, TCGv src, TCGv shift_amt)
+{
+    TCGv_i64 src64 = tcg_temp_local_new_i64();
+    TCGv_i64 shift64 = tcg_temp_new_i64();
+    TCGv_i64 dst64 = tcg_temp_new_i64();
+    TCGv dst_sar = tcg_temp_new();
+    TCGv ovf = tcg_temp_new();
+    TCGv satval = tcg_temp_new();
+    TCGv min = tcg_constant_tl(0x80000000);
+    TCGv max = tcg_constant_tl(0x7fffffff);
+
+    /*
+     *     dst64 = (int64_t)src << (int64_t)shift_amt
+     *     dst = (int32_t)dst64
+     *     dst_sar = dst >> shift_amt
+     *     if (dst_sar != src) {
+     *         usr.OVF = 1
+     *         dst = src < 0 ? min : max
+     *     }
+     */
+    tcg_gen_ext_i32_i64(src64, src);
+    tcg_gen_ext_i32_i64(shift64, shift_amt);
+    tcg_gen_shl_i64(dst64, src64, shift64);
+
+    tcg_gen_extrl_i64_i32(dst, dst64);
+    tcg_gen_sar_tl(dst_sar, dst, shift_amt);
+
+    tcg_gen_setcond_tl(TCG_COND_NE, ovf, dst_sar, src);
+    tcg_gen_shli_tl(ovf, ovf, reg_field_info[USR_OVF].offset);
+    tcg_gen_or_tl(hex_new_value[HEX_REG_USR], hex_new_value[HEX_REG_USR], ovf);
+
+    tcg_gen_movcond_tl(TCG_COND_LT, satval, src, tcg_constant_tl(0),
+                       min, max);
+    tcg_gen_movcond_tl(TCG_COND_EQ, dst, dst_sar, src, dst, satval);
+
+    tcg_temp_free_i64(src64);
+    tcg_temp_free_i64(shift64);
+    tcg_temp_free_i64(dst64);
+    tcg_temp_free(dst_sar);
+    tcg_temp_free(ovf);
+    tcg_temp_free(satval);
+}
+
+static void gen_sar(TCGv dst, TCGv src, TCGv shift_amt)
+{
+    /*
+     *  Shift arithmetic right
+     *  Robust when shift_amt is >31 bits
+     */
+    TCGv tmp = tcg_temp_new();
+    tcg_gen_umin_tl(tmp, shift_amt, tcg_constant_tl(31));
+    tcg_gen_sar_tl(dst, src, tmp);
+    tcg_temp_free(tmp);
+}
+
+/* Bidirectional shift right with saturation */
+static void gen_asr_r_r_sat(TCGv RdV, TCGv RsV, TCGv RtV)
+{
+    TCGv shift_amt = tcg_temp_local_new();
+    TCGLabel *positive = gen_new_label();
+    TCGLabel *done = gen_new_label();
+
+    tcg_gen_sextract_i32(shift_amt, RtV, 0, 7);
+    tcg_gen_brcondi_tl(TCG_COND_GE, shift_amt, 0, positive);
+
+    /* Negative shift amount => shift left */
+    tcg_gen_neg_tl(shift_amt, shift_amt);
+    gen_shl_sat(RdV, RsV, shift_amt);
+    tcg_gen_br(done);
+
+    gen_set_label(positive);
+    /* Positive shift amount => shift right */
+    gen_sar(RdV, RsV, shift_amt);
+
+    gen_set_label(done);
+
+    tcg_temp_free(shift_amt);
+}
+
+/* Bidirectional shift left with saturation */
+static void gen_asl_r_r_sat(TCGv RdV, TCGv RsV, TCGv RtV)
+{
+    TCGv shift_amt = tcg_temp_local_new();
+    TCGLabel *positive = gen_new_label();
+    TCGLabel *done = gen_new_label();
+
+    tcg_gen_sextract_i32(shift_amt, RtV, 0, 7);
+    tcg_gen_brcondi_tl(TCG_COND_GE, shift_amt, 0, positive);
+
+    /* Negative shift amount => shift right */
+    tcg_gen_neg_tl(shift_amt, shift_amt);
+    gen_sar(RdV, RsV, shift_amt);
+    tcg_gen_br(done);
+
+    gen_set_label(positive);
+    /* Positive shift amount => shift left */
+    gen_shl_sat(RdV, RsV, shift_amt);
+
+    gen_set_label(done);
+
+    tcg_temp_free(shift_amt);
+}
+
 static intptr_t vreg_src_off(DisasContext *ctx, int num)
 {
     intptr_t offset = offsetof(CPUHexagonState, VRegs[num]);
