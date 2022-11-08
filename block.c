@@ -2826,7 +2826,6 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
 {
     BlockDriverState *old_bs = child->bs;
     int new_bs_quiesce_counter;
-    int drain_saldo;
 
     assert(!child->frozen);
     assert(old_bs != new_bs);
@@ -2837,15 +2836,13 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
     }
 
     new_bs_quiesce_counter = (new_bs ? new_bs->quiesce_counter : 0);
-    drain_saldo = new_bs_quiesce_counter - child->parent_quiesce_counter;
 
     /*
      * If the new child node is drained but the old one was not, flush
      * all outstanding requests to the old child node.
      */
-    while (drain_saldo > 0 && child->klass->drained_begin) {
+    if (new_bs_quiesce_counter && !child->parent_quiesce_counter) {
         bdrv_parent_drained_begin_single(child, true);
-        drain_saldo--;
     }
 
     if (old_bs) {
@@ -2869,7 +2866,6 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
          * more often.
          */
         assert(new_bs->quiesce_counter <= new_bs_quiesce_counter);
-        drain_saldo += new_bs->quiesce_counter - new_bs_quiesce_counter;
 
         if (child->klass->attach) {
             child->klass->attach(child);
@@ -2879,10 +2875,13 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
     /*
      * If the old child node was drained but the new one is not, allow
      * requests to come in only after the new node has been attached.
+     *
+     * Update new_bs_quiesce_counter because bdrv_parent_drained_begin_single()
+     * polls, which could have changed the value.
      */
-    while (drain_saldo < 0 && child->klass->drained_end) {
+    new_bs_quiesce_counter = (new_bs ? new_bs->quiesce_counter : 0);
+    if (!new_bs_quiesce_counter && child->parent_quiesce_counter) {
         bdrv_parent_drained_end_single(child);
-        drain_saldo++;
     }
 }
 

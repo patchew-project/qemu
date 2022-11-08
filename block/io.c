@@ -62,7 +62,7 @@ void bdrv_parent_drained_end_single(BdrvChild *c)
 {
     IO_OR_GS_CODE();
 
-    assert(c->parent_quiesce_counter > 0);
+    assert(c->parent_quiesce_counter == 1);
     c->parent_quiesce_counter--;
     if (c->klass->drained_end) {
         c->klass->drained_end(c);
@@ -109,6 +109,7 @@ static bool bdrv_parent_drained_poll(BlockDriverState *bs, BdrvChild *ignore,
 void bdrv_parent_drained_begin_single(BdrvChild *c, bool poll)
 {
     IO_OR_GS_CODE();
+    assert(c->parent_quiesce_counter == 0);
     c->parent_quiesce_counter++;
     if (c->klass->drained_begin) {
         c->klass->drained_begin(c);
@@ -352,16 +353,16 @@ void bdrv_do_drained_begin_quiesce(BlockDriverState *bs,
                                    BdrvChild *parent, bool ignore_bds_parents)
 {
     IO_OR_GS_CODE();
-    assert(!qemu_in_coroutine());
 
     /* Stop things in parent-to-child order */
     if (qatomic_fetch_inc(&bs->quiesce_counter) == 0) {
         aio_disable_external(bdrv_get_aio_context(bs));
-    }
 
-    bdrv_parent_drained_begin(bs, parent, ignore_bds_parents);
-    if (bs->drv && bs->drv->bdrv_drain_begin) {
-        bs->drv->bdrv_drain_begin(bs);
+        /* TODO Remove ignore_bds_parents, we don't consider it any more */
+        bdrv_parent_drained_begin(bs, parent, false);
+        if (bs->drv && bs->drv->bdrv_drain_begin) {
+            bs->drv->bdrv_drain_begin(bs);
+        }
     }
 }
 
@@ -412,13 +413,14 @@ static void bdrv_do_drained_end(BlockDriverState *bs, BdrvChild *parent,
     assert(bs->quiesce_counter > 0);
 
     /* Re-enable things in child-to-parent order */
-    if (bs->drv && bs->drv->bdrv_drain_end) {
-        bs->drv->bdrv_drain_end(bs);
-    }
-    bdrv_parent_drained_end(bs, parent, ignore_bds_parents);
-
     old_quiesce_counter = qatomic_fetch_dec(&bs->quiesce_counter);
     if (old_quiesce_counter == 1) {
+        if (bs->drv && bs->drv->bdrv_drain_end) {
+            bs->drv->bdrv_drain_end(bs);
+        }
+        /* TODO Remove ignore_bds_parents, we don't consider it any more */
+        bdrv_parent_drained_end(bs, parent, false);
+
         aio_enable_external(bdrv_get_aio_context(bs));
     }
 }
