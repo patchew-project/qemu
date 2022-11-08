@@ -89,6 +89,8 @@ bool virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
 
+    GLOBAL_STATE_CODE();
+
     *dataplane = NULL;
 
     if (conf->iothread) {
@@ -139,6 +141,8 @@ bool virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
 void virtio_blk_data_plane_destroy(VirtIOBlockDataPlane *s)
 {
     VirtIOBlock *vblk;
+
+    GLOBAL_STATE_CODE();
 
     if (!s) {
         return;
