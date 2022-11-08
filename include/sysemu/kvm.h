@@ -482,6 +482,8 @@ void kvm_cpu_synchronize_state(CPUState *cpu);
 
 void kvm_init_cpu_signals(CPUState *cpu);
 
+int kvm_irqchip_verify_msi_route(KVMState *s, int vector, PCIDevice *dev);
+
 /**
  * kvm_irqchip_add_msi_route - Add MSI route for specific vector
  * @c:      KVMRouteChange instance.

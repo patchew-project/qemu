@@ -660,6 +660,7 @@ static void vfio_msix_enable(VFIOPCIDevice *vdev)
 static void vfio_msi_enable(VFIOPCIDevice *vdev)
 {
     int ret, i;
+    int msi_invalid = 0;
 
     vfio_disable_interrupts(vdev);
 
@@ -671,6 +672,18 @@ static void vfio_msi_enable(VFIOPCIDevice *vdev)
     vfio_prepare_kvm_msi_virq_batch(vdev);
 
     vdev->nr_vectors = msi_nr_vectors_allocated(&vdev->pdev);
+
+    /*
+     * Verify whether every msi interrupt is valid as the number of
+     * MSI vectors comes from PCI device registers which may be not the
+     * same as the number of vectors that driver requires.
+     */
+    for (i = 0; i < vdev->nr_vectors; i++) {
+	ret = kvm_irqchip_verify_msi_route(kvm_state, i, &vdev->pdev);
+	if (ret < 0)
+	    msi_invalid++;
+    }
+    vdev->nr_vectors -= msi_invalid;
 retry:
     vdev->msi_vectors = g_new0(VFIOMSIVector, vdev->nr_vectors);
 

@@ -1918,6 +1918,25 @@ int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg)
     return kvm_set_irq(s, route->kroute.gsi, 1);
 }
 
+int kvm_irqchip_verify_msi_route(KVMState *s, int vector, PCIDevice *dev)
+{
+    if (pci_available && dev && kvm_msi_devid_required()) {
+	MSIMessage msg = {0, 0};
+	struct kvm_msi msi;
+
+	msg = pci_get_msi_message(dev, vector);
+	msi.address_lo = (uint32_t)msg.address;
+	msi.address_hi = msg.address >> 32;
+	msi.devid = pci_requester_id(dev);
+	msi.data = le32_to_cpu(msg.data);
+	msi.flags = KVM_MSI_VALID_DEVID;
+	memset(msi.pad, 0, sizeof(msi.pad));
+
+	return kvm_vm_ioctl(s, KVM_VERIFY_MSI, &msi);
+    }
+    return 0;
+}
+
 int kvm_irqchip_add_msi_route(KVMRouteChange *c, int vector, PCIDevice *dev)
 {
     struct kvm_irq_routing_entry kroute = {};
