@@ -305,14 +305,9 @@ void bdrv_parent_drained_end_single(BdrvChild *c);
  *
  * Poll for pending requests in @bs and its parents (except for @ignore_parent).
  *
- * If @ignore_bds_parents is true, parents that are BlockDriverStates must
- * ignore the drain request because they will be drained separately (used for
- * drain_all).
- *
  * This is part of bdrv_drained_begin.
  */
-bool bdrv_drain_poll(BlockDriverState *bs, BdrvChild *ignore_parent,
-                     bool ignore_bds_parents);
+bool bdrv_drain_poll(BlockDriverState *bs, BdrvChild *ignore_parent);
 
 /**
  * bdrv_drained_begin:
@@ -330,8 +325,7 @@ void bdrv_drained_begin(BlockDriverState *bs);
  * Quiesces a BDS like bdrv_drained_begin(), but does not wait for already
  * running requests to complete.
  */
-void bdrv_do_drained_begin_quiesce(BlockDriverState *bs,
-                                   BdrvChild *parent, bool ignore_bds_parents);
+void bdrv_do_drained_begin_quiesce(BlockDriverState *bs, BdrvChild *parent);
 
 /**
  * bdrv_drained_end:
