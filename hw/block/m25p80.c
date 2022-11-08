@@ -981,7 +981,7 @@ static void decode_fast_read_cmd(Flash *s)
         s->needed_bytes += extract32(s->spansion_cr2v,
                                     SPANSION_DUMMY_CLK_POS,
                                     SPANSION_DUMMY_CLK_LEN
-                                    );
+                                    ) / 8;
         break;
     case MAN_ISSI:
         /*
@@ -1017,7 +1017,7 @@ static void decode_dio_read_cmd(Flash *s)
         s->needed_bytes += extract32(s->spansion_cr2v,
                                     SPANSION_DUMMY_CLK_POS,
                                     SPANSION_DUMMY_CLK_LEN
-                                    );
+                                    ) / 8;
         break;
     case MAN_NUMONYX:
         s->needed_bytes += numonyx_extract_cfg_num_dummies(s);
@@ -1067,7 +1067,7 @@ static void decode_qio_read_cmd(Flash *s)
         s->needed_bytes += extract32(s->spansion_cr2v,
                                     SPANSION_DUMMY_CLK_POS,
                                     SPANSION_DUMMY_CLK_LEN
-                                    );
+                                    ) / 8;
         break;
     case MAN_NUMONYX:
         s->needed_bytes += numonyx_extract_cfg_num_dummies(s);
