@@ -235,21 +235,6 @@ int coroutine_fn bdrv_co_copy_range(BdrvChild *src, int64_t src_offset,
                                     int64_t bytes, BdrvRequestFlags read_flags,
                                     BdrvRequestFlags write_flags);
 
-/**
- * bdrv_drained_end_no_poll:
- *
- * Same as bdrv_drained_end(), but do not poll for the subgraph to
- * actually become unquiesced.  Therefore, no graph changes will occur
- * with this function.
- *
- * *drained_end_counter is incremented for every background operation
- * that is scheduled, and will be decremented for every operation once
- * it settles.  The caller must poll until it reaches 0.  The counter
- * should be accessed using atomic operations only.
- */
-void bdrv_drained_end_no_poll(BlockDriverState *bs, int *drained_end_counter);
-
-
 /*
  * "I/O or GS" API functions. These functions can run without
  * the BQL, but only in one specific iothread/main loop.
