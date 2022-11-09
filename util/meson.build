@@ -68,7 +68,7 @@ if have_system
   util_ss.add(when: 'CONFIG_LINUX', if_true: files('userfaultfd.c'))
 endif
 
-if have_block
+if have_block or have_ga
   util_ss.add(files('aiocb.c', 'async.c', 'aio-wait.c'))
   util_ss.add(files('base64.c'))
   util_ss.add(files('buffer.c'))
