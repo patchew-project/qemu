@@ -379,6 +379,11 @@ static void usbredir_cancel_packet(USBDevice *udev, USBPacket *p)
     USBRedirDevice *dev = USB_REDIRECT(udev);
     int i = USBEP2I(p->ep);
 
+    if(!dev->parser) {
+        ERROR("usbredir parser is not available, need reconnect.\n");
+        return;
+    }
+
     if (p->combined) {
         usb_combined_packet_cancel(udev, p);
         return;
@@ -518,6 +523,11 @@ static void usbredir_free_bufpq(USBRedirDevice *dev, uint8_t ep)
 static void usbredir_handle_reset(USBDevice *udev)
 {
     USBRedirDevice *dev = USB_REDIRECT(udev);
+
+    if(!dev->parser) {
+        ERROR("usbredir parser is not available, need reconnect.\n");
+        return;
+    }
 
     DPRINTF("reset device\n");
     usbredirparser_send_reset(dev->parser);
@@ -959,6 +969,11 @@ static void usbredir_handle_data(USBDevice *udev, USBPacket *p)
     USBRedirDevice *dev = USB_REDIRECT(udev);
     uint8_t ep;
 
+    if(!dev->parser) {
+        ERROR("usbredir parser is not available, need reconnect.\n");
+        return;
+    }
+
     ep = p->ep->nr;
     if (p->pid == USB_TOKEN_IN) {
         ep |= USB_DIR_IN;
@@ -1026,6 +1041,11 @@ static void usbredir_stop_ep(USBRedirDevice *dev, int i)
 static void usbredir_ep_stopped(USBDevice *udev, USBEndpoint *uep)
 {
     USBRedirDevice *dev = USB_REDIRECT(udev);
+
+    if(!dev->parser) {
+        ERROR("usbredir parser is not available, need reconnect.\n");
+        return;
+    }
 
     usbredir_stop_ep(dev, USBEP2I(uep));
     usbredirparser_do_write(dev->parser);
@@ -1098,6 +1118,11 @@ static void usbredir_handle_control(USBDevice *udev, USBPacket *p,
     USBRedirDevice *dev = USB_REDIRECT(udev);
     struct usb_redir_control_packet_header control_packet;
 
+    if(!dev->parser) {
+        ERROR("usbredir parser is not available, need reconnect.\n");
+        return;
+    }
+
     if (usbredir_already_in_flight(dev, p->id)) {
         p->status = USB_RET_ASYNC;
         return;
@@ -1155,6 +1180,11 @@ static int usbredir_alloc_streams(USBDevice *udev, USBEndpoint **eps,
     struct usb_redir_alloc_bulk_streams_header alloc_streams;
     int i;
 
+    if(!dev->parser) {
+        ERROR("usbredir parser is not available, need reconnect.\n");
+        return -1;
+    }
+
     if (!usbredirparser_peer_has_cap(dev->parser,
                                      usb_redir_cap_bulk_streams)) {
         ERROR("peer does not support streams\n");
@@ -1193,6 +1223,11 @@ static void usbredir_free_streams(USBDevice *udev, USBEndpoint **eps,
     struct usb_redir_free_bulk_streams_header free_streams;
     int i;
 
+    if(!dev->parser) {
+        ERROR("usbredir parser is not available, need reconnect.\n");
+        return;
+    }
+
     if (!usbredirparser_peer_has_cap(dev->parser,
                                      usb_redir_cap_bulk_streams)) {
         return;
@@ -1219,8 +1254,6 @@ static void usbredir_chardev_close_bh(void *opaque)
     USBRedirDevice *dev = opaque;
 
     qemu_bh_cancel(dev->device_reject_bh);
-    usbredir_device_disconnect(dev);
-
     if (dev->parser) {
         DPRINTF("destroying usbredirparser\n");
         usbredirparser_destroy(dev->parser);
