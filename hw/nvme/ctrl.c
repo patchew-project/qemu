@@ -7345,12 +7345,12 @@ static int nvme_add_pm_capability(PCIDevice *pci_dev, uint8_t offset)
 
 static int nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
 {
+    ERRP_GUARD();
+
     uint8_t *pci_conf = pci_dev->config;
     uint64_t bar_size;
     unsigned msix_table_offset, msix_pba_offset;
     int ret;
-
-    Error *err = NULL;
 
     pci_conf[PCI_INTERRUPT_PIN] = 1;
     pci_config_set_prog_interface(pci_conf, 0x2);
@@ -7388,13 +7388,13 @@ static int nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
     }
     ret = msix_init(pci_dev, n->params.msix_qsize,
                     &n->bar0, 0, msix_table_offset,
-                    &n->bar0, 0, msix_pba_offset, 0, &err);
+                    &n->bar0, 0, msix_pba_offset, 0, errp);
     if (ret < 0) {
         if (ret == -ENOTSUP) {
-            warn_report_err(err);
+            warn_report_err(*errp);
+            *errp = NULL;
         } else {
-            error_propagate(errp, err);
-            return ret;
+            return -1;
         }
     }
 
