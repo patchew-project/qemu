@@ -43,7 +43,7 @@ if (config_all_devices.has_key('CONFIG_VGA_CIRRUS') or
     config_all_devices.has_key('CONFIG_VMWARE_VGA') or
     config_all_devices.has_key('CONFIG_ATI_VGA')
    )
-  softmmu_ss.add(when: 'CONFIG_ACPI', if_true: files('acpi-vga.c'),
+  softmmu_ss.add(when: 'CONFIG_ACPI', if_true: [files('acpi-vga.c'), pixman],
                                       if_false: files('acpi-vga-stub.c'))
 endif
 
@@ -51,7 +51,7 @@ if config_all_devices.has_key('CONFIG_QXL')
   qxl_ss = ss.source_set()
   qxl_ss.add(when: 'CONFIG_QXL', if_true: [files('qxl.c', 'qxl-logger.c', 'qxl-render.c'),
                                            pixman, spice])
-  qxl_ss.add(when: 'CONFIG_ACPI', if_true: files('acpi-vga.c'),
+  qxl_ss.add(when: 'CONFIG_ACPI', if_true: [files('acpi-vga.c'), pixman],
                                   if_false: files('acpi-vga-stub.c'))
   hw_display_modules += {'qxl': qxl_ss}
 endif
@@ -99,14 +99,14 @@ if config_all_devices.has_key('CONFIG_VIRTIO_VGA')
                     if_true: [files('virtio-vga.c'), pixman])
   virtio_vga_ss.add(when: 'CONFIG_VHOST_USER_VGA',
                     if_true: files('vhost-user-vga.c'))
-  virtio_vga_ss.add(when: 'CONFIG_ACPI', if_true: files('acpi-vga.c'),
+  virtio_vga_ss.add(when: 'CONFIG_ACPI', if_true: [files('acpi-vga.c'), pixman],
                                          if_false: files('acpi-vga-stub.c'))
   hw_display_modules += {'virtio-vga': virtio_vga_ss}
 
   virtio_vga_gl_ss = ss.source_set()
   virtio_vga_gl_ss.add(when: ['CONFIG_VIRTIO_VGA', virgl, opengl],
                        if_true: [files('virtio-vga-gl.c'), pixman])
-  virtio_vga_gl_ss.add(when: 'CONFIG_ACPI', if_true: files('acpi-vga.c'),
+  virtio_vga_gl_ss.add(when: 'CONFIG_ACPI', if_true: [files('acpi-vga.c'), pixman],
                                             if_false: files('acpi-vga-stub.c'))
   hw_display_modules += {'virtio-vga-gl': virtio_vga_gl_ss}
 endif
