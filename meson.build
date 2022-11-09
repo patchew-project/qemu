@@ -2323,7 +2323,7 @@ config_host_data.set('CONFIG_AVX2_OPT', get_option('avx2') \
     #pragma GCC target("avx2")
     #include <cpuid.h>
     #include <immintrin.h>
-    static int bar(void *a) {
+    __attribute__((target("avx2"))) static int bar(void *a) {
       __m256i x = *(__m256i *)a;
       return _mm256_testz_si256(x, x);
     }

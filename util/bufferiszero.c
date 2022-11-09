@@ -75,7 +75,7 @@ buffer_zero_int(const void *buf, size_t len)
 
 /* Note that each of these vectorized functions require len >= 64.  */
 
-static bool
+__attribute__((target("sse2"))) static bool
 buffer_zero_sse2(const void *buf, size_t len)
 {
     __m128i t = _mm_loadu_si128(buf);
@@ -117,7 +117,7 @@ buffer_zero_sse2(const void *buf, size_t len)
 #pragma GCC target("sse4")
 #include <smmintrin.h>
 
-static bool
+__attribute__((target("sse4"))) static bool
 buffer_zero_sse4(const void *buf, size_t len)
 {
     __m128i t = _mm_loadu_si128(buf);
@@ -150,7 +150,7 @@ buffer_zero_sse4(const void *buf, size_t len)
 #pragma GCC target("avx2")
 #include <immintrin.h>
 
-static bool
+__attribute__((target("avx2"))) static bool
 buffer_zero_avx2(const void *buf, size_t len)
 {
     /* Begin with an unaligned head of 32 bytes.  */
@@ -184,7 +184,7 @@ buffer_zero_avx2(const void *buf, size_t len)
 #pragma GCC target("avx512f")
 #include <immintrin.h>
 
-static bool
+__attribute__((target("avx512f"))) static bool
 buffer_zero_avx512(const void *buf, size_t len)
 {
     /* Begin with an unaligned head of 64 bytes.  */
