@@ -539,6 +539,14 @@ static void vhost_commit(MemoryListener *listener)
     }
 
     if (!dev->started) {
+        /* Backend can pin memory before device start, reduce LM downtime */
+        if (dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER &&
+            dev->n_mem_sections) {
+            r = dev->vhost_ops->vhost_set_mem_table(dev, dev->mem);
+            if (r < 0) {
+                VHOST_OPS_DEBUG(r, "vhost_set_mem_table failed");
+            }
+        }
         goto out;
     }
 
