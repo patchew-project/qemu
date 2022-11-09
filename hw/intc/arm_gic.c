@@ -941,6 +941,10 @@ static void gic_complete_irq(GICState *s, int cpu, int irq, MemTxAttrs attrs)
     gic_update(s);
 }
 
+/*
+ * Although this is named a byte read we don't always return bytes and
+ * rely on the calling function oring bits together.
+ */
 static uint32_t gic_dist_readb(void *opaque, hwaddr offset, MemTxAttrs attrs)
 {
     GICState *s = (GICState *)opaque;
@@ -954,23 +958,34 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset, MemTxAttrs attrs)
     cpu = gic_get_current_cpu(s);
     cm = 1 << cpu;
     if (offset < 0x100) {
-        if (offset == 0) {      /* GICD_CTLR */
-            if (s->security_extn && !attrs.secure) {
-                /* The NS bank of this register is just an alias of the
-                 * EnableGrp1 bit in the S bank version.
-                 */
-                return extract32(s->ctlr, 1, 1);
-            } else {
-                return s->ctlr;
+        if (offset < 0xc ) {
+            switch(offset) {
+            case 0: /* GICD_CTLR[7:0] */
+            {
+                if (s->security_extn && !attrs.secure) {
+                    /* The NS bank of this register is just an alias of the
+                     * EnableGrp1 bit in the S bank version.
+                     */
+                    return extract32(s->ctlr, 1, 1);
+                } else {
+                    return s->ctlr;
+                }
             }
-        }
-        if (offset == 4)
-            /* Interrupt Controller Type Register */
-            return ((s->num_irq / 32) - 1)
+            case 4: /* GIC_TYPER - Interrupt Controller Type Register */
+            {
+                return ((s->num_irq / 32) - 1)
                     | ((s->num_cpu - 1) << 5)
                     | (s->security_extn << 10);
-        if (offset < 0x08)
-            return 0;
+            }
+            case 8: /* GICD_IIDR - Implementer ID Register */
+            {
+                return 0x43b; /* Arm JEP106 identity */
+            }
+            default:
+                /* return 0 for high bits of above */
+                return 0;
+            }
+        }
         if (offset >= 0x80) {
             /* Interrupt Group Registers: these RAZ/WI if this is an NS
              * access to a GIC with the security extensions, or if the GIC
