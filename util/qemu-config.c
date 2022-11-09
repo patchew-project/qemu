@@ -8,6 +8,7 @@
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
+#include "qom/object.h"
 
 static QemuOptsList *vm_config_groups[48];
 static QemuOptsList *drive_config_groups[5];
@@ -149,97 +150,55 @@ static CommandLineParameterInfoList *get_drive_infolist(void)
     return head;
 }
 
-/* restore machine options that are now machine's properties */
-static QemuOptsList machine_opts = {
-    .merge_lists = true,
-    .head = QTAILQ_HEAD_INITIALIZER(machine_opts.head),
-    .desc = {
-        {
-            .name = "type",
-            .type = QEMU_OPT_STRING,
-            .help = "emulated machine"
-        },{
-            .name = "accel",
-            .type = QEMU_OPT_STRING,
-            .help = "accelerator list",
-        },{
-            .name = "kernel_irqchip",
-            .type = QEMU_OPT_BOOL,
-            .help = "use KVM in-kernel irqchip",
-        },{
-            .name = "kvm_shadow_mem",
-            .type = QEMU_OPT_SIZE,
-            .help = "KVM shadow MMU size",
-        },{
-            .name = "kernel",
-            .type = QEMU_OPT_STRING,
-            .help = "Linux kernel image file",
-        },{
-            .name = "initrd",
-            .type = QEMU_OPT_STRING,
-            .help = "Linux initial ramdisk file",
-        },{
-            .name = "append",
-            .type = QEMU_OPT_STRING,
-            .help = "Linux kernel command line",
-        },{
-            .name = "dtb",
-            .type = QEMU_OPT_STRING,
-            .help = "Linux kernel device tree file",
-        },{
-            .name = "dumpdtb",
-            .type = QEMU_OPT_STRING,
-            .help = "Dump current dtb to a file and quit",
-        },{
-            .name = "phandle_start",
-            .type = QEMU_OPT_NUMBER,
-            .help = "The first phandle ID we may generate dynamically",
-        },{
-            .name = "dt_compatible",
-            .type = QEMU_OPT_STRING,
-            .help = "Overrides the \"compatible\" property of the dt root node",
-        },{
-            .name = "dump-guest-core",
-            .type = QEMU_OPT_BOOL,
-            .help = "Include guest memory in  a core dump",
-        },{
-            .name = "mem-merge",
-            .type = QEMU_OPT_BOOL,
-            .help = "enable/disable memory merge support",
-        },{
-            .name = "usb",
-            .type = QEMU_OPT_BOOL,
-            .help = "Set on/off to enable/disable usb",
-        },{
-            .name = "firmware",
-            .type = QEMU_OPT_STRING,
-            .help = "firmware image",
-        },{
-            .name = "iommu",
-            .type = QEMU_OPT_BOOL,
-            .help = "Set on/off to enable/disable Intel IOMMU (VT-d)",
-        },{
-            .name = "suppress-vmdesc",
-            .type = QEMU_OPT_BOOL,
-            .help = "Set on to disable self-describing migration",
-        },{
-            .name = "aes-key-wrap",
-            .type = QEMU_OPT_BOOL,
-            .help = "enable/disable AES key wrapping using the CPACF wrapping key",
-        },{
-            .name = "dea-key-wrap",
-            .type = QEMU_OPT_BOOL,
-            .help = "enable/disable DEA key wrapping using the CPACF wrapping key",
-        },{
-            .name = "loadparm",
-            .type = QEMU_OPT_STRING,
-            .help = "Up to 8 chars in set of [A-Za-z0-9. ](lower case chars"
-                    " converted to upper case) to pass to machine"
-                    " loader, boot manager, and guest kernel",
-        },
-        { /* End of list */ }
+static CommandLineParameterInfoList *query_machine_properties(void)
+{
+    CommandLineParameterInfoList *param_list = NULL;
+    CommandLineParameterInfo *info;
+    ObjectPropertyIterator iter;
+    ObjectProperty *prop;
+    ObjectClass *oc;
+
+    oc = object_get_class(container_get(object_get_root(), "/machine"));
+    assert(oc);
+
+    /* Add entry for the "type" parameter */
+    info = g_malloc0(sizeof(*info));
+    info->name = g_strdup("type");
+    info->type = COMMAND_LINE_PARAMETER_TYPE_STRING;
+    info->has_help = true;
+    info->help = g_strdup("emulated machine");
+    QAPI_LIST_PREPEND(param_list, info);
+
+    /* Now loop over the properties */
+    object_class_property_iter_init(&iter, oc);
+    while ((prop = object_property_iter_next(&iter))) {
+        if (!prop->set) {
+            continue;
+        }
+
+        info = g_malloc0(sizeof(*info));
+        info->name = g_strdup(prop->name);
+
+        if (g_str_equal(prop->type, "bool")) {
+            info->type = COMMAND_LINE_PARAMETER_TYPE_BOOLEAN;
+        } else if (g_str_equal(prop->type, "int")) {
+            info->type = COMMAND_LINE_PARAMETER_TYPE_NUMBER;
+        } else if (g_str_equal(prop->type, "size")) {
+            info->type = COMMAND_LINE_PARAMETER_TYPE_SIZE;
+        } else {
+            info->type = COMMAND_LINE_PARAMETER_TYPE_STRING;
+        }
+
+        if (prop->description) {
+            info->has_help = true;
+            info->help = g_strdup(prop->description);
+        }
+
+        QAPI_LIST_PREPEND(param_list, info);
     }
-};
+
+    return param_list;
+}
 
 CommandLineOptionInfoList *qmp_query_command_line_options(bool has_option,
                                                           const char *option,
@@ -266,7 +225,7 @@ CommandLineOptionInfoList *qmp_query_command_line_options(bool has_option,
     if (!has_option || !strcmp(option, "machine")) {
         info = g_malloc0(sizeof(*info));
         info->option = g_strdup("machine");
-        info->parameters = query_option_descs(machine_opts.desc);
+        info->parameters = query_machine_properties();
         QAPI_LIST_PREPEND(conf_list, info);
     }
 
