@@ -1844,6 +1844,7 @@ S: Supported
 F: include/hw/acpi/*
 F: include/hw/firmware/smbios.h
 F: hw/acpi/*
+F: hw/display/acpi*
 F: hw/smbios/*
 F: hw/i386/acpi-build.[hc]
 F: hw/arm/virt-acpi-build.c
