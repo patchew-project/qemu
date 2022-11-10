@@ -155,6 +155,25 @@ check-acceptance-deprecated-warning:
 
 check-acceptance: check-acceptance-deprecated-warning | check-avocado
 
+CODESPELL_DIR=$(SRC_PATH)/tests/codespell
+
+.PHONY: check-spelling
+check-spelling: check-venv
+	source $(TESTS_VENV_DIR)/bin/activate && \
+	cd "$(SRC_PATH)" && \
+	codespell -s . \
+	  --exclude-file=$(CODESPELL_DIR)/exclude-file \
+	  --ignore-words=$(CODESPELL_DIR)/ignore-words \
+	  --skip="./.git,./bin,./build,./linux-headers,./roms,*.patch,nohup.out"
+
+.PHONY: check-spelling-docs
+check-spelling-docs: check-venv
+	source $(TESTS_VENV_DIR)/bin/activate && \
+	codespell -s docs \
+	  --exclude-file=$(CODESPELL_DIR)/exclude-file \
+	  --ignore-words=$(CODESPELL_DIR)/ignore-words \
+	  --skip="docs/manual/_static,docs/manual/searchindex.js,nohup.out"
+
 # Consolidated targets
 
 .PHONY: check check-clean get-vm-images
