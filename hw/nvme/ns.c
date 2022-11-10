@@ -286,7 +286,7 @@ static void nvme_ns_init_zoned(NvmeNamespace *ns)
 
     if (ns->params.zrwas) {
         ns->zns.numzrwa = ns->params.numzrwa ?
-            ns->params.numzrwa : ns->num_zones;
+            ns->params.numzrwa : ns->params.max_active_zones;
 
         ns->zns.zrwas = ns->params.zrwas >> ns->lbaf.ds;
         ns->zns.zrwafg = ns->params.zrwafg >> ns->lbaf.ds;
@@ -294,7 +294,7 @@ static void nvme_ns_init_zoned(NvmeNamespace *ns)
         id_ns_z->ozcs |= NVME_ID_NS_ZONED_OZCS_ZRWASUP;
         id_ns_z->zrwacap = NVME_ID_NS_ZONED_ZRWACAP_EXPFLUSHSUP;
 
-        id_ns_z->numzrwa = cpu_to_le32(ns->params.numzrwa);
+        id_ns_z->numzrwa = cpu_to_le32(ns->zns.numzrwa - 1);
         id_ns_z->zrwas = cpu_to_le16(ns->zns.zrwas);
         id_ns_z->zrwafg = cpu_to_le16(ns->zns.zrwafg);
     }

@@ -1778,9 +1778,7 @@ static uint16_t nvme_zrm_finish(NvmeNamespace *ns, NvmeZone *zone)
 
         if (zone->d.za & NVME_ZA_ZRWA_VALID) {
             zone->d.za &= ~NVME_ZA_ZRWA_VALID;
-            if (ns->params.numzrwa) {
-                ns->zns.numzrwa++;
-            }
+            ns->zns.numzrwa++;
         }
 
         /* fallthrough */
@@ -1820,9 +1818,7 @@ static uint16_t nvme_zrm_reset(NvmeNamespace *ns, NvmeZone *zone)
         nvme_aor_dec_active(ns);
 
         if (zone->d.za & NVME_ZA_ZRWA_VALID) {
-            if (ns->params.numzrwa) {
-                ns->zns.numzrwa++;
-            }
+            ns->zns.numzrwa++;
         }
 
         /* fallthrough */
