@@ -212,7 +212,7 @@ bool sparc_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     target_ulong vaddr;
     target_ulong page_size;
     int error_code = 0, prot, access_index;
-    MemTxAttrs attrs = {};
+    MemTxAttrs attrs = MEMTXATTRS_CPU(cs);
 
     /*
      * TODO: If we ever need tlb_vaddr_to_host for this target,
@@ -771,7 +771,7 @@ bool sparc_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     target_ulong vaddr;
     hwaddr paddr;
     target_ulong page_size;
-    MemTxAttrs attrs = {};
+    MemTxAttrs attrs = MEMTXATTRS_CPU(cs);
     int error_code = 0, prot, access_index;
 
     address &= TARGET_PAGE_MASK;
@@ -890,7 +890,7 @@ static int cpu_sparc_get_phys_page(CPUSPARCState *env, hwaddr *phys,
 {
     target_ulong page_size;
     int prot, access_index;
-    MemTxAttrs attrs = {};
+    MemTxAttrs attrs = MEMTXATTRS_CPU(env_cpu(env));
 
     return get_physical_address(env, phys, &prot, &access_index, &attrs, addr,
                                 rw, mmu_idx, &page_size);
