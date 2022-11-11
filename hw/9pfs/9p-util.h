@@ -129,6 +129,7 @@ int statfs_win32(const char *root_path, struct statfs *stbuf);
 QemuFd_t openat_dir(QemuFd_t dirfd, const char *name);
 QemuFd_t openat_file(QemuFd_t dirfd, const char *name, int flags,
                      mode_t mode);
+off_t qemu_dirent_off_win32(void *s, void *fs);
 #endif
 
 static inline void close_preserve_errno(QemuFd_t fd)
@@ -207,12 +208,16 @@ ssize_t fremovexattrat_nofollow(QemuFd_t dirfd, const char *filename,
  * so ensure it is manually injected earlier and call here when
  * needed.
  */
-static inline off_t qemu_dirent_off(struct dirent *dent)
+static inline off_t qemu_dirent_off(struct dirent *dent, void *s, void *fs)
 {
-#ifdef CONFIG_DARWIN
+#if defined(CONFIG_DARWIN)
     return dent->d_seekoff;
-#else
+#elif defined(CONFIG_LINUX)
     return dent->d_off;
+#elif defined(CONFIG_WIN32)
+    return qemu_dirent_off_win32(s, fs);
+#else
+#error Missing qemu_dirent_off() implementation for this host system
 #endif
 }
 

@@ -932,3 +932,10 @@ int qemu_mknodat(QemuFd_t dirfd, const char *filename, mode_t mode, dev_t dev)
     errno = ENOTSUP;
     return -1;
 }
+
+off_t qemu_dirent_off_win32(void *s, void *fs)
+{
+    V9fsState *v9fs = s;
+
+    return v9fs->ops->telldir(&v9fs->ctx, (V9fsFidOpenState *)fs);
+}
