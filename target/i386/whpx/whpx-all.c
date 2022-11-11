@@ -791,7 +791,7 @@ static HRESULT CALLBACK whpx_emu_ioport_callback(
     void *ctx,
     WHV_EMULATOR_IO_ACCESS_INFO *IoAccess)
 {
-    MemTxAttrs attrs = { 0 };
+    MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     address_space_rw(&address_space_io, IoAccess->Port, attrs,
                      &IoAccess->Data, IoAccess->AccessSize,
                      IoAccess->Direction);

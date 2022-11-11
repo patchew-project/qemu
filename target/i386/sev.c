@@ -1274,7 +1274,7 @@ bool sev_add_kernel_loader_hashes(SevKernelLoaderContext *ctx, Error **errp)
     uint8_t *hashp;
     size_t hash_len = HASH_SIZE;
     hwaddr mapped_len = sizeof(*padded_ht);
-    MemTxAttrs attrs = { 0 };
+    MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     bool ret = true;
 
     /*

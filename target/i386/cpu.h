@@ -2246,7 +2246,9 @@ static inline uint32_t cpu_compute_eflags(CPUX86State *env)
 
 static inline MemTxAttrs cpu_get_mem_attrs(CPUX86State *env)
 {
-    return ((MemTxAttrs) { .secure = (env->hflags & HF_SMM_MASK) != 0 });
+    MemTxAttrs attrs = MEMTXATTRS_CPU(env_cpu(env));
+    attrs.secure = (env->hflags & HF_SMM_MASK) != 0;
+    return attrs;
 }
 
 static inline int32_t x86_get_a20_mask(CPUX86State *env)

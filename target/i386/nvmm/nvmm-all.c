@@ -502,7 +502,7 @@ nvmm_vcpu_post_run(CPUState *cpu, struct nvmm_vcpu_exit *exit)
 static void
 nvmm_io_callback(struct nvmm_io *io)
 {
-    MemTxAttrs attrs = { 0 };
+    MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     int ret;
 
     ret = address_space_rw(&address_space_io, io->port, attrs, io->data,
