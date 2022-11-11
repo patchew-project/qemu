@@ -88,26 +88,61 @@ static inline int errno_to_dotl(int err) {
     return err;
 }
 
-#ifdef CONFIG_DARWIN
+#if defined(CONFIG_DARWIN)
 #define qemu_fgetxattr(...) fgetxattr(__VA_ARGS__, 0, 0)
+#elif defined(CONFIG_WIN32)
+#define qemu_fgetxattr fgetxattr_win32
 #else
 #define qemu_fgetxattr fgetxattr
 #endif
 
+#ifdef CONFIG_WIN32
+#define qemu_openat     openat_win32
+#define qemu_fstatat    fstatat_win32
+#define qemu_mkdirat    mkdirat_win32
+#define qemu_renameat   renameat_win32
+#define qemu_utimensat  utimensat_win32
+#define qemu_unlinkat   unlinkat_win32
+#else
 #define qemu_openat     openat
 #define qemu_fstatat    fstatat
 #define qemu_mkdirat    mkdirat
 #define qemu_renameat   renameat
 #define qemu_utimensat  utimensat
 #define qemu_unlinkat   unlinkat
+#endif
+
+#ifdef CONFIG_WIN32
+char *get_full_path_win32(QemuFd_t fd, const char *name);
+ssize_t fgetxattr_win32(int fd, const char *name, void *value, size_t size);
+QemuFd_t openat_win32(QemuFd_t dirfd, const char *pathname, int flags,
+                      mode_t mode);
+int fstatat_win32(QemuFd_t dirfd, const char *pathname,
+                  struct stat *statbuf, int flags);
+int mkdirat_win32(QemuFd_t dirfd, const char *pathname, mode_t mode);
+int renameat_win32(QemuFd_t olddirfd, const char *oldpath,
+                   QemuFd_t newdirfd, const char *newpath);
+int utimensat_win32(QemuFd_t dirfd, const char *pathname,
+                    const struct timespec times[2], int flags);
+int unlinkat_win32(QemuFd_t dirfd, const char *pathname, int flags);
+int statfs_win32(const char *root_path, struct statfs *stbuf);
+QemuFd_t openat_dir(QemuFd_t dirfd, const char *name);
+QemuFd_t openat_file(QemuFd_t dirfd, const char *name, int flags,
+                     mode_t mode);
+#endif
 
 static inline void close_preserve_errno(QemuFd_t fd)
 {
     int serrno = errno;
+#ifndef CONFIG_WIN32
     close(fd);
+#else
+    CloseHandle(fd);
+#endif
     errno = serrno;
 }
 
+#ifndef CONFIG_WIN32
 static inline QemuFd_t openat_dir(QemuFd_t dirfd, const char *name)
 {
     return qemu_openat(dirfd, name,
@@ -155,6 +190,7 @@ again:
     errno = serrno;
     return fd;
 }
+#endif
 
 ssize_t fgetxattrat_nofollow(QemuFd_t dirfd, const char *path,
                              const char *name, void *value, size_t size);

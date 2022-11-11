@@ -13,6 +13,13 @@
 #ifndef QEMU_9P_LOCAL_H
 #define QEMU_9P_LOCAL_H
 
+typedef struct {
+    QemuFd_t mountfd;
+#ifdef CONFIG_WIN32
+    char *root_path;
+#endif
+} LocalData;
+
 QemuFd_t local_open_nofollow(FsContext *fs_ctx, const char *path, int flags,
                              mode_t mode);
 QemuFd_t local_opendir_nofollow(FsContext *fs_ctx, const char *path);
