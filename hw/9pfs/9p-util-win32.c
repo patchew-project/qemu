@@ -954,3 +954,10 @@ uint64_t qemu_stat_rdev_win32(void *fs_ctx)
     memcpy(&rdev, data->root_path, 3);
     return rdev;
 }
+
+uint64_t qemu_stat_blksize_win32(void *fs_ctx)
+{
+    LocalData *data = ((FsContext *)fs_ctx)->private;
+
+    return (uint64_t)data->block_size;
+}

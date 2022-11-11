@@ -1335,7 +1335,7 @@ static int32_t blksize_to_iounit(const V9fsPDU *pdu, int32_t blksize)
 
 static int32_t stat_to_iounit(const V9fsPDU *pdu, const struct stat *stbuf)
 {
-    return blksize_to_iounit(pdu, stbuf->st_blksize);
+    return blksize_to_iounit(pdu, qemu_stat_blksize(stbuf, &pdu->s->ctx));
 }
 
 static int stat_to_v9stat_dotl(V9fsPDU *pdu, const struct stat *stbuf,
@@ -1352,7 +1352,12 @@ static int stat_to_v9stat_dotl(V9fsPDU *pdu, const struct stat *stbuf,
     v9lstat->st_rdev = host_dev_to_dotl_dev(rdev);
     v9lstat->st_size = stbuf->st_size;
     v9lstat->st_blksize = stat_to_iounit(pdu, stbuf);
+#if defined(CONFIG_LINUX) || defined(CONFIG_DARWIN)
     v9lstat->st_blocks = stbuf->st_blocks;
+#elif defined(CONFIG_WIN32)
+    v9lstat->st_blocks = ROUND_UP(v9lstat->st_size / v9lstat->st_blksize,
+                                  v9lstat->st_blksize);
+#endif
     v9lstat->st_atime_sec = stbuf->st_atime;
     v9lstat->st_mtime_sec = stbuf->st_mtime;
     v9lstat->st_ctime_sec = stbuf->st_ctime;
