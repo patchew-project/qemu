@@ -705,6 +705,32 @@ static inline int platform_does_not_support_system(const char *command)
 }
 #endif /* !HAVE_SYSTEM_FUNCTION */
 
+/*
+ * QEMU file descriptor type
+ *
+ * On POSIX platforms, this is a file descriptor (int).
+ * On Windows, this is a file handle (HANDLE).
+ */
+#ifndef _WIN32
+typedef int QemuFd_t;
+#define QEMU_FD_INVALID -1
+#else
+typedef HANDLE QemuFd_t;
+#define QEMU_FD_INVALID INVALID_HANDLE_VALUE
+#endif
+
+/**
+ * qemu_fd_invalid - determine if a given QEMU file descriptor is invalid
+ *
+ * @fd: the value of a QEMU file descriptor
+ *
+ * Returns true if a given QEMU file descriptor is invalid, otherwise false.
+ */
+static inline bool qemu_fd_invalid(QemuFd_t fd)
+{
+    return (fd == QEMU_FD_INVALID);
+}
+
 #ifdef __cplusplus
 }
 #endif
