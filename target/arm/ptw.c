@@ -2634,6 +2634,7 @@ static bool get_phys_addr_twostage(CPUARMState *env, S1Translate *ptw,
     s1_lgpgsz = result->f.lg_page_size;
     cacheattrs1 = result->cacheattrs;
     memset(result, 0, sizeof(*result));
+    result->f.attrs = MEMTXATTRS_CPU(env_cpu(env));
 
     ret = get_phys_addr_lpae(env, ptw, ipa, access_type, is_el0, result, fi);
     fi->s2addr = ipa;
@@ -2872,7 +2873,7 @@ hwaddr arm_cpu_get_phys_page_attrs_debug(CPUState *cs, vaddr addr,
         .in_secure = arm_is_secure(env),
         .in_debug = true,
     };
-    GetPhysAddrResult res = {};
+    GetPhysAddrResult res = { .f.attrs = MEMTXATTRS_CPU(cs) };
     ARMMMUFaultInfo fi = {};
     bool ret;
 
