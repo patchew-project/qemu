@@ -1,5 +1,5 @@
 /*
- * 9p Posix callback
+ * 9p callback
  *
  * Copyright IBM, Corp. 2010
  *
@@ -21,11 +21,13 @@
 #include "9p-xattr.h"
 #include "9p-util.h"
 #include "fsdev/qemu-fsdev.h"   /* local_ops */
+#ifndef CONFIG_WIN32
 #include <arpa/inet.h>
 #include <pwd.h>
 #include <grp.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#endif
 #include "qemu/xattr.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
@@ -38,7 +40,9 @@
 #include <linux/magic.h>
 #endif
 #endif
+#ifndef CONFIG_WIN32
 #include <sys/ioctl.h>
+#endif
 
 #ifndef XFS_SUPER_MAGIC
 #define XFS_SUPER_MAGIC  0x58465342
@@ -90,10 +94,12 @@ QemuFd_t local_open_nofollow(FsContext *fs_ctx, const char *path, int flags,
     return fd;
 }
 
+#ifndef CONFIG_WIN32
 QemuFd_t local_opendir_nofollow(FsContext *fs_ctx, const char *path)
 {
     return local_open_nofollow(fs_ctx, path, O_DIRECTORY | O_RDONLY, 0);
 }
+#endif
 
 static void renameat_preserve_errno(QemuFd_t odirfd, const char *opath,
                                     QemuFd_t ndirfd, const char *npath)
@@ -135,10 +141,20 @@ static FILE *local_fopenat(QemuFd_t dirfd, const char *name, const char *mode)
     if (qemu_fd_invalid(fd)) {
         return NULL;
     }
+#ifdef CONFIG_WIN32
+    int _flags = mode[0] == 'r' ? O_RDONLY : 0;
+    int _fd = _open_osfhandle((intptr_t)fd, _flags);
+    assert(_fd != -1);
+    fp = fdopen(_fd, mode);
+    if (!fp) {
+        close(_fd);
+    }
+#else
     fp = fdopen(fd, mode);
     if (!fp) {
         close(fd);
     }
+#endif
     return fp;
 }
 
@@ -238,7 +254,7 @@ static int local_set_mapped_file_attrat(QemuFd_t dirfd, const char *name,
     int ret;
     char buf[ATTR_MAX];
     int uid = -1, gid = -1, mode = -1, rdev = -1;
-    QemuFd_t map_dirfd = QEMU_FD_INVALID, map_fd;
+    QemuFd_t map_dirfd = QEMU_FD_INVALID;
     bool is_root = !strcmp(name, ".");
 
     if (is_root) {
@@ -302,10 +318,12 @@ update_map_file:
         return -1;
     }
 
-    map_fd = fileno(fp);
+#ifndef CONFIG_WIN32
+    QemuFd_t map_fd = fileno(fp);
     assert(!qemu_fd_invalid(map_fd));
     ret = fchmod(map_fd, 0600);
     assert(ret == 0);
+#endif
 
     if (credp->fc_uid != -1) {
         uid = credp->fc_uid;
@@ -337,6 +355,7 @@ update_map_file:
     return 0;
 }
 
+#ifndef CONFIG_WIN32
 static int fchmodat_nofollow(QemuFd_t dirfd, const char *name, mode_t mode)
 {
     struct stat stbuf;
@@ -399,6 +418,7 @@ static int fchmodat_nofollow(QemuFd_t dirfd, const char *name, mode_t mode)
     close_preserve_errno(fd);
     return ret;
 }
+#endif
 
 static int local_set_xattrat(QemuFd_t dirfd, const char *path, FsCred *credp)
 {
@@ -439,6 +459,7 @@ static int local_set_xattrat(QemuFd_t dirfd, const char *path, FsCred *credp)
     return 0;
 }
 
+#ifndef CONFIG_WIN32
 static int local_set_cred_passthrough(FsContext *fs_ctx, QemuFd_t dirfd,
                                       const char *name, FsCred *credp)
 {
@@ -455,6 +476,7 @@ static int local_set_cred_passthrough(FsContext *fs_ctx, QemuFd_t dirfd,
 
     return fchmodat_nofollow(dirfd, name, credp->fc_mode & 07777);
 }
+#endif
 
 static ssize_t local_readlink(FsContext *fs_ctx, V9fsPath *fs_path,
                               char *buf, size_t bufsz)
@@ -464,17 +486,33 @@ static ssize_t local_readlink(FsContext *fs_ctx, V9fsPath *fs_path,
     if ((fs_ctx->export_flags & V9FS_SM_MAPPED) ||
         (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE)) {
         QemuFd_t fd;
+        int _fd;
 
         fd = local_open_nofollow(fs_ctx, fs_path->data, O_RDONLY, 0);
         if (qemu_fd_invalid(fd)) {
             return -1;
         }
+#ifdef CONFIG_WIN32
+        _fd = _open_osfhandle((intptr_t)fd, 0);
+#else
+        _fd = fd;
+#endif
         do {
-            tsize = read(fd, (void *)buf, bufsz);
+            tsize = read(_fd, (void *)buf, bufsz);
         } while (tsize == -1 && errno == EINTR);
+#ifdef CONFIG_WIN32
+        close(_fd);
+#else
         close_preserve_errno(fd);
+#endif
     } else if ((fs_ctx->export_flags & V9FS_SM_PASSTHROUGH) ||
                (fs_ctx->export_flags & V9FS_SM_NONE)) {
+#ifdef CONFIG_WIN32
+        errno = ENOTSUP;
+        error_report_once("readlink is not available on Windows host when"
+                          "security_model is \"none\" or \"passthrough\"");
+        tsize = -1;
+#else
         char *dirpath = g_path_get_dirname(fs_path->data);
         char *name = g_path_get_basename(fs_path->data);
         QemuFd_t dirfd;
@@ -489,6 +527,7 @@ static ssize_t local_readlink(FsContext *fs_ctx, V9fsPath *fs_path,
     out:
         g_free(name);
         g_free(dirpath);
+#endif
     }
     return tsize;
 }
@@ -512,7 +551,13 @@ static int local_open(FsContext *ctx, V9fsPath *fs_path,
     if (qemu_fd_invalid(fd)) {
         return -1;
     }
+#ifdef CONFIG_WIN32
+    int _fd = _open_osfhandle((intptr_t)fd, 0);
+    assert(_fd != -1);
+    fs->fd = _fd;
+#else
     fs->fd = fd;
+#endif
     return fs->fd;
 }
 
@@ -527,9 +572,24 @@ static int local_opendir(FsContext *ctx,
         return -1;
     }
 
+#ifdef CONFIG_WIN32
+    char *full_file_name = get_full_path_win32(dirfd, NULL);
+    if (full_file_name == NULL) {
+        CloseHandle(dirfd);
+        return -1;
+    }
+    stream = opendir(full_file_name);
+    g_free(full_file_name);
+#else
     stream = fdopendir(dirfd);
+#endif
+
     if (!stream) {
+#ifdef CONFIG_WIN32
+        CloseHandle(dirfd);
+#else
         close(dirfd);
+#endif
         return -1;
     }
     fs->dir.stream = stream;
@@ -572,13 +632,17 @@ again:
 #endif
 
     if (ctx->export_flags & V9FS_SM_MAPPED) {
+#ifndef CONFIG_WIN32
         entry->d_type = DT_UNKNOWN;
+#endif
     } else if (ctx->export_flags & V9FS_SM_MAPPED_FILE) {
         if (local_is_mapped_file_metadata(ctx, entry->d_name)) {
             /* skip the meta data */
             goto again;
         }
+#ifndef CONFIG_WIN32
         entry->d_type = DT_UNKNOWN;
+#endif
     }
 
     return entry;
@@ -586,7 +650,94 @@ again:
 
 static void local_seekdir(FsContext *ctx, V9fsFidOpenState *fs, off_t off)
 {
+#ifndef CONFIG_WIN32
     seekdir(fs->dir.stream, off);
+#else
+    off_t count;
+    struct dirent *findentry;
+    struct dirent *entry;
+    size_t namelen[3] = { 0 };
+    off_t direntoff[3] = { -1, -1, -1 };
+    char *d_name[3];
+    int i;
+
+    /*
+     * MinGW's seekdir() requires directory is not modified. If guest OS is
+     * modifying the directory when calling seekdir(), e.g.: "rm -rf *",
+     * then MinGW's seekdir() will seek to a wrong offset.
+     *
+     * This function saves some old offset directory entry name,
+     * and looks up current entry again, and compares the offset.
+     *
+     * If the new offset is less than the old offset, that means someone is
+     * deleting files in the directory, thus we need to seek offset backward.
+     *
+     * If the new offset is larger than the old offset, that means someone is
+     * creating files in the directory, thus we need to seek offset forward.
+     */
+
+    direntoff[0] = telldir(fs->dir.stream);
+
+    /* do nothing if current offset is 0 or EOF */
+    if (direntoff[0] == 0 || direntoff[0] < 0) {
+        seekdir(fs->dir.stream, off);
+        return;
+    }
+
+    d_name[0] = g_malloc0(sizeof(entry->d_name) * 3);
+    d_name[1] = d_name[0] + sizeof(entry->d_name);
+    d_name[2] = d_name[1] + sizeof(entry->d_name);
+
+    /* save 3 nearest entries and offsets */
+    for (i = 0; i < 3; i++) {
+        entry = &fs->dir.stream->dd_dir;
+
+        memcpy(d_name[i], entry->d_name, entry->d_namlen);
+        namelen[i] = strlen(d_name[i]) + 1;
+
+        direntoff[i] = telldir(fs->dir.stream);
+
+        entry = readdir(fs->dir.stream);
+        if (entry == NULL) {
+            break;
+        }
+    }
+
+    /* look up saved entries again */
+    for (i = 0; i < 3 && direntoff[i] != -1; i++) {
+        rewinddir(fs->dir.stream);
+        count = 0;
+        while ((findentry = readdir(fs->dir.stream)) != NULL) {
+            count++;
+
+            if (memcmp(findentry->d_name, d_name[i], namelen[i]) == 0) {
+                if (count + i == direntoff[i]) {
+                    seekdir(fs->dir.stream, off);
+                    goto out;
+                } else if (count + i < direntoff[i]) {
+                    off = off - (direntoff[i] - count) - i;
+                    if (off <= 0) {
+                        off = 0;
+                    }
+                    seekdir(fs->dir.stream, off);
+                    goto out;
+                } else {
+                    off = off + (count - direntoff[i]) - i;
+                    seekdir(fs->dir.stream, off);
+                    goto out;
+                }
+            }
+        }
+    }
+
+    /* cannot get anything, seek backward */
+    off = off - 1;
+    seekdir(fs->dir.stream, off);
+
+out:
+    g_free(d_name[0]);
+    return;
+#endif
 }
 
 static ssize_t local_preadv(FsContext *ctx, V9fsFidOpenState *fs,
@@ -652,7 +803,14 @@ static int local_chmod(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
         ret = local_set_mapped_file_attrat(dirfd, name, credp);
     } else if (fs_ctx->export_flags & V9FS_SM_PASSTHROUGH ||
                fs_ctx->export_flags & V9FS_SM_NONE) {
+#ifdef CONFIG_WIN32
+        errno = ENOTSUP;
+        error_report_once("chmod is not available on Windows host when"
+                          "security_model is \"none\" or \"passthrough\"");
+        ret = -1;
+#else
         ret = fchmodat_nofollow(dirfd, name, credp->fc_mode);
+#endif
     }
     close_preserve_errno(dirfd);
 
@@ -696,6 +854,12 @@ static int local_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
         }
     } else if (fs_ctx->export_flags & V9FS_SM_PASSTHROUGH ||
                fs_ctx->export_flags & V9FS_SM_NONE) {
+#ifdef CONFIG_WIN32
+        errno = ENOTSUP;
+        error_report_once("mknod is not available on Windows host when"
+                          "security_model is \"none\" or \"passthrough\"");
+        goto out;
+#else
         err = qemu_mknodat(dirfd, name, credp->fc_mode, credp->fc_rdev);
         if (err == -1) {
             goto out;
@@ -704,6 +868,7 @@ static int local_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
         if (err == -1) {
             goto err_end;
         }
+#endif
     }
     goto out;
 
@@ -753,10 +918,12 @@ static int local_mkdir(FsContext *fs_ctx, V9fsPath *dir_path,
         if (err == -1) {
             goto out;
         }
+#ifndef CONFIG_WIN32
         err = local_set_cred_passthrough(fs_ctx, dirfd, name, credp);
         if (err == -1) {
             goto err_end;
         }
+#endif
     }
     goto out;
 
@@ -773,7 +940,12 @@ static int local_fstat(FsContext *fs_ctx, int fid_type,
     int err, fd;
 
     if (fid_type == P9_FID_DIR) {
+#ifdef CONFIG_WIN32
+        errno = ENOTSUP;
+        return -1;  /* Windows do not allow opening a directory by open() */
+#else
         fd = dirfd(fs->dir.stream);
+#endif
     } else {
         fd = fs->fd;
     }
@@ -825,10 +997,10 @@ static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
         return -1;
     }
 
-    /*
-     * Mark all the open to not follow symlinks
-     */
+#ifndef CONFIG_WIN32
+    /* Mark all the open to not follow symlinks */
     flags |= O_NOFOLLOW;
+#endif
 
     dirfd = local_opendir_nofollow(fs_ctx, dir_path->data);
     if (qemu_fd_invalid(dirfd)) {
@@ -858,13 +1030,22 @@ static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
         if (qemu_fd_invalid(fd)) {
             goto out;
         }
+#ifndef CONFIG_WIN32
         err = local_set_cred_passthrough(fs_ctx, dirfd, name, credp);
         if (err == -1) {
             goto err_end;
         }
+#endif
     }
+#ifdef CONFIG_WIN32
+    int _fd = _open_osfhandle((intptr_t)fd, 0);
+    assert(_fd != -1);
+    err = _fd;
+    fs->fd = _fd;
+#else
     err = fd;
     fs->fd = fd;
+#endif
     goto out;
 
 err_end:
@@ -898,6 +1079,7 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
     if (fs_ctx->export_flags & V9FS_SM_MAPPED ||
         fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
         QemuFd_t fd;
+        int _fd;
         ssize_t oldpath_size, write_size;
 
         fd = openat_file(dirfd, name, O_CREAT | O_EXCL | O_RDWR,
@@ -905,12 +1087,21 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
         if (qemu_fd_invalid(fd)) {
             goto out;
         }
+#ifdef CONFIG_WIN32
+        _fd = _open_osfhandle((intptr_t)fd, 0);
+#else
+        _fd = fd;
+#endif
         /* Write the oldpath (target) to the file. */
         oldpath_size = strlen(oldpath);
         do {
-            write_size = write(fd, (void *)oldpath, oldpath_size);
+            write_size = write(_fd, (void *)oldpath, oldpath_size);
         } while (write_size == -1 && errno == EINTR);
+#ifdef CONFIG_WIN32
+        close(_fd);
+#else
         close_preserve_errno(fd);
+#endif
 
         if (write_size != oldpath_size) {
             goto err_end;
@@ -928,6 +1119,21 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
         }
     } else if (fs_ctx->export_flags & V9FS_SM_PASSTHROUGH ||
                fs_ctx->export_flags & V9FS_SM_NONE) {
+#ifdef CONFIG_WIN32
+        /*
+         * Windows symbolic link requires administrator privilage.
+         * And Windows does not provide any interface like readlink().
+         * All symbolic links on Windows are always absolute paths.
+         * It's not 100% compatible with POSIX symbolic link.
+         *
+         * With above reasons, symbolic link with "passthrough" or "none"
+         * mode is disabled on Windows host.
+         */
+        errno = ENOTSUP;
+        error_report_once("symlink is not available on Windows host when"
+                          "security_model is \"none\" or \"passthrough\"");
+        goto out;
+#else
         err = symlinkat(oldpath, dirfd, name);
         if (err) {
             goto out;
@@ -945,6 +1151,7 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
                 err = 0;
             }
         }
+#endif
     }
     goto out;
 
@@ -958,6 +1165,11 @@ out:
 static int local_link(FsContext *ctx, V9fsPath *oldpath,
                       V9fsPath *dirpath, const char *name)
 {
+#ifdef CONFIG_WIN32
+    errno = ENOTSUP;
+    error_report_once("link is not available on Windows host");
+    return -1;
+#else
     char *odirpath = g_path_get_dirname(oldpath->data);
     char *oname = g_path_get_basename(oldpath->data);
     int ret = -1;
@@ -1027,6 +1239,7 @@ out:
     g_free(oname);
     g_free(odirpath);
     return ret;
+#endif
 }
 
 static int local_truncate(FsContext *ctx, V9fsPath *fs_path, off_t size)
@@ -1038,7 +1251,13 @@ static int local_truncate(FsContext *ctx, V9fsPath *fs_path, off_t size)
     if (qemu_fd_invalid(fd)) {
         return -1;
     }
+#ifdef CONFIG_WIN32
+    int _fd = _open_osfhandle((intptr_t)fd, 0);
+    assert(_fd != -1);
+    ret = ftruncate(_fd, size);
+#else
     ret = ftruncate(fd, size);
+#endif
     close_preserve_errno(fd);
     return ret;
 }
@@ -1058,8 +1277,15 @@ static int local_chown(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
     if ((credp->fc_uid == -1 && credp->fc_gid == -1) ||
         (fs_ctx->export_flags & V9FS_SM_PASSTHROUGH) ||
         (fs_ctx->export_flags & V9FS_SM_NONE)) {
+#ifdef CONFIG_WIN32
+        errno = ENOTSUP;
+        error_report_once("chown is not available on Windows host when"
+                          "security_model is \"none\" or \"passthrough\"");
+        ret = -1;
+#else
         ret = fchownat(dirfd, name, credp->fc_uid, credp->fc_gid,
                        AT_SYMLINK_NOFOLLOW);
+#endif
     } else if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
         ret = local_set_xattrat(dirfd, name, credp);
     } else if (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
@@ -1172,6 +1398,12 @@ out:
 static int local_fsync(FsContext *ctx, int fid_type,
                        V9fsFidOpenState *fs, int datasync)
 {
+#ifdef CONFIG_WIN32
+    if (fid_type != P9_FID_DIR) {
+        return _commit(fs->fd);
+    }
+    return 0;
+#else
     int fd;
 
     if (fid_type == P9_FID_DIR) {
@@ -1185,12 +1417,14 @@ static int local_fsync(FsContext *ctx, int fid_type,
     } else {
         return fsync(fd);
     }
+#endif
 }
 
 static int local_statfs(FsContext *s, V9fsPath *fs_path, struct statfs *stbuf)
 {
-    QemuFd_t fd;
     int ret;
+#ifndef CONFIG_WIN32
+    QemuFd_t fd;
 
     fd = local_open_nofollow(s, fs_path->data, O_RDONLY, 0);
     if (qemu_fd_invalid(fd)) {
@@ -1198,39 +1432,65 @@ static int local_statfs(FsContext *s, V9fsPath *fs_path, struct statfs *stbuf)
     }
     ret = fstatfs(fd, stbuf);
     close_preserve_errno(fd);
+#else
+    LocalData *data = (LocalData *)s->private;
+
+    ret = statfs_win32(data->root_path, stbuf);
+    if (ret == 0) {
+        /* use context address as fsid */
+        memcpy(&stbuf->f_fsid, s, sizeof(intptr_t));
+    }
+#endif
+
     return ret;
 }
 
 static ssize_t local_lgetxattr(FsContext *ctx, V9fsPath *fs_path,
                                const char *name, void *value, size_t size)
 {
+#ifdef CONFIG_WIN32
+    return -1;
+#else
     char *path = fs_path->data;
 
     return v9fs_get_xattr(ctx, path, name, value, size);
+#endif
 }
 
 static ssize_t local_llistxattr(FsContext *ctx, V9fsPath *fs_path,
                                 void *value, size_t size)
 {
+#ifdef CONFIG_WIN32
+    return -1;
+#else
     char *path = fs_path->data;
 
     return v9fs_list_xattr(ctx, path, value, size);
+#endif
 }
 
 static int local_lsetxattr(FsContext *ctx, V9fsPath *fs_path, const char *name,
                            void *value, size_t size, int flags)
 {
+#ifdef CONFIG_WIN32
+    return -1;
+#else
     char *path = fs_path->data;
 
     return v9fs_set_xattr(ctx, path, name, value, size, flags);
+#endif
 }
 
 static int local_lremovexattr(FsContext *ctx, V9fsPath *fs_path,
                               const char *name)
 {
+#ifdef CONFIG_WIN32
+    return -1;
+#else
     char *path = fs_path->data;
 
     return v9fs_remove_xattr(ctx, path, name);
+#endif
 }
 
 static int local_name_to_path(FsContext *ctx, V9fsPath *dir_path,
@@ -1393,6 +1653,7 @@ static int local_unlinkat(FsContext *ctx, V9fsPath *dir,
     return ret;
 }
 
+#ifndef CONFIG_WIN32
 #ifdef FS_IOC_GETVERSION
 static int local_ioc_getversion(FsContext *ctx, V9fsPath *path,
                                 mode_t st_mode, uint64_t *st_gen)
@@ -1442,11 +1703,88 @@ static int local_ioc_getversion_init(FsContext *ctx, LocalData *data, Error **er
 #endif
     return 0;
 }
+#endif
+
+#ifdef CONFIG_WIN32
+static int init_win32_root_directory(FsContext *ctx, LocalData *data,
+                                     Error **errp)
+{
+    HANDLE mountfd;
+    char *root_path;
+    DWORD SectorsPerCluster;
+    DWORD BytesPerSector;
+    DWORD NumberOfFreeClusters;
+    DWORD TotalNumberOfClusters;
+    char disk_root[4] = { 0 };
+
+    mountfd = CreateFile(ctx->fs_root, GENERIC_READ,
+                         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                         NULL,
+                         OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+    if (mountfd == INVALID_HANDLE_VALUE) {
+        error_setg_errno(errp, EINVAL, "cannot open %s", ctx->fs_root);
+        return -1;
+    }
+
+    if ((ctx->export_flags & V9FS_SM_MAPPED) != 0) {
+        wchar_t fs_name[MAX_PATH + 1] = {0};
+        wchar_t ntfs_name[5] = {'N', 'T', 'F', 'S'};
+
+        /* Get file system type name */
+        if (GetVolumeInformationByHandleW(mountfd, NULL, 0, NULL, NULL, NULL,
+                                          fs_name, MAX_PATH + 1) == 0) {
+            error_setg_errno(errp, EINVAL,
+                             "cannot get file system information");
+            CloseHandle(mountfd);
+            return -1;
+        }
+
+        /*
+         * security_model=mapped(-xattr) requires a fileystem on Windows that
+         * supports Alternate Data Stream (ADS). NTFS is one of them, and is
+         * probably most popular on Windows. It is fair enough to assume
+         * Windows users to use NTFS for the mapped security model.
+         */
+        if (wcscmp(fs_name, ntfs_name) != 0) {
+            CloseHandle(mountfd);
+            error_setg_errno(errp, EINVAL, "require NTFS file system");
+            return -1;
+        }
+    }
+
+    root_path = get_full_path_win32(mountfd, NULL);
+    if (root_path == NULL) {
+        CloseHandle(mountfd);
+        error_setg_errno(errp, EINVAL, "cannot get full root path");
+        return -1;
+    }
+
+    /* copy the first 3 characters for the root directory */
+    memcpy(disk_root, root_path, 3);
+
+    if (GetDiskFreeSpace(disk_root, &SectorsPerCluster, &BytesPerSector,
+                         &NumberOfFreeClusters, &TotalNumberOfClusters) == 0) {
+        CloseHandle(mountfd);
+        error_setg_errno(errp, EINVAL, "cannot get file system block size");
+        return -1;
+    }
+
+    /*
+     * hold the root handle will prevent other one to delete or replace the
+     * root directory during runtime.
+     */
+    data->mountfd = mountfd;
+    data->root_path = root_path;
+    data->block_size = SectorsPerCluster * BytesPerSector;
+
+    return 0;
+}
+#endif
 
 static int local_init(FsContext *ctx, Error **errp)
 {
-    LocalData *data = g_malloc(sizeof(*data));
-
+    LocalData *data = g_malloc0(sizeof(*data));
+#ifndef CONFIG_WIN32
     data->mountfd = open(ctx->fs_root, O_DIRECTORY | O_RDONLY);
     if (qemu_fd_invalid(data->mountfd)) {
         error_setg_errno(errp, errno, "failed to open '%s'", ctx->fs_root);
@@ -1457,7 +1795,17 @@ static int local_init(FsContext *ctx, Error **errp)
         close(data->mountfd);
         goto err;
     }
+#else
+    if (init_win32_root_directory(ctx, data, errp) != 0) {
+        goto err;
+    }
 
+    /*
+     * Always enable inode remap since Windows file system does not
+     * have inode number.
+     */
+    ctx->export_flags |= V9FS_REMAP_INODES;
+#endif
     if (ctx->export_flags & V9FS_SM_PASSTHROUGH) {
         ctx->xops = passthrough_xattr_ops;
     } else if (ctx->export_flags & V9FS_SM_MAPPED) {
@@ -1477,6 +1825,15 @@ static int local_init(FsContext *ctx, Error **errp)
     return 0;
 
 err:
+#ifdef CONFIG_WIN32
+    if (data->root_path != NULL) {
+        g_free(data->root_path);
+    }
+
+    if (data->mountfd != 0 && data->mountfd != INVALID_HANDLE_VALUE) {
+        CloseHandle(data->mountfd);
+    }
+#endif
     g_free(data);
     return -1;
 }
@@ -1488,8 +1845,17 @@ static void local_cleanup(FsContext *ctx)
     if (!data) {
         return;
     }
+#ifdef CONFIG_WIN32
+    if (data->root_path != NULL) {
+        g_free(data->root_path);
+    }
 
+    if (data->mountfd != 0 && data->mountfd != INVALID_HANDLE_VALUE) {
+        CloseHandle(data->mountfd);
+    }
+#else
     close(data->mountfd);
+#endif
     g_free(data);
 }
 
