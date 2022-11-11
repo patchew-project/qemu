@@ -28,6 +28,7 @@
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "qemu/log.h"
 #include "hw/core/cpu.h"
 
 #define PTIMER_POLICY                       \
@@ -41,15 +42,23 @@
  * which is used in both the ARM11MPCore and Cortex-A9MP.
  */
 
-static inline int get_current_cpu(ARMMPTimerState *s)
+static bool is_from_cpu(MemTxAttrs attrs)
 {
-    int cpu_id = current_cpu ? current_cpu->cpu_index : 0;
+    if (attrs.requester_type != MTRT_CPU) {
+        qemu_log_mask(LOG_UNIMP | LOG_GUEST_ERROR,
+                      "%s: saw non-CPU transaction", __func__);
+        return false;
+    }
+    return true;
+}
 
+static int get_current_cpu(ARMMPTimerState *s, MemTxAttrs attrs)
+{
+    int cpu_id = attrs.requester_id;
     if (cpu_id >= s->num_cpu) {
         hw_error("arm_mptimer: num-cpu %d but this cpu is %d!\n",
                  s->num_cpu, cpu_id);
     }
-
     return cpu_id;
 }
 
@@ -178,25 +187,35 @@ static void timerblock_write(void *opaque, hwaddr addr,
 /* Wrapper functions to implement the "read timer/watchdog for
  * the current CPU" memory regions.
  */
-static uint64_t arm_thistimer_read(void *opaque, hwaddr addr,
-                                   unsigned size)
+static MemTxResult arm_thistimer_read(void *opaque, hwaddr addr, uint64_t *data,
+                                      unsigned size, MemTxAttrs attrs)
 {
-    ARMMPTimerState *s = (ARMMPTimerState *)opaque;
-    int id = get_current_cpu(s);
-    return timerblock_read(&s->timerblock[id], addr, size);
+    if (is_from_cpu(attrs)) {
+        ARMMPTimerState *s = (ARMMPTimerState *)opaque;
+        int id = get_current_cpu(s, attrs);
+        *data = timerblock_read(&s->timerblock[id], addr, size);
+        return MEMTX_OK;
+    } else {
+        return MEMTX_ACCESS_ERROR;
+    }
 }
 
-static void arm_thistimer_write(void *opaque, hwaddr addr,
-                                uint64_t value, unsigned size)
+static MemTxResult arm_thistimer_write(void *opaque, hwaddr addr,
+                                uint64_t value, unsigned size, MemTxAttrs attrs)
 {
-    ARMMPTimerState *s = (ARMMPTimerState *)opaque;
-    int id = get_current_cpu(s);
-    timerblock_write(&s->timerblock[id], addr, value, size);
+    if (is_from_cpu(attrs)) {
+        ARMMPTimerState *s = (ARMMPTimerState *)opaque;
+        int id = get_current_cpu(s, attrs);
+        timerblock_write(&s->timerblock[id], addr, value, size);
+        return MEMTX_OK;
+    } else {
+        return MEMTX_ACCESS_ERROR;
+    }
 }
 
 static const MemoryRegionOps arm_thistimer_ops = {
-    .read = arm_thistimer_read,
-    .write = arm_thistimer_write,
+    .read_with_attrs = arm_thistimer_read,
+    .write_with_attrs = arm_thistimer_write,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
