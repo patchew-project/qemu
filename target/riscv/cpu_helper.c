@@ -761,7 +761,7 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
      * correct, but the value visible to the exception handler
      * (riscv_cpu_do_interrupt) is correct */
     MemTxResult res;
-    MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
+    MemTxAttrs attrs = MEMTXATTRS_CPU(env_cpu(env));
     int mode = mmu_idx & TB_FLAGS_PRIV_MMU_MASK;
     bool use_background = false;
     hwaddr ppn;
