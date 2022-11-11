@@ -33,6 +33,7 @@
 #include "qapi/qapi-commands-block.h"
 #include "qapi/qapi-commands-char.h"
 #include "qapi/qapi-commands-control.h"
+#include "qapi/qapi-commands-cryptodev.h"
 #include "qapi/qapi-commands-machine.h"
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/qapi-commands-misc.h"
@@ -2760,4 +2761,39 @@ void hmp_virtio_queue_element(Monitor *mon, const QDict *qdict)
     monitor_printf(mon, "    idx:   %d\n", e->used->idx);
 
     qapi_free_VirtioQueueElement(e);
+}
+
+void hmp_info_cryptodev(Monitor *mon, const QDict *qdict)
+{
+    CryptodevInfoList *info_list;
+    CryptodevInfo *info;
+    QCryptodevBackendServiceTypeList *service_list;
+    CryptodevBackendClientList *client_list;
+    CryptodevBackendClient *client;
+    char services[128] = {};
+    int len;
+
+    info_list = qmp_query_cryptodev(NULL);
+    for ( ; info_list; info_list = info_list->next) {
+        info = info_list->value;
+
+        service_list = info->service;
+        for (len = 0; service_list; service_list = service_list->next) {
+            len += snprintf(services + len, sizeof(services) - len, "%s|",
+                QCryptodevBackendServiceType_str(service_list->value));
+        }
+        if (len) {
+            services[len - 1] = '\0'; /* strip last char '|' */
+        }
+        monitor_printf(mon, "%s: service=[%s]\n", info->id, services);
+
+        client_list = info->client;
+        for ( ; client_list; client_list = client_list->next) {
+            client = client_list->value;
+            monitor_printf(mon, "    queue %ld: type=%s\n", client->queue,
+                          QCryptodevBackendType_str(client->type));
+        }
+    }
+
+    qapi_free_CryptodevInfoList(info_list);
 }
