@@ -101,30 +101,31 @@ static inline int errno_to_dotl(int err) {
 #define qemu_utimensat  utimensat
 #define qemu_unlinkat   unlinkat
 
-static inline void close_preserve_errno(int fd)
+static inline void close_preserve_errno(QemuFd_t fd)
 {
     int serrno = errno;
     close(fd);
     errno = serrno;
 }
 
-static inline int openat_dir(int dirfd, const char *name)
+static inline QemuFd_t openat_dir(QemuFd_t dirfd, const char *name)
 {
     return qemu_openat(dirfd, name,
                        O_DIRECTORY | O_RDONLY | O_NOFOLLOW | O_PATH_9P_UTIL);
 }
 
-static inline int openat_file(int dirfd, const char *name, int flags,
-                              mode_t mode)
+static inline QemuFd_t openat_file(QemuFd_t dirfd, const char *name,
+                                   int flags, mode_t mode)
 {
-    int fd, serrno, ret;
+    int serrno, ret;
+    QemuFd_t fd;
 
 #ifndef CONFIG_DARWIN
 again:
 #endif
     fd = qemu_openat(dirfd, name, flags | O_NOFOLLOW | O_NOCTTY | O_NONBLOCK,
                      mode);
-    if (fd == -1) {
+    if (qemu_fd_invalid(fd)) {
 #ifndef CONFIG_DARWIN
         if (errno == EPERM && (flags & O_NOATIME)) {
             /*
@@ -155,13 +156,13 @@ again:
     return fd;
 }
 
-ssize_t fgetxattrat_nofollow(int dirfd, const char *path, const char *name,
-                             void *value, size_t size);
-int fsetxattrat_nofollow(int dirfd, const char *path, const char *name,
+ssize_t fgetxattrat_nofollow(QemuFd_t dirfd, const char *path,
+                             const char *name, void *value, size_t size);
+int fsetxattrat_nofollow(QemuFd_t dirfd, const char *path, const char *name,
                          void *value, size_t size, int flags);
-ssize_t flistxattrat_nofollow(int dirfd, const char *filename,
+ssize_t flistxattrat_nofollow(QemuFd_t dirfd, const char *filename,
                               char *list, size_t size);
-ssize_t fremovexattrat_nofollow(int dirfd, const char *filename,
+ssize_t fremovexattrat_nofollow(QemuFd_t dirfd, const char *filename,
                                 const char *name);
 
 /*
@@ -219,6 +220,7 @@ static inline struct dirent *qemu_dirent_dup(struct dirent *dent)
 #if defined CONFIG_DARWIN && defined CONFIG_PTHREAD_FCHDIR_NP
 int pthread_fchdir_np(int fd) __attribute__((weak_import));
 #endif
-int qemu_mknodat(int dirfd, const char *filename, mode_t mode, dev_t dev);
+int qemu_mknodat(QemuFd_t dirfd, const char *filename, mode_t mode,
+                 dev_t dev);
 
 #endif

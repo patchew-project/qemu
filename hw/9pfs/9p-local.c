@@ -54,18 +54,18 @@
 #endif
 
 typedef struct {
-    int mountfd;
+    QemuFd_t mountfd;
 } LocalData;
 
-int local_open_nofollow(FsContext *fs_ctx, const char *path, int flags,
-                        mode_t mode)
+QemuFd_t local_open_nofollow(FsContext *fs_ctx, const char *path, int flags,
+                             mode_t mode)
 {
     LocalData *data = fs_ctx->private;
-    int fd = data->mountfd;
+    QemuFd_t fd = data->mountfd;
 
-    while (*path && fd != -1) {
+    while (*path && !qemu_fd_invalid(fd)) {
         const char *c;
-        int next_fd;
+        QemuFd_t next_fd;
         char *head;
 
         /* Only relative paths without consecutive slashes */
@@ -94,20 +94,21 @@ int local_open_nofollow(FsContext *fs_ctx, const char *path, int flags,
     return fd;
 }
 
-int local_opendir_nofollow(FsContext *fs_ctx, const char *path)
+QemuFd_t local_opendir_nofollow(FsContext *fs_ctx, const char *path)
 {
     return local_open_nofollow(fs_ctx, path, O_DIRECTORY | O_RDONLY, 0);
 }
 
-static void renameat_preserve_errno(int odirfd, const char *opath, int ndirfd,
-                                    const char *npath)
+static void renameat_preserve_errno(QemuFd_t odirfd, const char *opath,
+                                    QemuFd_t ndirfd, const char *npath)
 {
     int serrno = errno;
     qemu_renameat(odirfd, opath, ndirfd, npath);
     errno = serrno;
 }
 
-static void unlinkat_preserve_errno(int dirfd, const char *path, int flags)
+static void unlinkat_preserve_errno(QemuFd_t dirfd, const char *path,
+                                    int flags)
 {
     int serrno = errno;
     qemu_unlinkat(dirfd, path, flags);
@@ -117,9 +118,10 @@ static void unlinkat_preserve_errno(int dirfd, const char *path, int flags)
 #define VIRTFS_META_DIR ".virtfs_metadata"
 #define VIRTFS_META_ROOT_FILE VIRTFS_META_DIR "_root"
 
-static FILE *local_fopenat(int dirfd, const char *name, const char *mode)
+static FILE *local_fopenat(QemuFd_t dirfd, const char *name, const char *mode)
 {
-    int fd, o_mode = 0;
+    QemuFd_t fd;
+    int o_mode = 0;
     FILE *fp;
     int flags;
     /*
@@ -134,7 +136,7 @@ static FILE *local_fopenat(int dirfd, const char *name, const char *mode)
         return NULL;
     }
     fd = openat_file(dirfd, name, flags, o_mode);
-    if (fd == -1) {
+    if (qemu_fd_invalid(fd)) {
         return NULL;
     }
     fp = fdopen(fd, mode);
@@ -145,16 +147,16 @@ static FILE *local_fopenat(int dirfd, const char *name, const char *mode)
 }
 
 #define ATTR_MAX 100
-static void local_mapped_file_attr(int dirfd, const char *name,
+static void local_mapped_file_attr(QemuFd_t dirfd, const char *name,
                                    struct stat *stbuf)
 {
     FILE *fp;
     char buf[ATTR_MAX];
-    int map_dirfd;
+    QemuFd_t map_dirfd;
 
     if (strcmp(name, ".")) {
         map_dirfd = openat_dir(dirfd, VIRTFS_META_DIR);
-        if (map_dirfd == -1) {
+        if (qemu_fd_invalid(map_dirfd)) {
             return;
         }
 
@@ -187,10 +189,10 @@ static int local_lstat(FsContext *fs_ctx, V9fsPath *fs_path, struct stat *stbuf)
     int err = -1;
     char *dirpath = g_path_get_dirname(fs_path->data);
     char *name = g_path_get_basename(fs_path->data);
-    int dirfd;
+    QemuFd_t dirfd;
 
     dirfd = local_opendir_nofollow(fs_ctx, dirpath);
-    if (dirfd == -1) {
+    if (qemu_fd_invalid(dirfd)) {
         goto out;
     }
 
@@ -233,14 +235,14 @@ out:
     return err;
 }
 
-static int local_set_mapped_file_attrat(int dirfd, const char *name,
+static int local_set_mapped_file_attrat(QemuFd_t dirfd, const char *name,
                                         FsCred *credp)
 {
     FILE *fp;
     int ret;
     char buf[ATTR_MAX];
     int uid = -1, gid = -1, mode = -1, rdev = -1;
-    int map_dirfd = -1, map_fd;
+    QemuFd_t map_dirfd = QEMU_FD_INVALID, map_fd;
     bool is_root = !strcmp(name, ".");
 
     if (is_root) {
@@ -259,7 +261,7 @@ static int local_set_mapped_file_attrat(int dirfd, const char *name,
         }
 
         map_dirfd = openat_dir(dirfd, VIRTFS_META_DIR);
-        if (map_dirfd == -1) {
+        if (qemu_fd_invalid(map_dirfd)) {
             return -1;
         }
 
@@ -296,7 +298,7 @@ update_map_file:
         /* We can't go this far with map_dirfd not being a valid file descriptor
          * but some versions of gcc aren't smart enough to see it.
          */
-        if (map_dirfd != -1) {
+        if (!qemu_fd_invalid(map_dirfd)) {
             close_preserve_errno(map_dirfd);
         }
     }
@@ -305,7 +307,7 @@ update_map_file:
     }
 
     map_fd = fileno(fp);
-    assert(map_fd != -1);
+    assert(!qemu_fd_invalid(map_fd));
     ret = fchmod(map_fd, 0600);
     assert(ret == 0);
 
@@ -339,10 +341,11 @@ update_map_file:
     return 0;
 }
 
-static int fchmodat_nofollow(int dirfd, const char *name, mode_t mode)
+static int fchmodat_nofollow(QemuFd_t dirfd, const char *name, mode_t mode)
 {
     struct stat stbuf;
-    int fd, ret;
+    QemuFd_t fd;
+    int ret;
 
     /* FIXME: this should be handled with fchmodat(AT_SYMLINK_NOFOLLOW).
      * Unfortunately, the linux kernel doesn't implement it yet.
@@ -362,16 +365,16 @@ static int fchmodat_nofollow(int dirfd, const char *name, mode_t mode)
     /* Fallback for systems that don't support O_PATH: we depend on the file
      * being readable or writable.
      */
-    if (fd == -1) {
+    if (qemu_fd_invalid(fd)) {
         /* In case the file is writable-only and isn't a directory. */
         if (errno == EACCES) {
             fd = openat_file(dirfd, name, O_WRONLY, 0);
         }
-        if (fd == -1 && errno == EISDIR) {
+        if (qemu_fd_invalid(fd) && errno == EISDIR) {
             errno = EACCES;
         }
     }
-    if (fd == -1) {
+    if (qemu_fd_invalid(fd)) {
         return -1;
     }
     ret = fchmod(fd, mode);
@@ -380,7 +383,7 @@ static int fchmodat_nofollow(int dirfd, const char *name, mode_t mode)
      * link, O_PATH | O_NOFOLLOW causes openat(2) to return a file descriptor
      * referring to the symbolic link.
      */
-    if (fd == -1) {
+    if (qemu_fd_invalid(fd)) {
         return -1;
     }
 
@@ -401,7 +404,7 @@ static int fchmodat_nofollow(int dirfd, const char *name, mode_t mode)
     return ret;
 }
 
-static int local_set_xattrat(int dirfd, const char *path, FsCred *credp)
+static int local_set_xattrat(QemuFd_t dirfd, const char *path, FsCred *credp)
 {
     int err;
 
@@ -440,7 +443,7 @@ static int local_set_xattrat(int dirfd, const char *path, FsCred *credp)
     return 0;
 }
 
-static int local_set_cred_passthrough(FsContext *fs_ctx, int dirfd,
+static int local_set_cred_passthrough(FsContext *fs_ctx, QemuFd_t dirfd,
                                       const char *name, FsCred *credp)
 {
     if (fchownat(dirfd, name, credp->fc_uid, credp->fc_gid,
@@ -464,10 +467,10 @@ static ssize_t local_readlink(FsContext *fs_ctx, V9fsPath *fs_path,
 
     if ((fs_ctx->export_flags & V9FS_SM_MAPPED) ||
         (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE)) {
-        int fd;
+        QemuFd_t fd;
 
         fd = local_open_nofollow(fs_ctx, fs_path->data, O_RDONLY, 0);
-        if (fd == -1) {
+        if (qemu_fd_invalid(fd)) {
             return -1;
         }
         do {
@@ -478,10 +481,10 @@ static ssize_t local_readlink(FsContext *fs_ctx, V9fsPath *fs_path,
                (fs_ctx->export_flags & V9FS_SM_NONE)) {
         char *dirpath = g_path_get_dirname(fs_path->data);
         char *name = g_path_get_basename(fs_path->data);
-        int dirfd;
+        QemuFd_t dirfd;
 
         dirfd = local_opendir_nofollow(fs_ctx, dirpath);
-        if (dirfd == -1) {
+        if (qemu_fd_invalid(dirfd)) {
             goto out;
         }
 
@@ -507,10 +510,10 @@ static int local_closedir(FsContext *ctx, V9fsFidOpenState *fs)
 static int local_open(FsContext *ctx, V9fsPath *fs_path,
                       int flags, V9fsFidOpenState *fs)
 {
-    int fd;
+    QemuFd_t fd;
 
     fd = local_open_nofollow(ctx, fs_path->data, flags, 0);
-    if (fd == -1) {
+    if (qemu_fd_invalid(fd)) {
         return -1;
     }
     fs->fd = fd;
@@ -520,11 +523,11 @@ static int local_open(FsContext *ctx, V9fsPath *fs_path,
 static int local_opendir(FsContext *ctx,
                          V9fsPath *fs_path, V9fsFidOpenState *fs)
 {
-    int dirfd;
+    QemuFd_t dirfd;
     DIR *stream;
 
     dirfd = local_opendir_nofollow(ctx, fs_path->data);
-    if (dirfd == -1) {
+    if (qemu_fd_invalid(dirfd)) {
         return -1;
     }
 
@@ -640,10 +643,10 @@ static int local_chmod(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
     char *dirpath = g_path_get_dirname(fs_path->data);
     char *name = g_path_get_basename(fs_path->data);
     int ret = -1;
-    int dirfd;
+    QemuFd_t dirfd;
 
     dirfd = local_opendir_nofollow(fs_ctx, dirpath);
-    if (dirfd == -1) {
+    if (qemu_fd_invalid(dirfd)) {
         goto out;
     }
 
@@ -667,7 +670,7 @@ static int local_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
                        const char *name, FsCred *credp)
 {
     int err = -1;
-    int dirfd;
+    QemuFd_t dirfd;
 
     if (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE &&
         local_is_mapped_file_metadata(fs_ctx, name)) {
@@ -676,7 +679,7 @@ static int local_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
     }
 
     dirfd = local_opendir_nofollow(fs_ctx, dir_path->data);
-    if (dirfd == -1) {
+    if (qemu_fd_invalid(dirfd)) {
         return -1;
     }
 
@@ -719,7 +722,7 @@ static int local_mkdir(FsContext *fs_ctx, V9fsPath *dir_path,
                        const char *name, FsCred *credp)
 {
     int err = -1;
-    int dirfd;
+    QemuFd_t dirfd;
 
     if (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE &&
         local_is_mapped_file_metadata(fs_ctx, name)) {
@@ -728,7 +731,7 @@ static int local_mkdir(FsContext *fs_ctx, V9fsPath *dir_path,
     }
 
     dirfd = local_opendir_nofollow(fs_ctx, dir_path->data);
-    if (dirfd == -1) {
+    if (qemu_fd_invalid(dirfd)) {
         return -1;
     }
 
@@ -816,9 +819,9 @@ static int local_fstat(FsContext *fs_ctx, int fid_type,
 static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
                        int flags, FsCred *credp, V9fsFidOpenState *fs)
 {
-    int fd = -1;
+    QemuFd_t fd = QEMU_FD_INVALID;
     int err = -1;
-    int dirfd;
+    QemuFd_t dirfd;
 
     if (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE &&
         local_is_mapped_file_metadata(fs_ctx, name)) {
@@ -832,7 +835,7 @@ static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
     flags |= O_NOFOLLOW;
 
     dirfd = local_opendir_nofollow(fs_ctx, dir_path->data);
-    if (dirfd == -1) {
+    if (qemu_fd_invalid(dirfd)) {
         return -1;
     }
 
@@ -840,7 +843,7 @@ static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
     if (fs_ctx->export_flags & V9FS_SM_MAPPED ||
         fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
         fd = openat_file(dirfd, name, flags, fs_ctx->fmode);
-        if (fd == -1) {
+        if (qemu_fd_invalid(fd)) {
             goto out;
         }
         credp->fc_mode = credp->fc_mode | S_IFREG;
@@ -856,7 +859,7 @@ static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
     } else if ((fs_ctx->export_flags & V9FS_SM_PASSTHROUGH) ||
                (fs_ctx->export_flags & V9FS_SM_NONE)) {
         fd = openat_file(dirfd, name, flags, credp->fc_mode);
-        if (fd == -1) {
+        if (qemu_fd_invalid(fd)) {
             goto out;
         }
         err = local_set_cred_passthrough(fs_ctx, dirfd, name, credp);
@@ -882,7 +885,7 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
                          V9fsPath *dir_path, const char *name, FsCred *credp)
 {
     int err = -1;
-    int dirfd;
+    QemuFd_t dirfd;
 
     if (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE &&
         local_is_mapped_file_metadata(fs_ctx, name)) {
@@ -891,19 +894,19 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
     }
 
     dirfd = local_opendir_nofollow(fs_ctx, dir_path->data);
-    if (dirfd == -1) {
+    if (qemu_fd_invalid(dirfd)) {
         return -1;
     }
 
     /* Determine the security model */
     if (fs_ctx->export_flags & V9FS_SM_MAPPED ||
         fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
-        int fd;
+        QemuFd_t fd;
         ssize_t oldpath_size, write_size;
 
         fd = openat_file(dirfd, name, O_CREAT | O_EXCL | O_RDWR,
                          fs_ctx->fmode);
-        if (fd == -1) {
+        if (qemu_fd_invalid(fd)) {
             goto out;
         }
         /* Write the oldpath (target) to the file. */
@@ -962,7 +965,7 @@ static int local_link(FsContext *ctx, V9fsPath *oldpath,
     char *odirpath = g_path_get_dirname(oldpath->data);
     char *oname = g_path_get_basename(oldpath->data);
     int ret = -1;
-    int odirfd, ndirfd;
+    QemuFd_t odirfd, ndirfd;
 
     if (ctx->export_flags & V9FS_SM_MAPPED_FILE &&
         local_is_mapped_file_metadata(ctx, name)) {
@@ -971,12 +974,12 @@ static int local_link(FsContext *ctx, V9fsPath *oldpath,
     }
 
     odirfd = local_opendir_nofollow(ctx, odirpath);
-    if (odirfd == -1) {
+    if (qemu_fd_invalid(odirfd)) {
         goto out;
     }
 
     ndirfd = local_opendir_nofollow(ctx, dirpath->data);
-    if (ndirfd == -1) {
+    if (qemu_fd_invalid(ndirfd)) {
         close_preserve_errno(odirfd);
         goto out;
     }
@@ -996,12 +999,12 @@ static int local_link(FsContext *ctx, V9fsPath *oldpath,
         }
 
         omap_dirfd = openat_dir(odirfd, VIRTFS_META_DIR);
-        if (omap_dirfd == -1) {
+        if (qemu_fd_invalid(omap_dirfd)) {
             goto err;
         }
 
         nmap_dirfd = openat_dir(ndirfd, VIRTFS_META_DIR);
-        if (nmap_dirfd == -1) {
+        if (qemu_fd_invalid(nmap_dirfd)) {
             close_preserve_errno(omap_dirfd);
             goto err;
         }
@@ -1032,10 +1035,11 @@ out:
 
 static int local_truncate(FsContext *ctx, V9fsPath *fs_path, off_t size)
 {
-    int fd, ret;
+    QemuFd_t fd;
+    int ret;
 
     fd = local_open_nofollow(ctx, fs_path->data, O_WRONLY, 0);
-    if (fd == -1) {
+    if (qemu_fd_invalid(fd)) {
         return -1;
     }
     ret = ftruncate(fd, size);
@@ -1048,10 +1052,10 @@ static int local_chown(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
     char *dirpath = g_path_get_dirname(fs_path->data);
     char *name = g_path_get_basename(fs_path->data);
     int ret = -1;
-    int dirfd;
+    QemuFd_t dirfd;
 
     dirfd = local_opendir_nofollow(fs_ctx, dirpath);
-    if (dirfd == -1) {
+    if (qemu_fd_invalid(dirfd)) {
         goto out;
     }
 
@@ -1078,10 +1082,11 @@ static int local_utimensat(FsContext *s, V9fsPath *fs_path,
 {
     char *dirpath = g_path_get_dirname(fs_path->data);
     char *name = g_path_get_basename(fs_path->data);
-    int dirfd, ret = -1;
+    QemuFd_t dirfd;
+    int ret = -1;
 
     dirfd = local_opendir_nofollow(s, dirpath);
-    if (dirfd == -1) {
+    if (qemu_fd_invalid(dirfd)) {
         goto out;
     }
 
@@ -1093,13 +1098,13 @@ out:
     return ret;
 }
 
-static int local_unlinkat_common(FsContext *ctx, int dirfd, const char *name,
-                                 int flags)
+static int local_unlinkat_common(FsContext *ctx, QemuFd_t dirfd,
+                                 const char *name, int flags)
 {
     int ret;
 
     if (ctx->export_flags & V9FS_SM_MAPPED_FILE) {
-        int map_dirfd;
+        QemuFd_t map_dirfd;
 
         /* We need to remove the metadata as well:
          * - the metadata directory if we're removing a directory
@@ -1110,10 +1115,10 @@ static int local_unlinkat_common(FsContext *ctx, int dirfd, const char *name,
          * mode. We just ignore the error.
          */
         if (flags == AT_REMOVEDIR) {
-            int fd;
+            QemuFd_t fd;
 
             fd = openat_dir(dirfd, name);
-            if (fd == -1) {
+            if (qemu_fd_invalid(fd)) {
                 return -1;
             }
             ret = qemu_unlinkat(fd, VIRTFS_META_DIR, AT_REMOVEDIR);
@@ -1123,7 +1128,7 @@ static int local_unlinkat_common(FsContext *ctx, int dirfd, const char *name,
             }
         }
         map_dirfd = openat_dir(dirfd, VIRTFS_META_DIR);
-        if (map_dirfd != -1) {
+        if (!qemu_fd_invalid(map_dirfd)) {
             ret = qemu_unlinkat(map_dirfd, name, 0);
             close_preserve_errno(map_dirfd);
             if (ret < 0 && errno != ENOENT) {
@@ -1143,11 +1148,11 @@ static int local_remove(FsContext *ctx, const char *path)
     char *dirpath = g_path_get_dirname(path);
     char *name = g_path_get_basename(path);
     int flags = 0;
-    int dirfd;
+    QemuFd_t dirfd;
     int err = -1;
 
     dirfd = local_opendir_nofollow(ctx, dirpath);
-    if (dirfd == -1) {
+    if (qemu_fd_invalid(dirfd)) {
         goto out;
     }
 
@@ -1188,10 +1193,11 @@ static int local_fsync(FsContext *ctx, int fid_type,
 
 static int local_statfs(FsContext *s, V9fsPath *fs_path, struct statfs *stbuf)
 {
-    int fd, ret;
+    QemuFd_t fd;
+    int ret;
 
     fd = local_open_nofollow(s, fs_path->data, O_RDONLY, 0);
-    if (fd == -1) {
+    if (qemu_fd_invalid(fd)) {
         return -1;
     }
     ret = fstatfs(fd, stbuf);
@@ -1276,7 +1282,7 @@ static int local_renameat(FsContext *ctx, V9fsPath *olddir,
                           const char *new_name)
 {
     int ret;
-    int odirfd, ndirfd;
+    QemuFd_t odirfd, ndirfd;
 
     if (ctx->export_flags & V9FS_SM_MAPPED_FILE &&
         (local_is_mapped_file_metadata(ctx, old_name) ||
@@ -1286,12 +1292,12 @@ static int local_renameat(FsContext *ctx, V9fsPath *olddir,
     }
 
     odirfd = local_opendir_nofollow(ctx, olddir->data);
-    if (odirfd == -1) {
+    if (qemu_fd_invalid(odirfd)) {
         return -1;
     }
 
     ndirfd = local_opendir_nofollow(ctx, newdir->data);
-    if (ndirfd == -1) {
+    if (qemu_fd_invalid(ndirfd)) {
         close_preserve_errno(odirfd);
         return -1;
     }
@@ -1302,7 +1308,7 @@ static int local_renameat(FsContext *ctx, V9fsPath *olddir,
     }
 
     if (ctx->export_flags & V9FS_SM_MAPPED_FILE) {
-        int omap_dirfd, nmap_dirfd;
+        QemuFd_t omap_dirfd, nmap_dirfd;
 
         ret = qemu_mkdirat(ndirfd, VIRTFS_META_DIR, 0700);
         if (ret < 0 && errno != EEXIST) {
@@ -1310,12 +1316,12 @@ static int local_renameat(FsContext *ctx, V9fsPath *olddir,
         }
 
         omap_dirfd = openat_dir(odirfd, VIRTFS_META_DIR);
-        if (omap_dirfd == -1) {
+        if (qemu_fd_invalid(omap_dirfd)) {
             goto err;
         }
 
         nmap_dirfd = openat_dir(ndirfd, VIRTFS_META_DIR);
-        if (nmap_dirfd == -1) {
+        if (qemu_fd_invalid(nmap_dirfd)) {
             close_preserve_errno(omap_dirfd);
             goto err;
         }
@@ -1373,7 +1379,7 @@ static int local_unlinkat(FsContext *ctx, V9fsPath *dir,
                           const char *name, int flags)
 {
     int ret;
-    int dirfd;
+    QemuFd_t dirfd;
 
     if (ctx->export_flags & V9FS_SM_MAPPED_FILE &&
         local_is_mapped_file_metadata(ctx, name)) {
@@ -1382,7 +1388,7 @@ static int local_unlinkat(FsContext *ctx, V9fsPath *dir,
     }
 
     dirfd = local_opendir_nofollow(ctx, dir->data);
-    if (dirfd == -1) {
+    if (qemu_fd_invalid(dirfd)) {
         return -1;
     }
 
@@ -1446,7 +1452,7 @@ static int local_init(FsContext *ctx, Error **errp)
     LocalData *data = g_malloc(sizeof(*data));
 
     data->mountfd = open(ctx->fs_root, O_DIRECTORY | O_RDONLY);
-    if (data->mountfd == -1) {
+    if (qemu_fd_invalid(data->mountfd)) {
         error_setg_errno(errp, errno, "failed to open '%s'", ctx->fs_root);
         goto err;
     }

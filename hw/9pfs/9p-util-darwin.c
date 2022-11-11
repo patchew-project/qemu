@@ -11,8 +11,8 @@
 #include "qemu/error-report.h"
 #include "9p-util.h"
 
-ssize_t fgetxattrat_nofollow(int dirfd, const char *filename, const char *name,
-                             void *value, size_t size)
+ssize_t fgetxattrat_nofollow(QemuFd_t dirfd, const char *filename,
+                             const char *name, void *value, size_t size)
 {
     int ret;
     int fd = openat_file(dirfd, filename,
@@ -25,7 +25,7 @@ ssize_t fgetxattrat_nofollow(int dirfd, const char *filename, const char *name,
     return ret;
 }
 
-ssize_t flistxattrat_nofollow(int dirfd, const char *filename,
+ssize_t flistxattrat_nofollow(QemuFd_t dirfd, const char *filename,
                               char *list, size_t size)
 {
     int ret;
@@ -39,7 +39,7 @@ ssize_t flistxattrat_nofollow(int dirfd, const char *filename,
     return ret;
 }
 
-ssize_t fremovexattrat_nofollow(int dirfd, const char *filename,
+ssize_t fremovexattrat_nofollow(QemuFd_t dirfd, const char *filename,
                                 const char *name)
 {
     int ret;
@@ -52,8 +52,8 @@ ssize_t fremovexattrat_nofollow(int dirfd, const char *filename,
     return ret;
 }
 
-int fsetxattrat_nofollow(int dirfd, const char *filename, const char *name,
-                         void *value, size_t size, int flags)
+int fsetxattrat_nofollow(QemuFd_t dirfd, const char *filename,
+                         const char *name, void *value, size_t size, int flags)
 {
     int ret;
     int fd = openat_file(dirfd, filename, O_PATH_9P_UTIL | O_NOFOLLOW, 0);
@@ -110,7 +110,7 @@ out:
     return err;
 }
 
-int qemu_mknodat(int dirfd, const char *filename, mode_t mode, dev_t dev)
+int qemu_mknodat(QemuFd_t dirfd, const char *filename, mode_t mode, dev_t dev)
 {
     int preserved_errno, err;
 

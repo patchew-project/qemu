@@ -19,8 +19,8 @@
 #include "qemu/xattr.h"
 #include "9p-util.h"
 
-ssize_t fgetxattrat_nofollow(int dirfd, const char *filename, const char *name,
-                             void *value, size_t size)
+ssize_t fgetxattrat_nofollow(QemuFd_t dirfd, const char *filename,
+                             const char *name, void *value, size_t size)
 {
     char *proc_path = g_strdup_printf("/proc/self/fd/%d/%s", dirfd, filename);
     int ret;
@@ -30,7 +30,7 @@ ssize_t fgetxattrat_nofollow(int dirfd, const char *filename, const char *name,
     return ret;
 }
 
-ssize_t flistxattrat_nofollow(int dirfd, const char *filename,
+ssize_t flistxattrat_nofollow(QemuFd_t dirfd, const char *filename,
                               char *list, size_t size)
 {
     char *proc_path = g_strdup_printf("/proc/self/fd/%d/%s", dirfd, filename);
@@ -41,7 +41,7 @@ ssize_t flistxattrat_nofollow(int dirfd, const char *filename,
     return ret;
 }
 
-ssize_t fremovexattrat_nofollow(int dirfd, const char *filename,
+ssize_t fremovexattrat_nofollow(QemuFd_t dirfd, const char *filename,
                                 const char *name)
 {
     char *proc_path = g_strdup_printf("/proc/self/fd/%d/%s", dirfd, filename);
@@ -52,8 +52,8 @@ ssize_t fremovexattrat_nofollow(int dirfd, const char *filename,
     return ret;
 }
 
-int fsetxattrat_nofollow(int dirfd, const char *filename, const char *name,
-                         void *value, size_t size, int flags)
+int fsetxattrat_nofollow(QemuFd_t dirfd, const char *filename,
+                         const char *name, void *value, size_t size, int flags)
 {
     char *proc_path = g_strdup_printf("/proc/self/fd/%d/%s", dirfd, filename);
     int ret;
@@ -64,7 +64,7 @@ int fsetxattrat_nofollow(int dirfd, const char *filename, const char *name,
 
 }
 
-int qemu_mknodat(int dirfd, const char *filename, mode_t mode, dev_t dev)
+int qemu_mknodat(QemuFd_t dirfd, const char *filename, mode_t mode, dev_t dev)
 {
     return mknodat(dirfd, filename, mode, dev);
 }
