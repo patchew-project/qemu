@@ -3517,7 +3517,7 @@ static MemTxResult vtd_mem_ir_write(void *opaque, hwaddr addr,
     from.address = (uint64_t) addr + VTD_INTERRUPT_ADDR_FIRST;
     from.data = (uint32_t) value;
 
-    if (!attrs.unspecified) {
+    if (attrs.requester_type == MTRT_PCI) {
         /* We have explicit Source ID */
         sid = attrs.requester_id;
     }

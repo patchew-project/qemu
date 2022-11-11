@@ -319,9 +319,7 @@ void pci_device_deassert_intx(PCIDevice *dev)
 
 static void pci_msi_trigger(PCIDevice *dev, MSIMessage msg)
 {
-    MemTxAttrs attrs = {};
-
-    attrs.requester_id = pci_requester_id(dev);
+    MemTxAttrs attrs = MEMTXATTRS_PCI(dev);
     address_space_stl_le(&dev->bus_master_as, msg.address, msg.data,
                          attrs, NULL);
 }

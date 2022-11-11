@@ -153,9 +153,7 @@ static void amdvi_assign_andq(AMDVIState *s, hwaddr addr, uint64_t val)
 static void amdvi_generate_msi_interrupt(AMDVIState *s)
 {
     MSIMessage msg = {};
-    MemTxAttrs attrs = {
-        .requester_id = pci_requester_id(&s->pci.dev)
-    };
+    MemTxAttrs attrs = MEMTXATTRS_PCI(&s->pci.dev);
 
     if (msi_enabled(&s->pci.dev)) {
         msg = msi_get_message(&s->pci.dev, 0);
@@ -1356,7 +1354,7 @@ static MemTxResult amdvi_mem_ir_write(void *opaque, hwaddr addr,
 
     trace_amdvi_mem_ir_write_req(addr, value, size);
 
-    if (!attrs.unspecified) {
+    if (attrs.requester_type == MTRT_PCI) {
         /* We have explicit Source ID */
         sid = attrs.requester_id;
     }

@@ -14,7 +14,32 @@
 #ifndef MEMATTRS_H
 #define MEMATTRS_H
 
-/* Every memory transaction has associated with it a set of
+/**
+ * typedef MemTxRequesterType - source of memory transaction
+ *
+ * Every memory transaction comes from a specific place which defines
+ * how requester_id should be handled if at all.
+ *
+ * UNSPECIFIED: the default for otherwise undefined MemTxAttrs
+ * CPU: requester_id is the global cpu_index
+ *      This needs further processing if you need to work out which
+ *      socket or complex it comes from
+ * PCI: indicates the requester_id is a PCI id
+ * MACHINE: indicates a machine specific encoding
+ *          This will require further processing to decode into its
+ *          constituent parts.
+ */
+typedef enum MemTxRequesterType {
+    MTRT_UNSPECIFIED = 0,
+    MTRT_CPU,
+    MTRT_PCI,
+    MTRT_MACHINE
+} MemTxRequesterType;
+
+/**
+ * typedef MemTxAttrs - attributes of a memory transaction
+ *
+ * Every memory transaction has associated with it a set of
  * attributes. Some of these are generic (such as the ID of
  * the bus master); some are specific to a particular kind of
  * bus (such as the ARM Secure/NonSecure bit). We define them
@@ -23,13 +48,12 @@
  * different semantics.
  */
 typedef struct MemTxAttrs {
-    /* Bus masters which don't specify any attributes will get this
-     * (via the MEMTXATTRS_UNSPECIFIED constant), so that we can
-     * distinguish "all attributes deliberately clear" from
-     * "didn't specify" if necessary.
-     */
-    unsigned int unspecified:1;
-    /* ARM/AMBA: TrustZone Secure access
+    /* Requester type (e.g. CPU or PCI MSI) */
+    MemTxRequesterType requester_type:2;
+    /* Requester ID */
+    unsigned int requester_id:16;
+    /*
+     * ARM/AMBA: TrustZone Secure access
      * x86: System Management Mode access
      */
     unsigned int secure:1;
@@ -43,8 +67,6 @@ typedef struct MemTxAttrs {
      * (see MEMTX_ACCESS_ERROR).
      */
     unsigned int memory:1;
-    /* Requester ID (for MSI for example) */
-    unsigned int requester_id:16;
     /* Invert endianness for this page */
     unsigned int byte_swap:1;
     /*
@@ -59,12 +81,28 @@ typedef struct MemTxAttrs {
     unsigned int target_tlb_bit2 : 1;
 } MemTxAttrs;
 
-/* Bus masters which don't specify any attributes will get this,
- * which has all attribute bits clear except the topmost one
- * (so that we can distinguish "all attributes deliberately clear"
- * from "didn't specify" if necessary).
+/*
+ * Bus masters which don't specify any attributes will get this which
+ * indicates none of the attributes can be used.
  */
-#define MEMTXATTRS_UNSPECIFIED ((MemTxAttrs) { .unspecified = 1 })
+#define MEMTXATTRS_UNSPECIFIED ((MemTxAttrs) \
+                                { .requester_type = MTRT_UNSPECIFIED })
+
+/*
+ * Helper for setting a basic CPU sourced transaction, it expects a
+ * CPUState *
+ */
+#define MEMTXATTRS_CPU(cs) ((MemTxAttrs) \
+                            {.requester_type = MTRT_CPU, \
+                             .requester_id = cs->cpu_index})
+
+/*
+ * Helper for setting a basic PCI sourced transaction, it expects a
+ * PCIDevice *
+ */
+#define MEMTXATTRS_PCI(dev) ((MemTxAttrs) \
+                             {.requester_type = MTRT_PCI,   \
+                             .requester_id = pci_requester_id(dev)})
 
 /* New-style MMIO accessors can indicate that the transaction failed.
  * A zero (MEMTX_OK) response means success; anything else is a failure

@@ -137,11 +137,9 @@ static MemTxResult tz_msc_read(void *opaque, hwaddr addr, uint64_t *pdata,
         return MEMTX_OK;
     case MSCAllowSecure:
         attrs.secure = 1;
-        attrs.unspecified = 0;
         break;
     case MSCAllowNonSecure:
         attrs.secure = 0;
-        attrs.unspecified = 0;
         break;
     }
 
@@ -179,11 +177,11 @@ static MemTxResult tz_msc_write(void *opaque, hwaddr addr, uint64_t val,
         return MEMTX_OK;
     case MSCAllowSecure:
         attrs.secure = 1;
-        attrs.unspecified = 0;
+        attrs.requester_type = MTRT_CPU;
         break;
     case MSCAllowNonSecure:
         attrs.secure = 0;
-        attrs.unspecified = 0;
+        attrs.requester_type = MTRT_CPU;
         break;
     }
 
