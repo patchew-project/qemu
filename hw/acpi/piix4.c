@@ -70,7 +70,7 @@ static void pm_tmr_timer(ACPIREGS *ar)
     acpi_update_sci(&s->ar, s->irq);
 }
 
-static void apm_ctrl_changed(uint32_t val, void *arg)
+static void apm_ctrl_changed(CPUState *cs, uint32_t val, void *arg)
 {
     PIIX4PMState *s = arg;
     PCIDevice *d = PCI_DEVICE(s);

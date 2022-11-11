@@ -21,6 +21,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
+#include "hw/core/cpu.h"
 #include "hw/isa/apm.h"
 #include "hw/pci/pci.h"
 #include "migration/vmstate.h"
@@ -30,10 +32,19 @@
 /* fixed I/O location */
 #define APM_STS_IOPORT  0xb3
 
-static void apm_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
-                              unsigned size)
+static MemTxResult apm_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
+                                     unsigned size, MemTxAttrs attrs)
 {
     APMState *apm = opaque;
+    CPUState *cs;
+
+    if (attrs.requester_type != MTRT_CPU) {
+        qemu_log_mask(LOG_UNIMP | LOG_GUEST_ERROR,
+                      "%s: saw non-CPU transaction", __func__);
+        return MEMTX_ACCESS_ERROR;
+    }
+    cs = qemu_get_cpu(attrs.requester_id);
+
     addr &= 1;
 
     trace_apm_io_write(addr, val);
@@ -41,11 +52,13 @@ static void apm_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
         apm->apmc = val;
 
         if (apm->callback) {
-            (apm->callback)(val, apm->arg);
+            (apm->callback)(cs, val, apm->arg);
         }
     } else {
         apm->apms = val;
     }
+
+    return MEMTX_OK;
 }
 
 static uint64_t apm_ioport_readb(void *opaque, hwaddr addr, unsigned size)
@@ -77,7 +90,7 @@ const VMStateDescription vmstate_apm = {
 
 static const MemoryRegionOps apm_ops = {
     .read = apm_ioport_readb,
-    .write = apm_ioport_writeb,
+    .write_with_attrs = apm_ioport_writeb,
     .impl = {
         .min_access_size = 1,
         .max_access_size = 1,

@@ -6,7 +6,7 @@
 #define APM_CNT_IOPORT  0xb2
 #define ACPI_PORT_SMI_CMD APM_CNT_IOPORT
 
-typedef void (*apm_ctrl_changed_t)(uint32_t val, void *arg);
+typedef void (*apm_ctrl_changed_t)(CPUState *cs, uint32_t val, void *arg);
 
 typedef struct APMState {
     uint8_t apmc;
