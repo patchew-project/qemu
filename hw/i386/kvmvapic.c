@@ -635,20 +635,21 @@ static int vapic_prepare(VAPICROMState *s)
     return 0;
 }
 
-static void vapic_write(void *opaque, hwaddr addr, uint64_t data,
-                        unsigned int size)
+static MemTxResult vapic_write(void *opaque, hwaddr addr, uint64_t data,
+                               unsigned int size, MemTxAttrs attrs)
 {
     VAPICROMState *s = opaque;
+    CPUState *cs;
     X86CPU *cpu;
     CPUX86State *env;
     hwaddr rom_paddr;
 
-    if (!current_cpu) {
-        return;
+    if (attrs.requester_type != MTRT_CPU) {
+        return MEMTX_ACCESS_ERROR;
     }
-
-    cpu_synchronize_state(current_cpu);
-    cpu = X86_CPU(current_cpu);
+    cs = qemu_get_cpu(attrs.requester_id);
+    cpu_synchronize_state(cs);
+    cpu = X86_CPU(cs);
     env = &cpu->env;
 
     /*
@@ -708,6 +709,8 @@ static void vapic_write(void *opaque, hwaddr addr, uint64_t data,
         }
         break;
     }
+
+    return MEMTX_OK;
 }
 
 static uint64_t vapic_read(void *opaque, hwaddr addr, unsigned size)
@@ -716,7 +719,7 @@ static uint64_t vapic_read(void *opaque, hwaddr addr, unsigned size)
 }
 
 static const MemoryRegionOps vapic_ops = {
-    .write = vapic_write,
+    .write_with_attrs = vapic_write,
     .read = vapic_read,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
