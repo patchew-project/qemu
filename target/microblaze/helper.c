@@ -44,7 +44,7 @@ bool mb_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     MicroBlazeMMULookup lu;
     unsigned int hit;
     int prot;
-    MemTxAttrs attrs = {};
+    MemTxAttrs attrs = MEMTXATTRS_CPU(cs);
 
     attrs.secure = mb_cpu_access_is_secure(cpu, access_type);
 
@@ -235,7 +235,7 @@ hwaddr mb_cpu_get_phys_page_attrs_debug(CPUState *cs, vaddr addr,
     unsigned int hit;
 
     /* Caller doesn't initialize */
-    *attrs = (MemTxAttrs) {};
+    *attrs = MEMTXATTRS_CPU(cs);
     attrs->secure = mb_cpu_access_is_secure(cpu, MMU_DATA_LOAD);
 
     if (mmu_idx != MMU_NOMMU_IDX) {
