@@ -454,6 +454,20 @@ extern CPUTailQ cpus;
 #define CPU_FOREACH_SAFE(cpu, next_cpu) \
     QTAILQ_FOREACH_SAFE_RCU(cpu, &cpus, node, next_cpu)
 
+/**
+ * current_cpu - TLS pointing to the current executing CPU
+ *
+ * current_cpu is a thread local convenience variable containing that
+ * threads executing CPUState. It is intended to be used deep in
+ * accelerator related operations where passing down CPUState is too
+ * fiddly.
+ *
+ * Its use in HW emulation is heavily discouraged in new code as not
+ * all memory accesses will necessarily be from an executing CPU (e.g.
+ * from a debugger). HW emulation should be using MemTxAttrs to derive
+ * the exact source of a memory access. If the access is from a CPU it
+ * can be derived from qemu_get_cpu(cpu_index).
+ */
 extern __thread CPUState *current_cpu;
 
 /**
