@@ -21,6 +21,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "qapi/error.h"
 #include "monitor/monitor.h"
 #include "hw/i386/apic.h"
@@ -88,9 +89,33 @@ static void ioapic_entry_parse(uint64_t entry, struct ioapic_entry_info *info)
         (info->delivery_mode << MSI_DATA_DELIVERY_MODE_SHIFT);
 }
 
-static void ioapic_service(IOAPICCommonState *s)
+/*
+ * No matter whether IR is enabled, we translate the IOAPIC message
+ * into a MSI one, and its address space will decide whether we need a
+ * translation.
+ *
+ * As the IOPIC is directly wired to the APIC writes to it are not the
+ * same as writes coming from the main bus of the machine. To model
+ * this we set its source as machine specific with the MEMTX_IOPIC
+ * id.
+ */
+static void send_ioapic_msi(struct ioapic_entry_info info)
 {
     AddressSpace *ioapic_as = X86_MACHINE(qdev_get_machine())->ioapic_as;
+    MemTxAttrs attrs = MEMTXATTRS_MACHINE(MEMTX_IOAPIC);
+    MemTxResult res;
+
+    address_space_stl_le(ioapic_as, info.addr, info.data,
+                                         attrs, &res);
+    if (res != MEMTX_OK) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: couldn't write to %"PRIx32"\n", __func__, info.addr);
+    }
+}
+
+
+static void ioapic_service(IOAPICCommonState *s)
+{
     struct ioapic_entry_info info;
     uint8_t i;
     uint32_t mask;
@@ -130,12 +155,8 @@ static void ioapic_service(IOAPICCommonState *s)
                     continue;
                 }
 #endif
-
-                /* No matter whether IR is enabled, we translate
-                 * the IOAPIC message into a MSI one, and its
-                 * address space will decide whether we need a
-                 * translation. */
-                stl_le_phys(ioapic_as, info.addr, info.data);
+                /* If not handled by KVM we now send it ourselves */
+                send_ioapic_msi(info);
             }
         }
     }

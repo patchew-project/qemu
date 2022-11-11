@@ -82,6 +82,8 @@
 
 #define IOAPIC_VER_ENTRIES_SHIFT        16
 
+/* Magic number to identify IOAPIC memory transactions */
+#define MEMTX_IOAPIC                    0xA71C
 
 #define TYPE_IOAPIC_COMMON "ioapic-common"
 OBJECT_DECLARE_TYPE(IOAPICCommonState, IOAPICCommonClass, IOAPIC_COMMON)
