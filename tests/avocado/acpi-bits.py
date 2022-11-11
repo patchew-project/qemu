@@ -385,8 +385,9 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
         self._vm.launch()
         # biosbits has been configured to run all the specified test suites
         # in batch mode and then automatically initiate a vm shutdown.
-        # sleep for maximum of one minute
-        max_sleep_time = time.monotonic() + 60
+        # sleep for maximum of a minute and 50 seconds in order to accommodate
+        # even slower test setups.
+        max_sleep_time = time.monotonic() + 110
         while self._vm.is_running() and time.monotonic() < max_sleep_time:
             time.sleep(1)
 
