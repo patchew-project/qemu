@@ -480,7 +480,7 @@ DeviceState *sifive_plic_create(hwaddr addr, char *hart_config,
                                   qdev_get_gpio_in(DEVICE(cpu), IRQ_M_EXT));
         }
         if (plic->addr_config[i].mode == PLICMode_S) {
-            qdev_connect_gpio_out(dev, cpu_num,
+            qdev_connect_gpio_out(dev, cpu_num - plic->hartid_base,
                                   qdev_get_gpio_in(DEVICE(cpu), IRQ_S_EXT));
         }
     }
