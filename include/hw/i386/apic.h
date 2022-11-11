@@ -22,6 +22,6 @@ void apic_designate_bsp(DeviceState *d, bool bsp);
 int apic_get_highest_priority_irr(DeviceState *dev);
 
 /* pc.c */
-DeviceState *cpu_get_current_apic(void);
+DeviceState *cpu_get_current_apic(int cpu_index);
 
 #endif

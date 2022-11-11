@@ -585,14 +585,11 @@ int cpu_get_pic_interrupt(CPUX86State *env)
     return intno;
 }
 
-DeviceState *cpu_get_current_apic(void)
+DeviceState *cpu_get_current_apic(int cpu_index)
 {
-    if (current_cpu) {
-        X86CPU *cpu = X86_CPU(current_cpu);
-        return cpu->apic_state;
-    } else {
-        return NULL;
-    }
+    CPUState *cs = qemu_get_cpu(cpu_index);
+    X86CPU *cpu = X86_CPU(cs);
+    return cpu->apic_state;
 }
 
 void gsi_handler(void *opaque, int n, int level)
