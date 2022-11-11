@@ -104,6 +104,14 @@ typedef struct MemTxAttrs {
                              {.requester_type = MTRT_PCI,   \
                              .requester_id = pci_requester_id(dev)})
 
+/*
+ * Helper for setting a machine specific sourced transaction. The
+ * details of how to decode the requester_id are machine specific.
+ */
+#define MEMTXATTRS_MACHINE(id) ((MemTxAttrs) \
+                                {.requester_type = MTRT_MACHINE, \
+                                 .requester_id = id })
+
 /* New-style MMIO accessors can indicate that the transaction failed.
  * A zero (MEMTX_OK) response means success; anything else is a failure
  * of some kind. The memory subsystem will bitwise-OR together results
