@@ -95,6 +95,9 @@ static void cryptodev_builtin_init(
     backend->conf.max_cipher_key_len = CRYPTODEV_BUITLIN_MAX_CIPHER_KEY_LEN;
     backend->conf.max_auth_key_len = CRYPTODEV_BUITLIN_MAX_AUTH_KEY_LEN;
 
+    backend->sym_stat = g_new0(QCryptodevBackendSymStat, 1);
+    backend->asym_stat = g_new0(QCryptodevBackendAsymStat, 1);
+
     cryptodev_backend_set_ready(backend, true);
 }
 
@@ -433,6 +436,7 @@ static int cryptodev_builtin_close_session(
 }
 
 static int cryptodev_builtin_sym_operation(
+                 CryptoDevBackend *backend,
                  CryptoDevBackendBuiltinSession *sess,
                  CryptoDevBackendSymOpInfo *op_info, Error **errp)
 {
@@ -458,12 +462,14 @@ static int cryptodev_builtin_sym_operation(
         if (ret < 0) {
             return -VIRTIO_CRYPTO_ERR;
         }
+        QCryptodevSymStatIncEncrypt(backend, op_info->src_len);
     } else {
         ret = qcrypto_cipher_decrypt(sess->cipher, op_info->src,
                                      op_info->dst, op_info->src_len, errp);
         if (ret < 0) {
             return -VIRTIO_CRYPTO_ERR;
         }
+        QCryptodevSymStatIncDecrypt(backend, op_info->src_len);
     }
 
     return VIRTIO_CRYPTO_OK;
@@ -551,7 +557,7 @@ static int cryptodev_builtin_operation(
     sess = builtin->sessions[op_info->session_id];
     if (algtype == QCRYPTODEV_BACKEND_ALG_SYM) {
         sym_op_info = op_info->u.sym_op_info;
-        status = cryptodev_builtin_sym_operation(sess, sym_op_info,
+        status = cryptodev_builtin_sym_operation(backend, sess, sym_op_info,
                                                  &local_error);
     } else if (algtype == QCRYPTODEV_BACKEND_ALG_ASYM) {
         asym_op_info = op_info->u.asym_op_info;

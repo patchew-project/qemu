@@ -233,6 +233,7 @@ static void cryptodev_lkcf_init(CryptoDevBackend *backend, Error **errp)
         1u << QCRYPTODEV_BACKEND_SERVICE_AKCIPHER;
     backend->conf.akcipher_algo = 1u << VIRTIO_CRYPTO_AKCIPHER_RSA;
     lkcf->running = true;
+    backend->asym_stat = g_new0(QCryptodevBackendAsymStat, 1);
 
     QSIMPLEQ_INIT(&lkcf->requests);
     QSIMPLEQ_INIT(&lkcf->responses);

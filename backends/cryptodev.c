@@ -48,6 +48,18 @@ static int qmp_query_cryptodev_foreach(Object *obj, void *data)
     info->id = g_strdup(object_get_canonical_path_component(obj));
 
     backend = CRYPTODEV_BACKEND(obj);
+    if (backend->sym_stat) {
+        info->has_sym_stat = true;
+        info->sym_stat = g_memdup2(backend->sym_stat,
+                                sizeof(QCryptodevBackendSymStat));
+    }
+
+    if (backend->asym_stat) {
+        info->has_asym_stat = true;
+        info->asym_stat = g_memdup2(backend->asym_stat,
+                                sizeof(QCryptodevBackendAsymStat));
+    }
+
     services = backend->conf.crypto_services;
     for (uint32_t i = 0; i < QCRYPTODEV_BACKEND_SERVICE__MAX; i++) {
         if (services & (1 << i)) {
@@ -111,6 +123,9 @@ void cryptodev_backend_cleanup(
     if (bc->cleanup) {
         bc->cleanup(backend, errp);
     }
+
+    g_free(backend->sym_stat);
+    g_free(backend->asym_stat);
 }
 
 int cryptodev_backend_create_session(
@@ -171,8 +186,26 @@ int cryptodev_backend_crypto_operation(
     CryptoDevBackendOpInfo *op_info = &req->op_info;
     enum QCryptodevBackendAlgType algtype = req->flags;
 
-    if ((algtype != QCRYPTODEV_BACKEND_ALG_SYM)
-        && (algtype != QCRYPTODEV_BACKEND_ALG_ASYM)) {
+    /* symmetric statistics need to be recorded in driver */
+    if (algtype == QCRYPTODEV_BACKEND_ALG_ASYM) {
+        CryptoDevBackendAsymOpInfo *asym_op_info = op_info->u.asym_op_info;
+        switch (op_info->op_code) {
+        case VIRTIO_CRYPTO_AKCIPHER_ENCRYPT:
+            QCryptodevAsymStatIncEncrypt(backend, asym_op_info->src_len);
+            break;
+        case VIRTIO_CRYPTO_AKCIPHER_DECRYPT:
+            QCryptodevAsymStatIncDecrypt(backend, asym_op_info->src_len);
+            break;
+        case VIRTIO_CRYPTO_AKCIPHER_SIGN:
+            QCryptodevAsymStatIncSign(backend, asym_op_info->src_len);
+            break;
+        case VIRTIO_CRYPTO_AKCIPHER_VERIFY:
+            QCryptodevAsymStatIncVerify(backend, asym_op_info->src_len);
+            break;
+        default:
+            return -VIRTIO_CRYPTO_NOTSUPP;
+        }
+    } else if (algtype != QCRYPTODEV_BACKEND_ALG_SYM) {
         error_report("Unsupported cryptodev alg type: %" PRIu32 "", algtype);
         return -VIRTIO_CRYPTO_NOTSUPP;
     }
