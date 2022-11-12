@@ -29,6 +29,8 @@ typedef struct QVirtioSerialDevice QVirtioSerialDevice;
 
 struct QVirtioSerial {
     QVirtioDevice *vdev;
+    int n_queues;
+    QVirtQueue **queues;
 };
 
 struct QVirtioSerialPCI {

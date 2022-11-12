@@ -22,6 +22,10 @@
 #include "qgraph.h"
 #include "virtio-serial.h"
 
+#include "qemu/iov.h"
+
+static QGuestAllocator *alloc;
+
 static void *qvirtio_serial_get_driver(QVirtioSerial *v_serial,
                                        const char *interface)
 {
@@ -43,6 +47,33 @@ static void *qvirtio_serial_device_get_driver(void *object,
     return qvirtio_serial_get_driver(&v_serial->serial, interface);
 }
 
+static void virtio_serial_setup(QVirtioSerial *interface)
+{
+    QVirtioDevice *vdev = interface->vdev;
+    qvirtio_set_features(vdev, (1ULL << 1) | (1ULL << 32));
+
+    interface->n_queues = 6;
+    interface->queues = g_new(QVirtQueue*, interface->n_queues);
+
+    for (int i = 0; i < interface->n_queues; i++) {
+        interface->queues[i] = qvirtqueue_setup(interface->vdev, alloc, i);
+    }
+
+    qvirtio_set_driver_ok(vdev);
+}
+
+static void qvirtio_serial_device_destructor(QOSGraphObject *obj)
+{
+}
+
+static void qvirtio_serial_device_start_hw(QOSGraphObject *obj)
+{
+    QVirtioSerialDevice *v_serial = (QVirtioSerialDevice *)obj;
+    QVirtioSerial *interface = &v_serial->serial;
+
+    virtio_serial_setup(interface);
+}
+
 static void *virtio_serial_device_create(void *virtio_dev,
                                          QGuestAllocator *t_alloc,
                                          void *addr)
@@ -51,13 +82,30 @@ static void *virtio_serial_device_create(void *virtio_dev,
     QVirtioSerial *interface = &virtio_device->serial;
 
     interface->vdev = virtio_dev;
+    alloc = t_alloc;
 
+    virtio_device->obj.destructor = qvirtio_serial_device_destructor;
+    virtio_device->obj.start_hw = qvirtio_serial_device_start_hw;
     virtio_device->obj.get_driver = qvirtio_serial_device_get_driver;
 
     return &virtio_device->obj;
 }
 
 /* virtio-serial-pci */
+static void qvirtio_serial_pci_destructor(QOSGraphObject *obj)
+{
+}
+
+static void qvirtio_serial_pci_start_hw(QOSGraphObject *obj)
+{
+    QVirtioSerialPCI *v_serial = (QVirtioSerialPCI *) obj;
+    QVirtioSerial *interface = &v_serial->serial;
+    QOSGraphObject *pci_vobj = &v_serial->pci_vdev.obj;
+
+    qvirtio_pci_start_hw(pci_vobj);
+    virtio_serial_setup(interface);
+}
+
 static void *qvirtio_serial_pci_get_driver(void *object, const char *interface)
 {
     QVirtioSerialPCI *v_serial = object;
@@ -76,7 +124,10 @@ static void *virtio_serial_pci_create(void *pci_bus, QGuestAllocator *t_alloc,
 
     virtio_pci_init(&virtio_spci->pci_vdev, pci_bus, addr);
     interface->vdev = &virtio_spci->pci_vdev.vdev;
+    alloc = t_alloc;
 
+    obj->destructor = qvirtio_serial_pci_destructor;
+    obj->start_hw = qvirtio_serial_pci_start_hw;
     obj->get_driver = qvirtio_serial_pci_get_driver;
 
     return obj;
