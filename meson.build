@@ -2680,12 +2680,7 @@ if not get_option('capstone').auto() or have_system or have_user
   capstone = dependency('capstone', version: '>=3.0.5',
                         kwargs: static_kwargs, method: 'pkg-config',
                         required: get_option('capstone'))
-
-  # Some versions of capstone have broken pkg-config file
-  # that reports a wrong -I path, causing the #include to
-  # fail later. If the system has such a broken version
-  # do not use it.
-  if capstone.found() and not cc.compiles('#include <capstone.h>',
+  if capstone.found() and not cc.compiles('#include <capstone/capstone.h>',
                                           dependencies: [capstone])
     capstone = not_found
     if get_option('capstone').enabled()
