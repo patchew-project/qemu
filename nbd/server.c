@@ -2112,9 +2112,13 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
         if (status & BDRV_BLOCK_ZERO) {
             NBDReply hdr;
             NBDStructuredReadHole chunk;
+            NBDStructuredReadHoleExt chunk_ext;
             struct iovec iov[] = {
                 {.iov_base = &hdr},
-                {.iov_base = &chunk, .iov_len = sizeof(chunk)},
+                {.iov_base = client->extended_headers ? &chunk_ext
+                 : (void *) &chunk,
+                 .iov_len = client->extended_headers ? sizeof(chunk_ext)
+                 : sizeof(chunk)},
             };
 
             trace_nbd_co_send_structured_read_hole(request->handle,
@@ -2122,9 +2126,17 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
                                                    pnum);
             set_be_chunk(client, &iov[0],
                          final ? NBD_REPLY_FLAG_DONE : 0,
-                         NBD_REPLY_TYPE_OFFSET_HOLE, request, iov[1].iov_len);
-            stq_be_p(&chunk.offset, offset + progress);
-            stl_be_p(&chunk.length, pnum);
+                         client->extended_headers
+                         ? NBD_REPLY_TYPE_OFFSET_HOLE_EXT
+                         : NBD_REPLY_TYPE_OFFSET_HOLE,
+                         request, iov[1].iov_len);
+            if (client->extended_headers) {
+                stq_be_p(&chunk_ext.offset, offset + progress);
+                stq_be_p(&chunk_ext.length, pnum);
+            } else {
+                stq_be_p(&chunk.offset, offset + progress);
+                stl_be_p(&chunk.length, pnum);
+            }
             ret = nbd_co_send_iov(client, iov, 2, errp);
         } else {
             ret = blk_pread(exp->common.blk, offset + progress, pnum,
