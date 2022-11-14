@@ -50,8 +50,23 @@ typedef struct NBDOptionReplyMetaContext {
     /* metadata context name follows */
 } QEMU_PACKED NBDOptionReplyMetaContext;
 
-/* Transmission phase structs
- *
+/* Transmission phase structs */
+
+/*
+ * NBDMetaContexts represents a list of meta contexts in use, as
+ * selected by NBD_OPT_SET_META_CONTEXT. Also used for
+ * NBD_OPT_LIST_META_CONTEXT, and payload filtering in
+ * NBD_CMD_BLOCK_STATUS.
+ */
+typedef struct NBDMetaContexts {
+    size_t count; /* number of negotiated contexts */
+    bool base_allocation; /* export base:allocation context (block status) */
+    bool allocation_depth; /* export qemu:allocation-depth */
+    size_t nr_bitmaps; /* Length of bitmaps array */
+    bool *bitmaps; /* export qemu:dirty-bitmap:<export bitmap name> */
+} NBDMetaContexts;
+
+/*
  * Note: NBDRequest is _NOT_ the same as the network representation of an NBD
  * request!
  */
@@ -61,6 +76,7 @@ typedef struct NBDRequest {
     uint64_t len;   /* Effect length; 32 bit limit without extended headers */
     uint16_t flags; /* NBD_CMD_FLAG_* */
     uint16_t type;  /* NBD_CMD_* */
+    NBDMetaContexts contexts; /* Used by NBD_CMD_BLOCK_STATUS */
 } NBDRequest;
 
 typedef struct NBDSimpleReply {

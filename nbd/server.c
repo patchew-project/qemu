@@ -103,20 +103,6 @@ struct NBDExport {
 
 static QTAILQ_HEAD(, NBDExport) exports = QTAILQ_HEAD_INITIALIZER(exports);
 
-/* NBDExportMetaContexts represents a list of contexts to be exported,
- * as selected by NBD_OPT_SET_META_CONTEXT. Also used for
- * NBD_OPT_LIST_META_CONTEXT. */
-typedef struct NBDExportMetaContexts {
-    NBDExport *exp;
-    size_t count; /* number of negotiated contexts */
-    bool base_allocation; /* export base:allocation context (block status) */
-    bool allocation_depth; /* export qemu:allocation-depth */
-    bool *bitmaps; /*
-                    * export qemu:dirty-bitmap:<export bitmap name>,
-                    * sized by exp->nr_export_bitmaps
-                    */
-} NBDExportMetaContexts;
-
 struct NBDClient {
     int refcount;
     void (*close_fn)(NBDClient *client, bool negotiated);
@@ -143,7 +129,8 @@ struct NBDClient {
 
     bool structured_reply; /* also set true if extended_headers is set */
     bool extended_headers;
-    NBDExportMetaContexts export_meta;
+    NBDExport *context_exp; /* export of last OPT_SET_META_CONTEXT */
+    NBDMetaContexts contexts; /* Negotiated meta contexts */
 
     uint32_t opt; /* Current option being negotiated */
     uint32_t optlen; /* remaining length of data in ioc for the option being
@@ -456,8 +443,8 @@ static int nbd_negotiate_handle_list(NBDClient *client, Error **errp)
 
 static void nbd_check_meta_export(NBDClient *client)
 {
-    if (client->exp != client->export_meta.exp) {
-        client->export_meta.count = 0;
+    if (client->exp != client->context_exp) {
+        client->contexts.count = 0;
     }
 }
 
@@ -847,7 +834,7 @@ static bool nbd_strshift(const char **str, const char *prefix)
  * Handle queries to 'base' namespace. For now, only the base:allocation
  * context is available.  Return true if @query has been handled.
  */
-static bool nbd_meta_base_query(NBDClient *client, NBDExportMetaContexts *meta,
+static bool nbd_meta_base_query(NBDClient *client, NBDMetaContexts *meta,
                                 const char *query)
 {
     if (!nbd_strshift(&query, "base:")) {
@@ -867,8 +854,8 @@ static bool nbd_meta_base_query(NBDClient *client, NBDExportMetaContexts *meta,
  * and qemu:allocation-depth contexts are available.  Return true if @query
  * has been handled.
  */
-static bool nbd_meta_qemu_query(NBDClient *client, NBDExportMetaContexts *meta,
-                                const char *query)
+static bool nbd_meta_qemu_query(NBDClient *client, NBDExport *exp,
+                                NBDMetaContexts *meta, const char *query)
 {
     size_t i;
 
@@ -879,9 +866,9 @@ static bool nbd_meta_qemu_query(NBDClient *client, NBDExportMetaContexts *meta,
 
     if (!*query) {
         if (client->opt == NBD_OPT_LIST_META_CONTEXT) {
-            meta->allocation_depth = meta->exp->allocation_depth;
-            if (meta->exp->nr_export_bitmaps) {
-                memset(meta->bitmaps, 1, meta->exp->nr_export_bitmaps);
+            meta->allocation_depth = exp->allocation_depth;
+            if (meta->nr_bitmaps) {
+                memset(meta->bitmaps, 1, meta->nr_bitmaps);
             }
         }
         trace_nbd_negotiate_meta_query_parse("empty");
@@ -890,7 +877,7 @@ static bool nbd_meta_qemu_query(NBDClient *client, NBDExportMetaContexts *meta,
 
     if (strcmp(query, "allocation-depth") == 0) {
         trace_nbd_negotiate_meta_query_parse("allocation-depth");
-        meta->allocation_depth = meta->exp->allocation_depth;
+        meta->allocation_depth = exp->allocation_depth;
         return true;
     }
 
@@ -898,17 +885,17 @@ static bool nbd_meta_qemu_query(NBDClient *client, NBDExportMetaContexts *meta,
         trace_nbd_negotiate_meta_query_parse("dirty-bitmap:");
         if (!*query) {
             if (client->opt == NBD_OPT_LIST_META_CONTEXT &&
-                meta->exp->nr_export_bitmaps) {
-                memset(meta->bitmaps, 1, meta->exp->nr_export_bitmaps);
+                exp->nr_export_bitmaps) {
+                memset(meta->bitmaps, 1, exp->nr_export_bitmaps);
             }
             trace_nbd_negotiate_meta_query_parse("empty");
             return true;
         }
 
-        for (i = 0; i < meta->exp->nr_export_bitmaps; i++) {
+        for (i = 0; i < meta->nr_bitmaps; i++) {
             const char *bm_name;
 
-            bm_name = bdrv_dirty_bitmap_name(meta->exp->export_bitmaps[i]);
+            bm_name = bdrv_dirty_bitmap_name(exp->export_bitmaps[i]);
             if (strcmp(bm_name, query) == 0) {
                 meta->bitmaps[i] = true;
                 trace_nbd_negotiate_meta_query_parse(query);
@@ -932,8 +919,8 @@ static bool nbd_meta_qemu_query(NBDClient *client, NBDExportMetaContexts *meta,
  *
  * Return -errno on I/O error, 0 if option was completely handled by
  * sending a reply about inconsistent lengths, or 1 on success. */
-static int nbd_negotiate_meta_query(NBDClient *client,
-                                    NBDExportMetaContexts *meta, Error **errp)
+static int nbd_negotiate_meta_query(NBDClient *client, NBDExport *exp,
+                                    NBDMetaContexts *meta, Error **errp)
 {
     int ret;
     g_autofree char *query = NULL;
@@ -960,7 +947,7 @@ static int nbd_negotiate_meta_query(NBDClient *client,
     if (nbd_meta_base_query(client, meta, query)) {
         return 1;
     }
-    if (nbd_meta_qemu_query(client, meta, query)) {
+    if (nbd_meta_qemu_query(client, exp, meta, query)) {
         return 1;
     }
 
@@ -972,14 +959,15 @@ static int nbd_negotiate_meta_query(NBDClient *client,
  * Handle NBD_OPT_LIST_META_CONTEXT and NBD_OPT_SET_META_CONTEXT
  *
  * Return -errno on I/O error, or 0 if option was completely handled. */
-static int nbd_negotiate_meta_queries(NBDClient *client,
-                                      NBDExportMetaContexts *meta, Error **errp)
+static int nbd_negotiate_meta_queries(NBDClient *client, Error **errp)
 {
     int ret;
     g_autofree char *export_name = NULL;
     /* Mark unused to work around https://bugs.llvm.org/show_bug.cgi?id=3888 */
     g_autofree G_GNUC_UNUSED bool *bitmaps = NULL;
-    NBDExportMetaContexts local_meta = {0};
+    NBDMetaContexts local_meta = {0};
+    NBDMetaContexts *meta;
+    NBDExport *exp;
     uint32_t nb_queries;
     size_t i;
     size_t count = 0;
@@ -994,6 +982,9 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
     if (client->opt == NBD_OPT_LIST_META_CONTEXT) {
         /* Only change the caller's meta on SET. */
         meta = &local_meta;
+    } else {
+        meta = &client->contexts;
+        client->context_exp = NULL;
     }
 
     g_free(meta->bitmaps);
@@ -1004,14 +995,15 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
         return ret;
     }
 
-    meta->exp = nbd_export_find(export_name);
-    if (meta->exp == NULL) {
+    exp = nbd_export_find(export_name);
+    if (exp == NULL) {
         g_autofree char *sane_name = nbd_sanitize_name(export_name);
 
         return nbd_opt_drop(client, NBD_REP_ERR_UNKNOWN, errp,
                             "export '%s' not present", sane_name);
     }
-    meta->bitmaps = g_new0(bool, meta->exp->nr_export_bitmaps);
+    meta->nr_bitmaps = exp->nr_export_bitmaps;
+    meta->bitmaps = g_new0(bool, exp->nr_export_bitmaps);
     if (client->opt == NBD_OPT_LIST_META_CONTEXT) {
         bitmaps = meta->bitmaps;
     }
@@ -1027,13 +1019,13 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
     if (client->opt == NBD_OPT_LIST_META_CONTEXT && !nb_queries) {
         /* enable all known contexts */
         meta->base_allocation = true;
-        meta->allocation_depth = meta->exp->allocation_depth;
-        if (meta->exp->nr_export_bitmaps) {
-            memset(meta->bitmaps, 1, meta->exp->nr_export_bitmaps);
+        meta->allocation_depth = exp->allocation_depth;
+        if (exp->nr_export_bitmaps) {
+            memset(meta->bitmaps, 1, meta->nr_bitmaps);
         }
     } else {
         for (i = 0; i < nb_queries; ++i) {
-            ret = nbd_negotiate_meta_query(client, meta, errp);
+            ret = nbd_negotiate_meta_query(client, exp, meta, errp);
             if (ret <= 0) {
                 return ret;
             }
@@ -1060,7 +1052,7 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
         count++;
     }
 
-    for (i = 0; i < meta->exp->nr_export_bitmaps; i++) {
+    for (i = 0; i < meta->nr_bitmaps; i++) {
         const char *bm_name;
         g_autofree char *context = NULL;
 
@@ -1068,7 +1060,7 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
             continue;
         }
 
-        bm_name = bdrv_dirty_bitmap_name(meta->exp->export_bitmaps[i]);
+        bm_name = bdrv_dirty_bitmap_name(exp->export_bitmaps[i]);
         context = g_strdup_printf("qemu:dirty-bitmap:%s", bm_name);
 
         ret = nbd_negotiate_send_meta_context(client, context,
@@ -1083,6 +1075,9 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
     ret = nbd_negotiate_send_rep(client, NBD_REP_ACK, errp);
     if (ret == 0) {
         meta->count = count;
+        if (client->opt == NBD_OPT_SET_META_CONTEXT) {
+            client->context_exp = exp;
+        }
     }
 
     return ret;
@@ -1276,8 +1271,7 @@ static int nbd_negotiate_options(NBDClient *client, Error **errp)
 
             case NBD_OPT_LIST_META_CONTEXT:
             case NBD_OPT_SET_META_CONTEXT:
-                ret = nbd_negotiate_meta_queries(client, &client->export_meta,
-                                                 errp);
+                ret = nbd_negotiate_meta_queries(client, errp);
                 break;
 
             case NBD_OPT_EXTENDED_HEADERS:
@@ -1508,7 +1502,7 @@ void nbd_client_put(NBDClient *client)
             QTAILQ_REMOVE(&client->exp->clients, client, next);
             blk_exp_unref(&client->exp->common);
         }
-        g_free(client->export_meta.bitmaps);
+        g_free(client->contexts.bitmaps);
         g_free(client);
     }
 }
@@ -2479,6 +2473,8 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
                 return -ENOMEM;
             }
         }
+    } else if (request->type == NBD_CMD_BLOCK_STATUS) {
+        request->contexts = client->contexts;
     }
 
     if (payload_len) {
@@ -2702,11 +2698,11 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
                                           "need non-zero length", errp);
         }
         assert(client->extended_headers || request->len <= UINT32_MAX);
-        if (client->export_meta.count) {
+        if (request->contexts.count) {
             bool dont_fragment = request->flags & NBD_CMD_FLAG_REQ_ONE;
-            int contexts_remaining = client->export_meta.count;
+            int contexts_remaining = request->contexts.count;
 
-            if (client->export_meta.base_allocation) {
+            if (request->contexts.base_allocation) {
                 ret = nbd_co_send_block_status(client, request,
                                                blk_bs(exp->common.blk),
                                                request->from,
@@ -2719,7 +2715,7 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
                 }
             }
 
-            if (client->export_meta.allocation_depth) {
+            if (request->contexts.allocation_depth) {
                 ret = nbd_co_send_block_status(client, request,
                                                blk_bs(exp->common.blk),
                                                request->from, request->len,
@@ -2732,8 +2728,10 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
                 }
             }
 
+            assert(request->contexts.nr_bitmaps ==
+                   client->exp->nr_export_bitmaps);
             for (i = 0; i < client->exp->nr_export_bitmaps; i++) {
-                if (!client->export_meta.bitmaps[i]) {
+                if (!request->contexts.bitmaps[i]) {
                     continue;
                 }
                 ret = nbd_co_send_bitmap(client, request,
@@ -2749,6 +2747,10 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
             assert(!contexts_remaining);
 
             return 0;
+        } else if (client->contexts.count) {
+            return nbd_send_generic_reply(client, request, -EINVAL,
+                                          "CMD_BLOCK_STATUS payload not valid",
+                                          errp);
         } else {
             return nbd_send_generic_reply(client, request, -EINVAL,
                                           "CMD_BLOCK_STATUS not negotiated",
@@ -2824,6 +2826,10 @@ static coroutine_fn void nbd_trip(void *opaque)
         error_free(export_err);
     } else {
         ret = nbd_handle_request(client, &request, req->data, &local_err);
+    }
+    if (request.type == NBD_CMD_BLOCK_STATUS &&
+        request.contexts.bitmaps != client->contexts.bitmaps) {
+        g_free(request.contexts.bitmaps);
     }
     if (ret < 0) {
         error_prepend(&local_err, "Failed to send reply: ");
