@@ -56,6 +56,7 @@ typedef struct NvmeSubsystem {
 
     struct {
         char *nqn;
+        bool ocp;
     } params;
 } NvmeSubsystem;
 

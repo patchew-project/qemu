@@ -129,8 +129,8 @@ static void nvme_subsys_realize(DeviceState *dev, Error **errp)
 
 static Property nvme_subsystem_props[] = {
     DEFINE_PROP_STRING("nqn", NvmeSubsystem, params.nqn),
-    DEFINE_PROP_END_OF_LIST(),
-};
+    DEFINE_PROP_BOOL("ocp", NvmeSubsystem, params.ocp, false),
+    DEFINE_PROP_END_OF_LIST(), };
 
 static void nvme_subsys_class_init(ObjectClass *oc, void *data)
 {
