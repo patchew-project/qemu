@@ -26,7 +26,8 @@ The virt board supports:
 
 - PCI/PCIe devices
 - Flash memory
-- One PL011 UART
+- Two PL011 UARTs. The second UART only exists if a backend is configured
+  explicitly or TrustZone is enabled.
 - An RTC
 - The fw_cfg device that allows a guest to obtain data from QEMU
 - A PL061 GPIO controller
@@ -42,7 +43,7 @@ The virt board supports:
 - many CPUs (up to 512 if using a GICv3 and highmem)
 - Secure-World-only devices if the CPU has TrustZone:
 
-  - A second PL011 UART
+  - The second PL011 UART
   - A second PL061 GPIO controller, with GPIO lines for triggering
     a system reset or system poweroff
   - A secure flash memory

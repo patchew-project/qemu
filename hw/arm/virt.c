@@ -143,11 +143,11 @@ static const MemMapEntry base_memmap[] = {
     [VIRT_GIC_ITS] =            { 0x08080000, 0x00020000 },
     /* This redistributor space allows up to 2*64kB*123 CPUs */
     [VIRT_GIC_REDIST] =         { 0x080A0000, 0x00F60000 },
-    [VIRT_UART] =               { 0x09000000, 0x00001000 },
+    [VIRT_UART0] =              { 0x09000000, 0x00001000 },
     [VIRT_RTC] =                { 0x09010000, 0x00001000 },
     [VIRT_FW_CFG] =             { 0x09020000, 0x00000018 },
     [VIRT_GPIO] =               { 0x09030000, 0x00001000 },
-    [VIRT_SECURE_UART] =        { 0x09040000, 0x00001000 },
+    [VIRT_UART1] =              { 0x09040000, 0x00001000 }, /* secure UART */
     [VIRT_SMMU] =               { 0x09050000, 0x00020000 },
     [VIRT_PCDIMM_ACPI] =        { 0x09070000, MEMORY_HOTPLUG_IO_LEN },
     [VIRT_ACPI_GED] =           { 0x09080000, ACPI_GED_EVT_SEL_LEN },
@@ -184,11 +184,11 @@ static MemMapEntry extended_memmap[] = {
 };
 
 static const int a15irqmap[] = {
-    [VIRT_UART] = 1,
+    [VIRT_UART0] = 1,
     [VIRT_RTC] = 2,
     [VIRT_PCIE] = 3, /* ... to 6 */
     [VIRT_GPIO] = 7,
-    [VIRT_SECURE_UART] = 8,
+    [VIRT_UART1] = 8,
     [VIRT_ACPI_GED] = 9,
     [VIRT_MMIO] = 16, /* ...to 16 + NUM_VIRTIO_TRANSPORTS - 1 */
     [VIRT_GIC_V2M] = 48, /* ...to 48 + NUM_GICV2M_SPIS - 1 */
@@ -843,6 +843,27 @@ static void create_uart(const VirtMachineState *vms, int uart,
                         MemoryRegion *mem, Chardev *chr)
 {
     char *nodename;
+    /*
+     * The first UART always always exists. If the security extensions are
+     * enabled, the second UART also always exists. Otherwise, it only exists
+     * if a backend is configured explicitly via '-serial <backend>', where
+     * 'null' creates a dummy backend. This allows enabling the second UART
+     * explicitly on demand and does not interfere with any existing setup that
+     * just expect one (or two if security extensions are enabled) UARTs.
+     */
+    switch(uart) {
+    case VIRT_UART0:
+        break;
+    case VIRT_UART1:
+        if (!vms->secure && !chr) {
+            return;
+        }
+        break;
+    default:
+        error_report("unsupported UART ID %d", uart);
+        exit(1);
+    }
+
     hwaddr base = vms->memmap[uart].base;
     hwaddr size = vms->memmap[uart].size;
     int irq = vms->irqmap[uart];
@@ -854,6 +875,7 @@ static void create_uart(const VirtMachineState *vms, int uart,
 
     qdev_prop_set_chr(dev, "chardev", chr);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    /* if security extensions are enabled, 'mem' is 'secure_sysmem' for UART1 */
     memory_region_add_subregion(mem, base,
                                 sysbus_mmio_get_region(s, 0));
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(vms->gic, irq));
@@ -873,15 +895,21 @@ static void create_uart(const VirtMachineState *vms, int uart,
     qemu_fdt_setprop(ms->fdt, nodename, "clock-names",
                          clocknames, sizeof(clocknames));
 
-    if (uart == VIRT_UART) {
+    switch(uart) {
+    case VIRT_UART0:
         qemu_fdt_setprop_string(ms->fdt, "/chosen", "stdout-path", nodename);
-    } else {
-        /* Mark as not usable by the normal world */
-        qemu_fdt_setprop_string(ms->fdt, nodename, "status", "disabled");
-        qemu_fdt_setprop_string(ms->fdt, nodename, "secure-status", "okay");
-
-        qemu_fdt_setprop_string(ms->fdt, "/secure-chosen", "stdout-path",
-                                nodename);
+        break;
+    case VIRT_UART1:
+        if (vms->secure) {
+            qemu_fdt_setprop_string(ms->fdt, nodename, "status", "disabled");
+            qemu_fdt_setprop_string(ms->fdt, nodename, "secure-status", "okay");
+            qemu_fdt_setprop_string(ms->fdt, "/secure-chosen", "stdout-path",
+                                    nodename);
+        }
+        break;
+    default:
+        /* noting special */
+        break;
     }
 
     g_free(nodename);
@@ -2222,11 +2250,12 @@ static void machvirt_init(MachineState *machine)
 
     fdt_add_pmu_nodes(vms);
 
-    create_uart(vms, VIRT_UART, sysmem, serial_hd(0));
+    create_uart(vms, VIRT_UART0, sysmem, serial_hd(0));
+    create_uart(vms, VIRT_UART1, vms->secure ? secure_sysmem : sysmem,
+                serial_hd(1));
 
     if (vms->secure) {
         create_secure_ram(vms, secure_sysmem, secure_tag_sysmem);
-        create_uart(vms, VIRT_SECURE_UART, secure_sysmem, serial_hd(1));
     }
 
     if (tag_sysmem) {

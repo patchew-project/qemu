@@ -482,14 +482,14 @@ build_spcr(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     build_append_int_noprefix(table_data, 0, 3); /* Reserved */
     /* Base Address */
     build_append_gas(table_data, AML_AS_SYSTEM_MEMORY, 8, 0, 1,
-                     vms->memmap[VIRT_UART].base);
+                     vms->memmap[VIRT_UART0].base);
     /* Interrupt Type */
     build_append_int_noprefix(table_data,
         (1 << 3) /* Bit[3] ARMH GIC interrupt */, 1);
     build_append_int_noprefix(table_data, 0, 1); /* IRQ */
     /* Global System Interrupt */
     build_append_int_noprefix(table_data,
-                              vms->irqmap[VIRT_UART] + ARM_SPI_BASE, 4);
+                              vms->irqmap[VIRT_UART0] + ARM_SPI_BASE, 4);
     build_append_int_noprefix(table_data, 3 /* 9600 */, 1); /* Baud Rate */
     build_append_int_noprefix(table_data, 0 /* No Parity */, 1); /* Parity */
     /* Stop Bits */
@@ -673,11 +673,11 @@ build_dbg2(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 
     /* BaseAddressRegister[] */
     build_append_gas(table_data, AML_AS_SYSTEM_MEMORY, 8, 0, 1,
-                     vms->memmap[VIRT_UART].base);
+                     vms->memmap[VIRT_UART0].base);
 
     /* AddressSize[] */
     build_append_int_noprefix(table_data,
-                              vms->memmap[VIRT_UART].size, 4);
+                              vms->memmap[VIRT_UART0].size, 4);
 
     /* NamespaceString[] */
     g_array_append_vals(table_data, name, namespace_length);
@@ -858,8 +858,8 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
      */
     scope = aml_scope("\\_SB");
     acpi_dsdt_add_cpus(scope, vms);
-    acpi_dsdt_add_uart(scope, &memmap[VIRT_UART],
-                       (irqmap[VIRT_UART] + ARM_SPI_BASE));
+    acpi_dsdt_add_uart(scope, &memmap[VIRT_UART0],
+                       (irqmap[VIRT_UART0] + ARM_SPI_BASE));
     if (vmc->acpi_expose_flash) {
         acpi_dsdt_add_flash(scope, &memmap[VIRT_FLASH]);
     }
