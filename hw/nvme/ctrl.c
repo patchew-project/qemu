@@ -4451,6 +4451,42 @@ static void nvme_set_blk_stats(NvmeNamespace *ns, struct nvme_stats *stats)
     stats->write_commands += s->nr_ops[BLOCK_ACCT_WRITE];
 }
 
+static uint16_t nvme_ocp_extended_smart_info(NvmeCtrl *n, uint8_t rae,
+                                             uint32_t buf_len, uint64_t off,
+                                             NvmeRequest *req)
+{
+    NvmeNamespace *ns = NULL;
+    NvmeSmartLogExtended smart_ext = { 0 };
+    struct nvme_stats stats = { 0 };
+    uint32_t trans_len;
+
+    if (off >= sizeof(smart_ext)) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    // Accumulate all stats from all namespaces
+    for (int i = 1; i <= NVME_MAX_NAMESPACES; i++) {
+        ns = nvme_ns(n, i);
+        if (ns)
+        {
+            nvme_set_blk_stats(ns, &stats);
+        }
+    }
+
+    smart_ext.physical_media_units_written[0] = cpu_to_le32(stats.units_written);
+    smart_ext.physical_media_units_read[0] = cpu_to_le32(stats.units_read);
+    smart_ext.log_page_version = 0x0003;
+    smart_ext.log_page_uuid[0] = 0xA4F2BFEA2810AFC5;
+    smart_ext.log_page_uuid[1] = 0xAFD514C97C6F4F9C;
+
+    if (!rae) {
+        nvme_clear_events(n, NVME_AER_TYPE_SMART);
+    }
+
+    trans_len = MIN(sizeof(smart_ext) - off, buf_len);
+    return nvme_c2h(n, (uint8_t *) &smart_ext + off, trans_len, req);
+}
+
 static uint16_t nvme_smart_info(NvmeCtrl *n, uint8_t rae, uint32_t buf_len,
                                 uint64_t off, NvmeRequest *req)
 {
@@ -4638,6 +4674,24 @@ static uint16_t nvme_cmd_effects(NvmeCtrl *n, uint8_t csi, uint32_t buf_len,
     return nvme_c2h(n, ((uint8_t *)&log) + off, trans_len, req);
 }
 
+static uint16_t nvme_vendor_specific_log(uint8_t lid, NvmeCtrl *n, uint8_t rae,
+                                         uint32_t buf_len, uint64_t off,
+                                         NvmeRequest *req)
+{
+    NvmeSubsystem *subsys = n->subsys;
+    switch (lid) {
+        case NVME_LOG_VENDOR_START:
+            if (subsys->params.ocp) {
+                return nvme_ocp_extended_smart_info(n, rae, buf_len, off, req);
+            }
+            break;
+            /* Add a case for each additional vendor specific log id */
+    }
+
+    trace_pci_nvme_err_invalid_log_page(nvme_cid(req), lid);
+    return NVME_INVALID_FIELD | NVME_DNR;
+}
+
 static uint16_t nvme_get_log(NvmeCtrl *n, NvmeRequest *req)
 {
     NvmeCmd *cmd = &req->cmd;
@@ -4679,6 +4733,8 @@ static uint16_t nvme_get_log(NvmeCtrl *n, NvmeRequest *req)
         return nvme_error_info(n, rae, len, off, req);
     case NVME_LOG_SMART_INFO:
         return nvme_smart_info(n, rae, len, off, req);
+    case NVME_LOG_VENDOR_START...NVME_LOG_VENDOR_END:
+        return nvme_vendor_specific_log(lid, n, rae, len, off, req);
     case NVME_LOG_FW_SLOT_INFO:
         return nvme_fw_log_info(n, len, off, req);
     case NVME_LOG_CHANGED_NSLIST:
