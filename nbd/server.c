@@ -441,9 +441,9 @@ static int nbd_negotiate_handle_list(NBDClient *client, Error **errp)
     return nbd_negotiate_send_rep(client, NBD_REP_ACK, errp);
 }
 
-static void nbd_check_meta_export(NBDClient *client)
+static void nbd_check_meta_export(NBDClient *client, NBDExport *exp)
 {
-    if (client->exp != client->context_exp) {
+    if (exp != client->context_exp) {
         client->contexts.count = 0;
     }
 }
@@ -486,10 +486,14 @@ static int nbd_negotiate_handle_export_name(NBDClient *client, bool no_zeroes,
         error_setg(errp, "export not found");
         return -EINVAL;
     }
+    nbd_check_meta_export(client, client->exp);
 
     myflags = client->exp->nbdflags;
     if (client->structured_reply) {
         myflags |= NBD_FLAG_SEND_DF;
+    }
+    if (client->extended_headers && client->contexts.count) {
+        myflags |= NBD_FLAG_BLOCK_STAT_PAYLOAD;
     }
     trace_nbd_negotiate_new_style_size_flags(client->exp->size, myflags);
     stq_be_p(buf, client->exp->size);
@@ -503,7 +507,6 @@ static int nbd_negotiate_handle_export_name(NBDClient *client, bool no_zeroes,
 
     QTAILQ_INSERT_TAIL(&client->exp->clients, client, next);
     blk_exp_ref(&client->exp->common);
-    nbd_check_meta_export(client);
 
     return 0;
 }
@@ -623,6 +626,9 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
                                           errp, "export '%s' not present",
                                           sane_name);
     }
+    if (client->opt == NBD_OPT_GO) {
+        nbd_check_meta_export(client, exp);
+    }
 
     /* Don't bother sending NBD_INFO_NAME unless client requested it */
     if (sendname) {
@@ -676,6 +682,10 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
     if (client->structured_reply) {
         myflags |= NBD_FLAG_SEND_DF;
     }
+    if (client->extended_headers &&
+        (client->contexts.count || client->opt == NBD_OPT_INFO)) {
+        myflags |= NBD_FLAG_BLOCK_STAT_PAYLOAD;
+    }
     trace_nbd_negotiate_new_style_size_flags(exp->size, myflags);
     stq_be_p(buf, exp->size);
     stw_be_p(buf + 8, myflags);
@@ -711,7 +721,6 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
         client->check_align = check_align;
         QTAILQ_INSERT_TAIL(&client->exp->clients, client, next);
         blk_exp_ref(&client->exp->common);
-        nbd_check_meta_export(client);
         rc = 1;
     }
     return rc;
@@ -2406,6 +2415,83 @@ static int nbd_co_send_bitmap(NBDClient *client, NBDRequest *request,
     return nbd_co_send_extents(client, request, ea, last, context_id, errp);
 }
 
+/*
+ * nbd_co_block_status_payload_read
+ * Called when a client wants a subset of negotiated contexts via a
+ * BLOCK_STATUS payload.  Check the payload for valid length and
+ * contents.  On success, return 0 with request updated to effective
+ * length.  If request was invalid but payload consumed, return 0 with
+ * request->len and request->contexts.count set to 0 (which will
+ * trigger an appropriate NBD_EINVAL response later on).  On I/O
+ * error, return -EIO.
+ */
+static int
+nbd_co_block_status_payload_read(NBDClient *client, NBDRequest *request,
+                                 Error **errp)
+{
+    int payload_len = request->len;
+    g_autofree char *buf = NULL;
+    g_autofree bool *bitmaps = NULL;
+    size_t count, i;
+    uint32_t id;
+
+    assert(request->len <= NBD_MAX_BUFFER_SIZE);
+    if (payload_len % sizeof(uint32_t) ||
+        payload_len < sizeof(NBDBlockStatusPayload) ||
+        payload_len > (sizeof(NBDBlockStatusPayload) +
+                       sizeof(id) * client->contexts.count)) {
+        goto skip;
+    }
+
+    buf = g_malloc(payload_len);
+    if (nbd_read(client->ioc, buf, payload_len,
+                 "CMD_BLOCK_STATUS data", errp) < 0) {
+        return -EIO;
+    }
+    trace_nbd_co_receive_request_payload_received(request->handle,
+                                                  payload_len);
+    memset(&request->contexts, 0, sizeof(request->contexts));
+    request->contexts.nr_bitmaps = client->context_exp->nr_export_bitmaps;
+    bitmaps = g_new0(bool, request->contexts.nr_bitmaps);
+    count = (payload_len - sizeof(NBDBlockStatusPayload)) / sizeof(id);
+    payload_len = 0;
+
+    for (i = 0; i < count; i++) {
+
+        id = ldl_be_p(buf + sizeof(NBDBlockStatusPayload) + sizeof(id) * i);
+        if (id == NBD_META_ID_BASE_ALLOCATION) {
+            if (request->contexts.base_allocation) {
+                goto skip;
+            }
+            request->contexts.base_allocation = true;
+        } else if (id == NBD_META_ID_ALLOCATION_DEPTH) {
+            if (request->contexts.allocation_depth) {
+                goto skip;
+            }
+            request->contexts.allocation_depth = true;
+        } else {
+            if (id - NBD_META_ID_DIRTY_BITMAP >
+                request->contexts.nr_bitmaps ||
+                bitmaps[id - NBD_META_ID_DIRTY_BITMAP]) {
+                goto skip;
+            }
+            bitmaps[id - NBD_META_ID_DIRTY_BITMAP] = true;
+        }
+    }
+
+    request->len = ldq_be_p(buf);
+    request->contexts.count = count;
+    request->contexts.bitmaps = bitmaps;
+    bitmaps = NULL;
+    return 0;
+
+ skip:
+    trace_nbd_co_receive_block_status_payload_compliance(request->from,
+                                                         request->len);
+    request->len = request->contexts.count = 0;
+    return nbd_drop(client->ioc, payload_len, errp);
+}
+
 /* nbd_co_receive_request
  * Collect a client request. Return 0 if request looks valid, -EIO to drop
  * connection right away, -EAGAIN to indicate we were interrupted and the
@@ -2452,7 +2538,14 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
 
         if (request->type == NBD_CMD_WRITE || extended_with_payload) {
             payload_len = request->len;
-            if (request->type != NBD_CMD_WRITE) {
+            if (request->type == NBD_CMD_BLOCK_STATUS) {
+                payload_len = nbd_co_block_status_payload_read(client,
+                                                               request,
+                                                               errp);
+                if (payload_len < 0) {
+                    return -EIO;
+                }
+            } else if (request->type != NBD_CMD_WRITE) {
                 /*
                  * For now, we don't support payloads on other
                  * commands; but we can keep the connection alive.
@@ -2528,6 +2621,9 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
         valid_flags |= NBD_CMD_FLAG_NO_HOLE | NBD_CMD_FLAG_FAST_ZERO;
     } else if (request->type == NBD_CMD_BLOCK_STATUS) {
         valid_flags |= NBD_CMD_FLAG_REQ_ONE;
+        if (client->extended_headers && client->contexts.count) {
+            valid_flags |= NBD_CMD_FLAG_PAYLOAD_LEN;
+        }
     }
     if (request->flags & ~valid_flags) {
         error_setg(errp, "unsupported flags for command %s (got 0x%x)",
