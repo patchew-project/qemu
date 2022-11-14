@@ -1154,6 +1154,7 @@ typedef struct CPUArchState {
     CPUMIPSTLBContext *tlb;
     void *irq[8];
     struct MIPSITUState *itu;
+    struct MIPSGCRState *gcr;
     MemoryRegion *itc_tag; /* ITC Configuration Tags */
 #endif
 
@@ -1309,6 +1310,9 @@ void cpu_mips_soft_irq(CPUMIPSState *env, int irq, int level);
 
 /* mips_itu.c */
 void itc_reconfigure(struct MIPSITUState *tag);
+
+/* mips_cmgcr.c */
+void gcr_cpu_reset(struct MIPSGCRState *s, CPUMIPSState *env);
 
 #endif /* !CONFIG_USER_ONLY */
 

@@ -98,6 +98,7 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
         cpu_mips_clock_init(cpu);
 
         env = &cpu->env;
+        env->gcr = &s->gcr;
         if (cpu_mips_itu_supported(env)) {
             itu_present = true;
             /* Attach ITC Tag to the VP */
@@ -158,7 +159,7 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
                             sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->gic), 0));
 
     /* Global Configuration Registers */
-    gcr_base = env->CP0_CMGCRBase << 4;
+    gcr_base = GCR_BASE_ADDR;
 
     object_initialize_child(OBJECT(dev), "gcr", &s->gcr, TYPE_MIPS_GCR);
     object_property_set_int(OBJECT(&s->gcr), "num-vp", s->num_vp,

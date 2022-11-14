@@ -19,6 +19,11 @@
 #include "hw/qdev-properties.h"
 #include "hw/intc/mips_gic.h"
 
+void gcr_cpu_reset(struct MIPSGCRState *s, CPUMIPSState *env)
+{
+    env->CP0_CMGCRBase = s->gcr_base >> 4;
+}
+
 static inline bool is_cpc_connected(MIPSGCRState *s)
 {
     return s->cpc_mr != NULL;
