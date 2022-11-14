@@ -260,6 +260,30 @@ static void write_boot_rom(DriveInfo *dinfo, hwaddr addr, size_t rom_size,
     rom_add_blob_fixed("aspeed.boot_rom", storage, rom_size, addr);
 }
 
+static int zero_extend_block_device(BlockBackend *blk, uint64_t size,
+                                    Error **errp)
+{
+    uint64_t perm, shared_perm;
+
+    blk_get_perm(blk, &perm, &shared_perm);
+
+    if (blk_set_perm(blk, BLK_PERM_ALL, BLK_PERM_ALL, errp)) {
+        error_append_hint(errp, "Unable to change permissions on block device");
+        return -1;
+    }
+    if (blk_truncate(blk, size, true, PREALLOC_MODE_OFF, BDRV_REQ_ZERO_WRITE,
+                     errp)) {
+        error_append_hint(errp, "Unable to zero-extend block device");
+        return -1;
+    }
+    if (blk_set_perm(blk, perm, shared_perm, errp)) {
+        error_append_hint(errp,
+                          "Unable to restore permissions on block device");
+        /* Ignore error since we successfully extended the device already */
+    }
+    return 0;
+}
+
 void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
                                       unsigned int count, int unit0)
 {
@@ -273,10 +297,24 @@ void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
         DriveInfo *dinfo = drive_get(IF_MTD, 0, unit0 + i);
         qemu_irq cs_line;
         DeviceState *dev;
+        AspeedSMCFlash *flash = &s->flashes[i];
+        uint64_t flash_size = memory_region_size(&flash->mmio);
 
         dev = qdev_new(flashtype);
         if (dinfo) {
-            qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(dinfo));
+            BlockBackend *blk = blk_by_legacy_dinfo(dinfo);
+            int64_t blk_size = blk_getlength(blk);
+
+            if (blk_size > 0 && blk_size < (int64_t)flash_size) {
+                Error *err = NULL;
+
+                zero_extend_block_device(blk, flash_size, &err);
+                if (err) {
+                    warn_reportf_err(err, "Error zero-extending MTD drive[%d] "
+                                     "to flash size", i);
+                }
+            }
+            qdev_prop_set_drive(dev, "drive", blk);
         }
         qdev_realize_and_unref(dev, BUS(s->spi), &error_fatal);
 
