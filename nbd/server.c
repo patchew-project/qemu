@@ -141,7 +141,7 @@ struct NBDClient {
 
     uint32_t check_align; /* If non-zero, check for aligned client requests */
 
-    bool structured_reply;
+    bool structured_reply; /* also set true if extended_headers is set */
     bool extended_headers;
     NBDExportMetaContexts export_meta;
 
@@ -1260,6 +1260,10 @@ static int nbd_negotiate_options(NBDClient *client, Error **errp)
             case NBD_OPT_STRUCTURED_REPLY:
                 if (length) {
                     ret = nbd_reject_length(client, false, errp);
+                } else if (client->extended_headers) {
+                    ret = nbd_negotiate_send_rep_err(
+                        client, NBD_REP_ERR_EXT_HEADER_REQD, errp,
+                        "extended headers already negotiated");
                 } else if (client->structured_reply) {
                     ret = nbd_negotiate_send_rep_err(
                         client, NBD_REP_ERR_INVALID, errp,
@@ -1274,6 +1278,19 @@ static int nbd_negotiate_options(NBDClient *client, Error **errp)
             case NBD_OPT_SET_META_CONTEXT:
                 ret = nbd_negotiate_meta_queries(client, &client->export_meta,
                                                  errp);
+                break;
+
+            case NBD_OPT_EXTENDED_HEADERS:
+                if (length) {
+                    ret = nbd_reject_length(client, false, errp);
+                } else if (client->extended_headers) {
+                    ret = nbd_negotiate_send_rep_err(
+                        client, NBD_REP_ERR_INVALID, errp,
+                        "extended headers already negotiated");
+                } else {
+                    ret = nbd_negotiate_send_rep(client, NBD_REP_ACK, errp);
+                    client->structured_reply = client->extended_headers = true;
+                }
                 break;
 
             default:
@@ -1411,11 +1428,13 @@ nbd_read_eof(NBDClient *client, void *buffer, size_t size, Error **errp)
 static int nbd_receive_request(NBDClient *client, NBDRequest *request,
                                Error **errp)
 {
-    uint8_t buf[NBD_REQUEST_SIZE];
-    uint32_t magic;
+    uint8_t buf[NBD_EXTENDED_REQUEST_SIZE];
+    uint32_t magic, expect;
     int ret;
+    size_t size = client->extended_headers ? NBD_EXTENDED_REQUEST_SIZE
+        : NBD_REQUEST_SIZE;
 
-    ret = nbd_read_eof(client, buf, sizeof(buf), errp);
+    ret = nbd_read_eof(client, buf, size, errp);
     if (ret < 0) {
         return ret;
     }
@@ -1423,13 +1442,21 @@ static int nbd_receive_request(NBDClient *client, NBDRequest *request,
         return -EIO;
     }
 
-    /* Request
-       [ 0 ..  3]   magic   (NBD_REQUEST_MAGIC)
-       [ 4 ..  5]   flags   (NBD_CMD_FLAG_FUA, ...)
-       [ 6 ..  7]   type    (NBD_CMD_READ, ...)
-       [ 8 .. 15]   handle
-       [16 .. 23]   from
-       [24 .. 27]   len
+    /*
+     * Compact request
+     *  [ 0 ..  3]   magic   (NBD_REQUEST_MAGIC)
+     *  [ 4 ..  5]   flags   (NBD_CMD_FLAG_FUA, ...)
+     *  [ 6 ..  7]   type    (NBD_CMD_READ, ...)
+     *  [ 8 .. 15]   handle
+     *  [16 .. 23]   from
+     *  [24 .. 27]   len
+     * Extended request
+     *  [ 0 ..  3]   magic   (NBD_EXTENDED_REQUEST_MAGIC)
+     *  [ 4 ..  5]   flags   (NBD_CMD_FLAG_FUA, NBD_CMD_FLAG_PAYLOAD_LEN, ...)
+     *  [ 6 ..  7]   type    (NBD_CMD_READ, ...)
+     *  [ 8 .. 15]   handle
+     *  [16 .. 23]   from
+     *  [24 .. 31]   len
      */
 
     magic = ldl_be_p(buf);
@@ -1437,12 +1464,18 @@ static int nbd_receive_request(NBDClient *client, NBDRequest *request,
     request->type   = lduw_be_p(buf + 6);
     request->handle = ldq_be_p(buf + 8);
     request->from   = ldq_be_p(buf + 16);
-    request->len    = ldl_be_p(buf + 24); /* widen 32 to 64 bits */
+    if (client->extended_headers) {
+        request->len = ldq_be_p(buf + 24);
+        expect = NBD_EXTENDED_REQUEST_MAGIC;
+    } else {
+        request->len = ldl_be_p(buf + 24); /* widen 32 to 64 bits */
+        expect = NBD_REQUEST_MAGIC;
+    }
 
     trace_nbd_receive_request(magic, request->flags, request->type,
                               request->from, request->len);
 
-    if (magic != NBD_REQUEST_MAGIC) {
+    if (magic != expect) {
         error_setg(errp, "invalid magic (got 0x%" PRIx32 ")", magic);
         return -EINVAL;
     }
@@ -1890,14 +1923,37 @@ static int coroutine_fn nbd_co_send_iov(NBDClient *client, struct iovec *iov,
 }
 
 static inline void set_be_simple_reply(NBDClient *client, struct iovec *iov,
-                                       uint64_t error, NBDRequest *request)
+                                       uint32_t error, NBDStructuredError *err,
+                                       NBDRequest *request)
 {
-    NBDSimpleReply *reply = iov->iov_base;
+    if (client->extended_headers) {
+        NBDExtendedReplyChunk *chunk = iov->iov_base;
 
-    iov->iov_len = sizeof(*reply);
-    stl_be_p(&reply->magic, NBD_SIMPLE_REPLY_MAGIC);
-    stl_be_p(&reply->error, error);
-    stq_be_p(&reply->handle, request->handle);
+        iov->iov_len = sizeof(*chunk);
+        stl_be_p(&chunk->magic, NBD_EXTENDED_REPLY_MAGIC);
+        stw_be_p(&chunk->flags, NBD_REPLY_FLAG_DONE);
+        stq_be_p(&chunk->handle, request->handle);
+        stq_be_p(&chunk->offset, request->from);
+        if (error) {
+            assert(!iov[1].iov_base);
+            iov[1].iov_base = err;
+            iov[1].iov_len = sizeof(*err);
+            stw_be_p(&chunk->type, NBD_REPLY_TYPE_ERROR);
+            stq_be_p(&chunk->length, sizeof(*err));
+            stl_be_p(&err->error, error);
+            stw_be_p(&err->message_length, 0);
+        } else {
+            stw_be_p(&chunk->type, NBD_REPLY_TYPE_NONE);
+            stq_be_p(&chunk->length, 0);
+        }
+    } else {
+        NBDSimpleReply *reply = iov->iov_base;
+
+        iov->iov_len = sizeof(*reply);
+        stl_be_p(&reply->magic, NBD_SIMPLE_REPLY_MAGIC);
+        stl_be_p(&reply->error, error);
+        stq_be_p(&reply->handle, request->handle);
+    }
 }
 
 static int nbd_co_send_simple_reply(NBDClient *client, NBDRequest *request,
@@ -1908,30 +1964,44 @@ static int nbd_co_send_simple_reply(NBDClient *client, NBDRequest *request,
 {
     NBDReply hdr;
     int nbd_err = system_errno_to_nbd_errno(error);
+    NBDStructuredError err;
     struct iovec iov[] = {
         {.iov_base = &hdr},
         {.iov_base = data, .iov_len = len}
     };
 
+    assert(!len || !nbd_err);
     trace_nbd_co_send_simple_reply(request->handle, nbd_err,
                                    nbd_err_lookup(nbd_err), len);
-    set_be_simple_reply(client, &iov[0], nbd_err, request);
+    set_be_simple_reply(client, &iov[0], nbd_err, &err, request);
 
-    return nbd_co_send_iov(client, iov, len ? 2 : 1, errp);
+    return nbd_co_send_iov(client, iov, iov[1].iov_len ? 2 : 1, errp);
 }
 
 static inline void set_be_chunk(NBDClient *client, struct iovec *iov,
                                 uint16_t flags, uint16_t type,
                                 NBDRequest *request, uint32_t length)
 {
-    NBDStructuredReplyChunk *chunk = iov->iov_base;
+    if (client->extended_headers) {
+        NBDExtendedReplyChunk *chunk = iov->iov_base;
 
-    iov->iov_len = sizeof(*chunk);
-    stl_be_p(&chunk->magic, NBD_STRUCTURED_REPLY_MAGIC);
-    stw_be_p(&chunk->flags, flags);
-    stw_be_p(&chunk->type, type);
-    stq_be_p(&chunk->handle, request->handle);
-    stl_be_p(&chunk->length, length);
+        iov->iov_len = sizeof(*chunk);
+        stl_be_p(&chunk->magic, NBD_EXTENDED_REPLY_MAGIC);
+        stw_be_p(&chunk->flags, flags);
+        stw_be_p(&chunk->type, type);
+        stq_be_p(&chunk->handle, request->handle);
+        stq_be_p(&chunk->offset, request->from);
+        stq_be_p(&chunk->length, length);
+    } else {
+        NBDStructuredReplyChunk *chunk = iov->iov_base;
+
+        iov->iov_len = sizeof(*chunk);
+        stl_be_p(&chunk->magic, NBD_STRUCTURED_REPLY_MAGIC);
+        stw_be_p(&chunk->flags, flags);
+        stw_be_p(&chunk->type, type);
+        stq_be_p(&chunk->handle, request->handle);
+        stl_be_p(&chunk->length, length);
+    }
 }
 
 static int coroutine_fn nbd_co_send_structured_done(NBDClient *client,
@@ -2595,7 +2665,11 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
             return nbd_send_generic_reply(client, request, -EINVAL,
                                           "need non-zero length", errp);
         }
-        assert(request->len <= UINT32_MAX);
+        if (request->len > UINT32_MAX) {
+            /* For now, truncate our response to a 32 bit window */
+            request->len = QEMU_ALIGN_DOWN(BDRV_REQUEST_MAX_BYTES,
+                                           client->check_align ?: 1);
+        }
         if (client->export_meta.count) {
             bool dont_fragment = request->flags & NBD_CMD_FLAG_REQ_ONE;
             int contexts_remaining = client->export_meta.count;
