@@ -457,7 +457,8 @@ static coroutine_fn int nbd_receive_replies(BDRVNBDState *s, uint64_t handle)
 
         /* We are under mutex and handle is 0. We have to do the dirty work. */
         assert(s->reply.handle == 0);
-        ret = nbd_receive_reply(s->bs, s->ioc, &s->reply, NULL);
+        ret = nbd_receive_reply(s->bs, s->ioc, &s->reply,
+                                s->info.extended_headers);
         if (ret <= 0) {
             ret = ret ? ret : -EIO;
             nbd_channel_error(s, ret);
