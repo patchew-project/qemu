@@ -2316,6 +2316,8 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
                                   Error **errp)
 {
     NBDClient *client = req->client;
+    bool extended_with_payload;
+    int payload_len = 0;
     int valid_flags;
     int ret;
 
@@ -2329,27 +2331,40 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
     trace_nbd_co_receive_request_decode_type(request->handle, request->type,
                                              nbd_cmd_lookup(request->type));
 
-    if (request->type != NBD_CMD_WRITE) {
-        /* No payload, we are ready to read the next request.  */
-        req->complete = true;
-    }
-
     if (request->type == NBD_CMD_DISC) {
         /* Special case: we're going to disconnect without a reply,
          * whether or not flags, from, or len are bogus */
+        req->complete = true;
         return -EIO;
     }
 
+    /* Payload and buffer handling. */
+    extended_with_payload = client->extended_headers &&
+        (request->flags & NBD_CMD_FLAG_PAYLOAD_LEN);
     if (request->type == NBD_CMD_READ || request->type == NBD_CMD_WRITE ||
-        request->type == NBD_CMD_CACHE)
-    {
+        request->type == NBD_CMD_CACHE || extended_with_payload) {
         if (request->len > NBD_MAX_BUFFER_SIZE) {
             error_setg(errp, "len (%" PRIu64" ) is larger than max len (%u)",
                        request->len, NBD_MAX_BUFFER_SIZE);
             return -EINVAL;
         }
 
-        if (request->type != NBD_CMD_CACHE) {
+        if (request->type == NBD_CMD_WRITE || extended_with_payload) {
+            payload_len = request->len;
+            if (request->type != NBD_CMD_WRITE) {
+                /*
+                 * For now, we don't support payloads on other
+                 * commands; but we can keep the connection alive.
+                 */
+                request->len = 0;
+            } else if (client->extended_headers && !extended_with_payload) {
+                /* The client is noncompliant. Trace it, but proceed. */
+                trace_nbd_co_receive_ext_payload_compliance(request->from,
+                                                            request->len);
+            }
+        }
+
+        if (request->type == NBD_CMD_WRITE || request->type == NBD_CMD_READ) {
             req->data = blk_try_blockalign(client->exp->common.blk,
                                            request->len);
             if (req->data == NULL) {
@@ -2359,18 +2374,20 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
         }
     }
 
-    if (request->type == NBD_CMD_WRITE) {
-        assert(request->len <= NBD_MAX_BUFFER_SIZE);
-        if (nbd_read(client->ioc, req->data, request->len, "CMD_WRITE data",
-                     errp) < 0)
-        {
+    if (payload_len) {
+        if (req->data) {
+            ret = nbd_read(client->ioc, req->data, payload_len,
+                           "CMD_WRITE data", errp);
+        } else {
+            ret = nbd_drop(client->ioc, payload_len, errp);
+        }
+        if (ret < 0) {
             return -EIO;
         }
-        req->complete = true;
-
         trace_nbd_co_receive_request_payload_received(request->handle,
-                                                      request->len);
+                                                      payload_len);
     }
+    req->complete = true;
 
     /* Sanity checks. */
     if (client->exp->nbdflags & NBD_FLAG_READ_ONLY &&
@@ -2400,7 +2417,9 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
                                               client->check_align);
     }
     valid_flags = NBD_CMD_FLAG_FUA;
-    if (request->type == NBD_CMD_READ && client->structured_reply) {
+    if (request->type == NBD_CMD_WRITE && client->extended_headers) {
+        valid_flags |= NBD_CMD_FLAG_PAYLOAD_LEN;
+    } else if (request->type == NBD_CMD_READ && client->structured_reply) {
         valid_flags |= NBD_CMD_FLAG_DF;
     } else if (request->type == NBD_CMD_WRITE_ZEROES) {
         valid_flags |= NBD_CMD_FLAG_NO_HOLE | NBD_CMD_FLAG_FAST_ZERO;
