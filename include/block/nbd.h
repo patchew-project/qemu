@@ -133,6 +133,13 @@ typedef struct NBDStructuredReadHole {
     uint32_t length;
 } QEMU_PACKED NBDStructuredReadHole;
 
+/* Complete chunk for NBD_REPLY_TYPE_OFFSET_HOLE_EXT */
+typedef struct NBDStructuredReadHoleExt {
+    /* header's length == 16 */
+    uint64_t offset;
+    uint64_t length;
+} QEMU_PACKED NBDStructuredReadHoleExt;
+
 /* Header of all NBD_REPLY_TYPE_ERROR* errors */
 typedef struct NBDStructuredError {
     /* header's length >= 6 */
@@ -309,6 +316,7 @@ enum {
 #define NBD_REPLY_TYPE_NONE              0
 #define NBD_REPLY_TYPE_OFFSET_DATA       1
 #define NBD_REPLY_TYPE_OFFSET_HOLE       2
+#define NBD_REPLY_TYPE_OFFSET_HOLE_EXT   3
 #define NBD_REPLY_TYPE_BLOCK_STATUS      5
 #define NBD_REPLY_TYPE_BLOCK_STATUS_EXT  6
 #define NBD_REPLY_TYPE_ERROR             NBD_REPLY_ERR(1)

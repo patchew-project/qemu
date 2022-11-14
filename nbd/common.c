@@ -174,7 +174,9 @@ const char *nbd_reply_type_lookup(uint16_t type)
     case NBD_REPLY_TYPE_OFFSET_DATA:
         return "data";
     case NBD_REPLY_TYPE_OFFSET_HOLE:
-        return "hole";
+        return "hole (32-bit)";
+    case NBD_REPLY_TYPE_OFFSET_HOLE_EXT:
+        return "hole (64-bit)";
     case NBD_REPLY_TYPE_BLOCK_STATUS:
         return "block status (32-bit)";
     case NBD_REPLY_TYPE_BLOCK_STATUS_EXT:

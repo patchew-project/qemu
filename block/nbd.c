@@ -570,20 +570,26 @@ static inline uint64_t payload_advance64(uint8_t **payload)
 
 static int nbd_parse_offset_hole_payload(BDRVNBDState *s,
                                          NBDStructuredReplyChunk *chunk,
-                                         uint8_t *payload, uint64_t orig_offset,
+                                         uint8_t *payload, bool wide,
+                                         uint64_t orig_offset,
                                          QEMUIOVector *qiov, Error **errp)
 {
     uint64_t offset;
-    uint32_t hole_size;
+    uint64_t hole_size;
+    size_t len = wide ? sizeof(hole_size) : sizeof(uint32_t);
 
-    if (chunk->length != sizeof(offset) + sizeof(hole_size)) {
+    if (chunk->length != sizeof(offset) + len) {
         error_setg(errp, "Protocol error: invalid payload for "
                          "NBD_REPLY_TYPE_OFFSET_HOLE");
         return -EINVAL;
     }
 
     offset = payload_advance64(&payload);
-    hole_size = payload_advance32(&payload);
+    if (wide) {
+        hole_size = payload_advance64(&payload);
+    } else {
+        hole_size = payload_advance32(&payload);
+    }
 
     if (!hole_size || offset < orig_offset || hole_size > qiov->size ||
         offset > orig_offset + qiov->size - hole_size) {
@@ -596,6 +602,7 @@ static int nbd_parse_offset_hole_payload(BDRVNBDState *s,
         trace_nbd_structured_read_compliance("hole");
     }
 
+    assert(hole_size <= SIZE_MAX);
     qemu_iovec_memset(qiov, offset - orig_offset, 0, hole_size);
 
     return 0;
@@ -1094,9 +1101,16 @@ static int coroutine_fn nbd_co_receive_cmdread_reply(BDRVNBDState *s, uint64_t h
              * in qiov
              */
             break;
+        case NBD_REPLY_TYPE_OFFSET_HOLE_EXT:
+            if (!s->info.extended_headers) {
+                trace_nbd_extended_headers_compliance("hole_ext");
+            }
+            /* fallthrough */
         case NBD_REPLY_TYPE_OFFSET_HOLE:
-            ret = nbd_parse_offset_hole_payload(s, &reply.structured, payload,
-                                                offset, qiov, &local_err);
+            ret = nbd_parse_offset_hole_payload(
+                s, &reply.structured, payload,
+                chunk->type == NBD_REPLY_TYPE_OFFSET_HOLE_EXT,
+                offset, qiov, &local_err);
             if (ret < 0) {
                 nbd_channel_error(s, ret);
                 nbd_iter_channel_error(&iter, ret, &local_err);
