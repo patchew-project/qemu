@@ -93,6 +93,7 @@ NBDClientConnection *nbd_client_connection_new(const SocketAddress *saddr,
 
         .initial_info.request_sizes = true,
         .initial_info.structured_reply = true,
+        .initial_info.extended_headers = true,
         .initial_info.base_allocation = true,
         .initial_info.x_dirty_bitmap = g_strdup(x_dirty_bitmap),
         .initial_info.name = g_strdup(export_name ?: "")

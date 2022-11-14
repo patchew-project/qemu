@@ -878,12 +878,13 @@ static int nbd_list_meta_contexts(QIOChannel *ioc,
  *          1: server is newstyle, but can only accept EXPORT_NAME
  *          2: server is newstyle, but lacks structured replies
  *          3: server is newstyle and set up for structured replies
+ *          4: server is newstyle and set up for extended headers
  */
 static int nbd_start_negotiate(AioContext *aio_context, QIOChannel *ioc,
                                QCryptoTLSCreds *tlscreds,
                                const char *hostname, QIOChannel **outioc,
-                               bool structured_reply, bool *zeroes,
-                               Error **errp)
+                               bool structured_reply, bool ext_hdrs,
+                               bool *zeroes, Error **errp)
 {
     ERRP_GUARD();
     uint64_t magic;
@@ -960,15 +961,23 @@ static int nbd_start_negotiate(AioContext *aio_context, QIOChannel *ioc,
         if (fixedNewStyle) {
             int result = 0;
 
-            if (structured_reply) {
+            if (ext_hdrs) {
+                result = nbd_request_simple_option(ioc,
+                                                   NBD_OPT_EXTENDED_HEADERS,
+                                                   false, errp);
+                if (result) {
+                    return result < 0 ? -EINVAL : 4;
+                }
+            }
+            if (structured_reply && !result) {
                 result = nbd_request_simple_option(ioc,
                                                    NBD_OPT_STRUCTURED_REPLY,
                                                    false, errp);
-                if (result < 0) {
-                    return -EINVAL;
+                if (result) {
+                    return result < 0 ? -EINVAL : 3;
                 }
             }
-            return 2 + result;
+            return 2;
         } else {
             return 1;
         }
@@ -1030,7 +1039,8 @@ int nbd_receive_negotiate(AioContext *aio_context, QIOChannel *ioc,
     trace_nbd_receive_negotiate_name(info->name);
 
     result = nbd_start_negotiate(aio_context, ioc, tlscreds, hostname, outioc,
-                                 info->structured_reply, &zeroes, errp);
+                                 info->structured_reply,
+                                 info->extended_headers, &zeroes, errp);
 
     info->structured_reply = false;
     info->extended_headers = false;
@@ -1040,6 +1050,9 @@ int nbd_receive_negotiate(AioContext *aio_context, QIOChannel *ioc,
     }
 
     switch (result) {
+    case 4: /* newstyle, with extended headers */
+        info->extended_headers = true;
+        /* fall through */
     case 3: /* newstyle, with structured replies */
         info->structured_reply = true;
         if (base_allocation) {
@@ -1151,7 +1164,7 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
 
     *info = NULL;
     result = nbd_start_negotiate(NULL, ioc, tlscreds, hostname, &sioc, true,
-                                 NULL, errp);
+                                 true, NULL, errp);
     if (tlscreds && sioc) {
         ioc = sioc;
     }
@@ -1159,6 +1172,7 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
     switch (result) {
     case 2:
     case 3:
+    case 4:
         /* newstyle - use NBD_OPT_LIST to populate array, then try
          * NBD_OPT_INFO on each array member. If structured replies
          * are enabled, also try NBD_OPT_LIST_META_CONTEXT. */
@@ -1179,7 +1193,8 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
             memset(&array[count - 1], 0, sizeof(*array));
             array[count - 1].name = name;
             array[count - 1].description = desc;
-            array[count - 1].structured_reply = result == 3;
+            array[count - 1].structured_reply = result >= 3;
+            array[count - 1].extended_headers = result >= 4;
         }
 
         for (i = 0; i < count; i++) {
@@ -1195,7 +1210,7 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
                 break;
             }
 
-            if (result == 3 &&
+            if (result >= 3 &&
                 nbd_list_meta_contexts(ioc, &array[i], errp) < 0) {
                 goto out;
             }
