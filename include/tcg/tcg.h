@@ -639,10 +639,10 @@ extern TCGv_env cpu_env;
 bool in_code_gen_buffer(const void *p);
 
 #ifdef CONFIG_DEBUG_TCG
-const void *tcg_splitwx_to_rx(void *rw);
+const void *tcg_splitwx_to_rx(const void *rw);
 void *tcg_splitwx_to_rw(const void *rx);
 #else
-static inline const void *tcg_splitwx_to_rx(void *rw)
+static inline const void *tcg_splitwx_to_rx(const void *rw)
 {
     return rw ? rw + tcg_splitwx_diff : NULL;
 }

@@ -62,6 +62,7 @@
 #include "tb-hash.h"
 #include "tb-context.h"
 #include "internal.h"
+#include "perf.h"
 
 /* make various TB consistency checks */
 
@@ -883,6 +884,13 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
         goto buffer_overflow;
     }
     tb->tc.size = gen_code_size;
+
+    /*
+     * For TARGET_TB_PCREL, attribute all executions of the generated
+     * code to its first mapping.
+     */
+    perf_report_code(tcg_splitwx_to_rx(gen_code_buf), gen_code_size,
+                     tb->icount, pc);
 
 #ifdef CONFIG_PROFILER
     qatomic_set(&prof->code_time, prof->code_time + profile_getclock() - ti);

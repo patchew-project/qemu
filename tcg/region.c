@@ -83,7 +83,7 @@ bool in_code_gen_buffer(const void *p)
 }
 
 #ifdef CONFIG_DEBUG_TCG
-const void *tcg_splitwx_to_rx(void *rw)
+const void *tcg_splitwx_to_rx(const void *rw)
 {
     /* Pass NULL pointers unchanged. */
     if (rw) {
