@@ -426,8 +426,13 @@ static bool free_dyn_cb_arr(void *p, uint32_t h, void *userp)
 
 void qemu_plugin_flush_cb(void)
 {
+    CPUState *cpu;
     qht_iter_remove(&plugin.dyn_cb_arr_ht, free_dyn_cb_arr, NULL);
     qht_reset(&plugin.dyn_cb_arr_ht);
+
+    CPU_FOREACH(cpu) {
+        cpu->plugin_mem_cbs = NULL;
+    }
 
     plugin_cb__simple(QEMU_PLUGIN_EV_FLUSH);
 }
