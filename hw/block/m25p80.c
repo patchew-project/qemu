@@ -1606,6 +1606,14 @@ static void m25p80_realize(SSIPeripheral *ss, Error **errp)
     if (s->blk) {
         uint64_t perm = BLK_PERM_CONSISTENT_READ |
                         (blk_supports_write_perm(s->blk) ? BLK_PERM_WRITE : 0);
+
+        if (blk_getlength(s->blk) < s->size) {
+            error_setg(errp,
+                       "backend file is too small for flash device %s (%d MB)",
+                       object_class_get_name(OBJECT_CLASS(mc)), s->size >> 20);
+            return;
+        }
+
         ret = blk_set_perm(s->blk, perm, BLK_PERM_ALL, errp);
         if (ret < 0) {
             return;
