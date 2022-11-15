@@ -131,6 +131,59 @@ def pick_default_qemu_bin(bin_prefix='qemu-system-', arch=None):
             return path
     return None
 
+def _peek_ahead(console, min_match, success_as_str):
+    """
+    peek ahead in the console stream keeping an eye out for the
+    success message. Because we are partially peeking into the data
+    stream we do everything as bytes to avoid partial UTF decode
+    issues.
+
+    Returns some message to process or None, indicating the normal
+    readline should occur.
+    """
+    console_logger = logging.getLogger('console')
+    success_message = bytes(success_as_str, 'utf-8')
+    peek_len = 0
+    retries = 0
+
+    while True:
+        old_peek_len = peek_len
+        peek_ahead = console.peek(min_match)
+        peek_len = len(peek_ahead)
+
+        # if we get stuck too long lets just fallback to readline
+        if peek_len <= old_peek_len:
+            time.sleep(0.001 * retries)
+            retries += 1
+            if retries > 20:
+                return None
+        else:
+            retries = 0
+
+        # if we see a newline in the peek we can let safely bail
+        # and let the normal readline() deal with it
+        if peek_ahead.endswith((b'\n', b'\r')):
+            return None
+
+        # if we haven't seen enough for the whole message but the
+        # first part matches lets just loop again
+        if len(peek_ahead) < min_match and \
+           success_message[:peek_len] in peek_ahead:
+            continue
+
+        # if we see the whole success_message we are done, consume
+        # it and pass back so we can exit to the user
+        if success_message in peek_ahead:
+            return console.read(peek_len).decode()
+
+        # of course if we've seen enough then this line probably
+        # doesn't contain what we are looking for, fallback
+        if peek_len > min_match:
+            return None
+
+    # we should never get here
+    return None
+
 
 def _console_interaction(test, success_message, failure_message,
                          send_string, keep_sending=False, vm=None):
@@ -139,17 +192,52 @@ def _console_interaction(test, success_message, failure_message,
         vm = test.vm
     console = vm.console_socket.makefile(mode='rb', encoding='utf-8')
     console_logger = logging.getLogger('console')
+
+    # Establish the minimum number of bytes we would need to
+    # potentially match against success_message
+    if success_message is not None:
+        min_match = len(success_message)
+    else:
+        min_match = 0
+
+    console_logger.debug("looking for %d:(%s), sending %s (always=%s)",
+                         min_match, success_message, send_string, keep_sending)
+
     while True:
+        msg = None
+
+        # First send our string, optionally repeating the send next
+        # cycle.
         if send_string:
             vm.console_socket.sendall(send_string.encode())
             if not keep_sending:
                 send_string = None # send only once
+
+        # If the console has no data to read we briefly
+        # sleep before continuing.
+        if not console.readable():
+            time.sleep(0.1)
+            continue
+
         try:
-            msg = console.readline().decode().strip()
+
+            # First we shall peek ahead for a potential match to cover waiting
+            # for lines without any newlines.
+            if min_match > 0:
+                msg = _peek_ahead(console, min_match, success_message)
+
+            # otherwise we block here for a full line
+            if not msg:
+                msg = console.readline().decode().strip()
+
         except UnicodeDecodeError:
+            console_logger.debug("skipped unicode error")
             msg = None
+
+        # if nothing came out we continue and try again
         if not msg:
             continue
+
         console_logger.debug(msg)
         if success_message is None or success_message in msg:
             break
