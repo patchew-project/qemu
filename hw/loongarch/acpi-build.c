@@ -278,6 +278,44 @@ static void build_pci_device_aml(Aml *scope, LoongArchMachineState *lams)
     acpi_dsdt_add_gpex(scope, &cfg);
 }
 
+static void build_flash_aml(Aml *scope, LoongArchMachineState *lams)
+{
+    Aml *dev, *crs;
+    MemoryRegion *flash_mem;
+
+    hwaddr flash0_base;
+    hwaddr flash0_size;
+
+    hwaddr flash1_base;
+    hwaddr flash1_size;
+
+    flash_mem = pflash_cfi01_get_memory(lams->flash[0]);
+    flash0_base = flash_mem->addr;
+    flash0_size = flash_mem->size;
+
+    flash_mem = pflash_cfi01_get_memory(lams->flash[1]);
+    flash1_base = flash_mem->addr;
+    flash1_size = flash_mem->size;
+
+    dev = aml_device("FLS0");
+    aml_append(dev, aml_name_decl("_HID", aml_string("LNRO0015")));
+    aml_append(dev, aml_name_decl("_UID", aml_int(0)));
+
+    crs = aml_resource_template();
+    aml_append(crs, aml_memory32_fixed(flash0_base, flash0_size, AML_READ_WRITE));
+    aml_append(dev, aml_name_decl("_CRS", crs));
+    aml_append(scope, dev);
+
+    dev = aml_device("FLS1");
+    aml_append(dev, aml_name_decl("_HID", aml_string("LNRO0015")));
+    aml_append(dev, aml_name_decl("_UID", aml_int(1)));
+
+    crs = aml_resource_template();
+    aml_append(crs, aml_memory32_fixed(flash1_base, flash1_size, AML_READ_WRITE));
+    aml_append(dev, aml_name_decl("_CRS", crs));
+    aml_append(scope, dev);
+}
+
 #ifdef CONFIG_TPM
 static void acpi_dsdt_add_tpm(Aml *scope, LoongArchMachineState *vms)
 {
@@ -327,6 +365,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, MachineState *machine)
     build_uart_device_aml(dsdt);
     build_pci_device_aml(dsdt, lams);
     build_la_ged_aml(dsdt, machine);
+    build_flash_aml(dsdt, lams);
 #ifdef CONFIG_TPM
     acpi_dsdt_add_tpm(dsdt, lams);
 #endif
