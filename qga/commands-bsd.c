@@ -170,6 +170,115 @@ GuestCpuStatsList *qmp_guest_get_cpustats(Error **errp)
 }
 #endif /* CONFIG_FSFREEZE */
 
+#if defined(CONFIG_FSTRIM)
+typedef struct FsPool {
+    char *name;
+    QTAILQ_ENTRY(FsPool) next;
+} FsPool;
+
+typedef QTAILQ_HEAD(FsPoolList, FsPool) FsPoolList;
+
+static void build_fs_pool_list(FsPoolList *pools, Error **errp)
+{
+    FILE *fp;
+    char *line = NULL, *p;
+    size_t linecap = 0;
+    ssize_t linelen;
+    FsPool *pool;
+
+    fp = popen("/sbin/zpool list -H", "r");
+    if (fp == NULL) {
+        error_setg_errno(errp, errno, "failed to run zpool");
+        return;
+    }
+
+    while ((linelen = getline(&line, &linecap, fp)) > 0) {
+        p = strchr(line, '\t');
+        if (!p) {
+            continue;
+        }
+
+        *p = '\0';
+
+        pool = g_new0(FsPool, 1);
+        pool->name = g_strdup(line);
+        QTAILQ_INSERT_TAIL(pools, pool, next);
+    }
+
+    free(line);
+    pclose(fp);
+}
+
+static void free_fs_pool_list(FsPoolList *pools)
+{
+    FsPool *pool, *temp;
+
+    if (!pools) {
+        return;
+    }
+
+    QTAILQ_FOREACH_SAFE(pool, pools, next, temp) {
+        QTAILQ_REMOVE(pools, pool, next);
+        g_free(pool->name);
+        g_free(pool);
+    }
+}
+
+/*
+ * Walk the list of ZFS pools in the guest, and trim them.
+ */
+GuestFilesystemTrimResponse *
+qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
+{
+    GuestFilesystemTrimResponse *response;
+    GuestFilesystemTrimResultList *list;
+    GuestFilesystemTrimResult *result;
+    int ret;
+    FsPoolList pools;
+    FsPool *pool;
+    char cmd[256];
+    Error *local_err = NULL;
+
+    slog("guest-fstrim called");
+
+    QTAILQ_INIT(&pools);
+    build_fs_pool_list(&pools, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return NULL;
+    }
+
+    response = g_malloc0(sizeof(*response));
+
+    QTAILQ_FOREACH(pool, &pools, next) {
+        result = g_malloc0(sizeof(*result));
+        result->path = g_strdup(pool->name);
+
+        list = g_malloc0(sizeof(*list));
+        list->value = result;
+        list->next = response->paths;
+        response->paths = list;
+
+        snprintf(cmd, sizeof(cmd), "/sbin/zpool trim %s", pool->name);
+        ret = system(cmd);
+        if (ret != 0) {
+            result->error = g_strdup_printf("failed to trim %s: %s",
+                                            pool->name, strerror(errno));
+            result->has_error = true;
+            continue;
+        }
+
+        result->has_minimum = true;
+        result->minimum = 0;
+        result->has_trimmed = true;
+        result->trimmed = 0;
+    }
+
+    free_fs_pool_list(&pools);
+    return response;
+}
+#endif /* CONFIG_FSTRIM */
+
 #ifdef HAVE_GETIFADDRS
 /*
  * Fill "buf" with MAC address by ifaddrs. Pointer buf must point to a

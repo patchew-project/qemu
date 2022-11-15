@@ -28,6 +28,7 @@
 #ifdef UFSSUSPEND
 #define CONFIG_FSFREEZE
 #endif
+#define CONFIG_FSTRIM
 #endif /* __FreeBSD__ */
 
 #if defined(CONFIG_FSFREEZE) || defined(CONFIG_FSTRIM)
