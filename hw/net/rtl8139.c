@@ -77,7 +77,6 @@
     ( ( input ) & ( size - 1 )  )
 
 #define ETHER_TYPE_LEN 2
-#define ETH_MTU     1500
 
 #define VLAN_TCI_LEN 2
 #define VLAN_HLEN (ETHER_TYPE_LEN + VLAN_TCI_LEN)
@@ -2151,8 +2150,8 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
 
                 int large_send_mss = (txdw0 >> 16) & CP_TC_LGSEN_MSS_MASK;
 
-                DPRINTF("+++ C+ mode offloaded task TSO MTU=%d IP data %d "
-                    "frame data %d specified MSS=%d\n", ETH_MTU,
+                DPRINTF("+++ C+ mode offloaded task TSO IP data %d "
+                    "frame data %d specified MSS=%d\n",
                     ip_data_len, saved_size - ETH_HLEN, large_send_mss);
 
                 int tcp_send_offset = 0;
@@ -2177,9 +2176,13 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
                     goto skip_offload;
                 }
 
-                /* ETH_MTU = ip header len + tcp header len + payload */
+                /* MSS too small? */
+                if (tcp_hlen + hlen >= large_send_mss) {
+                    goto skip_offload;
+                }
+
                 int tcp_data_len = ip_data_len - tcp_hlen;
-                int tcp_chunk_size = ETH_MTU - hlen - tcp_hlen;
+                int tcp_chunk_size = large_send_mss - hlen - tcp_hlen;
 
                 DPRINTF("+++ C+ mode TSO IP data len %d TCP hlen %d TCP "
                     "data len %d TCP chunk size %d\n", ip_data_len,
