@@ -1730,8 +1730,8 @@ static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
         do {
             count = n * BDRV_SECTOR_SIZE;
 
-            ret = bdrv_block_status_above(src_bs, base, offset, count, &count,
-                                          NULL, NULL);
+            ret = bdrv_block_status_above(src_bs, base, offset, count,
+                                          &count, NULL, NULL);
 
             if (ret < 0) {
                 if (s->salvage) {
