@@ -1,5 +1,6 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/qapi-events-qdev.h"
 #include "qemu/host-utils.h"
 #include "qemu/range.h"
 #include "qemu/error-report.h"
@@ -273,6 +274,18 @@ static void shpc_free_devices_in_slot(SHPCDevice *shpc, int slot)
     }
 }
 
+static void shpc_devices_power_on_in_slot(SHPCDevice *shpc, int slot)
+{
+    int devfn;
+    PCIDevice *dev;
+
+    FOR_EACH_DEVICE_IN_SLOT(shpc, slot, dev, devfn) {
+        DeviceState *ds = DEVICE(dev);
+
+        qapi_event_send_device_power_on(!!ds->id, ds->id, ds->canonical_path);
+    }
+}
+
 static void shpc_slot_command(SHPCDevice *shpc, uint8_t target,
                               uint8_t state, uint8_t power, uint8_t attn)
 {
@@ -291,6 +304,9 @@ static void shpc_slot_command(SHPCDevice *shpc, uint8_t target,
     switch (power) {
     case SHPC_LED_NO:
         break;
+    case SHPC_LED_ON:
+        shpc_devices_power_on_in_slot(shpc, slot);
+        __attribute__ ((fallthrough));
     default:
         /* TODO: send event to monitor */
         shpc_set_status(shpc, slot, power, SHPC_SLOT_PWR_LED_MASK);

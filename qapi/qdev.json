@@ -158,3 +158,26 @@
 ##
 { 'event': 'DEVICE_UNPLUG_GUEST_ERROR',
   'data': { '*device': 'str', 'path': 'str' } }
+
+##
+# @DEVICE_POWER_ON:
+#
+# Emitted whenever power is on for the devices plugged into pci slot.
+# At this point it's safe to remove the device.
+#
+# @device: the device's ID if it has one
+#
+# @path: the device's QOM path
+#
+# Since: 7.2
+#
+# Example:
+#
+# <- { "event": "DEVICE_POWER_ON",
+#      "data": { "device": "virtio-disk-0",
+#                "path": "/machine/peripheral/virtio-disk-0" },
+#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
+##
+{ 'event': 'DEVICE_POWER_ON',
+  'data': { '*device': 'str', 'path': 'str' } }
