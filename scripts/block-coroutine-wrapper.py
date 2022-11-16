@@ -62,10 +62,15 @@ class ParamDecl:
 
 
 class FuncDecl:
-    def __init__(self, return_type: str, name: str, args: str) -> None:
+    def __init__(self, return_type: str, name: str, args: str,
+                 variant: str) -> None:
         self.return_type = return_type.strip()
         self.name = name.strip()
         self.args = [ParamDecl(arg.strip()) for arg in args.split(',')]
+        self.create_only_co = False
+
+        if variant == '_simple':
+            self.create_only_co = True
 
     def gen_list(self, format: str) -> str:
         return ', '.join(format.format_map(arg.__dict__) for arg in self.args)
@@ -75,7 +80,8 @@ class FuncDecl:
 
 
 # Match wrappers declared with a generated_co_wrapper mark
-func_decl_re = re.compile(r'^int\s*generated_co_wrapper\s*'
+func_decl_re = re.compile(r'^int\s*generated_co_wrapper'
+                          r'(?P<variant>(_[a-z][a-z0-9_]*)?)\s*'
                           r'(?P<wrapper_name>[a-z][a-z0-9_]*)'
                           r'\((?P<args>[^)]*)\);$', re.MULTILINE)
 
@@ -84,7 +90,8 @@ def func_decl_iter(text: str) -> Iterator:
     for m in func_decl_re.finditer(text):
         yield FuncDecl(return_type='int',
                        name=m.group('wrapper_name'),
-                       args=m.group('args'))
+                       args=m.group('args'),
+                       variant=m.group('variant'))
 
 
 def snake_to_camel(func_name: str) -> str:
@@ -97,6 +104,51 @@ def snake_to_camel(func_name: str) -> str:
     return ''.join(words)
 
 
+# Checks if we are already in coroutine
+def create_g_c_w(func: FuncDecl) -> str:
+    name = func.co_name
+    struct_name = func.struct_name
+    return f"""\
+int {func.name}({ func.gen_list('{decl}') })
+{{
+    if (qemu_in_coroutine()) {{
+        return {name}({ func.gen_list('{name}') });
+    }} else {{
+        {struct_name} s = {{
+            .poll_state.bs = {func.bs},
+            .poll_state.in_progress = true,
+
+{ func.gen_block('            .{name} = {name},') }
+        }};
+
+        s.poll_state.co = qemu_coroutine_create({name}_entry, &s);
+
+        return bdrv_poll_co(&s.poll_state);
+    }}
+}}"""
+
+
+# Assumes we are not in coroutine, and creates one
+def create_coroutine_only(func: FuncDecl) -> str:
+    name = func.co_name
+    struct_name = func.struct_name
+    return f"""\
+int {func.name}({ func.gen_list('{decl}') })
+{{
+    assert(!qemu_in_coroutine());
+    {struct_name} s = {{
+        .poll_state.bs = {func.bs},
+        .poll_state.in_progress = true,
+
+{ func.gen_block('        .{name} = {name},') }
+    }};
+
+    s.poll_state.co = qemu_coroutine_create({name}_entry, &s);
+
+    return bdrv_poll_co(&s.poll_state);
+}}"""
+
+
 def gen_wrapper(func: FuncDecl) -> str:
     assert not '_co_' in func.name
     assert func.return_type == 'int'
@@ -105,7 +157,8 @@ def gen_wrapper(func: FuncDecl) -> str:
 
     subsystem, subname = func.name.split('_', 1)
 
-    name = f'{subsystem}_co_{subname}'
+    func.co_name = f'{subsystem}_co_{subname}'
+    name = func.co_name
 
     t = func.args[0].type
     if t == 'BlockDriverState *':
@@ -114,7 +167,13 @@ def gen_wrapper(func: FuncDecl) -> str:
         bs = 'child->bs'
     else:
         bs = 'blk_bs(blk)'
-    struct_name = snake_to_camel(name)
+    func.bs = bs
+    func.struct_name = snake_to_camel(func.name)
+    struct_name = func.struct_name
+
+    creation_function = create_g_c_w
+    if func.create_only_co:
+        creation_function = create_coroutine_only
 
     return f"""\
 /*
@@ -136,23 +195,7 @@ static void coroutine_fn {name}_entry(void *opaque)
     aio_wait_kick();
 }}
 
-int {func.name}({ func.gen_list('{decl}') })
-{{
-    if (qemu_in_coroutine()) {{
-        return {name}({ func.gen_list('{name}') });
-    }} else {{
-        {struct_name} s = {{
-            .poll_state.bs = {bs},
-            .poll_state.in_progress = true,
-
-{ func.gen_block('            .{name} = {name},') }
-        }};
-
-        s.poll_state.co = qemu_coroutine_create({name}_entry, &s);
-
-        return bdrv_poll_co(&s.poll_state);
-    }}
-}}"""
+{creation_function(func)}"""
 
 
 def gen_wrappers(input_code: str) -> str:
