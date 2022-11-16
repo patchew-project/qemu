@@ -533,6 +533,7 @@ static int coroutine_fn bdrv_co_create(BlockDriver *drv, const char *filename,
 {
     int ret;
     GLOBAL_STATE_CODE();
+    assert(qemu_in_coroutine());
     assert(*errp == NULL);
 
     if (!drv->bdrv_co_create_opts) {
@@ -723,7 +724,8 @@ out:
     return ret;
 }
 
-int bdrv_create_file(const char *filename, QemuOpts *opts, Error **errp)
+int coroutine_fn bdrv_create_file(const char *filename, QemuOpts *opts,
+                                  Error **errp)
 {
     QemuOpts *protocol_opts;
     BlockDriver *drv;
@@ -764,7 +766,7 @@ int bdrv_create_file(const char *filename, QemuOpts *opts, Error **errp)
         goto out;
     }
 
-    ret = bdrv_create(drv, filename, protocol_opts, errp);
+    ret = bdrv_co_create(drv, filename, protocol_opts, errp);
 out:
     qemu_opts_del(protocol_opts);
     qobject_unref(qdict);
