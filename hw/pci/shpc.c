@@ -236,21 +236,40 @@ static void shpc_invalid_command(SHPCDevice *shpc)
                                SHPC_CMD_STATUS_INVALID_CMD);
 }
 
+static PCIDevice *shpc_next_device_in_slot(SHPCDevice *shpc, int slot,
+                                           int *start_devfn)
+{
+    int devfn;
+    int pci_slot = SHPC_IDX_TO_PCI(slot);
+
+    for (devfn = *start_devfn ?: PCI_DEVFN(pci_slot, 0);
+         devfn <= PCI_DEVFN(pci_slot, PCI_FUNC_MAX - 1);
+         ++devfn) {
+        PCIDevice *dev = shpc->sec_bus->devices[devfn];
+        if (dev) {
+            *start_devfn = devfn + 1; /* for next iteration */
+            return dev;
+        }
+    }
+
+    return NULL;
+}
+
+#define FOR_EACH_DEVICE_IN_SLOT(shpc, slot, dev, devfn) \
+    for ((devfn) = 0, \
+         (dev) = shpc_next_device_in_slot((shpc), (slot), &(devfn)); \
+         (dev); (dev) = shpc_next_device_in_slot((shpc), (slot), &(devfn)))
+
 static void shpc_free_devices_in_slot(SHPCDevice *shpc, int slot)
 {
     HotplugHandler *hotplug_ctrl;
     int devfn;
-    int pci_slot = SHPC_IDX_TO_PCI(slot);
-    for (devfn = PCI_DEVFN(pci_slot, 0);
-         devfn <= PCI_DEVFN(pci_slot, PCI_FUNC_MAX - 1);
-         ++devfn) {
-        PCIDevice *affected_dev = shpc->sec_bus->devices[devfn];
-        if (affected_dev) {
-            hotplug_ctrl = qdev_get_hotplug_handler(DEVICE(affected_dev));
-            hotplug_handler_unplug(hotplug_ctrl, DEVICE(affected_dev),
-                                   &error_abort);
-            object_unparent(OBJECT(affected_dev));
-        }
+    PCIDevice *dev;
+
+    FOR_EACH_DEVICE_IN_SLOT(shpc, slot, dev, devfn) {
+        hotplug_ctrl = qdev_get_hotplug_handler(DEVICE(dev));
+        hotplug_handler_unplug(hotplug_ctrl, DEVICE(dev), &error_abort);
+        object_unparent(OBJECT(dev));
     }
 }
 
