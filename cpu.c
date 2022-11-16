@@ -33,6 +33,7 @@
 #endif
 #include "sysemu/tcg.h"
 #include "sysemu/kvm.h"
+#include "sysemu/hvf.h"
 #include "sysemu/replay.h"
 #include "exec/cpu-common.h"
 #include "exec/exec-all.h"
@@ -389,6 +390,8 @@ void cpu_single_step(CPUState *cpu, int enabled)
         cpu->singlestep_enabled = enabled;
         if (kvm_enabled()) {
             kvm_update_guest_debug(cpu, 0);
+        } else if (hvf_enabled()) {
+            hvf_update_guest_debug(cpu);
         }
         trace_breakpoint_singlestep(cpu->cpu_index, enabled);
     }
