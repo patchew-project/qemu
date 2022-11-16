@@ -32,18 +32,15 @@
 typedef struct BdrvPollCo {
     BlockDriverState *bs;
     bool in_progress;
-    int ret;
     Coroutine *co; /* Keep pointer here for debugging */
 } BdrvPollCo;
 
-static inline int bdrv_poll_co(BdrvPollCo *s)
+static inline void bdrv_poll_co(BdrvPollCo *s)
 {
     assert(!qemu_in_coroutine());
 
     bdrv_coroutine_enter(s->bs, s->co);
     BDRV_POLL_WHILE(s->bs, s->in_progress);
-
-    return s->ret;
 }
 
 #endif /* BLOCK_BLOCK_GEN_H */
