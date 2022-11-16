@@ -563,30 +563,25 @@ static void coroutine_fn bdrv_create_co_entry(void *opaque)
 int bdrv_create(BlockDriver *drv, const char* filename,
                 QemuOpts *opts, Error **errp)
 {
+    Coroutine *co;
+    CreateCo cco = {
+        .drv = drv,
+        .filename = g_strdup(filename),
+        .opts = opts,
+        .ret = NOT_DONE,
+        .err = NULL,
+    };
     GLOBAL_STATE_CODE();
+    assert(!qemu_in_coroutine());
 
-    if (qemu_in_coroutine()) {
-        /* Fast-path if already in coroutine context */
-        return bdrv_co_create(drv, filename, opts, errp);
-    } else {
-        Coroutine *co;
-        CreateCo cco = {
-            .drv = drv,
-            .filename = g_strdup(filename),
-            .opts = opts,
-            .ret = NOT_DONE,
-            .err = NULL,
-        };
-
-        co = qemu_coroutine_create(bdrv_create_co_entry, &cco);
-        qemu_coroutine_enter(co);
-        while (cco.ret == NOT_DONE) {
-            aio_poll(qemu_get_aio_context(), true);
-        }
-        error_propagate(errp, cco.err);
-        g_free(cco.filename);
-        return cco.ret;
+    co = qemu_coroutine_create(bdrv_create_co_entry, &cco);
+    qemu_coroutine_enter(co);
+    while (cco.ret == NOT_DONE) {
+        aio_poll(qemu_get_aio_context(), true);
     }
+    error_propagate(errp, cco.err);
+    g_free(cco.filename);
+    return cco.ret;
 }
 
 /**
