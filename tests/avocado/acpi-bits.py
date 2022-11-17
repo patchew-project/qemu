@@ -354,7 +354,11 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
         if self._vm:
             self.assertFalse(not self._vm.is_running)
         self.logger.info('removing the work directory %s', self._workDir)
-        shutil.rmtree(self._workDir)
+        if not os.getenv('V'):
+            shutil.rmtree(self._workDir)
+        else:
+            self.logger.info('not removing the work directory %s as V is ' \
+                             'passed in the environment', self._workDir)
         super().tearDown()
 
     def test_acpi_smbios_bits(self):
