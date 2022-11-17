@@ -77,7 +77,6 @@
     ( ( input ) & ( size - 1 )  )
 
 #define ETHER_TYPE_LEN 2
-#define ETH_MTU     1500
 
 #define VLAN_TCI_LEN 2
 #define VLAN_HLEN (ETHER_TYPE_LEN + VLAN_TCI_LEN)
@@ -1934,8 +1933,9 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
 #define CP_TX_LS (1<<28)
 /* large send packet flag */
 #define CP_TX_LGSEN (1<<27)
-/* large send MSS mask, bits 16...25 */
-#define CP_TC_LGSEN_MSS_MASK ((1 << 12) - 1)
+/* large send MSS mask, bits 16...26 */
+#define CP_TC_LGSEN_MSS_SHIFT 16
+#define CP_TC_LGSEN_MSS_MASK ((1 << 11) - 1)
 
 /* IP checksum offload flag */
 #define CP_TX_IPCS (1<<18)
@@ -2026,6 +2026,9 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
         if (s->currCPlusTxDesc >= 64)
             s->currCPlusTxDesc = 0;
     }
+
+    /* store unaltered txdw0 for later use in MSS calculation*/
+    uint32_t txdw0_save = txdw0;
 
     /* transfer ownership to target */
     txdw0 &= ~CP_TX_OWN;
@@ -2149,10 +2152,12 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
                     goto skip_offload;
                 }
 
-                int large_send_mss = (txdw0 >> 16) & CP_TC_LGSEN_MSS_MASK;
+                /* set large_send_mss from txdw0 before overlapping mss fields were cleared */
+                int large_send_mss = ((txdw0_save >> CP_TC_LGSEN_MSS_SHIFT) &
+                    CP_TC_LGSEN_MSS_MASK) + 12;
 
-                DPRINTF("+++ C+ mode offloaded task TSO MTU=%d IP data %d "
-                    "frame data %d specified MSS=%d\n", ETH_MTU,
+                DPRINTF("+++ C+ mode offloaded task TSO IP data %d "
+                    "frame data %d specified MSS=%d\n",
                     ip_data_len, saved_size - ETH_HLEN, large_send_mss);
 
                 int tcp_send_offset = 0;
@@ -2177,9 +2182,13 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
                     goto skip_offload;
                 }
 
-                /* ETH_MTU = ip header len + tcp header len + payload */
+                /* MSS too small? Min MSS = 536 */
+                if (tcp_hlen + hlen >= large_send_mss || 535 >= large_send_mss) {
+                    goto skip_offload;
+                }
+
                 int tcp_data_len = ip_data_len - tcp_hlen;
-                int tcp_chunk_size = ETH_MTU - hlen - tcp_hlen;
+                int tcp_chunk_size = large_send_mss - hlen - tcp_hlen;
 
                 DPRINTF("+++ C+ mode TSO IP data len %d TCP hlen %d TCP "
                     "data len %d TCP chunk size %d\n", ip_data_len,
