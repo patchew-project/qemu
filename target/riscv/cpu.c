@@ -907,6 +907,48 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
      }
 #endif
 
+    /*
+     * Either a cpu sets its supported satp_mode in XXX_cpu_init
+     * or the user sets this value using satp_mode property.
+     */
+    bool rv32 = riscv_cpu_mxl(&cpu->env) == MXL_RV32;
+    if (cpu->cfg.satp_mode_str) {
+        if (!g_strcmp0(cpu->cfg.satp_mode_str, "none"))
+            cpu->cfg.satp_mode = VM_1_10_MBARE;
+        else if (!g_strcmp0(cpu->cfg.satp_mode_str, "sv32") && rv32)
+            cpu->cfg.satp_mode = VM_1_10_SV32;
+        else if (!g_strcmp0(cpu->cfg.satp_mode_str, "sv39") && !rv32)
+            cpu->cfg.satp_mode = VM_1_10_SV39;
+        else if (!g_strcmp0(cpu->cfg.satp_mode_str, "sv48") && !rv32)
+            cpu->cfg.satp_mode = VM_1_10_SV48;
+        else if (!g_strcmp0(cpu->cfg.satp_mode_str, "sv57") && !rv32)
+            cpu->cfg.satp_mode = VM_1_10_SV57;
+        else if (!g_strcmp0(cpu->cfg.satp_mode_str, "sv64") && !rv32)
+            cpu->cfg.satp_mode = VM_1_10_SV64;
+        else {
+            error_report("Unknown option for satp_mode: %s",
+                         cpu->cfg.satp_mode_str);
+            exit(EXIT_FAILURE);
+        }
+    } else {
+        /*
+         * If unset by both the user and the cpu, we fallback to sv32 for 32-bit
+         * or sv57 for 64-bit when a MMU is present, and bare otherwise.
+         */
+        if (riscv_feature(&cpu->env, RISCV_FEATURE_MMU)) {
+            if (rv32) {
+                cpu->cfg.satp_mode_str = g_strdup("sv32");
+                cpu->cfg.satp_mode = VM_1_10_SV32;
+            } else {
+                cpu->cfg.satp_mode_str = g_strdup("sv57");
+                cpu->cfg.satp_mode = VM_1_10_SV57;
+            }
+        } else {
+            cpu->cfg.satp_mode_str = g_strdup("none");
+            cpu->cfg.satp_mode = VM_1_10_MBARE;
+        }
+    }
+
     riscv_cpu_register_gdb_regs_for_features(cs);
 
     qemu_init_vcpu(cs);
@@ -1094,6 +1136,9 @@ static Property riscv_cpu_properties[] = {
 
     DEFINE_PROP_BOOL("rvv_ta_all_1s", RISCVCPU, cfg.rvv_ta_all_1s, false),
     DEFINE_PROP_BOOL("rvv_ma_all_1s", RISCVCPU, cfg.rvv_ma_all_1s, false),
+
+    DEFINE_PROP_STRING("satp-mode", RISCVCPU, cfg.satp_mode_str),
+
     DEFINE_PROP_END_OF_LIST(),
 };
 
