@@ -714,12 +714,31 @@ static gboolean gd_window_close(GtkWidget *widget, GdkEvent *event,
     return TRUE;
 }
 
+static void gd_set_ui_window_position(VirtualConsole *vc, QemuUIInfo *info)
+{
+    GdkDisplay *dpy = gtk_widget_get_display(vc->gfx.drawing_area);
+    GdkWindow *window;
+    GdkMonitor *monitor;
+    GdkRectangle geometry;
+
+    if (!gtk_widget_get_realized(vc->gfx.drawing_area)) {
+        return;
+    }
+
+    window = gtk_widget_get_window(vc->gfx.drawing_area);
+    monitor = gdk_display_get_monitor_at_window(dpy, window);
+    gdk_monitor_get_geometry(monitor, &geometry);
+    info->xoff = geometry.x;
+    info->yoff = geometry.y;
+}
+
 static void gd_set_ui_refresh_rate(VirtualConsole *vc, int refresh_rate)
 {
     QemuUIInfo info;
 
     info = *dpy_get_ui_info(vc->gfx.dcl.con);
     info.refresh_rate = refresh_rate;
+    gd_set_ui_window_position(vc, &info);
     dpy_set_ui_info(vc->gfx.dcl.con, &info, true);
 }
 
@@ -730,6 +749,7 @@ static void gd_set_ui_size(VirtualConsole *vc, gint width, gint height)
     info = *dpy_get_ui_info(vc->gfx.dcl.con);
     info.width = width;
     info.height = height;
+    gd_set_ui_window_position(vc, &info);
     dpy_set_ui_info(vc->gfx.dcl.con, &info, true);
 }
 
