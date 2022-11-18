@@ -214,6 +214,8 @@ void gd_egl_scanout_disable(DisplayChangeListener *dcl)
 {
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
 
+    eglMakeCurrent(qemu_egl_display, vc->gfx.esurface,
+                   vc->gfx.esurface, vc->gfx.ectx);
     vc->gfx.w = 0;
     vc->gfx.h = 0;
     gtk_egl_set_scanout_mode(vc, false);
