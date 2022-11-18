@@ -81,6 +81,9 @@ void gd_gl_area_draw(VirtualConsole *vc)
             egl_dmabuf_create_sync(dmabuf);
         }
 #endif
+        vc->gfx.scale_x = (double)ww / vc->gfx.w;
+        vc->gfx.scale_y = (double)wh / vc->gfx.h;
+
         glFlush();
 #ifdef CONFIG_GBM
         if (dmabuf) {
@@ -100,6 +103,8 @@ void gd_gl_area_draw(VirtualConsole *vc)
 
         surface_gl_setup_viewport(vc->gfx.gls, vc->gfx.ds, ww, wh);
         surface_gl_render_texture(vc->gfx.gls, vc->gfx.ds);
+        vc->gfx.scale_x = (double)ww / vc->gfx.w;
+        vc->gfx.scale_y = (double)wh / vc->gfx.h;
     }
 }
 

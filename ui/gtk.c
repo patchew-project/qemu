@@ -883,9 +883,14 @@ static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
     fbh = surface_height(vc->gfx.ds) * vc->gfx.scale_y;
 
     window = gtk_widget_get_window(vc->gfx.drawing_area);
-    ww = gdk_window_get_width(window);
-    wh = gdk_window_get_height(window);
     ws = gdk_window_get_scale_factor(window);
+    if (GDK_IS_WAYLAND_DISPLAY(dpy)) {
+        ww = gtk_widget_get_allocated_width(vc->gfx.drawing_area);
+        wh = gtk_widget_get_allocated_height(vc->gfx.drawing_area);
+    } else {
+        ww = gdk_window_get_width(window);
+        wh = gdk_window_get_height(window);
+    }
 
     mx = my = 0;
     if (ww > fbw) {
