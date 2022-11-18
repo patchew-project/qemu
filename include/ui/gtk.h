@@ -130,6 +130,8 @@ struct GtkDisplayState {
     gboolean last_set;
     int last_x;
     int last_y;
+    int guest_x;
+    int guest_y;
     int grab_x_root;
     int grab_y_root;
     VirtualConsole *kbd_owner;

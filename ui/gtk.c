@@ -447,22 +447,44 @@ static void gd_mouse_set(DisplayChangeListener *dcl,
                          int x, int y, int visible)
 {
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
-    GdkDisplay *dpy;
+    GtkDisplayState *s = vc->s;
+    GdkDisplay *dpy = gtk_widget_get_display(vc->gfx.drawing_area);
     gint x_root, y_root;
 
     if (qemu_input_is_absolute()) {
         return;
     }
+    /*
+     * When the mouse cursor moves from one vc (or connector in guest
+     * terminology) to another, some guest compositors (e.g. Weston)
+     * set x and y to 0 on the old vc. We check for this condition
+     * and return right away as we do not want to move the cursor
+     * back to the old vc (at 0, 0).
+     */
+    if (GDK_IS_WAYLAND_DISPLAY(dpy)) {
+        if (s->ptr_owner != vc || (x == 0 && y == 0)) {
+            return;
+        }
+    }
+    /*
+     * Since Wayland compositors do not support clients warping/moving
+     * the cursor, we just store the Guest's cursor location here and
+     * add or subtract the difference when injecting the next motion event.
+     */
+    if (GDK_IS_WAYLAND_DISPLAY(dpy)) {
+        s->guest_x = x;
+        s->guest_y = y;
+        return;
+    }
 
-    dpy = gtk_widget_get_display(vc->gfx.drawing_area);
     gdk_window_get_root_coords(gtk_widget_get_window(vc->gfx.drawing_area),
                                x * vc->gfx.scale_x, y * vc->gfx.scale_y,
                                &x_root, &y_root);
     gdk_device_warp(gd_get_pointer(dpy),
                     gtk_widget_get_screen(vc->gfx.drawing_area),
                     x_root, y_root);
-    vc->s->last_x = x;
-    vc->s->last_y = y;
+    s->last_x = x;
+    s->last_y = y;
 }
 
 static void gd_cursor_define(DisplayChangeListener *dcl,
@@ -869,6 +891,7 @@ static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
 {
     VirtualConsole *vc = opaque;
     GtkDisplayState *s = vc->s;
+    GdkDisplay *dpy = gtk_widget_get_display(vc->gfx.drawing_area);
     GdkWindow *window;
     int x, y;
     int mx, my;
@@ -915,13 +938,40 @@ static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
                              0, surface_height(vc->gfx.ds));
         qemu_input_event_sync();
     } else if (s->last_set && s->ptr_owner == vc) {
-        qemu_input_queue_rel(vc->gfx.dcl.con, INPUT_AXIS_X, x - s->last_x);
-        qemu_input_queue_rel(vc->gfx.dcl.con, INPUT_AXIS_Y, y - s->last_y);
+        int dx = x - s->last_x;
+        int dy = y - s->last_y;
+
+        /*
+         * To converge/sync the Guest's and Host's cursor locations more
+         * accurately, we can avoid doing the / 2 below but it appears
+         * some Guest compositors (e.g. Weston) do not like large jumps;
+         * so we just do / 2 which seems to work reasonably well.
+         */
+        if (GDK_IS_WAYLAND_DISPLAY(dpy)) {
+            dx += s->guest_x ? (x - s->guest_x) / 2 : 0;
+            dy += s->guest_y ? (y - s->guest_y) / 2 : 0;
+            s->guest_x = 0;
+            s->guest_y = 0;
+        }
+        qemu_input_queue_rel(vc->gfx.dcl.con, INPUT_AXIS_X, dx);
+        qemu_input_queue_rel(vc->gfx.dcl.con, INPUT_AXIS_Y, dy);
         qemu_input_event_sync();
     }
     s->last_x = x;
     s->last_y = y;
     s->last_set = TRUE;
+
+    /*
+     * When running in Wayland environment, we don't grab the cursor; so,
+     * we want to return right away as it would not make sense to warp it
+     * (below).
+     */
+    if (GDK_IS_WAYLAND_DISPLAY(dpy)) {
+        if (s->ptr_owner != vc) {
+            s->ptr_owner = vc;
+        }
+        return TRUE;
+    }
 
     if (!qemu_input_is_absolute() && s->ptr_owner == vc) {
         GdkScreen *screen = gtk_widget_get_screen(vc->gfx.drawing_area);
@@ -961,11 +1011,16 @@ static gboolean gd_button_event(GtkWidget *widget, GdkEventButton *button,
 {
     VirtualConsole *vc = opaque;
     GtkDisplayState *s = vc->s;
+    GdkDisplay *dpy = gtk_widget_get_display(vc->gfx.drawing_area);
     InputButton btn;
 
-    /* implicitly grab the input at the first click in the relative mode */
+    /* Implicitly grab the input at the first click in the relative mode.
+     * However, when running in Wayland environment, some limited testing
+     * indicates that grabs are not very reliable.
+     */
     if (button->button == 1 && button->type == GDK_BUTTON_PRESS &&
-        !qemu_input_is_absolute() && s->ptr_owner != vc) {
+        !qemu_input_is_absolute() && s->ptr_owner != vc &&
+        !GDK_IS_WAYLAND_DISPLAY(dpy)) {
         if (!vc->window) {
             gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
                                            TRUE);
