@@ -456,7 +456,8 @@ static void gd_mouse_set(DisplayChangeListener *dcl,
 
     dpy = gtk_widget_get_display(vc->gfx.drawing_area);
     gdk_window_get_root_coords(gtk_widget_get_window(vc->gfx.drawing_area),
-                               x, y, &x_root, &y_root);
+                               x * vc->gfx.scale_x, y * vc->gfx.scale_y,
+                               &x_root, &y_root);
     gdk_device_warp(gd_get_pointer(dpy),
                     gtk_widget_get_screen(vc->gfx.drawing_area),
                     x_root, y_root);
