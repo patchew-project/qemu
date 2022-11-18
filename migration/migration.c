@@ -223,6 +223,7 @@ void migration_object_init(void)
     qemu_sem_init(&current_incoming->postcopy_pause_sem_fast_load, 0);
     qemu_mutex_init(&current_incoming->page_request_mutex);
     current_incoming->page_requested = g_tree_new(page_request_addr_cmp);
+    current_incoming->start_pack_mr_change = false;
 
     migration_object_check(current_migration, &error_fatal);
 

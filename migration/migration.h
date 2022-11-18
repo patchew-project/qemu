@@ -186,6 +186,8 @@ struct MigrationIncomingState {
      * contains valid information.
      */
     QemuMutex page_request_mutex;
+
+    bool start_pack_mr_change;
 };
 
 MigrationIncomingState *migration_incoming_get_current(void);

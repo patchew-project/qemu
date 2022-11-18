@@ -2630,6 +2630,12 @@ retry:
         switch (section_type) {
         case QEMU_VM_SECTION_START:
         case QEMU_VM_SECTION_FULL:
+            /* call memory_region_transaction_begin() before loading non-iterable vmstate */
+            if (section_type == QEMU_VM_SECTION_FULL && !mis->start_pack_mr_change) {
+                memory_region_transaction_begin();
+                mis->start_pack_mr_change = true;
+            }
+
             ret = qemu_loadvm_section_start_full(f, mis);
             if (ret < 0) {
                 goto out;
@@ -2650,6 +2656,8 @@ retry:
             }
             break;
         case QEMU_VM_EOF:
+            /* call memory_region_transaction_commit() after loading non-iterable vmstate */
+            memory_region_transaction_commit();
             /* This is the end of migration */
             goto out;
         default:
