@@ -47,6 +47,8 @@ virtio_gpu_base_fill_display_info(VirtIOGPUBase *g,
             dpy_info->pmodes[i].enabled = 1;
             dpy_info->pmodes[i].r.width = cpu_to_le32(g->req_state[i].width);
             dpy_info->pmodes[i].r.height = cpu_to_le32(g->req_state[i].height);
+            dpy_info->pmodes[i].r.x = cpu_to_le32(g->req_state[i].x);
+            dpy_info->pmodes[i].r.y = cpu_to_le32(g->req_state[i].y);
         }
     }
 }
