@@ -1507,6 +1507,7 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
 int vhost_dev_enable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
 {
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
+    int vq_init_count = 0;
     int i, r, e;
 
     /* We will pass the notifiers to the kernel, make sure that QEMU
@@ -1518,6 +1519,12 @@ int vhost_dev_enable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
         goto fail;
     }
 
+    /*
+     * Batch all the host notifiers in a single transaction to avoid
+     * quadratic time complexity in address_space_update_ioeventfds().
+     */
+    memory_region_transaction_begin();
+
     for (i = 0; i < hdev->nvqs; ++i) {
         r = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), hdev->vq_index + i,
                                          true);
@@ -1525,19 +1532,33 @@ int vhost_dev_enable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
             error_report("vhost VQ %d notifier binding failed: %d", i, -r);
             goto fail_vq;
         }
+
+        vq_init_count++;
     }
+
+    memory_region_transaction_commit();
 
     return 0;
 fail_vq:
-    while (--i >= 0) {
+    for (i = 0; i < vq_init_count; i++) {
         e = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), hdev->vq_index + i,
                                          false);
         if (e < 0) {
             error_report("vhost VQ %d notifier cleanup error: %d", i, -r);
         }
         assert (e >= 0);
+    }
+
+    /*
+     * The transaction expects the ioeventfds to be open when it
+     * commits. Do it now, before the cleanup loop.
+     */
+    memory_region_transaction_commit();
+
+    for (i = 0; i < vq_init_count; i++) {
         virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus), hdev->vq_index + i);
     }
+
     virtio_device_release_ioeventfd(vdev);
 fail:
     return r;
@@ -1553,6 +1574,12 @@ void vhost_dev_disable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
     int i, r;
 
+    /*
+     * Batch all the host notifiers in a single transaction to avoid
+     * quadratic time complexity in address_space_update_ioeventfds().
+     */
+    memory_region_transaction_begin();
+
     for (i = 0; i < hdev->nvqs; ++i) {
         r = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), hdev->vq_index + i,
                                          false);
@@ -1560,8 +1587,18 @@ void vhost_dev_disable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
             error_report("vhost VQ %d notifier cleanup failed: %d", i, -r);
         }
         assert (r >= 0);
+    }
+
+    /*
+     * The transaction expects the ioeventfds to be open when it
+     * commits. Do it now, before the cleanup loop.
+     */
+    memory_region_transaction_commit();
+
+    for (i = 0; i < hdev->nvqs; ++i) {
         virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus), hdev->vq_index + i);
     }
+
     virtio_device_release_ioeventfd(vdev);
 }
 
