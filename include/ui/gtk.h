@@ -136,6 +136,7 @@ struct GtkDisplayState {
     VirtualConsole *ptr_owner;
 
     gboolean full_screen;
+    gboolean ext_abs_mode;
 
     GdkCursor *null_cursor;
     Notifier mouse_mode_notifier;

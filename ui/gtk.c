@@ -863,12 +863,42 @@ static gboolean gd_draw_event(GtkWidget *widget, cairo_t *cr, void *opaque)
     return TRUE;
 }
 
+static void gd_calc_width_height(VirtualConsole *vc,
+                                 uint32_t *max_w, uint32_t *max_h)
+{
+    GtkDisplayState *s = vc->s;
+    GdkDisplay *dpy = gtk_widget_get_display(vc->gfx.drawing_area);
+    GdkRectangle geometry;
+    int i;
+
+    if (s->ext_abs_mode) {
+        for (i = 0; i < gdk_display_get_n_monitors(dpy); i++) {
+            gdk_monitor_get_geometry(gdk_display_get_monitor(dpy, i),
+                                     &geometry);
+            if (geometry.x + geometry.width > *max_w) {
+                *max_w = geometry.x + geometry.width;
+            }
+            if (geometry.y + geometry.height > *max_h) {
+                *max_h = geometry.y + geometry.height;
+            }
+        }
+    } else {
+        *max_w = surface_width(vc->gfx.ds);
+        *max_h = surface_height(vc->gfx.ds);
+    }
+}
+
 static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
                                 void *opaque)
 {
     VirtualConsole *vc = opaque;
     GtkDisplayState *s = vc->s;
-    GdkWindow *window;
+    GdkScreen *screen = gtk_widget_get_screen(vc->gfx.drawing_area);
+    GdkDisplay *dpy = gtk_widget_get_display(widget);
+    GdkWindow *window = gtk_widget_get_window(widget);
+    GdkMonitor *monitor = gdk_display_get_monitor_at_window(dpy, window);
+    GdkRectangle geometry;
+    uint32_t max_w = 0, max_h = 0;
     int x, y;
     int mx, my;
     int fbh, fbw;
@@ -881,7 +911,6 @@ static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
     fbw = surface_width(vc->gfx.ds) * vc->gfx.scale_x;
     fbh = surface_height(vc->gfx.ds) * vc->gfx.scale_y;
 
-    window = gtk_widget_get_window(vc->gfx.drawing_area);
     ww = gdk_window_get_width(window);
     wh = gdk_window_get_height(window);
     ws = gdk_window_get_scale_factor(window);
@@ -896,17 +925,20 @@ static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
 
     x = (motion->x - mx) / vc->gfx.scale_x * ws;
     y = (motion->y - my) / vc->gfx.scale_y * ws;
+    gdk_monitor_get_geometry(monitor, &geometry);
 
     if (qemu_input_is_absolute()) {
-        if (x < 0 || y < 0 ||
-            x >= surface_width(vc->gfx.ds) ||
-            y >= surface_height(vc->gfx.ds)) {
+        if (s->ext_abs_mode) {
+            x = x + geometry.x;
+            y = y + geometry.y;
+        }
+
+        gd_calc_width_height(vc, &max_w, &max_h);
+        if (x < 0 || y < 0 || x >= max_w || y >= max_h) {
             return TRUE;
         }
-        qemu_input_queue_abs(vc->gfx.dcl.con, INPUT_AXIS_X, x,
-                             0, surface_width(vc->gfx.ds));
-        qemu_input_queue_abs(vc->gfx.dcl.con, INPUT_AXIS_Y, y,
-                             0, surface_height(vc->gfx.ds));
+        qemu_input_queue_abs(vc->gfx.dcl.con, INPUT_AXIS_X, x, 0, max_w);
+        qemu_input_queue_abs(vc->gfx.dcl.con, INPUT_AXIS_Y, y, 0, max_h);
         qemu_input_event_sync();
     } else if (s->last_set && s->ptr_owner == vc) {
         qemu_input_queue_rel(vc->gfx.dcl.con, INPUT_AXIS_X, x - s->last_x);
@@ -918,16 +950,8 @@ static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
     s->last_set = TRUE;
 
     if (!qemu_input_is_absolute() && s->ptr_owner == vc) {
-        GdkScreen *screen = gtk_widget_get_screen(vc->gfx.drawing_area);
-        GdkDisplay *dpy = gtk_widget_get_display(widget);
-        GdkWindow *win = gtk_widget_get_window(widget);
-        GdkMonitor *monitor = gdk_display_get_monitor_at_window(dpy, win);
-        GdkRectangle geometry;
-
         int x = (int)motion->x_root;
         int y = (int)motion->y_root;
-
-        gdk_monitor_get_geometry(monitor, &geometry);
 
         /* In relative mode check to see if client pointer hit
          * one of the monitor edges, and if so move it back to the
@@ -2402,6 +2426,11 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
     if (opts->u.gtk.has_show_tabs &&
         opts->u.gtk.show_tabs) {
         gtk_menu_item_activate(GTK_MENU_ITEM(s->show_tabs_item));
+    }
+    if (opts->u.gtk.has_extend_abs_mode &&
+        opts->u.gtk.extend_abs_mode &&
+        qemu_input_is_absolute()) {
+        s->ext_abs_mode = TRUE;
     }
     gd_clipboard_init(s);
 }

@@ -1201,6 +1201,9 @@
 #               Since 7.1
 # @show-menubar: Display the main window menubar. Defaults to "on".
 #                Since 8.0
+# @extend-abs-mode: Extend the absolute mode across all monitors or
+#                   limit it to just one. Defaults to "off".
+#                   Since 8.0
 #
 # Since: 2.12
 ##
@@ -1208,7 +1211,8 @@
   'data'    : { '*grab-on-hover' : 'bool',
                 '*zoom-to-fit'   : 'bool',
                 '*show-tabs'     : 'bool',
-                '*show-menubar'  : 'bool'  } }
+                '*show-menubar'  : 'bool',
+                '*extend-abs-mode'  : 'bool'  } }
 
 ##
 # @DisplayEGLHeadless:
