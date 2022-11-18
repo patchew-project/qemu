@@ -37,6 +37,7 @@
 #include "qapi/qapi-commands-misc.h"
 #include "qemu/cutils.h"
 #include "qemu/main-loop.h"
+#include "qemu/option.h"
 
 #include "ui/console.h"
 #include "ui/gtk.h"
@@ -116,6 +117,11 @@
 
 #define HOTKEY_MODIFIERS        (GDK_CONTROL_MASK | GDK_MOD1_MASK)
 
+/* Upper limit on number of times to check for a valid monitor name */
+#define MAX_NUM_RETRIES 5
+/* Max num of milliseconds to wait before checking for a valid monitor name */
+#define WAIT_MS 50
+
 static const guint16 *keycode_map;
 static size_t keycode_maplen;
 
@@ -125,6 +131,14 @@ struct VCChardev {
     bool echo;
 };
 typedef struct VCChardev VCChardev;
+
+typedef struct gd_monitor_data {
+    GtkDisplayState *s;
+    GdkDisplay *dpy;
+    GdkMonitor *monitor;
+    QEMUTimer *hp_timer;
+    int num_retries;
+} gd_monitor_data;
 
 #define TYPE_CHARDEV_VC "chardev-vc"
 DECLARE_INSTANCE_CHECKER(VCChardev, VC_CHARDEV,
@@ -461,7 +475,7 @@ static void gd_mouse_set(DisplayChangeListener *dcl,
      * and return right away as we do not want to move the cursor
      * back to the old vc (at 0, 0).
      */
-    if (GDK_IS_WAYLAND_DISPLAY(dpy)) {
+    if (GDK_IS_WAYLAND_DISPLAY(dpy) || s->opts->u.gtk.has_connectors) {
         if (s->ptr_owner != vc || (x == 0 && y == 0)) {
             return;
         }
@@ -962,11 +976,11 @@ static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
     s->last_set = TRUE;
 
     /*
-     * When running in Wayland environment, we don't grab the cursor; so,
-     * we want to return right away as it would not make sense to warp it
-     * (below).
+     * When running in Wayland environment or when has_connectors is set,
+     * we don't grab the cursor; so, we want to return right away as it
+     * would not make sense to warp it (below).
      */
-    if (GDK_IS_WAYLAND_DISPLAY(dpy)) {
+    if (GDK_IS_WAYLAND_DISPLAY(dpy) || s->opts->u.gtk.has_connectors) {
         if (s->ptr_owner != vc) {
             s->ptr_owner = vc;
         }
@@ -1017,10 +1031,13 @@ static gboolean gd_button_event(GtkWidget *widget, GdkEventButton *button,
     /* Implicitly grab the input at the first click in the relative mode.
      * However, when running in Wayland environment, some limited testing
      * indicates that grabs are not very reliable.
+     * And, when has_connectors is set, we also do not want to grab the cursor
+     * as it would be tedious to grab/ungrab when drag-and-dropping or moving
+     * apps from one vc to another -- which may be on a different monitor.
      */
     if (button->button == 1 && button->type == GDK_BUTTON_PRESS &&
         !qemu_input_is_absolute() && s->ptr_owner != vc &&
-        !GDK_IS_WAYLAND_DISPLAY(dpy)) {
+        !GDK_IS_WAYLAND_DISPLAY(dpy) && !s->opts->u.gtk.has_connectors) {
         if (!vc->window) {
             gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
                                            TRUE);
@@ -1447,6 +1464,228 @@ static void gd_menu_untabify(GtkMenuItem *item, void *opaque)
     }
     if (!vc->window) {
         gd_tab_window_create(vc);
+    }
+}
+
+static void gd_window_show_on_monitor(GdkDisplay *dpy, VirtualConsole *vc,
+                                      gint monitor_num)
+{
+    GtkDisplayState *s = vc->s;
+    GdkMonitor *monitor = gdk_display_get_monitor(dpy, monitor_num);
+    GdkWindow *window;
+    GdkRectangle geometry;
+
+    if (!vc->window) {
+        gd_tab_window_create(vc);
+    }
+    if (s->opts->has_full_screen && s->opts->full_screen) {
+        s->full_screen = TRUE;
+        gtk_widget_set_size_request(vc->gfx.drawing_area, -1, -1);
+        gtk_window_fullscreen_on_monitor(GTK_WINDOW(vc->window),
+                                         gdk_display_get_default_screen(dpy),
+                                         monitor_num);
+    } else {
+        gd_update_windowsize(vc);
+        gdk_monitor_get_geometry(monitor, &geometry);
+        /*
+         * Note: some compositors (mainly Wayland ones) may not honor a
+         * request to move to a particular location. The user is expected
+         * to drag the window to the preferred location in this case.
+         */
+        gtk_window_move(GTK_WINDOW(vc->window), geometry.x, geometry.y);
+    }
+
+    vc->monitor = monitor;
+    window = gtk_widget_get_window(vc->gfx.drawing_area);
+    gd_set_ui_size(vc, gdk_window_get_width(window),
+                   gdk_window_get_height(window));
+    gd_update_cursor(vc);
+}
+
+static int gd_monitor_lookup(GdkDisplay *dpy, char *label)
+{
+    GdkMonitor *monitor;
+    int total_monitors = gdk_display_get_n_monitors(dpy);
+    int i;
+
+    for (i = 0; i < total_monitors; i++) {
+        monitor = gdk_display_get_monitor(dpy, i);
+        if (monitor && !g_strcmp0(gdk_monitor_get_model(monitor), label)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static gboolean gd_vc_is_misplaced(GdkDisplay *dpy, GdkMonitor *monitor,
+                                   VirtualConsole *vc)
+{
+    GdkWindow *window = gtk_widget_get_window(vc->gfx.drawing_area);
+    GdkMonitor *mon = gdk_display_get_monitor_at_window(dpy, window);
+    const char *monitor_name = gdk_monitor_get_model(monitor);
+
+    if (!vc->monitor) {
+        if (!g_strcmp0(monitor_name, vc->label)) {
+            return TRUE;
+        }
+    } else {
+        if (vc->monitor != mon) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+static void gd_monitor_check_vcs(GdkDisplay *dpy, GdkMonitor *monitor,
+                                 GtkDisplayState *s)
+{
+    VirtualConsole *vc;
+    gint monitor_num;
+    int i;
+
+    /*
+     * We need to call gd_vc_is_misplaced() after a monitor is added to
+     * ensure that the Host compositor has not moved our windows around.
+     */
+    for (i = 0; i < s->nb_vcs; i++) {
+        vc = &s->vc[i];
+        monitor_num = vc->label ? gd_monitor_lookup(dpy, vc->label) : -1;
+        if (monitor_num >= 0 && gd_vc_is_misplaced(dpy, monitor, vc)) {
+            gd_window_show_on_monitor(dpy, vc, monitor_num);
+        }
+    }
+}
+
+static void gd_monitor_hotplug_timer(void *opaque)
+{
+    gd_monitor_data *data = opaque;
+    const char *monitor_name;
+
+    monitor_name = GDK_IS_MONITOR(data->monitor) ?
+                   gdk_monitor_get_model(data->monitor) : NULL;
+    if (monitor_name) {
+        gd_monitor_check_vcs(data->dpy, data->monitor, data->s);
+    }
+    if (monitor_name || data->num_retries == MAX_NUM_RETRIES) {
+        timer_del(data->hp_timer);
+        g_free(data);
+    } else {
+        data->num_retries++;
+        timer_mod(data->hp_timer,
+                  qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + WAIT_MS);
+    }
+}
+
+static void gd_monitor_add(GdkDisplay *dpy, GdkMonitor *monitor,
+                           void *opaque)
+{
+    GtkDisplayState *s = opaque;
+    gd_monitor_data *data;
+
+    /*
+     * It is possible that the Host Compositor or GTK would not have
+     * had a chance to fully process the hotplug event and as a result
+     * gdk_monitor_get_model() could return NULL. Therefore, check for
+     * this case and try again later.
+     */
+    if (GDK_IS_MONITOR(monitor) && gdk_monitor_get_model(monitor)) {
+        gd_monitor_check_vcs(dpy, monitor, s);
+    } else {
+        data = g_new0(gd_monitor_data, 1);
+        data->s = s;
+        data->dpy = dpy;
+        data->monitor = monitor;
+        data->hp_timer = timer_new_ms(QEMU_CLOCK_REALTIME,
+                                      gd_monitor_hotplug_timer, data);
+        timer_mod(data->hp_timer,
+                  qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + WAIT_MS);
+    }
+}
+
+static void gd_monitor_remove(GdkDisplay *dpy, GdkMonitor *monitor,
+                              void *opaque)
+{
+    GtkDisplayState *s = opaque;
+    VirtualConsole *vc;
+    int i;
+
+    for (i = 0; i < s->nb_vcs; i++) {
+        vc = &s->vc[i];
+        if (vc->monitor == monitor) {
+            vc->monitor = NULL;
+            if (vc->window == s->window) {
+                gdk_window_hide(gtk_widget_get_window(vc->window));
+            } else {
+                gd_tab_window_close(NULL, NULL, vc);
+            }
+            gd_set_ui_size(vc, 0, 0);
+            break;
+        }
+    }
+}
+
+static VirtualConsole *gd_next_gfx_vc(GtkDisplayState *s)
+{
+    VirtualConsole *vc;
+    int i;
+
+    for (i = 0; i < s->nb_vcs; i++) {
+        vc = &s->vc[i];
+        if (vc->type == GD_VC_GFX &&
+            qemu_console_is_graphic(vc->gfx.dcl.con) &&
+            !vc->label) {
+            return vc;
+        }
+    }
+    return NULL;
+}
+
+static void gd_vc_free_labels(GtkDisplayState *s)
+{
+    VirtualConsole *vc;
+    int i;
+
+    for (i = 0; i < s->nb_vcs; i++) {
+        vc = &s->vc[i];
+        if (vc->type == GD_VC_GFX &&
+            qemu_console_is_graphic(vc->gfx.dcl.con)) {
+            g_free(vc->label);
+            vc->label = NULL;
+        }
+    }
+}
+
+static void gd_connectors_init(GdkDisplay *dpy, GtkDisplayState *s)
+{
+    VirtualConsole *vc;
+    strList *conn;
+    gint monitor_num;
+    gboolean first_vc = TRUE;
+
+    gtk_notebook_set_show_tabs(GTK_NOTEBOOK(s->notebook), FALSE);
+    gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
+                                   FALSE);
+    gd_vc_free_labels(s);
+    for (conn = s->opts->u.gtk.connectors; conn; conn = conn->next) {
+        vc = gd_next_gfx_vc(s);
+        if (!vc) {
+            break;
+        }
+        if (first_vc) {
+            vc->window = s->window;
+            first_vc = FALSE;
+        }
+
+        vc->label = g_strdup(conn->value);
+        monitor_num = gd_monitor_lookup(dpy, vc->label);
+        if (monitor_num >= 0) {
+            gd_window_show_on_monitor(dpy, vc, monitor_num);
+        } else {
+            if (vc->window) {
+                gdk_window_hide(gtk_widget_get_window(vc->window));
+            }
+            gd_set_ui_size(vc, 0, 0);
+        }
     }
 }
 
@@ -2103,6 +2342,12 @@ static void gd_connect_signals(GtkDisplayState *s)
                      G_CALLBACK(gd_menu_grab_input), s);
     g_signal_connect(s->notebook, "switch-page",
                      G_CALLBACK(gd_change_page), s);
+    if (s->opts->u.gtk.has_connectors) {
+        g_signal_connect(gtk_widget_get_display(s->window), "monitor-added",
+                         G_CALLBACK(gd_monitor_add), s);
+        g_signal_connect(gtk_widget_get_display(s->window), "monitor-removed",
+                         G_CALLBACK(gd_monitor_remove), s);
+    }
 }
 
 static GtkWidget *gd_create_menu_machine(GtkDisplayState *s)
@@ -2471,6 +2716,9 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
     if (opts->u.gtk.has_show_tabs &&
         opts->u.gtk.show_tabs) {
         gtk_menu_item_activate(GTK_MENU_ITEM(s->show_tabs_item));
+    }
+    if (s->opts->u.gtk.has_connectors) {
+        gd_connectors_init(window_display, s);
     }
     gd_clipboard_init(s);
 }

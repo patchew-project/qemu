@@ -1974,7 +1974,7 @@ DEF("display", HAS_ARG, QEMU_OPTION_display,
 #if defined(CONFIG_GTK)
     "-display gtk[,full-screen=on|off][,gl=on|off][,grab-on-hover=on|off]\n"
     "            [,show-tabs=on|off][,show-cursor=on|off][,window-close=on|off]\n"
-    "            [,show-menubar=on|off]\n"
+    "            [,show-menubar=on|off][,connectors.<index>=<connector name>]\n"
 #endif
 #if defined(CONFIG_VNC)
     "-display vnc=<display>[,<optargs>]\n"
@@ -2068,6 +2068,9 @@ SRST
         ``window-close=on|off`` : Allow to quit qemu with window close button
 
         ``show-menubar=on|off`` : Display the main window menubar, defaults to "on"
+
+        ``connectors=<conn name>`` : VC to connector mappings to display the VC
+                                     window on a specific monitor
 
     ``curses[,charset=<encoding>]``
         Display video output via curses. For graphics device models

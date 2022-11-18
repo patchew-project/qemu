@@ -1201,6 +1201,13 @@
 #               Since 7.1
 # @show-menubar: Display the main window menubar. Defaults to "on".
 #                Since 8.0
+# @connectors:  List of physical monitor/connector names where the GTK
+#               windows containing the respective graphics virtual consoles
+#               (VCs) are to be placed. If a mapping exists for a VC, it
+#               will be moved to that specific monitor or else it would
+#               not be displayed anywhere and would appear disconnected
+#               to the guest.
+#               Since 8.0
 #
 # Since: 2.12
 ##
@@ -1208,7 +1215,8 @@
   'data'    : { '*grab-on-hover' : 'bool',
                 '*zoom-to-fit'   : 'bool',
                 '*show-tabs'     : 'bool',
-                '*show-menubar'  : 'bool'  } }
+                '*show-menubar'  : 'bool',
+                '*connectors'    : ['str'] } }
 
 ##
 # @DisplayEGLHeadless:
