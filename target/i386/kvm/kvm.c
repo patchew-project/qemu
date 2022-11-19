@@ -2005,6 +2005,32 @@ int kvm_arch_init_vcpu(CPUState *cs)
         }
     }
 
+    if (IS_AMD_CPU(env)) {
+        int64_t family;
+
+        family = (env->cpuid_version >> 8) & 0xf;
+        if (family == 0xf) {
+            family += (env->cpuid_version >> 20) & 0xff;
+        }
+
+        /*
+         * If KVM_CAP_PMU_CAPABILITY is not supported, there is no way to
+         * disable the AMD pmu virtualization.
+         *
+         * If KVM_CAP_PMU_CAPABILITY is supported, "!has_pmu_cap" indicates
+         * the KVM side has already disabled the pmu virtualization.
+         */
+        if (family >= 6 && (!has_pmu_cap || cpu->enable_pmu)) {
+            has_architectural_pmu_version = 1;
+
+            if (env->features[FEAT_8000_0001_ECX] & CPUID_EXT3_PERFCORE) {
+                num_architectural_pmu_gp_counters = 6;
+            } else {
+                num_architectural_pmu_gp_counters = 4;
+            }
+        }
+    }
+
     cpu_x86_cpuid(env, 0x80000000, 0, &limit, &unused, &unused, &unused);
 
     for (i = 0x80000000; i <= limit; i++) {
@@ -3326,7 +3352,7 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
             kvm_msr_entry_add(cpu, MSR_KVM_POLL_CONTROL, env->poll_control_msr);
         }
 
-        if (has_architectural_pmu_version > 0) {
+        if (has_architectural_pmu_version > 0 && IS_INTEL_CPU(env)) {
             if (has_architectural_pmu_version > 1) {
                 /* Stop the counter.  */
                 kvm_msr_entry_add(cpu, MSR_CORE_PERF_FIXED_CTR_CTRL, 0);
@@ -3357,6 +3383,26 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
                                   env->msr_global_ctrl);
             }
         }
+
+        if (has_architectural_pmu_version > 0 && IS_AMD_CPU(env)) {
+            uint32_t sel_base = MSR_K7_EVNTSEL0;
+            uint32_t ctr_base = MSR_K7_PERFCTR0;
+            uint32_t step = 1;
+
+            if (num_architectural_pmu_gp_counters == 6) {
+                sel_base = MSR_F15H_PERF_CTL0;
+                ctr_base = MSR_F15H_PERF_CTR0;
+                step = 2;
+            }
+
+            for (i = 0; i < num_architectural_pmu_gp_counters; i++) {
+                kvm_msr_entry_add(cpu, ctr_base + i * step,
+                                  env->msr_gp_counters[i]);
+                kvm_msr_entry_add(cpu, sel_base + i * step,
+                                  env->msr_gp_evtsel[i]);
+            }
+        }
+
         /*
          * Hyper-V partition-wide MSRs: to avoid clearing them on cpu hot-add,
          * only sync them to KVM on the first cpu
@@ -3817,7 +3863,7 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (env->features[FEAT_KVM] & (1 << KVM_FEATURE_POLL_CONTROL)) {
         kvm_msr_entry_add(cpu, MSR_KVM_POLL_CONTROL, 1);
     }
-    if (has_architectural_pmu_version > 0) {
+    if (has_architectural_pmu_version > 0 && IS_INTEL_CPU(env)) {
         if (has_architectural_pmu_version > 1) {
             kvm_msr_entry_add(cpu, MSR_CORE_PERF_FIXED_CTR_CTRL, 0);
             kvm_msr_entry_add(cpu, MSR_CORE_PERF_GLOBAL_CTRL, 0);
@@ -3830,6 +3876,25 @@ static int kvm_get_msrs(X86CPU *cpu)
         for (i = 0; i < num_architectural_pmu_gp_counters; i++) {
             kvm_msr_entry_add(cpu, MSR_P6_PERFCTR0 + i, 0);
             kvm_msr_entry_add(cpu, MSR_P6_EVNTSEL0 + i, 0);
+        }
+    }
+
+    if (has_architectural_pmu_version > 0 && IS_AMD_CPU(env)) {
+        uint32_t sel_base = MSR_K7_EVNTSEL0;
+        uint32_t ctr_base = MSR_K7_PERFCTR0;
+        uint32_t step = 1;
+
+        if (num_architectural_pmu_gp_counters == 6) {
+            sel_base = MSR_F15H_PERF_CTL0;
+            ctr_base = MSR_F15H_PERF_CTR0;
+            step = 2;
+        }
+
+        for (i = 0; i < num_architectural_pmu_gp_counters; i++) {
+            kvm_msr_entry_add(cpu, ctr_base + i * step,
+                              env->msr_gp_counters[i]);
+            kvm_msr_entry_add(cpu, sel_base + i * step,
+                              env->msr_gp_evtsel[i]);
         }
     }
 
@@ -4117,6 +4182,20 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case MSR_P6_EVNTSEL0 ... MSR_P6_EVNTSEL0 + MAX_GP_COUNTERS - 1:
             env->msr_gp_evtsel[index - MSR_P6_EVNTSEL0] = msrs[i].data;
+            break;
+        case MSR_K7_EVNTSEL0 ... MSR_K7_EVNTSEL0 + 3:
+            env->msr_gp_evtsel[index - MSR_K7_EVNTSEL0] = msrs[i].data;
+            break;
+        case MSR_K7_PERFCTR0 ... MSR_K7_PERFCTR0 + 3:
+            env->msr_gp_counters[index - MSR_K7_PERFCTR0] = msrs[i].data;
+            break;
+        case MSR_F15H_PERF_CTL0 ... MSR_F15H_PERF_CTL0 + 0xb:
+            index = index - MSR_F15H_PERF_CTL0;
+            if (index & 0x1) {
+                env->msr_gp_counters[index] = msrs[i].data;
+            } else {
+                env->msr_gp_evtsel[index] = msrs[i].data;
+            }
             break;
         case HV_X64_MSR_HYPERCALL:
             env->msr_hv_hypercall = msrs[i].data;
