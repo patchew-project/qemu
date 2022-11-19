@@ -137,6 +137,8 @@ static int has_triple_fault_event;
 
 static bool has_msr_mcg_ext_ctl;
 
+static int has_pmu_cap;
+
 static struct kvm_cpuid2 *cpuid_cache;
 static struct kvm_cpuid2 *hv_cpuid_cache;
 static struct kvm_msr_list *kvm_feature_msrs;
@@ -1725,6 +1727,19 @@ static void kvm_init_nested_state(CPUX86State *env)
 
 void kvm_arch_pre_create_vcpu(CPUState *cs)
 {
+    X86CPU *cpu = X86_CPU(cs);
+    int ret;
+
+    if (has_pmu_cap && !cpu->enable_pmu) {
+        ret = kvm_vm_enable_cap(kvm_state, KVM_CAP_PMU_CAPABILITY, 0,
+                                KVM_PMU_CAP_DISABLE);
+        if (ret < 0) {
+            error_report("kvm: Failed to disable pmu cap: %s",
+                         strerror(-ret));
+        }
+
+        has_pmu_cap = 0;
+    }
 }
 
 int kvm_arch_init_vcpu(CPUState *cs)
@@ -2516,6 +2531,8 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
             return ret;
         }
     }
+
+    has_pmu_cap = kvm_check_extension(s, KVM_CAP_PMU_CAPABILITY);
 
     ret = kvm_get_supported_msrs(s);
     if (ret < 0) {
