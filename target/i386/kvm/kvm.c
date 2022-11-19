@@ -1723,6 +1723,10 @@ static void kvm_init_nested_state(CPUX86State *env)
     }
 }
 
+void kvm_arch_pre_create_vcpu(CPUState *cs)
+{
+}
+
 int kvm_arch_init_vcpu(CPUState *cs)
 {
     struct {

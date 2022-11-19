@@ -462,6 +462,10 @@ static void kvmppc_hw_debug_points_init(CPUPPCState *cenv)
     }
 }
 
+void kvm_arch_pre_create_vcpu(CPUState *cs)
+{
+}
+
 int kvm_arch_init_vcpu(CPUState *cs)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);

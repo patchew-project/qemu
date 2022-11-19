@@ -61,6 +61,10 @@ int kvm_arch_irqchip_create(KVMState *s)
     return 0;
 }
 
+void kvm_arch_pre_create_vcpu(CPUState *cs)
+{
+}
+
 int kvm_arch_init_vcpu(CPUState *cs)
 {
     MIPSCPU *cpu = MIPS_CPU(cs);

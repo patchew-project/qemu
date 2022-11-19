@@ -834,6 +834,10 @@ static int kvm_arm_sve_set_vls(CPUState *cs)
     return kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
 }
 
+void kvm_arch_pre_create_vcpu(CPUState *cs)
+{
+}
+
 #define ARM_CPU_ID_MPIDR       3, 0, 0, 0, 5
 
 int kvm_arch_init_vcpu(CPUState *cs)

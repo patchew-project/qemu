@@ -394,6 +394,10 @@ void kvm_arch_init_irq_routing(KVMState *s)
 {
 }
 
+void kvm_arch_pre_create_vcpu(CPUState *cs)
+{
+}
+
 int kvm_arch_init_vcpu(CPUState *cs)
 {
     int ret = 0;
