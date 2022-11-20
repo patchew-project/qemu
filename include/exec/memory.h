@@ -3009,6 +3009,9 @@ bool ram_block_discard_is_disabled(void);
  */
 bool ram_block_discard_is_required(void);
 
+void dirty_quota_migration_start(void);
+void dirty_quota_migration_stop(void);
+
 #endif
 
 #endif

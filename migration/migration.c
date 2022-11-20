@@ -61,6 +61,8 @@
 #include "sysemu/cpus.h"
 #include "yank_functions.h"
 #include "sysemu/qtest.h"
+#include "hw/core/cpu.h"
+#include "sysemu/kvm_int.h"
 
 #define MAX_THROTTLE  (128 << 20)      /* Migration transfer speed throttling */
 
@@ -3685,8 +3687,11 @@ static void migration_update_counters(MigrationState *s,
                                       int64_t current_time)
 {
     uint64_t transferred, transferred_pages, time_spent;
+    uint64_t pages_transferred_since_last_update, time_spent_since_last_update;
     uint64_t current_bytes; /* bytes transferred since the beginning */
     double bandwidth;
+    CPUState *cpu;
+    uint32_t nr_cpus;
 
     if (current_time < s->iteration_start_time + BUFFER_DELAY) {
         return;
@@ -3705,6 +3710,23 @@ static void migration_update_counters(MigrationState *s,
                             s->iteration_initial_pages;
     s->pages_per_second = (double) transferred_pages /
                              (((double) time_spent / 1000.0));
+
+    if (kvm_state->dirty_quota_supported) {
+        CPU_FOREACH(cpu) {
+            nr_cpus++;
+        }
+        pages_transferred_since_last_update = transferred_pages -
+                                    s->last_counters_update.transferred_pages;
+        time_spent_since_last_update = time_spent -
+                                    s->last_counters_update.time_spent;
+        qatomic_set(&s->per_vcpu_dirty_rate_limit,
+            ((double) pages_transferred_since_last_update) /
+            (((double) time_spent_since_last_update) / 1000.0) /
+            ((double) nr_cpus));
+
+        s->last_counters_update.transferred_pages = transferred_pages;
+        s->last_counters_update.time_spent = time_spent;
+    }
 
     /*
      * if we haven't sent anything, we don't want to

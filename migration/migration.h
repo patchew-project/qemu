@@ -249,6 +249,15 @@ struct MigrationState {
     uint64_t iteration_initial_bytes;
     /* time at the start of current iteration */
     int64_t iteration_start_time;
+
+    /* state related to last migration counters update */
+    struct {
+        /* time spent from the start of iteration till the last update */
+        uint64_t time_spent;
+        /* pages already sent in the current iteration till the last update */
+        uint64_t transferred_pages;
+    } last_counters_update;
+
     /*
      * The final stage happens when the remaining data is smaller than
      * this threshold; it's calculated from the requested downtime and
@@ -373,6 +382,28 @@ struct MigrationState {
      * This save hostname when out-going migration starts
      */
     char *hostname;
+
+    /*
+     * Dirty quota throttling tries to limit the dirty rate of the guest to some
+     * factor of network throughput. This factor is dirty_quota_throttle_ratio.
+     */
+    double dirty_quota_throttle_ratio;
+
+    /*
+     * For dirty quota throttling, this is the limit on the dirty rate of the
+     * vcpus. There maybe exceptions where this limit might be enforced losely
+     * to avoid overthrottling of the vcpus.
+     */
+    uint64_t per_vcpu_dirty_rate_limit;
+
+    /*
+     * If a vcpu doesn't claim its dirty quota for a given dirty quota interval,
+     * the unclaimed quota gets added to common quota.
+     * Common dirty quota can be claimed by any vcpu which has already used its
+     * individual dirty quota for the current dirty quota interval.
+     */
+    QemuSpin common_dirty_quota_lock;
+    int64_t common_dirty_quota;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);

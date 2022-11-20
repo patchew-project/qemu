@@ -46,6 +46,8 @@
 #include "sysemu/hw_accel.h"
 #include "kvm-cpus.h"
 #include "sysemu/dirtylimit.h"
+#include "hw/core/cpu.h"
+#include "migration/migration.h"
 
 #include "hw/boards.h"
 #include "monitor/stats.h"
@@ -2463,6 +2465,8 @@ static int kvm_init(MachineState *ms)
         }
     }
 
+    s->dirty_quota_supported = kvm_vm_check_extension(s, KVM_CAP_DIRTY_QUOTA);
+
     /*
      * KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2 is not needed when dirty ring is
      * enabled.  More importantly, KVM_DIRTY_LOG_INITIALLY_SET will assume no
@@ -2808,6 +2812,88 @@ static void kvm_eat_signals(CPUState *cpu)
     } while (sigismember(&chkset, SIG_IPI));
 }
 
+static void handle_dirty_quota_sleep(int64_t sleep_time)
+{
+    /* Do not throttle the vcpu more than the maximum throttle. */
+    sleep_time = MIN(sleep_time,
+                        DIRTY_QUOTA_MAX_THROTTLE * DIRTY_QUOTA_INTERVAL_SIZE);
+    /* Convert sleep time from nanoseconds to microseconds. */
+    g_usleep(sleep_time / 1000);
+}
+
+static uint64_t handle_dirty_quota_exhausted(
+                    CPUState *cpu, const uint64_t count, const uint64_t quota)
+{
+    MigrationState *s = migrate_get_current();
+    uint64_t time_to_sleep;
+    int64_t unclaimed_quota;
+    int64_t dirty_quota_overflow = (count - quota);
+    uint64_t dirty_rate_limit = qatomic_read(&s->per_vcpu_dirty_rate_limit);
+    uint64_t new_quota = (dirty_rate_limit * DIRTY_QUOTA_INTERVAL_SIZE) /
+                                                        NANOSECONDS_PER_SECOND;
+    uint64_t current_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+
+    /* Penalize the vCPU if it dirtied more pages than it was allowed to. */
+    if (dirty_quota_overflow > 0) {
+        time_to_sleep = (dirty_quota_overflow * NANOSECONDS_PER_SECOND) /
+                                                            dirty_rate_limit;
+        cpu->dirty_quota_expiry_time = current_time + time_to_sleep;
+        return time_to_sleep;
+    }
+
+    /*
+     * If the current dirty quota interval hasn't ended, try using common quota
+     * if it is available, else sleep.
+     */
+    current_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+    if (current_time < cpu->dirty_quota_expiry_time) {
+        qemu_spin_lock(&s->common_dirty_quota_lock);
+        if (s->common_dirty_quota > 0) {
+            s->common_dirty_quota -= new_quota;
+            qemu_spin_unlock(&s->common_dirty_quota_lock);
+            cpu->kvm_run->dirty_quota = count + new_quota;
+            return 0;
+        }
+
+        qemu_spin_unlock(&s->common_dirty_quota_lock);
+        current_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+        /* If common quota isn't available, sleep for the remaining interval. */
+        if (current_time < cpu->dirty_quota_expiry_time) {
+            time_to_sleep = cpu->dirty_quota_expiry_time - current_time;
+            return time_to_sleep;
+        }
+    }
+
+    /*
+     * This is a fresh dirty quota interval. If the vcpu has not claimed its
+     * quota for the previous intervals, add them to the common quota.
+     */
+    current_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+    unclaimed_quota = (current_time - cpu->dirty_quota_expiry_time) *
+                        dirty_rate_limit;
+    qemu_spin_lock(&s->common_dirty_quota_lock);
+    s->common_dirty_quota += unclaimed_quota;
+    qemu_spin_unlock(&s->common_dirty_quota_lock);
+
+    /*  Allocate the vcpu this new interval's dirty quota. */
+    cpu->kvm_run->dirty_quota = count + new_quota;
+    cpu->dirty_quota_expiry_time = current_time + DIRTY_QUOTA_INTERVAL_SIZE;
+    return 0;
+}
+
+
+static void handle_kvm_exit_dirty_quota_exhausted(CPUState *cpu,
+                                    const uint64_t count, const uint64_t quota)
+{
+    uint64_t time_to_sleep;
+    do {
+        time_to_sleep = handle_dirty_quota_exhausted(cpu, count, quota);
+        if (time_to_sleep > 0) {
+            handle_dirty_quota_sleep(time_to_sleep);
+        }
+    } while (time_to_sleep != 0);
+}
+
 int kvm_cpu_exec(CPUState *cpu)
 {
     struct kvm_run *run = cpu->kvm_run;
@@ -2941,6 +3027,11 @@ int kvm_cpu_exec(CPUState *cpu)
             }
             qemu_mutex_unlock_iothread();
             dirtylimit_vcpu_execute(cpu);
+            ret = 0;
+            break;
+        case KVM_EXIT_DIRTY_QUOTA_EXHAUSTED:
+            handle_kvm_exit_dirty_quota_exhausted(cpu,
+                    run->dirty_quota_exit.count, run->dirty_quota_exit.quota);
             ret = 0;
             break;
         case KVM_EXIT_SYSTEM_EVENT:

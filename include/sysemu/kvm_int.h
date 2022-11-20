@@ -110,6 +110,7 @@ struct KVMState
     struct KVMDirtyRingReaper reaper;
     NotifyVmexitOption notify_vmexit;
     uint32_t notify_window;
+    bool dirty_quota_supported; /* Whether KVM supports dirty quota or not */
 };
 
 void kvm_memory_listener_register(KVMState *s, KVMMemoryListener *kml,

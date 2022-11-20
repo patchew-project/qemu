@@ -12,6 +12,7 @@
  * Contributions after 2012-01-13 are licensed under the terms of the
  * GNU GPL, version 2 or (at your option) any later version.
  */
+#include <linux/kvm.h>
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
@@ -34,6 +35,10 @@
 #include "hw/boards.h"
 #include "migration/vmstate.h"
 #include "exec/address-spaces.h"
+#include "hw/core/cpu.h"
+#include "exec/target_page.h"
+#include "migration/migration.h"
+#include "sysemu/kvm_int.h"
 
 //#define DEBUG_UNASSIGNED
 
@@ -2869,6 +2874,46 @@ static unsigned int postponed_stop_flags;
 static VMChangeStateEntry *vmstate_change;
 static void memory_global_dirty_log_stop_postponed_run(void);
 
+static void init_vcpu_dirty_quota(CPUState *cpu, run_on_cpu_data arg)
+{
+    uint64_t current_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+    cpu->kvm_run->dirty_quota = 1;
+    cpu->dirty_quota_expiry_time = current_time;
+}
+
+void dirty_quota_migration_start(void)
+{
+    if (!kvm_state->dirty_quota_supported) {
+        return;
+    }
+
+    MigrationState *s = migrate_get_current();
+    /* Assuming initial bandwidth to be 128 MBps. */
+    double pages_per_second = (((double) 1e9) / 8.0) /
+                                    (double) qemu_target_page_size();
+    uint32_t nr_cpus;
+    CPUState *cpu;
+
+    CPU_FOREACH(cpu) {
+        nr_cpus++;
+    }
+    /*
+     * Currently we are hardcoding this to 2. There are plans to allow the user
+     * to manually select this ratio.
+     */
+    s->dirty_quota_throttle_ratio = 2;
+    qatomic_set(&s->per_vcpu_dirty_rate_limit,
+                pages_per_second / s->dirty_quota_throttle_ratio / nr_cpus);
+
+    qemu_spin_lock(&s->common_dirty_quota_lock);
+    s->common_dirty_quota = 0;
+    qemu_spin_unlock(&s->common_dirty_quota_lock);
+
+    CPU_FOREACH(cpu) {
+        run_on_cpu(cpu, init_vcpu_dirty_quota, RUN_ON_CPU_NULL);
+    }
+}
+
 void memory_global_dirty_log_start(unsigned int flags)
 {
     unsigned int old_flags;
@@ -2891,10 +2936,28 @@ void memory_global_dirty_log_start(unsigned int flags)
     trace_global_dirty_changed(global_dirty_tracking);
 
     if (!old_flags) {
+        dirty_quota_migration_start();
         MEMORY_LISTENER_CALL_GLOBAL(log_global_start, Forward);
         memory_region_transaction_begin();
         memory_region_update_pending = true;
         memory_region_transaction_commit();
+    }
+}
+
+static void reset_vcpu_dirty_quota(CPUState *cpu, run_on_cpu_data arg)
+{
+    cpu->kvm_run->dirty_quota = 0;
+}
+
+void dirty_quota_migration_stop(void)
+{
+    if (!kvm_state->dirty_quota_supported) {
+        return;
+    }
+
+    CPUState *cpu;
+    CPU_FOREACH(cpu) {
+        run_on_cpu(cpu, reset_vcpu_dirty_quota, RUN_ON_CPU_NULL);
     }
 }
 
@@ -2907,6 +2970,7 @@ static void memory_global_dirty_log_do_stop(unsigned int flags)
     trace_global_dirty_changed(global_dirty_tracking);
 
     if (!global_dirty_tracking) {
+        dirty_quota_migration_stop();
         memory_region_transaction_begin();
         memory_region_update_pending = true;
         memory_region_transaction_commit();

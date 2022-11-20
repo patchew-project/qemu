@@ -36,6 +36,9 @@
 typedef int (*WriteCoreDumpFunction)(const void *buf, size_t size,
                                      void *opaque);
 
+#define DIRTY_QUOTA_INTERVAL_SIZE 10000000
+#define DIRTY_QUOTA_MAX_THROTTLE .99
+
 /**
  * SECTION:cpu
  * @section_id: QEMU-cpu
@@ -443,6 +446,8 @@ struct CPUState {
 
     /* track IOMMUs whose translations we've cached in the TCG TLB */
     GArray *iommu_notifiers;
+
+    uint64_t dirty_quota_expiry_time;
 };
 
 typedef QTAILQ_HEAD(CPUTailQ, CPUState) CPUTailQ;
