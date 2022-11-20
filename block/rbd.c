@@ -330,7 +330,7 @@ static int qemu_rbd_set_keypairs(rados_t cluster, const char *keypairs_json,
 #ifdef LIBRBD_SUPPORTS_ENCRYPTION
 static int qemu_rbd_convert_luks_options(
         RbdEncryptionOptionsLUKSBase *luks_opts,
-        char **passphrase,
+        const char **passphrase,
         size_t *passphrase_len,
         Error **errp)
 {
@@ -341,7 +341,7 @@ static int qemu_rbd_convert_luks_options(
 static int qemu_rbd_convert_luks_create_options(
         RbdEncryptionCreateOptionsLUKSBase *luks_opts,
         rbd_encryption_algorithm_t *alg,
-        char **passphrase,
+        const char **passphrase,
         size_t *passphrase_len,
         Error **errp)
 {
@@ -384,8 +384,7 @@ static int qemu_rbd_encryption_format(rbd_image_t image,
                                       Error **errp)
 {
     int r = 0;
-    g_autofree char *passphrase = NULL;
-    size_t passphrase_len;
+    g_autofree const char *passphrase = NULL;
     rbd_encryption_format_t format;
     rbd_encryption_options_t opts;
     rbd_encryption_luks1_format_options_t luks_opts;
@@ -407,12 +406,12 @@ static int qemu_rbd_encryption_format(rbd_image_t image,
             opts_size = sizeof(luks_opts);
             r = qemu_rbd_convert_luks_create_options(
                     qapi_RbdEncryptionCreateOptionsLUKS_base(&encrypt->u.luks),
-                    &luks_opts.alg, &passphrase, &passphrase_len, errp);
+                    &luks_opts.alg, &passphrase, &luks_opts.passphrase_size,
+                    errp);
             if (r < 0) {
                 return r;
             }
             luks_opts.passphrase = passphrase;
-            luks_opts.passphrase_size = passphrase_len;
             break;
         }
         case RBD_IMAGE_ENCRYPTION_FORMAT_LUKS2: {
@@ -423,12 +422,12 @@ static int qemu_rbd_encryption_format(rbd_image_t image,
             r = qemu_rbd_convert_luks_create_options(
                     qapi_RbdEncryptionCreateOptionsLUKS2_base(
                             &encrypt->u.luks2),
-                    &luks2_opts.alg, &passphrase, &passphrase_len, errp);
+                    &luks2_opts.alg, &passphrase, &luks2_opts.passphrase_size,
+                    errp);
             if (r < 0) {
                 return r;
             }
             luks2_opts.passphrase = passphrase;
-            luks2_opts.passphrase_size = passphrase_len;
             break;
         }
         default: {
@@ -466,8 +465,7 @@ static int qemu_rbd_encryption_load(rbd_image_t image,
                                     Error **errp)
 {
     int r = 0;
-    g_autofree char *passphrase = NULL;
-    size_t passphrase_len;
+    g_autofree const char *passphrase = NULL;
     rbd_encryption_luks1_format_options_t luks_opts;
     rbd_encryption_luks2_format_options_t luks2_opts;
     rbd_encryption_format_t format;
@@ -482,12 +480,11 @@ static int qemu_rbd_encryption_load(rbd_image_t image,
             opts_size = sizeof(luks_opts);
             r = qemu_rbd_convert_luks_options(
                     qapi_RbdEncryptionOptionsLUKS_base(&encrypt->u.luks),
-                    &passphrase, &passphrase_len, errp);
+                    &passphrase, &luks_opts.passphrase_size, errp);
             if (r < 0) {
                 return r;
             }
             luks_opts.passphrase = passphrase;
-            luks_opts.passphrase_size = passphrase_len;
             break;
         }
         case RBD_IMAGE_ENCRYPTION_FORMAT_LUKS2: {
@@ -497,12 +494,11 @@ static int qemu_rbd_encryption_load(rbd_image_t image,
             opts_size = sizeof(luks2_opts);
             r = qemu_rbd_convert_luks_options(
                     qapi_RbdEncryptionOptionsLUKS2_base(&encrypt->u.luks2),
-                    &passphrase, &passphrase_len, errp);
+                    &passphrase, &luks2_opts.passphrase_size, errp);
             if (r < 0) {
                 return r;
             }
             luks2_opts.passphrase = passphrase;
-            luks2_opts.passphrase_size = passphrase_len;
             break;
         }
         default: {
