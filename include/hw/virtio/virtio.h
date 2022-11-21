@@ -138,9 +138,16 @@ struct VirtioDeviceClass {
     /* This is what a VirtioDevice must implement */
     DeviceRealize realize;
     DeviceUnrealize unrealize;
+
+    /*
+     * Called with vdev->host_features in requested_features. Returns device
+     * feature bits to be stored in vdev->host_features after factoring in
+     * device-specific feature bits.
+     */
     uint64_t (*get_features)(VirtIODevice *vdev,
                              uint64_t requested_features,
                              Error **errp);
+
     uint64_t (*bad_features)(VirtIODevice *vdev);
     void (*set_features)(VirtIODevice *vdev, uint64_t val);
     int (*validate_features)(VirtIODevice *vdev);
