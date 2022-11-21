@@ -796,8 +796,6 @@ static void virtio_balloon_set_config(VirtIODevice *vdev,
 static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f,
                                             Error **errp)
 {
-    VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
-    f |= dev->host_features;
     virtio_add_feature(&f, VIRTIO_BALLOON_F_STATS_VQ);
 
     return f;
