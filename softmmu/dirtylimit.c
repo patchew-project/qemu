@@ -236,14 +236,14 @@ static inline int64_t dirtylimit_dirty_ring_full_time(uint64_t dirtyrate)
 {
     static uint64_t max_dirtyrate;
     uint32_t dirty_ring_size = kvm_dirty_ring_size();
-    uint64_t dirty_ring_size_meory_MB =
-        dirty_ring_size * TARGET_PAGE_SIZE >> 20;
+    uint32_t dirty_ring_size_memory_MB =
+        dirty_ring_size >> (20 - TARGET_PAGE_BITS);
 
     if (max_dirtyrate < dirtyrate) {
         max_dirtyrate = dirtyrate;
     }
 
-    return dirty_ring_size_meory_MB * 1000000 / max_dirtyrate;
+    return dirty_ring_size_memory_MB * 1000000ULL / max_dirtyrate;
 }
 
 static inline bool dirtylimit_done(uint64_t quota,
