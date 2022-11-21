@@ -515,6 +515,11 @@ void hmp_set_vcpu_dirty_limit(Monitor *mon, const QDict *qdict)
     int64_t cpu_index = qdict_get_try_int(qdict, "cpu_index", -1);
     Error *err = NULL;
 
+    if (dirty_rate < 0) {
+        monitor_printf(mon, "invalid dirty page limit %ld\n", dirty_rate);
+        return;
+    }
+
     qmp_set_vcpu_dirty_limit(!!(cpu_index != -1), cpu_index, dirty_rate, &err);
     if (err) {
         hmp_handle_error(mon, err);
