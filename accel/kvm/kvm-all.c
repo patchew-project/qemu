@@ -1401,6 +1401,35 @@ out:
     kvm_slots_unlock();
 }
 
+/*
+ * test if dirty ring has been initialized by checking if vcpu
+ * has been initialized and gfns was allocated correspondlingly.
+ * return true if dirty ring has been initialized, false otherwise.
+ */
+static bool kvm_vcpu_dirty_ring_initialized(void)
+{
+    CPUState *cpu;
+    MachineState *ms = MACHINE(qdev_get_machine());
+    int ncpus = ms->smp.cpus;
+
+    /*
+     * assume vcpu has not been initilaized if generation
+     * id less than number of vcpu
+     */
+    if (ncpus > cpu_list_generation_id_get()) {
+        return false;
+    }
+
+    CPU_FOREACH(cpu) {
+        if (!cpu->kvm_dirty_gfns) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
 static void *kvm_dirty_ring_reaper_thread(void *data)
 {
     KVMState *s = data;
@@ -1409,6 +1438,13 @@ static void *kvm_dirty_ring_reaper_thread(void *data)
     rcu_register_thread();
 
     trace_kvm_dirty_ring_reaper("init");
+
+retry:
+    /* don't allow reaping dirty ring if ring buffer hasn't been mapped */
+    if (!kvm_vcpu_dirty_ring_initialized()) {
+        sleep(1);
+        goto retry;
+    }
 
     while (true) {
         r->reaper_state = KVM_DIRTY_RING_REAPER_WAIT;
