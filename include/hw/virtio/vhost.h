@@ -88,13 +88,25 @@ struct vhost_dev {
     int vq_index_end;
     /* if non-zero, minimum required value for max_queues */
     int num_queues;
+    /**
+     * vhost feature handling requires matching the feature set
+     * offered by a backend which may be a subset of the total
+     * features eventually offered to the guest.
+     *
+     * @features: available features provided by the backend
+     * @acked_features: final set of negotiated features with the
+     * front-end driver
+     * @backend_features: additional feature bits applied during negotiation
+     *
+     * Finally the @protocol_features is the final protocal feature
+     * set negotiated between QEMU and the backend (after
+     * VHOST_USER_F_PROTOCOL_FEATURES is negotiated)
+     */
     uint64_t features;
-    /** @acked_features: final set of negotiated features */
     uint64_t acked_features;
-    /** @backend_features: backend specific feature bits */
     uint64_t backend_features;
-    /** @protocol_features: final negotiated protocol features */
     uint64_t protocol_features;
+
     uint64_t max_queues;
     uint64_t backend_cap;
     /* @started: is the vhost device started? */
