@@ -339,6 +339,16 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
                        info->cpu_throttle_percentage);
     }
 
+    if (info->has_dirty_limit_throttle_us_per_full) {
+        monitor_printf(mon, "dirty-limit throttle time: %" PRIi64 " us\n",
+                       info->dirty_limit_throttle_us_per_full);
+    }
+
+    if (info->has_dirty_limit_us_ring_full) {
+        monitor_printf(mon, "dirty-limit ring full time: %" PRIi64 " us\n",
+                       info->dirty_limit_us_ring_full);
+    }
+
     if (info->has_postcopy_blocktime) {
         monitor_printf(mon, "postcopy blocktime: %u\n",
                        info->postcopy_blocktime);
