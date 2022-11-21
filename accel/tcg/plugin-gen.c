@@ -501,10 +501,7 @@ static bool op_ok(const TCGOp *op, const struct qemu_plugin_dyn_cb *cb)
 
 static bool op_rw(const TCGOp *op, const struct qemu_plugin_dyn_cb *cb)
 {
-    int w;
-
-    w = op->args[2];
-    return !!(cb->rw & (w + 1));
+    return cb->rw & op->args[2];
 }
 
 static void inject_cb_type(const GArray *cbs, TCGOp *begin_op,
