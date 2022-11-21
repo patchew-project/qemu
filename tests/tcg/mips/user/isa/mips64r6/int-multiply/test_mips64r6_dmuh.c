@@ -34,7 +34,6 @@ int32_t main(void)
     char *isa_ase_name = "mips64r6";
     char *group_name = "Int Multiply";
     char *instruction_name =   "DMUH";
-    int32_t ret;
     uint32_t i, j;
     struct timeval start, end;
     double elapsed_time;
@@ -146,8 +145,6 @@ int32_t main(void)
     elapsed_time = (end.tv_sec - start.tv_sec) * 1000.0;
     elapsed_time += (end.tv_usec - start.tv_usec) / 1000.0;
 
-    ret = check_results_64(instruction_name, TEST_COUNT_TOTAL, elapsed_time,
-                           b64_result, b64_expect);
-
-    return ret;
+    return check_results_64(instruction_name, TEST_COUNT_TOTAL, elapsed_time,
+                            b64_result, b64_expect);
 }

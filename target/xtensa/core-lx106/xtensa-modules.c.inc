@@ -1280,9 +1280,7 @@ Operand_art_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_art_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -1294,9 +1292,7 @@ Operand_ars_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_ars_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -1308,9 +1304,7 @@ Operand_arr_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_arr_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -1322,9 +1316,7 @@ Operand_ar0_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_ar0_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int

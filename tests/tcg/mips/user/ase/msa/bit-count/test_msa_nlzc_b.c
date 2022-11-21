@@ -34,7 +34,6 @@ int32_t main(void)
     char *isa_ase_name = "MSA";
     char *group_name = "Bit Count";
     char *instruction_name =  "NLZC.B";
-    int32_t ret;
     uint32_t i;
     struct timeval start, end;
     double elapsed_time;
@@ -141,9 +140,7 @@ int32_t main(void)
     elapsed_time = (end.tv_sec - start.tv_sec) * 1000.0;
     elapsed_time += (end.tv_usec - start.tv_usec) / 1000.0;
 
-    ret = check_results_128(isa_ase_name, group_name, instruction_name,
-                            TEST_COUNT_TOTAL, elapsed_time,
-                            &b128_result[0][0], &b128_expect[0][0]);
-
-    return ret;
+    return check_results_128(isa_ase_name, group_name, instruction_name,
+                             TEST_COUNT_TOTAL, elapsed_time,
+                             &b128_result[0][0], &b128_expect[0][0]);
 }

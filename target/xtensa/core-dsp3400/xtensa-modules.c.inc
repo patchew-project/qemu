@@ -41401,9 +41401,7 @@ Operand_arr_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_arr_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -41415,9 +41413,7 @@ Operand_ars_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_ars_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -41429,9 +41425,7 @@ Operand_art_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_art_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -41443,9 +41437,7 @@ Operand_ar0_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_ar0_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0x1f) != 0;
-  return error;
+  return (*valp & ~0x1f) != 0;
 }
 
 static int
@@ -41457,9 +41449,7 @@ Operand_ar4_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_ar4_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0x1f) != 0;
-  return error;
+  return (*valp & ~0x1f) != 0;
 }
 
 static int
@@ -41471,9 +41461,7 @@ Operand_ar8_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_ar8_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0x1f) != 0;
-  return error;
+  return (*valp & ~0x1f) != 0;
 }
 
 static int
@@ -41485,9 +41473,7 @@ Operand_ar12_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_ar12_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0x1f) != 0;
-  return error;
+  return (*valp & ~0x1f) != 0;
 }
 
 static int
@@ -41499,9 +41485,7 @@ Operand_ars_entry_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_ars_entry_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0x1f) != 0;
-  return error;
+  return (*valp & ~0x1f) != 0;
 }
 
 static int
@@ -42111,9 +42095,7 @@ Operand_bt_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_bt_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -42125,9 +42107,7 @@ Operand_bs_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_bs_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -42139,9 +42119,7 @@ Operand_br_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_br_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -42469,9 +42447,7 @@ Operand_frr_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_frr_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -42483,9 +42459,7 @@ Operand_frs_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_frs_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -42497,9 +42471,7 @@ Operand_frt_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_frt_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -42511,9 +42483,7 @@ Operand_dsp340050b49a6c_oper45_reg_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_dsp340050b49a6c_oper45_reg_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -42525,9 +42495,7 @@ Operand_dsp340050b49a6c_oper46_reg_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_dsp340050b49a6c_oper46_reg_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -42539,9 +42507,7 @@ Operand_dsp340050b49a6c_oper47_reg_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_dsp340050b49a6c_oper47_reg_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -42593,9 +42559,7 @@ Operand_dsp340050b49a6c_oper50_reg_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_dsp340050b49a6c_oper50_reg_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -42607,9 +42571,7 @@ Operand_dsp340050b49a6c_oper51_reg_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_dsp340050b49a6c_oper51_reg_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0x7) != 0;
-  return error;
+  return (*valp & ~0x7) != 0;
 }
 
 static int
@@ -42641,9 +42603,7 @@ Operand_dsp340050b49a6c_oper53_reg_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_dsp340050b49a6c_oper53_reg_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -42655,9 +42615,7 @@ Operand_dsp340050b49a6c_oper54_reg_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_dsp340050b49a6c_oper54_reg_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0x7) != 0;
-  return error;
+  return (*valp & ~0x7) != 0;
 }
 
 static int
@@ -42669,9 +42627,7 @@ Operand_dsp340050b49a6c_oper55_reg_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_dsp340050b49a6c_oper55_reg_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -42683,9 +42639,7 @@ Operand_dsp340050b49a6c_oper56_reg_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_dsp340050b49a6c_oper56_reg_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -42797,9 +42751,7 @@ Operand_dsp340050b49a6c_oper62_reg_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_dsp340050b49a6c_oper62_reg_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -42811,9 +42763,7 @@ Operand_dsp340050b49a6c_oper63_reg_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_dsp340050b49a6c_oper63_reg_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0x7) != 0;
-  return error;
+  return (*valp & ~0x7) != 0;
 }
 
 static int
@@ -42845,9 +42795,7 @@ Operand_dsp340050b49a6c_oper65_reg_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_dsp340050b49a6c_oper65_reg_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -42859,9 +42807,7 @@ Operand_dsp340050b49a6c_oper66_reg_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_dsp340050b49a6c_oper66_reg_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0x7) != 0;
-  return error;
+  return (*valp & ~0x7) != 0;
 }
 
 static int
@@ -42873,9 +42819,7 @@ Operand_dsp340050b49a6c_oper67_reg_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_dsp340050b49a6c_oper67_reg_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0x7) != 0;
-  return error;
+  return (*valp & ~0x7) != 0;
 }
 
 static int
@@ -42947,9 +42891,7 @@ Operand_dsp340050b49a6c_oper71_reg_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_dsp340050b49a6c_oper71_reg_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0x7) != 0;
-  return error;
+  return (*valp & ~0x7) != 0;
 }
 
 static int
@@ -43061,9 +43003,7 @@ Operand_dsp340050b49a6c_oper77_reg_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_dsp340050b49a6c_oper77_reg_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -43095,9 +43035,7 @@ Operand_dsp340050b49a6c_oper79_reg_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_dsp340050b49a6c_oper79_reg_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -43109,9 +43047,7 @@ Operand_dsp340050b49a6c_oper80_reg_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_dsp340050b49a6c_oper80_reg_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -43123,9 +43059,7 @@ Operand_dsp340050b49a6c_oper81_reg_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_dsp340050b49a6c_oper81_reg_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
@@ -43137,9 +43071,7 @@ Operand_dsp340050b49a6c_oper82_reg_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 Operand_dsp340050b49a6c_oper82_reg_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
+  return (*valp & ~0xf) != 0;
 }
 
 static int
