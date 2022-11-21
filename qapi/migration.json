@@ -1450,11 +1450,100 @@
 { 'command': 'migrate-continue', 'data': {'state': 'MigrationStatus'} }
 
 ##
+# @MigrateTransport:
+#
+# The supported communication transport mechanisms for migration
+#
+# @socket: Supported communication type between two devices for migration.
+#          Socket is able to cover all of 'tcp', 'unix', 'vsock' and
+#          'fd' already
+#
+# @exec: Supported communication type to redirect migration stream into file.
+#
+# Since 7.1
+##
+{ 'enum': 'MigrateTransport',
+  'data': ['socket', 'exec'] }
+
+##
+# @MigrateSocketAddrType:
+#
+# To support different type of socket.
+#
+# @socket-type: Different type of socket connections.
+#
+# Since (7.1)
+##
+{ 'struct': 'MigrateSocketAddrType',
+  'data': {'socket-type': 'SocketAddress' } }
+
+##
+# @MigrateAddress:
+#
+# The options available for communication transport mechanisms for migration
+#
+# Since 7.1
+##
+{ 'union' : 'MigrateAddress',
+  'base' : { 'transport' : 'MigrateTransport'},
+  'discriminator' : 'transport',
+  'data' : {
+	    'socket' : 'MigrateSocketAddrType',
+	    'exec' : 'String' } }
+
+##
+# @MigrateChannelType:
+#
+# The supported options for migration channel type requests
+#
+# @control: Support request for main outbound migration control channel
+#
+# @data: Supported Channel type for multifd data channels
+#
+# @async: Supported Channel type for post-copy async requests
+#
+# Since 7.1
+##
+{ 'enum': 'MigrateChannelType',
+  'data': ['control', 'data', 'async'] }
+
+##
+# @MigrateChannel:
+#
+# Information regarding migration Channel-type for transferring packets,
+# source and corresponding destination interface for socket connection
+# and number of multifd channels over the interface.
+#
+# @channeltype: Name of Channel type for transfering packet information
+#
+# @src-addr: SocketAddress of source interface
+#
+# @dest-addr: SocketAddress of destination interface
+#
+# @multifd-count: number of multifd channels used to migrate
+#                    data between a specific source and destination
+#                    interface. Default value in this case is 2.
+#
+# Since 7.1
+##
+{ 'struct': 'MigrateChannel',
+  'data' : {
+    'channeltype' : 'MigrateChannelType',
+    '*src-addr' : 'MigrateAddress',
+    'dest-addr' : 'MigrateAddress',
+    '*multifd-count' : 'int' } }
+
+##
 # @migrate:
 #
 # Migrates the current running guest to another Virtual Machine.
 #
 # @uri: the Uniform Resource Identifier of the destination VM
+#       for migration thread
+#
+# @channels: list of migration channel type, pair of source and
+#            destination interface with number of multifd-channels
+#            for each pair
 #
 # @blk: do block migration (full disk copy)
 #
@@ -1479,15 +1568,49 @@
 # 3. The user Monitor's "detach" argument is invalid in QMP and should not
 #    be used
 #
+# 4. The uri argument should have the Uniform Resource Identifier of default
+#    destination VM. This connection will be bound to default network
+#
+# 5. Both 'uri' and 'channels' arguments, are mututally exclusive.
+#
+# 6. The 'channels' argument should contain atleast one control channel for
+#    main outbound migration.
+#
 # Example:
 #
 # -> { "execute": "migrate", "arguments": { "uri": "tcp:0:4446" } }
 # <- { "return": {} }
 #
+# -> { "execute": "migrate",
+#      "arguments": {
+#          "channels": [ { 'channeltype': 'control',
+#                          'dest-addr': {'transport': 'socket',
+#                                        'type': 'inet',
+#                                        'host': '10.12.34.9', 'port': '1050'}},
+#                        { 'channeltype': 'data',
+#                          'src-addr': {'transport': 'socket',
+#                                        'type': 'inet',
+#                                        'host': '10.12.34.9',
+#                                        'port': '4000', 'ipv4': 'true'},
+#                          'dest-addr': { 'transport': 'socket',
+#                                          'type': 'inet',
+#                                          'host': '10.12.34.92',
+#                                          'port': '1234', 'ipv4': 'true'},
+#                          'multifd-count': 5 },
+#                        { 'channeltype': 'data',
+#                          'src-addr': {'transport': 'socket',
+#                                        'type': 'inet',
+#                                        'host': '10.2.3.4', 'port': '1000'},
+#                          'dest-addr': {'transport': 'socket',
+#                                         'type': 'inet',
+#                                         'host': '0.0.0.4', 'port': '3000'},
+#                          'multifd-count': 3 } ] } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'migrate',
-  'data': {'uri': 'str', '*blk': 'bool', '*inc': 'bool',
-           '*detach': 'bool', '*resume': 'bool' } }
+  'data': {'*uri': 'str', '*channels': ['MigrateChannel'], '*blk': 'bool',
+           '*inc': 'bool', '*detach': 'bool', '*resume': 'bool' } }
 
 ##
 # @migrate-incoming:
