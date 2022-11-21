@@ -240,6 +240,7 @@ void migration_cancel(const Error *error)
     if (error) {
         migrate_set_error(current_migration, error);
     }
+    qmp_cancel_vcpu_dirty_limit(false, -1, NULL);
     migrate_fd_cancel(current_migration);
 }
 
