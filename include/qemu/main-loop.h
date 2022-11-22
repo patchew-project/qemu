@@ -343,6 +343,45 @@ void qemu_mutex_lock_iothread_impl(const char *file, int line);
  */
 void qemu_mutex_unlock_iothread(void);
 
+/**
+ * QEMU_IOTHREAD_LOCK_GUARD
+ * WITH_QEMU_IOTHREAD_LOCK
+ *
+ * Wrap a block of code in a conditional qemu_mutex_{lock,unlock}_iothread.
+ */
+typedef struct IOThreadLockAuto {
+    bool locked;
+    bool iterate;
+} IOThreadLockAuto;
+
+static inline IOThreadLockAuto qemu_iothread_auto_lock(const char *file,
+                                                       int line)
+{
+    bool need = !qemu_mutex_iothread_locked();
+    if (need) {
+        qemu_mutex_lock_iothread_impl(file, line);
+    }
+    return (IOThreadLockAuto){ .locked = need, .iterate = true };
+}
+
+static inline void qemu_iothread_auto_unlock(IOThreadLockAuto *l)
+{
+    if (l->locked) {
+        qemu_mutex_unlock_iothread();
+    }
+}
+
+G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(IOThreadLockAuto, qemu_iothread_auto_unlock)
+
+#define QEMU_IOTHREAD_LOCK_GUARD()                              \
+    g_auto(IOThreadLockAuto) _iothread_lock_auto                \
+        = qemu_iothread_auto_lock(__FILE__, __LINE__)           \
+
+#define WITH_QEMU_IOTHREAD_LOCK()                               \
+    for (QEMU_IOTHREAD_LOCK_GUARD();                            \
+         _iothread_lock_auto.iterate;                           \
+         _iothread_lock_auto.iterate = false)
+
 /*
  * qemu_cond_wait_iothread: Wait on condition for the main loop mutex
  *
