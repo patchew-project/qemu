@@ -382,6 +382,7 @@ static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
             CSR_MHARTID,
             CSR_MSTATUS,
             CSR_MSTATUSH,
+            CSR_SSTATUS,
             CSR_HSTATUS,
             CSR_VSSTATUS,
             CSR_MIP,
