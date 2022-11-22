@@ -19,6 +19,7 @@
 #include "hw/virtio/virtio-net.h"
 #include "hw/virtio/vhost-shadow-virtqueue.h"
 #include "hw/virtio/vhost-vdpa.h"
+#include "sysemu/tpm.h"
 #include "exec/address-spaces.h"
 #include "migration/blocker.h"
 #include "qemu/cutils.h"
@@ -45,6 +46,11 @@ static bool vhost_vdpa_listener_skipped_section(MemoryRegionSection *section,
                                                 uint64_t iova_max)
 {
     Int128 llend;
+
+    if (TPM_IS_CRB(section->mr->owner)) {
+        /* The CRB command buffer has its base address unaligned. */
+        return true;
+    }
 
     if ((!memory_region_is_ram(section->mr) &&
          !memory_region_is_iommu(section->mr)) ||
