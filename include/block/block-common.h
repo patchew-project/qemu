@@ -54,6 +54,7 @@
  * Read more in docs/devel/block-coroutine-wrapper.rst
  */
 #define generated_co_wrapper
+#define generated_co_wrapper_simple
 
 /* block.c */
 typedef struct BlockDriver BlockDriver;
