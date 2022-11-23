@@ -35,6 +35,17 @@
 #include "qemu/transactions.h"
 
 /*
+ * QEMU_IN_COROUTINE
+ *
+ * To be used in all coroutine_fn functions, to make sure that the caller
+ * is always a coroutine.
+ */
+#define QEMU_IN_COROUTINE()                                         \
+    do {                                                            \
+        assert(qemu_in_coroutine());                                \
+    } while (0)
+
+/*
  * generated_co_wrapper
  *
  * Function specifier, which does nothing but mark functions to be
