@@ -29,8 +29,6 @@
 #include "qemu/iov.h"
 #include "qemu/coroutine.h"
 #include "block/accounting.h"
-#include "block/dirty-bitmap.h"
-#include "block/blockjob.h"
 #include "qemu/hbitmap.h"
 #include "qemu/transactions.h"
 
@@ -55,6 +53,9 @@
  */
 #define generated_co_wrapper
 #define generated_co_wrapper_simple
+
+#include "block/dirty-bitmap.h"
+#include "block/blockjob.h"
 
 /* block.c */
 typedef struct BlockDriver BlockDriver;
