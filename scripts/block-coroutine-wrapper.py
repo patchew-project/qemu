@@ -78,14 +78,14 @@ class FuncDecl:
 
         t = self.args[0].type
         if t == 'BlockDriverState *':
-            bs = 'bs'
+            ctx = 'bdrv_get_aio_context(bs)'
         elif t == 'BdrvChild *':
-            bs = 'child->bs'
+            ctx = 'bdrv_get_aio_context(child->bs)'
         elif t == 'BlockBackend *':
-            bs = 'blk_bs(blk)'
+            ctx = 'bdrv_get_aio_context(blk_bs(blk))'
         else:
-            bs = 'NULL'
-        self.bs = bs
+            ctx = 'qemu_get_aio_context()'
+        self.ctx = ctx
 
     def gen_list(self, format: str) -> str:
         return ', '.join(format.format_map(arg.__dict__) for arg in self.args)
@@ -130,7 +130,7 @@ int {func.name}({ func.gen_list('{decl}') })
         return {name}({ func.gen_list('{name}') });
     }} else {{
         {struct_name} s = {{
-            .poll_state.bs = {func.bs},
+            .poll_state.ctx = {func.ctx},
             .poll_state.in_progress = true,
 
 { func.gen_block('            .{name} = {name},') }
@@ -151,7 +151,7 @@ def create_coroutine_only(func: FuncDecl) -> str:
 int {func.name}({ func.gen_list('{decl}') })
 {{
     {struct_name} s = {{
-        .poll_state.bs = {func.bs},
+        .poll_state.ctx = {func.ctx},
         .poll_state.in_progress = true,
 
 { func.gen_block('        .{name} = {name},') }
