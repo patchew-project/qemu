@@ -92,3 +92,49 @@ void migration_channel_connect(MigrationState *s,
     migrate_fd_connect(s, error);
     error_free(error);
 }
+
+
+/**
+ * @migration_channel_read_peek - Read from the peek of migration channel,
+ *    without actually removing it from channel buffer.
+ *
+ * @ioc: the channel object
+ * @buf: the memory region to read data into
+ * @buflen: the number of bytes to read in @buf
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Returns 0 if successful, returns -1 and sets @errp if fails.
+ */
+int migration_channel_read_peek(QIOChannel *ioc,
+                                const char *buf,
+                                const size_t buflen,
+                                Error **errp)
+{
+   ssize_t len = 0;
+   struct iovec iov = { .iov_base = (char *)buf, .iov_len = buflen };
+
+   while (len < buflen) {
+       len = qio_channel_readv_full(ioc, &iov, 1, NULL,
+                                    NULL, QIO_CHANNEL_READ_FLAG_MSG_PEEK, errp);
+
+       if (len == QIO_CHANNEL_ERR_BLOCK) {
+            if (qemu_in_coroutine()) {
+                /* 1ms sleep. */
+                qemu_co_sleep_ns(QEMU_CLOCK_REALTIME, 1000000);
+            } else {
+                qio_channel_wait(ioc, G_IO_IN);
+            }
+            continue;
+       }
+       if (len == 0) {
+           error_setg(errp,
+                      "Unexpected end-of-file on channel");
+           return -1;
+       }
+       if (len < 0) {
+           return -1;
+       }
+   }
+
+   return 0;
+}
