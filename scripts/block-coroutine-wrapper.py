@@ -81,8 +81,10 @@ class FuncDecl:
             bs = 'bs'
         elif t == 'BdrvChild *':
             bs = 'child->bs'
-        else:
+        elif t == 'BlockBackend *':
             bs = 'blk_bs(blk)'
+        else:
+            bs = 'NULL'
         self.bs = bs
 
     def gen_list(self, format: str) -> str:
@@ -165,8 +167,6 @@ int {func.name}({ func.gen_list('{decl}') })
 def gen_wrapper(func: FuncDecl) -> str:
     assert not '_co_' in func.name
     assert func.return_type == 'int'
-    assert func.args[0].type in ['BlockDriverState *', 'BdrvChild *',
-                                 'BlockBackend *']
 
     name = func.co_name
     struct_name = func.struct_name
