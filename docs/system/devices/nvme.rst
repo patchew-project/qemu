@@ -240,6 +240,21 @@ The virtual namespace device supports DIF- and DIX-based protection information
   metadata. Otherwise, the protection information is transferred as the last
   eight bytes.
 
+Virtual namespace device can also be backed by integrity capable host block
+device. This way protection information is passed through to/from the host block
+device from/to the guest and checked by the host block device itself instead of QEMU.
+
+``pip=BOOL`` (default: ``off``)
+  Set to ``on`` to allow host block device protection information passthrough.
+
+To use this feature nvme-ns backend drive must have Linux io_uring AIO backend
+and host page cache must be avoided. E.g. the following parameters should be used:
+
+.. code-block:: console
+
+   -drive file=/dev/nvme0n1,cache.direct=on,aio=io_uring,format=raw,if=none,id=dif_drive_0
+   -device nvme-ns,logical_block_size=4096,physical_block_size=4096,drive=dif_drive_0,pip=on
+
 Virtualization Enhancements and SR-IOV (Experimental Support)
 -------------------------------------------------------------
 
