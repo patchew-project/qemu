@@ -89,6 +89,9 @@ config STM32F4XX_EXTI
 config MIPS_ITU
     bool
 
+config MIPS_TRICKBOX
+    bool
+
 config MPS2_FPGAIO
     bool
     select LED
