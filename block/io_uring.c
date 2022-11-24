@@ -21,6 +21,84 @@
 /* io_uring ring size */
 #define MAX_ENTRIES 128
 
+#define IORING_OP_READV_PI  (48)
+#define IORING_OP_WRITEV_PI (49)
+
+#pragma pack(push, 1)
+
+struct __io_uring_sqe {
+    __u8    opcode;     /* type of operation for this sqe */
+    __u8    flags;      /* IOSQE_ flags */
+    __u16   ioprio;     /* ioprio for the request */
+    __s32   fd;     /* file descriptor to do IO on */
+    union {
+        __u64   off;    /* offset into file */
+        __u64   addr2;
+    };
+    union {
+        __u64   addr;   /* pointer to buffer or iovecs */
+        __u64   splice_off_in;
+    };
+    __u32   len;        /* buffer size or number of iovecs */
+    union {
+        __kernel_rwf_t  rw_flags;
+        __u32       fsync_flags;
+        __u16       poll_events;    /* compatibility */
+        __u32       poll32_events;  /* word-reversed for BE */
+        __u32       sync_range_flags;
+        __u32       msg_flags;
+        __u32       timeout_flags;
+        __u32       accept_flags;
+        __u32       cancel_flags;
+        __u32       open_flags;
+        __u32       statx_flags;
+        __u32       fadvise_advice;
+        __u32       splice_flags;
+        __u32       rename_flags;
+        __u32       unlink_flags;
+        __u32       hardlink_flags;
+    };
+    __u64   user_data;  /* data to be passed back at completion time */
+    /* pack this to avoid bogus arm OABI complaints */
+    union {
+        /* index into fixed buffers, if used */
+        __u16   buf_index;
+        /* for grouped buffer selection */
+        __u16   buf_group;
+    } __attribute__((packed));
+    /* personality to use, if used */
+    __u16   personality;
+    union {
+        __s32   splice_fd_in;
+        __u32   file_index;
+    };
+    __u64   pi_addr;
+    __u32 pi_len;
+    __u32   __pad2[1];
+};
+
+#pragma pack(pop)
+
+static inline void __io_uring_prep_writev_pi(uint8_t op,
+    struct io_uring_sqe *sqe, int fd, const struct iovec *iovecs,
+    unsigned nr_vecs, const struct iovec *pi_iovec, unsigned nr_pi_vecs,
+    off_t offset)
+{
+    io_uring_prep_rw(op, sqe, fd, iovecs, nr_vecs, offset);
+    ((struct __io_uring_sqe *)sqe)->pi_addr = (__u64)pi_iovec;
+    ((struct __io_uring_sqe *)sqe)->pi_len = nr_pi_vecs;
+}
+
+static inline void __io_uring_prep_readv_pi(uint8_t op,
+    struct io_uring_sqe *sqe, int fd, const struct iovec *iovecs,
+    unsigned nr_vecs, const struct iovec *pi_iovec, unsigned nr_pi_vecs,
+    off_t offset)
+{
+    io_uring_prep_rw(op, sqe, fd, iovecs, nr_vecs, offset);
+    ((struct __io_uring_sqe *)sqe)->pi_addr = (__u64)pi_iovec;
+    ((struct __io_uring_sqe *)sqe)->pi_len = nr_pi_vecs;
+}
+
 typedef struct LuringAIOCB {
     Coroutine *co;
     struct io_uring_sqe sqeq;
@@ -330,24 +408,39 @@ void luring_io_unplug(BlockDriverState *bs, LuringState *s)
  * @s: AIO state
  * @offset: offset for request
  * @type: type of request
+ * @is_pi: is protection information attached
  *
  * Fetches sqes from ring, adds to pending queue and preps them
  *
  */
 static int luring_do_submit(int fd, LuringAIOCB *luringcb, LuringState *s,
-                            uint64_t offset, int type)
+                            uint64_t offset, int type, bool is_pi)
 {
     int ret;
     struct io_uring_sqe *sqes = &luringcb->sqeq;
 
     switch (type) {
     case QEMU_AIO_WRITE:
-        io_uring_prep_writev(sqes, fd, luringcb->qiov->iov,
-                             luringcb->qiov->niov, offset);
+        if (is_pi) {
+            __io_uring_prep_writev_pi(IORING_OP_WRITEV_PI, sqes, fd,
+                                      luringcb->qiov->iov,
+                                      luringcb->qiov->niov,
+                                      &luringcb->qiov->dif, 1, offset);
+        } else {
+            io_uring_prep_writev(sqes, fd, luringcb->qiov->iov,
+                                 luringcb->qiov->niov, offset);
+        }
         break;
     case QEMU_AIO_READ:
-        io_uring_prep_readv(sqes, fd, luringcb->qiov->iov,
-                            luringcb->qiov->niov, offset);
+        if (is_pi) {
+            __io_uring_prep_readv_pi(IORING_OP_READV_PI, sqes, fd,
+                                     luringcb->qiov->iov,
+                                     luringcb->qiov->niov,
+                                     &luringcb->qiov->dif, 1, offset);
+        } else {
+            io_uring_prep_readv(sqes, fd, luringcb->qiov->iov,
+                                luringcb->qiov->niov, offset);
+        }
         break;
     case QEMU_AIO_FLUSH:
         io_uring_prep_fsync(sqes, fd, IORING_FSYNC_DATASYNC);
@@ -374,7 +467,8 @@ static int luring_do_submit(int fd, LuringAIOCB *luringcb, LuringState *s,
 }
 
 int coroutine_fn luring_co_submit(BlockDriverState *bs, LuringState *s, int fd,
-                                  uint64_t offset, QEMUIOVector *qiov, int type)
+                                  uint64_t offset, QEMUIOVector *qiov, int type,
+                                  bool is_pi)
 {
     int ret;
     LuringAIOCB luringcb = {
@@ -383,9 +477,10 @@ int coroutine_fn luring_co_submit(BlockDriverState *bs, LuringState *s, int fd,
         .qiov       = qiov,
         .is_read    = (type == QEMU_AIO_READ),
     };
+
     trace_luring_co_submit(bs, s, &luringcb, fd, offset, qiov ? qiov->size : 0,
                            type);
-    ret = luring_do_submit(fd, &luringcb, s, offset, type);
+    ret = luring_do_submit(fd, &luringcb, s, offset, type, is_pi);
 
     if (ret < 0) {
         return ret;

@@ -152,6 +152,10 @@ typedef struct BDRVRawState {
     int perm_change_flags;
     BDRVReopenState *reopen_state;
 
+    /* DIF T10 Protection Information */
+    uint8_t t10_type;
+    uint64_t protection_interval_bytes;
+
     bool has_discard:1;
     bool has_write_zeroes:1;
     bool use_linux_aio:1;
@@ -2094,8 +2098,9 @@ static int coroutine_fn raw_co_prw(BlockDriverState *bs, uint64_t offset,
 #ifdef CONFIG_LINUX_IO_URING
     } else if (s->use_linux_io_uring) {
         LuringState *aio = aio_get_linux_io_uring(bdrv_get_aio_context(bs));
+        bool is_pi = (s->t10_type && qiov->dif.iov_len);
         assert(qiov->size == bytes);
-        return luring_co_submit(bs, aio, s->fd, offset, qiov, type);
+        return luring_co_submit(bs, aio, s->fd, offset, qiov, type, is_pi);
 #endif
 #ifdef CONFIG_LINUX_AIO
     } else if (s->use_linux_aio) {
@@ -2190,7 +2195,7 @@ static int coroutine_fn raw_co_flush_to_disk(BlockDriverState *bs)
 #ifdef CONFIG_LINUX_IO_URING
     if (s->use_linux_io_uring) {
         LuringState *aio = aio_get_linux_io_uring(bdrv_get_aio_context(bs));
-        return luring_co_submit(bs, aio, s->fd, 0, NULL, QEMU_AIO_FLUSH);
+        return luring_co_submit(bs, aio, s->fd, 0, NULL, QEMU_AIO_FLUSH, false);
     }
 #endif
     return raw_thread_pool_submit(bs, handle_aiocb_flush, &acb);
@@ -3516,6 +3521,110 @@ static bool hdev_is_sg(BlockDriverState *bs)
     return false;
 }
 
+#if defined(CONFIG_LINUX_IO_URING)
+
+static int fill_pi_info(BlockDriverState *bs, Error **errp)
+{
+    BDRVRawState *s = bs->opaque;
+    int ret = 0, bytes;
+    uint64_t is_integrity_capable;
+    g_autofree char *sysfs_int_cap = NULL;
+    g_autofree char *sysfs_fmt = NULL;
+    g_autofree char *sysfs_bytes = NULL;
+    const char *str_int_cap;
+    const char *str_bytes;
+    int fd_fmt = -1, fd_bytes = -1, fd_int_cap = -1;
+    char buf[24] = {0};
+    g_autofree char *dev_name = g_path_get_basename(bs->filename);
+
+    str_int_cap = "/sys/class/block/%s/integrity/device_is_integrity_capable";
+    sysfs_int_cap = g_strdup_printf(str_int_cap, dev_name);
+    sysfs_fmt = g_strdup_printf("/sys/class/block/%s/integrity/format",
+                                dev_name);
+    str_bytes = "/sys/class/block/%s/integrity/protection_interval_bytes";
+    sysfs_bytes = g_strdup_printf(str_bytes, dev_name);
+
+    if (!(bs->open_flags & BDRV_O_NOCACHE)) {
+        goto out;
+    }
+
+    fd_int_cap = open(sysfs_int_cap, O_RDONLY);
+    if (fd_int_cap == -1) {
+        error_setg_errno(errp, errno, "Can not open %s integrity capability"
+                         " sysfs entry", dev_name);
+        ret = -errno;
+        goto out;
+    }
+    bytes = read(fd_int_cap, buf, sizeof(buf));
+    if (bytes < 0) {
+        error_setg_errno(errp, errno, "Can not read %s integrity capability"
+                         " sysfs entry", dev_name);
+        ret = -errno;
+        goto out;
+    }
+    is_integrity_capable = g_ascii_strtoull(buf, NULL, 10);
+    if (!is_integrity_capable) {
+        goto out;
+    }
+    memset(buf, 0, sizeof(buf));
+
+    fd_fmt = open(sysfs_fmt, O_RDONLY);
+    if (fd_fmt == -1) {
+        error_setg_errno(errp, errno, "Can not open %s integrity format"
+                         " sysfs entry", dev_name);
+        ret = -errno;
+        goto out;
+    }
+    bytes = read(fd_fmt, buf, sizeof(buf));
+    if (bytes < 0) {
+        error_setg_errno(errp, errno, "Can not read %s integrity format"
+                         " sysfs entry", dev_name);
+        ret = -errno;
+        goto out;
+    }
+    if (bytes > 0 && buf[bytes - 1] == '\n') {
+        buf[bytes - 1] = 0;
+    }
+    if (strcmp(buf, "T10-DIF-TYPE1-CRC") == 0) {
+        s->t10_type = 1;
+    } else if (strcmp(buf, "T10-DIF-TYPE3-CRC") == 0) {
+        s->t10_type = 3;
+    } else {
+        s->t10_type = 0;
+    }
+    memset(buf, 0, sizeof(buf));
+
+    fd_bytes = open(sysfs_bytes, O_RDONLY);
+    if (fd_bytes == -1) {
+        error_setg_errno(errp, errno, "Can not open %s protection interval"
+                         " bytes sysfs entry", dev_name);
+        ret = -errno;
+        goto out;
+    }
+    if (read(fd_bytes, buf, sizeof(buf)) < 0) {
+        error_setg_errno(errp, errno, "Can not read %s protection interval"
+                   " bytes sysfs entry", dev_name);
+        ret = -errno;
+        goto out;
+    }
+    s->protection_interval_bytes = g_ascii_strtoull(buf, NULL, 10);
+
+out:
+    if (fd_fmt != -1) {
+        close(fd_fmt);
+    }
+    if (fd_bytes != -1) {
+        close(fd_bytes);
+    }
+    if (fd_int_cap != -1) {
+        close(fd_int_cap);
+    }
+
+    return ret;
+}
+
+#endif
+
 static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
                      Error **errp)
 {
@@ -3601,6 +3710,11 @@ hdev_open_Mac_error:
     /* Since this does ioctl the device must be already opened */
     bs->sg = hdev_is_sg(bs);
 
+#if defined(CONFIG_LINUX_IO_URING)
+    if (s->use_linux_io_uring) {
+        ret = fill_pi_info(bs, errp);
+    }
+#endif
     return ret;
 }
 
@@ -3668,6 +3782,14 @@ static coroutine_fn int hdev_co_pwrite_zeroes(BlockDriverState *bs,
     return raw_do_pwrite_zeroes(bs, offset, bytes, flags, true);
 }
 
+static int hdev_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
+{
+    BDRVRawState *s = bs->opaque;
+    bdi->protection_interval = s->protection_interval_bytes;
+    bdi->protection_type = s->t10_type;
+    return 0;
+}
+
 static BlockDriver bdrv_host_device = {
     .format_name        = "host_device",
     .protocol_name        = "host_device",
@@ -3698,8 +3820,8 @@ static BlockDriver bdrv_host_device = {
     .bdrv_attach_aio_context = raw_aio_attach_aio_context,
 
     .bdrv_co_truncate       = raw_co_truncate,
-    .bdrv_getlength	= raw_getlength,
-    .bdrv_get_info = raw_get_info,
+    .bdrv_getlength         = raw_getlength,
+    .bdrv_get_info          = hdev_get_info,
     .bdrv_get_allocated_file_size
                         = raw_get_allocated_file_size,
     .bdrv_get_specific_stats = hdev_get_specific_stats,

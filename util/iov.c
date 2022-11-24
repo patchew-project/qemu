@@ -20,6 +20,7 @@
 #include "qemu/iov.h"
 #include "qemu/sockets.h"
 #include "qemu/cutils.h"
+#include "qemu/memalign.h"
 
 size_t iov_from_buf_full(const struct iovec *iov, unsigned int iov_cnt,
                          size_t offset, const void *buf, size_t bytes)
@@ -278,6 +279,8 @@ void qemu_iovec_init(QEMUIOVector *qiov, int alloc_hint)
     qiov->niov = 0;
     qiov->nalloc = alloc_hint;
     qiov->size = 0;
+    qiov->dif.iov_base = NULL;
+    qiov->dif.iov_len = 0;
 }
 
 void qemu_iovec_init_external(QEMUIOVector *qiov, struct iovec *iov, int niov)
@@ -290,6 +293,19 @@ void qemu_iovec_init_external(QEMUIOVector *qiov, struct iovec *iov, int niov)
     qiov->size = 0;
     for (i = 0; i < niov; i++)
         qiov->size += iov[i].iov_len;
+}
+
+void qemu_iovec_init_pi(QEMUIOVector *qiov, int alloc_hint,
+                        unsigned int lba_cnt)
+{
+    void *alignd_mem = NULL;
+    qemu_iovec_init(qiov, alloc_hint);
+
+    /* dif size is always 8 bytes */
+    qiov->dif.iov_len = lba_cnt << 3;
+
+    alignd_mem = qemu_memalign(qemu_real_host_page_size(), qiov->dif.iov_len);
+    qiov->dif.iov_base = memset(alignd_mem, 0, qiov->dif.iov_len);
 }
 
 void qemu_iovec_add(QEMUIOVector *qiov, void *base, size_t len)
@@ -530,12 +546,20 @@ void qemu_iovec_destroy(QEMUIOVector *qiov)
     memset(qiov, 0, sizeof(*qiov));
 }
 
+void qemu_iovec_destroy_pi(QEMUIOVector *qiov)
+{
+    g_free(qiov->dif.iov_base);
+
+    qemu_iovec_destroy(qiov);
+}
+
 void qemu_iovec_reset(QEMUIOVector *qiov)
 {
     assert(qiov->nalloc != -1);
 
     qiov->niov = 0;
     qiov->size = 0;
+    qiov->dif.iov_len = 0;
 }
 
 size_t qemu_iovec_to_buf(QEMUIOVector *qiov, size_t offset,

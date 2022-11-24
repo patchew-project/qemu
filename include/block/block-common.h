@@ -59,6 +59,8 @@ typedef struct BlockDriverInfo {
      * True if this block driver only supports compressed writes
      */
     bool needs_compressed_writes;
+    uint8_t protection_type;
+    uint32_t protection_interval;
 } BlockDriverInfo;
 
 typedef struct BlockFragInfo {

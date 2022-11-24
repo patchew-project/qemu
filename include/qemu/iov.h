@@ -181,6 +181,9 @@ typedef struct QEMUIOVector {
             size_t size;
         };
     };
+
+    /* T10 data integrity field */
+    struct iovec dif;
 } QEMUIOVector;
 
 QEMU_BUILD_BUG_ON(offsetof(QEMUIOVector, size) !=
@@ -229,6 +232,9 @@ int qemu_iovec_init_extended(
         void *tail_buf, size_t tail_len);
 void qemu_iovec_init_slice(QEMUIOVector *qiov, QEMUIOVector *source,
                            size_t offset, size_t len);
+void qemu_iovec_init_pi(QEMUIOVector *qiov, int alloc_hint,
+                        unsigned int lba_cnt);
+void qemu_iovec_destroy_pi(QEMUIOVector *qiov);
 int qemu_iovec_subvec_niov(QEMUIOVector *qiov, size_t offset, size_t len);
 void qemu_iovec_add(QEMUIOVector *qiov, void *base, size_t len);
 void qemu_iovec_concat(QEMUIOVector *dst,

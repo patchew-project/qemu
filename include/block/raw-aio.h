@@ -65,7 +65,8 @@ typedef struct LuringState LuringState;
 LuringState *luring_init(Error **errp);
 void luring_cleanup(LuringState *s);
 int coroutine_fn luring_co_submit(BlockDriverState *bs, LuringState *s, int fd,
-                                uint64_t offset, QEMUIOVector *qiov, int type);
+                                uint64_t offset, QEMUIOVector *qiov, int type,
+                                bool is_pi);
 void luring_detach_aio_context(LuringState *s, AioContext *old_context);
 void luring_attach_aio_context(LuringState *s, AioContext *new_context);
 void luring_io_plug(BlockDriverState *bs, LuringState *s);
