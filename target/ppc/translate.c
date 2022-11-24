@@ -1249,6 +1249,15 @@ void spr_write_ebb_upper32(DisasContext *ctx, int sprn, int gprn)
     gen_fscr_facility_check(ctx, SPR_FSCR, FSCR_EBB, sprn, FSCR_IC_EBB);
     spr_write_prev_upper32(ctx, sprn, gprn);
 }
+
+void spr_write_dexcr(DisasContext *ctx, int sprn, int gprn)
+{
+    TCGv t0 = tcg_temp_new();
+    spr_write_generic(ctx, sprn, gprn);
+    tcg_gen_ext32u_tl(t0, cpu_gpr[gprn]);
+    gen_store_spr(sprn - 16, t0);
+    tcg_temp_free(t0);
+}
 #endif
 
 #define GEN_HANDLER(name, opc1, opc2, opc3, inval, type)                      \
