@@ -57,5 +57,23 @@ config MIPS_BOSTON
     select AHCI_ICH9
     select SERIAL
 
+config MIPS_VIRT
+    bool
+    imply PCI_DEVICES
+    imply VIRTIO_VGA
+    imply TEST_DEVICES
+    select MIPS_CPS
+    select MIPS_TRICKBOX
+    select SERIAL
+    select FW_CFG_MIPS
+    select GOLDFISH_RTC
+    select GOLDFISH_PIC
+    select PCI
+    select PCI_EXPRESS_GENERIC_BRIDGE
+    select PFLASH_CFI01
+    select VIRTIO_MMIO
+    select FW_CFG_DMA
+    select PLATFORM_BUS
+
 config FW_CFG_MIPS
     bool
