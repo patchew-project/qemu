@@ -2039,7 +2039,7 @@ static void nvme_rw_cb(void *opaque, int ret)
         goto out;
     }
 
-    if (ns->lbaf.ms) {
+    if (ns->lbaf.ms && !ns->pip) {
         NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
         uint64_t slba = le64_to_cpu(rw->slba);
         uint32_t nlb = (uint32_t)le16_to_cpu(rw->nlb) + 1;
@@ -3344,7 +3344,9 @@ static uint16_t nvme_read(NvmeCtrl *n, NvmeRequest *req)
         }
     }
 
-    if (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps)) {
+    if (ns->pip) {
+        return nvme_dif_pass_rw(n, req);
+    } else if (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps)) {
         return nvme_dif_rw(n, req);
     }
 
@@ -3374,6 +3376,7 @@ static uint16_t nvme_do_write(NvmeCtrl *n, NvmeRequest *req, bool append,
     uint32_t nlb = (uint32_t)le16_to_cpu(rw->nlb) + 1;
     uint16_t ctrl = le16_to_cpu(rw->control);
     uint8_t prinfo = NVME_RW_PRINFO(ctrl);
+    bool pract = !!(prinfo & NVME_PRINFO_PRACT);
     uint64_t data_size = nvme_l2b(ns, nlb);
     uint64_t mapped_size = data_size;
     uint64_t data_offset;
@@ -3478,7 +3481,11 @@ static uint16_t nvme_do_write(NvmeCtrl *n, NvmeRequest *req, bool append,
 
     data_offset = nvme_l2b(ns, slba);
 
-    if (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps)) {
+    if (ns->pip) {
+        if (!wrz || pract) {
+            return nvme_dif_pass_rw(n, req);
+        }
+    } else if (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps)) {
         return nvme_dif_rw(n, req);
     }
 

@@ -188,4 +188,22 @@ uint16_t nvme_dif_check(NvmeNamespace *ns, uint8_t *buf, size_t len,
                         uint16_t appmask, uint64_t *reftag);
 uint16_t nvme_dif_rw(NvmeCtrl *n, NvmeRequest *req);
 
+typedef struct NvmeDifPassContext {
+    struct {
+        uint8_t *bounce;
+        size_t len;
+    } data;
+    QEMUIOVector iov;
+} NvmeDifPassContext;
+
+uint16_t nvme_dif_pass_rw(NvmeCtrl *n, NvmeRequest *req);
+void nvme_dif_pass_dump(NvmeNamespace *ns, uint8_t *mdata_buf,
+                        size_t mdata_len);
+uint16_t nvme_dif_pass_check(NvmeNamespace *ns, uint8_t *buf, size_t len,
+                             uint8_t *mbuf, uint8_t prinfo, uint64_t slba,
+                             uint32_t reftag);
+uint16_t nvme_dif_pass_apptag_check(NvmeNamespace *ns, uint8_t *mbuf,
+                                    size_t mlen, uint8_t prinfo,
+                                    uint16_t apptag, uint16_t appmask);
+
 #endif /* HW_NVME_DIF_H */

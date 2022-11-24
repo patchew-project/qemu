@@ -11,6 +11,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "sysemu/block-backend.h"
+#include "qemu/memalign.h"
 
 #include "nvme.h"
 #include "dif.h"
@@ -713,4 +714,306 @@ err:
     g_free(ctx);
 
     return status;
+}
+
+void nvme_dif_pass_dump(NvmeNamespace *ns, uint8_t *mdata_buf, size_t mdata_len)
+{
+    size_t i;
+    uint8_t *end = mdata_buf + mdata_len;
+    for (i = 1; mdata_buf < end; ++i, mdata_buf += ns->lbaf.ms) {
+        NvmeDifTuple *mdata = (NvmeDifTuple *) mdata_buf;
+        trace_pci_nvme_dif_dump_pass_pi(i, be16_to_cpu(mdata->g16.guard),
+                                        be16_to_cpu(mdata->g16.apptag),
+                                        be32_to_cpu(mdata->g16.reftag));
+    }
+}
+
+static void nvme_dif_pass_read_cb(void *opaque, int ret)
+{
+    NvmeRequest *req = opaque;
+    NvmeCtrl *n = nvme_ctrl(req);
+    NvmeDifPassContext *ctx = req->opaque;
+    NvmeNamespace *ns = req->ns;
+    NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
+    uint8_t prinfo = NVME_RW_PRINFO(le16_to_cpu(rw->control));
+    bool pract = !!(prinfo & NVME_PRINFO_PRACT);
+    uint16_t apptag = le16_to_cpu(rw->apptag);
+    uint16_t appmask = le16_to_cpu(rw->appmask);
+    uint32_t reftag = le32_to_cpu(rw->reftag);
+    uint64_t slba = le64_to_cpu(rw->slba);
+    uint16_t status;
+
+    trace_pci_nvme_dif_pass_read_cb(nvme_cid(req), ctx->iov.dif.iov_len >> 3);
+    if (trace_event_get_state_backends(TRACE_PCI_NVME_DIF_DUMP_PASS_PI)) {
+        nvme_dif_pass_dump(ns, ctx->iov.dif.iov_base, ctx->iov.dif.iov_len);
+    }
+
+    /* block layer returns EILSEQ in case of integrity check failure */
+    /* determine exact pi error and return status accordingly */
+    if (unlikely(ret == -EILSEQ)) {
+        req->status = nvme_dif_pass_check(ns, ctx->data.bounce, ctx->data.len,
+                          ctx->iov.dif.iov_base, prinfo, slba, reftag);
+        if (req->status) {
+            /* zero out ret to allow req->status passthrough */
+            ret = 0;
+        }
+        goto out;
+    }
+
+    if (ret) {
+        goto out;
+    }
+
+    status = nvme_dif_pass_apptag_check(ns, ctx->iov.dif.iov_base,
+                 ctx->iov.dif.iov_len, prinfo, apptag, appmask);
+    if (status) {
+        req->status = status;
+        goto out;
+    }
+
+    status = nvme_bounce_data(n, ctx->data.bounce, ctx->data.len,
+                              NVME_TX_DIRECTION_FROM_DEVICE, req);
+    if (status) {
+        req->status = status;
+        goto out;
+    }
+
+    if (!pract) {
+        status = nvme_bounce_mdata(n, ctx->iov.dif.iov_base,
+                     ctx->iov.dif.iov_len, NVME_TX_DIRECTION_FROM_DEVICE, req);
+        if (status) {
+            req->status = status;
+        }
+    }
+
+out:
+    qemu_iovec_destroy_pi(&ctx->iov);
+    g_free(ctx->data.bounce);
+    g_free(ctx);
+
+    nvme_rw_complete_cb(req, ret);
+}
+
+static void nvme_diff_pass_write_cb(void *opaque, int ret)
+{
+    NvmeRequest *req = opaque;
+    NvmeDifPassContext *ctx = req->opaque;
+    NvmeNamespace *ns = req->ns;
+    NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
+    uint8_t prinfo = NVME_RW_PRINFO(le16_to_cpu(rw->control));
+    uint32_t reftag = le32_to_cpu(rw->reftag);
+    uint64_t slba = le64_to_cpu(rw->slba);
+
+    trace_pci_nvme_dif_pass_write_cb(nvme_cid(req), ctx->iov.dif.iov_len >> 3);
+    if (trace_event_get_state_backends(TRACE_PCI_NVME_DIF_DUMP_PASS_PI)) {
+        nvme_dif_pass_dump(ns, ctx->iov.dif.iov_base, ctx->iov.dif.iov_len);
+    }
+
+    /* block layer returns EILSEQ in case of integrity check failure */
+    /* determine exact pi error and return status accordingly */
+    if (unlikely(ret == -EILSEQ)) {
+        req->status = nvme_dif_pass_check(ns, ctx->data.bounce, ctx->data.len,
+                          ctx->iov.dif.iov_base, prinfo, slba, reftag);
+        if (req->status) {
+            /* zero out ret to allow req->status passthrough */
+            ret = 0;
+        }
+    }
+
+    qemu_iovec_destroy_pi(&ctx->iov);
+    g_free(ctx->data.bounce);
+    g_free(ctx);
+
+    nvme_rw_complete_cb(req, ret);
+}
+
+uint16_t nvme_dif_pass_rw(NvmeCtrl *n, NvmeRequest *req)
+{
+    NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
+    uint8_t prinfo = NVME_RW_PRINFO(le16_to_cpu(rw->control));
+    uint16_t apptag = le16_to_cpu(rw->apptag);
+    uint16_t appmask = le16_to_cpu(rw->appmask);
+    uint64_t reftag = le32_to_cpu(rw->reftag);
+    bool pract = !!(prinfo & NVME_PRINFO_PRACT);
+    NvmeNamespace *ns = req->ns;
+    BlockBackend *blk = ns->blkconf.blk;
+    bool wrz = rw->opcode == NVME_CMD_WRITE_ZEROES;
+    uint32_t nlb = le16_to_cpu(rw->nlb) + 1;
+    uint64_t slba = le64_to_cpu(rw->slba);
+    size_t len = nvme_l2b(ns, nlb);
+    int64_t offset = nvme_l2b(ns, slba);
+    NvmeDifPassContext *ctx;
+    uint16_t status;
+
+    trace_pci_nvme_dif_pass_rw(nvme_cid(req),
+        NVME_ID_NS_DPS_TYPE(ns->id_ns.dps), prinfo, apptag, appmask, reftag);
+
+    ctx = g_new0(NvmeDifPassContext, 1);
+    qemu_iovec_init_pi(&ctx->iov, 1, nlb);
+    ctx->data.len = len;
+    ctx->data.bounce = qemu_memalign(qemu_real_host_page_size(),
+                                     ctx->data.len);
+    qemu_iovec_add(&ctx->iov, ctx->data.bounce, ctx->data.len);
+
+    req->opaque = ctx;
+
+    status = nvme_check_prinfo(ns, prinfo, slba, reftag);
+    if (status) {
+        goto err;
+    }
+    status = nvme_map_dptr(n, &req->sg, len, &req->cmd);
+    if (status) {
+        goto err;
+    }
+
+    if (req->cmd.opcode == NVME_CMD_READ) {
+        block_acct_start(blk_get_stats(blk), &req->acct, ctx->iov.size,
+                         BLOCK_ACCT_READ);
+
+        req->aiocb = blk_aio_preadv(ns->blkconf.blk, offset, &ctx->iov, 0,
+                                    nvme_dif_pass_read_cb, req);
+
+        return NVME_NO_COMPLETE;
+    }
+
+    if (wrz) {
+
+        assert(pract);
+
+        if (prinfo & NVME_PRINFO_PRCHK_MASK) {
+            status = NVME_INVALID_PROT_INFO | NVME_DNR;
+            goto err;
+        }
+        uint8_t *mbuf, *end;
+
+        mbuf = ctx->iov.dif.iov_base;
+        end = mbuf + ctx->iov.dif.iov_len;
+
+        for (; mbuf < end; mbuf += ns->lbaf.ms) {
+            NvmeDifTuple *dif = (NvmeDifTuple *)(mbuf);
+
+            dif->g16.apptag = cpu_to_be16(apptag);
+            dif->g16.reftag = cpu_to_be32(reftag);
+
+            switch (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps)) {
+            case NVME_ID_NS_DPS_TYPE_1:
+            case NVME_ID_NS_DPS_TYPE_2:
+                reftag++;
+            }
+        }
+        memset(ctx->data.bounce, 0, ctx->data.len);
+
+        req->aiocb = blk_aio_pwritev(ns->blkconf.blk, offset, &ctx->iov, 0,
+                                     nvme_diff_pass_write_cb, req);
+
+    } else {
+
+        status = nvme_bounce_data(n, ctx->data.bounce, ctx->data.len,
+                                  NVME_TX_DIRECTION_TO_DEVICE, req);
+        if (status) {
+            goto err;
+        }
+        if (pract) {
+            nvme_dif_pract_generate_dif(ns, ctx->data.bounce,
+                                        ctx->data.len, ctx->iov.dif.iov_base,
+                                        ctx->iov.dif.iov_len, apptag, &reftag);
+        } else {
+            status = nvme_bounce_mdata(n, ctx->iov.dif.iov_base,
+                         ctx->iov.dif.iov_len, NVME_TX_DIRECTION_TO_DEVICE,
+                         req);
+            if (status) {
+                goto err;
+            }
+            status = nvme_dif_pass_apptag_check(ns, ctx->iov.dif.iov_base,
+                         ctx->iov.dif.iov_len, prinfo, apptag, appmask);
+            if (status) {
+                goto err;
+            }
+        }
+
+        block_acct_start(blk_get_stats(blk), &req->acct, ctx->iov.size,
+                         BLOCK_ACCT_WRITE);
+
+        req->aiocb = blk_aio_pwritev(ns->blkconf.blk, offset, &ctx->iov, 0,
+                                     nvme_diff_pass_write_cb, req);
+
+    }
+
+    return NVME_NO_COMPLETE;
+
+err:
+    qemu_iovec_destroy_pi(&ctx->iov);
+    g_free(ctx->data.bounce);
+    g_free(ctx);
+
+    return status;
+}
+
+uint16_t nvme_dif_pass_check(NvmeNamespace *ns, uint8_t *buf, size_t len,
+                             uint8_t *mbuf, uint8_t prinfo, uint64_t slba,
+                             uint32_t reftag)
+{
+    Error *local_err = NULL;
+    uint16_t status;
+
+    status = nvme_check_prinfo(ns, prinfo, slba, reftag);
+    if (status) {
+        return status;
+    }
+
+    uint8_t *end = buf + len;
+
+    for (uint8_t *bufp = buf, *mbufp = mbuf; bufp < end; bufp += ns->lbasz,
+         mbufp += ns->lbaf.ms) {
+        NvmeDifTuple *dif = (NvmeDifTuple *)mbufp;
+
+        if (be16_to_cpu(dif->g16.guard) != crc16_t10dif(0x0, bufp, ns->lbasz)) {
+            if (prinfo & NVME_PRINFO_PRCHK_GUARD) {
+                return NVME_E2E_GUARD_ERROR;
+            } else {
+                error_setg(&local_err, "Nvme namespace %u, backed by %s"
+                           " drive, can not pass custom guard tag",
+                           nvme_nsid(ns), blk_name(ns->blkconf.blk));
+                error_report_err(local_err);
+                return NVME_INTERNAL_DEV_ERROR;
+            }
+        }
+
+        if (be32_to_cpu(dif->g16.reftag) != reftag) {
+            if (prinfo & NVME_PRINFO_PRCHK_REF) {
+                return NVME_E2E_REF_ERROR;
+            } else if (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps) !=
+                       NVME_ID_NS_DPS_TYPE_3) {
+                error_setg(&local_err, "Nvme namespace %u, backed by %s"
+                           " drive can not pass custom ref tag",
+                           nvme_nsid(ns), blk_name(ns->blkconf.blk));
+                error_report_err(local_err);
+                return NVME_INTERNAL_DEV_ERROR;
+            }
+        }
+
+        if (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps) != NVME_ID_NS_DPS_TYPE_3) {
+            reftag++;
+        }
+    }
+
+    return NVME_SUCCESS;
+}
+
+uint16_t nvme_dif_pass_apptag_check(NvmeNamespace *ns, uint8_t *mbuf,
+                                    size_t mlen, uint8_t prinfo,
+                                    uint16_t apptag, uint16_t appmask)
+{
+    if (prinfo & NVME_PRINFO_PRCHK_APP) {
+        uint8_t *end = mbuf + mlen;
+        for (uint8_t *mbufp = mbuf; mbufp < end; mbufp += ns->lbaf.ms) {
+            NvmeDifTuple *dif = (NvmeDifTuple *)mbufp;
+            if ((be16_to_cpu(dif->g16.apptag) & appmask) !=
+                (apptag & appmask)) {
+                return NVME_E2E_APP_ERROR;
+            }
+        }
+    }
+
+    return NVME_SUCCESS;
 }
