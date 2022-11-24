@@ -35,7 +35,11 @@ void nvme_ns_init_format(NvmeNamespace *ns)
     ns->lbaf = id_ns->lbaf[NVME_ID_NS_FLBAS_INDEX(id_ns->flbas)];
     ns->lbasz = 1 << ns->lbaf.ds;
 
-    nlbas = ns->size / (ns->lbasz + ns->lbaf.ms);
+    if (ns->pip) {
+        nlbas = ns->size / (ns->lbasz);
+    } else {
+        nlbas = ns->size / (ns->lbasz + ns->lbaf.ms);
+    }
 
     id_ns->nsze = cpu_to_le64(nlbas);
 
@@ -60,17 +64,22 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
     static uint64_t ns_count;
     NvmeIdNs *id_ns = &ns->id_ns;
     NvmeIdNsNvm *id_ns_nvm = &ns->id_ns_nvm;
+    BlockDriverInfo bdi;
     uint8_t ds;
     uint16_t ms;
-    int i;
+    int i, ret;
+
+    ns->pip = ns->params.pip;
 
     ns->csi = NVME_CSI_NVM;
     ns->status = 0x0;
 
     ns->id_ns.dlfeat = 0x1;
 
-    /* support DULBE and I/O optimization fields */
-    id_ns->nsfeat |= (0x4 | 0x10);
+    if (!ns->pip) {
+        /* support DULBE and I/O optimization fields */
+        id_ns->nsfeat |= (0x4 | 0x10);
+    }
 
     if (ns->params.shared) {
         id_ns->nmic |= NVME_NMIC_NS_SHARED;
@@ -89,7 +98,11 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
     id_ns->eui64 = cpu_to_be64(ns->params.eui64);
 
     ds = 31 - clz32(ns->blkconf.logical_block_size);
-    ms = ns->params.ms;
+    if (ns->pip) {
+        ms = 8;
+    } else {
+        ms = ns->params.ms;
+    }
 
     id_ns->mc = NVME_ID_NS_MC_EXTENDED | NVME_ID_NS_MC_SEPARATE;
 
@@ -104,6 +117,14 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
     }
 
     ns->pif = ns->params.pif;
+
+    if (ns->pip) {
+        ret = bdrv_get_info(blk_bs(ns->blkconf.blk), &bdi);
+        if (ret >= 0) {
+            id_ns->dps = bdi.protection_type;
+            ns->pif = NVME_PI_GUARD_16;
+        }
+    }
 
     static const NvmeLBAF lbaf[16] = {
         [0] = { .ds =  9           },
@@ -380,13 +401,38 @@ static void nvme_zoned_ns_shutdown(NvmeNamespace *ns)
 static int nvme_ns_check_constraints(NvmeNamespace *ns, Error **errp)
 {
     unsigned int pi_size;
+    BlockDriverInfo bdi;
+    int ret;
 
     if (!ns->blkconf.blk) {
         error_setg(errp, "block backend not configured");
         return -1;
     }
 
-    if (ns->params.pi) {
+    if (ns->params.pip) {
+        if (ns->params.mset) {
+            error_setg(errp, "invalid mset parameter, metadata must be "
+                "stored in a separate buffer to use integrity passthrough");
+            return -1;
+        }
+        ret = bdrv_get_info(blk_bs(ns->blkconf.blk), &bdi);
+        if (ret < 0) {
+            error_setg(errp, "could not determine host block device"
+                       " integrity information");
+            return -1;
+        }
+        if (!bdi.protection_type) {
+            error_setg(errp, "nvme-ns backend block device does not"
+                       " support integrity passthrough");
+            return -1;
+        }
+        if (bdi.protection_interval != ns->blkconf.logical_block_size) {
+            error_setg(errp, "logical block size parameter (%u bytes) must be"
+                " equal to protection information interval (%u bytes)",
+                ns->blkconf.logical_block_size, bdi.protection_interval);
+            return -1;
+        }
+    } else if (ns->params.pi) {
         if (ns->params.pi > NVME_ID_NS_DPS_TYPE_3) {
             error_setg(errp, "invalid 'pi' value");
             return -1;
@@ -623,6 +669,7 @@ static Property nvme_ns_props[] = {
     DEFINE_PROP_UINT8("pi", NvmeNamespace, params.pi, 0),
     DEFINE_PROP_UINT8("pil", NvmeNamespace, params.pil, 0),
     DEFINE_PROP_UINT8("pif", NvmeNamespace, params.pif, 0),
+    DEFINE_PROP_BOOL("pip", NvmeNamespace, params.pip, false),
     DEFINE_PROP_UINT16("mssrl", NvmeNamespace, params.mssrl, 128),
     DEFINE_PROP_UINT32("mcl", NvmeNamespace, params.mcl, 128),
     DEFINE_PROP_UINT8("msrc", NvmeNamespace, params.msrc, 127),
