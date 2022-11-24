@@ -197,6 +197,7 @@
 #include "hw/pci/msix.h"
 #include "hw/pci/pcie_sriov.h"
 #include "migration/vmstate.h"
+#include "qemu/memalign.h"
 
 #include "nvme.h"
 #include "dif.h"
@@ -2162,6 +2163,50 @@ out:
     nvme_verify_cb(ctx, ret);
 }
 
+static void nvme_dif_pass_verify_cb(void *opaque, int ret)
+{
+    NvmeBounceContext *ctx = opaque;
+    NvmeRequest *req = ctx->req;
+    NvmeNamespace *ns = req->ns;
+    NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
+    uint64_t slba = le64_to_cpu(rw->slba);
+    uint8_t prinfo = NVME_RW_PRINFO(le16_to_cpu(rw->control));
+    uint16_t apptag = le16_to_cpu(rw->apptag);
+    uint16_t appmask = le16_to_cpu(rw->appmask);
+    uint32_t reftag = le32_to_cpu(rw->reftag);
+
+    trace_pci_nvme_dif_pass_verify_cb(nvme_cid(req));
+    if (trace_event_get_state_backends(TRACE_PCI_NVME_DIF_DUMP_PASS_PI)) {
+        nvme_dif_pass_dump(ns, ctx->data.iov.dif.iov_base,
+                           ctx->data.iov.dif.iov_len);
+    }
+
+    if (unlikely(ret == -EILSEQ)) {
+        req->status = nvme_dif_pass_check(ns, ctx->data.bounce,
+                          ctx->data.iov.size, ctx->data.iov.dif.iov_base,
+                          prinfo, slba, reftag);
+        if (req->status) {
+            /* zero out ret to allow req->status passthrough */
+            ret = 0;
+        }
+        goto out;
+    }
+
+    if (ret) {
+        goto out;
+    }
+
+    req->status = nvme_dif_pass_apptag_check(ns, ctx->data.iov.dif.iov_base,
+                      ctx->data.iov.dif.iov_len, prinfo, apptag, appmask);
+
+out:
+    qemu_iovec_destroy_pi(&ctx->data.iov);
+    g_free(ctx->data.bounce);
+    g_free(ctx);
+
+    nvme_rw_complete_cb(req, ret);
+}
+
 struct nvme_compare_ctx {
     struct {
         QEMUIOVector iov;
@@ -2325,6 +2370,83 @@ out:
     nvme_enqueue_req_completion(nvme_cq(req), req);
 }
 
+static void nvme_dif_pass_compare_cb(void *opaque, int ret)
+{
+    NvmeRequest *req = opaque;
+    NvmeCtrl *n = nvme_ctrl(req);
+    NvmeNamespace *ns = req->ns;
+    NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
+    uint64_t slba = le64_to_cpu(rw->slba);
+    uint32_t nlb = le16_to_cpu(rw->nlb) + 1;
+    size_t mlen = nvme_m2b(ns, nlb);
+    uint8_t prinfo = NVME_RW_PRINFO(le16_to_cpu(rw->control));
+    uint16_t apptag = le16_to_cpu(rw->apptag);
+    uint16_t appmask = le16_to_cpu(rw->appmask);
+    uint32_t reftag = le32_to_cpu(rw->reftag);
+    struct nvme_compare_ctx *ctx = req->opaque;
+    g_autofree uint8_t *buf = NULL;
+    uint16_t status;
+
+    trace_pci_nvme_dif_pass_compare_cb(nvme_cid(req));
+    if (trace_event_get_state_backends(TRACE_PCI_NVME_DIF_DUMP_PASS_PI)) {
+        nvme_dif_pass_dump(ns, ctx->data.iov.dif.iov_base,
+                           ctx->data.iov.dif.iov_len);
+    }
+
+    if (unlikely(ret == -EILSEQ)) {
+        status = nvme_dif_pass_check(ns, ctx->data.bounce, ctx->data.iov.size,
+                                     ctx->data.iov.dif.iov_base, prinfo, slba,
+                                     reftag);
+        if (status) {
+            /* zero out ret to allow req->status passthrough */
+            ret = 0;
+            req->status = status;
+        }
+        goto out;
+    }
+
+    if (ret) {
+        goto out;
+    }
+
+    status = nvme_dif_pass_apptag_check(ns, ctx->data.iov.dif.iov_base,
+                      ctx->data.iov.dif.iov_len, prinfo, apptag, appmask);
+    if (status) {
+        req->status = status;
+        goto out;
+    }
+
+    buf = g_malloc(ctx->data.iov.size);
+    status = nvme_bounce_data(n, buf, ctx->data.iov.size,
+                              NVME_TX_DIRECTION_TO_DEVICE, req);
+    if (status) {
+        req->status = status;
+        goto out;
+    }
+    if (memcmp(buf, ctx->data.bounce, ctx->data.iov.size)) {
+        req->status = NVME_CMP_FAILURE;
+        goto out;
+    }
+
+    ctx->mdata.bounce = g_malloc(mlen);
+    status = nvme_bounce_mdata(n, ctx->mdata.bounce, mlen,
+                               NVME_TX_DIRECTION_TO_DEVICE, req);
+    if (status) {
+        req->status = status;
+        goto out;
+    }
+    if (memcmp(ctx->mdata.bounce, ctx->data.iov.dif.iov_base, mlen)) {
+        req->status = NVME_CMP_FAILURE;
+    }
+
+out:
+    qemu_iovec_destroy_pi(&ctx->data.iov);
+    g_free(ctx->data.bounce);
+    g_free(ctx);
+
+    nvme_rw_complete_cb(req, ret);
+}
+
 typedef struct NvmeDSMAIOCB {
     BlockAIOCB common;
     BlockAIOCB *aiocb;
@@ -2389,7 +2511,7 @@ static void nvme_dsm_md_cb(void *opaque, int ret)
         goto done;
     }
 
-    if (!ns->lbaf.ms) {
+    if (!ns->lbaf.ms || ns->pip) {
         nvme_dsm_cb(iocb, 0);
         return;
     }
@@ -2550,19 +2672,35 @@ static uint16_t nvme_verify(NvmeCtrl *n, NvmeRequest *req)
         }
     }
 
-    ctx = g_new0(NvmeBounceContext, 1);
-    ctx->req = req;
+    if (ns->pip) {
+        ctx = g_new0(NvmeBounceContext, 1);
+        ctx->req = req;
 
-    ctx->data.bounce = g_malloc(len);
+        ctx->data.bounce = qemu_memalign(qemu_real_host_page_size(), len);
 
-    qemu_iovec_init(&ctx->data.iov, 1);
-    qemu_iovec_add(&ctx->data.iov, ctx->data.bounce, len);
+        qemu_iovec_init_pi(&ctx->data.iov, 1, nlb);
+        qemu_iovec_add(&ctx->data.iov, ctx->data.bounce, len);
 
-    block_acct_start(blk_get_stats(blk), &req->acct, ctx->data.iov.size,
-                     BLOCK_ACCT_READ);
+        block_acct_start(blk_get_stats(blk), &req->acct, ctx->data.iov.size,
+                         BLOCK_ACCT_READ);
 
-    req->aiocb = blk_aio_preadv(ns->blkconf.blk, offset, &ctx->data.iov, 0,
-                                nvme_verify_mdata_in_cb, ctx);
+        req->aiocb = blk_aio_preadv(ns->blkconf.blk, offset, &ctx->data.iov, 0,
+                                    nvme_dif_pass_verify_cb, ctx);
+    } else {
+        ctx = g_new0(NvmeBounceContext, 1);
+        ctx->req = req;
+
+        ctx->data.bounce = g_malloc(len);
+
+        qemu_iovec_init(&ctx->data.iov, 1);
+        qemu_iovec_add(&ctx->data.iov, ctx->data.bounce, len);
+
+        block_acct_start(blk_get_stats(blk), &req->acct, ctx->data.iov.size,
+                         BLOCK_ACCT_READ);
+
+        req->aiocb = blk_aio_preadv(ns->blkconf.blk, offset, &ctx->data.iov, 0,
+                                    nvme_verify_mdata_in_cb, ctx);
+    }
     return NVME_NO_COMPLETE;
 }
 
@@ -2619,7 +2757,11 @@ static void nvme_copy_bh(void *opaque)
         req->cqe.result = cpu_to_le32(iocb->idx);
     }
 
-    qemu_iovec_destroy(&iocb->iov);
+    if (ns->pip) {
+        qemu_iovec_destroy_pi(&iocb->iov);
+    } else {
+        qemu_iovec_destroy(&iocb->iov);
+    }
     g_free(iocb->bounce);
 
     qemu_bh_delete(iocb->bh);
@@ -2731,10 +2873,29 @@ static void nvme_copy_out_completed_cb(void *opaque, int ret)
     NvmeRequest *req = iocb->req;
     NvmeNamespace *ns = req->ns;
     uint32_t nlb;
+    uint16_t status;
 
     nvme_copy_source_range_parse(iocb->ranges, iocb->idx, iocb->format, NULL,
                                  &nlb, NULL, NULL, NULL);
 
+    if (ns->pip) {
+        if (iocb->iov.dif.iov_len) {
+            NvmeCopyCmd *copy = (NvmeCopyCmd *)&req->cmd;
+            uint64_t slba = le64_to_cpu(copy->sdlba);
+            uint16_t prinfo = ((copy->control[2] >> 2) & 0xf);
+            size_t len = nvme_l2b(ns, nlb);
+            if (unlikely(ret == -EILSEQ)) {
+                status = nvme_dif_pass_check(ns, iocb->bounce, len,
+                             iocb->iov.dif.iov_base, prinfo, slba,
+                             iocb->reftag);
+                if (status) {
+                    goto invalid;
+                }
+            }
+        }
+
+        iocb->reftag += nlb;
+    }
     if (ret < 0) {
         iocb->ret = ret;
         goto out;
@@ -2748,8 +2909,17 @@ static void nvme_copy_out_completed_cb(void *opaque, int ret)
 
     iocb->idx++;
     iocb->slba += nlb;
+
 out:
     nvme_copy_cb(iocb, iocb->ret);
+    return;
+
+invalid:
+    req->status = status;
+    iocb->aiocb = NULL;
+    if (iocb->bh) {
+        qemu_bh_schedule(iocb->bh);
+    }
 }
 
 static void nvme_copy_out_cb(void *opaque, int ret)
@@ -2894,6 +3064,99 @@ out:
     nvme_copy_cb(iocb, ret);
 }
 
+static void nvme_dif_pass_copy_cb(void *opaque, int ret)
+{
+    NvmeCopyAIOCB *iocb = opaque;
+    NvmeRequest *req = iocb->req;
+    NvmeNamespace *ns = req->ns;
+    NvmeCopyCmd *copy = (NvmeCopyCmd *)&req->cmd;
+    uint16_t prinfor = ((copy->control[0] >> 4) & 0xf);
+    uint16_t prinfow = ((copy->control[2] >> 2) & 0xf);
+    uint32_t nlb;
+    size_t len;
+    uint16_t status;
+    uint64_t slba;
+    uint16_t apptag;
+    uint16_t appmask;
+    uint64_t reftag;
+
+    nvme_copy_source_range_parse(iocb->ranges, iocb->idx, iocb->format, &slba,
+                                 &nlb, &apptag, &appmask, &reftag);
+    len = nvme_l2b(ns, nlb);
+
+    if (unlikely(ret == -EILSEQ)) {
+        status = nvme_dif_pass_check(ns, iocb->bounce, len,
+                                     iocb->iov.dif.iov_base, prinfor, slba,
+                                     reftag);
+        if (status) {
+            goto invalid;
+        }
+    }
+
+    if (ret < 0) {
+        iocb->ret = ret;
+        goto out;
+    } else if (iocb->ret < 0) {
+        goto out;
+    }
+
+    status = nvme_dif_pass_apptag_check(ns, iocb->iov.dif.iov_base,
+                                        nvme_m2b(ns, nlb), prinfor, apptag,
+                                        appmask);
+    if (status) {
+        goto invalid;
+    }
+
+    status = nvme_check_prinfo(ns, prinfow, iocb->slba, iocb->reftag);
+    if (status) {
+        goto invalid;
+    }
+    status = nvme_check_bounds(ns, iocb->slba, nlb);
+    if (status) {
+        goto invalid;
+    }
+
+    if (ns->params.zoned) {
+        status = nvme_check_zone_write(ns, iocb->zone, iocb->slba, nlb);
+        if (status) {
+            goto invalid;
+        }
+
+        iocb->zone->w_ptr += nlb;
+    }
+
+    if (prinfow & NVME_PRINFO_PRACT) {
+        qemu_iovec_reset(&iocb->iov);
+        qemu_iovec_add(&iocb->iov, iocb->bounce, len);
+    } else {
+        appmask = le16_to_cpu(copy->appmask);
+        apptag = le16_to_cpu(copy->apptag);
+        status = nvme_dif_pass_apptag_check(ns, iocb->iov.dif.iov_base,
+                                            nvme_m2b(ns, nlb), prinfow, apptag,
+                                            appmask);
+        if (status) {
+            goto invalid;
+        }
+    }
+    iocb->aiocb = blk_aio_pwritev(ns->blkconf.blk, nvme_l2b(ns, iocb->slba),
+                                  &iocb->iov, 0, nvme_copy_out_completed_cb,
+                                  iocb);
+
+    return;
+
+invalid:
+    req->status = status;
+    iocb->aiocb = NULL;
+    if (iocb->bh) {
+        qemu_bh_schedule(iocb->bh);
+    }
+
+    return;
+
+out:
+    nvme_copy_cb(iocb, ret);
+}
+
 static void nvme_copy_in_cb(void *opaque, int ret)
 {
     NvmeCopyAIOCB *iocb = opaque;
@@ -2937,6 +3200,7 @@ static void nvme_copy_cb(void *opaque, int ret)
     NvmeNamespace *ns = req->ns;
     uint64_t slba;
     uint32_t nlb;
+    uint64_t reftag;
     size_t len;
     uint16_t status;
 
@@ -2952,7 +3216,7 @@ static void nvme_copy_cb(void *opaque, int ret)
     }
 
     nvme_copy_source_range_parse(iocb->ranges, iocb->idx, iocb->format, &slba,
-                                 &nlb, NULL, NULL, NULL);
+                                 &nlb, NULL, NULL, &reftag);
     len = nvme_l2b(ns, nlb);
 
     trace_pci_nvme_copy_source_range(slba, nlb);
@@ -2984,8 +3248,21 @@ static void nvme_copy_cb(void *opaque, int ret)
     qemu_iovec_reset(&iocb->iov);
     qemu_iovec_add(&iocb->iov, iocb->bounce, len);
 
-    iocb->aiocb = blk_aio_preadv(ns->blkconf.blk, nvme_l2b(ns, slba),
-                                 &iocb->iov, 0, nvme_copy_in_cb, iocb);
+    if (ns->pip) {
+        NvmeCopyCmd *copy = (NvmeCopyCmd *)&req->cmd;
+        uint16_t prinfor = ((copy->control[0] >> 4) & 0xf);
+        status = nvme_check_prinfo(ns, prinfor, slba, reftag);
+        if (status) {
+            goto invalid;
+        }
+        iocb->iov.dif.iov_len = nvme_m2b(ns, nlb);
+        iocb->aiocb = blk_aio_preadv(ns->blkconf.blk, nvme_l2b(ns, slba),
+                                     &iocb->iov, 0, nvme_dif_pass_copy_cb,
+                                     iocb);
+    } else {
+        iocb->aiocb = blk_aio_preadv(ns->blkconf.blk, nvme_l2b(ns, slba),
+                                     &iocb->iov, 0, nvme_copy_in_cb, iocb);
+    }
     return;
 
 invalid:
@@ -3073,10 +3350,18 @@ static uint16_t nvme_copy(NvmeCtrl *n, NvmeRequest *req)
     iocb->idx = 0;
     iocb->reftag = le32_to_cpu(copy->reftag);
     iocb->reftag |= (uint64_t)le32_to_cpu(copy->cdw3) << 32;
-    iocb->bounce = g_malloc_n(le16_to_cpu(ns->id_ns.mssrl),
-                              ns->lbasz + ns->lbaf.ms);
 
     qemu_iovec_init(&iocb->iov, 1);
+
+    if (ns->pip) {
+        qemu_iovec_init_pi(&iocb->iov, 1, le16_to_cpu(ns->id_ns.mssrl));
+        iocb->bounce = qemu_memalign(qemu_real_host_page_size(),
+                                     le16_to_cpu(ns->id_ns.mssrl) * ns->lbasz);
+    } else {
+        qemu_iovec_init(&iocb->iov, 1);
+        iocb->bounce = g_malloc_n(le16_to_cpu(ns->id_ns.mssrl),
+                                  ns->lbasz + ns->lbaf.ms);
+    }
 
     block_acct_start(blk_get_stats(ns->blkconf.blk), &iocb->acct.read, 0,
                      BLOCK_ACCT_READ);
@@ -3140,18 +3425,31 @@ static uint16_t nvme_compare(NvmeCtrl *n, NvmeRequest *req)
         return status;
     }
 
-    ctx = g_new(struct nvme_compare_ctx, 1);
-    ctx->data.bounce = g_malloc(data_len);
+    if (ns->pip) {
+        ctx = g_new0(struct nvme_compare_ctx, 1);
+        ctx->data.bounce = qemu_memalign(qemu_real_host_page_size(), data_len);
 
-    req->opaque = ctx;
+        req->opaque = ctx;
 
-    qemu_iovec_init(&ctx->data.iov, 1);
-    qemu_iovec_add(&ctx->data.iov, ctx->data.bounce, data_len);
+        qemu_iovec_init_pi(&ctx->data.iov, 1, nlb);
+        qemu_iovec_add(&ctx->data.iov, ctx->data.bounce, data_len);
+        block_acct_start(blk_get_stats(blk), &req->acct, data_len,
+                         BLOCK_ACCT_READ);
+        req->aiocb = blk_aio_preadv(blk, offset, &ctx->data.iov, 0,
+                                    nvme_dif_pass_compare_cb, req);
+    } else {
+        ctx = g_new(struct nvme_compare_ctx, 1);
+        ctx->data.bounce = g_malloc(data_len);
 
-    block_acct_start(blk_get_stats(blk), &req->acct, data_len,
-                     BLOCK_ACCT_READ);
-    req->aiocb = blk_aio_preadv(blk, offset, &ctx->data.iov, 0,
-                                nvme_compare_data_cb, req);
+        req->opaque = ctx;
+
+        qemu_iovec_init(&ctx->data.iov, 1);
+        qemu_iovec_add(&ctx->data.iov, ctx->data.bounce, data_len);
+        block_acct_start(blk_get_stats(blk), &req->acct, data_len,
+                         BLOCK_ACCT_READ);
+        req->aiocb = blk_aio_preadv(blk, offset, &ctx->data.iov, 0,
+                                    nvme_compare_data_cb, req);
+    }
 
     return NVME_NO_COMPLETE;
 }
