@@ -240,6 +240,22 @@ static NetClientInfo net_vhost_vdpa_info = {
         .check_peer_type = vhost_vdpa_check_peer_type,
 };
 
+static int vhost_vdpa_get_iova_range(int fd,
+                                     struct vhost_vdpa_iova_range *iova_range)
+{
+    int ret = ioctl(fd, VHOST_VDPA_GET_IOVA_RANGE, iova_range);
+
+    return ret < 0 ? -errno : 0;
+}
+
+static VhostIOVATree *vhost_vdpa_svq_allocate_iova_tree(int vdpa_device_fd)
+{
+    struct vhost_vdpa_iova_range iova_range;
+
+    vhost_vdpa_get_iova_range(vdpa_device_fd, &iova_range);
+    return vhost_iova_tree_new(iova_range.first, iova_range.last);
+}
+
 static void vhost_vdpa_cvq_unmap_buf(struct vhost_vdpa *v, void *addr)
 {
     VhostIOVATree *tree = v->iova_tree;
@@ -587,14 +603,6 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
     return nc;
 }
 
-static int vhost_vdpa_get_iova_range(int fd,
-                                     struct vhost_vdpa_iova_range *iova_range)
-{
-    int ret = ioctl(fd, VHOST_VDPA_GET_IOVA_RANGE, iova_range);
-
-    return ret < 0 ? -errno : 0;
-}
-
 static int vhost_vdpa_get_features(int fd, uint64_t *features, Error **errp)
 {
     int ret = ioctl(fd, VHOST_GET_FEATURES, features);
@@ -690,14 +698,11 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
     }
 
     if (opts->x_svq) {
-        struct vhost_vdpa_iova_range iova_range;
-
         if (!vhost_vdpa_net_valid_svq_features(features, errp)) {
             goto err_svq;
         }
 
-        vhost_vdpa_get_iova_range(vdpa_device_fd, &iova_range);
-        iova_tree = vhost_iova_tree_new(iova_range.first, iova_range.last);
+        iova_tree = vhost_vdpa_svq_allocate_iova_tree(vdpa_device_fd);
     }
 
     ncs = g_malloc0(sizeof(*ncs) * queue_pairs);
