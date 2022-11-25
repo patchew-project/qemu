@@ -480,6 +480,9 @@ struct RISCVCPUConfig {
     bool debug;
 
     bool short_isa_string;
+
+    uint8_t satp_mode;
+    char *satp_mode_str;
 };
 
 typedef struct RISCVCPUConfig RISCVCPUConfig;
