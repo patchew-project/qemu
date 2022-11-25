@@ -221,6 +221,7 @@ struct VirtIONet {
     struct EBPFRSSContext ebpf_rss;
 };
 
+uint64_t virtio_net_guest_offloads_by_features(uint32_t features);
 size_t virtio_net_handle_ctrl_iov(VirtIODevice *vdev,
                                   const struct iovec *in_sg, unsigned in_num,
                                   const struct iovec *out_sg,

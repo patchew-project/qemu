@@ -845,7 +845,7 @@ static void virtio_net_apply_guest_offloads(VirtIONet *n)
             !!(n->curr_guest_offloads & (1ULL << VIRTIO_NET_F_GUEST_UFO)));
 }
 
-static uint64_t virtio_net_guest_offloads_by_features(uint32_t features)
+uint64_t virtio_net_guest_offloads_by_features(uint32_t features)
 {
     static const uint64_t guest_offloads_mask =
         (1ULL << VIRTIO_NET_F_GUEST_CSUM) |
