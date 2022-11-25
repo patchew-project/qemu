@@ -17,6 +17,7 @@
 
 #include "qemu/queue.h"
 #include "qemu/timer.h"
+#include "qemu/atomic.h"
 
 /**
  * Coroutines are a mechanism for stack switching and can be used for
