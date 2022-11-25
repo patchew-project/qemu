@@ -423,6 +423,34 @@ static int vhost_vdpa_net_load_mq(VhostVDPAState *s,
     return *s->status != VIRTIO_NET_OK;
 }
 
+static int vhost_vdpa_net_load_offloads(VhostVDPAState *s,
+                                        const VirtIONet *n)
+{
+    uint64_t features = n->parent_obj.guest_features;
+    uint64_t guest_offloads_mask;
+    ssize_t dev_written;
+
+    if (!n->has_vnet_hdr || !(features & VIRTIO_NET_F_CTRL_GUEST_OFFLOADS)) {
+        return 0;
+    }
+
+    if (n->curr_guest_offloads ==
+        virtio_net_guest_offloads_by_features(features)) {
+        return 0;
+    }
+
+    guest_offloads_mask = cpu_to_le64(n->curr_guest_offloads);
+    dev_written = vhost_vdpa_net_load_cmd(s, VIRTIO_NET_CTRL_GUEST_OFFLOADS,
+                                          VIRTIO_NET_CTRL_GUEST_OFFLOADS_SET,
+                                          &guest_offloads_mask,
+                                          sizeof(uint64_t));
+    if (unlikely(dev_written < 0)) {
+        return dev_written;
+    }
+
+    return *s->status != VIRTIO_NET_OK;
+}
+
 static int vhost_vdpa_net_load(NetClientState *nc)
 {
     VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, nc);
@@ -445,8 +473,7 @@ static int vhost_vdpa_net_load(NetClientState *nc)
     if (unlikely(r)) {
         return r;
     }
-
-    return 0;
+    return vhost_vdpa_net_load_offloads(s, n);
 }
 
 static NetClientInfo net_vhost_vdpa_cvq_info = {
