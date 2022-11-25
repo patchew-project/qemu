@@ -228,6 +228,12 @@ static int vu_gpio_connect(DeviceState *dev, Error **errp)
         return ret;
     }
 
+    /*
+     * Once we have initialised the vhost backend we can finally set
+     * the what host features are available for this device.
+     */
+    vdev->host_features = vhost_dev->features;
+
     /* restore vhost state */
     if (virtio_device_started(vdev, vdev->status)) {
         vu_gpio_start(vdev);
