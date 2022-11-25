@@ -427,6 +427,7 @@ typedef struct NvmeParams {
     uint16_t sriov_vi_flexible;
     uint8_t  sriov_max_vq_per_vf;
     uint8_t  sriov_max_vi_per_vf;
+    bool     ocp;
 } NvmeParams;
 
 typedef struct NvmeCtrl {
