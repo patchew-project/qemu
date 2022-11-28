@@ -45,8 +45,7 @@ class TestFinder:
         with chdir(test_dir):
             self.all_tests = glob.glob('[0-9][0-9][0-9]')
             self.all_tests += [f for f in glob.iglob('tests/*')
-                               if not f.endswith('.out') and
-                               os.path.isfile(f + '.out')]
+                               if self.is_test(f)]
 
             for t in self.all_tests:
                 with open(t, encoding="utf-8") as f:
@@ -55,6 +54,13 @@ class TestFinder:
                             for g in line.split()[2:]:
                                 self.groups[g].add(t)
                             break
+
+    def is_test(self, fname: str) -> bool:
+        """
+        The tests directory contains tests (no extension) and out files
+        (*.out, *.out.{format}, *.out.{option}).
+        """
+        return re.search(r'.+\.out(\.\w+)?$', fname) is None
 
     def add_group_file(self, fname: str) -> None:
         with open(fname, encoding="utf-8") as f:
