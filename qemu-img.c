@@ -56,6 +56,7 @@
 
 #define QEMU_IMG_VERSION "qemu-img version " QEMU_FULL_VERSION \
                           "\n" QEMU_COPYRIGHT "\n"
+#define IO_BUF_SIZE (2 * MiB)
 
 typedef struct img_cmd_t {
     const char *name;
@@ -1287,8 +1288,6 @@ static int compare_buffers(const uint8_t *buf1, const uint8_t *buf2,
     *pnum = i;
     return res;
 }
-
-#define IO_BUF_SIZE (2 * MiB)
 
 /*
  * Check if passed sectors are empty (not allocated or contain only 0 bytes)
