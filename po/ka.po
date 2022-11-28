@@ -1,0 +1,95 @@
+# Georgian translation for qemu.
+# Copyright (C) 2022 qemu authors
+# This file is distributed under the same license as the qemu package.
+# Temuri Doghonadze <temuri.doghonadze@gmail.com>, 2022.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: qemu\n"
+"Report-Msgid-Bugs-To: qemu-devel@nongnu.org\n"
+"POT-Creation-Date: 2022-11-28 19:32+0100\n"
+"PO-Revision-Date: 2022-11-28 19:35+0100\n"
+"Last-Translator: Temuri Doghonadze <temuri.doghonadze@gmail.com>\n"
+"Language-Team: Georgian <(nothing)>\n"
+"Language: ka\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Poedit 3.2\n"
+
+#: ui/gtk.c:229
+msgid " - Press Ctrl+Alt+G to release grab"
+msgstr " - ჩაჭერის მოსახსნელად დააწექით: Ctrl+Alt+G"
+
+#: ui/gtk.c:233
+msgid " [Paused]"
+msgstr " [შეჩერებულია]"
+
+#: ui/gtk.c:2047
+msgid "_Pause"
+msgstr "_შეჩერება"
+
+#: ui/gtk.c:2053
+msgid "_Reset"
+msgstr "_გადატვირთვა"
+
+#: ui/gtk.c:2056
+msgid "Power _Down"
+msgstr "_გამორთვა"
+
+#: ui/gtk.c:2062
+msgid "_Quit"
+msgstr "_გასვლა"
+
+#: ui/gtk.c:2185
+msgid "_Fullscreen"
+msgstr "_მთელ ეკრანზე"
+
+#: ui/gtk.c:2188
+msgid "_Copy"
+msgstr "ასლი"
+
+#: ui/gtk.c:2202
+msgid "Zoom _In"
+msgstr "გა_დიდება"
+
+#: ui/gtk.c:2211
+msgid "Zoom _Out"
+msgstr "_დაპატარავება"
+
+#: ui/gtk.c:2218
+msgid "Best _Fit"
+msgstr "საუკეთესოდ _ჩატევა"
+
+#: ui/gtk.c:2225
+msgid "Zoom To _Fit"
+msgstr "გადიდება _ჩასატევად"
+
+#: ui/gtk.c:2231
+msgid "Grab On _Hover"
+msgstr "ჩაჭერა _გადატარებისას"
+
+#: ui/gtk.c:2234
+msgid "_Grab Input"
+msgstr "შეტანის _ჩაჭერა"
+
+#: ui/gtk.c:2263
+msgid "Show _Tabs"
+msgstr "_ჩანართების ჩვენება"
+
+#: ui/gtk.c:2266
+msgid "Detach Tab"
+msgstr "ჩანართის მოხსნა"
+
+#: ui/gtk.c:2270
+msgid "Show Menubar"
+msgstr "მენიუს ზოლის ჩვენება"
+
+#: ui/gtk.c:2292
+msgid "_Machine"
+msgstr "_მანქანა"
+
+#: ui/gtk.c:2297
+msgid "_View"
+msgstr "_ხედი"
