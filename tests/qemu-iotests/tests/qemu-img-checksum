@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+# group: rw auto quick
+#
+# Test cases for qemu-img checksum.
+#
+# Copyright (C) 2022 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import re
+
+import iotests
+
+from iotests import (
+    filter_testfiles,
+    qemu_img,
+    qemu_img_log,
+    qemu_io,
+)
+
+
+def checksum_available():
+    out = qemu_img("--help").stdout
+    return re.search(r"\bchecksum .+ filename\b", out) is not None
+
+
+if not checksum_available():
+    iotests.notrun("checksum command not available")
+
+iotests.script_initialize(
+    supported_fmts=["raw", "qcow2"],
+    supported_cache_modes=["none", "writeback"],
+    supported_protocols=["file"],
+)
+
+print("=== Create test image ===\n")
+
+disk = iotests.file_path('disk')
+qemu_img("create", "-f", iotests.imgfmt, disk, "10m")
+qemu_io("-f", iotests.imgfmt,
+        "-c", "write -P 0x1 0 2m",      # data
+        "-c", "write -P 0x0 2m 2m",     # data with zeroes
+        "-c", "write -z 4m 2m",         # zero allocated
+        "-c", "write -z -u 6m 2m",      # zero hole
+                                        # unallocated
+        disk)
+print(filter_testfiles(disk))
+qemu_img_log("map", "--output", "json", disk)
+
+print("=== Compute checksum ===\n")
+
+qemu_img_log("checksum", "-T", iotests.cachemode, disk)

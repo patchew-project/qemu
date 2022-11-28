@@ -1,0 +1,11 @@
+=== Create test image ===
+
+TEST_DIR/PID-disk
+[{ "start": 0, "length": 4194304, "depth": 0, "present": true, "zero": false, "data": true, "offset": 327680},
+{ "start": 4194304, "length": 4194304, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 8388608, "length": 2097152, "depth": 0, "present": false, "zero": true, "data": false}]
+
+=== Compute checksum ===
+
+57cd8ef0cfad106d737f8fb0de3a0306a8a1a41db7bf7c0c36e2dfe75ee9bd26  TEST_DIR/PID-disk
+
