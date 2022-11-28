@@ -321,3 +321,5 @@ option('profiler', type: 'boolean', value: false,
        description: 'profiler support')
 option('slirp_smbd', type : 'feature', value : 'auto',
        description: 'use smbd (at path --smbd=*) in slirp networking')
+option('blkhash', type: 'feature', value: 'auto',
+       description: 'blkhash support for computing image checksum')

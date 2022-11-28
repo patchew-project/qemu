@@ -797,6 +797,10 @@ if targetos == 'linux' and (have_system or have_tools)
                        kwargs: static_kwargs)
 endif
 
+blkhash = dependency('blkhash', version: '>=0.5.1',
+                     method: 'pkg-config',
+                     required: get_option('blkhash'))
+
 mpathlibs = [libudev]
 mpathpersist = not_found
 mpathpersist_new_api = false
@@ -1924,6 +1928,8 @@ if xen.found()
     ('0' + xen_version[2]).substring(-2)
   config_host_data.set('CONFIG_XEN_CTRL_INTERFACE_VERSION', xen_ctrl_version)
 endif
+config_host_data.set('CONFIG_BLKHASH', blkhash.found())
+
 config_host_data.set('QEMU_VERSION', '"@0@"'.format(meson.project_version()))
 config_host_data.set('QEMU_VERSION_MAJOR', meson.project_version().split('.')[0])
 config_host_data.set('QEMU_VERSION_MINOR', meson.project_version().split('.')[1])
@@ -3589,7 +3595,8 @@ endif
 
 if have_tools
   qemu_img = executable('qemu-img', [files('qemu-img.c'), hxdep],
-             dependencies: [authz, block, crypto, io, qom, qemuutil], install: true)
+             dependencies: [authz, block, crypto, io, qom, qemuutil, blkhash],
+             install: true)
   qemu_io = executable('qemu-io', files('qemu-io.c'),
              dependencies: [block, qemuutil], install: true)
   qemu_nbd = executable('qemu-nbd', files('qemu-nbd.c'),
@@ -3975,6 +3982,7 @@ summary_info += {'libudev':           libudev}
 # Dummy dependency, keep .found()
 summary_info += {'FUSE lseek':        fuse_lseek.found()}
 summary_info += {'selinux':           selinux}
+summary_info += {'blkhash':           blkhash}
 summary(summary_info, bool_yn: true, section: 'Dependencies')
 
 if not supported_cpus.contains(cpu)

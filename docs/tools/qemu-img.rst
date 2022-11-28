@@ -354,6 +354,30 @@ Command description:
   state after (the attempt at) repairing it. That is, a successful ``-r all``
   will yield the exit code 0, independently of the image state before.
 
+.. option:: checksum [--object OBJECTDEF] [--image-opts] [-f FMT] [-T SRC_CACHE] [-p] FILENAME
+
+  Print a checksum for image *FILENAME* guest visible content. Images with
+  different format or settings will have the same checksum.
+
+  The format is probed unless you specify it by ``-f``.
+
+  The checksum is computed for guest visible content. Allocated areas full of
+  zeroes, zero clusters, and unallocated areas are read as zeros so they will
+  have the same checksum. Images with single or multiple files or backing files
+  will have the same checksums if the guest will see the same content when
+  reading the image.
+
+  Image metadata that is not visible to the guest such as dirty bitmaps does
+  not affect the checksum.
+
+  Computing a checksum requires a read-only image. You cannot compute a
+  checksum of an active image used by a guest, but you can compute a checksum
+  of a guest during pull mode incremental backup using NBD URL.
+
+  The checksum is not compatible with other tools such as *sha256sum* for
+  optimization purposes; using multithreading and optimized handling of zero
+  areas. For more info please see https://gitlab.com/nirs/blkhash.
+
 .. option:: commit [--object OBJECTDEF] [--image-opts] [-q] [-f FMT] [-t CACHE] [-b BASE] [-r RATE_LIMIT] [-d] [-p] FILENAME
 
   Commit the changes recorded in *FILENAME* in its base image or backing file.

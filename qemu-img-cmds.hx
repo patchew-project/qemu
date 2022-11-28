@@ -33,6 +33,14 @@ SRST
 .. option:: check [--object OBJECTDEF] [--image-opts] [-q] [-f FMT] [--output=OFMT] [-r [leaks | all]] [-T SRC_CACHE] [-U] FILENAME
 ERST
 
+#ifdef CONFIG_BLKHASH
+DEF("checksum", img_checksum,
+    "checksum [--object objectdef] [--image-opts] [-f fmt] [-T src_cache] [-p] filename")
+SRST
+.. option:: checksum [--object OBJECTDEF] [--image-opts] [-f FMT] [-T SRC_CACHE] [-p] FILENAME
+ERST
+#endif /* CONFIG_BLKHASH */
+
 DEF("commit", img_commit,
     "commit [--object objectdef] [--image-opts] [-q] [-f fmt] [-t cache] [-b base] [-r rate_limit] [-d] [-p] filename")
 SRST

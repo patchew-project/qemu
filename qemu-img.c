@@ -25,6 +25,10 @@
 #include "qemu/osdep.h"
 #include <getopt.h>
 
+#ifdef CONFIG_BLKHASH
+#include <blkhash.h>
+#endif
+
 #include "qemu/help-texts.h"
 #include "qemu/qemu-progress.h"
 #include "qemu-version.h"
@@ -1619,6 +1623,185 @@ out3:
     qemu_progress_end();
     return ret;
 }
+
+#ifdef CONFIG_BLKHASH
+/*
+ * Compute image checksum.
+ */
+static int img_checksum(int argc, char **argv)
+{
+    const char *digest_name = "sha256";
+    const size_t block_size = 64 * KiB;
+
+    _Static_assert(QEMU_IS_ALIGNED(IO_BUF_SIZE, block_size),
+                   "IO_BUF_SIZE should be alligned to block_size");
+
+    const char *format = NULL;
+    const char *cache = BDRV_DEFAULT_CACHE;
+    const char *filename;
+    BlockBackend *blk;
+    BlockDriverState *bs;
+    uint8_t *buf = NULL;
+    bool progress = false;
+    int flags = 0;
+    bool writethrough;
+    int64_t total_size;
+    int64_t offset = 0;
+    int c;
+    bool image_opts = false;
+    struct blkhash *h = NULL;
+    unsigned char digest[64];
+    unsigned int digest_len;
+    int err;
+    int exit_status = 1;
+
+    for (;;) {
+        static const struct option long_options[] = {
+            {"help", no_argument, 0, 'h'},
+            {"object", required_argument, 0, OPTION_OBJECT},
+            {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {0, 0, 0, 0}
+        };
+        c = getopt_long(argc, argv, ":hf:T:p",
+                        long_options, NULL);
+        if (c == -1) {
+            break;
+        }
+        switch (c) {
+        case ':':
+            missing_argument(argv[optind - 1]);
+            break;
+        case '?':
+            unrecognized_option(argv[optind - 1]);
+            break;
+        case 'h':
+            help();
+            break;
+        case 'f':
+            format = optarg;
+            break;
+        case 'T':
+            cache = optarg;
+            break;
+        case 'p':
+            progress = true;
+            break;
+        case OPTION_OBJECT:
+            user_creatable_process_cmdline(optarg);
+            break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
+        }
+    }
+
+    if (optind != argc - 1) {
+        error_exit("Expecting image file name");
+    }
+
+    filename = argv[optind++];
+
+    err = bdrv_parse_cache_mode(cache, &flags, &writethrough);
+    if (err < 0) {
+        error_report("Invalid source cache option: %s", cache);
+        return exit_status;
+    }
+
+    blk = img_open(image_opts, filename, format, flags, writethrough, false,
+                   false);
+    if (!blk) {
+        return exit_status;
+    }
+
+    /* Initialize before using goto out. */
+    qemu_progress_init(progress, 2.0);
+
+    bs = blk_bs(blk);
+    buf = blk_blockalign(blk, IO_BUF_SIZE);
+
+    total_size = blk_getlength(blk);
+    if (total_size < 0) {
+        error_report("Can't get size of %s: %s",
+                     filename, strerror(-total_size));
+        goto out;
+    }
+
+    h = blkhash_new(block_size, digest_name);
+    if (!h) {
+        error_report("Can't create blkhash: %s", strerror(errno));
+        goto out;
+    }
+
+    qemu_progress_print(0, 100);
+
+    while (offset < total_size) {
+        int status;
+        int64_t chunk;
+
+        status = bdrv_block_status_above(bs, NULL, offset,
+                                         total_size - offset, &chunk, NULL,
+                                         NULL);
+        if (status < 0) {
+            error_report("Error checking status at offset %" PRId64 " for %s",
+                         offset, filename);
+            goto out;
+        }
+
+        assert(chunk);
+
+        if (status & BDRV_BLOCK_ZERO) {
+            chunk = MIN(chunk, SIZE_MAX);
+            err = blkhash_zero(h, chunk);
+            if (err) {
+                error_report("Error zeroing hash at offset %" PRId64
+                             " of %s: %s",
+                             offset, filename, strerror(err));
+                goto out;
+            }
+        } else {
+            chunk = MIN(chunk, IO_BUF_SIZE);
+            err = blk_pread(blk, offset, chunk, buf, 0);
+            if (err < 0) {
+                error_report("Error reading at offset %" PRId64 " of %s: %s",
+                             offset, filename, strerror(-err));
+                goto out;
+            }
+            err = blkhash_update(h, buf, chunk);
+            if (err) {
+                error_report("Error updating hash at offset %" PRId64
+                             " of %s: %s",
+                             offset, filename, strerror(err));
+                goto out;
+            }
+        }
+
+        offset += chunk;
+        qemu_progress_print(((float) chunk / total_size) * 100, 100);
+    }
+
+    err = blkhash_final(h, digest, &digest_len);
+    if (err) {
+        error_report("Error finalizing hash of %s: %s",
+                     filename, strerror(err));
+        goto out;
+    }
+
+    for (unsigned i = 0; i < digest_len; i++) {
+        printf("%02x", digest[i]);
+    }
+    printf("  %s%s", filename, progress ? "" : "\n");
+
+    exit_status = 0;
+
+out:
+    blkhash_free(h);
+    qemu_vfree(buf);
+    blk_unref(blk);
+    qemu_progress_end();
+
+    return exit_status;
+}
+#endif /* CONFIG_BLKHASH */
 
 /* Convenience wrapper around qmp_block_dirty_bitmap_merge */
 static void do_dirty_bitmap_merge(const char *dst_node, const char *dst_name,
