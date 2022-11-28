@@ -42,6 +42,19 @@ git submodule update --init --single-branch
         CryptoPkg/Library/OpensslLib/openssl \
         MdeModulePkg/Library/BrotliCustomDecompressLib/brotli)
 
+tar --exclude=".git*" -cjf ../qemu-rom-sources-${version}.tar.bz2 roms
+rm -r roms/*
+
+cat > roms/README.rst <<EOF
+Please download the qemu-rom-sources-${version}.tar.bz2 tarball
+and unpack it in the topmost directory of the QEMU sources in
+case you want to recompile the QEMU ROM images.
+EOF
+cat > roms/Makefile <<EOF
+%:
+	@cat README.rst
+EOF
+
 rm -v .*.yml
 popd
 
