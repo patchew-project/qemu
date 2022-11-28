@@ -41,6 +41,9 @@ git submodule update --init --single-branch
         BaseTools/Source/C/BrotliCompress/brotli \
         CryptoPkg/Library/OpensslLib/openssl \
         MdeModulePkg/Library/BrotliCustomDecompressLib/brotli)
+
+rm -v .*.yml
 popd
-tar --exclude=.git -cjf ${destination}.tar.bz2 ${destination}
+
+tar --exclude=".git*" -cjf ${destination}.tar.bz2 ${destination}
 rm -rf ${destination}
