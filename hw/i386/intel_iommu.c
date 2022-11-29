@@ -1834,6 +1834,8 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
     uint8_t access_flags;
     bool rid2pasid = (pasid == PCI_NO_PASID) && s->root_scalable;
     VTDIOTLBEntry *iotlb_entry;
+    const DMAMap *mapped;
+    DMAMap target;
 
     /*
      * We have standalone memory region for interrupt addresses, we
@@ -1954,6 +1956,21 @@ out:
     entry->translated_addr = vtd_get_slpte_addr(slpte, s->aw_bits) & page_mask;
     entry->addr_mask = ~page_mask;
     entry->perm = access_flags;
+
+    target.iova = entry->iova;
+    target.size = entry->addr_mask;
+    target.translated_addr = entry->translated_addr;
+    target.perm = entry->perm;
+
+    mapped = iova_tree_find(vtd_as->iova_tree, &target);
+    if (!mapped) {
+        /* To make UNMAP notifier work, we need build iova tree here
+         * in order to have the UNMAP iommu notifier to be triggered
+         * during the page walk.
+         */
+        iova_tree_insert(vtd_as->iova_tree, &target);
+    }
+
     return true;
 
 error:
@@ -2161,31 +2178,7 @@ static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
         ret = vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
                                        vtd_as->devfn, &ce);
         if (!ret && domain_id == vtd_get_domain_id(s, &ce, vtd_as->pasid)) {
-            if (vtd_as_has_map_notifier(vtd_as)) {
-                /*
-                 * As long as we have MAP notifications registered in
-                 * any of our IOMMU notifiers, we need to sync the
-                 * shadow page table.
-                 */
-                vtd_sync_shadow_page_table_range(vtd_as, &ce, addr, size);
-            } else {
-                /*
-                 * For UNMAP-only notifiers, we don't need to walk the
-                 * page tables.  We just deliver the PSI down to
-                 * invalidate caches.
-                 */
-                IOMMUTLBEvent event = {
-                    .type = IOMMU_NOTIFIER_UNMAP,
-                    .entry = {
-                        .target_as = &address_space_memory,
-                        .iova = addr,
-                        .translated_addr = 0,
-                        .addr_mask = size - 1,
-                        .perm = IOMMU_NONE,
-                    },
-                };
-                memory_region_notify_iommu(&vtd_as->iommu, 0, event);
-            }
+            vtd_sync_shadow_page_table_range(vtd_as, &ce, addr, size);
         }
     }
 }
