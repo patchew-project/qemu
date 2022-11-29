@@ -488,6 +488,7 @@ static uint16_t full_GEN9_GA3[] = {
 static uint16_t full_GEN10_GA1[] = {
     S390_FEAT_EDAT,
     S390_FEAT_CONFIGURATION_TOPOLOGY,
+    S390_FEAT_DISABLE_CPU_TOPOLOGY,
     S390_FEAT_GROUP_MSA_EXT_2,
     S390_FEAT_ESOP,
     S390_FEAT_SIE_PFMFI,
@@ -605,6 +606,8 @@ static uint16_t default_GEN9_GA1[] = {
 static uint16_t default_GEN10_GA1[] = {
     S390_FEAT_EDAT,
     S390_FEAT_GROUP_MSA_EXT_2,
+    S390_FEAT_DISABLE_CPU_TOPOLOGY,
+    S390_FEAT_CONFIGURATION_TOPOLOGY,
 };
 
 #define default_GEN10_GA2 EmptyFeat

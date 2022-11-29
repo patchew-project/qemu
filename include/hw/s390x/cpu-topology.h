@@ -36,9 +36,6 @@ struct S390Topology {
 #define TYPE_S390_CPU_TOPOLOGY "s390-topology"
 OBJECT_DECLARE_SIMPLE_TYPE(S390Topology, S390_CPU_TOPOLOGY)
 
-static inline bool s390_has_topology(void)
-{
-    return false;
-}
+bool s390_has_topology(void);
 
 #endif

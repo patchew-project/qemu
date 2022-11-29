@@ -15,6 +15,11 @@
 #include "hw/s390x/cpu-topology.h"
 #include "hw/s390x/sclp.h"
 
+bool s390_has_topology(void)
+{
+    return s390_has_feat(S390_FEAT_CONFIGURATION_TOPOLOGY);
+}
+
 /*
  * s390_topology_add_cpu:
  * @topo: pointer to the topology

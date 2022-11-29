@@ -253,6 +253,7 @@ bool s390_has_feat(S390Feat feat)
         case S390_FEAT_SIE_CMMA:
         case S390_FEAT_SIE_PFMFI:
         case S390_FEAT_SIE_IBS:
+        case S390_FEAT_CONFIGURATION_TOPOLOGY:
             return false;
             break;
         default:
@@ -419,6 +420,21 @@ void s390_cpu_list(void)
         const S390FeatGroupDef *def = s390_feat_group_def(group);
 
         qemu_printf("%-20s %s\n", def->name, def->desc);
+    }
+}
+
+static void check_incompatibility(S390CPUModel *model, Error **errp)
+{
+    static int dep[][2] = {
+        { S390_FEAT_CONFIGURATION_TOPOLOGY, S390_FEAT_DISABLE_CPU_TOPOLOGY },
+    };
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(dep); i++) {
+        if (test_bit(dep[i][0], model->features) &&
+            test_bit(dep[i][1], model->features)) {
+            clear_bit(dep[i][0], model->features);
+        }
     }
 }
 
@@ -592,6 +608,7 @@ void s390_realize_cpu_model(CPUState *cs, Error **errp)
     cpu->model->cpu_id_format = max_model->cpu_id_format;
     cpu->model->cpu_ver = max_model->cpu_ver;
 
+    check_incompatibility(cpu->model, &err);
     check_consistency(cpu->model);
     check_compatibility(max_model, cpu->model, &err);
     if (err) {
