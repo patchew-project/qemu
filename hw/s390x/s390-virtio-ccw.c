@@ -64,11 +64,10 @@ S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
     return S390_CPU(ms->possible_cpus->cpus[cpu_addr].cpu);
 }
 
-static S390CPU *s390x_new_cpu(const char *typename, uint32_t core_id,
-                              Error **errp)
+static void s390x_new_cpu(MachineState *ms, uint32_t core_id, Error **errp)
 {
-    S390CPU *cpu = S390_CPU(object_new(typename));
-    S390CPU *ret = NULL;
+    S390CcwMachineState *s390ms = S390_CCW_MACHINE(ms);
+    S390CPU *cpu = S390_CPU(object_new(ms->cpu_type));
 
     if (!object_property_set_int(OBJECT(cpu), "core-id", core_id, errp)) {
         goto out;
@@ -76,11 +75,10 @@ static S390CPU *s390x_new_cpu(const char *typename, uint32_t core_id,
     if (!qdev_realize(DEVICE(cpu), NULL, errp)) {
         goto out;
     }
-    ret = cpu;
+    cpu->machine_data = s390ms;
 
 out:
     object_unref(OBJECT(cpu));
-    return ret;
 }
 
 static void s390_init_cpus(MachineState *machine)
@@ -99,7 +97,7 @@ static void s390_init_cpus(MachineState *machine)
     mc->possible_cpu_arch_ids(machine);
 
     for (i = 0; i < machine->smp.cpus; i++) {
-        s390x_new_cpu(machine->cpu_type, i, &error_fatal);
+        s390x_new_cpu(machine, i, &error_fatal);
     }
 }
 
