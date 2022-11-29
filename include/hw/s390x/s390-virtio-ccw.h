@@ -28,6 +28,7 @@ struct S390CcwMachineState {
     bool dea_key_wrap;
     bool pv;
     uint8_t loadparm[8];
+    DeviceState *topology;
 };
 
 struct S390CcwMachineClass {

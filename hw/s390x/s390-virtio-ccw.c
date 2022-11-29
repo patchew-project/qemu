@@ -44,6 +44,7 @@
 #include "hw/s390x/pv.h"
 #include "migration/blocker.h"
 #include "qapi/visitor.h"
+#include "hw/s390x/cpu-topology.h"
 
 static Error *pv_mig_blocker;
 
@@ -100,6 +101,24 @@ static void s390_init_cpus(MachineState *machine)
     for (i = 0; i < machine->smp.cpus; i++) {
         s390x_new_cpu(machine->cpu_type, i, &error_fatal);
     }
+}
+
+static DeviceState *s390_init_topology(MachineState *machine, Error **errp)
+{
+    DeviceState *dev;
+
+    dev = qdev_new(TYPE_S390_CPU_TOPOLOGY);
+
+    object_property_add_child(&machine->parent_obj,
+                              TYPE_S390_CPU_TOPOLOGY, OBJECT(dev));
+    object_property_set_int(OBJECT(dev), "num-cores",
+                            machine->smp.cores * machine->smp.threads, errp);
+    object_property_set_int(OBJECT(dev), "num-sockets",
+                            machine->smp.sockets, errp);
+
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), errp);
+
+    return dev;
 }
 
 static const char *const reset_dev_types[] = {
@@ -254,6 +273,12 @@ static void ccw_init(MachineState *machine)
 
     /* init CPUs (incl. CPU model) early so s390_has_feature() works */
     s390_init_cpus(machine);
+
+    /* Need CPU model to be determined before we can set up topology */
+    if (s390_has_topology()) {
+        S390_CCW_MACHINE(machine)->topology = s390_init_topology(machine,
+                                                                 &error_fatal);
+    }
 
     /* Need CPU model to be determined before we can set up PV */
     s390_pv_init(machine->cgs, &error_fatal);
