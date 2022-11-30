@@ -590,13 +590,13 @@ static int do_constant_folding_cond2(TCGArg *p1, TCGArg *p2, TCGCond c)
     TCGArg bl = p2[0], bh = p2[1];
 
     if (arg_is_const(bl) && arg_is_const(bh)) {
-        tcg_target_ulong blv = arg_info(bl)->val;
-        tcg_target_ulong bhv = arg_info(bh)->val;
+        uintptr_t blv = arg_info(bl)->val;
+        uintptr_t bhv = arg_info(bh)->val;
         uint64_t b = deposit64(blv, 32, 32, bhv);
 
         if (arg_is_const(al) && arg_is_const(ah)) {
-            tcg_target_ulong alv = arg_info(al)->val;
-            tcg_target_ulong ahv = arg_info(ah)->val;
+            uintptr_t alv = arg_info(al)->val;
+            uintptr_t ahv = arg_info(ah)->val;
             uint64_t a = deposit64(alv, 32, 32, ahv);
             return do_constant_folding_cond_64(a, b, c);
         }

@@ -897,7 +897,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
         FILE *logfile = qemu_log_trylock();
         if (logfile) {
             int code_size, data_size;
-            const tcg_target_ulong *rx_data_gen_ptr;
+            const uintptr_t *rx_data_gen_ptr;
             size_t chunk_start;
             int insn = 0;
 
@@ -946,14 +946,14 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
             if (data_size) {
                 int i;
                 fprintf(logfile, "  data: [size=%d]\n", data_size);
-                for (i = 0; i < data_size / sizeof(tcg_target_ulong); i++) {
-                    if (sizeof(tcg_target_ulong) == 8) {
+                for (i = 0; i < data_size / sizeof(uintptr_t); i++) {
+                    if (sizeof(uintptr_t) == 8) {
                         fprintf(logfile,
-                                "0x%08" PRIxPTR ":  .quad  0x%016" TCG_PRIlx "\n",
+                                "0x%08" PRIxPTR ":  .quad  0x%016" PRIxPTR "\n",
                                 (uintptr_t)&rx_data_gen_ptr[i], rx_data_gen_ptr[i]);
-                    } else if (sizeof(tcg_target_ulong) == 4) {
+                    } else if (sizeof(uintptr_t) == 4) {
                         fprintf(logfile,
-                                "0x%08" PRIxPTR ":  .long  0x%08" TCG_PRIlx "\n",
+                                "0x%08" PRIxPTR ":  .long  0x%08" PRIxPTR "\n",
                                 (uintptr_t)&rx_data_gen_ptr[i], rx_data_gen_ptr[i]);
                     } else {
                         qemu_build_not_reached();

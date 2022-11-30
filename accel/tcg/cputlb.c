@@ -2029,8 +2029,8 @@ static uint64_t full_ldub_mmu(CPUArchState *env, target_ulong addr,
     return load_helper(env, addr, oi, retaddr, MO_UB, false, full_ldub_mmu);
 }
 
-tcg_target_ulong helper_ret_ldub_mmu(CPUArchState *env, target_ulong addr,
-                                     MemOpIdx oi, uintptr_t retaddr)
+uintptr_t helper_ret_ldub_mmu(CPUArchState *env, target_ulong addr,
+                              MemOpIdx oi, uintptr_t retaddr)
 {
     return full_ldub_mmu(env, addr, oi, retaddr);
 }
@@ -2043,8 +2043,8 @@ static uint64_t full_le_lduw_mmu(CPUArchState *env, target_ulong addr,
                        full_le_lduw_mmu);
 }
 
-tcg_target_ulong helper_le_lduw_mmu(CPUArchState *env, target_ulong addr,
-                                    MemOpIdx oi, uintptr_t retaddr)
+uintptr_t helper_le_lduw_mmu(CPUArchState *env, target_ulong addr,
+                             MemOpIdx oi, uintptr_t retaddr)
 {
     return full_le_lduw_mmu(env, addr, oi, retaddr);
 }
@@ -2057,8 +2057,8 @@ static uint64_t full_be_lduw_mmu(CPUArchState *env, target_ulong addr,
                        full_be_lduw_mmu);
 }
 
-tcg_target_ulong helper_be_lduw_mmu(CPUArchState *env, target_ulong addr,
-                                    MemOpIdx oi, uintptr_t retaddr)
+uintptr_t helper_be_lduw_mmu(CPUArchState *env, target_ulong addr,
+                             MemOpIdx oi, uintptr_t retaddr)
 {
     return full_be_lduw_mmu(env, addr, oi, retaddr);
 }
@@ -2071,8 +2071,8 @@ static uint64_t full_le_ldul_mmu(CPUArchState *env, target_ulong addr,
                        full_le_ldul_mmu);
 }
 
-tcg_target_ulong helper_le_ldul_mmu(CPUArchState *env, target_ulong addr,
-                                    MemOpIdx oi, uintptr_t retaddr)
+uintptr_t helper_le_ldul_mmu(CPUArchState *env, target_ulong addr,
+                             MemOpIdx oi, uintptr_t retaddr)
 {
     return full_le_ldul_mmu(env, addr, oi, retaddr);
 }
@@ -2085,8 +2085,8 @@ static uint64_t full_be_ldul_mmu(CPUArchState *env, target_ulong addr,
                        full_be_ldul_mmu);
 }
 
-tcg_target_ulong helper_be_ldul_mmu(CPUArchState *env, target_ulong addr,
-                                    MemOpIdx oi, uintptr_t retaddr)
+uintptr_t helper_be_ldul_mmu(CPUArchState *env, target_ulong addr,
+                             MemOpIdx oi, uintptr_t retaddr)
 {
     return full_be_ldul_mmu(env, addr, oi, retaddr);
 }
@@ -2113,32 +2113,32 @@ uint64_t helper_be_ldq_mmu(CPUArchState *env, target_ulong addr,
  */
 
 
-tcg_target_ulong helper_ret_ldsb_mmu(CPUArchState *env, target_ulong addr,
-                                     MemOpIdx oi, uintptr_t retaddr)
+uintptr_t helper_ret_ldsb_mmu(CPUArchState *env, target_ulong addr,
+                              MemOpIdx oi, uintptr_t retaddr)
 {
     return (int8_t)helper_ret_ldub_mmu(env, addr, oi, retaddr);
 }
 
-tcg_target_ulong helper_le_ldsw_mmu(CPUArchState *env, target_ulong addr,
-                                    MemOpIdx oi, uintptr_t retaddr)
+uintptr_t helper_le_ldsw_mmu(CPUArchState *env, target_ulong addr,
+                             MemOpIdx oi, uintptr_t retaddr)
 {
     return (int16_t)helper_le_lduw_mmu(env, addr, oi, retaddr);
 }
 
-tcg_target_ulong helper_be_ldsw_mmu(CPUArchState *env, target_ulong addr,
-                                    MemOpIdx oi, uintptr_t retaddr)
+uintptr_t helper_be_ldsw_mmu(CPUArchState *env, target_ulong addr,
+                             MemOpIdx oi, uintptr_t retaddr)
 {
     return (int16_t)helper_be_lduw_mmu(env, addr, oi, retaddr);
 }
 
-tcg_target_ulong helper_le_ldsl_mmu(CPUArchState *env, target_ulong addr,
-                                    MemOpIdx oi, uintptr_t retaddr)
+uintptr_t helper_le_ldsl_mmu(CPUArchState *env, target_ulong addr,
+                             MemOpIdx oi, uintptr_t retaddr)
 {
     return (int32_t)helper_le_ldul_mmu(env, addr, oi, retaddr);
 }
 
-tcg_target_ulong helper_be_ldsl_mmu(CPUArchState *env, target_ulong addr,
-                                    MemOpIdx oi, uintptr_t retaddr)
+uintptr_t helper_be_ldsl_mmu(CPUArchState *env, target_ulong addr,
+                             MemOpIdx oi, uintptr_t retaddr)
 {
     return (int32_t)helper_be_ldul_mmu(env, addr, oi, retaddr);
 }

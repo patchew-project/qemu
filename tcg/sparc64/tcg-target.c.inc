@@ -1104,7 +1104,7 @@ static TCGReg tcg_out_tlb_load(TCGContext *s, TCGReg addr, int mem_index,
     if (a_bits < s_bits) {
         a_bits = s_bits;
     }
-    compare_mask = (tcg_target_ulong)TARGET_PAGE_MASK | ((1 << a_bits) - 1);
+    compare_mask = (uintptr_t)TARGET_PAGE_MASK | ((1 << a_bits) - 1);
     if (check_fit_tl(compare_mask, 13)) {
         tcg_out_arithi(s, r2, addr, compare_mask, ARITH_AND);
     } else {

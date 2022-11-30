@@ -767,8 +767,8 @@ void tcg_prologue_init(TCGContext *s)
 
                 disas(logfile, s->code_gen_ptr, code_size);
 
-                for (i = 0; i < data_size; i += sizeof(tcg_target_ulong)) {
-                    if (sizeof(tcg_target_ulong) == 8) {
+                for (i = 0; i < data_size; i += sizeof(uintptr_t)) {
+                    if (sizeof(uintptr_t) == 8) {
                         fprintf(logfile,
                                 "0x%08" PRIxPTR ":  .quad  0x%016" PRIx64 "\n",
                                 (uintptr_t)s->data_gen_ptr + i,
@@ -1855,7 +1855,7 @@ static void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
                     && cond_name[op->args[k]]) {
                     col += ne_fprintf(f, ",%s", cond_name[op->args[k++]]);
                 } else {
-                    col += ne_fprintf(f, ",$0x%" TCG_PRIlx, op->args[k++]);
+                    col += ne_fprintf(f, ",$0x%" PRIxPTR, op->args[k++]);
                 }
                 i = 1;
                 break;
@@ -1895,7 +1895,7 @@ static void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
                     if (name) {
                         col += ne_fprintf(f, ",%s", name);
                     } else {
-                        col += ne_fprintf(f, ",$0x%" TCG_PRIlx, flags);
+                        col += ne_fprintf(f, ",$0x%" PRIxPTR, flags);
                     }
                     i = k = 1;
                 }
@@ -1918,7 +1918,7 @@ static void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
                 break;
             }
             for (; i < nb_cargs; i++, k++) {
-                col += ne_fprintf(f, "%s$0x%" TCG_PRIlx, k ? "," : "",
+                col += ne_fprintf(f, "%s$0x%" PRIxPTR, k ? "," : "",
                                   op->args[k]);
             }
         }
@@ -3350,7 +3350,7 @@ static void tcg_reg_alloc_cbranch(TCGContext *s, TCGRegSet allocated_regs)
  * Specialized code generation for INDEX_op_mov_* with a constant.
  */
 static void tcg_reg_alloc_do_movi(TCGContext *s, TCGTemp *ots,
-                                  tcg_target_ulong val, TCGLifeData arg_life,
+                                  uintptr_t val, TCGLifeData arg_life,
                                   TCGRegSet preferred_regs)
 {
     /* ENV should not be modified.  */
@@ -3394,7 +3394,7 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOp *op)
 
     if (ts->val_type == TEMP_VAL_CONST) {
         /* propagate constant or generate sti */
-        tcg_target_ulong val = ts->val;
+        uintptr_t val = ts->val;
         if (IS_DEAD_ARG(1)) {
             temp_dead(s, ts);
         }
@@ -3492,7 +3492,7 @@ static void tcg_reg_alloc_dup(TCGContext *s, const TCGOp *op)
 
     if (its->val_type == TEMP_VAL_CONST) {
         /* Propagate constant via movi -> dupi.  */
-        tcg_target_ulong val = its->val;
+        uintptr_t val = its->val;
         if (IS_DEAD_ARG(1)) {
             temp_dead(s, its);
         }

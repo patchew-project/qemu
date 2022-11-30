@@ -64,16 +64,8 @@
 # else
 #  error Unknown pointer size for tcg target
 # endif
-#endif
-
-#if TCG_TARGET_REG_BITS == 32
-typedef uint32_t tcg_target_ulong;
-#define TCG_PRIlx PRIx32
-#elif TCG_TARGET_REG_BITS == 64
-typedef uint64_t tcg_target_ulong;
-#define TCG_PRIlx PRIx64
-#else
-#error unsupported
+#elif !(TCG_TARGET_REG_BITS == 32 || TCG_TARGET_REG_BITS == 64)
+# error unsupported
 #endif
 
 /* Oversized TCG guests make things like MTTCG hard
@@ -341,7 +333,7 @@ static inline unsigned get_alignment_bits(MemOp memop)
     return a;
 }
 
-typedef tcg_target_ulong TCGArg;
+typedef uintptr_t TCGArg;
 
 /* Define type and accessor macros for TCG variables.
 

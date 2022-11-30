@@ -787,7 +787,7 @@ static const S390Opcode lli_insns[4] = {
 static bool maybe_out_small_movi(TCGContext *s, TCGType type,
                                  TCGReg ret, intptr_t sval)
 {
-    tcg_target_ulong uval = sval;
+    uintptr_t uval = sval;
     int i;
 
     if (type == TCG_TYPE_I32) {
@@ -816,7 +816,7 @@ static bool maybe_out_small_movi(TCGContext *s, TCGType type,
 static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
                              intptr_t sval, bool in_prologue)
 {
-    tcg_target_ulong uval;
+    uintptr_t uval;
 
     /* Try all 32-bit insns that can load it in one go.  */
     if (maybe_out_small_movi(s, type, ret, sval)) {
@@ -1221,7 +1221,7 @@ static void tgen_andi(TCGContext *s, TCGType type, TCGReg dest, uint64_t val)
 
     /* Try all 32-bit insns that can perform it in one go.  */
     for (i = 0; i < 4; i++) {
-        tcg_target_ulong mask = ~(0xffffull << i * 16);
+        uintptr_t mask = ~(0xffffull << i * 16);
         if (((val | ~valid) & mask) == mask) {
             tcg_out_insn_RI(s, ni_insns[i], dest, val >> i * 16);
             return;
@@ -1231,7 +1231,7 @@ static void tgen_andi(TCGContext *s, TCGType type, TCGReg dest, uint64_t val)
     /* Try all 48-bit insns that can perform it in one go.  */
     if (HAVE_FACILITY(EXT_IMM)) {
         for (i = 0; i < 2; i++) {
-            tcg_target_ulong mask = ~(0xffffffffull << i * 32);
+            uintptr_t mask = ~(0xffffffffull << i * 32);
             if (((val | ~valid) & mask) == mask) {
                 tcg_out_insn_RIL(s, nif_insns[i], dest, val >> i * 32);
                 return;
@@ -1279,7 +1279,7 @@ static void tgen_ori(TCGContext *s, TCGType type, TCGReg dest, uint64_t val)
 
     /* Try all 32-bit insns that can perform it in one go.  */
     for (i = 0; i < 4; i++) {
-        tcg_target_ulong mask = (0xffffull << i * 16);
+        uintptr_t mask = (0xffffull << i * 16);
         if ((val & mask) != 0 && (val & ~mask) == 0) {
             tcg_out_insn_RI(s, oi_insns[i], dest, val >> i * 16);
             return;
@@ -1289,7 +1289,7 @@ static void tgen_ori(TCGContext *s, TCGType type, TCGReg dest, uint64_t val)
     /* Try all 48-bit insns that can perform it in one go.  */
     if (HAVE_FACILITY(EXT_IMM)) {
         for (i = 0; i < 2; i++) {
-            tcg_target_ulong mask = (0xffffffffull << i * 32);
+            uintptr_t mask = (0xffffffffull << i * 32);
             if ((val & mask) != 0 && (val & ~mask) == 0) {
                 tcg_out_insn_RIL(s, oif_insns[i], dest, val >> i * 32);
                 return;

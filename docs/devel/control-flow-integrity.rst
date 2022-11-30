@@ -100,7 +100,7 @@ with CFI. An example of the use of ``QEMU_DISABLE_CFI`` is provided here::
 	 * affect the impact of CFI in environment with high security requirements
 	 */
 	QEMU_DISABLE_CFI
-	static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, TranslationBlock *itb)
+	static inline uintptr_t cpu_tb_exec(CPUState *cpu, TranslationBlock *itb)
 
 NOTE: CFI needs to be disabled at the **caller** function, (i.e. a compatible
 cfi function that calls a non-compatible one), since the check is performed

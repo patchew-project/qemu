@@ -38,7 +38,7 @@
 
 __thread uintptr_t tci_tb_ptr;
 
-static void tci_write_reg64(tcg_target_ulong *regs, uint32_t high_index,
+static void tci_write_reg64(uintptr_t *regs, uint32_t high_index,
                             uint32_t low_index, uint64_t value)
 {
     regs[low_index] = (uint32_t)value;
@@ -59,7 +59,7 @@ static uint64_t tci_uint64(uint32_t high, uint32_t low)
  *   b = immediate (bit position)
  *   c = condition (TCGCond)
  *   i = immediate (uint32_t)
- *   I = immediate (tcg_target_ulong)
+ *   I = immediate (uintptr_t)
  *   l = label or pointer
  *   m = immediate (MemOpIdx)
  *   n = immediate (call return length)
@@ -98,7 +98,7 @@ static void tci_args_rr(uint32_t insn, TCGReg *r0, TCGReg *r1)
     *r1 = extract32(insn, 12, 4);
 }
 
-static void tci_args_ri(uint32_t insn, TCGReg *r0, tcg_target_ulong *i1)
+static void tci_args_ri(uint32_t insn, TCGReg *r0, uintptr_t *i1)
 {
     *r0 = extract32(insn, 8, 4);
     *i1 = sextract32(insn, 12, 20);
@@ -468,12 +468,12 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
                                             const void *v_tb_ptr)
 {
     const uint32_t *tb_ptr = v_tb_ptr;
-    tcg_target_ulong regs[TCG_TARGET_NB_REGS];
+    uintptr_t regs[TCG_TARGET_NB_REGS];
     uint64_t stack[(TCG_STATIC_CALL_ARGS_SIZE + TCG_STATIC_FRAME_SIZE)
                    / sizeof(uint64_t)];
     void *call_slots[TCG_STATIC_CALL_ARGS_SIZE / sizeof(uint64_t)];
 
-    regs[TCG_AREG0] = (tcg_target_ulong)env;
+    regs[TCG_AREG0] = (uintptr_t)env;
     regs[TCG_REG_CALL_STACK] = (uintptr_t)stack;
     /* Other call_slots entries initialized at first use (see below). */
     call_slots[0] = NULL;
@@ -483,7 +483,7 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
         uint32_t insn;
         TCGOpcode opc;
         TCGReg r0, r1, r2, r3, r4, r5;
-        tcg_target_ulong t1;
+        uintptr_t t1;
         TCGCond condition;
         target_ulong taddr;
         uint8_t pos, len;
@@ -588,7 +588,7 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             break;
         case INDEX_op_tci_movl:
             tci_args_rl(insn, tb_ptr, &r0, &ptr);
-            regs[r0] = *(tcg_target_ulong *)ptr;
+            regs[r0] = *(uintptr_t *)ptr;
             break;
 
             /* Load/store operations (32 bit). */
@@ -1153,7 +1153,7 @@ int print_insn_tci(bfd_vma addr, disassemble_info *info)
     uint32_t insn;
     TCGOpcode op;
     TCGReg r0, r1, r2, r3, r4, r5;
-    tcg_target_ulong i1;
+    uintptr_t i1;
     int32_t s2;
     TCGCond c;
     MemOpIdx oi;
@@ -1203,7 +1203,7 @@ int print_insn_tci(bfd_vma addr, disassemble_info *info)
 
     case INDEX_op_tci_movi:
         tci_args_ri(insn, &r0, &i1);
-        info->fprintf_func(info->stream, "%-12s  %s, 0x%" TCG_PRIlx,
+        info->fprintf_func(info->stream, "%-12s  %s, 0x%" PRIxPTR,
                            op_name, str_r(r0), i1);
         break;
 

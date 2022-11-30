@@ -26,7 +26,7 @@ typedef struct TCGLabelPoolData {
     intptr_t addend;
     int rtype;
     unsigned nlong;
-    tcg_target_ulong data[];
+    uintptr_t data[];
 } TCGLabelPoolData;
 
 
@@ -34,7 +34,7 @@ static TCGLabelPoolData *new_pool_alloc(TCGContext *s, int nlong, int rtype,
                                         tcg_insn_unit *label, intptr_t addend)
 {
     TCGLabelPoolData *n = tcg_malloc(sizeof(TCGLabelPoolData)
-                                     + sizeof(tcg_target_ulong) * nlong);
+                                     + sizeof(uintptr_t) * nlong);
 
     n->label = label;
     n->addend = addend;
@@ -56,7 +56,7 @@ static void new_pool_insert(TCGContext *s, TCGLabelPoolData *n)
         if (nlong < i->nlong) {
             continue;
         }
-        if (memcmp(n->data, i->data, sizeof(tcg_target_ulong) * nlong) >= 0) {
+        if (memcmp(n->data, i->data, sizeof(uintptr_t) * nlong) >= 0) {
             break;
         }
     }
@@ -65,7 +65,7 @@ static void new_pool_insert(TCGContext *s, TCGLabelPoolData *n)
 }
 
 /* The "usual" for generic integer code.  */
-static inline void new_pool_label(TCGContext *s, tcg_target_ulong d, int rtype,
+static inline void new_pool_label(TCGContext *s, uintptr_t d, int rtype,
                                   tcg_insn_unit *label, intptr_t addend)
 {
     TCGLabelPoolData *n = new_pool_alloc(s, 1, rtype, label, addend);
@@ -75,8 +75,8 @@ static inline void new_pool_label(TCGContext *s, tcg_target_ulong d, int rtype,
 
 /* For v64 or v128, depending on the host.  */
 static inline void new_pool_l2(TCGContext *s, int rtype, tcg_insn_unit *label,
-                               intptr_t addend, tcg_target_ulong d0,
-                               tcg_target_ulong d1)
+                               intptr_t addend, uintptr_t d0,
+                               uintptr_t d1)
 {
     TCGLabelPoolData *n = new_pool_alloc(s, 2, rtype, label, addend);
     n->data[0] = d0;
@@ -86,9 +86,9 @@ static inline void new_pool_l2(TCGContext *s, int rtype, tcg_insn_unit *label,
 
 /* For v128 or v256, depending on the host.  */
 static inline void new_pool_l4(TCGContext *s, int rtype, tcg_insn_unit *label,
-                               intptr_t addend, tcg_target_ulong d0,
-                               tcg_target_ulong d1, tcg_target_ulong d2,
-                               tcg_target_ulong d3)
+                               intptr_t addend, uintptr_t d0,
+                               uintptr_t d1, uintptr_t d2,
+                               uintptr_t d3)
 {
     TCGLabelPoolData *n = new_pool_alloc(s, 4, rtype, label, addend);
     n->data[0] = d0;
@@ -100,11 +100,11 @@ static inline void new_pool_l4(TCGContext *s, int rtype, tcg_insn_unit *label,
 
 /* For v256, for 32-bit host.  */
 static inline void new_pool_l8(TCGContext *s, int rtype, tcg_insn_unit *label,
-                               intptr_t addend, tcg_target_ulong d0,
-                               tcg_target_ulong d1, tcg_target_ulong d2,
-                               tcg_target_ulong d3, tcg_target_ulong d4,
-                               tcg_target_ulong d5, tcg_target_ulong d6,
-                               tcg_target_ulong d7)
+                               intptr_t addend, uintptr_t d0,
+                               uintptr_t d1, uintptr_t d2,
+                               uintptr_t d3, uintptr_t d4,
+                               uintptr_t d5, uintptr_t d6,
+                               uintptr_t d7)
 {
     TCGLabelPoolData *n = new_pool_alloc(s, 8, rtype, label, addend);
     n->data[0] = d0;
@@ -134,12 +134,12 @@ static int tcg_out_pool_finalize(TCGContext *s)
     /* ??? Round up to qemu_icache_linesize, but then do not round
        again when allocating the next TranslationBlock structure.  */
     a = (void *)ROUND_UP((uintptr_t)s->code_ptr,
-                         sizeof(tcg_target_ulong) * p->nlong);
+                         sizeof(uintptr_t) * p->nlong);
     tcg_out_nop_fill(s->code_ptr, (tcg_insn_unit *)a - s->code_ptr);
     s->data_gen_ptr = a;
 
     for (; p != NULL; p = p->next) {
-        size_t size = sizeof(tcg_target_ulong) * p->nlong;
+        size_t size = sizeof(uintptr_t) * p->nlong;
         uintptr_t value;
 
         if (!l || l->nlong != p->nlong || memcmp(l->data, p->data, size)) {
