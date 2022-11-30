@@ -62,10 +62,12 @@ typedef struct VFIOMigration {
     struct VFIODevice *vbasedev;
     VMChangeStateEntry *vm_state;
     Notifier migration_state;
+    NotifierWithReturn migration_data;
     enum vfio_device_mig_state device_state;
     int data_fd;
     void *data_buffer;
     size_t data_buffer_size;
+    uint64_t stop_copy_size;
 } VFIOMigration;
 
 typedef struct VFIOAddressSpace {
