@@ -18,6 +18,7 @@ config ARM_VIRT
     select PL011 # UART
     select PL031 # RTC
     select PL061 # GPIO
+    select ARM_TIMER # sp804
     select GPIO_PWR
     select PLATFORM_BUS
     select SMBIOS

@@ -28,6 +28,7 @@ The virt board supports:
 - Flash memory
 - One PL011 UART
 - An RTC
+- Two SP804 Dual-Timers
 - The fw_cfg device that allows a guest to obtain data from QEMU
 - A PL061 GPIO controller
 - An optional SMMUv3 IOMMU
