@@ -31,10 +31,7 @@
 #endif
 #include "sysemu/tcg.h"
 #include "sysemu/kvm.h"
-#include "exec/cpu-common.h"
-#include "exec/exec-all.h"
 #include "exec/translate-all.h"
-#include "hw/core/accel-cpu.h"
 #include "trace/trace-root.h"
 #include "qemu/accel.h"
 
