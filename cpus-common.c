@@ -21,9 +21,11 @@
 #include "qemu/main-loop.h"
 #include "exec/cpu-common.h"
 #include "exec/memory.h"
+#include "exec/log.h"
 #include "hw/qdev-properties.h"
 #include "hw/core/cpu.h"
 #include "sysemu/cpus.h"
+#include "sysemu/replay.h"
 #include "qemu/lockable.h"
 #include "trace/trace-root.h"
 
@@ -492,4 +494,40 @@ void cpu_breakpoint_remove_all(CPUState *cpu, int mask)
             cpu_breakpoint_remove_by_ref(cpu, bp);
         }
     }
+}
+
+void cpu_abort(CPUState *cpu, const char *fmt, ...)
+{
+    va_list ap;
+    va_list ap2;
+
+    va_start(ap, fmt);
+    va_copy(ap2, ap);
+    fprintf(stderr, "qemu: fatal: ");
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+    cpu_dump_state(cpu, stderr, CPU_DUMP_FPU | CPU_DUMP_CCOP);
+    if (qemu_log_separate()) {
+        FILE *logfile = qemu_log_trylock();
+        if (logfile) {
+            fprintf(logfile, "qemu: fatal: ");
+            vfprintf(logfile, fmt, ap2);
+            fprintf(logfile, "\n");
+            cpu_dump_state(cpu, logfile, CPU_DUMP_FPU | CPU_DUMP_CCOP);
+            qemu_log_unlock(logfile);
+        }
+    }
+    va_end(ap2);
+    va_end(ap);
+    replay_finish();
+#if defined(CONFIG_USER_ONLY)
+    {
+        struct sigaction act;
+        sigfillset(&act.sa_mask);
+        act.sa_handler = SIG_DFL;
+        act.sa_flags = 0;
+        sigaction(SIGABRT, &act, NULL);
+    }
+#endif
+    abort();
 }
