@@ -360,7 +360,7 @@ int vhost_backend_update_device_iotlb(struct vhost_dev *dev,
     if (dev->vhost_ops && dev->vhost_ops->vhost_send_device_iotlb_msg)
         return dev->vhost_ops->vhost_send_device_iotlb_msg(dev, &imsg);
 
-    return -ENODEV;
+    return 0;
 }
 
 int vhost_backend_invalidate_device_iotlb(struct vhost_dev *dev,
@@ -375,7 +375,7 @@ int vhost_backend_invalidate_device_iotlb(struct vhost_dev *dev,
     if (dev->vhost_ops && dev->vhost_ops->vhost_send_device_iotlb_msg)
         return dev->vhost_ops->vhost_send_device_iotlb_msg(dev, &imsg);
 
-    return -ENODEV;
+    return 0;
 }
 
 int vhost_backend_handle_iotlb_msg(struct vhost_dev *dev,
