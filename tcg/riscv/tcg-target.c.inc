@@ -136,7 +136,7 @@ static const int tcg_target_call_oarg_regs[] = {
 #endif
 
 
-static inline tcg_target_long sextreg(tcg_target_long val, int pos, int len)
+static inline intptr_t sextreg(intptr_t val, int pos, int len)
 {
     if (TCG_TARGET_REG_BITS == 32) {
         return sextract32(val, pos, len);
@@ -479,9 +479,9 @@ static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
 }
 
 static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
-                         tcg_target_long val)
+                         intptr_t val)
 {
-    tcg_target_long lo, hi, tmp;
+    intptr_t lo, hi, tmp;
     int shift, ret;
 
     if (TCG_TARGET_REG_BITS == 64 && type == TCG_TYPE_I32) {
@@ -810,8 +810,8 @@ static void tcg_out_call_int(TCGContext *s, const tcg_insn_unit *arg, bool tail)
         tcg_debug_assert(ret == true);
     } else if (TCG_TARGET_REG_BITS == 64) {
         /* far jump: 64-bit */
-        tcg_target_long imm = sextreg((tcg_target_long)arg, 0, 12);
-        tcg_target_long base = (tcg_target_long)arg - imm;
+        intptr_t imm = sextreg((intptr_t)arg, 0, 12);
+        intptr_t base = (intptr_t)arg - imm;
         tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_TMP0, base);
         tcg_out_opc_imm(s, OPC_JALR, link, TCG_REG_TMP0, imm);
     } else {
@@ -911,7 +911,7 @@ static void tcg_out_tlb_load(TCGContext *s, TCGReg addrl,
     MemOp opc = get_memop(oi);
     unsigned s_bits = opc & MO_SIZE;
     unsigned a_bits = get_alignment_bits(opc);
-    tcg_target_long compare_mask;
+    intptr_t compare_mask;
     int mem_index = get_mmuidx(oi);
     int fast_ofs = TLB_MASK_TABLE_OFS(mem_index);
     int mask_ofs = fast_ofs + offsetof(CPUTLBDescFast, mask);
@@ -938,7 +938,7 @@ static void tcg_out_tlb_load(TCGContext *s, TCGReg addrl,
         a_bits = s_bits;
     }
     /* Clear the non-page, non-alignment bits from the address.  */
-    compare_mask = (tcg_target_long)TARGET_PAGE_MASK | ((1 << a_bits) - 1);
+    compare_mask = (intptr_t)TARGET_PAGE_MASK | ((1 << a_bits) - 1);
     if (compare_mask == sextreg(compare_mask, 0, 12)) {
         tcg_out_opc_imm(s, OPC_ANDI, TCG_REG_TMP1, addrl, compare_mask);
     } else {
@@ -1000,7 +1000,7 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
     tcg_out_mov(s, TCG_TYPE_PTR, a0, TCG_AREG0);
     tcg_out_mov(s, TCG_TYPE_PTR, a1, l->addrlo_reg);
     tcg_out_movi(s, TCG_TYPE_PTR, a2, oi);
-    tcg_out_movi(s, TCG_TYPE_PTR, a3, (tcg_target_long)l->raddr);
+    tcg_out_movi(s, TCG_TYPE_PTR, a3, (intptr_t)l->raddr);
 
     tcg_out_call(s, qemu_ld_helpers[opc & MO_SSIZE]);
     tcg_out_mov(s, (opc & MO_SIZE) == MO_64, l->datalo_reg, a0);
@@ -1045,7 +1045,7 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
         break;
     }
     tcg_out_movi(s, TCG_TYPE_PTR, a3, oi);
-    tcg_out_movi(s, TCG_TYPE_PTR, a4, (tcg_target_long)l->raddr);
+    tcg_out_movi(s, TCG_TYPE_PTR, a4, (intptr_t)l->raddr);
 
     tcg_out_call(s, qemu_st_helpers[opc & MO_SIZE]);
 

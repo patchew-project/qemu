@@ -2015,8 +2015,8 @@ load_helper(CPUArchState *env, target_ulong addr, MemOpIdx oi,
 /*
  * For the benefit of TCG generated code, we want to avoid the
  * complication of ABI-specific return type promotion and always
- * return a value extended to the register size of the host. This is
- * tcg_target_long, except in the case of a 32-bit host and 64-bit
+ * return a value extended to the register size of the host. This
+ * is intptr_t, except in the case of a 32-bit host and 64-bit
  * data, and for that we always have uint64_t.
  *
  * We don't bother with this widened value for SOFTMMU_CODE_ACCESS.

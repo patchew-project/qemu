@@ -997,7 +997,7 @@ static void tcg_out_dupi_vec(TCGContext *s, TCGType type, unsigned vece,
 }
 
 static void tcg_out_movi_vec(TCGContext *s, TCGType type,
-                             TCGReg ret, tcg_target_long arg)
+                             TCGReg ret, intptr_t arg)
 {
     if (arg == 0) {
         tcg_out_vex_modrm(s, OPC_PXOR, ret, ret, ret);
@@ -1018,9 +1018,9 @@ static void tcg_out_movi_vec(TCGContext *s, TCGType type,
 }
 
 static void tcg_out_movi_int(TCGContext *s, TCGType type,
-                             TCGReg ret, tcg_target_long arg)
+                             TCGReg ret, intptr_t arg)
 {
-    tcg_target_long diff;
+    intptr_t diff;
 
     if (arg == 0) {
         tgen_arithr(s, ARITH_XOR, ret, ret);
@@ -1051,7 +1051,7 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type,
 }
 
 static void tcg_out_movi(TCGContext *s, TCGType type,
-                         TCGReg ret, tcg_target_long arg)
+                         TCGReg ret, intptr_t arg)
 {
     switch (type) {
     case TCG_TYPE_I32:
@@ -1069,7 +1069,7 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
     }
 }
 
-static inline void tcg_out_pushi(TCGContext *s, tcg_target_long val)
+static inline void tcg_out_pushi(TCGContext *s, intptr_t val)
 {
     if (val == (int8_t)val) {
         tcg_out_opc(s, OPC_PUSH_Ib, 0, 0, 0);
@@ -1278,7 +1278,7 @@ static inline void tcg_out_bswap64(TCGContext *s, int reg)
 }
 
 static void tgen_arithi(TCGContext *s, int c, int r0,
-                        tcg_target_long val, int cf)
+                        intptr_t val, int cf)
 {
     int rexw = 0;
 
@@ -1338,7 +1338,7 @@ static void tgen_arithi(TCGContext *s, int c, int r0,
     tcg_abort();
 }
 
-static void tcg_out_addi(TCGContext *s, int reg, tcg_target_long val)
+static void tcg_out_addi(TCGContext *s, int reg, intptr_t val)
 {
     if (val != 0) {
         tgen_arithi(s, ARITH_ADD + P_REXW, reg, val, 0);
@@ -1902,7 +1902,7 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 #endif
     case MO_UB:
     case MO_UW:
-        /* Note that the helpers have zero-extended to tcg_target_long.  */
+        /* Note that the helpers have zero-extended to intptr_t.  */
     case MO_UL:
         tcg_out_mov(s, TCG_TYPE_I32, data_reg, TCG_REG_EAX);
         break;

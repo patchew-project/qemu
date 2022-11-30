@@ -106,7 +106,7 @@ static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1,
                        intptr_t arg2);
 static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg);
 static void tcg_out_movi(TCGContext *s, TCGType type,
-                         TCGReg ret, tcg_target_long arg);
+                         TCGReg ret, intptr_t arg);
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS]);
@@ -3888,7 +3888,7 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
     }
 
     /* assign stack slots first */
-    call_stack_size = (nb_iargs - nb_regs) * sizeof(tcg_target_long);
+    call_stack_size = (nb_iargs - nb_regs) * sizeof(intptr_t);
     call_stack_size = (call_stack_size + TCG_TARGET_STACK_ALIGN - 1) & 
         ~(TCG_TARGET_STACK_ALIGN - 1);
     allocate_args = (call_stack_size > TCG_STATIC_CALL_ARGS_SIZE);
@@ -3902,7 +3902,7 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
     for (i = nb_regs; i < nb_iargs; i++) {
         arg = op->args[nb_oargs + i];
 #ifdef TCG_TARGET_STACK_GROWSUP
-        stack_offset -= sizeof(tcg_target_long);
+        stack_offset -= sizeof(intptr_t);
 #endif
         if (arg != TCG_CALL_DUMMY_ARG) {
             ts = arg_temp(arg);
@@ -3911,7 +3911,7 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
             tcg_out_st(s, ts->type, ts->reg, TCG_REG_CALL_STACK, stack_offset);
         }
 #ifndef TCG_TARGET_STACK_GROWSUP
-        stack_offset += sizeof(tcg_target_long);
+        stack_offset += sizeof(intptr_t);
 #endif
     }
     

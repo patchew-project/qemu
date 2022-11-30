@@ -785,7 +785,7 @@ static const S390Opcode lli_insns[4] = {
 };
 
 static bool maybe_out_small_movi(TCGContext *s, TCGType type,
-                                 TCGReg ret, tcg_target_long sval)
+                                 TCGReg ret, intptr_t sval)
 {
     tcg_target_ulong uval = sval;
     int i;
@@ -802,7 +802,7 @@ static bool maybe_out_small_movi(TCGContext *s, TCGType type,
     }
 
     for (i = 0; i < 4; i++) {
-        tcg_target_long mask = 0xffffull << i * 16;
+        intptr_t mask = 0xffffull << i * 16;
         if ((uval & mask) == uval) {
             tcg_out_insn_RI(s, lli_insns[i], ret, uval >> i * 16);
             return true;
@@ -814,7 +814,7 @@ static bool maybe_out_small_movi(TCGContext *s, TCGType type,
 
 /* load a register with an immediate value */
 static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
-                             tcg_target_long sval, bool in_prologue)
+                             intptr_t sval, bool in_prologue)
 {
     tcg_target_ulong uval;
 
@@ -889,7 +889,7 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
 }
 
 static void tcg_out_movi(TCGContext *s, TCGType type,
-                         TCGReg ret, tcg_target_long sval)
+                         TCGReg ret, intptr_t sval)
 {
     tcg_out_movi_int(s, type, ret, sval, false);
 }
@@ -902,12 +902,12 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
 
 static void tcg_out_mem(TCGContext *s, S390Opcode opc_rx, S390Opcode opc_rxy,
                         TCGReg data, TCGReg base, TCGReg index,
-                        tcg_target_long ofs)
+                        intptr_t ofs)
 {
     if (ofs < -0x80000 || ofs >= 0x80000) {
         /* Combine the low 20 bits of the offset with the actual load insn;
            the high 44 bits must come from an immediate load.  */
-        tcg_target_long low = ((ofs & 0xfffff) ^ 0x80000) - 0x80000;
+        intptr_t low = ((ofs & 0xfffff) ^ 0x80000) - 0x80000;
         tcg_out_movi(s, TCG_TYPE_PTR, TCG_TMP0, ofs - low);
         ofs = low;
 
@@ -927,7 +927,7 @@ static void tcg_out_mem(TCGContext *s, S390Opcode opc_rx, S390Opcode opc_rxy,
 
 static void tcg_out_vrx_mem(TCGContext *s, S390Opcode opc_vrx,
                             TCGReg data, TCGReg base, TCGReg index,
-                            tcg_target_long ofs, int m3)
+                            intptr_t ofs, int m3)
 {
     if (ofs < 0 || ofs >= 0x1000) {
         if (ofs >= -0x80000 && ofs < 0x80000) {
@@ -1992,7 +1992,7 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 }
 
 static void tcg_prepare_user_ldst(TCGContext *s, TCGReg *addr_reg,
-                                  TCGReg *index_reg, tcg_target_long *disp)
+                                  TCGReg *index_reg, intptr_t *disp)
 {
     if (TARGET_LONG_BITS == 32) {
         tgen_ext32u(s, TCG_TMP0, *addr_reg);
@@ -2028,7 +2028,7 @@ static void tcg_out_qemu_ld(TCGContext* s, TCGReg data_reg, TCGReg addr_reg,
     add_qemu_ldst_label(s, 1, oi, data_reg, addr_reg, s->code_ptr, label_ptr);
 #else
     TCGReg index_reg;
-    tcg_target_long disp;
+    intptr_t disp;
     unsigned a_bits = get_alignment_bits(opc);
 
     if (a_bits) {
@@ -2059,7 +2059,7 @@ static void tcg_out_qemu_st(TCGContext* s, TCGReg data_reg, TCGReg addr_reg,
     add_qemu_ldst_label(s, 0, oi, data_reg, addr_reg, s->code_ptr, label_ptr);
 #else
     TCGReg index_reg;
-    tcg_target_long disp;
+    intptr_t disp;
     unsigned a_bits = get_alignment_bits(opc);
 
     if (a_bits) {

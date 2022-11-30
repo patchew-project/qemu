@@ -535,7 +535,7 @@ static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
 }
 
 static void tcg_out_movi(TCGContext *s, TCGType type,
-                         TCGReg ret, tcg_target_long arg)
+                         TCGReg ret, intptr_t arg)
 {
     switch (type) {
     case TCG_TYPE_I32:

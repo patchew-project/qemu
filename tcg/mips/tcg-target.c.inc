@@ -189,7 +189,7 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
 #endif
 
 
-static bool is_p2m1(tcg_target_long val)
+static bool is_p2m1(intptr_t val)
 {
     return val && ((val + 1) & val) == 0;
 }
@@ -520,7 +520,7 @@ static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
 }
 
 static void tcg_out_movi(TCGContext *s, TCGType type,
-                         TCGReg ret, tcg_target_long arg)
+                         TCGReg ret, intptr_t arg)
 {
     if (TCG_TARGET_REG_BITS == 64 && type == TCG_TYPE_I32) {
         arg = (int32_t)arg;

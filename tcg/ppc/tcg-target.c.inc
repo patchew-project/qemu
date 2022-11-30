@@ -208,7 +208,7 @@ static const int tcg_target_callee_save_regs[] = {
     TCG_REG_R31
 };
 
-static inline bool in_range_b(tcg_target_long target)
+static inline bool in_range_b(intptr_t target)
 {
     return target == sextract64(target, 0, 26);
 }
@@ -701,7 +701,7 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
 }
 
 static void tcg_out_mem_long(TCGContext *s, int opi, int opx, TCGReg rt,
-                             TCGReg base, tcg_target_long offset);
+                             TCGReg base, intptr_t offset);
 
 static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
 {
@@ -924,7 +924,7 @@ static void tcg_out_bswap64(TCGContext *s, TCGReg dst, TCGReg src)
 }
 
 /* Emit a move into ret of arg, if it can be done in one insn.  */
-static bool tcg_out_movi_one(TCGContext *s, TCGReg ret, tcg_target_long arg)
+static bool tcg_out_movi_one(TCGContext *s, TCGReg ret, intptr_t arg)
 {
     if (arg == (int16_t)arg) {
         tcg_out32(s, ADDI | TAI(ret, 0, arg));
@@ -938,10 +938,10 @@ static bool tcg_out_movi_one(TCGContext *s, TCGReg ret, tcg_target_long arg)
 }
 
 static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
-                             tcg_target_long arg, bool in_prologue)
+                             intptr_t arg, bool in_prologue)
 {
     intptr_t tb_diff;
-    tcg_target_long tmp;
+    intptr_t tmp;
     int shift;
 
     tcg_debug_assert(TCG_TARGET_REG_BITS == 64 || type == TCG_TYPE_I32);
@@ -1104,7 +1104,7 @@ static void tcg_out_dupi_vec(TCGContext *s, TCGType type, unsigned vece,
 }
 
 static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg ret,
-                         tcg_target_long arg)
+                         intptr_t arg)
 {
     switch (type) {
     case TCG_TYPE_I32:
@@ -1243,9 +1243,9 @@ static void tcg_out_b(TCGContext *s, int mask, const tcg_insn_unit *target)
 }
 
 static void tcg_out_mem_long(TCGContext *s, int opi, int opx, TCGReg rt,
-                             TCGReg base, tcg_target_long offset)
+                             TCGReg base, intptr_t offset)
 {
-    tcg_target_long orig = offset, l0, l1, extra = 0, align = 0;
+    intptr_t orig = offset, l0, l1, extra = 0, align = 0;
     bool is_int_store = false;
     TCGReg rs = TCG_REG_TMP1;
 

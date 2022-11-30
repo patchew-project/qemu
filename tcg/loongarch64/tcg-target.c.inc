@@ -144,7 +144,7 @@ static const int tcg_target_call_oarg_regs[] = {
 #endif
 
 
-static inline tcg_target_long sextreg(tcg_target_long val, int pos, int len)
+static inline intptr_t sextreg(intptr_t val, int pos, int len)
 {
     return sextract64(val, pos, len);
 }
@@ -275,7 +275,7 @@ static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
 }
 
 static bool imm_part_needs_loading(bool high_bits_are_ones,
-                                   tcg_target_long part)
+                                   intptr_t part)
 {
     if (high_bits_are_ones) {
         return part != -1;
@@ -287,8 +287,8 @@ static bool imm_part_needs_loading(bool high_bits_are_ones,
 /* Loads a 32-bit immediate into rd, sign-extended.  */
 static void tcg_out_movi_i32(TCGContext *s, TCGReg rd, int32_t val)
 {
-    tcg_target_long lo = sextreg(val, 0, 12);
-    tcg_target_long hi12 = sextreg(val, 12, 20);
+    intptr_t lo = sextreg(val, 0, 12);
+    intptr_t hi12 = sextreg(val, 12, 20);
 
     /* Single-instruction cases.  */
     if (lo == val) {
@@ -310,7 +310,7 @@ static void tcg_out_movi_i32(TCGContext *s, TCGReg rd, int32_t val)
 }
 
 static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
-                         tcg_target_long val)
+                         intptr_t val)
 {
     /*
      * LoongArch conventionally loads 64-bit immediates in at most 4 steps,
@@ -333,8 +333,8 @@ static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
      */
 
     intptr_t pc_offset;
-    tcg_target_long val_lo, val_hi, pc_hi, offset_hi;
-    tcg_target_long hi32, hi52;
+    intptr_t val_lo, val_hi, pc_hi, offset_hi;
+    intptr_t hi32, hi52;
     bool rd_high_bits_are_ones;
 
     /* Value fits in signed i32.  */
@@ -554,14 +554,14 @@ static void tcg_out_call_int(TCGContext *s, const tcg_insn_unit *arg, bool tail)
         }
     } else if (offset == sextreg(offset, 0, 38)) {
         /* long jump: +/- 256GiB */
-        tcg_target_long lo = sextreg(offset, 0, 18);
-        tcg_target_long hi = offset - lo;
+        intptr_t lo = sextreg(offset, 0, 18);
+        intptr_t hi = offset - lo;
         tcg_out_opc_pcaddu18i(s, TCG_REG_TMP0, hi >> 18);
         tcg_out_opc_jirl(s, link, TCG_REG_TMP0, lo >> 2);
     } else {
         /* far jump: 64-bit */
-        tcg_target_long lo = sextreg((tcg_target_long)arg, 0, 18);
-        tcg_target_long hi = (tcg_target_long)arg - lo;
+        intptr_t lo = sextreg((intptr_t)arg, 0, 18);
+        intptr_t hi = (intptr_t)arg - lo;
         tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_TMP0, hi);
         tcg_out_opc_jirl(s, link, TCG_REG_TMP0, lo >> 2);
     }
@@ -687,7 +687,7 @@ static void tcg_out_tlb_load(TCGContext *s, TCGReg addrl, MemOpIdx oi,
     MemOp opc = get_memop(oi);
     unsigned s_bits = opc & MO_SIZE;
     unsigned a_bits = get_alignment_bits(opc);
-    tcg_target_long compare_mask;
+    intptr_t compare_mask;
     int mem_index = get_mmuidx(oi);
     int fast_ofs = TLB_MASK_TABLE_OFS(mem_index);
     int mask_ofs = fast_ofs + offsetof(CPUTLBDescFast, mask);
@@ -713,7 +713,7 @@ static void tcg_out_tlb_load(TCGContext *s, TCGReg addrl, MemOpIdx oi,
         a_bits = s_bits;
     }
     /* Clear the non-page, non-alignment bits from the address.  */
-    compare_mask = (tcg_target_long)TARGET_PAGE_MASK | ((1 << a_bits) - 1);
+    compare_mask = (intptr_t)TARGET_PAGE_MASK | ((1 << a_bits) - 1);
     tcg_out_movi(s, TCG_TYPE_TL, TCG_REG_TMP1, compare_mask);
     tcg_out_opc_and(s, TCG_REG_TMP1, TCG_REG_TMP1, addrl);
 
@@ -758,7 +758,7 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
     tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_A0, TCG_AREG0);
     tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_A1, l->addrlo_reg);
     tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_A2, oi);
-    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_A3, (tcg_target_long)l->raddr);
+    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_A3, (intptr_t)l->raddr);
 
     tcg_out_call(s, qemu_ld_helpers[size]);
 
@@ -819,7 +819,7 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
         break;
     }
     tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_A3, oi);
-    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_A4, (tcg_target_long)l->raddr);
+    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_A4, (intptr_t)l->raddr);
 
     tcg_out_call(s, qemu_st_helpers[size]);
 

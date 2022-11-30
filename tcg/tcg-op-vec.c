@@ -288,7 +288,7 @@ void tcg_gen_dup_i32_vec(unsigned vece, TCGv_vec r, TCGv_i32 a)
 }
 
 void tcg_gen_dup_mem_vec(unsigned vece, TCGv_vec r, TCGv_ptr b,
-                         tcg_target_long ofs)
+                         intptr_t ofs)
 {
     TCGArg ri = tcgv_vec_arg(r);
     TCGArg bi = tcgv_ptr_arg(b);

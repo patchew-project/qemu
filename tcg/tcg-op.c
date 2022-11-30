@@ -1122,43 +1122,43 @@ void tcg_gen_movi_i64(TCGv_i64 ret, int64_t arg)
     tcg_gen_movi_i32(TCGV_HIGH(ret), arg >> 32);
 }
 
-void tcg_gen_ld8u_i64(TCGv_i64 ret, TCGv_ptr arg2, tcg_target_long offset)
+void tcg_gen_ld8u_i64(TCGv_i64 ret, TCGv_ptr arg2, intptr_t offset)
 {
     tcg_gen_ld8u_i32(TCGV_LOW(ret), arg2, offset);
     tcg_gen_movi_i32(TCGV_HIGH(ret), 0);
 }
 
-void tcg_gen_ld8s_i64(TCGv_i64 ret, TCGv_ptr arg2, tcg_target_long offset)
+void tcg_gen_ld8s_i64(TCGv_i64 ret, TCGv_ptr arg2, intptr_t offset)
 {
     tcg_gen_ld8s_i32(TCGV_LOW(ret), arg2, offset);
     tcg_gen_sari_i32(TCGV_HIGH(ret), TCGV_LOW(ret), 31);
 }
 
-void tcg_gen_ld16u_i64(TCGv_i64 ret, TCGv_ptr arg2, tcg_target_long offset)
+void tcg_gen_ld16u_i64(TCGv_i64 ret, TCGv_ptr arg2, intptr_t offset)
 {
     tcg_gen_ld16u_i32(TCGV_LOW(ret), arg2, offset);
     tcg_gen_movi_i32(TCGV_HIGH(ret), 0);
 }
 
-void tcg_gen_ld16s_i64(TCGv_i64 ret, TCGv_ptr arg2, tcg_target_long offset)
+void tcg_gen_ld16s_i64(TCGv_i64 ret, TCGv_ptr arg2, intptr_t offset)
 {
     tcg_gen_ld16s_i32(TCGV_LOW(ret), arg2, offset);
     tcg_gen_sari_i32(TCGV_HIGH(ret), TCGV_LOW(ret), 31);
 }
 
-void tcg_gen_ld32u_i64(TCGv_i64 ret, TCGv_ptr arg2, tcg_target_long offset)
+void tcg_gen_ld32u_i64(TCGv_i64 ret, TCGv_ptr arg2, intptr_t offset)
 {
     tcg_gen_ld_i32(TCGV_LOW(ret), arg2, offset);
     tcg_gen_movi_i32(TCGV_HIGH(ret), 0);
 }
 
-void tcg_gen_ld32s_i64(TCGv_i64 ret, TCGv_ptr arg2, tcg_target_long offset)
+void tcg_gen_ld32s_i64(TCGv_i64 ret, TCGv_ptr arg2, intptr_t offset)
 {
     tcg_gen_ld_i32(TCGV_LOW(ret), arg2, offset);
     tcg_gen_sari_i32(TCGV_HIGH(ret), TCGV_LOW(ret), 31);
 }
 
-void tcg_gen_ld_i64(TCGv_i64 ret, TCGv_ptr arg2, tcg_target_long offset)
+void tcg_gen_ld_i64(TCGv_i64 ret, TCGv_ptr arg2, intptr_t offset)
 {
     /* Since arg2 and ret have different types,
        they cannot be the same temporary */
@@ -1171,7 +1171,7 @@ void tcg_gen_ld_i64(TCGv_i64 ret, TCGv_ptr arg2, tcg_target_long offset)
 #endif
 }
 
-void tcg_gen_st_i64(TCGv_i64 arg1, TCGv_ptr arg2, tcg_target_long offset)
+void tcg_gen_st_i64(TCGv_i64 arg1, TCGv_ptr arg2, intptr_t offset)
 {
 #if HOST_BIG_ENDIAN
     tcg_gen_st_i32(TCGV_HIGH(arg1), arg2, offset);

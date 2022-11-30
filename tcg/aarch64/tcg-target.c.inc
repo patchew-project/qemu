@@ -649,7 +649,7 @@ static void tcg_out_insn_3207(TCGContext *s, AArch64Insn insn, TCGReg rn)
 
 static void tcg_out_insn_3314(TCGContext *s, AArch64Insn insn,
                               TCGReg r1, TCGReg r2, TCGReg rn,
-                              tcg_target_long ofs, bool pre, bool w)
+                              intptr_t ofs, bool pre, bool w)
 {
     insn |= 1u << 31; /* ext */
     insn |= pre << 24;
@@ -1012,11 +1012,11 @@ static bool tcg_out_dupm_vec(TCGContext *s, TCGType type, unsigned vece,
 }
 
 static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
-                         tcg_target_long value)
+                         intptr_t value)
 {
-    tcg_target_long svalue = value;
-    tcg_target_long ivalue = ~value;
-    tcg_target_long t0, t1, t2;
+    intptr_t svalue = value;
+    intptr_t ivalue = ~value;
+    intptr_t t0, t1, t2;
     int s0, s1;
     AArch64Insn opc;
 
@@ -1062,7 +1062,7 @@ static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
        often when loading pointers to QEMU's own data structures.  */
     if (type == TCG_TYPE_I64) {
         intptr_t src_rx = (intptr_t)tcg_splitwx_to_rx(s->code_ptr);
-        tcg_target_long disp = value - src_rx;
+        intptr_t disp = value - src_rx;
         if (disp == sextract64(disp, 0, 21)) {
             tcg_out_insn(s, 3406, ADR, rd, disp);
             return;
@@ -1302,7 +1302,7 @@ static inline void tcg_out_dep(TCGContext *s, TCGType ext, TCGReg rd,
 }
 
 static void tcg_out_cmp(TCGContext *s, TCGType ext, TCGReg a,
-                        tcg_target_long b, bool const_b)
+                        intptr_t b, bool const_b)
 {
     if (const_b) {
         /* Using CMP or CMN aliases.  */
@@ -1453,7 +1453,7 @@ static void tcg_out_addsubi(TCGContext *s, int ext, TCGReg rd,
 
 static void tcg_out_addsub2(TCGContext *s, TCGType ext, TCGReg rl,
                             TCGReg rh, TCGReg al, TCGReg ah,
-                            tcg_target_long bl, tcg_target_long bh,
+                            intptr_t bl, intptr_t bh,
                             bool const_bl, bool const_bh, bool sub)
 {
     TCGReg orig_rl = rl;

@@ -420,11 +420,11 @@ static void tcg_out_movi_imm32(TCGContext *s, TCGReg ret, int32_t arg)
 }
 
 static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
-                             tcg_target_long arg, bool in_prologue,
+                             intptr_t arg, bool in_prologue,
                              TCGReg scratch)
 {
-    tcg_target_long hi, lo = (int32_t)arg;
-    tcg_target_long test, lsb;
+    intptr_t hi, lo = (int32_t)arg;
+    intptr_t test, lsb;
 
     /* A 32-bit constant, or 32-bit zero-extended to 64-bits.  */
     if (type == TCG_TYPE_I32 || arg == (uint32_t)arg) {
@@ -456,7 +456,7 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
 
     /* A 32-bit constant, shifted.  */
     lsb = ctz64(arg);
-    test = (tcg_target_long)arg >> lsb;
+    test = (intptr_t)arg >> lsb;
     if (lsb > 10 && test == extract64(test, 0, 21)) {
         tcg_out_sethi(s, ret, test << 10);
         tcg_out_arithi(s, ret, ret, lsb - 10, SHIFT_SLLX);
@@ -491,7 +491,7 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
 }
 
 static void tcg_out_movi(TCGContext *s, TCGType type,
-                         TCGReg ret, tcg_target_long arg)
+                         TCGReg ret, intptr_t arg)
 {
     tcg_debug_assert(ret != TCG_REG_T2);
     tcg_out_movi_int(s, type, ret, arg, false, TCG_REG_T2);
@@ -1081,7 +1081,7 @@ static TCGReg tcg_out_tlb_load(TCGContext *s, TCGReg addr, int mem_index,
     const TCGReg r2 = TCG_REG_O2;
     unsigned s_bits = opc & MO_SIZE;
     unsigned a_bits = get_alignment_bits(opc);
-    tcg_target_long compare_mask;
+    intptr_t compare_mask;
 
     /* Load tlb_mask[mmu_idx] and tlb_table[mmu_idx].  */
     tcg_out_ld(s, TCG_TYPE_PTR, r0, TCG_AREG0, mask_off);

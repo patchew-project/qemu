@@ -2527,7 +2527,7 @@ static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
 }
 
 static void tcg_out_movi(TCGContext *s, TCGType type,
-                         TCGReg ret, tcg_target_long arg)
+                         TCGReg ret, intptr_t arg)
 {
     tcg_debug_assert(type == TCG_TYPE_I32);
     tcg_debug_assert(ret < TCG_REG_Q0);
@@ -3032,7 +3032,7 @@ static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
 /* Compute frame size via macros, to share between tcg_target_qemu_prologue
    and tcg_register_jit.  */
 
-#define PUSH_SIZE  ((11 - 4 + 1 + 1) * sizeof(tcg_target_long))
+#define PUSH_SIZE  ((11 - 4 + 1 + 1) * sizeof(intptr_t))
 
 #define FRAME_SIZE \
     ((PUSH_SIZE \
