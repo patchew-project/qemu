@@ -208,13 +208,42 @@ static void vfio_migration_cleanup(VFIODevice *vbasedev)
 
 /* ---------------------------------------------------------------------- */
 
+static int vfio_query_stop_copy_size(VFIODevice *vbasedev,
+                                     uint64_t *stop_copy_size)
+{
+    uint64_t buf[DIV_ROUND_UP(sizeof(struct vfio_device_feature) +
+                              sizeof(struct vfio_device_feature_mig_data_size),
+                              sizeof(uint64_t))] = {};
+    struct vfio_device_feature *feature = (struct vfio_device_feature *)buf;
+    struct vfio_device_feature_mig_data_size *mig_data_size =
+        (struct vfio_device_feature_mig_data_size *)feature->data;
+
+    feature->argsz = sizeof(buf);
+    feature->flags =
+        VFIO_DEVICE_FEATURE_GET | VFIO_DEVICE_FEATURE_MIG_DATA_SIZE;
+
+    if (ioctl(vbasedev->fd, VFIO_DEVICE_FEATURE, feature)) {
+        return -errno;
+    }
+
+    *stop_copy_size = mig_data_size->stop_copy_length;
+
+    return 0;
+}
+
 static int vfio_save_setup(QEMUFile *f, void *opaque)
 {
     VFIODevice *vbasedev = opaque;
     VFIOMigration *migration = vbasedev->migration;
+    uint64_t stop_copy_size;
 
     qemu_put_be64(f, VFIO_MIG_FLAG_DEV_SETUP_STATE);
 
+    if (vfio_query_stop_copy_size(vbasedev, &stop_copy_size)) {
+        stop_copy_size = VFIO_MIG_DEFAULT_DATA_BUFFER_SIZE;
+    }
+    migration->data_buffer_size = MIN(VFIO_MIG_DEFAULT_DATA_BUFFER_SIZE,
+                                      stop_copy_size);
     migration->data_buffer = g_try_malloc0(migration->data_buffer_size);
     if (!migration->data_buffer) {
         error_report("%s: Failed to allocate migration data buffer",
@@ -222,7 +251,7 @@ static int vfio_save_setup(QEMUFile *f, void *opaque)
         return -ENOMEM;
     }
 
-    trace_vfio_save_setup(vbasedev->name);
+    trace_vfio_save_setup(vbasedev->name, migration->data_buffer_size);
 
     qemu_put_be64(f, VFIO_MIG_FLAG_END_OF_STATE);
 
@@ -251,18 +280,20 @@ static void vfio_save_pending(void *opaque, uint64_t threshold_size,
                               uint64_t *res_postcopy_only)
 {
     VFIODevice *vbasedev = opaque;
+    uint64_t stop_copy_size;
 
-    /*
-     * VFIO migration protocol v2 currently doesn't have an API to get pending
-     * migration size. Until such an API is introduced, report big pending size
-     * so the device migration size will be taken into account and downtime
-     * limit won't be violated.
-     */
-    *res_precopy_only += VFIO_MIG_STOP_COPY_SIZE;
+    if (vfio_query_stop_copy_size(vbasedev, &stop_copy_size)) {
+        /*
+         * Failed to get pending migration size. Report big pending size so
+         * downtime limit won't be violated.
+         */
+        stop_copy_size = VFIO_MIG_STOP_COPY_SIZE;
+    }
 
+    *res_precopy_only += stop_copy_size;
     trace_vfio_save_pending(vbasedev->name, *res_precopy_only,
                             *res_postcopy_only, *res_compatible,
-                            VFIO_MIG_STOP_COPY_SIZE);
+                            stop_copy_size);
 }
 
 /* Returns 1 if end-of-stream is reached, 0 if more data and -1 if error */
