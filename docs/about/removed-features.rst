@@ -408,6 +408,13 @@ pcspk-audiodev=<name>``.
 
 Use ``-device`` instead.
 
+``-spice password=string`` (removed in 8.0)
+'''''''''''''''''''''''''''''''''''''''''''
+
+This option is insecure because the SPICE password remains visible in
+the process listing. This is replaced by the new ``password-secret``
+option which lets the password be securely provided on the command
+line using a ``secret`` object instance.
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
