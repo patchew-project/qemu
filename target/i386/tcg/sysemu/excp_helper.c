@@ -595,6 +595,7 @@ bool x86_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
     CPUX86State *env = cs->env_ptr;
     TranslateResult out;
     TranslateFault err;
+    bool use_stage2 = env->hflags2 & HF2_NPT_MASK;
 
     if (get_physical_address(env, addr, access_type, mmu_idx, &out, &err)) {
         /*
@@ -615,7 +616,7 @@ bool x86_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
         return false;
     }
 
-    if (err.stage2 != S2_NONE) {
+    if (use_stage2 && err.stage2 != S2_NONE) {
         raise_stage2(env, &err, retaddr);
     }
 
