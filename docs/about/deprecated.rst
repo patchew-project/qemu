@@ -267,6 +267,17 @@ Options are:
     - move backing file to NVDIMM storage and keep ``pmem=on``
       (to have NVDIMM with persistence guaranties).
 
+Block driver options
+--------------------
+
+``iscsi,password=xxx`` (since 8.0)
+''''''''''''''''''''''''''''''''''
+
+Specifying the iSCSI password in plain text on the command line using the
+``password`` option is insecure. The ``password-secret`` option should be
+used instead, to refer to a ``--object secret...`` instance that provides
+a password via a file, or encrypted.
+
 Device options
 --------------
 
