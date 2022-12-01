@@ -106,13 +106,9 @@ int kvm_arm_cpreg_level(uint64_t regidx);
  * This updates KVM's working data structures from TCG data or
  * from incoming migration state.
  *
- * Returns: true if all register values were updated correctly,
- * false if some register was unknown to the kernel or could not
- * be written (eg constant register with the wrong value).
- * Note that we do not stop early on failure -- we will attempt
- * writing all registers in the list.
+ * Returns: 0 if success, else < 0 error code
  */
-bool write_list_to_kvmstate(ARMCPU *cpu, int level);
+int write_list_to_kvmstate(ARMCPU *cpu, int level);
 
 /**
  * write_kvmstate_to_list:
@@ -123,12 +119,9 @@ bool write_list_to_kvmstate(ARMCPU *cpu, int level);
  * copy info from KVM's working data structures into TCG or
  * for outbound migration.
  *
- * Returns: true if all register values were read correctly,
- * false if some register was unknown or could not be read.
- * Note that we do not stop early on failure -- we will attempt
- * reading all registers in the list.
+ * Returns: 0 if success, else < 0 error code
  */
-bool write_kvmstate_to_list(ARMCPU *cpu);
+int write_kvmstate_to_list(ARMCPU *cpu);
 
 /**
  * kvm_arm_cpu_pre_save:

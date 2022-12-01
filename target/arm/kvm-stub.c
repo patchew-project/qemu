@@ -13,12 +13,12 @@
 #include "cpu.h"
 #include "kvm_arm.h"
 
-bool write_kvmstate_to_list(ARMCPU *cpu)
+int write_kvmstate_to_list(ARMCPU *cpu)
 {
     g_assert_not_reached();
 }
 
-bool write_list_to_kvmstate(ARMCPU *cpu, int level)
+int write_list_to_kvmstate(ARMCPU *cpu, int level)
 {
     g_assert_not_reached();
 }

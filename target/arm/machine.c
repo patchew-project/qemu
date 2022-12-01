@@ -686,15 +686,16 @@ static const VMStateInfo vmstate_powered_off = {
 static int cpu_pre_save(void *opaque)
 {
     ARMCPU *cpu = opaque;
+    int ret;
 
     if (!kvm_enabled()) {
         pmu_op_start(&cpu->env);
     }
 
     if (kvm_enabled()) {
-        if (!write_kvmstate_to_list(cpu)) {
-            /* This should never fail */
-            g_assert_not_reached();
+        ret = write_kvmstate_to_list(cpu);
+        if (ret) {
+            return ret;
         }
 
         /*
@@ -752,7 +753,7 @@ static int cpu_post_load(void *opaque, int version_id)
 {
     ARMCPU *cpu = opaque;
     CPUARMState *env = &cpu->env;
-    int i, v;
+    int i, v, ret;
 
     /*
      * Handle migration compatibility from old QEMU which didn't
@@ -796,7 +797,9 @@ static int cpu_post_load(void *opaque, int version_id)
     }
 
     if (kvm_enabled()) {
-        if (!write_list_to_kvmstate(cpu, KVM_PUT_FULL_STATE)) {
+        ret = write_list_to_kvmstate(cpu, KVM_PUT_FULL_STATE);
+        if (ret) {
+            error_report("Failed to set KVM register: %s", strerror(-ret));
             return -1;
         }
         /* Note that it's OK for the TCG side not to know about

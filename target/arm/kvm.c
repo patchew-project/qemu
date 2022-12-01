@@ -501,12 +501,12 @@ int kvm_arm_init_cpreg_list(ARMCPU *cpu)
     }
     assert(cpu->cpreg_array_len == arraylen);
 
-    if (!write_kvmstate_to_list(cpu)) {
+    ret = write_kvmstate_to_list(cpu);
+    if (ret) {
         /* Shouldn't happen unless kernel is inconsistent about
          * what registers exist.
          */
         fprintf(stderr, "Initial read of kernel register state failed\n");
-        ret = -EINVAL;
         goto out;
     }
 
@@ -515,11 +515,10 @@ out:
     return ret;
 }
 
-bool write_kvmstate_to_list(ARMCPU *cpu)
+int write_kvmstate_to_list(ARMCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
     int i;
-    bool ok = true;
 
     for (i = 0; i < cpu->cpreg_array_len; i++) {
         struct kvm_one_reg r;
@@ -545,17 +544,16 @@ bool write_kvmstate_to_list(ARMCPU *cpu)
             g_assert_not_reached();
         }
         if (ret) {
-            ok = false;
+            return ret;
         }
     }
-    return ok;
+    return 0;
 }
 
-bool write_list_to_kvmstate(ARMCPU *cpu, int level)
+int write_list_to_kvmstate(ARMCPU *cpu, int level)
 {
     CPUState *cs = CPU(cpu);
     int i;
-    bool ok = true;
 
     for (i = 0; i < cpu->cpreg_array_len; i++) {
         struct kvm_one_reg r;
@@ -581,14 +579,10 @@ bool write_list_to_kvmstate(ARMCPU *cpu, int level)
         }
         ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &r);
         if (ret) {
-            /* We might fail for "unknown register" and also for
-             * "you tried to set a register which is constant with
-             * a different value from what it actually contains".
-             */
-            ok = false;
+            return ret;
         }
     }
-    return ok;
+    return 0;
 }
 
 void kvm_arm_cpu_pre_save(ARMCPU *cpu)
@@ -620,8 +614,9 @@ void kvm_arm_reset_vcpu(ARMCPU *cpu)
         fprintf(stderr, "kvm_arm_vcpu_init failed: %s\n", strerror(-ret));
         abort();
     }
-    if (!write_kvmstate_to_list(cpu)) {
-        fprintf(stderr, "write_kvmstate_to_list failed\n");
+    ret = write_kvmstate_to_list(cpu);
+    if (ret < 0) {
+        fprintf(stderr, "write_kvmstate_to_list failed: %s\n", strerror(-ret));
         abort();
     }
     /*

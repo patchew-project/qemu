@@ -1202,8 +1202,9 @@ int kvm_arch_put_registers(CPUState *cs, int level)
 
     write_cpustate_to_list(cpu, true);
 
-    if (!write_list_to_kvmstate(cpu, level)) {
-        return -EINVAL;
+    ret = write_list_to_kvmstate(cpu, level);
+    if (ret) {
+        return ret;
     }
 
    /*
@@ -1418,8 +1419,9 @@ int kvm_arch_get_registers(CPUState *cs)
         return ret;
     }
 
-    if (!write_kvmstate_to_list(cpu)) {
-        return -EINVAL;
+    ret = write_kvmstate_to_list(cpu);
+    if (ret) {
+        return ret;
     }
     /* Note that it's OK to have registers which aren't in CPUState,
      * so we can ignore a failure return here.
