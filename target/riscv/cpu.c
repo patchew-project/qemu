@@ -907,12 +907,168 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
      }
 #endif
 
+    /*
+     * Either a cpu sets its supported satp_mode in XXX_cpu_init
+     * or the user sets this value using satp_mode property.
+     */
+    bool rv32 = riscv_cpu_mxl(&cpu->env) == MXL_RV32;
+
+    cpu->cfg.satp_mode = VM_1_10_UNDEF;
+
+    if (rv32) {
+        if (cpu->cfg.sv32 == ON_OFF_AUTO_ON) {
+            cpu->cfg.satp_mode_str = g_strdup("sv32");
+            cpu->cfg.satp_mode = VM_1_10_SV32;
+        } else if (cpu->cfg.mbare == ON_OFF_AUTO_ON) {
+            cpu->cfg.satp_mode_str = g_strdup("none");
+            cpu->cfg.satp_mode = VM_1_10_MBARE;
+        }
+    } else {
+        if (cpu->cfg.sv64 == ON_OFF_AUTO_ON) {
+            cpu->cfg.satp_mode_str = g_strdup("sv64");
+            cpu->cfg.satp_mode = VM_1_10_SV64;
+        } else if (cpu->cfg.sv57 == ON_OFF_AUTO_ON) {
+            cpu->cfg.satp_mode_str = g_strdup("sv57");
+            cpu->cfg.satp_mode = VM_1_10_SV57;
+        } else if (cpu->cfg.sv48 == ON_OFF_AUTO_ON) {
+            cpu->cfg.satp_mode_str = g_strdup("sv48");
+            cpu->cfg.satp_mode = VM_1_10_SV48;
+        } else if (cpu->cfg.sv39 == ON_OFF_AUTO_ON) {
+            cpu->cfg.satp_mode_str = g_strdup("sv39");
+            cpu->cfg.satp_mode = VM_1_10_SV39;
+        } else if (cpu->cfg.mbare == ON_OFF_AUTO_ON) {
+            cpu->cfg.satp_mode_str = g_strdup("none");
+            cpu->cfg.satp_mode = VM_1_10_MBARE;
+        }
+    }
+
+    /*
+     * If unset by both the user and the cpu, we fallback to sv32 for 32-bit
+     * or sv57 for 64-bit when a MMU is present, and bare otherwise.
+     */
+    if (cpu->cfg.satp_mode == VM_1_10_UNDEF) {
+        if (riscv_feature(&cpu->env, RISCV_FEATURE_MMU)) {
+            if (rv32) {
+                cpu->cfg.satp_mode_str = g_strdup("sv32");
+                cpu->cfg.satp_mode = VM_1_10_SV32;
+            } else {
+                cpu->cfg.satp_mode_str = g_strdup("sv57");
+                cpu->cfg.satp_mode = VM_1_10_SV57;
+            }
+        } else {
+            cpu->cfg.satp_mode_str = g_strdup("none");
+            cpu->cfg.satp_mode = VM_1_10_MBARE;
+        }
+    }
+
+    riscv_cpu_finalize_features(cpu, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
     riscv_cpu_register_gdb_regs_for_features(cs);
 
     qemu_init_vcpu(cs);
     cpu_reset(cs);
 
     mcc->parent_realize(dev, errp);
+}
+
+void riscv_cpu_satp_mode_finalize(RISCVCPU *cpu, Error **errp)
+{
+    bool rv32 = riscv_cpu_mxl(&cpu->env) == MXL_RV32;
+
+    /* First, get rid of 32-bit/64-bit incompatibilities */
+    if (rv32) {
+        if (cpu->cfg.sv39 == ON_OFF_AUTO_ON
+                || cpu->cfg.sv48 == ON_OFF_AUTO_ON
+                || cpu->cfg.sv57 == ON_OFF_AUTO_ON
+                || cpu->cfg.sv64 == ON_OFF_AUTO_ON) {
+            error_setg(errp, "cannot enable 64-bit satp modes "
+                       "(sv39/sv48/sv57/sv64)");
+            error_append_hint(errp, "cpu is in 32-bit mode, 64-bit satp modes "
+                              "can't be enabled\n");
+            return;
+        }
+    } else {
+        if (cpu->cfg.sv32 == ON_OFF_AUTO_ON) {
+            error_setg(errp, "cannot enable 32-bit satp mode (sv32)");
+            error_append_hint(errp, "cpu is in 64-bit mode, 32-bit satp mode "
+                              "can't be enabled\n");
+            return;
+        }
+    }
+
+    /*
+     * Then make sure the user did not ask for an invalid configuration as per
+     * the specification.
+     */
+    switch (cpu->cfg.satp_mode) {
+    case VM_1_10_SV32:
+        if (cpu->cfg.mbare == ON_OFF_AUTO_OFF) {
+            error_setg(errp, "cannot disable mbare satp mode");
+            error_append_hint(errp, "mbare satp mode must be enabled if sv32 "
+                              "is enabled\n");
+            return;
+        }
+
+        break;
+    case VM_1_10_SV39:
+        if (cpu->cfg.mbare == ON_OFF_AUTO_OFF) {
+            error_setg(errp, "cannot disable mbare satp mode");
+            error_append_hint(errp, "mbare satp mode must be enabled if sv39 "
+                              "is enabled\n");
+            return;
+        }
+
+        break;
+    case VM_1_10_SV48:
+        if (cpu->cfg.mbare == ON_OFF_AUTO_OFF
+                || cpu->cfg.sv39 == ON_OFF_AUTO_OFF) {
+            error_setg(errp, "cannot disable mbare/sv39 satp modes");
+            error_append_hint(errp, "mbare/sv39 satp modes must be enabled if "
+                              "sv48 is enabled\n");
+            return;
+        }
+
+        break;
+    case VM_1_10_SV57:
+        if (cpu->cfg.mbare == ON_OFF_AUTO_OFF
+                || cpu->cfg.sv39 == ON_OFF_AUTO_OFF
+                || cpu->cfg.sv48 == ON_OFF_AUTO_OFF) {
+            error_setg(errp, "cannot disable mbare/sv39/sv48 satp modes");
+            error_append_hint(errp, "mbare/sv39/sv48 satp modes must be "
+                              "enabled if sv57 is enabled\n");
+            return;
+        }
+
+        break;
+    case VM_1_10_SV64:
+        if (cpu->cfg.mbare == ON_OFF_AUTO_OFF
+                || cpu->cfg.sv39 == ON_OFF_AUTO_OFF
+                || cpu->cfg.sv48 == ON_OFF_AUTO_OFF
+                || cpu->cfg.sv57 == ON_OFF_AUTO_OFF) {
+            error_setg(errp, "cannot disable mbare/sv39/sv48/sv57 satp "
+                       "modes");
+            error_append_hint(errp, "mbare/sv39/sv48/sv57 satp modes must be "
+                              "enabled if sv57 is enabled\n");
+            return;
+        }
+
+        break;
+    }
+}
+
+void riscv_cpu_finalize_features(RISCVCPU *cpu, Error **errp)
+{
+    Error *local_err = NULL;
+
+    riscv_cpu_satp_mode_finalize(cpu, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -1094,6 +1250,14 @@ static Property riscv_cpu_properties[] = {
 
     DEFINE_PROP_BOOL("rvv_ta_all_1s", RISCVCPU, cfg.rvv_ta_all_1s, false),
     DEFINE_PROP_BOOL("rvv_ma_all_1s", RISCVCPU, cfg.rvv_ma_all_1s, false),
+
+    DEFINE_PROP_ON_OFF_AUTO("mbare", RISCVCPU, cfg.mbare, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO("sv32", RISCVCPU, cfg.sv32, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO("sv39", RISCVCPU, cfg.sv39, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO("sv48", RISCVCPU, cfg.sv48, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO("sv57", RISCVCPU, cfg.sv57, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO("sv64", RISCVCPU, cfg.sv64, ON_OFF_AUTO_AUTO),
+
     DEFINE_PROP_END_OF_LIST(),
 };
 

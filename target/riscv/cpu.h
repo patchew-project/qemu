@@ -27,6 +27,7 @@
 #include "qom/object.h"
 #include "qemu/int128.h"
 #include "cpu_bits.h"
+#include "qapi/qapi-types-common.h"
 
 #define TCG_GUEST_DEFAULT_MO 0
 
@@ -480,6 +481,10 @@ struct RISCVCPUConfig {
     bool debug;
 
     bool short_isa_string;
+
+    OnOffAuto mbare, sv32, sv39, sv48, sv57, sv64;
+    uint8_t satp_mode;
+    char *satp_mode_str;
 };
 
 typedef struct RISCVCPUConfig RISCVCPUConfig;
@@ -788,5 +793,8 @@ void riscv_get_csr_ops(int csrno, riscv_csr_operations *ops);
 void riscv_set_csr_ops(int csrno, riscv_csr_operations *ops);
 
 void riscv_cpu_register_gdb_regs_for_features(CPUState *cs);
+
+void riscv_cpu_satp_mode_finalize(RISCVCPU *cpu, Error **errp);
+void riscv_cpu_finalize_features(RISCVCPU *cpu, Error **errp);
 
 #endif /* RISCV_CPU_H */

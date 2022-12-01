@@ -590,6 +590,7 @@ typedef enum {
 #define VM_1_10_SV48        9
 #define VM_1_10_SV57        10
 #define VM_1_10_SV64        11
+#define VM_1_10_UNDEF       16
 
 /* Page table entry (PTE) fields */
 #define PTE_V               0x001 /* Valid */
