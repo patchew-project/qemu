@@ -72,6 +72,7 @@ struct BlockBackend {
     uint64_t perm;
     uint64_t shared_perm;
     bool disable_perm;
+    bool media_cd;
 
     bool allow_aio_context_change;
     bool allow_write_beyond_eof;
@@ -2633,4 +2634,21 @@ int blk_make_empty(BlockBackend *blk, Error **errp)
     }
 
     return bdrv_make_empty(blk->root, errp);
+}
+
+bool blk_is_cdrom(BlockBackend *blk)
+{
+    if (!blk) {
+        return false;
+    }
+    return blk->media_cd;
+
+}
+
+void blk_set_cdrom(BlockBackend *blk)
+{
+    if (!blk) {
+        return ;
+    }
+    blk->media_cd = true;
 }

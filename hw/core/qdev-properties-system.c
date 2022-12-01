@@ -149,6 +149,9 @@ static void set_drive_helper(Object *obj, Visitor *v, const char *name,
             if (ret < 0) {
                 goto fail;
             }
+            if (bs->media_cd) {
+                blk_set_cdrom(blk);
+            }
         }
     }
     if (!blk) {

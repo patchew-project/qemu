@@ -3787,6 +3787,7 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
     Error *local_err = NULL;
     QDict *snapshot_options = NULL;
     int snapshot_flags = 0;
+    int media = 0;
 
     assert(!child_class || !flags);
     assert(!child_class == !parent);
@@ -3905,6 +3906,12 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
         qdict_del(bs->explicit_options, "backing");
         qdict_del(bs->options, "backing");
         qdict_del(options, "backing");
+    }
+    if (!g_strcmp0(qdict_get_try_str(options, "media"), "cdrom")) {
+        media = 1;
+        qdict_del(bs->explicit_options, "media");
+        qdict_del(bs->options, "media");
+        qdict_del(options, "media");
     }
 
     /* Open image file without format layer. This BlockBackend is only used for
@@ -4033,7 +4040,9 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
         bdrv_unref(bs);
         bs = snapshot_bs;
     }
-
+    if (bs && media) {
+        bs->media_cd = true;
+    }
     return bs;
 
 fail:

@@ -1023,6 +1023,7 @@ struct BlockDriverState {
     bool probed;    /* if true, format was probed rather than specified */
     bool force_share; /* if true, always allow all shared permissions */
     bool implicit;  /* if true, this filter node was automatically inserted */
+    bool media_cd;
 
     BlockDriver *drv; /* NULL means no media */
     void *opaque;

@@ -321,7 +321,9 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
         driver = "scsi-generic";
     } else {
         dinfo = blk_legacy_dinfo(blk);
-        if (dinfo && dinfo->media_cd) {
+        if ((dinfo && dinfo->media_cd)) {
+            driver = "scsi-cd";
+        } else if (blk_is_cdrom(blk)) {
             driver = "scsi-cd";
         } else {
             driver = "scsi-hd";

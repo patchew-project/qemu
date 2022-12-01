@@ -71,6 +71,8 @@ void blk_set_on_error(BlockBackend *blk, BlockdevOnError on_read_error,
                       BlockdevOnError on_write_error);
 bool blk_supports_write_perm(BlockBackend *blk);
 bool blk_is_sg(BlockBackend *blk);
+bool blk_is_cdrom(BlockBackend *blk);
+void blk_set_cdrom(BlockBackend *blk);
 void blk_set_enable_write_cache(BlockBackend *blk, bool wce);
 int blk_get_flags(BlockBackend *blk);
 bool blk_op_is_blocked(BlockBackend *blk, BlockOpType op, Error **errp);
