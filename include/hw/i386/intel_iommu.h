@@ -109,7 +109,35 @@ struct VTDAddressSpace {
     QLIST_ENTRY(VTDAddressSpace) next;
     /* Superset of notifier flags that this address space has */
     IOMMUNotifierFlag notifier_flags;
-    IOVATree *iova_tree;          /* Traces mapped IOVA ranges */
+    /*
+     * @iova_tree traces mapped IOVA ranges.
+     *
+     * The tree is not needed if no MAP notifiers is registered with
+     * current VTD address space, because all UNMAP (including iotlb or
+     * dev-iotlb) events can be transparently delivered to !MAP iommu
+     * notifiers.
+     *
+     * The tree OTOH is required for MAP typed iommu notifiers for a few
+     * reasons.
+     *
+     * Firstly, there's no way to identify whether an PSI event is MAP or
+     * UNMAP within the PSI message itself.  Without having prior knowledge
+     * of existing state vIOMMU doesn't know whether it should notify MAP
+     * or UNMAP for a PSI message it received.
+     *
+     * Secondly, PSI received from guest driver (or even a large PSI can
+     * grow into a DSI at least with Linux intel-iommu driver) can be
+     * larger in range than the newly mapped ranges for either MAP or UNMAP
+     * events. If it directly pass-throughs any such event it may confuse
+     * the registered drivers (e.g. vfio-pci) on either: (1) trying to map
+     * the same region more than once (for VFIO_IOMMU_MAP_DMA, -EEXIST will
+     * trigger), or (2) trying to UNMAP a range that is still partially
+     * mapped.  That accuracy is not required for UNMAP-only notifiers, but
+     * it is a must-to-have for MAP-inclusive notifiers, because the vIOMMU
+     * needs to make sure the shadow page table is always in sync with the
+     * guest IOMMU pgtables for a device.
+     */
+    IOVATree *iova_tree;
 };
 
 struct VTDIOTLBEntry {
