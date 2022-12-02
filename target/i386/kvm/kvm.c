@@ -122,6 +122,7 @@ static bool has_msr_ucode_rev;
 static bool has_msr_vmx_procbased_ctls2;
 static bool has_msr_perf_capabs;
 static bool has_msr_pkrs;
+static bool has_pmu_cap;
 
 static uint32_t has_architectural_pmu_version;
 static uint32_t num_architectural_pmu_gp_counters;
@@ -2649,6 +2650,23 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
             error_report("Could not install MSR_CORE_THREAD_COUNT handler: %s",
                          strerror(-ret));
             exit(1);
+        }
+    }
+
+    has_pmu_cap = kvm_check_extension(s, KVM_CAP_PMU_CAPABILITY);
+
+    if (s->pmu_cap_disabled) {
+        if (has_pmu_cap) {
+            ret = kvm_vm_enable_cap(s, KVM_CAP_PMU_CAPABILITY, 0,
+                                    KVM_PMU_CAP_DISABLE);
+            if (ret < 0) {
+                s->pmu_cap_disabled = false;
+                error_report("kvm: Failed to disable pmu cap: %s",
+                             strerror(-ret));
+            }
+        } else {
+            s->pmu_cap_disabled = false;
+            error_report("kvm: KVM_CAP_PMU_CAPABILITY is not supported");
         }
     }
 
@@ -5706,6 +5724,28 @@ static void kvm_arch_set_notify_window(Object *obj, Visitor *v,
     s->notify_window = value;
 }
 
+static void kvm_set_pmu_cap_disabled(Object *obj, Visitor *v,
+                                     const char *name, void *opaque,
+                                     Error **errp)
+{
+    KVMState *s = KVM_STATE(obj);
+    bool pmu_cap_disabled;
+    Error *error = NULL;
+
+    if (s->fd != -1) {
+        error_setg(errp, "Cannot set properties after the accelerator has been initialized");
+        return;
+    }
+
+    visit_type_bool(v, name, &pmu_cap_disabled, &error);
+    if (error) {
+        error_propagate(errp, error);
+        return;
+    }
+
+    s->pmu_cap_disabled = pmu_cap_disabled;
+}
+
 void kvm_arch_accel_class_init(ObjectClass *oc)
 {
     object_class_property_add_enum(oc, "notify-vmexit", "NotifyVMexitOption",
@@ -5722,6 +5762,12 @@ void kvm_arch_accel_class_init(ObjectClass *oc)
     object_class_property_set_description(oc, "notify-window",
                                           "Clock cycles without an event window "
                                           "after which a notification VM exit occurs");
+
+    object_class_property_add(oc, "pmu-cap-disabled", "bool",
+                              NULL, kvm_set_pmu_cap_disabled,
+                              NULL, NULL);
+    object_class_property_set_description(oc, "pmu-cap-disabled",
+                                          "Disable KVM_CAP_PMU_CAPABILITY");
 }
 
 void kvm_set_max_apic_id(uint32_t max_apic_id)

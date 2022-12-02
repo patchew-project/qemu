@@ -110,6 +110,7 @@ struct KVMState
     struct KVMDirtyRingReaper reaper;
     NotifyVmexitOption notify_vmexit;
     uint32_t notify_window;
+    bool pmu_cap_disabled;
 };
 
 void kvm_memory_listener_register(KVMState *s, KVMMemoryListener *kml,

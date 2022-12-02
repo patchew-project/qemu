@@ -186,6 +186,7 @@ DEF("accel", HAS_ARG, QEMU_OPTION_accel,
     "                tb-size=n (TCG translation block cache size)\n"
     "                dirty-ring-size=n (KVM dirty ring GFN count, default 0)\n"
     "                notify-vmexit=run|internal-error|disable,notify-window=n (enable notify VM exit and set notify window, x86 only)\n"
+    "                pmu-cap-disabled=true|false (disable KVM_CAP_PMU_CAPABILITY, x86 only, default false)\n"
     "                thread=single|multi (enable multi-threaded TCG)\n", QEMU_ARCH_ALL)
 SRST
 ``-accel name[,prop=value[,...]]``
@@ -246,6 +247,12 @@ SRST
         This feature can mitigate the CPU stuck issue due to event windows don't
         open up for a specified of time (i.e. notify-window).
         Default: notify-vmexit=run,notify-window=0.
+
+    ``pmu-cap-disabled=true|false``
+        When the KVM accelerator is used, it controls whether to disable the
+        KVM_CAP_PMU_CAPABILITY via KVM_PMU_CAP_DISABLE. When disabled, the
+        PMU virtualization is disabled at the KVM module side. This is for
+        x86 host only.
 
 ERST
 
