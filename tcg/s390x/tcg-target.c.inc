@@ -208,6 +208,7 @@ typedef enum S390Opcode {
 
     RRFc_LOCR   = 0xb9f2,
     RRFc_LOCGR  = 0xb9e2,
+    RRFc_POPCNT = 0xb9e1,
 
     RR_AR       = 0x1a,
     RR_ALR      = 0x1e,
@@ -259,6 +260,7 @@ typedef enum S390Opcode {
     RXY_LRVG    = 0xe30f,
     RXY_LRVH    = 0xe31f,
     RXY_LY      = 0xe358,
+    RXY_MSG     = 0xe30c,
     RXY_NG      = 0xe380,
     RXY_OG      = 0xe381,
     RXY_STCY    = 0xe372,
@@ -276,6 +278,7 @@ typedef enum S390Opcode {
     RX_L        = 0x58,
     RX_LA       = 0x41,
     RX_LH       = 0x48,
+    RX_MS       = 0x71,
     RX_ST       = 0x50,
     RX_STC      = 0x42,
     RX_STH      = 0x40,
@@ -1568,6 +1571,45 @@ static void tgen_clz(TCGContext *s, TCGReg dest, TCGReg a1,
     tgen_movcond_int(s, TCG_TYPE_I64, dest, a2, a2const, TCG_REG_R0, 8, 2);
 }
 
+static void tgen_ctpop(TCGContext *s, TCGType type, TCGReg dest, TCGReg src)
+{
+    /* With MIE3, and bit 0 of m4 set, we get the complete result. */
+    if (HAVE_FACILITY(MISC_INSN_EXT3)) {
+        if (type == TCG_TYPE_I32) {
+            tgen_ext32u(s, dest, src);
+            src = dest;
+        }
+        tcg_out_insn(s, RRFc, POPCNT, dest, src, 8);
+        return;
+    }
+
+    /* Without MIE3, each byte gets the count of bits for the byte. */
+    tcg_out_insn(s, RRFc, POPCNT, dest, src, 0);
+
+    /* Multiply to sum each byte at the top of the word. */
+    if (type == TCG_TYPE_I32 && HAVE_FACILITY(GEN_INST_EXT)) {
+        tcg_out_insn(s, RIL, MSFI, dest, 0x01010101);
+    } else {
+        /* No space to save: share the constant between TCG_TYPE_I32/I64. */
+        tcg_out_insn(s, RIL, LARL, TCG_TMP0, 0);
+        new_pool_label(s, 0x0101010101010101ull,
+                       R_390_PC32DBL, s->code_ptr - 2, 2);
+
+        if (type == TCG_TYPE_I32) {
+            tcg_out_insn(s, RX, MS, dest, TCG_TMP0, TCG_REG_NONE, 0);
+        } else {
+            tcg_out_insn(s, RXY, MSG, dest, TCG_TMP0, TCG_REG_NONE, 0);
+        }
+    }
+
+    /* Shift result down from the top byte. */
+    if (type == TCG_TYPE_I32) {
+        tcg_out_sh32(s, RS_SRL, dest, TCG_REG_NONE, 24);
+    } else {
+        tcg_out_sh64(s, RSY_SRLG, dest, dest, TCG_REG_NONE, 56);
+    }
+}
+
 static void tgen_deposit(TCGContext *s, TCGReg dest, TCGReg src,
                          int ofs, int len, int z)
 {
@@ -2733,6 +2775,13 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tgen_clz(s, args[0], args[1], args[2], const_args[2]);
         break;
 
+    case INDEX_op_ctpop_i32:
+        tgen_ctpop(s, TCG_TYPE_I32, args[0], args[1]);
+        break;
+    case INDEX_op_ctpop_i64:
+        tgen_ctpop(s, TCG_TYPE_I64, args[0], args[1]);
+        break;
+
     case INDEX_op_mb:
         /* The host memory model is quite strong, we simply need to
            serialize the instruction stream.  */
@@ -3302,6 +3351,8 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_extu_i32_i64:
     case INDEX_op_extract_i32:
     case INDEX_op_extract_i64:
+    case INDEX_op_ctpop_i32:
+    case INDEX_op_ctpop_i64:
         return C_O1_I1(r, r);
 
     case INDEX_op_qemu_ld_i32:
