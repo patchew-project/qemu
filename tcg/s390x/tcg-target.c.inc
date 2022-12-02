@@ -204,6 +204,8 @@ typedef enum S390Opcode {
     RRFa_XRK    = 0xb9f7,
     RRFa_XGRK   = 0xb9e7,
 
+    RRFam_SELGR = 0xb9e3,
+
     RRFc_LOCR   = 0xb9f2,
     RRFc_LOCGR  = 0xb9e2,
 
@@ -560,10 +562,18 @@ static void tcg_out_insn_RRE(TCGContext *s, S390Opcode op,
     tcg_out32(s, (op << 16) | (r1 << 4) | r2);
 }
 
+/* RRF-a without the m4 field */
 static void tcg_out_insn_RRFa(TCGContext *s, S390Opcode op,
                               TCGReg r1, TCGReg r2, TCGReg r3)
 {
     tcg_out32(s, (op << 16) | (r3 << 12) | (r1 << 4) | r2);
+}
+
+/* RRF-a with the m4 field */
+static void tcg_out_insn_RRFam(TCGContext *s, S390Opcode op,
+                               TCGReg r1, TCGReg r2, TCGReg r3, int m4)
+{
+    tcg_out32(s, (op << 16) | (r3 << 12) | (m4 << 8) | (r1 << 4) | r2);
 }
 
 static void tcg_out_insn_RRFc(TCGContext *s, S390Opcode op,
@@ -1471,6 +1481,17 @@ static void tgen_movcond_int(TCGContext *s, TCGType type, TCGReg dest,
     if (HAVE_FACILITY(LOAD_ON_COND2) && v3const && dest == v4) {
         /* Emit: if (cc) dest = v3. */
         tcg_out_insn(s, RIEg, LOCGHI, dest, v3, cc);
+        return;
+    }
+
+    /* Note that while MIE3 implies LOC, it does not imply LOC2. */
+    if (HAVE_FACILITY(MISC_INSN_EXT3)) {
+        if (v3const) {
+            tcg_out_insn(s, RI, LGHI, TCG_TMP0, v3);
+            v3 = TCG_TMP0;
+        }
+        /* Emit: dest = cc ? v3 : v4. */
+        tcg_out_insn(s, RRFam, SELGR, dest, v3, v4, cc);
         return;
     }
 
