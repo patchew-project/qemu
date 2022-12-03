@@ -12,6 +12,7 @@
 #include "hw/usb/hcd-ohci.h"
 #include "hw/usb/hcd-ehci.h"
 #include "hw/rtc/allwinner-rtc.h"
+#include "hw/misc/allwinner-a10-ccm.h"
 
 #include "target/arm/cpu.h"
 #include "qom/object.h"
@@ -30,6 +31,7 @@ struct AwA10State {
     /*< public >*/
 
     ARMCPU cpu;
+    AwA10ClockCtlState ccm;
     AwA10PITState timer;
     AwA10PICState intc;
     AwEmacState emac;
