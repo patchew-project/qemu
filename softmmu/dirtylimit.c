@@ -569,6 +569,45 @@ static struct DirtyLimitInfo *dirtylimit_query_vcpu(int cpu_index)
     return info;
 }
 
+/* Return the max throttle time of each virtual CPU */
+int64_t dirtylimit_throttle_time_per_full(void)
+{
+    CPUState *cpu;
+    int64_t max = 0;
+
+    CPU_FOREACH(cpu) {
+        if (cpu->throttle_us_per_full > max) {
+            max = cpu->throttle_us_per_full;
+        }
+    }
+
+    return max;
+}
+
+/*
+ * Estimate average dirty ring full time of each virtaul CPU.
+ * Return -1 if guest doesn't dirty memory.
+ */
+int64_t dirtylimit_us_ring_full(void)
+{
+    CPUState *cpu;
+    uint64_t curr_rate = 0;
+    int nvcpus = 0;
+
+    CPU_FOREACH(cpu) {
+        if (cpu->running) {
+            nvcpus++;
+            curr_rate += vcpu_dirty_rate_get(cpu->cpu_index);
+        }
+    }
+
+    if (!curr_rate || !nvcpus) {
+        return -1;
+    }
+
+    return dirtylimit_dirty_ring_full_time(curr_rate / nvcpus);
+}
+
 static struct DirtyLimitInfoList *dirtylimit_query_all(void)
 {
     int i, index;
