@@ -242,6 +242,17 @@
 #                   Present and non-empty when migration is blocked.
 #                   (since 6.0)
 #
+# @dirty-limit-throttle-time-per-full: Maximum throttle time (in microseconds) of virtual
+#                                      CPUs each dirty ring full round, used to observe
+#                                      if dirty-limit take effect during live migration.
+#                                      (since 7.3)
+#
+# @dirty-limit-ring-full-time: Estimated average dirty ring full time (in microseconds)
+#                              each dirty ring full round, note that the value equals
+#                              dirty ring memory size divided by average dirty page rate
+#                              of virtual CPU, which can be used to observe the average
+#                              memory load of virtual CPU indirectly. (since 7.3)
+#
 # Since: 0.14
 ##
 { 'struct': 'MigrationInfo',
@@ -259,7 +270,9 @@
            '*postcopy-blocktime' : 'uint32',
            '*postcopy-vcpu-blocktime': ['uint32'],
            '*compression': 'CompressionStats',
-           '*socket-address': ['SocketAddress'] } }
+           '*socket-address': ['SocketAddress'],
+           '*dirty-limit-throttle-time-per-full': 'int64',
+           '*dirty-limit-ring-full-time': 'int64'} }
 
 ##
 # @query-migrate:
