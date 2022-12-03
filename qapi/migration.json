@@ -780,6 +780,9 @@
 #                             live migration. Should be in the range 1 to 1000ms,
 #                             defaults to 1000ms. (Since 7.3)
 #
+# @vcpu-dirty-limit: Dirtyrate limit (MB/s) during live migration.
+#                    Defaults to 1. (Since 7.3)
+#
 # Features:
 # @unstable: Members @x-checkpoint-delay and @x-vcpu-dirty-limit-period
 #            are experimental.
@@ -802,7 +805,8 @@
            'max-cpu-throttle', 'multifd-compression',
            'multifd-zlib-level', 'multifd-zstd-level',
            'block-bitmap-mapping',
-           { 'name': 'x-vcpu-dirty-limit-period', 'features': ['unstable'] } ] }
+           { 'name': 'x-vcpu-dirty-limit-period', 'features': ['unstable'] },
+           'vcpu-dirty-limit'] }
 
 ##
 # @MigrateSetParameters:
@@ -951,6 +955,9 @@
 #                             live migration. Should be in the range 1 to 1000ms,
 #                             defaults to 1000ms. (Since 7.3)
 #
+# @vcpu-dirty-limit: Dirtyrate limit (MB/s) during live migration.
+#                    Defaults to 1. (Since 7.3)
+#
 # Features:
 # @unstable: Members @x-checkpoint-delay and @x-vcpu-dirty-limit-period
 #            are experimental.
@@ -989,7 +996,8 @@
             '*multifd-zstd-level': 'uint8',
             '*block-bitmap-mapping': [ 'BitmapMigrationNodeAlias' ],
             '*x-vcpu-dirty-limit-period': { 'type': 'uint64',
-                                            'features': [ 'unstable' ] } } }
+                                            'features': [ 'unstable' ] },
+            '*vcpu-dirty-limit': 'uint64'} }
 
 ##
 # @migrate-set-parameters:
@@ -1158,6 +1166,9 @@
 #                             live migration. Should be in the range 1 to 1000ms,
 #                             defaults to 1000ms. (Since 7.3)
 #
+# @vcpu-dirty-limit: Dirtyrate limit (MB/s) during live migration.
+#                    Defaults to 1. (Since 7.3)
+#
 # Features:
 # @unstable: Members @x-checkpoint-delay and @x-vcpu-dirty-limit-period
 #            are experimental.
@@ -1194,7 +1205,8 @@
             '*multifd-zstd-level': 'uint8',
             '*block-bitmap-mapping': [ 'BitmapMigrationNodeAlias' ],
             '*x-vcpu-dirty-limit-period': { 'type': 'uint64',
-                                            'features': [ 'unstable' ] } } }
+                                            'features': [ 'unstable' ] },
+            '*vcpu-dirty-limit': 'uint64'} }
 
 ##
 # @query-migrate-parameters:
