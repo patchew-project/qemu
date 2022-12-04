@@ -301,6 +301,7 @@ fdt="auto"
 # 2. Automatically enable/disable other options
 tcg="auto"
 cfi="false"
+lto="true"
 
 # parse CC options second
 for opt do
@@ -837,11 +838,13 @@ for opt do
   ;;
   --disable-safe-stack) safe_stack="no"
   ;;
-  --enable-cfi)
-      cfi="true";
-      meson_option_add -Db_lto=true
+  --enable-cfi) cfi="true" lto="true"
   ;;
   --disable-cfi) cfi="false"
+  ;;
+  --enable-lto) lto="true"
+  ;;
+  --disable-lto) lto="false"
   ;;
   --disable-fdt) fdt="disabled"
   ;;
@@ -2591,6 +2594,7 @@ if test "$skip_meson" = no; then
   test "$default_feature" = no && meson_option_add -Dauto_features=disabled
   test "$pie" = no && meson_option_add -Db_pie=false
   test "$werror" = yes && meson_option_add -Dwerror=true
+  test "$lto" = true && meson_option_add "-Db_lto=true"
 
   # QEMU options
   test "$cfi" != false && meson_option_add "-Dcfi=$cfi"
