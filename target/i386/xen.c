@@ -14,6 +14,7 @@
 #include "exec/address-spaces.h"
 #include "xen.h"
 #include "trace.h"
+#include "sysemu/sysemu.h"
 
 #include "standard-headers/xen/version.h"
 #include "standard-headers/xen/memory.h"
@@ -133,13 +134,24 @@ static int xen_set_shared_info(CPUState *cs, struct shared_info *shi,
     struct kvm_xen_hvm_attr xhsi;
     XenState *xen = cs->xen_state;
     KVMState *s = cs->kvm_state;
-    int err;
+    XenCPUState *xcpu;
+    CPUState *cpu;
+    int i, err;
 
     xhsi.type = KVM_XEN_ATTR_TYPE_SHARED_INFO;
     xhsi.u.shared_info.gfn = gfn;
     err = kvm_vm_ioctl(s, KVM_XEN_HVM_SET_ATTR, &xhsi);
     trace_kvm_xen_set_shared_info(gfn);
     xen->shared_info = shi;
+
+    for (i = 0; i < XEN_LEGACY_MAX_VCPUS; i++) {
+        cpu = qemu_get_cpu(i);
+        if (cpu) {
+                xcpu = &X86_CPU(cpu)->env.xen_vcpu;
+                xcpu->info = &shi->vcpu_info[cpu->cpu_index];
+        }
+    }
+
     return err;
 }
 
@@ -197,19 +209,57 @@ static int kvm_xen_hcall_hvm_op(struct kvm_xen_exit *exit,
     return HCALL_ERR;
 }
 
-static int kvm_xen_hcall_vcpu_op(struct kvm_xen_exit *exit,
-                                 int cmd, uint64_t arg)
+static int xen_set_vcpu_attr(CPUState *cs, uint16_t type, uint64_t gpa)
 {
+    struct kvm_xen_vcpu_attr xhsi;
+
+    xhsi.type = type;
+    xhsi.u.gpa = gpa;
+
+    trace_kvm_xen_set_vcpu_attr(cs->cpu_index, type, gpa);
+
+    return kvm_vcpu_ioctl(cs, KVM_XEN_VCPU_SET_ATTR, &xhsi);
+}
+
+static int vcpuop_register_vcpu_info(CPUState *cs, CPUState *target,
+                                     uint64_t arg)
+{
+    XenCPUState *xt = &X86_CPU(target)->env.xen_vcpu;
+    struct vcpu_register_vcpu_info *rvi;
+    uint64_t gpa;
+    void *hva;
+
+    rvi = gva_to_hva(cs, arg);
+    if (!rvi) {
+        return -EFAULT;
+    }
+
+    gpa = ((rvi->mfn << PAGE_SHIFT) + rvi->offset);
+    hva = gpa_to_hva(gpa);
+    if (!hva) {
+        return -EFAULT;
+    }
+
+    xt->info = hva;
+    return xen_set_vcpu_attr(target, KVM_XEN_VCPU_ATTR_TYPE_VCPU_INFO, gpa);
+}
+
+static int kvm_xen_hcall_vcpu_op(struct kvm_xen_exit *exit, X86CPU *cpu,
+                                 int cmd, int vcpu_id, uint64_t arg)
+{
+    CPUState *dest = qemu_get_cpu(vcpu_id);
+    CPUState *cs = CPU(cpu);
+    int err = -ENOSYS;
+
     switch (cmd) {
     case VCPUOP_register_vcpu_info: {
-            /* no vcpu info placement for now */
-            exit->u.hcall.result = -ENOSYS;
-            return 0;
+            err = vcpuop_register_vcpu_info(cs, dest, arg);
+            break;
         }
     }
 
-    exit->u.hcall.result = -ENOSYS;
-    return HCALL_ERR;
+    exit->u.hcall.result = err;
+    return err ? HCALL_ERR : 0;
 }
 
 static int __kvm_xen_handle_exit(X86CPU *cpu, struct kvm_xen_exit *exit)
@@ -223,8 +273,10 @@ static int __kvm_xen_handle_exit(X86CPU *cpu, struct kvm_xen_exit *exit)
 
     switch (code) {
     case __HYPERVISOR_vcpu_op:
-        return kvm_xen_hcall_vcpu_op(exit, exit->u.hcall.params[0],
-                                     exit->u.hcall.params[1]);
+        return kvm_xen_hcall_vcpu_op(exit, cpu,
+                                     exit->u.hcall.params[0],
+                                     exit->u.hcall.params[1],
+                                     exit->u.hcall.params[2]);
     case __HYPERVISOR_hvm_op:
         return kvm_xen_hcall_hvm_op(exit, exit->u.hcall.params[0],
                                     exit->u.hcall.params[1]);

@@ -1801,6 +1801,7 @@ typedef struct CPUArchState {
     HVFX86LazyFlags hvf_lflags;
     void *hvf_mmio_buf;
 #endif
+    struct XenCPUState xen_vcpu;
 
     uint64_t mcg_cap;
     uint64_t mcg_ctl;

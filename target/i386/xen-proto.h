@@ -15,5 +15,9 @@ typedef struct XenState {
     struct shared_info *shared_info;
 } XenState;
 
+typedef struct XenCPUState {
+   struct vcpu_info *info;
+} XenCPUState;
+
 #endif
 
