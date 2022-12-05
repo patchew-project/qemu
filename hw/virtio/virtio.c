@@ -2288,9 +2288,9 @@ unsigned int virtqueue_drop_all(VirtQueue *vq)
  * used before the change.
  */
 typedef struct VirtQueueElementOld {
-    unsigned int index;
-    unsigned int out_num;
-    unsigned int in_num;
+    uint32_t index;
+    uint32_t out_num;
+    uint32_t in_num;
     hwaddr in_addr[VIRTQUEUE_MAX_SIZE];
     hwaddr out_addr[VIRTQUEUE_MAX_SIZE];
     struct iovec in_sg[VIRTQUEUE_MAX_SIZE];
