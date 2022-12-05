@@ -172,6 +172,11 @@ void kvm_resample_fd_notify(int gsi)
     }
 }
 
+struct XenState *kvm_get_xen_state(KVMState *s)
+{
+    return &s->xen;
+}
+
 int kvm_get_max_memslots(void)
 {
     KVMState *s = KVM_STATE(current_accel());
@@ -405,6 +410,7 @@ int kvm_init_vcpu(CPUState *cpu, Error **errp)
     cpu->vcpu_dirty = true;
     cpu->dirty_pages = 0;
     cpu->throttle_us_per_full = 0;
+    cpu->xen_state = &s->xen;
 
     mmap_size = kvm_ioctl(s, KVM_GET_VCPU_MMAP_SIZE, 0);
     if (mmap_size < 0) {

@@ -16,8 +16,10 @@
 #include "trace.h"
 
 #include "standard-headers/xen/version.h"
+#include "standard-headers/xen/memory.h"
 
 #define PAGE_OFFSET    0xffffffff80000000UL
+#define PAGE_SHIFT     12
 
 /*
  * Unhandled hypercalls error:
@@ -123,6 +125,62 @@ static int kvm_xen_hcall_xen_version(struct kvm_xen_exit *exit, X86CPU *cpu,
     return err ? HCALL_ERR : 0;
 }
 
+static int xen_set_shared_info(CPUState *cs, struct shared_info *shi,
+                               uint64_t gfn)
+{
+    struct kvm_xen_hvm_attr xhsi;
+    XenState *xen = cs->xen_state;
+    KVMState *s = cs->kvm_state;
+    int err;
+
+    xhsi.type = KVM_XEN_ATTR_TYPE_SHARED_INFO;
+    xhsi.u.shared_info.gfn = gfn;
+    err = kvm_vm_ioctl(s, KVM_XEN_HVM_SET_ATTR, &xhsi);
+    trace_kvm_xen_set_shared_info(gfn);
+    xen->shared_info = shi;
+    return err;
+}
+
+static int kvm_xen_hcall_memory_op(struct kvm_xen_exit *exit,
+                                   int cmd, uint64_t arg, X86CPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+    int err = 0;
+
+    switch (cmd) {
+    case XENMEM_add_to_physmap: {
+            struct xen_add_to_physmap *xatp;
+            struct shared_info *shi;
+
+            xatp = gva_to_hva(cs, arg);
+            if (!xatp) {
+                err = -EFAULT;
+                break;
+            }
+
+            switch (xatp->space) {
+            case XENMAPSPACE_shared_info:
+                break;
+            default:
+                err = -ENOSYS;
+                break;
+            }
+
+            shi = gpa_to_hva(xatp->gpfn << PAGE_SHIFT);
+            if (!shi) {
+                err = -EFAULT;
+                break;
+            }
+
+            err = xen_set_shared_info(cs, shi, xatp->gpfn);
+            break;
+         }
+    }
+
+    exit->u.hcall.result = err;
+    return err ? HCALL_ERR : 0;
+}
+
 static int __kvm_xen_handle_exit(X86CPU *cpu, struct kvm_xen_exit *exit)
 {
     uint16_t code = exit->u.hcall.input;
@@ -133,6 +191,9 @@ static int __kvm_xen_handle_exit(X86CPU *cpu, struct kvm_xen_exit *exit)
     }
 
     switch (code) {
+    case __HYPERVISOR_memory_op:
+        return kvm_xen_hcall_memory_op(exit, exit->u.hcall.params[0],
+                                       exit->u.hcall.params[1], cpu);
     case __HYPERVISOR_xen_version:
         return kvm_xen_hcall_xen_version(exit, cpu, exit->u.hcall.params[0],
                                          exit->u.hcall.params[1]);

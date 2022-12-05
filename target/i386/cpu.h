@@ -23,6 +23,14 @@
 #include "sysemu/tcg.h"
 #include "cpu-qom.h"
 #include "kvm/hyperv-proto.h"
+#include "xen-proto.h"
+
+#ifdef TARGET_X86_64
+#define TARGET_LONG_BITS 64
+#else
+#define TARGET_LONG_BITS 32
+#endif
+
 #include "exec/cpu-defs.h"
 #include "qapi/qapi-types-common.h"
 #include "qemu/cpu-float.h"
