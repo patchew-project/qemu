@@ -75,6 +75,37 @@ typedef struct VirtQueueElement
     struct iovec *out_sg;
 } VirtQueueElement;
 
+/*
+ * Reading and writing a structure directly to QEMUFile is *awful*, but
+ * it is what QEMU has always done by mistake.  We can change it sooner
+ * or later by bumping the version number of the affected vm states.
+ * In the meanwhile, since the in-memory layout of VirtQueueElement
+ * has changed, we need to marshal to and from the layout that was
+ * used before the change.
+ */
+typedef struct VirtQueueElementOld {
+    uint32_t index;
+    uint32_t out_num;
+    uint32_t in_num;
+    hwaddr in_addr[VIRTQUEUE_MAX_SIZE];
+    hwaddr out_addr[VIRTQUEUE_MAX_SIZE];
+    /* Unions help to serialize the descriptor using VMStateDescription */
+    union {
+        struct iovec in_sg[VIRTQUEUE_MAX_SIZE];
+        uint64_t in_sg_64[VIRTQUEUE_MAX_SIZE * 2];
+    };
+    union {
+        struct iovec out_sg[VIRTQUEUE_MAX_SIZE];
+        uint64_t out_sg_64[VIRTQUEUE_MAX_SIZE * 2];
+    };
+} VirtQueueElementOld;
+
+void *qemu_get_virtqueue_element_from_old(VirtIODevice *vdev,
+                                          const VirtQueueElementOld *data,
+                                          size_t sz);
+void qemu_put_virtqueue_element_old(const VirtQueueElement *elem,
+                                    VirtQueueElementOld *data);
+
 #define VIRTIO_QUEUE_MAX 1024
 
 #define VIRTIO_NO_VECTOR 0xffff

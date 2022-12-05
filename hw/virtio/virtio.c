@@ -2280,27 +2280,10 @@ unsigned int virtqueue_drop_all(VirtQueue *vq)
     }
 }
 
-/* Reading and writing a structure directly to QEMUFile is *awful*, but
- * it is what QEMU has always done by mistake.  We can change it sooner
- * or later by bumping the version number of the affected vm states.
- * In the meanwhile, since the in-memory layout of VirtQueueElement
- * has changed, we need to marshal to and from the layout that was
- * used before the change.
- */
-typedef struct VirtQueueElementOld {
-    uint32_t index;
-    uint32_t out_num;
-    uint32_t in_num;
-    hwaddr in_addr[VIRTQUEUE_MAX_SIZE];
-    hwaddr out_addr[VIRTQUEUE_MAX_SIZE];
-    struct iovec in_sg[VIRTQUEUE_MAX_SIZE];
-    struct iovec out_sg[VIRTQUEUE_MAX_SIZE];
-} VirtQueueElementOld;
-
 /* Convert VirtQueueElementOld to VirtQueueElement */
-static void *qemu_get_virtqueue_element_from_old(VirtIODevice *vdev,
-                                               const VirtQueueElementOld *data,
-                                               size_t sz)
+void *qemu_get_virtqueue_element_from_old(VirtIODevice *vdev,
+                                          const VirtQueueElementOld *data,
+                                          size_t sz)
 {
     VirtQueueElement *elem = virtqueue_alloc_element(sz, data->out_num,
                                                      data->in_num);
@@ -2361,8 +2344,8 @@ void *qemu_get_virtqueue_element(VirtIODevice *vdev, QEMUFile *f, size_t sz)
 }
 
 /* Convert VirtQueueElement to VirtQueueElementOld */
-static void qemu_put_virtqueue_element_old(const VirtQueueElement *elem,
-                                           VirtQueueElementOld *data)
+void qemu_put_virtqueue_element_old(const VirtQueueElement *elem,
+                                    VirtQueueElementOld *data)
 {
     memset(data, 0, sizeof(*data));
     data->index = elem->index;
