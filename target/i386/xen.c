@@ -16,11 +16,14 @@
 #include "trace.h"
 #include "sysemu/sysemu.h"
 
+#define __XEN_INTERFACE_VERSION__ 0x00040400
+
 #include "standard-headers/xen/version.h"
 #include "standard-headers/xen/memory.h"
 #include "standard-headers/xen/hvm/hvm_op.h"
 #include "standard-headers/xen/hvm/params.h"
 #include "standard-headers/xen/vcpu.h"
+#include "standard-headers/xen/event_channel.h"
 
 #define PAGE_OFFSET    0xffffffff80000000UL
 #define PAGE_SHIFT     12
@@ -436,6 +439,43 @@ static int kvm_xen_hcall_vcpu_op(struct kvm_xen_exit *exit, X86CPU *cpu,
     return err ? HCALL_ERR : 0;
 }
 
+static int kvm_xen_hcall_evtchn_op_compat(struct kvm_xen_exit *exit,
+                                          X86CPU *cpu, uint64_t arg)
+{
+    struct evtchn_op *op = gva_to_hva(CPU(cpu), arg);
+    int err = -ENOSYS;
+
+    if (!op) {
+        goto err;
+    }
+
+    switch (op->cmd) {
+    default:
+        exit->u.hcall.result = err;
+        return 0;
+    }
+err:
+    exit->u.hcall.result = err;
+    return err ? HCALL_ERR : 0;
+}
+
+static int kvm_xen_hcall_evtchn_op(struct kvm_xen_exit *exit,
+                                   int cmd, uint64_t arg)
+{
+    int err = -ENOSYS;
+
+    switch (cmd) {
+    case EVTCHNOP_init_control:
+        /* FIFO ABI */
+    default:
+        exit->u.hcall.result = err;
+        return 0;
+    }
+
+    exit->u.hcall.result = err;
+    return err ? HCALL_ERR : 0;
+}
+
 static int __kvm_xen_handle_exit(X86CPU *cpu, struct kvm_xen_exit *exit)
 {
     uint16_t code = exit->u.hcall.input;
@@ -449,6 +489,12 @@ static int __kvm_xen_handle_exit(X86CPU *cpu, struct kvm_xen_exit *exit)
     case HVMOP_set_evtchn_upcall_vector:
         return kvm_xen_hcall_evtchn_upcall_vector(exit, cpu,
                                                   exit->u.hcall.params[0]);
+    case __HYPERVISOR_event_channel_op_compat:
+        return kvm_xen_hcall_evtchn_op_compat(exit, cpu,
+                                              exit->u.hcall.params[0]);
+    case __HYPERVISOR_event_channel_op:
+        return kvm_xen_hcall_evtchn_op(exit, exit->u.hcall.params[0],
+                                       exit->u.hcall.params[1]);
     case __HYPERVISOR_vcpu_op:
         return kvm_xen_hcall_vcpu_op(exit, cpu,
                                      exit->u.hcall.params[0],
