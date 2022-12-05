@@ -271,9 +271,15 @@ int vhost_svq_add(VhostShadowVirtqueue *svq, const struct iovec *out_sg,
     return 0;
 }
 
-/* Convenience wrapper to add a guest's element to SVQ */
-static int vhost_svq_add_element(VhostShadowVirtqueue *svq,
-                                 VirtQueueElement *elem)
+/*
+ * Add a guest's element to SVQ. SVQ return the element When the device mark
+ * the descriptor as used, so make sure the guest will understand it.
+ *
+ * This function can be used to add the elements after a migration event or in
+ * the case the device is reset. To add elements that must not be seen by the
+ * guest use vhost_svq_add.
+ */
+int vhost_svq_add_element(VhostShadowVirtqueue *svq, VirtQueueElement *elem)
 {
     return vhost_svq_add(svq, elem->out_sg, elem->out_num, elem->in_sg,
                          elem->in_num, elem);
