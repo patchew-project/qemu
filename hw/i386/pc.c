@@ -1811,6 +1811,32 @@ static void pc_machine_set_max_fw_size(Object *obj, Visitor *v,
     pcms->max_fw_size = value;
 }
 
+static void pc_machine_get_xen_version(Object *obj, Visitor *v,
+                                       const char *name, void *opaque,
+                                       Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+    uint32_t value = pcms->xen_version;
+
+    visit_type_uint32(v, name, &value, errp);
+}
+
+static void pc_machine_set_xen_version(Object *obj, Visitor *v,
+                                       const char *name, void *opaque,
+                                       Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+    Error *error = NULL;
+    uint32_t value;
+
+    visit_type_uint32(v, name, &value, &error);
+    if (error) {
+        error_propagate(errp, error);
+        return;
+    }
+
+    pcms->xen_version = value;
+}
 
 static void pc_machine_initfn(Object *obj)
 {
@@ -1978,6 +2004,12 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
         NULL, NULL);
     object_class_property_set_description(oc, PC_MACHINE_SMBIOS_EP,
         "SMBIOS Entry Point type [32, 64]");
+
+    object_class_property_add(oc, "xen-version", "uint32",
+        pc_machine_get_xen_version, pc_machine_set_xen_version,
+        NULL, NULL);
+    object_class_property_set_description(oc, "xen-version",
+        "Xen version to be emulated (in XENVER_version form e.g. 0x4000a for 4.10)");
 }
 
 static const TypeInfo pc_machine_info = {
