@@ -11,8 +11,13 @@
 
 #include "qemu/osdep.h"
 #include "kvm/kvm_i386.h"
+#include "exec/address-spaces.h"
 #include "xen.h"
 #include "trace.h"
+
+#include "standard-headers/xen/version.h"
+
+#define PAGE_OFFSET    0xffffffff80000000UL
 
 /*
  * Unhandled hypercalls error:
@@ -23,6 +28,28 @@
 #ifndef HCALL_ERR
 #define HCALL_ERR      0
 #endif
+
+static void *gpa_to_hva(uint64_t gpa)
+{
+    MemoryRegionSection mrs;
+
+    mrs = memory_region_find(get_system_memory(), gpa, 1);
+    return !mrs.mr ? NULL : qemu_map_ram_ptr(mrs.mr->ram_block,
+                                             mrs.offset_within_region);
+}
+
+static void *gva_to_hva(CPUState *cs, uint64_t gva)
+{
+    struct kvm_translation t = { .linear_address = gva };
+    int err;
+
+    err = kvm_vcpu_ioctl(cs, KVM_TRANSLATE, &t);
+    if (err || !t.valid) {
+        return NULL;
+    }
+
+    return gpa_to_hva(t.physical_address);
+}
 
 int kvm_xen_init(KVMState *s, uint32_t xen_version)
 {
@@ -59,6 +86,43 @@ int kvm_xen_init(KVMState *s, uint32_t xen_version)
     return 0;
 }
 
+static int kvm_xen_hcall_xen_version(struct kvm_xen_exit *exit, X86CPU *cpu,
+                                     int cmd, uint64_t arg)
+{
+    int err = 0;
+
+    switch (cmd) {
+    case XENVER_get_features: {
+            struct xen_feature_info *fi;
+
+            fi = gva_to_hva(CPU(cpu), arg);
+            if (!fi) {
+                err = -EFAULT;
+                break;
+            }
+
+            if (fi->submap_idx != 0) {
+                err = -EINVAL;
+                break;
+            }
+
+            /*
+             * There's only HVM guests and we only expose what
+             * we intend to support. These are left in the open
+             * whether we should or not support them:
+             *
+             *   XENFEAT_memory_op_vnode_supported
+             *   XENFEAT_writable_page_tables
+             */
+            fi->submap = (1U << XENFEAT_auto_translated_physmap);
+            break;
+         }
+    }
+
+    exit->u.hcall.result = err;
+    return err ? HCALL_ERR : 0;
+}
+
 static int __kvm_xen_handle_exit(X86CPU *cpu, struct kvm_xen_exit *exit)
 {
     uint16_t code = exit->u.hcall.input;
@@ -69,6 +133,9 @@ static int __kvm_xen_handle_exit(X86CPU *cpu, struct kvm_xen_exit *exit)
     }
 
     switch (code) {
+    case __HYPERVISOR_xen_version:
+        return kvm_xen_hcall_xen_version(exit, cpu, exit->u.hcall.params[0],
+                                         exit->u.hcall.params[1]);
     default:
         exit->u.hcall.result = -ENOSYS;
         return HCALL_ERR;
