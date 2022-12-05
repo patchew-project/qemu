@@ -15,6 +15,7 @@
 #include "xen.h"
 #include "trace.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 
 #define __XEN_INTERFACE_VERSION__ 0x00040400
 
@@ -23,6 +24,7 @@
 #include "standard-headers/xen/hvm/hvm_op.h"
 #include "standard-headers/xen/hvm/params.h"
 #include "standard-headers/xen/vcpu.h"
+#include "standard-headers/xen/sched.h"
 #include "standard-headers/xen/event_channel.h"
 
 #define PAGE_OFFSET    0xffffffff80000000UL
@@ -476,6 +478,44 @@ static int kvm_xen_hcall_evtchn_op(struct kvm_xen_exit *exit,
     return err ? HCALL_ERR : 0;
 }
 
+static int schedop_shutdown(CPUState *cs, uint64_t arg)
+{
+    struct sched_shutdown *shutdown;
+
+    shutdown = gva_to_hva(cs, arg);
+    if (!shutdown) {
+        return -EFAULT;
+    }
+
+    if (shutdown->reason == SHUTDOWN_crash) {
+        cpu_dump_state(cs, stderr, CPU_DUMP_CODE);
+        qemu_system_guest_panicked(NULL);
+    } else if (shutdown->reason == SHUTDOWN_reboot) {
+        qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+    } else if (shutdown->reason == SHUTDOWN_poweroff) {
+        qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+    }
+
+    return 0;
+}
+
+static int kvm_xen_hcall_sched_op(struct kvm_xen_exit *exit, X86CPU *cpu,
+                                  int cmd, uint64_t arg)
+{
+    CPUState *cs = CPU(cpu);
+    int err = -ENOSYS;
+
+    switch (cmd) {
+    case SCHEDOP_shutdown: {
+          err = schedop_shutdown(cs, arg);
+          break;
+       }
+    }
+
+    exit->u.hcall.result = err;
+    return err;
+}
+
 static int __kvm_xen_handle_exit(X86CPU *cpu, struct kvm_xen_exit *exit)
 {
     uint16_t code = exit->u.hcall.input;
@@ -489,6 +529,10 @@ static int __kvm_xen_handle_exit(X86CPU *cpu, struct kvm_xen_exit *exit)
     case HVMOP_set_evtchn_upcall_vector:
         return kvm_xen_hcall_evtchn_upcall_vector(exit, cpu,
                                                   exit->u.hcall.params[0]);
+    case __HYPERVISOR_sched_op_compat:
+    case __HYPERVISOR_sched_op:
+        return kvm_xen_hcall_sched_op(exit, cpu, exit->u.hcall.params[0],
+                                      exit->u.hcall.params[1]);
     case __HYPERVISOR_event_channel_op_compat:
         return kvm_xen_hcall_evtchn_op_compat(exit, cpu,
                                               exit->u.hcall.params[0]);
