@@ -116,7 +116,8 @@ static void aio_ret_cb(void *opaque, int ret)
 }
 
 typedef struct CallInCoroutineData {
-    void (*entry)(void);
+    void (*entry)(void *);
+    void *arg;
     bool done;
 } CallInCoroutineData;
 
@@ -124,15 +125,16 @@ static coroutine_fn void call_in_coroutine_entry(void *opaque)
 {
     CallInCoroutineData *data = opaque;
 
-    data->entry();
+    data->entry(data->arg);
     data->done = true;
 }
 
-static void call_in_coroutine(void (*entry)(void))
+static void call_in_coroutine(void (*entry)(void *), void *arg)
 {
     Coroutine *co;
     CallInCoroutineData data = {
         .entry  = entry,
+        .arg    = arg,
         .done   = false,
     };
 
@@ -192,25 +194,27 @@ static void do_drain_end_unlocked(enum drain_type drain_type, BlockDriverState *
     }
 }
 
-static void test_drv_cb_common(enum drain_type drain_type, bool recursive)
-{
+typedef struct TestDriverCBData {
+    enum drain_type drain_type;
+    bool recursive;
     BlockBackend *blk;
     BlockDriverState *bs, *backing;
-    BDRVTestState *s, *backing_s;
+} TestDriverCBData;
+
+static void test_drv_cb_common(void *arg)
+{
+    TestDriverCBData *data = arg;
+    BlockBackend *blk = data->blk;
+    BlockDriverState *bs = data->bs;
+    BlockDriverState *backing = data->backing;
+    enum drain_type drain_type = data->drain_type;
+    bool recursive = data->recursive;
+    BDRVTestState *s = bs->opaque;
+    BDRVTestState *backing_s = backing->opaque;
     BlockAIOCB *acb;
     int aio_ret;
 
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, NULL, 0);
-
-    blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
-    bs = bdrv_new_open_driver(&bdrv_test, "test-node", BDRV_O_RDWR,
-                              &error_abort);
-    s = bs->opaque;
-    blk_insert_bs(blk, bs, &error_abort);
-
-    backing = bdrv_new_open_driver(&bdrv_test, "backing", 0, &error_abort);
-    backing_s = backing->opaque;
-    bdrv_set_backing_hd(bs, backing, &error_abort);
 
     /* Simple bdrv_drain_all_begin/end pair, check that CBs are called */
     g_assert_cmpint(s->drain_count, ==, 0);
@@ -245,54 +249,77 @@ static void test_drv_cb_common(enum drain_type drain_type, bool recursive)
 
     g_assert_cmpint(s->drain_count, ==, 0);
     g_assert_cmpint(backing_s->drain_count, ==, 0);
+}
 
-    bdrv_unref(backing);
-    bdrv_unref(bs);
-    blk_unref(blk);
+static void test_common_cb(enum drain_type drain_type, bool in_coroutine,
+                           void (*cb)(void *))
+{
+    TestDriverCBData data;
+
+    data.drain_type = drain_type;
+    data.recursive = (drain_type != BDRV_DRAIN);
+
+    data.blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
+    data.bs = bdrv_new_open_driver(&bdrv_test, "test-node", BDRV_O_RDWR,
+                              &error_abort);
+    blk_insert_bs(data.blk, data.bs, &error_abort);
+
+    data.backing = bdrv_new_open_driver(&bdrv_test, "backing", 0, &error_abort);
+    bdrv_set_backing_hd(data.bs, data.backing, &error_abort);
+
+    if (in_coroutine) {
+        call_in_coroutine(cb, &data);
+    } else {
+        cb(&data);
+    }
+
+    bdrv_unref(data.backing);
+    bdrv_unref(data.bs);
+    blk_unref(data.blk);
+}
+
+static void test_drv_cb(enum drain_type drain_type, bool in_coroutine)
+{
+    test_common_cb(drain_type, in_coroutine, test_drv_cb_common);
 }
 
 static void test_drv_cb_drain_all(void)
 {
-    test_drv_cb_common(BDRV_DRAIN_ALL, true);
+    test_drv_cb(BDRV_DRAIN_ALL, false);
 }
 
 static void test_drv_cb_drain(void)
 {
-    test_drv_cb_common(BDRV_DRAIN, false);
+    test_drv_cb(BDRV_DRAIN, false);
 }
 
 static void test_drv_cb_drain_subtree(void)
 {
-    test_drv_cb_common(BDRV_SUBTREE_DRAIN, true);
+    test_drv_cb(BDRV_SUBTREE_DRAIN, false);
 }
 
 static void test_drv_cb_co_drain_all(void)
 {
-    call_in_coroutine(test_drv_cb_drain_all);
+    test_drv_cb(BDRV_DRAIN_ALL, true);
 }
 
 static void test_drv_cb_co_drain(void)
 {
-    call_in_coroutine(test_drv_cb_drain);
+    test_drv_cb(BDRV_DRAIN, true);
 }
 
 static void test_drv_cb_co_drain_subtree(void)
 {
-    call_in_coroutine(test_drv_cb_drain_subtree);
+    test_drv_cb(BDRV_SUBTREE_DRAIN, true);
 }
 
-static void test_quiesce_common(enum drain_type drain_type, bool recursive)
+static void test_quiesce_common(void *arg)
 {
-    BlockBackend *blk;
-    BlockDriverState *bs, *backing;
-
-    blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
-    bs = bdrv_new_open_driver(&bdrv_test, "test-node", BDRV_O_RDWR,
-                              &error_abort);
-    blk_insert_bs(blk, bs, &error_abort);
-
-    backing = bdrv_new_open_driver(&bdrv_test, "backing", 0, &error_abort);
-    bdrv_set_backing_hd(bs, backing, &error_abort);
+    TestDriverCBData *data = arg;
+    BlockDriverState *bs = data->bs;
+    BlockDriverState *backing = data->backing;
+    enum drain_type drain_type = data->drain_type;
+    bool recursive = data->recursive;
 
     g_assert_cmpint(bs->quiesce_counter, ==, 0);
     g_assert_cmpint(backing->quiesce_counter, ==, 0);
@@ -306,40 +333,41 @@ static void test_quiesce_common(enum drain_type drain_type, bool recursive)
 
     g_assert_cmpint(bs->quiesce_counter, ==, 0);
     g_assert_cmpint(backing->quiesce_counter, ==, 0);
+}
 
-    bdrv_unref(backing);
-    bdrv_unref(bs);
-    blk_unref(blk);
+static void test_quiesce(enum drain_type drain_type, bool in_coroutine)
+{
+    test_common_cb(drain_type, in_coroutine, test_quiesce_common);
 }
 
 static void test_quiesce_drain_all(void)
 {
-    test_quiesce_common(BDRV_DRAIN_ALL, true);
+    test_quiesce(BDRV_DRAIN_ALL, false);
 }
 
 static void test_quiesce_drain(void)
 {
-    test_quiesce_common(BDRV_DRAIN, false);
+    test_quiesce(BDRV_DRAIN, false);
 }
 
 static void test_quiesce_drain_subtree(void)
 {
-    test_quiesce_common(BDRV_SUBTREE_DRAIN, true);
+    test_quiesce(BDRV_SUBTREE_DRAIN, false);
 }
 
 static void test_quiesce_co_drain_all(void)
 {
-    call_in_coroutine(test_quiesce_drain_all);
+    test_quiesce(BDRV_DRAIN_ALL, true);
 }
 
 static void test_quiesce_co_drain(void)
 {
-    call_in_coroutine(test_quiesce_drain);
+    test_quiesce(BDRV_DRAIN, true);
 }
 
 static void test_quiesce_co_drain_subtree(void)
 {
-    call_in_coroutine(test_quiesce_drain_subtree);
+    test_quiesce(BDRV_SUBTREE_DRAIN, true);
 }
 
 static void test_nested(void)
