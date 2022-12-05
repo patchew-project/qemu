@@ -2297,11 +2297,51 @@ typedef struct VirtQueueElementOld {
     struct iovec out_sg[VIRTQUEUE_MAX_SIZE];
 } VirtQueueElementOld;
 
+/* Convert VirtQueueElementOld to VirtQueueElement */
+static void *qemu_get_virtqueue_element_from_old(VirtIODevice *vdev,
+                                               const VirtQueueElementOld *data,
+                                               size_t sz)
+{
+    VirtQueueElement *elem = virtqueue_alloc_element(sz, data->out_num,
+                                                     data->in_num);
+    elem->index = data->index;
+
+    for (uint16_t i = 0; i < elem->in_num; i++) {
+        elem->in_addr[i] = data->in_addr[i];
+    }
+
+    for (uint16_t i = 0; i < elem->out_num; i++) {
+        elem->out_addr[i] = data->out_addr[i];
+    }
+
+    for (uint16_t i = 0; i < elem->in_num; i++) {
+        /* Base is overwritten by virtqueue_map.  */
+        elem->in_sg[i].iov_base = 0;
+        elem->in_sg[i].iov_len = data->in_sg[i].iov_len;
+    }
+
+    for (uint16_t i = 0; i < elem->out_num; i++) {
+        /* Base is overwritten by virtqueue_map.  */
+        elem->out_sg[i].iov_base = 0;
+        elem->out_sg[i].iov_len = data->out_sg[i].iov_len;
+    }
+
+    virtqueue_map(vdev, elem);
+    return elem;
+}
+
+static bool vq_element_in_range(void *opaque, int version_id)
+{
+    VirtQueueElementOld *data = opaque;
+
+    return ARRAY_SIZE(data->in_addr) >= data->in_num &&
+           ARRAY_SIZE(data->out_addr) >= data->out_num;
+}
+
 void *qemu_get_virtqueue_element(VirtIODevice *vdev, QEMUFile *f, size_t sz)
 {
     VirtQueueElement *elem;
     VirtQueueElementOld data;
-    int i;
 
     qemu_get_buffer(f, (uint8_t *)&data, sizeof(VirtQueueElementOld));
 
@@ -2310,37 +2350,13 @@ void *qemu_get_virtqueue_element(VirtIODevice *vdev, QEMUFile *f, size_t sz)
      * This is just one thing (there are probably more) that must be
      * fixed before we can allow NDEBUG compilation.
      */
-    assert(ARRAY_SIZE(data.in_addr) >= data.in_num);
-    assert(ARRAY_SIZE(data.out_addr) >= data.out_num);
+    assert(vq_element_in_range(&data, 0));
 
-    elem = virtqueue_alloc_element(sz, data.out_num, data.in_num);
-    elem->index = data.index;
-
-    for (i = 0; i < elem->in_num; i++) {
-        elem->in_addr[i] = data.in_addr[i];
-    }
-
-    for (i = 0; i < elem->out_num; i++) {
-        elem->out_addr[i] = data.out_addr[i];
-    }
-
-    for (i = 0; i < elem->in_num; i++) {
-        /* Base is overwritten by virtqueue_map.  */
-        elem->in_sg[i].iov_base = 0;
-        elem->in_sg[i].iov_len = data.in_sg[i].iov_len;
-    }
-
-    for (i = 0; i < elem->out_num; i++) {
-        /* Base is overwritten by virtqueue_map.  */
-        elem->out_sg[i].iov_base = 0;
-        elem->out_sg[i].iov_len = data.out_sg[i].iov_len;
-    }
-
+    elem = qemu_get_virtqueue_element_from_old(vdev, &data, sz);
     if (virtio_host_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
         qemu_get_be32s(f, &elem->ndescs);
     }
 
-    virtqueue_map(vdev, elem);
     return elem;
 }
 
