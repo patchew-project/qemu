@@ -23,6 +23,9 @@ typedef struct SVQDescState {
      * guest's
      */
     unsigned int ndescs;
+
+    /* List to save or free inflight descriptors */
+    QTAILQ_ENTRY(SVQDescState) entry;
 } SVQDescState;
 
 typedef struct VhostShadowVirtqueue VhostShadowVirtqueue;
@@ -80,6 +83,9 @@ typedef struct VhostShadowVirtqueue {
 
     /* SVQ vring descriptors state */
     SVQDescState *desc_state;
+
+    /* Linked list to follow avail descriptors */
+    QTAILQ_HEAD(, SVQDescState) desc_state_avail;
 
     /* Next VirtQueue element that guest made available */
     VirtQueueElement *next_guest_avail_elem;

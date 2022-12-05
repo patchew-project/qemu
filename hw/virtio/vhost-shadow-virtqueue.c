@@ -265,6 +265,8 @@ int vhost_svq_add(VhostShadowVirtqueue *svq, const struct iovec *out_sg,
 
     svq->desc_state[qemu_head].elem = elem;
     svq->desc_state[qemu_head].ndescs = ndescs;
+    QTAILQ_INSERT_TAIL(&svq->desc_state_avail, &svq->desc_state[qemu_head],
+                       entry);
     vhost_svq_kick(svq);
     return 0;
 }
@@ -451,6 +453,8 @@ static VirtQueueElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
     svq->free_head = used_elem.id;
 
     *len = used_elem.len;
+    QTAILQ_REMOVE(&svq->desc_state_avail, &svq->desc_state[used_elem.id],
+                  entry);
     return g_steal_pointer(&svq->desc_state[used_elem.id].elem);
 }
 
@@ -665,6 +669,7 @@ void vhost_svq_start(VhostShadowVirtqueue *svq, VirtIODevice *vdev,
     svq->vring.used = qemu_memalign(qemu_real_host_page_size(), device_size);
     memset(svq->vring.used, 0, device_size);
     svq->desc_state = g_new0(SVQDescState, svq->vring.num);
+    QTAILQ_INIT(&svq->desc_state_avail);
     svq->desc_next = g_new0(uint16_t, svq->vring.num);
     for (unsigned i = 0; i < svq->vring.num - 1; i++) {
         svq->desc_next[i] = cpu_to_le16(i + 1);
