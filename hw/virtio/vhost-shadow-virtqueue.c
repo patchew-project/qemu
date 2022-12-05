@@ -692,12 +692,13 @@ void vhost_svq_stop(VhostShadowVirtqueue *svq)
     /* Send all pending used descriptors to guest */
     vhost_svq_flush(svq, false);
 
-    for (unsigned i = 0; i < svq->vring.num; ++i) {
+    while (!QTAILQ_EMPTY(&svq->desc_state_avail)) {
+        SVQDescState *s = QTAILQ_FIRST(&svq->desc_state_avail);
         g_autofree VirtQueueElement *elem = NULL;
-        elem = g_steal_pointer(&svq->desc_state[i].elem);
-        if (elem) {
-            virtqueue_detach_element(svq->vq, elem, 0);
-        }
+
+        elem = g_steal_pointer(&s->elem);
+        virtqueue_detach_element(svq->vq, elem, 0);
+        QTAILQ_REMOVE(&svq->desc_state_avail, s, entry);
     }
 
     next_avail_elem = g_steal_pointer(&svq->next_guest_avail_elem);
