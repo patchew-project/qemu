@@ -105,4 +105,6 @@ int xen_config_dev_vfb(int vdev, const char *type);
 int xen_config_dev_vkbd(int vdev);
 int xen_config_dev_console(int vdev);
 
+void xen_emulated_machine_init(void);
+
 #endif /* HW_XEN_LEGACY_BACKEND_H */

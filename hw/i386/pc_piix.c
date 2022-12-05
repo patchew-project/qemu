@@ -47,6 +47,7 @@
 #include "hw/sysbus.h"
 #include "hw/i2c/smbus_eeprom.h"
 #include "hw/xen/xen-x86.h"
+#include "hw/xen/xen-legacy-backend.h"
 #include "exec/memory.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/piix4.h"
@@ -154,6 +155,10 @@ static void pc_init1(MachineState *machine,
         } else {
             x86ms->above_4g_mem_size = 0;
             x86ms->below_4g_mem_size = machine->ram_size;
+        }
+
+        if (pcms->xen_version && !xen_be_xenstore_open()) {
+            xen_emulated_machine_init();
         }
     }
 
