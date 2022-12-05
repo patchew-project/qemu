@@ -2360,36 +2360,43 @@ void *qemu_get_virtqueue_element(VirtIODevice *vdev, QEMUFile *f, size_t sz)
     return elem;
 }
 
+/* Convert VirtQueueElement to VirtQueueElementOld */
+static void qemu_put_virtqueue_element_old(const VirtQueueElement *elem,
+                                           VirtQueueElementOld *data)
+{
+    memset(data, 0, sizeof(*data));
+    data->index = elem->index;
+    data->in_num = elem->in_num;
+    data->out_num = elem->out_num;
+
+    for (int i = 0; i < elem->in_num; i++) {
+        data->in_addr[i] = elem->in_addr[i];
+    }
+
+    for (int i = 0; i < elem->out_num; i++) {
+        data->out_addr[i] = elem->out_addr[i];
+    }
+
+    for (int i = 0; i < elem->in_num; i++) {
+        /*
+         * Base is overwritten by virtqueue_map when loading.  Do not
+         * save it, as it would leak the QEMU address space layout.
+         */
+        data->in_sg[i].iov_len = elem->in_sg[i].iov_len;
+    }
+
+    for (int i = 0; i < elem->out_num; i++) {
+        /* Do not save iov_base as above.  */
+        data->out_sg[i].iov_len = elem->out_sg[i].iov_len;
+    }
+}
+
 void qemu_put_virtqueue_element(VirtIODevice *vdev, QEMUFile *f,
                                 VirtQueueElement *elem)
 {
     VirtQueueElementOld data;
-    int i;
 
-    memset(&data, 0, sizeof(data));
-    data.index = elem->index;
-    data.in_num = elem->in_num;
-    data.out_num = elem->out_num;
-
-    for (i = 0; i < elem->in_num; i++) {
-        data.in_addr[i] = elem->in_addr[i];
-    }
-
-    for (i = 0; i < elem->out_num; i++) {
-        data.out_addr[i] = elem->out_addr[i];
-    }
-
-    for (i = 0; i < elem->in_num; i++) {
-        /* Base is overwritten by virtqueue_map when loading.  Do not
-         * save it, as it would leak the QEMU address space layout.  */
-        data.in_sg[i].iov_len = elem->in_sg[i].iov_len;
-    }
-
-    for (i = 0; i < elem->out_num; i++) {
-        /* Do not save iov_base as above.  */
-        data.out_sg[i].iov_len = elem->out_sg[i].iov_len;
-    }
-
+    qemu_put_virtqueue_element_old(elem, &data);
     if (virtio_host_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
         qemu_put_be32s(f, &elem->ndescs);
     }
