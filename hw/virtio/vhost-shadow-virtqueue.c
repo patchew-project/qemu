@@ -676,6 +676,26 @@ void vhost_svq_start(VhostShadowVirtqueue *svq, VirtIODevice *vdev,
     }
 }
 
+VirtQueueElement **vhost_svq_save_inflight(VhostShadowVirtqueue *svq,
+                                           uint32_t *num)
+{
+    GPtrArray *aret = g_ptr_array_new();
+    SVQDescState *s, *tmp;
+
+    QTAILQ_FOREACH_SAFE(s, &svq->desc_state_avail, entry, tmp) {
+        VirtQueueElement *elem = s->elem;
+
+        virtqueue_detach_element(svq->vq, elem, 0);
+        g_ptr_array_add(aret, elem);
+        QTAILQ_REMOVE(&svq->desc_state_avail, s, entry);
+    }
+
+    *num = aret->len;
+
+    /* TODO: return g_ptr_array_steal(aret) when min glib >= 2.64 */
+    return (void *)g_ptr_array_free(aret, false);
+}
+
 /**
  * Stop the shadow virtqueue operation.
  * @svq: Shadow Virtqueue
