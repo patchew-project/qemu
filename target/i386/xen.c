@@ -18,6 +18,7 @@
 #include "standard-headers/xen/version.h"
 #include "standard-headers/xen/memory.h"
 #include "standard-headers/xen/hvm/hvm_op.h"
+#include "standard-headers/xen/vcpu.h"
 
 #define PAGE_OFFSET    0xffffffff80000000UL
 #define PAGE_SHIFT     12
@@ -196,6 +197,21 @@ static int kvm_xen_hcall_hvm_op(struct kvm_xen_exit *exit,
     return HCALL_ERR;
 }
 
+static int kvm_xen_hcall_vcpu_op(struct kvm_xen_exit *exit,
+                                 int cmd, uint64_t arg)
+{
+    switch (cmd) {
+    case VCPUOP_register_vcpu_info: {
+            /* no vcpu info placement for now */
+            exit->u.hcall.result = -ENOSYS;
+            return 0;
+        }
+    }
+
+    exit->u.hcall.result = -ENOSYS;
+    return HCALL_ERR;
+}
+
 static int __kvm_xen_handle_exit(X86CPU *cpu, struct kvm_xen_exit *exit)
 {
     uint16_t code = exit->u.hcall.input;
@@ -206,6 +222,9 @@ static int __kvm_xen_handle_exit(X86CPU *cpu, struct kvm_xen_exit *exit)
     }
 
     switch (code) {
+    case __HYPERVISOR_vcpu_op:
+        return kvm_xen_hcall_vcpu_op(exit, exit->u.hcall.params[0],
+                                     exit->u.hcall.params[1]);
     case __HYPERVISOR_hvm_op:
         return kvm_xen_hcall_hvm_op(exit, exit->u.hcall.params[0],
                                     exit->u.hcall.params[1]);
