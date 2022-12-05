@@ -43,17 +43,22 @@ static void *gpa_to_hva(uint64_t gpa)
                                              mrs.offset_within_region);
 }
 
-static void *gva_to_hva(CPUState *cs, uint64_t gva)
+static uint64_t gva_to_gpa(CPUState *cs, uint64_t gva)
 {
     struct kvm_translation t = { .linear_address = gva };
     int err;
 
     err = kvm_vcpu_ioctl(cs, KVM_TRANSLATE, &t);
     if (err || !t.valid) {
-        return NULL;
+        return 0;
     }
 
-    return gpa_to_hva(t.physical_address);
+    return t.physical_address;
+}
+
+static void *gva_to_hva(CPUState *cs, uint64_t gva)
+{
+    return gpa_to_hva(gva_to_gpa(cs, gva));
 }
 
 int kvm_xen_init(KVMState *s, uint32_t xen_version)
@@ -244,6 +249,27 @@ static int vcpuop_register_vcpu_info(CPUState *cs, CPUState *target,
     return xen_set_vcpu_attr(target, KVM_XEN_VCPU_ATTR_TYPE_VCPU_INFO, gpa);
 }
 
+static int vcpuop_register_vcpu_time_info(CPUState *cs, CPUState *target,
+                                          uint64_t arg)
+{
+    struct vcpu_register_time_memory_area *tma;
+    uint64_t gpa;
+    void *hva;
+
+    tma = gva_to_hva(cs, arg);
+    if (!tma) {
+        return -EFAULT;
+    }
+
+    hva = gva_to_hva(cs, tma->addr.p);
+    if (!hva || !tma->addr.p) {
+        return -EFAULT;
+    }
+
+    gpa = gva_to_gpa(cs, tma->addr.p);
+    return xen_set_vcpu_attr(target, KVM_XEN_VCPU_ATTR_TYPE_VCPU_TIME_INFO, gpa);
+}
+
 static int kvm_xen_hcall_vcpu_op(struct kvm_xen_exit *exit, X86CPU *cpu,
                                  int cmd, int vcpu_id, uint64_t arg)
 {
@@ -252,6 +278,10 @@ static int kvm_xen_hcall_vcpu_op(struct kvm_xen_exit *exit, X86CPU *cpu,
     int err = -ENOSYS;
 
     switch (cmd) {
+    case VCPUOP_register_vcpu_time_memory_area: {
+            err = vcpuop_register_vcpu_time_info(cs, dest, arg);
+            break;
+        }
     case VCPUOP_register_vcpu_info: {
             err = vcpuop_register_vcpu_info(cs, dest, arg);
             break;
