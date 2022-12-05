@@ -105,6 +105,7 @@ void *qemu_get_virtqueue_element_from_old(VirtIODevice *vdev,
                                           size_t sz);
 void qemu_put_virtqueue_element_old(const VirtQueueElement *elem,
                                     VirtQueueElementOld *data);
+extern const VMStateDescription vmstate_virtqueue_element_old;
 
 #define VIRTIO_QUEUE_MAX 1024
 

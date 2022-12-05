@@ -3165,6 +3165,38 @@ static bool virtio_disabled_needed(void *opaque)
     return vdev->disabled;
 }
 
+const VMStateDescription vmstate_virtqueue_element_old = {
+    .name = "virtqueue_element",
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(index, VirtQueueElementOld),
+        VMSTATE_UINT32(in_num, VirtQueueElementOld),
+        VMSTATE_UINT32(out_num, VirtQueueElementOld),
+        /*
+         * TODO: Needed for packed
+         * VMSTATE_UINT16(ndescs, VirtQueueElement),
+         */
+
+        VMSTATE_VALIDATE("fit", vq_element_in_range),
+        VMSTATE_VARRAY_UINT32_UNSAFE(in_addr, VirtQueueElementOld, in_num, 0,
+                                     vmstate_info_uint64, hwaddr),
+        VMSTATE_VARRAY_UINT32_UNSAFE(out_addr, VirtQueueElementOld, out_num, 0,
+                                     vmstate_info_uint64, hwaddr),
+
+        /*
+         * Assume iovec[n] == uint64_t[n*2]
+         * TODO: Probably need to send each field individually because of
+         * endianess.
+         */
+        VMSTATE_VARRAY_MULTIPLY(in_sg_64, VirtQueueElementOld, in_num,
+                                sizeof(struct iovec) / sizeof(uint64_t),
+                                vmstate_info_uint64, uint64_t),
+        VMSTATE_VARRAY_MULTIPLY(out_sg_64, VirtQueueElementOld, out_num,
+                                sizeof(struct iovec) / sizeof(uint64_t),
+                                vmstate_info_uint64, uint64_t),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const VMStateDescription vmstate_virtqueue = {
     .name = "virtqueue_state",
     .version_id = 1,
