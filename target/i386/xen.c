@@ -270,6 +270,27 @@ static int vcpuop_register_vcpu_time_info(CPUState *cs, CPUState *target,
     return xen_set_vcpu_attr(target, KVM_XEN_VCPU_ATTR_TYPE_VCPU_TIME_INFO, gpa);
 }
 
+static int vcpuop_register_runstate_info(CPUState *cs, CPUState *target,
+                                         uint64_t arg)
+{
+    struct vcpu_register_runstate_memory_area *rma;
+    uint64_t gpa;
+    void *hva;
+
+    rma = gva_to_hva(cs, arg);
+    if (!rma) {
+        return -EFAULT;
+    }
+
+    hva = gva_to_hva(cs, rma->addr.p);
+    if (!hva || !rma->addr.p) {
+        return -EFAULT;
+    }
+
+    gpa = gva_to_gpa(cs, rma->addr.p);
+    return xen_set_vcpu_attr(target, KVM_XEN_VCPU_ATTR_TYPE_RUNSTATE_ADDR, gpa);
+}
+
 static int kvm_xen_hcall_vcpu_op(struct kvm_xen_exit *exit, X86CPU *cpu,
                                  int cmd, int vcpu_id, uint64_t arg)
 {
@@ -278,6 +299,10 @@ static int kvm_xen_hcall_vcpu_op(struct kvm_xen_exit *exit, X86CPU *cpu,
     int err = -ENOSYS;
 
     switch (cmd) {
+    case VCPUOP_register_runstate_memory_area: {
+            err = vcpuop_register_runstate_info(cs, dest, arg);
+            break;
+        }
     case VCPUOP_register_vcpu_time_memory_area: {
             err = vcpuop_register_vcpu_time_info(cs, dest, arg);
             break;
