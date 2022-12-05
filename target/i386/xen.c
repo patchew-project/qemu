@@ -12,6 +12,17 @@
 #include "qemu/osdep.h"
 #include "kvm/kvm_i386.h"
 #include "xen.h"
+#include "trace.h"
+
+/*
+ * Unhandled hypercalls error:
+ *
+ * -1 crash and dump registers
+ *  0 no abort and guest handles -ENOSYS (default)
+ */
+#ifndef HCALL_ERR
+#define HCALL_ERR      0
+#endif
 
 int kvm_xen_init(KVMState *s, uint32_t xen_version)
 {
@@ -46,4 +57,38 @@ int kvm_xen_init(KVMState *s, uint32_t xen_version)
     }
 
     return 0;
+}
+
+static int __kvm_xen_handle_exit(X86CPU *cpu, struct kvm_xen_exit *exit)
+{
+    uint16_t code = exit->u.hcall.input;
+
+    if (exit->u.hcall.cpl > 0) {
+            exit->u.hcall.result = -EPERM;
+            return HCALL_ERR;
+    }
+
+    switch (code) {
+    default:
+        exit->u.hcall.result = -ENOSYS;
+        return HCALL_ERR;
+    }
+}
+
+int kvm_xen_handle_exit(X86CPU *cpu, struct kvm_xen_exit *exit)
+{
+    int ret = HCALL_ERR;
+
+    switch (exit->type) {
+    case KVM_EXIT_XEN_HCALL: {
+        ret = __kvm_xen_handle_exit(cpu, exit);
+        trace_kvm_xen_hypercall(CPU(cpu)->cpu_index, exit->u.hcall.cpl,
+                           exit->u.hcall.input, exit->u.hcall.params[0],
+                           exit->u.hcall.params[1], exit->u.hcall.params[2],
+                           exit->u.hcall.result);
+        return ret;
+    }
+    default:
+        return ret;
+    }
 }
