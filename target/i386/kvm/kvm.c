@@ -36,6 +36,7 @@
 #include "hyperv.h"
 #include "hyperv-proto.h"
 #include "xen.h"
+#include "hw/xen/xen.h"
 
 #include "exec/gdbstub.h"
 #include "qemu/host-utils.h"

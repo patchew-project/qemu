@@ -19,6 +19,7 @@
 #include "standard-headers/xen/version.h"
 #include "standard-headers/xen/memory.h"
 #include "standard-headers/xen/hvm/hvm_op.h"
+#include "standard-headers/xen/hvm/params.h"
 #include "standard-headers/xen/vcpu.h"
 
 #define PAGE_OFFSET    0xffffffff80000000UL
@@ -33,6 +34,8 @@
 #ifndef HCALL_ERR
 #define HCALL_ERR      0
 #endif
+
+static QemuMutex xen_global_mutex;
 
 static void *gpa_to_hva(uint64_t gpa)
 {
@@ -93,6 +96,8 @@ int kvm_xen_init(KVMState *s, uint32_t xen_version)
         return ret;
     }
 
+    qemu_mutex_init(&xen_global_mutex);
+
     return 0;
 }
 
@@ -124,7 +129,8 @@ static int kvm_xen_hcall_xen_version(struct kvm_xen_exit *exit, X86CPU *cpu,
              *   XENFEAT_memory_op_vnode_supported
              *   XENFEAT_writable_page_tables
              */
-            fi->submap = (1U << XENFEAT_auto_translated_physmap);
+            fi->submap = (1U << XENFEAT_auto_translated_physmap) |
+                         (1U << XENFEAT_hvm_callback_vector);
             break;
          }
     }
@@ -200,18 +206,131 @@ static int kvm_xen_hcall_memory_op(struct kvm_xen_exit *exit,
     return err ? HCALL_ERR : 0;
 }
 
-static int kvm_xen_hcall_hvm_op(struct kvm_xen_exit *exit,
+static void xen_vcpu_set_callback(CPUState *cs, run_on_cpu_data data)
+{
+    struct kvm_xen_vcpu_attr xvuv;
+    uint8_t vector = data.host_int;
+    int err;
+
+    xvuv.type = KVM_XEN_VCPU_ATTR_TYPE_UPCALL_VECTOR;
+    xvuv.u.vector = vector;
+    err = kvm_vcpu_ioctl(cs, KVM_XEN_HVM_SET_ATTR, &xvuv);
+    if (err < 0) {
+        return;
+    }
+
+    trace_kvm_xen_set_vcpu_callback(cs->cpu_index, vector);
+}
+
+static int handle_set_param(struct kvm_xen_exit *exit, X86CPU *cpu,
+                            uint64_t arg)
+{
+    CPUState *cs = CPU(cpu);
+    struct xen_hvm_param *hp;
+    int err = 0, via;
+
+    hp = gva_to_hva(cs, arg);
+    if (!hp) {
+        err = -EFAULT;
+        goto out;
+    }
+
+    if (hp->domid != DOMID_SELF) {
+        err = -EINVAL;
+        goto out;
+    }
+
+#define CALLBACK_VIA_TYPE_SHIFT       56
+#define CALLBACK_VIA_TYPE_GSI         0x0
+#define CALLBACK_VIA_TYPE_PCI_INTX    0x1
+#define CALLBACK_VIA_TYPE_VECTOR      0x2
+#define CALLBACK_VIA_TYPE_EVTCHN      0x3
+    switch (hp->index) {
+    case HVM_PARAM_CALLBACK_IRQ:
+        via = hp->value >> CALLBACK_VIA_TYPE_SHIFT;
+        if (via == CALLBACK_VIA_TYPE_GSI ||
+            via == CALLBACK_VIA_TYPE_PCI_INTX) {
+            err = -ENOSYS;
+            goto out;
+        } else if (via == CALLBACK_VIA_TYPE_VECTOR) {
+            struct kvm_xen_hvm_attr xhuv;
+            xhuv.type = KVM_XEN_ATTR_TYPE_UPCALL_VECTOR;
+            xhuv.u.vector = (uint8_t)hp->value;
+            err = kvm_vm_ioctl(cs->kvm_state, KVM_XEN_HVM_SET_ATTR, &xhuv);
+        }
+        break;
+    default:
+        err = -ENOSYS;
+        goto out;
+    }
+
+
+out:
+    exit->u.hcall.result = err;
+    return err ? HCALL_ERR : 0;
+}
+
+static int kvm_xen_hcall_evtchn_upcall_vector(struct kvm_xen_exit *exit,
+                                              X86CPU *cpu, uint64_t arg)
+{
+    struct xen_hvm_evtchn_upcall_vector *up;
+    CPUState *target_cs;
+    int err = 0, vector;
+
+    up = gva_to_hva(CPU(cpu), arg);
+    if (!up) {
+        err = -EFAULT;
+        goto out;
+    }
+
+    vector = up->vector;
+    if (vector < 0x10) {
+        err = -EINVAL;
+        goto out;
+    }
+
+    target_cs = qemu_get_cpu(up->vcpu);
+    if (!target_cs) {
+        err = -EINVAL;
+        goto out;
+    }
+    if (X86_CPU(target_cs) == cpu) {
+        struct kvm_xen_vcpu_attr xvuv;
+
+        xvuv.type = KVM_XEN_VCPU_ATTR_TYPE_UPCALL_VECTOR;
+        xvuv.u.vector = vector;
+        err = kvm_vcpu_ioctl(target_cs, KVM_XEN_HVM_SET_ATTR, &xvuv);
+        if (err < 0) {
+            goto out;
+        }
+        trace_kvm_xen_set_vcpu_callback(target_cs->cpu_index, vector);
+    } else {
+        do_run_on_cpu(target_cs, xen_vcpu_set_callback,
+                      RUN_ON_CPU_HOST_INT(vector), &xen_global_mutex);
+    }
+
+out:
+    exit->u.hcall.result = err;
+    return err ? HCALL_ERR : 0;
+}
+
+static int kvm_xen_hcall_hvm_op(struct kvm_xen_exit *exit, X86CPU *cpu,
                                 int cmd, uint64_t arg)
 {
+    int ret = -ENOSYS;
     switch (cmd) {
     case HVMOP_pagetable_dying: {
             exit->u.hcall.result = -ENOSYS;
             return 0;
         }
+    case HVMOP_set_param: {
+            ret = handle_set_param(exit, cpu, arg);
+            break;
+        }
     }
 
-    exit->u.hcall.result = -ENOSYS;
-    return HCALL_ERR;
+    exit->u.hcall.result = ret;
+    return ret ? HCALL_ERR : 0;
 }
 
 static int xen_set_vcpu_attr(CPUState *cs, uint16_t type, uint64_t gpa)
@@ -327,13 +446,16 @@ static int __kvm_xen_handle_exit(X86CPU *cpu, struct kvm_xen_exit *exit)
     }
 
     switch (code) {
+    case HVMOP_set_evtchn_upcall_vector:
+        return kvm_xen_hcall_evtchn_upcall_vector(exit, cpu,
+                                                  exit->u.hcall.params[0]);
     case __HYPERVISOR_vcpu_op:
         return kvm_xen_hcall_vcpu_op(exit, cpu,
                                      exit->u.hcall.params[0],
                                      exit->u.hcall.params[1],
                                      exit->u.hcall.params[2]);
     case __HYPERVISOR_hvm_op:
-        return kvm_xen_hcall_hvm_op(exit, exit->u.hcall.params[0],
+        return kvm_xen_hcall_hvm_op(exit, cpu, exit->u.hcall.params[0],
                                     exit->u.hcall.params[1]);
     case __HYPERVISOR_memory_op:
         return kvm_xen_hcall_memory_op(exit, exit->u.hcall.params[0],
