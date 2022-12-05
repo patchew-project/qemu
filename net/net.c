@@ -1103,7 +1103,16 @@ static int net_client_init1(const Netdev *netdev, bool is_netdev, Error **errp)
 
     if (is_netdev) {
         nc = qemu_find_netdev(netdev->id);
-        assert(nc);
+        /*
+         * If the tap of hotpluged net device do not has both has_vhostforce flag and vhostforce flags,
+         * when error occurs, the error messags will be report but not set to errp. Thus net_client_init_fun
+         * will not return a negatave value. Therefore the value of nc might be NULL. To make qemu robust,
+         * it is better to judge if nc is NULL.
+         */
+        if (!nc) {
+            error_setg(errp, "Device '%s' could not be initialized", netdev->id);
+            return -1;
+        }
         nc->is_netdev = true;
     }
 
