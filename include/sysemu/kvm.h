@@ -512,6 +512,7 @@ static inline void kvm_irqchip_commit_route_changes(KVMRouteChange *c)
 }
 
 void kvm_irqchip_release_virq(KVMState *s, int virq);
+void kvm_irqchip_set_gsi(KVMState *s, unsigned int gsi);
 
 int kvm_irqchip_add_adapter_route(KVMState *s, AdapterInfo *adapter);
 int kvm_irqchip_add_hv_sint_route(KVMState *s, uint32_t vcpu, uint32_t sint);

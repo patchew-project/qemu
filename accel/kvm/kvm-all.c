@@ -1677,6 +1677,11 @@ static void set_gsi(KVMState *s, unsigned int gsi)
     set_bit(gsi, s->used_gsi_bitmap);
 }
 
+void kvm_irqchip_set_gsi(KVMState *s, unsigned int gsi)
+{
+    set_gsi(s, gsi);
+}
+
 static void clear_gsi(KVMState *s, unsigned int gsi)
 {
     clear_bit(gsi, s->used_gsi_bitmap);
