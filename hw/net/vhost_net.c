@@ -428,6 +428,40 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
         }
     }
 
+    for (i = 0; i < data_queue_pairs; i++) {
+        struct vhost_vdpa *v;
+
+        peer = qemu_get_peer(ncs, i);
+        if (peer->info->type != NET_CLIENT_DRIVER_VHOST_VDPA) {
+            continue;
+        }
+        net = get_vhost_net(peer);
+        v = net->dev.opaque;
+
+        if (!v->shadow_vqs_enabled) {
+            return 0;
+        }
+
+        for (size_t i = 0; i < v->dev->nvqs; ++i) {
+            VirtIONetQueue *q = &n->vqs[(i + v->dev->vq_index) / 2];
+            size_t num = i % 2 ? q->tx_inflight_num : q->rx_inflight_num;
+            g_autofree VirtQueueElement **inflight = NULL;
+
+            assert(v->dev->vq_index % 2 == 0);
+            inflight = g_steal_pointer(i % 2 ? &q->tx_inflight
+                                             : &q->rx_inflight);
+            for (size_t j = 0; j < num; ++j) {
+                int r;
+
+                r = vhost_svq_add_element(g_ptr_array_index(v->shadow_vqs, i),
+                                          inflight[j]);
+
+                /* TODO: Proper error handling */
+                assert(r == 0);
+            }
+        }
+    }
+
     return 0;
 
 err_start:
