@@ -3077,6 +3077,13 @@ static bool mac_table_doesnt_fit(void *opaque, int version_id)
     return !mac_table_fits(opaque, version_id);
 }
 
+typedef struct VirtIONetInflightQueue {
+    uint16_t idx;
+    uint16_t num;
+    QTAILQ_ENTRY(VirtIONetInflightQueue) entry;
+    VirtQueueElementOld *elems;
+} VirtIONetInflightQueue;
+
 /* This temporary type is shared by all the WITH_TMP methods
  * although only some fields are used by each.
  */
@@ -3086,6 +3093,7 @@ struct VirtIONetMigTmp {
     uint16_t        curr_queue_pairs_1;
     uint8_t         has_ufo;
     uint32_t        has_vnet_hdr;
+    QTAILQ_HEAD(, VirtIONetInflightQueue) queues_inflight;
 };
 
 /* The 2nd and subsequent tx_waiting flags are loaded later than
@@ -3231,6 +3239,124 @@ static const VMStateDescription vmstate_virtio_net_rss = {
     },
 };
 
+static const VMStateDescription vmstate_virtio_net_inflight_queue = {
+    .name      = "virtio-net-device/inflight/queue",
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT16(idx, VirtIONetInflightQueue),
+        VMSTATE_UINT16(num, VirtIONetInflightQueue),
+
+        VMSTATE_STRUCT_VARRAY_ALLOC_UINT16(elems, VirtIONetInflightQueue, num,
+                                           0, vmstate_virtqueue_element_old,
+                                           VirtQueueElementOld),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static int virtio_net_inflight_init(void *opaque)
+{
+    struct VirtIONetMigTmp *tmp = opaque;
+
+    QTAILQ_INIT(&tmp->queues_inflight);
+    return 0;
+}
+
+static int virtio_net_inflight_pre_save(void *opaque)
+{
+    struct VirtIONetMigTmp *tmp = opaque;
+    VirtIONet *net = tmp->parent;
+    uint16_t curr_queue_pairs = net->multiqueue ? net->curr_queue_pairs : 1;
+    VirtIONetInflightQueue *qi = g_new0(VirtIONetInflightQueue,
+                                        curr_queue_pairs * 2);
+
+    virtio_net_inflight_init(opaque);
+    for (uint16_t i = 0; i < curr_queue_pairs * 2; ++i) {
+        VirtIONetQueue *q = &net->vqs[vq2q(i)];
+        size_t n = i % 2 ? q->tx_inflight_num : q->rx_inflight_num;
+        VirtQueueElement **inflight = i % 2 ? q->tx_inflight : q->rx_inflight;
+
+        if (n == 0) {
+            continue;
+        }
+
+        qi[i].idx = i;
+        qi[i].num = n;
+        qi[i].elems = g_new0(VirtQueueElementOld, n);
+        for (uint16_t j = 0; j < n; ++j) {
+            qemu_put_virtqueue_element_old(inflight[j], &qi[i].elems[j]);
+        }
+        QTAILQ_INSERT_TAIL(&tmp->queues_inflight, &qi[i], entry);
+    }
+
+    return 0;
+}
+
+static int virtio_net_inflight_post_save(void *opaque)
+{
+    struct VirtIONetMigTmp *tmp = opaque;
+    VirtIONetInflightQueue *qi;
+
+    while ((qi = QTAILQ_FIRST(&tmp->queues_inflight))) {
+        QTAILQ_REMOVE(&tmp->queues_inflight, qi, entry);
+        g_free(qi->elems);
+        g_free(qi);
+    }
+
+    return 0;
+}
+
+static int virtio_net_inflight_post_load(void *opaque, int version_id)
+{
+    struct VirtIONetMigTmp *tmp = opaque;
+    VirtIONet *net = tmp->parent;
+    uint16_t curr_queue_pairs = net->multiqueue ? net->curr_queue_pairs : 1;
+    VirtIONetInflightQueue *qi;
+
+    while ((qi = QTAILQ_FIRST(&tmp->queues_inflight))) {
+        VirtIONetQueue *q = &net->vqs[vq2q(qi->idx)];
+        uint32_t *n = qi->idx % 2 ? &q->tx_inflight_num : &q->rx_inflight_num;
+        VirtQueueElement ***inflight = qi->idx % 2 ?
+                                       &q->tx_inflight : &q->rx_inflight;
+        if (unlikely(qi->num == 0)) {
+            /* TODO: error message */
+            return -1;
+        }
+
+        if (unlikely(qi->idx > curr_queue_pairs * 2)) {
+            /* TODO: error message */
+            return -1;
+        }
+
+        *n = qi->num;
+        *inflight = g_new(VirtQueueElement *, *n);
+        for (uint16_t j = 0; j < *n; ++j) {
+            (*inflight)[j] = qemu_get_virtqueue_element_from_old(
+                &net->parent_obj, &qi->elems[j],
+                sizeof(VirtQueueElement));
+        }
+
+        QTAILQ_REMOVE(&tmp->queues_inflight, qi, entry);
+        g_free(qi->elems);
+        g_free(qi);
+    }
+
+    return 0;
+}
+
+/* TODO: Allocate a temporal per queue / queue element, not all of them! */
+static const VMStateDescription vmstate_virtio_net_inflight = {
+    .name      = "virtio-net-device/inflight",
+    .pre_save = virtio_net_inflight_pre_save,
+    .post_save = virtio_net_inflight_post_save,
+    .pre_load = virtio_net_inflight_init,
+    .post_load = virtio_net_inflight_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_QTAILQ_V(queues_inflight, struct VirtIONetMigTmp, 0,
+                         vmstate_virtio_net_inflight_queue,
+                         VirtIONetInflightQueue, entry),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const VMStateDescription vmstate_virtio_net_device = {
     .name = "virtio-net-device",
     .version_id = VIRTIO_NET_VM_VERSION,
@@ -3279,6 +3405,9 @@ static const VMStateDescription vmstate_virtio_net_device = {
                          vmstate_virtio_net_tx_waiting),
         VMSTATE_UINT64_TEST(curr_guest_offloads, VirtIONet,
                             has_ctrl_guest_offloads),
+        /* TODO: Move to subsection */
+        VMSTATE_WITH_TMP(VirtIONet, struct VirtIONetMigTmp,
+                         vmstate_virtio_net_inflight),
         VMSTATE_END_OF_LIST()
    },
     .subsections = (const VMStateDescription * []) {

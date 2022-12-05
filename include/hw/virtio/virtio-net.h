@@ -151,9 +151,11 @@ typedef struct VirtIONetQueue {
     QEMUTimer *tx_timer;
     QEMUBH *tx_bh;
     uint32_t tx_waiting;
+    uint32_t tx_inflight_num, rx_inflight_num;
     struct {
         VirtQueueElement *elem;
     } async_tx;
+    VirtQueueElement **tx_inflight, **rx_inflight;
     struct VirtIONet *n;
 } VirtIONetQueue;
 
