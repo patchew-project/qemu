@@ -14,6 +14,14 @@
 
 #define XEN_HYPERCALL_MSR 0x40000000
 
+#define XEN_CPUID_SIGNATURE        0x40000000
+#define XEN_CPUID_VENDOR           0x40000001
+#define XEN_CPUID_HVM_MSR          0x40000002
+#define XEN_CPUID_TIME             0x40000003
+#define XEN_CPUID_HVM              0x40000004
+
+#define XEN_VERSION(maj, min) ((maj) << 16 | (min))
+
 int kvm_xen_init(KVMState *s, uint32_t xen_version);
 
 #endif /* QEMU_I386_XEN_H */
