@@ -21,6 +21,7 @@
 
 #include "standard-headers/linux/vhost_types.h"
 #include "hw/virtio/virtio-net.h"
+#include "hw/virtio/vhost-vdpa.h" /* TODO remove me */
 #include "net/vhost_net.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -319,6 +320,7 @@ static void vhost_net_stop_one(struct vhost_net *net,
                                VirtIODevice *dev)
 {
     struct vhost_vring_file file = { .fd = -1 };
+    VirtIONet *n = VIRTIO_NET(dev);
 
     if (net->nc->info->type == NET_CLIENT_DRIVER_TAP) {
         for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
@@ -329,6 +331,26 @@ static void vhost_net_stop_one(struct vhost_net *net,
     if (net->nc->info->poll) {
         net->nc->info->poll(net->nc, true);
     }
+
+    for (size_t i = 0; i < net->dev.nvqs; ++i) {
+        struct vhost_vdpa *v = net->dev.opaque;
+
+        if (net->dev.nvqs != 2) {
+            continue;
+        }
+
+        if (!v->shadow_vqs_enabled) {
+            continue;
+        }
+
+        n->vqs[i].rx_inflight = vhost_svq_save_inflight(
+            g_ptr_array_index(v->shadow_vqs, 0),
+            &n->vqs[i].rx_inflight_num);
+        n->vqs[i].tx_inflight = vhost_svq_save_inflight(
+            g_ptr_array_index(v->shadow_vqs, 1),
+            &n->vqs[i].tx_inflight_num);
+    }
+
     vhost_dev_stop(&net->dev, dev, false);
     if (net->nc->info->stop) {
         net->nc->info->stop(net->nc);
