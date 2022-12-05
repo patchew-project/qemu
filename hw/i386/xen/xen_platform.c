@@ -469,8 +469,12 @@ static const MemoryRegionOps platform_mmio_handler = {
 
 static void platform_mmio_setup(PCIXenPlatformState *d)
 {
-    memory_region_init_io(&d->mmio_bar, OBJECT(d), &platform_mmio_handler, d,
-                          "xen-mmio", 0x1000000);
+    if (xen_mode == XEN_EMULATE)
+        memory_region_init_ram(&d->mmio_bar, OBJECT(d), "xen-mmio", 0x1000000,
+                               &error_fatal);
+    else
+        memory_region_init_io(&d->mmio_bar, OBJECT(d), &platform_mmio_handler, d,
+                              "xen-mmio", 0x1000000);
 }
 
 static int xen_platform_post_load(void *opaque, int version_id)
