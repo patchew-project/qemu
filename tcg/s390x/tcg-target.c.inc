@@ -2081,6 +2081,41 @@ static void tcg_out_exit_tb(TCGContext *s, uintptr_t a0)
     }
 }
 
+static void tcg_out_goto_tb(TCGContext *s, int which)
+{
+    if (TCG_TARGET_HAS_direct_jump) {
+        /*
+         * Branch displacement must be aligned for atomic patching;
+         * see if we need to add extra nop before branch
+         */
+        if (!QEMU_PTR_IS_ALIGNED(s->code_ptr + 1, 4)) {
+            tcg_out16(s, NOP);
+        }
+        tcg_debug_assert(!USE_REG_TB);
+        tcg_out16(s, RIL_BRCL | (S390_CC_ALWAYS << 4));
+        set_jmp_insn_offset(s, which);
+        s->code_ptr += 2;
+    } else {
+        /* Load address stored in the TB. */
+        tcg_out_ld_abs(s, TCG_TYPE_PTR, TCG_REG_TB,
+                       (const void *)get_jmp_target_addr(s, which));
+        /* and go there */
+        tcg_out_insn(s, RR, BCR, S390_CC_ALWAYS, TCG_REG_TB);
+    }
+    set_jmp_reset_offset(s, which);
+
+    /*
+     * For the unlinked path of goto_tb, we need to reset TCG_REG_TB
+     * to the beginning of this TB.
+     */
+    if (USE_REG_TB) {
+        int ofs = -tcg_current_code_size(s);
+        /* All TB are restricted to 64KiB by unwind info. */
+        tcg_debug_assert(ofs == sextract64(ofs, 0, 20));
+        tcg_out_insn(s, RXY, LAY, TCG_REG_TB, TCG_REG_TB, TCG_REG_NONE, ofs);
+    }
+}
+
 # define OP_32_64(x) \
         case glue(glue(INDEX_op_,x),_i32): \
         case glue(glue(INDEX_op_,x),_i64)
@@ -2093,40 +2128,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     TCGArg a0, a1, a2;
 
     switch (opc) {
-    case INDEX_op_goto_tb:
-        a0 = args[0];
-        if (TCG_TARGET_HAS_direct_jump) {
-            /*
-             * branch displacement must be aligned for atomic patching;
-             * see if we need to add extra nop before branch
-             */
-            if (!QEMU_PTR_IS_ALIGNED(s->code_ptr + 1, 4)) {
-                tcg_out16(s, NOP);
-            }
-            tcg_debug_assert(!USE_REG_TB);
-            tcg_out16(s, RIL_BRCL | (S390_CC_ALWAYS << 4));
-            set_jmp_insn_offset(s, a0);
-            s->code_ptr += 2;
-        } else {
-            /* load address stored at s->tb_jmp_target_addr + a0 */
-            tcg_out_ld_abs(s, TCG_TYPE_PTR, TCG_REG_TB,
-                           (const void *)get_jmp_target_addr(s, a0));
-            /* and go there */
-            tcg_out_insn(s, RR, BCR, S390_CC_ALWAYS, TCG_REG_TB);
-        }
-        set_jmp_reset_offset(s, a0);
-
-        /* For the unlinked path of goto_tb, we need to reset
-           TCG_REG_TB to the beginning of this TB.  */
-        if (USE_REG_TB) {
-            int ofs = -tcg_current_code_size(s);
-            /* All TB are restricted to 64KiB by unwind info. */
-            tcg_debug_assert(ofs == sextract64(ofs, 0, 20));
-            tcg_out_insn(s, RXY, LAY, TCG_REG_TB,
-                         TCG_REG_TB, TCG_REG_NONE, ofs);
-        }
-        break;
-
     case INDEX_op_goto_ptr:
         a0 = args[0];
         if (USE_REG_TB) {
@@ -2662,6 +2663,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_mov_i64:
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
     case INDEX_op_exit_tb:  /* Always emitted via tcg_out_exit_tb.  */
+    case INDEX_op_goto_tb:  /* Always emitted via tcg_out_goto_tb.  */
     default:
         tcg_abort();
     }
