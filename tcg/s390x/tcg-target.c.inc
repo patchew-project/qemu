@@ -2095,7 +2095,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     switch (opc) {
     case INDEX_op_goto_tb:
         a0 = args[0];
-        if (s->tb_jmp_insn_offset) {
+        if (TCG_TARGET_HAS_direct_jump) {
             /*
              * branch displacement must be aligned for atomic patching;
              * see if we need to add extra nop before branch
