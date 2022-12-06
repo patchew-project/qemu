@@ -129,6 +129,26 @@ struct IOMMUTLBEntry {
 /*
  * Bitmap for different IOMMUNotifier capabilities. Each notifier can
  * register with one or multiple IOMMU Notifier capability bit(s).
+ *
+ * Normally there're two use cases for the notifiers:
+ *
+ *   (1) When the device needs accurate synchronizations of the vIOMMU page
+ *       tables, it needs to register with both MAP|UNMAP notifies (which
+ *       is defined as IOMMU_NOTIFIER_IOTLB_EVENTS below).  As long as MAP
+ *       events are registered, the notifications will be accurate but
+ *       there's overhead on synchronizing the guest vIOMMU page tables.
+ *
+ *   (2) When the device doesn't need accurate synchronizations of the
+ *       vIOMMU page tables (when the device can both cache translations
+ *       and requesting to translate dynamically during DMA process), it
+ *       needs to register only with UNMAP or DEVIOTLB_UNMAP notifies.
+ *       Note that in this working mode the vIOMMU will not maintain a
+ *       shadowed page table for the address space, and the UNMAP messages
+ *       can be actually larger than the real invalidations (just like how
+ *       the Linux IOMMU driver normally works, where an invalidation can
+ *       be enlarged as long as it still covers the target range).  The
+ *       IOMMU notifiee should be able to take care of over-sized
+ *       invalidations.
  */
 typedef enum {
     IOMMU_NOTIFIER_NONE = 0,
