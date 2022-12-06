@@ -318,7 +318,7 @@ static void set_jmp_reset_offset(TCGContext *s, int which)
      * We will check for overflow at the end of the opcode loop in
      * tcg_gen_code, where we bound tcg_current_code_size to UINT16_MAX.
      */
-    s->tb_jmp_reset_offset[which] = tcg_current_code_size(s);
+    s->gen_tb->jmp_reset_offset[which] = tcg_current_code_size(s);
 }
 
 static void G_GNUC_UNUSED set_jmp_insn_offset(TCGContext *s, int which)
@@ -328,7 +328,7 @@ static void G_GNUC_UNUSED set_jmp_insn_offset(TCGContext *s, int which)
      * tcg_gen_code, where we bound tcg_current_code_size to UINT16_MAX.
      */
     tcg_debug_assert(TCG_TARGET_HAS_direct_jump);
-    s->tb_jmp_insn_offset[which] = tcg_current_code_size(s);
+    s->gen_tb->jmp_target_arg[which] = tcg_current_code_size(s);
 }
 
 static uintptr_t G_GNUC_UNUSED get_jmp_target_addr(TCGContext *s, int which)
@@ -337,7 +337,7 @@ static uintptr_t G_GNUC_UNUSED get_jmp_target_addr(TCGContext *s, int which)
      * Return the read-execute version of the pointer, for the benefit
      * of any pc-relative addressing mode.
      */
-    return (uintptr_t)tcg_splitwx_to_rx(s->tb_jmp_target_addr + which);
+    return (uintptr_t)tcg_splitwx_to_rx(s->gen_tb->jmp_target_arg + which);
 }
 
 /* Signal overflow, starting over with fewer guest insns. */
@@ -4252,14 +4252,6 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, target_ulong pc_start)
     /* Initialize goto_tb jump offsets. */
     tb->jmp_reset_offset[0] = TB_JMP_OFFSET_INVALID;
     tb->jmp_reset_offset[1] = TB_JMP_OFFSET_INVALID;
-    tcg_ctx->tb_jmp_reset_offset = tb->jmp_reset_offset;
-    if (TCG_TARGET_HAS_direct_jump) {
-        tcg_ctx->tb_jmp_insn_offset = tb->jmp_target_arg;
-        tcg_ctx->tb_jmp_target_addr = NULL;
-    } else {
-        tcg_ctx->tb_jmp_insn_offset = NULL;
-        tcg_ctx->tb_jmp_target_addr = tb->jmp_target_arg;
-    }
 
     tcg_reg_alloc_start(s);
 
