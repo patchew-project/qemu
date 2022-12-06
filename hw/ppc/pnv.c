@@ -992,7 +992,7 @@ static void pnv_init(MachineState *machine)
     serial_hds_isa_init(pnv->isa_bus, 0, MAX_ISA_SERIAL_PORTS);
 
     /* Create an RTC ISA device too */
-    mc146818_rtc_init(pnv->isa_bus, 2000, NULL);
+    mc146818_rtc_init(pnv->isa_bus, 2000, NULL, NULL);
 
     /*
      * Create the machine BMC simulator and the IPMI BT device for

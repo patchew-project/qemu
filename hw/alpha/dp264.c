@@ -118,7 +118,7 @@ static void clipper_init(MachineState *machine)
     qdev_connect_gpio_out(i82378_dev, 0, isa_irq);
 
     /* Since we have an SRM-compatible PALcode, use the SRM epoch.  */
-    mc146818_rtc_init(isa_bus, 1900, rtc_irq);
+    mc146818_rtc_init(isa_bus, 1900, rtc_irq, NULL);
 
     /* VGA setup.  Don't bother loading the bios.  */
     pci_vga_init(pci_bus);

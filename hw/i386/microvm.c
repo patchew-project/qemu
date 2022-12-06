@@ -267,7 +267,8 @@ static void microvm_devices_init(MicrovmMachineState *mms)
 
     if (mms->rtc == ON_OFF_AUTO_ON ||
         (mms->rtc == ON_OFF_AUTO_AUTO && !kvm_enabled())) {
-        rtc_state = mc146818_rtc_init(isa_bus, 2000, NULL);
+        rtc_state = mc146818_rtc_init(isa_bus, 2000, NULL,
+                                      rtc_apic_policy_slew_deliver_irq);
         microvm_set_rtc(mms, rtc_state);
     }
 

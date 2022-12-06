@@ -232,7 +232,7 @@ static void machine_hppa_init(MachineState *machine)
     assert(isa_bus);
 
     /* Realtime clock, used by firmware for PDC_TOD call. */
-    mc146818_rtc_init(isa_bus, 2000, NULL);
+    mc146818_rtc_init(isa_bus, 2000, NULL, NULL);
 
     /* Serial ports: Lasi and Dino use a 7.272727 MHz clock. */
     serial_mm_init(addr_space, LASI_UART_HPA + 0x800, 0,
