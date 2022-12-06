@@ -1276,6 +1276,29 @@ void memory_region_init_resizeable_ram(MemoryRegion *mr,
                                                        uint64_t length,
                                                        void *host),
                                        Error **errp);
+
+/*
+ * memory_region_init_resizeable_rom:  Initialize memory region with resizeable
+ *                                     ROM.
+ * @mr: the #MemoryRegion to be initialized.
+ * @owner: the object that tracks the region's reference count
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
+ *        must be unique within any device
+ * @size: used size of the region.
+ * @max_size: max size of the region.
+ * @resized: callback to notify owner about used size change.
+ * @errp: pointer to Error*, to store an error if it happens.
+ */
+void memory_region_init_resizeable_rom(MemoryRegion *mr,
+                                       struct Object *owner,
+                                       const char *name,
+                                       uint64_t size,
+                                       uint64_t max_size,
+                                       void (*resized)(const char*,
+                                                       uint64_t length,
+                                                       void *host),
+                                       Error **errp);
+
 #ifdef CONFIG_POSIX
 
 /**
@@ -2819,6 +2842,8 @@ MemTxResult address_space_write_cached_slow(MemoryRegionCache *cache,
 
 int memory_access_size(MemoryRegion *mr, unsigned l, hwaddr addr);
 bool prepare_mmio_access(MemoryRegion *mr);
+
+MemoryRegion *memory_region_from_ramblock_id(const char *id);
 
 static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
 {

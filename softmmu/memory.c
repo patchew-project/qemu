@@ -2399,6 +2399,18 @@ void *memory_region_get_ram_ptr(MemoryRegion *mr)
     return ptr;
 }
 
+MemoryRegion *memory_region_from_ramblock_id(const char *id)
+{
+    RAMBlock *block = qemu_ram_block_by_name(id);
+
+    if (!block) {
+        return NULL;
+    }
+
+    return block->mr;
+}
+
+
 MemoryRegion *memory_region_from_host(void *ptr, ram_addr_t *offset)
 {
     RAMBlock *block;
@@ -3549,6 +3561,39 @@ void memory_region_init_ram(MemoryRegion *mr,
     owner_dev = DEVICE(owner);
     vmstate_register_ram(mr, owner_dev);
 }
+
+void memory_region_init_resizeable_rom(MemoryRegion *mr,
+                                       struct Object *owner,
+                                       const char *name,
+                                       uint64_t size,
+                                       uint64_t max_size,
+                                       void (*resized)(const char*,
+                                                       uint64_t length,
+                                                       void *host),
+                                       Error **errp)
+{
+    DeviceState *owner_dev;
+    Error *err = NULL;
+
+    memory_region_init(mr, owner, name, size);
+    mr->ram = true;
+    mr->terminates = true;
+    mr->destructor = memory_region_destructor_ram;
+    mr->ram_block = qemu_ram_alloc_resizeable(size, max_size, resized,
+                                              mr, &err);
+    mr->readonly = true;
+
+    if (err) {
+        mr->size = int128_zero();
+        object_unparent(OBJECT(mr));
+        error_propagate(errp, err);
+        return;
+    }
+
+    owner_dev = DEVICE(owner);
+    vmstate_register_ram(mr, owner_dev);
+}
+
 
 void memory_region_init_rom(MemoryRegion *mr,
                             Object *owner,

@@ -2407,6 +2407,30 @@ static void pci_patch_ids(PCIDevice *pdev, uint8_t *ptr, uint32_t size)
     }
 }
 
+/*
+ * This is a hook function which is called when the RAMBlock of a option rom
+ * is resized by QEMU in a live migration. For option rom, since the PCI bar
+ * is registered based on the size of ROM MemoryRegion, after a resize is done
+ * on this ROM MemoryRegion, we should re-register its PCI bar based on the new
+ * size.
+ */
+static void pci_option_rom_resized(const char* id, uint64_t length, void *host) {
+    MemoryRegion *mr = memory_region_from_ramblock_id(id);
+    if (mr == NULL) {
+        // The failure to react the resize may cause the later check for
+        // PCI config to fail in the migration, so the migration may fail,
+        // but will not affect the src VM.
+        error_report("failed to find the block %s\n", id);
+        return;
+    }
+
+    PCIDevice *pdev = (PCIDevice *)DEVICE(mr->owner);
+    fprintf(stdout, "block id: %s resized to 0x" RAM_ADDR_FMT \
+            ", re-register pci bar for device: %s\n", id, length, pdev->name);
+
+    pci_register_bar(pdev, PCI_ROM_SLOT, 0, &pdev->rom);
+}
+
 /* Add an option rom for the device */
 static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom,
                                Error **errp)
@@ -2486,7 +2510,7 @@ static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom,
         snprintf(name, sizeof(name), "%s.rom", object_get_typename(OBJECT(pdev)));
     }
     pdev->has_rom = true;
-    memory_region_init_rom(&pdev->rom, OBJECT(pdev), name, pdev->romsize, &error_fatal);
+    memory_region_init_resizeable_rom(&pdev->rom, OBJECT(pdev), name, pdev->romsize, pdev->romsize, pci_option_rom_resized, &error_fatal);
     ptr = memory_region_get_ram_ptr(&pdev->rom);
     if (load_image_size(path, ptr, size) < 0) {
         error_setg(errp, "failed to load romfile \"%s\"", pdev->romfile);
