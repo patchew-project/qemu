@@ -1395,7 +1395,7 @@ static uint64_t io_readx(CPUArchState *env, CPUTLBEntryFull *full,
 static void save_iotlb_data(CPUState *cs, MemoryRegionSection *section,
                             hwaddr mr_offset)
 {
-#ifdef CONFIG_PLUGIN
+#if defined(CONFIG_PLUGIN) && !defined(CONFIG_USER_ONLY)
     SavedIOTLB *saved = &cs->saved_iotlb;
     saved->section = section;
     saved->mr_offset = mr_offset;
@@ -1699,7 +1699,7 @@ tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env, target_ulong addr,
     return qemu_ram_addr_from_host_nofail(p);
 }
 
-#ifdef CONFIG_PLUGIN
+#if defined(CONFIG_PLUGIN) && !defined(CONFIG_USER_ONLY)
 /*
  * Perform a TLB lookup and populate the qemu_plugin_hwaddr structure.
  * This should be a hot path as we will have just looked this path up
