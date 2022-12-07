@@ -1034,6 +1034,7 @@ static gboolean virtio_iommu_remap(gpointer key, gpointer value, gpointer data)
 
     trace_virtio_iommu_remap(mr->parent_obj.name, interval->low, interval->high,
                              mapping->phys_addr);
+    virtio_iommu_notify_unmap(mr, interval->low, interval->high);
     virtio_iommu_notify_map(mr, interval->low, interval->high,
                             mapping->phys_addr, mapping->flags);
     return false;
