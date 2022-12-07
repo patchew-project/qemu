@@ -277,18 +277,20 @@ static gboolean virtio_iommu_notify_unmap_cb(gpointer key, gpointer value,
     return false;
 }
 
-static gboolean virtio_iommu_notify_map_cb(gpointer key, gpointer value,
-                                           gpointer data)
+static gboolean virtio_iommu_notify_remap_cb(gpointer key, gpointer value,
+                                             gpointer data)
 {
     VirtIOIOMMUMapping *mapping = (VirtIOIOMMUMapping *) value;
     VirtIOIOMMUInterval *interval = (VirtIOIOMMUInterval *) key;
     IOMMUMemoryRegion *mr = (IOMMUMemoryRegion *) data;
 
+    virtio_iommu_notify_unmap(mr, interval->low, interval->high);
     virtio_iommu_notify_map(mr, interval->low, interval->high,
                             mapping->phys_addr, mapping->flags);
 
     return false;
 }
+
 
 static void virtio_iommu_detach_endpoint_from_domain(VirtIOIOMMUEndpoint *ep)
 {
@@ -489,7 +491,7 @@ static int virtio_iommu_attach(VirtIOIOMMU *s,
     virtio_iommu_switch_address_space(sdev);
 
     /* Replay domain mappings on the associated memory region */
-    g_tree_foreach(domain->mappings, virtio_iommu_notify_map_cb,
+    g_tree_foreach(domain->mappings, virtio_iommu_notify_remap_cb,
                    ep->iommu_mr);
 
     return VIRTIO_IOMMU_S_OK;
