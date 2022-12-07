@@ -63,6 +63,7 @@ config VT82C686
     select IDE_VIA
     select MC146818RTC
     select PARALLEL
+    depends on ACPI
 
 config SMC37C669
     bool
