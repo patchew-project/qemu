@@ -2451,7 +2451,7 @@ void glue(helper_vpgatherqq, SUFFIX)(CPUX86State *env,
 #if SHIFT >= 2
 void helper_vpermdq_ymm(Reg *d, Reg *v, Reg *s, uint32_t order)
 {
-    uint64_t r0, r1, r2, r3;
+    uint64_t r0 = 0, r1 = 0, r2 = 0, r3 = 0;
 
     switch (order & 3) {
     case 0:
