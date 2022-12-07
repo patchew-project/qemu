@@ -51,7 +51,6 @@ config PC_PCI
     bool
     select APIC
     select IOAPIC
-    select APM
     select PC
 
 config PC_ACPI
