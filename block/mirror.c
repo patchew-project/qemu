@@ -60,6 +60,7 @@ typedef struct MirrorBlockJob {
     /* Set when the target is synced (dirty bitmap is clean, nothing
      * in flight) and the job is running in active mode */
     bool actively_synced;
+    bool in_active_mode;
     bool should_complete;
     int64_t granularity;
     size_t buf_size;
@@ -1035,10 +1036,31 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
         if (s->in_flight == 0 && cnt == 0) {
             trace_mirror_before_flush(s);
             if (!job_is_ready(&s->common.job)) {
+                if (s->copy_mode ==
+                    MIRROR_COPY_MODE_WRITE_BLOCKING_AFTER_READY) {
+                    /*
+                     * Pause guest I/O to check if we can switch to active mode.
+                     * To set actively_synced to true below, it is necessary to
+                     * have seen and synced all guest I/O.
+                     */
+                    s->in_drain = true;
+                    bdrv_drained_begin(bs);
+                    if (bdrv_get_dirty_count(s->dirty_bitmap) > 0) {
+                        bdrv_drained_end(bs);
+                        s->in_drain = false;
+                        continue;
+                    }
+                    s->in_active_mode = true;
+                    bdrv_disable_dirty_bitmap(s->dirty_bitmap);
+                    bdrv_drained_end(bs);
+                    s->in_drain = false;
+                }
+
                 if (mirror_flush(s) < 0) {
                     /* Go check s->ret.  */
                     continue;
                 }
+
                 /* We're out of the streaming phase.  From now on, if the job
                  * is cancelled we will actually complete all pending I/O and
                  * report completion.  This way, block-job-cancel will leave
@@ -1443,7 +1465,7 @@ static int coroutine_fn bdrv_mirror_top_do_write(BlockDriverState *bs,
     if (s->job) {
         copy_to_target = s->job->ret >= 0 &&
                          !job_is_cancelled(&s->job->common.job) &&
-                         s->job->copy_mode == MIRROR_COPY_MODE_WRITE_BLOCKING;
+                         s->job->in_active_mode;
     }
 
     if (copy_to_target) {
@@ -1494,7 +1516,7 @@ static int coroutine_fn bdrv_mirror_top_pwritev(BlockDriverState *bs,
     if (s->job) {
         copy_to_target = s->job->ret >= 0 &&
                          !job_is_cancelled(&s->job->common.job) &&
-                         s->job->copy_mode == MIRROR_COPY_MODE_WRITE_BLOCKING;
+                         s->job->in_active_mode;
     }
 
     if (copy_to_target) {
@@ -1792,7 +1814,10 @@ static BlockJob *mirror_start_job(
         goto fail;
     }
     if (s->copy_mode == MIRROR_COPY_MODE_WRITE_BLOCKING) {
+        s->in_active_mode = true;
         bdrv_disable_dirty_bitmap(s->dirty_bitmap);
+    } else {
+        s->in_active_mode = false;
     }
 
     ret = block_job_add_bdrv(&s->common, "source", bs, 0,

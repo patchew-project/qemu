@@ -1200,10 +1200,13 @@
 #                  addition, data is copied in background just like in
 #                  @background mode.
 #
+# @write-blocking-after-ready: starts out in @background mode and switches to
+#                              @write-blocking when transitioning to ready.
+#
 # Since: 3.0
 ##
 { 'enum': 'MirrorCopyMode',
-  'data': ['background', 'write-blocking'] }
+  'data': ['background', 'write-blocking', 'write-blocking-after-ready'] }
 
 ##
 # @BlockJobInfo:
