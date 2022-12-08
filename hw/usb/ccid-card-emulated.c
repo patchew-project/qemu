@@ -30,7 +30,7 @@
 #include <libcacard.h>
 
 #include "qemu/thread.h"
-#include "qemu/lockable.h"
+#include "qemu/coroutine.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "ccid.h"

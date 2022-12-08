@@ -22,7 +22,7 @@
 #include "exec/cpu-common.h"
 #include "hw/core/cpu.h"
 #include "sysemu/cpus.h"
-#include "qemu/lockable.h"
+#include "qemu/coroutine.h"
 
 static QemuMutex qemu_cpu_list_lock;
 static QemuCond exclusive_cond;

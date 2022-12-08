@@ -14,7 +14,7 @@
 #ifndef QEMU_RATELIMIT_H
 #define QEMU_RATELIMIT_H
 
-#include "qemu/lockable.h"
+#include "qemu/coroutine.h"
 #include "qemu/timer.h"
 
 typedef struct {

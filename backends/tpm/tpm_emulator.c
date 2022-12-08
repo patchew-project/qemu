@@ -30,7 +30,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qemu/sockets.h"
-#include "qemu/lockable.h"
+#include "qemu/coroutine.h"
 #include "io/channel-socket.h"
 #include "sysemu/runstate.h"
 #include "sysemu/tpm_backend.h"

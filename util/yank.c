@@ -11,7 +11,7 @@
 #include "qapi/error.h"
 #include "qemu/thread.h"
 #include "qemu/queue.h"
-#include "qemu/lockable.h"
+#include "qemu/coroutine.h"
 #include "qapi/qapi-commands-yank.h"
 #include "qapi/qapi-visit-yank.h"
 #include "qapi/clone-visitor.h"

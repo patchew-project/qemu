@@ -15,6 +15,7 @@
 #ifndef QEMU_COROUTINE_H
 #define QEMU_COROUTINE_H
 
+#include "qemu/lockable.h"
 #include "qemu/queue.h"
 #include "qemu/timer.h"
 
@@ -375,8 +376,6 @@ void qemu_coroutine_inc_pool_size(unsigned int additional_pool_size);
  * Decrease coroutine pool size
  */
 void qemu_coroutine_dec_pool_size(unsigned int additional_pool_size);
-
-#include "qemu/lockable.h"
 
 /**
  * Sends a (part of) iovec down a socket, yielding when the socket is full, or

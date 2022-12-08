@@ -22,7 +22,7 @@
 #include "standard-headers/linux/pci_regs.h"
 #include "qemu/event_notifier.h"
 #include "qemu/vfio-helpers.h"
-#include "qemu/lockable.h"
+#include "qemu/coroutine.h"
 #include "trace.h"
 
 #define QEMU_VFIO_DEBUG 0
