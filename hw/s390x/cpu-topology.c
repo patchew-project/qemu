@@ -75,12 +75,11 @@ void s390_handle_ptf(S390CPU *cpu, uint8_t r1, uintptr_t ra)
 /**
  * s390_has_topology
  *
- * Return false until the commit activating the topology is
- * commited.
+ * checks the S390_FEAT_CONFIGURATION_TOPOLOGY availability.
  */
 bool s390_has_topology(void)
 {
-    return false;
+    return s390_has_feat(S390_FEAT_CONFIGURATION_TOPOLOGY);
 }
 
 /**

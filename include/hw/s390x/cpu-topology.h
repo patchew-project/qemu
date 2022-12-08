@@ -38,7 +38,15 @@ struct S390Topology {
 OBJECT_DECLARE_SIMPLE_TYPE(S390Topology, S390_CPU_TOPOLOGY)
 
 void s390_init_topology(MachineState *machine, Error **errp);
-bool s390_has_topology(void);
 S390Topology *s390_get_topology(void);
+
+#ifdef CONFIG_KVM
+bool s390_has_topology(void);
+#else
+static inline bool s390_has_topology(void)
+{
+    return false;
+}
+#endif
 
 #endif
