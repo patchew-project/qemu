@@ -16,7 +16,7 @@
 
 #include "qemu/atomic.h"
 #include "qemu/thread.h"
-#include "qemu/lockable.h"
+#include "qemu/coroutine.h"
 
 typedef struct QemuSeqLock QemuSeqLock;
 

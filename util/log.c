@@ -25,7 +25,7 @@
 #include "qemu/cutils.h"
 #include "trace/control.h"
 #include "qemu/thread.h"
-#include "qemu/lockable.h"
+#include "qemu/coroutine.h"
 #include "qemu/rcu.h"
 #ifdef CONFIG_LINUX
 #include <sys/syscall.h>

@@ -16,7 +16,7 @@
 #ifndef FD_TRANS_H
 #define FD_TRANS_H
 
-#include "qemu/lockable.h"
+#include "qemu/coroutine.h"
 
 typedef abi_long (*TargetFdDataFunc)(void *, size_t);
 typedef abi_long (*TargetFdAddrFunc)(void *, abi_ulong, socklen_t);

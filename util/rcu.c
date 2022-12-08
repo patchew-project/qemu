@@ -31,7 +31,7 @@
 #include "qemu/atomic.h"
 #include "qemu/thread.h"
 #include "qemu/main-loop.h"
-#include "qemu/lockable.h"
+#include "qemu/coroutine.h"
 #if defined(CONFIG_MALLOC_TRIM)
 #include <malloc.h>
 #endif
