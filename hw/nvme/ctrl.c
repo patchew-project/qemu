@@ -1331,6 +1331,13 @@ static inline void nvme_blk_write(BlockBackend *blk, int64_t offset,
     }
 }
 
+static void nvme_update_cq_eventidx(const NvmeCQueue *cq)
+{
+    pci_dma_write(&cq->ctrl->parent_obj, cq->ei_addr, &cq->head,
+                  sizeof(cq->head));
+    trace_pci_nvme_eventidx_cq(cq->cqid, cq->head);
+}
+
 static void nvme_update_cq_head(NvmeCQueue *cq)
 {
     pci_dma_read(&cq->ctrl->parent_obj, cq->db_addr, &cq->head,
@@ -1351,6 +1358,7 @@ static void nvme_post_cqes(void *opaque)
         hwaddr addr;
 
         if (n->dbbuf_enabled) {
+            nvme_update_cq_eventidx(cq);
             nvme_update_cq_head(cq);
         }
 
