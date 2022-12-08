@@ -44,6 +44,7 @@
 #include "hw/s390x/pv.h"
 #include "migration/blocker.h"
 #include "qapi/visitor.h"
+#include "hw/s390x/cpu-topology.h"
 
 static Error *pv_mig_blocker;
 
@@ -254,6 +255,11 @@ static void ccw_init(MachineState *machine)
 
     /* init CPUs (incl. CPU model) early so s390_has_feature() works */
     s390_init_cpus(machine);
+
+    /* Need CPU model to be determined before we can set up topology */
+    if (s390_has_topology()) {
+        s390_init_topology(machine, &error_fatal);
+    }
 
     /* Need CPU model to be determined before we can set up PV */
     s390_pv_init(machine->cgs, &error_fatal);
