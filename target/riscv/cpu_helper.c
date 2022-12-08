@@ -80,7 +80,8 @@ void cpu_get_tb_cpu_state(CPURISCVState *env, target_ulong *pc,
     flags |= TB_FLAGS_MSTATUS_FS;
     flags |= TB_FLAGS_MSTATUS_VS;
 #else
-    flags |= cpu_mmu_index(env, 0);
+    flags = FIELD_DP32(flags, TB_FLAGS, MEM_IDX, cpu_mmu_index(env, 0));
+
     if (riscv_cpu_fp_enabled(env)) {
         flags |= env->mstatus & MSTATUS_FS;
     }
