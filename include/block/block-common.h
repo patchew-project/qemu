@@ -24,14 +24,8 @@
 #ifndef BLOCK_COMMON_H
 #define BLOCK_COMMON_H
 
-#include "block/aio.h"
-#include "block/aio-wait.h"
-#include "qemu/iov.h"
-#include "block/accounting.h"
-#include "block/dirty-bitmap.h"
-#include "block/blockjob.h"
-#include "qemu/hbitmap.h"
-#include "qemu/transactions.h"
+#include "qapi/qapi-types-block-core.h"
+#include "qemu/queue.h"
 
 /*
  * generated_co_wrapper

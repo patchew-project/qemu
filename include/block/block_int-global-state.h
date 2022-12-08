@@ -25,13 +25,16 @@
 #ifndef BLOCK_INT_GLOBAL_STATE_H
 #define BLOCK_INT_GLOBAL_STATE_H
 
-#include "block_int-common.h"
+#include "block/blockjob.h"
+#include "block/block_int-common.h"
+#include "qemu/hbitmap.h"
+#include "qemu/main-loop.h"
 
 /*
  * Global state (GS) API. These functions run under the BQL.
  *
  * See include/block/block-global-state.h for more information about
- * the GS API.
+ * the GS API.b
  */
 
 /**
