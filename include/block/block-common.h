@@ -27,7 +27,6 @@
 #include "block/aio.h"
 #include "block/aio-wait.h"
 #include "qemu/iov.h"
-#include "qemu/coroutine.h"
 #include "block/accounting.h"
 #include "block/dirty-bitmap.h"
 #include "block/blockjob.h"
