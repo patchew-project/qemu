@@ -18,3 +18,7 @@ source sh4/Kconfig
 source sparc/Kconfig
 source tricore/Kconfig
 source xtensa/Kconfig
+
+config XEN_EMU
+    bool
+    depends on KVM && (I386 || X86_64)

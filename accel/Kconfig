@@ -15,6 +15,7 @@ config TCG
 
 config KVM
     bool
+    imply XEN_EMU if (I386 || X86_64)
 
 config XEN
     bool
