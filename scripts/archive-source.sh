@@ -18,6 +18,7 @@ if test $# -lt 1; then
     error "Usage: $0 <output tarball>"
 fi
 
+test $(uname -s) = "Darwin" && tar=gtar || tar=tar
 tar_file=$(realpath "$1")
 sub_tdir=$(mktemp -d "${tar_file%.tar}.sub.XXXXXXXX")
 sub_file="${sub_tdir}/submodule.tar"
@@ -67,7 +68,7 @@ for sm in $submodules; do
     esac
     (cd $sm; git archive --format tar --prefix "$sm/" $(tree_ish)) > "$sub_file"
     test $? -ne 0 && error "failed to archive submodule $sm ($smhash)"
-    tar --concatenate --file "$tar_file" "$sub_file"
+    $tar --concatenate --file "$tar_file" "$sub_file"
     test $? -ne 0 && error "failed append submodule $sm to $tar_file"
 done
 exit 0
