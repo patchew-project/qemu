@@ -1194,10 +1194,6 @@ void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end)
 }
 
 /*
- * len must be <= 8 and start must be a multiple of len.
- * Called via softmmu_template.h when code areas are written to with
- * iothread mutex not held.
- *
  * Call with all @pages in the range [@start, @start + len[ locked.
  */
 void tb_invalidate_phys_page_locked_fast(struct page_collection *pages,
@@ -1215,4 +1211,21 @@ void tb_invalidate_phys_page_locked_fast(struct page_collection *pages,
     tb_invalidate_phys_page_range__locked(pages, p, start, start + len,
                                           retaddr);
 }
+
+/*
+ * len must be <= 8 and start must be a multiple of len.
+ * Called via softmmu_template.h when code areas are written to with
+ * iothread mutex not held.
+ */
+void tb_invalidate_phys_range_fast(ram_addr_t ram_addr,
+                                   unsigned size,
+                                   uintptr_t retaddr)
+{
+    struct page_collection *pages;
+
+    pages = page_collection_lock(ram_addr, ram_addr + size);
+    tb_invalidate_phys_page_locked_fast(pages, ram_addr, size, retaddr);
+    page_collection_unlock(pages);
+}
+
 #endif /* CONFIG_USER_ONLY */
