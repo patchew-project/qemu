@@ -21,28 +21,41 @@
 #include "standard-headers/xen/hvm/hvm_op.h"
 #include "standard-headers/xen/vcpu.h"
 
+static bool kvm_gva_to_gpa(CPUState *cs, uint64_t gva, uint64_t *gpa,
+                           size_t *len, bool is_write)
+{
+        struct kvm_translation tr = {
+            .linear_address = gva,
+        };
+
+        if (len) {
+                *len = TARGET_PAGE_SIZE - (gva & ~TARGET_PAGE_MASK);
+        }
+
+        if (kvm_vcpu_ioctl(cs, KVM_TRANSLATE, &tr) || !tr.valid ||
+            (is_write && !tr.writeable)) {
+            return false;
+        }
+        *gpa = tr.physical_address;
+        return true;
+}
+
 static int kvm_gva_rw(CPUState *cs, uint64_t gva, void *_buf, size_t sz,
                       bool is_write)
 {
     uint8_t *buf = (uint8_t *)_buf;
     size_t i = 0, len = 0;
-    int ret;
 
     for (i = 0; i < sz; i+= len) {
-        struct kvm_translation tr = {
-            .linear_address = gva + i,
-        };
+        uint64_t gpa;
 
-        len = TARGET_PAGE_SIZE - (tr.linear_address & ~TARGET_PAGE_MASK);
+        if (!kvm_gva_to_gpa(cs, gva + i, &gpa, &len, is_write)) {
+                return -EFAULT;
+        }
         if (len > sz)
             len = sz;
 
-        ret = kvm_vcpu_ioctl(cs, KVM_TRANSLATE, &tr);
-        if (ret || !tr.valid || (is_write && !tr.writeable)) {
-            return -EFAULT;
-        }
-
-        cpu_physical_memory_rw(tr.physical_address, buf + i, len, is_write);
+        cpu_physical_memory_rw(gpa, buf + i, len, is_write);
     }
 
     return 0;
@@ -166,6 +179,17 @@ static void do_set_vcpu_info_gpa(CPUState *cs, run_on_cpu_data data)
                           env->xen_vcpu_info_gpa);
 }
 
+static void do_set_vcpu_time_info_gpa(CPUState *cs, run_on_cpu_data data)
+{
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
+
+    env->xen_vcpu_time_info_gpa = data.host_ulong;
+
+    kvm_xen_set_vcpu_attr(cs, KVM_XEN_VCPU_ATTR_TYPE_VCPU_TIME_INFO,
+                          env->xen_vcpu_time_info_gpa);
+}
+
 static int xen_set_shared_info(CPUState *cs, uint64_t gfn)
 {
     uint64_t gpa = gfn << TARGET_PAGE_BITS;
@@ -258,6 +282,27 @@ static int vcpuop_register_vcpu_info(CPUState *cs, CPUState *target,
     return 0;
 }
 
+static int vcpuop_register_vcpu_time_info(CPUState *cs, CPUState *target,
+                                          uint64_t arg)
+{
+    struct vcpu_register_time_memory_area tma;
+    uint64_t gpa;
+    size_t len;
+
+    if (kvm_copy_from_gva(cs, arg, &tma, sizeof(*tma.addr.v))) {
+        return -EFAULT;
+    }
+
+    if (!kvm_gva_to_gpa(cs, tma.addr.p, &gpa, &len, false) ||
+        len < sizeof(tma)) {
+        return -EFAULT;
+    }
+
+    async_run_on_cpu(target, do_set_vcpu_time_info_gpa,
+                     RUN_ON_CPU_HOST_ULONG(gpa));
+    return 0;
+}
+
 static bool kvm_xen_hcall_vcpu_op(struct kvm_xen_exit *exit, X86CPU *cpu,
                                   int cmd, int vcpu_id, uint64_t arg)
 {
@@ -266,6 +311,9 @@ static bool kvm_xen_hcall_vcpu_op(struct kvm_xen_exit *exit, X86CPU *cpu,
     int err;
 
     switch (cmd) {
+    case VCPUOP_register_vcpu_time_memory_area:
+            err = vcpuop_register_vcpu_time_info(cs, dest, arg);
+            break;
     case VCPUOP_register_vcpu_info:
             err = vcpuop_register_vcpu_info(cs, dest, arg);
             break;
