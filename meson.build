@@ -3123,16 +3123,11 @@ foreach d, list : modules
         softmmu_mods += sl
       endif
       if module_ss.sources() != []
-        # FIXME: Should use sl.extract_all_objects(recursive: true) as
-        # input. Sources can be used multiple times but objects are
-        # unique when it comes to lookup in compile_commands.json.
-        # Depnds on a mesion version with
-        # https://github.com/mesonbuild/meson/pull/8900
         modinfo_files += custom_target(d + '-' + m + '.modinfo',
                                        output: d + '-' + m + '.modinfo',
-                                       input: module_ss.sources() + genh,
+                                       input: sl.extract_all_objects(recursive: true),
                                        capture: true,
-                                       command: [modinfo_collect, module_ss.sources()])
+                                       command: [modinfo_collect, '@INPUT@'])
       endif
     else
       if d == 'block'
@@ -3165,12 +3160,11 @@ foreach d, list : target_modules
                                 c_args: c_args,
                                 pic: true)
             softmmu_mods += sl
-            # FIXME: Should use sl.extract_all_objects(recursive: true) too.
             modinfo_files += custom_target(module_name + '.modinfo',
                                            output: module_name + '.modinfo',
-                                           input: target_module_ss.sources() + genh,
+                                           input: sl.extract_all_objects(recursive: true),
                                            capture: true,
-                                           command: [modinfo_collect, '--target', target, target_module_ss.sources()])
+                                           command: [modinfo_collect, '--target', target, '@INPUT@'])
           endif
         endif
       endforeach
