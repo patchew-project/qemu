@@ -58,6 +58,9 @@
 #include <xen/hvm/hvm_info_table.h>
 #include "hw/xen/xen_pt.h"
 #endif
+#ifdef CONFIG_XEN_EMU
+#include "hw/i386/kvm/xen_overlay.h"
+#endif
 #include "migration/global_state.h"
 #include "migration/misc.h"
 #include "sysemu/numa.h"
@@ -411,6 +414,11 @@ static void pc_xen_hvm_init(MachineState *machine)
 
     pc_xen_hvm_init_pci(machine);
     pci_create_simple(pcms->bus, -1, "xen-platform");
+#ifdef CONFIG_XEN_EMU
+    if (xen_mode == XEN_EMULATE) {
+            xen_overlay_create();
+    }
+#endif
 }
 #endif
 
