@@ -190,6 +190,17 @@ endif
 # Compiler flags #
 ##################
 
+foreach lang : all_languages
+  compiler = meson.get_compiler(lang)
+  if compiler.get_id() == 'gcc' and compiler.version().version_compare('>=7.4')
+    # ok
+  elif compiler.get_id() == 'clang' and compiler.has_argument('-Wpragma-pack')
+    # ok
+  else
+    error('You either need GCC v7.4 or Clang v6.0 (or XCode Clang v10.0) to compile QEMU')
+  endif
+endforeach
+
 # default flags for all hosts
 # We use -fwrapv to tell the compiler that we require a C dialect where
 # left shift of signed integers is well defined and has the expected
