@@ -2944,7 +2944,6 @@ if have_system
     'hw/intc',
     'hw/isa',
     'hw/mem',
-    'hw/mips',
     'hw/misc',
     'hw/misc/macio',
     'hw/net',
