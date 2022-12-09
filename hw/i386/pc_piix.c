@@ -404,8 +404,8 @@ static void pc_xen_hvm_init(MachineState *machine)
 {
     PCMachineState *pcms = PC_MACHINE(machine);
 
-    if (!xen_enabled()) {
-        error_report("xenfv machine requires the xen accelerator");
+    if (!xen_enabled() && (xen_mode != XEN_EMULATE)) {
+        error_report("xenfv machine requires the xen or kvm accelerator");
         exit(1);
     }
 
