@@ -42,45 +42,6 @@ static bool get_phys_addr_with_struct(CPUARMState *env, S1Translate *ptw,
                                       ARMMMUFaultInfo *fi)
     __attribute__((nonnull));
 
-/* This mapping is common between ID_AA64MMFR0.PARANGE and TCR_ELx.{I}PS. */
-static const uint8_t pamax_map[] = {
-    [0] = 32,
-    [1] = 36,
-    [2] = 40,
-    [3] = 42,
-    [4] = 44,
-    [5] = 48,
-    [6] = 52,
-};
-
-/* The cpu-specific constant value of PAMax; also used by hw/arm/virt. */
-unsigned int arm_pamax(ARMCPU *cpu)
-{
-    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
-        unsigned int parange =
-            FIELD_EX64(cpu->isar.id_aa64mmfr0, ID_AA64MMFR0, PARANGE);
-
-        /*
-         * id_aa64mmfr0 is a read-only register so values outside of the
-         * supported mappings can be considered an implementation error.
-         */
-        assert(parange < ARRAY_SIZE(pamax_map));
-        return pamax_map[parange];
-    }
-
-    /*
-     * In machvirt_init, we call arm_pamax on a cpu that is not fully
-     * initialized, so we can't rely on the propagation done in realize.
-     */
-    if (arm_feature(&cpu->env, ARM_FEATURE_LPAE) ||
-        arm_feature(&cpu->env, ARM_FEATURE_V7VE)) {
-        /* v7 with LPAE */
-        return 40;
-    }
-    /* Anything else */
-    return 32;
-}
-
 /*
  * Convert a possible stage1+2 MMU index into the appropriate stage 1 MMU index
  */

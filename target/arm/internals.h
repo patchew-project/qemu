@@ -241,15 +241,6 @@ static inline void update_spsel(CPUARMState *env, uint32_t imm)
     aarch64_restore_sp(env, cur_el);
 }
 
-/*
- * arm_pamax
- * @cpu: ARMCPU
- *
- * Returns the implementation defined bit-width of physical addresses.
- * The ARMv8 reference manuals refer to this as PAMax().
- */
-unsigned int arm_pamax(ARMCPU *cpu);
-
 /* Return true if extended addresses are enabled.
  * This is always the case if our translation regime is 64 bit,
  * but depends on TTBCR.EAE for 32 bit.

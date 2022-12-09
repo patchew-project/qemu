@@ -3445,6 +3445,15 @@ static inline target_ulong cpu_untagged_addr(CPUState *cs, target_ulong x)
 #endif
 
 /*
+ * arm_pamax
+ * @cpu: ARMCPU
+ *
+ * Returns the implementation defined bit-width of physical addresses.
+ * The ARMv8 reference manuals refer to this as PAMax().
+ */
+unsigned int arm_pamax(ARMCPU *cpu);
+
+/*
  * Naming convention for isar_feature functions:
  * Functions which test 32-bit ID registers should have _aa32_ in
  * their name. Functions which test 64-bit ID registers should have
