@@ -26,6 +26,7 @@
 #include "qapi/error.h"
 #include "qemu/units.h"
 #include "qemu/log.h"
+#include "hw/qdev-properties.h"
 #include "hw/registerfields.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
@@ -242,6 +243,8 @@ FIELD(GT_PCI1_CMD,              SByteSwap,      16, 1)
 
 OBJECT_DECLARE_SIMPLE_TYPE(GT64120State, GT64120_PCI_HOST_BRIDGE)
 
+#define FEAT_CPU_LE 0
+
 struct GT64120State {
     PCIHostState parent_obj;
 
@@ -252,6 +255,9 @@ struct GT64120State {
     PCI_MAPPING_ENTRY(ISD);
     MemoryRegion pci0_mem;
     AddressSpace pci0_mem_as;
+
+    /* properties */
+    uint32_t features;
 };
 
 /* Adjust range to avoid touching space which isn't mappable via PCI */
@@ -994,11 +1000,7 @@ static const MemoryRegionOps isd_mem_ops = {
 static void gt64120_reset(DeviceState *dev)
 {
     GT64120State *s = GT64120_PCI_HOST_BRIDGE(dev);
-#if TARGET_BIG_ENDIAN
-    unsigned cpu_le = 0;
-#else
-    unsigned cpu_le = 1;
-#endif
+    unsigned cpu_le = extract32(s->features, FEAT_CPU_LE, 1);
 
     /* FIXME: Malta specific hw assumptions ahead */
 
@@ -1229,11 +1231,18 @@ static const TypeInfo gt64120_pci_info = {
     },
 };
 
+static Property gt64120_properties[] = {
+    DEFINE_PROP_BIT("cpu-little-endian", GT64120State,
+                    features, FEAT_CPU_LE, !TARGET_BIG_ENDIAN),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void gt64120_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    device_class_set_props(dc, gt64120_properties);
     dc->realize = gt64120_realize;
     dc->reset = gt64120_reset;
     dc->vmsd = &vmstate_gt64120;
