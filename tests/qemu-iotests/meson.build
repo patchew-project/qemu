@@ -43,5 +43,6 @@ foreach format, speed: qemu_iotests_formats
        protocol: 'tap',
        suite: suites,
        timeout: 0,
+       verbose: true,
        is_parallel: false)
 endforeach
