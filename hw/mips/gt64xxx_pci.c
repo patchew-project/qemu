@@ -1233,7 +1233,7 @@ static const TypeInfo gt64120_pci_info = {
 
 static Property gt64120_properties[] = {
     DEFINE_PROP_BIT("cpu-little-endian", GT64120State,
-                    features, FEAT_CPU_LE, !TARGET_BIG_ENDIAN),
+                    features, FEAT_CPU_LE, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
