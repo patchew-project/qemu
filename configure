@@ -700,10 +700,6 @@ for opt do
   ;;
   --cross-prefix-*)
   ;;
-  --enable-debug-info) meson_option_add -Ddebug=true
-  ;;
-  --disable-debug-info) meson_option_add -Ddebug=false
-  ;;
   --cpu=*)
   ;;
   --target-list=*) target_list="$optarg"
@@ -995,7 +991,6 @@ cat << EOF
   bsd-user        all BSD usermode emulation targets
   pie             Position Independent Executables
   debug-tcg       TCG debugging (default is disabled)
-  debug-info      debugging information
   safe-stack      SafeStack Stack Smash Protection. Depends on
                   clang/llvm >= 3.7 and requires coroutine backend ucontext.
 
