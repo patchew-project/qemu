@@ -10,7 +10,6 @@
 #ifndef CXL_CDAT_H
 #define CXL_CDAT_H
 
-#include "hw/cxl/cxl_pci.h"
 #include "hw/pci/pcie_doe.h"
 
 /*
