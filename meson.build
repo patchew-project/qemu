@@ -16,7 +16,6 @@ fs = import('fs')
 
 sh = find_program('sh')
 config_host = keyval.load(meson.current_build_dir() / 'config-host.mak')
-enable_modules = 'CONFIG_MODULES' in config_host
 targetos = host_machine.system()
 
 cc = meson.get_compiler('c')
@@ -83,6 +82,12 @@ have_ga = get_option('guest_agent') \
   .disable_auto_if(not have_system and not have_tools) \
   .require(targetos in ['sunos', 'linux', 'windows', 'freebsd'],
            error_message: 'unsupported OS for QEMU guest agent') \
+  .allowed()
+enable_modules = get_option('modules') \
+  .require(targetos != 'windows',
+           error_message: 'Modules are not available for Windows') \
+  .require(not get_option('prefer_static'),
+           error_message: 'Modules are incompatible with static linking') \
   .allowed()
 have_block = have_system or have_tools
 

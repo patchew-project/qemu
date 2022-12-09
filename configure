@@ -273,7 +273,6 @@ sanitizers="no"
 tsan="no"
 fortify_source="yes"
 EXESUF=""
-modules="no"
 prefix="/usr/local"
 qemu_suffix="qemu"
 softmmu="yes"
@@ -705,12 +704,6 @@ for opt do
   ;;
   --disable-debug-info) meson_option_add -Ddebug=false
   ;;
-  --enable-modules)
-      modules="yes"
-  ;;
-  --disable-modules)
-      modules="no"
-  ;;
   --cpu=*)
   ;;
   --target-list=*) target_list="$optarg"
@@ -1001,7 +994,6 @@ cat << EOF
   linux-user      all linux usermode emulation targets
   bsd-user        all BSD usermode emulation targets
   pie             Position Independent Executables
-  modules         modules support (non-Windows)
   debug-tcg       TCG debugging (default is disabled)
   debug-info      debugging information
   safe-stack      SafeStack Stack Smash Protection. Depends on
@@ -1260,16 +1252,8 @@ else
   QEMU_CFLAGS="$QEMU_CFLAGS -Wno-missing-braces"
 fi
 
-# Our module code doesn't support Windows
-if test "$modules" = "yes" && test "$mingw32" = "yes" ; then
-  error_exit "Modules are not available for Windows"
-fi
-
-# Static linking is not possible with plugins, modules or PIE
+# Resolve default for --enable-plugins
 if test "$static" = "yes" ; then
-  if test "$modules" = "yes" ; then
-    error_exit "static and modules are mutually incompatible"
-  fi
   if test "$plugins" = "yes"; then
     error_exit "static and plugins are mutually incompatible"
   else
@@ -2229,9 +2213,6 @@ if test "$solaris" = "yes" ; then
 fi
 echo "SRC_PATH=$source_path" >> $config_host_mak
 echo "TARGET_DIRS=$target_list" >> $config_host_mak
-if test "$modules" = "yes"; then
-  echo "CONFIG_MODULES=y" >> $config_host_mak
-fi
 
 # XXX: suppress that
 if [ "$bsd" = "yes" ] ; then
