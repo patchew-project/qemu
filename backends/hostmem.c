@@ -23,10 +23,22 @@
 
 #ifdef CONFIG_NUMA
 #include <numaif.h>
+#include <numa.h>
 QEMU_BUILD_BUG_ON(HOST_MEM_POLICY_DEFAULT != MPOL_DEFAULT);
+/*
+ * HOST_MEM_POLICY_PREFERRED may some time also by MPOL_PREFERRED_MANY, see
+ * below.
+ */
 QEMU_BUILD_BUG_ON(HOST_MEM_POLICY_PREFERRED != MPOL_PREFERRED);
 QEMU_BUILD_BUG_ON(HOST_MEM_POLICY_BIND != MPOL_BIND);
 QEMU_BUILD_BUG_ON(HOST_MEM_POLICY_INTERLEAVE != MPOL_INTERLEAVE);
+
+/*
+ * -1 for uninitialized,
+ *  0 for MPOL_PREFERRED_MANY unsupported,
+ *  1 for supported.
+ */
+static int has_preferred_many = -1;
 #endif
 
 char *
@@ -346,6 +358,7 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
          * before mbind(). note: MPOL_MF_STRICT is ignored on hugepages so
          * this doesn't catch hugepage case. */
         unsigned flags = MPOL_MF_STRICT | MPOL_MF_MOVE;
+        int mode = backend->policy;
 
         /* check for invalid host-nodes and policies and give more verbose
          * error messages than mbind(). */
@@ -368,6 +381,21 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
         assert(sizeof(backend->host_nodes) >=
                BITS_TO_LONGS(MAX_NODES + 1) * sizeof(unsigned long));
         assert(maxnode <= MAX_NODES);
+
+#ifdef HAVE_NUMA_SET_PREFERRED_MANY
+        if (has_preferred_many < 0) {
+            /* Check, whether kernel supports MPOL_PREFERRED_MANY. */
+            has_preferred_many = numa_has_preferred_many() > 0 ? 1 : 0;
+        }
+
+        if (mode == MPOL_PREFERRED && has_preferred_many > 0) {
+            /*
+             * Replace with MPOL_PREFERRED_MANY otherwise the mbind() below
+             * silently picks the first node.
+             */
+            mode = MPOL_PREFERRED_MANY;
+        }
+#endif
 
         if (maxnode &&
             mbind(ptr, sz, backend->policy, backend->host_nodes, maxnode + 1,
