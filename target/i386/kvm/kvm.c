@@ -31,6 +31,7 @@
 #include "sysemu/runstate.h"
 #include "kvm_i386.h"
 #include "sev.h"
+#include "xen.h"
 #include "hyperv.h"
 #include "hyperv-proto.h"
 
@@ -772,6 +773,17 @@ static inline bool freq_within_bounds(int freq, int target_freq)
         }
 
         return false;
+}
+
+static uint32_t kvm_arch_xen_version(MachineState *ms)
+{
+    uint32_t v = object_property_get_int(OBJECT(ms), "xen-version", NULL);
+
+    /* If it was unset, return zero */
+    if (v == (uint32_t) -1)
+            return 0;
+
+    return v;
 }
 
 static int kvm_arch_set_tsc_khz(CPUState *cs)
@@ -2459,6 +2471,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
 {
     uint64_t identity_base = 0xfffbc000;
     uint64_t shadow_mem;
+    uint32_t xen_version;
     int ret;
     struct utsname utsname;
     Error *local_err = NULL;
@@ -2511,6 +2524,19 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
                          strerror(-ret));
             return ret;
         }
+    }
+
+    xen_version = kvm_arch_xen_version(ms);
+    if (xen_version) {
+#ifdef CONFIG_XEN_EMU
+            ret = kvm_xen_init(s, xen_version);
+            if (ret < 0) {
+                    return ret;
+            }
+#else
+            error_report("kvm: Xen support not enabled in qemu");
+            return -ENOTSUP;
+#endif
     }
 
     ret = kvm_get_supported_msrs(s);

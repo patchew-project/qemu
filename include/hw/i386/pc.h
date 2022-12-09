@@ -52,6 +52,9 @@ typedef struct PCMachineState {
     bool default_bus_bypass_iommu;
     uint64_t max_fw_size;
 
+    /* Xen HVM emulation */
+    uint32_t xen_version;
+
     /* ACPI Memory hotplug IO base address */
     hwaddr memhp_io_base;
 

@@ -876,7 +876,10 @@ static void xenfv_4_2_machine_options(MachineClass *m)
     pc_i440fx_4_2_machine_options(m);
     m->desc = "Xen Fully-virtualized PC";
     m->max_cpus = HVM_MAX_VCPUS;
-    m->default_machine_opts = "accel=xen,suppress-vmdesc=on";
+    if (xen_enabled())
+            m->default_machine_opts = "accel=xen,suppress-vmdesc=on";
+    else
+            m->default_machine_opts = "accel=kvm,xen-version=0x40002";
 }
 
 DEFINE_PC_MACHINE(xenfv_4_2, "xenfv-4.2", pc_xen_hvm_init,
@@ -888,7 +891,10 @@ static void xenfv_3_1_machine_options(MachineClass *m)
     m->desc = "Xen Fully-virtualized PC";
     m->alias = "xenfv";
     m->max_cpus = HVM_MAX_VCPUS;
-    m->default_machine_opts = "accel=xen,suppress-vmdesc=on";
+    if (xen_enabled())
+            m->default_machine_opts = "accel=xen,suppress-vmdesc=on";
+    else
+            m->default_machine_opts = "accel=kvm,xen-version=0x30001";
 }
 
 DEFINE_PC_MACHINE(xenfv, "xenfv-3.1", pc_xen_hvm_init,

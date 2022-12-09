@@ -7,6 +7,7 @@ i386_ss.add(files(
   'cpu-dump.c',
 ))
 i386_ss.add(when: 'CONFIG_SEV', if_true: files('host-cpu.c'))
+i386_ss.add(when: 'CONFIG_XEN_EMU', if_true: files('xen.c'))
 
 # x86 cpu type
 i386_ss.add(when: 'CONFIG_KVM', if_true: files('host-cpu.c'))
