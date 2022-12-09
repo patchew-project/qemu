@@ -145,6 +145,7 @@ block_gen_c = custom_target('block-gen.c',
 block_ss.add(block_gen_c)
 
 block_ss.add(files('stream.c'))
+block_ss.add(gmodule)
 
 softmmu_ss.add(files('qapi-sysemu.c'))
 
