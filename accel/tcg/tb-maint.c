@@ -523,8 +523,8 @@ static gint tb_page_addr_cmp(gconstpointer ap, gconstpointer bp, gpointer udata)
  * intersecting TBs.
  * Locking order: acquire locks in ascending order of page index.
  */
-struct page_collection *
-page_collection_lock(tb_page_addr_t start, tb_page_addr_t end)
+static struct page_collection *page_collection_lock(tb_page_addr_t start,
+                                                    tb_page_addr_t end)
 {
     struct page_collection *set = g_malloc(sizeof(*set));
     tb_page_addr_t index;
@@ -568,7 +568,7 @@ page_collection_lock(tb_page_addr_t start, tb_page_addr_t end)
     return set;
 }
 
-void page_collection_unlock(struct page_collection *set)
+static void page_collection_unlock(struct page_collection *set)
 {
     /* entries are unlocked and freed via page_entry_destroy */
     g_tree_destroy(set->tree);
@@ -1196,9 +1196,9 @@ void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end)
 /*
  * Call with all @pages in the range [@start, @start + len[ locked.
  */
-void tb_invalidate_phys_page_locked_fast(struct page_collection *pages,
-                                         tb_page_addr_t start, int len,
-                                         uintptr_t retaddr)
+static void tb_invalidate_phys_page_locked_fast(struct page_collection *pages,
+                                                tb_page_addr_t start,
+                                                unsigned len, uintptr_t retaddr)
 {
     PageDesc *p;
 
