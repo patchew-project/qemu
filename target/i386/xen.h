@@ -25,5 +25,6 @@
 int kvm_xen_init(KVMState *s, uint32_t xen_version);
 int kvm_xen_handle_exit(X86CPU *cpu, struct kvm_xen_exit *exit);
 int kvm_xen_set_vcpu_attr(CPUState *cs, uint16_t type, uint64_t gpa);
+int kvm_xen_set_vcpu_callback_vector(CPUState *cs);
 
 #endif /* QEMU_I386_XEN_H */
