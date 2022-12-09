@@ -1200,9 +1200,9 @@ void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end)
  *
  * Call with all @pages in the range [@start, @start + len[ locked.
  */
-void tb_invalidate_phys_page_fast(struct page_collection *pages,
-                                  tb_page_addr_t start, int len,
-                                  uintptr_t retaddr)
+void tb_invalidate_phys_page_locked_fast(struct page_collection *pages,
+                                         tb_page_addr_t start, int len,
+                                         uintptr_t retaddr)
 {
     PageDesc *p;
 
