@@ -122,6 +122,8 @@ static void s390_pci_read_base(S390PCIBusDevice *pbdev,
     /* The following values remain 0 until we support other FMB formats */
     pbdev->zpci_fn.fmbl = 0;
     pbdev->zpci_fn.pft = 0;
+    /* Store function type separately for type-specific behavior */
+    pbdev->pft = cap->pft;
 }
 
 static bool get_host_fh(S390PCIBusDevice *pbdev, struct vfio_device_info *info,
