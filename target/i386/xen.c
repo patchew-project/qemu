@@ -10,8 +10,10 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "kvm/kvm_i386.h"
 #include "xen.h"
+#include "trace.h"
 
 int kvm_xen_init(KVMState *s, uint32_t xen_version)
 {
@@ -45,5 +47,42 @@ int kvm_xen_init(KVMState *s, uint32_t xen_version)
         return ret;
     }
 
+    return 0;
+}
+
+static bool __kvm_xen_handle_exit(X86CPU *cpu, struct kvm_xen_exit *exit)
+{
+    uint16_t code = exit->u.hcall.input;
+
+    if (exit->u.hcall.cpl > 0) {
+        exit->u.hcall.result = -EPERM;
+        return true;
+    }
+
+    switch (code) {
+    default:
+        return false;
+    }
+}
+
+int kvm_xen_handle_exit(X86CPU *cpu, struct kvm_xen_exit *exit)
+{
+    if (exit->type != KVM_EXIT_XEN_HCALL)
+        return -1;
+
+    if (!__kvm_xen_handle_exit(cpu, exit)) {
+        /* Some hypercalls will be deliberately "implemented" by returning
+         * -ENOSYS. This case is for hypercalls which are unexpected. */
+        exit->u.hcall.result = -ENOSYS;
+        qemu_log_mask(LOG_GUEST_ERROR, "Unimplemented Xen hypercall %"
+                      PRId64 " (0x%" PRIx64 " 0x%" PRIx64 " 0x%" PRIx64 ")\n",
+                      (uint64_t)exit->u.hcall.input, (uint64_t)exit->u.hcall.params[0],
+                      (uint64_t)exit->u.hcall.params[1], (uint64_t)exit->u.hcall.params[1]);
+    }
+
+    trace_kvm_xen_hypercall(CPU(cpu)->cpu_index, exit->u.hcall.cpl,
+                            exit->u.hcall.input, exit->u.hcall.params[0],
+                            exit->u.hcall.params[1], exit->u.hcall.params[2],
+                            exit->u.hcall.result);
     return 0;
 }
