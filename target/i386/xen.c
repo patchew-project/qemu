@@ -15,8 +15,9 @@
 #include "exec/address-spaces.h"
 #include "xen.h"
 #include "trace.h"
-
+#include "hw/i386/kvm/xen_overlay.h"
 #include "standard-headers/xen/version.h"
+#include "standard-headers/xen/memory.h"
 
 static int kvm_gva_rw(CPUState *cs, uint64_t gva, void *_buf, size_t sz,
                       bool is_write)
@@ -126,6 +127,59 @@ static bool kvm_xen_hcall_xen_version(struct kvm_xen_exit *exit, X86CPU *cpu,
     return true;
 }
 
+static int xen_set_shared_info(CPUState *cs, uint64_t gfn)
+{
+    uint64_t gpa = gfn << TARGET_PAGE_BITS;
+    int err;
+
+    /* The xen_overlay device tells KVM about it too, since it had to
+     * do that on migration load anyway (unless we're going to jump
+     * through lots of hoops to maintain the fiction that this isn't
+     * KVM-specific */
+    err = xen_overlay_map_page(XENMAPSPACE_shared_info, 0, gpa);
+    if (err)
+            return err;
+
+    trace_kvm_xen_set_shared_info(gfn);
+
+    return err;
+}
+
+static bool kvm_xen_hcall_memory_op(struct kvm_xen_exit *exit,
+                                   int cmd, uint64_t arg, X86CPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+    int err = 0;
+
+    switch (cmd) {
+    case XENMEM_add_to_physmap: {
+            struct xen_add_to_physmap xatp;
+
+            err = kvm_copy_from_gva(cs, arg, &xatp, sizeof(xatp));
+            if (err) {
+                break;
+            }
+
+            switch (xatp.space) {
+            case XENMAPSPACE_shared_info:
+                break;
+            default:
+                err = -ENOSYS;
+                break;
+            }
+
+            err = xen_set_shared_info(cs, xatp.gpfn);
+            break;
+         }
+
+    default:
+            return false;
+    }
+
+    exit->u.hcall.result = err;
+    return true;
+}
+
 static bool __kvm_xen_handle_exit(X86CPU *cpu, struct kvm_xen_exit *exit)
 {
     uint16_t code = exit->u.hcall.input;
@@ -136,6 +190,9 @@ static bool __kvm_xen_handle_exit(X86CPU *cpu, struct kvm_xen_exit *exit)
     }
 
     switch (code) {
+    case __HYPERVISOR_memory_op:
+        return kvm_xen_hcall_memory_op(exit, exit->u.hcall.params[0],
+                                       exit->u.hcall.params[1], cpu);
     case __HYPERVISOR_xen_version:
         return kvm_xen_hcall_xen_version(exit, cpu, exit->u.hcall.params[0],
                                          exit->u.hcall.params[1]);
