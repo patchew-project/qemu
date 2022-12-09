@@ -16,6 +16,8 @@
 #include "xen.h"
 #include "trace.h"
 #include "hw/i386/kvm/xen_overlay.h"
+#include "hw/i386/kvm/xen_evtchn.h"
+
 #include "standard-headers/xen/version.h"
 #include "standard-headers/xen/memory.h"
 #include "standard-headers/xen/hvm/hvm_op.h"
@@ -287,24 +289,53 @@ static bool kvm_xen_hcall_memory_op(struct kvm_xen_exit *exit,
     return true;
 }
 
+static int handle_set_param(struct kvm_xen_exit *exit, X86CPU *cpu,
+                            uint64_t arg)
+{
+    CPUState *cs = CPU(cpu);
+    struct xen_hvm_param hp;
+    int err = 0;
+
+    if (kvm_copy_from_gva(cs, arg, &hp, sizeof(hp))) {
+        err = -EFAULT;
+        goto out;
+    }
+
+    if (hp.domid != DOMID_SELF) {
+        err = -EINVAL;
+        goto out;
+    }
+
+    switch (hp.index) {
+    case HVM_PARAM_CALLBACK_IRQ:
+        err = xen_evtchn_set_callback_param(hp.value);
+        break;
+    default:
+        return false;
+    }
+
+out:
+    exit->u.hcall.result = err;
+    return true;
+}
+
 static int kvm_xen_hcall_evtchn_upcall_vector(struct kvm_xen_exit *exit,
                                               X86CPU *cpu, uint64_t arg)
 {
-    struct xen_hvm_evtchn_upcall_vector *up;
+    struct xen_hvm_evtchn_upcall_vector up;
     CPUState *target_cs;
     int vector;
 
-    up = gva_to_hva(CPU(cpu), arg);
-    if (!up) {
+    if (kvm_copy_from_gva(CPU(cpu), arg, &up, sizeof(up))) {
         return -EFAULT;
     }
 
-    vector = up->vector;
+    vector = up.vector;
     if (vector < 0x10) {
         return -EINVAL;
     }
 
-    target_cs = qemu_get_cpu(up->vcpu);
+    target_cs = qemu_get_cpu(up.vcpu);
     if (!target_cs) {
         return -EINVAL;
     }
@@ -325,7 +356,8 @@ static bool kvm_xen_hcall_hvm_op(struct kvm_xen_exit *exit, X86CPU *cpu,
     case HVMOP_pagetable_dying:
             ret = -ENOSYS;
             break;
-
+    case HVMOP_set_param:
+            return handle_set_param(exit, cpu, arg);
     default:
             return false;
     }

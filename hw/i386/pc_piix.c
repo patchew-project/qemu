@@ -60,6 +60,7 @@
 #endif
 #ifdef CONFIG_XEN_EMU
 #include "hw/i386/kvm/xen_overlay.h"
+#include "hw/i386/kvm/xen_evtchn.h"
 #endif
 #include "migration/global_state.h"
 #include "migration/misc.h"
@@ -417,6 +418,7 @@ static void pc_xen_hvm_init(MachineState *machine)
 #ifdef CONFIG_XEN_EMU
     if (xen_mode == XEN_EMULATE) {
             xen_overlay_create();
+            xen_evtchn_create();
     }
 #endif
 }
