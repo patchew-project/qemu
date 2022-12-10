@@ -15,7 +15,6 @@
 #include "hw/ppc/pnv.h"
 #include "qom/object.h"
 
-typedef struct PnvChip PnvChip;
 typedef struct PnvPhb4PecState PnvPhb4PecState;
 
 struct PnvPHB {
