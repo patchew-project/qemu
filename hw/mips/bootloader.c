@@ -150,9 +150,31 @@ static void bl_gen_lui(void **p, bl_reg rt, uint32_t imm32)
     }
 }
 
+static void bl_gen_ori_nm(void **ptr, bl_reg rt, bl_reg rs, uint16_t imm)
+{
+    uint16_t *p = (uint16_t *)*ptr;
+    uint32_t insn = 0;
+
+    insn = deposit32(insn, 26, 6, 0b100000);
+    insn = deposit32(insn, 21, 5, rt);
+    insn = deposit32(insn, 16, 5, rs);
+    insn = deposit32(insn, 0, 12, imm);
+
+    stw_p(p, insn >> 16);
+    p++;
+    stw_p(p, insn >> 0);
+    p++;
+
+    *ptr = p;
+}
+
 static void bl_gen_ori(void **p, bl_reg rt, bl_reg rs, uint16_t imm)
 {
-    bl_gen_i_type(p, 0x0d, rs, rt, imm);
+    if (bootcpu_supports_isa(ISA_NANOMIPS32)) {
+        bl_gen_ori_nm(p, rt, rs, imm);
+    } else {
+        bl_gen_i_type(p, 0x0d, rs, rt, imm);
+    }
 }
 
 static void bl_gen_sw(void **p, bl_reg rt, uint8_t base, uint16_t offset)
