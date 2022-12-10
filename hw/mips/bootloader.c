@@ -59,7 +59,11 @@ static void bl_gen_nop(void **ptr)
 {
     uint32_t *p = (uint32_t *)*ptr;
 
-    stl_p(p, 0);
+    if (bootcpu_supports_isa(ISA_NANOMIPS32)) {
+        stl_p(p, 0x8000c000);
+    } else {
+        stl_p(p, 0);
+    }
     p++;
     *ptr = p;
 }
