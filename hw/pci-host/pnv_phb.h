@@ -12,6 +12,7 @@
 
 #include "hw/pci/pcie_host.h"
 #include "hw/pci/pcie_port.h"
+#include "hw/ppc/pnv.h"
 #include "qom/object.h"
 
 typedef struct PnvChip PnvChip;
