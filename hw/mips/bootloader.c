@@ -116,10 +116,11 @@ static void bl_gen_jalr(void **p, bl_reg rs)
     bl_gen_r_type(p, 0, rs, 0, BL_REG_RA, 0, 0x09);
 }
 
-static void bl_gen_lui(void **p, bl_reg rt, uint16_t imm)
+static void bl_gen_lui(void **p, bl_reg rt, uint32_t imm32)
 {
     /* R6: It's a alias of AUI with RS = 0 */
-    bl_gen_i_type(p, 0x0f, 0, rt, imm);
+    assert(imm32 <= UINT16_MAX);
+    bl_gen_i_type(p, 0x0f, 0, rt, extract32(imm32, 16, 16));
 }
 
 static void bl_gen_ori(void **p, bl_reg rt, bl_reg rs, uint16_t imm)
@@ -142,10 +143,10 @@ static void bl_gen_sd(void **p, bl_reg rt, uint8_t base, uint16_t offset)
 }
 
 /* Pseudo instructions */
-static void bl_gen_li(void **p, bl_reg rt, uint32_t imm)
+static void bl_gen_li(void **p, bl_reg rt, uint32_t imm32)
 {
-    bl_gen_lui(p, rt, extract32(imm, 16, 16));
-    bl_gen_ori(p, rt, rt, extract32(imm, 0, 16));
+    bl_gen_lui(p, rt, imm32);
+    bl_gen_ori(p, rt, rt, extract32(imm32, 0, 16));
 }
 
 static void bl_gen_dli(void **p, bl_reg rt, uint64_t imm)
