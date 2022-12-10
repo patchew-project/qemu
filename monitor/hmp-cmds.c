@@ -841,6 +841,7 @@ void hmp_info_tpm(Monitor *mon, const QDict *qdict)
     unsigned int c = 0;
     TPMPassthroughOptions *tpo;
     TPMEmulatorOptions *teo;
+    TPMmssimOptions *tmo;
 
     info_list = qmp_query_tpm(&err);
     if (err) {
@@ -873,6 +874,11 @@ void hmp_info_tpm(Monitor *mon, const QDict *qdict)
         case TPM_TYPE_EMULATOR:
             teo = ti->options->u.emulator.data;
             monitor_printf(mon, ",chardev=%s", teo->chardev);
+            break;
+        case TPM_TYPE_MSSIM:
+            tmo = ti->options->u.mssim.data;
+            monitor_printf(mon, ",host=%s,port=%s,ctl=%s", tmo->host,
+                           tmo->port, tmo->host);
             break;
         case TPM_TYPE__MAX:
             break;
