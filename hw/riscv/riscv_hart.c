@@ -33,6 +33,8 @@ static Property riscv_harts_props[] = {
     DEFINE_PROP_STRING("cpu-type", RISCVHartArrayState, cpu_type),
     DEFINE_PROP_UINT64("resetvec", RISCVHartArrayState, resetvec,
                        DEFAULT_RSTVEC),
+    DEFINE_PROP_UINT64("cpu-memory", RISCVHartArrayState, 
+                       cpu_memory,NULL),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -49,6 +51,9 @@ static bool riscv_hart_realize(RISCVHartArrayState *s, int idx,
     qdev_prop_set_uint64(DEVICE(&s->harts[idx]), "resetvec", s->resetvec);
     s->harts[idx].env.mhartid = s->hartid_base + idx;
     qemu_register_reset(riscv_harts_cpu_reset, &s->harts[idx]);
+    if (s->cpu_memory) {
+        object_property_set_link(OBJECT(&s->harts[idx].parent_obj), "memory",OBJECT(s->cpu_memory), &error_abort);
+    }
     return qdev_realize(DEVICE(&s->harts[idx]), NULL, errp);
 }
 
