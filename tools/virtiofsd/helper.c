@@ -191,6 +191,10 @@ void fuse_cmdline_help(void)
            "    -o killpriv_v2/no_killpriv_v2\n"
            "                               Enable/Disable FUSE_HANDLE_KILLPRIV_V2.\n"
            "                               (default: enabled as long as client supports it)\n"
+           "    -o num_request_queues=<num>\n"
+           "                               set maximum number of request virtqueues\n"
+           "                               supported by virtiofsd"
+           "                               default: 1\n"
            );
 }
 

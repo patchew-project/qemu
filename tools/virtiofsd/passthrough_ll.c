@@ -182,6 +182,7 @@ struct lo_data {
     /* Keeps track if /proc/<pid>/attr/fscreate should be used or not */
     bool use_fscreate;
     int user_security_label;
+    int num_request_queues;
 };
 
 static const struct fuse_opt lo_opts[] = {
@@ -218,6 +219,8 @@ static const struct fuse_opt lo_opts[] = {
     { "no_posix_acl", offsetof(struct lo_data, user_posix_acl), 0 },
     { "security_label", offsetof(struct lo_data, user_security_label), 1 },
     { "no_security_label", offsetof(struct lo_data, user_security_label), 0 },
+    { "num_request_queues=%d",
+      offsetof(struct lo_data, num_request_queues), 1 },
     FUSE_OPT_END
 };
 static bool use_syslog = false;
@@ -4479,6 +4482,12 @@ int main(int argc, char *argv[])
 
     lo.use_statx = true;
 
+    if (lo.num_request_queues < 1) {
+        fuse_log(FUSE_LOG_ERR, "num_request_queues must be at least 1 (got %d)"
+                 "\n", lo.num_request_queues);
+        exit(1);
+    }
+
     se = fuse_session_new(&args, &lo_oper, sizeof(lo_oper), &lo);
     if (se == NULL) {
         goto err_out1;
@@ -4488,7 +4497,8 @@ int main(int argc, char *argv[])
         goto err_out2;
     }
 
-    if (fuse_session_mount(se) != 0) {
+    /* There will be 1 hirpio queue plus lo.num_request_queues request queues */
+    if (fuse_session_mount(se, lo.num_request_queues + 1) != 0) {
         goto err_out3;
     }
 
