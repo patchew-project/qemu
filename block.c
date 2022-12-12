@@ -1665,8 +1665,6 @@ static int bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv,
 
     assert(!drv->bdrv_needs_filename || bs->filename[0]);
     if (drv->bdrv_open) {
-        ret = drv->bdrv_file_open(bs, options, open_flags, &local_err);
-    } else if (drv->bdrv_open) {
         ret = drv->bdrv_open(bs, options, open_flags, &local_err);
     } else {
         ret = 0;
