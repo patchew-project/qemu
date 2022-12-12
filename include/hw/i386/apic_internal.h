@@ -125,7 +125,6 @@
 
 typedef struct APICCommonState APICCommonState;
 
-#define TYPE_APIC_COMMON "apic-common"
 typedef struct APICCommonClass APICCommonClass;
 DECLARE_OBJ_CHECKERS(APICCommonState, APICCommonClass,
                      APIC_COMMON, TYPE_APIC_COMMON)
@@ -199,7 +198,6 @@ typedef struct VAPICState {
 
 extern bool apic_report_tpr_access;
 
-void apic_report_irq_delivered(int delivered);
 bool apic_next_timer(APICCommonState *s, int64_t current_time);
 void apic_enable_tpr_access_reporting(DeviceState *d, bool enable);
 void apic_enable_vapic(DeviceState *d, hwaddr paddr);
