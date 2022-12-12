@@ -11,7 +11,27 @@
 
 #include "qemu/osdep.h"
 #include "hw/virtio/virtio.h"
+#include "hw/virtio/virtio-access.h"
 #include "cpu.h"
+
+#if defined(TARGET_PPC64) || defined(TARGET_ARM)
+#define LEGACY_VIRTIO_IS_BIENDIAN 1
+#endif
+
+bool virtio_access_is_big_endian(VirtIODevice *vdev)
+{
+#if defined(LEGACY_VIRTIO_IS_BIENDIAN)
+    return virtio_is_big_endian(vdev);
+#elif TARGET_BIG_ENDIAN
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
+        /* Devices conforming to VIRTIO 1.0 or later are always LE. */
+        return false;
+    }
+    return true;
+#else
+    return false;
+#endif
+}
 
 uint32_t virtio_config_readb(VirtIODevice *vdev, uint32_t addr)
 {
