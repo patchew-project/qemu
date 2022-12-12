@@ -37,7 +37,6 @@
 
 //#define DEBUG_UNASSIGNED
 
-static unsigned memory_region_transaction_depth;
 static bool memory_region_update_pending;
 static bool ioeventfd_update_pending;
 unsigned int global_dirty_tracking;
