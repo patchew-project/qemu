@@ -33,6 +33,7 @@
 #include "hw/virtio/virtio-access.h"
 #include "sysemu/dma.h"
 #include "sysemu/runstate.h"
+#include "sysemu/sysemu.h"
 #include "standard-headers/linux/virtio_ids.h"
 #include "standard-headers/linux/vhost_types.h"
 #include "standard-headers/linux/virtio_blk.h"
@@ -3642,8 +3643,20 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
         vdev->start_on_kick = true;
     }
 
+    if (vdc->post_load) {
+        ret = vdc->post_load(vdev);
+        if (ret) {
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
+static void virtio_load_check_delay(VirtIODevice *vdev)
+{
     RCU_READ_LOCK_GUARD();
-    for (i = 0; i < num; i++) {
+    for (int i = 0; i < VIRTIO_QUEUE_MAX; i++) {
         if (vdev->vq[i].vring.desc) {
             uint16_t nheads;
 
@@ -3696,19 +3709,12 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
                              i, vdev->vq[i].vring.num,
                              vdev->vq[i].last_avail_idx,
                              vdev->vq[i].used_idx);
-                return -1;
+                abort();
             }
         }
     }
 
-    if (vdc->post_load) {
-        ret = vdc->post_load(vdev);
-        if (ret) {
-            return ret;
-        }
-    }
-
-    return 0;
+    return;
 }
 
 void virtio_cleanup(VirtIODevice *vdev)
@@ -4158,7 +4164,12 @@ static void virtio_memory_listener_commit(MemoryListener *listener)
         if (vdev->vq[i].vring.num == 0) {
             break;
         }
-        virtio_init_region_cache(vdev, i);
+
+        if (migration_enable_load_check_delay) {
+            virtio_load_check_delay(vdev);
+        } else {
+            virtio_init_region_cache(vdev, i);
+        }
     }
 }
 

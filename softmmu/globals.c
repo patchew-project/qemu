@@ -65,3 +65,6 @@ bool qemu_uuid_set;
 uint32_t xen_domid;
 enum xen_mode xen_mode = XEN_EMULATE;
 bool xen_domid_restrict;
+
+bool migration_enable_load_check_delay;
+

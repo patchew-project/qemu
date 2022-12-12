@@ -12,6 +12,7 @@ extern int only_migratable;
 extern const char *qemu_name;
 extern QemuUUID qemu_uuid;
 extern bool qemu_uuid_set;
+extern bool migration_enable_load_check_delay;
 
 const char *qemu_get_vm_name(void);
 
