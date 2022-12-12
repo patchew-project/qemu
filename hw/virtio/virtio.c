@@ -3193,6 +3193,7 @@ void virtio_init(VirtIODevice *vdev, uint16_t device_id, size_t config_size)
     vdev->vmstate = qdev_add_vm_change_state_handler(DEVICE(vdev),
             virtio_vmstate_change, vdev);
     vdev->device_endian = virtio_default_endian();
+    vdev->access_is_big_endian = virtio_access_is_big_endian(vdev);
     vdev->use_guest_notifier_mask = true;
 }
 

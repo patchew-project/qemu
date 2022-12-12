@@ -130,6 +130,7 @@ struct VirtIODevice
     bool vhost_started;
     VMChangeStateEntry *vmstate;
     char *bus_name;
+    bool access_is_big_endian;
     uint8_t device_endian;
     bool use_guest_notifier_mask;
     AddressSpace *dma_as;
