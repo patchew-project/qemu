@@ -469,7 +469,10 @@ static void gd_cursor_define(DisplayChangeListener *dcl,
 {
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
     GdkPixbuf *pixbuf;
+    GdkWindow *window;
     GdkCursor *cursor;
+    cairo_surface_t *surface;
+    int scale;
 
     if (!gtk_widget_get_realized(vc->gfx.drawing_area)) {
         return;
@@ -479,10 +482,14 @@ static void gd_cursor_define(DisplayChangeListener *dcl,
                                       GDK_COLORSPACE_RGB, true, 8,
                                       c->width, c->height, c->width * 4,
                                       NULL, NULL);
-    cursor = gdk_cursor_new_from_pixbuf
+    window = gtk_widget_get_window(vc->gfx.drawing_area);
+    scale = gdk_window_get_scale_factor(window);
+    surface = gdk_cairo_surface_create_from_pixbuf(pixbuf, scale, window);
+    cursor = gdk_cursor_new_from_surface
         (gtk_widget_get_display(vc->gfx.drawing_area),
-         pixbuf, c->hot_x, c->hot_y);
-    gdk_window_set_cursor(gtk_widget_get_window(vc->gfx.drawing_area), cursor);
+         surface, c->hot_x / scale, c->hot_y / scale);
+    cairo_surface_destroy(surface);
+    gdk_window_set_cursor(window, cursor);
     g_object_unref(pixbuf);
     g_object_unref(cursor);
 }
