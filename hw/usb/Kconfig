@@ -109,6 +109,18 @@ config USB_SMARTCARD
     default y
     depends on USB
 
+config USB_SMARTCARD_PASSTHRU
+    bool
+    default y
+    depends on USB
+    select USB_SMARTCARD
+
+config USB_SMARTCARD_EMULATED
+    bool
+    default y
+    depends on USB
+    select USB_SMARTCARD
+
 config USB_STORAGE_MTP
     bool
     default y
