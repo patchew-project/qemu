@@ -41,24 +41,7 @@
 #define VHOST_MEMORY_BASELINE_NREGIONS    8
 #define VHOST_USER_F_PROTOCOL_FEATURES 30
 #define VHOST_USER_SLAVE_MAX_FDS     8
-
-/*
- * Set maximum number of RAM slots supported to
- * the maximum number supported by the target
- * hardware plaform.
- */
-#if defined(TARGET_X86) || defined(TARGET_X86_64) || \
-    defined(TARGET_ARM) || defined(TARGET_ARM_64)
-#include "hw/acpi/acpi.h"
-#define VHOST_USER_MAX_RAM_SLOTS ACPI_MAX_RAM_SLOTS
-
-#elif defined(TARGET_PPC) || defined(TARGET_PPC64)
-#include "hw/ppc/spapr.h"
-#define VHOST_USER_MAX_RAM_SLOTS SPAPR_MAX_RAM_SLOTS
-
-#else
 #define VHOST_USER_MAX_RAM_SLOTS 512
-#endif
 
 /*
  * Maximum size of virtio device config space
@@ -935,7 +918,7 @@ static int vhost_user_add_remove_regions(struct vhost_dev *dev,
 
     if (track_ramblocks) {
         memcpy(u->postcopy_client_bases, shadow_pcb,
-               sizeof(uint64_t) * VHOST_USER_MAX_RAM_SLOTS);
+               sizeof(uint64_t) * vhost_user_ram_slots_max());
         /*
          * Now we've registered this with the postcopy code, we ack to the
          * client, because now we're in the position to be able to deal with
@@ -956,7 +939,7 @@ static int vhost_user_add_remove_regions(struct vhost_dev *dev,
 err:
     if (track_ramblocks) {
         memcpy(u->postcopy_client_bases, shadow_pcb,
-               sizeof(uint64_t) * VHOST_USER_MAX_RAM_SLOTS);
+               sizeof(uint64_t) * vhost_user_ram_slots_max());
     }
 
     return ret;
@@ -1030,7 +1013,7 @@ static int vhost_user_set_mem_table_postcopy(struct vhost_dev *dev,
         }
 
         memset(u->postcopy_client_bases, 0,
-               sizeof(uint64_t) * VHOST_USER_MAX_RAM_SLOTS);
+               sizeof(uint64_t) * vhost_user_ram_slots_max());
 
         /*
          * They're in the same order as the regions that were sent
@@ -2169,7 +2152,7 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque,
                 return -EINVAL;
             }
 
-            u->user->memory_slots = MIN(ram_slots, VHOST_USER_MAX_RAM_SLOTS);
+            u->user->memory_slots = MIN(ram_slots, vhost_user_ram_slots_max());
         }
     }
 
@@ -2649,6 +2632,7 @@ static void vhost_user_state_destroy(gpointer data)
 
 bool vhost_user_init(VhostUserState *user, CharBackend *chr, Error **errp)
 {
+    assert(vhost_user_ram_slots_max() <= VHOST_USER_MAX_RAM_SLOTS);
     if (user->chr) {
         error_setg(errp, "Cannot initialize vhost-user state");
         return false;

@@ -86,4 +86,11 @@ void vhost_user_async_close(DeviceState *d,
                             CharBackend *chardev, struct vhost_dev *vhost,
                             vu_async_close_fn cb);
 
+/**
+ * vhost_user_ram_slots_max()
+ *
+ * Return: maximum number of RAM slots supported by the target hardware plaform.
+ */
+unsigned int vhost_user_ram_slots_max(void);
+
 #endif
