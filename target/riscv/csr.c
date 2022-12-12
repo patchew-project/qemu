@@ -1109,10 +1109,17 @@ static RISCVException read_mstatus(CPURISCVState *env, int csrno,
 
 static int validate_vm(CPURISCVState *env, target_ulong vm)
 {
-    if (riscv_cpu_mxl(env) == MXL_RV32) {
-        return valid_vm_1_10_32[vm & 0xf];
+    uint8_t satp_mode_max;
+    RISCVCPU *cpu = RISCV_CPU(env_cpu(env));
+    bool is_32_bit = riscv_cpu_mxl(env) == MXL_RV32;
+
+    vm &= 0xf;
+    satp_mode_max = satp_mode_max_from_map(cpu->cfg.satp_mode.map, is_32_bit);
+
+    if (is_32_bit) {
+        return valid_vm_1_10_32[vm] && (vm <= satp_mode_max);
     } else {
-        return valid_vm_1_10_64[vm & 0xf];
+        return valid_vm_1_10_64[vm] && (vm <= satp_mode_max);
     }
 }
 

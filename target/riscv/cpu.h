@@ -27,6 +27,7 @@
 #include "qom/object.h"
 #include "qemu/int128.h"
 #include "cpu_bits.h"
+#include "qapi/qapi-types-common.h"
 
 #define TCG_GUEST_DEFAULT_MO 0
 
@@ -407,6 +408,22 @@ struct RISCVCPUClass {
     DeviceReset parent_reset;
 };
 
+/*
+ * map and init are divided into two 16bit bitmaps: the upper one is for rv64
+ * and the lower one is for rv32, this is because the value for sv32 (ie. 1)
+ * may be reused later for another purpose for rv64 (see the specification which
+ * states that it is "reserved for standard use").
+ *
+ * In a 16bit bitmap in map, the most significant set bit is the maximum
+ * satp mode that is supported.
+ *
+ * Both 16bit bitmaps in init are used to make sure the user selected a correct
+ * combination as per the specification.
+ */
+typedef struct {
+    uint32_t map, init;
+} RISCVSATPMap;
+
 struct RISCVCPUConfig {
     bool ext_i;
     bool ext_e;
@@ -480,6 +497,8 @@ struct RISCVCPUConfig {
     bool debug;
 
     bool short_isa_string;
+
+    RISCVSATPMap satp_mode;
 };
 
 typedef struct RISCVCPUConfig RISCVCPUConfig;
@@ -788,5 +807,11 @@ void riscv_get_csr_ops(int csrno, riscv_csr_operations *ops);
 void riscv_set_csr_ops(int csrno, riscv_csr_operations *ops);
 
 void riscv_cpu_register_gdb_regs_for_features(CPUState *cs);
+
+uint8_t satp_mode_max_from_map(uint32_t map, bool is_32_bit);
+const char *satp_mode_str(uint8_t satp_mode, bool is_32_bit);
+
+void riscv_cpu_satp_mode_finalize(RISCVCPU *cpu, Error **errp);
+void riscv_cpu_finalize_features(RISCVCPU *cpu, Error **errp);
 
 #endif /* RISCV_CPU_H */
