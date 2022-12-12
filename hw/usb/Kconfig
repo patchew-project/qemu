@@ -113,12 +113,14 @@ config USB_SMARTCARD_PASSTHRU
     bool
     default y
     depends on USB
+    depends on LIBCACARD
     select USB_SMARTCARD
 
 config USB_SMARTCARD_EMULATED
     bool
     default y
     depends on USB
+    depends on LIBCACARD
     select USB_SMARTCARD
 
 config USB_STORAGE_MTP

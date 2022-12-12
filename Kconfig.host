@@ -39,6 +39,9 @@ config MULTIPROCESS_ALLOWED
     bool
     imply MULTIPROCESS
 
+config LIBCACARD
+    bool
+
 config FUZZ
     bool
     select SPARSE_MEM
