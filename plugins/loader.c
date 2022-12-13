@@ -310,6 +310,7 @@ void plugin_add_qpp_cb(struct qemu_plugin_ctx *ctx, const char *name)
     new_cb = qemu_memalign(qemu_dcache_linesize, sizeof(*new_cb));
     memset(new_cb, 0, sizeof(*new_cb));
     new_cb->name = name;
+    new_cb->counter = 0;
     QTAILQ_INSERT_TAIL(&ctx->qpp_cbs, new_cb, entry);
 }
 
