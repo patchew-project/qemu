@@ -86,6 +86,7 @@ endif
 if get_option('tcg').allowed()
   if 'CONFIG_PLUGIN' in config_host
     subdir('plugin')
+    subdir('plugin_qpp')
   endif
 endif
 
