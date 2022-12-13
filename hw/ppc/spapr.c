@@ -39,6 +39,7 @@
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
 #include "qemu/log.h"
+#include "qemu/bswap.h"
 #include "hw/fw-path-provider.h"
 #include "elf.h"
 #include "net/net.h"
@@ -1357,10 +1358,10 @@ static bool spapr_get_pate(PPCVirtualHypervisor *vhyp, PowerPCCPU *cpu,
 }
 
 #define HPTE(_table, _i)   (void *)(((uint64_t *)(_table)) + ((_i) * 2))
-#define HPTE_VALID(_hpte)  (tswap64(*((uint64_t *)(_hpte))) & HPTE64_V_VALID)
-#define HPTE_DIRTY(_hpte)  (tswap64(*((uint64_t *)(_hpte))) & HPTE64_V_HPTE_DIRTY)
-#define CLEAN_HPTE(_hpte)  ((*(uint64_t *)(_hpte)) &= tswap64(~HPTE64_V_HPTE_DIRTY))
-#define DIRTY_HPTE(_hpte)  ((*(uint64_t *)(_hpte)) |= tswap64(HPTE64_V_HPTE_DIRTY))
+#define HPTE_VALID(_hpte)  (be64_to_cpu(*((uint64_t *)(_hpte))) & HPTE64_V_VALID)
+#define HPTE_DIRTY(_hpte)  (be64_to_cpu(*((uint64_t *)(_hpte))) & HPTE64_V_HPTE_DIRTY)
+#define CLEAN_HPTE(_hpte)  ((*(uint64_t *)(_hpte)) &= cpu_to_be64(~HPTE64_V_HPTE_DIRTY))
+#define DIRTY_HPTE(_hpte)  ((*(uint64_t *)(_hpte)) |= cpu_to_be64(HPTE64_V_HPTE_DIRTY))
 
 /*
  * Get the fd to access the kernel htab, re-opening it if necessary
