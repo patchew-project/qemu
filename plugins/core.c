@@ -236,6 +236,17 @@ void qemu_plugin_vcpu_exit_hook(CPUState *cpu)
     qemu_rec_mutex_unlock(&plugin.lock);
 }
 
+struct qemu_plugin_ctx *plugin_name_to_ctx_locked(const char* name)
+{
+    struct qemu_plugin_ctx *ctx;
+    QTAILQ_FOREACH(ctx, &plugin.ctxs, entry) {
+        if (strcmp(ctx->name, name) == 0) {
+            return plugin_id_to_ctx_locked(ctx->id);
+        }
+    }
+    return NULL;
+}
+
 int name_to_plugin_version(const char *name)
 {
     struct qemu_plugin_ctx *ctx;
@@ -258,6 +269,18 @@ const char *id_to_plugin_name(qemu_plugin_id_t id)
                     "version. Please update plugin.");
         return NULL;
     }
+}
+
+struct qemu_plugin_qpp_cb *plugin_find_qpp_cb(struct qemu_plugin_ctx *ctx,
+                                              const char *name)
+{
+    struct qemu_plugin_qpp_cb *cb;
+    QTAILQ_FOREACH(cb, &ctx->qpp_cbs, entry) {
+        if (strcmp(cb->name, name) == 0) {
+            return cb;
+        }
+    }
+    return NULL;
 }
 
 struct plugin_for_each_args {
