@@ -2617,6 +2617,9 @@ int qemu_loadvm_state_main(QEMUFile *f, MigrationIncomingState *mis)
     uint8_t section_type;
     int ret = 0;
 
+    /* call memory_region_transaction_begin() before loading vmstate */
+    memory_region_transaction_begin();
+
 retry:
     while (true) {
         section_type = qemu_get_byte(f);
@@ -2684,6 +2687,10 @@ out:
             goto retry;
         }
     }
+
+    /* call memory_region_transaction_commit() after loading vmstate */
+    memory_region_transaction_commit();
+
     return ret;
 }
 
