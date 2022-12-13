@@ -24,8 +24,8 @@
 
 #include "qemu/osdep.h"
 #include "qemu/module.h"
+#include "qemu/bswap.h"
 #include "qom/object.h"
-#include "cpu.h" /* FIXME should not use tswap* */
 #include "hw/sysbus.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
@@ -102,8 +102,8 @@ eth_read(void *opaque, hwaddr addr, unsigned int size)
             D(qemu_log("%s " TARGET_FMT_plx "=%x\n", __func__, addr * 4, r));
             break;
 
-        default:
-            r = tswap32(s->regs[addr]);
+        default: /* Packet data */
+            r = be32_to_cpu(s->regs[addr]);
             break;
     }
     return r;
@@ -160,8 +160,8 @@ eth_write(void *opaque, hwaddr addr,
             s->regs[addr] = value;
             break;
 
-        default:
-            s->regs[addr] = tswap32(value);
+        default: /* Packet data */
+            s->regs[addr] = cpu_to_be32(value);
             break;
     }
 }
