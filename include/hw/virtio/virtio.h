@@ -135,6 +135,8 @@ struct VirtIODevice
     AddressSpace *dma_as;
     QLIST_HEAD(, VirtQueue) *vector_queues;
     QTAILQ_ENTRY(VirtIODevice) next;
+    /* @delay_check: delay checks in virtio_load */
+    bool delay_check;
 };
 
 struct VirtioDeviceClass {

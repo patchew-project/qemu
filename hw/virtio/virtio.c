@@ -3642,8 +3642,26 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
         vdev->start_on_kick = true;
     }
 
+    vdev->delay_check = true;
+
+    if (vdc->post_load) {
+        ret = vdc->post_load(vdev);
+        if (ret) {
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
+static void virtio_load_check_delay(VirtIODevice *vdev)
+{
     RCU_READ_LOCK_GUARD();
-    for (i = 0; i < num; i++) {
+    for (int i = 0; i < VIRTIO_QUEUE_MAX; i++) {
+        if (vdev->vq[i].vring.num == 0) {
+            break;
+        }
+
         if (vdev->vq[i].vring.desc) {
             uint16_t nheads;
 
@@ -3696,19 +3714,12 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
                              i, vdev->vq[i].vring.num,
                              vdev->vq[i].last_avail_idx,
                              vdev->vq[i].used_idx);
-                return -1;
+                abort();
             }
         }
     }
 
-    if (vdc->post_load) {
-        ret = vdc->post_load(vdev);
-        if (ret) {
-            return ret;
-        }
-    }
-
-    return 0;
+    return;
 }
 
 void virtio_cleanup(VirtIODevice *vdev)
@@ -3722,6 +3733,11 @@ static void virtio_vmstate_change(void *opaque, bool running, RunState state)
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     bool backend_run = running && virtio_device_started(vdev, vdev->status);
+
+    if (vdev->delay_check) {
+        virtio_load_check_delay(vdev);
+        vdev->delay_check = false;
+    }
     vdev->vm_running = running;
 
     if (backend_run) {
@@ -3789,6 +3805,7 @@ void virtio_init(VirtIODevice *vdev, uint16_t device_id, size_t config_size)
             virtio_vmstate_change, vdev);
     vdev->device_endian = virtio_default_endian();
     vdev->use_guest_notifier_mask = true;
+    vdev->delay_check = false;
 }
 
 /*
