@@ -104,4 +104,6 @@ void exec_inline_op(struct qemu_plugin_dyn_cb *cb);
 
 int name_to_plugin_version(const char *name);
 
+const char *id_to_plugin_name(qemu_plugin_id_t id);
+
 #endif /* PLUGIN_H */
