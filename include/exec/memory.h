@@ -1069,8 +1069,17 @@ struct FlatView {
     MemoryRegion *root;
 };
 
+static unsigned memory_region_transaction_depth;
+
 static inline FlatView *address_space_to_flatview(AddressSpace *as)
 {
+    /*
+     * Before using any flatview, sanity check we're not during a memory
+     * region transaction or the map can be invalid.  Note that this can
+     * also be called during commit phase of memory transaction, but that
+     * should also only happen when the depth decreases to 0 first.
+     */
+    assert(memory_region_transaction_depth == 0);
     return qatomic_rcu_read(&as->current_map);
 }
 
