@@ -19,6 +19,7 @@
 #include "qemu/error-report.h"
 #include "trace.h"
 #include <libfdt.h>
+#include "cpu.h"
 
 #define OV_MAXBYTES 256 /* not including length byte */
 #define OV_MAXBITS (OV_MAXBYTES * BITS_PER_BYTE)
@@ -176,7 +177,7 @@ static target_ulong vector_addr(target_ulong table_addr, int vector)
     return table_addr;
 }
 
-SpaprOptionVector *spapr_ovec_parse_vector(target_ulong table_addr, int vector)
+SpaprOptionVector *spapr_ovec_parse_vector(hwaddr table_addr, int vector)
 {
     SpaprOptionVector *ov;
     target_ulong addr;
