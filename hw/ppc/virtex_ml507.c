@@ -38,6 +38,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"
+#include "qemu/bswap.h"
 
 #include "hw/intc/ppc-uic.h"
 #include "hw/ppc/ppc.h"
@@ -141,7 +142,7 @@ static void main_cpu_reset(void *opaque)
 
     /* Create a mapping for the kernel.  */
     mmubooke_create_initial_mapping(env, 0, 0);
-    env->gpr[6] = tswap32(EPAPR_MAGIC);
+    env->gpr[6] = const_le32(EPAPR_MAGIC);
     env->gpr[7] = bi->ima_size;
 }
 
