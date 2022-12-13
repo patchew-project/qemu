@@ -236,6 +236,18 @@ void qemu_plugin_vcpu_exit_hook(CPUState *cpu)
     qemu_rec_mutex_unlock(&plugin.lock);
 }
 
+int name_to_plugin_version(const char *name)
+{
+    struct qemu_plugin_ctx *ctx;
+    QTAILQ_FOREACH(ctx, &plugin.ctxs, entry) {
+        if (strcmp(ctx->name, name) == 0) {
+            return ctx->version;
+        }
+    }
+    warn_report("Could not find any plugin named %s.", name);
+    return -1;
+}
+
 struct plugin_for_each_args {
     struct qemu_plugin_ctx *ctx;
     qemu_plugin_vcpu_simple_cb_t cb;
