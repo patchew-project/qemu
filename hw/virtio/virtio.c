@@ -26,6 +26,7 @@
 #include "qemu/module.h"
 #include "qom/object_interfaces.h"
 #include "hw/virtio/virtio.h"
+#include "hw/virtio/vhost.h"
 #include "migration/qemu-file-types.h"
 #include "qemu/atomic.h"
 #include "hw/virtio/virtio-bus.h"
