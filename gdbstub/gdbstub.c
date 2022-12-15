@@ -48,6 +48,7 @@
 #include "sysemu/runstate.h"
 #include "semihosting/semihost.h"
 #include "exec/exec-all.h"
+#include "exec/tb-common.h"
 #include "exec/hwaddr.h"
 #include "sysemu/replay.h"
 
