@@ -325,19 +325,18 @@ static void test_socket(void)
     chk_error(close(server_fd));
 }
 
-#define WCOUNT_MAX 512
+#define RCOUNT_MAX 512
 
 static void test_pipe(void)
 {
     fd_set rfds, wfds;
     int fds[2], fd_max, ret;
     uint8_t ch;
-    int wcount, rcount;
+    int rcount;
 
     chk_error(pipe(fds));
     chk_error(fcntl(fds[0], F_SETFL, O_NONBLOCK));
     chk_error(fcntl(fds[1], F_SETFL, O_NONBLOCK));
-    wcount = 0;
     rcount = 0;
     for(;;) {
         FD_ZERO(&rfds);
@@ -354,13 +353,12 @@ static void test_pipe(void)
             if (FD_ISSET(fds[0], &rfds)) {
                 chk_error(read(fds[0], &ch, 1));
                 rcount++;
-                if (rcount >= WCOUNT_MAX)
+                if (rcount >= RCOUNT_MAX)
                     break;
             }
             if (FD_ISSET(fds[1], &wfds)) {
                 ch = 'a';
                 chk_error(write(fds[1], &ch, 1));
-                wcount++;
             }
         }
     }
