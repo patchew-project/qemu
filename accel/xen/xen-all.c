@@ -158,6 +158,10 @@ static int xen_init(MachineState *ms)
 {
     MachineClass *mc = MACHINE_GET_CLASS(ms);
 
+    if (xen_mode != XEN_ATTACH) {
+        xen_pv_printf(NULL, 0, "xen requires --xen-attach mode\n");
+        return -1;
+    }
     xen_xc = xc_interface_open(0, 0, 0);
     if (xen_xc == NULL) {
         xen_pv_printf(NULL, 0, "can't open xen interface\n");
