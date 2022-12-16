@@ -12,6 +12,12 @@
 #ifndef HW_S390_PV_H
 #define HW_S390_PV_H
 
+#ifdef CONFIG_USER_ONLY
+
+static inline bool s390_is_pv(void) { return false; }
+
+#else /* !CONFIG_USER_ONLY */
+
 #include "sysemu/kvm.h"
 
 #ifdef CONFIG_KVM
@@ -78,5 +84,7 @@ static inline int kvm_s390_dump_completion_data(void *buff) { return 0; }
 
 int s390_pv_kvm_init(ConfidentialGuestSupport *cgs, Error **errp);
 int s390_pv_init(ConfidentialGuestSupport *cgs, Error **errp);
+
+#endif /* CONFIG_USER_ONLY */
 
 #endif /* HW_S390_PV_H */
