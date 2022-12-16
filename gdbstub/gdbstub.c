@@ -28,7 +28,7 @@
 #include "qemu/cutils.h"
 #include "qemu/module.h"
 #include "trace.h"
-#include "exec/gdbstub.h"
+#include "gdbstub/common.h"
 #ifdef CONFIG_USER_ONLY
 #include "gdbstub/user.h"
 #else

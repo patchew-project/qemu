@@ -33,7 +33,7 @@
 #include "qemu/guest-random.h"
 #include "exec/exec-all.h"
 #include "exec/hwaddr.h"
-#include "exec/gdbstub.h"
+#include "gdbstub/common.h"
 
 #include "tcg-accel-ops.h"
 #include "tcg-accel-ops-mttcg.h"

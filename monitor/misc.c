@@ -29,7 +29,7 @@
 #include "hw/pci/pci.h"
 #include "sysemu/watchdog.h"
 #include "hw/loader.h"
-#include "exec/gdbstub.h"
+#include "gdbstub/common.h"
 #include "net/net.h"
 #include "net/slirp.h"
 #include "ui/qemu-spice.h"

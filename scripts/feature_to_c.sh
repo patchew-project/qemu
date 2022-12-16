@@ -56,7 +56,7 @@ for input; do
 done
 
 echo
-echo '#include "exec/gdbstub.h"'
+echo '#include "gdbstub/common.h"'
 echo "const char *const xml_builtin[][2] = {"
 
 for input; do

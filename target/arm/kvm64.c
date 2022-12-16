@@ -22,7 +22,7 @@
 #include "qemu/error-report.h"
 #include "qemu/host-utils.h"
 #include "qemu/main-loop.h"
-#include "exec/gdbstub.h"
+#include "gdbstub/common.h"
 #include "sysemu/runstate.h"
 #include "sysemu/kvm.h"
 #include "sysemu/kvm_int.h"

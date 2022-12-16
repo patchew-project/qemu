@@ -18,7 +18,7 @@
 #include "qemu/osdep.h"
 #include "semihosting/semihost.h"
 #include "semihosting/console.h"
-#include "exec/gdbstub.h"
+#include "gdbstub/common.h"
 #include "exec/exec-all.h"
 #include "qemu/log.h"
 #include "chardev/char.h"

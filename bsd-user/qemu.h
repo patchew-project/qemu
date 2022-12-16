@@ -36,7 +36,7 @@ extern char **environ;
 #include "target_os_vmparam.h"
 #include "target_os_signal.h"
 #include "target.h"
-#include "exec/gdbstub.h"
+#include "gdbstub/user.h"
 
 /*
  * This struct is used to hold certain information about the image.  Basically,

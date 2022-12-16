@@ -14,7 +14,6 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/cutils.h"
-#include "exec/gdbstub.h"
 #include "exec/hwaddr.h"
 #include "exec/tb-flush.h"
 #include "sysemu/cpus.h"
@@ -26,8 +25,9 @@
 #include "chardev/char.h"
 #include "chardev/char-fe.h"
 #include "monitor/monitor.h"
-#include "trace.h"
+#include "gdbstub/common.h"
 #include "internals.h"
+#include "trace.h"
 
 /* system emulation connection details */
 typedef struct GDBConnection {

@@ -8,8 +8,9 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "gdbstub/common.h"
+#include "gdbstub/helpers.h"
 #include "internals.h"
-#include "exec/gdbstub.h"
 
 uint64_t read_fcc(CPULoongArchState *env)
 {

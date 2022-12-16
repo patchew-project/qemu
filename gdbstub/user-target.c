@@ -8,7 +8,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "exec/gdbstub.h"
+#include "gdbstub/common.h"
 #include "qemu.h"
 #include "internals.h"
 
