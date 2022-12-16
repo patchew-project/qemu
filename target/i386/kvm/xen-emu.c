@@ -919,6 +919,17 @@ static bool kvm_xen_hcall_sched_op(struct kvm_xen_exit *exit, X86CPU *cpu,
         err = schedop_shutdown(cs, arg);
         break;
 
+    case SCHEDOP_poll:
+        /*
+         * Linux will panic if this doesn't work. Just yield; it's not
+         * worth overthinking it because wWith event channel handling
+         * in KVM, the kernel will intercept this and it will never
+         * reach QEMU anyway.
+         */
+        sched_yield();
+        err = 0;
+        break;
+
     default:
         return false;
     }
