@@ -25,6 +25,8 @@
 #include "hw/sysbus.h"
 #include "hw/xen/xen.h"
 #include "hw/i386/x86.h"
+#include "hw/i386/pc.h"
+#include "hw/pci/pci.h"
 #include "hw/irq.h"
 
 #include "xen_evtchn.h"
@@ -100,6 +102,7 @@ struct XenEvtchnState {
     /*< public >*/
 
     uint64_t callback_param;
+    uint32_t callback_gsi;
 
     QemuMutex port_lock;
     uint32_t nr_ports;
@@ -201,11 +204,50 @@ static void xen_evtchn_register_types(void)
 
 type_init(xen_evtchn_register_types)
 
+static int set_callback_pci_intx(XenEvtchnState *s, uint64_t param)
+{
+    PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
+    uint8_t pin = param & 3;
+    uint8_t devfn = (param >> 8) & 0xff;
+    uint16_t bus = (param >> 16) & 0xffff;
+    uint16_t domain = (param >> 32) & 0xffff;
+    PCIDevice *pdev;
+    PCIINTxRoute r;
+
+    if (domain || !pcms)
+        return 0;
+
+    pdev = pci_find_device(pcms->bus, bus, devfn);
+    if (!pdev) {
+        return 0;
+    }
+
+    r = pci_device_route_intx_to_irq(pdev, pin);
+    if (r.mode != PCI_INTX_ENABLED) {
+        return 0;
+    }
+
+    /*
+     * Hm, can we be notified of INTX routing changes? Not without
+     * *owning* the device and being allowed to overwrite its own
+     * ->intx_routing_notifier, AFAICT. So let's not.
+     */
+    return r.irq;
+}
+
+static void xen_evtchn_set_callback_level(XenEvtchnState *s, int level)
+{
+    if (s->callback_gsi && s->callback_gsi < GSI_NUM_PINS) {
+        qemu_set_irq(s->gsis[s->callback_gsi], level);
+    }
+}
+
 #define CALLBACK_VIA_TYPE_SHIFT       56
 
 int xen_evtchn_set_callback_param(uint64_t param)
 {
     XenEvtchnState *s = xen_evtchn_singleton;
+    uint32_t gsi = 0;
     int ret = -ENOSYS;
 
     if (!s) {
@@ -220,31 +262,35 @@ int xen_evtchn_set_callback_param(uint64_t param)
         };
 
         ret = kvm_vm_ioctl(kvm_state, KVM_XEN_HVM_SET_ATTR, &xa);
+        gsi = 0;
         break;
     }
     case HVM_PARAM_CALLBACK_TYPE_GSI:
+        gsi = (uint32_t)param;
         ret = 0;
+        break;
+
+    case HVM_PARAM_CALLBACK_TYPE_PCI_INTX:
+        gsi = set_callback_pci_intx(s, param);
+        ret = gsi ? 0 : -EINVAL;
         break;
     }
 
     if (!ret) {
         s->callback_param = param;
+        if (gsi != s->callback_gsi) {
+            struct vcpu_info *vi = kvm_xen_get_vcpu_info_hva(0);
+
+            xen_evtchn_set_callback_level(s, 0);
+            s->callback_gsi = gsi;
+
+            if (gsi && vi && vi->evtchn_upcall_pending) {
+                xen_evtchn_set_callback_level(s, 1);
+            }
+        }
     }
 
     return ret;
-}
-
-static void xen_evtchn_set_callback_level(XenEvtchnState *s, int level)
-{
-    uint32_t param = (uint32_t)s->callback_param;
-
-    switch (s->callback_param >> CALLBACK_VIA_TYPE_SHIFT) {
-    case HVM_PARAM_CALLBACK_TYPE_GSI:
-        if (param < GSI_NUM_PINS) {
-            qemu_set_irq(s->gsis[param], level);
-        }
-        break;
-    }
 }
 
 static void inject_callback(XenEvtchnState *s, uint32_t vcpu)
