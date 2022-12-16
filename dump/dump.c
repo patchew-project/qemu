@@ -29,6 +29,7 @@
 #include "qemu/main-loop.h"
 #include "hw/misc/vmcoreinfo.h"
 #include "migration/blocker.h"
+#include "cpu.h"
 
 #ifdef TARGET_X86_64
 #include "win_dump.h"
