@@ -1804,6 +1804,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
     env->xen_vcpu_info_gpa = UINT64_MAX;
     env->xen_vcpu_info_default_gpa = UINT64_MAX;
+    env->xen_vcpu_time_info_gpa = UINT64_MAX;
 
     if (cs->kvm_state->xen_version) {
 #ifdef CONFIG_XEN_EMU
@@ -4735,6 +4736,14 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
 
         if (gpa != UINT64_MAX) {
             ret = kvm_xen_set_vcpu_attr(cpu, KVM_XEN_VCPU_ATTR_TYPE_VCPU_INFO, gpa);
+            if (ret < 0) {
+                return ret;
+            }
+        }
+
+        gpa = x86_cpu->env.xen_vcpu_time_info_gpa;
+        if (gpa != UINT64_MAX) {
+            ret = kvm_xen_set_vcpu_attr(cpu, KVM_XEN_VCPU_ATTR_TYPE_VCPU_TIME_INFO, gpa);
             if (ret < 0) {
                 return ret;
             }
