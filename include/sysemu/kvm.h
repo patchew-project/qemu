@@ -242,9 +242,6 @@ bool kvm_arm_supports_user_irq(void);
 int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr);
 int kvm_on_sigbus(int code, void *addr);
 
-#ifdef NEED_CPU_H
-#include "cpu.h"
-
 void kvm_flush_coalesced_mmio_buffer(void);
 
 /**
@@ -410,6 +407,9 @@ void kvm_get_apic_state(DeviceState *d, struct kvm_lapic_state *kapic);
 struct kvm_guest_debug;
 struct kvm_debug_exit_arch;
 
+#ifdef NEED_CPU_H
+#include "cpu.h"
+
 struct kvm_sw_breakpoint {
     target_ulong pc;
     target_ulong saved_insn;
@@ -435,6 +435,15 @@ void kvm_arch_remove_all_hw_breakpoints(void);
 void kvm_arch_update_guest_debug(CPUState *cpu, struct kvm_guest_debug *dbg);
 
 bool kvm_arch_stop_on_emulation_error(CPUState *cpu);
+
+uint32_t kvm_arch_get_supported_cpuid(KVMState *env, uint32_t function,
+                                      uint32_t index, int reg);
+uint64_t kvm_arch_get_supported_msr_feature(KVMState *s, uint32_t index);
+
+int kvm_physical_memory_addr_from_host(KVMState *s, void *ram_addr,
+                                       hwaddr *phys_addr);
+
+#endif /* NEED_CPU_H */
 
 int kvm_check_extension(KVMState *s, unsigned int extension);
 
@@ -464,17 +473,7 @@ int kvm_vm_check_extension(KVMState *s, unsigned int extension);
         kvm_vcpu_ioctl(cpu, KVM_ENABLE_CAP, &cap);                   \
     })
 
-uint32_t kvm_arch_get_supported_cpuid(KVMState *env, uint32_t function,
-                                      uint32_t index, int reg);
-uint64_t kvm_arch_get_supported_msr_feature(KVMState *s, uint32_t index);
-
-
 void kvm_set_sigmask_len(KVMState *s, unsigned int sigmask_len);
-
-int kvm_physical_memory_addr_from_host(KVMState *s, void *ram_addr,
-                                       hwaddr *phys_addr);
-
-#endif /* NEED_CPU_H */
 
 void kvm_cpu_synchronize_state(CPUState *cpu);
 
