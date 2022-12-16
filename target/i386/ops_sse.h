@@ -19,6 +19,7 @@
  */
 
 #include "crypto/aes.h"
+#include "cpu.h"
 
 #if SHIFT == 0
 #define Reg MMXReg
