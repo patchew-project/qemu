@@ -43,6 +43,7 @@
 #include "hw/vfio/vfio-amd-xgbe.h"
 #include "hw/display/ramfb.h"
 #include "net/net.h"
+#include "sysemu/block-backend.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/numa.h"
 #include "sysemu/runstate.h"
@@ -1141,6 +1142,21 @@ static void virt_flash_map1(PFlashCFI01 *flash,
                             MemoryRegion *sysmem)
 {
     DeviceState *dev = DEVICE(flash);
+    BlockBackend *blk;
+
+    blk = pflash_cfi01_get_blk(flash);
+    if (blk) {
+        hwaddr blksize = blk_getlength(blk);
+
+        if (blksize == 0 || blksize > size ||
+            !QEMU_IS_ALIGNED(size, VIRT_FLASH_SECTOR_SIZE)) {
+            error_report("system firmware block device %s"
+                         " has invalid size %" PRId64,
+                         blk_name(blk), size);
+            exit(1);
+        }
+        size = blksize;
+    }
 
     assert(QEMU_IS_ALIGNED(size, VIRT_FLASH_SECTOR_SIZE));
     assert(size / VIRT_FLASH_SECTOR_SIZE <= UINT32_MAX);
