@@ -191,6 +191,8 @@
 #                  PL011 UART. @verbose-static is mutually exclusive
 #                  with @verbose-dynamic.
 #
+# @no-padding: The (arm/aarch64) firmware images are not padded to 64M.
+#
 # Since: 3.0
 ##
 { 'enum' : 'FirmwareFeature',
@@ -198,7 +200,8 @@
              'amd-sev', 'amd-sev-es', 'amd-sev-snp',
              'intel-tdx',
              'enrolled-keys', 'requires-smm', 'secure-boot',
-             'verbose-dynamic', 'verbose-static' ] }
+             'verbose-dynamic', 'verbose-static',
+             'no-padding' ] }
 
 ##
 # @FirmwareFlashFile:
