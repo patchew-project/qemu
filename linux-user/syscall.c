@@ -9700,48 +9700,16 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             finish_sigsuspend_mask(ret);
         }
         return ret;
+#if defined(TARGET_NR_rt_sigtimedwait) || defined(TARGET_NR_rt_sigtimedwait_time64)
 #ifdef TARGET_NR_rt_sigtimedwait
     case TARGET_NR_rt_sigtimedwait:
-        {
-            sigset_t set;
-            struct timespec uts, *puts;
-            siginfo_t uinfo;
-
-            if (arg4 != sizeof(target_sigset_t)) {
-                return -TARGET_EINVAL;
-            }
-
-            if (!(p = lock_user(VERIFY_READ, arg1, sizeof(target_sigset_t), 1)))
-                return -TARGET_EFAULT;
-            target_to_host_sigset(&set, p);
-            unlock_user(p, arg1, 0);
-            if (arg3) {
-                puts = &uts;
-                if (target_to_host_timespec(puts, arg3)) {
-                    return -TARGET_EFAULT;
-                }
-            } else {
-                puts = NULL;
-            }
-            ret = get_errno(safe_rt_sigtimedwait(&set, &uinfo, puts,
-                                                 SIGSET_T_SIZE));
-            if (!is_error(ret)) {
-                if (arg2) {
-                    p = lock_user(VERIFY_WRITE, arg2, sizeof(target_siginfo_t),
-                                  0);
-                    if (!p) {
-                        return -TARGET_EFAULT;
-                    }
-                    host_to_target_siginfo(p, &uinfo);
-                    unlock_user(p, arg2, sizeof(target_siginfo_t));
-                }
-                ret = host_to_target_signal(ret);
-            }
-        }
-        return ret;
 #endif
 #ifdef TARGET_NR_rt_sigtimedwait_time64
     case TARGET_NR_rt_sigtimedwait_time64:
+#define rt_sigtimedwait_istime64() (num == TARGET_NR_rt_sigtimedwait_time64)
+#else
+#define rt_sigtimedwait_istime64() 0
+#endif
         {
             sigset_t set;
             struct timespec uts, *puts;
@@ -9759,7 +9727,9 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             unlock_user(p, arg1, 0);
             if (arg3) {
                 puts = &uts;
-                if (target_to_host_timespec64(puts, arg3)) {
+                if (rt_sigtimedwait_istime64()
+                    ? target_to_host_timespec64(puts, arg3)
+                    : target_to_host_timespec(puts, arg3)) {
                     return -TARGET_EFAULT;
                 }
             } else {
