@@ -4757,6 +4757,13 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
                 return ret;
             }
         }
+
+        if (x86_cpu->env.xen_vcpu_callback_vector) {
+            ret = kvm_xen_set_vcpu_callback_vector(cpu);
+            if (ret < 0) {
+                return ret;
+            }
+        }
     }
 #endif
 
