@@ -43,8 +43,11 @@ HEX_TESTS += load_align
 HEX_TESTS += atomics
 HEX_TESTS += fpstuff
 HEX_TESTS += overflow
+HEX_TESTS += reg_mut
 
 TESTS += $(HEX_TESTS)
+
+reg_mut: CFLAGS += -I$(SRC_PATH)/target/hexagon/
 
 # This test has to be compiled for the -mv67t target
 usr: usr.c
