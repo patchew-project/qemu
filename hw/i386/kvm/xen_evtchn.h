@@ -9,9 +9,12 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include "hw/sysbus.h"
 
 void xen_evtchn_create(void);
 int xen_evtchn_set_callback_param(uint64_t param);
+void xen_evtchn_connect_gsis(qemu_irq *system_gsis);
+void xen_evtchn_deassert_callback(void);
 
 void hmp_xen_event_list(Monitor *mon, const QDict *qdict);
 void hmp_xen_event_inject(Monitor *mon, const QDict *qdict);

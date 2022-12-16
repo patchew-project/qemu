@@ -1303,6 +1303,12 @@ void pc_basic_device_init(struct PCMachineState *pcms,
     }
     *rtc_state = mc146818_rtc_init(isa_bus, 2000, rtc_irq);
 
+#ifdef CONFIG_XEN_EMU
+    if (xen_mode == XEN_EMULATE) {
+        xen_evtchn_connect_gsis(gsi);
+    }
+#endif
+
     qemu_register_boot_set(pc_boot_set, *rtc_state);
 
     if (!xen_enabled() &&
@@ -1845,8 +1851,8 @@ int pc_machine_kvm_type(MachineState *machine, const char *kvm_type)
 {
 #ifdef CONFIG_XEN_EMU
     if (xen_mode == XEN_EMULATE) {
-            xen_overlay_create();
-            xen_evtchn_create();
+        xen_overlay_create();
+        xen_evtchn_create();
     }
 #endif
     return 0;

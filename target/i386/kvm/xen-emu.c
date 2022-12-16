@@ -240,18 +240,11 @@ static void *gpa_to_hva(uint64_t gpa)
                                              mrs.offset_within_region);
 }
 
-void *kvm_xen_get_vcpu_info_hva(uint32_t vcpu_id)
+static void *vcpu_info_hva_from_cs(CPUState *cs)
 {
-    CPUState *cs = qemu_get_cpu(vcpu_id);
-    CPUX86State *env;
-    uint64_t gpa;
+    CPUX86State *env = &X86_CPU(cs)->env;
+    uint64_t gpa = env->xen_vcpu_info_gpa;
 
-    if (!cs) {
-        return NULL;
-    }
-    env = &X86_CPU(cs)->env;
-
-    gpa = env->xen_vcpu_info_gpa;
     if (gpa == UINT64_MAX)
         gpa = env->xen_vcpu_info_default_gpa;
     if (gpa == UINT64_MAX)
@@ -260,13 +253,38 @@ void *kvm_xen_get_vcpu_info_hva(uint32_t vcpu_id)
     return gpa_to_hva(gpa);
 }
 
-void kvm_xen_inject_vcpu_callback_vector(uint32_t vcpu_id)
+void *kvm_xen_get_vcpu_info_hva(uint32_t vcpu_id)
+{
+    CPUState *cs = qemu_get_cpu(vcpu_id);
+
+    if (!cs) {
+            return NULL;
+    }
+
+    return vcpu_info_hva_from_cs(cs);
+}
+
+void kvm_xen_maybe_deassert_callback(CPUState *cs)
+{
+    struct vcpu_info *vi = vcpu_info_hva_from_cs(cs);
+    if (!vi) {
+            return;
+    }
+
+    /* If the evtchn_upcall_pending flag is cleared, turn the GSI off. */
+    if (!vi->evtchn_upcall_pending) {
+        X86_CPU(cs)->env.xen_callback_asserted = false;
+        xen_evtchn_deassert_callback();
+    }
+}
+
+bool kvm_xen_inject_vcpu_callback_vector(uint32_t vcpu_id, uint64_t callback_param)
 {
     CPUState *cs = qemu_get_cpu(vcpu_id);
     uint8_t vector;
 
     if (!cs) {
-        return;
+        return false;
     }
     vector = X86_CPU(cs)->env.xen_vcpu_callback_vector;
 
@@ -278,13 +296,25 @@ void kvm_xen_inject_vcpu_callback_vector(uint32_t vcpu_id)
             .data = vector | (1UL << MSI_DATA_LEVEL_SHIFT),
         };
         kvm_irqchip_send_msi(kvm_state, msg);
-        return;
+        return true;
     }
 
-    /* If the evtchn_upcall_pending field in the vcpu_info is set, then
-     * KVM will automatically deliver the vector on entering the vCPU
-     * so all we have to do is kick it out. */
-    qemu_cpu_kick(cs);
+    switch(callback_param >> 56) {
+    case HVM_PARAM_CALLBACK_TYPE_VECTOR:
+            /* If the evtchn_upcall_pending field in the vcpu_info is set, then
+             * KVM will automatically deliver the vector on entering the vCPU
+             * so all we have to do is kick it out. */
+            qemu_cpu_kick(cs);
+            return true;
+
+    case HVM_PARAM_CALLBACK_TYPE_GSI:
+    case HVM_PARAM_CALLBACK_TYPE_PCI_INTX:
+            if (vcpu_id == 0) {
+                X86_CPU(cs)->env.xen_callback_asserted = true;
+            }
+            return false;
+    }
+    return false;
 }
 
 static int kvm_xen_set_vcpu_timer(CPUState *cs)

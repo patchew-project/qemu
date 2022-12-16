@@ -24,6 +24,8 @@
 
 #include "hw/sysbus.h"
 #include "hw/xen/xen.h"
+#include "hw/i386/x86.h"
+#include "hw/irq.h"
 
 #include "xen_evtchn.h"
 #include "xen_overlay.h"
@@ -102,6 +104,7 @@ struct XenEvtchnState {
     QemuMutex port_lock;
     uint32_t nr_ports;
     XenEvtchnPort port_table[EVTCHN_2L_NR_CHANNELS];
+    qemu_irq gsis[GSI_NUM_PINS];
 };
 
 struct XenEvtchnState *xen_evtchn_singleton;
@@ -166,9 +169,29 @@ static const TypeInfo xen_evtchn_info = {
 void xen_evtchn_create(void)
 {
     XenEvtchnState *s = XEN_EVTCHN(sysbus_create_simple(TYPE_XEN_EVTCHN, -1, NULL));
+    int i;
+
     xen_evtchn_singleton = s;
 
     qemu_mutex_init(&s->port_lock);
+
+    for (i = 0; i < GSI_NUM_PINS; i++) {
+        sysbus_init_irq(SYS_BUS_DEVICE(s), &s->gsis[i]);
+    }
+}
+
+void xen_evtchn_connect_gsis(qemu_irq *system_gsis)
+{
+    XenEvtchnState *s = xen_evtchn_singleton;
+    int i;
+
+    if (!s) {
+        return;
+    }
+
+    for (i = 0; i < GSI_NUM_PINS; i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(s), i, system_gsis[i]);
+    }
 }
 
 static void xen_evtchn_register_types(void)
@@ -178,24 +201,73 @@ static void xen_evtchn_register_types(void)
 
 type_init(xen_evtchn_register_types)
 
-
 #define CALLBACK_VIA_TYPE_SHIFT       56
 
 int xen_evtchn_set_callback_param(uint64_t param)
 {
+    XenEvtchnState *s = xen_evtchn_singleton;
     int ret = -ENOSYS;
 
-    if (param >> CALLBACK_VIA_TYPE_SHIFT == HVM_PARAM_CALLBACK_TYPE_VECTOR) {
+    if (!s) {
+        return -ENOTSUP;
+    }
+
+    switch (param >> CALLBACK_VIA_TYPE_SHIFT) {
+    case HVM_PARAM_CALLBACK_TYPE_VECTOR: {
         struct kvm_xen_hvm_attr xa = {
             .type = KVM_XEN_ATTR_TYPE_UPCALL_VECTOR,
             .u.vector = (uint8_t)param,
         };
 
         ret = kvm_vm_ioctl(kvm_state, KVM_XEN_HVM_SET_ATTR, &xa);
-        if (!ret && xen_evtchn_singleton)
-            xen_evtchn_singleton->callback_param = param;
+        break;
     }
+    case HVM_PARAM_CALLBACK_TYPE_GSI:
+        ret = 0;
+        break;
+    }
+
+    if (!ret) {
+        s->callback_param = param;
+    }
+
     return ret;
+}
+
+static void xen_evtchn_set_callback_level(XenEvtchnState *s, int level)
+{
+    uint32_t param = (uint32_t)s->callback_param;
+
+    switch (s->callback_param >> CALLBACK_VIA_TYPE_SHIFT) {
+    case HVM_PARAM_CALLBACK_TYPE_GSI:
+        if (param < GSI_NUM_PINS) {
+            qemu_set_irq(s->gsis[param], level);
+        }
+        break;
+    }
+}
+
+static void inject_callback(XenEvtchnState *s, uint32_t vcpu)
+{
+    if (kvm_xen_inject_vcpu_callback_vector(vcpu, s->callback_param)) {
+        return;
+    }
+
+    /* GSI or PCI_INTX delivery is only for events on vCPU 0 */
+    if (vcpu) {
+        return;
+    }
+
+    xen_evtchn_set_callback_level(s, 1);
+}
+
+void xen_evtchn_deassert_callback(void)
+{
+    XenEvtchnState *s = xen_evtchn_singleton;
+
+    if (s) {
+        xen_evtchn_set_callback_level(s, 0);
+    }
 }
 
 static void deassign_kernel_port(evtchn_port_t port)
@@ -359,7 +431,7 @@ static int do_unmask_port_lm(XenEvtchnState *s, evtchn_port_t port,
         return 0;
     }
 
-    kvm_xen_inject_vcpu_callback_vector(s->port_table[port].vcpu);
+    inject_callback(s, s->port_table[port].vcpu);
 
     return 0;
 }
@@ -413,7 +485,7 @@ static int do_unmask_port_compat(XenEvtchnState *s, evtchn_port_t port,
         return 0;
     }
 
-    kvm_xen_inject_vcpu_callback_vector(s->port_table[port].vcpu);
+    inject_callback(s, s->port_table[port].vcpu);
 
     return 0;
 }
@@ -481,7 +553,7 @@ static int do_set_port_lm(XenEvtchnState *s, evtchn_port_t port,
         return 0;
     }
 
-    kvm_xen_inject_vcpu_callback_vector(s->port_table[port].vcpu);
+    inject_callback(s, s->port_table[port].vcpu);
 
     return 0;
 }
@@ -524,7 +596,7 @@ static int do_set_port_compat(XenEvtchnState *s, evtchn_port_t port,
         return 0;
     }
 
-    kvm_xen_inject_vcpu_callback_vector(s->port_table[port].vcpu);
+    inject_callback(s, s->port_table[port].vcpu);
 
     return 0;
 }
