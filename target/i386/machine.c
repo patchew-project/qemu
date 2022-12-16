@@ -1264,7 +1264,8 @@ static bool xen_vcpu_needed(void *opaque)
 
     return (env->xen_vcpu_info_gpa != UINT64_MAX ||
             env->xen_vcpu_info_default_gpa != UINT64_MAX ||
-            env->xen_vcpu_time_info_gpa != UINT64_MAX);
+            env->xen_vcpu_time_info_gpa != UINT64_MAX ||
+            env->xen_vcpu_runstate_gpa != UINT64_MAX);
 }
 
 static const VMStateDescription vmstate_xen_vcpu = {
@@ -1276,6 +1277,7 @@ static const VMStateDescription vmstate_xen_vcpu = {
         VMSTATE_UINT64(env.xen_vcpu_info_gpa, X86CPU),
         VMSTATE_UINT64(env.xen_vcpu_info_default_gpa, X86CPU),
         VMSTATE_UINT64(env.xen_vcpu_time_info_gpa, X86CPU),
+        VMSTATE_UINT64(env.xen_vcpu_runstate_gpa, X86CPU),
         VMSTATE_END_OF_LIST()
     }
 };
