@@ -26,6 +26,19 @@ static bool info_valid;
 static struct kvm_s390_pv_info_vm info_vm;
 static struct kvm_s390_pv_info_dump info_dump;
 
+int s390_pv_init(ConfidentialGuestSupport *cgs, Error **errp)
+{
+    if (!cgs) {
+        return 0;
+    }
+    if (kvm_enabled()) {
+        return s390_pv_kvm_init(cgs, errp);
+    }
+
+    error_setg(errp, "Protected Virtualization requires KVM");
+    return -1;
+}
+
 static int __s390_pv_cmd(uint32_t cmd, const char *cmdname, void *data)
 {
     struct kvm_pv_cmd pv_cmd = {
