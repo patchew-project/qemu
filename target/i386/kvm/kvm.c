@@ -1802,6 +1802,9 @@ int kvm_arch_init_vcpu(CPUState *cs)
         has_msr_hv_hypercall = true;
     }
 
+    env->xen_vcpu_info_gpa = UINT64_MAX;
+    env->xen_vcpu_info_default_gpa = UINT64_MAX;
+
     if (cs->kvm_state->xen_version) {
 #ifdef CONFIG_XEN_EMU
         struct kvm_cpuid_entry2 *xen_max_leaf;
@@ -4722,6 +4725,22 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
          */
         kvm_arch_set_tsc_khz(cpu);
     }
+
+#ifdef CONFIG_XEN_EMU
+    if (level == KVM_PUT_FULL_STATE) {
+        uint64_t gpa = x86_cpu->env.xen_vcpu_info_gpa;
+        if (gpa == UINT64_MAX) {
+            gpa = x86_cpu->env.xen_vcpu_info_default_gpa;
+        }
+
+        if (gpa != UINT64_MAX) {
+            ret = kvm_xen_set_vcpu_attr(cpu, KVM_XEN_VCPU_ATTR_TYPE_VCPU_INFO, gpa);
+            if (ret < 0) {
+                return ret;
+            }
+        }
+    }
+#endif
 
     ret = kvm_getput_regs(x86_cpu, 1);
     if (ret < 0) {
