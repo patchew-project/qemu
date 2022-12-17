@@ -251,7 +251,9 @@ struct S390PVGuestClass {
 
 int s390_pv_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
 {
-    if (!object_dynamic_cast(OBJECT(cgs), TYPE_S390_PV_GUEST)) {
+    assert(kvm_enabled());
+
+    if (!cgs || !object_dynamic_cast(OBJECT(cgs), TYPE_S390_PV_GUEST)) {
         return 0;
     }
 
