@@ -199,15 +199,6 @@ deprecated.  Use ``sections`` instead.
 Member ``section-size`` in return value elements with meta-type ``uint64`` is
 deprecated.  Use ``sections`` instead.
 
-System accelerators
--------------------
-
-MIPS ``Trap-and-Emul`` KVM support (since 6.0)
-''''''''''''''''''''''''''''''''''''''''''''''
-
-The MIPS ``Trap-and-Emul`` KVM host and guest support has been removed
-from Linux upstream kernel, declare it deprecated.
-
 Host Architectures
 ------------------
 
