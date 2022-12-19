@@ -131,6 +131,7 @@ int openat_dir(int dirfd, const char *name);
 int openat_file(int dirfd, const char *name, int flags, mode_t mode);
 off_t qemu_dirent_off_win32(void *s, void *fs);
 uint64_t qemu_stat_rdev_win32(void *fs_ctx);
+uint64_t qemu_stat_blksize_win32(void *fs_ctx);
 #endif
 
 static inline void close_preserve_errno(int fd)
@@ -255,6 +256,17 @@ static inline uint64_t qemu_stat_rdev(const struct stat *stbuf, void *fs_ctx)
     return qemu_stat_rdev_win32(fs_ctx);
 #else
 #error Missing qemu_stat_rdev() implementation for this host system
+#endif
+}
+
+static inline uint64_t qemu_stat_blksize(const struct stat *stbuf, void *fs_ctx)
+{
+#if defined(CONFIG_LINUX) || defined(CONFIG_DARWIN)
+    return stbuf->st_blksize;
+#elif defined(CONFIG_WIN32)
+    return qemu_stat_blksize_win32(fs_ctx);
+#else
+#error Missing qemu_stat_blksize() implementation for this host system
 #endif
 }
 
