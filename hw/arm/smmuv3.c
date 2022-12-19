@@ -285,6 +285,7 @@ static void smmuv3_init_regs(SMMUv3State *s)
     s->gerror = 0;
     s->gerrorn = 0;
     s->statusr = 0;
+    s->gbpa = 0;
 }
 
 static int smmu_get_ste(SMMUv3State *s, dma_addr_t addr, STE *buf,
@@ -660,6 +661,11 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
 
     if (!smmu_enabled(s)) {
         status = SMMU_TRANS_DISABLE;
+        goto epilogue;
+    }
+
+    if (FIELD_EX32(s->gbpa, GBPA, ABORT)) {
+        status = SMMU_TRANS_ABORT;
         goto epilogue;
     }
 
@@ -1170,6 +1176,10 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
     case A_GERROR_IRQ_CFG2:
         s->gerror_irq_cfg2 = data;
         return MEMTX_OK;
+    case A_GBPA:
+        /* Ignore update bit as write is synchronous. */
+        s->gbpa = data & ~R_GBPA_UPDATE_MASK;
+        return MEMTX_OK;
     case A_STRTAB_BASE: /* 64b */
         s->strtab_base = deposit64(s->strtab_base, 0, 32, data);
         return MEMTX_OK;
@@ -1317,6 +1327,9 @@ static MemTxResult smmu_readl(SMMUv3State *s, hwaddr offset,
         return MEMTX_OK;
     case A_STATUSR:
         *data = s->statusr;
+        return MEMTX_OK;
+    case A_GBPA:
+        *data = s->gbpa;
         return MEMTX_OK;
     case A_IRQ_CTRL:
     case A_IRQ_CTRL_ACK:
@@ -1495,6 +1508,7 @@ static const VMStateDescription vmstate_smmuv3 = {
         VMSTATE_UINT32_ARRAY(cr, SMMUv3State, 3),
         VMSTATE_UINT32(cr0ack, SMMUv3State),
         VMSTATE_UINT32(statusr, SMMUv3State),
+        VMSTATE_UINT32(gbpa, SMMUv3State),
         VMSTATE_UINT32(irq_ctrl, SMMUv3State),
         VMSTATE_UINT32(gerror, SMMUv3State),
         VMSTATE_UINT32(gerrorn, SMMUv3State),
