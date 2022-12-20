@@ -37,7 +37,7 @@
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/id.h"
-#include "qemu/coroutine.h"
+#include "qemu/coroutine-core.h"
 #include "qemu/yank.h"
 
 #include "chardev-internal.h"

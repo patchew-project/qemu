@@ -20,7 +20,7 @@
 #include "block/reqlist.h"
 #include "sysemu/block-backend.h"
 #include "qemu/units.h"
-#include "qemu/coroutine.h"
+#include "qemu/coroutine-core.h"
 #include "block/aio_task.h"
 #include "qemu/error-report.h"
 #include "qemu/memalign.h"

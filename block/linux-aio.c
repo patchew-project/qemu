@@ -13,7 +13,7 @@
 #include "block/block.h"
 #include "block/raw-aio.h"
 #include "qemu/event_notifier.h"
-#include "qemu/coroutine.h"
+#include "qemu/coroutine-core.h"
 #include "qapi/error.h"
 
 #include <libaio.h>

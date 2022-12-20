@@ -27,7 +27,7 @@
 #include "qemu/rcu.h"
 #include "qemu/sockets.h"
 #include "qemu/bitmap.h"
-#include "qemu/coroutine.h"
+#include "qemu/coroutine-core.h"
 #include "exec/memory.h"
 #include <sys/socket.h>
 #include <netdb.h>

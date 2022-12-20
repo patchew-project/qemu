@@ -61,7 +61,7 @@
 #include "qemu/option.h"
 #include "qemu/bswap.h"
 #include "migration/blocker.h"
-#include "qemu/coroutine.h"
+#include "qemu/coroutine-core.h"
 #include "qemu/cutils.h"
 #include "qemu/uuid.h"
 #include "qemu/memalign.h"

@@ -14,7 +14,7 @@
 #include "qemu/queue.h"
 #include "block/block.h"
 #include "block/raw-aio.h"
-#include "qemu/coroutine.h"
+#include "qemu/coroutine-core.h"
 #include "qapi/error.h"
 #include "trace.h"
 
