@@ -5738,9 +5738,9 @@ IOCTLEntry ioctl_entries[] = {
 #define IOCTL_SPECIAL(cmd, access, dofn, ...)                      \
     { TARGET_ ## cmd, cmd, #cmd, access, dofn, {  __VA_ARGS__ } },
 #define IOCTL_IGNORE(cmd) \
-    { TARGET_ ## cmd, 0, #cmd },
+    { TARGET_ ## cmd, 0, #cmd, 0, NULL, { } },
 #include "ioctls.h"
-    { 0, 0, },
+    { /* end of list */ }
 };
 
 /* ??? Implement proper locking for ioctls.  */
@@ -12946,7 +12946,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
     {
         /* args: clockid_t clockid, struct sigevent *sevp, timer_t *timerid */
 
-        struct sigevent host_sevp = { {0}, }, *phost_sevp = NULL;
+        struct sigevent host_sevp = { }, *phost_sevp = NULL;
 
         int clkid = arg1;
         int timer_index = next_free_host_timer();
@@ -12993,7 +12993,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             ret = -TARGET_EINVAL;
         } else {
             timer_t htimer = g_posix_timers[timerid];
-            struct itimerspec hspec_new = {{0},}, hspec_old = {{0},};
+            struct itimerspec hspec_new = { }, hspec_old = { };
 
             if (target_to_host_itimerspec(&hspec_new, arg3)) {
                 return -TARGET_EFAULT;
@@ -13019,7 +13019,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             ret = -TARGET_EINVAL;
         } else {
             timer_t htimer = g_posix_timers[timerid];
-            struct itimerspec hspec_new = {{0},}, hspec_old = {{0},};
+            struct itimerspec hspec_new = { }, hspec_old = { };
 
             if (target_to_host_itimerspec64(&hspec_new, arg3)) {
                 return -TARGET_EFAULT;
