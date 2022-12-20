@@ -1656,8 +1656,13 @@ void hmp_sendkey(Monitor *mon, const QDict *qdict)
         v = g_malloc0(sizeof(*v));
 
         if (strstart(keys, "0x", NULL)) {
-            char *endp;
-            int value = strtoul(keys, &endp, 0);
+            const char *endp;
+            unsigned long value;
+
+            if (qemu_strtoul(keys, &endp, 0, &value) < 0
+                || value >= INT_MAX) {
+                goto err_out;
+            }
             assert(endp <= keys + keyname_len);
             if (endp != keys + keyname_len) {
                 goto err_out;
