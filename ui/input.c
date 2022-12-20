@@ -613,6 +613,7 @@ void qemu_mouse_set(int index, Error **err)
 
     if (!found) {
         error_report("Mouse at index '%d' not found", index);
+        return;
     }
 
     qemu_input_check_mode_change();
