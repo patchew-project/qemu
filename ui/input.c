@@ -595,26 +595,24 @@ MouseInfoList *qmp_query_mice(Error **errp)
 void qemu_mouse_set(int index, Error **err)
 {
     QemuInputHandlerState *s;
-    int found = 0;
 
     QTAILQ_FOREACH(s, &handlers, node) {
-        if (s->id != index) {
-            continue;
+        if (s->id == index) {
+            break;
         }
-        if (!(s->handler->mask & (INPUT_EVENT_MASK_REL |
-                                  INPUT_EVENT_MASK_ABS))) {
-            error_report("Input device '%s' is not a mouse", s->handler->name);
-            return;
-        }
-        found = 1;
-        qemu_input_handler_activate(s);
-        break;
     }
 
-    if (!found) {
+    if (!s) {
         error_report("Mouse at index '%d' not found", index);
         return;
     }
 
+    if (!(s->handler->mask & (INPUT_EVENT_MASK_REL |
+                              INPUT_EVENT_MASK_ABS))) {
+        error_report("Input device '%s' is not a mouse", s->handler->name);
+        return;
+    }
+
+    qemu_input_handler_activate(s);
     qemu_input_check_mode_change();
 }
