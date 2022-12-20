@@ -124,7 +124,7 @@ static inline void finish_sigsuspend_mask(int ret)
 #define MAKE_SIG_ENTRY_SIGSTKFLT
 #endif
 
-#if defined(SIGIOT) && defined(TARGET_SIGIOT)
+#if defined(SIGIOT) && defined(TARGET_SIGIOT) && TARGET_SIGABRT != TARGET_SIGIOT
 #define MAKE_SIG_ENTRY_SIGIOT           MAKE_SIG_ENTRY(SIGIOT)
 #else
 #define MAKE_SIG_ENTRY_SIGIOT
