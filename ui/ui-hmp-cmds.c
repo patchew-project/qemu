@@ -23,6 +23,50 @@
 #include "qapi/qmp/qdict.h"
 #include "qemu/cutils.h"
 #include "ui/console.h"
+#include "ui/input.h"
+
+static int mouse_button_state;
+
+void hmp_mouse_move(Monitor *mon, const QDict *qdict)
+{
+    int dx, dy, dz, button;
+    const char *dx_str = qdict_get_str(qdict, "dx_str");
+    const char *dy_str = qdict_get_str(qdict, "dy_str");
+    const char *dz_str = qdict_get_try_str(qdict, "dz_str");
+
+    dx = strtol(dx_str, NULL, 0);
+    dy = strtol(dy_str, NULL, 0);
+    qemu_input_queue_rel(NULL, INPUT_AXIS_X, dx);
+    qemu_input_queue_rel(NULL, INPUT_AXIS_Y, dy);
+
+    if (dz_str) {
+        dz = strtol(dz_str, NULL, 0);
+        if (dz != 0) {
+            button = (dz > 0) ? INPUT_BUTTON_WHEEL_UP : INPUT_BUTTON_WHEEL_DOWN;
+            qemu_input_queue_btn(NULL, button, true);
+            qemu_input_event_sync();
+            qemu_input_queue_btn(NULL, button, false);
+        }
+    }
+    qemu_input_event_sync();
+}
+
+void hmp_mouse_button(Monitor *mon, const QDict *qdict)
+{
+    static uint32_t bmap[INPUT_BUTTON__MAX] = {
+        [INPUT_BUTTON_LEFT]       = MOUSE_EVENT_LBUTTON,
+        [INPUT_BUTTON_MIDDLE]     = MOUSE_EVENT_MBUTTON,
+        [INPUT_BUTTON_RIGHT]      = MOUSE_EVENT_RBUTTON,
+    };
+    int button_state = qdict_get_int(qdict, "button_state");
+
+    if (mouse_button_state == button_state) {
+        return;
+    }
+    qemu_input_update_buttons(NULL, bmap, mouse_button_state, button_state);
+    qemu_input_event_sync();
+    mouse_button_state = button_state;
+}
 
 void hmp_info_mice(Monitor *mon, const QDict *qdict)
 {
@@ -332,6 +376,28 @@ out:
 err_out:
     monitor_printf(mon, "invalid parameter: %.*s\n", keyname_len, keys);
     goto out;
+}
+
+void sendkey_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    int i;
+    char *sep;
+    size_t len;
+
+    if (nb_args != 2) {
+        return;
+    }
+    sep = strrchr(str, '-');
+    if (sep) {
+        str = sep + 1;
+    }
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    for (i = 0; i < Q_KEY_CODE__MAX; i++) {
+        if (!strncmp(str, QKeyCode_str(i), len)) {
+            readline_add_completion(rs, QKeyCode_str(i));
+        }
+    }
 }
 
 void coroutine_fn
