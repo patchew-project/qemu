@@ -109,12 +109,12 @@ typedef enum VirtMSIControllerType {
 } VirtMSIControllerType;
 
 typedef enum VirtGICType {
-    VIRT_GIC_VERSION_MAX,
-    VIRT_GIC_VERSION_HOST,
-    VIRT_GIC_VERSION_2,
-    VIRT_GIC_VERSION_3,
-    VIRT_GIC_VERSION_4,
-    VIRT_GIC_VERSION_NOSEL,
+    VIRT_GIC_VERSION_MAX = 0,
+    VIRT_GIC_VERSION_HOST = 1,
+    VIRT_GIC_VERSION_NOSEL = 2,
+    VIRT_GIC_VERSION_2 = (1 << 2),
+    VIRT_GIC_VERSION_3 = (1 << 3),
+    VIRT_GIC_VERSION_4 = (1 << 4),
 } VirtGICType;
 
 struct VirtMachineClass {
