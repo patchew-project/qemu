@@ -582,7 +582,10 @@ void vduse_queue_notify(VduseVirtq *vq)
 
 static inline void vring_set_avail_event(VduseVirtq *vq, uint16_t val)
 {
-    *((uint16_t *)&vq->vring.used->ring[vq->vring.num]) = htole16(val);
+    vring_used_elem_t *ring = &vq->vring.used->ring[vq->vring.num];
+
+    /* FIXME: Is this actually correct since this is __virtio32 id; */
+    ring->id = htole16(val);
 }
 
 static bool vduse_queue_map_single_desc(VduseVirtq *vq, unsigned int *p_num_sg,
