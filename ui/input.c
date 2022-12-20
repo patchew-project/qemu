@@ -2,8 +2,6 @@
 #include "sysemu/sysemu.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-ui.h"
-#include "qapi/qmp/qdict.h"
-#include "qemu/error-report.h"
 #include "trace.h"
 #include "ui/input.h"
 #include "ui/console.h"
@@ -594,10 +592,9 @@ MouseInfoList *qmp_query_mice(Error **errp)
     return mice_list;
 }
 
-void hmp_mouse_set(Monitor *mon, const QDict *qdict)
+void qemu_mouse_set(int index, Error **err)
 {
     QemuInputHandlerState *s;
-    int index = qdict_get_int(qdict, "index");
     int found = 0;
 
     QTAILQ_FOREACH(s, &handlers, node) {
