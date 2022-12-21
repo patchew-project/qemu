@@ -22,6 +22,9 @@ config OR_IRQ
 config PLATFORM_BUS
     bool
 
+config PROXY_PIC
+    bool
+
 config REGISTER
     bool
 
