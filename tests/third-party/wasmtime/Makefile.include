@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+# Makefile for testing QEMU with the wasmtime testsuite.
+
+# QEMU targets that can be tested with the wasmtime testsuite.
+WASMTIME_TARGET_LIST := \
+	aarch64-linux-user \
+	riscv64-linux-user \
+	s390x-linux-user \
+	x86_64-linux-user
+
+WASMTIME_SRC_PATH := $(SRC_PATH)/tests/third-party/wasmtime
+
+# Run the wasmtime testsuite with a specific QEMU target.
+define add_wasmtime_target
+
+.PHONY: check-wasmtime-$(1)
+check-wasmtime-$(1): ARCH = $(1:-linux-user=)
+check-wasmtime-$(1): DEB_ARCH = $$(DEB_ARCH_$$(ARCH))
+check-wasmtime-$(1): TAG = $(DOCKER_REGISTRY)/qemu/debian-$$(DEB_ARCH)-wasmtime-cross
+check-wasmtime-$(1): AVOCADO_WRAPPER = $(WASMTIME_SRC_PATH)/avocado-wrapper $(TESTS_VENV_DIR)
+check-wasmtime-$(1): CMD = $(WASMTIME_SRC_PATH)/test $$(ARCH) -- -Z unstable-options --format=json
+check-wasmtime-$(1): WASMTIME_BUILD_DIR = $(shell pwd)/wasmtime-$(1)
+check-wasmtime-$(1): check-venv
+	$(DOCKER_COMMAND) build \
+		--build-arg=deb_arch=$$(DEB_ARCH) \
+		--build-arg=group_id=$(shell id -g) \
+		--build-arg=group_name=$(shell id -n -g) \
+		--build-arg=user_id=$(shell id -u) \
+		--build-arg=user_name=$(shell id -n -u) \
+		--quiet \
+		--tag=$$(TAG) \
+		$(WASMTIME_SRC_PATH) >/dev/null
+	mkdir -p $$(WASMTIME_BUILD_DIR)
+	$$(AVOCADO_WRAPPER) $(DOCKER_COMMAND) run \
+		--interactive \
+		--rm \
+		--security-opt=seccomp=unconfined \
+		--user=$(shell id -u):$(shell id -g) \
+		--volume=$$(WASMTIME_BUILD_DIR):$$(WASMTIME_BUILD_DIR):z \
+		--volume=$(SRC_PATH):$(SRC_PATH):z \
+		--workdir=$$(WASMTIME_BUILD_DIR) \
+		$$(TAG) \
+		$$(CMD)
+$(eval $(call add_third_party_testsuite,check-wasmtime,$(1)))
+endef
+
+# Define targets.
+$(foreach t,$(WASMTIME_TARGET_LIST),$(eval $(call add_wasmtime_target,$(t))))

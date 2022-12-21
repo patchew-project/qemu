@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+# Makefile for testing QEMU with third-party testsuites.
+
+# Known docker-like commands.
+DOCKER_COMMAND_PODMAN = podman
+DOCKER_COMMAND_DOCKER = docker
+DOCKER_COMMAND_SUDO_DOCKER = sudo -n docker
+DOCKER_COMMAND_NONE = /bin/false
+
+# Mapping from $(ENGINE) to the respective docker-like commands.
+DOCKER_COMMAND_CANDIDATES_auto = PODMAN DOCKER SUDO_DOCKER
+DOCKER_COMMAND_CANDIDATES_podman = PODMAN
+DOCKER_COMMAND_CANDIDATES_docker = DOCKER SUDO_DOCKER
+
+# Select the docker-like command based on $(ENGINE).
+DOCKER_COMMAND = $(DOCKER_COMMAND_NONE)
+define try_docker_command
+ifeq ($(DOCKER_COMMAND),$(DOCKER_COMMAND_NONE))
+ifeq ($(shell $(DOCKER_COMMAND_$(1)) version >/dev/null 2>&1 || echo ?),)
+DOCKER_COMMAND = $(DOCKER_COMMAND_$(1))
+endif
+endif
+endef
+$(foreach candidate,$(DOCKER_COMMAND_CANDIDATES_$(ENGINE)), \
+	$(eval $(call try_docker_command,$(candidate))))
+
+# Mapping from QEMU architecture names to Debian ones.
+DEB_ARCH_aarch64 = arm64
+DEB_ARCH_riscv64 = riscv64
+DEB_ARCH_s390x = s390x
+DEB_ARCH_x86_64 = amd64
+
+# Register the target named $(1)-$(2), that runs the third-party
+# testsuite $(1) with the QEMU target $(2).
+define add_third_party_testsuite
+.PHONY: $(1)
+$(1): $(1)-$(2)
+
+.PHONY: check-third-party-$(2)
+check-third-party-$(2): $(1)-$(2)
+
+check-third-party: check-third-party-$(2)
+endef
+
+# Define targets.
+.PHONY: check-third-party
+check-third-party:
+
+include $(SRC_PATH)/tests/third-party/wasmtime/Makefile.include

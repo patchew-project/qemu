@@ -1475,3 +1475,12 @@ coverage-html`` which will create
 Further analysis can be conducted by running the ``gcov`` command
 directly on the various .gcda output files. Please read the ``gcov``
 documentation for more information.
+
+Third-party testsuites
+~~~~~~~~~~~~~~~~~~~~~~
+
+Various third-party projects contain testsuites that exercise non-trivial
+machine instructions or Linux kernel interfaces. While they may be too big for
+the gating CI, developers can use the corresponding make targets to verify
+their changes. The list of these targets can be found in the "Third-party
+testing targets" section of ``make check-help`` output.

@@ -22,6 +22,12 @@ endif
 	@echo " $(MAKE) check-venv             Creates a Python venv for tests"
 	@echo " $(MAKE) check-clean            Clean the tests and related data"
 	@echo
+	@echo "Third-party testing targets:"
+	@echo " $(MAKE) check-third-party         Run third-party tests for all supported targets"
+	@echo " $(MAKE) check-third-party-TARGET  Run third-party tests for given target"
+	@echo " $(MAKE) check-wasmtime            Run wasmtime tests for all supported targets"
+	@echo " $(MAKE) check-wasmtime-TARGET     Run wasmtime tests for given target"
+	@echo
 	@echo "The following are useful for CI builds"
 	@echo " $(MAKE) check-build            Build most test binaries"
 	@echo " $(MAKE) get-vm-images          Downloads all images used by avocado tests, according to configured targets (~350 MB each, 1.5 GB max)"

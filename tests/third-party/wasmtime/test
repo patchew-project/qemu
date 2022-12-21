@@ -1,0 +1,48 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+# Build qemu-user and stable wasmtime testsuite in the current directory, and
+# test them together. Create or update ".rustup", ".cargo" and "wasmtime"
+# subdirectories, as well as qemu build files.
+#
+# Based on https://github.com/bytecodealliance/wasmtime/blob/v3.0.1/.github/workflows/main.yml#L212.
+
+set -e -u -x -o pipefail
+
+# Script arguments.
+if [ "$#" -lt 1 ]; then
+    set +x
+    cat <<HERE >&2
+
+Usage:
+
+    $0 TARGET_ARCH [CARGO_ARGS ...]
+
+where TARGET_ARCH is the architecture to test (aarch64, riscv64, s390x or
+x86_64) and CARGO_ARGS are the extra arguments passed to cargo test.
+
+HERE
+    exit 1
+fi
+arch=$1
+shift
+
+# Build QEMU.
+basedir=$(cd "$(dirname "$0")" && pwd)
+srcdir=$(cd "$basedir"/../../.. && pwd)
+builddir=$(pwd)
+if [ "$srcdir" = "$builddir" ]; then
+    builddir=$builddir/build
+fi
+"$srcdir"/configure \
+    --target-list="$arch"-linux-user \
+    --disable-tools \
+    --disable-slirp \
+    --disable-fdt \
+    --disable-capstone \
+    --disable-docs
+make --output-sync -j"$(nproc)"
+export PATH="$builddir:$PATH"
+
+# Run wasmtime tests.
+"$basedir"/run-tests-wrapper "$arch" "$@"

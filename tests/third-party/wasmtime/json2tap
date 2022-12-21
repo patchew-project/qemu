@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+# Read libtest json output [1] from stdin, write TAP 14 [2] to stdout.
+# [1] https://github.com/rust-lang/rust/blob/1.66.0/library/test/src/formatters/json.rs
+# [2] https://testanything.org/tap-version-14-specification.html
+
+from contextlib import closing
+import json
+import json.decoder
+import sys
+
+
+class TAP:
+    def __init__(self, out):
+        self.out = out
+        self.number = 0
+        self.out.write(b"TAP version 14\n")
+
+    def try_process_test(self, event):
+        name = event.get("name")
+        if name is None:
+            return False
+        evt = event.get("event")
+        if evt == "started":
+            return True
+        if evt == "ok":
+            self.number += 1
+            self.out.write("ok {} - {}\n".format(self.number, name).encode())
+            return True
+        if evt in ("failed", "timeout"):
+            self.number += 1
+            self.out.write("not ok {} - {}\n".format(self.number, name).encode())
+            stdout = event.get("stdout")
+            if stdout is not None:
+                self.out.write(b"  ---\n")
+                self.out.write(b"  stdout:\n")
+                for line in stdout.split("\n"):
+                    self.out.write("    {}\n".format(line).encode())
+                self.out.write(b"  ...\n")
+            return True
+        if evt == "ignored":
+            self.number += 1
+            self.out.write("ok {} - {}  # skip\n".format(self.number, name).encode())
+            return True
+        return False
+
+    def try_process_line(self, line):
+        try:
+            event = json.loads(line)
+        except json.decoder.JSONDecodeError:
+            return False
+        if not isinstance(event, dict):
+            return False
+        ty = event.get("type")
+        if ty in ("bench", "suite"):
+            return True
+        if ty == "test":
+            return self.try_process_test(event)
+        return False
+
+    def process_line(self, line):
+        if not self.try_process_line(line):
+            self.out.write(line)
+
+    def close(self):
+        self.out.write("1..{}\n".format(self.number).encode())
+
+
+def main():
+    with closing(TAP(sys.stdout.buffer)) as tap:
+        for line in sys.stdin.buffer:
+            tap.process_line(line)
+
+
+if __name__ == "__main__":
+    main()

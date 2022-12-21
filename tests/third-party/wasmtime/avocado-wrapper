@@ -1,0 +1,38 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+# Run a single command with avocado.
+
+set -e -u -o pipefail
+
+# Script arguments.
+if [ "$#" -lt 2 ]; then
+    cat <<HERE >&2
+
+Usage:
+
+    $0 TESTS_VENV_DIR COMMAND [ARGS... ]
+
+where TESTS_VENV_DIR should point to an existing virtualenv with avocado.
+
+HERE
+    exit 1
+fi
+venv=$1
+shift
+
+# Avocado can run only individual binaries (no arguments, pipes, etc).
+# So create a temporary trampoline script.
+trampoline=$(mktemp ./trampoline.XXXXXXXXXX)
+trap 'rm "$trampoline"' EXIT
+basedir=$(cd "$(dirname "$0")" && pwd)
+cat >"$trampoline" <<HERE
+#!/bin/bash
+set -e -u -o pipefail
+${@@Q} | ${basedir@Q}/json2tap
+HERE
+chmod a+x "$trampoline"
+
+# Enter the virtualenv and run the trampoline script.
+. "$venv"/bin/activate
+avocado --config="$basedir/avocado.cfg" run "$trampoline"

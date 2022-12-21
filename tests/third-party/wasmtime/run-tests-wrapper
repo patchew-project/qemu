@@ -1,0 +1,82 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+# Run wasmtime's ci/run-tests.sh with qemu-user from $PATH in the current
+# directory. Create or update ".rustup", ".cargo" and "wasmtime"
+# subdirectories.
+#
+# Based on https://github.com/bytecodealliance/wasmtime/blob/v3.0.1/.github/workflows/main.yml#L212.
+#
+# Usage:
+#
+#     ./run-tests-wrapper TARGET_ARCH [CARGO_ARGS ...]
+#
+# where TARGET_ARCH is the architecture to test (aarch64, riscv64, s390x or
+# x86_64) and CARGO_ARGS are the extra arguments passed to cargo test.
+
+set -e -u -x -o pipefail
+
+# Dependency versions.
+export RUSTUP_TOOLCHAIN=1.66.0
+wasmtime_version=3.0.1
+
+# Script arguments.
+arch=$1
+shift
+
+# Extra qemu options and Rust architecture name.
+qemu_opts="-L /usr/$arch-linux-gnu"
+rust_arch=$arch
+case "$arch" in
+    riscv64)
+        rust_arch=riscv64gc
+        ;;
+    x86_64)
+        qemu_opts="$qemu_opts -cpu Nehalem"
+        ;;
+esac
+rust_arch_upper=$(echo "$rust_arch" | tr '[:lower:]' '[:upper:]')
+
+# Install/update Rust.
+export RUSTUP_HOME="$PWD/.rustup"
+export CARGO_HOME="$PWD/.cargo"
+curl \
+    --proto '=https' \
+    --tlsv1.2 \
+    -sSf \
+    https://sh.rustup.rs \
+    | sh -s -- -y \
+        --default-toolchain="$RUSTUP_TOOLCHAIN" \
+        --no-modify-path \
+        --target=wasm32-wasi \
+        --target=wasm32-unknown-unknown \
+        --target="$rust_arch"-unknown-linux-gnu
+. "$PWD/.cargo/env"
+
+# Checkout/update wasmtime.
+if [ -d wasmtime ]; then
+    cd wasmtime
+    git fetch --force --tags
+    git checkout v"$wasmtime_version"
+else
+    git clone \
+        --branch=v"$wasmtime_version" \
+        https://github.com/bytecodealliance/wasmtime.git
+    cd wasmtime
+fi
+git submodule update --init --recursive
+
+# Some binaries started by the testsuite are expected to crash.
+# Do not pollute the system with core dumps.
+ulimit -c 0
+
+# Run ci/run-tests.sh.
+export CARGO_BUILD_TARGET="$rust_arch-unknown-linux-gnu"
+runner_var=CARGO_TARGET_${rust_arch_upper}_UNKNOWN_LINUX_GNU_RUNNER
+linker_var=CARGO_TARGET_${rust_arch_upper}_UNKNOWN_LINUX_GNU_LINKER
+eval "export $runner_var=\"qemu-$arch $qemu_opts\""
+eval "export $linker_var=$arch-linux-gnu-gcc"
+export CARGO_PROFILE_DEV_OPT_LEVEL=2
+export WASMTIME_TEST_NO_HOG_MEMORY=1
+export RUST_BACKTRACE=1
+exec ci/run-tests.sh --locked "$@"
