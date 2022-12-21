@@ -49,15 +49,14 @@ static const MemMapEntry spike_memmap[] = {
     [SPIKE_DRAM] =     { 0x80000000,        0x0 },
 };
 
-static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
-                       uint64_t mem_size, const char *cmdline, bool is_32_bit)
+static void create_fdt(MachineState *mc, SpikeState *s,
+                       const MemMapEntry *memmap, bool is_32_bit)
 {
     void *fdt;
     int fdt_size;
     uint64_t addr, size;
     unsigned long clint_addr;
     int cpu, socket;
-    MachineState *mc = MACHINE(s);
     uint32_t *clint_cells;
     uint32_t cpu_phandle, intc_phandle, phandle = 1;
     char *name, *mem_name, *clint_name, *clust_name;
@@ -255,8 +254,7 @@ static void spike_board_init(MachineState *machine)
                                 mask_rom);
 
     /* Create device tree */
-    create_fdt(s, memmap, machine->ram_size, machine->kernel_cmdline,
-               riscv_is_32bit(&s->soc[0]));
+    create_fdt(machine, s, memmap, riscv_is_32bit(&s->soc[0]));
 
     /*
      * Not like other RISC-V machines that use plain binary bios images,
