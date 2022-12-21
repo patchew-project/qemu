@@ -421,16 +421,6 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #define fBRANCH(LOC, TYPE)          fWRITE_NPC(LOC)
 #define fJUMPR(REGNO, TARGET, TYPE) fBRANCH(TARGET, COF_TYPE_JUMPR)
 #define fHINTJR(TARGET) { /* Not modelled in qemu */}
-#define fCALL(A) \
-    do { \
-        fWRITE_LR(fREAD_NPC()); \
-        fBRANCH(A, COF_TYPE_CALL); \
-    } while (0)
-#define fCALLR(A) \
-    do { \
-        fWRITE_LR(fREAD_NPC()); \
-        fBRANCH(A, COF_TYPE_CALLR); \
-    } while (0)
 #define fWRITE_LOOP_REGS0(START, COUNT) \
     do { \
         WRITE_RREG(HEX_REG_LC0, COUNT);  \
