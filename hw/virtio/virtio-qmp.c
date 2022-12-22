@@ -11,6 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/virtio/virtio.h"
+#include "hw/virtio/vhost.h"
 #include "virtio-qmp.h"
 
 #include "standard-headers/linux/virtio_ids.h"
