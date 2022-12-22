@@ -291,22 +291,18 @@ static const struct {
 static void npcm7xx_write_board_setup(ARMCPU *cpu,
                                       const struct arm_boot_info *info)
 {
-    uint32_t board_setup[] = {
-        0xe59f0010,     /* ldr r0, clk_base_addr */
-        0xe59f1010,     /* ldr r1, pllcon1_value */
-        0xe5801010,     /* str r1, [r0, #16] */
-        0xe59f100c,     /* ldr r1, clksel_value */
-        0xe5801004,     /* str r1, [r0, #4] */
-        0xe12fff1e,     /* bx lr */
-        NPCM7XX_CLK_BA,
-        NPCM7XX_PLLCON1_FIXUP_VAL,
-        NPCM7XX_CLKSEL_FIXUP_VAL,
+    static const uint32_t board_setup[] = {
+        const_le32(0xe59f0010),     /* ldr r0, clk_base_addr */
+        const_le32(0xe59f1010),     /* ldr r1, pllcon1_value */
+        const_le32(0xe5801010),     /* str r1, [r0, #16] */
+        const_le32(0xe59f100c),     /* ldr r1, clksel_value */
+        const_le32(0xe5801004),     /* str r1, [r0, #4] */
+        const_le32(0xe12fff1e),     /* bx lr */
+        const_le32(NPCM7XX_CLK_BA),
+        const_le32(NPCM7XX_PLLCON1_FIXUP_VAL),
+        const_le32(NPCM7XX_CLKSEL_FIXUP_VAL),
     };
-    int i;
 
-    for (i = 0; i < ARRAY_SIZE(board_setup); i++) {
-        board_setup[i] = tswap32(board_setup[i]);
-    }
     rom_add_blob_fixed("board-setup", board_setup, sizeof(board_setup),
                        info->board_setup_addr);
 }
@@ -321,22 +317,17 @@ static void npcm7xx_write_secondary_boot(ARMCPU *cpu,
      * we need to provide our own smpboot stub that can not use 'wfi', it has
      * to spin the secondary CPU until the first CPU writes to the SCRPAD reg.
      */
-    uint32_t smpboot[] = {
-        0xe59f2018,     /* ldr r2, bootreg_addr */
-        0xe3a00000,     /* mov r0, #0 */
-        0xe5820000,     /* str r0, [r2] */
-        0xe320f002,     /* wfe */
-        0xe5921000,     /* ldr r1, [r2] */
-        0xe1110001,     /* tst r1, r1 */
-        0x0afffffb,     /* beq <wfe> */
-        0xe12fff11,     /* bx r1 */
-        NPCM7XX_SMP_BOOTREG_ADDR,
+    static const uint32_t smpboot[] = {
+        const_le32(0xe59f2018),             /* ldr r2, bootreg_addr */
+        const_le32(0xe3a00000),             /* mov r0, #0 */
+        const_le32(0xe5820000),             /* str r0, [r2] */
+        const_le32(0xe320f002),             /* wfe */
+        const_le32(0xe5921000),             /* ldr r1, [r2] */
+        const_le32(0xe1110001),             /* tst r1, r1 */
+        const_le32(0x0afffffb),             /* beq <wfe> */
+        const_le32(0xe12fff11),             /* bx r1 */
+        const_le32(NPCM7XX_SMP_BOOTREG_ADDR),
     };
-    int i;
-
-    for (i = 0; i < ARRAY_SIZE(smpboot); i++) {
-        smpboot[i] = tswap32(smpboot[i]);
-    }
 
     rom_add_blob_fixed("smpboot", smpboot, sizeof(smpboot),
                        NPCM7XX_SMP_LOADER_START);
