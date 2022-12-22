@@ -71,6 +71,11 @@ static const int dma_irqs[8] = {
 
 #define ZYNQ_SDHCI_CAPABILITIES 0x69ec0080  /* Datasheet: UG585 (v1.12.1) */
 
+struct ZynqMachineState {
+    MachineState parent;
+    Clock *ps_clk;
+};
+
 #define ARMV7_IMM16(x) (extract32((x),  0, 12) | \
                         extract32((x), 12,  4) << 16)
 
@@ -79,29 +84,21 @@ static const int dma_irqs[8] = {
  */
 
 #define SLCR_WRITE(addr, val) \
-    0xe3001000 + ARMV7_IMM16(extract32((val),  0, 16)), /* movw r1 ... */ \
-    0xe3401000 + ARMV7_IMM16(extract32((val), 16, 16)), /* movt r1 ... */ \
-    0xe5801000 + (addr)
-
-struct ZynqMachineState {
-    MachineState parent;
-    Clock *ps_clk;
-};
+    cpu_to_le32(0xe3001000 + ARMV7_IMM16(extract32((val),  0, 16))), /* movw r1 ... */ \
+    cpu_to_le32(0xe3401000 + ARMV7_IMM16(extract32((val), 16, 16))), /* movt r1 ... */ \
+    const_le32(0xe5801000 + (addr))
 
 static void zynq_write_board_setup(ARMCPU *cpu,
                                    const struct arm_boot_info *info)
 {
-    int n;
-    uint32_t board_setup_blob[] = {
-        0xe3a004f8, /* mov r0, #0xf8000000 */
+    const uint32_t board_setup_blob[] = {
+        const_le32(0xe3a004f8),         /* mov r0, #0xf8000000 */
         SLCR_WRITE(SLCR_UNLOCK_OFFSET, SLCR_XILINX_UNLOCK_KEY),
         SLCR_WRITE(SLCR_ARM_PLL_OFFSET, 0x00014008),
         SLCR_WRITE(SLCR_LOCK_OFFSET, SLCR_XILINX_LOCK_KEY),
-        0xe12fff1e, /* bx lr */
+        const_le32(0xe12fff1e)          /* bx lr */
     };
-    for (n = 0; n < ARRAY_SIZE(board_setup_blob); n++) {
-        board_setup_blob[n] = tswap32(board_setup_blob[n]);
-    }
+
     rom_add_blob_fixed("board-setup", board_setup_blob,
                        sizeof(board_setup_blob), BOARD_SETUP_ADDR);
 }
