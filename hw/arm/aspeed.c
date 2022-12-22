@@ -194,22 +194,22 @@ static void aspeed_write_smpboot(ARMCPU *cpu,
          * r1 = AST_SMP_MBOX_FIELD_ENTRY
          * r0 = AST_SMP_MBOX_FIELD_GOSIGN
          */
-        0xee100fb0,  /* mrc     p15, 0, r0, c0, c0, 5 */
-        0xe21000ff,  /* ands    r0, r0, #255          */
-        0xe59f201c,  /* ldr     r2, [pc, #28]         */
-        0xe1822000,  /* orr     r2, r2, r0            */
+        const_le32(0xee100fb0),     /* mrc     p15, 0, r0, c0, c0, 5 */
+        const_le32(0xe21000ff),     /* ands    r0, r0, #255          */
+        const_le32(0xe59f201c),     /* ldr     r2, [pc, #28]         */
+        const_le32(0xe1822000),     /* orr     r2, r2, r0            */
 
-        0xe59f1018,  /* ldr     r1, [pc, #24]         */
-        0xe59f0018,  /* ldr     r0, [pc, #24]         */
+        const_le32(0xe59f1018),     /* ldr     r1, [pc, #24]         */
+        const_le32(0xe59f0018),     /* ldr     r0, [pc, #24]         */
 
-        0xe320f002,  /* wfe                           */
-        0xe5904000,  /* ldr     r4, [r0]              */
-        0xe1520004,  /* cmp     r2, r4                */
-        0x1afffffb,  /* bne     <wfe>                 */
-        0xe591f000,  /* ldr     pc, [r1]              */
-        AST_SMP_MBOX_GOSIGN,
-        AST_SMP_MBOX_FIELD_ENTRY,
-        AST_SMP_MBOX_FIELD_GOSIGN,
+        const_le32(0xe320f002),     /* wfe                           */
+        const_le32(0xe5904000),     /* ldr     r4, [r0]              */
+        const_le32(0xe1520004),     /* cmp     r2, r4                */
+        const_le32(0x1afffffb),     /* bne     <wfe>                 */
+        const_le32(0xe591f000),     /* ldr     pc, [r1]              */
+        const_le32(AST_SMP_MBOX_GOSIGN),
+        const_le32(AST_SMP_MBOX_FIELD_ENTRY),
+        const_le32(AST_SMP_MBOX_FIELD_GOSIGN)
     };
 
     rom_add_blob_fixed("aspeed.smpboot", poll_mailbox_ready,
