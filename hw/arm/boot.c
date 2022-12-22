@@ -189,7 +189,7 @@ static void write_bootloader(const char *name, hwaddr addr,
         default:
             abort();
         }
-        code[i] = tswap32(insn);
+        code[i] = cpu_to_le32(insn);
     }
 
     assert((len * sizeof(uint32_t)) < BOOTLOADER_MAX_SIZE);
@@ -222,34 +222,33 @@ void arm_write_secure_board_setup_dummy_smc(ARMCPU *cpu,
                                             hwaddr mvbar_addr)
 {
     AddressSpace *as = arm_boot_address_space(cpu, info);
-    int n;
-    uint32_t mvbar_blob[] = {
+    static const uint32_t mvbar_blob[] = {
         /* mvbar_addr: secure monitor vectors
          * Default unimplemented and unused vectors to spin. Makes it
          * easier to debug (as opposed to the CPU running away).
          */
-        0xeafffffe, /* (spin) */
-        0xeafffffe, /* (spin) */
-        0xe1b0f00e, /* movs pc, lr ;SMC exception return */
-        0xeafffffe, /* (spin) */
-        0xeafffffe, /* (spin) */
-        0xeafffffe, /* (spin) */
-        0xeafffffe, /* (spin) */
-        0xeafffffe, /* (spin) */
+        const_le32(0xeafffffe), /* (spin) */
+        const_le32(0xeafffffe), /* (spin) */
+        const_le32(0xe1b0f00e), /* movs pc, lr ;SMC exception return */
+        const_le32(0xeafffffe), /* (spin) */
+        const_le32(0xeafffffe), /* (spin) */
+        const_le32(0xeafffffe), /* (spin) */
+        const_le32(0xeafffffe), /* (spin) */
+        const_le32(0xeafffffe)  /* (spin) */
     };
-    uint32_t board_setup_blob[] = {
+    const uint32_t board_setup_blob[] = {
         /* board setup addr */
-        0xee110f51, /* mrc     p15, 0, r0, c1, c1, 2  ;read NSACR */
-        0xe3800b03, /* orr     r0, #0xc00             ;set CP11, CP10 */
-        0xee010f51, /* mcr     p15, 0, r0, c1, c1, 2  ;write NSACR */
-        0xe3a00e00 + (mvbar_addr >> 4), /* mov r0, #mvbar_addr */
-        0xee0c0f30, /* mcr     p15, 0, r0, c12, c0, 1 ;set MVBAR */
-        0xee110f11, /* mrc     p15, 0, r0, c1 , c1, 0 ;read SCR */
-        0xe3800031, /* orr     r0, #0x31              ;enable AW, FW, NS */
-        0xee010f11, /* mcr     p15, 0, r0, c1, c1, 0  ;write SCR */
-        0xe1a0100e, /* mov     r1, lr                 ;save LR across SMC */
-        0xe1600070, /* smc     #0                     ;call monitor to flush SCR */
-        0xe1a0f001, /* mov     pc, r1                 ;return */
+        const_le32(0xee110f51), /* mrc  p15, 0, r0, c1, c1, 2  ;read NSACR */
+        const_le32(0xe3800b03), /* orr  r0, #0xc00             ;set CP11, CP10 */
+        const_le32(0xee010f51), /* mcr  p15, 0, r0, c1, c1, 2  ;write NSACR */
+        const_le32(0xe3a00e00 + (mvbar_addr >> 4)), /* mov r0, #mvbar_addr */
+        const_le32(0xee0c0f30), /* mcr  p15, 0, r0, c12, c0, 1 ;set MVBAR */
+        const_le32(0xee110f11), /* mrc  p15, 0, r0, c1 , c1, 0 ;read SCR */
+        const_le32(0xe3800031), /* orr  r0, #0x31              ;enable AW, FW, NS */
+        const_le32(0xee010f11), /* mcr  p15, 0, r0, c1, c1, 0  ;write SCR */
+        const_le32(0xe1a0100e), /* mov  r1, lr                 ;save LR across SMC */
+        const_le32(0xe1600070), /* smc  #0                     ;call monitor to flush SCR */
+        const_le32(0xe1a0f001)  /* mov  pc, r1                 ;return */
     };
 
     /* check that mvbar_addr is correctly aligned and relocatable (using MOV) */
@@ -259,15 +258,8 @@ void arm_write_secure_board_setup_dummy_smc(ARMCPU *cpu,
     assert((mvbar_addr + sizeof(mvbar_blob) <= info->board_setup_addr)
           || (info->board_setup_addr + sizeof(board_setup_blob) <= mvbar_addr));
 
-    for (n = 0; n < ARRAY_SIZE(mvbar_blob); n++) {
-        mvbar_blob[n] = tswap32(mvbar_blob[n]);
-    }
     rom_add_blob_fixed_as("board-setup-mvbar", mvbar_blob, sizeof(mvbar_blob),
                           mvbar_addr, as);
-
-    for (n = 0; n < ARRAY_SIZE(board_setup_blob); n++) {
-        board_setup_blob[n] = tswap32(board_setup_blob[n]);
-    }
     rom_add_blob_fixed_as("board-setup", board_setup_blob,
                           sizeof(board_setup_blob), info->board_setup_addr, as);
 }
