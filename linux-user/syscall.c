@@ -10097,7 +10097,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
 #endif
         ret = target_mmap(arg1, arg2, arg3,
                           target_to_host_bitmask(arg4, mmap_flags_tbl),
-                          arg5, arg6 << MMAP_SHIFT);
+                          arg5, ((uint64_t)arg6) << MMAP_SHIFT);
         return get_errno(ret);
 #endif
     case TARGET_NR_munmap:

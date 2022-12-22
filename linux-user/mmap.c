@@ -192,7 +192,7 @@ error:
 /* map an incomplete host page */
 static int mmap_frag(abi_ulong real_start,
                      abi_ulong start, abi_ulong end,
-                     int prot, int flags, int fd, abi_ulong offset)
+                     int prot, int flags, int fd, uint64_t offset)
 {
     abi_ulong real_end, addr;
     void *host_start;
@@ -430,9 +430,10 @@ abi_ulong mmap_find_vma(abi_ulong start, abi_ulong size, abi_ulong align)
 
 /* NOTE: all the constants are the HOST ones */
 abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
-                     int flags, int fd, abi_ulong offset)
+                     int flags, int fd, uint64_t offset)
 {
-    abi_ulong ret, end, real_start, real_end, retaddr, host_offset, host_len,
+    uint64_t host_offset;
+    abi_ulong ret, end, real_start, real_end, retaddr, host_len,
               passthrough_start = -1, passthrough_end = -1;
     int page_flags, host_prot;
 
@@ -621,7 +622,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
         /* map the middle (easier) */
         if (real_start < real_end) {
             void *p;
-            unsigned long offset1;
+            uint64_t offset1;
             if (flags & MAP_ANONYMOUS)
                 offset1 = 0;
             else
