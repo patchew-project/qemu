@@ -53,6 +53,14 @@ void net_tx_pkt_uninit(struct NetTxPkt *pkt);
 struct virtio_net_hdr *net_tx_pkt_get_vhdr(struct NetTxPkt *pkt);
 
 /**
+ * get L2 header
+ *
+ * @pkt:            packet
+ * @ret:            L2 header
+ */
+struct eth_header *net_tx_pkt_get_l2hdr(struct NetTxPkt *pkt);
+
+/**
  * build virtio header (will be stored in module context)
  *
  * @pkt:            packet
