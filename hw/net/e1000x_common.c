@@ -72,6 +72,19 @@ bool e1000x_rx_group_filter(uint32_t *mac, const uint8_t *buf)
             return true;
         }
     }
+    for (rp = mac + RA2; rp < mac + RA2 + 16; rp += 2) {
+        if (!(rp[1] & E1000_RAH_AV)) {
+            continue;
+        }
+        ra[0] = cpu_to_le32(rp[0]);
+        ra[1] = cpu_to_le32(rp[1]);
+        if (!memcmp(buf, (uint8_t *)ra, 6)) {
+            trace_e1000x_rx_flt_ucast_match((int)(rp - mac - RA2) / 2,
+                                            MAC_ARG(buf));
+            return true;
+        }
+    }
+
     trace_e1000x_rx_flt_ucast_mismatch(MAC_ARG(buf));
 
     f = mta_shift[(rctl >> E1000_RCTL_MO_SHIFT) & 3];

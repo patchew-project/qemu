@@ -27,7 +27,19 @@
 
 #include "e1000_regs.h"
 
+#define concat(x, y)         x ## y
+#define expand_concat(x, y)  concat(x, y)
+
 #define defreg(x)   x = (E1000_##x >> 2)
+#define defreg_arr8(x) expand_concat(x, 0) = (E1000_##x(0) >> 2), \
+                       expand_concat(x, 1) = (E1000_##x(1) >> 2), \
+                       expand_concat(x, 2) = (E1000_##x(2) >> 2), \
+                       expand_concat(x, 3) = (E1000_##x(3) >> 2), \
+                       expand_concat(x, 4) = (E1000_##x(4) >> 2), \
+                       expand_concat(x, 5) = (E1000_##x(5) >> 2), \
+                       expand_concat(x, 6) = (E1000_##x(6) >> 2), \
+                       expand_concat(x, 7) = (E1000_##x(7) >> 2)
+
 enum {
     defreg(CTRL),    defreg(EECD),    defreg(EERD),    defreg(GPRC),
     defreg(GPTC),    defreg(ICR),     defreg(ICS),     defreg(IMC),
@@ -90,6 +102,23 @@ enum {
     defreg(FLMNGCNT),
     defreg(TSYNCRXCTL),
     defreg(TSYNCTXCTL),
+
+    defreg(FWSM),   defreg(SW_FW_SYNC), defreg(GPIE),    defreg(EIAC_IGB),
+    defreg(EICR),   defreg(EICS),       defreg(EIMS),    defreg(EIAM),
+    defreg(EIMC),   defreg(IVAR_IGB),   defreg(IVAR_MISC_IGB),
+    defreg(SRRCTL), defreg(MBVFICR),    defreg(MBVFIMR), defreg(VFLRE),
+    defreg(VFRE),   defreg(VFTE),       defreg(RA2),     defreg(VT_CTL),
+    defreg(UTA),    defreg(RPLOLR),     defreg(DTXSWC),  defreg(RLPML),
+    defreg(WVBR),   defreg(EITR_IGB),
+
+    /* stats */
+    defreg(VFGPRC), defreg(VFGORC), defreg(VFMPRC), defreg(VFGPTC),
+    defreg(VFGOTC), defreg(VFGOTLBC), defreg(VFGPTLBC), defreg(VFGORLBC),
+    defreg(VFGPRLBC),
+
+    /* arrays */
+    defreg_arr8(VMBMEM), defreg_arr8(VMOLR), defreg_arr8(VLVF),
+    defreg_arr8(VMVIR), defreg_arr8(P2VMAILBOX), defreg_arr8(V2PMAILBOX),
 
     /* Aliases */
     defreg(RDH0_A),  defreg(RDT0_A),  defreg(RDTR_A),  defreg(RDFH_A),
