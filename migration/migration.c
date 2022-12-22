@@ -2170,6 +2170,9 @@ void migrate_init(MigrationState *s)
     s->vm_was_running = false;
     s->iteration_initial_bytes = 0;
     s->threshold_size = 0;
+
+    json_writer_free(s->vmdesc);
+    s->vmdesc = NULL;
 }
 
 int migrate_add_blocker_internal(Error *reason, Error **errp)
@@ -3997,6 +4000,9 @@ static void *migration_thread(void *opaque)
 
     trace_migration_thread_setup_complete();
 
+    /* Process early data that has to get migrated before iterating. */
+    qemu_savevm_state_start_precopy(s->to_dst_file);
+
     while (migration_is_active(s)) {
         if (urgent || !qemu_file_rate_limit(s->to_dst_file)) {
             MigIterateState iter_state = migration_iteration_run(s);
@@ -4125,6 +4131,12 @@ static void *bg_migration_thread(void *opaque)
     if (vm_stop_force_state(RUN_STATE_PAUSED)) {
         goto fail;
     }
+
+    /* Migrate early data that would usually get migrated before iterating. */
+    if (qemu_savevm_state_start_precopy(fb)) {
+        goto fail;
+    }
+
     /*
      * Put vCPUs in sync with shadow context structures, then
      * save their state to channel-buffer along with devices.
@@ -4445,6 +4457,7 @@ static void migration_instance_finalize(Object *obj)
     qemu_sem_destroy(&ms->rp_state.rp_sem);
     qemu_sem_destroy(&ms->postcopy_qemufile_src_sem);
     error_free(ms->error);
+    json_writer_free(ms->vmdesc);
 }
 
 static void migration_instance_init(Object *obj)

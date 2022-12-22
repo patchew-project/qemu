@@ -156,6 +156,13 @@ typedef enum {
     MIG_PRI_VIRTIO_MEM,         /* Must happen before IOMMU */
     MIG_PRI_GICV3_ITS,          /* Must happen before PCI devices */
     MIG_PRI_GICV3,              /* Must happen before the ITS */
+    /*
+     * Must happen before all other devices (iterable and non-iterable),
+     * especiall, before migrating RAM content. Such device state must be
+     * guaranteed to be immutable on the migration source until migration
+     * ends and must not depend on the CPU state to be synchronized.
+     */
+    MIG_PRI_POST_SETUP,
     MIG_PRI_MAX,
 } MigrationPriority;
 

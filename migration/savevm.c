@@ -42,7 +42,6 @@
 #include "postcopy-ram.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-migration.h"
-#include "qapi/qmp/json-writer.h"
 #include "qapi/clone-visitor.h"
 #include "qapi/qapi-builtin-visit.h"
 #include "qapi/qmp/qerror.h"
@@ -1325,6 +1324,71 @@ void qemu_savevm_state_complete_postcopy(QEMUFile *f)
     qemu_fflush(f);
 }
 
+static int qemu_savevm_state_precopy_one_non_iterable(SaveStateEntry *se,
+                                                      QEMUFile *f,
+                                                      JSONWriter *vmdesc)
+{
+    int ret;
+
+    if ((!se->ops || !se->ops->save_state) && !se->vmsd) {
+        return 0;
+    }
+    if (se->vmsd && !vmstate_save_needed(se->vmsd, se->opaque)) {
+        trace_savevm_section_skip(se->idstr, se->section_id);
+        return 0;
+    }
+
+    trace_savevm_section_start(se->idstr, se->section_id);
+
+    json_writer_start_object(vmdesc, NULL);
+    json_writer_str(vmdesc, "name", se->idstr);
+    json_writer_int64(vmdesc, "instance_id", se->instance_id);
+
+    save_section_header(f, se, QEMU_VM_SECTION_FULL);
+    ret = vmstate_save(f, se, vmdesc);
+    if (ret) {
+        qemu_file_set_error(f, ret);
+        return ret;
+    }
+    trace_savevm_section_end(se->idstr, se->section_id, 0);
+    save_section_footer(f, se);
+
+    json_writer_end_object(vmdesc);
+    return 0;
+}
+
+int qemu_savevm_state_start_precopy(QEMUFile *f)
+{
+    MigrationState *ms = migrate_get_current();
+    JSONWriter *vmdesc;
+    SaveStateEntry *se;
+    int ret;
+
+    assert(!ms->vmdesc);
+    ms->vmdesc = vmdesc = json_writer_new(false);
+    json_writer_start_object(vmdesc, NULL);
+    json_writer_int64(vmdesc, "page_size", qemu_target_page_size());
+    json_writer_start_array(vmdesc, "devices");
+
+    /*
+     * Only immutable non-iterable device state is expected to be saved this
+     * early. All remaining (ordinary) non-iterable device state will be saved
+     * in qemu_savevm_state_complete_precopy_non_iterable().
+     */
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (save_state_priority(se) < MIG_PRI_POST_SETUP) {
+            continue;
+        }
+
+        ret = qemu_savevm_state_precopy_one_non_iterable(se, f, vmdesc);
+        if (ret) {
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
 static
 int qemu_savevm_state_complete_precopy_iterable(QEMUFile *f, bool in_postcopy)
 {
@@ -1364,41 +1428,24 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
                                                     bool in_postcopy,
                                                     bool inactivate_disks)
 {
-    g_autoptr(JSONWriter) vmdesc = NULL;
+    MigrationState *ms = migrate_get_current();
+    JSONWriter *vmdesc = ms->vmdesc;
     int vmdesc_len;
     SaveStateEntry *se;
     int ret;
 
-    vmdesc = json_writer_new(false);
-    json_writer_start_object(vmdesc, NULL);
-    json_writer_int64(vmdesc, "page_size", qemu_target_page_size());
-    json_writer_start_array(vmdesc, "devices");
+    /* qemu_savevm_state_start_precopy() is expected to be called first. */
+    assert(vmdesc);
+
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
-
-        if ((!se->ops || !se->ops->save_state) && !se->vmsd) {
-            continue;
-        }
-        if (se->vmsd && !vmstate_save_needed(se->vmsd, se->opaque)) {
-            trace_savevm_section_skip(se->idstr, se->section_id);
+        if (save_state_priority(se) >= MIG_PRI_POST_SETUP) {
             continue;
         }
 
-        trace_savevm_section_start(se->idstr, se->section_id);
-
-        json_writer_start_object(vmdesc, NULL);
-        json_writer_str(vmdesc, "name", se->idstr);
-        json_writer_int64(vmdesc, "instance_id", se->instance_id);
-
-        save_section_header(f, se, QEMU_VM_SECTION_FULL);
-        ret = vmstate_save(f, se, vmdesc);
+        ret = qemu_savevm_state_precopy_one_non_iterable(se, f, vmdesc);
         if (ret) {
-            qemu_file_set_error(f, ret);
             return ret;
         }
-        trace_savevm_section_end(se->idstr, se->section_id, 0);
-        save_section_footer(f, se);
-
-        json_writer_end_object(vmdesc);
     }
 
     if (inactivate_disks) {
@@ -1426,6 +1473,10 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
         qemu_put_be32(f, vmdesc_len);
         qemu_put_buffer(f, (uint8_t *)json_writer_get(vmdesc), vmdesc_len);
     }
+
+    /* Free it now to detect any inconsistencies. */
+    g_free(vmdesc);
+    ms->vmdesc = NULL;
 
     return 0;
 }
@@ -1540,6 +1591,9 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
     qemu_savevm_state_header(f);
     qemu_savevm_state_setup(f);
     qemu_mutex_lock_iothread();
+
+    /* Process early data that has to get migrated before iterating. */
+    qemu_savevm_state_start_precopy(f);
 
     while (qemu_file_get_error(f) == 0) {
         if (qemu_savevm_state_iterate(f, false) > 0) {
