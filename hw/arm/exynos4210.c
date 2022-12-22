@@ -468,35 +468,29 @@ static const MemoryRegionOps exynos4210_chipid_and_omr_ops = {
     }
 };
 
-void exynos4210_write_secondary(ARMCPU *cpu,
-        const struct arm_boot_info *info)
+void exynos4210_write_secondary(ARMCPU *cpu, const struct arm_boot_info *info)
 {
-    int n;
-    uint32_t smpboot[] = {
-        0xe59f3034, /* ldr r3, External gic_cpu_if */
-        0xe59f2034, /* ldr r2, Internal gic_cpu_if */
-        0xe59f0034, /* ldr r0, startaddr */
-        0xe3a01001, /* mov r1, #1 */
-        0xe5821000, /* str r1, [r2] */
-        0xe5831000, /* str r1, [r3] */
-        0xe3a010ff, /* mov r1, #0xff */
-        0xe5821004, /* str r1, [r2, #4] */
-        0xe5831004, /* str r1, [r3, #4] */
-        0xf57ff04f, /* dsb */
-        0xe320f003, /* wfi */
-        0xe5901000, /* ldr     r1, [r0] */
-        0xe1110001, /* tst     r1, r1 */
-        0x0afffffb, /* beq     <wfi> */
-        0xe12fff11, /* bx      r1 */
-        EXYNOS4210_EXT_GIC_CPU_BASE_ADDR,
-        0,          /* gic_cpu_if: base address of Internal GIC CPU interface */
-        0           /* bootreg: Boot register address is held here */
+    const uint32_t smpboot[] = {
+        const_le32(0xe59f3034),     /* ldr r3, External gic_cpu_if */
+        const_le32(0xe59f2034),     /* ldr r2, Internal gic_cpu_if */
+        const_le32(0xe59f0034),     /* ldr r0, startaddr */
+        const_le32(0xe3a01001),     /* mov r1, #1 */
+        const_le32(0xe5821000),     /* str r1, [r2] */
+        const_le32(0xe5831000),     /* str r1, [r3] */
+        const_le32(0xe3a010ff),     /* mov r1, #0xff */
+        const_le32(0xe5821004),     /* str r1, [r2, #4] */
+        const_le32(0xe5831004),     /* str r1, [r3, #4] */
+        const_le32(0xf57ff04f),     /* dsb */
+        const_le32(0xe320f003),     /* wfi */
+        const_le32(0xe5901000),     /* ldr     r1, [r0] */
+        const_le32(0xe1110001),     /* tst     r1, r1 */
+        const_le32(0x0afffffb),     /* beq     <wfi> */
+        const_le32(0xe12fff11),     /* bx      r1 */
+        const_le32(EXYNOS4210_EXT_GIC_CPU_BASE_ADDR),
+        cpu_to_le32(info->gic_cpu_if_addr), /* base address of Internal GIC CPU interface */
+        cpu_to_le32(info->smp_bootreg_addr) /* Boot register address is held here */
     };
-    smpboot[ARRAY_SIZE(smpboot) - 1] = info->smp_bootreg_addr;
-    smpboot[ARRAY_SIZE(smpboot) - 2] = info->gic_cpu_if_addr;
-    for (n = 0; n < ARRAY_SIZE(smpboot); n++) {
-        smpboot[n] = tswap32(smpboot[n]);
-    }
+
     rom_add_blob_fixed("smpboot", smpboot, sizeof(smpboot),
                        info->smp_loader_start);
 }
