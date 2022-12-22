@@ -125,18 +125,18 @@ static const char *board_type(uint32_t board_rev)
 static void write_smpboot(ARMCPU *cpu, const struct arm_boot_info *info)
 {
     static const uint32_t smpboot[] = {
-        0xe1a0e00f, /*    mov     lr, pc */
-        0xe3a0fe00 + (BOARDSETUP_ADDR >> 4), /* mov pc, BOARDSETUP_ADDR */
-        0xee100fb0, /*    mrc     p15, 0, r0, c0, c0, 5;get core ID */
-        0xe7e10050, /*    ubfx    r0, r0, #0, #2       ;extract LSB */
-        0xe59f5014, /*    ldr     r5, =0x400000CC      ;load mbox base */
-        0xe320f001, /* 1: yield */
-        0xe7953200, /*    ldr     r3, [r5, r0, lsl #4] ;read mbox for our core*/
-        0xe3530000, /*    cmp     r3, #0               ;spin while zero */
-        0x0afffffb, /*    beq     1b */
-        0xe7853200, /*    str     r3, [r5, r0, lsl #4] ;clear mbox */
-        0xe12fff13, /*    bx      r3                   ;jump to target */
-        0x400000cc, /* (constant: mailbox 3 read/clear base) */
+        const_le32(0xe1a0e00f), /*    mov   lr, pc */
+        const_le32(0xe3a0fe00 + (BOARDSETUP_ADDR >> 4)), /* mov pc, BOARDSETUP_ADDR */
+        const_le32(0xee100fb0), /*    mrc   p15, 0, r0, c0, c0, 5;get core ID */
+        const_le32(0xe7e10050), /*    ubfx  r0, r0, #0, #2       ;extract LSB */
+        const_le32(0xe59f5014), /*    ldr   r5, =0x400000CC      ;load mbox base */
+        const_le32(0xe320f001), /* 1: yield */
+        const_le32(0xe7953200), /*    ldr   r3, [r5, r0, lsl #4] ;read mbox for our core*/
+        const_le32(0xe3530000), /*    cmp   r3, #0               ;spin while zero */
+        const_le32(0x0afffffb), /*    beq   1b */
+        const_le32(0xe7853200), /*    str   r3, [r5, r0, lsl #4] ;clear mbox */
+        const_le32(0xe12fff13), /*    bx    r3                   ;jump to target */
+        const_le32(0x400000cc), /* (constant: mailbox 3 read/clear base) */
     };
 
     /* check that we don't overrun board setup vectors */
@@ -162,17 +162,17 @@ static void write_smpboot64(ARMCPU *cpu, const struct arm_boot_info *info)
      * a rom blob, so that the reset for ROM contents zeroes them for us.
      */
     static const uint32_t smpboot[] = {
-        0xd2801b05, /*        mov     x5, 0xd8 */
-        0xd53800a6, /*        mrs     x6, mpidr_el1 */
-        0x924004c6, /*        and     x6, x6, #0x3 */
-        0xd503205f, /* spin:  wfe */
-        0xf86678a4, /*        ldr     x4, [x5,x6,lsl #3] */
-        0xb4ffffc4, /*        cbz     x4, spin */
-        0xd2800000, /*        mov     x0, #0x0 */
-        0xd2800001, /*        mov     x1, #0x0 */
-        0xd2800002, /*        mov     x2, #0x0 */
-        0xd2800003, /*        mov     x3, #0x0 */
-        0xd61f0080, /*        br      x4 */
+        const_le32(0xd2801b05), /*        mov     x5, 0xd8 */
+        const_le32(0xd53800a6), /*        mrs     x6, mpidr_el1 */
+        const_le32(0x924004c6), /*        and     x6, x6, #0x3 */
+        const_le32(0xd503205f), /* spin:  wfe */
+        const_le32(0xf86678a4), /*        ldr     x4, [x5,x6,lsl #3] */
+        const_le32(0xb4ffffc4), /*        cbz     x4, spin */
+        const_le32(0xd2800000), /*        mov     x0, #0x0 */
+        const_le32(0xd2800001), /*        mov     x1, #0x0 */
+        const_le32(0xd2800002), /*        mov     x2, #0x0 */
+        const_le32(0xd2800003), /*        mov     x3, #0x0 */
+        const_le32(0xd61f0080), /*        br      x4 */
     };
 
     static const uint64_t spintables[] = {
