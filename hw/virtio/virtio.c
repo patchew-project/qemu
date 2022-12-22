@@ -3826,7 +3826,7 @@ VirtioInfoList *qmp_x_query_virtio(Error **errp)
     return list;
 }
 
-static VirtIODevice *virtio_device_find(const char *path)
+static VirtIODevice *qmp_find_virtio_device(const char *path)
 {
     VirtIODevice *vdev;
 
@@ -3867,7 +3867,7 @@ VirtioStatus *qmp_x_query_virtio_status(const char *path, Error **errp)
     VirtIODevice *vdev;
     VirtioStatus *status;
 
-    vdev = virtio_device_find(path);
+    vdev = qmp_find_virtio_device(path);
     if (vdev == NULL) {
         error_setg(errp, "Path %s is not a VirtIODevice", path);
         return NULL;
@@ -3943,7 +3943,7 @@ VirtVhostQueueStatus *qmp_x_query_virtio_vhost_queue_status(const char *path,
     VirtIODevice *vdev;
     VirtVhostQueueStatus *status;
 
-    vdev = virtio_device_find(path);
+    vdev = qmp_find_virtio_device(path);
     if (vdev == NULL) {
         error_setg(errp, "Path %s is not a VirtIODevice", path);
         return NULL;
@@ -3987,7 +3987,7 @@ VirtQueueStatus *qmp_x_query_virtio_queue_status(const char *path,
     VirtIODevice *vdev;
     VirtQueueStatus *status;
 
-    vdev = virtio_device_find(path);
+    vdev = qmp_find_virtio_device(path);
     if (vdev == NULL) {
         error_setg(errp, "Path %s is not a VirtIODevice", path);
         return NULL;
@@ -4080,7 +4080,7 @@ VirtioQueueElement *qmp_x_query_virtio_queue_element(const char *path,
     VirtQueue *vq;
     VirtioQueueElement *element = NULL;
 
-    vdev = virtio_device_find(path);
+    vdev = qmp_find_virtio_device(path);
     if (vdev == NULL) {
         error_setg(errp, "Path %s is not a VirtIO device", path);
         return NULL;
