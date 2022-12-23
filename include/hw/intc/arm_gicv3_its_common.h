@@ -66,6 +66,7 @@ struct GICv3ITSState {
     int dev_fd; /* kvm device fd if backed by kvm vgic support */
     uint64_t gits_translater_gpa;
     bool translater_gpa_known;
+    uint8_t itt_entry_size;
 
     /* Registers */
     uint32_t ctlr;

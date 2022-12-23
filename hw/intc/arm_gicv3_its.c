@@ -215,7 +215,7 @@ static bool update_ite(GICv3ITSState *s, uint32_t eventid, const DTEntry *dte,
 {
     AddressSpace *as = &s->gicv3->dma_as;
     MemTxResult res = MEMTX_OK;
-    hwaddr iteaddr = dte->ittaddr + eventid * ITS_ITT_ENTRY_SIZE;
+    hwaddr iteaddr = dte->ittaddr + eventid * s->itt_entry_size;
     uint64_t itel = 0;
     uint32_t iteh = 0;
 
@@ -253,7 +253,7 @@ static MemTxResult get_ite(GICv3ITSState *s, uint32_t eventid,
     MemTxResult res = MEMTX_OK;
     uint64_t itel;
     uint32_t iteh;
-    hwaddr iteaddr = dte->ittaddr + eventid * ITS_ITT_ENTRY_SIZE;
+    hwaddr iteaddr = dte->ittaddr + eventid * s->itt_entry_size;
 
     itel = address_space_ldq_le(as, iteaddr, MEMTXATTRS_UNSPECIFIED, &res);
     if (res != MEMTX_OK) {
@@ -1934,6 +1934,12 @@ static void gicv3_arm_its_realize(DeviceState *dev, Error **errp)
         }
     }
 
+    if (s->itt_entry_size < MIN_ITS_ITT_ENTRY_SIZE) {
+        error_setg(errp, "ITT entry size must be at least %d",
+                   MIN_ITS_ITT_ENTRY_SIZE);
+        return;
+    }
+
     gicv3_add_its(s->gicv3, dev);
 
     gicv3_its_init_mmio(s, &gicv3_its_control_ops, &gicv3_its_translation_ops);
@@ -1941,7 +1947,7 @@ static void gicv3_arm_its_realize(DeviceState *dev, Error **errp)
     /* set the ITS default features supported */
     s->typer = FIELD_DP64(s->typer, GITS_TYPER, PHYSICAL, 1);
     s->typer = FIELD_DP64(s->typer, GITS_TYPER, ITT_ENTRY_SIZE,
-                          ITS_ITT_ENTRY_SIZE - 1);
+                          s->itt_entry_size - 1);
     s->typer = FIELD_DP64(s->typer, GITS_TYPER, IDBITS, ITS_IDBITS);
     s->typer = FIELD_DP64(s->typer, GITS_TYPER, DEVBITS, ITS_DEVBITS);
     s->typer = FIELD_DP64(s->typer, GITS_TYPER, CIL, 1);
@@ -2008,6 +2014,8 @@ static void gicv3_its_post_load(GICv3ITSState *s)
 static Property gicv3_its_props[] = {
     DEFINE_PROP_LINK("parent-gicv3", GICv3ITSState, gicv3, "arm-gicv3",
                      GICv3State *),
+    DEFINE_PROP_UINT8("itt-entry-size", GICv3ITSState, itt_entry_size,
+                      MIN_ITS_ITT_ENTRY_SIZE),
     DEFINE_PROP_END_OF_LIST(),
 };
 

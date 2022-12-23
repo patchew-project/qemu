@@ -450,7 +450,7 @@ FIELD(VINVALL_1, VPEID, 32, 16)
  * the value of that field in memory cannot be relied upon -- older
  * versions of QEMU did not correctly write to that memory.)
  */
-#define ITS_ITT_ENTRY_SIZE            0xC
+#define MIN_ITS_ITT_ENTRY_SIZE            0xC
 
 FIELD(ITE_L, VALID, 0, 1)
 FIELD(ITE_L, INTTYPE, 1, 1)
