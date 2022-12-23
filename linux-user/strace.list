@@ -1043,7 +1043,7 @@
 { TARGET_NR_perfctr, "perfctr" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_personality
-{ TARGET_NR_personality, "personality" , NULL, NULL, NULL },
+{ TARGET_NR_personality, "personality" , "%s(%p)", NULL, print_syscall_ret_addr },
 #endif
 #ifdef TARGET_NR_pipe
 { TARGET_NR_pipe, "pipe" , NULL, NULL, NULL },
@@ -1498,7 +1498,7 @@
 { TARGET_NR_sysfs, "sysfs" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_sysinfo
-{ TARGET_NR_sysinfo, "sysinfo" , NULL, NULL, NULL },
+{ TARGET_NR_sysinfo, "sysinfo" , "%s(%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_sys_kexec_load
 { TARGET_NR_sys_kexec_load, "sys_kexec_load" , NULL, NULL, NULL },
