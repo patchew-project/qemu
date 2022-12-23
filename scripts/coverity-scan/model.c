@@ -69,7 +69,6 @@ static void __bufread(uint8_t *buf, ssize_t len)
 }
 
 MemTxResult address_space_read_cached(MemoryRegionCache *cache, hwaddr addr,
-                                      MemTxAttrs attrs,
                                       void *buf, int len)
 {
     MemTxResult result;
@@ -80,23 +79,11 @@ MemTxResult address_space_read_cached(MemoryRegionCache *cache, hwaddr addr,
 }
 
 MemTxResult address_space_write_cached(MemoryRegionCache *cache, hwaddr addr,
-                                MemTxAttrs attrs,
-                                const void *buf, int len)
+                                       const void *buf, int len)
 {
     MemTxResult result;
     __bufread(buf, len);
     return result;
-}
-
-MemTxResult address_space_rw_cached(MemoryRegionCache *cache, hwaddr addr,
-                                    MemTxAttrs attrs,
-                                    void *buf, int len, bool is_write)
-{
-    if (is_write) {
-        return address_space_write_cached(cache, addr, attrs, buf, len);
-    } else {
-        return address_space_read_cached(cache, addr, attrs, buf, len);
-    }
 }
 
 MemTxResult address_space_read(AddressSpace *as, hwaddr addr,
