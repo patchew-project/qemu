@@ -1116,6 +1116,11 @@ void memory_region_transaction_commit(void)
    }
 }
 
+int memory_region_transaction_get_depth(void)
+{
+    return memory_region_transaction_depth;
+}
+
 static void memory_region_destructor_none(MemoryRegion *mr)
 {
 }
