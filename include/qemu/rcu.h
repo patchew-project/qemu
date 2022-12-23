@@ -119,6 +119,13 @@ static inline void rcu_read_unlock(void)
     }
 }
 
+static inline bool rcu_read_locked(void)
+{
+    struct rcu_reader_data *p_rcu_reader = get_ptr_rcu_reader();
+
+    return p_rcu_reader->depth > 0;
+}
+
 extern void synchronize_rcu(void);
 
 /*
