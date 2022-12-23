@@ -837,13 +837,12 @@ static inline int host_to_target_sock_type(int host_type)
 }
 
 static abi_ulong target_brk;
-static abi_ulong target_original_brk;
 static abi_ulong brk_page;
 
 void target_set_brk(abi_ulong new_brk)
 {
-    target_original_brk = target_brk = HOST_PAGE_ALIGN(new_brk);
-    brk_page = HOST_PAGE_ALIGN(target_brk);
+    target_brk = TARGET_PAGE_ALIGN(new_brk);
+    brk_page = HOST_PAGE_ALIGN(new_brk);
 }
 
 //#define DEBUGF_BRK(message, args...) do { fprintf(stderr, (message), ## args); } while (0)
@@ -854,29 +853,29 @@ abi_long do_brk(abi_ulong new_brk)
 {
     abi_long mapped_addr;
     abi_ulong new_alloc_size;
+    abi_ulong new_host_brk_page;
 
     /* brk pointers are always untagged */
 
+    new_brk = TARGET_PAGE_ALIGN(new_brk);
+    new_host_brk_page = HOST_PAGE_ALIGN(new_brk);
+
     DEBUGF_BRK("do_brk(" TARGET_ABI_FMT_lx ") -> ", new_brk);
 
-    if (!new_brk) {
+    if (!new_brk || new_brk == target_brk) {
         DEBUGF_BRK(TARGET_ABI_FMT_lx " (!new_brk)\n", target_brk);
         return target_brk;
     }
-    if (new_brk < target_original_brk) {
-        DEBUGF_BRK(TARGET_ABI_FMT_lx " (new_brk < target_original_brk)\n",
-                   target_brk);
-        return target_brk;
-    }
 
-    /* If the new brk is less than the highest page reserved to the
-     * target heap allocation, set it and we're almost done...  */
-    if (new_brk <= brk_page) {
-        /* Heap contents are initialized to zero, as for anonymous
-         * mapped pages.  */
-        if (new_brk > target_brk) {
-            memset(g2h_untagged(target_brk), 0, new_brk - target_brk);
-        }
+    /* Release heap if necesary */
+    if (new_brk < target_brk) {
+        /* empty remaining bytes in (possibly larger) host page */
+        memset(g2h_untagged(new_brk), 0, new_host_brk_page - new_brk);
+
+        /* free unused host pages and set new brk_page */
+        target_munmap(new_host_brk_page, brk_page - new_host_brk_page);
+        brk_page = new_host_brk_page;
+
 	target_brk = new_brk;
         DEBUGF_BRK(TARGET_ABI_FMT_lx " (new_brk <= brk_page)\n", target_brk);
 	return target_brk;
@@ -888,10 +887,14 @@ abi_long do_brk(abi_ulong new_brk)
      * itself); instead we treat "mapped but at wrong address" as
      * a failure and unmap again.
      */
-    new_alloc_size = HOST_PAGE_ALIGN(new_brk - brk_page);
-    mapped_addr = get_errno(target_mmap(brk_page, new_alloc_size,
+    new_alloc_size = new_host_brk_page - brk_page;
+    if (new_alloc_size) {
+        mapped_addr = get_errno(target_mmap(brk_page, new_alloc_size,
                                         PROT_READ|PROT_WRITE,
                                         MAP_ANON|MAP_PRIVATE, 0, 0));
+    } else {
+        mapped_addr = brk_page;
+    }
 
     if (mapped_addr == brk_page) {
         /* Heap contents are initialized to zero, as for anonymous
@@ -904,7 +907,7 @@ abi_long do_brk(abi_ulong new_brk)
         memset(g2h_untagged(target_brk), 0, brk_page - target_brk);
 
         target_brk = new_brk;
-        brk_page = HOST_PAGE_ALIGN(target_brk);
+        brk_page = new_host_brk_page;
         DEBUGF_BRK(TARGET_ABI_FMT_lx " (mapped_addr == brk_page)\n",
             target_brk);
         return target_brk;
