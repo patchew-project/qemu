@@ -475,6 +475,7 @@ struct RISCVCPUConfig {
     bool ext_xtheadmemidx;
     bool ext_xtheadmempair;
     bool ext_xtheadsync;
+    bool ext_xtheadxmae;
     bool ext_XVentanaCondOps;
 
     uint8_t pmu_num;
