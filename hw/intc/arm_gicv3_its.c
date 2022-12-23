@@ -2014,8 +2014,7 @@ static void gicv3_its_post_load(GICv3ITSState *s)
 static Property gicv3_its_props[] = {
     DEFINE_PROP_LINK("parent-gicv3", GICv3ITSState, gicv3, "arm-gicv3",
                      GICv3State *),
-    DEFINE_PROP_UINT8("itt-entry-size", GICv3ITSState, itt_entry_size,
-                      MIN_ITS_ITT_ENTRY_SIZE),
+    DEFINE_PROP_UINT8("itt-entry-size", GICv3ITSState, itt_entry_size, 16),
     DEFINE_PROP_END_OF_LIST(),
 };
 
