@@ -2258,3 +2258,127 @@ DO_HELPER_VV_I(vsllwil_hu_bu, 16, helper_vv_i_c, do_vsllwil_u)
 DO_HELPER_VV_I(vsllwil_wu_hu, 32, helper_vv_i_c, do_vsllwil_u)
 DO_HELPER_VV_I(vsllwil_du_wu, 64, helper_vv_i_c, do_vsllwil_u)
 DO_HELPER_VV(vextl_qu_du, 128, helper_vv, do_vextl_qu_du)
+
+static int64_t vsrlr(int64_t s1, int64_t s2, int bit)
+{
+    uint64_t umax = MAKE_64BIT_MASK(0, bit);
+    uint64_t u1 = s1 & umax;
+    int32_t n = (uint64_t)(s2 % bit);
+
+    if (n == 0) {
+        return u1;
+    } else {
+        uint64_t r_bit = (u1 >> (n  -1)) & 1;
+        return (u1 >> n) + r_bit;
+    }
+}
+
+static void do_vsrlr(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vsrlr(Vj->B[n], Vk->B[n], bit);
+        break;
+    case 16:
+        Vd->H[n] = vsrlr(Vj->H[n], Vk->H[n], bit);
+        break;
+    case 32:
+        Vd->W[n] = vsrlr(Vj->W[n], Vk->W[n], bit);
+        break;
+    case 64:
+        Vd->D[n] = vsrlr(Vj->D[n], Vk->D[n], bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vsrlri(vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vsrlr(Vj->B[n], imm, bit);
+        break;
+    case 16:
+        Vd->H[n] = vsrlr(Vj->H[n], imm, bit);
+        break;
+    case 32:
+        Vd->W[n] = vsrlr(Vj->W[n], imm, bit);
+        break;
+    case 64:
+        Vd->D[n] = vsrlr(Vj->D[n], imm, bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vsrlr_b, 8, helper_vvv, do_vsrlr)
+DO_HELPER_VVV(vsrlr_h, 16, helper_vvv, do_vsrlr)
+DO_HELPER_VVV(vsrlr_w, 32, helper_vvv, do_vsrlr)
+DO_HELPER_VVV(vsrlr_d, 64, helper_vvv, do_vsrlr)
+DO_HELPER_VVV(vsrlri_b, 8, helper_vv_i, do_vsrlri)
+DO_HELPER_VVV(vsrlri_h, 16, helper_vv_i, do_vsrlri)
+DO_HELPER_VVV(vsrlri_w, 32, helper_vv_i, do_vsrlri)
+DO_HELPER_VVV(vsrlri_d, 64, helper_vv_i, do_vsrlri)
+
+static int64_t vsrar(int64_t s1, int64_t s2, int bit)
+{
+    int32_t n = (uint64_t)(s2 % bit);
+
+    if (n == 0) {
+        return s1;
+    } else {
+        uint64_t r_bit = (s1 >> (n  -1)) & 1;
+        return (s1 >> n) + r_bit;
+    }
+}
+
+static void do_vsrar(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vsrar(Vj->B[n], Vk->B[n], bit);
+        break;
+    case 16:
+        Vd->H[n] = vsrar(Vj->H[n], Vk->H[n], bit);
+        break;
+    case 32:
+        Vd->W[n] = vsrar(Vj->W[n], Vk->W[n], bit);
+        break;
+    case 64:
+        Vd->D[n] = vsrar(Vj->D[n], Vk->D[n], bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vsrari(vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vsrar(Vj->B[n], imm, bit);
+        break;
+    case 16:
+        Vd->H[n] = vsrar(Vj->H[n], imm, bit);
+        break;
+    case 32:
+        Vd->W[n] = vsrar(Vj->W[n], imm, bit);
+        break;
+    case 64:
+        Vd->D[n] = vsrar(Vj->D[n], imm, bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vsrar_b, 8, helper_vvv, do_vsrar)
+DO_HELPER_VVV(vsrar_h, 16, helper_vvv, do_vsrar)
+DO_HELPER_VVV(vsrar_w, 32, helper_vvv, do_vsrar)
+DO_HELPER_VVV(vsrar_d, 64, helper_vvv, do_vsrar)
+DO_HELPER_VVV(vsrari_b, 8, helper_vv_i, do_vsrari)
+DO_HELPER_VVV(vsrari_h, 16, helper_vv_i, do_vsrari)
+DO_HELPER_VVV(vsrari_w, 32, helper_vv_i, do_vsrari)
+DO_HELPER_VVV(vsrari_d, 64, helper_vv_i, do_vsrari)
