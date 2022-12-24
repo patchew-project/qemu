@@ -1912,3 +1912,65 @@ DO_HELPER_VV(vmskltz_w, 32, helper_vv_z, do_vmskltz)
 DO_HELPER_VV(vmskltz_d, 64, helper_vv_z, do_vmskltz)
 DO_HELPER_VV(vmskgez_b, 8, helper_vv_z, do_vmskgez)
 DO_HELPER_VV(vmsknz_b, 8, helper_vv_z, do_vmsknz)
+
+static void do_vand_v(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    Vd->D[n] = Vj->D[n] & Vk->D[n];
+}
+
+static void do_vor_v(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    Vd->D[n] = Vj->D[n] | Vk->D[n];
+}
+
+static void do_vxor_v(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    Vd->D[n] = Vj->D[n] ^ Vk->D[n];
+}
+
+static void do_vnor_v(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    Vd->D[n] = ~(Vj->D[n] | Vk->D[n]);
+}
+
+static void do_vandn_v(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    Vd->D[n] = ~Vj->D[n] & Vk->D[n];
+}
+
+static void do_vorn_v(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    Vd->D[n] = Vj->D[n] | ~Vk->D[n];
+}
+
+DO_HELPER_VVV(vand_v, 64, helper_vvv, do_vand_v)
+DO_HELPER_VVV(vor_v, 64, helper_vvv, do_vor_v)
+DO_HELPER_VVV(vxor_v, 64, helper_vvv, do_vxor_v)
+DO_HELPER_VVV(vnor_v, 64, helper_vvv, do_vnor_v)
+DO_HELPER_VVV(vandn_v, 64, helper_vvv, do_vandn_v)
+DO_HELPER_VVV(vorn_v, 64, helper_vvv, do_vorn_v)
+
+static void do_vandi_b(vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    Vd->B[n] = Vj->B[n] & imm;
+}
+
+static void do_vori_b(vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    Vd->B[n] = Vj->B[n] | imm;
+}
+
+static void do_vxori_b(vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    Vd->B[n] = Vj->B[n] ^ imm;
+}
+
+static void do_vnori_b(vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    Vd->B[n] = ~(Vj->B[n] | imm);
+}
+
+DO_HELPER_VV_I(vandi_b, 8, helper_vv_i, do_vandi_b)
+DO_HELPER_VV_I(vori_b, 8, helper_vv_i, do_vori_b)
+DO_HELPER_VV_I(vxori_b, 8, helper_vv_i, do_vxori_b)
+DO_HELPER_VV_I(vnori_b, 8, helper_vv_i, do_vnori_b)
