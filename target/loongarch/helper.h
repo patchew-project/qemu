@@ -777,3 +777,17 @@ DEF_HELPER_5(vfcmp_s_s, void, env, i32, i32, i32, i32)
 DEF_HELPER_5(vfcmp_c_d, void, env, i32, i32, i32, i32)
 /* vfcmp.sXXX.d */
 DEF_HELPER_5(vfcmp_s_d, void, env, i32, i32, i32, i32)
+
+DEF_HELPER_5(vbitsel_v, void, env, i32, i32, i32, i32)
+DEF_HELPER_4(vbitseli_b, void, env, i32, i32, i32)
+
+DEF_HELPER_3(vseteqz_v, void, env, i32, i32)
+DEF_HELPER_3(vsetnez_v, void, env, i32, i32)
+DEF_HELPER_3(vsetanyeqz_b, void, env, i32, i32)
+DEF_HELPER_3(vsetanyeqz_h, void, env, i32, i32)
+DEF_HELPER_3(vsetanyeqz_w, void, env, i32, i32)
+DEF_HELPER_3(vsetanyeqz_d, void, env, i32, i32)
+DEF_HELPER_3(vsetallnez_b, void, env, i32, i32)
+DEF_HELPER_3(vsetallnez_h, void, env, i32, i32)
+DEF_HELPER_3(vsetallnez_w, void, env, i32, i32)
+DEF_HELPER_3(vsetallnez_d, void, env, i32, i32)

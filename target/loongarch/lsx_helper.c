@@ -31,6 +31,10 @@
                        uint32_t vd, uint32_t vj, uint32_t vk, uint32_t va) \
     { FUNC(env, vd, vj, vk, va, BIT, __VA_ARGS__); }
 
+#define DO_HELPER_CV(NAME, BIT, FUNC, ...)                               \
+    void helper_##NAME(CPULoongArchState *env, uint32_t cd, uint32_t vj) \
+    { FUNC(env, cd, vj, BIT, __VA_ARGS__); }
+
 static void helper_vvv(CPULoongArchState *env,
                        uint32_t vd, uint32_t vj, uint32_t vk, int bit,
                        void (*func)(vec_t*, vec_t*, vec_t*, int, int))
@@ -4275,3 +4279,115 @@ void helper_v## name ##_d(CPULoongArchState *env, uint32_t vd,      \
 
 LSX_FCMP_D(fcmp_c)
 LSX_FCMP_D(fcmp_s)
+
+void helper_vbitsel_v(CPULoongArchState *env,
+                      uint32_t vd, uint32_t vj, uint32_t vk, uint32_t va)
+{
+    vec_t *Vd = &(env->fpr[vd].vec);
+    vec_t *Vj = &(env->fpr[vj].vec);
+    vec_t *Vk = &(env->fpr[vk].vec);
+    vec_t *Va = &(env->fpr[va].vec);
+
+    Vd->D[0] = (Vk->D[0] & Va->D[0]) | (Vj->D[0] & ~(Va->D[0]));
+    Vd->D[1] = (Vk->D[1] & Va->D[1]) | (Vj->D[1] & ~(Va->D[1]));
+}
+
+static void do_vbitseli_b(vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    Vd->B[n] = (~Vd->B[n] & Vj->B[n] ) | (Vd->B[n] & imm);
+}
+
+DO_HELPER_VV_I(vbitseli_b, 8, helper_vv_i, do_vbitseli_b)
+
+void helper_vseteqz_v(CPULoongArchState *env, uint32_t cd, uint32_t vj)
+{
+    vec_t *Vj = &(env->fpr[vj].vec);
+    env->cf[cd & 0x7] = (Vj->Q[0] == 0);
+}
+
+void helper_vsetnez_v(CPULoongArchState *env, uint32_t cd, uint32_t vj)
+{
+    vec_t *Vj = &(env->fpr[vj].vec);
+    env->cf[cd & 0x7] = (Vj->Q[0] != 0);
+}
+
+static void helper_setanyeqz(CPULoongArchState *env,
+                             uint32_t cd, uint32_t vj, int bit,
+                             bool (*func)(vec_t*, int, int))
+{
+    int i;
+    bool ret = false;
+    vec_t *Vj = &(env->fpr[vj].vec);
+
+    for (i = 0; i < LSX_LEN/bit; i++) {
+        ret |= func(Vj, bit, i);
+    }
+    env->cf[cd & 0x7] = ret;
+}
+
+static void helper_setallnez(CPULoongArchState *env,
+                             uint32_t cd, uint32_t vj, int bit,
+                             bool (*func)(vec_t*, int, int))
+{
+    int i;
+    bool ret = true;
+    vec_t *Vj = &(env->fpr[vj].vec);
+
+    for (i = 0; i < LSX_LEN/bit; i++) {
+        ret &= func(Vj, bit, i);
+    }
+    env->cf[cd & 0x7] = ret;
+}
+
+static bool do_setanyeqz(vec_t *Vj, int bit, int n)
+{
+    bool ret = false;
+    switch (bit) {
+    case 8:
+        ret = (Vj->B[n] == 0);
+        break;
+    case 16:
+        ret = (Vj->H[n] == 0);
+        break;
+    case 32:
+        ret = (Vj->W[n] == 0);
+        break;
+    case 64:
+        ret = (Vj->D[n] == 0);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return ret;
+}
+
+static bool do_setallnez(vec_t *Vj, int bit, int n)
+{
+    bool ret = false;
+    switch (bit) {
+    case 8:
+        ret = (Vj->B[n] != 0);
+        break;
+    case 16:
+        ret = (Vj->H[n] != 0);
+        break;
+    case 32:
+        ret = (Vj->W[n] != 0);
+        break;
+    case 64:
+        ret = (Vj->D[n] != 0);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return ret;
+}
+
+DO_HELPER_CV(vsetanyeqz_b, 8, helper_setanyeqz, do_setanyeqz)
+DO_HELPER_CV(vsetanyeqz_h, 16, helper_setanyeqz, do_setanyeqz)
+DO_HELPER_CV(vsetanyeqz_w, 32, helper_setanyeqz, do_setanyeqz)
+DO_HELPER_CV(vsetanyeqz_d, 64, helper_setanyeqz, do_setanyeqz)
+DO_HELPER_CV(vsetallnez_b, 8, helper_setallnez, do_setallnez)
+DO_HELPER_CV(vsetallnez_h, 16, helper_setallnez, do_setallnez)
+DO_HELPER_CV(vsetallnez_w, 32, helper_setallnez, do_setallnez)
+DO_HELPER_CV(vsetallnez_d, 64, helper_setallnez, do_setallnez)
