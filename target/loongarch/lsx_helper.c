@@ -5239,3 +5239,137 @@ void helper_vstelm_d(CPULoongArchState *env,
     cpu_stq_data(env, addr, Vd->D[sel]);
 #endif
 }
+
+#define EXPAND_BYTE(bit)  ((uint64_t)(bit ? 0xff : 0))
+
+void helper_vldi(CPULoongArchState *env, uint32_t vd, uint32_t ui)
+{
+    int sel = (ui >> 12) & 0x1;
+    uint32_t i;
+
+    vec_t *Vd = &(env->fpr[vd].vec);
+    if (sel) {
+        /* VSETI.D */
+        int mode = (ui >> 8) & 0xf;
+        uint64_t imm = (ui & 0xff);
+        for (i = 0; i < 2; i++) {
+            switch (mode) {
+            case 0:
+                Vd->D[i] = (imm << 32) | imm;
+                break;
+            case 1:
+                Vd->D[i] = (imm << 24) | (imm << 8);
+                break;
+            case 2:
+                Vd->D[i] = (imm << 48) | (imm << 16);
+                break;
+            case 3:
+                Vd->D[i] = (imm << 56) | (imm << 24);
+                break;
+            case 4:
+                Vd->D[i] = (imm << 48) | (imm << 32) |
+                           (imm << 16) | imm;
+                break;
+            case 5:
+                Vd->D[i] = (imm << 56) | (imm << 40) |
+                           (imm << 24) | (imm << 8);
+                break;
+            case 6:
+                Vd->D[i] = (imm << 40) | ((uint64_t)0xff << 32) |
+                           (imm << 8) | 0xff;
+                break;
+            case 7:
+                Vd->D[i] = (imm << 48) | ((uint64_t)0xffff << 32) |
+                           (imm << 16) | 0xffff;
+                break;
+            case 8:
+                Vd->D[i] = (imm << 56) | (imm << 48) | (imm << 40) |
+                           (imm << 32) | (imm << 24) | (imm << 16) |
+                           (imm << 8) | imm;
+                break;
+            case 9: {
+                uint64_t b0,b1,b2,b3,b4,b5,b6,b7;
+                b0 = imm & 0x1;
+                b1 = (imm & 0x2) >> 1;
+                b2 = (imm & 0x4) >> 2;
+                b3 = (imm & 0x8) >> 3;
+                b4 = (imm & 0x10) >> 4;
+                b5 = (imm & 0x20) >> 5;
+                b6 = (imm & 0x40) >> 6;
+                b7 = (imm & 0x80) >> 7;
+                Vd->D[i] = (EXPAND_BYTE(b7) << 56) |
+                           (EXPAND_BYTE(b6) << 48) |
+                           (EXPAND_BYTE(b5) << 40) |
+                           (EXPAND_BYTE(b4) << 32) |
+                           (EXPAND_BYTE(b3) << 24) |
+                           (EXPAND_BYTE(b2) << 16) |
+                           (EXPAND_BYTE(b1) <<  8) |
+                           EXPAND_BYTE(b0);
+                break;
+            }
+            case 10: {
+                uint64_t b6, b7;
+                uint64_t t0, t1;
+                b6 = (imm & 0x40) >> 6;
+                b7 = (imm & 0x80) >> 7;
+                t0 = (imm & 0x3f);
+                t1 = (b7 << 6) | ((1-b6) << 5) | (uint64_t)(b6 ? 0x1f : 0);
+                Vd->D[i] = (t1 << 57) | (t0 << 51) |
+                           (t1 << 25) | (t0 << 19);
+                break;
+            }
+            case 11: {
+                uint64_t b6,b7;
+                uint64_t t0, t1;
+                b6 = (imm & 0x40) >> 6;
+                b7 = (imm & 0x80) >> 7;
+                t0 = (imm & 0x3f);
+                t1 = (b7 << 6) | ((1-b6) << 5) | (b6 ? 0x1f : 0);
+                Vd->D[i] = (t1 << 25) | (t0 << 19);
+                break;
+            }
+            case 12: {
+                uint64_t b6,b7;
+                uint64_t t0, t1;
+                b6 = (imm & 0x40) >> 6;
+                b7 = (imm & 0x80) >> 7;
+                t0 = (imm & 0x3f);
+                t1 = (b7 << 6) | ((1-b6) << 5) | (b6 ? 0x1f : 0);
+                Vd->D[i] = (t1 << 54) | (t0 << 48);
+                break;
+            }
+            default:
+                assert(0);
+            }
+        }
+    } else {
+        /* LDI.df */
+        uint32_t df = (ui >> 10) & 0x3;
+        int32_t s10 = ((int32_t)(ui << 22)) >> 22;
+
+        switch (df) {
+        case 0:
+            for (i = 0; i < LSX_LEN/8; i++) {
+                Vd->B[i] = (int8_t)s10;
+            }
+            break;
+        case 1:
+            for (i = 0; i < LSX_LEN/16; i++) {
+                Vd->H[i] = (int16_t)s10;
+            }
+            break;
+        case 2:
+            for (i = 0; i < LSX_LEN/32; i++) {
+                Vd->W[i] = (int32_t)s10;
+            }
+            break;
+        case 3:
+            for (i = 0; i < LSX_LEN/64; i++) {
+                Vd->D[i] = (int64_t)s10;
+            }
+           break;
+        default:
+            assert(0);
+        }
+    }
+}

@@ -406,6 +406,16 @@ TRANS(vmskltz_d, gen_vv, gen_helper_vmskltz_d)
 TRANS(vmskgez_b, gen_vv, gen_helper_vmskgez_b)
 TRANS(vmsknz_b,  gen_vv, gen_helper_vmsknz_b)
 
+static bool trans_vldi(DisasContext *ctx, arg_vldi *a)
+{
+    TCGv_i32 twd = tcg_constant_i32(a->vd);
+    TCGv_i32 tui = tcg_constant_i32(a->imm);
+
+    CHECK_SXE;
+    gen_helper_vldi(cpu_env, twd, tui);
+    return true;
+}
+
 TRANS(vand_v, gen_vvv, gen_helper_vand_v)
 TRANS(vor_v, gen_vvv, gen_helper_vor_v)
 TRANS(vxor_v, gen_vvv, gen_helper_vxor_v)

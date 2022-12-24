@@ -418,6 +418,8 @@ DEF_HELPER_3(vmskltz_d, void, env, i32, i32)
 DEF_HELPER_3(vmskgez_b, void, env, i32, i32)
 DEF_HELPER_3(vmsknz_b, void, env, i32,i32)
 
+DEF_HELPER_3(vldi, void, env, i32, i32)
+
 DEF_HELPER_4(vand_v, void, env, i32, i32, i32)
 DEF_HELPER_4(vor_v, void, env, i32, i32, i32)
 DEF_HELPER_4(vxor_v, void, env, i32, i32, i32)
