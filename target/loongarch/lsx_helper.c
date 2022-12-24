@@ -3236,3 +3236,165 @@ DO_HELPER_VV(vpcnt_b, 8, helper_vv, do_vpcnt)
 DO_HELPER_VV(vpcnt_h, 16, helper_vv, do_vpcnt)
 DO_HELPER_VV(vpcnt_w, 32, helper_vv, do_vpcnt)
 DO_HELPER_VV(vpcnt_d, 64, helper_vv, do_vpcnt)
+
+static int64_t vbitclr(int64_t s1, int64_t imm, int bit)
+{
+    return (s1 & (~(1LL << (imm % bit)))) & MAKE_64BIT_MASK(0, bit);
+}
+
+static void do_vbitclr(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vbitclr(Vj->B[n], Vk->B[n], bit);
+        break;
+    case 16:
+        Vd->H[n] = vbitclr(Vj->H[n], Vk->H[n], bit);
+        break;
+    case 32:
+        Vd->W[n] = vbitclr(Vj->W[n], Vk->W[n], bit);
+        break;
+    case 64:
+        Vd->D[n] = vbitclr(Vj->D[n], Vk->D[n], bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vbitclr_i(vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vbitclr(Vj->B[n], imm, bit);
+        break;
+    case 16:
+        Vd->H[n] = vbitclr(Vj->H[n], imm, bit);
+        break;
+    case 32:
+        Vd->W[n] = vbitclr(Vj->W[n], imm, bit);
+        break;
+    case 64:
+        Vd->D[n] = vbitclr(Vj->D[n], imm, bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vbitclr_b, 8, helper_vvv, do_vbitclr)
+DO_HELPER_VVV(vbitclr_h, 16, helper_vvv, do_vbitclr)
+DO_HELPER_VVV(vbitclr_w, 32, helper_vvv, do_vbitclr)
+DO_HELPER_VVV(vbitclr_d, 64, helper_vvv, do_vbitclr)
+DO_HELPER_VV_I(vbitclri_b, 8, helper_vv_i, do_vbitclr_i)
+DO_HELPER_VV_I(vbitclri_h, 16, helper_vv_i, do_vbitclr_i)
+DO_HELPER_VV_I(vbitclri_w, 32, helper_vv_i, do_vbitclr_i)
+DO_HELPER_VV_I(vbitclri_d, 64, helper_vv_i, do_vbitclr_i)
+
+static int64_t vbitset(int64_t s1, int64_t imm, int bit)
+{
+    return (s1 | (1LL << (imm % bit))) & MAKE_64BIT_MASK(0, bit);
+}
+
+static void do_vbitset(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vbitset(Vj->B[n], Vk->B[n], bit);
+        break;
+    case 16:
+        Vd->H[n] = vbitset(Vj->H[n], Vk->H[n], bit);
+        break;
+    case 32:
+        Vd->W[n] = vbitset(Vj->W[n], Vk->W[n], bit);
+        break;
+    case 64:
+        Vd->D[n] = vbitset(Vj->D[n], Vk->D[n], bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vbitset_i(vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vbitset(Vj->B[n], imm, bit);
+        break;
+    case 16:
+        Vd->H[n] = vbitset(Vj->H[n], imm, bit);
+        break;
+    case 32:
+        Vd->W[n] = vbitset(Vj->W[n], imm, bit);
+        break;
+    case 64:
+        Vd->D[n] = vbitset(Vj->D[n], imm, bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vbitset_b, 8, helper_vvv, do_vbitset)
+DO_HELPER_VVV(vbitset_h, 16, helper_vvv, do_vbitset)
+DO_HELPER_VVV(vbitset_w, 32, helper_vvv, do_vbitset)
+DO_HELPER_VVV(vbitset_d, 64, helper_vvv, do_vbitset)
+DO_HELPER_VV_I(vbitseti_b, 8, helper_vv_i, do_vbitset_i)
+DO_HELPER_VV_I(vbitseti_h, 16, helper_vv_i, do_vbitset_i)
+DO_HELPER_VV_I(vbitseti_w, 32, helper_vv_i, do_vbitset_i)
+DO_HELPER_VV_I(vbitseti_d, 64, helper_vv_i, do_vbitset_i)
+
+static int64_t vbitrev(int64_t s1, int64_t imm, int bit)
+{
+    return (s1 ^ (1LL << (imm % bit))) & MAKE_64BIT_MASK(0, bit);
+}
+
+static void do_vbitrev(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vbitrev(Vj->B[n], Vk->B[n], bit);
+        break;
+    case 16:
+        Vd->H[n] = vbitrev(Vj->H[n], Vk->H[n], bit);
+        break;
+    case 32:
+        Vd->W[n] = vbitrev(Vj->W[n], Vk->W[n], bit);
+        break;
+    case 64:
+        Vd->D[n] = vbitrev(Vj->D[n], Vk->D[n], bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vbitrev_i(vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vbitrev(Vj->B[n], imm, bit);
+        break;
+    case 16:
+        Vd->H[n] = vbitrev(Vj->H[n], imm, bit);
+        break;
+    case 32:
+        Vd->W[n] = vbitrev(Vj->W[n], imm, bit);
+        break;
+    case 64:
+        Vd->D[n] = vbitrev(Vj->D[n], imm, bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vbitrev_b, 8, helper_vvv, do_vbitrev)
+DO_HELPER_VVV(vbitrev_h, 16, helper_vvv, do_vbitrev)
+DO_HELPER_VVV(vbitrev_w, 32, helper_vvv, do_vbitrev)
+DO_HELPER_VVV(vbitrev_d, 64, helper_vvv, do_vbitrev)
+DO_HELPER_VV_I(vbitrevi_b, 8, helper_vv_i, do_vbitrev_i)
+DO_HELPER_VV_I(vbitrevi_h, 16, helper_vv_i, do_vbitrev_i)
+DO_HELPER_VV_I(vbitrevi_w, 32, helper_vv_i, do_vbitrev_i)
+DO_HELPER_VV_I(vbitrevi_d, 64, helper_vv_i, do_vbitrev_i)
