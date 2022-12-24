@@ -3148,3 +3148,52 @@ DO_HELPER_VV_I(vssrarni_bu_h, 16, helper_vv_ni_c, do_vssrarni_u)
 DO_HELPER_VV_I(vssrarni_hu_w, 32, helper_vv_ni_c, do_vssrarni_u)
 DO_HELPER_VV_I(vssrarni_wu_d, 64, helper_vv_ni_c, do_vssrarni_u)
 DO_HELPER_VV_I(vssrarni_du_q, 128, helper_vv_ni_c, do_vssrarni_u)
+
+static void do_vclo(vec_t *Vd, vec_t *Vj, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = clz32((uint8_t)(~Vj->B[n])) - 24;
+        break;
+    case 16:
+        Vd->H[n] = clz32((uint16_t)(~Vj->H[n])) - 16;
+        break;
+    case 32:
+        Vd->W[n] = clz32((uint32_t)(~Vj->W[n]));
+        break;
+    case 64:
+        Vd->D[n] = clz64((uint64_t)(~Vj->D[n]));
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vclz(vec_t *Vd, vec_t *Vj, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = clz32((uint8_t)Vj->B[n]) - 24;
+        break;
+    case 16:
+        Vd->H[n] = clz32((uint16_t)Vj->H[n]) - 16;
+        break;
+    case 32:
+        Vd->W[n] = clz32((uint32_t)Vj->W[n]);
+        break;
+    case 64:
+        Vd->D[n] = clz64((uint64_t)Vj->D[n]);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VV(vclo_b, 8, helper_vv, do_vclo)
+DO_HELPER_VV(vclo_h, 16, helper_vv, do_vclo)
+DO_HELPER_VV(vclo_w, 32, helper_vv, do_vclo)
+DO_HELPER_VV(vclo_d, 64, helper_vv, do_vclo)
+DO_HELPER_VV(vclz_b, 8, helper_vv, do_vclz)
+DO_HELPER_VV(vclz_h, 16, helper_vv, do_vclz)
+DO_HELPER_VV(vclz_w, 32, helper_vv, do_vclz)
+DO_HELPER_VV(vclz_d, 64, helper_vv, do_vclz)
