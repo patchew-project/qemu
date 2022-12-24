@@ -473,3 +473,246 @@ DO_HELPER_VVV(vhsubw_hu_bu, 16, helper_vvv, do_vhsubw_u)
 DO_HELPER_VVV(vhsubw_wu_hu, 32, helper_vvv, do_vhsubw_u)
 DO_HELPER_VVV(vhsubw_du_wu, 64, helper_vvv, do_vhsubw_u)
 DO_HELPER_VVV(vhsubw_qu_du, 128, helper_vvv, do_vhsubw_u)
+
+static void do_vaddwev_s(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->H[n] = (int16_t)Vj->B[2 * n] + (int16_t)Vk->B[2 * n];
+        break;
+    case 32:
+        Vd->W[n] = (int32_t)Vj->H[2 * n] + (int32_t)Vk->H[2 * n];
+        break;
+    case 64:
+        Vd->D[n] = (int64_t)Vj->W[2 * n] + (int64_t)Vk->W[2 * n];
+        break;
+    case 128:
+        Vd->Q[n] = (__int128)Vj->D[2 * n] + (__int128)Vk->D[2 * n];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vaddwod_s(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->H[n] = (int16_t)Vj->B[2 * n + 1] + (int16_t)Vk->B[2 * n + 1];
+        break;
+    case 32:
+        Vd->W[n] = (int32_t)Vj->H[2 * n + 1] + (int32_t)Vk->H[2 * n + 1];
+        break;
+    case 64:
+        Vd->D[n] = (int64_t)Vj->W[2 * n + 1] + (int64_t)Vk->W[2 * n + 1];
+        break;
+    case 128:
+        Vd->Q[n] = (__int128)Vj->D[2 * n + 1] + (__int128)Vk->D[2 * n + 1];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vsubwev_s(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->H[n] = (int16_t)Vj->B[2 * n] - (int16_t)Vk->B[2 * n];
+        break;
+    case 32:
+        Vd->W[n] = (int32_t)Vj->H[2 * n] - (int32_t)Vk->H[2 * n];
+        break;
+    case 64:
+        Vd->D[n] = (int64_t)Vj->W[2 * n] - (int64_t)Vk->W[2 * n];
+        break;
+    case 128:
+        Vd->Q[n] = (__int128)Vj->D[2 * n] - (__int128)Vk->D[2 * n];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vsubwod_s(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->H[n] = (int16_t)Vj->B[2 * n + 1] - (int16_t)Vk->B[2 * n + 1];
+        break;
+    case 32:
+        Vd->W[n] = (int32_t)Vj->H[2 * n + 1] - (int32_t)Vk->H[2 * n + 1];
+        break;
+    case 64:
+        Vd->D[n] = (int64_t)Vj->W[2 * n + 1] - (int64_t)Vk->W[2 * n + 1];
+        break;
+    case 128:
+        Vd->Q[n] = (__int128)Vj->D[2 * n + 1] - (__int128)Vk->D[2 * n + 1];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vaddwev_h_b, 16, helper_vvv, do_vaddwev_s)
+DO_HELPER_VVV(vaddwev_w_h, 32, helper_vvv, do_vaddwev_s)
+DO_HELPER_VVV(vaddwev_d_w, 64, helper_vvv, do_vaddwev_s)
+DO_HELPER_VVV(vaddwev_q_d, 128, helper_vvv, do_vaddwev_s)
+DO_HELPER_VVV(vaddwod_h_b, 16, helper_vvv, do_vaddwod_s)
+DO_HELPER_VVV(vaddwod_w_h, 32, helper_vvv, do_vaddwod_s)
+DO_HELPER_VVV(vaddwod_d_w, 64, helper_vvv, do_vaddwod_s)
+DO_HELPER_VVV(vaddwod_q_d, 128, helper_vvv, do_vaddwod_s)
+DO_HELPER_VVV(vsubwev_h_b, 16, helper_vvv, do_vsubwev_s)
+DO_HELPER_VVV(vsubwev_w_h, 32, helper_vvv, do_vsubwev_s)
+DO_HELPER_VVV(vsubwev_d_w, 64, helper_vvv, do_vsubwev_s)
+DO_HELPER_VVV(vsubwev_q_d, 128, helper_vvv, do_vsubwev_s)
+DO_HELPER_VVV(vsubwod_h_b, 16, helper_vvv, do_vsubwod_s)
+DO_HELPER_VVV(vsubwod_w_h, 32, helper_vvv, do_vsubwod_s)
+DO_HELPER_VVV(vsubwod_d_w, 64, helper_vvv, do_vsubwod_s)
+DO_HELPER_VVV(vsubwod_q_d, 128, helper_vvv, do_vsubwod_s)
+
+static void do_vaddwev_u(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->H[n] = (uint16_t)(uint8_t)Vj->B[2 * n] + (uint16_t)(uint8_t)Vk->B[2 * n];
+        break;
+    case 32:
+        Vd->W[n] = (uint32_t)(uint16_t)Vj->H[2 * n] + (uint32_t)(uint16_t)Vk->H[2 * n];
+        break;
+    case 64:
+        Vd->D[n] = (uint64_t)(uint32_t)Vj->W[2 * n] + (uint64_t)(uint32_t)Vk->W[2 * n];
+        break;
+    case 128:
+        Vd->Q[n] = (__uint128_t)(uint64_t)Vj->D[2 * n] + (__uint128_t)(uint64_t)Vk->D[2 * n];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vaddwod_u(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->H[n] = (uint16_t)(uint8_t)Vj->B[2 * n + 1] + (uint16_t)(uint8_t)Vk->B[2 * n + 1];
+        break;
+    case 32:
+        Vd->W[n] = (uint32_t)(uint16_t)Vj->H[2 * n + 1] + (uint32_t)(uint16_t)Vk->H[2 * n + 1];
+        break;
+    case 64:
+        Vd->D[n] = (uint64_t)(uint32_t)Vj->W[2 * n + 1] + (uint64_t)(uint32_t)Vk->W[2 * n + 1];
+        break;
+    case 128:
+        Vd->Q[n] = (__uint128_t)(uint64_t)Vj->D[2 * n + 1] + (__uint128_t)(uint64_t )Vk->D[2 * n + 1];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vsubwev_u(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->H[n] = (uint16_t)(uint8_t)Vj->B[2 * n] - (uint16_t)(uint8_t)Vk->B[2 * n];
+        break;
+    case 32:
+        Vd->W[n] = (uint32_t)(uint16_t)Vj->H[2 * n] - (uint32_t)(uint16_t)Vk->H[2 * n];
+        break;
+    case 64:
+        Vd->D[n] = (uint64_t)(uint32_t)Vj->W[2 * n] - (uint64_t)(uint32_t)Vk->W[2 * n];
+        break;
+    case 128:
+        Vd->Q[n] = (__uint128_t)(uint64_t)Vj->D[2 * n] - (__uint128_t)(uint64_t)Vk->D[2 * n];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vsubwod_u(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->H[n] = (uint16_t)(uint8_t)Vj->B[2 * n + 1] - (uint16_t)(uint8_t)Vk->B[2 * n + 1];
+        break;
+    case 32:
+        Vd->W[n] = (uint32_t)(uint16_t)Vj->H[2 * n + 1] - (uint32_t)(uint16_t)Vk->H[2 * n + 1];
+        break;
+    case 64:
+        Vd->D[n] = (uint64_t)(uint32_t)Vj->W[2 * n + 1] - (uint64_t)(uint32_t)Vk->W[2 * n + 1];
+        break;
+    case 128:
+        Vd->Q[n] = (__uint128_t)(uint64_t)Vj->D[2 * n + 1] - (__uint128_t)(uint64_t)Vk->D[2 * n + 1];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vaddwev_h_bu, 16, helper_vvv, do_vaddwev_u)
+DO_HELPER_VVV(vaddwev_w_hu, 32, helper_vvv, do_vaddwev_u)
+DO_HELPER_VVV(vaddwev_d_wu, 64, helper_vvv, do_vaddwev_u)
+DO_HELPER_VVV(vaddwev_q_du, 128, helper_vvv, do_vaddwev_u)
+DO_HELPER_VVV(vaddwod_h_bu, 16, helper_vvv, do_vaddwod_u)
+DO_HELPER_VVV(vaddwod_w_hu, 32, helper_vvv, do_vaddwod_u)
+DO_HELPER_VVV(vaddwod_d_wu, 64, helper_vvv, do_vaddwod_u)
+DO_HELPER_VVV(vaddwod_q_du, 128, helper_vvv, do_vaddwod_u)
+DO_HELPER_VVV(vsubwev_h_bu, 16, helper_vvv, do_vsubwev_u)
+DO_HELPER_VVV(vsubwev_w_hu, 32, helper_vvv, do_vsubwev_u)
+DO_HELPER_VVV(vsubwev_d_wu, 64, helper_vvv, do_vsubwev_u)
+DO_HELPER_VVV(vsubwev_q_du, 128, helper_vvv, do_vsubwev_u)
+DO_HELPER_VVV(vsubwod_h_bu, 16, helper_vvv, do_vsubwod_u)
+DO_HELPER_VVV(vsubwod_w_hu, 32, helper_vvv, do_vsubwod_u)
+DO_HELPER_VVV(vsubwod_d_wu, 64, helper_vvv, do_vsubwod_u)
+DO_HELPER_VVV(vsubwod_q_du, 128, helper_vvv, do_vsubwod_u)
+
+static void do_vaddwev_u_s(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->H[n] = (uint16_t)(uint8_t)Vj->B[2 * n] + (int16_t)Vk->B[2 * n];
+        break;
+    case 32:
+        Vd->W[n] = (uint32_t)(uint16_t)Vj->H[2 * n] + (int32_t)Vk->H[2 * n];
+        break;
+    case 64:
+        Vd->D[n] = (uint64_t)(uint32_t)Vj->W[2 * n] + (int64_t)Vk->W[2 * n];
+        break;
+    case 128:
+        Vd->Q[n] = (__uint128_t)(uint64_t)Vj->D[2 * n] + (__int128)Vk->D[2 * n];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vaddwod_u_s(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->H[n] = (uint16_t)(uint8_t)Vj->B[2 * n + 1] + (int16_t)Vk->B[2 * n + 1];
+        break;
+    case 32:
+        Vd->W[n] = (uint32_t)(uint16_t)Vj->H[2 * n + 1] + (int32_t)Vk->H[2 * n + 1];
+        break;
+    case 64:
+        Vd->D[n] = (uint64_t)(uint32_t)Vj->W[2 * n + 1] + (int64_t)Vk->W[2 * n + 1];
+        break;
+    case 128:
+        Vd->Q[n] = (__uint128_t)(uint64_t)Vj->D[2 * n + 1] + (__int128)Vk->D[2 * n + 1];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vaddwev_h_bu_b, 16, helper_vvv, do_vaddwev_u_s)
+DO_HELPER_VVV(vaddwev_w_hu_h, 32, helper_vvv, do_vaddwev_u_s)
+DO_HELPER_VVV(vaddwev_d_wu_w, 64, helper_vvv, do_vaddwev_u_s)
+DO_HELPER_VVV(vaddwev_q_du_d, 128, helper_vvv, do_vaddwev_u_s)
+DO_HELPER_VVV(vaddwod_h_bu_b, 16, helper_vvv, do_vaddwod_u_s)
+DO_HELPER_VVV(vaddwod_w_hu_h, 32, helper_vvv, do_vaddwod_u_s)
+DO_HELPER_VVV(vaddwod_d_wu_w, 64, helper_vvv, do_vaddwod_u_s)
+DO_HELPER_VVV(vaddwod_q_du_d, 128, helper_vvv, do_vaddwod_u_s)
