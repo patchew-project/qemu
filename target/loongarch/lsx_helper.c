@@ -35,6 +35,21 @@
     void helper_##NAME(CPULoongArchState *env, uint32_t cd, uint32_t vj) \
     { FUNC(env, cd, vj, BIT, __VA_ARGS__); }
 
+#define DO_HELPER_VR_I(NAME, BIT, FUNC, ...)                   \
+    void helper_##NAME(CPULoongArchState *env,                 \
+                       uint32_t vd, uint32_t rj, uint32_t imm) \
+    { FUNC(env, vd, rj, imm, BIT, __VA_ARGS__ ); }
+
+#define DO_HELPER_RV_I(NAME, BIT, FUNC, ...)                   \
+    void helper_##NAME(CPULoongArchState *env,                 \
+                       uint32_t rd, uint32_t vj, uint32_t imm) \
+    { FUNC(env, rd, vj, imm, BIT, __VA_ARGS__ ); }
+
+#define DO_HELPER_VR(NAME, BIT, FUNC, ...)       \
+    void helper_##NAME(CPULoongArchState *env,   \
+                       uint32_t vd, uint32_t rj) \
+    { FUNC(env, vd, rj, BIT, __VA_ARGS__ ); }
+
 static void helper_vvv(CPULoongArchState *env,
                        uint32_t vd, uint32_t vj, uint32_t vk, int bit,
                        void (*func)(vec_t*, vec_t*, vec_t*, int, int))
@@ -4391,3 +4406,142 @@ DO_HELPER_CV(vsetallnez_b, 8, helper_setallnez, do_setallnez)
 DO_HELPER_CV(vsetallnez_h, 16, helper_setallnez, do_setallnez)
 DO_HELPER_CV(vsetallnez_w, 32, helper_setallnez, do_setallnez)
 DO_HELPER_CV(vsetallnez_d, 64, helper_setallnez, do_setallnez)
+
+static void helper_vr_i(CPULoongArchState *env,
+                        uint32_t vd, uint32_t rj, uint32_t imm, int bit,
+                        void (*func)(vec_t*, uint64_t, uint32_t, int))
+{
+    vec_t *Vd = &(env->fpr[vd].vec);
+    uint64_t Rj = env->gpr[rj];
+
+    imm %= (LSX_LEN/bit);
+
+    func(Vd, Rj, imm, bit);
+}
+
+static void do_insgr2vr(vec_t *Vd, uint64_t value, uint32_t imm, int bit)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[imm] = (int8_t)value;
+        break;
+    case 16:
+        Vd->H[imm] = (int16_t)value;
+        break;
+    case 32:
+        Vd->W[imm] = (int32_t)value;
+        break;
+    case 64:
+        Vd->D[imm] = (int64_t)value;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VR_I(vinsgr2vr_b, 8, helper_vr_i, do_insgr2vr)
+DO_HELPER_VR_I(vinsgr2vr_h, 16, helper_vr_i, do_insgr2vr)
+DO_HELPER_VR_I(vinsgr2vr_w, 32, helper_vr_i, do_insgr2vr)
+DO_HELPER_VR_I(vinsgr2vr_d, 64, helper_vr_i, do_insgr2vr)
+
+static void helper_rv_i(CPULoongArchState *env,
+                        uint32_t rd, uint32_t vj, uint32_t imm, int bit,
+                        void (*func)(CPULoongArchState*, uint32_t, vec_t*,
+                                     uint32_t, int))
+{
+    vec_t *Vj = &(env->fpr[vj].vec);
+
+    imm %=(LSX_LEN/bit);
+
+    func(env, rd, Vj, imm, bit);
+}
+
+static void do_pickve2gr_s(CPULoongArchState *env,
+                           uint32_t rd, vec_t *Vj, uint32_t imm, int bit)
+{
+    switch (bit) {
+    case 8:
+        env->gpr[rd] = Vj->B[imm];
+        break;
+    case 16:
+        env->gpr[rd] = Vj->H[imm];
+        break;
+    case 32:
+        env->gpr[rd] = Vj->W[imm];
+        break;
+    case 64:
+        env->gpr[rd] = Vj->D[imm];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_pickve2gr_u(CPULoongArchState *env,
+                           uint32_t rd, vec_t *Vj, uint32_t imm, int bit)
+{
+    switch (bit) {
+    case 8:
+        env->gpr[rd] = (uint8_t)Vj->B[imm];
+        break;
+    case 16:
+        env->gpr[rd] = (uint16_t)Vj->H[imm];
+        break;
+    case 32:
+        env->gpr[rd] = (uint32_t)Vj->W[imm];
+        break;
+    case 64:
+        env->gpr[rd] = (uint64_t)Vj->D[imm];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_RV_I(vpickve2gr_b, 8, helper_rv_i, do_pickve2gr_s)
+DO_HELPER_RV_I(vpickve2gr_h, 16, helper_rv_i, do_pickve2gr_s)
+DO_HELPER_RV_I(vpickve2gr_w, 32, helper_rv_i, do_pickve2gr_s)
+DO_HELPER_RV_I(vpickve2gr_d, 64, helper_rv_i, do_pickve2gr_s)
+DO_HELPER_RV_I(vpickve2gr_bu, 8, helper_rv_i, do_pickve2gr_u)
+DO_HELPER_RV_I(vpickve2gr_hu, 16, helper_rv_i, do_pickve2gr_u)
+DO_HELPER_RV_I(vpickve2gr_wu, 32, helper_rv_i, do_pickve2gr_u)
+DO_HELPER_RV_I(vpickve2gr_du, 64, helper_rv_i, do_pickve2gr_u)
+
+static void helper_vr(CPULoongArchState *env,
+                      uint32_t vd, uint32_t rj, int bit,
+                      void (*func)(CPULoongArchState*,
+                                   vec_t*, uint32_t,  int, int))
+{
+    int i;
+    vec_t *Vd = &(env->fpr[vd].vec);
+
+    for (i = 0; i < LSX_LEN/bit; i++) {
+        func(env, Vd, rj, bit, i);
+    }
+}
+
+static void do_replgr2vr(CPULoongArchState *env,
+                         vec_t *Vd, uint32_t rj, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = (int8_t)env->gpr[rj];
+        break;
+    case 16:
+        Vd->H[n] = (int16_t)env->gpr[rj];
+        break;
+    case 32:
+        Vd->W[n] = (int32_t)env->gpr[rj];
+        break;
+    case 64:
+        Vd->D[n] = (int64_t)env->gpr[rj];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VR(vreplgr2vr_b, 8, helper_vr, do_replgr2vr)
+DO_HELPER_VR(vreplgr2vr_h, 16, helper_vr, do_replgr2vr)
+DO_HELPER_VR(vreplgr2vr_w, 32, helper_vr, do_replgr2vr)
+DO_HELPER_VR(vreplgr2vr_d, 64, helper_vr, do_replgr2vr)

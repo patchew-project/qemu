@@ -75,6 +75,41 @@ static bool gen_vvvv(DisasContext *ctx, arg_vvvv *a,
     return true;
 }
 
+static bool gen_vr_i(DisasContext *ctx, arg_vr_i *a,
+                    void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 vd = tcg_constant_i32(a->vd);
+    TCGv_i32 rj = tcg_constant_i32(a->rj);
+    TCGv_i32 imm = tcg_constant_i32(a->imm);
+
+    CHECK_SXE;
+    func(cpu_env, vd, rj, imm);
+    return true;
+}
+
+static bool gen_rv_i(DisasContext *ctx, arg_rv_i *a,
+                    void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 rd = tcg_constant_i32(a->rd);
+    TCGv_i32 vj = tcg_constant_i32(a->vj);
+    TCGv_i32 imm = tcg_constant_i32(a->imm);
+
+    CHECK_SXE;
+    func(cpu_env, rd, vj, imm);
+    return true;
+}
+
+static bool gen_vr(DisasContext *ctx, arg_vr *a,
+                   void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 vd = tcg_constant_i32(a->vd);
+    TCGv_i32 rj = tcg_constant_i32(a->rj);
+
+    CHECK_SXE;
+    func(cpu_env, vd, rj);
+    return true;
+}
+
 TRANS(vadd_b, gen_vvv, gen_helper_vadd_b)
 TRANS(vadd_h, gen_vvv, gen_helper_vadd_h)
 TRANS(vadd_w, gen_vvv, gen_helper_vadd_w)
@@ -753,3 +788,21 @@ TRANS(vsetallnez_b, gen_cv, gen_helper_vsetallnez_b)
 TRANS(vsetallnez_h, gen_cv, gen_helper_vsetallnez_h)
 TRANS(vsetallnez_w, gen_cv, gen_helper_vsetallnez_w)
 TRANS(vsetallnez_d, gen_cv, gen_helper_vsetallnez_d)
+
+TRANS(vinsgr2vr_b, gen_vr_i, gen_helper_vinsgr2vr_b)
+TRANS(vinsgr2vr_h, gen_vr_i, gen_helper_vinsgr2vr_h)
+TRANS(vinsgr2vr_w, gen_vr_i, gen_helper_vinsgr2vr_w)
+TRANS(vinsgr2vr_d, gen_vr_i, gen_helper_vinsgr2vr_d)
+TRANS(vpickve2gr_b, gen_rv_i, gen_helper_vpickve2gr_b)
+TRANS(vpickve2gr_h, gen_rv_i, gen_helper_vpickve2gr_h)
+TRANS(vpickve2gr_w, gen_rv_i, gen_helper_vpickve2gr_w)
+TRANS(vpickve2gr_d, gen_rv_i, gen_helper_vpickve2gr_d)
+TRANS(vpickve2gr_bu, gen_rv_i, gen_helper_vpickve2gr_bu)
+TRANS(vpickve2gr_hu, gen_rv_i, gen_helper_vpickve2gr_hu)
+TRANS(vpickve2gr_wu, gen_rv_i, gen_helper_vpickve2gr_wu)
+TRANS(vpickve2gr_du, gen_rv_i, gen_helper_vpickve2gr_du)
+
+TRANS(vreplgr2vr_b, gen_vr, gen_helper_vreplgr2vr_b)
+TRANS(vreplgr2vr_h, gen_vr, gen_helper_vreplgr2vr_h)
+TRANS(vreplgr2vr_w, gen_vr, gen_helper_vreplgr2vr_w)
+TRANS(vreplgr2vr_d, gen_vr, gen_helper_vreplgr2vr_d)
