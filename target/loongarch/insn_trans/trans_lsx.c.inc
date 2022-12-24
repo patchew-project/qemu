@@ -110,6 +110,18 @@ static bool gen_vr(DisasContext *ctx, arg_vr *a,
     return true;
 }
 
+static bool gen_vvr(DisasContext *ctx, arg_vvr *a,
+                    void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 vd = tcg_constant_i32(a->vd);
+    TCGv_i32 vj = tcg_constant_i32(a->vj);
+    TCGv_i32 rk = tcg_constant_i32(a->rk);
+
+    CHECK_SXE;
+    func(cpu_env, vd, vj, rk);
+    return true;
+}
+
 TRANS(vadd_b, gen_vvv, gen_helper_vadd_b)
 TRANS(vadd_h, gen_vvv, gen_helper_vadd_h)
 TRANS(vadd_w, gen_vvv, gen_helper_vadd_w)
@@ -806,3 +818,33 @@ TRANS(vreplgr2vr_b, gen_vr, gen_helper_vreplgr2vr_b)
 TRANS(vreplgr2vr_h, gen_vr, gen_helper_vreplgr2vr_h)
 TRANS(vreplgr2vr_w, gen_vr, gen_helper_vreplgr2vr_w)
 TRANS(vreplgr2vr_d, gen_vr, gen_helper_vreplgr2vr_d)
+
+TRANS(vreplve_b, gen_vvr, gen_helper_vreplve_b)
+TRANS(vreplve_h, gen_vvr, gen_helper_vreplve_h)
+TRANS(vreplve_w, gen_vvr, gen_helper_vreplve_w)
+TRANS(vreplve_d, gen_vvr, gen_helper_vreplve_d)
+TRANS(vreplvei_b, gen_vv_i, gen_helper_vreplvei_b)
+TRANS(vreplvei_h, gen_vv_i, gen_helper_vreplvei_h)
+TRANS(vreplvei_w, gen_vv_i, gen_helper_vreplvei_w)
+TRANS(vreplvei_d, gen_vv_i, gen_helper_vreplvei_d)
+
+TRANS(vbsll_v, gen_vv_i, gen_helper_vbsll_v)
+TRANS(vbsrl_v, gen_vv_i, gen_helper_vbsrl_v)
+
+TRANS(vpackev_b, gen_vvv, gen_helper_vpackev_b)
+TRANS(vpackev_h, gen_vvv, gen_helper_vpackev_h)
+TRANS(vpackev_w, gen_vvv, gen_helper_vpackev_w)
+TRANS(vpackev_d, gen_vvv, gen_helper_vpackev_d)
+TRANS(vpackod_b, gen_vvv, gen_helper_vpackod_b)
+TRANS(vpackod_h, gen_vvv, gen_helper_vpackod_h)
+TRANS(vpackod_w, gen_vvv, gen_helper_vpackod_w)
+TRANS(vpackod_d, gen_vvv, gen_helper_vpackod_d)
+
+TRANS(vpickev_b, gen_vvv, gen_helper_vpickev_b)
+TRANS(vpickev_h, gen_vvv, gen_helper_vpickev_h)
+TRANS(vpickev_w, gen_vvv, gen_helper_vpickev_w)
+TRANS(vpickev_d, gen_vvv, gen_helper_vpickev_d)
+TRANS(vpickod_b, gen_vvv, gen_helper_vpickod_b)
+TRANS(vpickod_h, gen_vvv, gen_helper_vpickod_h)
+TRANS(vpickod_w, gen_vvv, gen_helper_vpickod_w)
+TRANS(vpickod_d, gen_vvv, gen_helper_vpickod_d)

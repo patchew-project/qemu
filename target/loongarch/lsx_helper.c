@@ -50,6 +50,11 @@
                        uint32_t vd, uint32_t rj) \
     { FUNC(env, vd, rj, BIT, __VA_ARGS__ ); }
 
+#define DO_HELPER_VV_R(NAME, BIT, FUNC, ...)                  \
+    void helper_##NAME(CPULoongArchState *env,                \
+                       uint32_t vd, uint32_t vj, uint32_t rk) \
+    { FUNC(env, vd, vj, rk, BIT, __VA_ARGS__); }
+
 static void helper_vvv(CPULoongArchState *env,
                        uint32_t vd, uint32_t vj, uint32_t vk, int bit,
                        void (*func)(vec_t*, vec_t*, vec_t*, int, int))
@@ -4545,3 +4550,224 @@ DO_HELPER_VR(vreplgr2vr_b, 8, helper_vr, do_replgr2vr)
 DO_HELPER_VR(vreplgr2vr_h, 16, helper_vr, do_replgr2vr)
 DO_HELPER_VR(vreplgr2vr_w, 32, helper_vr, do_replgr2vr)
 DO_HELPER_VR(vreplgr2vr_d, 64, helper_vr, do_replgr2vr)
+
+static void helper_vreplve(CPULoongArchState *env,
+                           uint32_t vd, uint32_t vj, uint32_t rk, int bit,
+                           void (*func)(vec_t*, vec_t*, uint64_t, int, int))
+{
+    int i;
+    vec_t *Vd = &(env->fpr[vd].vec);
+    vec_t *Vj = &(env->fpr[vj].vec);
+
+    for (i = 0; i < LSX_LEN/bit; i++) {
+        func(Vd, Vj, env->gpr[rk], bit, i);
+    }
+}
+
+static void helper_vreplvei(CPULoongArchState *env,
+                            uint32_t vd, uint32_t vj, uint32_t imm, int bit,
+                            void (*func)(vec_t*, vec_t*, uint64_t, int, int))
+{
+    int i;
+    vec_t *Vd = &(env->fpr[vd].vec);
+    vec_t *Vj = &(env->fpr[vj].vec);
+
+    for (i = 0; i < LSX_LEN/bit; i++) {
+        func(Vd, Vj, imm, bit, i);
+    }
+}
+
+static void do_vreplve(vec_t *Vd, vec_t *Vj, uint64_t value, int bit, int n)
+{
+    uint32_t index = value % (LSX_LEN/bit);
+    switch (bit) {
+    case 8:
+        Vd->B[n] = Vj->B[index];
+        break;
+    case 16:
+        Vd->H[n] = Vj->H[index];
+        break;
+    case 32:
+        Vd->W[n] = Vj->W[index];
+        break;
+    case 64:
+        Vd->D[n] = Vj->D[index];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VV_R(vreplve_b, 8, helper_vreplve, do_vreplve)
+DO_HELPER_VV_R(vreplve_h, 16, helper_vreplve, do_vreplve)
+DO_HELPER_VV_R(vreplve_w, 32, helper_vreplve, do_vreplve)
+DO_HELPER_VV_R(vreplve_d, 64, helper_vreplve, do_vreplve)
+DO_HELPER_VV_I(vreplvei_b, 8, helper_vreplvei, do_vreplve)
+DO_HELPER_VV_I(vreplvei_h, 16, helper_vreplvei, do_vreplve)
+DO_HELPER_VV_I(vreplvei_w, 32, helper_vreplvei, do_vreplve)
+DO_HELPER_VV_I(vreplvei_d, 64, helper_vreplvei, do_vreplve)
+
+void helper_vbsll_v(CPULoongArchState *env,
+                    uint32_t vd, uint32_t vj, uint32_t imm)
+{
+    uint32_t idx, i;
+    vec_t *Vd = &(env->fpr[vd].vec);
+    vec_t *Vj = &(env->fpr[vj].vec);
+    vec_t tmp;
+
+    tmp.D[0] = Vd->D[0];
+    tmp.D[1] = Vd->D[1];
+    idx = (imm & 0xf);
+    for(i = 0; i < 16; i++) {
+        tmp.B[i]  = (i < idx) ? 0 : Vj->B[i - idx];
+    }
+    Vd->D[0] = tmp.D[0];
+    Vd->D[1] = tmp.D[1];
+}
+
+void helper_vbsrl_v(CPULoongArchState *env,
+                    uint32_t vd, uint32_t vj, uint32_t imm)
+{
+    uint32_t idx, i;
+    vec_t *Vd = &(env->fpr[vd].vec);
+    vec_t *Vj = &(env->fpr[vj].vec);
+
+    idx = (imm & 0xf);
+    for(i = 0; i < 16; i++) {
+        Vd->B[i]  = (i + idx > 15) ? 0 : Vj->B[i + idx];
+    }
+}
+
+static void helper_vvv_c(CPULoongArchState *env,
+                        uint32_t vd, uint32_t vj, uint32_t vk, int bit,
+                        void (*func)(vec_t*, vec_t*, vec_t*, int, int))
+{
+    int i;
+    vec_t *Vd = &(env->fpr[vd].vec);
+    vec_t *Vj = &(env->fpr[vj].vec);
+    vec_t *Vk = &(env->fpr[vk].vec);
+
+    vec_t temp;
+    temp.D[0] = 0;
+    temp.D[1] = 0;
+
+    for (i = 0; i < LSX_LEN/bit/2; i++) {
+        func(&temp, Vj, Vk, bit, i);
+    }
+    Vd->D[0] = temp.D[0];
+    Vd->D[1] = temp.D[1];
+}
+
+static void do_vpackev(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[2 * n + 1] = Vj->B[2 * n];
+        Vd->B[2 * n] = Vk->B[2 * n];
+        break;
+    case 16:
+        Vd->H[2 * n + 1] = Vj->H[2 * n];
+        Vd->H[2 * n] = Vk->H[2 * n];
+        break;
+    case 32:
+        Vd->W[2 * n + 1] = Vj->W[2 * n];
+        Vd->W[2 * n] = Vk->W[2 * n];
+        break;
+    case 64:
+        Vd->D[2 * n + 1] = Vj->D[2 * n];
+        Vd->D[2 * n] = Vk->D[2 * n];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vpackod(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[2 * n + 1] = Vj->B[2 * n + 1];
+        Vd->B[2 * n] = Vk->B[2 * n + 1];
+        break;
+    case 16:
+        Vd->H[2 * n + 1] = Vj->H[2 * n + 1];
+        Vd->H[2 * n] = Vk->H[2 * n + 1];
+        break;
+    case 32:
+        Vd->W[2 * n + 1] = Vj->W[2 * n + 1];
+        Vd->W[2 * n] = Vk->W[2 * n + 1];
+        break;
+    case 64:
+        Vd->D[2 * n + 1] = Vj->D[2 * n + 1];
+        Vd->D[2 * n] = Vk->D[2 * n + 1];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vpackev_b, 8, helper_vvv_c, do_vpackev)
+DO_HELPER_VVV(vpackev_h, 16, helper_vvv_c, do_vpackev)
+DO_HELPER_VVV(vpackev_w, 32, helper_vvv_c, do_vpackev)
+DO_HELPER_VVV(vpackev_d, 64, helper_vvv_c, do_vpackev)
+DO_HELPER_VVV(vpackod_b, 8, helper_vvv_c, do_vpackod)
+DO_HELPER_VVV(vpackod_h, 16, helper_vvv_c, do_vpackod)
+DO_HELPER_VVV(vpackod_w, 32, helper_vvv_c, do_vpackod)
+DO_HELPER_VVV(vpackod_d, 64, helper_vvv_c, do_vpackod)
+
+static void do_vpickev(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n + 8] = Vj->B[2 * n];
+        Vd->B[n] = Vk->B[2 * n];
+        break;
+    case 16:
+        Vd->H[n + 4] = Vj->H[2 * n];
+        Vd->H[n] = Vk->H[2 * n];
+        break;
+    case 32:
+        Vd->W[n + 2] = Vj->W[2 * n];
+        Vd->W[n] = Vk->W[2 * n];
+        break;
+    case 64:
+        Vd->D[n + 1] = Vj->D[2 *n];
+        Vd->D[n] = Vk->D[2 * n];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vpickod(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n + 8] = Vj->B[2 * n + 1];
+        Vd->B[n] = Vk->B[2 * n + 1];
+        break;
+    case 16:
+        Vd->H[n + 4] = Vj->H[2 * n + 1];
+        Vd->H[n] = Vk->H[2 * n + 1];
+        break;
+    case 32:
+        Vd->W[n + 2] = Vj->W[2 * n + 1];
+        Vd->W[n] = Vk->W[2 * n + 1];
+        break;
+    case 64:
+        Vd->D[n + 1] = Vj->D[2 *n + 1];
+        Vd->D[n] = Vk->D[2 * n + 1];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vpickev_b, 8, helper_vvv_c, do_vpickev)
+DO_HELPER_VVV(vpickev_h, 16, helper_vvv_c, do_vpickev)
+DO_HELPER_VVV(vpickev_w, 32, helper_vvv_c, do_vpickev)
+DO_HELPER_VVV(vpickev_d, 64, helper_vvv_c, do_vpickev)
+DO_HELPER_VVV(vpickod_b, 8, helper_vvv_c, do_vpickod)
+DO_HELPER_VVV(vpickod_h, 16, helper_vvv_c, do_vpickod)
+DO_HELPER_VVV(vpickod_w, 32, helper_vvv_c, do_vpickod)
+DO_HELPER_VVV(vpickod_d, 64, helper_vvv_c, do_vpickod)
