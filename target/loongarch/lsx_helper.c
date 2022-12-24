@@ -2382,3 +2382,137 @@ DO_HELPER_VVV(vsrari_b, 8, helper_vv_i, do_vsrari)
 DO_HELPER_VVV(vsrari_h, 16, helper_vv_i, do_vsrari)
 DO_HELPER_VVV(vsrari_w, 32, helper_vv_i, do_vsrari)
 DO_HELPER_VVV(vsrari_d, 64, helper_vv_i, do_vsrari)
+
+static void helper_vvv_hz(CPULoongArchState *env,
+                          uint32_t vd, uint32_t vj, uint32_t vk, int bit,
+                          void (*func)(vec_t*, vec_t*, vec_t*, int, int))
+{
+    int i;
+    vec_t *Vd = &(env->fpr[vd].vec);
+    vec_t *Vj = &(env->fpr[vj].vec);
+    vec_t *Vk = &(env->fpr[vk].vec);
+
+    for (i = 0; i < LSX_LEN/bit; i++) {
+        func(Vd, Vj, Vk, bit, i);
+    }
+    Vd->D[1] = 0;
+}
+
+static void do_vsrln(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->B[n] = (uint16_t)Vj->H[n] >> (Vk->H[n] & 0xf);
+        break;
+    case 32:
+        Vd->H[n] = (uint32_t)Vj->W[n] >> (Vk->W[n] & 0x1f);
+        break;
+    case 64:
+        Vd->W[n] = (uint64_t)Vj->D[n] >> (Vk->D[n] & 0x3f);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vsran(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->B[n] = Vj->H[n] >> (Vk->H[n] & 0xf);
+        break;
+    case 32:
+        Vd->H[n] = Vj->W[n] >> (Vk->W[n] & 0x1f);
+        break;
+    case 64:
+        Vd->W[n] = Vj->D[n] >> (Vk->D[n] & 0x3f);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vsrln_b_h, 16, helper_vvv_hz, do_vsrln)
+DO_HELPER_VVV(vsrln_h_w, 32, helper_vvv_hz, do_vsrln)
+DO_HELPER_VVV(vsrln_w_d, 64, helper_vvv_hz, do_vsrln)
+DO_HELPER_VVV(vsran_b_h, 16, helper_vvv_hz, do_vsran)
+DO_HELPER_VVV(vsran_h_w, 32, helper_vvv_hz, do_vsran)
+DO_HELPER_VVV(vsran_w_d, 64, helper_vvv_hz, do_vsran)
+
+static void helper_vv_ni_c(CPULoongArchState *env,
+                           uint32_t vd, uint32_t vj, uint32_t imm, int bit,
+                           void (*func)(vec_t*, vec_t*, vec_t*,
+                                        uint32_t, int, int))
+{
+    int i;
+    vec_t *Vd = &(env->fpr[vd].vec);
+    vec_t *Vj = &(env->fpr[vj].vec);
+
+    vec_t dest;
+    dest.D[0] = 0;
+    dest.D[1] = 0;
+    for (i = 0; i < LSX_LEN/bit; i++) {
+         func(&dest, Vd, Vj, imm, bit, i);
+    }
+    Vd->D[0] = dest.D[0];
+    Vd->D[1] = dest.D[1];
+}
+
+static void do_vsrlni(vec_t *dest, vec_t *Vd, vec_t *Vj,
+                      uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        dest->B[n] = (uint16_t)Vj->H[n] >> imm;
+        dest->B[n + 128/bit] = (uint16_t)Vd->H[n] >> imm;
+        break;
+    case 32:
+        dest->H[n] = (uint32_t)Vj->W[n] >> imm;
+        dest->H[n + 128/bit] = (uint32_t)Vd->W[n] >> imm;
+        break;
+    case 64:
+        dest->W[n] = (uint64_t)Vj->D[n] >> imm;
+        dest->W[n + 128/bit] = (uint64_t)Vd->D[n] >> imm;
+        break;
+    case 128:
+        dest->D[n] = (__uint128_t)Vj->Q[n] >> imm;
+        dest->D[n + 128/bit] = (__uint128_t)Vd->Q[n] >> imm;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vsrani(vec_t *dest, vec_t *Vd, vec_t *Vj,
+                      uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        dest->B[n] = Vj->H[n] >> imm;
+        dest->B[n + 128/bit] = Vd->H[n] >> imm;
+        break;
+    case 32:
+        dest->H[n] = Vj->W[n] >> imm;
+        dest->H[n + 128/bit] = Vd->W[n] >> imm;
+        break;
+    case 64:
+        dest->W[n] = Vj->D[n] >> imm;
+        dest->W[n + 128/bit] = Vd->D[n] >> imm;
+        break;
+    case 128:
+        dest->D[n] = (__int128_t)Vj->Q[n] >> imm;
+        dest->D[n + 128/bit] = (__int128_t)Vd->Q[n] >> imm;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VV_I(vsrlni_b_h, 16, helper_vv_ni_c, do_vsrlni)
+DO_HELPER_VV_I(vsrlni_h_w, 32, helper_vv_ni_c, do_vsrlni)
+DO_HELPER_VV_I(vsrlni_w_d, 64, helper_vv_ni_c, do_vsrlni)
+DO_HELPER_VV_I(vsrlni_d_q, 128, helper_vv_ni_c, do_vsrlni)
+DO_HELPER_VV_I(vsrani_b_h, 16, helper_vv_ni_c, do_vsrani)
+DO_HELPER_VV_I(vsrani_h_w, 32, helper_vv_ni_c, do_vsrani)
+DO_HELPER_VV_I(vsrani_w_d, 64, helper_vv_ni_c, do_vsrani)
+DO_HELPER_VV_I(vsrani_d_q, 128, helper_vv_ni_c, do_vsrani)
