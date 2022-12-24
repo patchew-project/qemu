@@ -1575,3 +1575,138 @@ DO_HELPER_VVV(vmaddwod_h_bu_b, 16, helper_vvv, do_vmaddwod_u_s)
 DO_HELPER_VVV(vmaddwod_w_hu_h, 32, helper_vvv, do_vmaddwod_u_s)
 DO_HELPER_VVV(vmaddwod_d_wu_w, 64, helper_vvv, do_vmaddwod_u_s)
 DO_HELPER_VVV(vmaddwod_q_du_d, 128, helper_vvv, do_vmaddwod_u_s)
+
+static int64_t s_div_s(int64_t s1, int64_t s2, int bit)
+{
+    int64_t smin = MAKE_64BIT_MASK((bit -1), 64);
+
+    if (s1 == smin && s2 == -1) {
+        return smin;
+    }
+    return s2 ? s1 / s2 : s1 >= 0 ? -1 : 1;
+}
+
+static void do_vdiv_s(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = s_div_s(Vj->B[n], Vk->B[n], bit);
+        break;
+    case 16:
+        Vd->H[n] = s_div_s(Vj->H[n], Vk->H[n], bit);
+        break;
+    case 32:
+        Vd->W[n] = s_div_s(Vj->W[n], Vk->W[n], bit);
+        break;
+    case 64:
+        Vd->D[n] = s_div_s(Vj->D[n], Vk->D[n], bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static uint64_t u_div_u(int64_t s1, int64_t s2, int bit)
+{
+    uint64_t umax = MAKE_64BIT_MASK(0, bit);
+    uint64_t u1 = s1 & umax;
+    uint64_t u2 = s2 & umax;
+
+    return u2 ? u1 / u2 : -1;
+}
+
+static void do_vdiv_u(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = u_div_u(Vj->B[n], Vk->B[n], bit);
+        break;
+    case 16:
+        Vd->H[n] = u_div_u(Vj->H[n], Vk->H[n], bit);
+        break;
+    case 32:
+        Vd->W[n] = u_div_u(Vj->W[n], Vk->W[n], bit);
+        break;
+    case 64:
+        Vd->D[n] = u_div_u(Vj->D[n], Vk->D[n], bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static int64_t s_mod_s(int64_t s1, int64_t s2, int bit)
+{
+    int64_t smin = MAKE_64BIT_MASK((bit -1), 64);
+
+    if (s1 == smin && s2 == -1) {
+        return 0;
+    }
+    return s2 ? s1 % s2 : s1;
+}
+
+static void do_vmod_s(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = s_mod_s(Vj->B[n], Vk->B[n], bit);
+        break;
+    case 16:
+        Vd->H[n] = s_mod_s(Vj->H[n], Vk->H[n], bit);
+        break;
+    case 32:
+        Vd->W[n] = s_mod_s(Vj->W[n], Vk->W[n], bit);
+        break;
+    case 64:
+        Vd->D[n] = s_mod_s(Vj->D[n], Vk->D[n], bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static uint64_t u_mod_u(int64_t s1, int64_t s2, int bit)
+{
+    uint64_t umax = MAKE_64BIT_MASK(0, bit);
+    uint64_t u1 = s1 & umax;
+    uint64_t u2 = s2 & umax;
+
+    return u2 ? u1 % u2 : u1;
+}
+
+static void do_vmod_u(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = u_mod_u(Vj->B[n], Vk->B[n], bit);
+        break;
+    case 16:
+        Vd->H[n] = u_mod_u(Vj->H[n], Vk->H[n], bit);
+        break;
+    case 32:
+        Vd->W[n] = u_mod_u(Vj->W[n], Vk->W[n], bit);
+        break;
+    case 64:
+        Vd->D[n] = u_mod_u(Vj->D[n], Vk->D[n], bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vdiv_b, 8, helper_vvv, do_vdiv_s)
+DO_HELPER_VVV(vdiv_h, 16, helper_vvv, do_vdiv_s)
+DO_HELPER_VVV(vdiv_w, 32, helper_vvv, do_vdiv_s)
+DO_HELPER_VVV(vdiv_d, 64, helper_vvv, do_vdiv_s)
+DO_HELPER_VVV(vdiv_bu, 8, helper_vvv, do_vdiv_u)
+DO_HELPER_VVV(vdiv_hu, 16, helper_vvv, do_vdiv_u)
+DO_HELPER_VVV(vdiv_wu, 32, helper_vvv, do_vdiv_u)
+DO_HELPER_VVV(vdiv_du, 64, helper_vvv, do_vdiv_u)
+DO_HELPER_VVV(vmod_b, 8, helper_vvv, do_vmod_s)
+DO_HELPER_VVV(vmod_h, 16, helper_vvv, do_vmod_s)
+DO_HELPER_VVV(vmod_w, 32, helper_vvv, do_vmod_s)
+DO_HELPER_VVV(vmod_d, 64, helper_vvv, do_vmod_s)
+DO_HELPER_VVV(vmod_bu, 8, helper_vvv, do_vmod_u)
+DO_HELPER_VVV(vmod_hu, 16, helper_vvv, do_vmod_u)
+DO_HELPER_VVV(vmod_wu, 32, helper_vvv, do_vmod_u)
+DO_HELPER_VVV(vmod_du, 64, helper_vvv, do_vmod_u)
