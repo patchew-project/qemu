@@ -3959,3 +3959,281 @@ DO_HELPER_VV(vffint_s_wu, 32, helper_vv_f, do_vffint_u)
 DO_HELPER_VV(vffint_d_lu, 64, helper_vv_f, do_vffint_u)
 DO_HELPER_VV(vffintl_d_w, 64, helper_vv_f, do_vffintl_d_w)
 DO_HELPER_VV(vffinth_d_w, 64, helper_vv_f, do_vffinth_d_w)
+
+static int64_t vseq(int64_t s1, int64_t s2)
+{
+    return s1 == s2 ? -1: 0;
+}
+
+static void do_vseq(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vseq(Vj->B[n], Vk->B[n]);
+        break;
+    case 16:
+        Vd->H[n] = vseq(Vj->H[n], Vk->H[n]);
+        break;
+    case 32:
+        Vd->W[n] = vseq(Vj->W[n], Vk->W[n]);
+        break;
+    case 64:
+        Vd->D[n] = vseq(Vj->D[n], Vk->D[n]);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vseqi(vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vseq(Vj->B[n], imm);
+        break;
+    case 16:
+        Vd->H[n] = vseq(Vj->H[n], imm);
+        break;
+    case 32:
+        Vd->W[n] = vseq(Vj->W[n], imm);
+        break;
+    case 64:
+        Vd->D[n] = vseq(Vj->D[n], imm);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vseq_b, 8, helper_vvv, do_vseq)
+DO_HELPER_VVV(vseq_h, 16, helper_vvv, do_vseq)
+DO_HELPER_VVV(vseq_w, 32, helper_vvv, do_vseq)
+DO_HELPER_VVV(vseq_d, 64, helper_vvv, do_vseq)
+DO_HELPER_VVV(vseqi_b, 8, helper_vv_i, do_vseqi)
+DO_HELPER_VVV(vseqi_h, 16, helper_vv_i, do_vseqi)
+DO_HELPER_VVV(vseqi_w, 32, helper_vv_i, do_vseqi)
+DO_HELPER_VVV(vseqi_d, 64, helper_vv_i, do_vseqi)
+
+static int64_t vsle_s(int64_t s1, int64_t s2)
+{
+    return s1 <= s2 ? -1 : 0;
+}
+
+static void do_vsle_s(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vsle_s(Vj->B[n], Vk->B[n]);
+        break;
+    case 16:
+        Vd->H[n] = vsle_s(Vj->H[n], Vk->H[n]);
+        break;
+    case 32:
+        Vd->W[n] = vsle_s(Vj->W[n], Vk->W[n]);
+        break;
+    case 64:
+        Vd->D[n] = vsle_s(Vj->D[n], Vk->D[n]);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vslei_s(vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vsle_s(Vj->B[n], imm);
+        break;
+    case 16:
+        Vd->H[n] = vsle_s(Vj->H[n], imm);
+        break;
+    case 32:
+        Vd->W[n] = vsle_s(Vj->W[n], imm);
+        break;
+    case 64:
+        Vd->D[n] = vsle_s(Vj->D[n], imm);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vsle_b, 8, helper_vvv, do_vsle_s)
+DO_HELPER_VVV(vsle_h, 16, helper_vvv, do_vsle_s)
+DO_HELPER_VVV(vsle_w, 32, helper_vvv, do_vsle_s)
+DO_HELPER_VVV(vsle_d, 64, helper_vvv, do_vsle_s)
+DO_HELPER_VVV(vslei_b, 8, helper_vv_i, do_vslei_s)
+DO_HELPER_VVV(vslei_h, 16, helper_vv_i, do_vslei_s)
+DO_HELPER_VVV(vslei_w, 32, helper_vv_i, do_vslei_s)
+DO_HELPER_VVV(vslei_d, 64, helper_vv_i, do_vslei_s)
+
+static int64_t vsle_u(int64_t s1, int64_t s2, int bit)
+{
+    uint64_t umax = MAKE_64BIT_MASK(0, bit);
+    uint64_t u1 = s1 & umax;
+    uint64_t u2 = s2 & umax;
+
+    return u1 <= u2 ? -1 : 0;
+}
+
+static void do_vsle_u(vec_t *Vd, vec_t *Vj, vec_t *Vk, int  bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vsle_u(Vj->B[n], Vk->B[n], bit);
+        break;
+    case 16:
+        Vd->H[n] = vsle_u(Vj->H[n], Vk->H[n], bit);
+        break;
+    case 32:
+        Vd->W[n] = vsle_u(Vj->W[n], Vk->W[n], bit);
+        break;
+    case 64:
+        Vd->D[n] = vsle_u(Vj->D[n], Vk->D[n], bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vslei_u(vec_t *Vd, vec_t *Vj, uint32_t imm, int  bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vsle_u(Vj->B[n], imm, bit);
+        break;
+    case 16:
+        Vd->H[n] = vsle_u(Vj->H[n], imm, bit);
+        break;
+    case 32:
+        Vd->W[n] = vsle_u(Vj->W[n], imm, bit);
+        break;
+    case 64:
+        Vd->D[n] = vsle_u(Vj->D[n], imm, bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vsle_bu, 8, helper_vvv, do_vsle_u)
+DO_HELPER_VVV(vsle_hu, 16, helper_vvv, do_vsle_u)
+DO_HELPER_VVV(vsle_wu, 32, helper_vvv, do_vsle_u)
+DO_HELPER_VVV(vsle_du, 64, helper_vvv, do_vsle_u)
+DO_HELPER_VVV(vslei_bu, 8, helper_vv_i, do_vslei_u)
+DO_HELPER_VVV(vslei_hu, 16, helper_vv_i, do_vslei_u)
+DO_HELPER_VVV(vslei_wu, 32, helper_vv_i, do_vslei_u)
+DO_HELPER_VVV(vslei_du, 64, helper_vv_i, do_vslei_u)
+
+static int64_t vslt_s(int64_t s1, int64_t s2)
+{
+    return s1 < s2 ? -1 : 0;
+}
+
+static void do_vslt_s(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vslt_s(Vj->B[n], Vk->B[n]);
+        break;
+    case 16:
+        Vd->H[n] = vslt_s(Vj->H[n], Vk->H[n]);
+        break;
+    case 32:
+        Vd->W[n] = vslt_s(Vj->W[n], Vk->W[n]);
+        break;
+    case 64:
+        Vd->D[n] = vslt_s(Vj->D[n], Vk->D[n]);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vslti_s(vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vslt_s(Vj->B[n], imm);
+        break;
+    case 16:
+        Vd->H[n] = vslt_s(Vj->H[n], imm);
+        break;
+    case 32:
+        Vd->W[n] = vslt_s(Vj->W[n], imm);
+        break;
+    case 64:
+        Vd->D[n] = vslt_s(Vj->D[n], imm);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vslt_b, 8, helper_vvv, do_vslt_s)
+DO_HELPER_VVV(vslt_h, 16, helper_vvv, do_vslt_s)
+DO_HELPER_VVV(vslt_w, 32, helper_vvv, do_vslt_s)
+DO_HELPER_VVV(vslt_d, 64, helper_vvv, do_vslt_s)
+DO_HELPER_VVV(vslti_b, 8, helper_vv_i, do_vslti_s)
+DO_HELPER_VVV(vslti_h, 16, helper_vv_i, do_vslti_s)
+DO_HELPER_VVV(vslti_w, 32, helper_vv_i, do_vslti_s)
+DO_HELPER_VVV(vslti_d, 64, helper_vv_i, do_vslti_s)
+
+static int64_t vslt_u(int64_t s1, int64_t s2, int bit)
+{
+    uint64_t umax = MAKE_64BIT_MASK(0, bit);
+    uint64_t u1 = s1 & umax;
+    uint64_t u2 = s2 & umax;
+
+    return u1 < u2 ? -1 : 0;
+}
+
+static void do_vslt_u(vec_t *Vd, vec_t *Vj, vec_t *Vk, int  bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vslt_u(Vj->B[n], Vk->B[n], bit);
+        break;
+    case 16:
+        Vd->H[n] = vslt_u(Vj->H[n], Vk->H[n], bit);
+        break;
+    case 32:
+        Vd->W[n] = vslt_u(Vj->W[n], Vk->W[n], bit);
+        break;
+    case 64:
+        Vd->D[n] = vslt_u(Vj->D[n], Vk->D[n], bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vslti_u(vec_t *Vd, vec_t *Vj, uint32_t imm, int  bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vslt_u(Vj->B[n], imm, bit);
+        break;
+    case 16:
+        Vd->H[n] = vslt_u(Vj->H[n], imm, bit);
+        break;
+    case 32:
+        Vd->W[n] = vslt_u(Vj->W[n], imm, bit);
+        break;
+    case 64:
+        Vd->D[n] = vslt_u(Vj->D[n], imm, bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vslt_bu, 8, helper_vvv, do_vslt_u)
+DO_HELPER_VVV(vslt_hu, 16, helper_vvv, do_vslt_u)
+DO_HELPER_VVV(vslt_wu, 32, helper_vvv, do_vslt_u)
+DO_HELPER_VVV(vslt_du, 64, helper_vvv, do_vslt_u)
+DO_HELPER_VVV(vslti_bu, 8, helper_vv_i, do_vslti_u)
+DO_HELPER_VVV(vslti_hu, 16, helper_vv_i, do_vslti_u)
+DO_HELPER_VVV(vslti_wu, 32, helper_vv_i, do_vslti_u)
+DO_HELPER_VVV(vslti_du, 64, helper_vv_i, do_vslti_u)
