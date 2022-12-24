@@ -768,3 +768,12 @@ DEF_HELPER_4(vslti_bu, void, env, i32, i32, i32)
 DEF_HELPER_4(vslti_hu, void, env, i32, i32, i32)
 DEF_HELPER_4(vslti_wu, void, env, i32, i32, i32)
 DEF_HELPER_4(vslti_du, void, env, i32, i32, i32)
+
+/* vfcmp.cXXX.s */
+DEF_HELPER_5(vfcmp_c_s, void, env, i32, i32, i32, i32)
+/* vfcmp.sXXX.s */
+DEF_HELPER_5(vfcmp_s_s, void, env, i32, i32, i32, i32)
+/* vfcmp.cXXX.d */
+DEF_HELPER_5(vfcmp_c_d, void, env, i32, i32, i32, i32)
+/* vfcmp.sXXX.d */
+DEF_HELPER_5(vfcmp_s_d, void, env, i32, i32, i32, i32)

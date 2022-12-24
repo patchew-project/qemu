@@ -4237,3 +4237,41 @@ DO_HELPER_VVV(vslti_bu, 8, helper_vv_i, do_vslti_u)
 DO_HELPER_VVV(vslti_hu, 16, helper_vv_i, do_vslti_u)
 DO_HELPER_VVV(vslti_wu, 32, helper_vv_i, do_vslti_u)
 DO_HELPER_VVV(vslti_du, 64, helper_vv_i, do_vslti_u)
+
+#define LSX_FCMP_S(name)                                            \
+void helper_v## name ##_s(CPULoongArchState *env, uint32_t vd,      \
+                          uint32_t vj, uint32_t vk, uint32_t flags) \
+{                                                                   \
+    int ret;                                                        \
+    int i;                                                          \
+    vec_t *Vd = &(env->fpr[vd].vec);                                \
+    vec_t *Vj = &(env->fpr[vj].vec);                                \
+    vec_t *Vk = &(env->fpr[vk].vec);                                \
+                                                                    \
+    for (i = 0; i < 4; i++) {                                       \
+        ret = helper_## name ## _s(env, Vj->W[i], Vk->W[i], flags); \
+        Vd->W[i] = (ret == 1) ? -1 : 0;                             \
+    }                                                               \
+}
+
+LSX_FCMP_S(fcmp_c)
+LSX_FCMP_S(fcmp_s)
+
+#define LSX_FCMP_D(name)                                            \
+void helper_v## name ##_d(CPULoongArchState *env, uint32_t vd,      \
+                          uint32_t vj, uint32_t vk, uint32_t flags) \
+{                                                                   \
+    int ret;                                                        \
+    int i;                                                          \
+    vec_t *Vd = &(env->fpr[vd].vec);                                \
+    vec_t *Vj = &(env->fpr[vj].vec);                                \
+    vec_t *Vk = &(env->fpr[vk].vec);                                \
+                                                                    \
+    for (i = 0; i < 2; i++) {                                       \
+        ret = helper_## name ## _d(env, Vj->D[i], Vk->D[i], flags); \
+        Vd->D[i] = (ret == 1) ? -1 : 0;                             \
+    }                                                               \
+}
+
+LSX_FCMP_D(fcmp_c)
+LSX_FCMP_D(fcmp_s)
