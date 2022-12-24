@@ -1780,3 +1780,52 @@ DO_HELPER_VV_I(vsat_bu, 8, helper_vv_i, do_vsat_u)
 DO_HELPER_VV_I(vsat_hu, 16, helper_vv_i, do_vsat_u)
 DO_HELPER_VV_I(vsat_wu, 32, helper_vv_i, do_vsat_u)
 DO_HELPER_VV_I(vsat_du, 64, helper_vv_i, do_vsat_u)
+
+static void do_vexth_s(vec_t *Vd, vec_t *Vj, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->H[n] = Vj->B[n + LSX_LEN/bit];
+        break;
+    case 32:
+        Vd->W[n] = Vj->H[n + LSX_LEN/bit];
+        break;
+    case 64:
+        Vd->D[n] = Vj->W[n + LSX_LEN/bit];
+        break;
+    case 128:
+        Vd->Q[n] = Vj->D[n + LSX_LEN/bit];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vexth_u(vec_t *Vd, vec_t *Vj, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->H[n] = (uint8_t)Vj->B[n + LSX_LEN/bit];
+        break;
+    case 32:
+        Vd->W[n] = (uint16_t)Vj->H[n + LSX_LEN/bit];
+        break;
+    case 64:
+        Vd->D[n] = (uint32_t)Vj->W[n + LSX_LEN/bit];
+        break;
+    case 128:
+        Vd->Q[n] = (uint64_t)Vj->D[n + LSX_LEN/bit];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VV(vexth_h_b, 16, helper_vv, do_vexth_s)
+DO_HELPER_VV(vexth_w_h, 32, helper_vv, do_vexth_s)
+DO_HELPER_VV(vexth_d_w, 64, helper_vv, do_vexth_s)
+DO_HELPER_VV(vexth_q_d, 128, helper_vv, do_vexth_s)
+DO_HELPER_VV(vexth_hu_bu, 16, helper_vv, do_vexth_u)
+DO_HELPER_VV(vexth_wu_hu, 32, helper_vv, do_vexth_u)
+DO_HELPER_VV(vexth_du_wu, 64, helper_vv, do_vexth_u)
+DO_HELPER_VV(vexth_qu_du, 128, helper_vv, do_vexth_u)
