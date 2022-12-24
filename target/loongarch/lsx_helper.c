@@ -51,6 +51,24 @@ static  void helper_vv_i(CPULoongArchState *env,
     }
 }
 
+static void helper_vv_i_c(CPULoongArchState *env,
+                         uint32_t vd, uint32_t vj, uint32_t imm, int bit,
+                         void (*func)(vec_t*, vec_t*, uint32_t, int, int))
+{
+    int i;
+    vec_t *Vd = &(env->fpr[vd].vec);
+    vec_t *Vj = &(env->fpr[vj].vec);
+
+    vec_t dest;
+    dest.D[0] = 0;
+    dest.D[1] = 0;
+    for (i = 0; i < LSX_LEN/bit; i++) {
+         func(&dest, Vj, imm, bit, i);
+    }
+    Vd->D[0] = dest.D[0];
+    Vd->D[1] = dest.D[1];
+}
+
 static void helper_vv(CPULoongArchState *env,
                       uint32_t vd, uint32_t vj, int bit,
                       void (*func)(vec_t*, vec_t*, int, int))
@@ -2187,3 +2205,56 @@ DO_HELPER_VV_I(vrotri_b, 8, helper_vv_i, do_vrotri)
 DO_HELPER_VV_I(vrotri_h, 16, helper_vv_i, do_vrotri)
 DO_HELPER_VV_I(vrotri_w, 32, helper_vv_i, do_vrotri)
 DO_HELPER_VV_I(vrotri_d, 64, helper_vv_i, do_vrotri)
+
+static void do_vsllwil_s(vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->H[n] = ((int8_t)Vj->B[n]) << ((uint64_t)(imm) % bit);
+        break;
+    case 32:
+        Vd->W[n] = ((int16_t)Vj->H[n]) << ((uint64_t)(imm) % bit);
+        break;
+    case 64:
+        Vd->D[n] = ((int64_t)(int32_t)Vj->W[n]) << ((uint64_t)(imm) % bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vextl_q_d(vec_t *Vd, vec_t *Vj, int bit, int n)
+{
+    Vd->Q[0] = (__int128_t)Vj->D[0];
+}
+
+static void do_vsllwil_u(vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->H[n] = ((uint8_t)Vj->B[n]) << ((uint64_t)(imm) % bit);
+        break;
+    case 32:
+        Vd->W[n] = ((uint16_t)Vj->H[n]) << ((uint64_t)(imm) % bit);
+        break;
+    case 64:
+        Vd->D[n] = ((uint64_t)(uint32_t)Vj->W[n]) << ((uint64_t)(imm) % bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vextl_qu_du(vec_t *Vd, vec_t *Vj, int bit, int n)
+{
+     Vd->Q[0] = (uint64_t)Vj->D[0];
+}
+
+DO_HELPER_VV_I(vsllwil_h_b, 16, helper_vv_i_c, do_vsllwil_s)
+DO_HELPER_VV_I(vsllwil_w_h, 32, helper_vv_i_c, do_vsllwil_s)
+DO_HELPER_VV_I(vsllwil_d_w, 64, helper_vv_i_c, do_vsllwil_s)
+DO_HELPER_VV(vextl_q_d, 128, helper_vv, do_vextl_q_d)
+DO_HELPER_VV_I(vsllwil_hu_bu, 16, helper_vv_i_c, do_vsllwil_u)
+DO_HELPER_VV_I(vsllwil_wu_hu, 32, helper_vv_i_c, do_vsllwil_u)
+DO_HELPER_VV_I(vsllwil_du_wu, 64, helper_vv_i_c, do_vsllwil_u)
+DO_HELPER_VV(vextl_qu_du, 128, helper_vv, do_vextl_qu_du)
