@@ -130,3 +130,15 @@ DEF_HELPER_4(ldpte, void, env, tl, tl, i32)
 DEF_HELPER_1(ertn, void, env)
 DEF_HELPER_1(idle, void, env)
 #endif
+
+/* LoongArch LSX  */
+DEF_HELPER_4(vadd_b, void, env, i32, i32, i32)
+DEF_HELPER_4(vadd_h, void, env, i32, i32, i32)
+DEF_HELPER_4(vadd_w, void, env, i32, i32, i32)
+DEF_HELPER_4(vadd_d, void, env, i32, i32, i32)
+DEF_HELPER_4(vadd_q, void, env, i32, i32, i32)
+DEF_HELPER_4(vsub_b, void, env, i32, i32, i32)
+DEF_HELPER_4(vsub_h, void, env, i32, i32, i32)
+DEF_HELPER_4(vsub_w, void, env, i32, i32, i32)
+DEF_HELPER_4(vsub_d, void, env, i32, i32, i32)
+DEF_HELPER_4(vsub_q, void, env, i32, i32, i32)
