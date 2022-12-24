@@ -4973,3 +4973,269 @@ DO_HELPER_VV_I(vextrins_b, 8, helper_vextrins, do_vextrins)
 DO_HELPER_VV_I(vextrins_h, 16, helper_vextrins, do_vextrins)
 DO_HELPER_VV_I(vextrins_w, 32, helper_vextrins, do_vextrins)
 DO_HELPER_VV_I(vextrins_d, 64, helper_vextrins, do_vextrins)
+
+void helper_vld_b(CPULoongArchState *env, uint32_t vd, target_ulong addr)
+{
+    int i;
+    vec_t *Vd = &(env->fpr[vd].vec);
+#if !defined(CONFIG_USER_ONLY)
+    MemOpIdx oi = make_memop_idx(MO_TE | MO_UNALN, cpu_mmu_index(env, false));
+
+    for (i = 0; i < LSX_LEN/8; i++) {
+        Vd->B[i]  = helper_ret_ldub_mmu(env, addr + i, oi, GETPC());
+    }
+#else
+    for (i = 0; i < LSX_LEN/8; i++) {
+        Vd->B[i]  = cpu_ldub_data(env, addr + i);
+    }
+#endif
+}
+
+#define LSX_PAGESPAN(x) \
+        ((((x) & ~TARGET_PAGE_MASK) + LSX_LEN/8 - 1) >= TARGET_PAGE_SIZE)
+
+static inline void ensure_writable_pages(CPULoongArchState *env,
+                                         target_ulong addr,
+                                         int mmu_idx,
+                                         uintptr_t retaddr)
+{
+#ifndef CONFIG_USER_ONLY
+    /* FIXME: Probe the actual accesses (pass and use a size) */
+    if (unlikely(LSX_PAGESPAN(addr))) {
+        /* first page */
+        probe_write(env, addr, 0, mmu_idx, retaddr);
+        /* second page */
+        addr = (addr & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
+        probe_write(env, addr, 0, mmu_idx, retaddr);
+    }
+#endif
+}
+
+void helper_vst_b(CPULoongArchState *env, uint32_t vd, target_ulong addr)
+{
+    int i;
+    vec_t *Vd = &(env->fpr[vd].vec);
+    int mmu_idx = cpu_mmu_index(env, false);
+
+    ensure_writable_pages(env, addr, mmu_idx, GETPC());
+#if !defined(CONFIG_USER_ONLY)
+    MemOpIdx oi = make_memop_idx(MO_TE | MO_UNALN, mmu_idx);
+    for (i = 0; i < LSX_LEN/8; i++) {
+        helper_ret_stb_mmu(env, addr + i, Vd->B[i],  oi, GETPC());
+    }
+#else
+    for (i = 0; i < LSX_LEN/8; i++) {
+        cpu_stb_data(env, addr + i, Vd->B[i]);
+    }
+#endif
+}
+
+void helper_vldrepl_b(CPULoongArchState *env, uint32_t vd, target_ulong addr)
+{
+    vec_t *Vd = &(env->fpr[vd].vec);
+    uint8_t data;
+#if !defined(CONFIG_USER_ONLY)
+    MemOpIdx oi = make_memop_idx(MO_TE | MO_8 | MO_UNALN,
+                                 cpu_mmu_index(env, false));
+    data = helper_ret_ldub_mmu(env, add, oi, GETPC());
+#else
+    data = cpu_ldub_data(env, addr);
+#endif
+    int i;
+    for (i = 0; i < 16; i++) {
+        Vd->B[i] = data;
+    }
+}
+
+void helper_vldrepl_h(CPULoongArchState *env, uint32_t vd, target_ulong addr)
+{
+    vec_t *Vd = &(env->fpr[vd].vec);
+    uint16_t data;
+#if !defined(CONFIG_USER_ONLY)
+    MemOpIdx oi = make_memop_idx(MO_TE | MO_16 | MO_UNALN,
+                                 cpu_mmu_index(env, false));
+    data = helper_le_lduw_mmu(env, addr, oi, GETPC());
+#else
+    data = cpu_lduw_data(env, addr);
+#endif
+    int i;
+    for (i = 0; i < 8; i++) {
+        Vd->H[i] = data;
+    }
+}
+
+void helper_vldrepl_w(CPULoongArchState *env, uint32_t vd, target_ulong addr)
+{
+    vec_t *Vd = &(env->fpr[vd].vec);
+    uint32_t data;
+#if !defined(CONFIG_USER_ONLY)
+    MemOpIdx oi = make_memop_idx(MO_TE | MO_32 | MO_UNALN,
+                                 cpu_mmu_index(env, false));
+    data = helper_le_ldul_mmu(env, addr, oi, GETPC());
+#else
+    data = cpu_ldl_data(env, addr);
+#endif
+    Vd->W[0] = data;
+    Vd->W[1] = data;
+    Vd->W[2] = data;
+    Vd->W[3] = data;
+}
+
+void helper_vldrepl_d(CPULoongArchState *env, uint32_t vd, target_ulong addr)
+{
+    vec_t *Vd = &(env->fpr[vd].vec);
+    uint64_t data;
+#if !defined(CONFIG_USER_ONLY)
+    MemOpIdx oi = make_memop_idx(MO_TE | MO_64 | MO_UNALN,
+                                 cpu_mmu_index(env, false));
+    data = helper_le_ldq_mmu(env, addr, oi, GETPC());
+#else
+    data = cpu_ldq_data(env, addr);
+#endif
+    Vd->D[0] = data;
+    Vd->D[1] = data;
+}
+
+#define B_PAGESPAN(x) \
+        ((((x) & ~TARGET_PAGE_MASK) + 8/8 - 1) >= TARGET_PAGE_SIZE)
+
+static inline void ensure_b_writable_pages(CPULoongArchState *env,
+                                           target_ulong addr,
+                                           int mmu_idx,
+                                           uintptr_t retaddr)
+{
+#ifndef CONFIG_USER_ONLY
+    /* FIXME: Probe the actual accesses (pass and use a size) */
+    if (unlikely(B_PAGESPAN(addr))) {
+        /* first page */
+        probe_write(env, addr, 0, mmu_idx, retaddr);
+        /* second page */
+        addr = (addr & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
+        probe_write(env, addr, 0, mmu_idx, retaddr);
+    }
+#endif
+}
+
+void helper_vstelm_b(CPULoongArchState *env,
+                     uint32_t vd, target_ulong addr, uint32_t sel)
+{
+    vec_t *Vd = &(env->fpr[vd].vec);
+    int mmu_idx = cpu_mmu_index(env, false);
+
+    ensure_b_writable_pages(env, addr, mmu_idx, GETPC());
+#if !defined(CONFIG_USER_ONLY)
+    MemOpIdx oi = make_memop_idx(MO_TE | MO_8 | MO_UNALN,
+                                 cpu_mmu_index(env, false));
+    helper_ret_stb_mmu(env, addr, Vd->B[sel], oi, GETPC());
+#else
+    cpu_stb_data(env, addr, Vd->B[sel]);
+#endif
+}
+
+#define H_PAGESPAN(x) \
+        ((((x) & ~TARGET_PAGE_MASK) + 16/8 - 1) >= TARGET_PAGE_SIZE)
+
+static inline void ensure_h_writable_pages(CPULoongArchState *env,
+                                           target_ulong addr,
+                                           int mmu_idx,
+                                           uintptr_t retaddr)
+{
+#ifndef CONFIG_USER_ONLY
+    /* FIXME: Probe the actual accesses (pass and use a size) */
+    if (unlikely(H_PAGESPAN(addr))) {
+        /* first page */
+        probe_write(env, addr, 0, mmu_idx, retaddr);
+        /* second page */
+        addr = (addr & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
+        probe_write(env, addr, 0, mmu_idx, retaddr);
+    }
+#endif
+}
+
+void helper_vstelm_h(CPULoongArchState *env,
+                     uint32_t vd, target_ulong addr, uint32_t sel)
+{
+    vec_t *Vd = &(env->fpr[vd].vec);
+    int mmu_idx = cpu_mmu_index(env, false);
+
+    ensure_h_writable_pages(env, addr, mmu_idx, GETPC());
+#if !defined(CONFIG_USER_ONLY)
+    MemOpIdx oi = make_memop_idx(MO_TE | MO_16 | MO_UNALN,
+                                 cpu_mmu_index(env, false));
+    helper_le_stw_mmu(env, addr, Vd->H[sel], oi, GETPC());
+#else
+    cpu_stw_data(env, addr, Vd->H[sel]);
+#endif
+}
+
+#define W_PAGESPAN(x) \
+        ((((x) & ~TARGET_PAGE_MASK) + 32/8 - 1) >= TARGET_PAGE_SIZE)
+
+static inline void ensure_w_writable_pages(CPULoongArchState *env,
+                                           target_ulong addr,
+                                           int mmu_idx,
+                                           uintptr_t retaddr)
+{
+#ifndef CONFIG_USER_ONLY
+    /* FIXME: Probe the actual accesses (pass and use a size) */
+    if (unlikely(W_PAGESPAN(addr))) {
+        /* first page */
+        probe_write(env, addr, 0, mmu_idx, retaddr);
+        /* second pdge */
+        addr = (addr & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
+        probe_write(env, addr, 0, mmu_idx, retaddr);
+    }
+#endif
+}
+
+void helper_vstelm_w(CPULoongArchState *env,
+                     uint32_t vd, target_ulong addr, uint32_t sel)
+{
+    vec_t *Vd = &(env->fpr[vd].vec);
+    int mmu_idx = cpu_mmu_index(env, false);
+
+    ensure_w_writable_pages(env, addr, mmu_idx, GETPC());
+#if !defined(CONFIG_USER_ONLY)
+    MemOpIdx oi = make_memop_idx(MO_TE | MO_32 | MO_UNALN,
+                                 cpu_mmu_index(env, false));
+    helper_le_stl_mmu(env, addr, Vd->W[sel], oi, GETPC());
+#else
+    cpu_stl_data(env, addr, Vd->W[sel]);
+#endif
+}
+
+#define D_PAGESPAN(x) \
+        ((((x) & ~TARGET_PAGE_MASK) + 32/8 - 1) >= TARGET_PAGE_SIZE)
+
+static inline void ensure_d_writable_pages(CPULoongArchState *env,
+                                           target_ulong addr,
+                                           int mmu_idx,
+                                           uintptr_t retaddr)
+{
+#ifndef CONFIG_USER_ONLY
+    /* FIXME: Probe the actual accesses (pass and use a size) */
+    if (unlikely(D_PAGESPAN(addr))) {
+        /* first page */
+        probe_write(env, addr, 0, mmu_idx, retaddr);
+        /* second page */
+        addr = (addr & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
+        probe_write(env, addr, 0, mmu_idx, retaddr);
+    }
+#endif
+}
+
+void helper_vstelm_d(CPULoongArchState *env,
+                     uint32_t vd, target_ulong addr, uint32_t sel)
+{
+    vec_t *Vd = &(env->fpr[vd].vec);
+    int mmu_idx = cpu_mmu_index(env, false);
+
+    ensure_d_writable_pages(env, addr, mmu_idx, GETPC());
+#if !defined(CONFIG_USER_ONLY)
+    MemOpIdx oi = make_memop_idx(MO_TE | MO_64 | MO_UNALN,
+                                 cpu_mmu_index(env, false));
+    helper_le_stq_mmu(env, addr, Vd->D[sel], oi, GETPC());
+#else
+    cpu_stq_data(env, addr, Vd->D[sel]);
+#endif
+}

@@ -873,3 +873,78 @@ TRANS(vextrins_b, gen_vv_i, gen_helper_vextrins_b)
 TRANS(vextrins_h, gen_vv_i, gen_helper_vextrins_h)
 TRANS(vextrins_w, gen_vv_i, gen_helper_vextrins_w)
 TRANS(vextrins_d, gen_vv_i, gen_helper_vextrins_d)
+
+static bool gen_memory(DisasContext *ctx, arg_vr_i *a,
+                       void (*func)(TCGv_ptr, TCGv_i32, TCGv))
+{
+    TCGv_i32 vd = tcg_constant_i32(a->vd);
+    TCGv addr = gpr_src(ctx, a->rj, EXT_NONE);
+    TCGv temp = NULL;
+
+    CHECK_SXE;
+
+    if (a->imm) {
+        temp = tcg_temp_new();
+        tcg_gen_addi_tl(temp, addr, a->imm);
+        addr = temp;
+    }
+
+    func(cpu_env, vd, addr);
+    if (temp) {
+        tcg_temp_free(temp);
+    }
+    return true;
+}
+
+static bool gen_memory_x(DisasContext *ctx, arg_vrr *a,
+                    void (*func)(TCGv_ptr, TCGv_i32, TCGv))
+{
+    TCGv_i32 vd = tcg_constant_i32(a->vd);
+    TCGv src1 = gpr_src(ctx, a->rj, EXT_NONE);
+    TCGv src2 = gpr_src(ctx, a->rk, EXT_NONE);
+
+    CHECK_SXE;
+
+    TCGv addr = tcg_temp_new();
+    tcg_gen_add_tl(addr, src1, src2);
+    func(cpu_env, vd, addr);
+    tcg_temp_free(addr);
+    return true;
+}
+
+TRANS(vld, gen_memory, gen_helper_vld_b)
+TRANS(vst, gen_memory, gen_helper_vst_b)
+TRANS(vldx, gen_memory_x, gen_helper_vld_b)
+TRANS(vstx, gen_memory_x, gen_helper_vst_b)
+
+static bool gen_memory_elm(DisasContext *ctx, arg_vr_ii *a,
+                           void (*func)(TCGv_ptr, TCGv_i32, TCGv, TCGv_i32))
+{
+    TCGv_i32 vd = tcg_constant_i32(a->vd);
+    TCGv addr = gpr_src(ctx, a->rj, EXT_NONE);
+    TCGv_i32 tidx = tcg_constant_i32(a->imm2);
+    TCGv temp = NULL;
+
+    CHECK_SXE;
+
+    if (a->imm) {
+        temp = tcg_temp_new();
+        tcg_gen_addi_tl(temp, addr, a->imm);
+        addr = temp;
+    }
+
+    func(cpu_env, vd, addr, tidx);
+    if (temp) {
+        tcg_temp_free(temp);
+    }
+    return true;
+}
+
+TRANS(vldrepl_b, gen_memory, gen_helper_vldrepl_b)
+TRANS(vldrepl_h, gen_memory, gen_helper_vldrepl_h)
+TRANS(vldrepl_w, gen_memory, gen_helper_vldrepl_w)
+TRANS(vldrepl_d, gen_memory, gen_helper_vldrepl_d)
+TRANS(vstelm_b, gen_memory_elm, gen_helper_vstelm_b)
+TRANS(vstelm_h, gen_memory_elm, gen_helper_vstelm_h)
+TRANS(vstelm_w, gen_memory_elm, gen_helper_vstelm_w)
+TRANS(vstelm_d, gen_memory_elm, gen_helper_vstelm_d)
