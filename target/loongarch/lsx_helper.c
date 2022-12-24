@@ -1710,3 +1710,73 @@ DO_HELPER_VVV(vmod_bu, 8, helper_vvv, do_vmod_u)
 DO_HELPER_VVV(vmod_hu, 16, helper_vvv, do_vmod_u)
 DO_HELPER_VVV(vmod_wu, 32, helper_vvv, do_vmod_u)
 DO_HELPER_VVV(vmod_du, 64, helper_vvv, do_vmod_u)
+
+static int64_t sat_s(int64_t s1, uint32_t imm)
+{
+    int64_t max = MAKE_64BIT_MASK(0, imm);
+    int64_t min = MAKE_64BIT_MASK(imm, 64);
+
+    if (s1 > max -1) {
+        return max;
+    } else if (s1 < - max) {
+        return min;
+    } else {
+        return s1;
+    }
+}
+
+static void do_vsat_s(vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = sat_s(Vj->B[n], imm);
+        break;
+    case 16:
+        Vd->H[n] = sat_s(Vj->H[n], imm);
+        break;
+    case 32:
+        Vd->W[n] = sat_s(Vj->W[n], imm);
+        break;
+    case 64:
+        Vd->D[n] = sat_s(Vj->D[n], imm);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static uint64_t sat_u(uint64_t u1, uint32_t imm)
+{
+    uint64_t umax_imm = MAKE_64BIT_MASK(0, imm + 1);
+
+    return u1 < umax_imm ? u1 : umax_imm;
+}
+
+static void do_vsat_u(vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = sat_u((uint8_t)Vj->B[n], imm);
+        break;
+    case 16:
+        Vd->H[n] = sat_u((uint16_t)Vj->H[n], imm);
+        break;
+    case 32:
+        Vd->W[n] = sat_u((uint32_t)Vj->W[n], imm);
+        break;
+    case 64:
+        Vd->D[n] = sat_u((uint64_t)Vj->D[n], imm);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VV_I(vsat_b, 8, helper_vv_i, do_vsat_s)
+DO_HELPER_VV_I(vsat_h, 16, helper_vv_i, do_vsat_s)
+DO_HELPER_VV_I(vsat_w, 32, helper_vv_i, do_vsat_s)
+DO_HELPER_VV_I(vsat_d, 64, helper_vv_i, do_vsat_s)
+DO_HELPER_VV_I(vsat_bu, 8, helper_vv_i, do_vsat_u)
+DO_HELPER_VV_I(vsat_hu, 16, helper_vv_i, do_vsat_u)
+DO_HELPER_VV_I(vsat_wu, 32, helper_vv_i, do_vsat_u)
+DO_HELPER_VV_I(vsat_du, 64, helper_vv_i, do_vsat_u)
