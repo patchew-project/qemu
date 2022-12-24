@@ -2988,6 +2988,25 @@ float64 float64_round_to_int(float64 a, float_status *s)
     return float64_round_pack_canonical(&p, s);
 }
 
+#define FRINT_RM(rm, rmode, bits)                             \
+float ## bits float ## bits ## _round_to_int_ ## rm(          \
+                         float ## bits a, float_status *s)    \
+{                                                             \
+    FloatParts64 pa;   \
+    float ## bits ## _unpack_canonical(&pa, a, s); \
+    parts_round_to_int(&pa, rmode, 0, s, &float64_params);    \
+    return float ## bits ## _round_pack_canonical(&pa, s);    \
+}
+FRINT_RM(rne , float_round_nearest_even, 32)
+FRINT_RM(rz  , float_round_down        , 32)
+FRINT_RM(rp  , float_round_up          , 32)
+FRINT_RM(rm  , float_round_to_zero     , 32)
+FRINT_RM(rne , float_round_nearest_even, 64)
+FRINT_RM(rz  , float_round_down        , 64)
+FRINT_RM(rp  , float_round_up          , 64)
+FRINT_RM(rm  , float_round_to_zero     , 64)
+#undef FRINT_RM
+
 bfloat16 bfloat16_round_to_int(bfloat16 a, float_status *s)
 {
     FloatParts64 p;
@@ -3347,6 +3366,42 @@ int16_t float64_to_int16_round_to_zero(float64 a, float_status *s)
 int32_t float64_to_int32_round_to_zero(float64 a, float_status *s)
 {
     return float64_to_int32_scalbn(a, float_round_to_zero, 0, s);
+}
+
+#define FTINT_RM(rm, rmode, sbits, dbits)                                 \
+int ## dbits ## _t float ## sbits ## _to_int ## dbits ## _ ## rm(         \
+                         float ## sbits a, float_status *s)               \
+{                                                                         \
+    return float ## sbits ## _to_int ## dbits ## _scalbn(a, rmode, 0, s); \
+}
+FTINT_RM(rne , float_round_nearest_even, 32, 32)
+FTINT_RM(rz  , float_round_down        , 32, 32)
+FTINT_RM(rp  , float_round_up          , 32, 32)
+FTINT_RM(rm  , float_round_to_zero     , 32, 32)
+FTINT_RM(rne , float_round_nearest_even, 64, 64)
+FTINT_RM(rz  , float_round_down        , 64, 64)
+FTINT_RM(rp  , float_round_up          , 64, 64)
+FTINT_RM(rm  , float_round_to_zero     , 64, 64)
+
+FTINT_RM(rne , float_round_nearest_even, 32, 64)
+FTINT_RM(rz  , float_round_down        , 32, 64)
+FTINT_RM(rp  , float_round_up          , 32, 64)
+FTINT_RM(rm  , float_round_to_zero     , 32, 64)
+#undef FTINT_RM
+
+int32_t float64_to_int32_round_up(float64 a, float_status *s)
+{
+    return float64_to_int32_scalbn(a, float_round_up, 0, s);
+}
+
+int32_t float64_to_int32_round_down(float64 a, float_status *s)
+{
+    return float64_to_int32_scalbn(a, float_round_down, 0, s);
+}
+
+int32_t float64_to_int32_round_nearest_even(float64 a, float_status *s)
+{
+    return float64_to_int32_scalbn(a, float_round_nearest_even, 0, s);
 }
 
 int64_t float64_to_int64_round_to_zero(float64 a, float_status *s)

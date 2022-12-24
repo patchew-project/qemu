@@ -3634,6 +3634,7 @@ LSX_DO_VV(fclass)
 LSX_DO_VV(fsqrt)
 LSX_DO_VV(frecip)
 LSX_DO_VV(frsqrt)
+LSX_DO_VV(frint)
 
 DO_HELPER_VV(vflogb_s, 32, helper_vv_f, do_vflogb)
 DO_HELPER_VV(vflogb_d, 64, helper_vv_f, do_vflogb)
@@ -3647,3 +3648,314 @@ DO_HELPER_VV(vfrecip_s, 32, helper_vv_f, do_vfrecip)
 DO_HELPER_VV(vfrecip_d, 64, helper_vv_f, do_vfrecip)
 DO_HELPER_VV(vfrsqrt_s, 32, helper_vv_f, do_vfrsqrt)
 DO_HELPER_VV(vfrsqrt_d, 64, helper_vv_f, do_vfrsqrt)
+
+static void do_vfcvtl(CPULoongArchState *env, vec_t *Vd,
+                      vec_t *Vj, int bit, int n)
+{
+    uint32_t s;
+    uint64_t d;
+
+    switch (bit) {
+    case 32:
+        s = float16_to_float32((uint16_t)Vj->H[n], true, &env->fp_status);
+        Vd->W[n] = Vj->H[n] < 0 ? (s | (1 << 31)) : s;
+        break;
+    case 64:
+        d = float32_to_float64((uint32_t)Vj->W[n], &env->fp_status);
+        Vd->D[n] = Vj->W[n] < 0 ? (d | (1ULL << 63)) : d;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    update_fcsr0(env, GETPC());
+}
+
+static void do_vfcvth(CPULoongArchState *env, vec_t *Vd,
+                      vec_t *Vj, int bit, int n)
+{
+    uint32_t s;
+    uint64_t d;
+
+    switch (bit) {
+    case 32:
+        s = float16_to_float32((uint16_t)Vj->H[n + 4], true, &env->fp_status);
+        Vd->W[n] = Vj->H[n + 4] < 0 ? (s | (1 << 31)) : s;
+        break;
+    case 64:
+        d = float32_to_float64((uint32_t)Vj->W[n + 2], &env->fp_status);
+        Vd->D[n] = Vj->W[n + 2] < 0 ? (d | (1ULL << 63)) : d;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    update_fcsr0(env, GETPC());
+}
+
+static void do_vfcvt(float_status *status, vec_t *Vd,
+                      vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    uint16_t H_h, H_l;
+    uint32_t S_h, S_l;
+
+    switch (bit) {
+    case 32:
+        H_h = float32_to_float16((uint32_t)Vj->W[n], true, status);
+        H_l = float32_to_float16((uint32_t)Vk->W[n], true, status);
+        Vd->H[n + 4] = Vj->W[n] < 0 ? (H_h | (1 << 15)) : H_h;
+        Vd->H[n] = Vk->W[n] < 0 ? (H_l | (1 << 15)) : H_l;
+        break;
+    case 64:
+        S_h = float64_to_float32((uint64_t)Vj->D[n], status);
+        S_l = float64_to_float32((uint64_t)Vk->D[n], status);
+        Vd->W[n + 2] = Vj->D[n] < 0 ? (S_h | (1 << 31)) : S_h;
+        Vd->W[n] = Vk->D[n] < 0 ? (S_l | (1 << 31)) : S_l;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VV(vfcvtl_s_h, 32, helper_vv_f, do_vfcvtl)
+DO_HELPER_VV(vfcvth_s_h, 32, helper_vv_f, do_vfcvth)
+DO_HELPER_VV(vfcvtl_d_s, 64, helper_vv_f, do_vfcvtl)
+DO_HELPER_VV(vfcvth_d_s, 64, helper_vv_f, do_vfcvth)
+DO_HELPER_VVV(vfcvt_h_s, 32, helper_vvv_f, do_vfcvt)
+DO_HELPER_VVV(vfcvt_s_d, 64, helper_vvv_f, do_vfcvt)
+
+#define LSX_FRINT_RM(rm)                                                   \
+static void do_vfrint## rm (CPULoongArchState *env, vec_t *Vd,             \
+                          vec_t *Vj, int bit, int n)                       \
+{                                                                          \
+    switch (bit) {                                                         \
+    case 32:                                                               \
+        Vd->W[n] = float32_round_to_int_## rm (Vj->W[n], &env->fp_status); \
+        break;                                                             \
+    case 64:                                                               \
+        Vd->D[n] = float64_round_to_int_## rm (Vj->D[n], &env->fp_status); \
+        break;                                                             \
+    default:                                                               \
+        g_assert_not_reached();                                            \
+    }                                                                      \
+    update_fcsr0(env, GETPC());                                            \
+}
+
+LSX_FRINT_RM(rne)
+LSX_FRINT_RM(rz)
+LSX_FRINT_RM(rp)
+LSX_FRINT_RM(rm)
+
+DO_HELPER_VV(vfrintrne_s, 32, helper_vv_f, do_vfrintrne)
+DO_HELPER_VV(vfrintrne_d, 64, helper_vv_f, do_vfrintrne)
+DO_HELPER_VV(vfrintrz_s, 32, helper_vv_f, do_vfrintrz)
+DO_HELPER_VV(vfrintrz_d, 64, helper_vv_f, do_vfrintrz)
+DO_HELPER_VV(vfrintrp_s, 32, helper_vv_f, do_vfrintrp)
+DO_HELPER_VV(vfrintrp_d, 64, helper_vv_f, do_vfrintrp)
+DO_HELPER_VV(vfrintrm_s, 32, helper_vv_f, do_vfrintrm)
+DO_HELPER_VV(vfrintrm_d, 64, helper_vv_f, do_vfrintrm)
+DO_HELPER_VV(vfrint_s, 32, helper_vv_f, do_vfrint)
+DO_HELPER_VV(vfrint_d, 64, helper_vv_f, do_vfrint)
+
+#define LSX_FTINT_RM(name)                                  \
+static void do_v## name (CPULoongArchState *env, vec_t *Vd, \
+                          vec_t *Vj, int bit, int n)        \
+{                                                           \
+    switch (bit) {                                          \
+    case 32:                                                \
+        Vd->W[n] = helper_## name ## _w_s(env, Vj->W[n]);   \
+        break;                                              \
+    case 64:                                                \
+        Vd->D[n] = helper_## name ## _l_d(env, Vj->D[n]);   \
+        break;                                              \
+    default:                                                \
+        g_assert_not_reached();                             \
+    }                                                       \
+}                                                           \
+
+LSX_FTINT_RM(ftintrne)
+LSX_FTINT_RM(ftintrp)
+LSX_FTINT_RM(ftintrz)
+LSX_FTINT_RM(ftintrm)
+LSX_FTINT_RM(ftint)
+
+DO_HELPER_VV(vftintrne_w_s, 32, helper_vv_f, do_vftintrne)
+DO_HELPER_VV(vftintrne_l_d, 64, helper_vv_f, do_vftintrne)
+DO_HELPER_VV(vftintrp_w_s, 32, helper_vv_f, do_vftintrp)
+DO_HELPER_VV(vftintrp_l_d, 64, helper_vv_f, do_vftintrp)
+DO_HELPER_VV(vftintrz_w_s, 32, helper_vv_f, do_vftintrz)
+DO_HELPER_VV(vftintrz_l_d, 64, helper_vv_f, do_vftintrz)
+DO_HELPER_VV(vftintrm_w_s, 32, helper_vv_f, do_vftintrm)
+DO_HELPER_VV(vftintrm_l_d, 64, helper_vv_f, do_vftintrm)
+DO_HELPER_VV(vftint_w_s, 32, helper_vv_f, do_vftint)
+DO_HELPER_VV(vftint_l_d, 64, helper_vv_f, do_vftint)
+
+static void do_vftintrz_u(CPULoongArchState *env, vec_t *Vd,
+                          vec_t *Vj, int bit, int n)
+{
+    switch (bit) {
+    case 32:
+        Vd->W[n] = float32_to_uint32_round_to_zero(Vj->W[n], &env->fp_status);
+        break;
+    case 64:
+        Vd->D[n] = float64_to_uint64_round_to_zero(Vj->D[n], &env->fp_status);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    update_fcsr0(env, GETPC());
+}
+
+static void do_vftint_u(CPULoongArchState *env, vec_t *Vd,
+                        vec_t *Vj, int bit, int n)
+{
+    switch (bit) {
+    case 32:
+        Vd->W[n] = float32_to_uint32(Vj->W[n], &env->fp_status);
+        break;
+    case 64:
+        Vd->D[n] = float64_to_uint64(Vj->D[n], &env->fp_status);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    update_fcsr0(env, GETPC());
+}
+
+DO_HELPER_VV(vftintrz_wu_s, 32, helper_vv_f, do_vftintrz_u)
+DO_HELPER_VV(vftintrz_lu_d, 64, helper_vv_f, do_vftintrz_u)
+DO_HELPER_VV(vftint_wu_s, 32, helper_vv_f, do_vftint_u)
+DO_HELPER_VV(vftint_lu_d, 64, helper_vv_f, do_vftint_u)
+
+#define LSX_FTINT_W_D(name)                                      \
+void helper_v## name ##_w_d(CPULoongArchState *env, uint32_t vd, \
+                            uint32_t vj, uint32_t vk)            \
+{                                                                \
+    int i;                                                       \
+    vec_t *Vd = &(env->fpr[vd].vec);                             \
+    vec_t *Vj = &(env->fpr[vj].vec);                             \
+    vec_t *Vk = &(env->fpr[vk].vec);                             \
+                                                                 \
+    vec_t dest;                                                  \
+    dest.D[0] = 0;                                               \
+    dest.D[1] = 0;                                               \
+    for (i = 0; i < 2; i++) {                                    \
+        dest.W[i + 2] = helper_## name ## _w_d(env, Vj->D[i]);   \
+        dest.W[i]  = helper_## name ## _w_d(env, Vk->D[i]);      \
+    }                                                            \
+    Vd->D[0] = dest.D[0];                                        \
+    Vd->D[1] = dest.D[1];                                        \
+}
+
+LSX_FTINT_W_D(ftintrne)
+LSX_FTINT_W_D(ftintrz)
+LSX_FTINT_W_D(ftintrp)
+LSX_FTINT_W_D(ftintrm)
+LSX_FTINT_W_D(ftint)
+
+#define LSX_FTINTL_L_S(name)                                       \
+static void do_v## name ##l_l_s(CPULoongArchState *env, vec_t *Vd, \
+                                vec_t *Vj, int bit, int n)         \
+{                                                                  \
+     Vd->D[n]  = helper_## name ## _l_s(env, Vj->W[n]);            \
+}                                                                  \
+
+LSX_FTINTL_L_S(ftintrne)
+LSX_FTINTL_L_S(ftintrz)
+LSX_FTINTL_L_S(ftintrp)
+LSX_FTINTL_L_S(ftintrm)
+LSX_FTINTL_L_S(ftint)
+
+#define LSX_FTINTH_L_S(name)                                       \
+static void do_v## name ##h_l_s(CPULoongArchState *env, vec_t *Vd, \
+                                vec_t *Vj, int bit, int n)         \
+{                                                                  \
+     Vd->D[n]  = helper_## name ## _l_s(env, Vj->W[n + 2]);        \
+}                                                                  \
+
+LSX_FTINTH_L_S(ftintrne)
+LSX_FTINTH_L_S(ftintrz)
+LSX_FTINTH_L_S(ftintrp)
+LSX_FTINTH_L_S(ftintrm)
+LSX_FTINTH_L_S(ftint)
+
+DO_HELPER_VV(vftintrnel_l_s, 64, helper_vv_f, do_vftintrnel_l_s)
+DO_HELPER_VV(vftintrneh_l_s, 64, helper_vv_f, do_vftintrneh_l_s)
+DO_HELPER_VV(vftintrzl_l_s, 64, helper_vv_f, do_vftintrzl_l_s)
+DO_HELPER_VV(vftintrzh_l_s, 64, helper_vv_f, do_vftintrzh_l_s)
+DO_HELPER_VV(vftintrpl_l_s, 64, helper_vv_f, do_vftintrpl_l_s)
+DO_HELPER_VV(vftintrph_l_s, 64, helper_vv_f, do_vftintrph_l_s)
+DO_HELPER_VV(vftintrml_l_s, 64, helper_vv_f, do_vftintrml_l_s)
+DO_HELPER_VV(vftintrmh_l_s, 64, helper_vv_f, do_vftintrmh_l_s)
+DO_HELPER_VV(vftintl_l_s, 64, helper_vv_f, do_vftintl_l_s)
+DO_HELPER_VV(vftinth_l_s, 64, helper_vv_f, do_vftinth_l_s)
+
+static void do_vffint_s(CPULoongArchState *env,
+                        vec_t *Vd, vec_t *Vj, int bit, int n)
+{
+    switch (bit) {
+    case 32:
+        Vd->W[n] = int32_to_float32(Vj->W[n], &env->fp_status);
+        break;
+    case 64:
+        Vd->D[n] = int64_to_float64(Vj->D[n], &env->fp_status);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    update_fcsr0(env, GETPC());
+}
+
+static void do_vffint_u(CPULoongArchState *env,
+                        vec_t *Vd, vec_t *Vj, int bit, int n)
+{
+    switch (bit) {
+    case 32:
+        Vd->W[n] = uint32_to_float32(Vj->W[n], &env->fp_status);
+        break;
+    case 64:
+        Vd->D[n] = uint64_to_float64(Vj->D[n], &env->fp_status);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    update_fcsr0(env, GETPC());
+}
+
+static void do_vffintl_d_w(CPULoongArchState *env,
+                           vec_t *Vd, vec_t *Vj, int bit, int n)
+{
+    Vd->D[n] = int32_to_float64(Vj->W[n], &env->fp_status);
+    update_fcsr0(env, GETPC());
+}
+
+static void do_vffinth_d_w(CPULoongArchState *env,
+                           vec_t *Vd, vec_t *Vj, int bit, int n)
+{
+    Vd->D[n] = int32_to_float64(Vj->W[n + 2], &env->fp_status);
+    update_fcsr0(env, GETPC());
+}
+
+void helper_vffint_s_l(CPULoongArchState *env,
+                       uint32_t vd, uint32_t vj, uint32_t vk)
+{
+    int i;
+    vec_t *Vd = &(env->fpr[vd].vec);
+    vec_t *Vj = &(env->fpr[vj].vec);
+    vec_t *Vk = &(env->fpr[vk].vec);
+
+    vec_t dest;
+    dest.D[0] = 0;
+    dest.D[1] = 0;
+    for (i = 0; i < 2; i++) {
+        dest.W[i + 2] = int64_to_float32(Vj->D[i], &env->fp_status);
+        dest.W[i]  = int64_to_float32(Vk->D[i], &env->fp_status);
+    }
+    Vd->D[0] = dest.D[0];
+    Vd->D[1] = dest.D[1];
+}
+
+DO_HELPER_VV(vffint_s_w, 32, helper_vv_f, do_vffint_s)
+DO_HELPER_VV(vffint_d_l, 64, helper_vv_f, do_vffint_s)
+DO_HELPER_VV(vffint_s_wu, 32, helper_vv_f, do_vffint_u)
+DO_HELPER_VV(vffint_d_lu, 64, helper_vv_f, do_vffint_u)
+DO_HELPER_VV(vffintl_d_w, 64, helper_vv_f, do_vffintl_d_w)
+DO_HELPER_VV(vffinth_d_w, 64, helper_vv_f, do_vffinth_d_w)

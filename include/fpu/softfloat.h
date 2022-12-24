@@ -559,6 +559,16 @@ int16_t float32_to_int16_round_to_zero(float32, float_status *status);
 int32_t float32_to_int32_round_to_zero(float32, float_status *status);
 int64_t float32_to_int64_round_to_zero(float32, float_status *status);
 
+int64_t float32_to_int64_rm(float32, float_status *status);
+int64_t float32_to_int64_rp(float32, float_status *status);
+int64_t float32_to_int64_rz(float32, float_status *status);
+int64_t float32_to_int64_rne(float32, float_status *status);
+
+int32_t float32_to_int32_rm(float32, float_status *status);
+int32_t float32_to_int32_rp(float32, float_status *status);
+int32_t float32_to_int32_rz(float32, float_status *status);
+int32_t float32_to_int32_rne(float32, float_status *status);
+
 uint16_t float32_to_uint16_scalbn(float32, FloatRoundMode, int, float_status *);
 uint32_t float32_to_uint32_scalbn(float32, FloatRoundMode, int, float_status *);
 uint64_t float32_to_uint64_scalbn(float32, FloatRoundMode, int, float_status *);
@@ -579,6 +589,10 @@ float128 float32_to_float128(float32, float_status *status);
 | Software IEC/IEEE single-precision operations.
 *----------------------------------------------------------------------------*/
 float32 float32_round_to_int(float32, float_status *status);
+float32 float32_round_to_int_rm(float32, float_status *status);
+float32 float32_round_to_int_rp(float32, float_status *status);
+float32 float32_round_to_int_rz(float32, float_status *status);
+float32 float32_round_to_int_rne(float32, float_status *status);
 float32 float32_add(float32, float32, float_status *status);
 float32 float32_sub(float32, float32, float_status *status);
 float32 float32_mul(float32, float32, float_status *status);
@@ -751,6 +765,15 @@ int16_t float64_to_int16_round_to_zero(float64, float_status *status);
 int32_t float64_to_int32_round_to_zero(float64, float_status *status);
 int64_t float64_to_int64_round_to_zero(float64, float_status *status);
 
+int64_t float64_to_int64_rm(float64, float_status *status);
+int64_t float64_to_int64_rp(float64, float_status *status);
+int64_t float64_to_int64_rz(float64, float_status *status);
+int64_t float64_to_int64_rne(float64, float_status *status);
+
+int32_t float64_to_int32_round_up(float64, float_status *status);
+int32_t float64_to_int32_round_down(float64, float_status *status);
+int32_t float64_to_int32_round_nearest_even(float64, float_status *status);
+
 uint16_t float64_to_uint16_scalbn(float64, FloatRoundMode, int, float_status *);
 uint32_t float64_to_uint32_scalbn(float64, FloatRoundMode, int, float_status *);
 uint64_t float64_to_uint64_scalbn(float64, FloatRoundMode, int, float_status *);
@@ -771,6 +794,10 @@ float128 float64_to_float128(float64, float_status *status);
 | Software IEC/IEEE double-precision operations.
 *----------------------------------------------------------------------------*/
 float64 float64_round_to_int(float64, float_status *status);
+float64 float64_round_to_int_rm(float64, float_status *status);
+float64 float64_round_to_int_rp(float64, float_status *status);
+float64 float64_round_to_int_rz(float64, float_status *status);
+float64 float64_round_to_int_rne(float64, float_status *status);
 float64 float64_add(float64, float64, float_status *status);
 float64 float64_sub(float64, float64, float_status *status);
 float64 float64_mul(float64, float64, float_status *status);
