@@ -32,6 +32,7 @@ void G_NORETURN do_raise_exception(CPULoongArchState *env,
 const char *loongarch_exception_name(int32_t exception);
 
 void restore_fp_status(CPULoongArchState *env);
+void update_fcsr0(CPULoongArchState *env, uintptr_t pc);
 
 #ifndef CONFIG_USER_ONLY
 extern const VMStateDescription vmstate_loongarch_cpu;

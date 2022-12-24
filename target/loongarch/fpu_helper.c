@@ -77,7 +77,7 @@ static void update_fcsr0_mask(CPULoongArchState *env, uintptr_t pc, int mask)
     }
 }
 
-static void update_fcsr0(CPULoongArchState *env, uintptr_t pc)
+void update_fcsr0(CPULoongArchState *env, uintptr_t pc)
 {
     update_fcsr0_mask(env, pc, 0);
 }

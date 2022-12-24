@@ -9,6 +9,8 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
+#include "fpu/softfloat.h"
+#include "internals.h"
 
 #define DO_HELPER_VVV(NAME, BIT, FUNC, ...)                   \
     void helper_##NAME(CPULoongArchState *env,                \
@@ -23,6 +25,11 @@
 #define DO_HELPER_VV(NAME, BIT, FUNC, ...)                               \
     void helper_##NAME(CPULoongArchState *env, uint32_t vd, uint32_t vj) \
     { FUNC(env, vd, vj, BIT, __VA_ARGS__); }
+
+#define DO_HELPER_VVVV(NAME, BIT, FUNC, ...)                               \
+    void helper_##NAME(CPULoongArchState *env,                             \
+                       uint32_t vd, uint32_t vj, uint32_t vk, uint32_t va) \
+    { FUNC(env, vd, vj, vk, va, BIT, __VA_ARGS__); }
 
 static void helper_vvv(CPULoongArchState *env,
                        uint32_t vd, uint32_t vj, uint32_t vk, int bit,
@@ -3468,3 +3475,175 @@ void helper_vfrstpi_h(CPULoongArchState *env,
     m = imm % 8;
     Vd->H[m] = (int16_t)i;
 }
+
+static void helper_vvv_f(CPULoongArchState *env,
+                uint32_t vd, uint32_t vj, uint32_t vk, int bit,
+                void (*func)(float_status*, vec_t*, vec_t*, vec_t*, int, int))
+{
+    int i;
+    vec_t *Vd = &(env->fpr[vd].vec);
+    vec_t *Vj = &(env->fpr[vj].vec);
+    vec_t *Vk = &(env->fpr[vk].vec);
+
+    vec_t dest;
+    dest.D[0] = 0;
+    dest.D[1] = 0;
+    for (i = 0; i < LSX_LEN/bit; i++) {
+        func(&env->fp_status, &dest, Vj, Vk, bit, i);
+    }
+    Vd->D[0] = dest.D[0];
+    Vd->D[1] = dest.D[1];
+    update_fcsr0(env, GETPC());
+}
+
+#define LSX_DO_FARITH(name)                                           \
+static void do_vf## name (float_status *status,                       \
+                     vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n) \
+{                                                                     \
+    switch (bit) {                                                    \
+    case 32:                                                          \
+        Vd->W[n] = float32_## name (Vj->W[n], Vk->W[n], status);      \
+        break;                                                        \
+    case 64:                                                          \
+        Vd->D[n] = float64_## name (Vj->D[n], Vk->D[n], status);      \
+        break;                                                        \
+    default:                                                          \
+        g_assert_not_reached();                                       \
+    }                                                                 \
+}
+
+LSX_DO_FARITH(add)
+LSX_DO_FARITH(sub)
+LSX_DO_FARITH(mul)
+LSX_DO_FARITH(div)
+LSX_DO_FARITH(maxnum)
+LSX_DO_FARITH(minnum)
+LSX_DO_FARITH(maxnummag)
+LSX_DO_FARITH(minnummag)
+
+DO_HELPER_VVV(vfadd_s, 32, helper_vvv_f, do_vfadd)
+DO_HELPER_VVV(vfadd_d, 64, helper_vvv_f, do_vfadd)
+DO_HELPER_VVV(vfsub_s, 32, helper_vvv_f, do_vfsub)
+DO_HELPER_VVV(vfsub_d, 64, helper_vvv_f, do_vfsub)
+DO_HELPER_VVV(vfmul_s, 32, helper_vvv_f, do_vfmul)
+DO_HELPER_VVV(vfmul_d, 64, helper_vvv_f, do_vfmul)
+DO_HELPER_VVV(vfdiv_s, 32, helper_vvv_f, do_vfdiv)
+DO_HELPER_VVV(vfdiv_d, 64, helper_vvv_f, do_vfdiv)
+
+static void helper_vvvv_f(CPULoongArchState *env,
+                uint32_t vd, uint32_t vj, uint32_t vk, uint32_t va, int bit,
+                void (*func)(float_status*, vec_t*, vec_t*, vec_t*,
+                             vec_t*, int, int))
+{
+    int i;
+    vec_t *Vd = &(env->fpr[vd].vec);
+    vec_t *Vj = &(env->fpr[vj].vec);
+    vec_t *Vk = &(env->fpr[vk].vec);
+    vec_t *Va = &(env->fpr[va].vec);
+
+    vec_t dest;
+    dest.D[0] = 0;
+    dest.D[1] = 0;
+    for (i = 0; i < LSX_LEN/bit; i++) {
+        func(&env->fp_status, &dest, Vj, Vk, Va, bit, i);
+    }
+    Vd->D[0] = dest.D[0];
+    Vd->D[1] = dest.D[1];
+    update_fcsr0(env, GETPC());
+}
+
+#define LSX_DO_FMULADD(name, flags)                         \
+static void do_vf## name (float_status *status,             \
+                          vec_t *Vd, vec_t *Vj, vec_t *Vk,  \
+                          vec_t *Va, int bit, int n)        \
+{                                                           \
+    switch (bit) {                                          \
+    case 32:                                                \
+        Vd->W[n] = float32_muladd(Vj->W[n], Vk->W[n],       \
+                                  Va->W[n], flags, status); \
+        break;                                              \
+    case 64:                                                \
+        Vd->D[n] = float64_muladd(Vj->D[n], Vk->D[n],       \
+                                  Va->D[n], flags,status);  \
+        break;                                              \
+    default:                                                \
+        g_assert_not_reached();                             \
+    }                                                       \
+}
+
+LSX_DO_FMULADD(madd, 0)
+LSX_DO_FMULADD(msub, float_muladd_negate_c)
+LSX_DO_FMULADD(nmadd, float_muladd_negate_product | float_muladd_negate_c)
+LSX_DO_FMULADD(nmsub, float_muladd_negate_product)
+
+DO_HELPER_VVVV(vfmadd_s, 32, helper_vvvv_f, do_vfmadd)
+DO_HELPER_VVVV(vfmadd_d, 64, helper_vvvv_f, do_vfmadd)
+DO_HELPER_VVVV(vfmsub_s, 32, helper_vvvv_f, do_vfmsub)
+DO_HELPER_VVVV(vfmsub_d, 64, helper_vvvv_f, do_vfmsub)
+DO_HELPER_VVVV(vfnmadd_s, 32, helper_vvvv_f, do_vfnmadd)
+DO_HELPER_VVVV(vfnmadd_d, 64, helper_vvvv_f, do_vfnmadd)
+DO_HELPER_VVVV(vfnmsub_s, 32, helper_vvvv_f, do_vfnmsub)
+DO_HELPER_VVVV(vfnmsub_d, 64, helper_vvvv_f, do_vfnmsub)
+
+DO_HELPER_VVV(vfmax_s, 32, helper_vvv_f, do_vfmaxnum)
+DO_HELPER_VVV(vfmax_d, 64, helper_vvv_f, do_vfmaxnum)
+DO_HELPER_VVV(vfmin_s, 32, helper_vvv_f, do_vfminnum)
+DO_HELPER_VVV(vfmin_d, 64, helper_vvv_f, do_vfminnum)
+
+DO_HELPER_VVV(vfmaxa_s, 32, helper_vvv_f, do_vfmaxnummag)
+DO_HELPER_VVV(vfmaxa_d, 64, helper_vvv_f, do_vfmaxnummag)
+DO_HELPER_VVV(vfmina_s, 32, helper_vvv_f, do_vfminnummag)
+DO_HELPER_VVV(vfmina_d, 64, helper_vvv_f, do_vfminnummag)
+
+static void helper_vv_f(CPULoongArchState *env,
+                uint32_t vd, uint32_t vj, int bit,
+                void (*func)(CPULoongArchState*, vec_t*, vec_t*, int, int))
+{
+    int i;
+    vec_t *Vd = &(env->fpr[vd].vec);
+    vec_t *Vj = &(env->fpr[vj].vec);
+
+    vec_t dest;
+    dest.D[0] = 0;
+    dest.D[1] = 0;
+    for (i = 0; i < LSX_LEN/bit; i++) {
+        func(env, &dest, Vj, bit, i);
+    }
+    Vd->D[0] = dest.D[0];
+    Vd->D[1] = dest.D[1];
+}
+
+#define LSX_DO_VV(name)                                     \
+static void do_v## name (CPULoongArchState *env, vec_t *Vd, \
+                          vec_t *Vj, int bit, int n)        \
+{                                                           \
+    switch (bit) {                                          \
+    case 32:                                                \
+        Vd->W[n] = helper_## name ## _s(env, Vj->W[n]);     \
+        break;                                              \
+    case 64:                                                \
+        Vd->D[n] = helper_## name ## _d(env, Vj->D[n]);     \
+        break;                                              \
+    default:                                                \
+        g_assert_not_reached();                             \
+    }                                                       \
+}                                                           \
+
+LSX_DO_VV(flogb)
+LSX_DO_VV(fclass)
+LSX_DO_VV(fsqrt)
+LSX_DO_VV(frecip)
+LSX_DO_VV(frsqrt)
+
+DO_HELPER_VV(vflogb_s, 32, helper_vv_f, do_vflogb)
+DO_HELPER_VV(vflogb_d, 64, helper_vv_f, do_vflogb)
+
+DO_HELPER_VV(vfclass_s, 32, helper_vv_f, do_vfclass)
+DO_HELPER_VV(vfclass_d, 64, helper_vv_f, do_vfclass)
+
+DO_HELPER_VV(vfsqrt_s, 32, helper_vv_f, do_vfsqrt)
+DO_HELPER_VV(vfsqrt_d, 64, helper_vv_f, do_vfsqrt)
+DO_HELPER_VV(vfrecip_s, 32, helper_vv_f, do_vfrecip)
+DO_HELPER_VV(vfrecip_d, 64, helper_vv_f, do_vfrecip)
+DO_HELPER_VV(vfrsqrt_s, 32, helper_vv_f, do_vfrsqrt)
+DO_HELPER_VV(vfrsqrt_d, 64, helper_vv_f, do_vfrsqrt)
