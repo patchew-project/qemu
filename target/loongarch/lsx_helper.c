@@ -2624,3 +2624,270 @@ DO_HELPER_VV_I(vsrarni_b_h, 16, helper_vv_ni_c, do_vsrarni)
 DO_HELPER_VV_I(vsrarni_h_w, 32, helper_vv_ni_c, do_vsrarni)
 DO_HELPER_VV_I(vsrarni_w_d, 64, helper_vv_ni_c, do_vsrarni)
 DO_HELPER_VV_I(vsrarni_d_q, 128, helper_vv_ni_c, do_vsrarni)
+
+static int64_t vsra(int64_t s1, int64_t s2, int bit)
+{
+    return (s1 >> ((uint64_t)(s2) % bit));
+}
+
+static void do_vssrln(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->B[n] = sat_s(vsrl((uint16_t)Vj->H[n], Vk->H[n], bit), bit/2 - 1);
+        break;
+    case 32:
+        Vd->H[n] = sat_s(vsrl((uint32_t)Vj->W[n], Vk->W[n], bit), bit/2 - 1);
+        break;
+    case 64:
+        Vd->W[n] = sat_s(vsrl((uint64_t)Vj->D[n], Vk->D[n], bit), bit/2 - 1);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vssran(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->B[n] = sat_s(vsra(Vj->H[n], Vk->H[n], bit), bit/2 - 1);
+        break;
+    case 32:
+        Vd->H[n] = sat_s(vsra(Vj->W[n], Vk->W[n], bit), bit/2 - 1);
+        break;
+    case 64:
+        Vd->W[n] = sat_s(vsra(Vj->D[n], Vk->D[n], bit), bit/2 - 1);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vssrln_b_h, 16, helper_vvv_hz, do_vssrln)
+DO_HELPER_VVV(vssrln_h_w, 32, helper_vvv_hz, do_vssrln)
+DO_HELPER_VVV(vssrln_w_d, 64, helper_vvv_hz, do_vssrln)
+DO_HELPER_VVV(vssran_b_h, 16, helper_vvv_hz, do_vssran)
+DO_HELPER_VVV(vssran_h_w, 32, helper_vvv_hz, do_vssran)
+DO_HELPER_VVV(vssran_w_d, 64, helper_vvv_hz, do_vssran)
+
+static void do_vssrln_u(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->B[n] = sat_u(vsrl((uint16_t)Vj->H[n], Vk->H[n], bit), bit/2 - 1);
+        break;
+    case 32:
+        Vd->H[n] = sat_u(vsrl((uint32_t)Vj->W[n], Vk->W[n], bit), bit/2 - 1);
+        break;
+    case 64:
+        Vd->W[n] = sat_u(vsrl((uint64_t)Vj->D[n], Vk->D[n], bit), bit/2 - 1);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vssran_u(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->B[n] = sat_u(vsra(Vj->H[n], Vk->H[n], bit), bit/2 - 1);
+        if (Vd->B[n] < 0) {
+            Vd->B[n] = 0;
+        }
+        break;
+    case 32:
+        Vd->H[n] = sat_u(vsra(Vj->W[n], Vk->W[n], bit), bit/2 - 1);
+        if (Vd->H[n] < 0) {
+            Vd->H[n] = 0;
+        }
+        break;
+    case 64:
+        Vd->W[n] = sat_u(vsra(Vj->D[n], Vk->D[n], bit), bit/2 - 1);
+        if (Vd->W[n] < 0) {
+            Vd->W[n] = 0;
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vssrln_bu_h, 16, helper_vvv_hz, do_vssrln_u)
+DO_HELPER_VVV(vssrln_hu_w, 32, helper_vvv_hz, do_vssrln_u)
+DO_HELPER_VVV(vssrln_wu_d, 64, helper_vvv_hz, do_vssrln_u)
+DO_HELPER_VVV(vssran_bu_h, 16, helper_vvv_hz, do_vssran_u)
+DO_HELPER_VVV(vssran_hu_w, 32, helper_vvv_hz, do_vssran_u)
+DO_HELPER_VVV(vssran_wu_d, 64, helper_vvv_hz, do_vssran_u)
+
+static int64_t sat_s_128u(__uint128_t u1, uint32_t imm)
+{
+    uint64_t max = MAKE_64BIT_MASK(0, imm);
+    return u1 < max ? u1: max;
+}
+
+static void do_vssrlni(vec_t *dest, vec_t *Vd, vec_t *Vj,
+                       uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        dest->B[n] = sat_s((((uint16_t)Vj->H[n]) >> imm), bit/2 - 1);
+        dest->B[n + 128/bit] = sat_s((((uint16_t)Vd->H[n]) >> imm), bit/2 -1);
+        break;
+    case 32:
+        dest->H[n] = sat_s((((uint32_t)Vj->W[n]) >> imm), bit/2 - 1);
+        dest->H[n + 128/bit] = sat_s((((uint32_t)Vd->W[n]) >> imm), bit/2 - 1);
+        break;
+    case 64:
+        dest->W[n] = sat_s((((uint64_t)Vj->D[n]) >> imm), bit/2 - 1);
+        dest->W[n + 128/bit] = sat_s((((uint64_t)Vd->D[n]) >> imm), bit/2 - 1);
+        break;
+    case 128:
+        dest->D[n] = sat_s_128u((((__uint128_t)Vj->Q[n]) >> imm), bit/2 - 1);
+        dest->D[n + 128/bit] = sat_s_128u((((__uint128_t)Vd->Q[n]) >> imm),
+                                          bit/2 - 1);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static int64_t sat_s_128(__int128_t s1, uint32_t imm)
+{
+    int64_t max = MAKE_64BIT_MASK(0, imm);
+    int64_t min = MAKE_64BIT_MASK(imm, 64);
+
+    if (s1 > max -1) {
+        return max;
+    } else if (s1 < - max) {
+        return min;
+    } else {
+        return s1;
+    }
+}
+
+static void do_vssrani(vec_t *dest, vec_t *Vd, vec_t *Vj,
+                       uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        dest->B[n] = sat_s((Vj->H[n] >> imm), bit/2 - 1);
+        dest->B[n + 128/bit] = sat_s((Vd->H[n] >> imm), bit/2 - 1);
+        break;
+    case 32:
+        dest->H[n] = sat_s((Vj->W[n] >> imm), bit/2 - 1);
+        dest->H[n + 128/bit] = sat_s((Vd->W[n] >> imm), bit/2 - 1);
+        break;
+    case 64:
+        dest->W[n] = sat_s((Vj->D[n] >> imm), bit/2 - 1);
+        dest->W[n + 128/bit] = sat_s((Vd->D[n] >> imm), bit/2 - 1);
+        break;
+    case 128:
+        dest->D[n] = sat_s_128(((__int128_t)Vj->Q[n] >> imm), bit/2 - 1);
+        dest->D[n + 128/bit] = sat_s_128(((__int128_t)Vd->Q[n] >> imm),
+                                         bit/2 - 1);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VV_I(vssrlni_b_h, 16, helper_vv_ni_c, do_vssrlni)
+DO_HELPER_VV_I(vssrlni_h_w, 32, helper_vv_ni_c, do_vssrlni)
+DO_HELPER_VV_I(vssrlni_w_d, 64, helper_vv_ni_c, do_vssrlni)
+DO_HELPER_VV_I(vssrlni_d_q, 128, helper_vv_ni_c, do_vssrlni)
+DO_HELPER_VV_I(vssrani_b_h, 16, helper_vv_ni_c, do_vssrani)
+DO_HELPER_VV_I(vssrani_h_w, 32, helper_vv_ni_c, do_vssrani)
+DO_HELPER_VV_I(vssrani_w_d, 64, helper_vv_ni_c, do_vssrani)
+DO_HELPER_VV_I(vssrani_d_q, 128, helper_vv_ni_c, do_vssrani)
+
+static int64_t sat_u_128(__uint128_t u1, uint32_t imm)
+{
+    uint64_t max = MAKE_64BIT_MASK(0, imm + 1);
+    return u1 < max ? u1 : max;
+}
+
+static void do_vssrlni_u(vec_t *dest, vec_t *Vd, vec_t *Vj,
+                         uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        dest->B[n] = sat_u((((uint16_t)Vj->H[n]) >> imm),  bit/2 -1);
+        dest->B[n + 128/bit] = sat_u((((uint16_t)Vd->H[n]) >> imm), bit/2 -1);
+        break;
+    case 32:
+        dest->H[n] = sat_u((((uint32_t)Vj->W[n]) >> imm), imm);
+        dest->H[n + 128/bit] = sat_u((((uint32_t)Vd->W[n]) >> imm), bit/2 -1);
+        break;
+    case 64:
+        dest->W[n] = sat_u((((uint64_t)Vj->D[n]) >> imm), bit/2 - 1);
+        dest->W[n + 128/bit] = sat_u((((uint64_t)Vd->D[n]) >> imm), bit/2 -1);
+        break;
+    case 128:
+        dest->D[n] = sat_u_128((((__uint128_t)Vj->Q[n]) >> imm), bit/2 - 1);
+        dest->D[n + 128/bit] = sat_u_128((((__uint128_t)Vd->Q[n]) >> imm),
+                                         bit/2 -1);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void  do_vssrani_u(vec_t *dest, vec_t *Vd, vec_t *Vj,
+                          uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        dest->B[n] = sat_u((Vj->H[n] >> imm), bit/2 - 1);
+        if (dest->B[n] < 0) {
+            dest->B[n] = 0;
+        }
+        dest->B[n + 128/bit] = sat_u((Vd->H[n] >> imm), bit/2 - 1);
+        if (dest->B[n + 128/bit] < 0) {
+            dest->B[n + 128/bit] = 0;
+        }
+        break;
+    case 32:
+        dest->H[n] = sat_u((Vj->W[n] >> imm), bit/2 - 1);
+        if (dest->H[n] < 0) {
+            dest->H[n] = 0;
+        }
+        dest->H[n + 128/bit] = sat_u((Vd->W[n] >> imm), bit/2 - 1);
+        if (dest->H[n + 128/bit] < 0) {
+            dest->H[n + 128/bit] = 0;
+        }
+        break;
+    case 64:
+        dest->W[n] = sat_u((Vj->D[n] >> imm), bit/2 - 1);
+        if (dest->W[n] < 0) {
+            dest->W[n] = 0;
+        }
+        dest->W[n + 128/bit] = sat_u((Vd->D[n] >> imm), bit/2 - 1);
+        if (dest->W[n + 128/bit] < 0) {
+            dest->W[n + 128/bit] = 0;
+        }
+        break;
+    case 128:
+        dest->D[n] = sat_u_128((Vj->Q[n] >> imm), bit/2 - 1);
+        if (dest->D[n] < 0) {
+            dest->D[n] = 0;
+        }
+        dest->D[n + 128/bit] = sat_u_128((Vd->Q[n] >> imm), bit/2 - 1);
+        if (dest->D[n + 128/bit] < 0) {
+            dest->D[n + 128/bit] = 0;
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VV_I(vssrlni_bu_h, 16, helper_vv_ni_c, do_vssrlni_u)
+DO_HELPER_VV_I(vssrlni_hu_w, 32, helper_vv_ni_c, do_vssrlni_u)
+DO_HELPER_VV_I(vssrlni_wu_d, 64, helper_vv_ni_c, do_vssrlni_u)
+DO_HELPER_VV_I(vssrlni_du_q, 128, helper_vv_ni_c, do_vssrlni_u)
+DO_HELPER_VV_I(vssrani_bu_h, 16, helper_vv_ni_c, do_vssrani_u)
+DO_HELPER_VV_I(vssrani_hu_w, 32, helper_vv_ni_c, do_vssrani_u)
+DO_HELPER_VV_I(vssrani_wu_d, 64, helper_vv_ni_c, do_vssrani_u)
+DO_HELPER_VV_I(vssrani_du_q, 128, helper_vv_ni_c, do_vssrani_u)
