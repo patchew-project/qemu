@@ -1050,3 +1050,8 @@ INSN_LSX(vexth_hu_bu,      vv)
 INSN_LSX(vexth_wu_hu,      vv)
 INSN_LSX(vexth_du_wu,      vv)
 INSN_LSX(vexth_qu_du,      vv)
+
+INSN_LSX(vsigncov_b,       vvv)
+INSN_LSX(vsigncov_h,       vvv)
+INSN_LSX(vsigncov_w,       vvv)
+INSN_LSX(vsigncov_d,       vvv)

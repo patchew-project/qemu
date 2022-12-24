@@ -321,3 +321,8 @@ TRANS(vexth_hu_bu, gen_vv, gen_helper_vexth_hu_bu)
 TRANS(vexth_wu_hu, gen_vv, gen_helper_vexth_wu_hu)
 TRANS(vexth_du_wu, gen_vv, gen_helper_vexth_du_wu)
 TRANS(vexth_qu_du, gen_vv, gen_helper_vexth_qu_du)
+
+TRANS(vsigncov_b, gen_vvv, gen_helper_vsigncov_b)
+TRANS(vsigncov_h, gen_vvv, gen_helper_vsigncov_h)
+TRANS(vsigncov_w, gen_vvv, gen_helper_vsigncov_w)
+TRANS(vsigncov_d, gen_vvv, gen_helper_vsigncov_d)

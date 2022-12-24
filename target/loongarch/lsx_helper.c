@@ -1829,3 +1829,32 @@ DO_HELPER_VV(vexth_hu_bu, 16, helper_vv, do_vexth_u)
 DO_HELPER_VV(vexth_wu_hu, 32, helper_vv, do_vexth_u)
 DO_HELPER_VV(vexth_du_wu, 64, helper_vv, do_vexth_u)
 DO_HELPER_VV(vexth_qu_du, 128, helper_vv, do_vexth_u)
+
+static void do_vsigncov(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = (Vj->B[n] == 0x0) ? 0 :
+                   (Vj->B[n] < 0) ? -Vk->B[n] : Vk->B[n];
+        break;
+    case 16:
+        Vd->H[n] = (Vj->H[n] == 0x0) ? 0 :
+                   (Vj->H[n] < 0) ? -Vk->H[n] : Vk->H[n];
+        break;
+    case 32:
+        Vd->W[n] = (Vj->W[n] == 0x0) ? 0 :
+                   (Vj->W[n] < 0) ? -Vk->W[n] : Vk->W[n];
+        break;
+    case 64:
+        Vd->D[n] = (Vj->D[n] == 0x0) ? 0 :
+                   (Vj->D[n] < 0) ? -Vk->D[n] : Vk->W[n];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vsigncov_b, 8, helper_vvv, do_vsigncov)
+DO_HELPER_VVV(vsigncov_h, 16, helper_vvv, do_vsigncov)
+DO_HELPER_VVV(vsigncov_w, 32, helper_vvv, do_vsigncov)
+DO_HELPER_VVV(vsigncov_d, 64, helper_vvv, do_vsigncov)

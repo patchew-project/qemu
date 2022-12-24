@@ -405,3 +405,8 @@ DEF_HELPER_3(vexth_hu_bu, void, env, i32, i32)
 DEF_HELPER_3(vexth_wu_hu, void, env, i32, i32)
 DEF_HELPER_3(vexth_du_wu, void, env, i32, i32)
 DEF_HELPER_3(vexth_qu_du, void, env, i32, i32)
+
+DEF_HELPER_4(vsigncov_b, void, env, i32, i32, i32)
+DEF_HELPER_4(vsigncov_h, void, env, i32, i32, i32)
+DEF_HELPER_4(vsigncov_w, void, env, i32, i32, i32)
+DEF_HELPER_4(vsigncov_d, void, env, i32, i32, i32)
