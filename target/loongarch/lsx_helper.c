@@ -1858,3 +1858,57 @@ DO_HELPER_VVV(vsigncov_b, 8, helper_vvv, do_vsigncov)
 DO_HELPER_VVV(vsigncov_h, 16, helper_vvv, do_vsigncov)
 DO_HELPER_VVV(vsigncov_w, 32, helper_vvv, do_vsigncov)
 DO_HELPER_VVV(vsigncov_d, 64, helper_vvv, do_vsigncov)
+
+/* Vd, Vj, vd = 0 */
+static void helper_vv_z(CPULoongArchState *env,
+                        uint32_t vd, uint32_t vj, int bit,
+                        void (*func)(vec_t*, vec_t*, int, int))
+{
+    int i;
+    vec_t *Vd = &(env->fpr[vd].vec);
+    vec_t *Vj = &(env->fpr[vj].vec);
+
+    Vd->D[0] = 0;
+    Vd->D[1] = 0;
+
+    for (i = 0; i < LSX_LEN/bit; i++) {
+        func(Vd, Vj, bit, i);
+    }
+}
+
+static void do_vmskltz(vec_t *Vd, vec_t *Vj, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->H[0] |= ((0x80 & Vj->B[n]) == 0) << n;
+        break;
+    case 16:
+        Vd->H[0] |= ((0x8000 & Vj->H[n]) == 0) << n;
+        break;
+    case 32:
+        Vd->H[0] |= ((0x80000000 & Vj->W[n]) == 0) << n;
+        break;
+    case 64:
+        Vd->H[0] |= ((0x8000000000000000 & Vj->D[n]) == 0) << n;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vmskgez(vec_t *Vd, vec_t *Vj, int bit, int n)
+{
+    Vd->H[0] |= !((0x80 & Vj->B[n]) == 0) << n;
+}
+
+static void do_vmsknz(vec_t *Vd, vec_t *Vj, int bit, int n)
+{
+    Vd->H[0] |=  (Vj->B[n] == 0) << n;
+}
+
+DO_HELPER_VV(vmskltz_b, 8, helper_vv_z, do_vmskltz)
+DO_HELPER_VV(vmskltz_h, 16, helper_vv_z, do_vmskltz)
+DO_HELPER_VV(vmskltz_w, 32, helper_vv_z, do_vmskltz)
+DO_HELPER_VV(vmskltz_d, 64, helper_vv_z, do_vmskltz)
+DO_HELPER_VV(vmskgez_b, 8, helper_vv_z, do_vmskgez)
+DO_HELPER_VV(vmsknz_b, 8, helper_vv_z, do_vmsknz)
