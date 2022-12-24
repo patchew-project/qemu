@@ -936,3 +936,222 @@ DO_HELPER_VVV(vadda_b, 8, helper_vvv, do_vadda_s)
 DO_HELPER_VVV(vadda_h, 16, helper_vvv, do_vadda_s)
 DO_HELPER_VVV(vadda_w, 32, helper_vvv, do_vadda_s)
 DO_HELPER_VVV(vadda_d, 64, helper_vvv, do_vadda_s)
+
+static int64_t vmax_s(int64_t s1, int64_t s2)
+{
+    return s1 > s2 ? s1 : s2;
+}
+
+static void do_vmax_s(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vmax_s(Vj->B[n], Vk->B[n]);
+        break;
+    case 16:
+        Vd->H[n] = vmax_s(Vj->H[n], Vk->H[n]);
+        break;
+    case 32:
+        Vd->W[n] = vmax_s(Vj->W[n], Vk->W[n]);
+        break;
+    case 64:
+        Vd->D[n] = vmax_s(Vj->D[n], Vk->D[n]);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vmaxi_s(vec_t *Vd, vec_t *Vj, uint32_t imm, int bit , int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vmax_s(Vj->B[n], imm);
+        break;
+    case 16:
+        Vd->H[n] = vmax_s(Vj->H[n], imm);
+        break;
+    case 32:
+        Vd->W[n] = vmax_s(Vj->W[n], imm);
+        break;
+    case 64:
+        Vd->D[n] = vmax_s(Vj->D[n], imm);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static uint64_t vmax_u(int64_t s1, int64_t s2, int bit)
+{
+    uint64_t umax = MAKE_64BIT_MASK(0, bit);
+    uint64_t u1 = s1 & umax;
+    uint64_t u2 = s2 & umax;
+    return u1 > u2 ? u1 : u2;
+}
+
+static void do_vmax_u(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vmax_u(Vj->B[n], Vk->B[n], bit);
+        break;
+    case 16:
+        Vd->H[n] = vmax_u(Vj->H[n], Vk->H[n], bit);
+        break;
+    case 32:
+        Vd->W[n] = vmax_u(Vj->W[n], Vk->W[n], bit);
+        break;
+    case 64:
+        Vd->D[n] = vmax_u(Vj->D[n], Vk->D[n], bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vmaxi_u(vec_t *Vd, vec_t *Vj, uint32_t imm , int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vmax_u(Vj->B[n], imm, bit);
+        break;
+    case 16:
+        Vd->H[n] = vmax_u(Vj->H[n], imm, bit);
+        break;
+    case 32:
+        Vd->W[n] = vmax_u(Vj->W[n], imm, bit);
+        break;
+    case 64:
+        Vd->D[n] = vmax_u(Vj->D[n], imm, bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static int64_t vmin_s(int64_t s1, int64_t s2)
+{
+    return s1 < s2 ? s1 : s2;
+}
+
+static void do_vmin_s(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vmin_s(Vj->B[n], Vk->B[n]);
+        break;
+    case 16:
+        Vd->H[n] = vmin_s(Vj->H[n], Vk->H[n]);
+        break;
+    case 32:
+        Vd->W[n] = vmin_s(Vj->W[n], Vk->W[n]);
+        break;
+    case 64:
+        Vd->D[n] = vmin_s(Vj->D[n], Vk->D[n]);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vmini_s(vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vmin_s(Vj->B[n], imm);
+        break;
+    case 16:
+        Vd->H[n] = vmin_s(Vj->H[n], imm);
+        break;
+    case 32:
+        Vd->W[n] = vmin_s(Vj->W[n], imm);
+        break;
+    case 64:
+        Vd->D[n] = vmin_s(Vj->D[n], imm);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static uint64_t vmin_u(int64_t s1, int64_t s2, int bit)
+{
+    uint64_t umax = MAKE_64BIT_MASK(0, bit);
+    uint64_t u1 = s1 & umax;
+    uint64_t u2 = s2 & umax;
+    return u1 < u2 ? u1 : u2;
+}
+
+static void do_vmin_u(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vmin_u(Vj->B[n], Vk->B[n], bit);
+        break;
+    case 16:
+        Vd->H[n] = vmin_u(Vj->H[n], Vk->H[n], bit);
+        break;
+    case 32:
+        Vd->W[n] = vmin_u(Vj->W[n], Vk->W[n], bit);
+        break;
+    case 64:
+        Vd->D[n] = vmin_u(Vj->D[n], Vk->D[n], bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vmini_u(vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vmin_u(Vj->B[n], imm, bit);
+        break;
+    case 16:
+        Vd->H[n] = vmin_u(Vj->H[n], imm, bit);
+        break;
+    case 32:
+        Vd->W[n] = vmin_u(Vj->W[n], imm, bit);
+        break;
+    case 64:
+        Vd->D[n] = vmin_u(Vj->D[n], imm, bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vmax_b, 8, helper_vvv, do_vmax_s)
+DO_HELPER_VVV(vmax_h, 16, helper_vvv, do_vmax_s)
+DO_HELPER_VVV(vmax_w, 32, helper_vvv, do_vmax_s)
+DO_HELPER_VVV(vmax_d, 64, helper_vvv, do_vmax_s)
+DO_HELPER_VV_I(vmaxi_b, 8, helper_vv_i, do_vmaxi_s)
+DO_HELPER_VV_I(vmaxi_h, 16, helper_vv_i, do_vmaxi_s)
+DO_HELPER_VV_I(vmaxi_w, 32, helper_vv_i, do_vmaxi_s)
+DO_HELPER_VV_I(vmaxi_d, 64, helper_vv_i, do_vmaxi_s)
+DO_HELPER_VVV(vmax_bu, 8, helper_vvv, do_vmax_u)
+DO_HELPER_VVV(vmax_hu, 16, helper_vvv, do_vmax_u)
+DO_HELPER_VVV(vmax_wu, 32, helper_vvv, do_vmax_u)
+DO_HELPER_VVV(vmax_du, 64, helper_vvv, do_vmax_u)
+DO_HELPER_VV_I(vmaxi_bu, 8, helper_vv_i, do_vmaxi_u)
+DO_HELPER_VV_I(vmaxi_hu, 16, helper_vv_i, do_vmaxi_u)
+DO_HELPER_VV_I(vmaxi_wu, 32, helper_vv_i, do_vmaxi_u)
+DO_HELPER_VV_I(vmaxi_du, 64, helper_vv_i, do_vmaxi_u)
+DO_HELPER_VVV(vmin_b, 8, helper_vvv, do_vmin_s)
+DO_HELPER_VVV(vmin_h, 16, helper_vvv, do_vmin_s)
+DO_HELPER_VVV(vmin_w, 32, helper_vvv, do_vmin_s)
+DO_HELPER_VVV(vmin_d, 64, helper_vvv, do_vmin_s)
+DO_HELPER_VV_I(vmini_b, 8, helper_vv_i, do_vmini_s)
+DO_HELPER_VV_I(vmini_h, 16, helper_vv_i, do_vmini_s)
+DO_HELPER_VV_I(vmini_w, 32, helper_vv_i, do_vmini_s)
+DO_HELPER_VV_I(vmini_d, 64, helper_vv_i, do_vmini_s)
+DO_HELPER_VVV(vmin_bu, 8, helper_vvv, do_vmin_u)
+DO_HELPER_VVV(vmin_hu, 16, helper_vvv, do_vmin_u)
+DO_HELPER_VVV(vmin_wu, 32, helper_vvv, do_vmin_u)
+DO_HELPER_VVV(vmin_du, 64, helper_vvv, do_vmin_u)
+DO_HELPER_VV_I(vmini_bu, 8, helper_vv_i, do_vmini_u)
+DO_HELPER_VV_I(vmini_hu, 16, helper_vv_i, do_vmini_u)
+DO_HELPER_VV_I(vmini_wu, 32, helper_vv_i, do_vmini_u)
+DO_HELPER_VV_I(vmini_du, 64, helper_vv_i, do_vmini_u)
