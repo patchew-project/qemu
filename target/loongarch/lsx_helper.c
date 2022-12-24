@@ -2516,3 +2516,111 @@ DO_HELPER_VV_I(vsrani_b_h, 16, helper_vv_ni_c, do_vsrani)
 DO_HELPER_VV_I(vsrani_h_w, 32, helper_vv_ni_c, do_vsrani)
 DO_HELPER_VV_I(vsrani_w_d, 64, helper_vv_ni_c, do_vsrani)
 DO_HELPER_VV_I(vsrani_d_q, 128, helper_vv_ni_c, do_vsrani)
+
+static void do_vsrlrn(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->B[n] = vsrlr((uint16_t)Vj->H[n], Vk->H[n], bit);
+        break;
+    case 32:
+        Vd->H[n] = vsrlr((uint32_t)Vj->W[n], Vk->W[n], bit);
+        break;
+    case 64:
+        Vd->W[n] = vsrlr((uint64_t)Vj->D[n], Vk->D[n], bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vsrarn(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->B[n] = vsrar(Vj->H[n], Vk->H[n], bit);
+        break;
+    case 32:
+        Vd->H[n] = vsrar(Vj->W[n], Vk->W[n], bit);
+        break;
+    case 64:
+        Vd->W[n] = vsrar(Vj->D[n], Vk->D[n], bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vsrlrn_b_h, 16, helper_vvv_hz, do_vsrlrn)
+DO_HELPER_VVV(vsrlrn_h_w, 32, helper_vvv_hz, do_vsrlrn)
+DO_HELPER_VVV(vsrlrn_w_d, 64, helper_vvv_hz, do_vsrlrn)
+DO_HELPER_VVV(vsrarn_b_h, 16, helper_vvv_hz, do_vsrarn)
+DO_HELPER_VVV(vsrarn_h_w, 32, helper_vvv_hz, do_vsrarn)
+DO_HELPER_VVV(vsrarn_w_d, 64, helper_vvv_hz, do_vsrarn)
+
+static __int128_t vsrlrn(__int128_t s1, uint32_t imm)
+{
+    if (imm == 0) {
+        return s1;
+    } else {
+        __uint128_t t1 = (__uint128_t)1 << (imm -1);
+        return (s1 + t1) >> imm;
+    }
+}
+
+static void do_vsrlrni(vec_t *dest, vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        dest->B[n] = vsrlrn((uint16_t)Vj->H[n], imm);
+        dest->B[n + 128 / bit] = vsrlrn((uint16_t)Vd->H[n], imm);
+        break;
+    case 32:
+        dest->H[n] = vsrlrn((uint32_t)Vj->W[n], imm);
+        dest->H[n + 128 / bit] = vsrlrn((uint32_t)Vd->W[n], imm);
+        break;
+    case 64:
+        dest->W[n] = vsrlrn((uint64_t)Vj->D[n], imm);
+        dest->W[n + 128 / bit] = vsrlrn((uint64_t)Vd->D[n], imm);
+        break;
+    case 128:
+        dest->D[n] = vsrlrn((__uint128_t)Vj->Q[n], imm);
+        dest->D[n + 128 / bit] = vsrlrn((__uint128_t)Vd->Q[n], imm);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vsrarni(vec_t *dest, vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        dest->B[n] = vsrlrn(Vj->H[n], imm);
+        dest->B[n + 128 / bit] = vsrlrn(Vd->H[n], imm);
+        break;
+    case 32:
+        dest->H[n] = vsrlrn(Vj->W[n], imm);
+        dest->H[n + 128 / bit] = vsrlrn(Vd->W[n], imm);
+        break;
+    case 64:
+        dest->W[n] = vsrlrn(Vj->D[n], imm);
+        dest->W[n + 128 / bit] = vsrlrn(Vd->D[n], imm);
+        break;
+    case 128:
+        dest->D[n] = vsrlrn(Vj->Q[n], imm);
+        dest->D[n + 128 / bit] = vsrlrn(Vd->Q[n], imm);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VV_I(vsrlrni_b_h, 16, helper_vv_ni_c, do_vsrlrni)
+DO_HELPER_VV_I(vsrlrni_h_w, 32, helper_vv_ni_c, do_vsrlrni)
+DO_HELPER_VV_I(vsrlrni_w_d, 64, helper_vv_ni_c, do_vsrlrni)
+DO_HELPER_VV_I(vsrlrni_d_q, 128, helper_vv_ni_c, do_vsrlrni)
+DO_HELPER_VV_I(vsrarni_b_h, 16, helper_vv_ni_c, do_vsrarni)
+DO_HELPER_VV_I(vsrarni_h_w, 32, helper_vv_ni_c, do_vsrarni)
+DO_HELPER_VV_I(vsrarni_w_d, 64, helper_vv_ni_c, do_vsrarni)
+DO_HELPER_VV_I(vsrarni_d_q, 128, helper_vv_ni_c, do_vsrarni)
