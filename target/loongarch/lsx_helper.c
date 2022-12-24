@@ -1974,3 +1974,216 @@ DO_HELPER_VV_I(vandi_b, 8, helper_vv_i, do_vandi_b)
 DO_HELPER_VV_I(vori_b, 8, helper_vv_i, do_vori_b)
 DO_HELPER_VV_I(vxori_b, 8, helper_vv_i, do_vxori_b)
 DO_HELPER_VV_I(vnori_b, 8, helper_vv_i, do_vnori_b)
+
+static void do_vsll(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = Vj->B[n] << ((uint64_t)(Vk->B[n]) % bit);
+        break;
+    case 16:
+        Vd->H[n] = Vj->H[n] << ((uint64_t)(Vk->H[n]) % bit);
+        break;
+    case 32:
+        Vd->W[n] = Vj->W[n] << ((uint64_t)(Vk->W[n]) % bit);
+        break;
+    case 64:
+        Vd->D[n] = Vj->D[n] << ((uint64_t)(Vk->D[n]) % bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vslli(vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = Vj->B[n] << ((uint64_t)(imm) % bit);
+        break;
+    case 16:
+        Vd->H[n] = Vj->H[n] << ((uint64_t)(imm) % bit);
+        break;
+    case 32:
+        Vd->W[n] = Vj->W[n] << ((uint64_t)(imm) % bit);
+        break;
+    case 64:
+        Vd->D[n] = Vj->D[n] << ((uint64_t)(imm) % bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vsll_b, 8, helper_vvv, do_vsll)
+DO_HELPER_VVV(vsll_h, 16, helper_vvv, do_vsll)
+DO_HELPER_VVV(vsll_w, 32, helper_vvv, do_vsll)
+DO_HELPER_VVV(vsll_d, 64, helper_vvv, do_vsll)
+DO_HELPER_VV_I(vslli_b, 8, helper_vv_i, do_vslli)
+DO_HELPER_VV_I(vslli_h, 16, helper_vv_i, do_vslli)
+DO_HELPER_VV_I(vslli_w, 32, helper_vv_i, do_vslli)
+DO_HELPER_VV_I(vslli_d, 64, helper_vv_i, do_vslli)
+
+static int64_t vsrl(int64_t s1, int64_t s2, int bit)
+{
+    uint64_t umax = MAKE_64BIT_MASK(0, bit);
+    uint64_t u1 = s1 & umax;
+
+    return u1 >> ((uint64_t)(s2) % bit);
+}
+
+static void do_vsrl(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vsrl(Vj->B[n], Vk->B[n], bit);
+        break;
+    case 16:
+        Vd->H[n] = vsrl(Vj->H[n], Vk->H[n], bit);
+        break;
+    case 32:
+        Vd->W[n] = vsrl(Vj->W[n], Vk->W[n], bit);
+        break;
+    case 64:
+        Vd->D[n] = vsrl(Vj->D[n], Vk->D[n], bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vsrli(vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vsrl(Vj->B[n], imm, bit);
+        break;
+    case 16:
+        Vd->H[n] = vsrl(Vj->H[n], imm, bit);
+        break;
+    case 32:
+        Vd->W[n] = vsrl(Vj->W[n], imm, bit);
+        break;
+    case 64:
+        Vd->D[n] = vsrl(Vj->D[n], imm, bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vsrl_b, 8, helper_vvv, do_vsrl)
+DO_HELPER_VVV(vsrl_h, 16, helper_vvv, do_vsrl)
+DO_HELPER_VVV(vsrl_w, 32, helper_vvv, do_vsrl)
+DO_HELPER_VVV(vsrl_d, 64, helper_vvv, do_vsrl)
+DO_HELPER_VV_I(vsrli_b, 8, helper_vv_i, do_vsrli)
+DO_HELPER_VV_I(vsrli_h, 16, helper_vv_i, do_vsrli)
+DO_HELPER_VV_I(vsrli_w, 32, helper_vv_i, do_vsrli)
+DO_HELPER_VV_I(vsrli_d, 64, helper_vv_i, do_vsrli)
+
+static void do_vsra(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = Vj->B[n] >> ((uint64_t)(Vk->B[n]) % bit);
+        break;
+    case 16:
+        Vd->H[n] = Vj->H[n] >> ((uint64_t)(Vk->H[n]) % bit);
+        break;
+    case 32:
+        Vd->W[n] = Vj->W[n] >> ((uint64_t)(Vk->W[n]) % bit);
+        break;
+    case 64:
+        Vd->D[n] = Vj->D[n] >> ((uint64_t)(Vk->D[n]) % bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vsrai(vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = Vj->B[n] >> ((uint64_t)(imm) % bit);
+        break;
+    case 16:
+        Vd->H[n] = Vj->H[n] >> ((uint64_t)(imm) % bit);
+        break;
+    case 32:
+        Vd->W[n] = Vj->W[n] >> ((uint64_t)(imm) % bit);
+        break;
+    case 64:
+        Vd->D[n] = Vj->D[n] >> ((uint64_t)(imm) % bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vsra_b, 8, helper_vvv, do_vsra)
+DO_HELPER_VVV(vsra_h, 16, helper_vvv, do_vsra)
+DO_HELPER_VVV(vsra_w, 32, helper_vvv, do_vsra)
+DO_HELPER_VVV(vsra_d, 64, helper_vvv, do_vsra)
+DO_HELPER_VV_I(vsrai_b, 8, helper_vv_i, do_vsrai)
+DO_HELPER_VV_I(vsrai_h, 16, helper_vv_i, do_vsrai)
+DO_HELPER_VV_I(vsrai_w, 32, helper_vv_i, do_vsrai)
+DO_HELPER_VV_I(vsrai_d, 64, helper_vv_i, do_vsrai)
+
+static uint64_t vrotr(int64_t s1, int64_t s2, int bit)
+{
+    uint64_t umax = MAKE_64BIT_MASK(0, bit);
+    uint64_t u1 = s1 & umax;
+    int32_t n = (uint64_t)(s2) % bit;
+
+    return u1 >> n | u1 << (bit - n);
+}
+
+static void do_vrotr(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vrotr(Vj->B[n], Vk->B[n], bit);
+        break;
+    case 16:
+        Vd->H[n] = vrotr(Vj->H[n], Vk->H[n], bit);
+        break;
+    case 32:
+        Vd->W[n] = vrotr(Vj->W[n], Vk->W[n], bit);
+        break;
+    case 64:
+        Vd->D[n] = vrotr(Vj->D[n], Vk->D[n], bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vrotri(vec_t *Vd, vec_t *Vj, uint32_t imm, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vrotr(Vj->B[n], imm, bit);
+        break;
+    case 16:
+        Vd->H[n] = vrotr(Vj->H[n], imm, bit);
+        break;
+    case 32:
+        Vd->W[n] = vrotr(Vj->W[n], imm, bit);
+        break;
+    case 64:
+        Vd->D[n] = vrotr(Vj->D[n], imm, bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vrotr_b, 8, helper_vvv, do_vrotr)
+DO_HELPER_VVV(vrotr_h, 16, helper_vvv, do_vrotr)
+DO_HELPER_VVV(vrotr_w, 32, helper_vvv, do_vrotr)
+DO_HELPER_VVV(vrotr_d, 64, helper_vvv, do_vrotr)
+DO_HELPER_VV_I(vrotri_b, 8, helper_vv_i, do_vrotri)
+DO_HELPER_VV_I(vrotri_h, 16, helper_vv_i, do_vrotri)
+DO_HELPER_VV_I(vrotri_w, 32, helper_vv_i, do_vrotri)
+DO_HELPER_VV_I(vrotri_d, 64, helper_vv_i, do_vrotri)
