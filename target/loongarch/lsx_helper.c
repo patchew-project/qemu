@@ -3197,3 +3197,42 @@ DO_HELPER_VV(vclz_b, 8, helper_vv, do_vclz)
 DO_HELPER_VV(vclz_h, 16, helper_vv, do_vclz)
 DO_HELPER_VV(vclz_w, 32, helper_vv, do_vclz)
 DO_HELPER_VV(vclz_d, 64, helper_vv, do_vclz)
+
+static uint64_t vpcnt(int64_t s1, int bit)
+{
+    uint64_t u1 = s1 & MAKE_64BIT_MASK(0, bit);
+
+    u1 = (u1 & 0x5555555555555555ULL) + ((u1 >>  1) & 0x5555555555555555ULL);
+    u1 = (u1 & 0x3333333333333333ULL) + ((u1 >>  2) & 0x3333333333333333ULL);
+    u1 = (u1 & 0x0F0F0F0F0F0F0F0FULL) + ((u1 >>  4) & 0x0F0F0F0F0F0F0F0FULL);
+    u1 = (u1 & 0x00FF00FF00FF00FFULL) + ((u1 >>  8) & 0x00FF00FF00FF00FFULL);
+    u1 = (u1 & 0x0000FFFF0000FFFFULL) + ((u1 >> 16) & 0x0000FFFF0000FFFFULL);
+    u1 = (u1 & 0x00000000FFFFFFFFULL) + ((u1 >> 32));
+
+    return u1;
+}
+
+static void do_vpcnt(vec_t *Vd, vec_t *Vj, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vpcnt(Vj->B[n], bit);
+        break;
+    case 16:
+        Vd->H[n] = vpcnt(Vj->H[n], bit);
+        break;
+    case 32:
+        Vd->W[n] = vpcnt(Vj->W[n], bit);
+        break;
+    case 64:
+        Vd->D[n] = vpcnt(Vj->D[n], bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VV(vpcnt_b, 8, helper_vv, do_vpcnt)
+DO_HELPER_VV(vpcnt_h, 16, helper_vv, do_vpcnt)
+DO_HELPER_VV(vpcnt_w, 32, helper_vv, do_vpcnt)
+DO_HELPER_VV(vpcnt_d, 64, helper_vv, do_vpcnt)
