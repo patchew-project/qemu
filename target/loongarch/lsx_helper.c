@@ -716,3 +716,128 @@ DO_HELPER_VVV(vaddwod_h_bu_b, 16, helper_vvv, do_vaddwod_u_s)
 DO_HELPER_VVV(vaddwod_w_hu_h, 32, helper_vvv, do_vaddwod_u_s)
 DO_HELPER_VVV(vaddwod_d_wu_w, 64, helper_vvv, do_vaddwod_u_s)
 DO_HELPER_VVV(vaddwod_q_du_d, 128, helper_vvv, do_vaddwod_u_s)
+
+
+static int64_t vavg_s(int64_t s1, int64_t s2)
+{
+    return (s1 >> 1) + (s2 >> 1) + (s1 & s2 & 1);
+}
+
+static void do_vavg_s(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vavg_s(Vj->B[n], Vk->B[n]);
+        break;
+    case 16:
+        Vd->H[n] = vavg_s(Vj->H[n], Vk->H[n]);
+        break;
+    case 32:
+        Vd->W[n] = vavg_s(Vj->W[n], Vk->W[n]);
+        break;
+    case 64:
+        Vd->D[n] = vavg_s(Vj->D[n], Vk->D[n]);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static uint64_t vavg_u(int64_t s1, int64_t s2, int bit)
+{
+    uint64_t umax = MAKE_64BIT_MASK(0, bit);
+    uint64_t u1 = s1 & umax;
+    uint64_t u2 = s2 & umax;
+    return (u1 >> 1) + (u2 >> 1) + (u1 & u2 & 1);
+}
+
+static void do_vavg_u(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vavg_u(Vj->B[n], Vk->B[n], bit);
+        break;
+    case 16:
+        Vd->H[n] = vavg_u(Vj->H[n], Vk->H[n], bit);
+        break;
+    case 32:
+        Vd->W[n] = vavg_u(Vj->W[n], Vk->W[n], bit);
+        break;
+    case 64:
+        Vd->D[n] = vavg_u(Vj->D[n], Vk->D[n], bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static int64_t vavgr_s(int64_t s1, int64_t s2)
+{
+    return (s1 >> 1) + (s2 >> 1) + ((s1 | s2) & 1);
+}
+
+static void do_vavgr_s(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vavgr_s(Vj->B[n], Vk->B[n]);
+        break;
+    case 16:
+        Vd->H[n] = vavgr_s(Vj->H[n], Vk->H[n]);
+        break;
+    case 32:
+        Vd->W[n] = vavgr_s(Vj->W[n], Vk->W[n]);
+        break;
+    case 64:
+        Vd->D[n] = vavgr_s(Vj->D[n], Vk->D[n]);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static uint64_t vavgr_u(int64_t s1, int64_t s2, int bit)
+{
+    uint64_t umax = MAKE_64BIT_MASK(0, bit);
+    uint64_t u1 = s1 & umax;
+    uint64_t u2 = s2 & umax;
+
+    return (u1 >> 1) + (u2 >> 1) + ((u1 | u2) & 1);
+}
+
+static void do_vavgr_u(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vavgr_u(Vj->B[n], Vk->B[n], bit);
+        break;
+    case 16:
+        Vd->H[n] = vavgr_u(Vj->H[n], Vk->H[n], bit);
+        break;
+    case 32:
+        Vd->W[n] = vavgr_u(Vj->W[n], Vk->W[n], bit);
+        break;
+    case 64:
+        Vd->D[n] = vavgr_u(Vj->D[n], Vk->D[n], bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vavg_b, 8, helper_vvv, do_vavg_s)
+DO_HELPER_VVV(vavg_h, 16, helper_vvv, do_vavg_s)
+DO_HELPER_VVV(vavg_w, 32, helper_vvv, do_vavg_s)
+DO_HELPER_VVV(vavg_d, 64, helper_vvv, do_vavg_s)
+DO_HELPER_VVV(vavg_bu, 8, helper_vvv, do_vavg_u)
+DO_HELPER_VVV(vavg_hu, 16, helper_vvv, do_vavg_u)
+DO_HELPER_VVV(vavg_wu, 32, helper_vvv, do_vavg_u)
+DO_HELPER_VVV(vavg_du, 64, helper_vvv, do_vavg_u)
+DO_HELPER_VVV(vavgr_b, 8, helper_vvv, do_vavgr_s)
+DO_HELPER_VVV(vavgr_h, 16, helper_vvv, do_vavgr_s)
+DO_HELPER_VVV(vavgr_w, 32, helper_vvv, do_vavgr_s)
+DO_HELPER_VVV(vavgr_d, 64, helper_vvv, do_vavgr_s)
+DO_HELPER_VVV(vavgr_bu, 8, helper_vvv, do_vavgr_u)
+DO_HELPER_VVV(vavgr_hu, 16, helper_vvv, do_vavgr_u)
+DO_HELPER_VVV(vavgr_wu, 32, helper_vvv, do_vavgr_u)
+DO_HELPER_VVV(vavgr_du, 64, helper_vvv, do_vavgr_u)
