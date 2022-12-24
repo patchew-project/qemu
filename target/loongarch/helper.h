@@ -151,3 +151,8 @@ DEF_HELPER_4(vsubi_bu, void, env, i32, i32, i32)
 DEF_HELPER_4(vsubi_hu, void, env, i32, i32, i32)
 DEF_HELPER_4(vsubi_wu, void, env, i32, i32, i32)
 DEF_HELPER_4(vsubi_du, void, env, i32, i32, i32)
+
+DEF_HELPER_3(vneg_b, void, env, i32, i32)
+DEF_HELPER_3(vneg_h, void, env, i32, i32)
+DEF_HELPER_3(vneg_w, void, env, i32, i32)
+DEF_HELPER_3(vneg_d, void, env, i32, i32)

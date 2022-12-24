@@ -39,6 +39,17 @@ static bool gen_vv_i(DisasContext *ctx, arg_vv_i *a,
     return true;
 }
 
+static bool gen_vv(DisasContext *ctx, arg_vv *a,
+                   void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 vd = tcg_constant_i32(a->vd);
+    TCGv_i32 vj = tcg_constant_i32(a->vj);
+
+    CHECK_SXE;
+    func(cpu_env, vd, vj);
+    return true;
+}
+
 TRANS(vadd_b, gen_vvv, gen_helper_vadd_b)
 TRANS(vadd_h, gen_vvv, gen_helper_vadd_h)
 TRANS(vadd_w, gen_vvv, gen_helper_vadd_w)
@@ -58,3 +69,8 @@ TRANS(vsubi_bu, gen_vv_i, gen_helper_vsubi_bu)
 TRANS(vsubi_hu, gen_vv_i, gen_helper_vsubi_hu)
 TRANS(vsubi_wu, gen_vv_i, gen_helper_vsubi_wu)
 TRANS(vsubi_du, gen_vv_i, gen_helper_vsubi_du)
+
+TRANS(vneg_b, gen_vv, gen_helper_vneg_b)
+TRANS(vneg_h, gen_vv, gen_helper_vneg_h)
+TRANS(vneg_w, gen_vv, gen_helper_vneg_w)
+TRANS(vneg_d, gen_vv, gen_helper_vneg_d)

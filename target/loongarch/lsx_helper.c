@@ -20,6 +20,10 @@
                        uint32_t vd, uint32_t vj, uint32_t imm) \
     { FUNC(env, vd, vj, imm, BIT, __VA_ARGS__ ); }
 
+#define DO_HELPER_VV(NAME, BIT, FUNC, ...)                               \
+    void helper_##NAME(CPULoongArchState *env, uint32_t vd, uint32_t vj) \
+    { FUNC(env, vd, vj, BIT, __VA_ARGS__); }
+
 static void helper_vvv(CPULoongArchState *env,
                        uint32_t vd, uint32_t vj, uint32_t vk, int bit,
                        void (*func)(vec_t*, vec_t*, vec_t*, int, int))
@@ -44,6 +48,19 @@ static  void helper_vv_i(CPULoongArchState *env,
 
     for (i = 0; i < LSX_LEN/bit; i++) {
         func(Vd, Vj, imm, bit, i);
+    }
+}
+
+static void helper_vv(CPULoongArchState *env,
+                      uint32_t vd, uint32_t vj, int bit,
+                      void (*func)(vec_t*, vec_t*, int, int))
+{
+    int i;
+    vec_t *Vd = &(env->fpr[vd].vec);
+    vec_t *Vj = &(env->fpr[vj].vec);
+
+    for (i = 0; i < LSX_LEN/bit; i++) {
+        func(Vd, Vj, bit, i);
     }
 }
 
@@ -152,3 +169,28 @@ DO_HELPER_VV_I(vsubi_bu, 8, helper_vv_i, do_vsubi)
 DO_HELPER_VV_I(vsubi_hu, 16, helper_vv_i, do_vsubi)
 DO_HELPER_VV_I(vsubi_wu, 32, helper_vv_i, do_vsubi)
 DO_HELPER_VV_I(vsubi_du, 64, helper_vv_i, do_vsubi)
+
+static void do_vneg(vec_t *Vd, vec_t *Vj, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = -Vj->B[n];
+        break;
+    case 16:
+        Vd->H[n] = -Vj->H[n];
+        break;
+    case 32:
+        Vd->W[n] = -Vj->W[n];
+        break;
+    case 64:
+        Vd->D[n] = -Vj->D[n];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VV(vneg_b, 8, helper_vv, do_vneg)
+DO_HELPER_VV(vneg_h, 16, helper_vv, do_vneg)
+DO_HELPER_VV(vneg_w, 32, helper_vv, do_vneg)
+DO_HELPER_VV(vneg_d, 64, helper_vv, do_vneg)
