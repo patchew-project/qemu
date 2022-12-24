@@ -623,3 +623,8 @@ DEF_HELPER_4(vbitrevi_b, void, env, i32, i32, i32)
 DEF_HELPER_4(vbitrevi_h, void, env, i32, i32, i32)
 DEF_HELPER_4(vbitrevi_w, void, env, i32, i32, i32)
 DEF_HELPER_4(vbitrevi_d, void, env, i32, i32, i32)
+
+DEF_HELPER_4(vfrstp_b, void, env, i32, i32, i32)
+DEF_HELPER_4(vfrstp_h, void, env, i32, i32, i32)
+DEF_HELPER_4(vfrstpi_b, void, env, i32, i32, i32)
+DEF_HELPER_4(vfrstpi_h, void, env, i32, i32, i32)

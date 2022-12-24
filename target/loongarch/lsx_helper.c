@@ -3398,3 +3398,73 @@ DO_HELPER_VV_I(vbitrevi_b, 8, helper_vv_i, do_vbitrev_i)
 DO_HELPER_VV_I(vbitrevi_h, 16, helper_vv_i, do_vbitrev_i)
 DO_HELPER_VV_I(vbitrevi_w, 32, helper_vv_i, do_vbitrev_i)
 DO_HELPER_VV_I(vbitrevi_d, 64, helper_vv_i, do_vbitrev_i)
+
+void helper_vfrstp_b(CPULoongArchState *env,
+                     uint32_t vd, uint32_t vj, uint32_t vk)
+{
+    vec_t *Vd = &(env->fpr[vd].vec);
+    vec_t *Vj = &(env->fpr[vj].vec);
+    vec_t *Vk = &(env->fpr[vk].vec);
+
+    int i;
+    int m;
+    for (i = 0; i < 128/8; i++) {
+        if (Vj->B[i] < 0) {
+            break;
+        }
+    }
+    m = Vk->B[0] % 16;
+    Vd->B[m] = (int8_t)i;
+}
+
+void helper_vfrstp_h(CPULoongArchState *env,
+                     uint32_t vd, uint32_t vj, uint32_t vk)
+{
+    vec_t *Vd = &(env->fpr[vd].vec);
+    vec_t *Vj = &(env->fpr[vj].vec);
+    vec_t *Vk = &(env->fpr[vk].vec);
+
+    int i;
+    int m;
+    for (i = 0; i < 128/16; i++) {
+        if (Vj->H[i] < 0) {
+            break;
+        }
+    }
+    m = Vk->H[0] % 8;
+    Vd->H[m] = (int16_t)i;
+}
+
+void helper_vfrstpi_b(CPULoongArchState *env,
+                      uint32_t vd, uint32_t vj, uint32_t imm)
+{
+    vec_t *Vd = &(env->fpr[vd].vec);
+    vec_t *Vj = &(env->fpr[vj].vec);
+
+    int i;
+    int m;
+    for (i = 0; i < 128/8; i++) {
+        if (Vj->B[i] < 0) {
+            break;
+        }
+    }
+    m = imm % 16;
+    Vd->B[m] = (int8_t)i;
+}
+
+void helper_vfrstpi_h(CPULoongArchState *env,
+                      uint32_t vd, uint32_t vj, uint32_t imm)
+{
+    vec_t *Vd = &(env->fpr[vd].vec);
+    vec_t *Vj = &(env->fpr[vj].vec);
+
+    int i;
+    int m;
+    for (i = 0; i < 128/16; i++) {
+        if (Vj->H[i] < 0){
+            break;
+        }
+    }
+    m = imm % 8;
+    Vd->H[m] = (int16_t)i;
+}

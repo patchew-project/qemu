@@ -539,3 +539,8 @@ TRANS(vbitrevi_b, gen_vv_i, gen_helper_vbitrevi_b)
 TRANS(vbitrevi_h, gen_vv_i, gen_helper_vbitrevi_h)
 TRANS(vbitrevi_w, gen_vv_i, gen_helper_vbitrevi_w)
 TRANS(vbitrevi_d, gen_vv_i, gen_helper_vbitrevi_d)
+
+TRANS(vfrstp_b, gen_vvv, gen_helper_vfrstp_b)
+TRANS(vfrstp_h, gen_vvv, gen_helper_vfrstp_h)
+TRANS(vfrstpi_b, gen_vv_i, gen_helper_vfrstpi_b)
+TRANS(vfrstpi_h, gen_vv_i, gen_helper_vfrstpi_h)
