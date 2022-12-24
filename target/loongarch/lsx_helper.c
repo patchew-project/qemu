@@ -904,3 +904,35 @@ DO_HELPER_VVV(vabsd_bu, 8, helper_vvv, do_vabsd_u)
 DO_HELPER_VVV(vabsd_hu, 16, helper_vvv, do_vabsd_u)
 DO_HELPER_VVV(vabsd_wu, 32, helper_vvv, do_vabsd_u)
 DO_HELPER_VVV(vabsd_du, 64, helper_vvv, do_vabsd_u)
+
+static int64_t vadda_s(int64_t s1, int64_t s2)
+{
+    int64_t abs_s1 = s1 >= 0 ? s1 : -s1;
+    int64_t abs_s2 = s2 >= 0 ? s2 : -s2;
+    return abs_s1 + abs_s2;
+}
+
+static void do_vadda_s(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] = vadda_s(Vj->B[n], Vk->B[n]);
+        break;
+    case 16:
+        Vd->H[n] = vadda_s(Vj->H[n], Vk->H[n]);
+        break;
+    case 32:
+        Vd->W[n] = vadda_s(Vj->W[n], Vk->W[n]);
+        break;
+    case 64:
+        Vd->D[n] = vadda_s(Vj->D[n], Vk->D[n]);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vadda_b, 8, helper_vvv, do_vadda_s)
+DO_HELPER_VVV(vadda_h, 16, helper_vvv, do_vadda_s)
+DO_HELPER_VVV(vadda_w, 32, helper_vvv, do_vadda_s)
+DO_HELPER_VVV(vadda_d, 64, helper_vvv, do_vadda_s)

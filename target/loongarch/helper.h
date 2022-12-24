@@ -259,3 +259,8 @@ DEF_HELPER_4(vabsd_bu, void, env, i32, i32, i32)
 DEF_HELPER_4(vabsd_hu, void, env, i32, i32, i32)
 DEF_HELPER_4(vabsd_wu, void, env, i32, i32, i32)
 DEF_HELPER_4(vabsd_du, void, env, i32, i32, i32)
+
+DEF_HELPER_4(vadda_b, void, env, i32, i32, i32)
+DEF_HELPER_4(vadda_h, void, env, i32, i32, i32)
+DEF_HELPER_4(vadda_w, void, env, i32, i32, i32)
+DEF_HELPER_4(vadda_d, void, env, i32, i32, i32)

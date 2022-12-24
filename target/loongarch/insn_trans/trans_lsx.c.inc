@@ -177,3 +177,8 @@ TRANS(vabsd_bu, gen_vvv, gen_helper_vabsd_bu)
 TRANS(vabsd_hu, gen_vvv, gen_helper_vabsd_hu)
 TRANS(vabsd_wu, gen_vvv, gen_helper_vabsd_wu)
 TRANS(vabsd_du, gen_vvv, gen_helper_vabsd_du)
+
+TRANS(vadda_b, gen_vvv, gen_helper_vadda_b)
+TRANS(vadda_h, gen_vvv, gen_helper_vadda_h)
+TRANS(vadda_w, gen_vvv, gen_helper_vadda_w)
+TRANS(vadda_d, gen_vvv, gen_helper_vadda_d)
