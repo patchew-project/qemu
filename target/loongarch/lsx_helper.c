@@ -332,3 +332,144 @@ DO_HELPER_VVV(vssub_bu, 8, helper_vvv, do_vssub_u)
 DO_HELPER_VVV(vssub_hu, 16, helper_vvv, do_vssub_u)
 DO_HELPER_VVV(vssub_wu, 32, helper_vvv, do_vssub_u)
 DO_HELPER_VVV(vssub_du, 64, helper_vvv, do_vssub_u)
+
+#define S_EVEN(a, bit) \
+        ((((int64_t)(a)) << (64 - bit / 2)) >> (64 - bit / 2))
+
+#define U_EVEN(a, bit) \
+        ((((uint64_t)(a)) << (64 - bit / 2)) >> (64 - bit / 2))
+
+#define S_ODD(a, bit) \
+        ((((int64_t)(a)) << (64 - bit)) >> (64 - bit/ 2))
+
+#define U_ODD(a, bit) \
+        ((((uint64_t)(a)) << (64 - bit)) >> (64 - bit / 2))
+
+#define S_EVEN_Q(a, bit) \
+        ((((__int128)(a)) << (128 - bit / 2)) >> (128 - bit / 2))
+
+#define U_EVEN_Q(a, bit) \
+        ((((unsigned __int128)(a)) << (128 - bit / 2)) >> (128 - bit / 2))
+
+#define S_ODD_Q(a, bit) \
+        ((((__int128)(a)) << (128 - bit)) >> (128 - bit/ 2))
+
+#define U_ODD_Q(a, bit) \
+        ((((unsigned __int128)(a)) << (128 - bit)) >> (128 - bit / 2))
+
+static int64_t s_haddw_s(int64_t s1, int64_t s2,  int bit)
+{
+    return S_ODD(s1, bit) + S_EVEN(s2, bit);
+}
+
+static void do_vhaddw_s(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->H[n] = s_haddw_s(Vj->H[n], Vk->H[n], bit);
+        break;
+    case 32:
+        Vd->W[n] = s_haddw_s(Vj->W[n], Vk->W[n], bit);
+        break;
+    case 64:
+        Vd->D[n] = s_haddw_s(Vj->D[n], Vk->D[n], bit);
+        break;
+    case 128:
+        Vd->Q[n] = S_ODD_Q(Vj->Q[n], bit) + S_EVEN_Q(Vk->Q[n], bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static uint64_t u_haddw_u(int64_t s1, int64_t s2, int bit)
+{
+    return U_ODD(s1, bit) + U_EVEN(s2, bit);
+}
+
+static void do_vhaddw_u(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->H[n] = u_haddw_u(Vj->H[n], Vk->H[n], bit);
+        break;
+    case 32:
+        Vd->W[n] = u_haddw_u(Vj->W[n], Vk->W[n], bit);
+        break;
+    case 64:
+        Vd->D[n] = u_haddw_u(Vj->D[n], Vk->D[n], bit);
+        break;
+    case 128:
+        Vd->Q[n] = U_ODD_Q(Vj->Q[n], bit) + U_EVEN_Q(Vk->Q[n], bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static int64_t s_hsubw_s(int64_t s1, int64_t s2, int bit)
+{
+    return S_ODD(s1, bit) - S_EVEN(s2, bit);
+}
+
+static void do_vhsubw_s(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->H[n] = s_hsubw_s(Vj->H[n], Vk->H[n], bit);
+        break;
+    case 32:
+        Vd->W[n] = s_hsubw_s(Vj->W[n], Vk->W[n], bit);
+        break;
+    case 64:
+        Vd->D[n] = s_hsubw_s(Vj->D[n], Vk->D[n], bit);
+        break;
+    case 128:
+        Vd->Q[n] = S_ODD_Q(Vj->Q[n], bit) - S_EVEN_Q(Vk->Q[n], bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static uint64_t u_hsubw_u(int64_t s1, int64_t s2, int bit)
+{
+    return U_ODD(s1, bit) - U_EVEN(s2, bit);
+}
+
+static void do_vhsubw_u(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->H[n] = u_hsubw_u(Vj->H[n], Vk->H[n], bit);
+        break;
+    case 32:
+        Vd->W[n] = u_hsubw_u(Vj->W[n], Vk->W[n], bit);
+        break;
+    case 64:
+        Vd->D[n] = u_hsubw_u(Vj->D[n], Vk->D[n], bit);
+        break;
+    case 128:
+        Vd->Q[n] = U_ODD_Q(Vj->Q[n], bit) - U_EVEN_Q(Vk->Q[n], bit);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vhaddw_h_b, 16, helper_vvv, do_vhaddw_s)
+DO_HELPER_VVV(vhaddw_w_h, 32, helper_vvv, do_vhaddw_s)
+DO_HELPER_VVV(vhaddw_d_w, 64, helper_vvv, do_vhaddw_s)
+DO_HELPER_VVV(vhaddw_q_d, 128, helper_vvv, do_vhaddw_s)
+DO_HELPER_VVV(vhaddw_hu_bu, 16, helper_vvv, do_vhaddw_u)
+DO_HELPER_VVV(vhaddw_wu_hu, 32, helper_vvv, do_vhaddw_u)
+DO_HELPER_VVV(vhaddw_du_wu, 64, helper_vvv, do_vhaddw_u)
+DO_HELPER_VVV(vhaddw_qu_du, 128, helper_vvv, do_vhaddw_u)
+DO_HELPER_VVV(vhsubw_h_b, 16, helper_vvv, do_vhsubw_s)
+DO_HELPER_VVV(vhsubw_w_h, 32, helper_vvv, do_vhsubw_s)
+DO_HELPER_VVV(vhsubw_d_w, 64, helper_vvv, do_vhsubw_s)
+DO_HELPER_VVV(vhsubw_q_d, 128, helper_vvv, do_vhsubw_s)
+DO_HELPER_VVV(vhsubw_hu_bu, 16, helper_vvv, do_vhsubw_u)
+DO_HELPER_VVV(vhsubw_wu_hu, 32, helper_vvv, do_vhsubw_u)
+DO_HELPER_VVV(vhsubw_du_wu, 64, helper_vvv, do_vhsubw_u)
+DO_HELPER_VVV(vhsubw_qu_du, 128, helper_vvv, do_vhsubw_u)
