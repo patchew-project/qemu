@@ -1373,3 +1373,205 @@ DO_HELPER_VVV(vmulwod_h_bu_b, 16, helper_vvv, do_vmulwod_u_s)
 DO_HELPER_VVV(vmulwod_w_hu_h, 32, helper_vvv, do_vmulwod_u_s)
 DO_HELPER_VVV(vmulwod_d_wu_w, 64, helper_vvv, do_vmulwod_u_s)
 DO_HELPER_VVV(vmulwod_q_du_d, 128, helper_vvv, do_vmulwod_u_s)
+
+static void do_vmadd(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] += Vj->B[n] * Vk->B[n];
+        break;
+    case 16:
+        Vd->H[n] += Vj->H[n] * Vk->H[n];
+        break;
+    case 32:
+        Vd->W[n] += Vj->W[n] * Vk->W[n];
+        break;
+    case 64:
+        Vd->D[n] += Vj->D[n] * Vk->D[n];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vmsub(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 8:
+        Vd->B[n] -= Vj->B[n] * Vk->B[n];
+        break;
+    case 16:
+        Vd->H[n] -= Vj->H[n] * Vk->H[n];
+        break;
+    case 32:
+        Vd->W[n] -= Vj->W[n] * Vk->W[n];
+        break;
+    case 64:
+        Vd->D[n] -= Vj->D[n] * Vk->D[n];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vmadd_b, 8, helper_vvv, do_vmadd)
+DO_HELPER_VVV(vmadd_h, 16, helper_vvv, do_vmadd)
+DO_HELPER_VVV(vmadd_w, 32, helper_vvv, do_vmadd)
+DO_HELPER_VVV(vmadd_d, 64, helper_vvv, do_vmadd)
+DO_HELPER_VVV(vmsub_b, 8, helper_vvv, do_vmsub)
+DO_HELPER_VVV(vmsub_h, 16, helper_vvv, do_vmsub)
+DO_HELPER_VVV(vmsub_w, 32, helper_vvv, do_vmsub)
+DO_HELPER_VVV(vmsub_d, 64, helper_vvv, do_vmsub)
+
+static void do_vmaddwev_s(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->H[n] += Vj->B[2 * n] * Vk->B[2 * n];
+        break;
+    case 32:
+        Vd->W[n] += Vj->H[2 * n] * Vk->H[2 * n];
+        break;
+    case 64:
+        Vd->D[n] += (int64_t)Vj->W[2 * n] * (int64_t)Vk->W[2 * n];
+        break;
+    case 128:
+        Vd->Q[n] += (__int128_t)Vj->D[2 * n] * (__int128_t)Vk->D[2 * n];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vmaddwod_s(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->H[n] += Vj->B[2 * n + 1] * Vk->B[2 * n + 1];
+        break;
+    case 32:
+        Vd->W[n] += Vj->H[2 * n + 1] * Vk->H[2 * n + 1];
+        break;
+    case 64:
+        Vd->D[n] += (int64_t)Vj->W[2 * n + 1] * (int64_t)Vk->W[2 * n + 1];
+        break;
+    case 128:
+        Vd->Q[n] += (__int128_t)((__int128_t)Vj->D[2 * n + 1] *
+                    (__int128_t)Vk->D[2 * n + 1]);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vmaddwev_u(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->H[n] += (uint8_t)Vj->B[2 * n] * (uint8_t)Vk->B[2 * n];
+        break;
+    case 32:
+        Vd->W[n] += (uint16_t)Vj->H[2 * n] * (uint16_t)Vk->H[2 * n];
+        break;
+    case 64:
+        Vd->D[n] += (uint64_t)(uint32_t)Vj->W[2 * n] *
+                    (uint64_t)(uint32_t)Vk->W[2 * n];
+        break;
+    case 128:
+        Vd->Q[n] += (__uint128_t)(uint64_t)Vj->D[2 * n] *
+                    (__uint128_t)(uint64_t)Vk->D[2 * n];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vmaddwod_u(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->H[n] += (uint8_t)Vj->B[2 * n + 1] * (uint8_t)Vk->B[2 * n + 1];
+        break;
+    case 32:
+        Vd->W[n] += (uint16_t)Vj->H[2 * n + 1] * (uint16_t)Vk->H[2 * n + 1];
+        break;
+    case 64:
+        Vd->D[n] += (uint64_t)(uint32_t)Vj->W[2 * n + 1] *
+                    (uint64_t)(uint32_t)Vk->W[2 * n + 1];
+        break;
+    case 128:
+        Vd->Q[n] += (__uint128_t)(uint64_t)Vj->D[2 * n + 1] *
+                    (__uint128_t)(uint64_t)Vk->D[2 * n + 1];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vmaddwev_u_s(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->H[n] += (uint8_t)Vj->B[2 * n] * Vk->B[2 * n];
+        break;
+    case 32:
+        Vd->W[n] += (uint16_t)Vj->H[2 * n] * Vk->H[2 * n];
+        break;
+    case 64:
+        Vd->D[n] += (int64_t)(uint32_t)Vj->W[2 * n] * (int64_t)Vk->W[2 * n];
+        break;
+    case 128:
+        Vd->Q[n] += (__int128_t)(uint64_t)Vj->D[2 * n] *
+                    (__int128_t)Vk->D[2 * n];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void do_vmaddwod_u_s(vec_t *Vd, vec_t *Vj, vec_t *Vk, int bit, int n)
+{
+    switch (bit) {
+    case 16:
+        Vd->H[n] += (uint8_t)Vj->B[2 * n + 1] * Vk->B[2 * n + 1];
+        break;
+    case 32:
+        Vd->W[n] += (uint16_t)Vj->H[2 * n + 1] * Vk->H[2 * n + 1];
+        break;
+    case 64:
+        Vd->D[n] += (int64_t)(uint32_t)Vj->W[2 * n + 1] *
+                    (int64_t)Vk->W[2 * n + 1];
+        break;
+    case 128:
+        Vd->Q[n] += (__int128_t)(uint64_t)Vj->D[2 * n + 1] *
+                    (__int128_t)Vk->D[2 * n + 1];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+DO_HELPER_VVV(vmaddwev_h_b, 16, helper_vvv, do_vmaddwev_s)
+DO_HELPER_VVV(vmaddwev_w_h, 32, helper_vvv, do_vmaddwev_s)
+DO_HELPER_VVV(vmaddwev_d_w, 64, helper_vvv, do_vmaddwev_s)
+DO_HELPER_VVV(vmaddwev_q_d, 128, helper_vvv, do_vmaddwev_s)
+DO_HELPER_VVV(vmaddwod_h_b, 16, helper_vvv, do_vmaddwod_s)
+DO_HELPER_VVV(vmaddwod_w_h, 32, helper_vvv, do_vmaddwod_s)
+DO_HELPER_VVV(vmaddwod_d_w, 64, helper_vvv, do_vmaddwod_s)
+DO_HELPER_VVV(vmaddwod_q_d, 128, helper_vvv, do_vmaddwod_s)
+DO_HELPER_VVV(vmaddwev_h_bu, 16, helper_vvv, do_vmaddwev_u)
+DO_HELPER_VVV(vmaddwev_w_hu, 32, helper_vvv, do_vmaddwev_u)
+DO_HELPER_VVV(vmaddwev_d_wu, 64, helper_vvv, do_vmaddwev_u)
+DO_HELPER_VVV(vmaddwev_q_du, 128, helper_vvv, do_vmaddwev_u)
+DO_HELPER_VVV(vmaddwod_h_bu, 16, helper_vvv, do_vmaddwod_u)
+DO_HELPER_VVV(vmaddwod_w_hu, 32, helper_vvv, do_vmaddwod_u)
+DO_HELPER_VVV(vmaddwod_d_wu, 64, helper_vvv, do_vmaddwod_u)
+DO_HELPER_VVV(vmaddwod_q_du, 128, helper_vvv, do_vmaddwod_u)
+DO_HELPER_VVV(vmaddwev_h_bu_b, 16, helper_vvv, do_vmaddwev_u_s)
+DO_HELPER_VVV(vmaddwev_w_hu_h, 32, helper_vvv, do_vmaddwev_u_s)
+DO_HELPER_VVV(vmaddwev_d_wu_w, 64, helper_vvv, do_vmaddwev_u_s)
+DO_HELPER_VVV(vmaddwev_q_du_d, 128, helper_vvv, do_vmaddwev_u_s)
+DO_HELPER_VVV(vmaddwod_h_bu_b, 16, helper_vvv, do_vmaddwod_u_s)
+DO_HELPER_VVV(vmaddwod_w_hu_h, 32, helper_vvv, do_vmaddwod_u_s)
+DO_HELPER_VVV(vmaddwod_d_wu_w, 64, helper_vvv, do_vmaddwod_u_s)
+DO_HELPER_VVV(vmaddwod_q_du_d, 128, helper_vvv, do_vmaddwod_u_s)
