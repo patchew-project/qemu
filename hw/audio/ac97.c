@@ -625,9 +625,14 @@ static void nam_writew(void *opaque, uint32_t addr, uint32_t val)
         break;
     case AC97_PCM_Front_DAC_Rate:
         if (mixer_load(s, AC97_Extended_Audio_Ctrl_Stat) & EACS_VRA) {
-            mixer_store(s, addr, val);
-            dolog("Set front DAC rate to %d\n", val);
-            open_voice(s, PO_INDEX, val);
+            if (val >= 8000 && val <= 48000) {
+                mixer_store(s, addr, val);
+                dolog("Set front DAC rate to %d\n", val);
+                open_voice(s, PO_INDEX, val);
+            } else {
+                dolog("Attempt to set front DAC rate to %d, but valid is"
+                      "8-48kHZ\n", val);
+            }
         } else {
             dolog("Attempt to set front DAC rate to %d, but VRA is not set\n",
                   val);
