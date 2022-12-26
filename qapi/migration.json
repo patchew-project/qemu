@@ -1450,11 +1450,107 @@
 { 'command': 'migrate-continue', 'data': {'state': 'MigrationStatus'} }
 
 ##
+# @MigrateTransport:
+#
+# The supported communication transport mechanisms for migration
+#
+# @socket: Supported communication type between two devices for migration.
+#          Socket is able to cover all of 'tcp', 'unix', 'vsock' and
+#          'fd' already
+#
+# @exec: Supported communication type to redirect migration stream into file.
+#
+# @rdma: Supported communication type to redirect rdma type migration stream.
+#
+# Since 8.0
+##
+{ 'enum': 'MigrateTransport',
+  'data': ['socket', 'exec', 'rdma'] }
+
+##
+# @MigrateSocketAddr:
+#
+# To support different type of socket.
+#
+# @socket-type: Different type of socket connections.
+#
+# Since 8.0
+##
+{ 'struct': 'MigrateSocketAddr',
+  'data': {'socket-type': 'SocketAddress' } }
+
+##
+# @MigrateExecAddr:
+ #
+ # Since 8.0
+ ##
+{ 'struct': 'MigrateExecAddr',
+   'data' : {'exec-str': 'str' } }
+
+##
+# @MigrateRdmaAddr:
+#
+# Since 8.0
+##
+{ 'struct': 'MigrateRdmaAddr',
+   'data' : {'rdma-str': 'str' } }
+
+##
+# @MigrateAddress:
+#
+# The options available for communication transport mechanisms for migration
+#
+# Since 8.0
+##
+{ 'union' : 'MigrateAddress',
+  'base' : { 'transport' : 'MigrateTransport'},
+  'discriminator' : 'transport',
+  'data' : {
+    'socket' : 'MigrateSocketAddr',
+    'exec' : 'MigrateExecAddr',
+    'rdma': 'MigrateRdmaAddr' } }
+
+##
+# @MigrateChannelType:
+#
+# The supported options for migration channel type requests
+#
+# @main: Support request for main outbound migration control channel
+#
+# Since 8.0
+##
+{ 'enum': 'MigrateChannelType',
+  'data': [ 'main'] }
+
+##
+# @MigrateChannel:
+#
+# Information regarding migration Channel-type for transferring packets,
+# source and corresponding destination interface for socket connection
+# and number of multifd channels over the interface.
+#
+# @channeltype: Name of Channel type for transfering packet information
+#
+# @addr: SocketAddress of destination interface
+#
+# Since 8.0
+##
+{ 'struct': 'MigrateChannel',
+  'data' : {
+	'channeltype' : 'MigrateChannelType',
+	'addr' : 'MigrateAddress' } }
+
+##
 # @migrate:
 #
 # Migrates the current running guest to another Virtual Machine.
 #
 # @uri: the Uniform Resource Identifier of the destination VM
+#       for migration thread
+#
+# @channel: Struct containing migration channel type, along with all
+#           the details of destination interface required for initiating
+#           a migration stream.
 #
 # @blk: do block migration (full disk copy)
 #
@@ -1479,15 +1575,36 @@
 # 3. The user Monitor's "detach" argument is invalid in QMP and should not
 #    be used
 #
+# 4. The uri argument should have the Uniform Resource Identifier of default
+#    destination VM. This connection will be bound to default network
+#
+# 5. Both 'uri' and 'channel' arguments, are mututally exclusive but, atleast
+#    one of the two arguments should be present.
+#
 # Example:
 #
 # -> { "execute": "migrate", "arguments": { "uri": "tcp:0:4446" } }
 # <- { "return": {} }
 #
+# -> { "execute": "migrate",
+#      "arguments": {
+#          "channel": { "channeltype": "main",
+#                        "addr": { "transport": "socket",
+#                                  "socket-type": { "type': "inet',
+#                                                   "host": "10.12.34.9",
+#                                                   "port": "1050" } } } } }
+# <- { "return": {} }
+#
+# -> { "execute": "migrate",
+#      "arguments": { "channel": { "channeltype": "main",
+#                                  "addr": { "transport": "exec",
+#                                            "exec-str": "/tmp/exec" } } } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'migrate',
-  'data': {'uri': 'str', '*blk': 'bool', '*inc': 'bool',
-           '*detach': 'bool', '*resume': 'bool' } }
+  'data': {'*uri': 'str', '*channel': 'MigrateChannel', '*blk': 'bool',
+           '*inc': 'bool', '*detach': 'bool', '*resume': 'bool' } }
 
 ##
 # @migrate-incoming:
