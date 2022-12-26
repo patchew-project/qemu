@@ -999,6 +999,91 @@ void hmp_announce_self(Monitor *mon, const QDict *qdict)
     qapi_free_AnnounceParameters(params);
 }
 
+static void
+migrate_channel_from_qdict(MigrateChannel **channel,
+                           const QDict *qdict, Error **errp)
+{
+    Error *err = NULL;
+    const char *channeltype  = qdict_get_try_str(qdict, "channeltype");
+    const char *transport_str = qdict_get_try_str(qdict, "transport");
+    const char *socketaddr_type = qdict_get_try_str(qdict, "type");
+    const char *inet_host = qdict_get_try_str(qdict, "host");
+    const char *inet_port = qdict_get_try_str(qdict, "port");
+    const char *unix_path = qdict_get_try_str(qdict, "path");
+    const char *vsock_cid = qdict_get_try_str(qdict, "cid");
+    const char *vsock_port = qdict_get_try_str(qdict, "port");
+    const char *fd_str = qdict_get_try_str(qdict, "str");
+    const char *exec_str = qdict_get_try_str(qdict, "exec-str");
+    const char *rdma_str = qdict_get_try_str(qdict, "rdma-str");
+    MigrateChannel *val = g_new0(MigrateChannel, 1);
+    MigrateChannelType channel_type;
+    MigrateTransport transport;
+    MigrateAddress *addr = g_new0(MigrateAddress, 1);
+    SocketAddress *saddr = g_new(SocketAddress, 1);
+    SocketAddressType type;
+
+    channel_type = qapi_enum_parse(&MigrateChannelType_lookup,
+                                   channeltype, -1, &err);
+    if (channel_type < 0) {
+        goto end;
+    }
+
+    transport = qapi_enum_parse(&MigrateTransport_lookup,
+                                transport_str, -1, &err);
+    if (transport < 0) {
+        goto end;
+    }
+
+    type = qapi_enum_parse(&SocketAddressType_lookup,
+                           socketaddr_type, -1, &err);
+    if (type < 0) {
+        goto end;
+    }
+
+    addr->transport = transport;
+    switch (transport) {
+    case MIGRATE_TRANSPORT_SOCKET:
+        switch (type) {
+        case SOCKET_ADDRESS_TYPE_INET:
+            saddr->type = SOCKET_ADDRESS_TYPE_INET;
+            saddr->u.inet.host = (char *)inet_host;
+            saddr->u.inet.port = (char *)inet_port;
+            break;
+        case SOCKET_ADDRESS_TYPE_UNIX:
+            saddr->type = SOCKET_ADDRESS_TYPE_UNIX;
+            saddr->u.q_unix.path = (char *)unix_path;
+            break;
+        case SOCKET_ADDRESS_TYPE_VSOCK:
+            saddr->type = SOCKET_ADDRESS_TYPE_VSOCK;
+            saddr->u.vsock.cid = (char *)vsock_cid;
+            saddr->u.vsock.port = (char *)vsock_port;
+            break;
+        case SOCKET_ADDRESS_TYPE_FD:
+            saddr->type = SOCKET_ADDRESS_TYPE_FD;
+            saddr->u.fd.str = (char *)fd_str;
+            break;
+        default:
+            break;
+        }
+        addr->u.socket.socket_type = saddr;
+        break;
+    case MIGRATE_TRANSPORT_EXEC:
+        addr->u.exec.exec_str = (char *)exec_str;
+        break;
+    case MIGRATE_TRANSPORT_RDMA:
+        addr->u.rdma.rdma_str = (char *)rdma_str;
+        break;
+    default:
+        break;
+    }
+
+    val->channeltype = channel_type;
+    val->addr = addr;
+    *channel = val;
+end:
+    error_propagate(errp, err);
+}
+
 void hmp_migrate_cancel(Monitor *mon, const QDict *qdict)
 {
     qmp_migrate_cancel(NULL);
@@ -1441,8 +1526,12 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
     const char *uri = qdict_get_str(qdict, "uri");
     Error *err = NULL;
 
-    qmp_migrate(uri, !!blk, blk, !!inc, inc,
+    MigrateChannel *channel = g_new0(MigrateChannel, 1);
+    migrate_channel_from_qdict(&channel, qdict, &err);
+
+    qmp_migrate(uri, channel, !!blk, blk, !!inc, inc,
                 false, false, true, resume, &err);
+    qapi_free_MigrateChannel(channel);
     if (hmp_handle_error(mon, err)) {
         return;
     }
