@@ -1106,9 +1106,15 @@ void hmp_migrate_incoming(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
     const char *uri = qdict_get_str(qdict, "uri");
+    MigrateChannel *channel = g_new0(MigrateChannel, 1);
+    migrate_channel_from_qdict(&channel, qdict, &err);
+    if (err) {
+        error_setg(&err, "error in retrieving channel from qdict");
+        return;
+    }
 
-    qmp_migrate_incoming(uri, &err);
-
+    qmp_migrate_incoming(uri, channel, &err);
+    qapi_free_MigrateChannel(channel);
     hmp_handle_error(mon, err);
 }
 

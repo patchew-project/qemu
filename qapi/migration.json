@@ -1613,7 +1613,11 @@
 # with -incoming defer
 #
 # @uri: The Uniform Resource Identifier identifying the source or
-#       address to listen on
+#       the address to listen on
+#
+# @channel: Struct containing migration channel type, along with
+#           all the details of the destination interface required
+#           for the address to listen on for migration stream.
 #
 # Returns: nothing on success
 #
@@ -1630,14 +1634,28 @@
 #
 # 3. The uri format is the same as for -incoming
 #
+# 4. The 'uri' and 'channel' arguments are mutually exclusive but, atleast
+#    one of the two arguments should be present.
+#
 # Example:
 #
 # -> { "execute": "migrate-incoming",
 #      "arguments": { "uri": "tcp::4446" } }
 # <- { "return": {} }
 #
+# -> { "execute": "migrate",
+#      "arguments": {
+#          "channels": { 'channeltype': 'main',
+#                        'addr': { 'transport': 'socket',
+#                                  'socket-type': {'type': 'inet',
+#                                  'host': '10.12.34.9',
+#                                  'port': '1050' } } } } }
+# <- { "return": {} }
+#
 ##
-{ 'command': 'migrate-incoming', 'data': {'uri': 'str' } }
+{ 'command': 'migrate-incoming',
+             'data': {'*uri': 'str',
+                      '*channel': 'MigrateChannel'} }
 
 ##
 # @xen-save-devices-state:

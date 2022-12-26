@@ -2237,7 +2237,8 @@ void migrate_del_blocker(Error *reason)
     migration_blockers = g_slist_remove(migration_blockers, reason);
 }
 
-void qmp_migrate_incoming(const char *uri, Error **errp)
+void qmp_migrate_incoming(const char *uri, MigrateChannel *channel,
+                          Error **errp)
 {
     Error *local_err = NULL;
     static bool once = true;
