@@ -61,6 +61,7 @@
 #include "sysemu/cpus.h"
 #include "yank_functions.h"
 #include "sysemu/qtest.h"
+#include "qemu/sockets.h"
 
 #define MAX_THROTTLE  (128 << 20)      /* Migration transfer speed throttling */
 
@@ -484,6 +485,39 @@ void migrate_add_address(SocketAddress *address)
 
     QAPI_LIST_PREPEND(mis->socket_address_list,
                       QAPI_CLONE(SocketAddress, address));
+}
+
+static void qemu_uri_parsing(const char *uri,
+                             MigrateChannel **channel,
+                             Error **errp)
+{
+    Error *local_err = NULL;
+    const char *p = NULL;
+    MigrateChannel *val = g_new0(MigrateChannel, 1);
+    MigrateAddress *addrs = g_new0(MigrateAddress, 1);
+    SocketAddress *saddr = g_new0(SocketAddress, 1);
+
+    if (strstart(uri, "exec:", &p)) {
+        addrs->transport = MIGRATE_TRANSPORT_EXEC;
+        addrs->u.exec.exec_str = g_strdup(p + strlen("exec:"));
+    } else if (strstart(uri, "rdma:", NULL)) {
+        addrs->transport = MIGRATE_TRANSPORT_RDMA;
+        addrs->u.rdma.rdma_str = g_strdup(p + strlen("rdma:"));
+    } else if (strstart(uri, "tcp:", NULL) ||
+                strstart(uri, "unix:", NULL) ||
+                strstart(uri, "vsock:", NULL) ||
+                strstart(uri, "fd:", NULL)) {
+        addrs->transport = MIGRATE_TRANSPORT_SOCKET;
+        saddr = socket_parse(uri, &local_err);
+        addrs->u.socket.socket_type = saddr;
+    }
+    val->channeltype = MIGRATE_CHANNEL_TYPE_MAIN;
+    val->addr = addrs;
+    *channel = val;
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+    }
 }
 
 static void qemu_start_incoming_migration(const char *uri, Error **errp)
@@ -2397,7 +2431,8 @@ void qmp_migrate(const char *uri, MigrateChannel *channel, bool has_blk,
 {
     Error *local_err = NULL;
     MigrationState *s = migrate_get_current();
-    const char *p = NULL;
+    MigrateAddress *addrs = g_new0(MigrateAddress, 1);
+    SocketAddress *saddr = g_new0(SocketAddress, 1);
 
     if (!migrate_prepare(s, has_blk && blk, has_inc && inc,
                          has_resume && resume, errp)) {
@@ -2411,20 +2446,35 @@ void qmp_migrate(const char *uri, MigrateChannel *channel, bool has_blk,
         }
     }
 
+    /*
+     * motive here is just to have checks and convert uri into
+     * socketaddress struct
+     */
+    if (uri && channel) {
+        error_setg(errp, "uri and channels options should be"
+                          "mutually exclusive");
+    } else if (uri) {
+        qemu_uri_parsing(uri, &channel, &local_err);
+    }
+
     migrate_protocol_allow_multi_channels(false);
-    if (strstart(uri, "tcp:", &p) ||
-        strstart(uri, "unix:", NULL) ||
-        strstart(uri, "vsock:", NULL)) {
-        migrate_protocol_allow_multi_channels(true);
-        socket_start_outgoing_migration(s, p ? p : uri, &local_err);
-#ifdef CONFIG_RDMA
-    } else if (strstart(uri, "rdma:", &p)) {
-        rdma_start_outgoing_migration(s, p, &local_err);
-#endif
-    } else if (strstart(uri, "exec:", &p)) {
-        exec_start_outgoing_migration(s, p, &local_err);
-    } else if (strstart(uri, "fd:", &p)) {
-        fd_start_outgoing_migration(s, p, &local_err);
+    addrs = channel->addr;
+    saddr = channel->addr->u.socket.socket_type;
+    if (addrs->transport == MIGRATE_TRANSPORT_SOCKET) {
+        if (saddr->type == SOCKET_ADDRESS_TYPE_INET ||
+            saddr->type == SOCKET_ADDRESS_TYPE_UNIX ||
+            saddr->type == SOCKET_ADDRESS_TYPE_VSOCK) {
+            migrate_protocol_allow_multi_channels(true);
+            socket_start_outgoing_migration(s, saddr, &local_err);
+        } else if (saddr->type == SOCKET_ADDRESS_TYPE_FD) {
+            fd_start_outgoing_migration(s, saddr->u.fd.str, &local_err);
+        }
+    #ifdef CONFIG_RDMA
+    } else if (addrs->transport == MIGRATE_TRANSPORT_RDMA) {
+        rdma_start_outgoing_migration(s, addrs->u.rdma.rdma_str, &local_err);
+    #endif
+    } else if (addrs->transport == MIGRATE_TRANSPORT_EXEC) {
+        exec_start_outgoing_migration(s, addrs->u.exec.exec_str, &local_err);
     } else {
         if (!(has_resume && resume)) {
             yank_unregister_instance(MIGRATION_YANK_INSTANCE);
