@@ -280,6 +280,7 @@ void nvme_ns_shutdown(NvmeNamespace *ns);
 void nvme_ns_cleanup(NvmeNamespace *ns);
 void nvme_validate_flbas(uint8_t flbas,  Error **errp);
 NvmeNamespace * nvme_ns_create(NvmeCtrl *n, uint32_t nsid, NvmeIdNsMgmt *id_ns, Error **errp);
+void nvme_ns_delete(NvmeCtrl *n, uint32_t nsid, Error **errp);
 
 typedef struct NvmeAsyncEvent {
     QTAILQ_ENTRY(NvmeAsyncEvent) entry;
@@ -513,7 +514,6 @@ typedef struct NvmeCtrl {
         uint16_t    vqrfap;
         uint16_t    virfap;
     } next_pri_ctrl_cap;    /* These override pri_ctrl_cap after reset */
-    uint16_t nsidMax;
 } NvmeCtrl;
 
 typedef enum NvmeResetType {
@@ -582,6 +582,7 @@ static inline NvmeSecCtrlEntry *nvme_sctrl_for_cntlid(NvmeCtrl *n,
 
 BlockBackend *ns_blockdev_init(const char *file, Error **errp);
 void ns_blockdev_activate(BlockBackend *blk,  uint64_t image_size, Error **errp);
+void ns_blockdev_deactivate(BlockBackend *blk, Error **errp);
 int nvme_ns_backend_setup(NvmeCtrl *n, Error **errp);
 void nvme_attach_ns(NvmeCtrl *n, NvmeNamespace *ns);
 uint16_t nvme_bounce_data(NvmeCtrl *n, void *ptr, uint32_t len,
