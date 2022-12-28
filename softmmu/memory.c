@@ -3330,22 +3330,20 @@ static void mtree_print_flatview(gpointer key, gpointer value,
         mr = range->mr;
         if (range->offset_in_region) {
             qemu_printf(MTREE_INDENT TARGET_FMT_plx "-" TARGET_FMT_plx
-                        " (prio %d, %s%s): %s @" TARGET_FMT_plx,
+                        " (%s%s): %s @" TARGET_FMT_plx,
                         int128_get64(range->addr.start),
                         int128_get64(range->addr.start)
                         + MR_SIZE(range->addr.size),
-                        mr->priority,
                         range->nonvolatile ? "nv-" : "",
                         range->readonly ? "rom" : memory_region_type(mr),
                         memory_region_name(mr),
                         range->offset_in_region);
         } else {
             qemu_printf(MTREE_INDENT TARGET_FMT_plx "-" TARGET_FMT_plx
-                        " (prio %d, %s%s): %s",
+                        " (%s%s): %s",
                         int128_get64(range->addr.start),
                         int128_get64(range->addr.start)
                         + MR_SIZE(range->addr.size),
-                        mr->priority,
                         range->nonvolatile ? "nv-" : "",
                         range->readonly ? "rom" : memory_region_type(mr),
                         memory_region_name(mr));
