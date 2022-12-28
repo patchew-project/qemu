@@ -29,6 +29,7 @@ struct Packet;
 struct DisasContext;
 
 typedef void (*SemanticInsn)(struct DisasContext *ctx);
+typedef void (*AnalyzeInsn)(struct DisasContext *ctx);
 
 struct Instruction {
     SemanticInsn generate;            /* pointer to genptr routine */
@@ -73,5 +74,7 @@ struct Packet {
 };
 
 typedef struct Packet Packet;
+
+extern const AnalyzeInsn opcode_analyze[];
 
 #endif
