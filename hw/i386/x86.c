@@ -1077,6 +1077,36 @@ void x86_load_linux(X86MachineState *x86ms,
     }
     fclose(f);
 
+    /* If a setup_data is going to be used, make sure that the bootloader won't
+     * decompress into it and clobber those bytes. */
+    if (dtb_filename || !legacy_no_rng_seed) {
+        uint32_t payload_offset = ldl_p(setup + 0x248);
+        uint32_t payload_length = ldl_p(setup + 0x24c);
+        uint32_t target_address = ldl_p(setup + 0x258);
+        uint32_t decompressed_length = ldl_p(kernel + payload_offset + payload_length - 4);
+
+        uint32_t estimated_setup_data_length = 4096 * 16;
+        uint32_t start_setup_data = prot_addr + kernel_size;
+        uint32_t end_setup_data = start_setup_data + estimated_setup_data_length;
+        uint32_t start_target = target_address;
+        uint32_t end_target = target_address + decompressed_length;
+
+        if ((start_setup_data >= start_target && start_setup_data < end_target) ||
+            (end_setup_data >= start_target && end_setup_data < end_target)) {
+            uint32_t padded_size = target_address + decompressed_length - prot_addr;
+
+            /* The early stage can't address past around 64 MB from the original
+             * mapping, so just give up in that case. */
+            if (padded_size < 62 * 1024 * 1024)
+                kernel_size = padded_size;
+            else {
+                fprintf(stderr, "qemu: Kernel image too large to hold setup_data\n");
+                dtb_filename = NULL;
+                legacy_no_rng_seed = true;
+            }
+        }
+    }
+
     /* append dtb to kernel */
     if (dtb_filename) {
         if (protocol < 0x209) {
