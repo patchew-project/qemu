@@ -23,9 +23,8 @@
 #include "hw/block/block.h"
 
 #include "block/nvme.h"
+#include "hw/nvme/ctrl-cfg.h"
 
-#define NVME_MAX_CONTROLLERS 256
-#define NVME_MAX_NAMESPACES  256
 #define NVME_EUI64_DEFAULT ((uint64_t)0x5254000000000000)
 
 QEMU_BUILD_BUG_ON(NVME_MAX_NAMESPACES > NVME_NSID_BROADCAST - 1);
@@ -279,6 +278,8 @@ int nvme_ns_setup(NvmeNamespace *ns, Error **errp);
 void nvme_ns_drain(NvmeNamespace *ns);
 void nvme_ns_shutdown(NvmeNamespace *ns);
 void nvme_ns_cleanup(NvmeNamespace *ns);
+void nvme_validate_flbas(uint8_t flbas,  Error **errp);
+NvmeNamespace * nvme_ns_create(NvmeCtrl *n, uint32_t nsid, NvmeIdNsMgmt *id_ns, Error **errp);
 
 typedef struct NvmeAsyncEvent {
     QTAILQ_ENTRY(NvmeAsyncEvent) entry;
@@ -339,6 +340,7 @@ static inline const char *nvme_adm_opc_str(uint8_t opc)
     case NVME_ADM_CMD_SET_FEATURES:     return "NVME_ADM_CMD_SET_FEATURES";
     case NVME_ADM_CMD_GET_FEATURES:     return "NVME_ADM_CMD_GET_FEATURES";
     case NVME_ADM_CMD_ASYNC_EV_REQ:     return "NVME_ADM_CMD_ASYNC_EV_REQ";
+    case NVME_ADM_CMD_NS_MGMT:          return "NVME_ADM_CMD_NS_MGMT";
     case NVME_ADM_CMD_NS_ATTACHMENT:    return "NVME_ADM_CMD_NS_ATTACHMENT";
     case NVME_ADM_CMD_VIRT_MNGMT:       return "NVME_ADM_CMD_VIRT_MNGMT";
     case NVME_ADM_CMD_DBBUF_CONFIG:     return "NVME_ADM_CMD_DBBUF_CONFIG";
@@ -427,6 +429,7 @@ typedef struct NvmeParams {
     uint16_t sriov_vi_flexible;
     uint8_t  sriov_max_vq_per_vf;
     uint8_t  sriov_max_vi_per_vf;
+    char     *ns_directory;     /* if empty (default) one legacy ns will be created */
 } NvmeParams;
 
 typedef struct NvmeCtrl {
@@ -485,8 +488,9 @@ typedef struct NvmeCtrl {
 
     NvmeSubsystem   *subsys;
 
-    NvmeNamespace   namespace;
+    NvmeNamespace   namespace;                  /* if ns_directory is empty this will be used */
     NvmeNamespace   *namespaces[NVME_MAX_NAMESPACES + 1];
+    BlockBackend    *preloaded_blk[NVME_MAX_NAMESPACES + 1];
     NvmeSQueue      **sq;
     NvmeCQueue      **cq;
     NvmeSQueue      admin_sq;
@@ -509,6 +513,7 @@ typedef struct NvmeCtrl {
         uint16_t    vqrfap;
         uint16_t    virfap;
     } next_pri_ctrl_cap;    /* These override pri_ctrl_cap after reset */
+    uint16_t nsidMax;
 } NvmeCtrl;
 
 typedef enum NvmeResetType {
@@ -575,6 +580,9 @@ static inline NvmeSecCtrlEntry *nvme_sctrl_for_cntlid(NvmeCtrl *n,
     return NULL;
 }
 
+BlockBackend *ns_blockdev_init(const char *file, Error **errp);
+void ns_blockdev_activate(BlockBackend *blk,  uint64_t image_size, Error **errp);
+int nvme_ns_backend_setup(NvmeCtrl *n, Error **errp);
 void nvme_attach_ns(NvmeCtrl *n, NvmeNamespace *ns);
 uint16_t nvme_bounce_data(NvmeCtrl *n, void *ptr, uint32_t len,
                           NvmeTxDirection dir, NvmeRequest *req);
@@ -583,5 +591,22 @@ uint16_t nvme_bounce_mdata(NvmeCtrl *n, void *ptr, uint32_t len,
 void nvme_rw_complete_cb(void *opaque, int ret);
 uint16_t nvme_map_dptr(NvmeCtrl *n, NvmeSg *sg, size_t len,
                        NvmeCmd *cmd);
+char *ns_create_image_name(NvmeCtrl *n, uint32_t nsid, Error **errp);
+int ns_storage_path_check(NvmeCtrl *n, Error **errp);
+int ns_auto_check(NvmeCtrl *n, NvmeNamespace *ns, uint32_t nsid);
+int ns_cfg_save(NvmeCtrl *n, NvmeNamespace *ns, uint32_t nsid);
+int ns_cfg_load(NvmeCtrl *n, NvmeNamespace *ns, uint32_t nsid);
+int64_t qdict_get_int_chkd(const QDict *qdict, const char *key, Error **errp);
+QList *qdict_get_qlist_chkd(const QDict *qdict, const char *key, Error **errp);
+void ns_cfg_clear(NvmeNamespace *ns);
+int nvme_cfg_save(NvmeCtrl *n);
+int nvme_cfg_load(NvmeCtrl *n);
+
+typedef enum NvmeNsAllocAction {
+    NVME_NS_ALLOC_CHK,
+    NVME_NS_ALLOC,
+    NVME_NS_DEALLOC,
+} NvmeNsAllocAction;
+int nvme_cfg_update(NvmeCtrl *n, uint64_t ammount, NvmeNsAllocAction action);
 
 #endif /* HW_NVME_NVME_H */

@@ -87,10 +87,13 @@ int nvme_subsys_register_ctrl(NvmeCtrl *n, Error **errp)
 
     subsys->ctrls[cntlid] = n;
 
-    for (nsid = 1; nsid < ARRAY_SIZE(subsys->namespaces); nsid++) {
-        NvmeNamespace *ns = subsys->namespaces[nsid];
-        if (ns && ns->params.shared && !ns->params.detached) {
-            nvme_attach_ns(n, ns);
+    if (!n->params.ns_directory) {
+        /* legacy implementation */
+        for (nsid = 1; nsid < ARRAY_SIZE(subsys->namespaces); nsid++) {
+            NvmeNamespace *ns = subsys->namespaces[nsid];
+            if (ns && ns->params.shared && !ns->params.detached) {
+                nvme_attach_ns(n, ns);
+            }
         }
     }
 

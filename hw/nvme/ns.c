@@ -3,9 +3,11 @@
  *
  * Copyright (c) 2019 CNEX Labs
  * Copyright (c) 2020 Samsung Electronics
+ * Copyright (c) 2022 Solidigm
  *
  * Authors:
  *  Klaus Jensen      <k.jensen@samsung.com>
+ *  Michael Kropaczek <michael.kropaczek@solidigm.com>
  *
  * This work is licensed under the terms of the GNU GPL, version 2. See the
  * COPYING file in the top-level directory.
@@ -55,6 +57,26 @@ void nvme_ns_init_format(NvmeNamespace *ns)
     id_ns->npda = id_ns->npdg = npdg - 1;
 }
 
+#define NVME_LBAF_DFLT_CNT 8
+#define NVME_LBAF_DFLT_SIZE 16
+static unsigned int ns_get_default_lbafs(void *lbafp)
+{
+    static const NvmeLBAF lbaf[NVME_LBAF_DFLT_SIZE] = {
+        [0] = { .ds =  9           },
+        [1] = { .ds =  9, .ms =  8 },
+        [2] = { .ds =  9, .ms = 16 },
+        [3] = { .ds =  9, .ms = 64 },
+        [4] = { .ds = 12           },
+        [5] = { .ds = 12, .ms =  8 },
+        [6] = { .ds = 12, .ms = 16 },
+        [7] = { .ds = 12, .ms = 64 },
+    };
+
+    memcpy(lbafp, &lbaf[0], sizeof(lbaf));
+
+    return NVME_LBAF_DFLT_CNT;
+}
+
 static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
 {
     static uint64_t ns_count;
@@ -63,6 +85,11 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
     uint8_t ds;
     uint16_t ms;
     int i;
+
+    ms = ns->params.ms;
+    if (ms && NVME_ID_NS_FLBAS_INDEX(id_ns->flbas)) {
+        return -1;
+    }
 
     ns->csi = NVME_CSI_NVM;
     ns->status = 0x0;
@@ -89,7 +116,6 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
     id_ns->eui64 = cpu_to_be64(ns->params.eui64);
 
     ds = 31 - clz32(ns->blkconf.logical_block_size);
-    ms = ns->params.ms;
 
     id_ns->mc = NVME_ID_NS_MC_EXTENDED | NVME_ID_NS_MC_SEPARATE;
 
@@ -105,38 +131,24 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
 
     ns->pif = ns->params.pif;
 
-    static const NvmeLBAF lbaf[16] = {
-        [0] = { .ds =  9           },
-        [1] = { .ds =  9, .ms =  8 },
-        [2] = { .ds =  9, .ms = 16 },
-        [3] = { .ds =  9, .ms = 64 },
-        [4] = { .ds = 12           },
-        [5] = { .ds = 12, .ms =  8 },
-        [6] = { .ds = 12, .ms = 16 },
-        [7] = { .ds = 12, .ms = 64 },
-    };
+    ns->nlbaf = ns_get_default_lbafs(&id_ns->lbaf);
 
-    ns->nlbaf = 8;
-
-    memcpy(&id_ns->lbaf, &lbaf, sizeof(lbaf));
-
-    for (i = 0; i < ns->nlbaf; i++) {
-        NvmeLBAF *lbaf = &id_ns->lbaf[i];
-        if (lbaf->ds == ds) {
-            if (lbaf->ms == ms) {
-                id_ns->flbas |= i;
-                goto lbaf_found;
+    if (ms) { /* ms from params */
+        for (i = 0; i < ns->nlbaf; i++) {
+            NvmeLBAF *lbaf = &id_ns->lbaf[i];
+            if (lbaf->ds == ds && lbaf->ms == ms) {
+                    id_ns->flbas |= i;
+                    goto lbaf_found;
             }
         }
+        /* add non-standard lba format */
+        id_ns->lbaf[ns->nlbaf].ds = ds;
+        id_ns->lbaf[ns->nlbaf].ms = ms;
+        ns->nlbaf++;
+        id_ns->flbas |= i;
+    } else {
+        i = NVME_ID_NS_FLBAS_INDEX(id_ns->flbas);
     }
-
-    /* add non-standard lba format */
-    id_ns->lbaf[ns->nlbaf].ds = ds;
-    id_ns->lbaf[ns->nlbaf].ms = ms;
-    ns->nlbaf++;
-
-    id_ns->flbas |= i;
-
 
 lbaf_found:
     id_ns_nvm->elbaf[i] = (ns->pif & 0x3) << 7;
@@ -482,6 +494,120 @@ static int nvme_ns_check_constraints(NvmeNamespace *ns, Error **errp)
     return 0;
 }
 
+static void  nvme_ns_backend_sanity_chk(NvmeNamespace *ns, BlockBackend *blk, Error **errp)
+{
+    uint64_t ns_size_img = ns->size;
+    uint64_t ns_size_cfg = blk_getlength(blk);
+
+    if (ns_size_cfg != ns_size_img) {
+        error_setg(errp, "ns-backend sanity check for nsid [%"PRIu32"] failed", ns->params.nsid);
+    }
+}
+
+void nvme_validate_flbas(uint8_t flbas,  Error **errp)
+{
+    uint8_t nlbaf;
+    NvmeLBAF lbaf[NVME_LBAF_DFLT_SIZE];
+
+    nlbaf = ns_get_default_lbafs(&lbaf[0]);
+    flbas = NVME_ID_NS_FLBAS_INDEX(flbas);
+    if (flbas >= nlbaf) {
+        error_setg(errp, "FLBA size index is out of range, max supported [%"PRIu8"]", nlbaf - 1);
+    }
+}
+
+NvmeNamespace * nvme_ns_create(NvmeCtrl *n, uint32_t nsid, NvmeIdNsMgmt *id_ns, Error **errp)
+{
+    NvmeCtrl *ctrl = NULL;     /* primary controller */
+    NvmeSubsystem *subsys = n->subsys;
+    NvmeNamespace *ns = NULL;
+    DeviceState *dev = NULL;
+    uint64_t nsze = le64_to_cpu(id_ns->nsze);
+    uint64_t ncap = le64_to_cpu(id_ns->ncap);
+    uint8_t flbas = id_ns->flbas;
+    uint8_t dps = id_ns->dps;
+    uint8_t nmic = id_ns->nmic;
+    NvmeLBAF lbaf[NVME_LBAF_DFLT_SIZE];
+    size_t lbasz;
+    uint64_t image_size;
+    Error *local_err = NULL;
+    BlockBackend *blk = NULL;
+
+    trace_pci_nvme_ns_create(nsid, nsze, ncap, flbas);
+
+    flbas = NVME_ID_NS_FLBAS_INDEX(flbas);
+
+    ns_get_default_lbafs(&lbaf[0]);
+    lbasz = 1 << lbaf[flbas].ds;
+    image_size = (lbasz + lbaf[flbas].ms) * nsze;
+
+    dev = qdev_try_new(TYPE_NVME_NS);
+    if (!dev) {
+        error_setg(&local_err, "Unable to allocate ns QOM (dev)");
+        goto fail;
+    }
+
+    if (n->cntlid > 0 && !subsys) {
+        error_setg(&local_err, "Secondary controller without subsystem");
+        goto fail2;
+    }
+
+    ctrl = nvme_subsys_ctrl(subsys, 0);
+
+    if (!ctrl) {
+        error_setg(&local_err, "Missing reference to primary controller");
+        goto fail2;
+    }
+
+    ns = NVME_NS(dev);
+    if (ns) {
+        ns->params.nsid = nsid;
+        ns->params.detached = true;
+        ns->params.pi = dps;
+        ns->id_ns.nsfeat = 0x0;     /* reporting no support for THINP */
+        ns->lbasz = lbasz;
+        ns->id_ns.flbas = id_ns->flbas;
+        ns->id_ns.nsze = cpu_to_le64(nsze);
+        ns->id_ns.ncap = cpu_to_le64(ncap);
+        ns->id_ns.nuse = cpu_to_le64(ncap);     /* at this time no usage recording */
+        ns->id_ns.nmic = nmic;
+
+        blk = ctrl->preloaded_blk[nsid];
+        if (blk) {
+            ns_blockdev_activate(blk, image_size, &local_err);
+            if (local_err) {
+                goto fail2;
+            }
+            ns->blkconf.blk = blk;
+            qdev_realize_and_unref(dev, &n->bus.parent_bus, &local_err);    /* causes by extension
+                                                                             * a call to
+                                                                             * nvme_ns_realize() */
+            if (local_err) {
+                goto fail2;
+            }
+        } else {
+            error_setg(&local_err, "Unable to find preloaded back-end reference");
+            goto fail2;
+        }
+
+        if (ns_cfg_save(n, ns, nsid)) {               /* save ns cfg */
+            error_setg(&local_err, "Unable to save ns-cnf, an orphaned ns[%"PRIu32"] will be left behind", nsid);
+            goto fail;
+        }
+    }
+    return ns;
+
+fail2:
+    if (blk) {
+        ctrl->preloaded_blk[nsid] = NULL;
+    }
+    object_unref(OBJECT(dev));
+
+fail:
+    error_propagate(errp, local_err);
+    return NULL;
+}
+
 int nvme_ns_setup(NvmeNamespace *ns, Error **errp)
 {
     if (nvme_ns_check_constraints(ns, errp)) {
@@ -503,6 +629,87 @@ int nvme_ns_setup(NvmeNamespace *ns, Error **errp)
     }
 
     return 0;
+}
+
+static void nvme_ns_add_bootindex(Object *obj);
+int nvme_ns_backend_setup(NvmeCtrl *n, Error **errp)
+{
+    DeviceState *dev = NULL;
+    NvmeCtrl *ctrl = NULL;
+    NvmeSubsystem *subsys = n->subsys;
+    BlockBackend *blk;
+    NvmeNamespace *ns;
+    NvmeNamespace *ns_p = NULL;
+    uint16_t i;
+    int ret = 0;
+    char *exact_filename;
+    Error *local_err = NULL;
+
+    if (n->cntlid > 0) {    /* secondary controller */
+        ctrl = nvme_subsys_ctrl(subsys, 0);
+    }
+
+    for (i = 1; i <= NVME_MAX_NAMESPACES && !local_err; i++ ) {
+        blk = NULL;
+        exact_filename = ns_create_image_name(n, i, &local_err);
+        if (local_err) {
+            break;
+        }
+        if (access(exact_filename, F_OK)) { /* skip if not found */
+            g_free(exact_filename);
+            continue;
+        }
+
+        if (ctrl) {    /* reference from subsys to primary controller */
+            ns_p = nvme_subsys_ns(subsys, i);
+            if (!ns_p) {
+                continue;
+            }
+            blk = ctrl->preloaded_blk[i];
+        } else {
+            blk = ns_blockdev_init(exact_filename, &local_err);
+        }
+
+        g_free(exact_filename);
+
+        if (blk_getlength(blk)) {       /* namespace was created in a previous QEMU session */
+            dev = qdev_try_new(TYPE_NVME_NS);
+            if (!dev) {
+                error_setg(&local_err, "Unable to create a new device entry");
+                break;
+            }
+
+            ns = NVME_NS(dev);
+            if (ns) {
+                if (ns_cfg_load(n, ns, i) == -1) {     /* load ns cfg */
+                    error_setg(&local_err, "Unable to load ns-cfg for ns [%"PRIu16"]", i);
+                    break;
+                }
+                nvme_ns_backend_sanity_chk(ns, blk, &local_err);
+                if (local_err) {
+                    break;
+                }
+                ns->blkconf.blk = blk;
+                qdev_realize_and_unref(dev, &n->bus.parent_bus, &local_err);    /* causes by extension
+                                                                                 * a call to
+                                                                                 * nvme_ns_realize() */
+            }
+        }
+
+        if (!ctrl) {    /* if primary controller */
+            n->preloaded_blk[i] = blk;
+            n->id_ctrl.nn = cpu_to_le32(i);
+        }
+    }
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -1;
+    } else if (ctrl) {
+        n->id_ctrl.nn = ctrl->id_ctrl.nn;
+    }
+
+    return ret;
 }
 
 void nvme_ns_drain(NvmeNamespace *ns)
@@ -563,11 +770,13 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
         }
     }
 
+    nvme_ns_add_bootindex(OBJECT(dev));
+
     if (nvme_ns_setup(ns, errp)) {
         return;
     }
 
-    if (!nsid) {
+    if (!nsid) {    /* legacy implementation without params.nsid specified */
         for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
             if (nvme_ns(n, i) || nvme_subsys_ns(subsys, i)) {
                 continue;
@@ -582,7 +791,7 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
             return;
         }
     } else {
-        if (nvme_ns(n, nsid) || nvme_subsys_ns(subsys, nsid)) {
+        if (nvme_ns(n, nsid) || (!n->params.ns_directory && nvme_subsys_ns(subsys, nsid))) {
             error_setg(errp, "namespace id '%d' already allocated", nsid);
             return;
         }
@@ -596,14 +805,18 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
         }
 
         if (ns->params.shared) {
-            for (i = 0; i < ARRAY_SIZE(subsys->ctrls); i++) {
-                NvmeCtrl *ctrl = subsys->ctrls[i];
+            if (!n->params.ns_directory) {
+                /* legacy implementation */
+                for (i = 0; i < ARRAY_SIZE(subsys->ctrls); i++) {
+                    NvmeCtrl *ctrl = subsys->ctrls[i];
 
-                if (ctrl && ctrl != SUBSYS_SLOT_RSVD) {
-                    nvme_attach_ns(ctrl, ns);
+                    if (ctrl && ctrl != SUBSYS_SLOT_RSVD) {
+                        nvme_attach_ns(ctrl, ns);
+                    }
                 }
+            } else {
+                nvme_attach_ns(n, ns);
             }
-
             return;
         }
     }
@@ -660,7 +873,7 @@ static void nvme_ns_class_init(ObjectClass *oc, void *data)
     dc->desc = "Virtual NVMe namespace";
 }
 
-static void nvme_ns_instance_init(Object *obj)
+static void nvme_ns_add_bootindex(Object *obj)
 {
     NvmeNamespace *ns = NVME_NS(obj);
     char *bootindex = g_strdup_printf("/namespace@%d,0", ns->params.nsid);
@@ -669,6 +882,10 @@ static void nvme_ns_instance_init(Object *obj)
                                   bootindex, DEVICE(obj));
 
     g_free(bootindex);
+}
+
+static void nvme_ns_instance_init(Object *obj)
+{
 }
 
 static const TypeInfo nvme_ns_info = {

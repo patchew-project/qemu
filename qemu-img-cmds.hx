@@ -57,6 +57,12 @@ SRST
 .. option:: create [--object OBJECTDEF] [-q] [-f FMT] [-b BACKING_FILE [-F BACKING_FMT]] [-u] [-o OPTIONS] FILENAME [SIZE]
 ERST
 
+DEF("createns", nsimgs_create,
+    "createns -S nvme_ctrl_serial_number -C nvme_ctrl_total_capacity [-N <NsId_max>] pathname")
+SRST
+.. option:: createns -S SERIAL_NUMBER -C TOTAL_CAPACITY [-N NSID_MAX] PATHNAME
+ERST
+
 DEF("dd", img_dd,
     "dd [--image-opts] [-U] [-f fmt] [-O output_fmt] [bs=block_size] [count=blocks] [skip=blocks] if=input of=output")
 SRST

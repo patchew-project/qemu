@@ -40,7 +40,9 @@
  *              sriov_vi_flexible=<N[optional]> \
  *              sriov_max_vi_per_vf=<N[optional]> \
  *              sriov_max_vq_per_vf=<N[optional]> \
- *              subsys=<subsys_id>
+ *              subsys=<subsys_id>, \
+ *              auto-ns-path=<path to ns storage[optional]>
+ *
  *      -device nvme-ns,drive=<drive_id>,bus=<bus_name>,nsid=<nsid>,\
  *              zoned=<true|false[optional]>, \
  *              subsys=<subsys_id>,detached=<true|false[optional]>
@@ -139,6 +141,65 @@
  *   Indicates the maximum number of virtual queue resources assignable to
  *   a secondary controller. The default 0 resolves to
  *   `(sriov_vq_flexible / sriov_max_vfs)`.
+ *
+ * - `auto-ns-path`
+ *   If specified indicates a support for dynamic management of nvme namespaces
+ *   by means of nvme create-ns command. This path pointing
+ *   to a storage area for backend images must exist. Additionally it requires
+ *   that parameter `ns-subsys` must be specified whereas parameter `drive`
+ *   must not. The legacy namespace backend is disabled, instead, a pair of
+ *   files 'nvme_<ctrl SN>_ns_<NS-ID>.cfg' and 'nvme_<ctrl SN>_ns_<NS-ID>.img'
+ *   will refer to respective namespaces. The create-ns, attach-ns
+ *   and detach-ns commands, issued at the guest side, will make changes to
+ *   those files accordingly.
+ *   For each namespace exists an image file in raw format and a config file
+ *   containing namespace parameters and a state of the attachment allowing QEMU
+ *   to configure namespace during its start up accordingly. If for instance an
+ *   image file has a size of 0 bytes, this will be interpreted as non existent
+ *   namespace. Issuing create-ns command will change the status in the config
+ *   files and and will re-size the image file accordingly so the image file
+ *   will be associated with the respective namespace. The main config file
+ *   nvme_<ctrl SN>_ctrl.cfg keeps the track of allocated capacity to the
+ *   namespaces within the nvme controller.
+ *   As it is the case of a typical hard drive, backend images together with
+ *   config files need to be created. For this reason the qemu-img tool has
+ *   been extended by adding createns command.
+ *
+ *    qemu-img createns {-S <serial> -C <total NVMe capacity>}
+ *                      [-N <NsId max>] {<path>}
+ *
+ *   Parameters:
+ *   -S and -C and <path> are mandatory, `-S` must match `serial` parameter
+ *   and <path> must match `auto-ns-path` parameter of "-device nvme,..."
+ *   specification.
+ *   -N is optional, if specified, it will set a limit to the number of potential
+ *   namespaces and will reduce the number of backend images and config files
+ *   accordingly. As a default, a set of images of 0 bytes size and default
+ *   config files for 256 namespaces will be created, a total of 513 files.
+ *
+ *   Note 1:
+ *         If the main "-drive" is not specified with 'if=virtio', then SeaBIOS
+ *         must be built with disabled "Parallelize hardware init" to allow
+ *         a proper boot. Without it, it is probable that non deterministic
+ *         order of collecting of potential block devices for a boot will not
+ *         catch that one with guest OS. Deterministic order however will fill
+ *         up the list of potential boot devices starting with a typical ATA
+ *         devices usually containing guest OS.
+ *         SeaBIOS has a limited space to store all potential boot block devices
+ *         if there are more than 11 namespaces. (other types require less
+ *         memory so the number of 11 does not apply universally)
+ *         (above Note refers to SeaBIOS rel-1.16.0)
+ *   Note 2:
+ *         If the main "-drive" referring to guest OS is specified with
+ *         'if=virtio', then there is no need to build SeaBIOS with disabled
+ *          "Parallelize hardware init".
+ *         Block boot device 'Virtio disk PCI:xx:xx.x" will appear as a first
+ *         listed instead of an ATA device.
+ *   Note 3:
+ *         More than one of NVMe controllers associated with NVMe subsystem are
+ *         supported. This feature requires that parameters 'serial=' and
+ *         'subsys=' of additional controllers must match those of the primary
+ *         controller and 'auto-ns-path=' must not be specified.
  *
  * nvme namespace device parameters
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -262,6 +323,7 @@ static const uint32_t nvme_cse_acs[256] = {
     [NVME_ADM_CMD_SET_FEATURES]     = NVME_CMD_EFF_CSUPP,
     [NVME_ADM_CMD_GET_FEATURES]     = NVME_CMD_EFF_CSUPP,
     [NVME_ADM_CMD_ASYNC_EV_REQ]     = NVME_CMD_EFF_CSUPP,
+    [NVME_ADM_CMD_NS_MGMT]          = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_NIC,
     [NVME_ADM_CMD_NS_ATTACHMENT]    = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_NIC,
     [NVME_ADM_CMD_VIRT_MNGMT]       = NVME_CMD_EFF_CSUPP,
     [NVME_ADM_CMD_DBBUF_CONFIG]     = NVME_CMD_EFF_CSUPP,
@@ -5577,6 +5639,133 @@ static void nvme_select_iocs_ns(NvmeCtrl *n, NvmeNamespace *ns)
     }
 }
 
+static NvmeNamespace *nvme_ns_mgmt_create(NvmeCtrl *n, uint32_t nsid, NvmeIdNsMgmt *id_ns, Error **errp)
+{
+    NvmeNamespace *ns = NULL;
+    Error *local_err = NULL;
+
+    if (!n->params.ns_directory) {
+        error_setg(&local_err, "create-ns not supported if 'auto-ns-path' is not specified");
+    } else if (n->namespace.blkconf.blk) {
+        error_setg(&local_err, "create-ns not supported if 'drive' is specified");
+    } else {
+        ns = nvme_ns_create(n, nsid, id_ns, &local_err);
+    }
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ns = NULL;
+    }
+
+    return ns;
+}
+
+static uint16_t nvme_ns_mgmt(NvmeCtrl *n, NvmeRequest *req)
+{
+    NvmeCtrl *n_p = NULL;     /* primary controller */
+    NvmeIdCtrl *id = &n->id_ctrl;
+    NvmeNamespace *ns;
+    NvmeIdNsMgmt id_ns = {};
+    uint8_t flags = req->cmd.flags;
+    uint32_t nsid = le32_to_cpu(req->cmd.nsid);
+    uint32_t dw10 = le32_to_cpu(req->cmd.cdw10);
+    uint32_t dw11 = le32_to_cpu(req->cmd.cdw11);
+    uint8_t sel = dw10 & 0xf;
+    uint8_t csi = (dw11 >> 24) & 0xf;
+    uint16_t i;
+    uint16_t ret;
+    Error *local_err = NULL;
+
+    trace_pci_nvme_ns_mgmt(nvme_cid(req), nsid, sel, csi, NVME_CMD_FLAGS_PSDT(flags));
+
+    if (!(le16_to_cpu(id->oacs) & NVME_OACS_NS_MGMT)) {
+        return NVME_NS_ATTACH_MGMT_NOTSPRD | NVME_DNR;
+    }
+
+    if (n->cntlid && !n->subsys) {
+        error_setg(&local_err, "Secondary controller without subsystem");
+        return NVME_NS_ATTACH_MGMT_NOTSPRD | NVME_DNR;
+    }
+
+    n_p = n->subsys->ctrls[0];
+
+    switch (sel) {
+    case NVME_NS_MANAGEMENT_CREATE:
+        switch (csi) {
+        case NVME_CSI_NVM:
+            if (nsid) {
+                return NVME_INVALID_FIELD | NVME_DNR;
+            }
+
+            ret = nvme_h2c(n, (uint8_t *)&id_ns, sizeof(id_ns), req);
+            if (ret) {
+                return ret;
+            }
+
+            uint64_t nsze = le64_to_cpu(id_ns.nsze);
+            uint64_t ncap = le64_to_cpu(id_ns.ncap);
+
+            if (ncap > nsze) {
+                return NVME_INVALID_FIELD | NVME_DNR;
+            } else if (ncap != nsze) {
+                return NVME_THIN_PROVISION_NOTSPRD | NVME_DNR;
+            }
+
+            nvme_validate_flbas(id_ns.flbas, &local_err);
+            if (local_err) {
+                error_report_err(local_err);
+                return NVME_INVALID_FORMAT | NVME_DNR;
+            }
+
+            for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
+                if (nvme_ns(n_p, (uint32_t)i) || nvme_subsys_ns(n_p->subsys, (uint32_t)i)) {
+                    continue;
+                }
+                break;
+            }
+
+
+            if (i >  le32_to_cpu(n_p->id_ctrl.nn) || i >  NVME_MAX_NAMESPACES) {
+               return NVME_NS_IDNTIFIER_UNAVAIL | NVME_DNR;
+            }
+            nsid = i;
+
+            /* create ns here */
+            ns = nvme_ns_mgmt_create(n, nsid, &id_ns, &local_err);
+            if (!ns || local_err) {
+                if (local_err) {
+                    error_report_err(local_err);
+                }
+                return NVME_INVALID_FIELD | NVME_DNR;
+            }
+
+            if (nvme_cfg_update(n, ns->size, NVME_NS_ALLOC_CHK)) {
+                /* place for delete-ns */
+                error_setg(&local_err, "Insufficient capacity, an orphaned ns[%"PRIu32"] will be left behind", nsid);
+                return NVME_NS_INSUFFICIENT_CAPAC | NVME_DNR;
+            }
+            (void)nvme_cfg_update(n, ns->size, NVME_NS_ALLOC);
+            if (nvme_cfg_save(n)) {
+                (void)nvme_cfg_update(n, ns->size, NVME_NS_DEALLOC);
+                /* place for delete-ns */
+                error_setg(&local_err, "Cannot save conf file, an orphaned ns[%"PRIu32"] will be left behind", nsid);
+                return NVME_INVALID_FIELD | NVME_DNR;
+            }
+            req->cqe.result = cpu_to_le32(nsid);
+            break;
+        case NVME_CSI_ZONED:
+            /* fall through for now */
+        default:
+            return NVME_INVALID_FIELD | NVME_DNR;
+	    }
+        break;
+    default:
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    return NVME_SUCCESS;
+}
+
 static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
 {
     NvmeNamespace *ns;
@@ -5589,6 +5778,7 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
     uint16_t *ids = &list[1];
     uint16_t ret;
     int i;
+    Error *local_err;
 
     trace_pci_nvme_ns_attachment(nvme_cid(req), dw10 & 0xf);
 
@@ -5627,6 +5817,8 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
                 return NVME_NS_PRIVATE | NVME_DNR;
             }
 
+            ns->params.detached = false;
+
             nvme_attach_ns(ctrl, ns);
             nvme_select_iocs_ns(ctrl, ns);
 
@@ -5639,6 +5831,11 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
 
             ctrl->namespaces[nsid] = NULL;
             ns->attached--;
+            if (ns->attached) {
+                ns->params.detached = false;
+            } else {
+                ns->params.detached = true;
+            }
 
             nvme_update_dmrsl(ctrl);
 
@@ -5657,6 +5854,12 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
                                NVME_AER_INFO_NOTICE_NS_ATTR_CHANGED,
                                NVME_LOG_CHANGED_NSLIST);
         }
+    }
+
+    if (ns_cfg_save(n, ns, nsid) == -1) {           /* save ns cfg */
+        error_setg(&local_err, "Unable to save ns-cnf");
+        error_report_err(local_err);
+        return NVME_INVALID_FIELD | NVME_DNR;
     }
 
     return NVME_SUCCESS;
@@ -6124,6 +6327,8 @@ static uint16_t nvme_admin_cmd(NvmeCtrl *n, NvmeRequest *req)
         return nvme_get_feature(n, req);
     case NVME_ADM_CMD_ASYNC_EV_REQ:
         return nvme_aer(n, req);
+    case NVME_ADM_CMD_NS_MGMT:
+        return nvme_ns_mgmt(n, req);
     case NVME_ADM_CMD_NS_ATTACHMENT:
         return nvme_ns_attachment(n, req);
     case NVME_ADM_CMD_VIRT_MNGMT:
@@ -6966,7 +7171,7 @@ static void nvme_check_constraints(NvmeCtrl *n, Error **errp)
         params->max_ioqpairs = params->num_queues - 1;
     }
 
-    if (n->namespace.blkconf.blk && n->subsys) {
+    if (n->namespace.blkconf.blk && n->subsys && !params->ns_directory) {
         error_setg(errp, "subsystem support is unavailable with legacy "
                    "namespace ('drive' property)");
         return;
@@ -7480,12 +7685,14 @@ void nvme_attach_ns(NvmeCtrl *n, NvmeNamespace *ns)
                             BDRV_REQUEST_MAX_BYTES / nvme_l2b(ns, 1));
 }
 
+static void nvme_add_bootindex(Object *obj);
 static void nvme_realize(PCIDevice *pci_dev, Error **errp)
 {
     NvmeCtrl *n = NVME(pci_dev);
     NvmeNamespace *ns;
     Error *local_err = NULL;
     NvmeCtrl *pn = NVME(pcie_sriov_get_pf(pci_dev));
+    NvmeCtrl *ctrl = NULL;
 
     if (pci_is_vf(pci_dev)) {
         /*
@@ -7505,6 +7712,15 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
     qbus_init(&n->bus, sizeof(NvmeBus), TYPE_NVME_BUS,
               &pci_dev->qdev, n->parent_obj.qdev.id);
 
+    ctrl = nvme_subsys_ctrl(n->subsys, 0);
+
+    /* check if secondary controller, if so take over the ns_directory */
+    if (ctrl && ctrl->params.ns_directory && !n->params.ns_directory) {
+        n->params.ns_directory = g_strdup(ctrl->params.ns_directory);
+    }
+
+    nvme_add_bootindex(OBJECT(n));
+
     if (nvme_init_subsys(n, errp)) {
         error_propagate(errp, local_err);
         return;
@@ -7516,7 +7732,7 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
     nvme_init_ctrl(n, pci_dev);
 
     /* setup a namespace if the controller drive property was given */
-    if (n->namespace.blkconf.blk) {
+    if (n->namespace.blkconf.blk && !n->params.ns_directory) {
         ns = &n->namespace;
         ns->params.nsid = 1;
 
@@ -7525,6 +7741,14 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
         }
 
         nvme_attach_ns(n, ns);
+    } else if (!n->namespace.blkconf.blk && n->params.ns_directory) {
+        if (nvme_cfg_load(n)) {
+            error_setg(errp, "Could not process nvme-cfg");
+            return;
+        }
+        if (nvme_ns_backend_setup(n, errp)) {
+            return;
+        }
     }
 }
 
@@ -7569,6 +7793,7 @@ static void nvme_exit(PCIDevice *pci_dev)
 
 static Property nvme_props[] = {
     DEFINE_BLOCK_PROPERTIES(NvmeCtrl, namespace.blkconf),
+    DEFINE_PROP_STRING("auto-ns-path", NvmeCtrl,params.ns_directory),
     DEFINE_PROP_LINK("pmrdev", NvmeCtrl, pmr.dev, TYPE_MEMORY_BACKEND,
                      HostMemoryBackend *),
     DEFINE_PROP_LINK("subsys", NvmeCtrl, subsys, TYPE_NVME_SUBSYS,
@@ -7706,14 +7931,19 @@ static void nvme_class_init(ObjectClass *oc, void *data)
     dc->reset = nvme_pci_reset;
 }
 
-static void nvme_instance_init(Object *obj)
+static void nvme_add_bootindex(Object *obj)
 {
     NvmeCtrl *n = NVME(obj);
 
-    device_add_bootindex_property(obj, &n->namespace.blkconf.bootindex,
-                                  "bootindex", "/namespace@1,0",
-                                  DEVICE(obj));
+    if (!n->params.ns_directory) {
+        device_add_bootindex_property(obj, &n->namespace.blkconf.bootindex,
+                                      "bootindex", "/namespace@1,0",
+                                      DEVICE(obj));
+    }
+}
 
+static void nvme_instance_init(Object *obj)
+{
     object_property_add(obj, "smart_critical_warning", "uint8",
                         nvme_get_smart_warning,
                         nvme_set_smart_warning, NULL, NULL);
