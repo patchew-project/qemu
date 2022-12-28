@@ -11405,30 +11405,33 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
     case TARGET_NR_lchown:
         if (!(p = lock_user_string(arg1)))
             return -TARGET_EFAULT;
-        ret = get_errno(lchown(p, low2highuid(arg2), low2highgid(arg3)));
+        ret = get_errno(lchown(p, low2highuid(tswapid(arg2)),
+                               low2highgid(tswapid(arg3))));
         unlock_user(p, arg1, 0);
         return ret;
 #endif
 #ifdef TARGET_NR_getuid
     case TARGET_NR_getuid:
-        return get_errno(high2lowuid(getuid()));
+        return get_errno(tswapid(high2lowuid(getuid())));
 #endif
 #ifdef TARGET_NR_getgid
     case TARGET_NR_getgid:
-        return get_errno(high2lowgid(getgid()));
+        return get_errno(tswapid(high2lowgid(getgid())));
 #endif
 #ifdef TARGET_NR_geteuid
     case TARGET_NR_geteuid:
-        return get_errno(high2lowuid(geteuid()));
+        return get_errno(tswapid(high2lowuid(geteuid())));
 #endif
 #ifdef TARGET_NR_getegid
     case TARGET_NR_getegid:
-        return get_errno(high2lowgid(getegid()));
+        return get_errno(tswapid(high2lowgid(getegid())));
 #endif
     case TARGET_NR_setreuid:
-        return get_errno(setreuid(low2highuid(arg1), low2highuid(arg2)));
+        return get_errno(setreuid(low2highuid(tswapid(arg1)),
+                                  low2highuid(tswapid(arg2))));
     case TARGET_NR_setregid:
-        return get_errno(setregid(low2highgid(arg1), low2highgid(arg2)));
+        return get_errno(setregid(low2highgid(tswapid(arg1)),
+                                  low2highgid(tswapid(arg2))));
     case TARGET_NR_getgroups:
         {
             int gidsetsize = arg1;
@@ -11470,21 +11473,22 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             return get_errno(setgroups(gidsetsize, grouplist));
         }
     case TARGET_NR_fchown:
-        return get_errno(fchown(arg1, low2highuid(arg2), low2highgid(arg3)));
+        return get_errno(fchown(arg1, low2highuid(tswapid(arg2)),
+                                low2highgid(tswapid(arg3))));
 #if defined(TARGET_NR_fchownat)
     case TARGET_NR_fchownat:
         if (!(p = lock_user_string(arg2))) 
             return -TARGET_EFAULT;
-        ret = get_errno(fchownat(arg1, p, low2highuid(arg3),
-                                 low2highgid(arg4), arg5));
+        ret = get_errno(fchownat(arg1, p, low2highuid(tswapid(arg3)),
+                                 low2highgid(tswapid(arg4)), arg5));
         unlock_user(p, arg2, 0);
         return ret;
 #endif
 #ifdef TARGET_NR_setresuid
     case TARGET_NR_setresuid:
-        return get_errno(sys_setresuid(low2highuid(arg1),
-                                       low2highuid(arg2),
-                                       low2highuid(arg3)));
+        return get_errno(sys_setresuid(low2highuid(tswapid(arg1)),
+                                       low2highuid(tswapid(arg2)),
+                                       low2highuid(tswapid(arg3))));
 #endif
 #ifdef TARGET_NR_getresuid
     case TARGET_NR_getresuid:
@@ -11492,9 +11496,9 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             uid_t ruid, euid, suid;
             ret = get_errno(getresuid(&ruid, &euid, &suid));
             if (!is_error(ret)) {
-                if (put_user_id(high2lowuid(ruid), arg1)
-                    || put_user_id(high2lowuid(euid), arg2)
-                    || put_user_id(high2lowuid(suid), arg3))
+                if (put_user_id(tswapid(high2lowuid(ruid)), arg1)
+                    || put_user_id(tswapid(high2lowuid(euid)), arg2)
+                    || put_user_id(tswapid(high2lowuid(suid)), arg3))
                     return -TARGET_EFAULT;
             }
         }
@@ -11502,9 +11506,9 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_getresgid
     case TARGET_NR_setresgid:
-        return get_errno(sys_setresgid(low2highgid(arg1),
-                                       low2highgid(arg2),
-                                       low2highgid(arg3)));
+        return get_errno(sys_setresgid(low2highgid(tswapid(arg1)),
+                                       low2highgid(tswapid(arg2)),
+                                       low2highgid(tswapid(arg3))));
 #endif
 #ifdef TARGET_NR_getresgid
     case TARGET_NR_getresgid:
@@ -11512,9 +11516,9 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             gid_t rgid, egid, sgid;
             ret = get_errno(getresgid(&rgid, &egid, &sgid));
             if (!is_error(ret)) {
-                if (put_user_id(high2lowgid(rgid), arg1)
-                    || put_user_id(high2lowgid(egid), arg2)
-                    || put_user_id(high2lowgid(sgid), arg3))
+                if (put_user_id(tswapid(high2lowgid(rgid)), arg1)
+                    || put_user_id(tswapid(high2lowgid(egid)), arg2)
+                    || put_user_id(tswapid(high2lowgid(sgid)), arg3))
                     return -TARGET_EFAULT;
             }
         }
@@ -11524,14 +11528,15 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
     case TARGET_NR_chown:
         if (!(p = lock_user_string(arg1)))
             return -TARGET_EFAULT;
-        ret = get_errno(chown(p, low2highuid(arg2), low2highgid(arg3)));
+        ret = get_errno(chown(p, low2highuid(tswapid(arg2)),
+                              low2highgid(tswapid(arg3))));
         unlock_user(p, arg1, 0);
         return ret;
 #endif
     case TARGET_NR_setuid:
-        return get_errno(sys_setuid(low2highuid(arg1)));
+        return get_errno(sys_setuid(low2highuid(tswapid(arg1))));
     case TARGET_NR_setgid:
-        return get_errno(sys_setgid(low2highgid(arg1)));
+        return get_errno(sys_setgid(low2highgid(tswapid(arg1))));
     case TARGET_NR_setfsuid:
         return get_errno(setfsuid(arg1));
     case TARGET_NR_setfsgid:
