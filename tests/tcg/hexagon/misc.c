@@ -189,7 +189,7 @@ static int L2_ploadrifnew_pi(void *p, int pred)
                "    p0 = cmp.eq(%1, #1)\n\t"
                "    if (!p0.new) %0 = memw(%2++#4)\n\t"
                "}\n\t"
-               : "=r"(result) : "r"(pred), "r"(p)
+               : "=&r"(result) : "r"(pred), "r"(p)
                : "p0");
   return result;
 }
