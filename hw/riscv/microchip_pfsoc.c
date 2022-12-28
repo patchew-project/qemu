@@ -614,15 +614,6 @@ static void microchip_icicle_kit_machine_init(MachineState *machine)
 
         kernel_entry = riscv_load_kernel(machine, kernel_start_addr, NULL);
 
-        if (machine->initrd_filename) {
-            riscv_load_initrd(machine, kernel_entry);
-        }
-
-        if (machine->kernel_cmdline && *machine->kernel_cmdline) {
-            qemu_fdt_setprop_string(machine->fdt, "/chosen",
-                                    "bootargs", machine->kernel_cmdline);
-        }
-
         /* Compute the fdt load address in dram */
         fdt_load_addr = riscv_load_fdt(memmap[MICROCHIP_PFSOC_DRAM_LO].base,
                                        machine->ram_size, machine->fdt);
