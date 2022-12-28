@@ -1024,8 +1024,18 @@ void tb_invalidate_phys_page(tb_page_addr_t addr)
  */
 bool tb_invalidate_phys_page_unwind(tb_page_addr_t addr, uintptr_t pc)
 {
-    assert(pc != 0);
-#ifdef TARGET_HAS_PRECISE_SMC
+    /*
+     * Without precise smc semantics, or when outside of a TB,
+     * we can skip to invalidate.
+     */
+#ifndef TARGET_HAS_PRECISE_SMC
+    pc = 0;
+#endif
+    if (!pc) {
+        tb_invalidate_phys_page(addr);
+        return false;
+    }
+
     assert_memory_lock();
     {
         TranslationBlock *current_tb = tcg_tb_lookup(pc);
@@ -1058,9 +1068,6 @@ bool tb_invalidate_phys_page_unwind(tb_page_addr_t addr, uintptr_t pc)
             return true;
         }
     }
-#else
-    tb_invalidate_phys_page(addr);
-#endif /* TARGET_HAS_PRECISE_SMC */
     return false;
 }
 #else
