@@ -553,6 +553,14 @@ static void gen_cond_jumpr(DisasContext *ctx, TCGv dst_pc,
     gen_write_new_pc_addr(ctx, dst_pc, cond, pred);
 }
 
+static void gen_cond_jumpr31(DisasContext *ctx, TCGCond cond, TCGv pred)
+{
+    TCGv LSB = tcg_temp_new();
+    tcg_gen_andi_tl(LSB, pred, 1);
+    gen_cond_jumpr(ctx, hex_gpr[HEX_REG_LR], cond, LSB);
+    tcg_temp_free(LSB);
+}
+
 static void gen_cond_jump(DisasContext *ctx, TCGCond cond, TCGv pred,
                           int pc_off)
 {
