@@ -274,6 +274,196 @@ e1000e_msix_use_vector_fail(uint32_t vec, int32_t res) "Failed to use MSI-X vect
 e1000e_mac_set_permanent(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5) "Set permanent MAC: %02x:%02x:%02x:%02x:%02x:%02x"
 e1000e_cfg_support_virtio(bool support) "Virtio header supported: %d"
 
+# hw/net/igb.c
+igb_core_write(uint64_t index, uint32_t size, uint64_t val) "Write to register 0x%"PRIx64", %d byte(s), value: 0x%"PRIx64
+igb_core_read(uint64_t index, uint32_t size, uint64_t val) "Read from register 0x%"PRIx64", %d byte(s), value: 0x%"PRIx64
+igb_core_mdic_read(uint8_t page, uint32_t addr, uint32_t data) "MDIC READ: PHY[%u][%u] = 0x%x"
+igb_core_mdic_read_unhandled(uint8_t page, uint32_t addr) "MDIC READ: PHY[%u][%u] UNHANDLED"
+igb_core_mdic_write(uint8_t page, uint32_t addr, uint32_t data) "MDIC WRITE: PHY[%u][%u] = 0x%x"
+igb_core_mdic_write_unhandled(uint8_t page, uint32_t addr) "MDIC WRITE: PHY[%u][%u] UNHANDLED"
+igb_core_ctrl_write(uint64_t index, uint32_t val) "Write CTRL register 0x%"PRIx64", value: 0x%X"
+igb_core_ctrl_pf_sw_reset(void) "Doing PF SW reset"
+igb_core_ctrl_vf_sw_reset(uint32_t vf_idx) "Doing VF %u SW reset"
+igb_core_ctrl_phy_reset(void) "Doing PHY reset"
+
+igb_link_autoneg_flowctl(bool enabled) "Auto-negotiated flow control state is %d"
+igb_link_set_params(bool autodetect, uint32_t speed, bool force_spd, bool force_dplx, bool rx_fctl, bool tx_fctl) "Set link params: Autodetect: %d, Speed: %d, Force speed: %d, Force duplex: %d, RX flow control %d, TX flow control %d"
+igb_link_read_params(bool autodetect, uint32_t speed, bool force_spd, bool force_dplx, bool rx_fctl, bool tx_fctl) "Get link params: Autodetect: %d, Speed: %d, Force speed: %d, Force duplex: %d, RX flow control %d, TX flow control %d"
+igb_link_set_ext_params(bool asd_check, bool speed_select_bypass, bool pfrstd) "Set extended link params: ASD check: %d, Speed select bypass: %d, PF reset done: %d"
+igb_link_status(bool link_up, bool full_dplx, uint32_t speed, uint32_t asdv) "Link up: %d, Duplex: %d, Speed: %d, ASDV: %d"
+igb_link_status_changed(bool status) "New link status: %d"
+
+igb_wrn_regs_write_ro(uint64_t index, uint32_t size, uint64_t val) "WARNING: Write to RO register 0x%"PRIx64", %d byte(s), value: 0x%"PRIx64
+igb_wrn_regs_write_unknown(uint64_t index, uint32_t size, uint64_t val) "WARNING: Write to unknown register 0x%"PRIx64", %d byte(s), value: 0x%"PRIx64
+igb_wrn_regs_read_unknown(uint64_t index, uint32_t size) "WARNING: Read from unknown register 0x%"PRIx64", %d byte(s)"
+igb_wrn_regs_read_trivial(uint32_t index) "WARNING: Reading register at offset: 0x%05x. It is not fully implemented."
+igb_wrn_regs_write_trivial(uint32_t index) "WARNING: Writing to register at offset: 0x%05x. It is not fully implemented."
+igb_wrn_no_ts_support(void) "WARNING: Guest requested TX timestamping which is not supported"
+igb_wrn_no_snap_support(void) "WARNING: Guest requested TX SNAP header update which is not supported"
+igb_wrn_iscsi_filtering_not_supported(void) "WARNING: Guest requested iSCSI filtering  which is not supported"
+igb_wrn_nfsw_filtering_not_supported(void) "WARNING: Guest requested NFS write filtering  which is not supported"
+igb_wrn_nfsr_filtering_not_supported(void) "WARNING: Guest requested NFS read filtering  which is not supported"
+igb_wrn_no_desctype_support(uint32_t val) "WARNING: Descriptor type (0x%x) not supported"
+igb_wrn_ctx_unknown(uint32_t val) "WARNING: Descriptor type (0x%x) not supported"
+
+igb_tx_disabled(void) "TX disabled"
+igb_tx_set_tctl(uint32_t tctl) "TCTL = 0x%x"
+igb_tx_data_desc(void *addr, uint32_t cmd_type_len, uint32_t olinfo_status) "%p : 0x%x 0x%x"
+igb_tx_ctxt_desc(uint32_t vlan_macip_lens, uint32_t type_tucmd_mlhl, uint32_t mss_l4len_idx) "0x%x 0x%x 0x%x"
+igb_tx_skip_current_pkt(void *addr, bool pf, uint8_t vf_idx) "TX skip current pkt (desc: %p) PF: %d, vf_idx: %u"
+igb_tx_pkt_send_success(void *addr, bool pf, uint8_t vf_idx, uint8_t qidx, uint32_t size) "TX pkt success (desc: %p) PF: %d, vf_idx: %u, queue: %u, size: %u"
+igb_tx_pkt_send_failure(void *addr, bool pf, uint8_t vf_idx, uint8_t qidx) "TX pkt failure (desc: %p) PF: %d, vf_idx: %u, queue: %u"
+igb_tx_interrupt_set(uint32_t eicr_causes, uint32_t icr_causes) "TX interrupt set (EICR causes %u) (ICR causes %u)"
+igb_tx_start_xmit(void) "Start TX"
+
+igb_ring_free_space(int ridx, uint32_t rdlen, uint32_t rdh, uint32_t rdt) "ring #%d: LEN: %u, DH: %u, DT: %u"
+
+igb_rx_disabled(void) "RX disabled"
+igb_rx_can_recv_rings_full(void) "Cannot receive: all rings are full"
+igb_rx_can_recv(void) "Can receive"
+igb_rx_has_buffers(int ridx, uint32_t free_desc, size_t total_size, uint32_t desc_buf_size) "ring #%d: free descr: %u, packet size %zu, descr buffer size %u"
+igb_rx_null_descriptor(void) "Null RX descriptor!!"
+igb_rx_desc_buff_size(uint8_t qidx, uint32_t bsize) "queue: %u, buffer size: %u"
+igb_rx_desc_len(uint8_t rx_desc_len) "RX descriptor length: %u"
+igb_rx_desc_buff_write(uint8_t idx, uint64_t addr, uint16_t offset, const void* source, uint32_t len) "buffer #%u, addr: 0x%"PRIx64", offset: %u, from: %p, length: %u"
+igb_rx_descr(int ridx, uint64_t base, uint8_t len) "Next RX descriptor: ring #%d, PA: 0x%"PRIx64", length: %u"
+igb_rx_set_rctl(uint32_t rctl) "RCTL = 0x%x"
+igb_rx_receive_iov(int iovcnt, uint32_t size) "Received vector of %d fragments with size: %u"
+igb_rx_filter_queue_info(uint8_t mrqc_type) "RX filter: MRQC type: %u"
+igb_rx_filter_status(bool mac_pif, bool mac_match, bool vlan_match) "RX filter: MAC pif: %d, MAC match: %d, VLAN match: %d"
+igb_rx_filter_dropped(void) "RX filter dropped packet"
+igb_rx_vmdq_no_pool_selected(void) "RX filter dropped packet, no target pool selected"
+igb_rx_vmdq_pool_selected(uint8_t pool_select) "RX filter, VMDq target pool: %u"
+igb_rx_filter_ignore_mac(void) "RX filter, ignoring MAC filter, only VLAN"
+igb_rx_filter_ucast_match(uint32_t idx, uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5) "RX filter unicast match[%d]: %02x:%02x:%02x:%02x:%02x:%02x"
+igb_rx_filter_ucast_mismatch(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5) "RX filter unicast mismatch: %02x:%02x:%02x:%02x:%02x:%02x"
+igb_rx_filter_uta_match(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5, uint16_t idx) "RX filter UTA match: %02x:%02x:%02x:%02x:%02x:%02x UTA[%d]"
+igb_rx_filter_uta_mismatch(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5, uint16_t idx) "RX filter UTA mismatch: %02x:%02x:%02x:%02x:%02x:%02x UTA[%d]"
+igb_rx_filter_mta_match(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5, uint16_t idx) "RX filter MTA match: %02x:%02x:%02x:%02x:%02x:%02x MTA[%d]"
+igb_rx_filter_mta_mismatch(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5, uint16_t idx) "RX filter MTA mismatch: %02x:%02x:%02x:%02x:%02x:%02x MTA[%d]"
+igb_rx_filter_vlan_mismatch(uint16_t vid) "RX filter: VID mismatch: 0x%X"
+igb_rx_filter_vlan_match(uint16_t vid) "RX filter: VID match: 0x%X"
+igb_rx_filter_vlan_untagged_match(void) "RX filter: untagged VLAN match"
+igb_rx_filter_promisc_match(uint32_t pkt_type) "RX filter: promisc match, type: %u"
+
+igb_rx_written_to_guest(uint32_t ecir_causes, uint32_t icr_causes) "Received packet written to guest (EICR causes %u) (ICR causes %u)"
+igb_rx_not_written_to_guest(uint32_t eicr_causes, uint32_t icr_causes) "Received packet NOT written to guest (EICR causes %u) (ICR causes %u)"
+igb_rx_interrupt_set(uint32_t eicr_causes, uint32_t icr_causes) "Receive interrupt set (EICR causes %u) (ICR causes %u)"
+igb_rx_set_cso(int cso_state) "RX CSO state set to %d"
+igb_rx_set_rdt(int queue_idx, uint32_t val) "Setting RDT[%d] = %u"
+igb_rx_set_srrctl(int queue_idx, uint32_t val) "Setting SRRCTL[%d] = %u"
+igb_rx_set_rxdctl(int queue_idx, uint32_t val) "Setting RXDCTL[%d] = %u"
+igb_rx_set_rfctl(uint32_t val) "Setting RFCTL = 0x%X"
+igb_rx_start_recv(void) "Start RX"
+
+igb_rx_rss_started(void) "Starting RSS processing"
+igb_rx_rss_disabled(void) "RSS is disabled"
+igb_rx_rss_type(uint32_t type) "RSS type is %u"
+igb_rx_rss_ip4(bool isfragment, bool istcp, uint32_t mrqc, bool tcpipv4_enabled, bool ipv4_enabled) "RSS IPv4: fragment %d, tcp %d, mrqc 0x%X, tcpipv4 enabled %d, ipv4 enabled %d"
+igb_rx_rss_ip6_rfctl(uint32_t rfctl) "RSS IPv6: rfctl 0x%X"
+igb_rx_rss_ip6(bool ex_dis, bool istcp, bool has_ext_headers, bool ex_dst_valid, bool ex_src_valid, uint32_t mrqc, bool tcpipv6_enabled, bool ipv6ex_enabled, bool ipv6_enabled) "RSS IPv6: ex_dis: %d, tcp %d, has_ext_headers %d, ex_dst_valid %d, ex_src_valid %d, mrqc 0x%X, tcpipv6 enabled %d, ipv6ex enabled %d, ipv6 enabled %d"
+igb_rx_rss_dispatched_to_queue(bool pf, uint8_t vf_idx, int queue_idx) "Packet being dispatched to PF: %d, vf_idx: %u, queue %d"
+igb_rx_rss_not_dispatched_to_queue(bool pf, uint8_t vf_idx, int queue_idx) "Packet not dispatched to PF: %d, vf_idx: %u, queue %d, RXDCTL not enabled"
+
+igb_rx_metadata_protocols(bool isip4, bool isip6, bool isudp, bool istcp) "protocols: ip4: %d, ip6: %d, udp: %d, tcp: %d"
+igb_rx_metadata_vlan(uint16_t vlan_tag) "VLAN tag is 0x%X"
+igb_rx_metadata_rss(uint32_t rss, uint32_t mrq) "RSS data: rss: 0x%X, mrq: 0x%X"
+igb_rx_metadata_ip_id(uint16_t ip_id) "the IPv4 ID is 0x%X"
+igb_rx_metadata_ack(void) "the packet is TCP ACK"
+igb_rx_metadata_pkt_type(uint32_t pkt_type) "the packet type is %u"
+igb_rx_metadata_no_l3_hdr(void) "the packet has no L3"
+igb_rx_metadata_no_virthdr(void) "the packet has no virt-header"
+igb_rx_metadata_virthdr_no_csum_info(void) "virt-header does not contain checksum info"
+igb_rx_metadata_l3_cso_disabled(void) "IP4 CSO is disabled"
+igb_rx_metadata_l4_cso_disabled(void) "TCP/UDP CSO is disabled"
+igb_rx_metadata_l3_csum_validation_failed(void) "Cannot validate L3 checksum"
+igb_rx_metadata_l4_csum_validation_failed(void) "Cannot validate L4 checksum"
+igb_rx_metadata_status_flags(uint32_t status_flags) "status_flags is 0x%X"
+igb_rx_metadata_ipv6_sum_disabled(void) "IPv6 RX checksummimg disabled by RFCTL"
+igb_rx_metadata_ipv6_filtering_disabled(void) "IPv6 RX filtering disabled by RFCTL"
+
+igb_vlan_vet(uint16_t vet) "Setting VLAN ethernet type 0x%X"
+
+igb_irq_msi_notify(uint32_t cause) "MSI notify 0x%x"
+igb_irq_throttling_no_pending_interrupts(void) "No pending interrupts to notify"
+igb_irq_msi_notify_postponed(void) "Sending MSI postponed by ITR"
+igb_irq_legacy_notify_postponed(void) "Raising legacy IRQ postponed by ITR"
+igb_irq_throttling_no_pending_vec(int idx) "No pending interrupts for vector %d"
+igb_irq_msix_notify_postponed_vec(int idx) "Sending MSI-X postponed by EITR[%d]"
+igb_irq_legacy_notify(bool level) "IRQ line state: %d"
+igb_irq_msix_notify_vec(bool pf, uint8_t vf_idx, uint32_t vector) "MSI-X notify PF: %d, vf_idx: %u, vector 0x%x"
+igb_irq_postponed_by_xitr(uint32_t reg) "Interrupt postponed by [E]ITR register 0x%x"
+igb_irq_clear_ims(uint32_t bits, uint32_t old_ims, uint32_t new_ims) "Clearing IMS bits 0x%x: 0x%x --> 0x%x"
+igb_irq_set_ims(uint32_t bits, uint32_t old_ims, uint32_t new_ims) "Setting IMS bits 0x%x: 0x%x --> 0x%x"
+igb_irq_pending_mbvf_interrupts(bool pf, uint8_t vf_idx, uint32_t reset, uint32_t pending, uint32_t vflre, uint32_t mbvficr, uint32_t mbvfimr) "MBVFICR: PF: %d, vf_idx: %u, reset: 0x%x pending: 0x%x (VFLRE: 0x%x, MBVFICR: 0x%x, MBVFIMR: 0x%x)"
+igb_irq_pending_other_interrupts(bool pf, uint8_t vf_idx, uint32_t pending, uint32_t icr, uint32_t ims) "ICR: PF: %d, vf_idx: %u, pending 0x%x (ICR: 0x%x, IMS: 0x%x)"
+igb_irq_pending_interrupts(bool pf, uint8_t vf_idx, uint32_t pending, uint32_t eicr, uint32_t eims) "EICR: PF: %d, vf_idx: %u, pending 0x%x (EICR: 0x%x, EIMS: 0x%x)"
+igb_irq_set_cause_entry(uint32_t val, uint32_t eicr) "Going to set IRQ cause 0x%x, EICR: 0x%x"
+igb_irq_set_cause_exit(uint32_t val, uint32_t eicr) "Set IRQ cause 0x%x, EICR: 0x%x"
+igb_irq_icr_write(uint32_t bits, uint32_t old_icr, uint32_t new_icr) "Clearing ICR bits 0x%x: 0x%x --> 0x%x"
+igb_irq_write_ics(uint32_t val) "Adding ICR bits 0x%x"
+igb_irq_icr_process_iame(void) "Clearing IMS bits due to IAME"
+igb_irq_read_ics(uint32_t ics) "Current ICS: 0x%x"
+igb_irq_read_ims(uint32_t ims) "Current IMS: 0x%x"
+igb_irq_icr_clear_nonmsix_icr_read(void) "Clearing ICR on read due to non MSI-X int"
+igb_irq_icr_read_entry(uint32_t icr) "Starting ICR read. Current ICR: 0x%x"
+igb_irq_icr_read_exit(uint32_t icr) "Ending ICR read. Current ICR: 0x%x"
+igb_irq_icr_clear_zero_ims(void) "Clearing ICR on read due to zero IMS"
+igb_irq_icr_clear_iame(void) "Clearing ICR on read due to IAME"
+igb_irq_eiam_clear_eiame(uint32_t eiam, uint32_t cause) "Clearing EIAM due to EIAME, EIAM: 0x%X, cause: 0x%X"
+igb_irq_eicr_clear_eiac(uint32_t eicr, uint32_t eiac) "Clearing EICR bits due to EIAC, EICR: 0x%X, EIAC: 0x%X"
+igb_irq_ims_clear_set_imc(uint32_t val) "Clearing IMS bits due to IMC write 0x%x"
+igb_irq_rearm_timer(uint32_t reg, int64_t delay_ns) "Mitigation timer armed for register 0x%X, delay %"PRId64" ns"
+igb_irq_throttling_timer(uint32_t reg) "Mitigation timer shot for register 0x%X"
+igb_irq_eitr_set(uint32_t eitr_num, uint32_t val) "EITR[%u] = %u"
+igb_irq_itr_set(uint32_t val) "ITR = %u"
+igb_irq_msix_pending_clearing(uint32_t cause, uint32_t int_cfg, uint32_t vec) "Clearing MSI-X pending bit for cause 0x%x, IVAR config 0x%x, vector %u"
+
+igb_wrn_msix_vec_wrong(uint32_t msix_vector) "Invalid configuration for vector: 0x%x"
+igb_wrn_msix_invalid(uint32_t msix_vector) "Invalid entry for vector: 0x%x"
+
+igb_mac_set_sw(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5) "Set SW MAC: %02x:%02x:%02x:%02x:%02x:%02x"
+
+igb_vm_state_running(void) "VM state is running"
+igb_vm_state_stopped(void) "VM state is stopped"
+
+igb_mbx_pf_write(uint32_t vf_idx, uint32_t val) "PFMailbox write VF: %u, value: 0x%"PRIx32
+igb_mbx_pf_read(uint32_t vf_idx, uint32_t val) "PFMailbox read VF: %u, value: 0x%"PRIx32
+igb_mbx_vf_write(uint32_t vf_idx, uint32_t val) "VFMailbox write VF: %u, value: 0x%"PRIx32
+igb_mbx_vf_read(uint32_t vf_idx, uint32_t val) "VFMailbox read VF: %u, value: 0x%"PRIx32
+
+igb_vmbmem_pf_write(uint32_t vf_idx, uint32_t offset, uint32_t val) "VMBMEM PF write: VF: %u, offset: %u, value: 0x%"PRIx32
+igb_vmbmem_pf_read(uint32_t vf_idx, uint32_t offset, uint32_t val) "VMBMEM PF read: VF: %u, offset: %u, value: 0x%"PRIx32
+igb_vmbmem_vf_write(uint32_t vf_idx, uint32_t offset, uint32_t val) "VMBMEM VF write: VF: %u, offset: %u, value: 0x%"PRIx32
+igb_vmbmem_vf_read(uint32_t vf_idx, uint32_t offset, uint32_t val) "VMBMEM VF read: VF: %u, offset: %u, value: 0x%"PRIx32
+
+# igb.c
+igb_cb_pci_realize(void) "igb PCI realize entry"
+igb_cb_pci_uninit(void) "igb PCI unit entry"
+igb_cb_qdev_reset(void) "igb qdev reset entry"
+igb_cb_pre_save(void) "igb pre save entry"
+igb_cb_post_load(void) "igb post load entry"
+
+igb_io_write_addr(uint64_t addr) "IOADDR write 0x%"PRIx64
+igb_io_write_data(uint64_t addr, uint64_t val) "IODATA write 0x%"PRIx64", value: 0x%"PRIx64
+igb_io_read_addr(uint64_t addr) "IOADDR read 0x%"PRIx64
+igb_io_read_data(uint64_t addr, uint64_t val) "IODATA read 0x%"PRIx64", value: 0x%"PRIx64
+igb_wrn_io_write_unknown(uint64_t addr) "IO write unknown address 0x%"PRIx64
+igb_wrn_io_read_unknown(uint64_t addr) "IO read unknown address 0x%"PRIx64
+igb_wrn_io_addr_undefined(uint64_t addr) "IO undefined register 0x%"PRIx64
+igb_wrn_io_addr_flash(uint64_t addr) "IO flash access (0x%"PRIx64") not implemented"
+igb_wrn_io_addr_unknown(uint64_t addr) "IO unknown register 0x%"PRIx64
+
+igb_msi_init_fail(int32_t res) "Failed to initialize MSI, error %d"
+igb_msix_init_fail(int32_t res) "Failed to initialize MSI-X, error %d"
+igb_msix_use_vector_fail(uint32_t vec, int32_t res) "Failed to use MSI-X vector %d, error %d"
+
+igb_mac_set_permanent(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5) "Set permanent MAC: %02x:%02x:%02x:%02x:%02x:%02x"
+igb_cfg_support_virtio(bool support) "Virtio header supported: %d"
+
+igb_write_config(uint32_t address, uint32_t val, int len) "CONFIG write 0x%"PRIx32", value: 0x%"PRIx32", len: %"PRId32
+igbvf_write_config(uint32_t address, uint32_t val, int len) "CONFIG write 0x%"PRIx32", value: 0x%"PRIx32", len: %"PRId32
+
 # spapr_llan.c
 spapr_vlan_get_rx_bd_from_pool_found(int pool, int32_t count, uint32_t rx_bufs) "pool=%d count=%"PRId32" rxbufs=%"PRIu32
 spapr_vlan_get_rx_bd_from_page(int buf_ptr, uint64_t bd) "use_buf_ptr=%d bd=0x%016"PRIx64
