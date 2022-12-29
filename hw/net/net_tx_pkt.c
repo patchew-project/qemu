@@ -284,6 +284,12 @@ struct virtio_net_hdr *net_tx_pkt_get_vhdr(struct NetTxPkt *pkt)
     return &pkt->virt_hdr;
 }
 
+struct eth_header *net_tx_pkt_get_l2hdr(struct NetTxPkt *pkt)
+{
+    assert(pkt);
+    return PKT_GET_ETH_HDR(&pkt->l2_hdr);
+}
+
 static uint8_t net_tx_pkt_get_gso_type(struct NetTxPkt *pkt,
                                           bool tso_enable)
 {
@@ -551,13 +557,13 @@ static size_t net_tx_pkt_fetch_fragment(struct NetTxPkt *pkt,
     return fetched;
 }
 
-static inline void net_tx_pkt_sendv(struct NetTxPkt *pkt,
+static inline ssize_t net_tx_pkt_sendv(struct NetTxPkt *pkt,
     NetClientState *nc, const struct iovec *iov, int iov_cnt)
 {
     if (pkt->is_loopback) {
-        qemu_receive_packet_iov(nc, iov, iov_cnt);
+        return qemu_receive_packet_iov(nc, iov, iov_cnt);
     } else {
-        qemu_sendv_packet(nc, iov, iov_cnt);
+        return qemu_sendv_packet(nc, iov, iov_cnt);
     }
 }
 
@@ -632,9 +638,8 @@ bool net_tx_pkt_send(struct NetTxPkt *pkt, NetClientState *nc)
     if (pkt->has_virt_hdr ||
         pkt->virt_hdr.gso_type == VIRTIO_NET_HDR_GSO_NONE) {
         net_tx_pkt_fix_ip6_payload_len(pkt);
-        net_tx_pkt_sendv(pkt, nc, pkt->vec,
-            pkt->payload_frags + NET_TX_PKT_PL_START_FRAG);
-        return true;
+        return (net_tx_pkt_sendv(pkt, nc, pkt->vec,
+            pkt->payload_frags + NET_TX_PKT_PL_START_FRAG) >= 0);
     }
 
     return net_tx_pkt_do_sw_fragmentation(pkt, nc);
