@@ -397,51 +397,61 @@ static int vfio_dma_unmap_bitmap(VFIOContainer *container,
                                  IOMMUTLBEntry *iotlb)
 {
     struct vfio_iommu_type1_dma_unmap *unmap;
-    struct vfio_bitmap *bitmap;
+    struct vfio_bitmap *vbitmap;
+    unsigned long *bitmap;
+    uint64_t bitmap_size;
     uint64_t pages = REAL_HOST_PAGE_ALIGN(size) / qemu_real_host_page_size();
     int ret;
 
-    unmap = g_malloc0(sizeof(*unmap) + sizeof(*bitmap));
+    unmap = g_malloc0(sizeof(*unmap) + sizeof(*vbitmap));
 
-    unmap->argsz = sizeof(*unmap) + sizeof(*bitmap);
+    unmap->argsz = sizeof(*unmap);
     unmap->iova = iova;
     unmap->size = size;
-    unmap->flags |= VFIO_DMA_UNMAP_FLAG_GET_DIRTY_BITMAP;
-    bitmap = (struct vfio_bitmap *)&unmap->data;
 
+    bitmap_size = ROUND_UP(pages, sizeof(__u64) * BITS_PER_BYTE) /
+                  BITS_PER_BYTE;
+    bitmap = g_try_malloc0(bitmap_size);
+    if (!bitmap) {
+        ret = -ENOMEM;
+        goto unmap_exit;
+    }
+
+    if (!container->dirty_pages_supported) {
+        bitmap_set(bitmap, 0, pages);
+        goto do_unmap;
+    }
+
+    unmap->argsz += sizeof(*vbitmap);
+    unmap->flags = VFIO_DMA_UNMAP_FLAG_GET_DIRTY_BITMAP;
+
+    vbitmap = (struct vfio_bitmap *)&unmap->data;
+    vbitmap->data = (__u64 *)bitmap;
     /*
      * cpu_physical_memory_set_dirty_lebitmap() supports pages in bitmap of
      * qemu_real_host_page_size to mark those dirty. Hence set bitmap_pgsize
      * to qemu_real_host_page_size.
      */
+    vbitmap->pgsize = qemu_real_host_page_size();
+    vbitmap->size = bitmap_size;
 
-    bitmap->pgsize = qemu_real_host_page_size();
-    bitmap->size = ROUND_UP(pages, sizeof(__u64) * BITS_PER_BYTE) /
-                   BITS_PER_BYTE;
-
-    if (bitmap->size > container->max_dirty_bitmap_size) {
-        error_report("UNMAP: Size of bitmap too big 0x%"PRIx64,
-                     (uint64_t)bitmap->size);
+    if (bitmap_size > container->max_dirty_bitmap_size) {
+        error_report("UNMAP: Size of bitmap too big 0x%"PRIx64, bitmap_size);
         ret = -E2BIG;
         goto unmap_exit;
     }
 
-    bitmap->data = g_try_malloc0(bitmap->size);
-    if (!bitmap->data) {
-        ret = -ENOMEM;
-        goto unmap_exit;
-    }
-
+do_unmap:
     ret = ioctl(container->fd, VFIO_IOMMU_UNMAP_DMA, unmap);
     if (!ret) {
-        cpu_physical_memory_set_dirty_lebitmap((unsigned long *)bitmap->data,
-                iotlb->translated_addr, pages);
+        cpu_physical_memory_set_dirty_lebitmap(bitmap, iotlb->translated_addr,
+                                               pages);
     } else {
         error_report("VFIO_UNMAP_DMA with DIRTY_BITMAP : %m");
     }
 
-    g_free(bitmap->data);
 unmap_exit:
+    g_free(bitmap);
     g_free(unmap);
     return ret;
 }
@@ -460,8 +470,7 @@ static int vfio_dma_unmap(VFIOContainer *container,
         .size = size,
     };
 
-    if (iotlb && container->dirty_pages_supported &&
-        vfio_devices_all_running_and_saving(container)) {
+    if (iotlb && vfio_devices_all_running_and_saving(container)) {
         return vfio_dma_unmap_bitmap(container, iova, size, iotlb);
     }
 
@@ -1201,6 +1210,10 @@ static void vfio_set_dirty_page_tracking(VFIOContainer *container, bool start)
         .argsz = sizeof(dirty),
     };
 
+    if (!container->dirty_pages_supported) {
+        return;
+    }
+
     if (start) {
         dirty.flags = VFIO_IOMMU_DIRTY_PAGES_FLAG_START;
     } else {
@@ -1231,10 +1244,25 @@ static void vfio_listener_log_global_stop(MemoryListener *listener)
 static int vfio_get_dirty_bitmap(VFIOContainer *container, uint64_t iova,
                                  uint64_t size, ram_addr_t ram_addr)
 {
-    struct vfio_iommu_type1_dirty_bitmap *dbitmap;
+    struct vfio_iommu_type1_dirty_bitmap *dbitmap = NULL;
     struct vfio_iommu_type1_dirty_bitmap_get *range;
+    unsigned long *bitmap;
+    uint64_t bitmap_size;
     uint64_t pages;
     int ret;
+
+    pages = REAL_HOST_PAGE_ALIGN(size) / qemu_real_host_page_size();
+    bitmap_size = ROUND_UP(pages, sizeof(__u64) * BITS_PER_BYTE) /
+                                  BITS_PER_BYTE;
+    bitmap = g_try_malloc0(bitmap_size);
+    if (!bitmap) {
+        return -ENOMEM;
+    }
+
+    if (!container->dirty_pages_supported) {
+        bitmap_set(bitmap, 0, pages);
+        goto set_dirty;
+    }
 
     dbitmap = g_malloc0(sizeof(*dbitmap) + sizeof(*range));
 
@@ -1250,15 +1278,8 @@ static int vfio_get_dirty_bitmap(VFIOContainer *container, uint64_t iova,
      * to qemu_real_host_page_size.
      */
     range->bitmap.pgsize = qemu_real_host_page_size();
-
-    pages = REAL_HOST_PAGE_ALIGN(range->size) / qemu_real_host_page_size();
-    range->bitmap.size = ROUND_UP(pages, sizeof(__u64) * BITS_PER_BYTE) /
-                                         BITS_PER_BYTE;
-    range->bitmap.data = g_try_malloc0(range->bitmap.size);
-    if (!range->bitmap.data) {
-        ret = -ENOMEM;
-        goto err_out;
-    }
+    range->bitmap.size = bitmap_size;
+    range->bitmap.data = (__u64 *)bitmap;
 
     ret = ioctl(container->fd, VFIO_IOMMU_DIRTY_PAGES, dbitmap);
     if (ret) {
@@ -1268,13 +1289,13 @@ static int vfio_get_dirty_bitmap(VFIOContainer *container, uint64_t iova,
         goto err_out;
     }
 
-    cpu_physical_memory_set_dirty_lebitmap((unsigned long *)range->bitmap.data,
-                                            ram_addr, pages);
+set_dirty:
+    cpu_physical_memory_set_dirty_lebitmap(bitmap, ram_addr, pages);
 
-    trace_vfio_get_dirty_bitmap(container->fd, range->iova, range->size,
-                                range->bitmap.size, ram_addr);
+    trace_vfio_get_dirty_bitmap(container->fd, iova, size, bitmap_size,
+                                ram_addr);
 err_out:
-    g_free(range->bitmap.data);
+    g_free(bitmap);
     g_free(dbitmap);
 
     return ret;
@@ -1409,8 +1430,7 @@ static void vfio_listener_log_sync(MemoryListener *listener,
 {
     VFIOContainer *container = container_of(listener, VFIOContainer, listener);
 
-    if (vfio_listener_skipped_section(section) ||
-        !container->dirty_pages_supported) {
+    if (vfio_listener_skipped_section(section)) {
         return;
     }
 
