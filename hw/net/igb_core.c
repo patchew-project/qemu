@@ -993,14 +993,12 @@ igb_start_recv(IGBCore *core)
 bool
 igb_can_receive(IGBCore *core)
 {
-    int i;
-
     if (!e1000x_rx_ready(core->owner, core->mac)) {
         trace_igb_rx_disabled();
         return false;
     }
 
-    for (i = 0; i < IGB_NUM_QUEUES; i++) {
+    for (int i = 0; i < IGB_NUM_QUEUES; i++) {
         IGBRingInfo *rxi = &core->rx_ring_info[i];
         if (igb_ring_enabled(core, rxi) &&
                 igb_has_rxbufs(core, rxi, 1) &&

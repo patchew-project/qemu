@@ -94,6 +94,7 @@ config Q35
     imply VTD
     imply AMD_IOMMU
     imply E1000E_PCI_EXPRESS
+    imply IGB_PCI_EXPRESS
     imply VMPORT
     imply VMMOUSE
     select PC_PCI
