@@ -177,6 +177,8 @@ target_ulong riscv_load_kernel(const char *kernel_filename,
 {
     uint64_t kernel_load_base, kernel_entry;
 
+    g_assert(kernel_filename != NULL);
+
     /*
      * NB: Use low address not ELF entry point to ensure that the fw_dynamic
      * behaviour when loading an ELF matches the fw_payload, fw_jump and BBL
@@ -208,6 +210,8 @@ hwaddr riscv_load_initrd(const char *filename, uint64_t mem_size,
                          uint64_t kernel_entry, hwaddr *start)
 {
     ssize_t size;
+
+    g_assert(filename != NULL);
 
     /*
      * We want to put the initrd far enough into RAM that when the
