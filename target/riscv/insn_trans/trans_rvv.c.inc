@@ -2679,8 +2679,10 @@ static bool do_opfv(DisasContext *s, arg_rmr *a,
                     int rm)
 {
     if (checkfn(s, a)) {
+        // the helper will raise an exception if the rounding mode is invalid
         if (rm != RISCV_FRM_DYN) {
-            gen_set_rm(s, RISCV_FRM_DYN);
+            gen_helper_set_rounding_mode(cpu_env,
+                                         tcg_constant_i32(RISCV_FRM_DYN));
         }
 
         uint32_t data = 0;
@@ -3001,38 +3003,39 @@ static bool opffv_narrow_check(DisasContext *s, arg_rmr *a)
            require_scale_zve64f(s);
 }
 
-#define GEN_OPFV_NARROW_TRANS(NAME, CHECK, HELPER, FRM)            \
-static bool trans_##NAME(DisasContext *s, arg_rmr *a)              \
-{                                                                  \
-    if (CHECK(s, a)) {                                             \
-        if (FRM != RISCV_FRM_DYN) {                                \
-            gen_set_rm(s, RISCV_FRM_DYN);                          \
-        }                                                          \
-                                                                   \
-        uint32_t data = 0;                                         \
-        static gen_helper_gvec_3_ptr * const fns[2] = {            \
-            gen_helper_##HELPER##_h,                               \
-            gen_helper_##HELPER##_w,                               \
-        };                                                         \
-        TCGLabel *over = gen_new_label();                          \
-        gen_set_rm(s, FRM);                                        \
-        tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_vl, 0, over);          \
-        tcg_gen_brcond_tl(TCG_COND_GEU, cpu_vstart, cpu_vl, over); \
-                                                                   \
-        data = FIELD_DP32(data, VDATA, VM, a->vm);                 \
-        data = FIELD_DP32(data, VDATA, LMUL, s->lmul);             \
-        data = FIELD_DP32(data, VDATA, VTA, s->vta);               \
-        data = FIELD_DP32(data, VDATA, VMA, s->vma);               \
-        tcg_gen_gvec_3_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, 0),     \
-                           vreg_ofs(s, a->rs2), cpu_env,           \
-                           s->cfg_ptr->vlen / 8,                   \
-                           s->cfg_ptr->vlen / 8, data,             \
-                           fns[s->sew - 1]);                       \
-        mark_vs_dirty(s);                                          \
-        gen_set_label(over);                                       \
-        return true;                                               \
-    }                                                              \
-    return false;                                                  \
+#define GEN_OPFV_NARROW_TRANS(NAME, CHECK, HELPER, FRM)                     \
+static bool trans_##NAME(DisasContext *s, arg_rmr *a)                       \
+{                                                                           \
+    if (CHECK(s, a)) {                                                      \
+        if (FRM != RISCV_FRM_DYN) {                                         \
+            gen_helper_set_rounding_mode(cpu_env,                           \
+                                         tcg_constant_i32(RISCV_FRM_DYN));  \
+        }                                                                   \
+                                                                            \
+        uint32_t data = 0;                                                  \
+        static gen_helper_gvec_3_ptr * const fns[2] = {                     \
+            gen_helper_##HELPER##_h,                                        \
+            gen_helper_##HELPER##_w,                                        \
+        };                                                                  \
+        TCGLabel *over = gen_new_label();                                   \
+        gen_set_rm(s, FRM);                                                 \
+        tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_vl, 0, over);                   \
+        tcg_gen_brcond_tl(TCG_COND_GEU, cpu_vstart, cpu_vl, over);          \
+                                                                            \
+        data = FIELD_DP32(data, VDATA, VM, a->vm);                          \
+        data = FIELD_DP32(data, VDATA, LMUL, s->lmul);                      \
+        data = FIELD_DP32(data, VDATA, VTA, s->vta);                        \
+        data = FIELD_DP32(data, VDATA, VMA, s->vma);                        \
+        tcg_gen_gvec_3_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, 0),              \
+                           vreg_ofs(s, a->rs2), cpu_env,                    \
+                           s->cfg_ptr->vlen / 8,                            \
+                           s->cfg_ptr->vlen / 8, data,                      \
+                           fns[s->sew - 1]);                                \
+        mark_vs_dirty(s);                                                   \
+        gen_set_label(over);                                                \
+        return true;                                                        \
+    }                                                                       \
+    return false;                                                           \
 }
 
 GEN_OPFV_NARROW_TRANS(vfncvt_f_xu_w, opfxv_narrow_check, vfncvt_f_xu_w,
