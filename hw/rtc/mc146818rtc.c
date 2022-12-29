@@ -31,6 +31,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "qemu/timer.h"
+#include "sysemu/arch_init.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/replay.h"
 #include "sysemu/reset.h"
@@ -43,11 +44,7 @@
 #include "qapi/qapi-events-misc.h"
 #include "qapi/visitor.h"
 #include "hw/rtc/mc146818rtc_regs.h"
-
-#ifdef TARGET_I386
-#include "qapi/qapi-commands-misc-target.h"
 #include "hw/i386/apic.h"
-#endif
 
 //#define DEBUG_CMOS
 //#define DEBUG_COALESCED
@@ -112,7 +109,6 @@ static void rtc_coalesced_timer_update(RTCState *s)
 static QLIST_HEAD(, RTCState) rtc_devices =
     QLIST_HEAD_INITIALIZER(rtc_devices);
 
-#ifdef TARGET_I386
 void qmp_rtc_reset_reinjection(Error **errp)
 {
     RTCState *s;
@@ -145,13 +141,6 @@ static void rtc_coalesced_timer(void *opaque)
 
     rtc_coalesced_timer_update(s);
 }
-#else
-static bool rtc_policy_slew_deliver_irq(RTCState *s)
-{
-    assert(0);
-    return false;
-}
-#endif
 
 static uint32_t rtc_periodic_clock_ticks(RTCState *s)
 {
@@ -922,14 +911,15 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
     rtc_set_date_from_host(isadev);
 
     switch (s->lost_tick_policy) {
-#ifdef TARGET_I386
-    case LOST_TICK_POLICY_SLEW:
-        s->coalesced_timer =
-            timer_new_ns(rtc_clock, rtc_coalesced_timer, s);
-        break;
-#endif
     case LOST_TICK_POLICY_DISCARD:
         break;
+    case LOST_TICK_POLICY_SLEW:
+        /* Slew tick policy is only available on x86 */
+        if (arch_type == QEMU_ARCH_I386) {
+            s->coalesced_timer = timer_new_ns(rtc_clock, rtc_coalesced_timer, s);
+            break;
+        }
+        /* fallthrough */
     default:
         error_setg(errp, "Invalid lost tick policy.");
         return;
