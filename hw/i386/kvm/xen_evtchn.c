@@ -19,6 +19,8 @@
 #include "exec/target_page.h"
 #include "exec/address-spaces.h"
 #include "migration/vmstate.h"
+#include "monitor/monitor.h"
+#include "qapi/qmp/qdict.h"
 
 #include "hw/sysbus.h"
 #include "hw/xen/xen.h"
@@ -1059,5 +1061,86 @@ int xen_evtchn_send_op(struct evtchn_send *send)
     qemu_mutex_unlock(&s->port_lock);
 
     return ret;
+}
+
+static const char *type_names[] = {
+    "closed",
+    "unbound",
+    "interdomain",
+    "pirq",
+    "virq",
+    "ipi"
+};
+
+void hmp_xen_event_list(Monitor *mon, const QDict *qdict)
+{
+    XenEvtchnState *s = xen_evtchn_singleton;
+    void *shinfo, *pending, *mask;
+    int i;
+
+    if (!s) {
+        monitor_printf(mon, "Xen event channel emulation not enabled\n");
+        return;
+    }
+
+    shinfo = xen_overlay_get_shinfo_ptr();
+    if (!shinfo) {
+        monitor_printf(mon, "Xen shared info page not allocated\n");
+        return;
+    }
+    if (xen_is_long_mode()) {
+        pending = shinfo + offsetof(struct shared_info, evtchn_pending);
+        mask = shinfo + offsetof(struct shared_info, evtchn_mask);
+    } else {
+        pending = shinfo + offsetof(struct compat_shared_info, evtchn_pending);
+        mask = shinfo + offsetof(struct compat_shared_info, evtchn_mask);
+    }
+
+    qemu_mutex_lock(&s->port_lock);
+
+    for (i = 0; i < s->nr_ports; i++) {
+        XenEvtchnPort *p = &s->port_table[i];
+
+        if (p->type == EVTCHNSTAT_closed) {
+            continue;
+        }
+
+        monitor_printf(mon, "port %4u %s/%d vcpu:%d pending:%d mask:%d\n", i,
+                       type_names[p->type], p->type_val, p->vcpu,
+                       test_bit(i, pending), test_bit(i, mask));
+    }
+
+    qemu_mutex_unlock(&s->port_lock);
+}
+
+void hmp_xen_event_inject(Monitor *mon, const QDict *qdict)
+{
+    XenEvtchnState *s = xen_evtchn_singleton;
+    int port = qdict_get_int(qdict, "port");
+    XenEvtchnPort *p;
+
+    if (!s) {
+        monitor_printf(mon, "Xen event channel emulation not enabled\n");
+        return;
+    }
+
+    if (!valid_port(port)) {
+        monitor_printf(mon, "Invalid port %d\n", port);
+        return;
+    }
+    p = &s->port_table[port];
+
+    qemu_mutex_lock(&s->port_lock);
+
+    monitor_printf(mon, "port %4u %s/%d vcpu:%d\n", port,
+                   type_names[p->type], p->type_val, p->vcpu);
+
+    if (set_port_pending(s, port)) {
+        monitor_printf(mon, "Failed to set port %d\n", port);
+    } else {
+        monitor_printf(mon, "Delivered port %d\n", port);
+    }
+
+    qemu_mutex_unlock(&s->port_lock);
 }
 
