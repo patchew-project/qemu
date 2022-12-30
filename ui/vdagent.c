@@ -6,6 +6,7 @@
 #include "qemu/units.h"
 #include "hw/qdev-core.h"
 #include "migration/blocker.h"
+#include "migration/vmstate.h"
 #include "ui/clipboard.h"
 #include "ui/console.h"
 #include "ui/input.h"
@@ -906,6 +907,31 @@ static void vdagent_chr_parse(QemuOpts *opts, ChardevBackend *backend,
 
 /* ------------------------------------------------------------------ */
 
+static int vdagent_post_load(void *opaque, int version_id)
+{
+    VDAgentChardev *vd = QEMU_VDAGENT_CHARDEV(opaque);
+
+    trace_vdagent_migration_caps(vd->caps);
+
+    if (vd->caps) {
+        vdagent_register_to_qemu_clipboard(vd);
+        qemu_input_handler_activate(vd->mouse_hs);
+    }
+
+    return 0;
+}
+
+static const VMStateDescription vmstate_vdagent = {
+    .name = "vdagent",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .post_load = vdagent_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(caps, VDAgentChardev),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static void vdagent_chr_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
@@ -922,6 +948,8 @@ static void vdagent_chr_init(Object *obj)
     VDAgentChardev *vd = QEMU_VDAGENT_CHARDEV(obj);
 
     buffer_init(&vd->outbuf, "vdagent-outbuf");
+
+    vmstate_register(NULL, 0, &vmstate_vdagent, vd);
     error_setg(&vd->migration_blocker,
                "The vdagent chardev doesn't yet support migration");
 }
