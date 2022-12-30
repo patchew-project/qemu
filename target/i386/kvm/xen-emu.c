@@ -285,18 +285,11 @@ static void *gpa_to_hva(uint64_t gpa)
                                              mrs.offset_within_region);
 }
 
-void *kvm_xen_get_vcpu_info_hva(uint32_t vcpu_id)
+static void *vcpu_info_hva_from_cs(CPUState *cs)
 {
-    CPUState *cs = qemu_get_cpu(vcpu_id);
-    CPUX86State *env;
-    uint64_t gpa;
+    CPUX86State *env = &X86_CPU(cs)->env;
+    uint64_t gpa = env->xen_vcpu_info_gpa;
 
-    if (!cs) {
-        return NULL;
-    }
-    env = &X86_CPU(cs)->env;
-
-    gpa = env->xen_vcpu_info_gpa;
     if (gpa == INVALID_GPA) {
         gpa = env->xen_vcpu_info_default_gpa;
     }
@@ -305,6 +298,31 @@ void *kvm_xen_get_vcpu_info_hva(uint32_t vcpu_id)
     }
 
     return gpa_to_hva(gpa);
+}
+
+void *kvm_xen_get_vcpu_info_hva(uint32_t vcpu_id)
+{
+    CPUState *cs = qemu_get_cpu(vcpu_id);
+
+    if (!cs) {
+            return NULL;
+    }
+
+    return vcpu_info_hva_from_cs(cs);
+}
+
+void kvm_xen_maybe_deassert_callback(CPUState *cs)
+{
+    struct vcpu_info *vi = vcpu_info_hva_from_cs(cs);
+    if (!vi) {
+            return;
+    }
+
+    /* If the evtchn_upcall_pending flag is cleared, turn the GSI off. */
+    if (!vi->evtchn_upcall_pending) {
+        X86_CPU(cs)->env.xen_callback_asserted = false;
+        xen_evtchn_set_callback_level(0);
+    }
 }
 
 void kvm_xen_inject_vcpu_callback_vector(uint32_t vcpu_id, int type)
@@ -338,6 +356,14 @@ void kvm_xen_inject_vcpu_callback_vector(uint32_t vcpu_id, int type)
          * so all we have to do is kick it out.
          */
         qemu_cpu_kick(cs);
+        break;
+
+    case HVM_PARAM_CALLBACK_TYPE_GSI:
+    case HVM_PARAM_CALLBACK_TYPE_PCI_INTX:
+        if (vcpu_id == 0) {
+            xen_evtchn_set_callback_level(1);
+            X86_CPU(cs)->env.xen_callback_asserted = true;
+        }
         break;
     }
 }
