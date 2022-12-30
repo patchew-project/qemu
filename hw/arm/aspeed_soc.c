@@ -517,7 +517,7 @@ static void aspeed_soc_ast2400_class_init(ObjectClass *oc, void *data)
     sc->name         = "ast2400-a1";
     sc->cpu_type     = ARM_CPU_TYPE_NAME("arm926");
     sc->silicon_rev  = AST2400_A1_SILICON_REV;
-    sc->sram_size    = 0x8000;
+    sc->sram_size    = 32 * KiB;
     sc->spis_num     = 1;
     sc->ehcis_num    = 1;
     sc->wdts_num     = 2;
@@ -544,7 +544,7 @@ static void aspeed_soc_ast2500_class_init(ObjectClass *oc, void *data)
     sc->name         = "ast2500-a1";
     sc->cpu_type     = ARM_CPU_TYPE_NAME("arm1176");
     sc->silicon_rev  = AST2500_A1_SILICON_REV;
-    sc->sram_size    = 0x9000;
+    sc->sram_size    = 36 * KiB;
     sc->spis_num     = 2;
     sc->ehcis_num    = 2;
     sc->wdts_num     = 3;
