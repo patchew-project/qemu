@@ -863,7 +863,7 @@ static void vdagent_disconnect(VDAgentChardev *vd)
     vdagent_reset_bufs(vd);
     vd->caps = 0;
     if (vd->mouse_hs) {
-        qemu_input_handler_deactivate(vd->mouse_hs);
+        qemu_input_handler_unregister(vd->mouse_hs);
     }
     if (vd->cbpeer.notifier.notify) {
         qemu_clipboard_peer_unregister(&vd->cbpeer);
