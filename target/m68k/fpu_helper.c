@@ -538,14 +538,23 @@ void HELPER(fmod)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
 
 void HELPER(frem)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
 {
+    FPReg fp_quot;
+    float_status fp_status;
+
+    /* Calculate quotient directly using round to nearest mode */
+    set_float_rounding_mode(float_round_nearest_even, &fp_status);
+    set_floatx80_rounding_precision(
+        get_floatx80_rounding_precision(&env->fp_status), &fp_status);
+    fp_quot.d = floatx80_div(val1->d, val0->d, &fp_status);
+
     res->d = floatx80_rem(val1->d, val0->d, &env->fp_status);
 
-    if (floatx80_is_any_nan(res->d)) {
+    if (floatx80_is_any_nan(fp_quot.d)) {
         return;
     }
 
-    make_quotient(env, extractFloatx80Sign(res->d),
-                  floatx80_to_int32(res->d, &env->fp_status));
+    make_quotient(env, extractFloatx80Sign(fp_quot.d),
+                  abs(floatx80_to_int32(fp_quot.d, &env->fp_status)));
 }
 
 void HELPER(fgetexp)(CPUM68KState *env, FPReg *res, FPReg *val)
