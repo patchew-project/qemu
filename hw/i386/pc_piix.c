@@ -235,8 +235,6 @@ static void pc_init1(MachineState *machine,
     if (pcmc->pci_enabled) {
         DeviceState *dev;
         PCIDevice *pci_dev;
-        const char *type = xen_enabled() ? TYPE_PIIX3_XEN_DEVICE
-                                         : TYPE_PIIX3_DEVICE;
         int i;
 
         pci_bus = i440fx_init(pci_type,
@@ -250,7 +248,7 @@ static void pc_init1(MachineState *machine,
                                        : pci_slot_get_pirq);
         pcms->bus = pci_bus;
 
-        pci_dev = pci_new_multifunction(-1, true, type);
+        pci_dev = pci_new_multifunction(-1, true, TYPE_PIIX3_DEVICE);
         object_property_set_bool(OBJECT(pci_dev), "has-usb",
                                  machine_usb(machine), &error_abort);
         object_property_set_bool(OBJECT(pci_dev), "has-acpi",
