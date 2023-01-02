@@ -48,6 +48,8 @@ option('module_upgrades', type : 'boolean', value : false,
        description: 'try to load modules from alternate paths for upgrades')
 option('install_blobs', type : 'boolean', value : true,
        description: 'install provided firmware blobs')
+option('install_keymaps', type : 'boolean', value : true,
+       description: 'install provided keyboard maps')
 option('sparse', type : 'feature', value : 'auto',
        description: 'sparse checker')
 option('guest_agent', type : 'feature', value : 'auto',
