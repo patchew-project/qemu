@@ -71,6 +71,11 @@ void ns_blockdev_activate(BlockBackend *blk,  uint64_t image_size, Error **errp)
                        errp);
 }
 
+void ns_blockdev_deactivate(BlockBackend *blk, Error **errp)
+{
+    ns_blockdev_activate(blk, 0, errp);
+}
+
 int ns_storage_path_check(NvmeCtrl *n, Error **errp)
 {
     return storage_path_check(n->params.ns_directory,  n->params.serial, errp);

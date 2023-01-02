@@ -103,12 +103,12 @@ Parameters:
 
 ``auto-ns-path=<path to nvme storage location>``
   If specified indicates a support for dynamic management of nvme namespaces
-  by means of nvme create-ns command. This path points
+  by means of nvme create-ns and nvme delete-ns commands. This path points
   to the storage area for backend images must exist. Additionally it requires
   that parameter `ns-subsys` must be specified whereas parameter `drive`
   must not. The legacy namespace backend is disabled, instead, a pair of
   files 'nvme_<ctrl SN>_ns_<NS-ID>.cfg' and 'nvme_<ctrl SN>_ns_<NS-ID>.img'
-  will refer to respective namespaces. The create-ns, attach-ns
+  will refer to respective namespaces. The create-ns, delete-ns, attach-ns
   and detach-ns commands, issued at the guest side, will make changes to
   those files accordingly.
   For each namespace exists an image file in raw format and a config file
@@ -140,8 +140,9 @@ Please note that ``nvme-ns`` device is not required to support of dynamic
 namespaces management feature. It is not prohibited to assign a such device to
 ``nvme`` device specified to support dynamic namespace management if one has
 an use case to do so, however, it will only coexist and be out of the scope of
-Namespaces Management. NsIds will be consistently managed, creation (create-ns)
-of a namespace will not allocate the NsId already being taken. If ``nvme-ns``
+Namespaces Management. Deletion (delete-ns) will render an error for this
+namespace. NsIds will be consistently managed, creation (create-ns) of
+a namespace will not allocate the NsId already being taken. If ``nvme-ns``
 device conflicts with previously created one by create-ns (the same NsId),
 it will break QEMU's start up.
 More than one of NVMe controllers associated with NVMe subsystem are supported.

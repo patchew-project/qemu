@@ -610,6 +610,77 @@ fail:
     return NULL;
 }
 
+static void nvme_ns_unrealize(DeviceState *dev);
+void nvme_ns_delete(NvmeCtrl *n, uint32_t nsid, Error **errp)
+{
+    NvmeNamespace *ns = NULL;
+    NvmeSubsystem *subsys = n->subsys;
+    int i;
+    int ret = 0;
+    Error *local_err = NULL;
+
+    trace_pci_nvme_ns_delete(nsid);
+
+    if (n->cntlid > 0 && !n->subsys) {
+        error_setg(&local_err, "Secondary controller without subsystem ");
+        return;
+    }
+
+    if (subsys) {
+        ns = nvme_subsys_ns(subsys, (uint32_t)nsid);
+        if (ns) {
+            if (ns->params.shared) {
+                for (i = 0; i < ARRAY_SIZE(subsys->ctrls); i++) {
+                    NvmeCtrl *ctrl = subsys->ctrls[i];
+
+                    if (ctrl && ctrl->namespaces[nsid]) {
+                        ctrl->namespaces[nsid] = NULL;
+                        ns->attached--;
+                    }
+                }
+            }
+            subsys->namespaces[nsid] = NULL;
+        }
+    }
+
+    if (!ns) {
+        ns = nvme_ns(n, (uint32_t)nsid);
+        if (ns) {
+            n->namespaces[nsid] = NULL;
+            ns->attached--;
+        } else {
+            error_setg(errp, "Namespace %d does not exist", nsid);
+            return;
+        }
+    }
+
+    if (ns->attached > 0) {
+        error_setg(errp, "Could not detach all ns references for ns[%d], still %d left", nsid, ns->attached);
+        return;
+    }
+
+    /* here is actual deletion */
+    nvme_ns_unrealize(&ns->parent_obj);
+    qdev_unrealize(&ns->parent_obj);
+    ns_blockdev_deactivate(ns->blkconf.blk, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    ns_cfg_clear(ns);
+    ret = ns_cfg_save(n, ns, nsid);
+    if (ret == -1) {
+        error_setg(errp, "Unable to save ns-cnf");
+        return;
+    } else if (ret == 1) {  /* should not occur here, check and error message prior to call to nvme_ns_delete() */
+        return;
+    }
+
+    /* disassociating refernces to the back-end and keeping it as preloaded */
+    ns->blkconf.blk = NULL;
+}
+
 int nvme_ns_setup(NvmeNamespace *ns, Error **errp)
 {
     if (nvme_ns_check_constraints(ns, errp)) {
