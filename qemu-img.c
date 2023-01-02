@@ -34,6 +34,7 @@
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qlist.h"
 #include "qemu/cutils.h"
 #include "qemu/config-file.h"
 #include "qemu/option.h"
@@ -49,10 +50,12 @@
 #include "block/block_int.h"
 #include "block/blockjob.h"
 #include "block/qapi.h"
+#include "block/qdict.h"
 #include "crypto/init.h"
 #include "trace/control.h"
 #include "qemu/throttle.h"
 #include "block/throttle-groups.h"
+#include "hw/nvme/nvme-cfg.h"
 
 #define QEMU_IMG_VERSION "qemu-img version " QEMU_FULL_VERSION \
                           "\n" QEMU_COPYRIGHT "\n"
@@ -218,6 +221,14 @@ void help(void)
            "  '-f' first image format\n"
            "  '-F' second image format\n"
            "  '-s' run in Strict mode - fail on different image size or sector allocation\n"
+           "\n"
+           "Parameters to createns subcommand:\n"
+           "  'pathname' points to the storage area for namespaces backend images and must exist,\n"
+           "    and must match the -device nvme 'auto-ns-path=...' of the qemu-system-xx command\n"
+           "  '-S' indicates NVMe serial number, must match the -device nvme 'serial=...' of the qemu-system-xx command\n"
+           "  '-C' indicates NVMe total capacity\n"
+           "  '-N' sets a limit on possible NVMe namespaces number associated with NVMe controller,\n"
+           "        the default maximal value is " NVME_STRINGIFY(NVME_MAX_NAMESPACES) " and cannot be exceeded\n"
            "\n"
            "Parameters to dd subcommand:\n"
            "  'bs=BYTES' read and write up to BYTES bytes at a time "
@@ -601,6 +612,127 @@ static int img_create(int argc, char **argv)
 fail:
     g_free(options);
     return 1;
+}
+
+static int nsimgs_create(int argc, char **argv)
+{
+    int c;
+    char *auto_ns_path = NULL;
+    char *serial = NULL;
+    char *nsidMax = NULL;
+    char *tnvmcap = NULL;
+    uint64_t tnvmcap64 = 0L;
+    unsigned int nsidMaxi = NVME_MAX_NAMESPACES;
+    char *filename = NULL;
+    uint32_t i;
+    Error *local_err = NULL;
+
+    for(;;) {
+        static const struct option long_options[] = {
+            {"help", no_argument, 0, 'h'},
+            {"serial", required_argument, 0, 'S'},
+            {"tnvmcap", required_argument, 0, 'C'},
+            {"nsidmax", required_argument, 0, 'N'},
+            {0, 0, 0, 0}
+        };
+        c = getopt_long(argc, argv, "S:C:N:",
+                        long_options, NULL);
+        if (c == -1) {
+            break;
+        }
+        switch(c) {
+        case ':':
+            missing_argument(argv[optind - 1]);
+            break;
+        case '?':
+            unrecognized_option(argv[optind - 1]);
+            break;
+        case 'h':
+            help();
+            break;
+        case 'S':
+            serial = optarg;
+            break;
+        case 'N':
+            nsidMax = optarg;
+            break;
+        case 'C':
+            tnvmcap = optarg;
+            break;
+        }
+    }
+
+    if (optind >= argc) {
+        error_exit("Expecting path name");
+    }
+
+    if (!serial || !tnvmcap) {
+        error_exit("Both -S and -C must be specified");
+    }
+
+    tnvmcap64 = cvtnum_full("tnvmcap", tnvmcap, 0, INT64_MAX);
+
+    if (nsidMax && (qemu_strtoui(nsidMax, NULL, 0, &nsidMaxi) < 0 ||
+                                 nsidMaxi > NVME_MAX_NAMESPACES)) {
+        error_exit("-N 'NsIdMax' must be numeric and cannot exceed %d",
+                   NVME_MAX_NAMESPACES);
+    }
+
+    auto_ns_path = (optind < argc) ? argv[optind] : NULL;
+
+    /* create backend images and config flles for namespaces */
+    for (i = 1; !local_err && i <= NVME_MAX_NAMESPACES; i++) {
+        filename = create_image_name(auto_ns_path, serial, i, &local_err);
+        if (local_err) {
+            break;
+        }
+
+        /* calling bdrv_img_create() in both cases if i <= nsidMaxi and othewise,
+         * it checks shared resize permission, if likely locked by qemu-system-xx
+         * it will abort */
+        bdrv_img_create(filename, "raw", NULL, NULL, NULL,
+                                    0, BDRV_O_RDWR | BDRV_O_RESIZE,
+                                    true, &local_err);
+        if (local_err) {
+            break;
+        }
+
+        if (i <= nsidMaxi) { /* backend image file was created */
+            if (ns_cfg_default_save(auto_ns_path, serial, i)) { /* create
+                                                                 * namespace
+                                                                 * config file */
+                break;
+            }
+        } else if (filename && !access(filename, F_OK)) { /* reducing the number of files
+                                                           * if i > nsidMaxi */
+            unlink(filename);
+            g_free(filename);
+            filename = create_cfg_name(auto_ns_path, serial, i, &local_err);
+            if (local_err) {
+                break;
+            }
+            unlink(filename);
+        }
+        g_free(filename);
+        filename = NULL;
+    }
+
+    if (local_err && filename) {
+        error_reportf_err(local_err, "Could not create ns-image [%s] ",
+                          filename);
+        g_free(filename);
+        return 1;
+    } else if (c_cfg_default_save(auto_ns_path, serial,
+                                  tnvmcap64, tnvmcap64)) { /* create controller
+                                                            * config file */
+        error_reportf_err(local_err, "Could not create nvme-cfg ");
+        return 1;
+    } else if (local_err) {
+            error_report_err(local_err);
+        return 1;
+    }
+
+    return 0;
 }
 
 static void dump_json_image_check(ImageCheck *check, bool quiet)

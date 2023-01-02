@@ -92,6 +92,63 @@ There are a number of parameters available:
   attach the namespace to a specific ``nvme`` device (identified by an ``id``
   parameter on the controller device).
 
+Additional Namespaces managed by guest OS Namespaces Management
+---------------------------------------------------------------------
+
+.. code-block:: console
+
+   -device nvme,id=nvme-ctrl,serial=1234,subsys=nvme-subsys,auto-ns-path=path
+
+Parameters:
+
+``auto-ns-path=<path to nvme storage location>``
+  If specified indicates a support for dynamic management of nvme namespaces
+  by means of nvme create-ns command. This path points
+  to the storage area for backend images must exist. Additionally it requires
+  that parameter `ns-subsys` must be specified whereas parameter `drive`
+  must not. The legacy namespace backend is disabled, instead, a pair of
+  files 'nvme_<ctrl SN>_ns_<NS-ID>.cfg' and 'nvme_<ctrl SN>_ns_<NS-ID>.img'
+  will refer to respective namespaces. The create-ns, attach-ns
+  and detach-ns commands, issued at the guest side, will make changes to
+  those files accordingly.
+  For each namespace exists an image file in raw format and a config file
+  containing namespace parameters and state of the attachment allowing QEMU
+  to configure namespaces accordingly during start up. If for instance an
+  image file has a size of 0 bytes this will be interpreted as non existent
+  namespace. Issuing create-ns command will change the status in the config
+  files and and will re-size the image file accordingly so the image file
+  will be associated with the respective namespace. The main config file
+  nvme_<ctrl SN>_ctrl.cfg keeps the track of allocated capacity to the
+  namespaces within the nvme controller.
+  As it is the case of a typical hard drive, backend images together with
+  config files need to be created. For this reason the qemu-img tool has
+  been extended by adding createns command.
+
+   qemu-img createns {-S <serial> -C <total NVMe capacity>}
+                     [-N <NsId max>] {<path>}
+
+  Parameters:
+  -S and -C and <path> are mandatory, `-S` must match `serial` parameter
+  and <path> must match `auto-ns-path` parameter of "-device nvme,..."
+  specification.
+  -N is optional, if specified it will set a limit to the number of potential
+  namespaces and will reduce the number of backend images and config files
+  accordingly. As a default, a set of images of 0 bytes size and default
+  config files for 256 namespaces will be created, a total of 513 files.
+
+Please note that ``nvme-ns`` device is not required to support of dynamic
+namespaces management feature. It is not prohibited to assign a such device to
+``nvme`` device specified to support dynamic namespace management if one has
+an use case to do so, however, it will only coexist and be out of the scope of
+Namespaces Management. NsIds will be consistently managed, creation (create-ns)
+of a namespace will not allocate the NsId already being taken. If ``nvme-ns``
+device conflicts with previously created one by create-ns (the same NsId),
+it will break QEMU's start up.
+More than one of NVMe controllers associated with NVMe subsystem are supported.
+This feature requires that parameters ``serial=`` and ``subsys=`` of additional
+controllers must match those of the primary controller and ``auto-ns-path=``
+must not be specified.
+
 NVM Subsystems
 --------------
 
