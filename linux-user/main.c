@@ -234,6 +234,17 @@ CPUArchState *cpu_copy(CPUArchState *env)
 
     new_cpu->tcg_cflags = cpu->tcg_cflags;
     memcpy(new_env, env, sizeof(CPUArchState));
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
+    new_env->gdt.base = target_mmap(0, sizeof(uint64_t) * TARGET_GDT_ENTRIES,
+                                    PROT_READ|PROT_WRITE,
+                                    MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+    new_env->idt.base = target_mmap(0, sizeof(uint64_t) * (env->idt.limit + 1),
+                                PROT_READ|PROT_WRITE,
+                                MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+    memcpy((void*)new_env->gdt.base, (void*)env->gdt.base, sizeof(uint64_t) * TARGET_GDT_ENTRIES);
+    memcpy((void*)new_env->idt.base, (void*)env->idt.base, sizeof(uint64_t) * (env->idt.limit + 1));
+    OBJECT(new_cpu)->free = OBJECT(cpu)->free;
+#endif
 
     /* Clone all break/watchpoints.
        Note: Once we support ptrace with hw-debug register access, make sure
