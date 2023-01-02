@@ -493,7 +493,7 @@ static void piix3_xen_realize(PCIDevice *dev, Error **errp)
     PIIXState *piix3 = PIIX_PCI_DEVICE(dev);
     PCIBus *pci_bus = pci_get_bus(dev);
 
-    pci_piix_realize(dev, TYPE_PIIX3_USB_UHCI, errp);
+    piix3_realize(dev, errp);
     if (*errp) {
         return;
     }
