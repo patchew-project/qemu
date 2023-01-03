@@ -243,8 +243,6 @@ static void xlnx_zynqmp_create_rpu(MachineState *ms, XlnxZynqMPState *s,
             s->boot_cpu_ptr = &s->rpu_cpu[i];
         }
 
-        object_property_set_bool(OBJECT(&s->rpu_cpu[i]), "reset-hivecs", true,
-                                 &error_abort);
         if (!qdev_realize(DEVICE(&s->rpu_cpu[i]), NULL, errp)) {
             return;
         }
@@ -375,6 +373,8 @@ static void xlnx_zynqmp_init(Object *obj)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
     XlnxZynqMPState *s = XLNX_ZYNQMP(obj);
+    const char *cpu_type;
+    ObjectClass *cpu_class;
     int i;
     int num_apus = MIN(ms->smp.cpus, XLNX_ZYNQMP_NUM_APU_CPUS);
 
@@ -382,10 +382,13 @@ static void xlnx_zynqmp_init(Object *obj)
                             TYPE_CPU_CLUSTER);
     qdev_prop_set_uint32(DEVICE(&s->apu_cluster), "cluster-id", 0);
 
+    cpu_type = ARM_CPU_TYPE_NAME("cortex-a53");
+    cpu_class = object_class_by_name(cpu_type);
+    class_property_set_bool(cpu_class, "reset-hivecs", true, &error_abort);
+
     for (i = 0; i < num_apus; i++) {
         object_initialize_child(OBJECT(&s->apu_cluster), "apu-cpu[*]",
-                                &s->apu_cpu[i],
-                                ARM_CPU_TYPE_NAME("cortex-a53"));
+                                &s->apu_cpu[i], cpu_type);
     }
 
     object_initialize_child(obj, "gic", &s->gic, gic_class_name());

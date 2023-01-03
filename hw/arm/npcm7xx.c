@@ -390,11 +390,14 @@ static qemu_irq npcm7xx_irq(NPCM7xxState *s, int n)
 static void npcm7xx_init(Object *obj)
 {
     NPCM7xxState *s = NPCM7XX(obj);
+    const char *cpu_type = ARM_CPU_TYPE_NAME("cortex-a9");
+    ObjectClass *cpu_class = object_class_by_name(cpu_type);
     int i;
 
+    class_property_set_bool(cpu_class, "reset-hivecs", true, &error_abort);
+
     for (i = 0; i < NPCM7XX_MAX_NUM_CPUS; i++) {
-        object_initialize_child(obj, "cpu[*]", &s->cpu[i],
-                                ARM_CPU_TYPE_NAME("cortex-a9"));
+        object_initialize_child(obj, "cpu[*]", &s->cpu[i], cpu_type);
     }
 
     object_initialize_child(obj, "a9mpcore", &s->a9mpcore, TYPE_A9MPCORE_PRIV);
@@ -466,8 +469,6 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
                                 &error_abort);
         object_property_set_int(OBJECT(&s->cpu[i]), "reset-cbar",
                                 NPCM7XX_GIC_CPU_IF_ADDR, &error_abort);
-        object_property_set_bool(OBJECT(&s->cpu[i]), "reset-hivecs", true,
-                                 &error_abort);
 
         /* Disable security extensions. */
         object_property_set_bool(OBJECT(&s->cpu[i]), "has_el3", false,

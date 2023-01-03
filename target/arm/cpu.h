@@ -973,7 +973,6 @@ struct ArchCPU {
     uint64_t ccsidr[16];
     uint64_t reset_cbar;
     uint32_t reset_auxcr;
-    bool reset_hivecs;
 
     /*
      * Intermediate values used during property parsing.

@@ -1280,9 +1280,6 @@ static void arm_cpu_initfn(Object *obj)
 static Property arm_cpu_reset_cbar_property =
             DEFINE_PROP_UINT64("reset-cbar", ARMCPU, reset_cbar, 0);
 
-static Property arm_cpu_reset_hivecs_property =
-            DEFINE_PROP_BOOL("reset-hivecs", ARMCPU, reset_hivecs, false);
-
 #ifndef CONFIG_USER_ONLY
 static Property arm_cpu_has_el2_property =
             DEFINE_PROP_BOOL("has_el2", ARMCPU, has_el2, true);
@@ -1373,10 +1370,6 @@ static void arm_cpu_post_init(Object *obj)
     if (arm_feature(&cpu->env, ARM_FEATURE_CBAR) ||
         arm_feature(&cpu->env, ARM_FEATURE_CBAR_RO)) {
         qdev_property_add_static(DEVICE(obj), &arm_cpu_reset_cbar_property);
-    }
-
-    if (!arm_feature(&cpu->env, ARM_FEATURE_M)) {
-        qdev_property_add_static(DEVICE(obj), &arm_cpu_reset_hivecs_property);
     }
 
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
@@ -1801,10 +1794,6 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (cpu->reset_hivecs) {
-            cpu->reset_sctlr |= (1 << 13);
-    }
-
     if (cpu->cfgend) {
         if (arm_feature(&cpu->env, ARM_FEATURE_V7)) {
             cpu->reset_sctlr |= SCTLR_EE;
@@ -2169,6 +2158,39 @@ static bool arm_class_prop_uint64_ofs(ObjectClass *oc, Visitor *v,
     return visit_type_uint64(v, name, ptr, errp);
 }
 
+#ifndef CONFIG_USER_ONLY
+static bool arm_class_prop_set_sctlrbit(ObjectClass *oc, Visitor *v,
+                                        const char *name, void *opaque,
+                                        Error **errp)
+{
+    ARMCPUClass *acc = ARM_CPU_CLASS(oc);
+    uint32_t mask = (uintptr_t)opaque;
+    bool val;
+
+    if (!visit_type_bool(v, name, &val, errp)) {
+        return false;
+    }
+
+    if (val) {
+        acc->reset_sctlr |= mask;
+    } else {
+        acc->reset_sctlr &= ~mask;
+    }
+    return true;
+}
+
+static bool arm_class_prop_get_sctlrbit(ObjectClass *oc, Visitor *v,
+                                        const char *name, void *opaque,
+                                        Error **errp)
+{
+    ARMCPUClass *acc = ARM_CPU_CLASS(oc);
+    uint32_t mask = (uintptr_t)opaque;
+    bool val = acc->reset_sctlr & mask;
+
+    return visit_type_bool(v, name, &val, errp);
+}
+#endif /* !CONFIG_USER_ONLY */
+
 static void arm_cpu_class_init(ObjectClass *oc, void *data)
 {
     ARMCPUClass *acc = ARM_CPU_CLASS(oc);
@@ -2305,7 +2327,14 @@ static void arm_cpu_leaf_class_init(ObjectClass *oc, void *data)
                            (void *)(uintptr_t)
                            offsetof(ARMCPUClass, gt_cntfrq_hz));
     }
-#endif /* CONFIG_USER_ONLY */
+
+    if (!arm_class_feature(acc, ARM_FEATURE_M)) {
+        class_property_add(oc, "reset-hivecs", "bool", NULL,
+                           arm_class_prop_get_sctlrbit,
+                           arm_class_prop_set_sctlrbit,
+                           (void *)((uintptr_t)1 << 13));
+    }
+#endif /* !CONFIG_USER_ONLY */
 }
 
 static bool arm_cpu_class_late_init(ObjectClass *oc, Error **errp)
@@ -2324,7 +2353,7 @@ static bool arm_cpu_class_late_init(ObjectClass *oc, Error **errp)
         error_setg(errp, "Invalid CNTFRQ: %"PRId64"Hz", acc->gt_cntfrq_hz);
         return false;
     }
-#endif /* CONFIG_USER_ONLY */
+#endif /* !CONFIG_USER_ONLY */
 
     /* Run some consistency checks for TCG. */
     if (tcg_enabled()) {
