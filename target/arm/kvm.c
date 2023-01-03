@@ -239,7 +239,13 @@ void kvm_arm_add_vcpu_properties(Object *obj)
                                     "Set off to disable KVM steal time.");
 }
 
-bool kvm_arm_pmu_supported(void)
+/**
+ * kvm_arm_pmu_supported:
+ *
+ * Returns: true if KVM can enable the PMU
+ * and false otherwise.
+ */
+static bool kvm_arm_pmu_supported(void)
 {
     return kvm_check_extension(kvm_state, KVM_CAP_ARM_PMU_V3);
 }
@@ -1463,7 +1469,7 @@ void kvm_arm_pmu_init(CPUState *cs)
         .attr = KVM_ARM_VCPU_PMU_V3_INIT,
     };
 
-    if (!ARM_CPU(cs)->has_pmu) {
+    if (!arm_feature(&ARM_CPU(cs)->env, ARM_FEATURE_PMU)) {
         return;
     }
     if (!kvm_arm_set_device_attr(cs, &attr, "PMU")) {
@@ -1480,7 +1486,7 @@ void kvm_arm_pmu_set_irq(CPUState *cs, int irq)
         .attr = KVM_ARM_VCPU_PMU_V3_IRQ,
     };
 
-    if (!ARM_CPU(cs)->has_pmu) {
+    if (!arm_feature(&ARM_CPU(cs)->env, ARM_FEATURE_PMU)) {
         return;
     }
     if (!kvm_arm_set_device_attr(cs, &attr, "PMU")) {
@@ -1594,6 +1600,9 @@ bool kvm_arm_get_host_cpu_features(ARMCPUClass *acc, Error **errp)
     if (kvm_arm_pmu_supported()) {
         init.features[0] |= 1 << KVM_ARM_VCPU_PMU_V3;
         pmu_supported = true;
+    } else {
+        /* This was optimistically set in aarch64_host_class_init. */
+        unset_class_feature(acc, ARM_FEATURE_PMU);
     }
 
     if (!kvm_arm_create_scratch_host_vcpu(cpus_to_try, fdarray, &init)) {
@@ -1877,7 +1886,6 @@ int kvm_arch_init_vcpu(CPUState *cs)
 {
     int ret;
     ARMCPU *cpu = ARM_CPU(cs);
-    CPUARMState *env = &cpu->env;
     uint64_t psciver;
 
     if (cpu->kvm_target == QEMU_KVM_ARM_TARGET_NONE ||
@@ -1900,13 +1908,9 @@ int kvm_arch_init_vcpu(CPUState *cs)
     if (!arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
         cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_EL1_32BIT;
     }
-    if (!kvm_check_extension(cs->kvm_state, KVM_CAP_ARM_PMU_V3)) {
-        cpu->has_pmu = false;
-    }
-    if (cpu->has_pmu) {
+    if (arm_feature(&cpu->env, ARM_FEATURE_PMU)) {
+        assert(kvm_arm_pmu_supported());
         cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_PMU_V3;
-    } else {
-        env->features &= ~(1ULL << ARM_FEATURE_PMU);
     }
     if (cpu_isar_feature(aa64_sve, cpu)) {
         assert(kvm_arm_sve_supported());

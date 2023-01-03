@@ -605,7 +605,6 @@ static void fdt_add_pmu_nodes(const VirtMachineState *vms)
     MachineState *ms = MACHINE(vms);
 
     if (!arm_feature(&armcpu->env, ARM_FEATURE_PMU)) {
-        assert(!object_property_get_bool(OBJECT(armcpu), "pmu", NULL));
         return;
     }
 
@@ -1951,9 +1950,11 @@ static void virt_cpu_post_init(VirtMachineState *vms, MemoryRegion *sysmem)
     int max_cpus = MACHINE(vms)->smp.max_cpus;
     bool aarch64, pmu, steal_time;
     CPUState *cpu;
+    ObjectClass *cpu_class;
 
+    cpu_class = object_get_class(OBJECT(first_cpu));
     aarch64 = object_property_get_bool(OBJECT(first_cpu), "aarch64", NULL);
-    pmu = object_property_get_bool(OBJECT(first_cpu), "pmu", NULL);
+    pmu = class_property_get_bool(cpu_class, "pmu", NULL);
     steal_time = object_property_get_bool(OBJECT(first_cpu),
                                           "kvm-steal-time", NULL);
 
@@ -2042,6 +2043,9 @@ static void machvirt_init(MachineState *machine)
     class_property_set_bool(cpu_class, "has_el3", vms->secure, &error_abort);
     if (!vms->virt) {
         class_property_set_bool(cpu_class, "has_el2", false, &error_abort);
+    }
+    if (vmc->no_pmu) {
+        class_property_set_bool(cpu_class, "pmu", false, &error_abort);
     }
 
     /*
@@ -2183,10 +2187,6 @@ static void machvirt_init(MachineState *machine)
         if (vmc->no_kvm_steal_time &&
             object_property_find(cpuobj, "kvm-steal-time")) {
             object_property_set_bool(cpuobj, "kvm-steal-time", false, NULL);
-        }
-
-        if (vmc->no_pmu && object_property_find(cpuobj, "pmu")) {
-            object_property_set_bool(cpuobj, "pmu", false, NULL);
         }
 
         if (vmc->no_tcg_lpa2 && object_property_find(cpuobj, "lpa2")) {

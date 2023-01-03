@@ -1279,29 +1279,6 @@ static void arm_cpu_initfn(Object *obj)
 static Property arm_cpu_reset_cbar_property =
             DEFINE_PROP_UINT64("reset-cbar", ARMCPU, reset_cbar, 0);
 
-static bool arm_get_pmu(Object *obj, Error **errp)
-{
-    ARMCPU *cpu = ARM_CPU(obj);
-
-    return cpu->has_pmu;
-}
-
-static void arm_set_pmu(Object *obj, bool value, Error **errp)
-{
-    ARMCPU *cpu = ARM_CPU(obj);
-
-    if (value) {
-        if (kvm_enabled() && !kvm_arm_pmu_supported()) {
-            error_setg(errp, "'pmu' feature not supported by KVM on this host");
-            return;
-        }
-        set_feature(&cpu->env, ARM_FEATURE_PMU);
-    } else {
-        unset_feature(&cpu->env, ARM_FEATURE_PMU);
-    }
-    cpu->has_pmu = value;
-}
-
 unsigned int gt_cntfrq_period_ns(ARMCPU *cpu)
 {
     ARMCPUClass *acc = ARM_CPU_GET_CLASS(cpu);
@@ -1356,11 +1333,6 @@ static void arm_cpu_post_init(Object *obj)
                                  OBJ_PROP_LINK_STRONG);
     }
 #endif
-
-    if (arm_feature(&cpu->env, ARM_FEATURE_PMU)) {
-        cpu->has_pmu = true;
-        object_property_add_bool(obj, "pmu", arm_get_pmu, arm_set_pmu);
-    }
 
     if (arm_feature(&cpu->env, ARM_FEATURE_M_SECURITY)) {
         object_property_add_link(obj, "idau", TYPE_IDAU_INTERFACE, &cpu->idau,
@@ -1586,9 +1558,6 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (!cpu->has_pmu) {
-        unset_feature(env, ARM_FEATURE_PMU);
-    }
     if (arm_feature(env, ARM_FEATURE_PMU)) {
         pmu_init(cpu);
 
@@ -2163,6 +2132,13 @@ static void arm_cpu_leaf_class_init(ObjectClass *oc, void *data)
                            arm_class_prop_set_auto_ofs,
                            (void *)(uintptr_t)offsetof(ARMCPUClass, has_el3));
     }
+
+    if (arm_class_feature(acc, ARM_FEATURE_PMU)) {
+        class_property_add(oc, "pmu", "bool", NULL,
+                           arm_class_prop_get_auto_ofs,
+                           arm_class_prop_set_auto_ofs,
+                           (void *)(uintptr_t)offsetof(ARMCPUClass, has_pmu));
+    }
 #endif /* !CONFIG_USER_ONLY */
 
     /*
@@ -2273,6 +2249,25 @@ static bool arm_cpu_class_late_init(ObjectClass *oc, Error **errp)
         }
         if (!arm_class_feature(acc, ARM_FEATURE_EL3)) {
             error_setg(errp, "CPU does not support EL3");
+            return false;
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    switch (acc->has_pmu) {
+    case ON_OFF_AUTO_AUTO:
+        acc->has_pmu = (arm_class_feature(acc, ARM_FEATURE_PMU)
+                        ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF);
+        break;
+    case ON_OFF_AUTO_OFF:
+        unset_class_feature(acc, ARM_FEATURE_PMU);
+        break;
+    case ON_OFF_AUTO_ON:
+        if (!arm_class_feature(acc, ARM_FEATURE_PMU)) {
+            error_setg(errp, "'pmu' feature not supported by %s on this host",
+                       current_accel_name());
             return false;
         }
         break;

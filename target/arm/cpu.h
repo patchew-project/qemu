@@ -886,9 +886,6 @@ struct ArchCPU {
     /* Current power state, access guarded by BQL */
     ARMPSCIState power_state;
 
-    /* CPU has PMU (Performance Monitor Unit) */
-    bool has_pmu;
-
     /* PMSAv7 MPU number of supported regions */
     uint32_t pmsav7_dregion;
     /* v8M SAU number of supported regions */

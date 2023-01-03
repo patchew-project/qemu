@@ -192,6 +192,8 @@ struct ARMCPUClass {
     OnOffAuto has_vfp;
     /* CPU has Neon */
     OnOffAuto has_neon;
+    /* CPU has PMU (Performance Monitor Unit) */
+    OnOffAuto has_pmu;
 
     /* CPU has memory protection unit */
     bool has_mpu;
