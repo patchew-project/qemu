@@ -1369,14 +1369,6 @@ static void arm_cpu_post_init(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
 
-    /* M profile implies PMSA. We have to do this here rather than
-     * in realize with the other feature-implication checks because
-     * we look at the PMSA bit to see if we should add some properties.
-     */
-    if (arm_feature(&cpu->env, ARM_FEATURE_M)) {
-        set_feature(&cpu->env, ARM_FEATURE_PMSA);
-    }
-
     if (arm_feature(&cpu->env, ARM_FEATURE_CBAR) ||
         arm_feature(&cpu->env, ARM_FEATURE_CBAR_RO)) {
         qdev_property_add_static(DEVICE(obj), &arm_cpu_reset_cbar_property);
@@ -1574,7 +1566,6 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     CPUARMState *env = &cpu->env;
     int pagebits;
     Error *local_err = NULL;
-    bool no_aa32 = false;
 
 #ifndef CONFIG_USER_ONLY
     /* The NVIC and M-profile CPU are two halves of a single piece of
@@ -1791,82 +1782,6 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         u = cpu->isar.mvfr1;
         u = FIELD_DP32(u, MVFR1, SIMDFMAC, 0);
         cpu->isar.mvfr1 = u;
-    }
-
-    /* Some features automatically imply others: */
-    if (arm_feature(env, ARM_FEATURE_V8)) {
-        if (arm_feature(env, ARM_FEATURE_M)) {
-            set_feature(env, ARM_FEATURE_V7);
-        } else {
-            set_feature(env, ARM_FEATURE_V7VE);
-        }
-    }
-
-    /*
-     * There exist AArch64 cpus without AArch32 support.  When KVM
-     * queries ID_ISAR0_EL1 on such a host, the value is UNKNOWN.
-     * Similarly, we cannot check ID_AA64PFR0 without AArch64 support.
-     * As a general principle, we also do not make ID register
-     * consistency checks anywhere unless using TCG, because only
-     * for TCG would a consistency-check failure be a QEMU bug.
-     */
-    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
-        no_aa32 = !cpu_isar_feature(aa64_aa32, cpu);
-    }
-
-    if (arm_feature(env, ARM_FEATURE_V7VE)) {
-        /* v7 Virtualization Extensions. In real hardware this implies
-         * EL2 and also the presence of the Security Extensions.
-         * For QEMU, for backwards-compatibility we implement some
-         * CPUs or CPU configs which have no actual EL2 or EL3 but do
-         * include the various other features that V7VE implies.
-         * Presence of EL2 itself is ARM_FEATURE_EL2, and of the
-         * Security Extensions is ARM_FEATURE_EL3.
-         */
-        assert(!tcg_enabled() || no_aa32 ||
-               cpu_isar_feature(aa32_arm_div, cpu));
-        set_feature(env, ARM_FEATURE_LPAE);
-        set_feature(env, ARM_FEATURE_V7);
-    }
-    if (arm_feature(env, ARM_FEATURE_V7)) {
-        set_feature(env, ARM_FEATURE_VAPA);
-        set_feature(env, ARM_FEATURE_THUMB2);
-        set_feature(env, ARM_FEATURE_MPIDR);
-        if (!arm_feature(env, ARM_FEATURE_M)) {
-            set_feature(env, ARM_FEATURE_V6K);
-        } else {
-            set_feature(env, ARM_FEATURE_V6);
-        }
-
-        /* Always define VBAR for V7 CPUs even if it doesn't exist in
-         * non-EL3 configs. This is needed by some legacy boards.
-         */
-        set_feature(env, ARM_FEATURE_VBAR);
-    }
-    if (arm_feature(env, ARM_FEATURE_V6K)) {
-        set_feature(env, ARM_FEATURE_V6);
-        set_feature(env, ARM_FEATURE_MVFR);
-    }
-    if (arm_feature(env, ARM_FEATURE_V6)) {
-        set_feature(env, ARM_FEATURE_V5);
-        if (!arm_feature(env, ARM_FEATURE_M)) {
-            assert(!tcg_enabled() || no_aa32 ||
-                   cpu_isar_feature(aa32_jazelle, cpu));
-            set_feature(env, ARM_FEATURE_AUXCR);
-        }
-    }
-    if (arm_feature(env, ARM_FEATURE_V5)) {
-        set_feature(env, ARM_FEATURE_V4T);
-    }
-    if (arm_feature(env, ARM_FEATURE_LPAE)) {
-        set_feature(env, ARM_FEATURE_V7MP);
-    }
-    if (arm_feature(env, ARM_FEATURE_CBAR_RO)) {
-        set_feature(env, ARM_FEATURE_CBAR);
-    }
-    if (arm_feature(env, ARM_FEATURE_THUMB2) &&
-        !arm_feature(env, ARM_FEATURE_M)) {
-        set_feature(env, ARM_FEATURE_THUMB_DSP);
     }
 
     /*
@@ -2318,6 +2233,67 @@ static void arm_cpu_leaf_class_init(ObjectClass *oc, void *data)
     if (acc->info->class_init) {
         acc->info->class_init(acc);
     }
+
+    /* Some features automatically imply others: */
+    if (arm_class_feature(acc, ARM_FEATURE_V8)) {
+        if (arm_class_feature(acc, ARM_FEATURE_M)) {
+            set_class_feature(acc, ARM_FEATURE_V7);
+        } else {
+            set_class_feature(acc, ARM_FEATURE_V7VE);
+        }
+    }
+    if (arm_class_feature(acc, ARM_FEATURE_V7VE)) {
+        /*
+         * v7 Virtualization Extensions. In real hardware this implies
+         * EL2 and also the presence of the Security Extensions.
+         * For QEMU, for backwards-compatibility we implement some
+         * CPUs or CPU configs which have no actual EL2 or EL3 but do
+         * include the various other features that V7VE implies.
+         */
+        set_class_feature(acc, ARM_FEATURE_LPAE);
+        set_class_feature(acc, ARM_FEATURE_V7);
+    }
+    if (arm_class_feature(acc, ARM_FEATURE_V7)) {
+        set_class_feature(acc, ARM_FEATURE_VAPA);
+        set_class_feature(acc, ARM_FEATURE_THUMB2);
+        set_class_feature(acc, ARM_FEATURE_MPIDR);
+        if (!arm_class_feature(acc, ARM_FEATURE_M)) {
+            set_class_feature(acc, ARM_FEATURE_V6K);
+        } else {
+            set_class_feature(acc, ARM_FEATURE_V6);
+        }
+        /*
+         * Always define VBAR for V7 CPUs even if it doesn't exist in
+         * non-EL3 configs. This is needed by some legacy boards.
+         */
+        set_class_feature(acc, ARM_FEATURE_VBAR);
+    }
+    if (arm_class_feature(acc, ARM_FEATURE_V6K)) {
+        set_class_feature(acc, ARM_FEATURE_V6);
+        set_class_feature(acc, ARM_FEATURE_MVFR);
+    }
+    if (arm_class_feature(acc, ARM_FEATURE_V6)) {
+        set_class_feature(acc, ARM_FEATURE_V5);
+        if (!arm_class_feature(acc, ARM_FEATURE_M)) {
+            set_class_feature(acc, ARM_FEATURE_AUXCR);
+        }
+    }
+    if (arm_class_feature(acc, ARM_FEATURE_V5)) {
+        set_class_feature(acc, ARM_FEATURE_V4T);
+    }
+    if (arm_class_feature(acc, ARM_FEATURE_LPAE)) {
+        set_class_feature(acc, ARM_FEATURE_V7MP);
+    }
+    if (arm_class_feature(acc, ARM_FEATURE_CBAR_RO)) {
+        set_class_feature(acc, ARM_FEATURE_CBAR);
+    }
+    if (arm_class_feature(acc, ARM_FEATURE_THUMB2) &&
+        !arm_class_feature(acc, ARM_FEATURE_M)) {
+        set_class_feature(acc, ARM_FEATURE_THUMB_DSP);
+    }
+    if (arm_class_feature(acc, ARM_FEATURE_M)) {
+        set_class_feature(acc, ARM_FEATURE_PMSA);
+    }
 }
 
 static bool arm_cpu_class_late_init(ObjectClass *oc, Error **errp)
@@ -2327,6 +2303,22 @@ static bool arm_cpu_class_late_init(ObjectClass *oc, Error **errp)
     if (acc->info->class_late_init) {
         if (!acc->info->class_late_init(acc, errp)) {
             return false;
+        }
+    }
+
+    /* Run some consistency checks for TCG. */
+    if (tcg_enabled()) {
+        bool no_aa32 = arm_class_feature(acc, ARM_FEATURE_AARCH64) &&
+                       !class_isar_feature(aa64_aa32, acc);
+
+        if (!no_aa32) {
+            if (arm_class_feature(acc, ARM_FEATURE_V7VE)) {
+                assert(class_isar_feature(aa32_arm_div, acc));
+            }
+            if (arm_class_feature(acc, ARM_FEATURE_V6) &&
+                !arm_class_feature(acc, ARM_FEATURE_M)) {
+                assert(class_isar_feature(aa32_jazelle, acc));
+            }
         }
     }
     return true;
