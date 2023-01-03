@@ -739,28 +739,30 @@ void qdev_prop_set_enum(DeviceState *dev, const char *name, int value)
                             &error_abort);
 }
 
-static GPtrArray *global_props(void)
-{
-    static GPtrArray *gp;
-
-    if (!gp) {
-        gp = g_ptr_array_new();
-    }
-
-    return gp;
-}
+static GPtrArray *global_properties;
 
 void qdev_prop_register_global(GlobalProperty *prop)
 {
-    g_ptr_array_add(global_props(), prop);
+    GPtrArray *props = global_properties;
+
+    if (!props) {
+        props = g_ptr_array_new();
+        global_properties = props;
+    }
+
+    g_ptr_array_add(props, prop);
 }
 
 const GlobalProperty *qdev_find_global_prop(Object *obj,
                                             const char *name)
 {
-    GPtrArray *props = global_props();
+    GPtrArray *props = global_properties;
     const GlobalProperty *p;
     int i;
+
+    if (!props) {
+        return NULL;
+    }
 
     for (i = 0; i < props->len; i++) {
         p = g_ptr_array_index(props, i);
@@ -774,14 +776,19 @@ const GlobalProperty *qdev_find_global_prop(Object *obj,
 
 int qdev_prop_check_globals(void)
 {
+    GPtrArray *props = global_properties;
     int i, ret = 0;
 
-    for (i = 0; i < global_props()->len; i++) {
+    if (!props) {
+        return 0;
+    }
+
+    for (i = 0; i < props->len; i++) {
         GlobalProperty *prop;
         ObjectClass *oc;
         DeviceClass *dc;
 
-        prop = g_ptr_array_index(global_props(), i);
+        prop = g_ptr_array_index(props, i);
         if (prop->used) {
             continue;
         }
@@ -806,8 +813,12 @@ int qdev_prop_check_globals(void)
 
 void qdev_prop_set_globals(DeviceState *dev)
 {
-    object_apply_global_props(OBJECT(dev), global_props(),
-                              dev->hotplugged ? NULL : &error_fatal);
+    GPtrArray *props = global_properties;
+
+    if (props) {
+        object_apply_global_props(OBJECT(dev), props,
+                                  dev->hotplugged ? NULL : &error_fatal);
+    }
 }
 
 /* --- 64bit unsigned int 'size' type --- */
