@@ -2245,14 +2245,6 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
 #endif /* CONFIG_TCG */
 }
 
-static void arm_cpu_instance_init(Object *obj)
-{
-    ARMCPUClass *acc = ARM_CPU_GET_CLASS(obj);
-
-    acc->info->initfn(obj);
-    arm_cpu_post_init(obj);
-}
-
 static void arm_cpu_leaf_class_init(ObjectClass *oc, void *data)
 {
     ARMCPUClass *acc = ARM_CPU_CLASS(oc);
@@ -2270,7 +2262,7 @@ void arm_cpu_register_parent(const ARMCPUInfo *info, const char *parent)
         .parent = parent,
         .instance_size = sizeof(ARMCPU),
         .instance_align = __alignof__(ARMCPU),
-        .instance_init = arm_cpu_instance_init,
+        .instance_init = info->initfn,
         .class_size = sizeof(ARMCPUClass),
         .class_init = arm_cpu_leaf_class_init,
         .class_data = (void *)info,
@@ -2287,6 +2279,7 @@ static const TypeInfo arm_cpu_type_info = {
     .instance_size = sizeof(ARMCPU),
     .instance_align = __alignof__(ARMCPU),
     .instance_init = arm_cpu_initfn,
+    .instance_post_init = arm_cpu_post_init,
     .instance_finalize = arm_cpu_finalizefn,
     .abstract = true,
     .class_size = sizeof(ARMCPUClass),
