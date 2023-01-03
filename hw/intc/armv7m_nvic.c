@@ -1039,7 +1039,7 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
         }
         return cpu->revidr;
     case 0xd00: /* CPUID Base.  */
-        return cpu->midr;
+        return ARM_CPU_GET_CLASS(cpu)->midr;
     case 0xd04: /* Interrupt Control State (ICSR) */
         /* VECTACTIVE */
         val = cpu->env.v7m.exception;

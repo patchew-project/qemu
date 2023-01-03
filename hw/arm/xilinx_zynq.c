@@ -177,6 +177,7 @@ static inline int zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
 static void zynq_init(MachineState *machine)
 {
     ZynqMachineState *zynq_machine = ZYNQ_MACHINE(machine);
+    ObjectClass *cpu_class;
     ARMCPU *cpu;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ocm_ram = g_new(MemoryRegion, 1);
@@ -191,7 +192,11 @@ static void zynq_init(MachineState *machine)
         exit(EXIT_FAILURE);
     }
 
-    cpu = ARM_CPU(object_new(machine->cpu_type));
+    cpu_class = object_class_by_name(machine->cpu_type);
+
+    class_property_set_uint(cpu_class, "midr", ZYNQ_BOARD_MIDR, &error_fatal);
+
+    cpu = ARM_CPU(object_new_with_class(cpu_class));
 
     /* By default A9 CPUs have EL3 enabled.  This board does not
      * currently support EL3 so the CPU EL3 property is disabled before
@@ -201,8 +206,6 @@ static void zynq_init(MachineState *machine)
         object_property_set_bool(OBJECT(cpu), "has_el3", false, &error_fatal);
     }
 
-    object_property_set_int(OBJECT(cpu), "midr", ZYNQ_BOARD_MIDR,
-                            &error_fatal);
     object_property_set_int(OBJECT(cpu), "reset-cbar", MPCORE_PERIPHBASE,
                             &error_fatal);
     qdev_realize(DEVICE(cpu), NULL, &error_fatal);

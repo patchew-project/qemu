@@ -956,7 +956,6 @@ struct ArchCPU {
      * field by reading the value from the KVM vCPU.
      */
     ARMISARegisters isar;
-    uint64_t midr;
     uint32_t revidr;
     uint32_t reset_fpsid;
     uint64_t ctr;

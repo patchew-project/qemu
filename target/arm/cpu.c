@@ -1209,7 +1209,6 @@ static void arm_cpu_initfn(Object *obj)
     cpu->env.features = acc->features;
     cpu->isar = acc->isar;
 
-    cpu->midr = acc->midr;
     cpu->ctr = acc->ctr;
     cpu->pmceid0 = acc->pmceid0;
     cpu->pmceid1 = acc->pmceid1;
@@ -2120,7 +2119,6 @@ static void cpu_arm_get_mp_affinity(Object *obj, Visitor *v, const char *name,
 }
 
 static Property arm_cpu_properties[] = {
-    DEFINE_PROP_UINT64("midr", ARMCPU, midr, 0),
     DEFINE_PROP_INT32("node-id", ARMCPU, node_id, CPU_UNSET_NUMA_NODE_ID),
     DEFINE_PROP_INT32("core-count", ARMCPU, core_count, -1),
     DEFINE_PROP_END_OF_LIST()
@@ -2173,6 +2171,17 @@ static const struct TCGCPUOps arm_tcg_ops = {
 };
 #endif /* CONFIG_TCG */
 
+static bool arm_class_prop_uint64_ofs(ObjectClass *oc, Visitor *v,
+                                      const char *name, void *opaque,
+                                      Error **errp)
+{
+    ARMCPUClass *acc = ARM_CPU_CLASS(oc);
+    uintptr_t ofs = (uintptr_t)opaque;
+    uint64_t *ptr = (void *)acc + ofs;
+
+    return visit_type_uint64(v, name, ptr, errp);
+}
+
 static void arm_cpu_class_init(ObjectClass *oc, void *data)
 {
     ARMCPUClass *acc = ARM_CPU_CLASS(oc);
@@ -2220,6 +2229,11 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
      */
     acc->dtb_compatible = "qemu,unknown";
     acc->kvm_target = QEMU_KVM_ARM_TARGET_NONE;
+
+    class_property_add(oc, "midr", "uint64", NULL,
+                       arm_class_prop_uint64_ofs,
+                       arm_class_prop_uint64_ofs,
+                       (void *)(uintptr_t)offsetof(ARMCPUClass, midr));
 }
 
 static void arm_cpu_leaf_class_init(ObjectClass *oc, void *data)
