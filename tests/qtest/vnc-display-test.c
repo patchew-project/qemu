@@ -34,10 +34,6 @@ static void on_vnc_auth_failure(VncConnection *self,
 static bool
 test_setup(Test *test)
 {
-#ifdef WIN32
-    g_test_skip("Not supported on Windows yet");
-    return false;
-#else
     int pair[2];
 
     test->qts = qtest_init("-vnc none -name vnc-test");
@@ -56,7 +52,6 @@ test_setup(Test *test)
 
     test->loop = g_main_loop_new(NULL, FALSE);
     return true;
-#endif
 }
 
 static void
