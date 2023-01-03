@@ -20,6 +20,7 @@
 #include "sysemu/sysemu.h"
 #include "qemu/config-file.h"
 #include "qemu/uuid.h"
+#include "qemu/sockets.h"
 #include "chardev/char.h"
 #include "ui/qemu-spice.h"
 #include "ui/console.h"
@@ -248,16 +249,22 @@ void qmp_add_client(const char *protocol, const char *fdname,
         return;
     }
 
+    if (!fd_is_socket(fd)) {
+        error_setg(errp, "add_client expects a socket");
+        close(fd);
+        return;
+    }
+
     if (strcmp(protocol, "spice") == 0) {
         if (!qemu_using_spice(errp)) {
-            close(fd);
+            closesocket(fd);
             return;
         }
         skipauth = has_skipauth ? skipauth : false;
         tls = has_tls ? tls : false;
         if (qemu_spice.display_add_client(fd, skipauth, tls) < 0) {
             error_setg(errp, "spice failed to add client");
-            close(fd);
+            closesocket(fd);
         }
         return;
 #ifdef CONFIG_VNC
@@ -269,11 +276,11 @@ void qmp_add_client(const char *protocol, const char *fdname,
 #ifdef CONFIG_DBUS_DISPLAY
     } else if (strcmp(protocol, "@dbus-display") == 0) {
         if (!qemu_using_dbus_display(errp)) {
-            close(fd);
+            closesocket(fd);
             return;
         }
         if (!qemu_dbus_display.add_client(fd, errp)) {
-            close(fd);
+            closesocket(fd);
             return;
         }
         return;
@@ -281,14 +288,14 @@ void qmp_add_client(const char *protocol, const char *fdname,
     } else if ((s = qemu_chr_find(protocol)) != NULL) {
         if (qemu_chr_add_client(s, fd) < 0) {
             error_setg(errp, "failed to add client");
-            close(fd);
+            closesocket(fd);
             return;
         }
         return;
     }
 
     error_setg(errp, "protocol '%s' is invalid", protocol);
-    close(fd);
+    closesocket(fd);
 }
 
 
