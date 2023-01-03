@@ -385,6 +385,7 @@ static void xlnx_zynqmp_init(Object *obj)
     cpu_type = ARM_CPU_TYPE_NAME("cortex-a53");
     cpu_class = object_class_by_name(cpu_type);
     class_property_set_bool(cpu_class, "reset-hivecs", true, &error_abort);
+    class_property_set_bool(cpu_class, "has_el2", s->virt, &error_abort);
 
     for (i = 0; i < num_apus; i++) {
         object_initialize_child(OBJECT(&s->apu_cluster), "apu-cpu[*]",
@@ -528,8 +529,6 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         }
 
         object_property_set_bool(OBJECT(&s->apu_cpu[i]), "has_el3", s->secure,
-                                 NULL);
-        object_property_set_bool(OBJECT(&s->apu_cpu[i]), "has_el2", s->virt,
                                  NULL);
         object_property_set_int(OBJECT(&s->apu_cpu[i]), "reset-cbar",
                                 GIC_BASE_ADDR, &error_abort);

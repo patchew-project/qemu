@@ -25,7 +25,6 @@
 #include "hw/registerfields.h"
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
-#include "qapi/qapi-types-common.h"
 
 /* ARM processors have a weak memory model */
 #define TCG_GUEST_DEFAULT_MO      (0)
@@ -887,8 +886,6 @@ struct ArchCPU {
     /* Current power state, access guarded by BQL */
     ARMPSCIState power_state;
 
-    /* CPU has virtualization extension */
-    bool has_el2;
     /* CPU has security extension */
     bool has_el3;
     /* CPU has PMU (Performance Monitor Unit) */

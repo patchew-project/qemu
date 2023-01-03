@@ -1281,9 +1281,6 @@ static Property arm_cpu_reset_cbar_property =
             DEFINE_PROP_UINT64("reset-cbar", ARMCPU, reset_cbar, 0);
 
 #ifndef CONFIG_USER_ONLY
-static Property arm_cpu_has_el2_property =
-            DEFINE_PROP_BOOL("has_el2", ARMCPU, has_el2, true);
-
 static Property arm_cpu_has_el3_property =
             DEFINE_PROP_BOOL("has_el3", ARMCPU, has_el3, true);
 #endif
@@ -1390,10 +1387,6 @@ static void arm_cpu_post_init(Object *obj)
                                  (Object **)&cpu->secure_memory,
                                  qdev_prop_allow_set_link_before_realize,
                                  OBJ_PROP_LINK_STRONG);
-    }
-
-    if (arm_feature(&cpu->env, ARM_FEATURE_EL2)) {
-        qdev_property_add_static(DEVICE(obj), &arm_cpu_has_el2_property);
     }
 #endif
 
@@ -1818,10 +1811,6 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
                                            ID_AA64PFR0, EL3, 0);
     }
 
-    if (!cpu->has_el2) {
-        unset_feature(env, ARM_FEATURE_EL2);
-    }
-
     if (!cpu->has_pmu) {
         unset_feature(env, ARM_FEATURE_PMU);
     }
@@ -2159,6 +2148,34 @@ static bool arm_class_prop_uint64_ofs(ObjectClass *oc, Visitor *v,
 }
 
 #ifndef CONFIG_USER_ONLY
+static bool arm_class_prop_get_auto_ofs(ObjectClass *oc, Visitor *v,
+                                        const char *name, void *opaque,
+                                        Error **errp)
+{
+    ARMCPUClass *acc = ARM_CPU_CLASS(oc);
+    uintptr_t ofs = (uintptr_t)opaque;
+    OnOffAuto *ptr = (void *)acc + ofs;
+    bool val = *ptr == ON_OFF_AUTO_ON;
+
+    return visit_type_bool(v, name, &val, errp);
+}
+
+static bool arm_class_prop_set_auto_ofs(ObjectClass *oc, Visitor *v,
+                                        const char *name, void *opaque,
+                                        Error **errp)
+{
+    ARMCPUClass *acc = ARM_CPU_CLASS(oc);
+    uintptr_t ofs = (uintptr_t)opaque;
+    OnOffAuto *ptr = (void *)acc + ofs;
+    bool val;
+
+    if (visit_type_bool(v, name, &val, errp)) {
+        *ptr = val ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
+        return true;
+    }
+    return false;
+}
+
 static bool arm_class_prop_set_sctlrbit(ObjectClass *oc, Visitor *v,
                                         const char *name, void *opaque,
                                         Error **errp)
@@ -2334,6 +2351,19 @@ static void arm_cpu_leaf_class_init(ObjectClass *oc, void *data)
                            arm_class_prop_set_sctlrbit,
                            (void *)((uintptr_t)1 << 13));
     }
+
+    /*
+     * With v8, we cannot yet tell if EL[23] are available, because
+     * we do not yet know if we're using tcg or host acceleration.
+     * We will reject incorrect settings during class_late_init.
+     */
+    if (arm_class_feature(acc, ARM_FEATURE_EL2) ||
+        arm_class_feature(acc, ARM_FEATURE_V8)) {
+        class_property_add(oc, "has_el2", "bool", NULL,
+                           arm_class_prop_get_auto_ofs,
+                           arm_class_prop_set_auto_ofs,
+                           (void *)(uintptr_t)offsetof(ARMCPUClass, has_el2));
+    }
 #endif /* !CONFIG_USER_ONLY */
 }
 
@@ -2352,6 +2382,28 @@ static bool arm_cpu_class_late_init(ObjectClass *oc, Error **errp)
     if (!acc->gt_cntfrq_hz) {
         error_setg(errp, "Invalid CNTFRQ: %"PRId64"Hz", acc->gt_cntfrq_hz);
         return false;
+    }
+
+    switch (acc->has_el2) {
+    case ON_OFF_AUTO_AUTO:
+        acc->has_el2 = (arm_class_feature(acc, ARM_FEATURE_EL2)
+                        ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF);
+        break;
+    case ON_OFF_AUTO_OFF:
+        unset_class_feature(acc, ARM_FEATURE_EL2);
+        acc->isar.id_pfr1 = FIELD_DP32(acc->isar.id_pfr1, ID_PFR1,
+                                       VIRTUALIZATION, 0);
+        acc->isar.id_aa64pfr0 = FIELD_DP64(acc->isar.id_aa64pfr0,
+                                           ID_AA64PFR0, EL2, 0);
+        break;
+    case ON_OFF_AUTO_ON:
+        if (!arm_class_feature(acc, ARM_FEATURE_EL2)) {
+            error_setg(errp, "CPU does not support EL2");
+            return false;
+        }
+        break;
+    default:
+        g_assert_not_reached();
     }
 #endif /* !CONFIG_USER_ONLY */
 

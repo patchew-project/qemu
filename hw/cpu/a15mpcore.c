@@ -55,7 +55,6 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
     int i;
     bool has_el3;
     bool has_el2 = false;
-    Object *cpuobj;
 
     gicdev = DEVICE(&s->gic);
     qdev_prop_set_uint32(gicdev, "num-cpu", s->num_cpu);
@@ -65,13 +64,15 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
         /* Make the GIC's TZ support match the CPUs. We assume that
          * either all the CPUs have TZ, or none do.
          */
-        cpuobj = OBJECT(qemu_get_cpu(0));
+        Object *cpuobj = OBJECT(qemu_get_cpu(0));
+        ObjectClass *cpucls = object_get_class(cpuobj);
+
         has_el3 = object_property_find(cpuobj, "has_el3") &&
             object_property_get_bool(cpuobj, "has_el3", &error_abort);
         qdev_prop_set_bit(gicdev, "has-security-extensions", has_el3);
+
         /* Similarly for virtualization support */
-        has_el2 = object_property_find(cpuobj, "has_el2") &&
-            object_property_get_bool(cpuobj, "has_el2", &error_abort);
+        has_el2 = class_property_get_bool(cpucls, "has_el2", NULL);
         qdev_prop_set_bit(gicdev, "has-virtualization-extensions", has_el2);
     }
 

@@ -188,12 +188,16 @@ void allwinner_h3_bootrom_setup(AwH3State *s, BlockBackend *blk)
 static void allwinner_h3_init(Object *obj)
 {
     AwH3State *s = AW_H3(obj);
+    const char *cpu_type = ARM_CPU_TYPE_NAME("cortex-a7");
+    ObjectClass *cpu_class = object_class_by_name(cpu_type);
 
     s->memmap = allwinner_h3_memmap;
 
+    /* ??? This is the default for A7. */
+    class_property_set_bool(cpu_class, "has_el2", true, &error_abort);
+
     for (int i = 0; i < AW_H3_NUM_CPUS; i++) {
-        object_initialize_child(obj, "cpu[*]", &s->cpus[i],
-                                ARM_CPU_TYPE_NAME("cortex-a7"));
+        object_initialize_child(obj, "cpu[*]", &s->cpus[i], cpu_type);
     }
 
     object_initialize_child(obj, "gic", &s->gic, TYPE_ARM_GIC);
@@ -244,7 +248,6 @@ static void allwinner_h3_realize(DeviceState *dev, Error **errp)
 
         /* All exception levels required */
         qdev_prop_set_bit(DEVICE(&s->cpus[i]), "has_el3", true);
-        qdev_prop_set_bit(DEVICE(&s->cpus[i]), "has_el2", true);
 
         /* Mark realized */
         qdev_realize(DEVICE(&s->cpus[i]), NULL, &error_fatal);

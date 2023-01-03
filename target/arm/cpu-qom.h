@@ -22,6 +22,7 @@
 
 #include "hw/core/cpu.h"
 #include "qom/object.h"
+#include "qapi/qapi-types-common.h"
 
 struct arm_boot_info;
 
@@ -182,6 +183,9 @@ struct ARMCPUClass {
      * QEMU_KVM_ARM_TARGET_NONE if the kernel doesn't support this CPU type.
      */
     uint32_t kvm_target;
+
+    /* CPU has virtualization extension */
+    OnOffAuto has_el2;
 };
 
 static inline int arm_class_feature(ARMCPUClass *acc, int feature)

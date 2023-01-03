@@ -2018,6 +2018,7 @@ static void machvirt_init(MachineState *machine)
     MemoryRegion *secure_sysmem = NULL;
     MemoryRegion *tag_sysmem = NULL;
     MemoryRegion *secure_tag_sysmem = NULL;
+    ObjectClass *cpu_class;
     int n, virt_max_cpus;
     bool firmware_loaded;
     bool aarch64 = true;
@@ -2031,6 +2032,16 @@ static void machvirt_init(MachineState *machine)
     }
 
     possible_cpus = mc->possible_cpu_arch_ids(machine);
+
+    assert(possible_cpus->len == max_cpus);
+    for (n = 0; n < max_cpus; n++) {
+        assert(strcmp(machine->cpu_type, possible_cpus->cpus[n].type) == 0);
+    }
+
+    cpu_class = object_class_by_name(machine->cpu_type);
+    if (!vms->virt) {
+        class_property_set_bool(cpu_class, "has_el2", false, &error_abort);
+    }
 
     /*
      * In accelerated mode, the memory map is computed earlier in kvm_type()
@@ -2046,7 +2057,7 @@ static void machvirt_init(MachineState *machine)
          * we are about to deal with. Once this is done, get rid of
          * the object.
          */
-        cpuobj = object_new(possible_cpus->cpus[0].type);
+        cpuobj = object_new_with_class(cpu_class);
         armcpu = ARM_CPU(cpuobj);
 
         pa_bits = arm_pamax(armcpu);
@@ -2143,8 +2154,7 @@ static void machvirt_init(MachineState *machine)
 
     create_fdt(vms);
 
-    assert(possible_cpus->len == max_cpus);
-    for (n = 0; n < possible_cpus->len; n++) {
+    for (n = 0; n < max_cpus; n++) {
         Object *cpuobj;
         CPUState *cs;
 
@@ -2152,7 +2162,7 @@ static void machvirt_init(MachineState *machine)
             break;
         }
 
-        cpuobj = object_new(possible_cpus->cpus[n].type);
+        cpuobj = object_new_with_class(cpu_class);
         object_property_set_int(cpuobj, "mp-affinity",
                                 possible_cpus->cpus[n].arch_id, NULL);
 
@@ -2166,10 +2176,6 @@ static void machvirt_init(MachineState *machine)
 
         if (!vms->secure) {
             object_property_set_bool(cpuobj, "has_el3", false, NULL);
-        }
-
-        if (!vms->virt && object_property_find(cpuobj, "has_el2")) {
-            object_property_set_bool(cpuobj, "has_el2", false, NULL);
         }
 
         if (vmc->kvm_no_adjvtime &&
