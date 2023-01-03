@@ -888,10 +888,6 @@ struct ArchCPU {
 
     /* CPU has PMU (Performance Monitor Unit) */
     bool has_pmu;
-    /* CPU has VFP */
-    bool has_vfp;
-    /* CPU has Neon */
-    bool has_neon;
 
     /* CPU has memory protection unit */
     bool has_mpu;

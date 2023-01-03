@@ -1279,12 +1279,6 @@ static void arm_cpu_initfn(Object *obj)
 static Property arm_cpu_reset_cbar_property =
             DEFINE_PROP_UINT64("reset-cbar", ARMCPU, reset_cbar, 0);
 
-static Property arm_cpu_has_vfp_property =
-            DEFINE_PROP_BOOL("vfp", ARMCPU, has_vfp, true);
-
-static Property arm_cpu_has_neon_property =
-            DEFINE_PROP_BOOL("neon", ARMCPU, has_neon, true);
-
 static Property arm_cpu_has_mpu_property =
             DEFINE_PROP_BOOL("has-mpu", ARMCPU, has_mpu, true);
 
@@ -1379,27 +1373,6 @@ static void arm_cpu_post_init(Object *obj)
     if (arm_feature(&cpu->env, ARM_FEATURE_PMU)) {
         cpu->has_pmu = true;
         object_property_add_bool(obj, "pmu", arm_get_pmu, arm_set_pmu);
-    }
-
-    /*
-     * Allow user to turn off VFP and Neon support, but only for TCG --
-     * KVM does not currently allow us to lie to the guest about its
-     * ID/feature registers, so the guest always sees what the host has.
-     */
-    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)
-        ? cpu_isar_feature(aa64_fp_simd, cpu)
-        : cpu_isar_feature(aa32_vfp, cpu)) {
-        cpu->has_vfp = true;
-        if (!kvm_enabled() && !arm_feature(&cpu->env, ARM_FEATURE_M)) {
-            qdev_property_add_static(DEVICE(obj), &arm_cpu_has_vfp_property);
-        }
-    }
-
-    if (arm_feature(&cpu->env, ARM_FEATURE_NEON)) {
-        cpu->has_neon = true;
-        if (!kvm_enabled()) {
-            qdev_property_add_static(DEVICE(obj), &arm_cpu_has_neon_property);
-        }
     }
 
     if (arm_feature(&cpu->env, ARM_FEATURE_PMSA)) {
@@ -1601,137 +1574,6 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         return;
-    }
-
-    if (arm_feature(env, ARM_FEATURE_AARCH64) &&
-        cpu->has_vfp != cpu->has_neon) {
-        /*
-         * This is an architectural requirement for AArch64; AArch32 is
-         * more flexible and permits VFP-no-Neon and Neon-no-VFP.
-         */
-        error_setg(errp,
-                   "AArch64 CPUs must have both VFP and Neon or neither");
-        return;
-    }
-
-    if (!cpu->has_vfp) {
-        uint64_t t;
-        uint32_t u;
-
-        t = cpu->isar.id_aa64isar1;
-        t = FIELD_DP64(t, ID_AA64ISAR1, JSCVT, 0);
-        cpu->isar.id_aa64isar1 = t;
-
-        t = cpu->isar.id_aa64pfr0;
-        t = FIELD_DP64(t, ID_AA64PFR0, FP, 0xf);
-        cpu->isar.id_aa64pfr0 = t;
-
-        u = cpu->isar.id_isar6;
-        u = FIELD_DP32(u, ID_ISAR6, JSCVT, 0);
-        u = FIELD_DP32(u, ID_ISAR6, BF16, 0);
-        cpu->isar.id_isar6 = u;
-
-        u = cpu->isar.mvfr0;
-        u = FIELD_DP32(u, MVFR0, FPSP, 0);
-        u = FIELD_DP32(u, MVFR0, FPDP, 0);
-        u = FIELD_DP32(u, MVFR0, FPDIVIDE, 0);
-        u = FIELD_DP32(u, MVFR0, FPSQRT, 0);
-        u = FIELD_DP32(u, MVFR0, FPROUND, 0);
-        if (!arm_feature(env, ARM_FEATURE_M)) {
-            u = FIELD_DP32(u, MVFR0, FPTRAP, 0);
-            u = FIELD_DP32(u, MVFR0, FPSHVEC, 0);
-        }
-        cpu->isar.mvfr0 = u;
-
-        u = cpu->isar.mvfr1;
-        u = FIELD_DP32(u, MVFR1, FPFTZ, 0);
-        u = FIELD_DP32(u, MVFR1, FPDNAN, 0);
-        u = FIELD_DP32(u, MVFR1, FPHP, 0);
-        if (arm_feature(env, ARM_FEATURE_M)) {
-            u = FIELD_DP32(u, MVFR1, FP16, 0);
-        }
-        cpu->isar.mvfr1 = u;
-
-        u = cpu->isar.mvfr2;
-        u = FIELD_DP32(u, MVFR2, FPMISC, 0);
-        cpu->isar.mvfr2 = u;
-    }
-
-    if (!cpu->has_neon) {
-        uint64_t t;
-        uint32_t u;
-
-        unset_feature(env, ARM_FEATURE_NEON);
-
-        t = cpu->isar.id_aa64isar0;
-        t = FIELD_DP64(t, ID_AA64ISAR0, AES, 0);
-        t = FIELD_DP64(t, ID_AA64ISAR0, SHA1, 0);
-        t = FIELD_DP64(t, ID_AA64ISAR0, SHA2, 0);
-        t = FIELD_DP64(t, ID_AA64ISAR0, SHA3, 0);
-        t = FIELD_DP64(t, ID_AA64ISAR0, SM3, 0);
-        t = FIELD_DP64(t, ID_AA64ISAR0, SM4, 0);
-        t = FIELD_DP64(t, ID_AA64ISAR0, DP, 0);
-        cpu->isar.id_aa64isar0 = t;
-
-        t = cpu->isar.id_aa64isar1;
-        t = FIELD_DP64(t, ID_AA64ISAR1, FCMA, 0);
-        t = FIELD_DP64(t, ID_AA64ISAR1, BF16, 0);
-        t = FIELD_DP64(t, ID_AA64ISAR1, I8MM, 0);
-        cpu->isar.id_aa64isar1 = t;
-
-        t = cpu->isar.id_aa64pfr0;
-        t = FIELD_DP64(t, ID_AA64PFR0, ADVSIMD, 0xf);
-        cpu->isar.id_aa64pfr0 = t;
-
-        u = cpu->isar.id_isar5;
-        u = FIELD_DP32(u, ID_ISAR5, AES, 0);
-        u = FIELD_DP32(u, ID_ISAR5, SHA1, 0);
-        u = FIELD_DP32(u, ID_ISAR5, SHA2, 0);
-        u = FIELD_DP32(u, ID_ISAR5, RDM, 0);
-        u = FIELD_DP32(u, ID_ISAR5, VCMA, 0);
-        cpu->isar.id_isar5 = u;
-
-        u = cpu->isar.id_isar6;
-        u = FIELD_DP32(u, ID_ISAR6, DP, 0);
-        u = FIELD_DP32(u, ID_ISAR6, FHM, 0);
-        u = FIELD_DP32(u, ID_ISAR6, BF16, 0);
-        u = FIELD_DP32(u, ID_ISAR6, I8MM, 0);
-        cpu->isar.id_isar6 = u;
-
-        if (!arm_feature(env, ARM_FEATURE_M)) {
-            u = cpu->isar.mvfr1;
-            u = FIELD_DP32(u, MVFR1, SIMDLS, 0);
-            u = FIELD_DP32(u, MVFR1, SIMDINT, 0);
-            u = FIELD_DP32(u, MVFR1, SIMDSP, 0);
-            u = FIELD_DP32(u, MVFR1, SIMDHP, 0);
-            cpu->isar.mvfr1 = u;
-
-            u = cpu->isar.mvfr2;
-            u = FIELD_DP32(u, MVFR2, SIMDMISC, 0);
-            cpu->isar.mvfr2 = u;
-        }
-    }
-
-    if (!cpu->has_neon && !cpu->has_vfp) {
-        uint64_t t;
-        uint32_t u;
-
-        t = cpu->isar.id_aa64isar0;
-        t = FIELD_DP64(t, ID_AA64ISAR0, FHM, 0);
-        cpu->isar.id_aa64isar0 = t;
-
-        t = cpu->isar.id_aa64isar1;
-        t = FIELD_DP64(t, ID_AA64ISAR1, FRINTTS, 0);
-        cpu->isar.id_aa64isar1 = t;
-
-        u = cpu->isar.mvfr0;
-        u = FIELD_DP32(u, MVFR0, SIMDREG, 0);
-        cpu->isar.mvfr0 = u;
-
-        /* Despite the name, this field covers both VFP and Neon */
-        u = cpu->isar.mvfr1;
-        u = FIELD_DP32(u, MVFR1, SIMDFMAC, 0);
-        cpu->isar.mvfr1 = u;
     }
 
     /*
@@ -2102,7 +1944,6 @@ static bool arm_class_prop_uint64_ofs(ObjectClass *oc, Visitor *v,
     return visit_type_uint64(v, name, ptr, errp);
 }
 
-#ifndef CONFIG_USER_ONLY
 static bool arm_class_prop_get_auto_ofs(ObjectClass *oc, Visitor *v,
                                         const char *name, void *opaque,
                                         Error **errp)
@@ -2131,6 +1972,7 @@ static bool arm_class_prop_set_auto_ofs(ObjectClass *oc, Visitor *v,
     return false;
 }
 
+#ifndef CONFIG_USER_ONLY
 static bool arm_class_prop_set_sctlrbit(ObjectClass *oc, Visitor *v,
                                         const char *name, void *opaque,
                                         Error **errp)
@@ -2339,11 +2181,34 @@ static void arm_cpu_leaf_class_init(ObjectClass *oc, void *data)
                            (void *)(uintptr_t)offsetof(ARMCPUClass, has_el3));
     }
 #endif /* !CONFIG_USER_ONLY */
+
+    /*
+     * Similarly, allow user to turn off VFP and Neon support with TCG.
+     * While the id registers may not yet be configured for properly
+     * detecting VFP for "host" or "max", we know that all aarch64 has
+     * support, so substitute AARCH64.  Neon is always set correctly.
+     */
+    if (arm_class_feature(acc, ARM_FEATURE_AARCH64) ||
+        (class_isar_feature(aa32_vfp, acc) &&
+         !arm_class_feature(acc, ARM_FEATURE_M))) {
+        class_property_add(oc, "vfp", "bool", NULL,
+                           arm_class_prop_get_auto_ofs,
+                           arm_class_prop_set_auto_ofs,
+                           (void *)(uintptr_t)offsetof(ARMCPUClass, has_vfp));
+    }
+    if (arm_class_feature(acc, ARM_FEATURE_NEON)) {
+        class_property_add(oc, "neon", "bool", NULL,
+                           arm_class_prop_get_auto_ofs,
+                           arm_class_prop_set_auto_ofs,
+                           (void *)(uintptr_t)offsetof(ARMCPUClass, has_neon));
+    }
 }
 
 static bool arm_cpu_class_late_init(ObjectClass *oc, Error **errp)
 {
     ARMCPUClass *acc = ARM_CPU_CLASS(oc);
+    uint64_t t;
+    uint32_t u;
 
     if (acc->info->class_late_init) {
         if (!acc->info->class_late_init(acc, errp)) {
@@ -2416,6 +2281,163 @@ static bool arm_cpu_class_late_init(ObjectClass *oc, Error **errp)
         g_assert_not_reached();
     }
 #endif /* !CONFIG_USER_ONLY */
+
+    if (!arm_class_feature(acc, ARM_FEATURE_M)) {
+        if (acc->has_vfp == ON_OFF_AUTO_AUTO) {
+            acc->has_vfp = ((arm_class_feature(acc, ARM_FEATURE_AARCH64)
+                             ? class_isar_feature(aa64_fp_simd, acc)
+                             : class_isar_feature(aa32_vfp, acc))
+                            ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF);
+        }
+        switch (acc->has_vfp) {
+        default:
+            g_assert_not_reached();
+        case ON_OFF_AUTO_ON:
+            break;
+        case ON_OFF_AUTO_OFF:
+            /*
+             * Neither KVM nor HVF allow us to lie to the guest about
+             * ID/feature registers, so the guest always sees what
+             * the host has.
+             */
+            if (!tcg_enabled() && !qtest_enabled()) {
+                error_setg(errp,
+                           "Cannot enable %s when guest CPU has VFP disabled",
+                           current_accel_name());
+                return false;
+            }
+
+            t = acc->isar.id_aa64isar1;
+            t = FIELD_DP64(t, ID_AA64ISAR1, JSCVT, 0);
+            acc->isar.id_aa64isar1 = t;
+
+            t = acc->isar.id_aa64pfr0;
+            t = FIELD_DP64(t, ID_AA64PFR0, FP, 0xf);
+            acc->isar.id_aa64pfr0 = t;
+
+            u = acc->isar.id_isar6;
+            u = FIELD_DP32(u, ID_ISAR6, JSCVT, 0);
+            u = FIELD_DP32(u, ID_ISAR6, BF16, 0);
+            acc->isar.id_isar6 = u;
+
+            u = acc->isar.mvfr0;
+            u = FIELD_DP32(u, MVFR0, FPSP, 0);
+            u = FIELD_DP32(u, MVFR0, FPDP, 0);
+            u = FIELD_DP32(u, MVFR0, FPDIVIDE, 0);
+            u = FIELD_DP32(u, MVFR0, FPSQRT, 0);
+            u = FIELD_DP32(u, MVFR0, FPROUND, 0);
+            u = FIELD_DP32(u, MVFR0, FPTRAP, 0);
+            u = FIELD_DP32(u, MVFR0, FPSHVEC, 0);
+            acc->isar.mvfr0 = u;
+
+            u = acc->isar.mvfr1;
+            u = FIELD_DP32(u, MVFR1, FPFTZ, 0);
+            u = FIELD_DP32(u, MVFR1, FPDNAN, 0);
+            u = FIELD_DP32(u, MVFR1, FPHP, 0);
+            acc->isar.mvfr1 = u;
+
+            u = acc->isar.mvfr2;
+            u = FIELD_DP32(u, MVFR2, FPMISC, 0);
+            acc->isar.mvfr2 = u;
+            break;
+        }
+
+        if (acc->has_neon == ON_OFF_AUTO_AUTO) {
+            acc->has_neon = (arm_class_feature(acc, ARM_FEATURE_NEON)
+                             ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF);
+        }
+        switch (acc->has_neon) {
+        default:
+            g_assert_not_reached();
+        case ON_OFF_AUTO_ON:
+            break;
+        case ON_OFF_AUTO_OFF:
+            if (!tcg_enabled() && !qtest_enabled()) {
+                error_setg(errp,
+                           "Cannot enable %s when guest CPU has NEON disabled",
+                           current_accel_name());
+                return false;
+            }
+
+            unset_class_feature(acc, ARM_FEATURE_NEON);
+
+            t = acc->isar.id_aa64isar0;
+            t = FIELD_DP64(t, ID_AA64ISAR0, AES, 0);
+            t = FIELD_DP64(t, ID_AA64ISAR0, SHA1, 0);
+            t = FIELD_DP64(t, ID_AA64ISAR0, SHA2, 0);
+            t = FIELD_DP64(t, ID_AA64ISAR0, SHA3, 0);
+            t = FIELD_DP64(t, ID_AA64ISAR0, SM3, 0);
+            t = FIELD_DP64(t, ID_AA64ISAR0, SM4, 0);
+            t = FIELD_DP64(t, ID_AA64ISAR0, DP, 0);
+            acc->isar.id_aa64isar0 = t;
+
+            t = acc->isar.id_aa64isar1;
+            t = FIELD_DP64(t, ID_AA64ISAR1, FCMA, 0);
+            t = FIELD_DP64(t, ID_AA64ISAR1, BF16, 0);
+            t = FIELD_DP64(t, ID_AA64ISAR1, I8MM, 0);
+            acc->isar.id_aa64isar1 = t;
+
+            t = acc->isar.id_aa64pfr0;
+            t = FIELD_DP64(t, ID_AA64PFR0, ADVSIMD, 0xf);
+            acc->isar.id_aa64pfr0 = t;
+
+            u = acc->isar.id_isar5;
+            u = FIELD_DP32(u, ID_ISAR5, AES, 0);
+            u = FIELD_DP32(u, ID_ISAR5, SHA1, 0);
+            u = FIELD_DP32(u, ID_ISAR5, SHA2, 0);
+            u = FIELD_DP32(u, ID_ISAR5, RDM, 0);
+            u = FIELD_DP32(u, ID_ISAR5, VCMA, 0);
+            acc->isar.id_isar5 = u;
+
+            u = acc->isar.id_isar6;
+            u = FIELD_DP32(u, ID_ISAR6, DP, 0);
+            u = FIELD_DP32(u, ID_ISAR6, FHM, 0);
+            u = FIELD_DP32(u, ID_ISAR6, BF16, 0);
+            u = FIELD_DP32(u, ID_ISAR6, I8MM, 0);
+            acc->isar.id_isar6 = u;
+
+            u = acc->isar.mvfr1;
+            u = FIELD_DP32(u, MVFR1, SIMDLS, 0);
+            u = FIELD_DP32(u, MVFR1, SIMDINT, 0);
+            u = FIELD_DP32(u, MVFR1, SIMDSP, 0);
+            u = FIELD_DP32(u, MVFR1, SIMDHP, 0);
+            acc->isar.mvfr1 = u;
+
+            u = acc->isar.mvfr2;
+            u = FIELD_DP32(u, MVFR2, SIMDMISC, 0);
+            acc->isar.mvfr2 = u;
+
+            if (acc->has_vfp == ON_OFF_AUTO_OFF) {
+                t = acc->isar.id_aa64isar0;
+                t = FIELD_DP64(t, ID_AA64ISAR0, FHM, 0);
+                acc->isar.id_aa64isar0 = t;
+
+                t = acc->isar.id_aa64isar1;
+                t = FIELD_DP64(t, ID_AA64ISAR1, FRINTTS, 0);
+                acc->isar.id_aa64isar1 = t;
+
+                u = acc->isar.mvfr0;
+                u = FIELD_DP32(u, MVFR0, SIMDREG, 0);
+                acc->isar.mvfr0 = u;
+
+                /* Despite the name, this field covers both VFP and Neon */
+                u = acc->isar.mvfr1;
+                u = FIELD_DP32(u, MVFR1, SIMDFMAC, 0);
+                acc->isar.mvfr1 = u;
+            }
+            break;
+        }
+        if (acc->has_vfp != acc->has_neon &&
+            arm_class_feature(acc, ARM_FEATURE_AARCH64)) {
+            /*
+             * This is an architectural requirement for AArch64; AArch32 is
+             * more flexible and permits VFP-no-Neon and Neon-no-VFP.
+             */
+            error_setg(errp,
+                       "AArch64 CPUs must have both VFP and Neon or neither");
+            return false;
+        }
+    }
 
     /* Run some consistency checks for TCG. */
     if (tcg_enabled()) {

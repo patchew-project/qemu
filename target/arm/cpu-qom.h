@@ -188,6 +188,10 @@ struct ARMCPUClass {
     OnOffAuto has_el3;
     /* CPU has virtualization extension */
     OnOffAuto has_el2;
+    /* CPU has VFP */
+    OnOffAuto has_vfp;
+    /* CPU has Neon */
+    OnOffAuto has_neon;
 };
 
 static inline int arm_class_feature(ARMCPUClass *acc, int feature)

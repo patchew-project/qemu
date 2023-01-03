@@ -156,6 +156,7 @@ static void aspeed_soc_ast2600_init(Object *obj)
 
     cpu_class = object_class_by_name(sc->cpu_type);
     class_property_set_uint(cpu_class, "cntfrq", 1125000000, &error_abort);
+    class_property_set_bool(cpu_class, "neon", false, &error_abort);
 
     for (i = 0; i < sc->num_cpus; i++) {
         object_initialize_child(obj, "cpu[*]", &s->cpu[i], sc->cpu_type);
@@ -309,8 +310,6 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
         object_property_set_int(OBJECT(&s->cpu[i]), "mp-affinity",
                                 aspeed_calc_affinity(i), &error_abort);
 
-        object_property_set_bool(OBJECT(&s->cpu[i]), "neon", false,
-                                &error_abort);
         object_property_set_link(OBJECT(&s->cpu[i]), "memory",
                                  OBJECT(s->memory), &error_abort);
 
