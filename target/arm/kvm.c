@@ -50,9 +50,7 @@ static bool cap_has_inject_ext_dabt;
  */
 typedef struct ARMHostCPUFeatures {
     ARMISARegisters isar;
-    uint64_t features;
     uint32_t target;
-    const char *dtb_compatible;
 } ARMHostCPUFeatures;
 
 static ARMHostCPUFeatures arm_host_cpu_features;
@@ -1567,7 +1565,6 @@ static bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
     int fdarray[3];
     bool sve_supported;
     bool pmu_supported = false;
-    uint64_t features = 0;
     int err;
 
     /* Old kernels may not know about the PREFERRED_TARGET ioctl: however
@@ -1615,7 +1612,6 @@ static bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
     }
 
     ahcf->target = init.target;
-    ahcf->dtb_compatible = "arm,arm-v8";
 
     err = read_sys_reg64(fdarray[2], &ahcf->isar.id_aa64pfr0,
                          ARM64_SYS_REG(3, 0, 0, 4, 0));
@@ -1760,31 +1756,12 @@ static bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
 
     kvm_arm_destroy_scratch_host_vcpu(fdarray);
 
-    if (err < 0) {
-        return false;
-    }
-
-    /*
-     * We can assume any KVM supporting CPU is at least a v8
-     * with VFPv4+Neon; this in turn implies most of the other
-     * feature bits.
-     */
-    features |= 1ULL << ARM_FEATURE_V8;
-    features |= 1ULL << ARM_FEATURE_NEON;
-    features |= 1ULL << ARM_FEATURE_AARCH64;
-    features |= 1ULL << ARM_FEATURE_PMU;
-    features |= 1ULL << ARM_FEATURE_GENERIC_TIMER;
-
-    ahcf->features = features;
-
-    return true;
+    return !err;
 }
 
 void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu)
 {
-    CPUARMState *env = &cpu->env;
-
-    if (!arm_host_cpu_features.dtb_compatible) {
+    if (!arm_host_cpu_features.isar.id_aa64pfr0) {
         if (!kvm_enabled() ||
             !kvm_arm_get_host_cpu_features(&arm_host_cpu_features)) {
             /* We can't report this error yet, so flag that we need to
@@ -1797,9 +1774,7 @@ void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu)
     }
 
     cpu->kvm_target = arm_host_cpu_features.target;
-    cpu->dtb_compatible = arm_host_cpu_features.dtb_compatible;
     cpu->isar = arm_host_cpu_features.isar;
-    env->features = arm_host_cpu_features.features;
 }
 
 /**

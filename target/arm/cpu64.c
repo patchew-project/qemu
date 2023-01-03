@@ -1090,6 +1090,21 @@ static void aarch64_neoverse_n1_class_init(ARMCPUClass *cpu)
     cpu->isar.reset_pmcr_el0 = 0x410c3000;
 }
 
+static void aarch64_host_class_init(ARMCPUClass *acc)
+{
+    /*
+     * While we don't know all the host details, we can assume at
+     * least v8 with VFPv4+Neon; this in turn implies most of the
+     * other feature bits.
+     */
+    acc->dtb_compatible = "arm,arm-v8";
+    set_class_feature(acc, ARM_FEATURE_V8);
+    set_class_feature(acc, ARM_FEATURE_NEON);
+    set_class_feature(acc, ARM_FEATURE_GENERIC_TIMER);
+    set_class_feature(acc, ARM_FEATURE_AARCH64);
+    set_class_feature(acc, ARM_FEATURE_PMU);
+}
+
 static void aarch64_host_object_init(Object *obj)
 {
 #if defined(CONFIG_KVM)
@@ -1122,8 +1137,12 @@ static bool aarch64_max_class_late_init(ARMCPUClass *cpu, Error **errp)
         return true;
     }
 
-    /* '-cpu max' for TCG: we currently do this as "A57 with extra things" */
+    /*
+     * '-cpu max' for TCG: we currently do this as "A57 with extra things"
+     * Retain the more generic dtb_compatible setting from host_class_init.
+     */
     aarch64_a57_class_init(cpu);
+    cpu->dtb_compatible = "arm,arm-v8";
 
     /*
      * Reset MIDR so the guest doesn't mistake our 'max' CPU type for a real
@@ -1316,10 +1335,12 @@ static const ARMCPUInfo aarch64_cpus[] = {
       .class_init = aarch64_a64fx_class_init,
       .object_init = aarch64_a64fx_object_init },
     { .name = "max",
+      .class_init = aarch64_host_class_init,
       .class_late_init = aarch64_max_class_late_init,
       .object_init = aarch64_max_object_init },
 #if defined(CONFIG_KVM) || defined(CONFIG_HVF)
     { .name = "host",
+      .class_init = aarch64_host_class_init,
       .object_init = aarch64_host_object_init },
 #endif
 };

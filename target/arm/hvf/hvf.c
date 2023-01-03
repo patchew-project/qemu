@@ -97,10 +97,8 @@ static HVFVTimer vtimer;
 
 typedef struct ARMHostCPUFeatures {
     ARMISARegisters isar;
-    uint64_t features;
     uint64_t midr;
     uint32_t reset_sctlr;
-    const char *dtb_compatible;
 } ARMHostCPUFeatures;
 
 static ARMHostCPUFeatures arm_host_cpu_features;
@@ -489,13 +487,6 @@ static bool hvf_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
     hv_vcpu_exit_t *exit;
     int i;
 
-    ahcf->dtb_compatible = "arm,arm-v8";
-    ahcf->features = (1ULL << ARM_FEATURE_V8) |
-                     (1ULL << ARM_FEATURE_NEON) |
-                     (1ULL << ARM_FEATURE_AARCH64) |
-                     (1ULL << ARM_FEATURE_PMU) |
-                     (1ULL << ARM_FEATURE_GENERIC_TIMER);
-
     /* We set up a small vcpu to extract host registers */
 
     if (hv_vcpu_create(&fd, &exit, NULL) != HV_SUCCESS) {
@@ -532,7 +523,7 @@ static bool hvf_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
 
 void hvf_arm_set_cpu_features_from_host(ARMCPU *cpu)
 {
-    if (!arm_host_cpu_features.dtb_compatible) {
+    if (!arm_host_cpu_features.reset_sctlr) {
         if (!hvf_enabled() ||
             !hvf_arm_get_host_cpu_features(&arm_host_cpu_features)) {
             /*
@@ -544,9 +535,7 @@ void hvf_arm_set_cpu_features_from_host(ARMCPU *cpu)
         }
     }
 
-    cpu->dtb_compatible = arm_host_cpu_features.dtb_compatible;
     cpu->isar = arm_host_cpu_features.isar;
-    cpu->env.features = arm_host_cpu_features.features;
     cpu->midr = arm_host_cpu_features.midr;
     cpu->reset_sctlr = arm_host_cpu_features.reset_sctlr;
 }
