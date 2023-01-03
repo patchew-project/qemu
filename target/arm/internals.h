@@ -1347,14 +1347,14 @@ void arm_cpu_lpa2_finalize(ARMCPU *cpu, Error **errp);
 #endif
 
 #ifdef CONFIG_USER_ONLY
-static inline void define_cortex_a72_a57_a53_cp_reginfo(ARMCPU *cpu) { }
+static inline void define_cortex_a72_a57_a53_cp_reginfo(ARMCPUClass *acc) { }
 #else
-void define_cortex_a72_a57_a53_cp_reginfo(ARMCPU *cpu);
+void define_cortex_a72_a57_a53_cp_reginfo(ARMCPUClass *acc);
 #endif
 
 bool el_is_in_host(CPUARMState *env, int el);
 
-void aa32_max_features(ARMCPU *cpu);
+void aa32_max_features(ARMCPUClass *acc);
 int exception_target_el(CPUARMState *env);
 bool arm_singlestep_active(CPUARMState *env);
 bool arm_generate_debug_exceptions(CPUARMState *env);

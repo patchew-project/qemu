@@ -2351,14 +2351,26 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
 static void arm_cpu_leaf_class_init(ObjectClass *oc, void *data)
 {
     ARMCPUClass *acc = ARM_CPU_CLASS(oc);
-    const ARMCPUInfo *info = data;
 
-    acc->info = info;
     acc->cp_regs = g_hash_table_new_full(g_direct_hash, g_direct_equal,
                                          NULL, g_free);
-    if (info->class_init) {
-        info->class_init(acc);
+
+    acc->info = data;
+    if (acc->info->class_init) {
+        acc->info->class_init(acc);
     }
+}
+
+static bool arm_cpu_class_late_init(ObjectClass *oc, Error **errp)
+{
+    ARMCPUClass *acc = ARM_CPU_CLASS(oc);
+
+    if (acc->info->class_late_init) {
+        if (!acc->info->class_late_init(acc, errp)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 void arm_cpu_register_parent(const ARMCPUInfo *info, const char *parent)
@@ -2367,7 +2379,7 @@ void arm_cpu_register_parent(const ARMCPUInfo *info, const char *parent)
         .parent = parent,
         .instance_size = sizeof(ARMCPU),
         .instance_align = __alignof__(ARMCPU),
-        .instance_init = info->initfn,
+        .instance_init = info->object_init,
         .class_size = sizeof(ARMCPUClass),
         .class_init = arm_cpu_leaf_class_init,
         .class_data = (void *)info,
@@ -2389,6 +2401,7 @@ static const TypeInfo arm_cpu_type_info = {
     .abstract = true,
     .class_size = sizeof(ARMCPUClass),
     .class_init = arm_cpu_class_init,
+    .class_late_init = arm_cpu_class_late_init,
 };
 
 static void arm_cpu_register_types(void)

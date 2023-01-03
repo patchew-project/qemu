@@ -36,19 +36,17 @@
 #include "hw/qdev-properties.h"
 #include "internals.h"
 
-static void aarch64_a35_initfn(Object *obj)
+static void aarch64_a35_class_init(ARMCPUClass *cpu)
 {
-    ARMCPU *cpu = ARM_CPU(obj);
-
     cpu->dtb_compatible = "arm,cortex-a35";
-    set_feature(&cpu->env, ARM_FEATURE_V8);
-    set_feature(&cpu->env, ARM_FEATURE_NEON);
-    set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
-    set_feature(&cpu->env, ARM_FEATURE_AARCH64);
-    set_feature(&cpu->env, ARM_FEATURE_CBAR_RO);
-    set_feature(&cpu->env, ARM_FEATURE_EL2);
-    set_feature(&cpu->env, ARM_FEATURE_EL3);
-    set_feature(&cpu->env, ARM_FEATURE_PMU);
+    set_class_feature(cpu, ARM_FEATURE_V8);
+    set_class_feature(cpu, ARM_FEATURE_NEON);
+    set_class_feature(cpu, ARM_FEATURE_GENERIC_TIMER);
+    set_class_feature(cpu, ARM_FEATURE_AARCH64);
+    set_class_feature(cpu, ARM_FEATURE_CBAR_RO);
+    set_class_feature(cpu, ARM_FEATURE_EL2);
+    set_class_feature(cpu, ARM_FEATURE_EL3);
+    set_class_feature(cpu, ARM_FEATURE_PMU);
 
     /* From B2.2 AArch64 identification registers. */
     cpu->midr = 0x411fd040;
@@ -678,19 +676,17 @@ void arm_cpu_lpa2_finalize(ARMCPU *cpu, Error **errp)
     cpu->isar.id_aa64mmfr0 = t;
 }
 
-static void aarch64_a57_initfn(Object *obj)
+static void aarch64_a57_class_init(ARMCPUClass *cpu)
 {
-    ARMCPU *cpu = ARM_CPU(obj);
-
     cpu->dtb_compatible = "arm,cortex-a57";
-    set_feature(&cpu->env, ARM_FEATURE_V8);
-    set_feature(&cpu->env, ARM_FEATURE_NEON);
-    set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
-    set_feature(&cpu->env, ARM_FEATURE_AARCH64);
-    set_feature(&cpu->env, ARM_FEATURE_CBAR_RO);
-    set_feature(&cpu->env, ARM_FEATURE_EL2);
-    set_feature(&cpu->env, ARM_FEATURE_EL3);
-    set_feature(&cpu->env, ARM_FEATURE_PMU);
+    set_class_feature(cpu, ARM_FEATURE_V8);
+    set_class_feature(cpu, ARM_FEATURE_NEON);
+    set_class_feature(cpu, ARM_FEATURE_GENERIC_TIMER);
+    set_class_feature(cpu, ARM_FEATURE_AARCH64);
+    set_class_feature(cpu, ARM_FEATURE_CBAR_RO);
+    set_class_feature(cpu, ARM_FEATURE_EL2);
+    set_class_feature(cpu, ARM_FEATURE_EL3);
+    set_class_feature(cpu, ARM_FEATURE_PMU);
     cpu->kvm_target = QEMU_KVM_ARM_TARGET_CORTEX_A57;
     cpu->midr = 0x411fd070;
     cpu->revidr = 0x00000000;
@@ -735,19 +731,17 @@ static void aarch64_a57_initfn(Object *obj)
     define_cortex_a72_a57_a53_cp_reginfo(cpu);
 }
 
-static void aarch64_a53_initfn(Object *obj)
+static void aarch64_a53_class_init(ARMCPUClass *cpu)
 {
-    ARMCPU *cpu = ARM_CPU(obj);
-
     cpu->dtb_compatible = "arm,cortex-a53";
-    set_feature(&cpu->env, ARM_FEATURE_V8);
-    set_feature(&cpu->env, ARM_FEATURE_NEON);
-    set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
-    set_feature(&cpu->env, ARM_FEATURE_AARCH64);
-    set_feature(&cpu->env, ARM_FEATURE_CBAR_RO);
-    set_feature(&cpu->env, ARM_FEATURE_EL2);
-    set_feature(&cpu->env, ARM_FEATURE_EL3);
-    set_feature(&cpu->env, ARM_FEATURE_PMU);
+    set_class_feature(cpu, ARM_FEATURE_V8);
+    set_class_feature(cpu, ARM_FEATURE_NEON);
+    set_class_feature(cpu, ARM_FEATURE_GENERIC_TIMER);
+    set_class_feature(cpu, ARM_FEATURE_AARCH64);
+    set_class_feature(cpu, ARM_FEATURE_CBAR_RO);
+    set_class_feature(cpu, ARM_FEATURE_EL2);
+    set_class_feature(cpu, ARM_FEATURE_EL3);
+    set_class_feature(cpu, ARM_FEATURE_PMU);
     cpu->kvm_target = QEMU_KVM_ARM_TARGET_CORTEX_A53;
     cpu->midr = 0x410fd034;
     cpu->revidr = 0x00000000;
@@ -792,19 +786,17 @@ static void aarch64_a53_initfn(Object *obj)
     define_cortex_a72_a57_a53_cp_reginfo(cpu);
 }
 
-static void aarch64_a55_initfn(Object *obj)
+static void aarch64_a55_class_init(ARMCPUClass *cpu)
 {
-    ARMCPU *cpu = ARM_CPU(obj);
-
     cpu->dtb_compatible = "arm,cortex-a55";
-    set_feature(&cpu->env, ARM_FEATURE_V8);
-    set_feature(&cpu->env, ARM_FEATURE_NEON);
-    set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
-    set_feature(&cpu->env, ARM_FEATURE_AARCH64);
-    set_feature(&cpu->env, ARM_FEATURE_CBAR_RO);
-    set_feature(&cpu->env, ARM_FEATURE_EL2);
-    set_feature(&cpu->env, ARM_FEATURE_EL3);
-    set_feature(&cpu->env, ARM_FEATURE_PMU);
+    set_class_feature(cpu, ARM_FEATURE_V8);
+    set_class_feature(cpu, ARM_FEATURE_NEON);
+    set_class_feature(cpu, ARM_FEATURE_GENERIC_TIMER);
+    set_class_feature(cpu, ARM_FEATURE_AARCH64);
+    set_class_feature(cpu, ARM_FEATURE_CBAR_RO);
+    set_class_feature(cpu, ARM_FEATURE_EL2);
+    set_class_feature(cpu, ARM_FEATURE_EL3);
+    set_class_feature(cpu, ARM_FEATURE_PMU);
 
     /* Ordered by B2.4 AArch64 registers by functional group */
     cpu->clidr = 0x82000023;
@@ -860,19 +852,17 @@ static void aarch64_a55_initfn(Object *obj)
     cpu->isar.reset_pmcr_el0 = 0x410b3000;
 }
 
-static void aarch64_a72_initfn(Object *obj)
+static void aarch64_a72_class_init(ARMCPUClass *cpu)
 {
-    ARMCPU *cpu = ARM_CPU(obj);
-
     cpu->dtb_compatible = "arm,cortex-a72";
-    set_feature(&cpu->env, ARM_FEATURE_V8);
-    set_feature(&cpu->env, ARM_FEATURE_NEON);
-    set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
-    set_feature(&cpu->env, ARM_FEATURE_AARCH64);
-    set_feature(&cpu->env, ARM_FEATURE_CBAR_RO);
-    set_feature(&cpu->env, ARM_FEATURE_EL2);
-    set_feature(&cpu->env, ARM_FEATURE_EL3);
-    set_feature(&cpu->env, ARM_FEATURE_PMU);
+    set_class_feature(cpu, ARM_FEATURE_V8);
+    set_class_feature(cpu, ARM_FEATURE_NEON);
+    set_class_feature(cpu, ARM_FEATURE_GENERIC_TIMER);
+    set_class_feature(cpu, ARM_FEATURE_AARCH64);
+    set_class_feature(cpu, ARM_FEATURE_CBAR_RO);
+    set_class_feature(cpu, ARM_FEATURE_EL2);
+    set_class_feature(cpu, ARM_FEATURE_EL3);
+    set_class_feature(cpu, ARM_FEATURE_PMU);
     cpu->midr = 0x410fd083;
     cpu->revidr = 0x00000000;
     cpu->reset_fpsid = 0x41034080;
@@ -915,19 +905,17 @@ static void aarch64_a72_initfn(Object *obj)
     define_cortex_a72_a57_a53_cp_reginfo(cpu);
 }
 
-static void aarch64_a76_initfn(Object *obj)
+static void aarch64_a76_class_init(ARMCPUClass *cpu)
 {
-    ARMCPU *cpu = ARM_CPU(obj);
-
     cpu->dtb_compatible = "arm,cortex-a76";
-    set_feature(&cpu->env, ARM_FEATURE_V8);
-    set_feature(&cpu->env, ARM_FEATURE_NEON);
-    set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
-    set_feature(&cpu->env, ARM_FEATURE_AARCH64);
-    set_feature(&cpu->env, ARM_FEATURE_CBAR_RO);
-    set_feature(&cpu->env, ARM_FEATURE_EL2);
-    set_feature(&cpu->env, ARM_FEATURE_EL3);
-    set_feature(&cpu->env, ARM_FEATURE_PMU);
+    set_class_feature(cpu, ARM_FEATURE_V8);
+    set_class_feature(cpu, ARM_FEATURE_NEON);
+    set_class_feature(cpu, ARM_FEATURE_GENERIC_TIMER);
+    set_class_feature(cpu, ARM_FEATURE_AARCH64);
+    set_class_feature(cpu, ARM_FEATURE_CBAR_RO);
+    set_class_feature(cpu, ARM_FEATURE_EL2);
+    set_class_feature(cpu, ARM_FEATURE_EL3);
+    set_class_feature(cpu, ARM_FEATURE_PMU);
 
     /* Ordered by B2.4 AArch64 registers by functional group */
     cpu->clidr = 0x82000023;
@@ -984,18 +972,16 @@ static void aarch64_a76_initfn(Object *obj)
     cpu->isar.reset_pmcr_el0 = 0x410b3000;
 }
 
-static void aarch64_a64fx_initfn(Object *obj)
+static void aarch64_a64fx_class_init(ARMCPUClass *cpu)
 {
-    ARMCPU *cpu = ARM_CPU(obj);
-
     cpu->dtb_compatible = "arm,a64fx";
-    set_feature(&cpu->env, ARM_FEATURE_V8);
-    set_feature(&cpu->env, ARM_FEATURE_NEON);
-    set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
-    set_feature(&cpu->env, ARM_FEATURE_AARCH64);
-    set_feature(&cpu->env, ARM_FEATURE_EL2);
-    set_feature(&cpu->env, ARM_FEATURE_EL3);
-    set_feature(&cpu->env, ARM_FEATURE_PMU);
+    set_class_feature(cpu, ARM_FEATURE_V8);
+    set_class_feature(cpu, ARM_FEATURE_NEON);
+    set_class_feature(cpu, ARM_FEATURE_GENERIC_TIMER);
+    set_class_feature(cpu, ARM_FEATURE_AARCH64);
+    set_class_feature(cpu, ARM_FEATURE_EL2);
+    set_class_feature(cpu, ARM_FEATURE_EL3);
+    set_class_feature(cpu, ARM_FEATURE_PMU);
     cpu->midr = 0x461f0010;
     cpu->revidr = 0x00000000;
     cpu->ctr = 0x86668006;
@@ -1021,31 +1007,33 @@ static void aarch64_a64fx_initfn(Object *obj)
     cpu->gic_vpribits = 5;
     cpu->gic_vprebits = 5;
     cpu->gic_pribits = 5;
+    cpu->isar.reset_pmcr_el0 = 0x46014040;
+
+    /* TODO:  Add A64FX specific HPC extension registers */
+}
+
+static void aarch64_a64fx_object_init(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
 
     /* The A64FX supports only 128, 256 and 512 bit vector lengths */
     aarch64_add_sve_properties(obj);
     cpu->sve_vq.supported = (1 << 0)  /* 128bit */
                           | (1 << 1)  /* 256bit */
                           | (1 << 3); /* 512bit */
-
-    cpu->isar.reset_pmcr_el0 = 0x46014040;
-
-    /* TODO:  Add A64FX specific HPC extension registers */
 }
 
-static void aarch64_neoverse_n1_initfn(Object *obj)
+static void aarch64_neoverse_n1_class_init(ARMCPUClass *cpu)
 {
-    ARMCPU *cpu = ARM_CPU(obj);
-
     cpu->dtb_compatible = "arm,neoverse-n1";
-    set_feature(&cpu->env, ARM_FEATURE_V8);
-    set_feature(&cpu->env, ARM_FEATURE_NEON);
-    set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
-    set_feature(&cpu->env, ARM_FEATURE_AARCH64);
-    set_feature(&cpu->env, ARM_FEATURE_CBAR_RO);
-    set_feature(&cpu->env, ARM_FEATURE_EL2);
-    set_feature(&cpu->env, ARM_FEATURE_EL3);
-    set_feature(&cpu->env, ARM_FEATURE_PMU);
+    set_class_feature(cpu, ARM_FEATURE_V8);
+    set_class_feature(cpu, ARM_FEATURE_NEON);
+    set_class_feature(cpu, ARM_FEATURE_GENERIC_TIMER);
+    set_class_feature(cpu, ARM_FEATURE_AARCH64);
+    set_class_feature(cpu, ARM_FEATURE_CBAR_RO);
+    set_class_feature(cpu, ARM_FEATURE_EL2);
+    set_class_feature(cpu, ARM_FEATURE_EL3);
+    set_class_feature(cpu, ARM_FEATURE_PMU);
 
     /* Ordered by B2.4 AArch64 registers by functional group */
     cpu->clidr = 0x82000023;
@@ -1102,7 +1090,7 @@ static void aarch64_neoverse_n1_initfn(Object *obj)
     cpu->isar.reset_pmcr_el0 = 0x410c3000;
 }
 
-static void aarch64_host_initfn(Object *obj)
+static void aarch64_host_object_init(Object *obj)
 {
 #if defined(CONFIG_KVM)
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1120,26 +1108,24 @@ static void aarch64_host_initfn(Object *obj)
 #endif
 }
 
-/* -cpu max: if KVM is enabled, like -cpu host (best possible with this host);
- * otherwise, a CPU with as many features enabled as our emulation supports.
+/*
+ * -cpu max: if hardware acceleration is enabled, like -cpu host
+ * (best possible with this host); otherwise, a CPU with as many
+ * features enabled as TCG supports.
  * The version of '-cpu max' for qemu-system-arm is defined in cpu.c;
- * this only needs to handle 64 bits.
+ * this version only needs to handle 64 bits.
  */
-static void aarch64_max_initfn(Object *obj)
+static bool aarch64_max_class_late_init(ARMCPUClass *cpu, Error **errp)
 {
-    ARMCPU *cpu = ARM_CPU(obj);
     uint64_t t;
     uint32_t u;
 
     if (kvm_enabled() || hvf_enabled()) {
-        /* With KVM or HVF, '-cpu max' is identical to '-cpu host' */
-        aarch64_host_initfn(obj);
-        return;
+        return true;
     }
 
     /* '-cpu max' for TCG: we currently do this as "A57 with extra things" */
-
-    aarch64_a57_initfn(obj);
+    aarch64_a57_class_init(cpu);
 
     /*
      * Reset MIDR so the guest doesn't mistake our 'max' CPU type for a real
@@ -1296,6 +1282,18 @@ static void aarch64_max_initfn(Object *obj)
     cpu->ctr = 0x80038003; /* 32 byte I and D cacheline size, VIPT icache */
     cpu->dcz_blocksize = 7; /*  512 bytes */
 #endif
+    return true;
+}
+
+static void aarch64_max_object_init(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    if (kvm_enabled() || hvf_enabled()) {
+        /* With KVM or HVF, '-cpu max' is identical to '-cpu host' */
+        aarch64_host_object_init(obj);
+        return;
+    }
 
     cpu->sve_vq.supported = MAKE_64BIT_MASK(0, ARM_MAX_VQ);
     cpu->sme_vq.supported = SVE_VQ_POW2_MAP;
@@ -1309,17 +1307,22 @@ static void aarch64_max_initfn(Object *obj)
 }
 
 static const ARMCPUInfo aarch64_cpus[] = {
-    { .name = "cortex-a35",         .initfn = aarch64_a35_initfn },
-    { .name = "cortex-a57",         .initfn = aarch64_a57_initfn },
-    { .name = "cortex-a53",         .initfn = aarch64_a53_initfn },
-    { .name = "cortex-a55",         .initfn = aarch64_a55_initfn },
-    { .name = "cortex-a72",         .initfn = aarch64_a72_initfn },
-    { .name = "cortex-a76",         .initfn = aarch64_a76_initfn },
-    { .name = "a64fx",              .initfn = aarch64_a64fx_initfn },
-    { .name = "neoverse-n1",        .initfn = aarch64_neoverse_n1_initfn },
-    { .name = "max",                .initfn = aarch64_max_initfn },
+    { .name = "cortex-a35", .class_init = aarch64_a35_class_init },
+    { .name = "cortex-a57", .class_init = aarch64_a57_class_init },
+    { .name = "cortex-a53", .class_init = aarch64_a53_class_init },
+    { .name = "cortex-a55", .class_init = aarch64_a55_class_init },
+    { .name = "cortex-a72", .class_init = aarch64_a72_class_init },
+    { .name = "cortex-a76", .class_init = aarch64_a76_class_init },
+    { .name = "neoverse-n1", .class_init = aarch64_neoverse_n1_class_init },
+    { .name = "a64fx",
+      .class_init = aarch64_a64fx_class_init,
+      .object_init = aarch64_a64fx_object_init },
+    { .name = "max",
+      .class_late_init = aarch64_max_class_late_init,
+      .object_init = aarch64_max_object_init },
 #if defined(CONFIG_KVM) || defined(CONFIG_HVF)
-    { .name = "host",               .initfn = aarch64_host_initfn },
+    { .name = "host",
+      .object_init = aarch64_host_object_init },
 #endif
 };
 
