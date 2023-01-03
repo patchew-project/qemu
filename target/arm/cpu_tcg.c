@@ -857,120 +857,85 @@ static void sa1110_class_init(ARMCPUClass *acc)
     acc->midr = 0x6901B119;
 }
 
-static void pxa250_class_init(ARMCPUClass *acc)
+static void xscale_class_init(ARMCPUClass *acc)
 {
     acc->dtb_compatible = "marvell,xscale";
     set_class_feature(acc, ARM_FEATURE_V5);
     set_class_feature(acc, ARM_FEATURE_XSCALE);
-    acc->midr = 0x69052100;
     acc->ctr = 0xd172172;
     acc->reset_sctlr = 0x00000078;
+}
+
+static void pxa250_class_init(ARMCPUClass *acc)
+{
+    xscale_class_init(acc);
+    acc->midr = 0x69052100;
 }
 
 static void pxa255_class_init(ARMCPUClass *acc)
 {
-    acc->dtb_compatible = "marvell,xscale";
-    set_class_feature(acc, ARM_FEATURE_V5);
-    set_class_feature(acc, ARM_FEATURE_XSCALE);
+    xscale_class_init(acc);
     acc->midr = 0x69052d00;
-    acc->ctr = 0xd172172;
-    acc->reset_sctlr = 0x00000078;
 }
 
 static void pxa260_class_init(ARMCPUClass *acc)
 {
-    acc->dtb_compatible = "marvell,xscale";
-    set_class_feature(acc, ARM_FEATURE_V5);
-    set_class_feature(acc, ARM_FEATURE_XSCALE);
+    xscale_class_init(acc);
     acc->midr = 0x69052903;
-    acc->ctr = 0xd172172;
-    acc->reset_sctlr = 0x00000078;
 }
 
 static void pxa261_class_init(ARMCPUClass *acc)
 {
-    acc->dtb_compatible = "marvell,xscale";
-    set_class_feature(acc, ARM_FEATURE_V5);
-    set_class_feature(acc, ARM_FEATURE_XSCALE);
+    xscale_class_init(acc);
     acc->midr = 0x69052d05;
-    acc->ctr = 0xd172172;
-    acc->reset_sctlr = 0x00000078;
 }
 
 static void pxa262_class_init(ARMCPUClass *acc)
 {
-    acc->dtb_compatible = "marvell,xscale";
-    set_class_feature(acc, ARM_FEATURE_V5);
-    set_class_feature(acc, ARM_FEATURE_XSCALE);
+    xscale_class_init(acc);
     acc->midr = 0x69052d06;
-    acc->ctr = 0xd172172;
-    acc->reset_sctlr = 0x00000078;
+}
+
+static void xscale_iwmmxt_class_init(ARMCPUClass *acc)
+{
+    xscale_class_init(acc);
+    set_class_feature(acc, ARM_FEATURE_IWMMXT);
 }
 
 static void pxa270a0_class_init(ARMCPUClass *acc)
 {
-    acc->dtb_compatible = "marvell,xscale";
-    set_class_feature(acc, ARM_FEATURE_V5);
-    set_class_feature(acc, ARM_FEATURE_XSCALE);
-    set_class_feature(acc, ARM_FEATURE_IWMMXT);
+    xscale_iwmmxt_class_init(acc);
     acc->midr = 0x69054110;
-    acc->ctr = 0xd172172;
-    acc->reset_sctlr = 0x00000078;
 }
 
 static void pxa270a1_class_init(ARMCPUClass *acc)
 {
-    acc->dtb_compatible = "marvell,xscale";
-    set_class_feature(acc, ARM_FEATURE_V5);
-    set_class_feature(acc, ARM_FEATURE_XSCALE);
-    set_class_feature(acc, ARM_FEATURE_IWMMXT);
+    xscale_iwmmxt_class_init(acc);
     acc->midr = 0x69054111;
-    acc->ctr = 0xd172172;
-    acc->reset_sctlr = 0x00000078;
 }
 
 static void pxa270b0_class_init(ARMCPUClass *acc)
 {
-    acc->dtb_compatible = "marvell,xscale";
-    set_class_feature(acc, ARM_FEATURE_V5);
-    set_class_feature(acc, ARM_FEATURE_XSCALE);
-    set_class_feature(acc, ARM_FEATURE_IWMMXT);
+    xscale_iwmmxt_class_init(acc);
     acc->midr = 0x69054112;
-    acc->ctr = 0xd172172;
-    acc->reset_sctlr = 0x00000078;
 }
 
 static void pxa270b1_class_init(ARMCPUClass *acc)
 {
-    acc->dtb_compatible = "marvell,xscale";
-    set_class_feature(acc, ARM_FEATURE_V5);
-    set_class_feature(acc, ARM_FEATURE_XSCALE);
-    set_class_feature(acc, ARM_FEATURE_IWMMXT);
+    xscale_iwmmxt_class_init(acc);
     acc->midr = 0x69054113;
-    acc->ctr = 0xd172172;
-    acc->reset_sctlr = 0x00000078;
 }
 
 static void pxa270c0_class_init(ARMCPUClass *acc)
 {
-    acc->dtb_compatible = "marvell,xscale";
-    set_class_feature(acc, ARM_FEATURE_V5);
-    set_class_feature(acc, ARM_FEATURE_XSCALE);
-    set_class_feature(acc, ARM_FEATURE_IWMMXT);
+    xscale_iwmmxt_class_init(acc);
     acc->midr = 0x69054114;
-    acc->ctr = 0xd172172;
-    acc->reset_sctlr = 0x00000078;
 }
 
 static void pxa270c5_class_init(ARMCPUClass *acc)
 {
-    acc->dtb_compatible = "marvell,xscale";
-    set_class_feature(acc, ARM_FEATURE_V5);
-    set_class_feature(acc, ARM_FEATURE_XSCALE);
-    set_class_feature(acc, ARM_FEATURE_IWMMXT);
+    xscale_iwmmxt_class_init(acc);
     acc->midr = 0x69054117;
-    acc->ctr = 0xd172172;
-    acc->reset_sctlr = 0x00000078;
 }
 
 #ifdef CONFIG_TCG
