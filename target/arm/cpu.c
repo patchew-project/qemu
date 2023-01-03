@@ -1277,10 +1277,6 @@ static void arm_cpu_initfn(Object *obj)
     }
 }
 
-static Property arm_cpu_gt_cntfrq_property =
-            DEFINE_PROP_UINT64("cntfrq", ARMCPU, gt_cntfrq_hz,
-                               NANOSECONDS_PER_SECOND / GTIMER_SCALE);
-
 static Property arm_cpu_reset_cbar_property =
             DEFINE_PROP_UINT64("reset-cbar", ARMCPU, reset_cbar, 0);
 
@@ -1342,6 +1338,12 @@ static void arm_set_pmu(Object *obj, bool value, Error **errp)
 
 unsigned int gt_cntfrq_period_ns(ARMCPU *cpu)
 {
+    ARMCPUClass *acc = ARM_CPU_GET_CLASS(cpu);
+
+    if (!arm_class_feature(acc, ARM_FEATURE_GENERIC_TIMER)) {
+        return GTIMER_SCALE;
+    }
+
     /*
      * The exact approach to calculating guest ticks is:
      *
@@ -1360,8 +1362,8 @@ unsigned int gt_cntfrq_period_ns(ARMCPU *cpu)
      * Finally, CNTFRQ is effectively capped at 1GHz to ensure our scale factor
      * cannot become zero.
      */
-    return NANOSECONDS_PER_SECOND > cpu->gt_cntfrq_hz ?
-      NANOSECONDS_PER_SECOND / cpu->gt_cntfrq_hz : 1;
+    return (NANOSECONDS_PER_SECOND > acc->gt_cntfrq_hz ?
+            NANOSECONDS_PER_SECOND / acc->gt_cntfrq_hz : 1);
 }
 
 static void arm_cpu_post_init(Object *obj)
@@ -1465,10 +1467,6 @@ static void arm_cpu_post_init(Object *obj)
                                    OBJ_PROP_FLAG_READWRITE);
 
     qdev_property_add_static(DEVICE(obj), &arm_cpu_cfgend_property);
-
-    if (arm_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER)) {
-        qdev_property_add_static(DEVICE(cpu), &arm_cpu_gt_cntfrq_property);
-    }
 
     if (kvm_enabled()) {
         kvm_arm_add_vcpu_properties(obj);
@@ -1614,18 +1612,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 
     {
-        uint64_t scale;
-
-        if (arm_feature(env, ARM_FEATURE_GENERIC_TIMER)) {
-            if (!cpu->gt_cntfrq_hz) {
-                error_setg(errp, "Invalid CNTFRQ: %"PRId64"Hz",
-                           cpu->gt_cntfrq_hz);
-                return;
-            }
-            scale = gt_cntfrq_period_ns(cpu);
-        } else {
-            scale = GTIMER_SCALE;
-        }
+        uint64_t scale = gt_cntfrq_period_ns(cpu);
 
         cpu->gt_timer[GTIMER_PHYS] = timer_new(QEMU_CLOCK_VIRTUAL, scale,
                                                arm_gt_ptimer_cb, cpu);
@@ -2242,6 +2229,7 @@ static void arm_cpu_leaf_class_init(ObjectClass *oc, void *data)
 
     acc->cp_regs = g_hash_table_new_full(g_direct_hash, g_direct_equal,
                                          NULL, g_free);
+    acc->gt_cntfrq_hz = NANOSECONDS_PER_SECOND / GTIMER_SCALE;
 
     acc->info = data;
     if (acc->info->class_init) {
@@ -2308,6 +2296,16 @@ static void arm_cpu_leaf_class_init(ObjectClass *oc, void *data)
     if (arm_class_feature(acc, ARM_FEATURE_M)) {
         set_class_feature(acc, ARM_FEATURE_PMSA);
     }
+
+#ifndef CONFIG_USER_ONLY
+    if (arm_class_feature(acc, ARM_FEATURE_GENERIC_TIMER)) {
+        class_property_add(oc, "cntfrq", "uint64", NULL,
+                           arm_class_prop_uint64_ofs,
+                           arm_class_prop_uint64_ofs,
+                           (void *)(uintptr_t)
+                           offsetof(ARMCPUClass, gt_cntfrq_hz));
+    }
+#endif /* CONFIG_USER_ONLY */
 }
 
 static bool arm_cpu_class_late_init(ObjectClass *oc, Error **errp)
@@ -2319,6 +2317,14 @@ static bool arm_cpu_class_late_init(ObjectClass *oc, Error **errp)
             return false;
         }
     }
+
+#ifndef CONFIG_USER_ONLY
+    /* TODO: Perhaps better to put this check in a property set hook. */
+    if (!acc->gt_cntfrq_hz) {
+        error_setg(errp, "Invalid CNTFRQ: %"PRId64"Hz", acc->gt_cntfrq_hz);
+        return false;
+    }
+#endif /* CONFIG_USER_ONLY */
 
     /* Run some consistency checks for TCG. */
     if (tcg_enabled()) {

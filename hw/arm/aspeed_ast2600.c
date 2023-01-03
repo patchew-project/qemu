@@ -145,6 +145,7 @@ static void aspeed_soc_ast2600_init(Object *obj)
 {
     AspeedSoCState *s = ASPEED_SOC(obj);
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
+    ObjectClass *cpu_class;
     int i;
     char socname[8];
     char typename[64];
@@ -152,6 +153,9 @@ static void aspeed_soc_ast2600_init(Object *obj)
     if (sscanf(sc->name, "%7s", socname) != 1) {
         g_assert_not_reached();
     }
+
+    cpu_class = object_class_by_name(sc->cpu_type);
+    class_property_set_uint(cpu_class, "cntfrq", 1125000000, &error_abort);
 
     for (i = 0; i < sc->num_cpus; i++) {
         object_initialize_child(obj, "cpu[*]", &s->cpu[i], sc->cpu_type);
@@ -305,8 +309,6 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
         object_property_set_int(OBJECT(&s->cpu[i]), "mp-affinity",
                                 aspeed_calc_affinity(i), &error_abort);
 
-        object_property_set_int(OBJECT(&s->cpu[i]), "cntfrq", 1125000000,
-                                &error_abort);
         object_property_set_bool(OBJECT(&s->cpu[i]), "neon", false,
                                 &error_abort);
         object_property_set_link(OBJECT(&s->cpu[i]), "memory",

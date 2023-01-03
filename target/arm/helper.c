@@ -2977,8 +2977,9 @@ void arm_gt_hvtimer_cb(void *opaque)
 static void arm_gt_cntfrq_reset(CPUARMState *env, const ARMCPRegInfo *opaque)
 {
     ARMCPU *cpu = env_archcpu(env);
+    ARMCPUClass *acc = ARM_CPU_GET_CLASS(cpu);
 
-    cpu->env.cp15.c14_cntfrq = cpu->gt_cntfrq_hz;
+    cpu->env.cp15.c14_cntfrq = acc->gt_cntfrq_hz;
 }
 
 static const ARMCPRegInfo generic_timer_cp_reginfo[] = {

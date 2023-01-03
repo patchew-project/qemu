@@ -154,6 +154,9 @@ struct ARMCPUClass {
      */
     uint64_t ccsidr[16];
 
+    /* Generic timer counter frequency, in Hz */
+    uint64_t gt_cntfrq_hz;
+
     uint32_t revidr;
     uint32_t id_afr0;
     uint32_t reset_fpsid;

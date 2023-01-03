@@ -1019,9 +1019,6 @@ struct ArchCPU {
 
     ARMVQMap sve_vq;
     ARMVQMap sme_vq;
-
-    /* Generic timer counter frequency, in Hz */
-    uint64_t gt_cntfrq_hz;
 };
 
 unsigned int gt_cntfrq_period_ns(ARMCPU *cpu);
