@@ -395,6 +395,7 @@ static void npcm7xx_init(Object *obj)
     int i;
 
     class_property_set_bool(cpu_class, "reset-hivecs", true, &error_abort);
+    class_property_set_bool(cpu_class, "has_el3", false, &error_abort);
 
     for (i = 0; i < NPCM7XX_MAX_NUM_CPUS; i++) {
         object_initialize_child(obj, "cpu[*]", &s->cpu[i], cpu_type);
@@ -469,10 +470,6 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
                                 &error_abort);
         object_property_set_int(OBJECT(&s->cpu[i]), "reset-cbar",
                                 NPCM7XX_GIC_CPU_IF_ADDR, &error_abort);
-
-        /* Disable security extensions. */
-        object_property_set_bool(OBJECT(&s->cpu[i]), "has_el3", false,
-                                 &error_abort);
 
         if (!qdev_realize(DEVICE(&s->cpu[i]), NULL, errp)) {
             return;

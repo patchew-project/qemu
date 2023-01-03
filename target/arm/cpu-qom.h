@@ -184,6 +184,8 @@ struct ARMCPUClass {
      */
     uint32_t kvm_target;
 
+    /* CPU has security extension */
+    OnOffAuto has_el3;
     /* CPU has virtualization extension */
     OnOffAuto has_el2;
 };

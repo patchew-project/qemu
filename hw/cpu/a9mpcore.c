@@ -55,9 +55,12 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
     bool has_el3;
     CPUState *cpu0;
     Object *cpuobj;
+    ObjectClass *cpucls;
 
     cpu0 = qemu_get_cpu(0);
     cpuobj = OBJECT(cpu0);
+    cpucls = object_get_class(cpuobj);
+
     if (strcmp(object_get_typename(cpuobj), ARM_CPU_TYPE_NAME("cortex-a9"))) {
         /* We might allow Cortex-A5 once we model it */
         error_setg(errp,
@@ -81,8 +84,7 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
     /* Make the GIC's TZ support match the CPUs. We assume that
      * either all the CPUs have TZ, or none do.
      */
-    has_el3 = object_property_find(cpuobj, "has_el3") &&
-        object_property_get_bool(cpuobj, "has_el3", &error_abort);
+    has_el3 = class_property_get_bool(cpucls, "has_el3", &error_abort);
     qdev_prop_set_bit(gicdev, "has-security-extensions", has_el3);
 
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->gic), errp)) {

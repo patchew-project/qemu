@@ -210,17 +210,16 @@ static void init_cpus(MachineState *ms, const char *cpu_type,
     unsigned int smp_cpus = ms->smp.cpus;
     ObjectClass *cpu_class = object_class_by_name(cpu_type);
 
+    if (!secure) {
+        class_property_set_bool(cpu_class, "has_el3", false, NULL);
+    }
     if (!virt) {
         class_property_set_bool(cpu_class, "has_el2", false, NULL);
     }
 
     /* Create the actual CPUs */
     for (n = 0; n < smp_cpus; n++) {
-        Object *cpuobj = object_new(cpu_type);
-
-        if (!secure) {
-            object_property_set_bool(cpuobj, "has_el3", false, NULL);
-        }
+        Object *cpuobj = object_new_with_class(cpu_class);
 
         if (object_property_find(cpuobj, "reset-cbar")) {
             object_property_set_int(cpuobj, "reset-cbar", periphbase,

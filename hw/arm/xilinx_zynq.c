@@ -194,17 +194,15 @@ static void zynq_init(MachineState *machine)
 
     cpu_class = object_class_by_name(machine->cpu_type);
 
-    class_property_set_uint(cpu_class, "midr", ZYNQ_BOARD_MIDR, &error_fatal);
-
-    cpu = ARM_CPU(object_new_with_class(cpu_class));
-
-    /* By default A9 CPUs have EL3 enabled.  This board does not
+    /*
+     * By default A9 CPUs have EL3 enabled.  This board does not
      * currently support EL3 so the CPU EL3 property is disabled before
      * realization.
      */
-    if (object_property_find(OBJECT(cpu), "has_el3")) {
-        object_property_set_bool(OBJECT(cpu), "has_el3", false, &error_fatal);
-    }
+    class_property_set_bool(cpu_class, "has_el3", false, &error_abort);
+    class_property_set_uint(cpu_class, "midr", ZYNQ_BOARD_MIDR, &error_abort);
+
+    cpu = ARM_CPU(object_new_with_class(cpu_class));
 
     object_property_set_int(OBJECT(cpu), "reset-cbar", MPCORE_PERIPHBASE,
                             &error_fatal);

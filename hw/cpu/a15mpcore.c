@@ -53,7 +53,6 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
     DeviceState *gicdev;
     SysBusDevice *busdev;
     int i;
-    bool has_el3;
     bool has_el2 = false;
 
     gicdev = DEVICE(&s->gic);
@@ -66,9 +65,9 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
          */
         Object *cpuobj = OBJECT(qemu_get_cpu(0));
         ObjectClass *cpucls = object_get_class(cpuobj);
+        bool has_el3;
 
-        has_el3 = object_property_find(cpuobj, "has_el3") &&
-            object_property_get_bool(cpuobj, "has_el3", &error_abort);
+        has_el3 = class_property_get_bool(cpucls, "has_el3", NULL);
         qdev_prop_set_bit(gicdev, "has-security-extensions", has_el3);
 
         /* Similarly for virtualization support */

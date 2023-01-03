@@ -2039,6 +2039,7 @@ static void machvirt_init(MachineState *machine)
     }
 
     cpu_class = object_class_by_name(machine->cpu_type);
+    class_property_set_bool(cpu_class, "has_el3", vms->secure, &error_abort);
     if (!vms->virt) {
         class_property_set_bool(cpu_class, "has_el2", false, &error_abort);
     }
@@ -2173,10 +2174,6 @@ static void machvirt_init(MachineState *machine)
                           &error_fatal);
 
         aarch64 &= object_property_get_bool(cpuobj, "aarch64", NULL);
-
-        if (!vms->secure) {
-            object_property_set_bool(cpuobj, "has_el3", false, NULL);
-        }
 
         if (vmc->kvm_no_adjvtime &&
             object_property_find(cpuobj, "kvm-no-adjvtime")) {

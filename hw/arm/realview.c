@@ -81,6 +81,7 @@ static void realview_init(MachineState *machine,
     MemoryRegion *ram_hack = g_new(MemoryRegion, 1);
     DeviceState *dev, *sysctl, *gpio2, *pl041;
     SysBusDevice *busdev;
+    ObjectClass *cpu_class;
     qemu_irq pic[64];
     PCIBus *pci_bus = NULL;
     NICInfo *nd;
@@ -115,22 +116,21 @@ static void realview_init(MachineState *machine,
         break;
     }
 
-    for (n = 0; n < smp_cpus; n++) {
-        Object *cpuobj = object_new(machine->cpu_type);
+    cpu_class = object_class_by_name(machine->cpu_type);
+    /*
+     * By default A9, A15 and ARM1176 CPUs have EL3 enabled.  This board
+     * does not currently support EL3 so the CPU EL3 property is disabled
+     * before realization.
+     */
+    class_property_set_bool(cpu_class, "has_el3", false, NULL);
 
-        /* By default A9,A15 and ARM1176 CPUs have EL3 enabled.  This board
-         * does not currently support EL3 so the CPU EL3 property is disabled
-         * before realization.
-         */
-        if (object_property_find(cpuobj, "has_el3")) {
-            object_property_set_bool(cpuobj, "has_el3", false, &error_fatal);
-        }
+    for (n = 0; n < smp_cpus; n++) {
+        Object *cpuobj = object_new_with_class(cpu_class);
 
         if (is_pb && is_mpcore) {
             object_property_set_int(cpuobj, "reset-cbar", periphbase,
                                     &error_fatal);
         }
-
         qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
 
         cpu_irq[n] = qdev_get_gpio_in(DEVICE(cpuobj), ARM_CPU_IRQ);

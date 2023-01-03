@@ -193,7 +193,9 @@ static void allwinner_h3_init(Object *obj)
 
     s->memmap = allwinner_h3_memmap;
 
+    /* All exception levels required. */
     /* ??? This is the default for A7. */
+    class_property_set_bool(cpu_class, "has_el3", true, &error_abort);
     class_property_set_bool(cpu_class, "has_el2", true, &error_abort);
 
     for (int i = 0; i < AW_H3_NUM_CPUS; i++) {
@@ -245,9 +247,6 @@ static void allwinner_h3_realize(DeviceState *dev, Error **errp)
          */
         qdev_prop_set_bit(DEVICE(&s->cpus[i]), "start-powered-off",
                           i > 0);
-
-        /* All exception levels required */
-        qdev_prop_set_bit(DEVICE(&s->cpus[i]), "has_el3", true);
 
         /* Mark realized */
         qdev_realize(DEVICE(&s->cpus[i]), NULL, &error_fatal);

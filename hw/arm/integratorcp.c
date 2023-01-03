@@ -595,17 +595,19 @@ static void integratorcp_init(MachineState *machine)
     qemu_irq pic[32];
     DeviceState *dev, *sic, *icp;
     DriveInfo *dinfo;
+    ObjectClass *cpu_class;
     int i;
 
-    cpuobj = object_new(machine->cpu_type);
+    cpu_class = object_class_by_name(machine->cpu_type);
 
-    /* By default ARM1176 CPUs have EL3 enabled.  This board does not
+    /*
+     * By default ARM1176 CPUs have EL3 enabled.  This board does not
      * currently support EL3 so the CPU EL3 property is disabled before
      * realization.
      */
-    if (object_property_find(cpuobj, "has_el3")) {
-        object_property_set_bool(cpuobj, "has_el3", false, &error_fatal);
-    }
+    class_property_set_bool(cpu_class, "has_el3", false, NULL);
+
+    cpuobj = object_new_with_class(cpu_class);
 
     qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
 

@@ -1280,11 +1280,6 @@ static void arm_cpu_initfn(Object *obj)
 static Property arm_cpu_reset_cbar_property =
             DEFINE_PROP_UINT64("reset-cbar", ARMCPU, reset_cbar, 0);
 
-#ifndef CONFIG_USER_ONLY
-static Property arm_cpu_has_el3_property =
-            DEFINE_PROP_BOOL("has_el3", ARMCPU, has_el3, true);
-#endif
-
 static Property arm_cpu_cfgend_property =
             DEFINE_PROP_BOOL("cfgend", ARMCPU, cfgend, false);
 
@@ -1377,11 +1372,6 @@ static void arm_cpu_post_init(Object *obj)
 
 #ifndef CONFIG_USER_ONLY
     if (arm_feature(&cpu->env, ARM_FEATURE_EL3)) {
-        /* Add the has_el3 state CPU property only if EL3 is allowed.  This will
-         * prevent "has_el3" from existing on CPUs which cannot support EL3.
-         */
-        qdev_property_add_static(DEVICE(obj), &arm_cpu_has_el3_property);
-
         object_property_add_link(obj, "secure-memory",
                                  TYPE_MEMORY_REGION,
                                  (Object **)&cpu->secure_memory,
@@ -1580,12 +1570,6 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         if (arm_feature(env, ARM_FEATURE_M)) {
             error_setg(errp,
                        "Cannot enable %s when using an M-profile guest CPU",
-                       current_accel_name());
-            return;
-        }
-        if (cpu->has_el3) {
-            error_setg(errp,
-                       "Cannot enable %s when guest CPU has EL3 enabled",
                        current_accel_name());
             return;
         }
@@ -1795,22 +1779,6 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         }
     }
 
-    if (!arm_feature(env, ARM_FEATURE_M) && !cpu->has_el3) {
-        /* If the has_el3 CPU property is disabled then we need to disable the
-         * feature.
-         */
-        unset_feature(env, ARM_FEATURE_EL3);
-
-        /*
-         * Disable the security extension feature bits in the processor
-         * feature registers as well.
-         */
-        cpu->isar.id_pfr1 = FIELD_DP32(cpu->isar.id_pfr1, ID_PFR1, SECURITY, 0);
-        cpu->isar.id_dfr0 = FIELD_DP32(cpu->isar.id_dfr0, ID_DFR0, COPSDBG, 0);
-        cpu->isar.id_aa64pfr0 = FIELD_DP64(cpu->isar.id_aa64pfr0,
-                                           ID_AA64PFR0, EL3, 0);
-    }
-
     if (!cpu->has_pmu) {
         unset_feature(env, ARM_FEATURE_PMU);
     }
@@ -1929,7 +1897,8 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 #ifndef CONFIG_USER_ONLY
     MachineState *ms = MACHINE(qdev_get_machine());
     unsigned int smp_cpus = ms->smp.cpus;
-    bool has_secure = cpu->has_el3 || arm_feature(env, ARM_FEATURE_M_SECURITY);
+    bool has_secure = arm_feature(env, ARM_FEATURE_EL3) ||
+                      arm_feature(env, ARM_FEATURE_M_SECURITY);
 
     /*
      * We must set cs->num_ases to the final value before
@@ -2364,6 +2333,13 @@ static void arm_cpu_leaf_class_init(ObjectClass *oc, void *data)
                            arm_class_prop_set_auto_ofs,
                            (void *)(uintptr_t)offsetof(ARMCPUClass, has_el2));
     }
+    if (arm_class_feature(acc, ARM_FEATURE_EL3) ||
+        arm_class_feature(acc, ARM_FEATURE_V8)) {
+        class_property_add(oc, "has_el3", "bool", NULL,
+                           arm_class_prop_get_auto_ofs,
+                           arm_class_prop_set_auto_ofs,
+                           (void *)(uintptr_t)offsetof(ARMCPUClass, has_el3));
+    }
 #endif /* !CONFIG_USER_ONLY */
 }
 
@@ -2399,6 +2375,42 @@ static bool arm_cpu_class_late_init(ObjectClass *oc, Error **errp)
     case ON_OFF_AUTO_ON:
         if (!arm_class_feature(acc, ARM_FEATURE_EL2)) {
             error_setg(errp, "CPU does not support EL2");
+            return false;
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    if (acc->has_el3 == ON_OFF_AUTO_AUTO) {
+        if (tcg_enabled() || qtest_enabled()) {
+            acc->has_el3 = (arm_class_feature(acc, ARM_FEATURE_EL3)
+                            ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF);
+        } else {
+            acc->has_el3 = ON_OFF_AUTO_OFF;
+        }
+    }
+    switch (acc->has_el3) {
+    case ON_OFF_AUTO_OFF:
+        unset_class_feature(acc, ARM_FEATURE_EL3);
+        /*
+         * Disable the security extension feature bits in the processor
+         * feature registers as well.
+         */
+        acc->isar.id_pfr1 = FIELD_DP32(acc->isar.id_pfr1, ID_PFR1, SECURITY, 0);
+        acc->isar.id_dfr0 = FIELD_DP32(acc->isar.id_dfr0, ID_DFR0, COPSDBG, 0);
+        acc->isar.id_aa64pfr0 = FIELD_DP64(acc->isar.id_aa64pfr0,
+                                           ID_AA64PFR0, EL3, 0);
+        break;
+    case ON_OFF_AUTO_ON:
+        if (!tcg_enabled() && !qtest_enabled()) {
+            error_setg(errp,
+                       "Cannot enable %s when guest CPU has EL3 enabled",
+                       current_accel_name());
+            return false;
+        }
+        if (!arm_class_feature(acc, ARM_FEATURE_EL3)) {
+            error_setg(errp, "CPU does not support EL3");
             return false;
         }
         break;

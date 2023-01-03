@@ -548,18 +548,20 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
     Exynos4210State *s = EXYNOS4210_SOC(socdev);
     MemoryRegion *system_mem = get_system_memory();
     SysBusDevice *busdev;
+    ObjectClass *cpu_class;
     DeviceState *dev, *uart[4], *pl330[3];
     int i, n;
 
-    for (n = 0; n < EXYNOS4210_NCPUS; n++) {
-        Object *cpuobj = object_new(ARM_CPU_TYPE_NAME("cortex-a9"));
+    cpu_class = object_class_by_name(ARM_CPU_TYPE_NAME("cortex-a9"));
 
-        /* By default A9 CPUs have EL3 enabled.  This board does not currently
-         * support EL3 so the CPU EL3 property is disabled before realization.
-         */
-        if (object_property_find(cpuobj, "has_el3")) {
-            object_property_set_bool(cpuobj, "has_el3", false, &error_fatal);
-        }
+    /*
+     * By default A9 CPUs have EL3 enabled.  This board does not currently
+     * support EL3 so the CPU EL3 property is disabled.
+     */
+    class_property_set_bool(cpu_class, "has_el3", false, &error_abort);
+
+    for (n = 0; n < EXYNOS4210_NCPUS; n++) {
+        Object *cpuobj = object_new_with_class(cpu_class);
 
         s->cpu[n] = ARM_CPU(cpuobj);
         object_property_set_int(cpuobj, "mp-affinity",
