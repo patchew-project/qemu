@@ -402,6 +402,9 @@ struct Object
  *   parent class initialization has occurred, but before the class itself
  *   is initialized.  This is the function to use to undo the effects of
  *   memcpy from the parent class to the descendants.
+ * @class_late_init: This function is called for all base classes just
+ *   before the first object is created.  This is the function to use to
+ *   apply properties (which are interpreted quite late).
  * @class_data: Data to pass to the @class_init,
  *   @class_base_init. This can be useful when building dynamic
  *   classes.
@@ -425,6 +428,7 @@ struct TypeInfo
 
     void (*class_init)(ObjectClass *klass, void *data);
     void (*class_base_init)(ObjectClass *klass, void *data);
+    bool (*class_late_init)(ObjectClass *klass, Error **errp);
     void *class_data;
 
     InterfaceInfo *interfaces;

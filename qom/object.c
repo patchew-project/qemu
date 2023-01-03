@@ -56,6 +56,7 @@ struct TypeImpl
 
     void (*class_init)(ObjectClass *klass, void *data);
     void (*class_base_init)(ObjectClass *klass, void *data);
+    bool (*class_late_init)(ObjectClass *klass, Error **errp);
 
     void *class_data;
 
@@ -64,6 +65,7 @@ struct TypeImpl
     void (*instance_finalize)(Object *obj);
 
     bool abstract;
+    bool object_created;
 
     const char *parent;
     TypeImpl *parent_type;
@@ -121,6 +123,7 @@ static TypeImpl *type_new(const TypeInfo *info)
 
     ti->class_init = info->class_init;
     ti->class_base_init = info->class_base_init;
+    ti->class_late_init = info->class_late_init;
     ti->class_data = info->class_data;
 
     ti->instance_init = info->instance_init;
@@ -367,6 +370,26 @@ static void type_initialize(TypeImpl *ti)
     }
 }
 
+static bool type_late_initialize(TypeImpl *ti, ObjectClass *cls, Error **errp)
+{
+    TypeImpl *pi = type_get_parent(ti);
+    if (pi && !type_late_initialize(pi, cls, errp)) {
+        return false;
+    }
+
+    for (GSList *e = ti->class->interfaces; e ; e = e->next) {
+        InterfaceClass *ic = e->data;
+        if (!type_late_initialize(ic->interface_type, cls, errp)) {
+            return false;
+        }
+    }
+
+    if (ti->class_late_init) {
+        return ti->class_late_init(cls, errp);
+    }
+    return true;
+}
+
 static void object_init_with_type(Object *obj, TypeImpl *ti)
 {
     if (type_has_parent(ti)) {
@@ -502,13 +525,21 @@ static void object_class_property_init_all(Object *obj)
     }
 }
 
-static void object_initialize_with_type(Object *obj, size_t size, TypeImpl *type)
+static bool object_initialize_with_type(Object *obj, size_t size,
+                                        TypeImpl *type, Error **errp)
 {
     type_initialize(type);
 
     g_assert(type->instance_size >= sizeof(Object));
     g_assert(type->abstract == false);
     g_assert(size >= type->instance_size);
+
+    if (!type->object_created) {
+        type->object_created = true;
+        if (!type_late_initialize(type, type->class, errp)) {
+            return false;
+        }
+    }
 
     memset(obj, 0, type->instance_size);
     obj->class = type->class;
@@ -518,6 +549,7 @@ static void object_initialize_with_type(Object *obj, size_t size, TypeImpl *type
                                             NULL, object_property_free);
     object_init_with_type(obj, type);
     object_post_init_with_type(obj, type);
+    return true;
 }
 
 void object_initialize(void *data, size_t size, const char *typename)
@@ -540,7 +572,7 @@ void object_initialize(void *data, size_t size, const char *typename)
         abort();
     }
 
-    object_initialize_with_type(data, size, type);
+    object_initialize_with_type(data, size, type, &error_fatal);
 }
 
 bool object_initialize_child_with_props(Object *parentobj,
@@ -712,7 +744,7 @@ typedef union {
 } qemu_max_align_t;
 #endif
 
-static Object *object_new_with_type(Type type)
+static Object *object_new_with_type(Type type, Error **errp)
 {
     Object *obj;
     size_t size, align;
@@ -736,22 +768,25 @@ static Object *object_new_with_type(Type type)
         obj_free = qemu_vfree;
     }
 
-    object_initialize_with_type(obj, size, type);
-    obj->free = obj_free;
+    if (!object_initialize_with_type(obj, size, type, errp)) {
+        obj_free(obj);
+        return NULL;
+    }
 
+    obj->free = obj_free;
     return obj;
 }
 
 Object *object_new_with_class(ObjectClass *klass)
 {
-    return object_new_with_type(klass->type);
+    return object_new_with_type(klass->type, &error_fatal);
 }
 
 Object *object_new(const char *typename)
 {
     TypeImpl *ti = type_get_by_name(typename);
 
-    return object_new_with_type(ti);
+    return object_new_with_type(ti, &error_fatal);
 }
 
 
@@ -792,7 +827,11 @@ Object *object_new_with_propv(const char *typename,
         error_setg(errp, "object type '%s' is abstract", typename);
         return NULL;
     }
-    obj = object_new_with_type(klass->type);
+
+    obj = object_new_with_type(klass->type, errp);
+    if (!obj) {
+        return NULL;
+    }
 
     if (!object_set_propv(obj, errp, vargs)) {
         goto error;
