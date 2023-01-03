@@ -1076,8 +1076,6 @@ struct ArchCPU {
 
 unsigned int gt_cntfrq_period_ns(ARMCPU *cpu);
 
-void arm_cpu_post_init(Object *obj);
-
 uint64_t arm_cpu_mp_affinity(int idx, uint8_t clustersz);
 
 #ifndef CONFIG_USER_ONLY

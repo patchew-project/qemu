@@ -26,6 +26,7 @@
 struct arm_boot_info;
 
 #define TYPE_ARM_CPU "arm-cpu"
+#define TYPE_AARCH64_CPU "aarch64-cpu"
 
 OBJECT_DECLARE_CPU_TYPE(ARMCPU, ARMCPUClass, ARM_CPU)
 
@@ -38,11 +39,15 @@ typedef struct ARMCPUInfo {
 } ARMCPUInfo;
 
 void arm_cpu_register_parent(const ARMCPUInfo *info, const char *parent);
-void aarch64_cpu_register(const ARMCPUInfo *info);
 
 static inline void arm_cpu_register(const ARMCPUInfo *info)
 {
     arm_cpu_register_parent(info, TYPE_ARM_CPU);
+}
+
+static inline void aarch64_cpu_register(const ARMCPUInfo *info)
+{
+    arm_cpu_register_parent(info, TYPE_AARCH64_CPU);
 }
 
 /**
@@ -60,18 +65,6 @@ struct ARMCPUClass {
     const ARMCPUInfo *info;
     DeviceRealize parent_realize;
     ResettablePhases parent_phases;
-};
-
-
-#define TYPE_AARCH64_CPU "aarch64-cpu"
-typedef struct AArch64CPUClass AArch64CPUClass;
-DECLARE_CLASS_CHECKERS(AArch64CPUClass, AARCH64_CPU,
-                       TYPE_AARCH64_CPU)
-
-struct AArch64CPUClass {
-    /*< private >*/
-    ARMCPUClass parent_class;
-    /*< public >*/
 };
 
 void register_cp_regs_for_features(ARMCPU *cpu);
