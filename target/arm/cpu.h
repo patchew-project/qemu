@@ -799,8 +799,6 @@ typedef enum ARMPSCIState {
     PSCI_ON_PENDING = 2
 } ARMPSCIState;
 
-typedef struct ARMISARegisters ARMISARegisters;
-
 /*
  * In map, each set bit is a supported vector length of (bit-number + 1) * 16
  * bytes, i.e. each bit number + 1 is the vector length in quadwords.
@@ -967,44 +965,7 @@ struct ArchCPU {
      * kvm_arm_get_host_cpu_features() function to correctly populate the
      * field by reading the value from the KVM vCPU.
      */
-    struct ARMISARegisters {
-        uint32_t id_isar0;
-        uint32_t id_isar1;
-        uint32_t id_isar2;
-        uint32_t id_isar3;
-        uint32_t id_isar4;
-        uint32_t id_isar5;
-        uint32_t id_isar6;
-        uint32_t id_mmfr0;
-        uint32_t id_mmfr1;
-        uint32_t id_mmfr2;
-        uint32_t id_mmfr3;
-        uint32_t id_mmfr4;
-        uint32_t id_mmfr5;
-        uint32_t id_pfr0;
-        uint32_t id_pfr1;
-        uint32_t id_pfr2;
-        uint32_t mvfr0;
-        uint32_t mvfr1;
-        uint32_t mvfr2;
-        uint32_t id_dfr0;
-        uint32_t id_dfr1;
-        uint32_t dbgdidr;
-        uint32_t dbgdevid;
-        uint32_t dbgdevid1;
-        uint64_t id_aa64isar0;
-        uint64_t id_aa64isar1;
-        uint64_t id_aa64pfr0;
-        uint64_t id_aa64pfr1;
-        uint64_t id_aa64mmfr0;
-        uint64_t id_aa64mmfr1;
-        uint64_t id_aa64mmfr2;
-        uint64_t id_aa64dfr0;
-        uint64_t id_aa64dfr1;
-        uint64_t id_aa64zfr0;
-        uint64_t id_aa64smfr0;
-        uint64_t reset_pmcr_el0;
-    } isar;
+    ARMISARegisters isar;
     uint64_t midr;
     uint32_t revidr;
     uint32_t reset_fpsid;
@@ -4346,5 +4307,7 @@ static inline bool isar_feature_any_evt(const ARMISARegisters *id)
  */
 #define cpu_isar_feature(name, cpu) \
     ({ ARMCPU *cpu_ = (cpu); isar_feature_##name(&cpu_->isar); })
+#define class_isar_feature(name, acc) \
+    ({ ARMCPUClass *acc_ = (acc); isar_feature_##name(&acc_->isar); })
 
 #endif

@@ -1192,6 +1192,32 @@ static void arm_cpu_initfn(Object *obj)
 
     cpu->dtb_compatible = acc->dtb_compatible;
     cpu->env.features = acc->features;
+    cpu->isar = acc->isar;
+
+    cpu->midr = acc->midr;
+    cpu->ctr = acc->ctr;
+    cpu->pmceid0 = acc->pmceid0;
+    cpu->pmceid1 = acc->pmceid1;
+    cpu->id_aa64afr0 = acc->id_aa64afr0;
+    cpu->id_aa64afr1 = acc->id_aa64afr1;
+    cpu->clidr = acc->clidr;
+
+    QEMU_BUILD_BUG_ON(sizeof(cpu->ccsidr) != sizeof(acc->ccsidr));
+    memcpy(cpu->ccsidr, acc->ccsidr, sizeof(acc->ccsidr));
+
+    cpu->revidr = acc->revidr;
+    cpu->id_afr0 = acc->id_afr0;
+    cpu->reset_fpsid = acc->reset_fpsid;
+    cpu->reset_sctlr = acc->reset_sctlr;
+    cpu->reset_auxcr = acc->reset_auxcr;
+    cpu->pmsav7_dregion = acc->pmsav7_dregion;
+    cpu->sau_sregion = acc->sau_sregion;
+    cpu->dcz_blocksize = acc->dcz_blocksize;
+    cpu->gic_num_lrs = acc->gic_num_lrs;
+    cpu->gic_vpribits = acc->gic_vpribits;
+    cpu->gic_vprebits = acc->gic_vprebits;
+    cpu->gic_pribits = acc->gic_pribits;
+    cpu->kvm_target = acc->kvm_target;
 
 #ifdef CONFIG_USER_ONLY
 # ifdef TARGET_AARCH64
@@ -1225,7 +1251,6 @@ static void arm_cpu_initfn(Object *obj)
 #endif
 
     cpu->psci_version = QEMU_PSCI_VERSION_0_1; /* By default assume PSCI v0.1 */
-    cpu->kvm_target = QEMU_KVM_ARM_TARGET_NONE;
 
     if (tcg_enabled() || hvf_enabled()) {
         /* TCG and HVF implement PSCI 1.1 */
@@ -2249,6 +2274,7 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
      * picky DTB consumer will also provide a helpful error message.
      */
     acc->dtb_compatible = "qemu,unknown";
+    acc->kvm_target = QEMU_KVM_ARM_TARGET_NONE;
 }
 
 static void arm_cpu_leaf_class_init(ObjectClass *oc, void *data)

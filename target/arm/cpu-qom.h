@@ -56,6 +56,45 @@ static inline void aarch64_cpu_register(const ARMCPUInfo *info)
     arm_cpu_register_parent(info, TYPE_AARCH64_CPU);
 }
 
+typedef struct ARMISARegisters {
+    uint32_t id_isar0;
+    uint32_t id_isar1;
+    uint32_t id_isar2;
+    uint32_t id_isar3;
+    uint32_t id_isar4;
+    uint32_t id_isar5;
+    uint32_t id_isar6;
+    uint32_t id_mmfr0;
+    uint32_t id_mmfr1;
+    uint32_t id_mmfr2;
+    uint32_t id_mmfr3;
+    uint32_t id_mmfr4;
+    uint32_t id_mmfr5;
+    uint32_t id_pfr0;
+    uint32_t id_pfr1;
+    uint32_t id_pfr2;
+    uint32_t mvfr0;
+    uint32_t mvfr1;
+    uint32_t mvfr2;
+    uint32_t id_dfr0;
+    uint32_t id_dfr1;
+    uint32_t dbgdidr;
+    uint32_t dbgdevid;
+    uint32_t dbgdevid1;
+    uint64_t id_aa64isar0;
+    uint64_t id_aa64isar1;
+    uint64_t id_aa64pfr0;
+    uint64_t id_aa64pfr1;
+    uint64_t id_aa64mmfr0;
+    uint64_t id_aa64mmfr1;
+    uint64_t id_aa64mmfr2;
+    uint64_t id_aa64dfr0;
+    uint64_t id_aa64dfr1;
+    uint64_t id_aa64zfr0;
+    uint64_t id_aa64smfr0;
+    uint64_t reset_pmcr_el0;
+} ARMISARegisters;
+
 /**
  * ARMCPUClass:
  * @parent_realize: The parent class' realize handler.
@@ -77,6 +116,65 @@ struct ARMCPUClass {
 
     /* Internal CPU feature flags.  */
     uint64_t features;
+
+    /*
+     * The instance init functions for implementation-specific subclasses
+     * set these fields to specify the implementation-dependent values of
+     * various constant registers and reset values of non-constant
+     * registers.
+     * Some of these might become QOM properties eventually.
+     * Field names match the official register names as defined in the
+     * ARMv7AR ARM Architecture Reference Manual. A reset_ prefix
+     * is used for reset values of non-constant registers; no reset_
+     * prefix means a constant register.
+     * Some of these registers are split out into a substructure that
+     * is shared with the translators to control the ISA.
+     *
+     * Note that if you add an ID register to the ARMISARegisters struct
+     * you need to also update the 32-bit and 64-bit versions of the
+     * kvm_arm_get_host_cpu_features() function to correctly populate the
+     * field by reading the value from the KVM vCPU.
+     */
+    ARMISARegisters isar;
+
+    uint64_t midr;
+    uint64_t ctr;
+    uint64_t pmceid0;
+    uint64_t pmceid1;
+    uint64_t id_aa64afr0;
+    uint64_t id_aa64afr1;
+    uint64_t clidr;
+    /*
+     * The elements of this array are the CCSIDR values for each cache,
+     * in the order L1DCache, L1ICache, L2DCache, L2ICache, etc.
+     */
+    uint64_t ccsidr[16];
+
+    uint32_t revidr;
+    uint32_t id_afr0;
+    uint32_t reset_fpsid;
+    uint32_t reset_sctlr;
+    uint32_t reset_auxcr;
+
+    /* PMSAv7 MPU number of supported regions */
+    uint32_t pmsav7_dregion;
+    /* v8M SAU number of supported regions */
+    uint32_t sau_sregion;
+
+    /* DCZ blocksize, in log_2(words), ie low 4 bits of DCZID_EL0 */
+    uint32_t dcz_blocksize;
+
+    /* Configurable aspects of GIC cpu interface (which is part of the CPU) */
+    int gic_num_lrs; /* number of list registers */
+    int gic_vpribits; /* number of virtual priority bits */
+    int gic_vprebits; /* number of virtual preemption bits */
+    int gic_pribits; /* number of physical priority bits */
+
+    /*
+     * [QEMU_]KVM_ARM_TARGET_* constant for this CPU, or
+     * QEMU_KVM_ARM_TARGET_NONE if the kernel doesn't support this CPU type.
+     */
+    uint32_t kvm_target;
 };
 
 static inline int arm_class_feature(ARMCPUClass *acc, int feature)
