@@ -140,13 +140,15 @@ void kvm_arm_destroy_scratch_host_vcpu(int *fdarray);
 uint32_t kvm_arm_sve_get_vls(CPUState *cs);
 
 /**
- * kvm_arm_set_cpu_features_from_host:
- * @cpu: ARMCPU to set the features for
+ * kvm_arm_get_host_cpu_features:
+ * @acc: ARMCPUClass to fill in
  *
- * Set up the ARMCPU struct fields up to match the information probed
- * from the host CPU.
+ * Probe the capabilities of the host kernel's preferred CPU and fill
+ * in the ARMCPUClass struct accordingly.
+ *
+ * Returns true on success and false otherwise.
  */
-void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu);
+bool kvm_arm_get_host_cpu_features(ARMCPUClass *acc, Error **errp);
 
 /**
  * kvm_arm_add_vcpu_properties:
@@ -245,7 +247,7 @@ static inline bool kvm_arm_steal_time_supported(void)
 /*
  * These functions should never actually be called without KVM support.
  */
-static inline void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu)
+static inline bool kvm_arm_get_host_cpu_features(ARMCPUClass *c, Error **e)
 {
     g_assert_not_reached();
 }

@@ -1105,11 +1105,21 @@ static void aarch64_host_class_init(ARMCPUClass *acc)
     set_class_feature(acc, ARM_FEATURE_PMU);
 }
 
+static bool aarch64_host_class_late_init(ARMCPUClass *acc, Error **errp)
+{
+    if (kvm_enabled()) {
+        return kvm_arm_get_host_cpu_features(acc, errp);
+    }
+    if (hvf_enabled()) {
+        return true;
+    }
+    error_setg(errp, "The 'host' CPU type can only be used with KVM or HVF");
+    return false;
+}
+
 static void aarch64_host_object_init(Object *obj)
 {
 #if defined(CONFIG_KVM)
-    ARMCPU *cpu = ARM_CPU(obj);
-    kvm_arm_set_cpu_features_from_host(cpu);
     aarch64_add_sve_properties(obj);
     aarch64_add_pauth_properties(obj);
 #elif defined(CONFIG_HVF)
@@ -1134,7 +1144,8 @@ static bool aarch64_max_class_late_init(ARMCPUClass *cpu, Error **errp)
     uint32_t u;
 
     if (kvm_enabled() || hvf_enabled()) {
-        return true;
+        /* With KVM or HVF, '-cpu max' is identical to '-cpu host' */
+        return aarch64_host_class_late_init(cpu, errp);
     }
 
     /*
@@ -1341,6 +1352,7 @@ static const ARMCPUInfo aarch64_cpus[] = {
 #if defined(CONFIG_KVM) || defined(CONFIG_HVF)
     { .name = "host",
       .class_init = aarch64_host_class_init,
+      .class_late_init = aarch64_host_class_late_init,
       .object_init = aarch64_host_object_init },
 #endif
 };
