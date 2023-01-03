@@ -837,21 +837,24 @@ static void ti925t_class_init(ARMCPUClass *acc)
     acc->reset_sctlr = 0x00000070;
 }
 
-static void sa1100_class_init(ARMCPUClass *acc)
+static void strongarm_class_init(ARMCPUClass *acc)
 {
-    acc->dtb_compatible = "intel,sa1100";
     set_class_feature(acc, ARM_FEATURE_STRONGARM);
     set_class_feature(acc, ARM_FEATURE_DUMMY_C15_REGS);
-    acc->midr = 0x4401A11B;
     acc->reset_sctlr = 0x00000070;
+}
+
+static void sa1100_class_init(ARMCPUClass *acc)
+{
+    strongarm_class_init(acc);
+    acc->dtb_compatible = "intel,sa1100";
+    acc->midr = 0x4401A11B;
 }
 
 static void sa1110_class_init(ARMCPUClass *acc)
 {
-    set_class_feature(acc, ARM_FEATURE_STRONGARM);
-    set_class_feature(acc, ARM_FEATURE_DUMMY_C15_REGS);
+    strongarm_class_init(acc);
     acc->midr = 0x6901B119;
-    acc->reset_sctlr = 0x00000070;
 }
 
 static void pxa250_class_init(ARMCPUClass *acc)
