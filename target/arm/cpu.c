@@ -1181,6 +1181,7 @@ uint64_t arm_cpu_mp_affinity(int idx, uint8_t clustersz)
 static void arm_cpu_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+    ARMCPUClass *acc = ARM_CPU_GET_CLASS(cpu);
 
     cpu_set_cpustate_pointers(cpu);
     cpu->cp_regs = g_hash_table_new_full(g_direct_hash, g_direct_equal,
@@ -1188,6 +1189,8 @@ static void arm_cpu_initfn(Object *obj)
 
     QLIST_INIT(&cpu->pre_el_change_hooks);
     QLIST_INIT(&cpu->el_change_hooks);
+
+    cpu->dtb_compatible = acc->dtb_compatible;
 
 #ifdef CONFIG_USER_ONLY
 # ifdef TARGET_AARCH64
@@ -1220,11 +1223,6 @@ static void arm_cpu_initfn(Object *obj)
                              "pmu-interrupt", 1);
 #endif
 
-    /* DTB consumers generally don't in fact care what the 'compatible'
-     * string is, so always provide some string and trust that a hypothetical
-     * picky DTB consumer will also provide a helpful error message.
-     */
-    cpu->dtb_compatible = "qemu,unknown";
     cpu->psci_version = QEMU_PSCI_VERSION_0_1; /* By default assume PSCI v0.1 */
     cpu->kvm_target = QEMU_KVM_ARM_TARGET_NONE;
 
@@ -2243,6 +2241,13 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
 #ifdef CONFIG_TCG
     cc->tcg_ops = &arm_tcg_ops;
 #endif /* CONFIG_TCG */
+
+    /*
+     * DTB consumers generally don't in fact care what the 'compatible'
+     * string is, so always provide some string and trust that a hypothetical
+     * picky DTB consumer will also provide a helpful error message.
+     */
+    acc->dtb_compatible = "qemu,unknown";
 }
 
 static void arm_cpu_leaf_class_init(ObjectClass *oc, void *data)

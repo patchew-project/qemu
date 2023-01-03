@@ -71,6 +71,9 @@ struct ARMCPUClass {
     const ARMCPUInfo *info;
     DeviceRealize parent_realize;
     ResettablePhases parent_phases;
+
+    /* 'compatible' string for this CPU for Linux device trees */
+    const char *dtb_compatible;
 };
 
 void register_cp_regs_for_features(ARMCPU *cpu);
