@@ -13,6 +13,6 @@
 
 #include "cpu.h"
 
-void hvf_arm_set_cpu_features_from_host(ARMCPU *cpu);
+bool hvf_arm_get_host_cpu_features(ARMCPUClass *acc, Error **errp);
 
 #endif

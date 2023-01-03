@@ -1111,7 +1111,7 @@ static bool aarch64_host_class_late_init(ARMCPUClass *acc, Error **errp)
         return kvm_arm_get_host_cpu_features(acc, errp);
     }
     if (hvf_enabled()) {
-        return true;
+        return hvf_arm_get_host_cpu_features(acc, errp);
     }
     error_setg(errp, "The 'host' CPU type can only be used with KVM or HVF");
     return false;
@@ -1123,8 +1123,6 @@ static void aarch64_host_object_init(Object *obj)
     aarch64_add_sve_properties(obj);
     aarch64_add_pauth_properties(obj);
 #elif defined(CONFIG_HVF)
-    ARMCPU *cpu = ARM_CPU(obj);
-    hvf_arm_set_cpu_features_from_host(cpu);
     aarch64_add_pauth_properties(obj);
 #else
     g_assert_not_reached();

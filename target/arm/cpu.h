@@ -935,11 +935,6 @@ struct ArchCPU {
     /* KVM steal time */
     OnOffAuto kvm_steal_time;
 
-    /* True if we tried kvm_arm_host_cpu_features() during CPU instance_init
-     * and the probe failed (so we need to report the error in realize)
-     */
-    bool host_cpu_probe_failed;
-
     /* Specify the number of cores in this CPU cluster. Used for the L2CTLR
      * register.
      */
