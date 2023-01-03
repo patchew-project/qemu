@@ -45,10 +45,6 @@
 #include "qapi/visitor.h"
 #include "hw/rtc/mc146818rtc_regs.h"
 
-#ifdef TARGET_I386
-#include "qapi/qapi-commands-misc-target.h"
-#endif
-
 //#define DEBUG_CMOS
 //#define DEBUG_COALESCED
 
@@ -112,7 +108,6 @@ static void rtc_coalesced_timer_update(RTCState *s)
 static QLIST_HEAD(, RTCState) rtc_devices =
     QLIST_HEAD_INITIALIZER(rtc_devices);
 
-#ifdef TARGET_I386
 void qmp_rtc_reset_reinjection(Error **errp)
 {
     RTCState *s;
@@ -124,6 +119,7 @@ void qmp_rtc_reset_reinjection(Error **errp)
 
 static bool rtc_policy_slew_deliver_irq(RTCState *s)
 {
+    assert(s->slew_tick_policy_available);
     kvm_reset_irq_delivered();
     qemu_irq_raise(s->irq);
     return kvm_get_irq_delivered();
@@ -145,13 +141,6 @@ static void rtc_coalesced_timer(void *opaque)
 
     rtc_coalesced_timer_update(s);
 }
-#else
-static bool rtc_policy_slew_deliver_irq(RTCState *s)
-{
-    assert(0);
-    return false;
-}
-#endif
 
 static uint32_t rtc_periodic_clock_ticks(RTCState *s)
 {
@@ -925,12 +914,10 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
     case LOST_TICK_POLICY_DISCARD:
         break;
     case LOST_TICK_POLICY_SLEW:
-#ifdef TARGET_I386
         if (s->slew_tick_policy_available) {
             s->coalesced_timer = timer_new_ns(rtc_clock, rtc_coalesced_timer, s);
             break;
         }
-#endif
         /* fallthrough */
     default:
         error_setg(errp, "Invalid lost tick policy.");
