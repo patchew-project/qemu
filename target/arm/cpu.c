@@ -1222,7 +1222,6 @@ static void arm_cpu_initfn(Object *obj)
     cpu->revidr = acc->revidr;
     cpu->id_afr0 = acc->id_afr0;
     cpu->reset_fpsid = acc->reset_fpsid;
-    cpu->reset_sctlr = acc->reset_sctlr;
     cpu->reset_auxcr = acc->reset_auxcr;
     cpu->pmsav7_dregion = acc->pmsav7_dregion;
     cpu->sau_sregion = acc->sau_sregion;
@@ -1279,9 +1278,6 @@ static void arm_cpu_initfn(Object *obj)
 
 static Property arm_cpu_reset_cbar_property =
             DEFINE_PROP_UINT64("reset-cbar", ARMCPU, reset_cbar, 0);
-
-static Property arm_cpu_cfgend_property =
-            DEFINE_PROP_BOOL("cfgend", ARMCPU, cfgend, false);
 
 static Property arm_cpu_has_vfp_property =
             DEFINE_PROP_BOOL("vfp", ARMCPU, has_vfp, true);
@@ -1441,8 +1437,6 @@ static void arm_cpu_post_init(Object *obj)
     object_property_add_uint32_ptr(obj, "psci-conduit",
                                    &cpu->psci_conduit,
                                    OBJ_PROP_FLAG_READWRITE);
-
-    qdev_property_add_static(DEVICE(obj), &arm_cpu_cfgend_property);
 
     if (kvm_enabled()) {
         kvm_arm_add_vcpu_properties(obj);
@@ -1769,14 +1763,6 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         error_setg(errp, "This CPU requires a smaller page size than the "
                    "system is using");
         return;
-    }
-
-    if (cpu->cfgend) {
-        if (arm_feature(&cpu->env, ARM_FEATURE_V7)) {
-            cpu->reset_sctlr |= SCTLR_EE;
-        } else {
-            cpu->reset_sctlr |= SCTLR_B;
-        }
     }
 
     if (!cpu->has_pmu) {
@@ -2306,6 +2292,18 @@ static void arm_cpu_leaf_class_init(ObjectClass *oc, void *data)
     }
 
 #ifndef CONFIG_USER_ONLY
+    /*
+     * When the cfgend input is high, the CPU should reset into
+     * big-endian mode.  Modify the reset_sctlr value to have SCTLR_B
+     * or SCTLR_EE set, depending on the architecture version.
+     */
+    class_property_add(oc, "cfgend", "bool", NULL,
+                       arm_class_prop_get_sctlrbit,
+                       arm_class_prop_set_sctlrbit,
+                       (void *)(uintptr_t)
+                       (arm_class_feature(acc, ARM_FEATURE_V7)
+                        ? SCTLR_EE : SCTLR_B));
+
     if (arm_class_feature(acc, ARM_FEATURE_GENERIC_TIMER)) {
         class_property_add(oc, "cntfrq", "uint64", NULL,
                            arm_class_prop_uint64_ofs,

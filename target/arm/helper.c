@@ -7995,7 +7995,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .access = PL3_RW,
               .raw_writefn = raw_write, .writefn = sctlr_write,
               .fieldoffset = offsetof(CPUARMState, cp15.sctlr_el[3]),
-              .resetvalue = cpu->reset_sctlr },
+              .resetvalue = acc->reset_sctlr },
         };
 
         define_arm_cp_regs(cpu, el3_regs);
@@ -8331,7 +8331,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             .access = PL1_RW, .accessfn = access_tvm_trvm,
             .bank_fieldoffsets = { offsetof(CPUARMState, cp15.sctlr_s),
                                    offsetof(CPUARMState, cp15.sctlr_ns) },
-            .writefn = sctlr_write, .resetvalue = cpu->reset_sctlr,
+            .writefn = sctlr_write, .resetvalue = acc->reset_sctlr,
             .raw_writefn = raw_write,
         };
         if (arm_feature(env, ARM_FEATURE_XSCALE)) {

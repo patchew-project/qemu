@@ -954,7 +954,6 @@ struct ArchCPU {
     uint32_t revidr;
     uint32_t reset_fpsid;
     uint64_t ctr;
-    uint32_t reset_sctlr;
     uint64_t pmceid0;
     uint64_t pmceid1;
     uint32_t id_afr0;
@@ -986,13 +985,6 @@ struct ArchCPU {
     int gic_vpribits; /* number of virtual priority bits */
     int gic_vprebits; /* number of virtual preemption bits */
     int gic_pribits; /* number of physical priority bits */
-
-    /* Whether the cfgend input is high (i.e. this CPU should reset into
-     * big-endian mode).  This setting isn't used directly: instead it modifies
-     * the reset_sctlr value to have SCTLR_B or SCTLR_EE set, depending on the
-     * architecture version.
-     */
-    bool cfgend;
 
     QLIST_HEAD(, ARMELChangeHook) pre_el_change_hooks;
     QLIST_HEAD(, ARMELChangeHook) el_change_hooks;
