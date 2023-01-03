@@ -2253,11 +2253,15 @@ static void arm_cpu_instance_init(Object *obj)
     arm_cpu_post_init(obj);
 }
 
-static void cpu_register_class_init(ObjectClass *oc, void *data)
+static void arm_cpu_leaf_class_init(ObjectClass *oc, void *data)
 {
     ARMCPUClass *acc = ARM_CPU_CLASS(oc);
+    const ARMCPUInfo *info = data;
 
-    acc->info = data;
+    acc->info = info;
+    if (info->class_init) {
+        info->class_init(acc);
+    }
 }
 
 void arm_cpu_register_parent(const ARMCPUInfo *info, const char *parent)
@@ -2268,7 +2272,7 @@ void arm_cpu_register_parent(const ARMCPUInfo *info, const char *parent)
         .instance_align = __alignof__(ARMCPU),
         .instance_init = arm_cpu_instance_init,
         .class_size = sizeof(ARMCPUClass),
-        .class_init = info->class_init ?: cpu_register_class_init,
+        .class_init = arm_cpu_leaf_class_init,
         .class_data = (void *)info,
     };
 

@@ -36,7 +36,7 @@ OBJECT_DECLARE_CPU_TYPE(ARMCPU, ARMCPUClass, ARM_CPU)
 typedef struct ARMCPUInfo {
     const char *name;
     void (*initfn)(Object *obj);
-    void (*class_init)(ObjectClass *oc, void *data);
+    void (*class_init)(ARMCPUClass *acc);
 } ARMCPUInfo;
 
 void arm_cpu_register_parent(const ARMCPUInfo *info, const char *parent);
