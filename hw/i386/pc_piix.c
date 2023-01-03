@@ -233,6 +233,7 @@ static void pc_init1(MachineState *machine,
 
         rtc_state = isa_new(TYPE_MC146818_RTC);
         qdev_prop_set_int32(DEVICE(rtc_state), "base_year", 2000);
+        qdev_prop_set_bit(DEVICE(rtc_state), "slew-tick-policy-available", true);
         isa_realize_and_unref(rtc_state, isa_bus, &error_fatal);
 
         i8257_dma_init(isa_bus, 0);

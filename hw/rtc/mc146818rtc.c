@@ -922,14 +922,16 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
     rtc_set_date_from_host(isadev);
 
     switch (s->lost_tick_policy) {
-#ifdef TARGET_I386
-    case LOST_TICK_POLICY_SLEW:
-        s->coalesced_timer =
-            timer_new_ns(rtc_clock, rtc_coalesced_timer, s);
-        break;
-#endif
     case LOST_TICK_POLICY_DISCARD:
         break;
+    case LOST_TICK_POLICY_SLEW:
+#ifdef TARGET_I386
+        if (s->slew_tick_policy_available) {
+            s->coalesced_timer = timer_new_ns(rtc_clock, rtc_coalesced_timer, s);
+            break;
+        }
+#endif
+        /* fallthrough */
     default:
         error_setg(errp, "Invalid lost tick policy.");
         return;
@@ -989,6 +991,8 @@ static Property mc146818rtc_properties[] = {
     DEFINE_PROP_UINT8("irq", RTCState, isairq, RTC_ISA_IRQ),
     DEFINE_PROP_LOSTTICKPOLICY("lost_tick_policy", RTCState,
                                lost_tick_policy, LOST_TICK_POLICY_DISCARD),
+    DEFINE_PROP_BOOL("slew-tick-policy-available", RTCState,
+                     slew_tick_policy_available, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

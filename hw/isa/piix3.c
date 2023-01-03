@@ -316,6 +316,7 @@ static void pci_piix3_realize(PCIDevice *dev, Error **errp)
 
     /* RTC */
     qdev_prop_set_int32(DEVICE(&d->rtc), "base_year", 2000);
+    qdev_prop_set_bit(DEVICE(&d->rtc), "slew-tick-policy-available", true);
     if (!qdev_realize(DEVICE(&d->rtc), BUS(isa_bus), errp)) {
         return;
     }

@@ -733,6 +733,7 @@ static void ich9_lpc_realize(PCIDevice *d, Error **errp)
 
     /* RTC */
     qdev_prop_set_int32(DEVICE(&lpc->rtc), "base_year", 2000);
+    qdev_prop_set_bit(DEVICE(&lpc->rtc), "slew-tick-policy-available", true);
     if (!qdev_realize(DEVICE(&lpc->rtc), BUS(isa_bus), errp)) {
         return;
     }

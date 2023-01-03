@@ -45,6 +45,7 @@ struct RTCState {
     QEMUTimer *coalesced_timer;
     Notifier clock_reset_notifier;
     LostTickPolicy lost_tick_policy;
+    bool slew_tick_policy_available;
     Notifier suspend_notifier;
     QLIST_ENTRY(RTCState) link;
 };
