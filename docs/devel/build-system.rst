@@ -107,6 +107,7 @@ developers in checking for system features:
    Run pkg-config passing it $ARGS. If QEMU is doing a static build,
    then --static will be automatically added to $ARGS
 
+.. _meson:
 
 Stage 2: Meson
 ==============

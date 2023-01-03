@@ -607,6 +607,42 @@ are still some caveats to beware of
 QEMU Specific Idioms
 ********************
 
+Module and file layout
+======================
+
+The QEMU project is a large and complex one where individual files can
+be re-built multiple times for various final binaries. This is often
+accomplished through heavy use of #define values to control
+conditional compilation. However care should be taken to avoid
+introducing files that are compiled for every target for trivial
+differences.
+
+Some general rules of thumb:
+
+  * CONFIG_* flags come from either host or target specific defines.
+    You can see where they come from by comparing config-host.h and
+    $TARGET-config.target.h
+
+  * #ifdef CONFIG_USER_ONLY/CONFIG_SOFTMMU should only be added to
+    files that already use them to compile multiple versions.
+
+  * Try and avoid target_* specific typedefs in common code
+
+See the build system :ref:`meson<meson>` documentation for the details of how
+the various compilation units are handled.
+
+"Templates" and generated code
+==============================
+
+We make heavy use of C's macro facilities combined with multiple
+inclusion to generate code. This tends to use header files (usually
+with the .inc suffix) with different #define'd constants. While the
+use of C11's _Generic keyword has improved things a bit this technique
+is still best suited to repetitive boiler plate code. If more complex
+code generation is required consider using a script to generate it,
+see for example the decodetree and qapi header scripts.
+
+
 Error handling and reporting
 ============================
 
