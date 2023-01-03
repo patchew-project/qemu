@@ -1056,10 +1056,8 @@ static const struct TCGCPUOps arm_v7m_tcg_ops = {
 
 static void arm_v7m_class_init(ObjectClass *oc, void *data)
 {
-    ARMCPUClass *acc = ARM_CPU_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
 
-    acc->info = data;
 #ifdef CONFIG_TCG
     cc->tcg_ops = &arm_v7m_tcg_ops;
 #endif /* CONFIG_TCG */
@@ -1149,18 +1147,6 @@ static const ARMCPUInfo arm_tcg_cpus[] = {
     { .name = "cortex-a8",   .initfn = cortex_a8_initfn },
     { .name = "cortex-a9",   .initfn = cortex_a9_initfn },
     { .name = "cortex-a15",  .initfn = cortex_a15_initfn },
-    { .name = "cortex-m0",   .initfn = cortex_m0_initfn,
-                             .class_init = arm_v7m_class_init },
-    { .name = "cortex-m3",   .initfn = cortex_m3_initfn,
-                             .class_init = arm_v7m_class_init },
-    { .name = "cortex-m4",   .initfn = cortex_m4_initfn,
-                             .class_init = arm_v7m_class_init },
-    { .name = "cortex-m7",   .initfn = cortex_m7_initfn,
-                             .class_init = arm_v7m_class_init },
-    { .name = "cortex-m33",  .initfn = cortex_m33_initfn,
-                             .class_init = arm_v7m_class_init },
-    { .name = "cortex-m55",  .initfn = cortex_m55_initfn,
-                             .class_init = arm_v7m_class_init },
     { .name = "cortex-r5",   .initfn = cortex_r5_initfn },
     { .name = "cortex-r5f",  .initfn = cortex_r5f_initfn },
     { .name = "ti925t",      .initfn = ti925t_initfn },
@@ -1187,6 +1173,24 @@ static const ARMCPUInfo arm_tcg_cpus[] = {
 #endif
 };
 
+static const ARMCPUInfo arm_v7m_tcg_cpus[] = {
+    { .name = "cortex-m0",   .initfn = cortex_m0_initfn },
+    { .name = "cortex-m3",   .initfn = cortex_m3_initfn },
+    { .name = "cortex-m4",   .initfn = cortex_m4_initfn },
+    { .name = "cortex-m7",   .initfn = cortex_m7_initfn },
+    { .name = "cortex-m33",  .initfn = cortex_m33_initfn },
+    { .name = "cortex-m55",  .initfn = cortex_m55_initfn },
+};
+
+static const TypeInfo arm_v7m_cpu_type_info = {
+    .name = TYPE_ARM_V7M_CPU,
+    .parent = TYPE_ARM_CPU,
+    .instance_size = sizeof(ARMCPU),
+    .abstract = true,
+    .class_size = sizeof(ARMCPUClass),
+    .class_init = arm_v7m_class_init,
+};
+
 static const TypeInfo idau_interface_type_info = {
     .name = TYPE_IDAU_INTERFACE,
     .parent = TYPE_INTERFACE,
@@ -1197,9 +1201,13 @@ static void arm_tcg_cpu_register_types(void)
 {
     size_t i;
 
+    type_register_static(&arm_v7m_cpu_type_info);
     type_register_static(&idau_interface_type_info);
     for (i = 0; i < ARRAY_SIZE(arm_tcg_cpus); ++i) {
         arm_cpu_register(&arm_tcg_cpus[i]);
+    }
+    for (i = 0; i < ARRAY_SIZE(arm_v7m_tcg_cpus); ++i) {
+        arm_v7m_cpu_register(&arm_v7m_tcg_cpus[i]);
     }
 }
 

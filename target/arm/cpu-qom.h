@@ -26,6 +26,7 @@
 struct arm_boot_info;
 
 #define TYPE_ARM_CPU "arm-cpu"
+#define TYPE_ARM_V7M_CPU "arm-v7m-cpu"
 #define TYPE_AARCH64_CPU "aarch64-cpu"
 
 OBJECT_DECLARE_CPU_TYPE(ARMCPU, ARMCPUClass, ARM_CPU)
@@ -43,6 +44,11 @@ void arm_cpu_register_parent(const ARMCPUInfo *info, const char *parent);
 static inline void arm_cpu_register(const ARMCPUInfo *info)
 {
     arm_cpu_register_parent(info, TYPE_ARM_CPU);
+}
+
+static inline void arm_v7m_cpu_register(const ARMCPUInfo *info)
+{
+    arm_cpu_register_parent(info, TYPE_ARM_V7M_CPU);
 }
 
 static inline void aarch64_cpu_register(const ARMCPUInfo *info)
