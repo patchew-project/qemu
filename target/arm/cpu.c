@@ -2260,10 +2260,10 @@ static void cpu_register_class_init(ObjectClass *oc, void *data)
     acc->info = data;
 }
 
-void arm_cpu_register(const ARMCPUInfo *info)
+void arm_cpu_register_parent(const ARMCPUInfo *info, const char *parent)
 {
     TypeInfo type_info = {
-        .parent = TYPE_ARM_CPU,
+        .parent = parent,
         .instance_size = sizeof(ARMCPU),
         .instance_align = __alignof__(ARMCPU),
         .instance_init = arm_cpu_instance_init,

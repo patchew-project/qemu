@@ -37,8 +37,13 @@ typedef struct ARMCPUInfo {
     void (*class_init)(ObjectClass *oc, void *data);
 } ARMCPUInfo;
 
-void arm_cpu_register(const ARMCPUInfo *info);
+void arm_cpu_register_parent(const ARMCPUInfo *info, const char *parent);
 void aarch64_cpu_register(const ARMCPUInfo *info);
+
+static inline void arm_cpu_register(const ARMCPUInfo *info)
+{
+    arm_cpu_register_parent(info, TYPE_ARM_CPU);
+}
 
 /**
  * ARMCPUClass:
