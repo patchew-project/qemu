@@ -4804,8 +4804,9 @@ static void sctlr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                         uint64_t value)
 {
     ARMCPU *cpu = env_archcpu(env);
+    ARMCPUClass *acc = ARM_CPU_GET_CLASS(cpu);
 
-    if (arm_feature(env, ARM_FEATURE_PMSA) && !cpu->has_mpu) {
+    if (arm_feature(env, ARM_FEATURE_PMSA) && !acc->has_mpu) {
         /* M bit is RAZ/WI for PMSA with no MPU implemented */
         value &= ~SCTLR_M;
     }

@@ -1279,19 +1279,6 @@ static void arm_cpu_initfn(Object *obj)
 static Property arm_cpu_reset_cbar_property =
             DEFINE_PROP_UINT64("reset-cbar", ARMCPU, reset_cbar, 0);
 
-static Property arm_cpu_has_mpu_property =
-            DEFINE_PROP_BOOL("has-mpu", ARMCPU, has_mpu, true);
-
-/* This is like DEFINE_PROP_UINT32 but it doesn't set the default value,
- * because the CPU initfn will have already set cpu->pmsav7_dregion to
- * the right value for that particular CPU type, and we don't want
- * to override that with an incorrect constant value.
- */
-static Property arm_cpu_pmsav7_dregion_property =
-            DEFINE_PROP_UNSIGNED_NODEFAULT("pmsav7-dregion", ARMCPU,
-                                           pmsav7_dregion,
-                                           qdev_prop_uint32, uint32_t);
-
 static bool arm_get_pmu(Object *obj, Error **errp)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1373,14 +1360,6 @@ static void arm_cpu_post_init(Object *obj)
     if (arm_feature(&cpu->env, ARM_FEATURE_PMU)) {
         cpu->has_pmu = true;
         object_property_add_bool(obj, "pmu", arm_get_pmu, arm_set_pmu);
-    }
-
-    if (arm_feature(&cpu->env, ARM_FEATURE_PMSA)) {
-        qdev_property_add_static(DEVICE(obj), &arm_cpu_has_mpu_property);
-        if (arm_feature(&cpu->env, ARM_FEATURE_V7)) {
-            qdev_property_add_static(DEVICE(obj),
-                                     &arm_cpu_pmsav7_dregion_property);
-        }
     }
 
     if (arm_feature(&cpu->env, ARM_FEATURE_M_SECURITY)) {
@@ -1663,39 +1642,21 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
             FIELD_DP64(cpu->isar.id_aa64dfr0, ID_AA64DFR0, PMSVER, 0);
     }
 
-    /* MPU can be configured out of a PMSA CPU either by setting has-mpu
-     * to false or by setting pmsav7-dregion to 0.
-     */
-    if (!cpu->has_mpu) {
-        cpu->pmsav7_dregion = 0;
-    }
-    if (cpu->pmsav7_dregion == 0) {
-        cpu->has_mpu = false;
-    }
-
-    if (arm_feature(env, ARM_FEATURE_PMSA) &&
-        arm_feature(env, ARM_FEATURE_V7)) {
+    if (cpu->pmsav7_dregion) {
         uint32_t nr = cpu->pmsav7_dregion;
 
-        if (nr > 0xff) {
-            error_setg(errp, "PMSAv7 MPU #regions invalid %" PRIu32, nr);
-            return;
-        }
-
-        if (nr) {
-            if (arm_feature(env, ARM_FEATURE_V8)) {
-                /* PMSAv8 */
-                env->pmsav8.rbar[M_REG_NS] = g_new0(uint32_t, nr);
-                env->pmsav8.rlar[M_REG_NS] = g_new0(uint32_t, nr);
-                if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
-                    env->pmsav8.rbar[M_REG_S] = g_new0(uint32_t, nr);
-                    env->pmsav8.rlar[M_REG_S] = g_new0(uint32_t, nr);
-                }
-            } else {
-                env->pmsav7.drbar = g_new0(uint32_t, nr);
-                env->pmsav7.drsr = g_new0(uint32_t, nr);
-                env->pmsav7.dracr = g_new0(uint32_t, nr);
+        if (arm_feature(env, ARM_FEATURE_V8)) {
+            /* PMSAv8 */
+            env->pmsav8.rbar[M_REG_NS] = g_new0(uint32_t, nr);
+            env->pmsav8.rlar[M_REG_NS] = g_new0(uint32_t, nr);
+            if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
+                env->pmsav8.rbar[M_REG_S] = g_new0(uint32_t, nr);
+                env->pmsav8.rlar[M_REG_S] = g_new0(uint32_t, nr);
             }
+        } else {
+            env->pmsav7.drbar = g_new0(uint32_t, nr);
+            env->pmsav7.drsr = g_new0(uint32_t, nr);
+            env->pmsav7.dracr = g_new0(uint32_t, nr);
         }
     }
 
@@ -1932,6 +1893,28 @@ static const struct TCGCPUOps arm_tcg_ops = {
 #endif /* !CONFIG_USER_ONLY */
 };
 #endif /* CONFIG_TCG */
+
+static bool arm_class_prop_bool_ofs(ObjectClass *oc, Visitor *v,
+                                    const char *name, void *opaque,
+                                    Error **errp)
+{
+    ARMCPUClass *acc = ARM_CPU_CLASS(oc);
+    uintptr_t ofs = (uintptr_t)opaque;
+    bool *ptr = (void *)acc + ofs;
+
+    return visit_type_bool(v, name, ptr, errp);
+}
+
+static bool arm_class_prop_uint32_ofs(ObjectClass *oc, Visitor *v,
+                                      const char *name, void *opaque,
+                                      Error **errp)
+{
+    ARMCPUClass *acc = ARM_CPU_CLASS(oc);
+    uintptr_t ofs = (uintptr_t)opaque;
+    uint32_t *ptr = (void *)acc + ofs;
+
+    return visit_type_uint32(v, name, ptr, errp);
+}
 
 static bool arm_class_prop_uint64_ofs(ObjectClass *oc, Visitor *v,
                                       const char *name, void *opaque,
@@ -2202,6 +2185,22 @@ static void arm_cpu_leaf_class_init(ObjectClass *oc, void *data)
                            arm_class_prop_set_auto_ofs,
                            (void *)(uintptr_t)offsetof(ARMCPUClass, has_neon));
     }
+
+    if (arm_class_feature(acc, ARM_FEATURE_PMSA)) {
+        acc->has_mpu = true;
+        class_property_add(oc, "has-mpu", "bool", NULL,
+                           arm_class_prop_bool_ofs,
+                           arm_class_prop_bool_ofs,
+                           (void *)(uintptr_t)offsetof(ARMCPUClass, has_mpu));
+
+        if (arm_class_feature(acc, ARM_FEATURE_V7)) {
+            class_property_add(oc, "pmsav7-dregion", "uint32", NULL,
+                               arm_class_prop_uint32_ofs,
+                               arm_class_prop_uint32_ofs,
+                               (void *)(uintptr_t)
+                               offsetof(ARMCPUClass, pmsav7_dregion));
+        }
+    }
 }
 
 static bool arm_cpu_class_late_init(ObjectClass *oc, Error **errp)
@@ -2437,6 +2436,22 @@ static bool arm_cpu_class_late_init(ObjectClass *oc, Error **errp)
                        "AArch64 CPUs must have both VFP and Neon or neither");
             return false;
         }
+    }
+
+    /*
+     * MPU can be configured out of a PMSA CPU either by setting has-mpu
+     * to false or by setting pmsav7-dregion to 0.
+     */
+    if (!acc->has_mpu) {
+        acc->pmsav7_dregion = 0;
+    }
+    if (acc->pmsav7_dregion == 0) {
+        acc->has_mpu = false;
+    }
+    if (acc->pmsav7_dregion > 0xff) {
+        error_setg(errp, "PMSAv7 MPU #regions invalid %" PRIu32,
+                   acc->pmsav7_dregion);
+        return false;
     }
 
     /* Run some consistency checks for TCG. */

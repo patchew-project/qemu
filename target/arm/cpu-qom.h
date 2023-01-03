@@ -192,6 +192,9 @@ struct ARMCPUClass {
     OnOffAuto has_vfp;
     /* CPU has Neon */
     OnOffAuto has_neon;
+
+    /* CPU has memory protection unit */
+    bool has_mpu;
 };
 
 static inline int arm_class_feature(ARMCPUClass *acc, int feature)

@@ -889,8 +889,6 @@ struct ArchCPU {
     /* CPU has PMU (Performance Monitor Unit) */
     bool has_pmu;
 
-    /* CPU has memory protection unit */
-    bool has_mpu;
     /* PMSAv7 MPU number of supported regions */
     uint32_t pmsav7_dregion;
     /* v8M SAU number of supported regions */
