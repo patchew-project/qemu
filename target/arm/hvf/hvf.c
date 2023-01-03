@@ -459,19 +459,29 @@ static uint64_t hvf_get_reg(CPUState *cpu, int rt)
 
 bool hvf_arm_get_host_cpu_features(ARMCPUClass *acc, Error **errp)
 {
-    const struct isar_regs {
-        int reg;
-        uint64_t *val;
+    static const struct isar_regs {
+        int reg, offset;
     } regs[] = {
-        { HV_SYS_REG_ID_AA64PFR0_EL1, &acc->isar.id_aa64pfr0 },
-        { HV_SYS_REG_ID_AA64PFR1_EL1, &acc->isar.id_aa64pfr1 },
-        { HV_SYS_REG_ID_AA64DFR0_EL1, &acc->isar.id_aa64dfr0 },
-        { HV_SYS_REG_ID_AA64DFR1_EL1, &acc->isar.id_aa64dfr1 },
-        { HV_SYS_REG_ID_AA64ISAR0_EL1, &acc->isar.id_aa64isar0 },
-        { HV_SYS_REG_ID_AA64ISAR1_EL1, &acc->isar.id_aa64isar1 },
-        { HV_SYS_REG_ID_AA64MMFR0_EL1, &acc->isar.id_aa64mmfr0 },
-        { HV_SYS_REG_ID_AA64MMFR1_EL1, &acc->isar.id_aa64mmfr1 },
-        { HV_SYS_REG_ID_AA64MMFR2_EL1, &acc->isar.id_aa64mmfr2 },
+        { HV_SYS_REG_ID_AA64PFR0_EL1,
+          offsetof(ARMCPUClass, isar.id_aa64pfr0) },
+        { HV_SYS_REG_ID_AA64PFR1_EL1,
+          offsetof(ARMCPUClass, isar.id_aa64pfr1) },
+        { HV_SYS_REG_ID_AA64DFR0_EL1,
+          offsetof(ARMCPUClass, isar.id_aa64dfr0) },
+        { HV_SYS_REG_ID_AA64DFR1_EL1,
+          offsetof(ARMCPUClass, isar.id_aa64dfr1) },
+        { HV_SYS_REG_ID_AA64ISAR0_EL1,
+          offsetof(ARMCPUClass, isar.id_aa64isar0) },
+        { HV_SYS_REG_ID_AA64ISAR1_EL1,
+          offsetof(ARMCPUClass, isar.id_aa64isar1) },
+        { HV_SYS_REG_ID_AA64MMFR0_EL1,
+          offsetof(ARMCPUClass, isar.id_aa64mmfr0) },
+        { HV_SYS_REG_ID_AA64MMFR1_EL1,
+          offsetof(ARMCPUClass, isar.id_aa64mmfr1) },
+        { HV_SYS_REG_ID_AA64MMFR2_EL1,
+          offsetof(ARMCPUClass, isar.id_aa64mmfr2) },
+        { HV_SYS_REG_MIDR_EL1,
+          offsetof(ARMCPUClass, midr) },
     };
     hv_vcpu_t fd;
     hv_return_t r = HV_SUCCESS;
@@ -485,9 +495,9 @@ bool hvf_arm_get_host_cpu_features(ARMCPUClass *acc, Error **errp)
     }
 
     for (i = 0; i < ARRAY_SIZE(regs); i++) {
-        r |= hv_vcpu_get_sys_reg(fd, regs[i].reg, regs[i].val);
+        uint64_t *p = (void *)acc + regs[i].offset;
+        r |= hv_vcpu_get_sys_reg(fd, regs[i].reg, p);
     }
-    r |= hv_vcpu_get_sys_reg(fd, HV_SYS_REG_MIDR_EL1, &acc->midr);
     r |= hv_vcpu_destroy(fd);
 
     /*
