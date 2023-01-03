@@ -97,8 +97,6 @@ struct ARMv7MState {
     uint32_t init_nsvtor;
     bool enable_bitband;
     bool start_powered_off;
-    bool vfp;
-    bool dsp;
 };
 
 #endif

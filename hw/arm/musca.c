@@ -377,8 +377,12 @@ static void musca_init(MachineState *machine)
     mms->s32kclk = clock_new(OBJECT(machine), "S32KCLK");
     clock_set_hz(mms->s32kclk, S32KCLK_FRQ);
 
+    /*
+     * Musca-A takes the default SSE-200 FPU/DSP settings (ie no for
+     * CPU0 and yes for CPU1); Musca-B1 explicitly enables them for CPU0.
+     */
     object_initialize_child(OBJECT(machine), "sse-200", &mms->sse,
-                            TYPE_SSE200);
+                            mmc->type == MUSCA_A ? TYPE_SSE200 : TYPE_SSE200_B);
     ssedev = DEVICE(&mms->sse);
     object_property_set_link(OBJECT(&mms->sse), "memory",
                              OBJECT(system_memory), &error_fatal);
@@ -387,14 +391,6 @@ static void musca_init(MachineState *machine)
     qdev_prop_set_uint32(ssedev, "SRAM_ADDR_WIDTH", mmc->sram_addr_width);
     qdev_connect_clock_in(ssedev, "MAINCLK", mms->sysclk);
     qdev_connect_clock_in(ssedev, "S32KCLK", mms->s32kclk);
-    /*
-     * Musca-A takes the default SSE-200 FPU/DSP settings (ie no for
-     * CPU0 and yes for CPU1); Musca-B1 explicitly enables them for CPU0.
-     */
-    if (mmc->type == MUSCA_B1) {
-        qdev_prop_set_bit(ssedev, "CPU0_FPU", true);
-        qdev_prop_set_bit(ssedev, "CPU0_DSP", true);
-    }
     sysbus_realize(SYS_BUS_DEVICE(&mms->sse), &error_fatal);
 
     /*

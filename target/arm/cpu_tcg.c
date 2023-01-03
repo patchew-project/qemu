@@ -661,6 +661,34 @@ static void cortex_m3_class_init(ARMCPUClass *acc)
     acc->isar.id_isar6 = 0x00000000;
 }
 
+static void disable_m_dsp(ARMCPUClass *acc)
+{
+    uint32_t u;
+
+    u = acc->isar.id_isar1;
+    u = FIELD_DP32(u, ID_ISAR1, EXTEND, 1);
+    acc->isar.id_isar1 = u;
+
+    u = acc->isar.id_isar2;
+    u = FIELD_DP32(u, ID_ISAR2, MULTU, 1);
+    u = FIELD_DP32(u, ID_ISAR2, MULTS, 1);
+    acc->isar.id_isar2 = u;
+
+    u = acc->isar.id_isar3;
+    u = FIELD_DP32(u, ID_ISAR3, SIMD, 1);
+    u = FIELD_DP32(u, ID_ISAR3, SATURATE, 0);
+    acc->isar.id_isar3 = u;
+
+    unset_class_feature(acc, ARM_FEATURE_THUMB_DSP);
+}
+
+static void disable_m_vfp(ARMCPUClass *acc)
+{
+    acc->isar.mvfr0 = 0;
+    acc->isar.mvfr1 = 0;
+    acc->isar.mvfr2 = 0;
+}
+
 static void cortex_m4_class_init(ARMCPUClass *acc)
 {
     set_class_feature(acc, ARM_FEATURE_V7);
@@ -689,6 +717,12 @@ static void cortex_m4_class_init(ARMCPUClass *acc)
     acc->isar.id_isar6 = 0x00000000;
 }
 
+static void cortex_m4_nf_class_init(ARMCPUClass *acc)
+{
+    cortex_m4_class_init(acc);
+    disable_m_vfp(acc);
+}
+
 static void cortex_m7_class_init(ARMCPUClass *acc)
 {
     set_class_feature(acc, ARM_FEATURE_V7);
@@ -715,6 +749,12 @@ static void cortex_m7_class_init(ARMCPUClass *acc)
     acc->isar.id_isar4 = 0x01310132;
     acc->isar.id_isar5 = 0x00000000;
     acc->isar.id_isar6 = 0x00000000;
+}
+
+static void cortex_m7_nf_class_init(ARMCPUClass *acc)
+{
+    cortex_m7_class_init(acc);
+    disable_m_vfp(acc);
 }
 
 static void cortex_m33_class_init(ARMCPUClass *acc)
@@ -747,6 +787,25 @@ static void cortex_m33_class_init(ARMCPUClass *acc)
     acc->isar.id_isar6 = 0x00000000;
     acc->clidr = 0x00000000;
     acc->ctr = 0x8000c000;
+}
+
+static void cortex_m33_nd_class_init(ARMCPUClass *acc)
+{
+    cortex_m33_class_init(acc);
+    disable_m_dsp(acc);
+}
+
+static void cortex_m33_nf_class_init(ARMCPUClass *acc)
+{
+    cortex_m33_class_init(acc);
+    disable_m_vfp(acc);
+}
+
+static void cortex_m33_ndnf_class_init(ARMCPUClass *acc)
+{
+    cortex_m33_class_init(acc);
+    disable_m_dsp(acc);
+    disable_m_vfp(acc);
 }
 
 static void cortex_m55_class_init(ARMCPUClass *acc)
@@ -782,6 +841,12 @@ static void cortex_m55_class_init(ARMCPUClass *acc)
     acc->isar.id_isar6 = 0x00000000;
     acc->clidr = 0x00000000; /* caches not implemented */
     acc->ctr = 0x8303c003;
+}
+
+static void cortex_m55_nf_class_init(ARMCPUClass *acc)
+{
+    cortex_m55_class_init(acc);
+    disable_m_vfp(acc);
 }
 
 static const ARMCPRegInfo cortexr5_cp_reginfo[] = {
@@ -1081,10 +1146,26 @@ static const ARMCPUInfo arm_tcg_cpus[] = {
 static const ARMCPUInfo arm_v7m_tcg_cpus[] = {
     { .name = "cortex-m0",   .class_init = cortex_m0_class_init },
     { .name = "cortex-m3",   .class_init = cortex_m3_class_init },
+
     { .name = "cortex-m4",   .class_init = cortex_m4_class_init },
+    { .name = "cortex-m4-novfp",
+      .class_init = cortex_m4_nf_class_init },
+
     { .name = "cortex-m7",   .class_init = cortex_m7_class_init },
+    { .name = "cortex-m7-novfp",
+      .class_init = cortex_m7_nf_class_init },
+
     { .name = "cortex-m33",  .class_init = cortex_m33_class_init },
+    { .name = "cortex-m33-nodsp",
+      .class_init = cortex_m33_nd_class_init },
+    { .name = "cortex-m33-novfp",
+      .class_init = cortex_m33_nf_class_init },
+    { .name = "cortex-m33-nodsp-novfp",
+      .class_init = cortex_m33_ndnf_class_init },
+
     { .name = "cortex-m55",  .class_init = cortex_m55_class_init },
+    { .name = "cortex-m55-novfp",
+      .class_init = cortex_m55_nf_class_init },
 };
 
 static const TypeInfo arm_v7m_cpu_type_info = {

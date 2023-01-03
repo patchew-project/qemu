@@ -323,16 +323,6 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
             return;
         }
     }
-    if (object_property_find(OBJECT(s->cpu), "vfp")) {
-        if (!object_property_set_bool(OBJECT(s->cpu), "vfp", s->vfp, errp)) {
-            return;
-        }
-    }
-    if (object_property_find(OBJECT(s->cpu), "dsp")) {
-        if (!object_property_set_bool(OBJECT(s->cpu), "dsp", s->dsp, errp)) {
-            return;
-        }
-    }
 
     /*
      * Tell the CPU where the NVIC is; it will fail realize if it doesn't
@@ -528,8 +518,6 @@ static Property armv7m_properties[] = {
     DEFINE_PROP_BOOL("enable-bitband", ARMv7MState, enable_bitband, false),
     DEFINE_PROP_BOOL("start-powered-off", ARMv7MState, start_powered_off,
                      false),
-    DEFINE_PROP_BOOL("vfp", ARMv7MState, vfp, true),
-    DEFINE_PROP_BOOL("dsp", ARMv7MState, dsp, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

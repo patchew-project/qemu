@@ -1305,9 +1305,6 @@ static Property arm_cpu_has_vfp_property =
 static Property arm_cpu_has_neon_property =
             DEFINE_PROP_BOOL("neon", ARMCPU, has_neon, true);
 
-static Property arm_cpu_has_dsp_property =
-            DEFINE_PROP_BOOL("dsp", ARMCPU, has_dsp, true);
-
 static Property arm_cpu_has_mpu_property =
             DEFINE_PROP_BOOL("has-mpu", ARMCPU, has_mpu, true);
 
@@ -1428,7 +1425,7 @@ static void arm_cpu_post_init(Object *obj)
         ? cpu_isar_feature(aa64_fp_simd, cpu)
         : cpu_isar_feature(aa32_vfp, cpu)) {
         cpu->has_vfp = true;
-        if (!kvm_enabled()) {
+        if (!kvm_enabled() && !arm_feature(&cpu->env, ARM_FEATURE_M)) {
             qdev_property_add_static(DEVICE(obj), &arm_cpu_has_vfp_property);
         }
     }
@@ -1438,11 +1435,6 @@ static void arm_cpu_post_init(Object *obj)
         if (!kvm_enabled()) {
             qdev_property_add_static(DEVICE(obj), &arm_cpu_has_neon_property);
         }
-    }
-
-    if (arm_feature(&cpu->env, ARM_FEATURE_M) &&
-        arm_feature(&cpu->env, ARM_FEATURE_THUMB_DSP)) {
-        qdev_property_add_static(DEVICE(obj), &arm_cpu_has_dsp_property);
     }
 
     if (arm_feature(&cpu->env, ARM_FEATURE_PMSA)) {
@@ -1799,26 +1791,6 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         u = cpu->isar.mvfr1;
         u = FIELD_DP32(u, MVFR1, SIMDFMAC, 0);
         cpu->isar.mvfr1 = u;
-    }
-
-    if (arm_feature(env, ARM_FEATURE_M) && !cpu->has_dsp) {
-        uint32_t u;
-
-        unset_feature(env, ARM_FEATURE_THUMB_DSP);
-
-        u = cpu->isar.id_isar1;
-        u = FIELD_DP32(u, ID_ISAR1, EXTEND, 1);
-        cpu->isar.id_isar1 = u;
-
-        u = cpu->isar.id_isar2;
-        u = FIELD_DP32(u, ID_ISAR2, MULTU, 1);
-        u = FIELD_DP32(u, ID_ISAR2, MULTS, 1);
-        cpu->isar.id_isar2 = u;
-
-        u = cpu->isar.id_isar3;
-        u = FIELD_DP32(u, ID_ISAR3, SIMD, 1);
-        u = FIELD_DP32(u, ID_ISAR3, SATURATE, 0);
-        cpu->isar.id_isar3 = u;
     }
 
     /* Some features automatically imply others: */

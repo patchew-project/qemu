@@ -57,7 +57,7 @@ typedef struct ARMSSEDeviceInfo {
 
 struct ARMSSEInfo {
     const char *name;
-    const char *cpu_type;
+    const char *cpu_type[SSE_MAX_CPUS];
     uint32_t sse_version;
     int sram_banks;
     uint32_t sram_bank_base;
@@ -83,8 +83,6 @@ static Property iotkit_properties[] = {
     DEFINE_PROP_UINT32("EXP_NUMIRQ", ARMSSE, exp_numirq, 64),
     DEFINE_PROP_UINT32("SRAM_ADDR_WIDTH", ARMSSE, sram_addr_width, 15),
     DEFINE_PROP_UINT32("init-svtor", ARMSSE, init_svtor, 0x10000000),
-    DEFINE_PROP_BOOL("CPU0_FPU", ARMSSE, cpu_fpu[0], true),
-    DEFINE_PROP_BOOL("CPU0_DSP", ARMSSE, cpu_dsp[0], true),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -94,10 +92,6 @@ static Property sse200_properties[] = {
     DEFINE_PROP_UINT32("EXP_NUMIRQ", ARMSSE, exp_numirq, 64),
     DEFINE_PROP_UINT32("SRAM_ADDR_WIDTH", ARMSSE, sram_addr_width, 15),
     DEFINE_PROP_UINT32("init-svtor", ARMSSE, init_svtor, 0x10000000),
-    DEFINE_PROP_BOOL("CPU0_FPU", ARMSSE, cpu_fpu[0], false),
-    DEFINE_PROP_BOOL("CPU0_DSP", ARMSSE, cpu_dsp[0], false),
-    DEFINE_PROP_BOOL("CPU1_FPU", ARMSSE, cpu_fpu[1], true),
-    DEFINE_PROP_BOOL("CPU1_DSP", ARMSSE, cpu_dsp[1], true),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -107,8 +101,6 @@ static Property sse300_properties[] = {
     DEFINE_PROP_UINT32("EXP_NUMIRQ", ARMSSE, exp_numirq, 64),
     DEFINE_PROP_UINT32("SRAM_ADDR_WIDTH", ARMSSE, sram_addr_width, 18),
     DEFINE_PROP_UINT32("init-svtor", ARMSSE, init_svtor, 0x10000000),
-    DEFINE_PROP_BOOL("CPU0_FPU", ARMSSE, cpu_fpu[0], true),
-    DEFINE_PROP_BOOL("CPU0_DSP", ARMSSE, cpu_dsp[0], true),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -505,7 +497,7 @@ static const ARMSSEInfo armsse_variants[] = {
     {
         .name = TYPE_IOTKIT,
         .sse_version = ARMSSE_IOTKIT,
-        .cpu_type = ARM_CPU_TYPE_NAME("cortex-m33"),
+        .cpu_type[0] = ARM_CPU_TYPE_NAME("cortex-m33"),
         .sram_banks = 1,
         .sram_bank_base = 0x20000000,
         .num_cpus = 1,
@@ -526,7 +518,31 @@ static const ARMSSEInfo armsse_variants[] = {
     {
         .name = TYPE_SSE200,
         .sse_version = ARMSSE_SSE200,
-        .cpu_type = ARM_CPU_TYPE_NAME("cortex-m33"),
+        .cpu_type[0] = ARM_CPU_TYPE_NAME("cortex-m33-nodsp-novfp"),
+        .cpu_type[1] = ARM_CPU_TYPE_NAME("cortex-m33"),
+        .sram_banks = 4,
+        .sram_bank_base = 0x20000000,
+        .num_cpus = 2,
+        .sys_version = 0x22041743,
+        .iidr = 0,
+        .cpuwait_rst = 2,
+        .has_mhus = true,
+        .has_cachectrl = true,
+        .has_cpusecctrl = true,
+        .has_cpuid = true,
+        .has_cpu_pwrctrl = false,
+        .has_sse_counter = false,
+        .has_tcms = false,
+        .props = sse200_properties,
+        .devinfo = sse200_devices,
+        .irq_is_common = sse200_irq_is_common,
+    },
+    {
+        /* For Musca-B1, differs only on cpu[0]. */
+        .name = TYPE_SSE200_B,
+        .sse_version = ARMSSE_SSE200,
+        .cpu_type[0] = ARM_CPU_TYPE_NAME("cortex-m33"),
+        .cpu_type[1] = ARM_CPU_TYPE_NAME("cortex-m33"),
         .sram_banks = 4,
         .sram_bank_base = 0x20000000,
         .num_cpus = 2,
@@ -547,7 +563,7 @@ static const ARMSSEInfo armsse_variants[] = {
     {
         .name = TYPE_SSE300,
         .sse_version = ARMSSE_SSE300,
-        .cpu_type = ARM_CPU_TYPE_NAME("cortex-m55"),
+        .cpu_type[0] = ARM_CPU_TYPE_NAME("cortex-m55"),
         .sram_banks = 2,
         .sram_bank_base = 0x21000000,
         .num_cpus = 1,
@@ -720,7 +736,8 @@ static void armsse_init(Object *obj)
         name = g_strdup_printf("armv7m%d", i);
         object_initialize_child(OBJECT(&s->cluster[i]), name, &s->armv7m[i],
                                 TYPE_ARMV7M);
-        qdev_prop_set_string(DEVICE(&s->armv7m[i]), "cpu-type", info->cpu_type);
+        qdev_prop_set_string(DEVICE(&s->armv7m[i]), "cpu-type",
+                             info->cpu_type[i]);
         g_free(name);
         name = g_strdup_printf("arm-sse-cpu-container%d", i);
         memory_region_init(&s->cpu_container[i], obj, name, UINT64_MAX);
@@ -1016,16 +1033,6 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         if (extract32(info->cpuwait_rst, i, 1)) {
             if (!object_property_set_bool(cpuobj, "start-powered-off", true,
                                           errp)) {
-                return;
-            }
-        }
-        if (!s->cpu_fpu[i]) {
-            if (!object_property_set_bool(cpuobj, "vfp", false, errp)) {
-                return;
-            }
-        }
-        if (!s->cpu_dsp[i]) {
-            if (!object_property_set_bool(cpuobj, "dsp", false, errp)) {
                 return;
             }
         }
