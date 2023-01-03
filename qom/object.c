@@ -21,6 +21,7 @@
 #include "qapi/string-input-visitor.h"
 #include "qapi/string-output-visitor.h"
 #include "qapi/qobject-input-visitor.h"
+#include "qapi/qobject-output-visitor.h"
 #include "qapi/forward-visitor.h"
 #include "qapi/qapi-builtin-visit.h"
 #include "qapi/qmp/qerror.h"
@@ -34,6 +35,7 @@
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
 #include "qemu/error-report.h"
+#include "sysemu/qtest.h"
 
 #define MAX_INTERFACES 32
 
@@ -75,6 +77,190 @@ struct TypeImpl
     int num_interfaces;
     InterfaceImpl interfaces[MAX_INTERFACES];
 };
+
+ClassProperty *class_property_find(ObjectClass *klass, const char *name)
+{
+    ObjectClass *parent_klass;
+
+    if (klass->class_properties) {
+        ClassProperty *p = g_hash_table_lookup(klass->class_properties, name);
+        if (p) {
+            return p;
+        }
+    }
+
+    parent_klass = object_class_get_parent(klass);
+    if (parent_klass) {
+        return class_property_find(parent_klass, name);
+    }
+    return NULL;
+}
+
+static ClassProperty *class_property_find_err(ObjectClass *klass,
+                                              const char *name,
+                                              Error **errp)
+{
+    ClassProperty *cp = class_property_find(klass, name);
+    if (!cp) {
+        error_setg(errp, "Property '%s.%s' not found",
+                   klass->type->name, name);
+    }
+    return cp;
+}
+
+void class_property_add(ObjectClass *klass, const char *name,
+                        const char *type, const char *desc,
+                        ClassPropertyAccessor *get,
+                        ClassPropertyAccessor *set,
+                        void *opaque)
+{
+    ClassProperty *prop;
+
+    assert(!class_property_find(klass, name));
+
+    prop = g_new0(ClassProperty, 1);
+
+    prop->name = g_strdup(name);
+    prop->type = g_strdup(type);
+    prop->description = g_strdup(desc);
+
+    prop->get = get;
+    prop->set = set;
+    prop->opaque = opaque;
+
+    if (!klass->class_properties) {
+        klass->class_properties = g_hash_table_new(g_str_hash, g_str_equal);
+    }
+    g_hash_table_insert(klass->class_properties, prop->name, prop);
+}
+
+bool class_property_set(ObjectClass *klass, ClassProperty *cp,
+                        Visitor *v, Error **errp)
+{
+    /*
+     * FIXME: qtest/device-introspect-test creates one of each board,
+     * inside the same qemu instance.  The class properties for the
+     * cpus may well be adjusted for each board.  This cannot happen
+     * during normal usage.
+     */
+    if (!qtest_enabled() && klass->type->object_created) {
+        error_setg(errp, "Property '%s.%s' set after object creation",
+                   klass->type->name, cp->name);
+        return false;
+    }
+    return cp->set(klass, v, cp->name, cp->opaque, errp);
+}
+
+static bool class_property_set_lookup(ObjectClass *klass, const char *name,
+                                      Visitor *v, Error **errp)
+{
+    ClassProperty *cp = class_property_find_err(klass, name, errp);
+    if (!cp) {
+        return false;
+    }
+    return class_property_set(klass, cp, v, errp);
+}
+
+bool class_property_set_qobject(ObjectClass *klass, const char *name,
+                                QObject *value, Error **errp)
+{
+    Visitor *v = qobject_input_visitor_new(value);
+    bool ok;
+
+    ok = class_property_set_lookup(klass, name, v, errp);
+    visit_free(v);
+    return ok;
+}
+
+bool class_property_set_bool(ObjectClass *klass, const char *name,
+                             bool value, Error **errp)
+{
+    QBool *qbool = qbool_from_bool(value);
+    bool ok;
+
+    ok = class_property_set_qobject(klass, name, QOBJECT(qbool), errp);
+    qobject_unref(qbool);
+    return ok;
+}
+
+bool class_property_set_uint(ObjectClass *klass, const char *name,
+                             uint64_t value, Error **errp)
+{
+    QNum *qnum = qnum_from_uint(value);
+    bool ok;
+
+    ok = class_property_set_qobject(klass, name, QOBJECT(qnum), errp);
+    qobject_unref(qnum);
+    return ok;
+}
+
+bool class_property_get(ObjectClass *klass, ClassProperty *cp,
+                        Visitor *v, Error **errp)
+{
+    return cp->get(klass, v, cp->name, cp->opaque, errp);
+}
+
+static bool class_property_get_lookup(ObjectClass *klass, const char *name,
+                                      Visitor *v, Error **errp)
+{
+    ClassProperty *cp = class_property_find_err(klass, name, errp);
+    if (!cp) {
+        return false;
+    }
+    return class_property_get(klass, cp, v, errp);
+}
+
+
+QObject *class_property_get_qobject(ObjectClass *klass, const char *name,
+                                    Error **errp)
+{
+    QObject *ret = NULL;
+    Visitor *v = qobject_output_visitor_new(&ret);
+
+    if (class_property_get_lookup(klass, name, v, errp)) {
+        visit_complete(v, &ret);
+    }
+    visit_free(v);
+    return ret;
+}
+
+bool class_property_get_bool(ObjectClass *klass, const char *name,
+                             Error **errp)
+{
+    QObject *qobj = class_property_get_qobject(klass, name, errp);
+    bool ret = false;
+
+    if (qobj) {
+        QBool *qbool = qobject_to(QBool, qobj);
+        if (!qbool) {
+            error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name, "boolean");
+        } else {
+            ret = qbool_get_bool(qbool);
+        }
+        qobject_unref(qobj);
+    }
+    return ret;
+}
+
+void class_property_iter_init(ObjectPropertyIterator *iter,
+                              ObjectClass *klass)
+{
+    g_hash_table_iter_init(&iter->iter, klass->class_properties);
+    iter->nextclass = object_class_get_parent(klass);
+}
+
+ClassProperty *class_property_iter_next(ObjectPropertyIterator *iter)
+{
+    gpointer key, val;
+    while (!g_hash_table_iter_next(&iter->iter, &key, &val)) {
+        if (!iter->nextclass) {
+            return NULL;
+        }
+        g_hash_table_iter_init(&iter->iter, iter->nextclass->class_properties);
+        iter->nextclass = object_class_get_parent(iter->nextclass);
+    }
+    return val;
+}
 
 static Type type_interface;
 
@@ -322,6 +508,7 @@ static void type_initialize(TypeImpl *ti)
         g_assert(parent->instance_size <= ti->instance_size);
         memcpy(ti->class, parent->class, parent->class_size);
         ti->class->interfaces = NULL;
+        ti->class->class_properties = NULL;
 
         for (e = parent->class->interfaces; e; e = e->next) {
             InterfaceClass *iface = e->data;
@@ -415,17 +602,24 @@ static void object_post_init_with_type(Object *obj, TypeImpl *ti)
 bool object_apply_global_props(Object *obj, const GPtrArray *props,
                                Error **errp)
 {
+    ObjectClass *klass;
     int i;
 
     if (!props) {
         return true;
     }
 
+    klass = object_get_class(obj);
+
     for (i = 0; i < props->len; i++) {
         GlobalProperty *p = g_ptr_array_index(props, i);
         Error *err = NULL;
 
         if (object_dynamic_cast(obj, p->driver) == NULL) {
+            continue;
+        }
+        if (class_property_find(klass, p->property)) {
+            /* This was handled in device_class_late_init. */
             continue;
         }
         if (p->optional && !object_property_find(obj, p->property)) {

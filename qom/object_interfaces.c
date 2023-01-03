@@ -203,6 +203,7 @@ bool type_print_class_properties(const char *type)
     ObjectClass *klass;
     ObjectPropertyIterator iter;
     ObjectProperty *prop;
+    ClassProperty *cprop;
     GPtrArray *array;
     int i;
 
@@ -212,6 +213,7 @@ bool type_print_class_properties(const char *type)
     }
 
     array = g_ptr_array_new();
+
     object_class_property_iter_init(&iter, klass);
     while ((prop = object_property_iter_next(&iter))) {
         if (!prop->set) {
@@ -222,6 +224,17 @@ bool type_print_class_properties(const char *type)
                         object_property_help(prop->name, prop->type,
                                              prop->defval, prop->description));
     }
+
+    class_property_iter_init(&iter, klass);
+    while ((cprop = class_property_iter_next(&iter))) {
+        if (!cprop->set) {
+            continue;
+        }
+        g_ptr_array_add(array,
+                        object_property_help(cprop->name, cprop->type,
+                                             NULL, cprop->description));
+    }
+
     g_ptr_array_sort(array, (GCompareFunc)qemu_pstrcmp0);
     if (array->len > 0) {
         qemu_printf("%s options:\n", type);

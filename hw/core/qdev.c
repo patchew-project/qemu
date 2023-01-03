@@ -40,6 +40,7 @@
 #include "hw/qdev-clock.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "qdev-prop-internal.h"
 
 static bool qdev_hot_added = false;
 bool qdev_hot_removed = false;
@@ -901,6 +902,7 @@ static const TypeInfo device_type_info = {
     .instance_finalize = device_finalize,
     .class_base_init = device_class_base_init,
     .class_init = device_class_init,
+    .class_late_init = device_class_late_init,
     .abstract = true,
     .class_size = sizeof(DeviceClass),
     .interfaces = (InterfaceInfo[]) {

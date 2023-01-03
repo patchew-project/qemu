@@ -34,6 +34,7 @@ ObjectPropertyInfoList *qmp_qom_list(const char *path, Error **errp)
     bool ambiguous = false;
     ObjectPropertyInfoList *props = NULL;
     ObjectProperty *prop;
+    ClassProperty *cprop;
     ObjectPropertyIterator iter;
 
     obj = object_resolve_path(path, &ambiguous);
@@ -55,6 +56,16 @@ ObjectPropertyInfoList *qmp_qom_list(const char *path, Error **errp)
 
         value->name = g_strdup(prop->name);
         value->type = g_strdup(prop->type);
+    }
+
+    class_property_iter_init(&iter, object_get_class(obj));
+    while ((cprop = class_property_iter_next(&iter))) {
+        ObjectPropertyInfo *value = g_new0(ObjectPropertyInfo, 1);
+
+        QAPI_LIST_PREPEND(props, value);
+
+        value->name = g_strdup(cprop->name);
+        value->type = g_strdup(cprop->type);
     }
 
     return props;
@@ -124,6 +135,7 @@ ObjectPropertyInfoList *qmp_device_list_properties(const char *typename,
     ObjectClass *klass;
     Object *obj;
     ObjectProperty *prop;
+    ClassProperty *cprop;
     ObjectPropertyIterator iter;
     ObjectPropertyInfoList *prop_list = NULL;
 
@@ -172,6 +184,18 @@ ObjectPropertyInfoList *qmp_device_list_properties(const char *typename,
         QAPI_LIST_PREPEND(prop_list, info);
     }
 
+    class_property_iter_init(&iter, klass);
+    while ((cprop = class_property_iter_next(&iter))) {
+        ObjectPropertyInfo *info;
+
+        info = g_new0(ObjectPropertyInfo, 1);
+        info->name = g_strdup(cprop->name);
+        info->type = g_strdup(cprop->type);
+        info->description = g_strdup(cprop->description);
+
+        QAPI_LIST_PREPEND(prop_list, info);
+    }
+
     object_unref(obj);
 
     return prop_list;
@@ -183,6 +207,7 @@ ObjectPropertyInfoList *qmp_qom_list_properties(const char *typename,
     ObjectClass *klass;
     Object *obj = NULL;
     ObjectProperty *prop;
+    ClassProperty *cprop;
     ObjectPropertyIterator iter;
     ObjectPropertyInfoList *prop_list = NULL;
 
@@ -212,6 +237,18 @@ ObjectPropertyInfoList *qmp_qom_list_properties(const char *typename,
         info->name = g_strdup(prop->name);
         info->type = g_strdup(prop->type);
         info->description = g_strdup(prop->description);
+
+        QAPI_LIST_PREPEND(prop_list, info);
+    }
+
+    class_property_iter_init(&iter, klass);
+    while ((cprop = class_property_iter_next(&iter))) {
+        ObjectPropertyInfo *info;
+
+        info = g_malloc0(sizeof(*info));
+        info->name = g_strdup(cprop->name);
+        info->type = g_strdup(cprop->type);
+        info->description = g_strdup(cprop->description);
 
         QAPI_LIST_PREPEND(prop_list, info);
     }

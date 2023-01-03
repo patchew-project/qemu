@@ -40,4 +40,32 @@ bool object_property_set_qobject(Object *obj,
                                  const char *name, struct QObject *value,
                                  struct Error **errp);
 
+/*
+ * class_property_get_qobject:
+ * @cls: the class object
+ * @name: the name of the property
+ * @errp: returns an error if this function fails
+ *
+ * Returns: the value of the property, converted to QObject, or NULL if
+ * an error occurs.
+ */
+struct QObject *class_property_get_qobject(ObjectClass *cls,
+                                           const char *name,
+                                           struct Error **errp);
+
+/**
+ * class_property_set_qobject:
+ * @cls: the class object
+ * @name: the name of the property
+ * @value: The value that will be written to the property.
+ * @errp: returns an error if this function fails
+ *
+ * Writes a property to a class object.
+ *
+ * Returns: %true on success, %false on failure.
+ */
+bool class_property_set_qobject(ObjectClass *cls,
+                                const char *name, struct QObject *value,
+                                struct Error **errp);
+
 #endif

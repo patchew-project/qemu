@@ -34,6 +34,7 @@
 #include "hw/qdev-properties.h"
 #include "trace/trace-root.h"
 #include "qemu/plugin.h"
+#include "qapi/string-input-visitor.h"
 
 CPUState *cpu_by_arch_id(int64_t id)
 {
@@ -158,31 +159,57 @@ ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model)
 static void cpu_common_parse_features(const char *typename, char *features,
                                       Error **errp)
 {
-    char *val;
     static bool cpu_globals_initialized;
-    /* Single "key=value" string being parsed */
-    char *featurestr = features ? strtok(features, ",") : NULL;
+    ObjectClass *klass;
+    char *f;
 
     /* should be called only once, catch invalid users */
     assert(!cpu_globals_initialized);
     cpu_globals_initialized = true;
 
-    while (featurestr) {
-        val = strchr(featurestr, '=');
-        if (val) {
-            GlobalProperty *prop = g_new0(typeof(*prop), 1);
-            *val = 0;
-            val++;
-            prop->driver = typename;
-            prop->property = g_strdup(featurestr);
-            prop->value = g_strdup(val);
-            qdev_prop_register_global(prop);
-        } else {
-            error_setg(errp, "Expected key=value format, found %s.",
-                       featurestr);
+    if (!features) {
+        return;
+    }
+
+    /*
+     * If typename is invalid, we'll register the global properties anyway
+     * and report a warning in qdev_prop_check_globals.
+     * TODO: Report an error early if -cpu typename is invalid; all classes
+     * will have been registered by now, whether or not the target is using
+     * class properties or object properties.
+     */
+    klass = object_class_by_name(typename);
+
+    /* Single "key=value" string being parsed */
+    for (f = strtok(features, ","); f != NULL; f = strtok(NULL, ",")) {
+        char *val = strchr(f, '=');
+        GlobalProperty *prop;
+
+        if (!val) {
+            error_setg(errp, "Expected key=value format, found %s.", f);
             return;
         }
-        featurestr = strtok(NULL, ",");
+        *val++ = 0;
+
+        if (klass) {
+            ClassProperty *cp = class_property_find(klass, f);
+            if (cp) {
+                Visitor *v = string_input_visitor_new(val);
+                bool ok = class_property_set(klass, cp, v, errp);
+
+                visit_free(v);
+                if (!ok) {
+                    return;
+                }
+                continue;
+            }
+        }
+
+        prop = g_new0(typeof(*prop), 1);
+        prop->driver = typename;
+        prop->property = g_strdup(f);
+        prop->value = g_strdup(val);
+        qdev_prop_register_global(prop);
     }
 }
 

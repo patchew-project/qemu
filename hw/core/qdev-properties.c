@@ -6,6 +6,7 @@
 #include "qemu/ctype.h"
 #include "qemu/error-report.h"
 #include "qapi/visitor.h"
+#include "qapi/string-input-visitor.h"
 #include "qemu/units.h"
 #include "qemu/cutils.h"
 #include "qdev-prop-internal.h"
@@ -819,6 +820,41 @@ void qdev_prop_set_globals(DeviceState *dev)
         object_apply_global_props(OBJECT(dev), props,
                                   dev->hotplugged ? NULL : &error_fatal);
     }
+}
+
+bool device_class_late_init(ObjectClass *class, Error **errp)
+{
+    GPtrArray *props = global_properties;
+    int i, len = props ? props->len : 0;
+
+    for (i = 0; i < len; i++) {
+        GlobalProperty *p = g_ptr_array_index(props, i);
+        ClassProperty *cp;
+        Visitor *v;
+        bool ok;
+
+        if (object_class_dynamic_cast(class, p->driver) == NULL) {
+            continue;
+        }
+
+        cp = class_property_find(class, p->property);
+        if (!cp) {
+            /* The property may be on the object. */
+            continue;
+        }
+        p->used = true;
+
+        v = string_input_visitor_new(p->value);
+        ok = class_property_set(class, cp, v, errp);
+        visit_free(v);
+
+        if (!ok) {
+            error_prepend(errp, "can't apply global %s.%s=%s: ",
+                          p->driver, p->property, p->value);
+            return false;
+        }
+    }
+    return true;
 }
 
 /* --- 64bit unsigned int 'size' type --- */

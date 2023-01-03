@@ -25,4 +25,6 @@ void qdev_propinfo_get_int32(Object *obj, Visitor *v, const char *name,
 void qdev_propinfo_get_size32(Object *obj, Visitor *v, const char *name,
                               void *opaque, Error **errp);
 
+bool device_class_late_init(ObjectClass *class, Error **errp);
+
 #endif

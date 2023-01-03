@@ -27,7 +27,24 @@ typedef struct InterfaceInfo InterfaceInfo;
 
 #define TYPE_OBJECT "object"
 
+typedef struct ClassProperty ClassProperty;
 typedef struct ObjectProperty ObjectProperty;
+
+/**
+ * typedef ClassPropertyAccessor:
+ * @klass: the class that owns the property
+ * @v: the visitor that contains the property data
+ * @name: the name of the property
+ * @opaque: the class property opaque
+ * @errp: a pointer to an Error that is filled if getting/setting fails.
+ *
+ * Called when trying to get/set a property.
+ */
+typedef bool (ClassPropertyAccessor)(ObjectClass *klass,
+                                     Visitor *v,
+                                     const char *name,
+                                     void *opaque,
+                                     Error **errp);
 
 /**
  * typedef ObjectPropertyAccessor:
@@ -85,6 +102,16 @@ typedef void (ObjectPropertyRelease)(Object *obj,
  */
 typedef void (ObjectPropertyInit)(Object *obj, ObjectProperty *prop);
 
+struct ClassProperty
+{
+    char *name;
+    char *type;
+    char *description;
+    ClassPropertyAccessor *get;
+    ClassPropertyAccessor *set;
+    void *opaque;
+};
+
 struct ObjectProperty
 {
     char *name;
@@ -135,6 +162,7 @@ struct ObjectClass
 
     ObjectUnparent *unparent;
 
+    GHashTable *class_properties;
     GHashTable *properties;
 };
 
@@ -1072,12 +1100,44 @@ ObjectProperty *object_property_add(Object *obj, const char *name,
 
 void object_property_del(Object *obj, const char *name);
 
+/**
+ * object_class_property_add:
+ *
+ * Add a property to the class, as if added to each object instance.
+ */
 ObjectProperty *object_class_property_add(ObjectClass *klass, const char *name,
                                           const char *type,
                                           ObjectPropertyAccessor *get,
                                           ObjectPropertyAccessor *set,
                                           ObjectPropertyRelease *release,
                                           void *opaque);
+
+/**
+ * class_property_add:
+ *
+ * Add a property to the class, affecting the class as a whole
+ * rather than each instance.  All such properties are resolved
+ * before the first object instance is created.
+ */
+void class_property_add(ObjectClass *klass, const char *name,
+                        const char *type, const char *desc,
+                        ClassPropertyAccessor *get,
+                        ClassPropertyAccessor *set,
+                        void *opaque);
+
+ClassProperty *class_property_find(ObjectClass *klass, const char *name);
+
+bool class_property_set(ObjectClass *klass, ClassProperty *cp,
+                        Visitor *v, Error **errp);
+bool class_property_set_bool(ObjectClass *klass, const char *name,
+                             bool value, Error **errp);
+bool class_property_set_uint(ObjectClass *klass, const char *name,
+                             uint64_t value, Error **errp);
+
+bool class_property_get(ObjectClass *klass, ClassProperty *cp,
+                        Visitor *v, Error **errp);
+bool class_property_get_bool(ObjectClass *klass, const char *name,
+                             Error **errp);
 
 /**
  * object_property_set_default_bool:
@@ -1228,6 +1288,9 @@ void object_class_property_iter_init(ObjectPropertyIterator *iter,
  * have been traversed.
  */
 ObjectProperty *object_property_iter_next(ObjectPropertyIterator *iter);
+
+void class_property_iter_init(ObjectPropertyIterator *iter, ObjectClass *klass);
+ClassProperty *class_property_iter_next(ObjectPropertyIterator *iter);
 
 void object_unparent(Object *obj);
 
