@@ -381,16 +381,33 @@ struct ARMCPRegInfo {
 #define CPREG_FIELD64(env, ri) \
     (*(uint64_t *)((char *)(env) + (ri)->fieldoffset))
 
-void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu, const ARMCPRegInfo *reg,
-                                       void *opaque);
+void define_one_arm_cp_reg_with_table(GHashTable *cp_regs, uint64_t features,
+                                      const ARMCPRegInfo *reg, void *opaque);
+
+void define_arm_cp_regs_with_table(GHashTable *cp_regs, uint64_t features,
+                                   const ARMCPRegInfo *regs,
+                                   void *opaque, size_t len);
+
+static inline void
+define_one_arm_cp_reg_with_opaque(ARMCPU *cpu, const ARMCPRegInfo *reg,
+                                  void *opaque)
+{
+    define_one_arm_cp_reg_with_table(cpu->cp_regs, cpu->env.features,
+                                     reg, opaque);
+}
 
 static inline void define_one_arm_cp_reg(ARMCPU *cpu, const ARMCPRegInfo *regs)
 {
     define_one_arm_cp_reg_with_opaque(cpu, regs, NULL);
 }
 
-void define_arm_cp_regs_with_opaque_len(ARMCPU *cpu, const ARMCPRegInfo *regs,
-                                        void *opaque, size_t len);
+static inline void
+define_arm_cp_regs_with_opaque_len(ARMCPU *cpu, const ARMCPRegInfo *regs,
+                                   void *opaque, size_t len)
+{
+    define_arm_cp_regs_with_table(cpu->cp_regs, cpu->env.features,
+                                  regs, opaque, len);
+}
 
 #define define_arm_cp_regs_with_opaque(CPU, REGS, OPAQUE)               \
     do {                                                                \
@@ -401,6 +418,14 @@ void define_arm_cp_regs_with_opaque_len(ARMCPU *cpu, const ARMCPRegInfo *regs,
 
 #define define_arm_cp_regs(CPU, REGS) \
     define_arm_cp_regs_with_opaque(CPU, REGS, NULL)
+
+#define define_arm_cp_regs_with_class(ACC, REGS, OPAQUE)                \
+    do {                                                                \
+        QEMU_BUILD_BUG_ON(ARRAY_SIZE(REGS) == 0);                       \
+        ARMCPUClass *acc_ = (ACC);                                      \
+        define_arm_cp_regs_with_table(acc_->cp_regs, acc_->features,    \
+                                      REGS, OPAQUE, ARRAY_SIZE(REGS));  \
+    } while (0)
 
 const ARMCPRegInfo *get_arm_cp_reginfo(GHashTable *cpregs, uint32_t encoded_cp);
 

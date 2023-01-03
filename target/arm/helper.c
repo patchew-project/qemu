@@ -8527,13 +8527,13 @@ CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
  * Private utility function for define_one_arm_cp_reg_with_opaque():
  * add a single reginfo struct to the hash table.
  */
-static void add_cpreg_to_hashtable(ARMCPU *cpu, const ARMCPRegInfo *r,
+static void add_cpreg_to_hashtable(GHashTable *cp_regs, uint64_t features,
+                                   const ARMCPRegInfo *r,
                                    void *opaque, CPState state,
                                    CPSecureState secstate,
                                    int crm, int opc1, int opc2,
                                    const char *name)
 {
-    CPUARMState *env = &cpu->env;
     uint32_t key;
     ARMCPRegInfo *r2;
     bool is64 = r->type & ARM_CP_64BIT;
@@ -8541,6 +8541,7 @@ static void add_cpreg_to_hashtable(ARMCPU *cpu, const ARMCPRegInfo *r,
     int cp = r->cp;
     size_t name_len;
     bool make_const;
+    bool have_el2;
 
     switch (state) {
     case ARM_CP_STATE_AA32:
@@ -8569,7 +8570,7 @@ static void add_cpreg_to_hashtable(ARMCPU *cpu, const ARMCPRegInfo *r,
 
     /* Overriding of an existing definition must be explicitly requested. */
     if (!(r->type & ARM_CP_OVERRIDE)) {
-        const ARMCPRegInfo *oldreg = get_arm_cp_reginfo(cpu->cp_regs, key);
+        const ARMCPRegInfo *oldreg = get_arm_cp_reginfo(cp_regs, key);
         if (oldreg) {
             assert(oldreg->type & ARM_CP_OVERRIDE);
         }
@@ -8581,21 +8582,21 @@ static void add_cpreg_to_hashtable(ARMCPU *cpu, const ARMCPRegInfo *r,
      * feature into the same ARMCPRegInfo array and define them all at once.
      */
     make_const = false;
-    if (arm_feature(env, ARM_FEATURE_EL3)) {
+    have_el2 = features & (1ull << ARM_FEATURE_EL2);
+    if (features & (1ull << ARM_FEATURE_EL3)) {
         /*
          * An EL2 register without EL2 but with EL3 is (usually) RES0.
          * See rule RJFFP in section D1.1.3 of DDI0487H.a.
          */
         int min_el = ctz32(r->access) / 2;
-        if (min_el == 2 && !arm_feature(env, ARM_FEATURE_EL2)) {
+        if (min_el == 2 && !have_el2) {
             if (r->type & ARM_CP_EL3_NO_EL2_UNDEF) {
                 return;
             }
             make_const = !(r->type & ARM_CP_EL3_NO_EL2_KEEP);
         }
     } else {
-        CPAccessRights max_el = (arm_feature(env, ARM_FEATURE_EL2)
-                                 ? PL2_RW : PL1_RW);
+        CPAccessRights max_el = have_el2 ? PL2_RW : PL1_RW;
         if ((r->access & max_el) == 0) {
             return;
         }
@@ -8677,7 +8678,7 @@ static void add_cpreg_to_hashtable(ARMCPU *cpu, const ARMCPRegInfo *r,
                  *    that separate 32 and 64-bit definitions are provided.
                  */
                 if ((r->state == ARM_CP_STATE_BOTH && ns) ||
-                    (arm_feature(env, ARM_FEATURE_V8) && !ns)) {
+                    ((features & (1ull << ARM_FEATURE_V8)) && !ns)) {
                     r2->type |= ARM_CP_ALIAS;
                 }
             } else if ((secstate != r->secure) && !ns) {
@@ -8720,12 +8721,11 @@ static void add_cpreg_to_hashtable(ARMCPU *cpu, const ARMCPRegInfo *r,
         assert(!raw_accessors_invalid(r2));
     }
 
-    g_hash_table_insert(cpu->cp_regs, (gpointer)(uintptr_t)key, r2);
+    g_hash_table_insert(cp_regs, (gpointer)(uintptr_t)key, r2);
 }
 
-
-void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
-                                       const ARMCPRegInfo *r, void *opaque)
+void define_one_arm_cp_reg_with_table(GHashTable *cp_regs, uint64_t features,
+                                      const ARMCPRegInfo *r, void *opaque)
 {
     /* Define implementations of coprocessor registers.
      * We store these in a hashtable because typically
@@ -8781,8 +8781,8 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
         }
         /* fall through */
     case ARM_CP_STATE_AA32:
-        if (arm_feature(&cpu->env, ARM_FEATURE_V8) &&
-            !arm_feature(&cpu->env, ARM_FEATURE_M)) {
+        if ((features & (1ull << ARM_FEATURE_V8)) &&
+            !(features & (1ull << ARM_FEATURE_M))) {
             assert(r->cp >= 14 && r->cp <= 15);
         } else {
             assert(r->cp < 8 || (r->cp >= 14 && r->cp <= 15));
@@ -8869,17 +8869,20 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
                         switch (r->secure) {
                         case ARM_CP_SECSTATE_S:
                         case ARM_CP_SECSTATE_NS:
-                            add_cpreg_to_hashtable(cpu, r, opaque, state,
+                            add_cpreg_to_hashtable(cp_regs, features, r,
+                                                   opaque, state,
                                                    r->secure, crm, opc1, opc2,
                                                    r->name);
                             break;
                         case ARM_CP_SECSTATE_BOTH:
                             name = g_strdup_printf("%s_S", r->name);
-                            add_cpreg_to_hashtable(cpu, r, opaque, state,
+                            add_cpreg_to_hashtable(cp_regs, features, r,
+                                                   opaque, state,
                                                    ARM_CP_SECSTATE_S,
                                                    crm, opc1, opc2, name);
                             g_free(name);
-                            add_cpreg_to_hashtable(cpu, r, opaque, state,
+                            add_cpreg_to_hashtable(cp_regs, features, r,
+                                                   opaque, state,
                                                    ARM_CP_SECSTATE_NS,
                                                    crm, opc1, opc2, r->name);
                             break;
@@ -8889,7 +8892,8 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
                     } else {
                         /* AArch64 registers get mapped to non-secure instance
                          * of AArch32 */
-                        add_cpreg_to_hashtable(cpu, r, opaque, state,
+                        add_cpreg_to_hashtable(cp_regs, features, r,
+                                               opaque, state,
                                                ARM_CP_SECSTATE_NS,
                                                crm, opc1, opc2, r->name);
                     }
@@ -8900,12 +8904,13 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
 }
 
 /* Define a whole list of registers */
-void define_arm_cp_regs_with_opaque_len(ARMCPU *cpu, const ARMCPRegInfo *regs,
-                                        void *opaque, size_t len)
+void define_arm_cp_regs_with_table(GHashTable *cp_regs, uint64_t features,
+                                   const ARMCPRegInfo *regs,
+                                   void *opaque, size_t len)
 {
     size_t i;
     for (i = 0; i < len; ++i) {
-        define_one_arm_cp_reg_with_opaque(cpu, regs + i, opaque);
+        define_one_arm_cp_reg_with_table(cp_regs, features, regs + i, opaque);
     }
 }
 
