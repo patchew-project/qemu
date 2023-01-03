@@ -31,8 +31,12 @@ static char *socat = NULL;
 
 static void test_io_channel_command_fifo(bool async)
 {
+#ifdef WIN32
+    const gchar *fifo = TEST_FIFO;
+#else
     g_autofree gchar *tmpdir = g_dir_make_tmp("qemu-test-io-channel.XXXXXX", NULL);
     g_autofree gchar *fifo = g_build_filename(tmpdir, TEST_FIFO, NULL);
+#endif
     g_autofree gchar *srcargs = g_strdup_printf("%s - PIPE:%s,wronly", socat, fifo);
     g_autofree gchar *dstargs = g_strdup_printf("%s PIPE:%s,rdonly -", socat, fifo);
     g_auto(GStrv) srcargv = g_strsplit(srcargs, " ", -1);
@@ -57,7 +61,9 @@ static void test_io_channel_command_fifo(bool async)
     object_unref(OBJECT(src));
     object_unref(OBJECT(dst));
 
+#ifndef WIN32
     g_rmdir(tmpdir);
+#endif
 }
 
 
