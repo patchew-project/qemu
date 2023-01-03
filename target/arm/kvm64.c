@@ -914,11 +914,11 @@ int kvm_arch_init_vcpu(CPUState *cs)
      * Currently KVM has its own idea about MPIDR assignment, so we
      * override our defaults with what we get from KVM.
      */
-    ret = kvm_get_one_reg(cs, ARM64_SYS_REG(ARM_CPU_ID_MPIDR), &mpidr);
+    ret = kvm_get_one_reg(cs, ARM64_SYS_REG(ARM_CPU_ID_MPIDR),
+                          &cpu->mpidr_el1);
     if (ret) {
         return ret;
     }
-    cpu->mp_affinity = mpidr & ARM64_AFFINITY_MASK;
 
     kvm_arm_init_debug(cs);
 

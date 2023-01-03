@@ -4087,24 +4087,6 @@ static uint64_t midr_read(CPUARMState *env, const ARMCPRegInfo *ri)
     return raw_read(env, ri);
 }
 
-static uint64_t mpidr_read_val(CPUARMState *env)
-{
-    ARMCPU *cpu = env_archcpu(env);
-    uint64_t mpidr = cpu->mp_affinity;
-
-    if (arm_feature(env, ARM_FEATURE_V7MP)) {
-        mpidr |= (1U << 31);
-        /* Cores which are uniprocessor (non-coherent)
-         * but still implement the MP extensions set
-         * bit 30. (For instance, Cortex-R5).
-         */
-        if (cpu->mp_is_up) {
-            mpidr |= (1u << 30);
-        }
-    }
-    return mpidr;
-}
-
 static uint64_t mpidr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     unsigned int cur_el = arm_current_el(env);
@@ -4112,7 +4094,7 @@ static uint64_t mpidr_read(CPUARMState *env, const ARMCPRegInfo *ri)
     if (arm_is_el2_enabled(env) && cur_el == 1) {
         return env->cp15.vmpidr_el2;
     }
-    return mpidr_read_val(env);
+    return env_archcpu(env)->mpidr_el1;
 }
 
 static const ARMCPRegInfo lpae_cp_reginfo[] = {
@@ -7940,7 +7922,6 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     if (arm_feature(env, ARM_FEATURE_EL2)
         || (arm_feature(env, ARM_FEATURE_EL3)
             && arm_feature(env, ARM_FEATURE_V8))) {
-        uint64_t vmpidr_def = mpidr_read_val(env);
         ARMCPRegInfo vpidr_regs[] = {
             { .name = "VPIDR", .state = ARM_CP_STATE_AA32,
               .cp = 15, .opc1 = 4, .crn = 0, .crm = 0, .opc2 = 0,
@@ -7956,12 +7937,12 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             { .name = "VMPIDR", .state = ARM_CP_STATE_AA32,
               .cp = 15, .opc1 = 4, .crn = 0, .crm = 0, .opc2 = 5,
               .access = PL2_RW, .accessfn = access_el3_aa32ns,
-              .resetvalue = vmpidr_def,
+              .resetvalue = cpu->mpidr_el1,
               .type = ARM_CP_ALIAS | ARM_CP_EL3_NO_EL2_C_NZ,
               .fieldoffset = offsetoflow32(CPUARMState, cp15.vmpidr_el2) },
             { .name = "VMPIDR_EL2", .state = ARM_CP_STATE_AA64,
               .opc0 = 3, .opc1 = 4, .crn = 0, .crm = 0, .opc2 = 5,
-              .access = PL2_RW, .resetvalue = vmpidr_def,
+              .access = PL2_RW, .resetvalue = cpu->mpidr_el1,
               .type = ARM_CP_EL3_NO_EL2_C_NZ,
               .fieldoffset = offsetof(CPUARMState, cp15.vmpidr_el2) },
         };

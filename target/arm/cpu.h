@@ -935,9 +935,6 @@ struct ArchCPU {
     /* KVM steal time */
     OnOffAuto kvm_steal_time;
 
-    /* Uniprocessor system with MP extensions */
-    bool mp_is_up;
-
     /* True if we tried kvm_arm_host_cpu_features() during CPU instance_init
      * and the probe failed (so we need to report the error in realize)
      */
@@ -977,7 +974,7 @@ struct ArchCPU {
     uint64_t id_aa64afr0;
     uint64_t id_aa64afr1;
     uint64_t clidr;
-    uint64_t mp_affinity; /* MP ID without feature bits */
+    uint64_t mpidr_el1;
     /* The elements of this array are the CCSIDR values for each cache,
      * in the order L1DCache, L1ICache, L2DCache, L2ICache, etc.
      */
@@ -1041,7 +1038,7 @@ uint64_t arm_build_mp_affinity(int idx, uint8_t clustersz);
 
 static inline uint64_t arm_cpu_mp_affinity(ARMCPU *cpu)
 {
-    return cpu->mp_affinity;
+    return cpu->mpidr_el1 & ARM64_AFFINITY_MASK;
 }
 
 #ifndef CONFIG_USER_ONLY

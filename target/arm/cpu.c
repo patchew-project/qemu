@@ -1231,6 +1231,9 @@ static void arm_cpu_initfn(Object *obj)
     cpu->sme_default_vq = 2;
 # endif
 #else
+    /* To be set properly by either the board or by realize. */
+    cpu->mpidr_el1 = ARM64_AFFINITY_INVALID;
+
     /* Our inbound IRQ and FIQ lines */
     if (kvm_enabled()) {
         /* VIRQ and VFIQ are unused with KVM but we add them to maintain
@@ -1921,16 +1924,6 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    /* This cpu-id-to-MPIDR affinity is used only for TCG; KVM will override it.
-     * We don't support setting cluster ID ([16..23]) (known as Aff2
-     * in later ARM ARM versions), or any of the higher affinity level fields,
-     * so these bits always RAZ.
-     */
-    if (cpu->mp_affinity == ARM64_AFFINITY_INVALID) {
-        cpu->mp_affinity = arm_build_mp_affinity(cs->cpu_index,
-                                                 ARM_DEFAULT_CPUS_PER_CLUSTER);
-    }
-
     if (cpu->reset_hivecs) {
             cpu->reset_sctlr |= (1 << 13);
     }
@@ -2116,7 +2109,27 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     if (cpu->core_count == -1) {
         cpu->core_count = smp_cpus;
     }
-#endif
+
+    /*
+     * Provide a default cpu-id-to-MPIDR affinity; we don't support setting
+     * Aff2 or Aff3.  This has already set by KVM and by some board models,
+     * which will have cleared our internal invalid bit.
+     */
+    if (cpu->mpidr_el1 == ARM64_AFFINITY_INVALID) {
+        assert(!kvm_enabled());
+        assert(cs->cpu_index < 256 * ARM_DEFAULT_CPUS_PER_CLUSTER);
+        cpu->mpidr_el1 = arm_build_mp_affinity(cs->cpu_index,
+                                               ARM_DEFAULT_CPUS_PER_CLUSTER);
+    }
+#endif /* !CONFIG_USER_ONLY */
+
+    /* Linux exposes M to userland, so still need to set it for user-only. */
+    if (arm_feature(env, ARM_FEATURE_V7MP)) {
+        cpu->mpidr_el1 |= (1u << 31);   /* M */
+        if (cpu->core_count == 1) {
+            cpu->mpidr_el1 |= 1 << 30;  /* U */
+        }
+    }
 
     if (tcg_enabled()) {
         int dcz_blocklen = 4 << cpu->dcz_blocksize;
@@ -2176,10 +2189,47 @@ static ObjectClass *arm_cpu_class_by_name(const char *cpu_model)
     return oc;
 }
 
+static void cpu_arm_set_mp_affinity(Object *obj, Visitor *v, const char *name,
+                                    void *opaque, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    CPUARMState *env = &cpu->env;
+    uint64_t value;
+
+    if (!visit_type_uint64(v, name, &value, errp)) {
+        return;
+    }
+
+    if (arm_feature(env, ARM_FEATURE_AARCH64)) {
+        value &= ARM64_AFFINITY_MASK;
+    } else {
+        value &= ARM32_AFFINITY_MASK;
+    }
+    if (cpu->mpidr_el1 == ARM64_AFFINITY_INVALID) {
+        cpu->mpidr_el1 = value;
+    } else {
+        cpu->mpidr_el1 &= ~ARM64_AFFINITY_MASK;
+        cpu->mpidr_el1 |= value;
+    }
+}
+
+static void cpu_arm_get_mp_affinity(Object *obj, Visitor *v, const char *name,
+                                    void *opaque, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    uint64_t value;
+
+    /*
+     * Note that the arm64 mask is a superset of the arm32 mask,
+     * and we will have limited the value upon setting.
+     * Here we simply want to return the Aff[0-3] fields.
+     */
+    value = cpu->mpidr_el1 & ARM64_AFFINITY_MASK;
+    visit_type_uint64(v, name, &value, errp);
+}
+
 static Property arm_cpu_properties[] = {
     DEFINE_PROP_UINT64("midr", ARMCPU, midr, 0),
-    DEFINE_PROP_UINT64("mp-affinity", ARMCPU,
-                        mp_affinity, ARM64_AFFINITY_INVALID),
     DEFINE_PROP_INT32("node-id", ARMCPU, node_id, CPU_UNSET_NUMA_NODE_ID),
     DEFINE_PROP_INT32("core-count", ARMCPU, core_count, -1),
     DEFINE_PROP_END_OF_LIST()
@@ -2243,6 +2293,10 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
                                     &acc->parent_realize);
 
     device_class_set_props(dc, arm_cpu_properties);
+
+    object_class_property_add(oc, "mp-affinity", "uint64",
+                              cpu_arm_get_mp_affinity,
+                              cpu_arm_set_mp_affinity, NULL, NULL);
 
     resettable_class_set_parent_phases(rc, NULL, arm_cpu_reset_hold, NULL,
                                        &acc->parent_phases);

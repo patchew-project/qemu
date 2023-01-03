@@ -848,7 +848,6 @@ static void cortex_r5_initfn(Object *obj)
     cpu->isar.id_isar4 = 0x0010142;
     cpu->isar.id_isar5 = 0x0;
     cpu->isar.id_isar6 = 0x0;
-    cpu->mp_is_up = true;
     cpu->pmsav7_dregion = 16;
     cpu->isar.reset_pmcr_el0 = 0x41151800;
     define_arm_cp_regs(cpu, cortexr5_cp_reginfo);
