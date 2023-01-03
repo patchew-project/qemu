@@ -89,7 +89,7 @@ QEMU_BUILD_BUG_ON(ARM_MAX_VQ > 16);
  * will attempt to set them. If there are dependencies between features,
  * then the order that considers those dependencies must be used.
  */
-static const char *cpu_model_advertised_features[] = {
+static const char * const cpu_model_advertised_features[] = {
     "aarch64", "pmu", "sve",
     "sve128", "sve256", "sve384", "sve512",
     "sve640", "sve768", "sve896", "sve1024", "sve1152", "sve1280",
@@ -159,7 +159,7 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
         }
     }
 
-    obj = object_new(object_class_get_name(oc));
+    obj = object_new_with_class(oc);
 
     if (qdict_in) {
         Visitor *visitor;
@@ -175,7 +175,10 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
         i = 0;
         while ((name = cpu_model_advertised_features[i++]) != NULL) {
             if (qdict_get(qdict_in, name)) {
-                if (!object_property_set(obj, name, visitor, &err)) {
+                ClassProperty *cp = class_property_find(oc, name);
+                if (cp
+                    ? !class_property_set(oc, cp, visitor, &err)
+                    : !object_property_set(obj, name, visitor, &err)) {
                     break;
                 }
             }
@@ -207,12 +210,20 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     i = 0;
     while ((name = cpu_model_advertised_features[i++]) != NULL) {
         ObjectProperty *prop = object_property_find(obj, name);
-        if (prop) {
-            QObject *value;
+        QObject *value = NULL;
 
+        if (prop) {
             assert(prop->get);
             value = object_property_get_qobject(obj, name, &error_abort);
+        } else {
+            ClassProperty *cprop = class_property_find(oc, name);
 
+            if (cprop) {
+                assert(cprop->get);
+                value = class_property_get_qobject(oc, name, &error_abort);
+            }
+        }
+        if (value) {
             qdict_put_obj(qdict_out, name, value);
         }
     }
