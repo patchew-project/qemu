@@ -111,6 +111,9 @@ struct ARMCPUClass {
     DeviceRealize parent_realize;
     ResettablePhases parent_phases;
 
+    /* Coprocessor information */
+    GHashTable *cp_regs;
+
     /* 'compatible' string for this CPU for Linux device trees */
     const char *dtb_compatible;
 

@@ -1178,14 +1178,29 @@ uint64_t arm_build_mp_affinity(int idx, uint8_t clustersz)
     return (Aff1 << ARM_AFF1_SHIFT) | Aff0;
 }
 
+static void copy_cp_regs_1(gpointer key, gpointer value, gpointer user)
+{
+    GHashTable *new_table = user;
+    ARMCPRegInfo *new_reg = g_memdup(value, sizeof(ARMCPRegInfo));
+    bool ok = g_hash_table_insert(new_table, key, new_reg);
+    g_assert(ok);
+}
+
+static GHashTable *copy_cp_regs(GHashTable *cp_regs)
+{
+    GHashTable *ret = g_hash_table_new_full(g_direct_hash, g_direct_equal,
+                                            NULL, g_free);
+
+    g_hash_table_foreach(cp_regs, copy_cp_regs_1, ret);
+    return ret;
+}
+
 static void arm_cpu_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
     ARMCPUClass *acc = ARM_CPU_GET_CLASS(cpu);
 
     cpu_set_cpustate_pointers(cpu);
-    cpu->cp_regs = g_hash_table_new_full(g_direct_hash, g_direct_equal,
-                                         NULL, g_free);
 
     QLIST_INIT(&cpu->pre_el_change_hooks);
     QLIST_INIT(&cpu->el_change_hooks);
@@ -1218,6 +1233,8 @@ static void arm_cpu_initfn(Object *obj)
     cpu->gic_vprebits = acc->gic_vprebits;
     cpu->gic_pribits = acc->gic_pribits;
     cpu->kvm_target = acc->kvm_target;
+
+    cpu->cp_regs = copy_cp_regs(acc->cp_regs);
 
 #ifdef CONFIG_USER_ONLY
 # ifdef TARGET_AARCH64
@@ -2337,6 +2354,8 @@ static void arm_cpu_leaf_class_init(ObjectClass *oc, void *data)
     const ARMCPUInfo *info = data;
 
     acc->info = info;
+    acc->cp_regs = g_hash_table_new_full(g_direct_hash, g_direct_equal,
+                                         NULL, g_free);
     if (info->class_init) {
         info->class_init(acc);
     }
