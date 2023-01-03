@@ -1191,6 +1191,7 @@ static void arm_cpu_initfn(Object *obj)
     QLIST_INIT(&cpu->el_change_hooks);
 
     cpu->dtb_compatible = acc->dtb_compatible;
+    cpu->env.features = acc->features;
 
 #ifdef CONFIG_USER_ONLY
 # ifdef TARGET_AARCH64

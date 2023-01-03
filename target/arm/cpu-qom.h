@@ -74,7 +74,25 @@ struct ARMCPUClass {
 
     /* 'compatible' string for this CPU for Linux device trees */
     const char *dtb_compatible;
+
+    /* Internal CPU feature flags.  */
+    uint64_t features;
 };
+
+static inline int arm_class_feature(ARMCPUClass *acc, int feature)
+{
+    return (acc->features & (1ULL << feature)) != 0;
+}
+
+static inline void set_class_feature(ARMCPUClass *acc, int feature)
+{
+    acc->features |= 1ULL << feature;
+}
+
+static inline void unset_class_feature(ARMCPUClass *acc, int feature)
+{
+    acc->features &= ~(1ULL << feature);
+}
 
 void register_cp_regs_for_features(ARMCPU *cpu);
 void init_cpreg_list(ARMCPU *cpu);
