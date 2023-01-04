@@ -33,6 +33,35 @@ static void ram_block_removed(RAMBlockNotifier *n, void *host, size_t size,
     blk_unregister_buf(r->blk, host, max_size);
 }
 
+static void remove_ram_block_notifier(BlockRAMRegistrar *r)
+{
+    if (r->ok) {
+        ram_block_notifier_remove(&r->notifier);
+    }
+}
+
+static void add_ram_block_notifier(BlockRAMRegistrar *r)
+{
+    r->ok = true; /* reset flag in case it was false */
+    ram_block_notifier_add(&r->notifier);
+}
+
+static void graph_change_pre_detach(BlockBackend *blk, void *opaque)
+{
+    BlockRAMRegistrar *r = opaque;
+
+    /* Unregisters all buffers from all BDSes */
+    remove_ram_block_notifier(r);
+}
+
+static void graph_change_post_attach(BlockBackend *blk, void *opaque)
+{
+    BlockRAMRegistrar *r = opaque;
+
+    /* Re-registers all buffers with all BDSes */
+    add_ram_block_notifier(r);
+}
+
 void blk_ram_registrar_init(BlockRAMRegistrar *r, BlockBackend *blk)
 {
     r->blk = blk;
@@ -45,14 +74,15 @@ void blk_ram_registrar_init(BlockRAMRegistrar *r, BlockBackend *blk)
          * value that does not change across resize.
          */
     };
-    r->ok = true;
 
-    ram_block_notifier_add(&r->notifier);
+    blk_add_graph_change_notifier(blk, graph_change_pre_detach,
+                                  graph_change_post_attach, r);
+    add_ram_block_notifier(r);
 }
 
 void blk_ram_registrar_destroy(BlockRAMRegistrar *r)
 {
-    if (r->ok) {
-        ram_block_notifier_remove(&r->notifier);
-    }
+    remove_ram_block_notifier(r);
+    blk_remove_graph_change_notifier(r->blk, graph_change_pre_detach,
+                                     graph_change_post_attach, r);
 }
