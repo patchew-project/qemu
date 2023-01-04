@@ -1815,6 +1815,29 @@ void blk_drain(BlockBackend *blk)
     }
 }
 
+/*
+ * Same as blk_drain() but the caller must hold a reference to blk. May be
+ * called from Global State or I/O API code. Device emulation can call this
+ * because the qdev drive= property holds the reference.
+ */
+void blk_drain_noref(BlockBackend *blk)
+{
+    BlockDriverState *bs = blk_bs(blk);
+    IO_OR_GS_CODE();
+
+    if (bs) {
+        bdrv_drained_begin(bs);
+    }
+
+    /* We may have -ENOMEDIUM completions in flight */
+    AIO_WAIT_WHILE(blk_get_aio_context(blk),
+                   qatomic_mb_read(&blk->in_flight) > 0);
+
+    if (bs) {
+        bdrv_drained_end(bs);
+    }
+}
+
 void blk_drain_all(void)
 {
     BlockBackend *blk = NULL;
