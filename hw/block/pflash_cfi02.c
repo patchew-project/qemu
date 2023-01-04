@@ -63,6 +63,8 @@ enum {
     WCYCLE_AUTOSELECT_CFI   = 8,
 };
 
+OBJECT_DECLARE_SIMPLE_TYPE(PFlashCFI02, PFLASH_CFI02)
+
 struct PFlashCFI02 {
     /*< private >*/
     SysBusDevice parent_obj;

@@ -30,7 +30,6 @@ void pflash_cfi01_legacy_drive(DeviceState *dev, DriveInfo *dinfo);
 /* pflash_cfi02.c */
 
 #define TYPE_PFLASH_CFI02 "cfi.pflash02"
-OBJECT_DECLARE_SIMPLE_TYPE(PFlashCFI02, PFLASH_CFI02)
 
 /**
  * Create and realize a parallel NOR flash (CFI type 2) on the heap.
