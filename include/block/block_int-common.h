@@ -900,6 +900,14 @@ struct BdrvChildClass {
     void GRAPH_WRLOCK_PTR (*detach)(BdrvChild *child);
 
     /*
+     * Notifies the parent that an immediate child or deeper descendant is
+     * about to be detached or has been attached. Use this to monitor graph
+     * changes. to_detach->bs and attached->bs can be NULL.
+     */
+    void (*pre_detach)(BdrvChild *child, BdrvChild *to_detach);
+    void (*post_attach)(BdrvChild *child, BdrvChild *attached);
+
+    /*
      * Notifies the parent that the filename of its child has changed (e.g.
      * because the direct child was removed from the backing chain), so that it
      * can update its reference.

@@ -1402,6 +1402,30 @@ static void bdrv_inherited_options(BdrvChildRole role, bool parent_is_format,
     *child_flags = flags;
 }
 
+static void bdrv_child_cb_pre_detach(BdrvChild *child, BdrvChild *to_detach)
+{
+    BlockDriverState *parent_bs = child->opaque;
+    BdrvChild *grandparent;
+
+    QLIST_FOREACH(grandparent, &parent_bs->parents, next_parent) {
+        if (grandparent->klass->pre_detach) {
+            grandparent->klass->pre_detach(grandparent, to_detach);
+        }
+    }
+}
+
+static void bdrv_child_cb_post_attach(BdrvChild *child, BdrvChild *attached)
+{
+    BlockDriverState *parent_bs = child->opaque;
+    BdrvChild *grandparent;
+
+    QLIST_FOREACH(grandparent, &parent_bs->parents, next_parent) {
+        if (grandparent->klass->post_attach) {
+            grandparent->klass->post_attach(grandparent, attached);
+        }
+    }
+}
+
 static void GRAPH_WRLOCK bdrv_child_cb_attach(BdrvChild *child)
 {
     BlockDriverState *bs = child->opaque;
@@ -1488,6 +1512,8 @@ const BdrvChildClass child_of_bds = {
     .drained_end     = bdrv_child_cb_drained_end,
     .attach          = bdrv_child_cb_attach,
     .detach          = bdrv_child_cb_detach,
+    .pre_detach      = bdrv_child_cb_pre_detach,
+    .post_attach     = bdrv_child_cb_post_attach,
     .inactivate      = bdrv_child_cb_inactivate,
     .change_aio_ctx  = bdrv_child_cb_change_aio_ctx,
     .update_filename = bdrv_child_cb_update_filename,
@@ -2873,6 +2899,10 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
         assert(bdrv_get_aio_context(old_bs) == bdrv_get_aio_context(new_bs));
     }
 
+    if (child->klass->pre_detach) {
+        child->klass->pre_detach(child, child);
+    }
+
     /* TODO Pull this up into the callers to avoid polling here */
     bdrv_graph_wrlock();
     if (old_bs) {
@@ -2891,6 +2921,10 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
         }
     }
     bdrv_graph_wrunlock();
+
+    if (child->klass->post_attach) {
+        child->klass->post_attach(child, child);
+    }
 
     /*
      * If the parent was drained through this BdrvChild previously, but new_bs
