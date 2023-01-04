@@ -1227,7 +1227,7 @@ static bool virt_firmware_init(VirtMachineState *vms,
 
     /* Map legacy -drive if=pflash to machine properties */
     for (i = 0; i < ARRAY_SIZE(vms->flash); i++) {
-        pflash_cfi01_legacy_drive(vms->flash[i],
+        pflash_cfi01_legacy_drive(DEVICE(vms->flash[i]),
                                   drive_get(IF_PFLASH, 0, i));
     }
 

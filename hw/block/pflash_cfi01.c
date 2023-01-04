@@ -1002,7 +1002,7 @@ MemoryRegion *pflash_cfi01_get_memory(PFlashCFI01 *fl)
  * Else if @fl's property "drive" is already set, fatal error.
  * Else set it to the BlockBackend with @dinfo.
  */
-void pflash_cfi01_legacy_drive(PFlashCFI01 *fl, DriveInfo *dinfo)
+void pflash_cfi01_legacy_drive(DeviceState *dev, DriveInfo *dinfo)
 {
     Location loc;
 
@@ -1012,11 +1012,11 @@ void pflash_cfi01_legacy_drive(PFlashCFI01 *fl, DriveInfo *dinfo)
 
     loc_push_none(&loc);
     qemu_opts_loc_restore(dinfo->opts);
-    if (fl->blk) {
+    if (pflash_cfi01_get_blk(dev)) {
         error_report("clashes with -machine");
         exit(1);
     }
-    qdev_prop_set_drive_err(DEVICE(fl), "drive", blk_by_legacy_dinfo(dinfo),
+    qdev_prop_set_drive_err(dev, "drive", blk_by_legacy_dinfo(dinfo),
                             &error_fatal);
     loc_pop(&loc);
 }

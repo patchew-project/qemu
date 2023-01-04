@@ -1514,7 +1514,7 @@ static void virt_machine_init(MachineState *machine)
 
     for (i = 0; i < ARRAY_SIZE(s->flash); i++) {
         /* Map legacy -drive if=pflash to machine properties */
-        pflash_cfi01_legacy_drive(s->flash[i],
+        pflash_cfi01_legacy_drive(DEVICE(s->flash[i]),
                                   drive_get(IF_PFLASH, 0, i));
     }
     virt_flash_map(s, system_memory);

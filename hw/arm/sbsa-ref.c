@@ -340,7 +340,7 @@ static bool sbsa_firmware_init(SBSAMachineState *sms,
 
     /* Map legacy -drive if=pflash to machine properties */
     for (i = 0; i < ARRAY_SIZE(sms->flash); i++) {
-        pflash_cfi01_legacy_drive(sms->flash[i],
+        pflash_cfi01_legacy_drive(DEVICE(sms->flash[i]),
                                   drive_get(IF_PFLASH, 0, i));
     }
 
