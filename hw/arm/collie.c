@@ -39,6 +39,7 @@ static void collie_init(MachineState *machine)
     DriveInfo *dinfo;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     CollieMachineState *cms = COLLIE_MACHINE(machine);
+    DeviceState *dev;
 
     if (machine->ram_size != mc->default_ram_size) {
         char *sz = size_to_str(mc->default_ram_size);
@@ -52,14 +53,16 @@ static void collie_init(MachineState *machine)
     memory_region_add_subregion(get_system_memory(), SA_SDCS0, machine->ram);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
-    pflash_cfi01_register(SA_CS0, "collie.fl1", 0x02000000,
-                    dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                    64 * KiB, 4, 0x00, 0x00, 0x00, 0x00, 0);
+    dev = pflash_cfi01_create("collie.fl1", 0x02000000,
+                              dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
+                              64 * KiB, 4, 0x00, 0x00, 0x00, 0x00, 0);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, SA_CS0);
 
     dinfo = drive_get(IF_PFLASH, 0, 1);
-    pflash_cfi01_register(SA_CS1, "collie.fl2", 0x02000000,
-                    dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                    64 * KiB, 4, 0x00, 0x00, 0x00, 0x00, 0);
+    dev = pflash_cfi01_create("collie.fl2", 0x02000000,
+                              dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
+                              64 * KiB, 4, 0x00, 0x00, 0x00, 0x00, 0);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, SA_CS1);
 
     sysbus_create_simple("scoop", 0x40800000, NULL);
 

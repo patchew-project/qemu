@@ -18,6 +18,7 @@
 #include "hw/irq.h"
 #include "hw/ssi/ssi.h"
 #include "migration/vmstate.h"
+#include "hw/sysbus.h"
 #include "hw/boards.h"
 #include "hw/block/flash.h"
 #include "ui/console.h"
@@ -306,17 +307,20 @@ static void z2_init(MachineState *machine)
     void *z2_lcd;
     I2CBus *bus;
     DeviceState *wm;
+    DeviceState *dev;
 
     /* Setup CPU & memory */
     mpu = pxa270_init(address_space_mem, z2_binfo.ram_size, machine->cpu_type);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
-    if (!pflash_cfi01_register(Z2_FLASH_BASE, "z2.flash0", Z2_FLASH_SIZE,
-                               dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                               sector_len, 4, 0, 0, 0, 0, 0)) {
+    dev = pflash_cfi01_create("z2.flash0", Z2_FLASH_SIZE,
+                              dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
+                              sector_len, 4, 0, 0, 0, 0, 0);
+    if (!dev) {
         error_report("Error registering flash memory");
         exit(1);
     }
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, Z2_FLASH_BASE);
 
     /* setup keypad */
     pxa27x_register_keypad(mpu->kp, map, 0x100);

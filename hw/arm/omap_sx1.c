@@ -30,6 +30,7 @@
 #include "ui/console.h"
 #include "hw/arm/omap.h"
 #include "hw/boards.h"
+#include "hw/sysbus.h"
 #include "hw/arm/boot.h"
 #include "hw/block/flash.h"
 #include "sysemu/qtest.h"
@@ -114,6 +115,7 @@ static void sx1_init(MachineState *machine, const int version)
     DriveInfo *dinfo;
     int fl_idx;
     uint32_t flash_size = flash0_size;
+    DeviceState *dev;
 
     if (machine->ram_size != mc->default_ram_size) {
         char *sz = size_to_str(mc->default_ram_size);
@@ -153,10 +155,12 @@ static void sx1_init(MachineState *machine, const int version)
 
     fl_idx = 0;
     if ((dinfo = drive_get(IF_PFLASH, 0, fl_idx)) != NULL) {
-        if (!pflash_cfi01_register(OMAP_CS0_BASE,
-                                   "omap_sx1.flash0-1", flash_size,
-                                   blk_by_legacy_dinfo(dinfo),
-                                   sector_size, 4, 0, 0, 0, 0, 0)) {
+        dev = pflash_cfi01_create("omap_sx1.flash0-1", flash_size,
+                                  blk_by_legacy_dinfo(dinfo),
+                                  sector_size, 4, 0, 0, 0, 0, 0);
+        if (dev) {
+            sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, OMAP_CS0_BASE);
+        } else {
             fprintf(stderr, "qemu: Error registering flash memory %d.\n",
                            fl_idx);
         }
@@ -175,10 +179,12 @@ static void sx1_init(MachineState *machine, const int version)
         memory_region_add_subregion(address_space,
                                 OMAP_CS1_BASE + flash1_size, &cs[1]);
 
-        if (!pflash_cfi01_register(OMAP_CS1_BASE,
-                                   "omap_sx1.flash1-1", flash1_size,
-                                   blk_by_legacy_dinfo(dinfo),
-                                   sector_size, 4, 0, 0, 0, 0, 0)) {
+        dev = pflash_cfi01_create("omap_sx1.flash1-1", flash1_size,
+                                  blk_by_legacy_dinfo(dinfo),
+                                  sector_size, 4, 0, 0, 0, 0, 0);
+        if (dev) {
+            sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, OMAP_CS1_BASE);
+        } else {
             fprintf(stderr, "qemu: Error registering flash memory %d.\n",
                            fl_idx);
         }

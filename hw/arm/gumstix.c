@@ -40,6 +40,7 @@
 #include "net/net.h"
 #include "hw/block/flash.h"
 #include "hw/net/smc91c111.h"
+#include "hw/sysbus.h"
 #include "hw/boards.h"
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
@@ -51,6 +52,7 @@ static void connex_init(MachineState *machine)
 {
     PXA2xxState *cpu;
     DriveInfo *dinfo;
+    DeviceState *dev;
     MemoryRegion *address_space_mem = get_system_memory();
 
     uint32_t connex_rom = 0x01000000;
@@ -65,12 +67,14 @@ static void connex_init(MachineState *machine)
         exit(1);
     }
 
-    if (!pflash_cfi01_register(0x00000000, "connext.rom", connex_rom,
-                               dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                               sector_len, 2, 0, 0, 0, 0, 0)) {
+    dev = pflash_cfi01_create("connext.rom", connex_rom,
+                              dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
+                              sector_len, 2, 0, 0, 0, 0, 0);
+    if (!dev) {
         error_report("Error registering flash memory");
         exit(1);
     }
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x00000000);
 
     /* Interrupt line of NIC is connected to GPIO line 36 */
     smc91c111_init(&nd_table[0], 0x04000300,
@@ -81,6 +85,7 @@ static void verdex_init(MachineState *machine)
 {
     PXA2xxState *cpu;
     DriveInfo *dinfo;
+    DeviceState *dev;
     MemoryRegion *address_space_mem = get_system_memory();
 
     uint32_t verdex_rom = 0x02000000;
@@ -95,12 +100,14 @@ static void verdex_init(MachineState *machine)
         exit(1);
     }
 
-    if (!pflash_cfi01_register(0x00000000, "verdex.rom", verdex_rom,
-                               dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                               sector_len, 2, 0, 0, 0, 0, 0)) {
+    dev = pflash_cfi01_create("verdex.rom", verdex_rom,
+                              dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
+                              sector_len, 2, 0, 0, 0, 0, 0);
+    if (!dev) {
         error_report("Error registering flash memory");
         exit(1);
     }
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x00000000);
 
     /* Interrupt line of NIC is connected to GPIO line 99 */
     smc91c111_init(&nd_table[0], 0x04000300,

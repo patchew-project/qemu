@@ -129,15 +129,18 @@ static void mainstone_common_init(MemoryRegion *address_space_mem,
 
     /* There are two 32MiB flash devices on the board */
     for (i = 0; i < 2; i ++) {
+        DeviceState *dev;
+
         dinfo = drive_get(IF_PFLASH, 0, i);
-        if (!pflash_cfi01_register(mainstone_flash_base[i],
-                                   i ? "mainstone.flash1" : "mainstone.flash0",
-                                   MAINSTONE_FLASH,
-                                   dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                                   sector_len, 4, 0, 0, 0, 0, 0)) {
+        dev = pflash_cfi01_create(i ? "mainstone.flash1" : "mainstone.flash0",
+                                  MAINSTONE_FLASH,
+                                  dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
+                                  sector_len, 4, 0, 0, 0, 0, 0);
+        if (!dev) {
             error_report("Error registering flash memory");
             exit(1);
         }
+        sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, mainstone_flash_base[i]);
     }
 
     mst_irq = sysbus_create_simple("mainstone-fpga", MST_FPGA_PHYS,
