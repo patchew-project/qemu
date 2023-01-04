@@ -1222,7 +1222,6 @@ void mips_malta_init(MachineState *machine)
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
     char *filename;
-    PFlashCFI01 *fl;
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *ram_low_preio = g_new(MemoryRegion, 1);
     MemoryRegion *ram_low_postio;
@@ -1286,12 +1285,11 @@ void mips_malta_init(MachineState *machine)
 
     /* Load firmware in flash / BIOS. */
     dinfo = drive_get(IF_PFLASH, 0, fl_idx);
-    fl = pflash_cfi01_register(FLASH_ADDRESS, "mips_malta.bios",
-                               FLASH_SIZE,
-                               dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                               65536,
-                               4, 0x0000, 0x0000, 0x0000, 0x0000, be);
-    dev = DEVICE(fl);
+    dev = pflash_cfi01_create("mips_malta.bios", FLASH_SIZE,
+                              dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
+                              65536, 4,
+                              0x0000, 0x0000, 0x0000, 0x0000, be);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, FLASH_ADDRESS);
     bios = pflash_cfi01_get_memory(dev);
     fl_idx++;
     if (kernel_filename) {
