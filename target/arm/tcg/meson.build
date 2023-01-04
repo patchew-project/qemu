@@ -23,6 +23,7 @@ arm_ss.add(files(
   'translate-mve.c',
   'translate-neon.c',
   'translate-vfp.c',
+  'cpregs.c',
   'crypto_helper.c',
   'debug_helper.c',
   'iwmmxt_helper.c',
