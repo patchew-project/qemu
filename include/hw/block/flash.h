@@ -9,7 +9,6 @@
 /* pflash_cfi01.c */
 
 #define TYPE_PFLASH_CFI01 "cfi.pflash01"
-OBJECT_DECLARE_SIMPLE_TYPE(PFlashCFI01, PFLASH_CFI01)
 
 /**
  * Create and realize a parallel NOR flash (CFI type 1) on the heap.

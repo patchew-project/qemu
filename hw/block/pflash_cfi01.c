@@ -59,6 +59,8 @@
 #define PFLASH_BE          0
 #define PFLASH_SECURE      1
 
+OBJECT_DECLARE_SIMPLE_TYPE(PFlashCFI01, PFLASH_CFI01)
+
 struct PFlashCFI01 {
     /*< private >*/
     SysBusDevice parent_obj;
