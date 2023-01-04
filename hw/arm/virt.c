@@ -1105,7 +1105,7 @@ static void create_virtio_devices(const VirtMachineState *vms)
 
 #define VIRT_FLASH_SECTOR_SIZE (256 * KiB)
 
-static PFlashCFI01 *virt_flash_create1(VirtMachineState *vms,
+static DeviceState *virt_flash_create1(VirtMachineState *vms,
                                         const char *name,
                                         const char *alias_prop_name)
 {
@@ -1127,7 +1127,7 @@ static PFlashCFI01 *virt_flash_create1(VirtMachineState *vms,
     object_property_add_child(OBJECT(vms), name, OBJECT(dev));
     object_property_add_alias(OBJECT(vms), alias_prop_name,
                               OBJECT(dev), "drive");
-    return PFLASH_CFI01(dev);
+    return dev;
 }
 
 static void virt_flash_create(VirtMachineState *vms)
@@ -1136,7 +1136,7 @@ static void virt_flash_create(VirtMachineState *vms)
     vms->flash[1] = virt_flash_create1(vms, "virt.flash1", "pflash1");
 }
 
-static void virt_flash_map1(PFlashCFI01 *flash,
+static void virt_flash_map1(DeviceState *flash,
                             hwaddr base, hwaddr size,
                             MemoryRegion *sysmem)
 {
@@ -1227,13 +1227,13 @@ static bool virt_firmware_init(VirtMachineState *vms,
 
     /* Map legacy -drive if=pflash to machine properties */
     for (i = 0; i < ARRAY_SIZE(vms->flash); i++) {
-        pflash_cfi01_legacy_drive(DEVICE(vms->flash[i]),
+        pflash_cfi01_legacy_drive(vms->flash[i],
                                   drive_get(IF_PFLASH, 0, i));
     }
 
     virt_flash_map(vms, sysmem, secure_sysmem);
 
-    pflash_blk0 = pflash_cfi01_get_blk(DEVICE(vms->flash[0]));
+    pflash_blk0 = pflash_cfi01_get_blk(vms->flash[0]);
 
     bios_name = MACHINE(vms)->firmware;
     if (bios_name) {

@@ -91,7 +91,7 @@ struct SBSAMachineState {
     int fdt_size;
     int psci_conduit;
     DeviceState *gic;
-    PFlashCFI01 *flash[2];
+    DeviceState *flash[2];
 };
 
 #define TYPE_SBSA_MACHINE   MACHINE_TYPE_NAME("sbsa-ref")
@@ -264,7 +264,7 @@ static void create_fdt(SBSAMachineState *sms)
 
 #define SBSA_FLASH_SECTOR_SIZE (256 * KiB)
 
-static PFlashCFI01 *sbsa_flash_create1(SBSAMachineState *sms,
+static DeviceState *sbsa_flash_create1(SBSAMachineState *sms,
                                         const char *name,
                                         const char *alias_prop_name)
 {
@@ -286,7 +286,7 @@ static PFlashCFI01 *sbsa_flash_create1(SBSAMachineState *sms,
     object_property_add_child(OBJECT(sms), name, OBJECT(dev));
     object_property_add_alias(OBJECT(sms), alias_prop_name,
                               OBJECT(dev), "drive");
-    return PFLASH_CFI01(dev);
+    return dev;
 }
 
 static void sbsa_flash_create(SBSAMachineState *sms)
@@ -295,7 +295,7 @@ static void sbsa_flash_create(SBSAMachineState *sms)
     sms->flash[1] = sbsa_flash_create1(sms, "sbsa.flash1", "pflash1");
 }
 
-static void sbsa_flash_map1(PFlashCFI01 *flash,
+static void sbsa_flash_map1(DeviceState *flash,
                             hwaddr base, hwaddr size,
                             MemoryRegion *sysmem)
 {
@@ -340,13 +340,13 @@ static bool sbsa_firmware_init(SBSAMachineState *sms,
 
     /* Map legacy -drive if=pflash to machine properties */
     for (i = 0; i < ARRAY_SIZE(sms->flash); i++) {
-        pflash_cfi01_legacy_drive(DEVICE(sms->flash[i]),
+        pflash_cfi01_legacy_drive(sms->flash[i],
                                   drive_get(IF_PFLASH, 0, i));
     }
 
     sbsa_flash_map(sms, sysmem, secure_sysmem);
 
-    pflash_blk0 = pflash_cfi01_get_blk(DEVICE(sms->flash[0]));
+    pflash_blk0 = pflash_cfi01_get_blk(sms->flash[0]);
 
     bios_name = MACHINE(sms)->firmware;
     if (bios_name) {

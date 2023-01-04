@@ -508,7 +508,7 @@ static void vexpress_modify_dtb(const struct arm_boot_info *info, void *fdt)
 /* Open code a private version of pflash registration since we
  * need to set non-default device width for VExpress platform.
  */
-static PFlashCFI01 *ve_pflash_cfi01_register(hwaddr base, const char *name,
+static DeviceState *ve_pflash_cfi01_register(hwaddr base, const char *name,
                                              DriveInfo *di)
 {
     DeviceState *dev = qdev_new(TYPE_PFLASH_CFI01);
@@ -531,7 +531,7 @@ static PFlashCFI01 *ve_pflash_cfi01_register(hwaddr base, const char *name,
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
-    return PFLASH_CFI01(dev);
+    return dev;
 }
 
 static void vexpress_common_init(MachineState *machine)
@@ -543,7 +543,6 @@ static void vexpress_common_init(MachineState *machine)
     qemu_irq pic[64];
     uint32_t sys_id;
     DriveInfo *dinfo;
-    PFlashCFI01 *pflash0;
     I2CBus *i2c;
     ram_addr_t vram_size, sram_size;
     MemoryRegion *sysmem = get_system_memory();
@@ -657,16 +656,15 @@ static void vexpress_common_init(MachineState *machine)
     sysbus_create_simple("pl111", map[VE_CLCD], pic[14]);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
-    pflash0 = ve_pflash_cfi01_register(map[VE_NORFLASH0], "vexpress.flash0",
-                                       dinfo);
-    if (!pflash0) {
+    dev = ve_pflash_cfi01_register(map[VE_NORFLASH0], "vexpress.flash0", dinfo);
+    if (!dev) {
         error_report("vexpress: error registering flash 0");
         exit(1);
     }
 
     if (map[VE_NORFLASHALIAS] != -1) {
         /* Map flash 0 as an alias into low memory */
-        flash0mem = sysbus_mmio_get_region(SYS_BUS_DEVICE(pflash0), 0);
+        flash0mem = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
         memory_region_init_alias(flashalias, NULL, "vexpress.flashalias",
                                  flash0mem, 0, VEXPRESS_FLASH_SIZE);
         memory_region_add_subregion(sysmem, map[VE_NORFLASHALIAS], flashalias);
