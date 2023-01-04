@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "internals.h"
 
 void write_v7m_exception(CPUARMState *env, uint32_t new_exc)
 {
@@ -24,4 +25,13 @@ void raise_exception_ra(CPUARMState *env, uint32_t excp, uint32_t syndrome,
 void arm_reset_sve_state(CPUARMState *env)
 {
     g_assert_not_reached();
+}
+
+void arm_rebuild_hflags(CPUARMState *env)
+{
+    g_assert_not_reached();
+}
+
+void assert_hflags_rebuild_correctly(CPUARMState *env)
+{
 }
