@@ -115,13 +115,15 @@ static void digic4_add_k8p3215uqb_rom(DigicState *s, hwaddr addr,
 {
 #define FLASH_K8P3215UQB_SIZE (4 * 1024 * 1024)
 #define FLASH_K8P3215UQB_SECTOR_SIZE (64 * 1024)
+    DeviceState *dev;
 
-    pflash_cfi02_register(addr, "pflash", FLASH_K8P3215UQB_SIZE,
-                          NULL, FLASH_K8P3215UQB_SECTOR_SIZE,
-                          DIGIC4_ROM_MAX_SIZE / FLASH_K8P3215UQB_SIZE,
-                          4,
-                          0x00EC, 0x007E, 0x0003, 0x0001,
-                          0x0555, 0x2aa, 0);
+    dev = pflash_cfi02_create("pflash", FLASH_K8P3215UQB_SIZE,
+                              NULL, FLASH_K8P3215UQB_SECTOR_SIZE,
+                              DIGIC4_ROM_MAX_SIZE / FLASH_K8P3215UQB_SIZE,
+                              4,
+                              0x00EC, 0x007E, 0x0003, 0x0001,
+                              0x0555, 0x2aa, 0);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, addr);
 
     digic_load_rom(s, addr, FLASH_K8P3215UQB_SIZE, filename);
 }
