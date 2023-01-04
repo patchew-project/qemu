@@ -1233,7 +1233,7 @@ static bool virt_firmware_init(VirtMachineState *vms,
 
     virt_flash_map(vms, sysmem, secure_sysmem);
 
-    pflash_blk0 = pflash_cfi01_get_blk(vms->flash[0]);
+    pflash_blk0 = pflash_cfi01_get_blk(DEVICE(vms->flash[0]));
 
     bios_name = MACHINE(vms)->firmware;
     if (bios_name) {

@@ -346,7 +346,7 @@ static bool sbsa_firmware_init(SBSAMachineState *sms,
 
     sbsa_flash_map(sms, sysmem, secure_sysmem);
 
-    pflash_blk0 = pflash_cfi01_get_blk(sms->flash[0]);
+    pflash_blk0 = pflash_cfi01_get_blk(DEVICE(sms->flash[0]));
 
     bios_name = MACHINE(sms)->firmware;
     if (bios_name) {

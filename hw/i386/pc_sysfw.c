@@ -152,7 +152,7 @@ static void pc_system_flash_map(PCMachineState *pcms,
 
     for (i = 0; i < ARRAY_SIZE(pcms->flash); i++) {
         system_flash = pcms->flash[i];
-        blk = pflash_cfi01_get_blk(system_flash);
+        blk = pflash_cfi01_get_blk(DEVICE(system_flash));
         if (!blk) {
             break;
         }
@@ -216,7 +216,7 @@ void pc_system_firmware_init(PCMachineState *pcms,
     for (i = 0; i < ARRAY_SIZE(pcms->flash); i++) {
         pflash_cfi01_legacy_drive(pcms->flash[i],
                                   drive_get(IF_PFLASH, 0, i));
-        pflash_blk[i] = pflash_cfi01_get_blk(pcms->flash[i]);
+        pflash_blk[i] = pflash_cfi01_get_blk(DEVICE(pcms->flash[i]));
     }
 
     /* Reject gaps */

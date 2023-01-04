@@ -984,8 +984,10 @@ PFlashCFI01 *pflash_cfi01_register(hwaddr base,
     return PFLASH_CFI01(dev);
 }
 
-BlockBackend *pflash_cfi01_get_blk(PFlashCFI01 *fl)
+BlockBackend *pflash_cfi01_get_blk(DeviceState *dev)
 {
+    PFlashCFI01 *fl = PFLASH_CFI01(dev);
+
     return fl->blk;
 }
 
