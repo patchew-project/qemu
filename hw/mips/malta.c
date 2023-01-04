@@ -1291,7 +1291,8 @@ void mips_malta_init(MachineState *machine)
                                dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
                                65536,
                                4, 0x0000, 0x0000, 0x0000, 0x0000, be);
-    bios = pflash_cfi01_get_memory(fl);
+    dev = DEVICE(fl);
+    bios = pflash_cfi01_get_memory(dev);
     fl_idx++;
     if (kernel_filename) {
         ram_low_size = MIN(ram_size, 256 * MiB);

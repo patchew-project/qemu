@@ -22,7 +22,7 @@ PFlashCFI01 *pflash_cfi01_register(hwaddr base,
                                    uint16_t id2, uint16_t id3,
                                    int be);
 BlockBackend *pflash_cfi01_get_blk(DeviceState *dev);
-MemoryRegion *pflash_cfi01_get_memory(PFlashCFI01 *fl);
+MemoryRegion *pflash_cfi01_get_memory(DeviceState *dev);
 void pflash_cfi01_legacy_drive(DeviceState *dev, DriveInfo *dinfo);
 
 /* pflash_cfi02.c */

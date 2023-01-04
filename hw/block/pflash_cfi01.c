@@ -991,8 +991,10 @@ BlockBackend *pflash_cfi01_get_blk(DeviceState *dev)
     return fl->blk;
 }
 
-MemoryRegion *pflash_cfi01_get_memory(PFlashCFI01 *fl)
+MemoryRegion *pflash_cfi01_get_memory(DeviceState *dev)
 {
+    PFlashCFI01 *fl = PFLASH_CFI01(dev);
+
     return &fl->mem;
 }
 

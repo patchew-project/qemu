@@ -1144,7 +1144,7 @@ void ppce500_init(MachineState *machine)
         sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
         memory_region_add_subregion(&pms->pbus_dev->mmio, 0,
-                                    pflash_cfi01_get_memory(PFLASH_CFI01(dev)));
+                                    pflash_cfi01_get_memory(dev));
     }
 
     /*
