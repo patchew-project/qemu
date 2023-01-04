@@ -21,7 +21,6 @@
 
 #include "hw/riscv/riscv_hart.h"
 #include "hw/sysbus.h"
-#include "hw/block/flash.h"
 #include "qom/object.h"
 
 #define VIRT_CPUS_MAX_BITS             9
@@ -49,7 +48,7 @@ struct RISCVVirtState {
     DeviceState *platform_bus_dev;
     RISCVHartArrayState soc[VIRT_SOCKETS_MAX];
     DeviceState *irqchip[VIRT_SOCKETS_MAX];
-    PFlashCFI01 *flash[2];
+    DeviceState *flash[2];
     FWCfgState *fw_cfg;
 
     int fdt_size;
