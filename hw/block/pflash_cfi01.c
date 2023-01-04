@@ -953,15 +953,13 @@ static void pflash_cfi01_register_types(void)
 
 type_init(pflash_cfi01_register_types)
 
-PFlashCFI01 *pflash_cfi01_register(hwaddr base,
-                                   const char *name,
-                                   hwaddr size,
-                                   BlockBackend *blk,
-                                   uint32_t sector_len,
-                                   int bank_width,
-                                   uint16_t id0, uint16_t id1,
-                                   uint16_t id2, uint16_t id3,
-                                   int be)
+DeviceState *pflash_cfi01_create(const char *name,
+                                 hwaddr size,
+                                 BlockBackend *blk, uint32_t sector_len,
+                                 int bank_width,
+                                 uint16_t id0, uint16_t id1,
+                                 uint16_t id2, uint16_t id3,
+                                 int be)
 {
     DeviceState *dev = qdev_new(TYPE_PFLASH_CFI01);
 
@@ -980,7 +978,25 @@ PFlashCFI01 *pflash_cfi01_register(hwaddr base,
     qdev_prop_set_string(dev, "name", name);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
+    return dev;
+}
+
+PFlashCFI01 *pflash_cfi01_register(hwaddr base,
+                                   const char *name,
+                                   hwaddr size,
+                                   BlockBackend *blk,
+                                   uint32_t sector_len,
+                                   int bank_width,
+                                   uint16_t id0, uint16_t id1,
+                                   uint16_t id2, uint16_t id3,
+                                   int be)
+{
+    DeviceState *dev;
+
+    dev = pflash_cfi01_create(name, size, blk, sector_len, bank_width,
+                              id0, id1, id2, id3, be);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+
     return PFLASH_CFI01(dev);
 }
 

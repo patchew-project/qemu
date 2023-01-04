@@ -11,7 +11,19 @@
 #define TYPE_PFLASH_CFI01 "cfi.pflash01"
 OBJECT_DECLARE_SIMPLE_TYPE(PFlashCFI01, PFLASH_CFI01)
 
-
+/**
+ * Create and realize a parallel NOR flash (CFI type 1) on the heap.
+ *
+ * Create the device state structure, initialize it, and drop the
+ * reference to it (the device is realized).
+ */
+DeviceState *pflash_cfi01_create(const char *name,
+                                 hwaddr size,
+                                 BlockBackend *blk, uint32_t sector_len,
+                                 int bank_width,
+                                 uint16_t id0, uint16_t id1,
+                                 uint16_t id2, uint16_t id3,
+                                 int be);
 PFlashCFI01 *pflash_cfi01_register(hwaddr base,
                                    const char *name,
                                    hwaddr size,
