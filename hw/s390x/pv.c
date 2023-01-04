@@ -266,6 +266,26 @@ int s390_pv_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
     return 0;
 }
 
+static bool s390_pv_check_cpus(Error **errp)
+{
+    MachineState *ms = MACHINE(qdev_get_machine());
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
+    uint32_t pv_max_cpus = mc->max_cpus - 1;
+
+    if (ms->smp.max_cpus > pv_max_cpus) {
+        error_setg(errp, "Protected VMs support a maximum of %d CPUs",
+                   pv_max_cpus);
+        return false;
+    }
+
+    return true;
+}
+
+static bool s390_pv_guest_check(const Object *obj, Error **errp)
+{
+    return s390_pv_check_cpus(errp);
+}
+
 OBJECT_DEFINE_TYPE_WITH_INTERFACES(S390PVGuest,
                                    s390_pv_guest,
                                    S390_PV_GUEST,
@@ -275,6 +295,9 @@ OBJECT_DEFINE_TYPE_WITH_INTERFACES(S390PVGuest,
 
 static void s390_pv_guest_class_init(ObjectClass *oc, void *data)
 {
+    ConfidentialGuestSupportClass *cgsc = CONFIDENTIAL_GUEST_SUPPORT_CLASS(oc);
+
+    cgsc->check = s390_pv_guest_check;
 }
 
 static void s390_pv_guest_init(Object *obj)
