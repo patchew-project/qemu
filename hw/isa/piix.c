@@ -33,7 +33,6 @@
 #include "hw/qdev-properties.h"
 #include "hw/ide/piix.h"
 #include "hw/isa/isa.h"
-#include "hw/xen/xen.h"
 #include "sysemu/runstate.h"
 #include "migration/vmstate.h"
 #include "hw/acpi/acpi_aml_interface.h"
@@ -465,24 +464,6 @@ static const TypeInfo piix3_info = {
     .class_init    = piix3_class_init,
 };
 
-static void piix3_xen_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-
-    k->realize = piix3_realize;
-    /* 82371SB PIIX3 PCI-to-ISA bridge (Step A1) */
-    k->device_id = PCI_DEVICE_ID_INTEL_82371SB_0;
-    dc->vmsd = &vmstate_piix3;
-}
-
-static const TypeInfo piix3_xen_info = {
-    .name          = TYPE_PIIX3_XEN_DEVICE,
-    .parent        = TYPE_PIIX_PCI_DEVICE,
-    .instance_init = piix3_init,
-    .class_init    = piix3_xen_class_init,
-};
-
 static void piix4_realize(PCIDevice *dev, Error **errp)
 {
     ERRP_GUARD();
@@ -534,7 +515,6 @@ static void piix3_register_types(void)
 {
     type_register_static(&piix_pci_type_info);
     type_register_static(&piix3_info);
-    type_register_static(&piix3_xen_info);
     type_register_static(&piix4_info);
 }
 
