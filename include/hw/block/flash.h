@@ -32,7 +32,19 @@ void pflash_cfi01_legacy_drive(DeviceState *dev, DriveInfo *dinfo);
 #define TYPE_PFLASH_CFI02 "cfi.pflash02"
 OBJECT_DECLARE_SIMPLE_TYPE(PFlashCFI02, PFLASH_CFI02)
 
-
+/**
+ * Create and realize a parallel NOR flash (CFI type 2) on the heap.
+ *
+ * Create the device state structure, initialize it, and drop the
+ * reference to it (the device is realized).
+ */
+DeviceState *pflash_cfi02_create(const char *name, hwaddr size,
+                                 BlockBackend *blk, uint32_t sector_len,
+                                 int nb_mappings, int bank_width,
+                                 uint16_t id0, uint16_t id1,
+                                 uint16_t id2, uint16_t id3,
+                                 uint16_t unlock_addr0, uint16_t unlock_addr1,
+                                 int be);
 PFlashCFI02 *pflash_cfi02_register(hwaddr base,
                                    const char *name,
                                    hwaddr size,

@@ -994,6 +994,37 @@ static void pflash_cfi02_register_types(void)
 
 type_init(pflash_cfi02_register_types)
 
+DeviceState *pflash_cfi02_create(const char *name, hwaddr size,
+                                 BlockBackend *blk, uint32_t sector_len,
+                                 int nb_mappings, int bank_width,
+                                 uint16_t id0, uint16_t id1,
+                                 uint16_t id2, uint16_t id3,
+                                 uint16_t unlock_addr0, uint16_t unlock_addr1,
+                                 int be)
+{
+    DeviceState *dev = qdev_new(TYPE_PFLASH_CFI02);
+
+    if (blk) {
+        qdev_prop_set_drive(dev, "drive", blk);
+    }
+    assert(QEMU_IS_ALIGNED(size, sector_len));
+    qdev_prop_set_uint32(dev, "num-blocks", size / sector_len);
+    qdev_prop_set_uint32(dev, "sector-length", sector_len);
+    qdev_prop_set_uint8(dev, "width", bank_width);
+    qdev_prop_set_uint8(dev, "mappings", nb_mappings);
+    qdev_prop_set_uint8(dev, "big-endian", !!be);
+    qdev_prop_set_uint16(dev, "id0", id0);
+    qdev_prop_set_uint16(dev, "id1", id1);
+    qdev_prop_set_uint16(dev, "id2", id2);
+    qdev_prop_set_uint16(dev, "id3", id3);
+    qdev_prop_set_uint16(dev, "unlock-addr0", unlock_addr0);
+    qdev_prop_set_uint16(dev, "unlock-addr1", unlock_addr1);
+    qdev_prop_set_string(dev, "name", name);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    return dev;
+}
+
 PFlashCFI02 *pflash_cfi02_register(hwaddr base,
                                    const char *name,
                                    hwaddr size,
@@ -1006,26 +1037,12 @@ PFlashCFI02 *pflash_cfi02_register(hwaddr base,
                                    uint16_t unlock_addr1,
                                    int be)
 {
-    DeviceState *dev = qdev_new(TYPE_PFLASH_CFI02);
+    DeviceState *dev;
 
-    if (blk) {
-        qdev_prop_set_drive(dev, "drive", blk);
-    }
-    assert(QEMU_IS_ALIGNED(size, sector_len));
-    qdev_prop_set_uint32(dev, "num-blocks", size / sector_len);
-    qdev_prop_set_uint32(dev, "sector-length", sector_len);
-    qdev_prop_set_uint8(dev, "width", width);
-    qdev_prop_set_uint8(dev, "mappings", nb_mappings);
-    qdev_prop_set_uint8(dev, "big-endian", !!be);
-    qdev_prop_set_uint16(dev, "id0", id0);
-    qdev_prop_set_uint16(dev, "id1", id1);
-    qdev_prop_set_uint16(dev, "id2", id2);
-    qdev_prop_set_uint16(dev, "id3", id3);
-    qdev_prop_set_uint16(dev, "unlock-addr0", unlock_addr0);
-    qdev_prop_set_uint16(dev, "unlock-addr1", unlock_addr1);
-    qdev_prop_set_string(dev, "name", name);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-
+    dev = pflash_cfi02_create(name, size, blk, sector_len,
+                              nb_mappings, width, id0, id1, id2, id3,
+                              unlock_addr0, unlock_addr1, be);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+
     return PFLASH_CFI02(dev);
 }
