@@ -502,11 +502,12 @@ static void machine_check_confidential_guest_support(const Object *obj,
                                                      Object *new_target,
                                                      Error **errp)
 {
-    /*
-     * So far the only constraint is that the target has the
-     * TYPE_CONFIDENTIAL_GUEST_SUPPORT interface, and that's checked
-     * by the QOM core
-     */
+    ConfidentialGuestSupportClass *cgsc =
+        CONFIDENTIAL_GUEST_SUPPORT_GET_CLASS(new_target);
+
+    if (cgsc->check) {
+        cgsc->check(obj, errp);
+    }
 }
 
 static bool machine_get_nvdimm(Object *obj, Error **errp)
