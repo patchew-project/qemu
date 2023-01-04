@@ -302,9 +302,21 @@ static bool s390_pv_check_host(Error **errp)
     return true;
 }
 
+static bool s390_pv_check_hpage(Error **errp)
+{
+    if (kvm_s390_get_hpage_1m()) {
+        error_setg(errp, "Protected VMs can currently not be backed with "
+                   "huge pages");
+        return false;
+    }
+
+    return true;
+}
+
 static bool s390_pv_guest_check(const Object *obj, Error **errp)
 {
-    return s390_pv_check_cpus(errp) && s390_pv_check_host(errp);
+    return s390_pv_check_cpus(errp) && s390_pv_check_host(errp) &&
+        s390_pv_check_hpage(errp);
 }
 
 bool s390_pv_check(Error **errp)
