@@ -71,7 +71,7 @@ static void pc_isa_bios_init(MemoryRegion *rom_memory,
     memory_region_set_readonly(isa_bios, true);
 }
 
-static PFlashCFI01 *pc_pflash_create(PCMachineState *pcms,
+static DeviceState *pc_pflash_create(PCMachineState *pcms,
                                      const char *name,
                                      const char *alias_prop_name)
 {
@@ -88,7 +88,7 @@ static PFlashCFI01 *pc_pflash_create(PCMachineState *pcms,
      * will be removed with object_unparent.
      */
     object_unref(OBJECT(dev));
-    return PFLASH_CFI01(dev);
+    return dev;
 }
 
 void pc_system_flash_create(PCMachineState *pcms)
@@ -143,7 +143,7 @@ static void pc_system_flash_map(PCMachineState *pcms,
     int i;
     BlockBackend *blk;
     int64_t size;
-    PFlashCFI01 *system_flash;
+    DeviceState *system_flash;
     MemoryRegion *flash_mem;
     void *flash_ptr;
     int flash_size;
@@ -152,7 +152,7 @@ static void pc_system_flash_map(PCMachineState *pcms,
 
     for (i = 0; i < ARRAY_SIZE(pcms->flash); i++) {
         system_flash = pcms->flash[i];
-        blk = pflash_cfi01_get_blk(DEVICE(system_flash));
+        blk = pflash_cfi01_get_blk(system_flash);
         if (!blk) {
             break;
         }
@@ -187,7 +187,7 @@ static void pc_system_flash_map(PCMachineState *pcms,
                         0x100000000ULL - total_size);
 
         if (i == 0) {
-            flash_mem = pflash_cfi01_get_memory(DEVICE(system_flash));
+            flash_mem = pflash_cfi01_get_memory(system_flash);
             pc_isa_bios_init(rom_memory, flash_mem, size);
 
             /* Encrypt the pflash boot ROM */
@@ -214,9 +214,9 @@ void pc_system_firmware_init(PCMachineState *pcms,
 
     /* Map legacy -drive if=pflash to machine properties */
     for (i = 0; i < ARRAY_SIZE(pcms->flash); i++) {
-        pflash_cfi01_legacy_drive(DEVICE(pcms->flash[i]),
+        pflash_cfi01_legacy_drive(pcms->flash[i],
                                   drive_get(IF_PFLASH, 0, i));
-        pflash_blk[i] = pflash_cfi01_get_blk(DEVICE(pcms->flash[i]));
+        pflash_blk[i] = pflash_cfi01_get_blk(pcms->flash[i]);
     }
 
     /* Reject gaps */

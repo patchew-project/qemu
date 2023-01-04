@@ -6,7 +6,6 @@
 #include "qemu/uuid.h"
 #include "hw/boards.h"
 #include "hw/block/fdc.h"
-#include "hw/block/flash.h"
 #include "hw/i386/x86.h"
 
 #include "hw/acpi/acpi_dev_interface.h"
@@ -35,7 +34,7 @@ typedef struct PCMachineState {
     /* Pointers to devices and objects: */
     PCIBus *bus;
     I2CBus *smbus;
-    PFlashCFI01 *flash[2];
+    DeviceState *flash[2];
     ISADevice *pcspk;
     DeviceState *iommu;
 
