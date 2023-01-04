@@ -510,18 +510,6 @@ static void ppc_core99_init(MachineState *machine)
     fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_BUSFREQ, BUSFREQ);
     fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_NVRAM_ADDR, nvram_addr);
 
-    /* MacOS NDRV VGA driver */
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, NDRV_VGA_FILENAME);
-    if (filename) {
-        gchar *ndrv_file;
-        gsize ndrv_size;
-
-        if (g_file_get_contents(filename, &ndrv_file, &ndrv_size, NULL)) {
-            fw_cfg_add_file(fw_cfg, "ndrv/qemu_vga.ndrv", ndrv_file, ndrv_size);
-        }
-        g_free(filename);
-    }
-
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 }
 
@@ -565,6 +553,11 @@ static int core99_kvm_type(MachineState *machine, const char *arg)
     return 2;
 }
 
+static GlobalProperty props[] = {
+    /* MacOS NDRV VGA driver */
+    { "VGA", "romfile", NDRV_VGA_FILENAME },
+};
+
 static void core99_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -585,6 +578,7 @@ static void core99_machine_class_init(ObjectClass *oc, void *data)
 #endif
     mc->default_ram_id = "ppc_core99.ram";
     mc->ignore_boot_device_suffixes = true;
+    compat_props_add(mc->compat_props, props, G_N_ELEMENTS(props));
     fwc->get_dev_path = core99_fw_dev_path;
 }
 
