@@ -307,6 +307,20 @@ static bool s390_pv_guest_check(const Object *obj, Error **errp)
     return s390_pv_check_cpus(errp) && s390_pv_check_host(errp);
 }
 
+bool s390_pv_check(Error **errp)
+{
+    MachineState *ms = MACHINE(qdev_get_machine());
+    Object *obj = OBJECT(ms->cgs);
+
+    if (!obj) {
+        error_setg(errp, "Protected VM started without a Confidential"
+                   " Guest support interface");
+        return false;
+    }
+
+    return s390_pv_guest_check(obj, errp);
+}
+
 OBJECT_DEFINE_TYPE_WITH_INTERFACES(S390PVGuest,
                                    s390_pv_guest,
                                    S390_PV_GUEST,

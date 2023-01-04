@@ -55,6 +55,7 @@ int kvm_s390_dump_init(void);
 int kvm_s390_dump_cpu(S390CPU *cpu, void *buff);
 int kvm_s390_dump_mem_state(uint64_t addr, size_t len, void *dest);
 int kvm_s390_dump_completion_data(void *buff);
+bool s390_pv_check(Error **errp);
 #else /* CONFIG_KVM */
 static inline bool s390_is_pv(void) { return false; }
 static inline int s390_pv_query_info(void) { return 0; }
@@ -75,6 +76,7 @@ static inline int kvm_s390_dump_cpu(S390CPU *cpu, void *buff) { return 0; }
 static inline int kvm_s390_dump_mem_state(uint64_t addr, size_t len,
                                           void *dest) { return 0; }
 static inline int kvm_s390_dump_completion_data(void *buff) { return 0; }
+static inline bool s390_pv_check(Error **errp) { return false; }
 #endif /* CONFIG_KVM */
 
 int s390_pv_kvm_init(ConfidentialGuestSupport *cgs, Error **errp);
