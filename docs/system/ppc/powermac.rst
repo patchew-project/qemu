@@ -4,8 +4,12 @@ PowerMac family boards (``g3beige``, ``mac99``)
 Use the executable ``qemu-system-ppc`` to simulate a complete PowerMac
 PowerPC system.
 
-- ``g3beige``              Heathrow based PowerMAC
-- ``mac99``                Mac99 based PowerMAC
+- ``g3beige``           Heathrow based old world Power Macintosh G3
+- ``mac99``             Core99 based generic PowerMac
+- ``powermac3_1``       Power Mac G4 AGP (Sawtooth)
+- ``powerbook3_2``      PowerBook G4 Titanium (Mercury)
+- ``powermac7_3``       Power Mac G5 (Niagara) (only in ``qemu-system-ppc64``)
+
 
 Supported devices
 -----------------
@@ -15,9 +19,9 @@ QEMU emulates the following PowerMac peripherals:
  *  UniNorth or Grackle PCI Bridge
  *  PCI VGA compatible card with VESA Bochs Extensions
  *  2 PMAC IDE interfaces with hard disk and CD-ROM support
- *  NE2000 PCI adapters
+ *  Sungem PCI network adapter
  *  Non Volatile RAM
- *  VIA-CUDA with ADB keyboard and mouse.
+ *  VIA-CUDA or VIA-PMU99 with or without ADB or USB keyboard and mouse.
 
 
 Missing devices

@@ -220,6 +220,13 @@ These old machine types are quite neglected nowadays and thus might have
 various pitfalls with regards to live migration. Use a newer machine type
 instead.
 
+``mac99`` variants other than the default qemu-system-ppc version (since 7.2)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``mac99`` machine emulates different hardware depending on using
+qemu-system-ppc64 or ``via`` property. To avoid confusion new machine
+types has been added for these variants which are now preferred over
+``mac99``.
 
 Backend options
 ---------------
