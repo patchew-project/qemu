@@ -42,6 +42,13 @@ typedef struct BlockBackendAioNotifier {
     QLIST_ENTRY(BlockBackendAioNotifier) list;
 } BlockBackendAioNotifier;
 
+typedef struct BlockBackendGraphChangeNotifier {
+    void (*pre_detach)(BlockBackend *blk, void *opaque);
+    void (*post_attach)(BlockBackend *blk, void *opaque);
+    void *opaque;
+    QLIST_ENTRY(BlockBackendGraphChangeNotifier) list;
+} BlockBackendGraphChangeNotifier;
+
 struct BlockBackend {
     char *name;
     int refcnt;
@@ -79,6 +86,7 @@ struct BlockBackend {
     /* Protected by BQL */
     NotifierList remove_bs_notifiers, insert_bs_notifiers;
     QLIST_HEAD(, BlockBackendAioNotifier) aio_notifiers;
+    QLIST_HEAD(, BlockBackendGraphChangeNotifier) graph_change_notifiers;
 
     int quiesce_counter;
     CoQueue queued_requests;
@@ -308,6 +316,36 @@ static void blk_root_detach(BdrvChild *child)
     }
 }
 
+static void blk_root_pre_detach(BdrvChild *child, BdrvChild *to_detach)
+{
+    BlockBackend *blk = child->opaque;
+    BlockBackendGraphChangeNotifier *notifier;
+    BlockBackendGraphChangeNotifier *next;
+
+    trace_blk_root_pre_detach(child, blk, to_detach, to_detach->bs);
+
+    QLIST_FOREACH_SAFE(notifier, &blk->graph_change_notifiers, list, next) {
+        if (notifier->pre_detach) {
+            notifier->pre_detach(blk, notifier->opaque);
+        }
+    }
+}
+
+static void blk_root_post_attach(BdrvChild *child, BdrvChild *attached)
+{
+    BlockBackend *blk = child->opaque;
+    BlockBackendGraphChangeNotifier *notifier;
+    BlockBackendGraphChangeNotifier *next;
+
+    trace_blk_root_post_attach(child, blk, attached, attached->bs);
+
+    QLIST_FOREACH_SAFE(notifier, &blk->graph_change_notifiers, list, next) {
+        if (notifier->post_attach) {
+            notifier->post_attach(blk, notifier->opaque);
+        }
+    }
+}
+
 static AioContext *blk_root_get_parent_aio_context(BdrvChild *c)
 {
     BlockBackend *blk = c->opaque;
@@ -333,6 +371,9 @@ static const BdrvChildClass child_root = {
 
     .attach             = blk_root_attach,
     .detach             = blk_root_detach,
+
+    .pre_detach         = blk_root_pre_detach,
+    .post_attach        = blk_root_post_attach,
 
     .change_aio_ctx     = blk_root_change_aio_ctx,
 
@@ -372,6 +413,7 @@ BlockBackend *blk_new(AioContext *ctx, uint64_t perm, uint64_t shared_perm)
     notifier_list_init(&blk->remove_bs_notifiers);
     notifier_list_init(&blk->insert_bs_notifiers);
     QLIST_INIT(&blk->aio_notifiers);
+    QLIST_INIT(&blk->graph_change_notifiers);
 
     QTAILQ_INSERT_TAIL(&block_backends, blk, link);
     return blk;
@@ -485,6 +527,7 @@ static void blk_delete(BlockBackend *blk)
     assert(QLIST_EMPTY(&blk->remove_bs_notifiers.notifiers));
     assert(QLIST_EMPTY(&blk->insert_bs_notifiers.notifiers));
     assert(QLIST_EMPTY(&blk->aio_notifiers));
+    assert(QLIST_EMPTY(&blk->graph_change_notifiers));
     QTAILQ_REMOVE(&block_backends, blk, link);
     drive_info_del(blk->legacy_dinfo);
     block_acct_cleanup(&blk->stats);
@@ -2313,6 +2356,42 @@ void blk_add_insert_bs_notifier(BlockBackend *blk, Notifier *notify)
 {
     GLOBAL_STATE_CODE();
     notifier_list_add(&blk->insert_bs_notifiers, notify);
+}
+
+void blk_add_graph_change_notifier(BlockBackend *blk,
+        void (*pre_detach)(BlockBackend *blk, void *),
+        void (*post_attach)(BlockBackend *blk, void *),
+        void *opaque)
+{
+    BlockBackendGraphChangeNotifier *notifier;
+    GLOBAL_STATE_CODE();
+
+    notifier = g_new(BlockBackendGraphChangeNotifier, 1);
+    notifier->pre_detach = pre_detach;
+    notifier->post_attach = post_attach;
+    notifier->opaque = opaque;
+    QLIST_INSERT_HEAD(&blk->graph_change_notifiers, notifier, list);
+}
+
+void blk_remove_graph_change_notifier(BlockBackend *blk,
+        void (*pre_detach)(BlockBackend *blk, void *),
+        void (*post_attach)(BlockBackend *blk, void *),
+        void *opaque)
+{
+    BlockBackendGraphChangeNotifier *notifier;
+    GLOBAL_STATE_CODE();
+
+    QLIST_FOREACH(notifier, &blk->graph_change_notifiers, list) {
+        if (notifier->pre_detach == pre_detach &&
+            notifier->post_attach == post_attach &&
+            notifier->opaque == opaque) {
+            QLIST_REMOVE(notifier, list);
+            g_free(notifier);
+            return;
+        }
+    }
+
+    abort();
 }
 
 void blk_io_plug(BlockBackend *blk)

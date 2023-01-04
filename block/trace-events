@@ -9,6 +9,8 @@ blk_co_preadv(void *blk, void *bs, int64_t offset, int64_t bytes, int flags) "bl
 blk_co_pwritev(void *blk, void *bs, int64_t offset, int64_t bytes, int flags) "blk %p bs %p offset %"PRId64" bytes %" PRId64 " flags 0x%x"
 blk_root_attach(void *child, void *blk, void *bs) "child %p blk %p bs %p"
 blk_root_detach(void *child, void *blk, void *bs) "child %p blk %p bs %p"
+blk_root_pre_detach(void *child, void *blk, void *to_detach, void *to_detach_bs) "child %p blk %p to_detach %p to_detach_bs %p"
+blk_root_post_attach(void *child, void *blk, void *attached, void *attached_bs) "child %p blk %p attached %p attached_bs %p"
 
 # io.c
 bdrv_co_preadv_part(void *bs, int64_t offset, int64_t bytes, unsigned int flags) "bs %p offset %" PRId64 " bytes %" PRId64 " flags 0x%x"

@@ -89,6 +89,16 @@ void blk_remove_aio_context_notifier(BlockBackend *blk,
                                      void *opaque);
 void blk_add_remove_bs_notifier(BlockBackend *blk, Notifier *notify);
 void blk_add_insert_bs_notifier(BlockBackend *blk, Notifier *notify);
+void blk_add_graph_change_notifier(BlockBackend *blk,
+                                   void (*pre_detach)(BlockBackend *, void *),
+                                   void (*post_attach)(BlockBackend *, void *),
+                                   void *opaque);
+void blk_remove_graph_change_notifier(BlockBackend *blk,
+                                      void (*pre_detach)(BlockBackend *,
+                                                         void *),
+                                      void (*post_attach)(BlockBackend *,
+                                                          void *),
+                                      void *opaque);
 BlockBackendRootState *blk_get_root_state(BlockBackend *blk);
 void blk_update_root_state(BlockBackend *blk);
 bool blk_get_detect_zeroes_from_root_state(BlockBackend *blk);
