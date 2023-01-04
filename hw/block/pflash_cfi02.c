@@ -1024,25 +1024,3 @@ DeviceState *pflash_cfi02_create(const char *name, hwaddr size,
 
     return dev;
 }
-
-PFlashCFI02 *pflash_cfi02_register(hwaddr base,
-                                   const char *name,
-                                   hwaddr size,
-                                   BlockBackend *blk,
-                                   uint32_t sector_len,
-                                   int nb_mappings, int width,
-                                   uint16_t id0, uint16_t id1,
-                                   uint16_t id2, uint16_t id3,
-                                   uint16_t unlock_addr0,
-                                   uint16_t unlock_addr1,
-                                   int be)
-{
-    DeviceState *dev;
-
-    dev = pflash_cfi02_create(name, size, blk, sector_len,
-                              nb_mappings, width, id0, id1, id2, id3,
-                              unlock_addr0, unlock_addr1, be);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
-
-    return PFLASH_CFI02(dev);
-}
