@@ -413,7 +413,8 @@ static int net_slirp_init(NetClientState *peer, const char *model,
                           const char *vnameserver, const char *vnameserver6,
                           const char *smb_export, const char *vsmbserver,
                           const char **dnssearch, const char *vdomainname,
-                          const char *tftp_server_name,
+                          const char *tftp_server_name, uint32_t mfr_id,
+                          const char *oob_eth_addr_str,
                           Error **errp)
 {
     /* default settings according to historic slirp */
@@ -436,6 +437,7 @@ static int net_slirp_init(NetClientState *peer, const char *model,
     int shift;
     char *end;
     struct slirp_config_str *config;
+    MACAddr oob_eth_addr = {};
 
     if (!ipv4 && (vnetwork || vhost || vnameserver)) {
         error_setg(errp, "IPv4 disabled but netmask/host/dns provided");
@@ -609,6 +611,12 @@ static int net_slirp_init(NetClientState *peer, const char *model,
         return -1;
     }
 
+    if (oob_eth_addr_str &&
+        net_parse_macaddr(oob_eth_addr.a, oob_eth_addr_str) < 0) {
+        error_setg(errp, "'oob-eth-addr' invalid syntax for MAC address");
+        return -1;
+    }
+
     nc = qemu_new_net_client(&net_slirp_info, peer, model, name);
 
     qemu_set_info_str(nc, "net=%s,restrict=%s", inet_ntoa(net),
@@ -616,7 +624,7 @@ static int net_slirp_init(NetClientState *peer, const char *model,
 
     s = DO_UPCAST(SlirpState, nc, nc);
 
-    cfg.version = SLIRP_CHECK_VERSION(4,7,0) ? 4 : 1;
+    cfg.version = SLIRP_CONFIG_VERSION_MAX;
     cfg.restricted = restricted;
     cfg.in_enabled = ipv4;
     cfg.vnetwork = net;
@@ -635,6 +643,10 @@ static int net_slirp_init(NetClientState *peer, const char *model,
     cfg.vnameserver6 = ip6_dns;
     cfg.vdnssearch = dnssearch;
     cfg.vdomainname = vdomainname;
+#if SLIRP_CONFIG_VERSION_MAX >= 5
+    cfg.mfr_id = mfr_id;
+    memcpy(cfg.oob_eth_addr, oob_eth_addr.a, sizeof(cfg.oob_eth_addr));
+#endif
     s->slirp = slirp_new(&cfg, &slirp_cb, s);
     QTAILQ_INSERT_TAIL(&slirp_stacks, s, entry);
 
@@ -1171,7 +1183,8 @@ int net_init_slirp(const Netdev *netdev, const char *name,
                          user->bootfile, user->dhcpstart,
                          user->dns, user->ipv6_dns, user->smb,
                          user->smbserver, dnssearch, user->domainname,
-                         user->tftp_server_name, errp);
+                         user->tftp_server_name, user->mfr_id,
+                         user->oob_eth_addr, errp);
 
     while (slirp_configs) {
         config = slirp_configs;

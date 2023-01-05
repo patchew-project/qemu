@@ -168,6 +168,11 @@
 #
 # @tftp-server-name: RFC2132 "TFTP server name" string (Since 3.1)
 #
+# @mfr-id: Manufacturer ID (IANA Private Enterprise Number)
+#
+# @oob-eth-addr: MAC Address allocated for an out-of-band management
+#                controller, to be retrieved through NC-SI.
+#
 # Since: 1.2
 ##
 { 'struct': 'NetdevUserOptions',
@@ -193,7 +198,9 @@
     '*smbserver': 'str',
     '*hostfwd':   ['String'],
     '*guestfwd':  ['String'],
-    '*tftp-server-name': 'str' } }
+    '*tftp-server-name': 'str',
+    '*mfr-id':    'uint32',
+    '*oob-eth-addr': 'str' } }
 
 ##
 # @NetdevTapOptions:
