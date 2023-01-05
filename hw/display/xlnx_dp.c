@@ -508,6 +508,10 @@ static void xlnx_dp_aux_set_command(XlnxDPState *s, uint32_t value)
     case READ_AUX:
     case READ_I2C:
     case READ_I2C_MOT:
+        if (nbytes > fifo8_num_free(&s->rx_fifo)) {
+            qemu_log_mask(LOG_GUEST_ERROR, "xlnx_dp: RX length > available fifo data length");
+            nbytes = fifo8_num_free(&s->rx_fifo);
+        }
         s->core_registers[DP_AUX_REPLY_CODE] = aux_request(s->aux_bus, cmd,
                                                xlnx_dp_aux_get_address(s),
                                                nbytes, buf);
