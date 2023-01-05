@@ -35,6 +35,7 @@
 #include "fpu/softfloat-helpers.h"
 #include "disas/capstone.h"
 #include "sysemu/tcg.h"
+#include "hw/s390x/cpu-topology.h"
 
 #define CR0_RESET       0xE0UL
 #define CR14_RESET      0xC2000000UL;
@@ -257,6 +258,15 @@ static gchar *s390_gdb_arch_name(CPUState *cs)
 static Property s390x_cpu_properties[] = {
 #if !defined(CONFIG_USER_ONLY)
     DEFINE_PROP_UINT32("core-id", S390CPU, env.core_id, 0),
+    DEFINE_PROP_INT32("socket-id", S390CPU, env.socket_id, -1),
+    DEFINE_PROP_INT32("book-id", S390CPU, env.book_id, -1),
+    DEFINE_PROP_INT32("drawer-id", S390CPU, env.drawer_id, -1),
+    DEFINE_PROP_INT32("dedicated", S390CPU, env.dedicated,
+                      S390_TOPOLOGY_SHARED),
+    DEFINE_PROP_INT32("polarity", S390CPU, env.polarity,
+                      S390_TOPOLOGY_POLARITY_HORIZONTAL),
+    DEFINE_PROP_INT32("cpu-type", S390CPU, env.cpu_type,
+                      S390_TOPOLOGY_CPU_IFL),
 #endif
     DEFINE_PROP_END_OF_LIST()
 };

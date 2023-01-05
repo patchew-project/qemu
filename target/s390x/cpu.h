@@ -131,6 +131,12 @@ struct CPUArchState {
 
 #if !defined(CONFIG_USER_ONLY)
     uint32_t core_id; /* PoP "CPU address", same as cpu_index */
+    int32_t socket_id;
+    int32_t book_id;
+    int32_t drawer_id;
+    int32_t dedicated;
+    int32_t polarity;
+    int32_t cpu_type;
     uint64_t cpuid;
 #endif
 
