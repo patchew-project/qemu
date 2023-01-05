@@ -97,6 +97,98 @@ static s390_topology_id s390_topology_from_cpu(S390CPU *cpu)
 }
 
 /**
+ * s390_topology_set_polarity
+ * @polarity: horizontal or vertical
+ *
+ * Changes the polarity of all the CPU in the configuration.
+ *
+ * If the dedicated CPU modifier attribute is set a vertical
+ * polarization is always high (Architecture).
+ * Otherwise we decide to set it as medium.
+ *
+ * Once done, advertise a topology change.
+ */
+void s390_topology_set_polarity(int polarity)
+{
+    S390TopologyEntry *entry;
+
+    QTAILQ_FOREACH(entry, &s390_topology.list, next) {
+        if (polarity == S390_TOPOLOGY_POLARITY_HORIZONTAL) {
+            entry->id.p = polarity;
+        } else {
+            if (entry->id.d) {
+                entry->id.p = S390_TOPOLOGY_POLARITY_VERTICAL_HIGH;
+            } else {
+                entry->id.p = S390_TOPOLOGY_POLARITY_VERTICAL_MEDIUM;
+            }
+        }
+    }
+    s390_cpu_topology_set();
+}
+
+/*
+ * s390_handle_ptf:
+ *
+ * @register 1: contains the function code
+ *
+ * Function codes 0 and 1 handle the CPU polarization.
+ * We assume an horizontal topology, the only one supported currently
+ * by Linux, consequently we answer to function code 0, requesting
+ * horizontal polarization that it is already the current polarization
+ * and reject vertical polarization request without further explanation.
+ *
+ * Function code 2 is handling topology changes and is interpreted
+ * by the SIE.
+ */
+void s390_handle_ptf(S390CPU *cpu, uint8_t r1, uintptr_t ra)
+{
+    CPUS390XState *env = &cpu->env;
+    uint64_t reg = env->regs[r1];
+    uint8_t fc = reg & S390_TOPO_FC_MASK;
+
+    if (!s390_has_feat(S390_FEAT_CONFIGURATION_TOPOLOGY)) {
+        s390_program_interrupt(env, PGM_OPERATION, ra);
+        return;
+    }
+
+    if (env->psw.mask & PSW_MASK_PSTATE) {
+        s390_program_interrupt(env, PGM_PRIVILEGED, ra);
+        return;
+    }
+
+    if (reg & ~S390_TOPO_FC_MASK) {
+        s390_program_interrupt(env, PGM_SPECIFICATION, ra);
+        return;
+    }
+
+    switch (fc) {
+    case 0:    /* Horizontal polarization is already set */
+        if (s390_topology.polarity == S390_TOPOLOGY_POLARITY_HORIZONTAL) {
+            env->regs[r1] |= S390_PTF_REASON_DONE;
+            setcc(cpu, 2);
+        } else {
+            s390_topology_set_polarity(S390_TOPOLOGY_POLARITY_HORIZONTAL);
+            s390_topology.polarity = S390_TOPOLOGY_POLARITY_HORIZONTAL;
+            setcc(cpu, 0);
+        }
+        break;
+    case 1:    /* Vertical polarization is not supported */
+        if (s390_topology.polarity != S390_TOPOLOGY_POLARITY_HORIZONTAL) {
+            env->regs[r1] |= S390_PTF_REASON_DONE;
+            setcc(cpu, 2);
+        } else {
+            s390_topology_set_polarity(S390_TOPOLOGY_POLARITY_VERTICAL_LOW);
+            s390_topology.polarity = S390_TOPOLOGY_POLARITY_VERTICAL_LOW;
+            setcc(cpu, 0);
+        }
+        break;
+    default:
+        /* Note that fc == 2 is interpreted by the SIE */
+        s390_program_interrupt(env, PGM_SPECIFICATION, ra);
+    }
+}
+
+ /**
  * s390_topology_set_entry:
  * @entry: Topology entry to setup
  * @id: topology id to use for the setup

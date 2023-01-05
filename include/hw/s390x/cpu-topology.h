@@ -55,11 +55,13 @@ typedef struct S390Topology {
     QTAILQ_HEAD(, S390TopologyEntry) list;
     uint8_t *sockets;
     CpuTopology *smp;
+    int polarity;
 } S390Topology;
 
 #ifdef CONFIG_KVM
 bool s390_has_topology(void);
 void s390_topology_set_cpu(MachineState *ms, S390CPU *cpu, Error **errp);
+void s390_topology_set_polarity(int polarity);
 #else
 static inline bool s390_has_topology(void)
 {
@@ -68,6 +70,7 @@ static inline bool s390_has_topology(void)
 static inline void s390_topology_set_cpu(MachineState *ms,
                                          S390CPU *cpu,
                                          Error **errp) {}
+static inline void s390_topology_set_polarity(int polarity) {}
 #endif
 extern S390Topology s390_topology;
 
