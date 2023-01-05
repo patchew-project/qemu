@@ -278,6 +278,8 @@ static void host_open(CPUState *cs, gdb_syscall_complete_cb complete,
         host_flags |= O_EXCL;
     }
 
+    host_flags |= O_BINARY;
+
     ret = open(p, host_flags, mode);
     if (ret < 0) {
         complete(cs, -1, errno);
