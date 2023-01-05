@@ -44,7 +44,6 @@
 #include "qemu/error-report.h"
 #include "hw/pci/pci.h"
 #include "hw/irq.h"
-#include "hw/mips/mips.h"
 #include "hw/pci-host/bonito.h"
 #include "hw/pci/pci_host.h"
 #include "migration/vmstate.h"
@@ -748,20 +747,6 @@ static void bonito_pci_realize(PCIDevice *dev, Error **errp)
 
     pci_set_byte(dev->config + PCI_MIN_GNT, 0x3c);
     pci_set_byte(dev->config + PCI_MAX_LAT, 0x00);
-}
-
-PCIBus *bonito_init(qemu_irq *pic)
-{
-    DeviceState *dev;
-    PCIHostState *phb;
-
-    dev = qdev_new(TYPE_BONITO_PCI_HOST_BRIDGE);
-    phb = PCI_HOST_BRIDGE(dev);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, *pic);
-
-    return phb->bus;
 }
 
 static void bonito_pci_class_init(ObjectClass *klass, void *data)

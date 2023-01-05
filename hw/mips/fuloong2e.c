@@ -32,6 +32,7 @@
 #include "hw/mips/bootloader.h"
 #include "hw/mips/cpudevs.h"
 #include "hw/pci/pci.h"
+#include "hw/pci-host/bonito.h"
 #include "hw/loader.h"
 #include "hw/ide/pci.h"
 #include "hw/qdev-properties.h"
@@ -292,7 +293,10 @@ static void mips_fuloong2e_init(MachineState *machine)
     cpu_mips_clock_init(cpu);
 
     /* North bridge, Bonito --> IP2 */
-    pci_bus = bonito_init((qemu_irq *)&(env->irq[2]));
+    dev = qdev_new(TYPE_BONITO_PCI_HOST_BRIDGE);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, env->irq[2]);
+    pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci"));
 
     /* South bridge -> IP5 */
     pci_dev = pci_create_simple_multifunction(pci_bus,
