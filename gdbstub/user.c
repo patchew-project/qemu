@@ -13,6 +13,8 @@
 #include "exec/hwaddr.h"
 #include "exec/gdbstub.h"
 #include "hw/core/cpu.h"
+/* temp hack */
+#define CONFIG_USER_ONLY 1
 #include "internals.h"
 
 bool gdb_supports_guest_debug(void)

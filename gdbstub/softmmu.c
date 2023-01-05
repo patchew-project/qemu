@@ -14,6 +14,8 @@
 #include "exec/gdbstub.h"
 #include "exec/hwaddr.h"
 #include "sysemu/cpus.h"
+#include "chardev/char.h"
+#include "chardev/char-fe.h"
 #include "internals.h"
 
 bool gdb_supports_guest_debug(void)
