@@ -3063,9 +3063,15 @@ F: include/hw/acpi/tpm.h
 F: include/sysemu/tpm*
 F: qapi/tpm.json
 F: backends/tpm/
+X: backends/tpm/tpm_mssim.*
 F: tests/qtest/*tpm*
 F: docs/specs/tpm.rst
 T: git https://github.com/stefanberger/qemu-tpm.git tpm-next
+
+MSSIM TPM Backend
+M: James Bottomley <jejb@linux.ibm.com>
+S: Maintained
+F: backends/tpm/tpm_mssim.*
 
 Checkpatch
 S: Odd Fixes
