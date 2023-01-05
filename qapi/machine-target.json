@@ -371,3 +371,69 @@
   },
   'if': { 'all': [ 'TARGET_S390X', 'CONFIG_KVM' ] }
 }
+
+##
+# @S390CpuTopology:
+#
+# CPU Topology information
+#
+# @drawer: the destination drawer where to move the vCPU
+#
+# @book: the destination book where to move the vCPU
+#
+# @socket: the destination socket where to move the vCPU
+#
+# @polarity: optional polarity, default is last polarity set by the guest
+#
+# @dedicated: optional, if the vCPU is dedicated to a real CPU
+#
+# @origin: offset of the first bit of the core mask
+#
+# @mask: mask of the cores sharing the same topology
+#
+# Since: 8.0
+##
+{ 'struct': 'S390CpuTopology',
+  'data': {
+      'drawer': 'int',
+      'book': 'int',
+      'socket': 'int',
+      'polarity': 'int',
+      'dedicated': 'bool',
+      'origin': 'int',
+      'mask': 'str'
+  },
+  'if': { 'all': [ 'TARGET_S390X', 'CONFIG_KVM' ] }
+}
+
+##
+# @query-topology:
+#
+# Return information about CPU Topology
+#
+# Returns a @CpuTopology instance describing the CPU Toplogy
+# being currently used by QEMU.
+#
+# Since: 8.0
+#
+# Example:
+#
+# -> { "execute": "cpu-topology" }
+# <- {"return": [
+#     {
+#         "drawer": 0,
+#         "book": 0,
+#         "socket": 0,
+#         "polarity": 0,
+#         "dedicated": true,
+#         "origin": 0,
+#         "mask": 0xc000000000000000,
+#     },
+#    ]
+#   }
+#
+##
+{ 'command': 'query-topology',
+  'returns': ['S390CpuTopology'],
+  'if': { 'all': [ 'TARGET_S390X', 'CONFIG_KVM' ] }
+}

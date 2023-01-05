@@ -524,3 +524,79 @@ void hmp_change_topology(Monitor *mon, const QDict *qdict)
         return;
     }
 }
+
+static S390CpuTopologyList *s390_cpu_topology_list(void)
+{
+    S390CpuTopologyList *head = NULL;
+    S390TopologyEntry *entry;
+
+    QTAILQ_FOREACH_REVERSE(entry, &s390_topology.list, next) {
+        S390CpuTopology *item = g_new0(typeof(*item), 1);
+
+        item->drawer = entry->id.drawer;
+        item->book = entry->id.book;
+        item->socket = entry->id.socket;
+        item->polarity = entry->id.p;
+        if (entry->id.d) {
+            item->dedicated = true;
+        }
+        item->origin = entry->id.origin;
+        item->mask = g_strdup_printf("0x%016lx", entry->mask);
+
+        QAPI_LIST_PREPEND(head, item);
+    }
+    return head;
+}
+
+S390CpuTopologyList *qmp_query_topology(Error **errp)
+{
+    if (!s390_has_topology()) {
+        error_setg(errp, "This machine doesn't support topology");
+        return NULL;
+    }
+
+    return s390_cpu_topology_list();
+}
+
+void hmp_query_topology(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    S390CpuTopologyList *l = qmp_query_topology(&err);
+
+    if (hmp_handle_error(mon, err)) {
+        return;
+    }
+
+    monitor_printf(mon, "CPU Topology:\n");
+    while (l) {
+        uint64_t d = -1UL;
+        uint64_t b = -1UL;
+        uint64_t s = -1UL;
+        uint64_t p = -1UL;
+        uint64_t dd = -1UL;
+
+        if (d != l->value->drawer) {
+            monitor_printf(mon, "  drawer   : \"%" PRIu64 "\"\n",
+                           l->value->drawer);
+        }
+        if (b != l->value->book) {
+            monitor_printf(mon, "  book     : \"%" PRIu64 "\"\n",
+                           l->value->book);
+        }
+        if (s != l->value->socket) {
+            monitor_printf(mon, "  socket   : \"%" PRIu64 "\"\n",
+                           l->value->socket);
+        }
+        if (p != l->value->polarity) {
+            monitor_printf(mon, "  polarity : \"%" PRIu64 "\"\n",
+                           l->value->polarity);
+        }
+        if (dd != l->value->dedicated) {
+            monitor_printf(mon, "  dedicated: \"%d\"\n", l->value->dedicated);
+        }
+        monitor_printf(mon, "  mask  : \"%s\"\n", l->value->mask);
+
+
+        l = l->next;
+    }
+}

@@ -993,3 +993,19 @@ SRST
   ``info virtio-queue-element`` *path* *queue* [*index*]
     Display element of a given virtio queue
 ERST
+
+#if defined(TARGET_S390X) && defined(CONFIG_KVM)
+    {
+        .name       = "query-topology",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Show information about CPU topology",
+        .cmd        = hmp_query_topology,
+        .flags      = "p",
+    },
+
+SRST
+  ``info query-topology``
+    Show information about CPU topology
+ERST
+#endif
