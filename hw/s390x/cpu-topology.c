@@ -52,7 +52,7 @@ static int s390_socket_nb(s390_topology_id id)
  */
 bool s390_has_topology(void)
 {
-    return false;
+    return s390_has_feat(S390_FEAT_CONFIGURATION_TOPOLOGY);
 }
 
 /**
