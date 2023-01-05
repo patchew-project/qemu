@@ -233,7 +233,7 @@ typedef struct PCIBonitoState PCIBonitoState;
 
 struct BonitoState {
     PCIHostState parent_obj;
-    qemu_irq *pic;
+    qemu_irq irq;
     PCIBonitoState *pci_dev;
     MemoryRegion pci_mem;
 };
@@ -556,17 +556,16 @@ static const MemoryRegionOps bonito_spciconf_ops = {
 static void pci_bonito_set_irq(void *opaque, int irq_num, int level)
 {
     BonitoState *s = opaque;
-    qemu_irq *pic = s->pic;
     PCIBonitoState *bonito_state = s->pci_dev;
     int internal_irq = irq_num - BONITO_IRQ_BASE;
 
     if (bonito_state->regs[BONITO_INTEDGE] & (1 << internal_irq)) {
-        qemu_irq_pulse(*pic);
+        qemu_irq_pulse(s->irq);
     } else {   /* level triggered */
         if (bonito_state->regs[BONITO_INTPOL] & (1 << internal_irq)) {
-            qemu_irq_raise(*pic);
+            qemu_irq_raise(s->irq);
         } else {
-            qemu_irq_lower(*pic);
+            qemu_irq_lower(s->irq);
         }
     }
 }
@@ -633,6 +632,7 @@ static void bonito_host_realize(DeviceState *dev, Error **errp)
     BonitoState *bs = BONITO_PCI_HOST_BRIDGE(dev);
     MemoryRegion *pcimem_lo_alias = g_new(MemoryRegion, 3);
 
+    sysbus_init_irq(SYS_BUS_DEVICE(dev), &bs->irq);
     memory_region_init(&bs->pci_mem, OBJECT(dev), "pci.mem", BONITO_PCIHI_SIZE);
     phb->bus = pci_register_root_bus(dev, "pci",
                                      pci_bonito_set_irq, pci_bonito_map_irq,
@@ -755,14 +755,13 @@ static void bonito_pci_realize(PCIDevice *dev, Error **errp)
 PCIBus *bonito_init(qemu_irq *pic)
 {
     DeviceState *dev;
-    BonitoState *pcihost;
     PCIHostState *phb;
 
     dev = qdev_new(TYPE_BONITO_PCI_HOST_BRIDGE);
     phb = PCI_HOST_BRIDGE(dev);
-    pcihost = BONITO_PCI_HOST_BRIDGE(dev);
-    pcihost->pic = pic;
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, *pic);
 
     return phb->bus;
 }
