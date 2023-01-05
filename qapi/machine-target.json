@@ -342,3 +342,32 @@
                    'TARGET_S390X',
                    'TARGET_MIPS',
                    'TARGET_LOONGARCH64' ] } }
+
+##
+# @change-topology:
+#
+# @core: the vCPU ID to be moved
+# @socket: the destination socket where to move the vCPU
+# @book: the destination book where to move the vCPU
+# @drawer: the destination drawer where to move the vCPU
+# @polarity: optional polarity, default is last polarity set by the guest
+# @dedicated: optional, if the vCPU is dedicated to a real CPU
+#
+# Modifies the topology by moving the CPU inside the topology
+# tree or by changing a modifier attribute of a CPU.
+#
+# Returns: Nothing on success, the reason on failure.
+#
+# Since: <next qemu stable release, eg. 1.0>
+##
+{ 'command': 'change-topology',
+  'data': {
+      'core': 'int',
+      'socket': 'int',
+      'book': 'int',
+      'drawer': 'int',
+      '*polarity': 'int',
+      '*dedicated': 'bool'
+  },
+  'if': { 'all': [ 'TARGET_S390X', 'CONFIG_KVM' ] }
+}

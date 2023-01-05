@@ -1815,3 +1815,19 @@ SRST
   Dump the FDT in dtb format to *filename*.
 ERST
 #endif
+
+#if defined(TARGET_S390X) && defined(CONFIG_KVM)
+    {
+        .name       = "change-topology",
+        .args_type  = "core:l,socket:l,book:l,drawer:l,polarity:l?,dedicated:b?",
+        .params     = "core socket book drawer [polarity] [dedicated]",
+        .help       = "Move CPU 'core' to 'socket/book/drawer' "
+                      "optionaly modifies polarity and dedication",
+        .cmd        = hmp_change_topology,
+    },
+
+SRST
+``change-topology`` *core* *socket* *book* *drawer* *polarity* *dedicated*
+  Moves the CPU  *core* to *socket* *book* *drawer* with *polarity* *dedicated*.
+ERST
+#endif

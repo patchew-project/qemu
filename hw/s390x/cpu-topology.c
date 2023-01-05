@@ -18,6 +18,10 @@
 #include "target/s390x/cpu.h"
 #include "hw/s390x/s390-virtio-ccw.h"
 #include "hw/s390x/cpu-topology.h"
+#include "qapi/qapi-commands-machine-target.h"
+#include "qapi/qmp/qdict.h"
+#include "monitor/hmp.h"
+#include "monitor/monitor.h"
 
 /*
  * s390_topology is used to keep the topology information.
@@ -204,6 +208,21 @@ static void s390_topology_set_entry(S390TopologyEntry *entry,
 }
 
 /**
+ * s390_topology_clear_entry:
+ * @entry: Topology entry to setup
+ * @id: topology id to use for the setup
+ *
+ * Clear the core bit inside the topology mask and
+ * decrements the number of cores for the socket.
+ */
+static void s390_topology_clear_entry(S390TopologyEntry *entry,
+                                      s390_topology_id id)
+{
+    clear_bit(63 - id.core, &entry->mask);
+    s390_topology.sockets[s390_socket_nb(id)]--;
+}
+
+/**
  * s390_topology_new_entry:
  * @id: s390_topology_id to add
  *
@@ -382,4 +401,126 @@ void s390_topology_set_cpu(MachineState *ms, S390CPU *cpu, Error **errp)
     }
 
     s390_topology_insert(id);
+}
+
+/*
+ * qmp and hmp implementations
+ */
+
+static S390TopologyEntry *s390_topology_core_to_entry(int core)
+{
+    S390TopologyEntry *entry;
+
+    QTAILQ_FOREACH(entry, &s390_topology.list, next) {
+        if (entry->mask & (1UL << (63 - core))) {
+            return entry;
+        }
+    }
+    return NULL;
+}
+
+static void s390_change_topology(Error **errp, int64_t core, int64_t socket,
+                                 int64_t book, int64_t drawer,
+                                 int64_t polarity, bool dedicated)
+{
+    S390TopologyEntry *entry;
+    s390_topology_id new_id;
+    s390_topology_id old_id;
+    Error *local_error = NULL;
+
+    /* Get the old entry */
+    entry = s390_topology_core_to_entry(core);
+    if (!entry) {
+        error_setg(errp, "No core %ld", core);
+        return;
+    }
+
+    /* Compute old topology id */
+    old_id = entry->id;
+    old_id.core = core;
+
+    /* Compute new topology id */
+    new_id = entry->id;
+    new_id.core = core;
+    new_id.socket = socket;
+    new_id.book = book;
+    new_id.drawer = drawer;
+    new_id.p = polarity;
+    new_id.d = dedicated;
+    new_id.type = S390_TOPOLOGY_CPU_IFL;
+
+    /* Same topology entry, nothing to do */
+    if (entry->id.id == new_id.id) {
+        return;
+    }
+
+    /* Check for space on the socket if ids are different */
+    if ((s390_socket_nb(old_id) != s390_socket_nb(new_id)) &&
+        (s390_topology.sockets[s390_socket_nb(new_id)] >=
+         s390_topology.smp->sockets)) {
+        error_setg(errp, "No more space on this socket");
+        return;
+    }
+
+    /* Verify the new topology */
+    s390_topology_check(&local_error, new_id);
+    if (local_error) {
+        error_propagate(errp, local_error);
+        return;
+    }
+
+    /* Clear the old topology */
+    s390_topology_clear_entry(entry, old_id);
+
+    /* Insert the new topology */
+    s390_topology_insert(new_id);
+
+    /* Remove unused entry */
+    if (!entry->mask) {
+        QTAILQ_REMOVE(&s390_topology.list, entry, next);
+        g_free(entry);
+    }
+
+    /* Advertise the topology change */
+    s390_cpu_topology_set();
+}
+
+void qmp_change_topology(int64_t core, int64_t socket,
+                         int64_t book, int64_t drawer,
+                         bool has_polarity, int64_t polarity,
+                         bool has_dedicated, bool dedicated,
+                         Error **errp)
+{
+    Error *local_err = NULL;
+
+    if (!s390_has_topology()) {
+        error_setg(&local_err, "This machine doesn't support topology");
+        return;
+    }
+    s390_change_topology(&local_err, core, socket, book, drawer,
+                         polarity, dedicated);
+    if (local_err) {
+        error_propagate(errp, local_err);
+    }
+}
+
+void hmp_change_topology(Monitor *mon, const QDict *qdict)
+{
+    const int64_t core = qdict_get_int(qdict, "core");
+    const int64_t socket = qdict_get_int(qdict, "socket");
+    const int64_t book = qdict_get_int(qdict, "book");
+    const int64_t drawer = qdict_get_int(qdict, "drawer");
+    bool has_polarity    = qdict_haskey(qdict, "polarity");
+    const int64_t polarity = qdict_get_try_int(qdict, "polarity", 0);
+    bool has_dedicated    = qdict_haskey(qdict, "dedicated");
+    const bool dedicated = qdict_get_try_bool(qdict, "dedicated", false);
+    Error *local_err = NULL;
+
+    qmp_change_topology(core, socket, book, drawer,
+                        has_polarity, polarity,
+                        has_dedicated, dedicated,
+                        &local_err);
+    if (hmp_handle_error(mon, local_err)) {
+        return;
+    }
 }
