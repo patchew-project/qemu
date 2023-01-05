@@ -651,6 +651,11 @@ static void bonito_host_realize(DeviceState *dev, Error **errp)
     }
 
     create_unimplemented_device("pci.io", BONITO_PCIIO_BASE, 1 * MiB);
+
+    bs->pci_dev = PCI_BONITO(pci_new(PCI_DEVFN(0, 0), TYPE_PCI_BONITO));
+    object_property_add_const_link(OBJECT(bs->pci_dev), "host-bridge",
+                                   OBJECT(bs));
+    pci_realize_and_unref(PCI_DEVICE(bs->pci_dev), phb->bus, &error_fatal);
 }
 
 static void bonito_pci_realize(PCIDevice *dev, Error **errp)
@@ -752,18 +757,12 @@ PCIBus *bonito_init(qemu_irq *pic)
     DeviceState *dev;
     BonitoState *pcihost;
     PCIHostState *phb;
-    PCIDevice *d;
 
     dev = qdev_new(TYPE_BONITO_PCI_HOST_BRIDGE);
     phb = PCI_HOST_BRIDGE(dev);
     pcihost = BONITO_PCI_HOST_BRIDGE(dev);
     pcihost->pic = pic;
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-
-    d = pci_new(PCI_DEVFN(0, 0), TYPE_PCI_BONITO);
-    object_property_add_const_link(OBJECT(d), "host-bridge", OBJECT(dev));
-    pci_realize_and_unref(d, phb->bus, &error_fatal);
-    pcihost->pci_dev = PCI_BONITO(d);
 
     return phb->bus;
 }
