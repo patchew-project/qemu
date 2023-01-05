@@ -656,10 +656,17 @@ static void bonito_host_realize(DeviceState *dev, Error **errp)
 static void bonito_pci_realize(PCIDevice *dev, Error **errp)
 {
     PCIBonitoState *s = PCI_BONITO(dev);
-    SysBusDevice *sysbus = SYS_BUS_DEVICE(s->pcihost);
-    PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
-    BonitoState *bs = BONITO_PCI_HOST_BRIDGE(s->pcihost);
     MemoryRegion *pcimem_alias = g_new(MemoryRegion, 1);
+    SysBusDevice *sysbus;
+    PCIHostState *phb;
+    BonitoState *bs;
+    Object *obj;
+
+    obj = object_property_get_link(OBJECT(dev), "host-bridge", &error_abort);
+    s->pcihost = BONITO_PCI_HOST_BRIDGE(obj);
+    sysbus = SYS_BUS_DEVICE(obj);
+    phb = PCI_HOST_BRIDGE(obj);
+    bs = BONITO_PCI_HOST_BRIDGE(obj);
 
     /*
      * Bonito North Bridge, built on FPGA,
@@ -745,7 +752,6 @@ PCIBus *bonito_init(qemu_irq *pic)
     DeviceState *dev;
     BonitoState *pcihost;
     PCIHostState *phb;
-    PCIBonitoState *s;
     PCIDevice *d;
 
     dev = qdev_new(TYPE_BONITO_PCI_HOST_BRIDGE);
@@ -755,10 +761,9 @@ PCIBus *bonito_init(qemu_irq *pic)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     d = pci_new(PCI_DEVFN(0, 0), TYPE_PCI_BONITO);
-    s = PCI_BONITO(d);
-    s->pcihost = pcihost;
-    pcihost->pci_dev = s;
+    object_property_add_const_link(OBJECT(d), "host-bridge", OBJECT(dev));
     pci_realize_and_unref(d, phb->bus, &error_fatal);
+    pcihost->pci_dev = PCI_BONITO(d);
 
     return phb->bus;
 }
