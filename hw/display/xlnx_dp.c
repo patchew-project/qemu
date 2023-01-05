@@ -520,6 +520,10 @@ static void xlnx_dp_aux_set_command(XlnxDPState *s, uint32_t value)
     case WRITE_AUX:
     case WRITE_I2C:
     case WRITE_I2C_MOT:
+        if (nbytes > fifo8_num_used(&s->tx_fifo)) {
+            qemu_log_mask(LOG_GUEST_ERROR, "xlnx_dp: TX length > fifo data length");
+            nbytes = fifo8_num_used(&s->tx_fifo);
+        }
         for (i = 0; i < nbytes; i++) {
             buf[i] = xlnx_dp_aux_pop_tx_fifo(s);
         }
