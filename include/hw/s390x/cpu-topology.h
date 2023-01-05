@@ -41,6 +41,9 @@ typedef union s390_topology_id {
     };
 } s390_topology_id;
 #define TOPO_CPU_MASK       0x000000000000003fUL
+#define TOPO_SOCKET_MASK    0x0000ffffff000000UL
+#define TOPO_BOOK_MASK      0x0000ffff00000000UL
+#define TOPO_DRAWER_MASK    0x0000ff0000000000UL
 
 typedef struct S390TopologyEntry {
     s390_topology_id id;
