@@ -1,5 +1,5 @@
 ##
-##  Copyright(c) 2020-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2020-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -66,6 +66,24 @@ tcg_func_table_generated = custom_target(
     command: [python, files('gen_tcg_func_table.py'), semantics_generated, attribs_def, '@OUTPUT@'],
 )
 hexagon_ss.add(tcg_func_table_generated)
+
+analyze_funcs_generated = custom_target(
+    'analyze_funcs_generated.c.inc',
+    output: 'analyze_funcs_generated.c.inc',
+    depends: [semantics_generated],
+    depend_files: [hex_common_py, attribs_def, gen_tcg_h, gen_tcg_hvx_h],
+    command: [python, files('gen_analyze_funcs.py'), semantics_generated, attribs_def, gen_tcg_h, gen_tcg_hvx_h, '@OUTPUT@'],
+)
+hexagon_ss.add(analyze_funcs_generated)
+
+analyze_func_table_generated = custom_target(
+    'analyze_func_table_generated.c.inc',
+    output: 'analyze_func_table_generated.c.inc',
+    depends: [semantics_generated],
+    depend_files: [hex_common_py, attribs_def],
+    command: [python, files('gen_analyze_func_table.py'), semantics_generated, attribs_def, '@OUTPUT@'],
+)
+hexagon_ss.add(analyze_func_table_generated)
 
 printinsn_generated = custom_target(
     'printinsn_generated.h.inc',
