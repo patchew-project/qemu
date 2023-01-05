@@ -548,8 +548,6 @@ static const MemoryRegionOps bonito_spciconf_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-#define BONITO_IRQ_BASE 32
-
 static void pci_bonito_set_irq(void *opaque, int irq_num, int level)
 {
     BonitoState *s = opaque;
@@ -564,27 +562,6 @@ static void pci_bonito_set_irq(void *opaque, int irq_num, int level)
         } else {
             qemu_irq_lower(s->irq);
         }
-    }
-}
-
-/* map the original irq (0~3) to bonito irq (16~47, but 16~31 are unused) */
-static int pci_bonito_map_irq(PCIDevice *pci_dev, int irq_num)
-{
-    int slot;
-
-    slot = PCI_SLOT(pci_dev->devfn);
-
-    switch (slot) {
-    case 5:   /* FULOONG2E_VIA_SLOT, SouthBridge, IDE, USB, ACPI, AC97, MC97 */
-        return irq_num % 4 + BONITO_IRQ_BASE;
-    case 6:   /* FULOONG2E_ATI_SLOT, VGA */
-        return 4 + BONITO_IRQ_BASE;
-    case 7:   /* FULOONG2E_RTL_SLOT, RTL8139 */
-        return 5 + BONITO_IRQ_BASE;
-    case 8 ... 12: /* PCI slot 1 to 4 */
-        return (slot - 8 + irq_num) + 6 + BONITO_IRQ_BASE;
-    default:  /* Unknown device, don't do any translation */
-        return irq_num;
     }
 }
 
@@ -635,7 +612,6 @@ static void bonito_host_realize(DeviceState *dev, Error **errp)
     phb->bus = pci_root_bus_new(dev, "pci", &bs->pci_mem, get_system_io(),
                                 PCI_DEVFN(5, 0), TYPE_PCI_BUS);
     pci_bus_irqs(phb->bus, pci_bonito_set_irq, dev, 32);
-    pci_bus_map_irqs(phb->bus, pci_bonito_map_irq);
 
     for (size_t i = 0; i < 3; i++) {
         char *name = g_strdup_printf("pci.lomem%zu", i);

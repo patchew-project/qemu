@@ -12,6 +12,8 @@
 
 #include "qom/object.h"
 
+#define BONITO_IRQ_BASE 32
+
 #define TYPE_BONITO_PCI_HOST_BRIDGE "Bonito-pcihost"
 OBJECT_DECLARE_SIMPLE_TYPE(BonitoState, BONITO_PCI_HOST_BRIDGE)
 
