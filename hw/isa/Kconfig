@@ -35,6 +35,7 @@ config PIIX3
     bool
     select I8257
     select ISA_BUS
+    select MC146818RTC
 
 config PIIX4
     bool
@@ -79,3 +80,4 @@ config LPC_ICH9
     select ISA_BUS
     select ACPI_SMBUS
     select ACPI_X86_ICH
+    select MC146818RTC
