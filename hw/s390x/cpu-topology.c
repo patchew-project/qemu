@@ -19,6 +19,7 @@
 #include "hw/s390x/s390-virtio-ccw.h"
 #include "hw/s390x/cpu-topology.h"
 #include "qapi/qapi-commands-machine-target.h"
+#include "qapi/qapi-events-machine-target.h"
 #include "qapi/qmp/qdict.h"
 #include "monitor/hmp.h"
 #include "monitor/monitor.h"
@@ -128,6 +129,7 @@ void s390_topology_set_polarity(int polarity)
         }
     }
     s390_cpu_topology_set();
+    qapi_event_send_polarity_change(polarity);
 }
 
 /*

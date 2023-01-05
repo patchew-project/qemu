@@ -437,3 +437,24 @@
   'returns': ['S390CpuTopology'],
   'if': { 'all': [ 'TARGET_S390X', 'CONFIG_KVM' ] }
 }
+
+##
+# @POLARITY_CHANGE:
+#
+# Emitted when the guest asks to change the polarity.
+#
+# @polarity: polarity specified by the guest
+#
+# Since: 8.0
+#
+# Example:
+#
+# <- { "event": "POLARITY_CHANGE",
+#      "data": { "polarity": 0 },
+#      "timestamp": { "seconds": 1401385907, "microseconds": 422329 } }
+#
+##
+{ 'event': 'POLARITY_CHANGE',
+  'data': { 'polarity': 'int' },
+   'if': { 'all': [ 'TARGET_S390X', 'CONFIG_KVM'] }
+}
