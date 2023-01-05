@@ -122,6 +122,7 @@ static void subsystem_reset(void)
             device_cold_reset(dev);
         }
     }
+    s390_cpu_topology_reset();
 }
 
 static int virtio_ccw_hcall_notify(const uint64_t *args)
