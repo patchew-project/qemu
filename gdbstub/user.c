@@ -407,6 +407,11 @@ unsigned int gdb_get_max_cpus(void)
     return max_cpus;
 }
 
+/* replay not supported for user-mode */
+bool gdb_stub_can_reverse(void)
+{
+    return false;
+}
 
 /*
  * Break/Watch point helpers
