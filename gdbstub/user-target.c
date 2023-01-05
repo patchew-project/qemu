@@ -235,7 +235,7 @@ static inline int target_memory_rw_debug(CPUState *cpu, target_ulong addr,
 }
 
 
-#if defined(CONFIG_LINUX_USER)
+#if defined(CONFIG_LINUX)
 void gdb_handle_query_xfer_auxv(GArray *params, void *user_ctx)
 {
     TaskState *ts;
