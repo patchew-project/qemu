@@ -79,6 +79,7 @@ void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3, uintptr_t ra)
     uint64_t addr =  env->regs[r1];
     uint64_t subcode = env->regs[r3];
     IplParameterBlock *iplb;
+    Error *local_err = NULL;
 
     if (env->psw.mask & PSW_MASK_PSTATE) {
         s390_program_interrupt(env, PGM_PRIVILEGED, ra);
@@ -172,6 +173,12 @@ out:
         if (kvm_enabled() && kvm_s390_get_hpage_1m()) {
             error_report("Protected VMs can currently not be backed with "
                          "huge pages");
+            env->regs[r1 + 1] = DIAG_308_RC_INVAL_FOR_PV;
+            return;
+        }
+
+        if (!s390_pv_check(&local_err)) {
+            error_report_err(local_err);
             env->regs[r1 + 1] = DIAG_308_RC_INVAL_FOR_PV;
             return;
         }
