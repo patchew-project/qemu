@@ -14,6 +14,7 @@
 #include <linux/kvm.h>
 
 #include "qapi/error.h"
+#include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "sysemu/kvm.h"
 #include "qom/object_interfaces.h"
@@ -280,9 +281,29 @@ static bool s390_pv_check_cpus(Error **errp)
     return true;
 }
 
+#define S390_PV_HOST "/sys/firmware/uv/prot_virt_host"
+
+static bool s390_pv_check_host(Error **errp)
+{
+    gchar *s = NULL;
+    uint64_t pv_host = 0;
+
+    if (g_file_get_contents(S390_PV_HOST, &s, NULL, NULL)) {
+        pv_host = g_ascii_strtoull(s, NULL, 10);
+    }
+    g_free(s);
+
+    if (pv_host != 1) {
+        error_setg(errp, "Host does not support protected VMs");
+        return false;
+    }
+
+    return true;
+}
+
 static bool s390_pv_guest_check(ConfidentialGuestSupport *cgs, Error **errp)
 {
-    return s390_pv_check_cpus(errp);
+    return s390_pv_check_cpus(errp) && s390_pv_check_host(errp);
 }
 
 int s390_pv_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
