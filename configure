@@ -1290,7 +1290,11 @@ fi
 # Disable -Wmissing-braces on older compilers that warn even for
 # the "universal" C zero initializer {0}.
 cat > $TMPC << EOF
+struct s {
+  void *a;
+};
 struct {
+  struct s s;
   int a[2];
 } x = {0};
 EOF
