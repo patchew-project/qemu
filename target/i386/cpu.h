@@ -585,6 +585,14 @@ typedef enum X86Seg {
                                  XSTATE_Hi16_ZMM_MASK | XSTATE_PKRU_MASK | \
                                  XSTATE_XTILE_CFG_MASK | XSTATE_XTILE_DATA_MASK)
 
+#define CPUID_AMX_PALETTE_1_TOTAL_TILE_BYTES_MASK 0xffffU
+#define CPUID_AMX_PALETTE_1_BYTES_PER_TILE_MASK   (0xffffU << 16)
+#define CPUID_AMX_PALETTE_1_BYTES_PER_ROW_MASK    0xffffU
+#define CPUID_AMX_PALETTE_1_MAX_NAMES_MASK        (0xffffU << 16)
+#define CPUID_AMX_PALETTE_1_MAX_ROWS_MASK         0xffffU
+#define CPUID_AMX_TMUL_MAX_K_MASK                 0xffU
+#define CPUID_AMX_TMUL_MAX_N_MASK                 (0xffffU << 8)
+
 /* CPUID feature words */
 typedef enum FeatureWord {
     FEAT_1_EDX,         /* CPUID[1].EDX */
@@ -605,6 +613,10 @@ typedef enum FeatureWord {
     FEAT_6_EAX,         /* CPUID[6].EAX */
     FEAT_XSAVE_XCR0_LO, /* CPUID[EAX=0xd,ECX=0].EAX */
     FEAT_XSAVE_XCR0_HI, /* CPUID[EAX=0xd,ECX=0].EDX */
+    FEAT_1D_1_EAX,      /* CPUID[EAX=0x1d,ECX=1].EAX */
+    FEAT_1D_1_EBX,      /* CPUID[EAX=0x1d,ECX=1].EBX */
+    FEAT_1D_1_ECX,      /* CPUID[EAX=0x1d,ECX=1].ECX */
+    FEAT_1E_0_EBX,      /* CPUID[EAX=0x1e,ECX=0].EBX */
     FEAT_ARCH_CAPABILITIES,
     FEAT_CORE_CAPABILITY,
     FEAT_PERF_CAPABILITIES,

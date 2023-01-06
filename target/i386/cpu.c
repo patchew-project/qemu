@@ -1002,6 +1002,45 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .tcg_features = ~0U,
     },
+    [FEAT_1D_1_EAX] = {
+        .type = CPUID_FEATURE_WORD,
+        .cpuid = {
+            .eax = 0x1D,
+            .needs_ecx = true, .ecx = 1,
+            .reg = R_EAX,
+        },
+        .migratable_flags = CPUID_AMX_PALETTE_1_TOTAL_TILE_BYTES_MASK |
+            CPUID_AMX_PALETTE_1_BYTES_PER_TILE_MASK,
+    },
+    [FEAT_1D_1_EBX] = {
+        .type = CPUID_FEATURE_WORD,
+        .cpuid = {
+            .eax = 0x1D,
+            .needs_ecx = true, .ecx = 1,
+            .reg = R_EBX,
+        },
+        .migratable_flags = CPUID_AMX_PALETTE_1_BYTES_PER_ROW_MASK |
+            CPUID_AMX_PALETTE_1_MAX_NAMES_MASK,
+    },
+    [FEAT_1D_1_ECX] = {
+        .type = CPUID_FEATURE_WORD,
+        .cpuid = {
+            .eax = 0x1D,
+            .needs_ecx = true, .ecx = 1,
+            .reg = R_ECX,
+        },
+        .migratable_flags = CPUID_AMX_PALETTE_1_MAX_ROWS_MASK,
+    },
+    [FEAT_1E_0_EBX] = {
+        .type = CPUID_FEATURE_WORD,
+        .cpuid = {
+            .eax = 0x1E,
+            .needs_ecx = true, .ecx = 0,
+            .reg = R_EBX,
+        },
+        .migratable_flags = CPUID_AMX_TMUL_MAX_K_MASK |
+            CPUID_AMX_TMUL_MAX_N_MASK,
+    },
     /*Below are MSR exposed features*/
     [FEAT_ARCH_CAPABILITIES] = {
         .type = MSR_FEATURE_WORD,
@@ -1370,6 +1409,22 @@ static FeatureDep feature_dependencies[] = {
     {
         .from = { FEAT_7_0_EBX,             CPUID_7_0_EBX_INTEL_PT },
         .to = { FEAT_14_0_ECX,              ~0ull },
+    },
+    {
+        .from = { FEAT_7_0_EDX,             CPUID_7_0_EDX_AMX_TILE },
+        .to = { FEAT_1D_1_EAX,              ~0ull },
+    },
+    {
+        .from = { FEAT_7_0_EDX,             CPUID_7_0_EDX_AMX_TILE },
+        .to = { FEAT_1D_1_EBX,              ~0ull },
+    },
+    {
+        .from = { FEAT_7_0_EDX,             CPUID_7_0_EDX_AMX_TILE },
+        .to = { FEAT_1D_1_ECX,              ~0ull },
+    },
+    {
+        .from = { FEAT_7_0_EDX,             CPUID_7_0_EDX_AMX_TILE },
+        .to = { FEAT_1E_0_EBX,              ~0ull },
     },
     {
         .from = { FEAT_8000_0001_EDX,       CPUID_EXT2_RDTSCP },
