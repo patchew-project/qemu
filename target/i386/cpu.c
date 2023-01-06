@@ -1011,6 +1011,21 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .migratable_flags = CPUID_AMX_PALETTE_1_TOTAL_TILE_BYTES_MASK |
             CPUID_AMX_PALETTE_1_BYTES_PER_TILE_MASK,
+        .num_multi_bit_features = 2,
+        .multi_bit_features = (MultiBitFeatureInfo[]){
+            {
+                .feat_name = "total_tile_bytes",
+                .mask = CPUID_AMX_PALETTE_1_TOTAL_TILE_BYTES_MASK,
+                .high_bit_position = 15,
+                .low_bit_position = 0,
+            },
+            {
+                .feat_name = "bytes_per_tile",
+                .mask = CPUID_AMX_PALETTE_1_BYTES_PER_TILE_MASK,
+                .high_bit_position = 31,
+                .low_bit_position = 16,
+            },
+        },
     },
     [FEAT_1D_1_EBX] = {
         .type = CPUID_FEATURE_WORD,
@@ -1021,6 +1036,21 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .migratable_flags = CPUID_AMX_PALETTE_1_BYTES_PER_ROW_MASK |
             CPUID_AMX_PALETTE_1_MAX_NAMES_MASK,
+        .num_multi_bit_features = 2,
+        .multi_bit_features = (MultiBitFeatureInfo[]){
+            {
+                .feat_name = "bytes_per_row",
+                .mask = CPUID_AMX_PALETTE_1_BYTES_PER_ROW_MASK,
+                .high_bit_position = 15,
+                .low_bit_position = 0,
+            },
+            {
+                .feat_name = "max_names",
+                .mask = CPUID_AMX_PALETTE_1_MAX_NAMES_MASK,
+                .high_bit_position = 31,
+                .low_bit_position = 16,
+            },
+        },
     },
     [FEAT_1D_1_ECX] = {
         .type = CPUID_FEATURE_WORD,
@@ -1030,6 +1060,15 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             .reg = R_ECX,
         },
         .migratable_flags = CPUID_AMX_PALETTE_1_MAX_ROWS_MASK,
+        .num_multi_bit_features = 1,
+        .multi_bit_features = (MultiBitFeatureInfo[]){
+            {
+                .feat_name = "max_rows",
+                .mask = CPUID_AMX_PALETTE_1_MAX_ROWS_MASK,
+                .high_bit_position = 15,
+                .low_bit_position = 0,
+            },
+        },
     },
     [FEAT_1E_0_EBX] = {
         .type = CPUID_FEATURE_WORD,
@@ -1040,6 +1079,21 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .migratable_flags = CPUID_AMX_TMUL_MAX_K_MASK |
             CPUID_AMX_TMUL_MAX_N_MASK,
+        .num_multi_bit_features = 2,
+        .multi_bit_features = (MultiBitFeatureInfo[]){
+            {
+                .feat_name = "tmul_maxk",
+                .mask = CPUID_AMX_TMUL_MAX_K_MASK,
+                .high_bit_position = 7,
+                .low_bit_position = 0,
+            },
+            {
+                .feat_name = "tmul_maxn",
+                .mask = CPUID_AMX_TMUL_MAX_N_MASK,
+                .high_bit_position = 23,
+                .low_bit_position = 8,
+            },
+        },
     },
     /*Below are MSR exposed features*/
     [FEAT_ARCH_CAPABILITIES] = {
