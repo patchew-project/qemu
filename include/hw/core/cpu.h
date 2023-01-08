@@ -266,6 +266,7 @@ struct qemu_work_item;
 
 /**
  * CPUState:
+ * @rcu: Used for safe deferred memory reclamation.
  * @cpu_index: CPU index (informative).
  * @cluster_index: Identifies which cluster this CPU is in.
  *   For boards which don't define clusters or for "loose" CPUs not assigned
@@ -321,6 +322,8 @@ struct qemu_work_item;
  * State of one CPU core or thread.
  */
 struct CPUState {
+    struct rcu_head rcu;
+
     /*< private >*/
     DeviceState parent_obj;
     /* cache to avoid expensive CPU_GET_CLASS */

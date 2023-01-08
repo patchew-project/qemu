@@ -164,6 +164,12 @@ void cpu_exec_realizefn(CPUState *cpu, Error **errp)
 #endif /* CONFIG_USER_ONLY */
 }
 
+static void cpu_free_rcu(CPUState *cpu)
+{
+    /* .tb_jmp_cache is NULL except under TCG */
+    g_free(cpu->tb_jmp_cache);
+}
+
 void cpu_exec_unrealizefn(CPUState *cpu)
 {
 #ifndef CONFIG_USER_ONLY
@@ -181,6 +187,7 @@ void cpu_exec_unrealizefn(CPUState *cpu)
     }
 
     cpu_list_remove(cpu);
+    call_rcu(cpu, cpu_free_rcu, rcu);
 }
 
 /*
