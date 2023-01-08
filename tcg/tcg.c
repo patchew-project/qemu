@@ -1652,8 +1652,10 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
     op = tcg_op_alloc(INDEX_op_call, total_args);
 
 #ifdef CONFIG_PLUGIN
-    /* detect non-plugin helpers */
-    if (tcg_ctx->plugin_insn && unlikely(strncmp(info->name, "plugin_", 7))) {
+    /* flag helpers that are not internal to TCG */
+    if (tcg_ctx->plugin_insn &&
+        strncmp(info->name, "plugin_", 7) &&
+        strcmp(info->name, "lookup_tb_ptr")) {
         tcg_ctx->plugin_insn->calls_helpers = true;
     }
 #endif
