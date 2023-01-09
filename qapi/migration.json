@@ -1287,6 +1287,18 @@
   'data': { 'pass': 'int' } }
 
 ##
+# @MIGRATION_PID:
+#
+# Emitted when migration thread appear
+#
+# @pid: pid of migration thread
+#
+# Since: 7.2
+##
+{ 'event': 'MIGRATION_PID',
+  'data': { 'pid': 'int' } }
+
+##
 # @COLOMessage:
 #
 # The message transmission between Primary side and Secondary side.

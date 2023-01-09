@@ -3955,6 +3955,9 @@ static void *migration_thread(void *opaque)
     MigThrError thr_error;
     bool urgent = false;
 
+    /* report migration thread pid to libvirt */
+    qapi_event_send_migration_pid(qemu_get_thread_id());
+
     rcu_register_thread();
 
     object_ref(OBJECT(s));
