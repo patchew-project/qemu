@@ -174,6 +174,15 @@ DeviceState *qdev_try_new(const char *name)
     return DEVICE(object_new(name));
 }
 
+DeviceState *qdev_create_simple(const char *name, Error **errp)
+{
+    DeviceState *dev = qdev_new(name);
+
+    qdev_realize_and_unref(dev, NULL, errp);
+
+    return dev;
+}
+
 static QTAILQ_HEAD(, DeviceListener) device_listeners
     = QTAILQ_HEAD_INITIALIZER(device_listeners);
 
