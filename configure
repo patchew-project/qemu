@@ -2351,6 +2351,10 @@ if test "$plugins" = "yes" ; then
     echo "CONFIG_PLUGIN=y" >> $config_host_mak
 fi
 
+if test "$tcg" = "enabled" ; then
+    echo "CONFIG_TCG=y" >> $config_host_mak
+fi
+
 if test -n "$gdb_bin"; then
     gdb_version=$($gdb_bin --version | head -n 1)
     if version_ge ${gdb_version##* } 9.1; then
