@@ -819,7 +819,9 @@ static void spitz_akita_i2c_setup(PXA2xxState *cpu)
 OBJECT_DECLARE_SIMPLE_TYPE(SpitzMiscGPIOState, SPITZ_MISC_GPIO)
 
 struct SpitzMiscGPIOState {
-    SysBusDevice parent_obj;
+    /*< private >*/
+    DeviceState parent_obj;
+    /*< public >*/
 
     qemu_irq adc_value;
 };
@@ -883,7 +885,9 @@ static void spitz_misc_gpio_init(Object *obj)
 
 static void spitz_scoop_gpio_setup(SpitzMachineState *sms)
 {
-    DeviceState *miscdev = sysbus_create_simple(TYPE_SPITZ_MISC_GPIO, -1, NULL);
+    DeviceState *miscdev;
+
+    miscdev = qdev_create_simple(TYPE_SPITZ_MISC_GPIO, &error_fatal);
 
     sms->misc_gpio = miscdev;
 
@@ -1260,7 +1264,7 @@ static const TypeInfo spitz_lcdtg_info = {
 
 static const TypeInfo spitz_misc_gpio_info = {
     .name = TYPE_SPITZ_MISC_GPIO,
-    .parent = TYPE_SYS_BUS_DEVICE,
+    .parent = TYPE_DEVICE,
     .instance_size = sizeof(SpitzMiscGPIOState),
     .instance_init = spitz_misc_gpio_init,
     /*
