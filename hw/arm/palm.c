@@ -134,10 +134,6 @@ static void palmte_button_event(void *opaque, int keycode)
 #define TYPE_PALM_MISC_GPIO "palm-misc-gpio"
 OBJECT_DECLARE_SIMPLE_TYPE(PalmMiscGPIOState, PALM_MISC_GPIO)
 
-struct PalmMiscGPIOState {
-    SysBusDevice parent_obj;
-};
-
 static void palmte_onoff_gpios(void *opaque, int line, int level)
 {
     switch (line) {
@@ -174,8 +170,7 @@ static void palm_misc_gpio_init(Object *obj)
 
 static const TypeInfo palm_misc_gpio_info = {
     .name = TYPE_PALM_MISC_GPIO,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PalmMiscGPIOState),
+    .parent = TYPE_DEVICE,
     .instance_init = palm_misc_gpio_init,
     /*
      * No class init required: device has no internal state so does not
@@ -187,7 +182,7 @@ static void palmte_gpio_setup(struct omap_mpu_state_s *cpu)
 {
     DeviceState *misc_gpio;
 
-    misc_gpio = sysbus_create_simple(TYPE_PALM_MISC_GPIO, -1, NULL);
+    misc_gpio = qdev_create_simple(TYPE_PALM_MISC_GPIO, &error_fatal);
 
     omap_mmc_handlers(cpu->mmc,
                     qdev_get_gpio_in(cpu->gpio, PALMTE_MMC_WP_GPIO),
