@@ -260,8 +260,10 @@ static const int spitz_gpiomap[5] = {
 OBJECT_DECLARE_SIMPLE_TYPE(SpitzKeyboardState, SPITZ_KEYBOARD)
 
 struct SpitzKeyboardState {
-    SysBusDevice parent_obj;
+    /*< private >*/
+    DeviceState parent_obj;
 
+    /*< public >*/
     qemu_irq sense[SPITZ_KEY_SENSE_NUM];
     qemu_irq gpiomap[5];
     int keymap[0x80];
@@ -514,7 +516,7 @@ static void spitz_keyboard_register(PXA2xxState *cpu)
     DeviceState *dev;
     SpitzKeyboardState *s;
 
-    dev = sysbus_create_simple(TYPE_SPITZ_KEYBOARD, -1, NULL);
+    dev = qdev_create_simple(TYPE_SPITZ_KEYBOARD, &error_fatal);
     s = SPITZ_KEYBOARD(dev);
 
     for (i = 0; i < SPITZ_KEY_SENSE_NUM; i ++)
@@ -1193,7 +1195,7 @@ static void spitz_keyboard_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo spitz_keyboard_info = {
     .name          = TYPE_SPITZ_KEYBOARD,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_DEVICE,
     .instance_size = sizeof(SpitzKeyboardState),
     .instance_init = spitz_keyboard_init,
     .class_init    = spitz_keyboard_class_init,
