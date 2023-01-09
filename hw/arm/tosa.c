@@ -78,10 +78,6 @@ static void tosa_microdrive_attach(PXA2xxState *cpu)
 #define TYPE_TOSA_MISC_GPIO "tosa-misc-gpio"
 OBJECT_DECLARE_SIMPLE_TYPE(TosaMiscGPIOState, TOSA_MISC_GPIO)
 
-struct TosaMiscGPIOState {
-    SysBusDevice parent_obj;
-};
-
 static void tosa_reset(void *opaque, int line, int level)
 {
     if (level) {
@@ -104,7 +100,7 @@ static void tosa_gpio_setup(PXA2xxState *cpu,
     DeviceState *misc_gpio;
     LEDState *led[4];
 
-    misc_gpio = sysbus_create_simple(TYPE_TOSA_MISC_GPIO, -1, NULL);
+    misc_gpio = qdev_create_simple(TYPE_TOSA_MISC_GPIO, &error_fatal);
 
     /* MMC/SD host */
     pxa2xx_mmci_handlers(cpu->mmc,
@@ -307,8 +303,7 @@ static const TypeInfo tosa_ssp_info = {
 
 static const TypeInfo tosa_misc_gpio_info = {
     .name          = TYPE_TOSA_MISC_GPIO,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(TosaMiscGPIOState),
+    .parent        = TYPE_DEVICE,
     .instance_init = tosa_misc_gpio_init,
     /*
      * No class init required: device has no internal state so does not
