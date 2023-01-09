@@ -69,7 +69,8 @@
 #define FPGA_ADDRESS        0x1f000000ULL
 #define RESET_ADDRESS       0x1fc00000ULL
 
-#define FLASH_SIZE          0x400000
+#define FLASH_SIZE          (4 * MiB)
+#define FLASH_SECTOR_SIZE   (64 * KiB)
 
 typedef struct {
     MemoryRegion iomem;
@@ -1289,7 +1290,7 @@ void mips_malta_init(MachineState *machine)
     fl = pflash_cfi01_register(FLASH_ADDRESS, "mips_malta.bios",
                                FLASH_SIZE,
                                dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                               65536,
+                               FLASH_SECTOR_SIZE,
                                4, 0x0000, 0x0000, 0x0000, 0x0000, be);
     bios = pflash_cfi01_get_memory(fl);
     fl_idx++;
