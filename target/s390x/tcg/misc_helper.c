@@ -618,6 +618,7 @@ void HELPER(per_branch)(CPUS390XState *env, uint64_t from, uint64_t to)
             || get_per_in_range(env, to)) {
             env->per_address = from;
             env->per_perc_atmid = PER_CODE_EVENT_BRANCH | get_per_atmid(env);
+            tcg_s390_program_interrupt(env, PGM_PER, GETPC());
         }
     }
 }
