@@ -566,6 +566,18 @@ Object *object_new_with_class(ObjectClass *klass);
 Object *object_new(const char *typename);
 
 /**
+ * object_try_new: Try to create an object on the heap
+ * @typename: The name of the type of the object to instantiate.
+ * @errp: pointer to Error object.
+ *
+ * This is like object_new(), except it returns %NULL when type @typename
+ * does not exist, rather than asserting.
+ *
+ * Returns: The newly allocated and instantiated object, or %NULL.
+ */
+Object *object_try_new(const char *typename, Error **errp);
+
+/**
  * object_new_with_props:
  * @typename:  The name of the type of the object to instantiate.
  * @parent: the parent object

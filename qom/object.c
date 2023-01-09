@@ -747,11 +747,34 @@ Object *object_new_with_class(ObjectClass *klass)
     return object_new_with_type(klass->type);
 }
 
-Object *object_new(const char *typename)
+
+Object *object_try_new(const char *typename, Error **errp)
 {
     TypeImpl *ti = type_get_by_name(typename);
 
+#ifdef CONFIG_MODULES
+    if (!ti) {
+        int rv = module_load_qom(typename, errp);
+        if (rv) {
+            error_prepend(errp, "could not find a module for type '%s': ",
+                          typename);
+            return NULL;
+        }
+        ti = type_get_by_name(typename);
+    }
+#endif
+    if (!ti) {
+        error_setg(errp, "unknown type '%s'", typename);
+        return NULL;
+    }
+
     return object_new_with_type(ti);
+}
+
+
+Object *object_new(const char *typename)
+{
+    return object_try_new(typename, &error_fatal);
 }
 
 
