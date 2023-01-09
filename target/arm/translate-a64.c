@@ -19,6 +19,7 @@
 #include "qemu/osdep.h"
 
 #include "cpu.h"
+#include "cpregs.h"
 #include "exec/exec-all.h"
 #include "tcg/tcg-op.h"
 #include "tcg/tcg-op-gvec.h"

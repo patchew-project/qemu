@@ -27,6 +27,7 @@
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "cpu.h"
+#include "cpregs.h"
 #ifdef CONFIG_TCG
 #include "hw/core/tcg-cpu-ops.h"
 #endif /* CONFIG_TCG */

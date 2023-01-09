@@ -5,6 +5,7 @@
 #include "kvm_arm.h"
 #include "internals.h"
 #include "migration/cpu.h"
+#include "cpregs.h"
 
 static bool vfp_needed(void *opaque)
 {
