@@ -45,6 +45,7 @@
 
 #define LMB_BRAM_SIZE  (128 * KiB)
 #define FLASH_SIZE     (32 * MiB)
+#define FLASH_SECTOR_SIZE   (64 * KiB)
 
 #define BINARY_DEVICE_TREE_FILE "petalogix-ml605.dtb"
 
@@ -107,7 +108,7 @@ petalogix_ml605_init(MachineState *machine)
      * 10th paremeter 0 means little-endian */
     pflash_cfi01_register(FLASH_BASEADDR, "petalogix_ml605.flash", FLASH_SIZE,
                           dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                          64 * KiB, 2, 0x89, 0x18, 0x0000, 0x0, 0);
+                          FLASH_SECTOR_SIZE, 2, 0x89, 0x18, 0x0000, 0x0, 0);
 
 
     dev = qdev_new("xlnx.xps-intc");
