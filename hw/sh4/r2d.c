@@ -45,7 +45,8 @@
 #include "hw/block/flash.h"
 
 #define FLASH_BASE 0x00000000
-#define FLASH_SIZE (16 * MiB)
+#define FLASH_SIZE          (16 * MiB)
+#define FLASH_SECTOR_SIZE   (128 * KiB)
 
 #define SDRAM_BASE          (192 * MiB) /* Physical location of SDRAM: Area 3 */
 #define SDRAM_SIZE          (64 * MiB)
@@ -304,8 +305,8 @@ static void r2d_init(MachineState *machine)
     dinfo = drive_get(IF_PFLASH, 0, 0);
     pflash_cfi02_register(0x0, "r2d.flash", FLASH_SIZE,
                           dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                          64 * KiB, 1, 2, 0x0001, 0x227e, 0x2220, 0x2200,
-                          0x555, 0x2aa, 0);
+                          FLASH_SECTOR_SIZE, 1, 2,
+                          0x0001, 0x227e, 0x2220, 0x2200, 0x555, 0x2aa, 0);
 
     /* NIC: rtl8139 on-board, and 2 slots. */
     for (i = 0; i < nb_nics; i++)
