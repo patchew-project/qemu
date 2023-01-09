@@ -13,7 +13,6 @@
 #include "qemu/osdep.h"
 #include "hw/irq.h"
 #include "hw/i2c/bitbang_i2c.h"
-#include "hw/sysbus.h"
 #include "qemu/module.h"
 #include "qom/object.h"
 #include "trace.h"
@@ -191,7 +190,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(GPIOI2CState, GPIO_I2C)
 
 struct GPIOI2CState {
     /*< private >*/
-    SysBusDevice parent_obj;
+    DeviceState parent_obj;
     /*< public >*/
 
     bitbang_i2c_interface bitbang;
@@ -233,7 +232,7 @@ static void gpio_i2c_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo gpio_i2c_info = {
     .name          = TYPE_GPIO_I2C,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_DEVICE,
     .instance_size = sizeof(GPIOI2CState),
     .instance_init = gpio_i2c_init,
     .class_init    = gpio_i2c_class_init,
