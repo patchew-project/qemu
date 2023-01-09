@@ -1068,7 +1068,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(musicpal_key_state, MUSICPAL_KEY)
 
 struct musicpal_key_state {
     /*< private >*/
-    SysBusDevice parent_obj;
+    DeviceState parent_obj;
     /*< public >*/
 
     uint32_t kbd_extended;
@@ -1187,7 +1187,7 @@ static void musicpal_key_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo musicpal_key_info = {
     .name          = TYPE_MUSICPAL_KEY,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_DEVICE,
     .instance_size = sizeof(musicpal_key_state),
     .instance_init = musicpal_key_init,
     .class_init    = musicpal_key_class_init,
@@ -1301,7 +1301,7 @@ static void musicpal_init(MachineState *machine)
     i2c = (I2CBus *)qdev_get_child_bus(i2c_dev, "i2c");
 
     lcd_dev = sysbus_create_simple(TYPE_MUSICPAL_LCD, MP_LCD_BASE, NULL);
-    key_dev = sysbus_create_simple(TYPE_MUSICPAL_KEY, -1, NULL);
+    key_dev = qdev_create_simple(TYPE_MUSICPAL_KEY, &error_fatal);
 
     /* I2C read data */
     qdev_connect_gpio_out(i2c_dev, 0,
