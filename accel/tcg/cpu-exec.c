@@ -574,11 +574,11 @@ void tb_set_jmp_target(TranslationBlock *tb, int n, uintptr_t addr)
 {
     tb->jmp_target_addr[n] = addr;
     if (TCG_TARGET_HAS_direct_jump) {
+        const TranslationBlock *c_tb = tcg_splitwx_to_rx(tb);
         uintptr_t offset = tb->jmp_insn_offset[n];
-        uintptr_t tc_ptr = (uintptr_t)tb->tc.ptr;
-        uintptr_t jmp_rx = tc_ptr + offset;
+        uintptr_t jmp_rx = (uintptr_t)tb->tc.ptr + offset;
         uintptr_t jmp_rw = jmp_rx - tcg_splitwx_diff;
-        tb_target_set_jmp_target(tc_ptr, jmp_rx, jmp_rw, addr);
+        tb_target_set_jmp_target(c_tb, n, jmp_rx, jmp_rw);
     }
 }
 
