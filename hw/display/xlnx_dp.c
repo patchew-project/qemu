@@ -846,7 +846,11 @@ static void xlnx_dp_write(void *opaque, hwaddr offset, uint64_t value,
         break;
     case DP_AUX_WRITE_FIFO: {
         uint8_t c = value;
-        xlnx_dp_aux_push_tx_fifo(s, &c, 1);
+        if (fifo8_is_full(&s->tx_fifo)) {
+            qemu_log_mask(LOG_GUEST_ERROR, "xlnx_dp: TX fifo is full");
+        } else {
+            xlnx_dp_aux_push_tx_fifo(s, &c, 1);
+        }
         break;
     }
     case DP_AUX_CLOCK_DIVIDER:
