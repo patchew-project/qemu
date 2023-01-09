@@ -437,6 +437,110 @@ int arm_gen_dynamic_m_systemreg_xml(CPUState *cs, int base_reg)
     return info->num;
 }
 
+static int arm_gdb_get_m_secextreg(CPUARMState *env, GByteArray *buf, int reg)
+{
+    switch (reg) {
+    case  0:  /* MSP_S */
+        return gdb_get_reg32(buf, *arm_v7m_get_sp_ptr(env, true, false, true));
+    case  1:  /* PSP_S */
+        return gdb_get_reg32(buf, *arm_v7m_get_sp_ptr(env, true, true, true));
+    case  2:  /* MSPLIM_S */
+        return gdb_get_reg32(buf, env->v7m.msplim[M_REG_S]);
+    case  3:  /* PSPLIM_S */
+        return gdb_get_reg32(buf, env->v7m.psplim[M_REG_S]);
+    case  4:  /* PRIMASK_S */
+        return gdb_get_reg32(buf, env->v7m.primask[M_REG_S]);
+    case  5:  /* BASEPRI_S */
+        if (!arm_feature(env, ARM_FEATURE_M_MAIN)) {
+            return 0;
+        }
+        return gdb_get_reg32(buf, env->v7m.basepri[M_REG_S]);
+    case  6:  /* FAULTMASK_S */
+        if (!arm_feature(env, ARM_FEATURE_M_MAIN)) {
+            return 0;
+        }
+        return gdb_get_reg32(buf, env->v7m.faultmask[M_REG_S]);
+    case  7:  /* CONTROL_S */
+        return gdb_get_reg32(buf, env->v7m.control[M_REG_S]);
+    case  8:  /* MSP_NS */
+        return gdb_get_reg32(buf, *arm_v7m_get_sp_ptr(env, false, false, true));
+    case  9:  /* PSP_NS */
+        return gdb_get_reg32(buf, *arm_v7m_get_sp_ptr(env, false, true, true));
+    case 10:  /* MSPLIM_NS */
+        return gdb_get_reg32(buf, env->v7m.msplim[M_REG_NS]);
+    case 11:  /* PSPLIM_NS */
+        return gdb_get_reg32(buf, env->v7m.psplim[M_REG_NS]);
+    case 12:  /* PRIMASK_NS */
+        return gdb_get_reg32(buf, env->v7m.primask[M_REG_NS]);
+    case 13:  /* BASEPRI_NS */
+        if (!arm_feature(env, ARM_FEATURE_M_MAIN)) {
+            return 0;
+        }
+        return gdb_get_reg32(buf, env->v7m.basepri[M_REG_NS]);
+    case 14:  /* FAULTMASK_NS */
+        if (!arm_feature(env, ARM_FEATURE_M_MAIN)) {
+            return 0;
+        }
+        return gdb_get_reg32(buf, env->v7m.faultmask[M_REG_NS]);
+    case 15:  /* CONTROL_NS */
+        return gdb_get_reg32(buf, env->v7m.control[M_REG_NS]);
+    }
+
+    return 0;
+}
+
+static int arm_gdb_set_m_secextreg(CPUARMState *env, uint8_t *buf, int reg)
+{
+    /* TODO: Implement. */
+    return 0;
+}
+
+int arm_gen_dynamic_m_securereg_xml(CPUState *cs, int base_reg)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    GString *s = g_string_new(NULL);
+    DynamicGDBXMLInfo *info = &cpu->dyn_m_securereg_xml;
+    bool is_main = arm_feature(env, ARM_FEATURE_M_MAIN);
+
+    g_string_printf(s, "<?xml version=\"1.0\"?>");
+    g_string_append_printf(s, "<!DOCTYPE target SYSTEM \"gdb-target.dtd\">");
+    g_string_append_printf(s, "<feature name=\"org.gnu.gdb.arm.secext\">\n");
+
+    g_autoptr(GArray) regs = g_array_new(false, true, sizeof(const char *));
+    /*  0 */ g_array_append_str_literal(regs, "msp_s");
+    /*  1 */ g_array_append_str_literal(regs, "psp_s");
+    /*  2 */ g_array_append_str_literal(regs, "msplim_s");
+    /*  3 */ g_array_append_str_literal(regs, "psplim_s");
+    /*  4 */ g_array_append_str_literal(regs, "primask_s");
+    /*  5 */ g_array_append_str_literal(regs, is_main ? "basepri_s" : "");
+    /*  6 */ g_array_append_str_literal(regs, is_main ? "faultmask_s" : "");
+    /*  7 */ g_array_append_str_literal(regs, "control_s");
+    /*  8 */ g_array_append_str_literal(regs, "msp_ns");
+    /*  9 */ g_array_append_str_literal(regs, "psp_ns");
+    /* 10 */ g_array_append_str_literal(regs, "msplim_ns");
+    /* 11 */ g_array_append_str_literal(regs, "psplim_ns");
+    /* 12 */ g_array_append_str_literal(regs, "primask_ns");
+    /* 13 */ g_array_append_str_literal(regs, is_main ? "basepri_ns" : "");
+    /* 14 */ g_array_append_str_literal(regs, is_main ? "faultmask_ns" : "");
+    /* 15 */ g_array_append_str_literal(regs, "control_ns");
+
+    for (int idx = 0; idx < regs->len; idx++) {
+        const char *name = g_array_index(regs, const char *, idx);
+        if (*name != '\0') {
+            g_string_append_printf(s,
+                        "<reg name=\"%s\" bitsize=\"32\" regnum=\"%d\"/>\n",
+                        name, base_reg);
+        }
+        base_reg++;
+    }
+    info->num = regs->len;
+
+    g_string_append_printf(s, "</feature>");
+    info->desc = g_string_free(s, false);
+    return info->num;
+}
+
 struct TypeSize {
     const char *gdb_type;
     int  size;
@@ -567,6 +671,8 @@ const char *arm_gdb_get_dynamic_xml(CPUState *cs, const char *xmlname)
         return cpu->dyn_svereg_xml.desc;
     } else if (strcmp(xmlname, "arm-m-system.xml") == 0) {
         return cpu->dyn_m_systemreg_xml.desc;
+    } else if (strcmp(xmlname, "arm-m-secext.xml") == 0) {
+        return cpu->dyn_m_securereg_xml.desc;
     }
     return NULL;
 }
@@ -618,6 +724,16 @@ void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
                                      arm_gen_dynamic_m_systemreg_xml(
                                          cs, cs->gdb_num_regs),
                                      "arm-m-system.xml", 0);
+            if (arm_feature(env, ARM_FEATURE_V8) &&
+                    arm_feature(env, ARM_FEATURE_M_SECURITY)) {
+                gdb_register_coprocessor(cs,
+                                         arm_gdb_get_m_secextreg,
+                                         arm_gdb_set_m_secextreg,
+                                         arm_gen_dynamic_m_securereg_xml(
+                                             cs, cs->gdb_num_regs),
+                                         "arm-m-secext.xml", 0);
+
+            }
         }
     }
     if (cpu_isar_feature(aa32_mve, cpu)) {

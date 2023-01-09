@@ -857,6 +857,7 @@ struct ArchCPU {
     DynamicGDBXMLInfo dyn_sysreg_xml;
     DynamicGDBXMLInfo dyn_svereg_xml;
     DynamicGDBXMLInfo dyn_m_systemreg_xml;
+    DynamicGDBXMLInfo dyn_m_securereg_xml;
 
     /* Timers used by the generic (architected) timer */
     QEMUTimer *gt_timer[NUM_GTIMERS];
@@ -1102,12 +1103,13 @@ int arm_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 
 /*
  * Helpers to dynamically generate XML descriptions of the sysregs,
- * SVE registers, and M-profile system registers.
+ * SVE registers, M-profile system, and M-profile secure extension registers.
  * Returns the number of registers in each set.
  */
 int arm_gen_dynamic_sysreg_xml(CPUState *cpu, int base_reg);
 int arm_gen_dynamic_svereg_xml(CPUState *cpu, int base_reg);
 int arm_gen_dynamic_m_systemreg_xml(CPUState *cpu, int base_reg);
+int arm_gen_dynamic_m_securereg_xml(CPUState *cpu, int base_reg);
 
 /* Returns the dynamically generated XML for the gdb stub.
  * Returns a pointer to the XML contents for the specified XML file or NULL
@@ -1606,6 +1608,17 @@ static inline void xpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
     }
 #endif
 }
+
+/*
+ * Return a pointer to the location where we currently store the
+ * stack pointer for the requested security state and thread mode.
+ * This pointer will become invalid if the CPU state is updated
+ * such that the stack pointers are switched around (eg changing
+ * the SPSEL control bit).
+ */
+uint32_t *arm_v7m_get_sp_ptr(CPUARMState *env, bool secure, bool threadmode,
+                             bool spsel);
+
 
 #define HCR_VM        (1ULL << 0)
 #define HCR_SWIO      (1ULL << 1)
