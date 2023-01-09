@@ -58,6 +58,7 @@ util_ss.add(files('yank.c'))
 util_ss.add(files('int128.c'))
 util_ss.add(files('memalign.c'))
 util_ss.add(files('interval-tree.c'))
+util_ss.add(files('qemu-version.c'))
 
 if have_user
   util_ss.add(files('selfmap.c'))
