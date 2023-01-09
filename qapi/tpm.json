@@ -5,6 +5,7 @@
 ##
 # = TPM (trusted platform module) devices
 ##
+{ 'include': 'sockets.json' }
 
 ##
 # @TpmModel:
@@ -49,7 +50,7 @@
 #
 # Since: 1.5
 ##
-{ 'enum': 'TpmType', 'data': [ 'passthrough', 'emulator' ],
+{ 'enum': 'TpmType', 'data': [ 'passthrough', 'emulator', 'mssim' ],
   'if': 'CONFIG_TPM' }
 
 ##
@@ -64,7 +65,7 @@
 # Example:
 #
 # -> { "execute": "query-tpm-types" }
-# <- { "return": [ "passthrough", "emulator" ] }
+# <- { "return": [ "passthrough", "emulator", "mssim" ] }
 #
 ##
 { 'command': 'query-tpm-types', 'returns': ['TpmType'],
@@ -118,12 +119,29 @@
   'if': 'CONFIG_TPM' }
 
 ##
+# @TPMmssimOptions:
+#
+# Information for the mssim emulator connection
+#
+# @command: command socket for the TPM emulator
+# @control: control socket for the TPM emulator
+#
+# Since: 7.2.0
+##
+{ 'struct': 'TPMmssimOptions',
+  'data': {
+      '*command': 'SocketAddress',
+      '*control': 'SocketAddress' },
+  'if': 'CONFIG_TPM' }
+
+##
 # @TpmTypeOptions:
 #
 # A union referencing different TPM backend types' configuration options
 #
 # @type: - 'passthrough' The configuration options for the TPM passthrough type
 #        - 'emulator' The configuration options for TPM emulator backend type
+#        - 'mssim' The configuration options for TPM emulator mssim type
 #
 # Since: 1.5
 ##
@@ -131,7 +149,8 @@
   'base': { 'type': 'TpmType' },
   'discriminator': 'type',
   'data': { 'passthrough' : 'TPMPassthroughOptionsWrapper',
-            'emulator': 'TPMEmulatorOptionsWrapper' },
+            'emulator': 'TPMEmulatorOptionsWrapper',
+            'mssim' : 'TPMmssimOptions' },
   'if': 'CONFIG_TPM' }
 
 ##
@@ -150,7 +169,8 @@
             'id' : 'str' },
   'discriminator': 'type',
   'data': { 'passthrough' : 'TPMPassthroughOptions',
-            'emulator': 'TPMEmulatorOptions' },
+            'emulator': 'TPMEmulatorOptions',
+            'mssim': 'TPMmssimOptions' },
   'if': 'CONFIG_TPM' }
 
 ##
