@@ -755,6 +755,29 @@ Object *object_new(const char *typename)
 }
 
 
+Object *object_try_new(const char *name, Error **errp)
+{
+    TypeImpl *ti = type_get_by_name(name);
+
+    if (!ti) {
+#ifdef CONFIG_MODULES
+        int rv = module_load_qom(name, errp);
+        if (rv <= 0) {
+            error_report("could not find a module for type '%s'", name);
+            exit(1);
+        }
+        ti = type_get_by_name(name);
+#endif
+    }
+    if (!ti) {
+        error_setg(errp, "unknown type '%s'", name);
+        return NULL;
+    }
+
+    return object_new_with_type(ti);
+}
+
+
 Object *object_new_with_props(const char *typename,
                               Object *parent,
                               const char *id,
