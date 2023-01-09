@@ -856,6 +856,7 @@ struct ArchCPU {
 
     DynamicGDBXMLInfo dyn_sysreg_xml;
     DynamicGDBXMLInfo dyn_svereg_xml;
+    DynamicGDBXMLInfo dyn_m_systemreg_xml;
 
     /* Timers used by the generic (architected) timer */
     QEMUTimer *gt_timer[NUM_GTIMERS];
@@ -1100,11 +1101,13 @@ int arm_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int arm_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 
 /*
- * Helpers to dynamically generates XML descriptions of the sysregs
- * and SVE registers. Returns the number of registers in each set.
+ * Helpers to dynamically generate XML descriptions of the sysregs,
+ * SVE registers, and M-profile system registers.
+ * Returns the number of registers in each set.
  */
 int arm_gen_dynamic_sysreg_xml(CPUState *cpu, int base_reg);
 int arm_gen_dynamic_svereg_xml(CPUState *cpu, int base_reg);
+int arm_gen_dynamic_m_systemreg_xml(CPUState *cpu, int base_reg);
 
 /* Returns the dynamically generated XML for the gdb stub.
  * Returns a pointer to the XML contents for the specified XML file or NULL
@@ -1495,6 +1498,11 @@ FIELD(SVCR, ZA, 1, 1)
 /* Fields for SMCR_ELx. */
 FIELD(SMCR, LEN, 0, 4)
 FIELD(SMCR, FA64, 31, 1)
+
+/*
+ * Read the CONTROL register as the MRS instruction would.
+ */
+uint32_t arm_v7m_mrs_control(CPUARMState *env, uint32_t secure);
 
 /* Write a new value to v7m.exception, thus transitioning into or out
  * of Handler mode; this may result in a change of active stack pointer.

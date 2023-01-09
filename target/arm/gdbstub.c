@@ -322,6 +322,121 @@ int arm_gen_dynamic_sysreg_xml(CPUState *cs, int base_reg)
     return cpu->dyn_sysreg_xml.num;
 }
 
+/*
+ * Helper required because g_array_append_val is a macro
+ * that cannot handle string literals.
+ */
+static inline void g_array_append_str_literal(GArray *array, const char *str)
+{
+    g_array_append_val(array, str);
+}
+
+static int arm_gdb_get_m_systemreg(CPUARMState *env, GByteArray *buf, int reg)
+{
+    /* NOTE: This implementation shares a lot of logic with v7m_mrs. */
+    switch (reg) {
+
+    /*
+     * NOTE: MSP and PSP technically don't exist if the secure extension
+     * is present (replaced by MSP_S, MSP_NS, PSP_S, PSP_NS).  Similar for
+     * MSPLIM and PSPLIM.
+     * However, the MRS instruction is still allowed to read from MSP and PSP,
+     * and will return the value associated with the current security state.
+     * We replicate this behavior for the convenience of users, who will see
+     * GDB behave similarly to their assembly code, even if they are oblivious
+     * to the security extension.
+     */
+    case 0: /* MSP */
+        return gdb_get_reg32(buf,
+            v7m_using_psp(env) ? env->v7m.other_sp : env->regs[13]);
+    case 1: /* PSP */
+        return gdb_get_reg32(buf,
+            v7m_using_psp(env) ? env->regs[13] : env->v7m.other_sp);
+    case 6: /* MSPLIM */
+        if (!arm_feature(env, ARM_FEATURE_V8)) {
+            return 0;
+        }
+        return gdb_get_reg32(buf, env->v7m.msplim[env->v7m.secure]);
+    case 7: /* PSPLIM */
+        if (!arm_feature(env, ARM_FEATURE_V8)) {
+            return 0;
+        }
+        return gdb_get_reg32(buf, env->v7m.psplim[env->v7m.secure]);
+
+    /*
+     * NOTE: PRIMASK, BASEPRI, and FAULTMASK are defined a bit differently
+     * from the SP family, but have similar banking behavior.
+     */
+    case 2: /* PRIMASK */
+        return gdb_get_reg32(buf, env->v7m.primask[env->v7m.secure]);
+    case 3: /* BASEPRI */
+        if (!arm_feature(env, ARM_FEATURE_M_MAIN)) {
+            return 0;
+        }
+        return gdb_get_reg32(buf, env->v7m.basepri[env->v7m.secure]);
+    case 4: /* FAULTMASK */
+        if (!arm_feature(env, ARM_FEATURE_M_MAIN)) {
+            return 0;
+        }
+        return gdb_get_reg32(buf, env->v7m.faultmask[env->v7m.secure]);
+
+    /*
+     * NOTE: CONTROL has a mix of banked and non-banked bits.  We continue
+     * to emulate the MRS instruction.  Unfortunately, this gives GDB no way
+     * to read the SFPA bit when the CPU is in a non-secure state.
+     */
+    case 5: /* CONTROL */
+        return gdb_get_reg32(buf, arm_v7m_mrs_control(env, env->v7m.secure));
+    }
+
+    return 0;
+}
+
+static int arm_gdb_set_m_systemreg(CPUARMState *env, uint8_t *buf, int reg)
+{
+    /* TODO: Implement. */
+    return 0;
+}
+
+int arm_gen_dynamic_m_systemreg_xml(CPUState *cs, int base_reg)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    GString *s = g_string_new(NULL);
+    DynamicGDBXMLInfo *info = &cpu->dyn_m_systemreg_xml;
+    bool is_v8 = arm_feature(env, ARM_FEATURE_V8);
+    bool is_main = arm_feature(env, ARM_FEATURE_M_MAIN);
+
+    g_string_printf(s, "<?xml version=\"1.0\"?>");
+    g_string_append_printf(s, "<!DOCTYPE target SYSTEM \"gdb-target.dtd\">");
+    g_string_append_printf(s, "<feature name=\"org.gnu.gdb.arm.m-system\">\n");
+
+    g_autoptr(GArray) regs = g_array_new(false, true, sizeof(const char *));
+    /* 0 */ g_array_append_str_literal(regs, "msp");
+    /* 1 */ g_array_append_str_literal(regs, "psp");
+    /* 2 */ g_array_append_str_literal(regs, "primask");
+    /* 3 */ g_array_append_str_literal(regs, is_main ? "basepri" : "");
+    /* 4 */ g_array_append_str_literal(regs, is_main ? "faultmask" : "");
+    /* 5 */ g_array_append_str_literal(regs, "control");
+    /* 6 */ g_array_append_str_literal(regs, is_v8 ? "msplim" : "");
+    /* 7 */ g_array_append_str_literal(regs, is_v8 ? "psplim" : "");
+
+    for (int idx = 0; idx < regs->len; idx++) {
+        const char *name = g_array_index(regs, const char *, idx);
+        if (*name != '\0') {
+            g_string_append_printf(s,
+                        "<reg name=\"%s\" bitsize=\"32\" regnum=\"%d\"/>\n",
+                        name, base_reg);
+        }
+        base_reg++;
+    }
+    info->num = regs->len;
+
+    g_string_append_printf(s, "</feature>");
+    info->desc = g_string_free(s, false);
+    return info->num;
+}
+
 struct TypeSize {
     const char *gdb_type;
     int  size;
@@ -450,6 +565,8 @@ const char *arm_gdb_get_dynamic_xml(CPUState *cs, const char *xmlname)
         return cpu->dyn_sysreg_xml.desc;
     } else if (strcmp(xmlname, "sve-registers.xml") == 0) {
         return cpu->dyn_svereg_xml.desc;
+    } else if (strcmp(xmlname, "arm-m-system.xml") == 0) {
+        return cpu->dyn_m_systemreg_xml.desc;
     }
     return NULL;
 }
@@ -493,6 +610,14 @@ void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
              */
             gdb_register_coprocessor(cs, vfp_gdb_get_sysreg, vfp_gdb_set_sysreg,
                                      2, "arm-vfp-sysregs.xml", 0);
+        } else {
+            /* M-profile coprocessors. */
+            gdb_register_coprocessor(cs,
+                                     arm_gdb_get_m_systemreg,
+                                     arm_gdb_set_m_systemreg,
+                                     arm_gen_dynamic_m_systemreg_xml(
+                                         cs, cs->gdb_num_regs),
+                                     "arm-m-system.xml", 0);
         }
     }
     if (cpu_isar_feature(aa32_mve, cpu)) {
