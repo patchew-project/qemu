@@ -950,6 +950,7 @@ static Property pflash_cfi02_properties[] = {
     DEFINE_PROP_UINT32("num-blocks3", PFlashCFI02, nb_blocs[3], 0),
     DEFINE_PROP_UINT32("sector-length3", PFlashCFI02, sector_len[3], 0),
     DEFINE_PROP_UINT8("width", PFlashCFI02, width, 0),
+    DEFINE_PROP_UINT8("device-width", PFlashCFI02, width, 0),
     DEFINE_PROP_UINT8("mappings", PFlashCFI02, mappings, 0),
     DEFINE_PROP_UINT8("big-endian", PFlashCFI02, be, 0),
     DEFINE_PROP_UINT16("id0", PFlashCFI02, ident0, 0),
@@ -978,6 +979,11 @@ static void pflash_cfi02_class_init(ObjectClass *klass, void *data)
     dc->unrealize = pflash_cfi02_unrealize;
     device_class_set_props(dc, pflash_cfi02_properties);
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+
+    object_class_property_deprecate(klass, "width",
+                                    "renamed as '"
+                                    TYPE_PFLASH_CFI02 ".device-width'",
+                                    8, 0);
 }
 
 static const TypeInfo pflash_cfi02_info = {
@@ -1014,7 +1020,7 @@ PFlashCFI02 *pflash_cfi02_register(hwaddr base,
     assert(QEMU_IS_ALIGNED(size, sector_len));
     qdev_prop_set_uint32(dev, "num-blocks", size / sector_len);
     qdev_prop_set_uint32(dev, "sector-length", sector_len);
-    qdev_prop_set_uint8(dev, "width", width);
+    qdev_prop_set_uint8(dev, "device-width", width);
     qdev_prop_set_uint8(dev, "mappings", nb_mappings);
     qdev_prop_set_uint8(dev, "big-endian", !!be);
     qdev_prop_set_uint16(dev, "id0", id0);
