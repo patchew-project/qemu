@@ -17,6 +17,7 @@
 #include "qom/object_interfaces.h"
 #include "qemu/cutils.h"
 #include "qemu/memalign.h"
+#include "qemu/qemu-version.h"
 #include "qapi/visitor.h"
 #include "qapi/string-input-visitor.h"
 #include "qapi/string-output-visitor.h"
@@ -1300,6 +1301,12 @@ void object_class_property_deprecate(ObjectClass *klass,
     ObjectProperty *prop = object_class_property_find(klass, name);
 
     assert(prop);
+    if (qemu_version_delta_current(version_major, version_minor) <= 2) {
+        warn_report_once("Property '%s.%s' has been deprecated in release"
+                         " v%u.%u and can be removed.",
+                         object_class_get_name(klass), name,
+                         version_major, version_minor);
+    }
     prop->deprecation_reason = reason;
 }
 
