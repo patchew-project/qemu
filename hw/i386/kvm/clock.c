@@ -35,7 +35,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(KVMClockState, KVM_CLOCK)
 
 struct KVMClockState {
     /*< private >*/
-    SysBusDevice busdev;
+    DeviceState busdev;
     /*< public >*/
 
     uint64_t clock;
@@ -322,7 +322,7 @@ static void kvmclock_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo kvmclock_info = {
     .name          = TYPE_KVM_CLOCK,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_DEVICE,
     .instance_size = sizeof(KVMClockState),
     .class_init    = kvmclock_class_init,
 };
@@ -338,7 +338,7 @@ void kvmclock_create(bool create_always)
     if (create_always ||
         cpu->env.features[FEAT_KVM] & ((1ULL << KVM_FEATURE_CLOCKSOURCE) |
                                        (1ULL << KVM_FEATURE_CLOCKSOURCE2))) {
-        sysbus_create_simple(TYPE_KVM_CLOCK, -1, NULL);
+        qdev_realize(qdev_new(TYPE_KVM_CLOCK), NULL, &error_fatal));
     }
 }
 
