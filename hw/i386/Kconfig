@@ -74,7 +74,6 @@ config I440FX
     select I8259
     select PCI_I440FX
     select PIIX3
-    select IDE_PIIX
     select DIMM
     select SMBIOS
     select FW_CFG_DMA
