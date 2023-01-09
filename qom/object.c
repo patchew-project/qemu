@@ -1293,6 +1293,16 @@ object_class_property_add(ObjectClass *klass,
     return prop;
 }
 
+void object_class_property_deprecate(ObjectClass *klass,
+                                     const char *name, const char *reason,
+                                     int version_major, int version_minor)
+{
+    ObjectProperty *prop = object_class_property_find(klass, name);
+
+    assert(prop);
+    prop->deprecation_reason = reason;
+}
+
 ObjectProperty *object_property_find(Object *obj, const char *name)
 {
     ObjectProperty *prop;
@@ -1382,6 +1392,17 @@ void object_property_del(Object *obj, const char *name)
     g_hash_table_remove(obj->properties, name);
 }
 
+static void object_property_check_deprecation(const Object *obj,
+                                              const char *name,
+                                              const ObjectProperty *prop)
+{
+    if (!prop->deprecation_reason) {
+        return;
+    }
+    warn_report("Property '%s.%s' is deprecated (%s).",
+                object_get_typename(obj), name, prop->deprecation_reason);
+}
+
 bool object_property_get(Object *obj, const char *name, Visitor *v,
                          Error **errp)
 {
@@ -1392,6 +1413,7 @@ bool object_property_get(Object *obj, const char *name, Visitor *v,
         return false;
     }
 
+    object_property_check_deprecation(obj, name, prop);
     if (!prop->get) {
         error_setg(errp, "Property '%s.%s' is not readable",
                    object_get_typename(obj), name);
@@ -1412,6 +1434,7 @@ bool object_property_set(Object *obj, const char *name, Visitor *v,
         return false;
     }
 
+    object_property_check_deprecation(obj, name, prop);
     if (!prop->set) {
         error_setg(errp, "Property '%s.%s' is not writable",
                    object_get_typename(obj), name);

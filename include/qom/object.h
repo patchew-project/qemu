@@ -97,6 +97,7 @@ struct ObjectProperty
     ObjectPropertyInit *init;
     void *opaque;
     QObject *defval;
+    const char *deprecation_reason;
 };
 
 /**
@@ -1074,6 +1075,22 @@ ObjectProperty *object_class_property_add(ObjectClass *klass, const char *name,
                                           ObjectPropertyAccessor *set,
                                           ObjectPropertyRelease *release,
                                           void *opaque);
+
+/**
+ * object_class_property_deprecate:
+ * @klass: the class to add a property to
+ * @name: the name of the property.  This can contain any character except for
+ *  a forward slash.  In general, you should use hyphens '-' instead of
+ *  underscores '_' when naming properties.
+ * @reason: the deprecation reason.
+ * @version_major: the major version since this property is deprecated.
+ * @version_minor: the minor version since this property is deprecated.
+ *
+ * Deprecate a class property.
+ */
+void object_class_property_deprecate(ObjectClass *klass,
+                                     const char *name, const char *reason,
+                                     int version_major, int version_minor);
 
 /**
  * object_property_set_default_bool:
