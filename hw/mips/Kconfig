@@ -1,8 +1,14 @@
 config MALTA
     bool
+    select EMPTY_SLOT
     select I8259
     select ISA_SUPERIO
+    select MIPS_CPS
+    select PCNET_PCI
+    select PFLASH_CFI01
     select PIIX
+    select SERIAL
+    select SMBUS_EEPROM
 
 config MIPSSIM
     bool
@@ -28,10 +34,15 @@ config JAZZ
     select PARALLEL
     select DS1225Y
     select JAZZ_LED
+    select VGA_MMIO
 
 config FULOONG
     bool
+    select ATI_VGA
     select PCI_BONITO
+    select RTL8139_PCI
+    select SMBUS_EEPROM
+    select VT82C686
 
 config LOONGSON3V
     bool
@@ -39,6 +50,7 @@ config LOONGSON3V
     imply QXL if SPICE
     select SERIAL
     select GOLDFISH_RTC
+    select I8259
     select LOONGSON_LIOINTC
     select PCI_DEVICES
     select PCI_EXPRESS_GENERIC_BRIDGE
