@@ -1287,6 +1287,18 @@
   'data': { 'pass': 'int' } }
 
 ##
+# @MIGRATION_MULTIFD_PID:
+#
+# Emitted when multifd thread appear
+#
+# @pid: pid of multifd thread
+#
+# Since: 7.2
+##
+{ 'event': 'MIGRATION_MULTIFD_PID',
+  'data': { 'pid': 'int' } }
+
+##
 # @MIGRATION_PID:
 #
 # Emitted when migration thread appear
