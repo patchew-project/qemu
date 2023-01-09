@@ -71,6 +71,7 @@ config I440FX
     select ACPI_PIIX4
     select PC_PCI
     select PC_ACPI
+    select I8259
     select PCI_I440FX
     select PIIX3
     select IDE_PIIX
