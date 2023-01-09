@@ -47,10 +47,10 @@
 #define FLASH_BASE 0x00000000
 #define FLASH_SIZE (16 * MiB)
 
-#define SDRAM_BASE 0x0c000000 /* Physical location of SDRAM: Area 3 */
-#define SDRAM_SIZE 0x04000000
+#define SDRAM_BASE          (192 * MiB) /* Physical location of SDRAM: Area 3 */
+#define SDRAM_SIZE          (64 * MiB)
 
-#define SM501_VRAM_SIZE 0x800000
+#define SM501_VRAM_SIZE     (8 * MiB)
 
 #define BOOT_PARAMS_OFFSET 0x0010000
 /* CONFIG_BOOT_LINK_OFFSET of Linux kernel */
