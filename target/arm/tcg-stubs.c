@@ -26,3 +26,8 @@ void arm_reset_sve_state(CPUARMState *env)
 {
     g_assert_not_reached();
 }
+
+/* Temporarily while cpu_get_tb_cpu_state() is still in common code */
+void assert_hflags_rebuild_correctly(CPUARMState *env)
+{
+}
