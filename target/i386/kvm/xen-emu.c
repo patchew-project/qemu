@@ -21,6 +21,7 @@
 #include "sysemu/runstate.h"
 
 #include "hw/i386/kvm/xen_overlay.h"
+#include "hw/i386/kvm/xen_evtchn.h"
 
 #include "standard-headers/xen/version.h"
 #include "standard-headers/xen/sched.h"
@@ -507,6 +508,10 @@ static bool handle_set_param(struct kvm_xen_exit *exit, X86CPU *cpu,
     }
 
     switch (hp.index) {
+    case HVM_PARAM_CALLBACK_IRQ:
+        err = xen_evtchn_set_callback_param(hp.value);
+        xen_set_long_mode(exit->u.hcall.longmode);
+        break;
     default:
         return false;
     }
@@ -708,6 +713,11 @@ static int kvm_xen_soft_reset(void)
 {
     CPUState *cpu;
     int err;
+
+    err = xen_evtchn_set_callback_param(0);
+    if (err) {
+        return err;
+    }
 
     CPU_FOREACH(cpu) {
         async_run_on_cpu(cpu, do_vcpu_soft_reset, RUN_ON_CPU_NULL);
