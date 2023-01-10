@@ -187,11 +187,11 @@ See `User Mode Emulation` for more details on running in this mode.
 Semihosting
 ~~~~~~~~~~~~
 
-A number of guest architecture support semihosting which provides a
-way for guest programs to access the host system though a POSIX-like
-system call layer. This has applications for early software bring-up
-making it easy for a guest to dump data or read configuration files
-before a full operating system is implemented.
+A number of guest architecture support :ref:`Semihosting` which
+provides a way for guest programs to access the host system though a
+POSIX-like system call layer. This has applications for early software
+bring-up making it easy for a guest to dump data or read configuration
+files before a full operating system is implemented.
 
 Some of those guest architectures also support semihosting in
 user-mode making the testing of "bare-metal" micro-controller code
