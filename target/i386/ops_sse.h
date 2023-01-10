@@ -2466,7 +2466,7 @@ void helper_vpermdq_ymm(Reg *d, Reg *v, Reg *s, uint32_t order)
         r0 = s->Q(0);
         r1 = s->Q(1);
         break;
-    case 3:
+    default:
         r0 = s->Q(2);
         r1 = s->Q(3);
         break;
@@ -2484,7 +2484,7 @@ void helper_vpermdq_ymm(Reg *d, Reg *v, Reg *s, uint32_t order)
         r2 = s->Q(0);
         r3 = s->Q(1);
         break;
-    case 3:
+    default:
         r2 = s->Q(2);
         r3 = s->Q(3);
         break;
