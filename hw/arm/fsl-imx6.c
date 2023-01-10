@@ -43,8 +43,8 @@ static void fsl_imx6_init(Object *obj)
 
     for (i = 0; i < MIN(ms->smp.cpus, FSL_IMX6_NUM_CPUS); i++) {
         snprintf(name, NAME_SIZE, "cpu%d", i);
-        object_initialize_child(obj, name, &s->cpu[i],
-                                ARM_CPU_TYPE_NAME("cortex-a9"));
+        s->cpu[i] = ARM_CPU(object_new(ARM_CPU_TYPE_NAME("cortex-a9")));
+        object_property_add_child(obj, name, OBJECT(s->cpu[i]));
     }
 
     object_initialize_child(obj, "a9mpcore", &s->a9mpcore, TYPE_A9MPCORE_PRIV);
@@ -120,17 +120,17 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
 
         /* On uniprocessor, the CBAR is set to 0 */
         if (smp_cpus > 1) {
-            object_property_set_int(OBJECT(&s->cpu[i]), "reset-cbar",
+            object_property_set_int(OBJECT(s->cpu[i]), "reset-cbar",
                                     FSL_IMX6_A9MPCORE_ADDR, &error_abort);
         }
 
         /* All CPU but CPU 0 start in power off mode */
         if (i) {
-            object_property_set_bool(OBJECT(&s->cpu[i]), "start-powered-off",
+            object_property_set_bool(OBJECT(s->cpu[i]), "start-powered-off",
                                      true, &error_abort);
         }
 
-        if (!qdev_realize(DEVICE(&s->cpu[i]), NULL, errp)) {
+        if (!qdev_realize(DEVICE(s->cpu[i]), NULL, errp)) {
             return;
         }
     }
@@ -148,9 +148,9 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
 
     for (i = 0; i < smp_cpus; i++) {
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->a9mpcore), i,
-                           qdev_get_gpio_in(DEVICE(&s->cpu[i]), ARM_CPU_IRQ));
+                           qdev_get_gpio_in(DEVICE(s->cpu[i]), ARM_CPU_IRQ));
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->a9mpcore), i + smp_cpus,
-                           qdev_get_gpio_in(DEVICE(&s->cpu[i]), ARM_CPU_FIQ));
+                           qdev_get_gpio_in(DEVICE(s->cpu[i]), ARM_CPU_FIQ));
     }
 
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->ccm), errp)) {

@@ -34,8 +34,8 @@ static void fsl_imx6ul_init(Object *obj)
     char name[NAME_SIZE];
     int i;
 
-    object_initialize_child(obj, "cpu0", &s->cpu,
-                            ARM_CPU_TYPE_NAME("cortex-a7"));
+    s->cpu = ARM_CPU(object_new(ARM_CPU_TYPE_NAME("cortex-a7")));
+    object_property_add_child(obj, "cpu0", OBJECT(s->cpu));
 
     /*
      * A7MPCORE
@@ -166,7 +166,7 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    qdev_realize(DEVICE(&s->cpu), NULL, &error_abort);
+    qdev_realize(DEVICE(s->cpu), NULL, &error_abort);
 
     /*
      * A7MPCORE
@@ -178,7 +178,7 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->a7mpcore), 0, FSL_IMX6UL_A7MPCORE_ADDR);
 
     sbd = SYS_BUS_DEVICE(&s->a7mpcore);
-    d = DEVICE(&s->cpu);
+    d = DEVICE(s->cpu);
 
     sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(d, ARM_CPU_IRQ));
     sysbus_connect_irq(sbd, 1, qdev_get_gpio_in(d, ARM_CPU_FIQ));

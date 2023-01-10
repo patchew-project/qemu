@@ -32,8 +32,8 @@
 #include "hw/net/imx_fec.h"
 #include "hw/usb/chipidea.h"
 #include "hw/usb/imx-usb-phy.h"
+#include "hw/arm/cpu.h"
 #include "exec/memory.h"
-#include "target/arm/cpu.h"
 #include "qom/object.h"
 
 #define TYPE_FSL_IMX6 "fsl-imx6"
@@ -55,7 +55,7 @@ struct FslIMX6State {
     DeviceState parent_obj;
 
     /*< public >*/
-    ARMCPU         cpu[FSL_IMX6_NUM_CPUS];
+    ARMCPU         *cpu[FSL_IMX6_NUM_CPUS];
     A9MPPrivState  a9mpcore;
     IMX6CCMState   ccm;
     IMX6SRCState   src;

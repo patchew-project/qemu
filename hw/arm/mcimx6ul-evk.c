@@ -61,7 +61,7 @@ static void mcimx6ul_evk_init(MachineState *machine)
     }
 
     if (!qtest_enabled()) {
-        arm_load_kernel(&s->cpu, machine, &boot_info);
+        arm_load_kernel(s->cpu, machine, &boot_info);
     }
 }
 
