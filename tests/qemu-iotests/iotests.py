@@ -462,6 +462,10 @@ class QemuStorageDaemon:
         assert self._qmp is not None
         return self._qmp.cmd_raw(cmd, args)
 
+    def cmd(self, cmd: str, args: Optional[Dict[str, object]] = None) \
+            -> QMPMessage:
+        return self._qmp.cmd(cmd, **args)
+
     def stop(self, kill_signal=15):
         self._p.send_signal(kill_signal)
         self._p.wait()
