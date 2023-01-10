@@ -27,7 +27,7 @@
 #include "hw/gpio/imx_gpio.h"
 #include "hw/watchdog/wdt_imx2.h"
 #include "exec/memory.h"
-#include "target/arm/cpu.h"
+#include "hw/arm/cpu.h"
 #include "qom/object.h"
 
 #define TYPE_FSL_IMX31 "fsl-imx31"
@@ -43,7 +43,7 @@ struct FslIMX31State {
     DeviceState parent_obj;
 
     /*< public >*/
-    ARMCPU         cpu;
+    ARMCPU         *cpu;
     IMXAVICState   avic;
     IMX31CCMState  ccm;
     IMXSerialState uart[FSL_IMX31_NUM_UARTS];
