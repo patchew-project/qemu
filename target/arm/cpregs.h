@@ -21,6 +21,8 @@
 #ifndef TARGET_ARM_CPREGS_H
 #define TARGET_ARM_CPREGS_H
 
+#include "target/arm/cpu.h"
+
 /*
  * ARMCPRegInfo type field bits:
  */
