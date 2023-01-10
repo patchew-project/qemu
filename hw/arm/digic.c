@@ -36,7 +36,8 @@ static void digic_init(Object *obj)
     DigicState *s = DIGIC(obj);
     int i;
 
-    object_initialize_child(obj, "cpu", &s->cpu, ARM_CPU_TYPE_NAME("arm946"));
+    s->cpu = ARM_CPU(object_new(ARM_CPU_TYPE_NAME("arm946")));
+    object_property_add_child(obj, "cpu", OBJECT(s->cpu));
 
     for (i = 0; i < DIGIC4_NB_TIMERS; i++) {
         g_autofree char *name = g_strdup_printf("timer[%d]", i);
@@ -52,12 +53,12 @@ static void digic_realize(DeviceState *dev, Error **errp)
     SysBusDevice *sbd;
     int i;
 
-    if (!object_property_set_bool(OBJECT(&s->cpu), "reset-hivecs", true,
+    if (!object_property_set_bool(OBJECT(s->cpu), "reset-hivecs", true,
                                   errp)) {
         return;
     }
 
-    if (!qdev_realize(DEVICE(&s->cpu), NULL, errp)) {
+    if (!qdev_realize(DEVICE(s->cpu), NULL, errp)) {
         return;
     }
 

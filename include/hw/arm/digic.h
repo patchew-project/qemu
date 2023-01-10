@@ -18,7 +18,7 @@
 #ifndef HW_ARM_DIGIC_H
 #define HW_ARM_DIGIC_H
 
-#include "target/arm/cpu.h"
+#include "hw/arm/cpu.h"
 #include "hw/timer/digic-timer.h"
 #include "hw/char/digic-uart.h"
 #include "qom/object.h"
@@ -34,7 +34,7 @@ struct DigicState {
     DeviceState parent_obj;
     /*< public >*/
 
-    ARMCPU cpu;
+    ARMCPU *cpu;
 
     DigicTimerState timer[DIGIC4_NB_TIMERS];
     DigicUartState uart;
