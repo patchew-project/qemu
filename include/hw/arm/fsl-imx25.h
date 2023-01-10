@@ -31,7 +31,7 @@
 #include "hw/usb/chipidea.h"
 #include "hw/watchdog/wdt_imx2.h"
 #include "exec/memory.h"
-#include "target/arm/cpu.h"
+#include "hw/arm/cpu.h"
 #include "qom/object.h"
 
 #define TYPE_FSL_IMX25 "fsl-imx25"
@@ -50,7 +50,7 @@ struct FslIMX25State {
     DeviceState parent_obj;
 
     /*< public >*/
-    ARMCPU         cpu;
+    ARMCPU         *cpu;
     IMXAVICState   avic;
     IMX25CCMState  ccm;
     IMXSerialState uart[FSL_IMX25_NUM_UARTS];

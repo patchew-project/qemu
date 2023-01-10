@@ -136,7 +136,7 @@ static void imx25_pdk_init(MachineState *machine)
      * fail.
      */
     if (!qtest_enabled()) {
-        arm_load_kernel(&s->soc.cpu, machine, &imx25_pdk_binfo);
+        arm_load_kernel(s->soc.cpu, machine, &imx25_pdk_binfo);
     }
 }
 
