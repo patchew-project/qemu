@@ -15,10 +15,6 @@
 #define BSWAP_FROM_FALLBACKS
 #endif /* ! CONFIG_MACHINE_BSWAP_H */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifdef BSWAP_FROM_BYTESWAP
 static inline uint16_t bswap16(uint16_t x)
 {
@@ -447,9 +443,5 @@ DO_STN_LDN_P(be)
 #undef be_bswap
 #undef le_bswaps
 #undef be_bswaps
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* BSWAP_H */
