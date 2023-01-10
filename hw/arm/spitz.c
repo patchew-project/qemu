@@ -33,7 +33,7 @@
 #include "hw/adc/max111x.h"
 #include "migration/vmstate.h"
 #include "exec/address-spaces.h"
-#include "cpu.h"
+#include "hw/arm/cpu.h"
 #include "qom/object.h"
 
 enum spitz_model_e { spitz, akita, borzoi, terrier };

@@ -15,6 +15,7 @@
 #include "qemu/units.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "hw/arm/cpu.h"
 #include "hw/arm/pxa.h"
 #include "hw/arm/boot.h"
 #include "net/net.h"
@@ -23,7 +24,6 @@
 #include "hw/block/flash.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
-#include "cpu.h"
 
 /* Device addresses */
 #define MST_FPGA_PHYS	0x08000000

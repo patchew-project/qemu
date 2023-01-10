@@ -29,7 +29,7 @@
 #include "hw/input/tsc2xxx.h"
 #include "hw/irq.h"
 #include "hw/loader.h"
-#include "cpu.h"
+#include "hw/arm/cpu.h"
 #include "qemu/cutils.h"
 #include "qom/object.h"
 
