@@ -72,7 +72,7 @@ static void fsl_imx6ul_init(Object *obj)
      * GPIOs 1 to 5
      */
     for (i = 0; i < FSL_IMX6UL_NUM_GPIOS; i++) {
-        snprintf(name, NAME_SIZE, "gpio%d", i);
+        snprintf(name, NAME_SIZE, "gpio%d", i + 1);
         object_initialize_child(obj, name, &s->gpio[i], TYPE_IMX_GPIO);
     }
 
@@ -80,7 +80,7 @@ static void fsl_imx6ul_init(Object *obj)
      * GPT 1, 2
      */
     for (i = 0; i < FSL_IMX6UL_NUM_GPTS; i++) {
-        snprintf(name, NAME_SIZE, "gpt%d", i);
+        snprintf(name, NAME_SIZE, "gpt%d", i + 1);
         object_initialize_child(obj, name, &s->gpt[i], TYPE_IMX6UL_GPT);
     }
 
