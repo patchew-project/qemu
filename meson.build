@@ -2478,7 +2478,7 @@ disassemblers = {
   'x86_64' : ['CONFIG_I386_DIS'],
   'm68k' : ['CONFIG_M68K_DIS'],
   'microblaze' : ['CONFIG_MICROBLAZE_DIS'],
-  'mips' : ['CONFIG_MIPS_DIS'],
+  'mips' : [ 'CONFIG_MIPS_DIS'],
   'nios2' : ['CONFIG_NIOS2_DIS'],
   'or1k' : ['CONFIG_OPENRISC_DIS'],
   'ppc' : ['CONFIG_PPC_DIS'],
@@ -2490,11 +2490,6 @@ disassemblers = {
   'xtensa' : ['CONFIG_XTENSA_DIS'],
   'loongarch' : ['CONFIG_LOONGARCH_DIS'],
 }
-if link_language == 'cpp'
-  disassemblers += {
-    'mips' : [ 'CONFIG_MIPS_DIS', 'CONFIG_NANOMIPS_DIS'],
-  }
-endif
 
 have_ivshmem = config_host_data.get('CONFIG_EVENTFD')
 host_kconfig = \
