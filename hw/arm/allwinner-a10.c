@@ -39,8 +39,8 @@ static void aw_a10_init(Object *obj)
 {
     AwA10State *s = AW_A10(obj);
 
-    object_initialize_child(obj, "cpu", &s->cpu,
-                            ARM_CPU_TYPE_NAME("cortex-a8"));
+    s->cpu = ARM_CPU(object_new(ARM_CPU_TYPE_NAME("cortex-a8")));
+    object_property_add_child(obj, "cpu", OBJECT(s->cpu));
 
     object_initialize_child(obj, "intc", &s->intc, TYPE_AW_A10_PIC);
 
@@ -71,7 +71,7 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
     AwA10State *s = AW_A10(dev);
     SysBusDevice *sysbusdev;
 
-    if (!qdev_realize(DEVICE(&s->cpu), NULL, errp)) {
+    if (!qdev_realize(DEVICE(s->cpu), NULL, errp)) {
         return;
     }
 
@@ -81,9 +81,9 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
     sysbusdev = SYS_BUS_DEVICE(&s->intc);
     sysbus_mmio_map(sysbusdev, 0, AW_A10_PIC_REG_BASE);
     sysbus_connect_irq(sysbusdev, 0,
-                       qdev_get_gpio_in(DEVICE(&s->cpu), ARM_CPU_IRQ));
+                       qdev_get_gpio_in(DEVICE(s->cpu), ARM_CPU_IRQ));
     sysbus_connect_irq(sysbusdev, 1,
-                       qdev_get_gpio_in(DEVICE(&s->cpu), ARM_CPU_FIQ));
+                       qdev_get_gpio_in(DEVICE(s->cpu), ARM_CPU_FIQ));
     qdev_pass_gpios(DEVICE(&s->intc), dev, NULL);
 
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer), errp)) {

@@ -47,7 +47,7 @@
 #include "hw/sd/allwinner-sdhost.h"
 #include "hw/net/allwinner-sun8i-emac.h"
 #include "hw/rtc/allwinner-rtc.h"
-#include "target/arm/cpu.h"
+#include "hw/arm/cpu.h"
 #include "sysemu/block-backend.h"
 
 /**
@@ -121,7 +121,7 @@ struct AwH3State {
     DeviceState parent_obj;
     /*< public >*/
 
-    ARMCPU cpus[AW_H3_NUM_CPUS];
+    ARMCPU *cpus[AW_H3_NUM_CPUS];
     const hwaddr *memmap;
     AwA10PITState timer;
     AwH3ClockCtlState ccu;

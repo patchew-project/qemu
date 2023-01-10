@@ -96,7 +96,7 @@ static void cubieboard_init(MachineState *machine)
     /* TODO create and connect IDE devices for ide_drive_get() */
 
     cubieboard_binfo.ram_size = machine->ram_size;
-    arm_load_kernel(&a10->cpu, machine, &cubieboard_binfo);
+    arm_load_kernel(a10->cpu, machine, &cubieboard_binfo);
 }
 
 static void cubieboard_machine_init(MachineClass *mc)

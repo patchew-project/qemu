@@ -192,8 +192,8 @@ static void allwinner_h3_init(Object *obj)
     s->memmap = allwinner_h3_memmap;
 
     for (int i = 0; i < AW_H3_NUM_CPUS; i++) {
-        object_initialize_child(obj, "cpu[*]", &s->cpus[i],
-                                ARM_CPU_TYPE_NAME("cortex-a7"));
+        s->cpus[i] = ARM_CPU(object_new(ARM_CPU_TYPE_NAME("cortex-a7")));
+        object_property_add_child(obj, "cpu[*]", OBJECT(s->cpus[i]));
     }
 
     object_initialize_child(obj, "gic", &s->gic, TYPE_ARM_GIC);
@@ -239,15 +239,15 @@ static void allwinner_h3_realize(DeviceState *dev, Error **errp)
          * Disable secondary CPUs. Guest EL3 firmware will start
          * them via CPU reset control registers.
          */
-        qdev_prop_set_bit(DEVICE(&s->cpus[i]), "start-powered-off",
+        qdev_prop_set_bit(DEVICE(s->cpus[i]), "start-powered-off",
                           i > 0);
 
         /* All exception levels required */
-        qdev_prop_set_bit(DEVICE(&s->cpus[i]), "has_el3", true);
-        qdev_prop_set_bit(DEVICE(&s->cpus[i]), "has_el2", true);
+        qdev_prop_set_bit(DEVICE(s->cpus[i]), "has_el3", true);
+        qdev_prop_set_bit(DEVICE(s->cpus[i]), "has_el2", true);
 
         /* Mark realized */
-        qdev_realize(DEVICE(&s->cpus[i]), NULL, &error_fatal);
+        qdev_realize(DEVICE(s->cpus[i]), NULL, &error_fatal);
     }
 
     /* Generic Interrupt Controller */
@@ -270,7 +270,7 @@ static void allwinner_h3_realize(DeviceState *dev, Error **errp)
      * and the GIC's IRQ/FIQ/VIRQ/VFIQ interrupt outputs to the CPU's inputs.
      */
     for (i = 0; i < AW_H3_NUM_CPUS; i++) {
-        DeviceState *cpudev = DEVICE(&s->cpus[i]);
+        DeviceState *cpudev = DEVICE(s->cpus[i]);
         int ppibase = AW_H3_GIC_NUM_SPI + i * GIC_INTERNAL + GIC_NR_SGIS;
         int irq;
         /*

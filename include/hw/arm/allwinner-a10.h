@@ -13,8 +13,8 @@
 #include "hw/usb/hcd-ohci.h"
 #include "hw/usb/hcd-ehci.h"
 #include "hw/rtc/allwinner-rtc.h"
+#include "hw/arm/cpu.h"
 
-#include "target/arm/cpu.h"
 #include "qom/object.h"
 
 
@@ -30,7 +30,7 @@ struct AwA10State {
     DeviceState parent_obj;
     /*< public >*/
 
-    ARMCPU cpu;
+    ARMCPU *cpu;
     AwA10PITState timer;
     AwA10PICState intc;
     AwEmacState emac;
