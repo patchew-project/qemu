@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/arm/cpu.h"
 #include "hw/arm/armv7m.h"
 #include "qapi/error.h"
 #include "hw/sysbus.h"
@@ -20,6 +21,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
+#include "target/arm/cpu.h"
 #include "target/arm/idau.h"
 #include "migration/vmstate.h"
 
