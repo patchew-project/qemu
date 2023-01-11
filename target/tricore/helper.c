@@ -79,7 +79,7 @@ bool tricore_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                                address, rw, mmu_idx);
 
     qemu_log_mask(CPU_LOG_MMU, "%s address=" TARGET_FMT_lx " ret %d physical "
-                  "%016" HWADDR_PRIx " prot %d\n",
+                  "0x%016" HWADDR_PRIx " prot %d\n",
                   __func__, (target_ulong)address, ret, physical, prot);
 
     if (ret == TLBRET_MATCH) {

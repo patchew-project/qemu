@@ -324,7 +324,7 @@ timer_write(void *opaque, hwaddr addr,
             t->rw_ack_intr = 0;
             break;
         default:
-            printf("%s %016" HWADDR_PRIx " %x\n", __func__, addr, value);
+            printf("%s 0x%016" HWADDR_PRIx " %x\n", __func__, addr, value);
             break;
     }
 }

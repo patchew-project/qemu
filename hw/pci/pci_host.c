@@ -143,7 +143,7 @@ static void pci_host_config_write(void *opaque, hwaddr addr,
 {
     PCIHostState *s = opaque;
 
-    PCI_DPRINTF("%s addr %016" HWADDR_PRIx " len %d val %"PRIx64"\n",
+    PCI_DPRINTF("%s addr 0x%016" HWADDR_PRIx " len %d val %"PRIx64"\n",
                 __func__, addr, len, val);
     if (addr != 0 || len != 4) {
         return;
@@ -157,7 +157,7 @@ static uint64_t pci_host_config_read(void *opaque, hwaddr addr,
     PCIHostState *s = opaque;
     uint32_t val = s->config_reg;
 
-    PCI_DPRINTF("%s addr %016" HWADDR_PRIx " len %d val %"PRIx32"\n",
+    PCI_DPRINTF("%s addr 0x%016" HWADDR_PRIx " len %d val %"PRIx32"\n",
                 __func__, addr, len, val);
     return val;
 }

@@ -829,10 +829,10 @@ static char *virtio_mmio_bus_get_dev_path(DeviceState *dev)
     assert(section.mr);
 
     if (proxy_path) {
-        path = g_strdup_printf("%s/virtio-mmio@%016" HWADDR_PRIx, proxy_path,
+        path = g_strdup_printf("%s/virtio-mmio@0x%016" HWADDR_PRIx, proxy_path,
                                section.offset_within_address_space);
     } else {
-        path = g_strdup_printf("virtio-mmio@%016" HWADDR_PRIx,
+        path = g_strdup_printf("virtio-mmio@0x%016" HWADDR_PRIx,
                                section.offset_within_address_space);
     }
     memory_region_unref(section.mr);

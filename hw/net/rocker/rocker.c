@@ -987,8 +987,8 @@ static const char *rocker_reg_name(void *opaque, hwaddr addr)
 static void rocker_mmio_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned size)
 {
-    DPRINTF("Write %s addr %016" HWADDR_PRIx
-            ", size %u, val %016" HWADDR_PRIx "\n",
+    DPRINTF("Write %s addr 0x%016" HWADDR_PRIx
+            ", size %u, val 0x%016" HWADDR_PRIx "\n",
             rocker_reg_name(opaque, addr), addr, size, val);
 
     switch (size) {
@@ -1174,7 +1174,7 @@ static uint64_t rocker_io_readq(void *opaque, hwaddr addr)
 
 static uint64_t rocker_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
-    DPRINTF("Read %s addr %016" HWADDR_PRIx ", size %u\n",
+    DPRINTF("Read %s addr 0x%016" HWADDR_PRIx ", size %u\n",
             rocker_reg_name(opaque, addr), addr, size);
 
     switch (size) {

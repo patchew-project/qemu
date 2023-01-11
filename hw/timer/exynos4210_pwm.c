@@ -257,7 +257,7 @@ static uint64_t exynos4210_pwm_read(void *opaque, hwaddr offset,
 
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "exynos4210.pwm: bad read offset %016" HWADDR_PRIx,
+                      "exynos4210.pwm: bad read offset 0x%016" HWADDR_PRIx,
                       offset);
         break;
     }
@@ -352,7 +352,7 @@ static void exynos4210_pwm_write(void *opaque, hwaddr offset,
 
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "exynos4210.pwm: bad write offset %016" HWADDR_PRIx,
+                      "exynos4210.pwm: bad write offset 0x%016" HWADDR_PRIx,
                       offset);
         break;
 

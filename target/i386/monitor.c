@@ -57,7 +57,7 @@ static void print_pte(Monitor *mon, CPUArchState *env, hwaddr addr,
 {
     addr = addr_canonical(env, addr);
 
-    monitor_printf(mon, "%016" HWADDR_PRIx ": %016" HWADDR_PRIx
+    monitor_printf(mon, "0x%016" HWADDR_PRIx ": 0x%016" HWADDR_PRIx
                    " %c%c%c%c%c%c%c%c%c\n",
                    addr,
                    pte & mask,
@@ -258,8 +258,8 @@ static void mem_print(Monitor *mon, CPUArchState *env,
     prot1 = *plast_prot;
     if (prot != prot1) {
         if (*pstart != -1) {
-            monitor_printf(mon, "%016" HWADDR_PRIx "-%016" HWADDR_PRIx " "
-                           "%016" HWADDR_PRIx " %c%c%c\n",
+            monitor_printf(mon, "0x%016" HWADDR_PRIx "-0x%016" HWADDR_PRIx " "
+                           "0x%016" HWADDR_PRIx " %c%c%c\n",
                            addr_canonical(env, *pstart),
                            addr_canonical(env, end),
                            addr_canonical(env, end - *pstart),

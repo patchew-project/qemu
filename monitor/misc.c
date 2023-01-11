@@ -566,7 +566,7 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
 
     while (len > 0) {
         if (is_physical) {
-            monitor_printf(mon, "%016" HWADDR_PRIx ":", addr);
+            monitor_printf(mon, "0x%016" HWADDR_PRIx ":", addr);
         } else {
             monitor_printf(mon, TARGET_FMT_lx ":", (target_ulong)addr);
         }

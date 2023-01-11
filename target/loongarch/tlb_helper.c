@@ -655,7 +655,7 @@ bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                      physical & TARGET_PAGE_MASK, prot,
                      mmu_idx, TARGET_PAGE_SIZE);
         qemu_log_mask(CPU_LOG_MMU,
-                      "%s address=%" VADDR_PRIx " physical %016" HWADDR_PRIx
+                      "%s address=%" VADDR_PRIx " physical 0x%016" HWADDR_PRIx
                       " prot %d\n", __func__, address, physical, prot);
         return true;
     } else {

@@ -1054,7 +1054,7 @@ ssize_t rom_add_file(const char *file, const char *fw_dir,
             rom->mr = mr;
             snprintf(devpath, sizeof(devpath), "/rom@%s", file);
         } else {
-            snprintf(devpath, sizeof(devpath), "/rom@%016" HWADDR_PRIx, addr);
+            snprintf(devpath, sizeof(devpath), "/rom@0x%016" HWADDR_PRIx, addr);
         }
     }
 
@@ -1595,7 +1595,7 @@ HumanReadableText *qmp_x_query_roms(Error **errp)
                                    rom->romsize,
                                    rom->name);
         } else if (!rom->fw_file) {
-            g_string_append_printf(buf, "addr=%016" HWADDR_PRIx
+            g_string_append_printf(buf, "addr=0x%016" HWADDR_PRIx
                                    " size=0x%06zx mem=%s name=\"%s\"\n",
                                    rom->addr, rom->romsize,
                                    rom->isrom ? "rom" : "ram",

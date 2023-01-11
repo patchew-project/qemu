@@ -697,15 +697,15 @@ static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
 
     /* Page address translation */
     qemu_log_mask(CPU_LOG_MMU,
-            "htab_base %016" HWADDR_PRIx " htab_mask %016" HWADDR_PRIx
-            " hash %016" HWADDR_PRIx "\n",
+            "htab_base 0x%016" HWADDR_PRIx " htab_mask 0x%016" HWADDR_PRIx
+            " hash 0x%016" HWADDR_PRIx "\n",
             ppc_hash64_hpt_base(cpu), ppc_hash64_hpt_mask(cpu), hash);
 
     /* Primary PTEG lookup */
     qemu_log_mask(CPU_LOG_MMU,
-            "0 htab=%016" HWADDR_PRIx "/%016" HWADDR_PRIx
+            "0 htab=0x%016" HWADDR_PRIx "/0x%016" HWADDR_PRIx
             " vsid=" TARGET_FMT_lx " ptem=" TARGET_FMT_lx
-            " hash=%016" HWADDR_PRIx "\n",
+            " hash=0x%016" HWADDR_PRIx "\n",
             ppc_hash64_hpt_base(cpu), ppc_hash64_hpt_mask(cpu),
             vsid, ptem,  hash);
     ptex = ppc_hash64_pteg_search(cpu, hash, sps, ptem, pte, pshift);
@@ -714,9 +714,9 @@ static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
         /* Secondary PTEG lookup */
         ptem |= HPTE64_V_SECONDARY;
         qemu_log_mask(CPU_LOG_MMU,
-                "1 htab=%016" HWADDR_PRIx "/%016" HWADDR_PRIx
+                "1 htab=0x%016" HWADDR_PRIx "/0x%016" HWADDR_PRIx
                 " vsid=" TARGET_FMT_lx " api=" TARGET_FMT_lx
-                " hash=%016" HWADDR_PRIx "\n", ppc_hash64_hpt_base(cpu),
+                " hash=0x%016" HWADDR_PRIx "\n", ppc_hash64_hpt_base(cpu),
                 ppc_hash64_hpt_mask(cpu), vsid, ptem, ~hash);
 
         ptex = ppc_hash64_pteg_search(cpu, ~hash, sps, ptem, pte, pshift);

@@ -254,7 +254,7 @@ static void bonito_writel(void *opaque, hwaddr addr,
 
     saddr = addr >> 2;
 
-    DPRINTF("bonito_writel %016" HWADDR_PRIx " val %lx saddr %x\n",
+    DPRINTF("bonito_writel 0x%016" HWADDR_PRIx " val %lx saddr %x\n",
             addr, val, saddr);
     switch (saddr) {
     case BONITO_BONPONCFG:
@@ -317,7 +317,7 @@ static uint64_t bonito_readl(void *opaque, hwaddr addr,
 
     saddr = addr >> 2;
 
-    DPRINTF("bonito_readl %016" HWADDR_PRIx "\n", addr);
+    DPRINTF("bonito_readl 0x%016" HWADDR_PRIx "\n", addr);
     switch (saddr) {
     case BONITO_INTISR:
         return s->regs[saddr];
@@ -342,7 +342,7 @@ static void bonito_pciconf_writel(void *opaque, hwaddr addr,
     PCIBonitoState *s = opaque;
     PCIDevice *d = PCI_DEVICE(s);
 
-    DPRINTF("bonito_pciconf_writel %016" HWADDR_PRIx " val %lx\n", addr, val);
+    DPRINTF("bonito_pciconf_writel 0x%016" HWADDR_PRIx " val %lx\n", addr, val);
     d->config_write(d, addr, val, 4);
 }
 
@@ -353,7 +353,7 @@ static uint64_t bonito_pciconf_readl(void *opaque, hwaddr addr,
     PCIBonitoState *s = opaque;
     PCIDevice *d = PCI_DEVICE(s);
 
-    DPRINTF("bonito_pciconf_readl %016" HWADDR_PRIx "\n", addr);
+    DPRINTF("bonito_pciconf_readl 0x%016" HWADDR_PRIx "\n", addr);
     return d->config_read(d, addr, 4);
 }
 
@@ -489,7 +489,7 @@ static void bonito_spciconf_write(void *opaque, hwaddr addr, uint64_t val,
     uint32_t pciaddr;
     uint16_t status;
 
-    DPRINTF("bonito_spciconf_write %016" HWADDR_PRIx " size %d val %lx\n",
+    DPRINTF("bonito_spciconf_write 0x%016" HWADDR_PRIx " size %d val %lx\n",
             addr, size, val);
 
     pciaddr = bonito_sbridge_pciaddr(s, addr);
@@ -519,7 +519,7 @@ static uint64_t bonito_spciconf_read(void *opaque, hwaddr addr, unsigned size)
     uint32_t pciaddr;
     uint16_t status;
 
-    DPRINTF("bonito_spciconf_read %016" HWADDR_PRIx " size %d\n", addr, size);
+    DPRINTF("bonito_spciconf_read 0x%016" HWADDR_PRIx " size %d\n", addr, size);
 
     pciaddr = bonito_sbridge_pciaddr(s, addr);
 

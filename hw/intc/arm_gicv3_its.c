@@ -1633,7 +1633,7 @@ static bool its_writel(GICv3ITSState *s, hwaddr offset,
             /* RO register, ignore the write */
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: invalid guest write to RO register at offset "
-                          "%016" HWADDR_PRIx "\n", __func__, offset);
+                          "0x%016" HWADDR_PRIx "\n", __func__, offset);
         }
         break;
     case GITS_CREADR + 4:
@@ -1643,7 +1643,7 @@ static bool its_writel(GICv3ITSState *s, hwaddr offset,
             /* RO register, ignore the write */
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: invalid guest write to RO register at offset "
-                          "%016" HWADDR_PRIx "\n", __func__, offset);
+                          "0x%016" HWADDR_PRIx "\n", __func__, offset);
         }
         break;
     case GITS_BASER ... GITS_BASER + 0x3f:
@@ -1675,7 +1675,7 @@ static bool its_writel(GICv3ITSState *s, hwaddr offset,
         /* RO registers, ignore the write */
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid guest write to RO register at offset "
-                      "%016" HWADDR_PRIx "\n", __func__, offset);
+                      "0x%016" HWADDR_PRIx "\n", __func__, offset);
         break;
     default:
         result = false;
@@ -1785,14 +1785,14 @@ static bool its_writell(GICv3ITSState *s, hwaddr offset,
             /* RO register, ignore the write */
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: invalid guest write to RO register at offset "
-                          "%016" HWADDR_PRIx "\n", __func__, offset);
+                          "0x%016" HWADDR_PRIx "\n", __func__, offset);
         }
         break;
     case GITS_TYPER:
         /* RO registers, ignore the write */
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid guest write to RO register at offset "
-                      "%016" HWADDR_PRIx "\n", __func__, offset);
+                      "0x%016" HWADDR_PRIx "\n", __func__, offset);
         break;
     default:
         result = false;
@@ -1851,7 +1851,7 @@ static MemTxResult gicv3_its_read(void *opaque, hwaddr offset, uint64_t *data,
 
     if (!result) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid guest read at offset %016" HWADDR_PRIx
+                      "%s: invalid guest read at offset 0x%016" HWADDR_PRIx
                       " size %u\n", __func__, offset, size);
         trace_gicv3_its_badread(offset, size);
         /*
@@ -1887,7 +1887,7 @@ static MemTxResult gicv3_its_write(void *opaque, hwaddr offset, uint64_t data,
 
     if (!result) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid guest write at offset %016" HWADDR_PRIx
+                      "%s: invalid guest write at offset 0x%016" HWADDR_PRIx
                       " size %u\n", __func__, offset, size);
         trace_gicv3_its_badwrite(offset, data, size);
         /*

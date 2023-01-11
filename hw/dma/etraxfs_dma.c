@@ -272,7 +272,7 @@ static void channel_load_d(struct fs_dma_ctrl *ctrl, int c)
     hwaddr addr = channel_reg(ctrl, c, RW_SAVED_DATA);
 
     /* Load and decode. FIXME: handle endianness.  */
-    D(printf("%s ch=%d addr=%016" HWADDR_PRIx "\n", __func__, c, addr));
+    D(printf("%s ch=%d addr=0x%016" HWADDR_PRIx "\n", __func__, c, addr));
     cpu_physical_memory_read(addr, &ctrl->channels[c].current_d,
                              sizeof(ctrl->channels[c].current_d));
 
@@ -285,7 +285,7 @@ static void channel_store_c(struct fs_dma_ctrl *ctrl, int c)
     hwaddr addr = channel_reg(ctrl, c, RW_GROUP_DOWN);
 
     /* Encode and store. FIXME: handle endianness.  */
-    D(printf("%s ch=%d addr=%016" HWADDR_PRIx "\n", __func__, c, addr));
+    D(printf("%s ch=%d addr=0x%016" HWADDR_PRIx "\n", __func__, c, addr));
     D(dump_d(c, &ctrl->channels[c].current_d));
     cpu_physical_memory_write(addr, &ctrl->channels[c].current_c,
                               sizeof(ctrl->channels[c].current_c));
@@ -296,7 +296,7 @@ static void channel_store_d(struct fs_dma_ctrl *ctrl, int c)
     hwaddr addr = channel_reg(ctrl, c, RW_SAVED_DATA);
 
     /* Encode and store. FIXME: handle endianness.  */
-    D(printf("%s ch=%d addr=%016" HWADDR_PRIx "\n", __func__, c, addr));
+    D(printf("%s ch=%d addr=0x%016" HWADDR_PRIx "\n", __func__, c, addr));
     cpu_physical_memory_write(addr, &ctrl->channels[c].current_d,
                               sizeof(ctrl->channels[c].current_d));
 }
@@ -574,7 +574,7 @@ static inline int channel_in_run(struct fs_dma_ctrl *ctrl, int c)
 
 static uint32_t dma_rinvalid (void *opaque, hwaddr addr)
 {
-    hw_error("Unsupported short raccess. reg=%016" HWADDR_PRIx "\n", addr);
+    hw_error("Unsupported short raccess. reg=0x%016" HWADDR_PRIx "\n", addr);
     return 0;
 }
 
@@ -601,7 +601,7 @@ static uint64_t dma_read(void *opaque, hwaddr addr, unsigned int size)
 
     default:
         r = ctrl->channels[c].regs[addr];
-        D(printf("%s c=%d addr=%016" HWADDR_PRIx "\n", __func__, c, addr));
+        D(printf("%s c=%d addr=0x%016" HWADDR_PRIx "\n", __func__, c, addr));
         break;
     }
     return r;
@@ -610,7 +610,7 @@ static uint64_t dma_read(void *opaque, hwaddr addr, unsigned int size)
 static void
 dma_winvalid (void *opaque, hwaddr addr, uint32_t value)
 {
-    hw_error("Unsupported short waccess. reg=%016" HWADDR_PRIx "\n", addr);
+    hw_error("Unsupported short waccess. reg=0x%016" HWADDR_PRIx "\n", addr);
 }
 
 static void
@@ -681,7 +681,7 @@ static void dma_write(void *opaque, hwaddr addr, uint64_t val64,
         break;
 
     default:
-        D(printf("%s c=%d %016" HWADDR_PRIx "\n", __func__, c, addr));
+        D(printf("%s c=%d 0x%016" HWADDR_PRIx "\n", __func__, c, addr));
         break;
     }
 }

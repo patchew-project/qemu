@@ -516,13 +516,13 @@ static void xen_set_memory(struct MemoryListener *listener,
             if (xen_set_mem_type(xen_domid, mem_type,
                                  start_addr >> TARGET_PAGE_BITS,
                                  size >> TARGET_PAGE_BITS)) {
-                DPRINTF("xen_set_mem_type error, addr: %016" HWADDR_PRIx "\n",
+                DPRINTF("xen_set_mem_type error, addr: 0x%016" HWADDR_PRIx "\n",
                         start_addr);
             }
         }
     } else {
         if (xen_remove_from_physmap(state, start_addr, size) < 0) {
-            DPRINTF("physmapping does not exist at %016" HWADDR_PRIx "\n",
+            DPRINTF("physmapping does not exist at 0x%016" HWADDR_PRIx "\n",
                     start_addr);
         }
     }

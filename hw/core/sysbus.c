@@ -270,7 +270,7 @@ static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent)
     for (i = 0; i < s->num_mmio; i++) {
         size = memory_region_size(s->mmio[i].memory);
         monitor_printf(mon,
-                       "%*smmio %016" HWADDR_PRIx "/%016" HWADDR_PRIx "\n",
+                       "%*smmio 0x%016" HWADDR_PRIx "/0x%016" HWADDR_PRIx "\n",
                        indent, "", s->mmio[i].addr, size);
     }
 }
@@ -290,7 +290,7 @@ static char *sysbus_get_fw_dev_path(DeviceState *dev)
         }
     }
     if (s->num_mmio) {
-        return g_strdup_printf("%s@%016" HWADDR_PRIx, qdev_fw_name(dev),
+        return g_strdup_printf("%s@0x%016" HWADDR_PRIx, qdev_fw_name(dev),
                                s->mmio[0].addr);
     }
     if (s->num_pio) {

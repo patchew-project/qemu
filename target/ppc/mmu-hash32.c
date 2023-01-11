@@ -346,15 +346,15 @@ static hwaddr ppc_hash32_htab_lookup(PowerPCCPU *cpu,
     ptem = (vsid << 7) | (pgidx >> 10);
 
     /* Page address translation */
-    qemu_log_mask(CPU_LOG_MMU, "htab_base %016" HWADDR_PRIx
-            " htab_mask %016" HWADDR_PRIx
-            " hash %016" HWADDR_PRIx "\n",
+    qemu_log_mask(CPU_LOG_MMU, "htab_base 0x%016" HWADDR_PRIx
+            " htab_mask 0x%016" HWADDR_PRIx
+            " hash 0x%016" HWADDR_PRIx "\n",
             ppc_hash32_hpt_base(cpu), ppc_hash32_hpt_mask(cpu), hash);
 
     /* Primary PTEG lookup */
-    qemu_log_mask(CPU_LOG_MMU, "0 htab=%016" HWADDR_PRIx "/%016" HWADDR_PRIx
+    qemu_log_mask(CPU_LOG_MMU, "0 htab=0x%016" HWADDR_PRIx "/0x%016" HWADDR_PRIx
             " vsid=%" PRIx32 " ptem=%" PRIx32
-            " hash=%016" HWADDR_PRIx "\n",
+            " hash=0x%016" HWADDR_PRIx "\n",
             ppc_hash32_hpt_base(cpu), ppc_hash32_hpt_mask(cpu),
             vsid, ptem, hash);
     pteg_off = get_pteg_offset32(cpu, hash);
@@ -362,9 +362,9 @@ static hwaddr ppc_hash32_htab_lookup(PowerPCCPU *cpu,
     if (pte_offset == -1) {
         /* Secondary PTEG lookup */
         qemu_log_mask(CPU_LOG_MMU,
-                      "1 htab=%016" HWADDR_PRIx "/%016" HWADDR_PRIx
+                      "1 htab=0x%016" HWADDR_PRIx "/0x%016" HWADDR_PRIx
                       " vsid=%" PRIx32 " api=%" PRIx32
-                      " hash=%016" HWADDR_PRIx "\n",
+                      " hash=0x%016" HWADDR_PRIx "\n",
                       ppc_hash32_hpt_base(cpu),
                       ppc_hash32_hpt_mask(cpu), vsid, ptem, ~hash);
         pteg_off = get_pteg_offset32(cpu, ~hash);

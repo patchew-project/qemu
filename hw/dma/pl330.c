@@ -1374,7 +1374,7 @@ static void pl330_iomem_write(void *opaque, hwaddr offset,
         } else {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "pl330: write of illegal value %u"
-                          " for offset %016" HWADDR_PRIx "\n",
+                          " for offset 0x%016" HWADDR_PRIx "\n",
                           (unsigned)value, offset);
         }
         break;
@@ -1386,7 +1386,7 @@ static void pl330_iomem_write(void *opaque, hwaddr offset,
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "pl330: bad write offset %016" HWADDR_PRIx "\n",
+                      "pl330: bad write offset 0x%016" HWADDR_PRIx "\n",
                       offset);
         break;
     }
@@ -1411,7 +1411,7 @@ static inline uint32_t pl330_iomem_read_imp(void *opaque,
         chan_id = offset >> 5;
         if (chan_id >= s->num_chnls) {
             qemu_log_mask(LOG_GUEST_ERROR, "pl330: bad read offset "
-                          "%016" HWADDR_PRIx "\n", offset);
+                          "0x%016" HWADDR_PRIx "\n", offset);
             return 0;
         }
         switch (offset & 0x1f) {
@@ -1427,7 +1427,7 @@ static inline uint32_t pl330_iomem_read_imp(void *opaque,
             return s->chan[chan_id].lc[1];
         default:
             qemu_log_mask(LOG_GUEST_ERROR, "pl330: bad read offset "
-                          "%016" HWADDR_PRIx "\n", offset);
+                          "0x%016" HWADDR_PRIx "\n", offset);
             return 0;
         }
     }
@@ -1436,7 +1436,7 @@ static inline uint32_t pl330_iomem_read_imp(void *opaque,
         chan_id = offset >> 3;
         if (chan_id >= s->num_chnls) {
             qemu_log_mask(LOG_GUEST_ERROR, "pl330: bad read offset "
-                          "%016" HWADDR_PRIx "\n", offset);
+                          "0x%016" HWADDR_PRIx "\n", offset);
             return 0;
         }
         switch ((offset >> 2) & 1) {
@@ -1458,7 +1458,7 @@ static inline uint32_t pl330_iomem_read_imp(void *opaque,
         chan_id = offset >> 2;
         if (chan_id >= s->num_chnls) {
             qemu_log_mask(LOG_GUEST_ERROR, "pl330: bad read offset "
-                          "%016" HWADDR_PRIx "\n", offset);
+                          "0x%016" HWADDR_PRIx "\n", offset);
             return 0;
         }
         return s->chan[chan_id].fault_type;
@@ -1497,7 +1497,7 @@ static inline uint32_t pl330_iomem_read_imp(void *opaque,
         return s->debug_status;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "pl330: bad read offset "
-                      "%016" HWADDR_PRIx "\n", offset);
+                      "0x%016" HWADDR_PRIx "\n", offset);
     }
     return 0;
 }
