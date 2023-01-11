@@ -645,7 +645,7 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
 
  error_flash:
     qemu_log_mask(LOG_UNIMP, "%s: Unimplemented flash cmd sequence "
-                             "(offset " TARGET_FMT_plx
+                             "(offset %016" HWADDR_PRIx
                              ", wcycle 0x%x cmd 0x%x value 0x%x)\n",
                   __func__, offset, pfl->wcycle, pfl->cmd, value);
 

@@ -924,7 +924,7 @@ bool mips_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     switch (ret) {
     case TLBRET_MATCH:
         qemu_log_mask(CPU_LOG_MMU,
-                      "%s address=%" VADDR_PRIx " physical " TARGET_FMT_plx
+                      "%s address=%" VADDR_PRIx " physical %016" HWADDR_PRIx
                       " prot %d\n", __func__, address, physical, prot);
         break;
     default:

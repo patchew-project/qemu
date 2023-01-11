@@ -320,7 +320,7 @@ static uint64_t g364fb_ctrl_read(void *opaque,
                 break;
             default:
             {
-                error_report("g364: invalid read at [" TARGET_FMT_plx "]",
+                error_report("g364: invalid read at [%016" HWADDR_PRIx "]",
                              addr);
                 val = 0;
                 break;
@@ -424,7 +424,7 @@ static void g364fb_ctrl_write(void *opaque,
             break;
         default:
             error_report("g364: invalid write of 0x%" PRIx64
-                         " at [" TARGET_FMT_plx "]", val, addr);
+                         " at [%016" HWADDR_PRIx "]", val, addr);
             break;
         }
     }

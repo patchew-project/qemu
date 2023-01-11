@@ -300,7 +300,7 @@ static void aux_slave_dev_print(Monitor *mon, DeviceState *dev, int indent)
     s = AUX_SLAVE(dev);
 
     monitor_printf(mon,
-                   "%*smemory " TARGET_FMT_plx "/" TARGET_FMT_plx "\n",
+                   "%*smemory %016" HWADDR_PRIx "/%016" HWADDR_PRIx "\n",
                    indent, "",
                    object_property_get_uint(OBJECT(s->mmio), "addr", NULL),
                    memory_region_size(s->mmio));

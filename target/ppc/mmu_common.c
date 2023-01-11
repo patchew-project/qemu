@@ -252,7 +252,7 @@ static int ppc6xx_tlb_check(CPUPPCState *env, mmu_ctx_t *ctx,
     }
     if (best != -1) {
     done:
-        qemu_log_mask(CPU_LOG_MMU, "found TLB at addr " TARGET_FMT_plx
+        qemu_log_mask(CPU_LOG_MMU, "found TLB at addr %016" HWADDR_PRIx
                       " prot=%01x ret=%d\n",
                       ctx->raddr & TARGET_PAGE_MASK, ctx->prot, ret);
         /* Update page flags */
@@ -329,7 +329,7 @@ static int get_bat_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
                 ret = check_prot(ctx->prot, access_type);
                 if (ret == 0) {
                     qemu_log_mask(CPU_LOG_MMU,
-                                  "BAT %d match: r " TARGET_FMT_plx
+                                  "BAT %d match: r %016" HWADDR_PRIx
                                   " prot=%c%c\n", i, ctx->raddr,
                                   ctx->prot & PAGE_READ ? 'R' : '-',
                                   ctx->prot & PAGE_WRITE ? 'W' : '-');
@@ -404,9 +404,9 @@ static int get_segment_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
         /* Check if instruction fetch is allowed, if needed */
         if (type != ACCESS_CODE || ctx->nx == 0) {
             /* Page address translation */
-            qemu_log_mask(CPU_LOG_MMU, "htab_base " TARGET_FMT_plx
-                    " htab_mask " TARGET_FMT_plx
-                    " hash " TARGET_FMT_plx "\n",
+            qemu_log_mask(CPU_LOG_MMU, "htab_base %016" HWADDR_PRIx
+                    " htab_mask %016" HWADDR_PRIx
+                    " hash %016" HWADDR_PRIx "\n",
                     ppc_hash32_hpt_base(cpu), ppc_hash32_hpt_mask(cpu), hash);
             ctx->hash[0] = hash;
             ctx->hash[1] = ~hash;
@@ -421,8 +421,8 @@ static int get_segment_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
                 hwaddr curaddr;
                 uint32_t a0, a1, a2, a3;
 
-                qemu_log("Page table: " TARGET_FMT_plx
-                         " len " TARGET_FMT_plx "\n",
+                qemu_log("Page table: %016" HWADDR_PRIx
+                         " len %016" HWADDR_PRIx "\n",
                          ppc_hash32_hpt_base(cpu),
                          ppc_hash32_hpt_mask(cpu) + 0x80);
                 for (curaddr = ppc_hash32_hpt_base(cpu);
@@ -434,7 +434,7 @@ static int get_segment_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
                     a2 = ldl_phys(cs->as, curaddr + 8);
                     a3 = ldl_phys(cs->as, curaddr + 12);
                     if (a0 != 0 || a1 != 0 || a2 != 0 || a3 != 0) {
-                        qemu_log(TARGET_FMT_plx ": %08x %08x %08x %08x\n",
+                        qemu_log("%016" HWADDR_PRIx ": %08x %08x %08x %08x\n",
                                  curaddr, a0, a1, a2, a3);
                     }
                 }
@@ -580,14 +580,14 @@ static int mmu40x_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
         if (ret >= 0) {
             ctx->raddr = raddr;
             qemu_log_mask(CPU_LOG_MMU, "%s: access granted " TARGET_FMT_lx
-                          " => " TARGET_FMT_plx
+                          " => %016" HWADDR_PRIx
                           " %d %d\n", __func__, address, ctx->raddr, ctx->prot,
                           ret);
             return 0;
         }
     }
      qemu_log_mask(CPU_LOG_MMU, "%s: access refused " TARGET_FMT_lx
-                   " => " TARGET_FMT_plx
+                   " => %016" HWADDR_PRIx
                    " %d %d\n", __func__, address, raddr, ctx->prot, ret);
 
     return ret;
@@ -668,11 +668,11 @@ static int mmubooke_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     if (ret >= 0) {
         ctx->raddr = raddr;
         qemu_log_mask(CPU_LOG_MMU, "%s: access granted " TARGET_FMT_lx
-                      " => " TARGET_FMT_plx " %d %d\n", __func__,
+                      " => %016" HWADDR_PRIx " %d %d\n", __func__,
                       address, ctx->raddr, ctx->prot, ret);
     } else {
          qemu_log_mask(CPU_LOG_MMU, "%s: access refused " TARGET_FMT_lx
-                       " => " TARGET_FMT_plx " %d %d\n", __func__,
+                       " => %016" HWADDR_PRIx " %d %d\n", __func__,
                        address, raddr, ctx->prot, ret);
     }
 
@@ -896,11 +896,11 @@ found_tlb:
     if (ret >= 0) {
         ctx->raddr = raddr;
          qemu_log_mask(CPU_LOG_MMU, "%s: access granted " TARGET_FMT_lx
-                       " => " TARGET_FMT_plx " %d %d\n", __func__, address,
+                       " => %016" HWADDR_PRIx " %d %d\n", __func__, address,
                        ctx->raddr, ctx->prot, ret);
     } else {
          qemu_log_mask(CPU_LOG_MMU, "%s: access refused " TARGET_FMT_lx
-                       " => " TARGET_FMT_plx " %d %d\n", __func__, address,
+                       " => %016" HWADDR_PRIx " %d %d\n", __func__, address,
                        raddr, ctx->prot, ret);
     }
 
