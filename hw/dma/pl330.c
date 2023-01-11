@@ -1337,8 +1337,8 @@ static void pl330_debug_exec(PL330State *s)
     }
     if (ch->stall) {
         trace_pl330_debug_exec_stall();
-        qemu_log_mask(LOG_UNIMP, "pl330: stall of debug instruction not "
-                      "implemented\n");
+        qemu_log_mask(LOG_UNIMP,
+                      "pl330: stall of debug instruction not implemented\n");
     }
     s->debug_status = 0;
 }
@@ -1372,9 +1372,10 @@ static void pl330_iomem_write(void *opaque, hwaddr offset,
             pl330_debug_exec(s);
             pl330_exec(s);
         } else {
-            qemu_log_mask(LOG_GUEST_ERROR, "pl330: write of illegal value %u "
-                          "for offset " TARGET_FMT_plx "\n", (unsigned)value,
-                          offset);
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "pl330: write of illegal value %u"
+                          " for offset " TARGET_FMT_plx "\n",
+                          (unsigned)value, offset);
         }
         break;
     case PL330_REG_DBGINST0:
@@ -1384,8 +1385,9 @@ static void pl330_iomem_write(void *opaque, hwaddr offset,
         s->dbg[1] = value;
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "pl330: bad write offset " TARGET_FMT_plx
-                      "\n", offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl330: bad write offset " TARGET_FMT_plx "\n",
+                      offset);
         break;
     }
 }

@@ -357,7 +357,8 @@ tryagain:
         entry->lock++;
         if (entry->lock == 0) {
             fprintf(stderr,
-                    "mapcache entry lock overflow: "TARGET_FMT_plx" -> %p\n",
+                    "mapcache entry lock overflow: "
+                    TARGET_FMT_plx" -> %p\n",
                     entry->paddr_index, entry->vaddr_base);
             abort();
         }
@@ -404,8 +405,8 @@ ram_addr_t xen_ram_addr_from_mapcache(void *ptr)
     if (!found) {
         fprintf(stderr, "%s, could not find %p\n", __func__, ptr);
         QTAILQ_FOREACH(reventry, &mapcache->locked_entries, next) {
-            DPRINTF("   "TARGET_FMT_plx" -> %p is present\n", reventry->paddr_index,
-                    reventry->vaddr_req);
+            DPRINTF("   "TARGET_FMT_plx" -> %p is present\n",
+                    reventry->paddr_index, reventry->vaddr_req);
         }
         abort();
         return 0;
@@ -445,7 +446,8 @@ static void xen_invalidate_map_cache_entry_unlocked(uint8_t *buffer)
     if (!found) {
         DPRINTF("%s, could not find %p\n", __func__, buffer);
         QTAILQ_FOREACH(reventry, &mapcache->locked_entries, next) {
-            DPRINTF("   "TARGET_FMT_plx" -> %p is present\n", reventry->paddr_index, reventry->vaddr_req);
+            DPRINTF("   "TARGET_FMT_plx" -> %p is present\n",
+                    reventry->paddr_index, reventry->vaddr_req);
         }
         return;
     }
@@ -578,7 +580,8 @@ static uint8_t *xen_replace_cache_entry_unlocked(hwaddr old_phys_addr,
     if (!test_bits(address_offset >> XC_PAGE_SHIFT,
                 test_bit_size >> XC_PAGE_SHIFT,
                 entry->valid_mapping)) {
-        DPRINTF("Unable to update a mapcache entry for "TARGET_FMT_plx"!\n",
+        DPRINTF("Unable to update a mapcache entry for "
+                TARGET_FMT_plx "!\n",
                 old_phys_addr);
         return NULL;
     }

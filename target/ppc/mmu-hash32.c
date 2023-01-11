@@ -361,10 +361,12 @@ static hwaddr ppc_hash32_htab_lookup(PowerPCCPU *cpu,
     pte_offset = ppc_hash32_pteg_search(cpu, pteg_off, 0, ptem, pte);
     if (pte_offset == -1) {
         /* Secondary PTEG lookup */
-        qemu_log_mask(CPU_LOG_MMU, "1 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
-                " vsid=%" PRIx32 " api=%" PRIx32
-                " hash=" TARGET_FMT_plx "\n", ppc_hash32_hpt_base(cpu),
-                ppc_hash32_hpt_mask(cpu), vsid, ptem, ~hash);
+        qemu_log_mask(CPU_LOG_MMU,
+                      "1 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
+                      " vsid=%" PRIx32 " api=%" PRIx32
+                      " hash=" TARGET_FMT_plx "\n",
+                      ppc_hash32_hpt_base(cpu),
+                      ppc_hash32_hpt_mask(cpu), vsid, ptem, ~hash);
         pteg_off = get_pteg_offset32(cpu, ~hash);
         pte_offset = ppc_hash32_pteg_search(cpu, pteg_off, 1, ptem, pte);
     }

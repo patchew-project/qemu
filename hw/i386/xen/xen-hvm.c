@@ -522,7 +522,8 @@ static void xen_set_memory(struct MemoryListener *listener,
         }
     } else {
         if (xen_remove_from_physmap(state, start_addr, size) < 0) {
-            DPRINTF("physmapping does not exist at "TARGET_FMT_plx"\n", start_addr);
+            DPRINTF("physmapping does not exist at "TARGET_FMT_plx"\n",
+                    start_addr);
         }
     }
 }

@@ -303,8 +303,8 @@ static uint64_t aw_emac_read(void *opaque, hwaddr offset, unsigned size)
                                    extract32(s->phy_target, PHY_REG_SHIFT, 8));
     default:
         qemu_log_mask(LOG_UNIMP,
-                      "allwinner_emac: read access to unknown register 0x"
-                      TARGET_FMT_plx "\n", offset);
+                      "allwinner_emac: read access to unknown register"
+                      " 0x" TARGET_FMT_plx "\n", offset);
         ret = 0;
     }
 
@@ -406,8 +406,8 @@ static void aw_emac_write(void *opaque, hwaddr offset, uint64_t value,
         break;
     default:
         qemu_log_mask(LOG_UNIMP,
-                      "allwinner_emac: write access to unknown register 0x"
-                      TARGET_FMT_plx "\n", offset);
+                      "allwinner_emac: write access to unknown register"
+                      " 0x" TARGET_FMT_plx "\n", offset);
     }
 }
 
