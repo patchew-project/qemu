@@ -269,34 +269,34 @@ static void channel_load_c(struct fs_dma_ctrl *ctrl, int c)
 
 static void channel_load_d(struct fs_dma_ctrl *ctrl, int c)
 {
-	hwaddr addr = channel_reg(ctrl, c, RW_SAVED_DATA);
+    hwaddr addr = channel_reg(ctrl, c, RW_SAVED_DATA);
 
-	/* Load and decode. FIXME: handle endianness.  */
-	D(printf("%s ch=%d addr=" TARGET_FMT_plx "\n", __func__, c, addr));
+    /* Load and decode. FIXME: handle endianness.  */
+    D(printf("%s ch=%d addr=" TARGET_FMT_plx "\n", __func__, c, addr));
     cpu_physical_memory_read(addr, &ctrl->channels[c].current_d,
                              sizeof(ctrl->channels[c].current_d));
 
-	D(dump_d(c, &ctrl->channels[c].current_d));
-	ctrl->channels[c].regs[RW_DATA] = addr;
+    D(dump_d(c, &ctrl->channels[c].current_d));
+    ctrl->channels[c].regs[RW_DATA] = addr;
 }
 
 static void channel_store_c(struct fs_dma_ctrl *ctrl, int c)
 {
-	hwaddr addr = channel_reg(ctrl, c, RW_GROUP_DOWN);
+    hwaddr addr = channel_reg(ctrl, c, RW_GROUP_DOWN);
 
-	/* Encode and store. FIXME: handle endianness.  */
-	D(printf("%s ch=%d addr=" TARGET_FMT_plx "\n", __func__, c, addr));
-	D(dump_d(c, &ctrl->channels[c].current_d));
+    /* Encode and store. FIXME: handle endianness.  */
+    D(printf("%s ch=%d addr=" TARGET_FMT_plx "\n", __func__, c, addr));
+    D(dump_d(c, &ctrl->channels[c].current_d));
     cpu_physical_memory_write(addr, &ctrl->channels[c].current_c,
                               sizeof(ctrl->channels[c].current_c));
 }
 
 static void channel_store_d(struct fs_dma_ctrl *ctrl, int c)
 {
-	hwaddr addr = channel_reg(ctrl, c, RW_SAVED_DATA);
+    hwaddr addr = channel_reg(ctrl, c, RW_SAVED_DATA);
 
-	/* Encode and store. FIXME: handle endianness.  */
-	D(printf("%s ch=%d addr=" TARGET_FMT_plx "\n", __func__, c, addr));
+    /* Encode and store. FIXME: handle endianness.  */
+    D(printf("%s ch=%d addr=" TARGET_FMT_plx "\n", __func__, c, addr));
     cpu_physical_memory_write(addr, &ctrl->channels[c].current_d,
                               sizeof(ctrl->channels[c].current_d));
 }
@@ -574,46 +574,43 @@ static inline int channel_in_run(struct fs_dma_ctrl *ctrl, int c)
 
 static uint32_t dma_rinvalid (void *opaque, hwaddr addr)
 {
-        hw_error("Unsupported short raccess. reg=" TARGET_FMT_plx "\n", addr);
-        return 0;
+    hw_error("Unsupported short raccess. reg=" TARGET_FMT_plx "\n", addr);
+    return 0;
 }
 
-static uint64_t
-dma_read(void *opaque, hwaddr addr, unsigned int size)
+static uint64_t dma_read(void *opaque, hwaddr addr, unsigned int size)
 {
-        struct fs_dma_ctrl *ctrl = opaque;
-	int c;
-	uint32_t r = 0;
+    struct fs_dma_ctrl *ctrl = opaque;
+    int c;
+    uint32_t r = 0;
 
-	if (size != 4) {
-		dma_rinvalid(opaque, addr);
-	}
+    if (size != 4) {
+        dma_rinvalid(opaque, addr);
+    }
 
-	/* Make addr relative to this channel and bounded to nr regs.  */
-	c = fs_channel(addr);
-	addr &= 0xff;
-	addr >>= 2;
-	switch (addr)
-	{
-		case RW_STAT:
-			r = ctrl->channels[c].state & 7;
-			r |= ctrl->channels[c].eol << 5;
-			r |= ctrl->channels[c].stream_cmd_src << 8;
-			break;
+    /* Make addr relative to this channel and bounded to nr regs.  */
+    c = fs_channel(addr);
+    addr &= 0xff;
+    addr >>= 2;
+    switch (addr) {
+    case RW_STAT:
+        r = ctrl->channels[c].state & 7;
+        r |= ctrl->channels[c].eol << 5;
+        r |= ctrl->channels[c].stream_cmd_src << 8;
+        break;
 
-		default:
-			r = ctrl->channels[c].regs[addr];
-			D(printf ("%s c=%d addr=" TARGET_FMT_plx "\n",
-				  __func__, c, addr));
-			break;
-	}
-	return r;
+    default:
+        r = ctrl->channels[c].regs[addr];
+        D(printf("%s c=%d addr=" TARGET_FMT_plx "\n", __func__, c, addr));
+        break;
+    }
+    return r;
 }
 
 static void
 dma_winvalid (void *opaque, hwaddr addr, uint32_t value)
 {
-        hw_error("Unsupported short waccess. reg=" TARGET_FMT_plx "\n", addr);
+    hw_error("Unsupported short waccess. reg=" TARGET_FMT_plx "\n", addr);
 }
 
 static void
@@ -625,71 +622,68 @@ dma_update_state(struct fs_dma_ctrl *ctrl, int c)
 		ctrl->channels[c].state = RST;
 }
 
-static void
-dma_write(void *opaque, hwaddr addr,
-	  uint64_t val64, unsigned int size)
+static void dma_write(void *opaque, hwaddr addr, uint64_t val64,
+                      unsigned int size)
 {
-        struct fs_dma_ctrl *ctrl = opaque;
-	uint32_t value = val64;
-	int c;
+    struct fs_dma_ctrl *ctrl = opaque;
+    uint32_t value = val64;
+    int c;
 
-	if (size != 4) {
-		dma_winvalid(opaque, addr, value);
-	}
+    if (size != 4) {
+        dma_winvalid(opaque, addr, value);
+    }
 
-        /* Make addr relative to this channel and bounded to nr regs.  */
-	c = fs_channel(addr);
-        addr &= 0xff;
-        addr >>= 2;
-        switch (addr)
-	{
-		case RW_DATA:
-			ctrl->channels[c].regs[addr] = value;
-			break;
+    /* Make addr relative to this channel and bounded to nr regs.  */
+    c = fs_channel(addr);
+    addr &= 0xff;
+    addr >>= 2;
+    switch (addr) {
+    case RW_DATA:
+        ctrl->channels[c].regs[addr] = value;
+        break;
 
-		case RW_CFG:
-			ctrl->channels[c].regs[addr] = value;
-			dma_update_state(ctrl, c);
-			break;
-		case RW_CMD:
-			/* continue.  */
-			if (value & ~1)
-				printf("Invalid store to ch=%d RW_CMD %x\n",
-				       c, value);
-			ctrl->channels[c].regs[addr] = value;
-			channel_continue(ctrl, c);
-			break;
-
-		case RW_SAVED_DATA:
-		case RW_SAVED_DATA_BUF:
-		case RW_GROUP:
-		case RW_GROUP_DOWN:
-			ctrl->channels[c].regs[addr] = value;
-			break;
-
-		case RW_ACK_INTR:
-		case RW_INTR_MASK:
-			ctrl->channels[c].regs[addr] = value;
-			channel_update_irq(ctrl, c);
-			if (addr == RW_ACK_INTR)
-				ctrl->channels[c].regs[RW_ACK_INTR] = 0;
-			break;
-
-		case RW_STREAM_CMD:
-			if (value & ~1023)
-				printf("Invalid store to ch=%d "
-				       "RW_STREAMCMD %x\n",
-				       c, value);
-			ctrl->channels[c].regs[addr] = value;
-			D(printf("stream_cmd ch=%d\n", c));
-			channel_stream_cmd(ctrl, c, value);
-			break;
-
-	        default:
-			D(printf ("%s c=%d " TARGET_FMT_plx "\n",
-				__func__, c, addr));
-			break;
+    case RW_CFG:
+        ctrl->channels[c].regs[addr] = value;
+        dma_update_state(ctrl, c);
+        break;
+    case RW_CMD:
+        /* continue.  */
+        if (value & ~1) {
+            printf("Invalid store to ch=%d RW_CMD %x\n", c, value);
         }
+        ctrl->channels[c].regs[addr] = value;
+        channel_continue(ctrl, c);
+        break;
+
+    case RW_SAVED_DATA:
+    case RW_SAVED_DATA_BUF:
+    case RW_GROUP:
+    case RW_GROUP_DOWN:
+        ctrl->channels[c].regs[addr] = value;
+        break;
+
+    case RW_ACK_INTR:
+    case RW_INTR_MASK:
+        ctrl->channels[c].regs[addr] = value;
+        channel_update_irq(ctrl, c);
+        if (addr == RW_ACK_INTR) {
+            ctrl->channels[c].regs[RW_ACK_INTR] = 0;
+        }
+        break;
+
+    case RW_STREAM_CMD:
+        if (value & ~1023) {
+            printf("Invalid store to ch=%d RW_STREAMCMD %x\n", c, value);
+        }
+        ctrl->channels[c].regs[addr] = value;
+        D(printf("stream_cmd ch=%d\n", c));
+        channel_stream_cmd(ctrl, c, value);
+        break;
+
+    default:
+        D(printf("%s c=%d " TARGET_FMT_plx "\n", __func__, c, addr));
+        break;
+    }
 }
 
 static const MemoryRegionOps dma_ops = {

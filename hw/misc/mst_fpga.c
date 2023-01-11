@@ -99,94 +99,92 @@ mst_fpga_set_irq(void *opaque, int irq, int level)
 }
 
 
-static uint64_t
-mst_fpga_readb(void *opaque, hwaddr addr, unsigned size)
+static uint64_t mst_fpga_readb(void *opaque, hwaddr addr, unsigned size)
 {
-	mst_irq_state *s = (mst_irq_state *) opaque;
+    mst_irq_state *s = (mst_irq_state *) opaque;
 
-	switch (addr) {
-	case MST_LEDDAT1:
-		return s->leddat1;
-	case MST_LEDDAT2:
-		return s->leddat2;
-	case MST_LEDCTRL:
-		return s->ledctrl;
-	case MST_GPSWR:
-		return s->gpswr;
-	case MST_MSCWR1:
-		return s->mscwr1;
-	case MST_MSCWR2:
-		return s->mscwr2;
-	case MST_MSCWR3:
-		return s->mscwr3;
-	case MST_MSCRD:
-		return s->mscrd;
-	case MST_INTMSKENA:
-		return s->intmskena;
-	case MST_INTSETCLR:
-		return s->intsetclr;
-	case MST_PCMCIA0:
-		return s->pcmcia0;
-	case MST_PCMCIA1:
-		return s->pcmcia1;
-	default:
-		printf("Mainstone - mst_fpga_readb: Bad register offset "
-			"0x" TARGET_FMT_plx "\n", addr);
-	}
-	return 0;
+    switch (addr) {
+    case MST_LEDDAT1:
+        return s->leddat1;
+    case MST_LEDDAT2:
+        return s->leddat2;
+    case MST_LEDCTRL:
+        return s->ledctrl;
+    case MST_GPSWR:
+        return s->gpswr;
+    case MST_MSCWR1:
+        return s->mscwr1;
+    case MST_MSCWR2:
+        return s->mscwr2;
+    case MST_MSCWR3:
+        return s->mscwr3;
+    case MST_MSCRD:
+        return s->mscrd;
+    case MST_INTMSKENA:
+        return s->intmskena;
+    case MST_INTSETCLR:
+        return s->intsetclr;
+    case MST_PCMCIA0:
+        return s->pcmcia0;
+    case MST_PCMCIA1:
+        return s->pcmcia1;
+    default:
+        printf("Mainstone - mst_fpga_readb: Bad register offset "
+            "0x" TARGET_FMT_plx "\n", addr);
+    }
+    return 0;
 }
 
-static void
-mst_fpga_writeb(void *opaque, hwaddr addr, uint64_t value,
-		unsigned size)
+static void mst_fpga_writeb(void *opaque, hwaddr addr, uint64_t value,
+                            unsigned size)
 {
-	mst_irq_state *s = (mst_irq_state *) opaque;
-	value &= 0xffffffff;
+    mst_irq_state *s = (mst_irq_state *) opaque;
+    value &= 0xffffffff;
 
-	switch (addr) {
-	case MST_LEDDAT1:
-		s->leddat1 = value;
-		break;
-	case MST_LEDDAT2:
-		s->leddat2 = value;
-		break;
-	case MST_LEDCTRL:
-		s->ledctrl = value;
-		break;
-	case MST_GPSWR:
-		s->gpswr = value;
-		break;
-	case MST_MSCWR1:
-		s->mscwr1 = value;
-		break;
-	case MST_MSCWR2:
-		s->mscwr2 = value;
-		break;
-	case MST_MSCWR3:
-		s->mscwr3 = value;
-		break;
-	case MST_MSCRD:
-		s->mscrd =  value;
-		break;
-	case MST_INTMSKENA:	/* Mask interrupt */
-		s->intmskena = (value & 0xFEEFF);
-		qemu_set_irq(s->parent, s->intsetclr & s->intmskena);
-		break;
-	case MST_INTSETCLR:	/* clear or set interrupt */
-		s->intsetclr = (value & 0xFEEFF);
-		qemu_set_irq(s->parent, s->intsetclr & s->intmskena);
-		break;
-		/* For PCMCIAx allow the to change only power and reset */
-	case MST_PCMCIA0:
-		s->pcmcia0 = (value & 0x1f) | (s->pcmcia0 & ~0x1f);
-		break;
-	case MST_PCMCIA1:
-		s->pcmcia1 = (value & 0x1f) | (s->pcmcia1 & ~0x1f);
-		break;
-	default:
-		printf("Mainstone - mst_fpga_writeb: Bad register offset "
-			"0x" TARGET_FMT_plx "\n", addr);
-	}
+    switch (addr) {
+    case MST_LEDDAT1:
+        s->leddat1 = value;
+        break;
+    case MST_LEDDAT2:
+        s->leddat2 = value;
+        break;
+    case MST_LEDCTRL:
+        s->ledctrl = value;
+        break;
+    case MST_GPSWR:
+        s->gpswr = value;
+        break;
+    case MST_MSCWR1:
+        s->mscwr1 = value;
+        break;
+    case MST_MSCWR2:
+        s->mscwr2 = value;
+        break;
+    case MST_MSCWR3:
+        s->mscwr3 = value;
+        break;
+    case MST_MSCRD:
+        s->mscrd =  value;
+        break;
+    case MST_INTMSKENA:    /* Mask interrupt */
+        s->intmskena = (value & 0xFEEFF);
+        qemu_set_irq(s->parent, s->intsetclr & s->intmskena);
+        break;
+    case MST_INTSETCLR:    /* clear or set interrupt */
+        s->intsetclr = (value & 0xFEEFF);
+        qemu_set_irq(s->parent, s->intsetclr & s->intmskena);
+        break;
+        /* For PCMCIAx allow the to change only power and reset */
+    case MST_PCMCIA0:
+        s->pcmcia0 = (value & 0x1f) | (s->pcmcia0 & ~0x1f);
+        break;
+    case MST_PCMCIA1:
+        s->pcmcia1 = (value & 0x1f) | (s->pcmcia1 & ~0x1f);
+        break;
+    default:
+        printf("Mainstone - mst_fpga_writeb: Bad register offset "
+               "0x" TARGET_FMT_plx "\n", addr);
+    }
 }
 
 static const MemoryRegionOps mst_fpga_ops = {
