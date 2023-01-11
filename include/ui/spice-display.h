@@ -62,6 +62,7 @@ enum {
     QXL_COOKIE_TYPE_RENDER_UPDATE_AREA,
     QXL_COOKIE_TYPE_POST_LOAD_MONITORS_CONFIG,
     QXL_COOKIE_TYPE_GL_DRAW_DONE,
+    QXL_COOKIE_TYPE_DMABUF_ENCODE_DONE,
 };
 
 typedef struct QXLCookie {
@@ -153,6 +154,7 @@ struct SimpleSpiceCursor {
 };
 
 extern bool spice_opengl;
+extern bool spice_dmabuf_encode;
 
 int qemu_spice_rect_is_empty(const QXLRect* r);
 void qemu_spice_rect_union(QXLRect *dest, const QXLRect *r);

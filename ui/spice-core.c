@@ -494,6 +494,9 @@ static QemuOptsList qemu_spice_opts = {
         },{
             .name = "rendernode",
             .type = QEMU_OPT_STRING,
+        },{
+            .name = "dmabuf-encode",
+            .type = QEMU_OPT_BOOL,
 #endif
         },
         { /* end of list */ }
@@ -843,11 +846,24 @@ static void qemu_spice_init(void)
     g_free(password);
 
 #ifdef HAVE_SPICE_GL
+    if (qemu_opt_get_bool(opts, "dmabuf-encode", 0)) {
+        spice_dmabuf_encode = 1;
+    }
     if (qemu_opt_get_bool(opts, "gl", 0)) {
-        if ((port != 0) || (tls_port != 0)) {
-            error_report("SPICE GL support is local-only for now and "
-                         "incompatible with -spice port/tls-port");
+        if (((port != 0) || (tls_port != 0)) && !spice_dmabuf_encode) {
+            error_report("Add dmabuf-encode=on option to enable GL streaming");
             exit(1);
+        } else if (spice_dmabuf_encode) {
+            if (port == 0 && tls_port == 0) {
+                error_report("dmabuf-encode=on is only meant to be used for "
+                             "non-local displays");
+                exit(1);
+            }
+            if (g_strcmp0(preferred_codec, "gstreamer:h264")) {
+                error_report("dmabuf-encode=on currently only works and tested"
+                             "with gstreamer:h264");
+                exit(1);
+            }
         }
         if (egl_rendernode_init(qemu_opt_get(opts, "rendernode"),
                                 DISPLAYGL_MODE_ON) != 0) {
