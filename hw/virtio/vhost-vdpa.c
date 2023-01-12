@@ -1273,7 +1273,7 @@ static int vhost_vdpa_get_features(struct vhost_dev *dev,
     struct vhost_vdpa *v = dev->opaque;
     int ret = vhost_vdpa_get_dev_features(dev, features);
 
-    if (ret == 0 && v->shadow_vqs_enabled) {
+    if (ret == 0 && (v->shadow_vqs_enabled || v->feature_log)) {
         /* Add SVQ logging capabilities */
         *features |= BIT_ULL(VHOST_F_LOG_ALL);
     }
