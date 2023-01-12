@@ -2170,6 +2170,9 @@ void migrate_init(MigrationState *s)
     s->vm_was_running = false;
     s->iteration_initial_bytes = 0;
     s->threshold_size = 0;
+
+    json_writer_free(s->vmdesc);
+    s->vmdesc = NULL;
 }
 
 int migrate_add_blocker_internal(Error *reason, Error **errp)
@@ -4445,6 +4448,7 @@ static void migration_instance_finalize(Object *obj)
     qemu_sem_destroy(&ms->rp_state.rp_sem);
     qemu_sem_destroy(&ms->postcopy_qemufile_src_sem);
     error_free(ms->error);
+    json_writer_free(ms->vmdesc);
 }
 
 static void migration_instance_init(Object *obj)
