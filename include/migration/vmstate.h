@@ -179,6 +179,11 @@ struct VMStateField {
 struct VMStateDescription {
     const char *name;
     int unmigratable;
+    /*
+     * The state is immutable while migration is active and is saved
+     * during the setup phase, to be restored early on the destination.
+     */
+    int immutable;
     int version_id;
     int minimum_version_id;
     MigrationPriority priority;
