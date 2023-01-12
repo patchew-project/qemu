@@ -412,7 +412,6 @@ static int vhost_vdpa_net_cvq_start(NetClientState *nc)
     s = DO_UPCAST(VhostVDPAState, nc, nc);
     v = &s->vhost_vdpa;
 
-    v->shadow_data = s->always_svq;
     v->shadow_vqs_enabled = s->always_svq;
     s->vhost_vdpa.address_space_id = VHOST_VDPA_GUEST_PA_ASID;
 
@@ -481,6 +480,12 @@ out:
         v->iova_tree = vhost_iova_tree_new(v->iova_range.first,
                                            v->iova_range.last);
     }
+
+    /*
+     * Memory listener is registered against CVQ vhost device, but different
+     * ASID may enable individually SVQ. Let's copy data vqs value here.
+     */
+    v->shadow_data = s0->vhost_vdpa.shadow_data;
 
     r = vhost_vdpa_cvq_map_buf(&s->vhost_vdpa, s->cvq_cmd_out_buffer,
                                vhost_vdpa_net_cvq_cmd_page_len(), false);
