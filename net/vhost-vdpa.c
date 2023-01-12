@@ -831,6 +831,7 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
                                        int nvqs,
                                        bool is_datapath,
                                        bool svq,
+                                       bool feature_log,
                                        struct vhost_vdpa_iova_range iova_range)
 {
     NetClientState *nc = NULL;
@@ -854,6 +855,7 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
     s->vhost_vdpa.shadow_vqs_enabled = svq;
     s->vhost_vdpa.iova_range = iova_range;
     s->vhost_vdpa.shadow_data = svq;
+    s->vhost_vdpa.feature_log = feature_log;
     if (!is_datapath) {
         s->cvq_cmd_out_buffer = qemu_memalign(qemu_real_host_page_size(),
                                             vhost_vdpa_net_cvq_cmd_page_len());
@@ -920,12 +922,13 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
                         NetClientState *peer, Error **errp)
 {
     const NetdevVhostVDPAOptions *opts;
-    uint64_t features;
+    uint64_t features, backend_features;
     int vdpa_device_fd;
     g_autofree NetClientState **ncs = NULL;
     struct vhost_vdpa_iova_range iova_range;
     NetClientState *nc;
     int queue_pairs, r, i = 0, has_cvq = 0;
+    bool feature_log;
 
     assert(netdev->type == NET_CLIENT_DRIVER_VHOST_VDPA);
     opts = &netdev->u.vhost_vdpa;
@@ -955,6 +958,12 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
         }
     }
 
+    r = ioctl(vdpa_device_fd, VHOST_GET_BACKEND_FEATURES, &backend_features);
+    if (unlikely(r < 0)) {
+        error_setg_errno(errp, errno, "Cannot get vdpa backend_features");
+        goto err;
+    }
+
     r = vhost_vdpa_get_features(vdpa_device_fd, &features, errp);
     if (unlikely(r < 0)) {
         goto err;
@@ -980,10 +989,17 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
 
     ncs = g_malloc0(sizeof(*ncs) * queue_pairs);
 
+    /*
+     * Offer VHOST_F_LOG_ALL as long as the device met basic requisites, and
+     * let more complicated ones to vhost_vdpa_net_{cvq,data}_start.
+     */
+    feature_log = opts->x_svq ||
+                  ((backend_features & BIT_ULL(VHOST_BACKEND_F_SUSPEND)) &&
+                   vhost_vdpa_net_valid_svq_features(features, NULL));
     for (i = 0; i < queue_pairs; i++) {
         ncs[i] = net_vhost_vdpa_init(peer, TYPE_VHOST_VDPA, name,
                                      vdpa_device_fd, i, 2, true, opts->x_svq,
-                                     iova_range);
+                                     feature_log, iova_range);
         if (!ncs[i])
             goto err;
     }
@@ -991,7 +1007,7 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
     if (has_cvq) {
         nc = net_vhost_vdpa_init(peer, TYPE_VHOST_VDPA, name,
                                  vdpa_device_fd, i, 1, false,
-                                 opts->x_svq, iova_range);
+                                 opts->x_svq, feature_log, iova_range);
         if (!nc)
             goto err;
     }
