@@ -732,11 +732,16 @@ static int vhost_vdpa_set_vring_ready(struct vhost_dev *dev, int ready)
     }
     trace_vhost_vdpa_set_vring_ready(dev);
     for (i = 0; i < dev->nvqs; ++i) {
+        VirtQueue *vq;
         struct vhost_vring_state state = {
             .index = dev->vq_index + i,
             .num = 1,
         };
         vhost_vdpa_call(dev, VHOST_VDPA_SET_VRING_ENABLE, &state);
+
+        /* Preemptive kick */
+        vq = virtio_get_queue(dev->vdev, dev->vq_index + i);
+        event_notifier_set(virtio_queue_get_host_notifier(vq));
     }
     return 0;
 }
