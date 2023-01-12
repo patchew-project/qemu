@@ -406,15 +406,19 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
     }
 
     for (int j = 0; j < nvhosts; j++) {
+        int enable;
+
         if (j < data_queue_pairs) {
             peer = qemu_get_peer(ncs, j);
         } else {
             peer = qemu_get_peer(ncs, n->max_queue_pairs);
         }
 
-        if (peer->vring_enable) {
+        enable = net->nc->info->type == NET_CLIENT_DRIVER_VHOST_VDPA ||
+                 peer->vring_enable;
+        if (enable) {
             /* restore vring enable state */
-            r = vhost_set_vring_enable(peer, peer->vring_enable);
+            r = vhost_set_vring_enable(peer, enable);
 
             if (r < 0) {
                 goto err_start;
