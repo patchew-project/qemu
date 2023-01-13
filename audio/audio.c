@@ -1845,13 +1845,6 @@ CaptureVoiceOut *AUD_add_capture(
     CaptureVoiceOut *cap;
     struct capture_callback *cb;
 
-    if (!s) {
-        if (!legacy_config) {
-            dolog("Capturing without setting an audiodev is deprecated\n");
-        }
-        s = audio_init(NULL, NULL);
-    }
-
     if (!audio_get_pdo_out(s->dev)->mixing_engine) {
         dolog("Can't capture with mixeng disabled\n");
         return NULL;
