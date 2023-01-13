@@ -1358,7 +1358,6 @@ static void ac97_exit(PCIDevice *dev)
     AUD_close_in(&s->card, s->voice_pi);
     AUD_close_out(&s->card, s->voice_po);
     AUD_close_in(&s->card, s->voice_mc);
-    AUD_remove_card(&s->card);
 }
 
 static Property ac97_properties[] = {

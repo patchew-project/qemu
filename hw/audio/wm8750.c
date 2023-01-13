@@ -634,7 +634,6 @@ static void wm8750_fini(I2CSlave *i2c)
     WM8750State *s = WM8750(i2c);
 
     wm8750_reset(I2C_SLAVE(s));
-    AUD_remove_card(&s->card);
     g_free(s);
 }
 #endif

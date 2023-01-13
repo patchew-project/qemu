@@ -1833,10 +1833,6 @@ void AUD_register_card (const char *name, QEMUSoundCard *card)
     }
 }
 
-void AUD_remove_card (QEMUSoundCard *card)
-{
-}
-
 static struct audio_pcm_ops capture_pcm_ops;
 
 CaptureVoiceOut *AUD_add_capture(

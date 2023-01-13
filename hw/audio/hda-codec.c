@@ -743,7 +743,6 @@ static void hda_audio_exit(HDACodecDevice *hda)
             AUD_close_in(&a->card, st->voice.in);
         }
     }
-    AUD_remove_card(&a->card);
 }
 
 static int hda_audio_post_load(void *opaque, int version)

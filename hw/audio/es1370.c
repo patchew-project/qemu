@@ -882,7 +882,6 @@ static void es1370_exit(PCIDevice *dev)
     }
 
     AUD_close_in(&s->card, s->adc_voice);
-    AUD_remove_card(&s->card);
 }
 
 static Property es1370_properties[] = {

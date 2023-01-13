@@ -934,7 +934,6 @@ static void usb_audio_unrealize(USBDevice *dev)
 
     usb_audio_set_output_altset(s, ALTSET_OFF);
     AUD_close_out(&s->card, s->out.voice);
-    AUD_remove_card(&s->card);
 
     streambuf_fini(&s->out.buf);
 }

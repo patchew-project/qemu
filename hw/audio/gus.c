@@ -263,7 +263,6 @@ static void gus_realizefn (DeviceState *dev, Error **errp)
         );
 
     if (!s->voice) {
-        AUD_remove_card (&s->card);
         error_setg(errp, "No voice");
         return;
     }
