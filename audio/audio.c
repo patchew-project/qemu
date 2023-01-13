@@ -1833,7 +1833,6 @@ void AUD_register_card (const char *name, QEMUSoundCard *card)
         card->state = audio_init(NULL, name);
     }
 
-    card->name = g_strdup (name);
     memset (&card->entries, 0, sizeof (card->entries));
     QLIST_INSERT_HEAD(&card->state->card_head, card, entries);
 }
@@ -1841,7 +1840,6 @@ void AUD_register_card (const char *name, QEMUSoundCard *card)
 void AUD_remove_card (QEMUSoundCard *card)
 {
     QLIST_REMOVE (card, entries);
-    g_free (card->name);
 }
 
 static struct audio_pcm_ops capture_pcm_ops;

@@ -82,7 +82,6 @@ typedef struct SWVoiceIn SWVoiceIn;
 
 typedef struct AudioState AudioState;
 typedef struct QEMUSoundCard {
-    char *name;
     AudioState *state;
     QLIST_ENTRY (QEMUSoundCard) entries;
 } QEMUSoundCard;
