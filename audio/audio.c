@@ -1812,7 +1812,6 @@ static AudioState *audio_init(Audiodev *dev, const char *name)
     qemu_add_vm_change_state_handler (audio_vm_change_state_handler, s);
 
     QTAILQ_INSERT_TAIL(&audio_states, s, list);
-    QLIST_INIT (&s->card_head);
     vmstate_register (NULL, 0, &vmstate_audio, s);
     return s;
 }
@@ -1832,14 +1831,10 @@ void AUD_register_card (const char *name, QEMUSoundCard *card)
     if (!card->state) {
         card->state = audio_init(NULL, name);
     }
-
-    memset (&card->entries, 0, sizeof (card->entries));
-    QLIST_INSERT_HEAD(&card->state->card_head, card, entries);
 }
 
 void AUD_remove_card (QEMUSoundCard *card)
 {
-    QLIST_REMOVE (card, entries);
 }
 
 static struct audio_pcm_ops capture_pcm_ops;

@@ -225,7 +225,6 @@ typedef struct AudioState {
     void *drv_opaque;
 
     QEMUTimer *ts;
-    QLIST_HEAD (card_listhead, QEMUSoundCard) card_head;
     QLIST_HEAD (hw_in_listhead, HWVoiceIn) hw_head_in;
     QLIST_HEAD (hw_out_listhead, HWVoiceOut) hw_head_out;
     QLIST_HEAD (cap_listhead, CaptureVoiceOut) cap_head;
