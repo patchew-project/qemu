@@ -37,12 +37,6 @@ Creating sound card devices without ``audiodev=`` property (since 4.2)
 When not using the deprecated legacy audio config, each sound card
 should specify an ``audiodev=`` property.
 
-Supporting audio transfer over vnc without ``audiodev=`` property (since 4.2)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-When using vnc, you should specify an ``audiodev=`` property if you
-intend to allow clients to request audio transfer through the VNC protocol.
-
 Short-form boolean options (since 6.0)
 ''''''''''''''''''''''''''''''''''''''
 
