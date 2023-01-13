@@ -20,6 +20,9 @@ DEF("version", 0, QEMU_OPTION_version,
 SRST
 ``-version``
     Display version information and exit
+
+    .. _Machine Options:
+
 ERST
 
 DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
