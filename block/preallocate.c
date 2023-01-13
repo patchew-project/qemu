@@ -286,7 +286,7 @@ static bool coroutine_fn handle_write(BlockDriverState *bs, int64_t offset,
     }
 
     if (s->data_end < 0) {
-        s->data_end = bdrv_getlength(bs->file->bs);
+        s->data_end = bdrv_co_getlength(bs->file->bs);
         if (s->data_end < 0) {
             return false;
         }
@@ -308,7 +308,7 @@ static bool coroutine_fn handle_write(BlockDriverState *bs, int64_t offset,
     }
 
     if (s->file_end < 0) {
-        s->file_end = bdrv_getlength(bs->file->bs);
+        s->file_end = bdrv_co_getlength(bs->file->bs);
         if (s->file_end < 0) {
             return false;
         }
@@ -380,7 +380,7 @@ preallocate_co_truncate(BlockDriverState *bs, int64_t offset,
 
     if (s->data_end >= 0 && offset > s->data_end) {
         if (s->file_end < 0) {
-            s->file_end = bdrv_getlength(bs->file->bs);
+            s->file_end = bdrv_co_getlength(bs->file->bs);
             if (s->file_end < 0) {
                 error_setg(errp, "failed to get file length");
                 return s->file_end;
