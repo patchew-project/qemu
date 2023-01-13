@@ -10,7 +10,8 @@
 #include "libqtest.h"
 
 /*
- * This used to trigger the assert in audio_calloc
+ * This used to trigger the audio_bug calls in
+ * audio_pcm_sw_alloc_resources
  * https://bugs.launchpad.net/qemu/+bug/1910603
  */
 static void test_fuzz_sb16_0x1c(void)
@@ -38,7 +39,8 @@ static void test_fuzz_sb16_0x91(void)
 }
 
 /*
- * This used to trigger the assert in audio_calloc
+ * This used to trigger the audio_bug calls in
+ * audio_pcm_sw_alloc_resources
  * through command 0xd4
  */
 static void test_fuzz_sb16_0xd4(void)
