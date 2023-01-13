@@ -27,6 +27,7 @@
 #include "time_helper.h"
 #include "exec/exec-all.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "qemu/error-report.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
@@ -227,6 +228,85 @@ static void set_priv_version(CPURISCVState *env, int priv_ver)
 static void set_vext_version(CPURISCVState *env, int vext_ver)
 {
     env->vext_ver = vext_ver;
+}
+
+static uint8_t satp_mode_from_str(const char *satp_mode_str)
+{
+    if (!strncmp(satp_mode_str, "sv32", 4)) {
+        return VM_1_10_SV32;
+    }
+
+    if (!strncmp(satp_mode_str, "sv39", 4)) {
+        return VM_1_10_SV39;
+    }
+
+    if (!strncmp(satp_mode_str, "sv48", 4)) {
+        return VM_1_10_SV48;
+    }
+
+    if (!strncmp(satp_mode_str, "sv57", 4)) {
+        return VM_1_10_SV57;
+    }
+
+    if (!strncmp(satp_mode_str, "sv64", 4)) {
+        return VM_1_10_SV64;
+    }
+
+    g_assert_not_reached();
+}
+
+uint8_t satp_mode_max_from_map(uint32_t map)
+{
+    /* map here has at least one bit set, so no problem with clz */
+    return 31 - __builtin_clz(map);
+}
+
+const char *satp_mode_str(uint8_t satp_mode, bool is_32_bit)
+{
+    if (is_32_bit) {
+        switch (satp_mode) {
+        case VM_1_10_SV32:
+            return "sv32";
+        case VM_1_10_MBARE:
+            return "none";
+        }
+    } else {
+        switch (satp_mode) {
+        case VM_1_10_SV64:
+            return "sv64";
+        case VM_1_10_SV57:
+            return "sv57";
+        case VM_1_10_SV48:
+            return "sv48";
+        case VM_1_10_SV39:
+            return "sv39";
+        case VM_1_10_MBARE:
+            return "none";
+        }
+    }
+
+    g_assert_not_reached();
+}
+
+static void set_satp_mode(RISCVCPU *cpu, const char *satp_mode_str)
+{
+    cpu->cfg.satp_mode.map |= (1 << satp_mode_from_str(satp_mode_str));
+}
+
+static void set_satp_mode_default(RISCVCPU *cpu, bool is_32_bit)
+{
+    /*
+     * If an mmu is present, the default satp mode is:
+     * - sv32 for 32-bit
+     * - sv57 for 64-bit
+     * Otherwise, it is mbare.
+     */
+
+    if (riscv_feature(&cpu->env, RISCV_FEATURE_MMU)) {
+        set_satp_mode(cpu, is_32_bit ? "sv32" : "sv57");
+    } else {
+        set_satp_mode(cpu, "mbare");
+    }
 }
 
 static void riscv_any_cpu_init(Object *obj)
@@ -619,6 +699,53 @@ static void riscv_cpu_disas_set_info(CPUState *s, disassemble_info *info)
     }
 }
 
+static void riscv_cpu_satp_mode_finalize(RISCVCPU *cpu, Error **errp)
+{
+    bool rv32 = riscv_cpu_mxl(&cpu->env) == MXL_RV32;
+    const char *valid_vm = rv32 ? valid_vm_1_10_32 : valid_vm_1_10_64;
+
+    /* Get rid of 32-bit/64-bit incompatibility */
+    for (int i = 0; i < 16; ++i) {
+        if ((cpu->cfg.satp_mode.map & (1 << i)) && !valid_vm[i]) {
+            error_setg(errp, "satp_mode %s is not valid",
+                       satp_mode_str(i, !rv32));
+            return;
+        }
+    }
+
+    /*
+     * Make sure the user did not ask for an invalid configuration as per
+     * the specification.
+     */
+    if (!rv32) {
+        uint8_t satp_mode_max;
+
+        satp_mode_max = satp_mode_max_from_map(cpu->cfg.satp_mode.map);
+
+        for (int i = satp_mode_max - 1; i >= 0; --i) {
+            if (!(cpu->cfg.satp_mode.map & (1 << i)) &&
+                (cpu->cfg.satp_mode.init & (1 << i)) &&
+                valid_vm[i]) {
+                error_setg(errp, "cannot disable %s satp mode if %s "
+                           "is enabled", satp_mode_str(i, false),
+                           satp_mode_str(satp_mode_max, false));
+                return;
+            }
+        }
+    }
+}
+
+static void riscv_cpu_finalize_features(RISCVCPU *cpu, Error **errp)
+{
+    Error *local_err = NULL;
+
+    riscv_cpu_satp_mode_finalize(cpu, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
+}
+
 static void riscv_cpu_realize(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -919,12 +1046,104 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
      }
 #endif
 
+    bool rv32 = riscv_cpu_mxl(&cpu->env) == MXL_RV32;
+
+    if (cpu->cfg.satp_mode.map == 0) {
+        /*
+         * If unset by both the user and the cpu, we fallback to the default
+         * satp mode.
+         */
+        if (cpu->cfg.satp_mode.init == 0) {
+            set_satp_mode_default(cpu, rv32);
+        } else {
+            /*
+             * Find the lowest level that was disabled and then enable the
+             * first valid level below which can be found in
+             * valid_vm_1_10_32/64.
+             */
+            const char *valid_vm = rv32 ? valid_vm_1_10_32 : valid_vm_1_10_64;
+
+            for (int i = 0; i < 16; ++i) {
+                if (!(cpu->cfg.satp_mode.map & (1 << i)) &&
+                    (cpu->cfg.satp_mode.init & (1 << i)) &&
+                    valid_vm[i]) {
+                    for (int j = i - 1; j >= 0; --j) {
+                        if (valid_vm[j]) {
+                            cpu->cfg.satp_mode.map |= (1 << j);
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+
+            /*
+             * The user actually init a satp mode but appears to be invalid
+             * (ex: "-cpu rv64,sv32=on,sv32=off"). Fallback to the default
+             * mode.
+             */
+            if (cpu->cfg.satp_mode.map == 0) {
+                set_satp_mode_default(cpu, rv32);
+            }
+        }
+    }
+
+    riscv_cpu_finalize_features(cpu, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+
     riscv_cpu_register_gdb_regs_for_features(cs);
 
     qemu_init_vcpu(cs);
     cpu_reset(cs);
 
     mcc->parent_realize(dev, errp);
+}
+
+static void cpu_riscv_get_satp(Object *obj, Visitor *v, const char *name,
+                           void *opaque, Error **errp)
+{
+    RISCVSATPMap *satp_map = opaque;
+    uint8_t satp = satp_mode_from_str(name);
+    bool value;
+
+    value = (satp_map->map & (1 << satp));
+
+    visit_type_bool(v, name, &value, errp);
+}
+
+static void cpu_riscv_set_satp(Object *obj, Visitor *v, const char *name,
+                           void *opaque, Error **errp)
+{
+    RISCVSATPMap *satp_map = opaque;
+    uint8_t satp = satp_mode_from_str(name);
+    bool value;
+
+    if (!visit_type_bool(v, name, &value, errp)) {
+        return;
+    }
+
+    satp_map->map = deposit32(satp_map->map, satp, 1, value);
+    satp_map->init |= 1 << satp;
+}
+
+static void riscv_add_satp_mode_properties(Object *obj)
+{
+    RISCVCPU *cpu = RISCV_CPU(obj);
+
+    object_property_add(obj, "sv32", "bool", cpu_riscv_get_satp,
+                        cpu_riscv_set_satp, NULL, &cpu->cfg.satp_mode);
+    object_property_add(obj, "sv39", "bool", cpu_riscv_get_satp,
+                        cpu_riscv_set_satp, NULL, &cpu->cfg.satp_mode);
+    object_property_add(obj, "sv48", "bool", cpu_riscv_get_satp,
+                        cpu_riscv_set_satp, NULL, &cpu->cfg.satp_mode);
+    object_property_add(obj, "sv57", "bool", cpu_riscv_get_satp,
+                        cpu_riscv_set_satp, NULL, &cpu->cfg.satp_mode);
+    object_property_add(obj, "sv64", "bool", cpu_riscv_get_satp,
+                        cpu_riscv_set_satp, NULL, &cpu->cfg.satp_mode);
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -1091,6 +1310,8 @@ static void register_cpu_props(Object *obj)
     for (prop = riscv_cpu_extensions; prop && prop->name; prop++) {
         qdev_property_add_static(dev, prop);
     }
+
+    riscv_add_satp_mode_properties(obj);
 }
 
 static Property riscv_cpu_properties[] = {
