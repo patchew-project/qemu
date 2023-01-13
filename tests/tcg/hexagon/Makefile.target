@@ -45,6 +45,16 @@ HEX_TESTS += fpstuff
 HEX_TESTS += overflow
 HEX_TESTS += signal_context
 HEX_TESTS += reg_mut
+HEX_TESTS += invalid_slots
+
+run-invalid_slots:
+	$(call run-test, $<, $(QEMU) $< 2> $<.stderr, $<); \
+	if [ $$? -ne 1 ] ; then \
+		return 1; \
+	fi
+	$(call quiet-command, \
+		grep -q "exception 0x15" $<.stderr, \
+		"GREP", "exception 0x15");
 
 HEX_TESTS += test_abs
 HEX_TESTS += test_bitcnt
