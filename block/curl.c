@@ -957,7 +957,7 @@ static void curl_close(BlockDriverState *bs)
     g_free(s->proxypassword);
 }
 
-static int64_t curl_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn curl_co_getlength(BlockDriverState *bs)
 {
     BDRVCURLState *s = bs->opaque;
     return s->len;
@@ -1001,7 +1001,7 @@ static BlockDriver bdrv_http = {
     .bdrv_parse_filename        = curl_parse_filename,
     .bdrv_file_open             = curl_open,
     .bdrv_close                 = curl_close,
-    .bdrv_getlength             = curl_getlength,
+    .bdrv_co_getlength          = curl_co_getlength,
 
     .bdrv_co_preadv             = curl_co_preadv,
 
@@ -1020,7 +1020,7 @@ static BlockDriver bdrv_https = {
     .bdrv_parse_filename        = curl_parse_filename,
     .bdrv_file_open             = curl_open,
     .bdrv_close                 = curl_close,
-    .bdrv_getlength             = curl_getlength,
+    .bdrv_co_getlength          = curl_co_getlength,
 
     .bdrv_co_preadv             = curl_co_preadv,
 
@@ -1039,7 +1039,7 @@ static BlockDriver bdrv_ftp = {
     .bdrv_parse_filename        = curl_parse_filename,
     .bdrv_file_open             = curl_open,
     .bdrv_close                 = curl_close,
-    .bdrv_getlength             = curl_getlength,
+    .bdrv_co_getlength          = curl_co_getlength,
 
     .bdrv_co_preadv             = curl_co_preadv,
 
@@ -1058,7 +1058,7 @@ static BlockDriver bdrv_ftps = {
     .bdrv_parse_filename        = curl_parse_filename,
     .bdrv_file_open             = curl_open,
     .bdrv_close                 = curl_close,
-    .bdrv_getlength             = curl_getlength,
+    .bdrv_co_getlength          = curl_co_getlength,
 
     .bdrv_co_preadv             = curl_co_preadv,
 
