@@ -107,8 +107,11 @@ static bool cxl_hdm_find_target(uint32_t *cache_mem, hwaddr addr,
     uint32_t target_idx;
 
     ctrl = cache_mem[R_CXL_HDM_DECODER0_CTRL];
-    if (!FIELD_EX32(ctrl, CXL_HDM_DECODER0_CTRL, COMMITTED)) {
-        return false;
+
+    /* skip the check for passthrough decoder */
+	if (FIELD_EX32(ctrl, CXL_HDM_DECODER0_CTRL, COMMIT)
+		&& !FIELD_EX32(ctrl, CXL_HDM_DECODER0_CTRL, COMMITTED)) {
+		return false;
     }
 
     ig_enc = FIELD_EX32(ctrl, CXL_HDM_DECODER0_CTRL, IG);
