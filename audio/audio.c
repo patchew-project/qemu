@@ -1712,7 +1712,6 @@ static AudioState *audio_init(Audiodev *dev, const char *name)
     size_t i;
     int done = 0;
     const char *drvname = NULL;
-    VMChangeStateEntry *e;
     AudioState *s;
     struct audio_driver *driver;
     /* silence gcc warning about uninitialized variable */
@@ -1830,11 +1829,7 @@ static AudioState *audio_init(Audiodev *dev, const char *name)
         s->period_ticks = dev->timer_period * (int64_t)SCALE_US;
     }
 
-    e = qemu_add_vm_change_state_handler (audio_vm_change_state_handler, s);
-    if (!e) {
-        dolog ("warning: Could not register change state handler\n"
-               "(Audio can continue looping even after stopping the VM)\n");
-    }
+    qemu_add_vm_change_state_handler (audio_vm_change_state_handler, s);
 
     QTAILQ_INSERT_TAIL(&audio_states, s, list);
     QLIST_INIT (&s->card_head);
