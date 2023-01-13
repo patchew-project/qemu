@@ -428,6 +428,14 @@ Supporting audio transfer over vnc without ``audiodev=`` property (removed in 8.
 When using vnc, you should specify an ``audiodev=`` property if you
 intend to allow clients to request audio transfer through the VNC protocol.
 
+``QEMU_AUDIO_`` environment variables and ``-audio-help`` (rwemoved in 8.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``-audiodev`` argument is now the preferred way to specify audio
+backend settings instead of environment variables.  To ease migration to
+the new format, the ``-audiodev-help`` option can be used to convert
+the current values of the environment variables to ``-audiodev`` options.
+
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 

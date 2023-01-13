@@ -108,8 +108,6 @@ const struct mixeng_volume nominal_volume = {
 #endif
 };
 
-static bool legacy_config = true;
-
 int audio_bug (const char *funcname, int cond)
 {
     if (cond) {
@@ -1684,7 +1682,7 @@ static AudiodevListEntry *audiodev_find(
  * if we have dev, this function was called because of an -audiodev argument =>
  *   initialize a new state with it
  * if dev == NULL => legacy implicit initialization, return the already created
- *   state or create a new one
+ *   state or create a new no-op one.
  */
 static AudioState *audio_init(Audiodev *dev, const char *name)
 {
@@ -1716,27 +1714,15 @@ static AudioState *audio_init(Audiodev *dev, const char *name)
 
     if (dev) {
         /* -audiodev option */
-        legacy_config = false;
         drvname = AudiodevDriver_str(dev->driver);
     } else if (!QTAILQ_EMPTY(&audio_states)) {
-        if (!legacy_config) {
-            dolog("Device %s: audiodev default parameter is deprecated, please "
-                  "specify audiodev=%s\n", name,
-                  QTAILQ_FIRST(&audio_states)->dev->id);
-        }
         return QTAILQ_FIRST(&audio_states);
     } else {
-        /* legacy implicit initialization */
-        head = audio_handle_legacy_opts();
-        /*
-         * In case of legacy initialization, all Audiodevs in the list will have
-         * the same configuration (except the driver), so it doesn't matter which
-         * one we chose.  We need an Audiodev to set up AudioState before we can
-         * init a driver.  Also note that dev at this point is still in the
-         * list.
-         */
-        dev = QSIMPLEQ_FIRST(&head)->dev;
-        audio_validate_opts(dev, &error_abort);
+        dev = g_new0(Audiodev, 1);
+        dev->id = g_strdup("none");
+        dev->driver = AUDIODEV_DRIVER_NONE;
+
+        audio_create_pdos(dev);
     }
 
     s = g_new0(AudioState, 1);
