@@ -28,6 +28,7 @@
 #include "qemu/units.h"
 #include "sysemu/numa.h"
 #include "hw/acpi/hmat.h"
+#include "hw/acpi/aml-build.h"
 
 /*
  * ACPI 6.3:
