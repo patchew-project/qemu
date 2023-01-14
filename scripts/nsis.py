@@ -91,12 +91,13 @@ def main():
         print("Searching '%s' for the dependent dlls ..." % search_path)
         dlldir = os.path.join(destdir + prefix, "dll")
         os.mkdir(dlldir)
+        deps_cache = set()
 
         for exe in glob.glob(os.path.join(destdir + prefix, "*.exe")):
             signcode(exe)
 
             # find all dll dependencies
-            deps = set(find_deps(exe, search_path, set()))
+            deps = set(find_deps(exe, search_path, deps_cache))
             deps.remove(exe)
 
             # copy all dlls to the DLLDIR
