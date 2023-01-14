@@ -10,6 +10,7 @@
 #include "qemu/osdep.h"
 
 #include "qapi/error.h"
+#include "qemu/bitops.h"
 #include "qemu/module.h"
 #include "hw/i2c/i2c.h"
 #include "hw/nvram/eeprom_at24c.h"
@@ -136,6 +137,20 @@ void at24c_eeprom_init(I2CBus *bus, uint8_t address, uint32_t rom_size)
 
     qdev_prop_set_uint32(dev, "rom-size", rom_size);
     i2c_slave_realize_and_unref(i2c_dev, bus, &error_abort);
+}
+
+void at24c_eeprom_write(I2CBus *bus, uint8_t address, uint16_t offset,
+                        const uint8_t *buf, uint32_t len)
+{
+    int i;
+
+    i2c_start_send(bus, address);
+    i2c_send(bus, extract16(offset, 8, 8));
+    i2c_send(bus, extract16(offset, 0, 8));
+    for (i = 0; i < len; i++) {
+        i2c_send(bus, buf[i]);
+    }
+    i2c_end_transfer(bus);
 }
 
 static void at24c_eeprom_realize(DeviceState *dev, Error **errp)
