@@ -2,7 +2,9 @@
 #define ACPI_AML_INTERFACE_H
 
 #include "qom/object.h"
+#include "qemu/queue.h"
 #include "hw/acpi/aml-build.h"
+#include "hw/qdev-core.h"
 
 #define TYPE_ACPI_DEV_AML_IF "acpi-dev-aml-interface"
 typedef struct AcpiDevAmlIfClass AcpiDevAmlIfClass;
@@ -43,6 +45,15 @@ static inline void call_dev_aml_func(DeviceState *dev, Aml *scope)
     dev_aml_fn fn = get_dev_aml_func(dev);
     if (fn) {
         fn(ACPI_DEV_AML_IF(dev), scope);
+    }
+}
+
+static inline void qbus_build_aml(BusState *bus, Aml *scope)
+{
+    BusChild *kid;
+
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        call_dev_aml_func(DEVICE(kid->child), scope);
     }
 }
 
