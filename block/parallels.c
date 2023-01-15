@@ -514,6 +514,8 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
         }
     }
 
+    s->data_end = res->image_end_offset >> BDRV_SECTOR_BITS;
+
 out:
     qemu_co_mutex_unlock(&s->lock);
     return ret;
