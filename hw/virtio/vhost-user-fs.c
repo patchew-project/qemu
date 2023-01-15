@@ -24,6 +24,7 @@
 #include "hw/virtio/vhost-user-fs.h"
 #include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
+#include "migration/migration.h"
 
 static const int user_feature_bits[] = {
     VIRTIO_F_VERSION_1,
@@ -298,9 +299,31 @@ static struct vhost_dev *vuf_get_vhost(VirtIODevice *vdev)
     return &fs->vhost_dev;
 }
 
+static int vhost_user_fs_pre_save(void *opaque)
+{
+    MigrationState *s = migrate_get_current();
+
+    if (!s->enabled_capabilities[MIGRATION_CAPABILITY_VHOST_USER_FS]) {
+        error_report("Migration of vhost-user-fs devices requires internal FUSE "
+                     "state of backend to be preserved. If orchestrator can "
+                     "guarantee this (e.g. dst connects to the same backend "
+                     "instance or backend state is migrated) set 'vhost-user-fs' "
+                     "migration capability to true to enable migration.");
+        return -1;
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vuf_vmstate = {
     .name = "vhost-user-fs",
-    .unmigratable = 1,
+    .minimum_version_id = 0,
+    .version_id = 0,
+    .fields = (VMStateField[]) {
+        VMSTATE_VIRTIO_DEVICE,
+        VMSTATE_END_OF_LIST()
+    },
+   .pre_save = vhost_user_fs_pre_save,
 };
 
 static Property vuf_properties[] = {

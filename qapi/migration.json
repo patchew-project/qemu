@@ -477,6 +477,11 @@
 #                    will be handled faster.  This is a performance feature and
 #                    should not affect the correctness of postcopy migration.
 #                    (since 7.1)
+# @vhost-user-fs: If enabled, the migration process will allow migration of
+#                 vhost-user-fs devices, this should be enabled only when
+#                 backend can preserve local FUSE state e.g. for qemu update
+#                 when dst reconects to the same endpoints after migration.
+#                 (since 8.0)
 #
 # Features:
 # @unstable: Members @x-colo and @x-ignore-shared are experimental.
@@ -492,7 +497,7 @@
            'dirty-bitmaps', 'postcopy-blocktime', 'late-block-activate',
            { 'name': 'x-ignore-shared', 'features': [ 'unstable' ] },
            'validate-uuid', 'background-snapshot',
-           'zero-copy-send', 'postcopy-preempt'] }
+           'zero-copy-send', 'postcopy-preempt', 'vhost-user-fs'] }
 
 ##
 # @MigrationCapabilityStatus:
