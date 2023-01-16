@@ -185,18 +185,6 @@ static void at24c_eeprom_realize(DeviceState *dev, Error **errp)
     }
 
     ee->mem = g_malloc0(ee->rsize);
-
-}
-
-static
-void at24c_eeprom_reset(DeviceState *state)
-{
-    EEPROMState *ee = AT24C_EE(state);
-
-    ee->changed = false;
-    ee->cur = 0;
-    ee->haveaddr = 0;
-
     memset(ee->mem, 0, ee->rsize);
 
     if (ee->blk) {
@@ -212,6 +200,16 @@ void at24c_eeprom_reset(DeviceState *state)
     if (ee->init_rom) {
         memcpy(ee->mem, ee->init_rom, MIN(ee->init_rom_size, ee->rsize));
     }
+}
+
+static
+void at24c_eeprom_reset(DeviceState *state)
+{
+    EEPROMState *ee = AT24C_EE(state);
+
+    ee->changed = false;
+    ee->cur = 0;
+    ee->haveaddr = 0;
 }
 
 static Property at24c_eeprom_props[] = {
