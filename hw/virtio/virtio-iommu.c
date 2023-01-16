@@ -178,6 +178,21 @@ static IOMMUMemoryRegion *virtio_iommu_mr(VirtIOIOMMU *s, uint32_t sid)
         dev = iommu_pci_bus->pbdev[devfn];
         if (dev) {
             return &dev->iommu_mr;
+        } else { /* check possible aliasing */
+            PCIBus *pbus = iommu_pci_bus->bus;
+
+            if (!pci_bus_is_express(pbus)) {
+                PCIDevice *parent = pbus->parent_dev;
+
+                if (pci_is_express(parent) &&
+                    pcie_cap_get_type(parent) == PCI_EXP_TYPE_PCI_BRIDGE) {
+                    devfn = PCI_DEVFN(0, 0);
+                    dev = iommu_pci_bus->pbdev[devfn];
+                    if (dev) {
+                        return &dev->iommu_mr;
+                    }
+                }
+            }
         }
     }
     return NULL;
