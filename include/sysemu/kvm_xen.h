@@ -16,6 +16,9 @@
 #define INVALID_GPA UINT64_MAX
 #define INVALID_GFN UINT64_MAX
 
+/* Qemu plays the rôle of dom0 for "interdomain" communication. */
+#define DOMID_QEMU  0
+
 uint32_t kvm_xen_get_caps(void);
 void *kvm_xen_get_vcpu_info_hva(uint32_t vcpu_id);
 void kvm_xen_inject_vcpu_callback_vector(uint32_t vcpu_id, int type);
