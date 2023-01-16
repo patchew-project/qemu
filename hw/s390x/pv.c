@@ -306,6 +306,19 @@ int s390_pv_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
     return 0;
 }
 
+bool s390_pv_check(Error **errp)
+{
+    MachineState *ms = MACHINE(qdev_get_machine());
+
+    if (!ms->cgs) {
+        error_setg(errp, "Protected VM is started without Confidential"
+                   " Guest support");
+        return false;
+    }
+
+    return true;
+}
+
 OBJECT_DEFINE_TYPE_WITH_INTERFACES(S390PVGuest,
                                    s390_pv_guest,
                                    S390_PV_GUEST,
