@@ -14,6 +14,7 @@
 #include "hw/arm/boot.h"
 #include "hw/arm/aspeed.h"
 #include "hw/arm/aspeed_soc.h"
+#include "hw/arm/aspeed_eeprom.h"
 #include "hw/i2c/i2c_mux_pca954x.h"
 #include "hw/i2c/smbus_eeprom.h"
 #include "hw/misc/pca9552.h"
@@ -942,7 +943,8 @@ static void fby35_i2c_init(AspeedMachineState *bmc)
     at24c_eeprom_init(i2c[6], 0x51, 128 * KiB);
     at24c_eeprom_init(i2c[8], 0x50, 32 * KiB);
     at24c_eeprom_init(i2c[11], 0x51, 128 * KiB);
-    at24c_eeprom_init(i2c[11], 0x54, 128 * KiB);
+    at24c_eeprom_init_rom(i2c[11], 0x54, 128 * KiB, fby35_bmc_fruid,
+                          fby35_bmc_fruid_size);
 
     /*
      * TODO: There is a multi-master i2c connection to an AST1030 MiniBMC on
