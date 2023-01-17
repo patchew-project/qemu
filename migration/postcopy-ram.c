@@ -1350,6 +1350,43 @@ int postcopy_notify_shared_wake(RAMBlock *rb, uint64_t offset)
     return 0;
 }
 
+/* Returns the mirror_host addr for a specific host address in ramblock */
+static inline void *migration_ram_get_mirror_addr(RAMBlock *rb, void *host)
+{
+    return (void *)((__u64)rb->host_mirror + ((__u64)host - (__u64)rb->host));
+}
+
+static int
+qemu_uffd_continue(MigrationIncomingState *mis, RAMBlock *rb, void *host,
+                   void *from)
+{
+    void *mirror_addr = migration_ram_get_mirror_addr(rb, host);
+    /* Doublemap uses small host page size */
+    uint64_t psize = qemu_real_host_page_size();
+    struct uffdio_continue req;
+
+    /*
+     * Copy data first into the mirror host pointer; we can't directly copy
+     * data into rb->host because otherwise our thread will get trapped too.
+     */
+    memcpy(mirror_addr, from, psize);
+
+    /* Kick off the faluted threads to fetch data from the page cache */
+    req.range.start = (__u64)host;
+    req.range.len = psize;
+    req.mode = 0;
+	if (ioctl(mis->userfault_fd, UFFDIO_CONTINUE, &req)) {
+        error_report("%s: UFFDIO_CONTINUE failed for start=%p"
+                     " len=0x%"PRIx64": %s\n", __func__, host,
+                     psize, strerror(-req.mapped));
+        return req.mapped;
+    }
+
+    postcopy_mark_received(mis, rb, host, psize / qemu_target_page_size());
+
+    return 0;
+}
+
 /*
  * Place a host page (from) at (host) atomically
  * returns 0 on success
@@ -1358,6 +1395,18 @@ int postcopy_place_page(MigrationIncomingState *mis, void *host, void *from,
                         RAMBlock *rb)
 {
     size_t pagesize = migration_ram_pagesize(rb);
+
+    trace_postcopy_place_page(rb->idstr, (uint8_t *)host - rb->host, host);
+
+    if (postcopy_use_minor_fault(rb)) {
+        /*
+         * If minor fault used, we use UFFDIO_CONTINUE instead.
+         *
+         * TODO: support shared uffds (e.g. vhost-user). Currently we're
+         * skipping them.
+         */
+        return qemu_uffd_continue(mis, rb, host, from);
+    }
 
     /* copy also acks to the kernel waking the stalled thread up
      * TODO: We can inhibit that ack and only do it if it was requested
@@ -1372,7 +1421,6 @@ int postcopy_place_page(MigrationIncomingState *mis, void *host, void *from,
         return -e;
     }
 
-    trace_postcopy_place_page(host);
     return postcopy_notify_shared_wake(rb,
                                        qemu_ram_block_host_offset(rb, host));
 }
@@ -1385,10 +1433,13 @@ int postcopy_place_page_zero(MigrationIncomingState *mis, void *host,
                              RAMBlock *rb)
 {
     size_t pagesize = migration_ram_pagesize(rb);
-    trace_postcopy_place_page_zero(host);
+    trace_postcopy_place_page_zero(rb->idstr, (uint8_t *)host - rb->host, host);
 
     /* Normal RAMBlocks can zero a page using UFFDIO_ZEROPAGE
      * but it's not available for everything (e.g. hugetlbpages)
+     *
+     * NOTE: when hugetlb double-map enabled, then this ramblock will never
+     * have RAM_UF_ZEROPAGE, so it'll always go to postcopy_place_page().
      */
     if (qemu_ram_is_uf_zeroable(rb)) {
         if (qemu_ufd_copy_ioctl(mis, host, NULL, pagesize, rb)) {
