@@ -1543,6 +1543,8 @@ static void *file_ram_alloc(RAMBlock *block,
     uint32_t qemu_map_flags;
     void *area;
 
+    /* Remember the offset just in case we'll need to map the range again */
+    block->file_offset = offset;
     block->page_size = qemu_fd_getpagesize(fd);
     if (block->mr->align % block->page_size) {
         error_setg(errp, "alignment 0x%" PRIx64

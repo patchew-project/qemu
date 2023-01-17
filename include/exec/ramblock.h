@@ -41,6 +41,11 @@ struct RAMBlock {
     QLIST_HEAD(, RAMBlockNotifier) ramblock_notifiers;
     int fd;
     size_t page_size;
+    /*
+     * Cache for file offset to map the ramblock.  Only used for
+     * file-backed ramblocks.
+     */
+    off_t file_offset;
     /* dirty bitmap used during migration */
     unsigned long *bmap;
     /* bitmap of already received pages in postcopy */
