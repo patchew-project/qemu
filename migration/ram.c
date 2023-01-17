@@ -3981,6 +3981,31 @@ static int ram_load_setup(QEMUFile *f, void *opaque)
     return 0;
 }
 
+#define  MADV_COLLAPSE_CHUNK_SIZE  (1UL << 30) /* 1G */
+
+static void ramblock_rebuild_huge_mappings(RAMBlock *rb)
+{
+    unsigned long addr, size;
+
+    assert(qemu_ram_is_hugetlb(rb));
+
+    addr = (unsigned long)qemu_ram_get_host_addr(rb);
+    size = rb->mmap_length;
+
+    while (size) {
+        unsigned long chunk = MIN(size, MADV_COLLAPSE_CHUNK_SIZE);
+
+        if (qemu_madvise((void *)addr, chunk, QEMU_MADV_COLLAPSE)) {
+            error_report("%s: madvise(MADV_COLLAPSE) failed "
+                         "for ramblock '%s'", __func__, rb->idstr);
+        } else {
+            trace_ramblock_rebuild_huge_mappings(rb->idstr, addr, chunk);
+        }
+        addr += chunk;
+        size -= chunk;
+    }
+}
+
 static int ram_load_cleanup(void *opaque)
 {
     RAMBlock *rb;
@@ -3996,6 +4021,12 @@ static int ram_load_cleanup(void *opaque)
         g_free(rb->receivedmap);
         rb->receivedmap = NULL;
         if (rb->host_mirror) {
+            /*
+             * If host_mirror set, it means this is an hugetlb ramblock,
+             * and we've enabled double mappings for it.  Rebuild the huge
+             * page tables here.
+             */
+            ramblock_rebuild_huge_mappings(rb);
             munmap(rb->host_mirror, rb->mmap_length);
             rb->host_mirror = NULL;
         }
