@@ -1533,7 +1533,6 @@ static int file_ram_open(const char *path,
 }
 
 static void *file_ram_alloc(RAMBlock *block,
-                            ram_addr_t memory,
                             int fd,
                             bool readonly,
                             bool truncate,
@@ -1563,14 +1562,14 @@ static void *file_ram_alloc(RAMBlock *block,
     }
 #endif
 
-    if (memory < block->page_size) {
+    if (block->max_length < block->page_size) {
         error_setg(errp, "memory size 0x" RAM_ADDR_FMT " must be equal to "
                    "or larger than page size 0x%zx",
-                   memory, block->page_size);
+                   block->max_length, block->page_size);
         return NULL;
     }
 
-    memory = ROUND_UP(memory, block->page_size);
+    block->mmap_length = ROUND_UP(block->max_length, block->page_size);
 
     /*
      * ftruncate is not supported by hugetlbfs in older
@@ -1586,7 +1585,7 @@ static void *file_ram_alloc(RAMBlock *block,
      * those labels. Therefore, extending the non-empty backend file
      * is disabled as well.
      */
-    if (truncate && ftruncate(fd, memory)) {
+    if (truncate && ftruncate(fd, block->mmap_length)) {
         perror("ftruncate");
     }
 
@@ -1594,7 +1593,8 @@ static void *file_ram_alloc(RAMBlock *block,
     qemu_map_flags |= (block->flags & RAM_SHARED) ? QEMU_MAP_SHARED : 0;
     qemu_map_flags |= (block->flags & RAM_PMEM) ? QEMU_MAP_SYNC : 0;
     qemu_map_flags |= (block->flags & RAM_NORESERVE) ? QEMU_MAP_NORESERVE : 0;
-    area = qemu_ram_mmap(fd, memory, block->mr->align, qemu_map_flags, offset);
+    area = qemu_ram_mmap(fd, block->mmap_length, block->mr->align,
+                         qemu_map_flags, offset);
     if (area == MAP_FAILED) {
         error_setg_errno(errp, errno,
                          "unable to map backing store for guest RAM");
@@ -2100,7 +2100,7 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
     new_block->used_length = size;
     new_block->max_length = size;
     new_block->flags = ram_flags;
-    new_block->host = file_ram_alloc(new_block, size, fd, readonly,
+    new_block->host = file_ram_alloc(new_block, fd, readonly,
                                      !file_size, offset, errp);
     if (!new_block->host) {
         g_free(new_block);

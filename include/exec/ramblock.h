@@ -32,6 +32,8 @@ struct RAMBlock {
     ram_addr_t offset;
     ram_addr_t used_length;
     ram_addr_t max_length;
+    /* Only used for file-backed ramblocks */
+    ram_addr_t mmap_length;
     void (*resized)(const char*, uint64_t length, void *host);
     uint32_t flags;
     /* Protected by iothread lock.  */
