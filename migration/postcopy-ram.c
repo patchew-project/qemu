@@ -1288,6 +1288,25 @@ int postcopy_ram_incoming_setup(MigrationIncomingState *mis)
     return 0;
 }
 
+static void
+postcopy_mark_received(MigrationIncomingState *mis, RAMBlock *rb,
+                       void *host_addr, size_t npages)
+{
+        qemu_mutex_lock(&mis->page_request_mutex);
+        ramblock_recv_bitmap_set_range(rb, host_addr, npages);
+        /*
+         * If this page resolves a page fault for a previous recorded faulted
+         * address, take a special note to maintain the requested page list.
+         */
+        if (g_tree_lookup(mis->page_requested, host_addr)) {
+            g_tree_remove(mis->page_requested, host_addr);
+            mis->page_requested_count--;
+            trace_postcopy_page_req_del(host_addr, mis->page_requested_count);
+        }
+        qemu_mutex_unlock(&mis->page_request_mutex);
+        mark_postcopy_blocktime_end((uintptr_t)host_addr);
+}
+
 static int qemu_ufd_copy_ioctl(MigrationIncomingState *mis, void *host_addr,
                                void *from_addr, uint64_t pagesize, RAMBlock *rb)
 {
@@ -1309,20 +1328,8 @@ static int qemu_ufd_copy_ioctl(MigrationIncomingState *mis, void *host_addr,
         ret = ioctl(userfault_fd, UFFDIO_ZEROPAGE, &zero_struct);
     }
     if (!ret) {
-        qemu_mutex_lock(&mis->page_request_mutex);
-        ramblock_recv_bitmap_set_range(rb, host_addr,
-                                       pagesize / qemu_target_page_size());
-        /*
-         * If this page resolves a page fault for a previous recorded faulted
-         * address, take a special note to maintain the requested page list.
-         */
-        if (g_tree_lookup(mis->page_requested, host_addr)) {
-            g_tree_remove(mis->page_requested, host_addr);
-            mis->page_requested_count--;
-            trace_postcopy_page_req_del(host_addr, mis->page_requested_count);
-        }
-        qemu_mutex_unlock(&mis->page_request_mutex);
-        mark_postcopy_blocktime_end((uintptr_t)host_addr);
+        postcopy_mark_received(mis, rb, host_addr,
+                               pagesize / qemu_target_page_size());
     }
     return ret;
 }
