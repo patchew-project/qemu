@@ -28,6 +28,13 @@ struct RAMBlock {
     struct rcu_head rcu;
     struct MemoryRegion *mr;
     uint8_t *host;
+    /*
+     * This is only used for hugetlbfs ramblocks where doublemap is
+     * enabled.  The pointer is managed by dest host migration code, and
+     * should be NULL when migration is finished.  On src host, it should
+     * always be NULL.
+     */
+    uint8_t *host_mirror;
     uint8_t *colo_cache; /* For colo, VM's ram cache */
     ram_addr_t offset;
     ram_addr_t used_length;

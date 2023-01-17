@@ -3874,6 +3874,57 @@ void colo_release_ram_cache(void)
     ram_state_cleanup(&ram_state);
 }
 
+static int migrate_hugetlb_doublemap_init(void)
+{
+    RAMBlock *rb;
+    void *addr;
+    int ret;
+
+    if (!migrate_hugetlb_doublemap()) {
+        return 0;
+    }
+
+    RAMBLOCK_FOREACH_NOT_IGNORED(rb) {
+        if (qemu_ram_is_hugetlb(rb)) {
+            /*
+             * Firstly, we remap the same ramblock into another range of
+             * virtual address, so that we can write to the pages without
+             * touching the page tables that directly mapped for the guest.
+             */
+            addr = ramblock_file_map(rb);
+            if (addr == MAP_FAILED) {
+                ret = -errno;
+                error_report("%s: Duplicate mapping for hugetlb ramblock '%s'"
+                             "failed: %s", __func__, qemu_ram_get_idstr(rb),
+                             strerror(errno));
+                return ret;
+            }
+            rb->host_mirror = addr;
+
+            /*
+             * We need to make sure we pre-allocate the range with
+             * hugetlbfs pages before hand, so that all the page fault will
+             * be trapped as MINOR faults always, rather than MISSING
+             * faults in userfaultfd.
+             */
+            ret = qemu_madvise(addr, rb->mmap_length, QEMU_MADV_POPULATE_WRITE);
+            if (ret) {
+                error_report("Failed to populate hugetlb ramblock '%s': "
+                             "%s", qemu_ram_get_idstr(rb), strerror(-ret));
+                return ret;
+            }
+        }
+    }
+
+    /*
+     * When reach here, it means we've setup the mirror mapping for all the
+     * hugetlbfs pages.  Hence when page fault happens, we'll be able to
+     * resolve page faults using UFFDIO_CONTINUE for hugetlbfs pages, but
+     * we'll keep using UFFDIO_COPY for anonymous pages.
+     */
+    return 0;
+}
+
 /**
  * ram_load_setup: Setup RAM for migration incoming side
  *
@@ -3885,6 +3936,10 @@ void colo_release_ram_cache(void)
 static int ram_load_setup(QEMUFile *f, void *opaque)
 {
     if (compress_threads_load_setup(f)) {
+        return -1;
+    }
+
+    if (migrate_hugetlb_doublemap_init()) {
         return -1;
     }
 
@@ -3908,6 +3963,10 @@ static int ram_load_cleanup(void *opaque)
     RAMBLOCK_FOREACH_NOT_IGNORED(rb) {
         g_free(rb->receivedmap);
         rb->receivedmap = NULL;
+        if (rb->host_mirror) {
+            munmap(rb->host_mirror, rb->mmap_length);
+            rb->host_mirror = NULL;
+        }
     }
 
     return 0;
