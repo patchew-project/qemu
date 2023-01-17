@@ -477,6 +477,11 @@
 #                    will be handled faster.  This is a performance feature and
 #                    should not affect the correctness of postcopy migration.
 #                    (since 7.1)
+# @hugetlb-doublemap: If enabled, the migration process will allow postcopy
+#                     to handle page faults based on small pages even if
+#                     hugetlb is used.  This will drastically reduce page
+#                     fault latencies when hugetlb is used as the guest RAM
+#                     backends. (since 7.3)
 #
 # Features:
 # @unstable: Members @x-colo and @x-ignore-shared are experimental.
@@ -492,7 +497,7 @@
            'dirty-bitmaps', 'postcopy-blocktime', 'late-block-activate',
            { 'name': 'x-ignore-shared', 'features': [ 'unstable' ] },
            'validate-uuid', 'background-snapshot',
-           'zero-copy-send', 'postcopy-preempt'] }
+           'zero-copy-send', 'postcopy-preempt', 'hugetlb-doublemap'] }
 
 ##
 # @MigrationCapabilityStatus:
