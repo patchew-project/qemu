@@ -1582,14 +1582,19 @@ PostcopyState postcopy_state_set(PostcopyState new_state)
 }
 
 /* Register a handler for external shared memory postcopy
- * called on the destination.
+ * called on the destination.  Returns 0 if success, <0 for err.
  */
-void postcopy_register_shared_ufd(struct PostCopyFD *pcfd)
+int postcopy_register_shared_ufd(struct PostCopyFD *pcfd)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
 
+    if (migrate_hugetlb_doublemap()) {
+        return -EINVAL;
+    }
+
     mis->postcopy_remote_fds = g_array_append_val(mis->postcopy_remote_fds,
                                                   *pcfd);
+    return 0;
 }
 
 /* Unregister a handler for external shared memory postcopy

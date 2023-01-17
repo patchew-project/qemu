@@ -1946,7 +1946,14 @@ static int vhost_user_postcopy_advise(struct vhost_dev *dev, Error **errp)
     u->postcopy_fd.handler = vhost_user_postcopy_fault_handler;
     u->postcopy_fd.waker = vhost_user_postcopy_waker;
     u->postcopy_fd.idstr = "vhost-user"; /* Need to find unique name */
-    postcopy_register_shared_ufd(&u->postcopy_fd);
+
+    ret = postcopy_register_shared_ufd(&u->postcopy_fd);
+    if (ret) {
+        error_setg(errp, "%s: Register of shared userfaultfd failed: %s",
+                   __func__, strerror(ret));
+        return ret;
+    }
+
     return 0;
 #else
     error_setg(errp, "Postcopy not supported on non-Linux systems");

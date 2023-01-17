@@ -161,9 +161,9 @@ struct PostCopyFD {
 };
 
 /* Register a userfaultfd owned by an external process for
- * shared memory.
+ * shared memory.  Returns 0 if succeeded, <0 if error.
  */
-void postcopy_register_shared_ufd(struct PostCopyFD *pcfd);
+int postcopy_register_shared_ufd(struct PostCopyFD *pcfd);
 void postcopy_unregister_shared_ufd(struct PostCopyFD *pcfd);
 /* Call each of the shared 'waker's registered telling them of
  * availability of a block.
