@@ -325,12 +325,25 @@ static bool ufd_check_and_apply(int ufd, MigrationIncomingState *mis)
 
     if (qemu_real_host_page_size() != ram_pagesize_summary()) {
         bool have_hp = false;
-        /* We've got a huge page */
-#ifdef UFFD_FEATURE_MISSING_HUGETLBFS
-        have_hp = supported_features & UFFD_FEATURE_MISSING_HUGETLBFS;
+
+        /*
+         * If we're using doublemap, we need MINOR fault, otherwise we need
+         * MISSING fault (which is the default).
+         */
+        if (migrate_hugetlb_doublemap()) {
+#ifdef UFFD_FEATURE_MINOR_HUGETLBFS
+            have_hp = supported_features & UFFD_FEATURE_MINOR_HUGETLBFS;
 #endif
+        } else {
+#ifdef UFFD_FEATURE_MISSING_HUGETLBFS
+            have_hp = supported_features & UFFD_FEATURE_MISSING_HUGETLBFS;
+#endif
+        }
+
         if (!have_hp) {
-            error_report("Userfault on this host does not support huge pages");
+            error_report("Userfault on this host does not support huge pages "
+                         "with %s fault traps", migrate_hugetlb_doublemap() ?
+                         "MINOR" : "MISSING");
             return false;
         }
     }
@@ -669,22 +682,43 @@ static int ram_block_enable_notify(RAMBlock *rb, void *opaque)
 {
     MigrationIncomingState *mis = opaque;
     struct uffdio_register reg_struct;
+    bool minor_fault = postcopy_use_minor_fault(rb);
 
     reg_struct.range.start = (uintptr_t)qemu_ram_get_host_addr(rb);
     reg_struct.range.len = rb->postcopy_length;
+
+    /*
+     * For hugetlbfs with double-map enabled, we trap pages using minor
+     * mode, otherwise we use missing mode.  Note: we also register missing
+     * mode for doublemap, but we should never hit it.
+     */
     reg_struct.mode = UFFDIO_REGISTER_MODE_MISSING;
+    if (minor_fault) {
+        reg_struct.mode |= UFFDIO_REGISTER_MODE_MINOR;
+    }
 
     /* Now tell our userfault_fd that it's responsible for this area */
     if (ioctl(mis->userfault_fd, UFFDIO_REGISTER, &reg_struct)) {
         error_report("%s userfault register: %s", __func__, strerror(errno));
         return -1;
     }
-    if (!(reg_struct.ioctls & ((__u64)1 << _UFFDIO_COPY))) {
-        error_report("%s userfault: Region doesn't support COPY", __func__);
-        return -1;
-    }
-    if (reg_struct.ioctls & ((__u64)1 << _UFFDIO_ZEROPAGE)) {
-        qemu_ram_set_uf_zeroable(rb);
+
+    if (minor_fault) {
+        /* Using minor faults for this ramblock */
+        if (!(reg_struct.ioctls & ((__u64)1 << _UFFDIO_CONTINUE))) {
+            error_report("%s userfault: Region doesn't support CONTINUE",
+                         __func__);
+            return -1;
+        }
+    } else {
+        /* Using missing faults for this ramblock */
+        if (!(reg_struct.ioctls & ((__u64)1 << _UFFDIO_COPY))) {
+            error_report("%s userfault: Region doesn't support COPY", __func__);
+            return -1;
+        }
+        if (reg_struct.ioctls & ((__u64)1 << _UFFDIO_ZEROPAGE)) {
+            qemu_ram_set_uf_zeroable(rb);
+        }
     }
 
     return 0;
@@ -916,6 +950,7 @@ static void *postcopy_ram_fault_thread(void *opaque)
 {
     MigrationIncomingState *mis = opaque;
     struct uffd_msg msg;
+    uint64_t address;
     int ret;
     size_t index;
     RAMBlock *rb = NULL;
@@ -945,6 +980,7 @@ static void *postcopy_ram_fault_thread(void *opaque)
     }
 
     while (true) {
+        bool use_minor_fault, minor_flag;
         ram_addr_t rb_offset;
         int poll_result;
 
@@ -1022,22 +1058,37 @@ static void *postcopy_ram_fault_thread(void *opaque)
                 break;
             }
 
-            rb_offset = ROUND_DOWN(rb_offset, migration_ram_pagesize(rb));
-            trace_postcopy_ram_fault_thread_request(msg.arg.pagefault.address,
-                                                qemu_ram_get_idstr(rb),
-                                                rb_offset,
-                                                msg.arg.pagefault.feat.ptid);
-            mark_postcopy_blocktime_begin(
-                    (uintptr_t)(msg.arg.pagefault.address),
-                                msg.arg.pagefault.feat.ptid, rb);
+            address = ROUND_DOWN(msg.arg.pagefault.address,
+                                 migration_ram_pagesize(rb));
+            use_minor_fault = postcopy_use_minor_fault(rb);
+            minor_flag = !!(msg.arg.pagefault.flags &
+                            UFFD_PAGEFAULT_FLAG_MINOR);
 
+            /*
+             * Do sanity check on the message flags to make sure this is
+             * the one we expect to receive.  When using minor fault on
+             * this ramblock, it should _always_ be set; when not using
+             * minor fault, it should _never_ be set.
+             */
+            if (use_minor_fault ^ minor_flag) {
+                error_report("%s: Unexpected page fault flags (0x%"PRIx64") "
+                             "for address 0x%"PRIx64" (mode=%s)", __func__,
+                             (uint64_t)msg.arg.pagefault.flags,
+                             (uint64_t)msg.arg.pagefault.address,
+                             use_minor_fault ? "MINOR" : "MISSING");
+            }
+
+            trace_postcopy_ram_fault_thread_request(
+                address, qemu_ram_get_idstr(rb), rb_offset,
+                msg.arg.pagefault.feat.ptid);
+            mark_postcopy_blocktime_begin(
+                    (uintptr_t)(address), msg.arg.pagefault.feat.ptid, rb);
 retry:
             /*
              * Send the request to the source - we want to request one
              * of our host page sizes (which is >= TPS)
              */
-            ret = postcopy_request_page(mis, rb, rb_offset,
-                                        msg.arg.pagefault.address);
+            ret = postcopy_request_page(mis, rb, rb_offset, address);
             if (ret) {
                 /* May be network failure, try to wait for recovery */
                 postcopy_pause_fault_thread(mis);
@@ -1693,4 +1744,14 @@ void *postcopy_preempt_thread(void *opaque)
     trace_postcopy_preempt_thread_exit();
 
     return NULL;
+}
+
+/*
+ * Whether we should use MINOR fault to trap page faults?  It will be used
+ * when doublemap is enabled on hugetlbfs.  The default value will be
+ * false, which means we'll keep using the legacy MISSING faults.
+ */
+bool postcopy_use_minor_fault(RAMBlock *rb)
+{
+    return migrate_hugetlb_doublemap() && qemu_ram_is_hugetlb(rb);
 }
