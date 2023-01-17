@@ -502,7 +502,9 @@ void qemu_plugin_user_exit(void)
 
     QEMU_LOCK_GUARD(&plugin.lock);
 
-    start_exclusive();
+    if (QTAILQ_EMPTY(&plugin.ctxs)) {
+        return;
+    }
 
     /* un-register all callbacks except the final AT_EXIT one */
     for (ev = 0; ev < QEMU_PLUGIN_EV_MAX; ev++) {
@@ -519,8 +521,6 @@ void qemu_plugin_user_exit(void)
     CPU_FOREACH(cpu) {
         qemu_plugin_disable_mem_helpers(cpu);
     }
-
-    end_exclusive();
 
     /* now it's safe to handle the exit case */
     qemu_plugin_atexit_cb();
