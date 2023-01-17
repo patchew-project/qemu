@@ -1532,17 +1532,31 @@ static int file_ram_open(const char *path,
     return fd;
 }
 
+/* Do the mmap() for a ramblock based on information already setup */
+void *ramblock_file_map(RAMBlock *block)
+{
+    uint32_t qemu_map_flags;
+
+    qemu_map_flags = (block->flags & RAM_READONLY) ? QEMU_MAP_READONLY : 0;
+    qemu_map_flags |= (block->flags & RAM_SHARED) ? QEMU_MAP_SHARED : 0;
+    qemu_map_flags |= (block->flags & RAM_PMEM) ? QEMU_MAP_SYNC : 0;
+    qemu_map_flags |= (block->flags & RAM_NORESERVE) ? QEMU_MAP_NORESERVE : 0;
+
+    return qemu_ram_mmap(block->fd, block->mmap_length, block->mr->align,
+                         qemu_map_flags, block->file_offset);
+}
+
 static void *file_ram_alloc(RAMBlock *block,
                             int fd,
                             bool truncate,
                             off_t offset,
                             Error **errp)
 {
-    uint32_t qemu_map_flags;
     void *area;
 
     /* Remember the offset just in case we'll need to map the range again */
     block->file_offset = offset;
+    block->fd = fd;
     block->page_size = qemu_fd_getpagesize(fd);
     if (block->mr->align % block->page_size) {
         error_setg(errp, "alignment 0x%" PRIx64
@@ -1588,19 +1602,14 @@ static void *file_ram_alloc(RAMBlock *block,
         perror("ftruncate");
     }
 
-    qemu_map_flags = (block->flags & RAM_READONLY) ? QEMU_MAP_READONLY : 0;
-    qemu_map_flags |= (block->flags & RAM_SHARED) ? QEMU_MAP_SHARED : 0;
-    qemu_map_flags |= (block->flags & RAM_PMEM) ? QEMU_MAP_SYNC : 0;
-    qemu_map_flags |= (block->flags & RAM_NORESERVE) ? QEMU_MAP_NORESERVE : 0;
-    area = qemu_ram_mmap(fd, block->mmap_length, block->mr->align,
-                         qemu_map_flags, offset);
+    area = ramblock_file_map(block);
+
     if (area == MAP_FAILED) {
         error_setg_errno(errp, errno,
                          "unable to map backing store for guest RAM");
         return NULL;
     }
 
-    block->fd = fd;
     return area;
 }
 #endif

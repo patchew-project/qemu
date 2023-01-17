@@ -98,6 +98,7 @@ bool ramblock_is_pmem(RAMBlock *rb);
 
 long qemu_minrampagesize(void);
 long qemu_maxrampagesize(void);
+void *ramblock_file_map(RAMBlock *block);
 
 /**
  * qemu_ram_alloc_from_file,
