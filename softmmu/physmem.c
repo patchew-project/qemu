@@ -3573,6 +3573,37 @@ int qemu_ram_foreach_block(RAMBlockIterFunc func, void *opaque)
 }
 
 /*
+ * Zap page tables for specified range.  Only applicable for file-backed
+ * memory.  We're relying on Linux's MADV_DONTNEED behavior here for
+ * zapping the pgtables, it may or may not work on other OSes.  Before we
+ * know that, fail them.
+ */
+int ram_block_zap_range(RAMBlock *rb, uint64_t start, size_t length)
+{
+#ifdef CONFIG_LINUX
+    uint8_t *host_addr = rb->host + start;
+    int ret;
+
+    if (rb->fd == -1) {
+        /* The zap magic only works with file-backed */
+        return -EINVAL;
+    }
+
+    ret = madvise(host_addr, length, MADV_DONTNEED);
+    if (ret) {
+        ret = -errno;
+        error_report("%s: Failed to zap ramblock start=0x%"PRIx64
+                     " addr=0x%"PRIx64" length=0x%zx", __func__,
+                     start, (uint64_t)host_addr, length);
+    }
+
+    return ret;
+#else
+    return -EINVAL;
+#endif
+}
+
+/*
  * Unmap pages of memory from start to start+length such that
  * they a) read as 0, b) Trigger whatever fault mechanism
  * the OS provides for postcopy.

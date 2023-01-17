@@ -2765,6 +2765,12 @@ static void postcopy_each_ram_send_discard(MigrationState *ms)
          * host-page size chunks, mark any partially dirty host-page size
          * chunks as all dirty.  In this case the host-page is the host-page
          * for the particular RAMBlock, i.e. it might be a huge page.
+         *
+         * Note: we need to do huge page truncation when double-map is
+         * enabled too, _only_ because we use MADV_DONTNEED to drop
+         * pgtables on dest QEMU, and it (at least so far...) does not
+         * support dropping partial of the hugetlb pgtables.  If it can one
+         * day, we can skip this "chunk" operation as further optimization.
          */
         postcopy_chunk_hostpages_pass(ms, block);
 
@@ -2908,7 +2914,15 @@ int ram_discard_range(const char *rbname, uint64_t start, size_t length)
                      length >> qemu_target_page_bits());
     }
 
-    return ram_block_discard_range(rb, start, length);
+    if (postcopy_use_minor_fault(rb)) {
+        /*
+         * We need to keep the page cache exist, so as to trigger MINOR
+         * faults for every future page accesses on old pages.
+         */
+        return ram_block_zap_range(rb, start, length);
+    } else {
+        return ram_block_discard_range(rb, start, length);
+    }
 }
 
 /*
