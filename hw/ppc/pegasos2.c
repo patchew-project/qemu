@@ -96,6 +96,14 @@ static void pegasos2_cpu_reset(void *opaque)
     }
 }
 
+static I2CBus *via_i2c_bus(PCIDevice *via)
+{
+    PCIDevice *dev;
+
+    dev = PCI_DEVICE(object_resolve_path_component(OBJECT(via), "pm"));
+    return I2C_BUS(qdev_get_child_bus(DEVICE(dev), "i2c"));
+}
+
 static void pegasos2_init(MachineState *machine)
 {
     Pegasos2MachineState *pm = PEGASOS2_MACHINE(machine);
@@ -103,7 +111,6 @@ static void pegasos2_init(MachineState *machine)
     MemoryRegion *rom = g_new(MemoryRegion, 1);
     PCIBus *pci_bus;
     PCIDevice *dev, *via;
-    I2CBus *i2c_bus;
     const char *fwname = machine->firmware ?: PROM_FILENAME;
     char *filename;
     int sz;
@@ -171,10 +178,8 @@ static void pegasos2_init(MachineState *machine)
     dev = PCI_DEVICE(object_resolve_path_component(OBJECT(via), "ide"));
     pci_ide_create_devs(dev);
 
-    dev = PCI_DEVICE(object_resolve_path_component(OBJECT(via), "pm"));
-    i2c_bus = I2C_BUS(qdev_get_child_bus(DEVICE(dev), "i2c"));
     spd_data = spd_data_generate(DDR, machine->ram_size);
-    smbus_eeprom_init_one(i2c_bus, 0x57, spd_data);
+    smbus_eeprom_init_one(via_i2c_bus(via), 0x57, spd_data);
 
     /* other PC hardware */
     pci_vga_init(pci_bus);
