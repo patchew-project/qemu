@@ -24,6 +24,18 @@
 typedef struct QTestState QTestState;
 
 /**
+ * qtest_init_bare:
+ * @extra_args: other arguments to pass to QEMU.  CAUTION: these
+ * arguments are subject to word splitting and shell evaluation.
+ *
+ * Return a QTestState instance without automatically creating any
+ * sockets for QMP and qtest communication.
+ *
+ * Returns: #QTestState instance.
+ */
+QTestState *qtest_init_bare(const char *args);
+
+/**
  * qtest_initf:
  * @fmt: Format for creating other arguments to pass to QEMU, formatted
  * like sprintf().

@@ -402,6 +402,26 @@ static QTestState *G_GNUC_PRINTF(1, 0) qtest_spawn_qemu(const char *fmt, ...)
     return s;
 }
 
+QTestState *G_GNUC_PRINTF(1, 0) qtest_init_bare(const char *args)
+{
+    QTestState *s = qtest_spawn_qemu("%s", args);
+
+    /*
+     * Stopping QEMU for debugging is not supported on Windows.
+     *
+     * Using DebugActiveProcess() API can suspend the QEMU process,
+     * but gdb cannot attach to the process. Using the undocumented
+     * NtSuspendProcess() can suspend the QEMU process and gdb can
+     * attach to the process, but gdb cannot resume it.
+     */
+#ifndef _WIN32
+    if (getenv("QTEST_STOP")) {
+        kill(s->qemu_pid, SIGSTOP);
+    }
+#endif
+    return s;
+}
+
 QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
 {
     QTestState *s;
@@ -459,12 +479,8 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
     }
 
     /*
-     * Stopping QEMU for debugging is not supported on Windows.
-     *
-     * Using DebugActiveProcess() API can suspend the QEMU process,
-     * but gdb cannot attach to the process. Using the undocumented
-     * NtSuspendProcess() can suspend the QEMU process and gdb can
-     * attach to the process, but gdb cannot resume it.
+     * Stopping QEMU for debugging is not supported on Windows;
+     * see qtest_init_bare for more information.
      */
 #ifndef _WIN32
     if (getenv("QTEST_STOP")) {

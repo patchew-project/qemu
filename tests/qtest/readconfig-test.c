@@ -19,13 +19,11 @@
 #include "qapi/qmp/qstring.h"
 #include "qemu/units.h"
 
-static QTestState *qtest_init_with_config(const char *cfgdata)
+static char *qtest_write_config(const char *cfgdata)
 {
     GError *error = NULL;
-    g_autofree char *args = NULL;
     int cfgfd = -1;
-    g_autofree char *cfgpath = NULL;
-    QTestState *qts;
+    char *cfgpath;
     ssize_t ret;
 
     cfgfd = g_file_open_tmp("readconfig-test-XXXXXX", &cfgpath, &error);
@@ -38,13 +36,14 @@ static QTestState *qtest_init_with_config(const char *cfgdata)
         unlink(cfgpath);
     }
     g_assert_cmpint(ret, ==, strlen(cfgdata));
+    return cfgpath;
+}
 
-    args = g_strdup_printf("-nodefaults -machine none -readconfig %s", cfgpath);
-
-    qts = qtest_init(args);
-
+static QTestState *qtest_init_with_config(const char *cfgdata)
+{
+    g_autofree char *cfgpath = qtest_write_config(cfgdata);
+    QTestState *qts = qtest_initf("-nodefaults -machine none -readconfig %s", cfgpath);
     unlink(cfgpath);
-
     return qts;
 }
 
@@ -176,6 +175,32 @@ static void test_object_rng(void)
     qtest_quit(qts);
 }
 
+static void test_invalid_accel(void)
+{
+    const char *cfgdata =
+        "[accel]\n"
+        "foo = \"bar\"\n";
+
+    g_autofree char *cfgpath = qtest_write_config(cfgdata);
+    g_autofree char *args = g_strdup_printf("-nodefaults -machine none -readconfig %s", cfgpath);
+    QTestState *qts = qtest_init_bare(args);
+
+    qtest_set_expected_status(qts, 1);
+    qtest_wait_qemu(qts);
+    g_free(qts);
+    unlink(cfgpath);
+}
+
+static void test_valid_accel(void)
+{
+    const char *cfgdata =
+        "[accel]\n"
+        "accel = \"qtest\"\n";
+
+    QTestState *qts = qtest_init_with_config(cfgdata);
+    qtest_quit(qts);
+}
+
 int main(int argc, char *argv[])
 {
     const char *arch;
@@ -192,6 +217,8 @@ int main(int argc, char *argv[])
 #endif
 
     qtest_add_func("readconfig/object-rng", test_object_rng);
+    qtest_add_func("readconfig/invalid-accel", test_invalid_accel);
+    qtest_add_func("readconfig/valid-accel", test_valid_accel);
 
     return g_test_run();
 }
