@@ -156,6 +156,7 @@ bool qtest_probe_child(QTestState *s)
         CloseHandle((HANDLE)pid);
 #endif
         s->qemu_pid = -1;
+        qtest_remove_abrt_handler(s);
     }
     return false;
 }
@@ -167,6 +168,8 @@ void qtest_set_expected_status(QTestState *s, int status)
 
 static void qtest_check_status(QTestState *s)
 {
+    assert (s->qemu_pid == -1);
+
     /*
      * Check whether qemu exited with expected exit status; anything else is
      * fishy and should be logged with as much detail as possible.
@@ -200,20 +203,24 @@ static void qtest_check_status(QTestState *s)
 
 void qtest_wait_qemu(QTestState *s)
 {
+    if (s->qemu_pid != -1) {
 #ifndef _WIN32
-    pid_t pid;
+        pid_t pid;
 
-    pid = RETRY_ON_EINTR(waitpid(s->qemu_pid, &s->wstatus, 0));
-    assert(pid == s->qemu_pid);
+        pid = RETRY_ON_EINTR(waitpid(s->qemu_pid, &s->wstatus, 0));
+        g_assert_cmpint(pid, ==, s->qemu_pid);
 #else
-    DWORD ret;
+        DWORD ret;
 
-    ret = WaitForSingleObject((HANDLE)s->qemu_pid, INFINITE);
-    assert(ret == WAIT_OBJECT_0);
-    GetExitCodeProcess((HANDLE)s->qemu_pid, &s->exit_code);
-    CloseHandle((HANDLE)s->qemu_pid);
+        ret = WaitForSingleObject((HANDLE)s->qemu_pid, INFINITE);
+        assert(ret == WAIT_OBJECT_0);
+        GetExitCodeProcess((HANDLE)s->qemu_pid, &s->exit_code);
+        CloseHandle((HANDLE)s->qemu_pid);
 #endif
 
+        s->qemu_pid = -1;
+        qtest_remove_abrt_handler(s);
+    }
     qtest_check_status(s);
 }
 
@@ -227,7 +234,6 @@ void qtest_kill_qemu(QTestState *s)
         TerminateProcess((HANDLE)s->qemu_pid, s->expected_status);
 #endif
         qtest_wait_qemu(s);
-        s->qemu_pid = -1;
         return;
     }
 
@@ -289,6 +295,11 @@ void qtest_add_abrt_handler(GHookFunc fn, const void *data)
 void qtest_remove_abrt_handler(void *data)
 {
     GHook *hook = g_hook_find_data(&abrt_hooks, TRUE, data);
+
+    if (!hook) {
+        return;
+    }
+
     g_hook_destroy_link(&abrt_hooks, hook);
 
     /* Uninstall SIGABRT handler on last instance */
