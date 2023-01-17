@@ -135,6 +135,18 @@ size_t migration_ram_pagesize(RAMBlock *block)
     return qemu_ram_pagesize(block);
 }
 
+size_t migration_ram_pagesize_largest(void)
+{
+    RAMBlock *block;
+    size_t largest = 0;
+
+    RAMBLOCK_FOREACH_NOT_IGNORED(block) {
+        largest = MAX(largest, migration_ram_pagesize(block));
+    }
+
+    return largest;
+}
+
 static void XBZRLE_cache_lock(void)
 {
     if (migrate_use_xbzrle()) {

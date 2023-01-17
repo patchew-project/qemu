@@ -69,6 +69,7 @@ bool ramblock_is_ignored(RAMBlock *block);
 
 int xbzrle_cache_resize(uint64_t new_size, Error **errp);
 size_t migration_ram_pagesize(RAMBlock *block);
+size_t migration_ram_pagesize_largest(void);
 uint64_t ram_bytes_remaining(void);
 uint64_t ram_bytes_total(void);
 void mig_throttle_counter_reset(void);
