@@ -96,6 +96,25 @@ static void pegasos2_cpu_reset(void *opaque)
     }
 }
 
+static PCIDevice *via_vt8231_create(MachineState *machine, PCIBus *pci_bus)
+{
+    Pegasos2MachineState *pm = PEGASOS2_MACHINE(machine);
+    PCIDevice *dev, *via;
+
+    via = pci_create_simple_multifunction(pci_bus, PCI_DEVFN(12, 0),
+                                          true, TYPE_VT8231_ISA);
+    object_property_add_alias(OBJECT(machine), "rtc-time",
+                              object_resolve_path_component(OBJECT(via), "rtc"),
+                              "date");
+    qdev_connect_gpio_out(DEVICE(via), 0,
+                          qdev_get_gpio_in_named(pm->mv, "gpp", 31));
+
+    dev = PCI_DEVICE(object_resolve_path_component(OBJECT(via), "ide"));
+    pci_ide_create_devs(dev);
+
+    return via;
+}
+
 static I2CBus *via_i2c_bus(PCIDevice *via)
 {
     PCIDevice *dev;
@@ -110,7 +129,7 @@ static void pegasos2_init(MachineState *machine)
     CPUPPCState *env;
     MemoryRegion *rom = g_new(MemoryRegion, 1);
     PCIBus *pci_bus;
-    PCIDevice *dev, *via;
+    PCIDevice *via;
     const char *fwname = machine->firmware ?: PROM_FILENAME;
     char *filename;
     int sz;
@@ -166,17 +185,7 @@ static void pegasos2_init(MachineState *machine)
     pci_bus = mv64361_get_pci_bus(pm->mv, 1);
 
     /* VIA VT8231 South Bridge (multifunction PCI device) */
-    via = pci_create_simple_multifunction(pci_bus, PCI_DEVFN(12, 0), true,
-                                          TYPE_VT8231_ISA);
-    object_property_add_alias(OBJECT(machine), "rtc-time",
-                              object_resolve_path_component(OBJECT(via),
-                                                            "rtc"),
-                              "date");
-    qdev_connect_gpio_out(DEVICE(via), 0,
-                          qdev_get_gpio_in_named(pm->mv, "gpp", 31));
-
-    dev = PCI_DEVICE(object_resolve_path_component(OBJECT(via), "ide"));
-    pci_ide_create_devs(dev);
+    via = via_vt8231_create(machine, pci_bus);
 
     spd_data = spd_data_generate(DDR, machine->ram_size);
     smbus_eeprom_init_one(via_i2c_bus(via), 0x57, spd_data);
