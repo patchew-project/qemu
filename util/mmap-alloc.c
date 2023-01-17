@@ -9,6 +9,7 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or
  * later.  See the COPYING file in the top-level directory.
  */
+#include "qemu/osdep.h"
 
 #ifdef CONFIG_LINUX
 #include <linux/mman.h>
@@ -17,7 +18,6 @@
 #define MAP_SHARED_VALIDATE   0x0
 #endif /* CONFIG_LINUX */
 
-#include "qemu/osdep.h"
 #include "qemu/mmap-alloc.h"
 #include "qemu/host-utils.h"
 #include "qemu/cutils.h"
