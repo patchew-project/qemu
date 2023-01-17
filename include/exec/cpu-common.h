@@ -95,6 +95,7 @@ void qemu_ram_unset_migratable(RAMBlock *rb);
 int qemu_ram_get_fd(RAMBlock *rb);
 
 size_t qemu_ram_pagesize(RAMBlock *block);
+bool qemu_ram_is_hugetlb(RAMBlock *rb);
 size_t qemu_ram_pagesize_largest(void);
 
 /**

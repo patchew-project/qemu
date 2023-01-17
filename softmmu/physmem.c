@@ -1798,6 +1798,11 @@ size_t qemu_ram_pagesize(RAMBlock *rb)
     return rb->page_size;
 }
 
+bool qemu_ram_is_hugetlb(RAMBlock *rb)
+{
+    return rb->page_size > qemu_real_host_page_size();
+}
+
 /* Returns the largest size of page in use */
 size_t qemu_ram_pagesize_largest(void)
 {
