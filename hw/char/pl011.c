@@ -87,6 +87,13 @@ static inline unsigned pl011_get_fifo_depth(PL011State *s)
     return s->lcr & 0x10 ? PL011_FIFO_DEPTH : 1;
 }
 
+static inline void pl011_reset_pipe(PL011State *s)
+{
+    s->read_count = 0;
+    s->read_pos = 0;
+    s->flags = PL011_FLAG_RXFE | PL011_FLAG_TXFE;
+}
+
 static uint64_t pl011_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
@@ -234,8 +241,7 @@ static void pl011_write(void *opaque, hwaddr offset,
     case 11: /* UARTLCR_H */
         /* Reset the FIFO state on FIFO enable or disable */
         if ((s->lcr ^ value) & 0x10) {
-            s->read_count = 0;
-            s->read_pos = 0;
+            pl011_reset_pipe(s);
         }
         if ((s->lcr ^ value) & 0x1) {
             int break_enable = value & 0x1;
@@ -421,12 +427,10 @@ static void pl011_reset(DeviceState *dev)
     s->ilpr = 0;
     s->ibrd = 0;
     s->fbrd = 0;
-    s->read_pos = 0;
-    s->read_count = 0;
     s->read_trigger = 1;
     s->ifl = 0x12;
     s->cr = 0x300;
-    s->flags = 0x90;
+    pl011_reset_pipe(s);
 
     for (i = 0; i < ARRAY_SIZE(s->irq); i++) {
         qemu_irq_lower(s->irq[i]);
