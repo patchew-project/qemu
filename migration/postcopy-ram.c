@@ -694,6 +694,22 @@ static int ram_block_enable_notify(RAMBlock *rb, void *opaque)
      */
     reg_struct.mode = UFFDIO_REGISTER_MODE_MISSING;
     if (minor_fault) {
+        /*
+         * MADV_SPLIT implicitly enables doublemap mode for hugetlb.  If
+         * that fails (e.g. on old kernels) we need to fail the migration.
+         *
+         * It's a bit late to fail here as we could have migrated lots of
+         * pages in precopy, but early failure will require us to allocate
+         * hugetlb pages secretly in QEMU which is not friendly to admins
+         * and it may affect the global hugetlb pool.  Considering it is
+         * normally always limited, keep the failure late but tolerable.
+         */
+        if (qemu_madvise(qemu_ram_get_host_addr(rb), rb->postcopy_length,
+                         QEMU_MADV_SPLIT)) {
+            error_report("%s: madvise(MADV_SPLIT) failed (ret=%d) but "
+                         "required for doublemap.", __func__, -errno);
+            return -1;
+        }
         reg_struct.mode |= UFFDIO_REGISTER_MODE_MINOR;
     }
 
