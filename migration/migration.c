@@ -408,7 +408,7 @@ int migrate_send_rp_message_req_pages(MigrationIncomingState *mis,
 {
     uint8_t bufc[12 + 1 + 255]; /* start (8), len (4), rbname up to 256 */
     size_t msglen = 12; /* start + len */
-    size_t len = qemu_ram_pagesize(rb);
+    size_t len = migration_ram_pagesize(rb);
     enum mig_rp_message_type msg_type;
     const char *rbname;
     int rbname_len;
@@ -443,8 +443,10 @@ int migrate_send_rp_message_req_pages(MigrationIncomingState *mis,
 int migrate_send_rp_req_pages(MigrationIncomingState *mis,
                               RAMBlock *rb, ram_addr_t start, uint64_t haddr)
 {
-    void *aligned = (void *)(uintptr_t)ROUND_DOWN(haddr, qemu_ram_pagesize(rb));
     bool received = false;
+    void *aligned;
+
+    aligned = (void *)(uintptr_t)ROUND_DOWN(haddr, migration_ram_pagesize(rb));
 
     WITH_QEMU_LOCK_GUARD(&mis->page_request_mutex) {
         received = ramblock_recv_bitmap_test_byte_offset(rb, start);

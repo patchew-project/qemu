@@ -68,6 +68,7 @@ bool ramblock_is_ignored(RAMBlock *block);
         if (!qemu_ram_is_migratable(block)) {} else
 
 int xbzrle_cache_resize(uint64_t new_size, Error **errp);
+size_t migration_ram_pagesize(RAMBlock *block);
 uint64_t ram_bytes_remaining(void);
 uint64_t ram_bytes_total(void);
 void mig_throttle_counter_reset(void);

@@ -121,6 +121,20 @@ static struct {
     uint8_t *decoded_buf;
 } XBZRLE;
 
+/* Get the page size we should use for migration purpose. */
+size_t migration_ram_pagesize(RAMBlock *block)
+{
+    /*
+     * When hugetlb doublemap is enabled, we should always use the smallest
+     * page for migration.
+     */
+    if (migrate_hugetlb_doublemap()) {
+        return qemu_real_host_page_size();
+    }
+
+    return qemu_ram_pagesize(block);
+}
+
 static void XBZRLE_cache_lock(void)
 {
     if (migrate_use_xbzrle()) {
@@ -1049,7 +1063,7 @@ bool ramblock_page_is_discarded(RAMBlock *rb, ram_addr_t start)
         MemoryRegionSection section = {
             .mr = rb->mr,
             .offset_within_region = start,
-            .size = int128_make64(qemu_ram_pagesize(rb)),
+            .size = int128_make64(migration_ram_pagesize(rb)),
         };
 
         return !ram_discard_manager_is_populated(rdm, &section);
@@ -2152,7 +2166,7 @@ int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len)
      */
     if (postcopy_preempt_active()) {
         ram_addr_t page_start = start >> TARGET_PAGE_BITS;
-        size_t page_size = qemu_ram_pagesize(ramblock);
+        size_t page_size = migration_ram_pagesize(ramblock);
         PageSearchStatus *pss = &ram_state->pss[RAM_CHANNEL_POSTCOPY];
         int ret = 0;
 
@@ -2316,7 +2330,7 @@ static int ram_save_target_page(RAMState *rs, PageSearchStatus *pss)
 static void pss_host_page_prepare(PageSearchStatus *pss)
 {
     /* How many guest pages are there in one host page? */
-    size_t guest_pfns = qemu_ram_pagesize(pss->block) >> TARGET_PAGE_BITS;
+    size_t guest_pfns = migration_ram_pagesize(pss->block) >> TARGET_PAGE_BITS;
 
     pss->host_page_sending = true;
     pss->host_page_start = ROUND_DOWN(pss->page, guest_pfns);
@@ -2420,7 +2434,7 @@ static int ram_save_host_page(RAMState *rs, PageSearchStatus *pss)
     bool page_dirty, preempt_active = postcopy_preempt_active();
     int tmppages, pages = 0;
     size_t pagesize_bits =
-        qemu_ram_pagesize(pss->block) >> TARGET_PAGE_BITS;
+        migration_ram_pagesize(pss->block) >> TARGET_PAGE_BITS;
     unsigned long start_page = pss->page;
     int res;
 
@@ -3513,7 +3527,7 @@ static void *host_page_from_ram_block_offset(RAMBlock *block,
 {
     /* Note: Explicitly no check against offset_in_ramblock(). */
     return (void *)QEMU_ALIGN_DOWN((uintptr_t)(block->host + offset),
-                                   block->page_size);
+                                   migration_ram_pagesize(block));
 }
 
 static ram_addr_t host_page_offset_from_ram_block_offset(RAMBlock *block,
@@ -3965,7 +3979,8 @@ int ram_load_postcopy(QEMUFile *f, int channel)
                 break;
             }
             tmp_page->target_pages++;
-            matches_target_page_size = block->page_size == TARGET_PAGE_SIZE;
+            matches_target_page_size =
+                migration_ram_pagesize(block) == TARGET_PAGE_SIZE;
             /*
              * Postcopy requires that we place whole host pages atomically;
              * these may be huge pages for RAMBlocks that are backed by
@@ -4000,7 +4015,7 @@ int ram_load_postcopy(QEMUFile *f, int channel)
              * page
              */
             if (tmp_page->target_pages ==
-                (block->page_size / TARGET_PAGE_SIZE)) {
+                (migration_ram_pagesize(block) / TARGET_PAGE_SIZE)) {
                 place_needed = true;
             }
             place_source = tmp_page->tmp_huge_page;

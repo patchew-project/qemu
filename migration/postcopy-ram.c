@@ -694,7 +694,7 @@ int postcopy_wake_shared(struct PostCopyFD *pcfd,
                          uint64_t client_addr,
                          RAMBlock *rb)
 {
-    size_t pagesize = qemu_ram_pagesize(rb);
+    size_t pagesize = migration_ram_pagesize(rb);
     struct uffdio_range range;
     int ret;
     trace_postcopy_wake_shared(client_addr, qemu_ram_get_idstr(rb));
@@ -712,7 +712,9 @@ int postcopy_wake_shared(struct PostCopyFD *pcfd,
 static int postcopy_request_page(MigrationIncomingState *mis, RAMBlock *rb,
                                  ram_addr_t start, uint64_t haddr)
 {
-    void *aligned = (void *)(uintptr_t)ROUND_DOWN(haddr, qemu_ram_pagesize(rb));
+    void *aligned;
+
+    aligned = (void *)(uintptr_t)ROUND_DOWN(haddr, migration_ram_pagesize(rb));
 
     /*
      * Discarded pages (via RamDiscardManager) are never migrated. On unlikely
@@ -722,7 +724,7 @@ static int postcopy_request_page(MigrationIncomingState *mis, RAMBlock *rb,
      * Checking a single bit is sufficient to handle pagesize > TPS as either
      * all relevant bits are set or not.
      */
-    assert(QEMU_IS_ALIGNED(start, qemu_ram_pagesize(rb)));
+    assert(QEMU_IS_ALIGNED(start, migration_ram_pagesize(rb)));
     if (ramblock_page_is_discarded(rb, start)) {
         bool received = ramblock_recv_bitmap_test_byte_offset(rb, start);
 
@@ -740,7 +742,7 @@ static int postcopy_request_page(MigrationIncomingState *mis, RAMBlock *rb,
 int postcopy_request_shared_page(struct PostCopyFD *pcfd, RAMBlock *rb,
                                  uint64_t client_addr, uint64_t rb_offset)
 {
-    uint64_t aligned_rbo = ROUND_DOWN(rb_offset, qemu_ram_pagesize(rb));
+    uint64_t aligned_rbo = ROUND_DOWN(rb_offset, migration_ram_pagesize(rb));
     MigrationIncomingState *mis = migration_incoming_get_current();
 
     trace_postcopy_request_shared_page(pcfd->idstr, qemu_ram_get_idstr(rb),
@@ -1020,7 +1022,7 @@ static void *postcopy_ram_fault_thread(void *opaque)
                 break;
             }
 
-            rb_offset = ROUND_DOWN(rb_offset, qemu_ram_pagesize(rb));
+            rb_offset = ROUND_DOWN(rb_offset, migration_ram_pagesize(rb));
             trace_postcopy_ram_fault_thread_request(msg.arg.pagefault.address,
                                                 qemu_ram_get_idstr(rb),
                                                 rb_offset,
@@ -1281,7 +1283,7 @@ int postcopy_notify_shared_wake(RAMBlock *rb, uint64_t offset)
 int postcopy_place_page(MigrationIncomingState *mis, void *host, void *from,
                         RAMBlock *rb)
 {
-    size_t pagesize = qemu_ram_pagesize(rb);
+    size_t pagesize = migration_ram_pagesize(rb);
 
     /* copy also acks to the kernel waking the stalled thread up
      * TODO: We can inhibit that ack and only do it if it was requested
@@ -1308,7 +1310,7 @@ int postcopy_place_page(MigrationIncomingState *mis, void *host, void *from,
 int postcopy_place_page_zero(MigrationIncomingState *mis, void *host,
                              RAMBlock *rb)
 {
-    size_t pagesize = qemu_ram_pagesize(rb);
+    size_t pagesize = migration_ram_pagesize(rb);
     trace_postcopy_place_page_zero(host);
 
     /* Normal RAMBlocks can zero a page using UFFDIO_ZEROPAGE
