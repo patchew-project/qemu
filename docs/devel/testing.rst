@@ -1144,6 +1144,13 @@ the framework or by the test itself.  At the framework level, it will
 currently influence the selection of a QEMU binary (when one is not
 explicitly given).
 
+When ``arch`` is not set, an env variable AVOCADO_DEFAULT_ARCH can
+be used as default value if set.  This allows hosts of different
+architectures to run arch-agnostic tests using binaries from other
+archs (i.e. a x86_64 host can use aarch64/riscv64 binaries as
+default).  If this variable isn't set, ``arch`` defaults to the
+host system arch given by ``os.uname``.
+
 Tests are also free to use this attribute value, for their own needs.
 A test may, for instance, use the same value when selecting the
 architecture of a kernel or disk image to boot a VM with.

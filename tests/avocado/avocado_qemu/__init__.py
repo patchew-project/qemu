@@ -107,14 +107,17 @@ def pick_default_qemu_bin(bin_prefix='qemu-system-', arch=None):
     directory or in the source tree root directory.
 
     :param arch: the arch to use when looking for a QEMU binary (the target
-                 will match the arch given).  If None (the default), arch
-                 will be the current host system arch (as given by
-                 :func:`os.uname`).
+                 will match the arch given).  If None (the default), check
+                 if the AVOCADO_DEFAULT_ARCH env var is set and use it as
+                 arch.  If it's not set, arch will be the current host
+                 system arch (as given by :func:`os.uname`).
     :type arch: str
     :returns: the path to the default QEMU binary or None if one could not
               be found
     :rtype: str or None
     """
+    if arch is None:
+        arch = os.getenv('AVOCADO_DEFAULT_ARCH')
     if arch is None:
         arch = os.uname()[4]
     # qemu binary path does not match arch for powerpc, handle it
