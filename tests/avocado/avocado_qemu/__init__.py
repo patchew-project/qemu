@@ -282,6 +282,9 @@ class QemuSystemTest(QemuBaseTest):
         self.machine = self.params.get('machine',
                                        default=self._get_unique_tag_val('machine'))
 
+        if self.machine is None:
+            self.machine = os.getenv('AVOCADO_DEFAULT_MACHINE')
+
     def require_accelerator(self, accelerator):
         """
         Requires an accelerator to be available for the test to continue

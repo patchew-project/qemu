@@ -1178,9 +1178,11 @@ The machine type that will be set to all QEMUMachine instances created
 by the test.
 
 The ``machine`` attribute will be set to the test parameter of the same
-name.  If one is not given explicitly, it will either be set to
-``None``, or, if the test is tagged with one (and only one)
-``:avocado: tags=machine:VALUE`` tag, it will be set to ``VALUE``.
+name.  If one is not given explicitly, an env variable
+AVOCADO_DEFAULT_MACHINE can be used as default value if set.  Otherwise
+it will either be set to ``None``, or, if the test is tagged with one
+(and only one) ``:avocado: tags=machine:VALUE`` tag, it will be set to
+``VALUE``.
 
 qemu_bin
 ''''''''
