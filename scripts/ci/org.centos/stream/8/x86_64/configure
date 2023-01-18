@@ -137,7 +137,6 @@
 --disable-vhost-vdpa \
 --disable-virglrenderer \
 --disable-virtfs \
---disable-virtiofsd \
 --disable-vnc \
 --disable-vnc-jpeg \
 --disable-png \
@@ -190,7 +189,6 @@
 --enable-tpm \
 --enable-trace-backends=dtrace \
 --enable-usb-redir \
---enable-virtiofsd \
 --enable-vhost-kernel \
 --enable-vhost-net \
 --enable-vhost-user \
