@@ -12,6 +12,7 @@ import os
 import lzma
 import gzip
 import shutil
+import time
 
 from avocado import skip
 from avocado import skipUnless
@@ -268,6 +269,49 @@ class BootLinuxConsole(LinuxKernelTest):
                                                 'reboot: Restarting system')
         # Wait for VM to shut down gracefully
         self.vm.wait()
+
+    @skipUnless(os.getenv('AVOCADO_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
+    def test_mips64_malta_I6400_nvme(self):
+        """
+        :avocado: tags=arch:mips64
+        :avocado: tags=machine:malta
+        :avocado: tags=endian:big
+        :avocado: tags=cpu:I6400
+        :avocado: tags=device:nvme
+        """
+        kernel_url = ('https://github.com/birkelund/qemu-nvme-boot/'
+                      'raw/main/mips64/images/vmlinux')
+        kernel_hash = '665662d7f7b17dc261ffb0e0ff4a1a7da91de948'
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        rootfs_url = ('https://github.com/birkelund/qemu-nvme-boot/'
+                      'raw/main/mips64/images/rootfs.ext2.gz')
+        rootfs_hash = '66f5ca4ef20ab983ec424c3ed8462bab305bbb73'
+        rootfs_path_gz = self.fetch_asset(rootfs_url, asset_hash=rootfs_hash)
+        rootfs_path = os.path.join(self.workdir, "rootfs.ext2")
+        archive.gzip_uncompress(rootfs_path_gz, rootfs_path)
+
+        self.vm.set_console()
+        kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE
+                               + 'console=ttyS0,115200 '
+                               + 'root=/dev/nvme0n1 '
+                               + 'rdinit=/sbin/init noreboot')
+        self.vm.add_args('-kernel', kernel_path,
+                         '-append', kernel_command_line,
+                         '-drive',
+                                f'file={rootfs_path},format=raw,if=none,id=d0',
+                         '-device', 'nvme,serial=default,drive=d0',
+                         '-nic', 'user,model=pcnet',
+                         '-no-reboot', '-snapshot', '-nodefaults')
+        self.vm.launch()
+        wait_for_console_pattern(self, 'Welcome to Buildroot')
+        time.sleep(0.1)
+        exec_command(self, 'root')
+        time.sleep(0.1)
+
+        exec_command_and_wait_for_pattern(self, 'cat /proc/cpuinfo',
+                                                'MIPS I6400')
+        exec_command_and_wait_for_pattern(self, 'reboot',
+                                                'reboot: Restarting system')
 
     def do_test_mips_malta32el_nanomips(self, kernel_url, kernel_hash):
         kernel_path_xz = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
