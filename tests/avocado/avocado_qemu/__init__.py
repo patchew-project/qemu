@@ -128,8 +128,8 @@ def pick_default_qemu_bin(bin_prefix='qemu-system-', arch=None):
     ]
     for path in qemu_bin_paths:
         if is_readable_executable_file(path):
-            return path
-    return None
+            return path, arch
+    return None, arch
 
 
 def _console_interaction(test, success_message, failure_message,
@@ -247,11 +247,13 @@ class QemuBaseTest(avocado.Test):
         self.cpu = self.params.get('cpu',
                                    default=self._get_unique_tag_val('cpu'))
 
-        default_qemu_bin = pick_default_qemu_bin(bin_prefix, arch=self.arch)
+        default_qemu_bin, arch = pick_default_qemu_bin(bin_prefix,
+                                                       arch=self.arch)
         self.qemu_bin = self.params.get('qemu_bin',
                                         default=default_qemu_bin)
         if self.qemu_bin is None:
-            self.cancel("No QEMU binary defined or found in the build tree")
+            self.cancel("No QEMU binary defined or found in the "
+                        "build tree for arch %s" % arch)
 
     def fetch_asset(self, name,
                     asset_hash=None, algorithm=None,
