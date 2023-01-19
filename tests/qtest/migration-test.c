@@ -603,6 +603,9 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     got_stop = false;
 
     cmd_common = g_string_new("");
+    g_string_append_printf(cmd_common, "-accel kvm%s ",
+                           args->use_dirty_ring ? ",dirty-ring-size=4096" : "");
+    g_string_append(cmd_common, "-accel tcg ");
 
     bootpath = g_strdup_printf("%s/bootsect", tmpfs);
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
@@ -678,25 +681,21 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     if (!args->only_target) {
         g_autofree gchar *cmd_source = NULL;
 
-        cmd_source = g_strdup_printf("-accel kvm%s -accel tcg%s "
+        cmd_source = g_strdup_printf("%s "
                                      "-name source,debug-threads=on "
                                      "-serial file:%s/src_serial "
                                      "%s %s %s",
-                                     args->use_dirty_ring ?
-                                     ",dirty-ring-size=4096" : "",
                                      cmd_common->str, tmpfs, arch_source,
                                      args->opts_source ? args->opts_source : "",
                                      ignore_stderr);
         *from = qtest_init(cmd_source);
     }
 
-    cmd_target = g_strdup_printf("-accel kvm%s -accel tcg%s "
+    cmd_target = g_strdup_printf("%s "
                                  "-name target,debug-threads=on "
                                  "-serial file:%s/dest_serial "
                                  "-incoming %s "
                                  "%s %s %s",
-                                 args->use_dirty_ring ?
-                                 ",dirty-ring-size=4096" : "",
                                  cmd_common->str, tmpfs, uri, arch_target,
                                  args->opts_target ? args->opts_target : "",
                                  ignore_stderr);
