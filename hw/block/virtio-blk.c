@@ -866,8 +866,9 @@ static void virtio_blk_dma_restart_cb(void *opaque, bool running,
      * requests will be processed while starting the data plane.
      */
     if (!s->bh && !virtio_bus_ioeventfd_enabled(bus)) {
-        s->bh = aio_bh_new(blk_get_aio_context(s->conf.conf.blk),
-                           virtio_blk_dma_restart_bh, s);
+        s->bh = aio_bh_new_guarded(blk_get_aio_context(s->conf.conf.blk),
+                                   virtio_blk_dma_restart_bh, s,
+                                   &DEVICE(s)->mem_reentrancy_guard);
         blk_inc_in_flight(s->conf.conf.blk);
         qemu_bh_schedule(s->bh);
     }
