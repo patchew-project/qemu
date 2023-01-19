@@ -901,6 +901,8 @@ bool qtest_has_accel(const char *accel_name)
                 }
             }
         }
+    } else if (g_str_equal(accel_name, "hvf")) {
+        return true; /* XXX CONFIG_HVF is poisoned... */
     } else {
         /* not implemented */
         g_assert_not_reached();
