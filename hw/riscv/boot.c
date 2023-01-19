@@ -173,7 +173,24 @@ target_ulong riscv_load_firmware(const char *firmware_filename,
     exit(1);
 }
 
+static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
+{
+    RISCVHartArrayState *harts = opaque;
+
+    if (riscv_is_32bit(harts)) {
+        /*
+         * For 32 bit CPUs, kernel_load_base is sign-extended
+         * (i.e. it can be padded with '1's) by load_elf().
+         * Remove the sign extension by truncating to 32-bit.
+         */
+        return extract64(addr, 0, 32);
+    }
+
+    return addr;
+}
+
 target_ulong riscv_load_kernel(MachineState *machine,
+                               RISCVHartArrayState *harts,
                                target_ulong kernel_start_addr,
                                symbol_fn_t sym_cb)
 {
@@ -189,7 +206,8 @@ target_ulong riscv_load_kernel(MachineState *machine,
      * the (expected) load address load address. This allows kernels to have
      * separate SBI and ELF entry points (used by FreeBSD, for example).
      */
-    if (load_elf_ram_sym(kernel_filename, NULL, NULL, NULL,
+    if (load_elf_ram_sym(kernel_filename, NULL,
+                         translate_kernel_address, harts,
                          NULL, &kernel_load_base, NULL, NULL, 0,
                          EM_RISCV, 1, 0, NULL, true, sym_cb) > 0) {
         return kernel_load_base;
