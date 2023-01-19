@@ -19,6 +19,7 @@
 
 static bool has_tcg;
 static bool has_kvm;
+static bool has_hvf;
 
 static const uint8_t bios_avr[] = {
     0x88, 0xe0,             /* ldi r24, 0x08   */
@@ -273,6 +274,9 @@ static void test_machine(const void *data)
     if (has_kvm) {
         g_string_append(cmd, "-accel kvm ");
     }
+    if (has_hvf) {
+        g_string_append(cmd, "-accel hvf ");
+    }
     g_string_append(cmd, test->extra);
 
     qts = qtest_init(cmd->str);
@@ -301,6 +305,7 @@ int main(int argc, char *argv[])
 
     has_tcg = qtest_has_accel("tcg");
     has_kvm = qtest_has_accel("kvm");
+    has_hvf = qtest_has_accel("hvf");
 
     g_test_init(&argc, &argv, NULL);
 
