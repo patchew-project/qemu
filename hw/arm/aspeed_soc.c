@@ -33,6 +33,7 @@ static const hwaddr aspeed_soc_ast2400_memmap[] = {
     [ASPEED_DEV_SDMC]   = 0x1E6E0000,
     [ASPEED_DEV_SCU]    = 0x1E6E2000,
     [ASPEED_DEV_HACE]   = 0x1E6E3000,
+    [ASPEED_DEV_GFX]    = 0x1E6E6000,
     [ASPEED_DEV_XDMA]   = 0x1E6E7000,
     [ASPEED_DEV_VIDEO]  = 0x1E700000,
     [ASPEED_DEV_ADC]    = 0x1E6E9000,
@@ -69,6 +70,7 @@ static const hwaddr aspeed_soc_ast2500_memmap[] = {
     [ASPEED_DEV_SDMC]   = 0x1E6E0000,
     [ASPEED_DEV_SCU]    = 0x1E6E2000,
     [ASPEED_DEV_HACE]   = 0x1E6E3000,
+    [ASPEED_DEV_GFX]    = 0x1E6E6000,
     [ASPEED_DEV_XDMA]   = 0x1E6E7000,
     [ASPEED_DEV_ADC]    = 0x1E6E9000,
     [ASPEED_DEV_VIDEO]  = 0x1E700000,
@@ -232,6 +234,8 @@ static void aspeed_soc_init(Object *obj)
 
     snprintf(typename, sizeof(typename), "aspeed.hace-%s", socname);
     object_initialize_child(obj, "hace", &s->hace, typename);
+
+    object_initialize_child(obj, "gfx", &s->gfx, TYPE_ASPEED_GFX);
 
     object_initialize_child(obj, "iomem", &s->iomem, TYPE_UNIMPLEMENTED_DEVICE);
     object_initialize_child(obj, "video", &s->video, TYPE_UNIMPLEMENTED_DEVICE);
@@ -482,6 +486,14 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
                     sc->memmap[ASPEED_DEV_HACE]);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->hace), 0,
                        aspeed_soc_get_irq(s, ASPEED_DEV_HACE));
+
+    /* GFX */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gfx), errp)) {
+        return;
+    }
+    aspeed_mmio_map(s, SYS_BUS_DEVICE(&s->gfx), 0, sc->memmap[ASPEED_DEV_GFX]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->gfx), 0,
+                       aspeed_soc_get_irq(s, ASPEED_DEV_GFX));
 }
 static Property aspeed_soc_properties[] = {
     DEFINE_PROP_LINK("memory", AspeedSoCState, memory, TYPE_MEMORY_REGION,

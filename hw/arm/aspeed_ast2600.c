@@ -43,6 +43,7 @@ static const hwaddr aspeed_soc_ast2600_memmap[] = {
     [ASPEED_DEV_HACE]      = 0x1E6D0000,
     [ASPEED_DEV_SDMC]      = 0x1E6E0000,
     [ASPEED_DEV_SCU]       = 0x1E6E2000,
+    [ASPEED_DEV_GFX]       = 0x1E6E6000,
     [ASPEED_DEV_XDMA]      = 0x1E6E7000,
     [ASPEED_DEV_ADC]       = 0x1E6E9000,
     [ASPEED_DEV_DP]        = 0x1E6EB000,
@@ -254,6 +255,8 @@ static void aspeed_soc_ast2600_init(Object *obj)
     object_initialize_child(obj, "i3c", &s->i3c, TYPE_ASPEED_I3C);
 
     object_initialize_child(obj, "sbc", &s->sbc, TYPE_ASPEED_SBC);
+
+    object_initialize_child(obj, "gfx", &s->gfx, TYPE_ASPEED_GFX);
 
     object_initialize_child(obj, "iomem", &s->iomem, TYPE_UNIMPLEMENTED_DEVICE);
     object_initialize_child(obj, "video", &s->video, TYPE_UNIMPLEMENTED_DEVICE);
@@ -607,6 +610,14 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
         return;
     }
     aspeed_mmio_map(s, SYS_BUS_DEVICE(&s->sbc), 0, sc->memmap[ASPEED_DEV_SBC]);
+
+    /* GFX */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gfx), errp)) {
+        return;
+    }
+    aspeed_mmio_map(s, SYS_BUS_DEVICE(&s->gfx), 0, sc->memmap[ASPEED_DEV_GFX]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->gfx), 0,
+                       aspeed_soc_get_irq(s, ASPEED_DEV_GFX));
 }
 
 static void aspeed_soc_ast2600_class_init(ObjectClass *oc, void *data)
