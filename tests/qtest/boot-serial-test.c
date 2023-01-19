@@ -227,7 +227,6 @@ static void test_machine(const void *data)
     g_autofree char *serialtmp = NULL;
     g_autofree char *codetmp = NULL;
     const char *codeparam = "";
-    const uint8_t *code = NULL;
     QTestState *qts;
     int ser_fd;
 
@@ -235,21 +234,13 @@ static void test_machine(const void *data)
     g_assert(ser_fd != -1);
     close(ser_fd);
 
-    if (test->kernel) {
-        code = test->kernel;
-        codeparam = "-kernel";
-    } else if (test->bios) {
-        code = test->bios;
-        codeparam = "-bios";
-    }
-
-    if (code) {
+    if (test->kernel || test->bios) {
         ssize_t wlen;
         int code_fd;
 
         code_fd = g_file_open_tmp("qtest-boot-serial-cXXXXXX", &codetmp, NULL);
         g_assert(code_fd != -1);
-        wlen = write(code_fd, code, test->codesize);
+        wlen = write(code_fd, test->kernel ? : test->bios, test->codesize);
         g_assert(wlen == test->codesize);
         close(code_fd);
     }
@@ -258,12 +249,14 @@ static void test_machine(const void *data)
      * Make sure that this test uses tcg if available: It is used as a
      * fast-enough smoketest for that.
      */
-    qts = qtest_initf("%s %s -M %s -no-shutdown "
+    qts = qtest_initf("%s %s %s -M %s -no-shutdown "
                       "-chardev file,id=serial0,path=%s "
                       "-serial chardev:serial0 -accel tcg -accel kvm %s",
-                      codeparam, code ? codetmp : "", test->machine,
+                      codeparam,
+                      test->kernel ? "-kernel " : test->bios ? "-bios " : "",
+                      codetmp ? : "", test->machine,
                       serialtmp, test->extra);
-    if (code) {
+    if (codetmp) {
         unlink(codetmp);
     }
 
