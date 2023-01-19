@@ -47,6 +47,7 @@ unsigned start_address;
 unsigned end_address;
 static bool has_tcg;
 static bool has_kvm;
+static bool has_hvf;
 static bool uffd_feature_thread_id;
 
 /*
@@ -613,6 +614,9 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         g_string_append_printf(cmd_common, "-accel kvm%s ",
                                args->use_dirty_ring
                                ? ",dirty-ring-size=4096" : "");
+    }
+    if (has_hvf) {
+        g_string_append(cmd_common, "-accel hvf ");
     }
 
     bootpath = g_strdup_printf("%s/bootsect", tmpfs);
@@ -2472,6 +2476,7 @@ int main(int argc, char **argv)
 
     has_tcg = qtest_has_accel("tcg");
     has_kvm = qtest_has_accel("kvm");
+    has_hvf = qtest_has_accel("hvf");
 
     g_test_init(&argc, &argv, NULL);
 
