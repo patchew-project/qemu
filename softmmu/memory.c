@@ -533,6 +533,7 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
     uint64_t access_mask;
     unsigned access_size;
     unsigned i;
+    DeviceState *dev = NULL;
     MemTxResult r = MEMTX_OK;
 
     if (!access_size_min) {
@@ -540,6 +541,17 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
     }
     if (!access_size_max) {
         access_size_max = 4;
+    }
+
+    /* Do not allow more than one simultanous access to a device's IO Regions */
+    if (mr->owner &&
+        !mr->ram_device && !mr->ram && !mr->rom_device && !mr->readonly) {
+        dev = (DeviceState *) object_dynamic_cast(mr->owner, TYPE_DEVICE);
+        if (dev->mem_reentrancy_guard.engaged_in_io) {
+            trace_memory_region_reentrant_io(get_cpu_index(), mr, addr, size);
+            return MEMTX_ERROR;
+        }
+        dev->mem_reentrancy_guard.engaged_in_io = true;
     }
 
     /* FIXME: support unaligned access? */
@@ -555,6 +567,9 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
             r |= access_fn(mr, addr + i, value, access_size, i * 8,
                         access_mask, attrs);
         }
+    }
+    if (dev) {
+        dev->mem_reentrancy_guard.engaged_in_io = false;
     }
     return r;
 }
