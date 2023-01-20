@@ -585,8 +585,8 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     g_autoptr(GString) cmd_common = NULL;
     g_autofree gchar *arch_source = NULL;
     g_autofree gchar *arch_target = NULL;
-    g_autofree gchar *cmd_target = NULL;
-    const gchar *ignore_stderr;
+    g_autoptr(GString) cmd_target = NULL;
+    const gchar *ignore_stderr = NULL;
     g_autofree char *bootpath = NULL;
     g_autofree char *shmem_path = NULL;
     const char *arch = qtest_get_arch();
@@ -666,12 +666,9 @@ static int test_migrate_start(QTestState **from, QTestState **to,
          * IO redirection does not work, so don't bother adding IO redirection
          * to the command line.
          */
-        ignore_stderr = "";
 #else
         ignore_stderr = "2>/dev/null";
 #endif
-    } else {
-        ignore_stderr = "";
     }
 
     if (args->use_shmem) {
@@ -683,31 +680,31 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     }
 
     if (!args->only_target) {
-        g_autofree gchar *cmd_source = NULL;
-
-        cmd_source = g_strdup_printf("%s "
-                                     "-name source,debug-threads=on "
-                                     "-serial file:%s/src_serial "
-                                     "%s %s %s",
-                                     cmd_common->str,
-                                     tmpfs,
-                                     arch_source,
-                                     args->opts_source ? args->opts_source : "",
-                                     ignore_stderr);
-        *from = qtest_init(cmd_source);
+        g_autoptr(GString) cmd_source = g_string_new(cmd_common->str);
+        g_string_append(cmd_source, "-name source,debug-threads=on ");
+        g_string_append_printf(cmd_source, "-serial file:%s/src_serial ", tmpfs);
+        g_string_append_printf(cmd_source, "%s ", arch_source);
+        if (args->opts_source) {
+            g_string_append_printf(cmd_source, "%s ", args->opts_source);
+        }
+        if (ignore_stderr) {
+            g_string_append(cmd_source, ignore_stderr); /* last string */
+        }
+        *from = qtest_init(cmd_source->str);
     }
 
-    cmd_target = g_strdup_printf("%s "
-                                 "-name target,debug-threads=on "
-                                 "-serial file:%s/dest_serial "
-                                 "-incoming %s "
-                                 "%s %s %s",
-                                 cmd_common->str,
-                                 tmpfs, uri,
-                                 arch_target,
-                                 args->opts_target ? args->opts_target : "",
-                                 ignore_stderr);
-    *to = qtest_init(cmd_target);
+    cmd_target = g_string_new(cmd_common->str);
+    g_string_append(cmd_target, "-name target,debug-threads=on ");
+    g_string_append_printf(cmd_target, "-serial file:%s/dest_serial ", tmpfs);
+    g_string_append_printf(cmd_target, "-incoming %s ", uri);
+    g_string_append_printf(cmd_target, "%s ", arch_target);
+    if (args->opts_target) {
+        g_string_append_printf(cmd_target, "%s ", args->opts_target);
+    }
+    if (ignore_stderr) {
+        g_string_append(cmd_target, ignore_stderr); /* last string */
+    }
+    *to = qtest_init(cmd_target->str);
 
     /*
      * Remove shmem file immediately to avoid memory leak in test failed case.
