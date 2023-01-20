@@ -289,12 +289,17 @@ FIELD(OCR, CARD_POWER_UP,              31,  1)
                                | R_OCR_CARD_CAPACITY_MASK \
                                | R_OCR_CARD_POWER_UP_MASK)
 
+static bool sd_card_powered_up(SDState *sd)
+{
+    return FIELD_EX32(sd->ocr, OCR, CARD_POWER_UP);
+}
+
 static void sd_ocr_powerup(void *opaque)
 {
     SDState *sd = opaque;
 
     trace_sdcard_powerup();
-    assert(!FIELD_EX32(sd->ocr, OCR, CARD_POWER_UP));
+    assert(!sd_card_powered_up(sd));
 
     /* card power-up OK */
     sd->ocr = FIELD_DP32(sd->ocr, OCR, CARD_POWER_UP, 1);
@@ -640,7 +645,7 @@ static bool sd_ocr_vmstate_needed(void *opaque)
     SDState *sd = opaque;
 
     /* Include the OCR state (and timer) if it is not yet powered up */
-    return !FIELD_EX32(sd->ocr, OCR, CARD_POWER_UP);
+    return !sd_card_powered_up(sd);
 }
 
 static const VMStateDescription sd_ocr_vmstate = {
@@ -1616,7 +1621,7 @@ static sd_rsp_type_t sd_app_command(SDState *sd,
          * UEFI, which sends an initial enquiry ACMD41, but
          * assumes that the card is in ready state as soon as it
          * sees the power up bit set. */
-        if (!FIELD_EX32(sd->ocr, OCR, CARD_POWER_UP)) {
+        if (!sd_card_powered_up(sd)) {
             if ((req.arg & ACMD41_ENQUIRY_MASK) != 0) {
                 timer_del(sd->ocr_power_timer);
                 sd_ocr_powerup(sd);
