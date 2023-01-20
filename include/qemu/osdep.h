@@ -595,6 +595,25 @@ typedef struct ThreadContext ThreadContext;
 void qemu_prealloc_mem(int fd, char *area, size_t sz, int max_threads,
                        ThreadContext *tc, Error **errp);
 
+typedef struct PreallocStats {
+    size_t page_size;
+    size_t total_pages;
+    size_t allocated_pages;
+    int threads;
+    time_t seconds_elapsed;
+} PreallocStats;
+
+typedef struct PreallocTimeout {
+    time_t seconds;
+    void *user;
+    void (*on_timeout)(void *user, const PreallocStats *stats);
+} PreallocTimeout;
+
+void qemu_prealloc_mem_with_timeout(int fd, char *area, size_t sz,
+                                    int max_threads, ThreadContext *tc,
+                                    const PreallocTimeout *timeout,
+                                    Error **errp);
+
 /**
  * qemu_get_pid_name:
  * @pid: pid of a process

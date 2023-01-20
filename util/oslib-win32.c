@@ -276,6 +276,15 @@ void qemu_prealloc_mem(int fd, char *area, size_t sz, int max_threads,
     }
 }
 
+void qemu_prealloc_mem_with_timeout(int fd, char *area, size_t sz,
+                                    int max_threads, ThreadContext *tc,
+                                    const PreallocTimeout *timeout,
+                                    Error **errp)
+{
+    /* FIXME: actually implement timing out here */
+    qemu_prealloc_mem(fd, area, sz, max_threads, tc, errp);
+}
+
 char *qemu_get_pid_name(pid_t pid)
 {
     /* XXX Implement me */

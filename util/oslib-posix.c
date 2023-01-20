@@ -74,6 +74,7 @@ typedef struct MemsetContext {
     bool any_thread_failed;
     struct MemsetThread *threads;
     int num_threads;
+    PreallocStats stats;
 } MemsetContext;
 
 struct MemsetThread {
@@ -83,6 +84,7 @@ struct MemsetThread {
     QemuThread pgthread;
     sigjmp_buf env;
     MemsetContext *context;
+    size_t touched_pages;
 };
 typedef struct MemsetThread MemsetThread;
 
@@ -373,6 +375,7 @@ static void *do_touch_pages(void *arg)
              */
             *(volatile char *)addr = *addr;
             addr += hpagesize;
+            qatomic_inc(&memset_args->touched_pages);
         }
     }
     pthread_sigmask(SIG_SETMASK, &oldset, NULL);
@@ -396,6 +399,11 @@ static void *do_madv_populate_write_pages(void *arg)
     if (size && qemu_madvise(addr, size, QEMU_MADV_POPULATE_WRITE)) {
         ret = -errno;
     }
+
+    if (!ret) {
+        qatomic_set(&memset_args->touched_pages, memset_args->numpages);
+    }
+
     return (void *)(uintptr_t)ret;
 }
 
@@ -418,8 +426,68 @@ static inline int get_memset_num_threads(size_t hpagesize, size_t numpages,
     return ret;
 }
 
+static int do_join_memset_threads_with_timeout(MemsetContext *context,
+                                               time_t seconds)
+{
+    struct timespec ts;
+    int i = 0;
+
+    if (clock_gettime(CLOCK_REALTIME, &ts) < 0) {
+        return i;
+    }
+    ts.tv_sec += seconds;
+
+    for (; i < context->num_threads; ++i) {
+        if (pthread_timedjoin_np(context->threads[i].pgthread.thread,
+                                 NULL, &ts)) {
+            break;
+        }
+    }
+
+    return i;
+}
+
+static void memset_stats_count_pages(MemsetContext *context)
+{
+    int i;
+
+    for (i = 0; i < context->num_threads; ++i) {
+        size_t pages = qatomic_load_acquire(
+                            &context->threads[i].touched_pages);
+        context->stats.allocated_pages += pages;
+    }
+}
+
+static int timed_join_memset_threads(MemsetContext *context,
+                                     const PreallocTimeout *timeout)
+{
+    int i, off;
+    PreallocStats *stats = &context->stats;
+    off = do_join_memset_threads_with_timeout(context, timeout->seconds);
+
+    if (off != context->num_threads && timeout->on_timeout) {
+        memset_stats_count_pages(context);
+
+        /*
+         * Guard against possible races if preallocation finishes right
+         * after the timeout is exceeded.
+         */
+        if (stats->allocated_pages < stats->total_pages) {
+            stats->seconds_elapsed = timeout->seconds;
+            timeout->on_timeout(timeout->user, stats);
+        }
+    }
+
+    for (i = off; i < context->num_threads; ++i) {
+        pthread_cancel(context->threads[i].pgthread.thread);
+    }
+
+    return off;
+}
+
 static int touch_all_pages(char *area, size_t hpagesize, size_t numpages,
                            int max_threads, ThreadContext *tc,
+                           const PreallocTimeout *timeout,
                            bool use_madv_populate_write)
 {
     static gsize initialized = 0;
@@ -452,6 +520,9 @@ static int touch_all_pages(char *area, size_t hpagesize, size_t numpages,
     }
 
     context.threads = g_new0(MemsetThread, context.num_threads);
+    context.stats.page_size = hpagesize;
+    context.stats.total_pages = numpages;
+    context.stats.threads = context.num_threads;
     numpages_per_thread = numpages / context.num_threads;
     leftover = numpages % context.num_threads;
     for (i = 0; i < context.num_threads; i++) {
@@ -481,11 +552,20 @@ static int touch_all_pages(char *area, size_t hpagesize, size_t numpages,
     qemu_cond_broadcast(&page_cond);
     qemu_mutex_unlock(&page_mutex);
 
-    for (i = 0; i < context.num_threads; i++) {
-        int tmp = (uintptr_t)qemu_thread_join(&context.threads[i].pgthread);
+    if (timeout) {
+        i = timed_join_memset_threads(&context, timeout);
 
-        if (tmp) {
-            ret = tmp;
+        if (i != context.num_threads &&
+            context.stats.allocated_pages != context.stats.total_pages) {
+            ret = -ETIMEDOUT;
+        }
+    }
+
+    for (; i < context.num_threads; i++) {
+        void *thread_ret = qemu_thread_join(&context.threads[i].pgthread);
+
+        if (thread_ret && thread_ret != PTHREAD_CANCELED) {
+            ret = (uintptr_t)thread_ret;
         }
     }
 
@@ -503,8 +583,10 @@ static bool madv_populate_write_possible(char *area, size_t pagesize)
            errno != EINVAL;
 }
 
-void qemu_prealloc_mem(int fd, char *area, size_t sz, int max_threads,
-                       ThreadContext *tc, Error **errp)
+void qemu_prealloc_mem_with_timeout(int fd, char *area, size_t sz,
+                                    int max_threads, ThreadContext *tc,
+                                    const PreallocTimeout *timeout,
+                                    Error **errp)
 {
     static gsize initialized;
     int ret;
@@ -546,10 +628,18 @@ void qemu_prealloc_mem(int fd, char *area, size_t sz, int max_threads,
 
     /* touch pages simultaneously */
     ret = touch_all_pages(area, hpagesize, numpages, max_threads, tc,
-                          use_madv_populate_write);
+                          timeout, use_madv_populate_write);
+
     if (ret) {
-        error_setg_errno(errp, -ret,
-                         "qemu_prealloc_mem: preallocating memory failed");
+        const char *msg;
+
+        if (timeout && ret == -ETIMEDOUT) {
+            msg = "preallocation timed out";
+        } else {
+            msg = "preallocating memory failed";
+        }
+
+        error_setg_errno(errp, -ret, "qemu_prealloc_mem: %s", msg);
     }
 
     if (!use_madv_populate_write) {
@@ -561,6 +651,12 @@ void qemu_prealloc_mem(int fd, char *area, size_t sz, int max_threads,
         }
         qemu_mutex_unlock(&sigbus_mutex);
     }
+}
+
+void qemu_prealloc_mem(int fd, char *area, size_t sz, int max_threads,
+                       ThreadContext *tc, Error **errp)
+{
+    qemu_prealloc_mem_with_timeout(fd, area, sz, max_threads, tc, NULL, errp);
 }
 
 char *qemu_get_pid_name(pid_t pid)
