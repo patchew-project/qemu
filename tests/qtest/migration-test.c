@@ -588,7 +588,6 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     g_autofree gchar *cmd_target = NULL;
     const gchar *ignore_stderr;
     g_autofree char *bootpath = NULL;
-    g_autofree char *shmem_opts = NULL;
     g_autofree char *shmem_path = NULL;
     const char *arch = qtest_get_arch();
     const char *machine_opts = NULL;
@@ -670,13 +669,10 @@ static int test_migrate_start(QTestState **from, QTestState **to,
 
     if (args->use_shmem) {
         shmem_path = g_strdup_printf("/dev/shm/qemu-%d", getpid());
-        shmem_opts = g_strdup_printf(
+        g_string_append_printf(cmd_common,
             "-object memory-backend-file,id=mem0,size=%s"
             ",mem-path=%s,share=on -numa node,memdev=mem0",
             memory_size, shmem_path);
-    } else {
-        shmem_path = NULL;
-        shmem_opts = g_strdup("");
     }
 
     if (!args->only_target) {
@@ -685,12 +681,12 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         cmd_source = g_strdup_printf("-accel kvm%s -accel tcg %s "
                                      "-name source,debug-threads=on "
                                      "-serial file:%s/src_serial "
-                                     "%s %s %s %s",
+                                     "%s %s %s",
                                      args->use_dirty_ring ?
                                      ",dirty-ring-size=4096" : "",
                                      cmd_common->str,
                                      tmpfs,
-                                     arch_source, shmem_opts,
+                                     arch_source,
                                      args->opts_source ? args->opts_source : "",
                                      ignore_stderr);
         *from = qtest_init(cmd_source);
@@ -700,12 +696,12 @@ static int test_migrate_start(QTestState **from, QTestState **to,
                                  "-name target,debug-threads=on "
                                  "-serial file:%s/dest_serial "
                                  "-incoming %s "
-                                 "%s %s %s %s",
+                                 "%s %s %s",
                                  args->use_dirty_ring ?
                                  ",dirty-ring-size=4096" : "",
                                  cmd_common->str,
                                  tmpfs, uri,
-                                 arch_target, shmem_opts,
+                                 arch_target,
                                  args->opts_target ? args->opts_target : "",
                                  ignore_stderr);
     *to = qtest_init(cmd_target);
