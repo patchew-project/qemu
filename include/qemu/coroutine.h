@@ -42,7 +42,11 @@
  *       ....
  *   }
  */
+#ifdef __clang__
+#define coroutine_fn __attribute__((__annotate__("coroutine_fn")))
+#else
 #define coroutine_fn
+#endif
 
 typedef struct Coroutine Coroutine;
 
