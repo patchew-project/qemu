@@ -584,6 +584,9 @@
 # @prealloc-timeout: Maximum memory preallocation timeout in seconds
 #                    (default: 0) (since 7.3)
 #
+# @prealloc-timeout-fatal: Consider preallocation timeout a fatal error
+#                          (default: false) (since 7.3)
+#
 # @share: if false, the memory is private to QEMU; if true, it is shared
 #         (default: false)
 #
@@ -616,6 +619,7 @@
             '*prealloc-threads': 'uint32',
             '*prealloc-context': 'str',
             '*prealloc-timeout': 'uint32',
+            '*prealloc-timeout-fatal': 'bool',
             '*share': 'bool',
             '*reserve': 'bool',
             'size': 'size',

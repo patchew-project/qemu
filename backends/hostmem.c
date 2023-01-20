@@ -39,12 +39,21 @@ host_memory_on_prealloc_timeout(void *opaque,
                                 const PreallocStats *stats)
 {
     HostMemoryBackend *backend = opaque;
+    const char *msg = "HostMemory preallocation timeout %"PRIu64"s exceeded, "
+                      "allocated %zu/%zu (%zu byte) pages (%d threads)";
+
+    if (backend->prealloc_timeout_fatal) {
+        error_report(msg, (uint64_t)stats->seconds_elapsed,
+                     stats->allocated_pages, stats->total_pages,
+                     stats->page_size, stats->threads);
+        exit(1);
+
+    }
 
     backend->prealloc_did_timeout = true;
-    warn_report("HostMemory preallocation timeout %"PRIu64"s exceeded, "
-                "allocated %zu/%zu (%zu byte) pages (%d threads)",
-                (uint64_t)stats->seconds_elapsed, stats->allocated_pages,
-                stats->total_pages, stats->page_size, stats->threads);
+    warn_report(msg, (uint64_t)stats->seconds_elapsed,
+                stats->allocated_pages, stats->total_pages,
+                stats->page_size, stats->threads);
 }
 
 char *
@@ -315,6 +324,22 @@ static void host_memory_backend_get_set_prealloc_timeout(Object *obj,
     visit_type_uint32(v, name, &backend->prealloc_timeout, errp);
 }
 
+static bool host_memory_backend_get_prealloc_timeout_fatal(
+        Object *obj, Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+
+    return backend->prealloc_timeout_fatal;
+}
+
+static void host_memory_backend_set_prealloc_timeout_fatal(
+        Object *obj, bool value, Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+
+    backend->prealloc_timeout_fatal = value;
+}
+
 static void host_memory_backend_init(Object *obj)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
@@ -560,6 +585,11 @@ host_memory_backend_class_init(ObjectClass *oc, void *data)
         NULL, NULL);
     object_class_property_set_description(oc, "prealloc-timeout",
         "Maximum memory preallocation timeout in seconds");
+    object_class_property_add_bool(oc, "prealloc-timeout-fatal",
+        host_memory_backend_get_prealloc_timeout_fatal,
+        host_memory_backend_set_prealloc_timeout_fatal);
+    object_class_property_set_description(oc, "prealloc-timeout-fatal",
+        "Consider preallocation timeout a fatal error");
     object_class_property_add(oc, "size", "int",
         host_memory_backend_get_size,
         host_memory_backend_set_size,

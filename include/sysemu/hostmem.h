@@ -67,6 +67,7 @@ struct HostMemoryBackend {
     bool merge, dump, use_canonical_path;
     bool prealloc, is_mapped, share, reserve;
     bool prealloc_did_timeout;
+    bool prealloc_timeout_fatal;
     uint32_t prealloc_threads;
     uint32_t prealloc_timeout;
     ThreadContext *prealloc_context;
