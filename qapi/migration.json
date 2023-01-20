@@ -1287,6 +1287,18 @@
   'data': { 'pass': 'int' } }
 
 ##
+# @MIGRATION_NAME:
+#
+# Emitted when migration thread appear
+#
+# @name: name of migration thread
+#
+# Since: 7.2
+##
+{ 'event': 'MIGRATION_NAME',
+  'data': { 'name': 'str' } }
+
+##
 # @COLOMessage:
 #
 # The message transmission between Primary side and Secondary side.

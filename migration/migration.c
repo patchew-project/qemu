@@ -3955,6 +3955,9 @@ static void *migration_thread(void *opaque)
     MigThrError thr_error;
     bool urgent = false;
 
+    /* report migration thread name to libvirt */
+    qapi_event_send_migration_name("live_migration");
+
     rcu_register_thread();
 
     object_ref(OBJECT(s));
