@@ -576,6 +576,9 @@ static bool get_physical_address(CPUX86State *env, vaddr addr,
             }
             return mmu_translate(env, &in, out, err);
         }
+        if (use_stage2) {
+            return get_physical_address(env, addr, access_type, MMU_NESTED_IDX, out, err);
+        }
         break;
     }
 
