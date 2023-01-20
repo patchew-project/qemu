@@ -1285,6 +1285,18 @@ struct MachInfo {
     char *alias;
 };
 
+static void qtest_free_machine_info(gpointer data)
+{
+    struct MachInfo *machines = data;
+    int i;
+
+    for (i = 0; machines[i].name != NULL; i++) {
+        g_free((void *)machines[i].name);
+        g_free((void *)machines[i].alias);
+    }
+    g_free(machines);
+}
+
 /*
  * Returns an array with pointers to the available machine names.
  * The terminating entry has the name set to NULL.
@@ -1336,6 +1348,8 @@ static struct MachInfo *qtest_get_machines(void)
     qobject_unref(response);
 
     memset(&machines[idx], 0, sizeof(struct MachInfo)); /* Terminating entry */
+    g_test_queue_destroy(qtest_free_machine_info, machines);
+
     return machines;
 }
 
