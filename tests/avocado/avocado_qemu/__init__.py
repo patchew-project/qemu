@@ -240,12 +240,23 @@ class QemuBaseTest(avocado.Test):
             return vals.pop()
         return None
 
-    def setUp(self, bin_prefix):
-        self.arch = self.params.get('arch',
-                                    default=self._get_unique_tag_val('arch'))
+    def _get_prop(self, name):
+        """
+        Infer test properties based on tags. If no tag is present,
+        look for a command line parameter of the same name.
+        """
+        val = self._get_unique_tag_val(name)
+        if not val:
+            # If there's no tag, look for a command line
+            # parameter. This allows the user to override any defaults
+            # the caller of this function would choose if we were to
+            # return None.
+            val = self.params.get(name)
+        return val
 
-        self.cpu = self.params.get('cpu',
-                                   default=self._get_unique_tag_val('cpu'))
+    def setUp(self, bin_prefix):
+        self.arch = self._get_prop('arch')
+        self.cpu = self._get_prop('cpu')
 
         default_qemu_bin = pick_default_qemu_bin(bin_prefix, arch=self.arch)
         self.qemu_bin = self.params.get('qemu_bin',
@@ -274,8 +285,7 @@ class QemuSystemTest(QemuBaseTest):
 
         super().setUp('qemu-system-')
 
-        self.machine = self.params.get('machine',
-                                       default=self._get_unique_tag_val('machine'))
+        self.machine = self._get_prop('machine')
 
     def require_accelerator(self, accelerator):
         """
@@ -529,15 +539,11 @@ class LinuxTest(LinuxSSHMixIn, QemuSystemTest):
     memory = '1024'
 
     def _set_distro(self):
-        distro_name = self.params.get(
-            'distro',
-            default=self._get_unique_tag_val('distro'))
+        distro_name = self._get_prop('distro')
         if not distro_name:
             distro_name = 'fedora'
 
-        distro_version = self.params.get(
-            'distro_version',
-            default=self._get_unique_tag_val('distro_version'))
+        distro_version = self._get_prop('distro_version')
         if not distro_version:
             distro_version = '31'
 
