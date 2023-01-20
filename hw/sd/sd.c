@@ -664,11 +664,19 @@ static int sd_vmstate_pre_load(void *opaque)
 {
     SDState *sd = opaque;
 
-    /* If the OCR state is not included (prior versions, or not
+    /*
+     * If the OCR state is not included (prior versions, or not
      * needed), then the OCR must be set as powered up. If the OCR state
      * is included, this will be replaced by the state restore.
+     *
+     * However, there's a chance that the board will powerup the SD
+     * before reaching INMIGRATE state in the destination host.
+     * Powering up the SD again in this case will cause an assert
+     * inside sd_ocr_powerup(). Skip sd_ocr_powerup() in this case.
      */
-    sd_ocr_powerup(sd);
+    if (!sd_card_powered_up(sd)) {
+        sd_ocr_powerup(sd);
+    }
 
     return 0;
 }
