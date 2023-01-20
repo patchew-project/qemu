@@ -2859,7 +2859,7 @@ static void dump_human_image_info_list(BlockNodeInfoList *list)
         }
         delim = true;
 
-        bdrv_node_info_dump(elem->value);
+        bdrv_node_info_dump(elem->value, 0);
     }
 }
 
