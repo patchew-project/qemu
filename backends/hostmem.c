@@ -216,10 +216,26 @@ static bool host_memory_backend_get_prealloc(Object *obj, Error **errp)
     return backend->prealloc;
 }
 
+static bool do_prealloc_mr(HostMemoryBackend *backend, Error **errp)
+{
+    Error *local_err = NULL;
+    int fd = memory_region_get_fd(&backend->mr);
+    void *ptr = memory_region_get_ram_ptr(&backend->mr);
+    uint64_t sz = memory_region_size(&backend->mr);
+
+    qemu_prealloc_mem(fd, ptr, sz, backend->prealloc_threads,
+                      backend->prealloc_context, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return false;
+    }
+
+    return true;
+}
+
 static void host_memory_backend_set_prealloc(Object *obj, bool value,
                                              Error **errp)
 {
-    Error *local_err = NULL;
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
 
     if (!backend->reserve && value) {
@@ -233,17 +249,7 @@ static void host_memory_backend_set_prealloc(Object *obj, bool value,
     }
 
     if (value && !backend->prealloc) {
-        int fd = memory_region_get_fd(&backend->mr);
-        void *ptr = memory_region_get_ram_ptr(&backend->mr);
-        uint64_t sz = memory_region_size(&backend->mr);
-
-        qemu_prealloc_mem(fd, ptr, sz, backend->prealloc_threads,
-                          backend->prealloc_context, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
-        backend->prealloc = true;
+        backend->prealloc = do_prealloc_mr(backend, errp);
     }
 }
 
@@ -399,12 +405,8 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
          * specified NUMA policy in place.
          */
         if (backend->prealloc) {
-            qemu_prealloc_mem(memory_region_get_fd(&backend->mr), ptr, sz,
-                              backend->prealloc_threads,
-                              backend->prealloc_context, &local_err);
-            if (local_err) {
-                goto out;
-            }
+            do_prealloc_mr(backend, errp);
+            return;
         }
     }
 out:
