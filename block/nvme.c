@@ -1566,7 +1566,7 @@ static void nvme_attach_aio_context(BlockDriverState *bs,
     }
 }
 
-static void nvme_aio_plug(BlockDriverState *bs)
+static void coroutine_fn nvme_co_io_plug(BlockDriverState *bs)
 {
     BDRVNVMeState *s = bs->opaque;
     assert(!s->plugged);
@@ -1663,7 +1663,7 @@ static BlockDriver bdrv_nvme = {
     .bdrv_detach_aio_context  = nvme_detach_aio_context,
     .bdrv_attach_aio_context  = nvme_attach_aio_context,
 
-    .bdrv_io_plug             = nvme_aio_plug,
+    .bdrv_co_io_plug          = nvme_co_io_plug,
     .bdrv_io_unplug           = nvme_aio_unplug,
 
     .bdrv_register_buf        = nvme_register_buf,
