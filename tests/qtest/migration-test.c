@@ -45,6 +45,8 @@
 
 unsigned start_address;
 unsigned end_address;
+static bool has_tcg;
+static bool has_kvm;
 static bool uffd_feature_thread_id;
 
 /*
@@ -603,13 +605,16 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     got_stop = false;
 
     cmd_common = g_string_new("");
-    /* KVM first */
-    if (args->use_dirty_ring) {
-        g_string_append(cmd_common, "-accel kvm,dirty-ring-size=4096 ");
-    } else {
-        g_string_append(cmd_common, "-accel kvm ");
+    if (has_kvm) { /* KVM first */
+        if (args->use_dirty_ring) {
+            g_string_append(cmd_common, "-accel kvm,dirty-ring-size=4096 ");
+        } else {
+            g_string_append(cmd_common, "-accel kvm ");
+        }
     }
-    g_string_append(cmd_common, "-accel tcg ");
+    if (has_tcg) {
+        g_string_append(cmd_common, "-accel tcg ");
+    }
 
     bootpath = g_strdup_printf("%s/bootsect", tmpfs);
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
@@ -2460,11 +2465,13 @@ static bool kvm_dirty_ring_supported(void)
 
 int main(int argc, char **argv)
 {
-    const bool has_kvm = qtest_has_accel("kvm");
     const bool has_uffd = ufd_version_check();
     const char *arch = qtest_get_arch();
     g_autoptr(GError) err = NULL;
     int ret;
+
+    has_tcg = qtest_has_accel("tcg");
+    has_kvm = qtest_has_accel("kvm");
 
     g_test_init(&argc, &argv, NULL);
 
