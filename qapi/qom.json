@@ -581,6 +581,9 @@
 # @prealloc-context: thread context to use for creation of preallocation threads
 #                    (default: none) (since 7.2)
 #
+# @prealloc-timeout: Maximum memory preallocation timeout in seconds
+#                    (default: 0) (since 7.3)
+#
 # @share: if false, the memory is private to QEMU; if true, it is shared
 #         (default: false)
 #
@@ -612,6 +615,7 @@
             '*prealloc': 'bool',
             '*prealloc-threads': 'uint32',
             '*prealloc-context': 'str',
+            '*prealloc-timeout': 'uint32',
             '*share': 'bool',
             '*reserve': 'bool',
             'size': 'size',

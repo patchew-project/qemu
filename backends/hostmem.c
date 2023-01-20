@@ -34,6 +34,19 @@ QEMU_BUILD_BUG_ON(HOST_MEM_POLICY_BIND != MPOL_BIND);
 QEMU_BUILD_BUG_ON(HOST_MEM_POLICY_INTERLEAVE != MPOL_INTERLEAVE);
 #endif
 
+static void
+host_memory_on_prealloc_timeout(void *opaque,
+                                const PreallocStats *stats)
+{
+    HostMemoryBackend *backend = opaque;
+
+    backend->prealloc_did_timeout = true;
+    warn_report("HostMemory preallocation timeout %"PRIu64"s exceeded, "
+                "allocated %zu/%zu (%zu byte) pages (%d threads)",
+                (uint64_t)stats->seconds_elapsed, stats->allocated_pages,
+                stats->total_pages, stats->page_size, stats->threads);
+}
+
 char *
 host_memory_backend_get_name(HostMemoryBackend *backend)
 {
@@ -223,8 +236,26 @@ static bool do_prealloc_mr(HostMemoryBackend *backend, Error **errp)
     void *ptr = memory_region_get_ram_ptr(&backend->mr);
     uint64_t sz = memory_region_size(&backend->mr);
 
-    qemu_prealloc_mem(fd, ptr, sz, backend->prealloc_threads,
-                      backend->prealloc_context, &local_err);
+    if (backend->prealloc_timeout) {
+        PreallocTimeout timeout = {
+            .seconds = (time_t)backend->prealloc_timeout,
+            .user = backend,
+            .on_timeout = host_memory_on_prealloc_timeout,
+        };
+
+        qemu_prealloc_mem_with_timeout(fd, ptr, sz, backend->prealloc_threads,
+                                       backend->prealloc_context, &timeout,
+                                       &local_err);
+        if (local_err && backend->prealloc_did_timeout) {
+            error_free(local_err);
+            local_err = NULL;
+        }
+    } else {
+        qemu_prealloc_mem(fd, ptr, sz, backend->prealloc_threads,
+                          backend->prealloc_context, &local_err);
+    }
+
+
     if (local_err) {
         error_propagate(errp, local_err);
         return false;
@@ -275,6 +306,13 @@ static void host_memory_backend_set_prealloc_threads(Object *obj, Visitor *v,
         return;
     }
     backend->prealloc_threads = value;
+}
+
+static void host_memory_backend_get_set_prealloc_timeout(Object *obj,
+    Visitor *v, const char *name, void *opaque, Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+    visit_type_uint32(v, name, &backend->prealloc_timeout, errp);
 }
 
 static void host_memory_backend_init(Object *obj)
@@ -516,6 +554,12 @@ host_memory_backend_class_init(ObjectClass *oc, void *data)
         object_property_allow_set_link, OBJ_PROP_LINK_STRONG);
     object_class_property_set_description(oc, "prealloc-context",
         "Context to use for creating CPU threads for preallocation");
+    object_class_property_add(oc, "prealloc-timeout", "int",
+        host_memory_backend_get_set_prealloc_timeout,
+        host_memory_backend_get_set_prealloc_timeout,
+        NULL, NULL);
+    object_class_property_set_description(oc, "prealloc-timeout",
+        "Maximum memory preallocation timeout in seconds");
     object_class_property_add(oc, "size", "int",
         host_memory_backend_get_size,
         host_memory_backend_set_size,
