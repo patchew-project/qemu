@@ -2148,7 +2148,7 @@ static void coroutine_fn raw_co_io_plug(BlockDriverState *bs)
 #endif
 }
 
-static void raw_aio_unplug(BlockDriverState *bs)
+static void coroutine_fn raw_co_io_unplug(BlockDriverState *bs)
 {
     BDRVRawState __attribute__((unused)) *s = bs->opaque;
 #ifdef CONFIG_LINUX_AIO
@@ -3317,7 +3317,7 @@ BlockDriver bdrv_file = {
     .bdrv_co_copy_range_to  = raw_co_copy_range_to,
     .bdrv_refresh_limits = raw_refresh_limits,
     .bdrv_co_io_plug        = raw_co_io_plug,
-    .bdrv_io_unplug = raw_aio_unplug,
+    .bdrv_co_io_unplug      = raw_co_io_unplug,
     .bdrv_attach_aio_context = raw_aio_attach_aio_context,
 
     .bdrv_co_truncate = raw_co_truncate,
@@ -3689,7 +3689,7 @@ static BlockDriver bdrv_host_device = {
     .bdrv_co_copy_range_to  = raw_co_copy_range_to,
     .bdrv_refresh_limits = raw_refresh_limits,
     .bdrv_co_io_plug        = raw_co_io_plug,
-    .bdrv_io_unplug = raw_aio_unplug,
+    .bdrv_co_io_unplug      = raw_co_io_unplug,
     .bdrv_attach_aio_context = raw_aio_attach_aio_context,
 
     .bdrv_co_truncate       = raw_co_truncate,
@@ -3813,7 +3813,7 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_co_flush_to_disk  = raw_co_flush_to_disk,
     .bdrv_refresh_limits = raw_refresh_limits,
     .bdrv_co_io_plug        = raw_co_io_plug,
-    .bdrv_io_unplug = raw_aio_unplug,
+    .bdrv_co_io_unplug      = raw_co_io_unplug,
     .bdrv_attach_aio_context = raw_aio_attach_aio_context,
 
     .bdrv_co_truncate    = raw_co_truncate,
@@ -3943,7 +3943,7 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_co_flush_to_disk  = raw_co_flush_to_disk,
     .bdrv_refresh_limits = raw_refresh_limits,
     .bdrv_co_io_plug        = raw_co_io_plug,
-    .bdrv_io_unplug = raw_aio_unplug,
+    .bdrv_co_io_unplug      = raw_co_io_unplug,
     .bdrv_attach_aio_context = raw_aio_attach_aio_context,
 
     .bdrv_co_truncate    = raw_co_truncate,
