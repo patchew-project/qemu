@@ -31,6 +31,7 @@
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qapi-visit-audio.h"
 #include "qemu/cutils.h"
+#include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/help_option.h"
 #include "sysemu/sysemu.h"
