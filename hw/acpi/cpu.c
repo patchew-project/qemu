@@ -2,6 +2,7 @@
 #include "migration/vmstate.h"
 #include "hw/acpi/acpi_cpu_interface.h"
 #include "hw/acpi/cpu.h"
+#include "hw/core/cpu.h"
 #include "qapi/error.h"
 #include "qapi/qapi-events-acpi.h"
 #include "trace.h"

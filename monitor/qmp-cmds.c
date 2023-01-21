@@ -41,6 +41,7 @@
 #include "hw/acpi/acpi_dev_interface.h"
 #include "hw/intc/intc.h"
 #include "hw/rdma/rdma.h"
+#include "hw/boards.h"
 #include "monitor/stats.h"
 
 NameInfo *qmp_query_name(Error **errp)
