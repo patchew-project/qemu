@@ -28,43 +28,10 @@
 #include "hw/acpi/acpi_cpu_interface.h"
 #include "hw/acpi/aml-build.h"
 #include "hw/acpi/utils.h"
-#include "hw/i386/pc.h"
 #include "target/i386/cpu.h"
 
 #include "acpi-build.h"
 #include "acpi-common.h"
-
-void pc_madt_cpu_entry(int uid, const CPUArchIdList *apic_ids,
-                       GArray *entry, bool force_enabled)
-{
-    uint32_t apic_id = apic_ids->cpus[uid].arch_id;
-    /* Flags – Local APIC Flags */
-    uint32_t flags = apic_ids->cpus[uid].cpu != NULL || force_enabled ?
-                     1 /* Enabled */ : 0;
-
-    /* ACPI spec says that LAPIC entry for non present
-     * CPU may be omitted from MADT or it must be marked
-     * as disabled. However omitting non present CPU from
-     * MADT breaks hotplug on linux. So possible CPUs
-     * should be put in MADT but kept disabled.
-     */
-    if (apic_id < 255) {
-        /* Rev 1.0b, Table 5-13 Processor Local APIC Structure */
-        build_append_int_noprefix(entry, 0, 1);       /* Type */
-        build_append_int_noprefix(entry, 8, 1);       /* Length */
-        build_append_int_noprefix(entry, uid, 1);     /* ACPI Processor ID */
-        build_append_int_noprefix(entry, apic_id, 1); /* APIC ID */
-        build_append_int_noprefix(entry, flags, 4); /* Flags */
-    } else {
-        /* Rev 4.0, 5.2.12.12 Processor Local x2APIC Structure */
-        build_append_int_noprefix(entry, 9, 1);       /* Type */
-        build_append_int_noprefix(entry, 16, 1);      /* Length */
-        build_append_int_noprefix(entry, 0, 2);       /* Reserved */
-        build_append_int_noprefix(entry, apic_id, 4); /* X2APIC ID */
-        build_append_int_noprefix(entry, flags, 4);   /* Flags */
-        build_append_int_noprefix(entry, uid, 4);     /* ACPI Processor UID */
-    }
-}
 
 static void build_ioapic(GArray *entry, uint8_t id, uint32_t addr, uint32_t irq)
 {

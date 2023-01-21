@@ -38,8 +38,8 @@
 #ifndef CONFIG_USER_ONLY
 #include "exec/address-spaces.h"
 #include "hw/acpi/acpi_cpu_interface.h"
+#include "hw/acpi/aml-build.h"
 #include "hw/boards.h"
-#include "hw/i386/pc.h"
 #include "hw/i386/sgx-epc.h"
 #endif
 
@@ -7108,6 +7108,39 @@ static const struct SysemuCPUOps i386_sysemu_ops = {
     .write_elf64_qemunote = x86_cpu_write_elf64_qemunote,
     .legacy_vmsd = &vmstate_x86_cpu,
 };
+
+static void x86_madt_cpu_entry(int uid, const CPUArchIdList *apic_ids,
+                               GArray *entry, bool force_enabled)
+{
+    uint32_t apic_id = apic_ids->cpus[uid].arch_id;
+    /* Flags – Local APIC Flags */
+    uint32_t flags = apic_ids->cpus[uid].cpu != NULL || force_enabled ?
+                     1 /* Enabled */ : 0;
+
+    /*
+     * ACPI spec says that LAPIC entry for non present
+     * CPU may be omitted from MADT or it must be marked
+     * as disabled. However omitting non present CPU from
+     * MADT breaks hotplug on linux. So possible CPUs
+     * should be put in MADT but kept disabled.
+     */
+    if (apic_id < 255) {
+        /* Rev 1.0b, Table 5-13 Processor Local APIC Structure */
+        build_append_int_noprefix(entry, 0, 1);       /* Type */
+        build_append_int_noprefix(entry, 8, 1);       /* Length */
+        build_append_int_noprefix(entry, uid, 1);     /* ACPI Processor ID */
+        build_append_int_noprefix(entry, apic_id, 1); /* APIC ID */
+        build_append_int_noprefix(entry, flags, 4); /* Flags */
+    } else {
+        /* Rev 4.0, 5.2.12.12 Processor Local x2APIC Structure */
+        build_append_int_noprefix(entry, 9, 1);       /* Type */
+        build_append_int_noprefix(entry, 16, 1);      /* Length */
+        build_append_int_noprefix(entry, 0, 2);       /* Reserved */
+        build_append_int_noprefix(entry, apic_id, 4); /* X2APIC ID */
+        build_append_int_noprefix(entry, flags, 4);   /* Flags */
+        build_append_int_noprefix(entry, uid, 4);     /* ACPI Processor UID */
+    }
+}
 #endif
 
 static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
@@ -7143,7 +7176,7 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
 
 #ifndef CONFIG_USER_ONLY
     cc->sysemu_ops = &i386_sysemu_ops;
-    acpuac->madt_cpu = pc_madt_cpu_entry;
+    acpuac->madt_cpu = x86_madt_cpu_entry;
 #endif /* !CONFIG_USER_ONLY */
 
     cc->gdb_arch_name = x86_gdb_arch_name;
