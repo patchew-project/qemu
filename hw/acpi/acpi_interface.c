@@ -1,4 +1,5 @@
 #include "qemu/osdep.h"
+#include "hw/acpi/acpi_cpu_interface.h"
 #include "hw/acpi/acpi_dev_interface.h"
 #include "hw/acpi/acpi_aml_interface.h"
 #include "qemu/module.h"
@@ -34,10 +35,15 @@ static void register_types(void)
         .parent        = TYPE_INTERFACE,
         .class_size = sizeof(AcpiDevAmlIfClass),
     };
-
+    static const TypeInfo acpi_cpu_aml_if_info = {
+        .name          = TYPE_ACPI_CPU_AML_IF,
+        .parent        = TYPE_INTERFACE,
+        .class_size = sizeof(AcpiCpuAmlIfClass),
+    };
 
     type_register_static(&acpi_dev_if_info);
     type_register_static(&acpi_dev_aml_if_info);
+    type_register_static(&acpi_cpu_aml_if_info);
 }
 
 type_init(register_types)

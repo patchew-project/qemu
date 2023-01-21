@@ -1,5 +1,6 @@
 #include "qemu/osdep.h"
 #include "migration/vmstate.h"
+#include "hw/acpi/acpi_cpu_interface.h"
 #include "hw/acpi/cpu.h"
 #include "qapi/error.h"
 #include "qapi/qapi-events-acpi.h"
@@ -353,8 +354,6 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     const CPUArchIdList *arch_ids = mc->possible_cpu_arch_ids(machine);
     char *cphp_res_path = g_strdup_printf("%s." CPUHP_RES_DEVICE, res_root);
-    Object *obj = object_resolve_path_type("", TYPE_ACPI_DEVICE_IF, NULL);
-    AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(obj);
 
     cpu_ctrl_dev = aml_device("%s", cphp_res_path);
     {
@@ -648,6 +647,8 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
         for (i = 0; i < arch_ids->len; i++) {
             Aml *dev;
             Aml *uid = aml_int(i);
+            ObjectClass *oc = object_class_by_name(arch_ids->cpus[i].type);
+            AcpiCpuAmlIfClass *acpuac = ACPI_CPU_AML_IF_CLASS(oc);
             GArray *madt_buf = g_array_new(0, 1, 1);
             int arch_id = arch_ids->cpus[i].arch_id;
 
@@ -664,9 +665,9 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
             aml_append(dev, method);
 
             /* build _MAT object */
-            assert(adevc && adevc->madt_cpu);
-            adevc->madt_cpu(i, arch_ids, madt_buf,
-                            true); /* set enabled flag */
+            assert(acpuac && acpuac->madt_cpu);
+            acpuac->madt_cpu(i, arch_ids, madt_buf,
+                             true); /* set enabled flag */
             aml_append(dev, aml_name_decl("_MAT",
                 aml_buffer(madt_buf->len, (uint8_t *)madt_buf->data)));
             g_array_free(madt_buf, true);

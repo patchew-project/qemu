@@ -37,7 +37,9 @@
 #include "hw/i386/topology.h"
 #ifndef CONFIG_USER_ONLY
 #include "exec/address-spaces.h"
+#include "hw/acpi/acpi_cpu_interface.h"
 #include "hw/boards.h"
+#include "hw/i386/pc.h"
 #include "hw/i386/sgx-epc.h"
 #endif
 
@@ -7114,6 +7116,9 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     CPUClass *cc = CPU_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
     ResettableClass *rc = RESETTABLE_CLASS(oc);
+#ifndef CONFIG_USER_ONLY
+    AcpiCpuAmlIfClass *acpuac = ACPI_CPU_AML_IF_CLASS(oc);
+#endif
     FeatureWord w;
 
     device_class_set_parent_realize(dc, x86_cpu_realizefn,
@@ -7138,6 +7143,7 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
 
 #ifndef CONFIG_USER_ONLY
     cc->sysemu_ops = &i386_sysemu_ops;
+    acpuac->madt_cpu = pc_madt_cpu_entry;
 #endif /* !CONFIG_USER_ONLY */
 
     cc->gdb_arch_name = x86_gdb_arch_name;
@@ -7203,6 +7209,13 @@ static const TypeInfo x86_cpu_type_info = {
     .abstract = true,
     .class_size = sizeof(X86CPUClass),
     .class_init = x86_cpu_common_class_init,
+
+#ifndef CONFIG_USER_ONLY
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_ACPI_CPU_AML_IF },
+        { }
+    }
+#endif
 };
 
 /* "base" CPU model, used by query-cpu-model-expansion */
