@@ -49,6 +49,7 @@
 #include "qom/object.h"
 
 #define GPE_BASE 0xafe0
+#define GPE_OFS 0xc
 #define GPE_LEN 4
 
 #define ACPI_PCIHP_ADDR_PIIX4 0xae00
@@ -429,7 +430,7 @@ static void piix4_pm_add_properties(PIIX4PMState *s)
     object_property_add_uint8_ptr(OBJECT(s), ACPI_PM_PROP_ACPI_DISABLE_CMD,
                                   &acpi_disable_cmd, OBJ_PROP_FLAG_READ);
     object_property_add_uint64_ptr(OBJECT(s), ACPI_PM_PROP_GPE0_BLK,
-                                   &s->io_gpe.addr, OBJ_PROP_FLAG_READ);
+                                   &s->io_gpe_qemu.addr, OBJ_PROP_FLAG_READ);
     object_property_add_uint8_ptr(OBJECT(s), ACPI_PM_PROP_GPE0_BLK_LEN,
                                   &s->ar.gpe.len, OBJ_PROP_FLAG_READ);
     object_property_add_uint16_ptr(OBJECT(s), ACPI_PM_PROP_SCI_INT,
@@ -558,7 +559,11 @@ static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
 {
     memory_region_init_io(&s->io_gpe, OBJECT(s), &piix4_gpe_ops, s,
                           "acpi-gpe0", GPE_LEN);
-    memory_region_add_subregion(parent, GPE_BASE, &s->io_gpe);
+    memory_region_add_subregion(&s->io, GPE_OFS, &s->io_gpe);
+
+    memory_region_init_alias(&s->io_gpe_qemu, OBJECT(s), "acpi-gpe0-qemu",
+                             &s->io_gpe, 0, memory_region_size(&s->io_gpe));
+    memory_region_add_subregion(parent, GPE_BASE, &s->io_gpe_qemu);
 
     if (s->use_acpi_hotplug_bridge || s->use_acpi_root_pci_hotplug) {
         acpi_pcihp_init(OBJECT(s), &s->acpi_pci_hotplug, bus, parent,

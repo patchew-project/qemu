@@ -40,6 +40,7 @@ struct PIIX4PMState {
 
     MemoryRegion io;
     MemoryRegion io_gpe;
+    MemoryRegion io_gpe_qemu;
     ACPIREGS ar;
 
     APMState apm;
