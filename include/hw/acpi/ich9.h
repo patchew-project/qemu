@@ -49,7 +49,6 @@ typedef struct ICH9LPCPMRegs {
 
     qemu_irq irq;      /* SCI */
 
-    uint32_t pm_io_base;
     Notifier powerdown_notifier;
 
     bool cpu_hotplug_legacy;

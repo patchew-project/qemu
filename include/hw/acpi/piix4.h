@@ -39,8 +39,6 @@ struct PIIX4PMState {
     /*< public >*/
 
     MemoryRegion io;
-    uint32_t io_base;
-
     MemoryRegion io_gpe;
     ACPIREGS ar;
 

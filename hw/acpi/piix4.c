@@ -91,13 +91,14 @@ static void apm_ctrl_changed(uint32_t val, void *arg)
 static void pm_io_space_update(PIIX4PMState *s)
 {
     PCIDevice *d = PCI_DEVICE(s);
+    uint32_t io_base;
 
-    s->io_base = le32_to_cpu(*(uint32_t *)(d->config + 0x40));
-    s->io_base &= 0xffc0;
+    io_base = le32_to_cpu(*(uint32_t *)(d->config + 0x40));
+    io_base &= 0xffc0;
 
     memory_region_transaction_begin();
     memory_region_set_enabled(&s->io, d->config[0x80] & 1);
-    memory_region_set_address(&s->io, s->io_base);
+    memory_region_set_address(&s->io, io_base);
     memory_region_transaction_commit();
 }
 
@@ -433,8 +434,8 @@ static void piix4_pm_add_properties(PIIX4PMState *s)
                                   &s->ar.gpe.len, OBJ_PROP_FLAG_READ);
     object_property_add_uint16_ptr(OBJECT(s), ACPI_PM_PROP_SCI_INT,
                                   &sci_int, OBJ_PROP_FLAG_READ);
-    object_property_add_uint32_ptr(OBJECT(s), ACPI_PM_PROP_PM_IO_BASE,
-                                  &s->io_base, OBJ_PROP_FLAG_READ);
+    object_property_add_uint64_ptr(OBJECT(s), ACPI_PM_PROP_PM_IO_BASE,
+                                   &s->io.addr, OBJ_PROP_FLAG_READ);
 }
 
 static void piix4_pm_realize(PCIDevice *dev, Error **errp)
