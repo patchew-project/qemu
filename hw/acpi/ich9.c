@@ -136,9 +136,7 @@ void ich9_pm_iospace_update(ICH9LPCPMRegs *pm, uint32_t pm_io_base)
 static int ich9_pm_post_load(void *opaque, int version_id)
 {
     ICH9LPCPMRegs *pm = opaque;
-    uint32_t pm_io_base = pm->pm_io_base;
-    pm->pm_io_base = 0;
-    ich9_pm_iospace_update(pm, pm_io_base);
+    ich9_pm_iospace_update(pm, pm->pm_io_base);
     return 0;
 }
 
