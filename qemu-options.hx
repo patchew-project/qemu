@@ -2143,7 +2143,7 @@ DEF("spice", HAS_ARG, QEMU_OPTION_spice,
     "       [,disable-agent-file-xfer=on|off][,agent-mouse=[on|off]]\n"
     "       [,playback-compression=[on|off]][,seamless-migration=[on|off]]\n"
     "       [,preferred-codec=<encoder>:<codec>\n"
-    "       [,gl=[on|off]][,rendernode=<file>]\n"
+    "       [,gl=[on|off]][,rendernode=<file>][,dmabuf-encode=[on|off]]\n"
     "   enable spice\n"
     "   at least one of {port, tls-port} is mandatory\n",
     QEMU_ARCH_ALL)
@@ -2248,6 +2248,10 @@ SRST
     ``rendernode=<file>``
         DRM render node for OpenGL rendering. If not specified, it will
         pick the first available. (Since 2.9)
+
+    ``dmabuf-encode=[on|off]``
+        Forward the dmabuf directly to the encoder (Gstreamer).
+        Default is off.
 ERST
 
 DEF("portrait", 0, QEMU_OPTION_portrait,
