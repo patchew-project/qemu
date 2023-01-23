@@ -450,7 +450,7 @@ struct target_dirent64 {
 #define TARGET_SIG_IGN	((abi_long)1)	/* ignore signal */
 #define TARGET_SIG_ERR	((abi_long)-1)	/* error return from signal */
 
-#ifdef TARGET_MIPS
+#if defined(TARGET_MIPS) || defined(TARGET_ABI_LOONGARCH64_OW)
 #define TARGET_NSIG	   128
 #else
 #define TARGET_NSIG	   64
@@ -2085,7 +2085,8 @@ struct target_stat64  {
 };
 
 #elif defined(TARGET_OPENRISC) || defined(TARGET_NIOS2) \
-        || defined(TARGET_RISCV) || defined(TARGET_HEXAGON)
+        || defined(TARGET_RISCV) || defined(TARGET_HEXAGON) \
+        || defined(TARGET_ABI_LOONGARCH64_OW)
 
 /* These are the asm-generic versions of the stat and stat64 structures */
 
@@ -2113,7 +2114,7 @@ struct target_stat {
     unsigned int __unused5;
 };
 
-#if !defined(TARGET_RISCV64)
+#if !(defined(TARGET_RISCV64) || defined(TARGET_LOONGARCH64))
 #define TARGET_HAS_STRUCT_STAT64
 struct target_stat64 {
     uint64_t st_dev;
@@ -2198,7 +2199,7 @@ struct target_stat64 {
 
 #elif defined(TARGET_LOONGARCH64)
 
-/* LoongArch no newfstatat/fstat syscall. */
+/* LoongArch new-world doesn't have fstat/newfstatat.  */
 
 #else
 #error unsupported CPU
