@@ -2727,7 +2727,7 @@ static bool get_phys_addr_twostage(CPUARMState *env, S1Translate *ptw,
 
     if (arm_feature(env, ARM_FEATURE_PMSA)) {
         ret = get_phys_addr_pmsav8(env, ipa, access_type,
-                                   ptw->in_mmu_idx, is_secure, result, fi);
+                                   ptw->in_mmu_idx, s2walk_secure, result, fi);
     } else {
         ret = get_phys_addr_lpae(env, ptw, ipa, access_type,
                                  is_el0, result, fi);
