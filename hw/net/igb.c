@@ -1,13 +1,17 @@
 /*
- * QEMU INTEL 82574 GbE NIC emulation
+ * QEMU Intel 82576 SR/IOV Ethernet Controller Emulation
  *
- * Software developer's manuals:
- * http://www.intel.com/content/dam/doc/datasheet/82574l-gbe-controller-datasheet.pdf
+ * Datasheet:
+ * https://www.intel.com/content/dam/www/public/us/en/documents/datasheets/82576eg-gbe-datasheet.pdf
  *
+ * Copyright (c) 2020-2023 Red Hat, Inc.
  * Copyright (c) 2015 Ravello Systems LTD (http://ravellosystems.com)
  * Developed by Daynix Computing LTD (http://www.daynix.com)
  *
  * Authors:
+ * Akihiko Odaki <akihiko.odaki@daynix.com>
+ * Gal Hammmer <gal.hammer@sap.com>
+ * Marcel Apfelbaum <marcel.apfelbaum@gmail.com>
  * Dmitry Fleytman <dmitry@daynix.com>
  * Leonid Bloch <leonid@daynix.com>
  * Yan Vugenfirer <yan@daynix.com>
@@ -43,13 +47,15 @@
 #include "sysemu/sysemu.h"
 #include "hw/hw.h"
 #include "hw/net/mii.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pcie.h"
+#include "hw/pci/pcie_sriov.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 
 #include "igb_common.h"
-#include "e1000x_common.h"
 #include "igb_core.h"
 
 #include "trace.h"
@@ -71,17 +77,14 @@ struct IGBState {
 
     uint32_t ioaddr;
 
-    uint16_t subsys_ven;
-    uint16_t subsys;
-
-    uint16_t subsys_ven_used;
-    uint16_t subsys_used;
-
-    bool disable_vnet;
-
     IGBCore core;
-    bool init_vet;
 };
+
+#define IGB_MSIX_VECTORS    (10)
+
+#define IGB_CAP_SRIOV_OFFSET    (0x160)
+#define IGB_VF_OFFSET           (0x80)
+#define IGB_VF_STRIDE           (2)
 
 #define E1000E_MMIO_IDX     0
 #define E1000E_FLASH_IDX    1
@@ -93,17 +96,28 @@ struct IGBState {
 #define E1000E_IO_SIZE      (32)
 #define E1000E_MSIX_SIZE    (16 * KiB)
 
-#define E1000E_MSIX_TABLE   (0x0000)
-#define E1000E_MSIX_PBA     (0x2000)
+static void igb_write_config(PCIDevice *dev, uint32_t addr,
+    uint32_t val, int len)
+{
+    IGBState *s = IGB(dev);
 
-static uint64_t
+    trace_igb_write_config(addr, val, len);
+    pci_default_write_config(dev, addr, val, len);
+
+    if (range_covers_byte(addr, len, PCI_COMMAND) &&
+        (dev->config[PCI_COMMAND] & PCI_COMMAND_MASTER)) {
+        igb_start_recv(&s->core);
+    }
+}
+
+uint64_t
 igb_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
     IGBState *s = opaque;
     return igb_core_read(&s->core, addr, size);
 }
 
-static void
+void
 igb_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
     IGBState *s = opaque;
@@ -237,26 +251,28 @@ static NetClientInfo net_igb_info = {
 };
 
 /*
- * EEPROM (NVM) contents documented in Table 36, section 6.1
- * and generally 6.1.2 Software accessed words.
+ * EEPROM (NVM) contents documented in section 6.1, table 6-1:
+ * and in 6.10 Software accessed words.
  */
-static const uint16_t igb_eeprom_template[64] = {
-  /*        Address        |    Compat.    | ImVer |   Compat.     */
-    0x0000, 0x0000, 0x0000, 0x0420, 0xf746, 0x2010, 0xffff, 0xffff,
+static const uint16_t igb_eeprom_template[] = {
+  /*        Address        |Compat.|OEM sp.| ImRev |    OEM sp.    */
+    0x0000, 0x0000, 0x0000, 0x0d34, 0xffff, 0x2010, 0xffff, 0xffff,
   /*      PBA      |ICtrl1 | SSID  | SVID  | DevID |-------|ICtrl2 */
-    0x0000, 0x0000, 0x026b, 0x0000, 0x8086, 0x0000, 0x0000, 0x8058,
-  /*    NVM words 1,2,3    |-------------------------------|PCI-EID*/
-    0x0000, 0x2001, 0x7e7c, 0xffff, 0x1000, 0x00c8, 0x0000, 0x2704,
-  /* PCIe Init. Conf 1,2,3 |PCICtrl|PHY|LD1|-------| RevID | LD0,2 */
-    0x6cc9, 0x3150, 0x070e, 0x460b, 0x2d84, 0x0100, 0xf000, 0x0706,
-  /* FLPAR |FLANADD|LAN-PWR|FlVndr |ICtrl3 |APTSMBA|APTRxEP|APTSMBC*/
-    0x6000, 0x0080, 0x0f04, 0x7fff, 0x4f01, 0xc600, 0x0000, 0x20ff,
-  /* APTIF | APTMC |APTuCP |LSWFWID|MSWFWID|NC-SIMC|NC-SIC | VPDP  */
-    0x0028, 0x0003, 0x0000, 0x0000, 0x0000, 0x0003, 0x0000, 0xffff,
-  /*                            SW Section                         */
-    0x0100, 0xc000, 0x121c, 0xc007, 0xffff, 0xffff, 0xffff, 0xffff,
-  /*                      SW Section                       |CHKSUM */
-    0xffff, 0xffff, 0xffff, 0xffff, 0x0000, 0x0120, 0xffff, 0x0000,
+    0x1040, 0xffff, 0x002b, 0x0000, 0x8086, 0x10c9, 0x0000, 0x70c3,
+  /* SwPin0| DevID | EESZ  |-------|ICtrl3 |PCI-tc | MSIX  | APtr  */
+    0x0004, 0x10c9, 0x5c00, 0x0000, 0x2880, 0x0014, 0x4a40, 0x0060,
+  /* PCIe Init. Conf 1,2,3 |PCICtrl| LD1,3 |DDevID |DevRev | LD0,2 */
+    0x6cfb, 0xc7b0, 0x0abe, 0x0403, 0x0783, 0x10a6, 0x0001, 0x0602,
+  /* SwPin1| FunC  |LAN-PWR|ManHwC |ICtrl3 | IOVct |VDevID |-------*/
+    0x0004, 0x0020, 0x0000, 0x004a, 0x2080, 0x00f5, 0x10ca, 0x0000,
+  /*---------------| LD1,3 | LD0,2 | ROEnd | ROSta | Wdog  | VPD   */
+    0x0000, 0x0000, 0x4784, 0x4602, 0x0000, 0x0000, 0x1000, 0xffff,
+  /* PCSet0| Ccfg0 |PXEver |IBAcap |PCSet1 | Ccfg1 |iSCVer | ??    */
+    0x0100, 0x4000, 0x131f, 0x4013, 0x0100, 0x4000, 0xffff, 0xffff,
+  /* PCSet2| Ccfg2 |PCSet3 | Ccfg3 | ??    |AltMacP| ??    |CHKSUM */
+    0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x00e0, 0xffff, 0x0000,
+  /* NC-SIC */
+    0x0003,
 };
 
 static void igb_core_realize(IGBState *s)
@@ -266,47 +282,27 @@ static void igb_core_realize(IGBState *s)
 }
 
 static void
-igb_unuse_msix_vectors(IGBState *s, int num_vectors)
-{
-    int i;
-    for (i = 0; i < num_vectors; i++) {
-        msix_vector_unuse(PCI_DEVICE(s), i);
-    }
-}
-
-static void
-igb_use_msix_vectors(IGBState *s, int num_vectors)
-{
-    int i;
-    for (i = 0; i < num_vectors; i++) {
-        msix_vector_use(PCI_DEVICE(s), i);
-    }
-}
-
-static void
 igb_init_msix(IGBState *s)
 {
-    int res = msix_init(PCI_DEVICE(s), IGB_MSIX_VEC_NUM,
-                        &s->msix,
-                        E1000E_MSIX_IDX, E1000E_MSIX_TABLE,
-                        &s->msix,
-                        E1000E_MSIX_IDX, E1000E_MSIX_PBA,
-                        0xA0, NULL);
+    int i;
 
-    if (res < 0) {
-        trace_e1000e_msix_init_fail(res);
-    } else {
-        igb_use_msix_vectors(s, IGB_MSIX_VEC_NUM);
+    msix_init(PCI_DEVICE(s), IGB_MSIX_VECTORS,
+              &s->msix,
+              E1000E_MSIX_IDX, 0,
+              &s->msix,
+              E1000E_MSIX_IDX, 0x2000,
+              0x70, &error_abort);
+
+    for (i = 0; i < IGB_MSIX_VECTORS; i++) {
+        msix_vector_use(PCI_DEVICE(s), i);
     }
 }
 
 static void
 igb_cleanup_msix(IGBState *s)
 {
-    if (msix_present(PCI_DEVICE(s))) {
-        igb_unuse_msix_vectors(s, IGB_MSIX_VEC_NUM);
-        msix_uninit(PCI_DEVICE(s), &s->msix, &s->msix);
-    }
+    msix_unuse_all_vectors(PCI_DEVICE(s));
+    msix_uninit(PCI_DEVICE(s), &s->msix, &s->msix);
 }
 
 static void
@@ -327,43 +323,22 @@ igb_init_net_peer(IGBState *s, PCIDevice *pci_dev, uint8_t *macaddr)
     qemu_format_nic_info_str(qemu_get_queue(s->nic), macaddr);
 
     /* Setup virtio headers */
-    if (s->disable_vnet) {
-        s->core.has_vnet = false;
-        trace_e1000e_cfg_support_virtio(false);
-        return;
-    } else {
-        s->core.has_vnet = true;
-    }
-
     for (i = 0; i < s->conf.peers.queues; i++) {
         nc = qemu_get_subqueue(s->nic, i);
         if (!nc->peer || !qemu_has_vnet_hdr(nc->peer)) {
-            s->core.has_vnet = false;
             trace_e1000e_cfg_support_virtio(false);
             return;
         }
     }
 
     trace_e1000e_cfg_support_virtio(true);
+    s->core.has_vnet = true;
 
     for (i = 0; i < s->conf.peers.queues; i++) {
         nc = qemu_get_subqueue(s->nic, i);
         qemu_set_vnet_hdr_len(nc->peer, sizeof(struct virtio_net_hdr));
         qemu_using_vnet_hdr(nc->peer, true);
     }
-}
-
-static inline uint64_t
-igb_gen_dsn(uint8_t *mac)
-{
-    return (uint64_t)(mac[5])        |
-           (uint64_t)(mac[4])  << 8  |
-           (uint64_t)(mac[3])  << 16 |
-           (uint64_t)(0x00FF)  << 24 |
-           (uint64_t)(0x00FF)  << 32 |
-           (uint64_t)(mac[2])  << 40 |
-           (uint64_t)(mac[1])  << 48 |
-           (uint64_t)(mac[0])  << 56;
 }
 
 static int
@@ -393,28 +368,10 @@ igb_add_pm_capability(PCIDevice *pdev, uint8_t offset, uint16_t pmc)
     return ret;
 }
 
-static void igb_write_config(PCIDevice *pci_dev, uint32_t address,
-                             uint32_t val, int len)
-{
-    IGBState *s = IGB(pci_dev);
-
-    pci_default_write_config(pci_dev, address, val, len);
-
-    if (range_covers_byte(address, len, PCI_COMMAND) &&
-        (pci_dev->config[PCI_COMMAND] & PCI_COMMAND_MASTER)) {
-        igb_start_recv(&s->core);
-    }
-}
-
 static void igb_pci_realize(PCIDevice *pci_dev, Error **errp)
 {
-    static const uint16_t e1000e_pmrb_offset = 0x0C8;
-    static const uint16_t e1000e_pcie_offset = 0x0E0;
-    static const uint16_t e1000e_aer_offset =  0x100;
-    static const uint16_t e1000e_dsn_offset =  0x140;
     IGBState *s = IGB(pci_dev);
     uint8_t *macaddr;
-    int ret;
 
     trace_e1000e_cb_pci_realize();
 
@@ -422,12 +379,6 @@ static void igb_pci_realize(PCIDevice *pci_dev, Error **errp)
 
     pci_dev->config[PCI_CACHE_LINE_SIZE] = 0x10;
     pci_dev->config[PCI_INTERRUPT_PIN] = 1;
-
-    pci_set_word(pci_dev->config + PCI_SUBSYSTEM_VENDOR_ID, s->subsys_ven);
-    pci_set_word(pci_dev->config + PCI_SUBSYSTEM_ID, s->subsys);
-
-    s->subsys_ven_used = s->subsys_ven;
-    s->subsys_used = s->subsys;
 
     /* Define IO/MMIO regions */
     memory_region_init_io(&s->mmio, OBJECT(s), &mmio_ops, s,
@@ -452,34 +403,40 @@ static void igb_pci_realize(PCIDevice *pci_dev, Error **errp)
     memory_region_init(&s->msix, OBJECT(s), "igb-msix",
                        E1000E_MSIX_SIZE);
     pci_register_bar(pci_dev, E1000E_MSIX_IDX,
-                     PCI_BASE_ADDRESS_SPACE_MEMORY, &s->msix);
+                     PCI_BASE_ADDRESS_MEM_TYPE_64, &s->msix);
 
     /* Create networking backend */
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     macaddr = s->conf.macaddr.a;
 
+    /* Add PCI capabilities in reverse order */
+    assert(pcie_endpoint_cap_init(pci_dev, 0xa0) > 0);
+
     igb_init_msix(s);
 
-    if (pcie_endpoint_cap_v1_init(pci_dev, e1000e_pcie_offset) < 0) {
-        hw_error("Failed to initialize PCIe capability");
-    }
+    msi_init(pci_dev, 0x50, 1, true, true, &error_abort);
 
-    ret = msi_init(PCI_DEVICE(s), 0xD0, 1, true, false, NULL);
-    if (ret) {
-        trace_e1000e_msi_init_fail(ret);
-    }
-
-    if (igb_add_pm_capability(pci_dev, e1000e_pmrb_offset,
-                              PCI_PM_CAP_DSI) < 0) {
+    if (igb_add_pm_capability(pci_dev, 0x40, PCI_PM_CAP_DSI) < 0) {
         hw_error("Failed to initialize PM capability");
     }
 
-    if (pcie_aer_init(pci_dev, PCI_ERR_VER, e1000e_aer_offset,
-                      PCI_ERR_SIZEOF, NULL) < 0) {
+    /* PCIe extended capabilities (in order) */
+    if (pcie_aer_init(pci_dev, 1, 0x100, 0x40, errp) < 0) {
         hw_error("Failed to initialize AER capability");
     }
 
-    pcie_dev_ser_num_init(pci_dev, e1000e_dsn_offset, igb_gen_dsn(macaddr));
+    pcie_ari_init(pci_dev, 0x150, 1);
+
+    pcie_sriov_pf_init(pci_dev, IGB_CAP_SRIOV_OFFSET, "igbvf",
+        IGB_82576_VF_DEV_ID, IGB_MAX_VF_FUNCTIONS, IGB_MAX_VF_FUNCTIONS,
+        IGB_VF_OFFSET, IGB_VF_STRIDE);
+
+    pcie_sriov_pf_init_vf_bar(pci_dev, 0,
+        PCI_BASE_ADDRESS_MEM_TYPE_64 | PCI_BASE_ADDRESS_MEM_PREFETCH,
+        16 * KiB);
+    pcie_sriov_pf_init_vf_bar(pci_dev, 3,
+        PCI_BASE_ADDRESS_MEM_TYPE_64 | PCI_BASE_ADDRESS_MEM_PREFETCH,
+        16 * KiB);
 
     igb_init_net_peer(s, pci_dev, macaddr);
 
@@ -500,7 +457,7 @@ static void igb_pci_uninit(PCIDevice *pci_dev)
 
     igb_core_pci_uninit(&s->core);
 
-    pcie_aer_exit(pci_dev);
+    pcie_sriov_pf_exit(pci_dev);
     pcie_cap_exit(pci_dev);
 
     qemu_del_nic(s->nic);
@@ -511,15 +468,13 @@ static void igb_pci_uninit(PCIDevice *pci_dev)
 
 static void igb_qdev_reset_hold(Object *obj)
 {
+    PCIDevice *d = PCI_DEVICE(obj);
     IGBState *s = IGB(obj);
 
     trace_e1000e_cb_qdev_reset_hold();
 
+    pcie_sriov_pf_disable_vfs(d);
     igb_core_reset(&s->core);
-
-    if (s->init_vet) {
-        s->core.mac[VET] = ETH_P_VLAN;
-    }
 }
 
 static int igb_pre_save(void *opaque)
@@ -538,15 +493,6 @@ static int igb_post_load(void *opaque, int version_id)
     IGBState *s = opaque;
 
     trace_e1000e_cb_post_load();
-
-    if ((s->subsys != s->subsys_used) ||
-        (s->subsys_ven != s->subsys_ven_used)) {
-        fprintf(stderr,
-            "ERROR: Cannot migrate while device properties "
-            "(subsys/subsys_ven) differ");
-        return -1;
-    }
-
     return igb_core_post_load(&s->core);
 }
 
@@ -555,20 +501,12 @@ static const VMStateDescription igb_vmstate_tx = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT8(sum_needed, struct igb_tx),
-        VMSTATE_UINT8(props.ipcss, struct igb_tx),
-        VMSTATE_UINT8(props.ipcso, struct igb_tx),
-        VMSTATE_UINT16(props.ipcse, struct igb_tx),
-        VMSTATE_UINT8(props.tucss, struct igb_tx),
-        VMSTATE_UINT8(props.tucso, struct igb_tx),
-        VMSTATE_UINT16(props.tucse, struct igb_tx),
-        VMSTATE_UINT8(props.hdr_len, struct igb_tx),
-        VMSTATE_UINT16(props.mss, struct igb_tx),
-        VMSTATE_UINT32(props.paylen, struct igb_tx),
-        VMSTATE_INT8(props.ip, struct igb_tx),
-        VMSTATE_INT8(props.tcp, struct igb_tx),
-        VMSTATE_BOOL(props.tse, struct igb_tx),
-        VMSTATE_BOOL(cptse, struct igb_tx),
+        VMSTATE_UINT16(vlan, struct igb_tx),
+        VMSTATE_UINT16(mss, struct igb_tx),
+        VMSTATE_BOOL(tse, struct igb_tx),
+        VMSTATE_BOOL(ixsm, struct igb_tx),
+        VMSTATE_BOOL(txsm, struct igb_tx),
+        VMSTATE_BOOL(first, struct igb_tx),
         VMSTATE_BOOL(skip_cp, struct igb_tx),
         VMSTATE_END_OF_LIST()
     }
@@ -604,37 +542,16 @@ static const VMStateDescription igb_vmstate = {
         VMSTATE_MSIX(parent_obj, IGBState),
 
         VMSTATE_UINT32(ioaddr, IGBState),
-        VMSTATE_UINT32(core.rxbuf_min_shift, IGBState),
         VMSTATE_UINT8(core.rx_desc_len, IGBState),
-        VMSTATE_UINT32_ARRAY(core.rxbuf_sizes, IGBState,
-                             E1000_PSRCTL_BUFFS_PER_DESC),
-        VMSTATE_UINT32(core.rx_desc_buf_size, IGBState),
         VMSTATE_UINT16_ARRAY(core.eeprom, IGBState, IGB_EEPROM_SIZE),
-        VMSTATE_UINT16_2DARRAY(core.phy, IGBState,
-                               E1000E_PHY_PAGES, E1000E_PHY_PAGE_SIZE),
+        VMSTATE_UINT16_ARRAY(core.phy, IGBState, MAX_PHY_REG_ADDRESS + 1),
         VMSTATE_UINT32_ARRAY(core.mac, IGBState, E1000E_MAC_SIZE),
         VMSTATE_UINT8_ARRAY(core.permanent_mac, IGBState, ETH_ALEN),
-
-        VMSTATE_UINT32(core.delayed_causes, IGBState),
-
-        VMSTATE_UINT16(subsys, IGBState),
-        VMSTATE_UINT16(subsys_ven, IGBState),
-
-        VMSTATE_IGB_INTR_DELAY_TIMER(core.rdtr, IGBState),
-        VMSTATE_IGB_INTR_DELAY_TIMER(core.radv, IGBState),
-        VMSTATE_IGB_INTR_DELAY_TIMER(core.raid, IGBState),
-        VMSTATE_IGB_INTR_DELAY_TIMER(core.tadv, IGBState),
-        VMSTATE_IGB_INTR_DELAY_TIMER(core.tidv, IGBState),
-
-        VMSTATE_IGB_INTR_DELAY_TIMER(core.itr, IGBState),
 
         VMSTATE_IGB_INTR_DELAY_TIMER_ARRAY(core.eitr, IGBState,
                                            IGB_MSIX_VEC_NUM),
 
-        VMSTATE_UINT32(core.itr_guest_value, IGBState),
         VMSTATE_UINT32_ARRAY(core.eitr_guest_value, IGBState, IGB_MSIX_VEC_NUM),
-
-        VMSTATE_UINT16(core.vet, IGBState),
 
         VMSTATE_STRUCT_ARRAY(core.tx, IGBState, IGB_NUM_QUEUES, 0,
                              igb_vmstate_tx, struct igb_tx),
@@ -642,20 +559,8 @@ static const VMStateDescription igb_vmstate = {
     }
 };
 
-static PropertyInfo igb_prop_disable_vnet,
-                    igb_prop_subsys_ven,
-                    igb_prop_subsys;
-
 static Property igb_properties[] = {
     DEFINE_NIC_PROPERTIES(IGBState, conf),
-    DEFINE_PROP_SIGNED("disable_vnet_hdr", IGBState, disable_vnet, false,
-                        igb_prop_disable_vnet, bool),
-    DEFINE_PROP_SIGNED("subsys_ven", IGBState, subsys_ven,
-                        PCI_VENDOR_ID_INTEL,
-                        igb_prop_subsys_ven, uint16_t),
-    DEFINE_PROP_SIGNED("subsys", IGBState, subsys, 0,
-                        igb_prop_subsys, uint16_t),
-    DEFINE_PROP_BOOL("init-vet", IGBState, init_vet, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -668,26 +573,14 @@ static void igb_class_init(ObjectClass *class, void *data)
     c->realize = igb_pci_realize;
     c->exit = igb_pci_uninit;
     c->vendor_id = PCI_VENDOR_ID_INTEL;
-    c->device_id = E1000_DEV_ID_82574L;
-    c->revision = 0;
-    c->romfile = "efi-e1000e.rom";
+    c->device_id = E1000_DEV_ID_82576;
+    c->revision = 1;
     c->class_id = PCI_CLASS_NETWORK_ETHERNET;
 
     rc->phases.hold = igb_qdev_reset_hold;
 
-    dc->desc = "Intel 82574L GbE Controller";
+    dc->desc = "Intel 82576 Gigabit Ethernet Controller";
     dc->vmsd = &igb_vmstate;
-
-    igb_prop_disable_vnet = qdev_prop_uint8;
-    igb_prop_disable_vnet.description = "Do not use virtio headers, "
-                                        "perform SW offloads emulation "
-                                        "instead";
-
-    igb_prop_subsys_ven = qdev_prop_uint16;
-    igb_prop_subsys_ven.description = "PCI device Subsystem Vendor ID";
-
-    igb_prop_subsys = qdev_prop_uint16;
-    igb_prop_subsys.description = "PCI device Subsystem ID";
 
     device_class_set_props(dc, igb_properties);
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
