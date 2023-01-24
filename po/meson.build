@@ -1,4 +1,4 @@
-i18n = import('i18n')
+i18n = import('i18n', required: false)
 
 if find_program('xgettext', required: get_option('gettext')).found()
   i18n.gettext(meson.project_name(),
