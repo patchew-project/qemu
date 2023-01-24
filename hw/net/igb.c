@@ -48,18 +48,18 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 
-#include "e1000_common.h"
+#include "igb_common.h"
 #include "e1000x_common.h"
-#include "e1000e_core.h"
+#include "igb_core.h"
 
 #include "trace.h"
 #include "qapi/error.h"
 #include "qom/object.h"
 
-#define TYPE_E1000E "e1000e"
-OBJECT_DECLARE_SIMPLE_TYPE(E1000EState, E1000E)
+#define TYPE_IGB "igb"
+OBJECT_DECLARE_SIMPLE_TYPE(IGBState, IGB)
 
-struct E1000EState {
+struct IGBState {
     PCIDevice parent_obj;
     NICState *nic;
     NICConf conf;
@@ -79,7 +79,7 @@ struct E1000EState {
 
     bool disable_vnet;
 
-    E1000ECore core;
+    IGBCore core;
     bool init_vet;
 };
 
@@ -97,22 +97,21 @@ struct E1000EState {
 #define E1000E_MSIX_PBA     (0x2000)
 
 static uint64_t
-e1000e_mmio_read(void *opaque, hwaddr addr, unsigned size)
+igb_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
-    E1000EState *s = opaque;
-    return e1000e_core_read(&s->core, addr, size);
+    IGBState *s = opaque;
+    return igb_core_read(&s->core, addr, size);
 }
 
 static void
-e1000e_mmio_write(void *opaque, hwaddr addr,
-                   uint64_t val, unsigned size)
+igb_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
-    E1000EState *s = opaque;
-    e1000e_core_write(&s->core, addr, val, size);
+    IGBState *s = opaque;
+    igb_core_write(&s->core, addr, val, size);
 }
 
 static bool
-e1000e_io_get_reg_index(E1000EState *s, uint32_t *idx)
+igb_io_get_reg_index(IGBState *s, uint32_t *idx)
 {
     if (s->ioaddr < 0x1FFFF) {
         *idx = s->ioaddr;
@@ -134,9 +133,9 @@ e1000e_io_get_reg_index(E1000EState *s, uint32_t *idx)
 }
 
 static uint64_t
-e1000e_io_read(void *opaque, hwaddr addr, unsigned size)
+igb_io_read(void *opaque, hwaddr addr, unsigned size)
 {
-    E1000EState *s = opaque;
+    IGBState *s = opaque;
     uint32_t idx = 0;
     uint64_t val;
 
@@ -145,8 +144,8 @@ e1000e_io_read(void *opaque, hwaddr addr, unsigned size)
         trace_e1000e_io_read_addr(s->ioaddr);
         return s->ioaddr;
     case E1000_IODATA:
-        if (e1000e_io_get_reg_index(s, &idx)) {
-            val = e1000e_core_read(&s->core, idx, sizeof(val));
+        if (igb_io_get_reg_index(s, &idx)) {
+            val = igb_core_read(&s->core, idx, sizeof(val));
             trace_e1000e_io_read_data(idx, val);
             return val;
         }
@@ -158,10 +157,9 @@ e1000e_io_read(void *opaque, hwaddr addr, unsigned size)
 }
 
 static void
-e1000e_io_write(void *opaque, hwaddr addr,
-                uint64_t val, unsigned size)
+igb_io_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
-    E1000EState *s = opaque;
+    IGBState *s = opaque;
     uint32_t idx = 0;
 
     switch (addr) {
@@ -170,9 +168,9 @@ e1000e_io_write(void *opaque, hwaddr addr,
         s->ioaddr = (uint32_t) val;
         return;
     case E1000_IODATA:
-        if (e1000e_io_get_reg_index(s, &idx)) {
+        if (igb_io_get_reg_index(s, &idx)) {
             trace_e1000e_io_write_data(idx, val);
-            e1000e_core_write(&s->core, idx, val, sizeof(val));
+            igb_core_write(&s->core, idx, val, sizeof(val));
         }
         return;
     default:
@@ -182,8 +180,8 @@ e1000e_io_write(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps mmio_ops = {
-    .read = e1000e_mmio_read,
-    .write = e1000e_mmio_write,
+    .read = igb_mmio_read,
+    .write = igb_mmio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 4,
@@ -192,8 +190,8 @@ static const MemoryRegionOps mmio_ops = {
 };
 
 static const MemoryRegionOps io_ops = {
-    .read = e1000e_io_read,
-    .write = e1000e_io_write,
+    .read = igb_io_read,
+    .write = igb_io_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 4,
@@ -202,47 +200,47 @@ static const MemoryRegionOps io_ops = {
 };
 
 static bool
-e1000e_nc_can_receive(NetClientState *nc)
+igb_nc_can_receive(NetClientState *nc)
 {
-    E1000EState *s = qemu_get_nic_opaque(nc);
-    return e1000e_can_receive(&s->core);
+    IGBState *s = qemu_get_nic_opaque(nc);
+    return igb_can_receive(&s->core);
 }
 
 static ssize_t
-e1000e_nc_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
+igb_nc_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
 {
-    E1000EState *s = qemu_get_nic_opaque(nc);
-    return e1000e_receive_iov(&s->core, iov, iovcnt);
+    IGBState *s = qemu_get_nic_opaque(nc);
+    return igb_receive_iov(&s->core, iov, iovcnt);
 }
 
 static ssize_t
-e1000e_nc_receive(NetClientState *nc, const uint8_t *buf, size_t size)
+igb_nc_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    E1000EState *s = qemu_get_nic_opaque(nc);
-    return e1000e_receive(&s->core, buf, size);
+    IGBState *s = qemu_get_nic_opaque(nc);
+    return igb_receive(&s->core, buf, size);
 }
 
 static void
-e1000e_set_link_status(NetClientState *nc)
+igb_set_link_status(NetClientState *nc)
 {
-    E1000EState *s = qemu_get_nic_opaque(nc);
-    e1000e_core_set_link_status(&s->core);
+    IGBState *s = qemu_get_nic_opaque(nc);
+    igb_core_set_link_status(&s->core);
 }
 
-static NetClientInfo net_e1000e_info = {
+static NetClientInfo net_igb_info = {
     .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
-    .can_receive = e1000e_nc_can_receive,
-    .receive = e1000e_nc_receive,
-    .receive_iov = e1000e_nc_receive_iov,
-    .link_status_changed = e1000e_set_link_status,
+    .can_receive = igb_nc_can_receive,
+    .receive = igb_nc_receive,
+    .receive_iov = igb_nc_receive_iov,
+    .link_status_changed = igb_set_link_status,
 };
 
 /*
  * EEPROM (NVM) contents documented in Table 36, section 6.1
  * and generally 6.1.2 Software accessed words.
  */
-static const uint16_t e1000e_eeprom_template[64] = {
+static const uint16_t igb_eeprom_template[64] = {
   /*        Address        |    Compat.    | ImVer |   Compat.     */
     0x0000, 0x0000, 0x0000, 0x0420, 0xf746, 0x2010, 0xffff, 0xffff,
   /*      PBA      |ICtrl1 | SSID  | SVID  | DevID |-------|ICtrl2 */
@@ -261,14 +259,14 @@ static const uint16_t e1000e_eeprom_template[64] = {
     0xffff, 0xffff, 0xffff, 0xffff, 0x0000, 0x0120, 0xffff, 0x0000,
 };
 
-static void e1000e_core_realize(E1000EState *s)
+static void igb_core_realize(IGBState *s)
 {
     s->core.owner = &s->parent_obj;
     s->core.owner_nic = s->nic;
 }
 
 static void
-e1000e_unuse_msix_vectors(E1000EState *s, int num_vectors)
+igb_unuse_msix_vectors(IGBState *s, int num_vectors)
 {
     int i;
     for (i = 0; i < num_vectors; i++) {
@@ -277,7 +275,7 @@ e1000e_unuse_msix_vectors(E1000EState *s, int num_vectors)
 }
 
 static void
-e1000e_use_msix_vectors(E1000EState *s, int num_vectors)
+igb_use_msix_vectors(IGBState *s, int num_vectors)
 {
     int i;
     for (i = 0; i < num_vectors; i++) {
@@ -286,9 +284,9 @@ e1000e_use_msix_vectors(E1000EState *s, int num_vectors)
 }
 
 static void
-e1000e_init_msix(E1000EState *s)
+igb_init_msix(IGBState *s)
 {
-    int res = msix_init(PCI_DEVICE(s), E1000E_MSIX_VEC_NUM,
+    int res = msix_init(PCI_DEVICE(s), IGB_MSIX_VEC_NUM,
                         &s->msix,
                         E1000E_MSIX_IDX, E1000E_MSIX_TABLE,
                         &s->msix,
@@ -298,27 +296,27 @@ e1000e_init_msix(E1000EState *s)
     if (res < 0) {
         trace_e1000e_msix_init_fail(res);
     } else {
-        e1000e_use_msix_vectors(s, E1000E_MSIX_VEC_NUM);
+        igb_use_msix_vectors(s, IGB_MSIX_VEC_NUM);
     }
 }
 
 static void
-e1000e_cleanup_msix(E1000EState *s)
+igb_cleanup_msix(IGBState *s)
 {
     if (msix_present(PCI_DEVICE(s))) {
-        e1000e_unuse_msix_vectors(s, E1000E_MSIX_VEC_NUM);
+        igb_unuse_msix_vectors(s, IGB_MSIX_VEC_NUM);
         msix_uninit(PCI_DEVICE(s), &s->msix, &s->msix);
     }
 }
 
 static void
-e1000e_init_net_peer(E1000EState *s, PCIDevice *pci_dev, uint8_t *macaddr)
+igb_init_net_peer(IGBState *s, PCIDevice *pci_dev, uint8_t *macaddr)
 {
     DeviceState *dev = DEVICE(pci_dev);
     NetClientState *nc;
     int i;
 
-    s->nic = qemu_new_nic(&net_e1000e_info, &s->conf,
+    s->nic = qemu_new_nic(&net_igb_info, &s->conf,
         object_get_typename(OBJECT(s)), dev->id, s);
 
     s->core.max_queue_num = s->conf.peers.queues ? s->conf.peers.queues - 1 : 0;
@@ -356,7 +354,7 @@ e1000e_init_net_peer(E1000EState *s, PCIDevice *pci_dev, uint8_t *macaddr)
 }
 
 static inline uint64_t
-e1000e_gen_dsn(uint8_t *mac)
+igb_gen_dsn(uint8_t *mac)
 {
     return (uint64_t)(mac[5])        |
            (uint64_t)(mac[4])  << 8  |
@@ -369,7 +367,7 @@ e1000e_gen_dsn(uint8_t *mac)
 }
 
 static int
-e1000e_add_pm_capability(PCIDevice *pdev, uint8_t offset, uint16_t pmc)
+igb_add_pm_capability(PCIDevice *pdev, uint8_t offset, uint16_t pmc)
 {
     Error *local_err = NULL;
     int ret = pci_add_capability(pdev, PCI_CAP_ID_PM, offset,
@@ -395,32 +393,32 @@ e1000e_add_pm_capability(PCIDevice *pdev, uint8_t offset, uint16_t pmc)
     return ret;
 }
 
-static void e1000e_write_config(PCIDevice *pci_dev, uint32_t address,
-                                uint32_t val, int len)
+static void igb_write_config(PCIDevice *pci_dev, uint32_t address,
+                             uint32_t val, int len)
 {
-    E1000EState *s = E1000E(pci_dev);
+    IGBState *s = IGB(pci_dev);
 
     pci_default_write_config(pci_dev, address, val, len);
 
     if (range_covers_byte(address, len, PCI_COMMAND) &&
         (pci_dev->config[PCI_COMMAND] & PCI_COMMAND_MASTER)) {
-        e1000e_start_recv(&s->core);
+        igb_start_recv(&s->core);
     }
 }
 
-static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
+static void igb_pci_realize(PCIDevice *pci_dev, Error **errp)
 {
     static const uint16_t e1000e_pmrb_offset = 0x0C8;
     static const uint16_t e1000e_pcie_offset = 0x0E0;
     static const uint16_t e1000e_aer_offset =  0x100;
     static const uint16_t e1000e_dsn_offset =  0x140;
-    E1000EState *s = E1000E(pci_dev);
+    IGBState *s = IGB(pci_dev);
     uint8_t *macaddr;
     int ret;
 
     trace_e1000e_cb_pci_realize();
 
-    pci_dev->config_write = e1000e_write_config;
+    pci_dev->config_write = igb_write_config;
 
     pci_dev->config[PCI_CACHE_LINE_SIZE] = 0x10;
     pci_dev->config[PCI_INTERRUPT_PIN] = 1;
@@ -433,7 +431,7 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
 
     /* Define IO/MMIO regions */
     memory_region_init_io(&s->mmio, OBJECT(s), &mmio_ops, s,
-                          "e1000e-mmio", E1000E_MMIO_SIZE);
+                          "igb-mmio", E1000E_MMIO_SIZE);
     pci_register_bar(pci_dev, E1000E_MMIO_IDX,
                      PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mmio);
 
@@ -442,16 +440,16 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
      * for drivers that may theoretically probe for its presence.
      */
     memory_region_init(&s->flash, OBJECT(s),
-                       "e1000e-flash", E1000E_FLASH_SIZE);
+                       "igb-flash", E1000E_FLASH_SIZE);
     pci_register_bar(pci_dev, E1000E_FLASH_IDX,
                      PCI_BASE_ADDRESS_SPACE_MEMORY, &s->flash);
 
     memory_region_init_io(&s->io, OBJECT(s), &io_ops, s,
-                          "e1000e-io", E1000E_IO_SIZE);
+                          "igb-io", E1000E_IO_SIZE);
     pci_register_bar(pci_dev, E1000E_IO_IDX,
                      PCI_BASE_ADDRESS_SPACE_IO, &s->io);
 
-    memory_region_init(&s->msix, OBJECT(s), "e1000e-msix",
+    memory_region_init(&s->msix, OBJECT(s), "igb-msix",
                        E1000E_MSIX_SIZE);
     pci_register_bar(pci_dev, E1000E_MSIX_IDX,
                      PCI_BASE_ADDRESS_SPACE_MEMORY, &s->msix);
@@ -460,7 +458,7 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     macaddr = s->conf.macaddr.a;
 
-    e1000e_init_msix(s);
+    igb_init_msix(s);
 
     if (pcie_endpoint_cap_v1_init(pci_dev, e1000e_pcie_offset) < 0) {
         hw_error("Failed to initialize PCIe capability");
@@ -471,8 +469,8 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
         trace_e1000e_msi_init_fail(ret);
     }
 
-    if (e1000e_add_pm_capability(pci_dev, e1000e_pmrb_offset,
-                                  PCI_PM_CAP_DSI) < 0) {
+    if (igb_add_pm_capability(pci_dev, e1000e_pmrb_offset,
+                              PCI_PM_CAP_DSI) < 0) {
         hw_error("Failed to initialize PM capability");
     }
 
@@ -481,64 +479,63 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
         hw_error("Failed to initialize AER capability");
     }
 
-    pcie_dev_ser_num_init(pci_dev, e1000e_dsn_offset,
-                          e1000e_gen_dsn(macaddr));
+    pcie_dev_ser_num_init(pci_dev, e1000e_dsn_offset, igb_gen_dsn(macaddr));
 
-    e1000e_init_net_peer(s, pci_dev, macaddr);
+    igb_init_net_peer(s, pci_dev, macaddr);
 
     /* Initialize core */
-    e1000e_core_realize(s);
+    igb_core_realize(s);
 
-    e1000e_core_pci_realize(&s->core,
-                            e1000e_eeprom_template,
-                            sizeof(e1000e_eeprom_template),
-                            macaddr);
+    igb_core_pci_realize(&s->core,
+                         igb_eeprom_template,
+                         sizeof(igb_eeprom_template),
+                         macaddr);
 }
 
-static void e1000e_pci_uninit(PCIDevice *pci_dev)
+static void igb_pci_uninit(PCIDevice *pci_dev)
 {
-    E1000EState *s = E1000E(pci_dev);
+    IGBState *s = IGB(pci_dev);
 
     trace_e1000e_cb_pci_uninit();
 
-    e1000e_core_pci_uninit(&s->core);
+    igb_core_pci_uninit(&s->core);
 
     pcie_aer_exit(pci_dev);
     pcie_cap_exit(pci_dev);
 
     qemu_del_nic(s->nic);
 
-    e1000e_cleanup_msix(s);
+    igb_cleanup_msix(s);
     msi_uninit(pci_dev);
 }
 
-static void e1000e_qdev_reset_hold(Object *obj)
+static void igb_qdev_reset_hold(Object *obj)
 {
-    E1000EState *s = E1000E(obj);
+    IGBState *s = IGB(obj);
 
     trace_e1000e_cb_qdev_reset_hold();
 
-    e1000e_core_reset(&s->core);
+    igb_core_reset(&s->core);
 
     if (s->init_vet) {
         s->core.mac[VET] = ETH_P_VLAN;
     }
 }
 
-static int e1000e_pre_save(void *opaque)
+static int igb_pre_save(void *opaque)
 {
-    E1000EState *s = opaque;
+    IGBState *s = opaque;
 
     trace_e1000e_cb_pre_save();
 
-    e1000e_core_pre_save(&s->core);
+    igb_core_pre_save(&s->core);
 
     return 0;
 }
 
-static int e1000e_post_load(void *opaque, int version_id)
+static int igb_post_load(void *opaque, int version_id)
 {
-    E1000EState *s = opaque;
+    IGBState *s = opaque;
 
     trace_e1000e_cb_post_load();
 
@@ -550,178 +547,175 @@ static int e1000e_post_load(void *opaque, int version_id)
         return -1;
     }
 
-    return e1000e_core_post_load(&s->core);
+    return igb_core_post_load(&s->core);
 }
 
-static const VMStateDescription e1000e_vmstate_tx = {
-    .name = "e1000e-tx",
+static const VMStateDescription igb_vmstate_tx = {
+    .name = "igb-tx",
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT8(sum_needed, struct e1000e_tx),
-        VMSTATE_UINT8(props.ipcss, struct e1000e_tx),
-        VMSTATE_UINT8(props.ipcso, struct e1000e_tx),
-        VMSTATE_UINT16(props.ipcse, struct e1000e_tx),
-        VMSTATE_UINT8(props.tucss, struct e1000e_tx),
-        VMSTATE_UINT8(props.tucso, struct e1000e_tx),
-        VMSTATE_UINT16(props.tucse, struct e1000e_tx),
-        VMSTATE_UINT8(props.hdr_len, struct e1000e_tx),
-        VMSTATE_UINT16(props.mss, struct e1000e_tx),
-        VMSTATE_UINT32(props.paylen, struct e1000e_tx),
-        VMSTATE_INT8(props.ip, struct e1000e_tx),
-        VMSTATE_INT8(props.tcp, struct e1000e_tx),
-        VMSTATE_BOOL(props.tse, struct e1000e_tx),
-        VMSTATE_BOOL(cptse, struct e1000e_tx),
-        VMSTATE_BOOL(skip_cp, struct e1000e_tx),
+        VMSTATE_UINT8(sum_needed, struct igb_tx),
+        VMSTATE_UINT8(props.ipcss, struct igb_tx),
+        VMSTATE_UINT8(props.ipcso, struct igb_tx),
+        VMSTATE_UINT16(props.ipcse, struct igb_tx),
+        VMSTATE_UINT8(props.tucss, struct igb_tx),
+        VMSTATE_UINT8(props.tucso, struct igb_tx),
+        VMSTATE_UINT16(props.tucse, struct igb_tx),
+        VMSTATE_UINT8(props.hdr_len, struct igb_tx),
+        VMSTATE_UINT16(props.mss, struct igb_tx),
+        VMSTATE_UINT32(props.paylen, struct igb_tx),
+        VMSTATE_INT8(props.ip, struct igb_tx),
+        VMSTATE_INT8(props.tcp, struct igb_tx),
+        VMSTATE_BOOL(props.tse, struct igb_tx),
+        VMSTATE_BOOL(cptse, struct igb_tx),
+        VMSTATE_BOOL(skip_cp, struct igb_tx),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static const VMStateDescription e1000e_vmstate_intr_timer = {
-    .name = "e1000e-intr-timer",
+static const VMStateDescription igb_vmstate_intr_timer = {
+    .name = "igb-intr-timer",
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_TIMER_PTR(timer, E1000IntrDelayTimer),
-        VMSTATE_BOOL(running, E1000IntrDelayTimer),
+        VMSTATE_TIMER_PTR(timer, IGBIntrDelayTimer),
+        VMSTATE_BOOL(running, IGBIntrDelayTimer),
         VMSTATE_END_OF_LIST()
     }
 };
 
-#define VMSTATE_E1000E_INTR_DELAY_TIMER(_f, _s)                     \
+#define VMSTATE_IGB_INTR_DELAY_TIMER(_f, _s)                        \
     VMSTATE_STRUCT(_f, _s, 0,                                       \
-                   e1000e_vmstate_intr_timer, E1000IntrDelayTimer)
+                   igb_vmstate_intr_timer, IGBIntrDelayTimer)
 
-#define VMSTATE_E1000E_INTR_DELAY_TIMER_ARRAY(_f, _s, _num)         \
+#define VMSTATE_IGB_INTR_DELAY_TIMER_ARRAY(_f, _s, _num)            \
     VMSTATE_STRUCT_ARRAY(_f, _s, _num, 0,                           \
-                         e1000e_vmstate_intr_timer, E1000IntrDelayTimer)
+                         igb_vmstate_intr_timer, IGBIntrDelayTimer)
 
-static const VMStateDescription e1000e_vmstate = {
-    .name = "e1000e",
+static const VMStateDescription igb_vmstate = {
+    .name = "igb",
     .version_id = 1,
     .minimum_version_id = 1,
-    .pre_save = e1000e_pre_save,
-    .post_load = e1000e_post_load,
+    .pre_save = igb_pre_save,
+    .post_load = igb_post_load,
     .fields = (VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, E1000EState),
-        VMSTATE_MSIX(parent_obj, E1000EState),
+        VMSTATE_PCI_DEVICE(parent_obj, IGBState),
+        VMSTATE_MSIX(parent_obj, IGBState),
 
-        VMSTATE_UINT32(ioaddr, E1000EState),
-        VMSTATE_UINT32(core.rxbuf_min_shift, E1000EState),
-        VMSTATE_UINT8(core.rx_desc_len, E1000EState),
-        VMSTATE_UINT32_ARRAY(core.rxbuf_sizes, E1000EState,
+        VMSTATE_UINT32(ioaddr, IGBState),
+        VMSTATE_UINT32(core.rxbuf_min_shift, IGBState),
+        VMSTATE_UINT8(core.rx_desc_len, IGBState),
+        VMSTATE_UINT32_ARRAY(core.rxbuf_sizes, IGBState,
                              E1000_PSRCTL_BUFFS_PER_DESC),
-        VMSTATE_UINT32(core.rx_desc_buf_size, E1000EState),
-        VMSTATE_UINT16_ARRAY(core.eeprom, E1000EState, E1000E_EEPROM_SIZE),
-        VMSTATE_UINT16_2DARRAY(core.phy, E1000EState,
+        VMSTATE_UINT32(core.rx_desc_buf_size, IGBState),
+        VMSTATE_UINT16_ARRAY(core.eeprom, IGBState, IGB_EEPROM_SIZE),
+        VMSTATE_UINT16_2DARRAY(core.phy, IGBState,
                                E1000E_PHY_PAGES, E1000E_PHY_PAGE_SIZE),
-        VMSTATE_UINT32_ARRAY(core.mac, E1000EState, E1000E_MAC_SIZE),
-        VMSTATE_UINT8_ARRAY(core.permanent_mac, E1000EState, ETH_ALEN),
+        VMSTATE_UINT32_ARRAY(core.mac, IGBState, E1000E_MAC_SIZE),
+        VMSTATE_UINT8_ARRAY(core.permanent_mac, IGBState, ETH_ALEN),
 
-        VMSTATE_UINT32(core.delayed_causes, E1000EState),
+        VMSTATE_UINT32(core.delayed_causes, IGBState),
 
-        VMSTATE_UINT16(subsys, E1000EState),
-        VMSTATE_UINT16(subsys_ven, E1000EState),
+        VMSTATE_UINT16(subsys, IGBState),
+        VMSTATE_UINT16(subsys_ven, IGBState),
 
-        VMSTATE_E1000E_INTR_DELAY_TIMER(core.rdtr, E1000EState),
-        VMSTATE_E1000E_INTR_DELAY_TIMER(core.radv, E1000EState),
-        VMSTATE_E1000E_INTR_DELAY_TIMER(core.raid, E1000EState),
-        VMSTATE_E1000E_INTR_DELAY_TIMER(core.tadv, E1000EState),
-        VMSTATE_E1000E_INTR_DELAY_TIMER(core.tidv, E1000EState),
+        VMSTATE_IGB_INTR_DELAY_TIMER(core.rdtr, IGBState),
+        VMSTATE_IGB_INTR_DELAY_TIMER(core.radv, IGBState),
+        VMSTATE_IGB_INTR_DELAY_TIMER(core.raid, IGBState),
+        VMSTATE_IGB_INTR_DELAY_TIMER(core.tadv, IGBState),
+        VMSTATE_IGB_INTR_DELAY_TIMER(core.tidv, IGBState),
 
-        VMSTATE_E1000E_INTR_DELAY_TIMER(core.itr, E1000EState),
-        VMSTATE_UNUSED(1),
+        VMSTATE_IGB_INTR_DELAY_TIMER(core.itr, IGBState),
 
-        VMSTATE_E1000E_INTR_DELAY_TIMER_ARRAY(core.eitr, E1000EState,
-                                              E1000E_MSIX_VEC_NUM),
-        VMSTATE_UNUSED(E1000E_MSIX_VEC_NUM),
+        VMSTATE_IGB_INTR_DELAY_TIMER_ARRAY(core.eitr, IGBState,
+                                           IGB_MSIX_VEC_NUM),
 
-        VMSTATE_UINT32(core.itr_guest_value, E1000EState),
-        VMSTATE_UINT32_ARRAY(core.eitr_guest_value, E1000EState,
-                             E1000E_MSIX_VEC_NUM),
+        VMSTATE_UINT32(core.itr_guest_value, IGBState),
+        VMSTATE_UINT32_ARRAY(core.eitr_guest_value, IGBState, IGB_MSIX_VEC_NUM),
 
-        VMSTATE_UINT16(core.vet, E1000EState),
+        VMSTATE_UINT16(core.vet, IGBState),
 
-        VMSTATE_STRUCT_ARRAY(core.tx, E1000EState, E1000E_NUM_QUEUES, 0,
-                             e1000e_vmstate_tx, struct e1000e_tx),
+        VMSTATE_STRUCT_ARRAY(core.tx, IGBState, IGB_NUM_QUEUES, 0,
+                             igb_vmstate_tx, struct igb_tx),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static PropertyInfo e1000e_prop_disable_vnet,
-                    e1000e_prop_subsys_ven,
-                    e1000e_prop_subsys;
+static PropertyInfo igb_prop_disable_vnet,
+                    igb_prop_subsys_ven,
+                    igb_prop_subsys;
 
-static Property e1000e_properties[] = {
-    DEFINE_NIC_PROPERTIES(E1000EState, conf),
-    DEFINE_PROP_SIGNED("disable_vnet_hdr", E1000EState, disable_vnet, false,
-                        e1000e_prop_disable_vnet, bool),
-    DEFINE_PROP_SIGNED("subsys_ven", E1000EState, subsys_ven,
+static Property igb_properties[] = {
+    DEFINE_NIC_PROPERTIES(IGBState, conf),
+    DEFINE_PROP_SIGNED("disable_vnet_hdr", IGBState, disable_vnet, false,
+                        igb_prop_disable_vnet, bool),
+    DEFINE_PROP_SIGNED("subsys_ven", IGBState, subsys_ven,
                         PCI_VENDOR_ID_INTEL,
-                        e1000e_prop_subsys_ven, uint16_t),
-    DEFINE_PROP_SIGNED("subsys", E1000EState, subsys, 0,
-                        e1000e_prop_subsys, uint16_t),
-    DEFINE_PROP_BOOL("init-vet", E1000EState, init_vet, true),
+                        igb_prop_subsys_ven, uint16_t),
+    DEFINE_PROP_SIGNED("subsys", IGBState, subsys, 0,
+                        igb_prop_subsys, uint16_t),
+    DEFINE_PROP_BOOL("init-vet", IGBState, init_vet, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void e1000e_class_init(ObjectClass *class, void *data)
+static void igb_class_init(ObjectClass *class, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);
     PCIDeviceClass *c = PCI_DEVICE_CLASS(class);
 
-    c->realize = e1000e_pci_realize;
-    c->exit = e1000e_pci_uninit;
+    c->realize = igb_pci_realize;
+    c->exit = igb_pci_uninit;
     c->vendor_id = PCI_VENDOR_ID_INTEL;
     c->device_id = E1000_DEV_ID_82574L;
     c->revision = 0;
     c->romfile = "efi-e1000e.rom";
     c->class_id = PCI_CLASS_NETWORK_ETHERNET;
 
-    rc->phases.hold = e1000e_qdev_reset_hold;
+    rc->phases.hold = igb_qdev_reset_hold;
 
     dc->desc = "Intel 82574L GbE Controller";
-    dc->vmsd = &e1000e_vmstate;
+    dc->vmsd = &igb_vmstate;
 
-    e1000e_prop_disable_vnet = qdev_prop_uint8;
-    e1000e_prop_disable_vnet.description = "Do not use virtio headers, "
-                                           "perform SW offloads emulation "
-                                           "instead";
+    igb_prop_disable_vnet = qdev_prop_uint8;
+    igb_prop_disable_vnet.description = "Do not use virtio headers, "
+                                        "perform SW offloads emulation "
+                                        "instead";
 
-    e1000e_prop_subsys_ven = qdev_prop_uint16;
-    e1000e_prop_subsys_ven.description = "PCI device Subsystem Vendor ID";
+    igb_prop_subsys_ven = qdev_prop_uint16;
+    igb_prop_subsys_ven.description = "PCI device Subsystem Vendor ID";
 
-    e1000e_prop_subsys = qdev_prop_uint16;
-    e1000e_prop_subsys.description = "PCI device Subsystem ID";
+    igb_prop_subsys = qdev_prop_uint16;
+    igb_prop_subsys.description = "PCI device Subsystem ID";
 
-    device_class_set_props(dc, e1000e_properties);
+    device_class_set_props(dc, igb_properties);
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
-static void e1000e_instance_init(Object *obj)
+static void igb_instance_init(Object *obj)
 {
-    E1000EState *s = E1000E(obj);
+    IGBState *s = IGB(obj);
     device_add_bootindex_property(obj, &s->conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
                                   DEVICE(obj));
 }
 
-static const TypeInfo e1000e_info = {
-    .name = TYPE_E1000E,
+static const TypeInfo igb_info = {
+    .name = TYPE_IGB,
     .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(E1000EState),
-    .class_init = e1000e_class_init,
-    .instance_init = e1000e_instance_init,
+    .instance_size = sizeof(IGBState),
+    .class_init = igb_class_init,
+    .instance_init = igb_instance_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },
         { }
     },
 };
 
-static void e1000e_register_types(void)
+static void igb_register_types(void)
 {
-    type_register_static(&e1000e_info);
+    type_register_static(&igb_info);
 }
 
-type_init(e1000e_register_types)
+type_init(igb_register_types)

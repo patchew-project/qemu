@@ -1,5 +1,5 @@
 /*
- * QEMU e1000(e) emulation - shared definitions
+ * QEMU igb emulation - shared definitions
  *
  * Copyright (c) 2008 Qumranet
  *
@@ -22,8 +22,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HW_NET_E1000_COMMON_H
-#define HW_NET_E1000_COMMON_H
+#ifndef HW_NET_IGB_COMMON_H
+#define HW_NET_IGB_COMMON_H
 
 #include "e1000_regs.h"
 
