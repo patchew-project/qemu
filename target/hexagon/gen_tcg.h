@@ -521,10 +521,9 @@
  */
 #define fGEN_TCG_SL2_return(SHORTCODE) \
     do { \
-        TCGv_i64 RddV = tcg_temp_new_i64(); \
+        TCGv_i64 RddV = get_result_gpr_pair(ctx, HEX_REG_FP); \
         gen_return(ctx, RddV, hex_gpr[HEX_REG_FP]); \
         gen_log_reg_write_pair(HEX_REG_FP, RddV); \
-        tcg_temp_free_i64(RddV); \
     } while (0)
 
 /*
