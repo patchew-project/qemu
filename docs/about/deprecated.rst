@@ -99,6 +99,12 @@ RISC-V machine is deprecated. Use ``-drive if=pflash`` instead.
 The HPET setting has been turned into a machine property.
 Use ``-machine hpet=off`` instead.
 
+``-accel hax`` (since 8.0)
+''''''''''''''''''''''''''
+
+The HAXM project has been retired (see https://github.com/intel/haxm#status).
+Use "whpx" (on Windows) or "hvf" (on macOS) instead.
+
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
