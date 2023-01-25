@@ -110,11 +110,8 @@ typedef struct CPUArchState {
     MMVector future_VRegs[VECTOR_TEMPS_MAX] QEMU_ALIGNED(16);
     MMVector tmp_VRegs[VECTOR_TEMPS_MAX] QEMU_ALIGNED(16);
 
-    VRegMask VRegs_updated;
-
     MMQReg QRegs[NUM_QREGS] QEMU_ALIGNED(16);
     MMQReg future_QRegs[NUM_QREGS] QEMU_ALIGNED(16);
-    QRegMask QRegs_updated;
 
     /* Temporaries used within instructions */
     MMVectorPair VuuV QEMU_ALIGNED(16);
