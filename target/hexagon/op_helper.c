@@ -105,30 +105,6 @@ void log_store64(CPUHexagonState *env, target_ulong addr,
     env->mem_log_stores[slot].data64 = val;
 }
 
-void write_new_pc(CPUHexagonState *env, bool pkt_has_multi_cof,
-                         target_ulong addr)
-{
-    HEX_DEBUG_LOG("write_new_pc(0x" TARGET_FMT_lx ")\n", addr);
-
-    if (pkt_has_multi_cof) {
-        /*
-         * If more than one branch is taken in a packet, only the first one
-         * is actually done.
-         */
-        if (env->branch_taken) {
-            HEX_DEBUG_LOG("INFO: multiple branches taken in same packet, "
-                          "ignoring the second one\n");
-        } else {
-            fCHECK_PCALIGN(addr);
-            env->gpr[HEX_REG_PC] = addr;
-            env->branch_taken = 1;
-        }
-    } else {
-        fCHECK_PCALIGN(addr);
-        env->gpr[HEX_REG_PC] = addr;
-    }
-}
-
 /* Handy place to set a breakpoint */
 void HELPER(debug_start_packet)(CPUHexagonState *env)
 {
@@ -523,51 +499,6 @@ void HELPER(probe_pkt_scalar_hvx_stores)(CPUHexagonState *env, int mask,
     if (has_hvx_stores) {
         HELPER(probe_hvx_stores)(env, mmu_idx);
     }
-}
-
-/*
- * mem_noshuf
- * Section 5.5 of the Hexagon V67 Programmer's Reference Manual
- *
- * If the load is in slot 0 and there is a store in slot1 (that
- * wasn't cancelled), we have to do the store first.
- */
-static void check_noshuf(CPUHexagonState *env, uint32_t slot,
-                         target_ulong vaddr, int size)
-{
-    if (slot == 0 && env->pkt_has_store_s1 &&
-        ((env->slot_cancelled & (1 << 1)) == 0)) {
-        HELPER(probe_noshuf_load)(env, vaddr, size, MMU_USER_IDX);
-        HELPER(commit_store)(env, 1);
-    }
-}
-
-uint8_t mem_load1(CPUHexagonState *env, uint32_t slot, target_ulong vaddr)
-{
-    uintptr_t ra = GETPC();
-    check_noshuf(env, slot, vaddr, 1);
-    return cpu_ldub_data_ra(env, vaddr, ra);
-}
-
-uint16_t mem_load2(CPUHexagonState *env, uint32_t slot, target_ulong vaddr)
-{
-    uintptr_t ra = GETPC();
-    check_noshuf(env, slot, vaddr, 2);
-    return cpu_lduw_data_ra(env, vaddr, ra);
-}
-
-uint32_t mem_load4(CPUHexagonState *env, uint32_t slot, target_ulong vaddr)
-{
-    uintptr_t ra = GETPC();
-    check_noshuf(env, slot, vaddr, 4);
-    return cpu_ldl_data_ra(env, vaddr, ra);
-}
-
-uint64_t mem_load8(CPUHexagonState *env, uint32_t slot, target_ulong vaddr)
-{
-    uintptr_t ra = GETPC();
-    check_noshuf(env, slot, vaddr, 8);
-    return cpu_ldq_data_ra(env, vaddr, ra);
 }
 
 /* Floating point */

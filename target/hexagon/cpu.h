@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -98,7 +98,6 @@ typedef struct CPUArchState {
     target_ulong pred_written;
 
     MemLog mem_log_stores[STORES_MAX];
-    target_ulong pkt_has_store_s1;
     target_ulong dczero_addr;
 
     float_status fp_status;

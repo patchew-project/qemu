@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -42,7 +42,6 @@ TCGv hex_store_addr[STORES_MAX];
 TCGv hex_store_width[STORES_MAX];
 TCGv hex_store_val32[STORES_MAX];
 TCGv_i64 hex_store_val64[STORES_MAX];
-TCGv hex_pkt_has_store_s1;
 TCGv hex_dczero_addr;
 TCGv hex_llsc_addr;
 TCGv hex_llsc_val;
@@ -287,7 +286,6 @@ static void gen_start_packet(DisasContext *ctx)
     for (i = 0; i < STORES_MAX; i++) {
         ctx->store_width[i] = 0;
     }
-    tcg_gen_movi_tl(hex_pkt_has_store_s1, pkt->pkt_has_store_s1);
     ctx->s1_store_processed = false;
     ctx->pre_commit = true;
 
@@ -1026,8 +1024,6 @@ void hexagon_translate_init(void)
         offsetof(CPUHexagonState, slot_cancelled), "slot_cancelled");
     hex_branch_taken = tcg_global_mem_new(cpu_env,
         offsetof(CPUHexagonState, branch_taken), "branch_taken");
-    hex_pkt_has_store_s1 = tcg_global_mem_new(cpu_env,
-        offsetof(CPUHexagonState, pkt_has_store_s1), "pkt_has_store_s1");
     hex_dczero_addr = tcg_global_mem_new(cpu_env,
         offsetof(CPUHexagonState, dczero_addr), "dczero_addr");
     hex_llsc_addr = tcg_global_mem_new(cpu_env,
