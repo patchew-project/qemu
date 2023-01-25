@@ -415,9 +415,10 @@ int32_t HELPER(vacsh_pred)(CPUHexagonState *env,
     return PeV;
 }
 
-static void probe_store(CPUHexagonState *env, int slot, int mmu_idx)
+static void probe_store(CPUHexagonState *env, int slot, int mmu_idx,
+                        bool is_predicated)
 {
-    if (!(env->slot_cancelled & (1 << slot))) {
+    if (!is_predicated || !(env->slot_cancelled & (1 << slot))) {
         size1u_t width = env->mem_log_stores[slot].width;
         target_ulong va = env->mem_log_stores[slot].va;
         uintptr_t ra = GETPC();
@@ -437,9 +438,11 @@ void HELPER(probe_noshuf_load)(CPUHexagonState *env, target_ulong va,
 }
 
 /* Called during packet commit when there are two scalar stores */
-void HELPER(probe_pkt_scalar_store_s0)(CPUHexagonState *env, int mmu_idx)
+void HELPER(probe_pkt_scalar_store_s0)(CPUHexagonState *env, int args)
 {
-    probe_store(env, 0, mmu_idx);
+    int mmu_idx = args & 0x3;
+    bool is_predicated = (args >> 2) & 1;
+    probe_store(env, 0, mmu_idx, is_predicated);
 }
 
 void HELPER(probe_hvx_stores)(CPUHexagonState *env, int mmu_idx)
@@ -489,12 +492,14 @@ void HELPER(probe_pkt_scalar_hvx_stores)(CPUHexagonState *env, int mask,
     bool has_st0        = (mask >> 0) & 1;
     bool has_st1        = (mask >> 1) & 1;
     bool has_hvx_stores = (mask >> 2) & 1;
+    bool s0_is_pred     = (mask >> 3) & 1;
+    bool s1_is_pred     = (mask >> 4) & 1;
 
     if (has_st0) {
-        probe_store(env, 0, mmu_idx);
+        probe_store(env, 0, mmu_idx, s0_is_pred);
     }
     if (has_st1) {
-        probe_store(env, 1, mmu_idx);
+        probe_store(env, 1, mmu_idx, s1_is_pred);
     }
     if (has_hvx_stores) {
         HELPER(probe_hvx_stores)(env, mmu_idx);
@@ -1397,12 +1402,6 @@ void HELPER(vwhist128qm)(CPUHexagonState *env, int32_t uiV)
                 env->VRegs[vindex].uw[elindex] + weight;
         }
     }
-}
-
-void cancel_slot(CPUHexagonState *env, uint32_t slot)
-{
-    HEX_DEBUG_LOG("Slot %d cancelled\n", slot);
-    env->slot_cancelled |= (1 << slot);
 }
 
 /* These macros can be referenced in the generated helper functions */
