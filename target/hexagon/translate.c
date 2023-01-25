@@ -29,6 +29,15 @@
 #include "translate.h"
 #include "printinsn.h"
 
+#include "analyze_funcs_generated.c.inc"
+
+typedef void (*AnalyzeInsn)(DisasContext *ctx);
+static const AnalyzeInsn opcode_analyze[XX_LAST_OPCODE] = {
+#define OPCODE(X)    [X] = analyze_##X
+#include "opcodes_def_generated.h.inc"
+#undef OPCODE
+};
+
 TCGv hex_gpr[TOTAL_PER_THREAD_REGS];
 TCGv hex_pred[NUM_PREGS];
 TCGv hex_this_PC;
@@ -264,6 +273,76 @@ static bool need_next_PC(DisasContext *ctx)
     return false;
 }
 
+/*
+ * The opcode_analyze functions mark most of the writes in a packet
+ * However, there are some implicit writes marked as attributes
+ * of the applicable instructions.
+ */
+static void mark_implicit_reg_write(DisasContext *ctx, int attrib, int rnum)
+{
+    uint16_t opcode = ctx->insn->opcode;
+    if (GET_ATTRIB(opcode, attrib)) {
+        /*
+         * USR is used to set overflow and FP exceptions,
+         * so treat it as conditional
+         */
+        bool is_predicated = GET_ATTRIB(opcode, A_CONDEXEC) ||
+                             rnum == HEX_REG_USR;
+
+        /* LC0/LC1 is conditionally written by endloop instructions */
+        if ((rnum == HEX_REG_LC0 || rnum == HEX_REG_LC1) &&
+            (opcode == J2_endloop0 ||
+             opcode == J2_endloop1 ||
+             opcode == J2_endloop01)) {
+            is_predicated = true;
+        }
+
+        ctx_log_reg_write(ctx, rnum, is_predicated);
+    }
+}
+
+static void mark_implicit_reg_writes(DisasContext *ctx)
+{
+    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_FP,  HEX_REG_FP);
+    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_SP,  HEX_REG_SP);
+    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_LR,  HEX_REG_LR);
+    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_LC0, HEX_REG_LC0);
+    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_SA0, HEX_REG_SA0);
+    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_LC1, HEX_REG_LC1);
+    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_SA1, HEX_REG_SA1);
+    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_USR, HEX_REG_USR);
+    mark_implicit_reg_write(ctx, A_FPOP, HEX_REG_USR);
+}
+
+static void mark_implicit_pred_write(DisasContext *ctx, int attrib, int pnum)
+{
+    if (GET_ATTRIB(ctx->insn->opcode, attrib)) {
+        ctx_log_pred_write(ctx, pnum);
+    }
+}
+
+static void mark_implicit_pred_writes(DisasContext *ctx)
+{
+    mark_implicit_pred_write(ctx, A_IMPLICIT_WRITES_P0, 0);
+    mark_implicit_pred_write(ctx, A_IMPLICIT_WRITES_P1, 1);
+    mark_implicit_pred_write(ctx, A_IMPLICIT_WRITES_P2, 2);
+    mark_implicit_pred_write(ctx, A_IMPLICIT_WRITES_P3, 3);
+}
+
+static void analyze_packet(DisasContext *ctx)
+{
+    Packet *pkt = ctx->pkt;
+    for (int i = 0; i < pkt->num_insns; i++) {
+        Insn *insn = &pkt->insn[i];
+        ctx->insn = insn;
+        if (opcode_analyze[insn->opcode]) {
+            opcode_analyze[insn->opcode](ctx);
+        }
+        mark_implicit_reg_writes(ctx);
+        mark_implicit_pred_writes(ctx);
+    }
+}
+
 static void gen_start_packet(DisasContext *ctx)
 {
     Packet *pkt = ctx->pkt;
@@ -274,6 +353,7 @@ static void gen_start_packet(DisasContext *ctx)
     ctx->next_PC = next_PC;
     ctx->reg_log_idx = 0;
     bitmap_zero(ctx->regs_written, TOTAL_PER_THREAD_REGS);
+    bitmap_zero(ctx->predicated_regs, TOTAL_PER_THREAD_REGS);
     ctx->preg_log_idx = 0;
     bitmap_zero(ctx->pregs_written, NUM_PREGS);
     ctx->future_vregs_idx = 0;
@@ -288,6 +368,14 @@ static void gen_start_packet(DisasContext *ctx)
     }
     ctx->s1_store_processed = false;
     ctx->pre_commit = true;
+
+    analyze_packet(ctx);
+
+    /*
+     * pregs_written is used both in the analyze phase as well as the code
+     * gen phase, so clear it again.
+     */
+    bitmap_zero(ctx->pregs_written, NUM_PREGS);
 
     if (HEX_DEBUG) {
         /* Handy place to set a breakpoint before the packet executes */
@@ -311,6 +399,16 @@ static void gen_start_packet(DisasContext *ctx)
         tcg_gen_movi_tl(hex_pred_written, 0);
     }
 
+    /* Preload the predicated registers into hex_new_value[i] */
+    if (!bitmap_empty(ctx->predicated_regs, TOTAL_PER_THREAD_REGS)) {
+        int i = find_first_bit(ctx->predicated_regs, TOTAL_PER_THREAD_REGS);
+        while (i < TOTAL_PER_THREAD_REGS) {
+            tcg_gen_mov_tl(hex_new_value[i], hex_gpr[i]);
+            i = find_next_bit(ctx->predicated_regs, TOTAL_PER_THREAD_REGS,
+                              i + 1);
+        }
+    }
+
     if (pkt->pkt_has_hvx) {
         tcg_gen_movi_tl(hex_VRegs_updated, 0);
         tcg_gen_movi_tl(hex_QRegs_updated, 0);
@@ -332,66 +430,6 @@ bool is_gather_store_insn(DisasContext *ctx)
         }
     }
     return false;
-}
-
-/*
- * The LOG_*_WRITE macros mark most of the writes in a packet
- * However, there are some implicit writes marked as attributes
- * of the applicable instructions.
- */
-static void mark_implicit_reg_write(DisasContext *ctx, int attrib, int rnum)
-{
-    uint16_t opcode = ctx->insn->opcode;
-    if (GET_ATTRIB(opcode, attrib)) {
-        /*
-         * USR is used to set overflow and FP exceptions,
-         * so treat it as conditional
-         */
-        bool is_predicated = GET_ATTRIB(opcode, A_CONDEXEC) ||
-                             rnum == HEX_REG_USR;
-
-        /* LC0/LC1 is conditionally written by endloop instructions */
-        if ((rnum == HEX_REG_LC0 || rnum == HEX_REG_LC1) &&
-            (opcode == J2_endloop0 ||
-             opcode == J2_endloop1 ||
-             opcode == J2_endloop01)) {
-            is_predicated = true;
-        }
-
-        if (is_predicated && !is_preloaded(ctx, rnum)) {
-            tcg_gen_mov_tl(hex_new_value[rnum], hex_gpr[rnum]);
-        }
-
-        ctx_log_reg_write(ctx, rnum);
-    }
-}
-
-static void mark_implicit_pred_write(DisasContext *ctx, int attrib, int pnum)
-{
-    if (GET_ATTRIB(ctx->insn->opcode, attrib)) {
-        ctx_log_pred_write(ctx, pnum);
-    }
-}
-
-static void mark_implicit_reg_writes(DisasContext *ctx)
-{
-    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_FP,  HEX_REG_FP);
-    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_SP,  HEX_REG_SP);
-    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_LR,  HEX_REG_LR);
-    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_LC0, HEX_REG_LC0);
-    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_SA0, HEX_REG_SA0);
-    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_LC1, HEX_REG_LC1);
-    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_SA1, HEX_REG_SA1);
-    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_USR, HEX_REG_USR);
-    mark_implicit_reg_write(ctx, A_FPOP, HEX_REG_USR);
-}
-
-static void mark_implicit_pred_writes(DisasContext *ctx)
-{
-    mark_implicit_pred_write(ctx, A_IMPLICIT_WRITES_P0, 0);
-    mark_implicit_pred_write(ctx, A_IMPLICIT_WRITES_P1, 1);
-    mark_implicit_pred_write(ctx, A_IMPLICIT_WRITES_P2, 2);
-    mark_implicit_pred_write(ctx, A_IMPLICIT_WRITES_P3, 3);
 }
 
 static void mark_store_width(DisasContext *ctx)
@@ -421,9 +459,7 @@ static void mark_store_width(DisasContext *ctx)
 static void gen_insn(DisasContext *ctx)
 {
     if (ctx->insn->generate) {
-        mark_implicit_reg_writes(ctx);
         ctx->insn->generate(ctx);
-        mark_implicit_pred_writes(ctx);
         mark_store_width(ctx);
     } else {
         gen_exception_end_tb(ctx, HEX_EXCP_INVALID_OPCODE);
