@@ -17,6 +17,7 @@
 #include "exec/hwaddr.h"
 #include <linux/userfaultfd.h>
 
+int uffd_open(int flags);
 int uffd_query_features(uint64_t *features);
 int uffd_create_fd(uint64_t features, bool non_blocking);
 void uffd_close_fd(int uffd_fd);
