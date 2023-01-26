@@ -1,13 +1,17 @@
 /*
  * Core code for QEMU igb emulation
  *
- * Software developer's manuals:
- * http://www.intel.com/content/dam/doc/datasheet/82574l-gbe-controller-datasheet.pdf
+ * Datasheet:
+ * https://www.intel.com/content/dam/www/public/us/en/documents/datasheets/82576eg-gbe-datasheet.pdf
  *
+ * Copyright (c) 2020-2023 Red Hat, Inc.
  * Copyright (c) 2015 Ravello Systems LTD (http://ravellosystems.com)
  * Developed by Daynix Computing LTD (http://www.daynix.com)
  *
  * Authors:
+ * Akihiko Odaki <akihiko.odaki@daynix.com>
+ * Gal Hammmer <gal.hammer@sap.com>
+ * Marcel Apfelbaum <marcel.apfelbaum@gmail.com>
  * Dmitry Fleytman <dmitry@daynix.com>
  * Leonid Bloch <leonid@daynix.com>
  * Yan Vugenfirer <yan@daynix.com>
@@ -36,19 +40,21 @@
 #ifndef HW_NET_IGB_CORE_H
 #define HW_NET_IGB_CORE_H
 
-#define E1000E_PHY_PAGE_SIZE    (0x20)
-#define E1000E_PHY_PAGES        (0x07)
 #define E1000E_MAC_SIZE         (0x8000)
-#define IGB_EEPROM_SIZE         (64)
-#define IGB_MSIX_VEC_NUM        (5)
-#define IGB_NUM_QUEUES          (2)
+#define IGB_EEPROM_SIZE         (1024)
+
+/*
+ * TBD: handle igb sizes, vectors = 25, queues = 16!
+ * Just set some conservative values here to work with for now
+ */
+#define IGB_MSIX_VEC_NUM        (25)
+#define IGB_NUM_QUEUES          (16)
 
 typedef struct IGBCore IGBCore;
 
 enum { PHY_R = BIT(0),
        PHY_W = BIT(1),
-       PHY_RW = PHY_R | PHY_W,
-       PHY_ANYPAGE = BIT(2) };
+       PHY_RW = PHY_R | PHY_W };
 
 typedef struct IGBIntrDelayTimer_st {
     QEMUTimer *timer;
@@ -60,22 +66,23 @@ typedef struct IGBIntrDelayTimer_st {
 
 struct IGBCore {
     uint32_t mac[E1000E_MAC_SIZE];
-    uint16_t phy[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE];
+    uint16_t phy[MAX_PHY_REG_ADDRESS + 1];
     uint16_t eeprom[IGB_EEPROM_SIZE];
 
-    uint32_t rxbuf_sizes[E1000_PSRCTL_BUFFS_PER_DESC];
-    uint32_t rx_desc_buf_size;
-    uint32_t rxbuf_min_shift;
     uint8_t rx_desc_len;
 
     QEMUTimer *autoneg_timer;
 
     struct igb_tx {
-        e1000x_txd_props props;
+        uint16_t vlan;  /* VLAN Tag */
+        uint16_t mss;   /* Maximum Segment Size */
+        bool tse;       /* TCP/UDP Segmentation Enable */
+        bool ixsm;      /* Insert IP Checksum */
+        bool txsm;      /* Insert TCP/UDP Checksum */
 
+        bool first;
         bool skip_cp;
-        unsigned char sum_needed;
-        bool cptse;
+
         struct NetTxPkt *tx_pkt;
     } tx[IGB_NUM_QUEUES];
 
@@ -84,34 +91,17 @@ struct IGBCore {
     bool has_vnet;
     int max_queue_num;
 
-    /* Interrupt moderation management */
-    uint32_t delayed_causes;
-
-    IGBIntrDelayTimer radv;
-    IGBIntrDelayTimer rdtr;
-    IGBIntrDelayTimer raid;
-
-    IGBIntrDelayTimer tadv;
-    IGBIntrDelayTimer tidv;
-
-    IGBIntrDelayTimer itr;
-
     IGBIntrDelayTimer eitr[IGB_MSIX_VEC_NUM];
 
     VMChangeStateEntry *vmstate;
 
-    uint32_t itr_guest_value;
     uint32_t eitr_guest_value[IGB_MSIX_VEC_NUM];
-
-    uint16_t vet;
 
     uint8_t permanent_mac[ETH_ALEN];
 
     NICState *owner_nic;
     PCIDevice *owner;
     void (*owner_start_recv)(PCIDevice *d);
-
-    uint32_t msi_causes_pending;
 };
 
 void
