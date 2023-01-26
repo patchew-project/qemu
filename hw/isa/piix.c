@@ -345,9 +345,14 @@ static void pci_piix_realize(PCIDevice *dev, const char *uhci_type,
 
     /* IDE */
     qdev_prop_set_int32(DEVICE(&d->ide), "addr", dev->devfn + 1);
+    qdev_prop_set_bit(DEVICE(&d->ide), "user-created", false);
     if (!qdev_realize(DEVICE(&d->ide), BUS(pci_bus), errp)) {
         return;
     }
+    qdev_connect_gpio_out(DEVICE(&d->ide), 0,
+                          qdev_get_gpio_in(DEVICE(&d->pic), 14));
+    qdev_connect_gpio_out(DEVICE(&d->ide), 1,
+                          qdev_get_gpio_in(DEVICE(&d->pic), 15));
 
     /* USB */
     if (d->has_usb) {

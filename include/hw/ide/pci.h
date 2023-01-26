@@ -54,6 +54,7 @@ struct PCIIDEState {
     MemoryRegion bmdma_bar;
     MemoryRegion cmd_bar[2];
     MemoryRegion data_bar[2];
+    bool user_created;
 };
 
 static inline IDEState *bmdma_active_if(BMDMAState *bmdma)

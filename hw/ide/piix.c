@@ -108,6 +108,13 @@ static void bmdma_setup_bar(PCIIDEState *d)
     }
 }
 
+static void piix_ide_set_irq(void *opaque, int n, int level)
+{
+    PCIIDEState *d = opaque;
+
+    qemu_set_irq(d->isa_irqs[n], level);
+}
+
 static void piix_ide_reset(DeviceState *dev)
 {
     PCIIDEState *d = PCI_IDE(dev);
@@ -138,11 +145,18 @@ static void pci_piix_init_ports(PCIIDEState *d, ISABus *isa_bus)
     };
     int i;
 
+    if (isa_bus) {
+        d->isa_irqs[0] = isa_bus->irqs[port_info[0].isairq];
+        d->isa_irqs[1] = isa_bus->irqs[port_info[1].isairq];
+    } else {
+        qdev_init_gpio_out(DEVICE(d), d->isa_irqs, 2);
+    }
+
     for (i = 0; i < 2; i++) {
         ide_bus_init(&d->bus[i], sizeof(d->bus[i]), DEVICE(d), i, 2);
         ide_init_ioport(&d->bus[i], NULL, port_info[i].iobase,
                         port_info[i].iobase2);
-        ide_init2(&d->bus[i], isa_bus->irqs[port_info[i].isairq]);
+        ide_init2(&d->bus[i], qdev_get_gpio_in(DEVICE(d), i));
 
         bmdma_init(&d->bus[i], &d->bmdma[i], d);
         d->bmdma[i].bus = &d->bus[i];
@@ -154,8 +168,7 @@ static void pci_piix_ide_realize(PCIDevice *dev, Error **errp)
 {
     PCIIDEState *d = PCI_IDE(dev);
     uint8_t *pci_conf = dev->config;
-    ISABus *isa_bus;
-    bool ambiguous;
+    ISABus *isa_bus = NULL;
 
     pci_conf[PCI_CLASS_PROG] = 0x80; // legacy ATA mode
 
@@ -164,20 +177,34 @@ static void pci_piix_ide_realize(PCIDevice *dev, Error **errp)
 
     vmstate_register(VMSTATE_IF(dev), 0, &vmstate_ide_pci, d);
 
-    isa_bus = ISA_BUS(object_resolve_path_type("", TYPE_ISA_BUS, &ambiguous));
-    if (ambiguous) {
-        error_setg(errp,
-                   "More than one ISA bus found while %s supports only one",
-                   object_get_typename(OBJECT(dev)));
-        return;
-    }
-    if (!isa_bus) {
-        error_setg(errp, "No ISA bus found while %s requires one",
-                   object_get_typename(OBJECT(dev)));
-        return;
+    if (d->user_created) {
+        bool ambiguous;
+
+        isa_bus = ISA_BUS(object_resolve_path_type("", TYPE_ISA_BUS,
+                                                   &ambiguous));
+
+        if (ambiguous) {
+            error_setg(errp,
+                       "More than one ISA bus found while %s supports only one",
+                       object_get_typename(OBJECT(dev)));
+            return;
+        }
+
+        if (!isa_bus) {
+            error_setg(errp, "No ISA bus found while %s requires one",
+                       object_get_typename(OBJECT(dev)));
+            return;
+        }
     }
 
     pci_piix_init_ports(d, isa_bus);
+}
+
+static void pci_piix_ide_init(Object *obj)
+{
+    DeviceState *dev = DEVICE(obj);
+
+    qdev_init_gpio_in(dev, piix_ide_set_irq, 2);
 }
 
 static void pci_piix_ide_exitfn(PCIDevice *dev)
@@ -190,6 +217,11 @@ static void pci_piix_ide_exitfn(PCIDevice *dev)
         memory_region_del_subregion(&d->bmdma_bar, &d->bmdma[i].addr_ioport);
     }
 }
+
+static Property piix_ide_properties[] = {
+    DEFINE_PROP_BOOL("user-created", PCIIDEState, user_created, true),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 /* NOTE: for the PIIX3, the IRQs and IOports are hardcoded */
 static void piix3_ide_class_init(ObjectClass *klass, void *data)
@@ -205,11 +237,13 @@ static void piix3_ide_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_STORAGE_IDE;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->hotpluggable = false;
+    device_class_set_props(dc, piix_ide_properties);
 }
 
 static const TypeInfo piix3_ide_info = {
     .name          = TYPE_PIIX3_IDE,
     .parent        = TYPE_PCI_IDE,
+    .instance_init = pci_piix_ide_init,
     .class_init    = piix3_ide_class_init,
 };
 
@@ -227,11 +261,13 @@ static void piix4_ide_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_STORAGE_IDE;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->hotpluggable = false;
+    device_class_set_props(dc, piix_ide_properties);
 }
 
 static const TypeInfo piix4_ide_info = {
     .name          = TYPE_PIIX4_IDE,
     .parent        = TYPE_PCI_IDE,
+    .instance_init = pci_piix_ide_init,
     .class_init    = piix4_ide_class_init,
 };
 
