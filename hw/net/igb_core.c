@@ -1,5 +1,5 @@
 /*
- * Core code for QEMU e1000e emulation
+ * Core code for QEMU igb emulation
  *
  * Software developer's manuals:
  * http://www.intel.com/content/dam/doc/datasheet/82574l-gbe-controller-datasheet.pdf
@@ -45,9 +45,9 @@
 #include "net_tx_pkt.h"
 #include "net_rx_pkt.h"
 
-#include "e1000_common.h"
+#include "igb_common.h"
 #include "e1000x_common.h"
-#include "e1000e_core.h"
+#include "igb_core.h"
 
 #include "trace.h"
 
@@ -63,16 +63,16 @@ union e1000_rx_desc_union {
 };
 
 static ssize_t
-e1000e_receive_internal(E1000ECore *core, const struct iovec *iov, int iovcnt,
-                        bool has_vnet);
+igb_receive_internal(IGBCore *core, const struct iovec *iov, int iovcnt,
+                     bool has_vnet);
 
 static inline void
-e1000e_set_interrupt_cause(E1000ECore *core, uint32_t val);
+igb_set_interrupt_cause(IGBCore *core, uint32_t val);
 
-static void e1000e_reset(E1000ECore *core, bool sw);
+static void igb_reset(IGBCore *core, bool sw);
 
 static inline void
-e1000e_process_ts_option(E1000ECore *core, struct e1000_tx_desc *dp)
+igb_process_ts_option(IGBCore *core, struct e1000_tx_desc *dp)
 {
     if (le32_to_cpu(dp->upper.data) & E1000_TXD_EXTCMD_TSTAMP) {
         trace_e1000e_wrn_no_ts_support();
@@ -80,7 +80,7 @@ e1000e_process_ts_option(E1000ECore *core, struct e1000_tx_desc *dp)
 }
 
 static inline void
-e1000e_process_snap_option(E1000ECore *core, uint32_t cmd_and_length)
+igb_process_snap_option(IGBCore *core, uint32_t cmd_and_length)
 {
     if (cmd_and_length & E1000_TXD_CMD_SNAP) {
         trace_e1000e_wrn_no_snap_support();
@@ -88,7 +88,7 @@ e1000e_process_snap_option(E1000ECore *core, uint32_t cmd_and_length)
 }
 
 static inline void
-e1000e_raise_legacy_irq(E1000ECore *core)
+igb_raise_legacy_irq(IGBCore *core)
 {
     trace_e1000e_irq_legacy_notify(true);
     e1000x_inc_reg_if_not_full(core->mac, IAC);
@@ -96,14 +96,14 @@ e1000e_raise_legacy_irq(E1000ECore *core)
 }
 
 static inline void
-e1000e_lower_legacy_irq(E1000ECore *core)
+igb_lower_legacy_irq(IGBCore *core)
 {
     trace_e1000e_irq_legacy_notify(false);
     pci_set_irq(core->owner, 0);
 }
 
 static inline void
-e1000e_intrmgr_rearm_timer(E1000IntrDelayTimer *timer)
+igb_intrmgr_rearm_timer(IGBIntrDelayTimer *timer)
 {
     int64_t delay_ns = (int64_t) timer->core->mac[timer->delay_reg] *
                                  timer->delay_resolution_ns;
@@ -116,15 +116,15 @@ e1000e_intrmgr_rearm_timer(E1000IntrDelayTimer *timer)
 }
 
 static void
-e1000e_intmgr_timer_resume(E1000IntrDelayTimer *timer)
+igb_intmgr_timer_resume(IGBIntrDelayTimer *timer)
 {
     if (timer->running) {
-        e1000e_intrmgr_rearm_timer(timer);
+        igb_intrmgr_rearm_timer(timer);
     }
 }
 
 static void
-e1000e_intmgr_timer_pause(E1000IntrDelayTimer *timer)
+igb_intmgr_timer_pause(IGBIntrDelayTimer *timer)
 {
     if (timer->running) {
         timer_del(timer->timer);
@@ -132,7 +132,7 @@ e1000e_intmgr_timer_pause(E1000IntrDelayTimer *timer)
 }
 
 static inline void
-e1000e_intrmgr_stop_timer(E1000IntrDelayTimer *timer)
+igb_intrmgr_stop_timer(IGBIntrDelayTimer *timer)
 {
     if (timer->running) {
         timer_del(timer->timer);
@@ -141,27 +141,27 @@ e1000e_intrmgr_stop_timer(E1000IntrDelayTimer *timer)
 }
 
 static inline void
-e1000e_intrmgr_fire_delayed_interrupts(E1000ECore *core)
+igb_intrmgr_fire_delayed_interrupts(IGBCore *core)
 {
     trace_e1000e_irq_fire_delayed_interrupts();
-    e1000e_set_interrupt_cause(core, 0);
+    igb_set_interrupt_cause(core, 0);
 }
 
 static void
-e1000e_intrmgr_on_timer(void *opaque)
+igb_intrmgr_on_timer(void *opaque)
 {
-    E1000IntrDelayTimer *timer = opaque;
+    IGBIntrDelayTimer *timer = opaque;
 
     trace_e1000e_irq_throttling_timer(timer->delay_reg << 2);
 
     timer->running = false;
-    e1000e_intrmgr_fire_delayed_interrupts(timer->core);
+    igb_intrmgr_fire_delayed_interrupts(timer->core);
 }
 
 static void
-e1000e_intrmgr_on_throttling_timer(void *opaque)
+igb_intrmgr_on_throttling_timer(void *opaque)
 {
-    E1000IntrDelayTimer *timer = opaque;
+    IGBIntrDelayTimer *timer = opaque;
 
     assert(!msix_enabled(timer->core->owner));
 
@@ -171,17 +171,17 @@ e1000e_intrmgr_on_throttling_timer(void *opaque)
         trace_e1000e_irq_msi_notify_postponed();
         /* Clear msi_causes_pending to fire MSI eventually */
         timer->core->msi_causes_pending = 0;
-        e1000e_set_interrupt_cause(timer->core, 0);
+        igb_set_interrupt_cause(timer->core, 0);
     } else {
         trace_e1000e_irq_legacy_notify_postponed();
-        e1000e_set_interrupt_cause(timer->core, 0);
+        igb_set_interrupt_cause(timer->core, 0);
     }
 }
 
 static void
-e1000e_intrmgr_on_msix_throttling_timer(void *opaque)
+igb_intrmgr_on_msix_throttling_timer(void *opaque)
 {
-    E1000IntrDelayTimer *timer = opaque;
+    IGBIntrDelayTimer *timer = opaque;
     int idx = timer - &timer->core->eitr[0];
 
     assert(msix_enabled(timer->core->owner));
@@ -193,7 +193,7 @@ e1000e_intrmgr_on_msix_throttling_timer(void *opaque)
 }
 
 static void
-e1000e_intrmgr_initialize_all_timers(E1000ECore *core, bool create)
+igb_intrmgr_initialize_all_timers(IGBCore *core, bool create)
 {
     int i;
 
@@ -219,7 +219,7 @@ e1000e_intrmgr_initialize_all_timers(E1000ECore *core, bool create)
     core->itr.delay_reg = ITR;
     core->itr.delay_resolution_ns = E1000_INTR_THROTTLING_NS_RES;
 
-    for (i = 0; i < E1000E_MSIX_VEC_NUM; i++) {
+    for (i = 0; i < IGB_MSIX_VEC_NUM; i++) {
         core->eitr[i].core = core;
         core->eitr[i].delay_reg = EITR + i;
         core->eitr[i].delay_resolution_ns = E1000_INTR_THROTTLING_NS_RES;
@@ -230,41 +230,40 @@ e1000e_intrmgr_initialize_all_timers(E1000ECore *core, bool create)
     }
 
     core->radv.timer =
-        timer_new_ns(QEMU_CLOCK_VIRTUAL, e1000e_intrmgr_on_timer, &core->radv);
+        timer_new_ns(QEMU_CLOCK_VIRTUAL, igb_intrmgr_on_timer, &core->radv);
     core->rdtr.timer =
-        timer_new_ns(QEMU_CLOCK_VIRTUAL, e1000e_intrmgr_on_timer, &core->rdtr);
+        timer_new_ns(QEMU_CLOCK_VIRTUAL, igb_intrmgr_on_timer, &core->rdtr);
     core->raid.timer =
-        timer_new_ns(QEMU_CLOCK_VIRTUAL, e1000e_intrmgr_on_timer, &core->raid);
+        timer_new_ns(QEMU_CLOCK_VIRTUAL, igb_intrmgr_on_timer, &core->raid);
 
     core->tadv.timer =
-        timer_new_ns(QEMU_CLOCK_VIRTUAL, e1000e_intrmgr_on_timer, &core->tadv);
+        timer_new_ns(QEMU_CLOCK_VIRTUAL, igb_intrmgr_on_timer, &core->tadv);
     core->tidv.timer =
-        timer_new_ns(QEMU_CLOCK_VIRTUAL, e1000e_intrmgr_on_timer, &core->tidv);
+        timer_new_ns(QEMU_CLOCK_VIRTUAL, igb_intrmgr_on_timer, &core->tidv);
 
     core->itr.timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                   e1000e_intrmgr_on_throttling_timer,
+                                   igb_intrmgr_on_throttling_timer,
                                    &core->itr);
 
-    for (i = 0; i < E1000E_MSIX_VEC_NUM; i++) {
-        core->eitr[i].timer =
-            timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                         e1000e_intrmgr_on_msix_throttling_timer,
-                         &core->eitr[i]);
+    for (i = 0; i < IGB_MSIX_VEC_NUM; i++) {
+        core->eitr[i].timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                           igb_intrmgr_on_msix_throttling_timer,
+                                           &core->eitr[i]);
     }
 }
 
 static inline void
-e1000e_intrmgr_stop_delay_timers(E1000ECore *core)
+igb_intrmgr_stop_delay_timers(IGBCore *core)
 {
-    e1000e_intrmgr_stop_timer(&core->radv);
-    e1000e_intrmgr_stop_timer(&core->rdtr);
-    e1000e_intrmgr_stop_timer(&core->raid);
-    e1000e_intrmgr_stop_timer(&core->tidv);
-    e1000e_intrmgr_stop_timer(&core->tadv);
+    igb_intrmgr_stop_timer(&core->radv);
+    igb_intrmgr_stop_timer(&core->rdtr);
+    igb_intrmgr_stop_timer(&core->raid);
+    igb_intrmgr_stop_timer(&core->tidv);
+    igb_intrmgr_stop_timer(&core->tadv);
 }
 
 static bool
-e1000e_intrmgr_delay_rx_causes(E1000ECore *core, uint32_t *causes)
+igb_intrmgr_delay_rx_causes(IGBCore *core, uint32_t *causes)
 {
     uint32_t delayable_causes;
     uint32_t rdtr = core->mac[RDTR];
@@ -304,21 +303,21 @@ e1000e_intrmgr_delay_rx_causes(E1000ECore *core, uint32_t *causes)
     }
 
     /* All causes delayed */
-    e1000e_intrmgr_rearm_timer(&core->rdtr);
+    igb_intrmgr_rearm_timer(&core->rdtr);
 
     if (!core->radv.running && (radv != 0)) {
-        e1000e_intrmgr_rearm_timer(&core->radv);
+        igb_intrmgr_rearm_timer(&core->radv);
     }
 
     if (!core->raid.running && (core->delayed_causes & E1000_ICR_ACK)) {
-        e1000e_intrmgr_rearm_timer(&core->raid);
+        igb_intrmgr_rearm_timer(&core->raid);
     }
 
     return true;
 }
 
 static bool
-e1000e_intrmgr_delay_tx_causes(E1000ECore *core, uint32_t *causes)
+igb_intrmgr_delay_tx_causes(IGBCore *core, uint32_t *causes)
 {
     static const uint32_t delayable_causes = E1000_ICR_TXQ0 |
                                              E1000_ICR_TXQ1 |
@@ -339,17 +338,17 @@ e1000e_intrmgr_delay_tx_causes(E1000ECore *core, uint32_t *causes)
     }
 
     /* All causes delayed */
-    e1000e_intrmgr_rearm_timer(&core->tidv);
+    igb_intrmgr_rearm_timer(&core->tidv);
 
     if (!core->tadv.running && (core->mac[TADV] != 0)) {
-        e1000e_intrmgr_rearm_timer(&core->tadv);
+        igb_intrmgr_rearm_timer(&core->tadv);
     }
 
     return true;
 }
 
 static uint32_t
-e1000e_intmgr_collect_delayed_causes(E1000ECore *core)
+igb_intmgr_collect_delayed_causes(IGBCore *core)
 {
     uint32_t res;
 
@@ -361,87 +360,87 @@ e1000e_intmgr_collect_delayed_causes(E1000ECore *core)
     res = core->delayed_causes;
     core->delayed_causes = 0;
 
-    e1000e_intrmgr_stop_delay_timers(core);
+    igb_intrmgr_stop_delay_timers(core);
 
     return res;
 }
 
 static void
-e1000e_intrmgr_fire_all_timers(E1000ECore *core)
+igb_intrmgr_fire_all_timers(IGBCore *core)
 {
     int i;
-    uint32_t val = e1000e_intmgr_collect_delayed_causes(core);
+    uint32_t val = igb_intmgr_collect_delayed_causes(core);
 
     trace_e1000e_irq_adding_delayed_causes(val, core->mac[ICR]);
     core->mac[ICR] |= val;
 
     if (core->itr.running) {
         timer_del(core->itr.timer);
-        e1000e_intrmgr_on_throttling_timer(&core->itr);
+        igb_intrmgr_on_throttling_timer(&core->itr);
     }
 
-    for (i = 0; i < E1000E_MSIX_VEC_NUM; i++) {
+    for (i = 0; i < IGB_MSIX_VEC_NUM; i++) {
         if (core->eitr[i].running) {
             timer_del(core->eitr[i].timer);
-            e1000e_intrmgr_on_msix_throttling_timer(&core->eitr[i]);
+            igb_intrmgr_on_msix_throttling_timer(&core->eitr[i]);
         }
     }
 }
 
 static void
-e1000e_intrmgr_resume(E1000ECore *core)
+igb_intrmgr_resume(IGBCore *core)
 {
     int i;
 
-    e1000e_intmgr_timer_resume(&core->radv);
-    e1000e_intmgr_timer_resume(&core->rdtr);
-    e1000e_intmgr_timer_resume(&core->raid);
-    e1000e_intmgr_timer_resume(&core->tidv);
-    e1000e_intmgr_timer_resume(&core->tadv);
+    igb_intmgr_timer_resume(&core->radv);
+    igb_intmgr_timer_resume(&core->rdtr);
+    igb_intmgr_timer_resume(&core->raid);
+    igb_intmgr_timer_resume(&core->tidv);
+    igb_intmgr_timer_resume(&core->tadv);
 
-    e1000e_intmgr_timer_resume(&core->itr);
+    igb_intmgr_timer_resume(&core->itr);
 
-    for (i = 0; i < E1000E_MSIX_VEC_NUM; i++) {
-        e1000e_intmgr_timer_resume(&core->eitr[i]);
+    for (i = 0; i < IGB_MSIX_VEC_NUM; i++) {
+        igb_intmgr_timer_resume(&core->eitr[i]);
     }
 }
 
 static void
-e1000e_intrmgr_pause(E1000ECore *core)
+igb_intrmgr_pause(IGBCore *core)
 {
     int i;
 
-    e1000e_intmgr_timer_pause(&core->radv);
-    e1000e_intmgr_timer_pause(&core->rdtr);
-    e1000e_intmgr_timer_pause(&core->raid);
-    e1000e_intmgr_timer_pause(&core->tidv);
-    e1000e_intmgr_timer_pause(&core->tadv);
+    igb_intmgr_timer_pause(&core->radv);
+    igb_intmgr_timer_pause(&core->rdtr);
+    igb_intmgr_timer_pause(&core->raid);
+    igb_intmgr_timer_pause(&core->tidv);
+    igb_intmgr_timer_pause(&core->tadv);
 
-    e1000e_intmgr_timer_pause(&core->itr);
+    igb_intmgr_timer_pause(&core->itr);
 
-    for (i = 0; i < E1000E_MSIX_VEC_NUM; i++) {
-        e1000e_intmgr_timer_pause(&core->eitr[i]);
+    for (i = 0; i < IGB_MSIX_VEC_NUM; i++) {
+        igb_intmgr_timer_pause(&core->eitr[i]);
     }
 }
 
 static void
-e1000e_intrmgr_reset(E1000ECore *core)
+igb_intrmgr_reset(IGBCore *core)
 {
     int i;
 
     core->delayed_causes = 0;
 
-    e1000e_intrmgr_stop_delay_timers(core);
+    igb_intrmgr_stop_delay_timers(core);
 
-    e1000e_intrmgr_stop_timer(&core->itr);
+    igb_intrmgr_stop_timer(&core->itr);
 
-    for (i = 0; i < E1000E_MSIX_VEC_NUM; i++) {
-        e1000e_intrmgr_stop_timer(&core->eitr[i]);
+    for (i = 0; i < IGB_MSIX_VEC_NUM; i++) {
+        igb_intrmgr_stop_timer(&core->eitr[i]);
     }
 }
 
 static void
-e1000e_intrmgr_pci_unint(E1000ECore *core)
+igb_intrmgr_pci_unint(IGBCore *core)
 {
     int i;
 
@@ -454,42 +453,42 @@ e1000e_intrmgr_pci_unint(E1000ECore *core)
 
     timer_free(core->itr.timer);
 
-    for (i = 0; i < E1000E_MSIX_VEC_NUM; i++) {
+    for (i = 0; i < IGB_MSIX_VEC_NUM; i++) {
         timer_free(core->eitr[i].timer);
     }
 }
 
 static void
-e1000e_intrmgr_pci_realize(E1000ECore *core)
+igb_intrmgr_pci_realize(IGBCore *core)
 {
-    e1000e_intrmgr_initialize_all_timers(core, true);
+    igb_intrmgr_initialize_all_timers(core, true);
 }
 
 static inline bool
-e1000e_rx_csum_enabled(E1000ECore *core)
+igb_rx_csum_enabled(IGBCore *core)
 {
     return (core->mac[RXCSUM] & E1000_RXCSUM_PCSD) ? false : true;
 }
 
 static inline bool
-e1000e_rx_use_legacy_descriptor(E1000ECore *core)
+igb_rx_use_legacy_descriptor(IGBCore *core)
 {
     return (core->mac[RFCTL] & E1000_RFCTL_EXTEN) ? false : true;
 }
 
 static inline bool
-e1000e_rx_use_ps_descriptor(E1000ECore *core)
+igb_rx_use_ps_descriptor(IGBCore *core)
 {
-    return !e1000e_rx_use_legacy_descriptor(core) &&
+    return !igb_rx_use_legacy_descriptor(core) &&
            (core->mac[RCTL] & E1000_RCTL_DTYP_PS);
 }
 
 static inline bool
-e1000e_rss_enabled(E1000ECore *core)
+igb_rss_enabled(IGBCore *core)
 {
     return E1000_MRQC_ENABLED(core->mac[MRQC]) &&
-           !e1000e_rx_csum_enabled(core) &&
-           !e1000e_rx_use_legacy_descriptor(core);
+           !igb_rx_csum_enabled(core) &&
+           !igb_rx_use_legacy_descriptor(core);
 }
 
 typedef struct E1000E_RSSInfo_st {
@@ -500,11 +499,11 @@ typedef struct E1000E_RSSInfo_st {
 } E1000E_RSSInfo;
 
 static uint32_t
-e1000e_rss_get_hash_type(E1000ECore *core, struct NetRxPkt *pkt)
+igb_rss_get_hash_type(IGBCore *core, struct NetRxPkt *pkt)
 {
     bool isip4, isip6, isudp, istcp;
 
-    assert(e1000e_rss_enabled(core));
+    assert(igb_rss_enabled(core));
 
     net_rx_pkt_get_protocols(pkt, &isip4, &isip6, &isudp, &istcp);
 
@@ -570,13 +569,11 @@ e1000e_rss_get_hash_type(E1000ECore *core, struct NetRxPkt *pkt)
 }
 
 static uint32_t
-e1000e_rss_calc_hash(E1000ECore *core,
-                     struct NetRxPkt *pkt,
-                     E1000E_RSSInfo *info)
+igb_rss_calc_hash(IGBCore *core, struct NetRxPkt *pkt, E1000E_RSSInfo *info)
 {
     NetRxPktRssType type;
 
-    assert(e1000e_rss_enabled(core));
+    assert(igb_rss_enabled(core));
 
     switch (info->type) {
     case E1000_MRQ_RSS_TYPE_IPV4:
@@ -603,13 +600,11 @@ e1000e_rss_calc_hash(E1000ECore *core,
 }
 
 static void
-e1000e_rss_parse_packet(E1000ECore *core,
-                        struct NetRxPkt *pkt,
-                        E1000E_RSSInfo *info)
+igb_rss_parse_packet(IGBCore *core, struct NetRxPkt *pkt, E1000E_RSSInfo *info)
 {
     trace_e1000e_rx_rss_started();
 
-    if (!e1000e_rss_enabled(core)) {
+    if (!igb_rss_enabled(core)) {
         info->enabled = false;
         info->hash = 0;
         info->queue = 0;
@@ -620,7 +615,7 @@ e1000e_rss_parse_packet(E1000ECore *core,
 
     info->enabled = true;
 
-    info->type = e1000e_rss_get_hash_type(core, pkt);
+    info->type = igb_rss_get_hash_type(core, pkt);
 
     trace_e1000e_rx_rss_type(info->type);
 
@@ -630,12 +625,12 @@ e1000e_rss_parse_packet(E1000ECore *core,
         return;
     }
 
-    info->hash = e1000e_rss_calc_hash(core, pkt, info);
+    info->hash = igb_rss_calc_hash(core, pkt, info);
     info->queue = E1000_RSS_QUEUE(&core->mac[RETA], info->hash);
 }
 
 static bool
-e1000e_setup_tx_offloads(E1000ECore *core, struct e1000e_tx *tx)
+igb_setup_tx_offloads(IGBCore *core, struct igb_tx *tx)
 {
     if (tx->props.tse && tx->cptse) {
         if (!net_tx_pkt_build_vheader(tx->tx_pkt, true, true, tx->props.mss)) {
@@ -660,22 +655,22 @@ e1000e_setup_tx_offloads(E1000ECore *core, struct e1000e_tx *tx)
     return true;
 }
 
-static void e1000e_tx_pkt_callback(void *core,
-                                   const struct iovec *iov,
-                                   int iovcnt,
-                                   const struct iovec *virt_iov,
-                                   int virt_iovcnt)
+static void igb_tx_pkt_callback(void *core,
+                                const struct iovec *iov,
+                                int iovcnt,
+                                const struct iovec *virt_iov,
+                                int virt_iovcnt)
 {
-    e1000e_receive_internal(core, virt_iov, virt_iovcnt, true);
+    igb_receive_internal(core, virt_iov, virt_iovcnt, true);
 }
 
 static bool
-e1000e_tx_pkt_send(E1000ECore *core, struct e1000e_tx *tx, int queue_index)
+igb_tx_pkt_send(IGBCore *core, struct igb_tx *tx, int queue_index)
 {
     int target_queue = MIN(core->max_queue_num, queue_index);
     NetClientState *queue = qemu_get_subqueue(core->owner_nic, target_queue);
 
-    if (!e1000e_setup_tx_offloads(core, tx)) {
+    if (!igb_setup_tx_offloads(core, tx)) {
         return false;
     }
 
@@ -684,14 +679,14 @@ e1000e_tx_pkt_send(E1000ECore *core, struct e1000e_tx *tx, int queue_index)
     if ((core->phy[0][MII_BMCR] & MII_BMCR_LOOPBACK) ||
         ((core->mac[RCTL] & E1000_RCTL_LBM_MAC) == E1000_RCTL_LBM_MAC)) {
         return net_tx_pkt_send_custom(tx->tx_pkt, false,
-                                      e1000e_tx_pkt_callback, core);
+                                      igb_tx_pkt_callback, core);
     } else {
         return net_tx_pkt_send(tx->tx_pkt, queue);
     }
 }
 
 static void
-e1000e_on_tx_done_update_stats(E1000ECore *core, struct NetTxPkt *tx_pkt)
+igb_on_tx_done_update_stats(IGBCore *core, struct NetTxPkt *tx_pkt)
 {
     static const int PTCregs[6] = { PTC64, PTC127, PTC255, PTC511,
                                     PTC1023, PTC1522 };
@@ -721,10 +716,10 @@ e1000e_on_tx_done_update_stats(E1000ECore *core, struct NetTxPkt *tx_pkt)
 }
 
 static void
-e1000e_process_tx_desc(E1000ECore *core,
-                       struct e1000e_tx *tx,
-                       struct e1000_tx_desc *dp,
-                       int queue_index)
+igb_process_tx_desc(IGBCore *core,
+                    struct igb_tx *tx,
+                    struct e1000_tx_desc *dp,
+                    int queue_index)
 {
     uint32_t txd_lower = le32_to_cpu(dp->lower.data);
     uint32_t dtype = txd_lower & (E1000_TXD_CMD_DEXT | E1000_TXD_DTYP_D);
@@ -735,16 +730,16 @@ e1000e_process_tx_desc(E1000ECore *core,
 
     if (dtype == E1000_TXD_CMD_DEXT) { /* context descriptor */
         e1000x_read_tx_ctx_descr(xp, &tx->props);
-        e1000e_process_snap_option(core, le32_to_cpu(xp->cmd_and_length));
+        igb_process_snap_option(core, le32_to_cpu(xp->cmd_and_length));
         return;
     } else if (dtype == (E1000_TXD_CMD_DEXT | E1000_TXD_DTYP_D)) {
         /* data descriptor */
         tx->sum_needed = le32_to_cpu(dp->upper.data) >> 8;
         tx->cptse = (txd_lower & E1000_TXD_CMD_TSE) ? 1 : 0;
-        e1000e_process_ts_option(core, dp);
+        igb_process_ts_option(core, dp);
     } else {
         /* legacy descriptor */
-        e1000e_process_ts_option(core, dp);
+        igb_process_ts_option(core, dp);
         tx->cptse = 0;
     }
 
@@ -763,8 +758,8 @@ e1000e_process_tx_desc(E1000ECore *core,
                 net_tx_pkt_setup_vlan_header_ex(tx->tx_pkt,
                     le16_to_cpu(dp->upper.fields.special), core->mac[VET]);
             }
-            if (e1000e_tx_pkt_send(core, tx, queue_index)) {
-                e1000e_on_tx_done_update_stats(core, tx->tx_pkt);
+            if (igb_tx_pkt_send(core, tx, queue_index)) {
+                igb_on_tx_done_update_stats(core, tx->tx_pkt);
             }
         }
 
@@ -777,7 +772,7 @@ e1000e_process_tx_desc(E1000ECore *core,
 }
 
 static inline uint32_t
-e1000e_tx_wb_interrupt_cause(E1000ECore *core, int queue_idx)
+igb_tx_wb_interrupt_cause(IGBCore *core, int queue_idx)
 {
     if (!msix_enabled(core->owner)) {
         return E1000_ICR_TXDW;
@@ -787,7 +782,7 @@ e1000e_tx_wb_interrupt_cause(E1000ECore *core, int queue_idx)
 }
 
 static inline uint32_t
-e1000e_rx_wb_interrupt_cause(E1000ECore *core, int queue_idx,
+igb_rx_wb_interrupt_cause(IGBCore *core, int queue_idx,
                              bool min_threshold_hit)
 {
     if (!msix_enabled(core->owner)) {
@@ -798,8 +793,8 @@ e1000e_rx_wb_interrupt_cause(E1000ECore *core, int queue_idx,
 }
 
 static uint32_t
-e1000e_txdesc_writeback(E1000ECore *core, dma_addr_t base,
-                        struct e1000_tx_desc *dp, bool *ide, int queue_idx)
+igb_txdesc_writeback(IGBCore *core, dma_addr_t base,
+                     struct e1000_tx_desc *dp, bool *ide, int queue_idx)
 {
     uint32_t txd_upper, txd_lower = le32_to_cpu(dp->lower.data);
 
@@ -815,7 +810,7 @@ e1000e_txdesc_writeback(E1000ECore *core, dma_addr_t base,
     dp->upper.data = cpu_to_le32(txd_upper);
     pci_dma_write(core->owner, base + ((char *)&dp->upper - (char *)dp),
                   &dp->upper, sizeof(dp->upper));
-    return e1000e_tx_wb_interrupt_cause(core, queue_idx);
+    return igb_tx_wb_interrupt_cause(core, queue_idx);
 }
 
 typedef struct E1000E_RingInfo_st {
@@ -828,14 +823,14 @@ typedef struct E1000E_RingInfo_st {
 } E1000E_RingInfo;
 
 static inline bool
-e1000e_ring_empty(E1000ECore *core, const E1000E_RingInfo *r)
+igb_ring_empty(IGBCore *core, const E1000E_RingInfo *r)
 {
     return core->mac[r->dh] == core->mac[r->dt] ||
                 core->mac[r->dt] >= core->mac[r->dlen] / E1000_RING_DESC_LEN;
 }
 
 static inline uint64_t
-e1000e_ring_base(E1000ECore *core, const E1000E_RingInfo *r)
+igb_ring_base(IGBCore *core, const E1000E_RingInfo *r)
 {
     uint64_t bah = core->mac[r->dbah];
     uint64_t bal = core->mac[r->dbal];
@@ -844,13 +839,13 @@ e1000e_ring_base(E1000ECore *core, const E1000E_RingInfo *r)
 }
 
 static inline uint64_t
-e1000e_ring_head_descr(E1000ECore *core, const E1000E_RingInfo *r)
+igb_ring_head_descr(IGBCore *core, const E1000E_RingInfo *r)
 {
-    return e1000e_ring_base(core, r) + E1000_RING_DESC_LEN * core->mac[r->dh];
+    return igb_ring_base(core, r) + E1000_RING_DESC_LEN * core->mac[r->dh];
 }
 
 static inline void
-e1000e_ring_advance(E1000ECore *core, const E1000E_RingInfo *r, uint32_t count)
+igb_ring_advance(IGBCore *core, const E1000E_RingInfo *r, uint32_t count)
 {
     core->mac[r->dh] += count;
 
@@ -860,7 +855,7 @@ e1000e_ring_advance(E1000ECore *core, const E1000E_RingInfo *r, uint32_t count)
 }
 
 static inline uint32_t
-e1000e_ring_free_descr_num(E1000ECore *core, const E1000E_RingInfo *r)
+igb_ring_free_descr_num(IGBCore *core, const E1000E_RingInfo *r)
 {
     trace_e1000e_ring_free_space(r->idx, core->mac[r->dlen],
                                  core->mac[r->dh],  core->mac[r->dt]);
@@ -879,32 +874,32 @@ e1000e_ring_free_descr_num(E1000ECore *core, const E1000E_RingInfo *r)
 }
 
 static inline bool
-e1000e_ring_enabled(E1000ECore *core, const E1000E_RingInfo *r)
+igb_ring_enabled(IGBCore *core, const E1000E_RingInfo *r)
 {
     return core->mac[r->dlen] > 0;
 }
 
 static inline uint32_t
-e1000e_ring_len(E1000ECore *core, const E1000E_RingInfo *r)
+igb_ring_len(IGBCore *core, const E1000E_RingInfo *r)
 {
     return core->mac[r->dlen];
 }
 
-typedef struct E1000E_TxRing_st {
+typedef struct IGB_TxRing_st {
     const E1000E_RingInfo *i;
-    struct e1000e_tx *tx;
-} E1000E_TxRing;
+    struct igb_tx *tx;
+} IGB_TxRing;
 
 static inline int
-e1000e_mq_queue_idx(int base_reg_idx, int reg_idx)
+igb_mq_queue_idx(int base_reg_idx, int reg_idx)
 {
     return (reg_idx - base_reg_idx) / (0x100 >> 2);
 }
 
 static inline void
-e1000e_tx_ring_init(E1000ECore *core, E1000E_TxRing *txr, int idx)
+igb_tx_ring_init(IGBCore *core, IGB_TxRing *txr, int idx)
 {
-    static const E1000E_RingInfo i[E1000E_NUM_QUEUES] = {
+    static const E1000E_RingInfo i[IGB_NUM_QUEUES] = {
         { TDBAH,  TDBAL,  TDLEN,  TDH,  TDT, 0 },
         { TDBAH1, TDBAL1, TDLEN1, TDH1, TDT1, 1 }
     };
@@ -920,9 +915,9 @@ typedef struct E1000E_RxRing_st {
 } E1000E_RxRing;
 
 static inline void
-e1000e_rx_ring_init(E1000ECore *core, E1000E_RxRing *rxr, int idx)
+igb_rx_ring_init(IGBCore *core, E1000E_RxRing *rxr, int idx)
 {
-    static const E1000E_RingInfo i[E1000E_NUM_QUEUES] = {
+    static const E1000E_RingInfo i[IGB_NUM_QUEUES] = {
         { RDBAH0, RDBAL0, RDLEN0, RDH0, RDT0, 0 },
         { RDBAH1, RDBAL1, RDLEN1, RDH1, RDT1, 1 }
     };
@@ -933,7 +928,7 @@ e1000e_rx_ring_init(E1000ECore *core, E1000E_RxRing *rxr, int idx)
 }
 
 static void
-e1000e_start_xmit(E1000ECore *core, const E1000E_TxRing *txr)
+igb_start_xmit(IGBCore *core, const IGB_TxRing *txr)
 {
     dma_addr_t base;
     struct e1000_tx_desc desc;
@@ -946,30 +941,29 @@ e1000e_start_xmit(E1000ECore *core, const E1000E_TxRing *txr)
         return;
     }
 
-    while (!e1000e_ring_empty(core, txi)) {
-        base = e1000e_ring_head_descr(core, txi);
+    while (!igb_ring_empty(core, txi)) {
+        base = igb_ring_head_descr(core, txi);
 
         pci_dma_read(core->owner, base, &desc, sizeof(desc));
 
         trace_e1000e_tx_descr((void *)(intptr_t)desc.buffer_addr,
                               desc.lower.data, desc.upper.data);
 
-        e1000e_process_tx_desc(core, txr->tx, &desc, txi->idx);
-        cause |= e1000e_txdesc_writeback(core, base, &desc, &ide, txi->idx);
+        igb_process_tx_desc(core, txr->tx, &desc, txi->idx);
+        cause |= igb_txdesc_writeback(core, base, &desc, &ide, txi->idx);
 
-        e1000e_ring_advance(core, txi, 1);
+        igb_ring_advance(core, txi, 1);
     }
 
-    if (!ide || !e1000e_intrmgr_delay_tx_causes(core, &cause)) {
-        e1000e_set_interrupt_cause(core, cause);
+    if (!ide || !igb_intrmgr_delay_tx_causes(core, &cause)) {
+        igb_set_interrupt_cause(core, cause);
     }
 }
 
 static bool
-e1000e_has_rxbufs(E1000ECore *core, const E1000E_RingInfo *r,
-                  size_t total_size)
+igb_has_rxbufs(IGBCore *core, const E1000E_RingInfo *r, size_t total_size)
 {
-    uint32_t bufs = e1000e_ring_free_descr_num(core, r);
+    uint32_t bufs = igb_ring_free_descr_num(core, r);
 
     trace_e1000e_rx_has_buffers(r->idx, bufs, total_size,
                                 core->rx_desc_buf_size);
@@ -979,7 +973,7 @@ e1000e_has_rxbufs(E1000ECore *core, const E1000E_RingInfo *r,
 }
 
 void
-e1000e_start_recv(E1000ECore *core)
+igb_start_recv(IGBCore *core)
 {
     int i;
 
@@ -991,7 +985,7 @@ e1000e_start_recv(E1000ECore *core)
 }
 
 bool
-e1000e_can_receive(E1000ECore *core)
+igb_can_receive(IGBCore *core)
 {
     int i;
 
@@ -999,12 +993,11 @@ e1000e_can_receive(E1000ECore *core)
         return false;
     }
 
-    for (i = 0; i < E1000E_NUM_QUEUES; i++) {
+    for (i = 0; i < IGB_NUM_QUEUES; i++) {
         E1000E_RxRing rxr;
 
-        e1000e_rx_ring_init(core, &rxr, i);
-        if (e1000e_ring_enabled(core, rxr.i) &&
-            e1000e_has_rxbufs(core, rxr.i, 1)) {
+        igb_rx_ring_init(core, &rxr, i);
+        if (igb_ring_enabled(core, rxr.i) && igb_has_rxbufs(core, rxr.i, 1)) {
             trace_e1000e_rx_can_recv();
             return true;
         }
@@ -1015,30 +1008,30 @@ e1000e_can_receive(E1000ECore *core)
 }
 
 ssize_t
-e1000e_receive(E1000ECore *core, const uint8_t *buf, size_t size)
+igb_receive(IGBCore *core, const uint8_t *buf, size_t size)
 {
     const struct iovec iov = {
         .iov_base = (uint8_t *)buf,
         .iov_len = size
     };
 
-    return e1000e_receive_iov(core, &iov, 1);
+    return igb_receive_iov(core, &iov, 1);
 }
 
 static inline bool
-e1000e_rx_l3_cso_enabled(E1000ECore *core)
+igb_rx_l3_cso_enabled(IGBCore *core)
 {
     return !!(core->mac[RXCSUM] & E1000_RXCSUM_IPOFLD);
 }
 
 static inline bool
-e1000e_rx_l4_cso_enabled(E1000ECore *core)
+igb_rx_l4_cso_enabled(IGBCore *core)
 {
     return !!(core->mac[RXCSUM] & E1000_RXCSUM_TUOFLD);
 }
 
 static bool
-e1000e_receive_filter(E1000ECore *core, const uint8_t *buf, int size)
+igb_receive_filter(IGBCore *core, const uint8_t *buf, int size)
 {
     uint32_t rctl = core->mac[RCTL];
 
@@ -1083,23 +1076,23 @@ e1000e_receive_filter(E1000ECore *core, const uint8_t *buf, int size)
 }
 
 static inline void
-e1000e_read_lgcy_rx_descr(E1000ECore *core, struct e1000_rx_desc *desc,
-                          hwaddr *buff_addr)
+igb_read_lgcy_rx_descr(IGBCore *core, struct e1000_rx_desc *desc,
+                       hwaddr *buff_addr)
 {
     *buff_addr = le64_to_cpu(desc->buffer_addr);
 }
 
 static inline void
-e1000e_read_ext_rx_descr(E1000ECore *core, union e1000_rx_desc_extended *desc,
-                         hwaddr *buff_addr)
+igb_read_ext_rx_descr(IGBCore *core, union e1000_rx_desc_extended *desc,
+                      hwaddr *buff_addr)
 {
     *buff_addr = le64_to_cpu(desc->read.buffer_addr);
 }
 
 static inline void
-e1000e_read_ps_rx_descr(E1000ECore *core,
-                        union e1000_rx_desc_packet_split *desc,
-                        hwaddr buff_addr[MAX_PS_BUFFERS])
+igb_read_ps_rx_descr(IGBCore *core,
+                     union e1000_rx_desc_packet_split *desc,
+                     hwaddr buff_addr[MAX_PS_BUFFERS])
 {
     int i;
 
@@ -1112,32 +1105,32 @@ e1000e_read_ps_rx_descr(E1000ECore *core,
 }
 
 static inline void
-e1000e_read_rx_descr(E1000ECore *core, union e1000_rx_desc_union *desc,
-                     hwaddr buff_addr[MAX_PS_BUFFERS])
+igb_read_rx_descr(IGBCore *core, union e1000_rx_desc_union *desc,
+                  hwaddr buff_addr[MAX_PS_BUFFERS])
 {
-    if (e1000e_rx_use_legacy_descriptor(core)) {
-        e1000e_read_lgcy_rx_descr(core, &desc->legacy, &buff_addr[0]);
+    if (igb_rx_use_legacy_descriptor(core)) {
+        igb_read_lgcy_rx_descr(core, &desc->legacy, &buff_addr[0]);
         buff_addr[1] = buff_addr[2] = buff_addr[3] = 0;
     } else {
         if (core->mac[RCTL] & E1000_RCTL_DTYP_PS) {
-            e1000e_read_ps_rx_descr(core, &desc->packet_split, buff_addr);
+            igb_read_ps_rx_descr(core, &desc->packet_split, buff_addr);
         } else {
-            e1000e_read_ext_rx_descr(core, &desc->extended, &buff_addr[0]);
+            igb_read_ext_rx_descr(core, &desc->extended, &buff_addr[0]);
             buff_addr[1] = buff_addr[2] = buff_addr[3] = 0;
         }
     }
 }
 
 static void
-e1000e_verify_csum_in_sw(E1000ECore *core,
-                         struct NetRxPkt *pkt,
-                         uint32_t *status_flags,
-                         bool istcp, bool isudp)
+igb_verify_csum_in_sw(IGBCore *core,
+                      struct NetRxPkt *pkt,
+                      uint32_t *status_flags,
+                      bool istcp, bool isudp)
 {
     bool csum_valid;
     uint32_t csum_error;
 
-    if (e1000e_rx_l3_cso_enabled(core)) {
+    if (igb_rx_l3_cso_enabled(core)) {
         if (!net_rx_pkt_validate_l3_csum(pkt, &csum_valid)) {
             trace_e1000e_rx_metadata_l3_csum_validation_failed();
         } else {
@@ -1148,7 +1141,7 @@ e1000e_verify_csum_in_sw(E1000ECore *core,
         trace_e1000e_rx_metadata_l3_cso_disabled();
     }
 
-    if (!e1000e_rx_l4_cso_enabled(core)) {
+    if (!igb_rx_l4_cso_enabled(core)) {
         trace_e1000e_rx_metadata_l4_cso_disabled();
         return;
     }
@@ -1171,7 +1164,7 @@ e1000e_verify_csum_in_sw(E1000ECore *core,
 }
 
 static inline bool
-e1000e_is_tcp_ack(E1000ECore *core, struct NetRxPkt *rx_pkt)
+igb_is_tcp_ack(IGBCore *core, struct NetRxPkt *rx_pkt)
 {
     if (!net_rx_pkt_is_tcp_ack(rx_pkt)) {
         return false;
@@ -1185,14 +1178,14 @@ e1000e_is_tcp_ack(E1000ECore *core, struct NetRxPkt *rx_pkt)
 }
 
 static void
-e1000e_build_rx_metadata(E1000ECore *core,
-                         struct NetRxPkt *pkt,
-                         bool is_eop,
-                         const E1000E_RSSInfo *rss_info,
-                         uint32_t *rss, uint32_t *mrq,
-                         uint32_t *status_flags,
-                         uint16_t *ip_id,
-                         uint16_t *vlan_tag)
+igb_build_rx_metadata(IGBCore *core,
+                      struct NetRxPkt *pkt,
+                      bool is_eop,
+                      const E1000E_RSSInfo *rss_info,
+                      uint32_t *rss, uint32_t *mrq,
+                      uint32_t *status_flags,
+                      uint16_t *ip_id,
+                      uint16_t *vlan_tag)
 {
     struct virtio_net_hdr *vhdr;
     bool isip4, isip6, istcp, isudp;
@@ -1230,7 +1223,7 @@ e1000e_build_rx_metadata(E1000ECore *core,
             trace_e1000e_rx_metadata_ip_id(*ip_id);
     }
 
-    if (istcp && e1000e_is_tcp_ack(core, pkt)) {
+    if (istcp && igb_is_tcp_ack(core, pkt)) {
         *status_flags |= E1000_RXD_STAT_ACK;
         trace_e1000e_rx_metadata_ack();
     }
@@ -1260,17 +1253,17 @@ e1000e_build_rx_metadata(E1000ECore *core,
     if (!(vhdr->flags & VIRTIO_NET_HDR_F_DATA_VALID) &&
         !(vhdr->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM)) {
         trace_e1000e_rx_metadata_virthdr_no_csum_info();
-        e1000e_verify_csum_in_sw(core, pkt, status_flags, istcp, isudp);
+        igb_verify_csum_in_sw(core, pkt, status_flags, istcp, isudp);
         goto func_exit;
     }
 
-    if (e1000e_rx_l3_cso_enabled(core)) {
+    if (igb_rx_l3_cso_enabled(core)) {
         *status_flags |= isip4 ? E1000_RXD_STAT_IPCS : 0;
     } else {
         trace_e1000e_rx_metadata_l3_cso_disabled();
     }
 
-    if (e1000e_rx_l4_cso_enabled(core)) {
+    if (igb_rx_l4_cso_enabled(core)) {
         if (istcp) {
             *status_flags |= E1000_RXD_STAT_TCPCS;
         } else if (isudp) {
@@ -1287,10 +1280,10 @@ func_exit:
 }
 
 static inline void
-e1000e_write_lgcy_rx_descr(E1000ECore *core, struct e1000_rx_desc *desc,
-                           struct NetRxPkt *pkt,
-                           const E1000E_RSSInfo *rss_info,
-                           uint16_t length)
+igb_write_lgcy_rx_descr(IGBCore *core, struct e1000_rx_desc *desc,
+                        struct NetRxPkt *pkt,
+                        const E1000E_RSSInfo *rss_info,
+                        uint16_t length)
 {
     uint32_t status_flags, rss, mrq;
     uint16_t ip_id;
@@ -1300,7 +1293,7 @@ e1000e_write_lgcy_rx_descr(E1000ECore *core, struct e1000_rx_desc *desc,
     desc->length = cpu_to_le16(length);
     desc->csum = 0;
 
-    e1000e_build_rx_metadata(core, pkt, pkt != NULL,
+    igb_build_rx_metadata(core, pkt, pkt != NULL,
                              rss_info,
                              &rss, &mrq,
                              &status_flags, &ip_id,
@@ -1310,31 +1303,31 @@ e1000e_write_lgcy_rx_descr(E1000ECore *core, struct e1000_rx_desc *desc,
 }
 
 static inline void
-e1000e_write_ext_rx_descr(E1000ECore *core, union e1000_rx_desc_extended *desc,
-                          struct NetRxPkt *pkt,
-                          const E1000E_RSSInfo *rss_info,
-                          uint16_t length)
+igb_write_ext_rx_descr(IGBCore *core, union e1000_rx_desc_extended *desc,
+                       struct NetRxPkt *pkt,
+                       const E1000E_RSSInfo *rss_info,
+                       uint16_t length)
 {
     memset(&desc->wb, 0, sizeof(desc->wb));
 
     desc->wb.upper.length = cpu_to_le16(length);
 
-    e1000e_build_rx_metadata(core, pkt, pkt != NULL,
-                             rss_info,
-                             &desc->wb.lower.hi_dword.rss,
-                             &desc->wb.lower.mrq,
-                             &desc->wb.upper.status_error,
-                             &desc->wb.lower.hi_dword.csum_ip.ip_id,
-                             &desc->wb.upper.vlan);
+    igb_build_rx_metadata(core, pkt, pkt != NULL,
+                          rss_info,
+                          &desc->wb.lower.hi_dword.rss,
+                          &desc->wb.lower.mrq,
+                          &desc->wb.upper.status_error,
+                          &desc->wb.lower.hi_dword.csum_ip.ip_id,
+                          &desc->wb.upper.vlan);
 }
 
 static inline void
-e1000e_write_ps_rx_descr(E1000ECore *core,
-                         union e1000_rx_desc_packet_split *desc,
-                         struct NetRxPkt *pkt,
-                         const E1000E_RSSInfo *rss_info,
-                         size_t ps_hdr_len,
-                         uint16_t(*written)[MAX_PS_BUFFERS])
+igb_write_ps_rx_descr(IGBCore *core,
+                      union e1000_rx_desc_packet_split *desc,
+                      struct NetRxPkt *pkt,
+                      const E1000E_RSSInfo *rss_info,
+                      size_t ps_hdr_len,
+                      uint16_t(*written)[MAX_PS_BUFFERS])
 {
     int i;
 
@@ -1346,13 +1339,13 @@ e1000e_write_ps_rx_descr(E1000ECore *core,
         desc->wb.upper.length[i] = cpu_to_le16((*written)[i + 1]);
     }
 
-    e1000e_build_rx_metadata(core, pkt, pkt != NULL,
-                             rss_info,
-                             &desc->wb.lower.hi_dword.rss,
-                             &desc->wb.lower.mrq,
-                             &desc->wb.middle.status_error,
-                             &desc->wb.lower.hi_dword.csum_ip.ip_id,
-                             &desc->wb.middle.vlan);
+    igb_build_rx_metadata(core, pkt, pkt != NULL,
+                          rss_info,
+                          &desc->wb.lower.hi_dword.rss,
+                          &desc->wb.lower.mrq,
+                          &desc->wb.middle.status_error,
+                          &desc->wb.lower.hi_dword.csum_ip.ip_id,
+                          &desc->wb.middle.vlan);
 
     desc->wb.upper.header_status =
         cpu_to_le16(ps_hdr_len | (ps_hdr_len ? E1000_RXDPS_HDRSTAT_HDRSP : 0));
@@ -1362,33 +1355,33 @@ e1000e_write_ps_rx_descr(E1000ECore *core,
 }
 
 static inline void
-e1000e_write_rx_descr(E1000ECore *core, union e1000_rx_desc_union *desc,
+igb_write_rx_descr(IGBCore *core, union e1000_rx_desc_union *desc,
 struct NetRxPkt *pkt, const E1000E_RSSInfo *rss_info,
     size_t ps_hdr_len, uint16_t(*written)[MAX_PS_BUFFERS])
 {
-    if (e1000e_rx_use_legacy_descriptor(core)) {
+    if (igb_rx_use_legacy_descriptor(core)) {
         assert(ps_hdr_len == 0);
-        e1000e_write_lgcy_rx_descr(core, &desc->legacy, pkt, rss_info,
-                                   (*written)[0]);
+        igb_write_lgcy_rx_descr(core, &desc->legacy, pkt, rss_info,
+                                (*written)[0]);
     } else {
         if (core->mac[RCTL] & E1000_RCTL_DTYP_PS) {
-            e1000e_write_ps_rx_descr(core, &desc->packet_split, pkt, rss_info,
-                                      ps_hdr_len, written);
+            igb_write_ps_rx_descr(core, &desc->packet_split, pkt, rss_info,
+                                  ps_hdr_len, written);
         } else {
             assert(ps_hdr_len == 0);
-            e1000e_write_ext_rx_descr(core, &desc->extended, pkt, rss_info,
-                                       (*written)[0]);
+            igb_write_ext_rx_descr(core, &desc->extended, pkt, rss_info,
+                                   (*written)[0]);
         }
     }
 }
 
 static inline void
-e1000e_pci_dma_write_rx_desc(E1000ECore *core, dma_addr_t addr,
-                             union e1000_rx_desc_union *desc, dma_addr_t len)
+igb_pci_dma_write_rx_desc(IGBCore *core, dma_addr_t addr,
+                          union e1000_rx_desc_union *desc, dma_addr_t len)
 {
     PCIDevice *dev = core->owner;
 
-    if (e1000e_rx_use_legacy_descriptor(core)) {
+    if (igb_rx_use_legacy_descriptor(core)) {
         struct e1000_rx_desc *d = &desc->legacy;
         size_t offset = offsetof(struct e1000_rx_desc, status);
         uint8_t status = d->status;
@@ -1437,11 +1430,11 @@ typedef struct e1000e_ba_state_st {
 } e1000e_ba_state;
 
 static inline void
-e1000e_write_hdr_to_rx_buffers(E1000ECore *core,
-                               hwaddr ba[MAX_PS_BUFFERS],
-                               e1000e_ba_state *bastate,
-                               const char *data,
-                               dma_addr_t data_len)
+igb_write_hdr_to_rx_buffers(IGBCore *core,
+                            hwaddr ba[MAX_PS_BUFFERS],
+                            e1000e_ba_state *bastate,
+                            const char *data,
+                            dma_addr_t data_len)
 {
     assert(data_len <= core->rxbuf_sizes[0] - bastate->written[0]);
 
@@ -1452,11 +1445,11 @@ e1000e_write_hdr_to_rx_buffers(E1000ECore *core,
 }
 
 static void
-e1000e_write_to_rx_buffers(E1000ECore *core,
-                           hwaddr ba[MAX_PS_BUFFERS],
-                           e1000e_ba_state *bastate,
-                           const char *data,
-                           dma_addr_t data_len)
+igb_write_to_rx_buffers(IGBCore *core,
+                        hwaddr ba[MAX_PS_BUFFERS],
+                        e1000e_ba_state *bastate,
+                        const char *data,
+                        dma_addr_t data_len)
 {
     while (data_len > 0) {
         uint32_t cur_buf_len = core->rxbuf_sizes[bastate->cur_idx];
@@ -1487,9 +1480,7 @@ e1000e_write_to_rx_buffers(E1000ECore *core,
 }
 
 static void
-e1000e_update_rx_stats(E1000ECore *core,
-                       size_t data_size,
-                       size_t data_fcs_size)
+igb_update_rx_stats(IGBCore *core, size_t data_size, size_t data_fcs_size)
 {
     e1000x_update_rx_total_stats(core->mac, data_size, data_fcs_size);
 
@@ -1508,19 +1499,19 @@ e1000e_update_rx_stats(E1000ECore *core,
 }
 
 static inline bool
-e1000e_rx_descr_threshold_hit(E1000ECore *core, const E1000E_RingInfo *rxi)
+igb_rx_descr_threshold_hit(IGBCore *core, const E1000E_RingInfo *rxi)
 {
-    return e1000e_ring_free_descr_num(core, rxi) ==
-           e1000e_ring_len(core, rxi) >> core->rxbuf_min_shift;
+    return igb_ring_free_descr_num(core, rxi) ==
+           igb_ring_len(core, rxi) >> core->rxbuf_min_shift;
 }
 
 static bool
-e1000e_do_ps(E1000ECore *core, struct NetRxPkt *pkt, size_t *hdr_len)
+igb_do_ps(IGBCore *core, struct NetRxPkt *pkt, size_t *hdr_len)
 {
     bool isip4, isip6, isudp, istcp;
     bool fragment;
 
-    if (!e1000e_rx_use_ps_descriptor(core)) {
+    if (!igb_rx_use_ps_descriptor(core)) {
         return false;
     }
 
@@ -1553,9 +1544,9 @@ e1000e_do_ps(E1000ECore *core, struct NetRxPkt *pkt, size_t *hdr_len)
 }
 
 static void
-e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
-                             const E1000E_RxRing *rxr,
-                             const E1000E_RSSInfo *rss_info)
+igb_write_packet_to_guest(IGBCore *core, struct NetRxPkt *pkt,
+                          const E1000E_RxRing *rxr,
+                          const E1000E_RSSInfo *rss_info)
 {
     PCIDevice *d = core->owner;
     dma_addr_t base;
@@ -1569,7 +1560,7 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
     size_t total_size = size + e1000x_fcs_len(core->mac);
     const E1000E_RingInfo *rxi;
     size_t ps_hdr_len = 0;
-    bool do_ps = e1000e_do_ps(core, pkt, &ps_hdr_len);
+    bool do_ps = igb_do_ps(core, pkt, &ps_hdr_len);
     bool is_first = true;
 
     rxi = rxr->i;
@@ -1585,17 +1576,17 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
             desc_size = core->rx_desc_buf_size;
         }
 
-        if (e1000e_ring_empty(core, rxi)) {
+        if (igb_ring_empty(core, rxi)) {
             return;
         }
 
-        base = e1000e_ring_head_descr(core, rxi);
+        base = igb_ring_head_descr(core, rxi);
 
         pci_dma_read(d, base, &desc, core->rx_desc_len);
 
         trace_e1000e_rx_descr(rxi->idx, base, core->rx_desc_len);
 
-        e1000e_read_rx_descr(core, &desc, ba);
+        igb_read_rx_descr(core, &desc, ba);
 
         if (ba[0]) {
             if (desc_offset < size) {
@@ -1614,7 +1605,7 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
                             iov_copy = MIN(ps_hdr_len - ps_hdr_copied,
                                            iov->iov_len - iov_ofs);
 
-                            e1000e_write_hdr_to_rx_buffers(core, ba, &bastate,
+                            igb_write_hdr_to_rx_buffers(core, ba, &bastate,
                                                       iov->iov_base, iov_copy);
 
                             copy_size -= iov_copy;
@@ -1631,7 +1622,7 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
                     } else {
                         /* Leave buffer 0 of each descriptor except first */
                         /* empty as per spec 7.1.5.1                      */
-                        e1000e_write_hdr_to_rx_buffers(core, ba, &bastate,
+                        igb_write_hdr_to_rx_buffers(core, ba, &bastate,
                                                        NULL, 0);
                     }
                 }
@@ -1640,7 +1631,7 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
                 while (copy_size) {
                     iov_copy = MIN(copy_size, iov->iov_len - iov_ofs);
 
-                    e1000e_write_to_rx_buffers(core, ba, &bastate,
+                    igb_write_to_rx_buffers(core, ba, &bastate,
                                             iov->iov_base + iov_ofs, iov_copy);
 
                     copy_size -= iov_copy;
@@ -1653,7 +1644,7 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
 
                 if (desc_offset + desc_size >= total_size) {
                     /* Simulate FCS checksum presence in the last descriptor */
-                    e1000e_write_to_rx_buffers(core, ba, &bastate,
+                    igb_write_to_rx_buffers(core, ba, &bastate,
                           (const char *) &fcs_pad, e1000x_fcs_len(core->mac));
                 }
             }
@@ -1665,20 +1656,20 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
             is_last = true;
         }
 
-        e1000e_write_rx_descr(core, &desc, is_last ? core->rx_pkt : NULL,
+        igb_write_rx_descr(core, &desc, is_last ? core->rx_pkt : NULL,
                            rss_info, do_ps ? ps_hdr_len : 0, &bastate.written);
-        e1000e_pci_dma_write_rx_desc(core, base, &desc, core->rx_desc_len);
+        igb_pci_dma_write_rx_desc(core, base, &desc, core->rx_desc_len);
 
-        e1000e_ring_advance(core, rxi,
-                            core->rx_desc_len / E1000_MIN_RX_DESC_LEN);
+        igb_ring_advance(core, rxi,
+                         core->rx_desc_len / E1000_MIN_RX_DESC_LEN);
 
     } while (desc_offset < total_size);
 
-    e1000e_update_rx_stats(core, size, total_size);
+    igb_update_rx_stats(core, size, total_size);
 }
 
 static inline void
-e1000e_rx_fix_l4_csum(E1000ECore *core, struct NetRxPkt *pkt)
+igb_rx_fix_l4_csum(IGBCore *core, struct NetRxPkt *pkt)
 {
     struct virtio_net_hdr *vhdr = net_rx_pkt_get_vhdr(pkt);
 
@@ -1688,14 +1679,14 @@ e1000e_rx_fix_l4_csum(E1000ECore *core, struct NetRxPkt *pkt)
 }
 
 ssize_t
-e1000e_receive_iov(E1000ECore *core, const struct iovec *iov, int iovcnt)
+igb_receive_iov(IGBCore *core, const struct iovec *iov, int iovcnt)
 {
-    return e1000e_receive_internal(core, iov, iovcnt, core->has_vnet);
+    return igb_receive_internal(core, iov, iovcnt, core->has_vnet);
 }
 
 static ssize_t
-e1000e_receive_internal(E1000ECore *core, const struct iovec *iov, int iovcnt,
-                        bool has_vnet)
+igb_receive_internal(IGBCore *core, const struct iovec *iov, int iovcnt,
+                     bool has_vnet)
 {
     static const int maximum_ethernet_hdr_len = (ETH_HLEN + 4);
 
@@ -1753,7 +1744,7 @@ e1000e_receive_internal(E1000ECore *core, const struct iovec *iov, int iovcnt,
     net_rx_pkt_set_packet_type(core->rx_pkt,
         get_eth_packet_type(PKT_GET_ETH_HDR(filter_buf)));
 
-    if (!e1000e_receive_filter(core, filter_buf, size)) {
+    if (!igb_receive_filter(core, filter_buf, size)) {
         trace_e1000e_rx_flt_dropped();
         return orig_size;
     }
@@ -1761,18 +1752,18 @@ e1000e_receive_internal(E1000ECore *core, const struct iovec *iov, int iovcnt,
     net_rx_pkt_attach_iovec_ex(core->rx_pkt, iov, iovcnt, iov_ofs,
                                e1000x_vlan_enabled(core->mac), core->mac[VET]);
 
-    e1000e_rss_parse_packet(core, core->rx_pkt, &rss_info);
-    e1000e_rx_ring_init(core, &rxr, rss_info.queue);
+    igb_rss_parse_packet(core, core->rx_pkt, &rss_info);
+    igb_rx_ring_init(core, &rxr, rss_info.queue);
 
     trace_e1000e_rx_rss_dispatched_to_queue(rxr.i->idx);
 
     total_size = net_rx_pkt_get_total_len(core->rx_pkt) +
         e1000x_fcs_len(core->mac);
 
-    if (e1000e_has_rxbufs(core, rxr.i, total_size)) {
-        e1000e_rx_fix_l4_csum(core, core->rx_pkt);
+    if (igb_has_rxbufs(core, rxr.i, total_size)) {
+        igb_rx_fix_l4_csum(core, core->rx_pkt);
 
-        e1000e_write_packet_to_guest(core, core->rx_pkt, &rxr, &rss_info);
+        igb_write_packet_to_guest(core, core->rx_pkt, &rxr, &rss_info);
 
         retval = orig_size;
 
@@ -1783,13 +1774,13 @@ e1000e_receive_internal(E1000ECore *core, const struct iovec *iov, int iovcnt,
 
         /* Perform ACK receive detection */
         if  (!(core->mac[RFCTL] & E1000_RFCTL_ACK_DIS) &&
-             (e1000e_is_tcp_ack(core, core->rx_pkt))) {
+             (igb_is_tcp_ack(core, core->rx_pkt))) {
             n |= E1000_ICS_ACK;
         }
 
         /* Check if receive descriptor minimum threshold hit */
-        rdmts_hit = e1000e_rx_descr_threshold_hit(core, rxr.i);
-        n |= e1000e_rx_wb_interrupt_cause(core, rxr.i->idx, rdmts_hit);
+        rdmts_hit = igb_rx_descr_threshold_hit(core, rxr.i);
+        n |= igb_rx_wb_interrupt_cause(core, rxr.i->idx, rdmts_hit);
 
         trace_e1000e_rx_written_to_guest(n);
     } else {
@@ -1799,9 +1790,9 @@ e1000e_receive_internal(E1000ECore *core, const struct iovec *iov, int iovcnt,
         trace_e1000e_rx_not_written_to_guest(n);
     }
 
-    if (!e1000e_intrmgr_delay_rx_causes(core, &n)) {
+    if (!igb_intrmgr_delay_rx_causes(core, &n)) {
         trace_e1000e_rx_interrupt_set(n);
-        e1000e_set_interrupt_cause(core, n);
+        igb_set_interrupt_cause(core, n);
     } else {
         trace_e1000e_rx_interrupt_delayed(n);
     }
@@ -1810,14 +1801,14 @@ e1000e_receive_internal(E1000ECore *core, const struct iovec *iov, int iovcnt,
 }
 
 static inline bool
-e1000e_have_autoneg(E1000ECore *core)
+igb_have_autoneg(IGBCore *core)
 {
     return core->phy[0][MII_BMCR] & MII_BMCR_AUTOEN;
 }
 
-static void e1000e_update_flowctl_status(E1000ECore *core)
+static void igb_update_flowctl_status(IGBCore *core)
 {
-    if (e1000e_have_autoneg(core) &&
+    if (igb_have_autoneg(core) &&
         core->phy[0][MII_BMSR] & MII_BMSR_AN_COMP) {
         trace_e1000e_link_autoneg_flowctl(true);
         core->mac[CTRL] |= E1000_CTRL_TFCE | E1000_CTRL_RFCE;
@@ -1827,14 +1818,14 @@ static void e1000e_update_flowctl_status(E1000ECore *core)
 }
 
 static inline void
-e1000e_link_down(E1000ECore *core)
+igb_link_down(IGBCore *core)
 {
     e1000x_update_regs_on_link_down(core->mac, core->phy[0]);
-    e1000e_update_flowctl_status(core);
+    igb_update_flowctl_status(core);
 }
 
 static inline void
-e1000e_set_phy_ctrl(E1000ECore *core, int index, uint16_t val)
+igb_set_phy_ctrl(IGBCore *core, int index, uint16_t val)
 {
     /* bits 0-5 reserved; MII_BMCR_[ANRESTART,RESET] are self clearing */
     core->phy[0][MII_BMCR] = val & ~(0x3f |
@@ -1842,13 +1833,13 @@ e1000e_set_phy_ctrl(E1000ECore *core, int index, uint16_t val)
                                      MII_BMCR_ANRESTART);
 
     if ((val & MII_BMCR_ANRESTART) &&
-        e1000e_have_autoneg(core)) {
+        igb_have_autoneg(core)) {
         e1000x_restart_autoneg(core->mac, core->phy[0], core->autoneg_timer);
     }
 }
 
 static void
-e1000e_set_phy_oem_bits(E1000ECore *core, int index, uint16_t val)
+igb_set_phy_oem_bits(IGBCore *core, int index, uint16_t val)
 {
     core->phy[0][PHY_OEM_BITS] = val & ~BIT(10);
 
@@ -1858,13 +1849,13 @@ e1000e_set_phy_oem_bits(E1000ECore *core, int index, uint16_t val)
 }
 
 static void
-e1000e_set_phy_page(E1000ECore *core, int index, uint16_t val)
+igb_set_phy_page(IGBCore *core, int index, uint16_t val)
 {
     core->phy[0][PHY_PAGE] = val & PHY_PAGE_RW_MASK;
 }
 
 void
-e1000e_core_set_link_status(E1000ECore *core)
+igb_core_set_link_status(IGBCore *core)
 {
     NetClientState *nc = qemu_get_queue(core->owner_nic);
     uint32_t old_status = core->mac[STATUS];
@@ -1874,23 +1865,23 @@ e1000e_core_set_link_status(E1000ECore *core)
     if (nc->link_down) {
         e1000x_update_regs_on_link_down(core->mac, core->phy[0]);
     } else {
-        if (e1000e_have_autoneg(core) &&
+        if (igb_have_autoneg(core) &&
             !(core->phy[0][MII_BMSR] & MII_BMSR_AN_COMP)) {
             e1000x_restart_autoneg(core->mac, core->phy[0],
                                    core->autoneg_timer);
         } else {
             e1000x_update_regs_on_link_up(core->mac, core->phy[0]);
-            e1000e_start_recv(core);
+            igb_start_recv(core);
         }
     }
 
     if (core->mac[STATUS] != old_status) {
-        e1000e_set_interrupt_cause(core, E1000_ICR_LSC);
+        igb_set_interrupt_cause(core, E1000_ICR_LSC);
     }
 }
 
 static void
-e1000e_set_ctrl(E1000ECore *core, int index, uint32_t val)
+igb_set_ctrl(IGBCore *core, int index, uint32_t val)
 {
     trace_e1000e_core_ctrl_write(index, val);
 
@@ -1908,7 +1899,7 @@ e1000e_set_ctrl(E1000ECore *core, int index, uint32_t val)
 
     if (val & E1000_CTRL_RST) {
         trace_e1000e_core_ctrl_sw_reset();
-        e1000e_reset(core, true);
+        igb_reset(core, true);
     }
 
     if (val & E1000_CTRL_PHY_RST) {
@@ -1918,7 +1909,7 @@ e1000e_set_ctrl(E1000ECore *core, int index, uint32_t val)
 }
 
 static void
-e1000e_set_rfctl(E1000ECore *core, int index, uint32_t val)
+igb_set_rfctl(IGBCore *core, int index, uint32_t val)
 {
     trace_e1000e_rx_set_rfctl(val);
 
@@ -1938,7 +1929,7 @@ e1000e_set_rfctl(E1000ECore *core, int index, uint32_t val)
 }
 
 static void
-e1000e_calc_per_desc_buf_size(E1000ECore *core)
+igb_calc_per_desc_buf_size(IGBCore *core)
 {
     int i;
     core->rx_desc_buf_size = 0;
@@ -1949,7 +1940,7 @@ e1000e_calc_per_desc_buf_size(E1000ECore *core)
 }
 
 static void
-e1000e_parse_rxbufsize(E1000ECore *core)
+igb_parse_rxbufsize(IGBCore *core)
 {
     uint32_t rctl = core->mac[RCTL];
 
@@ -1979,13 +1970,13 @@ e1000e_parse_rxbufsize(E1000ECore *core)
     trace_e1000e_rx_desc_buff_sizes(core->rxbuf_sizes[0], core->rxbuf_sizes[1],
                                     core->rxbuf_sizes[2], core->rxbuf_sizes[3]);
 
-    e1000e_calc_per_desc_buf_size(core);
+    igb_calc_per_desc_buf_size(core);
 }
 
 static void
-e1000e_calc_rxdesclen(E1000ECore *core)
+igb_calc_rxdesclen(IGBCore *core)
 {
-    if (e1000e_rx_use_legacy_descriptor(core)) {
+    if (igb_rx_use_legacy_descriptor(core)) {
         core->rx_desc_len = sizeof(struct e1000_rx_desc);
     } else {
         if (core->mac[RCTL] & E1000_RCTL_DTYP_PS) {
@@ -1998,40 +1989,40 @@ e1000e_calc_rxdesclen(E1000ECore *core)
 }
 
 static void
-e1000e_set_rx_control(E1000ECore *core, int index, uint32_t val)
+igb_set_rx_control(IGBCore *core, int index, uint32_t val)
 {
     core->mac[RCTL] = val;
     trace_e1000e_rx_set_rctl(core->mac[RCTL]);
 
     if (val & E1000_RCTL_EN) {
-        e1000e_parse_rxbufsize(core);
-        e1000e_calc_rxdesclen(core);
+        igb_parse_rxbufsize(core);
+        igb_calc_rxdesclen(core);
         core->rxbuf_min_shift = ((val / E1000_RCTL_RDMTS_QUAT) & 3) + 1 +
                                 E1000_RING_DESC_LEN_SHIFT;
 
-        e1000e_start_recv(core);
+        igb_start_recv(core);
     }
 }
 
 static
-void(*e1000e_phyreg_writeops[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE])
-(E1000ECore *, int, uint16_t) = {
+void(*igb_phyreg_writeops[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE])
+(IGBCore *, int, uint16_t) = {
     [0] = {
-        [MII_BMCR]     = e1000e_set_phy_ctrl,
-        [PHY_PAGE]     = e1000e_set_phy_page,
-        [PHY_OEM_BITS] = e1000e_set_phy_oem_bits
+        [MII_BMCR]     = igb_set_phy_ctrl,
+        [PHY_PAGE]     = igb_set_phy_page,
+        [PHY_OEM_BITS] = igb_set_phy_oem_bits
     }
 };
 
 static inline void
-e1000e_clear_ims_bits(E1000ECore *core, uint32_t bits)
+igb_clear_ims_bits(IGBCore *core, uint32_t bits)
 {
     trace_e1000e_irq_clear_ims(bits, core->mac[IMS], core->mac[IMS] & ~bits);
     core->mac[IMS] &= ~bits;
 }
 
 static inline bool
-e1000e_postpone_interrupt(E1000IntrDelayTimer *timer)
+igb_postpone_interrupt(IGBIntrDelayTimer *timer)
 {
     if (timer->running) {
         trace_e1000e_irq_postponed_by_xitr(timer->delay_reg << 2);
@@ -2040,33 +2031,33 @@ e1000e_postpone_interrupt(E1000IntrDelayTimer *timer)
     }
 
     if (timer->core->mac[timer->delay_reg] != 0) {
-        e1000e_intrmgr_rearm_timer(timer);
+        igb_intrmgr_rearm_timer(timer);
     }
 
     return false;
 }
 
 static inline bool
-e1000e_itr_should_postpone(E1000ECore *core)
+igb_itr_should_postpone(IGBCore *core)
 {
-    return e1000e_postpone_interrupt(&core->itr);
+    return igb_postpone_interrupt(&core->itr);
 }
 
 static inline bool
-e1000e_eitr_should_postpone(E1000ECore *core, int idx)
+igb_eitr_should_postpone(IGBCore *core, int idx)
 {
-    return e1000e_postpone_interrupt(&core->eitr[idx]);
+    return igb_postpone_interrupt(&core->eitr[idx]);
 }
 
 static void
-e1000e_msix_notify_one(E1000ECore *core, uint32_t cause, uint32_t int_cfg)
+igb_msix_notify_one(IGBCore *core, uint32_t cause, uint32_t int_cfg)
 {
     uint32_t effective_eiac;
 
     if (E1000_IVAR_ENTRY_VALID(int_cfg)) {
         uint32_t vec = E1000_IVAR_ENTRY_VEC(int_cfg);
-        if (vec < E1000E_MSIX_VEC_NUM) {
-            if (!e1000e_eitr_should_postpone(core, vec)) {
+        if (vec < IGB_MSIX_VEC_NUM) {
+            if (!igb_eitr_should_postpone(core, vec)) {
                 trace_e1000e_irq_msix_notify_vec(vec);
                 msix_notify(core->owner, vec);
             }
@@ -2095,40 +2086,40 @@ e1000e_msix_notify_one(E1000ECore *core, uint32_t cause, uint32_t int_cfg)
 }
 
 static void
-e1000e_msix_notify(E1000ECore *core, uint32_t causes)
+igb_msix_notify(IGBCore *core, uint32_t causes)
 {
     if (causes & E1000_ICR_RXQ0) {
-        e1000e_msix_notify_one(core, E1000_ICR_RXQ0,
+        igb_msix_notify_one(core, E1000_ICR_RXQ0,
                                E1000_IVAR_RXQ0(core->mac[IVAR]));
     }
 
     if (causes & E1000_ICR_RXQ1) {
-        e1000e_msix_notify_one(core, E1000_ICR_RXQ1,
+        igb_msix_notify_one(core, E1000_ICR_RXQ1,
                                E1000_IVAR_RXQ1(core->mac[IVAR]));
     }
 
     if (causes & E1000_ICR_TXQ0) {
-        e1000e_msix_notify_one(core, E1000_ICR_TXQ0,
+        igb_msix_notify_one(core, E1000_ICR_TXQ0,
                                E1000_IVAR_TXQ0(core->mac[IVAR]));
     }
 
     if (causes & E1000_ICR_TXQ1) {
-        e1000e_msix_notify_one(core, E1000_ICR_TXQ1,
+        igb_msix_notify_one(core, E1000_ICR_TXQ1,
                                E1000_IVAR_TXQ1(core->mac[IVAR]));
     }
 
     if (causes & E1000_ICR_OTHER) {
-        e1000e_msix_notify_one(core, E1000_ICR_OTHER,
+        igb_msix_notify_one(core, E1000_ICR_OTHER,
                                E1000_IVAR_OTHER(core->mac[IVAR]));
     }
 }
 
 static void
-e1000e_msix_clear_one(E1000ECore *core, uint32_t cause, uint32_t int_cfg)
+igb_msix_clear_one(IGBCore *core, uint32_t cause, uint32_t int_cfg)
 {
     if (E1000_IVAR_ENTRY_VALID(int_cfg)) {
         uint32_t vec = E1000_IVAR_ENTRY_VEC(int_cfg);
-        if (vec < E1000E_MSIX_VEC_NUM) {
+        if (vec < IGB_MSIX_VEC_NUM) {
             trace_e1000e_irq_msix_pending_clearing(cause, int_cfg, vec);
             msix_clr_pending(core->owner, vec);
         } else {
@@ -2140,36 +2131,36 @@ e1000e_msix_clear_one(E1000ECore *core, uint32_t cause, uint32_t int_cfg)
 }
 
 static void
-e1000e_msix_clear(E1000ECore *core, uint32_t causes)
+igb_msix_clear(IGBCore *core, uint32_t causes)
 {
     if (causes & E1000_ICR_RXQ0) {
-        e1000e_msix_clear_one(core, E1000_ICR_RXQ0,
+        igb_msix_clear_one(core, E1000_ICR_RXQ0,
                               E1000_IVAR_RXQ0(core->mac[IVAR]));
     }
 
     if (causes & E1000_ICR_RXQ1) {
-        e1000e_msix_clear_one(core, E1000_ICR_RXQ1,
+        igb_msix_clear_one(core, E1000_ICR_RXQ1,
                               E1000_IVAR_RXQ1(core->mac[IVAR]));
     }
 
     if (causes & E1000_ICR_TXQ0) {
-        e1000e_msix_clear_one(core, E1000_ICR_TXQ0,
+        igb_msix_clear_one(core, E1000_ICR_TXQ0,
                               E1000_IVAR_TXQ0(core->mac[IVAR]));
     }
 
     if (causes & E1000_ICR_TXQ1) {
-        e1000e_msix_clear_one(core, E1000_ICR_TXQ1,
+        igb_msix_clear_one(core, E1000_ICR_TXQ1,
                               E1000_IVAR_TXQ1(core->mac[IVAR]));
     }
 
     if (causes & E1000_ICR_OTHER) {
-        e1000e_msix_clear_one(core, E1000_ICR_OTHER,
+        igb_msix_clear_one(core, E1000_ICR_OTHER,
                               E1000_IVAR_OTHER(core->mac[IVAR]));
     }
 }
 
 static inline void
-e1000e_fix_icr_asserted(E1000ECore *core)
+igb_fix_icr_asserted(IGBCore *core)
 {
     core->mac[ICR] &= ~E1000_ICR_ASSERTED;
     if (core->mac[ICR]) {
@@ -2180,7 +2171,7 @@ e1000e_fix_icr_asserted(E1000ECore *core)
 }
 
 static void
-e1000e_send_msi(E1000ECore *core, bool msix)
+igb_send_msi(IGBCore *core, bool msix)
 {
     uint32_t causes = core->mac[ICR] & core->mac[IMS] & ~E1000_ICR_ASSERTED;
 
@@ -2192,9 +2183,9 @@ e1000e_send_msi(E1000ECore *core, bool msix)
     core->msi_causes_pending |= causes;
 
     if (msix) {
-        e1000e_msix_notify(core, causes);
+        igb_msix_notify(core, causes);
     } else {
-        if (!e1000e_itr_should_postpone(core)) {
+        if (!igb_itr_should_postpone(core)) {
             trace_e1000e_irq_msi_notify(causes);
             msi_notify(core->owner, 0);
         }
@@ -2202,7 +2193,7 @@ e1000e_send_msi(E1000ECore *core, bool msix)
 }
 
 static void
-e1000e_update_interrupt_state(E1000ECore *core)
+igb_update_interrupt_state(IGBCore *core)
 {
     bool interrupts_pending;
     bool is_msix = msix_enabled(core->owner);
@@ -2215,7 +2206,7 @@ e1000e_update_interrupt_state(E1000ECore *core)
         }
     }
 
-    e1000e_fix_icr_asserted(core);
+    igb_fix_icr_asserted(core);
 
     /*
      * Make sure ICR and ICS registers have the same value.
@@ -2237,54 +2228,54 @@ e1000e_update_interrupt_state(E1000ECore *core)
 
     if (is_msix || msi_enabled(core->owner)) {
         if (interrupts_pending) {
-            e1000e_send_msi(core, is_msix);
+            igb_send_msi(core, is_msix);
         }
     } else {
         if (interrupts_pending) {
-            if (!e1000e_itr_should_postpone(core)) {
-                e1000e_raise_legacy_irq(core);
+            if (!igb_itr_should_postpone(core)) {
+                igb_raise_legacy_irq(core);
             }
         } else {
-            e1000e_lower_legacy_irq(core);
+            igb_lower_legacy_irq(core);
         }
     }
 }
 
 static void
-e1000e_set_interrupt_cause(E1000ECore *core, uint32_t val)
+igb_set_interrupt_cause(IGBCore *core, uint32_t val)
 {
     trace_e1000e_irq_set_cause_entry(val, core->mac[ICR]);
 
-    val |= e1000e_intmgr_collect_delayed_causes(core);
+    val |= igb_intmgr_collect_delayed_causes(core);
     core->mac[ICR] |= val;
 
     trace_e1000e_irq_set_cause_exit(val, core->mac[ICR]);
 
-    e1000e_update_interrupt_state(core);
+    igb_update_interrupt_state(core);
 }
 
 static inline void
-e1000e_autoneg_timer(void *opaque)
+igb_autoneg_timer(void *opaque)
 {
-    E1000ECore *core = opaque;
+    IGBCore *core = opaque;
     if (!qemu_get_queue(core->owner_nic)->link_down) {
         e1000x_update_regs_on_autoneg_done(core->mac, core->phy[0]);
-        e1000e_start_recv(core);
+        igb_start_recv(core);
 
-        e1000e_update_flowctl_status(core);
+        igb_update_flowctl_status(core);
         /* signal link status change to the guest */
-        e1000e_set_interrupt_cause(core, E1000_ICR_LSC);
+        igb_set_interrupt_cause(core, E1000_ICR_LSC);
     }
 }
 
 static inline uint16_t
-e1000e_get_reg_index_with_offset(const uint16_t *mac_reg_access, hwaddr addr)
+igb_get_reg_index_with_offset(const uint16_t *mac_reg_access, hwaddr addr)
 {
     uint16_t index = (addr & 0x1ffff) >> 2;
     return index + (mac_reg_access[index] & 0xfffe);
 }
 
-static const char e1000e_phy_regcap[E1000E_PHY_PAGES][0x20] = {
+static const char igb_phy_regcap[E1000E_PHY_PAGES][0x20] = {
     [0] = {
         [MII_BMCR]              = PHY_ANYPAGE | PHY_RW,
         [MII_BMSR]              = PHY_ANYPAGE | PHY_R,
@@ -2333,36 +2324,34 @@ static const char e1000e_phy_regcap[E1000E_PHY_PAGES][0x20] = {
 };
 
 static bool
-e1000e_phy_reg_check_cap(E1000ECore *core, uint32_t addr,
+igb_phy_reg_check_cap(IGBCore *core, uint32_t addr,
                          char cap, uint8_t *page)
 {
-    *page =
-        (e1000e_phy_regcap[0][addr] & PHY_ANYPAGE) ? 0
+    *page = (igb_phy_regcap[0][addr] & PHY_ANYPAGE) ? 0
                                                     : core->phy[0][PHY_PAGE];
 
     if (*page >= E1000E_PHY_PAGES) {
         return false;
     }
 
-    return e1000e_phy_regcap[*page][addr] & cap;
+    return igb_phy_regcap[*page][addr] & cap;
 }
 
 static void
-e1000e_phy_reg_write(E1000ECore *core, uint8_t page,
-                     uint32_t addr, uint16_t data)
+igb_phy_reg_write(IGBCore *core, uint8_t page, uint32_t addr, uint16_t data)
 {
     assert(page < E1000E_PHY_PAGES);
     assert(addr < E1000E_PHY_PAGE_SIZE);
 
-    if (e1000e_phyreg_writeops[page][addr]) {
-        e1000e_phyreg_writeops[page][addr](core, addr, data);
+    if (igb_phyreg_writeops[page][addr]) {
+        igb_phyreg_writeops[page][addr](core, addr, data);
     } else {
         core->phy[page][addr] = data;
     }
 }
 
 static void
-e1000e_set_mdic(E1000ECore *core, int index, uint32_t val)
+igb_set_mdic(IGBCore *core, int index, uint32_t val)
 {
     uint32_t data = val & E1000_MDIC_DATA_MASK;
     uint32_t addr = ((val & E1000_MDIC_REG_MASK) >> E1000_MDIC_REG_SHIFT);
@@ -2371,7 +2360,7 @@ e1000e_set_mdic(E1000ECore *core, int index, uint32_t val)
     if ((val & E1000_MDIC_PHY_MASK) >> E1000_MDIC_PHY_SHIFT != 1) { /* phy # */
         val = core->mac[MDIC] | E1000_MDIC_ERROR;
     } else if (val & E1000_MDIC_OP_READ) {
-        if (!e1000e_phy_reg_check_cap(core, addr, PHY_R, &page)) {
+        if (!igb_phy_reg_check_cap(core, addr, PHY_R, &page)) {
             trace_e1000e_core_mdic_read_unhandled(page, addr);
             val |= E1000_MDIC_ERROR;
         } else {
@@ -2379,31 +2368,31 @@ e1000e_set_mdic(E1000ECore *core, int index, uint32_t val)
             trace_e1000e_core_mdic_read(page, addr, val);
         }
     } else if (val & E1000_MDIC_OP_WRITE) {
-        if (!e1000e_phy_reg_check_cap(core, addr, PHY_W, &page)) {
+        if (!igb_phy_reg_check_cap(core, addr, PHY_W, &page)) {
             trace_e1000e_core_mdic_write_unhandled(page, addr);
             val |= E1000_MDIC_ERROR;
         } else {
             trace_e1000e_core_mdic_write(page, addr, data);
-            e1000e_phy_reg_write(core, page, addr, data);
+            igb_phy_reg_write(core, page, addr, data);
         }
     }
     core->mac[MDIC] = val | E1000_MDIC_READY;
 
     if (val & E1000_MDIC_INT_EN) {
-        e1000e_set_interrupt_cause(core, E1000_ICR_MDAC);
+        igb_set_interrupt_cause(core, E1000_ICR_MDAC);
     }
 }
 
 static void
-e1000e_set_rdt(E1000ECore *core, int index, uint32_t val)
+igb_set_rdt(IGBCore *core, int index, uint32_t val)
 {
     core->mac[index] = val & 0xffff;
-    trace_e1000e_rx_set_rdt(e1000e_mq_queue_idx(RDT0, index), val);
-    e1000e_start_recv(core);
+    trace_e1000e_rx_set_rdt(igb_mq_queue_idx(RDT0, index), val);
+    igb_start_recv(core);
 }
 
 static void
-e1000e_set_status(E1000ECore *core, int index, uint32_t val)
+igb_set_status(IGBCore *core, int index, uint32_t val)
 {
     if ((val & E1000_STATUS_PHYRA) == 0) {
         core->mac[index] &= ~E1000_STATUS_PHYRA;
@@ -2411,7 +2400,7 @@ e1000e_set_status(E1000ECore *core, int index, uint32_t val)
 }
 
 static void
-e1000e_set_ctrlext(E1000ECore *core, int index, uint32_t val)
+igb_set_ctrlext(IGBCore *core, int index, uint32_t val)
 {
     trace_e1000e_link_set_ext_params(!!(val & E1000_CTRL_EXT_ASDCHK),
                                      !!(val & E1000_CTRL_EXT_SPD_BYPS));
@@ -2422,7 +2411,7 @@ e1000e_set_ctrlext(E1000ECore *core, int index, uint32_t val)
 }
 
 static void
-e1000e_set_pbaclr(E1000ECore *core, int index, uint32_t val)
+igb_set_pbaclr(IGBCore *core, int index, uint32_t val)
 {
     int i;
 
@@ -2432,7 +2421,7 @@ e1000e_set_pbaclr(E1000ECore *core, int index, uint32_t val)
         return;
     }
 
-    for (i = 0; i < E1000E_MSIX_VEC_NUM; i++) {
+    for (i = 0; i < IGB_MSIX_VEC_NUM; i++) {
         if (core->mac[PBACLR] & BIT(i)) {
             msix_clr_pending(core->owner, i);
         }
@@ -2440,97 +2429,97 @@ e1000e_set_pbaclr(E1000ECore *core, int index, uint32_t val)
 }
 
 static void
-e1000e_set_fcrth(E1000ECore *core, int index, uint32_t val)
+igb_set_fcrth(IGBCore *core, int index, uint32_t val)
 {
     core->mac[FCRTH] = val & 0xFFF8;
 }
 
 static void
-e1000e_set_fcrtl(E1000ECore *core, int index, uint32_t val)
+igb_set_fcrtl(IGBCore *core, int index, uint32_t val)
 {
     core->mac[FCRTL] = val & 0x8000FFF8;
 }
 
-#define E1000E_LOW_BITS_SET_FUNC(num)                                \
-    static void                                                      \
-    e1000e_set_##num##bit(E1000ECore *core, int index, uint32_t val) \
-    {                                                                \
-        core->mac[index] = val & (BIT(num) - 1);                     \
+#define IGB_LOW_BITS_SET_FUNC(num)                             \
+    static void                                                \
+    igb_set_##num##bit(IGBCore *core, int index, uint32_t val) \
+    {                                                          \
+        core->mac[index] = val & (BIT(num) - 1);               \
     }
 
-E1000E_LOW_BITS_SET_FUNC(4)
-E1000E_LOW_BITS_SET_FUNC(6)
-E1000E_LOW_BITS_SET_FUNC(11)
-E1000E_LOW_BITS_SET_FUNC(12)
-E1000E_LOW_BITS_SET_FUNC(13)
-E1000E_LOW_BITS_SET_FUNC(16)
+IGB_LOW_BITS_SET_FUNC(4)
+IGB_LOW_BITS_SET_FUNC(6)
+IGB_LOW_BITS_SET_FUNC(11)
+IGB_LOW_BITS_SET_FUNC(12)
+IGB_LOW_BITS_SET_FUNC(13)
+IGB_LOW_BITS_SET_FUNC(16)
 
 static void
-e1000e_set_vet(E1000ECore *core, int index, uint32_t val)
+igb_set_vet(IGBCore *core, int index, uint32_t val)
 {
     core->mac[VET] = val & 0xffff;
     trace_e1000e_vlan_vet(core->mac[VET]);
 }
 
 static void
-e1000e_set_dlen(E1000ECore *core, int index, uint32_t val)
+igb_set_dlen(IGBCore *core, int index, uint32_t val)
 {
     core->mac[index] = val & E1000_XDLEN_MASK;
 }
 
 static void
-e1000e_set_dbal(E1000ECore *core, int index, uint32_t val)
+igb_set_dbal(IGBCore *core, int index, uint32_t val)
 {
     core->mac[index] = val & E1000_XDBAL_MASK;
 }
 
 static void
-e1000e_set_tctl(E1000ECore *core, int index, uint32_t val)
+igb_set_tctl(IGBCore *core, int index, uint32_t val)
 {
-    E1000E_TxRing txr;
+    IGB_TxRing txr;
     core->mac[index] = val;
 
     if (core->mac[TARC0] & E1000_TARC_ENABLE) {
-        e1000e_tx_ring_init(core, &txr, 0);
-        e1000e_start_xmit(core, &txr);
+        igb_tx_ring_init(core, &txr, 0);
+        igb_start_xmit(core, &txr);
     }
 
     if (core->mac[TARC1] & E1000_TARC_ENABLE) {
-        e1000e_tx_ring_init(core, &txr, 1);
-        e1000e_start_xmit(core, &txr);
+        igb_tx_ring_init(core, &txr, 1);
+        igb_start_xmit(core, &txr);
     }
 }
 
 static void
-e1000e_set_tdt(E1000ECore *core, int index, uint32_t val)
+igb_set_tdt(IGBCore *core, int index, uint32_t val)
 {
-    E1000E_TxRing txr;
-    int qidx = e1000e_mq_queue_idx(TDT, index);
+    IGB_TxRing txr;
+    int qidx = igb_mq_queue_idx(TDT, index);
     uint32_t tarc_reg = (qidx == 0) ? TARC0 : TARC1;
 
     core->mac[index] = val & 0xffff;
 
     if (core->mac[tarc_reg] & E1000_TARC_ENABLE) {
-        e1000e_tx_ring_init(core, &txr, qidx);
-        e1000e_start_xmit(core, &txr);
+        igb_tx_ring_init(core, &txr, qidx);
+        igb_start_xmit(core, &txr);
     }
 }
 
 static void
-e1000e_set_ics(E1000ECore *core, int index, uint32_t val)
+igb_set_ics(IGBCore *core, int index, uint32_t val)
 {
     trace_e1000e_irq_write_ics(val);
-    e1000e_set_interrupt_cause(core, val);
+    igb_set_interrupt_cause(core, val);
 }
 
 static void
-e1000e_set_icr(E1000ECore *core, int index, uint32_t val)
+igb_set_icr(IGBCore *core, int index, uint32_t val)
 {
     uint32_t icr = 0;
     if ((core->mac[ICR] & E1000_ICR_ASSERTED) &&
         (core->mac[CTRL_EXT] & E1000_CTRL_EXT_IAME)) {
         trace_e1000e_irq_icr_process_iame();
-        e1000e_clear_ims_bits(core, core->mac[IAM]);
+        igb_clear_ims_bits(core, core->mac[IAM]);
     }
 
     icr = core->mac[ICR] & ~val;
@@ -2541,19 +2530,19 @@ e1000e_set_icr(E1000ECore *core, int index, uint32_t val)
     icr = (val & E1000_ICR_OTHER) ? (icr & ~E1000_ICR_OTHER_CAUSES) : icr;
     trace_e1000e_irq_icr_write(val, core->mac[ICR], icr);
     core->mac[ICR] = icr;
-    e1000e_update_interrupt_state(core);
+    igb_update_interrupt_state(core);
 }
 
 static void
-e1000e_set_imc(E1000ECore *core, int index, uint32_t val)
+igb_set_imc(IGBCore *core, int index, uint32_t val)
 {
     trace_e1000e_irq_ims_clear_set_imc(val);
-    e1000e_clear_ims_bits(core, val);
-    e1000e_update_interrupt_state(core);
+    igb_clear_ims_bits(core, val);
+    igb_update_interrupt_state(core);
 }
 
 static void
-e1000e_set_ims(E1000ECore *core, int index, uint32_t val)
+igb_set_ims(IGBCore *core, int index, uint32_t val)
 {
     static const uint32_t ims_ext_mask =
         E1000_IMS_RXQ0 | E1000_IMS_RXQ1 |
@@ -2576,66 +2565,66 @@ e1000e_set_ims(E1000ECore *core, int index, uint32_t val)
     if ((valid_val & ims_ext_mask) &&
         (core->mac[CTRL_EXT] & E1000_CTRL_EXT_PBA_CLR) &&
         msix_enabled(core->owner)) {
-        e1000e_msix_clear(core, valid_val);
+        igb_msix_clear(core, valid_val);
     }
 
     if ((valid_val == ims_valid_mask) &&
         (core->mac[CTRL_EXT] & E1000_CTRL_EXT_INT_TIMERS_CLEAR_ENA)) {
         trace_e1000e_irq_fire_all_timers(val);
-        e1000e_intrmgr_fire_all_timers(core);
+        igb_intrmgr_fire_all_timers(core);
     }
 
-    e1000e_update_interrupt_state(core);
+    igb_update_interrupt_state(core);
 }
 
 static void
-e1000e_set_rdtr(E1000ECore *core, int index, uint32_t val)
+igb_set_rdtr(IGBCore *core, int index, uint32_t val)
 {
-    e1000e_set_16bit(core, index, val);
+    igb_set_16bit(core, index, val);
 
     if ((val & E1000_RDTR_FPD) && (core->rdtr.running)) {
         trace_e1000e_irq_rdtr_fpd_running();
-        e1000e_intrmgr_fire_delayed_interrupts(core);
+        igb_intrmgr_fire_delayed_interrupts(core);
     } else {
         trace_e1000e_irq_rdtr_fpd_not_running();
     }
 }
 
 static void
-e1000e_set_tidv(E1000ECore *core, int index, uint32_t val)
+igb_set_tidv(IGBCore *core, int index, uint32_t val)
 {
-    e1000e_set_16bit(core, index, val);
+    igb_set_16bit(core, index, val);
 
     if ((val & E1000_TIDV_FPD) && (core->tidv.running)) {
         trace_e1000e_irq_tidv_fpd_running();
-        e1000e_intrmgr_fire_delayed_interrupts(core);
+        igb_intrmgr_fire_delayed_interrupts(core);
     } else {
         trace_e1000e_irq_tidv_fpd_not_running();
     }
 }
 
 static uint32_t
-e1000e_mac_readreg(E1000ECore *core, int index)
+igb_mac_readreg(IGBCore *core, int index)
 {
     return core->mac[index];
 }
 
 static uint32_t
-e1000e_mac_ics_read(E1000ECore *core, int index)
+igb_mac_ics_read(IGBCore *core, int index)
 {
     trace_e1000e_irq_read_ics(core->mac[ICS]);
     return core->mac[ICS];
 }
 
 static uint32_t
-e1000e_mac_ims_read(E1000ECore *core, int index)
+igb_mac_ims_read(IGBCore *core, int index)
 {
     trace_e1000e_irq_read_ims(core->mac[IMS]);
     return core->mac[IMS];
 }
 
 static uint32_t
-e1000e_mac_swsm_read(E1000ECore *core, int index)
+igb_mac_swsm_read(IGBCore *core, int index)
 {
     uint32_t val = core->mac[SWSM];
     core->mac[SWSM] = val | E1000_SWSM_SMBI;
@@ -2643,19 +2632,19 @@ e1000e_mac_swsm_read(E1000ECore *core, int index)
 }
 
 static uint32_t
-e1000e_mac_itr_read(E1000ECore *core, int index)
+igb_mac_itr_read(IGBCore *core, int index)
 {
     return core->itr_guest_value;
 }
 
 static uint32_t
-e1000e_mac_eitr_read(E1000ECore *core, int index)
+igb_mac_eitr_read(IGBCore *core, int index)
 {
     return core->eitr_guest_value[index - EITR];
 }
 
 static uint32_t
-e1000e_mac_icr_read(E1000ECore *core, int index)
+igb_mac_icr_read(IGBCore *core, int index)
 {
     uint32_t ret = core->mac[ICR];
     trace_e1000e_irq_icr_read_entry(ret);
@@ -2675,16 +2664,16 @@ e1000e_mac_icr_read(E1000ECore *core, int index)
         trace_e1000e_irq_icr_clear_iame();
         core->mac[ICR] = 0;
         trace_e1000e_irq_icr_process_iame();
-        e1000e_clear_ims_bits(core, core->mac[IAM]);
+        igb_clear_ims_bits(core, core->mac[IAM]);
     }
 
     trace_e1000e_irq_icr_read_exit(core->mac[ICR]);
-    e1000e_update_interrupt_state(core);
+    igb_update_interrupt_state(core);
     return ret;
 }
 
 static uint32_t
-e1000e_mac_read_clr4(E1000ECore *core, int index)
+igb_mac_read_clr4(IGBCore *core, int index)
 {
     uint32_t ret = core->mac[index];
 
@@ -2693,7 +2682,7 @@ e1000e_mac_read_clr4(E1000ECore *core, int index)
 }
 
 static uint32_t
-e1000e_mac_read_clr8(E1000ECore *core, int index)
+igb_mac_read_clr8(IGBCore *core, int index)
 {
     uint32_t ret = core->mac[index];
 
@@ -2703,7 +2692,7 @@ e1000e_mac_read_clr8(E1000ECore *core, int index)
 }
 
 static uint32_t
-e1000e_get_ctrl(E1000ECore *core, int index)
+igb_get_ctrl(IGBCore *core, int index)
 {
     uint32_t val = core->mac[CTRL];
 
@@ -2719,7 +2708,7 @@ e1000e_get_ctrl(E1000ECore *core, int index)
 }
 
 static uint32_t
-e1000e_get_status(E1000ECore *core, int index)
+igb_get_status(IGBCore *core, int index)
 {
     uint32_t res = core->mac[STATUS];
 
@@ -2761,7 +2750,7 @@ e1000e_get_status(E1000ECore *core, int index)
 }
 
 static uint32_t
-e1000e_get_tarc(E1000ECore *core, int index)
+igb_get_tarc(IGBCore *core, int index)
 {
     return core->mac[index] & ((BIT(11) - 1) |
                                 BIT(27)      |
@@ -2771,13 +2760,13 @@ e1000e_get_tarc(E1000ECore *core, int index)
 }
 
 static void
-e1000e_mac_writereg(E1000ECore *core, int index, uint32_t val)
+igb_mac_writereg(IGBCore *core, int index, uint32_t val)
 {
     core->mac[index] = val;
 }
 
 static void
-e1000e_mac_setmacaddr(E1000ECore *core, int index, uint32_t val)
+igb_mac_setmacaddr(IGBCore *core, int index, uint32_t val)
 {
     uint32_t macaddr[2];
 
@@ -2792,7 +2781,7 @@ e1000e_mac_setmacaddr(E1000ECore *core, int index, uint32_t val)
 }
 
 static void
-e1000e_set_eecd(E1000ECore *core, int index, uint32_t val)
+igb_set_eecd(IGBCore *core, int index, uint32_t val)
 {
     static const uint32_t ro_bits = E1000_EECD_PRES          |
                                     E1000_EECD_AUTO_RD       |
@@ -2802,13 +2791,13 @@ e1000e_set_eecd(E1000ECore *core, int index, uint32_t val)
 }
 
 static void
-e1000e_set_eerd(E1000ECore *core, int index, uint32_t val)
+igb_set_eerd(IGBCore *core, int index, uint32_t val)
 {
     uint32_t addr = (val >> E1000_EERW_ADDR_SHIFT) & E1000_EERW_ADDR_MASK;
     uint32_t flags = 0;
     uint32_t data = 0;
 
-    if ((addr < E1000E_EEPROM_SIZE) && (val & E1000_EERW_START)) {
+    if ((addr < IGB_EEPROM_SIZE) && (val & E1000_EERW_START)) {
         data = core->eeprom[addr];
         flags = E1000_EERW_DONE;
     }
@@ -2819,13 +2808,13 @@ e1000e_set_eerd(E1000ECore *core, int index, uint32_t val)
 }
 
 static void
-e1000e_set_eewr(E1000ECore *core, int index, uint32_t val)
+igb_set_eewr(IGBCore *core, int index, uint32_t val)
 {
     uint32_t addr = (val >> E1000_EERW_ADDR_SHIFT) & E1000_EERW_ADDR_MASK;
     uint32_t data = (val >> E1000_EERW_DATA_SHIFT) & E1000_EERW_DATA_MASK;
     uint32_t flags = 0;
 
-    if ((addr < E1000E_EEPROM_SIZE) && (val & E1000_EERW_START)) {
+    if ((addr < IGB_EEPROM_SIZE) && (val & E1000_EERW_START)) {
         core->eeprom[addr] = data;
         flags = E1000_EERW_DONE;
     }
@@ -2836,13 +2825,13 @@ e1000e_set_eewr(E1000ECore *core, int index, uint32_t val)
 }
 
 static void
-e1000e_set_rxdctl(E1000ECore *core, int index, uint32_t val)
+igb_set_rxdctl(IGBCore *core, int index, uint32_t val)
 {
     core->mac[RXDCTL] = core->mac[RXDCTL1] = val;
 }
 
 static void
-e1000e_set_itr(E1000ECore *core, int index, uint32_t val)
+igb_set_itr(IGBCore *core, int index, uint32_t val)
 {
     uint32_t interval = val & 0xffff;
 
@@ -2853,7 +2842,7 @@ e1000e_set_itr(E1000ECore *core, int index, uint32_t val)
 }
 
 static void
-e1000e_set_eitr(E1000ECore *core, int index, uint32_t val)
+igb_set_eitr(IGBCore *core, int index, uint32_t val)
 {
     uint32_t interval = val & 0xffff;
     uint32_t eitr_num = index - EITR;
@@ -2865,19 +2854,19 @@ e1000e_set_eitr(E1000ECore *core, int index, uint32_t val)
 }
 
 static void
-e1000e_set_psrctl(E1000ECore *core, int index, uint32_t val)
+igb_set_psrctl(IGBCore *core, int index, uint32_t val)
 {
     if (core->mac[RCTL] & E1000_RCTL_DTYP_MASK) {
 
         if ((val & E1000_PSRCTL_BSIZE0_MASK) == 0) {
             qemu_log_mask(LOG_GUEST_ERROR,
-                          "e1000e: PSRCTL.BSIZE0 cannot be zero");
+                          "igb: PSRCTL.BSIZE0 cannot be zero");
             return;
         }
 
         if ((val & E1000_PSRCTL_BSIZE1_MASK) == 0) {
             qemu_log_mask(LOG_GUEST_ERROR,
-                          "e1000e: PSRCTL.BSIZE1 cannot be zero");
+                          "igb: PSRCTL.BSIZE1 cannot be zero");
             return;
         }
     }
@@ -2886,9 +2875,9 @@ e1000e_set_psrctl(E1000ECore *core, int index, uint32_t val)
 }
 
 static void
-e1000e_update_rx_offloads(E1000ECore *core)
+igb_update_rx_offloads(IGBCore *core)
 {
-    int cso_state = e1000e_rx_l4_cso_enabled(core);
+    int cso_state = igb_rx_l4_cso_enabled(core);
 
     trace_e1000e_rx_set_cso(cso_state);
 
@@ -2899,377 +2888,377 @@ e1000e_update_rx_offloads(E1000ECore *core)
 }
 
 static void
-e1000e_set_rxcsum(E1000ECore *core, int index, uint32_t val)
+igb_set_rxcsum(IGBCore *core, int index, uint32_t val)
 {
     core->mac[RXCSUM] = val;
-    e1000e_update_rx_offloads(core);
+    igb_update_rx_offloads(core);
 }
 
 static void
-e1000e_set_gcr(E1000ECore *core, int index, uint32_t val)
+igb_set_gcr(IGBCore *core, int index, uint32_t val)
 {
     uint32_t ro_bits = core->mac[GCR] & E1000_GCR_RO_BITS;
     core->mac[GCR] = (val & ~E1000_GCR_RO_BITS) | ro_bits;
 }
 
-#define e1000e_getreg(x)    [x] = e1000e_mac_readreg
-typedef uint32_t (*readops)(E1000ECore *, int);
-static const readops e1000e_macreg_readops[] = {
-    e1000e_getreg(PBA),
-    e1000e_getreg(WUFC),
-    e1000e_getreg(MANC),
-    e1000e_getreg(TOTL),
-    e1000e_getreg(RDT0),
-    e1000e_getreg(RDBAH0),
-    e1000e_getreg(TDBAL1),
-    e1000e_getreg(RDLEN0),
-    e1000e_getreg(RDH1),
-    e1000e_getreg(LATECOL),
-    e1000e_getreg(SEQEC),
-    e1000e_getreg(XONTXC),
-    e1000e_getreg(AIT),
-    e1000e_getreg(TDFH),
-    e1000e_getreg(TDFT),
-    e1000e_getreg(TDFHS),
-    e1000e_getreg(TDFTS),
-    e1000e_getreg(TDFPC),
-    e1000e_getreg(WUS),
-    e1000e_getreg(PBS),
-    e1000e_getreg(RDFH),
-    e1000e_getreg(RDFT),
-    e1000e_getreg(RDFHS),
-    e1000e_getreg(RDFTS),
-    e1000e_getreg(RDFPC),
-    e1000e_getreg(GORCL),
-    e1000e_getreg(MGTPRC),
-    e1000e_getreg(EERD),
-    e1000e_getreg(EIAC),
-    e1000e_getreg(PSRCTL),
-    e1000e_getreg(MANC2H),
-    e1000e_getreg(RXCSUM),
-    e1000e_getreg(GSCL_3),
-    e1000e_getreg(GSCN_2),
-    e1000e_getreg(RSRPD),
-    e1000e_getreg(RDBAL1),
-    e1000e_getreg(FCAH),
-    e1000e_getreg(FCRTH),
-    e1000e_getreg(FLOP),
-    e1000e_getreg(FLASHT),
-    e1000e_getreg(RXSTMPH),
-    e1000e_getreg(TXSTMPL),
-    e1000e_getreg(TIMADJL),
-    e1000e_getreg(TXDCTL),
-    e1000e_getreg(RDH0),
-    e1000e_getreg(TDT1),
-    e1000e_getreg(TNCRS),
-    e1000e_getreg(RJC),
-    e1000e_getreg(IAM),
-    e1000e_getreg(GSCL_2),
-    e1000e_getreg(RDBAH1),
-    e1000e_getreg(FLSWDATA),
-    e1000e_getreg(RXSATRH),
-    e1000e_getreg(TIPG),
-    e1000e_getreg(FLMNGCTL),
-    e1000e_getreg(FLMNGCNT),
-    e1000e_getreg(TSYNCTXCTL),
-    e1000e_getreg(EXTCNF_SIZE),
-    e1000e_getreg(EXTCNF_CTRL),
-    e1000e_getreg(EEMNGDATA),
-    e1000e_getreg(CTRL_EXT),
-    e1000e_getreg(SYSTIMH),
-    e1000e_getreg(EEMNGCTL),
-    e1000e_getreg(FLMNGDATA),
-    e1000e_getreg(TSYNCRXCTL),
-    e1000e_getreg(TDH),
-    e1000e_getreg(LEDCTL),
-    e1000e_getreg(TCTL),
-    e1000e_getreg(TDBAL),
-    e1000e_getreg(TDLEN),
-    e1000e_getreg(TDH1),
-    e1000e_getreg(RADV),
-    e1000e_getreg(ECOL),
-    e1000e_getreg(DC),
-    e1000e_getreg(RLEC),
-    e1000e_getreg(XOFFTXC),
-    e1000e_getreg(RFC),
-    e1000e_getreg(RNBC),
-    e1000e_getreg(MGTPTC),
-    e1000e_getreg(TIMINCA),
-    e1000e_getreg(RXCFGL),
-    e1000e_getreg(MFUTP01),
-    e1000e_getreg(FACTPS),
-    e1000e_getreg(GSCL_1),
-    e1000e_getreg(GSCN_0),
-    e1000e_getreg(GCR2),
-    e1000e_getreg(RDT1),
-    e1000e_getreg(PBACLR),
-    e1000e_getreg(FCTTV),
-    e1000e_getreg(EEWR),
-    e1000e_getreg(FLSWCTL),
-    e1000e_getreg(RXDCTL1),
-    e1000e_getreg(RXSATRL),
-    e1000e_getreg(SYSTIML),
-    e1000e_getreg(RXUDP),
-    e1000e_getreg(TORL),
-    e1000e_getreg(TDLEN1),
-    e1000e_getreg(MCC),
-    e1000e_getreg(WUC),
-    e1000e_getreg(EECD),
-    e1000e_getreg(MFUTP23),
-    e1000e_getreg(RAID),
-    e1000e_getreg(FCRTV),
-    e1000e_getreg(TXDCTL1),
-    e1000e_getreg(RCTL),
-    e1000e_getreg(TDT),
-    e1000e_getreg(MDIC),
-    e1000e_getreg(FCRUC),
-    e1000e_getreg(VET),
-    e1000e_getreg(RDBAL0),
-    e1000e_getreg(TDBAH1),
-    e1000e_getreg(RDTR),
-    e1000e_getreg(SCC),
-    e1000e_getreg(COLC),
-    e1000e_getreg(CEXTERR),
-    e1000e_getreg(XOFFRXC),
-    e1000e_getreg(IPAV),
-    e1000e_getreg(GOTCL),
-    e1000e_getreg(MGTPDC),
-    e1000e_getreg(GCR),
-    e1000e_getreg(IVAR),
-    e1000e_getreg(POEMB),
-    e1000e_getreg(MFVAL),
-    e1000e_getreg(FUNCTAG),
-    e1000e_getreg(GSCL_4),
-    e1000e_getreg(GSCN_3),
-    e1000e_getreg(MRQC),
-    e1000e_getreg(RDLEN1),
-    e1000e_getreg(FCT),
-    e1000e_getreg(FLA),
-    e1000e_getreg(FLOL),
-    e1000e_getreg(RXDCTL),
-    e1000e_getreg(RXSTMPL),
-    e1000e_getreg(TXSTMPH),
-    e1000e_getreg(TIMADJH),
-    e1000e_getreg(FCRTL),
-    e1000e_getreg(TDBAH),
-    e1000e_getreg(TADV),
-    e1000e_getreg(XONRXC),
-    e1000e_getreg(TSCTFC),
-    e1000e_getreg(RFCTL),
-    e1000e_getreg(GSCN_1),
-    e1000e_getreg(FCAL),
-    e1000e_getreg(FLSWCNT),
+#define igb_getreg(x)    [x] = igb_mac_readreg
+typedef uint32_t (*readops)(IGBCore *, int);
+static const readops igb_macreg_readops[] = {
+    igb_getreg(PBA),
+    igb_getreg(WUFC),
+    igb_getreg(MANC),
+    igb_getreg(TOTL),
+    igb_getreg(RDT0),
+    igb_getreg(RDBAH0),
+    igb_getreg(TDBAL1),
+    igb_getreg(RDLEN0),
+    igb_getreg(RDH1),
+    igb_getreg(LATECOL),
+    igb_getreg(SEQEC),
+    igb_getreg(XONTXC),
+    igb_getreg(AIT),
+    igb_getreg(TDFH),
+    igb_getreg(TDFT),
+    igb_getreg(TDFHS),
+    igb_getreg(TDFTS),
+    igb_getreg(TDFPC),
+    igb_getreg(WUS),
+    igb_getreg(PBS),
+    igb_getreg(RDFH),
+    igb_getreg(RDFT),
+    igb_getreg(RDFHS),
+    igb_getreg(RDFTS),
+    igb_getreg(RDFPC),
+    igb_getreg(GORCL),
+    igb_getreg(MGTPRC),
+    igb_getreg(EERD),
+    igb_getreg(EIAC),
+    igb_getreg(PSRCTL),
+    igb_getreg(MANC2H),
+    igb_getreg(RXCSUM),
+    igb_getreg(GSCL_3),
+    igb_getreg(GSCN_2),
+    igb_getreg(RSRPD),
+    igb_getreg(RDBAL1),
+    igb_getreg(FCAH),
+    igb_getreg(FCRTH),
+    igb_getreg(FLOP),
+    igb_getreg(FLASHT),
+    igb_getreg(RXSTMPH),
+    igb_getreg(TXSTMPL),
+    igb_getreg(TIMADJL),
+    igb_getreg(TXDCTL),
+    igb_getreg(RDH0),
+    igb_getreg(TDT1),
+    igb_getreg(TNCRS),
+    igb_getreg(RJC),
+    igb_getreg(IAM),
+    igb_getreg(GSCL_2),
+    igb_getreg(RDBAH1),
+    igb_getreg(FLSWDATA),
+    igb_getreg(RXSATRH),
+    igb_getreg(TIPG),
+    igb_getreg(FLMNGCTL),
+    igb_getreg(FLMNGCNT),
+    igb_getreg(TSYNCTXCTL),
+    igb_getreg(EXTCNF_SIZE),
+    igb_getreg(EXTCNF_CTRL),
+    igb_getreg(EEMNGDATA),
+    igb_getreg(CTRL_EXT),
+    igb_getreg(SYSTIMH),
+    igb_getreg(EEMNGCTL),
+    igb_getreg(FLMNGDATA),
+    igb_getreg(TSYNCRXCTL),
+    igb_getreg(TDH),
+    igb_getreg(LEDCTL),
+    igb_getreg(TCTL),
+    igb_getreg(TDBAL),
+    igb_getreg(TDLEN),
+    igb_getreg(TDH1),
+    igb_getreg(RADV),
+    igb_getreg(ECOL),
+    igb_getreg(DC),
+    igb_getreg(RLEC),
+    igb_getreg(XOFFTXC),
+    igb_getreg(RFC),
+    igb_getreg(RNBC),
+    igb_getreg(MGTPTC),
+    igb_getreg(TIMINCA),
+    igb_getreg(RXCFGL),
+    igb_getreg(MFUTP01),
+    igb_getreg(FACTPS),
+    igb_getreg(GSCL_1),
+    igb_getreg(GSCN_0),
+    igb_getreg(GCR2),
+    igb_getreg(RDT1),
+    igb_getreg(PBACLR),
+    igb_getreg(FCTTV),
+    igb_getreg(EEWR),
+    igb_getreg(FLSWCTL),
+    igb_getreg(RXDCTL1),
+    igb_getreg(RXSATRL),
+    igb_getreg(SYSTIML),
+    igb_getreg(RXUDP),
+    igb_getreg(TORL),
+    igb_getreg(TDLEN1),
+    igb_getreg(MCC),
+    igb_getreg(WUC),
+    igb_getreg(EECD),
+    igb_getreg(MFUTP23),
+    igb_getreg(RAID),
+    igb_getreg(FCRTV),
+    igb_getreg(TXDCTL1),
+    igb_getreg(RCTL),
+    igb_getreg(TDT),
+    igb_getreg(MDIC),
+    igb_getreg(FCRUC),
+    igb_getreg(VET),
+    igb_getreg(RDBAL0),
+    igb_getreg(TDBAH1),
+    igb_getreg(RDTR),
+    igb_getreg(SCC),
+    igb_getreg(COLC),
+    igb_getreg(CEXTERR),
+    igb_getreg(XOFFRXC),
+    igb_getreg(IPAV),
+    igb_getreg(GOTCL),
+    igb_getreg(MGTPDC),
+    igb_getreg(GCR),
+    igb_getreg(IVAR),
+    igb_getreg(POEMB),
+    igb_getreg(MFVAL),
+    igb_getreg(FUNCTAG),
+    igb_getreg(GSCL_4),
+    igb_getreg(GSCN_3),
+    igb_getreg(MRQC),
+    igb_getreg(RDLEN1),
+    igb_getreg(FCT),
+    igb_getreg(FLA),
+    igb_getreg(FLOL),
+    igb_getreg(RXDCTL),
+    igb_getreg(RXSTMPL),
+    igb_getreg(TXSTMPH),
+    igb_getreg(TIMADJH),
+    igb_getreg(FCRTL),
+    igb_getreg(TDBAH),
+    igb_getreg(TADV),
+    igb_getreg(XONRXC),
+    igb_getreg(TSCTFC),
+    igb_getreg(RFCTL),
+    igb_getreg(GSCN_1),
+    igb_getreg(FCAL),
+    igb_getreg(FLSWCNT),
 
-    [TOTH]    = e1000e_mac_read_clr8,
-    [GOTCH]   = e1000e_mac_read_clr8,
-    [PRC64]   = e1000e_mac_read_clr4,
-    [PRC255]  = e1000e_mac_read_clr4,
-    [PRC1023] = e1000e_mac_read_clr4,
-    [PTC64]   = e1000e_mac_read_clr4,
-    [PTC255]  = e1000e_mac_read_clr4,
-    [PTC1023] = e1000e_mac_read_clr4,
-    [GPRC]    = e1000e_mac_read_clr4,
-    [TPT]     = e1000e_mac_read_clr4,
-    [RUC]     = e1000e_mac_read_clr4,
-    [BPRC]    = e1000e_mac_read_clr4,
-    [MPTC]    = e1000e_mac_read_clr4,
-    [IAC]     = e1000e_mac_read_clr4,
-    [ICR]     = e1000e_mac_icr_read,
-    [STATUS]  = e1000e_get_status,
-    [TARC0]   = e1000e_get_tarc,
-    [ICS]     = e1000e_mac_ics_read,
-    [TORH]    = e1000e_mac_read_clr8,
-    [GORCH]   = e1000e_mac_read_clr8,
-    [PRC127]  = e1000e_mac_read_clr4,
-    [PRC511]  = e1000e_mac_read_clr4,
-    [PRC1522] = e1000e_mac_read_clr4,
-    [PTC127]  = e1000e_mac_read_clr4,
-    [PTC511]  = e1000e_mac_read_clr4,
-    [PTC1522] = e1000e_mac_read_clr4,
-    [GPTC]    = e1000e_mac_read_clr4,
-    [TPR]     = e1000e_mac_read_clr4,
-    [ROC]     = e1000e_mac_read_clr4,
-    [MPRC]    = e1000e_mac_read_clr4,
-    [BPTC]    = e1000e_mac_read_clr4,
-    [TSCTC]   = e1000e_mac_read_clr4,
-    [ITR]     = e1000e_mac_itr_read,
-    [CTRL]    = e1000e_get_ctrl,
-    [TARC1]   = e1000e_get_tarc,
-    [SWSM]    = e1000e_mac_swsm_read,
-    [IMS]     = e1000e_mac_ims_read,
+    [TOTH]    = igb_mac_read_clr8,
+    [GOTCH]   = igb_mac_read_clr8,
+    [PRC64]   = igb_mac_read_clr4,
+    [PRC255]  = igb_mac_read_clr4,
+    [PRC1023] = igb_mac_read_clr4,
+    [PTC64]   = igb_mac_read_clr4,
+    [PTC255]  = igb_mac_read_clr4,
+    [PTC1023] = igb_mac_read_clr4,
+    [GPRC]    = igb_mac_read_clr4,
+    [TPT]     = igb_mac_read_clr4,
+    [RUC]     = igb_mac_read_clr4,
+    [BPRC]    = igb_mac_read_clr4,
+    [MPTC]    = igb_mac_read_clr4,
+    [IAC]     = igb_mac_read_clr4,
+    [ICR]     = igb_mac_icr_read,
+    [STATUS]  = igb_get_status,
+    [TARC0]   = igb_get_tarc,
+    [ICS]     = igb_mac_ics_read,
+    [TORH]    = igb_mac_read_clr8,
+    [GORCH]   = igb_mac_read_clr8,
+    [PRC127]  = igb_mac_read_clr4,
+    [PRC511]  = igb_mac_read_clr4,
+    [PRC1522] = igb_mac_read_clr4,
+    [PTC127]  = igb_mac_read_clr4,
+    [PTC511]  = igb_mac_read_clr4,
+    [PTC1522] = igb_mac_read_clr4,
+    [GPTC]    = igb_mac_read_clr4,
+    [TPR]     = igb_mac_read_clr4,
+    [ROC]     = igb_mac_read_clr4,
+    [MPRC]    = igb_mac_read_clr4,
+    [BPTC]    = igb_mac_read_clr4,
+    [TSCTC]   = igb_mac_read_clr4,
+    [ITR]     = igb_mac_itr_read,
+    [CTRL]    = igb_get_ctrl,
+    [TARC1]   = igb_get_tarc,
+    [SWSM]    = igb_mac_swsm_read,
+    [IMS]     = igb_mac_ims_read,
 
-    [CRCERRS ... MPC]      = e1000e_mac_readreg,
-    [IP6AT ... IP6AT + 3]  = e1000e_mac_readreg,
-    [IP4AT ... IP4AT + 6]  = e1000e_mac_readreg,
-    [RA ... RA + 31]       = e1000e_mac_readreg,
-    [WUPM ... WUPM + 31]   = e1000e_mac_readreg,
-    [MTA ... MTA + E1000_MC_TBL_SIZE - 1] = e1000e_mac_readreg,
-    [VFTA ... VFTA + E1000_VLAN_FILTER_TBL_SIZE - 1]  = e1000e_mac_readreg,
-    [FFMT ... FFMT + 254]  = e1000e_mac_readreg,
-    [FFVT ... FFVT + 254]  = e1000e_mac_readreg,
-    [MDEF ... MDEF + 7]    = e1000e_mac_readreg,
-    [FFLT ... FFLT + 10]   = e1000e_mac_readreg,
-    [FTFT ... FTFT + 254]  = e1000e_mac_readreg,
-    [PBM ... PBM + 10239]  = e1000e_mac_readreg,
-    [RETA ... RETA + 31]   = e1000e_mac_readreg,
-    [RSSRK ... RSSRK + 31] = e1000e_mac_readreg,
-    [MAVTV0 ... MAVTV3]    = e1000e_mac_readreg,
-    [EITR...EITR + E1000E_MSIX_VEC_NUM - 1] = e1000e_mac_eitr_read
+    [CRCERRS ... MPC]      = igb_mac_readreg,
+    [IP6AT ... IP6AT + 3]  = igb_mac_readreg,
+    [IP4AT ... IP4AT + 6]  = igb_mac_readreg,
+    [RA ... RA + 31]       = igb_mac_readreg,
+    [WUPM ... WUPM + 31]   = igb_mac_readreg,
+    [MTA ... MTA + E1000_MC_TBL_SIZE - 1] = igb_mac_readreg,
+    [VFTA ... VFTA + E1000_VLAN_FILTER_TBL_SIZE - 1]  = igb_mac_readreg,
+    [FFMT ... FFMT + 254]  = igb_mac_readreg,
+    [FFVT ... FFVT + 254]  = igb_mac_readreg,
+    [MDEF ... MDEF + 7]    = igb_mac_readreg,
+    [FFLT ... FFLT + 10]   = igb_mac_readreg,
+    [FTFT ... FTFT + 254]  = igb_mac_readreg,
+    [PBM ... PBM + 10239]  = igb_mac_readreg,
+    [RETA ... RETA + 31]   = igb_mac_readreg,
+    [RSSRK ... RSSRK + 31] = igb_mac_readreg,
+    [MAVTV0 ... MAVTV3]    = igb_mac_readreg,
+    [EITR...EITR + IGB_MSIX_VEC_NUM - 1] = igb_mac_eitr_read
 };
-enum { E1000E_NREADOPS = ARRAY_SIZE(e1000e_macreg_readops) };
+enum { IGB_NREADOPS = ARRAY_SIZE(igb_macreg_readops) };
 
-#define e1000e_putreg(x)    [x] = e1000e_mac_writereg
-typedef void (*writeops)(E1000ECore *, int, uint32_t);
-static const writeops e1000e_macreg_writeops[] = {
-    e1000e_putreg(PBA),
-    e1000e_putreg(SWSM),
-    e1000e_putreg(WUFC),
-    e1000e_putreg(RDBAH1),
-    e1000e_putreg(TDBAH),
-    e1000e_putreg(TXDCTL),
-    e1000e_putreg(RDBAH0),
-    e1000e_putreg(LEDCTL),
-    e1000e_putreg(FCAL),
-    e1000e_putreg(FCRUC),
-    e1000e_putreg(WUC),
-    e1000e_putreg(WUS),
-    e1000e_putreg(IPAV),
-    e1000e_putreg(TDBAH1),
-    e1000e_putreg(TIMINCA),
-    e1000e_putreg(IAM),
-    e1000e_putreg(EIAC),
-    e1000e_putreg(IVAR),
-    e1000e_putreg(TARC0),
-    e1000e_putreg(TARC1),
-    e1000e_putreg(FLSWDATA),
-    e1000e_putreg(POEMB),
-    e1000e_putreg(MFUTP01),
-    e1000e_putreg(MFUTP23),
-    e1000e_putreg(MANC),
-    e1000e_putreg(MANC2H),
-    e1000e_putreg(MFVAL),
-    e1000e_putreg(EXTCNF_CTRL),
-    e1000e_putreg(FACTPS),
-    e1000e_putreg(FUNCTAG),
-    e1000e_putreg(GSCL_1),
-    e1000e_putreg(GSCL_2),
-    e1000e_putreg(GSCL_3),
-    e1000e_putreg(GSCL_4),
-    e1000e_putreg(GSCN_0),
-    e1000e_putreg(GSCN_1),
-    e1000e_putreg(GSCN_2),
-    e1000e_putreg(GSCN_3),
-    e1000e_putreg(GCR2),
-    e1000e_putreg(MRQC),
-    e1000e_putreg(FLOP),
-    e1000e_putreg(FLOL),
-    e1000e_putreg(FLSWCTL),
-    e1000e_putreg(FLSWCNT),
-    e1000e_putreg(FLA),
-    e1000e_putreg(RXDCTL1),
-    e1000e_putreg(TXDCTL1),
-    e1000e_putreg(TIPG),
-    e1000e_putreg(RXSTMPH),
-    e1000e_putreg(RXSTMPL),
-    e1000e_putreg(RXSATRL),
-    e1000e_putreg(RXSATRH),
-    e1000e_putreg(TXSTMPL),
-    e1000e_putreg(TXSTMPH),
-    e1000e_putreg(SYSTIML),
-    e1000e_putreg(SYSTIMH),
-    e1000e_putreg(TIMADJL),
-    e1000e_putreg(TIMADJH),
-    e1000e_putreg(RXUDP),
-    e1000e_putreg(RXCFGL),
-    e1000e_putreg(TSYNCRXCTL),
-    e1000e_putreg(TSYNCTXCTL),
-    e1000e_putreg(EXTCNF_SIZE),
-    e1000e_putreg(EEMNGCTL),
-    e1000e_putreg(RA),
+#define igb_putreg(x)    [x] = igb_mac_writereg
+typedef void (*writeops)(IGBCore *, int, uint32_t);
+static const writeops igb_macreg_writeops[] = {
+    igb_putreg(PBA),
+    igb_putreg(SWSM),
+    igb_putreg(WUFC),
+    igb_putreg(RDBAH1),
+    igb_putreg(TDBAH),
+    igb_putreg(TXDCTL),
+    igb_putreg(RDBAH0),
+    igb_putreg(LEDCTL),
+    igb_putreg(FCAL),
+    igb_putreg(FCRUC),
+    igb_putreg(WUC),
+    igb_putreg(WUS),
+    igb_putreg(IPAV),
+    igb_putreg(TDBAH1),
+    igb_putreg(TIMINCA),
+    igb_putreg(IAM),
+    igb_putreg(EIAC),
+    igb_putreg(IVAR),
+    igb_putreg(TARC0),
+    igb_putreg(TARC1),
+    igb_putreg(FLSWDATA),
+    igb_putreg(POEMB),
+    igb_putreg(MFUTP01),
+    igb_putreg(MFUTP23),
+    igb_putreg(MANC),
+    igb_putreg(MANC2H),
+    igb_putreg(MFVAL),
+    igb_putreg(EXTCNF_CTRL),
+    igb_putreg(FACTPS),
+    igb_putreg(FUNCTAG),
+    igb_putreg(GSCL_1),
+    igb_putreg(GSCL_2),
+    igb_putreg(GSCL_3),
+    igb_putreg(GSCL_4),
+    igb_putreg(GSCN_0),
+    igb_putreg(GSCN_1),
+    igb_putreg(GSCN_2),
+    igb_putreg(GSCN_3),
+    igb_putreg(GCR2),
+    igb_putreg(MRQC),
+    igb_putreg(FLOP),
+    igb_putreg(FLOL),
+    igb_putreg(FLSWCTL),
+    igb_putreg(FLSWCNT),
+    igb_putreg(FLA),
+    igb_putreg(RXDCTL1),
+    igb_putreg(TXDCTL1),
+    igb_putreg(TIPG),
+    igb_putreg(RXSTMPH),
+    igb_putreg(RXSTMPL),
+    igb_putreg(RXSATRL),
+    igb_putreg(RXSATRH),
+    igb_putreg(TXSTMPL),
+    igb_putreg(TXSTMPH),
+    igb_putreg(SYSTIML),
+    igb_putreg(SYSTIMH),
+    igb_putreg(TIMADJL),
+    igb_putreg(TIMADJH),
+    igb_putreg(RXUDP),
+    igb_putreg(RXCFGL),
+    igb_putreg(TSYNCRXCTL),
+    igb_putreg(TSYNCTXCTL),
+    igb_putreg(EXTCNF_SIZE),
+    igb_putreg(EEMNGCTL),
+    igb_putreg(RA),
 
-    [TDH1]     = e1000e_set_16bit,
-    [TDT1]     = e1000e_set_tdt,
-    [TCTL]     = e1000e_set_tctl,
-    [TDT]      = e1000e_set_tdt,
-    [MDIC]     = e1000e_set_mdic,
-    [ICS]      = e1000e_set_ics,
-    [TDH]      = e1000e_set_16bit,
-    [RDH0]     = e1000e_set_16bit,
-    [RDT0]     = e1000e_set_rdt,
-    [IMC]      = e1000e_set_imc,
-    [IMS]      = e1000e_set_ims,
-    [ICR]      = e1000e_set_icr,
-    [EECD]     = e1000e_set_eecd,
-    [RCTL]     = e1000e_set_rx_control,
-    [CTRL]     = e1000e_set_ctrl,
-    [RDTR]     = e1000e_set_rdtr,
-    [RADV]     = e1000e_set_16bit,
-    [TADV]     = e1000e_set_16bit,
-    [ITR]      = e1000e_set_itr,
-    [EERD]     = e1000e_set_eerd,
-    [AIT]      = e1000e_set_16bit,
-    [TDFH]     = e1000e_set_13bit,
-    [TDFT]     = e1000e_set_13bit,
-    [TDFHS]    = e1000e_set_13bit,
-    [TDFTS]    = e1000e_set_13bit,
-    [TDFPC]    = e1000e_set_13bit,
-    [RDFH]     = e1000e_set_13bit,
-    [RDFHS]    = e1000e_set_13bit,
-    [RDFT]     = e1000e_set_13bit,
-    [RDFTS]    = e1000e_set_13bit,
-    [RDFPC]    = e1000e_set_13bit,
-    [PBS]      = e1000e_set_6bit,
-    [GCR]      = e1000e_set_gcr,
-    [PSRCTL]   = e1000e_set_psrctl,
-    [RXCSUM]   = e1000e_set_rxcsum,
-    [RAID]     = e1000e_set_16bit,
-    [RSRPD]    = e1000e_set_12bit,
-    [TIDV]     = e1000e_set_tidv,
-    [TDLEN1]   = e1000e_set_dlen,
-    [TDLEN]    = e1000e_set_dlen,
-    [RDLEN0]   = e1000e_set_dlen,
-    [RDLEN1]   = e1000e_set_dlen,
-    [TDBAL]    = e1000e_set_dbal,
-    [TDBAL1]   = e1000e_set_dbal,
-    [RDBAL0]   = e1000e_set_dbal,
-    [RDBAL1]   = e1000e_set_dbal,
-    [RDH1]     = e1000e_set_16bit,
-    [RDT1]     = e1000e_set_rdt,
-    [STATUS]   = e1000e_set_status,
-    [PBACLR]   = e1000e_set_pbaclr,
-    [CTRL_EXT] = e1000e_set_ctrlext,
-    [FCAH]     = e1000e_set_16bit,
-    [FCT]      = e1000e_set_16bit,
-    [FCTTV]    = e1000e_set_16bit,
-    [FCRTV]    = e1000e_set_16bit,
-    [FCRTH]    = e1000e_set_fcrth,
-    [FCRTL]    = e1000e_set_fcrtl,
-    [VET]      = e1000e_set_vet,
-    [RXDCTL]   = e1000e_set_rxdctl,
-    [FLASHT]   = e1000e_set_16bit,
-    [EEWR]     = e1000e_set_eewr,
-    [CTRL_DUP] = e1000e_set_ctrl,
-    [RFCTL]    = e1000e_set_rfctl,
-    [RA + 1]   = e1000e_mac_setmacaddr,
+    [TDH1]     = igb_set_16bit,
+    [TDT1]     = igb_set_tdt,
+    [TCTL]     = igb_set_tctl,
+    [TDT]      = igb_set_tdt,
+    [MDIC]     = igb_set_mdic,
+    [ICS]      = igb_set_ics,
+    [TDH]      = igb_set_16bit,
+    [RDH0]     = igb_set_16bit,
+    [RDT0]     = igb_set_rdt,
+    [IMC]      = igb_set_imc,
+    [IMS]      = igb_set_ims,
+    [ICR]      = igb_set_icr,
+    [EECD]     = igb_set_eecd,
+    [RCTL]     = igb_set_rx_control,
+    [CTRL]     = igb_set_ctrl,
+    [RDTR]     = igb_set_rdtr,
+    [RADV]     = igb_set_16bit,
+    [TADV]     = igb_set_16bit,
+    [ITR]      = igb_set_itr,
+    [EERD]     = igb_set_eerd,
+    [AIT]      = igb_set_16bit,
+    [TDFH]     = igb_set_13bit,
+    [TDFT]     = igb_set_13bit,
+    [TDFHS]    = igb_set_13bit,
+    [TDFTS]    = igb_set_13bit,
+    [TDFPC]    = igb_set_13bit,
+    [RDFH]     = igb_set_13bit,
+    [RDFHS]    = igb_set_13bit,
+    [RDFT]     = igb_set_13bit,
+    [RDFTS]    = igb_set_13bit,
+    [RDFPC]    = igb_set_13bit,
+    [PBS]      = igb_set_6bit,
+    [GCR]      = igb_set_gcr,
+    [PSRCTL]   = igb_set_psrctl,
+    [RXCSUM]   = igb_set_rxcsum,
+    [RAID]     = igb_set_16bit,
+    [RSRPD]    = igb_set_12bit,
+    [TIDV]     = igb_set_tidv,
+    [TDLEN1]   = igb_set_dlen,
+    [TDLEN]    = igb_set_dlen,
+    [RDLEN0]   = igb_set_dlen,
+    [RDLEN1]   = igb_set_dlen,
+    [TDBAL]    = igb_set_dbal,
+    [TDBAL1]   = igb_set_dbal,
+    [RDBAL0]   = igb_set_dbal,
+    [RDBAL1]   = igb_set_dbal,
+    [RDH1]     = igb_set_16bit,
+    [RDT1]     = igb_set_rdt,
+    [STATUS]   = igb_set_status,
+    [PBACLR]   = igb_set_pbaclr,
+    [CTRL_EXT] = igb_set_ctrlext,
+    [FCAH]     = igb_set_16bit,
+    [FCT]      = igb_set_16bit,
+    [FCTTV]    = igb_set_16bit,
+    [FCRTV]    = igb_set_16bit,
+    [FCRTH]    = igb_set_fcrth,
+    [FCRTL]    = igb_set_fcrtl,
+    [VET]      = igb_set_vet,
+    [RXDCTL]   = igb_set_rxdctl,
+    [FLASHT]   = igb_set_16bit,
+    [EEWR]     = igb_set_eewr,
+    [CTRL_DUP] = igb_set_ctrl,
+    [RFCTL]    = igb_set_rfctl,
+    [RA + 1]   = igb_mac_setmacaddr,
 
-    [IP6AT ... IP6AT + 3]    = e1000e_mac_writereg,
-    [IP4AT ... IP4AT + 6]    = e1000e_mac_writereg,
-    [RA + 2 ... RA + 31]     = e1000e_mac_writereg,
-    [WUPM ... WUPM + 31]     = e1000e_mac_writereg,
-    [MTA ... MTA + E1000_MC_TBL_SIZE - 1] = e1000e_mac_writereg,
-    [VFTA ... VFTA + E1000_VLAN_FILTER_TBL_SIZE - 1]    = e1000e_mac_writereg,
-    [FFMT ... FFMT + 254]    = e1000e_set_4bit,
-    [FFVT ... FFVT + 254]    = e1000e_mac_writereg,
-    [PBM ... PBM + 10239]    = e1000e_mac_writereg,
-    [MDEF ... MDEF + 7]      = e1000e_mac_writereg,
-    [FFLT ... FFLT + 10]     = e1000e_set_11bit,
-    [FTFT ... FTFT + 254]    = e1000e_mac_writereg,
-    [RETA ... RETA + 31]     = e1000e_mac_writereg,
-    [RSSRK ... RSSRK + 31]   = e1000e_mac_writereg,
-    [MAVTV0 ... MAVTV3]      = e1000e_mac_writereg,
-    [EITR...EITR + E1000E_MSIX_VEC_NUM - 1] = e1000e_set_eitr
+    [IP6AT ... IP6AT + 3]    = igb_mac_writereg,
+    [IP4AT ... IP4AT + 6]    = igb_mac_writereg,
+    [RA + 2 ... RA + 31]     = igb_mac_writereg,
+    [WUPM ... WUPM + 31]     = igb_mac_writereg,
+    [MTA ... MTA + E1000_MC_TBL_SIZE - 1] = igb_mac_writereg,
+    [VFTA ... VFTA + E1000_VLAN_FILTER_TBL_SIZE - 1]    = igb_mac_writereg,
+    [FFMT ... FFMT + 254]    = igb_set_4bit,
+    [FFVT ... FFVT + 254]    = igb_mac_writereg,
+    [PBM ... PBM + 10239]    = igb_mac_writereg,
+    [MDEF ... MDEF + 7]      = igb_mac_writereg,
+    [FFLT ... FFLT + 10]     = igb_set_11bit,
+    [FTFT ... FTFT + 254]    = igb_mac_writereg,
+    [RETA ... RETA + 31]     = igb_mac_writereg,
+    [RSSRK ... RSSRK + 31]   = igb_mac_writereg,
+    [MAVTV0 ... MAVTV3]      = igb_mac_writereg,
+    [EITR...EITR + IGB_MSIX_VEC_NUM - 1] = igb_set_eitr
 };
-enum { E1000E_NWRITEOPS = ARRAY_SIZE(e1000e_macreg_writeops) };
+enum { IGB_NWRITEOPS = ARRAY_SIZE(igb_macreg_writeops) };
 
 enum { MAC_ACCESS_PARTIAL = 1 };
 
@@ -3307,17 +3296,17 @@ static const uint16_t mac_reg_access[E1000E_MAC_SIZE] = {
 };
 
 void
-e1000e_core_write(E1000ECore *core, hwaddr addr, uint64_t val, unsigned size)
+igb_core_write(IGBCore *core, hwaddr addr, uint64_t val, unsigned size)
 {
-    uint16_t index = e1000e_get_reg_index_with_offset(mac_reg_access, addr);
+    uint16_t index = igb_get_reg_index_with_offset(mac_reg_access, addr);
 
-    if (index < E1000E_NWRITEOPS && e1000e_macreg_writeops[index]) {
+    if (index < IGB_NWRITEOPS && igb_macreg_writeops[index]) {
         if (mac_reg_access[index] & MAC_ACCESS_PARTIAL) {
             trace_e1000e_wrn_regs_write_trivial(index << 2);
         }
         trace_e1000e_core_write(index << 2, size, val);
-        e1000e_macreg_writeops[index](core, index, val);
-    } else if (index < E1000E_NREADOPS && e1000e_macreg_readops[index]) {
+        igb_macreg_writeops[index](core, index, val);
+    } else if (index < IGB_NREADOPS && igb_macreg_readops[index]) {
         trace_e1000e_wrn_regs_write_ro(index << 2, size, val);
     } else {
         trace_e1000e_wrn_regs_write_unknown(index << 2, size, val);
@@ -3325,16 +3314,16 @@ e1000e_core_write(E1000ECore *core, hwaddr addr, uint64_t val, unsigned size)
 }
 
 uint64_t
-e1000e_core_read(E1000ECore *core, hwaddr addr, unsigned size)
+igb_core_read(IGBCore *core, hwaddr addr, unsigned size)
 {
     uint64_t val;
-    uint16_t index = e1000e_get_reg_index_with_offset(mac_reg_access, addr);
+    uint16_t index = igb_get_reg_index_with_offset(mac_reg_access, addr);
 
-    if (index < E1000E_NREADOPS && e1000e_macreg_readops[index]) {
+    if (index < IGB_NREADOPS && igb_macreg_readops[index]) {
         if (mac_reg_access[index] & MAC_ACCESS_PARTIAL) {
             trace_e1000e_wrn_regs_read_trivial(index << 2);
         }
-        val = e1000e_macreg_readops[index](core, index);
+        val = igb_macreg_readops[index](core, index);
         trace_e1000e_core_read(index << 2, size, val);
         return val;
     } else {
@@ -3344,15 +3333,15 @@ e1000e_core_read(E1000ECore *core, hwaddr addr, unsigned size)
 }
 
 static inline void
-e1000e_autoneg_pause(E1000ECore *core)
+igb_autoneg_pause(IGBCore *core)
 {
     timer_del(core->autoneg_timer);
 }
 
 static void
-e1000e_autoneg_resume(E1000ECore *core)
+igb_autoneg_resume(IGBCore *core)
 {
-    if (e1000e_have_autoneg(core) &&
+    if (igb_have_autoneg(core) &&
         !(core->phy[0][MII_BMSR] & MII_BMSR_AN_COMP)) {
         qemu_get_queue(core->owner_nic)->link_down = false;
         timer_mod(core->autoneg_timer,
@@ -3361,37 +3350,36 @@ e1000e_autoneg_resume(E1000ECore *core)
 }
 
 static void
-e1000e_vm_state_change(void *opaque, bool running, RunState state)
+igb_vm_state_change(void *opaque, bool running, RunState state)
 {
-    E1000ECore *core = opaque;
+    IGBCore *core = opaque;
 
     if (running) {
         trace_e1000e_vm_state_running();
-        e1000e_intrmgr_resume(core);
-        e1000e_autoneg_resume(core);
+        igb_intrmgr_resume(core);
+        igb_autoneg_resume(core);
     } else {
         trace_e1000e_vm_state_stopped();
-        e1000e_autoneg_pause(core);
-        e1000e_intrmgr_pause(core);
+        igb_autoneg_pause(core);
+        igb_intrmgr_pause(core);
     }
 }
 
 void
-e1000e_core_pci_realize(E1000ECore     *core,
-                        const uint16_t *eeprom_templ,
-                        uint32_t        eeprom_size,
-                        const uint8_t  *macaddr)
+igb_core_pci_realize(IGBCore        *core,
+                     const uint16_t *eeprom_templ,
+                     uint32_t        eeprom_size,
+                     const uint8_t  *macaddr)
 {
     int i;
 
     core->autoneg_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
-                                       e1000e_autoneg_timer, core);
-    e1000e_intrmgr_pci_realize(core);
+                                       igb_autoneg_timer, core);
+    igb_intrmgr_pci_realize(core);
 
-    core->vmstate =
-        qemu_add_vm_change_state_handler(e1000e_vm_state_change, core);
+    core->vmstate = qemu_add_vm_change_state_handler(igb_vm_state_change, core);
 
-    for (i = 0; i < E1000E_NUM_QUEUES; i++) {
+    for (i = 0; i < IGB_NUM_QUEUES; i++) {
         net_tx_pkt_init(&core->tx[i].tx_pkt, core->owner, E1000E_MAX_TX_FRAGS);
     }
 
@@ -3402,21 +3390,21 @@ e1000e_core_pci_realize(E1000ECore     *core,
                                eeprom_size,
                                PCI_DEVICE_GET_CLASS(core->owner)->device_id,
                                macaddr);
-    e1000e_update_rx_offloads(core);
+    igb_update_rx_offloads(core);
 }
 
 void
-e1000e_core_pci_uninit(E1000ECore *core)
+igb_core_pci_uninit(IGBCore *core)
 {
     int i;
 
     timer_free(core->autoneg_timer);
 
-    e1000e_intrmgr_pci_unint(core);
+    igb_intrmgr_pci_unint(core);
 
     qemu_del_vm_change_state_handler(core->vmstate);
 
-    for (i = 0; i < E1000E_NUM_QUEUES; i++) {
+    for (i = 0; i < IGB_NUM_QUEUES; i++) {
         net_tx_pkt_reset(core->tx[i].tx_pkt);
         net_tx_pkt_uninit(core->tx[i].tx_pkt);
     }
@@ -3425,7 +3413,7 @@ e1000e_core_pci_uninit(E1000ECore *core)
 }
 
 static const uint16_t
-e1000e_phy_reg_init[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE] = {
+igb_phy_reg_init[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE] = {
     [0] = {
         [MII_BMCR] = MII_BMCR_SPEED1000 |
                      MII_BMCR_FD        |
@@ -3471,7 +3459,7 @@ e1000e_phy_reg_init[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE] = {
     }
 };
 
-static const uint32_t e1000e_mac_reg_init[] = {
+static const uint32_t igb_mac_reg_init[] = {
     [PBA]           =     0x00140014,
     [LEDCTL]        =  BIT(1) | BIT(8) | BIT(9) | BIT(15) | BIT(17) | BIT(18),
     [EXTCNF_CTRL]   = BIT(3),
@@ -3510,33 +3498,33 @@ static const uint32_t e1000e_mac_reg_init[] = {
     [SWSM]          = 1,
     [RXCSUM]        = E1000_RXCSUM_IPOFLD | E1000_RXCSUM_TUOFLD,
     [ITR]           = E1000E_MIN_XITR,
-    [EITR...EITR + E1000E_MSIX_VEC_NUM - 1] = E1000E_MIN_XITR,
+    [EITR...EITR + IGB_MSIX_VEC_NUM - 1] = E1000E_MIN_XITR,
 };
 
-static void e1000e_reset(E1000ECore *core, bool sw)
+static void igb_reset(IGBCore *core, bool sw)
 {
     int i;
 
     timer_del(core->autoneg_timer);
 
-    e1000e_intrmgr_reset(core);
+    igb_intrmgr_reset(core);
 
     memset(core->phy, 0, sizeof core->phy);
-    memcpy(core->phy, e1000e_phy_reg_init, sizeof e1000e_phy_reg_init);
+    memcpy(core->phy, igb_phy_reg_init, sizeof igb_phy_reg_init);
 
     for (i = 0; i < E1000E_MAC_SIZE; i++) {
         if (sw && (i == PBA || i == PBS || i == FLA)) {
             continue;
         }
 
-        core->mac[i] = i < ARRAY_SIZE(e1000e_mac_reg_init) ?
-                       e1000e_mac_reg_init[i] : 0;
+        core->mac[i] = i < ARRAY_SIZE(igb_mac_reg_init) ?
+                       igb_mac_reg_init[i] : 0;
     }
 
     core->rxbuf_min_shift = 1 + E1000_RING_DESC_LEN_SHIFT;
 
     if (qemu_get_queue(core->owner_nic)->link_down) {
-        e1000e_link_down(core);
+        igb_link_down(core);
     }
 
     e1000x_reset_mac_addr(core->owner_nic, core->mac, core->permanent_mac);
@@ -3549,12 +3537,12 @@ static void e1000e_reset(E1000ECore *core, bool sw)
 }
 
 void
-e1000e_core_reset(E1000ECore *core)
+igb_core_reset(IGBCore *core)
 {
-    e1000e_reset(core, false);
+    igb_reset(core, false);
 }
 
-void e1000e_core_pre_save(E1000ECore *core)
+void igb_core_pre_save(IGBCore *core)
 {
     int i;
     NetClientState *nc = qemu_get_queue(core->owner_nic);
@@ -3564,9 +3552,9 @@ void e1000e_core_pre_save(E1000ECore *core)
      * complete auto-negotiation immediately. This allows us to look
      * at MII_BMSR_AN_COMP to infer link status on load.
      */
-    if (nc->link_down && e1000e_have_autoneg(core)) {
+    if (nc->link_down && igb_have_autoneg(core)) {
         core->phy[0][MII_BMSR] |= MII_BMSR_AN_COMP;
-        e1000e_update_flowctl_status(core);
+        igb_update_flowctl_status(core);
     }
 
     for (i = 0; i < ARRAY_SIZE(core->tx); i++) {
@@ -3577,7 +3565,7 @@ void e1000e_core_pre_save(E1000ECore *core)
 }
 
 int
-e1000e_core_post_load(E1000ECore *core)
+igb_core_post_load(IGBCore *core)
 {
     NetClientState *nc = qemu_get_queue(core->owner_nic);
 

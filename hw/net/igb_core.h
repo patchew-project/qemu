@@ -1,5 +1,5 @@
 /*
- * Core code for QEMU e1000e emulation
+ * Core code for QEMU igb emulation
  *
  * Software developer's manuals:
  * http://www.intel.com/content/dam/doc/datasheet/82574l-gbe-controller-datasheet.pdf
@@ -33,35 +33,35 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HW_NET_E1000E_CORE_H
-#define HW_NET_E1000E_CORE_H
+#ifndef HW_NET_IGB_CORE_H
+#define HW_NET_IGB_CORE_H
 
 #define E1000E_PHY_PAGE_SIZE    (0x20)
 #define E1000E_PHY_PAGES        (0x07)
 #define E1000E_MAC_SIZE         (0x8000)
-#define E1000E_EEPROM_SIZE      (64)
-#define E1000E_MSIX_VEC_NUM     (5)
-#define E1000E_NUM_QUEUES       (2)
+#define IGB_EEPROM_SIZE         (64)
+#define IGB_MSIX_VEC_NUM        (5)
+#define IGB_NUM_QUEUES          (2)
 
-typedef struct E1000Core E1000ECore;
+typedef struct IGBCore IGBCore;
 
 enum { PHY_R = BIT(0),
        PHY_W = BIT(1),
        PHY_RW = PHY_R | PHY_W,
        PHY_ANYPAGE = BIT(2) };
 
-typedef struct E1000IntrDelayTimer_st {
+typedef struct IGBIntrDelayTimer_st {
     QEMUTimer *timer;
     bool running;
     uint32_t delay_reg;
     uint32_t delay_resolution_ns;
-    E1000ECore *core;
-} E1000IntrDelayTimer;
+    IGBCore *core;
+} IGBIntrDelayTimer;
 
-struct E1000Core {
+struct IGBCore {
     uint32_t mac[E1000E_MAC_SIZE];
     uint16_t phy[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE];
-    uint16_t eeprom[E1000E_EEPROM_SIZE];
+    uint16_t eeprom[IGB_EEPROM_SIZE];
 
     uint32_t rxbuf_sizes[E1000_PSRCTL_BUFFS_PER_DESC];
     uint32_t rx_desc_buf_size;
@@ -70,14 +70,14 @@ struct E1000Core {
 
     QEMUTimer *autoneg_timer;
 
-    struct e1000e_tx {
+    struct igb_tx {
         e1000x_txd_props props;
 
         bool skip_cp;
         unsigned char sum_needed;
         bool cptse;
         struct NetTxPkt *tx_pkt;
-    } tx[E1000E_NUM_QUEUES];
+    } tx[IGB_NUM_QUEUES];
 
     struct NetRxPkt *rx_pkt;
 
@@ -87,21 +87,21 @@ struct E1000Core {
     /* Interrupt moderation management */
     uint32_t delayed_causes;
 
-    E1000IntrDelayTimer radv;
-    E1000IntrDelayTimer rdtr;
-    E1000IntrDelayTimer raid;
+    IGBIntrDelayTimer radv;
+    IGBIntrDelayTimer rdtr;
+    IGBIntrDelayTimer raid;
 
-    E1000IntrDelayTimer tadv;
-    E1000IntrDelayTimer tidv;
+    IGBIntrDelayTimer tadv;
+    IGBIntrDelayTimer tidv;
 
-    E1000IntrDelayTimer itr;
+    IGBIntrDelayTimer itr;
 
-    E1000IntrDelayTimer eitr[E1000E_MSIX_VEC_NUM];
+    IGBIntrDelayTimer eitr[IGB_MSIX_VEC_NUM];
 
     VMChangeStateEntry *vmstate;
 
     uint32_t itr_guest_value;
-    uint32_t eitr_guest_value[E1000E_MSIX_VEC_NUM];
+    uint32_t eitr_guest_value[IGB_MSIX_VEC_NUM];
 
     uint16_t vet;
 
@@ -115,42 +115,42 @@ struct E1000Core {
 };
 
 void
-e1000e_core_write(E1000ECore *core, hwaddr addr, uint64_t val, unsigned size);
+igb_core_write(IGBCore *core, hwaddr addr, uint64_t val, unsigned size);
 
 uint64_t
-e1000e_core_read(E1000ECore *core, hwaddr addr, unsigned size);
+igb_core_read(IGBCore *core, hwaddr addr, unsigned size);
 
 void
-e1000e_core_pci_realize(E1000ECore      *regs,
-                       const uint16_t *eeprom_templ,
-                       uint32_t        eeprom_size,
-                       const uint8_t  *macaddr);
+igb_core_pci_realize(IGBCore        *regs,
+                     const uint16_t *eeprom_templ,
+                     uint32_t        eeprom_size,
+                     const uint8_t  *macaddr);
 
 void
-e1000e_core_reset(E1000ECore *core);
+igb_core_reset(IGBCore *core);
 
 void
-e1000e_core_pre_save(E1000ECore *core);
+igb_core_pre_save(IGBCore *core);
 
 int
-e1000e_core_post_load(E1000ECore *core);
+igb_core_post_load(IGBCore *core);
 
 void
-e1000e_core_set_link_status(E1000ECore *core);
+igb_core_set_link_status(IGBCore *core);
 
 void
-e1000e_core_pci_uninit(E1000ECore *core);
+igb_core_pci_uninit(IGBCore *core);
 
 bool
-e1000e_can_receive(E1000ECore *core);
+igb_can_receive(IGBCore *core);
 
 ssize_t
-e1000e_receive(E1000ECore *core, const uint8_t *buf, size_t size);
+igb_receive(IGBCore *core, const uint8_t *buf, size_t size);
 
 ssize_t
-e1000e_receive_iov(E1000ECore *core, const struct iovec *iov, int iovcnt);
+igb_receive_iov(IGBCore *core, const struct iovec *iov, int iovcnt);
 
 void
-e1000e_start_recv(E1000ECore *core);
+igb_start_recv(IGBCore *core);
 
 #endif
