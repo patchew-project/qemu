@@ -291,8 +291,8 @@ static void adlib_realizefn (DeviceState *dev, Error **errp)
 
     adlib_portio_list[0].offset = s->port;
     adlib_portio_list[1].offset = s->port + 8;
-    portio_list_init (&s->port_list, OBJECT(s), adlib_portio_list, s, "adlib");
-    portio_list_add (&s->port_list, isa_address_space_io(&s->parent_obj), 0);
+    portio_list_init(&s->port_list, OBJECT(s), adlib_portio_list, s, "adlib",
+                     isa_address_space_io(&s->parent_obj), 0);
 }
 
 static Property adlib_properties[] = {

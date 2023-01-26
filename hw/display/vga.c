@@ -2309,12 +2309,12 @@ void vga_init(VGACommonState *s, Object *obj, MemoryRegion *address_space,
                                         1);
     memory_region_set_coalescing(vga_io_memory);
     if (init_vga_ports) {
-        portio_list_init(&s->vga_port_list, obj, vga_ports, s, "vga");
+        portio_list_init(&s->vga_port_list, obj, vga_ports, s, "vga",
+                         address_space_io, 0x3b0);
         portio_list_set_flush_coalesced(&s->vga_port_list);
-        portio_list_add(&s->vga_port_list, address_space_io, 0x3b0);
     }
     if (vbe_ports) {
-        portio_list_init(&s->vbe_port_list, obj, vbe_ports, s, "vbe");
-        portio_list_add(&s->vbe_port_list, address_space_io, 0x1ce);
+        portio_list_init(&s->vbe_port_list, obj, vbe_ports, s, "vbe",
+                         address_space_io, 0x1ce);
     }
 }

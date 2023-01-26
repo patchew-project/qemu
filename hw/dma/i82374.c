@@ -131,10 +131,8 @@ static void i82374_realize(DeviceState *dev, Error **errp)
     }
     i8257_dma_init(isa_bus, true);
 
-    portio_list_init(&s->port_list, OBJECT(s), i82374_portio_list, s,
-                     "i82374");
-    portio_list_add(&s->port_list, isa_address_space_io(&s->parent_obj),
-                    s->iobase);
+    portio_list_init(&s->port_list, OBJECT(s), i82374_portio_list, s, "i82374",
+                     isa_address_space_io(&s->parent_obj), s->iobase);
 
     memset(s->commands, 0, sizeof(s->commands));
 }

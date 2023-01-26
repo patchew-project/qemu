@@ -231,8 +231,13 @@ static void portio_list_add_1(PortioList *piolist,
 
 void portio_list_init(PortioList *piolist, Object *owner,
                       const MemoryRegionPortio *callbacks,
-                      void *opaque, const char *name)
+                      void *opaque, const char *name,
+                      MemoryRegion *address_space_io, uint16_t start)
 {
+    assert(piolist && !piolist->owner);
+
+    const MemoryRegionPortio *pio, *pio_start = callbacks;
+    unsigned int off_low, off_high, off_last, count;
     unsigned n = 0;
 
     while (callbacks[n].size) {
@@ -242,21 +247,11 @@ void portio_list_init(PortioList *piolist, Object *owner,
     piolist->ports = callbacks;
     piolist->nr = 0;
     piolist->regions = g_new0(MemoryRegion *, n);
-    piolist->address_space = NULL;
+    piolist->address_space = address_space_io;
     piolist->opaque = opaque;
     piolist->owner = owner;
     piolist->name = name;
     piolist->flush_coalesced_mmio = false;
-}
-
-void portio_list_add(PortioList *piolist,
-                     MemoryRegion *address_space,
-                     uint32_t start)
-{
-    const MemoryRegionPortio *pio, *pio_start = piolist->ports;
-    unsigned int off_low, off_high, off_last, count;
-
-    piolist->address_space = address_space;
 
     /* Handle the first entry specially.  */
     off_last = off_low = pio_start->offset;
