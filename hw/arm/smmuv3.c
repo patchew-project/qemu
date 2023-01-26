@@ -21,6 +21,7 @@
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
+#include "hw/qdev-properties.h"
 #include "hw/qdev-core.h"
 #include "hw/pci/pci.h"
 #include "cpu.h"
@@ -285,6 +286,8 @@ static void smmuv3_init_regs(SMMUv3State *s)
     s->gerror = 0;
     s->gerrorn = 0;
     s->statusr = 0;
+    /* Use incoming as other fields. */
+    s->gbpa = FIELD_DP32(s->gbpa, GBPA, SHCFG, 1);
 }
 
 static int smmu_get_ste(SMMUv3State *s, dma_addr_t addr, STE *buf,
@@ -659,7 +662,11 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
     qemu_mutex_lock(&s->mutex);
 
     if (!smmu_enabled(s)) {
-        status = SMMU_TRANS_DISABLE;
+        if (FIELD_EX32(s->gbpa, GBPA, ABORT)) {
+            status = SMMU_TRANS_ABORT;
+        } else {
+            status = SMMU_TRANS_DISABLE;
+        }
         goto epilogue;
     }
 
@@ -1170,6 +1177,16 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
     case A_GERROR_IRQ_CFG2:
         s->gerror_irq_cfg2 = data;
         return MEMTX_OK;
+    case A_GBPA:
+        /*
+         * If UPDATE is not set, the write is ignored. This is the only
+         * permitted behavior in SMMUv3.2 and later.
+         */
+        if (data & R_GBPA_UPDATE_MASK) {
+            /* Ignore update bit as write is synchronous. */
+            s->gbpa = data & ~R_GBPA_UPDATE_MASK;
+        }
+        return MEMTX_OK;
     case A_STRTAB_BASE: /* 64b */
         s->strtab_base = deposit64(s->strtab_base, 0, 32, data);
         return MEMTX_OK;
@@ -1317,6 +1334,9 @@ static MemTxResult smmu_readl(SMMUv3State *s, hwaddr offset,
         return MEMTX_OK;
     case A_STATUSR:
         *data = s->statusr;
+        return MEMTX_OK;
+    case A_GBPA:
+        *data = s->gbpa;
         return MEMTX_OK;
     case A_IRQ_CTRL:
     case A_IRQ_CTRL_ACK:
@@ -1482,6 +1502,39 @@ static const VMStateDescription vmstate_smmuv3_queue = {
     },
 };
 
+static bool smmuv3_gbpa_needed(void *opaque)
+{
+    SMMUv3State *s = opaque;
+    bool is_abort = FIELD_EX32(s->gbpa, GBPA, ABORT);
+
+    /*
+     * We migrate GBPA if migrate_gbpa property is set.
+     * If it is not set, but the GBPA register is set to abort, we force to
+     * migrate it as this can lead to inconsistencies where a qemu instance
+     * is aborting transcations and it is migrated another instance bypassing
+     * them. So we force to send the GBPA in this case, if the other instance
+     * was older it would fail migration.
+     */
+    if (!s->migrate_gbpa && is_abort) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "Forcing to migrate GBPA as it was set from SW.\n");
+        return true;
+    }
+
+    return s->migrate_gbpa;
+}
+
+static const VMStateDescription vmstate_gbpa = {
+    .name = "smmuv3/gbpa",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = smmuv3_gbpa_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(gbpa, SMMUv3State),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_smmuv3 = {
     .name = "smmuv3",
     .version_id = 1,
@@ -1512,6 +1565,21 @@ static const VMStateDescription vmstate_smmuv3 = {
 
         VMSTATE_END_OF_LIST(),
     },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_gbpa,
+        NULL
+    }
+};
+
+static Property smmuv3_properties[] = {
+    /*
+     * True to correctly migrate the GBPA register.
+     * False to get backward migration compatibility with older QEMU versions
+     * if possible.
+     */
+    DEFINE_PROP_BOOL("migrate-gbpa",
+                     SMMUv3State, migrate_gbpa, true),
+    DEFINE_PROP_END_OF_LIST()
 };
 
 static void smmuv3_instance_init(Object *obj)
@@ -1530,6 +1598,7 @@ static void smmuv3_class_init(ObjectClass *klass, void *data)
                                        &c->parent_phases);
     c->parent_realize = dc->realize;
     dc->realize = smmu_realize;
+    device_class_set_props(dc, smmuv3_properties);
 }
 
 static int smmuv3_notify_flag_changed(IOMMUMemoryRegion *iommu,
