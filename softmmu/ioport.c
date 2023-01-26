@@ -118,19 +118,6 @@ void portio_list_set_flush_coalesced(PortioList *piolist)
     piolist->flush_coalesced_mmio = true;
 }
 
-void portio_list_destroy(PortioList *piolist)
-{
-    MemoryRegionPortioList *mrpio;
-    unsigned i;
-
-    for (i = 0; i < piolist->nr; ++i) {
-        mrpio = container_of(piolist->regions[i], MemoryRegionPortioList, mr);
-        object_unparent(OBJECT(&mrpio->mr));
-        g_free(mrpio);
-    }
-    g_free(piolist->regions);
-}
-
 static const MemoryRegionPortio *find_portio(MemoryRegionPortioList *mrpio,
                                              uint64_t offset, unsigned size,
                                              bool write)
@@ -279,15 +266,4 @@ void portio_list_init(PortioList *piolist, Object *owner,
 
     /* There will always be an open sub-list.  */
     portio_list_add_1(piolist, pio_start, count, start, off_low, off_high);
-}
-
-void portio_list_del(PortioList *piolist)
-{
-    MemoryRegionPortioList *mrpio;
-    unsigned i;
-
-    for (i = 0; i < piolist->nr; ++i) {
-        mrpio = container_of(piolist->regions[i], MemoryRegionPortioList, mr);
-        memory_region_del_subregion(piolist->address_space, &mrpio->mr);
-    }
 }
