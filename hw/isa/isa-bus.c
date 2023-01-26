@@ -26,8 +26,6 @@
 #include "hw/isa/isa.h"
 #include "hw/acpi/acpi_aml_interface.h"
 
-static ISABus *isabus;
-
 static char *isabus_get_fw_dev_path(DeviceState *dev);
 
 static void isa_bus_class_init(ObjectClass *klass, void *data)
@@ -53,10 +51,8 @@ static const TypeInfo isa_bus_info = {
 ISABus *isa_bus_new(DeviceState *dev, MemoryRegion* address_space,
                     MemoryRegion *address_space_io, Error **errp)
 {
-    if (isabus) {
-        error_setg(errp, "Can't create a second ISA bus");
-        return NULL;
-    }
+    ISABus *isabus;
+
     if (!dev) {
         dev = qdev_new("isabus-bridge");
         sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
