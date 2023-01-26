@@ -126,7 +126,7 @@ static void piix_ide_reset(DeviceState *dev)
     pci_set_byte(pci_conf + 0x20, 0x01);  /* BMIBA: 20-23h */
 }
 
-static int pci_piix_init_ports(PCIIDEState *d)
+static int pci_piix_init_ports(PCIIDEState *d, ISABus *isa_bus)
 {
     static const struct {
         int iobase;
@@ -145,7 +145,7 @@ static int pci_piix_init_ports(PCIIDEState *d)
         if (ret) {
             return ret;
         }
-        ide_init2(&d->bus[i], isa_get_irq(NULL, port_info[i].isairq));
+        ide_init2(&d->bus[i], isa_bus->irqs[port_info[i].isairq]);
 
         bmdma_init(&d->bus[i], &d->bmdma[i], d);
         d->bmdma[i].bus = &d->bus[i];
@@ -159,6 +159,8 @@ static void pci_piix_ide_realize(PCIDevice *dev, Error **errp)
 {
     PCIIDEState *d = PCI_IDE(dev);
     uint8_t *pci_conf = dev->config;
+    ISABus *isa_bus;
+    bool ambiguous;
     int rc;
 
     pci_conf[PCI_CLASS_PROG] = 0x80; // legacy ATA mode
@@ -168,7 +170,20 @@ static void pci_piix_ide_realize(PCIDevice *dev, Error **errp)
 
     vmstate_register(VMSTATE_IF(dev), 0, &vmstate_ide_pci, d);
 
-    rc = pci_piix_init_ports(d);
+    isa_bus = ISA_BUS(object_resolve_path_type("", TYPE_ISA_BUS, &ambiguous));
+    if (ambiguous) {
+        error_setg(errp,
+                   "More than one ISA bus found while %s supports only one",
+                   object_get_typename(OBJECT(dev)));
+        return;
+    }
+    if (!isa_bus) {
+        error_setg(errp, "No ISA bus found while %s requires one",
+                   object_get_typename(OBJECT(dev)));
+        return;
+    }
+
+    rc = pci_piix_init_ports(d, isa_bus);
     if (rc) {
         error_setg_errno(errp, -rc, "Failed to realize %s",
                          object_get_typename(OBJECT(dev)));
