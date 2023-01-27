@@ -862,10 +862,13 @@
 #
 # @measurement-algo: Realm measurement algorithm (default: RMM default)
 #
+# @personalization-value: Realm personalization value (default: 0)
+#
 # Since: FIXME
 ##
 { 'struct': 'RmeGuestProperties',
-  'data': { '*measurement-algo': 'str' } }
+  'data': { '*measurement-algo': 'str',
+            '*personalization-value': 'str' } }
 
 ##
 # @ObjectType:

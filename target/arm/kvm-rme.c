@@ -22,13 +22,14 @@ OBJECT_DECLARE_SIMPLE_TYPE(RmeGuest, RME_GUEST)
 
 #define RME_PAGE_SIZE qemu_real_host_page_size()
 
-#define RME_MAX_CFG         1
+#define RME_MAX_CFG         2
 
 typedef struct RmeGuest RmeGuest;
 
 struct RmeGuest {
     ConfidentialGuestSupport parent_obj;
     char *measurement_algo;
+    char *personalization_value;
 };
 
 struct RmeImage {
@@ -65,6 +66,45 @@ static int rme_create_rd(RmeGuest *guest, Error **errp)
     return ret;
 }
 
+static int rme_parse_rpv(uint8_t *out, const char *in, Error **errp)
+{
+    int ret;
+    size_t in_len = strlen(in);
+
+    /* Two chars per byte */
+    if (in_len > KVM_CAP_ARM_RME_RPV_SIZE * 2) {
+        error_setg(errp, "Realm Personalization Value is too large");
+        return -E2BIG;
+    }
+
+    /*
+     * Parse as big-endian hexadecimal number (most significant byte on the
+     * left), store little-endian, zero-padded on the right.
+     */
+    while (in_len) {
+        /*
+         * Do the lower nibble first to catch invalid inputs such as '2z', and
+         * to handle the last char.
+         */
+        in_len--;
+        ret = sscanf(in + in_len, "%1hhx", out);
+        if (ret != 1) {
+            error_setg(errp, "Invalid Realm Personalization Value");
+            return -EINVAL;
+        }
+        if (!in_len) {
+            break;
+        }
+        in_len--;
+        ret = sscanf(in + in_len, "%2hhx", out++);
+        if (ret != 1) {
+            error_setg(errp, "Invalid Realm Personalization Value");
+            return -EINVAL;
+        }
+    }
+    return 0;
+}
+
 static int rme_configure_one(RmeGuest *guest, uint32_t cfg, Error **errp)
 {
     int ret;
@@ -86,6 +126,16 @@ static int rme_configure_one(RmeGuest *guest, uint32_t cfg, Error **errp)
             g_assert_not_reached();
         }
         cfg_str = "hash algorithm";
+        break;
+    case KVM_CAP_ARM_RME_CFG_RPV:
+        if (!guest->personalization_value) {
+            return 0;
+        }
+        ret = rme_parse_rpv(args.rpv, guest->personalization_value, errp);
+        if (ret) {
+            return ret;
+        }
+        cfg_str = "personalization value";
         break;
     default:
         g_assert_not_reached();
@@ -281,6 +331,21 @@ static void rme_set_measurement_algo(Object *obj, const char *value,
     guest->measurement_algo = g_strdup(value);
 }
 
+static char *rme_get_rpv(Object *obj, Error **errp)
+{
+    RmeGuest *guest = RME_GUEST(obj);
+
+    return g_strdup(guest->personalization_value);
+}
+
+static void rme_set_rpv(Object *obj, const char *value, Error **errp)
+{
+    RmeGuest *guest = RME_GUEST(obj);
+
+    g_free(guest->personalization_value);
+    guest->personalization_value = g_strdup(value);
+}
+
 static void rme_guest_class_init(ObjectClass *oc, void *data)
 {
     object_class_property_add_str(oc, "measurement-algo",
@@ -288,6 +353,11 @@ static void rme_guest_class_init(ObjectClass *oc, void *data)
                                   rme_set_measurement_algo);
     object_class_property_set_description(oc, "measurement-algo",
             "Realm measurement algorithm ('sha256', 'sha512')");
+
+    object_class_property_add_str(oc, "personalization-value", rme_get_rpv,
+                                  rme_set_rpv);
+    object_class_property_set_description(oc, "personalization-value",
+            "Realm personalization value (512-bit hexadecimal number)");
 }
 
 static const TypeInfo rme_guest_info = {
