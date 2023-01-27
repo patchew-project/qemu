@@ -8708,6 +8708,8 @@ static void decode_32Bit_opc(DisasContext *ctx)
         const16 = MASK_OP_RRPW_POS(ctx->opcode);
         if (r1 == r2) {
             tcg_gen_rotli_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], const16);
+        } else if (const16 == 0) {
+            tcg_gen_mov_tl(cpu_gpr_d[r3], cpu_gpr_d[r1]);
         } else {
             temp = tcg_temp_new();
             tcg_gen_shli_tl(temp, cpu_gpr_d[r1], const16);
