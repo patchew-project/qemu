@@ -9,6 +9,7 @@
 #include "exec/confidential-guest-support.h"
 #include "hw/boards.h"
 #include "hw/core/cpu.h"
+#include "hw/loader.h"
 #include "kvm_arm.h"
 #include "migration/blocker.h"
 #include "qapi/error.h"
@@ -19,11 +20,21 @@
 #define TYPE_RME_GUEST "rme-guest"
 OBJECT_DECLARE_SIMPLE_TYPE(RmeGuest, RME_GUEST)
 
+#define RME_PAGE_SIZE qemu_real_host_page_size()
+
 typedef struct RmeGuest RmeGuest;
 
 struct RmeGuest {
     ConfidentialGuestSupport parent_obj;
 };
+
+struct RmeImage {
+    hwaddr base;
+    hwaddr src_size;
+    hwaddr dst_size;
+};
+
+static GSList *rme_images;
 
 static RmeGuest *cgs_to_rme(ConfidentialGuestSupport *cgs)
 {
@@ -51,6 +62,38 @@ static int rme_create_rd(RmeGuest *guest, Error **errp)
     return ret;
 }
 
+static void rme_populate_realm(gpointer data, gpointer user_data)
+{
+    int ret;
+    struct RmeImage *image = data;
+    struct kvm_cap_arm_rme_init_ipa_args init_args = {
+        .init_ipa_base = image->base,
+        .init_ipa_size = image->dst_size,
+    };
+    struct kvm_cap_arm_rme_populate_realm_args populate_args = {
+        .populate_ipa_base = image->base,
+        .populate_ipa_size = image->src_size,
+    };
+
+    ret = kvm_vm_enable_cap(kvm_state, KVM_CAP_ARM_RME, 0,
+                            KVM_CAP_ARM_RME_INIT_IPA_REALM,
+                            (intptr_t)&init_args);
+    if (ret) {
+        error_setg_errno(&error_fatal, -ret,
+                         "RME: failed to initialize GPA range (0x%"HWADDR_PRIx", 0x%"HWADDR_PRIx")",
+                         image->base, image->dst_size);
+    }
+
+    ret = kvm_vm_enable_cap(kvm_state, KVM_CAP_ARM_RME, 0,
+                            KVM_CAP_ARM_RME_POPULATE_REALM,
+                            (intptr_t)&populate_args);
+    if (ret) {
+        error_setg_errno(&error_fatal, -ret,
+                         "RME: failed to populate realm (0x%"HWADDR_PRIx", 0x%"HWADDR_PRIx")",
+                         image->base, image->src_size);
+    }
+}
+
 static void rme_vm_state_change(void *opaque, bool running, RunState state)
 {
     int ret;
@@ -71,6 +114,9 @@ static void rme_vm_state_change(void *opaque, bool running, RunState state)
                              "RME: failed to finalize vCPU");
         }
     }
+
+    g_slist_foreach(rme_images, rme_populate_realm, NULL);
+    g_slist_free_full(g_steal_pointer(&rme_images), g_free);
 
     ret = kvm_vm_enable_cap(kvm_state, KVM_CAP_ARM_RME, 0,
                             KVM_CAP_ARM_RME_ACTIVATE_REALM);
@@ -116,6 +162,39 @@ int kvm_arm_rme_init(ConfidentialGuestSupport *cgs, Error **errp)
 
     cgs->ready = true;
     return 0;
+}
+
+/*
+ * kvm_arm_rme_add_blob - Initialize the Realm IPA range and set up the image.
+ *
+ * @src_size is the number of bytes of the source image, to be populated into
+ *   Realm memory.
+ * @dst_size is the effective image size, which may be larger than @src_size.
+ *   For a kernel @dst_size may include zero-initialized regions such as the BSS
+ *   and initial page directory.
+ */
+void kvm_arm_rme_add_blob(hwaddr base, hwaddr src_size, hwaddr dst_size)
+{
+    struct RmeImage *image;
+
+    if (!kvm_arm_rme_enabled()) {
+        return;
+    }
+
+    base = QEMU_ALIGN_DOWN(base, RME_PAGE_SIZE);
+    src_size = QEMU_ALIGN_UP(src_size, RME_PAGE_SIZE);
+    dst_size = QEMU_ALIGN_UP(dst_size, RME_PAGE_SIZE);
+
+    image = g_malloc0(sizeof(*image));
+    image->base = base;
+    image->src_size = src_size;
+    image->dst_size = dst_size;
+
+    /*
+     * The ROM loader will only load the images during reset, so postpone the
+     * populate call until VM start.
+     */
+    rme_images = g_slist_prepend(rme_images, image);
 }
 
 int kvm_arm_rme_vcpu_init(CPUState *cs)

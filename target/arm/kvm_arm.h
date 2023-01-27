@@ -371,6 +371,7 @@ int kvm_arm_set_irq(int cpu, int irqtype, int irq, int level);
 
 int kvm_arm_rme_init(ConfidentialGuestSupport *cgs, Error **errp);
 int kvm_arm_rme_vm_type(MachineState *ms);
+void kvm_arm_rme_add_blob(hwaddr start, hwaddr src_size, hwaddr dst_size);
 
 bool kvm_arm_rme_enabled(void);
 int kvm_arm_rme_vcpu_init(CPUState *cs);
@@ -457,6 +458,11 @@ static inline int kvm_arm_rme_init(ConfidentialGuestSupport *cgs, Error **errp)
 static inline int kvm_arm_rme_vm_type(MachineState *ms)
 {
     return 0;
+}
+
+static inline void kvm_arm_rme_add_blob(hwaddr start, hwaddr src_size,
+                                        hwaddr dst_size)
+{
 }
 #endif
 
