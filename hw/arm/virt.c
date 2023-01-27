@@ -217,6 +217,11 @@ static const char *valid_cpus[] = {
     ARM_CPU_TYPE_NAME("max"),
 };
 
+static bool virt_machine_is_confidential(VirtMachineState *vms)
+{
+    return MACHINE(vms)->cgs;
+}
+
 static bool cpu_type_valid(const char *cpu)
 {
     int i;
@@ -252,6 +257,14 @@ static void create_fdt(VirtMachineState *vms)
     if (!fdt) {
         error_report("create_device_tree() failed");
         exit(1);
+    }
+
+    /*
+     * Since the devicetree is included in the initial measurement, it must
+     * not contain random data.
+     */
+    if (virt_machine_is_confidential(vms)) {
+        vms->dtb_randomness = false;
     }
 
     ms->fdt = fdt;
@@ -1957,6 +1970,15 @@ static void virt_cpu_post_init(VirtMachineState *vms, MemoryRegion *sysmem)
     steal_time = object_property_get_bool(OBJECT(first_cpu),
                                           "kvm-steal-time", NULL);
 
+    if (virt_machine_is_confidential(vms)) {
+        /*
+         * The host cannot write into a confidential guest's memory until the
+         * guest shares it. Since the host writes the pvtime region before the
+         * guest gets a chance to set it up, disable pvtime.
+         */
+        steal_time = false;
+    }
+
     if (kvm_enabled()) {
         hwaddr pvtime_reg_base = vms->memmap[VIRT_PVTIME].base;
         hwaddr pvtime_reg_size = vms->memmap[VIRT_PVTIME].size;
@@ -2086,10 +2108,11 @@ static void machvirt_init(MachineState *machine)
      * if the guest has EL2 then we will use SMC as the conduit,
      * and otherwise we will use HVC (for backwards compatibility and
      * because if we're using KVM then we must use HVC).
+     * Realm guests must also use SMC.
      */
     if (vms->secure && firmware_loaded) {
         vms->psci_conduit = QEMU_PSCI_CONDUIT_DISABLED;
-    } else if (vms->virt) {
+    } else if (vms->virt || virt_machine_is_confidential(vms)) {
         vms->psci_conduit = QEMU_PSCI_CONDUIT_SMC;
     } else {
         vms->psci_conduit = QEMU_PSCI_CONDUIT_HVC;
@@ -2140,6 +2163,8 @@ static void machvirt_init(MachineState *machine)
                      kvm_enabled() ? "KVM" : "HVF");
         exit(1);
     }
+
+    kvm_arm_rme_init(machine->cgs, &error_fatal);
 
     create_fdt(vms);
 
@@ -2946,15 +2971,26 @@ static HotplugHandler *virt_machine_get_hotplug_handler(MachineState *machine,
 static int virt_kvm_type(MachineState *ms, const char *type_str)
 {
     VirtMachineState *vms = VIRT_MACHINE(ms);
+    int rme_vm_type = kvm_arm_rme_vm_type(ms);
     int max_vm_pa_size, requested_pa_size;
+    int rme_reserve_bit = 0;
     bool fixed_ipa;
 
-    max_vm_pa_size = kvm_arm_get_max_vm_ipa_size(ms, &fixed_ipa);
+    if (rme_vm_type) {
+        /*
+         * With RME, the upper GPA bit differentiates Realm from NS memory.
+         * Reserve the upper bit to guarantee that highmem devices will fit.
+         */
+        rme_reserve_bit = 1;
+    }
+
+    max_vm_pa_size = kvm_arm_get_max_vm_ipa_size(ms, &fixed_ipa) -
+                     rme_reserve_bit;
 
     /* we freeze the memory map to compute the highest gpa */
     virt_set_memmap(vms, max_vm_pa_size);
 
-    requested_pa_size = 64 - clz64(vms->highest_gpa);
+    requested_pa_size = 64 - clz64(vms->highest_gpa) + rme_reserve_bit;
 
     /*
      * KVM requires the IPA size to be at least 32 bits.
@@ -2975,7 +3011,11 @@ static int virt_kvm_type(MachineState *ms, const char *type_str)
      * the implicit legacy 40b IPA setting, in which case the kvm_type
      * must be 0.
      */
-    return fixed_ipa ? 0 : requested_pa_size;
+    if (fixed_ipa) {
+        return 0;
+    }
+
+    return requested_pa_size | rme_vm_type;
 }
 
 static void virt_machine_class_init(ObjectClass *oc, void *data)
