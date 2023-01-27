@@ -22,7 +22,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(RmeGuest, RME_GUEST)
 
 #define RME_PAGE_SIZE qemu_real_host_page_size()
 
-#define RME_MAX_CFG         2
+#define RME_MAX_CFG         3
 
 typedef struct RmeGuest RmeGuest;
 
@@ -30,6 +30,7 @@ struct RmeGuest {
     ConfidentialGuestSupport parent_obj;
     char *measurement_algo;
     char *personalization_value;
+    uint32_t sve_vl;
 };
 
 struct RmeImage {
@@ -136,6 +137,13 @@ static int rme_configure_one(RmeGuest *guest, uint32_t cfg, Error **errp)
             return ret;
         }
         cfg_str = "personalization value";
+        break;
+    case KVM_CAP_ARM_RME_CFG_SVE:
+        if (!guest->sve_vl) {
+            return 0;
+        }
+        args.sve_vq = guest->sve_vl / 128;
+        cfg_str = "SVE";
         break;
     default:
         g_assert_not_reached();
@@ -346,6 +354,52 @@ static void rme_set_rpv(Object *obj, const char *value, Error **errp)
     guest->personalization_value = g_strdup(value);
 }
 
+static void rme_get_uint32(Object *obj, Visitor *v, const char *name,
+                           void *opaque, Error **errp)
+{
+    RmeGuest *guest = RME_GUEST(obj);
+    uint32_t value;
+
+    if (strcmp(name, "sve-vector-length") == 0) {
+        value = guest->sve_vl;
+    } else {
+        g_assert_not_reached();
+    }
+
+    visit_type_uint32(v, name, &value, errp);
+}
+
+static void rme_set_uint32(Object *obj, Visitor *v, const char *name,
+                           void *opaque, Error **errp)
+{
+    RmeGuest *guest = RME_GUEST(obj);
+    uint32_t max_value;
+    uint32_t value;
+    uint32_t *var;
+
+    if (!visit_type_uint32(v, name, &value, errp)) {
+        return;
+    }
+
+    if (strcmp(name, "sve-vector-length") == 0) {
+        max_value = ARM_MAX_VQ * 128;
+        var = &guest->sve_vl;
+        if (value & 0x7f) {
+            error_setg(errp, "invalid SVE vector length %"PRIu32, value);
+            return;
+        }
+    } else {
+        g_assert_not_reached();
+    }
+
+    if (value >= max_value) {
+        error_setg(errp, "invalid %s length %"PRIu32, name, value);
+        return;
+    }
+
+    *var = value;
+}
+
 static void rme_guest_class_init(ObjectClass *oc, void *data)
 {
     object_class_property_add_str(oc, "measurement-algo",
@@ -358,6 +412,18 @@ static void rme_guest_class_init(ObjectClass *oc, void *data)
                                   rme_set_rpv);
     object_class_property_set_description(oc, "personalization-value",
             "Realm personalization value (512-bit hexadecimal number)");
+
+    /*
+     * This is not ideal. Normally SVE parameters are given to -cpu, but the
+     * realm parameters are needed much earlier than CPU initialization. We also
+     * don't have a way to discover what is supported at the moment, the idea is
+     * that the user knows exactly what hardware it is running on because these
+     * parameters are part of the measurement and play in the attestation.
+     */
+    object_class_property_add(oc, "sve-vector-length", "uint32", rme_get_uint32,
+                              rme_set_uint32, NULL, NULL);
+    object_class_property_set_description(oc, "sve-vector-length",
+            "SVE vector length. 0 disables SVE (the default)");
 }
 
 static const TypeInfo rme_guest_info = {
