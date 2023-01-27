@@ -22,7 +22,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(RmeGuest, RME_GUEST)
 
 #define RME_PAGE_SIZE qemu_real_host_page_size()
 
-#define RME_MAX_CFG         3
+#define RME_MAX_BPS         0x10
+#define RME_MAX_WPS         0x10
+#define RME_MAX_CFG         4
 
 typedef struct RmeGuest RmeGuest;
 
@@ -31,6 +33,8 @@ struct RmeGuest {
     char *measurement_algo;
     char *personalization_value;
     uint32_t sve_vl;
+    uint32_t num_wps;
+    uint32_t num_bps;
 };
 
 struct RmeImage {
@@ -144,6 +148,14 @@ static int rme_configure_one(RmeGuest *guest, uint32_t cfg, Error **errp)
         }
         args.sve_vq = guest->sve_vl / 128;
         cfg_str = "SVE";
+        break;
+    case KVM_CAP_ARM_RME_CFG_DBG:
+        if (!guest->num_bps && !guest->num_wps) {
+            return 0;
+        }
+        args.num_brps = guest->num_bps;
+        args.num_wrps = guest->num_wps;
+        cfg_str = "debug parameters";
         break;
     default:
         g_assert_not_reached();
@@ -362,6 +374,10 @@ static void rme_get_uint32(Object *obj, Visitor *v, const char *name,
 
     if (strcmp(name, "sve-vector-length") == 0) {
         value = guest->sve_vl;
+    } else if (strcmp(name, "num-breakpoints") == 0) {
+        value = guest->num_bps;
+    } else if (strcmp(name, "num-watchpoints") == 0) {
+        value = guest->num_wps;
     } else {
         g_assert_not_reached();
     }
@@ -388,6 +404,12 @@ static void rme_set_uint32(Object *obj, Visitor *v, const char *name,
             error_setg(errp, "invalid SVE vector length %"PRIu32, value);
             return;
         }
+    } else if (strcmp(name, "num-breakpoints") == 0) {
+        max_value = RME_MAX_BPS;
+        var = &guest->num_bps;
+    } else if (strcmp(name, "num-watchpoints") == 0) {
+        max_value = RME_MAX_WPS;
+        var = &guest->num_wps;
     } else {
         g_assert_not_reached();
     }
@@ -424,6 +446,16 @@ static void rme_guest_class_init(ObjectClass *oc, void *data)
                               rme_set_uint32, NULL, NULL);
     object_class_property_set_description(oc, "sve-vector-length",
             "SVE vector length. 0 disables SVE (the default)");
+
+    object_class_property_add(oc, "num-breakpoints", "uint32", rme_get_uint32,
+                              rme_set_uint32, NULL, NULL);
+    object_class_property_set_description(oc, "num-breakpoints",
+            "Number of breakpoints");
+
+    object_class_property_add(oc, "num-watchpoints", "uint32", rme_get_uint32,
+                              rme_set_uint32, NULL, NULL);
+    object_class_property_set_description(oc, "num-watchpoints",
+            "Number of watchpoints");
 }
 
 static const TypeInfo rme_guest_info = {

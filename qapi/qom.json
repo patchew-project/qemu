@@ -866,12 +866,18 @@
 #
 # @sve-vector-length: SVE vector length (default: 0, SVE disabled)
 #
+# @num-breakpoints: Number of breakpoints (default: 0)
+#
+# @num-watchpoints: Number of watchpoints (default: 0)
+#
 # Since: FIXME
 ##
 { 'struct': 'RmeGuestProperties',
   'data': { '*measurement-algo': 'str',
             '*personalization-value': 'str',
-            '*sve-vector-length': 'uint32' } }
+            '*sve-vector-length': 'uint32',
+            '*num-breakpoints': 'uint32',
+            '*num-watchpoints': 'uint32' } }
 
 ##
 # @ObjectType:
