@@ -449,6 +449,10 @@ int kvm_arm_init_cpreg_list(ARMCPU *cpu)
     int i, ret, arraylen;
     CPUState *cs = CPU(cpu);
 
+    if (cpu->kvm_rme) {
+        return 0;
+    }
+
     rl.n = 0;
     ret = kvm_vcpu_ioctl(cs, KVM_GET_REG_LIST, &rl);
     if (ret != -E2BIG) {
@@ -521,6 +525,10 @@ bool write_kvmstate_to_list(ARMCPU *cpu)
     int i;
     bool ok = true;
 
+    if (cpu->kvm_rme) {
+        return ok;
+    }
+
     for (i = 0; i < cpu->cpreg_array_len; i++) {
         struct kvm_one_reg r;
         uint64_t regidx = cpu->cpreg_indexes[i];
@@ -556,6 +564,10 @@ bool write_list_to_kvmstate(ARMCPU *cpu, int level)
     CPUState *cs = CPU(cpu);
     int i;
     bool ok = true;
+
+    if (cpu->kvm_rme) {
+        return ok;
+    }
 
     for (i = 0; i < cpu->cpreg_array_len; i++) {
         struct kvm_one_reg r;

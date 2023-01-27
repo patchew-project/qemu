@@ -373,6 +373,7 @@ int kvm_arm_rme_init(ConfidentialGuestSupport *cgs, Error **errp);
 int kvm_arm_rme_vm_type(MachineState *ms);
 
 bool kvm_arm_rme_enabled(void);
+int kvm_arm_rme_vcpu_init(CPUState *cs);
 
 #else
 

@@ -121,6 +121,10 @@ bool write_cpustate_to_list(ARMCPU *cpu, bool kvm_sync)
     int i;
     bool ok = true;
 
+    if (cpu->kvm_rme) {
+        return ok;
+    }
+
     for (i = 0; i < cpu->cpreg_array_len; i++) {
         uint32_t regidx = kvm_to_cpreg_id(cpu->cpreg_indexes[i]);
         const ARMCPRegInfo *ri;
@@ -165,6 +169,10 @@ bool write_list_to_cpustate(ARMCPU *cpu)
 {
     int i;
     bool ok = true;
+
+    if (cpu->kvm_rme) {
+        return ok;
+    }
 
     for (i = 0; i < cpu->cpreg_array_len; i++) {
         uint32_t regidx = kvm_to_cpreg_id(cpu->cpreg_indexes[i]);
