@@ -4,10 +4,10 @@
 ``microvm`` is a machine type inspired by ``Firecracker`` and
 constructed after its machine model.
 
-It's a minimalist machine type without ``PCI`` nor ``ACPI`` support,
-designed for short-lived guests. microvm also establishes a baseline
-for benchmarking and optimizing both QEMU and guest operating systems,
-since it is optimized for both boot time and footprint.
+It's a minimalist machine type designed for short-lived
+guests. microvm also establishes a baseline for benchmarking and
+optimizing both QEMU and guest operating systems, since it is
+optimized for both boot time and footprint.
 
 
 Supported devices
@@ -24,7 +24,9 @@ The microvm machine type supports the following devices:
 - IOAPIC (with kernel-irqchip=split by default)
 - kvmclock (if using KVM)
 - fw_cfg
-- Up to eight virtio-mmio devices (configured by the user)
+- Up to 24 virtio-mmio devices (configured by the user).
+- PCIe devices (optional).
+- USB devices (optional).
 
 
 Limitations
@@ -32,7 +34,6 @@ Limitations
 
 Currently, microvm does *not* support the following features:
 
-- PCI-only devices.
 - Hotplug of any kind.
 - Live migration across QEMU versions.
 
@@ -50,18 +51,24 @@ It supports the following machine-specific options:
 - microvm.isa-serial=bool (Set off to disable the instantiation an ISA serial port)
 - microvm.pic=OnOffAuto (Enable i8259 PIC)
 - microvm.rtc=OnOffAuto (Enable MC146818 RTC)
-- microvm.auto-kernel-cmdline=bool (Set off to disable adding virtio-mmio devices to the kernel cmdline)
+- microvm.acpi=OnOff (Enable ACPI support, default On)
+- microvm.auto-kernel-cmdline=bool (Set off to disable adding
+  virtio-mmio devices to the kernel cmdline, enabling ACPI support
+  disables this too).
+- microvm.pcie=OnOff (Enable PCIe host adapter, default Off)
+- microvm.usb=OnOff (Enable USB host adapter, default Off)
+- microvm.ioapic2=OnOff (Enable second IOAPIC for virtio-mmio devices,
+  required for more than eight virtio-mmio devices, default On)
 
 
 Boot options
 ~~~~~~~~~~~~
 
-By default, microvm uses ``qboot`` as its BIOS, to obtain better boot
-times, but it's also compatible with ``SeaBIOS``.
+By default, microvm uses ``SeaBIOS`` as its firmware. ``SeaBIOS``
+supports booting from virtio-mmio devices.
 
-As no current FW is able to boot from a block device using
-``virtio-mmio`` as its transport, a microvm-based VM needs to be run
-using a host-side kernel and, optionally, an initrd image.
+edk2 has full support for microvm, including support for the PCIe host
+adapter. so you can boot from both virtio-mmio and PCIe devices.
 
 
 Running a microvm-based VM
@@ -105,24 +112,3 @@ disabled::
      -device virtio-blk-device,drive=test \
      -netdev tap,id=tap0,script=no,downscript=no \
      -device virtio-net-device,netdev=tap0
-
-
-Triggering a guest-initiated shut down
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-As the microvm machine type includes just a small set of system
-devices, some x86 mechanisms for rebooting or shutting down the
-system, like sending a key sequence to the keyboard or writing to an
-ACPI register, doesn't have any effect in the VM.
-
-The recommended way to trigger a guest-initiated shut down is by
-generating a ``triple-fault``, which will cause the VM to initiate a
-reboot. Additionally, if the ``-no-reboot`` argument is present in the
-command line, QEMU will detect this event and terminate its own
-execution gracefully.
-
-Linux does support this mechanism, but by default will only be used
-after other options have been tried and failed, causing the reboot to
-be delayed by a small number of seconds. It's possible to instruct it
-to try the triple-fault mechanism first, by adding ``reboot=t`` to the
-kernel's command line.
