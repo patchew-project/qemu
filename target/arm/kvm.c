@@ -1071,7 +1071,8 @@ int kvm_arch_msi_data_to_gsi(uint32_t data)
 
 bool kvm_arch_cpu_check_are_resettable(void)
 {
-    return true;
+    /* A Realm cannot be reset */
+    return !kvm_arm_rme_enabled();
 }
 
 void kvm_arch_accel_class_init(ObjectClass *oc)
