@@ -22,10 +22,13 @@ OBJECT_DECLARE_SIMPLE_TYPE(RmeGuest, RME_GUEST)
 
 #define RME_PAGE_SIZE qemu_real_host_page_size()
 
+#define RME_MAX_CFG         1
+
 typedef struct RmeGuest RmeGuest;
 
 struct RmeGuest {
     ConfidentialGuestSupport parent_obj;
+    char *measurement_algo;
 };
 
 struct RmeImage {
@@ -58,6 +61,40 @@ static int rme_create_rd(RmeGuest *guest, Error **errp)
 
     if (ret) {
         error_setg_errno(errp, -ret, "RME: failed to create Realm Descriptor");
+    }
+    return ret;
+}
+
+static int rme_configure_one(RmeGuest *guest, uint32_t cfg, Error **errp)
+{
+    int ret;
+    const char *cfg_str;
+    struct kvm_cap_arm_rme_config_item args = {
+        .cfg = cfg,
+    };
+
+    switch (cfg) {
+    case KVM_CAP_ARM_RME_CFG_HASH_ALGO:
+        if (!guest->measurement_algo) {
+            return 0;
+        }
+        if (!strcmp(guest->measurement_algo, "sha256")) {
+            args.hash_algo = KVM_CAP_ARM_RME_MEASUREMENT_ALGO_SHA256;
+        } else if (!strcmp(guest->measurement_algo, "sha512")) {
+            args.hash_algo = KVM_CAP_ARM_RME_MEASUREMENT_ALGO_SHA512;
+        } else {
+            g_assert_not_reached();
+        }
+        cfg_str = "hash algorithm";
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    ret = kvm_vm_enable_cap(kvm_state, KVM_CAP_ARM_RME, 0,
+                            KVM_CAP_ARM_RME_CONFIG_REALM, (intptr_t)&args);
+    if (ret) {
+        error_setg_errno(errp, -ret, "RME: failed to configure %s", cfg_str);
     }
     return ret;
 }
@@ -128,6 +165,7 @@ static void rme_vm_state_change(void *opaque, bool running, RunState state)
 int kvm_arm_rme_init(ConfidentialGuestSupport *cgs, Error **errp)
 {
     int ret;
+    int cfg;
     static Error *rme_mig_blocker;
     RmeGuest *guest = cgs_to_rme(cgs);
 
@@ -144,6 +182,13 @@ int kvm_arm_rme_init(ConfidentialGuestSupport *cgs, Error **errp)
     if (!kvm_check_extension(kvm_state, KVM_CAP_ARM_RME)) {
         error_setg(errp, "KVM does not support RME");
         return -ENODEV;
+    }
+
+    for (cfg = 0; cfg < RME_MAX_CFG; cfg++) {
+        ret = rme_configure_one(guest, cfg, errp);
+        if (ret) {
+            return ret;
+        }
     }
 
     ret = rme_create_rd(guest, errp);
@@ -215,8 +260,34 @@ int kvm_arm_rme_vm_type(MachineState *ms)
     return 0;
 }
 
+static char *rme_get_measurement_algo(Object *obj, Error **errp)
+{
+    RmeGuest *guest = RME_GUEST(obj);
+
+    return g_strdup(guest->measurement_algo);
+}
+
+static void rme_set_measurement_algo(Object *obj, const char *value,
+                                     Error **errp)
+{
+    RmeGuest *guest = RME_GUEST(obj);
+
+    if (strncmp(value, "sha256", 6) &&
+        strncmp(value, "sha512", 6)) {
+        error_setg(errp, "invalid Realm measurement algorithm '%s'", value);
+        return;
+    }
+    g_free(guest->measurement_algo);
+    guest->measurement_algo = g_strdup(value);
+}
+
 static void rme_guest_class_init(ObjectClass *oc, void *data)
 {
+    object_class_property_add_str(oc, "measurement-algo",
+                                  rme_get_measurement_algo,
+                                  rme_set_measurement_algo);
+    object_class_property_set_description(oc, "measurement-algo",
+            "Realm measurement algorithm ('sha256', 'sha512')");
 }
 
 static const TypeInfo rme_guest_info = {
