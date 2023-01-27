@@ -25,6 +25,7 @@
 #include "qemu/config-file.h"
 #include "qemu/option.h"
 #include "qemu/units.h"
+#include "kvm_arm.h"
 
 /* Kernel boot protocol is specified in the kernel docs
  * Documentation/arm/Booting and Documentation/arm64/booting.txt
@@ -192,9 +193,11 @@ static void write_bootloader(const char *name, hwaddr addr,
         code[i] = tswap32(insn);
     }
 
-    assert((len * sizeof(uint32_t)) < BOOTLOADER_MAX_SIZE);
+    len *= sizeof(uint32_t);
+    assert(len < BOOTLOADER_MAX_SIZE);
 
-    rom_add_blob_fixed_as(name, code, len * sizeof(uint32_t), addr, as);
+    rom_add_blob_fixed_as(name, code, len, addr, as);
+    kvm_arm_rme_add_blob(addr, len, len);
 
     g_free(code);
 }
@@ -685,6 +688,7 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
      * the DTB is copied again upon reset, even if addr points into RAM.
      */
     rom_add_blob_fixed_as("dtb", fdt, size, addr, as);
+    kvm_arm_rme_add_blob(addr, size, size);
     qemu_register_reset_nosnapshotload(qemu_fdt_randomize_seeds,
                                        rom_ptr_for_as(as, addr, size));
 
@@ -966,6 +970,7 @@ static uint64_t load_aarch64_image(const char *filename, hwaddr mem_base,
 
     *entry = mem_base + kernel_load_offset;
     rom_add_blob_fixed_as(filename, buffer, size, *entry, as);
+    kvm_arm_rme_add_blob(*entry, size, kernel_size);
 
     g_free(buffer);
 
@@ -1121,6 +1126,7 @@ static void arm_setup_direct_kernel_boot(ARMCPU *cpu,
             initrd_size = 0;
         }
         info->initrd_size = initrd_size;
+        kvm_arm_rme_add_blob(info->initrd_start, initrd_size, initrd_size);
 
         fixupcontext[FIXUP_BOARDID] = info->board_id;
         fixupcontext[FIXUP_BOARD_SETUP] = info->board_setup_addr;
