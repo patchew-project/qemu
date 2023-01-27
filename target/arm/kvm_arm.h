@@ -369,6 +369,11 @@ void kvm_arm_pvtime_init(CPUState *cs, uint64_t ipa);
 
 int kvm_arm_set_irq(int cpu, int irqtype, int irq, int level);
 
+int kvm_arm_rme_init(ConfidentialGuestSupport *cgs, Error **errp);
+int kvm_arm_rme_vm_type(MachineState *ms);
+
+bool kvm_arm_rme_enabled(void);
+
 #else
 
 /*
@@ -443,6 +448,15 @@ static inline uint32_t kvm_arm_sve_get_vls(CPUState *cs)
     g_assert_not_reached();
 }
 
+static inline int kvm_arm_rme_init(ConfidentialGuestSupport *cgs, Error **errp)
+{
+    return 0;
+}
+
+static inline int kvm_arm_rme_vm_type(MachineState *ms)
+{
+    return 0;
+}
 #endif
 
 static inline const char *gic_class_name(void)
