@@ -870,6 +870,8 @@
 #
 # @num-watchpoints: Number of watchpoints (default: 0)
 #
+# @num-pmu-counters: Number of PMU counters (default: 0, PMU disabled)
+#
 # Since: FIXME
 ##
 { 'struct': 'RmeGuestProperties',
@@ -877,7 +879,8 @@
             '*personalization-value': 'str',
             '*sve-vector-length': 'uint32',
             '*num-breakpoints': 'uint32',
-            '*num-watchpoints': 'uint32' } }
+            '*num-watchpoints': 'uint32',
+            '*num-pmu-counters': 'uint32' } }
 
 ##
 # @ObjectType:
