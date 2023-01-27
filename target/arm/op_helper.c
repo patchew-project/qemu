@@ -624,6 +624,13 @@ uint32_t HELPER(mrs_banked)(CPUARMState *env, uint32_t tgtmode, uint32_t regno)
     }
 }
 
+void HELPER(hstr_trap_check)(CPUARMState *env, uint32_t mask, uint32_t syndrome)
+{
+    if (env->cp15.hstr_el2 & mask) {
+        raise_exception(env, EXCP_UDEF, syndrome, 2);
+    }
+}
+
 const void *HELPER(access_check_cp_reg)(CPUARMState *env, uint32_t key,
                                         uint32_t syndrome, uint32_t isread)
 {
@@ -658,7 +665,11 @@ const void *HELPER(access_check_cp_reg)(CPUARMState *env, uint32_t key,
         goto fail;
     }
 
-    if (!is_a64(env) && arm_current_el(env) < 2 && ri->cp == 15 &&
+    /*
+     * HSTR_EL2 traps from EL1 are checked earlier, via hstr_trap_check;
+     * we only need to check here for traps from EL0.
+     */
+    if (!is_a64(env) && arm_current_el(env) == 0 && ri->cp == 15 &&
         (arm_hcr_el2_eff(env) & (HCR_E2H | HCR_TGE)) != (HCR_E2H | HCR_TGE)) {
         uint32_t mask = 1 << ri->crn;
 

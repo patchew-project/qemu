@@ -4719,6 +4719,7 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
     TCGv_ptr tcg_ri = NULL;
     bool need_exit_tb;
     uint32_t syndrome;
+    bool emitted_update_pc = false;
 
     /*
      * Note that since we are an implementation which takes an
@@ -4760,6 +4761,28 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
         break;
     }
 
+    if (s->hstr_active && cpnum == 15 && s->current_el == 1) {
+        /*
+         * At EL1, check for a HSTR_EL2 trap, which must take precedence
+         * over the UNDEF for "no such register" or the UNDEF for "access
+         * permissions forbid this EL1 access". HSTR_EL2 traps from EL0
+         * only happen if the cpreg doesn't UNDEF at EL0, so we do those in
+         * access_check_cp_reg(), after the checks for whether the access
+         * configurably trapped to EL1.
+         */
+        uint32_t maskbit = is64 ? crm : crn;
+
+        if (maskbit != 4 && maskbit != 14) {
+            /* T4 and T14 are RES0 so never cause traps */
+            gen_set_condexec(s);
+            gen_update_pc(s, 0);
+            emitted_update_pc = true;
+            gen_helper_hstr_trap_check(cpu_env,
+                                       tcg_constant_i32(1 << maskbit),
+                                       tcg_constant_i32(syndrome));
+        }
+    }
+
     if (!ri) {
         /*
          * Unknown register; this might be a guest error or a QEMU
@@ -4788,7 +4811,7 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
         return;
     }
 
-    if (s->hstr_active || ri->accessfn ||
+    if ((s->hstr_active && s->current_el == 0) || ri->accessfn ||
         (arm_dc_feature(s, ARM_FEATURE_XSCALE) && cpnum < 14)) {
         /*
          * Emit code to perform further access permissions checks at
@@ -4796,8 +4819,10 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
          * Note that on XScale all cp0..c13 registers do an access check
          * call in order to handle c15_cpar.
          */
-        gen_set_condexec(s);
-        gen_update_pc(s, 0);
+        if (!emitted_update_pc) {
+            gen_set_condexec(s);
+            gen_update_pc(s, 0);
+        }
         tcg_ri = tcg_temp_new_ptr();
         gen_helper_access_check_cp_reg(tcg_ri, cpu_env,
                                        tcg_constant_i32(key),
@@ -4808,8 +4833,10 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
          * The readfn or writefn might raise an exception;
          * synchronize the CPU state in case it does.
          */
-        gen_set_condexec(s);
-        gen_update_pc(s, 0);
+        if (!emitted_update_pc) {
+            gen_set_condexec(s);
+            gen_update_pc(s, 0);
+        }
     }
 
     /* Handle special cases first */
