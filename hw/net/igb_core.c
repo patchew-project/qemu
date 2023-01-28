@@ -1640,7 +1640,7 @@ igb_receive_internal(IGBCore *core, const struct iovec *iov, int iovcnt,
             core->mac[EICR] |= igb_rx_wb_eic(core, rxr.i->idx);
 
             /* same as RXDW (rx descriptor written back)*/
-            icr_bits |= E1000_ICR_RXT0;
+            icr_bits |= E1000_ICR_RXDW;
         }
     }
 
@@ -1650,7 +1650,7 @@ igb_receive_internal(IGBCore *core, const struct iovec *iov, int iovcnt,
         e1000x_inc_reg_if_not_full(core->mac, ROC);
     }
 
-    if (icr_bits & E1000_ICR_RXT0) {
+    if (icr_bits & E1000_ICR_RXDW) {
         trace_e1000e_rx_written_to_guest(icr_bits);
     } else {
         trace_e1000e_rx_not_written_to_guest(icr_bits);
