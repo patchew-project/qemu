@@ -214,6 +214,56 @@ struct VirtioDeviceClass {
     struct vhost_dev *(*get_vhost)(VirtIODevice *vdev);
 };
 
+typedef struct VRingMemoryRegionCaches VRingMemoryRegionCaches;
+typedef void (*VirtIOHandleOutput)(VirtIODevice *, VirtQueue *);
+
+typedef struct VRing {
+    unsigned int num;
+    unsigned int num_default;
+    unsigned int align;
+    hwaddr desc;
+    hwaddr avail;
+    hwaddr used;
+    VRingMemoryRegionCaches *caches;
+} VRing;
+
+struct VirtQueue {
+    VRing vring;
+    VirtQueueElement *used_elems;
+
+    /* Next head to pop */
+    uint16_t last_avail_idx;
+    bool last_avail_wrap_counter;
+
+    /* Last avail_idx read from VQ. */
+    uint16_t shadow_avail_idx;
+    bool shadow_avail_wrap_counter;
+
+    uint16_t used_idx;
+    bool used_wrap_counter;
+
+    /* Last used index value we have signalled on */
+    uint16_t signalled_used;
+
+    /* Last used index value we have signalled on */
+    bool signalled_used_valid;
+
+    /* Notification enabled? */
+    bool notification;
+
+    uint16_t queue_index;
+
+    unsigned int inuse;
+
+    uint16_t vector;
+    VirtIOHandleOutput handle_output;
+    VirtIODevice *vdev;
+    EventNotifier guest_notifier;
+    EventNotifier host_notifier;
+    bool host_notifier_enabled;
+    QLIST_ENTRY(VirtQueue) node;
+};
+
 void virtio_instance_init_common(Object *proxy_obj, void *data,
                                  size_t vdev_size, const char *vdev_name);
 
@@ -225,8 +275,6 @@ void virtio_error(VirtIODevice *vdev, const char *fmt, ...) G_GNUC_PRINTF(2, 3);
 
 /* Set the child bus name. */
 void virtio_device_set_child_bus_name(VirtIODevice *vdev, char *bus_name);
-
-typedef void (*VirtIOHandleOutput)(VirtIODevice *, VirtQueue *);
 
 VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
                             VirtIOHandleOutput handle_output);
