@@ -1476,6 +1476,30 @@ igb_write_packet_to_guest(IGBCore *core, struct NetRxPkt *pkt,
     igb_update_rx_stats(core, size, total_size);
 }
 
+static inline bool
+igb_is_oversized(IGBCore *core, const E1000E_RingInfo *rxi, size_t size)
+{
+    bool vmdq = core->mac[MRQC] & 1;
+    uint16_t qn = rxi->idx;
+    uint16_t pool = (qn > IGB_MAX_VF_FUNCTIONS) ?
+                   (qn - IGB_MAX_VF_FUNCTIONS) : qn;
+
+    bool lpe = (vmdq ? core->mac[VMOLR0 + pool] & E1000_VMOLR_LPE :
+                core->mac[RCTL] & E1000_RCTL_LPE);
+    bool sbp = core->mac[RCTL] & E1000_RCTL_SBP;
+    int maximum_ethernet_vlan_size = 1522;
+    int maximum_ethernet_lpe_size =
+        (vmdq ? core->mac[VMOLR0 + pool] & E1000_VMOLR_RLPML_MASK :
+         core->mac[RLPML] & E1000_VMOLR_RLPML_MASK);
+
+    if (size > maximum_ethernet_lpe_size ||
+        (size > maximum_ethernet_vlan_size && !lpe && !sbp)) {
+        return true;
+    }
+
+    return false;
+}
+
 static inline void
 igb_rx_fix_l4_csum(IGBCore *core, struct NetRxPkt *pkt)
 {
@@ -1499,7 +1523,8 @@ igb_receive_internal(IGBCore *core, const struct iovec *iov, int iovcnt,
     static const int maximum_ethernet_hdr_len = (ETH_HLEN + 4);
 
     uint16_t queues = 0;
-    uint32_t n = 0;
+    uint16_t oversized = 0;
+    uint32_t icr_bits = 0;
     uint8_t min_buf[ETH_ZLEN];
     struct iovec min_iov;
     struct eth_header *ehdr;
@@ -1509,7 +1534,7 @@ igb_receive_internal(IGBCore *core, const struct iovec *iov, int iovcnt,
     E1000E_RxRing rxr;
     E1000E_RSSInfo rss_info;
     size_t total_size;
-    ssize_t retval;
+    ssize_t retval = 0;
     int i;
 
     trace_e1000e_rx_receive_iov(iovcnt);
@@ -1550,11 +1575,6 @@ igb_receive_internal(IGBCore *core, const struct iovec *iov, int iovcnt,
         filter_buf = min_buf;
     }
 
-    /* Discard oversized packets if !LPE and !SBP. */
-    if (e1000x_is_oversized(core->mac, size)) {
-        return orig_size;
-    }
-
     ehdr = PKT_GET_ETH_HDR(filter_buf);
     net_rx_pkt_set_packet_type(core->rx_pkt, get_eth_packet_type(ehdr));
 
@@ -1571,8 +1591,6 @@ igb_receive_internal(IGBCore *core, const struct iovec *iov, int iovcnt,
     total_size = net_rx_pkt_get_total_len(core->rx_pkt) +
         e1000x_fcs_len(core->mac);
 
-    retval = orig_size;
-
     for (i = 0; i < IGB_NUM_QUEUES; i++) {
         if (!(queues & BIT(i))) {
             continue;
@@ -1580,42 +1598,58 @@ igb_receive_internal(IGBCore *core, const struct iovec *iov, int iovcnt,
 
         igb_rx_ring_init(core, &rxr, i);
         if (!igb_has_rxbufs(core, rxr.i, total_size)) {
-            retval = 0;
+            icr_bits |= E1000_ICS_RXO;
         }
     }
 
-    if (retval) {
+    if (!icr_bits) {
+        retval = orig_size;
         igb_rx_fix_l4_csum(core, core->rx_pkt);
 
         for (i = 0; i < IGB_NUM_QUEUES; i++) {
-            if (!(queues & BIT(i)) ||
-                !(core->mac[E1000_RXDCTL(i) >> 2] & E1000_RXDCTL_QUEUE_ENABLE)) {
+            if (!(queues & BIT(i))) {
                 continue;
             }
 
             igb_rx_ring_init(core, &rxr, i);
+            if (igb_is_oversized(core, rxr.i, size)) {
+                oversized |= BIT(i);
+                continue;
+            }
+
+            if (!(core->mac[RXDCTL0 + (i * 16)] & E1000_RXDCTL_QUEUE_ENABLE)) {
+                continue;
+            }
+
             trace_e1000e_rx_rss_dispatched_to_queue(rxr.i->idx);
             igb_write_packet_to_guest(core, core->rx_pkt, &rxr, &rss_info);
 
             /* Check if receive descriptor minimum threshold hit */
             if (igb_rx_descr_threshold_hit(core, rxr.i)) {
-                n |= E1000_ICS_RXDMT0;
+                icr_bits |= E1000_ICS_RXDMT0;
             }
 
             core->mac[EICR] |= igb_rx_wb_eic(core, rxr.i->idx);
 
             /* same as RXDW (rx descriptor written back)*/
-            n = E1000_ICR_RXT0;
+            icr_bits |= E1000_ICR_RXT0;
         }
-
-        trace_e1000e_rx_written_to_guest(n);
-    } else {
-        n = E1000_ICS_RXO;
-        trace_e1000e_rx_not_written_to_guest(n);
     }
 
-    trace_e1000e_rx_interrupt_set(n);
-    igb_set_interrupt_cause(core, n);
+    /* 8.19.37 increment ROC only if packet is oversized for all queues */
+    if (oversized == queues) {
+        trace_e1000x_rx_oversized(size);
+        e1000x_inc_reg_if_not_full(core->mac, ROC);
+    }
+
+    if (icr_bits & E1000_ICR_RXT0) {
+        trace_e1000e_rx_written_to_guest(icr_bits);
+    } else {
+        trace_e1000e_rx_not_written_to_guest(icr_bits);
+    }
+
+    trace_e1000e_rx_interrupt_set(icr_bits);
+    igb_set_interrupt_cause(core, icr_bits);
 
     return retval;
 }
