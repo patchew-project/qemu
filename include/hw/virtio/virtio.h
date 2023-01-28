@@ -251,6 +251,9 @@ struct VirtQueue {
     /* Notification enabled? */
     bool notification;
 
+    /* Per-Queue Reset status */
+    bool reset;
+
     uint16_t queue_index;
 
     unsigned int inuse;

@@ -2030,6 +2030,12 @@ void virtio_queue_reset(VirtIODevice *vdev, uint32_t queue_index)
 {
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
 
+    /*
+     * Mark this queue is per-queue reset status. The device should release the
+     * references of the vring, and not refer more new vring item.
+     */
+    vdev->vq[queue_index].reset = true;
+
     if (k->queue_reset) {
         k->queue_reset(vdev, queue_index);
     }
@@ -2052,6 +2058,8 @@ void virtio_queue_enable(VirtIODevice *vdev, uint32_t queue_index)
                      "1.0 or later.");
     }
     */
+
+    vdev->vq[queue_index].reset = false;
 
     if (k->queue_enable) {
         k->queue_enable(vdev, queue_index);
