@@ -548,6 +548,7 @@
 
 #define E1000_CTRL_EXT_ASDCHK  0x00001000 /* auto speed detection check */
 #define E1000_CTRL_EXT_EE_RST  0x00002000 /* EEPROM reset */
+#define E1000_CTRL_EXT_PFRSTD  0x00004000 /* PF reset done indication */
 #define E1000_CTRL_EXT_LINK_EN 0x00010000 /* enable link status from external LINK_0 and LINK_1 pins */
 #define E1000_CTRL_EXT_DRV_LOAD 0x10000000 /* Driver loaded bit for FW */
 #define E1000_CTRL_EXT_EIAME   0x01000000
