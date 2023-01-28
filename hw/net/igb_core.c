@@ -949,6 +949,10 @@ static uint16_t igb_receive_assign(IGBCore *core, const struct eth_header *ehdr,
     }
 
     if (core->mac[MRQC] & 1) {
+        if (!(core->mac[VT_CTL] & E1000_VT_CTL_VM_REPL_EN)) {
+            trace_igb_rx_vmdq_replication_mode_disabled();
+        }
+
         if (is_broadcast_ether_addr(ehdr->h_dest)) {
             for (i = 0; i < IGB_MAX_VF_FUNCTIONS; i++) {
                 if (core->mac[VMOLR0 + i] & E1000_VMOLR_BAM) {
@@ -993,6 +997,11 @@ static uint16_t igb_receive_assign(IGBCore *core, const struct eth_header *ehdr,
             } else if (is_unicast_ether_addr(ehdr->h_dest) && external_tx) {
                 *external_tx = false;
             }
+        }
+
+        /* assume a full pool list if IGMAC is set */
+        if (core->mac[VT_CTL] & E1000_VT_CTL_IGNORE_MAC) {
+            queues = BIT(IGB_MAX_VF_FUNCTIONS) - 1;
         }
 
         if (e1000x_vlan_rx_filter_enabled(core->mac)) {
