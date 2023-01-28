@@ -69,7 +69,7 @@ typedef struct IGBTxPktVmdqCallbackContext {
 
 static ssize_t
 igb_receive_internal(IGBCore *core, const struct iovec *iov, int iovcnt,
-                     bool has_vnet, bool *assigned);
+                     bool has_vnet, bool *external_tx);
 
 static inline void
 igb_set_interrupt_cause(IGBCore *core, uint32_t val);
@@ -942,7 +942,7 @@ static uint16_t igb_receive_assign(IGBCore *core, const struct eth_header *ehdr,
 
     if (core->mac[MRQC] & 1) {
         if (is_broadcast_ether_addr(ehdr->h_dest)) {
-            for (i = 0; i < 8; i++) {
+            for (i = 0; i < IGB_MAX_VF_FUNCTIONS; i++) {
                 if (core->mac[VMOLR0 + i] & E1000_VMOLR_BAM) {
                     queues |= BIT(i);
                 }
@@ -976,7 +976,7 @@ static uint16_t igb_receive_assign(IGBCore *core, const struct eth_header *ehdr,
                 f = ta_shift[(rctl >> E1000_RCTL_MO_SHIFT) & 3];
                 f = (((ehdr->h_dest[5] << 8) | ehdr->h_dest[4]) >> f) & 0xfff;
                 if (macp[f >> 5] & (1 << (f & 0x1f))) {
-                    for (i = 0; i < 8; i++) {
+                    for (i = 0; i < IGB_MAX_VF_FUNCTIONS; i++) {
                         if (core->mac[VMOLR0 + i] & E1000_VMOLR_ROMPE) {
                             queues |= BIT(i);
                         }
@@ -999,7 +999,7 @@ static uint16_t igb_receive_assign(IGBCore *core, const struct eth_header *ehdr,
                     }
                 }
             } else {
-                for (i = 0; i < 8; i++) {
+                for (i = 0; i < IGB_MAX_VF_FUNCTIONS; i++) {
                     if (core->mac[VMOLR0 + i] & E1000_VMOLR_AUPE) {
                         mask |= BIT(i);
                     }
@@ -1018,7 +1018,15 @@ static uint16_t igb_receive_assign(IGBCore *core, const struct eth_header *ehdr,
         queues &= core->mac[VFRE];
         igb_rss_parse_packet(core, core->rx_pkt, external_tx != NULL, rss_info);
         if (rss_info->queue & 1) {
-            queues <<= 8;
+            for (i = 0; i < IGB_MAX_VF_FUNCTIONS; i++) {
+                if (!(queues & BIT(i))) {
+                    continue;
+                }
+                if (core->mac[VMOLR0 + i] & E1000_VMOLR_RSSE) {
+                    queues |= BIT(i + IGB_MAX_VF_FUNCTIONS);
+                    queues &= ~BIT(i);
+                }
+            }
         }
     } else {
         switch (net_rx_pkt_get_packet_type(core->rx_pkt)) {
