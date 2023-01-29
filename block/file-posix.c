@@ -3272,6 +3272,7 @@ static int coroutine_fn raw_co_zone_report(BlockDriverState *bs, int64_t offset,
                                            BlockZoneDescriptor *zones) {
     BDRVRawState *s = bs->opaque;
     RawPosixAIOData acb;
+    trace_zbd_zone_report(bs, *nr_zones, offset >> BDRV_SECTOR_BITS);
 
     acb = (RawPosixAIOData) {
         .bs         = bs,
@@ -3350,6 +3351,8 @@ static int coroutine_fn raw_co_zone_mgmt(BlockDriverState *bs, BlockZoneOp op,
         },
     };
 
+    trace_zbd_zone_mgmt(bs, op_name, offset >> BDRV_SECTOR_BITS,
+                        len >> BDRV_SECTOR_BITS);
     ret = raw_thread_pool_submit(bs, handle_aiocb_zone_mgmt, &acb);
     if (ret != 0) {
         ret = -errno;
