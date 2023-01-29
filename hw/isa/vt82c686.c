@@ -37,6 +37,9 @@
 #include "qemu/timer.h"
 #include "trace.h"
 
+#define ACPI_ENABLE 0xf1
+#define ACPI_DISABLE 0xf0
+
 #define TYPE_VIA_PM "via-pm"
 OBJECT_DECLARE_SIMPLE_TYPE(ViaPMState, VIA_PM)
 
@@ -49,6 +52,19 @@ struct ViaPMState {
 
     qemu_irq irq;
 };
+
+static void via_pm_apm_ctrl_changed(uint32_t val, void *arg)
+{
+    ViaPMState *s = arg;
+
+    /* ACPI specs 3.0, 4.7.2.5 */
+    acpi_pm1_cnt_update(&s->ar, val == ACPI_ENABLE, val == ACPI_DISABLE);
+    if (val == ACPI_ENABLE || val == ACPI_DISABLE) {
+        return;
+    }
+
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented value 0x%x", __func__, val);
+}
 
 static void pm_io_space_update(ViaPMState *s)
 {
@@ -193,7 +209,7 @@ static void via_pm_realize(PCIDevice *dev, Error **errp)
     memory_region_add_subregion(pci_address_space_io(dev), 0, &s->smb.io);
     memory_region_set_enabled(&s->smb.io, false);
 
-    apm_init(dev, &s->apm, NULL, s);
+    apm_init(dev, &s->apm, via_pm_apm_ctrl_changed, s);
 
     memory_region_init_io(&s->io, OBJECT(dev), &pm_io_ops, s, "via-pm", 128);
     memory_region_add_subregion(pci_address_space_io(dev), 0, &s->io);
