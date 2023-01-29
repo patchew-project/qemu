@@ -142,6 +142,8 @@ struct VirtQueue
     /* Notification enabled? */
     bool notification;
 
+    bool disabled_by_reset;
+
     uint16_t queue_index;
 
     unsigned int inuse;
@@ -2079,6 +2081,12 @@ void virtio_queue_reset(VirtIODevice *vdev, uint32_t queue_index)
 {
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
 
+    /*
+     * Mark this queue is per-queue reset status. The device should release the
+     * references of the vring, and not refer more new vring item.
+     */
+    vdev->vq[queue_index].disabled_by_reset = true;
+
     if (k->queue_reset) {
         k->queue_reset(vdev, queue_index);
     }
@@ -2102,9 +2110,16 @@ void virtio_queue_enable(VirtIODevice *vdev, uint32_t queue_index)
     }
     */
 
+    vdev->vq[queue_index].disabled_by_reset = false;
+
     if (k->queue_enable) {
         k->queue_enable(vdev, queue_index);
     }
+}
+
+bool virtio_queue_reset_state(VirtQueue *vq)
+{
+    return vq->disabled_by_reset;
 }
 
 void virtio_reset(void *opaque)
