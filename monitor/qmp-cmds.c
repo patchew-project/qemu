@@ -22,6 +22,7 @@
 #include "sysemu/sysemu.h"
 #include "qemu/config-file.h"
 #include "qemu/uuid.h"
+#include "qemu/sockets.h"
 #include "chardev/char.h"
 #include "sysemu/kvm.h"
 #include "sysemu/runstate.h"
@@ -190,11 +191,17 @@ void qmp_add_client(const char *protocol, const char *fdname,
         return;
     }
 
+    if (!fd_is_socket(fd)) {
+        error_setg(errp, "add_client expects a socket");
+        close(fd);
+        return;
+    }
+
     for (i = 0; i < ARRAY_SIZE(protocol_table); i++) {
         if (!strcmp(protocol, protocol_table[i].name)) {
             if (!protocol_table[i].add_client(fd, has_skipauth, skipauth,
                                               has_tls, tls, errp)) {
-                close(fd);
+                closesocket(fd);
             }
             return;
         }
@@ -203,12 +210,12 @@ void qmp_add_client(const char *protocol, const char *fdname,
     s = qemu_chr_find(protocol);
     if (!s) {
         error_setg(errp, "protocol '%s' is invalid", protocol);
-        close(fd);
+        closesocket(fd);
         return;
     }
     if (qemu_chr_add_client(s, fd) < 0) {
         error_setg(errp, "failed to add client");
-        close(fd);
+        closesocket(fd);
         return;
     }
 }
