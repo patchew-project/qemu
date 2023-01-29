@@ -738,7 +738,7 @@ struct USBEndpoint *usb_ep_get(USBDevice *dev, int pid, int ep)
     struct USBEndpoint *eps;
 
     assert(dev != NULL);
-    if (ep == 0) {
+    if (ep == 0 || pid == USB_TOKEN_SETUP) {
         return &dev->ep_ctl;
     }
     assert(pid == USB_TOKEN_IN || pid == USB_TOKEN_OUT);
