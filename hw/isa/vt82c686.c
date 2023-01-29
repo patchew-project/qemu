@@ -33,8 +33,10 @@
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qemu/notify.h"
 #include "qemu/range.h"
 #include "qemu/timer.h"
+#include "sysemu/runstate.h"
 #include "trace.h"
 
 #define ACPI_ENABLE 0xf1
@@ -49,6 +51,8 @@ struct ViaPMState {
     ACPIREGS ar;
     APMState apm;
     PMSMBus smb;
+
+    Notifier powerdown_notifier;
 
     qemu_irq irq;
 };
@@ -198,6 +202,14 @@ static void via_pm_reset(DeviceState *d)
     smb_io_space_update(s);
 }
 
+static void via_pm_powerdown_req(Notifier *n, void *opaque)
+{
+    ViaPMState *s = container_of(n, ViaPMState, powerdown_notifier);
+
+    assert(s != NULL);
+    acpi_pm1_evt_power_down(&s->ar);
+}
+
 static void via_pm_realize(PCIDevice *dev, Error **errp)
 {
     ViaPMState *s = VIA_PM(dev);
@@ -218,6 +230,9 @@ static void via_pm_realize(PCIDevice *dev, Error **errp)
     acpi_pm_tmr_init(&s->ar, pm_tmr_timer, &s->io);
     acpi_pm1_evt_init(&s->ar, pm_tmr_timer, &s->io);
     acpi_pm1_cnt_init(&s->ar, &s->io, false, false, 2, false);
+
+    s->powerdown_notifier.notify = via_pm_powerdown_req;
+    qemu_register_powerdown_notifier(&s->powerdown_notifier);
 }
 
 static void via_pm_init(Object *obj)
