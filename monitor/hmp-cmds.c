@@ -33,6 +33,7 @@
 #include "qapi/qapi-commands-block.h"
 #include "qapi/qapi-commands-char.h"
 #include "qapi/qapi-commands-control.h"
+#include "qapi/qapi-commands-cryptodev.h"
 #include "qapi/qapi-commands-machine.h"
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/qapi-commands-misc.h"
@@ -2279,4 +2280,40 @@ void hmp_virtio_queue_element(Monitor *mon, const QDict *qdict)
     monitor_printf(mon, "    idx:   %d\n", e->used->idx);
 
     qapi_free_VirtioQueueElement(e);
+}
+
+void hmp_info_cryptodev(Monitor *mon, const QDict *qdict)
+{
+    QCryptodevInfoList *il;
+    QCryptodevBackendServiceTypeList *sl;
+    QCryptodevBackendClientList *cl;
+
+    for (il = qmp_query_cryptodev(NULL); il; il = il->next) {
+        g_autofree char *services = NULL;
+        QCryptodevInfo *info = il->value;
+        char *tmp_services;
+
+        /* build a string like 'service=[akcipher|mac|hash|cipher]' */
+        for (sl = info->service; sl; sl = sl->next) {
+            const char *service = QCryptodevBackendServiceType_str(sl->value);
+
+            if (!services) {
+                services = g_strdup(service);
+            } else {
+                tmp_services = g_strjoin("|", services, service, NULL);
+                g_free(services);
+                services = tmp_services;
+            }
+        }
+        monitor_printf(mon, "%s: service=[%s]\n", info->id, services);
+
+        for (cl = info->client; cl; cl = cl->next) {
+            QCryptodevBackendClient *client = cl->value;
+            monitor_printf(mon, "    queue %" PRIu32 ": type=%s\n",
+                           client->queue,
+                           QCryptodevBackendType_str(client->type));
+        }
+    }
+
+    qapi_free_QCryptodevInfoList(il);
 }
