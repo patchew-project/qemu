@@ -1451,6 +1451,15 @@ typedef struct BlkRwCo {
     void *iobuf;
     int ret;
     BdrvRequestFlags flags;
+    union {
+        struct {
+            unsigned int *nr_zones;
+            BlockZoneDescriptor *zones;
+        } zone_report;
+        struct {
+            unsigned long op;
+        } zone_mgmt;
+    };
 } BlkRwCo;
 
 int blk_make_zero(BlockBackend *blk, BdrvRequestFlags flags)
@@ -1792,6 +1801,144 @@ int coroutine_fn blk_co_flush(BlockBackend *blk)
     ret = blk_co_do_flush(blk);
     blk_dec_in_flight(blk);
 
+    return ret;
+}
+
+static void coroutine_fn blk_aio_zone_report_entry(void *opaque)
+{
+    BlkAioEmAIOCB *acb = opaque;
+    BlkRwCo *rwco = &acb->rwco;
+
+    rwco->ret = blk_co_zone_report(rwco->blk, rwco->offset,
+                                   rwco->zone_report.nr_zones,
+                                   rwco->zone_report.zones);
+    blk_aio_complete(acb);
+}
+
+BlockAIOCB *blk_aio_zone_report(BlockBackend *blk, int64_t offset,
+                                unsigned int *nr_zones,
+                                BlockZoneDescriptor  *zones,
+                                BlockCompletionFunc *cb, void *opaque)
+{
+    BlkAioEmAIOCB *acb;
+    Coroutine *co;
+    IO_CODE();
+
+    blk_inc_in_flight(blk);
+    acb = blk_aio_get(&blk_aio_em_aiocb_info, blk, cb, opaque);
+    acb->rwco = (BlkRwCo) {
+        .blk    = blk,
+        .offset = offset,
+        .ret    = NOT_DONE,
+        .zone_report = {
+            .zones = zones,
+            .nr_zones = nr_zones,
+        },
+    };
+    acb->has_returned = false;
+
+    co = qemu_coroutine_create(blk_aio_zone_report_entry, acb);
+    bdrv_coroutine_enter(blk_bs(blk), co);
+
+    acb->has_returned = true;
+    if (acb->rwco.ret != NOT_DONE) {
+        replay_bh_schedule_oneshot_event(blk_get_aio_context(blk),
+                                         blk_aio_complete_bh, acb);
+    }
+
+    return &acb->common;
+}
+
+static void coroutine_fn blk_aio_zone_mgmt_entry(void *opaque)
+{
+    BlkAioEmAIOCB *acb = opaque;
+    BlkRwCo *rwco = &acb->rwco;
+
+    rwco->ret = blk_co_zone_mgmt(rwco->blk, rwco->zone_mgmt.op,
+                                 rwco->offset, acb->bytes);
+    blk_aio_complete(acb);
+}
+
+BlockAIOCB *blk_aio_zone_mgmt(BlockBackend *blk, BlockZoneOp op,
+                              int64_t offset, int64_t len,
+                              BlockCompletionFunc *cb, void *opaque) {
+    BlkAioEmAIOCB *acb;
+    Coroutine *co;
+    IO_CODE();
+
+    blk_inc_in_flight(blk);
+    acb = blk_aio_get(&blk_aio_em_aiocb_info, blk, cb, opaque);
+    acb->rwco = (BlkRwCo) {
+        .blk    = blk,
+        .offset = offset,
+        .ret    = NOT_DONE,
+        .zone_mgmt = {
+            .op = op,
+        },
+    };
+    acb->bytes = len;
+    acb->has_returned = false;
+
+    co = qemu_coroutine_create(blk_aio_zone_mgmt_entry, acb);
+    bdrv_coroutine_enter(blk_bs(blk), co);
+
+    acb->has_returned = true;
+    if (acb->rwco.ret != NOT_DONE) {
+        replay_bh_schedule_oneshot_event(blk_get_aio_context(blk),
+                                         blk_aio_complete_bh, acb);
+    }
+
+    return &acb->common;
+}
+
+/*
+ * Send a zone_report command.
+ * offset is a byte offset from the start of the device. No alignment
+ * required for offset.
+ * nr_zones represents IN maximum and OUT actual.
+ */
+int coroutine_fn blk_co_zone_report(BlockBackend *blk, int64_t offset,
+                                    unsigned int *nr_zones,
+                                    BlockZoneDescriptor *zones)
+{
+    int ret;
+    IO_CODE();
+
+    blk_inc_in_flight(blk); /* increase before waiting */
+    blk_wait_while_drained(blk);
+    if (!blk_is_available(blk)) {
+        blk_dec_in_flight(blk);
+        return -ENOMEDIUM;
+    }
+    ret = bdrv_co_zone_report(blk_bs(blk), offset, nr_zones, zones);
+    blk_dec_in_flight(blk);
+    return ret;
+}
+
+/*
+ * Send a zone_management command.
+ * op is the zone operation;
+ * offset is the byte offset from the start of the zoned device;
+ * len is the maximum number of bytes the command should operate on. It
+ * should be aligned with the device zone size.
+ */
+int coroutine_fn blk_co_zone_mgmt(BlockBackend *blk, BlockZoneOp op,
+        int64_t offset, int64_t len)
+{
+    int ret;
+    IO_CODE();
+
+    blk_inc_in_flight(blk);
+    blk_wait_while_drained(blk);
+
+    ret = blk_check_byte_request(blk, offset, len);
+    if (ret < 0) {
+        blk_dec_in_flight(blk);
+        return ret;
+    }
+
+    ret = bdrv_co_zone_mgmt(blk_bs(blk), op, offset, len);
+    blk_dec_in_flight(blk);
     return ret;
 }
 

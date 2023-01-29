@@ -1962,6 +1962,7 @@ config_host_data.set('CONFIG_REPLICATION', get_option('replication').allowed())
 # has_header
 config_host_data.set('CONFIG_EPOLL', cc.has_header('sys/epoll.h'))
 config_host_data.set('CONFIG_LINUX_MAGIC_H', cc.has_header('linux/magic.h'))
+config_host_data.set('CONFIG_BLKZONED', cc.has_header('linux/blkzoned.h'))
 config_host_data.set('CONFIG_VALGRIND_H', cc.has_header('valgrind/valgrind.h'))
 config_host_data.set('HAVE_BTRFS_H', cc.has_header('linux/btrfs.h'))
 config_host_data.set('HAVE_DRM_H', cc.has_header('libdrm/drm.h'))
@@ -2056,6 +2057,9 @@ config_host_data.set('HAVE_SIGEV_NOTIFY_THREAD_ID',
 config_host_data.set('HAVE_STRUCT_STAT_ST_ATIM',
                      cc.has_member('struct stat', 'st_atim',
                                    prefix: '#include <sys/stat.h>'))
+config_host_data.set('HAVE_BLK_ZONE_REP_CAPACITY',
+                     cc.has_member('struct blk_zone', 'capacity',
+                                   prefix: '#include <linux/blkzoned.h>'))
 
 # has_type
 config_host_data.set('CONFIG_IOVEC',
