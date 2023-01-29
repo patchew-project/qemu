@@ -1232,7 +1232,11 @@ void hmp_getfd(Monitor *mon, const QDict *qdict)
     const char *fdname = qdict_get_str(qdict, "fdname");
     Error *err = NULL;
 
-    qmp_getfd(fdname, &err);
+    qmp_getfd(fdname,
+#ifdef WIN32
+              NULL,
+#endif
+              &err);
     hmp_handle_error(mon, err);
 }
 

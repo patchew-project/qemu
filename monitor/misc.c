@@ -71,6 +71,7 @@
 #include "qapi/error.h"
 #include "qapi/qmp-event.h"
 #include "qemu/cutils.h"
+#include "qemu/sockets.h"
 
 #if defined(TARGET_S390X)
 #include "hw/s390x/storage-keys.h"
@@ -957,27 +958,29 @@ static void hmp_wavcapture(Monitor *mon, const QDict *qdict)
     QLIST_INSERT_HEAD (&capture_head, s, entries);
 }
 
-void qmp_getfd(const char *fdname, Error **errp)
+static void close_fd(int fd)
 {
-    Monitor *cur_mon = monitor_cur();
-    mon_fd_t *monfd;
-    int fd, tmp_fd;
-
-    fd = qemu_chr_fe_get_msgfd(&cur_mon->chr);
-    if (fd == -1) {
-        error_setg(errp, "No file descriptor supplied via SCM_RIGHTS");
-        return;
+    if (fd_is_socket(fd)) {
+        closesocket(fd);
+    } else {
+        close(fd);
     }
+}
+
+static void monitor_add_fd(Monitor *mon, int fd, const char *fdname, Error **errp)
+{
+    mon_fd_t *monfd;
+    int tmp_fd;
 
     if (qemu_isdigit(fdname[0])) {
-        close(fd);
+        close_fd(fd);
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "fdname",
                    "a name not starting with a digit");
         return;
     }
 
-    QEMU_LOCK_GUARD(&cur_mon->mon_lock);
-    QLIST_FOREACH(monfd, &cur_mon->fds, next) {
+    QEMU_LOCK_GUARD(&mon->mon_lock);
+    QLIST_FOREACH(monfd, &mon->fds, next) {
         if (strcmp(monfd->name, fdname) != 0) {
             continue;
         }
@@ -985,7 +988,7 @@ void qmp_getfd(const char *fdname, Error **errp)
         tmp_fd = monfd->fd;
         monfd->fd = fd;
         /* Make sure close() is outside critical section */
-        close(tmp_fd);
+        close_fd(tmp_fd);
         return;
     }
 
@@ -993,7 +996,49 @@ void qmp_getfd(const char *fdname, Error **errp)
     monfd->name = g_strdup(fdname);
     monfd->fd = fd;
 
-    QLIST_INSERT_HEAD(&cur_mon->fds, monfd, next);
+    QLIST_INSERT_HEAD(&mon->fds, monfd, next);
+}
+
+void qmp_getfd(const char *fdname,
+#ifdef WIN32
+               const char *wsa_info,
+#endif
+               Error **errp)
+{
+    Monitor *cur_mon = monitor_cur();
+    int fd;
+
+#ifdef WIN32
+    if (wsa_info) {
+        g_autofree WSAPROTOCOL_INFOW *info = NULL;
+        gsize len;
+        SOCKET sk;
+
+        info = (void *)g_base64_decode(wsa_info, &len);
+        if (len != sizeof(*info)) {
+            error_setg(errp, "Invalid WSAPROTOCOL_INFOW value");
+            return;
+        }
+
+        sk = WSASocketW(FROM_PROTOCOL_INFO, FROM_PROTOCOL_INFO,
+                        FROM_PROTOCOL_INFO, info, 0, 0);
+        if (sk == INVALID_SOCKET) {
+            g_autofree gchar *emsg = g_win32_error_message(WSAGetLastError());
+            error_setg(errp, "Couldn't create socket: %s", emsg);
+            return;
+        }
+
+        return monitor_add_fd(cur_mon, sk, fdname, errp);
+    }
+#endif
+
+    fd = qemu_chr_fe_get_msgfd(&cur_mon->chr);
+    if (fd == -1) {
+        error_setg(errp, "No file descriptor supplied via SCM_RIGHTS");
+        return;
+    }
+
+    return monitor_add_fd(cur_mon, fd, fdname, errp);
 }
 
 void qmp_closefd(const char *fdname, Error **errp)
@@ -1014,7 +1059,7 @@ void qmp_closefd(const char *fdname, Error **errp)
         g_free(monfd);
         qemu_mutex_unlock(&cur_mon->mon_lock);
         /* Make sure close() is outside critical section */
-        close(tmp_fd);
+        close_fd(tmp_fd);
         return;
     }
 
