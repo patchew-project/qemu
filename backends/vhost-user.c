@@ -21,12 +21,6 @@
 #include "io/channel-command.h"
 #include "hw/virtio/virtio-bus.h"
 
-static bool
-ioeventfd_enabled(void)
-{
-    return kvm_enabled() && kvm_eventfds_enabled();
-}
-
 int
 vhost_user_backend_dev_init(VhostUserBackend *b, VirtIODevice *vdev,
                             unsigned nvqs, Error **errp)
@@ -34,11 +28,6 @@ vhost_user_backend_dev_init(VhostUserBackend *b, VirtIODevice *vdev,
     int ret;
 
     assert(!b->vdev && vdev);
-
-    if (!ioeventfd_enabled()) {
-        error_setg(errp, "vhost initialization failed: requires kvm");
-        return -1;
-    }
 
     if (!vhost_user_init(&b->vhost_user, &b->chr, errp)) {
         return -1;
