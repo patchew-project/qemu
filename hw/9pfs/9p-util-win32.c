@@ -1296,3 +1296,10 @@ uint64_t qemu_stat_rdev_win32(struct FsContext *fs_ctx)
 
     return rdev;
 }
+
+uint64_t qemu_stat_blksize_win32(struct FsContext *fs_ctx)
+{
+    LocalData *data = fs_ctx->private;
+
+    return data ? (uint64_t)data->block_size : 0;
+}

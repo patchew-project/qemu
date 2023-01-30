@@ -156,6 +156,7 @@ void seekdir_win32(DIR *pDir, long pos);
 long telldir_win32(DIR *pDir);
 off_t qemu_dirent_off_win32(struct V9fsState *s, union V9fsFidOpenState *fs);
 uint64_t qemu_stat_rdev_win32(struct FsContext *fs_ctx);
+uint64_t qemu_stat_blksize_win32(struct FsContext *fs_ctx);
 #endif
 
 static inline void close_preserve_errno(int fd)
@@ -282,6 +283,18 @@ static inline uint64_t qemu_stat_rdev(const struct stat *stbuf,
     return qemu_stat_rdev_win32(fs_ctx);
 #else
 #error Missing qemu_stat_rdev() implementation for this host system
+#endif
+}
+
+static inline uint64_t qemu_stat_blksize(const struct stat *stbuf,
+                                         struct FsContext *fs_ctx)
+{
+#if defined(CONFIG_LINUX) || defined(CONFIG_DARWIN)
+    return stbuf->st_blksize;
+#elif defined(CONFIG_WIN32)
+    return qemu_stat_blksize_win32(fs_ctx);
+#else
+#error Missing qemu_stat_blksize() implementation for this host system
 #endif
 }
 
