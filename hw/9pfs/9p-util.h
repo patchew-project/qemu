@@ -19,6 +19,10 @@
 #define O_PATH_9P_UTIL 0
 #endif
 
+/* forward declaration */
+union V9fsFidOpenState;
+struct V9fsState;
+
 #if !defined(CONFIG_LINUX)
 
 /*
@@ -147,6 +151,7 @@ struct dirent *readdir_win32(DIR *pDir);
 void rewinddir_win32(DIR *pDir);
 void seekdir_win32(DIR *pDir, long pos);
 long telldir_win32(DIR *pDir);
+off_t qemu_dirent_off_win32(struct V9fsState *s, union V9fsFidOpenState *fs);
 #endif
 
 static inline void close_preserve_errno(int fd)
@@ -220,12 +225,17 @@ ssize_t fremovexattrat_nofollow(int dirfd, const char *filename,
  * so ensure it is manually injected earlier and call here when
  * needed.
  */
-static inline off_t qemu_dirent_off(struct dirent *dent)
+static inline off_t qemu_dirent_off(struct dirent *dent, struct V9fsState *s,
+                                    union V9fsFidOpenState *fs)
 {
-#ifdef CONFIG_DARWIN
+#if defined(CONFIG_DARWIN)
     return dent->d_seekoff;
-#else
+#elif defined(CONFIG_LINUX)
     return dent->d_off;
+#elif defined(CONFIG_WIN32)
+    return qemu_dirent_off_win32(s, fs);
+#else
+#error Missing qemu_dirent_off() implementation for this host system
 #endif
 }
 
