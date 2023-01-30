@@ -1641,6 +1641,9 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         case RISCV_EXCP_VIRT_INSTRUCTION_FAULT:
             tval = env->bins;
             break;
+        case RISCV_EXCP_BREAKPOINT:
+            tval = env->badaddr;
+            break;
         default:
             break;
         }

@@ -761,6 +761,7 @@ void riscv_cpu_debug_excp_handler(CPUState *cs)
 
     if (cs->watchpoint_hit) {
         if (cs->watchpoint_hit->flags & BP_CPU) {
+            env->badaddr = cs->watchpoint_hit->hitaddr;
             cs->watchpoint_hit = NULL;
             do_trigger_action(env, DBG_ACTION_BP);
         }
