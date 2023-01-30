@@ -4396,11 +4396,28 @@ void v9fs_reset(V9fsState *s)
 
 static void __attribute__((__constructor__)) v9fs_set_fd_limit(void)
 {
+    int rlim_cur;
+    int ret;
+
+#ifndef CONFIG_WIN32
     struct rlimit rlim;
-    if (getrlimit(RLIMIT_NOFILE, &rlim) < 0) {
+    ret = getrlimit(RLIMIT_NOFILE, &rlim);
+    rlim_cur = rlim.rlim_cur;
+#else
+    /*
+     * On Windows host, _getmaxstdio() actually returns the number of max
+     * open files at the stdio level. It *may* be smaller than the number
+     * of open files by open() or CreateFile().
+     */
+    ret = _getmaxstdio();
+    rlim_cur = ret;
+#endif
+
+    if (ret < 0) {
         error_report("Failed to get the resource limit");
         exit(1);
     }
-    open_fd_hw = rlim.rlim_cur - MIN(400, rlim.rlim_cur / 3);
-    open_fd_rc = rlim.rlim_cur / 2;
+
+    open_fd_hw = rlim_cur - MIN(400, rlim_cur / 3);
+    open_fd_rc = rlim_cur / 2;
 }
