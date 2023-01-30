@@ -147,6 +147,7 @@ union e1000_adv_rx_desc {
 #define IGB_MAX_TX_QUEUES          8
 #define IGB_MAX_VF_MC_ENTRIES      30
 #define IGB_MAX_VF_FUNCTIONS       8
+#define IGB_MAX_VM_POOLS           8
 #define IGB_MAX_VFTA_ENTRIES       128
 #define IGB_82576_VF_DEV_ID        0x10CA
 #define IGB_I350_VF_DEV_ID         0x1520
@@ -160,7 +161,8 @@ union e1000_adv_rx_desc {
 #define E1000_MRQC_RSS_FIELD_IPV6_UDP       0x00800000
 #define E1000_MRQC_RSS_FIELD_IPV6_UDP_EX    0x01000000
 
-/* Additional Receive Descriptor Control definitions */
+/* Additional RX/TX Descriptor Control definitions */
+#define E1000_TXDCTL_QUEUE_ENABLE  0x02000000 /* Enable specific Tx Queue */
 #define E1000_RXDCTL_QUEUE_ENABLE  0x02000000 /* Enable specific Rx Queue */
 
 /* Direct Cache Access (DCA) definitions */
