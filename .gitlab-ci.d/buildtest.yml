@@ -468,26 +468,15 @@ tsan-build:
     MAKE_CHECK_ARGS: bench V=1
 
 # gprof/gcov are GCC features
-build-gprof-gcov:
+gprof-gcov:
   extends: .native_build_job_template
   needs:
     job: amd64-ubuntu2004-container
+  timeout: 80m
   variables:
     IMAGE: ubuntu2004
     CONFIGURE_ARGS: --enable-gprof --enable-gcov
     TARGETS: aarch64-softmmu ppc64-softmmu s390x-softmmu x86_64-softmmu
-  artifacts:
-    expire_in: 1 days
-    paths:
-      - build
-
-check-gprof-gcov:
-  extends: .native_test_job_template
-  needs:
-    - job: build-gprof-gcov
-      artifacts: true
-  variables:
-    IMAGE: ubuntu2004
     MAKE_CHECK_ARGS: check
   after_script:
     - cd build
