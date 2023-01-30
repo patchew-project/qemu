@@ -181,8 +181,19 @@ As Debian 10 ("Buster") moved into LTS the big endian 32 bit version of
 MIPS moved out of support making it hard to maintain our
 cross-compilation CI tests of the architecture. As we no longer have
 CI coverage support may bitrot away before the deprecation process
-completes. The little endian variants of MIPS (both 32 and 64 bit) are
+completes. The little endian variants of MIPS are
 still a supported host architecture.
+
+32-bit host operating systems (since 8.0)
+'''''''''''''''''''''''''''''''''''''''''
+
+Testing 32-bit host OS support takes a lot of precious time during the QEMU
+contiguous integration tests, and considering that many OS vendors stopped
+shipping 32-bit variants of their OS distributions and most hardware from
+the past >10 years is capable of 64-bit, keeping the 32-bit support alive
+is an inadequate burden for the QEMU project. Thus QEMU will soon drop the
+support for 32-bit host systems.
+
 
 QEMU API (QAPI) events
 ----------------------
