@@ -193,8 +193,8 @@ if [ "$GIT" = "yes" ]; then
     git commit --signoff -F - <<EOF
 $GITSUBJ: Clean up includes
 
-Clean up includes so that osdep.h is included first and headers
-which it implies are not included manually.
+Clean up includes so that qemu/osdep.h is included first in .c, and
+not in .h, and headers which it implies are not included manually.
 
 This commit was created with scripts/clean-includes.
 
