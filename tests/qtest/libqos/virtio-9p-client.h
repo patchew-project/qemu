@@ -491,4 +491,11 @@ void v9fs_rlink(P9Req *req);
 TunlinkatRes v9fs_tunlinkat(TunlinkatOpt);
 void v9fs_runlinkat(P9Req *req);
 
+#ifdef CONFIG_WIN32
+static inline uint32_t getuid(void)
+{
+    return 0;
+}
+#endif
+
 #endif
