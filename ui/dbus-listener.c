@@ -321,6 +321,8 @@ static void dbus_gfx_switch(DisplayChangeListener *dcl,
         /* why not call disable instead? */
         return;
     }
+
+    dbus_gfx_update(dcl, 0, 0, surface_width(ddl->ds), surface_height(ddl->ds));
 }
 
 static void dbus_mouse_set(DisplayChangeListener *dcl,
