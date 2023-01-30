@@ -1278,3 +1278,21 @@ off_t qemu_dirent_off_win32(struct V9fsState *s, union V9fsFidOpenState *fs)
 {
     return s->ops->telldir(&s->ctx, fs);
 }
+
+uint64_t qemu_stat_rdev_win32(struct FsContext *fs_ctx)
+{
+    uint64_t rdev = 0;
+    LocalData *data = fs_ctx->private;
+
+    /*
+     * As Windows host does not have stat->st_rdev field, we use the first
+     * 3 characters of the root path to build a device id.
+     *
+     * (Windows root path always starts from a driver letter like "C:\")
+     */
+    if (data) {
+        memcpy(&rdev, data->root_path, 3);
+    }
+
+    return rdev;
+}
