@@ -495,7 +495,7 @@ static int local_close(FsContext *ctx, V9fsFidOpenState *fs)
 
 static int local_closedir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    return closedir(fs->dir.stream);
+    return qemu_closedir(fs->dir.stream);
 }
 
 static int local_open(FsContext *ctx, V9fsPath *fs_path,
@@ -533,12 +533,12 @@ static int local_opendir(FsContext *ctx,
 
 static void local_rewinddir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    rewinddir(fs->dir.stream);
+    qeme_rewinddir(fs->dir.stream);
 }
 
 static off_t local_telldir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    return telldir(fs->dir.stream);
+    return qemu_telldir(fs->dir.stream);
 }
 
 static bool local_is_mapped_file_metadata(FsContext *fs_ctx, const char *name)
@@ -552,13 +552,13 @@ static struct dirent *local_readdir(FsContext *ctx, V9fsFidOpenState *fs)
     struct dirent *entry;
 
 again:
-    entry = readdir(fs->dir.stream);
+    entry = qemu_readdir(fs->dir.stream);
     if (!entry) {
         return NULL;
     }
 #ifdef CONFIG_DARWIN
     int off;
-    off = telldir(fs->dir.stream);
+    off = qemu_telldir(fs->dir.stream);
     /* If telldir fails, fail the entire readdir call */
     if (off < 0) {
         return NULL;
@@ -581,7 +581,7 @@ again:
 
 static void local_seekdir(FsContext *ctx, V9fsFidOpenState *fs, off_t off)
 {
-    seekdir(fs->dir.stream, off);
+    qemu_seekdir(fs->dir.stream, off);
 }
 
 static ssize_t local_preadv(FsContext *ctx, V9fsFidOpenState *fs,
