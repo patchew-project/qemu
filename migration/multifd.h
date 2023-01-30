@@ -109,7 +109,9 @@ typedef struct {
     /* array of pages to sent.
      * The owner of 'pages' depends of 'pending_job' value:
      * pending_job == 0 -> migration_thread can use it.
+     *                     No need for mutex lock.
      * pending_job != 0 -> multifd_channel can use it.
+     *                     No need for mutex lock.
      */
     MultiFDPages_t *pages;
 
