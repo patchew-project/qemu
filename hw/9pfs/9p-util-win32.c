@@ -37,6 +37,13 @@
  *    Windows does not support opendir, the directory fd is created by
  *    CreateFile and convert to fd by _open_osfhandle(). Keep the fd open will
  *    lock and protect the directory (can not be modified or replaced)
+ *
+ * 5. Windows and MinGW does not provide safety directory accessing functions.
+ *    readdir(), seekdir() and telldir() may get or set wrong value because
+ *    directory entry data is not protected.
+ *
+ *    This file re-write POSIX directory accessing functions and cache all
+ *    directory entries during opening.
  */
 
 #include "qemu/osdep.h"
@@ -50,6 +57,27 @@
 #include <dirent.h>
 
 #define V9FS_MAGIC  0x53465039  /* string "9PFS" */
+
+/*
+ * MinGW and Windows does not provide safety way to seek directory while other
+ * thread is modifying same directory.
+ *
+ * The two structures are used to cache all directory entries when opening it.
+ * Cached entries are always returned for read or seek.
+ */
+struct dir_win32_entry {
+    QSLIST_ENTRY(dir_win32_entry) node;
+    struct _finddata_t dd_data;
+};
+
+struct dir_win32 {
+    struct dirent dd_dir;
+    uint32_t offset;
+    uint32_t total_entries;
+    QSLIST_HEAD(, dir_win32_entry) head;
+    struct dir_win32_entry *current;
+    char dd_name[1];
+};
 
 /*
  * win32_error_to_posix - convert Win32 error to POSIX error number
@@ -976,4 +1004,272 @@ int qemu_mknodat(int dirfd, const char *filename, mode_t mode, dev_t dev)
     error_report_once("Unsupported operation for mknodat");
     errno = ENOTSUP;
     return -1;
+}
+
+/*
+ * opendir_win32 - open a directory
+ *
+ * This function opens a directory and caches all directory entries.
+ */
+DIR *opendir_win32(const char *full_file_name)
+{
+    HANDLE hDir = INVALID_HANDLE_VALUE;
+    DWORD attribute;
+    intptr_t dd_handle = -1;
+    struct _finddata_t dd_data;
+
+    struct dir_win32 *stream = NULL;
+    struct dir_win32_entry *dir_entry;
+    struct dir_win32_entry *prev;
+    struct dir_win32_entry *next;
+
+    int err = 0;
+    int find_status;
+    uint32_t index;
+
+    /* open directory to prevent it being removed */
+
+    hDir = CreateFile(full_file_name, GENERIC_READ,
+                      FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                      NULL,
+                      OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+
+    if (hDir == INVALID_HANDLE_VALUE) {
+        err = win32_error_to_posix(GetLastError());
+        goto out;
+    }
+
+    attribute = GetFileAttributes(full_file_name);
+
+    /* symlink is not allow */
+    if (attribute == INVALID_FILE_ATTRIBUTES
+        || (attribute & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
+        err = EACCES;
+        goto out;
+    }
+
+    /* check if it is a directory */
+    if ((attribute & FILE_ATTRIBUTE_DIRECTORY) == 0) {
+        err = ENOTDIR;
+        goto out;
+    }
+
+    /*
+     * findfirst() need suffix format name like "\dir1\dir2\*", allocate more
+     * buffer to store suffix.
+     */
+    stream = g_malloc0(sizeof(struct dir_win32) + strlen(full_file_name) + 3);
+    QSLIST_INIT(&stream->head);
+
+    strcpy(stream->dd_name, full_file_name);
+    strcat(stream->dd_name, "\\*");
+
+    dd_handle = _findfirst(stream->dd_name, &dd_data);
+
+    if (dd_handle == -1) {
+        err = errno;
+        goto out;
+    }
+
+    index = 0;
+
+    /* read all entries to link list */
+    do {
+        dir_entry = g_malloc0(sizeof(struct dir_win32_entry));
+        memcpy(&dir_entry->dd_data, &dd_data, sizeof(dd_data));
+        if (index == 0) {
+            QSLIST_INSERT_HEAD(&stream->head, dir_entry, node);
+        } else {
+            QSLIST_INSERT_AFTER(prev, dir_entry, node);
+        }
+
+        prev = dir_entry;
+        find_status = _findnext(dd_handle, &dd_data);
+
+        index++;
+    } while (find_status == 0);
+
+    if (errno == ENOENT) {
+        /* No more matching files could be found, clean errno */
+        errno = 0;
+    } else {
+        err = errno;
+        goto out;
+    }
+
+    stream->total_entries = index;
+    stream->current = QSLIST_FIRST(&stream->head);
+
+out:
+    if (err != 0) {
+        errno = err;
+        /* free whole list */
+        if (stream != NULL) {
+            QSLIST_FOREACH_SAFE(dir_entry, &stream->head, node, next) {
+                QSLIST_REMOVE(&stream->head, dir_entry, dir_win32_entry, node);
+                g_free(dir_entry);
+            }
+            g_free(stream);
+            stream = NULL;
+        }
+    }
+
+    /* after cached all entries, this handle is useless */
+    if (dd_handle != -1) {
+        _findclose(dd_handle);
+    }
+
+    if (hDir != INVALID_HANDLE_VALUE) {
+        CloseHandle(hDir);
+    }
+
+    return (DIR *)stream;
+}
+
+/*
+ * closedir_win32 - close a directory
+ *
+ * This function closes directory and free all cached resources.
+ */
+int closedir_win32(DIR *pDir)
+{
+    struct dir_win32 *stream = (struct dir_win32 *)pDir;
+    struct dir_win32_entry *dir_entry;
+    struct dir_win32_entry *next;
+
+    if (stream == NULL) {
+        errno = EBADF;
+        return -1;
+    }
+
+    /* free all resources */
+
+    QSLIST_FOREACH_SAFE(dir_entry, &stream->head, node, next) {
+        QSLIST_REMOVE(&stream->head, dir_entry, dir_win32_entry, node);
+        g_free(dir_entry);
+    }
+
+    g_free(stream);
+
+    return 0;
+}
+
+/*
+ * readdir_win32 - read a directory
+ *
+ * This function reads a directory entry from cached entry list.
+ */
+struct dirent *readdir_win32(DIR *pDir)
+{
+    struct dir_win32 *stream = (struct dir_win32 *)pDir;
+
+    if (stream == NULL) {
+        errno = EBADF;
+        return NULL;
+    }
+
+    if (stream->offset >= stream->total_entries) {
+        /* reach to the end, return NULL without set errno */
+        return NULL;
+    }
+
+    memcpy(stream->dd_dir.d_name,
+           stream->current->dd_data.name,
+           sizeof(stream->dd_dir.d_name));
+
+    /* Windows does not provide inode number */
+    stream->dd_dir.d_ino = 0;
+    stream->dd_dir.d_reclen = 0;
+    stream->dd_dir.d_namlen = strlen(stream->dd_dir.d_name);
+
+    stream->offset++;
+    stream->current = QSLIST_NEXT(stream->current, node);
+
+    return &stream->dd_dir;
+}
+
+/*
+ * rewinddir_win32 - reset directory stream
+ *
+ * This function resets the position of the directory stream to the
+ * beginning of the directory.
+ */
+void rewinddir_win32(DIR *pDir)
+{
+    struct dir_win32 *stream = (struct dir_win32 *)pDir;
+
+    if (stream == NULL) {
+        errno = EBADF;
+        return;
+    }
+
+    stream->offset = 0;
+    stream->current = QSLIST_FIRST(&stream->head);
+
+    return;
+}
+
+/*
+ * seekdir_win32 - set the position of the next readdir() call in the directory
+ *
+ * This function sets the position of the next readdir() call in the directory
+ * from which the next readdir() call will start.
+ */
+void seekdir_win32(DIR *pDir, long pos)
+{
+    struct dir_win32 *stream = (struct dir_win32 *)pDir;
+    uint32_t index;
+
+    if (stream == NULL) {
+        errno = EBADF;
+        return;
+    }
+
+    if (pos < -1) {
+        errno = EINVAL;
+        return;
+    }
+
+    if (pos == -1 || pos >= (long)stream->total_entries) {
+        /* seek to the end */
+        stream->offset = stream->total_entries;
+        return;
+    }
+
+    if (pos - (long)stream->offset == 0) {
+        /* no need to seek */
+        return;
+    }
+
+    /* seek position from list head */
+
+    stream->current = QSLIST_FIRST(&stream->head);
+
+    for (index = 0; index < (uint32_t)pos; index++) {
+        stream->current = QSLIST_NEXT(stream->current, node);
+    }
+    stream->offset = index;
+
+    return;
+}
+
+/*
+ * telldir_win32 - return current location in directory
+ *
+ * This function returns current location in directory.
+ */
+long telldir_win32(DIR *pDir)
+{
+    struct dir_win32 *stream = (struct dir_win32 *)pDir;
+
+    if (stream == NULL) {
+        errno = EBADF;
+        return -1;
+    }
+
+    if (stream->offset > stream->total_entries) {
+        return -1;
+    }
+
+    return (long)stream->offset;
 }
