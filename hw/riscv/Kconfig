@@ -38,6 +38,9 @@ config OPENTITAN
     default y
     depends on RISCV32
     select IBEX
+    select IBEX_SPI_HOST
+    select IBEX_TIMER
+    select IBEX_UART
     select SIFIVE_PLIC
     select UNIMP
 
