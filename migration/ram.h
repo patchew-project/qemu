@@ -50,6 +50,7 @@ typedef struct {
     Stat64 duplicate;
     Stat64 normal;
     Stat64 postcopy_bytes;
+    Stat64 multifd_bytes;
 } MigrationAtomicStats;
 
 extern MigrationAtomicStats ram_atomic_counters;
