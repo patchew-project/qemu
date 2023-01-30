@@ -622,10 +622,7 @@ int multifd_send_sync_main(QEMUFile *f)
         p->packet_num = multifd_send_state->packet_num++;
         p->flags |= MULTIFD_FLAG_SYNC;
         p->pending_job++;
-        qemu_file_acct_rate_limit(f, p->packet_len);
         qemu_mutex_unlock(&p->mutex);
-        stat64_add(&ram_atomic_counters.multifd_bytes, p->packet_len);
-        stat64_add(&ram_atomic_counters.transferred, p->packet_len);
         qemu_sem_post(&p->sem);
 
         if (flush_zero_copy && p->c && (multifd_zero_copy_flush(p->c) < 0)) {
