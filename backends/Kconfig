@@ -1,1 +1,6 @@
 source tpm/Kconfig
+
+config IOMMUFD
+    bool
+    default y
+    depends on LINUX

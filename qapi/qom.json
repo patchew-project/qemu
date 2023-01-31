@@ -753,6 +753,18 @@
   'data': { 'socket': 'SocketAddress', 'device': 'str' } }
 
 ##
+# @IOMMUFDProperties:
+#
+# Properties for IOMMUFDbackend objects.
+#
+# fd: file descriptor name
+#
+# Since: 7.2
+##
+{ 'struct': 'IOMMUFDProperties',
+        'data': { '*fd': 'str' } }
+
+##
 # @RngProperties:
 #
 # Properties for objects of classes derived from rng.
@@ -903,6 +915,7 @@
     'qtest',
     'rng-builtin',
     'rng-egd',
+    'iommufd',
     { 'name': 'rng-random',
       'if': 'CONFIG_POSIX' },
     'secret',
@@ -984,7 +997,8 @@
       'tls-creds-x509':             'TlsCredsX509Properties',
       'tls-cipher-suites':          'TlsCredsProperties',
       'x-remote-object':            'RemoteObjectProperties',
-      'x-vfio-user-server':         'VfioUserServerProperties'
+      'x-vfio-user-server':         'VfioUserServerProperties',
+      'iommufd':                    'IOMMUFDProperties'
   } }
 
 ##
