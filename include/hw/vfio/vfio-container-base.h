@@ -31,12 +31,15 @@
 
 typedef enum VFIOContainerFeature {
     VFIO_FEAT_LIVE_MIGRATION,
+    VFIO_FEAT_DMA_COPY,
 } VFIOContainerFeature;
 
 typedef struct VFIOContainer VFIOContainer;
 
 typedef struct VFIOAddressSpace {
     AddressSpace *as;
+    MemoryListener listener;
+    bool listener_initialized;
     QLIST_HEAD(, VFIOContainer) containers;
     QLIST_ENTRY(VFIOAddressSpace) list;
 } VFIOAddressSpace;
@@ -75,7 +78,6 @@ typedef struct VFIOIOMMUBackendOpsClass VFIOIOMMUBackendOpsClass;
 struct VFIOContainer {
     VFIOIOMMUBackendOpsClass *ops;
     VFIOAddressSpace *space;
-    MemoryListener listener;
     Error *error;
     bool initialized;
     bool dirty_pages_supported;
@@ -94,6 +96,8 @@ bool vfio_container_check_extension(VFIOContainer *container,
 int vfio_container_dma_map(VFIOContainer *container,
                            hwaddr iova, ram_addr_t size,
                            void *vaddr, bool readonly);
+int vfio_container_dma_copy(VFIOContainer *src, VFIOContainer *dst,
+                            hwaddr iova, ram_addr_t size, bool readonly);
 int vfio_container_dma_unmap(VFIOContainer *container,
                              hwaddr iova, ram_addr_t size,
                              IOMMUTLBEntry *iotlb);
@@ -132,6 +136,8 @@ struct VFIOIOMMUBackendOpsClass {
     int (*dma_map)(VFIOContainer *container,
                    hwaddr iova, ram_addr_t size,
                    void *vaddr, bool readonly);
+    int (*dma_copy)(VFIOContainer *src, VFIOContainer *dst,
+                    hwaddr iova, ram_addr_t size, bool readonly);
     int (*dma_unmap)(VFIOContainer *container,
                      hwaddr iova, ram_addr_t size,
                      IOMMUTLBEntry *iotlb);

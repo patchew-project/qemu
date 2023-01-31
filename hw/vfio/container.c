@@ -386,9 +386,6 @@ err_out:
 
 static void vfio_listener_release(VFIOLegacyContainer *container)
 {
-    VFIOContainer *bcontainer = &container->bcontainer;
-
-    memory_listener_unregister(&bcontainer->listener);
     if (container->iommu_type == VFIO_SPAPR_TCE_v2_IOMMU) {
         memory_listener_unregister(&container->prereg_listener);
     }
@@ -929,14 +926,11 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     vfio_kvm_device_add_group(group);
 
     QLIST_INIT(&container->group_list);
-    QLIST_INSERT_HEAD(&space->containers, bcontainer, next);
 
     group->container = container;
     QLIST_INSERT_HEAD(&container->group_list, group, container_next);
 
-    bcontainer->listener = vfio_memory_listener;
-
-    memory_listener_register(&bcontainer->listener, bcontainer->space->as);
+    vfio_as_add_container(space, bcontainer);
 
     if (bcontainer->error) {
         ret = -1;
@@ -949,8 +943,8 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
 
     return 0;
 listener_release_exit:
+    vfio_as_del_container(space, bcontainer);
     QLIST_REMOVE(group, container_next);
-    QLIST_REMOVE(bcontainer, next);
     vfio_kvm_device_del_group(group);
     vfio_listener_release(container);
 
@@ -973,6 +967,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
 {
     VFIOLegacyContainer *container = group->container;
     VFIOContainer *bcontainer = &container->bcontainer;
+    VFIOAddressSpace *space = bcontainer->space;
 
     QLIST_REMOVE(group, container_next);
     group->container = NULL;
@@ -980,10 +975,12 @@ static void vfio_disconnect_container(VFIOGroup *group)
     /*
      * Explicitly release the listener first before unset container,
      * since unset may destroy the backend container if it's the last
-     * group.
+     * group. By removing container from the list, container is disconnected
+     * with address space memory listener.
      */
     if (QLIST_EMPTY(&container->group_list)) {
         vfio_listener_release(container);
+        vfio_as_del_container(space, bcontainer);
     }
 
     if (ioctl(group->fd, VFIO_GROUP_UNSET_CONTAINER, &container->fd)) {
@@ -992,10 +989,8 @@ static void vfio_disconnect_container(VFIOGroup *group)
     }
 
     if (QLIST_EMPTY(&container->group_list)) {
-        VFIOAddressSpace *space = bcontainer->space;
-
-        vfio_container_destroy(bcontainer);
         trace_vfio_disconnect_container(container->fd);
+        vfio_container_destroy(bcontainer);
         close(container->fd);
         g_free(container);
 
