@@ -1177,6 +1177,8 @@ static void vmxnet3_reset(VMXNET3State *s)
     s->drv_shmem = 0;
     s->tx_sop = true;
     s->skip_current_tx_pkt = false;
+
+    vmxnet3_reset_mac(s);
 }
 
 static void vmxnet3_update_rx_mode(VMXNET3State *s)
