@@ -58,6 +58,15 @@ int vfio_container_dma_unmap(VFIOContainer *container,
     return container->ops->dma_unmap(container, iova, size, iotlb);
 }
 
+int vfio_container_reset(VFIOContainer *container)
+{
+    if (!container->ops->reset) {
+        return -ENOENT;
+    }
+
+    return container->ops->reset(container);
+}
+
 void vfio_container_set_dirty_page_tracking(VFIOContainer *container,
                                             bool start)
 {

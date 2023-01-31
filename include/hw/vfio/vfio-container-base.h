@@ -97,6 +97,7 @@ int vfio_container_dma_map(VFIOContainer *container,
 int vfio_container_dma_unmap(VFIOContainer *container,
                              hwaddr iova, ram_addr_t size,
                              IOMMUTLBEntry *iotlb);
+int vfio_container_reset(VFIOContainer *container);
 bool vfio_container_devices_all_dirty_tracking(VFIOContainer *container);
 void vfio_container_set_dirty_page_tracking(VFIOContainer *container,
                                             bool start);
@@ -135,6 +136,7 @@ struct VFIOIOMMUBackendOpsClass {
                      IOMMUTLBEntry *iotlb);
     int (*attach_device)(VFIODevice *vbasedev, AddressSpace *as, Error **errp);
     void (*detach_device)(VFIODevice *vbasedev);
+    int (*reset)(VFIOContainer *container);
     /* migration feature */
     bool (*devices_all_dirty_tracking)(VFIOContainer *container);
     void (*set_dirty_page_tracking)(VFIOContainer *container, bool start);
