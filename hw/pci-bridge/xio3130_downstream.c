@@ -40,6 +40,8 @@
 #define XIO3130_SSVID_SSID              0
 #define XIO3130_EXP_OFFSET              0x90
 #define XIO3130_AER_OFFSET              0x100
+#define XIO3130_ACS_OFFSET \
+        (XIO3130_AER_OFFSET + PCI_ERR_SIZEOF)
 
 static void xio3130_downstream_write_config(PCIDevice *d, uint32_t address,
                                          uint32_t val, int len)
@@ -111,6 +113,10 @@ static void xio3130_downstream_realize(PCIDevice *d, Error **errp)
         goto err;
     }
 
+    if (!s->disable_acs) {
+        pcie_acs_init(d, XIO3130_ACS_OFFSET);
+    }
+
     return;
 
 err:
@@ -137,6 +143,7 @@ static void xio3130_downstream_exitfn(PCIDevice *d)
 static Property xio3130_downstream_props[] = {
     DEFINE_PROP_BIT(COMPAT_PROP_PCP, PCIDevice, cap_present,
                     QEMU_PCIE_SLTCAP_PCP_BITNR, true),
+    DEFINE_PROP_BOOL("x-disable-acs", PCIESlot, disable_acs, true),
     DEFINE_PROP_END_OF_LIST()
 };
 
