@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2022 rev.ng Labs Srl. All Rights Reserved.
+ *  Copyright(c) 2019-2023 rev.ng Labs Srl. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -1438,10 +1438,6 @@ void gen_write_reg(Context *c, YYLTYPE *locp, HexValue *reg, HexValue *value)
         locp,
         "gen_log_reg_write(", &reg->reg.id, ", ",
         &value_m, ");\n");
-    OUT(c,
-        locp,
-        "ctx_log_reg_write(ctx, ", &reg->reg.id,
-        ");\n");
     gen_rvalue_free(c, locp, reg);
     gen_rvalue_free(c, locp, &value_m);
 }
@@ -1894,7 +1890,6 @@ void gen_pred_assign(Context *c, YYLTYPE *locp, HexValue *left_pred,
     if (is_direct) {
         OUT(c, locp, "gen_log_pred_write(ctx, ", pred_id, ", ", left_pred,
             ");\n");
-        OUT(c, locp, "ctx_log_pred_write(ctx, ", pred_id, ");\n");
         gen_rvalue_free(c, locp, left_pred);
     }
     /* Free temporary value */
