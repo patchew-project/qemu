@@ -42,7 +42,7 @@
 #include "migration/migration.h"
 #include "sysemu/tpm.h"
 
-static QLIST_HEAD(, VFIOAddressSpace) vfio_address_spaces =
+VFIOAddressSpaceList vfio_address_spaces =
     QLIST_HEAD_INITIALIZER(vfio_address_spaces);
 
 void vfio_host_win_add(VFIOContainer *container, hwaddr min_iova,
@@ -873,8 +873,13 @@ int vfio_attach_device(VFIODevice *vbasedev, AddressSpace *as, Error **errp)
 {
     const VFIOIOMMUBackendOpsClass *ops;
 
-    ops = VFIO_IOMMU_BACKEND_OPS_CLASS(
+    if (vbasedev->iommufd) {
+        ops = VFIO_IOMMU_BACKEND_OPS_CLASS(
+                  object_class_by_name(TYPE_VFIO_IOMMU_BACKEND_IOMMUFD_OPS));
+    } else {
+        ops = VFIO_IOMMU_BACKEND_OPS_CLASS(
                   object_class_by_name(TYPE_VFIO_IOMMU_BACKEND_LEGACY_OPS));
+    }
     if (!ops) {
         error_setg(errp, "VFIO IOMMU Backend not found!");
         return -ENODEV;
