@@ -1278,7 +1278,8 @@ static int vfio_device_groupid(VFIODevice *vbasedev, Error **errp)
     return groupid;
 }
 
-int vfio_attach_device(VFIODevice *vbasedev, AddressSpace *as, Error **errp)
+static int
+vfio_legacy_attach_device(VFIODevice *vbasedev, AddressSpace *as, Error **errp)
 {
     int groupid = vfio_device_groupid(vbasedev, errp);
     VFIODevice *vbasedev_iter;
@@ -1307,14 +1308,16 @@ int vfio_attach_device(VFIODevice *vbasedev, AddressSpace *as, Error **errp)
         vfio_put_group(group);
         return -1;
     }
+    vbasedev->container = &group->container->bcontainer;
 
     return 0;
 }
 
-void vfio_detach_device(VFIODevice *vbasedev)
+static void vfio_legacy_detach_device(VFIODevice *vbasedev)
 {
     vfio_put_base_device(vbasedev);
     vfio_put_group(vbasedev->group);
+    vbasedev->container = NULL;
 }
 
 static void vfio_iommu_backend_legacy_ops_class_init(ObjectClass *oc,
@@ -1329,6 +1332,8 @@ static void vfio_iommu_backend_legacy_ops_class_init(ObjectClass *oc,
     ops->add_window = vfio_legacy_container_add_section_window;
     ops->del_window = vfio_legacy_container_del_section_window;
     ops->check_extension = vfio_legacy_container_check_extension;
+    ops->attach_device = vfio_legacy_attach_device;
+    ops->detach_device = vfio_legacy_detach_device;
 }
 
 static const TypeInfo vfio_iommu_backend_legacy_ops_type = {
