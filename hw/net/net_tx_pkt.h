@@ -46,6 +46,14 @@ void net_tx_pkt_init(struct NetTxPkt **pkt, PCIDevice *pci_dev,
 void net_tx_pkt_uninit(struct NetTxPkt *pkt);
 
 /**
+ * get ethernet header
+ *
+ * @pkt:            packet
+ * @ret:            ethernet header
+ */
+struct eth_header *net_tx_pkt_get_eth_hdr(struct NetTxPkt *pkt);
+
+/**
  * get virtio header
  *
  * @pkt:            packet
