@@ -24,9 +24,31 @@ enum s390_topology_polarity {
     POLARITY_MAX,
 };
 
+typedef union s390_topology_id {
+    uint64_t id;
+    struct {
+        uint8_t level5;
+        uint8_t drawer;
+        uint8_t book;
+        uint8_t socket;
+        uint8_t dedicated;
+        uint8_t polarity;
+        uint8_t type;
+        uint8_t origin;
+    };
+} s390_topology_id;
+
+typedef struct S390TopologyEntry {
+    QTAILQ_ENTRY(S390TopologyEntry) next;
+    s390_topology_id id;
+    uint64_t mask;
+} S390TopologyEntry;
+
 typedef struct S390Topology {
     uint8_t *cores_per_socket;
+    QTAILQ_HEAD(, S390TopologyEntry) list;
     CpuTopology *smp;
+    uint8_t polarity;
 } S390Topology;
 
 #ifdef CONFIG_KVM
