@@ -86,6 +86,18 @@ static void s390_topology_init(MachineState *ms)
 }
 
 /**
+ * s390_topology_reset:
+ *
+ * Generic reset for CPU topology, calls s390_topology_reset()
+ * s390_topology_reset() to reset the kernel Modified Topology
+ * change record.
+ */
+void s390_topology_reset(void)
+{
+    s390_cpu_topology_reset();
+}
+
+/**
  * s390_topology_cpu_default:
  * @cpu: pointer to a S390CPU
  * @errp: Error pointer

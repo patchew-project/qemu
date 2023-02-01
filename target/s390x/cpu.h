@@ -641,6 +641,7 @@ typedef struct SysIBTl_cpu {
 QEMU_BUILD_BUG_ON(sizeof(SysIBTl_cpu) != 16);
 
 void insert_stsi_15_1_x(S390CPU *cpu, int sel2, __u64 addr, uint8_t ar);
+void s390_cpu_topology_reset(void);
 
 /* MMU defines */
 #define ASCE_ORIGIN           (~0xfffULL) /* segment table origin             */
