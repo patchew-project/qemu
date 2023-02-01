@@ -1559,6 +1559,8 @@ igb_receive_internal(IGBCore *core, const struct iovec *iov, int iovcnt,
     total_size = net_rx_pkt_get_total_len(core->rx_pkt) +
         e1000x_fcs_len(core->mac);
 
+    igb_rx_fix_l4_csum(core, core->rx_pkt);
+
     for (i = 0; i < IGB_NUM_QUEUES; i++) {
         if (!(queues & BIT(i))) {
             continue;
@@ -1572,17 +1574,15 @@ igb_receive_internal(IGBCore *core, const struct iovec *iov, int iovcnt,
             continue;
         }
 
-        n |= E1000_ICR_RXT0;
-
-        igb_rx_fix_l4_csum(core, core->rx_pkt);
         igb_write_packet_to_guest(core, core->rx_pkt, &rxr, &rss_info);
+        core->mac[EICR] |= igb_rx_wb_eic(core, rxr.i->idx);
 
         /* Check if receive descriptor minimum threshold hit */
         if (igb_rx_descr_threshold_hit(core, rxr.i)) {
             n |= E1000_ICS_RXDMT0;
         }
 
-        core->mac[EICR] |= igb_rx_wb_eic(core, rxr.i->idx);
+        n |= E1000_ICR_RXT0;
 
         trace_e1000e_rx_written_to_guest(rxr.i->idx);
     }
