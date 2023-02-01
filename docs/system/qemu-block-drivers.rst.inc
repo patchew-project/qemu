@@ -1004,3 +1004,113 @@ some additional tasks, hooking io requests.
   .. option:: prealloc-size
 
     How much to preallocate (in bytes), default 128M.
+
+.. program:: filter-drivers
+.. option:: throttle
+
+  The throttle filter driver rate limits I/O requests so that the given IOPS
+  and bandwidth values are not exceeded. Limits are specified using the
+  following syntax::
+
+     --object '{"driver":"throttle-group","id":"tg0","limits":{"iops-total":2048,"bps-total":10485760}}'
+
+  The following throttle group limits are available:
+
+  .. program:: throttle-group
+  .. option:: iops-total
+
+    Limit total I/O operations per second.
+
+  .. option:: iops-total-max
+
+    I/O operations burst.
+
+  .. option:: iops-total-max-length
+
+    Length of the ``iops-total-max`` burst period, in seconds. It must only be
+    set if ``iops-total-max`` is set as well.
+
+  .. option:: iops-read
+
+    Limit read operations per second.
+
+  .. option:: iops-read-max
+
+     I/O operations read burst.
+
+  .. option:: iops-read-max-length
+
+    Length of the ``iops-read-max`` burst period, in seconds. It must only be
+    set if ``iops-read-max`` is set as well.
+
+  .. option:: iops-write
+
+    Limit write operations per second.
+
+  .. option:: iops-write-max
+
+    I/O operations write burst.
+
+  .. option:: iops-write-max-length
+
+    Length of the ``iops-write-max`` burst period, in seconds. It must only be
+    set if ``iops-write-max`` is set as well.
+
+  .. option:: bps-total
+
+    Limit total bytes per second.
+
+  .. option:: bps-total-max
+
+    Total bytes burst.
+
+  .. option:: bps-total-max-length
+
+    Length of the ``bps-total-max`` burst period, in seconds. It must only be
+    set if ``bps-total-max`` is set as well.
+
+  .. option:: bps-read
+
+    Limit read bytes per second.
+
+  .. option:: bps-read-max
+
+    Total bytes read burst.
+
+  .. option:: bps-read-max-length
+
+    Length of the ``bps-read-max`` burst period, in seconds. It must only be
+    set if ``bps-read-max`` is set as well.
+
+  .. option:: bps-write
+
+    Limit write bytes per second.
+
+  .. option:: bps-write-max
+
+    Total bytes write burst.
+
+  .. option:: bps-write-max-length
+
+    Length of the ``bps-write-max`` burst period, in seconds. It must only be
+    set if ``bps-write-max`` is set as well.
+
+  .. option:: iops-size
+
+    IOPS are counted as a multiple of this value, in bytes. For example, a 16
+    KB read request is counted as 4 IOPS when ``iops-size`` is 4 KB.
+
+  Throttle groups are defined separately from throttle blockdevs so they can be
+  shared by multiple blockdevs.
+
+  Note that the location of the throttle blockdev in the graph is significant.
+  Usually it will be one of the topmost nodes so that guest I/O requests are
+  throttled. When the throttle blockdev is located below a format driver it may
+  see a different I/O pattern due to image format metadata I/O.
+
+  Supported runtime options:
+
+  .. program:: throttle
+  .. option:: throttle-group
+
+    The id of the throttle group object that defines the I/O limits.
