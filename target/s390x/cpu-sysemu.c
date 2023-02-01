@@ -37,6 +37,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/tcg.h"
 #include "hw/core/sysemu-cpu-ops.h"
+#include "hw/s390x/cpu-topology.h"
 
 /* S390CPUClass::load_normal() */
 static void s390_cpu_load_normal(CPUState *s)
@@ -313,6 +314,19 @@ void s390_cpu_topology_reset(void)
 
     if (kvm_enabled()) {
         ret = kvm_s390_topology_set_mtcr(0);
+        if (ret) {
+            error_report("Failed to set Modified Topology Change Report: %s",
+                         strerror(-ret));
+        }
+    }
+}
+
+void s390_cpu_topology_set_modified(void)
+{
+    int ret;
+
+    if (kvm_enabled()) {
+        ret = kvm_s390_topology_set_mtcr(1);
         if (ret) {
             error_report("Failed to set Modified Topology Change Report: %s",
                          strerror(-ret));

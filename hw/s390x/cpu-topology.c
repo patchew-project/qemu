@@ -86,15 +86,103 @@ static void s390_topology_init(MachineState *ms)
 }
 
 /**
+ * s390_topology_set_cpus_polarity:
+ * @polarity: polarity requested by the caller
+ *
+ * Set all CPU entitlement according to polarity and
+ * dedication.
+ * Default vertical entitlement is POLARITY_VERTICAL_MEDIUM as
+ * it does not require host modification of the CPU provisioning
+ * until the host decide to modify individual CPU provisioning
+ * using QAPI interface.
+ * However a dedicated vCPU will have a POLARITY_VERTICAL_HIGH
+ * entitlement.
+ */
+static void s390_topology_set_cpus_polarity(int polarity)
+{
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        if (polarity == POLARITY_HORIZONTAL) {
+            S390_CPU(cs)->env.entitlement = 0;
+        } else if (S390_CPU(cs)->env.dedicated) {
+            S390_CPU(cs)->env.entitlement = POLARITY_VERTICAL_HIGH;
+        } else {
+            S390_CPU(cs)->env.entitlement = POLARITY_VERTICAL_MEDIUM;
+        }
+    }
+}
+
+/*
+ * s390_handle_ptf:
+ *
+ * @register 1: contains the function code
+ *
+ * Function codes 0 (horizontal) and 1 (vertical) define the CPU
+ * polarization requested by the guest.
+ *
+ * Verify that the polarization really need to change and call
+ * s390_topology_set_cpus_polarity() specifying the requested polarity
+ * to set for all CPUs.
+ *
+ * Function code 2 is handling topology changes and is interpreted
+ * by the SIE.
+ */
+void s390_handle_ptf(S390CPU *cpu, uint8_t r1, uintptr_t ra)
+{
+    CPUS390XState *env = &cpu->env;
+    uint64_t reg = env->regs[r1];
+    int fc = reg & S390_TOPO_FC_MASK;
+
+    if (!s390_has_feat(S390_FEAT_CONFIGURATION_TOPOLOGY)) {
+        s390_program_interrupt(env, PGM_OPERATION, ra);
+        return;
+    }
+
+    if (env->psw.mask & PSW_MASK_PSTATE) {
+        s390_program_interrupt(env, PGM_PRIVILEGED, ra);
+        return;
+    }
+
+    if (reg & ~S390_TOPO_FC_MASK) {
+        s390_program_interrupt(env, PGM_SPECIFICATION, ra);
+        return;
+    }
+
+    switch (fc) {
+    case POLARITY_VERTICAL:
+    case POLARITY_HORIZONTAL:
+        if (s390_topology.polarity == fc) {
+            env->regs[r1] |= S390_PTF_REASON_DONE;
+            setcc(cpu, 2);
+        } else {
+            s390_topology.polarity = fc;
+            s390_cpu_topology_set_modified();
+            s390_topology_set_cpus_polarity(fc);
+            setcc(cpu, 0);
+        }
+        break;
+    default:
+        /* Note that fc == 2 is interpreted by the SIE */
+        s390_program_interrupt(env, PGM_SPECIFICATION, ra);
+    }
+}
+
+/**
  * s390_topology_reset:
  *
  * Generic reset for CPU topology, calls s390_topology_reset()
  * s390_topology_reset() to reset the kernel Modified Topology
  * change record.
+ * Then set global and all CPUs polarity to POLARITY_HORIZONTAL.
  */
 void s390_topology_reset(void)
 {
     s390_cpu_topology_reset();
+    /* Set global polarity to POLARITY_HORIZONTAL */
+    s390_topology.polarity = POLARITY_HORIZONTAL;
+    /* Set all CPU polarity to POLARITY_HORIZONTAL */
+    s390_topology_set_cpus_polarity(POLARITY_HORIZONTAL);
 }
 
 /**
@@ -136,6 +224,21 @@ static void s390_topology_cpu_default(S390CPU *cpu, Error **errp)
         env->drawer_id = (env->core_id /
                           (smp->books * smp->sockets * smp->cores)) %
                          smp->drawers;
+    }
+
+    /*
+     * Machine polarity is set inside the global s390_topology structure.
+     * In the case the polarity is set as horizontal set the entitlement
+     * to POLARITY_VERTICAL_MEDIUM which is the better equivalent when
+     * machine polarity is set to vertical or POLARITY_VERTICAL_HIGH if
+     * the vCPU is dedicated.
+     */
+    if (s390_topology.polarity && !env->entitlement) {
+        if (env->dedicated) {
+            env->entitlement = POLARITY_VERTICAL_HIGH;
+        } else {
+            env->entitlement = POLARITY_VERTICAL_MEDIUM;
+        }
     }
 }
 
