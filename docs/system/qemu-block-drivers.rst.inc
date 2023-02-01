@@ -59,13 +59,27 @@ options that are supported for it.
 .. option:: qcow2
 
   QEMU image format, the most versatile format. Use it to have smaller
-  images (useful if your filesystem does not supports holes, for example
-  on Windows), zlib based compression and support of multiple VM
+  images (useful if your filesystem does not support holes, for example
+  on Windows), zlib/zstd compression and support of multiple VM
   snapshots.
 
-  Supported options:
+  Supported create options:
 
   .. program:: qcow2
+  .. option:: backing_file
+
+    File name of a base image (see ``create`` subcommand)
+
+  .. option:: backing_fmt
+
+    Image format of the base image
+
+  .. option:: cluster_size
+
+    Changes the qcow2 cluster size (must be between 512 and 2M). Smaller cluster
+    sizes can improve the image file size whereas larger cluster sizes generally
+    provide better performance.
+
   .. option:: compat
 
     Determines the qcow2 version to use. ``compat=0.10`` uses the
@@ -74,13 +88,9 @@ options that are supported for it.
     newer understand (this is the default). Amongst others, this includes
     zero clusters, which allow efficient copy-on-read for sparse images.
 
-  .. option:: backing_file
+  .. option:: compression_type
 
-    File name of a base image (see ``create`` subcommand)
-
-  .. option:: backing_fmt
-
-    Image format of the base image
+    Selects the compression algorithm (zlib or zstd).
 
   .. option:: encryption
 
@@ -150,19 +160,11 @@ options that are supported for it.
     Amount of time, in milliseconds, to use for PBKDF algorithm per key slot.
     Defaults to ``2000``. Only used when ``encrypt.format=luks``.
 
-  .. option:: cluster_size
+  .. option:: extended_l2
 
-    Changes the qcow2 cluster size (must be between 512 and 2M). Smaller cluster
-    sizes can improve the image file size whereas larger cluster sizes generally
-    provide better performance.
-
-  .. option:: preallocation
-
-    Preallocation mode (allowed values: ``off``, ``metadata``, ``falloc``,
-    ``full``). An image with preallocated metadata is initially larger but can
-    improve performance when the image needs to grow. ``falloc`` and ``full``
-    preallocations are like the same options of ``raw`` format, but sets up
-    metadata also.
+    Enables the Extended L2 Entries feature that divides each cluster into 32
+    separately allocated sub-clusters. A larger cluster size can be used, thus
+    reducing metadata overhead, while still allowing fine-grained allocation.
 
   .. option:: lazy_refcounts
 
@@ -195,6 +197,53 @@ options that are supported for it.
     be changed to NOCOW by setting ``nocow=on``. One can issue ``lsattr
     filename`` to check if the NOCOW flag is set or not (Capital 'C' is
     NOCOW flag).
+
+  .. option:: preallocation
+
+    Preallocation mode (allowed values: ``off``, ``metadata``, ``falloc``,
+    ``full``). An image with preallocated metadata is initially larger but can
+    improve performance when the image needs to grow. ``falloc`` and ``full``
+    preallocations are like the same options of ``raw`` format, but sets up
+    metadata also.
+
+  Supported runtime options:
+
+  .. program:: qcow2
+  .. option:: cache-clean-interval
+
+    Clean unused cache entries after this time (in seconds).
+
+  .. option:: cache-size
+
+    Maximum combined metadata (L2 tables and refcount blocks) cache size.
+
+  .. option:: encrypt.key-secret
+
+    ID of secret providing qcow2 AES key or LUKS passphrase.
+
+  .. option:: l2-cache-size
+
+    Maximum L2 table cache size.
+
+  .. option:: l2-cache-entry-size
+
+    Size of each entry in the L2 cache.
+
+  .. option:: pass-discard-request
+
+    Pass guest discard requests to the layer below (on/off).
+
+  .. option:: pass-discard-snapshot
+
+    Generate discard requests when snapshot related space is freed (on/off).
+
+  .. option:: pass-discard-other
+
+    Generate discard requests when other clusters are freed (on/off).
+
+  .. option:: refcount-cache-size
+
+    Maximum refcount block cache size.
 
 .. program:: image-formats
 .. option:: qed
