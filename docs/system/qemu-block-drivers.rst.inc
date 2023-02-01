@@ -6,9 +6,11 @@ any of the tools (like ``qemu-img``). This includes the preferred formats
 raw and qcow2 as well as formats that are supported for compatibility with
 older QEMU versions or other hypervisors.
 
-Depending on the image format, different options can be passed to
-``qemu-img create`` and ``qemu-img convert`` using the ``-o`` option.
-This section describes each format and the options that are supported for it.
+Depending on the image format, different options can be passed to ``qemu-img
+create`` and ``qemu-img convert`` using the ``-o`` option. These are called
+*create options*. Image formats also support different ``--blockdev`` options.
+These are called *runtime options*. This section describes each format and the
+options that are supported for it.
 
 .. program:: image-formats
 .. option:: raw
@@ -20,7 +22,7 @@ This section describes each format and the options that are supported for it.
   space. Use ``qemu-img info`` to know the real size used by the
   image or ``ls -ls`` on Unix/Linux.
 
-  Supported options:
+  Supported create options:
 
   .. program:: raw
   .. option:: preallocation
@@ -181,7 +183,7 @@ This section describes each format and the options that are supported for it.
    When converting QED images to qcow2, you might want to consider using the
    ``lazy_refcounts=on`` option to get a more QED-like behaviour.
 
-   Supported options:
+   Supported create options:
 
    .. program:: qed
    .. option:: backing_file
@@ -212,7 +214,7 @@ This section describes each format and the options that are supported for it.
   Old QEMU image format with support for backing files, compact image files,
   encryption and compression.
 
-  Supported options:
+  Supported create options:
 
    .. program:: qcow
    .. option:: backing_file
@@ -248,7 +250,7 @@ This section describes each format and the options that are supported for it.
 
   LUKS v1 encryption format, compatible with Linux dm-crypt/cryptsetup
 
-  Supported options:
+  Supported create options:
 
   .. program:: luks
   .. option:: key-secret
@@ -289,7 +291,7 @@ This section describes each format and the options that are supported for it.
 
   VirtualBox 1.1 compatible image format.
 
-  Supported options:
+  Supported create options:
 
   .. program:: vdi
   .. option:: static
@@ -302,7 +304,7 @@ This section describes each format and the options that are supported for it.
 
   VMware 3 and 4 compatible image format.
 
-  Supported options:
+  Supported create options:
 
   .. program: vmdk
   .. option:: backing_file
@@ -332,7 +334,7 @@ This section describes each format and the options that are supported for it.
 
   VirtualPC compatible image format (VHD).
 
-  Supported options:
+  Supported create options:
 
   .. program:: vpc
   .. option:: subformat
@@ -345,7 +347,7 @@ This section describes each format and the options that are supported for it.
 
   Hyper-V compatible image format (VHDX).
 
-  Supported options:
+  Supported create options:
 
   .. program:: VHDX
   .. option:: subformat
@@ -920,7 +922,7 @@ some additional tasks, hooking io requests.
   (expanding the protocol file) when writing past the file’s end. This can be
   useful for file-systems with slow allocation.
 
-  Supported options:
+  Supported runtime options:
 
   .. program:: preallocate
   .. option:: prealloc-align
