@@ -225,6 +225,9 @@ void cpu_loop (CPUSPARCState *env)
             restore_window(env);
             break;
 #ifndef TARGET_ABI32
+        case 0x105:
+            force_sig_fault(TARGET_SIGILL, ILL_ILLTRP, env->pc);
+            break;
         case 0x16e:
             flush_windows(env);
             sparc64_get_context(env);
