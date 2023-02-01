@@ -18,6 +18,10 @@
 #include "target/s390x/cpu.h"
 #include "hw/s390x/s390-virtio-ccw.h"
 #include "hw/s390x/cpu-topology.h"
+#include "qapi/qapi-commands-machine-target.h"
+#include "qapi/qmp/qdict.h"
+#include "monitor/hmp.h"
+#include "monitor/monitor.h"
 
 /*
  * s390_topology is used to keep the topology information.
@@ -378,4 +382,88 @@ void s390_topology_set_cpu(MachineState *ms, S390CPU *cpu, Error **errp)
 
     /* topology tree is reflected in props */
     s390_update_cpu_props(ms, cpu);
+}
+
+/*
+ * qmp and hmp implementations
+ */
+
+static void s390_change_topology(int64_t core_id, int64_t socket_id,
+                                 int64_t book_id, int64_t drawer_id,
+                                 int64_t polarity, bool dedicated,
+                                 Error **errp)
+{
+    MachineState *ms = current_machine;
+    S390CPU *cpu;
+    ERRP_GUARD();
+
+    cpu = (S390CPU *)ms->possible_cpus->cpus[core_id].cpu;
+    if (!cpu) {
+        error_setg(errp, "Core-id %ld does not exist!", core_id);
+        return;
+    }
+
+    /* Verify the new topology */
+    s390_topology_check(cpu, errp);
+    if (*errp) {
+        return;
+    }
+
+    /* Move the CPU into its new socket */
+    s390_set_core_in_socket(cpu, drawer_id, book_id, socket_id, true, errp);
+
+    /* All checks done, report topology in environment */
+    cpu->env.drawer_id = drawer_id;
+    cpu->env.book_id = book_id;
+    cpu->env.socket_id = socket_id;
+    cpu->env.dedicated = dedicated;
+    cpu->env.entitlement = polarity;
+
+    /* topology tree is reflected in props */
+    s390_update_cpu_props(ms, cpu);
+
+    /* Advertise the topology change */
+    s390_cpu_topology_set_modified();
+}
+
+void qmp_x_set_cpu_topology(int64_t core, int64_t socket,
+                         int64_t book, int64_t drawer,
+                         bool has_polarity, int64_t polarity,
+                         bool has_dedicated, bool dedicated,
+                         Error **errp)
+{
+    ERRP_GUARD();
+
+    if (!s390_has_topology()) {
+        error_setg(errp, "This machine doesn't support topology");
+        return;
+    }
+    if (!has_polarity) {
+        polarity = POLARITY_VERTICAL_MEDIUM;
+    }
+    if (!has_dedicated) {
+        dedicated = false;
+    }
+    s390_change_topology(core, socket, book, drawer, polarity, dedicated, errp);
+}
+
+void hmp_x_set_cpu_topology(Monitor *mon, const QDict *qdict)
+{
+    const int64_t core = qdict_get_int(qdict, "core");
+    const int64_t socket = qdict_get_int(qdict, "socket");
+    const int64_t book = qdict_get_int(qdict, "book");
+    const int64_t drawer = qdict_get_int(qdict, "drawer");
+    bool has_polarity    = qdict_haskey(qdict, "polarity");
+    const int64_t polarity = qdict_get_try_int(qdict, "polarity", 0);
+    bool has_dedicated    = qdict_haskey(qdict, "dedicated");
+    const bool dedicated = qdict_get_try_bool(qdict, "dedicated", false);
+    Error *local_err = NULL;
+
+    qmp_x_set_cpu_topology(core, socket, book, drawer,
+                           has_polarity, polarity,
+                           has_dedicated, dedicated,
+                           &local_err);
+    if (hmp_handle_error(mon, local_err)) {
+        return;
+    }
 }
