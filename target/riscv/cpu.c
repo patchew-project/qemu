@@ -154,6 +154,14 @@ const char * const riscv_fpr_regnames[] = {
   "f30/ft10", "f31/ft11"
 };
 
+const char * const riscv_rvv_regnames[] = {
+  "v0",  "v1",  "v2",  "v3",  "v4",  "v5",  "v6",
+  "v7",  "v8",  "v9",  "v10", "v11", "v12", "v13",
+  "v14", "v15", "v16", "v17", "v18", "v19", "v20",
+  "v21", "v22", "v23", "v24", "v25", "v26", "v27",
+  "v28", "v29", "v30", "v31"
+};
+
 static const char * const riscv_excp_names[] = {
     "misaligned_fetch",
     "fault_fetch",
@@ -375,7 +383,8 @@ static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
-    int i;
+    int i, j;
+    uint8_t *p;
 
 #if !defined(CONFIG_USER_ONLY)
     if (riscv_has_ext(env, RVH)) {
@@ -455,6 +464,44 @@ static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
             qemu_fprintf(f, " %-8s %016" PRIx64,
                          riscv_fpr_regnames[i], env->fpr[i]);
             if ((i & 3) == 3) {
+                qemu_fprintf(f, "\n");
+            }
+        }
+    }
+    if (riscv_has_ext(env, RVV)) {
+        if (flags & CPU_DUMP_RVV) {
+
+            static const int dump_rvv_csrs[] = {
+                        CSR_VSTART,
+                        CSR_VXSAT,
+                        CSR_VXRM,
+                        CSR_VCSR,
+                        CSR_VL,
+                        CSR_VTYPE,
+                        CSR_VLENB,
+                    };
+            for (int i = 0; i < ARRAY_SIZE(dump_rvv_csrs); ++i) {
+                int csrno = dump_rvv_csrs[i];
+                target_ulong val = 0;
+                RISCVException res = riscv_csrrw_debug(env, csrno, &val, 0, 0);
+
+                /*
+                 * Rely on the smode, hmode, etc, predicates within csr.c
+                 * to do the filtering of the registers that are present.
+                 */
+                if (res == RISCV_EXCP_NONE) {
+                    qemu_fprintf(f, " %-8s " TARGET_FMT_lx "\n",
+                                 csr_ops[csrno].name, val);
+                }
+            }
+            uint16_t vlenb = env_archcpu(env)->cfg.vlen >> 3;
+
+            for (i = 0; i < 32; i++) {
+                qemu_fprintf(f, " %-8s ", riscv_rvv_regnames[i]);
+                p = (uint8_t *)env->vreg;
+                for (j = 0; j < vlenb; j++) {
+                    qemu_fprintf(f, "%02x", *(p + i * vlenb + j));
+                }
                 qemu_fprintf(f, "\n");
             }
         }

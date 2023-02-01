@@ -35,7 +35,8 @@ bool qemu_log_separate(void);
 /* LOG_STRACE is used for user-mode strace logging. */
 #define LOG_STRACE         (1 << 19)
 #define LOG_PER_THREAD     (1 << 20)
-
+/* RISC-V "V" Vector Extension */
+#define CPU_LOG_RISCV_RVV  (1 << 21)
 /* Lock/unlock output. */
 
 FILE *qemu_log_trylock(void) G_GNUC_WARN_UNUSED_RESULT;

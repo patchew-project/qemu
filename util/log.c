@@ -495,6 +495,9 @@ const QEMULogItem qemu_log_items[] = {
       "log every user-mode syscall, its input, and its result" },
     { LOG_PER_THREAD, "tid",
       "open a separate log file per thread; filename must contain '%d'" },
+    { CPU_LOG_RISCV_RVV, "rvv",
+      "RISC-V only: add RISC-V \"V\" Vector Extension registers "
+            "in the 'cpu' logging" },
     { 0, NULL, NULL },
 };
 
