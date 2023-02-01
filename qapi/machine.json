@@ -53,11 +53,18 @@
 #
 # Additional information about a virtual S390 CPU
 #
-# @cpu-state: the virtual CPU's state
+# @cpu-state: the virtual CPU's state (since 2.12)
+# @dedicated: the virtual CPU's dedication (since 8.0)
+# @polarity: the virtual CPU's polarity (since 8.0)
 #
 # Since: 2.12
 ##
-{ 'struct': 'CpuInfoS390', 'data': { 'cpu-state': 'CpuS390State' } }
+{ 'struct': 'CpuInfoS390',
+    'data': { 'cpu-state': 'CpuS390State',
+              'dedicated': 'bool',
+              'polarity': 'int'
+    }
+}
 
 ##
 # @CpuInfoFast:
@@ -70,7 +77,7 @@
 #
 # @thread-id: ID of the underlying host thread
 #
-# @props: properties describing to which node/socket/core/thread
+# @props: properties describing to which node/drawer/book/socket/core/thread
 #         virtual CPU belongs to, provided if supported by board
 #
 # @target: the QEMU system emulation target, which determines which
