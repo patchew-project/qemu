@@ -16,11 +16,11 @@ options that are supported for it.
 .. option:: raw
 
   Raw disk image format. This format has the advantage of
-  being simple and easily exportable to all other emulators. If your
-  file system supports *holes* (for example in ext2 or ext3 on
-  Linux or NTFS on Windows), then only the written sectors will reserve
-  space. Use ``qemu-img info`` to know the real size used by the
-  image or ``ls -ls`` on Unix/Linux.
+  being simple and easily exportable to all other emulators. Modern
+  file systems support *holes* (for example in btrfs/XFS/ext4 on
+  Linux or NTFS on Windows) where space is allocated on demand as sectors are
+  written. Use ``qemu-img info`` to know the real size used by the image or
+  ``ls -ls`` on Unix/Linux.
 
   Supported create options:
 
@@ -32,6 +32,28 @@ options that are supported for it.
     calling ``posix_fallocate()``. ``full`` mode preallocates space
     for image by writing data to underlying storage. This data may or
     may not be zero, depending on the storage location.
+
+  Supported runtime options:
+
+  .. program:: raw
+  .. option:: offset
+
+    The byte position in the underlying file where the virtual disk starts.
+    This is handy when you want to present just a single partition from a
+    physical disk as the virtual disk. This option is usually used in
+    conjunction with the ``size`` option.
+
+  .. option:: size
+
+    Limit the virtual disk size to the given number of bytes, regardless of how
+    large the underlying file is. This option is usually used in conjunction
+    with the ``offset`` option.
+
+  Note the raw format can be omitted when no runtime options are being used. In
+  that case the raw format does nothing besides forwarding I/O requests to the
+  protocol blockdev. You can improve performance slightly by eliminating
+  ``--blockdev raw,file=file0,node-name=drive0`` and renaming the "file0"
+  blockdev to "drive0".
 
 .. program:: image-formats
 .. option:: qcow2
