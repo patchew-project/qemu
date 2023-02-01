@@ -3,9 +3,38 @@
 Disk Images
 -----------
 
-QEMU supports many disk image formats, including growable disk images
-(their size increase as non empty sectors are written), compressed and
-encrypted disk images.
+QEMU supports many different types of storage protocols, disk image file
+formats, and filter block drivers. *Protocols* provide access to storage such
+as local files or NBD exports. *Formats* implement file formats that are useful
+for sharing disk image files and add functionality like snapshots. *Filters*
+add behavior like I/O throttling.
+
+These features are composable in a graph. Each graph node is called a
+*blockdev*. This makes it possible to construct many different storage
+configurations. The simplest example is accessing a raw image file::
+
+   --blockdev file,filename=test.img,node-name=drive0
+
+A qcow2 image file throttled to 10 MB/s is specified like this::
+
+   --object throttle-group,x-bps-total=10485760,id=tg0 \
+   --blockdev file,filename=vm.qcow2,node-name=file0 \
+   --blockdev qcow2,file=file0,node-name=qcow0 \
+   --blockdev throttle,file=qcow0,throttle-group=tg0,node-name=drive0
+
+Blockdevs are not directly visible to guests. Guests use emulated storage
+controllers like a virtio-blk device to access a blockdev::
+
+   --device virtio-blk-pci,drive=drive0
+
+Note that QEMU has an older ``--drive`` syntax that is somewhat similar to
+``--blockdev``. ``--blockdev`` is preferred because ``--drive`` mixes storage
+controller and blockdev definitions in a single option that cannot express
+everything. When a "drive" or "device" is required by a command-line option or
+QMP command, a blockdev node-name can be used.
+
+The remainder of this chapter covers the block drivers and how to work with
+disk images.
 
 .. _disk_005fimages_005fquickstart:
 
