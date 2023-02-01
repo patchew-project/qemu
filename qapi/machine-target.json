@@ -371,3 +371,33 @@
   },
   'if': { 'all': [ 'TARGET_S390X', 'CONFIG_KVM' ] }
 }
+
+##
+# @CPU_POLARITY_CHANGE:
+#
+# Emitted when the guest asks to change the polarity.
+#
+# @polarity: polarity specified by the guest
+#
+# The guest can tell the host (via the PTF instruction) whether the
+# CPUs should be provisioned using horizontal or vertical polarity.
+#
+# On horizontal polarity the host is expected to provision all vCPUs
+# equally.
+# On vertical polarity the host can provision each vCPU differently.
+# The guest will get information on the details of the provisioning
+# the next time it uses the STSI(15) instruction.
+#
+# Since: 8.0
+#
+# Example:
+#
+# <- { "event": "CPU_POLARITY_CHANGE",
+#      "data": { "polarity": 0 },
+#      "timestamp": { "seconds": 1401385907, "microseconds": 422329 } }
+#
+##
+{ 'event': 'CPU_POLARITY_CHANGE',
+  'data': { 'polarity': 'int' },
+   'if': { 'all': [ 'TARGET_S390X', 'CONFIG_KVM'] }
+}
