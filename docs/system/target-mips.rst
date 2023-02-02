@@ -8,6 +8,8 @@ endian options, ``qemu-system-mips``, ``qemu-system-mipsel``
 ``qemu-system-mips64`` and ``qemu-system-mips64el``. Five different
 machine types are emulated:
 
+- Generic Virtual Platform \"virt\"
+
 -  The MIPS Malta prototype board \"malta\"
 
 -  An ACER Pica \"pica61\". This machine needs the 64-bit emulator.
@@ -16,6 +18,28 @@ machine types are emulated:
 
 -  A MIPS Magnum R4000 machine \"magnum\". This machine needs the
    64-bit emulator.
+
+The virt machine supports the following devices:
+
+- A range of MIPS CPUs, default is the P5600 (32-bit) or I6400 (64-bit)
+
+- MIPS CM (Coherence Manager) for SMP system with supported CPU
+
+- Google Goldfish PIC Interrupt Controller for system without CM
+
+- CFI parallel NOR flash memory
+
+- 1 NS16550 compatible UART
+
+- 1 Google Goldfish RTC
+
+- 1 MIPS Trickbox device
+
+- 8 virtio-mmio transport devices
+
+- 1 generic PCIe host bridge
+
+- The fw_cfg device that allows a guest to obtain data from QEMU
 
 The Malta emulation supports the following devices:
 
