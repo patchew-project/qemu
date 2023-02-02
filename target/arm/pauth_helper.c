@@ -385,6 +385,21 @@ static uint64_t pauth_original_ptr(uint64_t ptr, ARMVAParameters param)
     return deposit64(ptr, bot_pac_bit, top_pac_bit - bot_pac_bit, extfield);
 }
 
+static G_NORETURN
+void pauth_fail_exception(CPUARMState *env, int error_code)
+{
+    int target_el = arm_current_el(env);
+    if (target_el == 0) {
+        uint64_t hcr = arm_hcr_el2_eff(env);
+        if (arm_is_el2_enabled(env) && (hcr & HCR_TGE))
+            target_el = 2;
+        else
+            target_el = 1;
+    }
+
+    raise_exception_ra(env, EXCP_UDEF, syn_pacfail(error_code), target_el, GETPC());
+}
+
 static uint64_t pauth_auth(CPUARMState *env, uint64_t ptr, uint64_t modifier,
                            ARMPACKey *key, bool data, int keynumber,
                            bool is_combined)
@@ -403,6 +418,17 @@ static uint64_t pauth_auth(CPUARMState *env, uint64_t ptr, uint64_t modifier,
         uint64_t xor_mask = MAKE_64BIT_MASK(bot_bit, top_bit - bot_bit + 1) &
             ~MAKE_64BIT_MASK(55, 1);
         result = ((ptr ^ pac) & xor_mask) | (ptr & ~xor_mask);
+        if (cpu_isar_feature(aa64_fpac_combine, env_archcpu(env)) ||
+                (cpu_isar_feature(aa64_fpac, env_archcpu(env)) &&
+                 !is_combined)) {
+            int fpac_top = param.tbi ? 55 : 64;
+            uint64_t fpac_mask = MAKE_64BIT_MASK(bot_bit, fpac_top - bot_bit);
+            test = (result ^ sextract64(result, 55, 1)) & fpac_mask;
+            if (unlikely(test)) {
+                int error_code = ((data ? 1 : 0) << 1) | (keynumber);
+                pauth_fail_exception(env, error_code);
+            }
+        }
     } else {
         test = (pac ^ ptr) & ~MAKE_64BIT_MASK(55, 1);
         if (unlikely(extract64(test, bot_bit, top_bit - bot_bit))) {

@@ -48,6 +48,7 @@ enum arm_exception_class {
     EC_AA64_SMC               = 0x17,
     EC_SYSTEMREGISTERTRAP     = 0x18,
     EC_SVEACCESSTRAP          = 0x19,
+    EC_PACFAIL                = 0x1c,
     EC_SMETRAP                = 0x1d,
     EC_INSNABORT              = 0x20,
     EC_INSNABORT_SAME_EL      = 0x21,
@@ -219,6 +220,11 @@ static inline uint32_t syn_smetrap(SMEExceptionType etype, bool is_16bit)
 {
     return (EC_SMETRAP << ARM_EL_EC_SHIFT)
         | (is_16bit ? 0 : ARM_EL_IL) | etype;
+}
+
+static inline uint32_t syn_pacfail(int error_code)
+{
+    return (EC_PACFAIL << ARM_EL_EC_SHIFT) | error_code;
 }
 
 static inline uint32_t syn_pactrap(void)
