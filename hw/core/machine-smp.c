@@ -51,8 +51,8 @@ static char *cpu_hierarchy_to_string(MachineState *ms)
  * machine_parse_smp_config: Generic function used to parse the given
  *                           SMP configuration
  *
- * Any missing parameter in "cpus/maxcpus/sockets/cores/threads" will be
- * automatically computed based on the provided ones.
+ * Any missing parameter in "cpus/maxcpus/sockets/dies/clusters/cores/threads"
+ * will be automatically computed based on the provided ones.
  *
  * In the calculation of omitted sockets/cores/threads: we prefer sockets
  * over cores over threads before 6.2, while preferring cores over sockets
@@ -66,7 +66,8 @@ static char *cpu_hierarchy_to_string(MachineState *ms)
  *
  * For compatibility, apart from the parameters that will be computed, newly
  * introduced topology members which are likely to be target specific should
- * be directly set as 1 if they are omitted (e.g. dies for PC since 4.1).
+ * be directly set as 1 if they are omitted (e.g. dies for PC since v4.1 and
+ * clusters for arm since v7.0).
  */
 void machine_parse_smp_config(MachineState *ms,
                               const SMPConfiguration *config, Error **errp)
