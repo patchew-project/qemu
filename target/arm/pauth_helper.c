@@ -296,7 +296,9 @@ static uint64_t pauth_addpac(CPUARMState *env, uint64_t ptr, uint64_t modifier,
     ARMVAParameters param = aa64_va_parameters(env, ptr, mmu_idx);
     uint64_t pac, ext_ptr, ext, test;
     int bot_bit, top_bit;
-    bool tbi = data ? param.tbid : param.tbii;
+    bool tbi = (data ? FIELD_EX32(param, ARMVAP, TBID)
+                : FIELD_EX32(param, ARMVAP, TBII));
+    int tsz = FIELD_EX32(param, ARMVAP, TSZ);
 
     /* If tagged pointers are in use, use ptr<55>, otherwise ptr<63>.  */
     if (tbi) {
@@ -307,7 +309,7 @@ static uint64_t pauth_addpac(CPUARMState *env, uint64_t ptr, uint64_t modifier,
 
     /* Build a pointer with known good extension bits.  */
     top_bit = 64 - 8 * tbi;
-    bot_bit = 64 - param.tsz;
+    bot_bit = 64 - tsz;
     ext_ptr = deposit64(ptr, bot_bit, top_bit - bot_bit, ext);
 
     pac = pauth_computepac(env, ext_ptr, modifier, *key);
@@ -355,13 +357,15 @@ static uint64_t pauth_auth(CPUARMState *env, uint64_t ptr, uint64_t modifier,
 {
     ARMMMUIdx mmu_idx = arm_stage1_mmu_idx(env);
     ARMVAParameters param = aa64_va_parameters(env, ptr, mmu_idx);
-    bool tbi = data ? param.tbid : param.tbii;
+    bool tbi = (data ? FIELD_EX32(param, ARMVAP, TBID)
+                : FIELD_EX32(param, ARMVAP, TBII));
+    int tsz = FIELD_EX32(param, ARMVAP, TSZ);
     int bot_bit, top_bit;
     uint64_t pac, orig_ptr, test;
 
-    orig_ptr = pauth_original_ptr(ptr, param.tsz, tbi);
+    orig_ptr = pauth_original_ptr(ptr, tsz, tbi);
     pac = pauth_computepac(env, orig_ptr, modifier, *key);
-    bot_bit = 64 - param.tsz;
+    bot_bit = 64 - tsz;
     top_bit = 64 - 8 * tbi;
 
     test = (pac ^ ptr) & ~MAKE_64BIT_MASK(55, 1);
@@ -380,9 +384,11 @@ static uint64_t pauth_strip(CPUARMState *env, uint64_t ptr, bool data)
 {
     ARMMMUIdx mmu_idx = arm_stage1_mmu_idx(env);
     ARMVAParameters param = aa64_va_parameters(env, ptr, mmu_idx);
-    bool tbi = data ? param.tbid : param.tbii;
+    bool tbi = (data ? FIELD_EX32(param, ARMVAP, TBID)
+                : FIELD_EX32(param, ARMVAP, TBII));
+    int tsz = FIELD_EX32(param, ARMVAP, TSZ);
 
-    return pauth_original_ptr(ptr, param.tsz, tbi);
+    return pauth_original_ptr(ptr, tsz, tbi);
 }
 
 static G_NORETURN

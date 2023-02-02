@@ -225,6 +225,25 @@ typedef struct CPUARMTBFlags {
     target_ulong flags2;
 } CPUARMTBFlags;
 
+/*
+ * Parameters of a given virtual address, as extracted from the
+ * translation control register (TCR) for a given regime.
+ */
+typedef uint32_t ARMVAParameters;
+    FIELD(ARMVAP, SELECT, 0, 1)
+    FIELD(ARMVAP, TSZ, 1, 8)
+    FIELD(ARMVAP, TSZ_OOB, 9, 1)  /* tsz has been clamped to legal range */
+    FIELD(ARMVAP, PS, 10, 3)
+    FIELD(ARMVAP, SH, 13, 2)
+    FIELD(ARMVAP, GRAN, 15, 2)
+    FIELD(ARMVAP, TBID, 17, 1)    /* final TBI for data, not TCR TBID field */
+    FIELD(ARMVAP, TBII, 18, 1)    /* final TBI for insns */
+    FIELD(ARMVAP, EPD, 19, 1)
+    FIELD(ARMVAP, HPD, 20, 1)
+    FIELD(ARMVAP, DS, 21, 1)
+    FIELD(ARMVAP, HA, 22, 1)
+    FIELD(ARMVAP, HD, 23, 1)
+
 typedef struct ARMMMUFaultInfo ARMMMUFaultInfo;
 
 typedef struct CPUArchState {

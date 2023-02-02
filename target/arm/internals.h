@@ -1063,26 +1063,6 @@ static inline int arm_granule_bits(ARMGranuleSize gran)
     }
 }
 
-/*
- * Parameters of a given virtual address, as extracted from the
- * translation control register (TCR) for a given regime.
- */
-typedef struct ARMVAParameters {
-    unsigned tsz    : 8;
-    unsigned ps     : 3;
-    unsigned sh     : 2;
-    unsigned select : 1;
-    bool tbid       : 1;  /* final TBI for data, not the TBID field */
-    bool tbii       : 1;  /* final TBI for insns */
-    bool epd        : 1;
-    bool hpd        : 1;
-    bool tsz_oob    : 1;  /* tsz has been clamped to legal range */
-    bool ds         : 1;
-    bool ha         : 1;
-    bool hd         : 1;
-    ARMGranuleSize gran : 2;
-} ARMVAParameters;
-
 ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
                                    ARMMMUIdx mmu_idx);
 

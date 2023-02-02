@@ -4882,7 +4882,7 @@ static TLBIRange tlbi_aa64_get_range(CPUARMState *env, ARMMMUIdx mmuidx,
     gran = tlbi_range_tg_to_gran_size(page_size_granule);
 
     /* The granule encoded in value must match the granule in use. */
-    if (gran != param.gran) {
+    if (gran != FIELD_EX32(param, ARMVAP, GRAN)) {
         qemu_log_mask(LOG_GUEST_ERROR, "Invalid tlbi page size granule %d\n",
                       page_size_granule);
         return ret;
@@ -4895,12 +4895,12 @@ static TLBIRange tlbi_aa64_get_range(CPUARMState *env, ARMMMUIdx mmuidx,
 
     ret.length = (num + 1) << (exponent + page_shift);
 
-    if (param.select) {
+    if (FIELD_EX32(param, ARMVAP, SELECT)) {
         ret.base = sextract64(value, 0, 37);
     } else {
         ret.base = extract64(value, 0, 37);
     }
-    if (param.ds) {
+    if (FIELD_EX32(param, ARMVAP, DS)) {
         /*
          * With DS=1, BaseADDR is always shifted 16 so that it is able
          * to address all 52 va bits.  The input address is perforce
@@ -11048,6 +11048,7 @@ ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
     ARMGranuleSize gran;
     ARMCPU *cpu = env_archcpu(env);
     bool stage2 = regime_is_stage2(mmu_idx);
+    ARMVAParameters r;
 
     if (!regime_has_2_ranges(mmu_idx)) {
         select = 0;
@@ -11152,21 +11153,20 @@ ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
     tbid = (tbid >> select) & 1;
     tbii = (tbii >> select) & 1;
 
-    return (ARMVAParameters) {
-        .tsz = tsz,
-        .ps = ps,
-        .sh = sh,
-        .select = select,
-        .tbid = tbid,
-        .tbii = tbii,
-        .epd = epd,
-        .hpd = hpd,
-        .tsz_oob = tsz_oob,
-        .ds = ds,
-        .ha = ha,
-        .hd = ha && hd,
-        .gran = gran,
-    };
+    r = FIELD_DP32(0, ARMVAP, SELECT, select);
+    r = FIELD_DP32(r, ARMVAP, TSZ, tsz);
+    r = FIELD_DP32(r, ARMVAP, TSZ_OOB, tsz_oob);
+    r = FIELD_DP32(r, ARMVAP, PS, ps);
+    r = FIELD_DP32(r, ARMVAP, SH, sh);
+    r = FIELD_DP32(r, ARMVAP, GRAN, gran);
+    r = FIELD_DP32(r, ARMVAP, TBID, tbid);
+    r = FIELD_DP32(r, ARMVAP, TBII, tbii);
+    r = FIELD_DP32(r, ARMVAP, EPD, epd);
+    r = FIELD_DP32(r, ARMVAP, HPD, hpd);
+    r = FIELD_DP32(r, ARMVAP, DS, ds);
+    r = FIELD_DP32(r, ARMVAP, HA, ha);
+    r = FIELD_DP32(r, ARMVAP, HD, ha && hd);
+    return r;
 }
 
 /*

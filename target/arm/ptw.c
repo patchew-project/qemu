@@ -1014,6 +1014,7 @@ static ARMVAParameters aa32_va_parameters(CPUARMState *env, uint32_t va,
 {
     uint64_t tcr = regime_tcr(env, mmu_idx);
     uint32_t el = regime_el(env, mmu_idx);
+    ARMVAParameters r;
     int select, tsz;
     bool epd, hpd;
 
@@ -1065,12 +1066,11 @@ static ARMVAParameters aa32_va_parameters(CPUARMState *env, uint32_t va,
         hpd &= extract32(tcr, 6, 1);
     }
 
-    return (ARMVAParameters) {
-        .tsz = tsz,
-        .select = select,
-        .epd = epd,
-        .hpd = hpd,
-    };
+    r = FIELD_DP32(0, ARMVAP, SELECT, select);
+    r = FIELD_DP32(r, ARMVAP, TSZ, tsz);
+    r = FIELD_DP32(r, ARMVAP, EPD, epd);
+    r = FIELD_DP32(r, ARMVAP, HPD, hpd);
+    return r;
 }
 
 /*
@@ -1205,13 +1205,17 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
          * With FEAT_LVA, fault on less than minimum becomes required,
          * so our choice is to always raise the fault.
          */
-        if (param.tsz_oob) {
+        if (FIELD_EX32(param, ARMVAP, TSZ_OOB)) {
             goto do_translation_fault;
         }
 
-        addrsize = access_type == MMU_INST_FETCH ? param.tbii : param.tbid;
+        if (access_type == MMU_INST_FETCH) {
+            addrsize = FIELD_EX32(param, ARMVAP, TBII);
+        } else {
+            addrsize = FIELD_EX32(param, ARMVAP, TBID);
+        }
         addrsize = 64 - 8 * addrsize;
-        inputsize = 64 - param.tsz;
+        inputsize = 64 - FIELD_EX32(param, ARMVAP, TSZ);
 
         /*
          * Bound PS by PARANGE to find the effective output address size.
@@ -1219,7 +1223,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
          * supported mappings can be considered an implementation error.
          */
         ps = FIELD_EX64(cpu->isar.id_aa64mmfr0, ID_AA64MMFR0, PARANGE);
-        ps = MIN(ps, param.ps);
+        ps = MIN(ps, FIELD_EX32(param, ARMVAP, PS));
         assert(ps < ARRAY_SIZE(pamax_map));
         outputsize = pamax_map[ps];
 
@@ -1227,14 +1231,15 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
          * With LPA2, the effective output address (OA) size is at most 48 bits
          * unless TCR.DS == 1
          */
-        if (!param.ds && param.gran != Gran64K) {
+        if (!FIELD_EX32(param, ARMVAP, DS) &&
+            FIELD_EX32(param, ARMVAP, GRAN) != Gran64K) {
             outputsize = MIN(outputsize, 48);
         }
     } else {
         param = aa32_va_parameters(env, address, mmu_idx);
         level = 1;
         addrsize = (mmu_idx == ARMMMUIdx_Stage2 ? 40 : 32);
-        inputsize = addrsize - param.tsz;
+        inputsize = addrsize - FIELD_EX32(param, ARMVAP, TSZ);
         outputsize = 40;
     }
 
@@ -1250,13 +1255,13 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
     if (inputsize < addrsize) {
         target_ulong top_bits = sextract64(address, inputsize,
                                            addrsize - inputsize);
-        if (-top_bits != param.select) {
+        if (-top_bits != FIELD_EX32(param, ARMVAP, SELECT)) {
             /* The gap between the two regions is a Translation fault */
             goto do_translation_fault;
         }
     }
 
-    stride = arm_granule_bits(param.gran) - 3;
+    stride = arm_granule_bits(FIELD_EX32(param, ARMVAP, GRAN)) - 3;
 
     /*
      * Note that QEMU ignores shareability and cacheability attributes,
@@ -1266,14 +1271,14 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
      * implement any ASID-like capability so we can ignore it (instead
      * we will always flush the TLB any time the ASID is changed).
      */
-    ttbr = regime_ttbr(env, mmu_idx, param.select);
+    ttbr = regime_ttbr(env, mmu_idx, FIELD_EX32(param, ARMVAP, SELECT));
 
     /*
      * Here we should have set up all the parameters for the translation:
      * inputsize, ttbr, epd, stride, tbi
      */
 
-    if (param.epd) {
+    if (FIELD_EX32(param, ARMVAP, EPD)) {
         /*
          * Translation table walk disabled => Translation fault on TLB miss
          * Note: This is always 0 on 64-bit EL2 and EL3.
@@ -1306,7 +1311,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
         bool ok;
 
         /* SL2 is RES0 unless DS=1 & 4kb granule. */
-        if (param.ds && stride == 9 && sl2) {
+        if (FIELD_EX32(param, ARMVAP, DS) && stride == 9 && sl2) {
             if (sl0 != 0) {
                 level = 0;
                 goto do_translation_fault;
@@ -1368,7 +1373,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
      * For AArch64, the address field goes up to bit 47, or 49 with FEAT_LPA2;
      * the highest bits of a 52-bit output are placed elsewhere.
      */
-    if (param.ds) {
+    if (FIELD_EX32(param, ARMVAP, DS)) {
         descaddrmask = MAKE_64BIT_MASK(0, 50);
     } else if (arm_feature(env, ARM_FEATURE_V8)) {
         descaddrmask = MAKE_64BIT_MASK(0, 48);
@@ -1425,7 +1430,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
      * raise AddressSizeFault.
      */
     if (outputsize > 48) {
-        if (param.ds) {
+        if (FIELD_EX32(param, ARMVAP, DS)) {
             descaddr |= extract64(descriptor, 8, 2) << 50;
         } else {
             descaddr |= extract64(descriptor, 12, 4) << 48;
@@ -1470,7 +1475,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
          * Otherwise, pass the access fault on to software.
          */
         if (!(descriptor & (1 << 10))) {
-            if (param.ha) {
+            if (FIELD_EX32(param, ARMVAP, HA)) {
                 new_descriptor |= 1 << 10; /* AF */
             } else {
                 fi->type = ARMFault_AccessFlag;
@@ -1484,7 +1489,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
          * bit for writeback. The actual write protection test may still be
          * overridden by tableattrs, to be merged below.
          */
-        if (param.hd
+        if (FIELD_EX32(param, ARMVAP, HD)
             && extract64(descriptor, 51, 1)  /* DBM */
             && access_type == MMU_DATA_STORE) {
             if (regime_is_stage2(mmu_idx)) {
@@ -1504,7 +1509,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
     attrs = new_descriptor & (MAKE_64BIT_MASK(2, 10) | MAKE_64BIT_MASK(50, 14));
     if (!regime_is_stage2(mmu_idx)) {
         attrs |= nstable << 5; /* NS */
-        if (!param.hpd) {
+        if (!FIELD_EX32(param, ARMVAP, HPD)) {
             attrs |= extract64(tableattrs, 0, 2) << 53;     /* XN, PXN */
             /*
              * The sense of AP[1] vs APTable[0] is reversed, as APTable[0] == 1
@@ -1582,8 +1587,8 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
      * was re-purposed for output address bits.  The SH attribute in
      * that case comes from TCR_ELx, which we extracted earlier.
      */
-    if (param.ds) {
-        result->cacheattrs.shareability = param.sh;
+    if (FIELD_EX32(param, ARMVAP, DS)) {
+        result->cacheattrs.shareability = FIELD_EX32(param, ARMVAP, SH);
     } else {
         result->cacheattrs.shareability = extract32(attrs, 8, 2);
     }
