@@ -167,12 +167,11 @@ void cpu_loop (CPUSPARCState *env)
         }
 
         switch (trapnr) {
-#ifndef TARGET_SPARC64
-        case 0x88:
-        case 0x90:
+#ifdef TARGET_SPARC64
+        case TT_TRAP + 0x11: /* tl0_oldlinux64 */
+        case TT_TRAP + 0x6d: /* tl0_linux64 */
 #else
-        case 0x110:
-        case 0x16d:
+        case TT_TRAP + 0x10: /* t_linux */
 #endif
             ret = do_syscall (env, env->gregs[1],
                               env->regwptr[0], env->regwptr[1],
