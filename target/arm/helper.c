@@ -4054,13 +4054,30 @@ static void vmsa_ttbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     raw_write(env, ri, value);
 }
 
-static void vmsa_tcr_el12_write(CPUARMState *env, const ARMCPRegInfo *ri,
+static void vmsa_tcr_el1_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                uint64_t value)
 {
-    ARMCPU *cpu = env_archcpu(env);
+    CPUState *cs = env_cpu(env);
 
-    /* For AArch64 the A1 bit could result in a change of ASID, so TLB flush. */
-    tlb_flush(CPU(cpu));
+    /* For AA64, the A1 or AS bits could result in a change of ASID. */
+    tlb_flush_by_mmuidx(cs, (ARMMMUIdxBit_E10_1 |
+                             ARMMMUIdxBit_E10_1_PAN |
+                             ARMMMUIdxBit_E10_0));
+    raw_write(env, ri, value);
+}
+
+static void vmsa_tcr_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                               uint64_t value)
+{
+    CPUState *cs = env_cpu(env);
+
+    /*
+     * For AA64, the A1 or AS bits could result in a change of ASID.
+     * This only affects the EL2&0 regime, not the EL2 regime.
+     */
+    tlb_flush_by_mmuidx(cs, (ARMMMUIdxBit_E20_2 |
+                             ARMMMUIdxBit_E20_2_PAN |
+                             ARMMMUIdxBit_E20_0));
     raw_write(env, ri, value);
 }
 
@@ -4151,7 +4168,7 @@ static const ARMCPRegInfo vmsa_cp_reginfo[] = {
     { .name = "TCR_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 2,
       .access = PL1_RW, .accessfn = access_tvm_trvm,
-      .writefn = vmsa_tcr_el12_write,
+      .writefn = vmsa_tcr_el1_write,
       .raw_writefn = raw_write,
       .resetvalue = 0,
       .fieldoffset = offsetof(CPUARMState, cp15.tcr_el[1]) },
@@ -5894,7 +5911,7 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
       .resetvalue = 0 },
     { .name = "TCR_EL2", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 4, .crn = 2, .crm = 0, .opc2 = 2,
-      .access = PL2_RW, .writefn = vmsa_tcr_el12_write,
+      .access = PL2_RW, .writefn = vmsa_tcr_el2_write,
       .fieldoffset = offsetof(CPUARMState, cp15.tcr_el[2]) },
     { .name = "VTCR", .state = ARM_CP_STATE_AA32,
       .cp = 15, .opc1 = 4, .crn = 2, .crm = 1, .opc2 = 2,
