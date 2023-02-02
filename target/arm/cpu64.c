@@ -590,8 +590,7 @@ static void aarch64_add_sme_properties(Object *obj)
 
 void arm_cpu_pauth_finalize(ARMCPU *cpu, Error **errp)
 {
-    int arch_val = 0, impdef_val = 0;
-    uint64_t t;
+    int address_auth = 0, generic_auth = 0;
 
     /* Exit early if PAuth is enabled, and fall through to disable it */
     if ((kvm_enabled() || hvf_enabled()) && cpu->prop_pauth) {
@@ -603,30 +602,79 @@ void arm_cpu_pauth_finalize(ARMCPU *cpu, Error **errp)
         return;
     }
 
-    /* TODO: Handle HaveEnhancedPAC, HaveEnhancedPAC2, HaveFPAC. */
-    if (cpu->prop_pauth) {
-        if (cpu->prop_pauth_impdef) {
-            impdef_val = 1;
-        } else {
-            arch_val = 1;
-        }
-    } else if (cpu->prop_pauth_impdef) {
-        error_setg(errp, "cannot enable pauth-impdef without pauth");
-        error_append_hint(errp, "Add pauth=on to the CPU property list.\n");
+    if (cpu->prop_pauth_epac &&
+            (cpu->prop_pauth2 ||
+             cpu->prop_pauth_fpac ||
+             cpu->prop_pauth_fpac_combine)) {
+        error_setg(errp, "'pauth-epac' feature not compatible with any of "
+                   "'pauth-2', 'pauth-fpac', or 'pauth-fpac-combine'");
+        return;
     }
 
-    t = cpu->isar.id_aa64isar1;
-    t = FIELD_DP64(t, ID_AA64ISAR1, APA, arch_val);
-    t = FIELD_DP64(t, ID_AA64ISAR1, GPA, arch_val);
-    t = FIELD_DP64(t, ID_AA64ISAR1, API, impdef_val);
-    t = FIELD_DP64(t, ID_AA64ISAR1, GPI, impdef_val);
-    cpu->isar.id_aa64isar1 = t;
+    /* Determine the PAC features independently of the algorithm */
+    if (cpu->prop_pauth_fpac_combine) {
+        address_auth = 0b0101;
+    } else if (cpu->prop_pauth_fpac) {
+        address_auth = 0b0100;
+    } else if (cpu->prop_pauth2) {
+        address_auth = 0b0011;
+    } else if (cpu->prop_pauth_epac) {
+        address_auth = 0b0010;
+    }
+
+    /* Write the features into the correct field for the algorithm in use */
+    if (cpu->prop_pauth) {
+        uint64_t t;
+
+        if (cpu->prop_pauth_impdef && cpu->prop_pauth_qarma3) {
+            error_setg(errp, "Cannot set both qarma3 ('pauth-qarma3') and "
+                    "impdef ('pauth-impdef') pointer authentication ciphers");
+            return;
+        }
+
+        if (address_auth == 0)
+            address_auth = 0b0001;
+        generic_auth = 1;
+
+        if (cpu->prop_pauth_impdef) {
+            t = cpu->isar.id_aa64isar1;
+            t = FIELD_DP64(t, ID_AA64ISAR1, API, address_auth);
+            t = FIELD_DP64(t, ID_AA64ISAR1, GPI, generic_auth);
+            cpu->isar.id_aa64isar1 = t;
+        } else if (cpu->prop_pauth_qarma3) {
+            t = cpu->isar.id_aa64isar2;
+            t = FIELD_DP64(t, ID_AA64ISAR2, APA3, address_auth);
+            t = FIELD_DP64(t, ID_AA64ISAR2, GPA3, generic_auth);
+            cpu->isar.id_aa64isar2 = t;
+        } else {
+            t = cpu->isar.id_aa64isar1;
+            t = FIELD_DP64(t, ID_AA64ISAR1, APA, address_auth);
+            t = FIELD_DP64(t, ID_AA64ISAR1, GPA, generic_auth);
+            cpu->isar.id_aa64isar1 = t;
+        }
+    } else if (cpu->prop_pauth_impdef || cpu->prop_pauth_qarma3) {
+        error_setg(errp, "cannot enable pauth-impdef or pauth-qarma3 without pauth");
+        error_append_hint(errp, "Add pauth=on to the CPU property list.\n");
+    } else if (address_auth != 0) {
+        error_setg(errp, "cannot enable any pauth* features without pauth");
+        error_append_hint(errp, "Add pauth=on to the CPU property list.\n");
+    }
 }
 
 static Property arm_cpu_pauth_property =
     DEFINE_PROP_BOOL("pauth", ARMCPU, prop_pauth, true);
 static Property arm_cpu_pauth_impdef_property =
     DEFINE_PROP_BOOL("pauth-impdef", ARMCPU, prop_pauth_impdef, false);
+static Property arm_cpu_pauth_qarma3_property =
+    DEFINE_PROP_BOOL("pauth-qarma3", ARMCPU, prop_pauth_qarma3, false);
+static Property arm_cpu_pauth_epac_property =
+    DEFINE_PROP_BOOL("pauth-epac", ARMCPU, prop_pauth_epac, false);
+static Property arm_cpu_pauth2_property =
+    DEFINE_PROP_BOOL("pauth2", ARMCPU, prop_pauth2, false);
+static Property arm_cpu_pauth_fpac_property =
+    DEFINE_PROP_BOOL("pauth-fpac", ARMCPU, prop_pauth_fpac, false);
+static Property arm_cpu_pauth_fpac_combine_property =
+    DEFINE_PROP_BOOL("pauth-fpac-combine", ARMCPU, prop_pauth_fpac_combine, false);
 
 static void aarch64_add_pauth_properties(Object *obj)
 {
@@ -646,6 +694,11 @@ static void aarch64_add_pauth_properties(Object *obj)
         cpu->prop_pauth = cpu_isar_feature(aa64_pauth, cpu);
     } else {
         qdev_property_add_static(DEVICE(obj), &arm_cpu_pauth_impdef_property);
+        qdev_property_add_static(DEVICE(obj), &arm_cpu_pauth_qarma3_property);
+        qdev_property_add_static(DEVICE(obj), &arm_cpu_pauth_epac_property);
+        qdev_property_add_static(DEVICE(obj), &arm_cpu_pauth2_property);
+        qdev_property_add_static(DEVICE(obj), &arm_cpu_pauth_fpac_property);
+        qdev_property_add_static(DEVICE(obj), &arm_cpu_pauth_fpac_combine_property);
     }
 }
 

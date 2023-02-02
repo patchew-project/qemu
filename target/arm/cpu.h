@@ -1039,6 +1039,11 @@ struct ArchCPU {
      */
     bool prop_pauth;
     bool prop_pauth_impdef;
+    bool prop_pauth_qarma3;
+    bool prop_pauth_epac;
+    bool prop_pauth2; // also known as EnhancedPAC2/EPAC2
+    bool prop_pauth_fpac;
+    bool prop_pauth_fpac_combine;
     bool prop_lpa2;
 
     /* DCZ blocksize, in log_2(words), ie low 4 bits of DCZID_EL0 */
