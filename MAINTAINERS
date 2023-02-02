@@ -1674,7 +1674,7 @@ F: include/hw/southbridge/piix.h
 F: hw/misc/sga.c
 F: hw/isa/apm.c
 F: include/hw/isa/apm.h
-F: tests/unit/test-x86-cpuid.c
+F: tests/unit/test-x86-apicid.c
 F: tests/qtest/test-x86-cpuid-compat.c
 
 PC Chipset
