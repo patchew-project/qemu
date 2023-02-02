@@ -4874,7 +4874,7 @@ static TLBIRange tlbi_aa64_get_range(CPUARMState *env, ARMMMUIdx mmuidx,
     unsigned int page_size_granule, page_shift, num, scale, exponent;
     /* Extract one bit to represent the va selector in use. */
     uint64_t select = sextract64(value, 36, 1);
-    ARMVAParameters param = aa64_va_parameters(env, select, mmuidx, true);
+    ARMVAParameters param = aa64_va_parameters(env, select, mmuidx);
     TLBIRange ret = { };
     ARMGranuleSize gran;
 
@@ -11040,11 +11040,11 @@ static ARMGranuleSize sanitize_gran_size(ARMCPU *cpu, ARMGranuleSize gran,
 }
 
 ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
-                                   ARMMMUIdx mmu_idx, bool data)
+                                   ARMMMUIdx mmu_idx)
 {
     uint64_t tcr = regime_tcr(env, mmu_idx);
     bool epd, hpd, tsz_oob, ds, ha, hd;
-    int select, tsz, tbi, max_tsz, min_tsz, ps, sh;
+    int select, tsz, tbii, tbid, max_tsz, min_tsz, ps, sh;
     ARMGranuleSize gran;
     ARMCPU *cpu = env_archcpu(env);
     bool stage2 = regime_is_stage2(mmu_idx);
@@ -11147,18 +11147,18 @@ ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
     }
 
     /* Present TBI as a composite with TBID.  */
-    tbi = aa64_va_parameter_tbi(tcr, mmu_idx);
-    if (!data) {
-        tbi &= ~aa64_va_parameter_tbid(tcr, mmu_idx);
-    }
-    tbi = (tbi >> select) & 1;
+    tbid = aa64_va_parameter_tbi(tcr, mmu_idx);
+    tbii = tbid & ~aa64_va_parameter_tbid(tcr, mmu_idx);
+    tbid = (tbid >> select) & 1;
+    tbii = (tbii >> select) & 1;
 
     return (ARMVAParameters) {
         .tsz = tsz,
         .ps = ps,
         .sh = sh,
         .select = select,
-        .tbi = tbi,
+        .tbid = tbid,
+        .tbii = tbii,
         .epd = epd,
         .hpd = hpd,
         .tsz_oob = tsz_oob,

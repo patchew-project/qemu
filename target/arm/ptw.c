@@ -1193,8 +1193,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
     if (aarch64) {
         int ps;
 
-        param = aa64_va_parameters(env, address, mmu_idx,
-                                   access_type != MMU_INST_FETCH);
+        param = aa64_va_parameters(env, address, mmu_idx);
         level = 0;
 
         /*
@@ -1210,7 +1209,8 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
             goto do_translation_fault;
         }
 
-        addrsize = 64 - 8 * param.tbi;
+        addrsize = access_type == MMU_INST_FETCH ? param.tbii : param.tbid;
+        addrsize = 64 - 8 * addrsize;
         inputsize = 64 - param.tsz;
 
         /*

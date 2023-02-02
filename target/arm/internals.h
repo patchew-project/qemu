@@ -1072,7 +1072,8 @@ typedef struct ARMVAParameters {
     unsigned ps     : 3;
     unsigned sh     : 2;
     unsigned select : 1;
-    bool tbi        : 1;
+    bool tbid       : 1;  /* final TBI for data, not the TBID field */
+    bool tbii       : 1;  /* final TBI for insns */
     bool epd        : 1;
     bool hpd        : 1;
     bool tsz_oob    : 1;  /* tsz has been clamped to legal range */
@@ -1083,7 +1084,7 @@ typedef struct ARMVAParameters {
 } ARMVAParameters;
 
 ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
-                                   ARMMMUIdx mmu_idx, bool data);
+                                   ARMMMUIdx mmu_idx);
 
 int aa64_va_parameter_tbi(uint64_t tcr, ARMMMUIdx mmu_idx);
 int aa64_va_parameter_tbid(uint64_t tcr, ARMMMUIdx mmu_idx);

@@ -293,19 +293,20 @@ static uint64_t pauth_addpac(CPUARMState *env, uint64_t ptr, uint64_t modifier,
                              ARMPACKey *key, bool data)
 {
     ARMMMUIdx mmu_idx = arm_stage1_mmu_idx(env);
-    ARMVAParameters param = aa64_va_parameters(env, ptr, mmu_idx, data);
+    ARMVAParameters param = aa64_va_parameters(env, ptr, mmu_idx);
     uint64_t pac, ext_ptr, ext, test;
     int bot_bit, top_bit;
+    bool tbi = data ? param.tbid : param.tbii;
 
     /* If tagged pointers are in use, use ptr<55>, otherwise ptr<63>.  */
-    if (param.tbi) {
+    if (tbi) {
         ext = sextract64(ptr, 55, 1);
     } else {
         ext = sextract64(ptr, 63, 1);
     }
 
     /* Build a pointer with known good extension bits.  */
-    top_bit = 64 - 8 * param.tbi;
+    top_bit = 64 - 8 * tbi;
     bot_bit = 64 - param.tsz;
     ext_ptr = deposit64(ptr, bot_bit, top_bit - bot_bit, ext);
 
@@ -328,7 +329,7 @@ static uint64_t pauth_addpac(CPUARMState *env, uint64_t ptr, uint64_t modifier,
      * Preserve the determination between upper and lower at bit 55,
      * and insert pointer authentication code.
      */
-    if (param.tbi) {
+    if (tbi) {
         ptr &= ~MAKE_64BIT_MASK(bot_bit, 55 - bot_bit + 1);
         pac &= MAKE_64BIT_MASK(bot_bit, 54 - bot_bit + 1);
     } else {
@@ -339,12 +340,12 @@ static uint64_t pauth_addpac(CPUARMState *env, uint64_t ptr, uint64_t modifier,
     return pac | ext | ptr;
 }
 
-static uint64_t pauth_original_ptr(uint64_t ptr, ARMVAParameters param)
+static uint64_t pauth_original_ptr(uint64_t ptr, int tsz, bool tbi)
 {
     /* Note that bit 55 is used whether or not the regime has 2 ranges. */
     uint64_t extfield = sextract64(ptr, 55, 1);
-    int bot_pac_bit = 64 - param.tsz;
-    int top_pac_bit = 64 - 8 * param.tbi;
+    int bot_pac_bit = 64 - tsz;
+    int top_pac_bit = 64 - 8 * tbi;
 
     return deposit64(ptr, bot_pac_bit, top_pac_bit - bot_pac_bit, extfield);
 }
@@ -353,19 +354,20 @@ static uint64_t pauth_auth(CPUARMState *env, uint64_t ptr, uint64_t modifier,
                            ARMPACKey *key, bool data, int keynumber)
 {
     ARMMMUIdx mmu_idx = arm_stage1_mmu_idx(env);
-    ARMVAParameters param = aa64_va_parameters(env, ptr, mmu_idx, data);
+    ARMVAParameters param = aa64_va_parameters(env, ptr, mmu_idx);
+    bool tbi = data ? param.tbid : param.tbii;
     int bot_bit, top_bit;
     uint64_t pac, orig_ptr, test;
 
-    orig_ptr = pauth_original_ptr(ptr, param);
+    orig_ptr = pauth_original_ptr(ptr, param.tsz, tbi);
     pac = pauth_computepac(env, orig_ptr, modifier, *key);
     bot_bit = 64 - param.tsz;
-    top_bit = 64 - 8 * param.tbi;
+    top_bit = 64 - 8 * tbi;
 
     test = (pac ^ ptr) & ~MAKE_64BIT_MASK(55, 1);
     if (unlikely(extract64(test, bot_bit, top_bit - bot_bit))) {
         int error_code = (keynumber << 1) | (keynumber ^ 1);
-        if (param.tbi) {
+        if (tbi) {
             return deposit64(orig_ptr, 53, 2, error_code);
         } else {
             return deposit64(orig_ptr, 61, 2, error_code);
@@ -377,9 +379,10 @@ static uint64_t pauth_auth(CPUARMState *env, uint64_t ptr, uint64_t modifier,
 static uint64_t pauth_strip(CPUARMState *env, uint64_t ptr, bool data)
 {
     ARMMMUIdx mmu_idx = arm_stage1_mmu_idx(env);
-    ARMVAParameters param = aa64_va_parameters(env, ptr, mmu_idx, data);
+    ARMVAParameters param = aa64_va_parameters(env, ptr, mmu_idx);
+    bool tbi = data ? param.tbid : param.tbii;
 
-    return pauth_original_ptr(ptr, param);
+    return pauth_original_ptr(ptr, param.tsz, tbi);
 }
 
 static G_NORETURN
