@@ -217,6 +217,17 @@ void cpu_loop (CPUSPARCState *env)
             env->npc = env->npc + 4;
             break;
 
+#ifdef TARGET_SPARC64
+        case TT_TRAP + 0x6e:
+            flush_windows(env);
+            sparc64_get_context(env);
+            break;
+        case TT_TRAP + 0x6f:
+            flush_windows(env);
+            sparc64_set_context(env);
+            break;
+#endif
+
         case TARGET_TT_SPILL: /* window overflow */
             save_window(env);
             break;
@@ -224,18 +235,6 @@ void cpu_loop (CPUSPARCState *env)
             restore_window(env);
             break;
 
-#ifdef TARGET_SPARC64
-#ifndef TARGET_ABI32
-        case 0x16e:
-            flush_windows(env);
-            sparc64_get_context(env);
-            break;
-        case 0x16f:
-            flush_windows(env);
-            sparc64_set_context(env);
-            break;
-#endif
-#endif
         case EXCP_INTERRUPT:
             /* just indicate that signals should be handled asap */
             break;
