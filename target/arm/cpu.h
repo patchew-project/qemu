@@ -243,6 +243,7 @@ typedef uint32_t ARMVAParameters;
     FIELD(ARMVAP, DS, 21, 1)
     FIELD(ARMVAP, HA, 22, 1)
     FIELD(ARMVAP, HD, 23, 1)
+    FIELD(ARMVAP, INIT, 31, 1)
 
 typedef struct ARMMMUFaultInfo ARMMMUFaultInfo;
 
@@ -740,6 +741,16 @@ typedef struct CPUArchState {
 
     /* Optional fault info across tlb lookup. */
     ARMMMUFaultInfo *tlb_fi;
+
+    /* Cached VA Parameters. */
+    struct {
+        ARMVAParameters e0[2];
+        ARMVAParameters e1[2];
+        ARMVAParameters e2[2];
+        ARMVAParameters e3;
+        ARMVAParameters stage2;
+        ARMVAParameters stage2_s;
+    } vap_cache;
 
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;

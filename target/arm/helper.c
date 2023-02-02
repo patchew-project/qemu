@@ -4063,6 +4063,9 @@ static void vmsa_tcr_el1_write(CPUARMState *env, const ARMCPRegInfo *ri,
     tlb_flush_by_mmuidx(cs, (ARMMMUIdxBit_E10_1 |
                              ARMMMUIdxBit_E10_1_PAN |
                              ARMMMUIdxBit_E10_0));
+    memset(&env->vap_cache.e0, 0, sizeof(env->vap_cache.e0));
+    memset(&env->vap_cache.e1, 0, sizeof(env->vap_cache.e1));
+
     raw_write(env, ri, value);
 }
 
@@ -4078,6 +4081,25 @@ static void vmsa_tcr_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
     tlb_flush_by_mmuidx(cs, (ARMMMUIdxBit_E20_2 |
                              ARMMMUIdxBit_E20_2_PAN |
                              ARMMMUIdxBit_E20_0));
+    memset(&env->vap_cache.e0, 0, sizeof(env->vap_cache.e0));
+    memset(&env->vap_cache.e2, 0, sizeof(env->vap_cache.e2));
+
+    raw_write(env, ri, value);
+}
+
+static void vmsa_vtcr_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                uint64_t value)
+{
+    /* Bits of VSTCR_EL2 are shared with VTCR_EL2: flush both. */
+    env->vap_cache.stage2 = 0;
+    env->vap_cache.stage2_s = 0;
+    raw_write(env, ri, value);
+}
+
+static void vmsa_tcr_el3_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                uint64_t value)
+{
+    env->vap_cache.e3 = 0;
     raw_write(env, ri, value);
 }
 
@@ -5552,6 +5574,7 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
 static void do_hcr_write(CPUARMState *env, uint64_t value, uint64_t valid_mask)
 {
     ARMCPU *cpu = env_archcpu(env);
+    uint64_t changed;
 
     if (arm_feature(env, ARM_FEATURE_V8)) {
         valid_mask |= MAKE_64BIT_MASK(0, 34);  /* ARMv8.0 */
@@ -5605,6 +5628,8 @@ static void do_hcr_write(CPUARMState *env, uint64_t value, uint64_t valid_mask)
 
     /* Clear RES0 bits.  */
     value &= valid_mask;
+    changed = env->cp15.hcr_el2 ^ value;
+    env->cp15.hcr_el2 = value;
 
     /*
      * These bits change the MMU setup:
@@ -5614,11 +5639,14 @@ static void do_hcr_write(CPUARMState *env, uint64_t value, uint64_t valid_mask)
      * HCR_DCT enables tagging on (disabled) stage1 translation
      * HCR_FWB changes the interpretation of stage2 descriptor bits
      */
-    if ((env->cp15.hcr_el2 ^ value) &
-        (HCR_VM | HCR_PTW | HCR_DC | HCR_DCT | HCR_FWB)) {
+    if (changed & (HCR_VM | HCR_PTW | HCR_DC | HCR_DCT | HCR_FWB)) {
         tlb_flush(CPU(cpu));
     }
-    env->cp15.hcr_el2 = value;
+    /* E2H and TGE control {E20_2, E20_0} vs {E2, E10_0} regimes. */
+    if (changed & (HCR_E2H | HCR_TGE)) {
+        memset(&env->vap_cache.e0, 0, sizeof(env->vap_cache.e0));
+        memset(&env->vap_cache.e2, 0, sizeof(env->vap_cache.e2));
+    }
 
     /*
      * Updates to VI and VF require us to update the status of
@@ -5915,13 +5943,12 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
       .fieldoffset = offsetof(CPUARMState, cp15.tcr_el[2]) },
     { .name = "VTCR", .state = ARM_CP_STATE_AA32,
       .cp = 15, .opc1 = 4, .crn = 2, .crm = 1, .opc2 = 2,
-      .type = ARM_CP_ALIAS,
+      .type = ARM_CP_ALIAS, .writefn = vmsa_vtcr_el2_write,
       .access = PL2_RW, .accessfn = access_el3_aa32ns,
       .fieldoffset = offsetoflow32(CPUARMState, cp15.vtcr_el2) },
     { .name = "VTCR_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 2, .crm = 1, .opc2 = 2,
-      .access = PL2_RW,
-      /* no .writefn needed as this can't cause an ASID change */
+      .access = PL2_RW, .writefn = vmsa_vtcr_el2_write,
       .fieldoffset = offsetof(CPUARMState, cp15.vtcr_el2) },
     { .name = "VTTBR", .state = ARM_CP_STATE_AA32,
       .cp = 15, .opc1 = 6, .crm = 2,
@@ -6154,8 +6181,7 @@ static const ARMCPRegInfo el3_cp_reginfo[] = {
       .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el[3]) },
     { .name = "TCR_EL3", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 6, .crn = 2, .crm = 0, .opc2 = 2,
-      .access = PL3_RW,
-      /* no .writefn needed as this can't cause an ASID change */
+      .access = PL3_RW, .writefn = vmsa_tcr_el3_write,
       .resetvalue = 0,
       .fieldoffset = offsetof(CPUARMState, cp15.tcr_el[3]) },
     { .name = "ELR_EL3", .state = ARM_CP_STATE_AA64,
@@ -11039,19 +11065,47 @@ static ARMGranuleSize sanitize_gran_size(ARMCPU *cpu, ARMGranuleSize gran,
     return Gran64K;
 }
 
-ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
-                                   ARMMMUIdx mmu_idx)
+static ARMVAParameters *vap_cache(CPUARMState *env, ARMMMUIdx idx, bool sel)
+{
+    switch (idx) {
+    case ARMMMUIdx_Stage2:
+        return &env->vap_cache.stage2;
+    case ARMMMUIdx_Stage2_S:
+        return &env->vap_cache.stage2_s;
+    case ARMMMUIdx_E3:
+        return &env->vap_cache.e3;
+    case ARMMMUIdx_E2:
+        return &env->vap_cache.e2[0];
+    case ARMMMUIdx_E20_2_PAN:
+    case ARMMMUIdx_E20_2:
+        return &env->vap_cache.e2[sel];
+    case ARMMMUIdx_E10_1_PAN:
+    case ARMMMUIdx_E10_1:
+    case ARMMMUIdx_Stage1_E1:
+    case ARMMMUIdx_Stage1_E1_PAN:
+        return &env->vap_cache.e1[sel];
+    case ARMMMUIdx_E20_0:
+    case ARMMMUIdx_E10_0:
+    case ARMMMUIdx_Stage1_E0:
+        return &env->vap_cache.e0[sel];
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static ARMVAParameters __attribute__((noinline))
+aa64_va_parameters_build(CPUARMState *env, ARMMMUIdx mmu_idx, bool select)
 {
     uint64_t tcr = regime_tcr(env, mmu_idx);
     bool epd, hpd, tsz_oob, ds, ha, hd;
-    int select, tsz, tbii, tbid, max_tsz, min_tsz, ps, sh;
+    int tsz, tbii, tbid, max_tsz, min_tsz, ps, sh;
     ARMGranuleSize gran;
     ARMCPU *cpu = env_archcpu(env);
     bool stage2 = regime_is_stage2(mmu_idx);
     ARMVAParameters r;
 
     if (!regime_has_2_ranges(mmu_idx)) {
-        select = 0;
+        select = false;
         tsz = extract32(tcr, 0, 6);
         gran = tg0_to_gran_size(extract32(tcr, 14, 2));
         if (stage2) {
@@ -11069,11 +11123,6 @@ ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
     } else {
         bool e0pd;
 
-        /*
-         * Bit 55 is always between the two regions, and is canonical for
-         * determining if address tagging is enabled.
-         */
-        select = extract64(va, 55, 1);
         if (!select) {
             tsz = extract32(tcr, 0, 6);
             gran = tg0_to_gran_size(extract32(tcr, 14, 2));
@@ -11166,6 +11215,25 @@ ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
     r = FIELD_DP32(r, ARMVAP, DS, ds);
     r = FIELD_DP32(r, ARMVAP, HA, ha);
     r = FIELD_DP32(r, ARMVAP, HD, ha && hd);
+    r = FIELD_DP32(r, ARMVAP, INIT, 1);
+    return r;
+}
+
+ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
+                                   ARMMMUIdx mmu_idx)
+{
+    /*
+     * Bit 55 is always between the two regions, and is canonical for
+     * determining if address tagging is enabled.
+     * Will be zapped if !regime_has_2_ranges.
+     */
+    bool select = extract64(va, 55, 1);
+    ARMVAParameters *c = vap_cache(env, mmu_idx, select);
+    ARMVAParameters r = *c;
+
+    if (unlikely(!FIELD_EX32(r, ARMVAP, INIT))) {
+        *c = r = aa64_va_parameters_build(env, mmu_idx, select);
+    }
     return r;
 }
 
