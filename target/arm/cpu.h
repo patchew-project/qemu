@@ -1001,6 +1001,7 @@ struct ArchCPU {
         uint32_t dbgdevid1;
         uint64_t id_aa64isar0;
         uint64_t id_aa64isar1;
+        uint64_t id_aa64isar2;
         uint64_t id_aa64pfr0;
         uint64_t id_aa64pfr1;
         uint64_t id_aa64mmfr0;
@@ -3902,16 +3903,66 @@ static inline bool isar_feature_aa64_pauth(const ARMISARegisters *id)
             (FIELD_DP64(0, ID_AA64ISAR1, APA, 0xf) |
              FIELD_DP64(0, ID_AA64ISAR1, API, 0xf) |
              FIELD_DP64(0, ID_AA64ISAR1, GPA, 0xf) |
-             FIELD_DP64(0, ID_AA64ISAR1, GPI, 0xf))) != 0;
+             FIELD_DP64(0, ID_AA64ISAR1, GPI, 0xf))) != 0 ||
+           (id->id_aa64isar2 &
+            (FIELD_DP64(0, ID_AA64ISAR2, APA3, 0xf) |
+             FIELD_DP64(0, ID_AA64ISAR2, GPA3, 0xf))) != 0;
+}
+
+static inline bool isar_feature_aa64_pauth_arch_qarma5(const ARMISARegisters *id)
+{
+    /*
+     * Return true if pauth is enabled with the architected QARMA5 algorithm.
+     * QEMU will always set APA+GPA to the same value.
+     */
+    return FIELD_EX64(id->id_aa64isar1, ID_AA64ISAR1, APA) != 0;
+}
+
+static inline bool isar_feature_aa64_pauth_arch_qarma3(const ARMISARegisters *id)
+{
+    /*
+     * Return true if pauth is enabled with the architected QARMA3 algorithm.
+     * QEMU will always set APA3+GPA3 to the same value.
+     */
+    return FIELD_EX64(id->id_aa64isar2, ID_AA64ISAR2, APA3) != 0;
 }
 
 static inline bool isar_feature_aa64_pauth_arch(const ARMISARegisters *id)
 {
-    /*
-     * Return true if pauth is enabled with the architected QARMA algorithm.
-     * QEMU will always set APA+GPA to the same value.
-     */
-    return FIELD_EX64(id->id_aa64isar1, ID_AA64ISAR1, APA) != 0;
+    return isar_feature_aa64_pauth_arch_qarma5(id) ||
+        isar_feature_aa64_pauth_arch_qarma3(id);
+}
+
+static inline uint8_t isar_feature_pauth_get_features(const ARMISARegisters *id)
+{
+    if (isar_feature_aa64_pauth_arch_qarma5(id))
+        return FIELD_EX64(id->id_aa64isar1, ID_AA64ISAR1, APA);
+    else if (isar_feature_aa64_pauth_arch_qarma3(id))
+        return FIELD_EX64(id->id_aa64isar2, ID_AA64ISAR2, APA3);
+    else
+        return FIELD_EX64(id->id_aa64isar1, ID_AA64ISAR1, API);
+}
+
+static inline bool isar_feature_aa64_pauth_epac(const ARMISARegisters *id)
+{
+    return isar_feature_pauth_get_features(id) == 0b0010;
+}
+
+static inline bool isar_feature_aa64_fpac_combine(const ARMISARegisters *id)
+{
+    return isar_feature_pauth_get_features(id) == 0b0101;
+}
+
+static inline bool isar_feature_aa64_fpac(const ARMISARegisters *id)
+{
+    return isar_feature_pauth_get_features(id) == 0b0100 ||
+        isar_feature_aa64_fpac_combine(id);
+}
+
+static inline bool isar_feature_aa64_pauth2(const ARMISARegisters *id)
+{
+    return isar_feature_pauth_get_features(id) == 0b0011 ||
+        isar_feature_aa64_fpac(id);
 }
 
 static inline bool isar_feature_aa64_tlbirange(const ARMISARegisters *id)
