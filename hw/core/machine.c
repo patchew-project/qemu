@@ -39,7 +39,6 @@
 #include "exec/confidential-guest-support.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-pci.h"
-#include "qom/object_interfaces.h"
 
 GlobalProperty hw_compat_7_2[] = {};
 const size_t hw_compat_7_2_len = G_N_ELEMENTS(hw_compat_7_2);
