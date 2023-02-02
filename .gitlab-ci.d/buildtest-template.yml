@@ -21,7 +21,7 @@
       then
         ../meson/meson.py configure . -Dbackend_max_links="$LD_JOBS" ;
       fi || exit 1;
-    - make -j"$JOBS"
+    - env NINJA_STATUS="[ninja][%f/%t] " ninja | fgrep -v "[ninja]"
     - if test -n "$MAKE_CHECK_ARGS";
       then
         make -j"$JOBS" $MAKE_CHECK_ARGS ;
