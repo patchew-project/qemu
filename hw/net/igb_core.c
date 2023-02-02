@@ -1582,7 +1582,7 @@ igb_receive_internal(IGBCore *core, const struct iovec *iov, int iovcnt,
             n |= E1000_ICS_RXDMT0;
         }
 
-        n |= E1000_ICR_RXT0;
+        n |= E1000_ICR_RXDW;
 
         trace_e1000e_rx_written_to_guest(rxr.i->idx);
     }
