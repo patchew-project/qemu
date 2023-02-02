@@ -1810,7 +1810,13 @@ typedef struct CPUArchState {
 
     TPRAccess tpr_access_type;
 
+    /* Number of dies per package. */
     unsigned nr_dies;
+    /*
+     * Number of modules per die. Module level in x86 cpu topology is
+     * corresponding to smp.clusters.
+     */
+    unsigned nr_modules;
 } CPUX86State;
 
 struct kvm_msrs;
