@@ -310,9 +310,8 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
     /*
      * Initialize the internal sources, for IPIs and virtual devices.
      */
-    object_property_set_int(OBJECT(xsrc), "nr-irqs", xive->nr_irqs,
-                            &error_fatal);
-    object_property_set_link(OBJECT(xsrc), "xive", OBJECT(xive), &error_abort);
+    qdev_prop_set_uint32(DEVICE(xsrc), "nr-irqs", xive->nr_irqs);
+    qdev_prop_set_link(DEVICE(xsrc), "xive", OBJECT(xive));
     if (!qdev_realize(DEVICE(xsrc), NULL, errp)) {
         return;
     }
@@ -321,10 +320,8 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
     /*
      * Initialize the END ESB source
      */
-    object_property_set_int(OBJECT(end_xsrc), "nr-ends", xive->nr_irqs,
-                            &error_fatal);
-    object_property_set_link(OBJECT(end_xsrc), "xive", OBJECT(xive),
-                             &error_abort);
+    qdev_prop_set_uint32(DEVICE(end_xsrc), "nr-ends", xive->nr_irqs);
+    qdev_prop_set_link(DEVICE(end_xsrc), "xive", OBJECT(xive));
     if (!qdev_realize(DEVICE(end_xsrc), NULL, errp)) {
         return;
     }

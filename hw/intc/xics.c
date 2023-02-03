@@ -382,8 +382,8 @@ Object *icp_create(Object *cpu, const char *type, XICSFabric *xi, Error **errp)
     obj = object_new(type);
     object_property_add_child(cpu, type, obj);
     object_unref(obj);
-    object_property_set_link(obj, ICP_PROP_XICS, OBJECT(xi), &error_abort);
-    object_property_set_link(obj, ICP_PROP_CPU, cpu, &error_abort);
+    qdev_prop_set_link(DEVICE(obj), ICP_PROP_XICS, OBJECT(xi));
+    qdev_prop_set_link(DEVICE(obj), ICP_PROP_CPU, cpu);
     if (!qdev_realize(DEVICE(obj), NULL, errp)) {
         object_unparent(obj);
         obj = NULL;
