@@ -8642,8 +8642,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
         if (CPU_NEXT(first_cpu)) {
             TaskState *ts = cpu->opaque;
 
-            object_property_set_bool(OBJECT(cpu), "realized", false, NULL);
-            object_unref(OBJECT(cpu));
+            qdev_unrealize_and_unref(DEVICE(cpu), NULL);
             /*
              * At this point the CPU should be unrealized and removed
              * from cpu lists. We can clean-up the rest of the thread
