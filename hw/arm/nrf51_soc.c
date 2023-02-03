@@ -24,9 +24,7 @@
  * are supported in the future, add a sub-class of NRF51SoC for
  * the specific variants
  */
-#define NRF51822_FLASH_PAGES    256
 #define NRF51822_SRAM_PAGES     16
-#define NRF51822_FLASH_SIZE     (NRF51822_FLASH_PAGES * NRF51_PAGE_SIZE)
 #define NRF51822_SRAM_SIZE      (NRF51822_SRAM_PAGES * NRF51_PAGE_SIZE)
 
 #define BASE_TO_IRQ(base) ((base >> 12) & 0x1F)
@@ -122,11 +120,6 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
                        BASE_TO_IRQ(NRF51_RNG_BASE)));
 
     /* UICR, FICR, NVMC, FLASH */
-    if (!object_property_set_uint(OBJECT(&s->nvm), "flash-size",
-                                  s->flash_size, errp)) {
-        return;
-    }
-
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->nvm), errp)) {
         return;
     }
@@ -199,6 +192,7 @@ static void nrf51_soc_init(Object *obj)
     object_initialize_child(obj, "rng", &s->rng, TYPE_NRF51_RNG);
 
     object_initialize_child(obj, "nvm", &s->nvm, TYPE_NRF51_NVM);
+    object_property_add_alias(obj, "flash-size", OBJECT(&s->nvm), "flash-size");
 
     object_initialize_child(obj, "gpio", &s->gpio, TYPE_NRF51_GPIO);
 
@@ -215,8 +209,6 @@ static Property nrf51_soc_properties[] = {
     DEFINE_PROP_LINK("memory", NRF51State, board_memory, TYPE_MEMORY_REGION,
                      MemoryRegion *),
     DEFINE_PROP_UINT32("sram-size", NRF51State, sram_size, NRF51822_SRAM_SIZE),
-    DEFINE_PROP_UINT32("flash-size", NRF51State, flash_size,
-                       NRF51822_FLASH_SIZE),
     DEFINE_PROP_END_OF_LIST(),
 };
 

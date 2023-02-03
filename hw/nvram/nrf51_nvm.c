@@ -26,6 +26,9 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 
+#define NRF51822_FLASH_PAGES    256
+#define NRF51822_FLASH_SIZE     (NRF51822_FLASH_PAGES * NRF51_PAGE_SIZE)
+
 /*
  * FICR Registers Assignments
  * CODEPAGESIZE      0x010
@@ -358,7 +361,8 @@ static void nrf51_nvm_reset(DeviceState *dev)
 }
 
 static Property nrf51_nvm_properties[] = {
-    DEFINE_PROP_UINT32("flash-size", NRF51NVMState, flash_size, 0x40000),
+    DEFINE_PROP_UINT32("flash-size", NRF51NVMState,
+                       flash_size, NRF51822_FLASH_SIZE),
     DEFINE_PROP_END_OF_LIST(),
 };
 

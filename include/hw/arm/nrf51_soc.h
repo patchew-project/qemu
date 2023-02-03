@@ -45,7 +45,6 @@ struct NRF51State {
     MemoryRegion twi;
 
     uint32_t sram_size;
-    uint32_t flash_size;
 
     MemoryRegion *board_memory;
 
