@@ -204,11 +204,10 @@ static void unregister_vfs(PCIDevice *dev)
     for (i = 0; i < num_vfs; i++) {
         Error *errp = NULL;
         PCIDevice *vf = dev->exp.sriov_pf.vf[i];
-        object_property_set_bool(OBJECT(vf), "realized", false, &errp);
-        if (errp) {
+
+        if (!qdev_unrealize_and_unref(DEVICE(vf), &errp)) {
             warn_reportf_err(errp, "Failed to unplug: ");
         }
-        object_unparent(OBJECT(vf));
     }
     g_free(dev->exp.sriov_pf.vf);
     dev->exp.sriov_pf.vf = NULL;
