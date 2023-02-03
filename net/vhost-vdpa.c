@@ -952,6 +952,15 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
                                      iova_range);
         if (!ncs[i])
             goto err;
+
+        if (i == 0) {
+            VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, ncs[0]);
+
+            if (!s->vhost_vdpa.dev->migration_blocker) {
+                vhost_vdpa_net_valid_svq_features(features,
+                                        &s->vhost_vdpa.dev->migration_blocker);
+            }
+        }
     }
 
     if (has_cvq) {
