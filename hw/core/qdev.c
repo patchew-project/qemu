@@ -306,6 +306,15 @@ void qdev_unrealize(DeviceState *dev)
     object_property_set_bool(OBJECT(dev), "realized", false, &error_abort);
 }
 
+bool qdev_unrealize_and_unref(DeviceState *dev, Error **errp)
+{
+    bool ret;
+
+    ret = object_property_set_bool(OBJECT(dev), "realized", false, errp);
+    object_unref(OBJECT(dev));
+    return ret;
+}
+
 static int qdev_assert_realized_properly_cb(Object *obj, void *opaque)
 {
     DeviceState *dev = DEVICE(object_dynamic_cast(obj, TYPE_DEVICE));

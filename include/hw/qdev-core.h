@@ -374,6 +374,8 @@ bool qdev_realize(DeviceState *dev, BusState *bus, Error **errp);
  * for the only reference to the child device to be held by the parent
  * via the child<> property, and so the reference-count-drop done here
  * would be incorrect. For that use case you want qdev_realize().
+ *
+ * Returns %true on success or %false if an error occured.
  */
 bool qdev_realize_and_unref(DeviceState *dev, BusState *bus, Error **errp);
 
@@ -397,6 +399,24 @@ bool qdev_realize_and_unref(DeviceState *dev, BusState *bus, Error **errp);
  * the life of the simulation and should not be unrealized and freed.
  */
 void qdev_unrealize(DeviceState *dev);
+
+/**
+ * qdev_unrealize_and_unref: Unrealize a device and drop a reference
+ * @dev: device to unrealize
+ * @errp: pointer to error object
+ *
+ * Unrealize @dev and drop a reference.
+ * This is like qdev_unrealize(), except the caller must hold a
+ * (private) reference, which is dropped on return regardless of
+ * success or failure.
+ *
+ * Warning: most devices in QEMU do not expect to be unrealized.  Only
+ * devices which are hot-unpluggable should be unrealized (as part of
+ * the unplugging process); all other devices are expected to last for
+ * the life of the simulation and should not be unrealized and freed.
+ */
+bool qdev_unrealize_and_unref(DeviceState *dev, Error **errp);
+
 void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
                                  int required_for_version);
 HotplugHandler *qdev_get_bus_hotplug_handler(DeviceState *dev);
