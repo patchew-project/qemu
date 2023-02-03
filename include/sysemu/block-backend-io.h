@@ -74,8 +74,14 @@ void blk_iostatus_set_err(BlockBackend *blk, int error);
 int blk_get_max_iov(BlockBackend *blk);
 int blk_get_max_hw_iov(BlockBackend *blk);
 
+/*
+ * blk_io_plug/unplug are thread-local operations. This means that multiple
+ * IOThreads can simultaneously call plug/unplug, but the caller must ensure
+ * that each unplug() is called in the same IOThread of the matching plug().
+ */
 void blk_io_plug(BlockBackend *blk);
 void blk_io_unplug(BlockBackend *blk);
+
 AioContext *blk_get_aio_context(BlockBackend *blk);
 BlockAcctStats *blk_get_stats(BlockBackend *blk);
 void *blk_aio_get(const AIOCBInfo *aiocb_info, BlockBackend *blk,
