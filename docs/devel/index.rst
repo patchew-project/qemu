@@ -14,3 +14,4 @@ modifying QEMU's source code.
    index-api
    index-internals
    index-tcg
+   python/index
