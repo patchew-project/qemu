@@ -55,6 +55,7 @@ static void fsl_imx25_init(Object *obj)
     }
 
     object_initialize_child(obj, "fec", &s->fec, TYPE_IMX_FEC);
+    object_property_add_alias(obj, "fec-phy-num", OBJECT(&s->fec), "phy-num");
 
     object_initialize_child(obj, "rngc", &s->rngc, TYPE_IMX_RNGC);
 
@@ -169,7 +170,6 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
                                             epit_table[i].irq));
     }
 
-    object_property_set_uint(OBJECT(&s->fec), "phy-num", s->phy_num, &err);
     qdev_set_nic_properties(DEVICE(&s->fec), &nd_table[0]);
 
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->fec), errp)) {
@@ -315,7 +315,6 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
 }
 
 static Property fsl_imx25_properties[] = {
-    DEFINE_PROP_UINT32("fec-phy-num", FslIMX25State, phy_num, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

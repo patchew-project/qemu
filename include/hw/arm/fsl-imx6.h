@@ -74,7 +74,6 @@ struct FslIMX6State {
     MemoryRegion   caam;
     MemoryRegion   ocram;
     MemoryRegion   ocram_alias;
-    uint32_t       phy_num;
 };
 
 

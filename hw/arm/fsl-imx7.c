@@ -102,8 +102,12 @@ static void fsl_imx7_init(Object *obj)
      * Ethernet
      */
     for (i = 0; i < FSL_IMX7_NUM_ETHS; i++) {
-            snprintf(name, NAME_SIZE, "eth%d", i);
-            object_initialize_child(obj, name, &s->eth[i], TYPE_IMX_ENET);
+        g_autofree gchar *propname = g_strdup_printf("fec%d-phy-num", i + 1);
+        snprintf(name, NAME_SIZE, "eth%d", i);
+        object_initialize_child(obj, name, &s->eth[i], TYPE_IMX_ENET);
+        qdev_prop_set_uint32(DEVICE(&s->eth[i]), "phy-num", i);
+        object_property_add_alias(obj, propname,
+                                  OBJECT(&s->eth[i]), "phy-num");
     }
 
     /*
@@ -402,8 +406,6 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
             FSL_IMX7_ENET2_ADDR,
         };
 
-        object_property_set_uint(OBJECT(&s->eth[i]), "phy-num",
-                                 s->phy_num[i], &error_abort);
         object_property_set_uint(OBJECT(&s->eth[i]), "tx-ring-num",
                                  FSL_IMX7_ETH_NUM_TX_RINGS, &error_abort);
         qdev_set_nic_properties(DEVICE(&s->eth[i]), &nd_table[i]);
@@ -599,8 +601,6 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
 }
 
 static Property fsl_imx7_properties[] = {
-    DEFINE_PROP_UINT32("fec1-phy-num", FslIMX7State, phy_num[0], 0),
-    DEFINE_PROP_UINT32("fec2-phy-num", FslIMX7State, phy_num[1], 1),
     DEFINE_PROP_END_OF_LIST(),
 };
 

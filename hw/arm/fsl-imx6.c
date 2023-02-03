@@ -100,6 +100,7 @@ static void fsl_imx6_init(Object *obj)
 
 
     object_initialize_child(obj, "eth", &s->eth, TYPE_IMX_ENET);
+    object_property_add_alias(obj, "fec-phy-num", OBJECT(&s->eth), "phy-num");
 }
 
 static void fsl_imx6_realize(DeviceState *dev, Error **errp)
@@ -377,7 +378,6 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
                                             spi_table[i].irq));
     }
 
-    object_property_set_uint(OBJECT(&s->eth), "phy-num", s->phy_num, &err);
     qdev_set_nic_properties(DEVICE(&s->eth), &nd_table[0]);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->eth), errp)) {
         return;
@@ -451,7 +451,6 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
 }
 
 static Property fsl_imx6_properties[] = {
-    DEFINE_PROP_UINT32("fec-phy-num", FslIMX6State, phy_num, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

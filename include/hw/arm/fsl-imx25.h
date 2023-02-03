@@ -66,7 +66,6 @@ struct FslIMX25State {
     MemoryRegion   rom[2];
     MemoryRegion   iram;
     MemoryRegion   iram_alias;
-    uint32_t       phy_num;
 };
 
 /**
