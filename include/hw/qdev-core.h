@@ -108,7 +108,7 @@ struct DeviceClass {
      * The underscore at the end ensures a compile-time error if someone
      * assigns to dc->props instead of using device_class_set_props.
      */
-    Property *props_;
+    const Property *props_;
 
     /*
      * Can this device be instantiated with -device / device_add?

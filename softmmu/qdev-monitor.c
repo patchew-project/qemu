@@ -741,8 +741,8 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
 #define qdev_printf(fmt, ...) monitor_printf(mon, "%*s" fmt, indent, "", ## __VA_ARGS__)
 static void qbus_print(Monitor *mon, BusState *bus, int indent);
 
-static void qdev_print_props(Monitor *mon, DeviceState *dev, Property *props,
-                             int indent)
+static void qdev_print_props(Monitor *mon, DeviceState *dev,
+                             const Property *props, int indent)
 {
     if (!props)
         return;
