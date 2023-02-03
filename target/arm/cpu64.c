@@ -409,6 +409,13 @@ static void cpu_arm_set_sve(Object *obj, bool value, Error **errp)
     t = cpu->isar.id_aa64pfr0;
     t = FIELD_DP64(t, ID_AA64PFR0, SVE, value);
     cpu->isar.id_aa64pfr0 = t;
+
+    /* FEAT_SME requires SVE, so disable it if no SVE */
+    if (!value) {
+        t = cpu->isar.id_aa64pfr1;
+        t = FIELD_DP64(t, ID_AA64PFR1, SME, 0);
+        cpu->isar.id_aa64pfr1 = t;
+    }
 }
 
 void arm_cpu_sme_finalize(ARMCPU *cpu, Error **errp)
