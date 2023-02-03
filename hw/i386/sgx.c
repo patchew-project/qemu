@@ -299,7 +299,7 @@ void pc_machine_init_sgx_epc(PCMachineState *pcms)
                                 &sgx_epc->mr);
 
     for (list = x86ms->sgx_epc_list; list; list = list->next) {
-        obj = object_new("sgx-epc");
+        obj = object_new(TYPE_SGX_EPC);
 
         /* set the memdev link with memory backend */
         object_property_parse(obj, SGX_EPC_MEMDEV_PROP, list->value->memdev,
@@ -307,8 +307,7 @@ void pc_machine_init_sgx_epc(PCMachineState *pcms)
         /* set the numa node property for sgx epc object */
         object_property_set_uint(obj, SGX_EPC_NUMA_NODE_PROP, list->value->node,
                              &error_fatal);
-        object_property_set_bool(obj, "realized", true, &error_fatal);
-        object_unref(obj);
+        qdev_realize_and_unref(DEVICE(obj), NULL, &error_fatal);
     }
 
     if ((sgx_epc->base + sgx_epc->size) < sgx_epc->base) {
