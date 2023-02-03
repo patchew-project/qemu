@@ -1080,7 +1080,7 @@ static void ppc405_soc_realize(DeviceState *dev, Error **errp)
      * We use the 440 DDR SDRAM controller which has more regs and features
      * but it's compatible enough for now
      */
-    object_property_set_int(OBJECT(&s->sdram), "nbanks", 2, &error_abort);
+    qdev_prop_set_uint32(DEVICE(&s->sdram), "nbanks", 2);
     if (!ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(&s->sdram), &s->cpu, errp)) {
         return;
     }
@@ -1147,8 +1147,8 @@ static void ppc405_soc_realize(DeviceState *dev, Error **errp)
     }
 
     /* MAL */
-    object_property_set_int(OBJECT(&s->mal), "txc-num", 4, &error_abort);
-    object_property_set_int(OBJECT(&s->mal), "rxc-num", 2, &error_abort);
+    qdev_prop_set_uint8(DEVICE(&s->mal), "txc-num", 4);
+    qdev_prop_set_uint8(DEVICE(&s->mal), "rxc-num", 2);
     if (!ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(&s->mal), &s->cpu, errp)) {
         return;
     }

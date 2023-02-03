@@ -276,10 +276,8 @@ static void ppc405_init(MachineState *machine)
 
     object_initialize_child(OBJECT(machine), "soc", &ppc405->soc,
                             TYPE_PPC405_SOC);
-    object_property_set_link(OBJECT(&ppc405->soc), "dram",
-                             OBJECT(machine->ram), &error_abort);
-    object_property_set_uint(OBJECT(&ppc405->soc), "sys-clk", 33333333,
-                             &error_abort);
+    qdev_prop_set_link(DEVICE(&ppc405->soc), "dram", OBJECT(machine->ram));
+    qdev_prop_set_uint32(DEVICE(&ppc405->soc), "sys-clk", 33333333);
     qdev_realize(DEVICE(&ppc405->soc), NULL, &error_fatal);
 
     /* allocate and load BIOS */

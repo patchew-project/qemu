@@ -535,7 +535,7 @@ void ppc4xx_dcr_register(Ppc4xxDcrDeviceState *dev, int dcrn, void *opaque,
 bool ppc4xx_dcr_realize(Ppc4xxDcrDeviceState *dev, PowerPCCPU *cpu,
                         Error **errp)
 {
-    object_property_set_link(OBJECT(dev), "cpu", OBJECT(cpu), &error_abort);
+    qdev_prop_set_link(DEVICE(dev), "cpu", OBJECT(cpu));
     return sysbus_realize(SYS_BUS_DEVICE(dev), errp);
 }
 

@@ -200,8 +200,7 @@ static void bamboo_init(MachineState *machine)
 
     /* SDRAM controller */
     dev = qdev_new(TYPE_PPC4xx_SDRAM_DDR);
-    object_property_set_link(OBJECT(dev), "dram", OBJECT(machine->ram),
-                             &error_abort);
+    qdev_prop_set_link(dev, "dram", OBJECT(machine->ram));
     ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(dev), cpu, &error_fatal);
     object_unref(OBJECT(dev));
     /* XXX 440EP's ECC interrupts are on UIC1, but we've only created UIC0. */

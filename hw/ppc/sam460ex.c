@@ -345,13 +345,12 @@ static void sam460ex_init(MachineState *machine)
         exit(1);
     }
     dev = qdev_new(TYPE_PPC4xx_SDRAM_DDR2);
-    object_property_set_link(OBJECT(dev), "dram", OBJECT(machine->ram),
-                             &error_abort);
+    qdev_prop_set_link(dev, "dram", OBJECT(machine->ram));
     /*
      * Put all RAM on first bank because board has one slot
      * and firmware only checks that
      */
-    object_property_set_int(OBJECT(dev), "nbanks", 1, &error_abort);
+    qdev_prop_set_uint32(dev, "nbanks", 1);
     ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(dev), cpu, &error_fatal);
     object_unref(OBJECT(dev));
     /* FIXME: does 460EX have ECC interrupts? */

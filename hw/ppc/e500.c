@@ -943,8 +943,7 @@ void ppce500_init(MachineState *machine)
          * Secondary CPU starts in halted state for now. Needs to change
          * when implementing non-kernel boot.
          */
-        object_property_set_bool(OBJECT(cs), "start-powered-off", i != 0,
-                                 &error_fatal);
+        qdev_prop_set_bit(DEVICE(cs), "start-powered-off", i != 0);
         qdev_realize_and_unref(DEVICE(cs), NULL, &error_fatal);
 
         if (!firstenv) {
