@@ -13,7 +13,7 @@ void acpi_switch_to_modern_cphp(AcpiCpuHotplug *gpe,
     return;
 }
 
-void legacy_acpi_cpu_hotplug_init(MemoryRegion *container, Object *owner,
+void legacy_acpi_cpu_hotplug_init(MemoryRegion *container, DeviceState *parent,
                                   AcpiCpuHotplug *gpe, uint16_t base)
 {
     return;

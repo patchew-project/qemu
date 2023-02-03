@@ -571,7 +571,7 @@ static void piix4_acpi_system_hot_add_init(MemoryRegion *container,
     object_property_add_bool(OBJECT(s), "cpu-hotplug-legacy",
                              piix4_get_cpu_hotplug_legacy,
                              piix4_set_cpu_hotplug_legacy);
-    legacy_acpi_cpu_hotplug_init(container, OBJECT(s), &s->gpe,
+    legacy_acpi_cpu_hotplug_init(container, DEVICE(s), &s->gpe,
                                  PIIX4_CPU_HOTPLUG_IO_BASE);
 
     if (s->acpi_memory_hotplug.is_enabled) {

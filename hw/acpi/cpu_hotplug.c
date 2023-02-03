@@ -41,8 +41,8 @@ static void cpu_status_write(void *opaque, hwaddr addr, uint64_t data,
      */
     if (addr == 0 && data == 0) {
         AcpiCpuHotplug *gpe = opaque;
-        object_property_set_bool(gpe->device, "cpu-hotplug-legacy", false,
-                                 &error_abort);
+        object_property_set_bool(OBJECT(gpe->parent), "cpu-hotplug-legacy",
+                                 false, &error_abort);
     }
 }
 
@@ -66,8 +66,8 @@ static void acpi_set_cpu_present_bit(AcpiCpuHotplug *gpe, CPUState *cpu)
 
     cpu_id = k->get_arch_id(cpu);
     if ((cpu_id / 8) >= ACPI_GPE_PROC_LEN) {
-        object_property_set_bool(gpe->device, "cpu-hotplug-legacy", false,
-                                 &error_abort);
+        object_property_set_bool(OBJECT(gpe->parent), "cpu-hotplug-legacy",
+                                 false, &error_abort);
         return;
     }
 
@@ -81,15 +81,15 @@ void legacy_acpi_cpu_plug_cb(HotplugHandler *hotplug_dev, AcpiCpuHotplug *gpe,
     acpi_send_event(DEVICE(hotplug_dev), ACPI_CPU_HOTPLUG_STATUS);
 }
 
-void legacy_acpi_cpu_hotplug_init(MemoryRegion *container, Object *owner,
+void legacy_acpi_cpu_hotplug_init(MemoryRegion *container, DeviceState *parent,
                                   AcpiCpuHotplug *gpe, uint16_t base)
 {
     CPUState *cpu;
 
-    memory_region_init_io(&gpe->io, owner, &AcpiCpuHotplug_ops,
+    memory_region_init_io(&gpe->io, OBJECT(parent), &AcpiCpuHotplug_ops,
                           gpe, "acpi-cpu-hotplug", ACPI_GPE_PROC_LEN);
     memory_region_add_subregion(container, base, &gpe->io);
-    gpe->device = owner;
+    gpe->parent = parent;
 
     CPU_FOREACH(cpu) {
         acpi_set_cpu_present_bit(gpe, cpu);
@@ -100,10 +100,10 @@ void acpi_switch_to_modern_cphp(AcpiCpuHotplug *gpe,
                                 CPUHotplugState *cpuhp_state,
                                 uint16_t io_port)
 {
-    MemoryRegion *container = pci_address_space_io(PCI_DEVICE(gpe->device));
+    MemoryRegion *container = pci_address_space_io(PCI_DEVICE(gpe->parent));
 
     memory_region_del_subregion(container, &gpe->io);
-    cpu_hotplug_hw_init(container, gpe->device, cpuhp_state, io_port);
+    cpu_hotplug_hw_init(container, OBJECT(gpe->parent), cpuhp_state, io_port);
 }
 
 void build_legacy_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
