@@ -53,7 +53,7 @@ typedef struct ICH9LPCPMRegs {
     Notifier powerdown_notifier;
 
     bool cpu_hotplug_legacy;
-    AcpiCpuHotplug gpe_cpu;
+    AcpiCpuHotplug gpe;
     CPUHotplugState cpuhp_state;
 
     bool keep_pci_slot_hpc;

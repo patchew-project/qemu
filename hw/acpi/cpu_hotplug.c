@@ -26,8 +26,8 @@
 
 static uint64_t cpu_status_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    AcpiCpuHotplug *cpus = opaque;
-    uint64_t val = cpus->sts[addr];
+    AcpiCpuHotplug *gpe = opaque;
+    uint64_t val = gpe->sts[addr];
 
     return val;
 }
@@ -40,8 +40,8 @@ static void cpu_status_write(void *opaque, hwaddr addr, uint64_t data,
        mode by writing 0 at the beginning of legacy CPU bitmap
      */
     if (addr == 0 && data == 0) {
-        AcpiCpuHotplug *cpus = opaque;
-        object_property_set_bool(cpus->device, "cpu-hotplug-legacy", false,
+        AcpiCpuHotplug *gpe = opaque;
+        object_property_set_bool(gpe->device, "cpu-hotplug-legacy", false,
                                  &error_abort);
     }
 }
@@ -59,51 +59,51 @@ static const MemoryRegionOps AcpiCpuHotplug_ops = {
     },
 };
 
-static void acpi_set_cpu_present_bit(AcpiCpuHotplug *g, CPUState *cpu)
+static void acpi_set_cpu_present_bit(AcpiCpuHotplug *gpe, CPUState *cpu)
 {
     CPUClass *k = CPU_GET_CLASS(cpu);
     int64_t cpu_id;
 
     cpu_id = k->get_arch_id(cpu);
     if ((cpu_id / 8) >= ACPI_GPE_PROC_LEN) {
-        object_property_set_bool(g->device, "cpu-hotplug-legacy", false,
+        object_property_set_bool(gpe->device, "cpu-hotplug-legacy", false,
                                  &error_abort);
         return;
     }
 
-    g->sts[cpu_id / 8] |= (1 << (cpu_id % 8));
+    gpe->sts[cpu_id / 8] |= (1 << (cpu_id % 8));
 }
 
-void legacy_acpi_cpu_plug_cb(HotplugHandler *hotplug_dev,
-                             AcpiCpuHotplug *g, DeviceState *dev, Error **errp)
+void legacy_acpi_cpu_plug_cb(HotplugHandler *hotplug_dev, AcpiCpuHotplug *gpe,
+                             DeviceState *dev, Error **errp)
 {
-    acpi_set_cpu_present_bit(g, CPU(dev));
+    acpi_set_cpu_present_bit(gpe, CPU(dev));
     acpi_send_event(DEVICE(hotplug_dev), ACPI_CPU_HOTPLUG_STATUS);
 }
 
 void legacy_acpi_cpu_hotplug_init(MemoryRegion *parent, Object *owner,
-                                  AcpiCpuHotplug *gpe_cpu, uint16_t base)
+                                  AcpiCpuHotplug *gpe, uint16_t base)
 {
     CPUState *cpu;
 
-    memory_region_init_io(&gpe_cpu->io, owner, &AcpiCpuHotplug_ops,
-                          gpe_cpu, "acpi-cpu-hotplug", ACPI_GPE_PROC_LEN);
-    memory_region_add_subregion(parent, base, &gpe_cpu->io);
-    gpe_cpu->device = owner;
+    memory_region_init_io(&gpe->io, owner, &AcpiCpuHotplug_ops,
+                          gpe, "acpi-cpu-hotplug", ACPI_GPE_PROC_LEN);
+    memory_region_add_subregion(parent, base, &gpe->io);
+    gpe->device = owner;
 
     CPU_FOREACH(cpu) {
-        acpi_set_cpu_present_bit(gpe_cpu, cpu);
+        acpi_set_cpu_present_bit(gpe, cpu);
     }
 }
 
-void acpi_switch_to_modern_cphp(AcpiCpuHotplug *gpe_cpu,
+void acpi_switch_to_modern_cphp(AcpiCpuHotplug *gpe,
                                 CPUHotplugState *cpuhp_state,
                                 uint16_t io_port)
 {
-    MemoryRegion *parent = pci_address_space_io(PCI_DEVICE(gpe_cpu->device));
+    MemoryRegion *parent = pci_address_space_io(PCI_DEVICE(gpe->device));
 
-    memory_region_del_subregion(parent, &gpe_cpu->io);
-    cpu_hotplug_hw_init(parent, gpe_cpu->device, cpuhp_state, io_port);
+    memory_region_del_subregion(parent, &gpe->io);
+    cpu_hotplug_hw_init(parent, gpe->device, cpuhp_state, io_port);
 }
 
 void build_legacy_cpu_hotplug_aml(Aml *ctx, MachineState *machine,

@@ -6,7 +6,7 @@
 /* Following stubs are all related to ACPI cpu hotplug */
 const VMStateDescription vmstate_cpu_hotplug;
 
-void acpi_switch_to_modern_cphp(AcpiCpuHotplug *gpe_cpu,
+void acpi_switch_to_modern_cphp(AcpiCpuHotplug *gpe,
                                 CPUHotplugState *cpuhp_state,
                                 uint16_t io_port)
 {
@@ -14,7 +14,7 @@ void acpi_switch_to_modern_cphp(AcpiCpuHotplug *gpe_cpu,
 }
 
 void legacy_acpi_cpu_hotplug_init(MemoryRegion *parent, Object *owner,
-                                  AcpiCpuHotplug *gpe_cpu, uint16_t base)
+                                  AcpiCpuHotplug *gpe, uint16_t base)
 {
     return;
 }
@@ -31,7 +31,7 @@ void acpi_cpu_plug_cb(HotplugHandler *hotplug_dev,
 }
 
 void legacy_acpi_cpu_plug_cb(HotplugHandler *hotplug_dev,
-                             AcpiCpuHotplug *g, DeviceState *dev, Error **errp)
+                             AcpiCpuHotplug *gpe, DeviceState *dev, Error **errp)
 {
     return;
 }

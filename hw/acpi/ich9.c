@@ -197,7 +197,7 @@ static bool vmstate_test_use_cpuhp(void *opaque)
 static int vmstate_cpuhp_pre_load(void *opaque)
 {
     ICH9LPCPMRegs *s = opaque;
-    Object *obj = OBJECT(s->gpe_cpu.device);
+    Object *obj = OBJECT(s->gpe.device);
     object_property_set_bool(obj, "cpu-hotplug-legacy", false, &error_abort);
     return 0;
 }
@@ -338,7 +338,7 @@ void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm,
     qemu_register_powerdown_notifier(&pm->powerdown_notifier);
 
     legacy_acpi_cpu_hotplug_init(pci_address_space_io(lpc_pci),
-        OBJECT(lpc_pci), &pm->gpe_cpu, ICH9_CPU_HOTPLUG_IO_BASE);
+        OBJECT(lpc_pci), &pm->gpe, ICH9_CPU_HOTPLUG_IO_BASE);
 
     if (pm->acpi_memory_hotplug.is_enabled) {
         acpi_memory_hotplug_init(pci_address_space_io(lpc_pci), OBJECT(lpc_pci),
@@ -385,7 +385,7 @@ static void ich9_pm_set_cpu_hotplug_legacy(Object *obj, bool value,
 
     assert(!value);
     if (s->pm.cpu_hotplug_legacy && value == false) {
-        acpi_switch_to_modern_cphp(&s->pm.gpe_cpu, &s->pm.cpuhp_state,
+        acpi_switch_to_modern_cphp(&s->pm.gpe, &s->pm.cpuhp_state,
                                    ICH9_CPU_HOTPLUG_IO_BASE);
     }
     s->pm.cpu_hotplug_legacy = value;
@@ -514,7 +514,7 @@ void ich9_pm_device_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
         }
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
         if (lpc->pm.cpu_hotplug_legacy) {
-            legacy_acpi_cpu_plug_cb(hotplug_dev, &lpc->pm.gpe_cpu, dev, errp);
+            legacy_acpi_cpu_plug_cb(hotplug_dev, &lpc->pm.gpe, dev, errp);
         } else {
             acpi_cpu_plug_cb(hotplug_dev, &lpc->pm.cpuhp_state, dev, errp);
         }

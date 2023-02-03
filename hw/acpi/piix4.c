@@ -353,7 +353,7 @@ static void piix4_device_plug_cb(HotplugHandler *hotplug_dev,
         acpi_pcihp_device_plug_cb(hotplug_dev, &s->acpi_pci_hotplug, dev, errp);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
         if (s->cpu_hotplug_legacy) {
-            legacy_acpi_cpu_plug_cb(hotplug_dev, &s->gpe_cpu, dev, errp);
+            legacy_acpi_cpu_plug_cb(hotplug_dev, &s->gpe, dev, errp);
         } else {
             acpi_cpu_plug_cb(hotplug_dev, &s->cpuhp_state, dev, errp);
         }
@@ -549,7 +549,7 @@ static void piix4_set_cpu_hotplug_legacy(Object *obj, bool value, Error **errp)
 
     assert(!value);
     if (s->cpu_hotplug_legacy && value == false) {
-        acpi_switch_to_modern_cphp(&s->gpe_cpu, &s->cpuhp_state,
+        acpi_switch_to_modern_cphp(&s->gpe, &s->cpuhp_state,
                                    PIIX4_CPU_HOTPLUG_IO_BASE);
     }
     s->cpu_hotplug_legacy = value;
@@ -571,7 +571,7 @@ static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
     object_property_add_bool(OBJECT(s), "cpu-hotplug-legacy",
                              piix4_get_cpu_hotplug_legacy,
                              piix4_set_cpu_hotplug_legacy);
-    legacy_acpi_cpu_hotplug_init(parent, OBJECT(s), &s->gpe_cpu,
+    legacy_acpi_cpu_hotplug_init(parent, OBJECT(s), &s->gpe,
                                  PIIX4_CPU_HOTPLUG_IO_BASE);
 
     if (s->acpi_memory_hotplug.is_enabled) {
