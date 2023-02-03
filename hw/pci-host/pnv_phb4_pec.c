@@ -120,13 +120,9 @@ static void pnv_pec_default_phb_realize(PnvPhb4PecState *pec,
     int phb_id = pnv_phb4_pec_get_phb_id(pec, stack_no);
 
     object_property_add_child(OBJECT(pec), "phb[*]", OBJECT(phb));
-    object_property_set_link(OBJECT(phb), "pec", OBJECT(pec),
-                             &error_abort);
-    object_property_set_int(OBJECT(phb), "chip-id", pec->chip_id,
-                            &error_fatal);
-    object_property_set_int(OBJECT(phb), "index", phb_id,
-                            &error_fatal);
-
+    qdev_prop_set_link(DEVICE(phb), "pec", OBJECT(pec));
+    qdev_prop_set_uint32(DEVICE(phb), "chip-id", pec->chip_id);
+    qdev_prop_set_uint32(DEVICE(phb), "index", phb_id);
     if (!sysbus_realize(SYS_BUS_DEVICE(phb), errp)) {
         return;
     }

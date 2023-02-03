@@ -1583,8 +1583,8 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
     } else {
         nr_irqs = PNV_PHB4_MAX_INTs >> 1;
     }
-    object_property_set_int(OBJECT(xsrc), "nr-irqs", nr_irqs, &error_fatal);
-    object_property_set_link(OBJECT(xsrc), "xive", OBJECT(phb), &error_fatal);
+    qdev_prop_set_uint32(DEVICE(xsrc), "nr-irqs", nr_irqs);
+    qdev_prop_set_link(DEVICE(xsrc), "xive", OBJECT(phb));
     if (!qdev_realize(DEVICE(xsrc), NULL, errp)) {
         return;
     }

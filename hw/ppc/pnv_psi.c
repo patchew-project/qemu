@@ -492,10 +492,7 @@ static void pnv_psi_power8_realize(DeviceState *dev, Error **errp)
     unsigned int i;
 
     /* Create PSI interrupt control source */
-    if (!object_property_set_int(OBJECT(ics), "nr-irqs", PSI_NUM_INTERRUPTS,
-                                 errp)) {
-        return;
-    }
+    qdev_prop_set_uint32(DEVICE(ics), "nr-irqs", PSI_NUM_INTERRUPTS);
     if (!qdev_realize(DEVICE(ics), NULL, errp)) {
         return;
     }
@@ -849,9 +846,8 @@ static void pnv_psi_power9_realize(DeviceState *dev, Error **errp)
     XiveSource *xsrc = &PNV9_PSI(psi)->source;
     int i;
 
-    object_property_set_int(OBJECT(xsrc), "nr-irqs", PSIHB9_NUM_IRQS,
-                            &error_fatal);
-    object_property_set_link(OBJECT(xsrc), "xive", OBJECT(psi), &error_abort);
+    qdev_prop_set_uint32(DEVICE(xsrc), "nr-irqs", PSIHB9_NUM_IRQS);
+    qdev_prop_set_link(DEVICE(xsrc), "xive", OBJECT(psi));
     if (!qdev_realize(DEVICE(xsrc), NULL, errp)) {
         return;
     }

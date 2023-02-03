@@ -954,35 +954,31 @@ static void pnv_init(MachineState *machine)
     pnv->chips = g_new0(PnvChip *, pnv->num_chips);
     for (i = 0; i < pnv->num_chips; i++) {
         char chip_name[32];
-        Object *chip = OBJECT(qdev_new(chip_typename));
+        DeviceState *chip = qdev_new(chip_typename);
         uint64_t chip_ram_size =  pnv_chip_get_ram_size(pnv, i);
 
         pnv->chips[i] = PNV_CHIP(chip);
 
+        snprintf(chip_name, sizeof(chip_name), "chip[%d]", i);
+        object_property_add_child(OBJECT(pnv), chip_name, OBJECT(chip));
+
         /* Distribute RAM among the chips  */
-        object_property_set_int(chip, "ram-start", chip_ram_start,
-                                &error_fatal);
-        object_property_set_int(chip, "ram-size", chip_ram_size,
-                                &error_fatal);
+        qdev_prop_set_uint64(chip, "ram-start", chip_ram_start);
+        qdev_prop_set_uint64(chip, "ram-size", chip_ram_size);
         chip_ram_start += chip_ram_size;
 
-        snprintf(chip_name, sizeof(chip_name), "chip[%d]", i);
-        object_property_add_child(OBJECT(pnv), chip_name, chip);
-        object_property_set_int(chip, "chip-id", i, &error_fatal);
-        object_property_set_int(chip, "nr-cores", machine->smp.cores,
-                                &error_fatal);
-        object_property_set_int(chip, "nr-threads", machine->smp.threads,
-                                &error_fatal);
+        qdev_prop_set_uint32(chip, "chip-id", i);
+        qdev_prop_set_uint32(chip, "nr-cores", machine->smp.cores);
+        qdev_prop_set_uint32(chip, "nr-threads", machine->smp.threads);
         /*
          * The POWER8 machine use the XICS interrupt interface.
          * Propagate the XICS fabric to the chip and its controllers.
          */
         if (object_dynamic_cast(OBJECT(pnv), TYPE_XICS_FABRIC)) {
-            object_property_set_link(chip, "xics", OBJECT(pnv), &error_abort);
+            qdev_prop_set_link(chip, "xics", OBJECT(pnv));
         }
         if (object_dynamic_cast(OBJECT(pnv), TYPE_XIVE_FABRIC)) {
-            object_property_set_link(chip, "xive-fabric", OBJECT(pnv),
-                                     &error_abort);
+            qdev_prop_set_link(chip, "xive-fabric", OBJECT(pnv));
         }
         sysbus_realize_and_unref(SYS_BUS_DEVICE(chip), &error_fatal);
     }
@@ -1492,7 +1488,7 @@ static void pnv_chip_quad_realize_one(PnvChip *chip, PnvQuad *eq,
                                        sizeof(*eq), TYPE_PNV_QUAD,
                                        &error_fatal, NULL);
 
-    object_property_set_int(OBJECT(eq), "quad-id", core_id, &error_fatal);
+    qdev_prop_set_uint32(DEVICE(eq), "quad-id", core_id);
     qdev_realize(DEVICE(eq), NULL, &error_fatal);
 }
 
@@ -1969,16 +1965,13 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
         snprintf(core_name, sizeof(core_name), "core[%d]", core_hwid);
         object_property_add_child(OBJECT(chip), core_name, OBJECT(pnv_core));
         chip->cores[i] = pnv_core;
-        object_property_set_int(OBJECT(pnv_core), "nr-threads",
-                                chip->nr_threads, &error_fatal);
+        qdev_prop_set_uint32(DEVICE(pnv_core), "nr-threads", chip->nr_threads);
         object_property_set_int(OBJECT(pnv_core), CPU_CORE_PROP_CORE_ID,
                                 core_hwid, &error_fatal);
-        object_property_set_int(OBJECT(pnv_core), "pir",
-                                pcc->core_pir(chip, core_hwid), &error_fatal);
-        object_property_set_int(OBJECT(pnv_core), "hrmor", pnv->fw_load_addr,
-                                &error_fatal);
-        object_property_set_link(OBJECT(pnv_core), "chip", OBJECT(chip),
-                                 &error_abort);
+        qdev_prop_set_uint32(DEVICE(pnv_core), "pir",
+                             pcc->core_pir(chip, core_hwid));
+        qdev_prop_set_uint64(DEVICE(pnv_core), "hrmor", pnv->fw_load_addr);
+        qdev_prop_set_link(DEVICE(pnv_core), "chip", OBJECT(chip));
         qdev_realize(DEVICE(pnv_core), NULL, &error_fatal);
 
         /* Each core has an XSCOM MMIO region */

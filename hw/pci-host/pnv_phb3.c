@@ -1029,8 +1029,7 @@ static void pnv_phb3_realize(DeviceState *dev, Error **errp)
     /* LSI sources */
     object_property_set_link(OBJECT(&phb->lsis), "xics", OBJECT(pnv),
                              &error_abort);
-    object_property_set_int(OBJECT(&phb->lsis), "nr-irqs", PNV_PHB3_NUM_LSI,
-                            &error_abort);
+    qdev_prop_set_uint32(DEVICE(&phb->lsis), "nr-irqs", PNV_PHB3_NUM_LSI);
     if (!qdev_realize(DEVICE(&phb->lsis), NULL, errp)) {
         return;
     }
@@ -1046,15 +1045,13 @@ static void pnv_phb3_realize(DeviceState *dev, Error **errp)
                              &error_abort);
     object_property_set_link(OBJECT(&phb->msis), "xics", OBJECT(pnv),
                              &error_abort);
-    object_property_set_int(OBJECT(&phb->msis), "nr-irqs", PHB3_MAX_MSI,
-                            &error_abort);
+    qdev_prop_set_uint32(DEVICE(&phb->msis), "nr-irqs", PHB3_MAX_MSI);
     if (!qdev_realize(DEVICE(&phb->msis), NULL, errp)) {
         return;
     }
 
     /* Power Bus Common Queue */
-    object_property_set_link(OBJECT(&phb->pbcq), "phb", OBJECT(phb),
-                             &error_abort);
+    qdev_prop_set_link(DEVICE(&phb->pbcq), "phb", OBJECT(phb));
     if (!qdev_realize(DEVICE(&phb->pbcq), NULL, errp)) {
         return;
     }
