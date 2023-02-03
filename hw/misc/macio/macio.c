@@ -128,8 +128,7 @@ static void macio_realize_ide(MacIOState *s, MACIOIDEState *ide,
     sysbus_connect_irq(sysbus_dev, 0, irq0);
     sysbus_connect_irq(sysbus_dev, 1, irq1);
     qdev_prop_set_uint32(DEVICE(ide), "channel", dmaid);
-    object_property_set_link(OBJECT(ide), "dbdma", OBJECT(&s->dbdma),
-                             &error_abort);
+    qdev_prop_set_link(DEVICE(ide), "dbdma", OBJECT(&s->dbdma));
     macio_ide_register_dma(ide);
 
     qdev_realize(DEVICE(ide), BUS(&s->macio_bus), errp);
@@ -336,8 +335,7 @@ static void macio_newworld_realize(PCIDevice *d, Error **errp)
 
         /* PMU */
         object_initialize_child(OBJECT(s), "pmu", &s->pmu, TYPE_VIA_PMU);
-        object_property_set_link(OBJECT(&s->pmu), "gpio", OBJECT(sysbus_dev),
-                                 &error_abort);
+        qdev_prop_set_link(DEVICE(&s->pmu), "gpio", OBJECT(sysbus_dev));
         qdev_prop_set_bit(DEVICE(&s->pmu), "has-adb", ns->has_adb);
         if (!qdev_realize(DEVICE(&s->pmu), BUS(&s->macio_bus), errp)) {
             return;
