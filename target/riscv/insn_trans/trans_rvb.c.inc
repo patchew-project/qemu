@@ -80,7 +80,14 @@ static void gen_ctz(TCGv ret, TCGv arg1)
 
 static void gen_ctzw(TCGv ret, TCGv arg1)
 {
-    tcg_gen_ctzi_tl(ret, arg1, 32);
+    TCGv_i32 t = tcg_temp_new_i32();
+
+    tcg_gen_trunc_tl_i32(t, arg1);
+    tcg_gen_ctzi_i32(t, t, 32);
+
+    tcg_gen_extu_i32_tl(ret, t);
+
+    tcg_temp_free_i32(t);
 }
 
 static bool trans_ctz(DisasContext *ctx, arg_ctz *a)
