@@ -16,32 +16,20 @@ MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
 RUN apt update && \
     DEBIAN_FRONTEND=noninteractive apt install -yy eatmydata && \
     DEBIAN_FRONTEND=noninteractive eatmydata apt install -yy \
-       bison \
+       curl \
        bzip2 \
        ca-certificates \
-       ccache \
-       flex \
-       g++ \
-       gcc \
-       git \
        libglib2.0-dev \
        libpixman-1-dev \
        locales \
-       make \
        ninja-build \
        pkgconf \
        python3-pip \
        python3-setuptools \
        python3-wheel
 
-RUN git clone --single-branch \
-        https://github.com/bkoppelmann/tricore-binutils.git \
-        /usr/src/binutils && \
-    cd /usr/src/binutils && chmod +x missing && \
-    CFLAGS=-w ./configure --prefix=/usr/local --disable-nls --target=tricore && \
-    make && make install && \
-    rm -rf /usr/src/binutils
-
+RUN curl -#SL https://github.com/bkoppelmann/tricore-binutils/raw/master/release/tricore-binutils.2.13.tar.gz \
+    | tar -xzC /usr/local/
 # This image can only build a very minimal QEMU as well as the tests
 ENV DEF_TARGET_LIST tricore-softmmu
 ENV QEMU_CONFIGURE_OPTS --disable-user --disable-tools --disable-fdt
