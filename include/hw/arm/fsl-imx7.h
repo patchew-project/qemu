@@ -81,7 +81,6 @@ struct FslIMX7State {
     IMX7GPRState       gpr;
     ChipideaState      usb[FSL_IMX7_NUM_USBS];
     DesignwarePCIEHost pcie;
-    uint32_t           phy_num[FSL_IMX7_NUM_ETHS];
 };
 
 enum FslIMX7MemoryMap {
