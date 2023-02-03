@@ -28,7 +28,7 @@ typedef struct AcpiCpuHotplug {
 void legacy_acpi_cpu_plug_cb(HotplugHandler *hotplug_dev, AcpiCpuHotplug *gpe,
                              DeviceState *dev, Error **errp);
 
-void legacy_acpi_cpu_hotplug_init(MemoryRegion *parent, Object *owner,
+void legacy_acpi_cpu_hotplug_init(MemoryRegion *container, Object *owner,
                                   AcpiCpuHotplug *gpe, uint16_t base);
 
 void acpi_switch_to_modern_cphp(AcpiCpuHotplug *gpe,

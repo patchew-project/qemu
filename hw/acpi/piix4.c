@@ -555,15 +555,15 @@ static void piix4_set_cpu_hotplug_legacy(Object *obj, bool value, Error **errp)
     s->cpu_hotplug_legacy = value;
 }
 
-static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
+static void piix4_acpi_system_hot_add_init(MemoryRegion *container,
                                            PCIBus *bus, PIIX4PMState *s)
 {
     memory_region_init_io(&s->io_gpe, OBJECT(s), &piix4_gpe_ops, s,
                           "acpi-gpe0", GPE_LEN);
-    memory_region_add_subregion(parent, GPE_BASE, &s->io_gpe);
+    memory_region_add_subregion(container, GPE_BASE, &s->io_gpe);
 
     if (s->use_acpi_hotplug_bridge || s->use_acpi_root_pci_hotplug) {
-        acpi_pcihp_init(OBJECT(s), &s->acpi_pci_hotplug, bus, parent,
+        acpi_pcihp_init(OBJECT(s), &s->acpi_pci_hotplug, bus, container,
                         s->use_acpi_hotplug_bridge, ACPI_PCIHP_ADDR_PIIX4);
     }
 
@@ -571,11 +571,11 @@ static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
     object_property_add_bool(OBJECT(s), "cpu-hotplug-legacy",
                              piix4_get_cpu_hotplug_legacy,
                              piix4_set_cpu_hotplug_legacy);
-    legacy_acpi_cpu_hotplug_init(parent, OBJECT(s), &s->gpe,
+    legacy_acpi_cpu_hotplug_init(container, OBJECT(s), &s->gpe,
                                  PIIX4_CPU_HOTPLUG_IO_BASE);
 
     if (s->acpi_memory_hotplug.is_enabled) {
-        acpi_memory_hotplug_init(parent, OBJECT(s), &s->acpi_memory_hotplug,
+        acpi_memory_hotplug_init(container, OBJECT(s), &s->acpi_memory_hotplug,
                                  ACPI_MEMORY_HOTPLUG_BASE);
     }
 }

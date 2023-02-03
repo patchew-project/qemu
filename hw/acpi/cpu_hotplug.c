@@ -81,14 +81,14 @@ void legacy_acpi_cpu_plug_cb(HotplugHandler *hotplug_dev, AcpiCpuHotplug *gpe,
     acpi_send_event(DEVICE(hotplug_dev), ACPI_CPU_HOTPLUG_STATUS);
 }
 
-void legacy_acpi_cpu_hotplug_init(MemoryRegion *parent, Object *owner,
+void legacy_acpi_cpu_hotplug_init(MemoryRegion *container, Object *owner,
                                   AcpiCpuHotplug *gpe, uint16_t base)
 {
     CPUState *cpu;
 
     memory_region_init_io(&gpe->io, owner, &AcpiCpuHotplug_ops,
                           gpe, "acpi-cpu-hotplug", ACPI_GPE_PROC_LEN);
-    memory_region_add_subregion(parent, base, &gpe->io);
+    memory_region_add_subregion(container, base, &gpe->io);
     gpe->device = owner;
 
     CPU_FOREACH(cpu) {
@@ -100,10 +100,10 @@ void acpi_switch_to_modern_cphp(AcpiCpuHotplug *gpe,
                                 CPUHotplugState *cpuhp_state,
                                 uint16_t io_port)
 {
-    MemoryRegion *parent = pci_address_space_io(PCI_DEVICE(gpe->device));
+    MemoryRegion *container = pci_address_space_io(PCI_DEVICE(gpe->device));
 
-    memory_region_del_subregion(parent, &gpe->io);
-    cpu_hotplug_hw_init(parent, gpe->device, cpuhp_state, io_port);
+    memory_region_del_subregion(container, &gpe->io);
+    cpu_hotplug_hw_init(container, gpe->device, cpuhp_state, io_port);
 }
 
 void build_legacy_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
