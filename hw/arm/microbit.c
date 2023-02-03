@@ -36,6 +36,7 @@ static void microbit_init(MachineState *machine)
     MicrobitMachineState *s = MICROBIT_MACHINE(machine);
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *mr;
+    int64_t flash_size;
 
     object_initialize_child(OBJECT(machine), "nrf51", &s->nrf51,
                             TYPE_NRF51_SOC);
@@ -43,6 +44,8 @@ static void microbit_init(MachineState *machine)
     object_property_set_link(OBJECT(&s->nrf51), "memory",
                              OBJECT(system_memory), &error_fatal);
     sysbus_realize(SYS_BUS_DEVICE(&s->nrf51), &error_fatal);
+    flash_size = object_property_get_int(OBJECT(&s->nrf51),
+                                         "flash-size", &error_abort);
 
     /*
      * Overlap the TWI stub device into the SoC.  This is a microbit-specific
@@ -57,7 +60,7 @@ static void microbit_init(MachineState *machine)
                                         mr, -1);
 
     armv7m_load_kernel(ARM_CPU(first_cpu), machine->kernel_filename,
-                       0, s->nrf51.flash_size);
+                       0, flash_size);
 }
 
 static void microbit_machine_class_init(ObjectClass *oc, void *data)
