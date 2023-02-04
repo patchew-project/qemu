@@ -28,6 +28,7 @@
 #include "hw/pci/pcie_regs.h"
 #include "hw/pci/pcie_port.h"
 #include "qemu/range.h"
+#include "trace.h"
 
 //#define DEBUG_PCIE
 #ifdef DEBUG_PCIE
@@ -718,6 +719,20 @@ void pcie_cap_slot_get(PCIDevice *dev, uint16_t *slt_ctl, uint16_t *slt_sta)
     *slt_sta = pci_get_word(exp_cap + PCI_EXP_SLTSTA);
 }
 
+static const char *pcie_sltctl_pic_str(uint16_t sltctl)
+{
+    switch (sltctl & PCI_EXP_SLTCTL_PIC) {
+    case PCI_EXP_SLTCTL_PWR_IND_ON:
+        return "on";
+    case PCI_EXP_SLTCTL_PWR_IND_BLINK:
+        return "blink";
+    case PCI_EXP_SLTCTL_PWR_IND_OFF:
+        return "off";
+    default:
+        return "?";
+    }
+}
+
 void pcie_cap_slot_write_config(PCIDevice *dev,
                                 uint16_t old_slt_ctl, uint16_t old_slt_sta,
                                 uint32_t addr, uint32_t val, int len)
@@ -760,6 +775,11 @@ void pcie_cap_slot_write_config(PCIDevice *dev,
         PCIE_DEV_PRINTF(dev, "PCI_EXP_SLTCTL_EIC: "
                         "sltsta -> 0x%02"PRIx16"\n",
                         sltsta);
+    }
+
+    if ((val & PCI_EXP_SLTCTL_PIC) != (old_slt_ctl & PCI_EXP_SLTCTL_PIC)) {
+        trace_pcie_power_indicator(pcie_sltctl_pic_str(old_slt_ctl),
+                                   pcie_sltctl_pic_str(val));
     }
 
     /*
