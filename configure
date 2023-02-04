@@ -578,6 +578,9 @@ case "$cpu" in
     cpu="ppc64"
     CPU_CFLAGS="-m64 -mlittle-endian" ;;
 
+  riscv*)
+    cpu="riscv" ;;
+
   s390)
     CPU_CFLAGS="-m31" ;;
   s390x)
