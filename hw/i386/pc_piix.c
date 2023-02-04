@@ -228,7 +228,7 @@ static void pc_init1(MachineState *machine,
                               system_memory, system_io, machine->ram_size,
                               x86ms->below_4g_mem_size,
                               x86ms->above_4g_mem_size,
-                              pci_memory, ram_memory);
+                              pci_memory, ram_memory, &x86ms->smram);
         pci_bus_map_irqs(pci_bus,
                          xen_enabled() ? xen_pci_slot_get_pirq
                                        : pc_pci_slot_get_pirq);
