@@ -719,6 +719,15 @@ static uint64_t kvm_dirty_ring_reap_locked(KVMState *s, CPUState* cpu)
         total = kvm_dirty_ring_reap_one(s, cpu);
     } else {
         CPU_FOREACH(cpu) {
+            /*
+             * Must ensure kvm_init_vcpu is finished, so cpu->kvm_dirty_gfns is
+             * available.
+             */
+            while (cpu->created == false) {
+                qemu_mutex_unlock_iothread();
+                qemu_mutex_lock_iothread();
+            }
+
             total += kvm_dirty_ring_reap_one(s, cpu);
         }
     }
