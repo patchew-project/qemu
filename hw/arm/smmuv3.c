@@ -256,7 +256,14 @@ static void smmuv3_init_regs(SMMUv3State *s)
      * IDR0: stage1 only, AArch64 only, coherent access, 16b ASID,
      *       multi-level stream table
      */
-    s->idr[0] = FIELD_DP32(s->idr[0], IDR0, S1P, 1); /* stage 1 supported */
+    if (STAGE1_SUPPORTED(s->features)) {
+        s->idr[0] = FIELD_DP32(s->idr[0], IDR0, S1P, 1);
+    }
+
+    if (STAGE2_SUPPORTED(s->features)) {
+        s->idr[0] = FIELD_DP32(s->idr[0], IDR0, S2P, 1);
+    }
+
     s->idr[0] = FIELD_DP32(s->idr[0], IDR0, TTF, 2); /* AArch64 PTW only */
     s->idr[0] = FIELD_DP32(s->idr[0], IDR0, COHACC, 1); /* IO coherent */
     s->idr[0] = FIELD_DP32(s->idr[0], IDR0, ASID16, 1); /* 16-bit ASID */
@@ -451,10 +458,6 @@ static int decode_ste(SMMUv3State *s, SMMUTransCfg *cfg,
             qemu_log_mask(LOG_UNIMP, "SMMUv3 Stall not implemented!\n");
             goto bad_ste;
         }
-
-        /* This is still here as stage 2 has not been fully enabled yet. */
-        qemu_log_mask(LOG_UNIMP, "SMMUv3 does not support stage 2 yet\n");
-        goto bad_ste;
     }
 
     if (STE_S1CDMAX(ste) != 0) {
