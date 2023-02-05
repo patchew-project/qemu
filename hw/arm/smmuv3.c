@@ -341,6 +341,28 @@ static int smmu_get_cd(SMMUv3State *s, STE *ste, uint32_t ssid,
     return 0;
 }
 
+/*
+ * Return true if s2 page table config is valid.
+ * This checks with the configured start level, ia_bits and granularity we can
+ * have a valid page table as described in ARM ARM D8.2 Translation process.
+ * The idea here is to see for the highest possible number of IPA bits, how
+ * many concatenated tables we would need, if it is more than 16, then this is
+ * not possible.
+ */
+static bool s2_pgtable_config_valid(uint8_t sl0, uint8_t t0sz, uint8_t gran)
+{
+    int level = get_start_level(sl0, gran);
+    uint64_t ia_bits = 64 - t0sz;
+    uint64_t mx = (1ULL << ia_bits) - 1;
+    int nr_concat = pgd_idx(level, gran, mx) + 1;
+
+    if (nr_concat > SMMU_MAX_S2_CONCAT) {
+        return false;
+    }
+
+    return true;
+}
+
 /* Returns < 0 in case of invalid STE, 0 otherwise */
 static int decode_ste(SMMUv3State *s, SMMUTransCfg *cfg,
                       STE *ste, SMMUEventInfo *event)
@@ -404,6 +426,13 @@ static int decode_ste(SMMUv3State *s, SMMUTransCfg *cfg,
         if (cfg->s2cfg.sl0 == 0x3) {
             qemu_log_mask(LOG_UNIMP,
                           "SMMUv3 STE->SL0 0x3 has no meaning!\n");
+            goto bad_ste;
+        }
+
+        if (!s2_pgtable_config_valid(cfg->s2cfg.sl0, cfg->s2cfg.tsz,
+                                     cfg->s2cfg.granule_sz)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "SMMUv3 STE stage 2 config not valid!\n");
             goto bad_ste;
         }
 
