@@ -28,6 +28,7 @@
 #define SMMU_PCI_DEVFN(sid)   (sid & 0xFF)
 
 #define SMMU_MAX_VA_BITS      48
+#define SMMU_MAX_IPA_BITS     48
 #define SMMU_MAX_LEVELS       4
 
 /*

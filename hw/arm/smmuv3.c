@@ -366,7 +366,48 @@ static int decode_ste(SMMUv3State *s, SMMUTransCfg *cfg,
         return 0;
     }
 
-    if (STE_CFG_S2_ENABLED(config)) {
+    if (STAGE2_SUPPORTED(s->features) && STE_CFG_S2_ENABLED(config)) {
+        cfg->stage = 2;
+
+        if (STE_S2AA64(ste) == 0x0) {
+            qemu_log_mask(LOG_UNIMP,
+                          "SMMUv3 AArch32 tables not supported\n");
+            goto bad_ste;
+        }
+
+        switch (STE_S2TG(ste)) {
+        case 0x0: /* 4KB */
+            cfg->s2cfg.granule_sz = 12;
+            break;
+        case 0x1: /* 64KB */
+            cfg->s2cfg.granule_sz = 16;
+            break;
+        case 0x2: /* 16KB */
+            cfg->s2cfg.granule_sz = 14;
+            break;
+        default:
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "SMMUv3 bad STE S2TG: %x\n", STE_S2TG(ste));
+            goto bad_ste;
+        }
+
+        cfg->s2cfg.vttb = STE_S2TTB(ste);
+        cfg->s2cfg.tsz = STE_S2T0SZ(ste);
+
+        if ((64 - cfg->s2cfg.tsz) > SMMU_MAX_IPA_BITS) {
+            qemu_log_mask(LOG_UNIMP, "SMMUv3 IPA too big! TS0Z = %x\n",
+                          cfg->s2cfg.tsz);
+            goto bad_ste;
+        }
+
+        cfg->s2cfg.sl0 = STE_S2SL0(ste);
+        if (cfg->s2cfg.sl0 == 0x3) {
+            qemu_log_mask(LOG_UNIMP,
+                          "SMMUv3 STE->SL0 0x3 has no meaning!\n");
+            goto bad_ste;
+        }
+
+        /* This is still here as stage 2 has not been fully enabled yet. */
         qemu_log_mask(LOG_UNIMP, "SMMUv3 does not support stage 2 yet\n");
         goto bad_ste;
     }
