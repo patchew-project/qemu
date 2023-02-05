@@ -1416,6 +1416,11 @@ static void *kvm_dirty_ring_reaper_thread(void *data)
          */
         sleep(1);
 
+        /* ensure kvm_init_vcpu is finished, so cpu->kvm_dirty_gfns is ok */
+        if (!phase_check(PHASE_MACHINE_READY)) {
+            continue;
+        }
+
         /* keep sleeping so that dirtylimit not be interfered by reaper */
         if (dirtylimit_in_service()) {
             continue;
