@@ -329,6 +329,11 @@ enum { /* Command completion notification */
         })
 
 #define SMMU_FEATURE_2LVL_STE (1 << 0)
+#define SMMU_FEATURE_STAGE1   (1 << 1)
+#define SMMU_FEATURE_STAGE2   (1 << 2)
+
+#define STAGE1_SUPPORTED(f)   (f & SMMU_FEATURE_STAGE1)
+#define STAGE2_SUPPORTED(f)   (f & SMMU_FEATURE_STAGE2)
 
 /* Events */
 

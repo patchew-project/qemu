@@ -21,6 +21,7 @@
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
+#include "hw/qdev-properties.h"
 #include "hw/qdev-core.h"
 #include "hw/pci/pci.h"
 #include "cpu.h"
@@ -238,6 +239,19 @@ void smmuv3_record_event(SMMUv3State *s, SMMUEventInfo *info)
 
 static void smmuv3_init_regs(SMMUv3State *s)
 {
+    /*
+     * Based on system property, the stages supported in smmu will be advertised.
+     * At the moment "all" is not supported.
+     * Default stage is 1.
+     */
+    s->features = SMMU_FEATURE_STAGE1;
+    if (s->stage && !strcmp("2", s->stage)) {
+        s->features = SMMU_FEATURE_STAGE2;
+    } else if (s->stage && !strcmp("all", s->stage)) {
+        qemu_log_mask(LOG_UNIMP,
+                          "SMMUv3 S1 and S2 nesting not supported, defaulting to S1\n");
+    }
+
     /**
      * IDR0: stage1 only, AArch64 only, coherent access, 16b ASID,
      *       multi-level stream table
@@ -276,7 +290,6 @@ static void smmuv3_init_regs(SMMUv3State *s)
     s->eventq.cons = 0;
     s->eventq.entry_size = sizeof(struct Evt);
 
-    s->features = 0;
     s->sid_split = 0;
     s->aidr = 0x1;
     s->cr[0] = 0;
@@ -1514,6 +1527,18 @@ static const VMStateDescription vmstate_smmuv3 = {
     },
 };
 
+static Property smmuv3_properties[] = {
+    /*
+     * Stages of translation advertised.
+     * "1": Stage 1
+     * "2": Stage 2
+     * "all": Stage 1 + Stage 2
+     * Defaults to stage 1
+     */
+    DEFINE_PROP_STRING("stage", SMMUv3State, stage),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void smmuv3_instance_init(Object *obj)
 {
     /* Nothing much to do here as of now */
@@ -1530,6 +1555,7 @@ static void smmuv3_class_init(ObjectClass *klass, void *data)
                                        &c->parent_phases);
     c->parent_realize = dc->realize;
     dc->realize = smmu_realize;
+    device_class_set_props(dc, smmuv3_properties);
 }
 
 static int smmuv3_notify_flag_changed(IOMMUMemoryRegion *iommu,
