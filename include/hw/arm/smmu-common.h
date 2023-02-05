@@ -60,6 +60,16 @@ typedef struct SMMUTLBEntry {
     uint8_t granule;
 } SMMUTLBEntry;
 
+typedef struct SMMUS2Cfg {
+    uint8_t tsz;            /* Input range */
+    uint8_t sl0;            /* Start level of translation */
+    bool affd;              /* AF Fault Disable */
+    uint8_t granule_sz;     /* Granule page shift */
+    uint16_t vmid;          /* Virtual machine ID */
+    uint64_t vttb;          /* PA of translation table */
+} SMMUS2Cfg;
+
+
 /*
  * Generic structure populated by derived SMMU devices
  * after decoding the configuration information and used as
@@ -79,6 +89,7 @@ typedef struct SMMUTransCfg {
     SMMUTransTableInfo tt[2];
     uint32_t iotlb_hits;       /* counts IOTLB hits for this asid */
     uint32_t iotlb_misses;     /* counts IOTLB misses for this asid */
+    struct SMMUS2Cfg s2cfg;
 } SMMUTransCfg;
 
 typedef struct SMMUDevice {
