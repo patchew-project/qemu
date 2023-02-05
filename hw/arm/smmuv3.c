@@ -260,6 +260,7 @@ static void smmuv3_init_regs(SMMUv3State *s)
     s->idr[0] = FIELD_DP32(s->idr[0], IDR0, TTF, 2); /* AArch64 PTW only */
     s->idr[0] = FIELD_DP32(s->idr[0], IDR0, COHACC, 1); /* IO coherent */
     s->idr[0] = FIELD_DP32(s->idr[0], IDR0, ASID16, 1); /* 16-bit ASID */
+    s->idr[0] = FIELD_DP32(s->idr[0], IDR0, VMID16, 1); /* 16-bit VMID */
     s->idr[0] = FIELD_DP32(s->idr[0], IDR0, TTENDIAN, 2); /* little endian */
     s->idr[0] = FIELD_DP32(s->idr[0], IDR0, STALL_MODEL, 1); /* No stall */
     /* terminated transaction will always be aborted/error returned */
@@ -386,6 +387,14 @@ static int decode_ste(SMMUv3State *s, SMMUTransCfg *cfg,
     if (STE_CFG_BYPASS(config)) {
         cfg->bypassed = true;
         return 0;
+    }
+
+    if (STAGE2_SUPPORTED(s->features)) {
+        /* VMID is considered even if s2 is disabled. */
+        cfg->s2cfg.vmid = STE_S2VMID(ste);
+    } else {
+        /* Default to -1 */
+        cfg->s2cfg.vmid = -1;
     }
 
     if (STAGE2_SUPPORTED(s->features) && STE_CFG_S2_ENABLED(config)) {
