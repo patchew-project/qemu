@@ -446,6 +446,11 @@ static int decode_ste(SMMUv3State *s, SMMUTransCfg *cfg,
         }
 
         cfg->s2cfg.affd = STE_S2AFFD(ste);
+        cfg->record_faults = STE_S2R(ste);
+        if (STE_S2S(ste)) {
+            qemu_log_mask(LOG_UNIMP, "SMMUv3 Stall not implemented!\n");
+            goto bad_ste;
+        }
 
         /* This is still here as stage 2 has not been fully enabled yet. */
         qemu_log_mask(LOG_UNIMP, "SMMUv3 does not support stage 2 yet\n");
