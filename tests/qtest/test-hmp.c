@@ -64,6 +64,7 @@ static const char *hmp_cmds[] = {
     "screendump /dev/null",
     "sendkey x",
     "singlestep on",
+    "one-insn-per-tb on",
     "wavcapture /dev/null",
     "stopcapture 0",
     "sum 0 512",
