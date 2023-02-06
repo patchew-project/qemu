@@ -1377,10 +1377,12 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
                  */
                 if (kvm_state->kvm_dirty_ring_size) {
                     kvm_dirty_ring_reap_locked(kvm_state, NULL);
+                    kvm_slot_get_dirty_log(kvm_state, mem, false);
                 } else {
                     kvm_slot_get_dirty_log(kvm_state, mem, true);
                 }
                 kvm_slot_sync_dirty_pages(mem, true);
+                kvm_slot_sync_dirty_pages(mem, false);
             }
 
             /* unregister the slot */
@@ -1604,6 +1606,11 @@ static void kvm_log_sync_global(MemoryListener *l, bool last_stage)
              * However kvm dirty ring has no such side effect.
              */
             kvm_slot_reset_dirty_pages(mem);
+
+            if (s->kvm_dirty_ring_with_bitmap && last_stage &&
+                kvm_slot_get_dirty_log(s, mem, false)) {
+                kvm_slot_sync_dirty_pages(mem, false);
+            }
         }
     }
     kvm_slots_unlock();
