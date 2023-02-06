@@ -1269,7 +1269,8 @@ static void qemu_disable_default_devices(void)
     if (!has_defaults || machine_class->no_serial) {
         default_serial = 0;
     }
-    if (!has_defaults || machine_class->no_parallel) {
+    if (!has_defaults || machine_class->no_parallel ||
+        !object_class_by_name("isa-parallel")) {
         default_parallel = 0;
     }
     if (!has_defaults || machine_class->no_floppy) {
