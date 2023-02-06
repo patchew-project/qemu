@@ -67,6 +67,11 @@ static void test_pci_unplug_request(void)
     const char *arch = qtest_get_arch();
     const char *machine_addition = "";
 
+    if (!qtest_has_device("virtio-mouse-pci")) {
+        g_test_skip("Device virtio-mouse-pci not available");
+        return;
+    }
+
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         machine_addition = "-machine pc";
     }
@@ -81,6 +86,10 @@ static void test_pci_unplug_request(void)
 
 static void test_q35_pci_unplug_request(void)
 {
+    if (!qtest_has_device("virtio-mouse-pci")) {
+        g_test_skip("Device virtio-mouse-pci not available");
+        return;
+    }
 
     QTestState *qtest = qtest_initf("-machine q35 "
                                     "-device pcie-root-port,id=p1 "
@@ -96,6 +105,11 @@ static void test_pci_unplug_json_request(void)
 {
     const char *arch = qtest_get_arch();
     const char *machine_addition = "";
+
+    if (!qtest_has_device("virtio-mouse-pci")) {
+        g_test_skip("Device virtio-mouse-pci not available");
+        return;
+    }
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         machine_addition = "-machine pc";
@@ -122,6 +136,11 @@ static void test_q35_pci_unplug_json_request(void)
     const char *device = "-device \"{'driver': 'virtio-mouse-pci', "
                                     "'bus': 'b1', "
                                     "'id': 'dev0'}\"";
+
+    if (!qtest_has_device("virtio-mouse-pci")) {
+        g_test_skip("Device virtio-mouse-pci not available");
+        return;
+    }
 
     QTestState *qtest = qtest_initf("-machine q35 %s %s %s",
                                     port, bridge, device);
