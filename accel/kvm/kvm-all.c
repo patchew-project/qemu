@@ -553,13 +553,29 @@ static void kvm_log_stop(MemoryListener *listener,
     }
 }
 
-/* get kvm's dirty pages bitmap and update qemu's */
-static void kvm_slot_sync_dirty_pages(KVMSlot *slot)
+static unsigned long *kvm_slot_dirty_bitmap(KVMSlot *slot, bool primary)
 {
+    if (primary) {
+        return slot->dirty_bmap;
+    }
+
+    return slot->dirty_bmap +
+           slot->dirty_bmap_size / sizeof(slot->dirty_bmap[0]);
+}
+
+/* get kvm's dirty pages bitmap and update qemu's */
+static void kvm_slot_sync_dirty_pages(KVMSlot *slot, bool primary)
+{
+    KVMState *s = kvm_state;
+    unsigned long *bmap = kvm_slot_dirty_bitmap(slot, primary);
     ram_addr_t start = slot->ram_start_offset;
     ram_addr_t pages = slot->memory_size / qemu_real_host_page_size();
 
-    cpu_physical_memory_set_dirty_lebitmap(slot->dirty_bmap, start, pages);
+    if (!s->kvm_dirty_ring_with_bitmap && !primary) {
+        return;
+    }
+
+    cpu_physical_memory_set_dirty_lebitmap(bmap, start, pages);
 }
 
 static void kvm_slot_reset_dirty_pages(KVMSlot *slot)
@@ -572,6 +588,9 @@ static void kvm_slot_reset_dirty_pages(KVMSlot *slot)
 /* Allocate the dirty bitmap for a slot  */
 static void kvm_slot_init_dirty_bitmap(KVMSlot *mem)
 {
+    KVMState *s = kvm_state;
+    hwaddr bitmap_size, alloc_size;
+
     if (!(mem->flags & KVM_MEM_LOG_DIRTY_PAGES) || mem->dirty_bmap) {
         return;
     }
@@ -593,9 +612,11 @@ static void kvm_slot_init_dirty_bitmap(KVMSlot *mem)
      * And mem->memory_size is aligned to it (otherwise this mem can't
      * be registered to KVM).
      */
-    hwaddr bitmap_size = ALIGN(mem->memory_size / qemu_real_host_page_size(),
-                                        /*HOST_LONG_BITS*/ 64) / 8;
-    mem->dirty_bmap = g_malloc0(bitmap_size);
+    bitmap_size = ALIGN(mem->memory_size / qemu_real_host_page_size(),
+                        /*HOST_LONG_BITS*/ 64) / 8;
+    alloc_size = s->kvm_dirty_ring_with_bitmap ? 2 * bitmap_size : bitmap_size;
+
+    mem->dirty_bmap = g_malloc0(alloc_size);
     mem->dirty_bmap_size = bitmap_size;
 }
 
@@ -603,12 +624,16 @@ static void kvm_slot_init_dirty_bitmap(KVMSlot *mem)
  * Sync dirty bitmap from kernel to KVMSlot.dirty_bmap, return true if
  * succeeded, false otherwise
  */
-static bool kvm_slot_get_dirty_log(KVMState *s, KVMSlot *slot)
+static bool kvm_slot_get_dirty_log(KVMState *s, KVMSlot *slot, bool primary)
 {
     struct kvm_dirty_log d = {};
     int ret;
 
-    d.dirty_bitmap = slot->dirty_bmap;
+    if (!s->kvm_dirty_ring_with_bitmap && !primary) {
+        return false;
+    }
+
+    d.dirty_bitmap = kvm_slot_dirty_bitmap(slot, primary);
     d.slot = slot->slot | (slot->as_id << 16);
     ret = kvm_vm_ioctl(s, KVM_GET_DIRTY_LOG, &d);
 
@@ -839,8 +864,8 @@ static void kvm_physical_sync_dirty_bitmap(KVMMemoryListener *kml,
             /* We don't have a slot if we want to trap every access. */
             return;
         }
-        if (kvm_slot_get_dirty_log(s, mem)) {
-            kvm_slot_sync_dirty_pages(mem);
+        if (kvm_slot_get_dirty_log(s, mem, true)) {
+            kvm_slot_sync_dirty_pages(mem, true);
         }
         start_addr += slot_size;
         size -= slot_size;
@@ -1353,9 +1378,9 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
                 if (kvm_state->kvm_dirty_ring_size) {
                     kvm_dirty_ring_reap_locked(kvm_state, NULL);
                 } else {
-                    kvm_slot_get_dirty_log(kvm_state, mem);
+                    kvm_slot_get_dirty_log(kvm_state, mem, true);
                 }
-                kvm_slot_sync_dirty_pages(mem);
+                kvm_slot_sync_dirty_pages(mem, true);
             }
 
             /* unregister the slot */
@@ -1572,7 +1597,7 @@ static void kvm_log_sync_global(MemoryListener *l, bool last_stage)
     for (i = 0; i < s->nr_slots; i++) {
         mem = &kml->slots[i];
         if (mem->memory_size && mem->flags & KVM_MEM_LOG_DIRTY_PAGES) {
-            kvm_slot_sync_dirty_pages(mem);
+            kvm_slot_sync_dirty_pages(mem, true);
             /*
              * This is not needed by KVM_GET_DIRTY_LOG because the
              * ioctl will unconditionally overwrite the whole region.
@@ -3701,6 +3726,7 @@ static void kvm_accel_instance_init(Object *obj)
     s->kernel_irqchip_split = ON_OFF_AUTO_AUTO;
     /* KVM dirty ring is by default off */
     s->kvm_dirty_ring_size = 0;
+    s->kvm_dirty_ring_with_bitmap = false;
     s->notify_vmexit = NOTIFY_VMEXIT_OPTION_RUN;
     s->notify_window = 0;
 }
