@@ -338,8 +338,8 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
      * Tell the CPU where the NVIC is; it will fail realize if it doesn't
      * have one. Similarly, tell the NVIC where its CPU is.
      */
-    s->cpu->env.nvic = &s->nvic;
-    s->nvic.cpu = s->cpu;
+    object_property_add_const_link(OBJECT(s->cpu), "nvic", OBJECT(&s->nvic));
+    object_property_add_const_link(OBJECT(&s->nvic), "cpu", OBJECT(s->cpu));
 
     if (!qdev_realize(DEVICE(s->cpu), NULL, errp)) {
         return;

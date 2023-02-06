@@ -2668,7 +2668,8 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
     NVICState *s = NVIC(dev);
 
     /* The armv7m container object will have set our CPU pointer */
-    if (!s->cpu || !arm_feature(&s->cpu->env, ARM_FEATURE_M)) {
+    s->cpu = ARM_CPU(object_property_get_link(OBJECT(dev), "cpu", &error_abort));
+    if (!arm_feature(&s->cpu->env, ARM_FEATURE_M)) {
         error_setg(errp, "The NVIC can only be used with a Cortex-M CPU");
         return;
     }

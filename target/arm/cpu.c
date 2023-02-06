@@ -1573,12 +1573,13 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
      * error and will result in segfaults if not caught here.
      */
     if (arm_feature(env, ARM_FEATURE_M)) {
+        env->nvic = NVIC(object_property_get_link(OBJECT(dev), "nvic", NULL));
         if (!env->nvic) {
             error_setg(errp, "This board cannot be used with Cortex-M CPUs");
             return;
         }
     } else {
-        if (env->nvic) {
+        if (object_property_find(OBJECT(dev), "nvic")) {
             error_setg(errp, "This board can only be used with Cortex-M CPUs");
             return;
         }
