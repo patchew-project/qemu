@@ -11774,7 +11774,7 @@ int arm_mmu_idx_to_el(ARMMMUIdx mmu_idx)
     }
 }
 
-#ifndef CONFIG_TCG
+#if !defined(CONFIG_TCG) || defined(CONFIG_USER_ONLY)
 ARMMMUIdx arm_v7m_mmu_idx_for_secstate(CPUARMState *env, bool secstate)
 {
     g_assert_not_reached();
