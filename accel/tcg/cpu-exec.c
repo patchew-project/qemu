@@ -157,12 +157,12 @@ uint32_t curr_cflags(CPUState *cpu)
      * Record gdb single-step.  We should be exiting the TB by raising
      * EXCP_DEBUG, but to simplify other tests, disable chaining too.
      *
-     * For singlestep and -d nochain, suppress goto_tb so that
+     * For one-insn-per-tb and -d nochain, suppress goto_tb so that
      * we can log -d cpu,exec after every TB.
      */
     if (unlikely(cpu->singlestep_enabled)) {
         cflags |= CF_NO_GOTO_TB | CF_NO_GOTO_PTR | CF_SINGLE_STEP | 1;
-    } else if (singlestep) {
+    } else if (one_insn_per_tb) {
         cflags |= CF_NO_GOTO_TB | 1;
     } else if (qemu_loglevel_mask(CPU_LOG_TB_NOCHAIN)) {
         cflags |= CF_NO_GOTO_TB;

@@ -236,7 +236,7 @@ StatusInfo *qmp_query_status(Error **errp)
     StatusInfo *info = g_malloc0(sizeof(*info));
 
     info->running = runstate_is_running();
-    info->singlestep = singlestep;
+    info->singlestep = one_insn_per_tb;
     info->status = current_run_state;
 
     return info;

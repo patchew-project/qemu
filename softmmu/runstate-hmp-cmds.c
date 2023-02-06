@@ -44,9 +44,9 @@ void hmp_singlestep(Monitor *mon, const QDict *qdict)
 {
     const char *option = qdict_get_try_str(qdict, "option");
     if (!option || !strcmp(option, "on")) {
-        singlestep = 1;
+        one_insn_per_tb = 1;
     } else if (!strcmp(option, "off")) {
-        singlestep = 0;
+        one_insn_per_tb = 0;
     } else {
         monitor_printf(mon, "unexpected option %s\n", option);
     }

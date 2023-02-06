@@ -50,7 +50,7 @@
 #include "host-os.h"
 #include "target_arch_cpu.h"
 
-int singlestep;
+int one_insn_per_tb;
 uintptr_t guest_base;
 bool have_guest_base;
 /*
@@ -391,7 +391,7 @@ int main(int argc, char **argv)
         } else if (!strcmp(r, "seed")) {
             seed_optarg = optarg;
         } else if (!strcmp(r, "singlestep")) {
-            singlestep = 1;
+            one_insn_per_tb = 1;
         } else if (!strcmp(r, "strace")) {
             do_strace = 1;
         } else if (!strcmp(r, "trace")) {

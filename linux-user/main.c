@@ -66,7 +66,7 @@
 
 char *exec_path;
 
-int singlestep;
+int one_insn_per_tb;
 static const char *argv0;
 static const char *gdbstub;
 static envlist_t *envlist;
@@ -397,7 +397,7 @@ static void handle_arg_reserved_va(const char *arg)
 
 static void handle_arg_singlestep(const char *arg)
 {
-    singlestep = 1;
+    one_insn_per_tb = 1;
 }
 
 static void handle_arg_strace(const char *arg)

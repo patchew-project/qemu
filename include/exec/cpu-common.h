@@ -163,7 +163,7 @@ int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
                         void *ptr, size_t len, bool is_write);
 
 /* vl.c */
-extern int singlestep;
+extern int one_insn_per_tb;
 
 void list_cpus(const char *optarg);
 
