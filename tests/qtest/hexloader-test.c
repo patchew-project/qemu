@@ -22,6 +22,11 @@ static void hex_loader_test(void)
     unsigned int i;
     const unsigned int base_addr = 0x00010000;
 
+    if (!qtest_has_device("loader")) {
+        g_test_skip("Device 'loader' not available");
+        return;
+    }
+
     QTestState *s = qtest_initf(
         "-M vexpress-a9 -device loader,file=tests/data/hex-loader/test.hex");
 
