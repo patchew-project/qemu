@@ -2601,21 +2601,25 @@ static void virtio_net_tx_complete(NetClientState *nc, ssize_t len)
     q->async_tx.elem = NULL;
 
     virtio_queue_set_notification(q->tx_vq, 1);
-    ret = virtio_net_flush_tx(q);
-    if (ret >= n->tx_burst) {
-        /*
-         * the flush has been stopped by tx_burst
-         * we will not receive notification for the
-         * remainining part, so re-schedule
-         */
-        virtio_queue_set_notification(q->tx_vq, 0);
-        if (q->tx_bh) {
-            qemu_bh_schedule(q->tx_bh);
-        } else {
-            timer_mod(q->tx_timer,
-                      qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + n->tx_timeout);
+
+    /* len == 0 means purge, we should not flush new tx packets. */
+    if (len) {
+        ret = virtio_net_flush_tx(q);
+        if (ret >= n->tx_burst) {
+            /*
+             * the flush has been stopped by tx_burst
+             * we will not receive notification for the
+             * remainining part, so re-schedule
+             */
+            virtio_queue_set_notification(q->tx_vq, 0);
+            if (q->tx_bh) {
+                qemu_bh_schedule(q->tx_bh);
+            } else {
+                timer_mod(q->tx_timer,
+                          qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + n->tx_timeout);
+            }
+            q->tx_waiting = 1;
         }
-        q->tx_waiting = 1;
     }
 }
 
