@@ -2025,6 +2025,8 @@ static void machvirt_init(MachineState *machine)
     VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(machine);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     const CPUArchIdList *possible_cpus;
+    const char *gictype = NULL;
+    const char *itsclass = NULL;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *secure_sysmem = NULL;
     MemoryRegion *tag_sysmem = NULL;
@@ -2071,6 +2073,30 @@ static void machvirt_init(MachineState *machine)
      * KVM is not available yet
      */
     finalize_gic_version(vms);
+
+    /*
+     * When "kvm-arm-gicv3" or "arm-its-kvm" is used, the backup dirty
+     * bitmap has to be enabled for KVM dirty ring, before any memory
+     * slot is added. Otherwise, the migration will fail with the dirty
+     * ring.
+     */
+    if (kvm_enabled()) {
+        if (vms->gic_version != VIRT_GIC_VERSION_2) {
+            gictype = gicv3_class_name();
+        }
+
+        if (vms->gic_version != VIRT_GIC_VERSION_2 && vms->its) {
+            itsclass = its_class_name();
+        }
+
+        if (((gictype && !strcmp(gictype, "kvm-arm-gicv3")) ||
+             (itsclass && !strcmp(itsclass, "arm-its-kvm"))) &&
+            !kvm_arm_enable_dirty_ring_with_bitmap()) {
+            error_report("Failed to enable the backup bitmap for "
+                         "KVM dirty ring");
+            exit(1);
+        }
+    }
 
     if (vms->secure) {
         /*
