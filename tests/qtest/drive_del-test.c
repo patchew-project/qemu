@@ -16,6 +16,21 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qlist.h"
 
+static const char *qvirtio_get_dev_type(void);
+
+/*
+ * This covers the possible absence of a device due to QEMU build
+ * options.
+ */
+static bool look_for_device_builtin(const char *prefix, const char *suffix)
+{
+    gchar *device = g_strdup_printf("%s-%s", prefix, suffix);
+    bool rc = qtest_has_device(device);
+
+    g_free(device);
+    return rc;
+}
+
 static bool look_for_drive0(QTestState *qts, const char *command, const char *key)
 {
     QDict *response;
@@ -38,6 +53,11 @@ static bool look_for_drive0(QTestState *qts, const char *command, const char *ke
 
     qobject_unref(response);
     return found;
+}
+
+static bool has_device_builtin(const char *dev)
+{
+    return look_for_device_builtin(dev, qvirtio_get_dev_type());
 }
 
 static bool has_drive(QTestState *qts)
@@ -208,6 +228,11 @@ static void test_drive_del_device_del(void)
 {
     QTestState *qts;
 
+    if (!has_device_builtin("virtio-scsi")) {
+        g_test_skip(NULL);
+        return;
+    }
+
     /* Start with a drive used by a device that unplugs instantaneously */
     qts = qtest_initf("-drive if=none,id=drive0,file=null-co://,"
                       "file.read-zeroes=on,format=raw"
@@ -231,6 +256,11 @@ static void test_cli_device_del(void)
     QTestState *qts;
     const char *arch = qtest_get_arch();
     const char *machine_addition = "";
+
+    if (!has_device_builtin("virtio-blk")) {
+        g_test_skip(NULL);
+        return;
+    }
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         machine_addition = "-machine pc";
@@ -256,6 +286,11 @@ static void test_cli_device_del_q35(void)
 {
     QTestState *qts;
 
+    if (!has_device_builtin("virtio-blk")) {
+        g_test_skip(NULL);
+        return;
+    }
+
     /*
      * -drive/-device and device_del.  Start with a drive used by a
      * device that unplugs after reset.
@@ -277,6 +312,11 @@ static void test_empty_device_del(void)
 {
     QTestState *qts;
 
+    if (!has_device_builtin("virtio-scsi")) {
+        g_test_skip(NULL);
+        return;
+    }
+
     /* device_del with no drive plugged.  */
     qts = qtest_initf("-device virtio-scsi-%s -device scsi-cd,id=dev0",
                       qvirtio_get_dev_type());
@@ -290,6 +330,11 @@ static void test_device_add_and_del(void)
     QTestState *qts;
     const char *arch = qtest_get_arch();
     const char *machine_addition = "";
+
+    if (!has_device_builtin("virtio-blk")) {
+        g_test_skip(NULL);
+        return;
+    }
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         machine_addition = "-machine pc";
@@ -330,6 +375,11 @@ static void test_device_add_and_del_q35(void)
 {
     QTestState *qts;
 
+    if (!has_device_builtin("virtio-blk")) {
+        g_test_skip(NULL);
+        return;
+    }
+
     /*
      * -drive/device_add and device_del.  Start with a drive used by a
      * device that unplugs after reset.
@@ -351,6 +401,11 @@ static void test_drive_add_device_add_and_del(void)
     QTestState *qts;
     const char *arch = qtest_get_arch();
     const char *machine_addition = "";
+
+    if (!has_device_builtin("virtio-blk")) {
+        g_test_skip(NULL);
+        return;
+    }
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         machine_addition = "-machine pc";
@@ -374,6 +429,11 @@ static void test_drive_add_device_add_and_del_q35(void)
 {
     QTestState *qts;
 
+    if (!has_device_builtin("virtio-blk")) {
+        g_test_skip(NULL);
+        return;
+    }
+
     qts = qtest_init("-machine q35 -device pcie-root-port,id=p1 "
                      "-device pcie-pci-bridge,bus=p1,id=b1");
 
@@ -394,6 +454,11 @@ static void test_blockdev_add_device_add_and_del(void)
     QTestState *qts;
     const char *arch = qtest_get_arch();
     const char *machine_addition = "";
+
+    if (!has_device_builtin("virtio-blk")) {
+        g_test_skip(NULL);
+        return;
+    }
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         machine_addition = "-machine pc";
@@ -416,6 +481,11 @@ static void test_blockdev_add_device_add_and_del(void)
 static void test_blockdev_add_device_add_and_del_q35(void)
 {
     QTestState *qts;
+
+    if (!has_device_builtin("virtio-blk")) {
+        g_test_skip(NULL);
+        return;
+    }
 
     qts = qtest_init("-machine q35 -device pcie-root-port,id=p1 "
                      "-device pcie-pci-bridge,bus=p1,id=b1");
