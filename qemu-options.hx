@@ -4158,11 +4158,21 @@ SRST
     from a script.
 ERST
 
+DEF("one-insn-per-tb", 0, QEMU_OPTION_one_insn_per_tb, \
+    "-one-insn-per-tb     run with one guest instruction per emulated TB\n", QEMU_ARCH_ALL)
+SRST
+``-one-insn-per-tb``
+    Run the emulation with one guest instruction per translation block.
+    This slows down emulation a lot, but can be useful in some situations,
+    such as when trying to analyse the logs produced by the ``-d`` option.
+    This only has an effect when using TCG, not with KVM or other accelerators.
+ERST
+
 DEF("singlestep", 0, QEMU_OPTION_singlestep, \
-    "-singlestep     always run in singlestep mode\n", QEMU_ARCH_ALL)
+    "-singlestep     deprecated synonym for -one-insn-per-tb\n", QEMU_ARCH_ALL)
 SRST
 ``-singlestep``
-    Run the emulation in single step mode.
+    This is a deprecated synonym for the -one-insn-per-tb option.
 ERST
 
 DEF("preconfig", 0, QEMU_OPTION_preconfig, \

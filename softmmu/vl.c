@@ -2957,6 +2957,7 @@ void qemu_init(int argc, char **argv)
                 qdict_put_str(machine_opts_dict, "firmware", optarg);
                 break;
             case QEMU_OPTION_singlestep:
+            case QEMU_OPTION_one_insn_per_tb:
                 one_insn_per_tb = 1;
                 break;
             case QEMU_OPTION_S:
