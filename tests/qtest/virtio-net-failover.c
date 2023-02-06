@@ -1835,6 +1835,11 @@ int main(int argc, char **argv)
     gchar *tmpfile;
     int ret;
 
+    if (!qtest_has_device("pcie-root-port") ||
+        !qtest_has_device("virtio-net")) {
+        return 0;
+    }
+
     g_test_init(&argc, &argv, NULL);
 
     ret = g_file_open_tmp("failover_test_migrate-XXXXXX", &tmpfile, NULL);
