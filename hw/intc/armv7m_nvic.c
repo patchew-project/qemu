@@ -399,6 +399,11 @@ bool armv7m_nvic_neg_prio_requested(NVICState *s, bool secure)
      * mean we don't allow FAULTMASK_NS to actually make the execution
      * priority negative). Compare pseudocode IsReqExcPriNeg().
      */
+
+    if (!DEVICE(s)->realized) { /* XXX Why are we called while not realized? */
+        return false;
+    }
+
     if (s->cpu->env.v7m.faultmask[secure]) {
         return true;
     }
