@@ -479,10 +479,145 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
     return s;
 }
 
+enum qemu_options {
+    DEVICE = G_TOKEN_LAST + 1,
+    DRIVER = G_TOKEN_LAST + 2,
+};
+
+static void _add_option(GHashTable *ht, const char *key, const char *val)
+{
+    GList *list = g_hash_table_lookup(ht, key);
+
+    if (!list) {
+        list = g_list_append(list, g_strdup(val));
+        g_hash_table_insert(ht, g_strdup(key), list);
+    } else {
+        list = g_list_append(list, g_strdup(val));
+    }
+}
+
+static void _parse_device_json(GHashTable *opts, GScanner *top_scanner)
+{
+    GScanner *scanner = g_scanner_new(top_scanner->config);
+    gchar *text;
+
+    assert(top_scanner->token == G_TOKEN_STRING);
+    text = g_strdup(top_scanner->value.v_string);
+
+    g_scanner_scope_add_symbol(scanner, 0, "driver", GINT_TO_POINTER(DRIVER));
+    g_scanner_input_text(scanner, text, strlen(text));
+
+    do {
+        g_scanner_get_next_token(scanner);
+        switch ((enum qemu_options)scanner->token) {
+        case DRIVER:
+            /* -device "{'driver':'dev' */
+            g_scanner_get_next_token(scanner);
+
+            switch (scanner->token) {
+            case G_TOKEN_IDENTIFIER:
+                _add_option(opts, "devices", scanner->value.v_string);
+                break;
+
+            default: /* invalid */
+                _add_option(opts, "devices", NULL);
+            }
+            break;
+        default:
+            break;
+        }
+        g_scanner_peek_next_token(scanner);
+    } while (scanner->next_token != G_TOKEN_EOF &&
+             scanner->next_token != G_TOKEN_ERROR);
+
+    g_scanner_destroy(scanner);
+    g_free(text);
+}
+
+static void qtest_parse_args(GHashTable *opts, const char *args)
+{
+    GScanner *scanner = g_scanner_new(NULL);
+
+    scanner->input_name = "qtest args";
+    scanner->config->symbol_2_token = 1;
+    scanner->config->scan_float = 0;
+    scanner->config->scan_string_sq = 0;
+    scanner->config->cset_skip_characters = g_strdup(" \t\n':");
+    scanner->config->cset_identifier_first = g_strdup("-" G_CSET_a_2_z
+                                                      G_CSET_A_2_Z
+                                                      G_CSET_DIGITS),
+    scanner->config->cset_identifier_nth = g_strdup("-_." G_CSET_a_2_z
+                                                    G_CSET_A_2_Z G_CSET_DIGITS),
+
+    g_scanner_scope_add_symbol(scanner, 0, "-device", GINT_TO_POINTER(DEVICE));
+
+    g_scanner_input_text(scanner, args, strlen(args));
+
+    do {
+        g_scanner_get_next_token(scanner);
+
+        switch ((enum qemu_options)scanner->token) {
+        case DEVICE:
+            g_scanner_get_next_token(scanner);
+
+            switch (scanner->token) {
+            case G_TOKEN_IDENTIFIER: /* -device dev */
+                _add_option(opts, "devices", scanner->value.v_string);
+                break;
+
+            case G_TOKEN_STRING: /* -device "{'driver':'dev' */
+                _parse_device_json(opts, scanner);
+                break;
+
+            default: /* invalid */
+                _add_option(opts, "devices", NULL);
+            }
+            break;
+        default:
+            break;
+        }
+        g_scanner_peek_next_token(scanner);
+    } while (scanner->next_token != G_TOKEN_EOF &&
+             scanner->next_token != G_TOKEN_ERROR);
+
+    g_scanner_destroy(scanner);
+}
+
+bool qtest_validate_args(const char *args, char **msg)
+{
+    GHashTable *opts = g_hash_table_new(g_str_hash, g_str_equal);
+    GList *l;
+    bool rc = true;
+
+    qtest_parse_args(opts, args);
+
+    for (l = g_hash_table_lookup(opts, "devices"); l != NULL; l = l->next) {
+        if (!l->data || !qtest_has_device(l->data)) {
+            *msg = g_strdup_printf("Device %s is not available",
+                                   (char *)l->data);
+            rc = false;
+            break;
+        }
+    }
+    g_hash_table_unref(opts);
+    return rc;
+}
+
 QTestState *qtest_init(const char *extra_args)
 {
-    QTestState *s = qtest_init_without_qmp_handshake(extra_args);
+    QTestState *s;
     QDict *greeting;
+/*
+ *   char *err_msg;
+ *
+ *    if (!qtest_validate_args(extra_args, &err_msg)) {
+ *        g_test_skip(err_msg);
+ *        g_free(err_msg);
+ *
+ *        return NULL;
+ *    }
+ */
+    s = qtest_init_without_qmp_handshake(extra_args);
 
     /* Read the QMP greeting and then do the handshake */
     greeting = qtest_qmp_receive(s);

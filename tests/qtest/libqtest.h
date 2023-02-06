@@ -832,4 +832,16 @@ void qtest_qom_set_bool(QTestState *s, const char *path, const char *property,
  * Returns: Value retrieved from property.
  */
 bool qtest_qom_get_bool(QTestState *s, const char *path, const char *property);
+
+/**
+ * qtest_validate_args:
+ * @args: arguments to validate, exactly as they would be passed
+ * into qtest_init.
+ * @err_msg: String with the reason for the failure, if any.
+ *
+ * Validates the command line (args) for options that are incompatible
+ * with the current QEMU build.
+ */
+bool qtest_validate_args(const char *args, char **err_msg);
+
 #endif
