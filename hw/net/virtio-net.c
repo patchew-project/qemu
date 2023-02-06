@@ -570,7 +570,7 @@ static void virtio_net_queue_reset(VirtIODevice *vdev, uint32_t queue_index)
         vhost_net_virtqueue_reset(vdev, nc, queue_index);
     }
 
-    flush_or_purge_queued_packets(nc);
+    qemu_purge_queued_packets(nc);
 }
 
 static void virtio_net_queue_enable(VirtIODevice *vdev, uint32_t queue_index)
