@@ -1479,13 +1479,19 @@ static int kvm_dirty_ring_reaper_init(KVMState *s)
 static int kvm_dirty_ring_init(KVMState *s)
 {
     uint64_t ring_bytes;
+    unsigned int capability = KVM_CAP_DIRTY_LOG_RING;
     int ret;
 
     /*
      * Read the max supported pages. Fall back to dirty logging mode
      * if the dirty ring isn't supported.
      */
-    ret = kvm_vm_check_extension(s, KVM_CAP_DIRTY_LOG_RING);
+    ret = kvm_vm_check_extension(s, capability);
+    if (ret <= 0) {
+        capability = KVM_CAP_DIRTY_LOG_RING_ACQ_REL;
+        ret = kvm_vm_check_extension(s, capability);
+    }
+
     if (ret <= 0) {
         warn_report("KVM dirty ring not available, using bitmap method");
         s->kvm_dirty_ring_size = 0;
@@ -1502,7 +1508,7 @@ static int kvm_dirty_ring_init(KVMState *s)
         goto out;
     }
 
-    ret = kvm_vm_enable_cap(s, KVM_CAP_DIRTY_LOG_RING, 0, ring_bytes);
+    ret = kvm_vm_enable_cap(s, capability, 0, ring_bytes);
     if (ret) {
         error_report("Enabling of KVM dirty ring failed: %s. "
                      "Suggested minimum value is 1024.", strerror(-ret));
