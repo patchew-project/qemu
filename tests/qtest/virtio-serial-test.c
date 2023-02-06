@@ -28,6 +28,10 @@ static void register_virtio_serial_test(void)
 {
     QOSGraphTestOptions opts = { };
 
+    if (!qtest_has_device("virtconsole")) {
+        return;
+    }
+
     opts.edge.before_cmd_line = "-device virtconsole,bus=vser0.0";
     qos_add_test("console-nop", "virtio-serial", virtio_serial_nop, &opts);
 
