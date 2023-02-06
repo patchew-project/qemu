@@ -141,6 +141,41 @@ static uint8_t pca6416_recv(I2CSlave *i2c)
     return data;
 }
 
+/* slave to master */
+static uint8_t pca9538_recv(I2CSlave *i2c)
+{
+    PCAGPIOState *ps = PCA_I2C_GPIO(i2c);
+    uint8_t data;
+
+    switch (ps->command) {
+    case PCA9538_INPUT_PORT:
+        data = ps->curr_input;
+        break;
+
+    case PCA9538_OUTPUT_PORT:
+        data = ps->new_output;
+        break;
+
+    case PCA9538_POLARITY_INVERSION_PORT:
+        data = ps->polarity_inv;
+        break;
+
+    case PCA9538_CONFIGURATION_PORT:
+        data = ps->config;
+        break;
+
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: reading from unsupported register 0x%02x",
+                      __func__, ps->command);
+        data = 0xFF;
+        break;
+    }
+
+    trace_pca_i2c_recv(DEVICE(ps)->canonical_path, ps->command, data);
+    return data;
+}
+
 /* master to slave */
 static int pca6416_send(I2CSlave *i2c, uint8_t data)
 {
@@ -198,6 +233,47 @@ static int pca6416_send(I2CSlave *i2c, uint8_t data)
     }
 
     pca_i2c_update_irqs(ps);
+    return 0;
+}
+
+/* master to slave */
+static int pca9538_send(I2CSlave *i2c, uint8_t data)
+{
+    PCAGPIOState *ps = PCA_I2C_GPIO(i2c);
+    if (ps->i2c_cmd) {
+        ps->command = data;
+        ps->i2c_cmd = false;
+        return 0;
+    }
+
+    trace_pca_i2c_send(DEVICE(ps)->canonical_path, ps->command, data);
+
+    switch (ps->command) {
+    case PCA9538_INPUT_PORT:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: writing to read only reg: 0x%02x",
+                      __func__, ps->command);
+        break;
+    case PCA9538_OUTPUT_PORT:
+        ps->new_output = data;
+        break;
+
+    case PCA9538_POLARITY_INVERSION_PORT:
+        ps->polarity_inv = data;
+        break;
+
+    case PCA9538_CONFIGURATION_PORT:
+        ps->config = data;
+        break;
+
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: writing to unsupported register\n",
+                      __func__);
+        return -1;
+    }
+
+    pca_i2c_update_irqs(ps);
+
     return 0;
 }
 
@@ -321,6 +397,23 @@ static void pca6416_gpio_class_init(ObjectClass *klass, void *data)
     pc->num_pins = PCA6416_NUM_PINS;
 }
 
+static void pca9538_gpio_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    PCAGPIOClass *pc = PCA_I2C_GPIO_CLASS(klass);
+
+    dc->desc = "PCA9538 8-bit I/O expander";
+    dc->realize = pca_i2c_realize;
+    dc->vmsd = &vmstate_pca_i2c_gpio;
+
+    k->event = pca_i2c_event;
+    k->recv = pca9538_recv;
+    k->send = pca9538_send;
+
+    pc->num_pins = PCA9538_NUM_PINS;
+}
+
 static void pca_i2c_gpio_init(Object *obj)
 {
     PCAGPIOState *ps = PCA_I2C_GPIO(obj);
@@ -356,6 +449,11 @@ static const TypeInfo pca_gpio_types[] = {
     .name = TYPE_PCA6416_GPIO,
     .parent = TYPE_PCA_I2C_GPIO,
     .class_init = pca6416_gpio_class_init,
+    },
+    {
+    .name = TYPE_PCA9538_GPIO,
+    .parent = TYPE_PCA_I2C_GPIO,
+    .class_init = pca9538_gpio_class_init,
     },
 };
 
