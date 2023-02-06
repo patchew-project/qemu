@@ -721,11 +721,6 @@ typedef struct CPUArchState {
     ARMVectorReg zarray[ARM_MAX_VQ * 16];
 #endif
 
-#if defined(CONFIG_USER_ONLY)
-    /* For usermode syscall translation.  */
-    int eabi;
-#endif
-
     struct CPUBreakpoint *cpu_breakpoint[16];
     struct CPUWatchpoint *cpu_watchpoint[16];
 
@@ -772,6 +767,10 @@ typedef struct CPUArchState {
         uint32_t ctrl;
     } sau;
 
+#if defined(CONFIG_USER_ONLY)
+    /* For usermode syscall translation.  */
+    int eabi;
+#endif
     void *nvic;
     const struct arm_boot_info *boot_info;
     /* Store GICv3CPUState to access from this struct */
