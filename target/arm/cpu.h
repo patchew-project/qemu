@@ -772,10 +772,10 @@ typedef struct CPUArchState {
     int eabi;
 #else
     const struct arm_boot_info *boot_info;
-#endif
-    void *nvic;
     /* Store GICv3CPUState to access from this struct */
     void *gicv3state;
+#endif
+    void *nvic;
 
 #ifdef TARGET_TAGGED_ADDRESSES
     /* Linux syscall tagged address support */
