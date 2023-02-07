@@ -1079,7 +1079,7 @@ void x86_load_linux(X86MachineState *x86ms,
     fclose(f);
 
     /* append dtb to kernel */
-    if (dtb_filename) {
+    if (dtb_filename && !sev_enabled()) {
         if (protocol < 0x209) {
             fprintf(stderr, "qemu: Linux kernel too old to load a dtb\n");
             exit(1);
@@ -1103,7 +1103,7 @@ void x86_load_linux(X86MachineState *x86ms,
         load_image_size(dtb_filename, setup_data->data, dtb_size);
     }
 
-    if (!legacy_no_rng_seed && protocol >= 0x209) {
+    if (!legacy_no_rng_seed && protocol >= 0x209 && !sev_enabled()) {
         setup_data_offset = cmdline_size;
         cmdline_size += sizeof(SetupData) + RNG_SEED_LENGTH;
         kernel_cmdline = g_realloc(kernel_cmdline, cmdline_size);
