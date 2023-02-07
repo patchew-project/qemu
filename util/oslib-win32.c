@@ -496,6 +496,116 @@ ssize_t qemu_recvfrom_wrap(int sockfd, void *buf, size_t len, int flags,
     return ret;
 }
 
+int qemu_socketpair(int domain, int type, int protocol, int sv[2])
+{
+    struct sockaddr_un addr = {
+        0,
+    };
+    socklen_t socklen;
+    SOCKET listener = INVALID_SOCKET;
+    SOCKET client = INVALID_SOCKET;
+    SOCKET server = INVALID_SOCKET;
+    g_autofree char *path = NULL;
+    int tmpfd;
+    u_long arg, br;
+    int ret = -1;
+
+    g_return_val_if_fail(sv != NULL, -1);
+
+    addr.sun_family = AF_UNIX;
+    socklen = sizeof(addr);
+
+    tmpfd = g_file_open_tmp(NULL, &path, NULL);
+    if (tmpfd == -1) {
+        WSASetLastError(WSAEACCES);
+        goto out;
+    }
+
+    close(tmpfd);
+
+    if (strlen(path) >= sizeof(addr.sun_path)) {
+        WSASetLastError(WSAEACCES);
+        goto out;
+    }
+
+    strncpy(addr.sun_path, path, sizeof(addr.sun_path) - 1);
+
+    listener = socket(domain, type, protocol);
+    if (listener == INVALID_SOCKET) {
+        goto out;
+    }
+
+    if (DeleteFile(path) == 0 && GetLastError() != ERROR_FILE_NOT_FOUND) {
+        WSASetLastError(WSAEACCES);
+        goto out;
+    }
+    g_clear_pointer(&path, g_free);
+
+    if (bind(listener, (struct sockaddr *)&addr, socklen) == SOCKET_ERROR) {
+        goto out;
+    }
+
+    if (listen(listener, 1) == SOCKET_ERROR) {
+        goto out;
+    }
+
+    client = socket(domain, type, protocol);
+    if (client == INVALID_SOCKET) {
+        goto out;
+    }
+
+    arg = 1;
+    if (ioctlsocket(client, FIONBIO, &arg) == SOCKET_ERROR) {
+        goto out;
+    }
+
+    if (connect(client, (struct sockaddr *)&addr, socklen) == SOCKET_ERROR &&
+        WSAGetLastError() != WSAEWOULDBLOCK) {
+        goto out;
+    }
+
+    server = accept(listener, NULL, NULL);
+    if (server == INVALID_SOCKET) {
+        goto out;
+    }
+
+    arg = 0;
+    if (ioctlsocket(client, FIONBIO, &arg) == SOCKET_ERROR) {
+        goto out;
+    }
+
+    if (WSAIoctl(server, SIO_AF_UNIX_GETPEERPID, NULL, 0U, &arg, sizeof(arg),
+                 &br, NULL, NULL) == SOCKET_ERROR ||
+        arg != GetCurrentProcessId()) {
+        WSASetLastError(WSAEACCES);
+        goto out;
+    }
+
+    sv[0] = server;
+    server = INVALID_SOCKET;
+    sv[1] = client;
+    client = INVALID_SOCKET;
+    ret = 0;
+
+out:
+    if (ret == -1) {
+        errno = socket_error();
+    }
+    if (listener != INVALID_SOCKET) {
+        closesocket(listener);
+    }
+    if (client != INVALID_SOCKET) {
+        closesocket(client);
+    }
+    if (server != INVALID_SOCKET) {
+        closesocket(server);
+    }
+    if (path) {
+        DeleteFile(path);
+    }
+    return ret;
+}
+
 bool qemu_write_pidfile(const char *filename, Error **errp)
 {
     char buffer[128];
