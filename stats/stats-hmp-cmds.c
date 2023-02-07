@@ -174,7 +174,7 @@ static StatsFilter *stats_filter(StatsTarget target, const char *names,
             request->provider = provider_idx;
             if (names && !g_str_equal(names, "*")) {
                 request->has_names = true;
-                request->names = hmp_split_at_comma(names);
+                request->names = strList_from_string(names, ',');
             }
             QAPI_LIST_PREPEND(request_list, request);
         }
