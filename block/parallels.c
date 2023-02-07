@@ -877,9 +877,8 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     error_setg(&s->migration_blocker, "The Parallels format used by node '%s' "
                "does not support live migration",
                bdrv_get_device_or_node_name(bs));
-    ret = migrate_add_blocker(s->migration_blocker, errp);
+    ret = migrate_add_blocker(&s->migration_blocker, errp);
     if (ret < 0) {
-        error_free(s->migration_blocker);
         goto fail;
     }
     qemu_co_mutex_init(&s->lock);
@@ -911,8 +910,7 @@ static void parallels_close(BlockDriverState *bs)
     g_free(s->bat_dirty_bmap);
     qemu_vfree(s->header);
 
-    migrate_del_blocker(s->migration_blocker);
-    error_free(s->migration_blocker);
+    migrate_del_blocker(&s->migration_blocker);
 }
 
 static BlockDriver bdrv_parallels = {
