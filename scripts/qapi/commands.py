@@ -64,9 +64,13 @@ def gen_call(name: str,
     elif arg_type:
         assert not arg_type.variants
         for memb in arg_type.members:
+            if memb.ifcond.is_present():
+                argstr += '\n' + memb.ifcond.gen_if()
             if memb.need_has():
                 argstr += 'arg.has_%s, ' % c_name(memb.name)
             argstr += 'arg.%s, ' % c_name(memb.name)
+            if memb.ifcond.is_present():
+                argstr += '\n' + memb.ifcond.gen_endif()
 
     lhs = ''
     if ret_type:

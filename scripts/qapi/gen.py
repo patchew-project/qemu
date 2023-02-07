@@ -111,22 +111,31 @@ def build_params(arg_type: Optional[QAPISchemaObjectType],
                  boxed: bool,
                  extra: Optional[str] = None) -> str:
     ret = ''
-    sep = ''
     if boxed:
         assert arg_type
         ret += '%s arg' % arg_type.c_param_type()
-        sep = ', '
+        if extra:
+            ret += ', '
     elif arg_type:
         assert not arg_type.variants
+        n = 0
         for memb in arg_type.members:
-            ret += sep
-            sep = ', '
+            n += 1
+            if memb.ifcond.is_present():
+                ret += '\n' + memb.ifcond.gen_if()
             if memb.need_has():
                 ret += 'bool has_%s, ' % c_name(memb.name)
             ret += '%s %s' % (memb.type.c_param_type(),
                               c_name(memb.name))
+            if extra or n != len(arg_type.members):
+                ret += ', '
+            else:
+                # FIXME: optional last argument may break compilation
+                assert not memb.ifcond.is_present()
+            if memb.ifcond.is_present():
+                ret += '\n' + memb.ifcond.gen_endif()
     if extra:
-        ret += sep + extra
+        ret += extra
     return ret if ret else 'void'
 
 
