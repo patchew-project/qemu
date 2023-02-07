@@ -14,6 +14,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/sockets.h"
 #include "monitor-internal.h"
 #include "monitor/qdev.h"
 #include "monitor/qmp-helpers.h"
@@ -139,11 +140,17 @@ void qmp_add_client(const char *protocol, const char *fdname,
         return;
     }
 
+    if (!fd_is_socket(fd)) {
+        error_setg(errp, "add_client expects a socket");
+        close(fd);
+        return;
+    }
+
     for (i = 0; i < ARRAY_SIZE(protocol_table); i++) {
         if (!strcmp(protocol, protocol_table[i].name)) {
             if (!protocol_table[i].add_client(fd, has_skipauth, skipauth,
                                               has_tls, tls, errp)) {
-                close(fd);
+                closesocket(fd);
             }
             return;
         }
@@ -151,7 +158,7 @@ void qmp_add_client(const char *protocol, const char *fdname,
 
     if (!qmp_add_client_char(fd, has_skipauth, skipauth, has_tls, tls,
                              protocol, errp)) {
-        close(fd);
+        closesocket(fd);
     }
 }
 
