@@ -2224,10 +2224,9 @@ static void qxl_realize_primary(PCIDevice *dev, Error **errp)
     }
     vga_init(vga, OBJECT(dev),
              pci_address_space(dev), pci_address_space_io(dev), false);
-    portio_list_init(&qxl->vga_port_list, OBJECT(dev), qxl_vga_portio_list,
-                     vga, "vga");
-    portio_list_set_flush_coalesced(&qxl->vga_port_list);
-    portio_list_add(&qxl->vga_port_list, pci_address_space_io(dev), 0x3b0);
+    portio_list_register_flush_coalesced(&qxl->vga_port_list, OBJECT(dev),
+                                         qxl_vga_portio_list, vga, "vga",
+                                         pci_address_space_io(dev), 0x3b0);
     qxl->have_vga = true;
 
     vga->con = graphic_console_init(DEVICE(dev), 0, &qxl_ops, qxl);
