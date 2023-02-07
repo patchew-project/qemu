@@ -332,6 +332,11 @@ class QEMUMachine:
         """Returns the list of arguments given to the QEMU binary."""
         return self._args
 
+    @property
+    def full_args(self) -> List[str]:
+        """Returns the full list of arguments used to launch QEMU."""
+        return list(self._qemu_full_args)
+
     def _pre_launch(self) -> None:
         if self._console_set:
             self._remove_files.append(self._console_address)
