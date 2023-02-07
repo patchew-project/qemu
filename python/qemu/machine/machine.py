@@ -496,6 +496,16 @@ class QEMUMachine:
         finally:
             self._qmp_connection = None
 
+    def reopen_qmp_connection(self) -> None:
+        """Close and re-open the QMP connection."""
+        self._close_qmp_connection()
+        self._qmp_connection = QEMUMonitorProtocol(
+            self._monitor_address,
+            server=True,
+            nickname=self._name
+        )
+        self._qmp.accept(self._qmp_timer)
+
     def _early_cleanup(self) -> None:
         """
         Perform any cleanup that needs to happen before the VM exits.
