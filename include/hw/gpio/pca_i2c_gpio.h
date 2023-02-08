@@ -19,6 +19,7 @@
 
 #define PCA_I2C_MAX_PINS                     16
 #define PCA6416_NUM_PINS                     16
+#define PCA9538_NUM_PINS                     8
 
 typedef struct PCAGPIOClass {
     I2CSlaveClass parent;
@@ -62,8 +63,14 @@ OBJECT_DECLARE_TYPE(PCAGPIOState, PCAGPIOClass, PCA_I2C_GPIO)
 #define PCA6416_CONFIGURATION_PORT_0         0x06 /* read/write */
 #define PCA6416_CONFIGURATION_PORT_1         0x07 /* read/write */
 
+#define PCA9538_INPUT_PORT                   0x00 /* read */
+#define PCA9538_OUTPUT_PORT                  0x01 /* read/write */
+#define PCA9538_POLARITY_INVERSION_PORT      0x02 /* read/write */
+#define PCA9538_CONFIGURATION_PORT           0x03 /* read/write */
+
 #define PCA_I2C_CONFIG_DEFAULT               0
 
 #define TYPE_PCA6416_GPIO "pca6416"
+#define TYPE_PCA9538_GPIO "pca9538"
 
 #endif
