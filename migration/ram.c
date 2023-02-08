@@ -73,16 +73,19 @@
  * RAM_SSAVE_FLAG_COMPRESS_PAGE just rename it.
  */
 
-#define RAM_SAVE_FLAG_FULL     0x01 /* Obsolete, not used anymore */
+/* RAM_SAVE_FLAG_FULL has been obsoleted since at least 2009, we can
+ * reuse it */
+#define RAM_SAVE_FLAG_FULL     0x01
 #define RAM_SAVE_FLAG_ZERO     0x02
 #define RAM_SAVE_FLAG_MEM_SIZE 0x04
 #define RAM_SAVE_FLAG_PAGE     0x08
 #define RAM_SAVE_FLAG_EOS      0x10
 #define RAM_SAVE_FLAG_CONTINUE 0x20
 #define RAM_SAVE_FLAG_XBZRLE   0x40
-/* 0x80 is reserved in migration.h start with 0x100 next */
+/* 0x80 is reserved in qemu-file.h for RAM_SAVE_FLAG_HOOK */
 #define RAM_SAVE_FLAG_COMPRESS_PAGE    0x100
 #define RAM_SAVE_FLAG_MULTIFD_SYNC     0x200
+/* We can't use any flag that is bigger that 0x200 */
 
 XBZRLECacheStats xbzrle_counters;
 
