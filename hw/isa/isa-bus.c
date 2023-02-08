@@ -107,7 +107,7 @@ IsaDma *isa_get_dma(ISABus *bus, int nchan)
 
 static inline void isa_init_ioport(ISADevice *dev, uint16_t ioport)
 {
-    if (dev && (dev->ioport_id == 0 || ioport < dev->ioport_id)) {
+    if (dev->ioport_id == 0 || ioport < dev->ioport_id) {
         dev->ioport_id = ioport;
     }
 }
@@ -123,6 +123,8 @@ int isa_register_portio_list(ISADevice *dev,
                              const MemoryRegionPortio *pio_start,
                              void *opaque, const char *name)
 {
+    assert(dev);
+
     if (!isabus) {
         return -ENODEV;
     }
