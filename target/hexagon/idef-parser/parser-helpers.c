@@ -189,7 +189,7 @@ void imm_print(Context *c, YYLTYPE *locp, HexImm *imm)
         EMIT(c, "ctx->npc");
         break;
     case IMM_CONSTEXT:
-        EMIT(c, "insn->extension_valid");
+        EMIT(c, "ctx->insn->extension_valid");
         break;
     default:
         yyassert(c, locp, false, "Cannot print this expression!");
@@ -1822,8 +1822,7 @@ void gen_inst(Context *c, GString *iname)
     c->inst.allocated = g_array_new(FALSE, FALSE, sizeof(Var));
     c->inst.init_list = g_array_new(FALSE, FALSE, sizeof(HexValue));
     c->inst.strings = g_array_new(FALSE, FALSE, sizeof(GString *));
-    EMIT_SIG(c, "void emit_%s(DisasContext *ctx, Insn *insn, Packet *pkt",
-             c->inst.name->str);
+    EMIT_SIG(c, "void emit_%s(DisasContext *ctx", c->inst.name->str);
 }
 
 
@@ -1903,13 +1902,13 @@ void gen_pred_assign(Context *c, YYLTYPE *locp, HexValue *left_pred,
 
 void gen_cancel(Context *c, YYLTYPE *locp)
 {
-    OUT(c, locp, "gen_cancel(insn->slot);\n");
+    OUT(c, locp, "gen_cancel(ctx->insn->slot);\n");
 }
 
 void gen_load_cancel(Context *c, YYLTYPE *locp)
 {
     gen_cancel(c, locp);
-    OUT(c, locp, "if (insn->slot == 0 && pkt->pkt_has_store_s1) {\n");
+    OUT(c, locp, "if (ctx->insn->slot == 0 && ctx->pkt->pkt_has_store_s1) {\n");
     OUT(c, locp, "ctx->s1_store_processed = false;\n");
     OUT(c, locp, "process_store(ctx, 1);\n");
     OUT(c, locp, "}\n");
@@ -1933,7 +1932,7 @@ void gen_load(Context *c, YYLTYPE *locp, HexValue *width,
     snprintf(size_suffix, 4, "%" PRIu64, width->imm.value * 8);
     /* Lookup the effective address EA */
     find_variable(c, locp, ea, ea);
-    OUT(c, locp, "if (insn->slot == 0 && pkt->pkt_has_store_s1) {\n");
+    OUT(c, locp, "if (ctx->insn->slot == 0 && ctx->pkt->pkt_has_store_s1) {\n");
     OUT(c, locp, "probe_noshuf_load(", ea, ", ", width, ", ctx->mem_idx);\n");
     OUT(c, locp, "process_store(ctx, 1);\n");
     OUT(c, locp, "}\n");
@@ -1962,7 +1961,7 @@ void gen_store(Context *c, YYLTYPE *locp, HexValue *width, HexValue *ea,
     find_variable(c, locp, ea, ea);
     src_m = rvalue_materialize(c, locp, &src_m);
     OUT(c, locp, "gen_store", &mem_width, "(cpu_env, ", ea, ", ", &src_m);
-    OUT(c, locp, ", insn->slot);\n");
+    OUT(c, locp, ", ctx->insn->slot);\n");
     gen_rvalue_free(c, locp, &src_m);
     /* If the var in ea was truncated it is now a tmp HexValue, so free it. */
     gen_rvalue_free(c, locp, ea);
