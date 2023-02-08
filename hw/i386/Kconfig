@@ -93,7 +93,6 @@ config Q35
     bool
     imply VTD
     imply AMD_IOMMU
-    imply E1000E_PCI_EXPRESS
     imply VMPORT
     imply VMMOUSE
     select PC_PCI
@@ -104,6 +103,7 @@ config Q35
     select DIMM
     select SMBIOS
     select FW_CFG_DMA
+    select E1000E_PCI_EXPRESS
 
 config MICROVM
     bool
