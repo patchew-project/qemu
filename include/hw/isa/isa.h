@@ -123,9 +123,6 @@ int isa_register_portio_list(ISADevice *dev,
                              const MemoryRegionPortio *portio,
                              void *opaque, const char *name);
 
-static inline ISABus *isa_bus_from_device(ISADevice *d)
-{
-    return ISA_BUS(qdev_get_parent_bus(DEVICE(d)));
-}
+ISABus *isa_bus_from_device(ISADevice *dev);
 
 #endif
