@@ -595,6 +595,99 @@ def check_event(expr: _JSONObject, info: QAPISourceInfo) -> None:
     check_type(args, info, "'data'", allow_dict=not boxed)
 
 
+def check_expr(expr_elem: _JSONObject) -> None:
+    """
+    Validate and normalize a parsed QAPI schema expression.
+
+    :param expr_elem: The parsed expression to normalize and validate.
+
+    :raise QAPISemError: When this expression fails validation.
+    :return: None, ``expr`` is normalized in-place as needed.
+    """
+    # Expression
+    assert isinstance(expr_elem['expr'], dict)
+    for key in expr_elem['expr'].keys():
+        assert isinstance(key, str)
+    expr: _JSONObject = expr_elem['expr']
+
+    # QAPISourceInfo
+    assert isinstance(expr_elem['info'], QAPISourceInfo)
+    info: QAPISourceInfo = expr_elem['info']
+
+    # Optional[QAPIDoc]
+    tmp = expr_elem.get('doc')
+    assert tmp is None or isinstance(tmp, QAPIDoc)
+    doc: Optional[QAPIDoc] = tmp
+
+    if 'include' in expr:
+        return
+
+    metas = expr.keys() & {'enum', 'struct', 'union', 'alternate',
+                           'command', 'event'}
+    if len(metas) != 1:
+        raise QAPISemError(
+            info,
+            "expression must have exactly one key"
+            " 'enum', 'struct', 'union', 'alternate',"
+            " 'command', 'event'")
+    meta = metas.pop()
+
+    check_name_is_str(expr[meta], info, "'%s'" % meta)
+    name = cast(str, expr[meta])
+    info.set_defn(meta, name)
+    check_defn_name_str(name, info, meta)
+
+    if doc:
+        if doc.symbol != name:
+            raise QAPISemError(
+                info, "documentation comment is for '%s'" % doc.symbol)
+        doc.check_expr(expr)
+    elif info.pragma.doc_required:
+        raise QAPISemError(info,
+                           "documentation comment required")
+
+    if meta == 'enum':
+        check_keys(expr, info, meta,
+                   ['enum', 'data'], ['if', 'features', 'prefix'])
+        check_enum(expr, info)
+    elif meta == 'union':
+        check_keys(expr, info, meta,
+                   ['union', 'base', 'discriminator', 'data'],
+                   ['if', 'features'])
+        normalize_members(expr.get('base'))
+        normalize_members(expr['data'])
+        check_union(expr, info)
+    elif meta == 'alternate':
+        check_keys(expr, info, meta,
+                   ['alternate', 'data'], ['if', 'features'])
+        normalize_members(expr['data'])
+        check_alternate(expr, info)
+    elif meta == 'struct':
+        check_keys(expr, info, meta,
+                   ['struct', 'data'], ['base', 'if', 'features'])
+        normalize_members(expr['data'])
+        check_struct(expr, info)
+    elif meta == 'command':
+        check_keys(expr, info, meta,
+                   ['command'],
+                   ['data', 'returns', 'boxed', 'if', 'features',
+                    'gen', 'success-response', 'allow-oob',
+                    'allow-preconfig', 'coroutine'])
+        normalize_members(expr.get('data'))
+        check_command(expr, info)
+    elif meta == 'event':
+        check_keys(expr, info, meta,
+                   ['event'], ['data', 'boxed', 'if', 'features'])
+        normalize_members(expr.get('data'))
+        check_event(expr, info)
+    else:
+        assert False, 'unexpected meta type'
+
+    check_if(expr, info, meta)
+    check_features(expr.get('features'), info)
+    check_flags(expr, info)
+
+
 def check_exprs(exprs: List[_JSONObject]) -> List[_JSONObject]:
     """
     Validate and normalize a list of parsed QAPI schema expressions.
@@ -607,88 +700,6 @@ def check_exprs(exprs: List[_JSONObject]) -> List[_JSONObject]:
     :raise QAPISemError: When any expression fails validation.
     :return: The same list of expressions (now modified).
     """
-    for expr_elem in exprs:
-        # Expression
-        assert isinstance(expr_elem['expr'], dict)
-        for key in expr_elem['expr'].keys():
-            assert isinstance(key, str)
-        expr: _JSONObject = expr_elem['expr']
-
-        # QAPISourceInfo
-        assert isinstance(expr_elem['info'], QAPISourceInfo)
-        info: QAPISourceInfo = expr_elem['info']
-
-        # Optional[QAPIDoc]
-        tmp = expr_elem.get('doc')
-        assert tmp is None or isinstance(tmp, QAPIDoc)
-        doc: Optional[QAPIDoc] = tmp
-
-        if 'include' in expr:
-            continue
-
-        metas = expr.keys() & {'enum', 'struct', 'union', 'alternate',
-                               'command', 'event'}
-        if len(metas) != 1:
-            raise QAPISemError(
-                info,
-                "expression must have exactly one key"
-                " 'enum', 'struct', 'union', 'alternate',"
-                " 'command', 'event'")
-        meta = metas.pop()
-
-        check_name_is_str(expr[meta], info, "'%s'" % meta)
-        name = cast(str, expr[meta])
-        info.set_defn(meta, name)
-        check_defn_name_str(name, info, meta)
-
-        if doc:
-            if doc.symbol != name:
-                raise QAPISemError(
-                    info, "documentation comment is for '%s'" % doc.symbol)
-            doc.check_expr(expr)
-        elif info.pragma.doc_required:
-            raise QAPISemError(info,
-                               "documentation comment required")
-
-        if meta == 'enum':
-            check_keys(expr, info, meta,
-                       ['enum', 'data'], ['if', 'features', 'prefix'])
-            check_enum(expr, info)
-        elif meta == 'union':
-            check_keys(expr, info, meta,
-                       ['union', 'base', 'discriminator', 'data'],
-                       ['if', 'features'])
-            normalize_members(expr.get('base'))
-            normalize_members(expr['data'])
-            check_union(expr, info)
-        elif meta == 'alternate':
-            check_keys(expr, info, meta,
-                       ['alternate', 'data'], ['if', 'features'])
-            normalize_members(expr['data'])
-            check_alternate(expr, info)
-        elif meta == 'struct':
-            check_keys(expr, info, meta,
-                       ['struct', 'data'], ['base', 'if', 'features'])
-            normalize_members(expr['data'])
-            check_struct(expr, info)
-        elif meta == 'command':
-            check_keys(expr, info, meta,
-                       ['command'],
-                       ['data', 'returns', 'boxed', 'if', 'features',
-                        'gen', 'success-response', 'allow-oob',
-                        'allow-preconfig', 'coroutine'])
-            normalize_members(expr.get('data'))
-            check_command(expr, info)
-        elif meta == 'event':
-            check_keys(expr, info, meta,
-                       ['event'], ['data', 'boxed', 'if', 'features'])
-            normalize_members(expr.get('data'))
-            check_event(expr, info)
-        else:
-            assert False, 'unexpected meta type'
-
-        check_if(expr, info, meta)
-        check_features(expr.get('features'), info)
-        check_flags(expr, info)
-
+    for expr in exprs:
+        check_expr(expr)
     return exprs
