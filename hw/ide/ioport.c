@@ -50,7 +50,7 @@ static const MemoryRegionPortio ide_portio2_list[] = {
     PORTIO_END_OF_LIST(),
 };
 
-int ide_init_ioport(IDEBus *bus, ISADevice *dev, int iobase, int iobase2)
+int ide_init_ioport_isa(IDEBus *bus, ISADevice *dev, int iobase, int iobase2)
 {
     int ret;
 
