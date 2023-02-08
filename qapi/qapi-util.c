@@ -152,3 +152,22 @@ int parse_qapi_name(const char *str, bool complete)
     }
     return p - str;
 }
+
+/*
+ * Split @str at comma.
+ * A null @str defaults to "".
+ */
+strList *str_split_at_comma(const char *str)
+{
+    char **split = g_strsplit(str ? str : "", ",", -1);
+    strList *res = NULL;
+    strList **tail = &res;
+    int i;
+
+    for (i = 0; split[i]; i++) {
+        QAPI_LIST_APPEND(tail, split[i]);
+    }
+
+    g_free(split);
+    return res;
+}
