@@ -14,14 +14,14 @@
 # This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
 
-from collections import OrderedDict
+from collections import OrderedDict, UserDict
 import os
 import re
 from typing import (
     TYPE_CHECKING,
     Dict,
     List,
-    NamedTuple,
+    Mapping,
     Optional,
     Set,
     Union,
@@ -38,21 +38,32 @@ if TYPE_CHECKING:
     from .schema import QAPISchemaFeature, QAPISchemaMember
 
 
-#: Represents a single Top Level QAPI schema expression.
-TopLevelExpr = Dict[str, object]
-
 # Return value alias for get_expr().
 _ExprValue = Union[List[object], Dict[str, object], str, bool]
 
-# FIXME: Consolidate and centralize definitions for TopLevelExpr,
-# _ExprValue, _JSONValue, and _JSONObject; currently scattered across
-# several modules.
+
+# FIXME: Consolidate and centralize definitions for _ExprValue,
+# JSONValue, and _JSONObject; currently scattered across several
+# modules.
 
 
-class ParsedExpression(NamedTuple):
-    expr: TopLevelExpr
-    info: QAPISourceInfo
-    doc: Optional['QAPIDoc']
+# 3.6 workaround: can be removed when Python 3.7+ is our required version.
+if TYPE_CHECKING:
+    _UserDict = UserDict[str, object]
+else:
+    _UserDict = UserDict
+
+
+class QAPIExpression(_UserDict):
+    def __init__(
+        self,
+        initialdata: Mapping[str, object],
+        info: QAPISourceInfo,
+        doc: Optional['QAPIDoc'] = None,
+    ):
+        super().__init__(initialdata)
+        self.info = info
+        self.doc: Optional['QAPIDoc'] = doc
 
 
 class QAPIParseError(QAPISourceError):
@@ -107,7 +118,7 @@ class QAPISchemaParser:
         self.line_pos = 0
 
         # Parser output:
-        self.exprs: List[ParsedExpression] = []
+        self.exprs: List[QAPIExpression] = []
         self.docs: List[QAPIDoc] = []
 
         # Showtime!
@@ -178,10 +189,10 @@ class QAPISchemaParser:
             cur_doc = None
         self.reject_expr_doc(cur_doc)
 
-    def _add_expr(self, expr: TopLevelExpr,
+    def _add_expr(self, expr: Mapping[str, object],
                   info: QAPISourceInfo,
                   doc: Optional['QAPIDoc'] = None) -> None:
-        self.exprs.append(ParsedExpression(expr, info, doc))
+        self.exprs.append(QAPIExpression(expr, info, doc))
 
     @staticmethod
     def reject_expr_doc(doc: Optional['QAPIDoc']) -> None:
@@ -791,7 +802,7 @@ class QAPIDoc:
                                % feature.name)
         self.features[feature.name].connect(feature)
 
-    def check_expr(self, expr: TopLevelExpr) -> None:
+    def check_expr(self, expr: QAPIExpression) -> None:
         if self.has_section('Returns') and 'command' not in expr:
             raise QAPISemError(self.info,
                                "'Returns:' is only valid for commands")
