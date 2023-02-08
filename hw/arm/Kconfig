@@ -418,6 +418,7 @@ config NPCM7XX
     select SSI
     select UNIMP
     select PCA954X
+    select PCA_I2C_GPIO
 
 config FSL_IMX25
     bool
