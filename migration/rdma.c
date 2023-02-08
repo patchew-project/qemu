@@ -3356,12 +3356,15 @@ static int qemu_rdma_accept(RDMAContext *rdma)
         goto err_rdma_dest_wait;
     }
 
+    isock->host = rdma->host;
+    isock->port = (char *)(intptr_t)rdma->port;
+
     /*
      * initialize the RDMAContext for return path for postcopy after first
      * connection request reached.
      */
     if (migrate_postcopy() && !rdma->is_return_path) {
-        rdma_return_path = qemu_rdma_data_init(rdma->host_port, NULL);
+        rdma_return_path = qemu_rdma_data_init(isock, NULL);
         if (rdma_return_path == NULL) {
             rdma_ack_cm_event(cm_event);
             goto err_rdma_dest_wait;
@@ -4093,7 +4096,7 @@ static void rdma_accept_incoming_migration(void *opaque)
     }
 }
 
-void rdma_start_incoming_migration(const char *host_port, Error **errp)
+void rdma_start_incoming_migration(InetSocketAddress *addr, Error **errp)
 {
     int ret;
     RDMAContext *rdma, *rdma_return_path = NULL;
@@ -4107,7 +4110,7 @@ void rdma_start_incoming_migration(const char *host_port, Error **errp)
         return;
     }
 
-    rdma = qemu_rdma_data_init(host_port, &local_err);
+    rdma = qemu_rdma_data_init(addr, &local_err);
     if (rdma == NULL) {
         goto err;
     }
