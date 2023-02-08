@@ -2680,8 +2680,6 @@ bool migrate_multifd_sync_after_each_section(void)
 {
     MigrationState *s = migrate_get_current();
 
-    return true;
-    // We will change this when code gets in.
     return s->enabled_capabilities[MIGRATION_CAPABILITY_MULTIFD_SYNC_AFTER_EACH_SECTION];
 }
 
