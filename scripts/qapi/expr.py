@@ -44,7 +44,7 @@ from typing import (
 
 from .common import c_name
 from .error import QAPISemError
-from .parser import ParsedExpression
+from .parser import ParsedExpression, TopLevelExpr
 from .source import QAPISourceInfo
 
 
@@ -229,11 +229,11 @@ def check_keys(value: _JSONObject,
                pprint(unknown), pprint(allowed)))
 
 
-def check_flags(expr: _JSONObject, info: QAPISourceInfo) -> None:
+def check_flags(expr: TopLevelExpr, info: QAPISourceInfo) -> None:
     """
     Ensure flag members (if present) have valid values.
 
-    :param expr: The expression to validate.
+    :param expr: The `TopLevelExpr` to validate.
     :param info: QAPI schema source file information.
 
     :raise QAPISemError:
@@ -447,9 +447,9 @@ def check_features(features: Optional[object],
         check_if(feat, info, source)
 
 
-def check_enum(expr: _JSONObject, info: QAPISourceInfo) -> None:
+def check_enum(expr: TopLevelExpr, info: QAPISourceInfo) -> None:
     """
-    Normalize and validate this expression as an ``enum`` definition.
+    Normalize and validate this `TopLevelExpr` as an ``enum`` definition.
 
     :param expr: The expression to validate.
     :param info: QAPI schema source file information.
@@ -486,9 +486,9 @@ def check_enum(expr: _JSONObject, info: QAPISourceInfo) -> None:
         check_features(member.get('features'), info)
 
 
-def check_struct(expr: _JSONObject, info: QAPISourceInfo) -> None:
+def check_struct(expr: TopLevelExpr, info: QAPISourceInfo) -> None:
     """
-    Normalize and validate this expression as a ``struct`` definition.
+    Normalize and validate this `TopLevelExpr` as a ``struct`` definition.
 
     :param expr: The expression to validate.
     :param info: QAPI schema source file information.
@@ -503,9 +503,9 @@ def check_struct(expr: _JSONObject, info: QAPISourceInfo) -> None:
     check_type(expr.get('base'), info, "'base'")
 
 
-def check_union(expr: _JSONObject, info: QAPISourceInfo) -> None:
+def check_union(expr: TopLevelExpr, info: QAPISourceInfo) -> None:
     """
-    Normalize and validate this expression as a ``union`` definition.
+    Normalize and validate this `TopLevelExpr` as a ``union`` definition.
 
     :param expr: The expression to validate.
     :param info: QAPI schema source file information.
@@ -531,9 +531,9 @@ def check_union(expr: _JSONObject, info: QAPISourceInfo) -> None:
         check_type(value['type'], info, source, allow_array=not base)
 
 
-def check_alternate(expr: _JSONObject, info: QAPISourceInfo) -> None:
+def check_alternate(expr: TopLevelExpr, info: QAPISourceInfo) -> None:
     """
-    Normalize and validate this expression as an ``alternate`` definition.
+    Normalize and validate this `TopLevelExpr` as an ``alternate`` definition.
 
     :param expr: The expression to validate.
     :param info: QAPI schema source file information.
@@ -557,9 +557,9 @@ def check_alternate(expr: _JSONObject, info: QAPISourceInfo) -> None:
         check_type(value['type'], info, source, allow_array=True)
 
 
-def check_command(expr: _JSONObject, info: QAPISourceInfo) -> None:
+def check_command(expr: TopLevelExpr, info: QAPISourceInfo) -> None:
     """
-    Normalize and validate this expression as a ``command`` definition.
+    Normalize and validate this `TopLevelExpr` as a ``command`` definition.
 
     :param expr: The expression to validate.
     :param info: QAPI schema source file information.
@@ -577,9 +577,9 @@ def check_command(expr: _JSONObject, info: QAPISourceInfo) -> None:
     check_type(rets, info, "'returns'", allow_array=True)
 
 
-def check_event(expr: _JSONObject, info: QAPISourceInfo) -> None:
+def check_event(expr: TopLevelExpr, info: QAPISourceInfo) -> None:
     """
-    Normalize and validate this expression as an ``event`` definition.
+    Normalize and validate this `TopLevelExpr` as an ``event`` definition.
 
     :param expr: The expression to validate.
     :param info: QAPI schema source file information.
