@@ -443,6 +443,27 @@ static int vhost_vdpa_init(struct vhost_dev *dev, void *opaque, Error **errp)
     }
 
     /*
+     * If dev->shadow_vqs_enabled at initialization that means the device has
+     * been started with x-svq=on, so don't block migration
+     */
+    if (dev->migration_blocker == NULL && !v->shadow_vqs_enabled) {
+        uint64_t backend_features;
+
+        /* We don't have dev->backend_features yet */
+        ret = vhost_vdpa_call(dev, VHOST_GET_BACKEND_FEATURES,
+                              &backend_features);
+        if (unlikely(ret)) {
+            error_setg_errno(errp, -ret, "Could not get backend features");
+            return ret;
+        }
+
+        if (!(backend_features & BIT_ULL(VHOST_BACKEND_F_SUSPEND))) {
+            error_setg(&dev->migration_blocker,
+                "vhost-vdpa backend lacks VHOST_BACKEND_F_SUSPEND feature.");
+        }
+    }
+
+    /*
      * Similar to VFIO, we end up pinning all guest memory and have to
      * disable discarding of RAM.
      */
