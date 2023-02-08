@@ -47,22 +47,20 @@ typedef struct SaveVMHandlers {
     /* This runs outside the iothread lock!  */
     int (*save_setup)(QEMUFile *f, void *opaque);
     /* Note for save_live_pending:
-     * - res_precopy_only is for data which must be migrated in precopy phase
+     * - res_precopy is for data which must be migrated in precopy phase
      *     or in stopped state, in other words - before target vm start
-     * - res_postcopy_only is for data which must be migrated in postcopy phase
+     * - res_postcopy is for data which must be migrated in postcopy phase
      *     or in stopped state, in other words - after source vm stop
      *
-     * Sum of res_postcopy_only and res_postcopy_only is the whole
-     * amount of pending data.
+     * Sum of res_postcopy and res_postcopy is the whole amount of
+     * pending data.
      */
     /* This estimates the remaining data to transfer */
-    void (*state_pending_estimate)(void *opaque,
-                                   uint64_t *res_precopy_only,
-                                   uint64_t *res_postcopy_only);
+    void (*state_pending_estimate)(void *opaque, uint64_t *res_precopy,
+                                   uint64_t *res_postcopy);
     /* This calculate the exact remaining data to transfer */
-    void (*state_pending_exact)(void *opaque,
-                                uint64_t *res_precopy_only,
-                                uint64_t *res_postcopy_only);
+    void (*state_pending_exact)(void *opaque, uint64_t *res_precopy,
+                                uint64_t *res_postcopy);
     LoadStateHandler *load_state;
     int (*load_setup)(QEMUFile *f, void *opaque);
     int (*load_cleanup)(void *opaque);

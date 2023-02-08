@@ -3435,9 +3435,8 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
     return 0;
 }
 
-static void ram_state_pending_estimate(void *opaque,
-                                       uint64_t *res_precopy_only,
-                                       uint64_t *res_postcopy_only)
+static void ram_state_pending_estimate(void *opaque, uint64_t *res_precopy,
+                                       uint64_t *res_postcopy)
 {
     RAMState **temp = opaque;
     RAMState *rs = *temp;
@@ -3446,15 +3445,14 @@ static void ram_state_pending_estimate(void *opaque,
 
     if (migrate_postcopy_ram()) {
         /* We can do postcopy, and all the data is postcopiable */
-        *res_postcopy_only += remaining_size;
+        *res_postcopy += remaining_size;
     } else {
-        *res_precopy_only += remaining_size;
+        *res_precopy += remaining_size;
     }
 }
 
-static void ram_state_pending_exact(void *opaque,
-                                    uint64_t *res_precopy_only,
-                                    uint64_t *res_postcopy_only)
+static void ram_state_pending_exact(void *opaque, uint64_t *res_precopy,
+                                    uint64_t *res_postcopy)
 {
     RAMState **temp = opaque;
     RAMState *rs = *temp;
@@ -3472,9 +3470,9 @@ static void ram_state_pending_exact(void *opaque,
 
     if (migrate_postcopy_ram()) {
         /* We can do postcopy, and all the data is postcopiable */
-        *res_postcopy_only += remaining_size;
+        *res_postcopy += remaining_size;
     } else {
-        *res_precopy_only += remaining_size;
+        *res_precopy += remaining_size;
     }
 }
 
