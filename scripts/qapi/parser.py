@@ -21,6 +21,7 @@ from typing import (
     TYPE_CHECKING,
     Dict,
     List,
+    NamedTuple,
     Optional,
     Set,
     Union,
@@ -46,6 +47,12 @@ _ExprValue = Union[List[object], Dict[str, object], str, bool]
 # FIXME: Consolidate and centralize definitions for TopLevelExpr,
 # _ExprValue, _JSONValue, and _JSONObject; currently scattered across
 # several modules.
+
+
+class ParsedExpression(NamedTuple):
+    expr: TopLevelExpr
+    info: QAPISourceInfo
+    doc: Optional['QAPIDoc']
 
 
 class QAPIParseError(QAPISourceError):
@@ -100,7 +107,7 @@ class QAPISchemaParser:
         self.line_pos = 0
 
         # Parser output:
-        self.exprs: List[Dict[str, object]] = []
+        self.exprs: List[ParsedExpression] = []
         self.docs: List[QAPIDoc] = []
 
         # Showtime!
@@ -147,8 +154,7 @@ class QAPISchemaParser:
                                        "value of 'include' must be a string")
                 incl_fname = os.path.join(os.path.dirname(self._fname),
                                           include)
-                self.exprs.append({'expr': {'include': incl_fname},
-                                   'info': info})
+                self._add_expr(OrderedDict({'include': incl_fname}), info)
                 exprs_include = self._include(include, info, incl_fname,
                                               self._included)
                 if exprs_include:
@@ -165,16 +171,17 @@ class QAPISchemaParser:
                 for name, value in pragma.items():
                     self._pragma(name, value, info)
             else:
-                expr_elem = {'expr': expr,
-                             'info': info}
-                if cur_doc:
-                    if not cur_doc.symbol:
-                        raise QAPISemError(
-                            cur_doc.info, "definition documentation required")
-                    expr_elem['doc'] = cur_doc
-                self.exprs.append(expr_elem)
+                if cur_doc and not cur_doc.symbol:
+                    raise QAPISemError(
+                        cur_doc.info, "definition documentation required")
+                self._add_expr(expr, info, cur_doc)
             cur_doc = None
         self.reject_expr_doc(cur_doc)
+
+    def _add_expr(self, expr: TopLevelExpr,
+                  info: QAPISourceInfo,
+                  doc: Optional['QAPIDoc'] = None) -> None:
+        self.exprs.append(ParsedExpression(expr, info, doc))
 
     @staticmethod
     def reject_expr_doc(doc: Optional['QAPIDoc']) -> None:

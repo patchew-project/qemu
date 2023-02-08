@@ -44,7 +44,7 @@ from typing import (
 
 from .common import c_name
 from .error import QAPISemError
-from .parser import QAPIDoc
+from .parser import ParsedExpression
 from .source import QAPISourceInfo
 
 
@@ -595,29 +595,17 @@ def check_event(expr: _JSONObject, info: QAPISourceInfo) -> None:
     check_type(args, info, "'data'", allow_dict=not boxed)
 
 
-def check_expr(expr_elem: _JSONObject) -> None:
+def check_expr(pexpr: ParsedExpression) -> None:
     """
-    Validate and normalize a parsed QAPI schema expression.
+    Validate and normalize a `ParsedExpression`.
 
-    :param expr_elem: The parsed expression to normalize and validate.
+    :param pexpr: The parsed expression to normalize and validate.
 
     :raise QAPISemError: When this expression fails validation.
-    :return: None, ``expr`` is normalized in-place as needed.
+    :return: None, ``pexpr`` is normalized in-place as needed.
     """
-    # Expression
-    assert isinstance(expr_elem['expr'], dict)
-    for key in expr_elem['expr'].keys():
-        assert isinstance(key, str)
-    expr: _JSONObject = expr_elem['expr']
-
-    # QAPISourceInfo
-    assert isinstance(expr_elem['info'], QAPISourceInfo)
-    info: QAPISourceInfo = expr_elem['info']
-
-    # Optional[QAPIDoc]
-    tmp = expr_elem.get('doc')
-    assert tmp is None or isinstance(tmp, QAPIDoc)
-    doc: Optional[QAPIDoc] = tmp
+    expr = pexpr.expr
+    info = pexpr.info
 
     if 'include' in expr:
         return
@@ -637,6 +625,7 @@ def check_expr(expr_elem: _JSONObject) -> None:
     info.set_defn(meta, name)
     check_defn_name_str(name, info, meta)
 
+    doc = pexpr.doc
     if doc:
         if doc.symbol != name:
             raise QAPISemError(
@@ -688,7 +677,7 @@ def check_expr(expr_elem: _JSONObject) -> None:
     check_flags(expr, info)
 
 
-def check_exprs(exprs: List[_JSONObject]) -> List[_JSONObject]:
+def check_exprs(exprs: List[ParsedExpression]) -> List[ParsedExpression]:
     """
     Validate and normalize a list of parsed QAPI schema expressions.
 

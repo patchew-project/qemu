@@ -1168,9 +1168,9 @@ class QAPISchema:
 
     def _def_exprs(self, exprs):
         for expr_elem in exprs:
-            expr = expr_elem['expr']
-            info = expr_elem['info']
-            doc = expr_elem.get('doc')
+            expr = expr_elem.expr
+            info = expr_elem.info
+            doc = expr_elem.doc
             if 'enum' in expr:
                 self._def_enum_type(expr, info, doc)
             elif 'struct' in expr:
