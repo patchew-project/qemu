@@ -23,14 +23,39 @@
 #include "migration.h"
 #include "io/channel-command.h"
 #include "trace.h"
+#include "qapi/error.h"
 
 
-void exec_start_outgoing_migration(MigrationState *s, const char *command, Error **errp)
+void init_exec_array(strList *command, const char *argv[], Error **errp)
+{
+    int i = 0;
+    strList *lst;
+
+    for (lst = command; lst ; lst = lst->next) {
+        argv[i++] = lst->value;
+    }
+
+    /*
+     * Considering exec command always has 3 arguments to execute
+     * a command directly from the bash itself.
+     */
+    if (i > 3) {
+        error_setg(errp, "exec accepts maximum of 3 arguments in the list");
+        return;
+    }
+
+    argv[i] = NULL;
+    return;
+}
+
+void exec_start_outgoing_migration(MigrationState *s, strList *command,
+                                   Error **errp)
 {
     QIOChannel *ioc;
-    const char *argv[] = { "/bin/sh", "-c", command, NULL };
+    const char *argv[4];
+    init_exec_array(command, argv, errp);
 
-    trace_migration_exec_outgoing(command);
+    trace_migration_exec_outgoing(argv[2]);
     ioc = QIO_CHANNEL(qio_channel_command_new_spawn(argv,
                                                     O_RDWR,
                                                     errp));

@@ -13,11 +13,12 @@
  * later.  See the COPYING file in the top-level directory.
  *
  */
+#include "io/channel-socket.h"
 
 #ifndef QEMU_MIGRATION_RDMA_H
 #define QEMU_MIGRATION_RDMA_H
 
-void rdma_start_outgoing_migration(void *opaque, const char *host_port,
+void rdma_start_outgoing_migration(void *opaque, InetSocketAddress *addr,
                                    Error **errp);
 
 void rdma_start_incoming_migration(const char *host_port, Error **errp);
