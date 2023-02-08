@@ -66,7 +66,6 @@ config PC_ACPI
 
 config I440FX
     bool
-    imply E1000_PCI
     imply VMPORT
     imply VMMOUSE
     select ACPI_PIIX4
@@ -78,6 +77,7 @@ config I440FX
     select DIMM
     select SMBIOS
     select FW_CFG_DMA
+    select E1000_PCI
 
 config ISAPC
     bool
