@@ -955,11 +955,17 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
     }
 
     if (has_cvq) {
+        VhostVDPAState *s;
+
         nc = net_vhost_vdpa_init(peer, TYPE_VHOST_VDPA, name,
                                  vdpa_device_fd, i, 1, false,
                                  opts->x_svq, iova_range);
         if (!nc)
             goto err;
+
+        s = DO_UPCAST(VhostVDPAState, nc, nc);
+        error_setg(&s->vhost_vdpa.dev->migration_blocker,
+                   "net vdpa cannot migrate with MQ feature");
     }
 
     return 0;
