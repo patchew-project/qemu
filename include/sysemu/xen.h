@@ -23,6 +23,7 @@
 extern bool xen_allowed;
 
 #define xen_enabled()           (xen_allowed)
+#define pc_xen_igd_gfx_pt_enabled()    xen_igd_gfx_pt_enabled()
 
 #ifndef CONFIG_USER_ONLY
 void xen_hvm_modified_memory(ram_addr_t start, ram_addr_t length);
@@ -33,6 +34,7 @@ void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size,
 #else /* !CONFIG_XEN_IS_POSSIBLE */
 
 #define xen_enabled() 0
+#define pc_xen_igd_gfx_pt_enabled() 0
 #ifndef CONFIG_USER_ONLY
 static inline void xen_hvm_modified_memory(ram_addr_t start, ram_addr_t length)
 {

@@ -433,6 +433,8 @@ static void pc_xen_hvm_init(MachineState *machine)
             compat(machine); \
         } \
         pc_init1(machine, TYPE_I440FX_PCI_HOST_BRIDGE, \
+                 pc_xen_igd_gfx_pt_enabled() ? \
+                 TYPE_IGD_PASSTHROUGH_I440FX_PCI_DEVICE : \
                  TYPE_I440FX_PCI_DEVICE); \
     } \
     DEFINE_PC_MACHINE(suffix, name, pc_init_##suffix, optionfn)
