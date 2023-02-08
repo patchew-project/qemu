@@ -20,7 +20,6 @@ config PC
     imply PCI_IPMI_BT
     imply IPMI_SSIF
     imply ISA_DEBUG
-    imply PARALLEL
     imply PCI_DEVICES
     imply PVPANIC_ISA
     imply QXL
@@ -46,6 +45,7 @@ config PC
     select ACPI_VMGENID
     select VIRTIO_PMEM_SUPPORTED
     select VIRTIO_MEM_SUPPORTED
+    select PARALLEL
 
 config PC_PCI
     bool
