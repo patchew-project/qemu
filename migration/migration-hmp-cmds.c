@@ -32,6 +32,101 @@
 #include "sysemu/runstate.h"
 #include "ui/qemu-spice.h"
 
+static bool
+migrate_channel_from_qdict(MigrateChannel **channel,
+                           const QDict *qdict, Error **errp)
+{
+    Error *err = NULL;
+    const char *channeltype  = qdict_get_try_str(qdict, "channeltype");
+    const char *transport_str = qdict_get_try_str(qdict, "transport");
+    const char *socketaddr_type = qdict_get_try_str(qdict, "type");
+    const char *inet_host = qdict_get_try_str(qdict, "host");
+    const char *inet_port = qdict_get_try_str(qdict, "port");
+    const char *unix_path = qdict_get_try_str(qdict, "path");
+    const char *vsock_cid = qdict_get_try_str(qdict, "cid");
+    const char *vsock_port = qdict_get_try_str(qdict, "port");
+    const char *fd = qdict_get_try_str(qdict, "str");
+    QList *exec = qdict_get_qlist(qdict, "exec");
+    MigrateChannel *val = g_new0(MigrateChannel, 1);
+    MigrateChannelType channel_type;
+    MigrateTransport transport;
+    MigrateAddress *addr = g_new0(MigrateAddress, 1);
+    SocketAddress *saddr = g_new(SocketAddress, 1);
+    SocketAddressType type;
+    InetSocketAddress *isock = g_new0(InetSocketAddress, 1);
+
+    channel_type = qapi_enum_parse(&MigrateChannelType_lookup,
+                                   channeltype, -1, &err);
+    if (channel_type < 0) {
+        goto end;
+    }
+
+    transport = qapi_enum_parse(&MigrateTransport_lookup,
+                                transport_str, -1, &err);
+    if (transport < 0) {
+        goto end;
+    }
+
+    type = qapi_enum_parse(&SocketAddressType_lookup,
+                           socketaddr_type, -1, &err);
+    if (type < 0) {
+        goto end;
+    }
+
+    addr->transport = transport;
+
+    switch (transport) {
+    case MIGRATE_TRANSPORT_SOCKET:
+        saddr->type = type;
+
+        switch (type) {
+        case SOCKET_ADDRESS_TYPE_INET:
+            saddr->u.inet.host = (char *)inet_host;
+            saddr->u.inet.port = (char *)inet_port;
+            break;
+        case SOCKET_ADDRESS_TYPE_UNIX:
+            saddr->u.q_unix.path = (char *)unix_path;
+            break;
+        case SOCKET_ADDRESS_TYPE_VSOCK:
+            saddr->u.vsock.cid = (char *)vsock_cid;
+            saddr->u.vsock.port = (char *)vsock_port;
+            break;
+        case SOCKET_ADDRESS_TYPE_FD:
+            saddr->u.fd.str = (char *)fd;
+            break;
+        default:
+            error_setg(errp, "%s: Unknown socket type %d",
+                       __func__, saddr->type);
+            break;
+        }
+
+        addr->u.socket.data = saddr;
+        break;
+    case MIGRATE_TRANSPORT_EXEC:
+        addr->u.exec.data = (strList *)exec;
+         break;
+    case MIGRATE_TRANSPORT_RDMA:
+        isock->host = (char *)inet_host;
+        isock->port = (char *)inet_port;
+        addr->u.rdma.data = isock;
+        break;
+    default:
+        error_setg(errp, "%s: Unknown migrate transport type %d",
+                   __func__, addr->transport);
+        break;
+    }
+
+    val->channeltype = channel_type;
+    val->addr = addr;
+    *channel = val;
+    return true;
+
+end:
+    error_propagate(errp, err);
+    return false;
+}
+
+
 void hmp_info_migrate(Monitor *mon, const QDict *qdict)
 {
     MigrationInfo *info;
@@ -701,8 +796,16 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
     const char *uri = qdict_get_str(qdict, "uri");
     Error *err = NULL;
 
-    qmp_migrate(uri, !!blk, blk, !!inc, inc,
+    MigrateChannel *channel = g_new0(MigrateChannel, 1);
+
+    if (!migrate_channel_from_qdict(&channel, qdict, &err)) {
+        error_setg(&err, "error in retrieving channel from qdict");
+        return;
+    }
+
+    qmp_migrate(uri, channel, !!blk, blk, !!inc, inc,
                 false, false, true, resume, &err);
+    qapi_free_MigrateChannel(channel);
     if (hmp_handle_error(mon, err)) {
         return;
     }
