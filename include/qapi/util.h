@@ -29,6 +29,7 @@ bool qapi_bool_parse(const char *name, const char *value, bool *obj,
                      Error **errp);
 
 int parse_qapi_name(const char *name, bool complete);
+struct strList *str_split_at_comma(const char *str);
 
 /*
  * For any GenericList @list, insert @element at the front.
