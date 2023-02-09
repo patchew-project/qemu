@@ -45,6 +45,13 @@ static bool pcie_sltctl_powered_off(uint16_t sltctl)
         (sltctl & PCI_EXP_SLTCTL_PIC) == PCI_EXP_SLTCTL_PWR_IND_OFF;
 }
 
+static bool pcie_sltctl_powered_on(uint16_t sltctl)
+{
+    return (sltctl & PCI_EXP_SLTCTL_PCC) == PCI_EXP_SLTCTL_PWR_ON &&
+        (sltctl & PCI_EXP_SLTCTL_PIC) == PCI_EXP_SLTCTL_PWR_IND_ON &&
+        (sltctl & PCI_EXP_SLTCTL_AIC) == PCI_EXP_SLTCTL_ATTN_IND_OFF;
+}
+
 static HotplugLedState pcie_led_state_to_qapi(uint16_t value)
 {
     switch (value) {
@@ -816,6 +823,11 @@ void pcie_cap_slot_write_config(PCIDevice *dev,
                             0, 0, /* no state */
                             pcie_power_state_to_qapi(old_pcc),
                             pcie_power_state_to_qapi(pcc));
+    if ((sltsta & PCI_EXP_SLTSTA_PDS) && pcie_sltctl_powered_on(val) &&
+        !pcie_sltctl_powered_on(old_slt_ctl) && child_dev)
+    {
+        qapi_event_send_device_on(child_dev->id, child_dev->canonical_path);
+    }
 
     /*
      * If the slot is populated, power indicator is off and power
