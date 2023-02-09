@@ -89,6 +89,7 @@ RUN zypper update -y && \
            pam-devel \
            pcre-devel-static \
            pkgconfig \
+           python39 \
            python3-Pillow \
            python3-PyYAML \
            python3-Sphinx \
