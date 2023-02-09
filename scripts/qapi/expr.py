@@ -622,8 +622,8 @@ def check_expr(expr_elem: _JSONObject) -> None:
     if 'include' in expr:
         return
 
-    metas = expr.keys() & {'enum', 'struct', 'union', 'alternate',
-                           'command', 'event'}
+    metas = set(expr.keys() & {
+        'enum', 'struct', 'union', 'alternate', 'command', 'event'})
     if len(metas) != 1:
         raise QAPISemError(
             info,
