@@ -244,3 +244,14 @@
 ##
 { 'event': 'DEVICE_ON',
   'data': { '*device': 'str', 'path': 'str' } }
+
+##
+# @query-hotplug:
+#
+# Query the state of hotplug controller.
+#
+# Since: 8.0
+##
+{ 'command': 'query-hotplug',
+  'data': { 'id': 'str' },
+  'returns': 'HotplugState' }

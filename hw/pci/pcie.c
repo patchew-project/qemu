@@ -1161,3 +1161,31 @@ void pcie_acs_reset(PCIDevice *dev)
         pci_set_word(dev->config + dev->exp.acs_cap + PCI_ACS_CTRL, 0);
     }
 }
+
+HotplugState *pcie_cap_slot_get_hotplug_state(HotplugHandler *hotplug_dev,
+                                              DeviceState *dev, Error **errp)
+{
+    PCIDevice *hotplug_pdev = PCI_DEVICE(hotplug_dev);
+    DeviceState *hotplug_ds = DEVICE(hotplug_pdev);
+    uint8_t *exp_cap = hotplug_pdev->config + hotplug_pdev->exp.exp_cap;
+    uint16_t sltctl = pci_get_word(exp_cap + PCI_EXP_SLTCTL);
+    uint16_t power_led = sltctl & PCI_EXP_SLTCTL_PIC;
+    uint16_t attn_led = sltctl & PCI_EXP_SLTCTL_AIC;
+    uint16_t pcc = sltctl & PCI_EXP_SLTCTL_PCC;
+    HotplugState *res = g_new(HotplugState, 1);
+
+    *res = (HotplugState) {
+        .hotplug_device = g_strdup(hotplug_ds->id),
+        .hotplug_path = g_strdup(hotplug_ds->canonical_path),
+        .device = g_strdup(dev->id),
+        .path = g_strdup(dev->canonical_path),
+        .has_power_led = true,
+        .power_led = pcie_led_state_to_qapi(power_led),
+        .has_attention_led = true,
+        .attention_led = pcie_led_state_to_qapi(attn_led),
+        .has_power = true,
+        .power = pcie_power_state_to_qapi(pcc),
+    };
+
+    return res;
+}
