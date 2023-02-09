@@ -158,3 +158,65 @@
 ##
 { 'event': 'DEVICE_UNPLUG_GUEST_ERROR',
   'data': { '*device': 'str', 'path': 'str' } }
+
+##
+# @HotplugLedState:
+#
+# Since: 8.0
+##
+{ 'enum': 'HotplugLedState',
+  'data': [ 'on', 'blink', 'off' ] }
+
+##
+# @HotplugPowerState:
+#
+# Since: 8.0
+##
+{ 'enum': 'HotplugPowerState',
+  'data': [ 'on', 'off' ] }
+
+##
+# @HotplugSlotState:
+#
+# Since: 8.0
+##
+{ 'enum': 'HotplugSlotState',
+  'data': [ 'power-only', 'enabled', 'disabled' ] }
+
+##
+# @HotplugState:
+#
+# @hotplug-device: hotplug device id
+# @hotplug-path: hotplug device path
+# @hotplug-slot: hotplug device slot (only for SHPC)
+# @device: device name
+# @path: device path
+# @power-led: Power Indicator
+# @attention-led: Attention Indicator
+# @state: slot state, only for SHPC hotplug controller
+# @power: Power Controller state, only for PCIe hotplug
+#
+# Since: 8.0
+##
+{ 'struct': 'HotplugState',
+  'data': { '*hotplug-device': 'str',
+            'hotplug-path': 'str',
+            '*hotplug-slot': 'int',
+            '*device': 'str',
+            'path': 'str',
+            '*power-led': 'HotplugLedState',
+            '*attention-led': 'HotplugLedState',
+            '*state': 'HotplugSlotState',
+            '*power': 'HotplugPowerState' } }
+
+##
+# @HOTPLUG_STATE:
+#
+# Emitted whenever the state of hotplug controller is changed.
+# Only changed values are included into event.
+# Only SHPC and PCIe-native hotplug are supported.
+#
+# Since: 8.0
+##
+{ 'event': 'HOTPLUG_STATE',
+  'data': 'HotplugState' }

@@ -2772,6 +2772,39 @@ void pci_set_power(PCIDevice *d, bool state)
     }
 }
 
+void pci_hotplug_state_event(DeviceState *hotplug_dev,
+                             bool has_slot, int64_t slot,
+                             DeviceState *dev,
+                             HotplugLedState power_led_old,
+                             HotplugLedState power_led_new,
+                             HotplugLedState attention_led_old,
+                             HotplugLedState attention_led_new,
+                             HotplugSlotState state_old,
+                             HotplugSlotState state_new,
+                             HotplugPowerState power_old,
+                             HotplugPowerState power_new)
+{
+    bool pwr_led = power_led_new != power_led_old;
+    bool attn_led = attention_led_new != attention_led_old;
+    bool state = state_new != state_old;
+    bool pwr = power_new != power_old;
+
+    if (!(pwr_led || attn_led || state || pwr)) {
+        /* No changes - no event */
+        return;
+    }
+
+    qapi_event_send_hotplug_state(hotplug_dev->id,
+                                  hotplug_dev->canonical_path,
+                                  has_slot, slot,
+                                  dev ? dev->id : NULL,
+                                  dev ? dev->canonical_path : NULL,
+                                  pwr_led, power_led_new,
+                                  attn_led, attention_led_new,
+                                  state, state_new,
+                                  pwr, power_new);
+}
+
 static const TypeInfo pci_device_type_info = {
     .name = TYPE_PCI_DEVICE,
     .parent = TYPE_DEVICE,

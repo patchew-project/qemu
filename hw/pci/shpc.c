@@ -8,6 +8,8 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/msi.h"
+#include "qapi/qapi-types-qdev.h"
+#include "qapi/qapi-events-qdev.h"
 
 /* TODO: model power only and disabled slot states. */
 /* TODO: handle SERR and wakeups */
@@ -122,6 +124,34 @@
 #define SHPC_IDX_TO_PCI(slot) ((slot) + 1)
 #define SHPC_PCI_TO_IDX(pci_slot) ((pci_slot) - 1)
 #define SHPC_IDX_TO_PHYSICAL(slot) ((slot) + 1)
+
+static HotplugLedState shpc_led_state_to_qapi(uint8_t value)
+{
+    switch (value) {
+    case SHPC_LED_ON:
+        return HOTPLUG_LED_STATE_ON;
+    case SHPC_LED_BLINK:
+        return HOTPLUG_LED_STATE_BLINK;
+    case SHPC_LED_OFF:
+        return HOTPLUG_LED_STATE_OFF;
+    default:
+        abort();
+    }
+}
+
+static HotplugSlotState shpc_slot_state_to_qapi(uint8_t value)
+{
+    switch (value) {
+    case SHPC_STATE_PWRONLY:
+        return HOTPLUG_SLOT_STATE_POWER_ONLY;
+    case SHPC_STATE_ENABLED:
+        return HOTPLUG_SLOT_STATE_ENABLED;
+    case SHPC_STATE_DISABLED:
+        return HOTPLUG_SLOT_STATE_DISABLED;
+    default:
+        abort();
+    }
+}
 
 static uint8_t shpc_get_status(SHPCDevice *shpc, int slot, uint16_t msk)
 {
@@ -268,9 +298,12 @@ static void shpc_slot_command(PCIDevice *d, uint8_t target,
 {
     SHPCDevice *shpc = d->shpc;
     int slot = SHPC_LOGICAL_TO_IDX(target);
+    int pci_slot = SHPC_IDX_TO_PCI(slot);
     uint8_t old_state = shpc_get_status(shpc, slot, SHPC_SLOT_STATE_MASK);
     uint8_t old_power = shpc_get_status(shpc, slot, SHPC_SLOT_PWR_LED_MASK);
     uint8_t old_attn = shpc_get_status(shpc, slot, SHPC_SLOT_ATTN_LED_MASK);
+    DeviceState *child_dev =
+        DEVICE(shpc->sec_bus->devices[PCI_DEVFN(pci_slot, 0)]);
 
     if (target < SHPC_CMD_TRGT_MIN || slot >= shpc->nslots) {
         shpc_invalid_command(shpc);
@@ -301,6 +334,15 @@ static void shpc_slot_command(PCIDevice *d, uint8_t target,
     } else {
         shpc_set_status(shpc, slot, state, SHPC_SLOT_STATE_MASK);
     }
+
+    pci_hotplug_state_event(DEVICE(d), true, SHPC_IDX_TO_PCI(slot), child_dev,
+                            shpc_led_state_to_qapi(old_power),
+                            shpc_led_state_to_qapi(power ?: old_power),
+                            shpc_led_state_to_qapi(old_attn),
+                            shpc_led_state_to_qapi(attn ?: old_attn),
+                            shpc_slot_state_to_qapi(old_state),
+                            shpc_slot_state_to_qapi(state ?: old_state),
+                            0, 0 /* no PCC */);
 
     if (!shpc_slot_is_off(old_state, old_power, old_attn) &&
         shpc_slot_is_off(state, power, attn))

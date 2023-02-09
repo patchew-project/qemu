@@ -45,6 +45,35 @@ static bool pcie_sltctl_powered_off(uint16_t sltctl)
         (sltctl & PCI_EXP_SLTCTL_PIC) == PCI_EXP_SLTCTL_PWR_IND_OFF;
 }
 
+static HotplugLedState pcie_led_state_to_qapi(uint16_t value)
+{
+    switch (value) {
+    case PCI_EXP_SLTCTL_PWR_IND_ON:
+    case PCI_EXP_SLTCTL_ATTN_IND_ON:
+        return HOTPLUG_LED_STATE_ON;
+    case PCI_EXP_SLTCTL_PWR_IND_BLINK:
+    case PCI_EXP_SLTCTL_ATTN_IND_BLINK:
+        return HOTPLUG_LED_STATE_BLINK;
+    case PCI_EXP_SLTCTL_PWR_IND_OFF:
+    case PCI_EXP_SLTCTL_ATTN_IND_OFF:
+        return HOTPLUG_LED_STATE_OFF;
+    default:
+        abort();
+    }
+}
+
+static HotplugPowerState pcie_power_state_to_qapi(uint16_t value)
+{
+    switch (value) {
+    case PCI_EXP_SLTCTL_PWR_ON:
+        return HOTPLUG_POWER_STATE_ON;
+    case PCI_EXP_SLTCTL_PWR_OFF:
+        return HOTPLUG_POWER_STATE_OFF;
+    default:
+        abort();
+    }
+}
+
 /***************************************************************************
  * pci express capability helper functions
  */
@@ -728,9 +757,13 @@ void pcie_cap_slot_write_config(PCIDevice *dev,
                                 uint16_t old_slt_ctl, uint16_t old_slt_sta,
                                 uint32_t addr, uint32_t val, int len)
 {
+    PCIBus *sec_bus = pci_bridge_get_sec_bus(PCI_BRIDGE(dev));
     uint32_t pos = dev->exp.exp_cap;
     uint8_t *exp_cap = dev->config + pos;
     uint16_t sltsta = pci_get_word(exp_cap + PCI_EXP_SLTSTA);
+    uint16_t power_led, attn_led, pcc, old_power_led, old_attn_led, old_pcc;
+    DeviceState *child_dev =
+        DEVICE(pci_find_the_only_child(sec_bus, pci_bus_num(sec_bus), NULL));
 
     if (ranges_overlap(addr, len, pos + PCI_EXP_SLTSTA, 2)) {
         /*
@@ -767,6 +800,22 @@ void pcie_cap_slot_write_config(PCIDevice *dev,
                         "sltsta -> 0x%02"PRIx16"\n",
                         sltsta);
     }
+
+    power_led = val & PCI_EXP_SLTCTL_PIC;
+    attn_led = val & PCI_EXP_SLTCTL_AIC;
+    pcc = val & PCI_EXP_SLTCTL_PCC;
+    old_power_led = old_slt_ctl & PCI_EXP_SLTCTL_PIC;
+    old_attn_led = old_slt_ctl & PCI_EXP_SLTCTL_AIC;
+    old_pcc = old_slt_ctl & PCI_EXP_SLTCTL_PCC;
+
+    pci_hotplug_state_event(DEVICE(dev), false, 0, child_dev,
+                            pcie_led_state_to_qapi(old_power_led),
+                            pcie_led_state_to_qapi(power_led),
+                            pcie_led_state_to_qapi(old_attn_led),
+                            pcie_led_state_to_qapi(attn_led),
+                            0, 0, /* no state */
+                            pcie_power_state_to_qapi(old_pcc),
+                            pcie_power_state_to_qapi(pcc));
 
     /*
      * If the slot is populated, power indicator is off and power

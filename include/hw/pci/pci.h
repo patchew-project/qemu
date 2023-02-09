@@ -7,6 +7,9 @@
 /* PCI includes legacy ISA access.  */
 #include "hw/isa/isa.h"
 
+#include "qapi/qapi-types-qdev.h"
+#include "qapi/qapi-events-qdev.h"
+
 extern bool pci_available;
 
 /* PCI bus */
@@ -610,5 +613,17 @@ static inline void pci_irq_pulse(PCIDevice *pci_dev)
 
 MSIMessage pci_get_msi_message(PCIDevice *dev, int vector);
 void pci_set_power(PCIDevice *pci_dev, bool state);
+
+void pci_hotplug_state_event(DeviceState *hotplug_dev,
+                             bool has_slot, int64_t slot,
+                             DeviceState *dev,
+                             HotplugLedState power_led_old,
+                             HotplugLedState power_led_new,
+                             HotplugLedState attention_led_old,
+                             HotplugLedState attention_led_new,
+                             HotplugSlotState state_old,
+                             HotplugSlotState state_new,
+                             HotplugPowerState power_old,
+                             HotplugPowerState power_new);
 
 #endif
