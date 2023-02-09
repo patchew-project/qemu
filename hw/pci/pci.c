@@ -1771,6 +1771,39 @@ void pci_for_each_device(PCIBus *bus, int bus_num,
     }
 }
 
+typedef struct TheOnlyChild {
+    PCIDevice *dev;
+    int count;
+} TheOnlyChild;
+
+static void the_only_child_fn(PCIBus *bus, PCIDevice *dev, void *opaque)
+{
+    TheOnlyChild *s = opaque;
+
+    s->dev = dev;
+    s->count++;
+}
+
+PCIDevice *pci_find_the_only_child(PCIBus *bus, int bus_num, Error **errp)
+{
+    TheOnlyChild res = {0};
+
+    pci_for_each_device(bus, bus_num, the_only_child_fn, &res);
+
+    if (!res.dev) {
+        assert(res.count == 0);
+        error_setg(errp, "No child devices found");
+        return NULL;
+    }
+
+    if (res.count > 1) {
+        error_setg(errp, "Several child devices found");
+        return NULL;
+    }
+
+    return res.dev;
+}
+
 const pci_class_desc *get_class_desc(int class)
 {
     const pci_class_desc *desc;
