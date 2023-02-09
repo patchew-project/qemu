@@ -42,9 +42,8 @@ if TYPE_CHECKING:
 _ExprValue = Union[List[object], Dict[str, object], str, bool]
 
 
-# FIXME: Consolidate and centralize definitions for _ExprValue,
-# JSONValue, and _JSONObject; currently scattered across several
-# modules.
+# FIXME: Consolidate and centralize definitions for _ExprValue and
+# JSONValue; currently scattered across several modules.
 
 
 # 3.6 workaround: can be removed when Python 3.7+ is our required version.
