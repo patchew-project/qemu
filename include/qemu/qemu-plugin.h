@@ -233,6 +233,12 @@ enum qemu_plugin_mem_rw {
     QEMU_PLUGIN_MEM_RW,
 };
 
+enum qemu_plugin_disas_syntax {
+    QEMU_PLUGIN_DISAS_SYNTAX_DEFAULT,
+    QEMU_PLUGIN_DISAS_SYNTAX_ATT,
+    QEMU_PLUGIN_DISAS_SYNTAX_INTEL,
+};
+
 /**
  * typedef qemu_plugin_vcpu_tb_trans_cb_t - translation callback
  * @id: unique plugin id
@@ -525,6 +531,17 @@ qemu_plugin_register_vcpu_syscall_ret_cb(qemu_plugin_id_t id,
  */
 
 char *qemu_plugin_insn_disas(const struct qemu_plugin_insn *insn);
+
+#define QEMU_PLUGIN_DISAS_SYNTAX_ENABLED
+/**
+ * qemu_plugin_insn_disas_with_syntax() - return disassembly string for instruction
+ * @insn: instruction reference
+ * @syntax: syntax style
+ *
+ * Returns an allocated string containing the disassembly
+ */
+char *qemu_plugin_insn_disas_with_syntax(const struct qemu_plugin_insn *insn,
+                                         enum qemu_plugin_disas_syntax syntax);
 
 /**
  * qemu_plugin_insn_symbol() - best effort symbol lookup

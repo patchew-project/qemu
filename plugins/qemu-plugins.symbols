@@ -8,6 +8,7 @@
   qemu_plugin_hwaddr_phys_addr;
   qemu_plugin_insn_data;
   qemu_plugin_insn_disas;
+  qemu_plugin_insn_disas_with_syntax;
   qemu_plugin_insn_haddr;
   qemu_plugin_insn_size;
   qemu_plugin_insn_symbol;

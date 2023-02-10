@@ -409,6 +409,8 @@ typedef struct disassemble_info {
   int cap_insn_unit;
   int cap_insn_split;
 
+  int dis_syntax;
+
 } disassemble_info;
 
 /* Standard disassemblers.  Disassemble one instruction at the given

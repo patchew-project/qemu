@@ -121,7 +121,7 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
          * a limitation for CISC architectures.
          */
         insn = qemu_plugin_tb_get_insn(tb, i);
-        insn_disas = qemu_plugin_insn_disas(insn);
+        insn_disas = qemu_plugin_insn_disas_with_syntax(insn, QEMU_PLUGIN_DISAS_SYNTAX_INTEL);
         insn_vaddr = qemu_plugin_insn_vaddr(insn);
 
         /*

@@ -5,6 +5,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/bswap.h"
+#include "qemu/plugin.h"
 #include "disas/dis-asm.h"
 #include "disas/capstone.h"
 
@@ -87,7 +88,13 @@ static cs_err cap_disas_start(disassemble_info *info, csh *handle)
          * is compiled without AT&T syntax); the user will just have
          * to deal with the Intel syntax.
          */
-        cs_option(*handle, CS_OPT_SYNTAX, CS_OPT_SYNTAX_ATT);
+
+        size_t cs_opt_syntax = CS_OPT_SYNTAX_ATT;
+        if (info->dis_syntax == QEMU_PLUGIN_DISAS_SYNTAX_INTEL) {
+            cs_opt_syntax = CS_OPT_SYNTAX_INTEL;
+        }
+
+        cs_option(*handle, CS_OPT_SYNTAX, cs_opt_syntax);
         break;
     }
 

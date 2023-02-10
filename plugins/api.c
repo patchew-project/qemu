@@ -232,10 +232,16 @@ void *qemu_plugin_insn_haddr(const struct qemu_plugin_insn *insn)
     return insn->haddr;
 }
 
-char *qemu_plugin_insn_disas(const struct qemu_plugin_insn *insn)
+char *qemu_plugin_insn_disas_with_syntax(const struct qemu_plugin_insn *insn,
+                                         enum qemu_plugin_disas_syntax syntax)
 {
     CPUState *cpu = current_cpu;
-    return plugin_disas(cpu, insn->vaddr, insn->data->len);
+    return plugin_disas(cpu, insn->vaddr, insn->data->len, syntax);
+}
+
+char *qemu_plugin_insn_disas(const struct qemu_plugin_insn *insn)
+{
+    return qemu_plugin_insn_disas_with_syntax(insn, QEMU_PLUGIN_DISAS_SYNTAX_DEFAULT);
 }
 
 const char *qemu_plugin_insn_symbol(const struct qemu_plugin_insn *insn)

@@ -267,7 +267,8 @@ static void plugin_print_address(bfd_vma addr, struct disassemble_info *info)
  * there is left over it usually indicates the front end has read more
  * bytes than it needed.
  */
-char *plugin_disas(CPUState *cpu, uint64_t addr, size_t size)
+char *plugin_disas(CPUState *cpu, uint64_t addr, size_t size,
+                   enum qemu_plugin_disas_syntax syntax)
 {
     CPUDebug s;
     GString *ds = g_string_new(NULL);
@@ -278,6 +279,7 @@ char *plugin_disas(CPUState *cpu, uint64_t addr, size_t size)
     s.info.buffer_vma = addr;
     s.info.buffer_length = size;
     s.info.print_address_func = plugin_print_address;
+    s.info.dis_syntax = syntax;
 
     if (s.info.cap_arch >= 0 && cap_disas_plugin(&s.info, addr, size)) {
         ; /* done */
