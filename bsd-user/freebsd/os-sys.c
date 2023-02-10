@@ -133,6 +133,218 @@ static inline void sysctl_oidfmt(uint32_t *holdp)
     holdp[0] = tswap32(holdp[0]);
 }
 
+#define bsd_get_ncpu() 1 /* Placeholder */
+
+static abi_long do_freebsd_sysctl_oid(CPUArchState *env, int32_t *snamep,
+        int32_t namelen, void *holdp, size_t *holdlenp, void *hnewp,
+        size_t newlen)
+{
+    uint32_t kind = 0;
+#if TARGET_ABI_BITS != HOST_LONG_BITS
+    const abi_ulong maxmem = -0x100c000;
+#endif
+    abi_long ret;
+    size_t holdlen, oldlen;
+
+    holdlen = oldlen = *holdlenp;
+    oidfmt(snamep, namelen, NULL, &kind);
+
+    /* Handle some arch/emulator dependent sysctl()'s here. */
+    switch (snamep[0]) {
+#if defined(TARGET_PPC) || defined(TARGET_PPC64)
+    case CTL_MACHDEP:
+        switch (snamep[1]) {
+        case 1:    /* CPU_CACHELINE */
+            holdlen = sizeof(uint32_t);
+            (*(uint32_t *)holdp) = tswap32(env->dcache_line_size);
+            ret = 0;
+            goto out;
+        }
+        break;
+#endif
+    case CTL_KERN:
+        switch (snamep[1]) {
+        case KERN_USRSTACK:
+            if (oldlen) {
+                (*(abi_ulong *)holdp) = tswapal(TARGET_USRSTACK);
+            }
+            holdlen = sizeof(abi_ulong);
+            ret = 0;
+            goto out;
+
+        case KERN_PS_STRINGS:
+            if (oldlen) {
+                (*(abi_ulong *)holdp) = tswapal(TARGET_PS_STRINGS);
+            }
+            holdlen = sizeof(abi_ulong);
+            ret = 0;
+            goto out;
+
+        default:
+            break;
+        }
+        break;
+
+    case CTL_HW:
+        switch (snamep[1]) {
+        case HW_MACHINE:
+            holdlen = sizeof(TARGET_HW_MACHINE);
+            if (holdp) {
+                strlcpy(holdp, TARGET_HW_MACHINE, oldlen);
+            }
+            ret = 0;
+            goto out;
+
+        case HW_MACHINE_ARCH:
+        {
+            holdlen = sizeof(TARGET_HW_MACHINE_ARCH);
+            if (holdp) {
+                strlcpy(holdp, TARGET_HW_MACHINE_ARCH, oldlen);
+            }
+            ret = 0;
+            goto out;
+        }
+        case HW_NCPU:
+            if (oldlen) {
+                (*(int32_t *)holdp) = tswap32(bsd_get_ncpu());
+            }
+            holdlen = sizeof(int32_t);
+            ret = 0;
+            goto out;
+#if defined(TARGET_ARM)
+        case HW_FLOATINGPT:
+            if (oldlen) {
+#ifdef ARM_FEATURE_VFP /* XXX FIXME XXX */
+                if (env->features & ((1ULL << ARM_FEATURE_VFP)|
+                                     (1ULL << ARM_FEATURE_VFP3)|
+                                     (1ULL << ARM_FEATURE_VFP4)))
+                    *(int32_t *)holdp = 1;
+                else
+                    *(int32_t *)holdp = 0;
+#else
+                *(int32_t *)holdp = 1;
+#endif
+            }
+            holdlen = sizeof(int32_t);
+            ret = 0;
+            goto out;
+#endif
+
+
+#if TARGET_ABI_BITS != HOST_LONG_BITS
+        case HW_PHYSMEM:
+        case HW_USERMEM:
+        case HW_REALMEM:
+            holdlen = sizeof(abi_ulong);
+            ret = 0;
+
+            if (oldlen) {
+                int mib[2] = {snamep[0], snamep[1]};
+                unsigned long lvalue;
+                size_t len = sizeof(lvalue);
+
+                if (sysctl(mib, 2, &lvalue, &len, NULL, 0) == -1) {
+                    ret = -1;
+                } else {
+                    if (((unsigned long)maxmem) < lvalue) {
+                        lvalue = maxmem;
+                    }
+                    (*(abi_ulong *)holdp) = tswapal((abi_ulong)lvalue);
+                }
+            }
+            goto out;
+#endif
+
+        default:
+        {
+            static int oid_hw_availpages;
+            static int oid_hw_pagesizes;
+
+            if (!oid_hw_availpages) {
+                int real_oid[CTL_MAXNAME + 2];
+                size_t len = sizeof(real_oid) / sizeof(int);
+
+                if (sysctlnametomib("hw.availpages", real_oid, &len) >= 0) {
+                    oid_hw_availpages = real_oid[1];
+                }
+            }
+            if (!oid_hw_pagesizes) {
+                int real_oid[CTL_MAXNAME + 2];
+                size_t len = sizeof(real_oid) / sizeof(int);
+
+                if (sysctlnametomib("hw.pagesizes", real_oid, &len) >= 0) {
+                    oid_hw_pagesizes = real_oid[1];
+                }
+            }
+
+            if (oid_hw_availpages && snamep[1] == oid_hw_availpages) {
+                long lvalue;
+                size_t len = sizeof(lvalue);
+
+                if (sysctlbyname("hw.availpages", &lvalue, &len, NULL, 0) == -1) {
+                    ret = -1;
+                } else {
+                    if (oldlen) {
+#if TARGET_ABI_BITS != HOST_LONG_BITS
+                        abi_ulong maxpages = maxmem / (abi_ulong)getpagesize();
+                        if (((unsigned long)maxpages) < lvalue) {
+                            lvalue = maxpages;
+                        }
+#endif
+                        (*(abi_ulong *)holdp) = tswapal((abi_ulong)lvalue);
+                    }
+                    holdlen = sizeof(abi_ulong);
+                    ret = 0;
+                }
+                goto out;
+            }
+
+            if (oid_hw_pagesizes && snamep[1] == oid_hw_pagesizes) {
+                if (oldlen) {
+                    (*(abi_ulong *)holdp) = tswapal((abi_ulong)getpagesize());
+                    ((abi_ulong *)holdp)[1] = 0;
+                }
+                holdlen = sizeof(abi_ulong) * 2;
+                ret = 0;
+                goto out;
+            }
+            break;
+        }
+        }
+        break;
+
+    default:
+        break;
+    }
+
+    ret = get_errno(sysctl(snamep, namelen, holdp, &holdlen, hnewp, newlen));
+    if (!ret && (holdp != 0)) {
+
+        if (0 == snamep[0] &&
+            (2 == snamep[1] || 3 == snamep[1] || 4 == snamep[1])) {
+            switch (snamep[1]) {
+            case 2:
+            case 3:
+                /* Handle the undocumented name2oid special case. */
+                sysctl_name2oid(holdp, holdlen);
+                break;
+
+            case 4:
+            default:
+                /* Handle oidfmt */
+                sysctl_oidfmt(holdp);
+                break;
+            }
+        } else {
+            sysctl_oldcvt(holdp, &holdlen, kind);
+        }
+    }
+
+out:
+    *holdlenp = holdlen;
+    return ret;
+}
+
 /* sysarch() is architecture dependent. */
 abi_long do_freebsd_sysarch(void *cpu_env, abi_long arg1, abi_long arg2)
 {
