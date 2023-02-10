@@ -346,19 +346,6 @@ static void pci_piix3_class_init(ObjectClass *klass, void *data)
     adevc->build_dev_aml = build_pci_isa_aml;
 }
 
-static const TypeInfo piix3_pci_type_info = {
-    .name = TYPE_PIIX3_PCI_DEVICE,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PIIX3State),
-    .abstract = true,
-    .class_init = pci_piix3_class_init,
-    .interfaces = (InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { TYPE_ACPI_DEV_AML_IF },
-        { },
-    },
-};
-
 static void piix3_realize(PCIDevice *dev, Error **errp)
 {
     ERRP_GUARD();
@@ -381,12 +368,6 @@ static void piix3_class_init(ObjectClass *klass, void *data)
     k->config_write = piix3_write_config;
     k->realize = piix3_realize;
 }
-
-static const TypeInfo piix3_info = {
-    .name          = TYPE_PIIX3_DEVICE,
-    .parent        = TYPE_PIIX3_PCI_DEVICE,
-    .class_init    = piix3_class_init,
-};
 
 static void piix3_xen_realize(PCIDevice *dev, Error **errp)
 {
@@ -416,17 +397,27 @@ static void piix3_xen_class_init(ObjectClass *klass, void *data)
     k->realize = piix3_xen_realize;
 }
 
-static const TypeInfo piix3_xen_info = {
-    .name          = TYPE_PIIX3_XEN_DEVICE,
-    .parent        = TYPE_PIIX3_PCI_DEVICE,
-    .class_init    = piix3_xen_class_init,
+static const TypeInfo piix_isa_types[] = {
+    {
+        .name           = TYPE_PIIX3_PCI_DEVICE,
+        .parent         = TYPE_PCI_DEVICE,
+        .instance_size  = sizeof(PIIX3State),
+        .class_init     = pci_piix3_class_init,
+        .abstract       = true,
+        .interfaces = (InterfaceInfo[]) {
+            { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+            { TYPE_ACPI_DEV_AML_IF },
+            { },
+        },
+    }, {
+        .name           = TYPE_PIIX3_DEVICE,
+        .parent         = TYPE_PIIX3_PCI_DEVICE,
+        .class_init     = piix3_class_init,
+    }, {
+        .name           = TYPE_PIIX3_XEN_DEVICE,
+        .parent         = TYPE_PIIX3_PCI_DEVICE,
+        .class_init     = piix3_xen_class_init,
+    }
 };
 
-static void piix3_register_types(void)
-{
-    type_register_static(&piix3_pci_type_info);
-    type_register_static(&piix3_info);
-    type_register_static(&piix3_xen_info);
-}
-
-type_init(piix3_register_types)
+DEFINE_TYPES(piix_isa_types)
