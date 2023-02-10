@@ -112,7 +112,7 @@ static void piix3_write_config(PCIDevice *dev,
 {
     pci_default_write_config(dev, address, val, len);
     if (ranges_overlap(address, len, PIIX_PIRQCA, 4)) {
-        PIIX3State *piix3 = PIIX3_PCI_DEVICE(dev);
+        PIIX3State *piix3 = PIIX3_ISA(dev);
         int pic_irq;
 
         pci_bus_fire_intx_routing_notifier(pci_get_bus(&piix3->dev));
@@ -145,7 +145,7 @@ static void piix3_write_config_xen(PCIDevice *dev,
 
 static void piix3_reset(DeviceState *dev)
 {
-    PIIX3State *d = PIIX3_PCI_DEVICE(dev);
+    PIIX3State *d = PIIX3_ISA(dev);
     uint8_t *pci_conf = d->dev.config;
 
     pci_conf[0x04] = 0x07; /* master, memory and I/O */
@@ -286,7 +286,7 @@ static const MemoryRegionOps rcr_ops = {
 
 static void pci_piix3_realize(PCIDevice *dev, Error **errp)
 {
-    PIIX3State *d = PIIX3_PCI_DEVICE(dev);
+    PIIX3State *d = PIIX3_ISA(dev);
     ISABus *isa_bus;
 
     isa_bus = isa_bus_new(DEVICE(d), pci_address_space(dev),
@@ -349,7 +349,7 @@ static void pci_piix3_class_init(ObjectClass *klass, void *data)
 static void piix3_realize(PCIDevice *dev, Error **errp)
 {
     ERRP_GUARD();
-    PIIX3State *piix3 = PIIX3_PCI_DEVICE(dev);
+    PIIX3State *piix3 = PIIX3_ISA(dev);
     PCIBus *pci_bus = pci_get_bus(dev);
 
     pci_piix3_realize(dev, errp);
@@ -372,7 +372,7 @@ static void piix3_class_init(ObjectClass *klass, void *data)
 static void piix3_xen_realize(PCIDevice *dev, Error **errp)
 {
     ERRP_GUARD();
-    PIIX3State *piix3 = PIIX3_PCI_DEVICE(dev);
+    PIIX3State *piix3 = PIIX3_ISA(dev);
     PCIBus *pci_bus = pci_get_bus(dev);
 
     pci_piix3_realize(dev, errp);
@@ -399,7 +399,7 @@ static void piix3_xen_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo piix_isa_types[] = {
     {
-        .name           = TYPE_PIIX3_PCI_DEVICE,
+        .name           = TYPE_PIIX_ISA,
         .parent         = TYPE_PCI_DEVICE,
         .instance_size  = sizeof(PIIX3State),
         .class_init     = pci_piix3_class_init,
@@ -410,12 +410,12 @@ static const TypeInfo piix_isa_types[] = {
             { },
         },
     }, {
-        .name           = TYPE_PIIX3_DEVICE,
-        .parent         = TYPE_PIIX3_PCI_DEVICE,
+        .name           = TYPE_PIIX3_ISA,
+        .parent         = TYPE_PIIX_ISA,
         .class_init     = piix3_class_init,
     }, {
-        .name           = TYPE_PIIX3_XEN_DEVICE,
-        .parent         = TYPE_PIIX3_PCI_DEVICE,
+        .name           = TYPE_PIIX3_ISA_XEN,
+        .parent         = TYPE_PIIX_ISA,
         .class_init     = piix3_xen_class_init,
     }
 };

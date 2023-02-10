@@ -1255,7 +1255,7 @@ void mips_malta_init(MachineState *machine)
 
     /* Southbridge */
     piix4 = pci_create_simple_multifunction(pci_bus, PIIX4_PCI_DEVFN, true,
-                                            TYPE_PIIX4_PCI_DEVICE);
+                                            TYPE_PIIX4_ISA);
     isa_bus = ISA_BUS(qdev_get_child_bus(DEVICE(piix4), "isa.0"));
 
     dev = DEVICE(object_resolve_path_component(OBJECT(piix4), "ide"));
