@@ -594,9 +594,9 @@ esac
 
 
 check_py_version() {
-    # We require python >= 3.6.
+    # We require python >= 3.7.
     # NB: a True python conditional creates a non-zero return code (Failure)
-    "$1" -c 'import sys; sys.exit(sys.version_info < (3,6))'
+    "$1" -c 'import sys; sys.exit(sys.version_info < (3,7))'
 }
 
 python=
@@ -604,7 +604,7 @@ first_python=
 explicit_python=no
 # A bare 'python' is traditionally python 2.x, but some distros
 # have it as python 3.x, so check in both places.
-for binary in "${PYTHON-python3}" python python3.{11..6}
+for binary in "${PYTHON-python3}" python python3.{11..7}
 do
     if has "$binary"
     then
@@ -1057,7 +1057,7 @@ then
 fi
 
 if ! check_py_version "$python"; then
-  error_exit "Cannot use '$python', Python >= 3.6 is required." \
+  error_exit "Cannot use '$python', Python >= 3.7 is required." \
              "Use --python=/path/to/python to specify a supported Python." \
              "Maybe try:" \
              "  openSUSE Leap 15.3+: zypper install python39" \
