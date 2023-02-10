@@ -592,20 +592,39 @@ esac
 
 : ${make=${MAKE-make}}
 
-# We prefer python 3.x. A bare 'python' is traditionally
-# python 2.x, but some distros have it as python 3.x, so
-# we check that too
+
+check_py_version() {
+    # We require python >= 3.6.
+    # NB: a True python conditional creates a non-zero return code (Failure)
+    "$1" -c 'import sys; sys.exit(sys.version_info < (3,6))'
+}
+
 python=
+first_python=
 explicit_python=no
-for binary in "${PYTHON-python3}" python
+# A bare 'python' is traditionally python 2.x, but some distros
+# have it as python 3.x, so check in both places.
+for binary in "${PYTHON-python3}" python python3.{11..6}
 do
     if has "$binary"
     then
         python=$(command -v "$binary")
-        break
+        if test -z "$first_python"; then
+           first_python=$python
+        fi
+        if check_py_version "$python"; then
+            # This one is good.
+            first_python=
+            break
+        fi
     fi
 done
 
+# If first_python is set, we didn't find a suitable binary.
+# Use this one for possible future error messages.
+if test -n "$first_python"; then
+    python="$first_python"
+fi
 
 # Check for ancillary tools used in testing
 genisoimage=
@@ -1037,9 +1056,7 @@ then
     error_exit "GNU make ($make) not found"
 fi
 
-# Note that if the Python conditional here evaluates True we will exit
-# with status 1 which is a shell 'false' value.
-if ! $python -c 'import sys; sys.exit(sys.version_info < (3,6))'; then
+if ! check_py_version "$python"; then
   error_exit "Cannot use '$python', Python >= 3.6 is required." \
       "Use --python=/path/to/python to specify a supported Python."
 fi
