@@ -345,6 +345,56 @@ out:
     return ret;
 }
 
+abi_long do_freebsd_sysctl(CPUArchState *env, abi_ulong namep, int32_t namelen,
+        abi_ulong oldp, abi_ulong oldlenp, abi_ulong newp, abi_ulong newlen)
+{
+    abi_long ret;
+    void *hnamep, *holdp = NULL, *hnewp = NULL;
+    size_t holdlen;
+    abi_ulong oldlen = 0;
+    int32_t *snamep = g_malloc(sizeof(int32_t) * namelen), *p, *q, i;
+
+    if (oldlenp) {
+        if (get_user_ual(oldlen, oldlenp)) {
+            return -TARGET_EFAULT;
+        }
+    }
+    hnamep = lock_user(VERIFY_READ, namep, namelen, 1);
+    if (hnamep == NULL) {
+        return -TARGET_EFAULT;
+    }
+    if (newp) {
+        hnewp = lock_user(VERIFY_READ, newp, newlen, 1);
+        if (hnewp == NULL) {
+            return -TARGET_EFAULT;
+        }
+    }
+    if (oldp) {
+        holdp = lock_user(VERIFY_WRITE, oldp, oldlen, 0);
+        if (holdp == NULL) {
+            return -TARGET_EFAULT;
+        }
+    }
+    holdlen = oldlen;
+    for (p = hnamep, q = snamep, i = 0; i < namelen; p++, i++) {
+        *q++ = tswap32(*p);
+    }
+
+    ret = do_freebsd_sysctl_oid(env, snamep, namelen, holdp, &holdlen, hnewp,
+        newlen);
+
+    if (oldlenp) {
+        put_user_ual(holdlen, oldlenp);
+    }
+    unlock_user(hnamep, namep, 0);
+    unlock_user(holdp, oldp, holdlen);
+    if (hnewp) {
+        unlock_user(hnewp, newp, 0);
+    }
+    g_free(snamep);
+    return ret;
+}
+
 /* sysarch() is architecture dependent. */
 abi_long do_freebsd_sysarch(void *cpu_env, abi_long arg1, abi_long arg2)
 {
