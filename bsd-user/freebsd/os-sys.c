@@ -345,6 +345,64 @@ out:
     return ret;
 }
 
+/*
+ * This syscall was created to make sysctlbyname(3) more efficient.
+ * Unfortunately, because we have to fake some sysctls, we can't do that.
+ */
+abi_long do_freebsd_sysctlbyname(CPUArchState *env, abi_ulong namep,
+        int32_t namelen, abi_ulong oldp, abi_ulong oldlenp, abi_ulong newp,
+        abi_ulong newlen)
+{
+    abi_long ret;
+    void *holdp = NULL, *hnewp = NULL;
+    char *snamep;
+    int oid[CTL_MAXNAME + 2];
+    size_t holdlen, oidplen;
+    abi_ulong oldlen = 0;
+
+    if (oldlenp) {
+        if (get_user_ual(oldlen, oldlenp)) {
+            return -TARGET_EFAULT;
+        }
+    }
+    snamep = lock_user_string(namep);
+    if (snamep == NULL) {
+        return -TARGET_EFAULT;
+    }
+    if (newp) {
+        hnewp = lock_user(VERIFY_READ, newp, newlen, 1);
+        if (hnewp == NULL) {
+            return -TARGET_EFAULT;
+        }
+    }
+    if (oldp) {
+        holdp = lock_user(VERIFY_WRITE, oldp, oldlen, 0);
+        if (holdp == NULL) {
+            return -TARGET_EFAULT;
+        }
+    }
+    holdlen = oldlen;
+
+    oidplen = sizeof(oid) / sizeof(int);
+    if (sysctlnametomib(snamep, oid, &oidplen) != 0) {
+        return -TARGET_EINVAL;
+    }
+
+    ret = do_freebsd_sysctl_oid(env, oid, oidplen, holdp, &holdlen, hnewp,
+        newlen);
+
+    if (oldlenp) {
+        put_user_ual(holdlen, oldlenp);
+    }
+    unlock_user(snamep, namep, 0);
+    unlock_user(holdp, oldp, holdlen);
+    if (hnewp) {
+        unlock_user(hnewp, newp, 0);
+    }
+
+    return ret;
+}
+
 abi_long do_freebsd_sysctl(CPUArchState *env, abi_ulong namep, int32_t namelen,
         abi_ulong oldp, abi_ulong oldlenp, abi_ulong newp, abi_ulong newlen)
 {
