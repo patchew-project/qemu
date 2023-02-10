@@ -115,6 +115,24 @@ static int sysctl_oldcvt(void *holdp, size_t *holdlen, uint32_t kind)
     return 0;
 }
 
+/*
+ * Convert the undocmented name2oid sysctl data for the target.
+ */
+static inline void sysctl_name2oid(uint32_t *holdp, size_t holdlen)
+{
+    size_t i, num = holdlen / sizeof(uint32_t);
+
+    for (i = 0; i < num; i++) {
+        holdp[i] = tswap32(holdp[i]);
+    }
+}
+
+static inline void sysctl_oidfmt(uint32_t *holdp)
+{
+    /* byte swap the kind */
+    holdp[0] = tswap32(holdp[0]);
+}
+
 /* sysarch() is architecture dependent. */
 abi_long do_freebsd_sysarch(void *cpu_env, abi_long arg1, abi_long arg2)
 {
