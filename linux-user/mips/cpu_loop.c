@@ -301,8 +301,7 @@ void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
     }
     if (((info->elf_flags & EF_MIPS_NAN2008) != 0) !=
         ((env->active_fpu.fcr31 & (1 << FCR31_NAN2008)) != 0)) {
-        if ((env->active_fpu.fcr31_rw_bitmask &
-              (1 << FCR31_NAN2008)) == 0) {
+        if (!(env->insn_flags & ISA_MIPS_R2)) {
             fprintf(stderr, "ELF binary's NaN mode not supported by CPU\n");
             exit(1);
         }
