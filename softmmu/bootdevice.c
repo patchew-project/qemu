@@ -214,7 +214,7 @@ static char *get_boot_device_path(DeviceState *dev, bool ignore_suffixes,
 
     if (!ignore_suffixes) {
         if (dev) {
-            d = qdev_get_own_fw_dev_path_from_handler(dev->parent_bus, dev);
+            d = qdev_get_own_fw_dev_path_from_handler(dev);
             if (d) {
                 assert(!suffix);
                 s = d;
