@@ -218,7 +218,7 @@ static void pc_init1(MachineState *machine,
 
     if (pcmc->pci_enabled) {
         DeviceState *dev;
-        PIIX3State *piix3;
+        PIIXState *piix3;
         PCIDevice *pci_dev;
         const char *type = xen_enabled() ? TYPE_PIIX3_XEN_DEVICE
                                          : TYPE_PIIX3_DEVICE;
@@ -244,7 +244,7 @@ static void pc_init1(MachineState *machine,
         object_property_set_bool(OBJECT(pci_dev), "smm-enabled",
                                  x86_machine_is_smm_enabled(x86ms),
                                  &error_abort);
-        piix3 = PIIX3_PCI_DEVICE(pci_dev);
+        piix3 = PIIX_PCI_DEVICE(pci_dev);
         piix3->pic = x86ms->gsi;
         pci_realize_and_unref(pci_dev, pci_bus, &error_fatal);
 
