@@ -427,7 +427,7 @@ void usb_unregister_port(USBBus *bus, USBPort *port)
 
 void usb_claim_port(USBDevice *dev, Error **errp)
 {
-    USBBus *bus = usb_bus_from_device(dev);
+    USBBus *bus = USB_BUS(qdev_get_parent_bus(DEVICE(dev)));
     USBPort *port;
     USBDevice *hub;
 
@@ -473,7 +473,7 @@ void usb_claim_port(USBDevice *dev, Error **errp)
 
 void usb_release_port(USBDevice *dev)
 {
-    USBBus *bus = usb_bus_from_device(dev);
+    USBBus *bus = USB_BUS(qdev_get_parent_bus(DEVICE(dev)));
     USBPort *port = dev->port;
 
     assert(port != NULL);
@@ -517,7 +517,7 @@ static void usb_mask_to_str(char *dest, size_t size,
 
 void usb_check_attach(USBDevice *dev, Error **errp)
 {
-    USBBus *bus = usb_bus_from_device(dev);
+    USBBus *bus = USB_BUS(qdev_get_parent_bus(DEVICE(dev)));
     USBPort *port = dev->port;
     char devspeed[32], portspeed[32];
 
@@ -555,7 +555,7 @@ void usb_device_attach(USBDevice *dev, Error **errp)
 
 int usb_device_detach(USBDevice *dev)
 {
-    USBBus *bus = usb_bus_from_device(dev);
+    USBBus *bus = USB_BUS(qdev_get_parent_bus(DEVICE(dev)));
     USBPort *port = dev->port;
 
     assert(port != NULL);
@@ -583,7 +583,7 @@ static const char *usb_speed(unsigned int speed)
 static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
 {
     USBDevice *dev = USB_DEVICE(qdev);
-    USBBus *bus = usb_bus_from_device(dev);
+    USBBus *bus = USB_BUS(qdev_get_parent_bus(qdev));
 
     monitor_printf(mon, "%*saddr %d.%d, port %s, speed %s, name %s%s\n",
                    indent, "", bus->busnr, dev->addr,
