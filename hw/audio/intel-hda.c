@@ -59,7 +59,7 @@ void hda_codec_bus_init(DeviceState *dev, HDACodecBus *bus, size_t bus_size,
 
 static void hda_codec_dev_realize(DeviceState *qdev, Error **errp)
 {
-    HDACodecBus *bus = HDA_BUS(qdev->parent_bus);
+    HDACodecBus *bus = HDA_BUS(qdev_get_parent_bus(qdev));
     HDACodecDevice *dev = HDA_CODEC_DEVICE(qdev);
     HDACodecDeviceClass *cdc = HDA_CODEC_DEVICE_GET_CLASS(dev);
 

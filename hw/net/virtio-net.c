@@ -3423,7 +3423,7 @@ static bool failover_replug_primary(VirtIONet *n, DeviceState *dev,
     if (!pdev->partially_hotplugged) {
         return true;
     }
-    primary_bus = dev->parent_bus;
+    primary_bus = qdev_get_parent_bus(dev);
     if (!primary_bus) {
         error_setg(errp, "virtio_net: couldn't find primary bus");
         return false;
