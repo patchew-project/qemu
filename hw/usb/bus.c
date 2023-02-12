@@ -595,7 +595,7 @@ static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
 static char *usb_get_dev_path(DeviceState *qdev)
 {
     USBDevice *dev = USB_DEVICE(qdev);
-    DeviceState *hcd = qdev->parent_bus->parent;
+    DeviceState *hcd = qdev_get_parent_bus(qdev)->parent;
     char *id = qdev_get_dev_path(hcd);
 
     if (id) {

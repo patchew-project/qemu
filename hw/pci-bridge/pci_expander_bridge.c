@@ -151,7 +151,7 @@ static char *pxb_host_ofw_unit_address(const SysBusDevice *dev)
     assert(position >= 0);
 
     pxb_dev_base = DEVICE(pxb_dev);
-    main_host = PCI_HOST_BRIDGE(pxb_dev_base->parent_bus->parent);
+    main_host = PCI_HOST_BRIDGE(qdev_get_parent_bus(pxb_dev_base)->parent);
     main_host_sbd = SYS_BUS_DEVICE(main_host);
 
     if (main_host_sbd->num_mmio > 0) {
