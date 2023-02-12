@@ -774,7 +774,7 @@ bool bus_is_in_reset(BusState *bus);
 BusState *sysbus_get_default(void);
 
 char *qdev_get_fw_dev_path(DeviceState *dev);
-char *qdev_get_own_fw_dev_path_from_handler(BusState *bus, DeviceState *dev);
+char *qdev_get_own_fw_dev_path_from_handler(DeviceState *dev);
 
 void device_class_set_props(DeviceClass *dc, Property *props);
 
