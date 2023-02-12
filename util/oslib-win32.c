@@ -180,7 +180,8 @@ static int socket_error(void)
 void qemu_socket_set_block(int fd)
 {
     unsigned long opt = 0;
-    WSAEventSelect(fd, NULL, 0);
+    SOCKET s = _get_osfhandle(fd);
+    WSAEventSelect(s, NULL, 0);
     ioctlsocket(fd, FIONBIO, &opt);
 }
 
@@ -297,7 +298,13 @@ int qemu_connect_wrap(int sockfd, const struct sockaddr *addr,
                       socklen_t addrlen)
 {
     int ret;
-    ret = connect(sockfd, addr, addrlen);
+    SOCKET s = _get_osfhandle(sockfd);
+
+    if (s == -1) {
+        errno = EINVAL;
+        return -1;
+    }
+    ret = connect(s, addr, addrlen);
     if (ret < 0) {
         if (WSAGetLastError() == WSAEWOULDBLOCK) {
             errno = EINPROGRESS;
@@ -313,7 +320,13 @@ int qemu_connect_wrap(int sockfd, const struct sockaddr *addr,
 int qemu_listen_wrap(int sockfd, int backlog)
 {
     int ret;
-    ret = listen(sockfd, backlog);
+    SOCKET s = _get_osfhandle(sockfd);
+
+    if (s == -1) {
+        errno = EINVAL;
+        return -1;
+    }
+    ret = listen(s, backlog);
     if (ret < 0) {
         errno = socket_error();
     }
@@ -326,7 +339,13 @@ int qemu_bind_wrap(int sockfd, const struct sockaddr *addr,
                    socklen_t addrlen)
 {
     int ret;
-    ret = bind(sockfd, addr, addrlen);
+    SOCKET s = _get_osfhandle(sockfd);
+
+    if (s == -1) {
+        errno = EINVAL;
+        return -1;
+    }
+    ret = bind(s, addr, addrlen);
     if (ret < 0) {
         errno = socket_error();
     }
@@ -337,12 +356,22 @@ int qemu_bind_wrap(int sockfd, const struct sockaddr *addr,
 #undef socket
 int qemu_socket_wrap(int domain, int type, int protocol)
 {
-    int ret;
-    ret = socket(domain, type, protocol);
-    if (ret < 0) {
+    SOCKET s;
+    int fd;
+
+    s = socket(domain, type, protocol);
+    if (s == -1) {
         errno = socket_error();
+        return -1;
     }
-    return ret;
+
+    fd = _open_osfhandle(s, _O_BINARY);
+    if (fd < 0) {
+        closesocket(s);
+        errno = ENOMEM;
+    }
+
+    return fd;
 }
 
 
@@ -350,10 +379,22 @@ int qemu_socket_wrap(int domain, int type, int protocol)
 int qemu_accept_wrap(int sockfd, struct sockaddr *addr,
                      socklen_t *addrlen)
 {
-    int ret;
-    ret = accept(sockfd, addr, addrlen);
-    if (ret < 0) {
+    int ret = -1;
+    SOCKET s = _get_osfhandle(sockfd);
+
+    if (s == -1) {
+        errno = EINVAL;
+        return -1;
+    }
+    s = accept(s, addr, addrlen);
+    if (s == -1) {
         errno = socket_error();
+    } else {
+        ret = _open_osfhandle(s, _O_BINARY);
+        if (ret < 0) {
+            closesocket(s);
+            errno = ENOMEM;
+        }
     }
     return ret;
 }
@@ -363,7 +404,13 @@ int qemu_accept_wrap(int sockfd, struct sockaddr *addr,
 int qemu_shutdown_wrap(int sockfd, int how)
 {
     int ret;
-    ret = shutdown(sockfd, how);
+    SOCKET s = _get_osfhandle(sockfd);
+
+    if (s == -1) {
+        errno = EINVAL;
+        return -1;
+    }
+    ret = shutdown(s, how);
     if (ret < 0) {
         errno = socket_error();
     }
@@ -375,7 +422,13 @@ int qemu_shutdown_wrap(int sockfd, int how)
 int qemu_ioctlsocket_wrap(int fd, int req, void *val)
 {
     int ret;
-    ret = ioctlsocket(fd, req, val);
+    SOCKET s = _get_osfhandle(fd);
+
+    if (s == -1) {
+        errno = EINVAL;
+        return -1;
+    }
+    ret = ioctlsocket(s, req, val);
     if (ret < 0) {
         errno = socket_error();
     }
@@ -387,10 +440,28 @@ int qemu_ioctlsocket_wrap(int fd, int req, void *val)
 int qemu_closesocket_wrap(int fd)
 {
     int ret;
-    ret = closesocket(fd);
+    SOCKET s = _get_osfhandle(fd);
+
+    if (s == -1) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    /*
+     * close() must be called before closesocket(), otherwise close() returns an
+     * error and sets EBADF.
+     */
+    ret = close(fd);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /* closesocket() is required, event after close()! */
+    ret = closesocket(s);
     if (ret < 0) {
         errno = socket_error();
     }
+
     return ret;
 }
 
@@ -400,7 +471,14 @@ int qemu_getsockopt_wrap(int sockfd, int level, int optname,
                          void *optval, socklen_t *optlen)
 {
     int ret;
-    ret = getsockopt(sockfd, level, optname, optval, optlen);
+    SOCKET s = _get_osfhandle(sockfd);
+
+    if (s == -1) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    ret = getsockopt(s, level, optname, optval, optlen);
     if (ret < 0) {
         errno = socket_error();
     }
@@ -413,7 +491,13 @@ int qemu_setsockopt_wrap(int sockfd, int level, int optname,
                          const void *optval, socklen_t optlen)
 {
     int ret;
-    ret = setsockopt(sockfd, level, optname, optval, optlen);
+    SOCKET s = _get_osfhandle(sockfd);
+
+    if (s == -1) {
+        errno = EINVAL;
+        return -1;
+    }
+    ret = setsockopt(s, level, optname, optval, optlen);
     if (ret < 0) {
         errno = socket_error();
     }
@@ -426,7 +510,13 @@ int qemu_getpeername_wrap(int sockfd, struct sockaddr *addr,
                           socklen_t *addrlen)
 {
     int ret;
-    ret = getpeername(sockfd, addr, addrlen);
+    SOCKET s = _get_osfhandle(sockfd);
+
+    if (s == -1) {
+        errno = EINVAL;
+        return -1;
+    }
+    ret = getpeername(s, addr, addrlen);
     if (ret < 0) {
         errno = socket_error();
     }
@@ -439,7 +529,13 @@ int qemu_getsockname_wrap(int sockfd, struct sockaddr *addr,
                           socklen_t *addrlen)
 {
     int ret;
-    ret = getsockname(sockfd, addr, addrlen);
+    SOCKET s = _get_osfhandle(sockfd);
+
+    if (s == -1) {
+        errno = EINVAL;
+        return -1;
+    }
+    ret = getsockname(s, addr, addrlen);
     if (ret < 0) {
         errno = socket_error();
     }
@@ -451,7 +547,13 @@ int qemu_getsockname_wrap(int sockfd, struct sockaddr *addr,
 ssize_t qemu_send_wrap(int sockfd, const void *buf, size_t len, int flags)
 {
     int ret;
-    ret = send(sockfd, buf, len, flags);
+    SOCKET s = _get_osfhandle(sockfd);
+
+    if (s == -1) {
+        errno = EINVAL;
+        return -1;
+    }
+    ret = send(s, buf, len, flags);
     if (ret < 0) {
         errno = socket_error();
     }
@@ -464,7 +566,13 @@ ssize_t qemu_sendto_wrap(int sockfd, const void *buf, size_t len, int flags,
                          const struct sockaddr *addr, socklen_t addrlen)
 {
     int ret;
-    ret = sendto(sockfd, buf, len, flags, addr, addrlen);
+    SOCKET s = _get_osfhandle(sockfd);
+
+    if (s == -1) {
+        errno = EINVAL;
+        return -1;
+    }
+    ret = sendto(s, buf, len, flags, addr, addrlen);
     if (ret < 0) {
         errno = socket_error();
     }
@@ -476,7 +584,13 @@ ssize_t qemu_sendto_wrap(int sockfd, const void *buf, size_t len, int flags,
 ssize_t qemu_recv_wrap(int sockfd, void *buf, size_t len, int flags)
 {
     int ret;
-    ret = recv(sockfd, buf, len, flags);
+    SOCKET s = _get_osfhandle(sockfd);
+
+    if (s == -1) {
+        errno = EINVAL;
+        return -1;
+    }
+    ret = recv(s, buf, len, flags);
     if (ret < 0) {
         errno = socket_error();
     }
@@ -489,7 +603,13 @@ ssize_t qemu_recvfrom_wrap(int sockfd, void *buf, size_t len, int flags,
                            struct sockaddr *addr, socklen_t *addrlen)
 {
     int ret;
-    ret = recvfrom(sockfd, buf, len, flags, addr, addrlen);
+    SOCKET s = _get_osfhandle(sockfd);
+
+    if (s == -1) {
+        errno = EINVAL;
+        return -1;
+    }
+    ret = recvfrom(s, buf, len, flags, addr, addrlen);
     if (ret < 0) {
         errno = socket_error();
     }

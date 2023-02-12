@@ -426,6 +426,14 @@ static void qio_channel_socket_init(Object *obj)
     ioc->fd = -1;
 }
 
+static void wsa_event_clear(int sockfd)
+{
+#ifdef WIN32
+    SOCKET s = _get_osfhandle(sockfd);
+    WSAEventSelect(s, NULL, 0);
+#endif
+}
+
 static void qio_channel_socket_finalize(Object *obj)
 {
     QIOChannelSocket *ioc = QIO_CHANNEL_SOCKET(obj);
@@ -441,9 +449,7 @@ static void qio_channel_socket_finalize(Object *obj)
                 err = NULL;
             }
         }
-#ifdef WIN32
-        WSAEventSelect(ioc->fd, NULL, 0);
-#endif
+        wsa_event_clear(ioc->fd);
         closesocket(ioc->fd);
         ioc->fd = -1;
     }
@@ -845,9 +851,7 @@ qio_channel_socket_close(QIOChannel *ioc,
     Error *err = NULL;
 
     if (sioc->fd != -1) {
-#ifdef WIN32
-        WSAEventSelect(sioc->fd, NULL, 0);
-#endif
+        wsa_event_clear(sioc->fd);
         if (qio_channel_has_feature(ioc, QIO_CHANNEL_FEATURE_LISTEN)) {
             socket_listen_cleanup(sioc->fd, errp);
         }
@@ -899,7 +903,7 @@ static void qio_channel_socket_set_aio_fd_handler(QIOChannel *ioc,
                                                   void *opaque)
 {
     QIOChannelSocket *sioc = QIO_CHANNEL_SOCKET(ioc);
-    aio_set_fd_handler(ctx, sioc->fd, false,
+    aio_set_fd_handler(ctx, _get_osfhandle(sioc->fd), false,
                        io_read, io_write, NULL, NULL, opaque);
 }
 

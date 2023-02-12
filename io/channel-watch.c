@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "io/channel-watch.h"
 
 typedef struct QIOChannelFDSource QIOChannelFDSource;
@@ -275,15 +276,21 @@ GSource *qio_channel_create_fd_watch(QIOChannel *ioc,
 
 #ifdef CONFIG_WIN32
 GSource *qio_channel_create_socket_watch(QIOChannel *ioc,
-                                         int socket,
+                                         int sockfd,
                                          GIOCondition condition)
 {
+    SOCKET s = _get_osfhandle(sockfd);
     GSource *source;
     QIOChannelSocketSource *ssource;
 
-    WSAEventSelect(socket, ioc->event,
-                   FD_READ | FD_ACCEPT | FD_CLOSE |
-                   FD_CONNECT | FD_WRITE | FD_OOB);
+    if (s == -1 ||
+        WSAEventSelect(s, ioc->event,
+                       FD_READ | FD_ACCEPT | FD_CLOSE |
+                       FD_CONNECT | FD_WRITE | FD_OOB) == SOCKET_ERROR) {
+        g_autofree gchar *emsg = g_win32_error_message(GetLastError());
+        error_printf("error creating socket watch: %s", emsg);
+        return NULL;
+    }
 
     source = g_source_new(&qio_channel_socket_source_funcs,
                           sizeof(QIOChannelSocketSource));
@@ -293,7 +300,7 @@ GSource *qio_channel_create_socket_watch(QIOChannel *ioc,
     object_ref(OBJECT(ioc));
 
     ssource->condition = condition;
-    ssource->socket = socket;
+    ssource->socket = s;
     ssource->revents = 0;
 
     ssource->fd.fd = (gintptr)ioc->event;
