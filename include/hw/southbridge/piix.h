@@ -50,6 +50,7 @@ struct PIIXState {
 #endif
     uint64_t pic_levels;
 
+    qemu_irq cpu_intr;
     qemu_irq *pic;
 
     /* This member isn't used. Just for save/load compatibility */
