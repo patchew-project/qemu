@@ -436,17 +436,15 @@ int qemu_ioctlsocket_wrap(int fd, int req, void *val)
 }
 
 
-#undef closesocket
-int qemu_closesocket_wrap(int fd)
+#undef close
+int qemu_close_wrap(int fd)
 {
+    SOCKET s = INVALID_SOCKET;
     int ret;
-    SOCKET s = _get_osfhandle(fd);
 
-    if (s == -1) {
-        errno = EINVAL;
-        return -1;
+    if (fd_is_socket(fd)) {
+        s = _get_osfhandle(fd);
     }
-
     /*
      * close() must be called before closesocket(), otherwise close() returns an
      * error and sets EBADF.
@@ -456,10 +454,11 @@ int qemu_closesocket_wrap(int fd)
         return ret;
     }
 
-    /* closesocket() is required, event after close()! */
-    ret = closesocket(s);
-    if (ret < 0) {
-        errno = socket_error();
+    if (s != INVALID_SOCKET) {
+        ret = closesocket(s);
+        if (ret < 0) {
+            errno = socket_error();
+        }
     }
 
     return ret;
