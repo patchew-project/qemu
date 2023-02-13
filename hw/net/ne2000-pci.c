@@ -30,10 +30,16 @@
 #include "ne2000.h"
 #include "sysemu/sysemu.h"
 
-typedef struct PCINE2000State {
+#define TYPE_PCI_NE2000 "ne2k_pci"
+OBJECT_DECLARE_SIMPLE_TYPE(PCINE2000State, PCI_NE2000)
+
+struct PCINE2000State {
+    /*< private >*/
     PCIDevice dev;
+    /*< public >*/
+
     NE2000State ne2000;
-} PCINE2000State;
+};
 
 static const VMStateDescription vmstate_pci_ne2000 = {
     .name = "ne2000",
@@ -54,7 +60,7 @@ static NetClientInfo net_ne2000_info = {
 
 static void pci_ne2000_realize(PCIDevice *pci_dev, Error **errp)
 {
-    PCINE2000State *d = DO_UPCAST(PCINE2000State, dev, pci_dev);
+    PCINE2000State *d = PCI_NE2000(pci_dev);
     NE2000State *s;
     uint8_t *pci_conf;
 
@@ -77,7 +83,7 @@ static void pci_ne2000_realize(PCIDevice *pci_dev, Error **errp)
 
 static void pci_ne2000_exit(PCIDevice *pci_dev)
 {
-    PCINE2000State *d = DO_UPCAST(PCINE2000State, dev, pci_dev);
+    PCINE2000State *d = PCI_NE2000(pci_dev);
     NE2000State *s = &d->ne2000;
 
     qemu_del_nic(s->nic);
@@ -87,7 +93,7 @@ static void pci_ne2000_exit(PCIDevice *pci_dev)
 static void ne2000_instance_init(Object *obj)
 {
     PCIDevice *pci_dev = PCI_DEVICE(obj);
-    PCINE2000State *d = DO_UPCAST(PCINE2000State, dev, pci_dev);
+    PCINE2000State *d = PCI_NE2000(pci_dev);
     NE2000State *s = &d->ne2000;
 
     device_add_bootindex_property(obj, &s->c.bootindex,
@@ -117,7 +123,7 @@ static void ne2000_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo ne2000_info = {
-    .name          = "ne2k_pci",
+    .name          = TYPE_PCI_NE2000,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCINE2000State),
     .class_init    = ne2000_class_init,
