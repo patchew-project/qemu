@@ -767,9 +767,9 @@ static void qdev_print_props(Monitor *mon, DeviceState *dev, Property *props,
     }
 }
 
-static void bus_print_dev(BusState *bus, Monitor *mon, DeviceState *dev, int indent)
+static void bus_print_dev(Monitor *mon, DeviceState *dev, int indent)
 {
-    BusClass *bc = BUS_GET_CLASS(bus);
+    BusClass *bc = BUS_GET_CLASS(qdev_get_parent_bus(dev));
 
     if (bc->print_dev) {
         bc->print_dev(mon, dev, indent);
@@ -808,7 +808,7 @@ static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
         qdev_print_props(mon, dev, DEVICE_CLASS(class)->props_, indent);
         class = object_class_get_parent(class);
     } while (class != object_class_by_name(TYPE_DEVICE));
-    bus_print_dev(dev->parent_bus, mon, dev, indent);
+    bus_print_dev(mon, dev, indent);
     QLIST_FOREACH(child, &dev->child_bus, sibling) {
         qbus_print(mon, child, indent);
     }
