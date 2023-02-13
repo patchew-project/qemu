@@ -25,6 +25,7 @@ arm_ss.add(files(
   'translate-vfp.c',
   'crypto_helper.c',
   'debug_helper.c',
+  'hflags.c',
   'iwmmxt_helper.c',
   'm_helper.c',
   'mve_helper.c',
