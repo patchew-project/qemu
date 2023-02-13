@@ -553,7 +553,7 @@ void usb_desc_set_string(USBDevice *dev, uint8_t index, const char *str)
  */
 void usb_desc_create_serial(USBDevice *dev)
 {
-    DeviceState *hcd = dev->qdev.parent_bus->parent;
+    DeviceState *hcd = qdev_get_parent_bus(DEVICE(dev))->parent;
     const USBDesc *desc = usb_device_get_usb_desc(dev);
     int index = desc->id.iSerialNumber;
     char *path, *serial;
