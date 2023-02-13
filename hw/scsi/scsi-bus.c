@@ -104,7 +104,7 @@ static void scsi_device_unrealize(SCSIDevice *s)
 int scsi_bus_parse_cdb(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
                        size_t buf_len, void *hba_private)
 {
-    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, qdev_get_parent_bus(DEVICE(dev)));
+    SCSIBus *bus = SCSI_BUS(qdev_get_parent_bus(DEVICE(dev)));
     int rc;
 
     assert(cmd->len == 0);
@@ -250,7 +250,7 @@ static bool scsi_bus_check_address(BusState *qbus, DeviceState *qdev, Error **er
 static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
 {
     SCSIDevice *dev = SCSI_DEVICE(qdev);
-    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, qdev_get_parent_bus(DEVICE(dev)));
+    SCSIBus *bus = SCSI_BUS(qdev_get_parent_bus(qdev));
     bool is_free;
     Error *local_err = NULL;
 
@@ -705,7 +705,7 @@ SCSIRequest *scsi_req_alloc(const SCSIReqOps *reqops, SCSIDevice *d,
 SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
                           uint8_t *buf, size_t buf_len, void *hba_private)
 {
-    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, qdev_get_parent_bus(DEVICE(d)));
+    SCSIBus *bus = SCSI_BUS(qdev_get_parent_bus(DEVICE(d)));
     const SCSIReqOps *ops;
     SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(d);
     SCSIRequest *req;
@@ -1353,7 +1353,7 @@ int scsi_req_parse_cdb(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
 
 void scsi_device_report_change(SCSIDevice *dev, SCSISense sense)
 {
-    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, qdev_get_parent_bus(DEVICE(dev)));
+    SCSIBus *bus = SCSI_BUS(qdev_get_parent_bus(DEVICE(dev)));
 
     scsi_device_set_ua(dev, sense);
     if (bus->info->change) {
@@ -1698,7 +1698,7 @@ static int put_scsi_requests(QEMUFile *f, void *pv, size_t size,
                              const VMStateField *field, JSONWriter *vmdesc)
 {
     SCSIDevice *s = pv;
-    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, qdev_get_parent_bus(DEVICE(s)));
+    SCSIBus *bus = SCSI_BUS(qdev_get_parent_bus(DEVICE(s)));
     SCSIRequest *req;
 
     QTAILQ_FOREACH(req, &s->requests, next) {
@@ -1726,7 +1726,7 @@ static int get_scsi_requests(QEMUFile *f, void *pv, size_t size,
                              const VMStateField *field)
 {
     SCSIDevice *s = pv;
-    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, qdev_get_parent_bus(DEVICE(s)));
+    SCSIBus *bus = SCSI_BUS(qdev_get_parent_bus(DEVICE(s)));
     int8_t sbyte;
 
     while ((sbyte = qemu_get_sbyte(f)) > 0) {

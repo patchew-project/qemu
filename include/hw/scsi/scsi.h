@@ -177,7 +177,7 @@ static inline void scsi_bus_init(SCSIBus *bus, size_t bus_size,
 
 static inline SCSIBus *scsi_bus_from_device(SCSIDevice *d)
 {
-    return DO_UPCAST(SCSIBus, qbus, qdev_get_parent_bus(DEVICE(d)));
+    return SCSI_BUS(qdev_get_parent_bus(DEVICE(d)));
 }
 
 SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
