@@ -235,8 +235,20 @@ typedef enum {
     ru_ready = 4
 } ru_state_t;
 
-typedef struct {
+#define TYPE_EEPRO100 "eepro100"
+OBJECT_DECLARE_TYPE(EEPRO100State, EEPRO100Class, EEPRO100)
+
+struct EEPRO100Class {
+    /*< private >*/
+    PCIDeviceClass parent_class;
+    /*< public >*/
+};
+
+struct EEPRO100State {
+    /*< private >*/
     PCIDevice dev;
+    /*< public >*/
+
     /* Hash register (multicast mask array, multiple individual addresses). */
     uint8_t mult[8];
     MemoryRegion mmio_bar;
@@ -279,7 +291,7 @@ typedef struct {
     /* Quasi static device properties (no need to save them). */
     uint16_t stats_size;
     bool has_extended_tcb_support;
-} EEPRO100State;
+};
 
 /* Word indices in EEPROM. */
 typedef enum {
@@ -2055,43 +2067,55 @@ static Property e100_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void eepro100_class_init(ObjectClass *klass, void *data)
+static void eepro100_base_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     E100PCIDeviceInfo *info;
 
-    info = eepro100_get_class_by_name(object_class_get_name(klass));
 
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     device_class_set_props(dc, e100_properties);
-    dc->desc = info->desc;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
     k->romfile = "pxe-eepro100.rom";
     k->realize = e100_nic_realize;
     k->exit = pci_nic_uninit;
+
+    info = eepro100_get_class_by_name(object_class_get_name(klass));
+    if (!info) {
+        /* base class */
+        return;
+    }
+    dc->desc = info->desc;
     k->device_id = info->device_id;
     k->revision = info->revision;
     k->subsystem_vendor_id = info->subsystem_vendor_id;
     k->subsystem_id = info->subsystem_id;
 }
 
+static const TypeInfo eepro100_base_info = {
+    .name          = TYPE_EEPRO100,
+    .parent        = TYPE_PCI_DEVICE,
+    .abstract      = true,
+    .class_init    = eepro100_base_class_init,
+    .class_size    = sizeof(EEPRO100Class),
+    .instance_size = sizeof(EEPRO100State),
+    .instance_init = eepro100_instance_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
+};
+
 static void eepro100_register_types(void)
 {
-    size_t i;
-    for (i = 0; i < ARRAY_SIZE(e100_devices); i++) {
-        TypeInfo type_info = {};
-        E100PCIDeviceInfo *info = &e100_devices[i];
+    type_register_static(&eepro100_base_info);
 
-        type_info.name = info->name;
-        type_info.parent = TYPE_PCI_DEVICE;
-        type_info.class_init = eepro100_class_init;
-        type_info.instance_size = sizeof(EEPRO100State);
-        type_info.instance_init = eepro100_instance_init;
-        type_info.interfaces = (InterfaceInfo[]) {
-            { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-            { },
+    for (size_t i = 0; i < ARRAY_SIZE(e100_devices); i++) {
+        TypeInfo type_info = {
+            .name   = e100_devices[i].name,
+            .parent = TYPE_EEPRO100,
         };
 
         type_register(&type_info);
