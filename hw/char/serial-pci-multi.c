@@ -155,14 +155,14 @@ static Property multi_4x_serial_pci_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void multi_2x_serial_pci_class_initfn(ObjectClass *klass, void *data)
+static void multi_serial_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
+
     pc->realize = multi_serial_pci_realize;
     pc->exit = multi_serial_pci_exit;
     pc->vendor_id = PCI_VENDOR_ID_REDHAT;
-    pc->device_id = PCI_DEVICE_ID_REDHAT_SERIAL2;
     pc->revision = 1;
     pc->class_id = PCI_CLASS_COMMUNICATION_SERIAL;
     dc->vmsd = &vmstate_pci_multi_serial;
@@ -170,19 +170,22 @@ static void multi_2x_serial_pci_class_initfn(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
+static void multi_2x_serial_pci_class_initfn(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
+
+    pc->device_id = PCI_DEVICE_ID_REDHAT_SERIAL2;
+    device_class_set_props(dc, multi_2x_serial_pci_properties);
+}
+
 static void multi_4x_serial_pci_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
-    pc->realize = multi_serial_pci_realize;
-    pc->exit = multi_serial_pci_exit;
-    pc->vendor_id = PCI_VENDOR_ID_REDHAT;
+
     pc->device_id = PCI_DEVICE_ID_REDHAT_SERIAL4;
-    pc->revision = 1;
-    pc->class_id = PCI_CLASS_COMMUNICATION_SERIAL;
-    dc->vmsd = &vmstate_pci_multi_serial;
     device_class_set_props(dc, multi_4x_serial_pci_properties);
-    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static void multi_serial_init(Object *o)
@@ -202,6 +205,7 @@ static const TypeInfo multi_serial_pci_types[] = {
         .parent         = TYPE_PCI_DEVICE,
         .instance_size  = sizeof(PCIMultiSerialState),
         .instance_init  = multi_serial_init,
+        .class_init     = multi_serial_class_initfn,
         .abstract       = true,
         .interfaces     = (InterfaceInfo[]) {
             { INTERFACE_CONVENTIONAL_PCI_DEVICE },
