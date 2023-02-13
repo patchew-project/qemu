@@ -19,7 +19,10 @@
 #include "net/eth.h"
 
 struct TULIPState {
+    /*< private >*/
     PCIDevice dev;
+    /*< public >*/
+
     MemoryRegion io;
     MemoryRegion memory;
     NICConf c;
@@ -959,7 +962,7 @@ static void tulip_fill_eeprom(TULIPState *s)
 
 static void pci_tulip_realize(PCIDevice *pci_dev, Error **errp)
 {
-    TULIPState *s = DO_UPCAST(TULIPState, dev, pci_dev);
+    TULIPState *s = TULIP(pci_dev);
     uint8_t *pci_conf;
 
     pci_conf = s->dev.config;
@@ -967,7 +970,7 @@ static void pci_tulip_realize(PCIDevice *pci_dev, Error **errp)
 
     qemu_macaddr_default_if_unset(&s->c.macaddr);
 
-    s->eeprom = eeprom93xx_new(&pci_dev->qdev, 64);
+    s->eeprom = eeprom93xx_new(DEVICE(pci_dev), 64);
     tulip_fill_eeprom(s);
 
     memory_region_init_io(&s->io, OBJECT(&s->dev), &tulip_ops, s,
@@ -983,27 +986,26 @@ static void pci_tulip_realize(PCIDevice *pci_dev, Error **errp)
 
     s->nic = qemu_new_nic(&net_tulip_info, &s->c,
                           object_get_typename(OBJECT(pci_dev)),
-                          pci_dev->qdev.id, s);
+                          DEVICE(pci_dev)->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->c.macaddr.a);
 }
 
 static void pci_tulip_exit(PCIDevice *pci_dev)
 {
-    TULIPState *s = DO_UPCAST(TULIPState, dev, pci_dev);
+    TULIPState *s = TULIP(pci_dev);
 
     qemu_del_nic(s->nic);
     qemu_free_irq(s->irq);
-    eeprom93xx_free(&pci_dev->qdev, s->eeprom);
+    eeprom93xx_free(DEVICE(s), s->eeprom);
 }
 
 static void tulip_instance_init(Object *obj)
 {
-    PCIDevice *pci_dev = PCI_DEVICE(obj);
-    TULIPState *d = DO_UPCAST(TULIPState, dev, pci_dev);
+    TULIPState *s = TULIP(obj);
 
-    device_add_bootindex_property(obj, &d->c.bootindex,
+    device_add_bootindex_property(obj, &s->c.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  &pci_dev->qdev);
+                                  DEVICE(obj));
 }
 
 static Property tulip_properties[] = {
