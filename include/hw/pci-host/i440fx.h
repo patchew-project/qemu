@@ -28,9 +28,10 @@ struct PCII440FXState {
     MemoryRegion *system_memory;
     MemoryRegion *pci_address_space;
     MemoryRegion *ram_memory;
+    MemoryRegion *smram;
     PAMMemoryRegion pam_regions[PAM_REGIONS_COUNT];
     MemoryRegion smram_region;
-    MemoryRegion smram, low_smram;
+    MemoryRegion low_smram;
 };
 
 #define TYPE_IGD_PASSTHROUGH_I440FX_PCI_DEVICE "igd-passthrough-i440FX"
@@ -43,7 +44,7 @@ PCIBus *i440fx_init(const char *pci_type,
                     ram_addr_t below_4g_mem_size,
                     ram_addr_t above_4g_mem_size,
                     MemoryRegion *pci_memory,
-                    MemoryRegion *ram_memory);
-
+                    MemoryRegion *ram_memory,
+                    MemoryRegion *smram);
 
 #endif

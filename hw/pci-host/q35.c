@@ -246,6 +246,10 @@ static void q35_host_initfn(Object *obj)
                              (Object **) &s->mch.ram_memory,
                              qdev_prop_allow_set_link_before_realize, 0);
 
+    object_property_add_link(obj, MCH_HOST_PROP_SMRAM_MEM, TYPE_MEMORY_REGION,
+                             (Object **) &s->mch.smram,
+                             qdev_prop_allow_set_link_before_realize, 0);
+
     object_property_add_link(obj, MCH_HOST_PROP_PCI_MEM, TYPE_MEMORY_REGION,
                              (Object **) &s->mch.pci_address_space,
                              qdev_prop_allow_set_link_before_realize, 0);
@@ -594,19 +598,17 @@ static void mch_realize(PCIDevice *d, Error **errp)
     memory_region_set_enabled(&mch->open_high_smram, false);
 
     /* smram, as seen by SMM CPUs */
-    memory_region_init(&mch->smram, OBJECT(mch), "smram", 4 * GiB);
-    memory_region_set_enabled(&mch->smram, true);
     memory_region_init_alias(&mch->low_smram, OBJECT(mch), "smram-low",
                              mch->ram_memory, MCH_HOST_BRIDGE_SMRAM_C_BASE,
                              MCH_HOST_BRIDGE_SMRAM_C_SIZE);
     memory_region_set_enabled(&mch->low_smram, true);
-    memory_region_add_subregion(&mch->smram, MCH_HOST_BRIDGE_SMRAM_C_BASE,
+    memory_region_add_subregion(mch->smram, MCH_HOST_BRIDGE_SMRAM_C_BASE,
                                 &mch->low_smram);
     memory_region_init_alias(&mch->high_smram, OBJECT(mch), "smram-high",
                              mch->ram_memory, MCH_HOST_BRIDGE_SMRAM_C_BASE,
                              MCH_HOST_BRIDGE_SMRAM_C_SIZE);
     memory_region_set_enabled(&mch->high_smram, true);
-    memory_region_add_subregion(&mch->smram, 0xfeda0000, &mch->high_smram);
+    memory_region_add_subregion(mch->smram, 0xfeda0000, &mch->high_smram);
 
     memory_region_init_io(&mch->tseg_blackhole, OBJECT(mch),
                           &blackhole_ops, NULL,
@@ -619,7 +621,7 @@ static void mch_realize(PCIDevice *d, Error **errp)
     memory_region_init_alias(&mch->tseg_window, OBJECT(mch), "tseg-window",
                              mch->ram_memory, mch->below_4g_mem_size, 0);
     memory_region_set_enabled(&mch->tseg_window, false);
-    memory_region_add_subregion(&mch->smram, mch->below_4g_mem_size,
+    memory_region_add_subregion(mch->smram, mch->below_4g_mem_size,
                                 &mch->tseg_window);
 
     /*
@@ -639,11 +641,8 @@ static void mch_realize(PCIDevice *d, Error **errp)
                              MCH_HOST_BRIDGE_SMBASE_ADDR,
                              MCH_HOST_BRIDGE_SMBASE_SIZE);
     memory_region_set_enabled(&mch->smbase_window, false);
-    memory_region_add_subregion(&mch->smram, MCH_HOST_BRIDGE_SMBASE_ADDR,
+    memory_region_add_subregion(mch->smram, MCH_HOST_BRIDGE_SMBASE_ADDR,
                                 &mch->smbase_window);
-
-    object_property_add_const_link(qdev_get_machine(), "smram",
-                                   OBJECT(&mch->smram));
 
     init_pam(&mch->pam_regions[0], OBJECT(mch), mch->ram_memory,
              mch->system_memory, mch->pci_address_space,
