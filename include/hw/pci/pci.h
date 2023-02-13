@@ -341,6 +341,7 @@ void pci_for_each_device_under_bus_reverse(PCIBus *bus,
 void pci_for_each_bus_depth_first(PCIBus *bus, pci_bus_ret_fn begin,
                                   pci_bus_fn end, void *parent_state);
 PCIDevice *pci_get_function_0(PCIDevice *pci_dev);
+PCIDevice *pci_find_the_only_child(PCIBus *bus, int bus_num, Error **errp);
 
 /* Use this wrapper when specific scan order is not required. */
 static inline
