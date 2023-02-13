@@ -22,7 +22,6 @@
 #include "tcg/helper-tcg.h"
 
 #include "sysemu/sysemu.h"
-#include "qemu/units.h"
 #include "exec/address-spaces.h"
 
 #include "tcg/tcg-cpu.h"
@@ -36,7 +35,7 @@ static void tcg_cpu_machine_done(Notifier *n, void *unused)
     if (smram) {
         cpu->smram = g_new(MemoryRegion, 1);
         memory_region_init_alias(cpu->smram, OBJECT(cpu), "smram",
-                                 smram, 0, 4 * GiB);
+                                 smram, 0, memory_region_size(smram));
         memory_region_set_enabled(cpu->smram, true);
         memory_region_add_subregion_overlap(cpu->cpu_as_root, 0,
                                             cpu->smram, 1);
