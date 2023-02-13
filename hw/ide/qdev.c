@@ -90,7 +90,7 @@ static void ide_qdev_realize(DeviceState *qdev, Error **errp)
 {
     IDEDevice *dev = IDE_DEVICE(qdev);
     IDEDeviceClass *dc = IDE_DEVICE_GET_CLASS(dev);
-    IDEBus *bus = DO_UPCAST(IDEBus, qbus, qdev_get_parent_bus(qdev));
+    IDEBus *bus = IDE_BUS(qdev_get_parent_bus(qdev));
 
     if (dev->unit == -1) {
         dev->unit = bus->master ? 1 : 0;
@@ -139,7 +139,7 @@ IDEDevice *ide_create_drive(IDEBus *bus, int unit, DriveInfo *drive)
 int ide_get_geometry(BusState *bus, int unit,
                      int16_t *cyls, int8_t *heads, int8_t *secs)
 {
-    IDEState *s = &DO_UPCAST(IDEBus, qbus, bus)->ifs[unit];
+    IDEState *s = &IDE_BUS(bus)->ifs[unit];
 
     if (s->drive_kind != IDE_HD || !s->blk) {
         return -1;
@@ -153,7 +153,7 @@ int ide_get_geometry(BusState *bus, int unit,
 
 int ide_get_bios_chs_trans(BusState *bus, int unit)
 {
-    return DO_UPCAST(IDEBus, qbus, bus)->ifs[unit].chs_trans;
+    return IDE_BUS(bus)->ifs[unit].chs_trans;
 }
 
 /* --------------------------------- */
@@ -164,7 +164,7 @@ typedef struct IDEDrive {
 
 static void ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind, Error **errp)
 {
-    IDEBus *bus = DO_UPCAST(IDEBus, qbus, qdev_get_parent_bus(DEVICE(dev)));
+    IDEBus *bus = IDE_BUS(qdev_get_parent_bus(DEVICE(dev)));
     IDEState *s = bus->ifs + dev->unit;
     int ret;
 
