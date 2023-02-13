@@ -482,7 +482,7 @@
 #                                   section is sent.  We used to do
 #                                   that in the past, but it is
 #                                   suboptimal.
-#                                   Default value is true until all code is in.
+#                                   Default value is false.
 #                                   (since 8.0)
 #
 # Features:
