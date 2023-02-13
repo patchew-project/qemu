@@ -58,7 +58,7 @@ struct PCIMultiSerialState {
 
 static void multi_serial_pci_exit(PCIDevice *dev)
 {
-    PCIMultiSerialState *pci = DO_UPCAST(PCIMultiSerialState, dev, dev);
+    PCIMultiSerialState *pci = PCI_MULTISERIAL(dev);
     SerialState *s;
     int i;
 
@@ -97,11 +97,10 @@ static size_t multi_serial_get_port_count(PCIDeviceClass *pc)
     g_assert_not_reached();
 }
 
-
 static void multi_serial_pci_realize(PCIDevice *dev, Error **errp)
 {
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
-    PCIMultiSerialState *pci = DO_UPCAST(PCIMultiSerialState, dev, dev);
+    PCIMultiSerialState *pci = PCI_MULTISERIAL(dev);
     SerialState *s;
     size_t i, nports = multi_serial_get_port_count(pc);
 
@@ -190,9 +189,8 @@ static void multi_4x_serial_pci_class_initfn(ObjectClass *klass, void *data)
 
 static void multi_serial_init(Object *o)
 {
-    PCIDevice *dev = PCI_DEVICE(o);
-    PCIMultiSerialState *pms = DO_UPCAST(PCIMultiSerialState, dev, dev);
-    size_t i, nports = multi_serial_get_port_count(PCI_DEVICE_GET_CLASS(dev));
+    PCIMultiSerialState *pms = PCI_MULTISERIAL(o);
+    size_t i, nports = multi_serial_get_port_count(PCI_DEVICE_GET_CLASS(o));
 
     for (i = 0; i < nports; i++) {
         object_initialize_child(o, "serial[*]", &pms->state[i], TYPE_SERIAL);
