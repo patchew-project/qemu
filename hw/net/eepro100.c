@@ -486,8 +486,9 @@ static void eepro100_fcp_interrupt(EEPRO100State * s)
 }
 #endif
 
-static void e100_pci_reset(EEPRO100State *s, Error **errp)
+static void e100_pci_reset(DeviceState *dev)
 {
+    EEPRO100State *s = EEPRO100(dev);
     E100PCIDeviceInfo *info = eepro100_get_class(s);
     uint32_t device = s->device;
     uint8_t *pci_conf = s->dev.config;
@@ -1847,17 +1848,10 @@ static void e100_nic_realize(PCIDevice *pci_dev, Error **errp)
 {
     EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
     E100PCIDeviceInfo *info = eepro100_get_class(s);
-    Error *local_err = NULL;
 
     TRACE(OTHER, logout("\n"));
 
     s->device = info->device;
-
-    e100_pci_reset(s, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
 
     /* Add 64 * 2 EEPROM. i82557 and i82558 support a 64 word EEPROM,
      * i82559 and later support 64 or 256 word EEPROM. */
@@ -2076,6 +2070,7 @@ static void eepro100_base_class_init(ObjectClass *klass, void *data)
 
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     device_class_set_props(dc, e100_properties);
+    dc->reset = e100_pci_reset;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
     k->romfile = "pxe-eepro100.rom";
