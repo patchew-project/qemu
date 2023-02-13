@@ -520,7 +520,7 @@ void usb_check_attach(USBDevice *dev, Error **errp);
 
 static inline USBBus *usb_bus_from_device(USBDevice *d)
 {
-    return DO_UPCAST(USBBus, qbus, qdev_get_parent_bus(DEVICE(d)));
+    return USB_BUS(qdev_get_parent_bus(DEVICE(d)));
 }
 
 extern const VMStateDescription vmstate_usb_device;
