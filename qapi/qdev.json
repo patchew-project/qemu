@@ -124,6 +124,9 @@
 #
 # @path: the device's QOM path
 #
+# Features:
+# @deprecated: Member @device is deprecated as redundant. Use @path instead.
+#
 # Since: 1.5
 #
 # Example:
@@ -135,7 +138,8 @@
 #
 ##
 { 'event': 'DEVICE_DELETED',
-  'data': { '*device': 'str', 'path': 'str' } }
+  'data': { '*device': { 'type': 'str', 'features': [ 'deprecated' ] },
+            'path': 'str' } }
 
 ##
 # @DEVICE_UNPLUG_GUEST_ERROR:
@@ -145,6 +149,9 @@
 # @device: the device's ID if it has one
 #
 # @path: the device's QOM path
+#
+# Features:
+# @deprecated: Member @device is deprecated as redundant. Use @path instead.
 #
 # Since: 6.2
 #
@@ -157,4 +164,5 @@
 #
 ##
 { 'event': 'DEVICE_UNPLUG_GUEST_ERROR',
-  'data': { '*device': 'str', 'path': 'str' } }
+  'data': { '*device': { 'type': 'str', 'features': [ 'deprecated' ] },
+            'path': 'str' } }

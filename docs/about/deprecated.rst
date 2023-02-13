@@ -171,6 +171,15 @@ accepted incorrect commands will return an error. Users should make sure that
 all arguments passed to ``device_add`` are consistent with the documented
 property types.
 
+QEMU Machine Protocol (QMP) events
+----------------------------------
+
+``DEVICE_DELETED`` & ``DEVICE_UNPLUG_GUEST_ERROR`` field ``device`` (since 8.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Devices that has ``ID`` always has QOM path `/machine/peripheral/ID`. So, the
+``device`` field is redundant and deprecated. Use the ``path`` field instead.
+
 Host Architectures
 ------------------
 
