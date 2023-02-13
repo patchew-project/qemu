@@ -11,6 +11,8 @@
 
 
 import tempfile
+import os
+
 from avocado_qemu import QemuSystemTest
 from avocado import skipUnless
 
@@ -25,6 +27,14 @@ class Migration(QemuSystemTest):
     """
 
     timeout = 10
+
+    def setUp(self):
+        super().setUp()
+
+        arch = os.uname()[4]
+        if arch == 'aarch64':
+            self.machine = 'virt'
+            self.cpu = 'max'
 
     @staticmethod
     def migration_finished(vm):
