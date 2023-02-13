@@ -69,7 +69,7 @@ struct PPC_DFP {
 
 static void dfp_prepare_rounding_mode(decContext *context, uint64_t fpscr)
 {
-    enum rounding rnd;
+    enum rounding rnd = 0;
 
     switch ((fpscr & FP_DRN) >> FPSCR_DRN0) {
     case 0:
@@ -106,7 +106,7 @@ static void dfp_prepare_rounding_mode(decContext *context, uint64_t fpscr)
 static void dfp_set_round_mode_from_immediate(uint8_t r, uint8_t rmc,
                                                   struct PPC_DFP *dfp)
 {
-    enum rounding rnd;
+    enum rounding rnd = 0;
     if (r == 0) {
         switch (rmc & 3) {
         case 0:
