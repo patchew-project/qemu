@@ -1476,6 +1476,15 @@ enum CacheType {
     UNIFIED_CACHE
 };
 
+enum CPUTopoLevel {
+    INVALID = 0,
+    SMT,
+    CORE,
+    MODULE,
+    DIE,
+    PACKAGE,
+};
+
 typedef struct CPUCacheInfo {
     enum CacheType type;
     uint8_t level;
@@ -1517,6 +1526,13 @@ typedef struct CPUCacheInfo {
      * address bits.  CPUID[4].EDX[bit 2].
      */
     bool complex_indexing;
+
+    /*
+     * Cache Topology. The level that cache is shared in.
+     * Used to encode CPUID[4].EAX[bits 25:14] or
+     * CPUID[0x8000001D].EAX[bits 25:14].
+     */
+    enum CPUTopoLevel share_level;
 } CPUCacheInfo;
 
 
