@@ -366,11 +366,8 @@ static CcwDevice *s390_get_ccw_device(DeviceState *dev_st, int *devtype)
             ccw_dev = CCW_DEVICE(vfio_ccw_dev);
             tmp_dt = CCW_DEVTYPE_VFIO;
         } else {
-            SCSIDevice *sd = (SCSIDevice *)
-                object_dynamic_cast(OBJECT(dev_st),
-                                    TYPE_SCSI_DEVICE);
-            if (sd) {
-                SCSIBus *sbus = scsi_bus_from_device(sd);
+            if (object_dynamic_cast(OBJECT(dev_st), TYPE_SCSI_DEVICE)) {
+                SCSIBus *sbus = SCSI_BUS(qdev_get_parent_bus(dev_st));
                 VirtIODevice *vdev = (VirtIODevice *)
                     object_dynamic_cast(OBJECT(sbus->qbus.parent),
                                         TYPE_VIRTIO_DEVICE);
