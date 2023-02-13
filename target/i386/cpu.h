@@ -1987,6 +1987,8 @@ struct ArchCPU {
     int32_t thread_id;
 
     int32_t hv_max_vps;
+
+    char *l2_cache_topo_level;
 };
 
 
