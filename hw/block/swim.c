@@ -157,7 +157,7 @@ static Property swim_drive_properties[] = {
 static void swim_drive_realize(DeviceState *qdev, Error **errp)
 {
     SWIMDrive *dev = SWIM_DRIVE(qdev);
-    SWIMBus *bus = SWIM_BUS(qdev->parent_bus);
+    SWIMBus *bus = SWIM_BUS(qdev_get_parent_bus(qdev));
     FDrive *drive;
     int ret;
 
