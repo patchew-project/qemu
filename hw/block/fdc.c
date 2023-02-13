@@ -466,7 +466,7 @@ static Property floppy_drive_properties[] = {
 static void floppy_drive_realize(DeviceState *qdev, Error **errp)
 {
     FloppyDrive *dev = FLOPPY_DRIVE(qdev);
-    FloppyBus *bus = FLOPPY_BUS(qdev->parent_bus);
+    FloppyBus *bus = FLOPPY_BUS(qdev_get_parent_bus(qdev));
     FDrive *drive;
     bool read_only;
     int ret;
