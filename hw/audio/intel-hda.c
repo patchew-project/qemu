@@ -59,7 +59,7 @@ void hda_codec_bus_init(DeviceState *dev, HDACodecBus *bus, size_t bus_size,
 
 static void hda_codec_dev_realize(DeviceState *qdev, Error **errp)
 {
-    HDACodecBus *bus = HDA_BUS(qdev->parent_bus);
+    HDACodecBus *bus = HDA_BUS(qdev_get_parent_bus(qdev));
     HDACodecDevice *dev = HDA_CODEC_DEVICE(qdev);
     HDACodecDeviceClass *cdc = HDA_CODEC_DEVICE_GET_CLASS(dev);
 
@@ -103,14 +103,14 @@ HDACodecDevice *hda_codec_find(HDACodecBus *bus, uint32_t cad)
 
 void hda_codec_response(HDACodecDevice *dev, bool solicited, uint32_t response)
 {
-    HDACodecBus *bus = HDA_BUS(dev->qdev.parent_bus);
+    HDACodecBus *bus = HDA_BUS(qdev_get_parent_bus(DEVICE(dev)));
     bus->response(dev, solicited, response);
 }
 
 bool hda_codec_xfer(HDACodecDevice *dev, uint32_t stnr, bool output,
                     uint8_t *buf, uint32_t len)
 {
-    HDACodecBus *bus = HDA_BUS(dev->qdev.parent_bus);
+    HDACodecBus *bus = HDA_BUS(qdev_get_parent_bus(DEVICE(dev)));
     return bus->xfer(dev, stnr, output, buf, len);
 }
 
@@ -344,7 +344,7 @@ static void intel_hda_corb_run(IntelHDAState *d)
 static void intel_hda_response(HDACodecDevice *dev, bool solicited, uint32_t response)
 {
     const MemTxAttrs attrs = { .memory = true };
-    HDACodecBus *bus = HDA_BUS(dev->qdev.parent_bus);
+    HDACodecBus *bus = HDA_BUS(qdev_get_parent_bus(DEVICE(dev)));
     IntelHDAState *d = container_of(bus, IntelHDAState, codecs);
     hwaddr addr;
     uint32_t wp, ex;
@@ -399,7 +399,7 @@ static bool intel_hda_xfer(HDACodecDevice *dev, uint32_t stnr, bool output,
                            uint8_t *buf, uint32_t len)
 {
     const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
-    HDACodecBus *bus = HDA_BUS(dev->qdev.parent_bus);
+    HDACodecBus *bus = HDA_BUS(qdev_get_parent_bus(DEVICE(dev)));
     IntelHDAState *d = container_of(bus, IntelHDAState, codecs);
     hwaddr addr;
     uint32_t s, copy, left;
