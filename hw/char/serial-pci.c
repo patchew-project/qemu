@@ -36,7 +36,10 @@
 #include "qom/object.h"
 
 struct PCISerialState {
+    /*< private >*/
     PCIDevice dev;
+    /*< public >*/
+
     SerialState state;
     uint8_t prog_if;
 };
@@ -46,7 +49,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(PCISerialState, PCI_SERIAL)
 
 static void serial_pci_realize(PCIDevice *dev, Error **errp)
 {
-    PCISerialState *pci = DO_UPCAST(PCISerialState, dev, dev);
+    PCISerialState *pci = PCI_SERIAL(dev);
     SerialState *s = &pci->state;
 
     if (!qdev_realize(DEVICE(s), NULL, errp)) {
@@ -63,7 +66,7 @@ static void serial_pci_realize(PCIDevice *dev, Error **errp)
 
 static void serial_pci_exit(PCIDevice *dev)
 {
-    PCISerialState *pci = DO_UPCAST(PCISerialState, dev, dev);
+    PCISerialState *pci = PCI_SERIAL(dev);
     SerialState *s = &pci->state;
 
     qdev_unrealize(DEVICE(s));
