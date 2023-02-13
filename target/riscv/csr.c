@@ -3793,13 +3793,13 @@ static inline RISCVException riscv_csrrw_check(CPURISCVState *env,
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
-    if (write_mask && read_only) {
-        return RISCV_EXCP_ILLEGAL_INST;
-    }
-
     RISCVException ret = csr_ops[csrno].predicate(env, csrno);
     if (ret != RISCV_EXCP_NONE) {
         return ret;
+    }
+
+    if (write_mask && read_only) {
+        return RISCV_EXCP_ILLEGAL_INST;
     }
 
 #if !defined(CONFIG_USER_ONLY)
