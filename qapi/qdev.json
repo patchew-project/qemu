@@ -166,3 +166,178 @@
 { 'event': 'DEVICE_UNPLUG_GUEST_ERROR',
   'data': { '*device': { 'type': 'str', 'features': [ 'deprecated' ] },
             'path': 'str' } }
+
+##
+# @LedActivity:
+#
+# Three-state led indicator state.
+#
+# @on: Indicator is on.
+#
+# @blink: Indicator is blinking.
+#
+# @off: Indicator is off.
+#
+# Since: 8.0
+##
+{ 'enum': 'LedActivity',
+  'data': [ 'on', 'blink', 'off' ] }
+
+##
+# @HotplugSHPCSlotState:
+#
+# Standard Hot-Plug Controller slot state.
+#
+# @power-only: Slot is powered on but neither clock nor bus are connected.
+#
+# @enabled: Slot is powered on, clock and bus are connected, the card is
+#           fully functional from a hardware standpoint.
+#
+# @disabled: Slot is disabled, card us safe to be removed.
+#
+# Since: 8.0
+##
+{ 'enum': 'HotplugSHPCSlotState',
+  'data': [ 'power-only', 'enabled', 'disabled' ] }
+
+##
+# @HotplugBaseState:
+#
+# Base structure for SHPC and PCIe-native hotplug.
+#
+# @power-led: Power indicator. When power indicator is on the device is
+#             ready and accepted by guest. Off status means that device
+#             is safe to remove and blinking is an intermediate state of
+#             hot-plug or hot-unplug.
+#
+# @attention-led: Attention indicator. Off status means normal operation,
+#                 On signals about operational problem, Blinking is for
+#                 locating the slot.
+#
+# Since: 8.0
+##
+{ 'struct': 'HotplugBaseState',
+  'data': { '*power-led': 'LedActivity',
+            '*attention-led': 'LedActivity' } }
+
+##
+# @HotplugSHPCState:
+#
+# Standard Hot Plug Controller state.
+#
+# @slot-state: The slot state field of Slot Status.
+#
+# Since: 8.0
+##
+{ 'struct': 'HotplugSHPCState',
+  'base': 'HotplugBaseState',
+  'data': { '*slot-state': 'HotplugSHPCSlotState' } }
+
+##
+# @HotplugPCIeNativeState:
+#
+# PCIe Native hotplug slot state.
+#
+# @power-on: PCIe Power Controller Control of Slot Control Register.
+#            True means Power On (Power Controller Control bit is 0),
+#            False means Power Off (Power Controller Control bit is 1).
+#
+# Since: 8.0
+##
+{ 'struct': 'HotplugPCIeNativeState',
+  'base': 'HotplugBaseState',
+  'data': { '*power-on': 'bool' } }
+
+##
+# @HotplugType:
+#
+# Type of hotplug controller / provider.
+#
+# @shpc: Standard Hot Plug Controller
+#
+# @pcie-native: PCIe Native hotplug
+#
+# Since: 8.0
+##
+{ 'enum': 'HotplugType',
+  'data': ['shpc', 'pcie-native'] }
+
+##
+# @HotplugState:
+#
+# Generic hotplug slot state.
+#
+# @type: type of the hotplug (shpc or pcie-native)
+#
+# Single: 8.0
+##
+{ 'union': 'HotplugState',
+  'base': { 'type': 'HotplugType' },
+  'discriminator': 'type',
+  'data': { 'shpc': 'HotplugSHPCState',
+            'pcie-native': 'HotplugPCIeNativeState' } }
+
+##
+# @HotplugBase:
+#
+# @bus: The QOM path of the parent bus where device is hotplugged.
+#
+# @addr: The bus address for hotplugged device if applicable.
+#
+# @child: the hotplugged device's QOM path. The field absent if
+#         there is no device at the moment.
+#
+# Since: 8.0
+##
+{ 'struct': 'HotplugBase',
+  'data': { 'bus': 'str',
+            '*addr': 'str',
+            '*child': 'str' } }
+
+##
+# @HotplugEvent:
+#
+# @changed: The hotplug controller states being changed. The state
+#           fields that are not changed are not included into @changed.
+#
+# Since: 8.0
+##
+{ 'struct': 'HotplugEvent',
+  'base': 'HotplugBase',
+  'data': { 'changed': 'HotplugState' } }
+
+##
+# @HotplugInfo:
+#
+# @state: Current hotplug controller state. All applicable fields are
+#         included into @state.
+#
+# Since: 8.0
+##
+{ 'struct': 'HotplugInfo',
+  'base': 'HotplugBase',
+  'data': { 'state': 'HotplugState' } }
+
+##
+# @HOTPLUG_STATE:
+#
+# Emitted whenever the state of hotplug controller changes.
+# Only changed values are included into event. Any change of any field
+# of the state trigger the event. Several fields are included into one
+# event if they are changed simultaneously.
+#
+# Since: 8.0
+##
+{ 'event': 'HOTPLUG_STATE',
+  'data': 'HotplugEvent' }
+
+##
+# @query-hotplug:
+#
+# Query the state of hotplug controller.
+#
+# Since: 8.0
+##
+{ 'command': 'query-hotplug',
+  'data': { 'id': 'str' },
+  'returns': 'HotplugInfo' }

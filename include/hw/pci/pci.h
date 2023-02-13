@@ -7,6 +7,9 @@
 /* PCI includes legacy ISA access.  */
 #include "hw/isa/isa.h"
 
+#include "qapi/qapi-types-qdev.h"
+#include "qapi/qapi-events-qdev.h"
+
 extern bool pci_available;
 
 /* PCI bus */
