@@ -38,8 +38,15 @@
 
 #define PCI_SERIAL_MAX_PORTS 4
 
-typedef struct PCIMultiSerialState {
+#define TYPE_PCI_MULTISERIAL  "pci-serial-multi"
+
+OBJECT_DECLARE_SIMPLE_TYPE(PCIMultiSerialState, PCI_MULTISERIAL)
+
+struct PCIMultiSerialState {
+    /*< private >*/
     PCIDevice    dev;
+    /*< public >*/
+
     MemoryRegion iobar;
     uint32_t     ports;
     char         *name[PCI_SERIAL_MAX_PORTS];
@@ -47,7 +54,7 @@ typedef struct PCIMultiSerialState {
     uint32_t     level[PCI_SERIAL_MAX_PORTS];
     qemu_irq     *irqs;
     uint8_t      prog_if;
-} PCIMultiSerialState;
+};
 
 static void multi_serial_pci_exit(PCIDevice *dev)
 {
@@ -191,25 +198,23 @@ static void multi_serial_init(Object *o)
 
 static const TypeInfo multi_serial_pci_types[] = {
     {
-        .name          = "pci-serial-2x",
-        .parent        = TYPE_PCI_DEVICE,
-        .instance_size = sizeof(PCIMultiSerialState),
-        .instance_init = multi_serial_init,
-        .class_init    = multi_2x_serial_pci_class_initfn,
-        .interfaces = (InterfaceInfo[]) {
+        .name           = TYPE_PCI_MULTISERIAL,
+        .parent         = TYPE_PCI_DEVICE,
+        .instance_size  = sizeof(PCIMultiSerialState),
+        .instance_init  = multi_serial_init,
+        .abstract       = true,
+        .interfaces     = (InterfaceInfo[]) {
             { INTERFACE_CONVENTIONAL_PCI_DEVICE },
             { },
         },
     }, {
+        .name          = "pci-serial-2x",
+        .parent        = TYPE_PCI_MULTISERIAL,
+        .class_init    = multi_2x_serial_pci_class_initfn,
+    }, {
         .name          = "pci-serial-4x",
-        .parent        = TYPE_PCI_DEVICE,
-        .instance_size = sizeof(PCIMultiSerialState),
-        .instance_init = multi_serial_init,
+        .parent        = TYPE_PCI_MULTISERIAL,
         .class_init    = multi_4x_serial_pci_class_initfn,
-        .interfaces = (InterfaceInfo[]) {
-            { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-            { },
-        },
     }
 };
 
