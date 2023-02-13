@@ -382,7 +382,7 @@ static void rtas_quiesce(PowerPCCPU *cpu, SpaprMachineState *spapr,
 
 static SpaprVioDevice *reg_conflict(SpaprVioDevice *dev)
 {
-    SpaprVioBus *bus = SPAPR_VIO_BUS(dev->qdev.parent_bus);
+    SpaprVioBus *bus = SPAPR_VIO_BUS(qdev_get_parent_bus(DEVICE(dev)));
     BusChild *kid;
     SpaprVioDevice *other;
 
@@ -492,7 +492,7 @@ static void spapr_vio_busdev_realize(DeviceState *qdev, Error **errp)
         }
     } else {
         /* Need to assign an address */
-        SpaprVioBus *bus = SPAPR_VIO_BUS(dev->qdev.parent_bus);
+        SpaprVioBus *bus = SPAPR_VIO_BUS(qdev_get_parent_bus(DEVICE(dev)));
 
         do {
             dev->reg = bus->next_reg++;
