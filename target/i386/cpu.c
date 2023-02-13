@@ -336,7 +336,9 @@ static void encode_cache_cpuid8000001d(CPUCacheInfo *cache,
 
     /* L3 is shared among multiple cores */
     if (cache->level == 3) {
-        l3_threads = topo_info->cores_per_die * topo_info->threads_per_core;
+        l3_threads = topo_info->modules_per_die *
+                     topo_info->cores_per_module *
+                     topo_info->threads_per_core;
         *eax |= (l3_threads - 1) << 14;
     } else {
         *eax |= ((topo_info->threads_per_core - 1) << 14);
@@ -5218,11 +5220,12 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     uint32_t cpus_per_pkg;
 
     topo_info.dies_per_pkg = env->nr_dies;
-    topo_info.cores_per_die = cs->nr_cores / env->nr_dies;
+    topo_info.modules_per_die = env->nr_modules;
+    topo_info.cores_per_module = cs->nr_cores / env->nr_dies / env->nr_modules;
     topo_info.threads_per_core = cs->nr_threads;
 
-    cpus_per_pkg = topo_info.dies_per_pkg * topo_info.cores_per_die *
-                   topo_info.threads_per_core;
+    cpus_per_pkg = topo_info.dies_per_pkg * topo_info.modules_per_die *
+                   topo_info.cores_per_module * topo_info.threads_per_core;
 
     /* Calculate & apply limits for different index ranges */
     if (index >= 0xC0000000) {
@@ -5298,8 +5301,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             if (*eax & 31) {
                 int host_vcpus_per_cache = 1 + ((*eax & 0x3FFC000) >> 14);
                 int vcpus_per_socket = cpus_per_pkg;
-                int cores_per_socket = topo_info.cores_per_die *
-                                       topo_info.dies_per_pkg;
+                int cores_per_socket = cpus_per_pkg /
+                                       topo_info.threads_per_core;
                 if (cores_per_socket > 1) {
                     *eax &= ~0xFC000000;
                     *eax |= (pow2ceil(cores_per_socket) - 1) << 26;
@@ -5483,7 +5486,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             break;
         case 1:
             *eax = apicid_die_offset(&topo_info);
-            *ebx = topo_info.cores_per_die * topo_info.threads_per_core;
+            *ebx = cpus_per_pkg / topo_info.dies_per_pkg;
             *ecx |= CPUID_TOPOLOGY_LEVEL_CORE;
             break;
         case 2:
