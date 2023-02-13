@@ -189,34 +189,28 @@ static void multi_serial_init(Object *o)
     }
 }
 
-static const TypeInfo multi_2x_serial_pci_info = {
-    .name          = "pci-serial-2x",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIMultiSerialState),
-    .instance_init = multi_serial_init,
-    .class_init    = multi_2x_serial_pci_class_initfn,
-    .interfaces = (InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+static const TypeInfo multi_serial_pci_types[] = {
+    {
+        .name          = "pci-serial-2x",
+        .parent        = TYPE_PCI_DEVICE,
+        .instance_size = sizeof(PCIMultiSerialState),
+        .instance_init = multi_serial_init,
+        .class_init    = multi_2x_serial_pci_class_initfn,
+        .interfaces = (InterfaceInfo[]) {
+            { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+            { },
+        },
+    }, {
+        .name          = "pci-serial-4x",
+        .parent        = TYPE_PCI_DEVICE,
+        .instance_size = sizeof(PCIMultiSerialState),
+        .instance_init = multi_serial_init,
+        .class_init    = multi_4x_serial_pci_class_initfn,
+        .interfaces = (InterfaceInfo[]) {
+            { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+            { },
+        },
+    }
 };
 
-static const TypeInfo multi_4x_serial_pci_info = {
-    .name          = "pci-serial-4x",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIMultiSerialState),
-    .instance_init = multi_serial_init,
-    .class_init    = multi_4x_serial_pci_class_initfn,
-    .interfaces = (InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
-};
-
-static void multi_serial_pci_register_types(void)
-{
-    type_register_static(&multi_2x_serial_pci_info);
-    type_register_static(&multi_4x_serial_pci_info);
-}
-
-type_init(multi_serial_pci_register_types)
+DEFINE_TYPES(multi_serial_pci_types)
