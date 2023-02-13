@@ -59,6 +59,8 @@ struct X86MachineState {
     /* Start address of the initial RAM above 4G */
     uint64_t above_4g_mem_start;
 
+    MemoryRegion smram;
+
     /* CPU and apic information: */
     bool apic_xrupt_override;
     unsigned pci_irq_mask;

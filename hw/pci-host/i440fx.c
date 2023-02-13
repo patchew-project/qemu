@@ -23,7 +23,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/units.h"
 #include "qemu/range.h"
 #include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
@@ -77,7 +76,7 @@ static void i440fx_update_memory_mappings(PCII440FXState *d)
     }
     memory_region_set_enabled(&d->smram_region,
                               !(pd->config[I440FX_SMRAM] & SMRAM_D_OPEN));
-    memory_region_set_enabled(&d->smram,
+    memory_region_set_enabled(d->smram,
                               pd->config[I440FX_SMRAM] & SMRAM_G_SMRAME);
     memory_region_transaction_commit();
 }
@@ -246,7 +245,8 @@ PCIBus *i440fx_init(const char *pci_type,
                     ram_addr_t below_4g_mem_size,
                     ram_addr_t above_4g_mem_size,
                     MemoryRegion *pci_address_space,
-                    MemoryRegion *ram_memory)
+                    MemoryRegion *ram_memory,
+                    MemoryRegion *smram)
 {
     PCIBus *b;
     PCIDevice *d;
@@ -267,6 +267,7 @@ PCIBus *i440fx_init(const char *pci_type,
     f->system_memory = address_space_mem;
     f->pci_address_space = pci_address_space;
     f->ram_memory = ram_memory;
+    f->smram = smram;
 
     i440fx = I440FX_PCI_HOST_BRIDGE(dev);
     range_set_bounds(&i440fx->pci_hole, below_4g_mem_size,
@@ -283,14 +284,10 @@ PCIBus *i440fx_init(const char *pci_type,
     memory_region_set_enabled(&f->smram_region, true);
 
     /* smram, as seen by SMM CPUs */
-    memory_region_init(&f->smram, OBJECT(d), "smram", 4 * GiB);
-    memory_region_set_enabled(&f->smram, true);
     memory_region_init_alias(&f->low_smram, OBJECT(d), "smram-low",
                              f->ram_memory, 0xa0000, 0x20000);
     memory_region_set_enabled(&f->low_smram, true);
-    memory_region_add_subregion(&f->smram, 0xa0000, &f->low_smram);
-    object_property_add_const_link(qdev_get_machine(), "smram",
-                                   OBJECT(&f->smram));
+    memory_region_add_subregion(f->smram, 0xa0000, &f->low_smram);
 
     init_pam(&f->pam_regions[0], OBJECT(d), f->ram_memory, f->system_memory,
              f->pci_address_space, PAM_BIOS_BASE, PAM_BIOS_SIZE);

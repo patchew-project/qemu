@@ -220,6 +220,8 @@ static void pc_q35_init(MachineState *machine)
     object_property_add_child(OBJECT(machine), "q35", OBJECT(q35_host));
     object_property_set_link(OBJECT(q35_host), MCH_HOST_PROP_RAM_MEM,
                              OBJECT(machine->ram), NULL);
+    object_property_set_link(OBJECT(q35_host), MCH_HOST_PROP_SMRAM_MEM,
+                             OBJECT(&x86ms->smram), NULL);
     object_property_set_link(OBJECT(q35_host), MCH_HOST_PROP_PCI_MEM,
                              OBJECT(pci_memory), NULL);
     object_property_set_link(OBJECT(q35_host), MCH_HOST_PROP_SYSTEM_MEM,
