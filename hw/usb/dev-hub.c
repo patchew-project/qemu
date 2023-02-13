@@ -572,7 +572,7 @@ static void usb_hub_unrealize(USBDevice *dev)
     int i;
 
     for (i = 0; i < s->num_ports; i++) {
-        usb_unregister_port(usb_bus_from_device(dev),
+        usb_unregister_port(USB_BUS(qdev_get_parent_bus(DEVICE(dev))),
                             &s->ports[i].port);
     }
 
@@ -611,7 +611,7 @@ static void usb_hub_realize(USBDevice *dev, Error **errp)
     s->intr = usb_ep_get(dev, USB_TOKEN_IN, 1);
     for (i = 0; i < s->num_ports; i++) {
         port = &s->ports[i];
-        usb_register_port(usb_bus_from_device(dev),
+        usb_register_port(USB_BUS(qdev_get_parent_bus(DEVICE(dev))),
                           &port->port, s, i, &usb_hub_port_ops,
                           USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);
         usb_port_location(&port->port, dev->port, i+1);

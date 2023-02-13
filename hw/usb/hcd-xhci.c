@@ -3268,7 +3268,7 @@ static void xhci_complete(USBPort *port, USBPacket *packet)
 
 static void xhci_child_detach(USBPort *uport, USBDevice *child)
 {
-    USBBus *bus = usb_bus_from_device(child);
+    USBBus *bus = USB_BUS(qdev_get_parent_bus(DEVICE(child)));
     XHCIState *xhci = container_of(bus, XHCIState, bus);
 
     xhci_detach_slot(xhci, child->port);

@@ -95,7 +95,7 @@ void usb_device_reset(USBDevice *dev)
 void usb_wakeup(USBEndpoint *ep, unsigned int stream)
 {
     USBDevice *dev = ep->dev;
-    USBBus *bus = usb_bus_from_device(dev);
+    USBBus *bus = USB_BUS(qdev_get_parent_bus(DEVICE(dev)));
 
     if (!phase_check(PHASE_MACHINE_READY)) {
         /*
@@ -556,7 +556,7 @@ void usb_packet_check_state(USBPacket *p, USBPacketState expected)
         return;
     }
     dev = p->ep->dev;
-    bus = usb_bus_from_device(dev);
+    bus = USB_BUS(qdev_get_parent_bus(DEVICE(dev)));
     trace_usb_packet_state_fault(bus->busnr, dev->port->path, p->ep->nr, p,
                                  usb_packet_state_name(p->state),
                                  usb_packet_state_name(expected));
@@ -567,7 +567,7 @@ void usb_packet_set_state(USBPacket *p, USBPacketState state)
 {
     if (p->ep) {
         USBDevice *dev = p->ep->dev;
-        USBBus *bus = usb_bus_from_device(dev);
+        USBBus *bus = USB_BUS(qdev_get_parent_bus(DEVICE(dev)));
         trace_usb_packet_state_change(bus->busnr, dev->port->path, p->ep->nr, p,
                                       usb_packet_state_name(p->state),
                                       usb_packet_state_name(state));

@@ -190,7 +190,7 @@ static void usb_serial_set_flow_control(USBSerialState *s,
                                         uint8_t flow_control)
 {
     USBDevice *dev = USB_DEVICE(s);
-    USBBus *bus = usb_bus_from_device(dev);
+    USBBus *bus = USB_BUS(qdev_get_parent_bus(DEVICE(dev)));
 
     /* TODO: ioctl */
     s->flow_control = flow_control;
@@ -200,7 +200,7 @@ static void usb_serial_set_flow_control(USBSerialState *s,
 static void usb_serial_set_xonxoff(USBSerialState *s, int xonxoff)
 {
     USBDevice *dev = USB_DEVICE(s);
-    USBBus *bus = usb_bus_from_device(dev);
+    USBBus *bus = USB_BUS(qdev_get_parent_bus(DEVICE(dev)));
 
     s->xon = xonxoff & 0xff;
     s->xoff = (xonxoff >> 8) & 0xff;
@@ -221,7 +221,7 @@ static void usb_serial_reset(USBSerialState *s)
 static void usb_serial_handle_reset(USBDevice *dev)
 {
     USBSerialState *s = USB_SERIAL(dev);
-    USBBus *bus = usb_bus_from_device(dev);
+    USBBus *bus = USB_BUS(qdev_get_parent_bus(DEVICE(dev)));
 
     trace_usb_serial_reset(bus->busnr, dev->addr);
 
@@ -261,7 +261,7 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
                                       int length, uint8_t *data)
 {
     USBSerialState *s = USB_SERIAL(dev);
-    USBBus *bus = usb_bus_from_device(dev);
+    USBBus *bus = USB_BUS(qdev_get_parent_bus(DEVICE(dev)));
     int ret;
 
     trace_usb_serial_handle_control(bus->busnr, dev->addr, request, value);
@@ -479,7 +479,7 @@ static void usb_serial_token_in(USBSerialState *s, USBPacket *p)
 static void usb_serial_handle_data(USBDevice *dev, USBPacket *p)
 {
     USBSerialState *s = USB_SERIAL(dev);
-    USBBus *bus = usb_bus_from_device(dev);
+    USBBus *bus = USB_BUS(qdev_get_parent_bus(DEVICE(dev)));
     uint8_t devep = p->ep->nr;
     struct iovec *iov;
     int i;

@@ -518,11 +518,6 @@ void usb_device_attach(USBDevice *dev, Error **errp);
 int usb_device_detach(USBDevice *dev);
 void usb_check_attach(USBDevice *dev, Error **errp);
 
-static inline USBBus *usb_bus_from_device(USBDevice *d)
-{
-    return USB_BUS(qdev_get_parent_bus(DEVICE(d)));
-}
-
 extern const VMStateDescription vmstate_usb_device;
 
 #define VMSTATE_USB_DEVICE(_field, _state) {                         \
