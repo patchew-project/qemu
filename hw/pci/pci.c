@@ -387,7 +387,7 @@ void pci_device_reset(PCIDevice *dev)
  */
 static void pcibus_reset(BusState *qbus)
 {
-    PCIBus *bus = DO_UPCAST(PCIBus, qbus, qbus);
+    PCIBus *bus = PCI_BUS(qbus);
     int i;
 
     for (i = 0; i < ARRAY_SIZE(bus->devices); ++i) {
