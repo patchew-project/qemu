@@ -20,8 +20,8 @@ tests = {
   'test-opts-visitor': [testqapi],
   'test-visitor-serialization': [testqapi],
   'test-bitmap': [],
-  # all code tested by test-x86-cpuid is inside topology.h
-  'test-x86-cpuid': [],
+  # all code tested by test-x86-apicid is inside topology.h
+  'test-x86-apicid': [],
   'test-cutils': [],
   'test-div128': [],
   'test-shift128': [],
