@@ -341,3 +341,16 @@
 { 'command': 'query-hotplug',
   'data': { 'id': 'str' },
   'returns': 'HotplugInfo' }
+
+##
+# @DEVICE_ON:
+#
+# Emitted whenever the device insertion completion is acknowledged by the guest.
+# For now only emitted for SHPC and PCIe-native hotplug.
+#
+# @path: the hotplugged device's QOM path
+#
+# Since: 8.0
+##
+{ 'event': 'DEVICE_ON',
+  'data': { 'path': 'str' } }
