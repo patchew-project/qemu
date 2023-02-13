@@ -41,9 +41,10 @@ static char *bus_get_fw_dev_path(BusState *bus, DeviceState *dev)
     return NULL;
 }
 
-static char *qdev_get_fw_dev_path_from_handler(BusState *bus, DeviceState *dev)
+static char *qdev_get_fw_dev_path_from_handler(DeviceState *dev)
 {
     Object *obj = OBJECT(dev);
+    BusState *bus = qdev_get_parent_bus(dev);
     char *d = NULL;
 
     while (!d && obj->parent) {
@@ -53,11 +54,11 @@ static char *qdev_get_fw_dev_path_from_handler(BusState *bus, DeviceState *dev)
     return d;
 }
 
-char *qdev_get_own_fw_dev_path_from_handler(BusState *bus, DeviceState *dev)
+char *qdev_get_own_fw_dev_path_from_handler(DeviceState *dev)
 {
     Object *obj = OBJECT(dev);
 
-    return fw_path_provider_try_get_dev_path(obj, bus, dev);
+    return fw_path_provider_try_get_dev_path(obj, qdev_get_parent_bus(dev), dev);
 }
 
 static int qdev_get_fw_dev_path_helper(DeviceState *dev, char *p, int size)
@@ -67,7 +68,7 @@ static int qdev_get_fw_dev_path_helper(DeviceState *dev, char *p, int size)
     if (dev && dev->parent_bus) {
         char *d;
         l = qdev_get_fw_dev_path_helper(dev->parent_bus->parent, p, size);
-        d = qdev_get_fw_dev_path_from_handler(dev->parent_bus, dev);
+        d = qdev_get_fw_dev_path_from_handler(dev);
         if (!d) {
             d = bus_get_fw_dev_path(dev->parent_bus, dev);
         }
