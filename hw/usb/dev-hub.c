@@ -350,7 +350,7 @@ static const char *feature_name(int feature)
 static void usb_hub_handle_control(USBDevice *dev, USBPacket *p,
                int request, int value, int index, int length, uint8_t *data)
 {
-    USBHubState *s = (USBHubState *)dev;
+    USBHubState *s = USB_HUB(dev);
     int ret;
 
     trace_usb_hub_control(s->dev.addr, request, value, index, length);
@@ -523,7 +523,7 @@ static void usb_hub_handle_control(USBDevice *dev, USBPacket *p,
 
 static void usb_hub_handle_data(USBDevice *dev, USBPacket *p)
 {
-    USBHubState *s = (USBHubState *)dev;
+    USBHubState *s = USB_HUB(dev);
 
     switch(p->pid) {
     case USB_TOKEN_IN:
@@ -568,7 +568,7 @@ static void usb_hub_handle_data(USBDevice *dev, USBPacket *p)
 
 static void usb_hub_unrealize(USBDevice *dev)
 {
-    USBHubState *s = (USBHubState *)dev;
+    USBHubState *s = USB_HUB(dev);
     int i;
 
     for (i = 0; i < s->num_ports; i++) {
