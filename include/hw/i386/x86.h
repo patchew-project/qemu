@@ -23,8 +23,8 @@
 #include "hw/i386/topology.h"
 #include "hw/boards.h"
 #include "hw/nmi.h"
+#include "hw/intc/ioapic.h"
 #include "hw/isa/isa.h"
-#include "hw/i386/ioapic.h"
 #include "qom/object.h"
 
 struct X86MachineClass {
