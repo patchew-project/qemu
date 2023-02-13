@@ -283,6 +283,13 @@ void kvm_arm_steal_time_finalize(ARMCPU *cpu, Error **errp);
 bool kvm_arm_steal_time_supported(void);
 
 /**
+ * kvm_arm_enable_dirty_ring_with_bitmap:
+ * Returns: true if KVM dirty ring's backup bitmap is enabled
+ * and false otherwise.
+ */
+bool kvm_arm_enable_dirty_ring_with_bitmap(void);
+
+/**
  * kvm_arm_aarch32_supported:
  *
  * Returns: true if KVM can enable AArch32 mode
@@ -391,6 +398,11 @@ static inline bool kvm_arm_sve_supported(void)
 }
 
 static inline bool kvm_arm_steal_time_supported(void)
+{
+    return false;
+}
+
+static inline bool kvm_arm_enable_dirty_ring_with_bitmap(void)
 {
     return false;
 }

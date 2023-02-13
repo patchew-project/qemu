@@ -764,6 +764,31 @@ bool kvm_arm_steal_time_supported(void)
     return kvm_check_extension(kvm_state, KVM_CAP_STEAL_TIME);
 }
 
+bool kvm_arm_enable_dirty_ring_with_bitmap(void)
+{
+    int ret;
+
+    /* No need to enable the backup bitmap if dirty ring isn't enabled */
+    if (!kvm_dirty_ring_enabled()) {
+        return true;
+    }
+
+    ret = kvm_check_extension(kvm_state, KVM_CAP_DIRTY_LOG_RING_WITH_BITMAP);
+    if (!ret) {
+        return false;
+    }
+
+    ret = kvm_vm_enable_cap(kvm_state, KVM_CAP_DIRTY_LOG_RING_WITH_BITMAP,
+                            0, 1);
+    if (ret) {
+        return false;
+    }
+
+    kvm_state->kvm_dirty_ring_with_bitmap = true;
+
+    return true;
+}
+
 QEMU_BUILD_BUG_ON(KVM_ARM64_SVE_VQ_MIN != 1);
 
 uint32_t kvm_arm_sve_get_vls(CPUState *cs)
