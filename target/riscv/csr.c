@@ -41,40 +41,6 @@ void riscv_set_csr_ops(int csrno, riscv_csr_operations *ops)
 }
 
 /* Predicates */
-#if !defined(CONFIG_USER_ONLY)
-static RISCVException smstateen_acc_ok(CPURISCVState *env, int index,
-                                       uint64_t bit)
-{
-    bool virt = riscv_cpu_virt_enabled(env);
-    RISCVCPU *cpu = env_archcpu(env);
-
-    if (env->priv == PRV_M || !cpu->cfg.ext_smstateen) {
-        return RISCV_EXCP_NONE;
-    }
-
-    if (!(env->mstateen[index] & bit)) {
-        return RISCV_EXCP_ILLEGAL_INST;
-    }
-
-    if (virt) {
-        if (!(env->hstateen[index] & bit)) {
-            return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
-        }
-
-        if (env->priv == PRV_U && !(env->sstateen[index] & bit)) {
-            return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
-        }
-    }
-
-    if (env->priv == PRV_U && riscv_has_ext(env, RVS)) {
-        if (!(env->sstateen[index] & bit)) {
-            return RISCV_EXCP_ILLEGAL_INST;
-        }
-    }
-
-    return RISCV_EXCP_NONE;
-}
-#endif
 
 static RISCVException fs(CPURISCVState *env, int csrno)
 {
@@ -316,6 +282,32 @@ static RISCVException umode32(CPURISCVState *env, int csrno)
     }
 
     return umode(env, csrno);
+}
+
+static RISCVException envcfg(CPURISCVState *env, int csrno)
+{
+    RISCVCPU *cpu = env_archcpu(env);
+    riscv_csr_predicate_fn predicate;
+
+    if (cpu->cfg.ext_smstateen) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+
+    switch (csrno) {
+    case CSR_SENVCFG:
+        predicate = smode;
+        break;
+    case CSR_HENVCFG:
+        predicate = hmode;
+        break;
+    case CSR_HENVCFGH:
+        predicate = hmode32;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    return predicate(env, csrno);
 }
 
 static RISCVException mstateen(CPURISCVState *env, int csrno)
@@ -1942,6 +1934,38 @@ static RISCVException write_menvcfgh(CPURISCVState *env, int csrno,
     uint64_t valh = (uint64_t)val << 32;
 
     env->menvcfg = (env->menvcfg & ~mask) | (valh & mask);
+
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException smstateen_acc_ok(CPURISCVState *env, int index,
+                                       uint64_t bit)
+{
+    bool virt = riscv_cpu_virt_enabled(env);
+
+    if (env->priv == PRV_M) {
+        return RISCV_EXCP_NONE;
+    }
+
+    if (!(env->mstateen[index] & bit)) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+
+    if (virt) {
+        if (!(env->hstateen[index] & bit)) {
+            return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
+        }
+
+        if (env->priv == PRV_U && !(env->sstateen[index] & bit)) {
+            return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
+        }
+    }
+
+    if (env->priv == PRV_U && riscv_has_ext(env, RVS)) {
+        if (!(env->sstateen[index] & bit)) {
+            return RISCV_EXCP_ILLEGAL_INST;
+        }
+    }
 
     return RISCV_EXCP_NONE;
 }
@@ -4094,11 +4118,11 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
                        .min_priv_ver = PRIV_VERSION_1_12_0              },
     [CSR_MENVCFGH] = { "menvcfgh", umode32, read_menvcfgh, write_menvcfgh,
                        .min_priv_ver = PRIV_VERSION_1_12_0              },
-    [CSR_SENVCFG]  = { "senvcfg",  smode, read_senvcfg,  write_senvcfg,
+    [CSR_SENVCFG]  = { "senvcfg",  envcfg, read_senvcfg,  write_senvcfg,
                        .min_priv_ver = PRIV_VERSION_1_12_0              },
-    [CSR_HENVCFG]  = { "henvcfg",  hmode, read_henvcfg, write_henvcfg,
+    [CSR_HENVCFG]  = { "henvcfg",  envcfg, read_henvcfg,  write_henvcfg,
                        .min_priv_ver = PRIV_VERSION_1_12_0              },
-    [CSR_HENVCFGH] = { "henvcfgh", hmode32, read_henvcfgh, write_henvcfgh,
+    [CSR_HENVCFGH] = { "henvcfgh", envcfg, read_henvcfgh, write_henvcfgh,
                        .min_priv_ver = PRIV_VERSION_1_12_0              },
 
     /* Smstateen extension CSRs */
