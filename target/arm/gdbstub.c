@@ -322,6 +322,167 @@ static int arm_gen_dynamic_sysreg_xml(CPUState *cs, int base_reg)
     return cpu->dyn_sysreg_xml.num;
 }
 
+enum {
+    M_SYSREG_MSP        = 0,
+    M_SYSREG_PSP        = 1,
+    M_SYSREG_PRIMASK    = 2,
+    M_SYSREG_CONTROL    = 3,
+    M_SYSREG_BASEPRI    = 4,
+    M_SYSREG_FAULTMASK  = 5,
+    M_SYSREG_MSPLIM     = 6,
+    M_SYSREG_PSPLIM     = 7,
+    M_SYSREG_REG_MASK   = 7,
+
+    /*
+     * NOTE: MSP, PSP, MSPLIM, PSPLIM technically don't exist if the
+     * secure extension is present (replaced by MSP_S, MSP_NS, et al).
+     * However, the MRS instruction is still allowed to read from MSP and PSP,
+     * and will return the value associated with the current security state.
+     * We replicate this behavior for the convenience of users, who will see
+     * GDB behave similarly to their assembly code, even if they are oblivious
+     * to the security extension.
+     */
+    M_SYSREG_CURRENT    = 0 << 3,
+    M_SYSREG_NONSECURE  = 1 << 3,
+    M_SYSREG_SECURE     = 2 << 3,
+    M_SYSREG_MODE_MASK  = 3 << 3,
+};
+
+static const struct {
+    const char *name;
+    int feature;
+} m_systemreg_def[] = {
+    [M_SYSREG_MSP] = { "msp", ARM_FEATURE_M },
+    [M_SYSREG_PSP] = { "psp", ARM_FEATURE_M },
+    [M_SYSREG_PRIMASK] = { "primask", ARM_FEATURE_M },
+    [M_SYSREG_CONTROL] = { "control", ARM_FEATURE_M },
+    [M_SYSREG_BASEPRI] = { "basepri", ARM_FEATURE_M_MAIN },
+    [M_SYSREG_FAULTMASK] = { "faultmask", ARM_FEATURE_M_MAIN },
+    [M_SYSREG_MSPLIM] = { "msplim", ARM_FEATURE_V8 },
+    [M_SYSREG_PSPLIM] = { "psplim", ARM_FEATURE_V8 },
+};
+
+static int arm_gdb_get_m_systemreg(CPUARMState *env, GByteArray *buf, int reg)
+{
+    int mode = reg & M_SYSREG_MODE_MASK;
+    bool secure;
+    uint32_t val;
+
+    switch (mode) {
+    case M_SYSREG_CURRENT:
+        secure = env->v7m.secure;
+        break;
+    case M_SYSREG_NONSECURE:
+        secure = false;
+        break;
+    case M_SYSREG_SECURE:
+        secure = true;
+        break;
+    default:
+        return 0;
+    }
+
+    reg &= M_SYSREG_REG_MASK;
+    if (reg >= ARRAY_SIZE(m_systemreg_def)) {
+        return 0;
+    }
+    if (!arm_feature(env, m_systemreg_def[reg].feature)) {
+        return 0;
+    }
+
+    /* NOTE: This implementation shares a lot of logic with v7m_mrs. */
+    switch (reg) {
+    case M_SYSREG_MSP:
+        val = *arm_v7m_get_sp_ptr(env, secure, false, true);
+        break;
+    case M_SYSREG_PSP:
+        val = *arm_v7m_get_sp_ptr(env, secure, true, true);
+        break;
+    case M_SYSREG_MSPLIM:
+        val = env->v7m.msplim[secure];
+        break;
+    case M_SYSREG_PSPLIM:
+        val = env->v7m.psplim[secure];
+        break;
+    case M_SYSREG_PRIMASK:
+        val = env->v7m.primask[secure];
+        break;
+    case M_SYSREG_BASEPRI:
+        val = env->v7m.basepri[secure];
+        break;
+    case M_SYSREG_FAULTMASK:
+        val = env->v7m.faultmask[secure];
+        break;
+    case M_SYSREG_CONTROL:
+        /*
+         * NOTE: CONTROL has a mix of banked and non-banked bits.
+         * For "current", we emulate the MRS instruction.
+         * Unfortunately, this gives GDB no way to read the SFPA bit
+         * when the CPU is in a non-secure state.
+         */
+        if (mode == M_SYSREG_CURRENT) {
+            val = arm_v7m_mrs_control(env, secure);
+        } else {
+            val = env->v7m.control[secure];
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    return gdb_get_reg32(buf, val);
+}
+
+static int arm_gdb_set_m_systemreg(CPUARMState *env, uint8_t *buf, int reg)
+{
+    /* TODO: Implement. */
+    return 0;
+}
+
+static int arm_gen_dynamic_m_systemreg_xml(CPUState *cs, int base_reg)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    GString *s = g_string_new(NULL);
+    int i, ret;
+
+    g_string_printf(s, "<?xml version=\"1.0\"?>");
+    g_string_append_printf(s, "<!DOCTYPE target SYSTEM \"gdb-target.dtd\">");
+    g_string_append_printf(s, "<feature name=\"org.gnu.gdb.arm.m-system\">\n");
+
+    QEMU_BUILD_BUG_ON(M_SYSREG_CURRENT != 0);
+    ret = ARRAY_SIZE(m_systemreg_def);
+
+    for (i = 0; i < ret; i++) {
+        if (arm_feature(env, m_systemreg_def[i].feature)) {
+            g_string_append_printf(s,
+                "<reg name=\"%s\" bitsize=\"32\" regnum=\"%d\"/>\n",
+                m_systemreg_def[i].name, base_reg + i);
+        }
+    }
+
+    if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
+        for (i = 0; i < ret; i++) {
+            g_string_append_printf(s,
+                "<reg name=\"%s_ns\" bitsize=\"32\" regnum=\"%d\"/>\n",
+                m_systemreg_def[i].name, base_reg + (i | M_SYSREG_NONSECURE));
+        }
+        for (i = 0; i < ret; i++) {
+            g_string_append_printf(s,
+                "<reg name=\"%s_s\" bitsize=\"32\" regnum=\"%d\"/>\n",
+                m_systemreg_def[i].name, base_reg + (i | M_SYSREG_SECURE));
+        }
+        QEMU_BUILD_BUG_ON(M_SYSREG_SECURE < M_SYSREG_NONSECURE);
+        ret |= M_SYSREG_SECURE;
+    }
+
+    g_string_append_printf(s, "</feature>");
+
+    cpu->dyn_m_systemreg_xml.desc = g_string_free(s, false);
+    cpu->dyn_m_systemreg_xml.num = ret;
+    return ret;
+}
+
 const char *arm_gdb_get_dynamic_xml(CPUState *cs, const char *xmlname)
 {
     ARMCPU *cpu = ARM_CPU(cs);
@@ -330,6 +491,8 @@ const char *arm_gdb_get_dynamic_xml(CPUState *cs, const char *xmlname)
         return cpu->dyn_sysreg_xml.desc;
     } else if (strcmp(xmlname, "sve-registers.xml") == 0) {
         return cpu->dyn_svereg_xml.desc;
+    } else if (strcmp(xmlname, "arm-m-system.xml") == 0) {
+        return cpu->dyn_m_systemreg_xml.desc;
     }
     return NULL;
 }
@@ -389,4 +552,10 @@ void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
                              arm_gen_dynamic_sysreg_xml(cs, cs->gdb_num_regs),
                              "system-registers.xml", 0);
 
+    if (arm_feature(env, ARM_FEATURE_M)) {
+        gdb_register_coprocessor(cs,
+            arm_gdb_get_m_systemreg, arm_gdb_set_m_systemreg,
+            arm_gen_dynamic_m_systemreg_xml(cs, cs->gdb_num_regs),
+            "arm-m-system.xml", 0);
+    }
 }
