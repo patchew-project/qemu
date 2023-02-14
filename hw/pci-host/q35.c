@@ -46,21 +46,21 @@
 
 static void q35_host_realize(DeviceState *dev, Error **errp)
 {
-    PCIHostState *pci = PCI_HOST_BRIDGE(dev);
     Q35PCIHost *s = Q35_HOST_DEVICE(dev);
+    PCIHostState *phb = PCI_HOST_BRIDGE(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
     memory_region_add_subregion(s->mch.address_space_io,
-                                MCH_HOST_BRIDGE_CONFIG_ADDR, &pci->conf_mem);
+                                MCH_HOST_BRIDGE_CONFIG_ADDR, &phb->conf_mem);
     sysbus_init_ioports(sbd, MCH_HOST_BRIDGE_CONFIG_ADDR, 4);
 
     memory_region_add_subregion(s->mch.address_space_io,
-                                MCH_HOST_BRIDGE_CONFIG_DATA, &pci->data_mem);
+                                MCH_HOST_BRIDGE_CONFIG_DATA, &phb->data_mem);
     sysbus_init_ioports(sbd, MCH_HOST_BRIDGE_CONFIG_DATA, 4);
 
     /* register q35 0xcf8 port as coalesced pio */
-    memory_region_set_flush_coalesced(&pci->data_mem);
-    memory_region_add_coalescing(&pci->conf_mem, 0, 4);
+    memory_region_set_flush_coalesced(&phb->data_mem);
+    memory_region_add_coalescing(&phb->conf_mem, 0, 4);
 
     /*
      * pci hole goes from end-of-low-ram to io-apic.
@@ -69,12 +69,12 @@ static void q35_host_realize(DeviceState *dev, Error **errp)
     range_set_bounds(&s->pci_hole, s->mch.below_4g_mem_size,
                      IO_APIC_DEFAULT_ADDRESS - 1);
 
-    pci->bus = pci_root_bus_new(DEVICE(s), "pcie.0",
+    phb->bus = pci_root_bus_new(DEVICE(s), "pcie.0",
                                 s->mch.pci_address_space,
                                 s->mch.address_space_io,
                                 0, TYPE_PCIE_BUS);
 
-    qdev_realize(DEVICE(&s->mch), BUS(pci->bus), &error_fatal);
+    qdev_realize(DEVICE(&s->mch), BUS(phb->bus), &error_fatal);
 }
 
 static const char *q35_host_root_bus_path(PCIHostState *host_bridge,
