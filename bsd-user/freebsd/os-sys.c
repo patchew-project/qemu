@@ -29,7 +29,7 @@
  * Compare with sys/kern_sysctl.c ctl_size
  * Note: Not all types appear to be used in-tree.
  */
-static const int G_GNUC_UNUSED target_ctl_size[CTLTYPE+1] = {
+static const int target_ctl_size[CTLTYPE+1] = {
 	[CTLTYPE_INT] = sizeof(abi_int),
 	[CTLTYPE_UINT] = sizeof(abi_uint),
 	[CTLTYPE_LONG] = sizeof(abi_long),
@@ -44,7 +44,7 @@ static const int G_GNUC_UNUSED target_ctl_size[CTLTYPE+1] = {
 	[CTLTYPE_U64] = sizeof(uint64_t),
 };
 
-static const int G_GNUC_UNUSED host_ctl_size[CTLTYPE+1] = {
+static const int host_ctl_size[CTLTYPE+1] = {
 	[CTLTYPE_INT] = sizeof(int),
 	[CTLTYPE_UINT] = sizeof(u_int),
 	[CTLTYPE_LONG] = sizeof(long),
@@ -97,7 +97,7 @@ static abi_ulong G_GNUC_UNUSED scale_to_target_pages(uint64_t pages)
 }
 
 #ifdef TARGET_ABI32
-static abi_long G_GNUC_UNUSED h2t_long_sat(long l)
+static abi_long h2t_long_sat(long l)
 {
     if (l > INT32_MAX) {
         l = INT32_MAX;
@@ -107,7 +107,7 @@ static abi_long G_GNUC_UNUSED h2t_long_sat(long l)
     return l;
 }
 
-static abi_ulong G_GNUC_UNUSED h2t_ulong_sat(u_long ul)
+static abi_ulong h2t_ulong_sat(u_long ul)
 {
     if (ul > UINT32_MAX) {
         ul = UINT32_MAX;
@@ -151,6 +151,93 @@ static int G_GNUC_UNUSED oidfmt(int *oid, int len, char *fmt, uint32_t *kind)
         strcpy(fmt, (char *)(buf + sizeof(uint32_t)));
     }
     return 0;
+}
+
+/*
+ * Convert the old value from host to target.
+ *
+ * For LONG and ULONG on ABI32, we need to 'down convert' the 8 byte quantities
+ * to 4 bytes. The caller setup a buffer in host memory to get this data from
+ * the kernel and pass it to us. We do the down conversion and adjust the length
+ * so the caller knows what to write as the returned length into the target when
+ * it copies the down converted values into the target.
+ *
+ * For normal integral types, we just need to byte swap. No size changes.
+ *
+ * For strings and node data, there's no conversion needed.
+ *
+ * For opaque data, per sysctl OID converts take care of it.
+ */
+static void G_GNUC_UNUSED h2t_old_sysctl(void *holdp, size_t *holdlen, uint32_t kind)
+{
+    size_t len;
+    int hlen, tlen;
+    uint8_t *hp, *tp;
+
+    /*
+     * Although rare, we can have arrays of sysctl. Both sysctl_old_ddb in
+     * kern_sysctl.c and show_var in sbin/sysctl/sysctl.c have code that loops
+     * this way.  *holdlen has been set by the kernel to the host's length.
+     * Only LONG and ULONG on ABI32 have different sizes: see below.
+     */
+    hp = (uint8_t *)holdp;
+    tp = hp;
+    len = 0;
+    hlen = host_ctl_size[kind & CTLTYPE];
+    tlen = target_ctl_size[kind & CTLTYPE];
+
+    /*
+     * hlen == 0 for CTLTYPE_STRING and CTLTYPE_NODE, which need no conversion
+     * as well as CTLTYPE_OPAQUE, which needs special converters.
+     */
+    if (hlen == 0) {
+        return;
+    }
+
+    while (len < *holdlen) {
+        if (hlen == tlen) {
+            switch (hlen) {
+            case 1:
+                /* Nothing needed: no byteswapping and assigning in place */
+                break;
+            case 2:
+                *(uint16_t *)tp = tswap16(*(uint16_t *)hp);
+                break;
+            case 4:
+                *(uint32_t *)tp = tswap32(*(uint32_t *)hp);
+                break;
+            case 8:
+                *(uint64_t *)tp = tswap64(*(uint64_t *)hp);
+                break;
+            }
+        }
+#ifdef TARGET_ABI32
+        else {
+            /*
+             * Saturating assignment for the only two types that differ between
+             * 32-bit and 64-bit machines. All other integral types have the
+             * same, fixed size and will be converted w/o loss of precision
+             * in the above switch.
+             */
+            switch (kind & CTLTYPE) {
+            case CTLTYPE_LONG:
+                *(abi_long *)tp = tswap32(h2t_long_sat(*(long *)hp));
+                break;
+            case CTLTYPE_ULONG:
+                *(abi_ulong *)tp = tswap32(h2t_ulong_sat(*(u_long *)hp));
+                break;
+            }
+        }
+#endif
+        tp += tlen;
+        hp += hlen;
+        len += hlen;
+    }
+#ifdef TARGET_ABI32
+    if (hlen != tlen) {
+        *holdlen = (*holdlen / hlen) * tlen;
+    }
+#endif
 }
 
 /* sysarch() is architecture dependent. */
