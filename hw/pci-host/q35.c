@@ -46,6 +46,7 @@
 
 static void q35_host_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_GUARD();
     Q35PCIHost *s = Q35_HOST_DEVICE(dev);
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
@@ -74,7 +75,7 @@ static void q35_host_realize(DeviceState *dev, Error **errp)
                                 s->mch.address_space_io,
                                 0, TYPE_PCIE_BUS);
 
-    qdev_realize(DEVICE(&s->mch), BUS(phb->bus), &error_fatal);
+    qdev_realize(DEVICE(&s->mch), BUS(phb->bus), errp);
 }
 
 static const char *q35_host_root_bus_path(PCIHostState *host_bridge,
