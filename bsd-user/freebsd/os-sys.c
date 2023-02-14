@@ -21,6 +21,106 @@
 #include "qemu.h"
 #include "target_arch_sysarch.h"
 
+#include <sys/sysctl.h>
+
+/*
+ * Length for the fixed length types.
+ * 0 means variable length for strings and structures
+ * Compare with sys/kern_sysctl.c ctl_size
+ * Note: Not all types appear to be used in-tree.
+ */
+static const int G_GNUC_UNUSED target_ctl_size[CTLTYPE+1] = {
+	[CTLTYPE_INT] = sizeof(abi_int),
+	[CTLTYPE_UINT] = sizeof(abi_uint),
+	[CTLTYPE_LONG] = sizeof(abi_long),
+	[CTLTYPE_ULONG] = sizeof(abi_ulong),
+	[CTLTYPE_S8] = sizeof(int8_t),
+	[CTLTYPE_S16] = sizeof(int16_t),
+	[CTLTYPE_S32] = sizeof(int32_t),
+	[CTLTYPE_S64] = sizeof(int64_t),
+	[CTLTYPE_U8] = sizeof(uint8_t),
+	[CTLTYPE_U16] = sizeof(uint16_t),
+	[CTLTYPE_U32] = sizeof(uint32_t),
+	[CTLTYPE_U64] = sizeof(uint64_t),
+};
+
+static const int G_GNUC_UNUSED host_ctl_size[CTLTYPE+1] = {
+	[CTLTYPE_INT] = sizeof(int),
+	[CTLTYPE_UINT] = sizeof(u_int),
+	[CTLTYPE_LONG] = sizeof(long),
+	[CTLTYPE_ULONG] = sizeof(u_long),
+	[CTLTYPE_S8] = sizeof(int8_t),
+	[CTLTYPE_S16] = sizeof(int16_t),
+	[CTLTYPE_S32] = sizeof(int32_t),
+	[CTLTYPE_S64] = sizeof(int64_t),
+	[CTLTYPE_U8] = sizeof(uint8_t),
+	[CTLTYPE_U16] = sizeof(uint16_t),
+	[CTLTYPE_U32] = sizeof(uint32_t),
+	[CTLTYPE_U64] = sizeof(uint64_t),
+};
+
+#ifdef TARGET_ABI32
+/*
+ * Limit the amount of available memory to be most of the 32-bit address
+ * space. 0x100c000 was arrived at through trial and error as a good
+ * definition of 'most'.
+ */
+static const abi_ulong target_max_mem = UINT32_MAX - 0x100c000 + 1;
+
+static abi_ulong G_GNUC_UNUSED cap_memory(uint64_t mem)
+{
+    if (((unsigned long)target_max_mem) < mem) {
+        mem = target_max_mem;
+    }
+
+    return mem;
+}
+#endif
+
+static unsigned long host_page_size;
+
+static abi_ulong G_GNUC_UNUSED scale_to_target_pages(uint64_t pages)
+{
+    if (host_page_size == 0) {
+        host_page_size = getpagesize();
+    }
+
+    pages = muldiv64(pages, host_page_size, TARGET_PAGE_SIZE);
+#ifdef TARGET_ABI32
+    abi_ulong maxpages = target_max_mem / (abi_ulong)TARGET_PAGE_SIZE;
+
+    if (((unsigned long)maxpages) < pages) {
+        pages = maxpages;
+    }
+#endif
+    return pages;
+}
+
+#ifdef TARGET_ABI32
+static abi_long G_GNUC_UNUSED h2t_long_sat(long l)
+{
+    if (l > INT32_MAX) {
+        l = INT32_MAX;
+    } else if (l < INT32_MIN) {
+        l = INT32_MIN;
+    }
+    return l;
+}
+
+static abi_ulong G_GNUC_UNUSED h2t_ulong_sat(u_long ul)
+{
+    if (ul > UINT32_MAX) {
+        ul = UINT32_MAX;
+    }
+    return ul;
+}
+#endif
+
+/*
+ * placeholder until bsd-user downstream upstreams this with its thread support
+ */
+#define bsd_get_ncpu() 1
+
 /* sysarch() is architecture dependent. */
 abi_long do_freebsd_sysarch(void *cpu_env, abi_long arg1, abi_long arg2)
 {
