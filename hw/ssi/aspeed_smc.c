@@ -680,6 +680,28 @@ static void aspeed_smc_flash_update_ctrl(AspeedSMCFlash *fl, uint32_t value)
     aspeed_smc_flash_do_select(fl, unselect);
 }
 
+/*
+ * TODO: assumption is made on the order of creation of devices, the
+ * ones on the command line or the default devices created at machine
+ * init.
+ */
+static void aspeed_smc_wire_cs_lines(AspeedSMCState *s, int cs_max)
+{
+    BusState *b = BUS(s->spi);
+    BusChild *kid;
+
+    QTAILQ_FOREACH(kid, &b->children, sibling) {
+        qemu_irq cs_line = qdev_get_gpio_in_named(kid->child, SSI_GPIO_CS, 0);
+        if (kid->index < cs_max) {
+            qdev_connect_gpio_out_named(DEVICE(s), "cs", kid->index, cs_line);
+        } else {
+            warn_report("Too many devices for SSI bus %s",
+                        object_class_get_name(object_get_class(OBJECT(s))));
+            return;
+        }
+    }
+}
+
 static void aspeed_smc_reset(DeviceState *d)
 {
     AspeedSMCState *s = ASPEED_SMC(d);
@@ -691,6 +713,8 @@ static void aspeed_smc_reset(DeviceState *d)
     } else {
         memset(s->regs, 0, sizeof s->regs);
     }
+
+    aspeed_smc_wire_cs_lines(s, asc->cs_num_max);
 
     /* Unselect all peripherals */
     for (i = 0; i < asc->cs_num_max; ++i) {
