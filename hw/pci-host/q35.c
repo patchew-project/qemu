@@ -62,6 +62,13 @@ static void q35_host_realize(DeviceState *dev, Error **errp)
     memory_region_set_flush_coalesced(&pci->data_mem);
     memory_region_add_coalescing(&pci->conf_mem, 0, 4);
 
+    /*
+     * pci hole goes from end-of-low-ram to io-apic.
+     * mmconfig will be excluded by the dsdt builder.
+     */
+    range_set_bounds(&s->pci_hole, s->mch.below_4g_mem_size,
+                     IO_APIC_DEFAULT_ADDRESS - 1);
+
     pci->bus = pci_root_bus_new(DEVICE(s), "pcie.0",
                                 s->mch.pci_address_space,
                                 s->mch.address_space_io,
@@ -90,8 +97,7 @@ static void q35_host_get_pci_hole_start(Object *obj, Visitor *v,
     uint64_t val64;
     uint32_t value;
 
-    val64 = range_is_empty(&s->mch.pci_hole)
-        ? 0 : range_lob(&s->mch.pci_hole);
+    val64 = range_is_empty(&s->pci_hole) ? 0 : range_lob(&s->pci_hole);
     value = val64;
     assert(value == val64);
     visit_type_uint32(v, name, &value, errp);
@@ -105,8 +111,7 @@ static void q35_host_get_pci_hole_end(Object *obj, Visitor *v,
     uint64_t val64;
     uint32_t value;
 
-    val64 = range_is_empty(&s->mch.pci_hole)
-        ? 0 : range_upb(&s->mch.pci_hole) + 1;
+    val64 = range_is_empty(&s->pci_hole) ? 0 : range_upb(&s->pci_hole) + 1;
     value = val64;
     assert(value == val64);
     visit_type_uint32(v, name, &value, errp);
@@ -498,14 +503,6 @@ static void mch_update(MCHPCIState *mch)
     mch_update_smram(mch);
     mch_update_ext_tseg_mbytes(mch);
     mch_update_smbase_smram(mch);
-
-    /*
-     * pci hole goes from end-of-low-ram to io-apic.
-     * mmconfig will be excluded by the dsdt builder.
-     */
-    range_set_bounds(&mch->pci_hole,
-                     mch->below_4g_mem_size,
-                     IO_APIC_DEFAULT_ADDRESS - 1);
 }
 
 static int mch_post_load(void *opaque, int version_id)
