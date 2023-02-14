@@ -202,15 +202,20 @@ Furthermore, it is the QEMU coding style.
 Declarations
 ============
 
-Mixed declarations (interleaving statements and declarations within
-blocks) are generally not allowed; declarations should be at the beginning
-of blocks.
+Declaring variables at first use has two advantages:
+- we can see the right type of the variable just to the use
+- we completely remove the posibility of using a variable that is
+  unitialized.
 
-Every now and then, an exception is made for declarations inside a
-#ifdef or #ifndef block: if the code looks nicer, such declarations can
-be placed at the top of the block even if there are statements above.
-On the other hand, however, it's often best to move that #ifdef/#ifndef
-block to a separate function altogether.
+It is especially the case when we are in a for statement.
+
+for (int i = X; i++; ..) {
+    ...
+}
+
+Makes clear visually that this variable is not useed outside of the for.
+
+Mixing declarations an code has been allowed since the C99 standard.
 
 Conditional statements
 ======================
