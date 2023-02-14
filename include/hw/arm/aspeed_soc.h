@@ -58,6 +58,8 @@ struct AspeedSoCState {
     MemoryRegion *dram_mr;
     MemoryRegion dram_container;
     MemoryRegion sram;
+    MemoryRegion spi_boot_container;
+    MemoryRegion spi_boot;
     AspeedVICState vic;
     AspeedRtcState rtc;
     AspeedTimerCtrlState timerctrl;
@@ -120,6 +122,7 @@ struct AspeedSoCClass {
 
 
 enum {
+    ASPEED_DEV_SPI_BOOT,
     ASPEED_DEV_IOMEM,
     ASPEED_DEV_UART1,
     ASPEED_DEV_UART2,
