@@ -1,0 +1,27 @@
+{ 'enum': 'TestEnum',
+  'data': [ 'animals', 'plants' ] }
+
+{ 'enum': 'TestAnimals',
+  'data': [ 'fish', 'birds'] }
+
+{ 'struct': 'TestTypeFish',
+  'data': { 'scales': 'int', 'teeth': 'int' } }
+
+{ 'struct': 'TestTypeBirds',
+  'data': { 'feathers': 'int' } }
+
+{ 'union': 'TestTypeAnimals',
+  'base': { 'atype': 'TestAnimals' },
+  'discriminator': 'atype',
+  'data': { 'fish': 'TestTypeFish',
+            'birds': 'TestTypeBirds' } }
+
+{ 'struct': 'TestTypePlants',
+  'data': { 'integer': 'int' } }
+
+{ 'union': 'TestUnion',
+  'base': { 'type': 'TestEnum',
+	    'teeth': 'int' },
+  'discriminator': 'type',
+  'data': { 'animals': 'TestTypeAnimals',
+            'plants': 'TestTypePlants' } }

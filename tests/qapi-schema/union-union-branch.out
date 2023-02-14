@@ -1,0 +1,38 @@
+module ./builtin
+object q_empty
+enum QType
+    prefix QTYPE
+    member none
+    member qnull
+    member qnum
+    member qstring
+    member qdict
+    member qlist
+    member qbool
+module union-union-branch.json
+enum TestEnum
+    member value-a
+    member value-b
+enum TestEnumA
+    member value-a1
+    member value-a2
+object TestTypeA1
+    member integer: int optional=False
+object TestTypeA2
+    member integer: int optional=False
+object q_obj_TestTypeA-base
+    member type-a: TestEnumA optional=False
+object TestTypeA
+    base q_obj_TestTypeA-base
+    tag type-a
+    case value-a1: TestTypeA1
+    case value-a2: TestTypeA2
+object TestTypeB
+    member integer: int optional=False
+object q_obj_TestUnion-base
+    member type: TestEnum optional=False
+object TestUnion
+    base q_obj_TestUnion-base
+    tag type
+    case value-a: TestTypeA
+    case value-b: TestTypeB
