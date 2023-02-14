@@ -113,6 +113,7 @@ typedef struct TaskState {
 
 void stop_all_tasks(void);
 extern const char *qemu_uname_release;
+extern bool bsd_user_strict;
 
 /*
  * TARGET_ARG_MAX defines the number of bytes allocated for arguments
