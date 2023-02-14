@@ -451,6 +451,12 @@ static void transfer_fifo(XlnxZynqMPCANState *s, Fifo32 *fifo)
     }
 
     while (!fifo32_is_empty(fifo)) {
+        if (fifo32_num_used(fifo) < (4 * CAN_FRAME_SIZE)) {
+            g_autofree char *path = object_get_canonical_path(OBJECT(s));
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: data left in the fifo is not"
+                          " enough for transfer.\n", path);
+            break;
+        }
         for (i = 0; i < CAN_FRAME_SIZE; i++) {
             data[i] = fifo32_pop(fifo);
         }
@@ -463,7 +469,8 @@ static void transfer_fifo(XlnxZynqMPCANState *s, Fifo32 *fifo)
              * acknowledged. The XlnxZynqMPCAN core receives any message
              * that it transmits.
              */
-            if (fifo32_is_full(&s->rx_fifo)) {
+            if (fifo32_is_full(&s->rx_fifo) ||
+                    (fifo32_num_free(&s->rx_fifo) < (4 * CAN_FRAME_SIZE))) {
                 ARRAY_FIELD_DP32(s->regs, INTERRUPT_STATUS_REGISTER, RXOFLW, 1);
             } else {
                 for (i = 0; i < CAN_FRAME_SIZE; i++) {
