@@ -404,12 +404,11 @@ static void mch_update_smram(MCHPCIState *mch)
     } else {
         tseg_size = 0;
     }
-    memory_region_del_subregion(mch->system_memory, &mch->tseg_blackhole);
+
     memory_region_set_enabled(&mch->tseg_blackhole, tseg_size);
     memory_region_set_size(&mch->tseg_blackhole, tseg_size);
-    memory_region_add_subregion_overlap(mch->system_memory,
-                                        mch->below_4g_mem_size - tseg_size,
-                                        &mch->tseg_blackhole, 1);
+    memory_region_set_address(&mch->tseg_blackhole,
+                              mch->below_4g_mem_size - tseg_size);
 
     memory_region_set_enabled(&mch->tseg_window, tseg_size);
     memory_region_set_size(&mch->tseg_window, tseg_size);
