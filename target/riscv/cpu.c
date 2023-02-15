@@ -792,6 +792,25 @@ static void riscv_cpu_reset_hold(Object *obj, ResetType type)
     if (kvm_enabled()) {
         kvm_riscv_reset_vcpu(cpu);
     }
+
+    /* default physical memory protection configuration */
+    const RISCVCPUConfig *cfg = &cpu->cfg;
+    g_assert(cfg->pmp_cfg_count <= MAX_RISCV_PMPS);
+    g_assert(cfg->pmp_addr_count <= MAX_RISCV_PMPS);
+    for (i = 0; i < MAX_RISCV_PMPS; i++) {
+        env->pmp_state.pmp[i].cfg_reg =
+            i < cfg->pmp_cfg_count ? cfg->pmp_cfg[i] : 0;
+    }
+    for (i = 0; i < MAX_RISCV_PMPS; i++) {
+        env->pmp_state.pmp[i].addr_reg =
+            i < cfg->pmp_addr_count ? (target_ulong)cfg->pmp_addr[i] : 0;
+    }
+    for (i = 0; i < MAX_RISCV_PMPS; i++) {
+        pmp_update_rule_addr(env, i);
+    }
+    pmp_update_rule_nums(env);
+
+    env->mseccfg = (target_ulong)cfg->mseccfg;
 #endif
 }
 
@@ -2670,6 +2689,11 @@ static const Property riscv_cpu_properties[] = {
                        DEFAULT_RNMI_IRQVEC),
     DEFINE_PROP_UINT64("rnmi-exception-vector", RISCVCPU, env.rnmi_excpvec,
                        DEFAULT_RNMI_EXCPVEC),
+    DEFINE_PROP_UINT64("mseccfg", RISCVCPU, cfg.mseccfg, 0u),
+    DEFINE_PROP_ARRAY("pmp_cfg", RISCVCPU, cfg.pmp_cfg_count, cfg.pmp_cfg,
+                      qdev_prop_uint8, uint8_t),
+    DEFINE_PROP_ARRAY("pmp_addr", RISCVCPU, cfg.pmp_addr_count, cfg.pmp_addr,
+                      qdev_prop_uint64, uint64_t),
 #endif
 
     DEFINE_PROP_BOOL("short-isa-string", RISCVCPU, cfg.short_isa_string, false),

@@ -176,5 +176,12 @@ TYPED_FIELD(uint32_t, pmp_granularity, 0)
 
 TYPED_FIELD(int8_t, max_satp_mode, -1)
 
+/* physical memory protection HW configuration */
+TYPED_FIELD(uint8_t *, pmp_cfg, 0)
+TYPED_FIELD(uint32_t, pmp_cfg_count, 0)
+TYPED_FIELD(uint64_t *, pmp_addr, 0)
+TYPED_FIELD(uint32_t, pmp_addr_count, 0)
+TYPED_FIELD(uint64_t, mseccfg, 0)
+
 #undef BOOL_FIELD
 #undef TYPED_FIELD
