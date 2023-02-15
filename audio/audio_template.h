@@ -355,6 +355,10 @@ AudiodevPerDirectionOptions *glue(audio_get_pdo_, TYPE)(Audiodev *dev)
     case AUDIODEV_DRIVER_PA:
         return qapi_AudiodevPaPerDirectionOptions_base(dev->u.pa.TYPE);
 #endif
+#ifdef CONFIG_AUDIO_PW
+    case AUDIODEV_DRIVER_PW:
+        return qapi_AudiodevPwPerDirectionOptions_base(dev->u.pw.TYPE);
+#endif
 #ifdef CONFIG_AUDIO_SDL
     case AUDIODEV_DRIVER_SDL:
         return qapi_AudiodevSdlPerDirectionOptions_base(dev->u.sdl.TYPE);
