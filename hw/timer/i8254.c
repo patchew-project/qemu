@@ -26,9 +26,11 @@
 #include "hw/irq.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
+#include "hw/qdev-properties.h"
 #include "hw/timer/i8254.h"
 #include "hw/timer/i8254_internal.h"
 #include "qom/object.h"
+#include "qapi/error.h"
 
 //#define DEBUG_PIT
 
@@ -46,6 +48,20 @@ struct PITClass {
 
     DeviceRealize parent_realize;
 };
+
+ISADevice *i8254_pit_create(ISABus *bus, int iobase, qemu_irq irq_in)
+{
+    DeviceState *dev;
+    ISADevice *d;
+
+    d = isa_new(TYPE_I8254);
+    dev = DEVICE(d);
+    qdev_prop_set_uint32(dev, "iobase", iobase);
+    isa_realize_and_unref(d, bus, &error_fatal);
+    qdev_connect_gpio_out(dev, 0, irq_in);
+
+    return d;
+}
 
 static void pit_irq_timer_update(PITChannelState *s, int64_t current_time);
 

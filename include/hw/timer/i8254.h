@@ -45,21 +45,23 @@ OBJECT_DECLARE_TYPE(PITCommonState, PITCommonClass, PIT_COMMON)
 #define TYPE_I8254 "isa-pit"
 #define TYPE_KVM_I8254 "kvm-pit"
 
+/**
+ * Create and realize a I8254 PIT device on the heap.
+ * @bus: the #ISABus to put it on.
+ * @iobase: the base I/O port.
+ * @irq_in: qemu_irq to connect the PIT output IRQ to.
+ *
+ * Create the device state structure, initialize it, put it on the
+ * specified ISA @bus, and drop the reference to it (the device is realized).
+ */
+ISADevice *i8254_pit_create(ISABus *bus, int iobase, qemu_irq irq_in);
+
 static inline ISADevice *i8254_pit_init(ISABus *bus, int base, int isa_irq,
                                         qemu_irq alt_irq)
 {
-    DeviceState *dev;
-    ISADevice *d;
-
-    d = isa_new(TYPE_I8254);
-    dev = DEVICE(d);
-    qdev_prop_set_uint32(dev, "iobase", base);
-    isa_realize_and_unref(d, bus, &error_fatal);
-    qdev_connect_gpio_out(dev, 0,
-                          isa_irq >= 0 ? isa_bus_get_irq(bus, isa_irq)
+    return i8254_pit_create(bus, base, isa_irq >= 0
+                                       ? isa_bus_get_irq(bus, isa_irq)
                                        : alt_irq);
-
-    return d;
 }
 
 static inline ISADevice *kvm_pit_init(ISABus *bus, int base)
