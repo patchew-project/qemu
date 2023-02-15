@@ -85,10 +85,10 @@ qemu_irq isa_bus_get_irq(ISABus *bus, unsigned irqnum)
  * This function is only for special cases such as the 'ferr', and
  * temporary use for normal devices until they are converted to qdev.
  */
-qemu_irq isa_get_irq(ISADevice *dev, unsigned isairq)
+qemu_irq isa_get_irq(ISADevice *dev, unsigned irqnum)
 {
-    assert(!dev || ISA_BUS(qdev_get_parent_bus(DEVICE(dev))) == isabus);
-    return isa_bus_get_irq(isabus, isairq);
+    assert(dev);
+    return isa_bus_get_irq(ISA_BUS(qdev_get_parent_bus(DEVICE(dev))), irqnum);
 }
 
 void isa_connect_gpio_out(ISADevice *isadev, int gpioirq, unsigned isairq)
