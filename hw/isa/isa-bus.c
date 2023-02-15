@@ -120,7 +120,7 @@ static inline void isa_init_ioport(ISADevice *dev, uint16_t ioport)
 
 void isa_register_ioport(ISADevice *dev, MemoryRegion *io, uint16_t start)
 {
-    memory_region_add_subregion(isabus->address_space_io, start, io);
+    memory_region_add_subregion(isa_address_space_io(dev), start, io);
     isa_init_ioport(dev, start);
 }
 
