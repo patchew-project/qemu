@@ -491,9 +491,6 @@
 #                                    suboptimal (we flush too many
 #                                    times).
 #                                    Default value is false.
-#                                    Setting this capability has no
-#                                    effect until the patch that
-#                                    removes this comment.
 #                                    (since 8.0)
 #
 # Features:
