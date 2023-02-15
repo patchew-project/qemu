@@ -133,14 +133,17 @@ static bool pci_piix_init_bus(PCIIDEState *d, unsigned i, Error **errp)
     static const struct {
         int iobase;
         int iobase2;
-        int isairq;
     } port_info[] = {
-        {0x1f0, 0x3f6, 14},
-        {0x170, 0x376, 15},
+        {0x1f0, 0x3f6},
+        {0x170, 0x376},
     };
     int ret;
 
-    qemu_irq irq_out = d->irq[i] ? : isa_get_irq(NULL, port_info[i].isairq);
+    if (!d->irq[i]) {
+        error_setg(errp, "output IDE IRQ %u not connected", i);
+        return false;
+    }
+
     ide_bus_init(&d->bus[i], sizeof(d->bus[i]), DEVICE(d), i, 2);
     ret = ide_init_ioport(&d->bus[i], NULL, port_info[i].iobase,
                           port_info[i].iobase2);
@@ -149,7 +152,7 @@ static bool pci_piix_init_bus(PCIIDEState *d, unsigned i, Error **errp)
                          object_get_typename(OBJECT(d)), i);
         return false;
     }
-    ide_bus_init_output_irq(&d->bus[i], irq_out);
+    ide_bus_init_output_irq(&d->bus[i], d->irq[i]);
 
     bmdma_init(&d->bus[i], &d->bmdma[i], d);
     d->bmdma[i].bus = &d->bus[i];
