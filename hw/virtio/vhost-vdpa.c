@@ -461,6 +461,15 @@ static int vhost_vdpa_init(struct vhost_dev *dev, void *opaque, Error **errp)
         if (!(backend_features & BIT_ULL(VHOST_BACKEND_F_SUSPEND))) {
             error_setg(&dev->migration_blocker,
                 "vhost-vdpa backend lacks VHOST_BACKEND_F_SUSPEND feature.");
+        } else {
+            /* We don't have dev->features yet */
+            uint64_t features;
+            ret = vhost_vdpa_get_dev_features(dev, &features);
+            if (unlikely(ret)) {
+                error_setg_errno(errp, -ret, "Could not get device features");
+                return ret;
+            }
+            vhost_svq_valid_features(features, &dev->migration_blocker);
         }
     }
 
