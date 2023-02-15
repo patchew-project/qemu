@@ -28,7 +28,7 @@ class Migration(QemuSystemTest):
 
     @staticmethod
     def migration_finished(vm):
-        return vm.command('query-migrate')['status'] in ('completed', 'failed')
+        return vm.cmd('query-migrate')['status'] in ('completed', 'failed')
 
     def assert_migration(self, src_vm, dst_vm):
         wait.wait_for(self.migration_finished,
@@ -39,10 +39,10 @@ class Migration(QemuSystemTest):
                       timeout=self.timeout,
                       step=0.1,
                       args=(dst_vm,))
-        self.assertEqual(src_vm.command('query-migrate')['status'], 'completed')
-        self.assertEqual(dst_vm.command('query-migrate')['status'], 'completed')
-        self.assertEqual(dst_vm.command('query-status')['status'], 'running')
-        self.assertEqual(src_vm.command('query-status')['status'],'postmigrate')
+        self.assertEqual(src_vm.cmd('query-migrate')['status'], 'completed')
+        self.assertEqual(dst_vm.cmd('query-migrate')['status'], 'completed')
+        self.assertEqual(dst_vm.cmd('query-status')['status'], 'running')
+        self.assertEqual(src_vm.cmd('query-status')['status'],'postmigrate')
 
     def do_migrate(self, dest_uri, src_uri=None):
         dest_vm = self.get_vm('-incoming', dest_uri)
