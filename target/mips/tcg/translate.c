@@ -4859,6 +4859,7 @@ static void gen_compute_branch(DisasContext *ctx, uint32_t opc,
     target_ulong btgt = -1;
     int blink = 0;
     int bcond_compute = 0;
+    int jal_mask = 0;
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
 
@@ -4916,6 +4917,11 @@ static void gen_compute_branch(DisasContext *ctx, uint32_t opc,
         break;
     case OPC_J:
     case OPC_JAL:
+        /* Jump to immediate */
+        jal_mask = ctx->hflags & MIPS_HFLAG_M16 ? 0xF8000000 : 0xF0000000;
+        btgt = ((ctx->base.pc_next + insn_bytes) & jal_mask) |
+            (uint32_t)offset;
+        break;
     case OPC_JALX:
         /* Jump to immediate */
         btgt = ((ctx->base.pc_next + insn_bytes) & (int32_t)0xF0000000) |
