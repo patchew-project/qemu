@@ -1258,8 +1258,7 @@ void pc_basic_device_init(struct PCMachineState *pcms,
 {
     int i;
     DeviceState *hpet = NULL;
-    int pit_isa_irq = 0;
-    qemu_irq pit_alt_irq = NULL;
+    qemu_irq pit_irq;
     qemu_irq rtc_irq = NULL;
     ISADevice *pit = NULL;
     MemoryRegion *ioport80_io = g_new(MemoryRegion, 1);
@@ -1301,9 +1300,10 @@ void pc_basic_device_init(struct PCMachineState *pcms,
         for (i = 0; i < GSI_NUM_PINS; i++) {
             sysbus_connect_irq(SYS_BUS_DEVICE(hpet), i, gsi[i]);
         }
-        pit_isa_irq = -1;
-        pit_alt_irq = qdev_get_gpio_in(hpet, HPET_LEGACY_PIT_INT);
+        pit_irq = qdev_get_gpio_in(hpet, HPET_LEGACY_PIT_INT);
         rtc_irq = qdev_get_gpio_in(hpet, HPET_LEGACY_RTC_INT);
+    } else {
+        pit_irq = isa_bus_get_irq(isa_bus, 0);
     }
     *rtc_state = mc146818_rtc_init(isa_bus, 2000, rtc_irq);
 
@@ -1314,7 +1314,7 @@ void pc_basic_device_init(struct PCMachineState *pcms,
         if (kvm_pit_in_kernel()) {
             pit = kvm_pit_init(isa_bus, 0x40);
         } else {
-            pit = i8254_pit_init(isa_bus, 0x40, pit_isa_irq, pit_alt_irq);
+            pit = i8254_pit_create(isa_bus, 0x40, pit_irq);
         }
         if (hpet) {
             /* connect PIT to output control line of the HPET */
