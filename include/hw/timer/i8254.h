@@ -56,13 +56,6 @@ OBJECT_DECLARE_TYPE(PITCommonState, PITCommonClass, PIT_COMMON)
  */
 ISADevice *i8254_pit_create(ISABus *bus, int iobase, qemu_irq irq_in);
 
-static inline ISADevice *i8254_pit_init(ISABus *bus, int base, int isa_irq,
-                                        qemu_irq alt_irq)
-{
-    assert(isa_irq == 0 && alt_irq == NULL);
-    return i8254_pit_create(bus, base, isa_bus_get_irq(bus, 0));
-}
-
 static inline ISADevice *kvm_pit_init(ISABus *bus, int base)
 {
     DeviceState *dev;

@@ -624,7 +624,7 @@ static void via_isa_realize(PCIDevice *d, Error **errp)
 
     s->isa_irqs = i8259_init(isa_bus, *isa_irq);
     isa_bus_irqs(isa_bus, s->isa_irqs);
-    i8254_pit_init(isa_bus, 0x40, 0, NULL);
+    i8254_pit_create(isa_bus, 0x40, isa_bus_get_irq(isa_bus, 0));
     i8257_dma_init(isa_bus, 0);
 
     /* RTC */

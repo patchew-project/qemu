@@ -261,7 +261,7 @@ static void microvm_devices_init(MicrovmMachineState *mms)
         if (kvm_pit_in_kernel()) {
             kvm_pit_init(isa_bus, 0x40);
         } else {
-            i8254_pit_init(isa_bus, 0x40, 0, NULL);
+            i8254_pit_create(isa_bus, 0x40, isa_bus_get_irq(isa_bus, 0));
         }
     }
 
