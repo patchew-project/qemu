@@ -66,7 +66,7 @@ class TestGraphChangesWhileIO(QMPTestCase):
         # While qemu-img bench is running, repeatedly add and remove an
         # overlay to/from node0
         while bench_thr.is_alive():
-            result = self.qsd.qmp('blockdev-add', {
+            self.qsd.cmd('blockdev-add', {
                 'driver': imgfmt,
                 'node-name': 'overlay',
                 'backing': 'node0',
@@ -75,12 +75,10 @@ class TestGraphChangesWhileIO(QMPTestCase):
                     'filename': top
                 }
             })
-            self.assert_qmp(result, 'return', {})
 
-            result = self.qsd.qmp('blockdev-del', {
+            self.qsd.cmd('blockdev-del', {
                 'node-name': 'overlay'
             })
-            self.assert_qmp(result, 'return', {})
 
         bench_thr.join()
 
