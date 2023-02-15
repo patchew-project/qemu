@@ -96,6 +96,7 @@ ISADevice *isa_vga_init(ISABus *bus);
 
 /*  isa_get_irq() is deprecated, please use isa_bus_get_irq() instead. */
 qemu_irq isa_get_irq(ISADevice *dev, unsigned irqnum);
+ISABus *isa_bus_from_device(ISADevice *dev);
 
 /**
  * isa_register_ioport: Install an I/O port region on the ISA bus.
@@ -132,10 +133,5 @@ int isa_register_portio_list(ISADevice *dev,
                              uint16_t start,
                              const MemoryRegionPortio *portio,
                              void *opaque, const char *name);
-
-static inline ISABus *isa_bus_from_device(ISADevice *d)
-{
-    return ISA_BUS(qdev_get_parent_bus(DEVICE(d)));
-}
 
 #endif
