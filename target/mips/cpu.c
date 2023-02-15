@@ -143,12 +143,14 @@ static bool mips_cpu_has_work(CPUState *cs)
     /*
      * Prior to MIPS Release 6 it is implementation dependent if non-enabled
      * interrupts wake-up the CPU, however most of the implementations only
-     * check for interrupts that can be taken.
+     * check for interrupts that can be taken. For pre-release 6 CPUs,
+     * check for CP0 Config7 'Wait IE ignore' bit.
      */
     if ((cs->interrupt_request & CPU_INTERRUPT_HARD) &&
         cpu_mips_hw_interrupts_pending(env)) {
         if (cpu_mips_hw_interrupts_enabled(env) ||
-            (env->insn_flags & ISA_MIPS_R6)) {
+            (env->insn_flags & ISA_MIPS_R6) ||
+            (env->CP0_Config7 & (1 << CP0C7_WII))) {
             has_work = true;
         }
     }
