@@ -1311,11 +1311,8 @@ void pc_basic_device_init(struct PCMachineState *pcms,
 
     if (!xen_enabled() &&
         (x86ms->pit == ON_OFF_AUTO_AUTO || x86ms->pit == ON_OFF_AUTO_ON)) {
-        if (kvm_pit_in_kernel()) {
-            pit = kvm_pit_init(isa_bus, 0x40);
-        } else {
-            pit = i8254_pit_create(isa_bus, 0x40, pit_irq);
-        }
+        pit = i8254_pit_create_try_kvm(isa_bus, 0x40, pit_irq);
+
         if (hpet) {
             /* connect PIT to output control line of the HPET */
             qdev_connect_gpio_out(hpet, 0, qdev_get_gpio_in(DEVICE(pit), 0));

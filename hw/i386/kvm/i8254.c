@@ -35,6 +35,7 @@
 #include "hw/qdev-properties-system.h"
 #include "sysemu/kvm.h"
 #include "qom/object.h"
+#include "kvm/kvm_i386.h"
 
 #define KVM_PIT_REINJECT_BIT 0
 
@@ -58,6 +59,23 @@ struct KVMPITClass {
 
     DeviceRealize parent_realize;
 };
+
+ISADevice *i8254_pit_create_try_kvm(ISABus *bus, int iobase, qemu_irq irq_in)
+{
+    DeviceState *dev;
+    ISADevice *d;
+
+    if (!kvm_pit_in_kernel()) {
+        return i8254_pit_create(bus, iobase, irq_in);
+    }
+
+    d = isa_new(TYPE_KVM_I8254);
+    dev = DEVICE(d);
+    qdev_prop_set_uint32(dev, "iobase", iobase);
+    isa_realize_and_unref(d, bus, &error_fatal);
+
+    return d;
+}
 
 static void kvm_pit_update_clock_offset(KVMPITState *s)
 {

@@ -10,6 +10,7 @@
  *
  */
 #include "qemu/osdep.h"
+#include "hw/timer/i8254.h"
 #include "cpu.h"
 #include "kvm_i386.h"
 
@@ -48,4 +49,9 @@ bool kvm_hyperv_expand_features(X86CPU *cpu, Error **errp)
 void kvm_set_max_apic_id(uint32_t max_apic_id)
 {
     return;
+}
+
+ISADevice *i8254_pit_create_try_kvm(ISABus *bus, int iobase, qemu_irq irq_in)
+{
+    return i8254_pit_create(bus, iobase, irq_in);
 }
