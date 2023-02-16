@@ -2916,7 +2916,12 @@ static void tcg_gen_req_mo(TCGBar type)
 
 static inline TCGv plugin_prep_mem_callbacks(TCGv vaddr)
 {
-#ifdef CONFIG_PLUGIN
+    /*
+     * With TCI, we get memory tracing via cpu_{ld,st}_mmu.
+     * No need to instrument memory operations inline, and
+     * we don't want to log the same memory operation twice.
+     */
+#if defined(CONFIG_PLUGIN) && !defined(CONFIG_TCG_INTERPRETER)
     if (tcg_ctx->plugin_insn != NULL) {
         /* Save a copy of the vaddr for use after a load.  */
         TCGv temp = tcg_temp_new();
@@ -2930,7 +2935,7 @@ static inline TCGv plugin_prep_mem_callbacks(TCGv vaddr)
 static void plugin_gen_mem_callbacks(TCGv vaddr, MemOpIdx oi,
                                      enum qemu_plugin_mem_rw rw)
 {
-#ifdef CONFIG_PLUGIN
+#if defined(CONFIG_PLUGIN) && !defined(CONFIG_TCG_INTERPRETER)
     if (tcg_ctx->plugin_insn != NULL) {
         qemu_plugin_meminfo_t info = make_plugin_meminfo(oi, rw);
         plugin_gen_empty_mem_callback(vaddr, info);
