@@ -472,6 +472,10 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
 #define OPC_GRP5        (0xff)
 #define OPC_GRP14       (0x73 | P_EXT | P_DATA16)
 
+#define OPC_ESCDF       (0xdf)
+#define ESCDF_FILD_m64  5
+#define ESCDF_FISTP_m64 7
+
 /* Group 1 opcode extensions for 0x80-0x83.
    These are also used as modifiers for OPC_ARITH.  */
 #define ARITH_ADD 0
@@ -2400,21 +2404,65 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
             tcg_out_modrm_sib_offset(s, movop + P_REXW + seg, datalo,
                                      base, index, 0, ofs);
         } else {
+            TCGLabel *l1 = NULL, *l2 = NULL;
+            bool use_pair = atom < MO_64;
+
             if (use_movbe) {
                 TCGReg t = datalo;
                 datalo = datahi;
                 datahi = t;
             }
-            if (base != datalo) {
-                tcg_out_modrm_sib_offset(s, movop + seg, datalo,
+
+            if (!use_pair) {
+                /*
+                 * Atomicity requires that we use use a single 8-byte load.
+                 * For simplicity, and code size, always use the FPU for this.
+                 * Similar insns using SSE/AVX are merely larger.
+                 * Load from memory in one go, then store back to the stack,
+                 * from whence we can load into the correct integer regs.
+                 *
+                 * If we've already checked for 8-byte alignment, or not
+                 * checked for alignment at all, that's all we need.
+                 * If we arrive here with lesser but non-zero alignment,
+                 * then we have determined that subalignment can be
+                 * satisfied with two 4-byte loads.
+                 */
+                if (align > MO_8 && align < MO_64) {
+                    use_pair = true;
+                    l1 = gen_new_label();
+                    l2 = gen_new_label();
+
+                    tcg_out_testi(s, base, align == MO_32 ? 4 : 7);
+                    tcg_out_jxx(s, JCC_JNE, l2, true);
+                }
+
+                tcg_out_modrm_sib_offset(s, OPC_ESCDF + seg, ESCDF_FILD_m64,
                                          base, index, 0, ofs);
-                tcg_out_modrm_sib_offset(s, movop + seg, datahi,
-                                         base, index, 0, ofs + 4);
-            } else {
-                tcg_out_modrm_sib_offset(s, movop + seg, datahi,
-                                         base, index, 0, ofs + 4);
-                tcg_out_modrm_sib_offset(s, movop + seg, datalo,
-                                         base, index, 0, ofs);
+                tcg_out_modrm_offset(s, OPC_ESCDF, ESCDF_FISTP_m64,
+                                     TCG_REG_ESP, 0);
+                tcg_out_modrm_offset(s, movop, datalo, TCG_REG_ESP, 0);
+                tcg_out_modrm_offset(s, movop, datahi, TCG_REG_ESP, 4);
+
+                if (use_pair) {
+                    tcg_out_jxx(s, JCC_JMP, l1, true);
+                    tcg_out_label(s, l2);
+                }
+            }
+            if (use_pair) {
+                if (base != datalo) {
+                    tcg_out_modrm_sib_offset(s, movop + seg, datalo,
+                                             base, index, 0, ofs);
+                    tcg_out_modrm_sib_offset(s, movop + seg, datahi,
+                                             base, index, 0, ofs + 4);
+                } else {
+                    tcg_out_modrm_sib_offset(s, movop + seg, datahi,
+                                             base, index, 0, ofs + 4);
+                    tcg_out_modrm_sib_offset(s, movop + seg, datalo,
+                                             base, index, 0, ofs);
+                }
+            }
+            if (l1) {
+                tcg_out_label(s, l1);
             }
         }
         break;
@@ -2577,20 +2625,65 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
     case MO_32:
         tcg_out_modrm_sib_offset(s, movop + seg, datalo, base, index, 0, ofs);
         break;
+
     case MO_64:
         if (TCG_TARGET_REG_BITS == 64) {
             tcg_out_modrm_sib_offset(s, movop + P_REXW + seg, datalo,
                                      base, index, 0, ofs);
         } else {
+            TCGLabel *l1 = NULL, *l2 = NULL;
+            bool use_pair = atom < MO_64;
+
             if (use_movbe) {
                 TCGReg t = datalo;
                 datalo = datahi;
                 datahi = t;
             }
-            tcg_out_modrm_sib_offset(s, movop + seg, datalo,
-                                     base, index, 0, ofs);
-            tcg_out_modrm_sib_offset(s, movop + seg, datahi,
-                                     base, index, 0, ofs + 4);
+
+            if (!use_pair) {
+                /*
+                 * Atomicity requires that we use use one 8-byte store.
+                 * For simplicity, and code size, always use the FPU for this.
+                 * Similar insns using SSE/AVX are merely larger.
+                 * Assemble the 8-byte quantity in required endianness
+                 * on the stack, load to coproc unit, and store.
+                 *
+                 * If we've already checked for 8-byte alignment, or not
+                 * checked for alignment at all, that's all we need.
+                 * If we arrive here with lesser but non-zero alignment,
+                 * then we have determined that subalignment can be
+                 * satisfied with two 4-byte stores.
+                 */
+                if (align > MO_8 && align < MO_64) {
+                    use_pair = true;
+                    l1 = gen_new_label();
+                    l2 = gen_new_label();
+
+                    tcg_out_testi(s, base, align == MO_32 ? 4 : 7);
+                    tcg_out_jxx(s, JCC_JNE, l2, true);
+                }
+
+                tcg_out_modrm_offset(s, movop, datalo, TCG_REG_ESP, 0);
+                tcg_out_modrm_offset(s, movop, datahi, TCG_REG_ESP, 4);
+                tcg_out_modrm_offset(s, OPC_ESCDF, ESCDF_FILD_m64,
+                                     TCG_REG_ESP, 0);
+                tcg_out_modrm_sib_offset(s, OPC_ESCDF + seg, ESCDF_FISTP_m64,
+                                         base, index, 0, ofs);
+
+                if (use_pair) {
+                    tcg_out_jxx(s, JCC_JMP, l1, true);
+                    tcg_out_label(s, l2);
+                }
+            }
+            if (use_pair) {
+                tcg_out_modrm_sib_offset(s, movop + seg, datalo,
+                                         base, index, 0, ofs);
+                tcg_out_modrm_sib_offset(s, movop + seg, datahi,
+                                         base, index, 0, ofs + 4);
+            }
+            if (l1) {
+                tcg_out_label(s, l1);
+            }
         }
         break;
 
