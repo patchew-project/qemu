@@ -437,13 +437,14 @@ static void hppa_machine_reset(MachineState *ms, ShutdownCause reason)
     cpu[0]->env.gr[19] = FW_CFG_IO_BASE;
 }
 
-static void hppa_nmi(NMIState *n, int cpu_index, Error **errp)
+static bool hppa_nmi(NMIState *n, int cpu_index, Error **errp)
 {
     CPUState *cs;
 
     CPU_FOREACH(cs) {
         cpu_interrupt(cs, CPU_INTERRUPT_NMI);
     }
+    return true;
 }
 
 static void hppa_machine_init_class_init(ObjectClass *oc, void *data)

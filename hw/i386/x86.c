@@ -501,7 +501,7 @@ const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms)
     return ms->possible_cpus;
 }
 
-static void x86_nmi(NMIState *n, int cpu_index, Error **errp)
+static bool x86_nmi(NMIState *n, int cpu_index, Error **errp)
 {
     /* cpu index isn't used */
     CPUState *cs;
@@ -515,6 +515,7 @@ static void x86_nmi(NMIState *n, int cpu_index, Error **errp)
             apic_deliver_nmi(cpu->apic_state);
         }
     }
+    return true;
 }
 
 static long get_file_size(FILE *f)
