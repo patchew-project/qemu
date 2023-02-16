@@ -1728,30 +1728,26 @@ static void tcg_out_nopn(TCGContext *s, int n)
 }
 
 #if defined(CONFIG_SOFTMMU)
-/* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
- *                                     int mmu_idx, uintptr_t ra)
+/*
+ * helper signature: helper_ld*_mmu(CPUState *env, target_ulong addr,
+ *                                  int mmu_idx, uintptr_t ra)
  */
-static void * const qemu_ld_helpers[(MO_SIZE | MO_BSWAP) + 1] = {
-    [MO_UB]   = helper_ret_ldub_mmu,
-    [MO_LEUW] = helper_le_lduw_mmu,
-    [MO_LEUL] = helper_le_ldul_mmu,
-    [MO_LEUQ] = helper_le_ldq_mmu,
-    [MO_BEUW] = helper_be_lduw_mmu,
-    [MO_BEUL] = helper_be_ldul_mmu,
-    [MO_BEUQ] = helper_be_ldq_mmu,
+static void * const qemu_ld_helpers[MO_SIZE + 1] = {
+    [MO_UB] = helper_ldub_mmu,
+    [MO_UW] = helper_lduw_mmu,
+    [MO_UL] = helper_ldul_mmu,
+    [MO_UQ] = helper_ldq_mmu,
 };
 
-/* helper signature: helper_ret_st_mmu(CPUState *env, target_ulong addr,
- *                                     uintxx_t val, int mmu_idx, uintptr_t ra)
+/*
+ * helper signature: helper_st*_mmu(CPUState *env, target_ulong addr,
+ *                                  uintxx_t val, int mmu_idx, uintptr_t ra)
  */
-static void * const qemu_st_helpers[(MO_SIZE | MO_BSWAP) + 1] = {
-    [MO_UB]   = helper_ret_stb_mmu,
-    [MO_LEUW] = helper_le_stw_mmu,
-    [MO_LEUL] = helper_le_stl_mmu,
-    [MO_LEUQ] = helper_le_stq_mmu,
-    [MO_BEUW] = helper_be_stw_mmu,
-    [MO_BEUL] = helper_be_stl_mmu,
-    [MO_BEUQ] = helper_be_stq_mmu,
+static void * const qemu_st_helpers[MO_SIZE + 1] = {
+    [MO_UB] = helper_stb_mmu,
+    [MO_UW] = helper_stw_mmu,
+    [MO_UL] = helper_stl_mmu,
+    [MO_UQ] = helper_stq_mmu,
 };
 
 /* Perform the TLB load and compare.
@@ -1926,7 +1922,7 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
                      (uintptr_t)l->raddr);
     }
 
-    tcg_out_branch(s, 1, qemu_ld_helpers[opc & (MO_BSWAP | MO_SIZE)]);
+    tcg_out_branch(s, 1, qemu_ld_helpers[opc & MO_SIZE]);
 
     data_reg = l->datalo_reg;
     switch (opc & MO_SSIZE) {
@@ -2033,7 +2029,7 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 
     /* "Tail call" to the helper, with the return address back inline.  */
     tcg_out_push(s, retaddr);
-    tcg_out_jmp(s, qemu_st_helpers[opc & (MO_BSWAP | MO_SIZE)]);
+    tcg_out_jmp(s, qemu_st_helpers[opc & MO_SIZE]);
     return true;
 }
 #else
