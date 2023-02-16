@@ -219,8 +219,13 @@ static void vhost_log_sync_range(struct vhost_dev *dev,
     int i;
     /* FIXME: this is N^2 in number of sections */
     for (i = 0; i < dev->n_mem_sections; ++i) {
-        MemoryRegionSection *section = &dev->mem_sections[i];
-        vhost_sync_dirty_bitmap(dev, section, first, last);
+        MemoryRegionSection *mrs = &dev->mem_sections[i];
+
+        if (dev->vhost_ops->vhost_backend_mem_section_filter &&
+            !dev->vhost_ops->vhost_backend_mem_section_filter(dev, mrs)) {
+            continue;
+        }
+        vhost_sync_dirty_bitmap(dev, mrs, first, last);
     }
 }
 
@@ -503,12 +508,6 @@ static bool vhost_section(struct vhost_dev *dev, MemoryRegionSection *section)
             return false;
         }
 
-        if (dev->vhost_ops->vhost_backend_mem_section_filter &&
-            !dev->vhost_ops->vhost_backend_mem_section_filter(dev, section)) {
-            trace_vhost_reject_section(mr->name, 2);
-            return false;
-        }
-
         trace_vhost_section(mr->name);
         return true;
     } else {
@@ -525,6 +524,43 @@ static void vhost_begin(MemoryListener *listener)
     dev->n_tmp_sections = 0;
 }
 
+static void vhost_realloc_vhost_memory(struct vhost_dev *dev,
+                                       unsigned int nregions)
+{
+    const size_t size = offsetof(struct vhost_memory, regions) +
+                        nregions * sizeof dev->mem->regions[0];
+
+    dev->mem = g_realloc(dev->mem, size);
+    dev->mem->nregions = nregions;
+}
+
+static void vhost_rebuild_vhost_memory(struct vhost_dev *dev)
+{
+    unsigned int nregions = 0;
+    int i;
+
+    vhost_realloc_vhost_memory(dev, dev->n_mem_sections);
+    for (i = 0; i < dev->n_mem_sections; i++) {
+        struct MemoryRegionSection *mrs = dev->mem_sections + i;
+        struct vhost_memory_region *cur_vmr;
+
+        if (dev->vhost_ops->vhost_backend_mem_section_filter &&
+            !dev->vhost_ops->vhost_backend_mem_section_filter(dev, mrs)) {
+            continue;
+        }
+        cur_vmr = dev->mem->regions + nregions;
+        nregions++;
+
+        cur_vmr->guest_phys_addr = mrs->offset_within_address_space;
+        cur_vmr->memory_size     = int128_get64(mrs->size);
+        cur_vmr->userspace_addr  =
+            (uintptr_t)memory_region_get_ram_ptr(mrs->mr) +
+            mrs->offset_within_region;
+        cur_vmr->flags_padding   = 0;
+    }
+    vhost_realloc_vhost_memory(dev, nregions);
+}
+
 static void vhost_commit(MemoryListener *listener)
 {
     struct vhost_dev *dev = container_of(listener, struct vhost_dev,
@@ -532,7 +568,6 @@ static void vhost_commit(MemoryListener *listener)
     MemoryRegionSection *old_sections;
     int n_old_sections;
     uint64_t log_size;
-    size_t regions_size;
     int r;
     int i;
     bool changed = false;
@@ -564,23 +599,19 @@ static void vhost_commit(MemoryListener *listener)
         goto out;
     }
 
-    /* Rebuild the regions list from the new sections list */
-    regions_size = offsetof(struct vhost_memory, regions) +
-                       dev->n_mem_sections * sizeof dev->mem->regions[0];
-    dev->mem = g_realloc(dev->mem, regions_size);
-    dev->mem->nregions = dev->n_mem_sections;
+    /*
+     * Globally track the used memslots *without* device specific
+     * filtering. This way, we always know how many memslots are required
+     * when devices with differing filtering requirements get mixed, and
+     * all RAM memory regions of memory devices will consume memslots.
+     */
     used_memslots = dev->mem->nregions;
-    for (i = 0; i < dev->n_mem_sections; i++) {
-        struct vhost_memory_region *cur_vmr = dev->mem->regions + i;
-        struct MemoryRegionSection *mrs = dev->mem_sections + i;
 
-        cur_vmr->guest_phys_addr = mrs->offset_within_address_space;
-        cur_vmr->memory_size     = int128_get64(mrs->size);
-        cur_vmr->userspace_addr  =
-            (uintptr_t)memory_region_get_ram_ptr(mrs->mr) +
-            mrs->offset_within_region;
-        cur_vmr->flags_padding   = 0;
-    }
+    /*
+     * Rebuild the regions list from the new sections list, filtering out all
+     * sections that this device is not interested in.
+     */
+    vhost_rebuild_vhost_memory(dev);
 
     if (!dev->started) {
         goto out;
