@@ -841,9 +841,9 @@ static inline void tcg_out_modrm_pool(TCGContext *s, int opc, int r)
 }
 
 /* Output an opcode with an expected reference to the constant pool.  */
-static inline void tcg_out_vex_modrm_pool(TCGContext *s, int opc, int r)
+static inline void tcg_out_vex_modrm_pool(TCGContext *s, int opc, int r, int v)
 {
-    tcg_out_vex_opc(s, opc, r, 0, 0, 0);
+    tcg_out_vex_opc(s, opc, r, v, 0, 0);
     /* Absolute for 32-bit, pc-relative for 64-bit.  */
     tcg_out8(s, LOWREGMASK(r) << 3 | 5);
     tcg_out32(s, 0);
@@ -990,18 +990,18 @@ static void tcg_out_dupi_vec(TCGContext *s, TCGType type, unsigned vece,
 
     if (TCG_TARGET_REG_BITS == 32 && vece < MO_64) {
         if (have_avx2) {
-            tcg_out_vex_modrm_pool(s, OPC_VPBROADCASTD + vex_l, ret);
+            tcg_out_vex_modrm_pool(s, OPC_VPBROADCASTD + vex_l, ret, 0);
         } else {
-            tcg_out_vex_modrm_pool(s, OPC_VBROADCASTSS, ret);
+            tcg_out_vex_modrm_pool(s, OPC_VBROADCASTSS, ret, 0);
         }
         new_pool_label(s, arg, R_386_32, s->code_ptr - 4, 0);
     } else {
         if (type == TCG_TYPE_V64) {
-            tcg_out_vex_modrm_pool(s, OPC_MOVQ_VqWq, ret);
+            tcg_out_vex_modrm_pool(s, OPC_MOVQ_VqWq, ret, 0);
         } else if (have_avx2) {
-            tcg_out_vex_modrm_pool(s, OPC_VPBROADCASTQ + vex_l, ret);
+            tcg_out_vex_modrm_pool(s, OPC_VPBROADCASTQ + vex_l, ret, 0);
         } else {
-            tcg_out_vex_modrm_pool(s, OPC_MOVDDUP, ret);
+            tcg_out_vex_modrm_pool(s, OPC_MOVDDUP, ret, 0);
         }
         if (TCG_TARGET_REG_BITS == 64) {
             new_pool_label(s, arg, R_386_PC32, s->code_ptr - 4, -4);
@@ -1024,7 +1024,7 @@ static void tcg_out_movi_vec(TCGContext *s, TCGType type,
     }
 
     int rexw = (type == TCG_TYPE_I32 ? 0 : P_REXW);
-    tcg_out_vex_modrm_pool(s, OPC_MOVD_VyEy + rexw, ret);
+    tcg_out_vex_modrm_pool(s, OPC_MOVD_VyEy + rexw, ret, 0);
     if (TCG_TARGET_REG_BITS == 64) {
         new_pool_label(s, arg, R_386_PC32, s->code_ptr - 4, -4);
     } else {
