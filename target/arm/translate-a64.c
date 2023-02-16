@@ -2547,17 +2547,28 @@ static void gen_load_exclusive(DisasContext *s, int rt, int rt2,
         } else {
             /* The pair must be single-copy atomic for *each* doubleword, not
                the entire quadword, however it must be quadword aligned.  */
+            TCGv_i64 t0 = tcg_temp_new_i64();
+            TCGv_i64 t1 = tcg_temp_new_i64();
+
             memop |= MO_64;
-            tcg_gen_qemu_ld_i64(cpu_exclusive_val, addr, idx,
-                                memop | MO_ALIGN_16);
+            tcg_gen_qemu_ld_i64(t0, addr, idx, memop | MO_ALIGN_16);
 
-            TCGv_i64 addr2 = tcg_temp_new_i64();
-            tcg_gen_addi_i64(addr2, addr, 8);
-            tcg_gen_qemu_ld_i64(cpu_exclusive_high, addr2, idx, memop);
-            tcg_temp_free_i64(addr2);
+            tcg_gen_addi_i64(t1, addr, 8);
+            tcg_gen_qemu_ld_i64(t1, t1, idx, memop);
 
-            tcg_gen_mov_i64(cpu_reg(s, rt), cpu_exclusive_val);
-            tcg_gen_mov_i64(cpu_reg(s, rt2), cpu_exclusive_high);
+            if (s->be_data == MO_LE) {
+                tcg_gen_mov_i64(cpu_exclusive_val, t0);
+                tcg_gen_mov_i64(cpu_exclusive_high, t1);
+            } else {
+                tcg_gen_mov_i64(cpu_exclusive_high, t0);
+                tcg_gen_mov_i64(cpu_exclusive_val, t1);
+            }
+
+            tcg_gen_mov_i64(cpu_reg(s, rt), t0);
+            tcg_gen_mov_i64(cpu_reg(s, rt2), t1);
+
+            tcg_temp_free_i64(t0);
+            tcg_temp_free_i64(t1);
         }
     } else {
         memop |= size | MO_ALIGN;
@@ -2604,36 +2615,29 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
         } else {
             TCGv_i128 t16 = tcg_temp_new_i128();
             TCGv_i128 c16 = tcg_temp_new_i128();
-            TCGv_i64 a, b;
+            TCGv_i64 lo, hi;
 
             if (s->be_data == MO_LE) {
                 tcg_gen_concat_i64_i128(t16, cpu_reg(s, rt), cpu_reg(s, rt2));
-                tcg_gen_concat_i64_i128(c16, cpu_exclusive_val,
-                                        cpu_exclusive_high);
             } else {
                 tcg_gen_concat_i64_i128(t16, cpu_reg(s, rt2), cpu_reg(s, rt));
-                tcg_gen_concat_i64_i128(c16, cpu_exclusive_high,
-                                        cpu_exclusive_val);
             }
+            tcg_gen_concat_i64_i128(c16, cpu_exclusive_val, cpu_exclusive_high);
 
             tcg_gen_atomic_cmpxchg_i128(t16, cpu_exclusive_addr, c16, t16,
                                         get_mem_index(s),
                                         MO_128 | MO_ALIGN | s->be_data);
             tcg_temp_free_i128(c16);
 
-            a = tcg_temp_new_i64();
-            b = tcg_temp_new_i64();
-            if (s->be_data == MO_LE) {
-                tcg_gen_extr_i128_i64(a, b, t16);
-            } else {
-                tcg_gen_extr_i128_i64(b, a, t16);
-            }
+            lo = tcg_temp_new_i64();
+            hi = tcg_temp_new_i64();
+            tcg_gen_extr_i128_i64(lo, hi, t16);
 
-            tcg_gen_xor_i64(a, a, cpu_exclusive_val);
-            tcg_gen_xor_i64(b, b, cpu_exclusive_high);
-            tcg_gen_or_i64(tmp, a, b);
-            tcg_temp_free_i64(a);
-            tcg_temp_free_i64(b);
+            tcg_gen_xor_i64(lo, lo, cpu_exclusive_val);
+            tcg_gen_xor_i64(hi, hi, cpu_exclusive_high);
+            tcg_gen_or_i64(tmp, lo, hi);
+            tcg_temp_free_i64(lo);
+            tcg_temp_free_i64(hi);
             tcg_temp_free_i128(t16);
 
             tcg_gen_setcondi_i64(TCG_COND_NE, tmp, tmp, 0);
