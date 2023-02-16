@@ -39,12 +39,19 @@ typedef struct CallbackData {
 static bool add_cpu_to_cluster(Object *obj, void *opaque, Error **errp)
 {
     CallbackData *cbdata = opaque;
-    CPUState *cpu = (CPUState *)object_dynamic_cast(obj, TYPE_CPU);
+    CPUState *cpu;
 
-    if (cpu) {
-        cpu->cluster_index = cbdata->cluster->cluster_id;
-        cbdata->cpu_count++;
+    cpu = (CPUState *)object_dynamic_cast(obj, TYPE_CPU);
+    if (!cpu) {
+        error_setg(errp, "cluster %s can only accept CPU types (got %s)",
+                   object_get_canonical_path(OBJECT(cbdata->cluster)),
+                   object_get_typename(obj));
+        return false;
     }
+
+    cpu->cluster_index = cbdata->cluster->cluster_id;
+    cbdata->cpu_count++;
+
     return true;
 }
 
@@ -63,8 +70,9 @@ static void cpu_cluster_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    object_child_foreach_recursive(cluster_obj, add_cpu_to_cluster,
-                                   &cbdata, NULL);
+    if (!object_child_foreach(cluster_obj, add_cpu_to_cluster, &cbdata, errp)) {
+        return;
+    }
 
     /*
      * A cluster with no CPUs is a bug in the board/SoC code that created it;
