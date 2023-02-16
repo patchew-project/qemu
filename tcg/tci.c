@@ -292,87 +292,34 @@ static uint64_t tci_qemu_ld(CPUArchState *env, target_ulong taddr,
     MemOp mop = get_memop(oi);
     uintptr_t ra = (uintptr_t)tb_ptr;
 
-#ifdef CONFIG_SOFTMMU
     switch (mop & (MO_BSWAP | MO_SSIZE)) {
     case MO_UB:
-        return helper_ret_ldub_mmu(env, taddr, oi, ra);
+        return cpu_ldb_mmu(env, taddr, oi, ra);
     case MO_SB:
-        return helper_ret_ldsb_mmu(env, taddr, oi, ra);
+        return (int8_t)cpu_ldb_mmu(env, taddr, oi, ra);
     case MO_LEUW:
-        return helper_le_lduw_mmu(env, taddr, oi, ra);
+        return cpu_ldw_le_mmu(env, taddr, oi, ra);
     case MO_LESW:
-        return helper_le_ldsw_mmu(env, taddr, oi, ra);
+        return (int16_t)cpu_ldw_le_mmu(env, taddr, oi, ra);
     case MO_LEUL:
-        return helper_le_ldul_mmu(env, taddr, oi, ra);
+        return cpu_ldl_le_mmu(env, taddr, oi, ra);
     case MO_LESL:
-        return helper_le_ldsl_mmu(env, taddr, oi, ra);
+        return (int32_t)cpu_ldl_le_mmu(env, taddr, oi, ra);
     case MO_LEUQ:
-        return helper_le_ldq_mmu(env, taddr, oi, ra);
+        return cpu_ldq_le_mmu(env, taddr, oi, ra);
     case MO_BEUW:
-        return helper_be_lduw_mmu(env, taddr, oi, ra);
+        return cpu_ldw_be_mmu(env, taddr, oi, ra);
     case MO_BESW:
-        return helper_be_ldsw_mmu(env, taddr, oi, ra);
+        return (int16_t)cpu_ldw_be_mmu(env, taddr, oi, ra);
     case MO_BEUL:
-        return helper_be_ldul_mmu(env, taddr, oi, ra);
+        return cpu_ldl_be_mmu(env, taddr, oi, ra);
     case MO_BESL:
-        return helper_be_ldsl_mmu(env, taddr, oi, ra);
+        return (int32_t)cpu_ldl_be_mmu(env, taddr, oi, ra);
     case MO_BEUQ:
-        return helper_be_ldq_mmu(env, taddr, oi, ra);
+        return cpu_ldq_be_mmu(env, taddr, oi, ra);
     default:
         g_assert_not_reached();
     }
-#else
-    void *haddr = g2h(env_cpu(env), taddr);
-    unsigned a_mask = (1u << get_alignment_bits(mop)) - 1;
-    uint64_t ret;
-
-    set_helper_retaddr(ra);
-    if (taddr & a_mask) {
-        helper_unaligned_ld(env, taddr);
-    }
-    switch (mop & (MO_BSWAP | MO_SSIZE)) {
-    case MO_UB:
-        ret = ldub_p(haddr);
-        break;
-    case MO_SB:
-        ret = ldsb_p(haddr);
-        break;
-    case MO_LEUW:
-        ret = lduw_le_p(haddr);
-        break;
-    case MO_LESW:
-        ret = ldsw_le_p(haddr);
-        break;
-    case MO_LEUL:
-        ret = (uint32_t)ldl_le_p(haddr);
-        break;
-    case MO_LESL:
-        ret = (int32_t)ldl_le_p(haddr);
-        break;
-    case MO_LEUQ:
-        ret = ldq_le_p(haddr);
-        break;
-    case MO_BEUW:
-        ret = lduw_be_p(haddr);
-        break;
-    case MO_BESW:
-        ret = ldsw_be_p(haddr);
-        break;
-    case MO_BEUL:
-        ret = (uint32_t)ldl_be_p(haddr);
-        break;
-    case MO_BESL:
-        ret = (int32_t)ldl_be_p(haddr);
-        break;
-    case MO_BEUQ:
-        ret = ldq_be_p(haddr);
-        break;
-    default:
-        g_assert_not_reached();
-    }
-    clear_helper_retaddr();
-    return ret;
-#endif
 }
 
 static void tci_qemu_st(CPUArchState *env, target_ulong taddr, uint64_t val,
@@ -381,67 +328,31 @@ static void tci_qemu_st(CPUArchState *env, target_ulong taddr, uint64_t val,
     MemOp mop = get_memop(oi);
     uintptr_t ra = (uintptr_t)tb_ptr;
 
-#ifdef CONFIG_SOFTMMU
     switch (mop & (MO_BSWAP | MO_SIZE)) {
     case MO_UB:
-        helper_ret_stb_mmu(env, taddr, val, oi, ra);
+        cpu_stb_mmu(env, taddr, val, oi, ra);
         break;
     case MO_LEUW:
-        helper_le_stw_mmu(env, taddr, val, oi, ra);
+        cpu_stw_le_mmu(env, taddr, val, oi, ra);
         break;
     case MO_LEUL:
-        helper_le_stl_mmu(env, taddr, val, oi, ra);
+        cpu_stl_le_mmu(env, taddr, val, oi, ra);
         break;
     case MO_LEUQ:
-        helper_le_stq_mmu(env, taddr, val, oi, ra);
+        cpu_stq_le_mmu(env, taddr, val, oi, ra);
         break;
     case MO_BEUW:
-        helper_be_stw_mmu(env, taddr, val, oi, ra);
+        cpu_stw_be_mmu(env, taddr, val, oi, ra);
         break;
     case MO_BEUL:
-        helper_be_stl_mmu(env, taddr, val, oi, ra);
+        cpu_stl_be_mmu(env, taddr, val, oi, ra);
         break;
     case MO_BEUQ:
-        helper_be_stq_mmu(env, taddr, val, oi, ra);
+        cpu_stq_be_mmu(env, taddr, val, oi, ra);
         break;
     default:
         g_assert_not_reached();
     }
-#else
-    void *haddr = g2h(env_cpu(env), taddr);
-    unsigned a_mask = (1u << get_alignment_bits(mop)) - 1;
-
-    set_helper_retaddr(ra);
-    if (taddr & a_mask) {
-        helper_unaligned_st(env, taddr);
-    }
-    switch (mop & (MO_BSWAP | MO_SIZE)) {
-    case MO_UB:
-        stb_p(haddr, val);
-        break;
-    case MO_LEUW:
-        stw_le_p(haddr, val);
-        break;
-    case MO_LEUL:
-        stl_le_p(haddr, val);
-        break;
-    case MO_LEUQ:
-        stq_le_p(haddr, val);
-        break;
-    case MO_BEUW:
-        stw_be_p(haddr, val);
-        break;
-    case MO_BEUL:
-        stl_be_p(haddr, val);
-        break;
-    case MO_BEUQ:
-        stq_be_p(haddr, val);
-        break;
-    default:
-        g_assert_not_reached();
-    }
-    clear_helper_retaddr();
-#endif
 }
 
 #if TCG_TARGET_REG_BITS == 64
