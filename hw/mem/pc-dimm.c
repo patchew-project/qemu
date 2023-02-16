@@ -92,7 +92,7 @@ void pc_dimm_unplug(PCDIMMDevice *dimm, MachineState *machine)
     vmstate_unregister_ram(vmstate_mr, DEVICE(dimm));
 }
 
-static int pc_dimm_slot2bitmap(Object *obj, void *opaque)
+static bool pc_dimm_slot2bitmap(Object *obj, void *opaque, Error **errp)
 {
     unsigned long *bitmap = opaque;
 
@@ -104,8 +104,8 @@ static int pc_dimm_slot2bitmap(Object *obj, void *opaque)
         }
     }
 
-    object_child_foreach(obj, pc_dimm_slot2bitmap, opaque);
-    return 0;
+    object_child_foreach(obj, pc_dimm_slot2bitmap, opaque, errp);
+    return true;
 }
 
 static int pc_dimm_get_free_slot(const int *hint, int max_slots, Error **errp)
@@ -120,7 +120,7 @@ static int pc_dimm_get_free_slot(const int *hint, int max_slots, Error **errp)
     }
 
     bitmap = bitmap_new(max_slots);
-    object_child_foreach(qdev_get_machine(), pc_dimm_slot2bitmap, bitmap);
+    object_child_foreach(qdev_get_machine(), pc_dimm_slot2bitmap, bitmap, NULL);
 
     /* check if requested slot is not occupied */
     if (hint) {

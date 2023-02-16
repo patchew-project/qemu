@@ -384,7 +384,7 @@ void suspend_mux_open(void)
     muxes_opened = false;
 }
 
-static int chardev_options_parsed_cb(Object *child, void *opaque)
+static bool chardev_options_parsed_cb(Object *child, void *opaque, Error **errp)
 {
     Chardev *chr = (Chardev *)child;
 
@@ -392,14 +392,14 @@ static int chardev_options_parsed_cb(Object *child, void *opaque)
         open_muxes(chr);
     }
 
-    return 0;
+    return true;
 }
 
 void resume_mux_open(void)
 {
     muxes_opened = true;
     object_child_foreach(get_chardevs_root(),
-                         chardev_options_parsed_cb, NULL);
+                         chardev_options_parsed_cb, NULL, NULL);
 }
 
 static void char_mux_class_init(ObjectClass *oc, void *data)

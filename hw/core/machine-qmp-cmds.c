@@ -157,7 +157,7 @@ void qmp_set_numa_node(NumaOptions *cmd, Error **errp)
     set_numa_options(MACHINE(qdev_get_machine()), cmd, errp);
 }
 
-static int query_memdev(Object *obj, void *opaque)
+static bool query_memdev(Object *obj, void *opaque, Error **errp)
 {
     Error *err = NULL;
     MemdevList **list = opaque;
@@ -194,7 +194,7 @@ static int query_memdev(Object *obj, void *opaque)
         QAPI_LIST_PREPEND(*list, m);
     }
 
-    return 0;
+    return true;
 }
 
 MemdevList *qmp_query_memdev(Error **errp)
@@ -202,7 +202,7 @@ MemdevList *qmp_query_memdev(Error **errp)
     Object *obj = object_get_objects_root();
     MemdevList *list = NULL;
 
-    object_child_foreach(obj, query_memdev, &list);
+    object_child_foreach(obj, query_memdev, &list, errp);
     return list;
 }
 
@@ -303,7 +303,7 @@ MemoryInfo *qmp_query_memory_size_summary(Error **errp)
     return mem_info;
 }
 
-static int qmp_x_query_rdma_foreach(Object *obj, void *opaque)
+static bool qmp_x_query_rdma_foreach(Object *obj, void *opaque, Error **errp)
 {
     RdmaProvider *rdma;
     RdmaProviderClass *k;
@@ -321,7 +321,7 @@ static int qmp_x_query_rdma_foreach(Object *obj, void *opaque)
         }
     }
 
-    return 0;
+    return true;
 }
 
 HumanReadableText *qmp_x_query_rdma(Error **errp)
@@ -329,7 +329,7 @@ HumanReadableText *qmp_x_query_rdma(Error **errp)
     g_autoptr(GString) buf = g_string_new("");
 
     object_child_foreach_recursive(object_get_root(),
-                                   qmp_x_query_rdma_foreach, buf);
+                                   qmp_x_query_rdma_foreach, buf, NULL);
 
     return human_readable_text_from_str(buf);
 }
@@ -341,7 +341,7 @@ HumanReadableText *qmp_x_query_ramblock(Error **errp)
     return human_readable_text_from_str(buf);
 }
 
-static int qmp_x_query_irq_foreach(Object *obj, void *opaque)
+static bool qmp_x_query_irq_foreach(Object *obj, void *opaque, Error **errp)
 {
     InterruptStatsProvider *intc;
     InterruptStatsProviderClass *k;
@@ -371,7 +371,7 @@ static int qmp_x_query_irq_foreach(Object *obj, void *opaque)
         }
     }
 
-    return 0;
+    return true;
 }
 
 HumanReadableText *qmp_x_query_irq(Error **errp)
@@ -379,7 +379,7 @@ HumanReadableText *qmp_x_query_irq(Error **errp)
     g_autoptr(GString) buf = g_string_new("");
 
     object_child_foreach_recursive(object_get_root(),
-                                   qmp_x_query_irq_foreach, buf);
+                                   qmp_x_query_irq_foreach, buf, NULL);
 
     return human_readable_text_from_str(buf);
 }

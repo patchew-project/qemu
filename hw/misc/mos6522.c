@@ -497,7 +497,7 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
     }
 }
 
-static int qmp_x_query_via_foreach(Object *obj, void *opaque)
+static bool qmp_x_query_via_foreach(Object *obj, void *opaque, Error **errp)
 {
     GString *buf = opaque;
 
@@ -573,7 +573,7 @@ static int qmp_x_query_via_foreach(Object *obj, void *opaque)
                                get_next_irq_time(s, &s->timers[1], now));
     }
 
-    return 0;
+    return true;
 }
 
 static HumanReadableText *qmp_x_query_via(Error **errp)
@@ -581,7 +581,7 @@ static HumanReadableText *qmp_x_query_via(Error **errp)
     g_autoptr(GString) buf = g_string_new("");
 
     object_child_foreach_recursive(object_get_root(),
-                                   qmp_x_query_via_foreach, buf);
+                                   qmp_x_query_via_foreach, buf, NULL);
 
     return human_readable_text_from_str(buf);
 }

@@ -283,17 +283,17 @@ typedef struct ForeachArgs {
     Object *obj;
 } ForeachArgs;
 
-static int bmc_find(Object *child, void *opaque)
+static bool bmc_find(Object *child, void *opaque, Error **errp)
 {
     ForeachArgs *args = opaque;
 
     if (object_dynamic_cast(child, args->name)) {
         if (args->obj) {
-            return 1;
+            return false;
         }
         args->obj = child;
     }
-    return 0;
+    return true;
 }
 
 IPMIBmc *pnv_bmc_find(Error **errp)
@@ -301,7 +301,8 @@ IPMIBmc *pnv_bmc_find(Error **errp)
     ForeachArgs args = { TYPE_IPMI_BMC, NULL };
     int ret;
 
-    ret = object_child_foreach_recursive(object_get_root(), bmc_find, &args);
+    ret = object_child_foreach_recursive(object_get_root(), bmc_find,
+                                         &args, NULL);
     if (ret) {
         error_setg(errp, "machine should have only one BMC device. "
                    "Use '-nodefaults'");

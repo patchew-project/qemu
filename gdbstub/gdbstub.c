@@ -3379,7 +3379,7 @@ static const TypeInfo char_gdb_type_info = {
     .class_init = char_gdb_class_init,
 };
 
-static int find_cpu_clusters(Object *child, void *opaque)
+static bool find_cpu_clusters(Object *child, void *opaque, Error **errp)
 {
     if (object_dynamic_cast(child, TYPE_CPU_CLUSTER)) {
         GDBState *s = (GDBState *) opaque;
@@ -3400,10 +3400,10 @@ static int find_cpu_clusters(Object *child, void *opaque)
         process->attached = false;
         process->target_xml[0] = '\0';
 
-        return 0;
+        return true;
     }
 
-    return object_child_foreach(child, find_cpu_clusters, opaque);
+    return object_child_foreach(child, find_cpu_clusters, opaque, errp);
 }
 
 static int pid_order(const void *a, const void *b)
@@ -3422,7 +3422,7 @@ static int pid_order(const void *a, const void *b)
 
 static void create_processes(GDBState *s)
 {
-    object_child_foreach(object_get_root(), find_cpu_clusters, s);
+    object_child_foreach(object_get_root(), find_cpu_clusters, s, NULL);
 
     if (gdbserver_state.processes) {
         /* Sort by PID */

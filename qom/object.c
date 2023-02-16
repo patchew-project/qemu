@@ -1104,45 +1104,45 @@ void object_class_foreach(void (*fn)(ObjectClass *klass, void *opaque),
     enumerating_types = false;
 }
 
-static int do_object_child_foreach(Object *obj,
-                                   int (*fn)(Object *child, void *opaque),
-                                   void *opaque, bool recurse)
+static bool do_object_child_foreach(Object *obj,
+                                    bool (*fn)(Object *child, void *opaque,
+                                               Error **errp),
+                                    void *opaque, bool recurse, Error **errp)
 {
     GHashTableIter iter;
     ObjectProperty *prop;
-    int ret = 0;
 
     g_hash_table_iter_init(&iter, obj->properties);
     while (g_hash_table_iter_next(&iter, NULL, (gpointer *)&prop)) {
         if (object_property_is_child(prop)) {
             Object *child = prop->opaque;
 
-            ret = fn(child, opaque);
-            if (ret != 0) {
-                break;
+            if (!fn(child, opaque, errp)) {
+                return false;
             }
             if (recurse) {
-                ret = do_object_child_foreach(child, fn, opaque, true);
-                if (ret != 0) {
-                    break;
+                if (!do_object_child_foreach(child, fn, opaque, true, errp)) {
+                    return false;
                 }
             }
         }
     }
-    return ret;
+    return true;
 }
 
-int object_child_foreach(Object *obj, int (*fn)(Object *child, void *opaque),
-                         void *opaque)
+bool object_child_foreach(Object *obj,
+                          bool (*fn)(Object *child, void *opaque, Error **errp),
+                          void *opaque, Error **errp)
 {
-    return do_object_child_foreach(obj, fn, opaque, false);
+    return do_object_child_foreach(obj, fn, opaque, false, errp);
 }
 
-int object_child_foreach_recursive(Object *obj,
-                                   int (*fn)(Object *child, void *opaque),
-                                   void *opaque)
+bool object_child_foreach_recursive(Object *obj,
+                                    bool (*fn)(Object *child, void *opaque,
+                                               Error **errp),
+                                    void *opaque, Error **errp)
 {
-    return do_object_child_foreach(obj, fn, opaque, true);
+    return do_object_child_foreach(obj, fn, opaque, true, errp);
 }
 
 static void object_class_get_list_tramp(ObjectClass *klass, void *opaque)

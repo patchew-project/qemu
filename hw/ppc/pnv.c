@@ -747,18 +747,17 @@ static void pnv_chip_power8_pic_print_info(PnvChip *chip, Monitor *mon)
     }
 }
 
-static int pnv_chip_power9_pic_print_info_child(Object *child, void *opaque)
+static bool pnv_chip_power9_pic_print_info_child(Object *child, void *opaque,
+                                                 Error **errp)
 {
     Monitor *mon = opaque;
     PnvPHB *phb =  (PnvPHB *) object_dynamic_cast(child, TYPE_PNV_PHB);
 
-    if (!phb) {
-        return 0;
+    if (phb) {
+        pnv_phb4_pic_print_info(PNV_PHB4(phb->backend), mon);
     }
 
-    pnv_phb4_pic_print_info(PNV_PHB4(phb->backend), mon);
-
-    return 0;
+    return true;
 }
 
 static void pnv_chip_power9_pic_print_info(PnvChip *chip, Monitor *mon)
@@ -769,7 +768,7 @@ static void pnv_chip_power9_pic_print_info(PnvChip *chip, Monitor *mon)
     pnv_psi_pic_print_info(&chip9->psi, mon);
 
     object_child_foreach_recursive(OBJECT(chip),
-                         pnv_chip_power9_pic_print_info_child, mon);
+                         pnv_chip_power9_pic_print_info_child, mon, NULL);
 }
 
 static uint64_t pnv_chip_power8_xscom_core_base(PnvChip *chip,
@@ -817,7 +816,7 @@ static void pnv_chip_power10_pic_print_info(PnvChip *chip, Monitor *mon)
     pnv_psi_pic_print_info(&chip10->psi, mon);
 
     object_child_foreach_recursive(OBJECT(chip),
-                         pnv_chip_power9_pic_print_info_child, mon);
+                         pnv_chip_power9_pic_print_info_child, mon, NULL);
 }
 
 /* Always give the first 1GB to chip 0 else we won't boot */

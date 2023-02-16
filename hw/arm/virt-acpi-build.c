@@ -266,8 +266,8 @@ struct AcpiIortIdMapping {
 typedef struct AcpiIortIdMapping AcpiIortIdMapping;
 
 /* Build the iort ID mapping to SMMUv3 for a given PCI host bridge */
-static int
-iort_host_bridges(Object *obj, void *opaque)
+static bool
+iort_host_bridges(Object *obj, void *opaque, Error **errp)
 {
     GArray *idmap_blob = opaque;
 
@@ -287,7 +287,7 @@ iort_host_bridges(Object *obj, void *opaque)
         }
     }
 
-    return 0;
+    return true;
 }
 
 static int iort_idmap_compare(gconstpointer a, gconstpointer b)
@@ -323,7 +323,7 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
         AcpiIortIdMapping next_range = {0};
 
         object_child_foreach_recursive(object_get_root(),
-                                       iort_host_bridges, smmu_idmaps);
+                                       iort_host_bridges, smmu_idmaps, NULL);
 
         /* Sort the smmu idmap by input_base */
         g_array_sort(smmu_idmaps, iort_idmap_compare);

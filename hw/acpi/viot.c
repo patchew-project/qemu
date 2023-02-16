@@ -41,7 +41,7 @@ static void build_pci_host_range(GArray *table_data, int min_bus, int max_bus,
 }
 
 /* Build PCI range for a given PCI host bridge */
-static int enumerate_pci_host_bridges(Object *obj, void *opaque)
+static bool enumerate_pci_host_bridges(Object *obj, void *opaque, Error **errp)
 {
     GArray *pci_host_ranges = opaque;
 
@@ -61,7 +61,7 @@ static int enumerate_pci_host_bridges(Object *obj, void *opaque)
         }
     }
 
-    return 0;
+    return true;
 }
 
 static gint pci_host_range_compare(gconstpointer a, gconstpointer b)
@@ -99,7 +99,7 @@ void build_viot(MachineState *ms, GArray *table_data, BIOSLinker *linker,
 
     /* Build the list of PCI ranges that this viommu manages */
     object_child_foreach_recursive(OBJECT(ms), enumerate_pci_host_bridges,
-                                   pci_host_ranges);
+                                   pci_host_ranges, NULL);
 
     /* Sort the pci host ranges by min_bus */
     g_array_sort(pci_host_ranges, pci_host_range_compare);

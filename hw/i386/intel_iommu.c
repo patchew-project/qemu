@@ -4059,7 +4059,8 @@ static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
     return true;
 }
 
-static int vtd_machine_done_notify_one(Object *child, void *unused)
+static bool vtd_machine_done_notify_one(Object *child, void *unused,
+                                        Error **errp)
 {
     IntelIOMMUState *iommu = INTEL_IOMMU_DEVICE(x86_iommu_get_default());
 
@@ -4072,13 +4073,13 @@ static int vtd_machine_done_notify_one(Object *child, void *unused)
         vtd_panic_require_caching_mode();
     }
 
-    return 0;
+    return true;
 }
 
 static void vtd_machine_done_hook(Notifier *notifier, void *unused)
 {
     object_child_foreach_recursive(object_get_root(),
-                                   vtd_machine_done_notify_one, NULL);
+                                   vtd_machine_done_notify_one, NULL, NULL);
 }
 
 static Notifier vtd_machine_done_notify = {

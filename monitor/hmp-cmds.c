@@ -82,7 +82,7 @@ void hmp_info_version(Monitor *mon, const QDict *qdict)
     qapi_free_VersionInfo(info);
 }
 
-static int hmp_info_pic_foreach(Object *obj, void *opaque)
+static bool hmp_info_pic_foreach(Object *obj, void *opaque, Error **errp)
 {
     InterruptStatsProvider *intc;
     InterruptStatsProviderClass *k;
@@ -99,13 +99,13 @@ static int hmp_info_pic_foreach(Object *obj, void *opaque)
         }
     }
 
-    return 0;
+    return true;
 }
 
 void hmp_info_pic(Monitor *mon, const QDict *qdict)
 {
     object_child_foreach_recursive(object_get_root(),
-                                   hmp_info_pic_foreach, mon);
+                                   hmp_info_pic_foreach, mon, NULL);
 }
 
 void hmp_quit(Monitor *mon, const QDict *qdict)

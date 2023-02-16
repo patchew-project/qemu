@@ -998,27 +998,28 @@ void device_add_completion(ReadLineState *rs, int nb_args, const char *str)
     g_slist_free(list);
 }
 
-static int qdev_add_hotpluggable_device(Object *obj, void *opaque)
+static bool qdev_add_hotpluggable_device(Object *obj, void *opaque,
+                                         Error **errp)
 {
     GSList **list = opaque;
     DeviceState *dev = (DeviceState *)object_dynamic_cast(obj, TYPE_DEVICE);
 
     if (dev == NULL) {
-        return 0;
+        return true;
     }
 
     if (dev->realized && object_property_get_bool(obj, "hotpluggable", NULL)) {
         *list = g_slist_append(*list, dev);
     }
 
-    return 0;
+    return true;
 }
 
 static GSList *qdev_build_hotpluggable_device_list(Object *peripheral)
 {
     GSList *list = NULL;
 
-    object_child_foreach(peripheral, qdev_add_hotpluggable_device, &list);
+    object_child_foreach(peripheral, qdev_add_hotpluggable_device, &list, NULL);
 
     return list;
 }

@@ -831,7 +831,7 @@ static void do_cpu_reset(void *opaque)
     }
 }
 
-static int do_arm_linux_init(Object *obj, void *opaque)
+static bool do_arm_linux_init(Object *obj, void *opaque, Error **errp)
 {
     if (object_dynamic_cast(obj, TYPE_ARM_LINUX_BOOT_IF)) {
         ARMLinuxBootIf *albif = ARM_LINUX_BOOT_IF(obj);
@@ -842,7 +842,7 @@ static int do_arm_linux_init(Object *obj, void *opaque)
             albifc->arm_linux_init(albif, info->secure_boot);
         }
     }
-    return 0;
+    return true;
 }
 
 static ssize_t arm_load_elf(struct arm_boot_info *info, uint64_t *pentry,
@@ -1185,7 +1185,7 @@ static void arm_setup_direct_kernel_boot(ARMCPU *cpu,
          * that we're doing a direct kernel boot.
          */
         object_child_foreach_recursive(object_get_root(),
-                                       do_arm_linux_init, info);
+                                       do_arm_linux_init, info, NULL);
     }
     info->is_linux = is_linux;
 

@@ -1907,36 +1907,40 @@ void object_class_property_set_description(ObjectClass *klass, const char *name,
  * @obj: the object whose children will be navigated
  * @fn: the iterator function to be called
  * @opaque: an opaque value that will be passed to the iterator
+ * @errp: pointer to a NULL-initialized error object
  *
- * Call @fn passing each child of @obj and @opaque to it, until @fn returns
- * non-zero.
+ * Call @fn passing each child of @obj, @opaque and @errp to it,
+ * until @fn returns false.
  *
  * It is forbidden to add or remove children from @obj from the @fn
  * callback.
  *
- * Returns: The last value returned by @fn, or 0 if there is no child.
+ * Returns: The last value returned by @fn, or %true if there is no child.
  */
-int object_child_foreach(Object *obj, int (*fn)(Object *child, void *opaque),
-                         void *opaque);
+bool object_child_foreach(Object *obj,
+                          bool (*fn)(Object *child, void *opaque, Error **errp),
+                          void *opaque, Error **errp);
 
 /**
  * object_child_foreach_recursive:
  * @obj: the object whose children will be navigated
  * @fn: the iterator function to be called
  * @opaque: an opaque value that will be passed to the iterator
+ * @errp: pointer to a NULL-initialized error object
  *
- * Call @fn passing each child of @obj and @opaque to it, until @fn returns
- * non-zero. Calls recursively, all child nodes of @obj will also be passed
- * all the way down to the leaf nodes of the tree. Depth first ordering.
+ * Call @fn passing each child of @obj, @opaque and @errp to it, until @fn
+ * returns false. Calls recursively, all child nodes of @obj will also be
+ * passed all the way down to the leaf nodes of the tree. Depth first ordering.
  *
  * It is forbidden to add or remove children from @obj (or its
  * child nodes) from the @fn callback.
  *
- * Returns: The last value returned by @fn, or 0 if there is no child.
+ * Returns: The last value returned by @fn, or %true if there is no child.
  */
-int object_child_foreach_recursive(Object *obj,
-                                   int (*fn)(Object *child, void *opaque),
-                                   void *opaque);
+bool object_child_foreach_recursive(Object *obj,
+                                    bool (*fn)(Object *child, void *opaque,
+                                               Error **errp),
+                                    void *opaque, Error **errp);
 /**
  * container_get:
  * @root: root of the #path, e.g., object_get_root()

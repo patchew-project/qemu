@@ -1488,28 +1488,31 @@ static void spapr_pci_bridge_plug(SpaprPhbState *phb,
 }
 
 /* Returns non-zero if the value of "chassis_nr" is already in use */
-static int check_chassis_nr(Object *obj, void *opaque)
+static bool check_chassis_nr(Object *obj, void *opaque, Error **errp)
 {
-    int new_chassis_nr =
-        object_property_get_uint(opaque, "chassis_nr", &error_abort);
-    int chassis_nr =
-        object_property_get_uint(obj, "chassis_nr", NULL);
-
-    if (!object_dynamic_cast(obj, TYPE_PCI_BRIDGE)) {
-        return 0;
-    }
-
-    /* Skip unsupported bridge types */
-    if (!chassis_nr) {
-        return 0;
-    }
+    int chassis_nr;
 
     /* Skip self */
     if (obj == opaque) {
-        return 0;
+        return true;
     }
 
-    return chassis_nr == new_chassis_nr;
+    if (!object_dynamic_cast(obj, TYPE_PCI_BRIDGE)) {
+        return true;
+    }
+
+    chassis_nr = object_property_get_uint(obj, "chassis_nr", NULL);
+    /* Skip unsupported bridge types */
+    if (!chassis_nr) {
+        return true;
+    }
+
+    if (chassis_nr == object_property_get_uint(opaque, "chassis_nr",
+                                               &error_abort)) {
+        error_setg(errp, "Bridge chassis %d already in use", chassis_nr);
+        return false;
+    }
+    return true;
 }
 
 static bool bridge_has_valid_chassis_nr(Object *bridge, Error **errp)
@@ -1529,13 +1532,8 @@ static bool bridge_has_valid_chassis_nr(Object *bridge, Error **errp)
     }
 
     /* We want unique values for "chassis_nr" */
-    if (object_child_foreach_recursive(object_get_root(), check_chassis_nr,
-                                       bridge)) {
-        error_setg(errp, "Bridge chassis %d already in use", chassis_nr);
-        return false;
-    }
-
-    return true;
+    return object_child_foreach_recursive(object_get_root(), check_chassis_nr,
+                                          bridge, errp);
 }
 
 static void spapr_pci_pre_plug(HotplugHandler *plug_handler,
@@ -2035,7 +2033,7 @@ unrealize:
     spapr_phb_unrealize(dev);
 }
 
-static int spapr_phb_children_reset(Object *child, void *opaque)
+static bool spapr_phb_children_reset(Object *child, void *opaque, Error **errp)
 {
     DeviceState *dev = (DeviceState *) object_dynamic_cast(child, TYPE_DEVICE);
 
@@ -2043,7 +2041,7 @@ static int spapr_phb_children_reset(Object *child, void *opaque)
         device_cold_reset(dev);
     }
 
-    return 0;
+    return true;
 }
 
 void spapr_phb_dma_reset(SpaprPhbState *sphb)
@@ -2079,7 +2077,7 @@ static void spapr_phb_reset(DeviceState *qdev)
     }
 
     /* Reset the IOMMU state */
-    object_child_foreach(OBJECT(qdev), spapr_phb_children_reset, NULL);
+    object_child_foreach(OBJECT(qdev), spapr_phb_children_reset, NULL, NULL);
 
     if (spapr_phb_eeh_available(SPAPR_PCI_HOST_BRIDGE(qdev))) {
         spapr_phb_vfio_reset(qdev);

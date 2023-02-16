@@ -254,7 +254,7 @@ typedef struct ForeachPopulateArgs {
     int xscom_offset;
 } ForeachPopulateArgs;
 
-static int xscom_dt_child(Object *child, void *opaque)
+static bool xscom_dt_child(Object *child, void *opaque, Error **errp)
 {
     if (object_dynamic_cast(child, TYPE_PNV_XSCOM_INTERFACE)) {
         ForeachPopulateArgs *args = opaque;
@@ -268,7 +268,7 @@ static int xscom_dt_child(Object *child, void *opaque)
             _FDT((xc->dt_xscom(xd, args->fdt, args->xscom_offset)));
         }
     }
-    return 0;
+    return true;
 }
 
 int pnv_dt_xscom(PnvChip *chip, void *fdt, int root_offset,
@@ -308,7 +308,7 @@ int pnv_dt_xscom(PnvChip *chip, void *fdt, int root_offset,
      * PnvXScomInterface objects which can lie a bit deeper than the
      * first layer.
      */
-    object_child_foreach_recursive(OBJECT(chip), xscom_dt_child, &args);
+    object_child_foreach_recursive(OBJECT(chip), xscom_dt_child, &args, NULL);
     return 0;
 }
 

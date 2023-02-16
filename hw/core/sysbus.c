@@ -33,7 +33,7 @@ typedef struct SysBusFind {
 } SysBusFind;
 
 /* Run func() for every sysbus device, traverse the tree for everything else */
-static int find_sysbus_device(Object *obj, void *opaque)
+static bool find_sysbus_device(Object *obj, void *opaque, Error **errp)
 {
     SysBusFind *find = opaque;
     Object *dev;
@@ -44,12 +44,12 @@ static int find_sysbus_device(Object *obj, void *opaque)
 
     if (!sbdev) {
         /* Container, traverse it for children */
-        return object_child_foreach(obj, find_sysbus_device, opaque);
+        return object_child_foreach(obj, find_sysbus_device, opaque, errp);
     }
 
     find->func(sbdev, find->opaque);
 
-    return 0;
+    return true;
 }
 
 /*
@@ -66,9 +66,9 @@ void foreach_dynamic_sysbus_device(FindSysbusDeviceFunc *func, void *opaque)
 
     /* Loop through all sysbus devices that were spawned outside the machine */
     container = container_get(qdev_get_machine(), "/peripheral");
-    find_sysbus_device(container, &find);
+    find_sysbus_device(container, &find, NULL);
     container = container_get(qdev_get_machine(), "/peripheral-anon");
-    find_sysbus_device(container, &find);
+    find_sysbus_device(container, &find, NULL);
 }
 
 
