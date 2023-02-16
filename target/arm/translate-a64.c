@@ -14762,6 +14762,10 @@ static void aarch64_tr_init_disas_context(DisasContextBase *dcbase,
     tcg_debug_assert(dc->tbid & 1);
 #endif
 
+    /* Record the atomicity of a single AccType_NORMAL memory access. */
+    dc->atom_data = (dc_isar_feature(aa64_lse2, dc)
+                     ? MO_ATOM_WITHIN16 : MO_ATOM_IFALIGN);
+
     /* Single step state. The code-generation logic here is:
      *  SS_ACTIVE == 0:
      *   generate code with no special handling for single-stepping (except

@@ -9449,6 +9449,7 @@ static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
         dc->sme_trap_nonstreaming =
             EX_TBFLAG_A32(tb_flags, SME_TRAP_NONSTREAMING);
     }
+    dc->atom_data = MO_ATOM_IFALIGN;
     dc->cp_regs = cpu->cp_regs;
     dc->features = env->features;
 

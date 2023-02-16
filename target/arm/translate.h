@@ -54,6 +54,7 @@ typedef struct DisasContext {
     bool eci_handled;
     int sctlr_b;
     MemOp be_data;
+    MemOp atom_data;
 #if !defined(CONFIG_USER_ONLY)
     int user;
 #endif
@@ -556,10 +557,10 @@ static inline TCGv_ptr fpstatus_ptr(ARMFPStatusFlavour flavour)
 /**
  * finalize_memop:
  * @s: DisasContext
- * @opc: size+sign+align of the memory operation
+ * @opc: size+sign+align+atomicity of the memory operation
  *
- * Build the complete MemOp for a memory operation, including alignment
- * and endianness.
+ * Build the complete MemOp for a memory operation, including alignment,
+ * endianness, and atomicity.
  *
  * If (op & MO_AMASK) then the operation already contains the required
  * alignment, e.g. for AccType_ATOMIC.  Otherwise, this an optionally
@@ -568,11 +569,18 @@ static inline TCGv_ptr fpstatus_ptr(ARMFPStatusFlavour flavour)
  * In the latter case, there are configuration bits that require alignment,
  * and this is applied here.  Note that there is no way to indicate that
  * no alignment should ever be enforced; this must be handled manually.
+ *
+ * If (op & MO_ATOM_MASK) or (op & MO_ATMAX_MASK) then the operation already
+ * contains the required atomicity, e.g. for AccType_VEC.  Otherwise, apply
+ * atomicity for AccType_NORMAL.
  */
 static inline MemOp finalize_memop(DisasContext *s, MemOp opc)
 {
     if (s->align_mem && !(opc & MO_AMASK)) {
         opc |= MO_ALIGN;
+    }
+    if (!(opc & (MO_ATOM_MASK | MO_ATMAX_MASK))) {
+        opc |= s->atom_data;
     }
     return opc | s->be_data;
 }
