@@ -1,2 +1,4 @@
 # OpenTitan devices
 
+config OT_ALERT
+    bool

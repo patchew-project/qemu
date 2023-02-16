@@ -1,1 +1,6 @@
 # OpenTitan EarlGrey Trace Events
+
+# ot_alert.c
+
+ot_alert_io_read_out(unsigned int addr, uint64_t val, uint64_t pc) "addr=0x%02x, val=0x%" PRIx64 ", pc=0x%" PRIx64
+ot_alert_io_write(unsigned int addr, uint64_t val, uint64_t pc) "addr=0x%02x, val=0x%" PRIx64 ", pc=0x%" PRIx64

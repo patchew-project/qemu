@@ -12,9 +12,9 @@
 
 #include "qemu/osdep.h"
 #include "qom/object.h"
-#include "hw/irq.h"
-#include "hw/qdev-core.h"
-#include "hw/sysbus.h"
+#include "hw/core/irq.h"
+#include "hw/core/qdev.h"
+#include "hw/core/sysbus.h"
 
 
 /** Simple IRQ wrapper to limit propagation of no-change calls */

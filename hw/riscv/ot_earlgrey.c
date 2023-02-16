@@ -24,6 +24,7 @@
 #include "hw/core/boards.h"
 #include "hw/intc/sifive_plic.h"
 #include "hw/misc/unimp.h"
+#include "hw/opentitan/ot_alert.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/riscv/ibex_common.h"
 #include "hw/riscv/ot_earlgrey.h"
@@ -261,11 +262,15 @@ static const IbexDeviceDef ot_earlgrey_soc_devices[] = {
         ),
     },
     [OT_EARLGREY_SOC_DEV_ALERT_HANDLER] = {
-        .type = TYPE_UNIMPLEMENTED_DEVICE,
-        .name = "ot-alert_handler",
-        .cfg = &ibex_unimp_configure,
+        .type = TYPE_OT_ALERT,
         .memmap = MEMMAPENTRIES(
             { 0x40150000u, 0x800u }
+        ),
+        .gpio = IBEXGPIOCONNDEFS(
+            OT_EARLGREY_SOC_GPIO_SYSBUS_IRQ(0, PLIC, 127),
+            OT_EARLGREY_SOC_GPIO_SYSBUS_IRQ(0, PLIC, 128),
+            OT_EARLGREY_SOC_GPIO_SYSBUS_IRQ(0, PLIC, 129),
+            OT_EARLGREY_SOC_GPIO_SYSBUS_IRQ(1, PLIC, 130)
         ),
     },
     [OT_EARLGREY_SOC_DEV_SPI_HOST0] = {
