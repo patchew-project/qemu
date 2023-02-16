@@ -715,6 +715,7 @@ static void armsse_init(Object *obj)
         name = g_strdup_printf("cluster%d", i);
         object_initialize_child(obj, name, &s->cluster[i], TYPE_CPU_CLUSTER);
         qdev_prop_set_uint32(DEVICE(&s->cluster[i]), "cluster-id", i);
+        qdev_prop_set_string(DEVICE(&s->cluster[i]), "cpu-type", TYPE_ARMV7M);
         g_free(name);
 
         name = g_strdup_printf("armv7m%d", i);
