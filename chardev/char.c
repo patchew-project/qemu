@@ -742,7 +742,7 @@ Chardev *qemu_chr_new_mux_mon(const char *label, const char *filename,
     return qemu_chr_new_permit_mux_mon(label, filename, true, context);
 }
 
-static int qmp_query_chardev_foreach(Object *obj, void *data)
+static bool qmp_query_chardev_foreach(Object *obj, void *data, Error **errp)
 {
     Chardev *chr = CHARDEV(obj);
     ChardevInfoList **list = data;
@@ -754,7 +754,7 @@ static int qmp_query_chardev_foreach(Object *obj, void *data)
 
     QAPI_LIST_PREPEND(*list, value);
 
-    return 0;
+    return true;
 }
 
 ChardevInfoList *qmp_query_chardev(Error **errp)
@@ -762,7 +762,7 @@ ChardevInfoList *qmp_query_chardev(Error **errp)
     ChardevInfoList *chr_list = NULL;
 
     object_child_foreach(get_chardevs_root(),
-                         qmp_query_chardev_foreach, &chr_list);
+                         qmp_query_chardev_foreach, &chr_list, NULL);
 
     return chr_list;
 }

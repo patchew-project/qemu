@@ -117,7 +117,7 @@ static void cedt_build_cfmws(GArray *table_data, CXLState *cxls)
     }
 }
 
-static int cxl_foreach_pxb_hb(Object *obj, void *opaque)
+static bool cxl_foreach_pxb_hb(Object *obj, void *opaque, Error **errp)
 {
     Aml *cedt = opaque;
 
@@ -125,7 +125,7 @@ static int cxl_foreach_pxb_hb(Object *obj, void *opaque)
         cedt_build_chbs(cedt->buf, PXB_CXL_DEV(obj));
     }
 
-    return 0;
+    return true;
 }
 
 void cxl_build_cedt(GArray *table_offsets, GArray *table_data,
@@ -142,7 +142,8 @@ void cxl_build_cedt(GArray *table_offsets, GArray *table_data,
 
     /* reserve space for CEDT header */
 
-    object_child_foreach_recursive(object_get_root(), cxl_foreach_pxb_hb, cedt);
+    object_child_foreach_recursive(object_get_root(), cxl_foreach_pxb_hb,
+                                   cedt, NULL);
     cedt_build_cfmws(cedt->buf, cxl_state);
 
     /* copy AML table into ACPI tables blob and patch header there */

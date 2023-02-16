@@ -101,10 +101,11 @@ static int qom_composition_compare(const void *a, const void *b)
                      object_get_canonical_path_component(*(Object **)b));
 }
 
-static int insert_qom_composition_child(Object *obj, void *opaque)
+static bool insert_qom_composition_child(Object *obj, void *opaque,
+                                         Error **errp)
 {
     g_array_append_val(opaque, obj);
-    return 0;
+    return true;
 }
 
 static void print_qom_composition(Monitor *mon, Object *obj, int indent)
@@ -121,7 +122,7 @@ static void print_qom_composition(Monitor *mon, Object *obj, int indent)
     monitor_printf(mon, "%*s/%s (%s)\n", indent, "", name,
                    object_get_typename(obj));
 
-    object_child_foreach(obj, insert_qom_composition_child, children);
+    object_child_foreach(obj, insert_qom_composition_child, children, NULL);
     g_array_sort(children, qom_composition_compare);
 
     for (i = 0; i < children->len; i++) {

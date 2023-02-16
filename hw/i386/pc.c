@@ -546,22 +546,21 @@ typedef struct check_fdc_state {
     bool multiple;
 } CheckFdcState;
 
-static int check_fdc(Object *obj, void *opaque)
+static bool check_fdc(Object *obj, void *opaque, Error **errp)
 {
     CheckFdcState *state = opaque;
     Object *fdc;
     uint32_t iobase;
-    Error *local_err = NULL;
+    g_autofree Error *local_err = NULL;
 
     fdc = object_dynamic_cast(obj, TYPE_ISA_FDC);
     if (!fdc) {
-        return 0;
+        return true;
     }
 
     iobase = object_property_get_uint(obj, "iobase", &local_err);
     if (local_err || iobase != 0x3f0) {
-        error_free(local_err);
-        return 0;
+        return true;
     }
 
     if (state->floppy) {
@@ -569,7 +568,7 @@ static int check_fdc(Object *obj, void *opaque)
     } else {
         state->floppy = ISA_DEVICE(obj);
     }
-    return 0;
+    return true;
 }
 
 static const char * const fdc_container_path[] = {
@@ -588,7 +587,7 @@ static ISADevice *pc_find_fdc0(void)
 
     for (i = 0; i < ARRAY_SIZE(fdc_container_path); i++) {
         container = container_get(qdev_get_machine(), fdc_container_path[i]);
-        object_child_foreach(container, check_fdc, &state);
+        object_child_foreach(container, check_fdc, &state, NULL);
     }
 
     if (state.multiple) {

@@ -342,7 +342,7 @@ AioContext *iothread_get_aio_context(IOThread *iothread)
     return iothread->ctx;
 }
 
-static int query_one_iothread(Object *object, void *opaque)
+static bool query_one_iothread(Object *object, void *opaque, Error **errp)
 {
     IOThreadInfoList ***tail = opaque;
     IOThreadInfo *info;
@@ -350,7 +350,7 @@ static int query_one_iothread(Object *object, void *opaque)
 
     iothread = (IOThread *)object_dynamic_cast(object, TYPE_IOTHREAD);
     if (!iothread) {
-        return 0;
+        return true;
     }
 
     info = g_new0(IOThreadInfo, 1);
@@ -362,7 +362,7 @@ static int query_one_iothread(Object *object, void *opaque)
     info->aio_max_batch = iothread->parent_obj.aio_max_batch;
 
     QAPI_LIST_APPEND(*tail, info);
-    return 0;
+    return true;
 }
 
 IOThreadInfoList *qmp_query_iothreads(Error **errp)
@@ -371,7 +371,7 @@ IOThreadInfoList *qmp_query_iothreads(Error **errp)
     IOThreadInfoList **prev = &head;
     Object *container = object_get_objects_root();
 
-    object_child_foreach(container, query_one_iothread, &prev);
+    object_child_foreach(container, query_one_iothread, &prev, errp);
     return head;
 }
 

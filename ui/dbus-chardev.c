@@ -68,18 +68,16 @@ dbus_display_chardev_unexport(DBusDisplay *dpy, DBusChardev *chr)
     chr->exported = false;
 }
 
-static int
-dbus_display_chardev_foreach(Object *obj, void *data)
+static bool
+dbus_display_chardev_foreach(Object *obj, void *data, Error **errp)
 {
     DBusDisplay *dpy = DBUS_DISPLAY(data);
 
-    if (!CHARDEV_IS_DBUS(obj)) {
-        return 0;
+    if (CHARDEV_IS_DBUS(obj)) {
+        dbus_display_chardev_export(dpy, DBUS_CHARDEV(obj));
     }
 
-    dbus_display_chardev_export(dpy, DBUS_CHARDEV(obj));
-
-    return 0;
+    return true;
 }
 
 static void
@@ -105,7 +103,7 @@ dbus_chardev_init(DBusDisplay *dpy)
     dbus_display_notifier_add(&dpy->notifier);
 
     object_child_foreach(container_get(object_get_root(), "/chardevs"),
-                         dbus_display_chardev_foreach, dpy);
+                         dbus_display_chardev_foreach, dpy, NULL);
 }
 
 static gboolean

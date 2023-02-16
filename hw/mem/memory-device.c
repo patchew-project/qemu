@@ -35,7 +35,7 @@ static gint memory_device_addr_sort(gconstpointer a, gconstpointer b)
     return 0;
 }
 
-static int memory_device_build_list(Object *obj, void *opaque)
+static bool memory_device_build_list(Object *obj, void *opaque, Error **errp)
 {
     GSList **list = opaque;
 
@@ -46,11 +46,11 @@ static int memory_device_build_list(Object *obj, void *opaque)
         }
     }
 
-    object_child_foreach(obj, memory_device_build_list, opaque);
-    return 0;
+    return object_child_foreach(obj, memory_device_build_list, opaque, errp);
 }
 
-static int memory_device_used_region_size(Object *obj, void *opaque)
+static bool memory_device_used_region_size(Object *obj, void *opaque,
+                                           Error **errp)
 {
     uint64_t *size = opaque;
 
@@ -63,8 +63,8 @@ static int memory_device_used_region_size(Object *obj, void *opaque)
         }
     }
 
-    object_child_foreach(obj, memory_device_used_region_size, opaque);
-    return 0;
+    return object_child_foreach(obj, memory_device_used_region_size,
+                                opaque, errp);
 }
 
 static void memory_device_check_addable(MachineState *ms, uint64_t size,
@@ -83,7 +83,7 @@ static void memory_device_check_addable(MachineState *ms, uint64_t size,
     }
 
     /* will we exceed the total amount of memory specified */
-    memory_device_used_region_size(OBJECT(ms), &used_region_size);
+    memory_device_used_region_size(OBJECT(ms), &used_region_size, NULL);
     if (used_region_size + size < used_region_size ||
         used_region_size + size > ms->maxram_size - ms->ram_size) {
         error_setg(errp, "not enough space, currently 0x%" PRIx64
@@ -159,7 +159,7 @@ static uint64_t memory_device_get_free_addr(MachineState *ms,
     }
 
     /* find address range that will fit new memory device */
-    object_child_foreach(OBJECT(ms), memory_device_build_list, &list);
+    object_child_foreach(OBJECT(ms), memory_device_build_list, &list, NULL);
     for (item = list; item; item = g_slist_next(item)) {
         const MemoryDeviceState *md = item->data;
         const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(OBJECT(md));
@@ -202,7 +202,7 @@ MemoryDeviceInfoList *qmp_memory_device_list(void)
     MemoryDeviceInfoList *list = NULL, **tail = &list;
 
     object_child_foreach(qdev_get_machine(), memory_device_build_list,
-                         &devices);
+                         &devices, NULL);
 
     for (item = devices; item; item = g_slist_next(item)) {
         const MemoryDeviceState *md = MEMORY_DEVICE(item->data);
@@ -219,7 +219,7 @@ MemoryDeviceInfoList *qmp_memory_device_list(void)
     return list;
 }
 
-static int memory_device_plugged_size(Object *obj, void *opaque)
+static bool memory_device_plugged_size(Object *obj, void *opaque, Error **errp)
 {
     uint64_t *size = opaque;
 
@@ -233,15 +233,14 @@ static int memory_device_plugged_size(Object *obj, void *opaque)
         }
     }
 
-    object_child_foreach(obj, memory_device_plugged_size, opaque);
-    return 0;
+    return object_child_foreach(obj, memory_device_plugged_size, opaque, errp);
 }
 
 uint64_t get_plugged_memory_size(void)
 {
     uint64_t size = 0;
 
-    memory_device_plugged_size(qdev_get_machine(), &size);
+    memory_device_plugged_size(qdev_get_machine(), &size, NULL);
 
     return size;
 }

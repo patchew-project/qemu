@@ -37,7 +37,7 @@
 
 #define RETRY_NUM                       2
 
-static int sgx_epc_device_list(Object *obj, void *opaque)
+static bool sgx_epc_device_list(Object *obj, void *opaque, Error **errp)
 {
     GSList **list = opaque;
 
@@ -45,15 +45,14 @@ static int sgx_epc_device_list(Object *obj, void *opaque)
         *list = g_slist_append(*list, DEVICE(obj));
     }
 
-    object_child_foreach(obj, sgx_epc_device_list, opaque);
-    return 0;
+    return object_child_foreach(obj, sgx_epc_device_list, opaque);
 }
 
 static GSList *sgx_epc_get_device_list(void)
 {
     GSList *list = NULL;
 
-    object_child_foreach(qdev_get_machine(), sgx_epc_device_list, &list);
+    object_child_foreach(qdev_get_machine(), sgx_epc_device_list, &list, NULL);
     return list;
 }
 

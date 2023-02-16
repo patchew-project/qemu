@@ -90,7 +90,7 @@ static void virtio_gpu_destroy_udmabuf(struct virtio_gpu_simple_resource *res)
     }
 }
 
-static int find_memory_backend_type(Object *obj, void *opaque)
+static bool find_memory_backend_type(Object *obj, void *opaque, Error **errp)
 {
     bool *memfd_backend = opaque;
     int ret;
@@ -107,7 +107,7 @@ static int find_memory_backend_type(Object *obj, void *opaque)
         }
     }
 
-    return 0;
+    return true;
 }
 
 bool virtio_gpu_have_udmabuf(void)
@@ -122,7 +122,8 @@ bool virtio_gpu_have_udmabuf(void)
     }
 
     memdev_root = object_resolve_path("/objects", NULL);
-    object_child_foreach(memdev_root, find_memory_backend_type, &memfd_backend);
+    object_child_foreach(memdev_root, find_memory_backend_type,
+                         &memfd_backend, NULL);
 
     return memfd_backend;
 }

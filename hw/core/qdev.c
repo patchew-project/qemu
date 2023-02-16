@@ -306,7 +306,8 @@ void qdev_unrealize(DeviceState *dev)
     object_property_set_bool(OBJECT(dev), "realized", false, &error_abort);
 }
 
-static int qdev_assert_realized_properly_cb(Object *obj, void *opaque)
+static bool qdev_assert_realized_properly_cb(Object *obj, void *opaque,
+                                             Error **errp)
 {
     DeviceState *dev = DEVICE(object_dynamic_cast(obj, TYPE_DEVICE));
     DeviceClass *dc;
@@ -316,13 +317,14 @@ static int qdev_assert_realized_properly_cb(Object *obj, void *opaque)
         assert(dev->realized);
         assert(dev->parent_bus || !dc->bus_type);
     }
-    return 0;
+    return true;
 }
 
 void qdev_assert_realized_properly(void)
 {
     object_child_foreach_recursive(object_get_root(),
-                                   qdev_assert_realized_properly_cb, NULL);
+                                   qdev_assert_realized_properly_cb,
+                                   NULL, NULL);
 }
 
 bool qdev_machine_modified(void)

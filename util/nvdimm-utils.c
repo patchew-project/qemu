@@ -2,7 +2,7 @@
 #include "qemu/nvdimm-utils.h"
 #include "hw/mem/nvdimm.h"
 
-static int nvdimm_device_list(Object *obj, void *opaque)
+static bool nvdimm_device_list(Object *obj, void *opaque, Error **errp)
 {
     GSList **list = opaque;
 
@@ -10,8 +10,8 @@ static int nvdimm_device_list(Object *obj, void *opaque)
         *list = g_slist_append(*list, DEVICE(obj));
     }
 
-    object_child_foreach(obj, nvdimm_device_list, opaque);
-    return 0;
+    object_child_foreach(obj, nvdimm_device_list, opaque, errp);
+    return true;
 }
 
 /*
@@ -25,6 +25,6 @@ GSList *nvdimm_get_device_list(void)
 {
     GSList *list = NULL;
 
-    object_child_foreach(qdev_get_machine(), nvdimm_device_list, &list);
+    object_child_foreach(qdev_get_machine(), nvdimm_device_list, &list, NULL);
     return list;
 }

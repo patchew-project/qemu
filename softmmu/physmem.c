@@ -1332,7 +1332,7 @@ GString *ram_block_format(void)
     return buf;
 }
 
-static int find_min_backend_pagesize(Object *obj, void *opaque)
+static bool find_min_backend_pagesize(Object *obj, void *opaque, Error **errp)
 {
     long *hpsize_min = opaque;
 
@@ -1345,10 +1345,10 @@ static int find_min_backend_pagesize(Object *obj, void *opaque)
         }
     }
 
-    return 0;
+    return true;
 }
 
-static int find_max_backend_pagesize(Object *obj, void *opaque)
+static bool find_max_backend_pagesize(Object *obj, void *opaque, Error **errp)
 {
     long *hpsize_max = opaque;
 
@@ -1361,7 +1361,7 @@ static int find_max_backend_pagesize(Object *obj, void *opaque)
         }
     }
 
-    return 0;
+    return true;
 }
 
 /*
@@ -1373,7 +1373,7 @@ long qemu_minrampagesize(void)
     long hpsize = LONG_MAX;
     Object *memdev_root = object_resolve_path("/objects", NULL);
 
-    object_child_foreach(memdev_root, find_min_backend_pagesize, &hpsize);
+    object_child_foreach(memdev_root, find_min_backend_pagesize, &hpsize, NULL);
     return hpsize;
 }
 
@@ -1382,7 +1382,8 @@ long qemu_maxrampagesize(void)
     long pagesize = 0;
     Object *memdev_root = object_resolve_path("/objects", NULL);
 
-    object_child_foreach(memdev_root, find_max_backend_pagesize, &pagesize);
+    object_child_foreach(memdev_root, find_max_backend_pagesize, &pagesize,
+                         NULL);
     return pagesize;
 }
 

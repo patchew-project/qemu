@@ -2034,8 +2034,8 @@ insert_scope(PCIBus *bus, PCIDevice *dev, void *opaque)
 }
 
 /* For a given PCI host bridge, walk and insert DMAR scope */
-static int
-dmar_host_bridges(Object *obj, void *opaque)
+static bool
+dmar_host_bridges(Object *obj, void *opaque, Error **errp)
 {
     GArray *scope_blob = opaque;
 
@@ -2047,7 +2047,7 @@ dmar_host_bridges(Object *obj, void *opaque)
         }
     }
 
-    return 0;
+    return true;
 }
 
 /*
@@ -2077,7 +2077,7 @@ build_dmar_q35(GArray *table_data, BIOSLinker *linker, const char *oem_id,
      * is attached to a bus with iommu enabled.
      */
     object_child_foreach_recursive(object_get_root(),
-                                   dmar_host_bridges, scope_blob);
+                                   dmar_host_bridges, scope_blob, NULL);
 
     assert(iommu);
     if (x86_iommu_ir_supported(iommu)) {
@@ -2240,8 +2240,8 @@ insert_ivhd(PCIBus *bus, PCIDevice *dev, void *opaque)
 }
 
 /* For all PCI host bridges, walk and insert IVHD entries */
-static int
-ivrs_host_bridges(Object *obj, void *opaque)
+static bool
+ivrs_host_bridges(Object *obj, void *opaque, Error **errp)
 {
     GArray *ivhd_blob = opaque;
 
@@ -2253,7 +2253,7 @@ ivrs_host_bridges(Object *obj, void *opaque)
         }
     }
 
-    return 0;
+    return true;
 }
 
 static void
@@ -2292,7 +2292,7 @@ build_amd_iommu(GArray *table_data, BIOSLinker *linker, const char *oem_id,
      * is sufficient when no aliases are present.
      */
     object_child_foreach_recursive(object_get_root(),
-                                   ivrs_host_bridges, ivhd_blob);
+                                   ivrs_host_bridges, ivhd_blob, NULL);
 
     if (!ivhd_blob->len) {
         /*

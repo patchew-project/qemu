@@ -36,7 +36,7 @@ typedef struct CallbackData {
     int cpu_count;
 } CallbackData;
 
-static int add_cpu_to_cluster(Object *obj, void *opaque)
+static bool add_cpu_to_cluster(Object *obj, void *opaque, Error **errp)
 {
     CallbackData *cbdata = opaque;
     CPUState *cpu = (CPUState *)object_dynamic_cast(obj, TYPE_CPU);
@@ -45,7 +45,7 @@ static int add_cpu_to_cluster(Object *obj, void *opaque)
         cpu->cluster_index = cbdata->cluster->cluster_id;
         cbdata->cpu_count++;
     }
-    return 0;
+    return true;
 }
 
 static void cpu_cluster_realize(DeviceState *dev, Error **errp)
@@ -63,7 +63,8 @@ static void cpu_cluster_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    object_child_foreach_recursive(cluster_obj, add_cpu_to_cluster, &cbdata);
+    object_child_foreach_recursive(cluster_obj, add_cpu_to_cluster,
+                                   &cbdata, NULL);
 
     /*
      * A cluster with no CPUs is a bug in the board/SoC code that created it;

@@ -574,7 +574,7 @@ static void init_dev_caps(PVRDMADev *dev)
                                 dev->dev_attr.max_sge) - TARGET_PAGE_SIZE;
 }
 
-static int pvrdma_check_ram_shared(Object *obj, void *opaque)
+static bool pvrdma_check_ram_shared(Object *obj, void *opaque, Error **errp)
 {
     bool *shared = opaque;
 
@@ -582,7 +582,7 @@ static int pvrdma_check_ram_shared(Object *obj, void *opaque)
         *shared = object_property_get_bool(obj, "share", NULL);
     }
 
-    return 0;
+    return true;
 }
 
 static void pvrdma_shutdown_notifier(Notifier *n, void *opaque)
@@ -623,7 +623,8 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
 
     memdev_root = object_resolve_path("/objects", NULL);
     if (memdev_root) {
-        object_child_foreach(memdev_root, pvrdma_check_ram_shared, &ram_shared);
+        object_child_foreach(memdev_root, pvrdma_check_ram_shared,
+                             &ram_shared, NULL);
     }
     if (!ram_shared) {
         error_setg(errp, "Only shared memory backed ram is supported");

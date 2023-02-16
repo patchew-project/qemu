@@ -34,7 +34,7 @@ struct do_nmi_s {
 
 static void nmi_children(Object *o, struct do_nmi_s *ns);
 
-static int do_nmi(Object *o, void *opaque)
+static bool do_nmi(Object *o, void *opaque, Error **errp)
 {
     struct do_nmi_s *ns = opaque;
     NMIState *n = (NMIState *) object_dynamic_cast(o, TYPE_NMI);
@@ -44,17 +44,17 @@ static int do_nmi(Object *o, void *opaque)
 
         ns->handled = true;
         if (!nc->nmi_monitor_handler(n, ns->cpu_index, &ns->err)) {
-            return -1;
+            return false;
         }
     }
     nmi_children(o, ns);
 
-    return 0;
+    return true;
 }
 
 static void nmi_children(Object *o, struct do_nmi_s *ns)
 {
-    object_child_foreach(o, do_nmi, ns);
+    object_child_foreach(o, do_nmi, ns, NULL);
 }
 
 void nmi_monitor_handle(int cpu_index, Error **errp)

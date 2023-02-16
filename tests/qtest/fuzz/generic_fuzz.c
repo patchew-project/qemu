@@ -761,7 +761,7 @@ static int locate_fuzz_memory_regions(Object *child, void *opaque)
     return 0;
 }
 
-static int locate_fuzz_objects(Object *child, void *opaque)
+static bool locate_fuzz_objects(Object *child, void *opaque, Error **errp)
 {
     GString *type_name;
     GString *path_name;
@@ -800,7 +800,7 @@ static int locate_fuzz_objects(Object *child, void *opaque)
         g_string_free(path_name, true);
     }
     g_string_free(type_name, true);
-    return 0;
+    return true;
 }
 
 
@@ -866,7 +866,7 @@ static void generic_pre_fuzz(QTestState *s)
         printf("Matching objects by name %s\n", result[i]);
         object_child_foreach_recursive(qdev_get_machine(),
                                     locate_fuzz_objects,
-                                    name_pattern->str);
+                                    name_pattern->str, NULL);
         g_string_free(name_pattern, true);
     }
     g_strfreev(result);

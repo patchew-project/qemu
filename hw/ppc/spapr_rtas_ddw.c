@@ -24,7 +24,8 @@
 #include "hw/pci-host/spapr.h"
 #include "trace.h"
 
-static int spapr_phb_get_active_win_num_cb(Object *child, void *opaque)
+static bool spapr_phb_get_active_win_num_cb(Object *child, void *opaque,
+                                            Error **errp)
 {
     SpaprTceTable *tcet;
 
@@ -32,19 +33,21 @@ static int spapr_phb_get_active_win_num_cb(Object *child, void *opaque)
     if (tcet && tcet->nb_table) {
         ++*(unsigned *)opaque;
     }
-    return 0;
+    return true;
 }
 
 static unsigned spapr_phb_get_active_win_num(SpaprPhbState *sphb)
 {
     unsigned ret = 0;
 
-    object_child_foreach(OBJECT(sphb), spapr_phb_get_active_win_num_cb, &ret);
+    object_child_foreach(OBJECT(sphb), spapr_phb_get_active_win_num_cb,
+                         &ret, NULL);
 
     return ret;
 }
 
-static int spapr_phb_get_free_liobn_cb(Object *child, void *opaque)
+static bool spapr_phb_get_free_liobn_cb(Object *child, void *opaque,
+                                        Error **errp)
 {
     SpaprTceTable *tcet;
 
@@ -52,14 +55,15 @@ static int spapr_phb_get_free_liobn_cb(Object *child, void *opaque)
     if (tcet && !tcet->nb_table) {
         *(uint32_t *)opaque = tcet->liobn;
     }
-    return 0;
+    return true;
 }
 
 static unsigned spapr_phb_get_free_liobn(SpaprPhbState *sphb)
 {
     uint32_t liobn = 0;
 
-    object_child_foreach(OBJECT(sphb), spapr_phb_get_free_liobn_cb, &liobn);
+    object_child_foreach(OBJECT(sphb), spapr_phb_get_free_liobn_cb,
+                         &liobn, NULL);
 
     return liobn;
 }
