@@ -461,6 +461,7 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
 #define OPC_VPTERNLOGQ  (0x25 | P_EXT3A | P_DATA16 | P_VEXW | P_EVEX)
 #define OPC_VZEROUPPER  (0x77 | P_EXT)
 #define OPC_XCHG_ax_r32	(0x90)
+#define OPC_XCHG_EvGv   (0x87)
 
 #define OPC_GRP3_Eb     (0xf6)
 #define OPC_GRP3_Ev     (0xf7)
@@ -1880,6 +1881,24 @@ static void add_qemu_ldst_label(TCGContext *s, bool is_ld, bool is_64,
     }
 }
 
+/* Move src1 to dst1 and src2 to dst2, minding possible overlap. */
+static void tcg_out_mov2(TCGContext *s,
+                         TCGType type1, TCGReg dst1, TCGReg src1,
+                         TCGType type2, TCGReg dst2, TCGReg src2)
+{
+    if (dst1 != src2) {
+        tcg_out_mov(s, type1, dst1, src1);
+        tcg_out_mov(s, type2, dst2, src2);
+    } else if (dst2 != src1) {
+        tcg_out_mov(s, type2, dst2, src2);
+        tcg_out_mov(s, type1, dst1, src1);
+    } else {
+        /* dst1 == src2 && dst2 == src1 -> xchg. */
+        int w = (type1 == TCG_TYPE_I32 && type2 == TCG_TYPE_I32 ? 0 : P_REXW);
+        tcg_out_modrm(s, OPC_XCHG_EvGv + w, dst1, dst2);
+    }
+}
+
 /*
  * Generate code for the slow path for a load at the end of block
  */
@@ -1947,13 +1966,9 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
     case MO_UQ:
         if (TCG_TARGET_REG_BITS == 64) {
             tcg_out_mov(s, TCG_TYPE_I64, data_reg, TCG_REG_RAX);
-        } else if (data_reg == TCG_REG_EDX) {
-            /* xchg %edx, %eax */
-            tcg_out_opc(s, OPC_XCHG_ax_r32 + TCG_REG_EDX, 0, 0, 0);
-            tcg_out_mov(s, TCG_TYPE_I32, l->datahi_reg, TCG_REG_EAX);
         } else {
-            tcg_out_mov(s, TCG_TYPE_I32, data_reg, TCG_REG_EAX);
-            tcg_out_mov(s, TCG_TYPE_I32, l->datahi_reg, TCG_REG_EDX);
+            tcg_out_mov2(s, TCG_TYPE_I32, data_reg, TCG_REG_EAX,
+                         TCG_TYPE_I32, l->datahi_reg, TCG_REG_EDX);
         }
         break;
     default:
