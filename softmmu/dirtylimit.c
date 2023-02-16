@@ -438,6 +438,8 @@ void qmp_cancel_vcpu_dirty_limit(bool has_cpu_index,
                                  int64_t cpu_index,
                                  Error **errp)
 {
+    MigrationState *ms = migrate_get_current();
+
     if (!kvm_enabled() || !kvm_dirty_ring_enabled()) {
         return;
     }
@@ -448,6 +450,15 @@ void qmp_cancel_vcpu_dirty_limit(bool has_cpu_index,
     }
 
     if (!dirtylimit_in_service()) {
+        return;
+    }
+
+    if (migration_is_running(ms->state) &&
+        (!qemu_thread_is_self(&ms->thread)) &&
+        migrate_dirty_limit() &&
+        dirtylimit_in_service()) {
+        error_setg(errp, "can't cancel dirty page limit while"
+                   " migration is running");
         return;
     }
 
@@ -486,6 +497,8 @@ void qmp_set_vcpu_dirty_limit(bool has_cpu_index,
                               uint64_t dirty_rate,
                               Error **errp)
 {
+    MigrationState *ms = migrate_get_current();
+
     if (!kvm_enabled() || !kvm_dirty_ring_enabled()) {
         error_setg(errp, "dirty page limit feature requires KVM with"
                    " accelerator property 'dirty-ring-size' set'");
@@ -499,6 +512,15 @@ void qmp_set_vcpu_dirty_limit(bool has_cpu_index,
 
     if (!dirty_rate) {
         qmp_cancel_vcpu_dirty_limit(has_cpu_index, cpu_index, errp);
+        return;
+    }
+
+    if (migration_is_running(ms->state) &&
+        (!qemu_thread_is_self(&ms->thread)) &&
+        migrate_dirty_limit() &&
+        dirtylimit_in_service()) {
+        error_setg(errp, "can't cancel dirty page limit while"
+                   " migration is running");
         return;
     }
 
