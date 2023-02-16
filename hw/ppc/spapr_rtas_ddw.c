@@ -51,7 +51,6 @@ static int spapr_phb_get_free_liobn_cb(Object *child, void *opaque)
     tcet = (SpaprTceTable *) object_dynamic_cast(child, TYPE_SPAPR_TCE_TABLE);
     if (tcet && !tcet->nb_table) {
         *(uint32_t *)opaque = tcet->liobn;
-        return 1;
     }
     return 0;
 }
