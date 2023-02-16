@@ -22,6 +22,7 @@
 
 #include "monitor/qdev.h"
 #include "qapi/error.h"
+#include "qapi/qapi-events-qdev.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pcie.h"
 #include "hw/pci/msix.h"
@@ -45,6 +46,13 @@ static bool pcie_sltctl_powered_off(uint16_t sltctl)
 {
     return (sltctl & PCI_EXP_SLTCTL_PCC) == PCI_EXP_SLTCTL_PWR_OFF
         && (sltctl & PCI_EXP_SLTCTL_PIC) == PCI_EXP_SLTCTL_PWR_IND_OFF;
+}
+
+static bool pcie_sltctl_powered_on(uint16_t sltctl)
+{
+    return (sltctl & PCI_EXP_SLTCTL_PCC) == PCI_EXP_SLTCTL_PWR_ON &&
+        (sltctl & PCI_EXP_SLTCTL_PIC) == PCI_EXP_SLTCTL_PWR_IND_ON &&
+        (sltctl & PCI_EXP_SLTCTL_AIC) == PCI_EXP_SLTCTL_ATTN_IND_OFF;
 }
 
 static LedActivity pcie_led_state_to_qapi(uint16_t value)
@@ -814,6 +822,12 @@ void pcie_cap_slot_write_config(PCIDevice *dev,
 
     if (cs->has_power_led || cs->has_attention_led || cs->has_power_on) {
         qdev_hotplug_state_event(DEVICE(dev), NULL, child_dev, &changed_state);
+    }
+
+    if ((sltsta & PCI_EXP_SLTSTA_PDS) && pcie_sltctl_powered_on(val) &&
+        !pcie_sltctl_powered_on(old_slt_ctl) && child_dev)
+    {
+        qapi_event_send_device_on(child_dev->id, child_dev->canonical_path);
     }
 
     /*
