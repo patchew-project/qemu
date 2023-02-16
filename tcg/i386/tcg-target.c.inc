@@ -1747,6 +1747,83 @@ tcg_out_testi(TCGContext *s, TCGReg r, uint32_t i)
 }
 
 /*
+ * Return the alignment and atomicity to use for the inline fast path
+ * for the given memory operation.  The alignment may be larger than
+ * that specified in @opc, and the correct alignment will be diagnosed
+ * by the slow path helper.
+ */
+static MemOp atom_and_align_for_opc(TCGContext *s, MemOp opc, MemOp *out_al)
+{
+    MemOp align = get_alignment_bits(opc);
+    MemOp atom, atmax, atsub, size = opc & MO_SIZE;
+
+    /* When serialized, no further atomicity required.  */
+    if (s->gen_tb->cflags & CF_PARALLEL) {
+        atom = opc & MO_ATOM_MASK;
+    } else {
+        atom = MO_ATOM_NONE;
+    }
+
+    atmax = opc & MO_ATMAX_MASK;
+    if (atmax == MO_ATMAX_SIZE) {
+        atmax = size;
+    } else {
+        atmax = atmax >> MO_ATMAX_SHIFT;
+    }
+
+    switch (atom) {
+    case MO_ATOM_NONE:
+        /* The operation requires no specific atomicity. */
+        atmax = MO_8;
+        atsub = MO_8;
+        break;
+    case MO_ATOM_IFALIGN:
+        /* If unaligned, the subobjects are bytes. */
+        atsub = MO_8;
+        break;
+    case MO_ATOM_WITHIN16:
+        /* If unaligned, there are subobjects if atmax < size. */
+        atsub = (atmax < size ? atmax : MO_8);
+        atmax = size;
+        break;
+    case MO_ATOM_SUBALIGN:
+        /* If unaligned but not odd, there are subobjects up to atmax - 1. */
+        atsub = (atmax == MO_8 ? MO_8 : atmax - 1);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    /*
+     * Per Intel Architecture SDM, Volume 3 Section 8.1.1,
+     * - Pentium family guarantees atomicity of aligned <= 64-bit.
+     * - P6 family guarantees atomicity of unaligned <= 64-bit
+     *   which fit within a cache line.
+     * - AVX guarantees atomicity of aligned 128-bit VMOVDQA (et al).
+     *
+     * There is no language in the Intel manual specifying what happens
+     * with the partial memory operations when crossing a cache line.
+     * When there is required atomicity of subobjects, we must perform
+     * an additional runtime test for alignment and then perform either
+     * the full operation, or two half-sized operations.
+     *
+     * For x86_64, and MO_64, we do not have a scratch register with
+     * which to do this.  Only allow splitting for MO_64 on i386,
+     * where the data is already separated, or MO_128.
+     * Otherwise, require full alignment and fall back to the helper
+     * for the misaligned case.
+     */
+    if (align < atmax
+        && atsub != MO_8
+        && size != (TCG_TARGET_REG_BITS == 64 ? MO_128 : MO_64)) {
+        align = size;
+    }
+
+    *out_al = align;
+    return atmax;
+}
+
+/*
  * helper signature: helper_ld*_mmu(CPUState *env, target_ulong addr,
  *                                  int mmu_idx, uintptr_t ra)
  */
@@ -1987,7 +2064,7 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
  * First argument register is clobbered.
  */
 static void tcg_out_tlb_load(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
-                             int mem_index, MemOp opc,
+                             int mem_index, MemOp a_bits, MemOp s_bits,
                              tcg_insn_unit **label_ptr, int which)
 {
     const TCGReg r0 = TCG_REG_L0;
@@ -1995,8 +2072,6 @@ static void tcg_out_tlb_load(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
     TCGType ttype = TCG_TYPE_I32;
     TCGType tlbtype = TCG_TYPE_I32;
     int trexw = 0, hrexw = 0, tlbrexw = 0;
-    unsigned a_bits = get_alignment_bits(opc);
-    unsigned s_bits = opc & MO_SIZE;
     unsigned a_mask = (1 << a_bits) - 1;
     unsigned s_mask = (1 << s_bits) - 1;
     target_ulong tlb_mask;
@@ -2124,7 +2199,8 @@ static inline int setup_guest_base_seg(void)
 
 static void tcg_out_qemu_ld_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
                                    TCGReg base, int index, intptr_t ofs,
-                                   int seg, TCGType type, MemOp memop)
+                                   int seg, TCGType type, MemOp memop,
+                                   MemOp atom, MemOp align)
 {
     bool use_movbe = false;
     int rexw = (type == TCG_TYPE_I32 ? 0 : P_REXW);
@@ -2225,11 +2301,8 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, TCGType type)
     TCGReg datalo, datahi, addrlo;
     TCGReg addrhi __attribute__((unused));
     MemOpIdx oi;
-    MemOp opc;
+    MemOp opc, atom, align;
     tcg_insn_unit *label_ptr[2] = { };
-#ifndef CONFIG_SOFTMMU
-    unsigned a_bits;
-#endif
 
     datalo = *args++;
     switch (type) {
@@ -2246,26 +2319,27 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, TCGType type)
     addrhi = (TARGET_LONG_BITS > TCG_TARGET_REG_BITS ? *args++ : 0);
     oi = *args++;
     opc = get_memop(oi);
+    atom = atom_and_align_for_opc(s, opc, &align);
 
 #if defined(CONFIG_SOFTMMU)
-    tcg_out_tlb_load(s, addrlo, addrhi, get_mmuidx(oi), opc,
+    tcg_out_tlb_load(s, addrlo, addrhi, get_mmuidx(oi), align, opc & MO_SIZE,
                      label_ptr, offsetof(CPUTLBEntry, addr_read));
 
     /* TLB Hit.  */
-    tcg_out_qemu_ld_direct(s, datalo, datahi, TCG_REG_L1, -1, 0, 0, type, opc);
+    tcg_out_qemu_ld_direct(s, datalo, datahi, TCG_REG_L1, -1, 0, 0, type,
+                           opc, atom, align);
 
     /* Record the current context of a load into ldst label */
     add_qemu_ldst_label(s, true, type, oi, datalo, datahi,
                         TCG_REG_L1, addrhi, s->code_ptr, label_ptr);
 #else
-    a_bits = get_alignment_bits(opc);
-    if (a_bits) {
-        tcg_out_test_alignment(s, addrlo, a_bits, label_ptr);
+    if (align) {
+        tcg_out_test_alignment(s, addrlo, align, label_ptr);
     }
     tcg_out_qemu_ld_direct(s, datalo, datahi, addrlo, x86_guest_base_index,
                            x86_guest_base_offset, x86_guest_base_seg,
-                           type, opc);
-    if (a_bits) {
+                           type, opc, atom, align);
+    if (align) {
         add_qemu_ldst_label(s, true, type, oi, datalo, datahi,
                             addrlo, addrhi, s->code_ptr, label_ptr);
     }
@@ -2274,7 +2348,8 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, TCGType type)
 
 static void tcg_out_qemu_st_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
                                    TCGReg base, int index, intptr_t ofs,
-                                   int seg, MemOp memop)
+                                   int seg, MemOp memop,
+                                   MemOp atom, MemOp align)
 {
     bool use_movbe = false;
     int movop = OPC_MOVL_EvGv;
@@ -2329,11 +2404,8 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, TCGType type)
     TCGReg datalo, datahi, addrlo;
     TCGReg addrhi __attribute__((unused));
     MemOpIdx oi;
-    MemOp opc;
+    MemOp opc, atom, align;
     tcg_insn_unit *label_ptr[2] = { };
-#ifndef CONFIG_SOFTMMU
-    unsigned a_bits;
-#endif
 
     datalo = *args++;
     switch (type) {
@@ -2350,25 +2422,27 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, TCGType type)
     addrhi = (TARGET_LONG_BITS > TCG_TARGET_REG_BITS ? *args++ : 0);
     oi = *args++;
     opc = get_memop(oi);
+    atom = atom_and_align_for_opc(s, opc, &align);
 
 #if defined(CONFIG_SOFTMMU)
-    tcg_out_tlb_load(s, addrlo, addrhi, get_mmuidx(oi), opc,
+    tcg_out_tlb_load(s, addrlo, addrhi, get_mmuidx(oi), align, opc & MO_SIZE,
                      label_ptr, offsetof(CPUTLBEntry, addr_write));
 
     /* TLB Hit.  */
-    tcg_out_qemu_st_direct(s, datalo, datahi, TCG_REG_L1, -1, 0, 0, opc);
+    tcg_out_qemu_st_direct(s, datalo, datahi, TCG_REG_L1, -1, 0, 0,
+                           opc, atom, align);
 
     /* Record the current context of a store into ldst label */
     add_qemu_ldst_label(s, false, type, oi, datalo, datahi,
                         TCG_REG_L1, addrhi, s->code_ptr, label_ptr);
 #else
-    a_bits = get_alignment_bits(opc);
-    if (a_bits) {
-        tcg_out_test_alignment(s, addrlo, a_bits, label_ptr);
+    if (align) {
+        tcg_out_test_alignment(s, addrlo, align, label_ptr);
     }
     tcg_out_qemu_st_direct(s, datalo, datahi, addrlo, x86_guest_base_index,
-                           x86_guest_base_offset, x86_guest_base_seg, opc);
-    if (a_bits) {
+                           x86_guest_base_offset, x86_guest_base_seg,
+                           opc, atom, align);
+    if (align) {
         add_qemu_ldst_label(s, false, type, oi, datalo, datahi,
                             addrlo, addrhi, s->code_ptr, label_ptr);
     }
