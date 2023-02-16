@@ -1,5 +1,5 @@
 /*
- * QEMU RISC-V Helpers for LowRISC Ibex Demo System & OpenTitan EarlGrey
+ * QEMU RISC-V Helpers for LowRISC OpenTitan EarlGrey and related systems
  *
  * Copyright (c) 2022-2023 Rivos, Inc.
  *

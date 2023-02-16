@@ -17,6 +17,7 @@ config OT_EARLGREY
     default y
     select IBEX
     select IBEX_COMMON
+    select OT_ALERT
     select SIFIVE_PLIC
 
 config MICROCHIP_PFSOC
