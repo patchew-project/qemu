@@ -278,36 +278,29 @@ IPMIBmc *pnv_bmc_create(PnvPnor *pnor)
     return IPMI_BMC(obj);
 }
 
-typedef struct ForeachArgs {
-    const char *name;
-    Object *obj;
-} ForeachArgs;
-
 static bool bmc_find(Object *child, void *opaque, Error **errp)
 {
-    ForeachArgs *args = opaque;
+    Object **obj = opaque;
 
-    if (object_dynamic_cast(child, args->name)) {
-        if (args->obj) {
-            return false;
+    if (object_dynamic_cast(child, TYPE_IPMI_BMC)) {
+        if (*obj) {
+            return true;
         }
-        args->obj = child;
+        *obj = child;
     }
     return true;
 }
 
 IPMIBmc *pnv_bmc_find(Error **errp)
 {
-    ForeachArgs args = { TYPE_IPMI_BMC, NULL };
-    int ret;
+    Object *obj = NULL;
 
-    ret = object_child_foreach_recursive(object_get_root(), bmc_find,
-                                         &args, NULL);
-    if (ret) {
+    if (!object_child_foreach_recursive(object_get_root(), bmc_find, &obj,
+                                        NULL)) {
         error_setg(errp, "machine should have only one BMC device. "
                    "Use '-nodefaults'");
         return NULL;
     }
 
-    return args.obj ? IPMI_BMC(args.obj) : NULL;
+    return IPMI_BMC(obj);
 }
