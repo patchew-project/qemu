@@ -41,4 +41,6 @@ const char *qdev_set_id(DeviceState *dev, char *id, Error **errp);
 void qdev_hotplug_state_event(DeviceState *bus, const char *addr,
                               DeviceState *child, HotplugState *changed_state);
 
+DeviceAndPath *qdev_new_device_and_path(DeviceState *dev);
+
 #endif
