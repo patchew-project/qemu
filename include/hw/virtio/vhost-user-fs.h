@@ -40,6 +40,7 @@ struct VHostUserFS {
     VirtQueue **req_vqs;
     VirtQueue *hiprio_vq;
     int32_t bootindex;
+    uint8_t migration_type;
 
     /*< public >*/
 };

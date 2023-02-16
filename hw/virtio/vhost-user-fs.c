@@ -24,6 +24,7 @@
 #include "hw/virtio/vhost-user-fs.h"
 #include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
+#include "qapi/qapi-types-migration.h"
 
 static const int user_feature_bits[] = {
     VIRTIO_F_VERSION_1,
@@ -298,9 +299,36 @@ static struct vhost_dev *vuf_get_vhost(VirtIODevice *vdev)
     return &fs->vhost_dev;
 }
 
+static int vhost_user_fs_pre_save(void *opaque)
+{
+    VHostUserFS *fs = (VHostUserFS *)opaque;
+    g_autofree char *path = object_get_canonical_path(OBJECT(fs));
+
+    switch (fs->migration_type) {
+    case VHOST_USER_MIGRATION_TYPE_NONE:
+        error_report("Migration is blocked by device %s", path);
+        break;
+    case VHOST_USER_MIGRATION_TYPE_EXTERNAL:
+        return 0;
+    default:
+        error_report("Migration type '%s' is not supported by device %s",
+                     VhostUserMigrationType_str(fs->migration_type), path);
+        break;
+    }
+
+    return -1;
+}
+
 static const VMStateDescription vuf_vmstate = {
     .name = "vhost-user-fs",
-    .unmigratable = 1,
+    .minimum_version_id = 0,
+    .version_id = 0,
+    .fields = (VMStateField[]) {
+        VMSTATE_VIRTIO_DEVICE,
+        VMSTATE_UINT8(migration_type, VHostUserFS),
+        VMSTATE_END_OF_LIST()
+    },
+   .pre_save = vhost_user_fs_pre_save,
 };
 
 static Property vuf_properties[] = {
@@ -309,6 +337,10 @@ static Property vuf_properties[] = {
     DEFINE_PROP_UINT16("num-request-queues", VHostUserFS,
                        conf.num_request_queues, 1),
     DEFINE_PROP_UINT16("queue-size", VHostUserFS, conf.queue_size, 128),
+    DEFINE_PROP_UNSIGNED("migration", VHostUserFS, migration_type,
+                         VHOST_USER_MIGRATION_TYPE_NONE,
+                         qdev_prop_vhost_user_migration_type,
+                         uint8_t),
     DEFINE_PROP_END_OF_LIST(),
 };
 

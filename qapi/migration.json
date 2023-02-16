@@ -2178,3 +2178,19 @@
   'data': { 'job-id': 'str',
             'tag': 'str',
             'devices': ['str'] } }
+
+##
+# @VhostUserMigrationType:
+#
+# Type of vhost-user device migration.
+#
+# @none: Migration is not supported, attempts to migrate with this device
+#        will be blocked.
+#
+# @external: Migration stream contains only virtio device state,
+#            deamon state should be transfered externally by orchestrator.
+#
+# Since: 8.0
+##
+{ 'enum': 'VhostUserMigrationType',
+  'data': [ 'none', 'external' ] }
