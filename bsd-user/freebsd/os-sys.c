@@ -107,6 +107,38 @@ static abi_ulong G_GNUC_UNUSED h2g_ulong_sat(u_long ul)
  */
 #define bsd_get_ncpu() 1
 
+/*
+ * This uses the undocumented oidfmt interface to find the kind of a requested
+ * sysctl, see /sys/kern/kern_sysctl.c:sysctl_sysctl_oidfmt() (compare to
+ * src/sbin/sysctl/sysctl.c)
+ */
+static int G_GNUC_UNUSED oidfmt(int *oid, int len, char *fmt, uint32_t *kind)
+{
+    int qoid[CTL_MAXNAME + 2];
+    uint8_t buf[BUFSIZ];
+    int i;
+    size_t j;
+
+    qoid[0] = CTL_SYSCTL;
+    qoid[1] = CTL_SYSCTL_OIDFMT;
+    memcpy(qoid + 2, oid, len * sizeof(int));
+
+    j = sizeof(buf);
+    i = sysctl(qoid, len + 2, buf, &j, 0, 0);
+    if (i) {
+        return i;
+    }
+
+    if (kind) {
+        *kind = *(uint32_t *)buf;
+    }
+
+    if (fmt) {
+        strcpy(fmt, (char *)(buf + sizeof(uint32_t)));
+    }
+    return 0;
+}
+
 /* sysarch() is architecture dependent. */
 abi_long do_freebsd_sysarch(void *cpu_env, abi_long arg1, abi_long arg2)
 {
