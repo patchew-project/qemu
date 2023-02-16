@@ -76,6 +76,7 @@ struct CPUClusterState {
 
     /*< public >*/
     uint32_t cluster_id;
+    char *cpu_type;
 };
 
 #endif

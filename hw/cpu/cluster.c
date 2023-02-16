@@ -28,6 +28,7 @@
 
 static Property cpu_cluster_properties[] = {
     DEFINE_PROP_UINT32("cluster-id", CPUClusterState, cluster_id, 0),
+    DEFINE_PROP_STRING("cpu-type", CPUClusterState, cpu_type),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -41,11 +42,17 @@ static bool add_cpu_to_cluster(Object *obj, void *opaque, Error **errp)
     CallbackData *cbdata = opaque;
     CPUState *cpu;
 
-    cpu = (CPUState *)object_dynamic_cast(obj, TYPE_CPU);
+    if (cbdata->cluster->cpu_type == NULL) {
+        /* If no 'cpu-type' property set, enforce it with the first CPU added */
+        assert(object_dynamic_cast(obj, TYPE_CPU) != NULL);
+        cbdata->cluster->cpu_type = g_strdup(object_get_typename(obj));
+    }
+
+    cpu = (CPUState *)object_dynamic_cast(obj, cbdata->cluster->cpu_type);
     if (!cpu) {
-        error_setg(errp, "cluster %s can only accept CPU types (got %s)",
+        error_setg(errp, "cluster %s can only accept %s CPUs (got %s)",
                    object_get_canonical_path(OBJECT(cbdata->cluster)),
-                   object_get_typename(obj));
+                   cbdata->cluster->cpu_type, object_get_typename(obj));
         return false;
     }
 
@@ -68,6 +75,12 @@ static void cpu_cluster_realize(DeviceState *dev, Error **errp)
     if (cluster->cluster_id >= MAX_CLUSTERS) {
         error_setg(errp, "cluster-id must be less than %d", MAX_CLUSTERS);
         return;
+    }
+    if (cluster->cpu_type) {
+        if (object_class_is_abstract(object_class_by_name(cluster->cpu_type))) {
+            error_setg(errp, "cpu-type must be a concrete class");
+            return;
+        }
     }
 
     if (!object_child_foreach(cluster_obj, add_cpu_to_cluster, &cbdata, errp)) {
