@@ -227,13 +227,15 @@ static void glue_auxmode_set_irq(void *opaque, int irq, int level)
     s->auxmode = level;
 }
 
-static void glue_nmi(NMIState *n, int cpu_index, Error **errp)
+static bool glue_nmi(NMIState *n, int cpu_index, Error **errp)
 {
     GLUEState *s = GLUE(n);
 
     /* Hold NMI active for 100ms */
     GLUE_set_irq(s, GLUE_IRQ_IN_NMI, 1);
     timer_mod(s->nmi_release, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 100);
+
+    return true;
 }
 
 static void glue_nmi_release(void *opaque)

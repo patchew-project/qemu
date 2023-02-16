@@ -2309,13 +2309,14 @@ static void pnv_cpu_do_nmi_on_cpu(CPUState *cs, run_on_cpu_data arg)
     }
 }
 
-static void pnv_nmi(NMIState *n, int cpu_index, Error **errp)
+static bool pnv_nmi(NMIState *n, int cpu_index, Error **errp)
 {
     CPUState *cs;
 
     CPU_FOREACH(cs) {
         async_run_on_cpu(cs, pnv_cpu_do_nmi_on_cpu, RUN_ON_CPU_NULL);
     }
+    return true;
 }
 
 static void pnv_machine_class_init(ObjectClass *oc, void *data)

@@ -3464,13 +3464,14 @@ void spapr_do_system_reset_on_cpu(CPUState *cs, run_on_cpu_data arg)
     }
 }
 
-static void spapr_nmi(NMIState *n, int cpu_index, Error **errp)
+static bool spapr_nmi(NMIState *n, int cpu_index, Error **errp)
 {
     CPUState *cs;
 
     CPU_FOREACH(cs) {
         async_run_on_cpu(cs, spapr_do_system_reset_on_cpu, RUN_ON_CPU_NULL);
     }
+    return true;
 }
 
 int spapr_lmb_dt_populate(SpaprDrc *drc, SpaprMachineState *spapr,
