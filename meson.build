@@ -2953,6 +2953,7 @@ if have_system
     'hw/i2c',
     'hw/i386',
     'hw/i386/xen',
+    'hw/i386/kvm',
     'hw/ide',
     'hw/input',
     'hw/intc',
