@@ -2545,30 +2545,27 @@ static void gen_load_exclusive(DisasContext *s, int rt, int rt2,
                 tcg_gen_extract_i64(cpu_reg(s, rt2), cpu_exclusive_val, 0, 32);
             }
         } else {
-            /* The pair must be single-copy atomic for *each* doubleword, not
-               the entire quadword, however it must be quadword aligned.  */
-            TCGv_i64 t0 = tcg_temp_new_i64();
-            TCGv_i64 t1 = tcg_temp_new_i64();
+            /*
+             * The pair must be single-copy atomic for *each* doubleword, not
+             * the entire quadword, however it must be quadword aligned.
+             * Expose the complete load to tcg, for ease of tlb lookup,
+             * but indicate that only 8-byte atomicity is required.
+             */
+            TCGv_i128 t16 = tcg_temp_new_i128();
 
-            memop |= MO_64;
-            tcg_gen_qemu_ld_i64(t0, addr, idx, memop | MO_ALIGN_16);
+            memop |= MO_128 | MO_ALIGN_16 | MO_ATMAX_8;
+            tcg_gen_qemu_ld_i128(t16, addr, idx, memop);
 
-            tcg_gen_addi_i64(t1, addr, 8);
-            tcg_gen_qemu_ld_i64(t1, t1, idx, memop);
+            tcg_gen_extr_i128_i64(cpu_exclusive_val, cpu_exclusive_high, t16);
+            tcg_temp_free_i128(t16);
 
             if (s->be_data == MO_LE) {
-                tcg_gen_mov_i64(cpu_exclusive_val, t0);
-                tcg_gen_mov_i64(cpu_exclusive_high, t1);
+                tcg_gen_mov_i64(cpu_reg(s, rt), cpu_exclusive_val);
+                tcg_gen_mov_i64(cpu_reg(s, rt2), cpu_exclusive_high);
             } else {
-                tcg_gen_mov_i64(cpu_exclusive_high, t0);
-                tcg_gen_mov_i64(cpu_exclusive_val, t1);
+                tcg_gen_mov_i64(cpu_reg(s, rt), cpu_exclusive_high);
+                tcg_gen_mov_i64(cpu_reg(s, rt2), cpu_exclusive_val);
             }
-
-            tcg_gen_mov_i64(cpu_reg(s, rt), t0);
-            tcg_gen_mov_i64(cpu_reg(s, rt2), t1);
-
-            tcg_temp_free_i64(t0);
-            tcg_temp_free_i64(t1);
         }
     } else {
         memop |= size | MO_ALIGN;
