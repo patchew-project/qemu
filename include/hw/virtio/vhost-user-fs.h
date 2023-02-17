@@ -19,6 +19,7 @@
 #include "hw/virtio/vhost-user.h"
 #include "chardev/char-fe.h"
 #include "qom/object.h"
+#include "qapi/qapi-types-migration.h"
 
 #define TYPE_VHOST_USER_FS "vhost-user-fs-device"
 OBJECT_DECLARE_SIMPLE_TYPE(VHostUserFS, VHOST_USER_FS)
@@ -40,6 +41,7 @@ struct VHostUserFS {
     VirtQueue **req_vqs;
     VirtQueue *hiprio_vq;
     int32_t bootindex;
+    VhostUserMigrationType migration_type;
 
     /*< public >*/
 };
