@@ -34,6 +34,7 @@
 #include "trace.h"
 #include "hw/sysbus.h"
 #include "hw/irq.h"
+#include "hw/ptimer.h"
 #include "hw/registerfields.h"
 #include "hw/qdev-clock.h"
 #include "hw/timer/cmsdk-apb-timer.h"

@@ -14,7 +14,6 @@
 
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
-#include "hw/ptimer.h"
 #include "hw/clock.h"
 #include "qom/object.h"
 
@@ -34,7 +33,7 @@ struct CMSDKAPBTimer {
     /*< public >*/
     MemoryRegion iomem;
     qemu_irq timerint;
-    struct ptimer_state *timer;
+    ptimer_state *timer;
     Clock *pclk;
 
     uint32_t ctrl;

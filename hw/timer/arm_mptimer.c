@@ -65,7 +65,7 @@ static inline uint32_t timerblock_scale(uint32_t control)
 }
 
 /* Must be called within a ptimer transaction block */
-static inline void timerblock_set_count(struct ptimer_state *timer,
+static inline void timerblock_set_count(ptimer_state *timer,
                                         uint32_t control, uint64_t *count)
 {
     /* PTimer would trigger interrupt for periodic timer when counter set
@@ -78,7 +78,7 @@ static inline void timerblock_set_count(struct ptimer_state *timer,
 }
 
 /* Must be called within a ptimer transaction block */
-static inline void timerblock_run(struct ptimer_state *timer,
+static inline void timerblock_run(ptimer_state *timer,
                                   uint32_t control, uint32_t load)
 {
     if ((control & 1) && ((control & 0xff00) || load != 0)) {

@@ -32,7 +32,6 @@
 #define CMSDK_APB_WATCHDOG_H
 
 #include "hw/sysbus.h"
-#include "hw/ptimer.h"
 #include "hw/clock.h"
 #include "qom/object.h"
 
@@ -53,7 +52,7 @@ struct CMSDKAPBWatchdog {
     MemoryRegion iomem;
     qemu_irq wdogint;
     bool is_luminary;
-    struct ptimer_state *timer;
+    ptimer_state *timer;
     Clock *wdogclk;
 
     uint32_t control;

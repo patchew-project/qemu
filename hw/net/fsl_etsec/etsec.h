@@ -27,7 +27,6 @@
 
 #include "hw/sysbus.h"
 #include "net/net.h"
-#include "hw/ptimer.h"
 #include "qom/object.h"
 
 /* Buffer Descriptors */
@@ -142,7 +141,7 @@ struct eTSEC {
     uint16_t phy_control;
 
     /* Polling */
-    struct ptimer_state *ptimer;
+    ptimer_state *ptimer;
 
     /* Whether we should flush the rx queue when buffer becomes available. */
     bool need_flush;

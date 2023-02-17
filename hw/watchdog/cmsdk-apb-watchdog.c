@@ -28,6 +28,7 @@
 #include "sysemu/watchdog.h"
 #include "hw/sysbus.h"
 #include "hw/irq.h"
+#include "hw/ptimer.h"
 #include "hw/qdev-properties.h"
 #include "hw/registerfields.h"
 #include "hw/qdev-clock.h"

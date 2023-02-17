@@ -23,7 +23,6 @@
 
 #include "hw/sysbus.h"
 #include "hw/register.h"
-#include "hw/ptimer.h"
 #include "hw/stream.h"
 
 #define TYPE_XLNX_CSU_DMA "xlnx.csu_dma"

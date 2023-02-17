@@ -94,7 +94,6 @@
 #define PTIMER_POLICY_TRIGGER_ONLY_ON_DECREMENT (1 << 5)
 
 /* ptimer.c */
-typedef struct ptimer_state ptimer_state;
 typedef void (*ptimer_cb)(void *opaque);
 
 /**

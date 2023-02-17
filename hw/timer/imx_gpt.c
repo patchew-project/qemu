@@ -14,6 +14,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/irq.h"
+#include "hw/ptimer.h"
 #include "hw/timer/imx_gpt.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"

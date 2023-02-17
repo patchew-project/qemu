@@ -30,7 +30,6 @@
 #define IMX_GPT_H
 
 #include "hw/sysbus.h"
-#include "hw/ptimer.h"
 #include "hw/misc/imx_ccm.h"
 #include "qom/object.h"
 

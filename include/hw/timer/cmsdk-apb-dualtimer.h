@@ -27,7 +27,6 @@
 #define CMSDK_APB_DUALTIMER_H
 
 #include "hw/sysbus.h"
-#include "hw/ptimer.h"
 #include "hw/clock.h"
 #include "qom/object.h"
 
@@ -38,7 +37,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(CMSDKAPBDualTimer, CMSDK_APB_DUALTIMER)
 /* One of the two identical timer modules in the dual-timer module */
 typedef struct CMSDKAPBDualTimerModule {
     CMSDKAPBDualTimer *parent;
-    struct ptimer_state *timer;
+    ptimer_state *timer;
     qemu_irq timerint;
     /*
      * We must track the guest LOAD and VALUE register state by hand

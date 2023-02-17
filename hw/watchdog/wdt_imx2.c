@@ -15,6 +15,7 @@
 #include "sysemu/watchdog.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
+#include "hw/ptimer.h"
 
 #include "hw/watchdog/wdt_imx2.h"
 

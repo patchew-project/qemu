@@ -15,7 +15,6 @@
 #include "qemu/bitops.h"
 #include "hw/sysbus.h"
 #include "hw/irq.h"
-#include "hw/ptimer.h"
 #include "qom/object.h"
 
 #define TYPE_IMX2_WDT "imx2.wdt"
@@ -71,8 +70,8 @@ struct IMX2WdtState {
     MemoryRegion mmio;
     qemu_irq irq;
 
-    struct ptimer_state *timer;
-    struct ptimer_state *itimer;
+    ptimer_state *timer;
+    ptimer_state *itimer;
 
     bool pretimeout_support;
     bool wicr_locked;
