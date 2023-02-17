@@ -31,7 +31,12 @@ then
         fi
     fi
 
-    mkdir build
+    if ! mkdir build || ! touch $MARKER
+    then
+        echo "ERROR: Could not create ./build directory. Check the permissions on
+            your source directory, or try doing an out-of-tree build."
+        exit 1
+    fi
     touch $MARKER
 
     cat > GNUmakefile <<'EOF'
