@@ -30,7 +30,7 @@
 #define TIMER_CTRL_ENABLE       (1 << 7)
 
 typedef struct {
-    ptimer_state *timer;
+    PTimer *timer;
     uint32_t control;
     uint32_t limit;
     int freq;

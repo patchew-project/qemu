@@ -37,7 +37,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(CMSDKAPBDualTimer, CMSDK_APB_DUALTIMER)
 /* One of the two identical timer modules in the dual-timer module */
 typedef struct CMSDKAPBDualTimerModule {
     CMSDKAPBDualTimer *parent;
-    ptimer_state *timer;
+    PTimer *timer;
     qemu_irq timerint;
     /*
      * We must track the guest LOAD and VALUE register state by hand

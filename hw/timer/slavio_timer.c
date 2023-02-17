@@ -52,7 +52,7 @@
 
 typedef struct CPUTimerState {
     qemu_irq irq;
-    ptimer_state *timer;
+    PTimer *timer;
     uint32_t count, counthigh, reached;
     /* processor only */
     uint32_t run;

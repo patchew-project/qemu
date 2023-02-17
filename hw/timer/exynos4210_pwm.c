@@ -92,7 +92,7 @@ typedef struct {
     uint32_t    freq;           /* timer frequency */
 
     /* use ptimer.c to represent count down timer */
-    ptimer_state *ptimer;       /* timer  */
+    PTimer     *ptimer;         /* timer  */
 
     /* registers */
     uint32_t    reg_tcntb;      /* counter register buffer */

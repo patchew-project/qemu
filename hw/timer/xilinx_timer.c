@@ -52,7 +52,7 @@
 
 struct xlx_timer
 {
-    ptimer_state *ptimer;
+    PTimer *ptimer;
     void *parent;
     int nr; /* for debug.  */
 

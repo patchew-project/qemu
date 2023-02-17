@@ -30,7 +30,7 @@
 typedef struct {
     uint32_t control;
     uint32_t status;
-    ptimer_state *timer;
+    PTimer *timer;
     qemu_irq irq;
     MemoryRegion iomem;
 } TimerBlock;

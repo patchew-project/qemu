@@ -91,7 +91,7 @@ struct IMXGPTState {
     SysBusDevice parent_obj;
 
     /*< public >*/
-    ptimer_state *timer;
+    PTimer *timer;
     MemoryRegion  iomem;
     IMXCCMState  *ccm;
 

@@ -45,7 +45,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(MSSTimerState, MSS_TIMER)
 #define R_TIM1_MAX        6
 
 struct Msf2Timer {
-    ptimer_state *ptimer;
+    PTimer *ptimer;
 
     uint32_t regs[R_TIM1_MAX];
     qemu_irq irq;

@@ -34,7 +34,7 @@
 #define OFFSET_TCPR   3
 
 typedef struct {
-    ptimer_state *timer;
+    PTimer *timer;
     uint32_t tcnt;
     uint32_t tcor;
     uint32_t tcr;

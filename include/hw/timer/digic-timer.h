@@ -36,7 +36,7 @@ struct DigicTimerState {
     /*< public >*/
 
     MemoryRegion iomem;
-    ptimer_state *ptimer;
+    PTimer *ptimer;
 
     uint32_t control;
     uint32_t relvalue;

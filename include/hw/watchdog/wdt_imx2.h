@@ -70,8 +70,8 @@ struct IMX2WdtState {
     MemoryRegion mmio;
     qemu_irq irq;
 
-    ptimer_state *timer;
-    ptimer_state *itimer;
+    PTimer *timer;
+    PTimer *itimer;
 
     bool pretimeout_support;
     bool wicr_locked;

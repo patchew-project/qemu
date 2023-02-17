@@ -61,9 +61,9 @@ struct ETRAXTimerState {
     qemu_irq irq;
     qemu_irq nmi;
 
-    ptimer_state *ptimer_t0;
-    ptimer_state *ptimer_t1;
-    ptimer_state *ptimer_wd;
+    PTimer *ptimer_t0;
+    PTimer *ptimer_t1;
+    PTimer *ptimer_wd;
 
     uint32_t wd_hits;
 
@@ -151,7 +151,7 @@ static void update_ctrl(ETRAXTimerState *t, int tnum)
     unsigned int div;
     uint32_t ctrl;
 
-    ptimer_state *timer;
+    PTimer *timer;
 
     if (tnum == 0) {
         ctrl = t->rw_tmr0_ctrl;

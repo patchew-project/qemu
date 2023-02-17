@@ -43,7 +43,7 @@
 typedef struct {
     MemoryRegion iomem;
     qemu_irq irq;
-    ptimer_state *timer;
+    PTimer *timer;
     uint16_t pcsr;
     uint16_t pmr;
     uint16_t pcntr;

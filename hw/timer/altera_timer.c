@@ -52,7 +52,7 @@ struct AlteraTimer {
     MemoryRegion  mmio;
     qemu_irq      irq;
     uint32_t      freq_hz;
-    ptimer_state *ptimer;
+    PTimer       *ptimer;
     uint32_t      regs[R_MAX];
 };
 

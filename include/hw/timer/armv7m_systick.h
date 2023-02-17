@@ -39,7 +39,7 @@ struct SysTickState {
     uint32_t control;
     uint32_t reload;
     int64_t tick;
-    ptimer_state *ptimer;
+    PTimer *ptimer;
     MemoryRegion iomem;
     qemu_irq irq;
     Clock *refclk;

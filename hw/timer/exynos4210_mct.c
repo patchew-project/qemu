@@ -201,7 +201,7 @@ typedef struct {
     uint64_t count;            /* Value FRC was armed with */
     int32_t curr_comp;             /* Current comparator FRC is running to */
 
-    ptimer_state *ptimer_frc;                   /* FRC timer */
+    PTimer *ptimer_frc;        /* FRC timer */
 
 } Exynos4210MCTGT;
 
@@ -224,12 +224,12 @@ typedef struct {
         uint64_t    progress;       /* progress when counting by steps */
         uint64_t    count;          /* count to arm timer with */
 
-        ptimer_state *ptimer_tick;  /* timer for tick counter */
+        PTimer *ptimer_tick;        /* timer for tick counter */
     } tick_timer;
 
     /* use ptimer.c to represent count down timer */
 
-    ptimer_state *ptimer_frc;   /* timer for free running counter */
+    PTimer *ptimer_frc;             /* timer for free running counter */
 
     /* registers */
     struct lregs {
@@ -981,7 +981,7 @@ static void exynos4210_ltick_event(void *opaque)
     exynos4210_ltick_int_start(&s->tick_timer);
 }
 
-static void tx_ptimer_set_freq(ptimer_state *s, uint32_t freq)
+static void tx_ptimer_set_freq(PTimer *s, uint32_t freq)
 {
     /*
      * callers of exynos4210_mct_update_freq() never do anything

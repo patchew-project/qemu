@@ -24,7 +24,7 @@ typedef struct {
     uint16_t trr;
     uint16_t tcr;
     uint16_t ter;
-    ptimer_state *timer;
+    PTimer *timer;
     qemu_irq irq;
     int irq_state;
 } m5206_timer_state;

@@ -61,7 +61,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(GPTimerUnit, GRLIB_GPTIMER)
 typedef struct GPTimer     GPTimer;
 
 struct GPTimer {
-    ptimer_state *ptimer;
+    PTimer *ptimer;
 
     qemu_irq     irq;
     int          id;

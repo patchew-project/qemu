@@ -201,7 +201,7 @@ struct lan9118_state {
     NICConf conf;
     qemu_irq irq;
     MemoryRegion mmio;
-    ptimer_state *timer;
+    PTimer *timer;
 
     uint32_t irq_cfg;
     uint32_t int_sts;

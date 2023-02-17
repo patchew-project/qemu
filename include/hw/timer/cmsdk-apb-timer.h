@@ -33,7 +33,7 @@ struct CMSDKAPBTimer {
     /*< public >*/
     MemoryRegion iomem;
     qemu_irq timerint;
-    ptimer_state *timer;
+    PTimer *timer;
     Clock *pclk;
 
     uint32_t ctrl;

@@ -141,7 +141,7 @@ struct eTSEC {
     uint16_t phy_control;
 
     /* Polling */
-    ptimer_state *ptimer;
+    PTimer *ptimer;
 
     /* Whether we should flush the rx queue when buffer becomes available. */
     bool need_flush;

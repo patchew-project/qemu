@@ -105,8 +105,8 @@ struct Exynos4210RTCState {
     uint32_t    reg_almyear;
     uint32_t    reg_curticcnt;
 
-    ptimer_state    *ptimer;        /* tick timer */
-    ptimer_state    *ptimer_1Hz;    /* clock timer */
+    PTimer      *ptimer;        /* tick timer */
+    PTimer      *ptimer_1Hz;    /* clock timer */
     uint32_t        freq;
 
     qemu_irq        tick_irq;   /* Time Tick Generator irq */

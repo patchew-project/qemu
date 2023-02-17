@@ -108,7 +108,7 @@ struct XlnxDPState {
     DPCDState *dpcd;
     I2CDDCState *edid;
 
-    ptimer_state *vblank;
+    PTimer *vblank;
 };
 
 #define TYPE_XLNX_DP "xlnx.v-dp"

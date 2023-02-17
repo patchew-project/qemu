@@ -64,8 +64,8 @@ struct IMXEPITState {
     SysBusDevice parent_obj;
 
     /*< public >*/
-    ptimer_state *timer_reload;
-    ptimer_state *timer_cmp;
+    PTimer *timer_reload;
+    PTimer *timer_cmp;
     MemoryRegion  iomem;
     IMXCCMState  *ccm;
 

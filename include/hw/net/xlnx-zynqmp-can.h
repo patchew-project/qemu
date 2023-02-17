@@ -72,7 +72,7 @@ typedef struct XlnxZynqMPCANState {
     Fifo32              tx_fifo;
     Fifo32              txhpb_fifo;
 
-    ptimer_state        *can_timer;
+    PTimer              *can_timer;
 } XlnxZynqMPCANState;
 
 #endif

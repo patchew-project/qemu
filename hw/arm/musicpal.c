@@ -435,7 +435,7 @@ static const TypeInfo mv88w8618_pic_info = {
 #define MP_BOARD_RESET_MAGIC    0x10000
 
 typedef struct mv88w8618_timer_state {
-    ptimer_state *ptimer;
+    PTimer *ptimer;
     uint32_t limit;
     int freq;
     qemu_irq irq;

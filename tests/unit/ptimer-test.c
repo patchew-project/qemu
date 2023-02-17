@@ -66,7 +66,7 @@ static void qemu_clock_step(uint64_t ns)
 static void check_set_count(gconstpointer arg)
 {
     const uint8_t *policy = arg;
-    ptimer_state *ptimer = ptimer_init(ptimer_trigger, NULL, *policy);
+    PTimer *ptimer = ptimer_init(ptimer_trigger, NULL, *policy);
 
     triggered = false;
 
@@ -81,7 +81,7 @@ static void check_set_count(gconstpointer arg)
 static void check_set_limit(gconstpointer arg)
 {
     const uint8_t *policy = arg;
-    ptimer_state *ptimer = ptimer_init(ptimer_trigger, NULL, *policy);
+    PTimer *ptimer = ptimer_init(ptimer_trigger, NULL, *policy);
 
     triggered = false;
 
@@ -104,7 +104,7 @@ static void check_set_limit(gconstpointer arg)
 static void check_oneshot(gconstpointer arg)
 {
     const uint8_t *policy = arg;
-    ptimer_state *ptimer = ptimer_init(ptimer_trigger, NULL, *policy);
+    PTimer *ptimer = ptimer_init(ptimer_trigger, NULL, *policy);
     bool no_round_down = (*policy & PTIMER_POLICY_NO_COUNTER_ROUND_DOWN);
 
     triggered = false;
@@ -222,7 +222,7 @@ static void check_oneshot(gconstpointer arg)
 static void check_periodic(gconstpointer arg)
 {
     const uint8_t *policy = arg;
-    ptimer_state *ptimer = ptimer_init(ptimer_trigger, NULL, *policy);
+    PTimer *ptimer = ptimer_init(ptimer_trigger, NULL, *policy);
     bool wrap_policy = (*policy & PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD);
     bool no_immediate_trigger = (*policy & PTIMER_POLICY_NO_IMMEDIATE_TRIGGER);
     bool no_immediate_reload = (*policy & PTIMER_POLICY_NO_IMMEDIATE_RELOAD);
@@ -408,7 +408,7 @@ static void check_periodic(gconstpointer arg)
 static void check_on_the_fly_mode_change(gconstpointer arg)
 {
     const uint8_t *policy = arg;
-    ptimer_state *ptimer = ptimer_init(ptimer_trigger, NULL, *policy);
+    PTimer *ptimer = ptimer_init(ptimer_trigger, NULL, *policy);
     bool wrap_policy = (*policy & PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD);
     bool no_round_down = (*policy & PTIMER_POLICY_NO_COUNTER_ROUND_DOWN);
 
@@ -460,7 +460,7 @@ static void check_on_the_fly_mode_change(gconstpointer arg)
 static void check_on_the_fly_period_change(gconstpointer arg)
 {
     const uint8_t *policy = arg;
-    ptimer_state *ptimer = ptimer_init(ptimer_trigger, NULL, *policy);
+    PTimer *ptimer = ptimer_init(ptimer_trigger, NULL, *policy);
     bool no_round_down = (*policy & PTIMER_POLICY_NO_COUNTER_ROUND_DOWN);
 
     triggered = false;
@@ -496,7 +496,7 @@ static void check_on_the_fly_period_change(gconstpointer arg)
 static void check_on_the_fly_freq_change(gconstpointer arg)
 {
     const uint8_t *policy = arg;
-    ptimer_state *ptimer = ptimer_init(ptimer_trigger, NULL, *policy);
+    PTimer *ptimer = ptimer_init(ptimer_trigger, NULL, *policy);
     bool no_round_down = (*policy & PTIMER_POLICY_NO_COUNTER_ROUND_DOWN);
 
     triggered = false;
@@ -532,7 +532,7 @@ static void check_on_the_fly_freq_change(gconstpointer arg)
 static void check_run_with_period_0(gconstpointer arg)
 {
     const uint8_t *policy = arg;
-    ptimer_state *ptimer = ptimer_init(ptimer_trigger, NULL, *policy);
+    PTimer *ptimer = ptimer_init(ptimer_trigger, NULL, *policy);
 
     triggered = false;
 
@@ -551,7 +551,7 @@ static void check_run_with_period_0(gconstpointer arg)
 static void check_run_with_delta_0(gconstpointer arg)
 {
     const uint8_t *policy = arg;
-    ptimer_state *ptimer = ptimer_init(ptimer_trigger, NULL, *policy);
+    PTimer *ptimer = ptimer_init(ptimer_trigger, NULL, *policy);
     bool wrap_policy = (*policy & PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD);
     bool no_immediate_trigger = (*policy & PTIMER_POLICY_NO_IMMEDIATE_TRIGGER);
     bool no_immediate_reload = (*policy & PTIMER_POLICY_NO_IMMEDIATE_RELOAD);
@@ -664,7 +664,7 @@ static void check_run_with_delta_0(gconstpointer arg)
 static void check_periodic_with_load_0(gconstpointer arg)
 {
     const uint8_t *policy = arg;
-    ptimer_state *ptimer = ptimer_init(ptimer_trigger, NULL, *policy);
+    PTimer *ptimer = ptimer_init(ptimer_trigger, NULL, *policy);
     bool continuous_trigger = (*policy & PTIMER_POLICY_CONTINUOUS_TRIGGER);
     bool no_immediate_trigger = (*policy & PTIMER_POLICY_NO_IMMEDIATE_TRIGGER);
     bool trig_only_on_dec = (*policy & PTIMER_POLICY_TRIGGER_ONLY_ON_DECREMENT);
@@ -729,7 +729,7 @@ static void check_periodic_with_load_0(gconstpointer arg)
 static void check_oneshot_with_load_0(gconstpointer arg)
 {
     const uint8_t *policy = arg;
-    ptimer_state *ptimer = ptimer_init(ptimer_trigger, NULL, *policy);
+    PTimer *ptimer = ptimer_init(ptimer_trigger, NULL, *policy);
     bool no_immediate_trigger = (*policy & PTIMER_POLICY_NO_IMMEDIATE_TRIGGER);
     bool trig_only_on_dec = (*policy & PTIMER_POLICY_TRIGGER_ONLY_ON_DECREMENT);
 

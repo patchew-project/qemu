@@ -19,7 +19,7 @@
 #define DELTA_ADJUST     1
 #define DELTA_NO_ADJUST -1
 
-struct ptimer_state
+struct PTimer
 {
     uint8_t enabled; /* 0 = disabled, 1 = periodic, 2 = oneshot.  */
     uint64_t limit;
@@ -43,12 +43,12 @@ struct ptimer_state
 };
 
 /* Use a bottom-half routine to avoid reentrancy issues.  */
-static void ptimer_trigger(ptimer_state *s)
+static void ptimer_trigger(PTimer *s)
 {
     s->callback(s->callback_opaque);
 }
 
-static void ptimer_reload(ptimer_state *s, int delta_adjust)
+static void ptimer_reload(PTimer *s, int delta_adjust)
 {
     uint32_t period_frac;
     uint64_t period;
@@ -73,7 +73,7 @@ static void ptimer_reload(ptimer_state *s, int delta_adjust)
     /*
      * Note that ptimer_trigger() might call the device callback function,
      * which can then modify timer state, so we must not cache any fields
-     * from ptimer_state until after we have called it.
+     * from PTimer state until after we have called it.
      */
     delta = s->delta;
     period = s->period;
@@ -154,7 +154,7 @@ static void ptimer_reload(ptimer_state *s, int delta_adjust)
 
 static void ptimer_tick(void *opaque)
 {
-    ptimer_state *s = (ptimer_state *)opaque;
+    PTimer *s = opaque;
     bool trigger = true;
 
     /*
@@ -198,7 +198,7 @@ static void ptimer_tick(void *opaque)
     ptimer_transaction_commit(s);
 }
 
-uint64_t ptimer_get_count(ptimer_state *s)
+uint64_t ptimer_get_count(PTimer *s)
 {
     uint64_t counter;
 
@@ -294,7 +294,7 @@ uint64_t ptimer_get_count(ptimer_state *s)
     return counter;
 }
 
-void ptimer_set_count(ptimer_state *s, uint64_t count)
+void ptimer_set_count(PTimer *s, uint64_t count)
 {
     assert(s->in_transaction);
     s->delta = count;
@@ -303,7 +303,7 @@ void ptimer_set_count(ptimer_state *s, uint64_t count)
     }
 }
 
-void ptimer_run(ptimer_state *s, int oneshot)
+void ptimer_run(PTimer *s, int oneshot)
 {
     bool was_disabled = !s->enabled;
 
@@ -323,7 +323,7 @@ void ptimer_run(ptimer_state *s, int oneshot)
 
 /* Pause a timer.  Note that this may cause it to "lose" time, even if it
    is immediately restarted.  */
-void ptimer_stop(ptimer_state *s)
+void ptimer_stop(PTimer *s)
 {
     assert(s->in_transaction);
 
@@ -337,7 +337,7 @@ void ptimer_stop(ptimer_state *s)
 }
 
 /* Set counter increment interval in nanoseconds.  */
-void ptimer_set_period(ptimer_state *s, int64_t period)
+void ptimer_set_period(PTimer *s, int64_t period)
 {
     assert(s->in_transaction);
     s->delta = ptimer_get_count(s);
@@ -349,7 +349,7 @@ void ptimer_set_period(ptimer_state *s, int64_t period)
 }
 
 /* Set counter increment interval from a Clock */
-void ptimer_set_period_from_clock(ptimer_state *s, const Clock *clk,
+void ptimer_set_period_from_clock(PTimer *s, const Clock *clk,
                                   unsigned int divisor)
 {
     /*
@@ -382,7 +382,7 @@ void ptimer_set_period_from_clock(ptimer_state *s, const Clock *clk,
 }
 
 /* Set counter frequency in Hz.  */
-void ptimer_set_freq(ptimer_state *s, uint32_t freq)
+void ptimer_set_freq(PTimer *s, uint32_t freq)
 {
     assert(s->in_transaction);
     s->delta = ptimer_get_count(s);
@@ -395,7 +395,7 @@ void ptimer_set_freq(ptimer_state *s, uint32_t freq)
 
 /* Set the initial countdown value.  If reload is nonzero then also set
    count = limit.  */
-void ptimer_set_limit(ptimer_state *s, uint64_t limit, int reload)
+void ptimer_set_limit(PTimer *s, uint64_t limit, int reload)
 {
     assert(s->in_transaction);
     s->limit = limit;
@@ -406,19 +406,19 @@ void ptimer_set_limit(ptimer_state *s, uint64_t limit, int reload)
     }
 }
 
-uint64_t ptimer_get_limit(ptimer_state *s)
+uint64_t ptimer_get_limit(PTimer *s)
 {
     return s->limit;
 }
 
-void ptimer_transaction_begin(ptimer_state *s)
+void ptimer_transaction_begin(PTimer *s)
 {
     assert(!s->in_transaction);
     s->in_transaction = true;
     s->need_reload = false;
 }
 
-void ptimer_transaction_commit(ptimer_state *s)
+void ptimer_transaction_commit(PTimer *s)
 {
     assert(s->in_transaction);
     /*
@@ -442,27 +442,27 @@ const VMStateDescription vmstate_ptimer = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT8(enabled, ptimer_state),
-        VMSTATE_UINT64(limit, ptimer_state),
-        VMSTATE_UINT64(delta, ptimer_state),
-        VMSTATE_UINT32(period_frac, ptimer_state),
-        VMSTATE_INT64(period, ptimer_state),
-        VMSTATE_INT64(last_event, ptimer_state),
-        VMSTATE_INT64(next_event, ptimer_state),
-        VMSTATE_TIMER_PTR(timer, ptimer_state),
+        VMSTATE_UINT8(enabled, PTimer),
+        VMSTATE_UINT64(limit, PTimer),
+        VMSTATE_UINT64(delta, PTimer),
+        VMSTATE_UINT32(period_frac, PTimer),
+        VMSTATE_INT64(period, PTimer),
+        VMSTATE_INT64(last_event, PTimer),
+        VMSTATE_INT64(next_event, PTimer),
+        VMSTATE_TIMER_PTR(timer, PTimer),
         VMSTATE_END_OF_LIST()
     }
 };
 
-ptimer_state *ptimer_init(ptimer_cb callback, void *callback_opaque,
+PTimer *ptimer_init(ptimer_cb callback, void *callback_opaque,
                           uint8_t policy_mask)
 {
-    ptimer_state *s;
+    PTimer *s;
 
     /* The callback function is mandatory. */
     assert(callback);
 
-    s = g_new0(ptimer_state, 1);
+    s = g_new0(PTimer, 1);
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, ptimer_tick, s);
     s->policy_mask = policy_mask;
     s->callback = callback;
@@ -478,7 +478,7 @@ ptimer_state *ptimer_init(ptimer_cb callback, void *callback_opaque,
     return s;
 }
 
-void ptimer_free(ptimer_state *s)
+void ptimer_free(PTimer *s)
 {
     timer_free(s->timer);
     g_free(s);

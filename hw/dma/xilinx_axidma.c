@@ -102,7 +102,7 @@ enum {
 
 struct Stream {
     struct XilinxAXIDMA *dma;
-    ptimer_state *ptimer;
+    PTimer *ptimer;
     qemu_irq irq;
 
     int nr;

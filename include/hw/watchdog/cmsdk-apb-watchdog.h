@@ -52,7 +52,7 @@ struct CMSDKAPBWatchdog {
     MemoryRegion iomem;
     qemu_irq wdogint;
     bool is_luminary;
-    ptimer_state *timer;
+    PTimer *timer;
     Clock *wdogclk;
 
     uint32_t control;

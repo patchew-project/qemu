@@ -47,7 +47,7 @@ struct AwA10PITState {
     SysBusDevice parent_obj;
     /*< public >*/
     qemu_irq irq[AW_A10_PIT_TIMER_NR];
-    ptimer_state * timer[AW_A10_PIT_TIMER_NR];
+    PTimer *timer[AW_A10_PIT_TIMER_NR];
     AwA10TimerContext timer_context[AW_A10_PIT_TIMER_NR];
     MemoryRegion iomem;
     uint32_t clk_freq[4];
