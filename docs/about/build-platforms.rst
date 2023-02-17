@@ -67,10 +67,11 @@ Non-supported architectures may be removed in the future following the
 Linux OS, macOS, FreeBSD, NetBSD, OpenBSD
 -----------------------------------------
 
-The project aims to support the most recent major version at all times. Support
-for the previous major version will be dropped 2 years after the new major
-version is released or when the vendor itself drops support, whichever comes
-first. In this context, third-party efforts to extend the lifetime of a distro
+The project aims to support the most recent major version at all times for
+up to four years after its initial release. Support for the previous major
+version will be dropped one years after the new major version is released
+or when the vendor itself drops support, whichever comes first.
+In this context, third-party efforts to extend the lifetime of a distro
 are not considered, even when they are endorsed by the vendor (eg. Debian LTS);
 the same is true of repositories that contain packages backported from later
 releases (e.g. Debian backports). Within each major release, only the most
