@@ -734,6 +734,11 @@ if not get_option('jack').auto() or have_system
   jack = dependency('jack', required: get_option('jack'),
                     method: 'pkg-config', kwargs: static_kwargs)
 endif
+pipewire = not_found
+if not get_option('pipewire').auto() or (targetos == 'linux' and have_system)
+  pipewire = dependency('libpipewire-0.3', required: get_option('pipewire'),
+                    method: 'pkg-config', kwargs: static_kwargs)
+endif
 sndio = not_found
 if not get_option('sndio').auto() or have_system
   sndio = dependency('sndio', required: get_option('sndio'),
@@ -1671,6 +1676,7 @@ if have_system
     'jack': jack.found(),
     'oss': oss.found(),
     'pa': pulse.found(),
+    'pipewire': pipewire.found(),
     'sdl': sdl.found(),
     'sndio': sndio.found(),
   }
@@ -3949,6 +3955,7 @@ endif
 if targetos == 'linux'
   summary_info += {'ALSA support':    alsa}
   summary_info += {'PulseAudio support': pulse}
+  summary_info += {'Pipewire support':   pipewire}
 endif
 summary_info += {'JACK support':      jack}
 summary_info += {'brlapi support':    brlapi}
