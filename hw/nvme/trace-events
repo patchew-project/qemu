@@ -117,6 +117,11 @@ pci_nvme_clear_ns_reset(uint32_t state, uint64_t slba) "zone state=%"PRIu32", sl
 pci_nvme_zoned_zrwa_implicit_flush(uint64_t zslba, uint32_t nlb) "zslba 0x%"PRIx64" nlb %"PRIu32""
 pci_nvme_pci_reset(void) "PCI Function Level Reset"
 pci_nvme_virt_mngmt(uint16_t cid, uint16_t act, uint16_t cntlid, const char* rt, uint16_t nr) "cid %"PRIu16", act=0x%"PRIx16", ctrlid=%"PRIu16" %s nr=%"PRIu16""
+pci_nvme_fdp_init(uint64_t nru, uint64_t ru_size, uint16_t nrg, uint8_t nruhrg) "FDP init, nru=%"PRIu64", ru_size=%"PRIu64", nrg=%"PRIu16", nruhrg=%"PRIu8""
+pci_nvme_fdp_ruh_change(uint16_t rgid, uint16_t ruhid) "change RU on RUH rgid=%"PRIu16", ruhid=%"PRIu16""
+pci_nvme_fdp_ruh_write(uint16_t rgid, uint16_t ruhid, uint32_t ruamw, uint32_t nlb) "write RUH rgid=%"PRIu16", ruhid=%"PRIu16", ruamw=%"PRIu32", nlb=%"PRIu32""
+pci_nvme_fdp_get_feature_fdp(uint16_t result) "result=0x%"PRIx16""
+pci_nvme_fdp_log_ruh_usage(uint32_t endgrpid) "log RUH usage for endgrp %"PRIu32""
 
 # error conditions
 pci_nvme_err_mdts(size_t len) "len %zu"
