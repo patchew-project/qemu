@@ -86,6 +86,25 @@ respective ports repository, while NetBSD will use the pkgsrc repository.
 For macOS, `Homebrew`_ will be used, although `MacPorts`_ is expected to carry
 similar versions.
 
+Python build dependencies
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The minimum supported version of Python is currently 3.6.
+
+Distributions with long-term support often provide multiple
+versions of the Python runtime.  QEMU aims to support the default
+Python runtime for 4 years after the initial release of a new version.
+Afterwards, you may have to point QEMU to a newer version of the Python
+runtime using the ``--python`` command line option of the ``configure``
+script.
+
+Some of QEMU's build dependencies are written in Python and available
+through the Python Package Index (PyPI).  QEMU aims to be compatible
+with the versions packaged by common Linux distributions for the first
+4 years after the major release of the distribution.  After 4 years,
+you may have to use ``pip`` to install some of these build dependencies.
+
+
 Windows
 -------
 
