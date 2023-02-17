@@ -1,6 +1,7 @@
 arm_ss = ss.source_set()
 arm_ss.add(files(
   'cpu.c',
+  'cpu64.c',
   'debug_helper.c',
   'gdbstub.c',
   'helper.c',
@@ -12,7 +13,6 @@ arm_ss.add(zlib)
 arm_ss.add(when: 'CONFIG_KVM', if_true: files('kvm.c', 'kvm64.c'), if_false: files('kvm-stub.c'))
 
 arm_ss.add(when: 'TARGET_AARCH64', if_true: files(
-  'cpu64.c',
   'gdbstub64.c',
 ))
 
