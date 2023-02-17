@@ -1359,7 +1359,7 @@ static abi_long target_to_host_for_each_rtattr(struct rtattr *rtattr,
 
 static abi_long target_to_host_data_spec_nlattr(struct nlattr *nlattr)
 {
-    switch (nlattr->nla_type) {
+    switch (nlattr->nla_type & ~NLA_F_NESTED) {
     case AF_INET6:
         return target_to_host_for_each_nlattr(NLA_DATA(nlattr), nlattr->nla_len,
                                               NULL,
@@ -1376,7 +1376,7 @@ static abi_long target_to_host_data_link_rtattr(struct rtattr *rtattr)
 {
     uint32_t *u32;
 
-    switch (rtattr->rta_type) {
+    switch (rtattr->rta_type & ~NLA_F_NESTED) {
     /* uint32_t */
     case QEMU_IFLA_MTU:
     case QEMU_IFLA_TXQLEN:
