@@ -420,6 +420,7 @@ static VirtQueueElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
     vring_used_elem_t used_elem;
     uint16_t last_used, last_used_chain, num;
 
+    *len = 0;
     if (!vhost_svq_more_used(svq)) {
         return NULL;
     }
