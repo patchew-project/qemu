@@ -1001,7 +1001,7 @@
 ##
 { 'enum'  : 'InputButton',
   'data'  : [ 'left', 'middle', 'right', 'wheel-up', 'wheel-down', 'side',
-  'extra', 'wheel-left', 'wheel-right' ] }
+  'extra', 'wheel-left', 'wheel-right', 'touch' ] }
 
 ##
 # @InputAxis:
@@ -1012,6 +1012,17 @@
 ##
 { 'enum'  : 'InputAxis',
   'data'  : [ 'x', 'y' ] }
+
+##
+# @InputMultitouchType:
+#
+# Type of a multitouch event.
+#
+# Since: 2.0
+##
+{ 'enum'  : 'InputMultitouchType',
+  'data'  : [ 'begin', 'update', 'end', 'cancel', 'data' ] }
+
 
 ##
 # @InputKeyEvent:
@@ -1057,12 +1068,30 @@
               'value'   : 'int' } }
 
 ##
+# @InputMultitouchEvent:
+#
+# Multitouch input event.
+#
+# @axis: Which axis is referenced by @value.
+# @value: Pointer position.  For absolute coordinates the
+#         valid range is 0 -> 0x7ffff
+#
+# Since: 2.0
+##
+{ 'struct'  : 'InputMultitouchEvent',
+  'data'  : { 'type'       : 'InputMultitouchType',
+              'slot'       : 'int',
+              'tracking-id': 'int',
+              'axis'       : 'InputAxis',
+              'value'      : 'int' } }
+
+##
 # @InputEventKind:
 #
 # Since: 2.0
 ##
 { 'enum': 'InputEventKind',
-  'data': [ 'key', 'btn', 'rel', 'abs' ] }
+  'data': [ 'key', 'btn', 'rel', 'abs', 'mtt' ] }
 
 ##
 # @InputKeyEventWrapper:
@@ -1089,6 +1118,14 @@
   'data': { 'data': 'InputMoveEvent' } }
 
 ##
+# @InputMultitouchEventWrapper:
+#
+# Since: 2.0
+##
+{ 'struct': 'InputMultitouchEventWrapper',
+  'data': { 'data': 'InputMultitouchEvent' } }
+
+##
 # @InputEvent:
 #
 # Input event union.
@@ -1099,6 +1136,7 @@
 #        - 'btn': Input event of pointer buttons
 #        - 'rel': Input event of relative pointer motion
 #        - 'abs': Input event of absolute pointer motion
+#        - 'mtt': Input event of Multitouch
 #
 # Since: 2.0
 ##
@@ -1108,7 +1146,8 @@
   'data'  : { 'key'     : 'InputKeyEventWrapper',
               'btn'     : 'InputBtnEventWrapper',
               'rel'     : 'InputMoveEventWrapper',
-              'abs'     : 'InputMoveEventWrapper' } }
+              'abs'     : 'InputMoveEventWrapper',
+              'mtt'     : 'InputMultitouchEventWrapper' } }
 
 ##
 # @input-send-event:
