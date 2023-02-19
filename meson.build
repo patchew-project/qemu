@@ -1632,19 +1632,22 @@ elif get_option('vduse_blk_export').disabled()
 endif
 
 # libbpf
-libbpf = dependency('libbpf', required: get_option('bpf'), method: 'pkg-config')
-if libbpf.found() and not cc.links('''
-   #include <bpf/libbpf.h>
-   int main(void)
-   {
-     bpf_object__destroy_skeleton(NULL);
-     return 0;
-   }''', dependencies: libbpf)
-  libbpf = not_found
-  if get_option('bpf').enabled()
-    error('libbpf skeleton test failed')
-  else
-    warning('libbpf skeleton test failed, disabling')
+libbpf = not_found
+if targetos == 'linux'
+  libbpf = dependency('libbpf', required: get_option('bpf'), method: 'pkg-config')
+  if libbpf.found() and not cc.links('''
+    #include <bpf/libbpf.h>
+    int main(void)
+    {
+      bpf_object__destroy_skeleton(NULL);
+      return 0;
+    }''', dependencies: libbpf)
+    libbpf = not_found
+    if get_option('bpf').enabled()
+      error('libbpf skeleton test failed')
+    else
+      warning('libbpf skeleton test failed, disabling')
+    endif
   endif
 endif
 
@@ -3646,6 +3649,14 @@ if have_tools
                dependencies: [authz, crypto, io, qom, qemuutil,
                               libcap_ng, mpathpersist],
                install: true)
+
+    if libbpf.found()
+        executable('qemu-ebpf-rss-helper', files(
+                   'ebpf/qemu-ebpf-rss-helper.c', 'ebpf/ebpf_rss.c'),
+                   dependencies: [qemuutil, libbpf, glib],
+                   install: true,
+                   install_dir: get_option('libexecdir'))
+    endif
   endif
 
   if have_ivshmem
