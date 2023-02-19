@@ -31,6 +31,7 @@
 #include "hw/mem/memory-device.h"
 #include "hw/intc/intc.h"
 #include "hw/rdma/rdma.h"
+#include "qemu-ebpf-rss-helper-stamp-utils.h"
 
 NameInfo *qmp_query_name(Error **errp)
 {
@@ -201,4 +202,31 @@ static void __attribute__((__constructor__)) monitor_init_qmp_commands(void)
     qmp_register_command(&qmp_cap_negotiation_commands, "qmp_capabilities",
                          qmp_marshal_qmp_capabilities,
                          QCO_ALLOW_PRECONFIG, 0);
+}
+
+HelperPath *qmp_find_ebpf_rss_helper(bool has_path,
+                                     strList *path, Error **errp)
+{
+    HelperPath *ret = NULL;
+    char *helperbin = NULL;
+
+    /* Look for helper in the suggested pathes */
+    if (has_path) {
+        strList *str_list = NULL;
+        for (str_list = path;
+             str_list && !helperbin;
+             str_list = str_list->next) {
+            helperbin = qemu_check_suggested_ebpf_rss_helper(str_list->value);
+        }
+    }
+
+    if (helperbin == NULL) {
+        helperbin = qemu_find_default_ebpf_rss_helper();
+    }
+
+    if (helperbin) {
+        ret = g_new0(HelperPath, 1);
+        ret->path = helperbin;
+    }
+    return ret;
 }

@@ -584,3 +584,45 @@
 { 'event': 'VFU_CLIENT_HANGUP',
   'data': { 'vfu-id': 'str', 'vfu-qom-path': 'str',
             'dev-id': 'str', 'dev-qom-path': 'str' } }
+
+##
+# @HelperPath:
+#
+# Name of the helper and binary location.
+##
+{ 'struct': 'HelperPath',
+  'data': {'path': 'str'} }
+
+##
+# @find-ebpf-rss-helper:
+#
+# Query helper paths to find qemu-ebpf-rss-helper.
+# The qemu would check "the stamp" and
+# returns the proper helper.
+# It's possible to provide paths where to look for a helper.
+# If the path is provided to a file - qemu would check the file for the stamp.
+# If the path is provided to a directory - qemu would look for
+# a file "qemu-ebpf-rss-helper" and check its stamp.
+#
+# Returns: path to the helper with a valid stamp.
+#
+# Note: Provided path arguments have the highest priority where to look
+#       for a helper. Then, default "helper directory" and then
+#       near the qemu binary.
+#
+# Since: 7.2
+#
+# Example:
+#
+# -> { "execute": "find-ebpf-rss-helper", "arguments": { "path": "/opt/qemu_helpers/" } }
+# <- { "return": [
+#        {
+#          "path": "/usr/local/libexec/qemu-ebpf-rss-helper"
+#        }
+#      ]
+#    }
+#
+##
+{ 'command': 'find-ebpf-rss-helper',
+  'data': {'*path': ['str']},
+  'returns': 'HelperPath' }
