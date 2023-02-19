@@ -6,6 +6,7 @@ softmmu_ss.add(files(
   'hmp.c',
 ))
 softmmu_ss.add([spice_headers, files('qmp-cmds.c')])
+softmmu_ss.add(files('qemu-ebpf-rss-helper-stamp-utils.c'))
 
 specific_ss.add(when: 'CONFIG_SOFTMMU',
 		if_true: [files( 'hmp-cmds-target.c', 'hmp-target.c'), spice])
