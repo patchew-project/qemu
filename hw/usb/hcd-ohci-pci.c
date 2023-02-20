@@ -52,11 +52,11 @@ struct OHCIPCIState {
 static void ohci_pci_die(struct OHCIState *ohci)
 {
     OHCIPCIState *dev = container_of(ohci, OHCIPCIState, state);
+    PCIDevice *pdev = PCI_DEVICE(dev);
 
     ohci_sysbus_die(ohci);
 
-    pci_set_word(dev->parent_obj.config + PCI_STATUS,
-                 PCI_STATUS_DETECTED_PARITY);
+    pci_set_word(pdev->config + PCI_STATUS, PCI_STATUS_DETECTED_PARITY);
 }
 
 static void usb_ohci_realize_pci(PCIDevice *dev, Error **errp)
