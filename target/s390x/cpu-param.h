@@ -14,4 +14,8 @@
 #define TARGET_VIRT_ADDR_SPACE_BITS 64
 #define NB_MMU_MODES 4
 
+#ifndef CONFIG_USER_ONLY
+# define TARGET_TB_PCREL 1
+#endif
+
 #endif
