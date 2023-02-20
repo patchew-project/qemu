@@ -3,12 +3,55 @@
 
 #include <dirent.h>
 #include <utime.h>
+#ifndef CONFIG_WIN32
 #include <sys/resource.h>
+#endif
 #include "fsdev/file-op-9p.h"
 #include "fsdev/9p-iov-marshal.h"
 #include "qemu/thread.h"
 #include "qemu/coroutine.h"
 #include "qemu/qht.h"
+
+#ifdef CONFIG_WIN32
+
+/* Windows does not provide such a macro, typically it is 255 */
+#define NAME_MAX            255
+
+/* macros required for build, values do not matter */
+#define AT_SYMLINK_NOFOLLOW 0x100   /* Do not follow symbolic links */
+#define AT_REMOVEDIR        0x200   /* Remove directory instead of file */
+#define O_DIRECTORY         02000000
+
+#define makedev(major, minor)   \
+        ((dev_t)((((major) & 0xfff) << 8) | ((minor) & 0xff)))
+#define major(dev)  ((unsigned int)(((dev) >> 8) & 0xfff))
+#define minor(dev)  ((unsigned int)(((dev) & 0xff)))
+
+/*
+ * Currenlty Windows/MinGW does not provide the following flag macros,
+ * so define them here for 9p codes.
+ *
+ * Once Windows/MinGW provides them, remove the defines to prevent conflicts.
+ */
+
+#ifndef S_IFLNK
+#define S_IFLNK         0xA000
+#define S_ISLNK(mode)   ((mode & S_IFMT) == S_IFLNK)
+#endif /* S_IFLNK */
+
+#ifndef S_ISUID
+#define S_ISUID         0x0800
+#endif
+
+#ifndef S_ISGID
+#define S_ISGID         0x0400
+#endif
+
+#ifndef S_ISVTX
+#define S_ISVTX         0x0200
+#endif
+
+#endif /* CONFIG_WIN32 */
 
 enum {
     P9_TLERROR = 6,
