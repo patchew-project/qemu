@@ -46,7 +46,7 @@ struct ISAIDEState {
     IDEBus    bus;
     uint32_t  iobase;
     uint32_t  iobase2;
-    uint32_t  isairq;
+    uint32_t  irqnum;
     qemu_irq  irq;
 };
 
@@ -75,13 +75,13 @@ static void isa_ide_realizefn(DeviceState *dev, Error **errp)
 
     ide_bus_init(&s->bus, sizeof(s->bus), dev, 0, 2);
     ide_init_ioport(&s->bus, isadev, s->iobase, s->iobase2);
-    s->irq = isa_get_irq(isadev, s->isairq);
+    s->irq = isa_get_irq(isadev, s->irqnum);
     ide_init2(&s->bus, s->irq);
     vmstate_register(VMSTATE_IF(dev), 0, &vmstate_ide_isa, s);
     ide_register_restart_cb(&s->bus);
 }
 
-ISADevice *isa_ide_init(ISABus *bus, int iobase, int iobase2, int isairq,
+ISADevice *isa_ide_init(ISABus *bus, int iobase, int iobase2, int irqnum,
                         DriveInfo *hd0, DriveInfo *hd1)
 {
     DeviceState *dev;
@@ -92,7 +92,7 @@ ISADevice *isa_ide_init(ISABus *bus, int iobase, int iobase2, int isairq,
     dev = DEVICE(isadev);
     qdev_prop_set_uint32(dev, "iobase",  iobase);
     qdev_prop_set_uint32(dev, "iobase2", iobase2);
-    qdev_prop_set_uint32(dev, "irq",     isairq);
+    qdev_prop_set_uint32(dev, "irq",     irqnum);
     isa_realize_and_unref(isadev, bus, &error_fatal);
 
     s = ISA_IDE(dev);
@@ -108,7 +108,7 @@ ISADevice *isa_ide_init(ISABus *bus, int iobase, int iobase2, int isairq,
 static Property isa_ide_properties[] = {
     DEFINE_PROP_UINT32("iobase",  ISAIDEState, iobase,  0x1f0),
     DEFINE_PROP_UINT32("iobase2", ISAIDEState, iobase2, 0x3f6),
-    DEFINE_PROP_UINT32("irq",    ISAIDEState, isairq,  14),
+    DEFINE_PROP_UINT32("irq",     ISAIDEState, irqnum,  14),
     DEFINE_PROP_END_OF_LIST(),
 };
 

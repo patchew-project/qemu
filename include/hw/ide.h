@@ -5,7 +5,7 @@
 #include "exec/memory.h"
 
 /* ide-isa.c */
-ISADevice *isa_ide_init(ISABus *bus, int iobase, int iobase2, int isairq,
+ISADevice *isa_ide_init(ISABus *bus, int iobase, int iobase2, int irqnum,
                         DriveInfo *hd0, DriveInfo *hd1);
 
 int ide_get_geometry(BusState *bus, int unit,
