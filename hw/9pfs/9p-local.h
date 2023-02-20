@@ -17,6 +17,7 @@ typedef struct {
     int mountfd;
 #ifdef CONFIG_WIN32
     char *root_path;
+    DWORD block_size;
 #endif
 } LocalData;
 
