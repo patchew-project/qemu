@@ -1,0 +1,6 @@
+[wrap-git]
+url = https://gitlab.freedesktop.org/slirp/libslirp
+revision = 15c52d69
+
+[provide]
+slirp = libslirp_dep
