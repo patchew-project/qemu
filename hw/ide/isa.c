@@ -31,14 +31,12 @@
 #include "qemu/module.h"
 #include "sysemu/dma.h"
 
+#include "hw/ide/isa.h"
 #include "hw/ide/internal.h"
 #include "qom/object.h"
 
 /***********************************************************/
 /* ISA IDE definitions */
-
-#define TYPE_ISA_IDE "isa-ide"
-OBJECT_DECLARE_SIMPLE_TYPE(ISAIDEState, ISA_IDE)
 
 struct ISAIDEState {
     ISADevice parent_obj;
