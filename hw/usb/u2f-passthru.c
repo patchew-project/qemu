@@ -299,7 +299,7 @@ static void u2f_passthru_recv_from_host(U2FPassthruState *key,
     if (transaction->resp_size >= transaction->resp_bcnt) {
         u2f_transaction_close(key, cid);
     }
-    u2f_send_to_guest(&key->base, packet);
+    u2f_send_to_guest(U2F_KEY(key), packet);
 }
 
 static void u2f_passthru_read(void *opaque)
@@ -316,9 +316,10 @@ static void u2f_passthru_read(void *opaque)
 
     ret = read(key->hidraw_fd, packet, sizeof(packet));
     if (ret < 0) {
+        USBDevice *udev = USB_DEVICE(key);
         /* Detach */
-        if (base->dev.attached) {
-            usb_device_detach(&base->dev);
+        if (udev->attached) {
+            usb_device_detach(udev);
             u2f_passthru_reset(key);
         }
         return;
