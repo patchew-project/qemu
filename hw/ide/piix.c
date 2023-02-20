@@ -169,6 +169,17 @@ static void pci_piix_ide_realize(PCIDevice *dev, Error **errp)
 
     vmstate_register(VMSTATE_IF(dev), 0, &vmstate_ide_pci, d);
 
+    if (!d->irq[0] && !d->irq[1] && DEVICE_GET_CLASS(d)->user_creatable) {
+        /* kludge specific to TYPE_PIIX3_IDE */
+        Object *isabus = object_resolve_path_type("", TYPE_ISA_BUS, NULL);
+
+        if (!isabus) {
+            error_setg(errp, "Unable to find a unique ISA bus");
+            return;
+        }
+        d->irq[0] = isa_bus_get_irq(ISA_BUS(isabus), 14);
+        d->irq[1] = isa_bus_get_irq(ISA_BUS(isabus), 15);
+    }
     for (unsigned i = 0; i < ARRAY_SIZE(d->irq); i++) {
         if (!pci_piix_init_bus(d, i, errp)) {
             return;
@@ -201,6 +212,13 @@ static void piix3_ide_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_STORAGE_IDE;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->hotpluggable = false;
+    /*
+     * This function is part of a Super I/O chip and shouldn't be user
+     * creatable. However QEMU accepts impossible hardware setups such
+     * plugging a PIIX IDE function on a ICH ISA bridge.
+     * Keep this Frankenstein (ab)use working.
+     */
+    dc->user_creatable = true;
 }
 
 static const TypeInfo piix3_ide_info = {
@@ -224,6 +242,8 @@ static void piix4_ide_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_STORAGE_IDE;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->hotpluggable = false;
+    /* Reason: Part of a Super I/O chip */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo piix4_ide_info = {
