@@ -37,6 +37,16 @@
  *    Windows does not support opendir, the directory fd is created by
  *    CreateFile and convert to fd by _open_osfhandle(). Keep the fd open will
  *    lock and protect the directory (can not be modified or replaced)
+ *
+ * 5. Neither Windows native APIs, nor MinGW provide a POSIX compatible API for
+ *    acquiring directory entries in a safe way. Calling those APIs (native
+ *    _findfirst() and _findnext() or MinGW's readdir(), seekdir() and
+ *    telldir()) directly can lead to an inconsistent state if directory is
+ *    modified in between, e.g. the same directory appearing more than once
+ *    in output, or directories not appearing at all in output even though they
+ *    were neither newly created nor deleted. POSIX does not define what happens
+ *    with deleted or newly created directories in between, but it guarantees a
+ *    consistent state.
  */
 
 #include "qemu/osdep.h"
@@ -50,6 +60,25 @@
 #include <dirent.h>
 
 #define V9FS_MAGIC  0x53465039  /* string "9PFS" */
+
+/*
+ * MinGW and Windows does not provide a safe way to seek directory while other
+ * thread is modifying the same directory.
+ *
+ * This structure is used to store sorted file id and ensure directory seek
+ * consistency.
+ */
+struct dir_win32 {
+    struct dirent dd_dir;
+    uint32_t offset;
+    uint32_t total_entries;
+    HANDLE hDir;
+    uint32_t dir_name_len;
+    uint64_t dot_id;
+    uint64_t dot_dot_id;
+    uint64_t *file_id_list;
+    char dd_name[1];
+};
 
 /*
  * win32_error_to_posix - convert Win32 error to POSIX error number
@@ -976,4 +1005,418 @@ int qemu_mknodat(int dirfd, const char *filename, mode_t mode, dev_t dev)
     error_report_once("Unsupported operation for mknodat");
     errno = ENOTSUP;
     return -1;
+}
+
+static int file_id_compare(const void *id_ptr1, const void *id_ptr2)
+{
+    uint64_t id[2];
+
+    id[0] = *(uint64_t *)id_ptr1;
+    id[1] = *(uint64_t *)id_ptr2;
+
+    if (id[0] > id[1]) {
+        return 1;
+    } else if (id[0] < id[1]) {
+        return -1;
+    } else {
+        return 0;
+    }
+}
+
+static int get_next_entry(struct dir_win32 *stream)
+{
+    HANDLE hDirEntry = INVALID_HANDLE_VALUE;
+    char *entry_name;
+    char *entry_start;
+    FILE_ID_DESCRIPTOR fid;
+    DWORD attribute;
+
+    if (stream->file_id_list[stream->offset] == stream->dot_id) {
+        strcpy(stream->dd_dir.d_name, ".");
+        return 0;
+    }
+
+    if (stream->file_id_list[stream->offset] == stream->dot_dot_id) {
+        strcpy(stream->dd_dir.d_name, "..");
+        return 0;
+    }
+
+    fid.dwSize = sizeof(fid);
+    fid.Type = FileIdType;
+
+    fid.FileId.QuadPart = stream->file_id_list[stream->offset];
+
+    hDirEntry = OpenFileById(stream->hDir, &fid, GENERIC_READ,
+                             FILE_SHARE_READ | FILE_SHARE_WRITE
+                             | FILE_SHARE_DELETE,
+                             NULL,
+                             FILE_FLAG_BACKUP_SEMANTICS
+                             | FILE_FLAG_OPEN_REPARSE_POINT);
+
+    if (hDirEntry == INVALID_HANDLE_VALUE) {
+        /*
+         * Not open it successfully, it may be deleted.
+         * Try next id.
+         */
+        return -1;
+    }
+
+    entry_name = get_full_path_win32(hDirEntry, NULL);
+
+    CloseHandle(hDirEntry);
+
+    if (entry_name == NULL) {
+        return -1;
+    }
+
+    attribute = GetFileAttributes(entry_name);
+
+    /* symlink is not allowed */
+    if (attribute == INVALID_FILE_ATTRIBUTES
+        || (attribute & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
+        return -1;
+    }
+
+    if (memcmp(entry_name, stream->dd_name, stream->dir_name_len) != 0) {
+        /*
+         * The full entry file name should be a part of parent directory name,
+         * except dot and dot_dot (is already handled).
+         * If not, this entry should not be returned.
+         */
+        return -1;
+    }
+
+    entry_start = entry_name + stream->dir_name_len;
+
+    /* skip slash */
+    while (*entry_start == '\\') {
+        entry_start++;
+    }
+
+    if (strchr(entry_start, '\\') != NULL) {
+        return -1;
+    }
+
+    if (strlen(entry_start) == 0
+        || strlen(entry_start) + 1 > sizeof(stream->dd_dir.d_name)) {
+        return -1;
+    }
+    strcpy(stream->dd_dir.d_name, entry_start);
+
+    return 0;
+}
+
+/*
+ * opendir_win32 - open a directory
+ *
+ * This function opens a directory and caches all directory entries.
+ */
+DIR *opendir_win32(const char *full_file_name)
+{
+    HANDLE hDir = INVALID_HANDLE_VALUE;
+    HANDLE hDirEntry = INVALID_HANDLE_VALUE;
+    char *full_dir_entry = NULL;
+    DWORD attribute;
+    intptr_t dd_handle = -1;
+    struct _finddata_t dd_data;
+    uint64_t file_id;
+    uint64_t *file_id_list = NULL;
+    BY_HANDLE_FILE_INFORMATION FileInfo;
+    struct dir_win32 *stream = NULL;
+    int err = 0;
+    int find_status;
+    int sort_first_two_entry = 0;
+    uint32_t list_count = 16;
+    uint32_t index = 0;
+
+    /* open directory to prevent it being removed */
+
+    hDir = CreateFile(full_file_name, GENERIC_READ,
+                      FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                      NULL,
+                      OPEN_EXISTING,
+                      FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
+                      NULL);
+
+    if (hDir == INVALID_HANDLE_VALUE) {
+        err = win32_error_to_posix(GetLastError());
+        goto out;
+    }
+
+    attribute = GetFileAttributes(full_file_name);
+
+    /* symlink is not allow */
+    if (attribute == INVALID_FILE_ATTRIBUTES
+        || (attribute & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
+        err = EACCES;
+        goto out;
+    }
+
+    /* check if it is a directory */
+    if ((attribute & FILE_ATTRIBUTE_DIRECTORY) == 0) {
+        err = ENOTDIR;
+        goto out;
+    }
+
+    file_id_list = g_malloc0(sizeof(uint64_t) * list_count);
+
+    /*
+     * findfirst() needs suffix format name like "\dir1\dir2\*",
+     * allocate more buffer to store suffix.
+     */
+    stream = g_malloc0(sizeof(struct dir_win32) + strlen(full_file_name) + 3);
+
+    strcpy(stream->dd_name, full_file_name);
+    strcat(stream->dd_name, "\\*");
+
+    stream->hDir = hDir;
+    stream->dir_name_len = strlen(full_file_name);
+
+    dd_handle = _findfirst(stream->dd_name, &dd_data);
+
+    if (dd_handle == -1) {
+        err = errno;
+        goto out;
+    }
+
+    /* read all entries to link list */
+    do {
+        full_dir_entry = get_full_path_win32(hDir, dd_data.name);
+
+        if (full_dir_entry == NULL) {
+            err = ENOMEM;
+            break;
+        }
+
+        /*
+         * Open every entry and get the file informations.
+         *
+         * Skip symbolic links during reading directory.
+         */
+        hDirEntry = CreateFile(full_dir_entry,
+                               GENERIC_READ,
+                               FILE_SHARE_READ | FILE_SHARE_WRITE
+                               | FILE_SHARE_DELETE,
+                               NULL,
+                               OPEN_EXISTING,
+                               FILE_FLAG_BACKUP_SEMANTICS
+                               | FILE_FLAG_OPEN_REPARSE_POINT, NULL);
+
+        if (hDirEntry != INVALID_HANDLE_VALUE) {
+            if (GetFileInformationByHandle(hDirEntry,
+                                           &FileInfo) == TRUE) {
+                attribute = FileInfo.dwFileAttributes;
+
+                /* only save validate entries */
+                if ((attribute & FILE_ATTRIBUTE_REPARSE_POINT) == 0) {
+                    if (index >= list_count) {
+                        list_count = list_count + 16;
+                        file_id_list = g_realloc(file_id_list,
+                                                 sizeof(uint64_t)
+                                                 * list_count);
+                    }
+                    file_id = (uint64_t)FileInfo.nFileIndexLow
+                              + (((uint64_t)FileInfo.nFileIndexHigh) << 32);
+
+
+                    file_id_list[index] = file_id;
+
+                    if (strcmp(dd_data.name, ".") == 0) {
+                        stream->dot_id = file_id_list[index];
+                        if (index != 0) {
+                            sort_first_two_entry = 1;
+                        }
+                    } else if (strcmp(dd_data.name, "..") == 0) {
+                        stream->dot_dot_id = file_id_list[index];
+                        if (index != 1) {
+                            sort_first_two_entry = 1;
+                        }
+                    }
+                    index++;
+                }
+            }
+            CloseHandle(hDirEntry);
+        }
+        g_free(full_dir_entry);
+        find_status = _findnext(dd_handle, &dd_data);
+    } while (find_status == 0);
+
+    if (errno == ENOENT) {
+        /* No more matching files could be found, clean errno */
+        errno = 0;
+    } else {
+        err = errno;
+        goto out;
+    }
+
+    stream->total_entries = index;
+    stream->file_id_list = file_id_list;
+
+    if (sort_first_two_entry == 0) {
+        /*
+         * If the first two entry is "." and "..", then do not sort them.
+         *
+         * If the guest OS always considers first two entries are "." and "..",
+         * sort the two entries may cause confused display in guest OS.
+         */
+        qsort(&file_id_list[2], index - 2, sizeof(file_id), file_id_compare);
+    } else {
+        qsort(&file_id_list[0], index, sizeof(file_id), file_id_compare);
+    }
+
+out:
+    if (err != 0) {
+        errno = err;
+        if (stream != NULL) {
+            if (file_id_list != NULL) {
+                g_free(file_id_list);
+            }
+            CloseHandle(hDir);
+            g_free(stream);
+            stream = NULL;
+        }
+    }
+
+    if (dd_handle != -1) {
+        _findclose(dd_handle);
+    }
+
+    return (DIR *)stream;
+}
+
+/*
+ * closedir_win32 - close a directory
+ *
+ * This function closes directory and free all cached resources.
+ */
+int closedir_win32(DIR *pDir)
+{
+    struct dir_win32 *stream = (struct dir_win32 *)pDir;
+
+    if (stream == NULL) {
+        errno = EBADF;
+        return -1;
+    }
+
+    /* free all resources */
+    CloseHandle(stream->hDir);
+
+    g_free(stream->file_id_list);
+
+    g_free(stream);
+
+    return 0;
+}
+
+/*
+ * readdir_win32 - read a directory
+ *
+ * This function reads a directory entry from cached entry list.
+ */
+struct dirent *readdir_win32(DIR *pDir)
+{
+    struct dir_win32 *stream = (struct dir_win32 *)pDir;
+
+    if (stream == NULL) {
+        errno = EBADF;
+        return NULL;
+    }
+
+retry:
+
+    if (stream->offset >= stream->total_entries) {
+        /* reach to the end, return NULL without set errno */
+        return NULL;
+    }
+
+    if (get_next_entry(stream) != 0) {
+        stream->offset++;
+        goto retry;
+    }
+
+    /* Windows does not provide inode number */
+    stream->dd_dir.d_ino = 0;
+    stream->dd_dir.d_reclen = 0;
+    stream->dd_dir.d_namlen = strlen(stream->dd_dir.d_name);
+
+    stream->offset++;
+
+    return &stream->dd_dir;
+}
+
+/*
+ * rewinddir_win32 - reset directory stream
+ *
+ * This function resets the position of the directory stream to the
+ * beginning of the directory.
+ */
+void rewinddir_win32(DIR *pDir)
+{
+    struct dir_win32 *stream = (struct dir_win32 *)pDir;
+
+    if (stream == NULL) {
+        errno = EBADF;
+        return;
+    }
+
+    stream->offset = 0;
+
+    return;
+}
+
+/*
+ * seekdir_win32 - set the position of the next readdir() call in the directory
+ *
+ * This function sets the position of the next readdir() call in the directory
+ * from which the next readdir() call will start.
+ */
+void seekdir_win32(DIR *pDir, long pos)
+{
+    struct dir_win32 *stream = (struct dir_win32 *)pDir;
+
+    if (stream == NULL) {
+        errno = EBADF;
+        return;
+    }
+
+    if (pos < -1) {
+        errno = EINVAL;
+        return;
+    }
+
+    if (pos == -1 || pos >= (long)stream->total_entries) {
+        /* seek to the end */
+        stream->offset = stream->total_entries;
+        return;
+    }
+
+    if (pos - (long)stream->offset == 0) {
+        /* no need to seek */
+        return;
+    }
+
+    stream->offset = pos;
+
+    return;
+}
+
+/*
+ * telldir_win32 - return current location in directory
+ *
+ * This function returns current location in directory.
+ */
+long telldir_win32(DIR *pDir)
+{
+    struct dir_win32 *stream = (struct dir_win32 *)pDir;
+
+    if (stream == NULL) {
+        errno = EBADF;
+        return -1;
+    }
+
+    if (stream->offset > stream->total_entries) {
+        return -1;
+    }
+
+    return (long)stream->offset;
 }
