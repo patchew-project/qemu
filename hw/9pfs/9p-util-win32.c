@@ -1420,3 +1420,8 @@ long telldir_win32(DIR *pDir)
 
     return (long)stream->offset;
 }
+
+off_t qemu_dirent_off_win32(struct V9fsState *s, union V9fsFidOpenState *fs)
+{
+    return s->ops->telldir(&s->ctx, fs);
+}
