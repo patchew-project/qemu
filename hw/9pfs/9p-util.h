@@ -22,8 +22,9 @@
 /* forward declaration */
 union V9fsFidOpenState;
 struct V9fsState;
+struct FsContext;
 
-#if !defined(CONFIG_LINUX)
+#ifdef CONFIG_DARWIN
 
 /*
  * Generates a Linux device number (a.k.a. dev_t) for given device major
@@ -55,10 +56,12 @@ static inline uint64_t makedev_dotl(uint32_t dev_major, uint32_t dev_minor)
  */
 static inline uint64_t host_dev_to_dotl_dev(dev_t dev)
 {
-#ifdef CONFIG_LINUX
+#if defined(CONFIG_LINUX) || defined(CONFIG_WIN32)
     return dev;
-#else
+#elif defined(CONFIG_DARWIN)
     return makedev_dotl(major(dev), minor(dev));
+#else
+#error Missing host_dev_to_dotl_dev() implementation for this host system
 #endif
 }
 
@@ -152,6 +155,7 @@ void rewinddir_win32(DIR *pDir);
 void seekdir_win32(DIR *pDir, long pos);
 long telldir_win32(DIR *pDir);
 off_t qemu_dirent_off_win32(struct V9fsState *s, union V9fsFidOpenState *fs);
+uint64_t qemu_stat_rdev_win32(struct FsContext *fs_ctx);
 #endif
 
 static inline void close_preserve_errno(int fd)
@@ -267,6 +271,18 @@ static inline struct dirent *qemu_dirent_dup(struct dirent *dent)
                       strlen(dent->d_name) + 1;
     }
     return g_memdup(dent, sz);
+}
+
+static inline uint64_t qemu_stat_rdev(const struct stat *stbuf,
+                                      struct FsContext *fs_ctx)
+{
+#if defined(CONFIG_LINUX) || defined(CONFIG_DARWIN)
+    return stbuf->st_rdev;
+#elif defined(CONFIG_WIN32)
+    return qemu_stat_rdev_win32(fs_ctx);
+#else
+#error Missing qemu_stat_rdev() implementation for this host system
+#endif
 }
 
 /*
