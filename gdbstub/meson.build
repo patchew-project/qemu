@@ -7,3 +7,6 @@
 specific_ss.add(files('gdbstub.c'))
 softmmu_ss.add(files('softmmu.c'))
 user_ss.add(files('user.c'))
+
+# and BSD?
+specific_ss.add(when: 'CONFIG_LINUX_USER', if_true: files('user-target.c'))
