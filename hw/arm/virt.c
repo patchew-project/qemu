@@ -230,6 +230,39 @@ static bool cpu_type_valid(const char *cpu)
     return false;
 }
 
+static bool numa_state_valid(MachineState *ms)
+{
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
+    NumaState *state = ms->numa_state;
+    const CPUArchIdList *possible_cpus = mc->possible_cpu_arch_ids(ms);
+    const CPUArchId *cpus = possible_cpus->cpus;
+    int len = possible_cpus->len, i, j;
+
+    if (!state || state->num_nodes <= 1 || len <= 1) {
+        return true;
+    }
+
+    for (i = 0; i < len; i++) {
+        for (j = i + 1; j < len; j++) {
+            if (cpus[i].props.has_socket_id &&
+                cpus[i].props.has_node_id &&
+                cpus[j].props.has_socket_id &&
+                cpus[j].props.has_node_id &&
+                cpus[i].props.socket_id == cpus[j].props.socket_id &&
+                cpus[i].props.node_id != cpus[j].props.node_id) {
+                error_report("CPU-%d and CPU-%d in socket-%ld have been "
+                             "associated with node-%ld and node-%ld",
+                             i, j, cpus[i].props.socket_id,
+                             cpus[i].props.node_id,
+                             cpus[j].props.node_id);
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 static void create_randomness(MachineState *ms, const char *node)
 {
     struct {
@@ -2037,6 +2070,10 @@ static void machvirt_init(MachineState *machine)
 
     if (!cpu_type_valid(machine->cpu_type)) {
         error_report("mach-virt: CPU type %s not supported", machine->cpu_type);
+        exit(1);
+    }
+
+    if (!numa_state_valid(machine)) {
         exit(1);
     }
 
