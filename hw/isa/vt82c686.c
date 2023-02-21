@@ -555,7 +555,7 @@ struct ViaISAState {
     PCIIDEState ide;
     UHCIState uhci[2];
     ViaPMState pm;
-    PCIDevice ac97;
+    ViaAC97State ac97;
     PCIDevice mc97;
 };
 
@@ -610,6 +610,7 @@ void via_isa_set_irq(PCIDevice *d, ViaISAIRQSourceBit n, int level)
         break;
     case VIA_IRQ_USB0:
     case VIA_IRQ_USB1:
+    case VIA_IRQ_AC97:
         max_irq = 14;
         isa_irq = d->config[PCI_INTERRUPT_LINE];
         break;
