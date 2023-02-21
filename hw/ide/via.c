@@ -112,7 +112,7 @@ static void via_ide_set_irq(void *opaque, int n, int level)
         d->config[0x70 + n * 8] &= ~0x80;
     }
 
-    via_isa_set_irq(pci_get_function_0(d), 14 + n, level);
+    via_isa_set_irq(d, VIA_IRQ_IDE0 + n, level);
 }
 
 static void via_ide_reset(DeviceState *dev)

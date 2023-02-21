@@ -549,6 +549,7 @@ struct ViaISAState {
     PCIDevice dev;
     qemu_irq cpu_intr;
     qemu_irq *isa_irqs;
+    uint16_t isa_irq_state[ISA_NUM_IRQS];
     ViaSuperIOState via_sio;
     RTCState rtc;
     PCIIDEState ide;
@@ -592,10 +593,43 @@ static const TypeInfo via_isa_info = {
     },
 };
 
-void via_isa_set_irq(PCIDevice *d, int n, int level)
+void via_isa_set_irq(PCIDevice *d, ViaISAIRQSourceBit n, int level)
 {
-    ViaISAState *s = VIA_ISA(d);
-    qemu_set_irq(s->isa_irqs[n], level);
+    ViaISAState *s = VIA_ISA(pci_get_function_0(d));
+    uint8_t isa_irq = 0, max_irq = 15;
+
+    if (n == VIA_IRQ_USB0 && d == PCI_DEVICE(&s->uhci[1])) {
+        n++;
+    }
+    switch (n) {
+    case VIA_IRQ_IDE0:
+        isa_irq = 14;
+        break;
+    case VIA_IRQ_IDE1:
+        isa_irq = 15;
+        break;
+    case VIA_IRQ_USB0:
+    case VIA_IRQ_USB1:
+        max_irq = 14;
+        isa_irq = d->config[PCI_INTERRUPT_LINE];
+        break;
+    }
+
+    if (unlikely(isa_irq > max_irq || isa_irq == 2)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "Invalid ISA IRQ routing %d for %d",
+                      isa_irq, n);
+        return;
+    }
+    if (!isa_irq) {
+        return;
+    }
+
+    if (level) {
+        s->isa_irq_state[isa_irq] |= BIT(n);
+    } else {
+        s->isa_irq_state[isa_irq] &= ~BIT(n);
+    }
+    qemu_set_irq(s->isa_irqs[isa_irq], !!s->isa_irq_state[isa_irq]);
 }
 
 static void via_isa_request_i8259_irq(void *opaque, int irq, int level)

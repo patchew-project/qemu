@@ -9,6 +9,13 @@
 #define TYPE_VIA_IDE "via-ide"
 #define TYPE_VIA_MC97 "via-mc97"
 
-void via_isa_set_irq(PCIDevice *d, int n, int level);
+typedef enum {
+    VIA_IRQ_IDE0 = 0,
+    VIA_IRQ_IDE1 = 1,
+    VIA_IRQ_USB0 = 2,
+    VIA_IRQ_USB1 = 3,
+} ViaISAIRQSourceBit;
+
+void via_isa_set_irq(PCIDevice *d, ViaISAIRQSourceBit n, int level);
 
 #endif
