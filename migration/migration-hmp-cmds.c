@@ -602,7 +602,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
                    "through QMP");
         break;
     default:
-        assert(0);
+        g_assert_not_reached();
     }
 
     if (err) {
