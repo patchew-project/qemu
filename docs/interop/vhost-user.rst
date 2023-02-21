@@ -258,6 +258,23 @@ Inflight description
 
 :queue size: a 16-bit size of virtqueues
 
+Custom mmap description
+^^^^^^^^^^^^^^^^^^^^^^^
+
++-------+-------+
+| flags | value |
++-------+-------+
+
+:flags: 64-bit bit field
+
+- Bit 0 is Xen foreign memory access flag - needs Xen foreign memory mapping.
+- Bit 1 is Xen grant memory access flag - needs Xen grant memory mapping.
+
+:value: a 64-bit hypervisor specific value.
+
+- For Xen foreign or grant memory access, this is set with guest's xen domain
+  id.
+
 C structure
 -----------
 
@@ -867,6 +884,7 @@ Protocol features
   #define VHOST_USER_PROTOCOL_F_INBAND_NOTIFICATIONS 14
   #define VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS  15
   #define VHOST_USER_PROTOCOL_F_STATUS               16
+  #define VHOST_USER_PROTOCOL_F_CUSTOM_MMAP          17
 
 Front-end message types
 -----------------------
@@ -1421,6 +1439,20 @@ Front-end message types
   successfully negotiated, this message is submitted by the front-end to
   query the back-end for its device status as defined in the Virtio
   specification.
+
+``VHOST_USER_CUSTOM_MMAP``
+  :id: 41
+  :equivalent ioctl: N/A
+  :request payload: Custom mmap description
+  :reply payload: N/A
+
+  When the ``VHOST_USER_PROTOCOL_F_CUSTOM_MMAP`` protocol feature has been
+  successfully negotiated, this message is submitted by the front-end to
+  notify the back-end of the special memory mapping requirements, that the
+  back-end needs to take care of, while mapping any memory regions sent
+  over by the front-end. The front-end must send this message before
+  any memory-regions are sent to the back-end via ``VHOST_USER_SET_MEM_TABLE``
+  or ``VHOST_USER_ADD_MEM_REG`` message types.
 
 
 Back-end message types
