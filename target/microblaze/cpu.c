@@ -29,6 +29,7 @@
 #include "hw/qdev-properties.h"
 #include "exec/exec-all.h"
 #include "fpu/softfloat-helpers.h"
+#include "tcg/tcg.h"
 
 static const struct {
     const char *name;
@@ -96,7 +97,8 @@ static void mb_cpu_synchronize_from_tb(CPUState *cs,
 {
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
 
-    cpu->env.pc = tb_pc(tb);
+    tcg_debug_assert(!(cs->tcg_cflags & CF_PCREL));
+    cpu->env.pc = tb->pc;
     cpu->env.iflags = tb->flags & IFLAGS_TB_MASK;
 }
 
