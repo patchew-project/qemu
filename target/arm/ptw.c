@@ -2926,12 +2926,9 @@ bool get_phys_addr_with_secure(CPUARMState *env, target_ulong address,
                                      result, fi);
 }
 
-bool get_phys_addr(CPUARMState *env, target_ulong address,
-                   MMUAccessType access_type, ARMMMUIdx mmu_idx,
-                   GetPhysAddrResult *result, ARMMMUFaultInfo *fi)
+/* Return true if this address translation regime is secure */
+static bool regime_is_secure(CPUARMState *env, ARMMMUIdx mmu_idx)
 {
-    bool is_secure;
-
     switch (mmu_idx) {
     case ARMMMUIdx_E10_0:
     case ARMMMUIdx_E10_1:
@@ -2943,16 +2940,14 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
     case ARMMMUIdx_Stage1_E1:
     case ARMMMUIdx_Stage1_E1_PAN:
     case ARMMMUIdx_E2:
-        is_secure = arm_is_secure_below_el3(env);
-        break;
+        return arm_is_secure_below_el3(env);
     case ARMMMUIdx_Stage2:
     case ARMMMUIdx_Phys_NS:
     case ARMMMUIdx_MPrivNegPri:
     case ARMMMUIdx_MUserNegPri:
     case ARMMMUIdx_MPriv:
     case ARMMMUIdx_MUser:
-        is_secure = false;
-        break;
+        return false;
     case ARMMMUIdx_E3:
     case ARMMMUIdx_Stage2_S:
     case ARMMMUIdx_Phys_S:
@@ -2960,13 +2955,18 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
     case ARMMMUIdx_MSUserNegPri:
     case ARMMMUIdx_MSPriv:
     case ARMMMUIdx_MSUser:
-        is_secure = true;
-        break;
-    default:
-        g_assert_not_reached();
+        return true;
     }
+    g_assert_not_reached();
+}
+
+bool get_phys_addr(CPUARMState *env, target_ulong address,
+                   MMUAccessType access_type, ARMMMUIdx mmu_idx,
+                   GetPhysAddrResult *result, ARMMMUFaultInfo *fi)
+{
     return get_phys_addr_with_secure(env, address, access_type, mmu_idx,
-                                     is_secure, result, fi);
+                                     regime_is_secure(env, mmu_idx),
+                                     result, fi);
 }
 
 hwaddr arm_cpu_get_phys_page_attrs_debug(CPUState *cs, vaddr addr,
