@@ -14,6 +14,10 @@ typedef enum {
     VIA_IRQ_IDE1 = 1,
     VIA_IRQ_USB0 = 2,
     VIA_IRQ_USB1 = 3,
+    VIA_IRQ_PIRQA = 4,
+    VIA_IRQ_PIRQB = 5,
+    VIA_IRQ_PIRQC = 6,
+    VIA_IRQ_PIRQD = 7,
 } ViaISAIRQSourceBit;
 
 void via_isa_set_irq(PCIDevice *d, ViaISAIRQSourceBit n, int level);

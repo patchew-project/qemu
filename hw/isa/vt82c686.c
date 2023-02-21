@@ -613,6 +613,18 @@ void via_isa_set_irq(PCIDevice *d, ViaISAIRQSourceBit n, int level)
         max_irq = 14;
         isa_irq = d->config[PCI_INTERRUPT_LINE];
         break;
+    case VIA_IRQ_PIRQA:
+        isa_irq = d->config[0x55] >> 4;
+        break;
+    case VIA_IRQ_PIRQB:
+        isa_irq = d->config[0x56] & 0xf;
+        break;
+    case VIA_IRQ_PIRQC:
+        isa_irq = d->config[0x56] >> 4;
+        break;
+    case VIA_IRQ_PIRQD:
+        isa_irq = d->config[0x57] >> 4;
+        break;
     }
 
     if (unlikely(isa_irq > max_irq || isa_irq == 2)) {
@@ -632,6 +644,11 @@ void via_isa_set_irq(PCIDevice *d, ViaISAIRQSourceBit n, int level)
     qemu_set_irq(s->isa_irqs[isa_irq], !!s->isa_irq_state[isa_irq]);
 }
 
+static void via_isa_pirq(void *opaque, int n, int level)
+{
+    via_isa_set_irq(opaque, VIA_IRQ_PIRQA + n, level);
+}
+
 static void via_isa_request_i8259_irq(void *opaque, int irq, int level)
 {
     ViaISAState *s = opaque;
@@ -648,6 +665,7 @@ static void via_isa_realize(PCIDevice *d, Error **errp)
     int i;
 
     qdev_init_gpio_out(dev, &s->cpu_intr, 1);
+    qdev_init_gpio_in_named(dev, via_isa_pirq, "pirq", PCI_NUM_PINS);
     isa_irq = qemu_allocate_irqs(via_isa_request_i8259_irq, s, 1);
     isa_bus = isa_bus_new(dev, pci_address_space(d), pci_address_space_io(d),
                           errp);
