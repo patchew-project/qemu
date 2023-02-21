@@ -164,7 +164,7 @@ struct APICCommonState {
     uint8_t arb_id;
     uint8_t tpr;
     uint32_t spurious_vec;
-    uint8_t log_dest;
+    uint32_t log_dest;
     uint8_t dest_mode;
     uint32_t isr[8];  /* in service register */
     uint32_t tmr[8];  /* trigger mode register */

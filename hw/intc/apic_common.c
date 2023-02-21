@@ -366,7 +366,7 @@ static const VMStateDescription vmstate_apic_common = {
         VMSTATE_UINT8(arb_id, APICCommonState),
         VMSTATE_UINT8(tpr, APICCommonState),
         VMSTATE_UINT32(spurious_vec, APICCommonState),
-        VMSTATE_UINT8(log_dest, APICCommonState),
+        VMSTATE_UINT32(log_dest, APICCommonState),
         VMSTATE_UINT8(dest_mode, APICCommonState),
         VMSTATE_UINT32_ARRAY(isr, APICCommonState, 8),
         VMSTATE_UINT32_ARRAY(tmr, APICCommonState, 8),

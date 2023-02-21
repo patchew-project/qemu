@@ -30,6 +30,7 @@
 #include "hw/i386/apic-msidef.h"
 #include "qapi/error.h"
 #include "qom/object.h"
+#include "tcg/helper-tcg.h"
 
 #define MAX_APICS 255
 #define MAX_APIC_WORDS 8
@@ -48,7 +49,7 @@ DECLARE_INSTANCE_CHECKER(APICCommonState, APIC,
 static void apic_set_irq(APICCommonState *s, int vector_num, int trigger_mode);
 static void apic_update_irq(APICCommonState *s);
 static void apic_get_delivery_bitmask(uint32_t *deliver_bitmask,
-                                      uint8_t dest, uint8_t dest_mode);
+                                      uint32_t dest, uint8_t dest_mode);
 
 /* Find first bit starting from msb */
 static int apic_fls_bit(uint32_t value)
@@ -275,7 +276,7 @@ static void apic_bus_deliver(const uint32_t *deliver_bitmask,
                  apic_set_irq(apic_iter, vector_num, trigger_mode) );
 }
 
-void apic_deliver_irq(uint8_t dest, uint8_t dest_mode, uint8_t delivery_mode,
+void apic_deliver_irq(uint32_t dest, uint8_t dest_mode, uint8_t delivery_mode,
                       uint8_t vector_num, uint8_t trigger_mode)
 {
     uint32_t deliver_bitmask[MAX_APIC_WORDS];
@@ -287,8 +288,38 @@ void apic_deliver_irq(uint8_t dest, uint8_t dest_mode, uint8_t delivery_mode,
     apic_bus_deliver(deliver_bitmask, delivery_mode, vector_num, trigger_mode);
 }
 
+bool is_x2apic_mode(DeviceState *dev)
+{
+    APICCommonState *s = APIC(dev);
+
+    return s->apicbase & MSR_IA32_APICBASE_EXTD;
+}
+
 static void apic_set_base(APICCommonState *s, uint64_t val)
 {
+    /*
+     * Transition into invalid state
+     * (s->apicbase & MSR_IA32_APICBASE_ENABLE == 0) &&
+     * (s->apicbase & MSR_IA32_APICBASE_EXTD) == 1
+     */
+    if (!(val & MSR_IA32_APICBASE_ENABLE) &&
+        (val & MSR_IA32_APICBASE_EXTD))
+        raise_exception_ra(&s->cpu->env, EXCP0D_GPF, GETPC());
+
+    /* Invalid transition from disabled mode to x2APIC */
+    if (!(s->apicbase & MSR_IA32_APICBASE_ENABLE) &&
+        !(s->apicbase & MSR_IA32_APICBASE_EXTD) &&
+        (val & MSR_IA32_APICBASE_ENABLE) &&
+        (val & MSR_IA32_APICBASE_EXTD))
+        raise_exception_ra(&s->cpu->env, EXCP0D_GPF, GETPC());
+
+    /* Invalid transition from x2APIC to xAPIC */
+    if ((s->apicbase & MSR_IA32_APICBASE_ENABLE) &&
+        (s->apicbase & MSR_IA32_APICBASE_EXTD) &&
+        (val & MSR_IA32_APICBASE_ENABLE) &&
+        !(val & MSR_IA32_APICBASE_EXTD))
+        raise_exception_ra(&s->cpu->env, EXCP0D_GPF, GETPC());
+
     s->apicbase = (val & 0xfffff000) |
         (s->apicbase & (MSR_IA32_APICBASE_BSP | MSR_IA32_APICBASE_ENABLE));
     /* if disabled, cannot be enabled again */
@@ -296,6 +327,21 @@ static void apic_set_base(APICCommonState *s, uint64_t val)
         s->apicbase &= ~MSR_IA32_APICBASE_ENABLE;
         cpu_clear_apic_feature(&s->cpu->env);
         s->spurious_vec &= ~APIC_SV_ENABLE;
+    }
+
+    /* Transition from xAPIC to x2APIC */
+    if (cpu_has_x2apic_feature(&s->cpu->env) &&
+        !(s->apicbase & MSR_IA32_APICBASE_EXTD) &&
+        (val & MSR_IA32_APICBASE_EXTD)) {
+        s->apicbase |= MSR_IA32_APICBASE_EXTD;
+
+        s->log_dest = ((s->initial_apic_id & 0xffff0) << 16) |
+                      (1 << (s->initial_apic_id & 0xf));
+
+        /* disable MMIO interface */
+        qemu_mutex_lock_iothread();
+        memory_region_set_enabled(&s->io_memory, false);
+        qemu_mutex_unlock_iothread();
     }
 }
 
@@ -454,7 +500,7 @@ static int apic_find_dest(uint8_t dest)
 }
 
 static void apic_get_delivery_bitmask(uint32_t *deliver_bitmask,
-                                      uint8_t dest, uint8_t dest_mode)
+                                      uint32_t dest, uint8_t dest_mode)
 {
     APICCommonState *apic_iter;
     int i;
@@ -474,13 +520,21 @@ static void apic_get_delivery_bitmask(uint32_t *deliver_bitmask,
         for(i = 0; i < MAX_APICS; i++) {
             apic_iter = local_apics[i];
             if (apic_iter) {
-                if (apic_iter->dest_mode == 0xf) {
-                    if (dest & apic_iter->log_dest)
+                /* x2APIC mode */
+                if (apic_iter->apicbase & MSR_IA32_APICBASE_EXTD) {
+                    if ((dest & 0xffff0000) == (apic_iter->log_dest & 0xffff0000) &&
+                        (dest & apic_iter->log_dest & 0xffff)) {
                         apic_set_bit(deliver_bitmask, i);
-                } else if (apic_iter->dest_mode == 0x0) {
-                    if ((dest & 0xf0) == (apic_iter->log_dest & 0xf0) &&
-                        (dest & apic_iter->log_dest & 0x0f)) {
-                        apic_set_bit(deliver_bitmask, i);
+                    }
+                } else {
+                    if (apic_iter->dest_mode == 0xf) {
+                        if (dest & apic_iter->log_dest)
+                            apic_set_bit(deliver_bitmask, i);
+                    } else if (apic_iter->dest_mode == 0x0) {
+                        if ((dest & 0xf0) == (apic_iter->log_dest & 0xf0) &&
+                            (dest & apic_iter->log_dest & 0x0f)) {
+                            apic_set_bit(deliver_bitmask, i);
+                        }
                     }
                 }
             } else {
@@ -508,13 +562,12 @@ void apic_sipi(DeviceState *dev)
     s->wait_for_sipi = 0;
 }
 
-static void apic_deliver(DeviceState *dev, uint8_t dest, uint8_t dest_mode,
+static void apic_deliver(DeviceState *dev, uint32_t dest, uint8_t dest_mode,
                          uint8_t delivery_mode, uint8_t vector_num,
-                         uint8_t trigger_mode)
+                         uint8_t trigger_mode, uint8_t dest_shorthand)
 {
     APICCommonState *s = APIC(dev);
     uint32_t deliver_bitmask[MAX_APIC_WORDS];
-    int dest_shorthand = (s->icr[0] >> 18) & 3;
     APICCommonState *apic_iter;
 
     switch (dest_shorthand) {
@@ -635,16 +688,11 @@ static void apic_timer(void *opaque)
     apic_timer_update(s, s->next_time);
 }
 
-static uint64_t apic_mem_read(void *opaque, hwaddr addr, unsigned size)
+uint64_t apic_register_read(int index)
 {
     DeviceState *dev;
     APICCommonState *s;
-    uint32_t val;
-    int index;
-
-    if (size < 4) {
-        return 0;
-    }
+    uint64_t val;
 
     dev = cpu_get_current_apic();
     if (!dev) {
@@ -652,10 +700,12 @@ static uint64_t apic_mem_read(void *opaque, hwaddr addr, unsigned size)
     }
     s = APIC(dev);
 
-    index = (addr >> 4) & 0xff;
     switch(index) {
     case 0x02: /* id */
-        val = s->id << 24;
+        if (is_x2apic_mode(dev))
+            val = s->initial_apic_id;
+        else
+            val = s->id << 24;
         break;
     case 0x03: /* version */
         val = s->version | ((APIC_LVT_NB - 1) << 16);
@@ -678,9 +728,16 @@ static uint64_t apic_mem_read(void *opaque, hwaddr addr, unsigned size)
         val = 0;
         break;
     case 0x0d:
-        val = s->log_dest << 24;
+        if (is_x2apic_mode(dev))
+            val = s->log_dest;
+        else
+            val = s->log_dest << 24;
         break;
     case 0x0e:
+        if (is_x2apic_mode(dev)) {
+            raise_exception_ra(&s->cpu->env, EXCP0D_GPF, GETPC());
+        }
+
         val = (s->dest_mode << 28) | 0xfffffff;
         break;
     case 0x0f:
@@ -719,6 +776,22 @@ static uint64_t apic_mem_read(void *opaque, hwaddr addr, unsigned size)
         val = 0;
         break;
     }
+
+    return val;
+}
+
+static uint64_t apic_mem_read(void *opaque, hwaddr addr, unsigned size)
+{
+    uint32_t val;
+    int index;
+
+    if (size < 4) {
+        return 0;
+    }
+
+    index = (addr >> 4) & 0xff;
+    val = (uint32_t) apic_register_read(index);
+
     trace_apic_mem_readl(addr, val);
     return val;
 }
@@ -736,27 +809,10 @@ static void apic_send_msi(MSIMessage *msi)
     apic_deliver_irq(dest, dest_mode, delivery, vector, trigger_mode);
 }
 
-static void apic_mem_write(void *opaque, hwaddr addr, uint64_t val,
-                           unsigned size)
+void apic_register_write(int index, uint64_t val)
 {
     DeviceState *dev;
     APICCommonState *s;
-    int index = (addr >> 4) & 0xff;
-
-    if (size < 4) {
-        return;
-    }
-
-    if (addr > 0xfff || !index) {
-        /* MSI and MMIO APIC are at the same memory location,
-         * but actually not on the global bus: MSI is on PCI bus
-         * APIC is connected directly to the CPU.
-         * Mapping them on the global bus happens to work because
-         * MSI registers are reserved in APIC MMIO and vice versa. */
-        MSIMessage msi = { .address = addr, .data = val };
-        apic_send_msi(&msi);
-        return;
-    }
 
     dev = cpu_get_current_apic();
     if (!dev) {
@@ -764,10 +820,12 @@ static void apic_mem_write(void *opaque, hwaddr addr, uint64_t val,
     }
     s = APIC(dev);
 
-    trace_apic_mem_writel(addr, val);
-
     switch(index) {
     case 0x02:
+        if (is_x2apic_mode(dev)) {
+            raise_exception_ra(&s->cpu->env, EXCP0D_GPF, GETPC());
+        }
+
         s->id = (val >> 24);
         break;
     case 0x03:
@@ -787,9 +845,17 @@ static void apic_mem_write(void *opaque, hwaddr addr, uint64_t val,
         apic_eoi(s);
         break;
     case 0x0d:
+        if (is_x2apic_mode(dev)) {
+            raise_exception_ra(&s->cpu->env, EXCP0D_GPF, GETPC());
+        }
+
         s->log_dest = val >> 24;
         break;
     case 0x0e:
+        if (is_x2apic_mode(dev)) {
+            raise_exception_ra(&s->cpu->env, EXCP0D_GPF, GETPC());
+        }
+
         s->dest_mode = val >> 28;
         break;
     case 0x0f:
@@ -801,13 +867,27 @@ static void apic_mem_write(void *opaque, hwaddr addr, uint64_t val,
     case 0x20 ... 0x27:
     case 0x28:
         break;
-    case 0x30:
+    case 0x30: {
+        uint32_t dest;
+
         s->icr[0] = val;
-        apic_deliver(dev, (s->icr[1] >> 24) & 0xff, (s->icr[0] >> 11) & 1,
+        if (is_x2apic_mode(dev)) {
+            s->icr[1] = val >> 32;
+            dest = s->icr[1];
+        } else {
+            dest = (s->icr[1] >> 24) & 0xff;
+        }
+
+        apic_deliver(dev, dest, (s->icr[0] >> 11) & 1,
                      (s->icr[0] >> 8) & 7, (s->icr[0] & 0xff),
-                     (s->icr[0] >> 15) & 1);
+                     (s->icr[0] >> 15) & 1, (s->icr[0] >> 18) & 3);
         break;
+    }
     case 0x31:
+        if (is_x2apic_mode(dev)) {
+            raise_exception_ra(&s->cpu->env, EXCP0D_GPF, GETPC());
+        }
+
         s->icr[1] = val;
         break;
     case 0x32 ... 0x37:
@@ -836,10 +916,51 @@ static void apic_mem_write(void *opaque, hwaddr addr, uint64_t val,
             s->count_shift = (v + 1) & 7;
         }
         break;
+    case 0x3f: {
+        int vector = val & 0xff;
+
+        if (is_x2apic_mode(dev)) {
+            raise_exception_ra(&s->cpu->env, EXCP0D_GPF, GETPC());
+        }
+
+        /*
+         * Self IPI is identical to IPI with
+         * - Destination shorthand: 1 (Self)
+         * - Trigger mode: 0 (Edge)
+         * - Delivery mode: 0 (Fixed)
+         */
+        apic_deliver(dev, 0, 0, APIC_DM_FIXED, vector, 0, 1);
+
+        break;
+    }
     default:
         s->esr |= APIC_ESR_ILLEGAL_ADDRESS;
         break;
     }
+}
+
+static void apic_mem_write(void *opaque, hwaddr addr, uint64_t val,
+                           unsigned size)
+{
+    int index = (addr >> 4) & 0xff;
+
+    if (size < 4) {
+        return;
+    }
+
+    if (addr > 0xfff || !index) {
+        /* MSI and MMIO APIC are at the same memory location,
+         * but actually not on the global bus: MSI is on PCI bus
+         * APIC is connected directly to the CPU.
+         * Mapping them on the global bus happens to work because
+         * MSI registers are reserved in APIC MMIO and vice versa. */
+        MSIMessage msi = { .address = addr, .data = val };
+        apic_send_msi(&msi);
+        return;
+    }
+
+    trace_apic_mem_writel(addr, val);
+    apic_register_write(index, val);
 }
 
 static void apic_pre_save(APICCommonState *s)
