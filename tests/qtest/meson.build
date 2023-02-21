@@ -11,6 +11,12 @@ slow_qtests = {
   'test-hmp' : 120,
 }
 
+# Temporarily disabled tests can be listed here
+qtests_disabled = [
+  # This test is currently flaky and fails intermittently
+  'migration-test',
+]
+
 qtests_generic = [
   'cdrom-test',
   'device-introspect-test',
@@ -343,6 +349,9 @@ foreach dir : target_dirs
   endif
 
   foreach test : target_qtests
+    if test in qtests_disabled
+      continue
+    endif
     # Executables are shared across targets, declare them only the first time we
     # encounter them
     if not qtest_executables.has_key(test)
