@@ -1946,7 +1946,41 @@ out:
 typedef struct {
     IOMMUNotifier n;
     VFIOGuestIOMMU *giommu;
+    VFIOBitmap *vbmap;
 } vfio_giommu_dirty_notifier;
+
+static int vfio_iommu_set_dirty_bitmap(VFIOContainer *container,
+                                       vfio_giommu_dirty_notifier *gdn,
+                                       hwaddr iova, hwaddr size,
+                                       ram_addr_t ram_addr)
+{
+    VFIOBitmap *vbmap = gdn->vbmap;
+    VFIOBitmap *dst_vbmap;
+    hwaddr start_iova = REAL_HOST_PAGE_ALIGN(gdn->n.start);
+    hwaddr copy_offset;
+
+    dst_vbmap = vfio_bitmap_alloc(size);
+    if (!dst_vbmap) {
+        return -errno;
+    }
+
+    if (!vfio_iommu_range_is_device_tracked(container, iova, size)) {
+        bitmap_set(dst_vbmap->bitmap, 0, dst_vbmap->pages);
+
+        goto out;
+    }
+
+    copy_offset = (iova - start_iova) / qemu_real_host_page_size();
+    bitmap_copy_with_src_offset(dst_vbmap->bitmap, vbmap->bitmap, copy_offset,
+                                dst_vbmap->pages);
+
+out:
+    cpu_physical_memory_set_dirty_lebitmap(dst_vbmap->bitmap, ram_addr,
+                                           dst_vbmap->pages);
+    vfio_bitmap_dealloc(dst_vbmap);
+
+    return 0;
+}
 
 static void vfio_iommu_map_dirty_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
 {
@@ -1968,8 +2002,15 @@ static void vfio_iommu_map_dirty_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
 
     rcu_read_lock();
     if (vfio_get_xlat_addr(iotlb, NULL, &translated_addr, NULL)) {
-        ret = vfio_get_dirty_bitmap(container, iova, iotlb->addr_mask + 1,
-                                    translated_addr);
+        if (gdn->vbmap) {
+            ret = vfio_iommu_set_dirty_bitmap(container, gdn, iova,
+                                              iotlb->addr_mask + 1,
+                                              translated_addr);
+        } else {
+            ret = vfio_get_dirty_bitmap(container, iova, iotlb->addr_mask + 1,
+                                        translated_addr);
+        }
+
         if (ret) {
             error_report("vfio_iommu_map_dirty_notify(%p, 0x%"HWADDR_PRIx", "
                          "0x%"HWADDR_PRIx") = %d (%s)",
@@ -2033,6 +2074,7 @@ static int vfio_sync_iommu_dirty_bitmap(VFIOContainer *container,
 {
     VFIOGuestIOMMU *giommu;
     bool found = false;
+    VFIOBitmap *vbmap = NULL;
     Int128 llend;
     vfio_giommu_dirty_notifier gdn;
     int idx;
@@ -2050,6 +2092,7 @@ static int vfio_sync_iommu_dirty_bitmap(VFIOContainer *container,
     }
 
     gdn.giommu = giommu;
+    gdn.vbmap = NULL;
     idx = memory_region_iommu_attrs_to_index(giommu->iommu_mr,
                                              MEMTXATTRS_UNSPECIFIED);
 
@@ -2057,10 +2100,48 @@ static int vfio_sync_iommu_dirty_bitmap(VFIOContainer *container,
                        section->size);
     llend = int128_sub(llend, int128_one());
 
+    /*
+     * Optimize device dirty tracking if the MR section is at least partially
+     * tracked. Optimization is done by querying a single dirty bitmap for the
+     * entire range instead of querying dirty bitmap for each vIOMMU mapping.
+     */
+    if (vfio_devices_all_device_dirty_tracking(container)) {
+        hwaddr start = REAL_HOST_PAGE_ALIGN(section->offset_within_region);
+        hwaddr end = int128_get64(llend);
+        hwaddr size;
+        int ret;
+
+        if (start >= container->giommu_tracked_range) {
+            goto notifier_init;
+        }
+
+        size = REAL_HOST_PAGE_ALIGN(
+            MIN(container->giommu_tracked_range - 1, end) - start);
+
+        vbmap = vfio_bitmap_alloc(size);
+        if (!vbmap) {
+            return -errno;
+        }
+
+        ret = vfio_devices_query_dirty_bitmap(container, vbmap, start, size);
+        if (ret) {
+            vfio_bitmap_dealloc(vbmap);
+
+            return ret;
+        }
+
+        gdn.vbmap = vbmap;
+    }
+
+notifier_init:
     iommu_notifier_init(&gdn.n, vfio_iommu_map_dirty_notify, IOMMU_NOTIFIER_MAP,
                         section->offset_within_region, int128_get64(llend),
                         idx);
     memory_region_iommu_replay(giommu->iommu_mr, &gdn.n);
+
+    if (vbmap) {
+        vfio_bitmap_dealloc(vbmap);
+    }
 
     return 0;
 }
