@@ -45,6 +45,8 @@
 #include "migration/qemu-file.h"
 #include "sysemu/tpm.h"
 #include "qemu/iova-tree.h"
+#include "hw/boards.h"
+#include "hw/mem/memory-device.h"
 
 VFIOGroupList vfio_group_list =
     QLIST_HEAD_INITIALIZER(vfio_group_list);
@@ -428,6 +430,38 @@ void vfio_unblock_multiple_devices_migration(void)
     migrate_del_blocker(multiple_devices_migration_blocker);
     error_free(multiple_devices_migration_blocker);
     multiple_devices_migration_blocker = NULL;
+}
+
+static uint64_t vfio_get_ram_size(void)
+{
+    MachineState *ms = MACHINE(qdev_get_machine());
+    uint64_t plugged_size;
+
+    plugged_size = get_plugged_memory_size();
+    if (plugged_size == (uint64_t)-1) {
+        plugged_size = 0;
+    }
+
+    return ms->ram_size + plugged_size;
+}
+
+static int vfio_iommu_get_max_iova(VFIOContainer *container, hwaddr *max_iova)
+{
+    VFIOGuestIOMMU *giommu;
+    int ret;
+
+    giommu = QLIST_FIRST(&container->giommu_list);
+    if (!giommu) {
+        return -ENOENT;
+    }
+
+    ret = memory_region_iommu_get_attr(giommu->iommu_mr, IOMMU_ATTR_MAX_IOVA,
+                                       max_iova);
+    if (ret) {
+        return ret;
+    }
+
+    return 0;
 }
 
 static bool vfio_have_giommu(VFIOContainer *container)
@@ -1510,7 +1544,8 @@ static gboolean vfio_iova_tree_get_last(DMAMap *map, gpointer data)
 }
 
 static struct vfio_device_feature *
-vfio_device_feature_dma_logging_start_create(VFIOContainer *container)
+vfio_device_feature_dma_logging_start_create(VFIOContainer *container,
+                                             bool giommu)
 {
     struct vfio_device_feature *feature;
     size_t feature_size;
@@ -1528,6 +1563,16 @@ vfio_device_feature_dma_logging_start_create(VFIOContainer *container)
 
     control = (struct vfio_device_feature_dma_logging_control *)feature->data;
     control->page_size = qemu_real_host_page_size();
+
+    if (giommu) {
+        ranges = g_malloc0(sizeof(*ranges));
+        ranges->iova = 0;
+        ranges->length = container->giommu_tracked_range;
+        control->num_ranges = 1;
+        control->ranges = (uint64_t)ranges;
+
+        return feature;
+    }
 
     QEMU_LOCK_GUARD(&container->mappings_mutex);
 
@@ -1578,12 +1623,12 @@ static void vfio_device_feature_dma_logging_start_destroy(
     g_free(feature);
 }
 
-static int vfio_devices_dma_logging_start(VFIOContainer *container)
+static int vfio_devices_dma_logging_start(VFIOContainer *container, bool giommu)
 {
     struct vfio_device_feature *feature;
     int ret;
 
-    feature = vfio_device_feature_dma_logging_start_create(container);
+    feature = vfio_device_feature_dma_logging_start_create(container, giommu);
     if (!feature) {
         return -errno;
     }
@@ -1598,18 +1643,128 @@ static int vfio_devices_dma_logging_start(VFIOContainer *container)
     return ret;
 }
 
+typedef struct {
+    hwaddr *ranges;
+    unsigned int ranges_num;
+} VFIOGIOMMUDeviceDTRanges;
+
+/*
+ * This value is used in the second attempt to start device dirty tracking with
+ * vIOMMU, or if the giommu fails to report its max iova.
+ * It should be in the middle, not too big and not too small, allowing devices
+ * with HW limitations to do device dirty tracking while covering a fair amount
+ * of the IOVA space.
+ *
+ * This arbitrary value was chosen becasue it is the minimum value of Intel
+ * IOMMU max IOVA and mlx5 devices support tracking a range of this size.
+ */
+#define VFIO_IOMMU_DEFAULT_MAX_IOVA ((1ULL << 39) - 1)
+
+#define VFIO_IOMMU_RANGES_NUM 3
+static VFIOGIOMMUDeviceDTRanges *
+vfio_iommu_device_dirty_tracking_ranges_create(VFIOContainer *container)
+{
+    hwaddr iommu_max_iova = VFIO_IOMMU_DEFAULT_MAX_IOVA;
+    hwaddr retry_iova;
+    hwaddr ram_size = vfio_get_ram_size();
+    VFIOGIOMMUDeviceDTRanges *dt_ranges;
+    int ret;
+
+    dt_ranges = g_try_new0(VFIOGIOMMUDeviceDTRanges, 1);
+    if (!dt_ranges) {
+        errno = ENOMEM;
+
+        return NULL;
+    }
+
+    dt_ranges->ranges_num = VFIO_IOMMU_RANGES_NUM;
+
+    dt_ranges->ranges = g_try_new0(hwaddr, dt_ranges->ranges_num);
+    if (!dt_ranges->ranges) {
+        g_free(dt_ranges);
+        errno = ENOMEM;
+
+        return NULL;
+    }
+
+    /*
+     * With vIOMMU we try to track the entire IOVA space. As the IOVA space can
+     * be rather big, devices might not be able to track it due to HW
+     * limitations. In that case:
+     * (1) Retry tracking a smaller part of the IOVA space.
+     * (2) Retry tracking a range in the size of the physical memory.
+     */
+    ret = vfio_iommu_get_max_iova(container, &iommu_max_iova);
+    if (!ret) {
+        /* Check 2^64 wrap around */
+        if (!REAL_HOST_PAGE_ALIGN(iommu_max_iova)) {
+            iommu_max_iova -= qemu_real_host_page_size();
+        }
+    }
+
+    retry_iova = MIN(iommu_max_iova / 2, VFIO_IOMMU_DEFAULT_MAX_IOVA);
+
+    dt_ranges->ranges[0] = REAL_HOST_PAGE_ALIGN(iommu_max_iova);
+    dt_ranges->ranges[1] = REAL_HOST_PAGE_ALIGN(retry_iova);
+    dt_ranges->ranges[2] = REAL_HOST_PAGE_ALIGN(MIN(ram_size, retry_iova / 2));
+
+    return dt_ranges;
+}
+
+static void vfio_iommu_device_dirty_tracking_ranges_destroy(
+    VFIOGIOMMUDeviceDTRanges *dt_ranges)
+{
+    g_free(dt_ranges->ranges);
+    g_free(dt_ranges);
+}
+
+static int vfio_devices_start_dirty_page_tracking(VFIOContainer *container)
+{
+    VFIOGIOMMUDeviceDTRanges *dt_ranges;
+    int ret;
+    int i;
+
+    if (!vfio_have_giommu(container)) {
+        return vfio_devices_dma_logging_start(container, false);
+    }
+
+    dt_ranges = vfio_iommu_device_dirty_tracking_ranges_create(container);
+    if (!dt_ranges) {
+        return -errno;
+    }
+
+    for (i = 0; i < dt_ranges->ranges_num; i++) {
+        container->giommu_tracked_range = dt_ranges->ranges[i];
+        ret = vfio_devices_dma_logging_start(container, true);
+        if (!ret) {
+            break;
+        }
+
+        if (i < dt_ranges->ranges_num - 1) {
+            warn_report("Failed to start device dirty tracking with vIOMMU "
+                        "with range of size 0x%" HWADDR_PRIx
+                        ", err: %d. Retrying with range "
+                        "of size 0x%" HWADDR_PRIx,
+                        dt_ranges->ranges[i], ret, dt_ranges->ranges[i + 1]);
+        } else {
+            error_report("Failed to start device dirty tracking with vIOMMU "
+                         "with range of size 0x%" HWADDR_PRIx ", err: %d",
+                         dt_ranges->ranges[i], ret);
+        }
+    }
+
+    vfio_iommu_device_dirty_tracking_ranges_destroy(dt_ranges);
+
+    return ret;
+}
+
 static void vfio_listener_log_global_start(MemoryListener *listener)
 {
     VFIOContainer *container = container_of(listener, VFIOContainer, listener);
     int ret;
 
     if (vfio_devices_all_device_dirty_tracking(container)) {
-        if (vfio_have_giommu(container)) {
-            /* Device dirty page tracking currently doesn't support vIOMMU */
-            return;
-        }
-
-        ret = vfio_devices_dma_logging_start(container);
+        ret = vfio_devices_start_dirty_page_tracking(container);
     } else {
         ret = vfio_set_dirty_page_tracking(container, true);
     }
@@ -1627,11 +1782,6 @@ static void vfio_listener_log_global_stop(MemoryListener *listener)
     int ret;
 
     if (vfio_devices_all_device_dirty_tracking(container)) {
-        if (vfio_have_giommu(container)) {
-            /* Device dirty page tracking currently doesn't support vIOMMU */
-            return;
-        }
-
         ret = vfio_devices_dma_logging_stop(container);
     } else {
         ret = vfio_set_dirty_page_tracking(container, false);
@@ -1670,6 +1820,17 @@ static int vfio_device_dma_logging_report(VFIODevice *vbasedev, hwaddr iova,
     return 0;
 }
 
+static bool vfio_iommu_range_is_device_tracked(VFIOContainer *container,
+                                               hwaddr iova, hwaddr size)
+{
+    /* Check for 2^64 wrap around */
+    if (!(iova + size)) {
+        return false;
+    }
+
+    return iova + size <= container->giommu_tracked_range;
+}
+
 static int vfio_devices_query_dirty_bitmap(VFIOContainer *container,
                                            VFIOBitmap *vbmap, hwaddr iova,
                                            hwaddr size)
@@ -1679,10 +1840,11 @@ static int vfio_devices_query_dirty_bitmap(VFIOContainer *container,
     int ret;
 
     if (vfio_have_giommu(container)) {
-        /* Device dirty page tracking currently doesn't support vIOMMU */
-        bitmap_set(vbmap->bitmap, 0, vbmap->pages);
+        if (!vfio_iommu_range_is_device_tracked(container, iova, size)) {
+            bitmap_set(vbmap->bitmap, 0, vbmap->pages);
 
-        return 0;
+            return 0;
+        }
     }
 
     QLIST_FOREACH(group, &container->group_list, container_next) {
