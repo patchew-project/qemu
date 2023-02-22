@@ -3489,7 +3489,8 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
     return 0;
 }
 
-static void ram_state_pending_estimate(void *opaque, uint64_t *must_precopy,
+static void ram_state_pending_estimate(void *opaque, uint64_t threshold_size,
+                                       uint64_t *must_precopy,
                                        uint64_t *can_postcopy)
 {
     RAMState **temp = opaque;
@@ -3505,7 +3506,8 @@ static void ram_state_pending_estimate(void *opaque, uint64_t *must_precopy,
     }
 }
 
-static void ram_state_pending_exact(void *opaque, uint64_t *must_precopy,
+static void ram_state_pending_exact(void *opaque, uint64_t threshold_size,
+                                    uint64_t *must_precopy,
                                     uint64_t *can_postcopy)
 {
     RAMState **temp = opaque;

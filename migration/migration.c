@@ -3866,15 +3866,19 @@ static MigIterateState migration_iteration_run(MigrationState *s)
     uint64_t must_precopy, can_postcopy;
     bool in_postcopy = s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE;
 
-    qemu_savevm_state_pending_estimate(&must_precopy, &can_postcopy);
+    qemu_savevm_state_pending_estimate(s->threshold_size, &must_precopy,
+                                       &can_postcopy);
     uint64_t pending_size = must_precopy + can_postcopy;
 
-    trace_migrate_pending_estimate(pending_size, must_precopy, can_postcopy);
+    trace_migrate_pending_estimate(pending_size, s->threshold_size,
+                                   must_precopy, can_postcopy);
 
     if (must_precopy <= s->threshold_size) {
-        qemu_savevm_state_pending_exact(&must_precopy, &can_postcopy);
+        qemu_savevm_state_pending_exact(s->threshold_size, &must_precopy,
+                                        &can_postcopy);
         pending_size = must_precopy + can_postcopy;
-        trace_migrate_pending_exact(pending_size, must_precopy, can_postcopy);
+        trace_migrate_pending_exact(pending_size, s->threshold_size,
+                                    must_precopy, can_postcopy);
     }
 
     if (!pending_size || pending_size < s->threshold_size) {

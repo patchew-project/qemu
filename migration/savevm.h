@@ -40,9 +40,11 @@ void qemu_savevm_state_cleanup(void);
 void qemu_savevm_state_complete_postcopy(QEMUFile *f);
 int qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only,
                                        bool inactivate_disks);
-void qemu_savevm_state_pending_exact(uint64_t *must_precopy,
+void qemu_savevm_state_pending_exact(uint64_t threshold_size,
+                                     uint64_t *must_precopy,
                                      uint64_t *can_postcopy);
-void qemu_savevm_state_pending_estimate(uint64_t *must_precopy,
+void qemu_savevm_state_pending_estimate(uint64_t threshold_size,
+                                        uint64_t *must_precopy,
                                         uint64_t *can_postcopy);
 void qemu_savevm_send_ping(QEMUFile *f, uint32_t value);
 void qemu_savevm_send_open_return_path(QEMUFile *f);

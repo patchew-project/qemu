@@ -314,7 +314,8 @@ static void vfio_save_cleanup(void *opaque)
  * repeatedly while pending RAM size is over the threshold, thus migration
  * can't converge and querying the VFIO device pending data size is useless.
  */
-static void vfio_state_pending_exact(void *opaque, uint64_t *must_precopy,
+static void vfio_state_pending_exact(void *opaque, uint64_t threshold_size,
+                                     uint64_t *must_precopy,
                                      uint64_t *can_postcopy)
 {
     VFIODevice *vbasedev = opaque;

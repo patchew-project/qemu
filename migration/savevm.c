@@ -1541,7 +1541,8 @@ flush:
  * the result is split into the amount for units that can and
  * for units that can't do postcopy.
  */
-void qemu_savevm_state_pending_estimate(uint64_t *must_precopy,
+void qemu_savevm_state_pending_estimate(uint64_t threshold_size,
+                                        uint64_t *must_precopy,
                                         uint64_t *can_postcopy)
 {
     SaveStateEntry *se;
@@ -1558,11 +1559,13 @@ void qemu_savevm_state_pending_estimate(uint64_t *must_precopy,
                 continue;
             }
         }
-        se->ops->state_pending_estimate(se->opaque, must_precopy, can_postcopy);
+        se->ops->state_pending_estimate(se->opaque, threshold_size,
+                                        must_precopy, can_postcopy);
     }
 }
 
-void qemu_savevm_state_pending_exact(uint64_t *must_precopy,
+void qemu_savevm_state_pending_exact(uint64_t threshold_size,
+                                     uint64_t *must_precopy,
                                      uint64_t *can_postcopy)
 {
     SaveStateEntry *se;
@@ -1579,7 +1582,8 @@ void qemu_savevm_state_pending_exact(uint64_t *must_precopy,
                 continue;
             }
         }
-        se->ops->state_pending_exact(se->opaque, must_precopy, can_postcopy);
+        se->ops->state_pending_exact(se->opaque, threshold_size, must_precopy,
+                                     can_postcopy);
     }
 }
 

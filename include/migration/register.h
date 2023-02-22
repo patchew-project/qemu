@@ -61,11 +61,12 @@ typedef struct SaveVMHandlers {
      * pending data.
      */
     /* This estimates the remaining data to transfer */
-    void (*state_pending_estimate)(void *opaque, uint64_t *must_precopy,
+    void (*state_pending_estimate)(void *opaque, uint64_t threshold_size,
+                                   uint64_t *must_precopy,
                                    uint64_t *can_postcopy);
     /* This calculate the exact remaining data to transfer */
-    void (*state_pending_exact)(void *opaque, uint64_t *must_precopy,
-                                uint64_t *can_postcopy);
+    void (*state_pending_exact)(void *opaque, uint64_t threshold_size,
+                                uint64_t *must_precopy, uint64_t *can_postcopy);
     LoadStateHandler *load_state;
     int (*load_setup)(QEMUFile *f, void *opaque);
     int (*load_cleanup)(void *opaque);
