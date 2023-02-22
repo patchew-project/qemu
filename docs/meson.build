@@ -1,5 +1,5 @@
 if get_option('sphinx_build') == ''
-  sphinx_build = find_program(['sphinx-build-3', 'sphinx-build'],
+  sphinx_build = find_program(['sphinx-build', 'sphinx-build-3'],
                               required: get_option('docs'))
 else
   sphinx_build = find_program(get_option('sphinx_build'),
