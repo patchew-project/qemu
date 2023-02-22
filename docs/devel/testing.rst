@@ -481,6 +481,12 @@ the mapping to the ``libvirt-ci`` project as well:
    contains the ``mappings.yml`` update.  Then add the prerequisite and
    run ``make lcitool-refresh``.
 
+For enterprise distros that default to old, end-of-life versions of the
+Python runtime, QEMU uses a separate set of mappings that work with more
+recent versions.  These can be found in ``tests/lcitool/mappings.yml``.
+These should not be a problem unless the dependencies you are adding
+is a Python library.
+
 
 Adding new OS distros
 ^^^^^^^^^^^^^^^^^^^^^
