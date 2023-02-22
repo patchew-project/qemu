@@ -21,6 +21,7 @@
 #include "qapi/qapi-types-machine-target.h"
 #include "qapi/qapi-types-machine.h"
 #include "qapi/qapi-commands-machine-target.h"
+#include "qapi/qapi-events-machine-target.h"
 #include "qapi/qmp/qdict.h"
 #include "monitor/hmp.h"
 #include "monitor/monitor.h"
@@ -167,6 +168,7 @@ void s390_handle_ptf(S390CPU *cpu, uint8_t r1, uintptr_t ra)
             s390_topology.polarization = fc;
             s390_cpu_topology_set_changed(true);
             s390_topology_set_cpus_entitlement(fc);
+            qapi_event_send_cpu_polarization_change(fc);
             setcc(cpu, 0);
         }
         break;
