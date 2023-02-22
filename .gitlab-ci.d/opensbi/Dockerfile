@@ -1,7 +1,7 @@
 #
 # Docker image to cross-compile OpenSBI firmware binaries
 #
-FROM ubuntu:18.04
+FROM ubuntu:22.04
 
 MAINTAINER Bin Meng <bmeng.cn@gmail.com>
 
