@@ -1047,8 +1047,18 @@ fi
 # Suppress writing compiled files
 python="$python -B"
 
+has_meson() {
+  if test "${VIRTUAL_ENV:+set}" = set; then
+    # Ensure that Meson and Python come from the same virtual environment
+    test -x "${VIRTUAL_ENV}/bin/meson" &&
+      test "$(command -v meson)" -ef "${VIRTUAL_ENV}/bin/meson"
+  else
+    has meson
+  fi
+}
+
 if test -z "$meson"; then
-    if test "$explicit_python" = no && has meson && version_ge "$(meson --version)" 0.61.5; then
+    if test "$explicit_python" = no && has_meson && version_ge "$(meson --version)" 0.61.5; then
         meson=meson
     elif test "$git_submodules_action" != 'ignore' ; then
         meson=git
