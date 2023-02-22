@@ -67,6 +67,7 @@ enum plugin_gen_from {
     PLUGIN_GEN_FROM_INSN,
     PLUGIN_GEN_FROM_MEM,
     PLUGIN_GEN_AFTER_INSN,
+    PLUGIN_GEN_BEFORE_EXIT,
     PLUGIN_GEN_N_FROMS,
 };
 
@@ -177,6 +178,7 @@ static void plugin_gen_empty_callback(enum plugin_gen_from from)
 {
     switch (from) {
     case PLUGIN_GEN_AFTER_INSN:
+    case PLUGIN_GEN_BEFORE_EXIT:
         gen_wrapped(from, PLUGIN_GEN_DISABLE_MEM_HELPER,
                     gen_empty_mem_helper);
         break;
@@ -575,7 +577,7 @@ static void inject_mem_helper(TCGOp *begin_op, GArray *arr)
  * that we can read them at run-time (i.e. when the helper executes).
  * This run-time access is performed from qemu_plugin_vcpu_mem_cb.
  *
- * Note that plugin_gen_disable_mem_helpers undoes (2). Since it
+ * Note that inject_mem_disable_helper undoes (2). Since it
  * is possible that the code we generate after the instruction is
  * dead, we also add checks before generating tb_exit etc.
  */
@@ -600,7 +602,6 @@ static void inject_mem_enable_helper(struct qemu_plugin_tb *ptb,
         rm_ops(begin_op);
         return;
     }
-    ptb->mem_helper = true;
 
     arr = g_array_sized_new(false, false,
                             sizeof(struct qemu_plugin_dyn_cb), n_cbs);
@@ -623,27 +624,25 @@ static void inject_mem_disable_helper(struct qemu_plugin_insn *plugin_insn,
     inject_mem_helper(begin_op, NULL);
 }
 
-/* called before finishing a TB with exit_tb, goto_tb or goto_ptr */
-void plugin_gen_disable_mem_helpers(void)
+/*
+ * Called before finishing a TB with exit_tb, goto_tb or goto_ptr.
+ *
+ * Most helpers that access memory are wrapped by before/after_insn
+ * instrumentation, which enables/disables mem callbacks. Some of these
+ * helpers, however, finish a TB early (e.g. call exit_tb), which means
+ * the after_insn instrumentation never gets called.
+ *
+ * To ensure that mem callbacks are disabled, here we add an
+ * instrumentation point ("before_exit") so that when finalising the
+ * translation we can disable mem callbacks before exiting, if needed.
+ */
+void plugin_gen_disable_mem_helpers_before_exit(void)
 {
-    TCGv_ptr ptr;
-
-    /*
-     * We could emit the clearing unconditionally and be done. However, this can
-     * be wasteful if for instance plugins don't track memory accesses, or if
-     * most TBs don't use helpers. Instead, emit the clearing iff the TB calls
-     * helpers that might access guest memory.
-     *
-     * Note: we do not reset plugin_tb->mem_helper here; a TB might have several
-     * exit points, and we want to emit the clearing from all of them.
-     */
-    if (!tcg_ctx->plugin_tb->mem_helper) {
+    /* If no plugins are enabled, do not generate anything */
+    if (tcg_ctx->plugin_insn == NULL) {
         return;
     }
-    ptr = tcg_const_ptr(NULL);
-    tcg_gen_st_ptr(ptr, cpu_env, offsetof(CPUState, plugin_mem_cbs) -
-                                 offsetof(ArchCPU, env));
-    tcg_temp_free_ptr(ptr);
+    plugin_gen_empty_callback(PLUGIN_GEN_BEFORE_EXIT);
 }
 
 static void plugin_gen_tb_udata(const struct qemu_plugin_tb *ptb,
@@ -729,6 +728,9 @@ static void pr_ops(void)
                 break;
             case PLUGIN_GEN_AFTER_INSN:
                 name = "after insn";
+                break;
+            case PLUGIN_GEN_BEFORE_EXIT:
+                name = "before exit";
                 break;
             default:
                 break;
@@ -830,6 +832,7 @@ static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
                 break;
             }
             case PLUGIN_GEN_AFTER_INSN:
+            case PLUGIN_GEN_BEFORE_EXIT:
             {
                 g_assert(insn_idx >= 0);
 
@@ -879,7 +882,6 @@ bool plugin_gen_tb_start(CPUState *cpu, const DisasContextBase *db,
         ptb->haddr1 = db->host_addr[0];
         ptb->haddr2 = NULL;
         ptb->mem_only = mem_only;
-        ptb->mem_helper = false;
 
         plugin_gen_empty_callback(PLUGIN_GEN_FROM_TB);
     }

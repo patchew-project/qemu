@@ -164,9 +164,6 @@ struct qemu_plugin_tb {
     void *haddr2;
     bool mem_only;
 
-    /* if set, the TB calls helpers that might access guest memory */
-    bool mem_helper;
-
     GArray *cbs[PLUGIN_N_CB_SUBTYPES];
 };
 

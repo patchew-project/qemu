@@ -2797,7 +2797,7 @@ void tcg_gen_exit_tb(const TranslationBlock *tb, unsigned idx)
         tcg_debug_assert(idx == TB_EXIT_REQUESTED);
     }
 
-    plugin_gen_disable_mem_helpers();
+    plugin_gen_disable_mem_helpers_before_exit();
     tcg_gen_op1i(INDEX_op_exit_tb, val);
 }
 
@@ -2812,7 +2812,7 @@ void tcg_gen_goto_tb(unsigned idx)
     tcg_debug_assert((tcg_ctx->goto_tb_issue_mask & (1 << idx)) == 0);
     tcg_ctx->goto_tb_issue_mask |= 1 << idx;
 #endif
-    plugin_gen_disable_mem_helpers();
+    plugin_gen_disable_mem_helpers_before_exit();
     tcg_gen_op1i(INDEX_op_goto_tb, idx);
 }
 
@@ -2825,7 +2825,7 @@ void tcg_gen_lookup_and_goto_ptr(void)
         return;
     }
 
-    plugin_gen_disable_mem_helpers();
+    plugin_gen_disable_mem_helpers_before_exit();
     ptr = tcg_temp_new_ptr();
     gen_helper_lookup_tb_ptr(ptr, cpu_env);
     tcg_gen_op1i(INDEX_op_goto_ptr, tcgv_ptr_arg(ptr));
