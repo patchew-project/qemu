@@ -42,6 +42,11 @@ typedef struct IOVATreeFindIOVAArgs {
     const DMAMap *result;
 } IOVATreeFindIOVAArgs;
 
+typedef struct IOVATreeIterator {
+    iova_tree_iterator fn;
+    gpointer data;
+} IOVATreeIterator;
+
 /**
  * Iterate args to the next hole
  *
@@ -151,17 +156,22 @@ int iova_tree_insert(IOVATree *tree, const DMAMap *map)
 static gboolean iova_tree_traverse(gpointer key, gpointer value,
                                 gpointer data)
 {
-    iova_tree_iterator iterator = data;
+    IOVATreeIterator *iterator = data;
     DMAMap *map = key;
 
     g_assert(key == value);
 
-    return iterator(map);
+    return iterator->fn(map, iterator->data);
 }
 
-void iova_tree_foreach(IOVATree *tree, iova_tree_iterator iterator)
+void iova_tree_foreach(IOVATree *tree, iova_tree_iterator iterator,
+                       gpointer data)
 {
-    g_tree_foreach(tree->tree, iova_tree_traverse, iterator);
+    IOVATreeIterator arg = {
+        .fn = iterator,
+        .data = data,
+    };
+    g_tree_foreach(tree->tree, iova_tree_traverse, &arg);
 }
 
 void iova_tree_remove(IOVATree *tree, DMAMap map)
