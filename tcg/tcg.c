@@ -1955,6 +1955,7 @@ static char *tcg_get_arg_str_ptr(TCGContext *s, char *buf, int buf_size,
             break;
 #if TCG_TARGET_REG_BITS > 32
         case TCG_TYPE_I64:
+        case TCG_TYPE_I128:
             snprintf(buf, buf_size, "$0x%" PRIx64, ts->val);
             break;
 #endif
