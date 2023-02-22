@@ -19,6 +19,12 @@
 #include "hw/s390x/s390-virtio-ccw.h"
 #include "hw/s390x/cpu-topology.h"
 #include "qapi/qapi-types-machine-target.h"
+#include "qapi/qapi-types-machine.h"
+#include "qapi/qapi-commands-machine-target.h"
+#include "qapi/qmp/qdict.h"
+#include "monitor/hmp.h"
+#include "monitor/monitor.h"
+
 /*
  * s390_topology is used to keep the topology information.
  * .cores_per_socket: tracks information on the count of cores
@@ -311,6 +317,26 @@ static void s390_topology_add_core_to_socket(S390CPU *cpu, int drawer_id,
 }
 
 /**
+ * s390_topology_need_report
+ * @cpu: Current cpu
+ * @drawer_id: future drawer ID
+ * @book_id: future book ID
+ * @socket_id: future socket ID
+ *
+ * A modified topology change report is needed if the
+ */
+static int s390_topology_need_report(S390CPU *cpu, int drawer_id,
+                                   int book_id, int socket_id,
+                                   uint16_t entitlement, bool dedicated)
+{
+    return cpu->env.drawer_id != drawer_id ||
+           cpu->env.book_id != book_id ||
+           cpu->env.socket_id != socket_id ||
+           cpu->env.entitlement != entitlement ||
+           cpu->env.dedicated != dedicated;
+}
+
+/**
  * s390_update_cpu_props:
  * @ms: the machine state
  * @cpu: the CPU for which to update the properties from the environment.
@@ -375,4 +401,132 @@ void s390_topology_setup_cpu(MachineState *ms, S390CPU *cpu, Error **errp)
 
     /* topology tree is reflected in props */
     s390_update_cpu_props(ms, cpu);
+}
+
+/*
+ * qmp and hmp implementations
+ */
+
+#define TOPOLOGY_SET(n) do {                                \
+                            if (has_ ## n) {                \
+                                calc_ ## n = n;             \
+                            } else {                        \
+                                calc_ ## n = cpu->env.n;    \
+                            }                               \
+                        } while (0)
+
+static void s390_change_topology(uint16_t core_id,
+                                 bool has_socket_id, uint16_t socket_id,
+                                 bool has_book_id, uint16_t book_id,
+                                 bool has_drawer_id, uint16_t drawer_id,
+                                 bool has_entitlement, uint16_t entitlement,
+                                 bool has_dedicated, bool dedicated,
+                                 Error **errp)
+{
+    MachineState *ms = current_machine;
+    uint16_t calc_dedicated, calc_entitlement;
+    uint16_t calc_socket_id, calc_book_id, calc_drawer_id;
+    S390CPU *cpu;
+    int report_needed;
+    ERRP_GUARD();
+
+    if (core_id >= ms->smp.max_cpus) {
+        error_setg(errp, "Core-id %d out of range!", core_id);
+        return;
+    }
+
+    cpu = (S390CPU *)ms->possible_cpus->cpus[core_id].cpu;
+    if (!cpu) {
+        error_setg(errp, "Core-id %d does not exist!", core_id);
+        return;
+    }
+
+    /* Get unprovided attributes from cpu and verify the new topology */
+    TOPOLOGY_SET(entitlement);
+    TOPOLOGY_SET(dedicated);
+    TOPOLOGY_SET(socket_id);
+    TOPOLOGY_SET(book_id);
+    TOPOLOGY_SET(drawer_id);
+
+    s390_topology_check(calc_socket_id, calc_book_id, calc_drawer_id,
+                        calc_entitlement, calc_dedicated, errp);
+    if (*errp) {
+        return;
+    }
+
+    /* Move the CPU into its new socket */
+    s390_topology_add_core_to_socket(cpu, calc_drawer_id, calc_book_id,
+                                     calc_socket_id, false, errp);
+    if (*errp) {
+        return;
+    }
+
+    /* Check if we need to report the modified topology */
+    report_needed = s390_topology_need_report(cpu, calc_drawer_id, calc_book_id,
+                                              calc_socket_id, calc_entitlement,
+                                              calc_dedicated);
+
+    /* All checks done, report new topology into the vCPU */
+    cpu->env.drawer_id = calc_drawer_id;
+    cpu->env.book_id = calc_book_id;
+    cpu->env.socket_id = calc_socket_id;
+    cpu->env.dedicated = calc_dedicated;
+    cpu->env.entitlement = calc_entitlement;
+
+    /* topology tree is reflected in props */
+    s390_update_cpu_props(ms, cpu);
+
+    /* Advertise the topology change */
+    if (report_needed) {
+        s390_cpu_topology_set_changed(true);
+    }
+}
+
+void qmp_set_cpu_topology(uint16_t core,
+                         bool has_socket, uint16_t socket,
+                         bool has_book, uint16_t book,
+                         bool has_drawer, uint16_t drawer,
+                         const char *entitlement_str,
+                         bool has_dedicated, bool dedicated,
+                         Error **errp)
+{
+    bool has_entitlement = false;
+    int entitlement;
+    ERRP_GUARD();
+
+    if (!s390_has_topology()) {
+        error_setg(errp, "This machine doesn't support topology");
+        return;
+    }
+
+    entitlement = qapi_enum_parse(&CpuS390Entitlement_lookup, entitlement_str,
+                                  -1, errp);
+    if (*errp) {
+        return;
+    }
+    has_entitlement = entitlement >= 0;
+
+    s390_change_topology(core, has_socket, socket, has_book, book,
+                         has_drawer, drawer, has_entitlement, entitlement,
+                         has_dedicated, dedicated, errp);
+}
+
+void hmp_set_cpu_topology(Monitor *mon, const QDict *qdict)
+{
+    const uint16_t core = qdict_get_int(qdict, "core-id");
+    bool has_socket    = qdict_haskey(qdict, "socket-id");
+    const uint16_t socket = qdict_get_try_int(qdict, "socket-id", 0);
+    bool has_book    = qdict_haskey(qdict, "book-id");
+    const uint16_t book = qdict_get_try_int(qdict, "book-id", 0);
+    bool has_drawer    = qdict_haskey(qdict, "drawer-id");
+    const uint16_t drawer = qdict_get_try_int(qdict, "drawer-id", 0);
+    const char *entitlement = qdict_get_try_str(qdict, "entitlement");
+    bool has_dedicated    = qdict_haskey(qdict, "dedicated");
+    const bool dedicated = qdict_get_try_bool(qdict, "dedicated", false);
+    Error *local_err = NULL;
+
+    qmp_set_cpu_topology(core, has_socket, socket, has_book, book,
+                           has_drawer, drawer, entitlement,
+                           has_dedicated, dedicated, &local_err);
+    hmp_handle_error(mon, local_err);
 }

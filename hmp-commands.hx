@@ -1815,3 +1815,20 @@ SRST
   Dump the FDT in dtb format to *filename*.
 ERST
 #endif
+
+#if defined(TARGET_S390X)
+    {
+        .name       = "set-cpu-topology",
+        .args_type  = "core:l,socket:l?,book:l?,drawer:l?,entitlement:s?,dedicated:b?",
+        .params     = "core [socket] [book] [drawer] [entitlement] [dedicated]",
+        .help       = "Move CPU 'core' to 'socket/book/drawer' "
+                      "optionally modifies entitlement and dedication",
+        .cmd        = hmp_set_cpu_topology,
+    },
+
+SRST
+``set-cpu-topology`` *core* *socket* *book* *drawer* *entitlement* *dedicated*
+  Modify CPU topology for the CPU *core* to move on *socket* *book* *drawer*
+  with topology attributes *entitlement* *dedicated*.
+ERST
+#endif
