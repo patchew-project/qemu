@@ -164,4 +164,15 @@ int iova_tree_alloc_map(IOVATree *tree, DMAMap *map, hwaddr iova_begin,
  */
 void iova_tree_destroy(IOVATree *tree);
 
+/**
+ * iova_tree_nnodes:
+ *
+ * @tree: the iova tree to consult
+ *
+ * Returns the number of nodes in the iova tree
+ *
+ * Return: >=0 for the number of nodes.
+ */
+gint iova_tree_nnodes(IOVATree *tree);
+
 #endif

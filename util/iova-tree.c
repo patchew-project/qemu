@@ -280,3 +280,8 @@ void iova_tree_destroy(IOVATree *tree)
     g_tree_destroy(tree->tree);
     g_free(tree);
 }
+
+gint iova_tree_nnodes(IOVATree *tree)
+{
+    return g_tree_nnodes(tree->tree);
+}
