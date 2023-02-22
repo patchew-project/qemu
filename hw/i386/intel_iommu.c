@@ -3841,6 +3841,23 @@ static void vtd_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
     return;
 }
 
+static int vtd_iommu_get_attr(IOMMUMemoryRegion *iommu_mr,
+                              enum IOMMUMemoryRegionAttr attr, void *data)
+{
+    VTDAddressSpace *vtd_as = container_of(iommu_mr, VTDAddressSpace, iommu);
+    IntelIOMMUState *s = vtd_as->iommu_state;
+
+    if (attr == IOMMU_ATTR_MAX_IOVA) {
+        hwaddr *max_iova = data;
+
+        *max_iova = (1ULL << s->aw_bits) - 1;
+
+        return 0;
+    }
+
+    return -EINVAL;
+}
+
 /* Do the initialization. It will also be called when reset, so pay
  * attention when adding new initialization stuff.
  */
@@ -4173,6 +4190,7 @@ static void vtd_iommu_memory_region_class_init(ObjectClass *klass,
     imrc->translate = vtd_iommu_translate;
     imrc->notify_flag_changed = vtd_iommu_notify_flag_changed;
     imrc->replay = vtd_iommu_replay;
+    imrc->get_attr = vtd_iommu_get_attr;
 }
 
 static const TypeInfo vtd_iommu_memory_region_info = {
