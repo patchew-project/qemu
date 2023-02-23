@@ -25,7 +25,8 @@ static void test_mon_explicit(const void *data)
     g_autofree char *s = NULL;
     g_autofree char *cli = NULL;
 
-    cli = make_cli(data, "-machine smp.cpus=8 -numa node,nodeid=0,memdev=ram,cpus=0-3 "
+    cli = make_cli(data, "-machine smp.cpus=8,smp.sockets=2 "
+                         "-numa node,nodeid=0,memdev=ram,cpus=0-3 "
                          "-numa node,nodeid=1,cpus=4-7");
     qts = qtest_init(cli);
 
@@ -87,7 +88,8 @@ static void test_query_cpus(const void *data)
     QTestState *qts;
     g_autofree char *cli = NULL;
 
-    cli = make_cli(data, "-machine smp.cpus=8 -numa node,memdev=ram,cpus=0-3 "
+    cli = make_cli(data, "-machine smp.cpus=8,smp.sockets=2 "
+                         "-numa node,memdev=ram,cpus=0-3 "
                          "-numa node,cpus=4-7");
     qts = qtest_init(cli);
     cpus = get_cpus(qts, &resp);
@@ -565,7 +567,12 @@ int main(int argc, char **argv)
 
     qtest_add_data_func("/numa/mon/cpus/default", args, test_def_cpu_split);
     qtest_add_data_func("/numa/mon/cpus/explicit", args, test_mon_explicit);
-    qtest_add_data_func("/numa/mon/cpus/partial", args, test_mon_partial);
+
+    if (!strcmp(arch, "i386") || !strcmp(arch, "x86_64") ||
+        !strcmp(arch, "ppc64")) {
+        qtest_add_data_func("/numa/mon/cpus/partial", args, test_mon_partial);
+    }
+
     qtest_add_data_func("/numa/qmp/cpus/query-cpus", args, test_query_cpus);
 
     if (!strcmp(arch, "i386") || !strcmp(arch, "x86_64")) {
