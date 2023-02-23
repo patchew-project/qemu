@@ -30,9 +30,15 @@
 #include "qemu/main-loop.h"
 #include "hw/misc/vmcoreinfo.h"
 #include "migration/blocker.h"
-
-#ifdef TARGET_X86_64
 #include "win_dump.h"
+
+#ifndef TARGET_X86_64
+bool win_dump_available(Error **errp)
+{
+    error_setg(errp, "Windows dump is only available for x86-64");
+
+    return false;
+}
 #endif
 
 #include <zlib.h>
@@ -2130,12 +2136,10 @@ void qmp_dump_guest_memory(bool paging, const char *file,
     }
 #endif
 
-#ifndef TARGET_X86_64
-    if (has_format && format == DUMP_GUEST_MEMORY_FORMAT_WIN_DMP) {
-        error_setg(errp, "Windows dump is only available for x86-64");
+    if (has_format && format == DUMP_GUEST_MEMORY_FORMAT_WIN_DMP
+            && !win_dump_available(errp)) {
         return;
     }
-#endif
 
 #if !defined(WIN32)
     if (strstart(file, "fd:", &p)) {
@@ -2217,10 +2221,9 @@ DumpGuestMemoryCapability *qmp_query_dump_guest_memory_capability(Error **errp)
     QAPI_LIST_APPEND(tail, DUMP_GUEST_MEMORY_FORMAT_KDUMP_SNAPPY);
 #endif
 
-    /* Windows dump is available only if target is x86_64 */
-#ifdef TARGET_X86_64
-    QAPI_LIST_APPEND(tail, DUMP_GUEST_MEMORY_FORMAT_WIN_DMP);
-#endif
+    if (win_dump_available(NULL)) {
+        QAPI_LIST_APPEND(tail, DUMP_GUEST_MEMORY_FORMAT_WIN_DMP);
+    }
 
     return cap;
 }

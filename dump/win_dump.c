@@ -24,6 +24,11 @@
 #include "qemu/win_dump_defs.h"
 #include "win_dump.h"
 
+bool win_dump_available(Error **errp)
+{
+    return true;
+}
+
 static size_t win_dump_ptr_size(bool x64)
 {
     return x64 ? sizeof(uint64_t) : sizeof(uint32_t);

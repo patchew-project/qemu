@@ -13,6 +13,9 @@
 
 #include "sysemu/dump.h"
 
+/* Windows dump is available only if target is x86_64 */
+bool win_dump_available(Error **errp);
+
 void create_win_dump(DumpState *s, Error **errp);
 
 #endif /* WIN_DUMP_H */
