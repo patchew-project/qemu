@@ -1,5 +1,5 @@
 /*
- * Windows crashdump
+ * Windows crashdump for x86 targets
  *
  * Copyright (c) 2018 Virtuozzo International GmbH
  *
