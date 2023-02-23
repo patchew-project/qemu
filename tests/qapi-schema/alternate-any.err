@@ -1,2 +1,2 @@
 alternate-any.json: In alternate 'Alt':
-alternate-any.json:2: branch 'one' cannot use built-in type 'any'
+alternate-any.json:2: branch 'one' of type 'Alt' cannot use built-in type 'any'

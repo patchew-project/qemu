@@ -713,9 +713,8 @@ class QAPISchemaMember:
                 role = 'base ' + role
             else:
                 assert False
-        elif defined_in != info.defn_name:
-            return "%s '%s' of type '%s'" % (role, self.name, defined_in)
-        return "%s '%s'" % (role, self.name)
+
+        return "%s '%s' of type '%s'" % (role, self.name, defined_in)
 
 
 class QAPISchemaEnumMember(QAPISchemaMember):
