@@ -1966,7 +1966,7 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
                  */
                 goto stop_the_world;
             }
-            /* Collect TLB_WATCHPOINT for read. */
+            /* Collect tlb flags for read. */
             tlb_addr |= tlbe->addr_read;
         }
     } else /* if (prot & PAGE_READ) */ {
@@ -1997,12 +1997,21 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
         notdirty_write(env_cpu(env), addr, size, full, retaddr);
     }
 
-    if (unlikely(tlb_addr & TLB_WATCHPOINT)) {
-        QEMU_BUILD_BUG_ON(PAGE_READ != BP_MEM_READ);
-        QEMU_BUILD_BUG_ON(PAGE_WRITE != BP_MEM_WRITE);
-        /* therefore prot == watchpoint bits */
-        cpu_check_watchpoint(env_cpu(env), addr, size,
-                             full->attrs, prot, retaddr);
+    if (unlikely(tlb_addr & TLB_FORCE_SLOW)) {
+        int wp_flags = 0;
+
+        if ((prot & PAGE_WRITE) &&
+            (full->slow_flags[MMU_DATA_STORE] & TLB_WATCHPOINT)) {
+            wp_flags |= BP_MEM_WRITE;
+        }
+        if ((prot & PAGE_READ) &&
+            (full->slow_flags[MMU_DATA_LOAD] & TLB_WATCHPOINT)) {
+            wp_flags |= BP_MEM_READ;
+        }
+        if (wp_flags) {
+            cpu_check_watchpoint(env_cpu(env), addr, size,
+                                 full->attrs, wp_flags, retaddr);
+        }
     }
 
     return hostaddr;
