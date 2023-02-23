@@ -1174,6 +1174,36 @@ static char *cpu_slot_to_string(const CPUArchId *cpu)
     return g_string_free(s, false);
 }
 
+static void numa_validate_socket_boundary(MachineState *ms)
+{
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
+    NumaState *state = ms->numa_state;
+    const CPUArchIdList *possible_cpus = mc->possible_cpu_arch_ids(ms);
+    const CPUArchId *cpus = possible_cpus->cpus;
+    int len = possible_cpus->len, i, j;
+
+    if (state->num_nodes <= 1 || len <= 1) {
+        return;
+    }
+
+    for (i = 0; i < len; i++) {
+        for (j = i + 1; j < len; j++) {
+            if (cpus[i].props.has_socket_id &&
+                cpus[i].props.has_node_id &&
+                cpus[j].props.has_socket_id &&
+                cpus[j].props.has_node_id &&
+                cpus[i].props.socket_id == cpus[j].props.socket_id &&
+                cpus[i].props.node_id != cpus[j].props.node_id) {
+                error_report("CPU-%d and CPU-%d in socket-%ld have been "
+                             "associated with node-%ld and node-%ld "
+                             "respectively", i, j, cpus[i].props.socket_id,
+                             cpus[i].props.node_id, cpus[j].props.node_id);
+                exit(1);
+            }
+        }
+    }
+}
+
 static void numa_validate_initiator(NumaState *numa_state)
 {
     int i;
@@ -1237,6 +1267,10 @@ static void machine_numa_finish_cpu_init(MachineState *machine)
             props.has_node_id = true;
             machine_set_cpu_numa_node(machine, &props, &error_fatal);
         }
+    }
+
+    if (machine->numa_state->have_socket_boundary) {
+        numa_validate_socket_boundary(machine);
     }
 
     if (machine->numa_state->hmat_enabled) {

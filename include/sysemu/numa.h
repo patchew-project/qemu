@@ -86,6 +86,9 @@ struct NumaState {
     /* Detect if HMAT support is enabled. */
     bool hmat_enabled;
 
+    /* CPUs in one socket can't break socket boundary */
+    bool have_socket_boundary;
+
     /* NUMA nodes information */
     NodeInfo nodes[MAX_NODES];
 
@@ -97,6 +100,7 @@ struct NumaState {
 };
 typedef struct NumaState NumaState;
 
+void set_numa_socket_boundary(MachineState *ms);
 void set_numa_options(MachineState *ms, NumaOptions *object, Error **errp);
 void parse_numa_opts(MachineState *ms);
 void parse_numa_hmat_lb(NumaState *numa_state, NumaHmatLBOptions *node,

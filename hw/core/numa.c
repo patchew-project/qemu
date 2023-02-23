@@ -460,6 +460,13 @@ void parse_numa_hmat_cache(MachineState *ms, NumaHmatCacheOptions *node,
     ms->numa_state->hmat_cache[node->node_id][node->level] = hmat_cache;
 }
 
+void set_numa_socket_boundary(MachineState *ms)
+{
+    if (ms->numa_state) {
+        ms->numa_state->have_socket_boundary = true;
+    }
+}
+
 void set_numa_options(MachineState *ms, NumaOptions *object, Error **errp)
 {
     if (!ms->numa_state) {
