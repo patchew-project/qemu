@@ -32,20 +32,6 @@
 #include "migration/blocker.h"
 #include "win_dump.h"
 
-#ifndef TARGET_X86_64
-bool win_dump_available(Error **errp)
-{
-    error_setg(errp, "Windows dump is only available for x86-64");
-
-    return false;
-}
-
-void create_win_dump(DumpState *s, Error **errp)
-{
-    win_dump_available(errp);
-}
-#endif
-
 #include <zlib.h>
 #ifdef CONFIG_LZO
 #include <lzo/lzo1x.h>
