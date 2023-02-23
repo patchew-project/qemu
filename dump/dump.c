@@ -39,6 +39,11 @@ bool win_dump_available(Error **errp)
 
     return false;
 }
+
+void create_win_dump(DumpState *s, Error **errp)
+{
+    win_dump_available(errp);
+}
 #endif
 
 #include <zlib.h>
@@ -2031,9 +2036,7 @@ static void dump_process(DumpState *s, Error **errp)
     DumpQueryResult *result = NULL;
 
     if (s->has_format && s->format == DUMP_GUEST_MEMORY_FORMAT_WIN_DMP) {
-#ifdef TARGET_X86_64
         create_win_dump(s, errp);
-#endif
     } else if (s->has_format && s->format != DUMP_GUEST_MEMORY_FORMAT_ELF) {
         create_kdump_vmcore(s, errp);
     } else {
