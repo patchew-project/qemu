@@ -215,7 +215,8 @@ def main(argv):
         (dir_name, base_name) = os.path.split(t)
         dir_name = dir_name or args.dir
         test_name = os.path.splitext(base_name)[0]
-        status |= test_and_diff(test_name, dir_name, args.update)
+        update = args.update or "QAPI_TEST_UPDATE" in os.environ
+        status |= test_and_diff(test_name, dir_name, update)
 
     exit(status)
 
