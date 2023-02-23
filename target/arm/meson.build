@@ -20,6 +20,7 @@ arm_softmmu_ss = ss.source_set()
 arm_softmmu_ss.add(files(
   'arch_dump.c',
   'arm-powerctl.c',
+  'cortex-regs.c',
   'machine.c',
   'monitor.c',
   'ptw.c',
