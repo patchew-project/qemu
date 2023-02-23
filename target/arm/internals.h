@@ -1350,6 +1350,7 @@ void arm_cpu_sve_finalize(ARMCPU *cpu, Error **errp);
 void arm_cpu_sme_finalize(ARMCPU *cpu, Error **errp);
 void arm_cpu_pauth_finalize(ARMCPU *cpu, Error **errp);
 void arm_cpu_lpa2_finalize(ARMCPU *cpu, Error **errp);
+void aarch64_add_sve_properties(Object *obj);
 #endif
 
 bool el_is_in_host(CPUARMState *env, int el);
