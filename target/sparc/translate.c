@@ -634,8 +634,8 @@ static inline void gen_op_multiply(TCGv dst, TCGv src1, TCGv src2, int sign_ext)
         tcg_gen_mulu2_tl(dst, cpu_y, src1, src2);
     }
 #else
-    TCGv t0 = tcg_temp_new_i64();
-    TCGv t1 = tcg_temp_new_i64();
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
 
     if (sign_ext) {
         tcg_gen_ext32s_i64(t0, src1);
@@ -646,8 +646,8 @@ static inline void gen_op_multiply(TCGv dst, TCGv src1, TCGv src2, int sign_ext)
     }
 
     tcg_gen_mul_i64(dst, t0, t1);
-    tcg_temp_free(t0);
-    tcg_temp_free(t1);
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
 
     tcg_gen_shri_i64(cpu_y, dst, 32);
 #endif
