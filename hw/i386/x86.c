@@ -827,6 +827,10 @@ void x86_load_linux(X86MachineState *x86ms,
     /* Make a copy, since we might append arbitrary bytes to it later. */
     kernel_cmdline = g_strndup(machine->kernel_cmdline, cmdline_size);
 
+    /* If the cmdline is undefined, set it as an empty allocated value */
+    fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE, cmdline_size);
+    fw_cfg_add_bytes(fw_cfg, FW_CFG_CMDLINE_DATA, kernel_cmdline, cmdline_size);
+
     /* load the kernel header */
     f = fopen(kernel_filename, "rb");
     if (!f) {

@@ -417,7 +417,8 @@ static void microvm_fix_kernel_cmdline(MachineState *machine)
     if (len > VIRTIO_CMDLINE_TOTAL_MAX_LEN + strlen(existing_cmdline)) {
         fprintf(stderr, "qemu: virtio mmio cmdline too large, skipping\n");
     } else {
-        memcpy(existing_cmdline, cmdline, len + 1);
+	fw_cfg_modify_i32(x86ms->fw_cfg, FW_CFG_CMDLINE_SIZE, len + 1);
+	fw_cfg_modify_string(x86ms->fw_cfg, FW_CFG_CMDLINE_DATA, cmdline);
     }
     g_free(cmdline);
 }
