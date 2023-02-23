@@ -342,6 +342,7 @@ static void spike_board_init(MachineState *machine)
 
 static void spike_machine_instance_init(Object *obj)
 {
+    set_numa_socket_boundary(MACHINE(obj));
 }
 
 static void spike_machine_class_init(ObjectClass *oc, void *data)

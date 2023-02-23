@@ -1521,6 +1521,7 @@ static void virt_machine_init(MachineState *machine)
 
 static void virt_machine_instance_init(Object *obj)
 {
+    set_numa_socket_boundary(MACHINE(obj));
 }
 
 static char *virt_get_aia_guests(Object *obj, Error **errp)
