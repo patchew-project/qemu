@@ -1546,7 +1546,7 @@ static int probe_access_internal(CPUArchState *env, target_ulong addr,
     flags |= full->slow_flags[access_type];
 
     /* Fold all "mmio-like" bits into TLB_MMIO.  This is not RAM.  */
-    if (unlikely(flags & ~(TLB_WATCHPOINT | TLB_NOTDIRTY))) {
+    if (flags & ~(TLB_WATCHPOINT | TLB_NOTDIRTY | TLB_CHECK_ALIGNED)) {
         *phost = NULL;
         return TLB_MMIO;
     }
@@ -1883,6 +1883,29 @@ static bool mmu_lookup(CPUArchState *env, target_ulong addr, MemOpIdx oi,
          * would be arbitrary.  Refuse it until there's a use.
          */
         tcg_debug_assert((flags & TLB_BSWAP) == 0);
+    }
+
+    /*
+     * This alignment check differs from the one above, in that this is
+     * based on the atomicity of the operation. The intended use case is
+     * the ARM memory type field of each PTE, where access to pages with
+     * Device memory type require alignment.
+     */
+    if (unlikely(flags & TLB_CHECK_ALIGNED)) {
+        MemOp atmax = l->memop & MO_ATMAX_MASK;
+        MemOp atom = l->memop & MO_ATOM_MASK;
+        MemOp size = l->memop & MO_SIZE;
+
+        if (size != MO_8 && atom != MO_ATOM_NONE) {
+            if (atmax == MO_ATMAX_SIZE) {
+                a_bits = size;
+            } else {
+                a_bits = atmax >> MO_ATMAX_SHIFT;
+            }
+            if (addr & ((1 << a_bits) - 1)) {
+                cpu_unaligned_access(env_cpu(env), addr, type, l->mmu_idx, ra);
+            }
+        }
     }
 
     return crosspage;
