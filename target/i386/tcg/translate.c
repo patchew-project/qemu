@@ -1686,27 +1686,27 @@ static void gen_shift_rm_T1(DisasContext *s, MemOp ot, int op1,
     }
 
     tcg_gen_andi_tl(s->T1, s->T1, mask);
-    tcg_gen_subi_tl(s->tmp0, s->T1, 1);
+    tcg_gen_subi_tl(s->tmp4, s->T1, 1);
 
     if (is_right) {
         if (is_arith) {
             gen_exts(ot, s->T0);
-            tcg_gen_sar_tl(s->tmp0, s->T0, s->tmp0);
+            tcg_gen_sar_tl(s->tmp4, s->T0, s->tmp4);
             tcg_gen_sar_tl(s->T0, s->T0, s->T1);
         } else {
             gen_extu(ot, s->T0);
-            tcg_gen_shr_tl(s->tmp0, s->T0, s->tmp0);
+            tcg_gen_shr_tl(s->tmp4, s->T0, s->tmp4);
             tcg_gen_shr_tl(s->T0, s->T0, s->T1);
         }
     } else {
-        tcg_gen_shl_tl(s->tmp0, s->T0, s->tmp0);
+        tcg_gen_shl_tl(s->tmp4, s->T0, s->tmp4);
         tcg_gen_shl_tl(s->T0, s->T0, s->T1);
     }
 
     /* store */
     gen_op_st_rm_T0_A0(s, ot, op1);
 
-    gen_shift_flags(s, ot, s->T0, s->tmp0, s->T1, is_right);
+    gen_shift_flags(s, ot, s->T0, s->tmp4, s->T1, is_right);
 }
 
 static void gen_shift_rm_im(DisasContext *s, MemOp ot, int op1, int op2,
