@@ -3210,6 +3210,8 @@ static void virt_instance_init(Object *obj)
 
     vms->oem_id = g_strndup(ACPI_BUILD_APPNAME6, 6);
     vms->oem_table_id = g_strndup(ACPI_BUILD_APPNAME8, 8);
+
+    set_numa_socket_boundary(MACHINE(obj));
 }
 
 static const TypeInfo virt_machine_info = {

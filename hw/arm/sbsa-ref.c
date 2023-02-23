@@ -844,6 +844,8 @@ static void sbsa_ref_instance_init(Object *obj)
     SBSAMachineState *sms = SBSA_MACHINE(obj);
 
     sbsa_flash_create(sms);
+
+    set_numa_socket_boundary(MACHINE(obj));
 }
 
 static void sbsa_ref_class_init(ObjectClass *oc, void *data)
