@@ -21,6 +21,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
 #include "hw/misc/vmcoreinfo.h"
+#include "qemu/win_dump_defs.h"
 #include "win_dump.h"
 
 static size_t win_dump_ptr_size(bool x64)
