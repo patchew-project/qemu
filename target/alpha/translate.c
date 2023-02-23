@@ -798,7 +798,7 @@ IEEE_INTCVT(cvtqt)
 static void gen_cpy_mask(TCGv vc, TCGv va, TCGv vb, bool inv_a, uint64_t mask)
 {
     TCGv vmask = tcg_constant_i64(mask);
-    TCGv tmp = tcg_temp_new_i64();
+    TCGv_i64 tmp = tcg_temp_new_i64();
 
     if (inv_a) {
         tcg_gen_andc_i64(tmp, vmask, va);
@@ -809,7 +809,7 @@ static void gen_cpy_mask(TCGv vc, TCGv va, TCGv vb, bool inv_a, uint64_t mask)
     tcg_gen_andc_i64(vc, vb, vmask);
     tcg_gen_or_i64(vc, vc, tmp);
 
-    tcg_temp_free(tmp);
+    tcg_temp_free_i64(tmp);
 }
 
 static void gen_ieee_arith3(DisasContext *ctx,
