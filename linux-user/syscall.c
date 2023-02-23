@@ -12875,7 +12875,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
     case TARGET_NR_prlimit64:
     {
         /* args: pid, resource number, ptr to new rlimit, ptr to old rlimit */
-        struct target_rlimit64 *target_rnew, *target_rold;
+        struct target_rlimit64 *target_rnew, *target_rold, tmp;
         struct host_rlimit64 rnew, rold, *rnewp = 0;
         int resource = target_to_host_resource(arg2);
 
@@ -12885,8 +12885,9 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             if (!lock_user_struct(VERIFY_READ, target_rnew, arg3, 1)) {
                 return -TARGET_EFAULT;
             }
-            rnew.rlim_cur = tswap64(target_rnew->rlim_cur);
-            rnew.rlim_max = tswap64(target_rnew->rlim_max);
+            memcpy(&tmp, target_rnew, sizeof(tmp));
+            rnew.rlim_cur = tswap64(tmp.rlim_cur);
+            rnew.rlim_max = tswap64(tmp.rlim_max);
             unlock_user_struct(target_rnew, arg3, 0);
             rnewp = &rnew;
         }
@@ -12896,8 +12897,9 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             if (!lock_user_struct(VERIFY_WRITE, target_rold, arg4, 1)) {
                 return -TARGET_EFAULT;
             }
-            target_rold->rlim_cur = tswap64(rold.rlim_cur);
-            target_rold->rlim_max = tswap64(rold.rlim_max);
+            tmp.rlim_cur = tswap64(rold.rlim_cur);
+            tmp.rlim_max = tswap64(rold.rlim_max);
+            memcpy(target_rold, &tmp, sizeof(*target_rold));
             unlock_user_struct(target_rold, arg4, 1);
         }
         return ret;
