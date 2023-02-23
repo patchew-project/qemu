@@ -857,6 +857,70 @@ ssize_t load_image_gzipped(const char *filename, hwaddr addr, uint64_t max_sz)
     return bytes;
 }
 
+// The Linux header magic number for a EFI PE/COFF
+// image targetting an unspecified architecture.
+#define LINUX_EFI_PE_MAGIC        "\xcd\x23\x82\x81"
+
+struct linux_efi_zboot_header {
+    uint8_t     msdos_magic[4];         // PE/COFF 'MZ' magic number
+    uint8_t     zimg[4];                // "zimg" for Linux EFI zboot images
+    uint32_t    payload_offset;         // LE offset to the compressed payload
+    uint32_t    payload_size;           // LE size of the compressed payload
+    uint8_t     reserved[8];
+    char        compression_type[32];   // Compression type, e.g., "gzip"
+    uint8_t     linux_magic[4];         // Linux header magic
+    uint32_t    pe_header_offset;       // LE offset to the PE header
+};
+
+/*
+ * Check whether *buffer points to a Linux EFI zboot image in memory.
+ *
+ * If it does, attempt to decompress it to a new buffer, and free the old one.
+ * If any of this fails, return an error to the caller.
+ *
+ * If the image is not a Linux EFI zboot image, do nothing and return success.
+ */
+int unpack_efi_zboot_image(uint8_t **buffer, int *size)
+{
+    const struct linux_efi_zboot_header *header;
+    uint8_t *data = NULL;
+    ssize_t bytes;
+
+    /* ignore if this is too small to be a EFI zboot image */
+    if (*size < sizeof(*header)) {
+        return 0;
+    }
+
+    header = (struct linux_efi_zboot_header *)*buffer;
+
+    /* ignore if this is not a Linux EFI zboot image */
+    if (memcmp(&header->zimg, "zimg", 4) != 0 ||
+        memcmp(&header->linux_magic, LINUX_EFI_PE_MAGIC, 4) != 0) {
+        return 0;
+    }
+
+    if (strncmp(header->compression_type, "gzip", 4) != 0) {
+        fprintf(stderr, "unable to handle EFI zboot image with \"%s\" compression\n",
+                header->compression_type);
+        return -1;
+    }
+
+    data = g_malloc(LOAD_IMAGE_MAX_GUNZIP_BYTES);
+    bytes = gunzip(data, LOAD_IMAGE_MAX_GUNZIP_BYTES,
+                   *buffer + le32_to_cpu(header->payload_offset),
+                   le32_to_cpu(header->payload_size));
+    if (bytes < 0) {
+        fprintf(stderr, "failed to decompress EFI zboot image\n");
+        g_free(data);
+        return -1;
+    }
+
+    g_free(*buffer);
+    *buffer = g_realloc(data, bytes);
+    *size = bytes;
+    return 0;
+}
+
 /*
  * Functions for reboot-persistent memory regions.
  *  - used for vga bios and option roms.

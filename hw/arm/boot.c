@@ -924,6 +924,10 @@ static uint64_t load_aarch64_image(const char *filename, hwaddr mem_base,
         size = len;
     }
 
+    if (unpack_efi_zboot_image(&buffer, &size)) {
+        return -1;
+    }
+
     /* check the arm64 magic header value -- very old kernels may not have it */
     if (size > ARM64_MAGIC_OFFSET + 4 &&
         memcmp(buffer + ARM64_MAGIC_OFFSET, "ARM\x64", 4) == 0) {
