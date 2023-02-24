@@ -85,6 +85,9 @@ typedef struct MirrorBlockJob {
     int64_t active_write_bytes_in_flight;
     bool prepared;
     bool in_drain;
+
+    /* Additional information intended for users (returned in mirror_query) */
+    int64_t data_sent;
 } MirrorBlockJob;
 
 typedef struct MirrorBDSOpaque {
@@ -214,6 +217,7 @@ static void coroutine_fn mirror_iteration_done(MirrorOp *op, int ret)
         }
         if (!s->initial_zeroing_ongoing) {
             job_progress_update(&s->common.job, op->bytes);
+            s->data_sent += op->bytes;
         }
     }
     qemu_iovec_destroy(&op->qiov);
@@ -1274,6 +1278,7 @@ static void mirror_query(BlockJob *job, BlockJobInfo *info)
 
     info->u.mirror = (BlockJobInfoMirror) {
         .actively_synced = s->actively_synced,
+        .data_sent       = s->data_sent,
         .remaining_dirty = bdrv_get_dirty_count(s->dirty_bitmap),
     };
 }
@@ -1399,6 +1404,7 @@ do_sync_target_write(MirrorBlockJob *job, MirrorMethod method,
     job->active_write_bytes_in_flight -= bytes;
     if (ret >= 0) {
         job_progress_update(&job->common.job, bytes);
+        job->data_sent += bytes;
     } else {
         BlockErrorAction action;
 
