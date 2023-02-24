@@ -67,6 +67,11 @@ struct BlockJobDriver {
     void (*attached_aio_context)(BlockJob *job, AioContext *new_context);
 
     void (*set_speed)(BlockJob *job, int64_t speed);
+
+    /*
+     * Change the @job's options according to @opts.
+     */
+    void (*change)(BlockJob *job, BlockJobChangeOptions *opts, Error **errp);
 };
 
 /*
