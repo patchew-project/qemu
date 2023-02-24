@@ -1231,6 +1231,43 @@ static bool commit_active_cancel(Job *job, bool force)
     return force || !job_is_ready(job);
 }
 
+static void mirror_change(BlockJob *job, BlockJobChangeOptions *opts,
+                          Error **errp)
+{
+    MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
+    BlockJobChangeOptionsMirror *change_opts = &opts->u.mirror;
+    BlockDriverState *bs = s->mirror_top_bs->backing->bs;
+    AioContext *ctx = bdrv_get_aio_context(bs);
+
+    if (s->copy_mode == change_opts->copy_mode) {
+        return;
+    }
+
+    if (s->copy_mode == MIRROR_COPY_MODE_WRITE_BLOCKING) {
+        error_setg(errp, "Cannot switch away from copy mode 'write-blocking'");
+        return;
+    }
+
+    assert(s->copy_mode == MIRROR_COPY_MODE_BACKGROUND &&
+           change_opts->copy_mode == MIRROR_COPY_MODE_WRITE_BLOCKING);
+
+    /*
+     * Once the job is in active mode, no new writes need to be registered in
+     * the dirty bitmap, because they are synchronously written to the target.
+     * Ensure the bitmap is up-to-date first, using a drained section.
+     */
+    s->in_drain = true;
+    aio_context_acquire(ctx);
+    bdrv_drained_begin(bs);
+
+    s->copy_mode = MIRROR_COPY_MODE_WRITE_BLOCKING;
+    bdrv_disable_dirty_bitmap(s->dirty_bitmap);
+
+    bdrv_drained_end(bs);
+    aio_context_release(ctx);
+    s->in_drain = false;
+}
+
 static const BlockJobDriver mirror_job_driver = {
     .job_driver = {
         .instance_size          = sizeof(MirrorBlockJob),
@@ -1245,6 +1282,7 @@ static const BlockJobDriver mirror_job_driver = {
         .cancel                 = mirror_cancel,
     },
     .drained_poll           = mirror_drained_poll,
+    .change                 = mirror_change,
 };
 
 static const BlockJobDriver commit_active_job_driver = {
