@@ -1274,6 +1274,7 @@ static void mirror_query(BlockJob *job, BlockJobInfo *info)
 
     info->u.mirror = (BlockJobInfoMirror) {
         .actively_synced = s->actively_synced,
+        .remaining_dirty = bdrv_get_dirty_count(s->dirty_bitmap),
     };
 }
 

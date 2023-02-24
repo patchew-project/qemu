@@ -1308,10 +1308,12 @@
 # @actively-synced: Whether the source is actively synced to the target, i.e.
 #                   same data and new writes are done synchronously to both.
 #
+# @remaining-dirty: How much of the source is dirty relative to the target.
+#
 # Since 8.0
 ##
 { 'struct': 'BlockJobInfoMirror',
-  'data': { 'actively-synced': 'bool' } }
+  'data': { 'actively-synced': 'bool', 'remaining-dirty': 'int64' } }
 
 ##
 # @BlockJobInfo:
