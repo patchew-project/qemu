@@ -881,13 +881,16 @@ static void test_qga_guest_get_osinfo(gconstpointer data)
 {
     TestFixture fixture;
     const gchar *str;
+    g_autofree const gchar *cwd;
     g_autoptr(QDict) ret = NULL;
     char *env[2];
     QDict *val;
 
+    cwd = g_get_current_dir();
     env[0] = g_strdup_printf(
-        "QGA_OS_RELEASE=%s%c..%cdata%ctest-qga-os-release",
-        g_test_get_dir(G_TEST_DIST), G_DIR_SEPARATOR, G_DIR_SEPARATOR, G_DIR_SEPARATOR);
+        "QGA_OS_RELEASE=%s%c%s%c..%cdata%ctest-qga-os-release",
+        cwd, G_DIR_SEPARATOR, g_test_get_dir(G_TEST_DIST), G_DIR_SEPARATOR,
+        G_DIR_SEPARATOR, G_DIR_SEPARATOR);
     env[1] = NULL;
     fixture_setup(&fixture, NULL, env);
 
