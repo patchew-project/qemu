@@ -22,6 +22,8 @@ Makefile*
 *.mak
 meson.build
 
+# qapi scripts
+scripts/qapi*
 # qapi schema
 qapi/*.json
 qga/*.json
