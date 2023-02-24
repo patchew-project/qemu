@@ -2220,8 +2220,6 @@ bool migration_is_idle(void)
     case MIGRATION_STATUS_DEVICE:
     case MIGRATION_STATUS_WAIT_UNPLUG:
         return false;
-    case MIGRATION_STATUS__MAX:
-        g_assert_not_reached();
     }
 
     return false;

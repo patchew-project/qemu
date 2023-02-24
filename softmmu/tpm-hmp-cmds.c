@@ -52,8 +52,6 @@ void hmp_info_tpm(Monitor *mon, const QDict *qdict)
             teo = ti->options->u.emulator.data;
             monitor_printf(mon, ",chardev=%s", teo->chardev);
             break;
-        case TPM_TYPE__MAX:
-            break;
         }
         monitor_printf(mon, "\n");
         c++;

@@ -230,9 +230,6 @@ static void qemu_input_event_trace(QemuConsole *src, InputEvent *evt)
             name = QKeyCode_str(key->key->u.qcode.data);
             trace_input_event_key_qcode(idx, name, key->down);
             break;
-        case KEY_VALUE_KIND__MAX:
-            /* keep gcc happy */
-            break;
         }
         break;
     case INPUT_EVENT_KIND_BTN:
@@ -249,9 +246,6 @@ static void qemu_input_event_trace(QemuConsole *src, InputEvent *evt)
         move = evt->u.abs.data;
         name = InputAxis_str(move->axis);
         trace_input_event_abs(idx, name, move->value);
-        break;
-    case INPUT_EVENT_KIND__MAX:
-        /* keep gcc happy */
         break;
     }
 }

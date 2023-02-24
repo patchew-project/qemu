@@ -38,9 +38,6 @@ void replay_save_input_event(InputEvent *evt)
             replay_put_dword(key->key->u.qcode.data);
             replay_put_byte(key->down);
             break;
-        case KEY_VALUE_KIND__MAX:
-            /* keep gcc happy */
-            break;
         }
         break;
     case INPUT_EVENT_KIND_BTN:
@@ -57,9 +54,6 @@ void replay_save_input_event(InputEvent *evt)
         move = evt->u.abs.data;
         replay_put_dword(move->axis);
         replay_put_qword(move->value);
-        break;
-    case INPUT_EVENT_KIND__MAX:
-        /* keep gcc happy */
         break;
     }
 }
@@ -89,9 +83,6 @@ InputEvent *replay_read_input_event(void)
             evt.u.key.data->key->u.qcode.data = (QKeyCode)replay_get_dword();
             evt.u.key.data->down = replay_get_byte();
             break;
-        case KEY_VALUE_KIND__MAX:
-            /* keep gcc happy */
-            break;
         }
         break;
     case INPUT_EVENT_KIND_BTN:
@@ -108,9 +99,6 @@ InputEvent *replay_read_input_event(void)
         evt.u.abs.data = &abs;
         evt.u.abs.data->axis = (InputAxis)replay_get_dword();
         evt.u.abs.data->value = replay_get_qword();
-        break;
-    case INPUT_EVENT_KIND__MAX:
-        /* keep gcc happy */
         break;
     }
 
