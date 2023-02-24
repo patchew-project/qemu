@@ -967,7 +967,7 @@ typedef struct Qcow2ReopenState {
     int l2_slice_size; /* Number of entries in a slice of the L2 table */
     bool use_lazy_refcounts;
     int overlap_check;
-    bool discard_passthrough[QCOW2_DISCARD_MAX];
+    bool discard_passthrough[QCOW2_DISCARD_TYPE__MAX];
     uint64_t cache_clean_interval;
     QCryptoBlockOpenOptions *crypto_opts; /* Disk encryption runtime options */
 } Qcow2ReopenState;
@@ -1129,14 +1129,14 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
                               overlap_check_template & (1 << i)) << i;
     }
 
-    r->discard_passthrough[QCOW2_DISCARD_NEVER] = false;
-    r->discard_passthrough[QCOW2_DISCARD_ALWAYS] = true;
-    r->discard_passthrough[QCOW2_DISCARD_REQUEST] =
+    r->discard_passthrough[QCOW2_DISCARD_TYPE_NEVER] = false;
+    r->discard_passthrough[QCOW2_DISCARD_TYPE_ALWAYS] = true;
+    r->discard_passthrough[QCOW2_DISCARD_TYPE_REQUEST] =
         qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_REQUEST,
                           flags & BDRV_O_UNMAP);
-    r->discard_passthrough[QCOW2_DISCARD_SNAPSHOT] =
+    r->discard_passthrough[QCOW2_DISCARD_TYPE_SNAPSHOT] =
         qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_SNAPSHOT, true);
-    r->discard_passthrough[QCOW2_DISCARD_OTHER] =
+    r->discard_passthrough[QCOW2_DISCARD_TYPE_OTHER] =
         qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_OTHER, false);
 
     switch (s->crypt_method_header) {
@@ -1215,7 +1215,7 @@ static void qcow2_update_options_commit(BlockDriverState *bs,
     s->overlap_check = r->overlap_check;
     s->use_lazy_refcounts = r->use_lazy_refcounts;
 
-    for (i = 0; i < QCOW2_DISCARD_MAX; i++) {
+    for (i = 0; i < QCOW2_DISCARD_TYPE__MAX; i++) {
         s->discard_passthrough[i] = r->discard_passthrough[i];
     }
 
@@ -4052,7 +4052,7 @@ static coroutine_fn int qcow2_co_pdiscard(BlockDriverState *bs,
     }
 
     qemu_co_mutex_lock(&s->lock);
-    ret = qcow2_cluster_discard(bs, offset, bytes, QCOW2_DISCARD_REQUEST,
+    ret = qcow2_cluster_discard(bs, offset, bytes, QCOW2_DISCARD_TYPE_REQUEST,
                                 false);
     qemu_co_mutex_unlock(&s->lock);
     return ret;
@@ -4266,7 +4266,7 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
         ret = qcow2_cluster_discard(bs, ROUND_UP(offset, s->cluster_size),
                                     old_length - ROUND_UP(offset,
                                                           s->cluster_size),
-                                    QCOW2_DISCARD_ALWAYS, true);
+                                    QCOW2_DISCARD_TYPE_ALWAYS, true);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Failed to discard cropped clusters");
             goto fail;
@@ -4463,7 +4463,7 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
             error_prepend(errp, "Failed to resize underlying file: ");
             qcow2_free_clusters(bs, allocation_start,
                                 nb_new_data_clusters * s->cluster_size,
-                                QCOW2_DISCARD_OTHER);
+                                QCOW2_DISCARD_TYPE_OTHER);
             goto fail;
         }
 
@@ -4498,7 +4498,7 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
                 error_setg_errno(errp, -ret, "Failed to update L2 tables");
                 qcow2_free_clusters(bs, host_offset,
                                     nb_new_data_clusters * s->cluster_size,
-                                    QCOW2_DISCARD_OTHER);
+                                    QCOW2_DISCARD_TYPE_OTHER);
                 goto fail;
             }
 
@@ -4950,12 +4950,12 @@ static int qcow2_make_empty(BlockDriverState *bs)
     end_offset = bs->total_sectors * BDRV_SECTOR_SIZE;
     for (offset = 0; offset < end_offset; offset += step) {
         /* As this function is generally used after committing an external
-         * snapshot, QCOW2_DISCARD_SNAPSHOT seems appropriate. Also, the
+         * snapshot, QCOW2_DISCARD_TYPE_SNAPSHOT seems appropriate. Also, the
          * default action for this kind of discard is to pass the discard,
          * which will ideally result in an actually smaller image file, as
          * is probably desired. */
         ret = qcow2_cluster_discard(bs, offset, MIN(step, end_offset - offset),
-                                    QCOW2_DISCARD_SNAPSHOT, true);
+                                    QCOW2_DISCARD_TYPE_SNAPSHOT, true);
         if (ret < 0) {
             break;
         }

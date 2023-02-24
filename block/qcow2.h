@@ -288,12 +288,12 @@ enum {
 };
 
 enum qcow2_discard_type {
-    QCOW2_DISCARD_NEVER = 0,
-    QCOW2_DISCARD_ALWAYS,
-    QCOW2_DISCARD_REQUEST,
-    QCOW2_DISCARD_SNAPSHOT,
-    QCOW2_DISCARD_OTHER,
-    QCOW2_DISCARD_MAX
+    QCOW2_DISCARD_TYPE_NEVER = 0,
+    QCOW2_DISCARD_TYPE_ALWAYS,
+    QCOW2_DISCARD_TYPE_REQUEST,
+    QCOW2_DISCARD_TYPE_SNAPSHOT,
+    QCOW2_DISCARD_TYPE_OTHER,
+    QCOW2_DISCARD_TYPE__MAX
 };
 
 typedef struct Qcow2Feature {
@@ -383,7 +383,7 @@ typedef struct BDRVQcow2State {
     Qcow2GetRefcountFunc *get_refcount;
     Qcow2SetRefcountFunc *set_refcount;
 
-    bool discard_passthrough[QCOW2_DISCARD_MAX];
+    bool discard_passthrough[QCOW2_DISCARD_TYPE__MAX];
 
     int overlap_check; /* bitmask of Qcow2MetadataOverlap values */
     bool signaled_corruption;

@@ -413,7 +413,7 @@ int qcow2_write_snapshots(BlockDriverState *bs)
 
     /* free the old snapshot table */
     qcow2_free_clusters(bs, s->snapshots_offset, s->snapshots_size,
-                        QCOW2_DISCARD_SNAPSHOT);
+                        QCOW2_DISCARD_TYPE_SNAPSHOT);
     s->snapshots_offset = snapshots_offset;
     s->snapshots_size = snapshots_size;
     return 0;
@@ -421,7 +421,7 @@ int qcow2_write_snapshots(BlockDriverState *bs)
 fail:
     if (snapshots_offset > 0) {
         qcow2_free_clusters(bs, snapshots_offset, snapshots_size,
-                            QCOW2_DISCARD_ALWAYS);
+                            QCOW2_DISCARD_TYPE_ALWAYS);
     }
     return ret;
 }
@@ -737,7 +737,7 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
      * hurts by causing expensive COW for the next snapshot. */
     qcow2_cluster_discard(bs, qcow2_vm_state_offset(s),
                           ROUND_UP(sn->vm_state_size, s->cluster_size),
-                          QCOW2_DISCARD_NEVER, false);
+                          QCOW2_DISCARD_TYPE_NEVER, false);
 
 #ifdef DEBUG_ALLOC
     {
@@ -964,7 +964,7 @@ int qcow2_snapshot_delete(BlockDriverState *bs,
         return ret;
     }
     qcow2_free_clusters(bs, sn.l1_table_offset, sn.l1_size * L1E_SIZE,
-                        QCOW2_DISCARD_SNAPSHOT);
+                        QCOW2_DISCARD_TYPE_SNAPSHOT);
 
     /* must update the copied flag on the current cluster offsets */
     ret = qcow2_update_snapshot_refcount(bs, s->l1_table_offset, s->l1_size, 0);

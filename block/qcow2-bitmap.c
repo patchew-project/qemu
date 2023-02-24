@@ -216,7 +216,7 @@ static void clear_bitmap_table(BlockDriverState *bs, uint64_t *bitmap_table,
             continue;
         }
 
-        qcow2_free_clusters(bs, addr, s->cluster_size, QCOW2_DISCARD_ALWAYS);
+        qcow2_free_clusters(bs, addr, s->cluster_size, QCOW2_DISCARD_TYPE_ALWAYS);
         bitmap_table[i] = 0;
     }
 }
@@ -271,7 +271,7 @@ static int free_bitmap_clusters(BlockDriverState *bs, Qcow2BitmapTable *tb)
 
     clear_bitmap_table(bs, bitmap_table, tb->size);
     qcow2_free_clusters(bs, tb->offset, tb->size * BME_TABLE_ENTRY_SIZE,
-                        QCOW2_DISCARD_OTHER);
+                        QCOW2_DISCARD_TYPE_OTHER);
     g_free(bitmap_table);
 
     tb->offset = 0;
@@ -818,7 +818,7 @@ fail:
     g_free(dir);
 
     if (!in_place && dir_offset > 0) {
-        qcow2_free_clusters(bs, dir_offset, dir_size, QCOW2_DISCARD_OTHER);
+        qcow2_free_clusters(bs, dir_offset, dir_size, QCOW2_DISCARD_TYPE_OTHER);
     }
 
     return ret;
@@ -921,14 +921,14 @@ static int update_ext_header_and_dir(BlockDriverState *bs,
     }
 
     if (old_size > 0) {
-        qcow2_free_clusters(bs, old_offset, old_size, QCOW2_DISCARD_OTHER);
+        qcow2_free_clusters(bs, old_offset, old_size, QCOW2_DISCARD_TYPE_OTHER);
     }
 
     return 0;
 
 fail:
     if (new_offset > 0) {
-        qcow2_free_clusters(bs, new_offset, new_size, QCOW2_DISCARD_OTHER);
+        qcow2_free_clusters(bs, new_offset, new_size, QCOW2_DISCARD_TYPE_OTHER);
     }
 
     s->bitmap_directory_offset = old_offset;
@@ -1424,7 +1424,7 @@ fail:
 
     if (tb_offset > 0) {
         qcow2_free_clusters(bs, tb_offset, tb_size * sizeof(tb[0]),
-                            QCOW2_DISCARD_OTHER);
+                            QCOW2_DISCARD_TYPE_OTHER);
     }
 
     g_free(tb);

@@ -67,7 +67,7 @@ int coroutine_fn qcow2_shrink_l1_table(BlockDriverState *bs,
             continue;
         }
         qcow2_free_clusters(bs, s->l1_table[i] & L1E_OFFSET_MASK,
-                            s->cluster_size, QCOW2_DISCARD_ALWAYS);
+                            s->cluster_size, QCOW2_DISCARD_TYPE_ALWAYS);
         s->l1_table[i] = 0;
     }
     return 0;
@@ -184,12 +184,12 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
     old_l1_size = s->l1_size;
     s->l1_size = new_l1_size;
     qcow2_free_clusters(bs, old_l1_table_offset, old_l1_size * L1E_SIZE,
-                        QCOW2_DISCARD_OTHER);
+                        QCOW2_DISCARD_TYPE_OTHER);
     return 0;
  fail:
     qemu_vfree(new_l1_table);
     qcow2_free_clusters(bs, new_l1_table_offset, new_l1_size2,
-                        QCOW2_DISCARD_OTHER);
+                        QCOW2_DISCARD_TYPE_OTHER);
     return ret;
 }
 
@@ -373,7 +373,7 @@ fail:
     s->l1_table[l1_index] = old_l2_offset;
     if (l2_offset > 0) {
         qcow2_free_clusters(bs, l2_offset, s->l2_size * l2_entry_size(s),
-                            QCOW2_DISCARD_ALWAYS);
+                            QCOW2_DISCARD_TYPE_ALWAYS);
     }
     return ret;
 }
@@ -792,7 +792,7 @@ static int get_cluster_table(BlockDriverState *bs, uint64_t offset,
         /* Then decrease the refcount of the old table */
         if (l2_offset) {
             qcow2_free_clusters(bs, l2_offset, s->l2_size * l2_entry_size(s),
-                                QCOW2_DISCARD_OTHER);
+                                QCOW2_DISCARD_TYPE_OTHER);
         }
 
         /* Get the offset of the newly-allocated l2 table */
@@ -1113,7 +1113,7 @@ int coroutine_fn qcow2_alloc_cluster_link_l2(BlockDriverState *bs,
      */
     if (!m->keep_old_clusters && j != 0) {
         for (i = 0; i < j; i++) {
-            qcow2_free_any_cluster(bs, old_cluster[i], QCOW2_DISCARD_NEVER);
+            qcow2_free_any_cluster(bs, old_cluster[i], QCOW2_DISCARD_TYPE_NEVER);
         }
     }
 
@@ -1133,7 +1133,7 @@ void qcow2_alloc_cluster_abort(BlockDriverState *bs, QCowL2Meta *m)
     if (!has_data_file(bs) && !m->keep_old_clusters) {
         qcow2_free_clusters(bs, m->alloc_offset,
                             m->nb_clusters << s->cluster_bits,
-                            QCOW2_DISCARD_NEVER);
+                            QCOW2_DISCARD_TYPE_NEVER);
     }
 }
 
@@ -2057,7 +2057,7 @@ static int zero_in_l2_slice(BlockDriverState *bs, uint64_t offset,
 
         /* Then decrease the refcount */
         if (unmap) {
-            qcow2_free_any_cluster(bs, old_l2_entry, QCOW2_DISCARD_REQUEST);
+            qcow2_free_any_cluster(bs, old_l2_entry, QCOW2_DISCARD_TYPE_REQUEST);
         }
     }
 
@@ -2144,7 +2144,7 @@ int coroutine_fn qcow2_subcluster_zeroize(BlockDriverState *bs, uint64_t offset,
     if (s->qcow_version < 3) {
         if (!bs->backing) {
             return qcow2_cluster_discard(bs, offset, bytes,
-                                         QCOW2_DISCARD_REQUEST, false);
+                                         QCOW2_DISCARD_TYPE_REQUEST, false);
         }
         return -ENOTSUP;
     }
@@ -2312,10 +2312,10 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
                         ret = qcow2_update_cluster_refcount(
                             bs, offset >> s->cluster_bits,
                             refcount_diff(1, l2_refcount), false,
-                            QCOW2_DISCARD_OTHER);
+                            QCOW2_DISCARD_TYPE_OTHER);
                         if (ret < 0) {
                             qcow2_free_clusters(bs, offset, s->cluster_size,
-                                                QCOW2_DISCARD_OTHER);
+                                                QCOW2_DISCARD_TYPE_OTHER);
                             goto fail;
                         }
                     }
@@ -2331,7 +2331,7 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
                         l2_offset, l2_index);
                     if (cluster_type == QCOW2_CLUSTER_ZERO_PLAIN) {
                         qcow2_free_clusters(bs, offset, s->cluster_size,
-                                            QCOW2_DISCARD_ALWAYS);
+                                            QCOW2_DISCARD_TYPE_ALWAYS);
                     }
                     ret = -EIO;
                     goto fail;
@@ -2342,7 +2342,7 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
                 if (ret < 0) {
                     if (cluster_type == QCOW2_CLUSTER_ZERO_PLAIN) {
                         qcow2_free_clusters(bs, offset, s->cluster_size,
-                                            QCOW2_DISCARD_ALWAYS);
+                                            QCOW2_DISCARD_TYPE_ALWAYS);
                     }
                     goto fail;
                 }
@@ -2352,7 +2352,7 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
                 if (ret < 0) {
                     if (cluster_type == QCOW2_CLUSTER_ZERO_PLAIN) {
                         qcow2_free_clusters(bs, offset, s->cluster_size,
-                                            QCOW2_DISCARD_ALWAYS);
+                                            QCOW2_DISCARD_TYPE_ALWAYS);
                     }
                     goto fail;
                 }
