@@ -38,7 +38,7 @@ static int64_t alloc_clusters_noref(BlockDriverState *bs, uint64_t size,
 G_GNUC_WARN_UNUSED_RESULT
 static int update_refcount(BlockDriverState *bs,
                            int64_t offset, int64_t length, uint64_t addend,
-                           bool decrease, enum qcow2_discard_type type);
+                           bool decrease, Qcow2DiscardType type);
 
 static uint64_t get_refcount_ro0(const void *refcount_array, uint64_t index);
 static uint64_t get_refcount_ro1(const void *refcount_array, uint64_t index);
@@ -811,7 +811,7 @@ static int update_refcount(BlockDriverState *bs,
                            int64_t length,
                            uint64_t addend,
                            bool decrease,
-                           enum qcow2_discard_type type)
+                           Qcow2DiscardType type)
 {
     BDRVQcow2State *s = bs->opaque;
     int64_t start, last, cluster_offset;
@@ -945,7 +945,7 @@ fail:
 int qcow2_update_cluster_refcount(BlockDriverState *bs,
                                   int64_t cluster_index,
                                   uint64_t addend, bool decrease,
-                                  enum qcow2_discard_type type)
+                                  Qcow2DiscardType type)
 {
     BDRVQcow2State *s = bs->opaque;
     int ret;
@@ -1145,7 +1145,7 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
 
 void qcow2_free_clusters(BlockDriverState *bs,
                           int64_t offset, int64_t size,
-                          enum qcow2_discard_type type)
+                          Qcow2DiscardType type)
 {
     int ret;
 
@@ -1162,7 +1162,7 @@ void qcow2_free_clusters(BlockDriverState *bs,
  * normal cluster, compressed cluster, etc.)
  */
 void qcow2_free_any_cluster(BlockDriverState *bs, uint64_t l2_entry,
-                            enum qcow2_discard_type type)
+                            Qcow2DiscardType type)
 {
     BDRVQcow2State *s = bs->opaque;
     QCow2ClusterType ctype = qcow2_get_cluster_type(bs, l2_entry);

@@ -1898,7 +1898,7 @@ again:
  */
 static int discard_in_l2_slice(BlockDriverState *bs, uint64_t offset,
                                uint64_t nb_clusters,
-                               enum qcow2_discard_type type, bool full_discard)
+                               Qcow2DiscardType type, bool full_discard)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t *l2_slice;
@@ -1967,7 +1967,7 @@ static int discard_in_l2_slice(BlockDriverState *bs, uint64_t offset,
 }
 
 int qcow2_cluster_discard(BlockDriverState *bs, uint64_t offset,
-                          uint64_t bytes, enum qcow2_discard_type type,
+                          uint64_t bytes, Qcow2DiscardType type,
                           bool full_discard)
 {
     BDRVQcow2State *s = bs->opaque;

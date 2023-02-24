@@ -4812,6 +4812,16 @@
   'data': [ 'zlib', { 'name': 'zstd', 'if': 'CONFIG_ZSTD' } ] }
 
 ##
+# @Qcow2DiscardType:
+#
+# Determines type of discard request
+#
+# Since: 8.0
+##
+{ 'enum': 'Qcow2DiscardType',
+  'data': [ 'never', 'always', 'request', 'snapshot', 'other' ] }
+
+##
 # @BlockdevCreateOptionsQcow2:
 #
 # Driver specific image creation options for qcow2.

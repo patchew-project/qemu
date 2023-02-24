@@ -287,15 +287,6 @@ enum {
                                         | QCOW2_AUTOCLEAR_DATA_FILE_RAW,
 };
 
-enum qcow2_discard_type {
-    QCOW2_DISCARD_TYPE_NEVER = 0,
-    QCOW2_DISCARD_TYPE_ALWAYS,
-    QCOW2_DISCARD_TYPE_REQUEST,
-    QCOW2_DISCARD_TYPE_SNAPSHOT,
-    QCOW2_DISCARD_TYPE_OTHER,
-    QCOW2_DISCARD_TYPE__MAX
-};
-
 typedef struct Qcow2Feature {
     uint8_t type;
     uint8_t bit;
@@ -854,7 +845,7 @@ int qcow2_get_refcount(BlockDriverState *bs, int64_t cluster_index,
 
 int qcow2_update_cluster_refcount(BlockDriverState *bs, int64_t cluster_index,
                                   uint64_t addend, bool decrease,
-                                  enum qcow2_discard_type type);
+                                  Qcow2DiscardType type);
 
 int64_t qcow2_refcount_area(BlockDriverState *bs, uint64_t offset,
                             uint64_t additional_clusters, bool exact_size,
@@ -867,9 +858,9 @@ int64_t qcow2_alloc_clusters_at(BlockDriverState *bs, uint64_t offset,
 int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size);
 void qcow2_free_clusters(BlockDriverState *bs,
                           int64_t offset, int64_t size,
-                          enum qcow2_discard_type type);
+                          Qcow2DiscardType type);
 void qcow2_free_any_cluster(BlockDriverState *bs, uint64_t l2_entry,
-                            enum qcow2_discard_type type);
+                            Qcow2DiscardType type);
 
 int qcow2_update_snapshot_refcount(BlockDriverState *bs,
     int64_t l1_table_offset, int l1_size, int addend);
@@ -922,7 +913,7 @@ int coroutine_fn qcow2_alloc_cluster_link_l2(BlockDriverState *bs,
                                              QCowL2Meta *m);
 void qcow2_alloc_cluster_abort(BlockDriverState *bs, QCowL2Meta *m);
 int qcow2_cluster_discard(BlockDriverState *bs, uint64_t offset,
-                          uint64_t bytes, enum qcow2_discard_type type,
+                          uint64_t bytes, Qcow2DiscardType type,
                           bool full_discard);
 int coroutine_fn qcow2_subcluster_zeroize(BlockDriverState *bs, uint64_t offset,
                                           uint64_t bytes, int flags);
