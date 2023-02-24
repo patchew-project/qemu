@@ -159,8 +159,6 @@ bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
 
             ret += var.ifcond.gen_endif()
         ret += mcgen('''
-    default:
-        abort();
     }
 ''')
 
