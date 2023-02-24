@@ -63,19 +63,19 @@ static const int smart_attributes[][12] = {
     { 190,  0x03, 0x00, 0x45, 0x45, 0x1f, 0x00, 0x1f, 0x1f, 0x00, 0x00, 0x32},
 };
 
-const char *IDE_DMA_CMD_lookup[IDE_DMA__COUNT] = {
+static const char *IDE_DMA_CMD_lookup[] = {
     [IDE_DMA_READ] = "DMA READ",
     [IDE_DMA_WRITE] = "DMA WRITE",
     [IDE_DMA_TRIM] = "DMA TRIM",
-    [IDE_DMA_ATAPI] = "DMA ATAPI"
+    [IDE_DMA_ATAPI] = "DMA ATAPI",
 };
 
 static const char *IDE_DMA_CMD_str(enum ide_dma_cmd enval)
 {
-    if ((unsigned)enval < IDE_DMA__COUNT) {
-        return IDE_DMA_CMD_lookup[enval];
+    if (!IDE_DMA_CMD_lookup[enval]) {
+        return "DMA UNKNOWN CMD";
     }
-    return "DMA UNKNOWN CMD";
+    return IDE_DMA_CMD_lookup[enval];
 }
 
 static void ide_dummy_transfer_stop(IDEState *s);

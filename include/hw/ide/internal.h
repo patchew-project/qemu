@@ -352,10 +352,7 @@ enum ide_dma_cmd {
     IDE_DMA_WRITE,
     IDE_DMA_TRIM,
     IDE_DMA_ATAPI,
-    IDE_DMA__COUNT
 };
-
-extern const char *IDE_DMA_CMD_lookup[IDE_DMA__COUNT];
 
 #define ide_cmd_is_read(s) \
         ((s)->dma_cmd == IDE_DMA_READ)
