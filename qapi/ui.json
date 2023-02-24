@@ -921,6 +921,16 @@
             'lang1', 'lang2' ] }
 
 ##
+# @QKbdModifier:
+#
+# An enumeration of keyboard modifier name.
+#
+# Since: 8.0
+##
+{ 'enum': 'QKbdModifier',
+  'data': [ 'none', 'shift', 'ctrl', 'alt', 'altgr', 'numlock', 'capslock' ] }
+
+##
 # @KeyValueKind:
 #
 # Since: 1.3
