@@ -222,13 +222,13 @@ int keysym2scancode(kbd_layout_t *k, int keysym,
          * interface modifier state.  If so, prefer that one.
          */
         mods = 0;
-        if (kbd && qkbd_state_modifier_get(kbd, QKBD_MOD_SHIFT)) {
+        if (kbd && qkbd_state_modifier_get(kbd, Q_KBD_MODIFIER_SHIFT)) {
             mods |= SCANCODE_SHIFT;
         }
-        if (kbd && qkbd_state_modifier_get(kbd, QKBD_MOD_ALTGR)) {
+        if (kbd && qkbd_state_modifier_get(kbd, Q_KBD_MODIFIER_ALTGR)) {
             mods |= SCANCODE_ALTGR;
         }
-        if (kbd && qkbd_state_modifier_get(kbd, QKBD_MOD_CTRL)) {
+        if (kbd && qkbd_state_modifier_get(kbd, Q_KBD_MODIFIER_CTRL)) {
             mods |= SCANCODE_CTRL;
         }
 

@@ -1877,8 +1877,8 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
     switch (qcode) {
     case Q_KEY_CODE_1 ... Q_KEY_CODE_9: /* '1' to '9' keys */
         if (vs->vd->dcl.con == NULL && down &&
-            qkbd_state_modifier_get(vs->vd->kbd, QKBD_MOD_CTRL) &&
-            qkbd_state_modifier_get(vs->vd->kbd, QKBD_MOD_ALT)) {
+            qkbd_state_modifier_get(vs->vd->kbd, Q_KBD_MODIFIER_CTRL) &&
+            qkbd_state_modifier_get(vs->vd->kbd, Q_KBD_MODIFIER_ALT)) {
             /* Reset the modifiers sent to the current console */
             qkbd_state_lift_all_keys(vs->vd->kbd);
             console_select(qcode - Q_KEY_CODE_1);
@@ -1899,12 +1899,12 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
            toggles numlock away from the VNC window.
         */
         if (keysym_is_numlock(vs->vd->kbd_layout, sym & 0xFFFF)) {
-            if (!qkbd_state_modifier_get(vs->vd->kbd, QKBD_MOD_NUMLOCK)) {
+            if (!qkbd_state_modifier_get(vs->vd->kbd, Q_KBD_MODIFIER_NUMLOCK)) {
                 trace_vnc_key_sync_numlock(true);
                 press_key(vs, Q_KEY_CODE_NUM_LOCK);
             }
         } else {
-            if (qkbd_state_modifier_get(vs->vd->kbd, QKBD_MOD_NUMLOCK)) {
+            if (qkbd_state_modifier_get(vs->vd->kbd, Q_KBD_MODIFIER_NUMLOCK)) {
                 trace_vnc_key_sync_numlock(false);
                 press_key(vs, Q_KEY_CODE_NUM_LOCK);
             }
@@ -1919,8 +1919,8 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
            toggles capslock away from the VNC window.
         */
         int uppercase = !!(sym >= 'A' && sym <= 'Z');
-        bool shift = qkbd_state_modifier_get(vs->vd->kbd, QKBD_MOD_SHIFT);
-        bool capslock = qkbd_state_modifier_get(vs->vd->kbd, QKBD_MOD_CAPSLOCK);
+        bool shift = qkbd_state_modifier_get(vs->vd->kbd, Q_KBD_MODIFIER_SHIFT);
+        bool capslock = qkbd_state_modifier_get(vs->vd->kbd, Q_KBD_MODIFIER_CAPSLOCK);
         if (capslock) {
             if (uppercase == shift) {
                 trace_vnc_key_sync_capslock(false);
@@ -1936,8 +1936,8 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
 
     qkbd_state_key_event(vs->vd->kbd, qcode, down);
     if (!qemu_console_is_graphic(NULL)) {
-        bool numlock = qkbd_state_modifier_get(vs->vd->kbd, QKBD_MOD_NUMLOCK);
-        bool control = qkbd_state_modifier_get(vs->vd->kbd, QKBD_MOD_CTRL);
+        bool numlock = qkbd_state_modifier_get(vs->vd->kbd, Q_KBD_MODIFIER_NUMLOCK);
+        bool control = qkbd_state_modifier_get(vs->vd->kbd, Q_KBD_MODIFIER_CTRL);
         /* QEMU console emulation */
         if (down) {
             switch (keycode) {

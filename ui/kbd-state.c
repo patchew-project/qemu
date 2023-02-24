@@ -13,7 +13,7 @@ struct QKbdState {
     QemuConsole *con;
     int key_delay_ms;
     DECLARE_BITMAP(keys, Q_KEY_CODE__MAX);
-    DECLARE_BITMAP(mods, QKBD_MOD__MAX);
+    DECLARE_BITMAP(mods, Q_KBD_MODIFIER__MAX);
 };
 
 static void qkbd_state_modifier_update(QKbdState *kbd,
@@ -67,29 +67,29 @@ void qkbd_state_key_event(QKbdState *kbd, QKeyCode qcode, bool down)
     case Q_KEY_CODE_SHIFT:
     case Q_KEY_CODE_SHIFT_R:
         qkbd_state_modifier_update(kbd, Q_KEY_CODE_SHIFT, Q_KEY_CODE_SHIFT_R,
-                                   QKBD_MOD_SHIFT);
+                                   Q_KBD_MODIFIER_SHIFT);
         break;
     case Q_KEY_CODE_CTRL:
     case Q_KEY_CODE_CTRL_R:
         qkbd_state_modifier_update(kbd, Q_KEY_CODE_CTRL, Q_KEY_CODE_CTRL_R,
-                                   QKBD_MOD_CTRL);
+                                   Q_KBD_MODIFIER_CTRL);
         break;
     case Q_KEY_CODE_ALT:
         qkbd_state_modifier_update(kbd, Q_KEY_CODE_ALT, Q_KEY_CODE_ALT,
-                                   QKBD_MOD_ALT);
+                                   Q_KBD_MODIFIER_ALT);
         break;
     case Q_KEY_CODE_ALT_R:
         qkbd_state_modifier_update(kbd, Q_KEY_CODE_ALT_R, Q_KEY_CODE_ALT_R,
-                                   QKBD_MOD_ALTGR);
+                                   Q_KBD_MODIFIER_ALTGR);
         break;
     case Q_KEY_CODE_CAPS_LOCK:
         if (down) {
-            change_bit(QKBD_MOD_CAPSLOCK, kbd->mods);
+            change_bit(Q_KBD_MODIFIER_CAPSLOCK, kbd->mods);
         }
         break;
     case Q_KEY_CODE_NUM_LOCK:
         if (down) {
-            change_bit(QKBD_MOD_NUMLOCK, kbd->mods);
+            change_bit(Q_KBD_MODIFIER_NUMLOCK, kbd->mods);
         }
         break;
     default:

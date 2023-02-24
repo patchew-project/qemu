@@ -44,7 +44,7 @@ void sdl2_process_key(struct sdl2_console *scon,
     qkbd_state_key_event(scon->kbd, qcode, ev->type == SDL_KEYDOWN);
 
     if (!qemu_console_is_graphic(con)) {
-        bool ctrl = qkbd_state_modifier_get(scon->kbd, QKBD_MOD_CTRL);
+        bool ctrl = qkbd_state_modifier_get(scon->kbd, Q_KBD_MODIFIER_CTRL);
         if (ev->type == SDL_KEYDOWN) {
             switch (qcode) {
             case Q_KEY_CODE_RET:

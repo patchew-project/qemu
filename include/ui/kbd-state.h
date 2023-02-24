@@ -12,17 +12,17 @@
 typedef enum QKbdModifier QKbdModifier;
 
 enum QKbdModifier {
-    QKBD_MOD_NONE = 0,
+    Q_KBD_MODIFIER_NONE = 0,
 
-    QKBD_MOD_SHIFT,
-    QKBD_MOD_CTRL,
-    QKBD_MOD_ALT,
-    QKBD_MOD_ALTGR,
+    Q_KBD_MODIFIER_SHIFT,
+    Q_KBD_MODIFIER_CTRL,
+    Q_KBD_MODIFIER_ALT,
+    Q_KBD_MODIFIER_ALTGR,
 
-    QKBD_MOD_NUMLOCK,
-    QKBD_MOD_CAPSLOCK,
+    Q_KBD_MODIFIER_NUMLOCK,
+    Q_KBD_MODIFIER_CAPSLOCK,
 
-    QKBD_MOD__MAX
+    Q_KBD_MODIFIER__MAX
 };
 
 typedef struct QKbdState QKbdState;
