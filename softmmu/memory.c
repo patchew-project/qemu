@@ -3079,7 +3079,7 @@ void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
     as->ioeventfd_nb = 0;
     as->ioeventfds = NULL;
     QTAILQ_INIT(&as->listeners);
-    QTAILQ_INSERT_TAIL(&address_spaces, as, address_spaces_link);
+    QTAILQ_INSERT_TAIL_RCU(&address_spaces, as, address_spaces_link);
     as->name = g_strdup(name ? name : "anonymous");
     address_space_update_topology(as);
     address_space_update_ioeventfds(as);
@@ -3103,7 +3103,7 @@ void address_space_destroy(AddressSpace *as)
     memory_region_transaction_begin();
     as->root = NULL;
     memory_region_transaction_commit();
-    QTAILQ_REMOVE(&address_spaces, as, address_spaces_link);
+    QTAILQ_REMOVE_RCU(&address_spaces, as, address_spaces_link);
 
     /* At this point, as->dispatch and as->current_map are dummy
      * entries that the guest should never use.  Wait for the old
