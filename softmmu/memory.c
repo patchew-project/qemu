@@ -566,7 +566,7 @@ static AddressSpace *memory_region_to_address_space(MemoryRegion *mr)
     while (mr->container) {
         mr = mr->container;
     }
-    QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
+    QTAILQ_FOREACH_RCU(as, &address_spaces, address_spaces_link) {
         if (mr == as->root) {
             return as;
         }
