@@ -3016,30 +3016,32 @@ void memory_listener_register(MemoryListener *listener, AddressSpace *as)
 
     /* Only one of them can be defined for a listener */
     assert(!(listener->log_sync && listener->log_sync_global));
+    /* Ownership of memory_listeners & as->listeners for modifications */
+    assert(qemu_mutex_iothread_locked());
 
     listener->address_space = as;
     if (QTAILQ_EMPTY(&memory_listeners)
         || listener->priority >= QTAILQ_LAST(&memory_listeners)->priority) {
-        QTAILQ_INSERT_TAIL(&memory_listeners, listener, link);
+        QTAILQ_INSERT_TAIL_RCU(&memory_listeners, listener, link);
     } else {
         QTAILQ_FOREACH(other, &memory_listeners, link) {
             if (listener->priority < other->priority) {
                 break;
             }
         }
-        QTAILQ_INSERT_BEFORE(other, listener, link);
+        QTAILQ_INSERT_BEFORE_RCU(other, listener, link);
     }
 
     if (QTAILQ_EMPTY(&as->listeners)
         || listener->priority >= QTAILQ_LAST(&as->listeners)->priority) {
-        QTAILQ_INSERT_TAIL(&as->listeners, listener, link_as);
+        QTAILQ_INSERT_TAIL_RCU(&as->listeners, listener, link_as);
     } else {
         QTAILQ_FOREACH(other, &as->listeners, link_as) {
             if (listener->priority < other->priority) {
                 break;
             }
         }
-        QTAILQ_INSERT_BEFORE(other, listener, link_as);
+        QTAILQ_INSERT_BEFORE_RCU(other, listener, link_as);
     }
 
     listener_add_address_space(listener, as);
@@ -3051,9 +3053,14 @@ void memory_listener_unregister(MemoryListener *listener)
         return;
     }
 
+    /* Ownership of memory_listeners & as->listeners for modifications */
+    assert(qemu_mutex_iothread_locked());
+
     listener_del_address_space(listener, listener->address_space);
-    QTAILQ_REMOVE(&memory_listeners, listener, link);
-    QTAILQ_REMOVE(&listener->address_space->listeners, listener, link_as);
+    QTAILQ_REMOVE_RCU(&memory_listeners, listener, link);
+    QTAILQ_REMOVE_RCU(&listener->address_space->listeners, listener, link_as);
+    /* Wait for RCU readers to finish.  NOTE!  this may release BQL */
+    drain_call_rcu();
     listener->address_space = NULL;
 }
 
