@@ -2270,7 +2270,8 @@ void memory_region_clear_dirty_bitmap(MemoryRegion *mr, hwaddr start,
     FlatRange *fr;
     hwaddr sec_start, sec_end, sec_size;
 
-    QTAILQ_FOREACH(listener, &memory_listeners, link) {
+    RCU_READ_LOCK_GUARD();
+    QTAILQ_FOREACH_RCU(listener, &memory_listeners, link) {
         if (!listener->log_clear) {
             continue;
         }
