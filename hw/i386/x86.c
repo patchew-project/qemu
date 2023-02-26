@@ -826,6 +826,15 @@ void x86_load_linux(X86MachineState *x86ms,
     /* Make a copy, since we might append arbitrary bytes to it later. */
     kernel_cmdline = g_strndup(machine->kernel_cmdline, cmdline_size);
 
+    /*
+     * If no kernel cmdline was passed as a parameter, machine->kernel_cmdline is
+     * blank but fw_cfg is undefined. The microvm cmdline fiddling hack requires
+     * it to be defined, even if it is empty, as g_strndup(NULL) == NULL and 
+     * g_strndup("") != NULL
+     */
+    fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE, strlen(machine->kernel_cmdline) + 1);
+    fw_cfg_add_bytes(fw_cfg, FW_CFG_CMDLINE_DATA, kernel_cmdline, strlen(machine->kernel_cmdline));
+
     /* load the kernel header */
     f = fopen(kernel_filename, "rb");
     if (!f) {
