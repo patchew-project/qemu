@@ -66,12 +66,17 @@
 #define PTE_APTABLE(pte) \
     (extract64(pte, 61, 2))
 
+#define PTE_AF(pte) \
+    (extract64(pte, 10, 1))
 /*
  * TODO: At the moment all transactions are considered as privileged (EL1)
  * as IOMMU translation callback does not pass user/priv attributes.
  */
 #define is_permission_fault(ap, perm) \
     (((perm) & IOMMU_WO) && ((ap) & 0x2))
+
+#define is_permission_fault_s2(ap, perm) \
+    (!((ap & perm) == perm))
 
 #define PTE_AP_TO_PERM(ap) \
     (IOMMU_ACCESS_FLAG(true, !((ap) & 0x2)))
@@ -94,6 +99,40 @@ uint64_t iova_level_offset(uint64_t iova, int inputsize,
 {
     return ((iova & MAKE_64BIT_MASK(0, inputsize)) >> level_shift(level, gsz)) &
             MAKE_64BIT_MASK(0, gsz - 3);
+}
+
+#define SMMU_MAX_S2_CONCAT    16
+
+/*
+ * Relies on correctness of gran and sl0 from caller.
+ * FEAT_LPA2 and FEAT_TTST are not implemented.
+ */
+static inline int get_start_level(int sl0 , int gran)
+{
+    /* ARM ARM: Table D8-12. */
+    if (gran == 12) {
+        return 2 - sl0;
+    }
+    /* ARM ARM: Table D8-22 and Table D8-31. */
+    return 3 - sl0;
+}
+
+/*
+ * Index in a concatenated first level stage-2 page table.
+ * ARM ARM: D8.2.2 Concatenated translation tables.
+ */
+static inline int pgd_idx(int start_level, int granule, dma_addr_t iova)
+{
+    uint64_t ret;
+    /*
+     * Get the number of bits handled by next levels, then any extra bits in
+     * the address should index the concatenated tables. This relation can
+     * deduced from tables in ARM ARM: D8.2.7-9
+     */
+    int shift = (SMMU_LEVELS - start_level) * (granule - 3) + granule;
+
+    ret = iova >> shift;
+    return ret;
 }
 
 #define SMMU_IOTLB_ASID(key) ((key).asid)
