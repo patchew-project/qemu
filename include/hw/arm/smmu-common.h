@@ -23,9 +23,17 @@
 #include "hw/pci/pci.h"
 #include "qom/object.h"
 
-#define SMMU_PCI_BUS_MAX      256
-#define SMMU_PCI_DEVFN_MAX    256
-#define SMMU_PCI_DEVFN(sid)   (sid & 0xFF)
+#define SMMU_PCI_BUS_MAX                    256
+#define SMMU_PCI_DEVFN_MAX                  256
+#define SMMU_PCI_DEVFN(sid)                 (sid & 0xFF)
+
+#define SMMU_LEVELS                         4
+
+#define SMMU_STRIDE(gran)                   ((gran) - SMMU_LEVELS + 1)
+#define SMMU_BIT_LVL(isz, strd, lvl)        ((isz) - (strd) * \
+                                             (SMMU_LEVELS - (lvl)))
+#define SMMU_IDXMSK(isz, strd, lvl)         ((1ULL << \
+                                             SMMU_BIT_LVL(isz, strd, lvl)) - 1)
 
 /*
  * Page table walk error types
@@ -40,6 +48,7 @@ typedef enum {
 } SMMUPTWEventType;
 
 typedef struct SMMUPTWEventInfo {
+    int stage;
     SMMUPTWEventType type;
     dma_addr_t addr; /* fetched address that induced an abort, if any */
 } SMMUPTWEventInfo;
