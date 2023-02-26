@@ -307,7 +307,7 @@ static int smmu_ptw_64_s1(SMMUTransCfg *cfg,
     dma_addr_t baseaddr, indexmask;
     int stage = cfg->stage;
     SMMUTransTableInfo *tt = select_tt(cfg, iova);
-    uint8_t level, granule_sz, inputsize, stride;
+    uint8_t level, granule_sz, inputsize, stride, oas;
 
     if (!tt || tt->disabled) {
         info->type = SMMU_PTW_ERR_TRANSLATION;
@@ -319,7 +319,12 @@ static int smmu_ptw_64_s1(SMMUTransCfg *cfg,
     inputsize = 64 - tt->tsz;
     level = 4 - (inputsize - 4) / stride;
     indexmask = SMMU_IDXMSK(inputsize, stride, level);
-    baseaddr = extract64(tt->ttb, 0, 48);
+    oas = cfg->oas;
+    if (tt->granule_sz != 16) {
+        oas = MIN(oas, 48);
+    }
+
+    baseaddr = extract64(tt->ttb, 0, oas);
     baseaddr &= ~indexmask;
 
     while (level < SMMU_LEVELS) {
@@ -416,8 +421,8 @@ static int smmu_ptw_64_s2(SMMUTransCfg *cfg,
      * Get the ttb from concatenated structure.
      * The offset is the idx * size of each ttb(number of ptes * (sizeof(pte))
      */
-    uint64_t baseaddr = extract64(cfg->s2cfg.vttb, 0, 48) + (1 << stride) *
-                                  idx * sizeof(uint64_t);
+    uint64_t baseaddr = extract64(cfg->s2cfg.vttb, 0, cfg->s2cfg.oas) +
+                                  (1 << stride) * idx * sizeof(uint64_t);
     dma_addr_t indexmask = SMMU_IDXMSK(inputsize, stride, level);
 
     baseaddr &= ~indexmask;

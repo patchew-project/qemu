@@ -238,6 +238,13 @@ void smmuv3_record_event(SMMUv3State *s, SMMUEventInfo *info)
 
 static void smmuv3_init_regs(SMMUv3State *s)
 {
+    /*
+     * According to 6.3.6 SMMU_IDR5, OAS must match the system physical address
+     * size.
+     */
+    ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(0));
+    uint8_t oas = FIELD_EX64(armcpu->isar.id_aa64mmfr0, ID_AA64MMFR0, PARANGE);
+
     /**
      * IDR0: stage1 only, AArch64 only, coherent access, 16b ASID,
      *       multi-level stream table
@@ -265,7 +272,7 @@ static void smmuv3_init_regs(SMMUv3State *s)
     s->idr[5] = FIELD_DP32(s->idr[5], IDR5, GRAN4K, 1);
     s->idr[5] = FIELD_DP32(s->idr[5], IDR5, GRAN16K, 1);
     s->idr[5] = FIELD_DP32(s->idr[5], IDR5, GRAN64K, 1);
-    s->idr[5] = FIELD_DP32(s->idr[5], IDR5, OAS, SMMU_IDR5_OAS); /* 44 bits */
+    s->idr[5] = FIELD_DP32(s->idr[5], IDR5, OAS, oas);
 
     s->cmdq.base = deposit64(s->cmdq.base, 0, 5, SMMU_CMDQS);
     s->cmdq.prod = 0;
@@ -374,6 +381,7 @@ static int decode_ste(SMMUv3State *s, SMMUTransCfg *cfg,
                       STE *ste, SMMUEventInfo *event)
 {
     uint32_t config;
+    uint8_t oas = FIELD_EX32(s->idr[5], IDR5, OAS);
 
     if (!STE_VALID(ste)) {
         if (!event->inval_ste_allowed) {
@@ -450,7 +458,16 @@ static int decode_ste(SMMUv3State *s, SMMUTransCfg *cfg,
         }
 
 
-        cfg->s2cfg.oas = oas2bits(MIN(STE_S2PS(ste), SMMU_IDR5_OAS));
+        cfg->s2cfg.oas = oas2bits(MIN(STE_S2PS(ste), oas));
+        /*
+         * For SMMUv3.1 and later, when OAS == IAS == 52, the stage 2 input
+         * range is further limited to 48 bits unless STE.S2TG indicates a
+         * 64KB granule.
+         */
+        if (cfg->s2cfg.granule_sz != 16) {
+            cfg->s2cfg.oas = MIN(cfg->s2cfg.oas, 48);
+        }
+
         /*
          * It is ILLEGAL for the address in S2TTB to be outside the range
          * described by the effective S2PS value.
@@ -607,10 +624,12 @@ static int smmu_find_ste(SMMUv3State *s, uint32_t sid, STE *ste,
     return 0;
 }
 
-static int decode_cd(SMMUTransCfg *cfg, CD *cd, SMMUEventInfo *event)
+static int decode_cd(SMMUv3State *s, SMMUTransCfg *cfg, CD *cd,
+                     SMMUEventInfo *event)
 {
     int ret = -EINVAL;
     int i;
+    uint8_t oas = FIELD_EX32(s->idr[5], IDR5, OAS);
 
     if (!CD_VALID(cd) || !CD_AARCH64(cd)) {
         goto bad_cd;
@@ -630,7 +649,8 @@ static int decode_cd(SMMUTransCfg *cfg, CD *cd, SMMUEventInfo *event)
     cfg->stage = 1;
 
     cfg->oas = oas2bits(CD_IPS(cd));
-    cfg->oas = MIN(oas2bits(SMMU_IDR5_OAS), cfg->oas);
+    cfg->oas = MIN(oas2bits(oas), cfg->oas);
+
     cfg->tbi = CD_TBI(cd);
     cfg->asid = CD_ASID(cd);
 
@@ -658,9 +678,18 @@ static int decode_cd(SMMUTransCfg *cfg, CD *cd, SMMUEventInfo *event)
             goto bad_cd;
         }
 
+        /*
+         * An address greater than 48 bits in size can only be output from a
+         * TTD when, in SMMUv3.1 and later, the effective IPS is 52 and a 64KB
+         * granule is in use for that translation table
+         */
+        if (tt->granule_sz != 16) {
+            oas = MIN(cfg->oas, 48);
+        }
+
         tt->tsz = tsz;
         tt->ttb = CD_TTB(cd, i);
-        if (tt->ttb & ~(MAKE_64BIT_MASK(0, cfg->oas))) {
+        if (tt->ttb & ~(MAKE_64BIT_MASK(0, oas))) {
             goto bad_cd;
         }
         tt->had = CD_HAD(cd, i);
@@ -719,7 +748,7 @@ static int smmuv3_decode_config(IOMMUMemoryRegion *mr, SMMUTransCfg *cfg,
         return ret;
     }
 
-    return decode_cd(cfg, &cd, event);
+    return decode_cd(s, cfg, &cd, event);
 }
 
 /**
