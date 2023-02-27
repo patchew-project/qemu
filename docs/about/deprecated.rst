@@ -202,6 +202,23 @@ QEMU will soon drop the support for 32-bit x86 host systems and the
 ``qemu-system-i386`` binary. Use ``qemu-system-x86_64`` (which is a proper
 superset of ``qemu-system-i386``) on a 64-bit host machine instead.
 
+System emulation on 32-bit arm hosts and ``qemu-system-arm`` (since 8.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+``qemu-system-aarch64`` is a proper superset of ``qemu-system-arm``. The
+latter was mainly a requirement for running KVM on 32-bit arm hosts, but
+this 32-bit KVM support has been removed some years ago already (see:
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=541ad0150ca4
+). Thus the QEMU project will drop the ``qemu-system-arm`` binary in a
+future release -- use ``qemu-system-aarch64`` instead.
+
+Since you need a strong host machine for running full system emulation,
+and all recent strong hosts support 64-bit anyway, the QEMU project
+also deprecates the support for running any system emulation on 32-bit
+arm hosts in general. Use 64-bit arm hosts for system emulation instead.
+(Note: "user" mode emulation continuous to be supported on 32-bit arm
+hosts, too)
+
 
 QEMU API (QAPI) events
 ----------------------
