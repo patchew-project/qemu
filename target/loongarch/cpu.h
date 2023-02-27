@@ -27,9 +27,12 @@
 #define IOCSRF_GMOD             9
 #define IOCSRF_VM               11
 
+#define VERSION_REG             0x0
 #define FEATURE_REG             0x8
 #define VENDOR_REG              0x10
+#define VENDOR_RESERVED_REG     0x18
 #define CPUNAME_REG             0x20
+#define CPUNAME_RESERVED_REG    0x28
 #define MISC_FUNC_REG           0x420
 #define IOCSRM_EXTIOI_EN        48
 
