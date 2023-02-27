@@ -190,6 +190,19 @@ CI coverage support may bitrot away before the deprecation process
 completes. The little endian variants of MIPS (both 32 and 64 bit) are
 still a supported host architecture.
 
+32-bit x86 hosts and ``qemu-system-i386`` (since 8.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Testing 32-bit x86 host OS support takes a lot of precious time during the
+QEMU contiguous integration tests, and considering that most OS vendors
+stopped shipping 32-bit variants of their x86 OS distributions and most
+x86 hardware from the past >10 years is capable of 64-bit, keeping the
+32-bit support alive is an inadequate burden for the QEMU project. Thus
+QEMU will soon drop the support for 32-bit x86 host systems and the
+``qemu-system-i386`` binary. Use ``qemu-system-x86_64`` (which is a proper
+superset of ``qemu-system-i386``) on a 64-bit host machine instead.
+
+
 QEMU API (QAPI) events
 ----------------------
 
