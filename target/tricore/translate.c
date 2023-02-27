@@ -124,7 +124,7 @@ void tricore_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 /* Makros for generating helpers */
 
 #define gen_helper_1arg(name, arg) do {                           \
-    TCGv_i32 helper_tmp = tcg_const_i32(arg);                     \
+    TCGv_i32 helper_tmp = tcg_constant_i32(arg);                  \
     gen_helper_##name(cpu_env, helper_tmp);                       \
     } while (0)
 
@@ -513,7 +513,7 @@ static inline void gen_madd32_d(TCGv ret, TCGv r1, TCGv r2, TCGv r3)
 
 static inline void gen_maddi32_d(TCGv ret, TCGv r1, TCGv r2, int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_madd32_d(ret, r1, r2, temp);
 }
 
@@ -579,7 +579,7 @@ static inline void
 gen_maddi64_d(TCGv ret_low, TCGv ret_high, TCGv r1, TCGv r2_low, TCGv r2_high,
               int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_madd64_d(ret_low, ret_high, r1, r2_low, r2_high, temp);
 }
 
@@ -587,7 +587,7 @@ static inline void
 gen_maddui64_d(TCGv ret_low, TCGv ret_high, TCGv r1, TCGv r2_low, TCGv r2_high,
                int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_maddu64_d(ret_low, ret_high, r1, r2_low, r2_high, temp);
 }
 
@@ -1224,7 +1224,7 @@ static inline void gen_msub32_d(TCGv ret, TCGv r1, TCGv r2, TCGv r3)
 
 static inline void gen_msubi32_d(TCGv ret, TCGv r1, TCGv r2, int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_msub32_d(ret, r1, r2, temp);
 }
 
@@ -1260,7 +1260,7 @@ static inline void
 gen_msubi64_d(TCGv ret_low, TCGv ret_high, TCGv r1, TCGv r2_low, TCGv r2_high,
               int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_msub64_d(ret_low, ret_high, r1, r2_low, r2_high, temp);
 }
 
@@ -1296,13 +1296,13 @@ static inline void
 gen_msubui64_d(TCGv ret_low, TCGv ret_high, TCGv r1, TCGv r2_low, TCGv r2_high,
                int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_msubu64_d(ret_low, ret_high, r1, r2_low, r2_high, temp);
 }
 
 static inline void gen_addi_d(TCGv ret, TCGv r1, target_ulong r2)
 {
-    TCGv temp = tcg_const_i32(r2);
+    TCGv temp = tcg_constant_i32(r2);
     gen_add_d(ret, r1, temp);
 }
 
@@ -1332,7 +1332,7 @@ static inline void gen_add_CC(TCGv ret, TCGv r1, TCGv r2)
 
 static inline void gen_addi_CC(TCGv ret, TCGv r1, int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_add_CC(ret, r1, temp);
 }
 
@@ -1364,7 +1364,7 @@ static inline void gen_addc_CC(TCGv ret, TCGv r1, TCGv r2)
 
 static inline void gen_addci_CC(TCGv ret, TCGv r1, int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_addc_CC(ret, r1, temp);
 }
 
@@ -1375,7 +1375,7 @@ static inline void gen_cond_add(TCGCond cond, TCGv r1, TCGv r2, TCGv r3,
     TCGv temp2 = tcg_temp_new();
     TCGv result = tcg_temp_new();
     TCGv mask = tcg_temp_new();
-    TCGv t0 = tcg_const_i32(0);
+    TCGv t0 = tcg_constant_i32(0);
 
     /* create mask for sticky bits */
     tcg_gen_setcond_tl(cond, mask, r4, t0);
@@ -1404,7 +1404,7 @@ static inline void gen_cond_add(TCGCond cond, TCGv r1, TCGv r2, TCGv r3,
 static inline void gen_condi_add(TCGCond cond, TCGv r1, int32_t r2,
                                  TCGv r3, TCGv r4)
 {
-    TCGv temp = tcg_const_i32(r2);
+    TCGv temp = tcg_constant_i32(r2);
     gen_cond_add(cond, r1, temp, r3, r4);
 }
 
@@ -1492,7 +1492,7 @@ static inline void gen_cond_sub(TCGCond cond, TCGv r1, TCGv r2, TCGv r3,
     TCGv temp2 = tcg_temp_new();
     TCGv result = tcg_temp_new();
     TCGv mask = tcg_temp_new();
-    TCGv t0 = tcg_const_i32(0);
+    TCGv t0 = tcg_constant_i32(0);
 
     /* create mask for sticky bits */
     tcg_gen_setcond_tl(cond, mask, r4, t0);
@@ -1705,14 +1705,14 @@ gen_msubr32s_h(TCGv ret, TCGv r1, TCGv r2, TCGv r3, uint32_t n, uint32_t mode)
 static inline void
 gen_msubr_q(TCGv ret, TCGv r1, TCGv r2, TCGv r3, uint32_t n)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv temp = tcg_constant_i32(n);
     gen_helper_msubr_q(ret, cpu_env, r1, r2, r3, temp);
 }
 
 static inline void
 gen_msubrs_q(TCGv ret, TCGv r1, TCGv r2, TCGv r3, uint32_t n)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv temp = tcg_constant_i32(n);
     gen_helper_msubr_q_ssov(ret, cpu_env, r1, r2, r3, temp);
 }
 
@@ -2149,13 +2149,13 @@ static inline void gen_absdif(TCGv ret, TCGv r1, TCGv r2)
 
 static inline void gen_absdifi(TCGv ret, TCGv r1, int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_absdif(ret, r1, temp);
 }
 
 static inline void gen_absdifsi(TCGv ret, TCGv r1, int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_helper_absdif_ssov(ret, cpu_env, r1, temp);
 }
 
@@ -2181,7 +2181,7 @@ static inline void gen_mul_i32s(TCGv ret, TCGv r1, TCGv r2)
 
 static inline void gen_muli_i32s(TCGv ret, TCGv r1, int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_mul_i32s(ret, r1, temp);
 }
 
@@ -2202,7 +2202,7 @@ static inline void gen_mul_i64s(TCGv ret_low, TCGv ret_high, TCGv r1, TCGv r2)
 static inline void gen_muli_i64s(TCGv ret_low, TCGv ret_high, TCGv r1,
                                 int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_mul_i64s(ret_low, ret_high, r1, temp);
 }
 
@@ -2223,31 +2223,32 @@ static inline void gen_mul_i64u(TCGv ret_low, TCGv ret_high, TCGv r1, TCGv r2)
 static inline void gen_muli_i64u(TCGv ret_low, TCGv ret_high, TCGv r1,
                                 int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_mul_i64u(ret_low, ret_high, r1, temp);
 }
 
 static inline void gen_mulsi_i32(TCGv ret, TCGv r1, int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_helper_mul_ssov(ret, cpu_env, r1, temp);
 }
 
 static inline void gen_mulsui_i32(TCGv ret, TCGv r1, int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_helper_mul_suov(ret, cpu_env, r1, temp);
 }
+
 /* gen_maddsi_32(cpu_gpr_d[r4], cpu_gpr_d[r1], cpu_gpr_d[r3], const9); */
 static inline void gen_maddsi_32(TCGv ret, TCGv r1, TCGv r2, int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_helper_madd32_ssov(ret, cpu_env, r1, r2, temp);
 }
 
 static inline void gen_maddsui_32(TCGv ret, TCGv r1, TCGv r2, int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_helper_madd32_suov(ret, cpu_env, r1, r2, temp);
 }
 
@@ -2370,7 +2371,7 @@ static inline void
 gen_maddsi_64(TCGv ret_low, TCGv ret_high, TCGv r1, TCGv r2_low, TCGv r2_high,
               int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_madds_64(ret_low, ret_high, r1, r2_low, r2_high, temp);
 }
 
@@ -2388,19 +2389,19 @@ static inline void
 gen_maddsui_64(TCGv ret_low, TCGv ret_high, TCGv r1, TCGv r2_low, TCGv r2_high,
                int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_maddsu_64(ret_low, ret_high, r1, r2_low, r2_high, temp);
 }
 
 static inline void gen_msubsi_32(TCGv ret, TCGv r1, TCGv r2, int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_helper_msub32_ssov(ret, cpu_env, r1, r2, temp);
 }
 
 static inline void gen_msubsui_32(TCGv ret, TCGv r1, TCGv r2, int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_helper_msub32_suov(ret, cpu_env, r1, r2, temp);
 }
 
@@ -2418,7 +2419,7 @@ static inline void
 gen_msubsi_64(TCGv ret_low, TCGv ret_high, TCGv r1, TCGv r2_low, TCGv r2_high,
               int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_msubs_64(ret_low, ret_high, r1, r2_low, r2_high, temp);
 }
 
@@ -2436,7 +2437,7 @@ static inline void
 gen_msubsui_64(TCGv ret_low, TCGv ret_high, TCGv r1, TCGv r2_low, TCGv r2_high,
                int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_msubsu_64(ret_low, ret_high, r1, r2_low, r2_high, temp);
 }
 
@@ -2499,8 +2500,8 @@ static void gen_shaci(TCGv ret, TCGv r1, int32_t shift_count)
         /* clear PSW.V */
         tcg_gen_movi_tl(cpu_PSW_V, 0);
     } else if (shift_count > 0) {
-        TCGv t_max = tcg_const_i32(0x7FFFFFFF >> shift_count);
-        TCGv t_min = tcg_const_i32(((int32_t) -0x80000000) >> shift_count);
+        TCGv t_max = tcg_constant_i32(0x7FFFFFFF >> shift_count);
+        TCGv t_min = tcg_constant_i32(((int32_t) -0x80000000) >> shift_count);
 
         /* calc carry */
         msk_start = 32 - shift_count;
@@ -2538,7 +2539,7 @@ static void gen_shas(TCGv ret, TCGv r1, TCGv r2)
 
 static void gen_shasi(TCGv ret, TCGv r1, int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_shas(ret, r1, temp);
 }
 
@@ -2580,7 +2581,7 @@ static void gen_sh_cond(int cond, TCGv ret, TCGv r1, TCGv r2)
 
 static void gen_sh_condi(int cond, TCGv ret, TCGv r1, int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_sh_cond(cond, ret, r1, temp);
 }
 
@@ -2591,13 +2592,13 @@ static inline void gen_adds(TCGv ret, TCGv r1, TCGv r2)
 
 static inline void gen_addsi(TCGv ret, TCGv r1, int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_helper_add_ssov(ret, cpu_env, r1, temp);
 }
 
 static inline void gen_addsui(TCGv ret, TCGv r1, int32_t con)
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_helper_add_suov(ret, cpu_env, r1, temp);
 }
 
@@ -2667,7 +2668,7 @@ static inline void
 gen_accumulating_condi(int cond, TCGv ret, TCGv r1, int32_t con,
                        void(*op)(TCGv, TCGv, TCGv))
 {
-    TCGv temp = tcg_const_i32(con);
+    TCGv temp = tcg_constant_i32(con);
     gen_accumulating_cond(cond, ret, r1, temp, op);
 }
 
@@ -2834,8 +2835,8 @@ static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
 
 static void generate_trap(DisasContext *ctx, int class, int tin)
 {
-    TCGv_i32 classtemp = tcg_const_i32(class);
-    TCGv_i32 tintemp = tcg_const_i32(tin);
+    TCGv_i32 classtemp = tcg_constant_i32(class);
+    TCGv_i32 tintemp = tcg_constant_i32(tin);
 
     gen_save_pc(ctx->base.pc_next);
     gen_helper_raise_exception_sync(cpu_env, classtemp, tintemp);
@@ -2857,7 +2858,7 @@ static inline void gen_branch_cond(DisasContext *ctx, TCGCond cond, TCGv r1,
 static inline void gen_branch_condi(DisasContext *ctx, TCGCond cond, TCGv r1,
                                     int r2, int16_t address)
 {
-    TCGv temp = tcg_const_i32(r2);
+    TCGv temp = tcg_constant_i32(r2);
     gen_branch_cond(ctx, cond, r1, temp, address);
 }
 
@@ -3186,14 +3187,14 @@ static void decode_src_opc(DisasContext *ctx, int op1)
                       cpu_gpr_d[15]);
         break;
     case OPC1_16_SRC_CMOV:
-        temp = tcg_const_tl(0);
-        temp2 = tcg_const_tl(const4);
+        temp = tcg_constant_tl(0);
+        temp2 = tcg_constant_tl(const4);
         tcg_gen_movcond_tl(TCG_COND_NE, cpu_gpr_d[r1], cpu_gpr_d[15], temp,
                            temp2, cpu_gpr_d[r1]);
         break;
     case OPC1_16_SRC_CMOVN:
-        temp = tcg_const_tl(0);
-        temp2 = tcg_const_tl(const4);
+        temp = tcg_constant_tl(0);
+        temp2 = tcg_constant_tl(const4);
         tcg_gen_movcond_tl(TCG_COND_EQ, cpu_gpr_d[r1], cpu_gpr_d[15], temp,
                            temp2, cpu_gpr_d[r1]);
         break;
@@ -3259,12 +3260,12 @@ static void decode_srr_opc(DisasContext *ctx, int op1)
         tcg_gen_and_tl(cpu_gpr_d[r1], cpu_gpr_d[r1], cpu_gpr_d[r2]);
         break;
     case OPC1_16_SRR_CMOV:
-        temp = tcg_const_tl(0);
+        temp = tcg_constant_tl(0);
         tcg_gen_movcond_tl(TCG_COND_NE, cpu_gpr_d[r1], cpu_gpr_d[15], temp,
                            cpu_gpr_d[r2], cpu_gpr_d[r1]);
         break;
     case OPC1_16_SRR_CMOVN:
-        temp = tcg_const_tl(0);
+        temp = tcg_constant_tl(0);
         tcg_gen_movcond_tl(TCG_COND_EQ, cpu_gpr_d[r1], cpu_gpr_d[15], temp,
                            cpu_gpr_d[r2], cpu_gpr_d[r1]);
         break;
@@ -3789,7 +3790,7 @@ static void decode_abs_ldw(DisasContext *ctx)
     address = MASK_OP_ABS_OFF18(ctx->opcode);
     op2 = MASK_OP_ABS_OP2(ctx->opcode);
 
-    temp = tcg_const_i32(EA_ABS_FORMAT(address));
+    temp = tcg_constant_i32(EA_ABS_FORMAT(address));
 
     switch (op2) {
     case OPC2_32_ABS_LD_A:
@@ -3822,7 +3823,7 @@ static void decode_abs_ldb(DisasContext *ctx)
     address = MASK_OP_ABS_OFF18(ctx->opcode);
     op2 = MASK_OP_ABS_OP2(ctx->opcode);
 
-    temp = tcg_const_i32(EA_ABS_FORMAT(address));
+    temp = tcg_constant_i32(EA_ABS_FORMAT(address));
 
     switch (op2) {
     case OPC2_32_ABS_LD_B:
@@ -3853,7 +3854,7 @@ static void decode_abs_ldst_swap(DisasContext *ctx)
     address = MASK_OP_ABS_OFF18(ctx->opcode);
     op2 = MASK_OP_ABS_OP2(ctx->opcode);
 
-    temp = tcg_const_i32(EA_ABS_FORMAT(address));
+    temp = tcg_constant_i32(EA_ABS_FORMAT(address));
 
     switch (op2) {
     case OPC2_32_ABS_LDMST:
@@ -3904,7 +3905,7 @@ static void decode_abs_store(DisasContext *ctx)
     address = MASK_OP_ABS_OFF18(ctx->opcode);
     op2 = MASK_OP_ABS_OP2(ctx->opcode);
 
-    temp = tcg_const_i32(EA_ABS_FORMAT(address));
+    temp = tcg_constant_i32(EA_ABS_FORMAT(address));
 
     switch (op2) {
     case OPC2_32_ABS_ST_A:
@@ -3937,7 +3938,7 @@ static void decode_abs_storeb_h(DisasContext *ctx)
     address = MASK_OP_ABS_OFF18(ctx->opcode);
     op2 = MASK_OP_ABS_OP2(ctx->opcode);
 
-    temp = tcg_const_i32(EA_ABS_FORMAT(address));
+    temp = tcg_constant_i32(EA_ABS_FORMAT(address));
 
     switch (op2) {
     case OPC2_32_ABS_ST_B:
@@ -5295,7 +5296,7 @@ static void decode_rcpw_insert(DisasContext *ctx)
     case OPC2_32_RCPW_INSERT:
         /* if pos + width > 32 undefined result */
         if (pos + width <= 32) {
-            temp = tcg_const_i32(const4);
+            temp = tcg_constant_i32(const4);
             tcg_gen_deposit_tl(cpu_gpr_d[r2], cpu_gpr_d[r1], temp, pos, width);
         }
         break;
@@ -5371,14 +5372,14 @@ static void decode_rcr_cond_select(DisasContext *ctx)
                       cpu_gpr_d[r3]);
         break;
     case OPC2_32_RCR_SEL:
-        temp = tcg_const_i32(0);
-        temp2 = tcg_const_i32(const9);
+        temp = tcg_constant_i32(0);
+        temp2 = tcg_constant_i32(const9);
         tcg_gen_movcond_tl(TCG_COND_NE, cpu_gpr_d[r4], cpu_gpr_d[r3], temp,
                            cpu_gpr_d[r1], temp2);
         break;
     case OPC2_32_RCR_SELN:
-        temp = tcg_const_i32(0);
-        temp2 = tcg_const_i32(const9);
+        temp = tcg_constant_i32(0);
+        temp2 = tcg_constant_i32(const9);
         tcg_gen_movcond_tl(TCG_COND_EQ, cpu_gpr_d[r4], cpu_gpr_d[r3], temp,
                            cpu_gpr_d[r1], temp2);
         break;
@@ -6255,7 +6256,7 @@ static void decode_rr1_mul(DisasContext *ctx)
     r1 = MASK_OP_RR1_S1(ctx->opcode);
     r2 = MASK_OP_RR1_S2(ctx->opcode);
     r3 = MASK_OP_RR1_D(ctx->opcode);
-    n  = tcg_const_i32(MASK_OP_RR1_N(ctx->opcode));
+    n  = tcg_constant_i32(MASK_OP_RR1_N(ctx->opcode));
     op2 = MASK_OP_RR1_OP2(ctx->opcode);
 
     switch (op2) {
@@ -6549,12 +6550,12 @@ static void decode_rrr_cond_select(DisasContext *ctx)
                      cpu_gpr_d[r3]);
         break;
     case OPC2_32_RRR_SEL:
-        temp = tcg_const_i32(0);
+        temp = tcg_constant_i32(0);
         tcg_gen_movcond_tl(TCG_COND_NE, cpu_gpr_d[r4], cpu_gpr_d[r3], temp,
                            cpu_gpr_d[r1], cpu_gpr_d[r2]);
         break;
     case OPC2_32_RRR_SELN:
-        temp = tcg_const_i32(0);
+        temp = tcg_constant_i32(0);
         tcg_gen_movcond_tl(TCG_COND_EQ, cpu_gpr_d[r4], cpu_gpr_d[r3], temp,
                            cpu_gpr_d[r1], cpu_gpr_d[r2]);
         break;
@@ -7956,7 +7957,7 @@ static void decode_32Bit_opc(DisasContext *ctx)
     case OPC1_32_ABS_STOREQ:
         address = MASK_OP_ABS_OFF18(ctx->opcode);
         r1 = MASK_OP_ABS_S1D(ctx->opcode);
-        temp = tcg_const_i32(EA_ABS_FORMAT(address));
+        temp = tcg_constant_i32(EA_ABS_FORMAT(address));
         temp2 = tcg_temp_new();
 
         tcg_gen_shri_tl(temp2, cpu_gpr_d[r1], 16);
@@ -7965,7 +7966,7 @@ static void decode_32Bit_opc(DisasContext *ctx)
     case OPC1_32_ABS_LD_Q:
         address = MASK_OP_ABS_OFF18(ctx->opcode);
         r1 = MASK_OP_ABS_S1D(ctx->opcode);
-        temp = tcg_const_i32(EA_ABS_FORMAT(address));
+        temp = tcg_constant_i32(EA_ABS_FORMAT(address));
 
         tcg_gen_qemu_ld_tl(cpu_gpr_d[r1], temp, ctx->mem_idx, MO_LEUW);
         tcg_gen_shli_tl(cpu_gpr_d[r1], cpu_gpr_d[r1], 16);
@@ -7981,7 +7982,7 @@ static void decode_32Bit_opc(DisasContext *ctx)
         b = MASK_OP_ABSB_B(ctx->opcode);
         bpos = MASK_OP_ABSB_BPOS(ctx->opcode);
 
-        temp = tcg_const_i32(EA_ABS_FORMAT(address));
+        temp = tcg_constant_i32(EA_ABS_FORMAT(address));
         temp2 = tcg_temp_new();
 
         tcg_gen_qemu_ld_tl(temp2, temp, ctx->mem_idx, MO_UB);
@@ -8108,7 +8109,7 @@ static void decode_32Bit_opc(DisasContext *ctx)
         r2 = MASK_OP_RCRR_S3(ctx->opcode);
         r3 = MASK_OP_RCRR_D(ctx->opcode);
         const16 = MASK_OP_RCRR_CONST4(ctx->opcode);
-        temp = tcg_const_i32(const16);
+        temp = tcg_constant_i32(const16);
         temp2 = tcg_temp_new(); /* width*/
         temp3 = tcg_temp_new(); /* pos */
 
