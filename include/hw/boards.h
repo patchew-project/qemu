@@ -296,6 +296,7 @@ struct MachineClass {
 typedef struct DeviceMemoryState {
     hwaddr base;
     MemoryRegion mr;
+    ram_addr_t dimm_size;
 } DeviceMemoryState;
 
 /**
