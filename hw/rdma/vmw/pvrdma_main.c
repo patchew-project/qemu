@@ -98,12 +98,20 @@ static int init_dev_ring(PvrdmaRing *ring, PvrdmaRingState **ring_state,
         return -EINVAL;
     }
 
+    if (num_pages > TARGET_PAGE_SIZE / sizeof(dma_addr_t)) {
+        rdma_error_report("Maximum pages on a single directory must not exceed %ld\n",
+                          TARGET_PAGE_SIZE / sizeof(dma_addr_t));
+        return -EINVAL;
+    }
+
     dir = rdma_pci_dma_map(pci_dev, dir_addr, TARGET_PAGE_SIZE);
     if (!dir) {
         rdma_error_report("Failed to map to page directory (ring %s)", name);
         rc = -ENOMEM;
         goto out;
     }
+
+    /* We support only one page table for a ring */
     tbl = rdma_pci_dma_map(pci_dev, dir[0], TARGET_PAGE_SIZE);
     if (!tbl) {
         rdma_error_report("Failed to map to page table (ring %s)", name);
