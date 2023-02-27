@@ -24,7 +24,6 @@
 #include "migration/misc.h"
 #include "qapi/error.h"
 #include "exec/ramlist.h"
-#include "exec/ram_addr.h"
 #include "pci.h"
 #include "trace.h"
 #include "hw/hw.h"
