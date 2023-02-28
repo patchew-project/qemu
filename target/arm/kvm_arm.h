@@ -306,6 +306,13 @@ bool kvm_arm_pmu_supported(void);
 bool kvm_arm_sve_supported(void);
 
 /**
+ * kvm_arm_mte_supported:
+ *
+ * Returns: true if KVM can enable MTE, and false otherwise.
+ */
+bool kvm_arm_mte_supported(void);
+
+/**
  * kvm_arm_get_max_vm_ipa_size:
  * @ms: Machine state handle
  * @fixed_ipa: True when the IPA limit is fixed at 40. This is the case
@@ -369,6 +376,8 @@ void kvm_arm_pvtime_init(CPUState *cs, uint64_t ipa);
 
 int kvm_arm_set_irq(int cpu, int irqtype, int irq, int level);
 
+void kvm_arm_enable_mte(Error **errp);
+
 #else
 
 /*
@@ -391,6 +400,11 @@ static inline bool kvm_arm_sve_supported(void)
 }
 
 static inline bool kvm_arm_steal_time_supported(void)
+{
+    return false;
+}
+
+static inline bool kvm_arm_mte_supported(void)
 {
     return false;
 }
@@ -439,6 +453,11 @@ static inline void kvm_arm_steal_time_finalize(ARMCPU *cpu, Error **errp)
 }
 
 static inline uint32_t kvm_arm_sve_get_vls(CPUState *cs)
+{
+    g_assert_not_reached();
+}
+
+static inline void kvm_arm_enable_mte(Error **errp)
 {
     g_assert_not_reached();
 }
