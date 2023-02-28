@@ -460,8 +460,9 @@ static void vfio_remove_kvm_msi_virq(VFIOMSIVector *vector)
 static void vfio_update_kvm_msi_virq(VFIOMSIVector *vector, MSIMessage msg,
                                      PCIDevice *pdev)
 {
-    kvm_irqchip_update_msi_route(kvm_state, vector->virq, msg, pdev);
-    kvm_irqchip_commit_routes(kvm_state);
+    KVMRouteChange c = kvm_irqchip_begin_route_changes(kvm_state);
+    kvm_irqchip_update_msi_route(&c, vector->virq, msg, pdev);
+    kvm_irqchip_commit_route_changes(&c);
 }
 
 static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,

@@ -990,12 +990,15 @@ static int virtio_pci_one_vector_unmask(VirtIOPCIProxy *proxy,
     if (proxy->vector_irqfd) {
         irqfd = &proxy->vector_irqfd[vector];
         if (irqfd->msg.data != msg.data || irqfd->msg.address != msg.address) {
-            ret = kvm_irqchip_update_msi_route(kvm_state, irqfd->virq, msg,
+            virtio_pci_begin_route_changes();
+            ret = kvm_irqchip_update_msi_route(&virtio_pci_route_change,
+                                               irqfd->virq, msg,
                                                &proxy->pci_dev);
             if (ret < 0) {
+                virtio_pci_commit_route_changes();
                 return ret;
             }
-            kvm_irqchip_commit_routes(kvm_state);
+            virtio_pci_commit_route_changes();
         }
     }
 

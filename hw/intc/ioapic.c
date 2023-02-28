@@ -195,6 +195,7 @@ static void ioapic_update_kvm_routes(IOAPICCommonState *s)
     int i;
 
     if (kvm_irqchip_is_split()) {
+        KVMRouteChange c = kvm_irqchip_begin_route_changes(kvm_state);
         for (i = 0; i < IOAPIC_NUM_PINS; i++) {
             MSIMessage msg;
             struct ioapic_entry_info info;
@@ -202,10 +203,10 @@ static void ioapic_update_kvm_routes(IOAPICCommonState *s)
             if (!info.masked) {
                 msg.address = info.addr;
                 msg.data = info.data;
-                kvm_irqchip_update_msi_route(kvm_state, i, msg, NULL);
+                kvm_irqchip_update_msi_route(&c, i, msg, NULL);
             }
         }
-        kvm_irqchip_commit_routes(kvm_state);
+        kvm_irqchip_commit_route_changes(&c);
     }
 #endif
 }

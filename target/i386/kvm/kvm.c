@@ -5532,9 +5532,11 @@ static void kvm_update_msi_routes_all(void *private, bool global,
 {
     int cnt = 0, vector;
     MSIRouteEntry *entry;
+    KVMRouteChange c;
     MSIMessage msg;
     PCIDevice *dev;
 
+    c = kvm_irqchip_begin_route_changes(kvm_state);
     /* TODO: explicit route update */
     QLIST_FOREACH(entry, &msi_route_list, list) {
         cnt++;
@@ -5551,9 +5553,9 @@ static void kvm_update_msi_routes_all(void *private, bool global,
              */
             continue;
         }
-        kvm_irqchip_update_msi_route(kvm_state, entry->virq, msg, dev);
+        kvm_irqchip_update_msi_route(&c, entry->virq, msg, dev);
     }
-    kvm_irqchip_commit_routes(kvm_state);
+    kvm_irqchip_commit_route_changes(&c);
     trace_kvm_x86_update_msi_routes(cnt);
 }
 

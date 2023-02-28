@@ -278,6 +278,7 @@ static int ivshmem_vector_unmask(PCIDevice *dev, unsigned vector,
     IVShmemState *s = IVSHMEM_COMMON(dev);
     EventNotifier *n = &s->peers[s->vm_id].eventfds[vector];
     MSIVector *v = &s->msi_vectors[vector];
+    KVMRouteChange c;
     int ret;
 
     IVSHMEM_DPRINTF("vector unmask %p %d\n", dev, vector);
@@ -287,11 +288,12 @@ static int ivshmem_vector_unmask(PCIDevice *dev, unsigned vector,
     }
     assert(!v->unmasked);
 
-    ret = kvm_irqchip_update_msi_route(kvm_state, v->virq, msg, dev);
+    c = kvm_irqchip_begin_route_changes(kvm_state);
+    ret = kvm_irqchip_update_msi_route(&c, v->virq, msg, dev);
     if (ret < 0) {
         return ret;
     }
-    kvm_irqchip_commit_routes(kvm_state);
+    kvm_irqchip_commit_route_changes(&c);
 
     ret = kvm_irqchip_add_irqfd_notifier_gsi(kvm_state, n, NULL, v->virq);
     if (ret < 0) {

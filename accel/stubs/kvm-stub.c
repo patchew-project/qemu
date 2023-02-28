@@ -69,7 +69,7 @@ void kvm_irqchip_release_virq(KVMState *s, int virq)
 {
 }
 
-int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg,
+int kvm_irqchip_update_msi_route(KVMRouteChange *c, int virq, MSIMessage msg,
                                  PCIDevice *dev)
 {
     return -ENOSYS;
