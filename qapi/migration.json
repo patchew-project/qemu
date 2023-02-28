@@ -1830,6 +1830,25 @@
 # @mode: mode containing method of calculate dirtyrate includes
 #        'page-sampling' and 'dirty-ring' (Since 6.2)
 #
+# @page-size: page size in bytes
+#
+# @n-total-pages: total number of VM pages
+#
+# @n-sampled-pages: number of sampled pages
+#
+# @n-zero-pages: number of observed zero pages among all sampled pages.
+#                Normally all pages are zero when VM starts, but
+#                their number progressively goes down as VM fills more
+#                and more memory with useful data.
+#                Migration of zero pages is optimized: only their headers
+#                are copied but not the (zero) data.
+#
+# @periods: array of time periods expressed in milliseconds for which
+#           dirty-sample measurements are collected
+#
+# @n-dirty-pages: number of pages among all sampled pages that were observed
+#                 as changed after respective time period
+#
 # @vcpu-dirty-rate: dirtyrate for each vcpu if dirty-ring
 #                   mode specified (Since 6.2)
 #
@@ -1842,6 +1861,12 @@
            'calc-time': 'int64',
            'sample-pages': 'uint64',
            'mode': 'DirtyRateMeasureMode',
+           'page-size': 'int64',
+           '*n-total-pages': 'int64',
+           '*n-sampled-pages': 'int64',
+           '*n-zero-pages': 'int64',
+           '*periods': ['int64'],
+           '*n-dirty-pages': ['int64'],
            '*vcpu-dirty-rate': [ 'DirtyRateVcpu' ] } }
 
 ##
