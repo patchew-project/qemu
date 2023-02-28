@@ -488,6 +488,8 @@ const char *arm_gdb_get_dynamic_xml(CPUState *cs, const char *xmlname)
         return cpu->dyn_sysreg_xml.desc;
     } else if (strcmp(xmlname, "sve-registers.xml") == 0) {
         return cpu->dyn_svereg_xml.desc;
+    } else if (strcmp(xmlname, "za-registers.xml") == 0) {
+        return cpu->dyn_zareg_xml.desc;
     } else if (strcmp(xmlname, "arm-m-system.xml") == 0) {
         return cpu->dyn_m_systemreg_xml.desc;
 #ifndef CONFIG_USER_ONLY
@@ -523,6 +525,12 @@ void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
             gdb_register_coprocessor(cs, aarch64_gdb_get_pauth_reg,
                                      aarch64_gdb_set_pauth_reg,
                                      4, "aarch64-pauth.xml", 0);
+        }
+        if (cpu_isar_feature(aa64_sme, cpu)) {
+            int nreg = arm_gen_dynamic_zareg_xml(cs, cs->gdb_num_regs);
+            gdb_register_coprocessor(cs, aarch64_gdb_get_za_reg,
+                                     aarch64_gdb_set_za_reg, nreg,
+                                     "za-registers.xml", 0);
         }
 #endif
     } else {

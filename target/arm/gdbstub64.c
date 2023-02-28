@@ -244,6 +244,61 @@ int aarch64_gdb_set_pauth_reg(CPUARMState *env, uint8_t *buf, int reg)
     return 0;
 }
 
+static int max_svq(ARMCPU *cpu)
+{
+    return 32 - clz32(cpu->sme_vq.map);
+}
+
+int aarch64_gdb_get_za_reg(CPUARMState *env, GByteArray *buf, int reg)
+{
+    ARMCPU *cpu = env_archcpu(env);
+    int max_vq = max_svq(cpu);
+    int cur_vq = EX_TBFLAG_A64(env->hflags, SVL) + 1;
+    int i;
+
+    if (reg >= max_vq * 16) {
+        return 0;
+    }
+
+    /* If ZA is unset, or reg out of range, the contents are zero. */
+    if (FIELD_EX64(env->svcr, SVCR, ZA) && reg < cur_vq * 16) {
+        for (i = 0; i < cur_vq; i++) {
+            gdb_get_reg128(buf, env->zarray[reg].d[i * 2 + 1],
+                           env->zarray[reg].d[i * 2]);
+        }
+    } else {
+        cur_vq = 0;
+    }
+
+    for (i = cur_vq; i < max_vq; i++) {
+        gdb_get_reg128(buf, 0, 0);
+    }
+
+    return max_vq * 16;
+}
+
+int aarch64_gdb_set_za_reg(CPUARMState *env, uint8_t *buf, int reg)
+{
+    ARMCPU *cpu = env_archcpu(env);
+    uint64_t *p = (uint64_t *) buf;
+    int max_vq = max_svq(cpu);
+    int cur_vq = EX_TBFLAG_A64(env->hflags, SVL) + 1;
+    int i;
+
+    if (reg >= max_vq * 16) {
+        return 0;
+    }
+
+    /* If ZA is unset, or reg out of range, the contents are zero. */
+    if (FIELD_EX64(env->svcr, SVCR, ZA) && reg < cur_vq * 16) {
+        for (i = 0; i < cur_vq; i++) {
+            env->zarray[reg].d[i * 2 + 1] = *p++;
+            env->zarray[reg].d[i * 2 + 0] = *p++;
+        }
+    }
+    return max_vq * 16;
+}
+
 static void output_vector_union_type(GString *s, int reg_width,
                                      const char *name)
 {
@@ -375,4 +430,37 @@ int arm_gen_dynamic_svereg_xml(CPUState *cs, int orig_base_reg)
     info->desc = g_string_free(s, false);
     info->num = base_reg - orig_base_reg;
     return info->num;
+}
+
+/*
+ * Generate the xml for SME, with matrix size set to the maximum
+ * for the cpu.  Returns the number of registers generated.
+ */
+int arm_gen_dynamic_zareg_xml(CPUState *cs, int base_reg)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    GString *s = g_string_new(NULL);
+    int vq = max_svq(cpu);
+    int row_count = vq * 16;
+    int row_width = vq * 128;
+    int i;
+
+    g_string_printf(s, "<?xml version=\"1.0\"?>");
+    g_string_append_printf(s, "<!DOCTYPE target SYSTEM \"gdb-target.dtd\">");
+    g_string_append_printf(s, "<feature name=\"org.gnu.qemu.aarch64.za\">");
+
+    output_vector_union_type(s, row_width, "zav");
+
+    for (i = 0; i < row_count; i++) {
+        g_string_append_printf(s,
+                               "<reg name=\"za%d\" bitsize=\"%d\""
+                               " regnum=\"%d\" type=\"zav\"/>",
+                               i, row_width, base_reg + i);
+    }
+
+    g_string_append_printf(s, "</feature>");
+
+    cpu->dyn_zareg_xml.num = row_count;
+    cpu->dyn_zareg_xml.desc = g_string_free(s, false);
+    return row_count;
 }

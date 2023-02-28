@@ -869,6 +869,7 @@ struct ArchCPU {
 
     DynamicGDBXMLInfo dyn_sysreg_xml;
     DynamicGDBXMLInfo dyn_svereg_xml;
+    DynamicGDBXMLInfo dyn_zareg_xml;
     DynamicGDBXMLInfo dyn_m_systemreg_xml;
     DynamicGDBXMLInfo dyn_m_secextreg_xml;
 
