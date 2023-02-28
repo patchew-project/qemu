@@ -815,6 +815,15 @@ FlatView *address_space_get_flatview(AddressSpace *as)
     return view;
 }
 
+static void address_space_reset_view_flags(AddressSpace *as, unsigned mask)
+{
+    FlatView *view = address_space_get_flatview(as);
+
+    if (view->flags & mask) {
+        view->flags &= ~mask;
+    }
+}
+
 static void address_space_update_ioeventfds(AddressSpace *as)
 {
     FlatView *view;
@@ -825,6 +834,12 @@ static void address_space_update_ioeventfds(AddressSpace *as)
     AddrRange tmp;
     unsigned i;
 
+    view = address_space_get_flatview(as);
+    if (view->flags & FLATVIEW_FLAG_IOEVENTFD_UPDATED) {
+        return;
+    }
+    view->flags |= FLATVIEW_FLAG_IOEVENTFD_UPDATED;
+
     /*
      * It is likely that the number of ioeventfds hasn't changed much, so use
      * the previous size as the starting value, with some headroom to avoid
@@ -833,7 +848,6 @@ static void address_space_update_ioeventfds(AddressSpace *as)
     ioeventfd_max = QEMU_ALIGN_UP(as->ioeventfd_nb, 4);
     ioeventfds = g_new(MemoryRegionIoeventfd, ioeventfd_max);
 
-    view = address_space_get_flatview(as);
     FOR_EACH_FLAT_RANGE(fr, view) {
         for (i = 0; i < fr->mr->ioeventfd_nb; ++i) {
             tmp = addrrange_shift(fr->mr->ioeventfds[i].addr,
@@ -1086,6 +1100,15 @@ void memory_region_transaction_begin(void)
     ++memory_region_transaction_depth;
 }
 
+static inline void address_space_update_ioeventfds_finish(void)
+{
+    AddressSpace *as;
+
+    QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
+        address_space_reset_view_flags(as, FLATVIEW_FLAG_IOEVENTFD_UPDATED);
+    }
+}
+
 void memory_region_transaction_commit(void)
 {
     AddressSpace *as;
@@ -1106,12 +1129,14 @@ void memory_region_transaction_commit(void)
             }
             memory_region_update_pending = false;
             ioeventfd_update_pending = false;
+            address_space_update_ioeventfds_finish();
             MEMORY_LISTENER_CALL_GLOBAL(commit, Forward);
         } else if (ioeventfd_update_pending) {
             QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
                 address_space_update_ioeventfds(as);
             }
             ioeventfd_update_pending = false;
+            address_space_update_ioeventfds_finish();
         }
    }
 }
@@ -3076,6 +3101,7 @@ void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
     as->name = g_strdup(name ? name : "anonymous");
     address_space_update_topology(as);
     address_space_update_ioeventfds(as);
+    address_space_reset_view_flags(as, FLATVIEW_FLAG_IOEVENTFD_UPDATED);
 }
 
 static void do_address_space_destroy(AddressSpace *as)
