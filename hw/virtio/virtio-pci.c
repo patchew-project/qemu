@@ -51,15 +51,22 @@
 
 /* Protected by the BQL */
 static KVMRouteChange virtio_pci_route_change;
+static unsigned virtio_pci_route_change_depth;
 
 static inline void virtio_pci_begin_route_changes(void)
 {
-    virtio_pci_route_change = kvm_irqchip_begin_route_changes(kvm_state);
+    if (!virtio_pci_route_change_depth) {
+        virtio_pci_route_change = kvm_irqchip_begin_route_changes(kvm_state);
+    }
+    virtio_pci_route_change_depth++;
 }
 
 static inline void virtio_pci_commit_route_changes(void)
 {
-    kvm_irqchip_commit_route_changes(&virtio_pci_route_change);
+    virtio_pci_route_change_depth--;
+    if (!virtio_pci_route_change_depth) {
+        kvm_irqchip_commit_route_changes(&virtio_pci_route_change);
+    }
 }
 
 static void virtio_pci_bus_new(VirtioBusState *bus, size_t bus_size,
@@ -976,6 +983,88 @@ static void kvm_virtio_pci_vector_config_release(VirtIOPCIProxy *proxy)
     kvm_virtio_pci_vector_release_one(proxy, VIRTIO_CONFIG_IRQ_IDX);
 }
 
+static int virtio_pci_vector_do_unmask(VirtIOPCIProxy *proxy,
+                                       unsigned int queue_no,
+                                       unsigned int vector,
+                                       EventNotifier *n)
+{
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    int ret = 0;
+
+    /*
+     * If guest supports masking, irqfd is already setup, unmask it.
+     * Otherwise, set it up now.
+     */
+    if (vdev->use_guest_notifier_mask && k->guest_notifier_mask) {
+        k->guest_notifier_mask(vdev, queue_no, false);
+        /* Test after unmasking to avoid losing events. */
+        if (k->guest_notifier_pending &&
+            k->guest_notifier_pending(vdev, queue_no)) {
+            event_notifier_set(n);
+        }
+    } else {
+        ret = kvm_virtio_pci_irqfd_use(proxy, n, vector);
+    }
+
+    return ret;
+}
+
+static void virtio_pci_prepare_kvm_msi_virq_batch(VirtIOPCIProxy *proxy)
+{
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+
+    assert(!vdev->defer_kvm_irq_routing);
+    vdev->defer_kvm_irq_routing = true;
+    virtio_pci_begin_route_changes();
+}
+
+static void virtio_pci_commit_kvm_msi_virq_batch(VirtIOPCIProxy *proxy)
+{
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+    PCIDevice *dev = &proxy->pci_dev;
+    VirtQueue *vq;
+    EventNotifier *n;
+    int vector, index;
+    int ret;
+
+    assert(vdev->defer_kvm_irq_routing);
+    virtio_pci_commit_route_changes();
+    vdev->defer_kvm_irq_routing = false;
+
+    if (!msix_enabled(dev)) {
+        return;
+    }
+
+    /* Unmask all unmasked vectors */
+    for (vector = 0; vector < dev->msix_entries_nr; vector++) {
+        if (msix_is_masked(dev, vector)) {
+            continue;
+        }
+
+        vq = virtio_vector_first_queue(vdev, vector);
+        while (vq) {
+            index = virtio_get_queue_index(vq);
+            if (!virtio_queue_get_num(vdev, index)) {
+                break;
+            }
+            if (index < proxy->nvqs_with_notifiers) {
+                n = virtio_queue_get_guest_notifier(vq);
+                ret = virtio_pci_vector_do_unmask(proxy, index, vector, n);
+                assert(ret >= 0);
+            }
+            vq = virtio_vector_next_queue(vq);
+        }
+
+        if (vector == vdev->config_vector) {
+            n = virtio_config_get_guest_notifier(vdev);
+            ret = virtio_pci_vector_do_unmask(proxy, VIRTIO_CONFIG_IRQ_IDX,
+                                              vector, n);
+            assert(ret >= 0);
+        }
+    }
+}
+
 static int virtio_pci_one_vector_unmask(VirtIOPCIProxy *proxy,
                                        unsigned int queue_no,
                                        unsigned int vector,
@@ -983,7 +1072,6 @@ static int virtio_pci_one_vector_unmask(VirtIOPCIProxy *proxy,
                                        EventNotifier *n)
 {
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     VirtIOIRQFD *irqfd;
     int ret = 0;
 
@@ -1002,19 +1090,10 @@ static int virtio_pci_one_vector_unmask(VirtIOPCIProxy *proxy,
         }
     }
 
-    /* If guest supports masking, irqfd is already setup, unmask it.
-     * Otherwise, set it up now.
-     */
-    if (vdev->use_guest_notifier_mask && k->guest_notifier_mask) {
-        k->guest_notifier_mask(vdev, queue_no, false);
-        /* Test after unmasking to avoid losing events. */
-        if (k->guest_notifier_pending &&
-            k->guest_notifier_pending(vdev, queue_no)) {
-            event_notifier_set(n);
-        }
-    } else {
-        ret = kvm_virtio_pci_irqfd_use(proxy, n, vector);
+    if (!vdev->defer_kvm_irq_routing) {
+        ret = virtio_pci_vector_do_unmask(proxy, queue_no, vector, n);
     }
+
     return ret;
 }
 
@@ -1284,12 +1363,16 @@ static int virtio_pci_set_guest_notifiers(DeviceState *d, int nvqs, bool assign)
             }
         }
 
+        virtio_pci_prepare_kvm_msi_virq_batch(proxy);
+
         r = msix_set_vector_notifiers(&proxy->pci_dev, virtio_pci_vector_unmask,
                                       virtio_pci_vector_mask,
                                       virtio_pci_vector_poll);
         if (r < 0) {
             goto notifiers_error;
         }
+
+        virtio_pci_commit_kvm_msi_virq_batch(proxy);
     }
 
     return 0;
