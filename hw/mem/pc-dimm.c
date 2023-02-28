@@ -81,6 +81,10 @@ void pc_dimm_plug(PCDIMMDevice *dimm, MachineState *machine)
 
     memory_device_plug(MEMORY_DEVICE(dimm), machine);
     vmstate_register_ram(vmstate_mr, DEVICE(dimm));
+    bool is_nvdimm = object_dynamic_cast(OBJECT(dimm), TYPE_NVDIMM);
+    if (!is_nvdimm) {
+        machine->device_memory->dimm_size += vmstate_mr->size;
+    }
 }
 
 void pc_dimm_unplug(PCDIMMDevice *dimm, MachineState *machine)
@@ -90,6 +94,10 @@ void pc_dimm_unplug(PCDIMMDevice *dimm, MachineState *machine)
 
     memory_device_unplug(MEMORY_DEVICE(dimm), machine);
     vmstate_unregister_ram(vmstate_mr, DEVICE(dimm));
+    bool is_nvdimm = object_dynamic_cast(OBJECT(dimm), TYPE_NVDIMM);
+    if (!is_nvdimm) {
+        machine->device_memory->dimm_size -= vmstate_mr->size;
+    }
 }
 
 static int pc_dimm_slot2bitmap(Object *obj, void *opaque)
