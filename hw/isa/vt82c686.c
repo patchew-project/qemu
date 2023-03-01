@@ -549,6 +549,7 @@ struct ViaISAState {
     PCIDevice dev;
     qemu_irq cpu_intr;
     qemu_irq *isa_irqs_in;
+    uint16_t isa_irqs_state;
     ViaSuperIOState via_sio;
     MC146818RtcState rtc;
     PCIIDEState ide;
@@ -635,6 +636,14 @@ static void via_isa_set_pci_irq(void *opaque, int irq_num, int level)
         if (pic_irq == via_isa_get_pci_irq(s, i)) {
             pic_level |= pci_bus_get_irq_level(bus, i);
         }
+    }
+    /* FIXME: workaround for i8259: level sensitive irq not supported */
+    if ((s->isa_irqs_state & BIT(pic_irq)) && pic_level) {
+        qemu_irq_lower(s->isa_irqs_in[pic_irq]);
+    } else if (pic_level) {
+        s->isa_irqs_state |= BIT(pic_irq);
+    } else {
+        s->isa_irqs_state &= ~BIT(pic_irq);
     }
     /* Now we change the pic irq level according to the via irq mappings. */
     qemu_set_irq(s->isa_irqs_in[pic_irq], pic_level);
