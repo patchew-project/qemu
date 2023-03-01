@@ -2663,21 +2663,40 @@ static void reachable_code_pass(TCGContext *s)
                 dead = false;
                 remove = false;
 
-                /*
-                 * Optimization can fold conditional branches to unconditional.
-                 * If we find a label with one reference which is preceded by
-                 * an unconditional branch to it, remove both.  This needed to
-                 * wait until the dead code in between them was removed.
-                 */
-                if (label->refs == 1) {
-                    TCGOp *op_prev = QTAILQ_PREV(op, link);
-                    if (op_prev->opc == INDEX_op_br &&
-                        label == arg_label(op_prev->args[0])) {
+                TCGOp *op_prev = QTAILQ_PREV(op, link);
+                if (label->refs == 1 &&
+                    op_prev->opc == INDEX_op_br &&
+                    label == arg_label(op_prev->args[0])) {
+                    /*
+                     * Optimization can fold conditional branches to
+                     * unconditional. If we find a label with one reference
+                     * which is preceded by an unconditional branch to it,
+                     * remove both.  This needed to wait until the dead code
+                     * in between them was removed.
+                     */
+                    tcg_op_remove(s, op_prev);
+                    remove = true;
+                } else if (op_next->opc == INDEX_op_set_label) {
+                    /*
+                     * The Hexagon frontend can generate empty else-branches for
+                     * certain instructions.  If we encounter
+                     *
+                     *   br $L0
+                     *   set_label $L1
+                     *   set_label $L0
+                     *
+                     * where $L0 only has a single reference, remove the branch
+                     * to $L0 and the corresonding label.
+                     */
+                    TCGLabel *next_label = arg_label(op_next->args[0]);
+                    if (next_label->refs == 1 &&
+                        op_prev->opc == INDEX_op_br &&
+                        next_label == arg_label(op_prev->args[0])) {
                         tcg_op_remove(s, op_prev);
-                        remove = true;
                     }
                 }
             }
+
             break;
 
         case INDEX_op_br:
