@@ -65,6 +65,10 @@ void cpu_loop_exit(CPUState *cpu)
 {
     /* Undo the setting in cpu_tb_exec.  */
     cpu->can_do_io = 1;
+#ifdef CONFIG_PLUGIN
+    /* Undo any setting in generated code. */
+    cpu->plugin_mem_cbs = NULL;
+#endif
     siglongjmp(cpu->jmp_env, 1);
 }
 
