@@ -45,11 +45,11 @@ typedef struct {
     Stat64 duplicate;
     Stat64 normal;
     Stat64 postcopy_bytes;
+    Stat64 multifd_bytes;
     int64_t remaining;
     int64_t dirty_pages_rate;
     int64_t dirty_sync_count;
     int64_t postcopy_requests;
-    uint64_t multifd_bytes;
     uint64_t precopy_bytes;
     uint64_t downtime_bytes;
     uint64_t dirty_sync_missed_zero_copy;
