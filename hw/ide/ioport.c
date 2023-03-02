@@ -46,8 +46,6 @@ int ide_bus_init_ioport_isa(IDEBus *bus, ISADevice *dev,
 {
     int ret;
 
-    /* ??? Assume only ISA and PCI configurations, and that the PCI-ISA
-       bridge has been setup properly to always register with ISA.  */
     ret = isa_register_portio_list(dev, &bus->portio_list,
                                    iobase, ide_portio_list, bus, "ide");
 
@@ -57,4 +55,14 @@ int ide_bus_init_ioport_isa(IDEBus *bus, ISADevice *dev,
     }
 
     return ret;
+}
+
+void ide_bus_init_ioport(IDEBus *bus, Object *owner, MemoryRegion *io,
+                         int iobase, int iobase2)
+{
+    portio_list_init(&bus->portio_list, owner, ide_portio_list, bus, "ide");
+    portio_list_add(&bus->portio_list, io, iobase);
+
+    portio_list_init(&bus->portio2_list, owner, ide_portio2_list, bus, "ide");
+    portio_list_add(&bus->portio_list, io, iobase2);
 }
