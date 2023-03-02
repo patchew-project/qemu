@@ -129,6 +129,7 @@ if __name__ == '__main__':
                   imgopts=args.imgopts, misalign=args.misalign,
                   debug=args.debug, valgrind=args.valgrind,
                   gdb=args.gdb, qprint=args.print,
+                  dry_run=args.dry_run,
                   source_dir=args.source_dir,
                   build_dir=args.build_dir)
 
