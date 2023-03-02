@@ -113,10 +113,9 @@ uint32_t cpu_inl(uint32_t addr)
     return val;
 }
 
-void portio_list_init(PortioList *piolist,
-                      Object *owner,
-                      const MemoryRegionPortio *callbacks,
-                      void *opaque, const char *name)
+static void portio_list_init(PortioList *piolist, Object *owner,
+                             const MemoryRegionPortio *callbacks,
+                             void *opaque, const char *name)
 {
     unsigned n = 0;
 
@@ -246,9 +245,8 @@ static void portio_list_add_1(PortioList *piolist,
     ++piolist->nr;
 }
 
-void portio_list_add(PortioList *piolist,
-                     MemoryRegion *address_space,
-                     uint32_t start)
+static void portio_list_add(PortioList *piolist, MemoryRegion *address_space,
+                            uint32_t start)
 {
     const MemoryRegionPortio *pio, *pio_start = piolist->ports;
     unsigned int off_low, off_high, off_last, count;
@@ -313,4 +311,13 @@ void portio_list_register_flush_coalesced(PortioList *piolist, Object *owner,
 {
     do_portio_list_register(piolist, owner, callbacks,
                             opaque, name, mr, offset, true);
+}
+
+void portio_list_register(PortioList *piolist, Object *owner,
+                          const MemoryRegionPortio *callbacks,
+                          void *opaque, const char *name,
+                          MemoryRegion *mr, uint32_t offset)
+{
+    do_portio_list_register(piolist, owner, callbacks,
+                            opaque, name, mr, offset, false);
 }

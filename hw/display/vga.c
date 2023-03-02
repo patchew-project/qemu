@@ -2326,7 +2326,7 @@ void vga_init(VGACommonState *s, Object *obj, MemoryRegion *address_space,
                                              s, "vga", address_space_io, 0x3b0);
     }
     if (vbe_ports) {
-        portio_list_init(&s->vbe_port_list, obj, vbe_ports, s, "vbe");
-        portio_list_add(&s->vbe_port_list, address_space_io, 0x1ce);
+        portio_list_register(&s->vbe_port_list, obj, vbe_ports, s,
+                             "vbe", address_space_io, 0x1ce);
     }
 }

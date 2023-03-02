@@ -130,15 +130,14 @@ int isa_register_portio_list(ISADevice *dev,
                              void *opaque, const char *name)
 {
     assert(dev);
-    assert(piolist && !piolist->owner);
 
     /* START is how we should treat DEV, regardless of the actual
        contents of the portio array.  This is how the old code
        actually handled e.g. the FDC device.  */
     isa_init_ioport(dev, start);
 
-    portio_list_init(piolist, OBJECT(dev), pio_start, opaque, name);
-    portio_list_add(piolist, isa_address_space_io(dev), start);
+    portio_list_register(piolist, OBJECT(dev), pio_start, opaque, name,
+                         isa_address_space_io(dev), start);
 
     return 0;
 }
