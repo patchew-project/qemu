@@ -1,5 +1,6 @@
 TARGET_ARCH=aarch64
 TARGET_BASE_ARCH=arm
+TARGET_64BIT=y
 TARGET_XML_FILES= gdb-xml/aarch64-core.xml gdb-xml/aarch64-fpu.xml
 TARGET_HAS_BFLT=y
 CONFIG_SEMIHOSTING=y

@@ -20,6 +20,13 @@
 #error TARGET_LONG_BITS not defined
 #endif
 
+/* Sanity check with system configuration via configs/ */
+#if defined(TARGET_64BIT) && TARGET_LONG_BITS != 64
+#error system 64 bit configuration disagrees with cpu-param.h
+#elif defined(TARGET_32BIT) && TARGET_LONG_BITS != 32
+#error system 32 bit configuration disagrees with cpu-param.h
+#endif
+
 #define TARGET_LONG_SIZE (TARGET_LONG_BITS / 8)
 
 /* target_ulong is the type of a virtual address */

@@ -31,8 +31,32 @@ user_ss.add(gdb_user)
 gdb_softmmu = declare_dependency(link_whole: libgdb_softmmu)
 softmmu_ss.add(gdb_softmmu)
 
-# These have to built to the target ABI
-specific_ss.add(files('syscalls.c'))
+# These have to built to the target ABI but are otherwise target
+# independent
+gdb32_ss = ss.source_set()
+gdb64_ss = ss.source_set()
+
+gdb32_ss.add(files('syscalls.c'))
+gdb64_ss.add(files('syscalls.c'))
+
+gdb32_ss = gdb32_ss.apply(config_host, strict: false)
+gdb64_ss = gdb64_ss.apply(config_host, strict: false)
+
+libgdb32 = static_library('gdb32', gdb32_ss.sources(),
+                          name_suffix: 'fa',
+                          c_args: ['-DTARGET_LONG_BITS=32'])
+libgdb64 = static_library('gdb64', gdb64_ss.sources(),
+                          name_suffix: 'fa',
+                          c_args: ['-DTARGET_LONG_BITS=64'])
+
+gdb32 = declare_dependency(link_whole: libgdb32)
+gdb64 = declare_dependency(link_whole: libgdb64)
+
+specific_ss.add(when: 'TARGET_64BIT', if_true: gdb64)
+specific_ss.add(when: 'TARGET_32BIT', if_true: gdb32)
+
+# finally add to specific_ss depending on the target bit size
+specific_ss.add(when: 'CONFIG_USER_ONLY', if_true: files('user-target.c'))
 
 # The user-target is specialised by the guest
 specific_ss.add(when: 'CONFIG_USER_ONLY', if_true: files('user-target.c'))

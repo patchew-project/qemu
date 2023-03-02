@@ -13,7 +13,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
+#include "exec/hwaddr.h"
+#include "exec/target_long.h"
 #include "semihosting/semihost.h"
 #include "sysemu/runstate.h"
 #include "gdbstub/user.h"

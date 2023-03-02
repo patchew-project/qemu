@@ -42,10 +42,17 @@
 #pragma GCC poison TARGET_BIG_ENDIAN
 #pragma GCC poison BSWAP_NEEDED
 
+/*
+ * In some special cases we may define TARGET_LONG_BITS directly to
+ * build 32 and 64 bit versions of a common binary. Therefor if it is
+ * already defined for the compilation unit don't poison it.
+ */
+#ifndef TARGET_LONG_BITS
 #pragma GCC poison TARGET_LONG_BITS
 #pragma GCC poison TARGET_FMT_lx
 #pragma GCC poison TARGET_FMT_ld
 #pragma GCC poison TARGET_FMT_lu
+#endif
 
 #pragma GCC poison TARGET_PAGE_SIZE
 #pragma GCC poison TARGET_PAGE_MASK
