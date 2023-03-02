@@ -4859,7 +4859,7 @@ SRST
     they are specified. Note that the 'id' property must be set. These
     objects are placed in the '/objects' path.
 
-    ``-object memory-backend-file,id=id,size=size,mem-path=dir,share=on|off,discard-data=on|off,merge=on|off,dump=on|off,prealloc=on|off,host-nodes=host-nodes,policy=default|preferred|bind|interleave,align=align,readonly=on|off``
+    ``-object memory-backend-file,id=id,size=size,mem-path=dir,share=on|off,clear=on|off,discard-data=on|off,merge=on|off,dump=on|off,prealloc=on|off,host-nodes=host-nodes,policy=default|preferred|bind|interleave,align=align,readonly=on|off``
         Creates a memory file backend object, which can be used to back
         the guest RAM with huge pages.
 
@@ -4885,6 +4885,8 @@ SRST
         bindings for the memory backend under some circumstances, see
         Documentation/vm/numa\_memory\_policy.txt on the Linux kernel
         source tree for additional details.
+
+        Setting clear=on will make QEMU memset the backend to 0.
 
         Setting the ``discard-data`` boolean option to on indicates that
         file contents can be destroyed when QEMU exits, to avoid

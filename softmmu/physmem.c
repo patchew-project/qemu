@@ -1409,6 +1409,10 @@ static void *file_ram_alloc(RAMBlock *block,
         return NULL;
     }
 
+    if (block->flags & RAM_CLEAR) {
+        memset(area, 0, memory);
+    }
+
     block->fd = fd;
     return area;
 }
@@ -1868,7 +1872,7 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
 
     /* Just support these ram flags by now. */
     assert((ram_flags & ~(RAM_SHARED | RAM_PMEM | RAM_NORESERVE |
-                          RAM_PROTECTED)) == 0);
+                          RAM_PROTECTED | RAM_CLEAR)) == 0);
 
     if (xen_enabled()) {
         error_setg(errp, "-mem-path not supported with Xen");

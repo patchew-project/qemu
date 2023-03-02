@@ -30,6 +30,7 @@ struct HostMemoryBackendFile {
     bool discard_data;
     bool is_pmem;
     bool readonly;
+    bool clear;
 };
 
 static void
@@ -56,6 +57,7 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
     ram_flags = backend->share ? RAM_SHARED : 0;
     ram_flags |= backend->reserve ? 0 : RAM_NORESERVE;
     ram_flags |= fb->is_pmem ? RAM_PMEM : 0;
+    ram_flags |= fb->clear ? RAM_CLEAR : 0;
     memory_region_init_ram_from_file(&backend->mr, OBJECT(backend), name,
                                      backend->size, fb->align, ram_flags,
                                      fb->mem_path, fb->readonly, errp);
@@ -168,6 +170,21 @@ static void file_memory_backend_set_readonly(Object *obj, bool value,
     fb->readonly = value;
 }
 
+static bool file_memory_backend_get_clear(Object *obj, Error **errp)
+{
+    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(obj);
+
+    return fb->clear;
+}
+
+static void file_memory_backend_set_clear(Object *obj, bool value,
+                                             Error **errp)
+{
+    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(obj);
+
+    fb->clear = value;
+}
+
 static void file_backend_unparent(Object *obj)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
@@ -204,6 +221,9 @@ file_backend_class_init(ObjectClass *oc, void *data)
     object_class_property_add_bool(oc, "readonly",
         file_memory_backend_get_readonly,
         file_memory_backend_set_readonly);
+    object_class_property_add_bool(oc, "clear",
+        file_memory_backend_get_clear,
+        file_memory_backend_set_clear);
 }
 
 static void file_backend_instance_finalize(Object *o)

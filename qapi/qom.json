@@ -629,6 +629,8 @@
 #         specify the required alignment via this option.
 #         0 selects a default alignment (currently the page size). (default: 0)
 #
+# @clear: if true, the memory is memset to 0 during init. (default: false)
+#
 # @discard-data: if true, the file contents can be destroyed when QEMU exits,
 #                to avoid unnecessarily flushing data to the backing file. Note
 #                that ``discard-data`` is only an optimization, and QEMU might
@@ -649,6 +651,7 @@
 { 'struct': 'MemoryBackendFileProperties',
   'base': 'MemoryBackendProperties',
   'data': { '*align': 'size',
+            '*clear': 'bool',
             '*discard-data': 'bool',
             'mem-path': 'str',
             '*pmem': { 'type': 'bool', 'if': 'CONFIG_LIBPMEM' },
