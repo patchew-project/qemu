@@ -56,7 +56,7 @@ struct PIIX4State {
     uint8_t rcr;
 };
 
-OBJECT_DECLARE_SIMPLE_TYPE(PIIX4State, PIIX4_PCI_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(PIIX4State, PIIX4_ISA)
 
 static void piix4_set_irq(void *opaque, int irq_num, int level)
 {
@@ -81,7 +81,7 @@ static void piix4_set_irq(void *opaque, int irq_num, int level)
 
 static void piix4_isa_reset(DeviceState *dev)
 {
-    PIIX4State *d = PIIX4_PCI_DEVICE(dev);
+    PIIX4State *d = PIIX4_ISA(dev);
     uint8_t *pci_conf = d->dev.config;
 
     pci_conf[0x04] = 0x07; // master, memory and I/O
@@ -186,7 +186,7 @@ static const MemoryRegionOps piix4_rcr_ops = {
 
 static void piix4_realize(PCIDevice *dev, Error **errp)
 {
-    PIIX4State *s = PIIX4_PCI_DEVICE(dev);
+    PIIX4State *s = PIIX4_ISA(dev);
     PCIBus *pci_bus = pci_get_bus(dev);
     ISABus *isa_bus;
     qemu_irq *i8259_out_irq;
@@ -253,7 +253,7 @@ static void piix4_realize(PCIDevice *dev, Error **errp)
 
 static void piix4_init(Object *obj)
 {
-    PIIX4State *s = PIIX4_PCI_DEVICE(obj);
+    PIIX4State *s = PIIX4_ISA(obj);
 
     object_initialize_child(obj, "rtc", &s->rtc, TYPE_MC146818_RTC);
     object_initialize_child(obj, "ide", &s->ide, TYPE_PIIX4_IDE);
@@ -285,7 +285,7 @@ static void piix4_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo piix4_info = {
-    .name          = TYPE_PIIX4_PCI_DEVICE,
+    .name          = TYPE_PIIX4_ISA,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PIIX4State),
     .instance_init = piix4_init,

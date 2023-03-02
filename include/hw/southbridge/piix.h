@@ -58,11 +58,11 @@ struct PIIX3State {
     MemoryRegion rcr_mem;
 };
 
-#define TYPE_PIIX3_PCI_DEVICE "pci-piix3"
-#define TYPE_PIIX3_DEVICE "PIIX3"
-#define TYPE_PIIX3_XEN_DEVICE "PIIX3-xen"
-#define TYPE_PIIX4_PCI_DEVICE "piix4-isa"
+#define TYPE_PIIX_ISA       "pci-piix3"
+#define TYPE_PIIX3_ISA      "PIIX3"
+#define TYPE_PIIX3_ISA_XEN  "PIIX3-xen"
+#define TYPE_PIIX4_ISA      "piix4-isa"
 
-OBJECT_DECLARE_SIMPLE_TYPE(PIIX3State, PIIX3_PCI_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(PIIX3State, PIIX3_ISA)
 
 #endif
