@@ -32,16 +32,37 @@ foreach k, v : emulators
   endif
 endforeach
 
+qemu_iotests_check_cmd = files('check')
+
 foreach format, speed: qemu_iotests_formats
   if speed == 'quick'
     suites = 'block'
   else
     suites = ['block-' + speed, speed]
   endif
-  test('qemu-iotests ' + format, sh, args: [files('../check-block.sh'), format],
-       depends: qemu_iotests_binaries, env: qemu_iotests_env,
-       protocol: 'tap',
-       suite: suites,
-       timeout: 0,
-       is_parallel: false)
+
+  args = ['-tap', '-' + format]
+  if speed == 'quick'
+      args += ['-g', 'auto']
+  endif
+
+  rc = run_command(
+      [qemu_iotests_check_cmd] + args + ['-n'],
+      check: true,
+  )
+
+  foreach item: rc.stdout().strip().split()
+      message('Adding test qemu-iotests-' + format + '-' + item)
+      args = ['-tap', '-' + format, item,
+              '--source-dir', meson.current_source_dir(),
+              '--build-dir', meson.current_build_dir()]
+      test('qemu-iotests-' + format + '-' + item,
+           qemu_iotests_check_cmd,
+           args: args,
+           is_parallel: false,
+           depends: qemu_iotests_binaries,
+           env: qemu_iotests_env,
+           protocol: 'tap',
+           suite: suites)
+  endforeach
 endforeach
