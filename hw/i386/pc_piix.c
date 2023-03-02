@@ -277,7 +277,13 @@ static void pc_init1(MachineState *machine,
     if (pcmc->pci_enabled) {
         PCIDevice *dev;
 
-        dev = pci_create_simple(pci_bus, piix3_devfn + 1, TYPE_PIIX3_IDE);
+        dev = pci_new_multifunction(piix3_devfn + 1, false, TYPE_PIIX3_IDE);
+        qdev_connect_gpio_out_named(DEVICE(dev), "ide-irq", 0,
+                                    isa_bus_get_irq(isa_bus, 14));
+        qdev_connect_gpio_out_named(DEVICE(dev), "ide-irq", 1,
+                                    isa_bus_get_irq(isa_bus, 15));
+        pci_realize_and_unref(dev, pci_bus, &error_fatal);
+
         pci_ide_create_devs(dev);
         idebus[0] = qdev_get_child_bus(&dev->qdev, "ide.0");
         idebus[1] = qdev_get_child_bus(&dev->qdev, "ide.1");
