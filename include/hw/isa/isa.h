@@ -87,7 +87,8 @@ ISADevice *isa_create_simple(ISABus *bus, const char *name);
 
 ISADevice *isa_vga_init(ISABus *bus);
 
-qemu_irq isa_get_irq(ISADevice *dev, unsigned isairq);
+/*  isa_get_irq() is deprecated, please use isa_bus_get_irq() instead. */
+qemu_irq isa_get_irq(ISADevice *dev, unsigned irqnum);
 void isa_connect_gpio_out(ISADevice *isadev, int gpioirq, unsigned isairq);
 MemoryRegion *isa_address_space(ISADevice *dev);
 MemoryRegion *isa_address_space_io(ISADevice *dev);
