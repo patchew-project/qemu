@@ -35,6 +35,7 @@ config PIIX3
     bool
     select ACPI_PIIX4
     select I8257
+    select IDE_PIIX
     select ISA_BUS
     select MC146818RTC
     select USB_UHCI
