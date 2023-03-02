@@ -252,20 +252,14 @@ static char *isabus_get_fw_dev_path(DeviceState *dev)
 
 MemoryRegion *isa_address_space(ISADevice *dev)
 {
-    if (dev) {
-        return isa_bus_from_device(dev)->address_space;
-    }
-
-    return isabus->address_space;
+    assert(dev);
+    return isa_bus_from_device(dev)->address_space;
 }
 
 MemoryRegion *isa_address_space_io(ISADevice *dev)
 {
-    if (dev) {
-        return isa_bus_from_device(dev)->address_space_io;
-    }
-
-    return isabus->address_space_io;
+    assert(dev);
+    return isa_bus_from_device(dev)->address_space_io;
 }
 
 type_init(isabus_register_types)
