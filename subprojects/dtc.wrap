@@ -1,0 +1,6 @@
+[wrap-git]
+url = https://github.com/dgibson/dtc.git
+revision = 72fc810c3025f07de718f5f32a290a6cd5d1f4ee
+
+[provide]
+fdt = libfdt_dep

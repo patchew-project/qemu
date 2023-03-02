@@ -2759,54 +2759,14 @@ endif
 
 fdt = not_found
 if have_system
-  fdt_opt = get_option('fdt')
-  if fdt_opt in ['enabled', 'auto', 'system']
-    have_internal = fs.exists(meson.current_source_dir() / 'dtc/libfdt/Makefile.libfdt')
-    fdt = cc.find_library('fdt', kwargs: static_kwargs,
-                          required: fdt_opt == 'system' or
-                                    fdt_opt == 'enabled' and not have_internal)
-    if fdt.found() and cc.links('''
-       #include <libfdt.h>
-       #include <libfdt_env.h>
-       int main(void) { fdt_find_max_phandle(NULL, NULL); return 0; }''',
-         dependencies: fdt)
-      fdt_opt = 'system'
-    elif fdt_opt == 'system'
-       error('system libfdt requested, but it is too old (1.5.1 or newer required)')
-    elif have_internal
-      fdt_opt = 'internal'
-    else
-      fdt_opt = 'disabled'
-      fdt = not_found
+    # libfdt is not always shipped with a pkgconfig file.
+    fdt = cc.find_library('fdt', kwargs: static_kwargs, required: false)
+    if not fdt.found() or not cc.has_function('fdt_find_max_phandle', dependencies: fdt)
+      fdt = dependency('fdt', kwargs: static_kwargs,
+                method: 'pkg-config', version: '>=1.5.1',
+                required: (get_option('fdt').auto() and fdt_required.length() > 0) or get_option('fdt').enabled(),
+                default_options: ['python=disabled', 'tools=false'])
     endif
-  endif
-  if fdt_opt == 'internal'
-    fdt_files = files(
-      'dtc/libfdt/fdt.c',
-      'dtc/libfdt/fdt_ro.c',
-      'dtc/libfdt/fdt_wip.c',
-      'dtc/libfdt/fdt_sw.c',
-      'dtc/libfdt/fdt_rw.c',
-      'dtc/libfdt/fdt_strerror.c',
-      'dtc/libfdt/fdt_empty_tree.c',
-      'dtc/libfdt/fdt_addresses.c',
-      'dtc/libfdt/fdt_overlay.c',
-      'dtc/libfdt/fdt_check.c',
-    )
-
-    fdt_inc = include_directories('dtc/libfdt')
-    libfdt = static_library('fdt',
-                            build_by_default: false,
-                            sources: fdt_files,
-                            include_directories: fdt_inc)
-    fdt = declare_dependency(link_with: libfdt,
-                             include_directories: fdt_inc)
-  endif
-else
-  fdt_opt = 'disabled'
-endif
-if not fdt.found() and fdt_required.length() > 0
-  error('fdt not available but required by targets ' + ', '.join(fdt_required))
 endif
 
 config_host_data.set('CONFIG_CAPSTONE', capstone.found())
@@ -3989,7 +3949,7 @@ summary_info += {'Linux io_uring support': linux_io_uring}
 summary_info += {'ATTR/XATTR support': libattr}
 summary_info += {'RDMA support':      rdma}
 summary_info += {'PVRDMA support':    have_pvrdma}
-summary_info += {'fdt support':       fdt_opt == 'disabled' ? false : fdt_opt}
+summary_info += {'fdt support':       fdt}
 summary_info += {'libcap-ng support': libcap_ng}
 summary_info += {'bpf support':       libbpf}
 summary_info += {'spice protocol support': spice_protocol}

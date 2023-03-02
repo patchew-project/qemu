@@ -297,8 +297,6 @@ vfio_user_server="disabled"
 # are included in the automatically generated help message)
 
 # 1. Track which submodules are needed
-fdt="auto"
-
 # 2. Automatically enable/disable other options
 tcg="auto"
 cfi="false"
@@ -859,14 +857,6 @@ for opt do
       meson_option_add -Db_lto=true
   ;;
   --disable-cfi) cfi="false"
-  ;;
-  --disable-fdt) fdt="disabled"
-  ;;
-  --enable-fdt) fdt="enabled"
-  ;;
-  --enable-fdt=git) fdt="internal"
-  ;;
-  --enable-fdt=*) fdt="$optarg"
   ;;
   --with-coroutine=*) coroutine="$optarg"
   ;;
@@ -1545,16 +1535,6 @@ if ! compile_prog "$glib_cflags -Werror" "$glib_libs" ; then
         CONFIGURE_CFLAGS="$CONFIGURE_CFLAGS -Wno-unused-function"
     fi
 fi
-
-##########################################
-# fdt probe
-
-case "$fdt" in
-  auto | enabled | internal)
-    # Simpler to always update submodule, even if not needed.
-    git_submodules="${git_submodules} dtc"
-    ;;
-esac
 
 ##########################################
 # check and set a backend for coroutine
@@ -2597,7 +2577,6 @@ if test "$skip_meson" = no; then
 
   # QEMU options
   test "$cfi" != false && meson_option_add "-Dcfi=$cfi"
-  test "$fdt" != auto && meson_option_add "-Dfdt=$fdt"
   test -n "${LIB_FUZZING_ENGINE+xxx}" && meson_option_add "-Dfuzzing_engine=$LIB_FUZZING_ENGINE"
   test "$qemu_suffix" != qemu && meson_option_add "-Dqemu_suffix=$qemu_suffix"
   test "$smbd" != '' && meson_option_add "-Dsmbd=$smbd"
