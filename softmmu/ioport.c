@@ -124,6 +124,7 @@ void portio_list_init(PortioList *piolist,
         ++n;
     }
 
+    assert(owner);
     piolist->ports = callbacks;
     piolist->nr = 0;
     piolist->regions = g_new0(MemoryRegion *, n);
@@ -132,11 +133,6 @@ void portio_list_init(PortioList *piolist,
     piolist->owner = owner;
     piolist->name = name;
     piolist->flush_coalesced_mmio = false;
-}
-
-void portio_list_set_flush_coalesced(PortioList *piolist)
-{
-    piolist->flush_coalesced_mmio = true;
 }
 
 void portio_list_destroy(PortioList *piolist)
@@ -296,4 +292,25 @@ void portio_list_del(PortioList *piolist)
         mrpio = container_of(piolist->regions[i], MemoryRegionPortioList, mr);
         memory_region_del_subregion(piolist->address_space, &mrpio->mr);
     }
+}
+
+static void do_portio_list_register(PortioList *piolist, Object *owner,
+                                    const MemoryRegionPortio *callbacks,
+                                    void *opaque, const char *name,
+                                    MemoryRegion *mr, uint32_t offset,
+                                    bool flush_coalesced_mmio)
+{
+    assert(piolist && !piolist->owner);
+    portio_list_init(piolist, owner, callbacks, opaque, name);
+    piolist->flush_coalesced_mmio = flush_coalesced_mmio;
+    portio_list_add(piolist, mr, offset);
+}
+
+void portio_list_register_flush_coalesced(PortioList *piolist, Object *owner,
+                                          const MemoryRegionPortio *callbacks,
+                                          void *opaque, const char *name,
+                                          MemoryRegion *mr, uint32_t offset)
+{
+    do_portio_list_register(piolist, owner, callbacks,
+                            opaque, name, mr, offset, true);
 }
