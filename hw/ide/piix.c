@@ -33,6 +33,7 @@
 #include "hw/pci/pci.h"
 #include "hw/ide/piix.h"
 #include "hw/ide/pci.h"
+#include "hw/ide/isa.h"
 #include "trace.h"
 
 static uint64_t bmdma_read(void *opaque, hwaddr addr, unsigned size)
@@ -142,8 +143,8 @@ static bool pci_piix_init_bus(PCIIDEState *d, unsigned i, Error **errp)
 
     qemu_irq irq_out = d->isa_irq[i] ? : isa_get_irq(NULL, port_info[i].isairq);
     ide_bus_init(&d->bus[i], sizeof(d->bus[i]), DEVICE(d), i, 2);
-    ret = ide_init_ioport(&d->bus[i], NULL, port_info[i].iobase,
-                          port_info[i].iobase2);
+    ret = ide_bus_init_ioport_isa(&d->bus[i], NULL, port_info[i].iobase,
+                                  port_info[i].iobase2);
     if (ret) {
         error_setg_errno(errp, -ret, "Failed to realize %s port %u",
                          object_get_typename(OBJECT(d)), i);
