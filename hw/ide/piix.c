@@ -138,7 +138,6 @@ static bool pci_piix_init_bus(PCIIDEState *d, unsigned i, Error **errp)
         {0x1f0, 0x3f6},
         {0x170, 0x376},
     };
-    int ret;
 
     if (!d->isa_irq[i]) {
         error_setg(errp, "output IDE IRQ %u not connected", i);
@@ -146,13 +145,9 @@ static bool pci_piix_init_bus(PCIIDEState *d, unsigned i, Error **errp)
     }
 
     ide_bus_init(&d->bus[i], sizeof(d->bus[i]), DEVICE(d), i, 2);
-    ret = ide_bus_init_ioport_isa(&d->bus[i], NULL, port_info[i].iobase,
-                                  port_info[i].iobase2);
-    if (ret) {
-        error_setg_errno(errp, -ret, "Failed to realize %s port %u",
-                         object_get_typename(OBJECT(d)), i);
-        return false;
-    }
+    ide_bus_init_ioport(&d->bus[i], OBJECT(d),
+                        pci_address_space_io(PCI_DEVICE(d)),
+                        port_info[i].iobase, port_info[i].iobase2);
     ide_bus_init_output_irq(&d->bus[i], d->isa_irq[i]);
 
     bmdma_init(&d->bus[i], &d->bmdma[i], d);
