@@ -177,7 +177,9 @@ class TestEnv(ContextManager['TestEnv']):
                  debug: bool = False,
                  valgrind: bool = False,
                  gdb: bool = False,
-                 qprint: bool = False) -> None:
+                 qprint: bool = False,
+                 source_dir: Optional[str] = None,
+                 build_dir: Optional[str] = None) -> None:
         self.imgfmt = imgfmt
         self.imgproto = imgproto
         self.aiomode = aiomode
@@ -213,12 +215,19 @@ class TestEnv(ContextManager['TestEnv']):
 
         if os.path.islink(sys.argv[0]):
             # called from the build tree
-            self.source_iotests = os.path.dirname(os.readlink(sys.argv[0]))
-            self.build_iotests = os.path.dirname(os.path.abspath(sys.argv[0]))
+            self.source_iotests = os.path.dirname(
+                os.readlink(sys.argv[0]))
+            self.build_iotests = os.path.dirname(
+                os.path.abspath(sys.argv[0]))
         else:
             # called from the source tree
             self.source_iotests = os.getcwd()
-            self.build_iotests = self.source_iotests
+            self.build_iotests = os.getcwd()
+
+        if source_dir is not None:
+            self.source_iotests = source_dir
+        if build_dir is not None:
+            self.build_iotests = build_dir
 
         self.build_root = os.path.join(self.build_iotests, '..', '..')
 
