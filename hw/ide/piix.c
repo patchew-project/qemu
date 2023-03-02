@@ -121,6 +121,13 @@ static void piix_ide_reset(DeviceState *dev)
     pci_set_byte(pci_conf + 0x20, 0x01);  /* BMIBA: 20-23h */
 }
 
+static void piix_ide_initfn(Object *obj)
+{
+    PCIIDEState *dev = PCI_IDE(obj);
+
+    qdev_init_gpio_out_named(DEVICE(obj), dev->isa_irq, "ide-irq", 2);
+}
+
 static bool pci_piix_init_bus(PCIIDEState *d, unsigned i, Error **errp)
 {
     static const struct {
@@ -133,6 +140,7 @@ static bool pci_piix_init_bus(PCIIDEState *d, unsigned i, Error **errp)
     };
     int ret;
 
+    qemu_irq irq_out = d->isa_irq[i] ? : isa_get_irq(NULL, port_info[i].isairq);
     ide_bus_init(&d->bus[i], sizeof(d->bus[i]), DEVICE(d), i, 2);
     ret = ide_init_ioport(&d->bus[i], NULL, port_info[i].iobase,
                           port_info[i].iobase2);
@@ -141,7 +149,7 @@ static bool pci_piix_init_bus(PCIIDEState *d, unsigned i, Error **errp)
                          object_get_typename(OBJECT(d)), i);
         return false;
     }
-    ide_bus_init_output_irq(&d->bus[i], isa_get_irq(NULL, port_info[i].isairq));
+    ide_bus_init_output_irq(&d->bus[i], irq_out);
 
     bmdma_init(&d->bus[i], &d->bmdma[i], d);
     d->bmdma[i].bus = &d->bus[i];
@@ -162,7 +170,7 @@ static void pci_piix_ide_realize(PCIDevice *dev, Error **errp)
 
     vmstate_register(VMSTATE_IF(dev), 0, &vmstate_ide_pci, d);
 
-    for (unsigned i = 0; i < 2; i++) {
+    for (unsigned i = 0; i < ARRAY_SIZE(d->isa_irq); i++) {
         if (!pci_piix_init_bus(d, i, errp)) {
             return;
         }
@@ -199,6 +207,7 @@ static void piix3_ide_class_init(ObjectClass *klass, void *data)
 static const TypeInfo piix3_ide_info = {
     .name          = TYPE_PIIX3_IDE,
     .parent        = TYPE_PCI_IDE,
+    .instance_init = piix_ide_initfn,
     .class_init    = piix3_ide_class_init,
 };
 
@@ -221,6 +230,7 @@ static void piix4_ide_class_init(ObjectClass *klass, void *data)
 static const TypeInfo piix4_ide_info = {
     .name          = TYPE_PIIX4_IDE,
     .parent        = TYPE_PCI_IDE,
+    .instance_init = piix_ide_initfn,
     .class_init    = piix4_ide_class_init,
 };
 
