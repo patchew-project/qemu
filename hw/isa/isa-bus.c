@@ -25,8 +25,6 @@
 #include "sysemu/sysemu.h"
 #include "hw/isa/isa.h"
 
-static ISABus *isabus;
-
 static char *isabus_get_fw_dev_path(DeviceState *dev);
 
 static void isa_bus_class_init(ObjectClass *klass, void *data)
@@ -52,6 +50,8 @@ static const TypeInfo isa_bus_info = {
 ISABus *isa_bus_new(DeviceState *dev, MemoryRegion* address_space,
                     MemoryRegion *address_space_io, Error **errp)
 {
+    static ISABus *isabus;
+
     if (isabus) {
         error_setg(errp, "Can't create a second ISA bus");
         return NULL;
@@ -131,10 +131,6 @@ int isa_register_portio_list(ISADevice *dev,
 {
     assert(dev);
     assert(piolist && !piolist->owner);
-
-    if (!isabus) {
-        return -ENODEV;
-    }
 
     /* START is how we should treat DEV, regardless of the actual
        contents of the portio array.  This is how the old code
