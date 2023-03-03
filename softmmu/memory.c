@@ -1093,34 +1093,41 @@ void memory_region_transaction_begin(void)
     ++memory_region_transaction_depth;
 }
 
-void memory_region_transaction_commit(void)
+void memory_region_transaction_do_commit(void)
 {
     AddressSpace *as;
 
+    assert(qemu_mutex_iothread_locked());
+
+    if (memory_region_update_pending) {
+        flatviews_reset();
+
+        MEMORY_LISTENER_CALL_GLOBAL(begin, Forward);
+
+        QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
+            address_space_set_flatview(as);
+            address_space_update_ioeventfds(as);
+        }
+        memory_region_update_pending = false;
+        ioeventfd_update_pending = false;
+        MEMORY_LISTENER_CALL_GLOBAL(commit, Forward);
+    } else if (ioeventfd_update_pending) {
+        QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
+            address_space_update_ioeventfds(as);
+        }
+        ioeventfd_update_pending = false;
+    }
+}
+
+void memory_region_transaction_commit(void)
+{
     assert(memory_region_transaction_depth);
     assert(qemu_mutex_iothread_locked());
 
     --memory_region_transaction_depth;
     if (!memory_region_transaction_depth) {
-        if (memory_region_update_pending) {
-            flatviews_reset();
-
-            MEMORY_LISTENER_CALL_GLOBAL(begin, Forward);
-
-            QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-                address_space_set_flatview(as);
-                address_space_update_ioeventfds(as);
-            }
-            memory_region_update_pending = false;
-            ioeventfd_update_pending = false;
-            MEMORY_LISTENER_CALL_GLOBAL(commit, Forward);
-        } else if (ioeventfd_update_pending) {
-            QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-                address_space_update_ioeventfds(as);
-            }
-            ioeventfd_update_pending = false;
-        }
-   }
+        memory_region_transaction_do_commit();
+    }
 }
 
 static void memory_region_destructor_none(MemoryRegion *mr)
