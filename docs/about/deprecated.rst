@@ -45,6 +45,16 @@ run 32-bit guests by selecting a 32-bit CPU model, including KVM support
 on x86_64 hosts. Thus users are recommended to reconfigure their systems
 to use the ``qemu-system-x86_64`` binary instead.
 
+``qemu-system-arm`` binary (since 8.0)
+''''''''''''''''''''''''''''''''''''''
+
+``qemu-system-aarch64`` is a proper superset of ``qemu-system-arm``. The
+latter was mainly a requirement for running KVM on 32-bit arm hosts, but
+this 32-bit KVM support has been removed three years ago already (see:
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=541ad0150ca4
+). Thus the QEMU project will drop the ``qemu-system-arm`` binary in a
+future release. Use ``qemu-system-aarch64`` instead.
+
 
 System emulator command line arguments
 --------------------------------------
