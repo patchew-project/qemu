@@ -16,6 +16,7 @@ RUN apt update \
         git \
         make \
         wget \
+	python3 \
     && \
     \
     rm -rf /var/lib/apt/lists/*
