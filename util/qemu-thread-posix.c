@@ -384,13 +384,21 @@ void qemu_event_destroy(QemuEvent *ev)
 
 void qemu_event_set(QemuEvent *ev)
 {
-    /* qemu_event_set has release semantics, but because it *loads*
+    assert(ev->initialized);
+
+    /*
+     * Pairs with memory barrier in qemu_event_reset.
+     *
+     * qemu_event_set has release semantics, but because it *loads*
      * ev->value we need a full memory barrier here.
      */
-    assert(ev->initialized);
     smp_mb();
     if (qatomic_read(&ev->value) != EV_SET) {
-        if (qatomic_xchg(&ev->value, EV_SET) == EV_BUSY) {
+        int old = qatomic_xchg(&ev->value, EV_SET);
+
+        /* Pairs with memory barrier in kernel futex_wait system call.  */
+        smp_mb__after_rmw();
+        if (old == EV_BUSY) {
             /* There were waiters, wake them up.  */
             qemu_futex_wake(ev, INT_MAX);
         }
@@ -399,18 +407,19 @@ void qemu_event_set(QemuEvent *ev)
 
 void qemu_event_reset(QemuEvent *ev)
 {
-    unsigned value;
-
     assert(ev->initialized);
-    value = qatomic_read(&ev->value);
-    smp_mb_acquire();
-    if (value == EV_SET) {
-        /*
-         * If there was a concurrent reset (or even reset+wait),
-         * do nothing.  Otherwise change EV_SET->EV_FREE.
-         */
-        qatomic_or(&ev->value, EV_FREE);
-    }
+
+    /*
+     * If there was a concurrent reset (or even reset+wait),
+     * do nothing.  Otherwise change EV_SET->EV_FREE.
+     */
+    qatomic_or(&ev->value, EV_FREE);
+
+    /*
+     * Order reset before checking the condition in the caller.
+     * Pairs with the first memory barrier in qemu_event_set().
+     */
+    smp_mb__after_rmw();
 }
 
 void qemu_event_wait(QemuEvent *ev)
@@ -418,20 +427,37 @@ void qemu_event_wait(QemuEvent *ev)
     unsigned value;
 
     assert(ev->initialized);
+
+    /*
+     * This read does not have any particular ordering requirements;
+     * if it moves earlier, we might miss qemu_event_set() and go down the
+     * slow path unnecessarily, but ultimately the memory barrier in
+     * qemu_futex_wait() will ensure the check is done correctly.
+     */
     value = qatomic_read(&ev->value);
-    smp_mb_acquire();
     if (value != EV_SET) {
         if (value == EV_FREE) {
             /*
-             * Leave the event reset and tell qemu_event_set that there
-             * are waiters.  No need to retry, because there cannot be
-             * a concurrent busy->free transition.  After the CAS, the
-             * event will be either set or busy.
+             * Leave the event reset and tell qemu_event_set that there are
+             * waiters.  No need to retry, because there cannot be a concurrent
+             * busy->free transition.  After the CAS, the event will be either
+             * set or busy.
+             *
+             * Neither the load nor the store of this cmpxchg have particular
+             * ordering requirements.  The reasoning for the load is the same
+             * as qatomic_read() above; while moving the store earlier can only
+             * cause qemu_event_set() to issue _more_ wakeups.
              */
             if (qatomic_cmpxchg(&ev->value, EV_FREE, EV_BUSY) == EV_SET) {
                 return;
             }
         }
+
+        /*
+         * This is the final check for a concurrent set, so it does need
+         * a smp_mb() pairing with the second barrier of qemu_event_set().
+         * The barrier is inside the FUTEX_WAIT system call.
+         */
         qemu_futex_wait(ev, EV_BUSY);
     }
 }
