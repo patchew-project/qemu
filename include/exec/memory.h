@@ -27,6 +27,7 @@
 #include "qemu/notify.h"
 #include "qom/object.h"
 #include "qemu/rcu.h"
+#include "qemu/main-loop.h"
 
 #define RAM_ADDR_INVALID (~(ram_addr_t)0)
 
@@ -1095,8 +1096,30 @@ struct FlatView {
     MemoryRegion *root;
 };
 
+bool memory_region_transaction_in_progress(void);
+
+void memory_region_transaction_do_commit(void);
+
 static inline FlatView *address_space_to_flatview(AddressSpace *as)
 {
+    if (qemu_mutex_iothread_locked()) {
+        /* We exclusively own the flatview now.. */
+        if (memory_region_transaction_in_progress()) {
+            /*
+             * Fetch the flatview within a transaction in-progress, it
+             * means current_map may not be the latest, we need to update
+             * immediately to make sure the caller won't see obsolete
+             * mapping.
+             */
+            memory_region_transaction_do_commit();
+        }
+
+        /* No further protection needed to access current_map */
+        return as->current_map;
+    }
+
+    /* Otherwise we must have had the RCU lock or something went wrong */
+    assert(rcu_read_is_locked());
     return qatomic_rcu_read(&as->current_map);
 }
 
