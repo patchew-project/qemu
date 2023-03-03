@@ -224,7 +224,8 @@ struct VirtIONet {
 size_t virtio_net_handle_ctrl_iov(VirtIODevice *vdev,
                                   const struct iovec *in_sg, unsigned in_num,
                                   const struct iovec *out_sg,
-                                  unsigned out_num);
+                                  unsigned out_num,
+				  virtio_net_ctrl_ack *status);
 void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
                                    const char *type);
 

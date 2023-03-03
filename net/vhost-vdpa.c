@@ -638,8 +638,7 @@ static int vhost_vdpa_net_handle_ctrl_avail(VhostShadowVirtqueue *svq,
         return VIRTIO_NET_ERR;
     }
 
-    status = VIRTIO_NET_ERR;
-    virtio_net_handle_ctrl_iov(svq->vdev, &in, 1, &out, 1);
+    virtio_net_handle_ctrl_iov(svq->vdev, &in, 1, &out, 1, &status);
     if (status != VIRTIO_NET_OK) {
         error_report("Bad CVQ processing in model");
     }

@@ -1503,7 +1503,8 @@ static int virtio_net_handle_mq(VirtIONet *n, uint8_t cmd,
 size_t virtio_net_handle_ctrl_iov(VirtIODevice *vdev,
                                   const struct iovec *in_sg, unsigned in_num,
                                   const struct iovec *out_sg,
-                                  unsigned out_num)
+                                  unsigned out_num,
+				  virtio_net_ctrl_ack *status_out)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
     struct virtio_net_ctrl_hdr ctrl;
@@ -1514,6 +1515,8 @@ size_t virtio_net_handle_ctrl_iov(VirtIODevice *vdev,
     if (iov_size(in_sg, in_num) < sizeof(status) ||
         iov_size(out_sg, out_num) < sizeof(ctrl)) {
         virtio_error(vdev, "virtio-net ctrl missing headers");
+	if (status_out)
+		*status_out = status;
         return 0;
     }
 
@@ -1540,6 +1543,8 @@ size_t virtio_net_handle_ctrl_iov(VirtIODevice *vdev,
     assert(s == sizeof(status));
 
     g_free(iov2);
+    if (status_out)
+	    *status_out = status;
     return sizeof(status);
 }
 
@@ -1555,7 +1560,7 @@ static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
         }
 
         written = virtio_net_handle_ctrl_iov(vdev, elem->in_sg, elem->in_num,
-                                             elem->out_sg, elem->out_num);
+                                             elem->out_sg, elem->out_num, NULL);
         if (written > 0) {
             virtqueue_push(vq, elem, written);
             virtio_notify(vdev, vq);
