@@ -74,13 +74,15 @@ static void aio_bh_enqueue(QEMUBH *bh, unsigned new_flags)
     unsigned old_flags;
 
     /*
-     * The memory barrier implicit in qatomic_fetch_or makes sure that:
-     * 1. idle & any writes needed by the callback are done before the
-     *    locations are read in the aio_bh_poll.
+     * The memory barrier makes sure that:
+     * 1. any writes needed by the callback are visible from the callback
+     *    after aio_bh_dequeue() returns bh.
      * 2. ctx is loaded before the callback has a chance to execute and bh
      *    could be freed.
      */
     old_flags = qatomic_fetch_or(&bh->flags, BH_PENDING | new_flags);
+    smp_mb__after_rmw();
+
     if (!(old_flags & BH_PENDING)) {
         QSLIST_INSERT_HEAD_ATOMIC(&ctx->bh_list, bh, next);
     }
@@ -107,14 +109,15 @@ static QEMUBH *aio_bh_dequeue(BHList *head, unsigned *flags)
     QSLIST_REMOVE_HEAD(head, next);
 
     /*
-     * The qatomic_and is paired with aio_bh_enqueue().  The implicit memory
-     * barrier ensures that the callback sees all writes done by the scheduling
+     * The memory barrier is paired with aio_bh_enqueue() and it
+     * ensures that the callback sees all writes done by the scheduling
      * thread.  It also ensures that the scheduling thread sees the cleared
      * flag before bh->cb has run, and thus will call aio_notify again if
      * necessary.
      */
     *flags = qatomic_fetch_and(&bh->flags,
                               ~(BH_PENDING | BH_SCHEDULED | BH_IDLE));
+    smp_mb__after_rmw();
     return bh;
 }
 
