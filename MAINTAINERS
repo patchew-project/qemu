@@ -1301,6 +1301,13 @@ F: hw/mips/boston.c
 F: hw/pci-host/xilinx-pcie.c
 F: include/hw/pci-host/xilinx-pcie.h
 
+Virt
+M: Jiaxun Yang <jiaxun.yang@flygoat.com>
+S: Maintained
+F: hw/mips/virt.c
+F: hw/misc/mips_trickbox.c
+F: include/hw/misc/mips_trickbox.h
+
 OpenRISC Machines
 -----------------
 or1k-sim
