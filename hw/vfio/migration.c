@@ -634,6 +634,11 @@ int vfio_migration_probe(VFIODevice *vbasedev, Error **errp)
         return ret;
     }
 
+    ret = vfio_block_giommu_migration(errp);
+    if (ret) {
+        return ret;
+    }
+
     trace_vfio_migration_probe(vbasedev->name);
     return 0;
 
@@ -659,6 +664,7 @@ void vfio_migration_finalize(VFIODevice *vbasedev)
         unregister_savevm(VMSTATE_IF(vbasedev->dev), "vfio", vbasedev);
         vfio_migration_exit(vbasedev);
         vfio_unblock_multiple_devices_migration();
+        vfio_unblock_giommu_migration();
     }
 
     if (vbasedev->migration_blocker) {
