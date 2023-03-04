@@ -16,6 +16,7 @@
 #include "hw/ide/pci.h"
 #include "hw/isa/superio.h"
 #include "net/net.h"
+#include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "qemu/datadir.h"
 
@@ -110,11 +111,12 @@ static void clipper_init(MachineState *machine)
      * Importantly, we need to provide a PCI device node for it, otherwise
      * some operating systems won't notice there's an ISA bus to configure.
      */
-    i82378_dev = DEVICE(pci_create_simple(pci_bus, PCI_DEVFN(7, 0), "i82378"));
-    isa_bus = ISA_BUS(qdev_get_child_bus(i82378_dev, "isa.0"));
-
+    i82378_dev = DEVICE(pci_new(PCI_DEVFN(7, 0), "i82378"));
     /* Connect the ISA PIC to the Typhoon IRQ used for ISA interrupts. */
     qdev_connect_gpio_out(i82378_dev, 0, isa_irq);
+    qdev_realize_and_unref(i82378_dev, BUS(pci_bus), &error_fatal);
+
+    isa_bus = ISA_BUS(qdev_get_child_bus(i82378_dev, "isa.0"));
 
     /* Since we have an SRM-compatible PALcode, use the SRM epoch.  */
     mc146818_rtc_init(isa_bus, 1900, rtc_irq);
