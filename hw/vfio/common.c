@@ -44,6 +44,7 @@
 #include "migration/blocker.h"
 #include "migration/qemu-file.h"
 #include "sysemu/tpm.h"
+#include "qemu/iova-tree.h"
 
 VFIOGroupList vfio_group_list =
     QLIST_HEAD_INITIALIZER(vfio_group_list);
@@ -1313,10 +1314,93 @@ static int vfio_set_dirty_page_tracking(VFIOContainer *container, bool start)
     return ret;
 }
 
+/*
+ * Called for the dirty tracking memory listener to calculate the iova/end
+ * for a given memory region section. The checks here, replicate the logic
+ * in vfio_listener_region_{add,del}() used for the same purpose. And thus
+ * both listener should be kept in sync.
+ */
+static bool vfio_get_section_iova_range(VFIOContainer *container,
+                                        MemoryRegionSection *section,
+                                        hwaddr *out_iova, hwaddr *out_end)
+{
+    Int128 llend;
+    hwaddr iova;
+
+    iova = REAL_HOST_PAGE_ALIGN(section->offset_within_address_space);
+    llend = int128_make64(section->offset_within_address_space);
+    llend = int128_add(llend, section->size);
+    llend = int128_and(llend, int128_exts64(qemu_real_host_page_mask()));
+
+    if (int128_ge(int128_make64(iova), llend)) {
+        return false;
+    }
+
+    *out_iova = iova;
+    *out_end = int128_get64(llend) - 1;
+    return true;
+}
+
+static void vfio_dirty_tracking_update(MemoryListener *listener,
+                                       MemoryRegionSection *section)
+{
+    VFIOContainer *container = container_of(listener, VFIOContainer,
+                                            tracking_listener);
+    VFIODirtyTrackingRange *range = &container->tracking_range;
+    hwaddr max32 = (1ULL << 32) - 1ULL;
+    hwaddr iova, end;
+
+    if (!vfio_listener_valid_section(section) ||
+        !vfio_get_section_iova_range(container, section, &iova, &end)) {
+        return;
+    }
+
+    WITH_QEMU_LOCK_GUARD(&container->tracking_mutex) {
+        if (iova < max32 && end <= max32) {
+                if (range->min32 > iova) {
+                    range->min32 = iova;
+                }
+                if (range->max32 < end) {
+                    range->max32 = end;
+                }
+                trace_vfio_device_dirty_tracking_update(iova, end,
+                                            range->min32, range->max32);
+        } else {
+                if (!range->min64 || range->min64 > iova) {
+                    range->min64 = iova;
+                }
+                if (range->max64 < end) {
+                    range->max64 = end;
+                }
+                trace_vfio_device_dirty_tracking_update(iova, end,
+                                            range->min64, range->max64);
+        }
+    }
+    return;
+}
+
+static const MemoryListener vfio_dirty_tracking_listener = {
+    .name = "vfio-tracking",
+    .region_add = vfio_dirty_tracking_update,
+};
+
+static void vfio_dirty_tracking_init(VFIOContainer *container)
+{
+    memset(&container->tracking_range, 0, sizeof(container->tracking_range));
+    qemu_mutex_init(&container->tracking_mutex);
+    container->tracking_listener = vfio_dirty_tracking_listener;
+    memory_listener_register(&container->tracking_listener,
+                             container->space->as);
+    memory_listener_unregister(&container->tracking_listener);
+    qemu_mutex_destroy(&container->tracking_mutex);
+}
+
 static void vfio_listener_log_global_start(MemoryListener *listener)
 {
     VFIOContainer *container = container_of(listener, VFIOContainer, listener);
     int ret;
+
+    vfio_dirty_tracking_init(container);
 
     ret = vfio_set_dirty_page_tracking(container, true);
     if (ret) {
