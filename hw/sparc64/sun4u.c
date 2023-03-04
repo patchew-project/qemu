@@ -612,7 +612,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     pci_busA->slot_reserved_mask = 0xfffffff1;
     pci_busB->slot_reserved_mask = 0xfffffff0;
 
-    ebus = pci_new_multifunction(PCI_DEVFN(1, 0), true, TYPE_EBUS);
+    ebus = pci_new_multifunction(PCI_DEVFN(1, 0), TYPE_EBUS);
     qdev_prop_set_uint64(DEVICE(ebus), "console-serial-base",
                          hwdef->console_serial_base);
     pci_realize_and_unref(ebus, pci_busA, &error_fatal);
@@ -648,8 +648,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
         if (!nd->model || strcmp(nd->model, "sunhme") == 0) {
             if (!onboard_nic) {
-                pci_dev = pci_new_multifunction(PCI_DEVFN(1, 1),
-                                                   true, "sunhme");
+                pci_dev = pci_new_multifunction(PCI_DEVFN(1, 1), "sunhme");
                 bus = pci_busA;
                 memcpy(&macaddr, &nd->macaddr.a, sizeof(MACAddr));
                 onboard_nic = true;

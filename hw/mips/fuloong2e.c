@@ -295,7 +295,7 @@ static void mips_fuloong2e_init(MachineState *machine)
     pci_bus = bonito_init((qemu_irq *)&(env->irq[2]));
 
     /* South bridge -> IP5 */
-    pci_dev = pci_new_multifunction(PCI_DEVFN(FULOONG2E_VIA_SLOT, 0), true,
+    pci_dev = pci_new_multifunction(PCI_DEVFN(FULOONG2E_VIA_SLOT, 0),
                                     TYPE_VT82C686B_ISA);
     qdev_connect_gpio_out(DEVICE(pci_dev), 0, env->irq[5]);
     pci_realize_and_unref(pci_dev, pci_bus, &error_fatal);
