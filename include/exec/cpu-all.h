@@ -152,12 +152,21 @@ static inline void tswap64s(uint64_t *s)
  */
 extern uintptr_t guest_base;
 extern bool have_guest_base;
-extern unsigned long reserved_va;
+
+/*
+ * If non-zero, the guest virtual address space is a contiguous subset
+ * of the host virtual address space, i.e. '-R reserved-va' is in effect
+ * either from the command-line or by default.  The value is the last
+ * byte of the guest address space e.g. UINT32_MAX.
+ *
+ * If zero, the host and guest virtual address spaces are intermingled.
+ */
+extern unsigned long max_reserved_va;
 
 /*
  * Limit the guest addresses as best we can.
  *
- * When not using -R reserved_va, we cannot really limit the guest
+ * When not using -R <reserved-va>, we cannot really limit the guest
  * to less address space than the host.  For 32-bit guests, this
  * acts as a sanity check that we're not giving the guest an address
  * that it cannot even represent.  For 64-bit guests... the address
@@ -171,7 +180,7 @@ extern unsigned long reserved_va;
 #define GUEST_ADDR_MAX_                                                 \
     ((MIN_CONST(TARGET_VIRT_ADDR_SPACE_BITS, TARGET_ABI_BITS) <= 32) ?  \
      UINT32_MAX : ~0ul)
-#define GUEST_ADDR_MAX    (reserved_va ? reserved_va - 1 : GUEST_ADDR_MAX_)
+#define GUEST_ADDR_MAX    (max_reserved_va ? : GUEST_ADDR_MAX_)
 
 #else
 

@@ -808,7 +808,7 @@ static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
 
         /*
          * Convert forcefully to guest address space: addresses outside
-         * reserved_va are still valid to report via SEGV_MAPERR.
+         * max_reserved_va are still valid to report via SEGV_MAPERR.
          */
         guest_addr = h2g_nocheck(host_addr);
 
@@ -827,7 +827,7 @@ static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
                 }
 
                 /*
-                 * With reserved_va, the whole address space is PROT_NONE,
+                 * With max_reserved_va, the whole address space is PROT_NONE,
                  * which means that we may get ACCERR when we want MAPERR.
                  */
                 if (page_get_flags(guest_addr) & PAGE_VALID) {

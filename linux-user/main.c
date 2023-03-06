@@ -107,18 +107,16 @@ static const char *last_log_filename;
 # if HOST_LONG_BITS > TARGET_VIRT_ADDR_SPACE_BITS
 #  if TARGET_VIRT_ADDR_SPACE_BITS == 32 && \
       (TARGET_LONG_BITS == 32 || defined(TARGET_ABI32))
-/* There are a number of places where we assign reserved_va to a variable
-   of type abi_ulong and expect it to fit.  Avoid the last page.  */
-#   define MAX_RESERVED_VA(CPU)  (0xfffffffful & TARGET_PAGE_MASK)
+#   define MAX_RESERVED_VA(CPU)  0xfffffffful
 #  else
-#   define MAX_RESERVED_VA(CPU)  (1ul << TARGET_VIRT_ADDR_SPACE_BITS)
+#   define MAX_RESERVED_VA(CPU)  ((1ul << TARGET_VIRT_ADDR_SPACE_BITS) - 1)
 #  endif
 # else
-#  define MAX_RESERVED_VA(CPU)  0
+#  define MAX_RESERVED_VA(CPU)   (-1ul)
 # endif
 #endif
 
-unsigned long reserved_va;
+unsigned long max_reserved_va;
 
 static void usage(int exitcode);
 
@@ -369,7 +367,8 @@ static void handle_arg_reserved_va(const char *arg)
 {
     char *p;
     int shift = 0;
-    reserved_va = strtoul(arg, &p, 0);
+
+    max_reserved_va = strtoul(arg, &p, 0);
     switch (*p) {
     case 'k':
     case 'K':
@@ -383,10 +382,10 @@ static void handle_arg_reserved_va(const char *arg)
         break;
     }
     if (shift) {
-        unsigned long unshifted = reserved_va;
+        unsigned long unshifted = max_reserved_va;
         p++;
-        reserved_va <<= shift;
-        if (reserved_va >> shift != unshifted) {
+        max_reserved_va <<= shift;
+        if (max_reserved_va >> shift != unshifted) {
             fprintf(stderr, "Reserved virtual address too big\n");
             exit(EXIT_FAILURE);
         }
@@ -395,16 +394,17 @@ static void handle_arg_reserved_va(const char *arg)
         fprintf(stderr, "Unrecognised -R size suffix '%s'\n", p);
         exit(EXIT_FAILURE);
     }
-    if (reserved_va == 0) {
+    if (max_reserved_va == 0) {
         fprintf(stderr, "Invalid -R size value 0\n");
         exit(EXIT_FAILURE);
     }
     /* Must be aligned with the host page size as it is used with mmap. */
-    if (reserved_va & qemu_host_page_mask) {
+    if (max_reserved_va & qemu_host_page_mask) {
         fprintf(stderr, "Invalid -R size value %lu: must be aligned mod %lu\n",
-		reserved_va, qemu_host_page_size);
+                max_reserved_va, qemu_host_page_size);
         exit(EXIT_FAILURE);
     }
+    max_reserved_va--;
 }
 
 static void handle_arg_singlestep(const char *arg)
@@ -787,17 +787,13 @@ int main(int argc, char **argv, char **envp)
      * not by default.
      */
     local_max_va = MAX_RESERVED_VA(cpu);
-    if (reserved_va != 0) {
-        if (local_max_va && reserved_va > local_max_va) {
+    if (max_reserved_va != 0) {
+        if (max_reserved_va > local_max_va) {
             fprintf(stderr, "Reserved virtual address too big\n");
             exit(EXIT_FAILURE);
         }
     } else if (HOST_LONG_BITS == 64 && TARGET_VIRT_ADDR_SPACE_BITS <= 32) {
-        /*
-         * reserved_va must be aligned with the host page size
-         * as it is used with mmap()
-         */
-        reserved_va = local_max_va & qemu_host_page_mask;
+        max_reserved_va = local_max_va;
     }
 
     {

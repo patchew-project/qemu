@@ -227,14 +227,14 @@ static abi_ulong mmap_find_vma_reserved(abi_ulong start, abi_ulong size,
     int prot;
     int looped = 0;
 
-    if (size > reserved_va) {
+    if (size > max_reserved_va) {
         return (abi_ulong)-1;
     }
 
     size = HOST_PAGE_ALIGN(size) + alignment;
     end_addr = start + size;
-    if (end_addr > reserved_va) {
-        end_addr = reserved_va;
+    if (end_addr > max_reserved_va) {
+        end_addr = max_reserved_va + 1;
     }
     addr = end_addr - qemu_host_page_size;
 
@@ -243,7 +243,7 @@ static abi_ulong mmap_find_vma_reserved(abi_ulong start, abi_ulong size,
             if (looped) {
                 return (abi_ulong)-1;
             }
-            end_addr = reserved_va;
+            end_addr = max_reserved_va + 1;
             addr = end_addr - qemu_host_page_size;
             looped = 1;
             continue;
@@ -291,7 +291,7 @@ static abi_ulong mmap_find_vma_aligned(abi_ulong start, abi_ulong size,
 
     size = HOST_PAGE_ALIGN(size);
 
-    if (reserved_va) {
+    if (max_reserved_va) {
         return mmap_find_vma_reserved(start, size,
             (alignment != 0 ? 1 << alignment : 0));
     }
@@ -759,7 +759,7 @@ int target_munmap(abi_ulong start, abi_ulong len)
     ret = 0;
     /* unmap what we can */
     if (real_start < real_end) {
-        if (reserved_va) {
+        if (max_reserved_va) {
             mmap_reserve(real_start, real_end - real_start);
         } else {
             ret = munmap(g2h_untagged(real_start), real_end - real_start);

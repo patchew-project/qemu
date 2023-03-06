@@ -204,10 +204,10 @@ static bool init_guest_commpage(void)
      * The vsyscall page is at a high negative address aka kernel space,
      * which means that we cannot actually allocate it with target_mmap.
      * We still should be able to use page_set_flags, unless the user
-     * has specified -R reserved_va, which would trigger an assert().
+     * has specified -R <reserved-va>, which would trigger an assert().
      */
-    if (reserved_va != 0 &&
-        TARGET_VSYSCALL_PAGE + TARGET_PAGE_SIZE >= reserved_va) {
+    if (max_reserved_va != 0 &&
+        TARGET_VSYSCALL_PAGE + TARGET_PAGE_SIZE - 1 >= max_reserved_va) {
         error_report("Cannot allocate vsyscall page");
         exit(EXIT_FAILURE);
     }
@@ -2484,11 +2484,11 @@ static void pgb_have_guest_base(const char *image_name, abi_ulong guest_loaddr,
     }
 
     /* Sanity check the guest binary. */
-    if (reserved_va) {
-        if (guest_hiaddr > reserved_va) {
+    if (max_reserved_va) {
+        if (guest_hiaddr - 1 > max_reserved_va) {
             error_report("%s: requires more than reserved virtual "
                          "address space (0x%" PRIx64 " > 0x%lx)",
-                         image_name, (uint64_t)guest_hiaddr, reserved_va);
+                         image_name, (uint64_t)guest_hiaddr - 1, max_reserved_va);
             exit(EXIT_FAILURE);
         }
     } else {
@@ -2503,16 +2503,16 @@ static void pgb_have_guest_base(const char *image_name, abi_ulong guest_loaddr,
     }
 
     /*
-     * Expand the allocation to the entire reserved_va.
+     * Expand the allocation to the entire max_reserved_va.
      * Exclude the mmap_min_addr hole.
      */
-    if (reserved_va) {
+    if (max_reserved_va) {
         guest_loaddr = (guest_base >= mmap_min_addr ? 0
                         : mmap_min_addr - guest_base);
-        guest_hiaddr = reserved_va;
+        guest_hiaddr = max_reserved_va + 1;
     }
 
-    /* Reserve the address space for the binary, or reserved_va. */
+    /* Reserve the address space for the binary, or max_reserved_va. */
     test = g2h_untagged(guest_loaddr);
     addr = mmap(test, guest_hiaddr - guest_loaddr, PROT_NONE, flags, -1, 0);
     if (test != addr) {
@@ -2716,7 +2716,7 @@ static void pgb_dynamic(const char *image_name, long align)
     if (HI_COMMPAGE) {
         uintptr_t addr, commpage;
 
-        /* 64-bit hosts should have used reserved_va. */
+        /* 64-bit hosts should have used max_reserved_va. */
         assert(sizeof(uintptr_t) == 4);
 
         /*
@@ -2736,15 +2736,15 @@ static void pgb_reserved_va(const char *image_name, abi_ulong guest_loaddr,
     int flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE;
     void *addr, *test;
 
-    if (guest_hiaddr > reserved_va) {
+    if (guest_hiaddr - 1 > max_reserved_va) {
         error_report("%s: requires more than reserved virtual "
                      "address space (0x%" PRIx64 " > 0x%lx)",
-                     image_name, (uint64_t)guest_hiaddr, reserved_va);
+                     image_name, (uint64_t)guest_hiaddr - 1, max_reserved_va);
         exit(EXIT_FAILURE);
     }
 
     /* Widen the "image" to the entire reserved address space. */
-    pgb_static(image_name, 0, reserved_va, align);
+    pgb_static(image_name, 0, max_reserved_va + 1, align);
 
     /* osdep.h defines this as 0 if it's missing */
     flags |= MAP_FIXED_NOREPLACE;
@@ -2752,17 +2752,17 @@ static void pgb_reserved_va(const char *image_name, abi_ulong guest_loaddr,
     /* Reserve the memory on the host. */
     assert(guest_base != 0);
     test = g2h_untagged(0);
-    addr = mmap(test, reserved_va, PROT_NONE, flags, -1, 0);
+    addr = mmap(test, max_reserved_va + 1, PROT_NONE, flags, -1, 0);
     if (addr == MAP_FAILED || addr != test) {
         error_report("Unable to reserve 0x%lx bytes of virtual address "
                      "space at %p (%s) for use as guest address space (check your "
                      "virtual memory ulimit setting, min_mmap_addr or reserve less "
-                     "using -R option)", reserved_va, test, strerror(errno));
+                     "using -R option)", max_reserved_va + 1, test, strerror(errno));
         exit(EXIT_FAILURE);
     }
 
     qemu_log_mask(CPU_LOG_PAGE, "%s: base @ %p for %lu bytes\n",
-                  __func__, addr, reserved_va);
+                  __func__, addr, max_reserved_va + 1);
 }
 
 void probe_guest_base(const char *image_name, abi_ulong guest_loaddr,
@@ -2773,7 +2773,7 @@ void probe_guest_base(const char *image_name, abi_ulong guest_loaddr,
 
     if (have_guest_base) {
         pgb_have_guest_base(image_name, guest_loaddr, guest_hiaddr, align);
-    } else if (reserved_va) {
+    } else if (max_reserved_va) {
         pgb_reserved_va(image_name, guest_loaddr, guest_hiaddr, align);
     } else if (guest_loaddr) {
         pgb_static(image_name, guest_loaddr, guest_hiaddr, align);

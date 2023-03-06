@@ -264,7 +264,7 @@ static void arm_cpu_reset_hold(Object *obj)
             }
         }
         /*
-         * Enable 48-bit address space (TODO: take reserved_va into account).
+         * Enable 48-bit address space (TODO: take max_reserved_va into account).
          * Enable TBI0 but not TBI1.
          * Note that this must match useronly_clean_ptr.
          */
