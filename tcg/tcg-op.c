@@ -86,9 +86,13 @@ void tcg_gen_op6(TCGOpcode opc, TCGArg a1, TCGArg a2, TCGArg a3,
 
 void tcg_gen_mb(TCGBar mb_type)
 {
-    if (tcg_ctx->gen_tb->cflags & CF_PARALLEL) {
-        tcg_gen_op1(INDEX_op_mb, mb_type);
-    }
+    /*
+     * It is tempting to elide the barrier in a single-threaded context
+     * (i.e. !(cflags & CF_PARALLEL)), however, even with a single cpu
+     * we have i/o threads running in parallel, and lack of memory order
+     * can result in e.g. virtio queue entries being read incorrectly.
+     */
+    tcg_gen_op1(INDEX_op_mb, mb_type);
 }
 
 /* 32 bit ops */
