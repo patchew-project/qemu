@@ -56,9 +56,7 @@
  * Fix the maxiumum number of mmu modes to 16.  This is larger than all current
  * targets, and also the maximum supported by the softmmu tlb api.
  */
-#ifndef NB_MMU_MODES
 #define NB_MMU_MODES 16
-#endif
 
 #define TARGET_LONG_SIZE (TARGET_LONG_BITS / 8)
 
