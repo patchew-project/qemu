@@ -1356,8 +1356,10 @@ void arm_cpu_lpa2_finalize(ARMCPU *cpu, Error **errp);
 
 #ifdef CONFIG_USER_ONLY
 static inline void define_cortex_a72_a57_a53_cp_reginfo(ARMCPU *cpu) { }
+static inline void define_neoverse_n1_cp_reginfo(ARMCPU *cpu) {}
 #else
 void define_cortex_a72_a57_a53_cp_reginfo(ARMCPU *cpu);
+void define_neoverse_n1_cp_reginfo(ARMCPU *cpu);
 #endif
 
 bool el_is_in_host(CPUARMState *env, int el);
