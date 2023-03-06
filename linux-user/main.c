@@ -395,6 +395,16 @@ static void handle_arg_reserved_va(const char *arg)
         fprintf(stderr, "Unrecognised -R size suffix '%s'\n", p);
         exit(EXIT_FAILURE);
     }
+    if (reserved_va == 0) {
+        fprintf(stderr, "Invalid -R size value 0\n");
+        exit(EXIT_FAILURE);
+    }
+    /* Must be aligned with the host page size as it is used with mmap. */
+    if (reserved_va & qemu_host_page_mask) {
+        fprintf(stderr, "Invalid -R size value %lu: must be aligned mod %lu\n",
+		reserved_va, qemu_host_page_size);
+        exit(EXIT_FAILURE);
+    }
 }
 
 static void handle_arg_singlestep(const char *arg)
