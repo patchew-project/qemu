@@ -942,6 +942,7 @@ uint8_t cpu_ldb_mmu(CPUArchState *env, abi_ptr addr,
 
     validate_memop(oi, MO_UB);
     haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_LOAD);
+    cpu_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
     ret = ldub_p(haddr);
     clear_helper_retaddr();
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_R);
@@ -956,6 +957,7 @@ uint16_t cpu_ldw_be_mmu(CPUArchState *env, abi_ptr addr,
 
     validate_memop(oi, MO_BEUW);
     haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_LOAD);
+    cpu_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
     ret = lduw_be_p(haddr);
     clear_helper_retaddr();
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_R);
@@ -970,6 +972,7 @@ uint32_t cpu_ldl_be_mmu(CPUArchState *env, abi_ptr addr,
 
     validate_memop(oi, MO_BEUL);
     haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_LOAD);
+    cpu_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
     ret = ldl_be_p(haddr);
     clear_helper_retaddr();
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_R);
@@ -984,6 +987,7 @@ uint64_t cpu_ldq_be_mmu(CPUArchState *env, abi_ptr addr,
 
     validate_memop(oi, MO_BEUQ);
     haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_LOAD);
+    cpu_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
     ret = ldq_be_p(haddr);
     clear_helper_retaddr();
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_R);
@@ -998,6 +1002,7 @@ uint16_t cpu_ldw_le_mmu(CPUArchState *env, abi_ptr addr,
 
     validate_memop(oi, MO_LEUW);
     haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_LOAD);
+    cpu_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
     ret = lduw_le_p(haddr);
     clear_helper_retaddr();
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_R);
@@ -1012,6 +1017,7 @@ uint32_t cpu_ldl_le_mmu(CPUArchState *env, abi_ptr addr,
 
     validate_memop(oi, MO_LEUL);
     haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_LOAD);
+    cpu_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
     ret = ldl_le_p(haddr);
     clear_helper_retaddr();
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_R);
@@ -1026,6 +1032,7 @@ uint64_t cpu_ldq_le_mmu(CPUArchState *env, abi_ptr addr,
 
     validate_memop(oi, MO_LEUQ);
     haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_LOAD);
+    cpu_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
     ret = ldq_le_p(haddr);
     clear_helper_retaddr();
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_R);
@@ -1075,6 +1082,7 @@ void cpu_stb_mmu(CPUArchState *env, abi_ptr addr, uint8_t val,
 
     validate_memop(oi, MO_UB);
     haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_STORE);
+    cpu_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST);
     stb_p(haddr, val);
     clear_helper_retaddr();
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_W);
@@ -1087,6 +1095,7 @@ void cpu_stw_be_mmu(CPUArchState *env, abi_ptr addr, uint16_t val,
 
     validate_memop(oi, MO_BEUW);
     haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_STORE);
+    cpu_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST);
     stw_be_p(haddr, val);
     clear_helper_retaddr();
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_W);
@@ -1099,6 +1108,7 @@ void cpu_stl_be_mmu(CPUArchState *env, abi_ptr addr, uint32_t val,
 
     validate_memop(oi, MO_BEUL);
     haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_STORE);
+    cpu_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST);
     stl_be_p(haddr, val);
     clear_helper_retaddr();
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_W);
@@ -1111,6 +1121,7 @@ void cpu_stq_be_mmu(CPUArchState *env, abi_ptr addr, uint64_t val,
 
     validate_memop(oi, MO_BEUQ);
     haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_STORE);
+    cpu_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST);
     stq_be_p(haddr, val);
     clear_helper_retaddr();
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_W);
@@ -1123,6 +1134,7 @@ void cpu_stw_le_mmu(CPUArchState *env, abi_ptr addr, uint16_t val,
 
     validate_memop(oi, MO_LEUW);
     haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_STORE);
+    cpu_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST);
     stw_le_p(haddr, val);
     clear_helper_retaddr();
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_W);
@@ -1135,6 +1147,7 @@ void cpu_stl_le_mmu(CPUArchState *env, abi_ptr addr, uint32_t val,
 
     validate_memop(oi, MO_LEUL);
     haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_STORE);
+    cpu_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST);
     stl_le_p(haddr, val);
     clear_helper_retaddr();
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_W);
@@ -1147,6 +1160,7 @@ void cpu_stq_le_mmu(CPUArchState *env, abi_ptr addr, uint64_t val,
 
     validate_memop(oi, MO_LEUQ);
     haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_STORE);
+    cpu_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST);
     stq_le_p(haddr, val);
     clear_helper_retaddr();
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_W);

@@ -1199,6 +1199,20 @@ static inline size_t tcg_current_code_size(TCGContext *s)
 #endif
 
 /**
+ * tcg_req_mo:
+ * @type: TCGBar
+ *
+ * If tcg_req_mo indicates a barrier for @type is required for the
+ * guest memory model, issue a host memory barrier.
+ */
+#define cpu_req_mo(type)          \
+    do {                          \
+        if (tcg_req_mo(type)) {   \
+            smp_mb();             \
+        }                         \
+    } while (0)
+
+/**
  * tcg_qemu_tb_exec:
  * @env: pointer to CPUArchState for the CPU
  * @tb_ptr: address of generated code for the TB to execute
