@@ -174,6 +174,8 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
         super().__init__(
             prefix, 'qapi-introspect',
             ' * QAPI/QMP schema introspection', __doc__)
+        # for some reasons, the generated code is making clang-format go crazy
+        self._genc.skip_format = True
         self._unmask = unmask
         self._schema: Optional[QAPISchema] = None
         self._trees: List[Annotated[SchemaInfo]] = []

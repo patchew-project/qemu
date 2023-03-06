@@ -14,6 +14,7 @@
 from contextlib import contextmanager
 import os
 import re
+import subprocess
 from typing import (
     Dict,
     Iterator,
@@ -133,6 +134,7 @@ def build_params(arg_type: Optional[QAPISchemaObjectType],
 class QAPIGenCCode(QAPIGen):
     def __init__(self, fname: str):
         super().__init__(fname)
+        self.skip_format: bool = False
         self._start_if: Optional[Tuple[QAPISchemaIfCond, str, str]] = None
 
     def start_if(self, ifcond: QAPISchemaIfCond) -> None:
@@ -149,7 +151,18 @@ class QAPIGenCCode(QAPIGen):
 
     def get_content(self) -> str:
         assert self._start_if is None
-        return super().get_content()
+
+        text = super().get_content()
+        if not self.skip_format:
+            try:
+                text = subprocess.run(["clang-format"],
+                                      input=text,
+                                      text=True,
+                                      capture_output=True,
+                                      check=True).stdout
+            except FileNotFoundError:
+                pass
+        return text
 
 
 class QAPIGenC(QAPIGenCCode):
