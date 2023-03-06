@@ -2914,13 +2914,7 @@ static void gen_ldst_i64(TCGOpcode opc, TCGv_i64 val, TCGv addr,
 
 static void tcg_gen_req_mo(TCGBar type)
 {
-#ifdef TCG_GUEST_DEFAULT_MO
-    type &= TCG_GUEST_DEFAULT_MO;
-#endif
-    type &= ~TCG_TARGET_DEFAULT_MO;
-    if (type) {
-        tcg_gen_mb(type | TCG_BAR_SC);
-    }
+    tcg_gen_mb(tcg_req_mo(type) | TCG_BAR_SC);
 }
 
 static inline TCGv plugin_prep_mem_callbacks(TCGv vaddr)

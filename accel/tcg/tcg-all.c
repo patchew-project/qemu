@@ -74,11 +74,7 @@ DECLARE_INSTANCE_CHECKER(TCGState, TCG_STATE,
 
 static bool check_tcg_memory_orders_compatible(void)
 {
-#if defined(TCG_GUEST_DEFAULT_MO) && defined(TCG_TARGET_DEFAULT_MO)
-    return (TCG_GUEST_DEFAULT_MO & ~TCG_TARGET_DEFAULT_MO) == 0;
-#else
-    return false;
-#endif
+    return tcg_req_mo(TCG_MO_ALL) == 0;
 }
 
 static bool default_mttcg_enabled(void)
