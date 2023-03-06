@@ -91,8 +91,13 @@ void tcg_gen_mb(TCGBar mb_type)
      * (i.e. !(cflags & CF_PARALLEL)), however, even with a single cpu
      * we have i/o threads running in parallel, and lack of memory order
      * can result in e.g. virtio queue entries being read incorrectly.
+     *
+     * That said, we can elide anything which the host provides for free.
      */
-    tcg_gen_op1(INDEX_op_mb, mb_type);
+    mb_type &= ~TCG_TARGET_DEFAULT_MO;
+    if (mb_type & TCG_MO_ALL) {
+        tcg_gen_op1(INDEX_op_mb, mb_type);
+    }
 }
 
 /* 32 bit ops */
