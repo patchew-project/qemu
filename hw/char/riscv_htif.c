@@ -29,6 +29,8 @@
 #include "chardev/char-fe.h"
 #include "qemu/timer.h"
 #include "qemu/error-report.h"
+#include "exec/address-spaces.h"
+#include "sysemu/dma.h"
 
 #define RISCV_DEBUG_HTIF 0
 #define HTIF_DEBUG(fmt, ...)                                                   \
@@ -51,7 +53,10 @@
 /* PK system call number */
 #define PK_SYS_WRITE            64
 
-static uint64_t fromhost_addr, tohost_addr;
+extern const char *sig_file;
+extern uint8_t line_size;
+
+static uint64_t fromhost_addr, tohost_addr, sig_addr, sig_len;
 
 void htif_symbol_callback(const char *st_name, int st_info, uint64_t st_value,
                           uint64_t st_size)
@@ -68,6 +73,10 @@ void htif_symbol_callback(const char *st_name, int st_info, uint64_t st_value,
             error_report("HTIF tohost must be 8 bytes");
             exit(1);
         }
+    } else if (strcmp("begin_signature", st_name) == 0) {
+        sig_addr = st_value;
+    } else if (strcmp("end_signature", st_name) == 0) {
+        sig_len = st_value - sig_addr;
     }
 }
 
@@ -161,6 +170,34 @@ static void htif_handle_tohost_write(HTIFState *s, uint64_t val_written)
         /* frontend syscall handler, shutdown and exit code support */
         if (cmd == HTIF_SYSTEM_CMD_SYSCALL) {
             if (payload & 0x1) {
+                /* Dump signature data to sig_file if specified */
+                if (sig_file) {
+                    char *sig_data = g_malloc(sig_len);
+                    dma_memory_read(&address_space_memory, sig_addr, sig_data,
+                                    sig_len, MEMTXATTRS_UNSPECIFIED);
+                    FILE *signature = fopen(sig_file, "w");
+                    if (signature == NULL) {
+                        error_report("open %s: %s", sig_file,
+                                     strerror(errno));
+                        exit(1);
+                    }
+
+                    for (int i = 0; i < sig_len; i += line_size) {
+                        for (int j = line_size; j > 0; j--) {
+                            if (i + j <= sig_len) {
+                                fprintf(signature, "%02x",
+                                        sig_data[i + j - 1] & 0xff);
+                            } else {
+                                fprintf(signature, "%02x", 0);
+                            }
+                        }
+                        fprintf(signature, "\n");
+                    }
+
+                    fclose(signature);
+                    g_free(sig_data);
+                }
+
                 /* exit code */
                 int exit_code = payload >> 1;
                 exit(exit_code);
