@@ -263,7 +263,6 @@ struct EEPRO100State {
     /* region must not be saved by nic_save. */
     uint16_t mdimem[32];
     eeprom_t *eeprom;
-    uint32_t device;            /* device variant */
     /* (cu_base + cu_offset) address the next command block in the command block list. */
     uint32_t cu_base;           /* CU base address */
     uint32_t cu_offset;         /* CU address offset */
@@ -591,6 +590,9 @@ static void e100_pci_reset(DeviceState *dev)
 
 static void nic_selective_reset(EEPRO100State * s)
 {
+    EEPRO100Class *ek = EEPRO100_GET_CLASS(s);
+    const E100PCIDeviceInfo *info = ek->info;
+
     size_t i;
     uint16_t *eeprom_contents = eeprom93xx_data(s->eeprom);
 #if 0
@@ -598,8 +600,9 @@ static void nic_selective_reset(EEPRO100State * s)
 #endif
     memcpy(eeprom_contents, s->conf.macaddr.a, 6);
     eeprom_contents[EEPROM_ID] = EEPROM_ID_VALID;
-    if (s->device == i82557B || s->device == i82557C)
+    if (info->device == i82557B || info->device == i82557C) {
         eeprom_contents[5] = 0x0100;
+    }
     eeprom_contents[EEPROM_PHY_ID] = 1;
     uint16_t sum = 0;
     for (i = 0; i < EEPROM_SIZE - 1; i++) {
@@ -1794,7 +1797,7 @@ static const VMStateDescription vmstate_eepro100 = {
         VMSTATE_UNUSED(19*4),
         VMSTATE_UINT16_ARRAY(mdimem, EEPRO100State, 32),
         /* The eeprom should be saved and restored by its own routines. */
-        VMSTATE_UINT32(device, EEPRO100State),
+        VMSTATE_UNUSED(sizeof(uint32_t)), /* was device variant */
         /* TODO check device. */
         VMSTATE_UINT32(cu_base, EEPRO100State),
         VMSTATE_UINT32(cu_offset, EEPRO100State),
@@ -1848,11 +1851,8 @@ static NetClientInfo net_eepro100_info = {
 static void e100_nic_realize(PCIDevice *pci_dev, Error **errp)
 {
     EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
-    EEPRO100Class *ek = EEPRO100_GET_CLASS(s);
 
     TRACE(OTHER, logout("\n"));
-
-    s->device = ek->info->device;
 
     /* Add 64 * 2 EEPROM. i82557 and i82558 support a 64 word EEPROM,
      * i82559 and later support 64 or 256 word EEPROM. */
