@@ -8,6 +8,9 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/msi.h"
+#include "qapi/qapi-types-qdev.h"
+#include "qapi/qapi-events-qdev.h"
+#include "monitor/qdev.h"
 
 /* TODO: model power only and disabled slot states. */
 /* TODO: handle SERR and wakeups */
@@ -122,6 +125,39 @@
 #define SHPC_IDX_TO_PCI(slot) ((slot) + 1)
 #define SHPC_PCI_TO_IDX(pci_slot) ((pci_slot) - 1)
 #define SHPC_IDX_TO_PHYSICAL(slot) ((slot) + 1)
+
+static char *shpc_idx_to_pci_addr(int slot)
+{
+    return g_strdup_printf("%d", SHPC_IDX_TO_PCI(slot));
+}
+
+static LedActivity shpc_led_state_to_qapi(uint8_t value)
+{
+    switch (value) {
+    case SHPC_LED_ON:
+        return LED_ACTIVITY_ON;
+    case SHPC_LED_BLINK:
+        return LED_ACTIVITY_BLINK;
+    case SHPC_LED_OFF:
+        return LED_ACTIVITY_OFF;
+    default:
+        abort();
+    }
+}
+
+static HotplugSHPCSlotState shpc_slot_state_to_qapi(uint8_t value)
+{
+    switch (value) {
+    case SHPC_STATE_PWRONLY:
+        return HOTPLUGSHPC_SLOT_STATE_POWER_ONLY;
+    case SHPC_STATE_ENABLED:
+        return HOTPLUGSHPC_SLOT_STATE_ENABLED;
+    case SHPC_STATE_DISABLED:
+        return HOTPLUGSHPC_SLOT_STATE_DISABLED;
+    default:
+        abort();
+    }
+}
 
 static uint8_t shpc_get_status(SHPCDevice *shpc, int slot, uint16_t msk)
 {
@@ -263,14 +299,23 @@ static bool shpc_slot_is_off(uint8_t state, uint8_t power, uint8_t attn)
     return state == SHPC_STATE_DISABLED && power == SHPC_LED_OFF;
 }
 
+static bool shpc_slot_is_on(uint8_t state, uint8_t power, uint8_t attn)
+{
+    return state == SHPC_STATE_ENABLED && power == SHPC_LED_ON &&
+        attn == SHPC_LED_OFF;
+}
+
 static void shpc_slot_command(PCIDevice *d, uint8_t target,
                               uint8_t state, uint8_t power, uint8_t attn)
 {
     SHPCDevice *shpc = d->shpc;
     int slot = SHPC_LOGICAL_TO_IDX(target);
+    int pci_slot = SHPC_IDX_TO_PCI(slot);
     uint8_t old_state = shpc_get_status(shpc, slot, SHPC_SLOT_STATE_MASK);
     uint8_t old_power = shpc_get_status(shpc, slot, SHPC_SLOT_PWR_LED_MASK);
     uint8_t old_attn = shpc_get_status(shpc, slot, SHPC_SLOT_ATTN_LED_MASK);
+    DeviceState *child_dev =
+        DEVICE(shpc->sec_bus->devices[PCI_DEVFN(pci_slot, 0)]);
 
     if (target < SHPC_CMD_TRGT_MIN || slot >= shpc->nslots) {
         shpc_invalid_command(shpc);
@@ -312,6 +357,12 @@ static void shpc_slot_command(PCIDevice *d, uint8_t target,
         shpc->config[SHPC_SLOT_EVENT_LATCH(slot)] |=
             SHPC_SLOT_EVENT_MRL |
             SHPC_SLOT_EVENT_PRESENCE;
+    }
+
+    if (!shpc_slot_is_on(old_state, old_power, old_attn) &&
+        shpc_slot_is_on(state, power, attn) && child_dev)
+    {
+        qdev_hotplug_device_on_event(child_dev);
     }
 }
 
@@ -711,6 +762,41 @@ void shpc_cap_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int l)
     }
     /* Update cap dword data in case guest is going to read it. */
     shpc_cap_update_dword(d);
+}
+
+HotplugInfo *shpc_get_hotplug_state(HotplugHandler *hotplug_dev,
+                                    DeviceState *dev, Error **errp)
+{
+    PCIDevice *pci_hotplug_dev = PCI_DEVICE(hotplug_dev);
+    SHPCDevice *shpc = pci_hotplug_dev->shpc;
+    int slot;
+    uint8_t state, power, attn;
+    HotplugInfo *res;
+
+    if (!shpc_device_get_slot(PCI_DEVICE(dev), &slot, shpc, errp)) {
+        return NULL;
+    }
+
+    state = shpc_get_status(shpc, slot, SHPC_SLOT_STATE_MASK);
+    power = shpc_get_status(shpc, slot, SHPC_SLOT_PWR_LED_MASK);
+    attn = shpc_get_status(shpc, slot, SHPC_SLOT_ATTN_LED_MASK);
+
+    res = g_new(HotplugInfo, 1);
+    *res = (HotplugInfo) {
+        .bus = qdev_new_device_and_path(DEVICE(pci_hotplug_dev)),
+        .addr = shpc_idx_to_pci_addr(slot),
+        .child = qdev_new_device_and_path(dev),
+        .type = HOTPLUG_TYPE_SHPC,
+        .device_on = dev->device_on_sent,
+        .u.shpc.has_power_led = true,
+        .u.shpc.power_led = shpc_led_state_to_qapi(power),
+        .u.shpc.has_attention_led = true,
+        .u.shpc.attention_led = shpc_led_state_to_qapi(attn),
+        .u.shpc.has_slot_state = true,
+        .u.shpc.slot_state = shpc_slot_state_to_qapi(state),
+    };
+
+    return res;
 }
 
 static int shpc_save(QEMUFile *f, void *pv, size_t size,

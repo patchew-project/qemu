@@ -1178,6 +1178,23 @@ bool qmp_command_available(const QmpCommand *cmd, Error **errp)
     return true;
 }
 
+DeviceAndPath *qdev_new_device_and_path(DeviceState *dev)
+{
+    DeviceAndPath *res;
+
+    if (!dev) {
+        return NULL;
+    }
+
+    res = g_new(DeviceAndPath, 1);
+    *res = (DeviceAndPath) {
+        .device = g_strdup(dev->id),
+        .path = g_strdup(dev->canonical_path),
+    };
+
+    return res;
+}
+
 void qdev_hotplug_device_on_event(DeviceState *dev)
 {
     if (dev->device_on_sent) {
