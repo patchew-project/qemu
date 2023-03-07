@@ -392,9 +392,25 @@ static bool output_type_enum(Visitor *v, const char *name, int *obj,
     return visit_type_str(v, name, &enum_str, errp);
 }
 
+static void error_append_qapi_enum_hint(Error *const *errp, const QEnumLookup *lookup)
+{
+    int i;
+
+    error_append_hint(errp, "Acceptable values are ");
+    for (i = 0; i < lookup->size; i++) {
+        error_append_hint(errp, "'%s'", lookup->array[i]);
+        if (i + 1 < lookup->size) {
+            error_append_hint(errp, ", ");
+        }
+    }
+    error_append_hint(errp, "\n");
+}
+
+
 static bool input_type_enum(Visitor *v, const char *name, int *obj,
                             const QEnumLookup *lookup, Error **errp)
 {
+    ERRP_GUARD();
     int64_t value;
     g_autofree char *enum_str = NULL;
 
@@ -406,6 +422,7 @@ static bool input_type_enum(Visitor *v, const char *name, int *obj,
     if (value < 0) {
         error_setg(errp, "Parameter '%s' does not accept value '%s'",
                    name ? name : "null", enum_str);
+        error_append_qapi_enum_hint(errp, lookup);
         return false;
     }
 
