@@ -36,9 +36,6 @@
 #ifndef TARGET_LONG_BITS
 # error TARGET_LONG_BITS must be defined in cpu-param.h
 #endif
-#ifndef NB_MMU_MODES
-# error NB_MMU_MODES must be defined in cpu-param.h
-#endif
 #ifndef TARGET_PHYS_ADDR_SPACE_BITS
 # error TARGET_PHYS_ADDR_SPACE_BITS must be defined in cpu-param.h
 #endif
@@ -53,6 +50,14 @@
 # else
 #  error TARGET_PAGE_BITS must be defined in cpu-param.h
 # endif
+#endif
+
+/*
+ * Fix the number of mmu modes to 16, which is also the maximum
+ * supported by the softmmu tlb api.
+ */
+#ifndef NB_MMU_MODES
+#define NB_MMU_MODES 16
 #endif
 
 #define TARGET_LONG_SIZE (TARGET_LONG_BITS / 8)
