@@ -6,6 +6,8 @@
 
 #include <SDL.h>
 
+/* #define _SDL_DEBUG 1 */
+
 /* with Alpine / muslc SDL headers pull in directfb headers
  * which in turn trigger warning about redundant decls for
  * direct_waitqueue_deinit.
