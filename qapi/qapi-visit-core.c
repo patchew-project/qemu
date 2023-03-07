@@ -404,8 +404,11 @@ static bool input_type_enum(Visitor *v, const char *name, int *obj,
 
     value = qapi_enum_parse(lookup, enum_str, -1, NULL);
     if (value < 0) {
-        error_setg(errp, "Parameter '%s' does not accept value '%s'",
-                   name ? name : "null", enum_str);
+        g_autofree char *avail = NULL;
+
+        avail = qapi_enum_available(lookup);
+        error_setg(errp, "Parameter '%s' does not accept value '%s' (available: %s)",
+                   name ? name : "null", enum_str, avail);
         return false;
     }
 

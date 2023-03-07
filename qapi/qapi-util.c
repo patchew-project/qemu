@@ -84,6 +84,21 @@ int qapi_enum_parse(const QEnumLookup *lookup, const char *buf,
     return def;
 }
 
+char *qapi_enum_available(const QEnumLookup *lookup)
+{
+    int i;
+    GString *str = g_string_new(NULL);
+
+    for (i = 0; i < lookup->size; i++) {
+        g_string_append_printf(str, "'%s'", lookup->array[i]);
+        if (i + 1 < lookup->size) {
+            g_string_append(str, ", ");
+        }
+    }
+
+    return g_string_free(str, FALSE);
+}
+
 bool qapi_bool_parse(const char *name, const char *value, bool *obj, Error **errp)
 {
     if (g_str_equal(value, "on") ||

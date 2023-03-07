@@ -23,6 +23,7 @@ typedef struct QEnumLookup {
 } QEnumLookup;
 
 const char *qapi_enum_lookup(const QEnumLookup *lookup, int val);
+char *qapi_enum_available(const QEnumLookup *lookup);
 int qapi_enum_parse(const QEnumLookup *lookup, const char *buf,
                     int def, Error **errp);
 bool qapi_bool_parse(const char *name, const char *value, bool *obj,
