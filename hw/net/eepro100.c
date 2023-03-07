@@ -1834,7 +1834,7 @@ static const VMStateDescription vmstate_eepro100 = {
 
 static void pci_nic_uninit(PCIDevice *pci_dev)
 {
-    EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
+    EEPRO100State *s = EEPRO100(pci_dev);
 
     vmstate_unregister(VMSTATE_IF(&pci_dev->qdev), s->vmstate, s);
     g_free(s->vmstate);
@@ -1850,7 +1850,7 @@ static NetClientInfo net_eepro100_info = {
 
 static void e100_nic_realize(PCIDevice *pci_dev, Error **errp)
 {
-    EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
+    EEPRO100State *s = EEPRO100(pci_dev);
 
     TRACE(OTHER, logout("\n"));
 
@@ -1891,7 +1891,7 @@ static void e100_nic_realize(PCIDevice *pci_dev, Error **errp)
 
 static void eepro100_instance_init(Object *obj)
 {
-    EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, PCI_DEVICE(obj));
+    EEPRO100State *s = EEPRO100(obj);
     device_add_bootindex_property(obj, &s->conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
                                   DEVICE(s));
