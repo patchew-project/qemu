@@ -292,7 +292,6 @@ struct EEPRO100State {
 
     /* Quasi static device properties (no need to save them). */
     uint16_t stats_size;
-    bool has_extended_tcb_support;
 };
 
 /* Word indices in EEPROM. */
@@ -511,7 +510,6 @@ static void e100_pci_reset(DeviceState *dev)
     pci_set_byte(pci_conf + PCI_MAX_LAT, 0x18);
 
     s->stats_size = info->stats_size;
-    s->has_extended_tcb_support = info->has_extended_tcb_support;
 
     switch (device) {
     case i82550:
@@ -746,6 +744,8 @@ static void read_cb(EEPRO100State *s)
 
 static void tx_command(EEPRO100State *s)
 {
+    EEPRO100Class *ek = EEPRO100_GET_CLASS(s);
+    const E100PCIDeviceInfo *info = ek->info;
     const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     uint32_t tbd_array = s->tx.tbd_array_addr;
     uint16_t tcb_bytes = s->tx.tcb_bytes & 0x3fff;
@@ -782,7 +782,7 @@ static void tx_command(EEPRO100State *s)
         uint16_t tx_buffer_size;
         uint16_t tx_buffer_el;
 
-        if (s->has_extended_tcb_support && !(s->configuration[6] & BIT(4))) {
+        if (info->has_extended_tcb_support && !(s->configuration[6] & BIT(4))) {
             /* Extended Flexible TCB. */
             for (; tbd_count < 2; tbd_count++) {
                 ldl_le_pci_dma(&s->dev, tbd_address, &tx_buffer_address, attrs);
