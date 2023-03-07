@@ -99,7 +99,18 @@ void sdl2_window_create(struct sdl2_console *scon)
                                          surface_width(scon->surface),
                                          surface_height(scon->surface),
                                          flags);
+    if (scon->opengl) {
+        const char *driver = "opengl";
+
+        if (scon->opts->gl == DISPLAYGL_MODE_ES) {
+            driver = "opengles2";
+        }
+
+        SDL_SetHint(SDL_HINT_RENDER_DRIVER, driver);
+        SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
+    }
     scon->real_renderer = SDL_CreateRenderer(scon->real_window, -1, 0);
+
     if (scon->opengl) {
         scon->winctx = SDL_GL_CreateContext(scon->real_window);
     }
