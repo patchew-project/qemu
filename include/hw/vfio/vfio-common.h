@@ -96,6 +96,19 @@ typedef struct VFIOContainer {
     QLIST_ENTRY(VFIOContainer) next;
 } VFIOContainer;
 
+typedef struct VFIODirtyTrackingRange {
+    hwaddr min32;
+    hwaddr max32;
+    hwaddr min64;
+    hwaddr max64;
+} VFIODirtyTrackingRange;
+
+typedef struct VFIODirtyRanges {
+    VFIOContainer *container;
+    VFIODirtyTrackingRange ranges;
+    MemoryListener listener;
+} VFIODirtyRanges;
+
 typedef struct VFIOGuestIOMMU {
     VFIOContainer *container;
     IOMMUMemoryRegion *iommu_mr;
