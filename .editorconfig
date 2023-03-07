@@ -47,3 +47,4 @@ emacs_mode = glsl
 [*.json]
 indent_style = space
 emacs_mode = python
+max_line_length = 70
