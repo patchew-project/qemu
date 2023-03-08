@@ -158,6 +158,7 @@ virtio_gpu_base_device_realize(DeviceState *qdev,
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
     VirtIOGPUBase *g = VIRTIO_GPU_BASE(qdev);
+    int connected = 1;
     int i;
 
     if (g->conf.max_outputs > VIRTIO_GPU_MAX_SCANOUTS) {
@@ -186,10 +187,15 @@ virtio_gpu_base_device_realize(DeviceState *qdev,
         virtio_add_queue(vdev, 16, cursor_cb);
     }
 
-    g->enabled_output_bitmask = 1;
+    if (virtio_gpu_connect_all_outputs(g->conf))
+        connected = g->conf.max_outputs;
 
-    g->req_state[0].width = g->conf.xres;
-    g->req_state[0].height = g->conf.yres;
+    g->enabled_output_bitmask = (1 << connected) - 1;
+
+    for (i = 0; i < connected; i++) {
+        g->req_state[i].width = g->conf.xres;
+        g->req_state[i].height = g->conf.yres;
+    }
 
     g->hw_ops = &virtio_gpu_ops;
     for (i = 0; i < g->conf.max_outputs; i++) {
