@@ -942,7 +942,7 @@ static void riscv_cpu_validate_v(CPURISCVState *env, RISCVCPUConfig *cfg,
 static void riscv_cpu_validate_priv_spec(RISCVCPU *cpu, Error **errp)
 {
     CPURISCVState *env = &cpu->env;
-    int i, priv_version = -1;
+    int priv_version = -1;
 
     if (cpu->cfg.priv_spec) {
         if (!g_strcmp0(cpu->cfg.priv_spec, "v1.12.0")) {
@@ -962,6 +962,12 @@ static void riscv_cpu_validate_priv_spec(RISCVCPU *cpu, Error **errp)
     if (priv_version >= PRIV_VERSION_1_10_0) {
         env->priv_ver = priv_version;
     }
+}
+
+static void riscv_cpu_disable_priv_spec_isa_exts(RISCVCPU *cpu)
+{
+    CPURISCVState *env = &cpu->env;
+    int i;
 
     /* Force disable extensions if priv spec version does not match */
     for (i = 0; i < ARRAY_SIZE(isa_edata_arr); i++) {
@@ -1182,6 +1188,12 @@ static void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
         cpu->cfg.ext_zksed = true;
         cpu->cfg.ext_zksh = true;
     }
+
+    /*
+     * Disable isa extensions based on priv spec after we
+     * validated and set everything we need.
+     */
+    riscv_cpu_disable_priv_spec_isa_exts(cpu);
 
     ext = riscv_get_misa_ext_with_cpucfg(&cpu->cfg);
 
