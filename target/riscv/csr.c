@@ -1347,6 +1347,11 @@ static RISCVException write_misa(CPURISCVState *env, int csrno,
         return RISCV_EXCP_NONE;
     }
 
+    /* Changing 'G' state is unsupported */
+    if (val & RVG) {
+        return RISCV_EXCP_NONE;
+    }
+
     /* 'I' or 'E' must be present */
     if (!(val & (RVI | RVE))) {
         /* It is not, drop write to misa */
