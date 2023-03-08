@@ -1209,11 +1209,13 @@
 # @stdout: only capture stdout
 # @stderr: only capture stderr
 # @all: capture both stdout and stderr
+# @all-merge: capture both stdout and stderr and merge together
+#             into stdout. not effective on windows guests.
 #
 # Since: 8.0
 ##
  { 'enum': 'GuestExecCaptureOutputMode',
-   'data': [ 'none', 'stdout', 'stderr', 'all' ] }
+   'data': [ 'none', 'stdout', 'stderr', 'all', 'all-merge' ] }
 
 ##
 # @GuestExecCaptureOutput:
