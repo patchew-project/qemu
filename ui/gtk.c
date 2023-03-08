@@ -340,6 +340,10 @@ static void gd_update_full_redraw(VirtualConsole *vc)
 {
     GtkWidget *area = vc->gfx.drawing_area;
     int ww, wh;
+
+    if (!gtk_widget_get_realized(area)) {
+        return;
+    }
     ww = gdk_window_get_width(gtk_widget_get_window(area));
     wh = gdk_window_get_height(gtk_widget_get_window(area));
 #if defined(CONFIG_OPENGL)
