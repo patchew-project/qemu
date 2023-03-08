@@ -485,6 +485,23 @@ class LinuxDistro:
                                   ' console=tty0'),
                  },
             },
+            '34': {
+                'x86_64':
+                {'checksum': ('b9b621b26725ba95442d9a56cbaa0547'
+                              '84e0779a9522ec6eafff07c6e6f717ea'),
+                 'pxeboot_url': ('https://archives.fedoraproject.org/'
+                                 'pub/archive/fedora/linux/releases/34/'
+                                 'Everything/x86_64/os/images/pxeboot/'),
+                 'kernel_hash': ('085fc6e47f2e3a271b591f3e56739ca9'
+                                 '4c16718837a5f431ab95468e1e95f9eb'),
+                 'initrd_hash': ('d6cd2e03e8188eed6c896fd65ff05f81'
+                                 '2c4c1c8777d630b5909e9a1a4627e337'),
+                 'kernel_params': ('root=UUID=386769a3-cfa5-47c8-8797-'
+                                   'd5ec58c9cb6c ro no_timer_check '
+                                   'net.ifnames=0 console=tty1 '
+                                   'console=ttyS0,115200n8'),
+                },
+            },
         }
     }
 
@@ -512,6 +529,16 @@ class LinuxDistro:
     def pxeboot_url(self):
         """Gets the repository url where pxeboot files can be found"""
         return self._info.get('pxeboot_url', None)
+
+    @property
+    def kernel_hash(self):
+        """Gets checksum of the pxeboot kernel image"""
+        return self._info.get('kernel_hash', None)
+
+    @property
+    def initrd_hash(self):
+        """Gets checksum of the pxeboot initrd image"""
+        return self._info.get('initrd_hash', None)
 
     @property
     def default_kernel_params(self):
