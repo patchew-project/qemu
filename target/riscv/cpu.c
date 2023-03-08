@@ -1045,15 +1045,15 @@ static void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
         cpu->cfg.ext_ifencei = true;
     }
 
-    if (cpu->cfg.ext_i && cpu->cfg.ext_e) {
-        error_setg(errp,
-                   "I and E extensions are incompatible");
+    /* We do not have RV32E support  */
+    if (cpu->cfg.ext_e) {
+        error_setg(errp, "E extension (RV32E) is not supported");
         return;
     }
 
-    if (!cpu->cfg.ext_i && !cpu->cfg.ext_e) {
-        error_setg(errp,
-                   "Either I or E extension must be set");
+    /* When RV32E is supported we'll need to check for either I or E */
+    if (!cpu->cfg.ext_i) {
+        error_setg(errp, "I extension must be set");
         return;
     }
 
