@@ -49,6 +49,7 @@
 
 #define EN_OPTSTR ":exportname="
 #define MAX_NBD_REQUESTS    16
+#define MAX_MULTI_CONN      16
 
 #define HANDLE_TO_INDEX(bs, handle) ((handle) ^ (uint64_t)(intptr_t)(bs))
 #define INDEX_TO_HANDLE(bs, index)  ((index)  ^ (uint64_t)(intptr_t)(bs))
@@ -98,6 +99,7 @@ typedef struct BDRVNBDState {
     /* Connection parameters */
     uint32_t reconnect_delay;
     uint32_t open_timeout;
+    uint32_t multi_conn;
     SocketAddress *saddr;
     char *export;
     char *tlscredsid;
@@ -1803,6 +1805,15 @@ static QemuOptsList nbd_runtime_opts = {
                     "attempts until successful or until @open-timeout seconds "
                     "have elapsed. Default 0",
         },
+        {
+            .name = "multi-conn",
+            .type = QEMU_OPT_NUMBER,
+            .help = "If > 1 permit up to this number of connections to the "
+                    "server. The server must also advertise multi-conn "
+                    "support.  If <= 1, only a single connection is made "
+                    "to the server even if the server advertises multi-conn. "
+                    "Default 1",
+        },
         { /* end of list */ }
     },
 };
@@ -1858,6 +1869,10 @@ static int nbd_process_options(BlockDriverState *bs, QDict *options,
 
     s->reconnect_delay = qemu_opt_get_number(opts, "reconnect-delay", 0);
     s->open_timeout = qemu_opt_get_number(opts, "open-timeout", 0);
+    s->multi_conn = qemu_opt_get_number(opts, "multi-conn", 1);
+    if (s->multi_conn > MAX_MULTI_CONN) {
+        s->multi_conn = MAX_MULTI_CONN;
+    }
 
     ret = 0;
 
@@ -1911,6 +1926,15 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
     open_timer_del(s);
 
     nbd_client_connection_enable_retry(s->conn);
+
+    /*
+     * We set s->multi_conn in nbd_process_options above, but now that
+     * we have connected if the server doesn't advertise that it is
+     * safe for multi-conn, force it to 1.
+     */
+    if (!(s->info.flags & NBD_FLAG_CAN_MULTI_CONN)) {
+        s->multi_conn = 1;
+    }
 
     return 0;
 
