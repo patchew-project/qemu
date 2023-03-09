@@ -19,6 +19,7 @@
 #include "hw/s390x/s390-virtio-ccw.h"
 #include "hw/s390x/cpu-topology.h"
 #include "qapi/qapi-commands-machine-target.h"
+#include "qapi/qapi-events-machine-target.h"
 
 /*
  * s390_topology is used to keep the topology information.
@@ -157,6 +158,7 @@ void s390_handle_ptf(S390CPU *cpu, uint8_t r1, uintptr_t ra)
             s390_topology.polarization = fc;
             s390_cpu_topology_set_changed(true);
             s390_topology_set_cpus_entitlement(fc);
+            qapi_event_send_cpu_polarization_change(fc);
             setcc(cpu, 0);
         }
         break;
