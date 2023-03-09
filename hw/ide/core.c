@@ -444,7 +444,7 @@ static void ide_trim_bh_cb(void *opaque)
     iocb->bh = NULL;
     qemu_aio_unref(iocb);
 
-    /* Paired with an increment in ide_issue_trim() */
+    /* Paired with an increment in ide_issue_trim_cb() */
     blk_dec_in_flight(blk);
 }
 
@@ -504,6 +504,14 @@ static void ide_issue_trim_cb(void *opaque, int ret)
 done:
     iocb->aiocb = NULL;
     if (iocb->bh) {
+        /*
+         * Paired with a decrement in ide_trim_bh_cb(): Ensure we have
+         * an in-flight count while this TrimAIOCB object lives.
+         * There is no ongoing blk_aio_pdiscard() operation anymore,
+         * so here we increment the counter manually before returning.
+         */
+        blk_inc_in_flight(s->blk);
+
         replay_bh_schedule_event(iocb->bh);
     }
 }
@@ -514,9 +522,6 @@ BlockAIOCB *ide_issue_trim(
 {
     IDEState *s = opaque;
     TrimAIOCB *iocb;
-
-    /* Paired with a decrement in ide_trim_bh_cb() */
-    blk_inc_in_flight(s->blk);
 
     iocb = blk_aio_get(&trim_aiocb_info, s->blk, cb, cb_opaque);
     iocb->s = s;
@@ -737,11 +742,17 @@ void ide_cancel_dma_sync(IDEState *s)
      * In the future we'll be able to safely cancel the I/O if the
      * whole DMA operation will be submitted to disk with a single
      * aio operation with preadv/pwritev.
+     *
+     * Note that TRIM operations call blk_aio_pdiscard() multiple
+     * times (and finally increment s->blk's in-flight counter while
+     * ide_trim_bh_cb() is scheduled), so we have to loop blk_drain()
+     * until the whole operation is done.
      */
     if (s->bus->dma->aiocb) {
         trace_ide_cancel_dma_sync_remaining();
-        blk_drain(s->blk);
-        assert(s->bus->dma->aiocb == NULL);
+        while (s->bus->dma->aiocb) {
+            blk_drain(s->blk);
+        }
     }
 }
 
