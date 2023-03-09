@@ -124,17 +124,22 @@ static void nbd_yank(void *opaque);
 static void nbd_clear_bdrvstate(BlockDriverState *bs)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
+    size_t i;
 
-    nbd_client_connection_release(s->conns[0]->conn);
-    s->conns[0]->conn = NULL;
+    for (i = 0; i < MAX_MULTI_CONN; ++i) {
+        if (s->conns[i]) {
+            nbd_client_connection_release(s->conns[i]->conn);
+            s->conns[i]->conn = NULL;
+
+            /* Must not leave timers behind that would access freed data */
+            assert(!s->conns[i]->reconnect_delay_timer);
+            assert(!s->conns[i]->open_timer);
+
+            g_free(s->conns[i]);
+        }
+    }
 
     yank_unregister_instance(BLOCKDEV_YANK_INSTANCE(bs->node_name));
-
-    /* Must not leave timers behind that would access freed data */
-    assert(!s->conns[0]->reconnect_delay_timer);
-    assert(!s->conns[0]->open_timer);
-
-    g_free(s->conns[0]);
 
     object_unref(OBJECT(s->tlscreds));
     qapi_free_SocketAddress(s->saddr);
@@ -1905,20 +1910,67 @@ static int nbd_process_options(BlockDriverState *bs, QDict *options,
     return ret;
 }
 
+static NBDConnState *init_conn_state(BDRVNBDState *s)
+{
+    NBDConnState *cs;
+
+    cs = g_new0(NBDConnState, 1);
+    cs->s = s;
+    qemu_mutex_init(&cs->requests_lock);
+    qemu_co_queue_init(&cs->free_sema);
+    qemu_co_mutex_init(&cs->send_mutex);
+    qemu_co_mutex_init(&cs->receive_mutex);
+
+    return cs;
+}
+
+static int conn_state_connect(BlockDriverState *bs, NBDConnState *cs,
+                              Error **errp)
+{
+    BDRVNBDState *s = cs->s;
+    int ret;
+
+    cs->conn =
+        nbd_client_connection_new(s->saddr, true, s->export,
+                                  s->x_dirty_bitmap, s->tlscreds,
+                                  s->tlshostname);
+
+    if (s->open_timeout) {
+        nbd_client_connection_enable_retry(cs->conn);
+        open_timer_init(cs, qemu_clock_get_ns(QEMU_CLOCK_REALTIME) +
+                        s->open_timeout * NANOSECONDS_PER_SECOND);
+    }
+
+    cs->state = NBD_CLIENT_CONNECTING_WAIT;
+    ret = nbd_do_establish_connection(bs, cs, true, errp);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    /*
+     * The connect attempt is done, so we no longer need this timer.
+     * Delete it, because we do not want it to be around when this node
+     * is drained or closed.
+     */
+    open_timer_del(cs);
+
+    nbd_client_connection_enable_retry(cs->conn);
+
+    return 0;
+
+fail:
+    open_timer_del(cs);
+    return ret;
+}
+
 static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
     int ret;
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
+    size_t i;
 
     s->bs = bs;
-
-    s->conns[0] = g_new0(NBDConnState, 1);
-    s->conns[0]->s = s;
-    qemu_mutex_init(&s->conns[0]->requests_lock);
-    qemu_co_queue_init(&s->conns[0]->free_sema);
-    qemu_co_mutex_init(&s->conns[0]->send_mutex);
-    qemu_co_mutex_init(&s->conns[0]->receive_mutex);
 
     if (!yank_register_instance(BLOCKDEV_YANK_INSTANCE(bs->node_name), errp)) {
         return -EEXIST;
@@ -1929,31 +1981,15 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    s->conns[0]->conn =
-        nbd_client_connection_new(s->saddr, true, s->export,
-                                  s->x_dirty_bitmap, s->tlscreds,
-                                  s->tlshostname);
+    /*
+     * Open the first NBD connection.
+     */
+    s->conns[0] = init_conn_state(s);
 
-    if (s->open_timeout) {
-        nbd_client_connection_enable_retry(s->conns[0]->conn);
-        open_timer_init(s->conns[0], qemu_clock_get_ns(QEMU_CLOCK_REALTIME) +
-                        s->open_timeout * NANOSECONDS_PER_SECOND);
-    }
-
-    s->conns[0]->state = NBD_CLIENT_CONNECTING_WAIT;
-    ret = nbd_do_establish_connection(bs, s->conns[0], true, errp);
+    ret = conn_state_connect(bs, s->conns[0], errp);
     if (ret < 0) {
         goto fail;
     }
-
-    /*
-     * The connect attempt is done, so we no longer need this timer.
-     * Delete it, because we do not want it to be around when this node
-     * is drained or closed.
-     */
-    open_timer_del(s->conns[0]);
-
-    nbd_client_connection_enable_retry(s->conns[0]->conn);
 
     /*
      * We set s->multi_conn in nbd_process_options above, but now that
@@ -1964,10 +2000,21 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
         s->multi_conn = 1;
     }
 
+    /*
+     * Open remaining multi-conn NBD connections (if any).
+     */
+    for (i = 1; i < s->multi_conn; ++i) {
+        s->conns[i] = init_conn_state(s);
+
+        ret = conn_state_connect(bs, s->conns[i], errp);
+        if (ret < 0) {
+            goto fail;
+        }
+    }
+
     return 0;
 
 fail:
-    open_timer_del(s->conns[0]);
     nbd_clear_bdrvstate(bs);
     return ret;
 }
@@ -2015,8 +2062,13 @@ static void nbd_refresh_limits(BlockDriverState *bs, Error **errp)
 static void nbd_close(BlockDriverState *bs)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
+    size_t i;
 
-    nbd_client_close(s->conns[0]);
+    for (i = 0; i < MAX_MULTI_CONN; ++i) {
+        if (s->conns[i]) {
+            nbd_client_close(s->conns[i]);
+        }
+    }
     nbd_clear_bdrvstate(bs);
 }
 
