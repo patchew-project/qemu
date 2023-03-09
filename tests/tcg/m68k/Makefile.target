@@ -4,6 +4,7 @@
 #
 
 VPATH += $(SRC_PATH)/tests/tcg/m68k
+TESTS += excp-address
 TESTS += trap
 
 # On m68k Linux supports 4k and 8k pages (but 8k is currently broken)

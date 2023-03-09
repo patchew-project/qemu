@@ -35,7 +35,10 @@ void cpu_loop(CPUM68KState *env)
         cpu_exec_end(cs);
         process_queued_cpu_work(cs);
 
-        switch(trapnr) {
+        switch (trapnr) {
+        case EXCP_ADDRESS:
+            force_sig_fault(TARGET_SIGBUS, TARGET_BUS_ADRALN, env->pc);
+            break;
         case EXCP_ILLEGAL:
         case EXCP_LINEA:
         case EXCP_LINEF:
