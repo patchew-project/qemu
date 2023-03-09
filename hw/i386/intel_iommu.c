@@ -2312,11 +2312,12 @@ static void vtd_handle_gcmd_qie(IntelIOMMUState *s, bool en)
 /* Set Root Table Pointer */
 static void vtd_handle_gcmd_srtp(IntelIOMMUState *s)
 {
+    vtd_set_clear_mask_long(s, DMAR_GSTS_REG, VTD_GSTS_RTPS, 0);
     vtd_root_table_setup(s);
-    /* Ok - report back to driver */
-    vtd_set_clear_mask_long(s, DMAR_GSTS_REG, 0, VTD_GSTS_RTPS);
     vtd_reset_caches(s);
     vtd_address_space_refresh_all(s);
+    /* Ok - report back to driver */
+    vtd_set_clear_mask_long(s, DMAR_GSTS_REG, 0, VTD_GSTS_RTPS);
 }
 
 /* Set Interrupt Remap Table Pointer */
@@ -2338,19 +2339,22 @@ static void vtd_handle_gcmd_te(IntelIOMMUState *s, bool en)
 
     if (en) {
         s->dmar_enabled = true;
-        /* Ok - report back to driver */
-        vtd_set_clear_mask_long(s, DMAR_GSTS_REG, 0, VTD_GSTS_TES);
     } else {
         s->dmar_enabled = false;
 
         /* Clear the index of Fault Recording Register */
         s->next_frcd_reg = 0;
-        /* Ok - report back to driver */
-        vtd_set_clear_mask_long(s, DMAR_GSTS_REG, VTD_GSTS_TES, 0);
     }
 
     vtd_reset_caches(s);
     vtd_address_space_refresh_all(s);
+
+    /* Ok - report back to driver */
+    if (en) {
+        vtd_set_clear_mask_long(s, DMAR_GSTS_REG, 0, VTD_GSTS_TES);
+    } else {
+        vtd_set_clear_mask_long(s, DMAR_GSTS_REG, VTD_GSTS_TES, 0);
+    }
 }
 
 /* Handle Interrupt Remap Enable/Disable */
