@@ -1232,6 +1232,26 @@ static int coroutine_fn nbd_co_request(NBDConnState *cs, NBDRequest *request,
     return ret ? ret : request_ret;
 }
 
+/*
+ * If multi-conn, choose a connection for this operation.
+ */
+static NBDConnState *choose_connection(BDRVNBDState *s)
+{
+    static size_t next;
+    size_t i;
+
+    if (s->multi_conn <= 1) {
+        return s->conns[0];
+    }
+
+    /* XXX Stupid simple round robin. */
+    i = qatomic_fetch_inc(&next);
+    i %= s->multi_conn;
+
+    assert(s->conns[i] != NULL);
+    return s->conns[i];
+}
+
 static int coroutine_fn nbd_client_co_preadv(BlockDriverState *bs, int64_t offset,
                                              int64_t bytes, QEMUIOVector *qiov,
                                              BdrvRequestFlags flags)
@@ -1244,7 +1264,7 @@ static int coroutine_fn nbd_client_co_preadv(BlockDriverState *bs, int64_t offse
         .from = offset,
         .len = bytes,
     };
-    NBDConnState * const cs = s->conns[0];
+    NBDConnState * const cs = choose_connection(s);
 
     assert(bytes <= NBD_MAX_BUFFER_SIZE);
 
@@ -1301,7 +1321,7 @@ static int coroutine_fn nbd_client_co_pwritev(BlockDriverState *bs, int64_t offs
         .from = offset,
         .len = bytes,
     };
-    NBDConnState * const cs = s->conns[0];
+    NBDConnState * const cs = choose_connection(s);
 
     assert(!(cs->info.flags & NBD_FLAG_READ_ONLY));
     if (flags & BDRV_REQ_FUA) {
@@ -1326,7 +1346,7 @@ static int coroutine_fn nbd_client_co_pwrite_zeroes(BlockDriverState *bs, int64_
         .from = offset,
         .len = bytes,  /* .len is uint32_t actually */
     };
-    NBDConnState * const cs = s->conns[0];
+    NBDConnState * const cs = choose_connection(s);
 
     assert(bytes <= UINT32_MAX); /* rely on max_pwrite_zeroes */
 
@@ -1357,7 +1377,13 @@ static int coroutine_fn nbd_client_co_flush(BlockDriverState *bs)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
     NBDRequest request = { .type = NBD_CMD_FLUSH };
-    NBDConnState * const cs = s->conns[0];
+
+    /*
+     * Multi-conn (if used) guarantees that flushing on any connection
+     * flushes caches on all connections, so we can perform this
+     * operation on any.
+     */
+    NBDConnState * const cs = choose_connection(s);
 
     if (!(cs->info.flags & NBD_FLAG_SEND_FLUSH)) {
         return 0;
@@ -1378,7 +1404,7 @@ static int coroutine_fn nbd_client_co_pdiscard(BlockDriverState *bs, int64_t off
         .from = offset,
         .len = bytes, /* len is uint32_t */
     };
-    NBDConnState * const cs = s->conns[0];
+    NBDConnState * const cs = choose_connection(s);
 
     assert(bytes <= UINT32_MAX); /* rely on max_pdiscard */
 
@@ -1398,7 +1424,7 @@ static int coroutine_fn nbd_client_co_block_status(
     NBDExtent extent = { 0 };
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
     Error *local_err = NULL;
-    NBDConnState * const cs = s->conns[0];
+    NBDConnState * const cs = choose_connection(s);
 
     NBDRequest request = {
         .type = NBD_CMD_BLOCK_STATUS,
@@ -2027,7 +2053,7 @@ static int coroutine_fn nbd_co_flush(BlockDriverState *bs)
 static void nbd_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
-    NBDConnState * const cs = s->conns[0];
+    NBDConnState * const cs = choose_connection(s);
     uint32_t min = cs->info.min_block;
     uint32_t max = MIN_NON_ZERO(NBD_MAX_BUFFER_SIZE, cs->info.max_block);
 
@@ -2085,7 +2111,7 @@ static int coroutine_fn nbd_co_truncate(BlockDriverState *bs, int64_t offset,
                                         BdrvRequestFlags flags, Error **errp)
 {
     BDRVNBDState *s = bs->opaque;
-    NBDConnState * const cs = s->conns[0];
+    NBDConnState * const cs = choose_connection(s);
 
     if (offset != cs->info.size && exact) {
         error_setg(errp, "Cannot resize NBD nodes");
@@ -2168,24 +2194,29 @@ static const char *const nbd_strong_runtime_opts[] = {
 static void nbd_cancel_in_flight(BlockDriverState *bs)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
-    NBDConnState * const cs = s->conns[0];
+    size_t i;
+    NBDConnState *cs;
 
-    reconnect_delay_timer_del(cs);
+    for (i = 0; i < MAX_MULTI_CONN; ++i) {
+        cs = s->conns[i];
 
-    qemu_mutex_lock(&cs->requests_lock);
-    if (cs->state == NBD_CLIENT_CONNECTING_WAIT) {
-        cs->state = NBD_CLIENT_CONNECTING_NOWAIT;
+        reconnect_delay_timer_del(cs);
+
+        qemu_mutex_lock(&cs->requests_lock);
+        if (cs->state == NBD_CLIENT_CONNECTING_WAIT) {
+            cs->state = NBD_CLIENT_CONNECTING_NOWAIT;
+        }
+        qemu_mutex_unlock(&cs->requests_lock);
+
+        nbd_co_establish_connection_cancel(cs->conn);
     }
-    qemu_mutex_unlock(&cs->requests_lock);
-
-    nbd_co_establish_connection_cancel(cs->conn);
 }
 
 static void nbd_attach_aio_context(BlockDriverState *bs,
                                    AioContext *new_context)
 {
     BDRVNBDState *s = bs->opaque;
-    NBDConnState * const cs = s->conns[0];
+    NBDConnState * const cs = choose_connection(s);
 
     /* The open_timer is used only during nbd_open() */
     assert(!cs->open_timer);
@@ -2209,7 +2240,7 @@ static void nbd_attach_aio_context(BlockDriverState *bs,
 static void nbd_detach_aio_context(BlockDriverState *bs)
 {
     BDRVNBDState *s = bs->opaque;
-    NBDConnState * const cs = s->conns[0];
+    NBDConnState * const cs = choose_connection(s);
 
     assert(!cs->open_timer);
     assert(!cs->reconnect_delay_timer);
