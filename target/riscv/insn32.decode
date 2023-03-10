@@ -908,3 +908,6 @@ sm4ks       .. 11010 ..... ..... 000 ..... 0110011 @k_aes
 # *** RV32 Zicond Standard Extension ***
 czero_eqz   0000111  ..... ..... 101 ..... 0110011 @r
 czero_nez   0000111  ..... ..... 111 ..... 0110011 @r
+
+# *** RV64 Zvkb vector crypto extension ***
+vclmul_vv       001100 . ..... ..... 010 ..... 1010111 @r_vm
