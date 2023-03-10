@@ -1472,6 +1472,7 @@ static Property riscv_cpu_extensions[] = {
 
     /* Vector cryptography extensions */
     DEFINE_PROP_BOOL("x-zvkb", RISCVCPU, cfg.ext_zvkb, false),
+    DEFINE_PROP_BOOL("x-zvkned", RISCVCPU, cfg.ext_zvkned, false),
 
     DEFINE_PROP_END_OF_LIST(),
 };
