@@ -87,3 +87,4 @@ static bool vclmul_vx_check(DisasContext *s, arg_rmrr *a)
 }
 
 GEN_VX_MASKED_TRANS(vclmul_vx, vclmul_vx_check)
+GEN_VX_MASKED_TRANS(vclmulh_vx, vclmul_vx_check)
