@@ -38,6 +38,11 @@ void helper_raise_exception(CPURISCVState *env, uint32_t exception)
     riscv_raise_exception(env, exception, 0);
 }
 
+void helper_restore_cpu_and_raise_exception(CPURISCVState *env, uint32_t exception)
+{
+    riscv_raise_exception(env, exception, GETPC());
+}
+
 target_ulong helper_csrr(CPURISCVState *env, int csr)
 {
     /*
