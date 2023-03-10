@@ -88,3 +88,60 @@ static bool vclmul_vx_check(DisasContext *s, arg_rmrr *a)
 
 GEN_VX_MASKED_TRANS(vclmul_vx, vclmul_vx_check)
 GEN_VX_MASKED_TRANS(vclmulh_vx, vclmul_vx_check)
+
+#define GEN_OPIVI_GVEC_TRANS_CHECK(NAME, IMM_MODE, OPIVX, SUF, CHECK) \
+static bool trans_##NAME(DisasContext *s, arg_rmrr *a)                \
+{                                                                     \
+    if (CHECK(s, a)) {                                                \
+        static gen_helper_opivx * const fns[4] = {                    \
+            gen_helper_##OPIVX##_b, gen_helper_##OPIVX##_h,           \
+            gen_helper_##OPIVX##_w, gen_helper_##OPIVX##_d,           \
+        };                                                            \
+        return do_opivi_gvec(s, a, tcg_gen_gvec_##SUF,                \
+                             fns[s->sew], IMM_MODE);                  \
+    }                                                                 \
+    return false;                                                     \
+}
+
+#define GEN_OPIVV_GVEC_TRANS_CHECK(NAME, SUF, CHECK)                 \
+static bool trans_##NAME(DisasContext *s, arg_rmrr *a)               \
+{                                                                    \
+    if (CHECK(s, a)) {                                               \
+        static gen_helper_gvec_4_ptr * const fns[4] = {              \
+            gen_helper_##NAME##_b, gen_helper_##NAME##_h,            \
+            gen_helper_##NAME##_w, gen_helper_##NAME##_d,            \
+        };                                                           \
+        return do_opivv_gvec(s, a, tcg_gen_gvec_##SUF, fns[s->sew]); \
+    }                                                                \
+    return false;                                                    \
+}
+
+#define GEN_OPIVX_GVEC_SHIFT_TRANS_CHECK(NAME, SUF, CHECK)                 \
+static bool trans_##NAME(DisasContext *s, arg_rmrr *a)                     \
+{                                                                          \
+    if (CHECK(s, a)) {                                                     \
+        static gen_helper_opivx * const fns[4] = {                         \
+            gen_helper_##NAME##_b, gen_helper_##NAME##_h,                  \
+            gen_helper_##NAME##_w, gen_helper_##NAME##_d,                  \
+        };                                                                 \
+        return do_opivx_gvec_shift(s, a, tcg_gen_gvec_##SUF, fns[s->sew]); \
+    }                                                                      \
+    return false;                                                          \
+}
+
+static void tcg_gen_gvec_rotrs(unsigned vece, uint32_t dofs, uint32_t aofs,
+                               TCGv_i32 shift, uint32_t oprsz, uint32_t maxsz)
+{
+    TCGv_i32 tmp = tcg_temp_new_i32();
+    tcg_gen_sub_i32(tmp, tcg_constant_i32(1 << (vece + 3)), shift);
+    tcg_gen_gvec_rotls(vece, dofs, aofs, tmp, oprsz, maxsz);
+}
+
+/* vrol.v[vx] */
+GEN_OPIVV_GVEC_TRANS_CHECK(vrol_vv, rotlv, zvkb_vv_check)
+GEN_OPIVX_GVEC_SHIFT_TRANS_CHECK(vrol_vx, rotls, zvkb_vx_check)
+
+/* vror.v[vxi] */
+GEN_OPIVV_GVEC_TRANS_CHECK(vror_vv, rotrv, zvkb_vv_check)
+GEN_OPIVX_GVEC_SHIFT_TRANS_CHECK(vror_vx, rotrs, zvkb_vx_check)
+GEN_OPIVI_GVEC_TRANS_CHECK(vror_vi, IMM_ZIMM6, vror_vx, rotri, zvkb_vx_check)

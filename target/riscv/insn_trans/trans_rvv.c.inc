@@ -1374,6 +1374,7 @@ GEN_OPIVX_GVEC_TRANS(vrsub_vx, rsubs)
 typedef enum {
     IMM_ZX,         /* Zero-extended */
     IMM_SX,         /* Sign-extended */
+    IMM_ZIMM6,      /* Truncate to 6 bits */
     IMM_TRUNC_SEW,  /* Truncate to log(SEW) bits */
     IMM_TRUNC_2SEW, /* Truncate to log(2*SEW) bits */
 } imm_mode_t;
@@ -1389,6 +1390,8 @@ static int64_t extract_imm(DisasContext *s, uint32_t imm, imm_mode_t imm_mode)
         return extract64(imm, 0, s->sew + 3);
     case IMM_TRUNC_2SEW:
         return extract64(imm, 0, s->sew + 4);
+    case IMM_ZIMM6:
+        return extract64(imm, 0, 6);
     default:
         g_assert_not_reached();
     }
