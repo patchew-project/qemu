@@ -80,3 +80,5 @@ static bool vsha_check(DisasContext *s, arg_rmrr *a)
 }
 
 GEN_VV_UNMASKED_TRANS(vsha2ms_vv, vsha_check, 4)
+GEN_VV_UNMASKED_TRANS(vsha2cl_vv, vsha_check, 4)
+GEN_VV_UNMASKED_TRANS(vsha2ch_vv, vsha_check, 4)
