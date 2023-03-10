@@ -929,3 +929,4 @@ vandn_vx        000001 . ..... ..... 100 ..... 1010111 @r_vm
 
 # *** RV64 Zvkned vector crypto extension ***
 vaesef_vv       101000 1 ..... 00011 010 ..... 1110111 @r2_vm_1
+vaesef_vs       101001 1 ..... 00011 010 ..... 1110111 @r2_vm_1
