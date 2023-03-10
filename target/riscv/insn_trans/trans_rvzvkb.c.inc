@@ -38,6 +38,7 @@ static bool vclmul_vv_check(DisasContext *s, arg_rmrr *a)
 }
 
 GEN_VV_MASKED_TRANS(vclmul_vv, vclmul_vv_check)
+GEN_VV_MASKED_TRANS(vclmulh_vv, vclmul_vv_check)
 
 #define GEN_VX_MASKED_TRANS(NAME, CHECK)                                \
 static bool trans_##NAME(DisasContext *s, arg_rmrr *a)                  \

@@ -38,7 +38,20 @@ static uint64_t clmul64(uint64_t y, uint64_t x)
     return result;
 }
 
+static uint64_t clmulh64(uint64_t y, uint64_t x)
+{
+    uint64_t result = 0;
+    for (int j = 63; j >= 1; j--) {
+        if ((y >> j) & 1) {
+            result ^= (x >> (64 - j));
+        }
+    }
+    return result;
+}
+
 RVVCALL(OPIVV2, vclmul_vv, OP_UUU_D, H8, H8, H8, clmul64)
 GEN_VEXT_VV(vclmul_vv, 8)
 RVVCALL(OPIVX2, vclmul_vx, OP_UUU_D, H8, H8, clmul64)
 GEN_VEXT_VX(vclmul_vx, 8)
+RVVCALL(OPIVV2, vclmulh_vv, OP_UUU_D, H8, H8, H8, clmulh64)
+GEN_VEXT_VV(vclmulh_vv, 8)
