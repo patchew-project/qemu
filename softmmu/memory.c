@@ -815,7 +815,7 @@ FlatView *address_space_get_flatview(AddressSpace *as)
 
     RCU_READ_LOCK_GUARD();
     do {
-        view = address_space_to_flatview(as);
+        view = address_space_to_flatview_rcu(as);
         /* If somebody has replaced as->current_map concurrently,
          * flatview_ref returns false.
          */

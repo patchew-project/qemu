@@ -1100,6 +1100,9 @@ bool memory_region_transaction_in_progress(void);
 
 void memory_region_transaction_do_commit(void);
 
+/*
+ * We recommend using this by default.
+ */
 static inline FlatView *address_space_to_flatview(AddressSpace *as)
 {
     if (qemu_mutex_iothread_locked()) {
@@ -1120,6 +1123,23 @@ static inline FlatView *address_space_to_flatview(AddressSpace *as)
 
     /* Otherwise we must have had the RCU lock or something went wrong */
     assert(rcu_read_is_locked());
+    return qatomic_rcu_read(&as->current_map);
+}
+
+/*
+ * We recommend using address_space_to_flatview() rather than this one.
+ * Note that if we use this during a memory region transaction, we may
+ * see obsolete flatviews. We must bear with an obsolete map until commit.
+ * And outside a memory region transaction, this is basically the same as
+ * address_space_to_flatview().
+ */
+static inline FlatView *address_space_to_flatview_rcu(AddressSpace *as)
+{
+    /*
+     * Before using any flatview, sanity check BQL or RCU is held.
+     */
+    assert(qemu_mutex_iothread_locked() || rcu_read_is_locked());
+
     return qatomic_rcu_read(&as->current_map);
 }
 
