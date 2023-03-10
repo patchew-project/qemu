@@ -28,3 +28,13 @@ static bool vgmul_check(DisasContext *s, arg_rmr *a)
 }
 
 GEN_V_UNMASKED_TRANS(vgmul_vv, vgmul_check)
+
+static bool vghsh_check(DisasContext *s, arg_rmrr *a)
+{
+    return s->cfg_ptr->ext_zvkg == true &&
+            opivv_check(s, a) &&
+            MAXSZ(s) >= (128 / 8) && /* EGW in bytes */
+            s->vstart % 4 == 0 && s->sew == MO_32;
+}
+
+GEN_VV_UNMASKED_TRANS(vghsh_vv, vghsh_check, 4)
