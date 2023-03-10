@@ -154,4 +154,17 @@ static bool vaeskf1_check(DisasContext *s, arg_vaeskf1_vi * a)
            require_align(a->rs2, s->lmul);
 }
 
+static bool vaeskf2_check(DisasContext *s, arg_vaeskf2_vi *a)
+{
+    return s->cfg_ptr->ext_zvkned == true &&
+           require_rvv(s) &&
+           vext_check_isa_ill(s) &&
+           MAXSZ(s) >= (128 / 8) && /* EGW in bytes */
+           s->vstart % 4 == 0 &&
+           s->sew == MO_32 &&
+           require_align(a->rd, s->lmul) &&
+           require_align(a->rs2, s->lmul);
+}
+
 GEN_VI_UNMASKED_TRANS(vaeskf1_vi, vaeskf1_check, 4)
+GEN_VI_UNMASKED_TRANS(vaeskf2_vi, vaeskf2_check, 4)
