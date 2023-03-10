@@ -69,4 +69,24 @@ static bool vaes_check_vv(DisasContext *s, arg_rmr *a)
            require_align(a->rs2, s->lmul) &&
            s->vstart % 4 == 0 && s->sew == MO_32;
 }
+
+static bool vaes_check_overlap(DisasContext *s, int vd, int vs2)
+{
+    int8_t op_size = s->lmul <= 0 ? 1 : 1 << s->lmul;
+    return !is_overlapped(vd, op_size, vs2, 1);
+}
+
+static bool vaes_check_vs(DisasContext *s, arg_rmr *a)
+{
+    return vaes_check_overlap(s, a->rd, a->rs2) &&
+           MAXSZ(s) >= (128 / 8) && /* EGW in bytes */
+           s->cfg_ptr->ext_zvkned == true &&
+           require_rvv(s) &&
+           vext_check_isa_ill(s) &&
+           require_align(a->rd, s->lmul) &&
+           s->vstart % 4 == 0 &&
+           s->sew == MO_32;
+}
+
 GEN_V_UNMASKED_TRANS(vaesef_vv, vaes_check_vv)
+GEN_V_UNMASKED_TRANS(vaesef_vs, vaes_check_vs)
