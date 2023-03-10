@@ -34,4 +34,10 @@ static inline bool vsm3me_check(DisasContext *s, arg_rmrr *a)
     return vsm3_check(s, a) && vext_check_sss(s, a->rd, a->rs1, a->rs2, a->vm);
 }
 
+static inline bool vsm3c_check(DisasContext *s, arg_rmrr *a)
+{
+    return vsm3_check(s, a) && vext_check_ss(s, a->rd, a->rs2, a->vm);
+}
+
 GEN_VV_UNMASKED_TRANS(vsm3me_vv, vsm3me_check, 8)
+GEN_VI_UNMASKED_TRANS(vsm3c_vi, vsm3c_check, 8)
