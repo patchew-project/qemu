@@ -68,4 +68,6 @@ const char *qdict_get_try_str(const QDict *qdict, const char *key);
 
 QDict *qdict_clone_shallow(const QDict *src);
 
+int dict_key_compare(QDictEntry **entry1, QDictEntry **entry2);
+
 #endif /* QDICT_H */
