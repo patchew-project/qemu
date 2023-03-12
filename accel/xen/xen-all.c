@@ -30,17 +30,13 @@ xc_interface *xen_xc;
 xenforeignmemory_handle *xen_fmem;
 xendevicemodel_handle *xen_dmod;
 
-static void xenstore_record_dm_state(const char *state)
+static void xenstore_record_dm_state(struct xs_handle *xs, const char *state)
 {
-    struct xs_handle *xs;
+    static bool completed;
     char path[50];
 
-    /* We now have everything we need to set the xenstore entry. */
-    xs = xs_open(0);
-    if (xs == NULL) {
-        fprintf(stderr, "Could not contact XenStore\n");
-        exit(1);
-    }
+    if (completed)
+        return;
 
     snprintf(path, sizeof (path), "device-model/%u/state", xen_domid);
     /*
@@ -53,6 +49,7 @@ static void xenstore_record_dm_state(const char *state)
         exit(1);
     }
 
+    completed = true;
     xs_close(xs);
 }
 
@@ -60,9 +57,10 @@ static void xenstore_record_dm_state(const char *state)
 static void xen_change_state_handler(void *opaque, bool running,
                                      RunState state)
 {
+    struct xs_handle *xs = opaque;
     if (running) {
         /* record state running */
-        xenstore_record_dm_state("running");
+        xenstore_record_dm_state(xs, "running");
     }
 }
 
@@ -92,6 +90,7 @@ static void xen_setup_post(MachineState *ms, AccelState *accel)
 static int xen_init(MachineState *ms)
 {
     MachineClass *mc = MACHINE_GET_CLASS(ms);
+    struct xs_handle *xs;
 
     xen_xc = xc_interface_open(0, 0, 0);
     if (xen_xc == NULL) {
@@ -111,7 +110,14 @@ static int xen_init(MachineState *ms)
         xc_interface_close(xen_xc);
         return -1;
     }
-    qemu_add_vm_change_state_handler(xen_change_state_handler, NULL);
+
+    xs = xs_open(0);
+    if (xs == NULL) {
+        fprintf(stderr, "Could not contact XenStore\n");
+        exit(1);
+    }
+
+    qemu_add_vm_change_state_handler(xen_change_state_handler, xs);
     /*
      * opt out of system RAM being allocated by generic code
      */
