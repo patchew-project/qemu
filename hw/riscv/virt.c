@@ -1287,7 +1287,10 @@ static void virt_machine_done(Notifier *notifier, void *data)
                                                          firmware_end_addr);
 
         kernel_entry = riscv_load_kernel(machine, &s->soc[0],
-                                         kernel_start_addr, true, NULL);
+                                         kernel_start_addr, true,
+                                         memmap[VIRT_DRAM].base,
+                                         memmap[VIRT_DRAM].size,
+                                         NULL);
     } else {
        /*
         * If dynamic firmware is used, it doesn't know where is the next mode

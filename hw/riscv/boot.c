@@ -173,13 +173,14 @@ target_ulong riscv_load_firmware(const char *firmware_filename,
     exit(1);
 }
 
-static void riscv_load_initrd(MachineState *machine, uint64_t kernel_entry)
+static void riscv_load_initrd(MachineState *machine, uint64_t kernel_entry,
+                              uint64_t ram_base, uint64_t ram_size)
 {
     const char *filename = machine->initrd_filename;
-    uint64_t mem_size = machine->ram_size;
     void *fdt = machine->fdt;
     hwaddr start, end;
     ssize_t size;
+    uint64_t max_initrd;
 
     g_assert(filename != NULL);
 
@@ -193,12 +194,16 @@ static void riscv_load_initrd(MachineState *machine, uint64_t kernel_entry)
      * So for boards with less  than 256MB of RAM we put the initrd
      * halfway into RAM, and for boards with 256MB of RAM or more we put
      * the initrd at 128MB.
+     * A ram_size == 0, usually from a MemMapEntry[].size element,
+     * means that the RAM block goes all the way to ms->ram_size.
      */
-    start = kernel_entry + MIN(mem_size / 2, 128 * MiB);
+    ram_size = ram_size ? MIN(machine->ram_size, ram_size) : machine->ram_size;
+    start = kernel_entry + MIN(ram_size / 2, 128 * MiB);
+    max_initrd = ram_size - (start - ram_base);
 
-    size = load_ramdisk(filename, start, mem_size - start);
+    size = load_ramdisk(filename, start, max_initrd);
     if (size == -1) {
-        size = load_image_targphys(filename, start, mem_size - start);
+        size = load_image_targphys(filename, start, max_initrd);
         if (size == -1) {
             error_report("could not load ramdisk '%s'", filename);
             exit(1);
@@ -217,6 +222,8 @@ target_ulong riscv_load_kernel(MachineState *machine,
                                RISCVHartArrayState *harts,
                                target_ulong kernel_start_addr,
                                bool load_initrd,
+                               uint64_t ram_base,
+                               uint64_t ram_size,
                                symbol_fn_t sym_cb)
 {
     const char *kernel_filename = machine->kernel_filename;
@@ -263,7 +270,7 @@ out:
     }
 
     if (load_initrd && machine->initrd_filename) {
-        riscv_load_initrd(machine, kernel_entry);
+        riscv_load_initrd(machine, kernel_entry, ram_base, ram_size);
     }
 
     if (fdt && machine->kernel_cmdline && *machine->kernel_cmdline) {

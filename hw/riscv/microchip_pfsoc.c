@@ -630,7 +630,10 @@ static void microchip_icicle_kit_machine_init(MachineState *machine)
                                                          firmware_end_addr);
 
         kernel_entry = riscv_load_kernel(machine, &s->soc.u_cpus,
-                                         kernel_start_addr, true, NULL);
+                                         kernel_start_addr, true,
+                                         memmap[MICROCHIP_PFSOC_DRAM_LO].base,
+                                         memmap[MICROCHIP_PFSOC_DRAM_LO].size,
+                                         NULL);
 
         /* Compute the fdt load address in dram */
         fdt_load_addr = riscv_compute_fdt_addr(memmap[MICROCHIP_PFSOC_DRAM_LO].base,
