@@ -246,6 +246,8 @@ extern const char *host_net_devices[];
 extern NetClientStateList net_clients;
 bool netdev_is_modern(const char *optarg);
 void netdev_parse_modern(const char *optarg);
+Netdev *netdev_find_modern(const char *id);
+void netdev_set_modern(Netdev *net, const char *arg, Error **errp);
 void net_client_parse(QemuOptsList *opts_list, const char *str);
 void show_netdevs(void);
 void net_init_clients(void);

@@ -1624,6 +1624,41 @@ out:
     return ret;
 }
 
+Netdev *netdev_find_modern(const char *id)
+{
+    NetdevQueueEntry *e;
+
+    QSIMPLEQ_FOREACH(e, &nd_queue, entry) {
+        if (strcmp(id, e->nd->id) == 0) {
+            return e->nd;
+        }
+    }
+    return NULL;
+}
+
+void netdev_set_modern(Netdev *net, const char *arg, Error **errp)
+{
+    Visitor *v;
+    char *id = net->id;
+    char *opts = g_strdup_printf("type=%s,id=%s,%s",
+                                 NetClientDriver_lookup.array[net->type],
+                                 id, arg);
+
+    v = qobject_input_visitor_new_str(opts, NULL, errp);
+    if (!visit_start_struct(v, NULL, NULL, 0, errp)) {
+        goto out;
+    }
+    if (visit_type_Netdev_members(v, net, errp)) {
+        g_free(id); /* re-allocated in visit_type_Netdev_members() */
+        visit_check_struct(v, errp);
+        visit_end_struct(v, NULL);
+    }
+
+out:
+    visit_free(v);
+    g_free(opts);
+}
+
 static void netdev_init_modern(void)
 {
     while (!QSIMPLEQ_EMPTY(&nd_queue)) {

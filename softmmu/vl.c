@@ -2162,6 +2162,14 @@ static void qemu_set_option(const char *str, Error **errp)
     if (!is_qemuopts_group(group)) {
         error_setg(errp, "-set is not supported with %s", group);
     } else {
+        if (strcmp(group, "netdev") == 0) {
+            Netdev *net = netdev_find_modern(id);
+            if (net) {
+                netdev_set_modern(net, str + strlen(group) + strlen(id) + 2,
+                                  errp);
+                return;
+            }
+        }
         list = qemu_find_opts_err(group, errp);
         if (list) {
             opts = qemu_opts_find(list, id);
