@@ -49,7 +49,7 @@ def main():
             if ( tag == "Y6_diag1" ) :
                 continue
 
-            f.write("    [%s] = generate_%s,\n" % (tag, tag))
+            f.write(f"    [{tag}] = generate_{tag},\n")
         f.write("};\n\n")
 
         f.write("#endif    /* HEXAGON_FUNC_TABLE_H */\n")
