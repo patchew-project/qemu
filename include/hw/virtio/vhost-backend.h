@@ -42,6 +42,12 @@ typedef int (*vhost_backend_init)(struct vhost_dev *dev, void *opaque,
 typedef int (*vhost_backend_cleanup)(struct vhost_dev *dev);
 typedef int (*vhost_backend_memslots_limit)(struct vhost_dev *dev);
 
+typedef ssize_t (*vhost_fs_get_state_op)(struct vhost_dev *dev,
+                                         uint64_t state_offset, size_t size);
+typedef int (*vhost_fs_set_state_op)(struct vhost_dev *dev,
+                                     uint64_t state_offset, size_t size);
+typedef int (*vhost_fs_set_state_fd_op)(struct vhost_dev *dev, int memfd,
+                                        size_t size);
 typedef int (*vhost_net_set_backend_op)(struct vhost_dev *dev,
                                 struct vhost_vring_file *file);
 typedef int (*vhost_net_set_mtu_op)(struct vhost_dev *dev, uint16_t mtu);
@@ -138,6 +144,9 @@ typedef struct VhostOps {
     vhost_backend_init vhost_backend_init;
     vhost_backend_cleanup vhost_backend_cleanup;
     vhost_backend_memslots_limit vhost_backend_memslots_limit;
+    vhost_fs_get_state_op vhost_fs_get_state;
+    vhost_fs_set_state_op vhost_fs_set_state;
+    vhost_fs_set_state_fd_op vhost_fs_set_state_fd;
     vhost_net_set_backend_op vhost_net_set_backend;
     vhost_net_set_mtu_op vhost_net_set_mtu;
     vhost_scsi_set_endpoint_op vhost_scsi_set_endpoint;

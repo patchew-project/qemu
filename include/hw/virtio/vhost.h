@@ -336,4 +336,72 @@ int vhost_dev_set_inflight(struct vhost_dev *dev,
                            struct vhost_inflight *inflight);
 int vhost_dev_get_inflight(struct vhost_dev *dev, uint16_t queue_size,
                            struct vhost_inflight *inflight);
+
+/**
+ * vhost_fs_set_state_fd(): Share memory with a virtio-fs vhost
+ * back-end for transferring internal state for the purpose of
+ * migration.  Calling this function again will have the back-end
+ * unregister (free) the previously shared memory area.
+ *
+ * @dev: The vhost device
+ * @memfd: File descriptor associated with the shared memory to share.
+ *         If negative, no memory area is shared, only releasing the
+ *         previously shared area, and announcing the end of transfer
+ *         (which, on the destination side, should lead to the
+ *         back-end deserializing and applying the received state).
+ * @size: Size of the shared memory area
+ *
+ * Returns 0 on success, and -errno on failure.
+ */
+int vhost_fs_set_state_fd(struct vhost_dev *dev, int memfd, size_t size);
+
+/**
+ * vhost_fs_get_state(): Request the virtio-fs vhost back-end to place
+ * a chunk of migration state into the shared memory area negotiated
+ * through vhost_fs_set_state_fd().  May only be used for migration,
+ * and only by the source side.
+ *
+ * The back-end-internal migration state is treated as a binary blob,
+ * which is transferred in chunks to fit into the shared memory area.
+ *
+ * @dev: The vhost device
+ * @state_offset: Offset into the state blob of the first byte to be
+ *                transferred
+ * @size: Number of bytes to transfer at most; must not exceed the
+ *        size of the shared memory area
+ *
+ * On success, returns the number of bytes that remain in the full
+ * state blob from the beginning of this chunk (i.e. the full size of
+ * the blob, minus @state_offset).  When transferring the final chunk,
+ * this may be less than @size.  The shared memory will contain the
+ * requested data, starting at offset 0 into the SHM, and counting
+ * `MIN(@size, returned value)` bytes.
+ *
+ * On failure, returns -errno.
+ */
+ssize_t vhost_fs_get_state(struct vhost_dev *dev, uint64_t state_offset,
+                           uint64_t size);
+
+/**
+ * vhost_fs_set_state(): Request the virtio-fs vhost back-end to fetch
+ * a chunk of migration state from the shared memory area negotiated
+ * through vhost_fs_set_state_fd().  May only be used for migration,
+ * and only by the destination side.
+ *
+ * The back-end-internal migration state is treated as a binary blob,
+ * which is transferred in chunks to fit into the shared memory area.
+ *
+ * The front-end (i.e. the caller) must transfer the whole state to
+ * the back-end, without holes.
+ *
+ * @vdev: the VirtIODevice structure
+ * @state_offset: Offset into the state blob of the first byte to be
+ *                transferred
+ * @size: Length of the chunk to transfer; must not exceed the size of
+ *        the shared memory area
+ *
+ * Returns 0 on success, and -errno on failure.
+ */
+int vhost_fs_set_state(struct vhost_dev *dev, uint64_t state_offset,
+                       uint64_t size);
 #endif

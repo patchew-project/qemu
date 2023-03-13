@@ -2075,3 +2075,32 @@ int vhost_net_set_backend(struct vhost_dev *hdev,
 
     return -ENOSYS;
 }
+
+int vhost_fs_set_state_fd(struct vhost_dev *dev, int memfd, size_t size)
+{
+    if (dev->vhost_ops->vhost_fs_set_state_fd) {
+        return dev->vhost_ops->vhost_fs_set_state_fd(dev, memfd, size);
+    }
+
+    return -ENOSYS;
+}
+
+ssize_t vhost_fs_get_state(struct vhost_dev *dev, uint64_t state_offset,
+                           uint64_t size)
+{
+    if (dev->vhost_ops->vhost_fs_get_state) {
+        return dev->vhost_ops->vhost_fs_get_state(dev, state_offset, size);
+    }
+
+    return -ENOSYS;
+}
+
+int vhost_fs_set_state(struct vhost_dev *dev, uint64_t state_offset,
+                       uint64_t size)
+{
+    if (dev->vhost_ops->vhost_fs_set_state) {
+        return dev->vhost_ops->vhost_fs_set_state(dev, state_offset, size);
+    }
+
+    return -ENOSYS;
+}

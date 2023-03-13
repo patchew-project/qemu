@@ -130,6 +130,9 @@ typedef enum VhostUserRequest {
     VHOST_USER_REM_MEM_REG = 38,
     VHOST_USER_SET_STATUS = 39,
     VHOST_USER_GET_STATUS = 40,
+    VHOST_USER_FS_SET_STATE_FD = 41,
+    VHOST_USER_FS_GET_STATE = 42,
+    VHOST_USER_FS_SET_STATE = 43,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -210,6 +213,15 @@ typedef struct {
     uint32_t size; /* the following payload size */
 } QEMU_PACKED VhostUserHeader;
 
+/*
+ * Request and reply payloads of VHOST_USER_FS_GET_STATE, and request
+ * payload of VHOST_USER_FS_SET_STATE.
+ */
+typedef struct VhostUserFsState {
+    uint64_t state_offset;
+    uint64_t size;
+} VhostUserFsState;
+
 typedef union {
 #define VHOST_USER_VRING_IDX_MASK   (0xff)
 #define VHOST_USER_VRING_NOFD_MASK  (0x1 << 8)
@@ -224,6 +236,7 @@ typedef union {
         VhostUserCryptoSession session;
         VhostUserVringArea area;
         VhostUserInflight inflight;
+        VhostUserFsState fs_state;
 } VhostUserPayload;
 
 typedef struct VhostUserMsg {
@@ -2240,6 +2253,128 @@ static int vhost_user_net_set_mtu(struct vhost_dev *dev, uint16_t mtu)
     return 0;
 }
 
+static int vhost_user_fs_set_state_fd(struct vhost_dev *dev, int memfd,
+                                      size_t size)
+{
+    int ret;
+    bool reply_supported = virtio_has_feature(dev->protocol_features,
+                                              VHOST_USER_PROTOCOL_F_REPLY_ACK);
+    VhostUserMsg msg = {
+        .hdr = {
+            .request = VHOST_USER_FS_SET_STATE_FD,
+            .flags = VHOST_USER_VERSION,
+            .size = sizeof(msg.payload.u64),
+        },
+        .payload.u64 = size,
+    };
+
+    if (reply_supported) {
+        msg.hdr.flags |= VHOST_USER_NEED_REPLY_MASK;
+    }
+
+    if (memfd < 0) {
+        assert(size == 0);
+        ret = vhost_user_write(dev, &msg, NULL, 0);
+    } else {
+        ret = vhost_user_write(dev, &msg, &memfd, 1);
+    }
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (reply_supported) {
+        return process_message_reply(dev, &msg);
+    }
+
+    return 0;
+}
+
+static ssize_t vhost_user_fs_get_state(struct vhost_dev *dev,
+                                       uint64_t state_offset,
+                                       size_t size)
+{
+    int ret;
+    VhostUserMsg msg = {
+        .hdr = {
+            .request = VHOST_USER_FS_GET_STATE,
+            .flags = VHOST_USER_VERSION,
+            .size = sizeof(msg.payload.fs_state),
+        },
+        .payload.fs_state = {
+            .state_offset = state_offset,
+            .size = size,
+        },
+    };
+
+    ret = vhost_user_write(dev, &msg, NULL, 0);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = vhost_user_read(dev, &msg);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (msg.hdr.request != VHOST_USER_FS_GET_STATE) {
+        error_report("Received unexpected message type: "
+                     "Expected %d, received %d",
+                     VHOST_USER_FS_GET_STATE, msg.hdr.request);
+        return -EPROTO;
+    }
+
+    if (msg.hdr.size != sizeof(VhostUserFsState)) {
+        error_report("Received unexpected message length: "
+                     "Expected %" PRIu32 ", received %zu",
+                     msg.hdr.size, sizeof(VhostUserFsState));
+        return -EPROTO;
+    }
+
+    if (msg.payload.fs_state.size > SSIZE_MAX) {
+        error_report("Remaining state size returned by back end is too high: "
+                     "Expected up to %zd, reported %" PRIu64,
+                     SSIZE_MAX, msg.payload.fs_state.size);
+        return -EPROTO;
+    }
+
+    return msg.payload.fs_state.size;
+}
+
+static int vhost_user_fs_set_state(struct vhost_dev *dev,
+                                   uint64_t state_offset,
+                                   size_t size)
+{
+    int ret;
+    bool reply_supported = virtio_has_feature(dev->protocol_features,
+                                              VHOST_USER_PROTOCOL_F_REPLY_ACK);
+    VhostUserMsg msg = {
+        .hdr = {
+            .request = VHOST_USER_FS_SET_STATE,
+            .flags = VHOST_USER_VERSION,
+            .size = sizeof(msg.payload.fs_state),
+        },
+        .payload.fs_state = {
+            .state_offset = state_offset,
+            .size = size,
+        },
+    };
+
+    if (reply_supported) {
+        msg.hdr.flags |= VHOST_USER_NEED_REPLY_MASK;
+    }
+
+    ret = vhost_user_write(dev, &msg, NULL, 0);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (reply_supported) {
+        return process_message_reply(dev, &msg);
+    }
+
+    return 0;
+}
+
 static int vhost_user_send_device_iotlb_msg(struct vhost_dev *dev,
                                             struct vhost_iotlb_msg *imsg)
 {
@@ -2716,4 +2851,7 @@ const VhostOps user_ops = {
         .vhost_get_inflight_fd = vhost_user_get_inflight_fd,
         .vhost_set_inflight_fd = vhost_user_set_inflight_fd,
         .vhost_dev_start = vhost_user_dev_start,
+        .vhost_fs_set_state_fd = vhost_user_fs_set_state_fd,
+        .vhost_fs_get_state = vhost_user_fs_get_state,
+        .vhost_fs_set_state = vhost_user_fs_set_state,
 };
