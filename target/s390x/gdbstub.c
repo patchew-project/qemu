@@ -201,29 +201,65 @@ static int cpu_write_c_reg(CPUS390XState *env, uint8_t *mem_buf, int n)
     }
 }
 
+/* the values represent the positions in s390-virt-tcg.xml */
+#define S390_VIRT_TCG_CKC_REGNUM    0
+#define S390_VIRT_TCG_CPUTM_REGNUM  1
+#define S390_VIRT_TCG_BEA_REGNUM    2
+#define S390_VIRT_TCG_PREFIX_REGNUM 3
+/* total number of registers in s390-virt-tcg.xml */
+#define S390_NUM_VIRT_TCG_REGS 4
+
+static int cpu_read_virt_tcg_reg(CPUS390XState *env, GByteArray *mem_buf, int n)
+{
+    switch (n) {
+    case S390_VIRT_TCG_CKC_REGNUM:
+        return gdb_get_regl(mem_buf, env->ckc);
+    case S390_VIRT_TCG_CPUTM_REGNUM:
+        return gdb_get_regl(mem_buf, env->cputm);
+    case S390_VIRT_TCG_BEA_REGNUM:
+        return gdb_get_regl(mem_buf, env->gbea);
+    case S390_VIRT_TCG_PREFIX_REGNUM:
+        return gdb_get_regl(mem_buf, env->psa);
+    default:
+        return 0;
+    }
+}
+
+static int cpu_write_virt_tcg_reg(CPUS390XState *env, uint8_t *mem_buf, int n)
+{
+    switch (n) {
+    case S390_VIRT_TCG_CKC_REGNUM:
+        env->ckc = ldtul_p(mem_buf);
+        cpu_synchronize_post_init(env_cpu(env));
+        return 8;
+    case S390_VIRT_TCG_CPUTM_REGNUM:
+        env->cputm = ldtul_p(mem_buf);
+        cpu_synchronize_post_init(env_cpu(env));
+        return 8;
+    case S390_VIRT_TCG_BEA_REGNUM:
+        env->gbea = ldtul_p(mem_buf);
+        cpu_synchronize_post_init(env_cpu(env));
+        return 8;
+    case S390_VIRT_TCG_PREFIX_REGNUM:
+        env->psa = ldtul_p(mem_buf);
+        cpu_synchronize_post_init(env_cpu(env));
+        return 8;
+    default:
+        return 0;
+    }
+}
+
 /* the values represent the positions in s390-virt.xml */
-#define S390_VIRT_CKC_REGNUM    0
-#define S390_VIRT_CPUTM_REGNUM  1
-#define S390_VIRT_BEA_REGNUM    2
-#define S390_VIRT_PREFIX_REGNUM 3
-#define S390_VIRT_PP_REGNUM     4
-#define S390_VIRT_PFT_REGNUM    5
-#define S390_VIRT_PFS_REGNUM    6
-#define S390_VIRT_PFC_REGNUM    7
+#define S390_VIRT_PP_REGNUM     0
+#define S390_VIRT_PFT_REGNUM    1
+#define S390_VIRT_PFS_REGNUM    2
+#define S390_VIRT_PFC_REGNUM    3
 /* total number of registers in s390-virt.xml */
-#define S390_NUM_VIRT_REGS 8
+#define S390_NUM_VIRT_REGS 4
 
 static int cpu_read_virt_reg(CPUS390XState *env, GByteArray *mem_buf, int n)
 {
     switch (n) {
-    case S390_VIRT_CKC_REGNUM:
-        return gdb_get_regl(mem_buf, env->ckc);
-    case S390_VIRT_CPUTM_REGNUM:
-        return gdb_get_regl(mem_buf, env->cputm);
-    case S390_VIRT_BEA_REGNUM:
-        return gdb_get_regl(mem_buf, env->gbea);
-    case S390_VIRT_PREFIX_REGNUM:
-        return gdb_get_regl(mem_buf, env->psa);
     case S390_VIRT_PP_REGNUM:
         return gdb_get_regl(mem_buf, env->pp);
     case S390_VIRT_PFT_REGNUM:
@@ -240,22 +276,6 @@ static int cpu_read_virt_reg(CPUS390XState *env, GByteArray *mem_buf, int n)
 static int cpu_write_virt_reg(CPUS390XState *env, uint8_t *mem_buf, int n)
 {
     switch (n) {
-    case S390_VIRT_CKC_REGNUM:
-        env->ckc = ldtul_p(mem_buf);
-        cpu_synchronize_post_init(env_cpu(env));
-        return 8;
-    case S390_VIRT_CPUTM_REGNUM:
-        env->cputm = ldtul_p(mem_buf);
-        cpu_synchronize_post_init(env_cpu(env));
-        return 8;
-    case S390_VIRT_BEA_REGNUM:
-        env->gbea = ldtul_p(mem_buf);
-        cpu_synchronize_post_init(env_cpu(env));
-        return 8;
-    case S390_VIRT_PREFIX_REGNUM:
-        env->psa = ldtul_p(mem_buf);
-        cpu_synchronize_post_init(env_cpu(env));
-        return 8;
     case S390_VIRT_PP_REGNUM:
         env->pp = ldtul_p(mem_buf);
         cpu_synchronize_post_init(env_cpu(env));
@@ -320,6 +340,10 @@ void s390_cpu_gdb_init(CPUState *cs)
     gdb_register_coprocessor(cs, cpu_read_c_reg,
                              cpu_write_c_reg,
                              S390_NUM_C_REGS, "s390-cr.xml", 0);
+
+    gdb_register_coprocessor(cs, cpu_read_virt_tcg_reg,
+                             cpu_write_virt_tcg_reg,
+                             S390_NUM_VIRT_TCG_REGS, "s390-virt-tcg.xml", 0);
 
     if (kvm_enabled()) {
         gdb_register_coprocessor(cs, cpu_read_virt_reg,
