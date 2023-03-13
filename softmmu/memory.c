@@ -544,7 +544,7 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
     }
 
     /* Do not allow more than one simultanous access to a device's IO Regions */
-    if (mr->owner &&
+    if (mr->owner && !mr->disable_reentrancy_guard &&
         !mr->ram_device && !mr->ram && !mr->rom_device && !mr->readonly) {
         dev = (DeviceState *) object_dynamic_cast(mr->owner, TYPE_DEVICE);
         if (dev) {
