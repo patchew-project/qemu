@@ -4,8 +4,10 @@ QEMU_OPTS=-action panic=exit-failure -kernel
 
 %: %.S
 	$(CC) -march=z13 -m64 -nostdlib -static -Wl,-Ttext=0 \
-		-Wl,--build-id=none $< -o $@
+		-Wl,--build-id=none -D__ASSEMBLY__ -DCONFIG_SOFTMMU $< -o $@
 
 TESTS += unaligned-lowcore
 TESTS += bal
 TESTS += sam
+
+include $(S390X_SRC)/pgm-specification.mak
