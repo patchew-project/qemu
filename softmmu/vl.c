@@ -500,6 +500,15 @@ static QemuOptsList qemu_action_opts = {
     },
 };
 
+static QemuOptsList qemu_cpu_opts = {
+    .name = "cpu",
+    .implied_opt_name = "cpu",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_cpu_opts.head),
+    .desc = {
+        { /* end of list */ }
+    },
+};
+
 const char *qemu_get_vm_name(void)
 {
     return qemu_name;
@@ -1145,6 +1154,26 @@ static int device_init_func(void *opaque, QemuOpts *opts, Error **errp)
         object_unref(OBJECT(dev));
     }
     return 0;
+}
+
+static int cpu_help_func(void *opaque, QemuOpts *opts, Error **errp)
+{
+    CpuModelInfo *model;
+
+    if (cpu_option && is_help_option(cpu_option)) {
+        list_cpus(cpu_option);
+        return 1;
+    }
+
+    if (!cpu_option || !qemu_opt_has_help_opt(opts)) {
+        return 0;
+    }
+
+    model = g_new0(CpuModelInfo, 1);
+    model->name = (char *)qemu_opt_get(opts, "cpu");
+    /* TODO: handle other expansion cases */
+    list_cpu_model_expansion(CPU_MODEL_EXPANSION_TYPE_FULL, model, errp);
+    return 1;
 }
 
 static int chardev_init_func(void *opaque, QemuOpts *opts, Error **errp)
@@ -2431,8 +2460,9 @@ static void qemu_process_help_options(void)
      * type and the user did not specify one, so that the user doesn't need
      * to say '-cpu help -machine something'.
      */
-    if (cpu_option && is_help_option(cpu_option)) {
-        list_cpus(cpu_option);
+    Error *errp = NULL;
+    if (qemu_opts_foreach(qemu_find_opts("cpu"),
+                          cpu_help_func, NULL, &errp)) {
         exit(0);
     }
 
@@ -2672,6 +2702,7 @@ void qemu_init(int argc, char **argv)
     qemu_add_opts(&qemu_semihosting_config_opts);
     qemu_add_opts(&qemu_fw_cfg_opts);
     qemu_add_opts(&qemu_action_opts);
+    qemu_add_opts(&qemu_cpu_opts);
     module_call_init(MODULE_INIT_OPTS);
 
     error_init(argv[0]);
@@ -2723,6 +2754,7 @@ void qemu_init(int argc, char **argv)
             switch(popt->index) {
             case QEMU_OPTION_cpu:
                 /* hw initialization will check this */
+                qemu_opts_parse_noisily(qemu_find_opts("cpu"), optarg, true);
                 cpu_option = optarg;
                 break;
             case QEMU_OPTION_hda:
