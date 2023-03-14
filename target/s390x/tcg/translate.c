@@ -3696,10 +3696,13 @@ static DisasJumpType op_rosbg(DisasContext *s, DisasOps *o)
     int i4 = get_field(s, i4);
     int i5 = get_field(s, i5);
     uint64_t mask;
+    TCGv_i64 tmp;
 
     /* If this is a test-only form, arrange to discard the result.  */
     if (i3 & 0x80) {
+        tmp = o->out;
         o->out = tcg_temp_new_i64();
+        tcg_gen_mov_i64(o->out, tmp);
     }
 
     i3 &= 63;
