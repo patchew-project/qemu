@@ -2397,7 +2397,7 @@ static void pci_del_option_rom(PCIDevice *pdev)
  * On success, pci_add_capability() returns a positive value
  * that the offset of the pci capability.
  * On failure, it sets an error and returns a negative error
- * code.
+ * code. @pdev must be unrealized.
  */
 int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
                        uint8_t offset, uint8_t size,
@@ -2405,6 +2405,8 @@ int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
 {
     uint8_t *config;
     int i, overlapping_cap;
+
+    assert(!DEVICE(pdev)->realized);
 
     if (!offset) {
         offset = pci_find_space(pdev, size);
