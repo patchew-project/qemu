@@ -2185,6 +2185,7 @@ static uint8_t pci_find_space(PCIDevice *pdev, uint8_t size)
 {
     int offset = PCI_CONFIG_HEADER_SIZE;
     int i;
+    assert(pdev->used);
     for (i = PCI_CONFIG_HEADER_SIZE; i < PCI_CONFIG_SPACE_SIZE; ++i) {
         if (pdev->used[i])
             offset = i + 1;
