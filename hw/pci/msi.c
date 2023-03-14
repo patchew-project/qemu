@@ -204,7 +204,7 @@ int msi_init(struct PCIDevice *dev, uint8_t offset,
     }
 
     MSI_DEV_PRINTF(dev,
-                   "init offset: 0x%"PRIx8" vector: %"PRId8
+                   "init offset: 0x%"PRIx8" vector: %u"
                    " 64bit %d mask %d\n",
                    offset, nr_vectors, msi64bit, msi_per_vector_mask);
 
