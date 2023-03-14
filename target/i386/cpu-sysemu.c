@@ -176,10 +176,9 @@ out:
     return xc;
 }
 
-CpuModelExpansionInfo *
-qmp_query_cpu_model_expansion(CpuModelExpansionType type,
-                                                      CpuModelInfo *model,
-                                                      Error **errp)
+CpuModelExpansionInfo *get_cpu_model_expansion(CpuModelExpansionType type,
+                                               CpuModelInfo *model,
+                                               Error **errp)
 {
     X86CPU *xc = NULL;
     Error *err = NULL;

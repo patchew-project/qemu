@@ -7,6 +7,8 @@
 #include "exec/hwaddr.h"
 #endif
 
+#include "qapi/qapi-commands-machine-target-common.h"
+
 /**
  * vaddr:
  * Type wide enough to contain any #target_ulong virtual address.
@@ -166,5 +168,11 @@ int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
 extern int singlestep;
 
 void list_cpus(const char *optarg);
+typedef void (*cpu_model_expansion_func)(CpuModelExpansionType type,
+                                         CpuModelInfo *model,
+                                         Error **errp);
+CpuModelExpansionInfo *get_cpu_model_expansion_info(CpuModelExpansionType type,
+                                                    CpuModelInfo *model,
+                                                    Error **errp);
 
 #endif /* CPU_COMMON_H */
