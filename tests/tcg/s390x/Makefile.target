@@ -29,6 +29,7 @@ TESTS+=clst
 TESTS+=long-double
 TESTS+=cdsg
 TESTS+=chrl
+TESTS+=rxsbg
 
 cdsg: CFLAGS+=-pthread
 cdsg: LDFLAGS+=-pthread
