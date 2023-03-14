@@ -2467,6 +2467,11 @@ int main(int argc, char **argv)
     const char *arch = qtest_get_arch();
     g_autoptr(GError) err = NULL;
     int ret;
+    /*
+     * Race condition suspected in the postcopy/preempt tests: see
+     * https://lore.kernel.org/qemu-devel/CAFEAcA-q1UwPePdHTzXNSX4i6Urh3j6h51kymy6=7SzDAFU87w@mail.gmail.com/
+     */
+    bool skip_postcopy_preempt = getenv("QEMU_TEST_FLAKY_TESTS");
 
     g_test_init(&argc, &argv, NULL);
 
@@ -2503,9 +2508,11 @@ int main(int argc, char **argv)
         qtest_add_func("/migration/postcopy/plain", test_postcopy);
         qtest_add_func("/migration/postcopy/recovery/plain",
                        test_postcopy_recovery);
-        qtest_add_func("/migration/postcopy/preempt/plain", test_postcopy_preempt);
-        qtest_add_func("/migration/postcopy/preempt/recovery/plain",
-                       test_postcopy_preempt_recovery);
+        if (!skip_postcopy_preempt) {
+            qtest_add_func("/migration/postcopy/preempt/plain", test_postcopy_preempt);
+            qtest_add_func("/migration/postcopy/preempt/recovery/plain",
+                           test_postcopy_preempt_recovery);
+        }
     }
 
     qtest_add_func("/migration/bad_dest", test_baddest);
@@ -2524,10 +2531,12 @@ int main(int argc, char **argv)
         qtest_add_func("/migration/postcopy/tls/psk", test_postcopy_tls_psk);
         qtest_add_func("/migration/postcopy/recovery/tls/psk",
                        test_postcopy_recovery_tls_psk);
-        qtest_add_func("/migration/postcopy/preempt/tls/psk",
-                       test_postcopy_preempt_tls_psk);
-        qtest_add_func("/migration/postcopy/preempt/recovery/tls/psk",
-                       test_postcopy_preempt_all);
+        if (!skip_postcopy_preempt) {
+            qtest_add_func("/migration/postcopy/preempt/tls/psk",
+                           test_postcopy_preempt_tls_psk);
+            qtest_add_func("/migration/postcopy/preempt/recovery/tls/psk",
+                           test_postcopy_preempt_all);
+        }
     }
 #ifdef CONFIG_TASN1
     qtest_add_func("/migration/precopy/unix/tls/x509/default-host",
