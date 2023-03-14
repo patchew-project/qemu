@@ -1060,6 +1060,20 @@ static void riscv_cpu_validate_misa_ext(RISCVCPU *cpu, Error **errp)
         error_setg(errp, "D extension requires F extension");
         return;
     }
+
+    if (cpu->cfg.ext_v) {
+        /*
+         * V depends on Zve64d, which requires D. It also
+         * depends on Zve64f, which depends on Zve32f,
+         * which requires F.
+         *
+         * This means that V depends on both D and F.
+         */
+        if (!(cpu->cfg.ext_d && cpu->cfg.ext_f)) {
+            error_setg(errp, "V extension requires D and F extensions");
+            return;
+        }
+    }
 }
 
 static void riscv_cpu_validate_misa_mxl(RISCVCPU *cpu, Error **errp)
