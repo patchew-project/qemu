@@ -38,6 +38,7 @@ qapi_all_modules = [
   'job',
   'machine',
   'machine-target',
+  'machine-target-common',
   'migration',
   'misc',
   'misc-target',
