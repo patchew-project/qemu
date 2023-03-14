@@ -182,6 +182,7 @@ bool msi_enabled(const PCIDevice *dev)
  * address.
  * If @msi_per_vector_mask, make the device support per-vector masking.
  * @errp is for returning errors.
+ * @dev must be unrealized.
  * Return 0 on success; set @errp and return -errno on error.
  *
  * -ENOTSUP means lacking msi support for a msi-capable platform.
@@ -208,6 +209,7 @@ int msi_init(struct PCIDevice *dev, uint8_t offset,
                    " 64bit %d mask %d\n",
                    offset, nr_vectors, msi64bit, msi_per_vector_mask);
 
+    assert(!DEVICE(dev)->realized);
     assert(!(nr_vectors & (nr_vectors - 1)));   /* power of 2 */
     assert(nr_vectors > 0);
     assert(nr_vectors <= PCI_MSI_VECTORS_MAX);
