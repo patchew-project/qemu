@@ -593,6 +593,12 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 char *riscv_isa_string(RISCVCPU *cpu);
 void riscv_cpu_list(void);
 
+void riscv_cpu_validate_misa_ext(CPURISCVState *env, uint32_t misa_ext,
+                                 Error **errp);
+void riscv_cpu_validate_extensions(RISCVCPU *cpu, uint32_t misa_ext,
+                                   Error **errp);
+void riscv_cpu_commit_cpu_cfg(RISCVCPU *cpu);
+
 #define cpu_list riscv_cpu_list
 #define cpu_mmu_index riscv_cpu_mmu_index
 

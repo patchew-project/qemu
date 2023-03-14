@@ -1027,9 +1027,8 @@ static void riscv_cpu_disable_priv_spec_isa_exts(RISCVCPU *cpu)
 }
 
 
-static void riscv_cpu_validate_misa_ext(CPURISCVState *env,
-                                        uint32_t misa_ext,
-                                        Error **errp)
+void riscv_cpu_validate_misa_ext(CPURISCVState *env, uint32_t misa_ext,
+                                 Error **errp)
 {
     Error *local_err = NULL;
 
@@ -1134,9 +1133,8 @@ static void riscv_cpu_validate_misa_mxl(RISCVCPU *cpu, Error **errp)
  * candidate misa_ext value. No changes in env->misa_ext
  * are made.
  */
-static void riscv_cpu_validate_extensions(RISCVCPU *cpu,
-                                          uint32_t misa_ext,
-                                          Error **errp)
+void riscv_cpu_validate_extensions(RISCVCPU *cpu, uint32_t misa_ext,
+                                   Error **errp)
 {
     if (cpu->cfg.epmp && !cpu->cfg.pmp) {
         /*
@@ -1227,7 +1225,7 @@ static void riscv_cpu_validate_extensions(RISCVCPU *cpu,
     }
 }
 
-static void riscv_cpu_commit_cpu_cfg(RISCVCPU *cpu)
+void riscv_cpu_commit_cpu_cfg(RISCVCPU *cpu)
 {
     if (cpu->cfg.ext_zk) {
         cpu->cfg.ext_zkn = true;
