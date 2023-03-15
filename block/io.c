@@ -1435,6 +1435,12 @@ out:
  * @merge_reads is true for small requests,
  * if @buf_len == @head + bytes + @tail. In this case it is possible that both
  * head and tail exist but @buf_len == align and @tail_buf == @buf.
+ *
+ * @write is true for write requests, false for read requests.
+ *
+ * If padding makes the vector too long (exceeding IOV_MAX), then we need to
+ * merge existing vector elements into a single one.  @collapse_buf acts as the
+ * bounce buffer in such cases.
  */
 typedef struct BdrvRequestPadding {
     uint8_t *buf;
@@ -1443,11 +1449,17 @@ typedef struct BdrvRequestPadding {
     size_t head;
     size_t tail;
     bool merge_reads;
+    bool write;
     QEMUIOVector local_qiov;
+
+    uint8_t *collapse_buf;
+    size_t collapse_len;
+    QEMUIOVector collapsed_qiov;
 } BdrvRequestPadding;
 
 static bool bdrv_init_padding(BlockDriverState *bs,
                               int64_t offset, int64_t bytes,
+                              bool write,
                               BdrvRequestPadding *pad)
 {
     int64_t align = bs->bl.request_alignment;
@@ -1479,7 +1491,99 @@ static bool bdrv_init_padding(BlockDriverState *bs,
         pad->tail_buf = pad->buf + pad->buf_len - align;
     }
 
+    pad->write = write;
+
     return true;
+}
+
+/*
+ * If padding has made the IOV (`pad->local_qiov`) too long (more than IOV_MAX
+ * elements), collapse some elements into a single one so that it adheres to the
+ * IOV_MAX limit again.
+ *
+ * If collapsing, `pad->collapse_buf` will be used as a bounce buffer of length
+ * `pad->collapse_len`.  `pad->collapsed_qiov` will contain the previous entries
+ * (before collapsing), so that bdrv_padding_destroy() can copy the bounce
+ * buffer content back for read requests.
+ *
+ * Note that we will not touch the padding head or tail entries here.  We cannot
+ * move them to a bounce buffer, because for RMWs, both head and tail expect to
+ * be in an aligned buffer with scratch space after (head) or before (tail) to
+ * perform the read into (because the whole buffer must be aligned, but head's
+ * and tail's lengths naturally cannot be aligned, because they provide padding
+ * for unaligned requests).  A collapsed bounce buffer for multiple IOV elements
+ * cannot provide such scratch space.
+ *
+ * Therefore, this function collapses the first IOV elements after the
+ * (potential) head element.
+ */
+static void bdrv_padding_collapse(BdrvRequestPadding *pad, BlockDriverState *bs)
+{
+    int surplus_count, collapse_count;
+    struct iovec *collapse_iovs;
+    QEMUIOVector collapse_qiov;
+    size_t move_count;
+
+    surplus_count = pad->local_qiov.niov - IOV_MAX;
+    /* Not exceeding the limit?  Nothing to collapse. */
+    if (surplus_count <= 0) {
+        return;
+    }
+
+    /*
+     * Only head and tail can have lead to the number of entries exceeding
+     * IOV_MAX, so we can exceed it by the head and tail at most
+     */
+    assert(surplus_count <= !!pad->head + !!pad->tail);
+
+    /*
+     * We merge (collapse) `surplus_count` entries into the first entry that is
+     * not padding, i.e. we merge `surplus_count + 1` entries into entry 0 if
+     * there is no head, or entry 1 if there is one.
+     */
+    collapse_count = surplus_count + 1;
+    collapse_iovs = &pad->local_qiov.iov[pad->head ? 1 : 0];
+
+    /* There must be no previously collapsed buffers in `pad` */
+    assert(pad->collapse_len == 0);
+    for (int i = 0; i < collapse_count; i++) {
+        pad->collapse_len += collapse_iovs[i].iov_len;
+    }
+    pad->collapse_buf = qemu_blockalign(bs, pad->collapse_len);
+
+    /* Save the to-be-collapsed IOV elements in collapsed_qiov */
+    qemu_iovec_init_external(&collapse_qiov, collapse_iovs, collapse_count);
+    qemu_iovec_init_slice(&pad->collapsed_qiov,
+                          &collapse_qiov, 0, pad->collapse_len);
+    if (pad->write) {
+        /* For writes: Copy all to-be-collapsed data into collapse_buf */
+        qemu_iovec_to_buf(&pad->collapsed_qiov, 0,
+                          pad->collapse_buf, pad->collapse_len);
+    }
+
+    /* Create the collapsed entry in pad->local_qiov */
+    collapse_iovs[0] = (struct iovec){
+        .iov_base = pad->collapse_buf,
+        .iov_len = pad->collapse_len,
+    };
+
+    /*
+     * To finalize collapsing, we must shift the rest of pad->local_qiov left by
+     * `surplus_count`, i.e. we must move all elements after `collapse_iovs` to
+     * immediately after the collapse target.
+     *
+     * Therefore, the memmove() target is `collapse_iovs[1]` and the source is
+     * `collapse_iovs[collapse_count]`.  The number of elements to move is the
+     * number of elements remaining in `pad->local_qiov` after and including
+     * `collapse_iovs[collapse_count]`.
+     */
+    move_count = &pad->local_qiov.iov[pad->local_qiov.niov] -
+        &collapse_iovs[collapse_count];
+    memmove(&collapse_iovs[1],
+            &collapse_iovs[collapse_count],
+            move_count * sizeof(pad->local_qiov.iov[0]));
+
+    pad->local_qiov.niov -= surplus_count;
 }
 
 static int coroutine_fn GRAPH_RDLOCK
@@ -1549,6 +1653,18 @@ static void bdrv_padding_destroy(BdrvRequestPadding *pad)
         qemu_vfree(pad->buf);
         qemu_iovec_destroy(&pad->local_qiov);
     }
+    if (pad->collapse_buf) {
+        if (!pad->write) {
+            /*
+             * If padding required elements in the vector to be collapsed into a
+             * bounce buffer, copy the bounce buffer content back
+             */
+            qemu_iovec_from_buf(&pad->collapsed_qiov, 0,
+                                pad->collapse_buf, pad->collapse_len);
+        }
+        qemu_vfree(pad->collapse_buf);
+        qemu_iovec_destroy(&pad->collapsed_qiov);
+    }
     memset(pad, 0, sizeof(*pad));
 }
 
@@ -1559,6 +1675,8 @@ static void bdrv_padding_destroy(BdrvRequestPadding *pad)
  * read of padding, bdrv_padding_rmw_read() should be called separately if
  * needed.
  *
+ * @write is true for write requests, false for read requests.
+ *
  * Request parameters (@qiov, &qiov_offset, &offset, &bytes) are in-out:
  *  - on function start they represent original request
  *  - on failure or when padding is not needed they are unchanged
@@ -1567,6 +1685,7 @@ static void bdrv_padding_destroy(BdrvRequestPadding *pad)
 static int bdrv_pad_request(BlockDriverState *bs,
                             QEMUIOVector **qiov, size_t *qiov_offset,
                             int64_t *offset, int64_t *bytes,
+                            bool write,
                             BdrvRequestPadding *pad, bool *padded,
                             BdrvRequestFlags *flags)
 {
@@ -1574,7 +1693,7 @@ static int bdrv_pad_request(BlockDriverState *bs,
 
     bdrv_check_qiov_request(*offset, *bytes, *qiov, *qiov_offset, &error_abort);
 
-    if (!bdrv_init_padding(bs, *offset, *bytes, pad)) {
+    if (!bdrv_init_padding(bs, *offset, *bytes, write, pad)) {
         if (padded) {
             *padded = false;
         }
@@ -1589,6 +1708,14 @@ static int bdrv_pad_request(BlockDriverState *bs,
         bdrv_padding_destroy(pad);
         return ret;
     }
+
+    /*
+     * If the IOV is too long after padding, merge (collapse) some entries to
+     * make it not exceed IOV_MAX
+     */
+    bdrv_padding_collapse(pad, bs);
+    assert(pad->local_qiov.niov <= IOV_MAX);
+
     *bytes += pad->head + pad->tail;
     *offset -= pad->head;
     *qiov = &pad->local_qiov;
@@ -1653,8 +1780,8 @@ int coroutine_fn bdrv_co_preadv_part(BdrvChild *child,
         flags |= BDRV_REQ_COPY_ON_READ;
     }
 
-    ret = bdrv_pad_request(bs, &qiov, &qiov_offset, &offset, &bytes, &pad,
-                           NULL, &flags);
+    ret = bdrv_pad_request(bs, &qiov, &qiov_offset, &offset, &bytes, false,
+                           &pad, NULL, &flags);
     if (ret < 0) {
         goto fail;
     }
@@ -1996,7 +2123,7 @@ bdrv_co_do_zero_pwritev(BdrvChild *child, int64_t offset, int64_t bytes,
     /* This flag doesn't make sense for padding or zero writes */
     flags &= ~BDRV_REQ_REGISTERED_BUF;
 
-    padding = bdrv_init_padding(bs, offset, bytes, &pad);
+    padding = bdrv_init_padding(bs, offset, bytes, true, &pad);
     if (padding) {
         assert(!(flags & BDRV_REQ_NO_WAIT));
         bdrv_make_request_serialising(req, align);
@@ -2112,8 +2239,8 @@ int coroutine_fn bdrv_co_pwritev_part(BdrvChild *child,
          * bdrv_co_do_zero_pwritev() does aligning by itself, so, we do
          * alignment only if there is no ZERO flag.
          */
-        ret = bdrv_pad_request(bs, &qiov, &qiov_offset, &offset, &bytes, &pad,
-                               &padded, &flags);
+        ret = bdrv_pad_request(bs, &qiov, &qiov_offset, &offset, &bytes, true,
+                               &pad, &padded, &flags);
         if (ret < 0) {
             return ret;
         }

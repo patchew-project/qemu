@@ -444,10 +444,6 @@ int qemu_iovec_init_extended(
     }
 
     total_niov = !!head_len + mid_niov + !!tail_len;
-    if (total_niov > IOV_MAX) {
-        return -EINVAL;
-    }
-
     if (total_niov == 1) {
         qemu_iovec_init_buf(qiov, NULL, 0);
         p = &qiov->local_iov;
