@@ -33,6 +33,9 @@ TESTS+=chrl
 cdsg: CFLAGS+=-pthread
 cdsg: LDFLAGS+=-pthread
 
+include $(S390X_SRC)/pgm-specification.mak
+$(PGM_SPECIFICATION_TESTS): CFLAGS+=-x c
+
 Z13_TESTS=vistr
 $(Z13_TESTS): CFLAGS+=-march=z13 -O2
 TESTS+=$(Z13_TESTS)
