@@ -309,6 +309,7 @@ class QAPISchemaEnumType(QAPISchemaType):
 
     def __init__(self, name, info, doc, ifcond, features, members, prefix):
         super().__init__(name, info, doc, ifcond, features)
+        assert members
         for m in members:
             assert isinstance(m, QAPISchemaEnumMember)
             m.set_defined_in(name)
@@ -1047,8 +1048,10 @@ class QAPISchema:
         return name
 
     def _def_enum_type(self, expr: QAPIExpression):
-        name = expr['enum']
         data = expr['data']
+        if not data:
+            return
+        name = expr['enum']
         prefix = expr.get('prefix')
         ifcond = QAPISchemaIfCond(expr.get('if'))
         info = expr.info

@@ -42,6 +42,7 @@ objects_seen = set()
 def gen_enum_lookup(name: str,
                     members: List[QAPISchemaEnumMember],
                     prefix: Optional[str] = None) -> str:
+    assert members
     max_index = c_enum_const(name, '_MAX', prefix)
     feats = ''
     ret = mcgen('''
@@ -86,6 +87,7 @@ const QEnumLookup %(c_name)s_lookup = {
 def gen_enum(name: str,
              members: List[QAPISchemaEnumMember],
              prefix: Optional[str] = None) -> str:
+    assert members
     # append automatically generated _MAX value
     enum_members = members + [QAPISchemaEnumMember('_MAX', None)]
 

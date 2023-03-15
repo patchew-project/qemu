@@ -207,6 +207,8 @@ class QAPISchemaGenEventVisitor(QAPISchemaModularCVisitor):
 
     def visit_end(self) -> None:
         self._add_module('./emit', ' * QAPI Events emission')
+        if not self._event_enum_members:
+            return
         self._genc.preamble_add(mcgen('''
 #include "qemu/osdep.h"
 #include "%(prefix)sqapi-emit-events.h"
