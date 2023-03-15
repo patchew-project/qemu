@@ -500,7 +500,8 @@ static void pci_root_bus_internal_init(PCIBus *bus, DeviceState *parent,
 {
     assert(PCI_FUNC(devfn_min) == 0);
     bus->devfn_min = devfn_min;
-    bus->slot_reserved_mask = 0x0;
+    bus->slot_reserved_auto_mask = 0x0;
+    bus->slot_reserved_manual_mask = 0x0;
     bus->address_space_mem = address_space_mem;
     bus->address_space_io = address_space_io;
     bus->flags |= PCI_BUS_IS_ROOT;
@@ -1111,24 +1112,30 @@ static bool pci_bus_devfn_available(PCIBus *bus, int devfn)
     return !(bus->devices[devfn]);
 }
 
-static bool pci_bus_devfn_reserved(PCIBus *bus, int devfn)
+static bool pci_bus_devfn_reserved_auto(PCIBus *bus, int devfn)
 {
-    return bus->slot_reserved_mask & (1UL << PCI_SLOT(devfn));
+    return bus->slot_reserved_auto_mask & (1UL << PCI_SLOT(devfn));
 }
 
-uint32_t pci_bus_get_slot_reserved_mask(PCIBus *bus)
+static bool pci_bus_devfn_reserved_manual(PCIBus *bus, int devfn)
 {
-    return bus->slot_reserved_mask;
+    return bus->slot_reserved_manual_mask & (1UL << PCI_SLOT(devfn));
 }
 
-void pci_bus_set_slot_reserved_mask(PCIBus *bus, uint32_t mask)
+void pci_bus_set_slot_reserved_masks(PCIBus *bus, uint32_t auto_mask, uint32_t manual_mask)
 {
-    bus->slot_reserved_mask |= mask;
+    bus->slot_reserved_auto_mask |= auto_mask;
+    bus->slot_reserved_manual_mask |= manual_mask;
 }
 
-void pci_bus_clear_slot_reserved_mask(PCIBus *bus, uint32_t mask)
+void pci_bus_clear_slot_reserved_auto_mask(PCIBus *bus, uint32_t mask)
 {
-    bus->slot_reserved_mask &= ~mask;
+    bus->slot_reserved_auto_mask &= ~mask;
+}
+
+uint32_t pci_bus_get_slot_reserved_auto_mask(PCIBus *bus)
+{
+    return bus->slot_reserved_auto_mask;
 }
 
 /* -1 for devfn means auto assign */
@@ -1156,7 +1163,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev,
         for(devfn = bus->devfn_min ; devfn < ARRAY_SIZE(bus->devices);
             devfn += PCI_FUNC_MAX) {
             if (pci_bus_devfn_available(bus, devfn) &&
-                   !pci_bus_devfn_reserved(bus, devfn)) {
+                   !pci_bus_devfn_reserved_auto(bus, devfn)) {
                 goto found;
             }
         }
@@ -1164,7 +1171,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev,
                    "or reserved", name);
         return NULL;
     found: ;
-    } else if (pci_bus_devfn_reserved(bus, devfn)) {
+    } else if (pci_bus_devfn_reserved_manual(bus, devfn)) {
         error_setg(errp, "PCI: slot %d function %d not available for %s,"
                    " reserved",
                    PCI_SLOT(devfn), PCI_FUNC(devfn), name);
