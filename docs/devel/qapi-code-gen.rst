@@ -206,6 +206,9 @@ Syntax::
 
 Member 'enum' names the enum type.
 
+Empty enumeration (no member) does not generate anything (not even
+constant PREFIX__MAX).
+
 Each member of the 'data' array defines a value of the enumeration
 type.  The form STRING is shorthand for :code:`{ 'name': STRING }`.  The
 'name' values must be be distinct.
@@ -213,9 +216,6 @@ type.  The form STRING is shorthand for :code:`{ 'name': STRING }`.  The
 Example::
 
  { 'enum': 'MyEnum', 'data': [ 'value1', 'value2', 'value3' ] }
-
-Nothing prevents an empty enumeration, although it is probably not
-useful.
 
 On the wire, an enumeration type's value is represented by its
 (string) name.  In C, it's represented by an enumeration constant.
