@@ -2071,9 +2071,6 @@ void audio_create_pdos(Audiodev *dev)
         CASE(SPICE, spice, );
 #endif
         CASE(WAV, wav, );
-
-    case AUDIODEV_DRIVER__MAX:
-        abort();
     };
 }
 
@@ -2219,9 +2216,6 @@ int audioformat_bytes_per_sample(AudioFormat fmt)
     case AUDIO_FORMAT_S32:
     case AUDIO_FORMAT_F32:
         return 4;
-
-    case AUDIO_FORMAT__MAX:
-        ;
     }
     abort();
 }

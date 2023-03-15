@@ -227,7 +227,7 @@ optional 'prefix' member overrides PREFIX.
 
 The generated C enumeration constants have values 0, 1, ..., N-1 (in
 QAPI schema order), where N is the number of values.  There is an
-additional enumeration constant PREFIX__MAX with value N.
+additional definition constant PREFIX__MAX with value N.
 
 Do not use string or an integer type when an enumeration type can do
 the job satisfactorily.
@@ -1825,7 +1825,7 @@ Example::
 
     typedef enum example_QAPIEvent {
         EXAMPLE_QAPI_EVENT_MY_EVENT,
-        EXAMPLE_QAPI_EVENT__MAX,
+    #define EXAMPLE_QAPI_EVENT__MAX 1
     } example_QAPIEvent;
 
     #define example_QAPIEvent_str(val) \

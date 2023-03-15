@@ -88,22 +88,25 @@ def gen_enum(name: str,
              members: List[QAPISchemaEnumMember],
              prefix: Optional[str] = None) -> str:
     assert members
-    # append automatically generated _MAX value
-    enum_members = members + [QAPISchemaEnumMember('_MAX', None)]
-
     ret = mcgen('''
 
 typedef enum %(c_name)s {
 ''',
                 c_name=c_name(name))
 
-    for memb in enum_members:
+    for memb in members:
         ret += memb.ifcond.gen_if()
         ret += mcgen('''
     %(c_enum)s,
 ''',
                      c_enum=c_enum_const(name, memb.name, prefix))
         ret += memb.ifcond.gen_endif()
+
+    ret += mcgen('''
+#define %(c_name)s %(c_length)s
+''',
+                 c_name=c_enum_const(name, '_MAX', prefix),
+                 c_length=len(members))
 
     ret += mcgen('''
 } %(c_name)s;
