@@ -52,6 +52,7 @@ class S390CPUTopology(LinuxKernelTest):
     The polarization is changed on a request from the guest.
     """
     timeout = 90
+    skip_basis = False
 
 
     def check_topology(self, c, s, b, d, e, t):
@@ -116,12 +117,14 @@ class S390CPUTopology(LinuxKernelTest):
         exec_command_and_wait_for_pattern(self,
                 '/bin/cat /sys/devices/system/cpu/dispatching', '0')
 
+    @skipIf(skip_basis, 'skipping basis tests')
     def test_single(self):
         self.kernel_init()
         self.vm.launch()
         self.wait_for_console_pattern('no job control')
         self.check_topology(0, 0, 0, 0, 'horizontal', False)
 
+    @skipIf(skip_basis, 'skipping basis tests')
     def test_default(self):
         """
         This test checks the implicite topology.
@@ -147,6 +150,7 @@ class S390CPUTopology(LinuxKernelTest):
         self.check_topology(11, 2, 1, 0, 'horizontal', False)
         self.check_topology(12, 0, 0, 1, 'horizontal', False)
 
+    @skipIf(skip_basis, 'skipping basis tests')
     def test_move(self):
         """
         This test checks the topology modification by moving a CPU
@@ -167,6 +171,7 @@ class S390CPUTopology(LinuxKernelTest):
         self.assertEqual(res['return'], {})
         self.check_topology(0, 2, 0, 0, 'horizontal', False)
 
+    @skipIf(skip_basis, 'skipping basis tests')
     def test_hotplug(self):
         """
         This test verifies that a CPU defined with '-device' command line
@@ -184,6 +189,7 @@ class S390CPUTopology(LinuxKernelTest):
 
         self.check_topology(10, 2, 1, 0, 'horizontal', False)
 
+    @skipIf(skip_basis, 'skipping basis tests')
     def test_hotplug_full(self):
         """
         This test verifies that a hotplugged fully defined with '-device'
@@ -202,6 +208,7 @@ class S390CPUTopology(LinuxKernelTest):
         self.wait_for_console_pattern('no job control')
         self.check_topology(1, 1, 1, 1, 'horizontal', False)
 
+    @skipIf(skip_basis, 'skipping basis tests')
     def test_polarisation(self):
         """
         This test verifies that QEMU modifies the entitlement change after
@@ -231,7 +238,7 @@ class S390CPUTopology(LinuxKernelTest):
 
         self.check_topology(0, 0, 0, 0, 'horizontal', False)
 
-    def test_set_cpu_topology_entitlement(self):
+    def test_entitlement(self):
         """
         This test verifies that QEMU modifies the polarization
         after a guest request.
@@ -286,3 +293,37 @@ class S390CPUTopology(LinuxKernelTest):
         self.check_topology(1, 0, 0, 0, 'horizontal', False)
         self.check_topology(2, 1, 0, 0, 'horizontal', False)
         self.check_topology(3, 1, 0, 0, 'horizontal', False)
+
+    def test_dedicated(self):
+        """
+        This test verifies that QEMU modifies the entitlement change correctly
+        for a dedicated CPU after several guest polarization change requests.
+
+        :avocado: tags=arch:s390x
+        :avocado: tags=machine:s390-ccw-virtio
+        """
+        self.kernel_init()
+        self.vm.launch()
+        self.wait_for_console_pattern('no job control')
+
+        self.system_init()
+
+        res = self.vm.qmp('set-cpu-topology',
+                          {'core-id': 0, 'dedicated': True})
+        self.assertEqual(res['return'], {})
+
+        self.check_topology(0, 0, 0, 0, 'horizontal', True)
+
+        exec_command(self, 'echo 1 > /sys/devices/system/cpu/dispatching')
+        time.sleep(0.2)
+        exec_command_and_wait_for_pattern(self,
+                '/bin/cat /sys/devices/system/cpu/dispatching', '1')
+
+        self.check_topology(0, 0, 0, 0, 'high', True)
+
+        exec_command(self, 'echo 0 > /sys/devices/system/cpu/dispatching')
+        time.sleep(0.2)
+        exec_command_and_wait_for_pattern(self,
+                '/bin/cat /sys/devices/system/cpu/dispatching', '0')
+
+        self.check_topology(0, 0, 0, 0, 'horizontal', True)
