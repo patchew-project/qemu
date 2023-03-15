@@ -120,10 +120,6 @@ static bool input_linux_check_toggle(InputLinux *il)
         return (il->keydown[KEY_LEFTCTRL] ||
                 il->keydown[KEY_RIGHTCTRL]) &&
             il->keydown[KEY_SCROLLLOCK];
-
-    case GRAB_TOGGLE_KEYS__MAX:
-        /* avoid gcc error */
-        break;
     }
     return false;
 }
