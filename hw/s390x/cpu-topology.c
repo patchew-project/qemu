@@ -88,6 +88,87 @@ static void s390_topology_init(MachineState *ms)
 }
 
 /**
+ * s390_topology_set_cpus_entitlement:
+ *
+ * On hotplug or when changing CPU attributes the shadow_entitlement
+ * is set to hold the entitlement used on a vertical polarization.
+ * When polarization is horizontal, the entitlement is horizontal too.
+ */
+static void s390_topology_set_cpus_entitlement(void)
+{
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        CPUS390XState *env = &S390_CPU(cs)->env;
+
+        if (s390_topology.polarization == S390_CPU_POLARIZATION_HORIZONTAL) {
+            env->entitlement = S390_CPU_ENTITLEMENT_HORIZONTAL;
+        } else if (env->entitlement == S390_CPU_ENTITLEMENT_HORIZONTAL) {
+            if (env->dedicated) {
+                env->entitlement = S390_CPU_ENTITLEMENT_HIGH;
+            } else {
+                env->entitlement = env->shadow_entitlement;
+            }
+        }
+    }
+}
+
+/*
+ * s390_handle_ptf:
+ *
+ * @register 1: contains the function code
+ *
+ * Function codes 0 (horizontal) and 1 (vertical) define the CPU
+ * polarization requested by the guest.
+ *
+ * Verify that the polarization really need to change and call
+ * s390_topology_set_cpus_entitlement() specifying the requested polarization
+ * to set for all CPUs.
+ *
+ * Function code 2 is handling topology changes and is interpreted
+ * by the SIE.
+ */
+void s390_handle_ptf(S390CPU *cpu, uint8_t r1, uintptr_t ra)
+{
+    CPUS390XState *env = &cpu->env;
+    uint64_t reg = env->regs[r1];
+    int fc = reg & S390_TOPO_FC_MASK;
+
+    if (!s390_has_feat(S390_FEAT_CONFIGURATION_TOPOLOGY)) {
+        s390_program_interrupt(env, PGM_OPERATION, ra);
+        return;
+    }
+
+    if (env->psw.mask & PSW_MASK_PSTATE) {
+        s390_program_interrupt(env, PGM_PRIVILEGED, ra);
+        return;
+    }
+
+    if (reg & ~S390_TOPO_FC_MASK) {
+        s390_program_interrupt(env, PGM_SPECIFICATION, ra);
+        return;
+    }
+
+    switch (fc) {
+    case S390_CPU_POLARIZATION_VERTICAL:
+    case S390_CPU_POLARIZATION_HORIZONTAL:
+        if (s390_topology.polarization == fc) {
+            env->regs[r1] |= S390_PTF_REASON_DONE;
+            setcc(cpu, 2);
+        } else {
+            s390_topology.polarization = fc;
+            s390_topology_set_cpus_entitlement();
+            s390_cpu_topology_set_changed(true);
+            setcc(cpu, 0);
+        }
+        break;
+    default:
+        /* Note that fc == 2 is interpreted by the SIE */
+        s390_program_interrupt(env, PGM_SPECIFICATION, ra);
+    }
+}
+
+/**
  * s390_topology_reset:
  *
  * Generic reset for CPU topology, calls s390_topology_reset()
@@ -96,6 +177,8 @@ static void s390_topology_init(MachineState *ms)
 void s390_topology_reset(void)
 {
     s390_cpu_topology_set_changed(false);
+    s390_topology.polarization = S390_CPU_POLARIZATION_HORIZONTAL;
+    s390_topology_set_cpus_entitlement();
 }
 
 /**
@@ -258,15 +341,7 @@ static void s390_normalize_entitlement(S390CPU *cpu)
     }
 
     /* Set the effective entitlement according to polarization */
-    if (s390_topology.polarization == S390_CPU_POLARIZATION_HORIZONTAL) {
-        cpu->env.entitlement = S390_CPU_ENTITLEMENT_HORIZONTAL;
-    } else if (cpu->env.entitlement == S390_CPU_ENTITLEMENT_HORIZONTAL) {
-        if (cpu->env.dedicated) {
-            cpu->env.entitlement = S390_CPU_ENTITLEMENT_HIGH;
-        } else {
-            cpu->env.entitlement = S390_CPU_ENTITLEMENT_MEDIUM;
-        }
-    }
+    s390_topology_set_cpus_entitlement();
 }
 
 /**
