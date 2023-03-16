@@ -50,6 +50,10 @@ static QTAILQ_HEAD(, AddressSpace) address_spaces
 
 static GHashTable *flat_views;
 
+static const Object **accessed_region_owners;
+static size_t accessed_region_owners_capacity;
+static size_t accessed_region_owners_num;
+
 typedef struct AddrRange AddrRange;
 
 /*
@@ -1394,6 +1398,16 @@ bool memory_region_access_valid(MemoryRegion *mr,
         return false;
     }
 
+    for (size_t i = 0; i < accessed_region_owners_num; i++) {
+        if (accessed_region_owners[i] == mr->owner) {
+            qemu_log_mask(LOG_GUEST_ERROR, "Invalid %s at addr 0x%" HWADDR_PRIX
+                          ", size %u, region '%s', reason: recursive access\n",
+                          is_write ? "write" : "read",
+                          addr, size, memory_region_name(mr));
+            return false;
+        }
+    }
+
     /* Treat zero as compatibility all valid */
     if (!mr->ops->valid.max_access_size) {
         return true;
@@ -1411,6 +1425,34 @@ bool memory_region_access_valid(MemoryRegion *mr,
         return false;
     }
     return true;
+}
+
+static bool memory_region_access_start(MemoryRegion *mr,
+                                       hwaddr addr,
+                                       unsigned size,
+                                       bool is_write,
+                                       MemTxAttrs attrs)
+{
+    if (!memory_region_access_valid(mr, addr, size, is_write, attrs)) {
+        return false;
+    }
+
+    accessed_region_owners_num++;
+    if (accessed_region_owners_num > accessed_region_owners_capacity) {
+        accessed_region_owners_capacity = accessed_region_owners_num;
+        accessed_region_owners = g_realloc_n(accessed_region_owners,
+                                             accessed_region_owners_capacity,
+                                             sizeof(*accessed_region_owners));
+    }
+
+    accessed_region_owners[accessed_region_owners_num - 1] = mr->owner;
+
+    return true;
+}
+
+static void memory_region_access_end(void)
+{
+    accessed_region_owners_num--;
 }
 
 static MemTxResult memory_region_dispatch_read1(MemoryRegion *mr,
@@ -1450,12 +1492,13 @@ MemTxResult memory_region_dispatch_read(MemoryRegion *mr,
                                            mr->alias_offset + addr,
                                            pval, op, attrs);
     }
-    if (!memory_region_access_valid(mr, addr, size, false, attrs)) {
+    if (!memory_region_access_start(mr, addr, size, false, attrs)) {
         *pval = unassigned_mem_read(mr, addr, size);
         return MEMTX_DECODE_ERROR;
     }
 
     r = memory_region_dispatch_read1(mr, addr, pval, size, attrs);
+    memory_region_access_end();
     adjust_endianness(mr, pval, op);
     return r;
 }
@@ -1493,13 +1536,14 @@ MemTxResult memory_region_dispatch_write(MemoryRegion *mr,
                                          MemTxAttrs attrs)
 {
     unsigned size = memop_size(op);
+    MemTxResult result;
 
     if (mr->alias) {
         return memory_region_dispatch_write(mr->alias,
                                             mr->alias_offset + addr,
                                             data, op, attrs);
     }
-    if (!memory_region_access_valid(mr, addr, size, true, attrs)) {
+    if (!memory_region_access_start(mr, addr, size, true, attrs)) {
         unassigned_mem_write(mr, addr, data, size);
         return MEMTX_DECODE_ERROR;
     }
@@ -1508,23 +1552,24 @@ MemTxResult memory_region_dispatch_write(MemoryRegion *mr,
 
     if ((!kvm_eventfds_enabled()) &&
         memory_region_dispatch_write_eventfds(mr, addr, data, size, attrs)) {
-        return MEMTX_OK;
+        result = MEMTX_OK;
+    } else if (mr->ops->write) {
+        result = access_with_adjusted_size(addr, &data, size,
+                                           mr->ops->impl.min_access_size,
+                                           mr->ops->impl.max_access_size,
+                                           memory_region_write_accessor, mr,
+                                           attrs);
+    } else {
+        result = access_with_adjusted_size(addr, &data, size,
+                                           mr->ops->impl.min_access_size,
+                                           mr->ops->impl.max_access_size,
+                                           memory_region_write_with_attrs_accessor,
+                                           mr, attrs);
     }
 
-    if (mr->ops->write) {
-        return access_with_adjusted_size(addr, &data, size,
-                                         mr->ops->impl.min_access_size,
-                                         mr->ops->impl.max_access_size,
-                                         memory_region_write_accessor, mr,
-                                         attrs);
-    } else {
-        return
-            access_with_adjusted_size(addr, &data, size,
-                                      mr->ops->impl.min_access_size,
-                                      mr->ops->impl.max_access_size,
-                                      memory_region_write_with_attrs_accessor,
-                                      mr, attrs);
-    }
+    memory_region_access_end();
+
+    return result;
 }
 
 void memory_region_init_io(MemoryRegion *mr,
