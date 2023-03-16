@@ -504,11 +504,13 @@ static int igb_post_load(void *opaque, int version_id)
 
 static const VMStateDescription igb_vmstate_tx = {
     .name = "igb-tx",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT16(vlan, struct igb_tx),
-        VMSTATE_UINT16(mss, struct igb_tx),
+        VMSTATE_UINT32(ctx.vlan_macip_lens, struct igb_tx),
+        VMSTATE_UINT32(ctx.seqnum_seed, struct igb_tx),
+        VMSTATE_UINT32(ctx.type_tucmd_mlhl, struct igb_tx),
+        VMSTATE_UINT32(ctx.mss_l4len_idx, struct igb_tx),
         VMSTATE_BOOL(tse, struct igb_tx),
         VMSTATE_BOOL(ixsm, struct igb_tx),
         VMSTATE_BOOL(txsm, struct igb_tx),

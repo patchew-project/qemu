@@ -72,8 +72,7 @@ struct IGBCore {
     QEMUTimer *autoneg_timer;
 
     struct igb_tx {
-        uint16_t vlan;  /* VLAN Tag */
-        uint16_t mss;   /* Maximum Segment Size */
+        struct e1000_adv_tx_context_desc ctx;
         bool tse;       /* TCP/UDP Segmentation Enable */
         bool ixsm;      /* Insert IP Checksum */
         bool txsm;      /* Insert TCP/UDP Checksum */
