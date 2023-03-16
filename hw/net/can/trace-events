@@ -1,3 +1,16 @@
+# mcp25625.c
+mcp25625_send_txb(const char *dev, unsigned buff, unsigned len) "%s: buffer %d (%d bytes)"
+mcp25625_irq_change(const char *dev, uint32_t from, uint32_t to) "%s: irq changed from 0x%" PRIx32 " to 0x%" PRIx32
+mcp25625_transfer8(const char *dev, int state, unsigned addr, uint32_t d) "%s: state %d, addr 0x%02x, data 0x%" PRIx32
+mpc25652_reg_update(const char *dev, uint32_t addr, uint8_t from, uint8_t to) "%s: update reg 0x%02x from 0x%02x to 0x%02x"
+mcp25625_transfer8_return(const char *dev, int state, unsigned addr, uint32_t d, uint32_t rv) "%s: state %d, addr 0x%02x, data 0x%" PRIx32 " -> 0x%" PRIx32
+mcp25625_invalid_cmd(const char *dev, uint32_t d) "%s: unknown command 0x%" PRIx32
+mcp25625_do_rts(const char *dev, unsigned buff) "%s: mask 0x%08x"
+mcp25625_irq_update(const char *dev, uint32_t flags) "%s: flags 0x%08x"
+mcp25625_change_mode(const char *dev, uint8_t from, uint8_t to) "%s: change mode from 0x%02x to 0x%02x"
+mcp25625_rx_clear(const char *dev, unsigned buff) "%s: clearing rx buffer %u"
+mcp25625_rx_buf(const char *dev, unsigned buff, uint32_t id, unsigned len) "%s: rx buffer %u: id 0x%" PRIx32 " len %u"
+
 # xlnx-zynqmp-can.c
 xlnx_can_update_irq(uint32_t isr, uint32_t ier, uint32_t irq) "ISR: 0x%08x IER: 0x%08x IRQ: 0x%08x"
 xlnx_can_reset(uint32_t val) "Resetting controller with value = 0x%08x"
