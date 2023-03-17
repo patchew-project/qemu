@@ -2266,11 +2266,10 @@ void build_tpm2(GArray *table_data, BIOSLinker *linker, GArray *tcpalog,
 }
 #endif
 
-Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set, uint32_t io_offset,
+void build_crs(PCIHostState *host, CrsRangeSet *range_set, uint32_t io_offset,
                uint32_t mmio32_offset, uint64_t mmio64_offset,
-               uint16_t bus_nr_offset)
+               uint16_t bus_nr_offset, Aml *crs)
 {
-    Aml *crs = aml_resource_template();
     CrsRangeSet temp_range_set;
     CrsRangeEntry *entry;
     uint8_t max_bus = pci_bus_num(host->bus);
@@ -2380,12 +2379,16 @@ Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set, uint32_t io_offset,
     crs_range_merge(temp_range_set.io_ranges);
     for (i = 0; i < temp_range_set.io_ranges->len; i++) {
         entry = g_ptr_array_index(temp_range_set.io_ranges, i);
-        aml_append(crs,
-                   aml_dword_io(AML_MIN_FIXED, AML_MAX_FIXED,
-                                AML_POS_DECODE, AML_ENTIRE_RANGE,
-                                0, entry->base, entry->limit, io_offset,
-                                entry->limit - entry->base + 1));
-        crs_range_insert(range_set->io_ranges, entry->base, entry->limit);
+        if (crs) {
+            aml_append(crs,
+                       aml_dword_io(AML_MIN_FIXED, AML_MAX_FIXED,
+                                    AML_POS_DECODE, AML_ENTIRE_RANGE,
+                                    0, entry->base, entry->limit, io_offset,
+                                    entry->limit - entry->base + 1));
+        }
+        if (range_set) {
+            crs_range_insert(range_set->io_ranges, entry->base, entry->limit);
+        }
     }
 
     crs_range_merge(temp_range_set.mem_ranges);
@@ -2393,39 +2396,47 @@ Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set, uint32_t io_offset,
         entry = g_ptr_array_index(temp_range_set.mem_ranges, i);
         assert(entry->limit <= UINT32_MAX &&
                (entry->limit - entry->base + 1) <= UINT32_MAX);
-        aml_append(crs,
-                   aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED,
-                                    AML_MAX_FIXED, AML_NON_CACHEABLE,
-                                    AML_READ_WRITE,
-                                    0, entry->base, entry->limit, mmio32_offset,
-                                    entry->limit - entry->base + 1));
-        crs_range_insert(range_set->mem_ranges, entry->base, entry->limit);
+        if (crs) {
+            aml_append(crs,
+                       aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED,
+                                        AML_MAX_FIXED, AML_NON_CACHEABLE,
+                                        AML_READ_WRITE,
+                                        0, entry->base, entry->limit, mmio32_offset,
+                                        entry->limit - entry->base + 1));
+        }
+        if (range_set) {
+            crs_range_insert(range_set->mem_ranges, entry->base, entry->limit);
+        }
     }
 
     crs_range_merge(temp_range_set.mem_64bit_ranges);
     for (i = 0; i < temp_range_set.mem_64bit_ranges->len; i++) {
         entry = g_ptr_array_index(temp_range_set.mem_64bit_ranges, i);
-        aml_append(crs,
-                   aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED,
-                                    AML_MAX_FIXED, AML_NON_CACHEABLE,
-                                    AML_READ_WRITE,
-                                    0, entry->base, entry->limit, mmio64_offset,
+        if (crs) {
+            aml_append(crs,
+                       aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED,
+                                        AML_MAX_FIXED, AML_NON_CACHEABLE,
+                                        AML_READ_WRITE,
+                                        0, entry->base, entry->limit, mmio64_offset,
                                     entry->limit - entry->base + 1));
-        crs_range_insert(range_set->mem_64bit_ranges,
-                         entry->base, entry->limit);
+        }
+        if (range_set) {
+            crs_range_insert(range_set->mem_64bit_ranges,
+                             entry->base, entry->limit);
+        }
     }
 
     crs_range_set_free(&temp_range_set);
 
-    aml_append(crs,
-        aml_word_bus_number(AML_MIN_FIXED, AML_MAX_FIXED, AML_POS_DECODE,
-                            0,
-                            pci_bus_num(host->bus),
-                            max_bus,
-                            bus_nr_offset,
-                            max_bus - pci_bus_num(host->bus) + 1));
-
-    return crs;
+    if (crs) {
+        aml_append(crs,
+                   aml_word_bus_number(AML_MIN_FIXED, AML_MAX_FIXED, AML_POS_DECODE,
+                                       0,
+                                       pci_bus_num(host->bus),
+                                       max_bus,
+                                       bus_nr_offset,
+                                       max_bus - pci_bus_num(host->bus) + 1));
+    }
 }
 
 /* ACPI 5.0: 6.4.3.8.2 Serial Bus Connection Descriptors */

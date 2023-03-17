@@ -181,8 +181,9 @@ void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
              * 1. The resources the pci-brige/pcie-root-port need.
              * 2. The resources the devices behind pxb need.
              */
-            crs = build_crs(PCI_HOST_BRIDGE(BUS(bus)->parent), &crs_range_set,
-                            cfg->pio.base, 0, 0, 0);
+            crs = aml_resource_template();
+            build_crs(PCI_HOST_BRIDGE(BUS(bus)->parent), &crs_range_set,
+                      cfg->pio.base, 0, 0, 0, crs);
             aml_append(dev, aml_name_decl("_CRS", crs));
 
             if (is_cxl) {
