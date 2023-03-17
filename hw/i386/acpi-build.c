@@ -1423,28 +1423,158 @@ static void build_acpi0017(Aml *table)
     aml_append(table, scope);
 }
 
+/*
+ * Precompute the crs ranges and bus numbers that will be used in PXB entries
+ * in PXB SSDT.
+ */
+static void get_pxb_info(MachineState *machine, CrsRangeSet *crs_range_set,
+                         int *root_bus_limit)
+{
+    PCMachineState *pcms = PC_MACHINE(machine);
+    PCIBus *bus = PC_MACHINE(machine)->bus;
+    
+    QLIST_FOREACH(bus, &bus->child, sibling) {
+        uint8_t bus_num = pci_bus_num(bus);
+
+        /* look only for expander root buses */
+        if (!pci_bus_is_root(bus)) {
+            continue;
+        }
+
+        if (bus_num < *root_bus_limit) {
+            *root_bus_limit = bus_num - 1;
+        }
+
+        build_crs(PCI_HOST_BRIDGE(BUS(bus)->parent), crs_range_set,
+                  0, 0, 0, 0, NULL);
+
+        /* Handle the ranges for the PXB expanders */
+        if (pci_bus_is_cxl(bus)) {
+            MemoryRegion *mr = &pcms->cxl_devices_state.host_mr;
+            uint64_t base = mr->addr;
+
+            crs_range_insert(crs_range_set->mem_ranges, base,
+                             base + memory_region_size(mr) - 1);
+        }
+    }
+}
+
+static void build_pxb_ssdt(GArray *table_offsets, GArray *table_data, BIOSLinker *linker,
+                           MachineState *machine)
+{
+    X86MachineState *x86ms = X86_MACHINE(machine);
+    AcpiTable table = { .sig = "SSDT", .rev = 1,
+                        .oem_id = x86ms->oem_id, .oem_table_id = "PXB" };
+    Aml *ssdt, *scope, *dev, *crs;
+    bool cxl_present = false;
+    PCIBus *bus;
+
+    /*
+     * Check if there are any PXB instances so as to avoid the aml setup
+     * if there won't be a PXB SSDT
+     */
+    bus = PC_MACHINE(machine)->bus;
+    if (!bus) {
+        return;
+    }
+
+    QLIST_FOREACH(bus, &bus->child, sibling) {
+        if (pci_bus_is_root(bus)) {
+            break;
+        }
+    }
+    if (!bus) {
+        return;
+    }
+
+    /* SSDT will exist so add a pointer that will end up RSDT/XSDT */
+    acpi_add_table(table_offsets, table_data);
+    acpi_table_begin(&table, table_data);
+    ssdt = init_aml_allocator();
+
+    bus = PC_MACHINE(machine)->bus;
+
+    QLIST_FOREACH(bus, &bus->child, sibling) {
+        uint8_t bus_num = pci_bus_num(bus);
+        uint8_t numa_node = pci_bus_numa_node(bus);
+
+        /* look only for expander root buses */
+        if (!pci_bus_is_root(bus)) {
+            continue;
+        }
+
+        scope = aml_scope("\\_SB");
+
+        if (pci_bus_is_cxl(bus)) {
+            dev = aml_device("CL%.02X", bus_num);
+        } else {
+            dev = aml_device("PI%.02X", bus_num);
+        }
+        aml_append(dev, aml_name_decl("_UID", aml_int(bus_num)));
+        aml_append(dev, aml_name_decl("_BBN", aml_int(bus_num)));
+        if (pci_bus_is_cxl(bus)) {
+            struct Aml *pkg = aml_package(2);
+
+            aml_append(dev, aml_name_decl("_HID", aml_string("ACPI0016")));
+            aml_append(pkg, aml_eisaid("PNP0A08"));
+            aml_append(pkg, aml_eisaid("PNP0A03"));
+            aml_append(dev, aml_name_decl("_CID", pkg));
+            aml_append(dev, aml_name_decl("_ADR", aml_int(0)));
+            build_cxl_osc_method(dev);
+        } else if (pci_bus_is_express(bus)) {
+            aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0A08")));
+            aml_append(dev, aml_name_decl("_CID", aml_eisaid("PNP0A03")));
+
+            /* Expander bridges do not have ACPI PCI Hot-plug enabled */
+            aml_append(dev, build_q35_osc_method(true));
+        } else {
+            aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0A03")));
+        }
+
+        if (numa_node != NUMA_NODE_UNASSIGNED) {
+            aml_append(dev, aml_name_decl("_PXM", aml_int(numa_node)));
+        }
+
+        aml_append(dev, build_prt(false));
+        crs = aml_resource_template();
+        build_crs(PCI_HOST_BRIDGE(BUS(bus)->parent), NULL,
+                  0, 0, 0, 0, crs);
+        aml_append(dev, aml_name_decl("_CRS", crs));
+        aml_append(scope, dev);
+        aml_append(ssdt, scope);
+
+        if (pci_bus_is_cxl(bus)) {
+            cxl_present = true;
+        }
+    }
+
+    if (cxl_present) {
+        build_acpi0017(ssdt);
+    }
+    g_array_append_vals(table_data, ssdt->buf->data, ssdt->buf->len);
+    acpi_table_end(linker, &table);
+    free_aml_allocator();
+}
+
 static void
 build_dsdt(GArray *table_data, BIOSLinker *linker,
            AcpiPmInfo *pm, AcpiMiscInfo *misc,
-           Range *pci_hole, Range *pci_hole64, MachineState *machine)
+           Range *pci_hole, Range *pci_hole64, MachineState *machine,
+           CrsRangeSet *crs_range_set, int root_bus_limit)
 {
     Object *i440fx = object_resolve_type_unambiguous(TYPE_I440FX_PCI_HOST_BRIDGE);
     Object *q35 = object_resolve_type_unambiguous(TYPE_Q35_HOST_DEVICE);
     CrsRangeEntry *entry;
     Aml *dsdt, *sb_scope, *scope, *dev, *method, *field, *pkg, *crs;
-    CrsRangeSet crs_range_set;
     PCMachineState *pcms = PC_MACHINE(machine);
     PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(machine);
     X86MachineState *x86ms = X86_MACHINE(machine);
     AcpiMcfgInfo mcfg;
     bool mcfg_valid = !!acpi_get_mcfg(&mcfg);
     uint32_t nr_mem = machine->ram_slots;
-    int root_bus_limit = 0xFF;
-    PCIBus *bus = NULL;
 #ifdef CONFIG_TPM
     TPMIf *tpm = tpm_find();
 #endif
-    bool cxl_present = false;
     int i;
     VMBusBridge *vmbus_bridge = vmbus_bridge_find();
     AcpiTable table = { .sig = "DSDT", .rev = 1, .oem_id = x86ms->oem_id,
@@ -1557,78 +1687,6 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
                                  pcms->memhp_io_base);
     }
 
-    crs_range_set_init(&crs_range_set);
-    bus = PC_MACHINE(machine)->bus;
-    if (bus) {
-        QLIST_FOREACH(bus, &bus->child, sibling) {
-            uint8_t bus_num = pci_bus_num(bus);
-            uint8_t numa_node = pci_bus_numa_node(bus);
-
-            /* look only for expander root buses */
-            if (!pci_bus_is_root(bus)) {
-                continue;
-            }
-
-            if (bus_num < root_bus_limit) {
-                root_bus_limit = bus_num - 1;
-            }
-
-            scope = aml_scope("\\_SB");
-
-            if (pci_bus_is_cxl(bus)) {
-                dev = aml_device("CL%.02X", bus_num);
-            } else {
-                dev = aml_device("PC%.02X", bus_num);
-            }
-            aml_append(dev, aml_name_decl("_UID", aml_int(bus_num)));
-            aml_append(dev, aml_name_decl("_BBN", aml_int(bus_num)));
-            if (pci_bus_is_cxl(bus)) {
-                struct Aml *pkg = aml_package(2);
-
-                aml_append(dev, aml_name_decl("_HID", aml_string("ACPI0016")));
-                aml_append(pkg, aml_eisaid("PNP0A08"));
-                aml_append(pkg, aml_eisaid("PNP0A03"));
-                aml_append(dev, aml_name_decl("_CID", pkg));
-                aml_append(dev, aml_name_decl("_ADR", aml_int(0)));
-                build_cxl_osc_method(dev);
-            } else if (pci_bus_is_express(bus)) {
-                aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0A08")));
-                aml_append(dev, aml_name_decl("_CID", aml_eisaid("PNP0A03")));
-
-                /* Expander bridges do not have ACPI PCI Hot-plug enabled */
-                aml_append(dev, build_q35_osc_method(true));
-            } else {
-                aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0A03")));
-            }
-
-            if (numa_node != NUMA_NODE_UNASSIGNED) {
-                aml_append(dev, aml_name_decl("_PXM", aml_int(numa_node)));
-            }
-
-            aml_append(dev, build_prt(false));
-            crs = aml_resource_template();
-            build_crs(PCI_HOST_BRIDGE(BUS(bus)->parent), &crs_range_set,
-                      0, 0, 0, 0, crs);
-            aml_append(dev, aml_name_decl("_CRS", crs));
-            aml_append(scope, dev);
-            aml_append(dsdt, scope);
-
-            /* Handle the ranges for the PXB expanders */
-            if (pci_bus_is_cxl(bus)) {
-                MemoryRegion *mr = &pcms->cxl_devices_state.host_mr;
-                uint64_t base = mr->addr;
-
-                cxl_present = true;
-                crs_range_insert(crs_range_set.mem_ranges, base,
-                                 base + memory_region_size(mr) - 1);
-            }
-        }
-    }
-
-    if (cxl_present) {
-        build_acpi0017(dsdt);
-    }
-
     /*
      * At this point crs_range_set has all the ranges used by pci
      * busses *other* than PCI0.  These ranges will be excluded from
@@ -1636,7 +1694,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
      * too.
      */
     if (mcfg_valid) {
-        crs_range_insert(crs_range_set.mem_ranges,
+        crs_range_insert(crs_range_set->mem_ranges,
                          mcfg.base, mcfg.base + mcfg.size - 1);
     }
 
@@ -1654,9 +1712,9 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
                     AML_POS_DECODE, AML_ENTIRE_RANGE,
                     0x0000, 0x0000, 0x0CF7, 0x0000, 0x0CF8));
 
-    crs_replace_with_free_ranges(crs_range_set.io_ranges, 0x0D00, 0xFFFF);
-    for (i = 0; i < crs_range_set.io_ranges->len; i++) {
-        entry = g_ptr_array_index(crs_range_set.io_ranges, i);
+    crs_replace_with_free_ranges(crs_range_set->io_ranges, 0x0D00, 0xFFFF);
+    for (i = 0; i < crs_range_set->io_ranges->len; i++) {
+        entry = g_ptr_array_index(crs_range_set->io_ranges, i);
         aml_append(crs,
             aml_word_io(AML_MIN_FIXED, AML_MAX_FIXED,
                         AML_POS_DECODE, AML_ENTIRE_RANGE,
@@ -1669,11 +1727,11 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
                          AML_CACHEABLE, AML_READ_WRITE,
                          0, 0x000A0000, 0x000BFFFF, 0, 0x00020000));
 
-    crs_replace_with_free_ranges(crs_range_set.mem_ranges,
+    crs_replace_with_free_ranges(crs_range_set->mem_ranges,
                                  range_lob(pci_hole),
                                  range_upb(pci_hole));
-    for (i = 0; i < crs_range_set.mem_ranges->len; i++) {
-        entry = g_ptr_array_index(crs_range_set.mem_ranges, i);
+    for (i = 0; i < crs_range_set->mem_ranges->len; i++) {
+        entry = g_ptr_array_index(crs_range_set->mem_ranges, i);
         aml_append(crs,
             aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
                              AML_NON_CACHEABLE, AML_READ_WRITE,
@@ -1682,11 +1740,11 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
     }
 
     if (!range_is_empty(pci_hole64)) {
-        crs_replace_with_free_ranges(crs_range_set.mem_64bit_ranges,
+        crs_replace_with_free_ranges(crs_range_set->mem_64bit_ranges,
                                      range_lob(pci_hole64),
                                      range_upb(pci_hole64));
-        for (i = 0; i < crs_range_set.mem_64bit_ranges->len; i++) {
-            entry = g_ptr_array_index(crs_range_set.mem_64bit_ranges, i);
+        for (i = 0; i < crs_range_set->mem_64bit_ranges->len; i++) {
+            entry = g_ptr_array_index(crs_range_set->mem_64bit_ranges, i);
             aml_append(crs,
                        aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED,
                                         AML_MAX_FIXED,
@@ -1721,8 +1779,6 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
     );
     aml_append(dev, aml_name_decl("_CRS", crs));
     aml_append(scope, dev);
-
-    crs_range_set_free(&crs_range_set);
 
     /* reserve PCIHP resources */
     if (pm->pcihp_io_len && (pm->pcihp_bridge_en || pm->pcihp_root_en)) {
@@ -2485,6 +2541,8 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     AcpiMiscInfo misc;
     AcpiMcfgInfo mcfg;
     Range pci_hole = {}, pci_hole64 = {};
+    int root_bus_limit = 0xFF;
+    CrsRangeSet crs_range_set;
     uint8_t *u;
     size_t aml_len = 0;
     GArray *tables_blob = tables->table_data;
@@ -2527,10 +2585,20 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     facs = tables_blob->len;
     build_facs(tables_blob);
 
+    crs_range_set_init(&crs_range_set);
+
+    /*
+     * Before creating the entries for the main PCI bus, establish
+     * if space needs to be made for any PXB instances.
+     */
+    get_pxb_info(machine, &crs_range_set, &root_bus_limit);
     /* DSDT is pointed to by FADT */
     dsdt = tables_blob->len;
     build_dsdt(tables_blob, tables->linker, &pm, &misc,
-               &pci_hole, &pci_hole64, machine);
+               &pci_hole, &pci_hole64, machine, &crs_range_set,
+               root_bus_limit);
+
+    crs_range_set_free(&crs_range_set);
 
     /* Count the size of the DSDT and SSDT, we will need it for legacy
      * sizing of ACPI tables.
@@ -2545,6 +2613,8 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     pm.fadt.xdsdt_tbl_offset = &dsdt;
     build_fadt(tables_blob, tables->linker, &pm.fadt, oem_id, oem_table_id);
     aml_len += tables_blob->len - fadt;
+
+    build_pxb_ssdt(table_offsets, tables_blob, tables->linker, machine);
 
     acpi_add_table(table_offsets, tables_blob);
     acpi_build_madt(tables_blob, tables->linker, x86ms,
