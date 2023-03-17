@@ -680,7 +680,7 @@ int main(int argc, char **argv, char **envp)
     int i;
     int ret;
     int execfd;
-    unsigned long max_reserved_va;
+    unsigned long local_max_rva;
     bool preserve_argv0;
 
     error_init(argv[0]);
@@ -791,7 +791,7 @@ int main(int argc, char **argv, char **envp)
      * still try it, if directed by the command-line option, but
      * not by default.
      */
-    max_reserved_va = MAX_RESERVED_VA(cpu);
+    local_max_rva = MAX_RESERVED_VA(cpu);
     if (reserved_va != 0) {
         if (reserved_va % qemu_host_page_size) {
             char *s = size_to_str(qemu_host_page_size);
@@ -799,7 +799,7 @@ int main(int argc, char **argv, char **envp)
             g_free(s);
             exit(EXIT_FAILURE);
         }
-        if (max_reserved_va && reserved_va > max_reserved_va) {
+        if (local_max_rva && reserved_va > local_max_rva) {
             fprintf(stderr, "Reserved virtual address too big\n");
             exit(EXIT_FAILURE);
         }
@@ -808,7 +808,7 @@ int main(int argc, char **argv, char **envp)
          * reserved_va must be aligned with the host page size
          * as it is used with mmap()
          */
-        reserved_va = max_reserved_va & qemu_host_page_mask;
+        reserved_va = local_max_rva & qemu_host_page_mask;
     }
 
     {
