@@ -55,6 +55,7 @@ typedef struct vhost_vdpa {
 } VhostVDPA;
 
 void vhost_vdpa_reset_status_fd(int fd);
+int vhost_vdpa_set_dev_features_fd(int fd, uint64_t features);
 int vhost_vdpa_get_iova_range(int fd, struct vhost_vdpa_iova_range *iova_range);
 
 int vhost_vdpa_dma_map(struct vhost_vdpa *v, uint32_t asid, hwaddr iova,
