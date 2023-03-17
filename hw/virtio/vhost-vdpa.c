@@ -335,38 +335,45 @@ static const MemoryListener vhost_vdpa_memory_listener = {
     .region_del = vhost_vdpa_listener_region_del,
 };
 
-static int vhost_vdpa_call(struct vhost_dev *dev, unsigned long int request,
-                             void *arg)
+static int vhost_vdpa_dev_fd(const struct vhost_dev *dev)
 {
     struct vhost_vdpa *v = dev->opaque;
-    int fd = v->device_fd;
-    int ret;
 
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_VDPA);
+    return v->device_fd;
+}
 
-    ret = ioctl(fd, request, arg);
+static int vhost_vdpa_call_fd(int fd, unsigned long int request, void *arg)
+{
+    int ret = ioctl(fd, request, arg);
+
     return ret < 0 ? -errno : ret;
 }
 
-static int vhost_vdpa_add_status(struct vhost_dev *dev, uint8_t status)
+static int vhost_vdpa_call(struct vhost_dev *dev, unsigned long int request,
+                           void *arg)
+{
+    return vhost_vdpa_call_fd(vhost_vdpa_dev_fd(dev), request, arg);
+}
+
+static int vhost_vdpa_add_status_fd(int fd, uint8_t status)
 {
     uint8_t s;
     int ret;
 
-    trace_vhost_vdpa_add_status(dev, status);
-    ret = vhost_vdpa_call(dev, VHOST_VDPA_GET_STATUS, &s);
+    ret = vhost_vdpa_call_fd(fd, VHOST_VDPA_GET_STATUS, &s);
     if (ret < 0) {
         return ret;
     }
 
     s |= status;
 
-    ret = vhost_vdpa_call(dev, VHOST_VDPA_SET_STATUS, &s);
+    ret = vhost_vdpa_call_fd(fd, VHOST_VDPA_SET_STATUS, &s);
     if (ret < 0) {
         return ret;
     }
 
-    ret = vhost_vdpa_call(dev, VHOST_VDPA_GET_STATUS, &s);
+    ret = vhost_vdpa_call_fd(fd, VHOST_VDPA_GET_STATUS, &s);
     if (ret < 0) {
         return ret;
     }
@@ -376,6 +383,12 @@ static int vhost_vdpa_add_status(struct vhost_dev *dev, uint8_t status)
     }
 
     return 0;
+}
+
+static int vhost_vdpa_add_status(struct vhost_dev *dev, uint8_t status)
+{
+    trace_vhost_vdpa_add_status(dev, status);
+    return vhost_vdpa_add_status_fd(vhost_vdpa_dev_fd(dev), status);
 }
 
 int vhost_vdpa_get_iova_range(int fd, struct vhost_vdpa_iova_range *iova_range)
@@ -709,16 +722,20 @@ static int vhost_vdpa_get_device_id(struct vhost_dev *dev,
     return ret;
 }
 
+static int vhost_vdpa_reset_device_fd(int fd)
+{
+    uint8_t status = 0;
+
+    return vhost_vdpa_call_fd(fd, VHOST_VDPA_SET_STATUS, &status);
+}
+
 static int vhost_vdpa_reset_device(struct vhost_dev *dev)
 {
     struct vhost_vdpa *v = dev->opaque;
-    int ret;
-    uint8_t status = 0;
 
-    ret = vhost_vdpa_call(dev, VHOST_VDPA_SET_STATUS, &status);
-    trace_vhost_vdpa_reset_device(dev);
     v->suspended = false;
-    return ret;
+    trace_vhost_vdpa_reset_device(dev);
+    return vhost_vdpa_reset_device_fd(vhost_vdpa_dev_fd(dev));
 }
 
 static int vhost_vdpa_get_vq_index(struct vhost_dev *dev, int idx)
@@ -1170,6 +1187,13 @@ static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
     return 0;
 }
 
+void vhost_vdpa_reset_status_fd(int fd)
+{
+    vhost_vdpa_reset_device_fd(fd);
+    vhost_vdpa_add_status_fd(fd, VIRTIO_CONFIG_S_ACKNOWLEDGE |
+                                 VIRTIO_CONFIG_S_DRIVER);
+}
+
 static void vhost_vdpa_reset_status(struct vhost_dev *dev)
 {
     struct vhost_vdpa *v = dev->opaque;
@@ -1178,9 +1202,7 @@ static void vhost_vdpa_reset_status(struct vhost_dev *dev)
         return;
     }
 
-    vhost_vdpa_reset_device(dev);
-    vhost_vdpa_add_status(dev, VIRTIO_CONFIG_S_ACKNOWLEDGE |
-                               VIRTIO_CONFIG_S_DRIVER);
+    vhost_vdpa_reset_status_fd(vhost_vdpa_dev_fd(dev));
     memory_listener_unregister(&v->listener);
 }
 
