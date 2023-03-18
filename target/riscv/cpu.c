@@ -983,6 +983,41 @@ static void riscv_cpu_validate_v(CPURISCVState *env,
     env->vext_ver = vext_version;
 }
 
+target_ulong riscv_cpu_enable_v(RISCVCPU *cpu, Error **errp)
+{
+    CPURISCVState *env = &cpu->env;
+    RISCVCPUConfig *cfg = &cpu->cfg;
+    Error *local_err = NULL;
+
+    riscv_cpu_validate_v(env, cfg, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return 0;
+    }
+
+    if (cpu->cfg.ext_zfinx) {
+        error_setg(errp, "Unable to enable V: Zfinx is enabled, "
+                         "so F can not be enabled");
+        return 0;
+    }
+
+    cfg->ext_f = true;
+    env->misa_ext |= RVF;
+
+    cfg->ext_d = true;
+    env->misa_ext |= RVD;
+
+    /*
+     * The V vector extension depends on the
+     *  Zve32f, Zve64f and Zve64d extensions.
+     */
+    cpu->cfg.ext_zve64d = true;
+    cpu->cfg.ext_zve64f = true;
+    cpu->cfg.ext_zve32f = true;
+
+    return env->misa_ext;
+}
+
 static void riscv_cpu_validate_priv_spec(RISCVCPU *cpu, Error **errp)
 {
     CPURISCVState *env = &cpu->env;

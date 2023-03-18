@@ -1395,6 +1395,20 @@ static RISCVException write_misa(CPURISCVState *env, int csrno,
         goto commit;
     }
 
+    if (val & RVV && !(env->misa_ext & RVV)) {
+        /*
+         * If the write wants to enable RVV, only RVV and
+         * its dependencies will be updated in the CSR.
+         */
+        val = riscv_cpu_enable_v(cpu, &local_err);
+        if (local_err != NULL) {
+            return RISCV_EXCP_NONE;
+        }
+
+        val |= RVV;
+        goto commit;
+    }
+
     /*
      * This flow is similar to what riscv_cpu_realize() does,
      * with the difference that we will update env->misa_ext
