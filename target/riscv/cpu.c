@@ -281,7 +281,8 @@ static uint32_t riscv_get_misa_ext_with_cpucfg(RISCVCPUConfig *cfg)
     return ext;
 }
 
-static void riscv_cpu_enable_g(RISCVCPU *cpu, Error **errp)
+
+target_ulong riscv_cpu_enable_g(RISCVCPU *cpu, Error **errp)
 {
     CPURISCVState *env = &cpu->env;
     RISCVCPUConfig *cfg = &cpu->cfg;
@@ -289,7 +290,7 @@ static void riscv_cpu_enable_g(RISCVCPU *cpu, Error **errp)
     if (cpu->cfg.ext_zfinx) {
         error_setg(errp, "Unable to enable G: Zfinx is enabled, "
                          "so F can not be enabled");
-        return;
+        return 0;
     }
 
     if (!(cfg->ext_i && cfg->ext_m && cfg->ext_a &&
@@ -315,6 +316,8 @@ static void riscv_cpu_enable_g(RISCVCPU *cpu, Error **errp)
         cfg->ext_icsr = true;
         cfg->ext_ifencei = true;
     }
+
+    return env->misa_ext;
 }
 
 static void riscv_set_cpucfg_with_misa(RISCVCPUConfig *cfg,
