@@ -1,3 +1,9 @@
+#
+# Currently most things here end up in specific_ss eventually because
+# they need knowledge of CPUState. Stuff that that doesn't can live in
+# common user, softmmu or overall code
+#
+
 tcg_ss = ss.source_set()
 tcg_ss.add(files(
   'tcg-all.c',
@@ -9,6 +15,7 @@ tcg_ss.add(files(
   'translate-all.c',
   'translator.c',
 ))
+
 tcg_ss.add(when: 'CONFIG_USER_ONLY', if_true: files('user-exec.c'))
 tcg_ss.add(when: 'CONFIG_SOFTMMU', if_false: files('user-exec-stub.c'))
 tcg_ss.add(when: 'CONFIG_PLUGIN', if_true: [files('plugin-gen.c')])
@@ -27,3 +34,6 @@ tcg_module_ss.add(when: ['CONFIG_SOFTMMU', 'CONFIG_TCG'], if_true: files(
   'tcg-accel-ops-icount.c',
   'tcg-accel-ops-rr.c',
 ))
+
+# Common softmmu code
+softmmu_ss.add(files('cpu-exec-softmmu.c'))
