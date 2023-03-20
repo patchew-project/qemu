@@ -337,6 +337,19 @@ static void pca9538_gpio_class_init(ObjectClass *klass, void *data)
     k->send = pca953x_send;
 }
 
+static void pca9536_gpio_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    PCAGPIOClass *pc = PCA_I2C_GPIO_CLASS(klass);
+
+    dc->desc = "PCA9536 4-bit I/O expander";
+    pc->num_pins = PCA9536_NUM_PINS;
+
+    k->recv = pca953x_recv;
+    k->send = pca953x_send;
+}
+
 static void pca_i2c_gpio_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -386,6 +399,11 @@ static const TypeInfo pca_gpio_types[] = {
     .name = TYPE_PCA9538_GPIO,
     .parent = TYPE_PCA_I2C_GPIO,
     .class_init = pca9538_gpio_class_init,
+    },
+    {
+        .name = TYPE_PCA9536_GPIO,
+        .parent = TYPE_PCA_I2C_GPIO,
+        .class_init = pca9536_gpio_class_init,
     },
 };
 

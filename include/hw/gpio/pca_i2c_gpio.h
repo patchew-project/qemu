@@ -20,6 +20,7 @@
 #define PCA_I2C_MAX_PINS                     16
 #define PCA6416_NUM_PINS                     16
 #define PCA9538_NUM_PINS                     8
+#define PCA9536_NUM_PINS                     4
 
 typedef struct PCAGPIOClass {
     I2CSlaveClass parent;
@@ -63,5 +64,6 @@ OBJECT_DECLARE_TYPE(PCAGPIOState, PCAGPIOClass, PCA_I2C_GPIO)
 
 #define TYPE_PCA6416_GPIO "pca6416"
 #define TYPE_PCA9538_GPIO "pca9538"
+#define TYPE_PCA9536_GPIO "pca9536"
 
 #endif
