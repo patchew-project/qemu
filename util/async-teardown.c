@@ -12,6 +12,9 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/config-file.h"
+#include "qemu/option.h"
+#include "qemu/module.h"
 #include <dirent.h>
 #include <sys/prctl.h>
 #include <sched.h>
@@ -144,3 +147,17 @@ void init_async_teardown(void)
     clone(async_teardown_fn, new_stack_for_clone(), CLONE_VM, NULL);
     sigprocmask(SIG_SETMASK, &old_signals, NULL);
 }
+
+static QemuOptsList qemu_async_teardown_opts = {
+    .name = "async-teardown",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_async_teardown_opts.head),
+    .desc = {
+        { /* end of list */ }
+    },
+};
+
+static void register_async_teardown(void)
+{
+    qemu_add_opts(&qemu_async_teardown_opts);
+}
+opts_init(register_async_teardown);
