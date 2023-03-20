@@ -304,9 +304,17 @@ dbus_display_add_client(int csock, Error **errp)
         g_cancellable_cancel(dbus_display->add_client_cancellable);
     }
 
+#ifdef WIN32
+    csock = qemu_close_to_socket(csock);
+#endif
     socket = g_socket_new_from_fd(csock, &err);
     if (!socket) {
         error_setg(errp, "Failed to setup D-Bus socket: %s", err->message);
+#ifdef WIN32
+        closesocket(csock);
+#else
+        close(csock);
+#endif
         return false;
     }
 
