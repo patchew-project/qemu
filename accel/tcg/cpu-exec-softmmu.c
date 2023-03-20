@@ -18,7 +18,11 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/main-loop.h"
+#include "exec/replay-core.h"
+#include "exec/cpu-irq.h"
 #include "hw/core/cpu.h"
+#include "hw/core/sysemu-cpu-ops.h"
 #include "sysemu/cpus.h"
 
 void cpu_reloading_memory_map(void)
@@ -46,5 +50,17 @@ void cpu_reloading_memory_map(void)
          */
         rcu_read_unlock();
         rcu_read_lock();
+    }
+}
+
+/* Called with BQL held */
+bool common_cpu_handle_interrupt(CPUState *cpu,  int interrupt_request)
+{
+    if (interrupt_request & CPU_INTERRUPT_RESET) {
+        replay_interrupt();
+        cpu_reset(cpu);
+        return true;
+    } else {
+        return false;
     }
 }

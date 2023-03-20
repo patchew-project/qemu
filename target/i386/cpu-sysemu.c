@@ -31,6 +31,7 @@
 #include "hw/qdev-properties.h"
 
 #include "exec/address-spaces.h"
+#include "exec/replay-core.h"
 #include "hw/i386/apic_internal.h"
 
 #include "cpu-internal.h"
@@ -319,6 +320,22 @@ void x86_cpu_handle_halt(CPUState *cpu)
         apic_poll_irq(x86_cpu->apic_state);
         cpu_reset_interrupt(cpu, CPU_INTERRUPT_POLL);
         qemu_mutex_unlock_iothread();
+    }
+}
+
+/* Called with BQL held */
+bool x86_cpu_handle_interrupt(CPUState *cpu, int interrupt_request)
+{
+    if (interrupt_request & CPU_INTERRUPT_INIT) {
+        X86CPU *x86_cpu = X86_CPU(cpu);
+        CPUArchState *env = &x86_cpu->env;
+        replay_interrupt();
+        cpu_svm_check_intercept_param(env, SVM_EXIT_INIT, 0, 0);
+        do_cpu_init(x86_cpu);
+        cpu->exception_index = EXCP_HALTED;
+        return true;
+    } else {
+        return false;
     }
 }
 

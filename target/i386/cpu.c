@@ -7241,6 +7241,7 @@ static const struct SysemuCPUOps i386_sysemu_ops = {
     .asidx_from_attrs = x86_asidx_from_attrs,
     .get_crash_info = x86_cpu_get_crash_info,
     .handle_cpu_halt = x86_cpu_handle_halt,
+    .handle_cpu_interrupt = x86_cpu_handle_interrupt,
     .write_elf32_note = x86_cpu_write_elf32_note,
     .write_elf64_note = x86_cpu_write_elf64_note,
     .write_elf32_qemunote = x86_cpu_write_elf32_qemunote,

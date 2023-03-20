@@ -54,6 +54,15 @@ typedef struct SysemuCPUOps {
      */
     void (*handle_cpu_halt)(CPUState *cpu);
     /**
+     * @handle_cpu_interrupt: handle init/reset interrupts
+     * @cs: The CPUState
+     * @irq_request: the interrupt request
+     *
+     * Most architectures share a common handler. Returns true if the
+     * handler did indeed handle and interrupt.
+     */
+    bool (*handle_cpu_interrupt)(CPUState *cpu,  int irq_request);
+    /**
      * @write_elf32_note: Callback for writing a CPU-specific ELF note to a
      * 32-bit VM coredump.
      */
@@ -93,5 +102,7 @@ typedef struct SysemuCPUOps {
     const VMStateDescription *legacy_vmsd;
 
 } SysemuCPUOps;
+
+bool common_cpu_handle_interrupt(CPUState *cpu,  int irq_request);
 
 #endif /* SYSEMU_CPU_OPS_H */

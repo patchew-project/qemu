@@ -798,28 +798,17 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
             cpu->exception_index = EXCP_HLT;
             return true;
         }
-#if defined(TARGET_I386)
-        else if (interrupt_request & CPU_INTERRUPT_INIT) {
-            X86CPU *x86_cpu = X86_CPU(cpu);
-            CPUArchState *env = &x86_cpu->env;
-            replay_interrupt();
-            cpu_svm_check_intercept_param(env, SVM_EXIT_INIT, 0, 0);
-            do_cpu_init(x86_cpu);
-            cpu->exception_index = EXCP_HALTED;
+        else if (cpu->cc->sysemu_ops->handle_cpu_interrupt &&
+                 cpu->cc->sysemu_ops->handle_cpu_interrupt(cpu, interrupt_request)) {
+                return true;
+        } else if (common_cpu_handle_interrupt(cpu, interrupt_request)) {
             return true;
-        }
-#else
-        else if (interrupt_request & CPU_INTERRUPT_RESET) {
-            replay_interrupt();
-            cpu_reset(cpu);
-            return true;
-        }
-#endif /* !TARGET_I386 */
-        /* The target hook has 3 exit conditions:
-           False when the interrupt isn't processed,
-           True when it is, and we should restart on a new TB,
-           and via longjmp via cpu_loop_exit.  */
-        else {
+        } else {
+            /*
+             * The target hook has 3 exit conditions: False when the
+             * interrupt isn't processed, True when it is, and we should
+             * restart on a new TB, and via longjmp via cpu_loop_exit.
+             */
             CPUClass *cc = CPU_GET_CLASS(cpu);
 
             if (cc->tcg_ops->cpu_exec_interrupt &&
