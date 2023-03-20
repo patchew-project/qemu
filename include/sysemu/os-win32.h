@@ -67,7 +67,7 @@ extern "C" {
  * which gets linked automatically.
  */
 int __mingw_setjmp(jmp_buf);
-void __attribute__((noreturn)) __mingw_longjmp(jmp_buf, int);
+G_NORETURN void __mingw_longjmp(jmp_buf, int);
 #define setjmp(env) __mingw_setjmp(env)
 #define longjmp(env, val) __mingw_longjmp(env, val)
 #elif defined(_WIN64)

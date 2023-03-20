@@ -36,7 +36,7 @@ static int gettid(void)
 }
 #endif
 
-static __attribute__((noreturn)) void exit_failure(void)
+static G_NORETURN void exit_failure(void)
 {
     if (getpid() == 1) {
         sync();
