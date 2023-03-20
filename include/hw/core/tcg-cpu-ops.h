@@ -121,6 +121,11 @@ struct TCGCPUOps {
      */
     bool (*io_recompile_replay_branch)(CPUState *cpu,
                                        const TranslationBlock *tb);
+    /**
+     * @virtual_interrupts: IRQs that can be ignored for replay purposes
+     */
+    int virtual_interrupts;
+
 #else
     /**
      * record_sigsegv:

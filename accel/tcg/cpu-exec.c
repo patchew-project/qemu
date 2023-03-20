@@ -738,22 +738,6 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
     return false;
 }
 
-#ifndef CONFIG_USER_ONLY
-/*
- * CPU_INTERRUPT_POLL is a virtual event which gets converted into a
- * "real" interrupt event later. It does not need to be recorded for
- * replay purposes.
- */
-static inline bool need_replay_interrupt(int interrupt_request)
-{
-#if defined(TARGET_I386)
-    return !(interrupt_request & CPU_INTERRUPT_POLL);
-#else
-    return true;
-#endif
-}
-#endif /* !CONFIG_USER_ONLY */
-
 static inline bool cpu_handle_interrupt(CPUState *cpu,
                                         TranslationBlock **last_tb)
 {
@@ -809,11 +793,16 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
              * interrupt isn't processed, True when it is, and we should
              * restart on a new TB, and via longjmp via cpu_loop_exit.
              */
-            CPUClass *cc = CPU_GET_CLASS(cpu);
+            struct TCGCPUOps const *tcg_ops = cpu->cc->tcg_ops;
 
-            if (cc->tcg_ops->cpu_exec_interrupt &&
-                cc->tcg_ops->cpu_exec_interrupt(cpu, interrupt_request)) {
-                if (need_replay_interrupt(interrupt_request)) {
+            if (tcg_ops->cpu_exec_interrupt &&
+                tcg_ops->cpu_exec_interrupt(cpu, interrupt_request)) {
+                /*
+                 * Virtual events gets converted into a "real"
+                 * interrupt event later. They do not need to be
+                 * recorded for replay purposes.
+                 */
+                if (!(interrupt_request & tcg_ops->virtual_interrupts)) {
                     replay_interrupt();
                 }
                 /*
