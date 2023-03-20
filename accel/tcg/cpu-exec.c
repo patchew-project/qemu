@@ -699,13 +699,13 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
         return true;
     } else {
 #if defined(CONFIG_USER_ONLY)
-        /* if user mode only, we simulate a fake exception
-           which will be handled outside the cpu execution
-           loop */
-#if defined(TARGET_I386)
-        CPUClass *cc = CPU_GET_CLASS(cpu);
-        cc->tcg_ops->fake_user_interrupt(cpu);
-#endif /* TARGET_I386 */
+        /*
+         * For some user mode handling we simulate a fake exception
+         * which will be handled outside the cpu execution loop
+         */
+        if (cpu->cc->tcg_ops->fake_user_interrupt) {
+            cpu->cc->tcg_ops->fake_user_interrupt(cpu);
+        }
         *ret = cpu->exception_index;
         cpu->exception_index = -1;
         return true;
