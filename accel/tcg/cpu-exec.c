@@ -22,6 +22,7 @@
 #include "qapi/error.h"
 #include "qapi/type-helpers.h"
 #include "hw/core/tcg-cpu-ops.h"
+#include "hw/core/sysemu-cpu-ops.h"
 #include "trace.h"
 #include "disas/disas.h"
 #include "exec/exec-all.h"
@@ -30,9 +31,6 @@
 #include "qemu/rcu.h"
 #include "exec/log.h"
 #include "qemu/main-loop.h"
-#if defined(TARGET_I386) && !defined(CONFIG_USER_ONLY)
-#include "hw/i386/apic.h"
-#endif
 #include "sysemu/cpus.h"
 #include "exec/cpu-all.h"
 #include "sysemu/cpu-timers.h"
@@ -651,15 +649,9 @@ static inline bool cpu_handle_halt(CPUState *cpu)
 {
 #ifndef CONFIG_USER_ONLY
     if (cpu->halted) {
-#if defined(TARGET_I386)
-        if (cpu->interrupt_request & CPU_INTERRUPT_POLL) {
-            X86CPU *x86_cpu = X86_CPU(cpu);
-            qemu_mutex_lock_iothread();
-            apic_poll_irq(x86_cpu->apic_state);
-            cpu_reset_interrupt(cpu, CPU_INTERRUPT_POLL);
-            qemu_mutex_unlock_iothread();
+        if (cpu->cc->sysemu_ops->handle_cpu_halt) {
+            cpu->cc->sysemu_ops->handle_cpu_halt(cpu);
         }
-#endif /* TARGET_I386 */
         if (!cpu_has_work(cpu)) {
             return true;
         }

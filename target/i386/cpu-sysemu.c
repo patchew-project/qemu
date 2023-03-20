@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/main-loop.h"
 #include "cpu.h"
 #include "sysemu/xen.h"
 #include "sysemu/whpx.h"
@@ -308,6 +309,17 @@ void x86_cpu_apic_realize(X86CPU *cpu, Error **errp)
                                             0x1000);
         apic_mmio_map_once = true;
      }
+}
+
+void x86_cpu_handle_halt(CPUState *cpu)
+{
+    if (cpu->interrupt_request & CPU_INTERRUPT_POLL) {
+        X86CPU *x86_cpu = X86_CPU(cpu);
+        qemu_mutex_lock_iothread();
+        apic_poll_irq(x86_cpu->apic_state);
+        cpu_reset_interrupt(cpu, CPU_INTERRUPT_POLL);
+        qemu_mutex_unlock_iothread();
+    }
 }
 
 GuestPanicInformation *x86_cpu_get_crash_info(CPUState *cs)

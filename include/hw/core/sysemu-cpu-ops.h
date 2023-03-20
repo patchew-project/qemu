@@ -49,6 +49,11 @@ typedef struct SysemuCPUOps {
      */
     GuestPanicInformation* (*get_crash_info)(CPUState *cpu);
     /**
+     * @handle_cpu_halt: Callback for special handling during cpu_handle_halt()
+     * @cs: The CPUState
+     */
+    void (*handle_cpu_halt)(CPUState *cpu);
+    /**
      * @write_elf32_note: Callback for writing a CPU-specific ELF note to a
      * 32-bit VM coredump.
      */
