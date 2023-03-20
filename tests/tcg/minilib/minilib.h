@@ -15,7 +15,7 @@
 /*
  * Provided by the individual arch
  */
-extern void __sys_outc(char c);
+void __sys_outc(char c);
 
 /*
  * Provided by the common minilib
