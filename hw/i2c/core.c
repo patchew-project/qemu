@@ -161,7 +161,8 @@ static int i2c_do_start_transfer(I2CBus *bus, uint8_t address,
            start condition.  */
 
         if (sc->event) {
-            trace_i2c_event(event == I2C_START_SEND ? "start" : "start_async",
+            trace_i2c_event(DEVICE(s)->canonical_path,
+                            event == I2C_START_SEND ? "start" : "start_async",
                             s->address);
             rv = sc->event(s, event);
             if (rv && !bus->broadcast) {
@@ -244,7 +245,7 @@ void i2c_end_transfer(I2CBus *bus)
         I2CSlave *s = node->elt;
         sc = I2C_SLAVE_GET_CLASS(s);
         if (sc->event) {
-            trace_i2c_event("finish", s->address);
+            trace_i2c_event(DEVICE(s)->canonical_path, "finish", s->address);
             sc->event(s, I2C_FINISH);
         }
         QLIST_REMOVE(node, next);
@@ -321,7 +322,8 @@ void i2c_nack(I2CBus *bus)
     QLIST_FOREACH(node, &bus->current_devs, next) {
         sc = I2C_SLAVE_GET_CLASS(node->elt);
         if (sc->event) {
-            trace_i2c_event("nack", node->elt->address);
+            trace_i2c_event(DEVICE(node->elt)->canonical_path,
+                            "nack", node->elt->address);
             sc->event(node->elt, I2C_NACK);
         }
     }
