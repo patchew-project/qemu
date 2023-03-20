@@ -174,6 +174,7 @@ bool qemu_socket_unselect(int sockfd, Error **errp);
 /* We wrap all the sockets functions so that we can
  * set errno based on WSAGetLastError()
  */
+SOCKET qemu_close_to_socket(int fd);
 
 #undef close
 #define close qemu_close_wrap
