@@ -32,8 +32,8 @@ def main():
     ##
     with open(sys.argv[3], 'w') as f:
         for tag in hex_common.tags:
-            f.write('OP_ATTRIB(%s,ATTRIBS(%s))\n' % \
-                (tag, ','.join(sorted(hex_common.attribdict[tag]))))
+            f.write(f'OP_ATTRIB({tag},ATTRIBS('
+                    f'{",".join(sorted(hex_common.attribdict[tag]))}))\n')
 
 if __name__ == "__main__":
     main()

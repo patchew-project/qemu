@@ -30,7 +30,7 @@ def main():
     ##
     with open(sys.argv[3], 'w') as f:
         for tag in hex_common.tags:
-            f.write ( "OPCODE(%s),\n" % (tag) )
+            f.write(f"OPCODE({tag}),\n")
 
 if __name__ == "__main__":
     main()

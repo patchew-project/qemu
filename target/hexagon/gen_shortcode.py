@@ -23,7 +23,7 @@ import string
 import hex_common
 
 def gen_shortcode(f, tag):
-    f.write('DEF_SHORTCODE(%s, %s)\n' % (tag, hex_common.semdict[tag]))
+    f.write(f'DEF_SHORTCODE({tag}, {hex_common.semdict[tag]})\n')
 
 def main():
     hex_common.read_semantics_file(sys.argv[1])
