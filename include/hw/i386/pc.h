@@ -127,6 +127,9 @@ struct PCMachineClass {
 
     /* create kvmclock device even when KVM PV features are not exposed */
     bool kvmclock_create_always;
+
+    /* resizable memory block compat */
+    bool resizable_ram_block;
 };
 
 #define TYPE_PC_MACHINE "generic-pc-machine"
