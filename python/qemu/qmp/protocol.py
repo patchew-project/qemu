@@ -307,7 +307,10 @@ class AsyncProtocol(Generic[T]):
 
         :raise StateError: When the `Runstate` is not `IDLE`.
         """
-        self._reader, self._writer = await asyncio.open_connection(sock=sock)
+        self._reader, self._writer = await asyncio.open_connection(
+            sock=sock,
+            limit=self._limit,
+        )
         self._set_state(Runstate.CONNECTING)
 
     @upper_half
