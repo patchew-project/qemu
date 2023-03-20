@@ -406,6 +406,7 @@ config XLNX_VERSAL
 
 config NPCM7XX
     bool
+    imply I2C_DEVICES
     select A9MPCORE
     select ADM1272
     select ARM_GIC
