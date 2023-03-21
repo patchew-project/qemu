@@ -211,6 +211,34 @@ static void test_store_unaligned(void)
     check_output_w(__LINE__, 2);
 }
 
+static void test_store_new(void)
+{
+    asm volatile(
+        "r0 = #0x00000003\n\t"
+        "v0 = vsplat(r0)\n\t"
+        "r0 = #expect\n\t"
+        "vmem(r0+#0) = v0\n\t"
+
+        "r0 = #output\n\t"
+        "r1 = #0x00000001\n\t"
+        "r2 = #0x00000002\n\t"
+        "r3 = #0x00000004\n\t"
+
+        "v1 = vsplat(r1)\n\t"
+        "v2 = vsplat(r2)\n\t"
+        "v3 = vsplat(r3)\n\t"
+
+        "{"
+        "   v3.w,q0 = vadd(v1.w, v2.w):carry\n\t"
+        "   vmem(r0+#0) = v3.new\n\t"
+        "}"
+
+        ::: "r0", "r1", "r2", "r3", "v0", "v1", "v2", "v3", "q0", "memory"
+    );
+
+    check_output_w(__LINE__, 1);
+}
+
 static void test_masked_store(bool invert)
 {
     void *p0 = buffer0;
@@ -620,6 +648,7 @@ int main()
     test_load_unaligned();
     test_store_aligned();
     test_store_unaligned();
+    test_store_new();
     test_masked_store(false);
     test_masked_store(true);
     test_new_value_store();
