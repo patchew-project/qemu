@@ -40,6 +40,8 @@
 #define TPM_TIS_REG_STS                   0x18
 #define TPM_TIS_REG_DATA_FIFO             0x24
 #define TPM_TIS_REG_INTERFACE_ID          0x30
+#define TPM_TIS_REG_DATA_CSUM_ENABLE      0x40
+#define TPM_TIS_REG_DATA_CSUM_GET         0x44
 #define TPM_TIS_REG_DATA_XFIFO            0x80
 #define TPM_TIS_REG_DATA_XFIFO_END        0xbc
 #define TPM_TIS_REG_DID_VID               0xf00

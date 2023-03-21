@@ -26,6 +26,8 @@
 #include "hw/irq.h"
 #include "hw/isa/isa.h"
 #include "qapi/error.h"
+#include "qemu/bswap.h"
+#include "qemu/crc-ccitt.h"
 #include "qemu/module.h"
 
 #include "hw/acpi/tpm.h"
@@ -422,6 +424,9 @@ static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
             shift = 0; /* no more adjustments */
         }
         break;
+    case TPM_TIS_REG_DATA_CSUM_GET:
+        val = bswap16(crc_ccitt(0, s->buffer, s->rw_offset));
+        break;
     case TPM_TIS_REG_INTERFACE_ID:
         val = s->loc[locty].iface_id;
         break;
@@ -445,6 +450,15 @@ static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
     trace_tpm_tis_mmio_read(size, addr, val);
 
     return val;
+}
+
+/*
+ * A wrapper read function so that it can be directly called without
+ * mmio.
+ */
+uint32_t tpm_tis_read_data(TPMState *s, hwaddr addr, unsigned size)
+{
+    return tpm_tis_mmio_read(s, addr, size);
 }
 
 /*
@@ -600,6 +614,15 @@ static void tpm_tis_mmio_write(void *opaque, hwaddr addr,
     case TPM_TIS_REG_INT_VECTOR:
         /* hard wired -- ignore */
         break;
+    case TPM_TIS_REG_DATA_CSUM_ENABLE:
+        /*
+         * Checksum implemented by common code so no need to set
+         * any flags.
+         */
+        break;
+    case TPM_TIS_REG_DATA_CSUM_GET:
+        /* This is readonly register so ignore */
+        break;
     case TPM_TIS_REG_INT_STATUS:
         if (s->active_locty != locty) {
             break;
@@ -703,6 +726,7 @@ static void tpm_tis_mmio_write(void *opaque, hwaddr addr,
         break;
     case TPM_TIS_REG_DATA_FIFO:
     case TPM_TIS_REG_DATA_XFIFO ... TPM_TIS_REG_DATA_XFIFO_END:
+
         /* data fifo */
         if (s->active_locty != locty) {
             break;
@@ -765,6 +789,15 @@ static void tpm_tis_mmio_write(void *opaque, hwaddr addr,
         }
         break;
     }
+}
+
+/*
+ * A wrapper write function so that it can be directly called without
+ * mmio.
+ */
+void tpm_tis_write_data(TPMState *s, hwaddr addr, uint64_t val, uint32_t size)
+{
+    tpm_tis_mmio_write(s, addr, val, size);
 }
 
 const MemoryRegionOps tpm_tis_memory_ops = {
