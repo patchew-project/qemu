@@ -155,6 +155,11 @@ void aio_bh_call(QEMUBH *bh)
     bh->cb(bh->opaque);
 }
 
+static void aio_bh_slice_insert(AioContext *ctx, BHListSlice *slice)
+{
+    QSIMPLEQ_INSERT_TAIL(&ctx->bh_slice_list, slice, next);
+}
+
 /* Multiple occurrences of aio_bh_poll cannot be called concurrently. */
 int aio_bh_poll(AioContext *ctx)
 {
@@ -164,7 +169,13 @@ int aio_bh_poll(AioContext *ctx)
 
     /* Synchronizes with QSLIST_INSERT_HEAD_ATOMIC in aio_bh_enqueue().  */
     QSLIST_MOVE_ATOMIC(&slice.bh_list, &ctx->bh_list);
-    QSIMPLEQ_INSERT_TAIL(&ctx->bh_slice_list, &slice, next);
+
+    /*
+     * GCC13 [-Werror=dangling-pointer=] complains that the local variable
+     * 'slice' is being stored in a global list in 'ctx->bh_slice_list'.
+     * Use a helper to silent the compiler
+     */
+    aio_bh_slice_insert(ctx, &slice);
 
     while ((s = QSIMPLEQ_FIRST(&ctx->bh_slice_list))) {
         QEMUBH *bh;
