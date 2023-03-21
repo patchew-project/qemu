@@ -2822,7 +2822,7 @@ static void la_bb_end(TCGContext *s, int ng, int nt)
         case TEMP_FIXED:
         case TEMP_GLOBAL:
         case TEMP_TB:
-            state = TS_DEAD | TS_MEM;
+            state = TS_MEM;
             break;
         case TEMP_EBB:
         case TEMP_CONST:
