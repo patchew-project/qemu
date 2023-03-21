@@ -383,6 +383,10 @@ struct CPUArchState {
     uint64_t kvm_timer_compare;
     uint64_t kvm_timer_state;
     uint64_t kvm_timer_frequency;
+
+#define MAX_CACHED_SUM_U_ADDR_NUM 4
+    uint64_t sum_u_count;
+    uint64_t sum_u_addr[MAX_CACHED_SUM_U_ADDR_NUM];
 };
 
 OBJECT_DECLARE_CPU_TYPE(RISCVCPU, RISCVCPUClass, RISCV_CPU)

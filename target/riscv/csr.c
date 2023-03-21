@@ -1247,9 +1247,21 @@ static RISCVException write_mstatus(CPURISCVState *env, int csrno,
 
     /* flush tlb on mstatus fields that affect VM */
     if ((val ^ mstatus) & (MSTATUS_MXR | MSTATUS_MPP | MSTATUS_MPV |
-            MSTATUS_MPRV | MSTATUS_SUM)) {
+            MSTATUS_MPRV)) {
         tlb_flush(env_cpu(env));
+        env->sum_u_count = 0;
+    } else if ((mstatus & MSTATUS_SUM) && !(val & MSTATUS_SUM)) {
+        if (env->sum_u_count > MAX_CACHED_SUM_U_ADDR_NUM) {
+            tlb_flush_by_mmuidx(env_cpu(env), 1 << PRV_S | 1 << PRV_M);
+        } else {
+            for (int i = 0; i < env->sum_u_count; ++i) {
+                tlb_flush_page_by_mmuidx(env_cpu(env), env->sum_u_addr[i],
+                                         1 << PRV_S | 1 << PRV_M);
+            }
+        }
+        env->sum_u_count = 0;
     }
+
     mask = MSTATUS_SIE | MSTATUS_SPIE | MSTATUS_MIE | MSTATUS_MPIE |
         MSTATUS_SPP | MSTATUS_MPRV | MSTATUS_SUM |
         MSTATUS_MPP | MSTATUS_MXR | MSTATUS_TVM | MSTATUS_TSR |
