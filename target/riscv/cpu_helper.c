@@ -1068,6 +1068,13 @@ restart:
                     (access_type == MMU_DATA_STORE || (pte & PTE_D))) {
                 *prot |= PAGE_WRITE;
             }
+            if ((pte & PTE_U) && (mode & PRV_S) &&
+                    get_field(env->mstatus, MSTATUS_SUM)) {
+                if (env->sum_u_count < MAX_CACHED_SUM_U_ADDR_NUM) {
+                    env->sum_u_addr[env->sum_u_count] = addr;
+                }
+                ++env->sum_u_count;
+            }
             return TRANSLATE_SUCCESS;
         }
     }
