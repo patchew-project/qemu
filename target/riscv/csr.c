@@ -1381,6 +1381,14 @@ static RISCVException write_misa(CPURISCVState *env, int csrno,
         val &= RVE;
     }
 
+    if (val & RVG && !(env->misa_ext & RVG)) {
+        /*
+         * If the write wants to enable RVG, enable all its
+         * dependencies as well.
+         */
+        val |= RVI | RVM | RVA | RVF | RVD;
+    }
+
     /*
      * This flow is similar to what riscv_cpu_realize() does,
      * with the difference that we will update env->misa_ext
@@ -1394,6 +1402,12 @@ static RISCVException write_misa(CPURISCVState *env, int csrno,
     riscv_cpu_validate_extensions(cpu, val, &local_err);
     if (local_err != NULL) {
         return RISCV_EXCP_NONE;
+    }
+
+    if (!(val & RVI && val & RVM && val & RVA &&
+          val & RVF && val & RVD)) {
+        /* Disable RVG if any of its dependencies were disabled */
+        val &= ~RVG;
     }
 
     riscv_cpu_commit_cpu_cfg(cpu, val);
