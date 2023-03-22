@@ -888,11 +888,55 @@ int video_streamoff(struct stream *s, enum v4l2_buf_type type)
     return ret;
 }
 
+int v4l2_dmabuf_lookup_mplane(struct vuvbm_device *dev,
+                              struct resource *res,
+                              unsigned int iov_cnt)
+{
+    struct VuVideoDMABuf *buf = vuvbm_lookup(dev, res->uuid);
+    if (!buf) {
+        g_debug("Buffer not found. Creating.");
+        res->buf = g_malloc0(sizeof(struct VuVideoDMABuf) * iov_cnt);
+        for (int i = 0; i < iov_cnt; i++) {
+            if (!vuvbm_buffer_create(dev, &res->buf[i], res->iov[i].iov_len)) {
+                return -1;
+            }
+        }
+        g_debug("Inserting buffer into the table.");
+        g_hash_table_insert(dev->resource_uuids, res->buf, &res->uuid);
+    } else {
+        res->buf = buf;
+        g_debug("Buffer found.");
+    }
+
+    return 0;
+}
+
+int v4l2_dmabuf_lookup(struct vuvbm_device *dev,
+                       struct resource *res,
+                       unsigned int iov_len)
+{
+    struct VuVideoDMABuf *buf = vuvbm_lookup(dev, res->uuid);
+    if (!buf) {
+        g_debug("Buffer not found. Creating.");
+        res->buf = g_new0(struct VuVideoDMABuf, 1);
+        if (!vuvbm_buffer_create(dev, res->buf, iov_len)) {
+            return -1;
+        }
+        g_debug("Inserting buffer into the table.");
+        g_hash_table_insert(dev->resource_uuids, res->buf, &res->uuid);
+    } else {
+        res->buf = buf;
+        g_debug("Buffer found.");
+    }
+
+    return 0;
+}
+
 int v4l2_queue_buffer(enum v4l2_buf_type type,
                       enum v4l2_memory memory,
                       struct virtio_video_resource_queue *qcmd,
                       struct resource *res, struct stream *s,
-                      struct v4l2_device *dev)
+                      struct v4l2_device *dev, struct vuvbm_device *bm_dev)
 {
     struct v4l2_buffer vbuf;
     int ret = 0;
@@ -911,22 +955,64 @@ int v4l2_queue_buffer(enum v4l2_buf_type type,
 
     convert_to_timeval(le64toh(qcmd->timestamp), &vbuf.timestamp);
 
-    if (V4L2_TYPE_IS_MULTIPLANAR(type)) {
-        /* for mplane length field is number of elements in planes array */
-        vbuf.length = res->vio_resource.num_planes;
-        vbuf.m.planes = g_malloc0(sizeof(struct v4l2_plane)
-                                  * res->vio_resource.num_planes);
+    if (memory == V4L2_MEMORY_USERPTR) {
+        if (V4L2_TYPE_IS_MULTIPLANAR(type)) {
+            /* for mplane length field is number of elements in planes array */
+            vbuf.length = res->vio_resource.num_planes;
+            vbuf.m.planes = g_malloc0(sizeof(struct v4l2_plane)
+                                    * res->vio_resource.num_planes);
 
-        for (int i = 0; i < vbuf.length; i++) {
-            vbuf.m.planes[i].m.userptr = (unsigned long)res->iov[i].iov_base;
-            vbuf.m.planes[i].length = (unsigned long)res->iov[i].iov_len;
+            for (int i = 0; i < vbuf.length; i++) {
+                vbuf.m.planes[i].m.userptr =
+                    (unsigned long)res->iov[i].iov_base;
+                vbuf.m.planes[i].length = (unsigned long)res->iov[i].iov_len;
+            }
+        } else {
+            assert(res->iov != NULL);
+            vbuf.m.userptr = (unsigned long)res->iov[0].iov_base;
+            vbuf.length = res->iov[0].iov_len;
+            g_debug("%s: iov_base = 0x%p", __func__, res->iov[0].iov_base);
+            g_debug("%s: iov_len = 0x%lx", __func__, res->iov[0].iov_len);
         }
-    } else if (res->iov != NULL) {
-        /* m is a union of userptr, *planes and fd */
-        vbuf.m.userptr = (unsigned long)res->iov[0].iov_base;
-        vbuf.length = res->iov[0].iov_len;
-        g_debug("%s: iov_base = 0x%p", __func__, res->iov[0].iov_base);
-        g_debug("%s: iov_len = 0x%lx", __func__, res->iov[0].iov_len);
+    } else {
+        assert(memory == V4L2_MEMORY_DMABUF);
+        if (V4L2_TYPE_IS_MULTIPLANAR(type)) {
+            vbuf.length = res->vio_resource.num_planes;
+            vbuf.m.planes = g_malloc0(sizeof(struct v4l2_plane) * vbuf.length);
+            if (!res->buf) {
+                ret = v4l2_dmabuf_lookup_mplane(bm_dev, res, vbuf.length);
+                if (ret < 0) {
+                    g_warning("Buffer create failed.");
+                    return ret;
+                }
+            }
+
+            for (int i = 0; i < vbuf.length; i++) {
+                vbuf.m.planes[i].m.fd = res->buf->dev->get_fd(&res->buf[i]);
+                vbuf.m.planes[i].length = (unsigned long)res->iov[i].iov_len;
+                /* Copy virtio shared memory contents to DMA buffer */
+                memcpy(res->buf[i].start,
+                       res->iov[i].iov_base, res->iov[i].iov_len);
+            }
+        } else {
+            if (!res->buf) {
+                ret = ioctl(fd, VIDIOC_QUERYBUF, &vbuf);
+                if (ret == -EINVAL) {
+                    g_printerr("VIDIOC_QUERYBUF failed: %s (%d)\n",
+                               g_strerror(errno), errno);
+                    return ret;
+                }
+
+                ret = v4l2_dmabuf_lookup(bm_dev, res, vbuf.length);
+                if (ret < 0) {
+                    g_warning("Buffer create failed.");
+                    return ret;
+                }
+            }
+            vbuf.m.fd = res->buf->dev->get_fd(res->buf);
+            /* Copy virtio shared memory contents to DMA buffer */
+            memcpy(res->buf->start, res->iov[0].iov_base, res->iov[0].iov_len);
+        }
     }
 
     if (V4L2_TYPE_IS_OUTPUT(type)) {
@@ -979,7 +1065,7 @@ int v4l2_dequeue_buffer(int fd, enum v4l2_buf_type type,
     memset(&vbuf, 0, sizeof(vbuf));
 
     vbuf.type = type;
-    vbuf.memory =  memory;
+    vbuf.memory = memory;
 
     vbuf.field = V4L2_FIELD_NONE;
     vbuf.flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;

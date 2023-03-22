@@ -69,11 +69,18 @@ int v4l2_video_set_format(int fd, enum v4l2_buf_type type,
 int v4l2_set_pixel_format(int fd, enum v4l2_buf_type buf_type,
                           uint32_t pixelformat);
 
+int v4l2_dmabuf_lookup_mplane(struct vuvbm_device *dev,
+                              struct resource *res,
+                              unsigned int iov_cnt);
+int v4l2_dmabuf_lookup(struct vuvbm_device *dev,
+                       struct resource *res,
+                       unsigned int iov_len);
 int v4l2_queue_buffer(enum v4l2_buf_type type,
                       enum v4l2_memory memory,
                       struct virtio_video_resource_queue *qcmd,
                       struct resource *res, struct stream *s,
-                      struct v4l2_device *dev);
+                      struct v4l2_device *dev,
+                      struct vuvbm_device *bm_dev);
 int v4l2_dequeue_buffer(int fd, enum v4l2_buf_type type,
                         enum v4l2_memory memory,
                         struct stream *s);
