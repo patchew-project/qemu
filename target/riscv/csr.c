@@ -1343,38 +1343,16 @@ static RISCVException read_misa(CPURISCVState *env, int csrno,
 static RISCVException write_misa(CPURISCVState *env, int csrno,
                                  target_ulong val)
 {
+    RISCVCPU *cpu = env_archcpu(env);
+    Error *local_err = NULL;
+
     if (!riscv_cpu_cfg(env)->misa_w) {
         /* drop write to misa */
         return RISCV_EXCP_NONE;
     }
 
-    /* 'I' or 'E' must be present */
-    if (!(val & (RVI | RVE))) {
-        /* It is not, drop write to misa */
-        return RISCV_EXCP_NONE;
-    }
-
-    /* 'E' excludes all other extensions */
-    if (val & RVE) {
-        /*
-         * when we support 'E' we can do "val = RVE;" however
-         * for now we just drop writes if 'E' is present.
-         */
-        return RISCV_EXCP_NONE;
-    }
-
-    /*
-     * misa.MXL writes are not supported by QEMU.
-     * Drop writes to those bits.
-     */
-
     /* Mask extensions that are not supported by this hart */
     val &= env->misa_ext_mask;
-
-    /* 'D' depends on 'F', so clear 'D' if 'F' is not present */
-    if ((val & RVD) && !(val & RVF)) {
-        val &= ~RVD;
-    }
 
     /*
      * Suppress 'C' if next instruction is not aligned
@@ -1388,6 +1366,37 @@ static RISCVException write_misa(CPURISCVState *env, int csrno,
     if (val == env->misa_ext) {
         return RISCV_EXCP_NONE;
     }
+
+    /*
+     * We'll handle special cases in separate. If one
+     * of these bits are enabled we'll handle them and
+     * end the CSR write.
+     */
+    if (val & RVE && !(env->misa_ext & RVE)) {
+        /*
+         * RVE must be enabled by itself. Clear all other
+         * misa_env bits and let the validation do its
+         * job.
+         */
+        val &= RVE;
+    }
+
+    /*
+     * This flow is similar to what riscv_cpu_realize() does,
+     * with the difference that we will update env->misa_ext
+     * value if everything is ok.
+     */
+    riscv_cpu_validate_misa_ext(env, val, &local_err);
+    if (local_err != NULL) {
+        return RISCV_EXCP_NONE;
+    }
+
+    riscv_cpu_validate_extensions(cpu, val, &local_err);
+    if (local_err != NULL) {
+        return RISCV_EXCP_NONE;
+    }
+
+    riscv_cpu_commit_cpu_cfg(cpu);
 
     if (!(val & RVF)) {
         env->mstatus &= ~MSTATUS_FS;
