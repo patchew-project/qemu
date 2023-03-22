@@ -1,0 +1,5 @@
+{
+  "description": "QEMU vhost-user-video",
+  "type": "video",
+  "binary": "@libexecdir@/vhost-user-video"
+}
