@@ -22,6 +22,7 @@
 
 typedef struct {
     CharBackend chardev;
+    char *type;
     struct virtio_video_config config;
 } VHostUserVIDEOConf;
 

@@ -300,8 +300,16 @@ static void vhost_user_video_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    /* TODO Implement VIDEO_ENC, currently only support VIDEO_DEC */
-    virtio_init(vdev, VIRTIO_ID_VIDEO_DECODER, sizeof(struct virtio_video_config));
+    if (video->conf.type == NULL || !strcmp(video->conf.type, "decoder")) {
+        virtio_init(vdev, VIRTIO_ID_VIDEO_DECODER,
+                    sizeof(struct virtio_video_config));
+    } else if (!strcmp(video->conf.type, "encoder")) {
+        virtio_init(vdev, VIRTIO_ID_VIDEO_ENCODER,
+                    sizeof(struct virtio_video_config));
+    } else {
+        error_report("invalid type received: %s", video->conf.type);
+        goto vhost_dev_init_failed;
+    }
 
     /* one command queue and one event queue */
     video->vhost_dev.nvqs = 2;
@@ -375,6 +383,7 @@ static const VMStateDescription vhost_user_video_vmstate = {
 
 static Property vhost_user_video_properties[] = {
     DEFINE_PROP_CHR("chardev", VHostUserVIDEO, conf.chardev),
+    DEFINE_PROP_STRING("dev_type", VHostUserVIDEO, conf.type),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -72,7 +72,7 @@ use to communicate as well as share the guests memory over a memfd.
 ::
 
     host# qemu-system								\
-        -device vhost-user-video-pci,chardev=video,id=video                     \
+        -device vhost-user-video-pci,chardev=video,dev_type=decoder,id=video    \
         -chardev socket,path=/tmp//video.sock,id=video                          \
         -m 4096 		        					\
         -object memory-backend-file,id=mem,size=4G,mem-path=/dev/shm,share=on	\
