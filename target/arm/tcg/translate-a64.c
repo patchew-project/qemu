@@ -2232,9 +2232,9 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
             if (s->pauth_active) {
                 dst = tcg_temp_new_i64();
                 if (op3 == 2) {
-                    gen_helper_autia(dst, cpu_env, cpu_reg(s, rn), modifier);
+                    gen_helper_autia_combined(dst, cpu_env, cpu_reg(s, rn), modifier);
                 } else {
-                    gen_helper_autib(dst, cpu_env, cpu_reg(s, rn), modifier);
+                    gen_helper_autib_combined(dst, cpu_env, cpu_reg(s, rn), modifier);
                 }
             } else {
                 dst = cpu_reg(s, rn);
@@ -2270,9 +2270,9 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
             dst = tcg_temp_new_i64();
             modifier = cpu_reg_sp(s, op4);
             if (op3 == 2) {
-                gen_helper_autia(dst, cpu_env, cpu_reg(s, rn), modifier);
+                gen_helper_autia_combined(dst, cpu_env, cpu_reg(s, rn), modifier);
             } else {
-                gen_helper_autib(dst, cpu_env, cpu_reg(s, rn), modifier);
+                gen_helper_autib_combined(dst, cpu_env, cpu_reg(s, rn), modifier);
             }
         } else {
             dst = cpu_reg(s, rn);
@@ -2327,9 +2327,9 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
             if (s->pauth_active) {
                 modifier = cpu_X[31];
                 if (op3 == 2) {
-                    gen_helper_autia(dst, cpu_env, dst, modifier);
+                    gen_helper_autia_combined(dst, cpu_env, dst, modifier);
                 } else {
-                    gen_helper_autib(dst, cpu_env, dst, modifier);
+                    gen_helper_autib_combined(dst, cpu_env, dst, modifier);
                 }
             }
             break;
@@ -3479,11 +3479,11 @@ static void disas_ldst_pac(DisasContext *s, uint32_t insn,
 
     if (s->pauth_active) {
         if (use_key_a) {
-            gen_helper_autda(dirty_addr, cpu_env, dirty_addr,
-                             tcg_constant_i64(0));
+            gen_helper_autda_combined(dirty_addr, cpu_env, dirty_addr,
+                                      tcg_constant_i64(0));
         } else {
-            gen_helper_autdb(dirty_addr, cpu_env, dirty_addr,
-                             tcg_constant_i64(0));
+            gen_helper_autdb_combined(dirty_addr, cpu_env, dirty_addr,
+                                      tcg_constant_i64(0));
         }
     }
 
