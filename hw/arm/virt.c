@@ -80,6 +80,7 @@
 #include "hw/virtio/virtio-iommu.h"
 #include "hw/char/pl011.h"
 #include "qemu/guest-random.h"
+#include "hw/char/serial.h"
 
 #define DEFINE_VIRT_MACHINE_LATEST(major, minor, latest) \
     static void virt_##major##_##minor##_class_init(ObjectClass *oc, \
@@ -847,8 +848,37 @@ static void create_gic(VirtMachineState *vms, MemoryRegion *mem)
     }
 }
 
-static void create_uart(const VirtMachineState *vms, int uart,
-                        MemoryRegion *mem, Chardev *chr)
+static void create_uart_ns16550a(const VirtMachineState *vms, int uart,
+                                 MemoryRegion *mem, Chardev *chr)
+{
+    char *nodename;
+    hwaddr base = vms->memmap[uart].base;
+    hwaddr size = vms->memmap[uart].size;
+    int irq = vms->irqmap[uart];
+    const char compat[] = "ns16550a";
+
+    serial_mm_init(get_system_memory(), base, 0,
+                   qdev_get_gpio_in(vms->gic, irq), 19200, serial_hd(0),
+                   DEVICE_LITTLE_ENDIAN);
+
+    nodename = g_strdup_printf("/serial@%" PRIx64, base);
+
+    MachineState *ms = MACHINE(vms);
+
+    qemu_fdt_add_subnode(ms->fdt, nodename);
+    qemu_fdt_setprop(ms->fdt, nodename, "compatible", compat, sizeof(compat));
+    qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg", 2, base, 2, size);
+    qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "clock-frequency",
+                                 1, 0x825f0);
+    qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts",
+                           GIC_FDT_IRQ_TYPE_SPI, irq,
+                           GIC_FDT_IRQ_FLAGS_LEVEL_HI);
+
+    g_free(nodename);
+}
+
+static void create_uart_pl011(const VirtMachineState *vms, int uart,
+                              MemoryRegion *mem, Chardev *chr)
 {
     char *nodename;
     hwaddr base = vms->memmap[uart].base;
@@ -893,6 +923,16 @@ static void create_uart(const VirtMachineState *vms, int uart,
     }
 
     g_free(nodename);
+}
+
+static void create_uart(const VirtMachineState *vms, int uart,
+                        MemoryRegion *mem, Chardev *chr)
+{
+    if (vms->uart == UART_NS16550A) {
+        create_uart_ns16550a(vms, uart, mem, chr);
+    } else {
+        create_uart_pl011(vms, uart, mem, chr);
+    }
 }
 
 static void create_rtc(const VirtMachineState *vms)
@@ -2601,6 +2641,39 @@ static void virt_set_gic_version(Object *obj, const char *value, Error **errp)
     }
 }
 
+static char *virt_get_uart_type(Object *obj, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+    const char *val = NULL;
+
+    switch (vms->uart) {
+    case UART_PL011:
+        val = "pl011";
+        break;
+    case UART_NS16550A:
+        val = "ns16550a";
+        break;
+    default:
+        error_setg(errp, "Invalid uart value");
+    }
+
+    return g_strdup(val);
+}
+
+static void virt_set_uart_type(Object *obj, const char *value, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    if (!strcmp(value, "pl011")) {
+        vms->uart = UART_PL011;
+    } else if (!strcmp(value, "ns16550a")) {
+        vms->uart = UART_NS16550A;
+    } else {
+        error_setg(errp, "Invalid uart type");
+        error_append_hint(errp, "Valid values are pl011, and ns16550a.\n");
+    }
+}
+
 static char *virt_get_iommu(Object *obj, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
@@ -3171,6 +3244,14 @@ static void virt_instance_init(Object *obj)
     vms->highmem = true;
     vms->highmem_compact = !vmc->no_highmem_compact;
     vms->gic_version = VIRT_GIC_VERSION_NOSEL;
+
+    /* Default uart type is pl011 */
+    vms->uart = UART_PL011;
+    object_property_add_str(obj, "uart", virt_get_uart_type,
+                            virt_set_uart_type);
+    object_property_set_description(obj, "uart",
+                                    "Set uart type. "
+                                    "Valid values are pl011 and ns16550a");
 
     vms->highmem_ecam = !vmc->no_highmem_ecam;
     vms->highmem_mmio = true;
