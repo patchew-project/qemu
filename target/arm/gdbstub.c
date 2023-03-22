@@ -21,6 +21,7 @@
 #include "cpu.h"
 #include "exec/gdbstub.h"
 #include "gdbstub/helpers.h"
+#include "sysemu/tcg.h"
 #include "internals.h"
 #include "cpregs.h"
 
@@ -526,7 +527,7 @@ void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
          * crash if they see this XML from QEMU; disable it for the 8.0
          * release, pending a better solution.
          */
-        if (isar_feature_aa64_pauth(&cpu->isar)) {
+        if (isar_feature_aa64_pauth(&cpu->isar) && tcg_enabled()) {
             gdb_register_coprocessor(cs, aarch64_gdb_get_pauth_reg,
                                      aarch64_gdb_set_pauth_reg,
                                      4, "aarch64-pauth.xml", 0);
