@@ -41,6 +41,7 @@ windows_msys2_task:
       mingw-w64-x86_64-curl
       mingw-w64-x86_64-gnutls
       mingw-w64-x86_64-libnfs
+      mingw-w64-x86_64-spice
     "
     CHERE_INVOKING: 1
   msys2_cache:
