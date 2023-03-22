@@ -33,6 +33,7 @@
 #include "standard-headers/linux/virtio_ids.h"
 #include "standard-headers/linux/virtio_net.h"
 #include "standard-headers/linux/virtio_gpio.h"
+#include "standard-headers/linux/virtio_video.h"
 
 #ifdef CONFIG_LINUX
 #include <sys/vfs.h>
@@ -145,6 +146,7 @@ enum {
 enum {
     VHOST_USER_NET,
     VHOST_USER_GPIO,
+    VHOST_USER_VIDEO,
 };
 
 typedef struct TestServer {
@@ -1156,3 +1158,33 @@ static void register_vhost_gpio_test(void)
                  "vhost-user-gpio", test_read_guest_mem, &opts);
 }
 libqos_init(register_vhost_gpio_test);
+
+static uint64_t vu_video_get_features(TestServer *s)
+{
+    return 0x1ULL << VHOST_USER_F_PROTOCOL_FEATURES;
+}
+
+static struct vhost_user_ops g_vu_video_ops = {
+    .type = VHOST_USER_VIDEO,
+
+    .append_opts = append_vhost_gpio_opts,
+
+    .get_features = vu_video_get_features,
+    .set_features = vu_net_set_features,
+    .get_protocol_features = vu_gpio_get_protocol_features,
+};
+
+static void register_vhost_video_test(void)
+{
+    QOSGraphTestOptions opts = {
+        .before = vhost_user_test_setup,
+        .subprocess = true,
+        .arg = &g_vu_video_ops,
+    };
+
+    qemu_add_opts(&qemu_chardev_opts);
+
+    qos_add_test("read-guest-mem/memfile",
+                 "vhost-user-video", test_read_guest_mem, &opts);
+}
+libqos_init(register_vhost_video_test);
