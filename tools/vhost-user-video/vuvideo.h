@@ -18,7 +18,6 @@
 
 #include "virtio_video_helpers.h"
 #include "v4l2_backend.h"
-#include "vuvideo.h"
 
 GList *get_resource_list(struct stream *s, uint32_t queue_type);
 void send_qclear_res_reply(gpointer data, gpointer user_data);
@@ -39,5 +38,14 @@ void remove_all_resources(struct stream *s, uint32_t queue_type);
 
 void handle_queue_clear_cmd(struct VuVideo *v,
                            struct vu_video_ctrl_command *vio_cmd);
+
+/* virtio_video_udmabuf.c */
+bool vuvbm_buffer_create(struct vuvbm_device *dev,
+                         struct VuVideoDMABuf *buffer,
+                         uint32_t len);
+void vuvbm_init_device(struct vuvbm_device *dev);
+struct VuVideoDMABuf *vuvbm_lookup(struct vuvbm_device *dev, QemuUUID uuid);
+void vuvbm_buffer_destroy(struct VuVideoDMABuf *buffer);
+void vuvbm_device_destroy(struct vuvbm_device *dev);
 
 #endif

@@ -21,10 +21,29 @@
 #include <linux/videodev2.h>
 #include "libvhost-user-glib.h"
 #include "libvhost-user.h"
+#include "qemu/uuid.h"
+#include "qemu/queue.h"
 
 /*
  * Structure to track internal state of VIDEO Device
  */
+
+struct resource;
+struct VuVideoDMABuf;
+
+struct vuvbm_device {
+    bool opened;
+    int fd;
+
+    bool (*alloc_bm)(struct VuVideoDMABuf *buf);
+    void (*free_bm)(struct VuVideoDMABuf *buf);
+    int (*get_fd)(struct VuVideoDMABuf *buf);
+    bool (*map_bm)(struct VuVideoDMABuf *buf);
+    void (*unmap_bm)(struct VuVideoDMABuf *buf);
+    void (*device_destroy)(struct vuvbm_device *dev);
+
+    GHashTable *resource_uuids;
+};
 
 typedef struct VuVideo {
     VugDev dev;
@@ -32,6 +51,7 @@ typedef struct VuVideo {
     GMainLoop *loop;
     struct v4l2_device *v4l2_dev;
     GList *streams;
+    struct vuvbm_device *bm_dev;
 } VuVideo;
 
 struct v4l2_device {
@@ -56,10 +76,18 @@ struct vu_video_ctrl_command {
 };
 
 
+typedef struct VuVideoDMABuf {
+    struct vuvbm_device *dev;
+    int memfd;
+    int dmafd;
+
+    void *start;
+    size_t length;
+} VuVideoDMABuf;
+
 /*
  * Structure to track internal state of a Stream
  */
-
 struct stream {
     struct virtio_video_stream_create vio_stream;
     uint32_t stream_id;
@@ -89,11 +117,13 @@ struct stream {
 
 struct resource {
     uint32_t stream_id;
+    QemuUUID uuid;
     struct virtio_video_resource_create vio_resource;
     struct virtio_video_resource_queue vio_res_q;
     struct iovec *iov;
     uint32_t iov_count;
     uint32_t v4l2_index;
+    struct VuVideoDMABuf *buf;
     enum v4l2_buf_type type;
     struct vu_video_ctrl_command *vio_q_cmd;
     bool queued;
