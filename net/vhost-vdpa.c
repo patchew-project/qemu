@@ -41,6 +41,12 @@ typedef struct VhostVDPAState {
     void *cvq_cmd_out_buffer;
     virtio_net_ctrl_ack *status;
 
+    /* CVQ group if cvq_isolated_mq */
+    uint32_t cvq_group_mq;
+
+    /* CVQ group if cvq_isolated */
+    uint32_t cvq_group;
+
     /* The device always have SVQ enabled */
     bool always_svq;
 
@@ -480,7 +486,6 @@ static int vhost_vdpa_net_cvq_start(NetClientState *nc)
     struct vhost_vdpa *v;
     int64_t cvq_group;
     int r;
-    Error *err = NULL;
 
     assert(nc->info->type == NET_CLIENT_DRIVER_VHOST_VDPA);
 
@@ -509,18 +514,14 @@ static int vhost_vdpa_net_cvq_start(NetClientState *nc)
         if (!s->cvq_isolated_mq) {
             return 0;
         }
+
+        cvq_group = s->cvq_group_mq;
     } else {
         if (!s->cvq_isolated) {
             return 0;
         }
-    }
 
-    cvq_group = vhost_vdpa_get_vring_group(v->device_fd,
-                                           v->dev->vq_index_end - 1,
-                                           &err);
-    if (unlikely(cvq_group < 0)) {
-        error_report_err(err);
-        return cvq_group;
+        cvq_group = s->cvq_group;
     }
 
     r = vhost_vdpa_set_address_space_id(v, cvq_group, VHOST_VDPA_NET_CVQ_ASID);
@@ -790,11 +791,13 @@ static const VhostShadowVirtqueueOps vhost_vdpa_net_svq_ops = {
  * @device_fd vhost-vdpa file descriptor
  * @features features to negotiate
  * @cvq_index Control vq index
+ * @pcvq_group: Returns CVQ group if cvq is isolated.
  *
  * Returns -1 in case of error, 0 if false and 1 if true
  */
 static int vhost_vdpa_cvq_is_isolated(int device_fd, uint64_t features,
-                                      unsigned cvq_index, Error **errp)
+                                      unsigned cvq_index, uint32_t *pcvq_group,
+                                      Error **errp)
 {
     int64_t cvq_group;
     int r;
@@ -810,6 +813,7 @@ static int vhost_vdpa_cvq_is_isolated(int device_fd, uint64_t features,
         return cvq_group;
     }
 
+    *pcvq_group = (uint32_t)cvq_group;
     for (int i = 0; i < cvq_index; ++i) {
         int64_t group = vhost_vdpa_get_vring_group(device_fd, i, errp);
 
@@ -836,12 +840,15 @@ static int vhost_vdpa_cvq_is_isolated(int device_fd, uint64_t features,
  *                    negotiated.
  * @cvq_isolated_mq   It'll be set to true if cvq is isolated if mq is
  *                    negotiated.
+ * @cvq_group         CVQ group if MQ is not negotiated.
+ * @cvq_group_mq      CVQ group if MQ is negotiated.
  *
  * Returns -1 in case of failure
  */
 static int vhost_vdpa_probe_cvq_isolation(int device_fd, uint64_t features,
                                           int cvq_index, bool *cvq_isolated,
-                                          bool *cvq_isolated_mq, Error **errp)
+                                          bool *cvq_isolated_mq, uint32_t *cvq_group,
+                                          uint32_t *cvq_group_mq, Error **errp)
 {
     uint64_t backend_features;
     int r;
@@ -850,6 +857,8 @@ static int vhost_vdpa_probe_cvq_isolation(int device_fd, uint64_t features,
 
     *cvq_isolated = false;
     *cvq_isolated_mq = false;
+    *cvq_group = 0;
+    *cvq_group_mq = 0;
     r = ioctl(device_fd, VHOST_GET_BACKEND_FEATURES, &backend_features);
     if (unlikely(r < 0)) {
         error_setg_errno(errp, errno, "Cannot get vdpa backend_features");
@@ -862,7 +871,7 @@ static int vhost_vdpa_probe_cvq_isolation(int device_fd, uint64_t features,
 
     r = vhost_vdpa_cvq_is_isolated(device_fd,
                                    features & ~BIT_ULL(VIRTIO_NET_F_MQ), 2,
-                                   errp);
+                                   cvq_group, errp);
     if (unlikely(r < 0)) {
         if (r == -ENOTSUP) {
             /*
@@ -884,7 +893,8 @@ static int vhost_vdpa_probe_cvq_isolation(int device_fd, uint64_t features,
         return 0;
     }
 
-    r = vhost_vdpa_cvq_is_isolated(device_fd, features, cvq_index * 2, errp);
+    r = vhost_vdpa_cvq_is_isolated(device_fd, features, cvq_index * 2,
+                                   cvq_group_mq, errp);
     if (unlikely(r < 0)) {
         return r;
     }
@@ -911,6 +921,7 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
     int ret = 0;
     assert(name);
     bool cvq_isolated, cvq_isolated_mq;
+    uint32_t cvq_group, cvq_group_mq;
 
     if (is_datapath) {
         nc = qemu_new_net_client(&net_vhost_vdpa_info, peer, device,
@@ -918,7 +929,8 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
     } else {
         ret = vhost_vdpa_probe_cvq_isolation(vdpa_device_fd, features,
                                              queue_pair_index, &cvq_isolated,
-                                             &cvq_isolated_mq, errp);
+                                             &cvq_isolated_mq, &cvq_group,
+                                             &cvq_group_mq, errp);
         if (unlikely(ret)) {
             return NULL;
         }
@@ -951,6 +963,8 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
         s->vhost_vdpa.shadow_vq_ops_opaque = s;
         s->cvq_isolated = cvq_isolated;
         s->cvq_isolated_mq = cvq_isolated_mq;
+        s->cvq_group = cvq_group;
+        s->cvq_group_mq = cvq_group_mq;
 
         /*
          * TODO: We cannot migrate devices with CVQ as there is no way to set
