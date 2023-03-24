@@ -736,12 +736,6 @@ typedef enum RISCVException {
 #define PM_INSN         0x00000004ULL
 #define PM_XS_MASK      0x00000003ULL
 
-/* PointerMasking XS bits values */
-#define PM_EXT_DISABLE  0x00000000ULL
-#define PM_EXT_INITIAL  0x00000001ULL
-#define PM_EXT_CLEAN    0x00000002ULL
-#define PM_EXT_DIRTY    0x00000003ULL
-
 /* Execution enviornment configuration bits */
 #define MENVCFG_FIOM                       BIT(0)
 #define MENVCFG_CBIE                       (3UL << 4)
