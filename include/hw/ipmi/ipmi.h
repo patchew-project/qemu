@@ -197,8 +197,12 @@ OBJECT_DECLARE_TYPE(IPMIInterfaceClient, IPMIInterfaceClientClass,
 typedef struct IPMIInterfaceClientClass IPMIInterfaceClientClass;
 typedef struct IPMIInterfaceClient IPMIInterfaceClient;
 
+struct IPMICore;
 struct IPMIInterfaceClientClass {
     IPMIInterfaceClass parent;
+
+    /* Set the IPMI handler. */
+    void (*set_ipmi_handler)(struct IPMIInterface *s, struct IPMICore *ic);
 };
 
 /*
