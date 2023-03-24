@@ -26,6 +26,8 @@
 #include "hw/irq.h"
 #include "hw/isa/isa.h"
 #include "qapi/error.h"
+#include "qemu/bswap.h"
+#include "qemu/crc-ccitt.h"
 #include "qemu/module.h"
 
 #include "hw/acpi/tpm.h"
@@ -448,6 +450,27 @@ static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
 }
 
 /*
+ * A wrapper read function so that it can be directly called without
+ * mmio.
+ */
+uint32_t tpm_tis_read_data(TPMState *s, hwaddr addr, unsigned size)
+{
+    return tpm_tis_mmio_read(s, addr, size);
+}
+
+/*
+ * Calculate current data buffer checksum
+ */
+uint16_t tpm_tis_get_checksum(TPMState *s, uint8_t locty)
+{
+    if (TPM_TIS_IS_VALID_LOCTY(locty) && (s->active_locty == locty)) {
+        return cpu_to_be16(crc_ccitt(0, s->buffer, s->rw_offset));
+    } else {
+        return 0;
+    }
+}
+
+/*
  * Write a value to a register of the TIS interface
  * See specs pages 33-63 for description of the registers
  */
@@ -765,6 +788,15 @@ static void tpm_tis_mmio_write(void *opaque, hwaddr addr,
         }
         break;
     }
+}
+
+/*
+ * A wrapper write function so that it can be directly called without
+ * mmio.
+ */
+void tpm_tis_write_data(TPMState *s, hwaddr addr, uint64_t val, uint32_t size)
+{
+    tpm_tis_mmio_write(s, addr, val, size);
 }
 
 const MemoryRegionOps tpm_tis_memory_ops = {
