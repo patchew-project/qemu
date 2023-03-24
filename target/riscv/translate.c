@@ -69,6 +69,7 @@ typedef struct DisasContext {
     uint32_t mstatus_hs_fs;
     uint32_t mstatus_hs_vs;
     uint32_t mem_idx;
+    uint32_t priv;
     /* Remember the rounding mode encoded in the previous fp instruction,
        which we have already installed into env->fp_status.  Or -1 for
        no previous fp instruction.  Note that we exit the TB when writing
@@ -1162,8 +1163,10 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     } else {
         ctx->virt_enabled = false;
     }
+    ctx->priv = FIELD_EX32(tb_flags, TB_FLAGS, PRIV);
 #else
     ctx->virt_enabled = false;
+    ctx->priv = PRV_U;
 #endif
     ctx->misa_ext = env->misa_ext;
     ctx->frm = -1;  /* unknown rounding mode */
