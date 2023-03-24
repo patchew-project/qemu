@@ -38,7 +38,7 @@ uint32_t ipmi_next_uuid(void)
     return ipmi_current_uuid++;
 }
 
-static int ipmi_do_hw_op(IPMIInterface *s, enum ipmi_op op, int checkonly)
+static int ipmi_do_hw_op(IPMIInterfaceHost *s, enum ipmi_op op, int checkonly)
 {
     switch (op) {
     case IPMI_RESET_CHASSIS:
@@ -78,9 +78,9 @@ static int ipmi_do_hw_op(IPMIInterface *s, enum ipmi_op op, int checkonly)
     }
 }
 
-static void ipmi_interface_class_init(ObjectClass *class, void *data)
+static void ipmi_interface_host_class_init(ObjectClass *class, void *data)
 {
-    IPMIInterfaceClass *ik = IPMI_INTERFACE_CLASS(class);
+    IPMIInterfaceHostClass *ik = IPMI_INTERFACE_HOST_CLASS(class);
 
     ik->do_hw_op = ipmi_do_hw_op;
 }
@@ -89,27 +89,48 @@ static const TypeInfo ipmi_interface_type_info = {
     .name = TYPE_IPMI_INTERFACE,
     .parent = TYPE_INTERFACE,
     .class_size = sizeof(IPMIInterfaceClass),
-    .class_init = ipmi_interface_class_init,
+};
+
+static const TypeInfo ipmi_interface_host_type_info = {
+    .name = TYPE_IPMI_INTERFACE_HOST,
+    .parent = TYPE_IPMI_INTERFACE,
+    .class_size = sizeof(IPMIInterfaceHostClass),
+    .class_init = ipmi_interface_host_class_init,
+};
+
+static const TypeInfo ipmi_interface_client_type_info = {
+    .name = TYPE_IPMI_INTERFACE_CLIENT,
+    .parent = TYPE_IPMI_INTERFACE,
+    .class_size = sizeof(IPMIInterfaceClientClass),
+};
+
+static const TypeInfo ipmi_core_type_info = {
+    .name = TYPE_IPMI_CORE,
+    .parent = TYPE_DEVICE,
+    .instance_size = sizeof(IPMICore),
+    .class_size = sizeof(IPMICoreClass),
+    .abstract = true,
 };
 
 static void isa_ipmi_bmc_check(const Object *obj, const char *name,
                                Object *val, Error **errp)
 {
-    IPMIBmc *bmc = IPMI_BMC(val);
+    IPMICore *ic = IPMI_CORE(val);
 
-    if (bmc->intf)
+    if (ic->intf) {
         error_setg(errp, "BMC object is already in use");
+    }
 }
 
 void ipmi_bmc_find_and_link(Object *obj, Object **bmc)
 {
-    object_property_add_link(obj, "bmc", TYPE_IPMI_BMC, bmc,
+    object_property_add_link(obj, "bmc", TYPE_IPMI_BMC_HOST, bmc,
                              isa_ipmi_bmc_check,
                              OBJ_PROP_LINK_STRONG);
 }
 
 static Property ipmi_bmc_properties[] = {
-    DEFINE_PROP_UINT8("slave_addr",  IPMIBmc, slave_addr, 0x20),
+    DEFINE_PROP_UINT8("slave_addr",  IPMIBmcHost, slave_addr, 0x20),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -120,19 +141,30 @@ static void bmc_class_init(ObjectClass *oc, void *data)
     device_class_set_props(dc, ipmi_bmc_properties);
 }
 
-static const TypeInfo ipmi_bmc_type_info = {
-    .name = TYPE_IPMI_BMC,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(IPMIBmc),
+static const TypeInfo ipmi_bmc_host_type_info = {
+    .name = TYPE_IPMI_BMC_HOST,
+    .parent = TYPE_IPMI_CORE,
+    .instance_size = sizeof(IPMIBmcHost),
     .abstract = true,
-    .class_size = sizeof(IPMIBmcClass),
+    .class_size = sizeof(IPMIBmcHostClass),
     .class_init = bmc_class_init,
+};
+
+static const TypeInfo ipmi_bmc_client_type_info = {
+    .name = TYPE_IPMI_BMC_CLIENT,
+    .parent = TYPE_IPMI_CORE,
+    .instance_size = sizeof(IPMIBmcClient),
+    .abstract = true,
 };
 
 static void ipmi_register_types(void)
 {
     type_register_static(&ipmi_interface_type_info);
-    type_register_static(&ipmi_bmc_type_info);
+    type_register_static(&ipmi_interface_host_type_info);
+    type_register_static(&ipmi_interface_client_type_info);
+    type_register_static(&ipmi_core_type_info);
+    type_register_static(&ipmi_bmc_host_type_info);
+    type_register_static(&ipmi_bmc_client_type_info);
 }
 
 type_init(ipmi_register_types)

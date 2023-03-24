@@ -44,7 +44,7 @@ struct ISAIPMIKCSDevice {
     uint32_t uuid;
 };
 
-static void isa_ipmi_kcs_get_fwinfo(IPMIInterface *ii, IPMIFwInfo *info)
+static void isa_ipmi_kcs_get_fwinfo(IPMIInterfaceHost *ii, IPMIFwInfo *info)
 {
     ISAIPMIKCSDevice *iik = ISA_IPMI_KCS(ii);
 
@@ -72,8 +72,8 @@ static void ipmi_isa_realize(DeviceState *dev, Error **errp)
     Error *err = NULL;
     ISADevice *isadev = ISA_DEVICE(dev);
     ISAIPMIKCSDevice *iik = ISA_IPMI_KCS(dev);
-    IPMIInterface *ii = IPMI_INTERFACE(dev);
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    IPMIInterfaceHost *ii = IPMI_INTERFACE_HOST(dev);
+    IPMIInterfaceHostClass *iic = IPMI_INTERFACE_HOST_GET_CLASS(ii);
 
     if (!iik->kcs.bmc) {
         error_setg(errp, "IPMI device requires a bmc attribute to be set");
@@ -82,7 +82,7 @@ static void ipmi_isa_realize(DeviceState *dev, Error **errp)
 
     iik->uuid = ipmi_next_uuid();
 
-    iik->kcs.bmc->intf = ii;
+    IPMI_CORE(iik->kcs.bmc)->intf = IPMI_INTERFACE(ii);
     iik->kcs.opaque = iik;
 
     iic->init(ii, 0, &err);
@@ -152,6 +152,7 @@ static void isa_ipmi_kcs_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     IPMIInterfaceClass *iic = IPMI_INTERFACE_CLASS(oc);
+    IPMIInterfaceHostClass *iihc = IPMI_INTERFACE_HOST_CLASS(oc);
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(oc);
 
     dc->realize = ipmi_isa_realize;
@@ -159,7 +160,7 @@ static void isa_ipmi_kcs_class_init(ObjectClass *oc, void *data)
 
     iic->get_backend_data = isa_ipmi_kcs_get_backend_data;
     ipmi_kcs_class_init(iic);
-    iic->get_fwinfo = isa_ipmi_kcs_get_fwinfo;
+    iihc->get_fwinfo = isa_ipmi_kcs_get_fwinfo;
     adevc->build_dev_aml = build_ipmi_dev_aml;
 }
 
@@ -170,7 +171,7 @@ static const TypeInfo isa_ipmi_kcs_info = {
     .instance_init = isa_ipmi_kcs_init,
     .class_init    = isa_ipmi_kcs_class_init,
     .interfaces = (InterfaceInfo[]) {
-        { TYPE_IPMI_INTERFACE },
+        { TYPE_IPMI_INTERFACE_HOST },
         { TYPE_ACPI_DEV_AML_IF },
         { }
     }

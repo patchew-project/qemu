@@ -94,18 +94,20 @@ static void ipmi_kcs_lower_irq(IPMIKCS *ik)
 
 static void ipmi_kcs_signal(IPMIKCS *ik, IPMIInterface *ii)
 {
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    IPMIInterfaceHost *iih = IPMI_INTERFACE_HOST(ii);
+    IPMIInterfaceHostClass *iic = IPMI_INTERFACE_HOST_GET_CLASS(ii);
 
     ik->do_wake = 1;
     while (ik->do_wake) {
         ik->do_wake = 0;
-        iic->handle_if_event(ii);
+        iic->handle_if_event(iih);
     }
 }
 
-static void ipmi_kcs_handle_event(IPMIInterface *ii)
+static void ipmi_kcs_handle_event(IPMIInterfaceHost *iih)
 {
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    IPMIInterface *ii = IPMI_INTERFACE(iih);
+    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(iih);
     IPMIKCS *ik = iic->get_backend_data(ii);
 
     if (ik->cmd_reg == IPMI_KCS_ABORT_STATUS_CMD) {
@@ -162,12 +164,12 @@ static void ipmi_kcs_handle_event(IPMIInterface *ii)
             ik->inlen++;
         }
         if (ik->write_end) {
-            IPMIBmcClass *bk = IPMI_BMC_GET_CLASS(ik->bmc);
+            IPMICoreClass *ck = IPMI_CORE_GET_CLASS(ik->bmc);
             ik->outlen = 0;
             ik->write_end = 0;
             ik->outpos = 0;
-            bk->handle_command(ik->bmc, ik->inmsg, ik->inlen, sizeof(ik->inmsg),
-                               ik->waiting_rsp);
+            ck->handle_command(IPMI_CORE(ik->bmc), ik->inmsg, ik->inlen,
+                               sizeof(ik->inmsg), ik->waiting_rsp);
             goto out_noibf;
         } else if (ik->cmd_reg == IPMI_KCS_WRITE_END_CMD) {
             ik->cmd_reg = -1;
@@ -321,18 +323,19 @@ static void ipmi_kcs_set_atn(IPMIInterface *ii, int val, int irq)
     }
 }
 
-static void ipmi_kcs_set_irq_enable(IPMIInterface *ii, int val)
+static void ipmi_kcs_set_irq_enable(IPMIInterfaceHost *ii, int val)
 {
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
-    IPMIKCS *ik = iic->get_backend_data(ii);
+    IPMIKCS *ik = iic->get_backend_data(IPMI_INTERFACE(ii));
 
     ik->irqs_enabled = val;
 }
 
 /* min_size must be a power of 2. */
-static void ipmi_kcs_init(IPMIInterface *ii, unsigned int min_size,
+static void ipmi_kcs_init(IPMIInterfaceHost *iih, unsigned int min_size,
                           Error **errp)
 {
+    IPMIInterface *ii = IPMI_INTERFACE(iih);
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
     IPMIKCS *ik = iic->get_backend_data(ii);
 
@@ -413,11 +416,13 @@ void ipmi_kcs_get_fwinfo(IPMIKCS *ik, IPMIFwInfo *info)
     info->irq_type = IPMI_LEVEL_IRQ;
 }
 
-void ipmi_kcs_class_init(IPMIInterfaceClass *iic)
+void ipmi_kcs_class_init(IPMIInterfaceClass *ic)
 {
+    IPMIInterfaceHostClass *iic = IPMI_INTERFACE_HOST_CLASS(ic);
+
     iic->init = ipmi_kcs_init;
-    iic->set_atn = ipmi_kcs_set_atn;
-    iic->handle_rsp = ipmi_kcs_handle_rsp;
+    ic->set_atn = ipmi_kcs_set_atn;
+    ic->handle_msg = ipmi_kcs_handle_rsp;
     iic->handle_if_event = ipmi_kcs_handle_event;
     iic->set_irq_enable = ipmi_kcs_set_irq_enable;
 }

@@ -56,8 +56,8 @@ static void pci_ipmi_kcs_realize(PCIDevice *pd, Error **errp)
 {
     Error *err = NULL;
     PCIIPMIKCSDevice *pik = PCI_IPMI_KCS(pd);
-    IPMIInterface *ii = IPMI_INTERFACE(pd);
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    IPMIInterfaceHost *ii = IPMI_INTERFACE_HOST(pd);
+    IPMIInterfaceHostClass *iic = IPMI_INTERFACE_HOST_GET_CLASS(ii);
 
     if (!pik->kcs.bmc) {
         error_setg(errp, "IPMI device requires a bmc attribute to be set");
@@ -66,7 +66,7 @@ static void pci_ipmi_kcs_realize(PCIDevice *pd, Error **errp)
 
     pik->uuid = ipmi_next_uuid();
 
-    pik->kcs.bmc->intf = ii;
+    IPMI_CORE(pik->kcs.bmc)->intf = IPMI_INTERFACE(ii);
     pik->kcs.opaque = pik;
 
     pci_config_set_prog_interface(pd->config, 0x01); /* KCS */
@@ -134,7 +134,7 @@ static const TypeInfo pci_ipmi_kcs_info = {
     .instance_init = pci_ipmi_kcs_instance_init,
     .class_init    = pci_ipmi_kcs_class_init,
     .interfaces = (InterfaceInfo[]) {
-        { TYPE_IPMI_INTERFACE },
+        { TYPE_IPMI_INTERFACE_HOST },
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { }
     }

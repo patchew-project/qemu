@@ -28,7 +28,7 @@
 #include "hw/ipmi/ipmi.h"
 
 typedef struct IPMIKCS {
-    IPMIBmc *bmc;
+    IPMIBmcHost *bmc;
 
     bool do_wake;
 

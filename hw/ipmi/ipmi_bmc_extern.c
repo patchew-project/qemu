@@ -65,7 +65,7 @@
 #define TYPE_IPMI_BMC_EXTERN "ipmi-bmc-extern"
 OBJECT_DECLARE_SIMPLE_TYPE(IPMIBmcExtern, IPMI_BMC_EXTERN)
 struct IPMIBmcExtern {
-    IPMIBmc parent;
+    IPMIBmcHost parent;
 
     CharBackend chr;
 
@@ -147,8 +147,9 @@ static void continue_send(IPMIBmcExtern *ibe)
 
 static void extern_timeout(void *opaque)
 {
+    IPMICore *ic = opaque;
     IPMIBmcExtern *ibe = opaque;
-    IPMIInterface *s = ibe->parent.intf;
+    IPMIInterface *s = ic->intf;
 
     if (ibe->connected) {
         if (ibe->waiting_rsp && (ibe->outlen == 0)) {
@@ -158,7 +159,7 @@ static void extern_timeout(void *opaque)
             ibe->inbuf[1] = ibe->outbuf[1] | 0x04;
             ibe->inbuf[2] = ibe->outbuf[2];
             ibe->inbuf[3] = IPMI_CC_TIMEOUT;
-            k->handle_rsp(s, ibe->outbuf[0], ibe->inbuf + 1, 3);
+            k->handle_msg(s, ibe->outbuf[0], ibe->inbuf + 1, 3);
         } else {
             continue_send(ibe);
         }
@@ -181,13 +182,13 @@ static void addchar(IPMIBmcExtern *ibe, unsigned char ch)
     }
 }
 
-static void ipmi_bmc_extern_handle_command(IPMIBmc *b,
+static void ipmi_bmc_extern_handle_command(IPMICore *ic,
                                        uint8_t *cmd, unsigned int cmd_len,
                                        unsigned int max_cmd_len,
                                        uint8_t msg_id)
 {
-    IPMIBmcExtern *ibe = IPMI_BMC_EXTERN(b);
-    IPMIInterface *s = ibe->parent.intf;
+    IPMIBmcExtern *ibe = IPMI_BMC_EXTERN(ic);
+    IPMIInterface *s = ic->intf;
     uint8_t err = 0, csum;
     unsigned int i;
 
@@ -213,7 +214,7 @@ static void ipmi_bmc_extern_handle_command(IPMIBmc *b,
         rsp[1] = cmd[1];
         rsp[2] = err;
         ibe->waiting_rsp = false;
-        k->handle_rsp(s, msg_id, rsp, 3);
+        k->handle_msg(s, msg_id, rsp, 3);
         goto out;
     }
 
@@ -236,8 +237,11 @@ static void ipmi_bmc_extern_handle_command(IPMIBmc *b,
 
 static void handle_hw_op(IPMIBmcExtern *ibe, unsigned char hw_op)
 {
-    IPMIInterface *s = ibe->parent.intf;
+    IPMICore *ic = IPMI_CORE(ibe);
+    IPMIInterface *s = ic->intf;
+    IPMIInterfaceHost *hs = IPMI_INTERFACE_HOST(s);
     IPMIInterfaceClass *k = IPMI_INTERFACE_GET_CLASS(s);
+    IPMIInterfaceHostClass *hk = IPMI_INTERFACE_HOST_GET_CLASS(s);
 
     switch (hw_op) {
     case VM_CMD_VERSION:
@@ -257,34 +261,36 @@ static void handle_hw_op(IPMIBmcExtern *ibe, unsigned char hw_op)
         break;
 
     case VM_CMD_POWEROFF:
-        k->do_hw_op(s, IPMI_POWEROFF_CHASSIS, 0);
+        hk->do_hw_op(hs, IPMI_POWEROFF_CHASSIS, 0);
         break;
 
     case VM_CMD_RESET:
-        k->do_hw_op(s, IPMI_RESET_CHASSIS, 0);
+        hk->do_hw_op(hs, IPMI_RESET_CHASSIS, 0);
         break;
 
     case VM_CMD_ENABLE_IRQ:
-        k->set_irq_enable(s, 1);
+        hk->set_irq_enable(hs, 1);
         break;
 
     case VM_CMD_DISABLE_IRQ:
-        k->set_irq_enable(s, 0);
+        hk->set_irq_enable(hs, 0);
         break;
 
     case VM_CMD_SEND_NMI:
-        k->do_hw_op(s, IPMI_SEND_NMI, 0);
+        hk->do_hw_op(hs, IPMI_SEND_NMI, 0);
         break;
 
     case VM_CMD_GRACEFUL_SHUTDOWN:
-        k->do_hw_op(s, IPMI_SHUTDOWN_VIA_ACPI_OVERTEMP, 0);
+        hk->do_hw_op(hs, IPMI_SHUTDOWN_VIA_ACPI_OVERTEMP, 0);
         break;
     }
 }
 
 static void handle_msg(IPMIBmcExtern *ibe)
 {
-    IPMIInterfaceClass *k = IPMI_INTERFACE_GET_CLASS(ibe->parent.intf);
+    IPMICore *ic = IPMI_CORE(ibe);
+    IPMIInterface *s = ic->intf;
+    IPMIInterfaceClass *k = IPMI_INTERFACE_GET_CLASS(s);
 
     if (ibe->in_escape) {
         ipmi_debug("msg escape not ended\n");
@@ -306,7 +312,7 @@ static void handle_msg(IPMIBmcExtern *ibe)
 
     timer_del(ibe->extern_timer);
     ibe->waiting_rsp = false;
-    k->handle_rsp(ibe->parent.intf, ibe->inbuf[0], ibe->inbuf + 1, ibe->inpos - 1);
+    k->handle_msg(s, ibe->inbuf[0], ibe->inbuf + 1, ibe->inpos - 1);
 }
 
 static int can_receive(void *opaque)
@@ -382,9 +388,12 @@ static void receive(void *opaque, const uint8_t *buf, int size)
 
 static void chr_event(void *opaque, QEMUChrEvent event)
 {
+    IPMICore *ic = opaque;
     IPMIBmcExtern *ibe = opaque;
-    IPMIInterface *s = ibe->parent.intf;
+    IPMIInterface *s = ic->intf;
+    IPMIInterfaceHost *hs = IPMI_INTERFACE_HOST(s);
     IPMIInterfaceClass *k = IPMI_INTERFACE_GET_CLASS(s);
+    IPMIInterfaceHostClass *hk = IPMI_INTERFACE_HOST_GET_CLASS(s);
     unsigned char v;
 
     switch (event) {
@@ -398,17 +407,17 @@ static void chr_event(void *opaque, QEMUChrEvent event)
         ibe->outlen++;
         addchar(ibe, VM_CMD_CAPABILITIES);
         v = VM_CAPABILITIES_IRQ | VM_CAPABILITIES_ATTN;
-        if (k->do_hw_op(ibe->parent.intf, IPMI_POWEROFF_CHASSIS, 1) == 0) {
+        if (hk->do_hw_op(hs, IPMI_POWEROFF_CHASSIS, 1) == 0) {
             v |= VM_CAPABILITIES_POWER;
         }
-        if (k->do_hw_op(ibe->parent.intf, IPMI_SHUTDOWN_VIA_ACPI_OVERTEMP, 1)
+        if (hk->do_hw_op(hs, IPMI_SHUTDOWN_VIA_ACPI_OVERTEMP, 1)
             == 0) {
             v |= VM_CAPABILITIES_GRACEFUL_SHUTDOWN;
         }
-        if (k->do_hw_op(ibe->parent.intf, IPMI_RESET_CHASSIS, 1) == 0) {
+        if (hk->do_hw_op(hs, IPMI_RESET_CHASSIS, 1) == 0) {
             v |= VM_CAPABILITIES_RESET;
         }
-        if (k->do_hw_op(ibe->parent.intf, IPMI_SEND_NMI, 1) == 0) {
+        if (hk->do_hw_op(hs, IPMI_SEND_NMI, 1) == 0) {
             v |= VM_CAPABILITIES_NMI;
         }
         addchar(ibe, v);
@@ -433,7 +442,7 @@ static void chr_event(void *opaque, QEMUChrEvent event)
             ibe->inbuf[1] = ibe->outbuf[1] | 0x04;
             ibe->inbuf[2] = ibe->outbuf[2];
             ibe->inbuf[3] = IPMI_CC_BMC_INIT_IN_PROGRESS;
-            k->handle_rsp(s, ibe->outbuf[0], ibe->inbuf + 1, 3);
+            k->handle_msg(s, ibe->outbuf[0], ibe->inbuf + 1, 3);
         }
         break;
 
@@ -445,7 +454,7 @@ static void chr_event(void *opaque, QEMUChrEvent event)
     }
 }
 
-static void ipmi_bmc_extern_handle_reset(IPMIBmc *b)
+static void ipmi_bmc_extern_handle_reset(IPMIBmcHost *b)
 {
     IPMIBmcExtern *ibe = IPMI_BMC_EXTERN(b);
 
@@ -475,14 +484,15 @@ static int ipmi_bmc_extern_post_migrate(void *opaque, int version_id)
      * error on the interface if a response was being waited for.
      */
     if (ibe->waiting_rsp) {
-        IPMIInterface *ii = ibe->parent.intf;
+        IPMICore *ic = opaque;
+        IPMIInterface *ii = ic->intf;
         IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
 
         ibe->waiting_rsp = false;
         ibe->inbuf[1] = ibe->outbuf[1] | 0x04;
         ibe->inbuf[2] = ibe->outbuf[2];
         ibe->inbuf[3] = IPMI_CC_BMC_INIT_IN_PROGRESS;
-        iic->handle_rsp(ii, ibe->outbuf[0], ibe->inbuf + 1, 3);
+        iic->handle_msg(ii, ibe->outbuf[0], ibe->inbuf + 1, 3);
     }
     return 0;
 }
@@ -522,9 +532,10 @@ static Property ipmi_bmc_extern_properties[] = {
 static void ipmi_bmc_extern_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
-    IPMIBmcClass *bk = IPMI_BMC_CLASS(oc);
+    IPMICoreClass *ck = IPMI_CORE_CLASS(oc);
+    IPMIBmcHostClass *bk = IPMI_BMC_HOST_CLASS(oc);
 
-    bk->handle_command = ipmi_bmc_extern_handle_command;
+    ck->handle_command = ipmi_bmc_extern_handle_command;
     bk->handle_reset = ipmi_bmc_extern_handle_reset;
     dc->hotpluggable = false;
     dc->realize = ipmi_bmc_extern_realize;
@@ -533,7 +544,7 @@ static void ipmi_bmc_extern_class_init(ObjectClass *oc, void *data)
 
 static const TypeInfo ipmi_bmc_extern_type = {
     .name          = TYPE_IPMI_BMC_EXTERN,
-    .parent        = TYPE_IPMI_BMC,
+    .parent        = TYPE_IPMI_BMC_HOST,
     .instance_size = sizeof(IPMIBmcExtern),
     .instance_init = ipmi_bmc_extern_init,
     .instance_finalize = ipmi_bmc_extern_finalize,

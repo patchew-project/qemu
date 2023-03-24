@@ -92,8 +92,9 @@ static void ipmi_bt_lower_irq(IPMIBT *ib)
     }
 }
 
-static void ipmi_bt_handle_event(IPMIInterface *ii)
+static void ipmi_bt_handle_event(IPMIInterfaceHost *iih)
 {
+    IPMIInterface *ii = IPMI_INTERFACE(iih);
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
     IPMIBT *ib = iic->get_backend_data(ii);
 
@@ -141,8 +142,8 @@ static void ipmi_bt_handle_event(IPMIInterface *ii)
     ib->waiting_seq = ib->inmsg[2];
     ib->inmsg[2] = ib->inmsg[1];
     {
-        IPMIBmcClass *bk = IPMI_BMC_GET_CLASS(ib->bmc);
-        bk->handle_command(ib->bmc, ib->inmsg + 2, ib->inlen - 2,
+        IPMICoreClass *ck = IPMI_CORE_GET_CLASS(ib->bmc);
+        ck->handle_command(IPMI_CORE(ib->bmc), ib->inmsg + 2, ib->inlen - 2,
                            sizeof(ib->inmsg), ib->waiting_rsp);
     }
  out:
@@ -215,9 +216,9 @@ static uint64_t ipmi_bt_ioport_read(void *opaque, hwaddr addr, unsigned size)
     return ret;
 }
 
-static void ipmi_bt_signal(IPMIBT *ib, IPMIInterface *ii)
+static void ipmi_bt_signal(IPMIBT *ib, IPMIInterfaceHost *ii)
 {
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    IPMIInterfaceHostClass *iic = IPMI_INTERFACE_HOST_GET_CLASS(ii);
 
     ib->do_wake = 1;
     while (ib->do_wake) {
@@ -254,7 +255,7 @@ static void ipmi_bt_ioport_write(void *opaque, hwaddr addr, uint64_t val,
         }
         if (IPMI_BT_GET_H2B_ATN(val)) {
             IPMI_BT_SET_BBUSY(ib->control_reg, 1);
-            ipmi_bt_signal(ib, ii);
+            ipmi_bt_signal(ib, IPMI_INTERFACE_HOST(ii));
         }
         break;
 
@@ -329,10 +330,10 @@ static void ipmi_bt_set_atn(IPMIInterface *ii, int val, int irq)
     }
 }
 
-static void ipmi_bt_handle_reset(IPMIInterface *ii, bool is_cold)
+static void ipmi_bt_handle_reset(IPMIInterfaceHost *ii, bool is_cold)
 {
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
-    IPMIBT *ib = iic->get_backend_data(ii);
+    IPMIBT *ib = iic->get_backend_data(IPMI_INTERFACE(ii));
 
     if (is_cold) {
         /* Disable the BT interrupt on reset */
@@ -344,16 +345,18 @@ static void ipmi_bt_handle_reset(IPMIInterface *ii, bool is_cold)
     }
 }
 
-static void ipmi_bt_set_irq_enable(IPMIInterface *ii, int val)
+static void ipmi_bt_set_irq_enable(IPMIInterfaceHost *ii, int val)
 {
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
-    IPMIBT *ib = iic->get_backend_data(ii);
+    IPMIBT *ib = iic->get_backend_data(IPMI_INTERFACE(ii));
 
     ib->irqs_enabled = val;
 }
 
-static void ipmi_bt_init(IPMIInterface *ii, unsigned int min_size, Error **errp)
+static void ipmi_bt_init(IPMIInterfaceHost *iih, unsigned int min_size,
+                         Error **errp)
 {
+    IPMIInterface *ii = IPMI_INTERFACE(iih);
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
     IPMIBT *ib = iic->get_backend_data(ii);
 
@@ -426,11 +429,13 @@ void ipmi_bt_get_fwinfo(struct IPMIBT *ib, IPMIFwInfo *info)
     info->irq_type = IPMI_LEVEL_IRQ;
 }
 
-void ipmi_bt_class_init(IPMIInterfaceClass *iic)
+void ipmi_bt_class_init(IPMIInterfaceClass *ic)
 {
+    IPMIInterfaceHostClass *iic = IPMI_INTERFACE_HOST_CLASS(ic);
+
     iic->init = ipmi_bt_init;
-    iic->set_atn = ipmi_bt_set_atn;
-    iic->handle_rsp = ipmi_bt_handle_rsp;
+    ic->set_atn = ipmi_bt_set_atn;
+    ic->handle_msg = ipmi_bt_handle_rsp;
     iic->handle_if_event = ipmi_bt_handle_event;
     iic->set_irq_enable = ipmi_bt_set_irq_enable;
     iic->reset = ipmi_bt_handle_reset;

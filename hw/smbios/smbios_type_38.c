@@ -83,16 +83,17 @@ static void smbios_add_ipmi_devices(BusState *bus)
 
     QTAILQ_FOREACH(kid, &bus->children,  sibling) {
         DeviceState *dev = kid->child;
-        Object *obj = object_dynamic_cast(OBJECT(dev), TYPE_IPMI_INTERFACE);
+        Object *obj = object_dynamic_cast(OBJECT(dev),
+                                          TYPE_IPMI_INTERFACE_HOST);
         BusState *childbus;
 
         if (obj) {
-            IPMIInterface *ii;
-            IPMIInterfaceClass *iic;
+            IPMIInterfaceHost *ii;
+            IPMIInterfaceHostClass *iic;
             IPMIFwInfo info;
 
-            ii = IPMI_INTERFACE(obj);
-            iic = IPMI_INTERFACE_GET_CLASS(obj);
+            ii = IPMI_INTERFACE_HOST(obj);
+            iic = IPMI_INTERFACE_HOST_GET_CLASS(obj);
             memset(&info, 0, sizeof(info));
             if (!iic->get_fwinfo) {
                 continue;

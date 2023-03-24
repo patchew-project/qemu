@@ -49,7 +49,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(SMBusIPMIDevice, SMBUS_IPMI)
 struct SMBusIPMIDevice {
     SMBusDevice parent;
 
-    IPMIBmc *bmc;
+    IPMIBmcHost *bmc;
 
     uint8_t outmsg[MAX_SSIF_IPMI_MSG_SIZE];
     uint32_t outlen;
@@ -71,7 +71,7 @@ struct SMBusIPMIDevice {
     uint32_t uuid;
 };
 
-static void smbus_ipmi_handle_event(IPMIInterface *ii)
+static void smbus_ipmi_handle_event(IPMIInterfaceHost *ii)
 {
     /* No interrupts, so nothing to do here. */
 }
@@ -100,7 +100,7 @@ static void smbus_ipmi_set_atn(IPMIInterface *ii, int val, int irq)
     /* This is where PEC would go. */
 }
 
-static void smbus_ipmi_set_irq_enable(IPMIInterface *ii, int val)
+static void smbus_ipmi_set_irq_enable(IPMIInterfaceHost *ii, int val)
 {
 }
 
@@ -108,7 +108,7 @@ static void smbus_ipmi_send_msg(SMBusIPMIDevice *sid)
 {
     uint8_t *msg = sid->inmsg;
     uint32_t len = sid->inlen;
-    IPMIBmcClass *bk = IPMI_BMC_GET_CLASS(sid->bmc);
+    IPMICoreClass *ck = IPMI_CORE_GET_CLASS(sid->bmc);
 
     sid->outlen = 0;
     sid->outpos = 0;
@@ -136,8 +136,8 @@ static void smbus_ipmi_send_msg(SMBusIPMIDevice *sid)
         return;
     }
 
-    bk->handle_command(sid->bmc, sid->inmsg, sid->inlen, sizeof(sid->inmsg),
-                       sid->waiting_rsp);
+    ck->handle_command(IPMI_CORE(sid->bmc), sid->inmsg, sid->inlen,
+                       sizeof(sid->inmsg), sid->waiting_rsp);
 }
 
 static uint8_t ipmi_receive_byte(SMBusDevice *dev)
@@ -326,7 +326,7 @@ static void smbus_ipmi_realize(DeviceState *dev, Error **errp)
 
     sid->uuid = ipmi_next_uuid();
 
-    sid->bmc->intf = ii;
+    IPMI_CORE(sid->bmc)->intf = ii;
 }
 
 static void smbus_ipmi_init(Object *obj)
@@ -336,7 +336,8 @@ static void smbus_ipmi_init(Object *obj)
     ipmi_bmc_find_and_link(obj, (Object **) &sid->bmc);
 }
 
-static void smbus_ipmi_get_fwinfo(struct IPMIInterface *ii, IPMIFwInfo *info)
+static void smbus_ipmi_get_fwinfo(struct IPMIInterfaceHost *ii,
+                                  IPMIFwInfo *info)
 {
     SMBusIPMIDevice *sid = SMBUS_IPMI(ii);
 
@@ -354,7 +355,8 @@ static void smbus_ipmi_get_fwinfo(struct IPMIInterface *ii, IPMIFwInfo *info)
 static void smbus_ipmi_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_CLASS(oc);
+    IPMIInterfaceHostClass *iic = IPMI_INTERFACE_HOST_CLASS(oc);
+    IPMIInterfaceClass *ic = IPMI_INTERFACE_CLASS(oc);
     SMBusDeviceClass *sc = SMBUS_DEVICE_CLASS(oc);
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(oc);
 
@@ -362,8 +364,8 @@ static void smbus_ipmi_class_init(ObjectClass *oc, void *data)
     sc->write_data = ipmi_write_data;
     dc->vmsd = &vmstate_smbus_ipmi;
     dc->realize = smbus_ipmi_realize;
-    iic->set_atn = smbus_ipmi_set_atn;
-    iic->handle_rsp = smbus_ipmi_handle_rsp;
+    ic->set_atn = smbus_ipmi_set_atn;
+    ic->handle_msg = smbus_ipmi_handle_rsp;
     iic->handle_if_event = smbus_ipmi_handle_event;
     iic->set_irq_enable = smbus_ipmi_set_irq_enable;
     iic->get_fwinfo = smbus_ipmi_get_fwinfo;
@@ -377,7 +379,7 @@ static const TypeInfo smbus_ipmi_info = {
     .instance_init = smbus_ipmi_init,
     .class_init    = smbus_ipmi_class_init,
     .interfaces = (InterfaceInfo[]) {
-        { TYPE_IPMI_INTERFACE },
+        { TYPE_IPMI_INTERFACE_HOST },
         { TYPE_ACPI_DEV_AML_IF },
         { }
     }

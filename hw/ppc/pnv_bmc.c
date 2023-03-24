@@ -50,12 +50,12 @@ typedef struct OemSel {
 #define SOFT_OFF        0x00
 #define SOFT_REBOOT     0x01
 
-static bool pnv_bmc_is_simulator(IPMIBmc *bmc)
+static bool pnv_bmc_is_simulator(IPMIBmcHost *bmc)
 {
     return object_dynamic_cast(OBJECT(bmc), TYPE_IPMI_BMC_SIMULATOR);
 }
 
-static void pnv_gen_oem_sel(IPMIBmc *bmc, uint8_t reboot)
+static void pnv_gen_oem_sel(IPMIBmcHost *bmc, uint8_t reboot)
 {
     /* IPMI SEL Event are 16 bytes long */
     OemSel sel = {
@@ -71,12 +71,12 @@ static void pnv_gen_oem_sel(IPMIBmc *bmc, uint8_t reboot)
     ipmi_bmc_gen_event(bmc, (uint8_t *) &sel, 0 /* do not log the event */);
 }
 
-void pnv_bmc_powerdown(IPMIBmc *bmc)
+void pnv_bmc_powerdown(IPMIBmcHost *bmc)
 {
     pnv_gen_oem_sel(bmc, SOFT_OFF);
 }
 
-void pnv_dt_bmc_sensors(IPMIBmc *bmc, void *fdt)
+void pnv_dt_bmc_sensors(IPMIBmcHost *bmc, void *fdt)
 {
     int offset;
     int i;
@@ -249,7 +249,7 @@ static const IPMINetfn hiomap_netfn = {
 };
 
 
-void pnv_bmc_set_pnor(IPMIBmc *bmc, PnvPnor *pnor)
+void pnv_bmc_set_pnor(IPMIBmcHost *bmc, PnvPnor *pnor)
 {
     if (!pnv_bmc_is_simulator(bmc)) {
         return;
@@ -267,15 +267,15 @@ void pnv_bmc_set_pnor(IPMIBmc *bmc, PnvPnor *pnor)
  * Instantiate the machine BMC. PowerNV uses the QEMU internal
  * simulator but it could also be external.
  */
-IPMIBmc *pnv_bmc_create(PnvPnor *pnor)
+IPMIBmcHost *pnv_bmc_create(PnvPnor *pnor)
 {
     Object *obj;
 
     obj = object_new(TYPE_IPMI_BMC_SIMULATOR);
     qdev_realize(DEVICE(obj), NULL, &error_fatal);
-    pnv_bmc_set_pnor(IPMI_BMC(obj), pnor);
+    pnv_bmc_set_pnor(IPMI_BMC_HOST(obj), pnor);
 
-    return IPMI_BMC(obj);
+    return IPMI_BMC_HOST(obj);
 }
 
 typedef struct ForeachArgs {
@@ -296,9 +296,9 @@ static int bmc_find(Object *child, void *opaque)
     return 0;
 }
 
-IPMIBmc *pnv_bmc_find(Error **errp)
+IPMIBmcHost *pnv_bmc_find(Error **errp)
 {
-    ForeachArgs args = { TYPE_IPMI_BMC, NULL };
+    ForeachArgs args = { TYPE_IPMI_BMC_HOST, NULL };
     int ret;
 
     ret = object_child_foreach_recursive(object_get_root(), bmc_find, &args);
@@ -308,5 +308,5 @@ IPMIBmc *pnv_bmc_find(Error **errp)
         return NULL;
     }
 
-    return args.obj ? IPMI_BMC(args.obj) : NULL;
+    return args.obj ? IPMI_BMC_HOST(args.obj) : NULL;
 }

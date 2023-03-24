@@ -595,7 +595,7 @@ static void pnv_powerdown_notify(Notifier *n, void *opaque)
 static void pnv_reset(MachineState *machine, ShutdownCause reason)
 {
     PnvMachineState *pnv = PNV_MACHINE(machine);
-    IPMIBmc *bmc;
+    IPMIBmcHost *bmc;
     void *fdt;
 
     qemu_devices_reset(reason);
@@ -746,7 +746,7 @@ static bool pnv_match_cpu(const char *default_type, const char *cpu_type)
     return ppc_default->pvr_match(ppc_default, ppc->pvr, false);
 }
 
-static void pnv_ipmi_bt_init(ISABus *bus, IPMIBmc *bmc, uint32_t irq)
+static void pnv_ipmi_bt_init(ISABus *bus, IPMIBmcHost *bmc, uint32_t irq)
 {
     ISADevice *dev = isa_new("isa-ipmi-bt");
 

@@ -66,8 +66,8 @@ void build_ipmi_dev_aml(AcpiDevAmlIf *adev, Aml *scope)
 {
     Aml *dev;
     IPMIFwInfo info = {};
-    IPMIInterface *ii = IPMI_INTERFACE(adev);
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    IPMIInterfaceHost *ii = IPMI_INTERFACE_HOST(adev);
+    IPMIInterfaceHostClass *iic = IPMI_INTERFACE_HOST_GET_CLASS(ii);
     uint16_t version;
 
     iic->get_fwinfo(ii, &info);

@@ -91,7 +91,7 @@ struct PnvMachineState {
     ISABus       *isa_bus;
     uint32_t     cpld_irqstate;
 
-    IPMIBmc      *bmc;
+    IPMIBmcHost  *bmc;
     Notifier     powerdown_notifier;
 
     PnvPnor      *pnor;
@@ -108,11 +108,11 @@ PnvChip *pnv_chip_add_phb(PnvChip *chip, PnvPHB *phb);
 /*
  * BMC helpers
  */
-void pnv_dt_bmc_sensors(IPMIBmc *bmc, void *fdt);
-void pnv_bmc_powerdown(IPMIBmc *bmc);
-IPMIBmc *pnv_bmc_create(PnvPnor *pnor);
-IPMIBmc *pnv_bmc_find(Error **errp);
-void pnv_bmc_set_pnor(IPMIBmc *bmc, PnvPnor *pnor);
+void pnv_dt_bmc_sensors(IPMIBmcHost *bmc, void *fdt);
+void pnv_bmc_powerdown(IPMIBmcHost *bmc);
+IPMIBmcHost *pnv_bmc_create(PnvPnor *pnor);
+IPMIBmcHost *pnv_bmc_find(Error **errp);
+void pnv_bmc_set_pnor(IPMIBmcHost *bmc, PnvPnor *pnor);
 
 /*
  * POWER8 MMIO base addresses

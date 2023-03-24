@@ -44,7 +44,8 @@ struct ISAIPMIBTDevice {
     uint32_t uuid;
 };
 
-static void isa_ipmi_bt_get_fwinfo(struct IPMIInterface *ii, IPMIFwInfo *info)
+static void isa_ipmi_bt_get_fwinfo(struct IPMIInterfaceHost *ii,
+                                   IPMIFwInfo *info)
 {
     ISAIPMIBTDevice *iib = ISA_IPMI_BT(ii);
 
@@ -73,8 +74,8 @@ static void isa_ipmi_bt_realize(DeviceState *dev, Error **errp)
     Error *err = NULL;
     ISADevice *isadev = ISA_DEVICE(dev);
     ISAIPMIBTDevice *iib = ISA_IPMI_BT(dev);
-    IPMIInterface *ii = IPMI_INTERFACE(dev);
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    IPMIInterfaceHost *ii = IPMI_INTERFACE_HOST(dev);
+    IPMIInterfaceHostClass *iic = IPMI_INTERFACE_HOST_GET_CLASS(ii);
 
     if (!iib->bt.bmc) {
         error_setg(errp, "IPMI device requires a bmc attribute to be set");
@@ -83,7 +84,7 @@ static void isa_ipmi_bt_realize(DeviceState *dev, Error **errp)
 
     iib->uuid = ipmi_next_uuid();
 
-    iib->bt.bmc->intf = ii;
+    IPMI_CORE(iib->bt.bmc)->intf = IPMI_INTERFACE(ii);
     iib->bt.opaque = iib;
 
     iic->init(ii, 0, &err);
@@ -144,14 +145,15 @@ static Property ipmi_isa_properties[] = {
 static void isa_ipmi_bt_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_CLASS(oc);
+    IPMIInterfaceHostClass *iic = IPMI_INTERFACE_HOST_CLASS(oc);
+    IPMIInterfaceClass *ic = IPMI_INTERFACE_CLASS(oc);
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(oc);
 
     dc->realize = isa_ipmi_bt_realize;
     device_class_set_props(dc, ipmi_isa_properties);
 
-    iic->get_backend_data = isa_ipmi_bt_get_backend_data;
-    ipmi_bt_class_init(iic);
+    ic->get_backend_data = isa_ipmi_bt_get_backend_data;
+    ipmi_bt_class_init(ic);
     iic->get_fwinfo = isa_ipmi_bt_get_fwinfo;
     adevc->build_dev_aml = build_ipmi_dev_aml;
 }
@@ -163,7 +165,7 @@ static const TypeInfo isa_ipmi_bt_info = {
     .instance_init = isa_ipmi_bt_init,
     .class_init    = isa_ipmi_bt_class_init,
     .interfaces = (InterfaceInfo[]) {
-        { TYPE_IPMI_INTERFACE },
+        { TYPE_IPMI_INTERFACE_HOST },
         { TYPE_ACPI_DEV_AML_IF },
         { }
     }
