@@ -265,12 +265,7 @@ static bool trans_th_tst(DisasContext *ctx, arg_th_tst *a)
 
 static inline int priv_level(DisasContext *ctx)
 {
-#ifdef CONFIG_USER_ONLY
-    return PRV_U;
-#else
-     /* Priv level is part of mem_idx. */
-    return ctx->mem_idx & TB_FLAGS_PRIV_MMU_MASK;
-#endif
+    return ctx->priv;
 }
 
 /* Test if priv level is M, S, or U (cannot fail). */
