@@ -784,12 +784,6 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
         use_background = true;
     }
 
-    /* MPRV does not affect the virtual-machine load/store
-       instructions, HLV, HLVX, and HSV. */
-    if (mmuidx_2stage(mmu_idx)) {
-        mode = get_field(env->hstatus, HSTATUS_SPVP);
-    }
-
     if (first_stage == false) {
         /* We are in stage 2 translation, this is similar to stage 1. */
         /* Stage 2 is always taken as U-mode */
@@ -1251,7 +1245,7 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     /* MPRV does not affect the virtual-machine load/store
        instructions, HLV, HLVX, and HSV. */
     if (mmuidx_2stage(mmu_idx)) {
-        mode = get_field(env->hstatus, HSTATUS_SPVP);
+        ;
     } else if (mode == PRV_M && access_type != MMU_INST_FETCH &&
                get_field(env->mstatus, MSTATUS_MPRV)) {
         mode = get_field(env->mstatus, MSTATUS_MPP);
