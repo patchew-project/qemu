@@ -1177,30 +1177,30 @@ static const char *const qcow_strong_runtime_opts[] = {
 };
 
 static BlockDriver bdrv_qcow = {
-    .format_name	= "qcow",
-    .instance_size	= sizeof(BDRVQcowState),
-    .bdrv_probe		= qcow_probe,
-    .bdrv_open		= qcow_open,
-    .bdrv_close		= qcow_close,
-    .bdrv_child_perm        = bdrv_default_perms,
-    .bdrv_reopen_prepare    = qcow_reopen_prepare,
-    .bdrv_co_create         = qcow_co_create,
-    .bdrv_co_create_opts    = qcow_co_create_opts,
-    .bdrv_has_zero_init     = bdrv_has_zero_init_1,
-    .is_format              = true,
-    .supports_backing       = true,
-    .bdrv_refresh_limits    = qcow_refresh_limits,
+    .format_name                = "qcow",
+    .instance_size              = sizeof(BDRVQcowState),
+    .bdrv_probe                 = qcow_probe,
+    .bdrv_open                  = qcow_open,
+    .bdrv_close                 = qcow_close,
+    .bdrv_child_perm            = bdrv_default_perms,
+    .bdrv_reopen_prepare        = qcow_reopen_prepare,
+    .bdrv_co_create             = qcow_co_create,
+    .bdrv_co_create_opts        = qcow_co_create_opts,
+    .bdrv_has_zero_init         = bdrv_has_zero_init_1,
+    .is_format                  = true,
+    .supports_backing           = true,
+    .bdrv_refresh_limits        = qcow_refresh_limits,
 
-    .bdrv_co_preadv         = qcow_co_preadv,
-    .bdrv_co_pwritev        = qcow_co_pwritev,
-    .bdrv_co_block_status   = qcow_co_block_status,
+    .bdrv_co_preadv             = qcow_co_preadv,
+    .bdrv_co_pwritev            = qcow_co_pwritev,
+    .bdrv_co_block_status       = qcow_co_block_status,
 
-    .bdrv_make_empty        = qcow_make_empty,
+    .bdrv_make_empty            = qcow_make_empty,
     .bdrv_co_pwritev_compressed = qcow_co_pwritev_compressed,
-    .bdrv_co_get_info       = qcow_co_get_info,
+    .bdrv_co_get_info           = qcow_co_get_info,
 
-    .create_opts            = &qcow_create_opts,
-    .strong_runtime_opts    = qcow_strong_runtime_opts,
+    .create_opts                = &qcow_create_opts,
+    .strong_runtime_opts        = qcow_strong_runtime_opts,
 };
 
 static void bdrv_qcow_init(void)

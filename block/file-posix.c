@@ -124,7 +124,7 @@
 #define FTYPE_FILE   0
 #define FTYPE_CD     1
 
-#define MAX_BLOCKSIZE	4096
+#define MAX_BLOCKSIZE 4096
 
 /* Posix file locking bytes. Libvirt takes byte 0, we start from higher bytes,
  * leaving a few more bytes for its future use. */
@@ -3819,42 +3819,42 @@ static void coroutine_fn cdrom_co_lock_medium(BlockDriverState *bs, bool locked)
 }
 
 static BlockDriver bdrv_host_cdrom = {
-    .format_name        = "host_cdrom",
-    .protocol_name      = "host_cdrom",
-    .instance_size      = sizeof(BDRVRawState),
-    .bdrv_needs_filename = true,
-    .bdrv_probe_device	= cdrom_probe_device,
-    .bdrv_parse_filename = cdrom_parse_filename,
-    .bdrv_file_open     = cdrom_open,
-    .bdrv_close         = raw_close,
-    .bdrv_reopen_prepare = raw_reopen_prepare,
-    .bdrv_reopen_commit  = raw_reopen_commit,
-    .bdrv_reopen_abort   = raw_reopen_abort,
-    .bdrv_co_create_opts = bdrv_co_create_opts_simple,
-    .create_opts         = &bdrv_create_opts_simple,
-    .mutable_opts        = mutable_opts,
-    .bdrv_co_invalidate_cache = raw_co_invalidate_cache,
+    .format_name                     = "host_cdrom",
+    .protocol_name                   = "host_cdrom",
+    .instance_size                   = sizeof(BDRVRawState),
+    .bdrv_needs_filename             = true,
+    .bdrv_probe_device               = cdrom_probe_device,
+    .bdrv_parse_filename             = cdrom_parse_filename,
+    .bdrv_file_open                  = cdrom_open,
+    .bdrv_close                      = raw_close,
+    .bdrv_reopen_prepare             = raw_reopen_prepare,
+    .bdrv_reopen_commit              = raw_reopen_commit,
+    .bdrv_reopen_abort               = raw_reopen_abort,
+    .bdrv_co_create_opts             = bdrv_co_create_opts_simple,
+    .create_opts                     = &bdrv_create_opts_simple,
+    .mutable_opts                    = mutable_opts,
+    .bdrv_co_invalidate_cache        = raw_co_invalidate_cache,
 
-    .bdrv_co_preadv         = raw_co_preadv,
-    .bdrv_co_pwritev        = raw_co_pwritev,
-    .bdrv_co_flush_to_disk  = raw_co_flush_to_disk,
-    .bdrv_refresh_limits = raw_refresh_limits,
-    .bdrv_co_io_plug        = raw_co_io_plug,
-    .bdrv_co_io_unplug      = raw_co_io_unplug,
-    .bdrv_attach_aio_context = raw_aio_attach_aio_context,
+    .bdrv_co_preadv                  = raw_co_preadv,
+    .bdrv_co_pwritev                 = raw_co_pwritev,
+    .bdrv_co_flush_to_disk           = raw_co_flush_to_disk,
+    .bdrv_refresh_limits             = raw_refresh_limits,
+    .bdrv_co_io_plug                 = raw_co_io_plug,
+    .bdrv_co_io_unplug               = raw_co_io_unplug,
+    .bdrv_attach_aio_context         = raw_aio_attach_aio_context,
 
-    .bdrv_co_truncate                   = raw_co_truncate,
-    .bdrv_co_getlength                  = raw_co_getlength,
-    .has_variable_length                = true,
-    .bdrv_co_get_allocated_file_size    = raw_co_get_allocated_file_size,
+    .bdrv_co_truncate                = raw_co_truncate,
+    .bdrv_co_getlength               = raw_co_getlength,
+    .has_variable_length             = true,
+    .bdrv_co_get_allocated_file_size = raw_co_get_allocated_file_size,
 
     /* removable device support */
-    .bdrv_co_is_inserted    = cdrom_co_is_inserted,
-    .bdrv_co_eject          = cdrom_co_eject,
-    .bdrv_co_lock_medium    = cdrom_co_lock_medium,
+    .bdrv_co_is_inserted             = cdrom_co_is_inserted,
+    .bdrv_co_eject                   = cdrom_co_eject,
+    .bdrv_co_lock_medium             = cdrom_co_lock_medium,
 
     /* generic scsi device */
-    .bdrv_co_ioctl      = hdev_co_ioctl,
+    .bdrv_co_ioctl                   = hdev_co_ioctl,
 };
 #endif /* __linux__ */
 
@@ -3949,38 +3949,38 @@ static void coroutine_fn cdrom_co_lock_medium(BlockDriverState *bs, bool locked)
 }
 
 static BlockDriver bdrv_host_cdrom = {
-    .format_name        = "host_cdrom",
-    .protocol_name      = "host_cdrom",
-    .instance_size      = sizeof(BDRVRawState),
-    .bdrv_needs_filename = true,
-    .bdrv_probe_device	= cdrom_probe_device,
-    .bdrv_parse_filename = cdrom_parse_filename,
-    .bdrv_file_open     = cdrom_open,
-    .bdrv_close         = raw_close,
-    .bdrv_reopen_prepare = raw_reopen_prepare,
-    .bdrv_reopen_commit  = raw_reopen_commit,
-    .bdrv_reopen_abort   = raw_reopen_abort,
-    .bdrv_co_create_opts = bdrv_co_create_opts_simple,
-    .create_opts         = &bdrv_create_opts_simple,
-    .mutable_opts       = mutable_opts,
+    .format_name                     = "host_cdrom",
+    .protocol_name                   = "host_cdrom",
+    .instance_size                   = sizeof(BDRVRawState),
+    .bdrv_needs_filename             = true,
+    .bdrv_probe_device               = cdrom_probe_device,
+    .bdrv_parse_filename             = cdrom_parse_filename,
+    .bdrv_file_open                  = cdrom_open,
+    .bdrv_close                      = raw_close,
+    .bdrv_reopen_prepare             = raw_reopen_prepare,
+    .bdrv_reopen_commit              = raw_reopen_commit,
+    .bdrv_reopen_abort               = raw_reopen_abort,
+    .bdrv_co_create_opts             = bdrv_co_create_opts_simple,
+    .create_opts                     = &bdrv_create_opts_simple,
+    .mutable_opts                    = mutable_opts,
 
-    .bdrv_co_preadv         = raw_co_preadv,
-    .bdrv_co_pwritev        = raw_co_pwritev,
-    .bdrv_co_flush_to_disk  = raw_co_flush_to_disk,
-    .bdrv_refresh_limits = raw_refresh_limits,
-    .bdrv_co_io_plug        = raw_co_io_plug,
-    .bdrv_co_io_unplug      = raw_co_io_unplug,
-    .bdrv_attach_aio_context = raw_aio_attach_aio_context,
+    .bdrv_co_preadv                  = raw_co_preadv,
+    .bdrv_co_pwritev                 = raw_co_pwritev,
+    .bdrv_co_flush_to_disk           = raw_co_flush_to_disk,
+    .bdrv_refresh_limits             = raw_refresh_limits,
+    .bdrv_co_io_plug                 = raw_co_io_plug,
+    .bdrv_co_io_unplug               = raw_co_io_unplug,
+    .bdrv_attach_aio_context         = raw_aio_attach_aio_context,
 
-    .bdrv_co_truncate                   = raw_co_truncate,
-    .bdrv_co_getlength                  = raw_co_getlength,
-    .has_variable_length                = true,
-    .bdrv_co_get_allocated_file_size    = raw_co_get_allocated_file_size,
+    .bdrv_co_truncate                = raw_co_truncate,
+    .bdrv_co_getlength               = raw_co_getlength,
+    .has_variable_length             = true,
+    .bdrv_co_get_allocated_file_size = raw_co_get_allocated_file_size,
 
     /* removable device support */
-    .bdrv_co_is_inserted     = cdrom_co_is_inserted,
-    .bdrv_co_eject           = cdrom_co_eject,
-    .bdrv_co_lock_medium     = cdrom_co_lock_medium,
+    .bdrv_co_is_inserted             = cdrom_co_is_inserted,
+    .bdrv_co_eject                   = cdrom_co_eject,
+    .bdrv_co_lock_medium             = cdrom_co_lock_medium,
 };
 #endif /* __FreeBSD__ */
 

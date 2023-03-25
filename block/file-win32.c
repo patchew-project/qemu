@@ -743,31 +743,31 @@ static QemuOptsList raw_create_opts = {
 };
 
 BlockDriver bdrv_file = {
-    .format_name	= "file",
-    .protocol_name	= "file",
-    .instance_size	= sizeof(BDRVRawState),
+    .format_name         = "file",
+    .protocol_name       = "file",
+    .instance_size       = sizeof(BDRVRawState),
     .bdrv_needs_filename = true,
     .bdrv_parse_filename = raw_parse_filename,
-    .bdrv_file_open     = raw_open,
+    .bdrv_file_open      = raw_open,
     .bdrv_refresh_limits = raw_probe_alignment,
-    .bdrv_close         = raw_close,
+    .bdrv_close          = raw_close,
     .bdrv_co_create_opts = raw_co_create_opts,
-    .bdrv_has_zero_init = bdrv_has_zero_init_1,
+    .bdrv_has_zero_init  = bdrv_has_zero_init_1,
 
     .bdrv_reopen_prepare = raw_reopen_prepare,
     .bdrv_reopen_commit  = raw_reopen_commit,
     .bdrv_reopen_abort   = raw_reopen_abort,
 
-    .bdrv_aio_preadv    = raw_aio_preadv,
-    .bdrv_aio_pwritev   = raw_aio_pwritev,
-    .bdrv_aio_flush     = raw_aio_flush,
+    .bdrv_aio_preadv     = raw_aio_preadv,
+    .bdrv_aio_pwritev    = raw_aio_pwritev,
+    .bdrv_aio_flush      = raw_aio_flush,
 
-    .bdrv_co_truncate   = raw_co_truncate,
-    .bdrv_co_getlength  = raw_co_getlength,
+    .bdrv_co_truncate    = raw_co_truncate,
+    .bdrv_co_getlength   = raw_co_getlength,
     .bdrv_co_get_allocated_file_size
-                        = raw_co_get_allocated_file_size,
+                         = raw_co_get_allocated_file_size,
 
-    .create_opts        = &raw_create_opts,
+    .create_opts         = &raw_create_opts,
 };
 
 /***********************************************/
@@ -915,26 +915,26 @@ done:
 }
 
 static BlockDriver bdrv_host_device = {
-    .format_name	= "host_device",
-    .protocol_name	= "host_device",
-    .instance_size	= sizeof(BDRVRawState),
-    .bdrv_needs_filename = true,
-    .bdrv_parse_filename = hdev_parse_filename,
-    .bdrv_probe_device	= hdev_probe_device,
-    .bdrv_file_open	= hdev_open,
-    .bdrv_close		= raw_close,
-    .bdrv_refresh_limits = hdev_refresh_limits,
+    .format_name                     = "host_device",
+    .protocol_name                   = "host_device",
+    .instance_size                   = sizeof(BDRVRawState),
+    .bdrv_needs_filename             = true,
+    .bdrv_parse_filename             = hdev_parse_filename,
+    .bdrv_probe_device               = hdev_probe_device,
+    .bdrv_file_open                  = hdev_open,
+    .bdrv_close                      = raw_close,
+    .bdrv_refresh_limits             = hdev_refresh_limits,
 
-    .bdrv_aio_preadv    = raw_aio_preadv,
-    .bdrv_aio_pwritev   = raw_aio_pwritev,
-    .bdrv_aio_flush     = raw_aio_flush,
+    .bdrv_aio_preadv                 = raw_aio_preadv,
+    .bdrv_aio_pwritev                = raw_aio_pwritev,
+    .bdrv_aio_flush                  = raw_aio_flush,
 
-    .bdrv_detach_aio_context = raw_detach_aio_context,
-    .bdrv_attach_aio_context = raw_attach_aio_context,
+    .bdrv_detach_aio_context         = raw_detach_aio_context,
+    .bdrv_attach_aio_context         = raw_attach_aio_context,
 
-    .bdrv_co_getlength                = raw_co_getlength,
-    .has_variable_length              = true,
-    .bdrv_co_get_allocated_file_size  = raw_co_get_allocated_file_size,
+    .bdrv_co_getlength               = raw_co_getlength,
+    .has_variable_length             = true,
+    .bdrv_co_get_allocated_file_size = raw_co_get_allocated_file_size,
 };
 
 static void bdrv_file_init(void)
