@@ -64,7 +64,7 @@ trace_events_all = custom_target('trace-events-all',
                                  input: trace_events_files,
                                  command: [ 'cat', '@INPUT@' ],
                                  capture: true,
-                                 install: true,
+                                 install: have_linux_user or have_bsd_user or have_system,
                                  install_dir: qemu_datadir)
 
 if 'ust' in get_option('trace_backends')
