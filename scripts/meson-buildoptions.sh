@@ -301,6 +301,8 @@ _meson_option_parse() {
     --includedir=*) quote_sh "-Dincludedir=$2" ;;
     --enable-install-blobs) printf "%s" -Dinstall_blobs=true ;;
     --disable-install-blobs) printf "%s" -Dinstall_blobs=false ;;
+    --enable-install-keymaps) printf "%s" -Dinstall_keymaps=true ;;
+    --disable-install-keymaps) printf "%s" -Dinstall_keymaps=false ;;
     --interp-prefix=*) quote_sh "-Dinterp_prefix=$2" ;;
     --enable-jack) printf "%s" -Djack=enabled ;;
     --disable-jack) printf "%s" -Djack=disabled ;;
