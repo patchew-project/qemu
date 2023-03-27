@@ -252,6 +252,18 @@ uint64_t helper_fmin_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
                     float32_minimum_number(frs1, frs2, &env->fp_status));
 }
 
+uint64_t helper_fminm_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    float32 frs1 = check_nanbox_s(env, rs1);
+    float32 frs2 = check_nanbox_s(env, rs2);
+
+    if (float32_is_any_nan(frs1) || float32_is_any_nan(frs2)) {
+        return float32_default_nan(&env->fp_status);
+    }
+
+    return nanbox_s(env, float32_minimum_number(frs1, frs2, &env->fp_status));
+}
+
 uint64_t helper_fmax_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
     float32 frs1 = check_nanbox_s(env, rs1);
@@ -259,6 +271,18 @@ uint64_t helper_fmax_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
     return nanbox_s(env, env->priv_ver < PRIV_VERSION_1_11_0 ?
                     float32_maxnum(frs1, frs2, &env->fp_status) :
                     float32_maximum_number(frs1, frs2, &env->fp_status));
+}
+
+uint64_t helper_fmaxm_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    float32 frs1 = check_nanbox_s(env, rs1);
+    float32 frs2 = check_nanbox_s(env, rs2);
+
+    if (float32_is_any_nan(frs1) || float32_is_any_nan(frs2)) {
+        return float32_default_nan(&env->fp_status);
+    }
+
+    return nanbox_s(env, float32_maximum_number(frs1, frs2, &env->fp_status));
 }
 
 uint64_t helper_fsqrt_s(CPURISCVState *env, uint64_t rs1)
@@ -274,11 +298,25 @@ target_ulong helper_fle_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
     return float32_le(frs1, frs2, &env->fp_status);
 }
 
+target_ulong helper_fleq_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    float32 frs1 = check_nanbox_s(env, rs1);
+    float32 frs2 = check_nanbox_s(env, rs2);
+    return float32_le_quiet(frs1, frs2, &env->fp_status);
+}
+
 target_ulong helper_flt_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
     float32 frs1 = check_nanbox_s(env, rs1);
     float32 frs2 = check_nanbox_s(env, rs2);
     return float32_lt(frs1, frs2, &env->fp_status);
+}
+
+target_ulong helper_fltq_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    float32 frs1 = check_nanbox_s(env, rs1);
+    float32 frs2 = check_nanbox_s(env, rs2);
+    return float32_lt_quiet(frs1, frs2, &env->fp_status);
 }
 
 target_ulong helper_feq_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
@@ -338,6 +376,76 @@ target_ulong helper_fclass_s(CPURISCVState *env, uint64_t rs1)
     return fclass_s(frs1);
 }
 
+uint64_t helper_fround_s(CPURISCVState *env, uint64_t frs1)
+{
+    if (float32_is_zero(frs1) ||
+        float32_is_infinity(frs1)) {
+        return frs1;
+    }
+
+    if (float32_is_any_nan(frs1)) {
+        riscv_cpu_set_fflags(env, FPEXC_NV);
+        return frs1;
+    }
+
+    int32_t tmp = float32_to_int32(frs1, &env->fp_status);
+    return nanbox_s(env, int32_to_float32(tmp, &env->fp_status));
+}
+
+uint64_t helper_froundnx_s(CPURISCVState *env, uint64_t frs1)
+{
+    uint64_t ret = helper_fround_s(env, frs1);
+
+    if (ret != frs1 && !float32_is_any_nan(frs1)) {
+        riscv_cpu_set_fflags(env, FPEXC_NX);
+    }
+
+    return ret;
+}
+
+uint64_t helper_fli_s(CPURISCVState *env, uint32_t rs1)
+{
+    const uint32_t fli_s_table[] = {
+        0xbf800000,  /* -1.0 */
+        0x00800000,  /* minimum positive normal */
+        0x37800000,  /* 1.0 * 2^-16 */
+        0x38000000,  /* 1.0 * 2^-15 */
+        0x3b800000,  /* 1.0 * 2^-8  */
+        0x3c000000,  /* 1.0 * 2^-7  */
+        0x3d800000,  /* 1.0 * 2^-4  */
+        0x3e000000,  /* 1.0 * 2^-3  */
+        0x3e800000,  /* 0.25 */
+        0x3ea00000,  /* 0.3125 */
+        0x3ec00000,  /* 0.375 */
+        0x3ee00000,  /* 0.4375 */
+        0x3f000000,  /* 0.5 */
+        0x3f200000,  /* 0.625 */
+        0x3f400000,  /* 0.75 */
+        0x3f600000,  /* 0.875 */
+        0x3f800000,  /* 1.0 */
+        0x3fa00000,  /* 1.25 */
+        0x3fc00000,  /* 1.5 */
+        0x3fe00000,  /* 1.75 */
+        0x40000000,  /* 2.0 */
+        0x40200000,  /* 2.5 */
+        0x40400000,  /* 3 */
+        0x40800000,  /* 4 */
+        0x41000000,  /* 8 */
+        0x41800000,  /* 16 */
+        0x43000000,  /* 2^7 */
+        0x43800000,  /* 2^8 */
+        0x47000000,  /* 2^15 */
+        0x47800000,  /* 2^16 */
+        0x7f800000,  /* +inf */
+        float32_default_nan(&env->fp_status),
+    };
+
+    if (rs1 >= 32)
+        g_assert_not_reached();
+
+    return fli_s_table[rs1];
+}
+
 uint64_t helper_fadd_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
 {
     return float64_add(frs1, frs2, &env->fp_status);
@@ -365,11 +473,29 @@ uint64_t helper_fmin_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
             float64_minimum_number(frs1, frs2, &env->fp_status);
 }
 
+uint64_t helper_fminm_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
+{
+    if (float64_is_any_nan(frs1) || float64_is_any_nan(frs2)) {
+        return float64_default_nan(&env->fp_status);
+    }
+
+    return float64_minimum_number(frs1, frs2, &env->fp_status);
+}
+
 uint64_t helper_fmax_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
 {
     return env->priv_ver < PRIV_VERSION_1_11_0 ?
             float64_maxnum(frs1, frs2, &env->fp_status) :
             float64_maximum_number(frs1, frs2, &env->fp_status);
+}
+
+uint64_t helper_fmaxm_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
+{
+    if (float64_is_any_nan(frs1) || float64_is_any_nan(frs2)) {
+        return float64_default_nan(&env->fp_status);
+    }
+
+    return float64_maximum_number(frs1, frs2, &env->fp_status);
 }
 
 uint64_t helper_fcvt_s_d(CPURISCVState *env, uint64_t rs1)
@@ -393,9 +519,19 @@ target_ulong helper_fle_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
     return float64_le(frs1, frs2, &env->fp_status);
 }
 
+target_ulong helper_fleq_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
+{
+    return float64_le_quiet(frs1, frs2, &env->fp_status);
+}
+
 target_ulong helper_flt_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
 {
     return float64_lt(frs1, frs2, &env->fp_status);
+}
+
+target_ulong helper_fltq_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
+{
+    return float64_lt_quiet(frs1, frs2, &env->fp_status);
 }
 
 target_ulong helper_feq_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
@@ -405,6 +541,16 @@ target_ulong helper_feq_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
 
 target_ulong helper_fcvt_w_d(CPURISCVState *env, uint64_t frs1)
 {
+    return float64_to_int32(frs1, &env->fp_status);
+}
+
+target_ulong helper_fcvtmod_w_d(CPURISCVState *env, uint64_t frs1)
+{
+    if (float64_is_any_nan(frs1) ||
+        float64_is_infinity(frs1)) {
+        return 0;
+    }
+
     return float64_to_int32(frs1, &env->fp_status);
 }
 
@@ -448,6 +594,76 @@ target_ulong helper_fclass_d(uint64_t frs1)
     return fclass_d(frs1);
 }
 
+uint64_t helper_fround_d(CPURISCVState *env, uint64_t frs1)
+{
+    if (float64_is_zero(frs1) ||
+        float64_is_infinity(frs1)) {
+        return frs1;
+    }
+
+    if (float64_is_any_nan(frs1)) {
+        riscv_cpu_set_fflags(env, FPEXC_NV);
+        return frs1;
+    }
+
+    int64_t tmp = float64_to_int64(frs1, &env->fp_status);
+    return nanbox_s(env, int64_to_float64(tmp, &env->fp_status));
+}
+
+uint64_t helper_froundnx_d(CPURISCVState *env, uint64_t frs1)
+{
+    uint64_t ret = helper_fround_s(env, frs1);
+
+    if (ret != frs1 && !float64_is_any_nan(frs1)) {
+        riscv_cpu_set_fflags(env, FPEXC_NX);
+    }
+
+    return ret;
+}
+
+uint64_t helper_fli_d(CPURISCVState *env, uint32_t rs1)
+{
+    const uint64_t fli_d_table[] = {
+        0xbff0000000000000,  /* -1.0 */
+        0x0010000000000000,  /* minimum positive normal */
+        0x3Ef0000000000000,  /* 1.0 * 2^-16 */
+        0x3f00000000000000,  /* 1.0 * 2^-15 */
+        0x3f70000000000000,  /* 1.0 * 2^-8  */
+        0x3f80000000000000,  /* 1.0 * 2^-7  */
+        0x3fb0000000000000,  /* 1.0 * 2^-4  */
+        0x3fc0000000000000,  /* 1.0 * 2^-3  */
+        0x3fd0000000000000,  /* 0.25 */
+        0x3fd4000000000000,  /* 0.3125 */
+        0x3fd8000000000000,  /* 0.375 */
+        0x3fdc000000000000,  /* 0.4375 */
+        0x3fe0000000000000,  /* 0.5 */
+        0x3fe4000000000000,  /* 0.625 */
+        0x3fe8000000000000,  /* 0.75 */
+        0x3fec000000000000,  /* 0.875 */
+        0x3ff0000000000000,  /* 1.0 */
+        0x3ff4000000000000,  /* 1.25 */
+        0x3ff8000000000000,  /* 1.5 */
+        0x3ffc000000000000,  /* 1.75 */
+        0x4000000000000000,  /* 2.0 */
+        0x4004000000000000,  /* 2.5 */
+        0x4008000000000000,  /* 3 */
+        0x4010000000000000,  /* 4 */
+        0x4020000000000000,  /* 8 */
+        0x4030000000000000,  /* 16 */
+        0x4060000000000000,  /* 2^7 */
+        0x4070000000000000,  /* 2^8 */
+        0x40e0000000000000,  /* 2^15 */
+        0x40f0000000000000,  /* 2^16 */
+        0x7ff0000000000000,  /* +inf */
+        float64_default_nan(&env->fp_status),
+    };
+
+    if (rs1 >= 32)
+        g_assert_not_reached();
+
+    return fli_d_table[rs1];
+}
+
 uint64_t helper_fadd_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
     float16 frs1 = check_nanbox_h(env, rs1);
@@ -485,6 +701,18 @@ uint64_t helper_fmin_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
                     float16_minimum_number(frs1, frs2, &env->fp_status));
 }
 
+uint64_t helper_fminm_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    float16 frs1 = check_nanbox_s(env, rs1);
+    float16 frs2 = check_nanbox_s(env, rs2);
+
+    if (float16_is_any_nan(frs1) || float16_is_any_nan(frs2)) {
+        return float16_default_nan(&env->fp_status);
+    }
+
+    return nanbox_s(env, float16_minimum_number(frs1, frs2, &env->fp_status));
+}
+
 uint64_t helper_fmax_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
     float16 frs1 = check_nanbox_h(env, rs1);
@@ -492,6 +720,18 @@ uint64_t helper_fmax_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
     return nanbox_h(env, env->priv_ver < PRIV_VERSION_1_11_0 ?
                     float16_maxnum(frs1, frs2, &env->fp_status) :
                     float16_maximum_number(frs1, frs2, &env->fp_status));
+}
+
+uint64_t helper_fmaxm_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    float16 frs1 = check_nanbox_s(env, rs1);
+    float16 frs2 = check_nanbox_s(env, rs2);
+
+    if (float16_is_any_nan(frs1) || float16_is_any_nan(frs2)) {
+        return float16_default_nan(&env->fp_status);
+    }
+
+    return nanbox_s(env, float16_maximum_number(frs1, frs2, &env->fp_status));
 }
 
 uint64_t helper_fsqrt_h(CPURISCVState *env, uint64_t rs1)
@@ -507,11 +747,25 @@ target_ulong helper_fle_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
     return float16_le(frs1, frs2, &env->fp_status);
 }
 
+target_ulong helper_fleq_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    float16 frs1 = check_nanbox_h(env, rs1);
+    float16 frs2 = check_nanbox_h(env, rs2);
+    return float16_le_quiet(frs1, frs2, &env->fp_status);
+}
+
 target_ulong helper_flt_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
     float16 frs1 = check_nanbox_h(env, rs1);
     float16 frs2 = check_nanbox_h(env, rs2);
     return float16_lt(frs1, frs2, &env->fp_status);
+}
+
+target_ulong helper_fltq_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    float16 frs1 = check_nanbox_h(env, rs1);
+    float16 frs2 = check_nanbox_h(env, rs2);
+    return float16_lt_quiet(frs1, frs2, &env->fp_status);
 }
 
 target_ulong helper_feq_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
@@ -525,6 +779,76 @@ target_ulong helper_fclass_h(CPURISCVState *env, uint64_t rs1)
 {
     float16 frs1 = check_nanbox_h(env, rs1);
     return fclass_h(frs1);
+}
+
+uint64_t helper_fround_h(CPURISCVState *env, uint64_t frs1)
+{
+    if (float16_is_zero(frs1) ||
+        float16_is_infinity(frs1)) {
+        return frs1;
+    }
+
+    if (float16_is_any_nan(frs1)) {
+        riscv_cpu_set_fflags(env, FPEXC_NV);
+        return frs1;
+    }
+
+    int32_t tmp = float16_to_int32(frs1, &env->fp_status);
+    return nanbox_s(env, int32_to_float16(tmp, &env->fp_status));
+}
+
+uint64_t helper_froundnx_h(CPURISCVState *env, uint64_t frs1)
+{
+    uint64_t ret = helper_fround_s(env, frs1);
+
+    if (ret != frs1 && !float16_is_any_nan(frs1)) {
+        riscv_cpu_set_fflags(env, FPEXC_NX);
+    }
+
+    return ret;
+}
+
+uint64_t helper_fli_h(CPURISCVState *env, uint32_t rs1)
+{
+    const uint16_t fli_h_table[] = {
+        0xbc00,  /* -1.0 */
+        0x0400,  /* minimum positive normal */
+        0x0100,  /* 1.0 * 2^-16 */
+        0x0200,  /* 1.0 * 2^-15 */
+        0x1c00,  /* 1.0 * 2^-8  */
+        0x2000,  /* 1.0 * 2^-7  */
+        0x2c00,  /* 1.0 * 2^-4  */
+        0x3000,  /* 1.0 * 2^-3  */
+        0x3400,  /* 0.25 */
+        0x3500,  /* 0.3125 */
+        0x3600,  /* 0.375 */
+        0x3700,  /* 0.4375 */
+        0x3800,  /* 0.5 */
+        0x3900,  /* 0.625 */
+        0x3a00,  /* 0.75 */
+        0x3b00,  /* 0.875 */
+        0x3c00,  /* 1.0 */
+        0x3d00,  /* 1.25 */
+        0x3e00,  /* 1.5 */
+        0x3f00,  /* 1.75 */
+        0x4000,  /* 2.0 */
+        0x4100,  /* 2.5 */
+        0x4200,  /* 3 */
+        0x4400,  /* 4 */
+        0x4800,  /* 8 */
+        0x4c00,  /* 16 */
+        0x5800,  /* 2^7 */
+        0x5c00,  /* 2^8 */
+        0x7800,  /* 2^15 */
+        0x7c00,  /* 2^16 */
+        0x7c00,  /* +inf */
+        float16_default_nan(&env->fp_status),
+    };
+
+    if (rs1 >= 32)
+        g_assert_not_reached();
+
+    return fli_h_table[rs1];
 }
 
 target_ulong helper_fcvt_w_h(CPURISCVState *env, uint64_t rs1)
