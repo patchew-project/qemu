@@ -570,7 +570,7 @@ static TCGv get_address(DisasContext *ctx, int rs1, int imm)
     tcg_gen_addi_tl(addr, src1, imm);
 
     if (get_xl(ctx) == MXL_RV32) {
-        tcg_gen_ext32u_tl(addr, addr);
+        tcg_gen_ext32s_tl(addr, addr);
     }
 
     if (ctx->pm_mask_enabled) {
@@ -592,7 +592,7 @@ static TCGv get_address_indexed(DisasContext *ctx, int rs1, TCGv offs)
     tcg_gen_add_tl(addr, src1, offs);
 
     if (get_xl(ctx) == MXL_RV32) {
-        tcg_gen_ext32u_tl(addr, addr);
+        tcg_gen_ext32s_tl(addr, addr);
     }
 
     if (ctx->pm_mask_enabled) {
