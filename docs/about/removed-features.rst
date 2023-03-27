@@ -416,6 +416,11 @@ Input parameters that take a size value should only use a size suffix
 the value is hexadecimal.  That is, '0x20M' should be written either as
 '32M' or as '0x2000000'.
 
+``-async-teardown`` (removed in 8.0)
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+
+Use ``-teardown async=on`` instead.
+
 ``-chardev`` backend aliases ``tty`` and ``parport`` (removed in 8.0)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
