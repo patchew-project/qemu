@@ -1031,3 +1031,43 @@ void HELPER(vnori_b)(void *vd, void *vj, uint64_t imm, uint32_t v)
         Vd->B(i) = ~(Vj->B(i) | (uint8_t)imm);
     }
 }
+
+#define VSLLWIL(NAME, BIT, T1, T2, E1, E2)                \
+void HELPER(NAME)(CPULoongArchState *env,                 \
+                  uint32_t vd, uint32_t vj, uint32_t imm) \
+{                                                         \
+    int i;                                                \
+    VReg temp;                                            \
+    VReg *Vd = &(env->fpr[vd].vreg);                      \
+    VReg *Vj = &(env->fpr[vj].vreg);                      \
+    temp.D(0) = 0;                                        \
+    temp.D(1) = 0;                                        \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                   \
+        temp.E1(i) = (T1)(T2)Vj->E2(i) << (imm % BIT);    \
+    }                                                     \
+    Vd->D(0) = temp.D(0);                                 \
+    Vd->D(1) = temp.D(1);                                 \
+}
+
+void HELPER(vextl_q_d)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+{
+    VReg *Vd = &(env->fpr[vd].vreg);
+    VReg *Vj = &(env->fpr[vj].vreg);
+
+    Vd->Q(0) = int128_makes64(Vj->D(0));
+}
+
+void HELPER(vextl_qu_du)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+{
+    VReg *Vd = &(env->fpr[vd].vreg);
+    VReg *Vj = &(env->fpr[vj].vreg);
+
+    Vd->Q(0) = int128_make64(Vj->D(0));
+}
+
+VSLLWIL(vsllwil_h_b, 16, int16_t, int8_t, H, B)
+VSLLWIL(vsllwil_w_h, 32, int32_t, int16_t, W, H)
+VSLLWIL(vsllwil_d_w, 64, int64_t, int32_t, D, W)
+VSLLWIL(vsllwil_hu_bu, 16, uint16_t, uint8_t, H, B)
+VSLLWIL(vsllwil_wu_hu, 32, uint32_t, uint16_t, W, H)
+VSLLWIL(vsllwil_du_wu, 64, uint64_t, uint32_t, D, W)
