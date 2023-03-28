@@ -705,7 +705,7 @@ build_madt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     int i;
     VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
     const MemMapEntry *memmap = vms->memmap;
-    AcpiTable table = { .sig = "APIC", .rev = 4, .oem_id = vms->oem_id,
+    AcpiTable table = { .sig = "APIC", .rev = 5, .oem_id = vms->oem_id,
                         .oem_table_id = vms->oem_table_id };
 
     acpi_table_begin(&table, table_data);
@@ -763,7 +763,9 @@ build_madt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
         /* Processor Power Efficiency Class */
         build_append_int_noprefix(table_data, 0, 1);
         /* Reserved */
-        build_append_int_noprefix(table_data, 0, 3);
+        build_append_int_noprefix(table_data, 0, 1);
+        /* SPE overflow Interrupt */
+        build_append_int_noprefix(table_data, 0, 2);
     }
 
     if (vms->gic_version != VIRT_GIC_VERSION_2) {
