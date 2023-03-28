@@ -2972,3 +2972,60 @@ VFCMP(vfcmp_c_s, 32, uint32_t, W, float32_compare_quiet)
 VFCMP(vfcmp_s_s, 32, uint32_t, W, float32_compare)
 VFCMP(vfcmp_c_d, 64, uint64_t, D, float64_compare_quiet)
 VFCMP(vfcmp_s_d, 64, uint64_t, D, float64_compare)
+
+void HELPER(vbitseli_b)(void *vd, void *vj,  uint64_t imm, uint32_t v)
+{
+    int i;
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
+
+    for (i = 0; i < 16; i++) {
+        Vd->B(i) = (~Vd->B(i) & Vj->B(i)) | (Vd->B(i) & imm);
+    }
+}
+
+void HELPER(vseteqz_v)(CPULoongArchState *env, uint32_t cd, uint32_t vj)
+{
+    VReg *Vj = &(env->fpr[vj].vreg);
+    env->cf[cd & 0x7] = (Vj->Q(0) == 0);
+}
+
+void HELPER(vsetnez_v)(CPULoongArchState *env, uint32_t cd, uint32_t vj)
+{
+    VReg *Vj = &(env->fpr[vj].vreg);
+    env->cf[cd & 0x7] = (Vj->Q(0) != 0);
+}
+
+#define SETANYEQZ(NAME, BIT, E)                                     \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t cd, uint32_t vj) \
+{                                                                   \
+    int i;                                                          \
+    bool ret = false;                                               \
+    VReg *Vj = &(env->fpr[vj].vreg);                                \
+                                                                    \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                             \
+        ret |= (Vj->E(i) == 0);                                     \
+    }                                                               \
+    env->cf[cd & 0x7] = ret;                                        \
+}
+SETANYEQZ(vsetanyeqz_b, 8, B)
+SETANYEQZ(vsetanyeqz_h, 16, H)
+SETANYEQZ(vsetanyeqz_w, 32, W)
+SETANYEQZ(vsetanyeqz_d, 64, D)
+
+#define SETALLNEZ(NAME, BIT, E)                                     \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t cd, uint32_t vj) \
+{                                                                   \
+    int i;                                                          \
+    bool ret = true;                                                \
+    VReg *Vj = &(env->fpr[vj].vreg);                                \
+                                                                    \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                             \
+        ret &= (Vj->E(i) != 0);                                     \
+    }                                                               \
+    env->cf[cd & 0x7] = ret;                                        \
+}
+SETALLNEZ(vsetallnez_b, 8, B)
+SETALLNEZ(vsetallnez_h, 16, H)
+SETALLNEZ(vsetallnez_w, 32, W)
+SETALLNEZ(vsetallnez_d, 64, D)

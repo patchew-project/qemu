@@ -65,6 +65,17 @@ static bool gen_vv_i(DisasContext *ctx, arg_vv_i *a,
     return true;
 }
 
+static bool gen_cv(DisasContext *ctx, arg_cv *a,
+                    void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 vj = tcg_constant_i32(a->vj);
+    TCGv_i32 cd = tcg_constant_i32(a->cd);
+
+    CHECK_SXE;
+    func(cpu_env, cd, vj);
+    return true;
+}
+
 static bool gvec_vvv(DisasContext *ctx, arg_vvv *a, MemOp mop,
                      void (*func)(unsigned, uint32_t, uint32_t,
                                   uint32_t, uint32_t, uint32_t))
@@ -3163,3 +3174,50 @@ static bool trans_vfcmp_cond_d(DisasContext *ctx, arg_vvv_fcond *a)
 
     return true;
 }
+
+static bool trans_vbitsel_v(DisasContext *ctx, arg_vvvv *a)
+{
+    CHECK_SXE;
+
+    tcg_gen_gvec_bitsel(MO_64, vreg_full_offset(a->vd), vreg_full_offset(a->va),
+                        vreg_full_offset(a->vk), vreg_full_offset(a->vj),
+                        16, 16);
+    return true;
+}
+
+static void gen_vbitseli(unsigned vece, TCGv_vec a, TCGv_vec b, int64_t imm)
+{
+    TCGv_vec t;
+
+    t = tcg_temp_new_vec_matching(a);
+    tcg_gen_dupi_vec(vece, t, imm);
+    tcg_gen_bitsel_vec(vece, a, a, t, b);
+}
+
+static bool trans_vbitseli_b(DisasContext *ctx, arg_vv_i *a)
+{
+    static const GVecGen2i op = {
+       .fniv = gen_vbitseli,
+       .fnoi = gen_helper_vbitseli_b,
+       .vece = MO_8,
+       .load_dest = true
+    };
+
+    CHECK_SXE;
+
+    tcg_gen_gvec_2i(vreg_full_offset(a->vd), vreg_full_offset(a->vj),
+                    16, 16, a->imm, &op);
+    return true;
+}
+
+
+TRANS(vseteqz_v, gen_cv, gen_helper_vseteqz_v)
+TRANS(vsetnez_v, gen_cv, gen_helper_vsetnez_v)
+TRANS(vsetanyeqz_b, gen_cv, gen_helper_vsetanyeqz_b)
+TRANS(vsetanyeqz_h, gen_cv, gen_helper_vsetanyeqz_h)
+TRANS(vsetanyeqz_w, gen_cv, gen_helper_vsetanyeqz_w)
+TRANS(vsetanyeqz_d, gen_cv, gen_helper_vsetanyeqz_d)
+TRANS(vsetallnez_b, gen_cv, gen_helper_vsetallnez_b)
+TRANS(vsetallnez_h, gen_cv, gen_helper_vsetallnez_h)
+TRANS(vsetallnez_w, gen_cv, gen_helper_vsetallnez_w)
+TRANS(vsetallnez_d, gen_cv, gen_helper_vsetallnez_d)
