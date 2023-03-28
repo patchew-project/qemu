@@ -2921,3 +2921,54 @@ VCMPI(vslti_bu, 8, uint8_t, B, VSLT)
 VCMPI(vslti_hu, 16, uint16_t, H, VSLT)
 VCMPI(vslti_wu, 32, uint32_t, W, VSLT)
 VCMPI(vslti_du, 64, uint64_t, D, VSLT)
+
+static uint64_t vfcmp_common(CPULoongArchState *env,
+                             FloatRelation cmp, uint32_t flags)
+{
+    bool ret;
+
+    switch (cmp) {
+    case float_relation_less:
+        ret = (flags & FCMP_LT);
+        break;
+    case float_relation_equal:
+        ret = (flags & FCMP_EQ);
+        break;
+    case float_relation_greater:
+        ret = (flags & FCMP_GT);
+        break;
+    case float_relation_unordered:
+        ret = (flags & FCMP_UN);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    return ret;
+}
+
+#define VFCMP(NAME, BIT, T, E, FN)                                       \
+void HELPER(NAME)(CPULoongArchState *env,                                \
+                  uint32_t vd, uint32_t vj, uint32_t vk, uint32_t flags) \
+{                                                                        \
+    int i;                                                               \
+    VReg t;                                                              \
+    VReg *Vd = &(env->fpr[vd].vreg);                                     \
+    VReg *Vj = &(env->fpr[vj].vreg);                                     \
+    VReg *Vk = &(env->fpr[vk].vreg);                                     \
+                                                                         \
+    vec_clear_cause(env);                                                \
+    for (i = 0; i < LSX_LEN/BIT ; i++) {                                 \
+        FloatRelation cmp;                                               \
+        cmp = FN(Vj->E(i), Vk->E(i), &env->fp_status);                   \
+        t.E(i) = (vfcmp_common(env, cmp, flags)) ? -1 : 0;               \
+        vec_update_fcsr0(env, GETPC());                                  \
+    }                                                                    \
+    Vd->D(0) = t.D(0);                                                   \
+    Vd->D(1) = t.D(1);                                                   \
+}
+
+VFCMP(vfcmp_c_s, 32, uint32_t, W, float32_compare_quiet)
+VFCMP(vfcmp_s_s, 32, uint32_t, W, float32_compare)
+VFCMP(vfcmp_c_d, 64, uint64_t, D, float64_compare_quiet)
+VFCMP(vfcmp_s_d, 64, uint64_t, D, float64_compare)
