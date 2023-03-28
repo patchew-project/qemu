@@ -871,3 +871,22 @@ VEXTH(vexth_d_w, 64, int64_t, int32_t, D, W)
 VEXTH(vexth_hu_bu, 16, uint16_t, uint8_t, H, B)
 VEXTH(vexth_wu_hu, 32, uint32_t, uint16_t, W, H)
 VEXTH(vexth_du_wu, 64, uint64_t, uint32_t, D, W)
+
+#define DO_SIGNCOV(a, b)  (a == 0 ? 0 : a < 0 ? -b : b)
+
+#define VSIGNCOV(NAME, BIT, E, DO_OP)                       \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    VReg *Vd = (VReg *)vd;                                  \
+    VReg *Vj = (VReg *)vj;                                  \
+    VReg *Vk = (VReg *)vk;                                  \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
+        Vd->E(i) = DO_OP(Vj->E(i),  Vk->E(i));              \
+    }                                                       \
+}
+
+VSIGNCOV(vsigncov_b, 8, B, DO_SIGNCOV)
+VSIGNCOV(vsigncov_h, 16, H, DO_SIGNCOV)
+VSIGNCOV(vsigncov_w, 32, W, DO_SIGNCOV)
+VSIGNCOV(vsigncov_d, 64, D, DO_SIGNCOV)
