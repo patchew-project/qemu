@@ -373,3 +373,39 @@ DO_VAVG_U(vavgr_bu, 8, uint8_t, B, DO_VAVGR)
 DO_VAVG_U(vavgr_hu, 16, uint16_t, H, DO_VAVGR)
 DO_VAVG_U(vavgr_wu, 32, uint32_t, W, DO_VAVGR)
 DO_VAVG_U(vavgr_du, 64, uint64_t, D, DO_VAVGR)
+
+#define DO_VABSD(a, b)  ((a > b) ? (a -b) : (b-a))
+
+#define DO_VABSD_S(NAME, BIT, E, DO_OP)                     \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    VReg *Vd = (VReg *)vd;                                  \
+    VReg *Vj = (VReg *)vj;                                  \
+    VReg *Vk = (VReg *)vk;                                  \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
+        Vd->E(i) = DO_OP(Vj->E(i), Vk->E(i));               \
+    }                                                       \
+}
+
+DO_VABSD_S(vabsd_b, 8, B, DO_VABSD)
+DO_VABSD_S(vabsd_h, 16, H, DO_VABSD)
+DO_VABSD_S(vabsd_w, 32, W, DO_VABSD)
+DO_VABSD_S(vabsd_d, 64, D, DO_VABSD)
+
+#define DO_VABSD_U(NAME, BIT, T, E, DO_OP)                  \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    VReg *Vd = (VReg *)vd;                                  \
+    VReg *Vj = (VReg *)vj;                                  \
+    VReg *Vk = (VReg *)vk;                                  \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
+        Vd->E(i) = DO_OP((T)Vj->E(i), (T)Vk->E(i));         \
+    }                                                       \
+}
+
+DO_VABSD_U(vabsd_bu, 8, uint8_t, B, DO_VABSD)
+DO_VABSD_U(vabsd_hu, 16, uint16_t, H, DO_VABSD)
+DO_VABSD_U(vabsd_wu, 32, uint32_t, W, DO_VABSD)
+DO_VABSD_U(vabsd_du, 64, uint64_t, D, DO_VABSD)
