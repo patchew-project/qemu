@@ -44,6 +44,21 @@ static bool gvec_vvv(DisasContext *ctx, arg_vvv *a, MemOp mop,
     return true;
 }
 
+static bool gvec_vv(DisasContext *ctx, arg_vv *a, MemOp mop,
+                    void (*func)(unsigned, uint32_t, uint32_t,
+                                 uint32_t, uint32_t))
+{
+    uint32_t dofs, jofs;
+
+    CHECK_SXE;
+
+    dofs = vreg_full_offset(a->vd);
+    jofs = vreg_full_offset(a->vj);
+
+    func(mop, dofs, jofs, 16, 16);
+    return true;
+}
+
 static bool gvec_vv_i(DisasContext *ctx, arg_vv_i *a, MemOp mop,
                       void (*func)(unsigned, uint32_t, uint32_t,
                                    int64_t, uint32_t, uint32_t))
@@ -91,3 +106,8 @@ TRANS(vsubi_bu, gvec_subi, MO_8)
 TRANS(vsubi_hu, gvec_subi, MO_16)
 TRANS(vsubi_wu, gvec_subi, MO_32)
 TRANS(vsubi_du, gvec_subi, MO_64)
+
+TRANS(vneg_b, gvec_vv, MO_8, tcg_gen_gvec_neg)
+TRANS(vneg_h, gvec_vv, MO_16, tcg_gen_gvec_neg)
+TRANS(vneg_w, gvec_vv, MO_32, tcg_gen_gvec_neg)
+TRANS(vneg_d, gvec_vv, MO_64, tcg_gen_gvec_neg)
