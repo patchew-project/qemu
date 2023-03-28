@@ -428,3 +428,46 @@ DO_VADDA(vadda_b, 8, B, DO_VABS)
 DO_VADDA(vadda_h, 16, H, DO_VABS)
 DO_VADDA(vadda_w, 32, W, DO_VABS)
 DO_VADDA(vadda_d, 64, D, DO_VABS)
+
+#define DO_MIN(a, b) (a < b ? a : b)
+#define DO_MAX(a, b) (a > b ? a : b)
+
+#define DO_VMINMAXI_S(NAME, BIT, T, E, DO_OP)                   \
+void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t v) \
+{                                                               \
+    int i;                                                      \
+    VReg *Vd = (VReg *)vd;                                      \
+    VReg *Vj = (VReg *)vj;                                      \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                         \
+        Vd->E(i) = DO_OP(Vj->E(i), (T)imm);                     \
+    }                                                           \
+}
+
+DO_VMINMAXI_S(vmini_b, 8, int8_t, B, DO_MIN)
+DO_VMINMAXI_S(vmini_h, 16, int16_t, H, DO_MIN)
+DO_VMINMAXI_S(vmini_w, 32, int32_t, W, DO_MIN)
+DO_VMINMAXI_S(vmini_d, 64, int64_t, D, DO_MIN)
+DO_VMINMAXI_S(vmaxi_b, 8, int8_t, B, DO_MAX)
+DO_VMINMAXI_S(vmaxi_h, 16, int16_t, H, DO_MAX)
+DO_VMINMAXI_S(vmaxi_w, 32, int32_t, W, DO_MAX)
+DO_VMINMAXI_S(vmaxi_d, 64, int64_t, D, DO_MAX)
+
+#define DO_VMINMAXI_U(NAME, BIT, T, E, DO_OP)                   \
+void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t v) \
+{                                                               \
+    int i;                                                      \
+    VReg *Vd = (VReg *)vd;                                      \
+    VReg *Vj = (VReg *)vj;                                      \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                         \
+        Vd->E(i) = DO_OP((T)Vj->E(i), (T)imm);                  \
+    }                                                           \
+}
+
+DO_VMINMAXI_U(vmini_bu, 8, uint8_t, B, DO_MIN)
+DO_VMINMAXI_U(vmini_hu, 16, uint16_t, H, DO_MIN)
+DO_VMINMAXI_U(vmini_wu, 32, uint32_t, W, DO_MIN)
+DO_VMINMAXI_U(vmini_du, 64, uint64_t, D, DO_MIN)
+DO_VMINMAXI_U(vmaxi_bu, 8, uint8_t, B, DO_MAX)
+DO_VMINMAXI_U(vmaxi_hu, 16, uint16_t, H, DO_MAX)
+DO_VMINMAXI_U(vmaxi_wu, 32, uint32_t, W, DO_MAX)
+DO_VMINMAXI_U(vmaxi_du, 64, uint64_t, D, DO_MAX)
