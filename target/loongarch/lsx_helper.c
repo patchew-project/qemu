@@ -328,3 +328,48 @@ void HELPER(vaddwod_q_du_d)(void *vd, void *vj, void *vk, uint32_t v)
 DO_ODD_U_S(vaddwod_h_bu_b, 16, uint16_t, uint8_t, int16_t, H, B, DO_ADD)
 DO_ODD_U_S(vaddwod_w_hu_h, 32, uint32_t, uint16_t, int32_t, W, H, DO_ADD)
 DO_ODD_U_S(vaddwod_d_wu_w, 64, uint64_t, uint32_t, int64_t, D, W, DO_ADD)
+
+#define DO_VAVG(a, b)  ((a >> 1) + (b >> 1) + (a & b & 1))
+#define DO_VAVGR(a, b) ((a >> 1) + (b >> 1) + ((a | b) & 1))
+
+#define DO_VAVG_S(NAME, BIT, E, DO_OP)                      \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    VReg *Vd = (VReg *)vd;                                  \
+    VReg *Vj = (VReg *)vj;                                  \
+    VReg *Vk = (VReg *)vk;                                  \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
+        Vd->E(i) = DO_OP(Vj->E(i), Vk->E(i));               \
+    }                                                       \
+}
+
+DO_VAVG_S(vavg_b, 8, B, DO_VAVG)
+DO_VAVG_S(vavg_h, 16, H, DO_VAVG)
+DO_VAVG_S(vavg_w, 32, W, DO_VAVG)
+DO_VAVG_S(vavg_d, 64, D, DO_VAVG)
+DO_VAVG_S(vavgr_b, 8, B, DO_VAVGR)
+DO_VAVG_S(vavgr_h, 16, H, DO_VAVGR)
+DO_VAVG_S(vavgr_w, 32, W, DO_VAVGR)
+DO_VAVG_S(vavgr_d, 64, D, DO_VAVGR)
+
+#define DO_VAVG_U(NAME, BIT, T, E, DO_OP)                   \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    VReg *Vd = (VReg *)vd;                                  \
+    VReg *Vj = (VReg *)vj;                                  \
+    VReg *Vk = (VReg *)vk;                                  \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
+        Vd->E(i) = DO_OP((T)Vj->E(i), (T)Vk->E(i));         \
+    }                                                       \
+}
+
+DO_VAVG_U(vavg_bu, 8, uint8_t, B, DO_VAVG)
+DO_VAVG_U(vavg_hu, 16, uint16_t, H, DO_VAVG)
+DO_VAVG_U(vavg_wu, 32, uint32_t, W, DO_VAVG)
+DO_VAVG_U(vavg_du, 64, uint64_t, D, DO_VAVG)
+DO_VAVG_U(vavgr_bu, 8, uint8_t, B, DO_VAVGR)
+DO_VAVG_U(vavgr_hu, 16, uint16_t, H, DO_VAVGR)
+DO_VAVG_U(vavgr_wu, 32, uint32_t, W, DO_VAVGR)
+DO_VAVG_U(vavgr_du, 64, uint64_t, D, DO_VAVGR)
