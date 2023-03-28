@@ -8,6 +8,8 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "tcg/tcg-op.h"
+#include "tcg/tcg-op-gvec.h"
+
 #include "exec/translator.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
@@ -28,6 +30,11 @@ TCGv_i64 cpu_fpr[32];
 #define DISAS_STOP        DISAS_TARGET_0
 #define DISAS_EXIT        DISAS_TARGET_1
 #define DISAS_EXIT_UPDATE DISAS_TARGET_2
+
+static inline int vreg_full_offset(int regno)
+{
+    return  offsetof(CPULoongArchState, fpr[regno].vreg);
+}
 
 static inline int plus_1(DisasContext *ctx, int x)
 {
