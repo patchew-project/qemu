@@ -4617,12 +4617,20 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
             /* T4 and T14 are RES0 so never cause traps */
             TCGv_i32 t;
             DisasLabel over = gen_disas_label(s);
+            DisasJumpType old_is_jmp;
 
             t = load_cpu_offset(offsetoflow32(CPUARMState, cp15.hstr_el2));
             tcg_gen_andi_i32(t, t, 1u << maskbit);
             tcg_gen_brcondi_i32(TCG_COND_EQ, t, 0, over.label);
 
+            /*
+             * gen_exception_insn() will set is_jmp to DISAS_NORETURN,
+             * but since we're conditionally branching over it, we want
+             * to retain the existing value.
+             */
+            old_is_jmp = s->base.is_jmp;
             gen_exception_insn(s, 0, EXCP_UDEF, syndrome);
+            s->base.is_jmp = old_is_jmp;
             set_disas_label(s, over);
         }
     }
