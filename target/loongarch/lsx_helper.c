@@ -611,3 +611,117 @@ void HELPER(vmulwod_q_du_d)(void *vd, void *vj, void *vk, uint32_t v)
 DO_ODD_U_S(vmulwod_h_bu_b, 16, uint16_t, uint8_t, int16_t, H, B, DO_MUL)
 DO_ODD_U_S(vmulwod_w_hu_h, 32, uint32_t, uint16_t, int32_t, W, H, DO_MUL)
 DO_ODD_U_S(vmulwod_d_wu_w, 64, uint64_t, uint32_t, int64_t, D, W, DO_MUL)
+
+#define DO_MADD(a, b, c)  (a + b * c)
+#define DO_MSUB(a, b, c)  (a - b * c)
+
+#define VMADDSUB(NAME, BIT, E, DO_OP)                       \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    VReg *Vd = (VReg *)vd;                                  \
+    VReg *Vj = (VReg *)vj;                                  \
+    VReg *Vk = (VReg *)vk;                                  \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
+        Vd->E(i) = DO_OP(Vd->E(i), Vj->E(i) ,Vk->E(i));     \
+    }                                                       \
+}
+
+VMADDSUB(vmadd_b, 8, B, DO_MADD)
+VMADDSUB(vmadd_h, 16, H, DO_MADD)
+VMADDSUB(vmadd_w, 32, W, DO_MADD)
+VMADDSUB(vmadd_d, 64, D, DO_MADD)
+VMADDSUB(vmsub_b, 8, B, DO_MSUB)
+VMADDSUB(vmsub_h, 16, H, DO_MSUB)
+VMADDSUB(vmsub_w, 32, W, DO_MSUB)
+VMADDSUB(vmsub_d, 64, D, DO_MSUB)
+
+#define VMADD_Q(NAME, FN1, FN2, index)                            \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v)       \
+{                                                                 \
+    VReg *Vd = (VReg *)vd;                                        \
+    VReg *Vj = (VReg *)vj;                                        \
+    VReg *Vk = (VReg *)vk;                                        \
+                                                                  \
+    Vd->Q(0) = int128_add(Vd->Q(0),                               \
+                          FN1(Vj->D(index)) * FN2(Vk->D(index))); \
+}
+
+#define VMADDWEV(NAME, BIT, T1, T2, E1, E2, DO_OP)                        \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v)               \
+{                                                                         \
+    int i;                                                                \
+    VReg *Vd = (VReg *)vd;                                                \
+    VReg *Vj = (VReg *)vj;                                                \
+    VReg *Vk = (VReg *)vk;                                                \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                                   \
+        Vd->E1(i) += DO_OP((T1)(T2)Vj->E2(2 * i), (T1)(T2)Vk->E2(2 * i)); \
+    }                                                                     \
+}
+
+VMADDWEV(vmaddwev_h_b, 16, int16_t, int8_t, H, B, DO_MUL)
+VMADDWEV(vmaddwev_w_h, 32, int32_t, int16_t, W, H, DO_MUL)
+VMADDWEV(vmaddwev_d_w, 64, int64_t, int32_t, D, W, DO_MUL)
+VMADD_Q(vmaddwev_q_d, int128_makes64, int128_makes64, 0)
+VMADDWEV(vmaddwev_h_bu, 16, uint16_t, uint8_t, H, B, DO_MUL)
+VMADDWEV(vmaddwev_w_hu, 32, uint32_t, uint16_t, W, H, DO_MUL)
+VMADDWEV(vmaddwev_d_wu, 64, uint64_t, uint32_t, D, W, DO_MUL)
+VMADD_Q(vmaddwev_q_du, int128_make64, int128_make64, 0)
+
+#define VMADDWOD(NAME, BIT, T1, T2, E1, E2, DO_OP)          \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    VReg *Vd = (VReg *)vd;                                  \
+    VReg *Vj = (VReg *)vj;                                  \
+    VReg *Vk = (VReg *)vk;                                  \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
+        Vd->E1(i) += DO_OP((T1)(T2)Vj->E2(2 * i + 1),       \
+                           (T1)(T2)Vk->E2(2 * i + 1));      \
+    }                                                       \
+}
+
+VMADDWOD(vmaddwod_h_b, 16, int16_t, int8_t,  H, B, DO_MUL)
+VMADDWOD(vmaddwod_w_h, 32, int32_t, int16_t, W, H, DO_MUL)
+VMADDWOD(vmaddwod_d_w, 64, int64_t, int32_t, D, W, DO_MUL)
+VMADD_Q(vmaddwod_q_d, int128_makes64, int128_makes64, 1)
+VMADDWOD(vmaddwod_h_bu, 16, uint16_t, uint8_t, H, B, DO_MUL)
+VMADDWOD(vmaddwod_w_hu, 32, uint32_t, uint16_t, W, H, DO_MUL)
+VMADDWOD(vmaddwod_d_wu, 64, uint64_t, uint32_t, D, W, DO_MUL)
+VMADD_Q(vmaddwod_q_du, int128_make64, int128_make64, 1)
+
+#define VMADDWEV_U_S(NAME, BIT, T1, T2, TS, E1, E2, DO_OP)  \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    VReg *Vd = (VReg *)vd;                                  \
+    VReg *Vj = (VReg *)vj;                                  \
+    VReg *Vk = (VReg *)vk;                                  \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
+        Vd->E1(i) += DO_OP((T1)(T2)Vj->E2(2 * i),           \
+                           (TS)Vk->E2(2 * i));              \
+    }                                                       \
+}
+
+VMADDWEV_U_S(vmaddwev_h_bu_b, 16, uint16_t, uint8_t, int16_t, H, B, DO_MUL)
+VMADDWEV_U_S(vmaddwev_w_hu_h, 32, uint32_t, uint16_t, int32_t, W, H, DO_MUL)
+VMADDWEV_U_S(vmaddwev_d_wu_w, 64, uint64_t, uint32_t, int64_t, D, W, DO_MUL)
+VMADD_Q(vmaddwev_q_du_d, int128_make64, int128_makes64, 0)
+
+#define VMADDWOD_U_S(NAME, BIT, T1, T2, TS, E1, E2, DO_OP)  \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    VReg *Vd = (VReg *)vd;                                  \
+    VReg *Vj = (VReg *)vj;                                  \
+    VReg *Vk = (VReg *)vk;                                  \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
+        Vd->E1(i) += DO_OP((T1)(T2)Vj->E2(2 * i + 1),       \
+                           (TS)Vk->E2(2 * i + 1));          \
+    }                                                       \
+}
+
+VMADDWOD_U_S(vmaddwod_h_bu_b, 16, uint16_t, uint8_t, int16_t, H, B, DO_MUL)
+VMADDWOD_U_S(vmaddwod_w_hu_h, 32, uint32_t, uint16_t, int32_t, W, H, DO_MUL)
+VMADDWOD_U_S(vmaddwod_d_wu_w, 64, uint64_t, uint32_t, int64_t, D, W, DO_MUL)
+VMADD_Q(vmaddwod_q_du_d, int128_make64, int128_makes64, 1)
