@@ -2231,3 +2231,60 @@ VPCNT(vpcnt_b, 8, B, uint8_t)
 VPCNT(vpcnt_h, 16, H, uint16_t)
 VPCNT(vpcnt_w, 32, W, uint32_t)
 VPCNT(vpcnt_d, 64, D, uint64_t)
+
+#define DO_BITCLR(a, bit) (a & ~(1ul << bit))
+#define DO_BITSET(a, bit) (a | 1ul << bit)
+#define DO_BITREV(a, bit) (a ^ (1ul << bit))
+
+#define DO_BIT(NAME, BIT, T, E, DO_OP)                   \
+void HELPER(NAME)(CPULoongArchState *env,                \
+                  uint32_t vd, uint32_t vj, uint32_t vk) \
+{                                                        \
+    int i;                                               \
+    VReg *Vd = &(env->fpr[vd].vreg);                     \
+    VReg *Vj = &(env->fpr[vj].vreg);                     \
+    VReg *Vk = &(env->fpr[vk].vreg);                     \
+                                                         \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
+        Vd->E(i) = DO_OP((T)Vj->E(i), (T)Vk->E(i)%BIT);  \
+    }                                                    \
+}
+
+DO_BIT(vbitclr_b, 8, uint8_t, B, DO_BITCLR)
+DO_BIT(vbitclr_h, 16, uint16_t, H, DO_BITCLR)
+DO_BIT(vbitclr_w, 32, uint32_t, W, DO_BITCLR)
+DO_BIT(vbitclr_d, 64, uint64_t, D, DO_BITCLR)
+DO_BIT(vbitset_b, 8, uint8_t, B, DO_BITSET)
+DO_BIT(vbitset_h, 16, uint16_t, H, DO_BITSET)
+DO_BIT(vbitset_w, 32, uint32_t, W, DO_BITSET)
+DO_BIT(vbitset_d, 64, uint64_t, D, DO_BITSET)
+DO_BIT(vbitrev_b, 8, uint8_t, B, DO_BITREV)
+DO_BIT(vbitrev_h, 16, uint16_t, H, DO_BITREV)
+DO_BIT(vbitrev_w, 32, uint32_t, W, DO_BITREV)
+DO_BIT(vbitrev_d, 64, uint64_t, D, DO_BITREV)
+
+#define DO_BITI(NAME, BIT, T, E, DO_OP)                   \
+void HELPER(NAME)(CPULoongArchState *env,                 \
+                  uint32_t vd, uint32_t vj, uint32_t imm) \
+{                                                         \
+    int i;                                                \
+    VReg *Vd = &(env->fpr[vd].vreg);                      \
+    VReg *Vj = &(env->fpr[vj].vreg);                      \
+                                                          \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                   \
+        Vd->E(i) = DO_OP((T)Vj->E(i), imm);               \
+    }                                                     \
+}
+
+DO_BITI(vbitclri_b, 8, uint8_t, B, DO_BITCLR)
+DO_BITI(vbitclri_h, 16, uint16_t, H, DO_BITCLR)
+DO_BITI(vbitclri_w, 32, uint32_t, W, DO_BITCLR)
+DO_BITI(vbitclri_d, 64, uint64_t, D, DO_BITCLR)
+DO_BITI(vbitseti_b, 8, uint8_t, B, DO_BITSET)
+DO_BITI(vbitseti_h, 16, uint16_t, H, DO_BITSET)
+DO_BITI(vbitseti_w, 32, uint32_t, W, DO_BITSET)
+DO_BITI(vbitseti_d, 64, uint64_t, D, DO_BITSET)
+DO_BITI(vbitrevi_b, 8, uint8_t, B, DO_BITREV)
+DO_BITI(vbitrevi_h, 16, uint16_t, H, DO_BITREV)
+DO_BITI(vbitrevi_w, 32, uint32_t, W, DO_BITREV)
+DO_BITI(vbitrevi_d, 64, uint64_t, D, DO_BITREV)
