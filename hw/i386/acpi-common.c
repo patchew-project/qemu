@@ -38,8 +38,15 @@ void pc_madt_cpu_entry(int uid, const CPUArchIdList *apic_ids,
 {
     uint32_t apic_id = apic_ids->cpus[uid].arch_id;
     /* Flags – Local APIC Flags */
-    uint32_t flags = apic_ids->cpus[uid].cpu != NULL || force_enabled ?
-                     1 /* Enabled */ : 0;
+    bool enabled = apic_ids->cpus[uid].cpu != NULL || force_enabled ?
+                     true /* Enabled */ : false;
+    /*
+     * ACPI 6.3 5.2.12.2 Local APIC Flags: OnlineCapable must be 0
+     * if Enabled is set.
+     */
+    bool onlinecapable = enabled ? false : true; /* Online Capable */
+    uint32_t flags = onlinecapable ? 0x2 : 0x0 |
+        enabled ? 0x1 : 0x0;
 
     /* ACPI spec says that LAPIC entry for non present
      * CPU may be omitted from MADT or it must be marked
@@ -102,7 +109,7 @@ void acpi_build_madt(GArray *table_data, BIOSLinker *linker,
     MachineClass *mc = MACHINE_GET_CLASS(x86ms);
     const CPUArchIdList *apic_ids = mc->possible_cpu_arch_ids(MACHINE(x86ms));
     AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(adev);
-    AcpiTable table = { .sig = "APIC", .rev = 1, .oem_id = oem_id,
+    AcpiTable table = { .sig = "APIC", .rev = 5, .oem_id = oem_id,
                         .oem_table_id = oem_table_id };
 
     acpi_table_begin(&table, table_data);
