@@ -725,3 +725,41 @@ VMADDWOD_U_S(vmaddwod_h_bu_b, 16, uint16_t, uint8_t, int16_t, H, B, DO_MUL)
 VMADDWOD_U_S(vmaddwod_w_hu_h, 32, uint32_t, uint16_t, int32_t, W, H, DO_MUL)
 VMADDWOD_U_S(vmaddwod_d_wu_w, 64, uint64_t, uint32_t, int64_t, D, W, DO_MUL)
 VMADD_Q(vmaddwod_q_du_d, int128_make64, int128_makes64, 1)
+
+#define DO_DIVU(N, M) (unlikely(M == 0) ? 0 : N / M)
+#define DO_REMU(N, M) (unlikely(M == 0) ? 0 : N % M)
+#define DO_DIV(N, M)  (unlikely(M == 0) ? 0 :\
+        unlikely((N == -N) && (M == (__typeof(N))(-1))) ? N : N / M)
+#define DO_REM(N, M)  (unlikely(M == 0) ? 0 :\
+        unlikely((N == -N) && (M == (__typeof(N))(-1))) ? 0 : N % M)
+
+#define DO_3OP(NAME, BIT, T, E, DO_OP)                   \
+void HELPER(NAME)(CPULoongArchState *env,                \
+                  uint32_t vd, uint32_t vj, uint32_t vk) \
+{                                                        \
+    int i;                                               \
+    VReg *Vd = &(env->fpr[vd].vreg);                     \
+    VReg *Vj = &(env->fpr[vj].vreg);                     \
+    VReg *Vk = &(env->fpr[vk].vreg);                     \
+                                                         \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
+        Vd->E(i) = DO_OP((T)Vj->E(i), (T)Vk->E(i));      \
+    }                                                    \
+}
+
+DO_3OP(vdiv_b, 8, int8_t, B, DO_DIV)
+DO_3OP(vdiv_h, 16, int16_t, H, DO_DIV)
+DO_3OP(vdiv_w, 32, int32_t, W, DO_DIV)
+DO_3OP(vdiv_d, 64, int64_t, D, DO_DIV)
+DO_3OP(vdiv_bu, 8, uint8_t, B, DO_DIVU)
+DO_3OP(vdiv_hu, 16, uint16_t, H, DO_DIVU)
+DO_3OP(vdiv_wu, 32, uint32_t, W, DO_DIVU)
+DO_3OP(vdiv_du, 64, uint64_t, D, DO_DIVU)
+DO_3OP(vmod_b, 8, int8_t, B, DO_REM)
+DO_3OP(vmod_h, 16, int16_t, H, DO_REM)
+DO_3OP(vmod_w, 32, int32_t, W, DO_REM)
+DO_3OP(vmod_d, 64, int64_t, D, DO_REM)
+DO_3OP(vmod_bu, 8, uint8_t, B, DO_REMU)
+DO_3OP(vmod_hu, 16, uint16_t, H, DO_REMU)
+DO_3OP(vmod_wu, 32, uint32_t, W, DO_REMU)
+DO_3OP(vmod_du, 64, uint64_t, D, DO_REMU)
