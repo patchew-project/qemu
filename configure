@@ -607,7 +607,6 @@ check_py_version() {
 python=
 first_python=
 if test -z "${PYTHON}"; then
-    explicit_python=no
     # A bare 'python' is traditionally python 2.x, but some distros
     # have it as python 3.x, so check in both places.
     for binary in python3 python python3.11 python3.10 python3.9 python3.8 python3.7 python3.6; do
@@ -626,7 +625,6 @@ else
     # Same as above, but only check the environment variable.
     has "${PYTHON}" || error_exit "The PYTHON environment variable does not point to an executable"
     python=$(command -v "$PYTHON")
-    explicit_python=yes
     if check_py_version "$python"; then
         # This one is good.
         first_python=
@@ -718,7 +716,7 @@ for opt do
   ;;
   --install=*)
   ;;
-  --python=*) python="$optarg" ; explicit_python=yes
+  --python=*) python="$optarg"
   ;;
   --skip-meson) skip_meson=yes
   ;;
@@ -1078,61 +1076,122 @@ if ! check_py_version "$python"; then
       "Use --python=/path/to/python to specify a supported Python."
 fi
 
-# Resolve PATH + suppress writing compiled files
-python="$(command -v "$python") -B"
+# Resolve PATH
+python="$(command -v "$python")"
+# This variable is intended to be used only for error messages:
+target_python=$python
 
-has_meson() {
-  local python_dir=$(dirname "$python")
-  # PEP405: pyvenv.cfg is either adjacent to the Python executable
-  # or one directory above
-  if test -f $python_dir/pyvenv.cfg || test -f $python_dir/../pyvenv.cfg; then
-    # Ensure that Meson and Python come from the same virtual environment
-    test -x "$python_dir/meson" &&
-      test "$(command -v meson)" -ef "$python_dir/meson"
-  else
-    has meson
-  fi
+# Create a Python virtual environment using our configured python.
+# The stdout of this script will be the location of a symlink that
+# points to the configured Python.
+# Entry point scripts for pip, meson, and sphinx are generated if those
+# packages are present.
+
+# Defaults assumed for now:
+# - venv is cleared if it exists already;
+# - venv is allowed to use system packages;
+# - all setup is performed **offline**;
+# - No packages are installed by default;
+# - pip is not installed into the venv when possible,
+#   but ensurepip is called as a fallback when necessary.
+
+echo "python determined to be '$python'"
+echo "python version: $($python --version)"
+
+echo " === pip list (host) === "
+$python -m pip list --disable-pip-version-check
+echo " ======================= "
+echo ""
+
+python="$($python -B "${source_path}/python/scripts/mkvenv.py" create --gen pip,meson,sphinx pyvenv)"
+if test "$?" -ne 0 ; then
+    error_exit "python venv creation failed"
+fi
+
+# Suppress writing compiled files
+python="$python -B"
+echo "Configured python as '$python'"
+
+echo " === pip list (venv) === "
+$python -m pip list --disable-pip-version-check
+echo " ======================= "
+echo ""
+
+pip_install() {
+    $python -m pip install -v \
+            --disable-pip-version-check \
+            --no-index \
+            "$@"
 }
 
-if test -z "$meson"; then
-    if test "$explicit_python" = no && has_meson && version_ge "$(meson --version)" 0.61.5; then
-        meson=meson
-    elif test "$git_submodules_action" != 'ignore' ; then
-        meson=git
-    elif test -e "${source_path}/meson/meson.py" ; then
-        meson=internal
+# OK, let's have some fun!
+
+# This install command is intended to either fail or be a NOP;
+# because we're offline, it's just a convenient version check.
+if ! pip_install 'meson>=0.61.5'; then
+    # Either we don't have Meson, or our Meson is too old.
+    # (Future revisions of this patchset can be less chatty.)
+    if test -e pyvenv/bin/meson; then
+        echo "Meson in pyvenv is too old: $(pyvenv/bin/meson --version)"
+    elif has meson ; then
+        echo "Meson was found installed on your system," \
+             "but not for the configured Python interpreter ($target_python)."
+        echo "(Hint: check '$(which meson)' to see which interpreter its shebang uses.)"
     else
-        if test "$explicit_python" = yes; then
-            error_exit "--python requires using QEMU's embedded Meson distribution, but it was not found."
-        else
-            error_exit "Meson not found.  Use --meson=/path/to/meson"
+        echo "Meson was not found."
+    fi
+
+    # OK, but can we fix it, though? :~)
+    if test "$git_submodules_action" != 'ignore' ; then
+        git_submodules="${git_submodules} meson"
+        echo "Attempting to install meson from git submodule ..."
+        # Stolen from later in the configure file.
+        # Is it a problem if we front-load this now and run it again later?
+        if ! (GIT="$git" "$source_path/scripts/git-submodule.sh" "$git_submodules_action" "$git_submodules"); then
+            exit 1
         fi
+    elif test -e "${source_path}/meson/setup.cfg" ; then
+        echo "Attempting to install meson from vendored source ..."
+    else
+        # In the future, we could use PyPI as a source if the user allows it.
+        # For now, you're outta luck!
+        error_exit "A suitable version of Meson was not found."
     fi
-else
-    # Meson uses its own Python interpreter to invoke other Python scripts,
-    # but the user wants to use the one they specified with --python.
+
+    # If we're here, we have the meson source and we can attempt to
+    # install it into our venv.
+
+    # We want to install meson with --no-use-pep517 if possible,
+    # because it avoids needing a 'wheel' dependency. Old versions
+    # of pip do this by default, so test for the behavior.
     #
-    # We do not want to override the distro Python interpreter (and sometimes
-    # cannot: for example in Homebrew /usr/bin/meson is a bash script), so
-    # just require --meson=git|internal together with --python.
-    if test "$explicit_python" = yes; then
-        case "$meson" in
-            git | internal) ;;
-            *) error_exit "--python requires using QEMU's embedded Meson distribution." ;;
-        esac
+    # --no-build-isolation was added to pip 10.0.
+    # --no-use-pep517 was added ... sometime after 18.1?
+    pip_flags='--no-build-isolation'
+    if $python -m pip install --help | grep 'no-use-pep517' > /dev/null 2>&1 ; then
+        pip_flags="${pip_flags} --no-use-pep517"
+    fi
+    if ! pip_install $pip_flags "${source_path}/meson" ; then
+        exit 1
     fi
 fi
 
-if test "$meson" = git; then
-    git_submodules="${git_submodules} meson"
-fi
+# At this point, we expect Meson to be installed and available.
+# We expect mkvenv or pip to have created pyvenv/bin/meson for us.
+# We ignore PATH completely here: we want to use the venv's Meson
+# *exclusively*.
+meson="$(cd pyvenv/bin; pwd)/meson"
 
-case "$meson" in
-    git | internal)
-        meson="$python ${source_path}/meson/meson.py"
-        ;;
-    *) meson=$(command -v "$meson") ;;
-esac
+# Smoke tests: these shouldn't fail, but I have little faith in esoteric
+# platforms I've never used to not do something Deep Strange when I am
+# not looking.
+if ! test -e "$meson" ; then
+    error_exit "??? pyvenv/bin/meson not found, somehow ???"
+fi
+echo "Meson $($meson --version) found: $meson"
+if ! version_ge "$($meson --version)" 0.61.5; then
+    error_exit "??? Meson version is too old ???"
+fi
 
 # Probe for ninja
 
