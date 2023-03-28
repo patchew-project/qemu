@@ -2382,3 +2382,108 @@ TRANS(vmod_bu, gen_vvv, gen_helper_vmod_bu)
 TRANS(vmod_hu, gen_vvv, gen_helper_vmod_hu)
 TRANS(vmod_wu, gen_vvv, gen_helper_vmod_wu)
 TRANS(vmod_du, gen_vvv, gen_helper_vmod_du)
+
+static void gen_vsat_s(unsigned vece, TCGv_vec t, TCGv_vec a, int64_t imm)
+{
+    TCGv_vec t1;
+    int64_t max  = (1l << imm) - 1;
+    int64_t min =  ~max;
+
+    t1 = tcg_temp_new_vec_matching(t);
+    tcg_gen_dupi_vec(vece, t, min);
+    tcg_gen_smax_vec(vece, t, a, t);
+    tcg_gen_dupi_vec(vece, t1, max);
+    tcg_gen_smin_vec(vece, t, t, t1);
+}
+
+static void do_vsat_s(unsigned vece, uint32_t vd_ofs, uint32_t vj_ofs,
+                      int64_t imm, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_smax_vec, INDEX_op_smin_vec, 0
+        };
+    static const GVecGen2i op[4] = {
+        {
+            .fniv = gen_vsat_s,
+            .fnoi = gen_helper_vsat_b,
+            .opt_opc = vecop_list,
+            .vece = MO_8
+        },
+        {
+            .fniv = gen_vsat_s,
+            .fnoi = gen_helper_vsat_h,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fniv = gen_vsat_s,
+            .fnoi = gen_helper_vsat_w,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fniv = gen_vsat_s,
+            .fnoi = gen_helper_vsat_d,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_2i(vd_ofs, vj_ofs, oprsz, maxsz, imm, &op[vece]);
+}
+
+TRANS(vsat_b, gvec_vv_i, MO_8, do_vsat_s)
+TRANS(vsat_h, gvec_vv_i, MO_16, do_vsat_s)
+TRANS(vsat_w, gvec_vv_i, MO_32, do_vsat_s)
+TRANS(vsat_d, gvec_vv_i, MO_64, do_vsat_s)
+
+static void gen_vsat_u(unsigned vece, TCGv_vec t, TCGv_vec a, int64_t imm)
+{
+    uint64_t max;
+
+    max = (imm == 0x3f) ? UINT64_MAX : (1ul << (imm + 1)) - 1;
+
+    tcg_gen_dupi_vec(vece, t, max);
+    tcg_gen_umin_vec(vece, t, a, t);
+}
+
+static void do_vsat_u(unsigned vece, uint32_t vd_ofs, uint32_t vj_ofs,
+                       int64_t imm, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_umin_vec, 0
+        };
+    static const GVecGen2i op[4] = {
+        {
+            .fniv = gen_vsat_u,
+            .fnoi = gen_helper_vsat_bu,
+            .opt_opc = vecop_list,
+            .vece = MO_8
+        },
+        {
+            .fniv = gen_vsat_u,
+            .fnoi = gen_helper_vsat_hu,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fniv = gen_vsat_u,
+            .fnoi = gen_helper_vsat_wu,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fniv = gen_vsat_u,
+            .fnoi = gen_helper_vsat_du,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_2i(vd_ofs, vj_ofs, oprsz, maxsz, imm, &op[vece]);
+}
+
+TRANS(vsat_bu, gvec_vv_i, MO_8, do_vsat_u)
+TRANS(vsat_hu, gvec_vv_i, MO_16, do_vsat_u)
+TRANS(vsat_wu, gvec_vv_i, MO_32, do_vsat_u)
+TRANS(vsat_du, gvec_vv_i, MO_64, do_vsat_u)

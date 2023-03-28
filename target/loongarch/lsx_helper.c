@@ -763,3 +763,76 @@ DO_3OP(vmod_bu, 8, uint8_t, B, DO_REMU)
 DO_3OP(vmod_hu, 16, uint16_t, H, DO_REMU)
 DO_3OP(vmod_wu, 32, uint32_t, W, DO_REMU)
 DO_3OP(vmod_du, 64, uint64_t, D, DO_REMU)
+
+#define do_vsats(E, T)                      \
+static T do_vsats_ ## E(T s1, uint64_t imm) \
+{                                           \
+    T mask,top;                             \
+                                            \
+    mask = (1l << imm) - 1;                 \
+    top = s1 >> imm;                        \
+    if (top > 0) {                          \
+        return mask;                        \
+    } else if (top < -1) {                  \
+        return ~mask;                       \
+    } else {                                \
+        return s1;                          \
+    }                                       \
+}
+
+do_vsats(B, int8_t)
+do_vsats(H, int16_t)
+do_vsats(W, int32_t)
+do_vsats(D, int64_t)
+
+#define VSAT_S(NAME, BIT, E)                                    \
+void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t v) \
+{                                                               \
+    int i;                                                      \
+    VReg *Vd = (VReg *)vd;                                      \
+    VReg *Vj = (VReg *)vj;                                      \
+                                                                \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                         \
+        Vd->E(i) = do_vsats_ ## E(Vj->E(i), imm);               \
+    }                                                           \
+}
+
+VSAT_S(vsat_b, 8, B)
+VSAT_S(vsat_h, 16, H)
+VSAT_S(vsat_w, 32, W)
+VSAT_S(vsat_d, 64, D)
+
+#define do_vsatu(E, T)                                         \
+static T do_vsatu_ ## E(T s1, uint64_t imm)                    \
+{                                                              \
+    uint64_t max;                                              \
+                                                               \
+    max = (imm == 0x3f) ? UINT64_MAX : (1ul << (imm + 1)) - 1; \
+    if (s1 >(T)max) {                                          \
+        return (T)max;                                         \
+    } else {                                                   \
+        return s1;                                             \
+    }                                                          \
+}
+
+do_vsatu(B, uint8_t)
+do_vsatu(H, uint16_t)
+do_vsatu(W, uint32_t)
+do_vsatu(D, uint64_t)
+
+#define VSAT_U(NAME, BIT, T, E)                                 \
+void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t v) \
+{                                                               \
+    int i;                                                      \
+    VReg *Vd = (VReg *)vd;                                      \
+    VReg *Vj = (VReg *)vj;                                      \
+                                                                \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                         \
+        Vd->E(i) = do_vsatu_ ## E((T)Vj->E(i), imm);            \
+    }                                                           \
+}
+
+VSAT_U(vsat_bu, 8, uint8_t, B)
+VSAT_U(vsat_hu, 16, uint16_t, H)
+VSAT_U(vsat_wu, 32, uint32_t, W)
+VSAT_U(vsat_du, 64, uint64_t, D)
