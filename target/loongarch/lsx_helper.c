@@ -471,3 +471,143 @@ DO_VMINMAXI_U(vmaxi_bu, 8, uint8_t, B, DO_MAX)
 DO_VMINMAXI_U(vmaxi_hu, 16, uint16_t, H, DO_MAX)
 DO_VMINMAXI_U(vmaxi_wu, 32, uint32_t, W, DO_MAX)
 DO_VMINMAXI_U(vmaxi_du, 64, uint64_t, D, DO_MAX)
+
+#define DO_VMUH_S(NAME, BIT, T, E, DO_OP)                   \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    VReg *Vd = (VReg *)vd;                                  \
+    VReg *Vj = (VReg *)vj;                                  \
+    VReg *Vk = (VReg *)vk;                                  \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
+        Vd->E(i) = ((T)Vj->E(i)) * ((T)Vk->E(i)) >> BIT;    \
+    }                                                       \
+}
+
+void HELPER(vmuh_d)(void *vd, void *vj, void *vk, uint32_t v)
+{
+    uint64_t l, h1, h2;
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
+    VReg *Vk = (VReg *)vk;
+
+    muls64(&l, &h1, Vj->D(0), Vk->D(0));
+    muls64(&l, &h2, Vj->D(1), Vk->D(1));
+
+    Vd->D(0) = h1;
+    Vd->D(1) = h2;
+}
+
+DO_VMUH_S(vmuh_b, 8, int16_t, B, DO_MUH)
+DO_VMUH_S(vmuh_h, 16, int32_t, H, DO_MUH)
+DO_VMUH_S(vmuh_w, 32, int64_t, W, DO_MUH)
+
+#define DO_VMUH_U(NAME, BIT, T, T2, E, DO_OP)                   \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v)     \
+{                                                               \
+    int i;                                                      \
+    VReg *Vd = (VReg *)vd;                                      \
+    VReg *Vj = (VReg *)vj;                                      \
+    VReg *Vk = (VReg *)vk;                                      \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                         \
+        Vd->E(i) = ((T)((T2)Vj->E(i)) * ((T2)Vk->E(i))) >> BIT; \
+    }                                                           \
+}
+
+void HELPER(vmuh_du)(void *vd, void *vj, void *vk, uint32_t v)
+{
+    uint64_t l, h1, h2;
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
+    VReg *Vk = (VReg *)vk;
+
+    mulu64(&l, &h1, Vj->D(0), Vk->D(0));
+    mulu64(&l, &h2, Vj->D(1), Vk->D(1));
+
+    Vd->D(0) = h1;
+    Vd->D(1) = h2;
+}
+
+DO_VMUH_U(vmuh_bu, 8, uint16_t, uint8_t, B, DO_MUH)
+DO_VMUH_U(vmuh_hu, 16, uint32_t, uint16_t, H, DO_MUH)
+DO_VMUH_U(vmuh_wu, 32, uint64_t, uint32_t, W, DO_MUH)
+
+#define DO_MUL(a, b) (a * b)
+
+void HELPER(vmulwev_q_d)(void *vd, void *vj, void *vk, uint32_t v)
+{
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
+    VReg *Vk = (VReg *)vk;
+
+    Vd->Q(0) = int128_makes64(Vj->D(0)) * int128_makes64(Vk->D(0));
+}
+
+DO_EVEN_S(vmulwev_h_b, 16, int16_t, H, B, DO_MUL)
+DO_EVEN_S(vmulwev_w_h, 32, int32_t, W, H, DO_MUL)
+DO_EVEN_S(vmulwev_d_w, 64, int64_t, D, W, DO_MUL)
+
+void HELPER(vmulwod_q_d)(void *vd, void *vj, void *vk, uint32_t v)
+{
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
+    VReg *Vk = (VReg *)vk;
+
+    Vd->Q(0) = int128_makes64(Vj->D(1)) * int128_makes64(Vk->D(1));
+}
+
+DO_ODD_S(vmulwod_h_b, 16, int16_t, H, B, DO_MUL)
+DO_ODD_S(vmulwod_w_h, 32, int32_t, W, H, DO_MUL)
+DO_ODD_S(vmulwod_d_w, 64, int64_t, D, W, DO_MUL)
+
+void HELPER(vmulwev_q_du)(void *vd, void *vj, void *vk, uint32_t v)
+{
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
+    VReg *Vk = (VReg *)vk;
+
+    Vd->Q(0) = int128_make64(Vj->D(0)) * int128_make64(Vk->D(0));
+}
+
+DO_EVEN_U(vmulwev_h_bu, 16, uint16_t, uint8_t, H, B, DO_MUL)
+DO_EVEN_U(vmulwev_w_hu, 32, uint32_t, uint16_t, W, H, DO_MUL)
+DO_EVEN_U(vmulwev_d_wu, 64, uint64_t, uint32_t, D, W, DO_MUL)
+
+void HELPER(vmulwod_q_du)(void *vd, void *vj, void *vk, uint32_t v)
+{
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
+    VReg *Vk = (VReg *)vk;
+
+    Vd->Q(0) = int128_make64(Vj->D(1)) * int128_make64(Vk->D(1));
+}
+
+DO_ODD_U(vmulwod_h_bu, 16, uint16_t, uint8_t, H, B, DO_MUL)
+DO_ODD_U(vmulwod_w_hu, 32, uint32_t, uint16_t, W, H, DO_MUL)
+DO_ODD_U(vmulwod_d_wu, 64, uint64_t, uint32_t, D, W, DO_MUL)
+
+void HELPER(vmulwev_q_du_d)(void *vd, void *vj, void *vk, uint32_t v)
+{
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
+    VReg *Vk = (VReg *)vk;
+
+    Vd->Q(0) = int128_make64(Vj->D(0)) * int128_makes64(Vk->D(0));
+}
+
+DO_EVEN_U_S(vmulwev_h_bu_b, 16, uint16_t, uint8_t, int16_t, H, B, DO_MUL)
+DO_EVEN_U_S(vmulwev_w_hu_h, 32, uint32_t, uint16_t, int32_t, W, H, DO_MUL)
+DO_EVEN_U_S(vmulwev_d_wu_w, 64, uint64_t, uint32_t, int64_t, D, W, DO_MUL)
+
+void HELPER(vmulwod_q_du_d)(void *vd, void *vj, void *vk, uint32_t v)
+{
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
+    VReg *Vk = (VReg *)vk;
+
+    Vd->Q(0) = int128_make64(Vj->D(1)) * int128_makes64(Vk->D(1));
+}
+
+DO_ODD_U_S(vmulwod_h_bu_b, 16, uint16_t, uint8_t, int16_t, H, B, DO_MUL)
+DO_ODD_U_S(vmulwod_w_hu_h, 32, uint32_t, uint16_t, int32_t, W, H, DO_MUL)
+DO_ODD_U_S(vmulwod_d_wu_w, 64, uint64_t, uint32_t, int64_t, D, W, DO_MUL)
