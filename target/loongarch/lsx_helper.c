@@ -1020,3 +1020,14 @@ void HELPER(vmsknz_b)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
     Vd->D(0) = temp.D(0);
     Vd->D(1) = 0;
 }
+
+void HELPER(vnori_b)(void *vd, void *vj, uint64_t imm, uint32_t v)
+{
+    int i;
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
+
+    for (i = 0; i < LSX_LEN/8; i++) {
+        Vd->B(i) = ~(Vj->B(i) | (uint8_t)imm);
+    }
+}
