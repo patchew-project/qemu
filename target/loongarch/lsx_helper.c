@@ -2201,3 +2201,33 @@ DO_2OP(vclz_b, 8, B, uint8_t, DO_CLZ_B)
 DO_2OP(vclz_h, 16, H, uint16_t, DO_CLZ_H)
 DO_2OP(vclz_w, 32, W, uint32_t, DO_CLZ_W)
 DO_2OP(vclz_d, 64, D, uint64_t, DO_CLZ_D)
+
+static uint64_t do_vpcnt(uint64_t u1)
+{
+    u1 = (u1 & 0x5555555555555555ULL) + ((u1 >>  1) & 0x5555555555555555ULL);
+    u1 = (u1 & 0x3333333333333333ULL) + ((u1 >>  2) & 0x3333333333333333ULL);
+    u1 = (u1 & 0x0F0F0F0F0F0F0F0FULL) + ((u1 >>  4) & 0x0F0F0F0F0F0F0F0FULL);
+    u1 = (u1 & 0x00FF00FF00FF00FFULL) + ((u1 >>  8) & 0x00FF00FF00FF00FFULL);
+    u1 = (u1 & 0x0000FFFF0000FFFFULL) + ((u1 >> 16) & 0x0000FFFF0000FFFFULL);
+    u1 = (u1 & 0x00000000FFFFFFFFULL) + ((u1 >> 32));
+
+    return u1;
+}
+
+#define VPCNT(NAME, BIT, E, T)                                      \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t vd, uint32_t vj) \
+{                                                                   \
+    int i;                                                          \
+    VReg *Vd = &(env->fpr[vd].vreg);                                \
+    VReg *Vj = &(env->fpr[vj].vreg);                                \
+                                                                    \
+    for (i = 0; i < LSX_LEN/BIT; i++)                               \
+    {                                                               \
+        Vd->E(i) = do_vpcnt((T)Vj->E(i));                           \
+    }                                                               \
+}
+
+VPCNT(vpcnt_b, 8, B, uint8_t)
+VPCNT(vpcnt_h, 16, H, uint16_t)
+VPCNT(vpcnt_w, 32, W, uint32_t)
+VPCNT(vpcnt_d, 64, D, uint64_t)
