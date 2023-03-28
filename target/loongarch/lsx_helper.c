@@ -2170,3 +2170,34 @@ void HELPER(vssrarni_du_q)(CPULoongArchState *env,
 VSSRARNUI(vssrarni_bu_h, 16, B, H)
 VSSRARNUI(vssrarni_hu_w, 32, H, W)
 VSSRARNUI(vssrarni_wu_d, 64, W, D)
+
+#define DO_2OP(NAME, BIT, E, T, DO_OP)                              \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t vd, uint32_t vj) \
+{                                                                   \
+    int i;                                                          \
+    VReg *Vd = &(env->fpr[vd].vreg);                                \
+    VReg *Vj = &(env->fpr[vj].vreg);                                \
+                                                                    \
+    for (i = 0; i < LSX_LEN/BIT; i++)                               \
+    {                                                               \
+        Vd->E(i) = DO_OP((T)Vj->E(i));                              \
+    }                                                               \
+}
+
+#define DO_CLO_B(N)  (clz32((uint8_t)~N) - 24)
+#define DO_CLO_H(N)  (clz32((uint16_t)~N) - 16)
+#define DO_CLO_W(N)  (clz32((uint32_t)~N))
+#define DO_CLO_D(N)  (clz64((uint64_t)~N))
+#define DO_CLZ_B(N)  (clz32(N) - 24)
+#define DO_CLZ_H(N)  (clz32(N) - 16)
+#define DO_CLZ_W(N)  (clz32(N))
+#define DO_CLZ_D(N)  (clz64(N))
+
+DO_2OP(vclo_b, 8, B, uint8_t, DO_CLO_B)
+DO_2OP(vclo_h, 16, H, uint16_t, DO_CLO_H)
+DO_2OP(vclo_w, 32, W, uint32_t, DO_CLO_W)
+DO_2OP(vclo_d, 64, D, uint64_t, DO_CLO_D)
+DO_2OP(vclz_b, 8, B, uint8_t, DO_CLZ_B)
+DO_2OP(vclz_h, 16, H, uint16_t, DO_CLZ_H)
+DO_2OP(vclz_w, 32, W, uint32_t, DO_CLZ_W)
+DO_2OP(vclz_d, 64, D, uint64_t, DO_CLZ_D)
