@@ -691,8 +691,13 @@ int main(int argc, char **argv, char **envp)
     envlist = envlist_create();
 
     /* add current environment into the list */
+    /* envlist_setenv adds to the front of the list; to preserve environ
+       order add from back to front */
     for (wrk = environ; *wrk != NULL; wrk++) {
-        (void) envlist_setenv(envlist, *wrk);
+        continue;
+    }
+    while (wrk != environ) {
+        (void) envlist_setenv(envlist, *--wrk);
     }
 
     /* Read the stack limit from the kernel.  If it's "unlimited",
