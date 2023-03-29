@@ -171,6 +171,7 @@ static bool gen_branch(DisasContext *ctx, arg_b *a, TCGCond cond)
 
     if (!has_ext(ctx, RVC) && ((ctx->base.pc_next + a->imm) & 0x3)) {
         /* misaligned */
+        gen_set_pc_imm(ctx, ctx->base.pc_next + a->imm);
         gen_exception_inst_addr_mis(ctx);
     } else {
         gen_goto_tb(ctx, 0, ctx->base.pc_next + a->imm);

@@ -551,6 +551,7 @@ static void gen_jal(DisasContext *ctx, int rd, target_ulong imm)
     next_pc = ctx->base.pc_next + imm;
     if (!has_ext(ctx, RVC)) {
         if ((next_pc & 0x3) != 0) {
+            gen_set_pc_imm(ctx, next_pc);
             gen_exception_inst_addr_mis(ctx);
             return;
         }
