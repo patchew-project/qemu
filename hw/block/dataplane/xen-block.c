@@ -523,6 +523,10 @@ static bool xen_block_handle_requests(XenBlockDataPlane *dataplane)
 
     dataplane->more_work = 0;
 
+    if (dataplane->sring == 0) {
+        return done_something;
+    }
+
     rc = dataplane->rings.common.req_cons;
     rp = dataplane->rings.common.sring->req_prod;
     xen_rmb(); /* Ensure we see queued requests up to 'rp'. */
@@ -666,9 +670,21 @@ void xen_block_dataplane_destroy(XenBlockDataPlane *dataplane)
 void xen_block_dataplane_stop(XenBlockDataPlane *dataplane)
 {
     XenDevice *xendev;
+    XenBlockRequest *request, *next;
 
     if (!dataplane) {
         return;
+    }
+
+    /* Ensure we have drained the ring */
+    do {
+        xen_block_handle_requests(dataplane);
+    } while (dataplane->more_work);
+
+    /* Now ensure that all inflight requests are complete */
+    QLIST_FOREACH_SAFE(request, &dataplane->inflight, list, next) {
+        blk_aio_flush(request->dataplane->blk, xen_block_complete_aio,
+                      request);
     }
 
     xendev = dataplane->xendev;
