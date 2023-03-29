@@ -20,3 +20,8 @@ config WDT_IMX2
 
 config WDT_SBSA
     bool
+
+config WDT_Z069
+    bool
+    default y if MCB
+    depends on MCB
