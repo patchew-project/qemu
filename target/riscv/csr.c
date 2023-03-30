@@ -1238,12 +1238,26 @@ static bool validate_vm(CPURISCVState *env, target_ulong vm)
     return (vm & 0xf) <= satp_mode_max_from_map(cpu->cfg.satp_mode.map);
 }
 
+static target_ulong legalize_mpp(CPURISCVState *env, target_ulong old_mpp,
+                                 target_ulong val)
+{
+    target_ulong new_mpp = get_field(val, MSTATUS_MPP);
+    bool mpp_invalid = (new_mpp == PRV_S && !riscv_has_ext(env, RVS)) ||
+                       (new_mpp == PRV_U && !riscv_has_ext(env, RVU)) ||
+                       (new_mpp == PRV_H);
+
+    /* Remain field unchanged if new_mpp value is invalid */
+    return mpp_invalid ? set_field(val, MSTATUS_MPP, old_mpp) : val;
+}
+
 static RISCVException write_mstatus(CPURISCVState *env, int csrno,
                                     target_ulong val)
 {
     uint64_t mstatus = env->mstatus;
     uint64_t mask = 0;
     RISCVMXL xl = riscv_cpu_mxl(env);
+
+    val = legalize_mpp(env, get_field(mstatus, MSTATUS_MPP), val);
 
     /* flush tlb on mstatus fields that affect VM */
     if ((val ^ mstatus) & (MSTATUS_MXR | MSTATUS_MPP | MSTATUS_MPV |

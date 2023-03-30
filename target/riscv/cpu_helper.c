@@ -659,11 +659,8 @@ void riscv_cpu_set_aia_ireg_rmw_fn(CPURISCVState *env, uint32_t priv,
 
 void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv)
 {
-    if (newpriv > PRV_M) {
+    if (newpriv > PRV_M || newpriv == PRV_H) {
         g_assert_not_reached();
-    }
-    if (newpriv == PRV_H) {
-        newpriv = PRV_U;
     }
     if (icount_enabled() && newpriv != env->priv) {
         riscv_itrigger_update_priv(env);
