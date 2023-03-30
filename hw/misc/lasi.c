@@ -204,6 +204,7 @@ static const VMStateDescription vmstate_lasi = {
         VMSTATE_UINT32(iar, LasiState),
         VMSTATE_UINT32(errlog, LasiState),
         VMSTATE_UINT32(amr, LasiState),
+        VMSTATE_UINT32(rtc_ref, LasiState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -233,7 +234,6 @@ static void lasi_reset(DeviceState *dev)
     s->iar = 0xFFFB0000 + 3; /* CPU_HPA + 3 */
 
     /* Real time clock (RTC), it's only one 32-bit counter @9000 */
-    s->rtc = time(NULL);
     s->rtc_ref = 0;
 }
 
