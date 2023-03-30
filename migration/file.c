@@ -43,9 +43,18 @@ void file_send_channel_create(QIOTaskFunc f, void *data)
     QIOChannelFile *ioc;
     QIOTask *task;
     Error *errp = NULL;
+    int flags = outgoing_args.flags;
 
-    ioc = qio_channel_file_new_path(outgoing_args.fname,
-                                    outgoing_args.flags,
+    if (migrate_use_direct_io() && qemu_has_direct_io()) {
+        /*
+         * Enable O_DIRECT for the secondary channels. These are used
+         * for sending ram pages and writes should be guaranteed to be
+         * aligned to at least page size.
+         */
+        flags |= O_DIRECT;
+    }
+
+    ioc = qio_channel_file_new_path(outgoing_args.fname, flags,
                                     outgoing_args.mode, &errp);
     if (!ioc) {
         file_migration_cancel(errp);

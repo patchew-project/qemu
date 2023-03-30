@@ -422,6 +422,7 @@ bool migrate_ignore_shared(void);
 bool migrate_validate_uuid(void);
 int migrate_fixed_ram(void);
 bool migrate_multifd_use_packets(void);
+bool migrate_use_direct_io(void);
 bool migrate_auto_converge(void);
 bool migrate_use_multifd(void);
 bool migrate_pause_before_switchover(void);
