@@ -24,6 +24,7 @@ void multifd_recv_new_channel(QIOChannel *ioc, Error **errp);
 void multifd_recv_sync_main(void);
 int multifd_send_sync_main(QEMUFile *f);
 int multifd_queue_page(QEMUFile *f, RAMBlock *block, ram_addr_t offset);
+int multifd_recv_queue_page(QEMUFile *f, RAMBlock *block, ram_addr_t offset);
 
 /* Multifd Compression flags */
 #define MULTIFD_FLAG_SYNC (1 << 0)
@@ -153,7 +154,11 @@ typedef struct {
     uint32_t page_size;
     /* number of pages in a full packet */
     uint32_t page_count;
+    /* multifd flags for receiving ram */
+    int read_flags;
 
+    /* sem where to wait for more work */
+    QemuSemaphore sem;
     /* syncs main thread and channels */
     QemuSemaphore sem_sync;
 
@@ -167,6 +172,13 @@ typedef struct {
     uint32_t flags;
     /* global number of generated multifd packets */
     uint64_t packet_num;
+    int pending_job;
+    /* array of pages to sent.
+     * The owner of 'pages' depends of 'pending_job' value:
+     * pending_job == 0 -> migration_thread can use it.
+     * pending_job != 0 -> multifd_channel can use it.
+     */
+    MultiFDPages_t *pages;
 
     /* thread local variables. No locking required */
 
