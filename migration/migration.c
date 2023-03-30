@@ -194,7 +194,7 @@ static bool migration_needs_multiple_sockets(void)
 static bool uri_supports_multi_channels(const char *uri)
 {
     return strstart(uri, "tcp:", NULL) || strstart(uri, "unix:", NULL) ||
-           strstart(uri, "vsock:", NULL);
+           strstart(uri, "vsock:", NULL) || strstart(uri, "file:", NULL);
 }
 
 static bool
@@ -2738,6 +2738,15 @@ bool migrate_pause_before_switchover(void)
 
     return s->enabled_capabilities[
         MIGRATION_CAPABILITY_PAUSE_BEFORE_SWITCHOVER];
+}
+
+bool migrate_to_file(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return qemu_file_is_seekable(s->to_dst_file);
 }
 
 int migrate_multifd_channels(void)

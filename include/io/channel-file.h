@@ -22,6 +22,7 @@
 #define QIO_CHANNEL_FILE_H
 
 #include "io/channel.h"
+#include "io/task.h"
 #include "qom/object.h"
 
 #define TYPE_QIO_CHANNEL_FILE "qio-channel-file"
