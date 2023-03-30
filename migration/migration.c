@@ -1345,11 +1345,6 @@ static bool migrate_caps_check(bool *cap_list,
 #endif
 
     if (cap_list[MIGRATION_CAPABILITY_FIXED_RAM]) {
-        if (cap_list[MIGRATION_CAPABILITY_MULTIFD]) {
-            error_setg(errp, "Directly mapped memory incompatible with multifd");
-            return false;
-        }
-
         if (cap_list[MIGRATION_CAPABILITY_XBZRLE]) {
             error_setg(errp, "Directly mapped memory incompatible with xbzrle");
             return false;
