@@ -794,6 +794,8 @@ void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
         }
 
         default_channel = (channel_magic == cpu_to_be32(QEMU_VM_FILE_MAGIC));
+    } else if (migrate_use_multifd() && migrate_fixed_ram()) {
+        default_channel = multifd_recv_first_channel();
     } else {
         default_channel = !mis->from_src_file;
     }

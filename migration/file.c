@@ -2,6 +2,7 @@
 #include "io/channel-file.h"
 #include "file.h"
 #include "qemu/error-report.h"
+#include "migration.h"
 
 static struct FileOutgoingArgs {
     char *fname;
@@ -77,17 +78,44 @@ void file_start_outgoing_migration(MigrationState *s, const char *fname, Error *
     object_unref(OBJECT(ioc));
 }
 
+static void file_process_migration_incoming(QIOTask *task, gpointer opaque)
+{
+    QIOChannelFile *ioc = opaque;
+
+    migration_channel_process_incoming(QIO_CHANNEL(ioc));
+    object_unref(OBJECT(ioc));
+}
+
 void file_start_incoming_migration(const char *fname, Error **errp)
 {
     QIOChannelFile *ioc;
+    QIOTask *task;
+    int channels = 1;
+    int i = 0, fd;
 
     ioc = qio_channel_file_new_path(fname, O_RDONLY, 0, errp);
     if (!ioc) {
-        error_report("Error creating a channel");
-        return;
+        goto out;
     }
 
-    qio_channel_set_name(QIO_CHANNEL(ioc), "migration-file-incoming");
-    migration_channel_process_incoming(QIO_CHANNEL(ioc));
-    object_unref(OBJECT(ioc));
+    if (migrate_use_multifd()) {
+        channels += migrate_multifd_channels();
+    }
+
+    fd = ioc->fd;
+
+    do {
+        qio_channel_set_name(QIO_CHANNEL(ioc), "migration-file-incoming");
+        task = qio_task_new(OBJECT(ioc), file_process_migration_incoming,
+                            (gpointer)ioc, NULL);
+
+        qio_task_run_in_thread(task, qio_channel_file_connect_worker,
+                               (gpointer)ioc, NULL, NULL);
+    } while (++i < channels && (ioc = qio_channel_file_new_fd(fd)));
+
+out:
+    if (!ioc) {
+        error_report("Error creating migration incoming channel");
+        return;
+    }
 }

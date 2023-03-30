@@ -1254,6 +1254,11 @@ int multifd_load_setup(Error **errp)
     return 0;
 }
 
+bool multifd_recv_first_channel(void)
+{
+    return !multifd_recv_state;
+}
+
 bool multifd_recv_all_channels_created(void)
 {
     int thread_count = migrate_multifd_channels();
@@ -1296,7 +1301,7 @@ void multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
         /* initial packet */
         num_packets = 1;
     } else {
-        id = 0;
+        id = qatomic_read(&multifd_recv_state->count);
     }
 
     p = &multifd_recv_state->params[id];
