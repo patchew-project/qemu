@@ -21,6 +21,8 @@
 
 #include "ebpf/ebpf_rss.h"
 #include "ebpf/rss.bpf.skeleton.h"
+#include "ebpf/ebpf.h"
+
 #include "trace.h"
 
 void ebpf_rss_init(struct EBPFRSSContext *ctx)
@@ -237,3 +239,5 @@ void ebpf_rss_unload(struct EBPFRSSContext *ctx)
     ctx->obj = NULL;
     ctx->program_fd = -1;
 }
+
+ebpf_binary_init("rss", rss_bpf__elf_bytes)
