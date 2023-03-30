@@ -33,8 +33,10 @@ OBJECT_DECLARE_TYPE(QIOChannel, QIOChannelClass,
 #define QIO_CHANNEL_ERR_BLOCK -2
 
 #define QIO_CHANNEL_WRITE_FLAG_ZERO_COPY 0x1
+#define QIO_CHANNEL_WRITE_FLAG_WITH_OFFSET 0x2
 
 #define QIO_CHANNEL_READ_FLAG_MSG_PEEK 0x1
+#define QIO_CHANNEL_READ_FLAG_WITH_OFFSET 0x2
 
 typedef enum QIOChannelFeature QIOChannelFeature;
 
@@ -542,6 +544,30 @@ ssize_t qio_channel_pwritev_full(QIOChannel *ioc, const struct iovec *iov,
                                  size_t niov, off_t offset, Error **errp);
 
 /**
+ * qio_channel_write_full_all:
+ * @ioc: the channel object
+ * @iov: the array of memory regions to write data from
+ * @niov: the length of the @iov array
+ * @offset: the iovec offset in the file where to write the data
+ * @fds: an array of file handles to send
+ * @nfds: number of file handles in @fds
+ * @flags: write flags (QIO_CHANNEL_WRITE_FLAG_*)
+ * @errp: pointer to a NULL-initialized error object
+ *
+ *
+ * Selects between a writev or pwritev channel writer function.
+ *
+ * If QIO_CHANNEL_WRITE_FLAG_OFFSET is passed in flags, pwritev is
+ * used and @offset is expected to be a meaningful value, @fds and
+ * @nfds are ignored; otherwise uses writev and @offset is ignored.
+ *
+ * Returns: 0 if all bytes were written, or -1 on error
+ */
+int qio_channel_write_full_all(QIOChannel *ioc, const struct iovec *iov,
+                               size_t niov, off_t offset, int *fds, size_t nfds,
+                               int flags, Error **errp);
+
+/**
  * qio_channel_pwritev
  * @ioc: the channel object
  * @buf: the memory region to write data into
@@ -576,6 +602,30 @@ ssize_t qio_channel_pwritev(QIOChannel *ioc, char *buf, size_t buflen,
  */
 ssize_t qio_channel_preadv_full(QIOChannel *ioc, const struct iovec *iov,
                                 size_t niov, off_t offset, Error **errp);
+
+/**
+ * qio_channel_read_full_all:
+ * @ioc: the channel object
+ * @iov: the array of memory regions to read data to
+ * @niov: the length of the @iov array
+ * @offset: the iovec offset in the file from where to read the data
+ * @fds: an array of file handles to send
+ * @nfds: number of file handles in @fds
+ * @flags: read flags (QIO_CHANNEL_READ_FLAG_*)
+ * @errp: pointer to a NULL-initialized error object
+ *
+ *
+ * Selects between a readv or preadv channel reader function.
+ *
+ * If QIO_CHANNEL_READ_FLAG_OFFSET is passed in flags, preadv is
+ * used and @offset is expected to be a meaningful value, @fds and
+ * @nfds are ignored; otherwise uses readv and @offset is ignored.
+ *
+ * Returns: 0 if all bytes were read, or -1 on error
+ */
+int qio_channel_read_full_all(QIOChannel *ioc, const struct iovec *iov,
+                              size_t niov, off_t offset,
+                              int flags, Error **errp);
 
 /**
  * qio_channel_preadv
