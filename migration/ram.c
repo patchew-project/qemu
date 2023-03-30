@@ -3359,6 +3359,15 @@ static void ram_save_shadow_bmap(QEMUFile *f)
     }
 }
 
+void ramblock_set_shadow_bmap(RAMBlock *block, ram_addr_t offset, bool set)
+{
+    if (set) {
+        set_bit(offset >> TARGET_PAGE_BITS, block->shadow_bmap);
+    } else {
+        clear_bit(offset >> TARGET_PAGE_BITS, block->shadow_bmap);
+    }
+}
+
 /**
  * ram_save_iterate: iterative stage for migration
  *
