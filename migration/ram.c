@@ -4427,8 +4427,13 @@ static void read_ramblock_fixed_ram(QEMUFile *f, RAMBlock *block,
             host = host_from_ram_block_offset(block, offset);
             read_len = MIN(len, TARGET_PAGE_SIZE);
 
-            read = qemu_get_buffer_at(f, host, read_len,
-                                      block->pages_offset + offset);
+            if (migrate_use_multifd()) {
+                multifd_recv_queue_page(f, block, offset);
+                read = read_len;
+            } else {
+                read = qemu_get_buffer_at(f, host, read_len,
+                                          block->pages_offset + offset);
+            }
             completed += read;
         }
     }

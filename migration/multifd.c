@@ -141,6 +141,7 @@ static void nocomp_recv_cleanup(MultiFDRecvParams *p)
 static int nocomp_recv_pages(MultiFDRecvParams *p, Error **errp)
 {
     uint32_t flags = p->flags & MULTIFD_FLAG_COMPRESSION_MASK;
+    uint64_t read_base = 0;
 
     if (flags != MULTIFD_FLAG_NOCOMP) {
         error_setg(errp, "multifd %u: flags received %x flags expected %x",
@@ -151,7 +152,13 @@ static int nocomp_recv_pages(MultiFDRecvParams *p, Error **errp)
         p->iov[i].iov_base = p->host + p->normal[i];
         p->iov[i].iov_len = p->page_size;
     }
-    return qio_channel_readv_all(p->c, p->iov, p->normal_num, errp);
+
+    if (migrate_fixed_ram()) {
+        read_base = p->pages->block->pages_offset - (uint64_t) p->host;
+    }
+
+    return qio_channel_read_full_all(p->c, p->iov, p->normal_num, read_base,
+                                     p->read_flags, errp);
 }
 
 static MultiFDMethods multifd_nocomp_ops = {
@@ -1221,9 +1228,21 @@ void multifd_recv_sync_main(void)
 {
     int i;
 
-    if (!migrate_use_multifd() || !migrate_multifd_use_packets()) {
+    if (!migrate_use_multifd()) {
         return;
     }
+
+    if (!migrate_multifd_use_packets()) {
+        for (i = 0; i < migrate_multifd_channels(); i++) {
+            MultiFDRecvParams *p = &multifd_recv_state->params[i];
+
+            qemu_sem_post(&p->sem);
+            continue;
+        }
+
+        return;
+    }
+
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDRecvParams *p = &multifd_recv_state->params[i];
 
@@ -1256,6 +1275,7 @@ static void *multifd_recv_thread(void *opaque)
 
     while (true) {
         uint32_t flags;
+        p->normal_num = 0;
 
         if (p->quit) {
             break;
@@ -1377,6 +1397,8 @@ int multifd_load_setup(Error **errp)
             p->packet_len = sizeof(MultiFDPacket_t)
                 + sizeof(uint64_t) * page_count;
             p->packet = g_malloc0(p->packet_len);
+        } else {
+            p->read_flags |= QIO_CHANNEL_READ_FLAG_WITH_OFFSET;
         }
         p->name = g_strdup_printf("multifdrecv_%d", i);
         p->iov = g_new0(struct iovec, page_count);
