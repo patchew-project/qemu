@@ -1310,9 +1310,14 @@ static int save_zero_page_to_file(PageSearchStatus *pss,
     int len = 0;
 
     if (buffer_is_zero(p, TARGET_PAGE_SIZE)) {
-        len += save_page_header(pss, block, offset | RAM_SAVE_FLAG_ZERO);
-        qemu_put_byte(file, 0);
-        len += 1;
+        if (migrate_fixed_ram()) {
+            /* for zero pages we don't need to do anything */
+            len = 1;
+        } else {
+            len += save_page_header(pss, block, offset | RAM_SAVE_FLAG_ZERO);
+            qemu_put_byte(file, 0);
+            len += 1;
+        }
         ram_release_page(block->idstr, offset);
     }
     return len;
@@ -1394,14 +1399,20 @@ static int save_normal_page(PageSearchStatus *pss, RAMBlock *block,
 {
     QEMUFile *file = pss->pss_channel;
 
-    ram_transferred_add(save_page_header(pss, block,
-                                         offset | RAM_SAVE_FLAG_PAGE));
-    if (async) {
-        qemu_put_buffer_async(file, buf, TARGET_PAGE_SIZE,
-                              migrate_release_ram() &&
-                              migration_in_postcopy());
+    if (migrate_fixed_ram()) {
+        qemu_put_buffer_at(file, buf, TARGET_PAGE_SIZE,
+                           block->pages_offset + offset);
+        set_bit(offset >> TARGET_PAGE_BITS, block->shadow_bmap);
     } else {
-        qemu_put_buffer(file, buf, TARGET_PAGE_SIZE);
+        ram_transferred_add(save_page_header(pss, block,
+                                             offset | RAM_SAVE_FLAG_PAGE));
+        if (async) {
+            qemu_put_buffer_async(file, buf, TARGET_PAGE_SIZE,
+                                  migrate_release_ram() &&
+                                  migration_in_postcopy());
+        } else {
+            qemu_put_buffer(file, buf, TARGET_PAGE_SIZE);
+        }
     }
     ram_transferred_add(TARGET_PAGE_SIZE);
     stat64_add(&ram_atomic_counters.normal, 1);
@@ -2731,6 +2742,8 @@ static void ram_save_cleanup(void *opaque)
         block->clear_bmap = NULL;
         g_free(block->bmap);
         block->bmap = NULL;
+        g_free(block->shadow_bmap);
+        block->shadow_bmap = NULL;
     }
 
     xbzrle_cleanup();
@@ -3098,6 +3111,7 @@ static void ram_list_init_bitmaps(void)
              */
             block->bmap = bitmap_new(pages);
             bitmap_set(block->bmap, 0, pages);
+            block->shadow_bmap = bitmap_new(block->used_length >> TARGET_PAGE_BITS);
             block->clear_bmap_shift = shift;
             block->clear_bmap = bitmap_new(clear_bmap_size(pages, shift));
         }
@@ -3287,6 +3301,33 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
             if (migrate_ignore_shared()) {
                 qemu_put_be64(f, block->mr->addr);
             }
+
+            if (migrate_fixed_ram()) {
+                long num_pages = block->used_length >> TARGET_PAGE_BITS;
+                long bitmap_size = BITS_TO_LONGS(num_pages) * sizeof(unsigned long);
+
+                /* Needed for external programs (think analyze-migration.py) */
+                qemu_put_be32(f, bitmap_size);
+
+                /*
+                 * The bitmap starts after pages_offset, so add 8 to
+                 * account for the pages_offset size.
+                 */
+                block->bitmap_offset = qemu_get_offset(f) + 8;
+
+                /*
+                 * Make pages_offset aligned to 1 MiB to account for
+                 * migration file movement between filesystems with
+                 * possibly different alignment restrictions when
+                 * using O_DIRECT.
+                 */
+                block->pages_offset = ROUND_UP(block->bitmap_offset +
+                                               bitmap_size, 0x100000);
+                qemu_put_be64(f, block->pages_offset);
+
+                /* Now prepare offset for next ramblock */
+                qemu_set_offset(f, block->pages_offset + block->used_length, SEEK_SET);
+            }
         }
     }
 
@@ -3304,6 +3345,18 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     qemu_fflush(f);
 
     return 0;
+}
+
+static void ram_save_shadow_bmap(QEMUFile *f)
+{
+    RAMBlock *block;
+
+    RAMBLOCK_FOREACH_MIGRATABLE(block) {
+        long num_pages = block->used_length >> TARGET_PAGE_BITS;
+        long bitmap_size = BITS_TO_LONGS(num_pages) * sizeof(unsigned long);
+        qemu_put_buffer_at(f, (uint8_t *)block->shadow_bmap, bitmap_size,
+                           block->bitmap_offset);
+    }
 }
 
 /**
@@ -3413,9 +3466,15 @@ out:
             return ret;
         }
 
-        qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
-        qemu_fflush(f);
-        ram_transferred_add(8);
+        /*
+         * For fixed ram we don't want to pollute the migration stream with
+         * EOS flags.
+         */
+        if (!migrate_fixed_ram()) {
+            qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
+            qemu_fflush(f);
+            ram_transferred_add(8);
+        }
 
         ret = qemu_file_get_error(f);
     }
@@ -3461,6 +3520,9 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
             pages = ram_find_and_save_block(rs);
             /* no more blocks to sent */
             if (pages == 0) {
+                if (migrate_fixed_ram()) {
+                    ram_save_shadow_bmap(f);
+                }
                 break;
             }
             if (pages < 0) {
@@ -3483,8 +3545,10 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
         return ret;
     }
 
-    qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
-    qemu_fflush(f);
+    if (!migrate_fixed_ram()) {
+        qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
+        qemu_fflush(f);
+    }
 
     return 0;
 }

@@ -485,7 +485,7 @@
 ##
 { 'enum': 'MigrationCapability',
   'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks',
-           'compress', 'events', 'postcopy-ram',
+           'compress', 'events', 'postcopy-ram', 'fixed-ram',
            { 'name': 'x-colo', 'features': [ 'unstable' ] },
            'release-ram',
            'block', 'return-path', 'pause-before-switchover', 'multifd',

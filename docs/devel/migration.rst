@@ -568,6 +568,42 @@ Others (especially either older devices or system devices which for
 some reason don't have a bus concept) make use of the ``instance id``
 for otherwise identically named devices.
 
+Fixed-ram format
+----------------
+
+When the ``fixed-ram`` capability is enabled, a slightly different
+stream format is used for the RAM section. Instead of having a
+sequential stream of pages that follow the RAMBlock headers, the dirty
+pages for a RAMBlock follow its header. This ensures that each RAM
+page has a fixed offset in the resulting migration stream.
+
+  - RAMBlock 1
+
+    - ID string length
+    - ID string
+    - Used size
+    - Shadow bitmap size
+    - Pages offset in migration stream*
+
+  - Shadow bitmap
+  - Sequence of pages for RAMBlock 1 (* offset points here)
+
+  - RAMBlock 2
+
+    - ID string length
+    - ID string
+    - Used size
+    - Shadow bitmap size
+    - Pages offset in migration stream*
+
+  - Shadow bitmap
+  - Sequence of pages for RAMBlock 2 (* offset points here)
+
+The ``fixed-ram`` capaility can be enabled in both source and
+destination with:
+
+    ``migrate_set_capability fixed-ram on``
+
 Return path
 -----------
 
