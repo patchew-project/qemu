@@ -32,6 +32,7 @@
 #include "hw/mem/memory-device.h"
 #include "hw/intc/intc.h"
 #include "hw/rdma/rdma.h"
+#include "ebpf/ebpf.h"
 
 NameInfo *qmp_query_name(Error **errp)
 {
@@ -208,4 +209,20 @@ static void __attribute__((__constructor__)) monitor_init_qmp_commands(void)
     qmp_register_command(&qmp_cap_negotiation_commands, "qmp_capabilities",
                          qmp_marshal_qmp_capabilities,
                          QCO_ALLOW_PRECONFIG, 0);
+}
+
+EbpfObject *qmp_request_ebpf(const char *id, Error **errp)
+{
+    EbpfObject *ret = NULL;
+    size_t size = 0;
+    const guchar *data = ebpf_find_binary_by_id(id, &size);
+
+    if (data) {
+        ret = g_new0(EbpfObject, 1);
+        ret->object = g_base64_encode(data, size);
+    } else {
+        error_setg(errp, "can't find eBPF object with id: %s", id);
+    }
+
+    return ret;
 }
