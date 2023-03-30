@@ -1638,6 +1638,7 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
     qemu_mutex_lock_iothread();
 
     while (qemu_file_get_error(f) == 0) {
+        migration_update_counters(ms, qemu_clock_get_ms(QEMU_CLOCK_REALTIME));
         if (qemu_savevm_state_iterate(f, false) > 0) {
             break;
         }
@@ -1659,6 +1660,9 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
         status = MIGRATION_STATUS_COMPLETED;
     }
     migrate_set_state(&ms->state, MIGRATION_STATUS_SETUP, status);
+
+    migration_calculate_complete(ms);
+    trace_migration_status((int)ms->mbps / 8, (int)ms->pages_per_second, ms->total_time);
 
     /* f is outer parameter, it should not stay in global migration state after
      * this function finished */
