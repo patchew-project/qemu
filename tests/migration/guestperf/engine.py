@@ -35,10 +35,11 @@ from qemu.machine import QEMUMachine
 class Engine(object):
 
     def __init__(self, binary, dst_host, kernel, initrd, transport="tcp",
-                 sleep=15, verbose=False, debug=False):
+                 sleep=15, verbose=False, debug=False, dst_file="/tmp/migfile"):
 
         self._binary = binary # Path to QEMU binary
         self._dst_host = dst_host # Hostname of target host
+        self._dst_file = dst_file # Path to file (for file transport)
         self._kernel = kernel # Path to kernel image
         self._initrd = initrd # Path to stress initrd
         self._transport = transport # 'unix' or 'tcp' or 'rdma'
@@ -203,6 +204,23 @@ class Engine(object):
             resp = dst.command("migrate-set-parameters",
                                multifd_channels=scenario._multifd_channels)
 
+        if scenario._fixed_ram:
+            resp = src.command("migrate-set-capabilities",
+                               capabilities = [
+                                   { "capability": "fixed-ram",
+                                     "state": True }
+                               ])
+            resp = dst.command("migrate-set-capabilities",
+                               capabilities = [
+                                   { "capability": "fixed-ram",
+                                     "state": True }
+                               ])
+
+        if scenario._direct_io:
+            resp = src.command("migrate-set-parameters",
+                               direct_io=scenario._direct_io)
+
+
         resp = src.command("migrate", uri=connect_uri)
 
         post_copy = False
@@ -233,6 +251,11 @@ class Engine(object):
                     progress_history.append(progress)
 
                 if progress._status == "completed":
+                    if connect_uri[0:5] == "file:":
+                        if self._verbose:
+                            print("Migrating incoming")
+                        dst.command("migrate-incoming", uri=connect_uri)
+
                     if self._verbose:
                         print("Sleeping %d seconds for final guest workload run" % self._sleep)
                     sleep_secs = self._sleep
@@ -357,7 +380,11 @@ class Engine(object):
         if self._dst_host != "localhost":
             tunnelled = True
         argv = self._get_common_args(hardware, tunnelled)
-        return argv + ["-incoming", uri]
+
+        incoming = ["-incoming", uri]
+        if uri[0:5] == "file:":
+            incoming = ["-incoming", "defer"]
+        return argv + incoming
 
     @staticmethod
     def _get_common_wrapper(cpu_bind, mem_bind):
@@ -417,6 +444,10 @@ class Engine(object):
                 os.remove(monaddr)
             except:
                 pass
+        elif self._transport == "file":
+            if self._dst_host != "localhost":
+                raise Exception("Use unix migration transport for non-local host")
+            uri = "file:%s" % self._dst_file
 
         if self._dst_host != "localhost":
             dstmonaddr = ("localhost", 9001)
@@ -452,6 +483,9 @@ class Engine(object):
 
             if self._dst_host == "localhost" and os.path.exists(dstmonaddr):
                 os.remove(dstmonaddr)
+
+            if uri[0:5] == "file:" and os.path.exists(uri[5:]):
+                os.remove(uri[5:])
 
             if self._verbose:
                 print("Finished migration")

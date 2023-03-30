@@ -48,6 +48,7 @@ class BaseShell(object):
         parser.add_argument("--kernel", dest="kernel", default="/boot/vmlinuz-%s" % platform.release())
         parser.add_argument("--initrd", dest="initrd", default="tests/migration/initrd-stress.img")
         parser.add_argument("--transport", dest="transport", default="unix")
+        parser.add_argument("--dst-file", dest="dst_file")
 
 
         # Hardware args
@@ -71,7 +72,8 @@ class BaseShell(object):
                       transport=args.transport,
                       sleep=args.sleep,
                       debug=args.debug,
-                      verbose=args.verbose)
+                      verbose=args.verbose,
+                      dst_file=args.dst_file)
 
     def get_hardware(self, args):
         def split_map(value):
@@ -127,6 +129,13 @@ class Shell(BaseShell):
         parser.add_argument("--multifd-channels", dest="multifd_channels",
                             default=2, type=int)
 
+        parser.add_argument("--fixed-ram", dest="fixed_ram", default=False,
+                            action="store_true")
+
+        parser.add_argument("--direct-io", dest="direct_io", default=False,
+                            action="store_true")
+
+
     def get_scenario(self, args):
         return Scenario(name="perfreport",
                         downtime=args.downtime,
@@ -150,7 +159,12 @@ class Shell(BaseShell):
                         compression_xbzrle_cache=args.compression_xbzrle_cache,
 
                         multifd=args.multifd,
-                        multifd_channels=args.multifd_channels)
+                        multifd_channels=args.multifd_channels,
+
+                        fixed_ram=args.fixed_ram,
+
+                        direct_io=args.direct_io)
+
 
     def run(self, argv):
         args = self._parser.parse_args(argv)
