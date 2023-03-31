@@ -252,6 +252,21 @@ uint64_t helper_fmin_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
                     float32_minimum_number(frs1, frs2, &env->fp_status));
 }
 
+uint64_t helper_fminm_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    float32 frs1 = check_nanbox_s(env, rs1);
+    float32 frs2 = check_nanbox_s(env, rs2);
+    float32 ret;
+
+    if (float32_is_any_nan(frs1) || float32_is_any_nan(frs2)) {
+        ret = float32_default_nan(&env->fp_status);
+    } else {
+        ret = float32_minimum_number(frs1, frs2, &env->fp_status);
+    }
+
+    return nanbox_s(env, ret);
+}
+
 uint64_t helper_fmax_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
     float32 frs1 = check_nanbox_s(env, rs1);
@@ -259,6 +274,21 @@ uint64_t helper_fmax_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
     return nanbox_s(env, env->priv_ver < PRIV_VERSION_1_11_0 ?
                     float32_maxnum(frs1, frs2, &env->fp_status) :
                     float32_maximum_number(frs1, frs2, &env->fp_status));
+}
+
+uint64_t helper_fmaxm_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    float32 frs1 = check_nanbox_s(env, rs1);
+    float32 frs2 = check_nanbox_s(env, rs2);
+    float32 ret;
+
+    if (float32_is_any_nan(frs1) || float32_is_any_nan(frs2)) {
+        ret = float32_default_nan(&env->fp_status);
+    } else {
+        ret = float32_maximum_number(frs1, frs2, &env->fp_status);
+    }
+
+    return nanbox_s(env, ret);
 }
 
 uint64_t helper_fsqrt_s(CPURISCVState *env, uint64_t rs1)
@@ -274,11 +304,25 @@ target_ulong helper_fle_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
     return float32_le(frs1, frs2, &env->fp_status);
 }
 
+target_ulong helper_fleq_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    float32 frs1 = check_nanbox_s(env, rs1);
+    float32 frs2 = check_nanbox_s(env, rs2);
+    return float32_le_quiet(frs1, frs2, &env->fp_status);
+}
+
 target_ulong helper_flt_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
     float32 frs1 = check_nanbox_s(env, rs1);
     float32 frs2 = check_nanbox_s(env, rs2);
     return float32_lt(frs1, frs2, &env->fp_status);
+}
+
+target_ulong helper_fltq_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    float32 frs1 = check_nanbox_s(env, rs1);
+    float32 frs2 = check_nanbox_s(env, rs2);
+    return float32_lt_quiet(frs1, frs2, &env->fp_status);
 }
 
 target_ulong helper_feq_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
@@ -338,6 +382,30 @@ target_ulong helper_fclass_s(CPURISCVState *env, uint64_t rs1)
     return fclass_s(frs1);
 }
 
+uint64_t helper_fround_s(CPURISCVState *env, uint64_t rs1)
+{
+    float_status *fs = &env->fp_status;
+    uint16_t nx_old = get_float_exception_flags(fs) & float_flag_inexact;
+    float32 frs1 = check_nanbox_s(env, rs1);
+
+    frs1 = float32_round_to_int(frs1, fs);
+
+    /* Restore the original NX flag. */
+    uint16_t flags = get_float_exception_flags(fs);
+    flags &= ~float_flag_inexact;
+    flags |= nx_old;
+    set_float_exception_flags(flags, fs);
+
+    return nanbox_s(env, frs1);
+}
+
+uint64_t helper_froundnx_s(CPURISCVState *env, uint64_t rs1)
+{
+    float32 frs1 = check_nanbox_s(env, rs1);
+    frs1 = float32_round_to_int(frs1, &env->fp_status);
+    return nanbox_s(env, frs1);
+}
+
 uint64_t helper_fadd_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
 {
     return float64_add(frs1, frs2, &env->fp_status);
@@ -365,11 +433,29 @@ uint64_t helper_fmin_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
             float64_minimum_number(frs1, frs2, &env->fp_status);
 }
 
+uint64_t helper_fminm_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
+{
+    if (float64_is_any_nan(frs1) || float64_is_any_nan(frs2)) {
+        return float64_default_nan(&env->fp_status);
+    } else {
+        return float64_minimum_number(frs1, frs2, &env->fp_status);
+    }
+}
+
 uint64_t helper_fmax_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
 {
     return env->priv_ver < PRIV_VERSION_1_11_0 ?
             float64_maxnum(frs1, frs2, &env->fp_status) :
             float64_maximum_number(frs1, frs2, &env->fp_status);
+}
+
+uint64_t helper_fmaxm_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
+{
+    if (float64_is_any_nan(frs1) || float64_is_any_nan(frs2)) {
+        return float64_default_nan(&env->fp_status);
+    } else {
+        return float64_maximum_number(frs1, frs2, &env->fp_status);
+    }
 }
 
 uint64_t helper_fcvt_s_d(CPURISCVState *env, uint64_t rs1)
@@ -393,9 +479,19 @@ target_ulong helper_fle_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
     return float64_le(frs1, frs2, &env->fp_status);
 }
 
+target_ulong helper_fleq_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
+{
+    return float64_le_quiet(frs1, frs2, &env->fp_status);
+}
+
 target_ulong helper_flt_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
 {
     return float64_lt(frs1, frs2, &env->fp_status);
+}
+
+target_ulong helper_fltq_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
+{
+    return float64_lt_quiet(frs1, frs2, &env->fp_status);
 }
 
 target_ulong helper_feq_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
@@ -406,6 +502,79 @@ target_ulong helper_feq_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
 target_ulong helper_fcvt_w_d(CPURISCVState *env, uint64_t frs1)
 {
     return float64_to_int32(frs1, &env->fp_status);
+}
+
+/*
+ * Implement float64 to int32_t conversion without saturation;
+ * the result is supplied modulo 2^32.
+ * Rounding mode is RTZ.
+ * Flag behaviour identical to fcvt.w.d (see F specification).
+ *
+ * Similar conversion of this function can be found in
+ * target/arm/vfp_helper.c (fjcvtzs): f64->i32 with other fflag behaviour, and
+ * target/alpha/fpu_helper.c (do_cvttq): f64->i64 with support for several
+ * rounding modes and different fflag behaviour.
+ */
+uint64_t helper_fcvtmod_w_d(CPURISCVState *env, uint64_t value)
+{
+    float_status *status = &env->fp_status;
+    uint32_t sign = extract64(value, 63, 1);
+    uint32_t exp = extract64(value, 52, 11);
+    uint64_t frac = extract64(value, 0, 52);
+
+    /* Handle the special cases first. */
+    if (exp == 0) {
+        if (unlikely(frac != 0)) {
+            /* Subnormal numbers. */
+            float_raise(float_flag_inexact, status);
+            return 0;
+        } else {
+            /* +0 or -0 */
+            return 0;
+	}
+    } else if (exp == 0x7ff) {
+        /* NaN (frac != 0) or INF (frac == 0). */
+        float_raise(float_flag_invalid, status);
+	return 0;
+    }
+
+    /* Normal value. */
+    int true_exp = exp - 1023;
+    int shift = true_exp - 52;
+    uint64_t true_frac = frac | 1ull << 52;
+    uint64_t ret;
+
+    /* Shift the fraction into place and set NX flag. */
+    if (shift >= 64 || shift <= -64) {
+            /* The fraction is shifted out entirely. */
+            ret = 0;
+            float_raise(float_flag_inexact, status);
+    } else if (shift >= 0) {
+        ret = true_frac << shift;
+        /* Raise NX if bit 52 got shifted out. */
+        if (shift >= 12)
+            float_raise(float_flag_inexact, status);
+    } else { /* shift < 0 */
+        ret = true_frac >> -shift;
+        /* Raise NX if bits got shifted out. */
+        if ((ret << -shift) != true_frac)
+            float_raise(float_flag_inexact, status);
+    }
+
+    /* Honor the sign bit. */
+    if (sign) {
+        ret = -ret;
+    }
+
+    /* Truncate to 32-bits. */
+    int32_t ret32 = (int32_t)ret;
+
+    /* If the truncation drops bits then raise NV. */
+    if ((uint64_t)ret32 != ret)
+        float_raise(float_flag_invalid, status);
+
+    /* Sign-extend to int64 and return. */
+    return ret32;
 }
 
 target_ulong helper_fcvt_wu_d(CPURISCVState *env, uint64_t frs1)
@@ -448,6 +617,27 @@ target_ulong helper_fclass_d(uint64_t frs1)
     return fclass_d(frs1);
 }
 
+uint64_t helper_fround_d(CPURISCVState *env, uint64_t frs1)
+{
+    float_status *fs = &env->fp_status;
+    uint16_t nx_old = get_float_exception_flags(fs) & float_flag_inexact;
+
+    frs1 = float64_round_to_int(frs1, fs);
+
+    /* Restore the original NX flag. */
+    uint16_t flags = get_float_exception_flags(fs);
+    flags &= ~float_flag_inexact;
+    flags |= nx_old;
+    set_float_exception_flags(flags, fs);
+
+    return frs1;
+}
+
+uint64_t helper_froundnx_d(CPURISCVState *env, uint64_t frs1)
+{
+    return float64_round_to_int(frs1, &env->fp_status);
+}
+
 uint64_t helper_fadd_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
     float16 frs1 = check_nanbox_h(env, rs1);
@@ -485,6 +675,21 @@ uint64_t helper_fmin_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
                     float16_minimum_number(frs1, frs2, &env->fp_status));
 }
 
+uint64_t helper_fminm_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    float16 frs1 = check_nanbox_h(env, rs1);
+    float16 frs2 = check_nanbox_h(env, rs2);
+    float16 ret;
+
+    if (float16_is_any_nan(frs1) || float16_is_any_nan(frs2)) {
+        ret = float16_default_nan(&env->fp_status);
+    } else {
+        ret = float16_minimum_number(frs1, frs2, &env->fp_status);
+    }
+
+    return nanbox_h(env, ret);
+}
+
 uint64_t helper_fmax_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
     float16 frs1 = check_nanbox_h(env, rs1);
@@ -492,6 +697,21 @@ uint64_t helper_fmax_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
     return nanbox_h(env, env->priv_ver < PRIV_VERSION_1_11_0 ?
                     float16_maxnum(frs1, frs2, &env->fp_status) :
                     float16_maximum_number(frs1, frs2, &env->fp_status));
+}
+
+uint64_t helper_fmaxm_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    float16 frs1 = check_nanbox_h(env, rs1);
+    float16 frs2 = check_nanbox_h(env, rs2);
+    float16 ret;
+
+    if (float16_is_any_nan(frs1) || float16_is_any_nan(frs2)) {
+        ret = float16_default_nan(&env->fp_status);
+    } else {
+        ret = float16_maximum_number(frs1, frs2, &env->fp_status);
+    }
+
+    return nanbox_h(env, ret);
 }
 
 uint64_t helper_fsqrt_h(CPURISCVState *env, uint64_t rs1)
@@ -507,11 +727,25 @@ target_ulong helper_fle_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
     return float16_le(frs1, frs2, &env->fp_status);
 }
 
+target_ulong helper_fleq_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    float16 frs1 = check_nanbox_h(env, rs1);
+    float16 frs2 = check_nanbox_h(env, rs2);
+    return float16_le_quiet(frs1, frs2, &env->fp_status);
+}
+
 target_ulong helper_flt_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
     float16 frs1 = check_nanbox_h(env, rs1);
     float16 frs2 = check_nanbox_h(env, rs2);
     return float16_lt(frs1, frs2, &env->fp_status);
+}
+
+target_ulong helper_fltq_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
+{
+    float16 frs1 = check_nanbox_h(env, rs1);
+    float16 frs2 = check_nanbox_h(env, rs2);
+    return float16_lt_quiet(frs1, frs2, &env->fp_status);
 }
 
 target_ulong helper_feq_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
@@ -525,6 +759,30 @@ target_ulong helper_fclass_h(CPURISCVState *env, uint64_t rs1)
 {
     float16 frs1 = check_nanbox_h(env, rs1);
     return fclass_h(frs1);
+}
+
+uint64_t helper_fround_h(CPURISCVState *env, uint64_t rs1)
+{
+    float_status *fs = &env->fp_status;
+    uint16_t nx_old = get_float_exception_flags(fs) & float_flag_inexact;
+    float16 frs1 = check_nanbox_h(env, rs1);
+
+    frs1 = float16_round_to_int(frs1, fs);
+
+    /* Restore the original NX flag. */
+    uint16_t flags = get_float_exception_flags(fs);
+    flags &= ~float_flag_inexact;
+    flags |= nx_old;
+    set_float_exception_flags(flags, fs);
+
+    return nanbox_h(env, frs1);
+}
+
+uint64_t helper_froundnx_h(CPURISCVState *env, uint64_t rs1)
+{
+    float16 frs1 = check_nanbox_s(env, rs1);
+    frs1 = float16_round_to_int(frs1, &env->fp_status);
+    return nanbox_h(env, frs1);
 }
 
 target_ulong helper_fcvt_w_h(CPURISCVState *env, uint64_t rs1)
