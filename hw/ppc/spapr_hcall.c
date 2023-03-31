@@ -1621,6 +1621,9 @@ static target_ulong h_enter_nested(PowerPCCPU *cpu,
     struct kvmppc_pt_regs *regs;
     hwaddr len;
 
+    assert(env->spr[SPR_LPIDR] == 0);
+    env->spr[SPR_LPIDR] = hv_state.lpid;
+
     if (spapr->nested_ptcr == 0) {
         return H_NOT_AVAILABLE;
     }
@@ -1666,9 +1669,6 @@ static target_ulong h_enter_nested(PowerPCCPU *cpu,
     restore_hdec_from_hvstate(env, &hv_state, now);
 
     address_space_unmap(CPU(cpu)->as, regs, len, len, false);
-
-    assert(env->spr[SPR_LPIDR] == 0);
-    env->spr[SPR_LPIDR] = hv_state.lpid;
 
     spapr_cpu->nested_tb_offset = hv_state.tb_offset;
 
