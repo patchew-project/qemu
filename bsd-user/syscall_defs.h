@@ -26,7 +26,6 @@
 #include "errno_defs.h"
 
 #include "freebsd/syscall_nr.h"
-#include "netbsd/syscall_nr.h"
 #include "openbsd/syscall_nr.h"
 
 /*
@@ -39,9 +38,6 @@
  *
  * FreeBSD uses a 64bits time_t except on i386
  * so we have to add a special case here.
- *
- * On NetBSD time_t is always defined as an int64_t.  On OpenBSD time_t
- * is always defined as an int.
  *
  */
 #if (!defined(TARGET_I386))
@@ -68,18 +64,6 @@ struct target_iovec {
                                                 /* underlying file */
 
 #define TARGET_FREEBSD_MAP_FLAGMASK     0x1ff7
-
-#define TARGET_NETBSD_MAP_INHERIT       0x0080  /* region is retained after */
-                                                /* exec */
-#define TARGET_NETBSD_MAP_TRYFIXED      0x0400  /* attempt hint address, even */
-                                                /* within break */
-#define TARGET_NETBSD_MAP_WIRED         0x0800  /* mlock() mapping when it is */
-                                                /* established */
-
-#define TARGET_NETBSD_MAP_STACK         0x2000  /* allocated from memory, */
-                                                /* swap space (stack) */
-
-#define TARGET_NETBSD_MAP_FLAGMASK      0x3ff7
 
 #define TARGET_OPENBSD_MAP_INHERIT      0x0080  /* region is retained after */
                                                 /* exec */
