@@ -38,7 +38,15 @@ static bool trans_lui(DisasContext *ctx, arg_lui *a)
 
 static bool trans_auipc(DisasContext *ctx, arg_auipc *a)
 {
-    gen_set_gpri(ctx, a->rd, a->imm + ctx->base.pc_next);
+    assert(ctx->pc_save != -1);
+    if (tb_cflags(ctx->base.tb) & CF_PCREL) {
+        TCGv target_pc = dest_gpr(ctx, a->rd);
+        tcg_gen_addi_tl(target_pc, cpu_pc, a->imm + ctx->base.pc_next -
+                                           ctx->pc_save);
+        gen_set_gpr(ctx, a->rd, target_pc);
+    } else {
+        gen_set_gpri(ctx, a->rd, a->imm + ctx->base.pc_next);
+    }
     return true;
 }
 
@@ -68,7 +76,14 @@ static bool trans_jalr(DisasContext *ctx, arg_jalr *a)
         tcg_gen_brcondi_tl(TCG_COND_NE, t0, 0x0, misaligned);
     }
 
-    gen_set_gpri(ctx, a->rd, ctx->pc_succ_insn);
+    if (tb_cflags(ctx->base.tb) & CF_PCREL) {
+        TCGv succ_pc = dest_gpr(ctx, a->rd);
+        tcg_gen_addi_tl(succ_pc, cpu_pc, ctx->pc_succ_insn - ctx->pc_save);
+        gen_set_gpr(ctx, a->rd, succ_pc);
+    } else {
+        gen_set_gpri(ctx, a->rd, ctx->pc_succ_insn);
+    }
+
     tcg_gen_mov_tl(cpu_pc, target_pc);
     lookup_and_goto_ptr(ctx);
 
@@ -159,6 +174,7 @@ static bool gen_branch(DisasContext *ctx, arg_b *a, TCGCond cond)
     TCGv src1 = get_gpr(ctx, a->rs1, EXT_SIGN);
     TCGv src2 = get_gpr(ctx, a->rs2, EXT_SIGN);
     target_ulong next_pc;
+    target_ulong orig_pc_save = ctx->pc_save;
 
     if (get_xl(ctx) == MXL_RV128) {
         TCGv src1h = get_gprh(ctx, a->rs1);
@@ -175,6 +191,7 @@ static bool gen_branch(DisasContext *ctx, arg_b *a, TCGCond cond)
 
     gen_set_label(l); /* branch taken */
 
+    ctx->pc_save = orig_pc_save;
     next_pc = ctx->base.pc_next + a->imm;
     if (!has_ext(ctx, RVC) && (next_pc & 0x3)) {
         /* misaligned */
@@ -182,8 +199,9 @@ static bool gen_branch(DisasContext *ctx, arg_b *a, TCGCond cond)
         gen_get_target_pc(target_pc, ctx, next_pc);
         gen_exception_inst_addr_mis(ctx, target_pc);
     } else {
-        gen_goto_tb(ctx, 0, ctx->base.pc_next + a->imm);
+        gen_goto_tb(ctx, 0, next_pc);
     }
+    ctx->pc_save = -1;
     ctx->base.is_jmp = DISAS_NORETURN;
 
     return true;
