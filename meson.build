@@ -2979,6 +2979,7 @@ if have_system
     'hw/dma',
     'hw/hyperv',
     'hw/i2c',
+    'hw/i3c',
     'hw/i386',
     'hw/i386/xen',
     'hw/i386/kvm',
