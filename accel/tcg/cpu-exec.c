@@ -983,6 +983,9 @@ cpu_exec_loop(CPUState *cpu, SyncClocks *sc)
                 h = tb_jmp_cache_hash_func(pc);
                 /* Use the pc value already stored in tb->pc. */
                 qatomic_set(&cpu->tb_jmp_cache->array[h].tb, tb);
+                if (cflags & CF_PCREL) {
+                    qatomic_set(&cpu->tb_jmp_cache->array[h].pc, pc);
+                }
             }
 
 #ifndef CONFIG_USER_ONLY
