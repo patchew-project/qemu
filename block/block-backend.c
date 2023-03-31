@@ -91,8 +91,27 @@ struct BlockBackend {
      * in-flight requests but aio requests can exist even when blk->root is
      * NULL, so we cannot rely on its counter for that case.
      * Accessed with atomic ops.
+     *
+     * bds_io_in_flight is the subset of in-flight requests that may directly
+     * issue I/O to a BDS node.  Polling the BB's AioContext, these requests
+     * must always make progress, eventually leading to bds_io_in_flight being
+     * decremented again (either when they request is settled, or when it is
+     * queued because of request queuing).
+     * In contrast to these, there are more abstract requests, which will not
+     * themselves issue I/O to a BDS node, but instead, when necessary, create
+     * specific BDS I/O requests that do so on their behalf, and then they block
+     * waiting for those subordinate requests.
+     * While request queuing is enabled, we must not have drained_poll wait on
+     * such abstract requests, because if one of its subordinate requests is
+     * queued, it will block and cannot progress until the drained section ends,
+     * which leads to a deadlock.  Luckily, it is safe to ignore such requests
+     * when draining BDS nodes: After all, they themselves do not issue I/O to
+     * BDS nodes.
+     * Finally, when draining a BB (blk_drain(), blk_drain_all()), we simply
+     * disable request queuing and can thus safely await all in-flight requests.
      */
     unsigned int in_flight;
+    unsigned int bds_io_in_flight;
 };
 
 typedef struct BlockBackendAIOCB {
@@ -137,6 +156,9 @@ static void blk_root_resize(BdrvChild *child);
 static bool blk_root_change_aio_ctx(BdrvChild *child, AioContext *ctx,
                                     GHashTable *visited, Transaction *tran,
                                     Error **errp);
+
+static void blk_inc_bds_io_in_flight(BlockBackend *blk);
+static void blk_dec_bds_io_in_flight(BlockBackend *blk);
 
 static char *blk_root_get_parent_desc(BdrvChild *child)
 {
@@ -1266,15 +1288,15 @@ blk_check_byte_request(BlockBackend *blk, int64_t offset, int64_t bytes)
     return 0;
 }
 
-/* To be called between exactly one pair of blk_inc/dec_in_flight() */
+/* To be called between exactly one pair of blk_inc/dec_bds_io_in_flight() */
 static void coroutine_fn blk_wait_while_drained(BlockBackend *blk)
 {
-    assert(blk->in_flight > 0);
+    assert(blk->in_flight > 0 && blk->bds_io_in_flight > 0);
 
     if (blk->quiesce_counter && !blk->disable_request_queuing) {
-        blk_dec_in_flight(blk);
+        blk_dec_bds_io_in_flight(blk);
         qemu_co_queue_wait(&blk->queued_requests, NULL);
-        blk_inc_in_flight(blk);
+        blk_inc_bds_io_in_flight(blk);
     }
 }
 
@@ -1332,9 +1354,9 @@ int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
     int ret;
     IO_OR_GS_CODE();
 
-    blk_inc_in_flight(blk);
+    blk_inc_bds_io_in_flight(blk);
     ret = blk_co_do_preadv_part(blk, offset, bytes, qiov, 0, flags);
-    blk_dec_in_flight(blk);
+    blk_dec_bds_io_in_flight(blk);
 
     return ret;
 }
@@ -1346,9 +1368,9 @@ int coroutine_fn blk_co_preadv_part(BlockBackend *blk, int64_t offset,
     int ret;
     IO_OR_GS_CODE();
 
-    blk_inc_in_flight(blk);
+    blk_inc_bds_io_in_flight(blk);
     ret = blk_co_do_preadv_part(blk, offset, bytes, qiov, qiov_offset, flags);
-    blk_dec_in_flight(blk);
+    blk_dec_bds_io_in_flight(blk);
 
     return ret;
 }
@@ -1400,9 +1422,9 @@ int coroutine_fn blk_co_pwritev_part(BlockBackend *blk, int64_t offset,
     int ret;
     IO_OR_GS_CODE();
 
-    blk_inc_in_flight(blk);
+    blk_inc_bds_io_in_flight(blk);
     ret = blk_co_do_pwritev_part(blk, offset, bytes, qiov, qiov_offset, flags);
-    blk_dec_in_flight(blk);
+    blk_dec_bds_io_in_flight(blk);
 
     return ret;
 }
@@ -1463,6 +1485,37 @@ int blk_make_zero(BlockBackend *blk, BdrvRequestFlags flags)
     return bdrv_make_zero(blk->root, flags);
 }
 
+/*
+ * Increments both the general in-flight counter, and the BDS I/O in-flight
+ * counter.  This must be used by requests that can directly issue BDS I/O
+ * requests, so that blk_root_drained_poll() will properly drain them.
+ * Requests wrapped in this must continuously make progress when polled by
+ * blk_root_drained_poll(), i.e. must eventually reach
+ * blk_dec_bds_io_in_flight().  Notably, they must not launch other BB requests
+ * and block waiting on them to complete, because those might be queued, and
+ * then they will not make progress until the drained section ends.
+ */
+static void blk_inc_bds_io_in_flight(BlockBackend *blk)
+{
+    IO_CODE();
+    blk_inc_in_flight(blk);
+    qatomic_inc(&blk->bds_io_in_flight);
+}
+
+static void blk_dec_bds_io_in_flight(BlockBackend *blk)
+{
+    IO_CODE();
+    qatomic_dec(&blk->bds_io_in_flight);
+    blk_dec_in_flight(blk);
+}
+
+/*
+ * Increments the general in-flight counter, but not the BDS I/O in-flight
+ * counter.  This is an externally visible function, and external users must not
+ * directly issue I/O to BDS nodes, instead going through BB functions (which
+ * then are the BDS I/O in-flight requests), so those users cannot create what
+ * counts as "BDS I/O requests" for the purpose of bds_io_in_flight.
+ */
 void blk_inc_in_flight(BlockBackend *blk)
 {
     IO_CODE();
@@ -1480,7 +1533,7 @@ static void error_callback_bh(void *opaque)
 {
     struct BlockBackendAIOCB *acb = opaque;
 
-    blk_dec_in_flight(acb->blk);
+    blk_dec_bds_io_in_flight(acb->blk);
     acb->common.cb(acb->common.opaque, acb->ret);
     qemu_aio_unref(acb);
 }
@@ -1492,7 +1545,12 @@ BlockAIOCB *blk_abort_aio_request(BlockBackend *blk,
     struct BlockBackendAIOCB *acb;
     IO_CODE();
 
-    blk_inc_in_flight(blk);
+    /*
+     * Will not actually submit BDS I/O, but will also not depend on queued
+     * requests, so treating it as a BDS I/O request is fine (and will allow the
+     * BH to be run when the BDS is drained, which some users may expect)
+     */
+    blk_inc_bds_io_in_flight(blk);
     acb = blk_aio_get(&block_backend_aiocb_info, blk, cb, opaque);
     acb->blk = blk;
     acb->ret = ret;
@@ -1524,8 +1582,16 @@ static const AIOCBInfo blk_aio_em_aiocb_info = {
 static void blk_aio_complete(BlkAioEmAIOCB *acb)
 {
     if (acb->has_returned) {
+        /*
+         * Calling blk_dec_bds_io_in_flight() after invoking the CB is a bit
+         * dangerous: We do not know what the CB does, so if it blocks waiting
+         * for a queued BB request, we can end up in a deadlock.  We just hope
+         * it will not do that.
+         * Some callers (test-bdrv-drain) expect that draining a BDS will lead
+         * to the completion CB being fully run, which is why we do this.
+         */
         acb->common.cb(acb->common.opaque, acb->rwco.ret);
-        blk_dec_in_flight(acb->rwco.blk);
+        blk_dec_bds_io_in_flight(acb->rwco.blk);
         qemu_aio_unref(acb);
     }
 }
@@ -1546,7 +1612,7 @@ static BlockAIOCB *blk_aio_prwv(BlockBackend *blk, int64_t offset,
     BlkAioEmAIOCB *acb;
     Coroutine *co;
 
-    blk_inc_in_flight(blk);
+    blk_inc_bds_io_in_flight(blk);
     acb = blk_aio_get(&blk_aio_em_aiocb_info, blk, cb, opaque);
     acb->rwco = (BlkRwCo) {
         .blk    = blk,
@@ -1669,7 +1735,7 @@ void blk_aio_cancel_async(BlockAIOCB *acb)
     bdrv_aio_cancel_async(acb);
 }
 
-/* To be called between exactly one pair of blk_inc/dec_in_flight() */
+/* To be called between exactly one pair of blk_inc/dec_bds_io_in_flight() */
 static int coroutine_fn
 blk_co_do_ioctl(BlockBackend *blk, unsigned long int req, void *buf)
 {
@@ -1691,9 +1757,9 @@ int coroutine_fn blk_co_ioctl(BlockBackend *blk, unsigned long int req,
     int ret;
     IO_OR_GS_CODE();
 
-    blk_inc_in_flight(blk);
+    blk_inc_bds_io_in_flight(blk);
     ret = blk_co_do_ioctl(blk, req, buf);
-    blk_dec_in_flight(blk);
+    blk_dec_bds_io_in_flight(blk);
 
     return ret;
 }
@@ -1715,7 +1781,7 @@ BlockAIOCB *blk_aio_ioctl(BlockBackend *blk, unsigned long int req, void *buf,
     return blk_aio_prwv(blk, req, 0, buf, blk_aio_ioctl_entry, 0, cb, opaque);
 }
 
-/* To be called between exactly one pair of blk_inc/dec_in_flight() */
+/* To be called between exactly one pair of blk_inc/dec_bds_io_in_flight() */
 static int coroutine_fn
 blk_co_do_pdiscard(BlockBackend *blk, int64_t offset, int64_t bytes)
 {
@@ -1757,14 +1823,14 @@ int coroutine_fn blk_co_pdiscard(BlockBackend *blk, int64_t offset,
     int ret;
     IO_OR_GS_CODE();
 
-    blk_inc_in_flight(blk);
+    blk_inc_bds_io_in_flight(blk);
     ret = blk_co_do_pdiscard(blk, offset, bytes);
-    blk_dec_in_flight(blk);
+    blk_dec_bds_io_in_flight(blk);
 
     return ret;
 }
 
-/* To be called between exactly one pair of blk_inc/dec_in_flight() */
+/* To be called between exactly one pair of blk_inc/dec_bds_io_in_flight() */
 static int coroutine_fn blk_co_do_flush(BlockBackend *blk)
 {
     IO_CODE();
@@ -1799,16 +1865,26 @@ int coroutine_fn blk_co_flush(BlockBackend *blk)
     int ret;
     IO_OR_GS_CODE();
 
-    blk_inc_in_flight(blk);
+    blk_inc_bds_io_in_flight(blk);
     ret = blk_co_do_flush(blk);
-    blk_dec_in_flight(blk);
+    blk_dec_bds_io_in_flight(blk);
 
     return ret;
+}
+
+static void blk_resume_queued_requests(BlockBackend *blk)
+{
+    assert(blk->quiesce_counter == 0 || blk->disable_request_queuing);
+
+    while (qemu_co_enter_next(&blk->queued_requests, NULL)) {
+        /* Resume all queued requests */
+    }
 }
 
 void blk_drain(BlockBackend *blk)
 {
     BlockDriverState *bs = blk_bs(blk);
+    bool disable_request_queuing;
     GLOBAL_STATE_CODE();
 
     if (bs) {
@@ -1816,9 +1892,20 @@ void blk_drain(BlockBackend *blk)
         bdrv_drained_begin(bs);
     }
 
+    /*
+     * We want blk_drain() to await all in-flight requests, including those that
+     * encompass and block on other potentially queuable requests.  Disable
+     * request queuing temporarily so we will not end in a deadlock.
+     */
+    disable_request_queuing = blk->disable_request_queuing;
+    blk_set_disable_request_queuing(blk, true);
+    blk_resume_queued_requests(blk);
+
     /* We may have -ENOMEDIUM completions in flight */
     AIO_WAIT_WHILE(blk_get_aio_context(blk),
                    qatomic_mb_read(&blk->in_flight) > 0);
+
+    blk_set_disable_request_queuing(blk, disable_request_queuing);
 
     if (bs) {
         bdrv_drained_end(bs);
@@ -1836,11 +1923,24 @@ void blk_drain_all(void)
 
     while ((blk = blk_all_next(blk)) != NULL) {
         AioContext *ctx = blk_get_aio_context(blk);
+        bool disable_request_queuing;
 
         aio_context_acquire(ctx);
 
+        /*
+         * We want blk_drain_all() to await all in-flight requests, including
+         * those that encompass and block on other potentially queuable
+         * requests.  Disable request queuing temporarily so we will not end in
+         * a deadlock.
+         */
+        disable_request_queuing = blk->disable_request_queuing;
+        blk_set_disable_request_queuing(blk, true);
+        blk_resume_queued_requests(blk);
+
         /* We may have -ENOMEDIUM completions in flight */
         AIO_WAIT_WHILE(ctx, qatomic_mb_read(&blk->in_flight) > 0);
+
+        blk_set_disable_request_queuing(blk, disable_request_queuing);
 
         aio_context_release(ctx);
     }
@@ -2591,7 +2691,12 @@ static bool blk_root_drained_poll(BdrvChild *child)
     if (blk->dev_ops && blk->dev_ops->drained_poll) {
         busy = blk->dev_ops->drained_poll(blk->dev_opaque);
     }
-    return busy || !!blk->in_flight;
+
+    /*
+     * This is BdrvChild.drained_poll(), i.e. only invoked for BDS drains, so
+     * we must only await requests that may actually directly submit BDS I/O.
+     */
+    return busy || !!blk->bds_io_in_flight;
 }
 
 static void blk_root_drained_end(BdrvChild *child)
@@ -2606,9 +2711,7 @@ static void blk_root_drained_end(BdrvChild *child)
         if (blk->dev_ops && blk->dev_ops->drained_end) {
             blk->dev_ops->drained_end(blk->dev_opaque);
         }
-        while (qemu_co_enter_next(&blk->queued_requests, NULL)) {
-            /* Resume all queued requests */
-        }
+        blk_resume_queued_requests(blk);
     }
 }
 
