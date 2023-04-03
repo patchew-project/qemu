@@ -248,13 +248,17 @@ nfs_co_generic_cb(int ret, struct nfs_context *nfs, void *data,
 {
     NFSRPC *task = private_data;
     task->ret = ret;
-    assert(!task->st);
     if (task->ret > 0 && task->iov) {
+        assert(!task->st);
         if (task->ret <= task->iov->size) {
             qemu_iovec_from_buf(task->iov, 0, data, task->ret);
         } else {
             task->ret = -EIO;
         }
+    }
+    if (task->ret == 0 && task->st) {
+        assert(!task->iov);
+        memcpy(task->st, data, sizeof(struct stat));
     }
     if (task->ret < 0) {
         error_report("NFS Error: %s", nfs_get_error(nfs));
@@ -713,29 +717,10 @@ static int nfs_has_zero_init(BlockDriverState *bs)
 }
 
 #if !defined(_WIN32)
-/* Called (via nfs_service) with QemuMutex held.  */
-static void
-nfs_get_allocated_file_size_cb(int ret, struct nfs_context *nfs, void *data,
-                               void *private_data)
-{
-    NFSRPC *task = private_data;
-    task->ret = ret;
-    if (task->ret == 0) {
-        memcpy(task->st, data, sizeof(struct stat));
-    }
-    if (task->ret < 0) {
-        error_report("NFS Error: %s", nfs_get_error(nfs));
-    }
-
-    /* Set task->complete before reading bs->wakeup.  */
-    qatomic_mb_set(&task->complete, 1);
-    bdrv_wakeup(task->bs);
-}
-
 static int64_t coroutine_fn nfs_co_get_allocated_file_size(BlockDriverState *bs)
 {
     NFSClient *client = bs->opaque;
-    NFSRPC task = {0};
+    NFSRPC task;
     struct stat st;
 
     if (bdrv_is_read_only(bs) &&
@@ -743,15 +728,19 @@ static int64_t coroutine_fn nfs_co_get_allocated_file_size(BlockDriverState *bs)
         return client->st_blocks * 512;
     }
 
-    task.bs = bs;
+    nfs_co_init_task(bs, &task);
     task.st = &st;
-    if (nfs_fstat_async(client->context, client->fh, nfs_get_allocated_file_size_cb,
-                        &task) != 0) {
-        return -ENOMEM;
-    }
+    WITH_QEMU_LOCK_GUARD(&client->mutex) {
+        if (nfs_fstat_async(client->context, client->fh, nfs_co_generic_cb,
+                            &task) != 0) {
+            return -ENOMEM;
+        }
 
-    nfs_set_events(client);
-    BDRV_POLL_WHILE(bs, !task.complete);
+        nfs_set_events(client);
+    }
+    while (!task.complete) {
+        qemu_coroutine_yield();
+    }
 
     return (task.ret < 0 ? task.ret : st.st_blocks * 512);
 }
