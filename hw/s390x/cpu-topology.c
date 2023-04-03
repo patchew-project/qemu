@@ -20,6 +20,7 @@
 #include "hw/s390x/cpu-topology.h"
 #include "qapi/qapi-commands-machine-target.h"
 #include "qapi/qapi-events-machine-target.h"
+#include "qapi/type-helpers.h"
 
 /*
  * s390_topology is used to keep the topology information.
@@ -485,4 +486,19 @@ void qmp_set_cpu_topology(uint16_t core,
     s390_change_topology(core, has_socket, socket, has_book, book,
                          has_drawer, drawer, has_entitlement, entitlement,
                          has_dedicated, dedicated, errp);
+}
+
+CpuPolarizationInfo *qmp_query_cpu_polarization(Error **errp)
+{
+    struct S390CcwMachineState *s390ms = S390_CCW_MACHINE(current_machine);
+    CpuPolarizationInfo *info = g_new0(CpuPolarizationInfo, 1);
+
+
+    if (s390ms->vertical_polarization) {
+        info->polarization = S390_CPU_POLARIZATION_VERTICAL;
+    } else {
+        info->polarization = S390_CPU_POLARIZATION_HORIZONTAL;
+    }
+
+    return info;
 }
