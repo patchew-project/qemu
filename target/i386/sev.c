@@ -922,7 +922,7 @@ int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
 
     ret = ram_block_discard_disable(true);
     if (ret) {
-        error_report("%s: cannot disable RAM discard", __func__);
+        error_setg(errp, "%s: cannot disable RAM discard", __func__);
         return -1;
     }
 
@@ -968,15 +968,14 @@ int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
 
     if (sev_es_enabled()) {
         if (!kvm_kernel_irqchip_allowed()) {
-            error_report("%s: SEV-ES guests require in-kernel irqchip support",
-                         __func__);
+            error_setg(errp, "%s: SEV-ES guests require in-kernel irqchip support",
+                       __func__);
             goto err;
         }
 
         if (!(status.flags & SEV_STATUS_FLAGS_CONFIG_ES)) {
-            error_report("%s: guest policy requires SEV-ES, but "
-                         "host SEV-ES support unavailable",
-                         __func__);
+            error_setg(errp, "%s: guest policy requires SEV-ES, but host SEV-ES support unavailable",
+                       __func__);
             goto err;
         }
         cmd = KVM_SEV_ES_INIT;
