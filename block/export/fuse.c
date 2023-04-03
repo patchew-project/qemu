@@ -244,7 +244,9 @@ static void read_from_fuse_export(void *opaque)
     FuseExport *exp = opaque;
     int ret;
 
+    aio_context_acquire(exp->common.ctx);
     blk_exp_ref(&exp->common);
+    aio_context_release(exp->common.ctx);
 
     do {
         ret = fuse_session_receive_buf(exp->fuse_session, &exp->fuse_buf);
@@ -256,7 +258,9 @@ static void read_from_fuse_export(void *opaque)
     fuse_session_process_buf(exp->fuse_session, &exp->fuse_buf);
 
 out:
+    aio_context_acquire(exp->common.ctx);
     blk_exp_unref(&exp->common);
+    aio_context_release(exp->common.ctx);
 }
 
 static void fuse_export_shutdown(BlockExport *blk_exp)
