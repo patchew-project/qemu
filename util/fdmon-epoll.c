@@ -64,11 +64,6 @@ static int fdmon_epoll_wait(AioContext *ctx, AioHandlerList *ready_list,
     int i, ret = 0;
     struct epoll_event events[128];
 
-    /* Fall back while external clients are disabled */
-    if (qatomic_read(&ctx->external_disable_cnt)) {
-        return fdmon_poll_ops.wait(ctx, ready_list, timeout);
-    }
-
     if (timeout > 0) {
         ret = qemu_poll_ns(&pfd, 1, timeout);
         if (ret > 0) {
@@ -128,11 +123,6 @@ static bool fdmon_epoll_try_enable(AioContext *ctx)
 bool fdmon_epoll_try_upgrade(AioContext *ctx, unsigned npfd)
 {
     if (ctx->epollfd < 0) {
-        return false;
-    }
-
-    /* Do not upgrade while external clients are disabled */
-    if (qatomic_read(&ctx->external_disable_cnt)) {
         return false;
     }
 
