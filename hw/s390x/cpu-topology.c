@@ -24,12 +24,16 @@
  * .cores_per_socket: tracks information on the count of cores
  *                    per socket.
  * .smp: keeps track of the machine topology.
+ * .list: queue the topology entries inside which
+ *        we keep the information on the CPU topology.
+ * .polarization: the current subsystem polarization
  *
  */
 S390Topology s390_topology = {
     /* will be initialized after the cpu model is realized */
     .cores_per_socket = NULL,
     .smp = NULL,
+    .list = QTAILQ_HEAD_INITIALIZER(s390_topology.list),
 };
 
 /**
@@ -64,14 +68,22 @@ bool s390_has_topology(void)
  * Allocate an array to keep the count of cores per socket.
  * The index of the array starts at socket 0 from book 0 and
  * drawer 0 up to the maximum allowed by the machine topology.
+ *
+ * Insert a sentinel entry with a non null value.
+ * This entry will never be free.
  */
 static void s390_topology_init(MachineState *ms)
 {
     CpuTopology *smp = &ms->smp;
+    S390TopologyEntry *entry;
 
     s390_topology.smp = smp;
     s390_topology.cores_per_socket = g_new0(uint8_t, smp->sockets *
                                             smp->books * smp->drawers);
+
+    entry = g_malloc0(sizeof(S390TopologyEntry));
+    entry->id.sentinel = 0xff;
+    QTAILQ_INSERT_HEAD(&s390_topology.list, entry, next);
 }
 
 /**
