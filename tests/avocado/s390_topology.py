@@ -238,6 +238,7 @@ class S390CPUTopology(LinuxKernelTest):
 
         self.check_topology(0, 0, 0, 0, 'medium', False)
 
+    @skipIf(skip_basis, 'skipping basis tests')
     def test_entitlement(self):
         """
         This test verifies that QEMU modifies the polarization
@@ -294,6 +295,7 @@ class S390CPUTopology(LinuxKernelTest):
         self.check_topology(2, 1, 0, 0, 'high', False)
         self.check_topology(3, 1, 0, 0, 'high', False)
 
+    @skipIf(skip_basis, 'skipping basis tests')
     def test_dedicated(self):
         """
         This test verifies that QEMU modifies the entitlement change correctly
@@ -328,6 +330,7 @@ class S390CPUTopology(LinuxKernelTest):
 
         self.check_topology(0, 0, 0, 0, 'high', True)
 
+    @skipIf(skip_basis, 'skipping basis tests')
     def test_socket_full(self):
         """
         This test verifies that QEMU does not accept to overload a socket.
@@ -353,4 +356,55 @@ class S390CPUTopology(LinuxKernelTest):
 
         res = self.vm.qmp('set-cpu-topology',
                           {'core-id': 2, 'socket-id': 0, 'book-id': 1})
+        self.assertEqual(res['return'], {})
+
+    def test_dedicated_error(self):
+        """
+        This test verifies that QEMU refuses to lower the entitlement
+        of a dedicated CPU
+
+        :avocado: tags=arch:s390x
+        :avocado: tags=machine:s390-ccw-virtio
+        """
+        self.kernel_init()
+        self.vm.launch()
+        self.wait_for_console_pattern('no job control')
+
+        self.system_init()
+
+        res = self.vm.qmp('set-cpu-topology',
+                          {'core-id': 0, 'dedicated': True})
+        self.assertEqual(res['return'], {})
+
+        self.check_topology(0, 0, 0, 0, 'high', True)
+
+        exec_command(self, 'echo 1 > /sys/devices/system/cpu/dispatching')
+        time.sleep(0.2)
+        exec_command_and_wait_for_pattern(self,
+                '/bin/cat /sys/devices/system/cpu/dispatching', '1')
+
+        self.check_topology(0, 0, 0, 0, 'high', True)
+
+        res = self.vm.qmp('set-cpu-topology',
+                          {'core-id': 0, 'entitlement': 'low', 'dedicated': True})
+        self.assertEqual(res['error']['class'], 'GenericError')
+
+        res = self.vm.qmp('set-cpu-topology',
+                          {'core-id': 0, 'entitlement': 'low'})
+        self.assertEqual(res['error']['class'], 'GenericError')
+
+        res = self.vm.qmp('set-cpu-topology',
+                          {'core-id': 0, 'entitlement': 'medium', 'dedicated': True})
+        self.assertEqual(res['error']['class'], 'GenericError')
+
+        res = self.vm.qmp('set-cpu-topology',
+                          {'core-id': 0, 'entitlement': 'medium'})
+        self.assertEqual(res['error']['class'], 'GenericError')
+
+        res = self.vm.qmp('set-cpu-topology',
+                          {'core-id': 0, 'entitlement': 'low', 'dedicated': False})
+        self.assertEqual(res['return'], {})
+
+        res = self.vm.qmp('set-cpu-topology',
+                          {'core-id': 0, 'entitlement': 'medium', 'dedicated': False})
         self.assertEqual(res['return'], {})
