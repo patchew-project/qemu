@@ -9,6 +9,7 @@
  * top-level directory.
  */
 
+#include <sys/random.h>
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/iov.h"
@@ -20,7 +21,11 @@
 #include "sysemu/rng.h"
 #include "sysemu/runstate.h"
 #include "qom/object_interfaces.h"
+#include "migration/misc.h"
 #include "trace.h"
+#include <stdint.h>
+
+#define VIRTIO_RNG_VM_VERSION  1
 
 static bool is_guest_ready(VirtIORNG *vrng)
 {
@@ -42,6 +47,112 @@ static size_t get_request_size(VirtQueue *vq, unsigned quota)
 }
 
 static void virtio_rng_process(VirtIORNG *vrng);
+
+static VirtQueue *get_active_leak_queue(VirtIORNG *vrng)
+{
+    size_t queue = vrng->active_leak_queue;
+    return vrng->leakq[queue];
+}
+
+static size_t swap_active_leak_queue(VirtIORNG *vrng)
+{
+    size_t old_active = vrng->active_leak_queue;
+    vrng->active_leak_queue = (old_active + 1) % 2;
+    return old_active;
+}
+
+static VirtQueue *get_signaled_leak_queue(VirtIORNG *vrng)
+{
+    int32_t signaled_leak_queue = vrng->signaled_leak_queue;
+
+    if (signaled_leak_queue == -1) {
+        return NULL;
+    }
+
+    return vrng->leakq[signaled_leak_queue];
+}
+
+static size_t handle_fill_on_leak_command(VirtIORNG *vrng, VirtQueue *vq,
+                                          VirtQueueElement *elem)
+{
+    size_t bytes = iov_size(elem->in_sg, elem->in_num);
+    uint8_t *buffer = g_new0(uint8_t, bytes);
+
+    /*
+     * Probably, the correct thing to do is add a synchronous
+     * API call to RngBackend and use it here.
+     */
+    if (getrandom(buffer, bytes, 0) != bytes) {
+        fprintf(stderr, "qemu-virtio-rng: could not get random bytes");
+        return 0;
+    }
+
+    iov_from_buf(elem->in_sg, elem->in_num, 0, buffer, bytes);
+
+    return bytes;
+}
+
+static size_t handle_copy_on_leak_command(VirtIORNG *vrng, VirtQueue *vq,
+                                          VirtQueueElement *elem)
+{
+    size_t out_size, in_size, offset = 0;
+
+    out_size = iov_size(elem->out_sg, elem->out_num);
+    in_size = iov_size(elem->in_sg, elem->in_num);
+
+    if (out_size != in_size) {
+        return 0;
+    }
+
+    for (int i = 0; i < elem->out_num; ++i) {
+        struct iovec *iov = &elem->out_sg[i];
+        offset += iov_from_buf(elem->in_sg, elem->in_num, offset, iov->iov_base,
+                               iov->iov_len);
+    }
+
+    return offset;
+}
+
+static void virtio_rng_process_leak(VirtIORNG *vrng, VirtQueue *vq)
+{
+    VirtQueueElement *elem;
+    VirtIODevice *vdev = VIRTIO_DEVICE(vrng);
+    size_t len;
+
+    if (!runstate_check(RUN_STATE_RUNNING)) {
+        return;
+    }
+
+    while ((elem = virtqueue_pop(vq, sizeof(VirtQueueElement)))) {
+        /*
+         * If we have a write buffer this is a copy-on-leak command
+         * otherwise a fill-on-leak command
+         */
+        if (elem->out_num) {
+            len = handle_copy_on_leak_command(vrng, vq, elem);
+        } else {
+            len = handle_fill_on_leak_command(vrng, vq, elem);
+        }
+
+        virtqueue_push(vq, elem, len);
+        g_free(elem);
+    }
+    virtio_notify(vdev, vq);
+}
+
+static int signal_entropy_leak(VirtIORNG *vrng)
+{
+    VirtQueue *activeq = get_active_leak_queue(vrng);
+
+    /*
+     * Process all the buffers in the active leak queue
+     * and then swap active leak queues.
+     */
+    virtio_rng_process_leak(vrng, activeq);
+    vrng->signaled_leak_queue = swap_active_leak_queue(vrng);
+
+    return 0;
+}
 
 /* Send data from a char device over to the guest */
 static void chr_read(void *opaque, const void *buf, size_t size)
@@ -128,9 +239,29 @@ static void handle_input(VirtIODevice *vdev, VirtQueue *vq)
     virtio_rng_process(vrng);
 }
 
+static void handle_leakq(VirtIODevice *vdev, VirtQueue *vq)
+{
+    VirtIORNG *vrng = VIRTIO_RNG(vdev);
+    VirtQueue *signaled_queue = get_signaled_leak_queue(vrng);
+
+    if (!is_guest_ready(vrng)) {
+        return;
+    }
+
+    /*
+     * If we received a request on an already signalled leak queue
+     * we need to handle it immediately, otherwise we leave the buffer(s)
+     * in the virtqueue and we will handle them once an entropy leak event
+     * occurs.
+     */
+    if (vq == signaled_queue) {
+        virtio_rng_process_leak(vrng, vq);
+    }
+}
+
 static uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp)
 {
-    return f;
+    return f | (1 << VIRTIO_RNG_F_LEAK);
 }
 
 static void virtio_rng_vm_state_change(void *opaque, bool running,
@@ -218,11 +349,14 @@ static void virtio_rng_device_realize(DeviceState *dev, Error **errp)
     virtio_init(vdev, VIRTIO_ID_RNG, 0);
 
     vrng->vq = virtio_add_queue(vdev, 8, handle_input);
+    vrng->leakq[0] = virtio_add_queue(vdev, 8, handle_leakq);
+    vrng->leakq[1] = virtio_add_queue(vdev, 8, handle_leakq);
+    vrng->active_leak_queue = 0;
+    vrng->signaled_leak_queue = -1;
     vrng->quota_remaining = vrng->conf.max_bytes;
     vrng->rate_limit_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
                                                check_rate_limit, vrng);
     vrng->activate_timer = true;
-
     vrng->vmstate = qemu_add_vm_change_state_handler(virtio_rng_vm_state_change,
                                                      vrng);
 }
@@ -235,8 +369,39 @@ static void virtio_rng_device_unrealize(DeviceState *dev)
     qemu_del_vm_change_state_handler(vrng->vmstate);
     timer_free(vrng->rate_limit_timer);
     virtio_del_queue(vdev, 0);
+    virtio_del_queue(vdev, 1);
+    virtio_del_queue(vdev, 2);
     virtio_cleanup(vdev);
 }
+
+/*
+ * After saving the VM state or loading a VM from a snapshot,
+ * we need to signal the guest for a leak event
+ */
+static int virtio_rng_post_save_device(void *opaque)
+{
+    VirtIORNG *vrng = opaque;
+    return signal_entropy_leak(vrng);
+}
+
+static int virtio_rng_post_load_device(void *opaque, int version_id)
+{
+    VirtIORNG *vrng = opaque;
+    return signal_entropy_leak(vrng);
+}
+
+static const VMStateDescription vmstate_virtio_rng_device = {
+    .name = "virtio-rng-device",
+    .version_id = VIRTIO_RNG_VM_VERSION,
+    .minimum_version_id = VIRTIO_RNG_VM_VERSION,
+    .post_save = virtio_rng_post_save_device,
+    .post_load = virtio_rng_post_load_device,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(active_leak_queue, VirtIORNG),
+        VMSTATE_INT32(signaled_leak_queue, VirtIORNG),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static const VMStateDescription vmstate_virtio_rng = {
     .name = "virtio-rng",
@@ -272,6 +437,7 @@ static void virtio_rng_class_init(ObjectClass *klass, void *data)
     vdc->unrealize = virtio_rng_device_unrealize;
     vdc->get_features = get_features;
     vdc->set_status = virtio_rng_set_status;
+    vdc->vmsd = &vmstate_virtio_rng_device;
 }
 
 static const TypeInfo virtio_rng_info = {

@@ -31,8 +31,15 @@ struct VirtIORNGConf {
 struct VirtIORNG {
     VirtIODevice parent_obj;
 
-    /* Only one vq - guest puts buffer(s) on it when it needs entropy */
+    /*
+     * One vq for entropy requests and a pair of vqs for the reporting entropy
+     * leak events
+     */
     VirtQueue *vq;
+    VirtQueue *leakq[2];
+
+    uint32_t active_leak_queue;
+    int32_t signaled_leak_queue;
 
     VirtIORNGConf conf;
 
