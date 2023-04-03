@@ -29,6 +29,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-clock.h"
 #include "qemu/error-report.h"
+#include "exec/address-spaces.h"
 #include "hw/arm/stm32f100_soc.h"
 #include "hw/arm/boot.h"
 
@@ -41,6 +42,9 @@ static void stm32vldiscovery_init(MachineState *machine)
 {
     DeviceState *dev;
     Clock *sysclk;
+
+    /* Allow overriding the emulated board's RAM size */
+    memory_region_add_subregion(get_system_memory(), SRAM_BASE_ADDRESS, machine->ram);
 
     /* This clock doesn't need migration because it is fixed-frequency */
     sysclk = clock_new(OBJECT(machine), "SYSCLK");
@@ -60,6 +64,8 @@ static void stm32vldiscovery_machine_init(MachineClass *mc)
 {
     mc->desc = "ST STM32VLDISCOVERY (Cortex-M3)";
     mc->init = stm32vldiscovery_init;
+    mc->default_ram_id = "stm32vldiscovery.ram";
+    mc->default_ram_size = SRAM_SIZE;
 }
 
 DEFINE_MACHINE("stm32vldiscovery", stm32vldiscovery_machine_init)
