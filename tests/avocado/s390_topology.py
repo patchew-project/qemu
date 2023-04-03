@@ -433,3 +433,36 @@ class S390CPUTopology(LinuxKernelTest):
         self.assertEqual(res['error']['class'], 'GenericError')
 
         self.check_topology(0, 0, 0, 0, 'medium', False)
+
+    def test_query_polarization(self):
+        """
+        This test verifies that query-cpu-polarization gives the right
+        answer
+
+        :avocado: tags=arch:s390x
+        :avocado: tags=machine:s390-ccw-virtio
+        """
+        self.kernel_init()
+        self.vm.launch()
+        self.wait_for_console_pattern('no job control')
+
+        self.system_init()
+
+        res = self.vm.qmp('query-cpu-polarization')
+        self.assertEqual(res['return']['polarization'], 'horizontal')
+
+        exec_command(self, 'echo 1 > /sys/devices/system/cpu/dispatching')
+        time.sleep(0.2)
+        exec_command_and_wait_for_pattern(self,
+                '/bin/cat /sys/devices/system/cpu/dispatching', '1')
+
+        res = self.vm.qmp('query-cpu-polarization')
+        self.assertEqual(res['return']['polarization'], 'vertical')
+
+        exec_command(self, 'echo 0 > /sys/devices/system/cpu/dispatching')
+        time.sleep(0.2)
+        exec_command_and_wait_for_pattern(self,
+                '/bin/cat /sys/devices/system/cpu/dispatching', '0')
+
+        res = self.vm.qmp('query-cpu-polarization')
+        self.assertEqual(res['return']['polarization'], 'horizontal')
