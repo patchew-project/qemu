@@ -107,6 +107,15 @@ class S390CPUTopology(LinuxKernelTest):
                          '-initrd', initrd_path,
                          '-append', kernel_command_line)
 
+    def system_init(self):
+        self.log.info("System init")
+        exec_command(self, 'mount proc -t proc /proc')
+        time.sleep(0.2)
+        exec_command(self, 'mount sys -t sysfs /sys')
+        time.sleep(0.2)
+        exec_command_and_wait_for_pattern(self,
+                '/bin/cat /sys/devices/system/cpu/dispatching', '0')
+
     def test_single(self):
         self.kernel_init()
         self.vm.launch()
@@ -116,7 +125,6 @@ class S390CPUTopology(LinuxKernelTest):
     def test_default(self):
         """
         This test checks the implicite topology.
-
         :avocado: tags=arch:s390x
         :avocado: tags=machine:s390-ccw-virtio
         """
@@ -194,3 +202,31 @@ class S390CPUTopology(LinuxKernelTest):
         self.wait_for_console_pattern('no job control')
         self.check_topology(1, 1, 1, 1, 'medium', False)
 
+    def test_polarisation(self):
+        """
+        This test verifies that QEMU modifies the entitlement change after
+        several guest polarization change requests.
+
+        :avocado: tags=arch:s390x
+        :avocado: tags=machine:s390-ccw-virtio
+        """
+        self.kernel_init()
+        self.vm.launch()
+        self.wait_for_console_pattern('no job control')
+
+        self.system_init()
+        self.check_topology(0, 0, 0, 0, 'medium', False)
+
+        exec_command(self, 'echo 1 > /sys/devices/system/cpu/dispatching')
+        time.sleep(0.2)
+        exec_command_and_wait_for_pattern(self,
+                '/bin/cat /sys/devices/system/cpu/dispatching', '1')
+
+        self.check_topology(0, 0, 0, 0, 'medium', False)
+
+        exec_command(self, 'echo 0 > /sys/devices/system/cpu/dispatching')
+        time.sleep(0.2)
+        exec_command_and_wait_for_pattern(self,
+                '/bin/cat /sys/devices/system/cpu/dispatching', '0')
+
+        self.check_topology(0, 0, 0, 0, 'medium', False)
