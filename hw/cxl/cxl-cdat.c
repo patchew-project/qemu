@@ -128,6 +128,7 @@ static void ct3_load_cdat(CDATObject *cdat, Error **errp)
 
     if (fread(cdat->buf, file_size, 1, fp) == 0) {
         error_setg(errp, "CDAT: File read failed");
+        fclose(fp);
         return;
     }
 
