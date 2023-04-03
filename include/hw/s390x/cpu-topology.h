@@ -59,6 +59,7 @@ static inline void s390_topology_setup_cpu(MachineState *ms,
 
 extern S390Topology s390_topology;
 int s390_socket_nb(S390CPU *cpu);
+void s390_topology_reset(void);
 
 static inline int s390_std_socket(int n, CpuTopology *smp)
 {
