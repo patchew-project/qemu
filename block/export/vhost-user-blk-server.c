@@ -207,22 +207,6 @@ static const VuDevIface vu_blk_iface = {
     .process_msg           = vu_blk_process_msg,
 };
 
-static void blk_aio_attached(AioContext *ctx, void *opaque)
-{
-    VuBlkExport *vexp = opaque;
-
-    vexp->export.ctx = ctx;
-    vhost_user_server_attach_aio_context(&vexp->vu_server, ctx);
-}
-
-static void blk_aio_detach(void *opaque)
-{
-    VuBlkExport *vexp = opaque;
-
-    vhost_user_server_detach_aio_context(&vexp->vu_server);
-    vexp->export.ctx = NULL;
-}
-
 static void
 vu_blk_initialize_config(BlockDriverState *bs,
                          struct virtio_blk_config *config,
@@ -254,6 +238,25 @@ static void vu_blk_exp_request_shutdown(BlockExport *exp)
     vhost_user_server_stop(&vexp->vu_server);
 }
 
+/* Called with vexp->export.ctx acquired */
+static void vu_blk_drained_begin(void *opaque)
+{
+    VuBlkExport *vexp = opaque;
+
+    vhost_user_server_detach_aio_context(&vexp->vu_server);
+}
+
+/* Called with vexp->export.blk AioContext acquired */
+static void vu_blk_drained_end(void *opaque)
+{
+    VuBlkExport *vexp = opaque;
+
+    /* Refresh AioContext in case it changed */
+    vexp->export.ctx = blk_get_aio_context(vexp->export.blk);
+
+    vhost_user_server_attach_aio_context(&vexp->vu_server, vexp->export.ctx);
+}
+
 /*
  * Ensures that bdrv_drained_begin() waits until in-flight requests complete.
  *
@@ -267,6 +270,8 @@ static bool vu_blk_drained_poll(void *opaque)
 }
 
 static const BlockDevOps vu_blk_dev_ops = {
+    .drained_begin = vu_blk_drained_begin,
+    .drained_end   = vu_blk_drained_end,
     .drained_poll  = vu_blk_drained_poll,
 };
 
@@ -309,13 +314,9 @@ static int vu_blk_exp_create(BlockExport *exp, BlockExportOptions *opts,
                              logical_block_size, num_queues);
 
     blk_set_dev_ops(exp->blk, &vu_blk_dev_ops, vexp);
-    blk_add_aio_context_notifier(exp->blk, blk_aio_attached, blk_aio_detach,
-                                 vexp);
 
     if (!vhost_user_server_start(&vexp->vu_server, vu_opts->addr, exp->ctx,
                                  num_queues, &vu_blk_iface, errp)) {
-        blk_remove_aio_context_notifier(exp->blk, blk_aio_attached,
-                                        blk_aio_detach, vexp);
         blk_set_dev_ops(exp->blk, NULL, NULL);
         g_free(vexp->handler.serial);
         return -EADDRNOTAVAIL;
@@ -328,8 +329,6 @@ static void vu_blk_exp_delete(BlockExport *exp)
 {
     VuBlkExport *vexp = container_of(exp, VuBlkExport, export);
 
-    blk_remove_aio_context_notifier(exp->blk, blk_aio_attached, blk_aio_detach,
-                                    vexp);
     blk_set_dev_ops(exp->blk, NULL, NULL);
     g_free(vexp->handler.serial);
 }
