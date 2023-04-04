@@ -169,11 +169,12 @@ SRST
 ERST
 
 DEF("cpu", HAS_ARG, QEMU_OPTION_cpu,
-    "-cpu cpu        select CPU ('-cpu help' for list)\n", QEMU_ARCH_ALL)
+    "-cpu cpu        select CPU ('-cpu help' for list)\n"
+    "                use '-cpu cpu,help' to print possible properties\n", QEMU_ARCH_ALL)
 SRST
 ``-cpu model``
-    Select CPU model (``-cpu help`` for list and additional feature
-    selection)
+    Select CPU model (``-cpu help`` and ``-cpu cpu,help``) for list and additional feature
+    selection
 ERST
 
 DEF("accel", HAS_ARG, QEMU_OPTION_accel,

@@ -174,5 +174,7 @@ typedef void (*cpu_model_expansion_func)(CpuModelExpansionType type,
 CpuModelExpansionInfo *get_cpu_model_expansion_info(CpuModelExpansionType type,
                                                     CpuModelInfo *model,
                                                     Error **errp);
+void list_cpu_model_expansion(CpuModelExpansionType type,
+                              CpuModelInfo *model, Error **errp);
 
 #endif /* CPU_COMMON_H */
