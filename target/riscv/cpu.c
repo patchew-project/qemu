@@ -1193,6 +1193,8 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
 
 
 #ifndef CONFIG_USER_ONLY
+    cs->tcg_cflags |= CF_PCREL;
+
     if (cpu->cfg.ext_sstc) {
         riscv_timer_init(cpu);
     }
