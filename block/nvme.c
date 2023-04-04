@@ -512,7 +512,6 @@ static int nvme_admin_cmd_sync(BlockDriverState *bs, NvmeCmd *cmd)
 {
     BDRVNVMeState *s = bs->opaque;
     NVMeQueuePair *q = s->queues[INDEX_ADMIN];
-    AioContext *aio_context = bdrv_get_aio_context(bs);
     NVMeRequest *req;
     int ret = -EINPROGRESS;
     req = nvme_get_free_req_nowait(q);
@@ -521,7 +520,7 @@ static int nvme_admin_cmd_sync(BlockDriverState *bs, NvmeCmd *cmd)
     }
     nvme_submit_command(q, req, cmd, nvme_admin_cmd_sync_cb, &ret);
 
-    AIO_WAIT_WHILE(aio_context, ret == -EINPROGRESS);
+    AIO_WAIT_WHILE_UNLOCKED(NULL, ret == -EINPROGRESS);
     return ret;
 }
 
