@@ -452,18 +452,6 @@ void kvm_cpu_synchronize_state(CPUState *cpu);
 void kvm_init_cpu_signals(CPUState *cpu);
 
 /**
- * kvm_arch_irqchip_create:
- * @KVMState: The KVMState pointer
- *
- * Allow architectures to create an in-kernel irq chip themselves.
- *
- * Returns: < 0: error
- *            0: irq chip was not created
- *          > 0: irq chip was created
- */
-int kvm_arch_irqchip_create(KVMState *s);
-
-/**
  * kvm_set_one_reg - set a register value in KVM via KVM_SET_ONE_REG ioctl
  * @id: The register ID
  * @source: The pointer to the value to be set. It must point to a variable

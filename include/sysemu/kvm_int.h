@@ -140,4 +140,17 @@ void kvm_set_max_memslot_size(hwaddr max_slot_size);
  * Return: None.
  */
 void kvm_hwpoison_page_add(ram_addr_t ram_addr);
+
+/**
+ * kvm_arch_irqchip_create:
+ * @KVMState: The KVMState pointer
+ *
+ * Allow architectures to create an in-kernel irq chip themselves.
+ *
+ * Returns: < 0: error
+ *            0: irq chip was not created
+ *          > 0: irq chip was created
+ */
+int kvm_arch_irqchip_create(KVMState *s);
+
 #endif
