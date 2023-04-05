@@ -201,10 +201,12 @@ static bool kvmtimer_needed(void *opaque)
 
 static int cpu_post_load(void *opaque, int version_id)
 {
+#ifdef CONFIG_KVM
     RISCVCPU *cpu = opaque;
     CPURISCVState *env = &cpu->env;
 
     env->kvm_timer_dirty = true;
+#endif
     return 0;
 }
 
@@ -215,9 +217,11 @@ static const VMStateDescription vmstate_kvmtimer = {
     .needed = kvmtimer_needed,
     .post_load = cpu_post_load,
     .fields = (VMStateField[]) {
+#ifdef CONFIG_KVM
         VMSTATE_UINT64(env.kvm_timer_time, RISCVCPU),
         VMSTATE_UINT64(env.kvm_timer_compare, RISCVCPU),
         VMSTATE_UINT64(env.kvm_timer_state, RISCVCPU),
+#endif
         VMSTATE_END_OF_LIST()
     }
 };
