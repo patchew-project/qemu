@@ -416,27 +416,33 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
             qemu_log("MAP_ALIGNED(%u) ",
                      (flags & MAP_ALIGNMENT_MASK) >> MAP_ALIGNMENT_SHIFT);
         }
+#ifdef MAP_GUARD
         if (flags & MAP_GUARD) {
             qemu_log("MAP_GUARD ");
         }
+#endif
         if (flags & MAP_FIXED) {
             qemu_log("MAP_FIXED ");
         }
         if (flags & MAP_ANON) {
             qemu_log("MAP_ANON ");
         }
+#ifdef MAP_EXCL
         if (flags & MAP_EXCL) {
             qemu_log("MAP_EXCL ");
         }
+#endif
         if (flags & MAP_PRIVATE) {
             qemu_log("MAP_PRIVATE ");
         }
         if (flags & MAP_SHARED) {
             qemu_log("MAP_SHARED ");
         }
+#ifdef MAP_NOCORE
         if (flags & MAP_NOCORE) {
             qemu_log("MAP_NOCORE ");
         }
+#endif
         if (flags & MAP_STACK) {
             qemu_log("MAP_STACK ");
         }
@@ -454,6 +460,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
             goto fail;
         }
     }
+#ifdef MAP_GUARD
     if ((flags & MAP_GUARD) && (prot != PROT_NONE || fd != -1 ||
         offset != 0 || (flags & (MAP_SHARED | MAP_PRIVATE |
         /* MAP_PREFAULT | */ /* MAP_PREFAULT not in mman.h */
@@ -461,6 +468,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
         errno = EINVAL;
         goto fail;
     }
+#endif
 
     if (offset & ~TARGET_PAGE_MASK) {
         errno = EINVAL;
@@ -608,11 +616,13 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
             goto the_end;
         }
 
+#ifdef MAP_EXCL
         /* Reject the mapping if any page within the range is mapped */
         if ((flags & MAP_EXCL) && page_check_range(start, len, 0) < 0) {
             errno = EINVAL;
             goto fail;
         }
+#endif
 
         /* handle the start of the mapping */
         if (start > real_start) {
