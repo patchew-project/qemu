@@ -97,10 +97,18 @@ struct IGBState {
 static void igb_write_config(PCIDevice *dev, uint32_t addr,
     uint32_t val, int len)
 {
+    uint16_t num_vfs_curr;
     IGBState *s = IGB(dev);
+    PCIESriovPF *pf = &dev->exp.sriov_pf;
 
+    uint16_t num_vfs_prev = pf->num_vfs;
     trace_igb_write_config(addr, val, len);
     pci_default_write_config(dev, addr, val, len);
+
+    num_vfs_curr = pf->num_vfs;
+    if (num_vfs_curr != num_vfs_prev) {
+        igb_core_num_vfs_change_handle(&s->core);
+    }
 
     if (range_covers_byte(addr, len, PCI_COMMAND) &&
         (dev->config[PCI_COMMAND] & PCI_COMMAND_MASTER)) {

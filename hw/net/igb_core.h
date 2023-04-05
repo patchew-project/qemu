@@ -143,4 +143,7 @@ igb_receive_iov(IGBCore *core, const struct iovec *iov, int iovcnt);
 void
 igb_start_recv(IGBCore *core);
 
+void
+igb_core_num_vfs_change_handle(IGBCore *core);
+
 #endif

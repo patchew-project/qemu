@@ -3810,24 +3810,59 @@ igb_vm_state_change(void *opaque, bool running, RunState state)
     }
 }
 
+static void
+igb_core_init_queues_tx_packet(IGBCore *core)
+{
+    PCIDevice *dev;
+    int i;
+
+    for (i = 0; i < IGB_NUM_QUEUES; i++) {
+        dev = pcie_sriov_get_vf_at_index(core->owner, i % 8);
+        if (!dev) {
+            dev = core->owner;
+        }
+
+        net_tx_pkt_init(&core->tx[i].tx_pkt, dev, E1000E_MAX_TX_FRAGS);
+    }
+}
+
+static void
+igb_core_uninit_queues_tx_packet(IGBCore *core)
+{
+    int i;
+
+    for (i = 0; i < IGB_NUM_QUEUES; i++) {
+        net_tx_pkt_reset(core->tx[i].tx_pkt);
+        net_tx_pkt_uninit(core->tx[i].tx_pkt);
+    }
+}
+
+static void
+igb_core_reinit_queues_tx_packet(IGBCore *core)
+{
+    igb_core_uninit_queues_tx_packet(core);
+    igb_core_init_queues_tx_packet(core);
+}
+
+void
+igb_core_num_vfs_change_handle(IGBCore *core)
+{
+    igb_core_reinit_queues_tx_packet(core);
+}
+
 void
 igb_core_pci_realize(IGBCore        *core,
                      const uint16_t *eeprom_templ,
                      uint32_t        eeprom_size,
                      const uint8_t  *macaddr)
 {
-    int i;
-
     core->autoneg_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
                                        igb_autoneg_timer, core);
     igb_intrmgr_pci_realize(core);
 
     core->vmstate = qemu_add_vm_change_state_handler(igb_vm_state_change, core);
 
-    for (i = 0; i < IGB_NUM_QUEUES; i++) {
-        net_tx_pkt_init(&core->tx[i].tx_pkt, core->owner, E1000E_MAX_TX_FRAGS);
-    }
-
+    igb_core_init_queues_tx_packet(core);
     net_rx_pkt_init(&core->rx_pkt);
 
     e1000x_core_prepare_eeprom(core->eeprom,
