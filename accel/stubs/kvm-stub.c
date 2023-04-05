@@ -29,10 +29,6 @@ bool kvm_ioeventfd_any_length_allowed;
 bool kvm_msi_use_devid;
 bool kvm_direct_msi_allowed;
 
-void kvm_flush_coalesced_mmio_buffer(void)
-{
-}
-
 void kvm_cpu_synchronize_state(CPUState *cpu)
 {
 }
