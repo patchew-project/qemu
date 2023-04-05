@@ -3038,6 +3038,38 @@ flatview_extend_translation(FlatView *fv, hwaddr addr,
     }
 }
 
+enum ListenerDirection { Forward, Reverse };
+
+/*
+ * This will require a change to the memory listener callbacks:
+ * while it currently uses "self" as first argument for the callbacks, this new
+ * approach is going to use an "opaque" member, effectively following the model
+ * used for MemoryRegion and MemoryRegionOps.
+ */
+#define MEMORY_LISTENER_CALL(_as, _callback, _direction, _args...) \
+    do {                                                                \
+        MemoryListener *_listener;                                      \
+                                                                        \
+        switch (_direction) {                                           \
+        case Forward:                                                   \
+            QTAILQ_FOREACH(_listener, &(_as)->listeners, link_as) {     \
+                if (_listener->_callback) {                             \
+                    _listener->_callback(_listener->opaque, ##_args);   \
+                }                                                       \
+            }                                                           \
+            break;                                                      \
+        case Reverse:                                                   \
+            QTAILQ_FOREACH_REVERSE(_listener, &(_as)->listeners, link_as) { \
+                if (_listener->_callback) {                             \
+                    _listener->_callback(_listener->opaque, ##_args);   \
+                }                                                       \
+            }                                                           \
+            break;                                                      \
+        default:                                                        \
+            abort();                                                    \
+        }                                                               \
+    } while (0)
+
 /* Map a physical memory region into a host virtual address.
  * May map a subset of the requested range, given by and returned in *plen.
  * May return NULL if resources needed to perform the mapping are exhausted.
@@ -3059,6 +3091,8 @@ void *address_space_map(AddressSpace *as,
     if (len == 0) {
         return NULL;
     }
+
+    MEMORY_LISTENER_CALL(as, map, Reverse, addr, len);
 
     l = len;
     RCU_READ_LOCK_GUARD();
