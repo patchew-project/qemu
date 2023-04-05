@@ -3950,7 +3950,8 @@ finish:
 }
 
 
-static bool is_zero(BlockDriverState *bs, int64_t offset, int64_t bytes)
+static bool coroutine_fn GRAPH_RDLOCK
+is_zero(BlockDriverState *bs, int64_t offset, int64_t bytes)
 {
     int64_t nr;
     int res;
@@ -3971,7 +3972,7 @@ static bool is_zero(BlockDriverState *bs, int64_t offset, int64_t bytes)
      * backing file. So, we need a loop.
      */
     do {
-        res = bdrv_block_status_above(bs, NULL, offset, bytes, &nr, NULL, NULL);
+        res = bdrv_co_block_status_above(bs, NULL, offset, bytes, &nr, NULL, NULL);
         offset += nr;
         bytes -= nr;
     } while (res >= 0 && (res & BDRV_BLOCK_ZERO) && nr && bytes);
