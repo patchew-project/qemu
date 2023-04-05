@@ -48,6 +48,7 @@
 #include "sysemu/tpm.h"
 #include "sysemu/tcg.h"
 #include "sysemu/kvm.h"
+#include "sysemu/kvm_irq.h"
 #include "sysemu/hvf.h"
 #include "sysemu/qtest.h"
 #include "hw/loader.h"

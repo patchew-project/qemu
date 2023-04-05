@@ -31,6 +31,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "sysemu/kvm.h"
+#include "sysemu/kvm_irq.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qom/object.h"

@@ -14,6 +14,7 @@
 #include "qapi/error.h"
 #include "exec/address-spaces.h"
 #include "sysemu/kvm.h"
+#include "sysemu/kvm_irq.h"
 #include "net/net.h"
 #include "hw/virtio/virtio.h"
 #include "migration/qemu-file-types.h"

@@ -28,6 +28,7 @@
 #include "qemu/module.h"
 #include "trace.h"
 #include "sysemu/kvm.h"
+#include "sysemu/kvm_irq.h"
 #include "sysemu/qtest.h"
 
 /* #define DEBUG_GIC */

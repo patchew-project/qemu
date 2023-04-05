@@ -58,6 +58,7 @@
 #include "sysemu/tcg.h"
 #include "sysemu/numa.h"
 #include "sysemu/kvm.h"
+#include "sysemu/kvm_irq.h"
 #include "sysemu/xen.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"

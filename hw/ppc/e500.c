@@ -29,6 +29,7 @@
 #include "sysemu/block-backend-io.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
+#include "sysemu/kvm_irq.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
 #include "kvm_ppc.h"

@@ -26,6 +26,7 @@
 #include "qemu/error-report.h"
 #include "crypto/hash.h"
 #include "sysemu/kvm.h"
+#include "sysemu/kvm_irq.h"
 #include "sev.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/runstate.h"

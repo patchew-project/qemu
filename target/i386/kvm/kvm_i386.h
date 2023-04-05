@@ -12,6 +12,7 @@
 #define QEMU_KVM_I386_H
 
 #include "sysemu/kvm.h"
+#include "sysemu/kvm_irq.h"
 
 #define kvm_apic_in_kernel() (kvm_irqchip_in_kernel())
 

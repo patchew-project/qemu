@@ -29,6 +29,7 @@
 #include "qapi/error.h"
 #include "trace.h"
 #include "sysemu/kvm.h"
+#include "sysemu/kvm_irq.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_cpu_core.h"
 #include "hw/ppc/xics.h"

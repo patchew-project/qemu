@@ -20,6 +20,7 @@
 #include "hw/qdev-properties.h"
 #include "cpu-models.h"
 #include "sysemu/kvm.h"
+#include "sysemu/kvm_irq.h"
 
 #include "trace.h"
 

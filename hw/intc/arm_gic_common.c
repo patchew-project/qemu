@@ -27,6 +27,7 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "sysemu/kvm.h"
+#include "sysemu/kvm_irq.h"
 
 static int gic_pre_save(void *opaque)
 {

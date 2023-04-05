@@ -39,6 +39,7 @@
 #include "hw/intc/intc.h"
 #include "hw/irq.h"
 #include "sysemu/kvm.h"
+#include "sysemu/kvm_irq.h"
 #include "sysemu/reset.h"
 
 void icp_pic_print_info(ICPState *icp, Monitor *mon)

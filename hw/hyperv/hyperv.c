@@ -13,6 +13,7 @@
 #include "qapi/error.h"
 #include "exec/address-spaces.h"
 #include "sysemu/kvm.h"
+#include "sysemu/kvm_irq.h"
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"
 #include "qemu/lockable.h"

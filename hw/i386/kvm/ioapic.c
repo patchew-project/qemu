@@ -16,6 +16,7 @@
 #include "hw/intc/ioapic_internal.h"
 #include "hw/intc/kvm_irqcount.h"
 #include "sysemu/kvm.h"
+#include "sysemu/kvm_irq.h"
 
 /* PC Utility function */
 void kvm_pc_setup_irq_routing(bool pci_enabled)

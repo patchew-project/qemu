@@ -25,6 +25,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "sysemu/kvm.h"
+#include "sysemu/kvm_irq.h"
 
 static int gicv3_its_pre_save(void *opaque)
 {

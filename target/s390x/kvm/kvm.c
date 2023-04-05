@@ -27,6 +27,8 @@
 #include "cpu.h"
 #include "s390x-internal.h"
 #include "kvm_s390x.h"
+#include "sysemu/kvm.h"
+#include "sysemu/kvm_irq.h"
 #include "sysemu/kvm_int.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"

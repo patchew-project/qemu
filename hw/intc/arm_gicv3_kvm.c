@@ -25,6 +25,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "sysemu/kvm.h"
+#include "sysemu/kvm_irq.h"
 #include "sysemu/runstate.h"
 #include "kvm_arm.h"
 #include "gicv3_internal.h"

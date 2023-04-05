@@ -35,6 +35,7 @@
 #include "hw/platform-bus.h"
 #include "hw/qdev-properties.h"
 #include "sysemu/kvm.h"
+#include "sysemu/kvm_irq.h"
 
 /*
  * Functions used whatever the injection method

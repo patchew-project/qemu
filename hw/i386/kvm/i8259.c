@@ -17,6 +17,7 @@
 #include "hw/intc/kvm_irqcount.h"
 #include "hw/irq.h"
 #include "sysemu/kvm.h"
+#include "sysemu/kvm_irq.h"
 #include "qom/object.h"
 
 #define TYPE_KVM_I8259 "kvm-i8259"

@@ -20,6 +20,7 @@
 #include "qapi/error.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
+#include "sysemu/kvm_irq.h"
 #include "sysemu/kvm_int.h"
 #include "kvm_arm.h"
 #include "cpu.h"
