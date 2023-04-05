@@ -235,8 +235,7 @@ typedef struct SavedIOTLB {
 
 struct KVMState;
 struct kvm_run;
-
-struct hax_vcpu_state;
+struct AccelvCPUState;
 struct hvf_vcpu_state;
 
 /* work queue */
@@ -305,6 +304,7 @@ struct qemu_work_item;
  * @next_cpu: Next CPU sharing TB cache.
  * @opaque: User data.
  * @mem_io_pc: Host Program Counter at which the memory was accessed.
+ * @accel: Pointer to accelerator specific state.
  * @kvm_fd: vCPU file descriptor for KVM.
  * @work_mutex: Lock to prevent multiple access to @work_list.
  * @work_list: List of pending asynchronous work.
@@ -423,6 +423,7 @@ struct CPUState {
     uint32_t can_do_io;
     int32_t exception_index;
 
+    struct AccelvCPUState *accel;
     /* shared by kvm, hax and hvf */
     bool vcpu_dirty;
 
@@ -441,8 +442,6 @@ struct CPUState {
 
     /* Used for user-only emulation of prctl(PR_SET_UNALIGN). */
     bool prctl_unalign_sigbus;
-
-    struct hax_vcpu_state *accel;
 
     struct hvf_vcpu_state *hvf;
 
