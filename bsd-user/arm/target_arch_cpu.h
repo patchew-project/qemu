@@ -127,6 +127,14 @@ static inline void target_cpu_loop(CPUARMState *env)
                     env->regs[15] -= env->thumb ? 2 : 4;
                     break;
                 }
+                /*
+                 * Emulate BSD's sigsys behavior on unimplemented system calls.
+                 * XXX may need to gate this somehow or arrange for sigsys to be
+                 * masked in some use cases.
+                 */
+                if (ret == -TARGET_ENOSYS) {
+                    force_sig_fault(TARGET_SIGSYS, SI_KERNEL, env->regs[15]);
+                }
                 if ((unsigned int)ret >= (unsigned int)(-515)) {
                     ret = -ret;
                     cpsr_write(env, CPSR_C, CPSR_C, CPSRWriteByInstr);
