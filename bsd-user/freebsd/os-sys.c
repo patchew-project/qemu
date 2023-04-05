@@ -753,6 +753,41 @@ static abi_long do_freebsd_sysctl_oid(CPUArchState *env, int32_t *snamep,
             ret = 0;
             goto out;
 
+        case KERN_PROC:
+            switch (snamep[2]) {
+            case KERN_PROC_ALL:
+            case KERN_PROC_PROC:
+            case KERN_PROC_PID:
+            case KERN_PROC_PID | KERN_PROC_INC_THREAD:
+            case KERN_PROC_PGRP:
+            case KERN_PROC_PGRP | KERN_PROC_INC_THREAD:
+            case KERN_PROC_SESSION:
+            case KERN_PROC_SESSION | KERN_PROC_INC_THREAD:
+            case KERN_PROC_TTY:
+            case KERN_PROC_TTY | KERN_PROC_INC_THREAD:
+            case KERN_PROC_UID:
+            case KERN_PROC_UID | KERN_PROC_INC_THREAD:
+            case KERN_PROC_RUID:
+            case KERN_PROC_RUID | KERN_PROC_INC_THREAD:
+                ret = do_sysctl_kern_getprocs(snamep[2], snamep[3], oldlen,
+                                              holdp, &holdlen);
+                goto out;
+
+            case KERN_PROC_FILEDESC:
+                ret = do_sysctl_kern_proc_filedesc(snamep[3], oldlen, holdp,
+                                                   &holdlen);
+                goto out;
+
+            case KERN_PROC_VMMAP:
+                ret = do_sysctl_kern_proc_vmmap(snamep[3], oldlen, holdp,
+                                                &holdlen);
+                goto out;
+
+            default:
+                break;
+            }
+            break;
+
         default:
             break;
         }
