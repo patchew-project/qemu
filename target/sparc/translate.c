@@ -321,7 +321,7 @@ static void gen_goto_tb(DisasContext *s, int tb_num,
         /* jump to another page: currently not optimized */
         tcg_gen_movi_tl(cpu_pc, pc);
         tcg_gen_movi_tl(cpu_npc, npc);
-        tcg_gen_exit_tb(NULL, 0);
+        tcg_gen_lookup_and_goto_ptr();
     }
 }
 
@@ -4142,7 +4142,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                 /* End TB to notice changed ASI.  */
                                 save_state(dc);
                                 gen_op_next_insn();
-                                tcg_gen_exit_tb(NULL, 0);
+                                tcg_gen_lookup_and_goto_ptr();
                                 dc->base.is_jmp = DISAS_NORETURN;
                                 break;
                             case 0x6: /* V9 wrfprs */
@@ -4151,7 +4151,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                 dc->fprs_dirty = 0;
                                 save_state(dc);
                                 gen_op_next_insn();
-                                tcg_gen_exit_tb(NULL, 0);
+                                tcg_gen_lookup_and_goto_ptr();
                                 dc->base.is_jmp = DISAS_NORETURN;
                                 break;
                             case 0xf: /* V9 sir, nop if user */
@@ -5636,7 +5636,7 @@ static void sparc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
                 tcg_gen_movi_tl(cpu_pc, dc->pc);
             }
             save_npc(dc);
-            tcg_gen_exit_tb(NULL, 0);
+            tcg_gen_lookup_and_goto_ptr();
         }
         break;
 
