@@ -37,6 +37,8 @@ typedef struct {
     uint64_t exec_count;
     int      trans_count;
     unsigned long insns;
+    void    *p_host_insn_size;
+    uint64_t host_insn_size;
 } ExecCount;
 
 static gint cmp_exec_count(gconstpointer a, gconstpointer b)
@@ -59,13 +61,17 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
     it = g_list_sort(counts, cmp_exec_count);
 
     if (it) {
-        g_string_append_printf(report, "pc, tcount, icount, ecount\n");
+        g_string_append_printf(report,
+                               "host isize is only valid when inline=false\n"
+                               "pc, tcount, icount, ecount, host isize\n");
 
         for (i = 0; i < limit && it->next; i++, it = it->next) {
             ExecCount *rec = (ExecCount *) it->data;
-            g_string_append_printf(report, "0x%016"PRIx64", %d, %ld, %"PRId64"\n",
+            g_string_append_printf(report, "0x%016"PRIx64", %d, %ld, %"PRId64
+                                   ", %"PRIu64"\n",
                                    rec->start_addr, rec->trans_count,
-                                   rec->insns, rec->exec_count);
+                                   rec->insns, rec->exec_count,
+                                   rec->host_insn_size);
         }
 
         g_list_free(it);
@@ -82,14 +88,13 @@ static void plugin_init(void)
 
 static void vcpu_tb_exec(unsigned int cpu_index, void *udata)
 {
-    ExecCount *cnt;
-    uint64_t hash = (uint64_t) udata;
+    ExecCount *cnt = (ExecCount *) udata;
 
     g_mutex_lock(&lock);
-    cnt = (ExecCount *) g_hash_table_lookup(hotblocks, (gconstpointer) hash);
-    /* should always succeed */
-    g_assert(cnt);
     cnt->exec_count++;
+    if (cnt->host_insn_size == 0) {
+        cnt->host_insn_size = *((uint64_t *)cnt->p_host_insn_size);
+    }
     g_mutex_unlock(&lock);
 }
 
@@ -114,6 +119,7 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
         cnt->start_addr = pc;
         cnt->trans_count = 1;
         cnt->insns = insns;
+        cnt->p_host_insn_size = qemu_plugin_tb_host_insn_size(tb);
         g_hash_table_insert(hotblocks, (gpointer) hash, (gpointer) cnt);
     }
 
@@ -125,7 +131,7 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
     } else {
         qemu_plugin_register_vcpu_tb_exec_cb(tb, vcpu_tb_exec,
                                              QEMU_PLUGIN_CB_NO_REGS,
-                                             (void *)hash);
+                                             (void *)cnt);
     }
 }
 
