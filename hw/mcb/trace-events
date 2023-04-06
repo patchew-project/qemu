@@ -1,0 +1,3 @@
+# mcb-pci.c
+mpci_chamtbl_read(unsigned long addr, unsigned int size) "read from address 0x%lx size %d"
+mpci_chamtbl_write(unsigned long addr, uint64_t val) "invalid write to 0x%lx: 0x%" PRIx64
