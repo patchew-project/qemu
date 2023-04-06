@@ -2618,6 +2618,7 @@ static void gt_recalc_timer(ARMCPU *cpu, int timeridx)
         int istatus = count - offset >= gt->cval;
         uint64_t nexttick;
         int irqstate;
+        bool nexttick_overflow = false;
 
         gt->ctl = deposit32(gt->ctl, 2, 1, istatus);
 
@@ -2630,6 +2631,16 @@ static void gt_recalc_timer(ARMCPU *cpu, int timeridx)
         } else {
             /* Next transition is when we hit cval */
             nexttick = gt->cval + offset;
+            if (nexttick < offset) {
+                /*
+                 * If gt->cval value is close to UINT64_MAX then adding
+                 * to it offset can lead to overflow of nexttick variable.
+                 * So, this check tests that arguments sum is less than any
+                 * addend, and in case it is overflowed we have to mod timer
+                 * to INT64_MAX.
+                 */
+                nexttick_overflow = true;
+            }
         }
         /*
          * Note that the desired next expiry time might be beyond the
@@ -2637,7 +2648,8 @@ static void gt_recalc_timer(ARMCPU *cpu, int timeridx)
          * set the timer for as far in the future as possible. When the
          * timer expires we will reset the timer for any remaining period.
          */
-        if (nexttick > INT64_MAX / gt_cntfrq_period_ns(cpu)) {
+        if ((nexttick > INT64_MAX / gt_cntfrq_period_ns(cpu))
+             || nexttick_overflow) {
             timer_mod_ns(cpu->gt_timer[timeridx], INT64_MAX);
         } else {
             timer_mod(cpu->gt_timer[timeridx], nexttick);
