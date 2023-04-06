@@ -399,6 +399,9 @@ static void npcm7xx_gpio_init(Object *obj)
     object_property_add(obj, "gpio-pins-in", "uint32",
                         npcm7xx_gpio_get_pins_in,  npcm7xx_gpio_set_pins_in,
                         NULL, &s->regs[NPCM7XX_GPIO_DIN]);
+
+    object_property_add_uint32_ptr(obj, "gpio-pin-level", &s->pin_level,
+                                   OBJ_PROP_FLAG_READ);
 }
 
 static const VMStateDescription vmstate_npcm7xx_gpio = {
