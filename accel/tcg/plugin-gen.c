@@ -881,6 +881,7 @@ bool plugin_gen_tb_start(CPUState *cpu, const DisasContextBase *db,
         ptb->haddr2 = NULL;
         ptb->mem_only = mem_only;
         ptb->mem_helper = false;
+        ptb->host_insn_size = &db->tb->tc.size;
 
         plugin_gen_empty_callback(PLUGIN_GEN_FROM_TB);
     }

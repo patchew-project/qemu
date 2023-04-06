@@ -151,6 +151,8 @@ struct qemu_plugin_tb {
     /* if set, the TB calls helpers that might access guest memory */
     bool mem_helper;
 
+    uint64_t *host_insn_size;
+
     GArray *cbs[PLUGIN_N_CB_SUBTYPES];
 };
 

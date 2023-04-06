@@ -337,6 +337,14 @@ void qemu_plugin_register_vcpu_insn_exec_inline(struct qemu_plugin_insn *insn,
 size_t qemu_plugin_tb_n_insns(const struct qemu_plugin_tb *tb);
 
 /**
+ * qemu_plugin_tb_n_insns() - query helper for host insns size in TB
+ * @tb: opaque handle to TB passed to callback
+ *
+ * Returns: address of host insns size of this block
+ */
+void *qemu_plugin_tb_host_insn_size(const struct qemu_plugin_tb *tb);
+
+/**
  * qemu_plugin_tb_vaddr() - query helper for vaddr of TB start
  * @tb: opaque handle to TB passed to callback
  *

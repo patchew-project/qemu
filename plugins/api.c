@@ -188,6 +188,11 @@ size_t qemu_plugin_tb_n_insns(const struct qemu_plugin_tb *tb)
     return tb->n;
 }
 
+void *qemu_plugin_tb_host_insn_size(const struct qemu_plugin_tb *tb)
+{
+    return tb->host_insn_size;
+}
+
 uint64_t qemu_plugin_tb_vaddr(const struct qemu_plugin_tb *tb)
 {
     return tb->vaddr;
