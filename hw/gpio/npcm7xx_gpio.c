@@ -20,6 +20,7 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/units.h"
@@ -340,6 +341,29 @@ static void npcm7xx_gpio_set_input(void *opaque, int line, int level)
     npcm7xx_gpio_update_pins(s, BIT(line));
 }
 
+static void npcm7xx_gpio_get_pins_in(Object *obj, Visitor *v, const char *name,
+                                     void *opaque, Error **errp)
+{
+    uint32_t *pins_in = (uint32_t *)opaque;
+
+    visit_type_uint32(v, name, pins_in, errp);
+}
+
+static void npcm7xx_gpio_set_pins_in(Object *obj, Visitor *v, const char *name,
+                                     void *opaque, Error **errp)
+{
+    NPCM7xxGPIOState *s = NPCM7XX_GPIO(obj);
+    uint32_t new_pins_in;
+
+    if (!visit_type_uint32(v, name, &new_pins_in, errp)) {
+        return;
+    }
+
+    s->ext_driven = new_pins_in;
+    s->ext_level = new_pins_in;
+    npcm7xx_gpio_update_pins(s, new_pins_in);
+}
+
 static void npcm7xx_gpio_enter_reset(Object *obj, ResetType type)
 {
     NPCM7xxGPIOState *s = NPCM7XX_GPIO(obj);
@@ -371,6 +395,10 @@ static void npcm7xx_gpio_init(Object *obj)
 
     qdev_init_gpio_in(dev, npcm7xx_gpio_set_input, NPCM7XX_GPIO_NR_PINS);
     qdev_init_gpio_out(dev, s->output, NPCM7XX_GPIO_NR_PINS);
+
+    object_property_add(obj, "gpio-pins-in", "uint32",
+                        npcm7xx_gpio_get_pins_in,  npcm7xx_gpio_set_pins_in,
+                        NULL, &s->regs[NPCM7XX_GPIO_DIN]);
 }
 
 static const VMStateDescription vmstate_npcm7xx_gpio = {
