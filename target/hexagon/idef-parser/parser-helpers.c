@@ -386,13 +386,10 @@ HexValue gen_rvalue_extend(Context *c, YYLTYPE *locp, HexValue *rvalue)
 
     if (rvalue->type == IMMEDIATE) {
         HexValue res = gen_imm_qemu_tmp(c, locp, 64, rvalue->signedness);
-        bool is_unsigned = (rvalue->signedness == UNSIGNED);
-        const char *sign_suffix = is_unsigned ? "u" : "";
         gen_c_int_type(c, locp, 64, rvalue->signedness);
-        OUT(c, locp, " ", &res, " = ");
-        OUT(c, locp, "(", sign_suffix, "int64_t) ");
-        OUT(c, locp, "(", sign_suffix, "int32_t) ");
-        OUT(c, locp, rvalue, ";\n");
+        OUT(c, locp, " ", &res, " = (");
+        gen_c_int_type(c, locp, 64, rvalue->signedness);
+        OUT(c, locp, ")", rvalue, ";\n");
         return res;
     } else {
         HexValue res = gen_tmp(c, locp, 64, rvalue->signedness);
@@ -963,7 +960,12 @@ HexValue gen_cast_op(Context *c,
     if (src->bit_width == target_width) {
         return *src;
     } else if (src->type == IMMEDIATE) {
-        HexValue res = *src;
+        HexValue res;
+        if (src->bit_width < target_width) {
+            res = gen_rvalue_extend(c, locp, src);
+        } else {
+            res = *src;
+        }
         res.bit_width = target_width;
         res.signedness = signedness;
         return res;
