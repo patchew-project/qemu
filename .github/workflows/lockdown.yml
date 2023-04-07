@@ -12,6 +12,7 @@ permissions:
 jobs:
   action:
     runs-on: ubuntu-latest
+    if: github.repository == 'qemu/qemu'
     steps:
       - uses: dessant/repo-lockdown@v2
         with:
