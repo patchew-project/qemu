@@ -28,7 +28,7 @@
 #define READ_REG(NUM)                    (env->gpr[(NUM)])
 #define READ_PREG(NUM)                   (env->pred[NUM])
 
-#define WRITE_RREG(NUM, VAL)             log_reg_write(env, NUM, VAL, slot)
+#define WRITE_RREG(NUM, VAL)             log_reg_write(env, NUM, VAL)
 #define WRITE_PREG(NUM, VAL)             log_pred_write(env, NUM, VAL)
 #endif
 
