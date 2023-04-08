@@ -23,8 +23,6 @@
  */
 
 #include "elf.h"
-#include "../tcg-pool.c.inc"
-#include "../tcg-ldst.c.inc"
 
 /*
  * Standardize on the _CALL_FOO symbols used by GCC:
@@ -57,6 +55,9 @@
 /* Note sysv arg alignment applies only to 2-word types, not more. */
 #define TCG_TARGET_CALL_ARG_I128   TCG_CALL_ARG_NORMAL
 #define TCG_TARGET_CALL_RET_I128   TCG_CALL_RET_NORMAL
+
+#include "../tcg-pool.c.inc"
+#include "../tcg-ldst.c.inc"
 
 /* For some memory operations, we need a scratch that isn't R0.  For the AIX
    calling convention, we can re-use the TOC register since we'll be reloading
@@ -2136,42 +2137,30 @@ static void add_qemu_ldst_label(TCGContext *s, bool is_ld,
     label->label_ptr[0] = lptr;
 }
 
+static void tcg_out_mflr(TCGContext *s, TCGReg dst)
+{
+    tcg_out32(s, MFSPR | RT(dst) | LR);
+}
+
 static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 {
-    MemOpIdx oi = lb->oi;
-    MemOp opc = get_memop(oi);
-    TCGReg hi, lo, arg = TCG_REG_R3;
+    MemOp opc = get_memop(lb->oi);
 
     if (!reloc_pc14(lb->label_ptr[0], tcg_splitwx_to_rx(s->code_ptr))) {
         return false;
     }
 
-    tcg_out_mov(s, TCG_TYPE_PTR, arg++, TCG_AREG0);
-
-    lo = lb->addrlo_reg;
-    hi = lb->addrhi_reg;
-    if (TCG_TARGET_REG_BITS < TARGET_LONG_BITS) {
-        arg |= (TCG_TARGET_CALL_ARG_I64 == TCG_CALL_ARG_EVEN);
-        tcg_out_mov(s, TCG_TYPE_I32, arg++, hi);
-        tcg_out_mov(s, TCG_TYPE_I32, arg++, lo);
-    } else {
-        /* If the address needed to be zero-extended, we'll have already
-           placed it in R4.  The only remaining case is 64-bit guest.  */
-        tcg_out_mov(s, TCG_TYPE_TL, arg++, lo);
-    }
-
-    tcg_out_movi(s, TCG_TYPE_I32, arg++, oi);
-    tcg_out32(s, MFSPR | RT(arg) | LR);
+    tcg_out_ld_helper_args(s, lb, tcg_out_mflr, -1, TCG_REG_TMP1);
 
     tcg_out_call_int(s, LK, qemu_ld_helpers[opc & (MO_BSWAP | MO_SIZE)]);
 
-    lo = lb->datalo_reg;
-    hi = lb->datahi_reg;
     if (TCG_TARGET_REG_BITS == 32 && (opc & MO_SIZE) == MO_64) {
-        tcg_out_mov(s, TCG_TYPE_I32, lo, TCG_REG_R4);
-        tcg_out_mov(s, TCG_TYPE_I32, hi, TCG_REG_R3);
+        tcg_out_movext2(s, TCG_TYPE_I32, lb->datahi_reg,
+                        TCG_TYPE_I32, MO_UL, TCG_REG_R3,
+                        TCG_TYPE_I32, lb->datalo_reg,
+                        TCG_TYPE_I32, MO_UL, TCG_REG_R4, TCG_REG_TMP1);
     } else {
-        tcg_out_movext(s, lb->type, lo,
+        tcg_out_movext(s, lb->type, lb->datalo_reg,
                        TCG_TYPE_REG, opc & MO_SSIZE, TCG_REG_R3);
     }
 
