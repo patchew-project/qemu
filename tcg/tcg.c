@@ -115,8 +115,7 @@ static void tcg_out_exts_i32_i64(TCGContext *s, TCGReg ret, TCGReg arg);
 static void tcg_out_extu_i32_i64(TCGContext *s, TCGReg ret, TCGReg arg);
 static void tcg_out_extrl_i64_i32(TCGContext *s, TCGReg ret, TCGReg arg);
 static void tcg_out_addi_ptr(TCGContext *s, TCGReg, TCGReg, tcg_target_long);
-static bool tcg_out_xchg(TCGContext *s, TCGType type, TCGReg r1, TCGReg r2)
-    __attribute__((unused));
+static bool tcg_out_xchg(TCGContext *s, TCGType type, TCGReg r1, TCGReg r2);
 static void tcg_out_exit_tb(TCGContext *s, uintptr_t arg);
 static void tcg_out_goto_tb(TCGContext *s, int which);
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,
@@ -365,9 +364,8 @@ void tcg_raise_tb_overflow(TCGContext *s)
  *
  * Move or extend @src into @dst, depending on @src_ext and the types.
  */
-static void __attribute__((unused))
-tcg_out_movext(TCGContext *s, TCGType dst_type, TCGReg dst,
-               TCGType src_type, MemOp src_ext, TCGReg src)
+static void tcg_out_movext(TCGContext *s, TCGType dst_type, TCGReg dst,
+                           TCGType src_type, MemOp src_ext, TCGReg src)
 {
     switch (src_ext) {
     case MO_UB:
@@ -411,6 +409,48 @@ tcg_out_movext(TCGContext *s, TCGType dst_type, TCGReg dst,
     default:
         g_assert_not_reached();
     }
+}
+
+/**
+ * tcg_out_movext2 -- move and extend two pair
+ * @s: tcg context
+ * @d1_type: integral type for destination
+ * @d1: destination register
+ * @s1_type: integral type for source
+ * @s1_ext: extension to apply to source
+ * @s1: source register
+ * @d2_type: integral type for destination
+ * @d2: destination register
+ * @s2_type: integral type for source
+ * @s2_ext: extension to apply to source
+ * @s2: source register
+ * @scratch: temporary register, or -1 for none
+ *
+ * As tcg_out_movext, for both s1->d1 and s2->d2, caring for overlap
+ * between the sources and destinations.
+ */
+static void __attribute__((unused))
+tcg_out_movext2(TCGContext *s, TCGType d1_type, TCGReg d1, TCGType s1_type,
+                MemOp s1_ext, TCGReg s1, TCGType d2_type, TCGReg d2,
+                TCGType s2_type, MemOp s2_ext, TCGReg s2, int scratch)
+{
+    if (d1 != s2) {
+        tcg_out_movext(s, d1_type, d1, s1_type, s1_ext, s1);
+        tcg_out_movext(s, d2_type, d2, s2_type, s2_ext, s2);
+        return;
+    }
+    if (d2 == s1) {
+        if (tcg_out_xchg(s, MAX(s1_type, s2_type), s1, s2)) {
+            /* The data is now in the correct registers, now extend. */
+            s1 = d1, s2 = d2;
+        } else {
+            tcg_debug_assert(scratch >= 0);
+            tcg_out_mov(s, s1_type, scratch, s1);
+            s1 = scratch;
+        }
+    }
+    tcg_out_movext(s, d2_type, d2, s2_type, s2_ext, s2);
+    tcg_out_movext(s, d1_type, d1, s1_type, s1_ext, s1);
 }
 
 #define C_PFX1(P, A)                    P##A
