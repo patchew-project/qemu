@@ -184,6 +184,11 @@ static int tcg_out_ld_helper_args(TCGContext *s, const TCGLabelQemuLdst *l,
                                   void (*ra_gen)(TCGContext *s, TCGReg r),
                                   int ra_reg, int scratch_reg)
     __attribute__((unused));
+static int tcg_out_st_helper_args(TCGContext *s, const TCGLabelQemuLdst *l,
+                                  void (*ra_gen)(TCGContext *s, TCGReg r),
+                                  int ra_reg, int t1_reg,
+                                  int t2_reg, int t3_reg)
+    __attribute__((unused));
 
 TCGContext tcg_init_ctx;
 __thread TCGContext *tcg_ctx;
@@ -5073,8 +5078,8 @@ static int tcg_out_helper_arg_ra(TCGContext *s, unsigned d_arg,
 }
 
 /*
- * Poor man's topological sort on 2 source+destination register pairs.
- * This is a simplified version of tcg_out_movext2 for 32-bit hosts.
+ * Poor man's topological sort on up to 4 source+destination register pairs.
+ * This first is a simplified version of tcg_out_movext2 for 32-bit hosts.
  */
 static void tcg_out_mov_32x2(TCGContext *s, TCGReg d1, TCGReg s1,
                              TCGReg d2, TCGReg s2, int t1)
@@ -5096,6 +5101,67 @@ static void tcg_out_mov_32x2(TCGContext *s, TCGReg d1, TCGReg s1,
     }
     tcg_out_mov(s, TCG_TYPE_I32, d2, s2);
     tcg_out_mov(s, TCG_TYPE_I32, d1, s1);
+}
+
+static void tcg_out_mov_32x3(TCGContext *s, TCGReg d1, TCGReg s1,
+                             TCGReg d2, TCGReg s2,
+                             TCGReg d3, TCGReg s3, int t1, int t2)
+{
+    tcg_debug_assert(TCG_TARGET_REG_BITS == 32);
+    tcg_debug_assert(t2 >= 0);
+
+    if (d1 != s2 && d1 != s3) {
+        tcg_out_mov(s, TCG_TYPE_I32, d1, s1);
+        tcg_out_mov_32x2(s, d3, s3, d2, s2, t1);
+        return;
+    }
+    if (d2 != s1 && d2 != s3) {
+        tcg_out_mov(s, TCG_TYPE_I32, d2, s2);
+        tcg_out_mov_32x2(s, d1, s1, d3, s3, t1);
+        return;
+    }
+    if (d3 != s1 && d3 != s2) {
+        tcg_out_mov(s, TCG_TYPE_I32, d3, s3);
+        tcg_out_mov_32x2(s, d1, s1, d2, s2, t1);
+        return;
+    }
+    tcg_out_mov(s, TCG_TYPE_I32, t2, s3);
+    tcg_out_mov_32x2(s, d1, s1, d2, s2, t1);
+    tcg_out_mov(s, TCG_TYPE_I32, d3, t2);
+}
+
+static void tcg_out_mov_32x4(TCGContext *s, TCGReg d1, TCGReg s1,
+                             TCGReg d2, TCGReg s2,
+                             TCGReg d3, TCGReg s3,
+                             TCGReg d4, TCGReg s4,
+                             int t1, int t2, int t3)
+{
+    tcg_debug_assert(TCG_TARGET_REG_BITS == 32);
+    tcg_debug_assert(t3 >= 0);
+
+    if (d1 != s2 && d1 != s3 && d1 != s4) {
+        tcg_out_mov(s, TCG_TYPE_I32, d1, s1);
+        tcg_out_mov_32x3(s, d4, s4, d2, s2, d3, s3, t1, t2);
+        return;
+    }
+    if (d2 != s1 && d2 != s3 && d2 != s4) {
+        tcg_out_mov(s, TCG_TYPE_I32, d2, s2);
+        tcg_out_mov_32x3(s, d1, s1, d4, s4, d3, s3, t1, t2);
+        return;
+    }
+    if (d3 != s1 && d3 != s2 && d3 != s4) {
+        tcg_out_mov(s, TCG_TYPE_I32, d3, s3);
+        tcg_out_mov_32x3(s, d1, s1, d2, s2, d4, s4, t1, t2);
+        return;
+    }
+    if (d4 != s1 && d4 != s2 && d4 != s3) {
+        tcg_out_mov(s, TCG_TYPE_I32, d4, s4);
+        tcg_out_mov_32x3(s, d1, s1, d2, s2, d3, s3, t1, t2);
+        return;
+    }
+    tcg_out_mov(s, TCG_TYPE_I32, t3, s4);
+    tcg_out_mov_32x3(s, d1, s1, d2, s2, d3, s3, t1, t2);
+    tcg_out_mov(s, TCG_TYPE_I32, d4, t3);
 }
 
 static void tcg_out_helper_arg_32x2(TCGContext *s, unsigned d_arg,
@@ -5158,6 +5224,125 @@ static int tcg_out_ld_helper_args(TCGContext *s, const TCGLabelQemuLdst *l,
     /* Handle ra. Return any register holding it for use by tail call.  */
     return tcg_out_helper_arg_ra(s, arg, ra_gen, ra_reg,
                                  (uintptr_t)l->raddr, scratch_reg);
+}
+
+static int tcg_out_st_helper_args(TCGContext *s, const TCGLabelQemuLdst *l,
+                                  void (*ra_gen)(TCGContext *s, TCGReg r),
+                                  int ra_reg, int t1_reg,
+                                  int t2_reg, int t3_reg)
+{
+    MemOp size = get_memop(l->oi) & MO_SIZE;
+    /* These are the types of the helper_stX_mmu 'addr' and 'val' arguments. */
+    TCGType a_type = TARGET_LONG_BITS == 32 ? TCG_TYPE_I32 : TCG_TYPE_I64;
+    TCGType d_type = size == MO_64 ? TCG_TYPE_I64 : TCG_TYPE_I32;
+    MemOp a_mo = TARGET_LONG_BITS == 32 ? MO_32 : MO_64;
+    MemOp p_mo = sizeof(void *) == 4 ? MO_32 : MO_64;
+    /* Begin by skipping the env argument. */
+    int arg = 1;
+    int a_arg, d_arg;
+
+    if (TCG_TARGET_REG_BITS >= TARGET_LONG_BITS) {
+        a_arg = arg++;
+    } else {
+        if (TCG_TARGET_CALL_ARG_I64 == TCG_CALL_ARG_EVEN) {
+            arg += arg & 1;
+        }
+        a_arg = arg;
+        arg += 2;
+    }
+    if (TCG_TARGET_REG_BITS == 64 || d_type == TCG_TYPE_I32) {
+        d_arg = arg++;
+    } else {
+        if (TCG_TARGET_CALL_ARG_I64 == TCG_CALL_ARG_EVEN) {
+            arg += arg & 1;
+        }
+        d_arg = arg;
+        arg += 2;
+    }
+
+    if (arg == 3) {
+        /* Two simple arguments. */
+        if (in_iarg_reg(d_arg)) {
+            /* Both arguments are in registers. */
+            if (TCG_TARGET_CALL_ARG_I32 == TCG_CALL_ARG_EXTEND) {
+                a_type = TCG_TYPE_REG;
+                d_type = TCG_TYPE_REG;
+            }
+            tcg_out_movext2(s, a_type, tcg_target_call_iarg_regs[a_arg],
+                            a_type, a_mo, l->addrlo_reg,
+                            d_type, tcg_target_call_iarg_regs[d_arg],
+                            l->type, size, l->datalo_reg,
+                            t1_reg);
+        } else {
+            /* At least data argument is on the stack. */
+            tcg_out_helper_arg(s, d_type, d_arg, l->type, size,
+                               l->datalo_reg, t1_reg);
+            tcg_out_helper_arg(s, a_type, arg, a_type, a_mo,
+                               l->addrlo_reg, t1_reg);
+        }
+    } else if (!in_iarg_reg(d_arg)) {
+        /*
+         * The data registers are on the stack. Store them first so that
+         * we are sure they are out of the way of the address registers.
+         */
+        if (size != MO_64) {
+            tcg_out_helper_arg(s, TCG_TYPE_I32, d_arg, TCG_TYPE_I32,
+                               size, l->datalo_reg, t1_reg);
+        } else {
+            tcg_out_helper_arg_32x2(s, d_arg, l->datalo_reg,
+                                    l->datahi_reg, t1_reg);
+        }
+        if (TARGET_LONG_BITS == 32) {
+            tcg_out_helper_arg(s, a_type, a_arg, a_type, a_mo,
+                               l->addrlo_reg, t1_reg);
+        } else {
+            tcg_out_helper_arg_32x2(s, d_arg, l->addrlo_reg,
+                                    l->addrhi_reg, t1_reg);
+        }
+    } else {
+        tcg_debug_assert(arg <= ARRAY_SIZE(tcg_target_call_iarg_regs));
+        if (TARGET_LONG_BITS == 32) {
+            tcg_debug_assert(d_type == TCG_TYPE_I64);
+            TCGReg a = tcg_target_call_iarg_regs[a_arg];
+            TCGReg dl = tcg_target_call_iarg_regs[d_arg + HOST_BIG_ENDIAN];
+            TCGReg dh = tcg_target_call_iarg_regs[d_arg + !HOST_BIG_ENDIAN];
+
+            tcg_out_mov_32x3(s, a, l->addrlo_reg,
+                             dl, l->datalo_reg,
+                             dh, l->datahi_reg, t1_reg, t2_reg);
+        } else if (d_type == TCG_TYPE_I32) {
+            TCGReg al = tcg_target_call_iarg_regs[a_arg + HOST_BIG_ENDIAN];
+            TCGReg ah = tcg_target_call_iarg_regs[a_arg + !HOST_BIG_ENDIAN];
+            TCGReg d = tcg_target_call_iarg_regs[d_arg];
+
+            tcg_out_mov_32x3(s, al, l->addrlo_reg,
+                             ah, l->addrhi_reg,
+                             d, l->datalo_reg, t1_reg, t2_reg);
+        } else {
+            TCGReg al = tcg_target_call_iarg_regs[a_arg + HOST_BIG_ENDIAN];
+            TCGReg ah = tcg_target_call_iarg_regs[a_arg + !HOST_BIG_ENDIAN];
+            TCGReg dl = tcg_target_call_iarg_regs[d_arg + HOST_BIG_ENDIAN];
+            TCGReg dh = tcg_target_call_iarg_regs[d_arg + !HOST_BIG_ENDIAN];
+
+            tcg_out_mov_32x4(s, al, l->addrlo_reg,
+                             ah, l->addrhi_reg,
+                             dl, l->datalo_reg,
+                             dh, l->datahi_reg,
+                             t1_reg, t2_reg, t3_reg);
+        }
+    }
+
+    /* Handle env.  Always the first argument.  */
+    tcg_out_helper_arg(s, TCG_TYPE_PTR, 0,
+                       TCG_TYPE_PTR, p_mo, TCG_AREG0, t1_reg);
+
+    /* Handle oi. */
+    tcg_out_helper_arg_im(s, TCG_TYPE_I32, arg, l->oi, t1_reg);
+    arg++;
+
+    /* Handle ra. Return any register holding it for use by tail call.  */
+    return tcg_out_helper_arg_ra(s, arg, ra_gen, ra_reg,
+                                 (uintptr_t)l->raddr, t1_reg);
 }
 
 #ifdef CONFIG_PROFILER
