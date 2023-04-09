@@ -158,7 +158,6 @@ static bool gen_branch(DisasContext *ctx, arg_b *a, TCGCond cond)
     TCGLabel *l = gen_new_label();
     TCGv src1 = get_gpr(ctx, a->rs1, EXT_SIGN);
     TCGv src2 = get_gpr(ctx, a->rs2, EXT_SIGN);
-    target_ulong next_pc;
 
     if (get_xl(ctx) == MXL_RV128) {
         TCGv src1h = get_gprh(ctx, a->rs1);
@@ -175,11 +174,10 @@ static bool gen_branch(DisasContext *ctx, arg_b *a, TCGCond cond)
 
     gen_set_label(l); /* branch taken */
 
-    next_pc = ctx->base.pc_next + a->imm;
-    if (!has_ext(ctx, RVC) && (next_pc & 0x3)) {
+    if (!has_ext(ctx, RVC) && (a->imm & 0x3)) {
         /* misaligned */
         TCGv target_pc = tcg_temp_new();
-        gen_pc_plus_diff(target_pc, ctx, next_pc);
+        gen_pc_plus_diff(target_pc, ctx, a->imm);
         gen_exception_inst_addr_mis(ctx, target_pc);
     } else {
         gen_goto_tb(ctx, 0, a->imm);
