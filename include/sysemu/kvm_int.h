@@ -37,8 +37,10 @@ typedef struct KVMMemoryUpdate {
     MemoryRegionSection section;
 } KVMMemoryUpdate;
 
+#define KVM_DEF_NR_SLOTS 32
 typedef struct KVMMemoryListener {
     MemoryListener listener;
+    int nr_slots;
     KVMSlot *slots;
     int as_id;
     QSIMPLEQ_HEAD(, KVMMemoryUpdate) transaction_add;
@@ -69,7 +71,7 @@ struct KVMState
 {
     AccelState parent_obj;
 
-    int nr_slots;
+    int max_slots;
     int fd;
     int vmfd;
     int coalesced_mmio;

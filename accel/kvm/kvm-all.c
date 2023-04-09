@@ -178,22 +178,50 @@ int kvm_get_max_memslots(void)
 {
     KVMState *s = KVM_STATE(current_accel());
 
-    return s->nr_slots;
+    return s->max_slots;
 }
 
-/* Called with KVMMemoryListener.slots_lock held */
+/* Called with kvm_slots_lock()'ed */
 static KVMSlot *kvm_get_free_slot(KVMMemoryListener *kml)
 {
     KVMState *s = kvm_state;
+    KVMSlot *new_slots;
     int i;
+    int new_nr, old_nr;
 
-    for (i = 0; i < s->nr_slots; i++) {
+    for (i = 0; i < kml->nr_slots; i++) {
         if (kml->slots[i].memory_size == 0) {
             return &kml->slots[i];
         }
     }
 
-    return NULL;
+    /* Already reached maximum, no more can expand */
+    if (kml->nr_slots >= s->max_slots) {
+        return NULL;
+    }
+
+    new_nr = 2 * kml->nr_slots;
+    new_nr = MIN(new_nr, s->max_slots);
+    /* It might overflow */
+    if (new_nr < 0 || new_nr <= kml->nr_slots) {
+        return NULL;
+    }
+
+    new_slots = g_try_new0(KVMSlot, new_nr);
+    if (!new_slots) {
+        return NULL;
+    }
+
+    memcpy(new_slots, kml->slots, kml->nr_slots * sizeof(KVMSlot));
+    old_nr = kml->nr_slots;
+    kml->nr_slots = new_nr;
+    g_free(kml->slots);
+    kml->slots = new_slots;
+    for (i = old_nr; i < kml->nr_slots; i++) {
+        kml->slots[i].slot = i;
+    }
+
+    return &kml->slots[old_nr];
 }
 
 bool kvm_has_free_slot(MachineState *ms)
@@ -226,10 +254,9 @@ static KVMSlot *kvm_lookup_matching_slot(KVMMemoryListener *kml,
                                          hwaddr start_addr,
                                          hwaddr size)
 {
-    KVMState *s = kvm_state;
     int i;
 
-    for (i = 0; i < s->nr_slots; i++) {
+    for (i = 0; i < kml->nr_slots; i++) {
         KVMSlot *mem = &kml->slots[i];
 
         if (start_addr == mem->start_addr && size == mem->memory_size) {
@@ -271,7 +298,7 @@ int kvm_physical_memory_addr_from_host(KVMState *s, void *ram,
     int i, ret = 0;
 
     kvm_slots_lock();
-    for (i = 0; i < s->nr_slots; i++) {
+    for (i = 0; i < kml->nr_slots; i++) {
         KVMSlot *mem = &kml->slots[i];
 
         if (ram >= mem->ram && ram < mem->ram + mem->memory_size) {
@@ -993,7 +1020,7 @@ static int kvm_physical_log_clear(KVMMemoryListener *kml,
 
     kvm_slots_lock();
 
-    for (i = 0; i < s->nr_slots; i++) {
+    for (i = 0; i < kml->nr_slots; i++) {
         mem = &kml->slots[i];
         /* Discard slots that are empty or do not overlap the section */
         if (!mem->memory_size ||
@@ -1557,7 +1584,6 @@ static void kvm_log_sync(MemoryListener *listener,
 static void kvm_log_sync_global(MemoryListener *l)
 {
     KVMMemoryListener *kml = container_of(l, KVMMemoryListener, listener);
-    KVMState *s = kvm_state;
     KVMSlot *mem;
     int i;
 
@@ -1569,7 +1595,7 @@ static void kvm_log_sync_global(MemoryListener *l)
      * only a few used slots (small VMs).
      */
     kvm_slots_lock();
-    for (i = 0; i < s->nr_slots; i++) {
+    for (i = 0; i < kml->nr_slots; i++) {
         mem = &kml->slots[i];
         if (mem->memory_size && mem->flags & KVM_MEM_LOG_DIRTY_PAGES) {
             kvm_slot_sync_dirty_pages(mem);
@@ -1678,10 +1704,11 @@ void kvm_memory_listener_register(KVMState *s, KVMMemoryListener *kml,
 {
     int i;
 
-    kml->slots = g_new0(KVMSlot, s->nr_slots);
+    kml->slots = g_new0(KVMSlot, KVM_DEF_NR_SLOTS);
+    kml->nr_slots = KVM_DEF_NR_SLOTS;
     kml->as_id = as_id;
 
-    for (i = 0; i < s->nr_slots; i++) {
+    for (i = 0; i < kml->nr_slots; i++) {
         kml->slots[i].slot = i;
     }
 
@@ -2418,11 +2445,11 @@ static int kvm_init(MachineState *ms)
     }
 
     kvm_immediate_exit = kvm_check_extension(s, KVM_CAP_IMMEDIATE_EXIT);
-    s->nr_slots = kvm_check_extension(s, KVM_CAP_NR_MEMSLOTS);
+    s->max_slots = kvm_check_extension(s, KVM_CAP_NR_MEMSLOTS);
 
     /* If unspecified, use the default value */
-    if (!s->nr_slots) {
-        s->nr_slots = 32;
+    if (s->max_slots <= 0) {
+        s->max_slots = KVM_DEF_NR_SLOTS;
     }
 
     s->nr_as = kvm_check_extension(s, KVM_CAP_MULTI_ADDRESS_SPACE);
