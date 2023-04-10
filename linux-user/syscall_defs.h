@@ -1226,6 +1226,11 @@ struct target_rtc_pll_info {
 
 /* drm ioctls */
 #define TARGET_DRM_IOCTL_VERSION      TARGET_IOWRU('d', 0x00)
+#define TARGET_DRM_IOCTL_GET_MAGIC    TARGET_IORU('d', 0x02)
+#define TARGET_DRM_IOCTL_GET_CLIENT   TARGET_IOWRU('d', 0x05)
+#define TARGET_DRM_IOCTL_GEM_CLOSE    TARGET_IOWU('d', 0x09)
+#define TARGET_DRM_IOCTL_GET_CAP      TARGET_IOWRU('d', 0x0c)
+#define TARGET_DRM_IOCTL_PRIME_HANDLE_TO_FD  TARGET_IOWRU('d', 0x2d)
 
 #ifdef CONFIG_DRM_AMDGPU
 
@@ -2688,6 +2693,35 @@ struct target_drm_version {
     abi_ulong date;
     abi_ulong desc_len;
     abi_ulong desc;
+};
+
+struct target_drm_auth {
+    int magic;
+};
+
+struct target_drm_client {
+    int idx;
+    int auth;
+    abi_ulong pid;
+    abi_ulong uid;
+    abi_ulong magic;
+    abi_ulong iocs;
+};
+
+struct target_drm_gem_close {
+    int handle;
+    int pad;
+};
+
+struct target_drm_get_cap {
+    abi_ulong capability;
+    abi_ulong value;
+};
+
+struct target_drm_prime_handle {
+    int handle;
+    int flags;
+    int fd;
 };
 
 struct target_drm_i915_getparam {

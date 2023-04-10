@@ -685,7 +685,16 @@
 #ifdef HAVE_DRM_H
   IOCTL_SPECIAL(DRM_IOCTL_VERSION, IOC_RW, do_ioctl_drm,
                 MK_PTR(MK_STRUCT(STRUCT_drm_version)))
-
+  IOCTL_SPECIAL(DRM_IOCTL_GET_MAGIC, IOC_R, do_ioctl_drm,
+                MK_PTR(MK_STRUCT(STRUCT_drm_auth)))
+  IOCTL_SPECIAL(DRM_IOCTL_GET_CLIENT, IOC_RW, do_ioctl_drm,
+                MK_PTR(MK_STRUCT(STRUCT_drm_client)))
+  IOCTL_SPECIAL(DRM_IOCTL_GEM_CLOSE, IOC_W, do_ioctl_drm,
+                MK_PTR(MK_STRUCT(STRUCT_drm_gem_close)))
+  IOCTL_SPECIAL(DRM_IOCTL_GET_CAP, IOC_RW, do_ioctl_drm,
+                MK_PTR(MK_STRUCT(STRUCT_drm_get_cap)))
+  IOCTL_SPECIAL(DRM_IOCTL_PRIME_HANDLE_TO_FD, IOC_RW, do_ioctl_drm,
+                MK_PTR(MK_STRUCT(STRUCT_drm_prime_handle)))
 #ifdef CONFIG_DRM_AMDGPU
 #else
   IOCTL_SPECIAL(DRM_IOCTL_I915_GETPARAM, IOC_RW, do_ioctl_drm_i915,

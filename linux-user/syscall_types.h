@@ -331,6 +331,30 @@ STRUCT(drm_version,
        TYPE_ULONG, /* desc_len */
        TYPE_PTRVOID) /* desc */
 
+STRUCT(drm_auth,
+       TYPE_INT) /* magic */
+
+STRUCT(drm_client,
+       TYPE_INT, /* idx */
+       TYPE_INT, /* auth */
+       TYPE_ULONG, /* pid */
+       TYPE_ULONG, /* uid */
+       TYPE_ULONG, /* magic */
+       TYPE_ULONG) /* iocs */
+
+STRUCT(drm_gem_close,
+       TYPE_INT, /* handle */
+       TYPE_INT) /* pad */
+
+STRUCT(drm_get_cap,
+       TYPE_ULONGLONG, /* capability */
+       TYPE_ULONGLONG) /* value */
+
+STRUCT(drm_prime_handle,
+       TYPE_INT, /* handle */
+       TYPE_INT, /* flags */
+       TYPE_INT) /* fd */
+
 STRUCT(drm_i915_getparam,
        TYPE_INT, /* param */
        TYPE_PTRVOID) /* value */

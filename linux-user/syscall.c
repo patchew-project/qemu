@@ -5624,15 +5624,48 @@ static inline void host_to_target_drmversion(
     unlock_drm_version(host_ver, target_ver, true);
 }
 
+static abi_long do_ioctl_drm_get_client(const IOCTLEntry *ie,
+                                        struct drm_client *host_client,
+                                        int fd, abi_long arg)
+{
+    abi_long ret;
+    struct target_drm_client *target_client;
+
+    if (!lock_user_struct(VERIFY_WRITE, target_client, arg, 0)) {
+        return -TARGET_EFAULT;
+    }
+
+    __get_user(host_client->idx, &target_client->idx);
+    __get_user(host_client->auth, &target_client->auth);
+    __get_user(host_client->pid, &target_client->pid);
+    __get_user(host_client->uid, &target_client->uid);
+    __get_user(host_client->magic, &target_client->magic);
+    __get_user(host_client->iocs, &target_client->iocs);
+
+    ret = get_errno(safe_ioctl(fd, ie->host_cmd, host_client));
+
+    if (!is_error(ret)) {
+        __put_user(host_client->idx, &target_client->idx);
+        __put_user(host_client->auth, &target_client->auth);
+        __put_user(host_client->pid, &target_client->pid);
+        __put_user(host_client->uid, &target_client->uid);
+        __put_user(host_client->magic, &target_client->magic);
+        __put_user(host_client->iocs, &target_client->iocs);
+    }
+
+    unlock_user_struct(target_client, arg, 0);
+    return ret;
+}
+
 static abi_long do_ioctl_drm(const IOCTLEntry *ie, uint8_t *buf_temp,
                              int fd, int cmd, abi_long arg)
 {
-    struct drm_version *ver;
-    struct target_drm_version *target_ver;
     abi_long ret;
 
     switch (ie->host_cmd) {
-    case DRM_IOCTL_VERSION:
+    case DRM_IOCTL_VERSION: {
+        struct drm_version *ver;
+        struct target_drm_version *target_ver;
         if (!lock_user_struct(VERIFY_WRITE, target_ver, arg, 0)) {
             return -TARGET_EFAULT;
         }
@@ -5648,6 +5681,65 @@ static abi_long do_ioctl_drm(const IOCTLEntry *ie, uint8_t *buf_temp,
         }
         unlock_user_struct(target_ver, arg, 0);
         return ret;
+    }
+    case DRM_IOCTL_GET_MAGIC: {
+        struct drm_auth *auth;
+        struct target_drm_auth *target_auth;
+        if (!lock_user_struct(VERIFY_READ, target_auth, arg, 0)) {
+            return -TARGET_EFAULT;
+        }
+        auth = (struct drm_auth *)buf_temp;
+        __get_user(auth->magic, &target_auth->magic);
+        ret = get_errno(safe_ioctl(fd, ie->host_cmd, auth));
+        unlock_user_struct(target_auth, arg, 0);
+        return ret;
+    }
+    case DRM_IOCTL_GEM_CLOSE: {
+        struct drm_gem_close *gem_close;
+        struct target_drm_gem_close *target_gem_close;
+        if (!lock_user_struct(VERIFY_WRITE, target_gem_close, arg, 0)) {
+            return -TARGET_EFAULT;
+        }
+        gem_close = (struct drm_gem_close *)buf_temp;
+        __get_user(gem_close->handle, &target_gem_close->handle);
+        ret = get_errno(safe_ioctl(fd, ie->host_cmd, gem_close));
+        __put_user(gem_close->handle, &target_gem_close->handle);
+        unlock_user_struct(target_gem_close, arg, 0);
+        return ret;
+    }
+    case DRM_IOCTL_GET_CAP: {
+        struct drm_get_cap *cap;
+        struct target_drm_get_cap *target_cap;
+        if (!lock_user_struct(VERIFY_WRITE, target_cap, arg, 0)) {
+            return -TARGET_EFAULT;
+        }
+        cap = (struct drm_get_cap *)buf_temp;
+        __get_user(cap->capability, &target_cap->capability);
+        __get_user(cap->value, &target_cap->value);
+        ret = get_errno(safe_ioctl(fd, ie->host_cmd, cap));
+        __put_user(cap->value, &target_cap->value);
+        unlock_user_struct(target_cap, arg, 0);
+        return ret;
+    }
+    case DRM_IOCTL_GET_CLIENT:
+        return do_ioctl_drm_get_client(ie,
+                                       (struct drm_client *)buf_temp,
+                                       fd, arg);
+    case DRM_IOCTL_PRIME_HANDLE_TO_FD: {
+        struct drm_prime_handle *prime_handle;
+        struct target_drm_prime_handle *target_prime_handle;
+        if (!lock_user_struct(VERIFY_WRITE, target_prime_handle, arg, 0)) {
+            return -TARGET_EFAULT;
+        }
+        prime_handle = (struct drm_prime_handle *)buf_temp;
+        __get_user(prime_handle->handle, &target_prime_handle->handle);
+        __get_user(prime_handle->flags, &target_prime_handle->flags);
+        __get_user(prime_handle->fd, &target_prime_handle->fd);
+        ret = get_errno(safe_ioctl(fd, ie->host_cmd, prime_handle));
+        __put_user(prime_handle->fd, &target_prime_handle->fd);
+        unlock_user_struct(target_prime_handle, arg, 0);
+        return ret;
+    }
     }
     return -TARGET_ENOSYS;
 }
