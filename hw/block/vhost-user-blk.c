@@ -279,10 +279,6 @@ static void vhost_user_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
     Error *local_err = NULL;
     int i, ret;
 
-    if (!vdev->start_on_kick) {
-        return;
-    }
-
     if (!s->connected) {
         return;
     }
