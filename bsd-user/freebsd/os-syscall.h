@@ -6,6 +6,8 @@
  * OS-Specific portion of syscall_defs.h
  */
 
+#include <sys/param.h>	/* Needed for __FreeBSD_version */
+
 #include "freebsd/syscall_nr.h"
 
 /*
