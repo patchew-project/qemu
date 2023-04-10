@@ -270,6 +270,199 @@ do_sysctl_kern_getprocs(int op, int arg, size_t olen,
     return ret;
 }
 
+static void
+host_to_target_kinfo_file(struct target_kinfo_file *tkif,
+        struct kinfo_file *hkif)
+{
+    int type = hkif->kf_type;
+
+    __put_user(hkif->kf_structsize, &tkif->kf_structsize);
+    __put_user(hkif->kf_type, &tkif->kf_type);
+    __put_user(hkif->kf_fd, &tkif->kf_fd);
+    __put_user(hkif->kf_ref_count, &tkif->kf_ref_count);
+    __put_user(hkif->kf_flags, &tkif->kf_flags);
+    __put_user(hkif->kf_offset, &tkif->kf_offset);
+    switch (type) {
+    case TARGET_KF_TYPE_FIFO:
+    case TARGET_KF_TYPE_SHM:
+    case TARGET_KF_TYPE_VNODE:
+        __put_user(hkif->kf_un.kf_file.kf_file_type,
+                &tkif->kf_un.kf_file.kf_file_type);
+        __put_user(hkif->kf_un.kf_file.kf_file_fsid,
+                &tkif->kf_un.kf_file.kf_file_fsid);
+        __put_user(hkif->kf_un.kf_file.kf_file_rdev,
+                &tkif->kf_un.kf_file.kf_file_rdev);
+        __put_user(hkif->kf_un.kf_file.kf_file_fileid,
+                &tkif->kf_un.kf_file.kf_file_fileid);
+        __put_user(hkif->kf_un.kf_file.kf_file_size,
+                &tkif->kf_un.kf_file.kf_file_size);
+        __put_user(hkif->kf_un.kf_file.kf_file_fsid_freebsd11,
+                &tkif->kf_un.kf_file.kf_file_fsid_freebsd11);
+        __put_user(hkif->kf_un.kf_file.kf_file_rdev_freebsd11,
+                &tkif->kf_un.kf_file.kf_file_rdev_freebsd11);
+        __put_user(hkif->kf_un.kf_file.kf_file_mode,
+                &tkif->kf_un.kf_file.kf_file_mode);
+        break;
+
+    case TARGET_KF_TYPE_SOCKET:
+        __put_user(hkif->kf_un.kf_sock.kf_sock_domain0,
+                &tkif->kf_un.kf_sock.kf_sock_domain0);
+        __put_user(hkif->kf_un.kf_sock.kf_sock_type0,
+                &tkif->kf_un.kf_sock.kf_sock_type0);
+        __put_user(hkif->kf_un.kf_sock.kf_sock_protocol0,
+                &tkif->kf_un.kf_sock.kf_sock_protocol0);
+/*  XXX - Implement copy function for sockaddr_storage
+        host_to_target_copy_sockaddr_storage(
+                &hkif->kf_un.kf_file.kf_sa_local,
+                &kif->kf_un.kf_file.kf_sa_local);
+        host_to_target_copy_sockaddr_storage(
+                &hkif->kf_un.kf_file.kf_sa_peer,
+                &kif->kf_un.kf_file.kf_sa_peer);
+*/
+        __put_user(hkif->kf_un.kf_sock.kf_sock_pcb,
+                &tkif->kf_un.kf_sock.kf_sock_pcb);
+        __put_user(hkif->kf_un.kf_sock.kf_sock_inpcb,
+                &tkif->kf_un.kf_sock.kf_sock_inpcb);
+        __put_user(hkif->kf_un.kf_sock.kf_sock_unpconn,
+                &tkif->kf_un.kf_sock.kf_sock_unpconn);
+        __put_user(hkif->kf_un.kf_sock.kf_sock_snd_sb_state,
+                &tkif->kf_un.kf_sock.kf_sock_snd_sb_state);
+        __put_user(hkif->kf_un.kf_sock.kf_sock_rcv_sb_state,
+                &tkif->kf_un.kf_sock.kf_sock_rcv_sb_state);
+        break;
+
+    case TARGET_KF_TYPE_PIPE:
+        __put_user(hkif->kf_un.kf_pipe.kf_pipe_addr,
+                &tkif->kf_un.kf_pipe.kf_pipe_addr);
+        __put_user(hkif->kf_un.kf_pipe.kf_pipe_peer,
+                &tkif->kf_un.kf_pipe.kf_pipe_peer);
+        __put_user(hkif->kf_un.kf_pipe.kf_pipe_buffer_cnt,
+                &tkif->kf_un.kf_pipe.kf_pipe_buffer_cnt);
+        break;
+
+    case TARGET_KF_TYPE_SEM:
+        __put_user(hkif->kf_un.kf_sem.kf_sem_value,
+                &tkif->kf_un.kf_sem.kf_sem_value);
+        __put_user(hkif->kf_un.kf_sem.kf_sem_mode,
+                &tkif->kf_un.kf_sem.kf_sem_mode);
+        break;
+
+    case TARGET_KF_TYPE_PTS:
+        __put_user(hkif->kf_un.kf_pts.kf_pts_dev_freebsd11,
+                &tkif->kf_un.kf_pts.kf_pts_dev_freebsd11);
+        __put_user(hkif->kf_un.kf_pts.kf_pts_dev,
+                &tkif->kf_un.kf_pts.kf_pts_dev);
+        break;
+
+    case TARGET_KF_TYPE_PROCDESC:
+        __put_user(hkif->kf_un.kf_proc.kf_pid,
+                &tkif->kf_un.kf_proc.kf_pid);
+        break;
+
+
+    case TARGET_KF_TYPE_CRYPTO:
+    case TARGET_KF_TYPE_KQUEUE:
+    case TARGET_KF_TYPE_MQUEUE:
+    case TARGET_KF_TYPE_NONE:
+    case TARGET_KF_TYPE_UNKNOWN:
+    default:
+        /* Do nothing. */
+        break;
+    }
+    __put_user(hkif->kf_status, &tkif->kf_status);
+    for (int i = 0; i < (CAP_RIGHTS_VERSION + 2); i++)
+        __put_user(hkif->kf_cap_rights.cr_rights[i],
+                &tkif->kf_cap_rights.cr_rights[i]);
+    strncpy(tkif->kf_path, hkif->kf_path, sizeof(tkif->kf_path));
+}
+
+abi_long
+do_sysctl_kern_proc_filedesc(int pid, size_t olen,
+        struct target_kinfo_file *tkif, size_t *tlen)
+{
+    abi_long ret;
+    int mib[4], sz;
+    size_t len;
+    char *buf, *bp, *eb, *tp;
+    struct kinfo_file *kf, kif;
+    struct target_kinfo_file target_kif;
+
+    if (tlen == NULL) {
+        return -TARGET_EINVAL;
+    }
+
+    len = 0;
+    mib[0] = CTL_KERN;
+    mib[1] = KERN_PROC;
+    mib[2] = KERN_PROC_FILEDESC;
+    mib[3] = pid;
+
+    ret = get_errno(sysctl(mib, 4, NULL, &len, NULL, 0));
+    if (is_error(ret)) {
+        return ret;
+    }
+    if (tkif == NULL) {
+        *tlen = len;
+        return ret;
+    }
+    len = len * 4 / 3;
+    buf = g_malloc(len);
+    if (buf == NULL) {
+        return -TARGET_ENOMEM;
+    }
+
+    /*
+     * Count the number of records.
+     *
+     * Given that the kinfo_file information returned by
+     * the kernel may be different sizes per record we have
+     * to read it in and count the variable length records
+     * by walking them.
+     */
+    ret = get_errno(sysctl(mib, 4, buf, &len, NULL, 0));
+    if (is_error(ret)) {
+        g_free(buf);
+        return ret;
+    }
+    *tlen = len;
+    bp = buf;
+    eb = buf + len;
+    while (bp < eb) {
+        kf = (struct kinfo_file *)(uintptr_t)bp;
+        bp += kf->kf_structsize;
+    }
+    if (olen < *tlen) {
+        g_free(buf);
+        return -TARGET_EINVAL;
+    }
+
+    /*
+     * Unpack the records from the kernel into full length records
+     * and byte swap, if needed.
+     */
+    bp = buf;
+    eb = buf + len;
+    tp = (char *)tkif;
+    while (bp < eb) {
+        kf = (struct kinfo_file *)(uintptr_t)bp;
+        sz = kf->kf_structsize;
+        /* Copy/expand into a zeroed buffer */
+        memset(&kif, 0, sizeof(kif));
+        memcpy(&kif, kf, sz);
+        /* Byte swap and copy into a target buffer. */
+        host_to_target_kinfo_file(&target_kif, &kif);
+        /* Copy target buffer to user buffer and pack */
+        memcpy(tp, &target_kif, sz);
+        /* Advance to next packed record. */
+        bp += sz;
+        /* Advance to next packed, target record. */
+        tp += sz;
+    }
+
+    g_free(buf);
+    return ret;
+}
+
 /*
  * This uses the undocumented oidfmt interface to find the kind of a requested
  * sysctl, see /sys/kern/kern_sysctl.c:sysctl_sysctl_oidfmt() (compare to
