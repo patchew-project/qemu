@@ -46,7 +46,6 @@
 #include "qemu/guest-random.h"
 #include "gdbstub/user.h"
 
-#include "host-os.h"
 #include "target_arch_cpu.h"
 
 int singlestep;
