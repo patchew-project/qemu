@@ -123,7 +123,11 @@
 #endif
 #ifdef HAVE_DRM_H
 #include <libdrm/drm.h>
+#ifdef CONFIG_DRM_AMDGPU
+#include <libdrm/amdgpu_drm.h>
+#else
 #include <libdrm/i915_drm.h>
+#endif
 #endif
 #include "linux_loop.h"
 #include "uname.h"
@@ -5648,6 +5652,10 @@ static abi_long do_ioctl_drm(const IOCTLEntry *ie, uint8_t *buf_temp,
     return -TARGET_ENOSYS;
 }
 
+#ifdef CONFIG_DRM_AMDGPU
+
+#else
+
 static abi_long do_ioctl_drm_i915_getparam(const IOCTLEntry *ie,
                                            struct drm_i915_getparam *gparam,
                                            int fd, abi_long arg)
@@ -5681,6 +5689,8 @@ static abi_long do_ioctl_drm_i915(const IOCTLEntry *ie, uint8_t *buf_temp,
         return -TARGET_ENOSYS;
     }
 }
+
+#endif /* CONFIG_DRM_AMDGPU */
 
 #endif
 

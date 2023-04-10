@@ -1227,8 +1227,13 @@ struct target_rtc_pll_info {
 /* drm ioctls */
 #define TARGET_DRM_IOCTL_VERSION      TARGET_IOWRU('d', 0x00)
 
+#ifdef CONFIG_DRM_AMDGPU
+
+#else
 /* drm i915 ioctls */
 #define TARGET_DRM_IOCTL_I915_GETPARAM              TARGET_IOWRU('d', 0x46)
+
+#endif /* CONFIG_DRM_AMDGPU */
 
 /* from asm/termbits.h */
 

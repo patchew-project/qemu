@@ -835,6 +835,8 @@ for opt do
   ;;
   --enable-linux-user) linux_user="yes"
   ;;
+  --enable-linux-user-drm-amdgpu) meson_option_add "-Ddrm_amdgpu=true"
+  ;;
   --disable-bsd-user) bsd_user="no"
   ;;
   --enable-bsd-user) bsd_user="yes"
