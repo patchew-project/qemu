@@ -121,7 +121,7 @@ static bool map_noreserve_effective(int fd, uint32_t qemu_map_flags)
  * Reserve a new memory region of the requested size to be used for mapping
  * from the given fd (if any).
  */
-static void *mmap_reserve(size_t size, int fd)
+static void *mmap_reserve(size_t size, int fd, int final_flags)
 {
     int flags = MAP_PRIVATE;
 
@@ -144,6 +144,7 @@ static void *mmap_reserve(size_t size, int fd)
 #else
     fd = -1;
     flags |= MAP_ANONYMOUS;
+    flags |= final_flags & MAP_SHARED;
 #endif
 
     return mmap(0, size, PROT_NONE, flags, fd, 0);
@@ -232,7 +233,7 @@ void *qemu_ram_mmap(int fd,
      */
     total = size + align;
 
-    guardptr = mmap_reserve(total, fd);
+    guardptr = mmap_reserve(total, fd, qemu_map_flags);
     if (guardptr == MAP_FAILED) {
         return MAP_FAILED;
     }
