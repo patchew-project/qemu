@@ -1233,7 +1233,15 @@ struct target_rtc_pll_info {
 #define TARGET_DRM_IOCTL_PRIME_HANDLE_TO_FD  TARGET_IOWRU('d', 0x2d)
 
 #ifdef CONFIG_DRM_AMDGPU
-
+/* drm amdgpu ioctls */
+#define TARGET_DRM_IOCTL_AMDGPU_GEM_CREATE   TARGET_IOWRU('d', 0x40)
+#define TARGET_DRM_IOCTL_AMDGPU_GEM_MMAP     TARGET_IOWRU('d', 0x41)
+#define TARGET_DRM_IOCTL_AMDGPU_CTX   TARGET_IOWRU('d', 0x42)
+#define TARGET_DRM_IOCTL_AMDGPU_CS    TARGET_IOWRU('d', 0x44)
+#define TARGET_DRM_IOCTL_AMDGPU_INFO  TARGET_IOWU('d', 0x45)
+#define TARGET_DRM_IOCTL_AMDGPU_GEM_METADATA TARGET_IOWRU('d', 0x46)
+#define TARGET_DRM_IOCTL_AMDGPU_GEM_VA       TARGET_IOWRU('d', 0x48)
+#define TARGET_DRM_IOCTL_AMDGPU_WAIT_CS      TARGET_IOWRU('d', 0x49)
 #else
 /* drm i915 ioctls */
 #define TARGET_DRM_IOCTL_I915_GETPARAM              TARGET_IOWRU('d', 0x46)
@@ -2722,6 +2730,96 @@ struct target_drm_prime_handle {
     int handle;
     int flags;
     int fd;
+};
+
+/* amdgpu specific */
+union target_drm_amdgpu_gem_create {
+    struct {
+        abi_ullong bo_size;
+        abi_ullong alignment;
+        abi_ulong domains;
+        abi_ulong domain_flags;
+    } in;
+    struct {
+        int handle;
+        int _pad;
+    } out;
+};
+
+union target_drm_amdgpu_gem_mmap {
+    struct {
+        int handle;
+        int _pad;
+    } in;
+    struct {
+        abi_ulong addr_ptr;
+    } out;
+};
+
+struct target_drm_amdgpu_ctx {
+    int op;
+    int flags;
+    int ctx_id;
+    int priority;
+};
+
+struct target_drm_amdgpu_info {
+    abi_ulong return_pointer;
+    int return_size;
+    int query;
+    int value[4];
+};
+
+struct target_drm_amdgpu_gem_metadata {
+    int handle;
+    int op;
+    abi_ulong flags;
+    abi_ulong tiling_info;
+    int data_size_bytes;
+    int data[64];
+};
+
+struct target_drm_amdgpu_gem_va {
+    int handle;
+    int _pad;
+    int operation;
+    int flags;
+    abi_ulong va_address;
+    abi_ulong offset_in_bo;
+    abi_ulong map_size;
+};
+
+struct target_drm_amdgpu_cs_chunk {
+    int chunk_id;
+    int length_dw;
+    abi_ulong chunk_data;
+};
+
+union target_drm_amdgpu_cs {
+    struct {
+        int ctx_id;
+        int bo_list_handle;
+        int num_chunks;
+        int flags;
+        abi_ulong chunks;
+    } in;
+    struct {
+        abi_ulong handle;
+    } out;
+};
+
+union target_drm_amdgpu_wait_cs {
+    struct {
+        abi_ullong handle;
+        abi_ullong timeout;
+        int ip_type;
+        int ip_instance;
+        int ring;
+        int ctx_id;
+    } in;
+    struct {
+        abi_ullong status;
+    } out;
 };
 
 struct target_drm_i915_getparam {

@@ -696,6 +696,22 @@
   IOCTL_SPECIAL(DRM_IOCTL_PRIME_HANDLE_TO_FD, IOC_RW, do_ioctl_drm,
                 MK_PTR(MK_STRUCT(STRUCT_drm_prime_handle)))
 #ifdef CONFIG_DRM_AMDGPU
+  IOCTL_SPECIAL(DRM_IOCTL_AMDGPU_GEM_CREATE, IOC_RW, do_ioctl_drm_amdgpu,
+                MK_PTR(MK_STRUCT(STRUCT_drm_amdgpu_gem_create)))
+  IOCTL_SPECIAL(DRM_IOCTL_AMDGPU_GEM_MMAP, IOC_RW, do_ioctl_drm_amdgpu,
+                MK_PTR(MK_STRUCT(STRUCT_drm_amdgpu_gem_mmap)))
+  IOCTL_SPECIAL(DRM_IOCTL_AMDGPU_CTX, IOC_RW, do_ioctl_drm_amdgpu,
+                MK_PTR(MK_STRUCT(STRUCT_drm_amdgpu_ctx)))
+  IOCTL_SPECIAL(DRM_IOCTL_AMDGPU_CS, IOC_RW, do_ioctl_drm_amdgpu,
+                MK_PTR(MK_STRUCT(STRUCT_drm_amdgpu_cs)))
+  IOCTL_SPECIAL(DRM_IOCTL_AMDGPU_INFO, IOC_W, do_ioctl_drm_amdgpu,
+                MK_PTR(MK_STRUCT(STRUCT_drm_amdgpu_info)))
+  IOCTL_SPECIAL(DRM_IOCTL_AMDGPU_GEM_METADATA, IOC_RW, do_ioctl_drm_amdgpu,
+                MK_PTR(MK_STRUCT(STRUCT_drm_amdgpu_gem_metadata)))
+  IOCTL_SPECIAL(DRM_IOCTL_AMDGPU_GEM_VA, IOC_RW, do_ioctl_drm_amdgpu,
+                MK_PTR(MK_STRUCT(STRUCT_drm_amdgpu_gem_va)))
+  IOCTL_SPECIAL(DRM_IOCTL_AMDGPU_WAIT_CS, IOC_RW, do_ioctl_drm_amdgpu,
+                MK_PTR(MK_STRUCT(STRUCT_drm_amdgpu_wait_cs)))
 #else
   IOCTL_SPECIAL(DRM_IOCTL_I915_GETPARAM, IOC_RW, do_ioctl_drm_i915,
                 MK_PTR(MK_STRUCT(STRUCT_drm_i915_getparam)))

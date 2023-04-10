@@ -355,6 +355,61 @@ STRUCT(drm_prime_handle,
        TYPE_INT, /* flags */
        TYPE_INT) /* fd */
 
+/* amdgpu specific */
+STRUCT(drm_amdgpu_gem_create,
+       TYPE_INT, /* [out] handle */
+       TYPE_INT, /* [out] _pad; [in] bo_size */
+       TYPE_ULONGLONG, /* [in] alignment */
+       TYPE_ULONGLONG, /* [in] domains */
+       TYPE_ULONGLONG) /* [in] domain_flags */
+
+STRUCT(drm_amdgpu_gem_mmap,
+       TYPE_ULONGLONG) /* [out] addr_ptr */
+
+STRUCT(drm_amdgpu_ctx,
+       TYPE_INT, /* [in] op */
+       TYPE_INT, /* [in] flags */
+       TYPE_INT, /* [in] ctx_id */
+       TYPE_INT) /* [in] priority */
+
+STRUCT(drm_amdgpu_cs,
+       TYPE_INT, /* [in] ctx_id */
+       TYPE_INT, /* [in] bo_list_handle */
+       TYPE_INT, /* [in] num_chunks */
+       TYPE_INT, /* [in] flags */
+       TYPE_PTRVOID) /* [in] chunks */
+
+STRUCT(drm_amdgpu_info,
+       TYPE_PTRVOID, /* return pointer */
+       TYPE_INT, /* return size */
+       TYPE_INT, /* query id */
+       MK_ARRAY(TYPE_INT, 4)) /* union */
+
+STRUCT(drm_amdgpu_gem_metadata,
+       TYPE_INT, /* handle */
+       TYPE_INT, /* op */
+       TYPE_ULONGLONG, /* flags */
+       TYPE_ULONGLONG, /* tiling_info */
+       TYPE_INT, /* data_size_bytes */
+       MK_ARRAY(TYPE_INT, 64)) /* data */
+
+STRUCT(drm_amdgpu_gem_va,
+       TYPE_INT, /* handle */
+       TYPE_INT, /* pad */
+       TYPE_INT, /* operation */
+       TYPE_INT, /* flags */
+       TYPE_ULONGLONG, /* va_address */
+       TYPE_ULONGLONG, /* offset_in_bo */
+       TYPE_ULONGLONG) /* map_size */
+
+STRUCT(drm_amdgpu_wait_cs,
+       TYPE_ULONGLONG, /* [in] handle; [out] status */
+       TYPE_ULONGLONG, /* [in] timeout */
+       TYPE_INT, /* [in] ip_type */
+       TYPE_INT, /* [in] ip_instance */
+       TYPE_INT, /* [in] ring */
+       TYPE_INT) /* [in] ctx_id */
+
 STRUCT(drm_i915_getparam,
        TYPE_INT, /* param */
        TYPE_PTRVOID) /* value */
