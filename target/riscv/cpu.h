@@ -613,6 +613,9 @@ void riscv_cpu_set_aia_ireg_rmw_fn(CPURISCVState *env, uint32_t priv,
                                                  target_ulong new_val,
                                                  target_ulong write_mask),
                                    void *rmw_fn_arg);
+RISCVException smstateen_acc_ok(CPURISCVState *env, int index, uint64_t bit);
+#else
+#define smstateen_acc_ok(env, index, bit) RISCV_EXCP_NONE
 #endif
 void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv);
 
