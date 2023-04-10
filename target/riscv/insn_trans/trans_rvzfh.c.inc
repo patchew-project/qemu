@@ -20,24 +20,28 @@
     if (!ctx->cfg_ptr->ext_zfh) {      \
         return false;         \
     }                         \
+    smstateen_fcsr_check(ctx); \
 } while (0)
 
 #define REQUIRE_ZHINX_OR_ZFH(ctx) do { \
     if (!ctx->cfg_ptr->ext_zhinx && !ctx->cfg_ptr->ext_zfh) { \
         return false;                  \
     }                                  \
+    smstateen_fcsr_check(ctx); \
 } while (0)
 
 #define REQUIRE_ZFHMIN(ctx) do {              \
     if (!ctx->cfg_ptr->ext_zfhmin) {          \
         return false;                         \
     }                                         \
+    smstateen_fcsr_check(ctx); \
 } while (0)
 
 #define REQUIRE_ZFHMIN_OR_ZHINXMIN(ctx) do {                 \
     if (!(ctx->cfg_ptr->ext_zfhmin || ctx->cfg_ptr->ext_zhinxmin)) { \
         return false;                                        \
     }                                                        \
+    smstateen_fcsr_check(ctx); \
 } while (0)
 
 static bool trans_flh(DisasContext *ctx, arg_flh *a)

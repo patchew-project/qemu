@@ -24,9 +24,27 @@
             return false; \
 } while (0)
 
-#define REQUIRE_ZFINX_OR_F(ctx) do {\
-    if (!ctx->cfg_ptr->ext_zfinx) { \
-        REQUIRE_EXT(ctx, RVF); \
+#ifndef CONFIG_USER_ONLY
+#define smstateen_fcsr_check(ctx) do { \
+    if (!ctx->smstateen_fcsr_ok) { \
+        if (ctx->virt_enabled) { \
+            generate_exception(ctx, RISCV_EXCP_VIRT_INSTRUCTION_FAULT); \
+        } else { \
+            generate_exception(ctx, RISCV_EXCP_ILLEGAL_INST); \
+        } \
+        return true; \
+    } \
+} while (0)
+#else
+#define smstateen_fcsr_check(ctx)
+#endif
+
+#define REQUIRE_ZFINX_OR_F(ctx) do { \
+    if (!has_ext(ctx, RVF)) { \
+        if (!ctx->cfg_ptr->ext_zfinx) { \
+            return false; \
+        } \
+        smstateen_fcsr_check(ctx); \
     } \
 } while (0)
 
