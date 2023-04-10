@@ -18,6 +18,7 @@ source intc/Kconfig
 source ipack/Kconfig
 source ipmi/Kconfig
 source isa/Kconfig
+source mcb/Kconfig
 source mem/Kconfig
 source misc/Kconfig
 source net/Kconfig
