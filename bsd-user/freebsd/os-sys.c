@@ -463,6 +463,121 @@ do_sysctl_kern_proc_filedesc(int pid, size_t olen,
     return ret;
 }
 
+static void
+host_to_target_kinfo_vmentry(struct target_kinfo_vmentry *tkve,
+        struct kinfo_vmentry *hkve)
+{
+
+    __put_user(hkve->kve_structsize, &tkve->kve_structsize);
+    __put_user(hkve->kve_type, &tkve->kve_type);
+    __put_user(hkve->kve_start, &tkve->kve_start);
+    __put_user(hkve->kve_end, &tkve->kve_end);
+    __put_user(hkve->kve_offset, &tkve->kve_offset);
+    __put_user(hkve->kve_vn_fileid, &tkve->kve_vn_fileid);
+    __put_user(hkve->kve_vn_fsid_freebsd11, &tkve->kve_vn_fsid_freebsd11);
+    __put_user(hkve->kve_vn_fsid, &tkve->kve_vn_fsid);
+    __put_user(hkve->kve_flags, &tkve->kve_flags);
+    __put_user(hkve->kve_resident, &tkve->kve_resident);
+    __put_user(hkve->kve_private_resident, &tkve->kve_private_resident);
+    __put_user(hkve->kve_protection, &tkve->kve_protection);
+    __put_user(hkve->kve_ref_count, &tkve->kve_ref_count);
+    __put_user(hkve->kve_shadow_count, &tkve->kve_shadow_count);
+    __put_user(hkve->kve_vn_type, &tkve->kve_vn_type);
+    __put_user(hkve->kve_vn_size, &tkve->kve_vn_size);
+    __put_user(hkve->kve_vn_rdev_freebsd11, &tkve->kve_vn_rdev_freebsd11);
+    __put_user(hkve->kve_vn_rdev, &tkve->kve_vn_rdev);
+    __put_user(hkve->kve_vn_mode, &tkve->kve_vn_mode);
+    __put_user(hkve->kve_status, &tkve->kve_status);
+    strncpy(tkve->kve_path, hkve->kve_path, sizeof(tkve->kve_path));
+}
+
+abi_long
+do_sysctl_kern_proc_vmmap(int pid, size_t olen,
+        struct target_kinfo_vmentry *tkve, size_t *tlen)
+{
+    abi_long ret;
+    int mib[4], sz;
+    size_t len;
+    char *buf, *bp, *eb, *tp;
+    struct kinfo_vmentry *kve, kvme;
+    struct target_kinfo_vmentry target_kvme;
+
+    if (tlen == NULL) {
+        return -TARGET_EINVAL;
+    }
+
+    len = 0;
+    mib[0] = CTL_KERN;
+    mib[1] = KERN_PROC;
+    mib[2] = KERN_PROC_VMMAP;
+    mib[3] = pid;
+
+    ret = get_errno(sysctl(mib, 4, NULL, &len, NULL, 0));
+    if (is_error(ret)) {
+        return ret;
+    }
+    if (tkve == NULL) {
+        *tlen = len;
+        return ret;
+    }
+    len = len * 4 / 3;
+    buf = g_malloc(len);
+    if (buf == NULL) {
+        return -TARGET_ENOMEM;
+    }
+
+    /*
+     * Count the number of records.
+     *
+     * Given that the kinfo_file information returned by
+     * the kernel may be differents sizes per record we have
+     * to read it in and count the variable length records
+     * by walking them.
+     */
+    ret = get_errno(sysctl(mib, 4, buf, &len, NULL, 0));
+    if (is_error(ret)) {
+        g_free(buf);
+        return ret;
+    }
+    *tlen = len;
+    bp = buf;
+    eb = buf + len;
+    while (bp < eb) {
+        kve = (struct kinfo_vmentry *)(uintptr_t)bp;
+        bp += kve->kve_structsize;
+    }
+    if (olen < *tlen) {
+        g_free(buf);
+        return -TARGET_EINVAL;
+    }
+
+    /*
+     * Unpack the records from the kernel into full length records
+     * and byte swap, if needed.
+     */
+    bp = buf;
+    eb = buf + len;
+    tp = (char *)tkve;
+    while (bp < eb) {
+        kve = (struct kinfo_vmentry *)(uintptr_t)bp;
+        sz = kve->kve_structsize;
+        /* Copy/expand into a zeroed buffer */
+        memset(&kvme, 0, sizeof(kvme));
+        memcpy(&kvme, kve, sz);
+        /* Byte swap and copy into a target aligned buffer. */
+        host_to_target_kinfo_vmentry(&target_kvme, &kvme);
+        /* Copy target buffer to user buffer, packed. */
+        memcpy(tp, &target_kvme, sz);
+        /* Advance to next packed record. */
+        bp += sz;
+        /* Advance to next packed, target record. */
+        tp += sz;
+    }
+
+    g_free(buf);
+    return ret;
+}
+
 /*
  * This uses the undocumented oidfmt interface to find the kind of a requested
  * sysctl, see /sys/kern/kern_sysctl.c:sysctl_sysctl_oidfmt() (compare to
