@@ -117,6 +117,11 @@ void cpu_get_tb_cpu_state(CPURISCVState *env, target_ulong *pc,
     if (env->cur_pmbase != 0) {
         flags = FIELD_DP32(flags, TB_FLAGS, PM_BASE_ENABLED, 1);
     }
+    if (smstateen_acc_ok(env, 0, SMSTATEEN0_FCSR) == RISCV_EXCP_NONE) {
+        flags = FIELD_DP32(flags, TB_FLAGS, FCSR, 1);
+    } else {
+        flags = FIELD_DP32(flags, TB_FLAGS, FCSR, 0);
+    }
 
     *pflags = flags;
 }
