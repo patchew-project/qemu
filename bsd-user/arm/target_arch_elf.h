@@ -29,7 +29,6 @@
 #define ELF_DATA        ELFDATA2LSB
 #define ELF_ARCH        EM_ARM
 
-#define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE       4096
 
 #define ELF_HWCAP get_elf_hwcap()
