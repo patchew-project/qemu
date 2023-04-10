@@ -25,30 +25,7 @@
 
 #include "errno_defs.h"
 
-#include "freebsd/syscall_nr.h"
-#include "netbsd/syscall_nr.h"
-#include "openbsd/syscall_nr.h"
-
-/*
- * machine/_types.h
- * or x86/_types.h
- */
-
-/*
- * time_t seems to be very inconsistly defined for the different *BSD's...
- *
- * FreeBSD uses a 64bits time_t except on i386
- * so we have to add a special case here.
- *
- * On NetBSD time_t is always defined as an int64_t.  On OpenBSD time_t
- * is always defined as an int.
- *
- */
-#if (!defined(TARGET_I386))
-typedef int64_t target_freebsd_time_t;
-#else
-typedef int32_t target_freebsd_time_t;
-#endif
+#include "os-syscall.h"
 
 struct target_iovec {
     abi_long iov_base;   /* Starting address */
@@ -98,11 +75,9 @@ struct target_iovec {
  * sys/timex.h
  */
 
-typedef abi_long target_freebsd_suseconds_t;
-
 /* compare to sys/timespec.h */
 struct target_freebsd_timespec {
-    target_freebsd_time_t   tv_sec;     /* seconds */
+    target_time_t   tv_sec;     /* seconds */
     abi_long                tv_nsec;    /* and nanoseconds */
 #if !defined(TARGET_I386) && TARGET_ABI_BITS == 32
     abi_long _pad;
@@ -120,8 +95,8 @@ struct target_freebsd__umtx_time {
 };
 
 struct target_freebsd_timeval {
-    target_freebsd_time_t       tv_sec; /* seconds */
-    target_freebsd_suseconds_t  tv_usec;/* and microseconds */
+    target_time_t       tv_sec; /* seconds */
+    target_suseconds_t  tv_usec;/* and microseconds */
 #if !defined(TARGET_I386) && TARGET_ABI_BITS == 32
     abi_long _pad;
 #endif
