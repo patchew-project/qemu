@@ -8,6 +8,7 @@ common_user_inc += include_directories('include')
 
 bsd_user_ss.add(files(
   'bsdload.c',
+  'bsd-proc.c',
   'elfload.c',
   'main.c',
   'mmap.c',
