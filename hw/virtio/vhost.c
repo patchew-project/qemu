@@ -50,6 +50,8 @@ static unsigned int used_memslots;
 static QLIST_HEAD(, vhost_dev) vhost_devices =
     QLIST_HEAD_INITIALIZER(vhost_devices);
 
+static int vhost_dev_set_vring_enable(struct vhost_dev *hdev, int enable);
+
 bool vhost_has_free_slot(void)
 {
     unsigned int slots_limit = ~0U;
@@ -897,6 +899,15 @@ static int vhost_dev_set_features(struct vhost_dev *dev,
             VHOST_OPS_DEBUG(r, "vhost_set_backend_cap failed");
             goto out;
         }
+    }
+
+    if (dev->enable_vqs) {
+        /*
+         * Setting VHOST_USER_F_PROTOCOL_FEATURES would have disabled all
+         * virtqueues, even if that was not intended; re-enable them if
+         * necessary.
+         */
+        vhost_dev_set_vring_enable(dev, true);
     }
 
 out:
@@ -1896,6 +1907,8 @@ int vhost_dev_get_inflight(struct vhost_dev *dev, uint16_t queue_size,
 
 static int vhost_dev_set_vring_enable(struct vhost_dev *hdev, int enable)
 {
+    hdev->enable_vqs = enable;
+
     if (!hdev->vhost_ops->vhost_set_vring_enable) {
         return 0;
     }

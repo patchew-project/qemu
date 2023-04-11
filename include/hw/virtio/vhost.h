@@ -90,6 +90,16 @@ struct vhost_dev {
     int vq_index_end;
     /* if non-zero, minimum required value for max_queues */
     int num_queues;
+
+    /*
+     * Whether the virtqueues are supposed to be enabled (via
+     * SET_VRING_ENABLE).  Setting the features (e.g. for
+     * enabling/disabling logging) will disable all virtqueues if
+     * VHOST_USER_F_PROTOCOL_FEATURES is set, so then we need to
+     * re-enable them if this field is set.
+     */
+    bool enable_vqs;
+
     /**
      * vhost feature handling requires matching the feature set
      * offered by a backend which may be a subset of the total
