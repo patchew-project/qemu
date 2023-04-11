@@ -19,9 +19,14 @@
 
 #include "qemu/osdep.h"
 #include "qemu.h"
+#include "qemu-bsd.h"
 #include "target_arch_sysarch.h"
-
+#include "signal-common.h"
+#include <sys/param.h>
 #include <sys/sysctl.h>
+#include <sys/user.h>   /* For struct kinfo_* */
+
+#include "target_os_user.h"
 
 /*
  * Length for the fixed length types.
@@ -106,6 +111,164 @@ static abi_ulong h2g_ulong_sat(u_long ul)
  * placeholder until bsd-user downstream upstreams this with its thread support
  */
 #define bsd_get_ncpu() 1
+
+static void
+host_to_target_kinfo_proc(struct target_kinfo_proc *tki, struct kinfo_proc *hki)
+{
+    int i;
+
+    __put_user(sizeof(struct target_kinfo_proc), &tki->ki_structsize);
+    __put_user(hki->ki_layout, &tki->ki_layout);
+
+    /* Some of these are used as flags (e.g. ki_fd == NULL in procstat). */
+    tki->ki_args = tswapal((abi_ulong)(uintptr_t)hki->ki_args);
+    tki->ki_paddr = tswapal((abi_ulong)(uintptr_t)hki->ki_paddr);
+    tki->ki_addr = tswapal((abi_ulong)(uintptr_t)hki->ki_addr);
+    tki->ki_tracep = tswapal((abi_ulong)(uintptr_t)hki->ki_tracep);
+    tki->ki_textvp = tswapal((abi_ulong)(uintptr_t)hki->ki_textvp);
+    tki->ki_fd = tswapal((abi_ulong)(uintptr_t)hki->ki_fd);
+    tki->ki_vmspace = tswapal((abi_ulong)(uintptr_t)hki->ki_vmspace);
+    tki->ki_wchan = tswapal((abi_ulong)(uintptr_t)hki->ki_wchan);
+
+    __put_user(hki->ki_pid, &tki->ki_pid);
+    __put_user(hki->ki_ppid, &tki->ki_ppid);
+    __put_user(hki->ki_pgid, &tki->ki_pgid);
+    __put_user(hki->ki_tpgid, &tki->ki_tpgid);
+    __put_user(hki->ki_sid, &tki->ki_sid);
+    __put_user(hki->ki_tsid, &tki->ki_tsid);
+    __put_user(hki->ki_jobc, &tki->ki_jobc);
+    __put_user(hki->ki_tdev, &tki->ki_tdev);
+
+    host_to_target_sigset(&tki->ki_siglist, &hki->ki_siglist);
+    host_to_target_sigset(&tki->ki_sigmask, &hki->ki_sigmask);
+    host_to_target_sigset(&tki->ki_sigignore, &hki->ki_sigignore);
+    host_to_target_sigset(&tki->ki_sigcatch, &hki->ki_sigcatch);
+
+    __put_user(hki->ki_uid, &tki->ki_uid);
+    __put_user(hki->ki_ruid, &tki->ki_ruid);
+    __put_user(hki->ki_svuid, &tki->ki_svuid);
+    __put_user(hki->ki_rgid, &tki->ki_rgid);
+    __put_user(hki->ki_svgid, &tki->ki_svgid);
+    __put_user(hki->ki_ngroups, &tki->ki_ngroups);
+
+    for (i=0; i < TARGET_KI_NGROUPS; i++)
+        __put_user(hki->ki_groups[i], &tki->ki_groups[i]);
+
+    __put_user(hki->ki_size, &tki->ki_size);
+
+    __put_user(hki->ki_rssize, &tki->ki_rssize);
+    __put_user(hki->ki_swrss, &tki->ki_swrss);
+    __put_user(hki->ki_tsize, &tki->ki_tsize);
+    __put_user(hki->ki_dsize, &tki->ki_dsize);
+    __put_user(hki->ki_ssize, &tki->ki_ssize);
+
+    __put_user(hki->ki_xstat, &tki->ki_xstat);
+    __put_user(hki->ki_acflag, &tki->ki_acflag);
+
+    __put_user(hki->ki_pctcpu, &tki->ki_pctcpu);
+
+    __put_user(hki->ki_estcpu, &tki->ki_estcpu);
+    __put_user(hki->ki_slptime, &tki->ki_slptime);
+    __put_user(hki->ki_swtime, &tki->ki_swtime);
+    __put_user(hki->ki_cow, &tki->ki_cow);
+    __put_user(hki->ki_runtime, &tki->ki_runtime);
+
+    __put_user(hki->ki_start.tv_sec, &tki->ki_start.tv_sec);
+    __put_user(hki->ki_start.tv_usec, &tki->ki_start.tv_usec);
+    __put_user(hki->ki_childtime.tv_sec, &tki->ki_childtime.tv_sec);
+    __put_user(hki->ki_childtime.tv_usec, &tki->ki_childtime.tv_usec);
+
+    __put_user(hki->ki_flag, &tki->ki_flag);
+    __put_user(hki->ki_kiflag, &tki->ki_kiflag);
+
+    __put_user(hki->ki_traceflag, &tki->ki_traceflag);
+    __put_user(hki->ki_stat, &tki->ki_stat);
+    __put_user(hki->ki_nice, &tki->ki_nice);
+    __put_user(hki->ki_lock, &tki->ki_lock);
+    __put_user(hki->ki_rqindex, &tki->ki_rqindex);
+    __put_user(hki->ki_oncpu_old, &tki->ki_oncpu_old);
+    __put_user(hki->ki_lastcpu_old, &tki->ki_lastcpu_old);
+
+    strncpy(tki->ki_tdname, hki->ki_tdname, TARGET_TDNAMLEN+1);
+    strncpy(tki->ki_wmesg, hki->ki_wmesg, TARGET_WMESGLEN+1);
+    strncpy(tki->ki_login, hki->ki_login, TARGET_LOGNAMELEN+1);
+    strncpy(tki->ki_lockname, hki->ki_lockname, TARGET_LOCKNAMELEN+1);
+    strncpy(tki->ki_comm, hki->ki_comm, TARGET_COMMLEN+1);
+    strncpy(tki->ki_emul, hki->ki_emul, TARGET_KI_EMULNAMELEN+1);
+    strncpy(tki->ki_loginclass, hki->ki_loginclass, TARGET_LOGINCLASSLEN+1);
+
+    __put_user(hki->ki_oncpu, &tki->ki_oncpu);
+    __put_user(hki->ki_lastcpu, &tki->ki_lastcpu);
+    __put_user(hki->ki_tracer, &tki->ki_tracer);
+    __put_user(hki->ki_flag2, &tki->ki_flag2);
+    __put_user(hki->ki_fibnum, &tki->ki_fibnum);
+    __put_user(hki->ki_cr_flags, &tki->ki_cr_flags);
+    __put_user(hki->ki_jid, &tki->ki_jid);
+    __put_user(hki->ki_numthreads, &tki->ki_numthreads);
+    __put_user(hki->ki_tid, &tki->ki_tid);
+
+    memcpy(&tki->ki_pri, &hki->ki_pri, sizeof(struct target_priority));
+
+    h2g_rusage(&hki->ki_rusage, &tki->ki_rusage);
+    h2g_rusage(&hki->ki_rusage_ch, &tki->ki_rusage_ch);
+
+    __put_user(((uintptr_t)hki->ki_pcb), &tki->ki_pcb);
+    __put_user(((uintptr_t)hki->ki_kstack), &tki->ki_kstack);
+    __put_user(((uintptr_t)hki->ki_udata), &tki->ki_udata);
+    __put_user(((uintptr_t)hki->ki_tdaddr), &tki->ki_tdaddr);
+
+    __put_user(hki->ki_sflag, &tki->ki_sflag);
+    __put_user(hki->ki_tdflags, &tki->ki_tdflags);
+}
+
+abi_long
+do_sysctl_kern_getprocs(int op, int arg, size_t olen,
+        struct target_kinfo_proc *tki, size_t *tlen)
+{
+    abi_long ret;
+    struct kinfo_proc *kipp;
+    int mib[4], num, i, miblen;
+    size_t len;
+
+    if (tlen == NULL)
+        return -TARGET_EINVAL;
+
+    mib[0] = CTL_KERN;
+    mib[1] = KERN_PROC;
+    mib[2] = op;
+    mib[3] = arg;
+
+    miblen = (op == KERN_PROC_ALL || op == KERN_PROC_PROC) ?  3 : 4;
+
+    len = 0;
+    ret = get_errno(sysctl(mib, miblen, NULL, &len, NULL, 0));
+    if (is_error(ret))
+        return ret;
+
+    num = len / sizeof(*kipp);
+    *tlen = num * sizeof(struct target_kinfo_proc);
+    if (tki == NULL)
+        return ret;
+
+    if (olen < *tlen)
+        return -TARGET_EINVAL;
+
+    kipp = g_malloc(len);
+    if (kipp == NULL)
+        return -TARGET_ENOMEM;
+    ret = get_errno(sysctl(mib, miblen, kipp, &len, NULL, 0));
+    num = len / sizeof(*kipp);
+    *tlen = num * sizeof(struct target_kinfo_proc);
+    if (len % sizeof(*kipp) != 0 || kipp->ki_structsize != sizeof(*kipp)) {
+        ret = -TARGET_EINVAL; /* XXX */
+    } else if (!is_error(ret)) {
+        for(i=0; i < num; i++)
+            host_to_target_kinfo_proc(&tki[i], &kipp[i]);
+    }
+
+    g_free(kipp);
+    return ret;
+}
 
 /*
  * This uses the undocumented oidfmt interface to find the kind of a requested
