@@ -153,6 +153,9 @@ efi:
 	rm -f ../pc-bios/edk2-*.fd.bz2
 	bzip2 --verbose ../pc-bios/edk2-*.fd
 
+edk2-basetools:
+	python3 edk2-build.py --config edk2-build.config -m none
+
 opensbi32-generic:
 	$(MAKE) -C opensbi \
 		CROSS_COMPILE=$(riscv32_cross_prefix) \
