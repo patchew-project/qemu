@@ -20,6 +20,20 @@
 
 #include "qemu.h"
 
+/*
+ * Not all the BSDs have all the MAP flags, so define some of them to 0 here and
+ * rely on the compiler optimizing always false conditions away.
+ */
+#ifndef MAP_GUARD
+#define MAP_GUARD 0
+#endif
+#ifndef MAP_EXCL
+#define MAP_EXCL 0
+#endif
+#ifndef MAP_NOCORE
+#define MAP_NOCORE 0
+#endif
+
 static pthread_mutex_t mmap_mutex = PTHREAD_MUTEX_INITIALIZER;
 static __thread int mmap_lock_count;
 
