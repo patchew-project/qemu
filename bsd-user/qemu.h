@@ -196,11 +196,6 @@ struct syscallname {
     void (*result)(const struct syscallname *, abi_long);
 };
 
-void
-print_openbsd_syscall(int num,
-                      abi_long arg1, abi_long arg2, abi_long arg3,
-                      abi_long arg4, abi_long arg5, abi_long arg6);
-void print_openbsd_syscall_ret(int num, abi_long ret);
 void print_execve(const struct syscallname *name, abi_long arg1,
                   abi_long arg2, abi_long arg3, abi_long arg4,
                   abi_long arg5, abi_long arg6);
