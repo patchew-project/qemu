@@ -1,13 +1,9 @@
 softmmu_ss.add(files(
   'announce.c',
   'checksum.c',
-  'colo-compare.c',
-  'colo.c',
   'dump.c',
   'eth.c',
   'filter-buffer.c',
-  'filter-mirror.c',
-  'filter-rewriter.c',
   'filter.c',
   'hub.c',
   'net-hmp-cmds.c',
@@ -18,6 +14,10 @@ softmmu_ss.add(files(
   'dgram.c',
   'util.c',
 ))
+
+if get_option('replication').allowed()
+  softmmu_ss.add(files('colo-compare.c', 'colo.c', 'filter-rewriter.c', 'filter-mirror.c'))
+endif
 
 softmmu_ss.add(when: 'CONFIG_TCG', if_true: files('filter-replay.c'))
 
