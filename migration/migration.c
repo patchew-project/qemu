@@ -2701,6 +2701,17 @@ bool migrate_use_multifd(void)
     return s->enabled_capabilities[MIGRATION_CAPABILITY_MULTIFD];
 }
 
+bool migrate_multifd_flush_after_each_section(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    /*
+     * Until the patch that remove this comment, we always return that
+     * the property is enabled.
+     */
+    return true || s->multifd_flush_after_each_section;
+}
+
 bool migrate_pause_before_switchover(void)
 {
     MigrationState *s;
@@ -4441,6 +4452,8 @@ static Property migration_properties[] = {
                      send_section_footer, true),
     DEFINE_PROP_BOOL("decompress-error-check", MigrationState,
                       decompress_error_check, true),
+    DEFINE_PROP_BOOL("multifd-flush-after-each-section", MigrationState,
+                      multifd_flush_after_each_section, true),
     DEFINE_PROP_UINT8("x-clear-bitmap-shift", MigrationState,
                       clear_bitmap_shift, CLEAR_BITMAP_SHIFT_DEFAULT),
 

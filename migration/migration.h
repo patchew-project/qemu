@@ -366,6 +366,18 @@ struct MigrationState {
     bool decompress_error_check;
 
     /*
+     * flush every channel after each section sent.
+     *
+     * This assures that we can't mix pages from one iteration through
+     * ram pages with pages for the following iteration.  We really
+     * only need to do this flush after we have go through all the
+     * dirty pages.  For historical reasons, we do that after each
+     * section.  This is suboptimal (we flush too many times).
+     * Default value is false.  Setting this property has no effect
+     * until the patch that removes this comment.  (since 8.1)
+     */
+    bool multifd_flush_after_each_section;
+    /*
      * This decides the size of guest memory chunk that will be used
      * to track dirty bitmap clearing.  The size of memory chunk will
      * be GUEST_PAGE_SIZE << N.  Say, N=0 means we will clear dirty
@@ -424,6 +436,7 @@ int migrate_multifd_channels(void);
 MultiFDCompression migrate_multifd_compression(void);
 int migrate_multifd_zlib_level(void);
 int migrate_multifd_zstd_level(void);
+bool migrate_multifd_flush_after_each_section(void);
 
 #ifdef CONFIG_LINUX
 bool migrate_use_zero_copy_send(void);
