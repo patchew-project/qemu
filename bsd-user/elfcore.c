@@ -18,7 +18,6 @@
  */
 #include "qemu/osdep.h"
 
-#ifdef USE_ELF_CORE_DUMP
 #include <err.h>
 #include <libgen.h>
 #include <sys/mman.h>
@@ -1318,5 +1317,3 @@ out:
     }
     return 0;
 }
-
-#endif /* USE_ELF_CORE_DUMP */

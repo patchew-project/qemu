@@ -35,7 +35,6 @@ static size_t target_auxents_sz;   /* Size of AUX entries including AT_NULL */
 abi_ulong target_stksiz;
 abi_ulong target_stkbas;
 
-static int elf_core_dump(int signr, CPUArchState *env);
 static int load_elf_sections(const struct elfhdr *hdr, struct elf_phdr *phdr,
     int fd, abi_ulong rbase, abi_ulong *baddrp);
 
@@ -818,11 +817,7 @@ int load_elf_binary(struct bsd_binprm *bprm, struct target_pt_regs *regs,
 
     info->entry = elf_entry;
 
-#ifdef USE_ELF_CORE_DUMP
     bprm->core_dump = &elf_core_dump;
-#else
-    bprm->core_dump = NULL;
-#endif
 
     return 0;
 }
