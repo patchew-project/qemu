@@ -211,6 +211,26 @@ print_openbsd_syscall(int num,
                       abi_long arg1, abi_long arg2, abi_long arg3,
                       abi_long arg4, abi_long arg5, abi_long arg6);
 void print_openbsd_syscall_ret(int num, abi_long ret);
+void print_execve(const struct syscallname *name, abi_long arg1,
+                  abi_long arg2, abi_long arg3, abi_long arg4,
+                  abi_long arg5, abi_long arg6);
+void print_ioctl(const struct syscallname *name,
+                 abi_long arg1, abi_long arg2, abi_long arg3,
+                 abi_long arg4, abi_long arg5, abi_long arg6);
+void print_sysarch(const struct syscallname *name, abi_long arg1,
+                   abi_long arg2, abi_long arg3, abi_long arg4,
+                   abi_long arg5, abi_long arg6);
+void print_sysctl(const struct syscallname *name, abi_long arg1,
+                  abi_long arg2, abi_long arg3, abi_long arg4,
+                  abi_long arg5, abi_long arg6);
+void print_syscall(int num, const struct syscallname *scnames,
+                   unsigned int nscnames, abi_long arg1, abi_long arg2,
+                   abi_long arg3, abi_long arg4, abi_long arg5,
+                   abi_long arg6);
+void print_syscall_ret(int num, abi_long ret,
+                       const struct syscallname *scnames,
+                       unsigned int nscnames);
+void print_syscall_ret_addr(const struct syscallname *name, abi_long ret);
 /**
  * print_taken_signal:
  * @target_signum: target signal being taken
