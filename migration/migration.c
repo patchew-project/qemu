@@ -2705,11 +2705,7 @@ bool migrate_multifd_flush_after_each_section(void)
 {
     MigrationState *s = migrate_get_current();
 
-    /*
-     * Until the patch that remove this comment, we always return that
-     * the property is enabled.
-     */
-    return true || s->multifd_flush_after_each_section;
+    return s->multifd_flush_after_each_section;
 }
 
 bool migrate_pause_before_switchover(void)
