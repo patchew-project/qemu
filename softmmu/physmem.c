@@ -80,6 +80,10 @@
 #include <daxctl/libdaxctl.h>
 #endif
 
+#ifdef CONFIG_PRCTL_PR_SET_VMA_ANON_NAME
+#include <sys/prctl.h>
+#endif
+
 //#define DEBUG_SUBPAGE
 
 /* ram_list is read under rcu_read_lock()/rcu_read_unlock().  Writes
@@ -1810,6 +1814,11 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
                 return;
             }
             memory_try_enable_merging(new_block->host, new_block->max_length);
+#ifdef CONFIG_PRCTL_PR_SET_VMA_ANON_NAME
+            prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME,
+                  (unsigned long) new_block->host, new_block->max_length,
+                  (unsigned long) new_block->mr->name);
+#endif
         }
     }
 

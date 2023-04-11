@@ -2040,6 +2040,8 @@ config_host_data.set('HAVE_OPTRESET',
                      cc.has_header_symbol('getopt.h', 'optreset'))
 config_host_data.set('HAVE_IPPROTO_MPTCP',
                      cc.has_header_symbol('netinet/in.h', 'IPPROTO_MPTCP'))
+config_host_data.set('CONFIG_PRCTL_PR_SET_VMA_ANON_NAME',
+                     cc.has_header_symbol('sys/prctl.h', 'PR_SET_VMA_ANON_NAME'))
 
 # has_member
 config_host_data.set('HAVE_SIGEV_NOTIFY_THREAD_ID',
