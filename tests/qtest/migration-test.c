@@ -1348,6 +1348,7 @@ static void test_precopy_common(MigrateCommon *args)
         migrate_qmp(from, args->connect_uri, "{}");
     }
 
+    migrate_ensure_converge(from);
 
     if (args->result != MIG_TEST_SUCCEED) {
         bool allow_active = args->result == MIG_TEST_FAIL;
@@ -1364,8 +1365,6 @@ static void test_precopy_common(MigrateCommon *args)
         } else {
             wait_for_migration_pass(from);
         }
-
-        migrate_ensure_converge(from);
 
         /* We do this first, as it has a timeout to stop us
          * hanging forever if migration didn't converge */
