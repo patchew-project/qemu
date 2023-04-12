@@ -936,6 +936,11 @@ restart:
             return TRANSLATE_FAIL;
         }
 
+        /* PTE reserved bits must be cleared otherwise an exception is raised */
+        if (riscv_cpu_mxl(env) == MXL_RV64 && (pte & PTE_RESERVED)) {
+            return TRANSLATE_FAIL;
+        }
+
         bool pbmte = env->menvcfg & MENVCFG_PBMTE;
         bool hade = env->menvcfg & MENVCFG_HADE;
 
