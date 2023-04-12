@@ -28,8 +28,9 @@
     }                                  \
 } while (0)
 
-#define REQUIRE_ZFHMIN_OR_ZFBFMIN(ctx) do {   \
-    if (!ctx->cfg_ptr->ext_zfhmin && !ctx->cfg_ptr->ext_zfbfmin) { \
+#define REQUIRE_ZFHMIN_OR_ZFBFMIN_OR_ZVFBFWMA(ctx) do { \
+    if (!ctx->cfg_ptr->ext_zfhmin && !ctx->cfg_ptr->ext_zfbfmin && \
+        !ctx->cfg_ptr->ext_zvfbfwma) {        \
         return false;                         \
     }                                         \
 } while (0)
@@ -46,7 +47,7 @@ static bool trans_flh(DisasContext *ctx, arg_flh *a)
     TCGv t0;
 
     REQUIRE_FPU;
-    REQUIRE_ZFHMIN_OR_ZFBFMIN(ctx);
+    REQUIRE_ZFHMIN_OR_ZFBFMIN_OR_ZVFBFWMA(ctx);
 
     decode_save_opc(ctx);
     t0 = get_gpr(ctx, a->rs1, EXT_NONE);
@@ -69,7 +70,7 @@ static bool trans_fsh(DisasContext *ctx, arg_fsh *a)
     TCGv t0;
 
     REQUIRE_FPU;
-    REQUIRE_ZFHMIN_OR_ZFBFMIN(ctx);
+    REQUIRE_ZFHMIN_OR_ZFBFMIN_OR_ZVFBFWMA(ctx);
 
     decode_save_opc(ctx);
     t0 = get_gpr(ctx, a->rs1, EXT_NONE);
@@ -574,7 +575,7 @@ static bool trans_fcvt_h_wu(DisasContext *ctx, arg_fcvt_h_wu *a)
 static bool trans_fmv_x_h(DisasContext *ctx, arg_fmv_x_h *a)
 {
     REQUIRE_FPU;
-    REQUIRE_ZFHMIN_OR_ZFBFMIN(ctx);
+    REQUIRE_ZFHMIN_OR_ZFBFMIN_OR_ZVFBFWMA(ctx);
 
     TCGv dest = dest_gpr(ctx, a->rd);
 
@@ -594,7 +595,7 @@ static bool trans_fmv_x_h(DisasContext *ctx, arg_fmv_x_h *a)
 static bool trans_fmv_h_x(DisasContext *ctx, arg_fmv_h_x *a)
 {
     REQUIRE_FPU;
-    REQUIRE_ZFHMIN_OR_ZFBFMIN(ctx);
+    REQUIRE_ZFHMIN_OR_ZFBFMIN_OR_ZVFBFWMA(ctx);
 
     TCGv t0 = get_gpr(ctx, a->rs1, EXT_ZERO);
 
