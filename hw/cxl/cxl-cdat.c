@@ -126,7 +126,7 @@ static void ct3_load_cdat(CDATObject *cdat, Error **errp)
     fseek(fp, 0, SEEK_SET);
     cdat->buf = g_malloc0(file_size);
 
-    if (fread(cdat->buf, file_size, 1, fp) == 0) {
+    if (fread(cdat->buf, file_size, 1, fp) != file_size) {
         error_setg(errp, "CDAT: File read failed");
         fclose(fp);
         return;
