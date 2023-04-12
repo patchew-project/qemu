@@ -39,6 +39,19 @@ void sdl2_process_key(struct sdl2_console *scon,
         return;
     }
     qcode = qemu_input_map_usb_to_qcode[ev->keysym.scancode];
+
+#ifdef CONFIG_WIN32
+    if (qcode == Q_KEY_CODE_ALT_R &&
+        qkbd_state_modifier_get(scon->kbd, QKBD_MOD_CTRL)) {
+        /*
+         * Windows generates Ctrl + Alt_R for AltGr. By removing the Ctrl
+         * modifier (Linux) guests see AltGr.
+         */
+        trace_sdl2_process_key(ev->keysym.scancode, Q_KEY_CODE_CTRL, "up");
+        qkbd_state_key_event(scon->kbd, Q_KEY_CODE_CTRL, false);
+    }
+#endif
+
     trace_sdl2_process_key(ev->keysym.scancode, qcode,
                            ev->type == SDL_KEYDOWN ? "down" : "up");
     qkbd_state_key_event(scon->kbd, qcode, ev->type == SDL_KEYDOWN);
