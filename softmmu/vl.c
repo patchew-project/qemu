@@ -2509,7 +2509,7 @@ static void qemu_init_board(void)
     /* process plugin before CPUs are created, but once -smp has been parsed */
     qemu_plugin_load_list(&plugin_list, &error_fatal);
 
-    /* From here on we enter MACHINE_PHASE_INITIALIZED.  */
+    /* From here on we enter PHASE_MACHINE_INITIALIZED.  */
     machine_run_board_init(current_machine, mem_path, &error_fatal);
 
     drive_check_orphaned();
