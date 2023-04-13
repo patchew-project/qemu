@@ -405,15 +405,9 @@ SRST
         -numa node,nodeid=0 -numa node,nodeid=1 \
         -numa cpu,node-id=0,socket-id=0 -numa cpu,node-id=1,socket-id=1
 
-    Legacy '\ ``mem``\ ' assigns a given RAM amount to a node (not supported
-    for 5.1 and newer machine types). '\ ``memdev``\ ' assigns RAM from
-    a given memory backend device to a node. If '\ ``mem``\ ' and
-    '\ ``memdev``\ ' are omitted in all nodes, RAM is split equally between them.
-
-
-    '\ ``mem``\ ' and '\ ``memdev``\ ' are mutually exclusive.
-    Furthermore, if one node uses '\ ``memdev``\ ', all of them have to
-    use it.
+    '\ ``memdev``\ ' option assigns RAM from a given memory backend
+    device to a node. Users must specify memory for all NUMA nodes by
+    '\ ``memdev``\ ' (or legacy '\ ``mem``\ ' if available).
 
     '\ ``initiator``\ ' is an additional option that points to an
     initiator NUMA node that has best performance (the lowest latency or
@@ -447,6 +441,20 @@ SRST
     all node pairs must be provided distance values for both directions,
     even when they are symmetrical. When a node is unreachable from
     another node, set the pair's distance to 255.
+
+    .. note::
+
+        For compatibility reasons, legacy '\ ``mem``\ ' option is
+        supported in 5.0 and older machine types. It is recommended
+        to use '\ ``memdev``\ ' option over legacy '\ ``mem``\ '
+        option. This is because '\ ``memdev``\ ' option provides
+        better performance and more control over the backend's RAM
+        (e.g. '\ ``prealloc``\ ' parameter of
+        '\ ``-memory-backend-ram``\ ' allows memory preallocation).
+
+        Note that '\ ``mem``\ ' and '\ ``memdev``\ ' are mutually
+        exclusive. If one node uses '\ ``memdev``\ ', the rest nodes
+        have to use '\ ``memdev``\ ' option, and vice versa.
 
     Note that the -``numa`` option doesn't allocate any of the specified
     resources, it just assigns existing resources to NUMA nodes. This
