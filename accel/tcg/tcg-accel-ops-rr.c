@@ -139,6 +139,25 @@ static void rr_force_rcu(Notifier *notify, void *data)
     rr_kick_next_cpu();
 }
 
+static int rr_cpu_count(void)
+{
+    static unsigned int last_gen_id = ~0;
+    static int cpu_count;
+    CPUState *cpu;
+
+    cpu_list_lock();
+    if (cpu_list_generation_id_get() != last_gen_id) {
+        cpu_count = 0;
+        CPU_FOREACH(cpu) {
+            ++cpu_count;
+        }
+        last_gen_id = cpu_list_generation_id_get();
+    }
+    cpu_list_unlock();
+
+    return cpu_count;
+}
+
 /*
  * In the single-threaded case each vCPU is simulated in turn. If
  * there is more than a single vCPU we create a simple timer to kick
@@ -185,6 +204,9 @@ static void *rr_cpu_thread_fn(void *arg)
     cpu->exit_request = 1;
 
     while (1) {
+        int cpu_count = rr_cpu_count();
+        int64_t icount_timeslice = INT64_MAX;
+
         qemu_mutex_unlock_iothread();
         replay_mutex_lock();
         qemu_mutex_lock_iothread();
@@ -197,6 +219,8 @@ static void *rr_cpu_thread_fn(void *arg)
              * waking up the I/O thread and waiting for completion.
              */
             icount_handle_deadline();
+
+            icount_timeslice = icount_cpu_timeslice(cpu_count);
         }
 
         replay_mutex_unlock();
@@ -218,7 +242,7 @@ static void *rr_cpu_thread_fn(void *arg)
 
                 qemu_mutex_unlock_iothread();
                 if (icount_enabled()) {
-                    icount_prepare_for_run(cpu);
+                    icount_prepare_for_run(cpu, icount_timeslice);
                 }
                 r = tcg_cpus_exec(cpu);
                 if (icount_enabled()) {
