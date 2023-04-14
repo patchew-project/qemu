@@ -657,20 +657,38 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
     }
 
     if (binfo->initrd_size) {
-        rc = qemu_fdt_setprop_sized_cells(fdt, "/chosen", "linux,initrd-start",
+        if (binfo->is_linux) {
+            rc = qemu_fdt_setprop_sized_cells(fdt, "/chosen", "linux,initrd-start",
                                           acells, binfo->initrd_start);
-        if (rc < 0) {
-            fprintf(stderr, "couldn't set /chosen/linux,initrd-start\n");
-            goto fail;
-        }
+            if (rc < 0) {
+                fprintf(stderr, "couldn't set /chosen/linux,initrd-start\n");
+                goto fail;
+            }
 
-        rc = qemu_fdt_setprop_sized_cells(fdt, "/chosen", "linux,initrd-end",
-                                          acells,
-                                          binfo->initrd_start +
-                                          binfo->initrd_size);
-        if (rc < 0) {
-            fprintf(stderr, "couldn't set /chosen/linux,initrd-end\n");
-            goto fail;
+            rc = qemu_fdt_setprop_sized_cells(fdt, "/chosen", "linux,initrd-end",
+                                              acells,
+                                              binfo->initrd_start +
+                                              binfo->initrd_size);
+            if (rc < 0) {
+                fprintf(stderr, "couldn't set /chosen/linux,initrd-end\n");
+                goto fail;
+            }
+        } else {
+            rc = qemu_fdt_setprop_sized_cells(fdt, "/chosen", "initrd-start",
+                                          acells, binfo->initrd_start);
+            if (rc < 0) {
+                fprintf(stderr, "couldn't set /chosen/initrd-start\n");
+                goto fail;
+            }
+
+            rc = qemu_fdt_setprop_sized_cells(fdt, "/chosen", "initrd-end",
+                                              acells,
+                                              binfo->initrd_start +
+                                              binfo->initrd_size);
+            if (rc < 0) {
+                fprintf(stderr, "couldn't set /chosen/initrd-end\n");
+                goto fail;
+            }
         }
     }
 
@@ -1096,41 +1114,41 @@ static void arm_setup_direct_kernel_boot(ARMCPU *cpu,
     }
     info->initrd_start = TARGET_PAGE_ALIGN(info->initrd_start);
 
+    if (info->initrd_filename) {
+
+        if (info->initrd_start >= ram_end) {
+            error_report("not enough space after kernel to load initrd");
+            exit(1);
+        }
+
+        initrd_size = load_ramdisk_as(info->initrd_filename,
+                                      info->initrd_start,
+                                      ram_end - info->initrd_start, as);
+        if (initrd_size < 0) {
+            initrd_size = load_image_targphys_as(info->initrd_filename,
+                                                 info->initrd_start,
+                                                 ram_end -
+                                                 info->initrd_start,
+                                                 as);
+        }
+        if (initrd_size < 0) {
+            error_report("could not load initrd '%s'",
+                         info->initrd_filename);
+            exit(1);
+        }
+        if (info->initrd_start + initrd_size > ram_end) {
+            error_report("could not load initrd '%s': "
+                         "too big to fit into RAM after the kernel",
+                         info->initrd_filename);
+            exit(1);
+        }
+    } else {
+        initrd_size = 0;
+    }
+    info->initrd_size = initrd_size;
+
     if (is_linux) {
         uint32_t fixupcontext[FIXUP_MAX];
-
-        if (info->initrd_filename) {
-
-            if (info->initrd_start >= ram_end) {
-                error_report("not enough space after kernel to load initrd");
-                exit(1);
-            }
-
-            initrd_size = load_ramdisk_as(info->initrd_filename,
-                                          info->initrd_start,
-                                          ram_end - info->initrd_start, as);
-            if (initrd_size < 0) {
-                initrd_size = load_image_targphys_as(info->initrd_filename,
-                                                     info->initrd_start,
-                                                     ram_end -
-                                                     info->initrd_start,
-                                                     as);
-            }
-            if (initrd_size < 0) {
-                error_report("could not load initrd '%s'",
-                             info->initrd_filename);
-                exit(1);
-            }
-            if (info->initrd_start + initrd_size > ram_end) {
-                error_report("could not load initrd '%s': "
-                             "too big to fit into RAM after the kernel",
-                             info->initrd_filename);
-                exit(1);
-            }
-        } else {
-            initrd_size = 0;
-        }
-        info->initrd_size = initrd_size;
 
         fixupcontext[FIXUP_BOARDID] = info->board_id;
         fixupcontext[FIXUP_BOARD_SETUP] = info->board_setup_addr;
