@@ -117,6 +117,42 @@ static uint64_t vud_get_features(VirtIODevice *vdev,
     return vud->vhost_dev.features & ~(1ULL << VHOST_USER_F_PROTOCOL_FEATURES);
 }
 
+/*
+ * To handle VirtIO config we need to know the size of the config
+ * space. We don't cache the config but re-fetch it from the guest
+ * every time in case something has changed.
+ */
+static void vud_get_config(VirtIODevice *vdev, uint8_t *config)
+{
+    VHostUserDevice *vud = VHOST_USER_DEVICE(vdev);
+    Error *local_err = NULL;
+
+    /*
+     * There will have been a warning during vhost_dev_init, but lets
+     * assert here as nothing will go right now.
+     */
+    g_assert(vud->config_size && vud->vhost_user.supports_config == true);
+
+    if (vhost_dev_get_config(&vud->vhost_dev, config,
+                             vud->config_size, &local_err)) {
+        error_report_err(local_err);
+    }
+}
+
+/*
+ * When the daemon signals an update to the config we just need to
+ * signal the guest as we re-read the config on demand above.
+ */
+static int vud_config_notifier(struct vhost_dev *dev)
+{
+    virtio_notify_config(dev->vdev);
+    return 0;
+}
+
+const VhostDevConfigOps vud_config_ops = {
+    .vhost_dev_config_notifier = vud_config_notifier,
+};
+
 static void vud_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 {
     /*
@@ -141,11 +177,20 @@ static int vud_connect(DeviceState *dev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserDevice *vud = VHOST_USER_DEVICE(vdev);
+    struct vhost_dev *vhost_dev = &vud->vhost_dev;
 
     if (vud->connected) {
         return 0;
     }
     vud->connected = true;
+
+    /*
+     * If we support VHOST_USER_GET_CONFIG we must enable the notifier
+     * so we can ping the guest when it updates.
+     */
+    if (vud->vhost_user.supports_config) {
+        vhost_dev_set_config_notifier(vhost_dev, &vud_config_ops);
+    }
 
     /* restore vhost state */
     if (virtio_device_started(vdev, vdev->status)) {
@@ -214,11 +259,20 @@ static void vud_device_realize(DeviceState *dev, Error **errp)
         vud->num_vqs = 1; /* reasonable default? */
     }
 
+    /*
+     * We can't handle config requests unless we know the size of the
+     * config region, specialisations of the vhost-user-device will be
+     * able to set this.
+     */
+    if (vud->config_size) {
+        vud->vhost_user.supports_config = true;
+    }
+
     if (!vhost_user_init(&vud->vhost_user, &vud->chardev, errp)) {
         return;
     }
 
-    virtio_init(vdev, vud->virtio_id, 0);
+    virtio_init(vdev, vud->virtio_id, vud->config_size);
 
     /*
      * Disable guest notifiers, by default all notifications will be via the
@@ -271,6 +325,7 @@ static Property vud_properties[] = {
     DEFINE_PROP_CHR("chardev", VHostUserDevice, chardev),
     DEFINE_PROP_UINT16("virtio-id", VHostUserDevice, virtio_id, 0),
     DEFINE_PROP_UINT32("num_vqs", VHostUserDevice, num_vqs, 1),
+    DEFINE_PROP_UINT32("config_size", VHostUserDevice, config_size, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -285,6 +340,7 @@ static void vud_class_init(ObjectClass *klass, void *data)
     vdc->realize = vud_device_realize;
     vdc->unrealize = vud_device_unrealize;
     vdc->get_features = vud_get_features;
+    vdc->get_config = vud_get_config;
     vdc->set_status = vud_set_status;
 }
 
