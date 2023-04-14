@@ -343,21 +343,17 @@ static int vhost_vdpa_call(struct vhost_dev *dev, unsigned long int request,
     int ret;
 
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_VDPA);
-
     ret = ioctl(fd, request, arg);
     return ret < 0 ? -errno : ret;
 }
 
 static int vhost_vdpa_add_status(struct vhost_dev *dev, uint8_t status)
 {
-    uint8_t s;
+    struct vhost_vdpa *v = dev->opaque;
+    uint8_t s = v->status;
     int ret;
 
     trace_vhost_vdpa_add_status(dev, status);
-    ret = vhost_vdpa_call(dev, VHOST_VDPA_GET_STATUS, &s);
-    if (ret < 0) {
-        return ret;
-    }
 
     s |= status;
 
@@ -374,6 +370,7 @@ static int vhost_vdpa_add_status(struct vhost_dev *dev, uint8_t status)
     if (!(s & status)) {
         return -EIO;
     }
+    v->status = s;
 
     return 0;
 }
@@ -436,7 +433,14 @@ static int vhost_vdpa_init(struct vhost_dev *dev, void *opaque, Error **errp)
     dev->opaque =  opaque ;
     v->listener = vhost_vdpa_memory_listener;
     v->msg_type = VHOST_IOTLB_MSG_V2;
+    v->config = NULL;
+    v->features = dev->features;
     vhost_vdpa_init_svq(dev, v);
+
+    ret = vhost_vdpa_call(dev, VHOST_VDPA_GET_STATUS, &v->status);
+    if (ret) {
+        return ret;
+    }
 
     error_propagate(&dev->migration_blocker, v->migration_blocker);
     if (!vhost_vdpa_first_dev(dev)) {
@@ -456,6 +460,7 @@ static int vhost_vdpa_init(struct vhost_dev *dev, void *opaque, Error **errp)
             return ret;
         }
         vhost_svq_valid_features(features, &dev->migration_blocker);
+        v->features = features;
     }
 
     /*
@@ -602,6 +607,7 @@ static int vhost_vdpa_cleanup(struct vhost_dev *dev)
     vhost_vdpa_svq_cleanup(dev);
 
     dev->opaque = NULL;
+    g_free(v->config);
 
     return 0;
 }
@@ -718,6 +724,7 @@ static int vhost_vdpa_reset_device(struct vhost_dev *dev)
     ret = vhost_vdpa_call(dev, VHOST_VDPA_SET_STATUS, &status);
     trace_vhost_vdpa_reset_device(dev, status);
     v->suspended = false;
+    v->status = 0;
     return ret;
 }
 
@@ -767,6 +774,7 @@ static int vhost_vdpa_set_config(struct vhost_dev *dev, const uint8_t *data,
                                    uint32_t offset, uint32_t size,
                                    uint32_t flags)
 {
+    struct vhost_vdpa *v = dev->opaque;
     struct vhost_vdpa_config *config;
     int ret;
     unsigned long config_size = offsetof(struct vhost_vdpa_config, buf);
@@ -776,6 +784,10 @@ static int vhost_vdpa_set_config(struct vhost_dev *dev, const uint8_t *data,
     config->off = offset;
     config->len = size;
     memcpy(config->buf, data, size);
+    if (v->config != NULL) {
+        assert(size + offset <= v->config->len);
+        memcpy(v->config->buf + offset, data, size);
+    }
     if (trace_event_get_state_backends(TRACE_VHOST_VDPA_SET_CONFIG) &&
         trace_event_get_state_backends(TRACE_VHOST_VDPA_DUMP_CONFIG)) {
         vhost_vdpa_dump_config(dev, data, size);
@@ -788,17 +800,19 @@ static int vhost_vdpa_set_config(struct vhost_dev *dev, const uint8_t *data,
 static int vhost_vdpa_get_config(struct vhost_dev *dev, uint8_t *config,
                                    uint32_t config_len, Error **errp)
 {
-    struct vhost_vdpa_config *v_config;
+    struct vhost_vdpa *v = dev->opaque;
     unsigned long config_size = offsetof(struct vhost_vdpa_config, buf);
     int ret;
 
     trace_vhost_vdpa_get_config(dev, config, config_len);
-    v_config = g_malloc(config_len + config_size);
-    v_config->len = config_len;
-    v_config->off = 0;
-    ret = vhost_vdpa_call(dev, VHOST_VDPA_GET_CONFIG, v_config);
-    memcpy(config, v_config->buf, config_len);
-    g_free(v_config);
+    if (v->config == NULL) {
+        v->config = g_malloc(config_len + config_size);
+        v->config->len = config_len;
+        v->config->off = 0;
+        ret = vhost_vdpa_call(dev, VHOST_VDPA_GET_CONFIG, v->config);
+    }
+    assert(config_len <= v->config->len);
+    memcpy(config, v->config->buf, config_len);
     if (trace_event_get_state_backends(TRACE_VHOST_VDPA_GET_CONFIG) &&
         trace_event_get_state_backends(TRACE_VHOST_VDPA_DUMP_CONFIG)) {
         vhost_vdpa_dump_config(dev, config, config_len);
@@ -1294,8 +1308,10 @@ static int vhost_vdpa_set_vring_call(struct vhost_dev *dev,
 static int vhost_vdpa_get_features(struct vhost_dev *dev,
                                      uint64_t *features)
 {
-    int ret = vhost_vdpa_get_dev_features(dev, features);
+    struct vhost_vdpa *v = dev->opaque;
+    int ret = 0;
 
+    *features = v->features;
     if (ret == 0) {
         /* Add SVQ logging capabilities */
         *features |= BIT_ULL(VHOST_F_LOG_ALL);
