@@ -315,6 +315,7 @@ int qdev_device_help(QemuOpts *opts)
         g_ptr_array_add(array,
                         object_property_help(prop->value->name,
                                              prop->value->type,
+                                             prop->value->fixed,
                                              prop->value->default_value,
                                              prop->value->description));
     }

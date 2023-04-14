@@ -55,6 +55,7 @@ ObjectPropertyInfoList *qmp_qom_list(const char *path, Error **errp)
 
         value->name = g_strdup(prop->name);
         value->type = g_strdup(prop->type);
+        value->fixed = prop->fixed;
     }
 
     return props;

@@ -33,12 +33,14 @@
 # @description: if specified, the description of the property.
 #
 # @default-value: the default value, if any (since 5.0)
+# @fixed: if specified if value has been fixed (since 8.1)
 #
 # Since: 1.2
 ##
 { 'struct': 'ObjectPropertyInfo',
   'data': { 'name': 'str',
             'type': 'str',
+            'fixed': 'bool',
             '*description': 'str',
             '*default-value': 'any' } }
 

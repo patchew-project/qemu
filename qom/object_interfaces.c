@@ -161,7 +161,7 @@ void user_creatable_add_qapi(ObjectOptions *options, Error **errp)
     visit_free(v);
 }
 
-char *object_property_help(const char *name, const char *type,
+char *object_property_help(const char *name, const char *type, bool fixed,
                            QObject *defval, const char *description)
 {
     GString *str = g_string_new(NULL);
@@ -179,7 +179,9 @@ char *object_property_help(const char *name, const char *type,
     if (defval) {
         g_autofree char *def_json = g_string_free(qobject_to_json(defval),
                                                   false);
-        g_string_append_printf(str, " (default: %s)", def_json);
+        g_string_append_printf(str, " (%s: %s)",
+                               fixed ? "fixed" : "default",
+                               def_json);
     }
 
     return g_string_free(str, false);
@@ -220,7 +222,8 @@ bool type_print_class_properties(const char *type)
 
         g_ptr_array_add(array,
                         object_property_help(prop->name, prop->type,
-                                             prop->defval, prop->description));
+                                             prop->fixed, prop->defval,
+                                             prop->description));
     }
     g_ptr_array_sort(array, (GCompareFunc)qemu_pstrcmp0);
     if (array->len > 0) {

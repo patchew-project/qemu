@@ -97,6 +97,8 @@ struct ObjectProperty
     ObjectPropertyInit *init;
     void *opaque;
     QObject *defval;
+    /** @fixed: if the property has been fixed at its default */
+    bool fixed;
 };
 
 /**
@@ -1112,6 +1114,17 @@ void object_property_set_default_int(ObjectProperty *prop, int64_t value);
 void object_property_set_default_uint(ObjectProperty *prop, uint64_t value);
 
 /**
+ * object_property_fix_default_uint:
+ * @prop: the property to be fixed
+ * @value: the fixed value to be written to the property
+ *
+ * When specialising an object it may make send to fix some values and
+ * not allow them to be changed. This can only be applied to
+ * properties that previously had a default and now cannot be changed.
+ */
+void object_property_fix_default_uint(ObjectProperty *prop, uint64_t value);
+
+/**
  * object_property_find:
  * @obj: the object
  * @name: the name of the property
@@ -1961,13 +1974,14 @@ size_t object_type_get_instance_size(const char *typename);
  * object_property_help:
  * @name: the name of the property
  * @type: the type of the property
+ * @fixed: has the value been fixed
  * @defval: the default value
  * @description: description of the property
  *
  * Returns: a user-friendly formatted string describing the property
  * for help purposes.
  */
-char *object_property_help(const char *name, const char *type,
+char *object_property_help(const char *name, const char *type, bool fixed,
                            QObject *defval, const char *description);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(Object, object_unref)

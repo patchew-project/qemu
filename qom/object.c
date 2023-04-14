@@ -1584,6 +1584,20 @@ void object_property_set_default_uint(ObjectProperty *prop, uint64_t value)
     object_property_set_default(prop, QOBJECT(qnum_from_uint(value)));
 }
 
+static void object_property_fix_default(ObjectProperty *prop, QObject *defval)
+{
+    g_assert(prop->init == object_property_init_defval);
+    g_assert(!prop->fixed);
+
+    prop->defval = defval;
+    prop->fixed = true;
+}
+
+void object_property_fix_default_uint(ObjectProperty *prop, uint64_t value)
+{
+    object_property_fix_default(prop, QOBJECT(qnum_from_uint(value)));
+}
+
 bool object_property_set_uint(Object *obj, const char *name,
                               uint64_t value, Error **errp)
 {
