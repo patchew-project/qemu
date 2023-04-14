@@ -249,7 +249,7 @@ static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
             /* Regime is physical. */
             ptw->out_phys = addr;
             pte_attrs = 0;
-            pte_secure = is_secure;
+            pte_secure = s2_mmu_idx == ARMMMUIdx_Phys_S;
         }
         ptw->out_host = NULL;
         ptw->out_rw = false;
@@ -291,13 +291,15 @@ static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
             fi->s1ns = !is_secure;
             return false;
         }
+        /* Check if page table walk is to secure or non-secure PA space. */
+        ptw->out_secure = (is_secure
+                           && !(pte_secure
+                                ? env->cp15.vstcr_el2 & VSTCR_SW
+                                : env->cp15.vtcr_el2 & VTCR_NSW));
+    } else {
+        /* Regime is physical */
+        ptw->out_secure = pte_secure;
     }
-
-    /* Check if page table walk is to secure or non-secure PA space. */
-    ptw->out_secure = (is_secure
-                       && !(pte_secure
-                            ? env->cp15.vstcr_el2 & VSTCR_SW
-                            : env->cp15.vtcr_el2 & VTCR_NSW));
     ptw->out_be = regime_translation_big_endian(env, mmu_idx);
     return true;
 
