@@ -217,6 +217,7 @@
 /* Supervisor Protection and Translation */
 #define CSR_SPTBR           0x180
 #define CSR_SATP            0x180
+#define CSR_SQOSCFG         0x181
 
 /* Supervisor-Level Window to Indirectly Accessed Registers (AIA) */
 #define CSR_SISELECT        0x150
@@ -897,5 +898,9 @@ typedef enum RISCVException {
 #define MHPMEVENT_SSCOF_MASK               _ULL(0xFFFF000000000000)
 #define MHPMEVENT_IDX_MASK                 0xFFFFF
 #define MHPMEVENT_SSCOF_RESVD              16
+
+/* SQOSCFG BITS (QOSID) */
+#define SQOSCFG_RCID                      0x00000FFF
+#define SQOSCFG_MCID                      0x0FFF0000
 
 #endif

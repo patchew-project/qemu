@@ -222,6 +222,8 @@ struct CPUArchState {
     target_ulong mcause;
     target_ulong mtval;  /* since: priv-1.10.0 */
 
+    target_ulong sqoscfg;
+
     /* Machine and Supervisor interrupt priorities */
     uint8_t miprio[64];
     uint8_t siprio[64];
@@ -454,6 +456,7 @@ struct RISCVCPUConfig {
     bool ext_icboz;
     bool ext_zicond;
     bool ext_zihintpause;
+    bool ext_ssqosid;
     bool ext_smstateen;
     bool ext_sstc;
     bool ext_svadu;

@@ -2700,6 +2700,37 @@ static RISCVException write_satp(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
+static RISCVException check_sqoscfg(CPURISCVState *env, int csrno)
+{
+    RISCVCPU *cpu = env_archcpu(env);
+
+    if (!cpu->cfg.ext_ssqosid) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+
+    /*
+     * Even though this is an S-mode CSR the spec says that we need to throw
+     * and virt instruction fault if a guest tries to access it.
+     */
+    return hmode(env, csrno);
+}
+
+static RISCVException read_sqoscfg(CPURISCVState *env, int csrno,
+                                target_ulong *val)
+{
+    *val = env->sqoscfg;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_sqoscfg(CPURISCVState *env, int csrno,
+                                 target_ulong val)
+{
+    env->sqoscfg = val & (SQOSCFG_RCID | SQOSCFG_MCID);
+    return RISCV_EXCP_NONE;
+}
+
+
+
 static int read_vstopi(CPURISCVState *env, int csrno, target_ulong *val)
 {
     int irq, ret;
@@ -4181,6 +4212,9 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 
     /* Supervisor Protection and Translation */
     [CSR_SATP]     = { "satp",     smode, read_satp,     write_satp     },
+
+    /* Supervisor-Level Quality of Service Identifier */
+    [CSR_SQOSCFG]  = { "sqoscfg",  check_sqoscfg, read_sqoscfg, write_sqoscfg },
 
     /* Supervisor-Level Window to Indirectly Accessed Registers (AIA) */
     [CSR_SISELECT]   = { "siselect",   aia_smode, NULL, NULL, rmw_xiselect },
