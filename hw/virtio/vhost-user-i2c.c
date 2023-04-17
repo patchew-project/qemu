@@ -128,12 +128,32 @@ static void vu_i2c_guest_notifier_mask(VirtIODevice *vdev, int idx, bool mask)
 {
     VHostUserI2C *i2c = VHOST_USER_I2C(vdev);
 
+    /*
+     * Add the check for configure interrupt, Use VIRTIO_CONFIG_IRQ_IDX -1
+     * as the Marco of configure interrupt's IDX, If this driver does not
+     * support, the function will return
+     */
+
+    if (idx == VIRTIO_CONFIG_IRQ_IDX) {
+        return;
+    }
+
     vhost_virtqueue_mask(&i2c->vhost_dev, vdev, idx, mask);
 }
 
 static bool vu_i2c_guest_notifier_pending(VirtIODevice *vdev, int idx)
 {
     VHostUserI2C *i2c = VHOST_USER_I2C(vdev);
+
+    /*
+     * Add the check for configure interrupt, Use VIRTIO_CONFIG_IRQ_IDX -1
+     * as the Marco of configure interrupt's IDX, If this driver does not
+     * support, the function will return
+     */
+
+    if (idx == VIRTIO_CONFIG_IRQ_IDX) {
+        return false;
+    }
 
     return vhost_virtqueue_pending(&i2c->vhost_dev, idx);
 }
