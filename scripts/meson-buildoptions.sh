@@ -152,6 +152,7 @@ meson_options_help() {
   printf "%s\n" '  slirp-smbd      use smbd (at path --smbd=*) in slirp networking'
   printf "%s\n" '  smartcard       CA smartcard emulation support'
   printf "%s\n" '  snappy          snappy compression support'
+  printf "%s\n" '  qatzip          qatzip compression support'
   printf "%s\n" '  sndio           sndio sound support'
   printf "%s\n" '  sparse          sparse checker'
   printf "%s\n" '  spice           Spice server support'
@@ -332,6 +333,8 @@ _meson_option_parse() {
     --disable-libvduse) printf "%s" -Dlibvduse=disabled ;;
     --enable-linux-aio) printf "%s" -Dlinux_aio=enabled ;;
     --disable-linux-aio) printf "%s" -Dlinux_aio=disabled ;;
+    --enable-qatzip) printf "%s" -Dqatzip=enabled ;;
+    --disable-qatzip) printf "%s" -Dqatzip=disabled ;;
     --enable-linux-io-uring) printf "%s" -Dlinux_io_uring=enabled ;;
     --disable-linux-io-uring) printf "%s" -Dlinux_io_uring=disabled ;;
     --enable-live-block-migration) printf "%s" -Dlive_block_migration=enabled ;;

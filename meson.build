@@ -553,6 +553,13 @@ if have_system or have_tools
 endif
 zlib = dependency('zlib', required: true, kwargs: static_kwargs)
 
+qatzip = not_found
+if not get_option('qatzip').auto()
+  qatzip = dependency('qatzip', required: get_option('qatzip'),
+                         method: 'pkg-config',
+                         static: enable_static)
+endif
+
 libaio = not_found
 if not get_option('linux_aio').auto() or have_block
   libaio = cc.find_library('aio', has_headers: ['libaio.h'],
@@ -1863,6 +1870,7 @@ config_host_data.set('CONFIG_LIBISCSI', libiscsi.found())
 config_host_data.set('CONFIG_LIBNFS', libnfs.found())
 config_host_data.set('CONFIG_LIBSSH', libssh.found())
 config_host_data.set('CONFIG_LINUX_AIO', libaio.found())
+config_host_data.set('CONFIG_QATZIP', qatzip.found())
 config_host_data.set('CONFIG_LINUX_IO_URING', linux_io_uring.found())
 config_host_data.set('CONFIG_LIBPMEM', libpmem.found())
 config_host_data.set('CONFIG_NUMA', numa.found())
@@ -3339,7 +3347,7 @@ libmigration = static_library('migration', sources: migration_files + genh,
                               name_suffix: 'fa',
                               build_by_default: false)
 migration = declare_dependency(link_with: libmigration,
-                               dependencies: [zlib, qom, io])
+                               dependencies: [qatzip, zlib, qom, io])
 softmmu_ss.add(migration)
 
 block_ss = block_ss.apply(config_host, strict: false)
@@ -3986,6 +3994,7 @@ summary_info += {'vde support':       vde}
 summary_info += {'netmap support':    have_netmap}
 summary_info += {'l2tpv3 support':    have_l2tpv3}
 summary_info += {'Linux AIO support': libaio}
+summary_info += {'qatzip compress support': qatzip}
 summary_info += {'Linux io_uring support': linux_io_uring}
 summary_info += {'ATTR/XATTR support': libattr}
 summary_info += {'RDMA support':      rdma}

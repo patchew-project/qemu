@@ -191,6 +191,8 @@ option('smartcard', type : 'feature', value : 'auto',
        description: 'CA smartcard emulation support')
 option('snappy', type : 'feature', value : 'auto',
        description: 'snappy compression support')
+option('qatzip', type : 'feature', value : 'auto',
+       description: 'qatzip compress support')
 option('spice', type : 'feature', value : 'auto',
        description: 'Spice server support')
 option('spice_protocol', type : 'feature', value : 'auto',
