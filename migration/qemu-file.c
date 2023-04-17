@@ -26,12 +26,18 @@
 #include "qemu/madvise.h"
 #include "qemu/error-report.h"
 #include "qemu/iov.h"
+#include "qemu/units.h"
 #include "migration.h"
 #include "qemu-file.h"
 #include "trace.h"
 #include "qapi/error.h"
 
-#define IO_BUF_SIZE 32768
+#ifdef CONFIG_QATZIP
+#define IO_BUF_SIZE (512 * KiB)
+#else
+#define IO_BUF_SIZE (32 * KiB)
+#endif
+
 #define MAX_IOV_SIZE MIN_CONST(IOV_MAX, 64)
 
 struct QEMUFile {
@@ -514,7 +520,7 @@ static int add_to_iovec(QEMUFile *f, const uint8_t *buf, size_t size,
     return 0;
 }
 
-static void add_buf_to_iovec(QEMUFile *f, size_t len)
+void add_buf_to_iovec(QEMUFile *f, size_t len)
 {
     if (!add_to_iovec(f, f->buf + f->buf_index, len, false)) {
         f->buf_index += len;
@@ -522,6 +528,11 @@ static void add_buf_to_iovec(QEMUFile *f, size_t len)
             qemu_fflush(f);
         }
     }
+}
+
+uint8_t *qemu_get_pos(QEMUFile *f)
+{
+    return f->buf + f->buf_index;
 }
 
 void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, size_t size,

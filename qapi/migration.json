@@ -644,6 +644,8 @@
 #                  no compression, 1 means the best compression speed, and 9 means best
 #                  compression ratio which will consume more CPU.
 #
+# @compress-with-qat: compress with qat on and off. (Since 8.1)
+#
 # @compress-threads: Set compression thread count to be used in live migration,
 #                    the compression thread count is an integer between 1 and 255.
 #
@@ -784,7 +786,7 @@
 { 'enum': 'MigrationParameter',
   'data': ['announce-initial', 'announce-max',
            'announce-rounds', 'announce-step',
-           'compress-level', 'compress-threads', 'decompress-threads',
+           'compress-level', 'compress-with-qat', 'compress-threads', 'decompress-threads',
            'compress-wait-thread', 'throttle-trigger-threshold',
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'cpu-throttle-tailslow',
@@ -814,6 +816,8 @@
 #                 packets in the announcement (Since 4.0)
 #
 # @compress-level: compression level
+#
+# @compress-with-qat: compression with qat (Since 8.1)
 #
 # @compress-threads: compression thread count
 #
@@ -954,6 +958,7 @@
             '*announce-rounds': 'size',
             '*announce-step': 'size',
             '*compress-level': 'uint8',
+            '*compress-with-qat': 'bool',
             '*compress-threads': 'uint8',
             '*compress-wait-thread': 'bool',
             '*decompress-threads': 'uint8',
@@ -1152,6 +1157,7 @@
             '*announce-rounds': 'size',
             '*announce-step': 'size',
             '*compress-level': 'uint8',
+            '*compress-with-qat': 'bool',
             '*compress-threads': 'uint8',
             '*compress-wait-thread': 'bool',
             '*decompress-threads': 'uint8',
