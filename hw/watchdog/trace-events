@@ -17,6 +17,12 @@ spapr_watchdog_query(uint64_t caps) "caps=0x%" PRIx64
 spapr_watchdog_query_lpm(uint64_t caps) "caps=0x%" PRIx64
 spapr_watchdog_expired(uint64_t num, unsigned action) "num=%" PRIu64 " action=%u"
 
+# wdt_z069.c
+men_z069_wdt_enable(unsigned int timeout) "next timeout will fire in +%dms"
+men_z069_wdt_write_wtr(uint16_t tout, uint16_t t, unsigned int timeout) "new timeout: %u (0x%x) %u"
+men_z069_wdt_write_wvr(uint16_t wvr, unsigned int timeout) "watchdog triggered (wvr=0x%x), next timeout will fire in +%dms"
+men_z069_wdt_read(unsigned long addr, int size, uint64_t ret) "addr=0x%lx, size=%d, ret=0x%" PRIx64
+
 # watchdog.c
 watchdog_perform_action(unsigned int action) "action=%u"
 watchdog_set_action(unsigned int action) "action=%u"
