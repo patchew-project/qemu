@@ -18,13 +18,17 @@
 #include "sysemu/hostmem.h"
 #include "qom/object_interfaces.h"
 #include "qom/object.h"
+#ifdef CONFIG_LINUX
+#include <sys/vfs.h>
+#include <linux/magic.h>
+#endif
 
 OBJECT_DECLARE_SIMPLE_TYPE(HostMemoryBackendFile, MEMORY_BACKEND_FILE)
 
 
 struct HostMemoryBackendFile {
     HostMemoryBackend parent_obj;
-
+    __fsword_t fs_type;
     char *mem_path;
     uint64_t align;
     bool discard_data;
@@ -51,6 +55,15 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
         error_setg(errp, "mem-path property not set");
         return;
     }
+
+#ifdef CONFIG_LINUX
+    struct statfs fs;
+    if (!statfs(fb->mem_path, &fs)) {
+        fb->fs_type = fs.f_type;
+    } else {
+        fb->fs_type = 0;
+    }
+#endif
 
     name = host_memory_backend_get_name(backend);
     ram_flags = backend->share ? RAM_SHARED : 0;
@@ -179,6 +192,28 @@ static void file_backend_unparent(Object *obj)
 
         qemu_madvise(ptr, sz, QEMU_MADV_REMOVE);
     }
+}
+
+const char *file_memory_backend_get_fs_type(Object *obj)
+{
+#ifdef CONFIG_LINUX
+    HostMemoryBackendFile *fb = (HostMemoryBackendFile *)
+        object_dynamic_cast(obj, TYPE_MEMORY_BACKEND_FILE);
+
+    if (!fb) {
+        goto out;
+    }
+
+    switch (fb->fs_type) {
+    case TMPFS_MAGIC:
+        return "tmpfs";
+    case HUGETLBFS_MAGIC:
+        return "hugetlbfs";
+    }
+
+out:
+#endif
+    return "unknown";
 }
 
 static void
