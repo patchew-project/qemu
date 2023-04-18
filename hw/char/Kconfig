@@ -71,3 +71,9 @@ config GOLDFISH_TTY
 
 config SHAKTI_UART
     bool
+
+config SERIAL_MCB
+    bool
+    default y if MCB
+    depends on MCB
+    select SERIAL
