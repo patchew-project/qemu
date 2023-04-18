@@ -1948,6 +1948,12 @@ R: Paolo Bonzini <pbonzini@redhat.com>
 S: Odd Fixes
 F: hw/char/
 
+MEN Chameleon Bus
+M: Johannes Thumshirn <jth@kernel.org>
+S: Maintained
+F: hw/mcb/
+F: include/hw/mcb/
+
 Network devices
 M: Jason Wang <jasowang@redhat.com>
 S: Odd Fixes
