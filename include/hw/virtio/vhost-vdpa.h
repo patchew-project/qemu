@@ -41,6 +41,8 @@ typedef struct vhost_vdpa {
     uint64_t acked_features;
     uint64_t features;
     uint8_t status;
+    struct vhost_vdpa_config *config;
+    bool config_cache_enabled;
     bool shadow_vqs_enabled;
     /* Vdpa must send shadow addresses as IOTLB key for data queues, not GPA */
     bool shadow_data;
