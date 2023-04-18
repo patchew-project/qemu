@@ -350,14 +350,11 @@ static int vhost_vdpa_call(struct vhost_dev *dev, unsigned long int request,
 
 static int vhost_vdpa_add_status(struct vhost_dev *dev, uint8_t status)
 {
-    uint8_t s;
+    struct vhost_vdpa *v = dev->opaque;
+    uint8_t s = v->status;
     int ret;
 
     trace_vhost_vdpa_add_status(dev, status);
-    ret = vhost_vdpa_call(dev, VHOST_VDPA_GET_STATUS, &s);
-    if (ret < 0) {
-        return ret;
-    }
 
     s |= status;
 
@@ -374,6 +371,7 @@ static int vhost_vdpa_add_status(struct vhost_dev *dev, uint8_t status)
     if (!(s & status)) {
         return -EIO;
     }
+    v->status = s;
 
     return 0;
 }
@@ -436,6 +434,8 @@ static int vhost_vdpa_init(struct vhost_dev *dev, void *opaque, Error **errp)
     dev->opaque =  opaque ;
     v->listener = vhost_vdpa_memory_listener;
     v->msg_type = VHOST_IOTLB_MSG_V2;
+    v->status = 0;
+    v->features = dev->features;
     vhost_vdpa_init_svq(dev, v);
 
     error_propagate(&dev->migration_blocker, v->migration_blocker);
@@ -456,6 +456,7 @@ static int vhost_vdpa_init(struct vhost_dev *dev, void *opaque, Error **errp)
             return ret;
         }
         vhost_svq_valid_features(features, &dev->migration_blocker);
+        v->features = features;
     }
 
     /*
@@ -718,6 +719,7 @@ static int vhost_vdpa_reset_device(struct vhost_dev *dev)
     ret = vhost_vdpa_call(dev, VHOST_VDPA_SET_STATUS, &status);
     trace_vhost_vdpa_reset_device(dev, status);
     v->suspended = false;
+    v->status = 0;
     return ret;
 }
 
@@ -1294,8 +1296,10 @@ static int vhost_vdpa_set_vring_call(struct vhost_dev *dev,
 static int vhost_vdpa_get_features(struct vhost_dev *dev,
                                      uint64_t *features)
 {
-    int ret = vhost_vdpa_get_dev_features(dev, features);
+    struct vhost_vdpa *v = dev->opaque;
+    int ret = 0;
 
+    *features = v->features;
     if (ret == 0) {
         /* Add SVQ logging capabilities */
         *features |= BIT_ULL(VHOST_F_LOG_ALL);
