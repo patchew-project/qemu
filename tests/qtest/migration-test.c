@@ -574,6 +574,9 @@ typedef struct {
     /* Optional: set number of migration passes to wait for */
     unsigned int iterations;
 
+    /* Whether the guest CPUs should be running during migration */
+    bool live;
+
     /* Postcopy specific fields */
     void *postcopy_data;
     bool postcopy_preempt;
@@ -1329,7 +1332,11 @@ static void test_precopy_common(MigrateCommon *args)
         return;
     }
 
-    migrate_ensure_non_converge(from);
+    if (args->live) {
+        migrate_ensure_non_converge(from);
+    } else {
+        migrate_ensure_converge(from);
+    }
 
     if (args->start_hook) {
         data_hook = args->start_hook(from, to);
@@ -1357,15 +1364,19 @@ static void test_precopy_common(MigrateCommon *args)
             qtest_set_expected_status(to, EXIT_FAILURE);
         }
     } else {
-        if (args->iterations) {
-            while (args->iterations--) {
+        if (args->live) {
+            if (args->iterations) {
+                while (args->iterations--) {
+                    wait_for_migration_pass(from);
+                }
+            } else {
                 wait_for_migration_pass(from);
             }
-        } else {
-            wait_for_migration_pass(from);
-        }
 
-        migrate_ensure_converge(from);
+            migrate_ensure_converge(from);
+        } else {
+            qtest_qmp_discard_response(from, "{ 'execute' : 'stop'}");
+        }
 
         /* We do this first, as it has a timeout to stop us
          * hanging forever if migration didn't converge */
@@ -1375,7 +1386,12 @@ static void test_precopy_common(MigrateCommon *args)
             qtest_qmp_eventwait(from, "STOP");
         }
 
-        qtest_qmp_eventwait(to, "RESUME");
+        if (!args->live) {
+            qtest_qmp_discard_response(to, "{ 'execute' : 'cont'}");
+        }
+        if (!got_resume) {
+            qtest_qmp_eventwait(to, "RESUME");
+        }
 
         wait_for_serial("dest_serial");
     }
@@ -1393,6 +1409,7 @@ static void test_precopy_unix_plain(void)
     MigrateCommon args = {
         .listen_uri = uri,
         .connect_uri = uri,
+        .live = true,
     };
 
     test_precopy_common(&args);
@@ -1408,6 +1425,7 @@ static void test_precopy_unix_dirty_ring(void)
         },
         .listen_uri = uri,
         .connect_uri = uri,
+        .live = true,
     };
 
     test_precopy_common(&args);
@@ -1519,6 +1537,7 @@ static void test_precopy_unix_xbzrle(void)
         .start_hook = test_migrate_xbzrle_start,
 
         .iterations = 2,
+        .live = true,
     };
 
     test_precopy_common(&args);
@@ -1919,6 +1938,7 @@ static void test_multifd_tcp_none(void)
     MigrateCommon args = {
         .listen_uri = "defer",
         .start_hook = test_migrate_precopy_tcp_multifd_start,
+        .live = true,
     };
     test_precopy_common(&args);
 }
