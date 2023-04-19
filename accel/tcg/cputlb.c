@@ -1530,6 +1530,7 @@ static int probe_access_internal(CPUArchState *env, target_ulong addr,
     target_ulong tlb_addr, page_addr;
     size_t elt_ofs;
     int flags;
+    bool not_fetch = true;
 
     switch (access_type) {
     case MMU_DATA_LOAD:
@@ -1540,6 +1541,7 @@ static int probe_access_internal(CPUArchState *env, target_ulong addr,
         break;
     case MMU_INST_FETCH:
         elt_ofs = offsetof(CPUTLBEntry, addr_code);
+        not_fetch = false;
         break;
     default:
         g_assert_not_reached();
@@ -1578,7 +1580,9 @@ static int probe_access_internal(CPUArchState *env, target_ulong addr,
     *pfull = &env_tlb(env)->d[mmu_idx].fulltlb[index];
 
     /* Fold all "mmio-like" bits into TLB_MMIO.  This is not RAM.  */
-    if (unlikely(flags & ~(TLB_WATCHPOINT | TLB_NOTDIRTY))) {
+    if (unlikely(flags & ~(TLB_WATCHPOINT | TLB_NOTDIRTY))
+        ||
+        (not_fetch && cpu_plugin_mem_cbs_enabled(env_cpu(env)))) {
         *phost = NULL;
         return TLB_MMIO;
     }
