@@ -913,7 +913,7 @@ static void ivshmem_common_realize(PCIDevice *dev, Error **errp)
     pci_register_bar(PCI_DEVICE(s), 2,
                      PCI_BASE_ADDRESS_SPACE_MEMORY |
                      PCI_BASE_ADDRESS_MEM_PREFETCH |
-                     PCI_BASE_ADDRESS_MEM_TYPE_64,
+                     PCI_BASE_ADDRESS_MEM_TYPE_32,
                      s->ivshmem_bar2);
 }
 
