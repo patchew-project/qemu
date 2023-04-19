@@ -1313,6 +1313,7 @@ static bool migrate_caps_check(bool *cap_list,
     MigrationCapabilityStatusList *cap;
     bool old_postcopy_cap;
     MigrationIncomingState *mis = migration_incoming_get_current();
+    Error *local_err = NULL;
 
     old_postcopy_cap = cap_list[MIGRATION_CAPABILITY_POSTCOPY_RAM];
 
@@ -1344,11 +1345,9 @@ static bool migrate_caps_check(bool *cap_list,
          * special support.
          */
         if (!old_postcopy_cap && runstate_check(RUN_STATE_INMIGRATE) &&
-            !postcopy_ram_supported_by_host(mis)) {
-            /* postcopy_ram_supported_by_host will have emitted a more
-             * detailed message
-             */
-            error_setg(errp, "Postcopy is not supported");
+            !postcopy_ram_supported_by_host(mis, &local_err)) {
+            error_propagate_prepend(errp, local_err,
+                                    "Postcopy is not supported: ");
             return false;
         }
 
