@@ -590,8 +590,14 @@ static void vhost_vdpa_net_cvq_stop(NetClientState *nc)
     vhost_vdpa_net_client_stop(nc);
 }
 
-static ssize_t vhost_vdpa_net_cvq_add(VhostVDPAState *s, size_t out_len,
-                                      size_t in_len)
+/**
+ * vhost_vdpa_net_cvq_add_and_wait() adds SVQ control commands to SVQ,
+ * kicks the device and polls the device used buffers.
+ *
+ * Return the length written by the device.
+ */
+static ssize_t vhost_vdpa_net_cvq_add_and_wait(VhostVDPAState *s,
+                                    size_t out_len, size_t in_len)
 {
     /* Buffers for the device */
     const struct iovec out = {
@@ -636,7 +642,7 @@ static ssize_t vhost_vdpa_net_load_cmd(VhostVDPAState *s, uint8_t class,
     memcpy(s->cvq_cmd_out_buffer, &ctrl, sizeof(ctrl));
     memcpy(s->cvq_cmd_out_buffer + sizeof(ctrl), data, data_size);
 
-    return vhost_vdpa_net_cvq_add(s, sizeof(ctrl) + data_size,
+    return vhost_vdpa_net_cvq_add_and_wait(s, sizeof(ctrl) + data_size,
                                   sizeof(virtio_net_ctrl_ack));
 }
 
@@ -753,7 +759,8 @@ static int vhost_vdpa_net_handle_ctrl_avail(VhostShadowVirtqueue *svq,
         dev_written = sizeof(status);
         *s->status = VIRTIO_NET_OK;
     } else {
-        dev_written = vhost_vdpa_net_cvq_add(s, out.iov_len, sizeof(status));
+        dev_written = vhost_vdpa_net_cvq_add_and_wait(s, out.iov_len,
+                                                      sizeof(status));
         if (unlikely(dev_written < 0)) {
             goto out;
         }
