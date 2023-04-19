@@ -61,10 +61,12 @@ const QEnumLookup %(c_name)s_lookup = {
 
         special_features = gen_special_features(memb.features)
         if special_features != '0':
+            feats += memb.ifcond.gen_if()
             feats += mcgen('''
         [%(index)s] = %(special_features)s,
 ''',
                            index=index, special_features=special_features)
+            feats += memb.ifcond.gen_endif()
 
     if feats:
         ret += mcgen('''
