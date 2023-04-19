@@ -1,7 +1,6 @@
 softmmu_ss.add(files(
   'announce.c',
   'checksum.c',
-  'colo-compare.c',
   'colo.c',
   'dump.c',
   'eth.c',
@@ -18,6 +17,10 @@ softmmu_ss.add(files(
   'dgram.c',
   'util.c',
 ))
+
+if get_option('replication').allowed()
+  softmmu_ss.add(files('colo-compare.c'))
+endif
 
 softmmu_ss.add(when: 'CONFIG_TCG', if_true: files('filter-replay.c'))
 

@@ -196,6 +196,12 @@ COLOMode get_colo_mode(void)
     }
 }
 
+bool migrate_colo_enabled(void)
+{
+    MigrationState *s = migrate_get_current();
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_X_COLO];
+}
+
 void colo_do_failover(void)
 {
     /* Make sure VM stopped while failover happened. */
