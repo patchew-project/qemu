@@ -591,6 +591,44 @@ static void vhost_vdpa_net_cvq_stop(NetClientState *nc)
 }
 
 /**
+ * vhost_vdpa_net_cvq_add() adds SVQ control commands to SVQ,
+ * kicks the device but does not poll the device used buffers.
+ *
+ * Return the length of the device used buffers.
+ */
+static ssize_t vhost_vdpa_net_cvq_add(VhostVDPAState *s,
+                                void **out_cursor, size_t out_len,
+                                void **in_cursor, size_t in_len)
+{
+    /* Buffers for the device */
+    const struct iovec out = {
+        .iov_base = *out_cursor,
+        .iov_len = out_len,
+    };
+    const struct iovec in = {
+        .iov_base = *in_cursor,
+        .iov_len = in_len,
+    };
+    VhostShadowVirtqueue *svq = g_ptr_array_index(s->vhost_vdpa.shadow_vqs, 0);
+    int r;
+
+    r = vhost_svq_add(svq, &out, 1, &in, 1, NULL);
+    if (unlikely(r != 0)) {
+        if (unlikely(r == -ENOSPC)) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: No space on device queue\n",
+                          __func__);
+        }
+        return r;
+    }
+
+    /* Update the cursor */
+    *out_cursor += out_len;
+    *in_cursor += in_len;
+
+    return in_len;
+}
+
+/**
  * vhost_vdpa_net_cvq_add_and_wait() adds SVQ control commands to SVQ,
  * kicks the device and polls the device used buffers.
  *
@@ -628,69 +666,64 @@ static ssize_t vhost_vdpa_net_cvq_add_and_wait(VhostVDPAState *s,
     return vhost_svq_poll(svq);
 }
 
-static ssize_t vhost_vdpa_net_load_cmd(VhostVDPAState *s, uint8_t class,
-                                       uint8_t cmd, const void *data,
-                                       size_t data_size)
+static ssize_t vhost_vdpa_net_load_cmd(VhostVDPAState *s,
+                                void **out_cursor, uint8_t class, uint8_t cmd,
+                                const void *data, size_t data_size,
+                                void **in_cursor)
 {
     const struct virtio_net_ctrl_hdr ctrl = {
         .class = class,
         .cmd = cmd,
     };
 
-    assert(data_size < vhost_vdpa_net_cvq_cmd_page_len() - sizeof(ctrl));
+    assert(sizeof(ctrl) < vhost_vdpa_net_cvq_cmd_page_len() -
+                          (*out_cursor - s->cvq_cmd_out_buffer));
+    assert(data_size < vhost_vdpa_net_cvq_cmd_page_len() - sizeof(ctrl) -
+                       (*out_cursor - s->cvq_cmd_out_buffer));
 
-    memcpy(s->cvq_cmd_out_buffer, &ctrl, sizeof(ctrl));
-    memcpy(s->cvq_cmd_out_buffer + sizeof(ctrl), data, data_size);
+    memcpy(*out_cursor, &ctrl, sizeof(ctrl));
+    memcpy(*out_cursor + sizeof(ctrl), data, data_size);
 
-    return vhost_vdpa_net_cvq_add_and_wait(s, sizeof(ctrl) + data_size,
-                                  sizeof(virtio_net_ctrl_ack));
+    return vhost_vdpa_net_cvq_add(s, out_cursor, sizeof(ctrl) + data_size,
+                                  in_cursor, sizeof(virtio_net_ctrl_ack));
 }
 
-static int vhost_vdpa_net_load_mac(VhostVDPAState *s, const VirtIONet *n)
+static ssize_t vhost_vdpa_net_load_mac(VhostVDPAState *s, const VirtIONet *n,
+                                   void **out_cursor, void **in_cursor)
 {
     uint64_t features = n->parent_obj.guest_features;
     if (features & BIT_ULL(VIRTIO_NET_F_CTRL_MAC_ADDR)) {
-        ssize_t dev_written = vhost_vdpa_net_load_cmd(s, VIRTIO_NET_CTRL_MAC,
-                                                  VIRTIO_NET_CTRL_MAC_ADDR_SET,
-                                                  n->mac, sizeof(n->mac));
-        if (unlikely(dev_written < 0)) {
-            return dev_written;
-        }
-
-        return *s->status != VIRTIO_NET_OK;
+        return vhost_vdpa_net_load_cmd(s, out_cursor, VIRTIO_NET_CTRL_MAC,
+                                       VIRTIO_NET_CTRL_MAC_ADDR_SET,
+                                       n->mac, sizeof(n->mac), in_cursor);
     }
 
     return 0;
 }
 
-static int vhost_vdpa_net_load_mq(VhostVDPAState *s,
-                                  const VirtIONet *n)
+static ssize_t vhost_vdpa_net_load_mq(VhostVDPAState *s, const VirtIONet *n,
+                                  void **out_cursor, void **in_cursor)
 {
     struct virtio_net_ctrl_mq mq;
     uint64_t features = n->parent_obj.guest_features;
-    ssize_t dev_written;
 
     if (!(features & BIT_ULL(VIRTIO_NET_F_MQ))) {
         return 0;
     }
 
-    mq.virtqueue_pairs = cpu_to_le16(n->curr_queue_pairs);
-    dev_written = vhost_vdpa_net_load_cmd(s, VIRTIO_NET_CTRL_MQ,
-                                          VIRTIO_NET_CTRL_MQ_VQ_PAIRS_SET, &mq,
-                                          sizeof(mq));
-    if (unlikely(dev_written < 0)) {
-        return dev_written;
-    }
-
-    return *s->status != VIRTIO_NET_OK;
+    return vhost_vdpa_net_load_cmd(s, out_cursor, VIRTIO_NET_CTRL_MQ,
+                                   VIRTIO_NET_CTRL_MQ_VQ_PAIRS_SET,
+                                   &mq, sizeof(mq), in_cursor);
 }
 
 static int vhost_vdpa_net_load(NetClientState *nc)
 {
     VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, nc);
+    VhostShadowVirtqueue *svq;
+    void *out_cursor, *in_cursor;
     struct vhost_vdpa *v = &s->vhost_vdpa;
     const VirtIONet *n;
-    int r;
+    ssize_t need_poll_len = 0, r, dev_written;
 
     assert(nc->info->type == NET_CLIENT_DRIVER_VHOST_VDPA);
 
@@ -699,16 +732,50 @@ static int vhost_vdpa_net_load(NetClientState *nc)
     }
 
     n = VIRTIO_NET(v->dev->vdev);
-    r = vhost_vdpa_net_load_mac(s, n);
+
+    need_poll_len = 0;
+    out_cursor = s->cvq_cmd_out_buffer;
+    in_cursor = s->status;
+
+    r = vhost_vdpa_net_load_mac(s, n, &out_cursor, &in_cursor);
+    if (unlikely(r < 0)) {
+        goto load_err;
+    }
+    need_poll_len += r;
+
+    r = vhost_vdpa_net_load_mq(s, n, &out_cursor, &in_cursor);
+    if (unlikely(r < 0)) {
+        goto load_err;
+    }
+    need_poll_len += r;
+
+load_err:
+    /* Poll for all SVQ control commands used buffer from device */
+    svq = g_ptr_array_index(s->vhost_vdpa.shadow_vqs, 0);
+    while (need_poll_len > 0) {
+        /*
+         * We can poll here since we've had BQL from the time we sent the
+         * descriptor. Also, we need to take the answer before SVQ pulls
+         * by itself, when BQL is released
+         */
+        dev_written = vhost_svq_poll(svq);
+        need_poll_len -= dev_written;
+    }
+
+    /* If code comes from `load_err` label, then we should return directly */
     if (unlikely(r < 0)) {
         return r;
     }
-    r = vhost_vdpa_net_load_mq(s, n);
-    if (unlikely(r)) {
-        return r;
+
+    /* Check the used buffer from device */
+    for (virtio_net_ctrl_ack * status = s->status; (void *)status < in_cursor;
+         ++status) {
+        if (*status != VIRTIO_NET_OK) {
+            ++r;
+        }
     }
 
-    return 0;
+    return r;
 }
 
 static NetClientInfo net_vhost_vdpa_cvq_info = {
