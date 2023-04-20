@@ -523,6 +523,10 @@ static bool xen_block_handle_requests(XenBlockDataPlane *dataplane)
 
     dataplane->more_work = 0;
 
+    if (dataplane->sring == 0) {
+        return done_something;
+    }
+
     rc = dataplane->rings.common.req_cons;
     rp = dataplane->rings.common.sring->req_prod;
     xen_rmb(); /* Ensure we see queued requests up to 'rp'. */
@@ -666,14 +670,35 @@ void xen_block_dataplane_destroy(XenBlockDataPlane *dataplane)
 void xen_block_dataplane_stop(XenBlockDataPlane *dataplane)
 {
     XenDevice *xendev;
+    XenBlockRequest *request, *next;
 
     if (!dataplane) {
         return;
     }
 
+    /* We're about to drain the ring. We can cancel the scheduling of any
+     * bottom half now */
+    qemu_bh_cancel(dataplane->bh);
+
+    /* Ensure we have drained the ring */
+    aio_context_acquire(dataplane->ctx);
+    do {
+        xen_block_handle_requests(dataplane);
+    } while (dataplane->more_work);
+    aio_context_release(dataplane->ctx);
+
+    /* Now ensure that all inflight requests are complete */
+    while (!QLIST_EMPTY(&dataplane->inflight)) {
+        QLIST_FOREACH_SAFE(request, &dataplane->inflight, list, next) {
+            blk_aio_flush(request->dataplane->blk, xen_block_complete_aio,
+                        request);
+        }
+    }
+
     xendev = dataplane->xendev;
 
     aio_context_acquire(dataplane->ctx);
+
     if (dataplane->event_channel) {
         /* Only reason for failure is a NULL channel */
         xen_device_set_event_channel_context(xendev, dataplane->event_channel,
@@ -683,12 +708,6 @@ void xen_block_dataplane_stop(XenBlockDataPlane *dataplane)
     /* Xen doesn't have multiple users for nodes, so this can't fail */
     blk_set_aio_context(dataplane->blk, qemu_get_aio_context(), &error_abort);
     aio_context_release(dataplane->ctx);
-
-    /*
-     * Now that the context has been moved onto the main thread, cancel
-     * further processing.
-     */
-    qemu_bh_cancel(dataplane->bh);
 
     if (dataplane->event_channel) {
         Error *local_err = NULL;
