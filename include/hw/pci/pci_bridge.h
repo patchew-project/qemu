@@ -30,6 +30,7 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/cxl/cxl.h"
 #include "qom/object.h"
+#include "qemu/rcu.h"
 
 typedef struct PCIBridgeWindows PCIBridgeWindows;
 
@@ -73,7 +74,7 @@ struct PCIBridge {
     MemoryRegion address_space_mem;
     MemoryRegion address_space_io;
 
-    PCIBridgeWindows *windows;
+    PCIBridgeWindows windows;
 
     pci_map_irq_fn map_irq;
     const char *bus_name;
