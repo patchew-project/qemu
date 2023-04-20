@@ -33,6 +33,7 @@ void cpu_loop(CPUHexagonState *env)
     target_ulong ret;
 
     for (;;) {
+        target_siginfo_t info;
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
@@ -62,6 +63,15 @@ void cpu_loop(CPUHexagonState *env)
             break;
         case EXCP_ATOMIC:
             cpu_exec_step_atomic(cs);
+            break;
+        case EXCP_DEBUG:
+            info = (target_siginfo_t) {
+                .si_signo = TARGET_SIGTRAP,
+                .si_errno = 0,
+                .si_code = TARGET_TRAP_BRKPT,
+                ._sifields._sigfault._addr = 0
+            };
+            queue_signal(env, info.si_signo, QEMU_SI_KILL, &info);
             break;
         default:
             EXCP_DUMP(env, "\nqemu: unhandled CPU exception %#x - aborting\n",
