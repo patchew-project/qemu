@@ -77,6 +77,9 @@ void _spr_register(CPUPPCState *env, int num, const char *name,
     spr_register_kvm(env, num, name, uea_read, uea_write,                    \
                      oea_read, oea_write, 0, ival)
 
+void set_spr_default_value(CPUPPCState *env, int num,
+                   target_ulong default_value);
+
 /* prototypes for readers and writers for SPRs */
 void spr_noaccess(DisasContext *ctx, int gprn, int sprn);
 void spr_read_generic(DisasContext *ctx, int gprn, int sprn);

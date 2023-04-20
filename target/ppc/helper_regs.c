@@ -351,6 +351,24 @@ void _spr_register(CPUPPCState *env, int num, const char *name,
 #endif
 }
 
+/**
+ * set_spr_default_value
+ *
+ * sets the spr register with default value overide.
+ */
+void set_spr_default_value(CPUPPCState *env, int num,
+                   target_ulong default_value)
+{
+    assert(num < ARRAY_SIZE(env->spr_cb));
+    ppc_spr_t *spr = &env->spr_cb[num];
+
+    /* Verify the spr registered already. */
+    assert(spr->name != NULL);
+
+    spr->default_value = default_value;
+    env->spr[num] = default_value;
+}
+
 /* Generic PowerPC SPRs */
 void register_generic_sprs(PowerPCCPU *cpu)
 {

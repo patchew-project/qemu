@@ -5372,7 +5372,7 @@ static void register_book3s_ids_sprs(CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
-                 0x00000000);
+                 HID0_ISA206_INIT_VAL);
     spr_register_hv(env, SPR_TSCR, "TSCR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -5697,6 +5697,15 @@ static void register_power9_mmu_sprs(CPUPPCState *env)
                     &spr_read_generic, &spr_write_generic,
                     0x0000000000000000);
 #endif
+}
+
+static void set_power9_default_value_sprs(CPUPPCState *env)
+{
+    /*
+     * ISA 3.00, book3s ids HID0 register, HILE bit position
+     * changed to bit HID0_POWER9_HILE
+     */
+    set_spr_default_value(env, SPR_HID0, HID0_ISA300_INIT_VAL);
 }
 
 static void register_power10_hash_sprs(CPUPPCState *env)
@@ -6250,6 +6259,9 @@ static void init_proc_POWER9(CPUPPCState *env)
     register_power8_rpr_sprs(env);
     register_power9_mmu_sprs(env);
 
+    /* POWER9 Host Specific register initialization */
+    set_power9_default_value_sprs(env);
+
     /* POWER9 Specific registers */
     spr_register_kvm(env, SPR_TIDR, "TIDR", NULL, NULL,
                      spr_read_generic, spr_write_generic,
@@ -6424,6 +6436,10 @@ static void init_proc_POWER10(CPUPPCState *env)
     register_power8_book4_sprs(env);
     register_power8_rpr_sprs(env);
     register_power9_mmu_sprs(env);
+
+    /* POWER10 Host Specific register initialization */
+    set_power9_default_value_sprs(env);
+
     register_power10_hash_sprs(env);
     register_power10_dexcr_sprs(env);
 

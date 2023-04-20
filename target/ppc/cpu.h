@@ -2113,6 +2113,15 @@ void ppc_compat_add_property(Object *obj, const char *name,
 #define HID0_HILE           PPC_BIT(19) /* POWER8 */
 #define HID0_POWER9_HILE    PPC_BIT(4)
 
+/* HID0 register initial value for POWER9 */
+#if HOST_BIG_ENDIAN
+#define HID0_ISA206_INIT_VAL    0x00000000        /* POWER7 Onwards */
+#define HID0_ISA300_INIT_VAL    0x00000000        /* POWER9 Onwards */
+#else
+#define HID0_ISA206_INIT_VAL    HID0_HILE         /* POWER7 Onwards */
+#define HID0_ISA300_INIT_VAL    HID0_POWER9_HILE  /* POWER9 Onwards */
+#endif
+
 /*****************************************************************************/
 /* PowerPC Instructions types definitions                                    */
 enum {
