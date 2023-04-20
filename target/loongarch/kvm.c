@@ -397,8 +397,31 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     return ret;
 }
 
+static void kvm_loongarch_vm_stage_change(void *opaque, bool running,
+                                          RunState state)
+{
+    int ret;
+    CPUState *cs = opaque;
+    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
+
+    if (running) {
+        ret = kvm_larch_putq(cs, KVM_REG_LOONGARCH_COUNTER,
+                             &cpu->counter_value);
+        if (ret < 0) {
+            printf("%s: Failed to put counter_value (%d)\n", __func__, ret);
+        }
+    } else {
+        ret = kvm_larch_getq(cs, KVM_REG_LOONGARCH_COUNTER,
+                             &cpu->counter_value);
+        if (ret < 0) {
+            printf("%s: Failed to get counter_value (%d)\n", __func__, ret);
+        }
+    }
+}
+
 int kvm_arch_init_vcpu(CPUState *cs)
 {
+    qemu_add_vm_change_state_handler(kvm_loongarch_vm_stage_change, cs);
     return 0;
 }
 

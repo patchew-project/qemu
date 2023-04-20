@@ -350,6 +350,7 @@ struct ArchCPU {
 
     /* 'compatible' string for this CPU for Linux device trees */
     const char *dtb_compatible;
+    uint64_t counter_value;
 };
 
 #define TYPE_LOONGARCH_CPU "loongarch-cpu"
