@@ -10,6 +10,112 @@
 #include "migration/cpu.h"
 #include "internals.h"
 
+/* FPU state */
+static int get_fpr(QEMUFile *f, void *pv, size_t size,
+                   const VMStateField *field)
+{
+    fpr_t *v = pv;
+
+    qemu_get_sbe64s(f, &v->vreg.D(0));
+    return 0;
+}
+
+static int put_fpr(QEMUFile *f, void *pv, size_t size,
+                   const VMStateField *field, JSONWriter *vmdesc)
+{
+    fpr_t *v = pv;
+
+    qemu_put_sbe64s(f, &v->vreg.D(0));
+    return 0;
+}
+
+static const VMStateInfo vmstate_info_fpr = {
+    .name = "fpr",
+    .get  = get_fpr,
+    .put  = put_fpr,
+};
+
+#define VMSTATE_FPR_ARRAY_V(_f, _s, _n, _v)                       \
+    VMSTATE_SUB_ARRAY(_f, _s, 0, _n, _v, vmstate_info_fpr, fpr_t)
+
+#define VMSTATE_FPR_ARRAY(_f, _s, _n)                             \
+    VMSTATE_FPR_ARRAY_V(_f, _s, _n, 0)
+
+static bool fpu_needed(void *opaque)
+{
+    LoongArchCPU *cpu = opaque;
+
+    return FIELD_EX64(cpu->env.cpucfg[2], CPUCFG2, FP);
+}
+
+static const VMStateDescription vmstate_fpu = {
+    .name = "cpu/fpu",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = fpu_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_FPR_ARRAY(env.fpr, LoongArchCPU, 32),
+        VMSTATE_UINT32(env.fcsr0, LoongArchCPU),
+        VMSTATE_BOOL_ARRAY(env.cf, LoongArchCPU, 8),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+/* LSX state*/
+static int get_lsx(QEMUFile *f, void *pv, size_t size,
+                   const VMStateField *field)
+{
+    int i;
+    fpr_t *v = pv;
+
+    for (i = 0; i < LSX_LEN/64; i++) {
+        qemu_get_sbe64s(f, &v->vreg.D(i));
+    }
+    return 0;
+}
+
+static int put_lsx(QEMUFile *f, void *pv, size_t size,
+                   const VMStateField *field, JSONWriter *vmdesc)
+{
+    int i;
+    fpr_t *v = pv;
+
+    for (i = 0; i < LSX_LEN/8; i++) {
+        qemu_put_sbe64s(f, &v->vreg.D(i));
+    }
+    return 0;
+}
+
+static const VMStateInfo vmstate_info_lsx = {
+    .name = "lsx",
+    .get  = get_lsx,
+    .put  = put_lsx,
+};
+
+#define VMSTATE_LSX_ARRAY_V(_f, _s, _n, _v)                       \
+    VMSTATE_SUB_ARRAY(_f, _s, 0, _n, _v, vmstate_info_lsx, fpr_t)
+
+#define VMSTATE_LSX_ARRAY(_f, _s, _n)                             \
+    VMSTATE_LSX_ARRAY_V(_f, _s, _n, 0)
+
+static bool lsx_needed(void *opaque)
+{
+    LoongArchCPU *cpu = opaque;
+
+    return FIELD_EX64(cpu->env.cpucfg[2], CPUCFG2, LSX);
+}
+
+static const VMStateDescription vmstate_lsx = {
+    .name = "cpu/lsx",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = lsx_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_LSX_ARRAY(env.fpr, LoongArchCPU, 32),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 /* TLB state */
 const VMStateDescription vmstate_tlb = {
     .name = "cpu/tlb",
@@ -24,18 +130,13 @@ const VMStateDescription vmstate_tlb = {
 };
 
 /* LoongArch CPU state */
-
 const VMStateDescription vmstate_loongarch_cpu = {
     .name = "cpu",
     .version_id = 0,
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
-
         VMSTATE_UINTTL_ARRAY(env.gpr, LoongArchCPU, 32),
         VMSTATE_UINTTL(env.pc, LoongArchCPU),
-        VMSTATE_UINT64_ARRAY(env.fpr, LoongArchCPU, 32),
-        VMSTATE_UINT32(env.fcsr0, LoongArchCPU),
-        VMSTATE_BOOL_ARRAY(env.cf, LoongArchCPU, 8),
 
         /* Remaining CSRs */
         VMSTATE_UINT64(env.CSR_CRMD, LoongArchCPU),
@@ -99,4 +200,8 @@ const VMStateDescription vmstate_loongarch_cpu = {
 
         VMSTATE_END_OF_LIST()
     },
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_fpu,
+        &vmstate_lsx,
+    }
 };
