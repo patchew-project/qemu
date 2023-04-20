@@ -49,7 +49,7 @@
  * contiguous in memory.
  */
 static inline uint32_t
-qemu_xxhash7(uint64_t ab, uint64_t cd, uint32_t e, uint32_t f, uint32_t g)
+qemu_xxhash6(uint64_t ab, uint64_t cd, uint32_t e, uint32_t f)
 {
     uint32_t v1 = QEMU_XXHASH_SEED + PRIME32_1 + PRIME32_2;
     uint32_t v2 = QEMU_XXHASH_SEED + PRIME32_2;
@@ -86,9 +86,6 @@ qemu_xxhash7(uint64_t ab, uint64_t cd, uint32_t e, uint32_t f, uint32_t g)
     h32 += f * PRIME32_3;
     h32  = rol32(h32, 17) * PRIME32_4;
 
-    h32 += g * PRIME32_3;
-    h32  = rol32(h32, 17) * PRIME32_4;
-
     h32 ^= h32 >> 15;
     h32 *= PRIME32_2;
     h32 ^= h32 >> 13;
@@ -100,23 +97,17 @@ qemu_xxhash7(uint64_t ab, uint64_t cd, uint32_t e, uint32_t f, uint32_t g)
 
 static inline uint32_t qemu_xxhash2(uint64_t ab)
 {
-    return qemu_xxhash7(ab, 0, 0, 0, 0);
+    return qemu_xxhash6(ab, 0, 0, 0);
 }
 
 static inline uint32_t qemu_xxhash4(uint64_t ab, uint64_t cd)
 {
-    return qemu_xxhash7(ab, cd, 0, 0, 0);
+    return qemu_xxhash6(ab, cd, 0, 0);
 }
 
 static inline uint32_t qemu_xxhash5(uint64_t ab, uint64_t cd, uint32_t e)
 {
-    return qemu_xxhash7(ab, cd, e, 0, 0);
-}
-
-static inline uint32_t qemu_xxhash6(uint64_t ab, uint64_t cd, uint32_t e,
-                                    uint32_t f)
-{
-    return qemu_xxhash7(ab, cd, e, f, 0);
+    return qemu_xxhash6(ab, cd, e, 0);
 }
 
 /*
