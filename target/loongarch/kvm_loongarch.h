@@ -8,6 +8,7 @@
 #ifndef QEMU_KVM_LOONGARCH_H
 #define QEMU_KVM_LOONGARCH_H
 
+void kvm_loongarch_reset_vcpu(LoongArchCPU *cpu);
 int  kvm_loongarch_set_interrupt(LoongArchCPU *cpu, int irq, int level);
 
 #endif
