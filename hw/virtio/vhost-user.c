@@ -2677,8 +2677,18 @@ static int vhost_user_dev_start(struct vhost_dev *dev, bool started)
                                           VIRTIO_CONFIG_S_DRIVER |
                                           VIRTIO_CONFIG_S_DRIVER_OK);
     } else {
-        return vhost_user_set_status(dev, 0);
+        return 0;
     }
+}
+
+static void vhost_user_reset_status(struct vhost_dev *dev)
+{
+    /* Set device status only for last queue pair */
+    if (dev->vq_index + dev->nvqs != dev->vq_index_end) {
+        return;
+    }
+
+    vhost_user_set_status(dev, 0);
 }
 
 const VhostOps user_ops = {
@@ -2716,4 +2726,5 @@ const VhostOps user_ops = {
         .vhost_get_inflight_fd = vhost_user_get_inflight_fd,
         .vhost_set_inflight_fd = vhost_user_set_inflight_fd,
         .vhost_dev_start = vhost_user_dev_start,
+        .vhost_reset_status = vhost_user_reset_status,
 };
