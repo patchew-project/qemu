@@ -112,8 +112,6 @@ void cpu_dump_state(CPUState *cpu, FILE *f, int flags)
 void cpu_reset(CPUState *cpu)
 {
     device_cold_reset(DEVICE(cpu));
-
-    trace_guest_cpu_reset(cpu);
 }
 
 static void cpu_common_reset_hold(Object *obj)
