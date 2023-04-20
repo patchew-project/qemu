@@ -663,6 +663,12 @@ void pcie_cap_slot_init(PCIDevice *dev, PCIESlot *s)
 
     qbus_set_hotplug_handler(BUS(pci_bridge_get_sec_bus(PCI_BRIDGE(dev))),
                              OBJECT(dev));
+
+    if (s->atomic_completion) {
+        /* PCIe requires setting both comp32 and comp64 if either is supported */
+        pci_set_long(dev->config + dev->exp.exp_cap + PCI_EXP_DEVCAP2,
+                     PCI_EXP_DEVCAP2_ATOMIC_COMP32 | PCI_EXP_DEVCAP2_ATOMIC_COMP64);
+    }
 }
 
 void pcie_cap_slot_reset(PCIDevice *dev)

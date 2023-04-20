@@ -68,6 +68,9 @@ struct PCIESlot {
     /* broken ACPI hotplug compat knob to preserve 6.1 ABI intact */
     bool        hide_native_hotplug_cap;
 
+    /* Enables PCIE Atomic completion on pcie_root_port */
+    bool atomic_completion;
+
     QLIST_ENTRY(PCIESlot) next;
 };
 
