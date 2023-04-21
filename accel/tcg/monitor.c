@@ -68,8 +68,6 @@ HumanReadableText *qmp_x_query_opcount(Error **errp)
 
 #ifdef CONFIG_PROFILER
 
-int64_t dev_time;
-
 HumanReadableText *qmp_x_query_profile(Error **errp)
 {
     g_autoptr(GString) buf = g_string_new("");
