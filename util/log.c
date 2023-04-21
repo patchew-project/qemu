@@ -50,6 +50,8 @@ int qemu_loglevel;
 static bool log_per_thread;
 static GArray *debug_regions;
 int32_t max_num_hot_tbs_to_dump;
+static bool to_monitor;
+bool to_string;
 
 /* Returns true if qemu_log() will really write somewhere. */
 bool qemu_log_enabled(void)
@@ -146,19 +148,6 @@ void qemu_log_unlock(FILE *logfile)
     }
 }
 
-void qemu_log(const char *fmt, ...)
-{
-    FILE *f = qemu_log_trylock();
-    if (f) {
-        va_list ap;
-
-        va_start(ap, fmt);
-        vfprintf(f, fmt, ap);
-        va_end(ap);
-        qemu_log_unlock(f);
-    }
-}
-
 static void __attribute__((__constructor__)) startup(void)
 {
     qemu_mutex_init(&global_mutex);
@@ -204,6 +193,55 @@ valid_filename_template(const char *filename, bool per_thread, Error **errp)
         return vft_error;
     }
     return filename ? vft_strdup : vft_stderr;
+}
+
+GString *string;
+
+int qemu_vlog(const char *fmt, va_list va)
+{
+    int ret = 0;
+
+    if (to_string && string) {
+        g_string_append_vprintf(string, fmt, va);
+    } else if (to_monitor) {
+        ret = qemu_vprintf(fmt, va);
+    } else {
+        FILE *f = qemu_log_trylock();
+        if (f) {
+            ret = vfprintf(f, fmt, va);
+        }
+        qemu_log_unlock(f);
+    }
+
+    /* Don't pass back error results.  */
+    if (ret < 0) {
+        ret = 0;
+    }
+    return ret;
+}
+
+/* Return the number of characters emitted.  */
+int qemu_log(const char *fmt, ...)
+{
+    int ret = 0;
+    va_list ap;
+
+    va_start(ap, fmt);
+    ret = qemu_vlog(fmt, ap);
+    va_end(ap);
+
+    return ret;
+}
+
+void qemu_log_to_monitor(bool enable)
+{
+    to_monitor = enable;
+}
+
+void qemu_log_to_string(bool enable, GString *s)
+{
+    to_string = enable;
+    string = s;
 }
 
 /* enable or disable low levels log */
@@ -523,6 +561,7 @@ int qemu_str_to_log_mask(const char *str)
             trace_enable_events((*tmp) + 6);
             mask |= LOG_TRACE;
 #endif
+#ifdef CONFIG_TCG
         } else if (g_str_has_prefix(*tmp, "tb_stats")) {
             mask |= CPU_LOG_TB_STATS;
             set_default_tbstats_flag(TB_ALL_STATS);
@@ -553,6 +592,7 @@ int qemu_str_to_log_mask(const char *str)
                 }
                 set_default_tbstats_flag(flags);
             }
+#endif
         } else {
             for (item = qemu_log_items; item->mask != 0; item++) {
                 if (g_str_equal(*tmp, item->name)) {

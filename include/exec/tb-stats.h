@@ -35,8 +35,11 @@
 enum SortBy { SORT_BY_HOTNESS, SORT_BY_HG /* Host/Guest */, SORT_BY_SPILLS };
 enum TbstatsCmd { START, PAUSE, STOP, FILTER };
 
+#define tbs_stats_enabled(tbs, JIT_STATS) \
+    (tbs && (tbs->stats_enabled & JIT_STATS))
+
 #define tb_stats_enabled(tb, JIT_STATS) \
-    (tb && tb->tb_stats && (tb->tb_stats->stats_enabled & JIT_STATS))
+    (tb && tb->tb_stats && tbs_stats_enabled(tb->tb_stats, JIT_STATS))
 
 #define stat_per_translation(stat, name) \
     (stat->translations.total ? stat->name / stat->translations.total : 0)
@@ -65,6 +68,8 @@ struct TBStatistics {
     struct {
         unsigned long normal;
         unsigned long atomic;
+        /* filled only when dumping x% cover set */
+        uint16_t coverage;
     } executions;
 
     /* JIT Stats - protected by lock */
@@ -87,7 +92,6 @@ struct TBStatistics {
 
     struct {
         unsigned long total;
-        unsigned long uncached;
         unsigned long spanning;
     } translations;
 
@@ -107,6 +111,9 @@ struct TBStatistics {
         uint64_t la;
         uint64_t code;
     } gen_times;
+
+    /* HMP information - used for referring to previous search */
+    int display_id;
 };
 
 bool tb_stats_cmp(const void *ap, const void *bp);
@@ -132,5 +139,27 @@ void do_hmp_tbstats_safe(CPUState *cpu, run_on_cpu_data icmd);
  * safe work during tb_flush.
  */
 void tbstats_reset_tbs(void);
+
+/**
+ * dump_tbs_info: report the hottest blocks
+ *
+ * @count: the limit of hotblocks
+ * @sort_by: property in which the dump will be sorted
+ * @use_monitor: redirect output to monitor
+ *
+ * Report the hottest blocks to either the log or monitor
+ */
+void dump_tbs_info(int count, int sort_by, bool use_monitor);
+
+/**
+ * dump_tb_info: dump information about one TB
+ *
+ * @id: the display id of the block (from previous search)
+ * @mask: the temporary logging mask
+ * @Use_monitor: redirect output to monitor
+ *
+ * Re-run a translation of a block at addr for the purposes of debug output
+ */
+void dump_tb_info(int id, int log_mask, bool use_monitor);
 
 #endif

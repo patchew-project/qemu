@@ -7,6 +7,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "qapi/error.h"
 #include "qapi/type-helpers.h"
 #include "qapi/qapi-commands-machine.h"
@@ -17,6 +18,7 @@
 #include "sysemu/cpu-timers.h"
 #include "sysemu/tcg.h"
 #include "exec/tb-stats.h"
+#include "tb-context.h"
 #include "internal.h"
 
 
@@ -117,6 +119,59 @@ void hmp_tbstats(Monitor *mon, const QDict *qdict)
                           RUN_ON_CPU_HOST_PTR(tbscommand));
 
 }
+
+void hmp_info_tblist(Monitor *mon, const QDict *qdict)
+{
+    int number_int;
+    const char *sortedby_str = NULL;
+    if (!tcg_enabled()) {
+        error_report("TB information is only available with accel=tcg");
+        return;
+    }
+    if (!tb_ctx.tb_stats.map) {
+        error_report("no TB information recorded");
+        return;
+    }
+
+    number_int = qdict_get_try_int(qdict, "number", 10);
+    sortedby_str = qdict_get_try_str(qdict, "sortedby");
+
+    int sortedby = SORT_BY_HOTNESS;
+    if (sortedby_str == NULL || strcmp(sortedby_str, "hotness") == 0) {
+        sortedby = SORT_BY_HOTNESS;
+    } else if (strcmp(sortedby_str, "hg") == 0) {
+        sortedby = SORT_BY_HG;
+    } else if (strcmp(sortedby_str, "spills") == 0) {
+        sortedby = SORT_BY_SPILLS;
+    } else {
+        error_report("valid sort options are: hotness hg spills");
+        return;
+    }
+
+    dump_tbs_info(number_int, sortedby, true);
+}
+
+void hmp_info_tb(Monitor *mon, const QDict *qdict)
+{
+    const int id = qdict_get_int(qdict, "id");
+    const char *flags = qdict_get_try_str(qdict, "flags");
+    int mask;
+
+    if (!tcg_enabled()) {
+        error_report("TB information is only available with accel=tcg");
+        return;
+    }
+
+    mask = flags ? qemu_str_to_log_mask(flags) : CPU_LOG_TB_IN_ASM;
+
+    if (!mask) {
+        error_report("Unable to parse log flags, see 'help log'");
+        return;
+    }
+
+    dump_tb_info(id, mask, true);
+}
+
 #endif
 
 HumanReadableText *qmp_x_query_profile(Error **errp)

@@ -7,6 +7,8 @@
 #include "disas/disas.h"
 #include "disas/capstone.h"
 
+#include "qemu/log-for-trace.h"
+
 typedef struct CPUDebug {
     struct disassemble_info info;
     CPUState *cpu;
@@ -203,6 +205,24 @@ static void initialize_debug_host(CPUDebug *s)
 #endif
 }
 
+static int
+__attribute__((format(printf, 2, 3)))
+fprintf_log(struct _IO_FILE *a, const char *b, ...)
+{
+    va_list ap;
+    va_start(ap, b);
+
+    if (!to_string) {
+        vfprintf(a, b, ap);
+    } else {
+        qemu_vlog(b, ap);
+    }
+
+    va_end(ap);
+
+    return 1;
+}
+
 /* Disassemble this for me please... (debugging).  */
 void target_disas(FILE *out, CPUState *cpu, target_ulong code,
                   target_ulong size)
@@ -226,11 +246,12 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
     }
 
     for (pc = code; size > 0; pc += count, size -= count) {
-	fprintf(out, "0x" TARGET_FMT_lx ":  ", pc);
-	count = s.info.print_insn(pc, &s.info);
-	fprintf(out, "\n");
-	if (count < 0)
-	    break;
+        fprintf_log(out, "0x" TARGET_FMT_lx ":  ", pc);
+        count = s.info.print_insn(pc, &s.info);
+        fprintf_log(out, "\n");
+        if (count < 0) {
+            break;
+        }
         if (size < count) {
             fprintf(out,
                     "Disassembler disagrees with translator over instruction "
