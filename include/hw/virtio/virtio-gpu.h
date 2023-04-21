@@ -293,13 +293,6 @@ int virtio_gpu_update_dmabuf(VirtIOGPU *g,
                              struct virtio_gpu_rect *r);
 
 /* virtio-gpu-3d.c */
-void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
-                                  struct virtio_gpu_ctrl_command *cmd);
-void virtio_gpu_virgl_update_cursor(VirtIOGPU *g, struct virtio_gpu_scanout *s,
-                                    uint32_t resource_id);
-void virtio_gpu_virgl_flushed(VirtIOGPUBase *b);
-void virtio_gpu_virgl_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq);
-void virtio_gpu_virgl_reset(VirtIODevice *vdev);
 void virtio_gpu_virgl_device_realize(DeviceState *qdev, Error **errp);
 
 #endif

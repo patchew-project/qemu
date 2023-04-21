@@ -21,6 +21,11 @@
 #include "hw/virtio/virtio-gpu-pixman.h"
 #include "hw/qdev-properties.h"
 
+static void virtio_gpu_gl_device_realize(DeviceState *qdev, Error **errp)
+{
+    virtio_gpu_virgl_device_realize(qdev, errp);
+}
+
 static Property virtio_gpu_gl_properties[] = {
     DEFINE_PROP_BIT("stats", VirtIOGPU, parent_obj.conf.flags,
                     VIRTIO_GPU_FLAG_STATS_ENABLED, false),
@@ -34,13 +39,13 @@ static void virtio_gpu_gl_class_init(ObjectClass *klass, void *data)
     VirtIOGPUBaseClass *vbc = VIRTIO_GPU_BASE_CLASS(klass);
     VirtIOGPUClass *vgc = VIRTIO_GPU_CLASS(klass);
 
-    vbc->gl_flushed = virtio_gpu_virgl_flushed;
-    vgc->handle_ctrl = virtio_gpu_virgl_handle_ctrl;
-    vgc->process_cmd = virtio_gpu_virgl_process_cmd;
-    vgc->update_cursor_data = virtio_gpu_virgl_update_cursor;
+    vbc->gl_flushed = NULL;
+    vgc->handle_ctrl = NULL;
+    vgc->process_cmd = NULL;
+    vgc->update_cursor_data = NULL;
 
-    vdc->realize = virtio_gpu_virgl_device_realize;
-    vdc->reset = virtio_gpu_virgl_reset;
+    vdc->realize = virtio_gpu_gl_device_realize;
+    vdc->reset = NULL;
     device_class_set_props(dc, virtio_gpu_gl_properties);
 }
 
