@@ -50,8 +50,22 @@
 #include "target_arch_cpu.h"
 
 int singlestep;
-uintptr_t guest_base;
+
+/*
+ * Going hand in hand with the va space needed (see below), we need
+ * to find a host address to map the guest to. Assume that qemu
+ * itself doesn't need memory above 32GB (or that we don't collide
+ * with anything interesting). This is selected rather arbitrarily,
+ * but seems to produce good results in tests to date.
+ */
+# if HOST_LONG_BITS >= 64
+uintptr_t guest_base = 0x800000000ul;    /* at 32GB */
+bool have_guest_base = true;
+#else
+uintptr_t guest_base;    /* TODO: use sysctl to find big enough hole */
 bool have_guest_base;
+#endif
+
 /*
  * When running 32-on-64 we should make sure we can fit all of the possible
  * guest address space into a contiguous chunk of virtual host memory.
