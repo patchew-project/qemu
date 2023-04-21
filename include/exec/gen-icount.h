@@ -3,6 +3,7 @@
 
 #include "exec/exec-all.h"
 #include "exec/tb-stats.h"
+#include "tb-stats-flags.h"
 
 /* Helpers for instruction counting code generation.  */
 
