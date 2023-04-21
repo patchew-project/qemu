@@ -225,6 +225,7 @@ struct VirtIOGPUGL {
     char *wayland_socket_path;
     uint32_t num_capsets;
     void *rutabaga;
+    AioContext *ctx;
 };
 
 struct VhostUserGPU {

@@ -31,6 +31,11 @@ static int virtio_gpu_rutabaga_init(VirtIOGPU *g);
 
 #define CHECK_RESULT(result, cmd) CHECK(result == 0, cmd)
 
+struct rutabaga_aio_data {
+    struct VirtIOGPUGL *virtio_gpu;
+    struct rutabaga_fence fence;
+};
+
 static void
 virtio_gpu_rutabaga_update_cursor(VirtIOGPU *g, struct virtio_gpu_scanout *s,
                                   uint32_t resource_id)
@@ -823,10 +828,11 @@ virtio_gpu_rutabaga_process_cmd(VirtIOGPU *g,
 }
 
 static void
-virtio_gpu_rutabaga_fence_cb(uint64_t user_data,
-                             struct rutabaga_fence fence_data)
+virtio_gpu_rutabaga_aio_cb(void *opaque)
 {
-    VirtIOGPU *g = (VirtIOGPU *)(void*)(uintptr_t)user_data;
+    struct rutabaga_aio_data *data =  (struct rutabaga_aio_data *)opaque;
+    VirtIOGPU *g = (VirtIOGPU *)data->virtio_gpu;
+    struct rutabaga_fence fence_data = data->fence;
     struct virtio_gpu_ctrl_command *cmd, *tmp;
 
     bool signaled_ctx_specific = fence_data.flags & RUTABAGA_FLAG_INFO_RING_IDX;
@@ -856,6 +862,22 @@ virtio_gpu_rutabaga_fence_cb(uint64_t user_data,
         QTAILQ_REMOVE(&g->fenceq, cmd, next);
         g_free(cmd);
     }
+
+    g_free(data);
+}
+
+static void
+virtio_gpu_rutabaga_fence_cb(uint64_t user_data,
+                             struct rutabaga_fence fence_data) {
+    struct rutabaga_aio_data *data;
+    VirtIOGPU *g = (VirtIOGPU *)(void*)(uintptr_t)user_data;
+    GET_VIRTIO_GPU_GL(g);
+
+    data = g_new0(struct rutabaga_aio_data, 1);
+    data->virtio_gpu = virtio_gpu;
+    data->fence = fence_data;
+    aio_bh_schedule_oneshot_full(virtio_gpu->ctx, virtio_gpu_rutabaga_aio_cb,
+                                 (void *)data, "aio");
 }
 
 static int virtio_gpu_rutabaga_init(VirtIOGPU *g)
@@ -912,6 +934,7 @@ static int virtio_gpu_rutabaga_init(VirtIOGPU *g)
         free(channels.channels);
     }
 
+    virtio_gpu->ctx = qemu_get_aio_context();
     return result;
 }
 
