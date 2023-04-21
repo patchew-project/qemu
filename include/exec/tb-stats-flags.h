@@ -16,6 +16,7 @@
 #define TB_JIT_STATS  (1 << 2)
 #define TB_JIT_TIME   (1 << 3)
 #define TB_ALL_STATS  (TB_EXEC_STATS | TB_JIT_STATS | TB_JIT_TIME)
+#define TB_PAUSED     (1 << 4)
 
 /* TBStatistic collection controls */
 void enable_collect_tb_stats(void);

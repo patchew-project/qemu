@@ -720,12 +720,18 @@ static bool main_loop_should_exit(int *status)
 int qemu_main_loop(void)
 {
     int status = EXIT_SUCCESS;
+#ifdef CONFIG_TCG
     uint64_t ti;
+#endif
 
     while (!main_loop_should_exit(&status)) {
+#ifdef CONFIG_TCG
         ti = profile_getclock();
+#endif
         main_loop_wait(false);
+#ifdef CONFIG_TCG
         dev_time += profile_getclock() - ti;
+#endif
     }
 
     return status;
