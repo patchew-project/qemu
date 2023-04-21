@@ -317,7 +317,7 @@ static inline int parse_packet(struct __sk_buff *skb,
 
         info->in_src = ip.saddr;
         info->in_dst = ip.daddr;
-        info->is_fragmented = !!ip.frag_off;
+        info->is_fragmented = !(bpf_ntohs(ip.frag_off) & 0x4000);
 
         l4_protocol = ip.protocol;
         l4_offset = ip.ihl * 4;
