@@ -49,7 +49,6 @@ static __thread Notifier qemu_log_thread_cleanup_notifier;
 int qemu_loglevel;
 static bool log_per_thread;
 static GArray *debug_regions;
-int32_t max_num_hot_tbs_to_dump;
 static bool to_monitor;
 bool to_string;
 
@@ -568,7 +567,8 @@ int qemu_str_to_log_mask(const char *str)
             enable_collect_tb_stats();
         } else if (tb_stats_collection_enabled() &&
                    g_str_has_prefix(*tmp, "dump_limit=")) {
-            max_num_hot_tbs_to_dump = atoi((*tmp) + 11);
+            int hot_tbs = atoi((*tmp) + 11);
+            set_tbstats_max_tbs(hot_tbs);
         } else if (tb_stats_collection_enabled() &&
                    g_str_has_prefix(*tmp, "level=")) {
             uint32_t flags = 0;

@@ -25,6 +25,7 @@ void pause_collect_tb_stats(void);
 bool tb_stats_collection_enabled(void);
 bool tb_stats_collection_paused(void);
 
+void set_tbstats_max_tbs(int max);
 uint32_t get_default_tbstats_flag(void);
 void set_default_tbstats_flag(uint32_t);
 
