@@ -25,9 +25,10 @@
 
 #include <virglrenderer.h>
 
-static void virtio_gpu_gl_update_cursor_data(VirtIOGPU *g,
-                                             struct virtio_gpu_scanout *s,
-                                             uint32_t resource_id)
+static void
+virtio_gpu_virgl_update_cursor(VirtIOGPU *g,
+                               struct virtio_gpu_scanout *s,
+                               uint32_t resource_id)
 {
     uint32_t width, height;
     uint32_t pixels, *data;
@@ -48,14 +49,14 @@ static void virtio_gpu_gl_update_cursor_data(VirtIOGPU *g,
     free(data);
 }
 
-static void virtio_gpu_gl_flushed(VirtIOGPUBase *b)
+static void virtio_gpu_virgl_flushed(VirtIOGPUBase *b)
 {
     VirtIOGPU *g = VIRTIO_GPU(b);
 
     virtio_gpu_process_cmdq(g);
 }
 
-static void virtio_gpu_gl_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
+static void virtio_gpu_virgl_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOGPU *g = VIRTIO_GPU(vdev);
     VirtIOGPUGL *gl = VIRTIO_GPU_GL(vdev);
@@ -71,7 +72,7 @@ static void virtio_gpu_gl_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
     }
     if (gl->renderer_reset) {
         gl->renderer_reset = false;
-        virtio_gpu_virgl_reset(g);
+        virtio_gpu_virglrenderer_reset(g);
     }
 
     cmd = virtqueue_pop(vq, sizeof(struct virtio_gpu_ctrl_command));
@@ -87,7 +88,7 @@ static void virtio_gpu_gl_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
     virtio_gpu_virgl_fence_poll(g);
 }
 
-static void virtio_gpu_gl_reset(VirtIODevice *vdev)
+static void virtio_gpu_virgl_reset(VirtIODevice *vdev)
 {
     VirtIOGPU *g = VIRTIO_GPU(vdev);
     VirtIOGPUGL *gl = VIRTIO_GPU_GL(vdev);
@@ -104,7 +105,7 @@ static void virtio_gpu_gl_reset(VirtIODevice *vdev)
     }
 }
 
-static void virtio_gpu_gl_device_realize(DeviceState *qdev, Error **errp)
+static void virtio_gpu_virgl_device_realize(DeviceState *qdev, Error **errp)
 {
     VirtIOGPU *g = VIRTIO_GPU(qdev);
 
@@ -143,13 +144,13 @@ static void virtio_gpu_gl_class_init(ObjectClass *klass, void *data)
     VirtIOGPUBaseClass *vbc = VIRTIO_GPU_BASE_CLASS(klass);
     VirtIOGPUClass *vgc = VIRTIO_GPU_CLASS(klass);
 
-    vbc->gl_flushed = virtio_gpu_gl_flushed;
-    vgc->handle_ctrl = virtio_gpu_gl_handle_ctrl;
+    vbc->gl_flushed = virtio_gpu_virgl_flushed;
+    vgc->handle_ctrl = virtio_gpu_virgl_handle_ctrl;
     vgc->process_cmd = virtio_gpu_virgl_process_cmd;
-    vgc->update_cursor_data = virtio_gpu_gl_update_cursor_data;
+    vgc->update_cursor_data = virtio_gpu_virgl_update_cursor;
 
-    vdc->realize = virtio_gpu_gl_device_realize;
-    vdc->reset = virtio_gpu_gl_reset;
+    vdc->realize = virtio_gpu_virgl_device_realize;
+    vdc->reset = virtio_gpu_virgl_reset;
     device_class_set_props(dc, virtio_gpu_gl_properties);
 }
 
