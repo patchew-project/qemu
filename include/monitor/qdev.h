@@ -1,6 +1,8 @@
 #ifndef MONITOR_QDEV_H
 #define MONITOR_QDEV_H
 
+#include "qapi/qapi-types-qdev.h"
+
 /*** monitor commands ***/
 
 void hmp_info_qtree(Monitor *mon, const QDict *qdict);
@@ -37,5 +39,7 @@ DeviceState *qdev_device_add_from_qdict(const QDict *opts,
 const char *qdev_set_id(DeviceState *dev, char *id, Error **errp);
 
 void qdev_hotplug_device_on_event(DeviceState *dev);
+
+DeviceAndPath *qdev_new_device_and_path(DeviceState *dev);
 
 #endif

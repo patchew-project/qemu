@@ -157,6 +157,7 @@ static void pcie_pci_bridge_class_init(ObjectClass *klass, void *data)
     hc->plug = pci_bridge_dev_plug_cb;
     hc->unplug = pci_bridge_dev_unplug_cb;
     hc->unplug_request = pci_bridge_dev_unplug_request_cb;
+    hc->get_hotplug_state = pci_bridge_dev_get_hotplug_state;
 }
 
 static const TypeInfo pcie_pci_bridge_info = {
