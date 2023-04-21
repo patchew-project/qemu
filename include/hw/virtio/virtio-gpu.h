@@ -300,7 +300,10 @@ int virtio_gpu_update_dmabuf(VirtIOGPU *g,
                              struct virtio_gpu_framebuffer *fb,
                              struct virtio_gpu_rect *r);
 
-/* virtio-gpu-3d.c */
+/* virtio-gpu-virgl.c or virtio-gpu-virgl-stubs.c */
 void virtio_gpu_virgl_device_realize(DeviceState *qdev, Error **errp);
+/* virtio-gpu-rutabaga.c or virtio-gpu-rutabaga-stubs.c */
+void virtio_gpu_rutabaga_device_realize(DeviceState *qdev, Error **errp);
+
 
 #endif

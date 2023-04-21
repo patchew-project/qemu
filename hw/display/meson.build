@@ -63,6 +63,8 @@ softmmu_ss.add(when: 'CONFIG_ARTIST', if_true: files('artist.c'))
 
 softmmu_ss.add(when: [pixman, 'CONFIG_ATI_VGA'], if_true: files('ati.c', 'ati_2d.c', 'ati_dbg.c'))
 
+virgl_found = virgl.found() and opengl.found()
+rutabaga_found = rutabaga.found()
 
 if config_all_devices.has_key('CONFIG_VIRTIO_GPU')
   virtio_gpu_ss = ss.source_set()
@@ -73,12 +75,27 @@ if config_all_devices.has_key('CONFIG_VIRTIO_GPU')
   virtio_gpu_ss.add(when: 'CONFIG_VHOST_USER_GPU', if_true: files('vhost-user-gpu.c'))
   hw_display_modules += {'virtio-gpu': virtio_gpu_ss}
 
-  if virgl.found() and opengl.found()
-    virtio_gpu_gl_ss = ss.source_set()
-    virtio_gpu_gl_ss.add(when: ['CONFIG_VIRTIO_GPU', virgl, opengl],
-                         if_true: [files('virtio-gpu-gl.c', 'virtio-gpu-virgl.c'), pixman, virgl])
-    hw_display_modules += {'virtio-gpu-gl': virtio_gpu_gl_ss}
+  virtio_gpu_gl_ss = ss.source_set()
+  if virgl_found or rutabaga_found
+    virtio_gpu_gl_ss.add(when: ['CONFIG_VIRTIO_GPU'],
+                         if_true: [files('virtio-gpu-gl.c'), pixman])
   endif
+
+  if virgl_found
+    virtio_gpu_gl_ss.add(when: ['CONFIG_VIRTIO_GPU'],
+                         if_true: [files('virtio-gpu-virgl.c'), virgl])
+  else
+    virtio_gpu_gl_ss.add([files('virtio-gpu-virgl-stubs.c')])
+  endif
+
+  if rutabaga_found
+    virtio_gpu_gl_ss.add(when: ['CONFIG_VIRTIO_GPU'],
+                         if_true: [files('virtio-gpu-rutabaga.c'), rutabaga])
+  else
+    virtio_gpu_gl_ss.add([files('virtio-gpu-rutabaga-stubs.c')])
+  endif
+
+  hw_display_modules += {'virtio-gpu-gl': virtio_gpu_gl_ss}
 endif
 
 if config_all_devices.has_key('CONFIG_VIRTIO_PCI')
@@ -89,9 +106,10 @@ if config_all_devices.has_key('CONFIG_VIRTIO_PCI')
                         if_true: files('vhost-user-gpu-pci.c'))
   hw_display_modules += {'virtio-gpu-pci': virtio_gpu_pci_ss}
 
-  if virgl.found() and opengl.found()
+
+  if virgl_found or rutabaga_found
     virtio_gpu_pci_gl_ss = ss.source_set()
-    virtio_gpu_pci_gl_ss.add(when: ['CONFIG_VIRTIO_GPU', 'CONFIG_VIRTIO_PCI', virgl, opengl],
+    virtio_gpu_pci_gl_ss.add(when: ['CONFIG_VIRTIO_GPU', 'CONFIG_VIRTIO_PCI'],
                              if_true: [files('virtio-gpu-pci-gl.c'), pixman])
     hw_display_modules += {'virtio-gpu-pci-gl': virtio_gpu_pci_gl_ss}
   endif
@@ -108,8 +126,12 @@ if config_all_devices.has_key('CONFIG_VIRTIO_VGA')
   hw_display_modules += {'virtio-vga': virtio_vga_ss}
 
   virtio_vga_gl_ss = ss.source_set()
-  virtio_vga_gl_ss.add(when: ['CONFIG_VIRTIO_VGA', virgl, opengl],
-                       if_true: [files('virtio-vga-gl.c'), pixman])
+
+  if virgl_found or rutabaga_found
+    virtio_vga_gl_ss.add(when: ['CONFIG_VIRTIO_VGA'],
+                         if_true: [files('virtio-vga-gl.c'), pixman])
+  endif
+
   virtio_vga_gl_ss.add(when: 'CONFIG_ACPI', if_true: files('acpi-vga.c'),
                                             if_false: files('acpi-vga-stub.c'))
   hw_display_modules += {'virtio-vga-gl': virtio_vga_gl_ss}
