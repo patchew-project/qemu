@@ -23,7 +23,14 @@
 
 static void virtio_gpu_gl_device_realize(DeviceState *qdev, Error **errp)
 {
-    virtio_gpu_virgl_device_realize(qdev, errp);
+    VirtIOGPUGL *virtio_gpu = VIRTIO_GPU_GL(qdev);
+    virtio_gpu->rutabaga = NULL;
+    virtio_gpu_rutabaga_device_realize(qdev, errp);
+
+    /* Fallback to virgl if rutabaga fails to initialize */
+    if (!virtio_gpu->rutabaga) {
+        virtio_gpu_virgl_device_realize(qdev, errp);
+    }
 }
 
 static Property virtio_gpu_gl_properties[] = {
