@@ -173,3 +173,147 @@
 #
 ##
 { 'event': 'DEVICE_UNPLUG_GUEST_ERROR', 'data': 'DeviceAndPath' }
+
+##
+# @LedActivity:
+#
+# Three-state led indicator state.
+#
+# @on: Indicator is on.
+#
+# @blink: Indicator is blinking.
+#
+# @off: Indicator is off.
+#
+# Since: 8.1
+##
+{ 'enum': 'LedActivity',
+  'data': [ 'on', 'blink', 'off' ] }
+
+##
+# @HotplugSHPCSlotState:
+#
+# Standard Hot-Plug Controller slot state.
+#
+# @power-only: Slot is powered on but neither clock nor bus are connected.
+#
+# @enabled: Slot is powered on, clock and bus are connected, the card is
+#           fully functional from a hardware standpoint.
+#
+# @disabled: Slot is disabled, card is safe to be removed.
+#
+# Since: 8.1
+##
+{ 'enum': 'HotplugSHPCSlotState',
+  'data': [ 'power-only', 'enabled', 'disabled' ] }
+
+##
+# @HotplugBaseState:
+#
+# Base structure for SHPC and PCIe-native hotplug.
+#
+# @power-led: Power indicator. When power indicator is on the device is
+#             ready and accepted by guest. Off status means that device
+#             is safe to remove and blinking is an intermediate state of
+#             hot-plug or hot-unplug.
+#
+# @attention-led: Attention indicator. Off status means normal operation,
+#                 On signals about operational problem, Blinking is for
+#                 locating the slot.
+#
+# Since: 8.1
+##
+{ 'struct': 'HotplugBaseState',
+  'data': { '*power-led': 'LedActivity',
+            '*attention-led': 'LedActivity' } }
+
+##
+# @HotplugSHPCState:
+#
+# Standard Hot Plug Controller state.
+#
+# @slot-state: The slot state field of Slot Status.
+#
+# Since: 8.1
+##
+{ 'struct': 'HotplugSHPCState',
+  'base': 'HotplugBaseState',
+  'data': { '*slot-state': 'HotplugSHPCSlotState' } }
+
+##
+# @HotplugPCIeNativeState:
+#
+# PCIe Native hotplug slot state.
+#
+# @power-on: PCIe Power Controller Control of Slot Control Register.
+#            True means Power On (Power Controller Control bit is 0),
+#            False means Power Off (Power Controller Control bit is 1).
+#
+# Since: 8.1
+##
+{ 'struct': 'HotplugPCIeNativeState',
+  'base': 'HotplugBaseState',
+  'data': { '*power-on': 'bool' } }
+
+##
+# @HotplugType:
+#
+# Type of hotplug controller / provider.
+#
+# @shpc: Standard Hot Plug Controller
+#
+# @pcie-native: PCIe Native hotplug
+#
+# Since: 8.1
+##
+{ 'enum': 'HotplugType',
+  'data': ['shpc', 'pcie-native'] }
+
+##
+# @HotplugInfo:
+#
+# Generic hotplug slot state.
+#
+# @type: type of the hotplug (shpc or pcie-native)
+#
+# @bus: The QOM path of the parent bus where device is hotplugged.
+#
+# @addr: The bus address for hotplugged device if applicable.
+#
+# @child: the hotplugged device
+#
+# @device-on: Device is powered-on by guest. This state changes at most
+#             once for the device and corresponds to DEVICE_ON event.
+#
+# Single: 8.1
+##
+{ 'union': 'HotplugInfo',
+  'base': { 'type': 'HotplugType',
+            'bus': 'DeviceAndPath',
+            '*addr': 'str',
+            'child': 'DeviceAndPath',
+            'device-on': 'bool' },
+  'discriminator': 'type',
+  'data': { 'shpc': 'HotplugSHPCState',
+            'pcie-native': 'HotplugPCIeNativeState' } }
+
+##
+# @query-hotplug:
+#
+# Query the state of hotplug controller.
+#
+# Since: 8.1
+##
+{ 'command': 'query-hotplug',
+  'data': { 'id': 'str' },
+  'returns': 'HotplugInfo' }
+
+##
+# @DEVICE_ON:
+#
+# Emitted whenever the device insertion completion is acknowledged by the guest.
+# For now only emitted for SHPC and PCIe-native hotplug.
+#
+# Since: 8.1
+##
+{ 'event': 'DEVICE_ON', 'data': 'DeviceAndPath' }

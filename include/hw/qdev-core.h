@@ -180,6 +180,7 @@ struct DeviceState {
     char *id;
     char *canonical_path;
     bool realized;
+    bool device_on_sent; /* set once by SHPC or PCIE-hotplug */
     bool pending_deleted_event;
     int64_t pending_deleted_expires_ms;
     QDict *opts;
