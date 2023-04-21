@@ -552,6 +552,27 @@ void pci_root_bus_cleanup(PCIBus *bus)
     qbus_unrealize(BUS(bus));
 }
 
+int pci_bus_count_buses(PCIBus *bus)
+{
+    int buses = 0;
+    int devfn;
+
+    for (devfn = 0; devfn < 256; devfn++) {
+        PCIDevice *d;
+
+        if (!bus->devices[devfn]) {
+            continue;
+        }
+        d = bus->devices[devfn];
+        if (!object_dynamic_cast(OBJECT(d), TYPE_PCI_BRIDGE)) {
+            continue;
+        }
+        buses += pci_bus_count_buses(&PCI_BRIDGE(d)->sec_bus);
+        buses++;
+    }
+    return buses;
+}
+
 void pci_bus_irqs(PCIBus *bus, pci_set_irq_fn set_irq,
                   void *irq_opaque, int nirq)
 {

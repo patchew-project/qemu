@@ -55,6 +55,8 @@
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "hw/pci/pci_bridge.h"
+#include "hw/pci/pci_bus.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/virtio/virtio-pci.h"
 #include "hw/core/sysbus-fdt.h"
@@ -1648,6 +1650,210 @@ static void virt_build_smbios(VirtMachineState *vms)
     }
 }
 
+static void virt_add_pxb_dt(VirtMachineState *vms, PCIBus *pxb_bus,
+                            int max_bus_num, hwaddr mmio_per_bus,
+                            hwaddr mmio_high_per_bus,
+                            int pci_domain,
+                            Error **errp)
+{
+    void *fdt = MACHINE(vms)->fdt;
+    int ecam_id = VIRT_ECAM_ID(vms->highmem_ecam);
+    char *nodename_pxb;
+    uint8_t bus_num = pci_bus_num(pxb_bus);
+    hwaddr base_mmio_pxb = vms->memmap[VIRT_PCIE_MMIO].base +
+        mmio_per_bus * bus_num;
+    hwaddr size_mmio_pxb;
+    hwaddr base_mmio_high_pxb = vms->memmap[VIRT_HIGH_PCIE_MMIO].base +
+        mmio_high_per_bus * bus_num;
+    hwaddr size_mmio_high_pxb;
+    hwaddr base_ecam_pxb, size_ecam_pxb;
+    int buses;
+
+    buses = pci_bus_count_buses(pxb_bus);
+    if (bus_num + buses >= max_bus_num) {
+        error_setg(errp,
+                   "Insufficient bus numbers (req %d > avail: %d) available for PXB topology",
+                   buses, max_bus_num - bus_num - 1);
+        return;
+    }
+
+    base_ecam_pxb = vms->memmap[ecam_id].base;
+    base_ecam_pxb += bus_num * PCIE_MMCFG_SIZE_MIN;
+    size_ecam_pxb = PCIE_MMCFG_SIZE_MIN * (max_bus_num - bus_num);
+    size_mmio_pxb = mmio_per_bus * (max_bus_num - bus_num);
+    size_mmio_high_pxb = mmio_high_per_bus * (max_bus_num - bus_num);
+    nodename_pxb = g_strdup_printf("/pcie@%" PRIx64, base_mmio_pxb);
+    qemu_fdt_add_subnode(fdt, nodename_pxb);
+    qemu_fdt_setprop_cell(fdt, nodename_pxb, "linux,pci-domain", pci_domain);
+    qemu_fdt_setprop_string(fdt, nodename_pxb, "device_type", "pci");
+    qemu_fdt_setprop_cell(fdt, nodename_pxb, "#address-cells", 3);
+    qemu_fdt_setprop_cell(fdt, nodename_pxb, "#size-cells", 2);
+    qemu_fdt_setprop_string(fdt, nodename_pxb,
+                            "compatible", "pci-host-ecam-generic");
+    /* I'm not sure what this should be. */
+    if (vms->msi_phandle) {
+        qemu_fdt_setprop_cells(fdt, nodename_pxb, "msi-map",
+                               0, vms->msi_phandle, 0, 0x10000);
+    }
+    qemu_fdt_setprop_cells(fdt, nodename_pxb, "bus-range",
+                           bus_num, max_bus_num - 1);
+    qemu_fdt_setprop_sized_cells(fdt, nodename_pxb, "reg", 2, base_ecam_pxb,
+                                 2, size_ecam_pxb);
+
+    if (vms->highmem_mmio) {
+        qemu_fdt_setprop_sized_cells(fdt, nodename_pxb, "ranges",
+                                     1, FDT_PCI_RANGE_IOPORT, 2, 0,
+                                     /* No PIO space for PXB */
+                                     2, 0, 2, 0,
+                                     1, FDT_PCI_RANGE_MMIO,
+                                     2, base_mmio_pxb,
+                                     2, base_mmio_pxb,
+                                     2, size_mmio_pxb,
+                                     1, FDT_PCI_RANGE_MMIO_64BIT,
+                                     2, base_mmio_high_pxb,
+                                     2, base_mmio_high_pxb,
+                                     2, size_mmio_high_pxb);
+    } else {
+        qemu_fdt_setprop_sized_cells(fdt, nodename_pxb, "ranges",
+                                     1, FDT_PCI_RANGE_IOPORT, 2, 0,
+                                     2, 0, 2, 0,
+                                     1, FDT_PCI_RANGE_MMIO,
+                                     2, base_mmio_pxb,
+                                     2, base_mmio_pxb,
+                                     2, size_mmio_pxb);
+    }
+}
+
+static void virt_update_pci_dt(VirtMachineState *vms, Error **errp)
+{
+    void *fdt = MACHINE(vms)->fdt;
+    char *nodename = vms->pciehb_nodename;
+    hwaddr base_mmio = vms->memmap[VIRT_PCIE_MMIO].base;
+    hwaddr base_mmio_high = vms->memmap[VIRT_HIGH_PCIE_MMIO].base;
+    hwaddr size_mmio, size_mmio_high;
+    hwaddr base_pio = vms->memmap[VIRT_PCIE_PIO].base;
+    hwaddr size_pio = vms->memmap[VIRT_PCIE_PIO].size;
+    int ecam_id = VIRT_ECAM_ID(vms->highmem_ecam);
+    hwaddr base_ecam = vms->memmap[ecam_id].base;
+    int total_bus_nr = vms->memmap[ecam_id].size / PCIE_MMCFG_SIZE_MIN;
+    hwaddr mmio_per_bus, mmio_high_per_bus, size_ecam;
+    int pci_domain = 1; /* Main bus is 0 */
+    int buses, max_bus_nr;
+    PCIBus *bus;
+
+    /*
+     * EDK2 ACPI flow for PXB instances breaks if we modify the DT to incorporate
+     * them. So for now only enable DT for PXBs if acpi=off
+     */
+    if (virt_is_acpi_enabled(vms)) {
+        return;
+    }
+
+    /*
+     * Only support PCI Expander Bridges if highmem_ecam available.
+     * Hard to squeeze them into the smaller ecam.
+     */
+    if (!vms->highmem_ecam) {
+        return;
+    }
+
+    /* First update DT for the main PCI bus */
+    bus = vms->bus;
+    max_bus_nr = total_bus_nr;
+    /* Find the max bus nr as smallest of the PXB buses */
+    QLIST_FOREACH(bus, &bus->child, sibling) {
+        uint8_t bus_num;
+
+        if (!pci_bus_is_root(bus)) {
+            continue;
+        }
+        bus_num = pci_bus_num(bus);
+        if (bus_num < max_bus_nr) {
+            max_bus_nr = bus_num;
+        }
+    }
+
+    buses = pci_bus_count_buses(vms->bus);
+    if (buses >= max_bus_nr) {
+        error_setg(errp,
+                   "Insufficient bus numbers (req %d > avail: %d) available for primary PCIe toplogy",
+                   buses, max_bus_nr - 1);
+        return;
+    }
+
+    /*
+     * For other resources options are:
+     * 1) Divide them up based on bus number ranges.
+     * 2) Discover what is needed by doing part of bus enumeration.
+     *    This is complex, and we may not want that complexity in QEMU.
+     */
+
+    size_ecam = max_bus_nr * PCIE_MMCFG_SIZE_MIN;
+    if (size_ecam > vms->memmap[ecam_id].size) {
+        size_ecam = vms->memmap[ecam_id].size;
+    }
+
+    mmio_per_bus = vms->memmap[VIRT_PCIE_MMIO].size / total_bus_nr;
+    size_mmio = mmio_per_bus * max_bus_nr;
+    mmio_high_per_bus = vms->memmap[VIRT_HIGH_PCIE_MMIO].size / total_bus_nr;
+    size_mmio_high = mmio_high_per_bus * max_bus_nr;
+    qemu_fdt_setprop_cells(fdt, nodename, "bus-range", 0, max_bus_nr - 1);
+
+    qemu_fdt_setprop_sized_cells(fdt, nodename, "reg", 2, base_ecam,
+                                 2, size_ecam);
+
+    /*
+     * Leave all of PIO space for the main GPEX  - avoids issues with
+     * regions that are too small to map in OS.
+     */
+    if (vms->highmem_mmio) {
+        qemu_fdt_setprop_sized_cells(fdt, nodename, "ranges",
+                                     1, FDT_PCI_RANGE_IOPORT, 2, 0,
+                                     2, base_pio, 2, size_pio,
+                                     1, FDT_PCI_RANGE_MMIO, 2, base_mmio,
+                                     2, base_mmio, 2, size_mmio,
+                                     1, FDT_PCI_RANGE_MMIO_64BIT,
+                                     2, base_mmio_high,
+                                     2, base_mmio_high, 2, size_mmio_high);
+    } else {
+        qemu_fdt_setprop_sized_cells(fdt, nodename, "ranges",
+                                     1, FDT_PCI_RANGE_IOPORT, 2, 0,
+                                     2, base_pio, 2, size_pio,
+                                     1, FDT_PCI_RANGE_MMIO, 2, base_mmio,
+                                     2, base_mmio, 2, size_mmio);
+    }
+
+    /* Now add the PCI Expander Bridges (PXB) */
+    bus = vms->bus;
+    QLIST_FOREACH(bus, &bus->child, sibling) {
+        uint16_t max_bus_num = 0x100;
+        PCIBus *bus_start = vms->bus;
+        int bus_num = pci_bus_num(bus);
+
+        if (!pci_bus_is_root(bus)) {
+            continue;
+        }
+
+        /* Find the minimum PXB bus number greater than this one */
+        QLIST_FOREACH(bus_start, &bus_start->child, sibling) {
+            uint8_t this_bus_num;
+
+            if (!pci_bus_is_root(bus_start)) {
+                continue;
+            }
+
+            this_bus_num = pci_bus_num(bus_start);
+            if (this_bus_num > bus_num &&
+                this_bus_num < max_bus_num) {
+                max_bus_num = this_bus_num;
+            }
+        }
+
+        virt_add_pxb_dt(vms, bus, max_bus_num, mmio_per_bus, mmio_high_per_bus,
+                        pci_domain++, errp);
+    }
+}
+
 static
 void virt_machine_done(Notifier *notifier, void *data)
 {
@@ -1657,6 +1863,14 @@ void virt_machine_done(Notifier *notifier, void *data)
     ARMCPU *cpu = ARM_CPU(first_cpu);
     struct arm_boot_info *info = &vms->bootinfo;
     AddressSpace *as = arm_boot_address_space(cpu, info);
+
+    /*
+     * If PCI Expander Bridges pxb-pcie, have been added, the adjustments to
+     * the main PCIe DT entries and creation of those for the PXB host bridge
+     * entires, may only be created after all PCI devices are present as only
+     * at that time can resource requirements (bus numbers etc) be known.
+     */
+    virt_update_pci_dt(vms, &error_fatal);
 
     /*
      * If the user provided a dtb, we assume the dynamic sysbus nodes
