@@ -159,6 +159,12 @@ static int32_t rutabaga_handle_unmap(VirtIOGPU *g,
     GET_VIRTIO_GPU_GL(g);
     GET_RUTABAGA(virtio_gpu);
 
+    memory_region_transaction_begin();
+    memory_region_set_enabled(&res->region, false);
+    memory_region_del_subregion(&g->parent_obj.hostmem, &res->region);
+    object_unparent(OBJECT(&res->region));
+    memory_region_transaction_commit();
+
     res->mapped = NULL;
     return rutabaga_resource_unmap(rutabaga, res->resource_id);
 }
@@ -670,6 +676,14 @@ rutabaga_cmd_resource_map_blob(VirtIOGPU *g,
 
     result = rutabaga_resource_map(rutabaga, mblob.resource_id, &mapping);
     CHECK_RESULT(result, cmd);
+
+    memory_region_transaction_begin();
+    memory_region_init_ram_device_ptr(&res->region, OBJECT(g), NULL,
+                                      mapping.size, (void *)mapping.ptr);
+    memory_region_add_subregion(&g->parent_obj.hostmem, mblob.offset,
+                                &res->region);
+    memory_region_set_enabled(&res->region, true);
+    memory_region_transaction_commit();
 
     memset(&resp, 0, sizeof(resp));
     resp.hdr.type = VIRTIO_GPU_RESP_OK_MAP_INFO;
