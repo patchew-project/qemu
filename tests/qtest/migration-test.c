@@ -45,6 +45,20 @@ unsigned end_address;
 static bool uffd_feature_thread_id;
 
 /*
+ * An initial 3 MB offset is used as that corresponds
+ * to ~1 sec of data transfer with our bandwidth setting.
+ */
+#define MAGIC_OFFSET_BASE (3 * 1024 * 1024)
+/*
+ * A further 1k is added to ensure we're not a multiple
+ * of TEST_MEM_PAGE_SIZE, thus avoid clash with writes
+ * from the migration guest workload.
+ */
+#define MAGIC_OFFSET_SHUFFLE 1024
+#define MAGIC_OFFSET (MAGIC_OFFSET_BASE + MAGIC_OFFSET_SHUFFLE)
+#define MAGIC_MARKER 0xFEED12345678CAFEULL
+
+/*
  * Dirtylimit stop working if dirty page rate error
  * value less than DIRTYLIMIT_TOLERANCE_RANGE
  */
@@ -172,28 +186,6 @@ static void wait_for_serial(const char *side)
     } while (true);
 }
 
-/*
- * It's tricky to use qemu's migration event capability with qtest,
- * events suddenly appearing confuse the qmp()/hmp() responses.
- */
-
-static int64_t read_ram_property_int(QTestState *who, const char *property)
-{
-    QDict *rsp_return, *rsp_ram;
-    int64_t result;
-
-    rsp_return = migrate_query_not_failed(who);
-    if (!qdict_haskey(rsp_return, "ram")) {
-        /* Still in setup */
-        result = 0;
-    } else {
-        rsp_ram = qdict_get_qdict(rsp_return, "ram");
-        result = qdict_get_try_int(rsp_ram, property, 0);
-    }
-    qobject_unref(rsp_return);
-    return result;
-}
-
 static int64_t read_migrate_property_int(QTestState *who, const char *property)
 {
     QDict *rsp_return;
@@ -205,10 +197,6 @@ static int64_t read_migrate_property_int(QTestState *who, const char *property)
     return result;
 }
 
-static uint64_t get_migration_pass(QTestState *who)
-{
-    return read_ram_property_int(who, "dirty-sync-count");
-}
 
 static void read_blocktime(QTestState *who)
 {
@@ -217,23 +205,6 @@ static void read_blocktime(QTestState *who)
     rsp_return = migrate_query_not_failed(who);
     g_assert(qdict_haskey(rsp_return, "postcopy-blocktime"));
     qobject_unref(rsp_return);
-}
-
-static void wait_for_migration_pass(QTestState *who)
-{
-    uint64_t initial_pass = get_migration_pass(who);
-    uint64_t pass;
-
-    /* Wait for the 1st sync */
-    while (!got_stop && !initial_pass) {
-        usleep(1000);
-        initial_pass = get_migration_pass(who);
-    }
-
-    do {
-        usleep(1000);
-        pass = get_migration_pass(who);
-    } while (pass == initial_pass && !got_stop);
 }
 
 static void check_guests_ram(QTestState *who)
@@ -416,6 +387,91 @@ static void migrate_ensure_converge(QTestState *who)
     migrate_set_parameter_int(who, "max-bandwidth", 1 * 1000 * 1000 * 1000);
     migrate_set_parameter_int(who, "downtime-limit", 30 * 1000);
 }
+
+/*
+ * Our goal is to ensure that we run a single full migration
+ * iteration, and also dirty memory, ensuring that at least
+ * one further iteration is required.
+ *
+ * We can't directly synchronize with the start of a migration
+ * so we have to apply some tricks monitoring memory that is
+ * transferred.
+ *
+ * Initially we set the migration bandwidth to an insanely
+ * low value, with tiny max downtime too. This basically
+ * guarantees migration will never complete.
+ *
+ * This will result in a test that is unacceptably slow though,
+ * so we can't let the entire migration pass run at this speed.
+ * Our intent is to let it run just long enough that we can
+ * prove data prior to the marker has been transferred *AND*
+ * also prove this transferred data is dirty again.
+ *
+ * Before migration starts, we write a 64-bit magic marker
+ * into a fixed location in the src VM RAM.
+ *
+ * Then watch dst memory until the marker appears. This is
+ * proof that start_address -> MAGIC_OFFSET_BASE has been
+ * transferred.
+ *
+ * Finally we go back to the source and read a byte just
+ * before the marker untill we see it flip in value. This
+ * is proof that start_address -> MAGIC_OFFSET_BASE
+ * is now dirty again.
+ *
+ * IOW, we're guaranteed at least a 2nd migration pass
+ * at this point.
+ *
+ * We can now let migration run at full speed to finish
+ * the test
+ */
+static void migrate_prepare_for_dirty_mem(QTestState *from)
+{
+    /*
+     * The guest workflow iterates from start_address to
+     * end_address, writing 1 byte every TEST_MEM_PAGE_SIZE
+     * bytes.
+     *
+     * IOW, if we write to mem at a point which is NOT
+     * a multiple of TEST_MEM_PAGE_SIZE, our write won't
+     * conflict with the migration workflow.
+     *
+     * We put in a marker here, that we'll use to determine
+     * when the data has been transferred to the dst.
+     */
+    qtest_writeq(from, start_address + MAGIC_OFFSET, MAGIC_MARKER);
+}
+
+static void migrate_wait_for_dirty_mem(QTestState *from,
+                                       QTestState *to)
+{
+    uint64_t watch_address = start_address + MAGIC_OFFSET_BASE;
+    uint64_t marker_address = start_address + MAGIC_OFFSET;
+    uint8_t watch_byte;
+
+    /*
+     * Wait for the MAGIC_MARKER to get transferred, as an
+     * indicator that a migration pass has made some known
+     * amount of progress.
+     */
+    do {
+        usleep(1000 * 10);
+    } while (qtest_readq(to, marker_address) != MAGIC_MARKER);
+
+    /*
+     * Now ensure that already transferred bytes are
+     * dirty again from the guest workload. Note the
+     * guest byte value will wrap around and by chance
+     * match the original watch_byte. This is harmless
+     * as we'll eventually see a different value if we
+     * keep watching
+     */
+    watch_byte = qtest_readb(from, watch_address);
+    do {
+        usleep(1000 * 10);
+    } while (qtest_readb(from, watch_address) == watch_byte);
+}
+
 
 static void migrate_pause(QTestState *who)
 {
@@ -1116,12 +1172,14 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
 
     migrate_ensure_non_converge(from);
 
+    migrate_prepare_for_dirty_mem(from);
+
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
     migrate_qmp(from, uri, "{}");
 
-    wait_for_migration_pass(from);
+    migrate_wait_for_dirty_mem(from, to);
 
     *from_ptr = from;
     *to_ptr = to;
@@ -1337,14 +1395,8 @@ static void test_precopy_common(MigrateCommon *args)
     }
 
     if (args->live) {
-        /*
-         * Testing live migration, we want to ensure that some
-         * memory is re-dirtied after being transferred, so that
-         * we exercise logic for dirty page handling. We achieve
-         * this with a ridiculosly low bandwidth that guarantees
-         * non-convergance.
-         */
         migrate_ensure_non_converge(from);
+        migrate_prepare_for_dirty_mem(from);
     } else {
         /*
          * Testing non-live migration, we allow it to run at
@@ -1379,7 +1431,7 @@ static void test_precopy_common(MigrateCommon *args)
         }
     } else {
         if (args->live) {
-            wait_for_migration_pass(from);
+            migrate_wait_for_dirty_mem(from, to);
 
             migrate_ensure_converge(from);
 
@@ -1498,6 +1550,9 @@ static void test_ignore_shared(void)
         return;
     }
 
+    migrate_ensure_non_converge(from);
+    migrate_prepare_for_dirty_mem(from);
+
     migrate_set_capability(from, "x-ignore-shared", true);
     migrate_set_capability(to, "x-ignore-shared", true);
 
@@ -1506,7 +1561,7 @@ static void test_ignore_shared(void)
 
     migrate_qmp(from, uri, "{}");
 
-    wait_for_migration_pass(from);
+    migrate_wait_for_dirty_mem(from, to);
 
     if (!got_stop) {
         qtest_qmp_eventwait(from, "STOP");
@@ -2152,6 +2207,7 @@ static void test_multifd_tcp_cancel(void)
     }
 
     migrate_ensure_non_converge(from);
+    migrate_prepare_for_dirty_mem(from);
 
     migrate_set_parameter_int(from, "multifd-channels", 16);
     migrate_set_parameter_int(to, "multifd-channels", 16);
@@ -2171,7 +2227,7 @@ static void test_multifd_tcp_cancel(void)
 
     migrate_qmp(from, uri, "{}");
 
-    wait_for_migration_pass(from);
+    migrate_wait_for_dirty_mem(from, to);
 
     migrate_cancel(from);
 
@@ -2201,11 +2257,13 @@ static void test_multifd_tcp_cancel(void)
 
     wait_for_migration_status(from, "cancelled", NULL);
 
-    migrate_ensure_converge(from);
+    migrate_ensure_non_converge(from);
 
     migrate_qmp(from, uri, "{}");
 
-    wait_for_migration_pass(from);
+    migrate_wait_for_dirty_mem(from, to);
+
+    migrate_ensure_converge(from);
 
     if (!got_stop) {
         qtest_qmp_eventwait(from, "STOP");
