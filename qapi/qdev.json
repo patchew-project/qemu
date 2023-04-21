@@ -114,15 +114,36 @@
 { 'command': 'device_del', 'data': {'id': 'str'} }
 
 ##
+# @DeviceAndPath:
+#
+# In events we designate devices by both their ID (if the device has one)
+# and QOM path.
+#
+# Why we need ID? User specify ID in device_add command and in command line
+# and expects same identifier in the event data.
+#
+# Why we need QOM path? Some devices don't have ID and we still want to emit
+# events for them.
+#
+# So, we have a bit of redundancy, as QOM path for device that has ID is
+# always /machine/peripheral/ID. But that's hard to change keeping both
+# simple interface for most users and universality for the generic case.
+#
+# @device: the device's ID if it has one
+#
+# @path: the device's QOM path
+#
+# Since: 8.0
+##
+{ 'struct': 'DeviceAndPath',
+  'data': { '*device': 'str', 'path': 'str' } }
+
+##
 # @DEVICE_DELETED:
 #
 # Emitted whenever the device removal completion is acknowledged by the guest.
 # At this point, it's safe to reuse the specified device ID. Device removal can
 # be initiated by the guest or by HMP/QMP commands.
-#
-# @device: the device's ID if it has one
-#
-# @path: the device's QOM path
 #
 # Since: 1.5
 #
@@ -134,17 +155,12 @@
 #      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 #
 ##
-{ 'event': 'DEVICE_DELETED',
-  'data': { '*device': 'str', 'path': 'str' } }
+{ 'event': 'DEVICE_DELETED', 'data': 'DeviceAndPath' }
 
 ##
 # @DEVICE_UNPLUG_GUEST_ERROR:
 #
 # Emitted when a device hot unplug fails due to a guest reported error.
-#
-# @device: the device's ID if it has one
-#
-# @path: the device's QOM path
 #
 # Since: 6.2
 #
@@ -156,5 +172,4 @@
 #      "timestamp": { "seconds": 1615570772, "microseconds": 202844 } }
 #
 ##
-{ 'event': 'DEVICE_UNPLUG_GUEST_ERROR',
-  'data': { '*device': 'str', 'path': 'str' } }
+{ 'event': 'DEVICE_UNPLUG_GUEST_ERROR', 'data': 'DeviceAndPath' }
