@@ -289,7 +289,6 @@ static int setjmp_gen_code(CPUArchState *env, TranslationBlock *tb,
     *max_insns = tb->icount;
 
 #ifdef CONFIG_PROFILER
-    qatomic_set(&tcg_ctx->prof.tb_count, tcg_ctx->prof.tb_count + 1);
     qatomic_set(&tcg_ctx->prof.interm_time,
                 tcg_ctx->prof.interm_time + profile_getclock() - *ti);
     *ti = profile_getclock();
@@ -389,8 +388,6 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
  tb_overflow:
 
 #ifdef CONFIG_PROFILER
-    /* includes aborted translations because of exceptions */
-    qatomic_set(&prof->tb_count1, prof->tb_count1 + 1);
     ti = profile_getclock();
 #endif
 
@@ -463,9 +460,6 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 
 #ifdef CONFIG_PROFILER
     qatomic_set(&prof->code_time, prof->code_time + profile_getclock() - ti);
-    qatomic_set(&prof->code_in_len, prof->code_in_len + tb->size);
-    qatomic_set(&prof->code_out_len, prof->code_out_len + gen_code_size);
-    qatomic_set(&prof->search_out_len, prof->search_out_len + search_size);
 #endif
 
 #ifdef DEBUG_DISAS
@@ -584,7 +578,11 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
         ts->code.num_tcg_ops += prof->translation.nb_ops_pre_opt;
         ts->code.num_tcg_ops_opt += tcg_ctx->nb_ops;
         ts->code.spills += prof->translation.nb_spills;
+        ts->code.temps += prof->translation.temp_count;
+        ts->code.deleted_ops += prof->translation.del_op_count;
+        ts->code.in_len += tb->size;
         ts->code.out_len += tb->tc.size;
+        ts->code.search_out_len += search_size;
 
         ts->translations.total++;
         if (tb_page_addr1(tb) != -1) {
