@@ -16,6 +16,7 @@
 #include "libqtest.h"
 
 extern bool got_stop;
+extern bool got_resume;
 
 #ifndef _WIN32
 G_GNUC_PRINTF(3, 4)

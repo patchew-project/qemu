@@ -24,12 +24,18 @@
 #define MIGRATION_STATUS_WAIT_TIMEOUT 120
 
 bool got_stop;
+bool got_resume;
 
-static void check_stop_event(QTestState *who)
+static void check_events(QTestState *who)
 {
     QDict *event = qtest_qmp_event_ref(who, "STOP");
     if (event) {
         got_stop = true;
+        qobject_unref(event);
+    }
+    event = qtest_qmp_event_ref(who, "RESUME");
+    if (event) {
+        got_resume = true;
         qobject_unref(event);
     }
 }
@@ -48,7 +54,7 @@ QDict *wait_command_fd(QTestState *who, int fd, const char *command, ...)
     va_end(ap);
 
     resp = qtest_qmp_receive(who);
-    check_stop_event(who);
+    check_events(who);
 
     g_assert(!qdict_haskey(resp, "error"));
     g_assert(qdict_haskey(resp, "return"));
@@ -73,7 +79,7 @@ QDict *wait_command(QTestState *who, const char *command, ...)
     resp = qtest_vqmp(who, command, ap);
     va_end(ap);
 
-    check_stop_event(who);
+    check_events(who);
 
     g_assert(!qdict_haskey(resp, "error"));
     g_assert(qdict_haskey(resp, "return"));
