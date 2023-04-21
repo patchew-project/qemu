@@ -200,10 +200,12 @@ void cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
                                uintptr_t host_pc)
 {
     uint64_t data[TARGET_INSN_START_WORDS];
-#ifdef CONFIG_PROFILER
-    TCGProfile *prof = &tcg_ctx->prof;
-    int64_t ti = profile_getclock();
-#endif
+    uint64_t ti = 0;
+
+    if (tb_stats_enabled(tb, TB_JIT_TIME)) {
+        ti = profile_getclock();
+    }
+
     int insns_left = cpu_unwind_data_from_tb(tb, host_pc, data);
 
     if (insns_left < 0) {
@@ -221,11 +223,14 @@ void cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
 
     cpu->cc->tcg_ops->restore_state_to_opc(cpu, tb, data);
 
-#ifdef CONFIG_PROFILER
-    qatomic_set(&prof->restore_time,
-                prof->restore_time + profile_getclock() - ti);
-    qatomic_set(&prof->restore_count, prof->restore_count + 1);
-#endif
+    if (tb_stats_enabled(tb, TB_JIT_TIME)) {
+        TBStatistics *ts = tb->tb_stats;
+        uint64_t elapsed = profile_getclock() - ti;
+        qemu_mutex_lock(&ts->jit_stats_lock);
+        ts->tb_restore_time += elapsed;
+        ts->tb_restore_count++;
+        qemu_mutex_unlock(&ts->jit_stats_lock);
+    }
 }
 
 bool cpu_restore_state(CPUState *cpu, uintptr_t host_pc)

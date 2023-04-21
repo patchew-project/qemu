@@ -91,6 +91,11 @@ struct TBStatistics {
      * this TBStats structure. Has to be reset on a tb_flush.
      */
     GPtrArray *tbs;
+
+    /* Recover state from TB */
+    uint64_t tb_restore_time;
+    uint64_t tb_restore_count;
+
 };
 
 bool tb_stats_cmp(const void *ap, const void *bp);
@@ -102,6 +107,7 @@ void dump_jit_profile_info(TCGProfile *s, GString *buf);
 #define TB_NOTHING    (1 << 0)
 #define TB_EXEC_STATS (1 << 1)
 #define TB_JIT_STATS  (1 << 2)
+#define TB_JIT_TIME   (1 << 3)
 
 void enable_collect_tb_stats(void);
 void disable_collect_tb_stats(void);
