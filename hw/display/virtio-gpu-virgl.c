@@ -14,6 +14,8 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "qemu/iov.h"
+#include "qapi/error.h"
+#include "sysemu/sysemu.h"
 #include "trace.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-gpu.h"
@@ -584,12 +586,12 @@ static void virtio_gpu_fence_poll(void *opaque)
     }
 }
 
-void virtio_gpu_virgl_fence_poll(VirtIOGPU *g)
+static void virtio_gpu_virgl_fence_poll(VirtIOGPU *g)
 {
     virtio_gpu_fence_poll(g);
 }
 
-void virtio_gpu_virgl_reset_scanout(VirtIOGPU *g)
+static void virtio_gpu_virgl_reset_scanout(VirtIOGPU *g)
 {
     int i;
 
@@ -599,12 +601,12 @@ void virtio_gpu_virgl_reset_scanout(VirtIOGPU *g)
     }
 }
 
-void virtio_gpu_virglrenderer_reset(VirtIOGPU *g)
+static void virtio_gpu_virglrenderer_reset(VirtIOGPU *g)
 {
     virgl_renderer_reset();
 }
 
-int virtio_gpu_virgl_init(VirtIOGPU *g)
+static int virtio_gpu_virgl_init(VirtIOGPU *g)
 {
     int ret;
 
@@ -625,7 +627,7 @@ int virtio_gpu_virgl_init(VirtIOGPU *g)
     return 0;
 }
 
-int virtio_gpu_virgl_get_num_capsets(VirtIOGPU *g)
+static int virtio_gpu_virgl_get_num_capsets(VirtIOGPU *g)
 {
     uint32_t capset2_max_ver, capset2_max_size;
     virgl_renderer_get_cap_set(VIRTIO_GPU_CAPSET_VIRGL2,
@@ -633,4 +635,111 @@ int virtio_gpu_virgl_get_num_capsets(VirtIOGPU *g)
                               &capset2_max_size);
 
     return capset2_max_ver ? 2 : 1;
+}
+
+void
+virtio_gpu_virgl_update_cursor(VirtIOGPU *g,
+                               struct virtio_gpu_scanout *s,
+                               uint32_t resource_id)
+{
+    uint32_t width, height;
+    uint32_t pixels, *data;
+
+    data = virgl_renderer_get_cursor_data(resource_id, &width, &height);
+    if (!data) {
+        return;
+    }
+
+    if (width != s->current_cursor->width ||
+        height != s->current_cursor->height) {
+        free(data);
+        return;
+    }
+
+    pixels = s->current_cursor->width * s->current_cursor->height;
+    memcpy(s->current_cursor->data, data, pixels * sizeof(uint32_t));
+    free(data);
+}
+
+void virtio_gpu_virgl_flushed(VirtIOGPUBase *b)
+{
+    VirtIOGPU *g = VIRTIO_GPU(b);
+
+    virtio_gpu_process_cmdq(g);
+}
+
+void virtio_gpu_virgl_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
+{
+    VirtIOGPU *g = VIRTIO_GPU(vdev);
+    VirtIOGPUGL *gl = VIRTIO_GPU_GL(vdev);
+    struct virtio_gpu_ctrl_command *cmd;
+
+    if (!virtio_queue_ready(vq)) {
+        return;
+    }
+
+    if (!gl->renderer_inited) {
+        virtio_gpu_virgl_init(g);
+        gl->renderer_inited = true;
+    }
+    if (gl->renderer_reset) {
+        gl->renderer_reset = false;
+        virtio_gpu_virglrenderer_reset(g);
+    }
+
+    cmd = virtqueue_pop(vq, sizeof(struct virtio_gpu_ctrl_command));
+    while (cmd) {
+        cmd->vq = vq;
+        cmd->error = 0;
+        cmd->finished = false;
+        QTAILQ_INSERT_TAIL(&g->cmdq, cmd, next);
+        cmd = virtqueue_pop(vq, sizeof(struct virtio_gpu_ctrl_command));
+    }
+
+    virtio_gpu_process_cmdq(g);
+    virtio_gpu_virgl_fence_poll(g);
+}
+
+void virtio_gpu_virgl_reset(VirtIODevice *vdev)
+{
+    VirtIOGPU *g = VIRTIO_GPU(vdev);
+    VirtIOGPUGL *gl = VIRTIO_GPU_GL(vdev);
+
+    virtio_gpu_reset(vdev);
+
+    /*
+     * GL functions must be called with the associated GL context in main
+     * thread, and when the renderer is unblocked.
+     */
+    if (gl->renderer_inited && !gl->renderer_reset) {
+        virtio_gpu_virgl_reset_scanout(g);
+        gl->renderer_reset = true;
+    }
+}
+
+void virtio_gpu_virgl_device_realize(DeviceState *qdev, Error **errp)
+{
+    VirtIOGPU *g = VIRTIO_GPU(qdev);
+
+#if HOST_BIG_ENDIAN
+    error_setg(errp, "virgl is not supported on bigendian platforms");
+    return;
+#endif
+
+    if (!object_resolve_path_type("", TYPE_VIRTIO_GPU_GL, NULL)) {
+        error_setg(errp, "at most one %s device is permitted",
+                   TYPE_VIRTIO_GPU_GL);
+        return;
+    }
+
+    if (!display_opengl) {
+        error_setg(errp, "opengl is not available");
+        return;
+    }
+
+    g->parent_obj.conf.flags |= (1 << VIRTIO_GPU_FLAG_VIRGL_ENABLED);
+    VIRTIO_GPU_BASE(g)->virtio_config.num_capsets =
+        virtio_gpu_virgl_get_num_capsets(g);
+
+    virtio_gpu_device_realize(qdev, errp);
 }
