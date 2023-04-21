@@ -568,9 +568,6 @@ typedef struct {
         MIG_TEST_FAIL_DEST_QUIT_ERR,
     } result;
 
-    /* Optional: set number of migration passes to wait for */
-    unsigned int iterations;
-
     /* Postcopy specific fields */
     void *postcopy_data;
     bool postcopy_preempt;
@@ -1354,13 +1351,7 @@ static void test_precopy_common(MigrateCommon *args)
             qtest_set_expected_status(to, EXIT_FAILURE);
         }
     } else {
-        if (args->iterations) {
-            while (args->iterations--) {
-                wait_for_migration_pass(from);
-            }
-        } else {
-            wait_for_migration_pass(from);
-        }
+        wait_for_migration_pass(from);
 
         migrate_ensure_converge(from);
 
@@ -1514,8 +1505,6 @@ static void test_precopy_unix_xbzrle(void)
         .listen_uri = uri,
 
         .start_hook = test_migrate_xbzrle_start,
-
-        .iterations = 2,
     };
 
     test_precopy_common(&args);
