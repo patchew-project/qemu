@@ -1100,22 +1100,13 @@ int kvm_check_extension(KVMState *s, unsigned int extension)
 {
     int ret;
 
-    ret = kvm_ioctl(s, KVM_CHECK_EXTENSION, extension);
+    if (!s->check_extension_vm) {
+        ret = kvm_ioctl(s, KVM_CHECK_EXTENSION, extension);
+    } else {
+        ret = kvm_vm_ioctl(s, KVM_CHECK_EXTENSION, extension);
+    }
     if (ret < 0) {
         ret = 0;
-    }
-
-    return ret;
-}
-
-int kvm_vm_check_extension(KVMState *s, unsigned int extension)
-{
-    int ret;
-
-    ret = kvm_vm_ioctl(s, KVM_CHECK_EXTENSION, extension);
-    if (ret < 0) {
-        /* VM wide version not implemented, use global one instead */
-        ret = kvm_check_extension(s, extension);
     }
 
     return ret;
@@ -2319,7 +2310,7 @@ static void kvm_irqchip_create(KVMState *s)
  */
 static int kvm_recommended_vcpus(KVMState *s)
 {
-    int ret = kvm_vm_check_extension(s, KVM_CAP_NR_VCPUS);
+    int ret = kvm_check_extension(s, KVM_CAP_NR_VCPUS);
     return (ret) ? ret : 4;
 }
 
@@ -2471,6 +2462,7 @@ static int kvm_init(MachineState *ms)
     }
 
     s->vmfd = ret;
+    s->check_extension_vm = kvm_check_extension(s, KVM_CAP_CHECK_EXTENSION_VM);
 
     /* check the vcpu limits */
     soft_vcpus_limit = kvm_recommended_vcpus(s);
@@ -2518,7 +2510,7 @@ static int kvm_init(MachineState *ms)
         ring_bytes = s->kvm_dirty_ring_size * sizeof(struct kvm_dirty_gfn);
 
         /* Read the max supported pages */
-        ret = kvm_vm_check_extension(s, KVM_CAP_DIRTY_LOG_RING);
+        ret = kvm_check_extension(s, KVM_CAP_DIRTY_LOG_RING);
         if (ret > 0) {
             if (ring_bytes > ret) {
                 error_report("KVM dirty ring size %" PRIu32 " too big "
@@ -2671,7 +2663,7 @@ static int kvm_init(MachineState *ms)
 
     s->many_ioeventfds = kvm_check_many_ioeventfds();
 
-    s->sync_mmu = !!kvm_vm_check_extension(kvm_state, KVM_CAP_SYNC_MMU);
+    s->sync_mmu = !!kvm_check_extension(kvm_state, KVM_CAP_SYNC_MMU);
     if (!s->sync_mmu) {
         ret = ram_block_discard_disable(true);
         assert(!ret);
