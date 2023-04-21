@@ -568,6 +568,9 @@ typedef struct {
         MIG_TEST_FAIL_DEST_QUIT_ERR,
     } result;
 
+    /* Whether the guest CPUs should be running during migration */
+    bool live;
+
     /* Postcopy specific fields */
     void *postcopy_data;
     bool postcopy_preempt;
@@ -1324,8 +1327,6 @@ static void test_precopy_common(MigrateCommon *args)
         return;
     }
 
-    migrate_ensure_non_converge(from);
-
     if (args->start_hook) {
         data_hook = args->start_hook(from, to);
     }
@@ -1333,6 +1334,31 @@ static void test_precopy_common(MigrateCommon *args)
     /* Wait for the first serial output from the source */
     if (args->result == MIG_TEST_SUCCEED) {
         wait_for_serial("src_serial");
+    }
+
+    if (args->live) {
+        /*
+         * Testing live migration, we want to ensure that some
+         * memory is re-dirtied after being transferred, so that
+         * we exercise logic for dirty page handling. We achieve
+         * this with a ridiculosly low bandwidth that guarantees
+         * non-convergance.
+         */
+        migrate_ensure_non_converge(from);
+    } else {
+        /*
+         * Testing non-live migration, we allow it to run at
+         * full speed to ensure short test case duration.
+         * For tests expected to fail, we don't need to
+         * change anything.
+         */
+        if (args->result == MIG_TEST_SUCCEED) {
+            qtest_qmp_assert_success(from, "{ 'execute' : 'stop'}");
+            if (!got_stop) {
+                qtest_qmp_eventwait(from, "STOP");
+            }
+            migrate_ensure_converge(from);
+        }
     }
 
     if (!args->connect_uri) {
@@ -1352,19 +1378,29 @@ static void test_precopy_common(MigrateCommon *args)
             qtest_set_expected_status(to, EXIT_FAILURE);
         }
     } else {
-        wait_for_migration_pass(from);
+        if (args->live) {
+            wait_for_migration_pass(from);
 
-        migrate_ensure_converge(from);
+            migrate_ensure_converge(from);
 
-        /* We do this first, as it has a timeout to stop us
-         * hanging forever if migration didn't converge */
-        wait_for_migration_complete(from);
+            /*
+             * We do this first, as it has a timeout to stop us
+             * hanging forever if migration didn't converge
+             */
+            wait_for_migration_complete(from);
 
-        if (!got_stop) {
-            qtest_qmp_eventwait(from, "STOP");
+            if (!got_stop) {
+                qtest_qmp_eventwait(from, "STOP");
+            }
+        } else {
+            wait_for_migration_complete(from);
+
+            qtest_qmp_assert_success(to, "{ 'execute' : 'cont'}");
         }
 
-        qtest_qmp_eventwait(to, "RESUME");
+        if (!got_resume) {
+            qtest_qmp_eventwait(to, "RESUME");
+        }
 
         wait_for_serial("dest_serial");
     }
@@ -1382,6 +1418,7 @@ static void test_precopy_unix_plain(void)
     MigrateCommon args = {
         .listen_uri = uri,
         .connect_uri = uri,
+        .live = true,
     };
 
     test_precopy_common(&args);
@@ -1397,6 +1434,7 @@ static void test_precopy_unix_dirty_ring(void)
         },
         .listen_uri = uri,
         .connect_uri = uri,
+        .live = true,
     };
 
     test_precopy_common(&args);
@@ -1506,6 +1544,7 @@ static void test_precopy_unix_xbzrle(void)
         .listen_uri = uri,
 
         .start_hook = test_migrate_xbzrle_start,
+        .live = true,
     };
 
     test_precopy_common(&args);
@@ -1906,6 +1945,7 @@ static void test_multifd_tcp_none(void)
     MigrateCommon args = {
         .listen_uri = "defer",
         .start_hook = test_migrate_precopy_tcp_multifd_start,
+        .live = true,
     };
     test_precopy_common(&args);
 }
