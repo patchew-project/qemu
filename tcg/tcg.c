@@ -1137,6 +1137,7 @@ void tcg_func_start(TCGContext *s)
     s->nb_labels = 0;
     s->current_frame_offset = s->frame_start;
 
+    s->prof.translation.nb_spills = 0;
 #ifdef CONFIG_DEBUG_TCG
     s->goto_tb_issue_mask = 0;
 #endif
@@ -3750,6 +3751,7 @@ static TCGReg tcg_reg_alloc(TCGContext *s, TCGRegSet required_regs,
     }
 
     /* We must spill something.  */
+    s->prof.translation.nb_spills++;
     for (j = f; j < 2; j++) {
         TCGRegSet set = reg_ct[j];
 
@@ -4924,11 +4926,11 @@ int64_t tcg_cpu_exec_time(void)
 
 int tcg_gen_code(TCGContext *s, TranslationBlock *tb, target_ulong pc_start)
 {
-#ifdef CONFIG_PROFILER
     TCGProfile *prof = &s->prof;
-#endif
     int i, num_insns;
     TCGOp *op;
+
+    s->current_tb = tb;
 
 #ifdef CONFIG_PROFILER
     {
@@ -4962,6 +4964,9 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, target_ulong pc_start)
         }
     }
 #endif
+
+    /* save pre-optimisation op count */
+    prof->translation.nb_ops_pre_opt = s->nb_ops;
 
 #ifdef CONFIG_DEBUG_TCG
     /* Ensure all labels referenced have been emitted.  */
