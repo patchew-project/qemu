@@ -7,6 +7,7 @@ bsd_user_ss = ss.source_set()
 common_user_inc += include_directories('include')
 
 bsd_user_ss.add(files(
+  'bsd-socket.c',
   'bsdload.c',
   'elfload.c',
   'main.c',
