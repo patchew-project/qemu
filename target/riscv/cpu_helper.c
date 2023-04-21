@@ -1210,7 +1210,7 @@ static void pmu_tlb_fill_incr_ctr(RISCVCPU *cpu, MMUAccessType access_type)
 
     switch (access_type) {
     case MMU_INST_FETCH:
-        pmu_event_type = RISCV_PMU_EVENT_CACHE_ITLB_PREFETCH_MISS;
+        pmu_event_type = RISCV_PMU_EVENT_CACHE_ITLB_READ_MISS;
         break;
     case MMU_DATA_LOAD:
         pmu_event_type = RISCV_PMU_EVENT_CACHE_DTLB_READ_MISS;
