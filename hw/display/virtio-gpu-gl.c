@@ -29,6 +29,8 @@ static void virtio_gpu_gl_device_realize(DeviceState *qdev, Error **errp)
 static Property virtio_gpu_gl_properties[] = {
     DEFINE_PROP_BIT("stats", VirtIOGPU, parent_obj.conf.flags,
                     VIRTIO_GPU_FLAG_STATS_ENABLED, false),
+    DEFINE_PROP_STRING("capset_names", VirtIOGPUGL, capset_names),
+    DEFINE_PROP_STRING("wayland_socket_path", VirtIOGPUGL, wayland_socket_path),
     DEFINE_PROP_END_OF_LIST(),
 };
 
