@@ -301,9 +301,10 @@ static void sii3112_pci_class_init(ObjectClass *klass, void *data)
     pd->class_id = PCI_CLASS_STORAGE_RAID;
     pd->revision = 1;
     pd->realize = sii3112_pci_realize;
+    pd->exit = NULL;
     dc->reset = sii3112_reset;
+    dc->vmsd = NULL;
     dc->desc = "SiI3112A SATA controller";
-    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
 static const TypeInfo sii3112_pci_info = {

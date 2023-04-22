@@ -467,7 +467,7 @@ static int ide_pci_post_load(void *opaque, int version_id)
     return 0;
 }
 
-const VMStateDescription vmstate_ide_pci = {
+static const VMStateDescription vmstate_ide_pci = {
     .name = "ide",
     .version_id = 3,
     .minimum_version_id = 0,
@@ -530,11 +530,34 @@ static void pci_ide_init(Object *obj)
     qdev_init_gpio_out(DEVICE(d), d->isa_irq, ARRAY_SIZE(d->isa_irq));
 }
 
+static void pci_ide_exitfn(PCIDevice *dev)
+{
+    PCIIDEState *d = PCI_IDE(dev);
+    unsigned i;
+
+    for (i = 0; i < ARRAY_SIZE(d->bmdma); ++i) {
+        memory_region_del_subregion(&d->bmdma_bar, &d->bmdma[i].extra_io);
+        memory_region_del_subregion(&d->bmdma_bar, &d->bmdma[i].addr_ioport);
+    }
+}
+
+static void pci_ide_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    dc->vmsd = &vmstate_ide_pci;
+    k->exit = pci_ide_exitfn;
+    k->class_id = PCI_CLASS_STORAGE_IDE;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+}
+
 static const TypeInfo pci_ide_type_info = {
     .name = TYPE_PCI_IDE,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIIDEState),
     .instance_init = pci_ide_init,
+    .class_init = pci_ide_class_init,
     .abstract = true,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
