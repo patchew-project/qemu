@@ -88,20 +88,8 @@ static uint64_t sii3112_reg_read(void *opaque, hwaddr addr,
         val |= (d->regs[1].confstat & (1UL << 11) ? (1 << 4) : 0);
         val |= (uint32_t)d->i.bmdma[1].status << 16;
         break;
-    case 0x80 ... 0x87:
-        val = pci_ide_data_le_ops.read(&d->i.bus[0], addr - 0x80, size);
-        break;
-    case 0x8a:
-        val = pci_ide_cmd_le_ops.read(&d->i.bus[0], 2, size);
-        break;
     case 0xa0:
         val = d->regs[0].confstat;
-        break;
-    case 0xc0 ... 0xc7:
-        val = pci_ide_data_le_ops.read(&d->i.bus[1], addr - 0xc0, size);
-        break;
-    case 0xca:
-        val = pci_ide_cmd_le_ops.read(&d->i.bus[1], 2, size);
         break;
     case 0xe0:
         val = d->regs[1].confstat;
@@ -170,18 +158,6 @@ static void sii3112_reg_write(void *opaque, hwaddr addr,
         break;
     case 0x0c ... 0x0f:
         bmdma_addr_ioport_ops.write(&d->i.bmdma[1], addr - 12, val, size);
-        break;
-    case 0x80 ... 0x87:
-        pci_ide_data_le_ops.write(&d->i.bus[0], addr - 0x80, val, size);
-        break;
-    case 0x8a:
-        pci_ide_cmd_le_ops.write(&d->i.bus[0], 2, val, size);
-        break;
-    case 0xc0 ... 0xc7:
-        pci_ide_data_le_ops.write(&d->i.bus[1], addr - 0xc0, val, size);
-        break;
-    case 0xca:
-        pci_ide_cmd_le_ops.write(&d->i.bus[1], 2, val, size);
         break;
     case 0x100:
         d->regs[0].scontrol = val & 0xfff;
@@ -259,6 +235,11 @@ static void sii3112_pci_realize(PCIDevice *dev, Error **errp)
     pci_config_set_interrupt_pin(dev->config, 1);
     pci_set_byte(dev->config + PCI_CACHE_LINE_SIZE, 8);
 
+    pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->data_ops[0]);
+    pci_register_bar(dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &s->cmd_ops[0]);
+    pci_register_bar(dev, 2, PCI_BASE_ADDRESS_SPACE_IO, &s->data_ops[1]);
+    pci_register_bar(dev, 3, PCI_BASE_ADDRESS_SPACE_IO, &s->cmd_ops[1]);
+
     /* BAR5 is in PCI memory space */
     memory_region_init_io(&d->mmio, OBJECT(d), &sii3112_reg_ops, d,
                          "sii3112.bar5", 0x200);
@@ -266,17 +247,22 @@ static void sii3112_pci_realize(PCIDevice *dev, Error **errp)
 
     /* BAR0-BAR4 are PCI I/O space aliases into BAR5 */
     mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(d), "sii3112.bar0", &d->mmio, 0x80, 8);
-    pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, mr);
+    memory_region_init_alias(mr, OBJECT(d), "sii3112.bar0", &s->data_ops[0], 0,
+                             memory_region_size(&s->data_ops[0]));
+    memory_region_add_subregion_overlap(&d->mmio, 0x80, mr, 1);
     mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(d), "sii3112.bar1", &d->mmio, 0x88, 4);
-    pci_register_bar(dev, 1, PCI_BASE_ADDRESS_SPACE_IO, mr);
+    memory_region_init_alias(mr, OBJECT(d), "sii3112.bar1", &s->cmd_ops[0], 0,
+                             memory_region_size(&s->cmd_ops[0]));
+    memory_region_add_subregion_overlap(&d->mmio, 0x88, mr, 1);
     mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(d), "sii3112.bar2", &d->mmio, 0xc0, 8);
-    pci_register_bar(dev, 2, PCI_BASE_ADDRESS_SPACE_IO, mr);
+    memory_region_init_alias(mr, OBJECT(d), "sii3112.bar2", &s->data_ops[1], 0,
+                             memory_region_size(&s->data_ops[1]));
+    memory_region_add_subregion_overlap(&d->mmio, 0xc0, mr, 1);
     mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(d), "sii3112.bar3", &d->mmio, 0xc8, 4);
-    pci_register_bar(dev, 3, PCI_BASE_ADDRESS_SPACE_IO, mr);
+    memory_region_init_alias(mr, OBJECT(d), "sii3112.bar3", &s->cmd_ops[1], 0,
+                             memory_region_size(&s->cmd_ops[1]));
+    memory_region_add_subregion_overlap(&d->mmio, 0xc8, mr, 1);
+
     mr = g_new(MemoryRegion, 1);
     memory_region_init_alias(mr, OBJECT(d), "sii3112.bar4", &d->mmio, 0, 16);
     pci_register_bar(dev, 4, PCI_BASE_ADDRESS_SPACE_IO, mr);

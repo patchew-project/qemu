@@ -60,7 +60,7 @@ static void pci_ide_ctrl_write(void *opaque, hwaddr addr,
     ide_ctrl_write(bus, addr + 2, data);
 }
 
-const MemoryRegionOps pci_ide_cmd_le_ops = {
+static const MemoryRegionOps pci_ide_cmd_le_ops = {
     .read = pci_ide_status_read,
     .write = pci_ide_ctrl_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
@@ -98,7 +98,7 @@ static void pci_ide_data_write(void *opaque, hwaddr addr,
     }
 }
 
-const MemoryRegionOps pci_ide_data_le_ops = {
+static const MemoryRegionOps pci_ide_data_le_ops = {
     .read = pci_ide_data_read,
     .write = pci_ide_data_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
