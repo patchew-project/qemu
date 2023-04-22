@@ -121,6 +121,9 @@ static void init_test_data_u16(int offset)
     for (i = 0; i < max; i++) {
         uint8_t low = count++, high = count++;
         word = BYTE_SHIFT(high, 1) | BYTE_SHIFT(low, 0);
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+        word = __builtin_bswap16(word);
+#endif
         *ptr++ = word;
         pdot(i);
     }
@@ -142,6 +145,9 @@ static void init_test_data_u32(int offset)
         uint8_t b4 = count++, b3 = count++;
         uint8_t b2 = count++, b1 = count++;
         word = BYTE_SHIFT(b1, 3) | BYTE_SHIFT(b2, 2) | BYTE_SHIFT(b3, 1) | b4;
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+        word = __builtin_bswap32(word);
+#endif
         *ptr++ = word;
         pdot(i);
     }
@@ -167,6 +173,9 @@ static void init_test_data_u64(int offset)
         word = BYTE_SHIFT(b1, 7) | BYTE_SHIFT(b2, 6) | BYTE_SHIFT(b3, 5) |
                BYTE_SHIFT(b4, 4) | BYTE_SHIFT(b5, 3) | BYTE_SHIFT(b6, 2) |
                BYTE_SHIFT(b7, 1) | b8;
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+        word = __builtin_bswap64(word);
+#endif
         *ptr++ = word;
         pdot(i);
     }
@@ -184,6 +193,9 @@ static bool read_test_data_u16(int offset)
     for (i = 0; i < max; i++) {
         uint8_t high, low;
         word = *ptr++;
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+        word = __builtin_bswap16(word);
+#endif
         high = (word >> 8) & 0xff;
         low = word & 0xff;
         if (high < low && high != 0) {
@@ -210,6 +222,9 @@ static bool read_test_data_u32(int offset)
         uint8_t b1, b2, b3, b4;
         int zeros = 0;
         word = *ptr++;
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+        word = __builtin_bswap32(word);
+#endif
 
         b1 = word >> 24 & 0xff;
         b2 = word >> 16 & 0xff;
@@ -251,6 +266,9 @@ static bool read_test_data_u64(int offset)
         uint8_t b1, b2, b3, b4, b5, b6, b7, b8;
         int zeros = 0;
         word = *ptr++;
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+        word = __builtin_bswap64(word);
+#endif
 
         b1 = ((uint64_t) (word >> 56)) & 0xff;
         b2 = ((uint64_t) (word >> 48)) & 0xff;
@@ -376,6 +394,9 @@ static bool read_test_data_s16(int offset, bool neg_first)
 
     for (i = 0; i < max; i++) {
         int32_t data = *ptr++;
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+        data = __builtin_bswap16(data);
+#endif
 
         if (neg_first && data < 0) {
             pdot(i);
@@ -401,6 +422,9 @@ static bool read_test_data_s32(int offset, bool neg_first)
 
     for (i = 0; i < max; i++) {
         int64_t data = *ptr++;
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+        data = __builtin_bswap32(data);
+#endif
 
         if (neg_first && data < 0) {
             pdot(i);
