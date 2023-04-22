@@ -86,23 +86,6 @@ static const MemoryRegionOps via_bmdma_ops = {
     .write = bmdma_write,
 };
 
-static void bmdma_setup_bar(PCIIDEState *d)
-{
-    int i;
-
-    memory_region_init(&d->bmdma_bar, OBJECT(d), "via-bmdma-container", 16);
-    for (i = 0; i < ARRAY_SIZE(d->bmdma); i++) {
-        BMDMAState *bm = &d->bmdma[i];
-
-        memory_region_init_io(&bm->extra_io, OBJECT(d), &via_bmdma_ops, bm,
-                              "via-bmdma", 4);
-        memory_region_add_subregion(&d->bmdma_bar, i * 8, &bm->extra_io);
-        memory_region_init_io(&bm->addr_ioport, OBJECT(d),
-                              &bmdma_addr_ioport_ops, bm, "bmdma", 4);
-        memory_region_add_subregion(&d->bmdma_bar, i * 8 + 4, &bm->addr_ioport);
-    }
-}
-
 static void via_ide_set_irq(void *opaque, int n, int level)
 {
     PCIIDEState *s = opaque;
@@ -187,7 +170,7 @@ static void via_ide_realize(PCIDevice *dev, Error **errp)
                           &d->bus[1], "via-ide1-cmd", 4);
     pci_register_bar(dev, 3, PCI_BASE_ADDRESS_SPACE_IO, &d->cmd_bar[1]);
 
-    bmdma_setup_bar(d);
+    bmdma_init_ops(d, &via_bmdma_ops);
     pci_register_bar(dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &d->bmdma_bar);
 
     qdev_init_gpio_in(ds, via_ide_set_irq, ARRAY_SIZE(d->bus));

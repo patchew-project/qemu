@@ -161,24 +161,6 @@ static const MemoryRegionOps cmd646_bmdma_ops = {
     .write = bmdma_write,
 };
 
-static void bmdma_setup_bar(PCIIDEState *d)
-{
-    BMDMAState *bm;
-    int i;
-
-    memory_region_init(&d->bmdma_bar, OBJECT(d), "cmd646-bmdma", 16);
-    for(i = 0;i < 2; i++) {
-        bm = &d->bmdma[i];
-        memory_region_init_io(&bm->extra_io, OBJECT(d), &cmd646_bmdma_ops, bm,
-                              "cmd646-bmdma-bus", 4);
-        memory_region_add_subregion(&d->bmdma_bar, i * 8, &bm->extra_io);
-        memory_region_init_io(&bm->addr_ioport, OBJECT(d),
-                              &bmdma_addr_ioport_ops, bm,
-                              "cmd646-bmdma-ioport", 4);
-        memory_region_add_subregion(&d->bmdma_bar, i * 8 + 4, &bm->addr_ioport);
-    }
-}
-
 static void cmd646_update_irq(PCIDevice *pd)
 {
     int pci_level;
@@ -285,7 +267,7 @@ static void pci_cmd646_ide_realize(PCIDevice *dev, Error **errp)
                           &d->bus[1], "cmd646-cmd1", 4);
     pci_register_bar(dev, 3, PCI_BASE_ADDRESS_SPACE_IO, &d->cmd_bar[1]);
 
-    bmdma_setup_bar(d);
+    bmdma_init_ops(d, &cmd646_bmdma_ops);
     pci_register_bar(dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &d->bmdma_bar);
 
     /* TODO: RST# value should be 0 */
