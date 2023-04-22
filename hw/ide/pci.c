@@ -342,7 +342,7 @@ static void bmdma_addr_write(void *opaque, hwaddr addr,
     bm->addr |= ((data & mask) << shift) & ~3;
 }
 
-MemoryRegionOps bmdma_addr_ioport_ops = {
+static MemoryRegionOps bmdma_addr_ioport_ops = {
     .read = bmdma_addr_read,
     .write = bmdma_addr_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
