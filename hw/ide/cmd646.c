@@ -251,20 +251,9 @@ static void pci_cmd646_ide_realize(PCIDevice *dev, Error **errp)
     dev->wmask[MRDMODE] = 0x0;
     dev->w1cmask[MRDMODE] = MRDMODE_INTR_CH0 | MRDMODE_INTR_CH1;
 
-    memory_region_init_io(&d->data_bar[0], OBJECT(d), &pci_ide_data_le_ops,
-                          &d->bus[0], "cmd646-data0", 8);
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &d->data_bar[0]);
-
-    memory_region_init_io(&d->cmd_bar[0], OBJECT(d), &pci_ide_cmd_le_ops,
-                          &d->bus[0], "cmd646-cmd0", 4);
     pci_register_bar(dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &d->cmd_bar[0]);
-
-    memory_region_init_io(&d->data_bar[1], OBJECT(d), &pci_ide_data_le_ops,
-                          &d->bus[1], "cmd646-data1", 8);
     pci_register_bar(dev, 2, PCI_BASE_ADDRESS_SPACE_IO, &d->data_bar[1]);
-
-    memory_region_init_io(&d->cmd_bar[1], OBJECT(d), &pci_ide_cmd_le_ops,
-                          &d->bus[1], "cmd646-cmd1", 4);
     pci_register_bar(dev, 3, PCI_BASE_ADDRESS_SPACE_IO, &d->cmd_bar[1]);
 
     bmdma_init_ops(d, &cmd646_bmdma_ops);
