@@ -51,9 +51,9 @@ struct PCIIDEState {
     BMDMAState bmdma[2];
     qemu_irq isa_irq[2];
     uint32_t secondary; /* used only for cmd646 */
-    MemoryRegion bmdma_bar;
-    MemoryRegion cmd_bar[2];
-    MemoryRegion data_bar[2];
+    MemoryRegion bmdma_ops;
+    MemoryRegion cmd_ops[2];
+    MemoryRegion data_ops[2];
 };
 
 void bmdma_init(IDEBus *bus, BMDMAState *bm, PCIIDEState *d);
