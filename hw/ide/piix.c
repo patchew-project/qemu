@@ -104,7 +104,8 @@ static void piix_ide_reset(DeviceState *dev)
     pci_set_byte(pci_conf + 0x20, 0x01);  /* BMIBA: 20-23h */
 }
 
-static bool pci_piix_init_bus(PCIIDEState *d, unsigned i, Error **errp)
+static bool pci_piix_init_bus(PCIIDEState *d, unsigned i, ISABus *isa_bus,
+                              Error **errp)
 {
     static const struct {
         int iobase;
@@ -124,7 +125,8 @@ static bool pci_piix_init_bus(PCIIDEState *d, unsigned i, Error **errp)
                          object_get_typename(OBJECT(d)), i);
         return false;
     }
-    ide_bus_init_output_irq(&d->bus[i], isa_get_irq(NULL, port_info[i].isairq));
+    ide_bus_init_output_irq(&d->bus[i],
+                            isa_bus_get_irq(isa_bus, port_info[i].isairq));
 
     bmdma_init(&d->bus[i], &d->bmdma[i], d);
     ide_bus_register_restart_cb(&d->bus[i]);
@@ -136,14 +138,29 @@ static void pci_piix_ide_realize(PCIDevice *dev, Error **errp)
 {
     PCIIDEState *d = PCI_IDE(dev);
     uint8_t *pci_conf = dev->config;
+    ISABus *isa_bus;
+    bool ambiguous;
 
     pci_conf[PCI_CLASS_PROG] = 0x80; // legacy ATA mode
 
     bmdma_init_ops(d, &piix_bmdma_ops);
     pci_register_bar(dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &d->bmdma_ops);
 
+    isa_bus = ISA_BUS(object_resolve_path_type("", TYPE_ISA_BUS, &ambiguous));
+    if (ambiguous) {
+        error_setg(errp,
+                   "More than one ISA bus found while %s supports only one",
+                   object_get_typename(OBJECT(d)));
+        return;
+    }
+    if (!isa_bus) {
+        error_setg(errp, "No ISA bus found while %s requires one",
+                   object_get_typename(OBJECT(d)));
+        return;
+    }
+
     for (unsigned i = 0; i < 2; i++) {
-        if (!pci_piix_init_bus(d, i, errp)) {
+        if (!pci_piix_init_bus(d, i, isa_bus, errp)) {
             return;
         }
     }
