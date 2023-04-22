@@ -66,7 +66,7 @@ static void sii3112_bmdma_write(void *opaque, hwaddr addr,
                                 uint64_t val, unsigned int size)
 {
     BMDMAState *bm = opaque;
-    SiI3112PCIState *d = SII3112_PCI(bm->pci_dev);
+    SiI3112PCIState *s = SII3112_PCI(bm->pci_dev);
     int i = (bm == &bm->pci_dev->bmdma[0]) ? 0 : 1;
 
     trace_sii3112_bmdma_write(size, addr, val);
@@ -75,10 +75,10 @@ static void sii3112_bmdma_write(void *opaque, hwaddr addr,
         bmdma_cmd_writeb(bm, val);
         break;
     case 0x01:
-        d->regs[i].swdata = val & 0x3f;
+        s->regs[i].swdata = val & 0x3f;
         break;
     case 0x02:
-        bm->status = (val & 0x60) | (bm->status & 1) | (bm->status & ~val & 6);
+        bmdma_clear_status(bm, val);
         break;
     default:
         break;
@@ -160,8 +160,7 @@ static void sii3112_reg_write(void *opaque, hwaddr addr,
         d->regs[0].swdata = val & 0x3f;
         break;
     case 0x12:
-        d->i.bmdma[0].status = (val & 0x60) | (d->i.bmdma[0].status & 1) |
-                               (d->i.bmdma[0].status & ~val & 6);
+        bmdma_clear_status(&d->i.bmdma[0], val);
         break;
     case 0x18:
         bmdma_cmd_writeb(&d->i.bmdma[1], val);
@@ -170,8 +169,7 @@ static void sii3112_reg_write(void *opaque, hwaddr addr,
         d->regs[1].swdata = val & 0x3f;
         break;
     case 0x1a:
-        d->i.bmdma[1].status = (val & 0x60) | (d->i.bmdma[1].status & 1) |
-                               (d->i.bmdma[1].status & ~val & 6);
+        bmdma_clear_status(&d->i.bmdma[1], val);
         break;
     case 0x100:
         d->regs[0].scontrol = val & 0xfff;

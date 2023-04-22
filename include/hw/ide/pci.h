@@ -59,6 +59,7 @@ struct PCIIDEState {
 void bmdma_init(IDEBus *bus, BMDMAState *bm, PCIIDEState *d);
 void bmdma_init_ops(PCIIDEState *d, const MemoryRegionOps *bmdma_ops);
 void bmdma_cmd_writeb(BMDMAState *bm, uint32_t val);
+void bmdma_clear_status(BMDMAState *bm, uint32_t val);
 void pci_ide_create_devs(PCIDevice *dev);
 
 #endif
