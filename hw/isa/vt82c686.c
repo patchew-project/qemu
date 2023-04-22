@@ -568,9 +568,19 @@ static const VMStateDescription vmstate_via = {
     }
 };
 
+static void via_isa_set_ide_irq(void *opaque, int n, int level)
+{
+    static const uint8_t irqs[] = { 14, 15, 10, 11 };
+    ViaISAState *s = opaque;
+    uint8_t irq = irqs[(s->dev.config[0x4a] >> (n * 2)) & 0x3];
+
+    qemu_set_irq(s->isa_irqs_in[irq], level);
+}
+
 static void via_isa_init(Object *obj)
 {
     ViaISAState *s = VIA_ISA(obj);
+    DeviceState *dev = DEVICE(s);
 
     object_initialize_child(obj, "rtc", &s->rtc, TYPE_MC146818_RTC);
     object_initialize_child(obj, "ide", &s->ide, TYPE_VIA_IDE);
@@ -578,6 +588,8 @@ static void via_isa_init(Object *obj)
     object_initialize_child(obj, "uhci2", &s->uhci[1], TYPE_VT82C686B_USB_UHCI);
     object_initialize_child(obj, "ac97", &s->ac97, TYPE_VIA_AC97);
     object_initialize_child(obj, "mc97", &s->mc97, TYPE_VIA_MC97);
+
+    qdev_init_gpio_in_named(dev, via_isa_set_ide_irq, "ide", ARRAY_SIZE(s->ide.isa_irq));
 }
 
 static const TypeInfo via_isa_info = {
@@ -691,6 +703,10 @@ static void via_isa_realize(PCIDevice *d, Error **errp)
     qdev_prop_set_int32(DEVICE(&s->ide), "addr", d->devfn + 1);
     if (!qdev_realize(DEVICE(&s->ide), BUS(pci_bus), errp)) {
         return;
+    }
+    for (i = 0; i < 2; i++) {
+        qdev_connect_gpio_out(DEVICE(&s->ide), i,
+                              qdev_get_gpio_in_named(DEVICE(s), "ide", i));
     }
 
     /* Functions 2-3: USB Ports */
@@ -814,6 +830,7 @@ static void vt8231_isa_reset(DeviceState *dev)
                  PCI_COMMAND_MASTER | PCI_COMMAND_SPECIAL);
     pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM);
 
+    pci_conf[0x4a] = 0x04; /* IDE interrupt Routing */
     pci_conf[0x58] = 0x40; /* Miscellaneous Control 0 */
     pci_conf[0x67] = 0x08; /* Fast IR Config */
     pci_conf[0x6b] = 0x01; /* Fast IR I/O Base */
