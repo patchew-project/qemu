@@ -104,34 +104,32 @@ static void piix_ide_reset(DeviceState *dev)
     pci_set_byte(pci_conf + 0x20, 0x01);  /* BMIBA: 20-23h */
 }
 
-static bool pci_piix_init_bus(PCIIDEState *d, unsigned i, ISABus *isa_bus,
-                              Error **errp)
+static void pci_piix_init_bus(PCIIDEState *d, unsigned i, ISABus *isa_bus)
 {
     static const struct {
         int iobase;
         int iobase2;
         int isairq;
     } port_info[] = {
-        {0x1f0, 0x3f6, 14},
-        {0x170, 0x376, 15},
+        {0x1f0, 0x3f4, 14},
+        {0x170, 0x374, 15},
     };
-    int ret;
+    MemoryRegion *address_space_io = pci_address_space_io(PCI_DEVICE(d));
 
     ide_bus_init(&d->bus[i], sizeof(d->bus[i]), DEVICE(d), i, 2);
-    ret = ide_init_ioport(&d->bus[i], NULL, port_info[i].iobase,
-                          port_info[i].iobase2);
-    if (ret) {
-        error_setg_errno(errp, -ret, "Failed to realize %s port %u",
-                         object_get_typename(OBJECT(d)), i);
-        return false;
-    }
+    memory_region_add_subregion(address_space_io, port_info[i].iobase,
+                                &d->data_ops[i]);
+    /*
+     * PIIX forwards the last byte of cmd_ops to ISA. Model this using a low
+     * prio so competing memory regions take precedence.
+     */
+    memory_region_add_subregion_overlap(address_space_io, port_info[i].iobase2,
+                                        &d->cmd_ops[i], -1);
     ide_bus_init_output_irq(&d->bus[i],
                             isa_bus_get_irq(isa_bus, port_info[i].isairq));
 
     bmdma_init(&d->bus[i], &d->bmdma[i], d);
     ide_bus_register_restart_cb(&d->bus[i]);
-
-    return true;
 }
 
 static void pci_piix_ide_realize(PCIDevice *dev, Error **errp)
@@ -160,9 +158,7 @@ static void pci_piix_ide_realize(PCIDevice *dev, Error **errp)
     }
 
     for (unsigned i = 0; i < 2; i++) {
-        if (!pci_piix_init_bus(d, i, isa_bus, errp)) {
-            return;
-        }
+        pci_piix_init_bus(d, i, isa_bus);
     }
 }
 
