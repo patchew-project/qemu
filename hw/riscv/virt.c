@@ -1296,10 +1296,12 @@ static void virt_machine_done(Notifier *notifier, void *data)
         kernel_entry = 0;
     }
 
-    if (drive_get(IF_PFLASH, 0, 0)) {
+    if (drive_get(IF_PFLASH, 0, 0) &&
+            !strcmp(machine->firmware, "none")) {
         /*
-         * Pflash was supplied, let's overwrite the address we jump to after
-         * reset to the base of the flash.
+         * If pflash (unit 0) was supplied and at the same time the -bois
+         * is not specified, then let's overwrite the address we jump to
+         * after reset to the base of the flash.
          */
         start_addr = virt_memmap[VIRT_FLASH].base;
     }
