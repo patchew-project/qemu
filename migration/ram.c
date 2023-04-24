@@ -1224,7 +1224,8 @@ static void migration_bitmap_sync(RAMState *rs)
         RAMBLOCK_FOREACH_NOT_IGNORED(block) {
             ramblock_sync_dirty_bitmap(rs, block);
         }
-        ram_counters.remaining = ram_bytes_remaining();
+        qatomic_set__nocheck(&ram_counters.dirty_bytes_last_sync,
+                             ram_bytes_remaining());
     }
     qemu_mutex_unlock(&rs->bitmap_mutex);
 
