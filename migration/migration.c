@@ -1189,7 +1189,8 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
 
     if (s->state != MIGRATION_STATUS_COMPLETED) {
         info->ram->remaining = ram_bytes_remaining();
-        info->ram->dirty_pages_rate = ram_counters.dirty_pages_rate;
+        info->ram->dirty_pages_rate =
+           qatomic_read__nocheck(&ram_counters.dirty_pages_rate);
     }
 }
 
@@ -3836,7 +3837,8 @@ static void migration_update_counters(MigrationState *s,
      * if we haven't sent anything, we don't want to
      * recalculate. 10000 is a small enough number for our purposes
      */
-    if (ram_counters.dirty_pages_rate && transferred > 10000) {
+    if (qatomic_read__nocheck(&ram_counters.dirty_pages_rate) &&
+        transferred > 10000) {
         s->expected_downtime = ram_counters.remaining / bandwidth;
     }
 
