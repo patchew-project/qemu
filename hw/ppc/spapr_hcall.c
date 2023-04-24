@@ -1719,45 +1719,14 @@ static target_ulong h_enter_nested(PowerPCCPU *cpu,
     return env->gpr[3];
 }
 
-void spapr_exit_nested(PowerPCCPU *cpu, int excp)
+static void restore_hvstate_from_env(struct kvmppc_hv_guest_state *hvstate,
+                                     CPUPPCState *env, int excp)
 {
-    CPUState *cs = CPU(cpu);
-    CPUPPCState *env = &cpu->env;
-    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
-    target_ulong r3_return = env->excp_vectors[excp]; /* hcall return value */
-    target_ulong hv_ptr = spapr_cpu->nested_host_state->gpr[4];
-    target_ulong regs_ptr = spapr_cpu->nested_host_state->gpr[5];
-    struct kvmppc_hv_guest_state *hvstate;
-    struct kvmppc_pt_regs *regs;
-    hwaddr len;
-
-    assert(spapr_cpu->in_nested);
-
-    cpu_ppc_hdecr_exit(env);
-
-    len = sizeof(*hvstate);
-    hvstate = address_space_map(CPU(cpu)->as, hv_ptr, &len, true,
-                                MEMTXATTRS_UNSPECIFIED);
-    if (len != sizeof(*hvstate)) {
-        address_space_unmap(CPU(cpu)->as, hvstate, len, 0, true);
-        r3_return = H_PARAMETER;
-        goto out_restore_l1;
-    }
-
     hvstate->cfar = env->cfar;
     hvstate->lpcr = env->spr[SPR_LPCR];
     hvstate->pcr = env->spr[SPR_PCR];
     hvstate->dpdes = env->spr[SPR_DPDES];
     hvstate->hfscr = env->spr[SPR_HFSCR];
-
-    if (excp == POWERPC_EXCP_HDSI) {
-        hvstate->hdar = env->spr[SPR_HDAR];
-        hvstate->hdsisr = env->spr[SPR_HDSISR];
-        hvstate->asdr = env->spr[SPR_ASDR];
-    } else if (excp == POWERPC_EXCP_HISI) {
-        hvstate->asdr = env->spr[SPR_ASDR];
-    }
-
     /* HEIR should be implemented for HV mode and saved here. */
     hvstate->srr0 = env->spr[SPR_SRR0];
     hvstate->srr1 = env->spr[SPR_SRR1];
@@ -1768,27 +1737,43 @@ void spapr_exit_nested(PowerPCCPU *cpu, int excp)
     hvstate->pidr = env->spr[SPR_BOOKS_PID];
     hvstate->ppr = env->spr[SPR_PPR];
 
+    if (excp == POWERPC_EXCP_HDSI) {
+        hvstate->hdar = env->spr[SPR_HDAR];
+        hvstate->hdsisr = env->spr[SPR_HDSISR];
+        hvstate->asdr = env->spr[SPR_ASDR];
+    } else if (excp == POWERPC_EXCP_HISI) {
+        hvstate->asdr = env->spr[SPR_ASDR];
+    }
+}
+
+static int map_and_restore_l2_hvstate(PowerPCCPU *cpu, int excp, target_ulong *r3)
+{
+    CPUPPCState *env = &cpu->env;
+    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
+    target_ulong hv_ptr = spapr_cpu->nested_host_state->gpr[4];
+    struct kvmppc_hv_guest_state *hvstate;
+    hwaddr len = sizeof(*hvstate);
+
+    hvstate = address_space_map(CPU(cpu)->as, hv_ptr, &len, true,
+                                MEMTXATTRS_UNSPECIFIED);
+    if (len != sizeof(*hvstate)) {
+        address_space_unmap(CPU(cpu)->as, hvstate, len, 0, true);
+        *r3 = H_PARAMETER;
+        return -1;
+    }
+    restore_hvstate_from_env(hvstate, env, excp);
     /* Is it okay to specify write length larger than actual data written? */
     address_space_unmap(CPU(cpu)->as, hvstate, len, len, true);
+    return 0;
+}
 
-    len = sizeof(*regs);
-    regs = address_space_map(CPU(cpu)->as, regs_ptr, &len, true,
-                                MEMTXATTRS_UNSPECIFIED);
-    if (!regs || len != sizeof(*regs)) {
-        address_space_unmap(CPU(cpu)->as, regs, len, 0, true);
-        r3_return = H_P2;
-        goto out_restore_l1;
-    }
-
+static void restore_ptregs_from_env(struct kvmppc_pt_regs *regs,
+                                    CPUPPCState *env, int excp)
+{
+    hwaddr len;
     len = sizeof(env->gpr);
     assert(len == sizeof(regs->gpr));
     memcpy(regs->gpr, env->gpr, len);
-
-    regs->link = env->lr;
-    regs->ctr = env->ctr;
-    regs->xer = cpu_read_xer(env);
-    regs->ccr = ppc_get_cr(env);
-
     if (excp == POWERPC_EXCP_MCHECK ||
         excp == POWERPC_EXCP_RESET ||
         excp == POWERPC_EXCP_SYSCALL) {
@@ -1798,11 +1783,50 @@ void spapr_exit_nested(PowerPCCPU *cpu, int excp)
         regs->nip = env->spr[SPR_HSRR0];
         regs->msr = env->spr[SPR_HSRR1] & env->msr_mask;
     }
+    regs->link = env->lr;
+    regs->ctr = env->ctr;
+    regs->xer = cpu_read_xer(env);
+    regs->ccr = ppc_get_cr(env);
+}
 
+static int map_and_restore_l2_ptregs(PowerPCCPU *cpu, int excp, target_ulong *r3)
+{
+    CPUPPCState *env = &cpu->env;
+    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
+    target_ulong regs_ptr = spapr_cpu->nested_host_state->gpr[5];
+    hwaddr len;
+    struct kvmppc_pt_regs *regs = NULL;
+
+    len = sizeof(*regs);
+    regs = address_space_map(CPU(cpu)->as, regs_ptr, &len, true,
+                             MEMTXATTRS_UNSPECIFIED);
+    if (!regs || len != sizeof(*regs)) {
+        address_space_unmap(CPU(cpu)->as, regs, len, 0, true);
+        *r3 = H_P2;
+        return -1;
+    }
+    restore_ptregs_from_env(regs, env, excp);
     /* Is it okay to specify write length larger than actual data written? */
     address_space_unmap(CPU(cpu)->as, regs, len, len, true);
+    return 0;
+}
 
-out_restore_l1:
+void spapr_exit_nested(PowerPCCPU *cpu, int excp)
+{
+    CPUState *cs = CPU(cpu);
+    CPUPPCState *env = &cpu->env;
+    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
+    target_ulong r3_return = env->excp_vectors[excp]; /* hcall return value */
+
+    assert(spapr_cpu->in_nested);
+
+    cpu_ppc_hdecr_exit(env);
+
+   if (!map_and_restore_l2_hvstate(cpu, excp, &r3_return)) {
+       map_and_restore_l2_ptregs (cpu, excp, &r3_return);
+   }
+
+    /* out_restore_l1 */
     memcpy(env->gpr, spapr_cpu->nested_host_state->gpr, sizeof(env->gpr));
     env->lr = spapr_cpu->nested_host_state->lr;
     env->ctr = spapr_cpu->nested_host_state->ctr;
