@@ -1122,14 +1122,14 @@ fi
 
 # Suppress writing compiled files
 python="$python -B"
-
+mkvenv="$python ${source_path}/python/scripts/mkvenv.py"
 
 mkvenv_flags=""
 if test "$pypi" = "enabled" ; then
     mkvenv_flags="--online"
 fi
 
-if ! $python "${source_path}/python/scripts/mkvenv.py" ensure \
+if ! $mkvenv ensure \
      $mkvenv_flags \
      --dir "${source_path}/python/wheels" \
      --diagnose "meson" \
@@ -1143,6 +1143,29 @@ fi
 # We ignore PATH completely here: we want to use the venv's Meson
 # *exclusively*.
 meson="$(cd pyvenv/bin; pwd)/meson"
+
+# Conditionally ensure Sphinx is installed.
+
+mkvenv_flags=""
+if test "$pypi" = "enabled" -a "$docs" = "enabled" ; then
+    mkvenv_flags="--online"
+fi
+
+if test "$docs" != "disabled" ; then
+    if ! $mkvenv ensure \
+         $mkvenv_flags \
+         --diagnose "sphinx-build" \
+         "sphinx>=1.6.0" ;
+    then
+        if test "$docs" = "enabled" ; then
+            exit 1
+        fi
+        echo "Sphinx not found/usable, disabling docs."
+        docs=disabled
+    else
+        docs=enabled
+    fi
+fi
 
 echo "MKVENV ok!"
 
