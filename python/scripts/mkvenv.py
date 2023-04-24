@@ -151,26 +151,26 @@ def need_ensurepip() -> bool:
     return True
 
 
-def check_ensurepip(with_pip: bool) -> None:
+def check_ensurepip(prefix: str = "", suggest_remedy: bool = False) -> None:
     """
     Check that we have ensurepip.
 
     Raise a fatal exception with a helpful hint if it isn't available.
     """
-    if not with_pip:
-        return
-
     if not find_spec("ensurepip"):
         msg = (
             "Python's ensurepip module is not found.\n"
             "It's normally part of the Python standard library, "
             "maybe your distribution packages it separately?\n"
-            "Either install ensurepip, or alleviate the need for it in the "
-            "first place by installing pip and setuptools for "
-            f"'{sys.executable}'.\n"
-            "(Hint: Debian puts ensurepip in its python3-venv package.)"
+            "(Debian puts ensurepip in its python3-venv package.)\n"
         )
-        raise Ouch(msg)
+        if suggest_remedy:
+            msg += (
+                "Either install ensurepip, or alleviate the need for it in the"
+                " first place by installing pip and setuptools for "
+                f"'{sys.executable}'.\n"
+            )
+        raise Ouch(prefix + msg)
 
     # ensurepip uses pyexpat, which can also go missing on us:
     if not find_spec("pyexpat"):
@@ -178,12 +178,15 @@ def check_ensurepip(with_pip: bool) -> None:
             "Python's pyexpat module is not found.\n"
             "It's normally part of the Python standard library, "
             "maybe your distribution packages it separately?\n"
-            "Either install pyexpat, or alleviate the need for it in the "
-            "first place by installing pip and setuptools for "
-            f"'{sys.executable}'.\n\n"
-            "(Hint: NetBSD's pkgsrc debundles this to e.g. 'py310-expat'.)"
+            "(NetBSD's pkgsrc debundles this to e.g. 'py310-expat'.)\n"
         )
-        raise Ouch(msg)
+        if suggest_remedy:
+            msg += (
+                "Either install pyexpat, or alleviate the need for it in the "
+                "first place by installing pip and setuptools for "
+                f"'{sys.executable}'.\n"
+            )
+        raise Ouch(prefix + msg)
 
 
 def make_venv(  # pylint: disable=too-many-arguments
@@ -238,7 +241,8 @@ def make_venv(  # pylint: disable=too-many-arguments
         with_pip = True if not system_site_packages else need_ensurepip()
         logger.debug("with_pip unset, choosing %s", with_pip)
 
-    check_ensurepip(with_pip)
+    if with_pip:
+        check_ensurepip(suggest_remedy=True)
 
     if symlinks is None:
         # Default behavior of standard venv CLI
@@ -430,6 +434,36 @@ def generate_console_scripts(
         logger.debug("wrote '%s'", script_path)
 
 
+def checkpip() -> None:
+    """
+    Debian10 has a pip that's broken when used inside of a virtual environment.
+
+    We try to detect and correct that case here.
+    """
+    try:
+        # pylint: disable=import-outside-toplevel, unused-import
+        import pip._internal  # noqa: F401
+
+        logger.debug("pip appears to be working correctly.")
+        return
+    except ModuleNotFoundError as exc:
+        if exc.name == "pip._internal":
+            # Uh, fair enough. They did say "internal".
+            # Let's just assume it's fine.
+            return
+        logger.warning("pip appears to be malfunctioning: %s", str(exc))
+
+    check_ensurepip("pip appears to be non-functional, and ")
+
+    logging.debug("Attempting to repair pip ...")
+    subprocess.run(
+        (sys.executable, "-m", "ensurepip"),
+        stdout=subprocess.DEVNULL,
+        check=True,
+    )
+    logging.debug("Pip is now (hopefully) repaired!")
+
+
 def post_venv_setup(bin_path: str, packages: Sequence[str] = ()) -> None:
     """
     This is intended to be run *inside the venv* after it is created.
@@ -439,6 +473,9 @@ def post_venv_setup(bin_path: str, packages: Sequence[str] = ()) -> None:
         "post_venv_setup(bin_path=%s, packages=%s)", bin_path, packages
     )
     generate_console_scripts(python_path, bin_path, packages)
+
+    # Test for a broken pip (Debian 10 or derivative?) and fix it if needed
+    checkpip()
 
 
 def _add_create_subcommand(subparsers: Any) -> None:
