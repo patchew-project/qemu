@@ -1544,6 +1544,81 @@ static target_ulong h_copy_tofrom_guest(PowerPCCPU *cpu,
     return H_FUNCTION;
 }
 
+static void restore_hdec_from_hvstate(CPUPPCState *dst,
+                                      struct kvmppc_hv_guest_state *hv_state,
+                                      target_ulong now)
+{
+    target_ulong hdec;
+
+    assert(hv_state);
+    hdec = hv_state->hdec_expiry - now;
+    cpu_ppc_hdecr_init(dst);
+    cpu_ppc_store_hdecr(dst, hdec);
+}
+
+static void restore_lpcr_from_hvstate(PowerPCCPU *cpu,
+                                      struct kvmppc_hv_guest_state *hv_state)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    CPUPPCState *dst = &cpu->env;
+    target_ulong lpcr, lpcr_mask;
+
+    assert(hv_state);
+    lpcr_mask = LPCR_DPFD | LPCR_ILE | LPCR_AIL | LPCR_LD | LPCR_MER;
+    lpcr = (dst->spr[SPR_LPCR] & ~lpcr_mask) | (hv_state->lpcr & lpcr_mask);
+    lpcr |= LPCR_HR | LPCR_UPRT | LPCR_GTSE | LPCR_HVICE | LPCR_HDICE;
+    lpcr &= ~LPCR_LPES0;
+    dst->spr[SPR_LPCR] = lpcr & pcc->lpcr_mask;
+}
+
+static void restore_env_from_ptregs(CPUPPCState *env,
+                                    struct kvmppc_pt_regs *regs)
+{
+    assert(env);
+    assert(regs);
+    assert(sizeof(env->gpr) == sizeof(regs->gpr));
+    memcpy(env->gpr, regs->gpr, sizeof(env->gpr));
+    env->nip = regs->nip;
+    env->msr = regs->msr;
+    env->lr = regs->link;
+    env->ctr = regs->ctr;
+    cpu_write_xer(env, regs->xer);
+    ppc_store_cr(env, regs->ccr);
+}
+
+static void restore_env_from_hvstate(CPUPPCState *env,
+                                     struct kvmppc_hv_guest_state *hv_state)
+{
+    assert(env);
+    assert(hv_state);
+    env->spr[SPR_HFSCR] = hv_state->hfscr;
+    /* TCG does not implement DAWR*, CIABR, PURR, SPURR, IC, VTB, HEIR SPRs*/
+    env->cfar = hv_state->cfar;
+    env->spr[SPR_PCR] = hv_state->pcr;
+    env->spr[SPR_DPDES] = hv_state->dpdes;
+    env->spr[SPR_SRR0] = hv_state->srr0;
+    env->spr[SPR_SRR1] = hv_state->srr1;
+    env->spr[SPR_SPRG0] = hv_state->sprg[0];
+    env->spr[SPR_SPRG1] = hv_state->sprg[1];
+    env->spr[SPR_SPRG2] = hv_state->sprg[2];
+    env->spr[SPR_SPRG3] = hv_state->sprg[3];
+    env->spr[SPR_BOOKS_PID] = hv_state->pidr;
+    env->spr[SPR_PPR] = hv_state->ppr;
+}
+
+static inline void restore_l2_env(PowerPCCPU *cpu,
+		                  struct kvmppc_hv_guest_state *hv_state,
+				  struct kvmppc_pt_regs *regs,
+				  target_ulong now)
+{
+    CPUPPCState *env = &cpu->env;
+
+    restore_env_from_ptregs(env, regs);
+    restore_env_from_hvstate(env, hv_state);
+    restore_lpcr_from_hvstate(cpu, hv_state);
+    restore_hdec_from_hvstate(env, hv_state, now);
+}
+
 /*
  * When this handler returns, the environment is switched to the L2 guest
  * and TCG begins running that. spapr_exit_nested() performs the switch from
@@ -1554,14 +1629,12 @@ static target_ulong h_enter_nested(PowerPCCPU *cpu,
                                    target_ulong opcode,
                                    target_ulong *args)
 {
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
     SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
     target_ulong hv_ptr = args[0];
     target_ulong regs_ptr = args[1];
-    target_ulong hdec, now = cpu_ppc_load_tbl(env);
-    target_ulong lpcr, lpcr_mask;
+    target_ulong now = cpu_ppc_load_tbl(env);
     struct kvmppc_hv_guest_state *hvstate;
     struct kvmppc_hv_guest_state hv_state;
     struct kvmppc_pt_regs *regs;
@@ -1607,49 +1680,15 @@ static target_ulong h_enter_nested(PowerPCCPU *cpu,
         return H_P2;
     }
 
-    len = sizeof(env->gpr);
-    assert(len == sizeof(regs->gpr));
-    memcpy(env->gpr, regs->gpr, len);
-
-    env->lr = regs->link;
-    env->ctr = regs->ctr;
-    cpu_write_xer(env, regs->xer);
-    ppc_store_cr(env, regs->ccr);
-
-    env->msr = regs->msr;
-    env->nip = regs->nip;
+    /* restore L2 env from hv_state and ptregs */
+    restore_l2_env(cpu, &hv_state, regs, now);
 
     address_space_unmap(CPU(cpu)->as, regs, len, len, false);
-
-    env->cfar = hv_state.cfar;
 
     assert(env->spr[SPR_LPIDR] == 0);
     env->spr[SPR_LPIDR] = hv_state.lpid;
 
-    lpcr_mask = LPCR_DPFD | LPCR_ILE | LPCR_AIL | LPCR_LD | LPCR_MER;
-    lpcr = (env->spr[SPR_LPCR] & ~lpcr_mask) | (hv_state.lpcr & lpcr_mask);
-    lpcr |= LPCR_HR | LPCR_UPRT | LPCR_GTSE | LPCR_HVICE | LPCR_HDICE;
-    lpcr &= ~LPCR_LPES0;
-    env->spr[SPR_LPCR] = lpcr & pcc->lpcr_mask;
-
-    env->spr[SPR_PCR] = hv_state.pcr;
-    /* hv_state.amor is not used */
-    env->spr[SPR_DPDES] = hv_state.dpdes;
-    env->spr[SPR_HFSCR] = hv_state.hfscr;
-    hdec = hv_state.hdec_expiry - now;
     spapr_cpu->nested_tb_offset = hv_state.tb_offset;
-    /* TCG does not implement DAWR*, CIABR, PURR, SPURR, IC, VTB, HEIR SPRs*/
-    env->spr[SPR_SRR0] = hv_state.srr0;
-    env->spr[SPR_SRR1] = hv_state.srr1;
-    env->spr[SPR_SPRG0] = hv_state.sprg[0];
-    env->spr[SPR_SPRG1] = hv_state.sprg[1];
-    env->spr[SPR_SPRG2] = hv_state.sprg[2];
-    env->spr[SPR_SPRG3] = hv_state.sprg[3];
-    env->spr[SPR_BOOKS_PID] = hv_state.pidr;
-    env->spr[SPR_PPR] = hv_state.ppr;
-
-    cpu_ppc_hdecr_init(env);
-    cpu_ppc_store_hdecr(env, hdec);
 
     /*
      * The hv_state.vcpu_token is not needed. It is used by the KVM
