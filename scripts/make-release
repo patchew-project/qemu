@@ -41,6 +41,17 @@ git submodule update --init --single-branch
         BaseTools/Source/C/BrotliCompress/brotli \
         CryptoPkg/Library/OpensslLib/openssl \
         MdeModulePkg/Library/BrotliCustomDecompressLib/brotli)
+
+# Handle vendoring Python dependencies:
+mkdir python/wheels
+pushd python/wheels
+pip download meson==0.61.5
+sha256sum -c <<EOF
+58c2ddb5f885da0e929f15d89f38d8a7d97f981f56815bcba008414f8511f59a meson-0.61.5-py3-none-any.whl
+EOF
 popd
+
+popd
+
 tar --exclude=.git -cjf ${destination}.tar.bz2 ${destination}
 rm -rf ${destination}
