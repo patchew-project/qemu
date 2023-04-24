@@ -51,9 +51,11 @@ import logging
 import os
 from pathlib import Path
 import re
+import site
 import stat
 import subprocess
 import sys
+import sysconfig
 import traceback
 from types import SimpleNamespace
 from typing import (
@@ -74,6 +76,11 @@ DirType = Union[str, bytes, "os.PathLike[str]", "os.PathLike[bytes]"]
 logger = logging.getLogger("mkvenv")
 
 
+def inside_a_venv() -> bool:
+    """Returns True if it is executed inside of a virtual environment."""
+    return sys.prefix != sys.base_prefix
+
+
 class Ouch(RuntimeError):
     """An Exception class we can't confuse with a builtin."""
 
@@ -82,9 +89,15 @@ class QemuEnvBuilder(venv.EnvBuilder):
     """
     An extension of venv.EnvBuilder for building QEMU's configure-time venv.
 
-    The only functional change is that it adds the ability to regenerate
-    console_script shims for packages available via system_site
-    packages.
+    The primary differences are:
+
+    (1) It adds the ability to regenerate console_script shims for
+    packages available via system_site_packages for any packages
+    specified by the 'script_packages' argument
+
+    (2) It emulates a "nested" virtual environment when invoked from
+    inside of an existing virtual environment by including packages from
+    the parent.
 
     Parameters for base class init:
       - system_site_packages: bool = False
@@ -99,10 +112,50 @@ class QemuEnvBuilder(venv.EnvBuilder):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         logger.debug("QemuEnvBuilder.__init__(...)")
         self.script_packages = kwargs.pop("script_packages", ())
+
+        # For nested venv emulation:
+        self.use_parent_packages = False
+        if inside_a_venv():
+            # Include parent packages only if we're in a venv and
+            # system_site_packages was True.
+            self.use_parent_packages = kwargs.pop(
+                "system_site_packages", False
+            )
+            # Include system_site_packages only when the parent,
+            # The venv we are currently in, also does so.
+            kwargs["system_site_packages"] = sys.base_prefix in site.PREFIXES
+
         super().__init__(*args, **kwargs)
 
         # Make the context available post-creation:
         self._context: Optional[SimpleNamespace] = None
+
+    def compute_venv_libpath(self, context: SimpleNamespace) -> str:
+        """
+        Compatibility wrapper for context.lib_path for Python < 3.12
+        """
+        # Python 3.12+, not strictly necessary because it's documented
+        # to be the same as 3.10 code below:
+        if sys.version_info >= (3, 12):
+            return context.lib_path
+
+        # Python 3.10+
+        if "venv" in sysconfig.get_scheme_names():
+            return sysconfig.get_path(
+                "purelib", scheme="venv", vars={"base": context.env_dir}
+            )
+
+        # For Python <= 3.9 we need to hardcode this. Fortunately the
+        # code below was the same in Python 3.6-3.10, so there is only
+        # one case.
+        if sys.platform == "win32":
+            return os.path.join(context.env_dir, "Lib", "site-packages")
+        return os.path.join(
+            context.env_dir,
+            "lib",
+            "python%d.%d" % sys.version_info[:2],
+            "site-packages",
+        )
 
     def ensure_directories(self, env_dir: DirType) -> SimpleNamespace:
         logger.debug("ensure_directories(env_dir=%s)", env_dir)
@@ -124,6 +177,19 @@ class QemuEnvBuilder(venv.EnvBuilder):
         """
         The final, final hook. Enter the venv and run commands inside of it.
         """
+        if self.use_parent_packages:
+            # We're inside of a venv and we want to include the parent
+            # venv's packages.
+            parent_libpath = sysconfig.get_path("purelib")
+            logger.debug("parent_libpath: %s", parent_libpath)
+
+            our_libpath = self.compute_venv_libpath(context)
+            logger.debug("our_libpath: %s", our_libpath)
+
+            pth_file = os.path.join(our_libpath, "nested.pth")
+            with open(pth_file, "w", encoding="UTF-8") as file:
+                file.write(parent_libpath + os.linesep)
+
         args = [
             context.env_exe,
             __file__,
