@@ -160,6 +160,9 @@ struct PCIDevice {
     /* ID of standby device in net_failover pair */
     char *failover_pair_id;
     uint32_t acpi_index;
+
+    /* PCI ATS enable/disable trigger */
+    void (*ats_ctrl_trigger)(PCIDevice *dev, bool enable);
 };
 
 static inline int pci_intx(PCIDevice *pci_dev)

@@ -146,4 +146,8 @@ void pcie_cap_slot_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
                              Error **errp);
 void pcie_cap_slot_unplug_request_cb(HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp);
+
+void pcie_ats_config_write(PCIDevice *dev, uint32_t address, uint32_t val,
+                           int len);
+
 #endif /* QEMU_PCIE_H */
