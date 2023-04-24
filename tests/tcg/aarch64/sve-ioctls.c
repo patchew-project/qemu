@@ -8,6 +8,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
+#include "qemu/testdep.h"
 #include <sys/prctl.h>
 #include <asm/hwcap.h>
 #include <stdio.h>

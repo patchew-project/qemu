@@ -85,8 +85,8 @@ TESTS=
 # additional tests which may re-use existing binaries
 EXTRA_TESTS=
 
-# Start with a blank slate, the build targets get to add stuff first
-CFLAGS=
+# Start with the minimal build flags, the build targets will extend them
+CFLAGS=-I$(SRC_PATH)/include -I$(SRC_PATH)/tests/include
 LDFLAGS=
 
 QEMU_OPTS=
