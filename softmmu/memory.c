@@ -1950,6 +1950,18 @@ void memory_region_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
     }
 }
 
+void memory_region_iommu_notify_flags_changed(MemoryRegion *mr)
+{
+    IOMMUMemoryRegion *iommu_mr;
+
+    if (mr->alias) {
+        memory_region_iommu_notify_flags_changed(mr->alias);
+        return;
+    }
+    iommu_mr = IOMMU_MEMORY_REGION(mr);
+    memory_region_update_iommu_notify_flags(iommu_mr, NULL);
+}
+
 void memory_region_unregister_iommu_notifier(MemoryRegion *mr,
                                              IOMMUNotifier *n)
 {
