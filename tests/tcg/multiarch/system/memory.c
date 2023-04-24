@@ -12,9 +12,11 @@
  *   - sign extension when loading
  */
 
+#include "qemu/testdep.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <minilib.h>
+#include "qemu/bswap.h"
 
 #ifndef CHECK_UNALIGNED
 # error "Target does not specify CHECK_UNALIGNED"
@@ -40,8 +42,7 @@ static void pdot(int count)
 }
 
 /*
- * Helper macros for shift/extract so we can keep our endian handling
- * in one place.
+ * Helper macros for shift/extract.
  */
 #define BYTE_SHIFT(b, pos) ((uint64_t)b << (pos * 8))
 #define BYTE_EXTRACT(b, pos) ((b >> (pos * 8)) & 0xff)
@@ -49,9 +50,8 @@ static void pdot(int count)
 /*
  * Fill the data with ascending value bytes.
  *
- * Currently we only support Little Endian machines so write in
- * ascending address order. When we read higher address bytes should
- * either be zero or higher than the lower bytes.
+ * Store the words in the Little Endian byte order. When we read higher address
+ * bytes should either be zero or higher than the lower bytes.
  */
 
 static void init_test_data_u8(int unused_offset)
@@ -121,7 +121,7 @@ static void init_test_data_u16(int offset)
     for (i = 0; i < max; i++) {
         uint8_t low = count++, high = count++;
         word = BYTE_SHIFT(high, 1) | BYTE_SHIFT(low, 0);
-        *ptr++ = word;
+        *ptr++ = cpu_to_le16(word);
         pdot(i);
     }
     ml_printf("done @ %p\n", ptr);
@@ -142,7 +142,7 @@ static void init_test_data_u32(int offset)
         uint8_t b4 = count++, b3 = count++;
         uint8_t b2 = count++, b1 = count++;
         word = BYTE_SHIFT(b1, 3) | BYTE_SHIFT(b2, 2) | BYTE_SHIFT(b3, 1) | b4;
-        *ptr++ = word;
+        *ptr++ = cpu_to_le32(word);
         pdot(i);
     }
     ml_printf("done @ %p\n", ptr);
@@ -167,7 +167,7 @@ static void init_test_data_u64(int offset)
         word = BYTE_SHIFT(b1, 7) | BYTE_SHIFT(b2, 6) | BYTE_SHIFT(b3, 5) |
                BYTE_SHIFT(b4, 4) | BYTE_SHIFT(b5, 3) | BYTE_SHIFT(b6, 2) |
                BYTE_SHIFT(b7, 1) | b8;
-        *ptr++ = word;
+        *ptr++ = cpu_to_le64(word);
         pdot(i);
     }
     ml_printf("done @ %p\n", ptr);
@@ -183,7 +183,7 @@ static bool read_test_data_u16(int offset)
 
     for (i = 0; i < max; i++) {
         uint8_t high, low;
-        word = *ptr++;
+        word = le16_to_cpu(*ptr++);
         high = (word >> 8) & 0xff;
         low = word & 0xff;
         if (high < low && high != 0) {
@@ -209,7 +209,7 @@ static bool read_test_data_u32(int offset)
     for (i = 0; i < max; i++) {
         uint8_t b1, b2, b3, b4;
         int zeros = 0;
-        word = *ptr++;
+        word = le32_to_cpu(*ptr++);
 
         b1 = word >> 24 & 0xff;
         b2 = word >> 16 & 0xff;
@@ -250,7 +250,7 @@ static bool read_test_data_u64(int offset)
     for (i = 0; i < max; i++) {
         uint8_t b1, b2, b3, b4, b5, b6, b7, b8;
         int zeros = 0;
-        word = *ptr++;
+        word = le64_to_cpu(*ptr++);
 
         b1 = ((uint64_t) (word >> 56)) & 0xff;
         b2 = ((uint64_t) (word >> 48)) & 0xff;
@@ -375,7 +375,7 @@ static bool read_test_data_s16(int offset, bool neg_first)
               offset, neg_first ? "neg" : "pos");
 
     for (i = 0; i < max; i++) {
-        int32_t data = *ptr++;
+        int32_t data = le16_to_cpu(*ptr++);
 
         if (neg_first && data < 0) {
             pdot(i);
@@ -400,7 +400,7 @@ static bool read_test_data_s32(int offset, bool neg_first)
               ptr, offset, neg_first ? "neg" : "pos");
 
     for (i = 0; i < max; i++) {
-        int64_t data = *ptr++;
+        int64_t data = le32_to_cpu(*ptr++);
 
         if (neg_first && data < 0) {
             pdot(i);
