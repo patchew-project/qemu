@@ -13,6 +13,7 @@ Commands:
     create    create a venv
     post_init
               post-venv initialization
+    ensure    Ensure that the specified package is installed.
 
 --------------------------------------------------
 
@@ -33,6 +34,18 @@ options:
   -h, --help         show this help message and exit
   --gen GEN          Regenerate console_scripts for given packages, if found.
   --binpath BINPATH  Path where console script shims should be generated
+
+--------------------------------------------------
+
+usage: mkvenv ensure [-h] [--online] [--dir DIR] dep_spec
+
+positional arguments:
+  dep_spec    PEP 508 Dependency specification, e.g. 'meson>=0.61.5'
+
+options:
+  -h, --help  show this help message and exit
+  --online    Install packages from PyPI, if necessary.
+  --dir DIR   Path to vendored packages where we may install from.
 
 """
 
@@ -530,6 +543,71 @@ def checkpip() -> None:
     logging.debug("Pip is now (hopefully) repaired!")
 
 
+def pip_install(
+    args: Sequence[str],
+    online: bool = False,
+    wheels_dir: Optional[Union[str, Path]] = None,
+) -> None:
+    """
+    Use pip to install a package or package(s) as specified in @args.
+    """
+    loud = bool(
+        os.environ.get("DEBUG")
+        or os.environ.get("GITLAB_CI")
+        or os.environ.get("V")
+    )
+
+    full_args = [
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        "--disable-pip-version-check",
+        "-v" if loud else "-q",
+    ]
+    if not online:
+        full_args += ["--no-index"]
+    if wheels_dir:
+        full_args += ["--find-links", f"file://{str(wheels_dir)}"]
+    full_args += list(args)
+    subprocess.run(full_args, check=True)
+
+
+def ensure(
+    dep_spec: str,
+    online: bool = False,
+    wheels_dir: Optional[Union[str, Path]] = None,
+) -> None:
+    """
+    Use pip to ensure we have the package specified by @dep_spec.
+
+    If the package is already installed, do nothing. If online and
+    wheels_dir are both provided, prefer packages found in wheels_dir
+    first before connecting to PyPI.
+
+    :param dep_spec:
+        A PEP 508 dependency specification. e.g. 'meson>=0.61.5'.
+    :param online: If True, fall back to PyPI.
+    :param wheels_dir: If specified, search this path for packages.
+    """
+    # This first install command will:
+    # (A) Do nothing, if we already have a suitable package.
+    # (B) Install the package from vendored source, if possible.
+    # (C) Fail if neither A nor B.
+    try:
+        pip_install([dep_spec], online=False, wheels_dir=wheels_dir)
+        # (A) or (B) happened. Success.
+        return
+    except subprocess.CalledProcessError:
+        # (C) Happened.
+        # The package is missing or isn't a suitable version,
+        # and we weren't able to install a suitable vendored package.
+        if online:
+            pip_install([dep_spec], online=True)
+        else:
+            raise
+
+
 def post_venv_setup(bin_path: str, packages: Sequence[str] = ()) -> None:
     """
     This is intended to be run *inside the venv* after it is created.
@@ -578,6 +656,29 @@ def _add_post_init_subcommand(subparsers: Any) -> None:
     )
 
 
+def _add_ensure_subcommand(subparsers: Any) -> None:
+    subparser = subparsers.add_parser(
+        "ensure", help="Ensure that the specified package is installed."
+    )
+    subparser.add_argument(
+        "--online",
+        action="store_true",
+        help="Install packages from PyPI, if necessary.",
+    )
+    subparser.add_argument(
+        "--dir",
+        type=str,
+        action="store",
+        help="Path to vendored packages where we may install from.",
+    )
+    subparser.add_argument(
+        "dep_spec",
+        type=str,
+        action="store",
+        help="PEP 508 Dependency specification, e.g. 'meson>=0.61.5'",
+    )
+
+
 def main() -> int:
     """CLI interface to make_qemu_venv. See module docstring."""
     if os.environ.get("DEBUG") or os.environ.get("GITLAB_CI"):
@@ -600,14 +701,18 @@ def main() -> int:
 
     _add_create_subcommand(subparsers)
     _add_post_init_subcommand(subparsers)
+    _add_ensure_subcommand(subparsers)
 
     args = parser.parse_args()
     script_packages = []
-    for element in args.gen or ():
-        script_packages.extend(element.split(","))
+
+    def _normalize_gen() -> None:
+        for element in args.gen or ():
+            script_packages.extend(element.split(","))
 
     try:
         if args.command == "create":
+            _normalize_gen()
             make_venv(
                 args.target,
                 system_site_packages=True,
@@ -615,7 +720,14 @@ def main() -> int:
                 script_packages=script_packages,
             )
         if args.command == "post_init":
+            _normalize_gen()
             post_venv_setup(args.binpath, script_packages)
+        if args.command == "ensure":
+            ensure(
+                dep_spec=args.dep_spec,
+                online=args.online,
+                wheels_dir=args.dir,
+            )
         logger.debug("mkvenv.py %s: exiting", args.command)
     except Ouch as exc:
         print("\n*** Ouch! ***\n", file=sys.stderr)
