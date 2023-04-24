@@ -1453,6 +1453,19 @@ void memory_region_init_rom_nomigrate(MemoryRegion *mr,
                                       uint64_t size,
                                       Error **errp);
 
+/*
+ * memory_region_init_rom_nomigrate_resizable: same as
+ * memory_region_init_rom_nomigrate(), but initialize resizable memory region.
+ *
+ * @max_size maximum allowed size.
+ */
+void memory_region_init_rom_nomigrate_resizable(MemoryRegion *mr,
+                                                struct Object *owner,
+                                                const char *name,
+                                                uint64_t size,
+                                                uint64_t max_size,
+                                                Error **errp);
+
 /**
  * memory_region_init_rom_device_nomigrate:  Initialize a ROM memory region.
  *                                 Writes are handled via callbacks.
@@ -1561,6 +1574,19 @@ void memory_region_init_rom(MemoryRegion *mr,
                             const char *name,
                             uint64_t size,
                             Error **errp);
+
+/*
+ * memory_region_init_rom_resizable: same as memory_region_init_rom(),
+ * but initialize resizable memory region.
+ *
+ * @max_size maximum allowed size.
+ */
+void memory_region_init_rom_resizable(MemoryRegion *mr,
+                                      struct Object *owner,
+                                      const char *name,
+                                      uint64_t size,
+                                      uint64_t max_size,
+                                      Error **errp);
 
 /**
  * memory_region_init_rom_device:  Initialize a ROM memory region.

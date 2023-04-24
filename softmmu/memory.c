@@ -1701,6 +1701,18 @@ void memory_region_init_rom_nomigrate(MemoryRegion *mr,
     mr->readonly = true;
 }
 
+void memory_region_init_rom_nomigrate_resizable(MemoryRegion *mr,
+                                                struct Object *owner,
+                                                const char *name,
+                                                uint64_t size,
+                                                uint64_t max_size,
+                                                Error **errp)
+{
+    memory_region_init_resizeable_ram(mr, owner, name, size, max_size, NULL,
+                                      errp);
+    mr->readonly = true;
+}
+
 void memory_region_init_rom_device_nomigrate(MemoryRegion *mr,
                                              Object *owner,
                                              const MemoryRegionOps *ops,
@@ -3571,6 +3583,33 @@ void memory_region_init_rom(MemoryRegion *mr,
         return;
     }
     /* This will assert if owner is neither NULL nor a DeviceState.
+     * We only want the owner here for the purposes of defining a
+     * unique name for migration. TODO: Ideally we should implement
+     * a naming scheme for Objects which are not DeviceStates, in
+     * which case we can relax this restriction.
+     */
+    owner_dev = DEVICE(owner);
+    vmstate_register_ram(mr, owner_dev);
+}
+
+void memory_region_init_rom_resizable(MemoryRegion *mr,
+                                      struct Object *owner,
+                                      const char *name,
+                                      uint64_t size,
+                                      uint64_t max_size,
+                                      Error **errp)
+{
+    DeviceState *owner_dev;
+    Error *err = NULL;
+
+    memory_region_init_rom_nomigrate_resizable(mr, owner, name, size, max_size,
+                                               &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    /*
+     * This will assert if owner is neither NULL nor a DeviceState.
      * We only want the owner here for the purposes of defining a
      * unique name for migration. TODO: Ideally we should implement
      * a naming scheme for Objects which are not DeviceStates, in
