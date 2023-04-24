@@ -155,6 +155,8 @@ struct VirtIODevice
     QLIST_HEAD(, VirtQueue) *vector_queues;
     QTAILQ_ENTRY(VirtIODevice) next;
     EventNotifier config_notifier;
+    void (*ats_ctrl_trigger)(bool enable, VirtIODevice *vdev);
+    bool ats_enabled;
 };
 
 struct VirtioDeviceClass {

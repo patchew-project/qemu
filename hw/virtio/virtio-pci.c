@@ -1731,6 +1731,17 @@ static void virtio_pci_device_write(void *opaque, hwaddr addr,
     }
 }
 
+static void virtio_pci_ats_ctrl_trigger(PCIDevice *pci_dev, bool enable)
+{
+    VirtIOPCIProxy *proxy = VIRTIO_PCI(pci_dev);
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+
+    vdev->ats_enabled = enable;
+
+    if (vdev->ats_ctrl_trigger)
+        vdev->ats_ctrl_trigger(enable, vdev);
+}
+
 static void virtio_pci_modern_regions_init(VirtIOPCIProxy *proxy,
                                            const char *vdev_name)
 {
@@ -2166,6 +2177,7 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
         if (proxy->flags & VIRTIO_PCI_FLAG_ATS) {
             pcie_ats_init(pci_dev, last_pcie_cap_offset,
                           proxy->flags & VIRTIO_PCI_FLAG_ATS_PAGE_ALIGNED);
+            pci_dev->ats_ctrl_trigger = virtio_pci_ats_ctrl_trigger;
             last_pcie_cap_offset += PCI_EXT_CAP_ATS_SIZEOF;
         }
 
