@@ -64,6 +64,7 @@ import logging
 import os
 from pathlib import Path
 import re
+import shutil
 import site
 import stat
 import subprocess
@@ -543,6 +544,103 @@ def checkpip() -> None:
     logging.debug("Pip is now (hopefully) repaired!")
 
 
+def diagnose(
+    dep_spec: str,
+    online: bool,
+    wheels_dir: Optional[Union[str, Path]],
+    prog: Optional[str],
+) -> str:
+    """
+    Offer a summary to the user as to why a package failed to be installed.
+
+    :param dep_spec: The package we tried to ensure, e.g. 'meson>=0.61.5'
+    :param online: Did we allow PyPI access?
+    :param prog:
+        Optionally, a shell program name that can be used as a
+        bellwether to detect if this program is installed elsewhere on
+        the system. This is used to offer advice when a program is
+        detected for a different python version.
+    :param wheels_dir:
+        Optionally, a directory that was searched for vendored packages.
+    """
+    # pylint: disable=too-many-branches
+
+    # Parse name out of PEP-508 depspec.
+    # See https://peps.python.org/pep-0508/#names
+    match = re.match(
+        r"^([A-Z0-9]([A-Z0-9._-]*[A-Z0-9])?)", dep_spec, re.IGNORECASE
+    )
+    if not match:
+        raise ValueError(
+            f"dep_spec '{dep_spec}'"
+            " does not appear to contain a valid package name"
+        )
+    pkg_name = match.group(0)
+    pkg_version = None
+
+    has_importlib = False
+    try:
+        # Python 3.8+ stdlib
+        # pylint: disable=import-outside-toplevel
+        from importlib.metadata import PackageNotFoundError, version
+
+        has_importlib = True
+        try:
+            pkg_version = version(pkg_name)
+        except PackageNotFoundError:
+            pass
+    except ModuleNotFoundError:
+        pass
+
+    lines = []
+
+    if pkg_version:
+        lines.append(
+            f"Python package '{pkg_name}' version '{pkg_version}' was found,"
+            " but isn't suitable."
+        )
+    elif has_importlib:
+        lines.append(
+            f"Python package '{pkg_name}' was not found nor installed."
+        )
+    else:
+        lines.append(
+            f"Python package '{pkg_name}' is either not found or"
+            " not a suitable version."
+        )
+
+    if wheels_dir:
+        lines.append(
+            "No suitable version found in, or failed to install from"
+            f" '{wheels_dir}'."
+        )
+    else:
+        lines.append("No local package directory was searched.")
+
+    if online:
+        lines.append("A suitable version could not be obtained from PyPI.")
+    else:
+        lines.append(
+            "mkvenv was configured to operate offline and did not check PyPI."
+        )
+
+    if prog and not pkg_version:
+        which = shutil.which(prog)
+        if which:
+            pypath = Path(sys.executable).resolve()
+            lines.append(
+                f"'{prog}' was detected on your system at '{which}', "
+                f"but the Python package '{pkg_name}' was not found by this "
+                f"Python interpreter ('{pypath}'). "
+                f"Typically this means that '{prog}' has been installed "
+                "against a different Python interpreter on your system."
+            )
+
+    lines = [f" • {line}" for line in lines]
+    lines.insert(0, f"Could not ensure availability of '{dep_spec}':")
+    return os.linesep.join(lines)
+
+
 def pip_install(
     args: Sequence[str],
     online: bool = False,
@@ -573,23 +671,11 @@ def pip_install(
     subprocess.run(full_args, check=True)
 
 
-def ensure(
+def _do_ensure(
     dep_spec: str,
     online: bool = False,
     wheels_dir: Optional[Union[str, Path]] = None,
 ) -> None:
-    """
-    Use pip to ensure we have the package specified by @dep_spec.
-
-    If the package is already installed, do nothing. If online and
-    wheels_dir are both provided, prefer packages found in wheels_dir
-    first before connecting to PyPI.
-
-    :param dep_spec:
-        A PEP 508 dependency specification. e.g. 'meson>=0.61.5'.
-    :param online: If True, fall back to PyPI.
-    :param wheels_dir: If specified, search this path for packages.
-    """
     # This first install command will:
     # (A) Do nothing, if we already have a suitable package.
     # (B) Install the package from vendored source, if possible.
@@ -603,9 +689,40 @@ def ensure(
         # The package is missing or isn't a suitable version,
         # and we weren't able to install a suitable vendored package.
         if online:
+            logger.info("offline ensure failed, trying PyPI ...")
             pip_install([dep_spec], online=True)
         else:
             raise
+
+
+def ensure(
+    dep_spec: str,
+    online: bool = False,
+    wheels_dir: Optional[Union[str, Path]] = None,
+    prog: Optional[str] = None,
+) -> None:
+    """
+    Use pip to ensure we have the package specified by @dep_spec.
+
+    If the package is already installed, do nothing. If online and
+    wheels_dir are both provided, prefer packages found in wheels_dir
+    first before connecting to PyPI.
+
+    :param dep_spec:
+        A PEP 508 dependency specification. e.g. 'meson>=0.61.5'.
+    :param online: If True, fall back to PyPI.
+    :param wheels_dir: If specified, search this path for packages.
+    :param prog:
+        If specified, use this program name for error diagnostics that will
+        be presented to the user. e.g., 'sphinx-build' can be used as a
+        bellwether for the presence of 'sphinx'.
+    """
+    print(f"MKVENV ensure {dep_spec}", file=sys.stderr)
+    try:
+        _do_ensure(dep_spec, online, wheels_dir)
+    except subprocess.CalledProcessError as exc:
+        # Well, that's not good.
+        raise Ouch(diagnose(dep_spec, online, wheels_dir, prog)) from exc
 
 
 def post_venv_setup(bin_path: str, packages: Sequence[str] = ()) -> None:
@@ -672,6 +789,15 @@ def _add_ensure_subcommand(subparsers: Any) -> None:
         help="Path to vendored packages where we may install from.",
     )
     subparser.add_argument(
+        "--diagnose",
+        type=str,
+        action="store",
+        help=(
+            "Name of a shell utility to use for "
+            "diagnostics if this command fails."
+        ),
+    )
+    subparser.add_argument(
         "dep_spec",
         type=str,
         action="store",
@@ -727,6 +853,7 @@ def main() -> int:
                 dep_spec=args.dep_spec,
                 online=args.online,
                 wheels_dir=args.dir,
+                prog=args.diagnose,
             )
         logger.debug("mkvenv.py %s: exiting", args.command)
     except Ouch as exc:
