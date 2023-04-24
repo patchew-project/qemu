@@ -14,13 +14,14 @@ Commands:
 
 --------------------------------------------------
 
-usage: mkvenv create [-h] target
+usage: mkvenv create [-h] [--gen GEN] target
 
 positional arguments:
   target      Target directory to install virtual environment into.
 
 options:
   -h, --help  show this help message and exit
+  --gen GEN   Regenerate console_scripts for given packages, if found.
 
 """
 
@@ -38,11 +39,20 @@ from importlib.util import find_spec
 import logging
 import os
 from pathlib import Path
+import re
+import stat
 import subprocess
 import sys
 import traceback
 from types import SimpleNamespace
-from typing import Any, Optional, Union
+from typing import (
+    Any,
+    Dict,
+    Iterator,
+    Optional,
+    Sequence,
+    Union,
+)
 import venv
 
 
@@ -60,10 +70,9 @@ class QemuEnvBuilder(venv.EnvBuilder):
     """
     An extension of venv.EnvBuilder for building QEMU's configure-time venv.
 
-    As of this commit, it does not yet do anything particularly
-    different than the standard venv-creation utility. The next several
-    commits will gradually change that in small commits that highlight
-    each feature individually.
+    The only functional change is that it adds the ability to regenerate
+    console_script shims for packages available via system_site
+    packages.
 
     Parameters for base class init:
       - system_site_packages: bool = False
@@ -77,6 +86,7 @@ class QemuEnvBuilder(venv.EnvBuilder):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         logger.debug("QemuEnvBuilder.__init__(...)")
+        self.script_packages = kwargs.pop("script_packages", ())
         super().__init__(*args, **kwargs)
 
         # The EnvBuilder class is cute and toggles this setting off
@@ -86,6 +96,12 @@ class QemuEnvBuilder(venv.EnvBuilder):
 
     def post_setup(self, context: SimpleNamespace) -> None:
         logger.debug("post_setup(...)")
+
+        # Generate console_script entry points for system packages:
+        if self._system_site_packages:
+            generate_console_scripts(
+                context.env_exe, context.bin_path, self.script_packages
+            )
 
         # print the python executable to stdout for configure.
         print(context.env_exe)
@@ -129,6 +145,7 @@ def make_venv(  # pylint: disable=too-many-arguments
     clear: bool = True,
     symlinks: Optional[bool] = None,
     with_pip: Optional[bool] = None,
+    script_packages: Sequence[str] = (),
 ) -> None:
     """
     Create a venv using `QemuEnvBuilder`.
@@ -149,16 +166,20 @@ def make_venv(  # pylint: disable=too-many-arguments
         Whether to run "ensurepip" or not. If unspecified, this will
         default to False if system_site_packages is True and a usable
         version of pip is found.
+    :param script_packages:
+        A sequence of package names to generate console entry point
+        shims for, when system_site_packages is True.
     """
     logging.debug(
         "%s: make_venv(env_dir=%s, system_site_packages=%s, "
-        "clear=%s, symlinks=%s, with_pip=%s)",
+        "clear=%s, symlinks=%s, with_pip=%s, script_packages=%s)",
         __file__,
         str(env_dir),
         system_site_packages,
         clear,
         symlinks,
         with_pip,
+        script_packages,
     )
 
     print(f"MKVENV {str(env_dir)}", file=sys.stderr)
@@ -181,6 +202,7 @@ def make_venv(  # pylint: disable=too-many-arguments
         clear=clear,
         symlinks=symlinks,
         with_pip=with_pip,
+        script_packages=script_packages,
     )
     try:
         logger.debug("Invoking builder.create()")
@@ -221,8 +243,147 @@ def make_venv(  # pylint: disable=too-many-arguments
         raise Ouch("VENV creation subprocess failed.") from exc
 
 
+def _gen_importlib(packages: Sequence[str]) -> Iterator[Dict[str, str]]:
+    # pylint: disable=import-outside-toplevel
+    try:
+        # First preference: Python 3.8+ stdlib
+        from importlib.metadata import (
+            PackageNotFoundError,
+            distribution,
+        )
+    except ImportError as exc:
+        logger.debug("%s", str(exc))
+        # Second preference: Commonly available PyPI backport
+        from importlib_metadata import (
+            PackageNotFoundError,
+            distribution,
+        )
+
+    # Borrowed from CPython (Lib/importlib/metadata/__init__.py)
+    pattern = re.compile(
+        r"(?P<module>[\w.]+)\s*"
+        r"(:\s*(?P<attr>[\w.]+)\s*)?"
+        r"((?P<extras>\[.*\])\s*)?$"
+    )
+
+    def _generator() -> Iterator[Dict[str, str]]:
+        for package in packages:
+            try:
+                entry_points = distribution(package).entry_points
+            except PackageNotFoundError:
+                continue
+
+            # The EntryPoints type is only available in 3.10+,
+            # treat this as a vanilla list and filter it ourselves.
+            entry_points = filter(
+                lambda ep: ep.group == "console_scripts", entry_points
+            )
+
+            for entry_point in entry_points:
+                # Python 3.8 doesn't have 'module' or 'attr' attributes
+                if not (
+                    hasattr(entry_point, "module")
+                    and hasattr(entry_point, "attr")
+                ):
+                    match = pattern.match(entry_point.value)
+                    assert match is not None
+                    module = match.group("module")
+                    attr = match.group("attr")
+                else:
+                    module = entry_point.module
+                    attr = entry_point.attr
+                yield {
+                    "name": entry_point.name,
+                    "module": module,
+                    "import_name": attr,
+                    "func": attr,
+                }
+
+    return _generator()
+
+
+def _gen_pkg_resources(packages: Sequence[str]) -> Iterator[Dict[str, str]]:
+    # pylint: disable=import-outside-toplevel
+    # Bundled with setuptools; has a good chance of being available.
+    import pkg_resources
+
+    def _generator() -> Iterator[Dict[str, str]]:
+        for package in packages:
+            try:
+                eps = pkg_resources.get_entry_map(package, "console_scripts")
+            except pkg_resources.DistributionNotFound:
+                continue
+
+            for entry_point in eps.values():
+                yield {
+                    "name": entry_point.name,
+                    "module": entry_point.module_name,
+                    "import_name": ".".join(entry_point.attrs),
+                    "func": ".".join(entry_point.attrs),
+                }
+
+    return _generator()
+
+
+# Borrowed/adapted from pip's vendored version of distutils:
+SCRIPT_TEMPLATE = r"""#!{python_path:s}
+# -*- coding: utf-8 -*-
+import re
+import sys
+from {module:s} import {import_name:s}
+if __name__ == '__main__':
+    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
+    sys.exit({func:s}())
+"""
+
+
+def generate_console_scripts(
+    python_path: str, bin_path: str, packages: Sequence[str]
+) -> None:
+    """
+    Generate script shims for console_script entry points in @packages.
+    """
+    if not packages:
+        return
+
+    def _get_entry_points() -> Iterator[Dict[str, str]]:
+        """Python 3.7 compatibility shim for iterating entry points."""
+        # Python 3.8+, or Python 3.7 with importlib_metadata installed.
+        try:
+            return _gen_importlib(packages)
+        except ImportError as exc:
+            logger.debug("%s", str(exc))
+
+        # Python 3.7 with setuptools installed.
+        try:
+            return _gen_pkg_resources(packages)
+        except ImportError as exc:
+            logger.debug("%s", str(exc))
+            raise Ouch(
+                "Neither importlib.metadata nor pkg_resources found, "
+                "can't generate console script shims.\n"
+                "Use Python 3.8+, or install importlib-metadata or setuptools."
+            ) from exc
+
+    for entry_point in _get_entry_points():
+        script_path = os.path.join(bin_path, entry_point["name"])
+        script = SCRIPT_TEMPLATE.format(python_path=python_path, **entry_point)
+        with open(script_path, "w", encoding="UTF-8") as file:
+            file.write(script)
+        mode = os.stat(script_path).st_mode | stat.S_IEXEC
+        os.chmod(script_path, mode)
+
+        logger.debug("wrote '%s'", script_path)
+
+
 def _add_create_subcommand(subparsers: Any) -> None:
     subparser = subparsers.add_parser("create", help="create a venv")
+    subparser.add_argument(
+        "--gen",
+        type=str,
+        action="append",
+        help="Regenerate console_scripts for given packages, if found.",
+    )
     subparser.add_argument(
         "target",
         type=str,
@@ -256,10 +417,14 @@ def main() -> int:
     args = parser.parse_args()
     try:
         if args.command == "create":
+            script_packages = []
+            for element in args.gen or ():
+                script_packages.extend(element.split(","))
             make_venv(
                 args.target,
                 system_site_packages=True,
                 clear=True,
+                script_packages=script_packages,
             )
         logger.debug("mkvenv.py %s: exiting", args.command)
     except Ouch as exc:
