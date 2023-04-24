@@ -1096,8 +1096,6 @@ fi
 
 # Resolve PATH
 python="$(command -v "$python")"
-# This variable is intended to be used only for error messages:
-target_python=$python
 
 # Create a Python virtual environment using our configured python.
 # The stdout of this script will be the location of a symlink that
@@ -1134,16 +1132,9 @@ fi
 if ! $python "${source_path}/python/scripts/mkvenv.py" ensure \
      $mkvenv_flags \
      --dir "${source_path}/python/wheels" \
+     --diagnose "meson" \
      "meson>=0.61.5" ;
 then
-    # We're very out of luck. Try to give a good diagnostic.
-    if test -e pyvenv/bin/meson; then
-        echo "Meson is too old: $(pyvenv/bin/meson --version)"
-    elif has meson ; then
-        echo "Meson was found installed on your system," \
-             "but not for the configured Python interpreter ($target_python)."
-        echo "(Hint: check '$(which meson)' to see which interpreter its shebang uses.)"
-    fi
     exit 1
 fi
 
