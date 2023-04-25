@@ -210,7 +210,7 @@ typedef struct GraphLockable { } GraphLockable;
  * unlocked. TSA_ASSERT() makes sure that the following calls know that we
  * hold the lock while unlocking is left unchecked.
  */
-static inline GraphLockable * TSA_ASSERT(graph_lock) TSA_NO_TSA
+static inline GraphLockable * TSA_ASSERT_SHARED(graph_lock) TSA_NO_TSA
 graph_lockable_auto_lock(GraphLockable *x)
 {
     bdrv_graph_co_rdlock();
@@ -254,7 +254,7 @@ typedef struct GraphLockableMainloop { } GraphLockableMainloop;
  * unlocked. TSA_ASSERT() makes sure that the following calls know that we
  * hold the lock while unlocking is left unchecked.
  */
-static inline GraphLockableMainloop * TSA_ASSERT(graph_lock) TSA_NO_TSA
+static inline GraphLockableMainloop * TSA_ASSERT_SHARED(graph_lock) TSA_NO_TSA
 graph_lockable_auto_lock_mainloop(GraphLockableMainloop *x)
 {
     bdrv_graph_rdlock_main_loop();
