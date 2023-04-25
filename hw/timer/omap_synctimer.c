@@ -42,10 +42,10 @@ static uint32_t omap_synctimer_readw(void *opaque, hwaddr addr)
     struct omap_synctimer_s *s = opaque;
 
     switch (addr) {
-    case 0x00:	/* 32KSYNCNT_REV */
+    case 0x00:  /* 32KSYNCNT_REV */
         return 0x21;
 
-    case 0x10:	/* CR */
+    case 0x10:  /* CR */
         return omap_synctimer_read(s) - s->val;
     }
 

@@ -91,19 +91,19 @@ struct omap_eac_s {
 
 static inline void omap_eac_interrupt_update(struct omap_eac_s *s)
 {
-    qemu_set_irq(s->irq, (s->codec.config[1] >> 14) & 1);	/* AURDI */
+    qemu_set_irq(s->irq, (s->codec.config[1] >> 14) & 1);   /* AURDI */
 }
 
 static inline void omap_eac_in_dmarequest_update(struct omap_eac_s *s)
 {
     qemu_set_irq(s->codec.rxdrq, (s->codec.rxavail || s->codec.rxlen) &&
-                    ((s->codec.config[1] >> 12) & 1));		/* DMAREN */
+                    ((s->codec.config[1] >> 12) & 1));      /* DMAREN */
 }
 
 static inline void omap_eac_out_dmarequest_update(struct omap_eac_s *s)
 {
     qemu_set_irq(s->codec.txdrq, s->codec.txlen < s->codec.txavail &&
-                    ((s->codec.config[1] >> 11) & 1));		/* DMAWEN */
+                    ((s->codec.config[1] >> 11) & 1));      /* DMAWEN */
 }
 
 static inline void omap_eac_in_refill(struct omap_eac_s *s)
@@ -117,7 +117,7 @@ static inline void omap_eac_in_refill(struct omap_eac_s *s)
     left -= leftwrap;
     start = 0;
     while (leftwrap && (recv = AUD_read(s->codec.in_voice, buf + start,
-                                    leftwrap)) > 0) {	/* Be defensive */
+                                    leftwrap)) > 0) {   /* Be defensive */
         start += recv;
         leftwrap -= recv;
     }
@@ -131,7 +131,7 @@ static inline void omap_eac_in_refill(struct omap_eac_s *s)
         start = 0;
         while (left && (recv = AUD_read(s->codec.in_voice,
                                         (uint8_t *) s->codec.rxbuf + start,
-                                        left)) > 0) {	/* Be defensive */
+                                        left)) > 0) {   /* Be defensive */
             start += recv;
             left -= recv;
         }
@@ -151,7 +151,7 @@ static inline void omap_eac_out_empty(struct omap_eac_s *s)
 
     while (left && (sent = AUD_write(s->codec.out_voice,
                                     (uint8_t *) s->codec.txbuf + start,
-                                    left)) > 0) {	/* Be defensive */
+                                    left)) > 0) {   /* Be defensive */
         start += sent;
         left -= sent;
     }
@@ -188,8 +188,8 @@ static void omap_eac_out_cb(void *opaque, int free_b)
 
 static void omap_eac_enable_update(struct omap_eac_s *s)
 {
-    s->codec.enable = !(s->codec.config[1] & 1) &&		/* EACPWD */
-            (s->codec.config[1] & 2) &&				/* AUDEN */
+    s->codec.enable = !(s->codec.config[1] & 1) &&      /* EACPWD */
+            (s->codec.config[1] & 2) &&             /* AUDEN */
             s->codec.hw_enable;
 }
 
@@ -269,8 +269,8 @@ static void omap_eac_format_update(struct omap_eac_s *s)
         return;
 
     omap_eac_rate_update(s);
-    fmt.endianness = ((s->codec.config[0] >> 8) & 1);		/* LI_BI */
-    fmt.nchannels = ((s->codec.config[0] >> 10) & 1) ? 2 : 1;	/* MN_ST */
+    fmt.endianness = ((s->codec.config[0] >> 8) & 1);       /* LI_BI */
+    fmt.nchannels = ((s->codec.config[0] >> 10) & 1) ? 2 : 1;   /* MN_ST */
     fmt.freq = s->codec.rate;
     /* TODO: signedness possibly depends on the CODEC hardware - or
      * does I2S specify it?  */
@@ -343,67 +343,67 @@ static uint64_t omap_eac_read(void *opaque, hwaddr addr, unsigned size)
     }
 
     switch (addr) {
-    case 0x000:	/* CPCFR1 */
+    case 0x000: /* CPCFR1 */
         return s->config[0];
-    case 0x004:	/* CPCFR2 */
+    case 0x004: /* CPCFR2 */
         return s->config[1];
-    case 0x008:	/* CPCFR3 */
+    case 0x008: /* CPCFR3 */
         return s->config[2];
-    case 0x00c:	/* CPCFR4 */
+    case 0x00c: /* CPCFR4 */
         return s->config[3];
 
-    case 0x010:	/* CPTCTL */
+    case 0x010: /* CPTCTL */
         return s->control | ((s->codec.rxavail + s->codec.rxlen > 0) << 7) |
                 ((s->codec.txlen < s->codec.txavail) << 5);
 
-    case 0x014:	/* CPTTADR */
+    case 0x014: /* CPTTADR */
         return s->address;
-    case 0x018:	/* CPTDATL */
+    case 0x018: /* CPTDATL */
         return s->data & 0xff;
-    case 0x01c:	/* CPTDATH */
+    case 0x01c: /* CPTDATH */
         return s->data >> 8;
-    case 0x020:	/* CPTVSLL */
+    case 0x020: /* CPTVSLL */
         return s->vtol;
-    case 0x024:	/* CPTVSLH */
-        return s->vtsl | (3 << 5);	/* CRDY1 | CRDY2 */
-    case 0x040:	/* MPCTR */
+    case 0x024: /* CPTVSLH */
+        return s->vtsl | (3 << 5);  /* CRDY1 | CRDY2 */
+    case 0x040: /* MPCTR */
         return s->modem.control;
-    case 0x044:	/* MPMCCFR */
+    case 0x044: /* MPMCCFR */
         return s->modem.config;
-    case 0x060:	/* BPCTR */
+    case 0x060: /* BPCTR */
         return s->bt.control;
-    case 0x064:	/* BPMCCFR */
+    case 0x064: /* BPMCCFR */
         return s->bt.config;
-    case 0x080:	/* AMSCFR */
+    case 0x080: /* AMSCFR */
         return s->mixer;
-    case 0x084:	/* AMVCTR */
+    case 0x084: /* AMVCTR */
         return s->gain[0];
-    case 0x088:	/* AM1VCTR */
+    case 0x088: /* AM1VCTR */
         return s->gain[1];
-    case 0x08c:	/* AM2VCTR */
+    case 0x08c: /* AM2VCTR */
         return s->gain[2];
-    case 0x090:	/* AM3VCTR */
+    case 0x090: /* AM3VCTR */
         return s->gain[3];
-    case 0x094:	/* ASTCTR */
+    case 0x094: /* ASTCTR */
         return s->att;
-    case 0x098:	/* APD1LCR */
+    case 0x098: /* APD1LCR */
         return s->max[0];
-    case 0x09c:	/* APD1RCR */
+    case 0x09c: /* APD1RCR */
         return s->max[1];
-    case 0x0a0:	/* APD2LCR */
+    case 0x0a0: /* APD2LCR */
         return s->max[2];
-    case 0x0a4:	/* APD2RCR */
+    case 0x0a4: /* APD2RCR */
         return s->max[3];
-    case 0x0a8:	/* APD3LCR */
+    case 0x0a8: /* APD3LCR */
         return s->max[4];
-    case 0x0ac:	/* APD3RCR */
+    case 0x0ac: /* APD3RCR */
         return s->max[5];
-    case 0x0b0:	/* APD4R */
+    case 0x0b0: /* APD4R */
         return s->max[6];
-    case 0x0b4:	/* ADWR */
+    case 0x0b4: /* ADWR */
         /* This should be write-only?  Docs list it as read-only.  */
         return 0x0000;
-    case 0x0b8:	/* ADRDR */
+    case 0x0b8: /* ADRDR */
         if (likely(s->codec.rxlen > 1)) {
             ret = s->codec.rxbuf[s->codec.rxoff ++];
             s->codec.rxlen --;
@@ -419,29 +419,29 @@ static uint64_t omap_eac_read(void *opaque, hwaddr addr, unsigned size)
             return ret;
         }
         return 0x0000;
-    case 0x0bc:	/* AGCFR */
+    case 0x0bc: /* AGCFR */
         return s->codec.config[0];
-    case 0x0c0:	/* AGCTR */
+    case 0x0c0: /* AGCTR */
         return s->codec.config[1] | ((s->codec.config[1] & 2) << 14);
-    case 0x0c4:	/* AGCFR2 */
+    case 0x0c4: /* AGCFR2 */
         return s->codec.config[2];
-    case 0x0c8:	/* AGCFR3 */
+    case 0x0c8: /* AGCFR3 */
         return s->codec.config[3];
-    case 0x0cc:	/* MBPDMACTR */
-    case 0x0d0:	/* MPDDMARR */
-    case 0x0d8:	/* MPUDMARR */
-    case 0x0e4:	/* BPDDMARR */
-    case 0x0ec:	/* BPUDMARR */
+    case 0x0cc: /* MBPDMACTR */
+    case 0x0d0: /* MPDDMARR */
+    case 0x0d8: /* MPUDMARR */
+    case 0x0e4: /* BPDDMARR */
+    case 0x0ec: /* BPUDMARR */
         return 0x0000;
 
-    case 0x100:	/* VERSION_NUMBER */
+    case 0x100: /* VERSION_NUMBER */
         return 0x0010;
 
-    case 0x104:	/* SYSCONFIG */
+    case 0x104: /* SYSCONFIG */
         return s->sysconfig;
 
-    case 0x108:	/* SYSSTATUS */
-        return 1 | 0xe;					/* RESETDONE | stuff */
+    case 0x108: /* SYSSTATUS */
+        return 1 | 0xe;                 /* RESETDONE | stuff */
     }
 
     OMAP_BAD_REG(addr);
@@ -459,95 +459,95 @@ static void omap_eac_write(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x098:	/* APD1LCR */
-    case 0x09c:	/* APD1RCR */
-    case 0x0a0:	/* APD2LCR */
-    case 0x0a4:	/* APD2RCR */
-    case 0x0a8:	/* APD3LCR */
-    case 0x0ac:	/* APD3RCR */
-    case 0x0b0:	/* APD4R */
-    case 0x0b8:	/* ADRDR */
-    case 0x0d0:	/* MPDDMARR */
-    case 0x0d8:	/* MPUDMARR */
-    case 0x0e4:	/* BPDDMARR */
-    case 0x0ec:	/* BPUDMARR */
-    case 0x100:	/* VERSION_NUMBER */
-    case 0x108:	/* SYSSTATUS */
+    case 0x098: /* APD1LCR */
+    case 0x09c: /* APD1RCR */
+    case 0x0a0: /* APD2LCR */
+    case 0x0a4: /* APD2RCR */
+    case 0x0a8: /* APD3LCR */
+    case 0x0ac: /* APD3RCR */
+    case 0x0b0: /* APD4R */
+    case 0x0b8: /* ADRDR */
+    case 0x0d0: /* MPDDMARR */
+    case 0x0d8: /* MPUDMARR */
+    case 0x0e4: /* BPDDMARR */
+    case 0x0ec: /* BPUDMARR */
+    case 0x100: /* VERSION_NUMBER */
+    case 0x108: /* SYSSTATUS */
         OMAP_RO_REG(addr);
         return;
 
-    case 0x000:	/* CPCFR1 */
+    case 0x000: /* CPCFR1 */
         s->config[0] = value & 0xff;
         omap_eac_format_update(s);
         break;
-    case 0x004:	/* CPCFR2 */
+    case 0x004: /* CPCFR2 */
         s->config[1] = value & 0xff;
         omap_eac_format_update(s);
         break;
-    case 0x008:	/* CPCFR3 */
+    case 0x008: /* CPCFR3 */
         s->config[2] = value & 0xff;
         omap_eac_format_update(s);
         break;
-    case 0x00c:	/* CPCFR4 */
+    case 0x00c: /* CPCFR4 */
         s->config[3] = value & 0xff;
         omap_eac_format_update(s);
         break;
 
-    case 0x010:	/* CPTCTL */
+    case 0x010: /* CPTCTL */
         /* Assuming TXF and TXE bits are read-only... */
         s->control = value & 0x5f;
         omap_eac_interrupt_update(s);
         break;
 
-    case 0x014:	/* CPTTADR */
+    case 0x014: /* CPTTADR */
         s->address = value & 0xff;
         break;
-    case 0x018:	/* CPTDATL */
+    case 0x018: /* CPTDATL */
         s->data &= 0xff00;
         s->data |= value & 0xff;
         break;
-    case 0x01c:	/* CPTDATH */
+    case 0x01c: /* CPTDATH */
         s->data &= 0x00ff;
         s->data |= value << 8;
         break;
-    case 0x020:	/* CPTVSLL */
+    case 0x020: /* CPTVSLL */
         s->vtol = value & 0xf8;
         break;
-    case 0x024:	/* CPTVSLH */
+    case 0x024: /* CPTVSLH */
         s->vtsl = value & 0x9f;
         break;
-    case 0x040:	/* MPCTR */
+    case 0x040: /* MPCTR */
         s->modem.control = value & 0x8f;
         break;
-    case 0x044:	/* MPMCCFR */
+    case 0x044: /* MPMCCFR */
         s->modem.config = value & 0x7fff;
         break;
-    case 0x060:	/* BPCTR */
+    case 0x060: /* BPCTR */
         s->bt.control = value & 0x8f;
         break;
-    case 0x064:	/* BPMCCFR */
+    case 0x064: /* BPMCCFR */
         s->bt.config = value & 0x7fff;
         break;
-    case 0x080:	/* AMSCFR */
+    case 0x080: /* AMSCFR */
         s->mixer = value & 0x0fff;
         break;
-    case 0x084:	/* AMVCTR */
+    case 0x084: /* AMVCTR */
         s->gain[0] = value & 0xffff;
         break;
-    case 0x088:	/* AM1VCTR */
+    case 0x088: /* AM1VCTR */
         s->gain[1] = value & 0xff7f;
         break;
-    case 0x08c:	/* AM2VCTR */
+    case 0x08c: /* AM2VCTR */
         s->gain[2] = value & 0xff7f;
         break;
-    case 0x090:	/* AM3VCTR */
+    case 0x090: /* AM3VCTR */
         s->gain[3] = value & 0xff7f;
         break;
-    case 0x094:	/* ASTCTR */
+    case 0x094: /* ASTCTR */
         s->att = value & 0xff;
         break;
 
-    case 0x0b4:	/* ADWR */
+    case 0x0b4: /* ADWR */
         s->codec.txbuf[s->codec.txlen ++] = value;
         if (unlikely(s->codec.txlen == EAC_BUF_LEN ||
                                 s->codec.txlen == s->codec.txavail)) {
@@ -558,31 +558,31 @@ static void omap_eac_write(void *opaque, hwaddr addr,
         }
         break;
 
-    case 0x0bc:	/* AGCFR */
+    case 0x0bc: /* AGCFR */
         s->codec.config[0] = value & 0x07ff;
         omap_eac_format_update(s);
         break;
-    case 0x0c0:	/* AGCTR */
+    case 0x0c0: /* AGCTR */
         s->codec.config[1] = value & 0x780f;
         omap_eac_format_update(s);
         break;
-    case 0x0c4:	/* AGCFR2 */
+    case 0x0c4: /* AGCFR2 */
         s->codec.config[2] = value & 0x003f;
         omap_eac_format_update(s);
         break;
-    case 0x0c8:	/* AGCFR3 */
+    case 0x0c8: /* AGCFR3 */
         s->codec.config[3] = value & 0xffff;
         omap_eac_format_update(s);
         break;
-    case 0x0cc:	/* MBPDMACTR */
-    case 0x0d4:	/* MPDDMAWR */
-    case 0x0e0:	/* MPUDMAWR */
-    case 0x0e8:	/* BPDDMAWR */
-    case 0x0f0:	/* BPUDMAWR */
+    case 0x0cc: /* MBPDMACTR */
+    case 0x0d4: /* MPDDMAWR */
+    case 0x0e0: /* MPUDMAWR */
+    case 0x0e8: /* BPDDMAWR */
+    case 0x0f0: /* BPUDMAWR */
         break;
 
-    case 0x104:	/* SYSCONFIG */
-        if (value & (1 << 1))				/* SOFTRESET */
+    case 0x104: /* SYSCONFIG */
+        if (value & (1 << 1))               /* SOFTRESET */
             omap_eac_reset(s);
         s->sysconfig = value & 0x31d;
         break;
@@ -633,8 +633,8 @@ struct omap_sti_s {
     uint32_t serial_config;
 };
 
-#define STI_TRACE_CONSOLE_CHANNEL	239
-#define STI_TRACE_CONTROL_CHANNEL	253
+#define STI_TRACE_CONSOLE_CHANNEL   239
+#define STI_TRACE_CONTROL_CHANNEL   253
 
 static inline void omap_sti_interrupt_update(struct omap_sti_s *s)
 {
@@ -662,30 +662,30 @@ static uint64_t omap_sti_read(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x00:	/* STI_REVISION */
+    case 0x00:  /* STI_REVISION */
         return 0x10;
 
-    case 0x10:	/* STI_SYSCONFIG */
+    case 0x10:  /* STI_SYSCONFIG */
         return s->sysconfig;
 
-    case 0x14:	/* STI_SYSSTATUS / STI_RX_STATUS / XTI_SYSSTATUS */
+    case 0x14:  /* STI_SYSSTATUS / STI_RX_STATUS / XTI_SYSSTATUS */
         return 0x00;
 
-    case 0x18:	/* STI_IRQSTATUS */
+    case 0x18:  /* STI_IRQSTATUS */
         return s->irqst;
 
-    case 0x1c:	/* STI_IRQSETEN / STI_IRQCLREN */
+    case 0x1c:  /* STI_IRQSETEN / STI_IRQCLREN */
         return s->irqen;
 
-    case 0x24:	/* STI_ER / STI_DR / XTI_TRACESELECT */
-    case 0x28:	/* STI_RX_DR / XTI_RXDATA */
+    case 0x24:  /* STI_ER / STI_DR / XTI_TRACESELECT */
+    case 0x28:  /* STI_RX_DR / XTI_RXDATA */
         /* TODO */
         return 0;
 
-    case 0x2c:	/* STI_CLK_CTRL / XTI_SCLKCRTL */
+    case 0x2c:  /* STI_CLK_CTRL / XTI_SCLKCRTL */
         return s->clkcontrol;
 
-    case 0x30:	/* STI_SERIAL_CFG / XTI_SCONFIG */
+    case 0x30:  /* STI_SERIAL_CFG / XTI_SCONFIG */
         return s->serial_config;
     }
 
@@ -704,37 +704,37 @@ static void omap_sti_write(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x00:	/* STI_REVISION */
-    case 0x14:	/* STI_SYSSTATUS / STI_RX_STATUS / XTI_SYSSTATUS */
+    case 0x00:  /* STI_REVISION */
+    case 0x14:  /* STI_SYSSTATUS / STI_RX_STATUS / XTI_SYSSTATUS */
         OMAP_RO_REG(addr);
         return;
 
-    case 0x10:	/* STI_SYSCONFIG */
-        if (value & (1 << 1))				/* SOFTRESET */
+    case 0x10:  /* STI_SYSCONFIG */
+        if (value & (1 << 1))               /* SOFTRESET */
             omap_sti_reset(s);
         s->sysconfig = value & 0xfe;
         break;
 
-    case 0x18:	/* STI_IRQSTATUS */
+    case 0x18:  /* STI_IRQSTATUS */
         s->irqst &= ~value;
         omap_sti_interrupt_update(s);
         break;
 
-    case 0x1c:	/* STI_IRQSETEN / STI_IRQCLREN */
+    case 0x1c:  /* STI_IRQSETEN / STI_IRQCLREN */
         s->irqen = value & 0xffff;
         omap_sti_interrupt_update(s);
         break;
 
-    case 0x2c:	/* STI_CLK_CTRL / XTI_SCLKCRTL */
+    case 0x2c:  /* STI_CLK_CTRL / XTI_SCLKCRTL */
         s->clkcontrol = value & 0xff;
         break;
 
-    case 0x30:	/* STI_SERIAL_CFG / XTI_SCONFIG */
+    case 0x30:  /* STI_SERIAL_CFG / XTI_SCONFIG */
         s->serial_config = value & 0xff;
         break;
 
-    case 0x24:	/* STI_ER / STI_DR / XTI_TRACESELECT */
-    case 0x28:	/* STI_RX_DR / XTI_RXDATA */
+    case 0x24:  /* STI_ER / STI_DR / XTI_TRACESELECT */
+    case 0x28:  /* STI_RX_DR / XTI_RXDATA */
         /* TODO */
         return;
 
@@ -815,8 +815,8 @@ static struct omap_sti_s *omap_sti_init(struct omap_target_agent_s *ta,
 }
 
 /* L4 Interconnect */
-#define L4TA(n)		(n)
-#define L4TAO(n)	((n) + 39)
+#define L4TA(n)     (n)
+#define L4TAO(n)    ((n) + 39)
 
 static const struct omap_l4_region_s omap_l4_region[125] = {
     [  1] = { 0x40800,  0x800, 32          }, /* Initiator agent */
@@ -1003,9 +1003,9 @@ static const struct omap_l4_agent_info_s omap_l4_agent_info[54] = {
     { L4TA(39),  123, 2, 1 }, /* HDQ/1-Wire */
 };
 
-#define omap_l4ta(bus, cs)	\
+#define omap_l4ta(bus, cs)  \
     omap_l4ta_get(bus, omap_l4_region, omap_l4_agent_info, L4TA(cs))
-#define omap_l4tao(bus, cs)	\
+#define omap_l4tao(bus, cs) \
     omap_l4ta_get(bus, omap_l4_region, omap_l4_agent_info, L4TAO(cs))
 
 /* Power, Reset, and Clock Management */
@@ -1063,187 +1063,187 @@ static uint64_t omap_prcm_read(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x000:	/* PRCM_REVISION */
+    case 0x000: /* PRCM_REVISION */
         return 0x10;
 
-    case 0x010:	/* PRCM_SYSCONFIG */
+    case 0x010: /* PRCM_SYSCONFIG */
         return s->sysconfig;
 
-    case 0x018:	/* PRCM_IRQSTATUS_MPU */
+    case 0x018: /* PRCM_IRQSTATUS_MPU */
         return s->irqst[0];
 
-    case 0x01c:	/* PRCM_IRQENABLE_MPU */
+    case 0x01c: /* PRCM_IRQENABLE_MPU */
         return s->irqen[0];
 
-    case 0x050:	/* PRCM_VOLTCTRL */
+    case 0x050: /* PRCM_VOLTCTRL */
         return s->voltctrl;
-    case 0x054:	/* PRCM_VOLTST */
+    case 0x054: /* PRCM_VOLTST */
         return s->voltctrl & 3;
 
-    case 0x060:	/* PRCM_CLKSRC_CTRL */
+    case 0x060: /* PRCM_CLKSRC_CTRL */
         return s->clksrc[0];
-    case 0x070:	/* PRCM_CLKOUT_CTRL */
+    case 0x070: /* PRCM_CLKOUT_CTRL */
         return s->clkout[0];
-    case 0x078:	/* PRCM_CLKEMUL_CTRL */
+    case 0x078: /* PRCM_CLKEMUL_CTRL */
         return s->clkemul[0];
-    case 0x080:	/* PRCM_CLKCFG_CTRL */
-    case 0x084:	/* PRCM_CLKCFG_STATUS */
+    case 0x080: /* PRCM_CLKCFG_CTRL */
+    case 0x084: /* PRCM_CLKCFG_STATUS */
         return 0;
 
-    case 0x090:	/* PRCM_VOLTSETUP */
+    case 0x090: /* PRCM_VOLTSETUP */
         return s->setuptime[0];
 
-    case 0x094:	/* PRCM_CLKSSETUP */
+    case 0x094: /* PRCM_CLKSSETUP */
         return s->setuptime[1];
 
-    case 0x098:	/* PRCM_POLCTRL */
+    case 0x098: /* PRCM_POLCTRL */
         return s->clkpol[0];
 
-    case 0x0b0:	/* GENERAL_PURPOSE1 */
-    case 0x0b4:	/* GENERAL_PURPOSE2 */
-    case 0x0b8:	/* GENERAL_PURPOSE3 */
-    case 0x0bc:	/* GENERAL_PURPOSE4 */
-    case 0x0c0:	/* GENERAL_PURPOSE5 */
-    case 0x0c4:	/* GENERAL_PURPOSE6 */
-    case 0x0c8:	/* GENERAL_PURPOSE7 */
-    case 0x0cc:	/* GENERAL_PURPOSE8 */
-    case 0x0d0:	/* GENERAL_PURPOSE9 */
-    case 0x0d4:	/* GENERAL_PURPOSE10 */
-    case 0x0d8:	/* GENERAL_PURPOSE11 */
-    case 0x0dc:	/* GENERAL_PURPOSE12 */
-    case 0x0e0:	/* GENERAL_PURPOSE13 */
-    case 0x0e4:	/* GENERAL_PURPOSE14 */
-    case 0x0e8:	/* GENERAL_PURPOSE15 */
-    case 0x0ec:	/* GENERAL_PURPOSE16 */
-    case 0x0f0:	/* GENERAL_PURPOSE17 */
-    case 0x0f4:	/* GENERAL_PURPOSE18 */
-    case 0x0f8:	/* GENERAL_PURPOSE19 */
-    case 0x0fc:	/* GENERAL_PURPOSE20 */
+    case 0x0b0: /* GENERAL_PURPOSE1 */
+    case 0x0b4: /* GENERAL_PURPOSE2 */
+    case 0x0b8: /* GENERAL_PURPOSE3 */
+    case 0x0bc: /* GENERAL_PURPOSE4 */
+    case 0x0c0: /* GENERAL_PURPOSE5 */
+    case 0x0c4: /* GENERAL_PURPOSE6 */
+    case 0x0c8: /* GENERAL_PURPOSE7 */
+    case 0x0cc: /* GENERAL_PURPOSE8 */
+    case 0x0d0: /* GENERAL_PURPOSE9 */
+    case 0x0d4: /* GENERAL_PURPOSE10 */
+    case 0x0d8: /* GENERAL_PURPOSE11 */
+    case 0x0dc: /* GENERAL_PURPOSE12 */
+    case 0x0e0: /* GENERAL_PURPOSE13 */
+    case 0x0e4: /* GENERAL_PURPOSE14 */
+    case 0x0e8: /* GENERAL_PURPOSE15 */
+    case 0x0ec: /* GENERAL_PURPOSE16 */
+    case 0x0f0: /* GENERAL_PURPOSE17 */
+    case 0x0f4: /* GENERAL_PURPOSE18 */
+    case 0x0f8: /* GENERAL_PURPOSE19 */
+    case 0x0fc: /* GENERAL_PURPOSE20 */
         return s->scratch[(addr - 0xb0) >> 2];
 
-    case 0x140:	/* CM_CLKSEL_MPU */
+    case 0x140: /* CM_CLKSEL_MPU */
         return s->clksel[0];
-    case 0x148:	/* CM_CLKSTCTRL_MPU */
+    case 0x148: /* CM_CLKSTCTRL_MPU */
         return s->clkctrl[0];
 
-    case 0x158:	/* RM_RSTST_MPU */
+    case 0x158: /* RM_RSTST_MPU */
         return s->rst[0];
-    case 0x1c8:	/* PM_WKDEP_MPU */
+    case 0x1c8: /* PM_WKDEP_MPU */
         return s->wkup[0];
-    case 0x1d4:	/* PM_EVGENCTRL_MPU */
+    case 0x1d4: /* PM_EVGENCTRL_MPU */
         return s->ev;
-    case 0x1d8:	/* PM_EVEGENONTIM_MPU */
+    case 0x1d8: /* PM_EVEGENONTIM_MPU */
         return s->evtime[0];
-    case 0x1dc:	/* PM_EVEGENOFFTIM_MPU */
+    case 0x1dc: /* PM_EVEGENOFFTIM_MPU */
         return s->evtime[1];
-    case 0x1e0:	/* PM_PWSTCTRL_MPU */
+    case 0x1e0: /* PM_PWSTCTRL_MPU */
         return s->power[0];
-    case 0x1e4:	/* PM_PWSTST_MPU */
+    case 0x1e4: /* PM_PWSTST_MPU */
         return 0;
 
-    case 0x200:	/* CM_FCLKEN1_CORE */
+    case 0x200: /* CM_FCLKEN1_CORE */
         return s->clken[0];
-    case 0x204:	/* CM_FCLKEN2_CORE */
+    case 0x204: /* CM_FCLKEN2_CORE */
         return s->clken[1];
-    case 0x210:	/* CM_ICLKEN1_CORE */
+    case 0x210: /* CM_ICLKEN1_CORE */
         return s->clken[2];
-    case 0x214:	/* CM_ICLKEN2_CORE */
+    case 0x214: /* CM_ICLKEN2_CORE */
         return s->clken[3];
-    case 0x21c:	/* CM_ICLKEN4_CORE */
+    case 0x21c: /* CM_ICLKEN4_CORE */
         return s->clken[4];
 
-    case 0x220:	/* CM_IDLEST1_CORE */
+    case 0x220: /* CM_IDLEST1_CORE */
         /* TODO: check the actual iclk status */
         return 0x7ffffff9;
-    case 0x224:	/* CM_IDLEST2_CORE */
+    case 0x224: /* CM_IDLEST2_CORE */
         /* TODO: check the actual iclk status */
         return 0x00000007;
-    case 0x22c:	/* CM_IDLEST4_CORE */
+    case 0x22c: /* CM_IDLEST4_CORE */
         /* TODO: check the actual iclk status */
         return 0x0000001f;
 
-    case 0x230:	/* CM_AUTOIDLE1_CORE */
+    case 0x230: /* CM_AUTOIDLE1_CORE */
         return s->clkidle[0];
-    case 0x234:	/* CM_AUTOIDLE2_CORE */
+    case 0x234: /* CM_AUTOIDLE2_CORE */
         return s->clkidle[1];
-    case 0x238:	/* CM_AUTOIDLE3_CORE */
+    case 0x238: /* CM_AUTOIDLE3_CORE */
         return s->clkidle[2];
-    case 0x23c:	/* CM_AUTOIDLE4_CORE */
+    case 0x23c: /* CM_AUTOIDLE4_CORE */
         return s->clkidle[3];
 
-    case 0x240:	/* CM_CLKSEL1_CORE */
+    case 0x240: /* CM_CLKSEL1_CORE */
         return s->clksel[1];
-    case 0x244:	/* CM_CLKSEL2_CORE */
+    case 0x244: /* CM_CLKSEL2_CORE */
         return s->clksel[2];
 
-    case 0x248:	/* CM_CLKSTCTRL_CORE */
+    case 0x248: /* CM_CLKSTCTRL_CORE */
         return s->clkctrl[1];
 
-    case 0x2a0:	/* PM_WKEN1_CORE */
+    case 0x2a0: /* PM_WKEN1_CORE */
         return s->wken[0];
-    case 0x2a4:	/* PM_WKEN2_CORE */
+    case 0x2a4: /* PM_WKEN2_CORE */
         return s->wken[1];
 
-    case 0x2b0:	/* PM_WKST1_CORE */
+    case 0x2b0: /* PM_WKST1_CORE */
         return s->wkst[0];
-    case 0x2b4:	/* PM_WKST2_CORE */
+    case 0x2b4: /* PM_WKST2_CORE */
         return s->wkst[1];
-    case 0x2c8:	/* PM_WKDEP_CORE */
+    case 0x2c8: /* PM_WKDEP_CORE */
         return 0x1e;
 
-    case 0x2e0:	/* PM_PWSTCTRL_CORE */
+    case 0x2e0: /* PM_PWSTCTRL_CORE */
         return s->power[1];
-    case 0x2e4:	/* PM_PWSTST_CORE */
+    case 0x2e4: /* PM_PWSTST_CORE */
         return 0x000030 | (s->power[1] & 0xfc00);
 
-    case 0x300:	/* CM_FCLKEN_GFX */
+    case 0x300: /* CM_FCLKEN_GFX */
         return s->clken[5];
-    case 0x310:	/* CM_ICLKEN_GFX */
+    case 0x310: /* CM_ICLKEN_GFX */
         return s->clken[6];
-    case 0x320:	/* CM_IDLEST_GFX */
+    case 0x320: /* CM_IDLEST_GFX */
         /* TODO: check the actual iclk status */
         return 0x00000001;
-    case 0x340:	/* CM_CLKSEL_GFX */
+    case 0x340: /* CM_CLKSEL_GFX */
         return s->clksel[3];
-    case 0x348:	/* CM_CLKSTCTRL_GFX */
+    case 0x348: /* CM_CLKSTCTRL_GFX */
         return s->clkctrl[2];
-    case 0x350:	/* RM_RSTCTRL_GFX */
+    case 0x350: /* RM_RSTCTRL_GFX */
         return s->rstctrl[0];
-    case 0x358:	/* RM_RSTST_GFX */
+    case 0x358: /* RM_RSTST_GFX */
         return s->rst[1];
-    case 0x3c8:	/* PM_WKDEP_GFX */
+    case 0x3c8: /* PM_WKDEP_GFX */
         return s->wkup[1];
 
-    case 0x3e0:	/* PM_PWSTCTRL_GFX */
+    case 0x3e0: /* PM_PWSTCTRL_GFX */
         return s->power[2];
-    case 0x3e4:	/* PM_PWSTST_GFX */
+    case 0x3e4: /* PM_PWSTST_GFX */
         return s->power[2] & 3;
 
-    case 0x400:	/* CM_FCLKEN_WKUP */
+    case 0x400: /* CM_FCLKEN_WKUP */
         return s->clken[7];
-    case 0x410:	/* CM_ICLKEN_WKUP */
+    case 0x410: /* CM_ICLKEN_WKUP */
         return s->clken[8];
-    case 0x420:	/* CM_IDLEST_WKUP */
+    case 0x420: /* CM_IDLEST_WKUP */
         /* TODO: check the actual iclk status */
         return 0x0000003f;
-    case 0x430:	/* CM_AUTOIDLE_WKUP */
+    case 0x430: /* CM_AUTOIDLE_WKUP */
         return s->clkidle[4];
-    case 0x440:	/* CM_CLKSEL_WKUP */
+    case 0x440: /* CM_CLKSEL_WKUP */
         return s->clksel[4];
-    case 0x450:	/* RM_RSTCTRL_WKUP */
+    case 0x450: /* RM_RSTCTRL_WKUP */
         return 0;
-    case 0x454:	/* RM_RSTTIME_WKUP */
+    case 0x454: /* RM_RSTTIME_WKUP */
         return s->rsttime_wkup;
-    case 0x458:	/* RM_RSTST_WKUP */
+    case 0x458: /* RM_RSTST_WKUP */
         return s->rst[2];
-    case 0x4a0:	/* PM_WKEN_WKUP */
+    case 0x4a0: /* PM_WKEN_WKUP */
         return s->wken[2];
-    case 0x4b0:	/* PM_WKST_WKUP */
+    case 0x4b0: /* PM_WKST_WKUP */
         return s->wkst[2];
 
-    case 0x500:	/* CM_CLKEN_PLL */
+    case 0x500: /* CM_CLKEN_PLL */
         return s->clken[9];
-    case 0x520:	/* CM_IDLEST_CKGEN */
+    case 0x520: /* CM_IDLEST_CKGEN */
         ret = 0x0000070 | (s->apll_lock[0] << 9) | (s->apll_lock[1] << 8);
         if (!(s->clksel[6] & 3))
             /* Core uses 32-kHz clock */
@@ -1255,45 +1255,45 @@ static uint64_t omap_prcm_read(void *opaque, hwaddr addr,
             /* Core uses DPLL */
             ret |= 2 << 0;
         return ret;
-    case 0x530:	/* CM_AUTOIDLE_PLL */
+    case 0x530: /* CM_AUTOIDLE_PLL */
         return s->clkidle[5];
-    case 0x540:	/* CM_CLKSEL1_PLL */
+    case 0x540: /* CM_CLKSEL1_PLL */
         return s->clksel[5];
-    case 0x544:	/* CM_CLKSEL2_PLL */
+    case 0x544: /* CM_CLKSEL2_PLL */
         return s->clksel[6];
 
-    case 0x800:	/* CM_FCLKEN_DSP */
+    case 0x800: /* CM_FCLKEN_DSP */
         return s->clken[10];
-    case 0x810:	/* CM_ICLKEN_DSP */
+    case 0x810: /* CM_ICLKEN_DSP */
         return s->clken[11];
-    case 0x820:	/* CM_IDLEST_DSP */
+    case 0x820: /* CM_IDLEST_DSP */
         /* TODO: check the actual iclk status */
         return 0x00000103;
-    case 0x830:	/* CM_AUTOIDLE_DSP */
+    case 0x830: /* CM_AUTOIDLE_DSP */
         return s->clkidle[6];
-    case 0x840:	/* CM_CLKSEL_DSP */
+    case 0x840: /* CM_CLKSEL_DSP */
         return s->clksel[7];
-    case 0x848:	/* CM_CLKSTCTRL_DSP */
+    case 0x848: /* CM_CLKSTCTRL_DSP */
         return s->clkctrl[3];
-    case 0x850:	/* RM_RSTCTRL_DSP */
+    case 0x850: /* RM_RSTCTRL_DSP */
         return 0;
-    case 0x858:	/* RM_RSTST_DSP */
+    case 0x858: /* RM_RSTST_DSP */
         return s->rst[3];
-    case 0x8c8:	/* PM_WKDEP_DSP */
+    case 0x8c8: /* PM_WKDEP_DSP */
         return s->wkup[2];
-    case 0x8e0:	/* PM_PWSTCTRL_DSP */
+    case 0x8e0: /* PM_PWSTCTRL_DSP */
         return s->power[3];
-    case 0x8e4:	/* PM_PWSTST_DSP */
+    case 0x8e4: /* PM_PWSTST_DSP */
         return 0x008030 | (s->power[3] & 0x3003);
 
-    case 0x8f0:	/* PRCM_IRQSTATUS_DSP */
+    case 0x8f0: /* PRCM_IRQSTATUS_DSP */
         return s->irqst[1];
-    case 0x8f4:	/* PRCM_IRQENABLE_DSP */
+    case 0x8f4: /* PRCM_IRQENABLE_DSP */
         return s->irqen[1];
 
-    case 0x8f8:	/* PRCM_IRQSTATUS_IVA */
+    case 0x8f8: /* PRCM_IRQSTATUS_IVA */
         return s->irqst[2];
-    case 0x8fc:	/* PRCM_IRQENABLE_IVA */
+    case 0x8fc: /* PRCM_IRQENABLE_IVA */
         return s->irqen[2];
     }
 
@@ -1327,19 +1327,19 @@ static void omap_prcm_dpll_update(struct omap_prcm_s *s)
     mult = (s->clksel[5] >> 12) & 0x3ff;
     div = (s->clksel[5] >> 8) & 0xf;
     if (mult == 0 || mult == 1)
-        mode = 1;	/* Bypass */
+        mode = 1;   /* Bypass */
 
     s->dpll_lock = 0;
     switch (mode) {
     case 0:
         fprintf(stderr, "%s: bad EN_DPLL\n", __func__);
         break;
-    case 1:	/* Low-power bypass mode (Default) */
-    case 2:	/* Fast-relock bypass mode */
+    case 1: /* Low-power bypass mode (Default) */
+    case 2: /* Fast-relock bypass mode */
         omap_clk_setrate(dpll, 1, 1);
         omap_clk_setrate(dpll_x2, 1, 1);
         break;
-    case 3:	/* Lock mode */
+    case 3: /* Lock mode */
         s->dpll_lock = 1; /* After 20 FINT cycles (ref_clk / (div + 1)).  */
 
         omap_clk_setrate(dpll, div + 1, mult);
@@ -1375,258 +1375,258 @@ static void omap_prcm_write(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x000:	/* PRCM_REVISION */
-    case 0x054:	/* PRCM_VOLTST */
-    case 0x084:	/* PRCM_CLKCFG_STATUS */
-    case 0x1e4:	/* PM_PWSTST_MPU */
-    case 0x220:	/* CM_IDLEST1_CORE */
-    case 0x224:	/* CM_IDLEST2_CORE */
-    case 0x22c:	/* CM_IDLEST4_CORE */
-    case 0x2c8:	/* PM_WKDEP_CORE */
-    case 0x2e4:	/* PM_PWSTST_CORE */
-    case 0x320:	/* CM_IDLEST_GFX */
-    case 0x3e4:	/* PM_PWSTST_GFX */
-    case 0x420:	/* CM_IDLEST_WKUP */
-    case 0x520:	/* CM_IDLEST_CKGEN */
-    case 0x820:	/* CM_IDLEST_DSP */
-    case 0x8e4:	/* PM_PWSTST_DSP */
+    case 0x000: /* PRCM_REVISION */
+    case 0x054: /* PRCM_VOLTST */
+    case 0x084: /* PRCM_CLKCFG_STATUS */
+    case 0x1e4: /* PM_PWSTST_MPU */
+    case 0x220: /* CM_IDLEST1_CORE */
+    case 0x224: /* CM_IDLEST2_CORE */
+    case 0x22c: /* CM_IDLEST4_CORE */
+    case 0x2c8: /* PM_WKDEP_CORE */
+    case 0x2e4: /* PM_PWSTST_CORE */
+    case 0x320: /* CM_IDLEST_GFX */
+    case 0x3e4: /* PM_PWSTST_GFX */
+    case 0x420: /* CM_IDLEST_WKUP */
+    case 0x520: /* CM_IDLEST_CKGEN */
+    case 0x820: /* CM_IDLEST_DSP */
+    case 0x8e4: /* PM_PWSTST_DSP */
         OMAP_RO_REG(addr);
         return;
 
-    case 0x010:	/* PRCM_SYSCONFIG */
+    case 0x010: /* PRCM_SYSCONFIG */
         s->sysconfig = value & 1;
         break;
 
-    case 0x018:	/* PRCM_IRQSTATUS_MPU */
+    case 0x018: /* PRCM_IRQSTATUS_MPU */
         s->irqst[0] &= ~value;
         omap_prcm_int_update(s, 0);
         break;
-    case 0x01c:	/* PRCM_IRQENABLE_MPU */
+    case 0x01c: /* PRCM_IRQENABLE_MPU */
         s->irqen[0] = value & 0x3f;
         omap_prcm_int_update(s, 0);
         break;
 
-    case 0x050:	/* PRCM_VOLTCTRL */
+    case 0x050: /* PRCM_VOLTCTRL */
         s->voltctrl = value & 0xf1c3;
         break;
 
-    case 0x060:	/* PRCM_CLKSRC_CTRL */
+    case 0x060: /* PRCM_CLKSRC_CTRL */
         s->clksrc[0] = value & 0xdb;
         /* TODO update clocks */
         break;
 
-    case 0x070:	/* PRCM_CLKOUT_CTRL */
+    case 0x070: /* PRCM_CLKOUT_CTRL */
         s->clkout[0] = value & 0xbbbb;
         /* TODO update clocks */
         break;
 
-    case 0x078:	/* PRCM_CLKEMUL_CTRL */
+    case 0x078: /* PRCM_CLKEMUL_CTRL */
         s->clkemul[0] = value & 1;
         /* TODO update clocks */
         break;
 
-    case 0x080:	/* PRCM_CLKCFG_CTRL */
+    case 0x080: /* PRCM_CLKCFG_CTRL */
         break;
 
-    case 0x090:	/* PRCM_VOLTSETUP */
+    case 0x090: /* PRCM_VOLTSETUP */
         s->setuptime[0] = value & 0xffff;
         break;
-    case 0x094:	/* PRCM_CLKSSETUP */
+    case 0x094: /* PRCM_CLKSSETUP */
         s->setuptime[1] = value & 0xffff;
         break;
 
-    case 0x098:	/* PRCM_POLCTRL */
+    case 0x098: /* PRCM_POLCTRL */
         s->clkpol[0] = value & 0x701;
         break;
 
-    case 0x0b0:	/* GENERAL_PURPOSE1 */
-    case 0x0b4:	/* GENERAL_PURPOSE2 */
-    case 0x0b8:	/* GENERAL_PURPOSE3 */
-    case 0x0bc:	/* GENERAL_PURPOSE4 */
-    case 0x0c0:	/* GENERAL_PURPOSE5 */
-    case 0x0c4:	/* GENERAL_PURPOSE6 */
-    case 0x0c8:	/* GENERAL_PURPOSE7 */
-    case 0x0cc:	/* GENERAL_PURPOSE8 */
-    case 0x0d0:	/* GENERAL_PURPOSE9 */
-    case 0x0d4:	/* GENERAL_PURPOSE10 */
-    case 0x0d8:	/* GENERAL_PURPOSE11 */
-    case 0x0dc:	/* GENERAL_PURPOSE12 */
-    case 0x0e0:	/* GENERAL_PURPOSE13 */
-    case 0x0e4:	/* GENERAL_PURPOSE14 */
-    case 0x0e8:	/* GENERAL_PURPOSE15 */
-    case 0x0ec:	/* GENERAL_PURPOSE16 */
-    case 0x0f0:	/* GENERAL_PURPOSE17 */
-    case 0x0f4:	/* GENERAL_PURPOSE18 */
-    case 0x0f8:	/* GENERAL_PURPOSE19 */
-    case 0x0fc:	/* GENERAL_PURPOSE20 */
+    case 0x0b0: /* GENERAL_PURPOSE1 */
+    case 0x0b4: /* GENERAL_PURPOSE2 */
+    case 0x0b8: /* GENERAL_PURPOSE3 */
+    case 0x0bc: /* GENERAL_PURPOSE4 */
+    case 0x0c0: /* GENERAL_PURPOSE5 */
+    case 0x0c4: /* GENERAL_PURPOSE6 */
+    case 0x0c8: /* GENERAL_PURPOSE7 */
+    case 0x0cc: /* GENERAL_PURPOSE8 */
+    case 0x0d0: /* GENERAL_PURPOSE9 */
+    case 0x0d4: /* GENERAL_PURPOSE10 */
+    case 0x0d8: /* GENERAL_PURPOSE11 */
+    case 0x0dc: /* GENERAL_PURPOSE12 */
+    case 0x0e0: /* GENERAL_PURPOSE13 */
+    case 0x0e4: /* GENERAL_PURPOSE14 */
+    case 0x0e8: /* GENERAL_PURPOSE15 */
+    case 0x0ec: /* GENERAL_PURPOSE16 */
+    case 0x0f0: /* GENERAL_PURPOSE17 */
+    case 0x0f4: /* GENERAL_PURPOSE18 */
+    case 0x0f8: /* GENERAL_PURPOSE19 */
+    case 0x0fc: /* GENERAL_PURPOSE20 */
         s->scratch[(addr - 0xb0) >> 2] = value;
         break;
 
-    case 0x140:	/* CM_CLKSEL_MPU */
+    case 0x140: /* CM_CLKSEL_MPU */
         s->clksel[0] = value & 0x1f;
         /* TODO update clocks */
         break;
-    case 0x148:	/* CM_CLKSTCTRL_MPU */
+    case 0x148: /* CM_CLKSTCTRL_MPU */
         s->clkctrl[0] = value & 0x1f;
         break;
 
-    case 0x158:	/* RM_RSTST_MPU */
+    case 0x158: /* RM_RSTST_MPU */
         s->rst[0] &= ~value;
         break;
-    case 0x1c8:	/* PM_WKDEP_MPU */
+    case 0x1c8: /* PM_WKDEP_MPU */
         s->wkup[0] = value & 0x15;
         break;
 
-    case 0x1d4:	/* PM_EVGENCTRL_MPU */
+    case 0x1d4: /* PM_EVGENCTRL_MPU */
         s->ev = value & 0x1f;
         break;
-    case 0x1d8:	/* PM_EVEGENONTIM_MPU */
+    case 0x1d8: /* PM_EVEGENONTIM_MPU */
         s->evtime[0] = value;
         break;
-    case 0x1dc:	/* PM_EVEGENOFFTIM_MPU */
+    case 0x1dc: /* PM_EVEGENOFFTIM_MPU */
         s->evtime[1] = value;
         break;
 
-    case 0x1e0:	/* PM_PWSTCTRL_MPU */
+    case 0x1e0: /* PM_PWSTCTRL_MPU */
         s->power[0] = value & 0xc0f;
         break;
 
-    case 0x200:	/* CM_FCLKEN1_CORE */
+    case 0x200: /* CM_FCLKEN1_CORE */
         s->clken[0] = value & 0xbfffffff;
         /* TODO update clocks */
         /* The EN_EAC bit only gets/puts func_96m_clk.  */
         break;
-    case 0x204:	/* CM_FCLKEN2_CORE */
+    case 0x204: /* CM_FCLKEN2_CORE */
         s->clken[1] = value & 0x00000007;
         /* TODO update clocks */
         break;
-    case 0x210:	/* CM_ICLKEN1_CORE */
+    case 0x210: /* CM_ICLKEN1_CORE */
         s->clken[2] = value & 0xfffffff9;
         /* TODO update clocks */
         /* The EN_EAC bit only gets/puts core_l4_iclk.  */
         break;
-    case 0x214:	/* CM_ICLKEN2_CORE */
+    case 0x214: /* CM_ICLKEN2_CORE */
         s->clken[3] = value & 0x00000007;
         /* TODO update clocks */
         break;
-    case 0x21c:	/* CM_ICLKEN4_CORE */
+    case 0x21c: /* CM_ICLKEN4_CORE */
         s->clken[4] = value & 0x0000001f;
         /* TODO update clocks */
         break;
 
-    case 0x230:	/* CM_AUTOIDLE1_CORE */
+    case 0x230: /* CM_AUTOIDLE1_CORE */
         s->clkidle[0] = value & 0xfffffff9;
         /* TODO update clocks */
         break;
-    case 0x234:	/* CM_AUTOIDLE2_CORE */
+    case 0x234: /* CM_AUTOIDLE2_CORE */
         s->clkidle[1] = value & 0x00000007;
         /* TODO update clocks */
         break;
-    case 0x238:	/* CM_AUTOIDLE3_CORE */
+    case 0x238: /* CM_AUTOIDLE3_CORE */
         s->clkidle[2] = value & 0x00000007;
         /* TODO update clocks */
         break;
-    case 0x23c:	/* CM_AUTOIDLE4_CORE */
+    case 0x23c: /* CM_AUTOIDLE4_CORE */
         s->clkidle[3] = value & 0x0000001f;
         /* TODO update clocks */
         break;
 
-    case 0x240:	/* CM_CLKSEL1_CORE */
+    case 0x240: /* CM_CLKSEL1_CORE */
         s->clksel[1] = value & 0x0fffbf7f;
         /* TODO update clocks */
         break;
 
-    case 0x244:	/* CM_CLKSEL2_CORE */
+    case 0x244: /* CM_CLKSEL2_CORE */
         s->clksel[2] = value & 0x00fffffc;
         /* TODO update clocks */
         break;
 
-    case 0x248:	/* CM_CLKSTCTRL_CORE */
+    case 0x248: /* CM_CLKSTCTRL_CORE */
         s->clkctrl[1] = value & 0x7;
         break;
 
-    case 0x2a0:	/* PM_WKEN1_CORE */
+    case 0x2a0: /* PM_WKEN1_CORE */
         s->wken[0] = value & 0x04667ff8;
         break;
-    case 0x2a4:	/* PM_WKEN2_CORE */
+    case 0x2a4: /* PM_WKEN2_CORE */
         s->wken[1] = value & 0x00000005;
         break;
 
-    case 0x2b0:	/* PM_WKST1_CORE */
+    case 0x2b0: /* PM_WKST1_CORE */
         s->wkst[0] &= ~value;
         break;
-    case 0x2b4:	/* PM_WKST2_CORE */
+    case 0x2b4: /* PM_WKST2_CORE */
         s->wkst[1] &= ~value;
         break;
 
-    case 0x2e0:	/* PM_PWSTCTRL_CORE */
+    case 0x2e0: /* PM_PWSTCTRL_CORE */
         s->power[1] = (value & 0x00fc3f) | (1 << 2);
         break;
 
-    case 0x300:	/* CM_FCLKEN_GFX */
+    case 0x300: /* CM_FCLKEN_GFX */
         s->clken[5] = value & 6;
         /* TODO update clocks */
         break;
-    case 0x310:	/* CM_ICLKEN_GFX */
+    case 0x310: /* CM_ICLKEN_GFX */
         s->clken[6] = value & 1;
         /* TODO update clocks */
         break;
-    case 0x340:	/* CM_CLKSEL_GFX */
+    case 0x340: /* CM_CLKSEL_GFX */
         s->clksel[3] = value & 7;
         /* TODO update clocks */
         break;
-    case 0x348:	/* CM_CLKSTCTRL_GFX */
+    case 0x348: /* CM_CLKSTCTRL_GFX */
         s->clkctrl[2] = value & 1;
         break;
-    case 0x350:	/* RM_RSTCTRL_GFX */
+    case 0x350: /* RM_RSTCTRL_GFX */
         s->rstctrl[0] = value & 1;
         /* TODO: reset */
         break;
-    case 0x358:	/* RM_RSTST_GFX */
+    case 0x358: /* RM_RSTST_GFX */
         s->rst[1] &= ~value;
         break;
-    case 0x3c8:	/* PM_WKDEP_GFX */
+    case 0x3c8: /* PM_WKDEP_GFX */
         s->wkup[1] = value & 0x13;
         break;
-    case 0x3e0:	/* PM_PWSTCTRL_GFX */
+    case 0x3e0: /* PM_PWSTCTRL_GFX */
         s->power[2] = (value & 0x00c0f) | (3 << 2);
         break;
 
-    case 0x400:	/* CM_FCLKEN_WKUP */
+    case 0x400: /* CM_FCLKEN_WKUP */
         s->clken[7] = value & 0xd;
         /* TODO update clocks */
         break;
-    case 0x410:	/* CM_ICLKEN_WKUP */
+    case 0x410: /* CM_ICLKEN_WKUP */
         s->clken[8] = value & 0x3f;
         /* TODO update clocks */
         break;
-    case 0x430:	/* CM_AUTOIDLE_WKUP */
+    case 0x430: /* CM_AUTOIDLE_WKUP */
         s->clkidle[4] = value & 0x0000003f;
         /* TODO update clocks */
         break;
-    case 0x440:	/* CM_CLKSEL_WKUP */
+    case 0x440: /* CM_CLKSEL_WKUP */
         s->clksel[4] = value & 3;
         /* TODO update clocks */
         break;
-    case 0x450:	/* RM_RSTCTRL_WKUP */
+    case 0x450: /* RM_RSTCTRL_WKUP */
         /* TODO: reset */
         if (value & 2)
             qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
         break;
-    case 0x454:	/* RM_RSTTIME_WKUP */
+    case 0x454: /* RM_RSTTIME_WKUP */
         s->rsttime_wkup = value & 0x1fff;
         break;
-    case 0x458:	/* RM_RSTST_WKUP */
+    case 0x458: /* RM_RSTST_WKUP */
         s->rst[2] &= ~value;
         break;
-    case 0x4a0:	/* PM_WKEN_WKUP */
+    case 0x4a0: /* PM_WKEN_WKUP */
         s->wken[2] = value & 0x00000005;
         break;
-    case 0x4b0:	/* PM_WKST_WKUP */
+    case 0x4b0: /* PM_WKST_WKUP */
         s->wkst[2] &= ~value;
         break;
 
-    case 0x500:	/* CM_CLKEN_PLL */
+    case 0x500: /* CM_CLKEN_PLL */
         if (value & 0xffffff30)
             fprintf(stderr, "%s: write 0s in CM_CLKEN_PLL for "
                             "future compatibility\n", __func__);
@@ -1641,11 +1641,11 @@ static void omap_prcm_write(void *opaque, hwaddr addr,
             omap_prcm_dpll_update(s);
         }
         break;
-    case 0x530:	/* CM_AUTOIDLE_PLL */
+    case 0x530: /* CM_AUTOIDLE_PLL */
         s->clkidle[5] = value & 0x000000cf;
         /* TODO update clocks */
         break;
-    case 0x540:	/* CM_CLKSEL1_PLL */
+    case 0x540: /* CM_CLKSEL1_PLL */
         if (value & 0xfc4000d7)
             fprintf(stderr, "%s: write 0s in CM_CLKSEL1_PLL for "
                             "future compatibility\n", __func__);
@@ -1657,7 +1657,7 @@ static void omap_prcm_write(void *opaque, hwaddr addr,
 
         s->clksel[5] = value & 0x03bfff28;
         break;
-    case 0x544:	/* CM_CLKSEL2_PLL */
+    case 0x544: /* CM_CLKSEL2_PLL */
         if (value & ~3)
             fprintf(stderr, "%s: write 0s in CM_CLKSEL2_PLL[31:2] for "
                             "future compatibility\n", __func__);
@@ -1667,52 +1667,52 @@ static void omap_prcm_write(void *opaque, hwaddr addr,
         }
         break;
 
-    case 0x800:	/* CM_FCLKEN_DSP */
+    case 0x800: /* CM_FCLKEN_DSP */
         s->clken[10] = value & 0x501;
         /* TODO update clocks */
         break;
-    case 0x810:	/* CM_ICLKEN_DSP */
+    case 0x810: /* CM_ICLKEN_DSP */
         s->clken[11] = value & 0x2;
         /* TODO update clocks */
         break;
-    case 0x830:	/* CM_AUTOIDLE_DSP */
+    case 0x830: /* CM_AUTOIDLE_DSP */
         s->clkidle[6] = value & 0x2;
         /* TODO update clocks */
         break;
-    case 0x840:	/* CM_CLKSEL_DSP */
+    case 0x840: /* CM_CLKSEL_DSP */
         s->clksel[7] = value & 0x3fff;
         /* TODO update clocks */
         break;
-    case 0x848:	/* CM_CLKSTCTRL_DSP */
+    case 0x848: /* CM_CLKSTCTRL_DSP */
         s->clkctrl[3] = value & 0x101;
         break;
-    case 0x850:	/* RM_RSTCTRL_DSP */
+    case 0x850: /* RM_RSTCTRL_DSP */
         /* TODO: reset */
         break;
-    case 0x858:	/* RM_RSTST_DSP */
+    case 0x858: /* RM_RSTST_DSP */
         s->rst[3] &= ~value;
         break;
-    case 0x8c8:	/* PM_WKDEP_DSP */
+    case 0x8c8: /* PM_WKDEP_DSP */
         s->wkup[2] = value & 0x13;
         break;
-    case 0x8e0:	/* PM_PWSTCTRL_DSP */
+    case 0x8e0: /* PM_PWSTCTRL_DSP */
         s->power[3] = (value & 0x03017) | (3 << 2);
         break;
 
-    case 0x8f0:	/* PRCM_IRQSTATUS_DSP */
+    case 0x8f0: /* PRCM_IRQSTATUS_DSP */
         s->irqst[1] &= ~value;
         omap_prcm_int_update(s, 1);
         break;
-    case 0x8f4:	/* PRCM_IRQENABLE_DSP */
+    case 0x8f4: /* PRCM_IRQENABLE_DSP */
         s->irqen[1] = value & 0x7;
         omap_prcm_int_update(s, 1);
         break;
 
-    case 0x8f8:	/* PRCM_IRQSTATUS_IVA */
+    case 0x8f8: /* PRCM_IRQSTATUS_IVA */
         s->irqst[2] &= ~value;
         omap_prcm_int_update(s, 2);
         break;
-    case 0x8fc:	/* PRCM_IRQENABLE_IVA */
+    case 0x8fc: /* PRCM_IRQENABLE_IVA */
         s->irqen[2] = value & 0x7;
         omap_prcm_int_update(s, 2);
         break;
@@ -1852,7 +1852,7 @@ static uint32_t omap_sysctl_read8(void *opaque, hwaddr addr)
     int value;
 
     switch (addr) {
-    case 0x030 ... 0x140:	/* CONTROL_PADCONF - only used in the POP */
+    case 0x030 ... 0x140:   /* CONTROL_PADCONF - only used in the POP */
         pad_offset = (addr - 0x30) >> 2;
         byte_offset = (addr - 0x30) & (4 - 1);
 
@@ -1874,91 +1874,91 @@ static uint32_t omap_sysctl_read(void *opaque, hwaddr addr)
     struct omap_sysctl_s *s = opaque;
 
     switch (addr) {
-    case 0x000:	/* CONTROL_REVISION */
+    case 0x000: /* CONTROL_REVISION */
         return 0x20;
 
-    case 0x010:	/* CONTROL_SYSCONFIG */
+    case 0x010: /* CONTROL_SYSCONFIG */
         return s->sysconfig;
 
-    case 0x030 ... 0x140:	/* CONTROL_PADCONF - only used in the POP */
+    case 0x030 ... 0x140:   /* CONTROL_PADCONF - only used in the POP */
         return s->padconf[(addr - 0x30) >> 2];
 
-    case 0x270:	/* CONTROL_DEBOBS */
+    case 0x270: /* CONTROL_DEBOBS */
         return s->obs;
 
-    case 0x274:	/* CONTROL_DEVCONF */
+    case 0x274: /* CONTROL_DEVCONF */
         return s->devconfig;
 
-    case 0x28c:	/* CONTROL_EMU_SUPPORT */
+    case 0x28c: /* CONTROL_EMU_SUPPORT */
         return 0;
 
-    case 0x290:	/* CONTROL_MSUSPENDMUX_0 */
+    case 0x290: /* CONTROL_MSUSPENDMUX_0 */
         return s->msuspendmux[0];
-    case 0x294:	/* CONTROL_MSUSPENDMUX_1 */
+    case 0x294: /* CONTROL_MSUSPENDMUX_1 */
         return s->msuspendmux[1];
-    case 0x298:	/* CONTROL_MSUSPENDMUX_2 */
+    case 0x298: /* CONTROL_MSUSPENDMUX_2 */
         return s->msuspendmux[2];
-    case 0x29c:	/* CONTROL_MSUSPENDMUX_3 */
+    case 0x29c: /* CONTROL_MSUSPENDMUX_3 */
         return s->msuspendmux[3];
-    case 0x2a0:	/* CONTROL_MSUSPENDMUX_4 */
+    case 0x2a0: /* CONTROL_MSUSPENDMUX_4 */
         return s->msuspendmux[4];
-    case 0x2a4:	/* CONTROL_MSUSPENDMUX_5 */
+    case 0x2a4: /* CONTROL_MSUSPENDMUX_5 */
         return 0;
 
-    case 0x2b8:	/* CONTROL_PSA_CTRL */
+    case 0x2b8: /* CONTROL_PSA_CTRL */
         return s->psaconfig;
-    case 0x2bc:	/* CONTROL_PSA_CMD */
-    case 0x2c0:	/* CONTROL_PSA_VALUE */
+    case 0x2bc: /* CONTROL_PSA_CMD */
+    case 0x2c0: /* CONTROL_PSA_VALUE */
         return 0;
 
-    case 0x2b0:	/* CONTROL_SEC_CTRL */
+    case 0x2b0: /* CONTROL_SEC_CTRL */
         return 0x800000f1;
-    case 0x2d0:	/* CONTROL_SEC_EMU */
+    case 0x2d0: /* CONTROL_SEC_EMU */
         return 0x80000015;
-    case 0x2d4:	/* CONTROL_SEC_TAP */
+    case 0x2d4: /* CONTROL_SEC_TAP */
         return 0x8000007f;
-    case 0x2b4:	/* CONTROL_SEC_TEST */
-    case 0x2f0:	/* CONTROL_SEC_STATUS */
-    case 0x2f4:	/* CONTROL_SEC_ERR_STATUS */
+    case 0x2b4: /* CONTROL_SEC_TEST */
+    case 0x2f0: /* CONTROL_SEC_STATUS */
+    case 0x2f4: /* CONTROL_SEC_ERR_STATUS */
         /* Secure mode is not present on general-pusrpose device.  Outside
          * secure mode these values cannot be read or written.  */
         return 0;
 
-    case 0x2d8:	/* CONTROL_OCM_RAM_PERM */
+    case 0x2d8: /* CONTROL_OCM_RAM_PERM */
         return 0xff;
-    case 0x2dc:	/* CONTROL_OCM_PUB_RAM_ADD */
-    case 0x2e0:	/* CONTROL_EXT_SEC_RAM_START_ADD */
-    case 0x2e4:	/* CONTROL_EXT_SEC_RAM_STOP_ADD */
+    case 0x2dc: /* CONTROL_OCM_PUB_RAM_ADD */
+    case 0x2e0: /* CONTROL_EXT_SEC_RAM_START_ADD */
+    case 0x2e4: /* CONTROL_EXT_SEC_RAM_STOP_ADD */
         /* No secure mode so no Extended Secure RAM present.  */
         return 0;
 
-    case 0x2f8:	/* CONTROL_STATUS */
+    case 0x2f8: /* CONTROL_STATUS */
         /* Device Type => General-purpose */
         return 0x0300;
-    case 0x2fc:	/* CONTROL_GENERAL_PURPOSE_STATUS */
+    case 0x2fc: /* CONTROL_GENERAL_PURPOSE_STATUS */
 
-    case 0x300:	/* CONTROL_RPUB_KEY_H_0 */
-    case 0x304:	/* CONTROL_RPUB_KEY_H_1 */
-    case 0x308:	/* CONTROL_RPUB_KEY_H_2 */
-    case 0x30c:	/* CONTROL_RPUB_KEY_H_3 */
+    case 0x300: /* CONTROL_RPUB_KEY_H_0 */
+    case 0x304: /* CONTROL_RPUB_KEY_H_1 */
+    case 0x308: /* CONTROL_RPUB_KEY_H_2 */
+    case 0x30c: /* CONTROL_RPUB_KEY_H_3 */
         return 0xdecafbad;
 
-    case 0x310:	/* CONTROL_RAND_KEY_0 */
-    case 0x314:	/* CONTROL_RAND_KEY_1 */
-    case 0x318:	/* CONTROL_RAND_KEY_2 */
-    case 0x31c:	/* CONTROL_RAND_KEY_3 */
-    case 0x320:	/* CONTROL_CUST_KEY_0 */
-    case 0x324:	/* CONTROL_CUST_KEY_1 */
-    case 0x330:	/* CONTROL_TEST_KEY_0 */
-    case 0x334:	/* CONTROL_TEST_KEY_1 */
-    case 0x338:	/* CONTROL_TEST_KEY_2 */
-    case 0x33c:	/* CONTROL_TEST_KEY_3 */
-    case 0x340:	/* CONTROL_TEST_KEY_4 */
-    case 0x344:	/* CONTROL_TEST_KEY_5 */
-    case 0x348:	/* CONTROL_TEST_KEY_6 */
-    case 0x34c:	/* CONTROL_TEST_KEY_7 */
-    case 0x350:	/* CONTROL_TEST_KEY_8 */
-    case 0x354:	/* CONTROL_TEST_KEY_9 */
+    case 0x310: /* CONTROL_RAND_KEY_0 */
+    case 0x314: /* CONTROL_RAND_KEY_1 */
+    case 0x318: /* CONTROL_RAND_KEY_2 */
+    case 0x31c: /* CONTROL_RAND_KEY_3 */
+    case 0x320: /* CONTROL_CUST_KEY_0 */
+    case 0x324: /* CONTROL_CUST_KEY_1 */
+    case 0x330: /* CONTROL_TEST_KEY_0 */
+    case 0x334: /* CONTROL_TEST_KEY_1 */
+    case 0x338: /* CONTROL_TEST_KEY_2 */
+    case 0x33c: /* CONTROL_TEST_KEY_3 */
+    case 0x340: /* CONTROL_TEST_KEY_4 */
+    case 0x344: /* CONTROL_TEST_KEY_5 */
+    case 0x348: /* CONTROL_TEST_KEY_6 */
+    case 0x34c: /* CONTROL_TEST_KEY_7 */
+    case 0x350: /* CONTROL_TEST_KEY_8 */
+    case 0x354: /* CONTROL_TEST_KEY_9 */
         /* Can only be accessed in secure mode and when C_FieldAccEnable
          * bit is set in CONTROL_SEC_CTRL.
          * TODO: otherwise an interconnect access error is generated.  */
@@ -1976,7 +1976,7 @@ static void omap_sysctl_write8(void *opaque, hwaddr addr, uint32_t value)
     int prev_value;
 
     switch (addr) {
-    case 0x030 ... 0x140:	/* CONTROL_PADCONF - only used in the POP */
+    case 0x030 ... 0x140:   /* CONTROL_PADCONF - only used in the POP */
         pad_offset = (addr - 0x30) >> 2;
         byte_offset = (addr - 0x30) & (4 - 1);
 
@@ -1997,87 +1997,87 @@ static void omap_sysctl_write(void *opaque, hwaddr addr, uint32_t value)
     struct omap_sysctl_s *s = opaque;
 
     switch (addr) {
-    case 0x000:	/* CONTROL_REVISION */
-    case 0x2a4:	/* CONTROL_MSUSPENDMUX_5 */
-    case 0x2c0:	/* CONTROL_PSA_VALUE */
-    case 0x2f8:	/* CONTROL_STATUS */
-    case 0x2fc:	/* CONTROL_GENERAL_PURPOSE_STATUS */
-    case 0x300:	/* CONTROL_RPUB_KEY_H_0 */
-    case 0x304:	/* CONTROL_RPUB_KEY_H_1 */
-    case 0x308:	/* CONTROL_RPUB_KEY_H_2 */
-    case 0x30c:	/* CONTROL_RPUB_KEY_H_3 */
-    case 0x310:	/* CONTROL_RAND_KEY_0 */
-    case 0x314:	/* CONTROL_RAND_KEY_1 */
-    case 0x318:	/* CONTROL_RAND_KEY_2 */
-    case 0x31c:	/* CONTROL_RAND_KEY_3 */
-    case 0x320:	/* CONTROL_CUST_KEY_0 */
-    case 0x324:	/* CONTROL_CUST_KEY_1 */
-    case 0x330:	/* CONTROL_TEST_KEY_0 */
-    case 0x334:	/* CONTROL_TEST_KEY_1 */
-    case 0x338:	/* CONTROL_TEST_KEY_2 */
-    case 0x33c:	/* CONTROL_TEST_KEY_3 */
-    case 0x340:	/* CONTROL_TEST_KEY_4 */
-    case 0x344:	/* CONTROL_TEST_KEY_5 */
-    case 0x348:	/* CONTROL_TEST_KEY_6 */
-    case 0x34c:	/* CONTROL_TEST_KEY_7 */
-    case 0x350:	/* CONTROL_TEST_KEY_8 */
-    case 0x354:	/* CONTROL_TEST_KEY_9 */
+    case 0x000: /* CONTROL_REVISION */
+    case 0x2a4: /* CONTROL_MSUSPENDMUX_5 */
+    case 0x2c0: /* CONTROL_PSA_VALUE */
+    case 0x2f8: /* CONTROL_STATUS */
+    case 0x2fc: /* CONTROL_GENERAL_PURPOSE_STATUS */
+    case 0x300: /* CONTROL_RPUB_KEY_H_0 */
+    case 0x304: /* CONTROL_RPUB_KEY_H_1 */
+    case 0x308: /* CONTROL_RPUB_KEY_H_2 */
+    case 0x30c: /* CONTROL_RPUB_KEY_H_3 */
+    case 0x310: /* CONTROL_RAND_KEY_0 */
+    case 0x314: /* CONTROL_RAND_KEY_1 */
+    case 0x318: /* CONTROL_RAND_KEY_2 */
+    case 0x31c: /* CONTROL_RAND_KEY_3 */
+    case 0x320: /* CONTROL_CUST_KEY_0 */
+    case 0x324: /* CONTROL_CUST_KEY_1 */
+    case 0x330: /* CONTROL_TEST_KEY_0 */
+    case 0x334: /* CONTROL_TEST_KEY_1 */
+    case 0x338: /* CONTROL_TEST_KEY_2 */
+    case 0x33c: /* CONTROL_TEST_KEY_3 */
+    case 0x340: /* CONTROL_TEST_KEY_4 */
+    case 0x344: /* CONTROL_TEST_KEY_5 */
+    case 0x348: /* CONTROL_TEST_KEY_6 */
+    case 0x34c: /* CONTROL_TEST_KEY_7 */
+    case 0x350: /* CONTROL_TEST_KEY_8 */
+    case 0x354: /* CONTROL_TEST_KEY_9 */
         OMAP_RO_REG(addr);
         return;
 
-    case 0x010:	/* CONTROL_SYSCONFIG */
+    case 0x010: /* CONTROL_SYSCONFIG */
         s->sysconfig = value & 0x1e;
         break;
 
-    case 0x030 ... 0x140:	/* CONTROL_PADCONF - only used in the POP */
+    case 0x030 ... 0x140:   /* CONTROL_PADCONF - only used in the POP */
         /* XXX: should check constant bits */
         s->padconf[(addr - 0x30) >> 2] = value & 0x1f1f1f1f;
         break;
 
-    case 0x270:	/* CONTROL_DEBOBS */
+    case 0x270: /* CONTROL_DEBOBS */
         s->obs = value & 0xff;
         break;
 
-    case 0x274:	/* CONTROL_DEVCONF */
+    case 0x274: /* CONTROL_DEVCONF */
         s->devconfig = value & 0xffffc7ff;
         break;
 
-    case 0x28c:	/* CONTROL_EMU_SUPPORT */
+    case 0x28c: /* CONTROL_EMU_SUPPORT */
         break;
 
-    case 0x290:	/* CONTROL_MSUSPENDMUX_0 */
+    case 0x290: /* CONTROL_MSUSPENDMUX_0 */
         s->msuspendmux[0] = value & 0x3fffffff;
         break;
-    case 0x294:	/* CONTROL_MSUSPENDMUX_1 */
+    case 0x294: /* CONTROL_MSUSPENDMUX_1 */
         s->msuspendmux[1] = value & 0x3fffffff;
         break;
-    case 0x298:	/* CONTROL_MSUSPENDMUX_2 */
+    case 0x298: /* CONTROL_MSUSPENDMUX_2 */
         s->msuspendmux[2] = value & 0x3fffffff;
         break;
-    case 0x29c:	/* CONTROL_MSUSPENDMUX_3 */
+    case 0x29c: /* CONTROL_MSUSPENDMUX_3 */
         s->msuspendmux[3] = value & 0x3fffffff;
         break;
-    case 0x2a0:	/* CONTROL_MSUSPENDMUX_4 */
+    case 0x2a0: /* CONTROL_MSUSPENDMUX_4 */
         s->msuspendmux[4] = value & 0x3fffffff;
         break;
 
-    case 0x2b8:	/* CONTROL_PSA_CTRL */
+    case 0x2b8: /* CONTROL_PSA_CTRL */
         s->psaconfig = value & 0x1c;
         s->psaconfig |= (value & 0x20) ? 2 : 1;
         break;
-    case 0x2bc:	/* CONTROL_PSA_CMD */
+    case 0x2bc: /* CONTROL_PSA_CMD */
         break;
 
-    case 0x2b0:	/* CONTROL_SEC_CTRL */
-    case 0x2b4:	/* CONTROL_SEC_TEST */
-    case 0x2d0:	/* CONTROL_SEC_EMU */
-    case 0x2d4:	/* CONTROL_SEC_TAP */
-    case 0x2d8:	/* CONTROL_OCM_RAM_PERM */
-    case 0x2dc:	/* CONTROL_OCM_PUB_RAM_ADD */
-    case 0x2e0:	/* CONTROL_EXT_SEC_RAM_START_ADD */
-    case 0x2e4:	/* CONTROL_EXT_SEC_RAM_STOP_ADD */
-    case 0x2f0:	/* CONTROL_SEC_STATUS */
-    case 0x2f4:	/* CONTROL_SEC_ERR_STATUS */
+    case 0x2b0: /* CONTROL_SEC_CTRL */
+    case 0x2b4: /* CONTROL_SEC_TEST */
+    case 0x2d0: /* CONTROL_SEC_EMU */
+    case 0x2d4: /* CONTROL_SEC_TAP */
+    case 0x2d8: /* CONTROL_OCM_RAM_PERM */
+    case 0x2dc: /* CONTROL_OCM_PUB_RAM_ADD */
+    case 0x2e0: /* CONTROL_EXT_SEC_RAM_START_ADD */
+    case 0x2e4: /* CONTROL_EXT_SEC_RAM_STOP_ADD */
+    case 0x2f0: /* CONTROL_SEC_STATUS */
+    case 0x2f4: /* CONTROL_SEC_ERR_STATUS */
         break;
 
     default:
@@ -2156,13 +2156,13 @@ static void omap_sysctl_reset(struct omap_sysctl_s *s)
     s->padconf[0x0d] = 0x08080800;
     s->padconf[0x0e] = 0x08080808;
     s->padconf[0x0f] = 0x08080808;
-    s->padconf[0x10] = 0x18181808;	/* | 0x07070700 if SBoot3 */
-    s->padconf[0x11] = 0x18181818;	/* | 0x07070707 if SBoot3 */
-    s->padconf[0x12] = 0x18181818;	/* | 0x07070707 if SBoot3 */
-    s->padconf[0x13] = 0x18181818;	/* | 0x07070707 if SBoot3 */
-    s->padconf[0x14] = 0x18181818;	/* | 0x00070707 if SBoot3 */
+    s->padconf[0x10] = 0x18181808;  /* | 0x07070700 if SBoot3 */
+    s->padconf[0x11] = 0x18181818;  /* | 0x07070707 if SBoot3 */
+    s->padconf[0x12] = 0x18181818;  /* | 0x07070707 if SBoot3 */
+    s->padconf[0x13] = 0x18181818;  /* | 0x07070707 if SBoot3 */
+    s->padconf[0x14] = 0x18181818;  /* | 0x00070707 if SBoot3 */
     s->padconf[0x15] = 0x18181818;
-    s->padconf[0x16] = 0x18181818;	/* | 0x07000000 if SBoot3 */
+    s->padconf[0x16] = 0x18181818;  /* | 0x07000000 if SBoot3 */
     s->padconf[0x17] = 0x1f001f00;
     s->padconf[0x18] = 0x1f1f1f1f;
     s->padconf[0x19] = 0x00000000;
@@ -2524,184 +2524,184 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sdram,
                     omap_findclk(s, "core_l4_iclk"));
 
     /* All register mappings (including those not currently implemented):
-     * SystemControlMod	48000000 - 48000fff
-     * SystemControlL4	48001000 - 48001fff
-     * 32kHz Timer Mod	48004000 - 48004fff
-     * 32kHz Timer L4	48005000 - 48005fff
-     * PRCM ModA	48008000 - 480087ff
-     * PRCM ModB	48008800 - 48008fff
-     * PRCM L4		48009000 - 48009fff
-     * TEST-BCM Mod	48012000 - 48012fff
-     * TEST-BCM L4	48013000 - 48013fff
-     * TEST-TAP Mod	48014000 - 48014fff
-     * TEST-TAP L4	48015000 - 48015fff
-     * GPIO1 Mod	48018000 - 48018fff
-     * GPIO Top		48019000 - 48019fff
-     * GPIO2 Mod	4801a000 - 4801afff
-     * GPIO L4		4801b000 - 4801bfff
-     * GPIO3 Mod	4801c000 - 4801cfff
-     * GPIO4 Mod	4801e000 - 4801efff
-     * WDTIMER1 Mod	48020000 - 48010fff
-     * WDTIMER Top	48021000 - 48011fff
-     * WDTIMER2 Mod	48022000 - 48012fff
-     * WDTIMER L4	48023000 - 48013fff
-     * WDTIMER3 Mod	48024000 - 48014fff
-     * WDTIMER3 L4	48025000 - 48015fff
-     * WDTIMER4 Mod	48026000 - 48016fff
-     * WDTIMER4 L4	48027000 - 48017fff
-     * GPTIMER1 Mod	48028000 - 48018fff
-     * GPTIMER1 L4	48029000 - 48019fff
-     * GPTIMER2 Mod	4802a000 - 4801afff
-     * GPTIMER2 L4	4802b000 - 4801bfff
-     * L4-Config AP	48040000 - 480407ff
-     * L4-Config IP	48040800 - 48040fff
-     * L4-Config LA	48041000 - 48041fff
-     * ARM11ETB Mod	48048000 - 48049fff
-     * ARM11ETB L4	4804a000 - 4804afff
-     * DISPLAY Top	48050000 - 480503ff
-     * DISPLAY DISPC	48050400 - 480507ff
-     * DISPLAY RFBI	48050800 - 48050bff
-     * DISPLAY VENC	48050c00 - 48050fff
-     * DISPLAY L4	48051000 - 48051fff
-     * CAMERA Top	48052000 - 480523ff
-     * CAMERA core	48052400 - 480527ff
-     * CAMERA DMA	48052800 - 48052bff
-     * CAMERA MMU	48052c00 - 48052fff
-     * CAMERA L4	48053000 - 48053fff
-     * SDMA Mod		48056000 - 48056fff
-     * SDMA L4		48057000 - 48057fff
-     * SSI Top		48058000 - 48058fff
-     * SSI GDD		48059000 - 48059fff
-     * SSI Port1	4805a000 - 4805afff
-     * SSI Port2	4805b000 - 4805bfff
-     * SSI L4		4805c000 - 4805cfff
-     * USB Mod		4805e000 - 480fefff
-     * USB L4		4805f000 - 480fffff
-     * WIN_TRACER1 Mod	48060000 - 48060fff
-     * WIN_TRACER1 L4	48061000 - 48061fff
-     * WIN_TRACER2 Mod	48062000 - 48062fff
-     * WIN_TRACER2 L4	48063000 - 48063fff
-     * WIN_TRACER3 Mod	48064000 - 48064fff
-     * WIN_TRACER3 L4	48065000 - 48065fff
-     * WIN_TRACER4 Top	48066000 - 480660ff
-     * WIN_TRACER4 ETT	48066100 - 480661ff
-     * WIN_TRACER4 WT	48066200 - 480662ff
-     * WIN_TRACER4 L4	48067000 - 48067fff
-     * XTI Mod		48068000 - 48068fff
-     * XTI L4		48069000 - 48069fff
-     * UART1 Mod	4806a000 - 4806afff
-     * UART1 L4		4806b000 - 4806bfff
-     * UART2 Mod	4806c000 - 4806cfff
-     * UART2 L4		4806d000 - 4806dfff
-     * UART3 Mod	4806e000 - 4806efff
-     * UART3 L4		4806f000 - 4806ffff
-     * I2C1 Mod		48070000 - 48070fff
-     * I2C1 L4		48071000 - 48071fff
-     * I2C2 Mod		48072000 - 48072fff
-     * I2C2 L4		48073000 - 48073fff
-     * McBSP1 Mod	48074000 - 48074fff
-     * McBSP1 L4	48075000 - 48075fff
-     * McBSP2 Mod	48076000 - 48076fff
-     * McBSP2 L4	48077000 - 48077fff
-     * GPTIMER3 Mod	48078000 - 48078fff
-     * GPTIMER3 L4	48079000 - 48079fff
-     * GPTIMER4 Mod	4807a000 - 4807afff
-     * GPTIMER4 L4	4807b000 - 4807bfff
-     * GPTIMER5 Mod	4807c000 - 4807cfff
-     * GPTIMER5 L4	4807d000 - 4807dfff
-     * GPTIMER6 Mod	4807e000 - 4807efff
-     * GPTIMER6 L4	4807f000 - 4807ffff
-     * GPTIMER7 Mod	48080000 - 48080fff
-     * GPTIMER7 L4	48081000 - 48081fff
-     * GPTIMER8 Mod	48082000 - 48082fff
-     * GPTIMER8 L4	48083000 - 48083fff
-     * GPTIMER9 Mod	48084000 - 48084fff
-     * GPTIMER9 L4	48085000 - 48085fff
-     * GPTIMER10 Mod	48086000 - 48086fff
-     * GPTIMER10 L4	48087000 - 48087fff
-     * GPTIMER11 Mod	48088000 - 48088fff
-     * GPTIMER11 L4	48089000 - 48089fff
-     * GPTIMER12 Mod	4808a000 - 4808afff
-     * GPTIMER12 L4	4808b000 - 4808bfff
-     * EAC Mod		48090000 - 48090fff
-     * EAC L4		48091000 - 48091fff
-     * FAC Mod		48092000 - 48092fff
-     * FAC L4		48093000 - 48093fff
-     * MAILBOX Mod	48094000 - 48094fff
-     * MAILBOX L4	48095000 - 48095fff
-     * SPI1 Mod		48098000 - 48098fff
-     * SPI1 L4		48099000 - 48099fff
-     * SPI2 Mod		4809a000 - 4809afff
-     * SPI2 L4		4809b000 - 4809bfff
-     * MMC/SDIO Mod	4809c000 - 4809cfff
-     * MMC/SDIO L4	4809d000 - 4809dfff
-     * MS_PRO Mod	4809e000 - 4809efff
-     * MS_PRO L4	4809f000 - 4809ffff
-     * RNG Mod		480a0000 - 480a0fff
-     * RNG L4		480a1000 - 480a1fff
-     * DES3DES Mod	480a2000 - 480a2fff
-     * DES3DES L4	480a3000 - 480a3fff
-     * SHA1MD5 Mod	480a4000 - 480a4fff
-     * SHA1MD5 L4	480a5000 - 480a5fff
-     * AES Mod		480a6000 - 480a6fff
-     * AES L4		480a7000 - 480a7fff
-     * PKA Mod		480a8000 - 480a9fff
-     * PKA L4		480aa000 - 480aafff
-     * MG Mod		480b0000 - 480b0fff
-     * MG L4		480b1000 - 480b1fff
-     * HDQ/1-wire Mod	480b2000 - 480b2fff
-     * HDQ/1-wire L4	480b3000 - 480b3fff
-     * MPU interrupt	480fe000 - 480fefff
-     * STI channel base	54000000 - 5400ffff
-     * IVA RAM		5c000000 - 5c01ffff
-     * IVA ROM		5c020000 - 5c027fff
-     * IMG_BUF_A	5c040000 - 5c040fff
-     * IMG_BUF_B	5c042000 - 5c042fff
-     * VLCDS		5c048000 - 5c0487ff
-     * IMX_COEF		5c049000 - 5c04afff
-     * IMX_CMD		5c051000 - 5c051fff
-     * VLCDQ		5c053000 - 5c0533ff
-     * VLCDH		5c054000 - 5c054fff
-     * SEQ_CMD		5c055000 - 5c055fff
-     * IMX_REG		5c056000 - 5c0560ff
-     * VLCD_REG		5c056100 - 5c0561ff
-     * SEQ_REG		5c056200 - 5c0562ff
-     * IMG_BUF_REG	5c056300 - 5c0563ff
-     * SEQIRQ_REG	5c056400 - 5c0564ff
-     * OCP_REG		5c060000 - 5c060fff
-     * SYSC_REG		5c070000 - 5c070fff
-     * MMU_REG		5d000000 - 5d000fff
-     * sDMA R		68000400 - 680005ff
-     * sDMA W		68000600 - 680007ff
-     * Display Control	68000800 - 680009ff
-     * DSP subsystem	68000a00 - 68000bff
-     * MPU subsystem	68000c00 - 68000dff
-     * IVA subsystem	68001000 - 680011ff
-     * USB		68001200 - 680013ff
-     * Camera		68001400 - 680015ff
-     * VLYNQ (firewall)	68001800 - 68001bff
-     * VLYNQ		68001e00 - 68001fff
-     * SSI		68002000 - 680021ff
-     * L4		68002400 - 680025ff
-     * DSP (firewall)	68002800 - 68002bff
-     * DSP subsystem	68002e00 - 68002fff
-     * IVA (firewall)	68003000 - 680033ff
-     * IVA		68003600 - 680037ff
-     * GFX		68003a00 - 68003bff
-     * CMDWR emulation	68003c00 - 68003dff
-     * SMS		68004000 - 680041ff
-     * OCM		68004200 - 680043ff
-     * GPMC		68004400 - 680045ff
-     * RAM (firewall)	68005000 - 680053ff
-     * RAM (err login)	68005400 - 680057ff
-     * ROM (firewall)	68005800 - 68005bff
-     * ROM (err login)	68005c00 - 68005fff
-     * GPMC (firewall)	68006000 - 680063ff
-     * GPMC (err login)	68006400 - 680067ff
-     * SMS (err login)	68006c00 - 68006fff
-     * SMS registers	68008000 - 68008fff
-     * SDRC registers	68009000 - 68009fff
-     * GPMC registers	6800a000   6800afff
+     * SystemControlMod 48000000 - 48000fff
+     * SystemControlL4  48001000 - 48001fff
+     * 32kHz Timer Mod  48004000 - 48004fff
+     * 32kHz Timer L4   48005000 - 48005fff
+     * PRCM ModA    48008000 - 480087ff
+     * PRCM ModB    48008800 - 48008fff
+     * PRCM L4      48009000 - 48009fff
+     * TEST-BCM Mod 48012000 - 48012fff
+     * TEST-BCM L4  48013000 - 48013fff
+     * TEST-TAP Mod 48014000 - 48014fff
+     * TEST-TAP L4  48015000 - 48015fff
+     * GPIO1 Mod    48018000 - 48018fff
+     * GPIO Top     48019000 - 48019fff
+     * GPIO2 Mod    4801a000 - 4801afff
+     * GPIO L4      4801b000 - 4801bfff
+     * GPIO3 Mod    4801c000 - 4801cfff
+     * GPIO4 Mod    4801e000 - 4801efff
+     * WDTIMER1 Mod 48020000 - 48010fff
+     * WDTIMER Top  48021000 - 48011fff
+     * WDTIMER2 Mod 48022000 - 48012fff
+     * WDTIMER L4   48023000 - 48013fff
+     * WDTIMER3 Mod 48024000 - 48014fff
+     * WDTIMER3 L4  48025000 - 48015fff
+     * WDTIMER4 Mod 48026000 - 48016fff
+     * WDTIMER4 L4  48027000 - 48017fff
+     * GPTIMER1 Mod 48028000 - 48018fff
+     * GPTIMER1 L4  48029000 - 48019fff
+     * GPTIMER2 Mod 4802a000 - 4801afff
+     * GPTIMER2 L4  4802b000 - 4801bfff
+     * L4-Config AP 48040000 - 480407ff
+     * L4-Config IP 48040800 - 48040fff
+     * L4-Config LA 48041000 - 48041fff
+     * ARM11ETB Mod 48048000 - 48049fff
+     * ARM11ETB L4  4804a000 - 4804afff
+     * DISPLAY Top  48050000 - 480503ff
+     * DISPLAY DISPC    48050400 - 480507ff
+     * DISPLAY RFBI 48050800 - 48050bff
+     * DISPLAY VENC 48050c00 - 48050fff
+     * DISPLAY L4   48051000 - 48051fff
+     * CAMERA Top   48052000 - 480523ff
+     * CAMERA core  48052400 - 480527ff
+     * CAMERA DMA   48052800 - 48052bff
+     * CAMERA MMU   48052c00 - 48052fff
+     * CAMERA L4    48053000 - 48053fff
+     * SDMA Mod     48056000 - 48056fff
+     * SDMA L4      48057000 - 48057fff
+     * SSI Top      48058000 - 48058fff
+     * SSI GDD      48059000 - 48059fff
+     * SSI Port1    4805a000 - 4805afff
+     * SSI Port2    4805b000 - 4805bfff
+     * SSI L4       4805c000 - 4805cfff
+     * USB Mod      4805e000 - 480fefff
+     * USB L4       4805f000 - 480fffff
+     * WIN_TRACER1 Mod  48060000 - 48060fff
+     * WIN_TRACER1 L4   48061000 - 48061fff
+     * WIN_TRACER2 Mod  48062000 - 48062fff
+     * WIN_TRACER2 L4   48063000 - 48063fff
+     * WIN_TRACER3 Mod  48064000 - 48064fff
+     * WIN_TRACER3 L4   48065000 - 48065fff
+     * WIN_TRACER4 Top  48066000 - 480660ff
+     * WIN_TRACER4 ETT  48066100 - 480661ff
+     * WIN_TRACER4 WT   48066200 - 480662ff
+     * WIN_TRACER4 L4   48067000 - 48067fff
+     * XTI Mod      48068000 - 48068fff
+     * XTI L4       48069000 - 48069fff
+     * UART1 Mod    4806a000 - 4806afff
+     * UART1 L4     4806b000 - 4806bfff
+     * UART2 Mod    4806c000 - 4806cfff
+     * UART2 L4     4806d000 - 4806dfff
+     * UART3 Mod    4806e000 - 4806efff
+     * UART3 L4     4806f000 - 4806ffff
+     * I2C1 Mod     48070000 - 48070fff
+     * I2C1 L4      48071000 - 48071fff
+     * I2C2 Mod     48072000 - 48072fff
+     * I2C2 L4      48073000 - 48073fff
+     * McBSP1 Mod   48074000 - 48074fff
+     * McBSP1 L4    48075000 - 48075fff
+     * McBSP2 Mod   48076000 - 48076fff
+     * McBSP2 L4    48077000 - 48077fff
+     * GPTIMER3 Mod 48078000 - 48078fff
+     * GPTIMER3 L4  48079000 - 48079fff
+     * GPTIMER4 Mod 4807a000 - 4807afff
+     * GPTIMER4 L4  4807b000 - 4807bfff
+     * GPTIMER5 Mod 4807c000 - 4807cfff
+     * GPTIMER5 L4  4807d000 - 4807dfff
+     * GPTIMER6 Mod 4807e000 - 4807efff
+     * GPTIMER6 L4  4807f000 - 4807ffff
+     * GPTIMER7 Mod 48080000 - 48080fff
+     * GPTIMER7 L4  48081000 - 48081fff
+     * GPTIMER8 Mod 48082000 - 48082fff
+     * GPTIMER8 L4  48083000 - 48083fff
+     * GPTIMER9 Mod 48084000 - 48084fff
+     * GPTIMER9 L4  48085000 - 48085fff
+     * GPTIMER10 Mod    48086000 - 48086fff
+     * GPTIMER10 L4 48087000 - 48087fff
+     * GPTIMER11 Mod    48088000 - 48088fff
+     * GPTIMER11 L4 48089000 - 48089fff
+     * GPTIMER12 Mod    4808a000 - 4808afff
+     * GPTIMER12 L4 4808b000 - 4808bfff
+     * EAC Mod      48090000 - 48090fff
+     * EAC L4       48091000 - 48091fff
+     * FAC Mod      48092000 - 48092fff
+     * FAC L4       48093000 - 48093fff
+     * MAILBOX Mod  48094000 - 48094fff
+     * MAILBOX L4   48095000 - 48095fff
+     * SPI1 Mod     48098000 - 48098fff
+     * SPI1 L4      48099000 - 48099fff
+     * SPI2 Mod     4809a000 - 4809afff
+     * SPI2 L4      4809b000 - 4809bfff
+     * MMC/SDIO Mod 4809c000 - 4809cfff
+     * MMC/SDIO L4  4809d000 - 4809dfff
+     * MS_PRO Mod   4809e000 - 4809efff
+     * MS_PRO L4    4809f000 - 4809ffff
+     * RNG Mod      480a0000 - 480a0fff
+     * RNG L4       480a1000 - 480a1fff
+     * DES3DES Mod  480a2000 - 480a2fff
+     * DES3DES L4   480a3000 - 480a3fff
+     * SHA1MD5 Mod  480a4000 - 480a4fff
+     * SHA1MD5 L4   480a5000 - 480a5fff
+     * AES Mod      480a6000 - 480a6fff
+     * AES L4       480a7000 - 480a7fff
+     * PKA Mod      480a8000 - 480a9fff
+     * PKA L4       480aa000 - 480aafff
+     * MG Mod       480b0000 - 480b0fff
+     * MG L4        480b1000 - 480b1fff
+     * HDQ/1-wire Mod   480b2000 - 480b2fff
+     * HDQ/1-wire L4    480b3000 - 480b3fff
+     * MPU interrupt    480fe000 - 480fefff
+     * STI channel base 54000000 - 5400ffff
+     * IVA RAM      5c000000 - 5c01ffff
+     * IVA ROM      5c020000 - 5c027fff
+     * IMG_BUF_A    5c040000 - 5c040fff
+     * IMG_BUF_B    5c042000 - 5c042fff
+     * VLCDS        5c048000 - 5c0487ff
+     * IMX_COEF     5c049000 - 5c04afff
+     * IMX_CMD      5c051000 - 5c051fff
+     * VLCDQ        5c053000 - 5c0533ff
+     * VLCDH        5c054000 - 5c054fff
+     * SEQ_CMD      5c055000 - 5c055fff
+     * IMX_REG      5c056000 - 5c0560ff
+     * VLCD_REG     5c056100 - 5c0561ff
+     * SEQ_REG      5c056200 - 5c0562ff
+     * IMG_BUF_REG  5c056300 - 5c0563ff
+     * SEQIRQ_REG   5c056400 - 5c0564ff
+     * OCP_REG      5c060000 - 5c060fff
+     * SYSC_REG     5c070000 - 5c070fff
+     * MMU_REG      5d000000 - 5d000fff
+     * sDMA R       68000400 - 680005ff
+     * sDMA W       68000600 - 680007ff
+     * Display Control  68000800 - 680009ff
+     * DSP subsystem    68000a00 - 68000bff
+     * MPU subsystem    68000c00 - 68000dff
+     * IVA subsystem    68001000 - 680011ff
+     * USB      68001200 - 680013ff
+     * Camera       68001400 - 680015ff
+     * VLYNQ (firewall) 68001800 - 68001bff
+     * VLYNQ        68001e00 - 68001fff
+     * SSI      68002000 - 680021ff
+     * L4       68002400 - 680025ff
+     * DSP (firewall)   68002800 - 68002bff
+     * DSP subsystem    68002e00 - 68002fff
+     * IVA (firewall)   68003000 - 680033ff
+     * IVA      68003600 - 680037ff
+     * GFX      68003a00 - 68003bff
+     * CMDWR emulation  68003c00 - 68003dff
+     * SMS      68004000 - 680041ff
+     * OCM      68004200 - 680043ff
+     * GPMC     68004400 - 680045ff
+     * RAM (firewall)   68005000 - 680053ff
+     * RAM (err login)  68005400 - 680057ff
+     * ROM (firewall)   68005800 - 68005bff
+     * ROM (err login)  68005c00 - 68005fff
+     * GPMC (firewall)  68006000 - 680063ff
+     * GPMC (err login) 68006400 - 680067ff
+     * SMS (err login)  68006c00 - 68006fff
+     * SMS registers    68008000 - 68008fff
+     * SDRC registers   68009000 - 68009fff
+     * GPMC registers   6800a000   6800afff
      */
 
     qemu_register_reset(omap2_mpu_reset, s);

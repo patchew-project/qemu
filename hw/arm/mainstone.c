@@ -26,10 +26,10 @@
 #include "cpu.h"
 
 /* Device addresses */
-#define MST_FPGA_PHYS	0x08000000
-#define MST_ETH_PHYS	0x10000300
-#define MST_FLASH_0		0x00000000
-#define MST_FLASH_1		0x04000000
+#define MST_FPGA_PHYS   0x08000000
+#define MST_ETH_PHYS    0x10000300
+#define MST_FLASH_0     0x00000000
+#define MST_FLASH_1     0x04000000
 
 /* IRQ definitions */
 #define MMC_IRQ       0

@@ -69,13 +69,13 @@ struct omap_gp_timer_s {
     uint32_t match_val;
     int capt_num;
 
-    uint16_t writeh;	/* LSB */
-    uint16_t readh;	/* MSB */
+    uint16_t writeh;    /* LSB */
+    uint16_t readh; /* MSB */
 };
 
-#define GPT_TCAR_IT	(1 << 2)
-#define GPT_OVF_IT	(1 << 1)
-#define GPT_MAT_IT	(1 << 0)
+#define GPT_TCAR_IT (1 << 2)
+#define GPT_OVF_IT  (1 << 1)
+#define GPT_MAT_IT  (1 << 0)
 
 static inline void omap_gp_timer_intr(struct omap_gp_timer_s *timer, int it)
 {
@@ -265,26 +265,26 @@ static uint32_t omap_gp_timer_readw(void *opaque, hwaddr addr)
     struct omap_gp_timer_s *s = opaque;
 
     switch (addr) {
-    case 0x00:	/* TIDR */
+    case 0x00:  /* TIDR */
         return 0x21;
 
-    case 0x10:	/* TIOCP_CFG */
+    case 0x10:  /* TIOCP_CFG */
         return s->config;
 
-    case 0x14:	/* TISTAT */
+    case 0x14:  /* TISTAT */
         /* ??? When's this bit reset? */
-        return 1;						/* RESETDONE */
+        return 1;                       /* RESETDONE */
 
-    case 0x18:	/* TISR */
+    case 0x18:  /* TISR */
         return s->status;
 
-    case 0x1c:	/* TIER */
+    case 0x1c:  /* TIER */
         return s->it_ena;
 
-    case 0x20:	/* TWER */
+    case 0x20:  /* TWER */
         return s->wu_ena;
 
-    case 0x24:	/* TCLR */
+    case 0x24:  /* TCLR */
         return (s->inout << 14) |
                 (s->capt2 << 13) |
                 (s->pt << 12) |
@@ -297,28 +297,28 @@ static uint32_t omap_gp_timer_readw(void *opaque, hwaddr addr)
                 (s->ar << 1) |
                 (s->st << 0);
 
-    case 0x28:	/* TCRR */
+    case 0x28:  /* TCRR */
         return omap_gp_timer_read(s);
 
-    case 0x2c:	/* TLDR */
+    case 0x2c:  /* TLDR */
         return s->load_val;
 
-    case 0x30:	/* TTGR */
+    case 0x30:  /* TTGR */
         return 0xffffffff;
 
-    case 0x34:	/* TWPS */
-        return 0x00000000;	/* No posted writes pending.  */
+    case 0x34:  /* TWPS */
+        return 0x00000000;  /* No posted writes pending.  */
 
-    case 0x38:	/* TMAR */
+    case 0x38:  /* TMAR */
         return s->match_val;
 
-    case 0x3c:	/* TCAR1 */
+    case 0x3c:  /* TCAR1 */
         return s->capture_val[0];
 
-    case 0x40:	/* TSICR */
+    case 0x40:  /* TSICR */
         return s->posted << 2;
 
-    case 0x44:	/* TCAR2 */
+    case 0x44:  /* TCAR2 */
         return s->capture_val[1];
     }
 
@@ -345,39 +345,39 @@ static void omap_gp_timer_write(void *opaque, hwaddr addr, uint32_t value)
     struct omap_gp_timer_s *s = opaque;
 
     switch (addr) {
-    case 0x00:	/* TIDR */
-    case 0x14:	/* TISTAT */
-    case 0x34:	/* TWPS */
-    case 0x3c:	/* TCAR1 */
-    case 0x44:	/* TCAR2 */
+    case 0x00:  /* TIDR */
+    case 0x14:  /* TISTAT */
+    case 0x34:  /* TWPS */
+    case 0x3c:  /* TCAR1 */
+    case 0x44:  /* TCAR2 */
         OMAP_RO_REG(addr);
         break;
 
-    case 0x10:	/* TIOCP_CFG */
+    case 0x10:  /* TIOCP_CFG */
         s->config = value & 0x33d;
-        if (((value >> 3) & 3) == 3)				/* IDLEMODE */
+        if (((value >> 3) & 3) == 3)                /* IDLEMODE */
             fprintf(stderr, "%s: illegal IDLEMODE value in TIOCP_CFG\n",
                             __func__);
-        if (value & 2)						/* SOFTRESET */
+        if (value & 2)                      /* SOFTRESET */
             omap_gp_timer_reset(s);
         break;
 
-    case 0x18:	/* TISR */
+    case 0x18:  /* TISR */
         if (value & GPT_TCAR_IT)
             s->capt_num = 0;
         if (s->status && !(s->status &= ~value))
             qemu_irq_lower(s->irq);
         break;
 
-    case 0x1c:	/* TIER */
+    case 0x1c:  /* TIER */
         s->it_ena = value & 7;
         break;
 
-    case 0x20:	/* TWER */
+    case 0x20:  /* TWER */
         s->wu_ena = value & 7;
         break;
 
-    case 0x24:	/* TCLR */
+    case 0x24:  /* TCLR */
         omap_gp_timer_sync(s);
         s->inout = (value >> 14) & 1;
         s->capt2 = (value >> 13) & 1;
@@ -406,31 +406,31 @@ static void omap_gp_timer_write(void *opaque, hwaddr addr, uint32_t value)
         omap_gp_timer_update(s);
         break;
 
-    case 0x28:	/* TCRR */
+    case 0x28:  /* TCRR */
         s->time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         s->val = value;
         omap_gp_timer_update(s);
         break;
 
-    case 0x2c:	/* TLDR */
+    case 0x2c:  /* TLDR */
         s->load_val = value;
         break;
 
-    case 0x30:	/* TTGR */
+    case 0x30:  /* TTGR */
         s->time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         s->val = s->load_val;
         omap_gp_timer_update(s);
         break;
 
-    case 0x38:	/* TMAR */
+    case 0x38:  /* TMAR */
         omap_gp_timer_sync(s);
         s->match_val = value;
         omap_gp_timer_update(s);
         break;
 
-    case 0x40:	/* TSICR */
+    case 0x40:  /* TSICR */
         s->posted = (value >> 2) & 1;
-        if (value & 2)	/* How much exactly are we supposed to reset? */
+        if (value & 2)  /* How much exactly are we supposed to reset? */
             omap_gp_timer_reset(s);
         break;
 

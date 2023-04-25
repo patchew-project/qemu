@@ -61,13 +61,13 @@ static uint64_t omap_l4ta_read(void *opaque, hwaddr addr, unsigned size)
     }
 
     switch (addr) {
-    case 0x00:	/* COMPONENT */
+    case 0x00:  /* COMPONENT */
         return s->component;
 
-    case 0x20:	/* AGENT_CONTROL */
+    case 0x20:  /* AGENT_CONTROL */
         return s->control;
 
-    case 0x28:	/* AGENT_STATUS */
+    case 0x28:  /* AGENT_STATUS */
         return s->status;
     }
 
@@ -86,15 +86,15 @@ static void omap_l4ta_write(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x00:	/* COMPONENT */
-    case 0x28:	/* AGENT_STATUS */
+    case 0x00:  /* COMPONENT */
+    case 0x28:  /* AGENT_STATUS */
         OMAP_RO_REG(addr);
         break;
 
-    case 0x20:	/* AGENT_CONTROL */
+    case 0x20:  /* AGENT_CONTROL */
         s->control = value & 0x01000700;
-        if (value & 1)					/* OCP_RESET */
-            s->status &= ~1;				/* REQ_TIMEOUT */
+        if (value & 1)                  /* OCP_RESET */
+            s->status &= ~1;                /* REQ_TIMEOUT */
         break;
 
     default:
@@ -134,7 +134,7 @@ struct omap_target_agent_s *omap_l4ta_get(struct omap_l4_s *bus,
 
     ta->component = ('Q' << 24) | ('E' << 16) | ('M' << 8) | ('U' << 0);
     ta->status = 0x00000000;
-    ta->control = 0x00000200;	/* XXX 01000200 for L4TAO */
+    ta->control = 0x00000200;   /* XXX 01000200 for L4TAO */
 
     memory_region_init_io(&ta->iomem, NULL, &omap_l4ta_ops, ta, "omap.l4ta",
                           omap_l4_region_size(ta, info->ta_region));

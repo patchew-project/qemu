@@ -75,15 +75,15 @@ struct LM823KbdState {
     } pwm;
 };
 
-#define INT_KEYPAD		(1 << 0)
-#define INT_ERROR		(1 << 3)
-#define INT_NOINIT		(1 << 4)
-#define INT_PWMEND(n)		(1 << (5 + n))
+#define INT_KEYPAD      (1 << 0)
+#define INT_ERROR       (1 << 3)
+#define INT_NOINIT      (1 << 4)
+#define INT_PWMEND(n)       (1 << (5 + n))
 
-#define ERR_BADPAR		(1 << 0)
-#define ERR_CMDUNK		(1 << 1)
-#define ERR_KEYOVR		(1 << 2)
-#define ERR_FIFOOVR		(1 << 6)
+#define ERR_BADPAR      (1 << 0)
+#define ERR_CMDUNK      (1 << 1)
+#define ERR_KEYOVR      (1 << 2)
+#define ERR_FIFOOVR     (1 << 6)
 
 static void lm_kbd_irq_update(LM823KbdState *s)
 {
@@ -139,36 +139,36 @@ static void lm_kbd_pwm2_tick(void *opaque)
 }
 
 enum {
-    LM832x_CMD_READ_ID		= 0x80, /* Read chip ID. */
-    LM832x_CMD_WRITE_CFG	= 0x81, /* Set configuration item. */
-    LM832x_CMD_READ_INT		= 0x82, /* Get interrupt status. */
-    LM832x_CMD_RESET		= 0x83, /* Reset, same as external one */
-    LM823x_CMD_WRITE_PULL_DOWN	= 0x84, /* Select GPIO pull-up/down. */
-    LM832x_CMD_WRITE_PORT_SEL	= 0x85, /* Select GPIO in/out. */
-    LM832x_CMD_WRITE_PORT_STATE	= 0x86, /* Set GPIO pull-up/down. */
-    LM832x_CMD_READ_PORT_SEL	= 0x87, /* Get GPIO in/out. */
-    LM832x_CMD_READ_PORT_STATE	= 0x88, /* Get GPIO pull-up/down. */
-    LM832x_CMD_READ_FIFO	= 0x89, /* Read byte from FIFO. */
-    LM832x_CMD_RPT_READ_FIFO	= 0x8a, /* Read FIFO (no increment). */
-    LM832x_CMD_SET_ACTIVE	= 0x8b, /* Set active time. */
-    LM832x_CMD_READ_ERROR	= 0x8c, /* Get error status. */
-    LM832x_CMD_READ_ROTATOR	= 0x8e, /* Read rotator status. */
-    LM832x_CMD_SET_DEBOUNCE	= 0x8f, /* Set debouncing time. */
-    LM832x_CMD_SET_KEY_SIZE	= 0x90, /* Set keypad size. */
-    LM832x_CMD_READ_KEY_SIZE	= 0x91, /* Get keypad size. */
-    LM832x_CMD_READ_CFG		= 0x92, /* Get configuration item. */
-    LM832x_CMD_WRITE_CLOCK	= 0x93, /* Set clock config. */
-    LM832x_CMD_READ_CLOCK	= 0x94, /* Get clock config. */
-    LM832x_CMD_PWM_WRITE	= 0x95, /* Write PWM script. */
-    LM832x_CMD_PWM_START	= 0x96, /* Start PWM engine. */
-    LM832x_CMD_PWM_STOP		= 0x97, /* Stop PWM engine. */
-    LM832x_GENERAL_ERROR	= 0xff, /* There was one error.
+    LM832x_CMD_READ_ID      = 0x80, /* Read chip ID. */
+    LM832x_CMD_WRITE_CFG    = 0x81, /* Set configuration item. */
+    LM832x_CMD_READ_INT     = 0x82, /* Get interrupt status. */
+    LM832x_CMD_RESET        = 0x83, /* Reset, same as external one */
+    LM823x_CMD_WRITE_PULL_DOWN  = 0x84, /* Select GPIO pull-up/down. */
+    LM832x_CMD_WRITE_PORT_SEL   = 0x85, /* Select GPIO in/out. */
+    LM832x_CMD_WRITE_PORT_STATE = 0x86, /* Set GPIO pull-up/down. */
+    LM832x_CMD_READ_PORT_SEL    = 0x87, /* Get GPIO in/out. */
+    LM832x_CMD_READ_PORT_STATE  = 0x88, /* Get GPIO pull-up/down. */
+    LM832x_CMD_READ_FIFO    = 0x89, /* Read byte from FIFO. */
+    LM832x_CMD_RPT_READ_FIFO    = 0x8a, /* Read FIFO (no increment). */
+    LM832x_CMD_SET_ACTIVE   = 0x8b, /* Set active time. */
+    LM832x_CMD_READ_ERROR   = 0x8c, /* Get error status. */
+    LM832x_CMD_READ_ROTATOR = 0x8e, /* Read rotator status. */
+    LM832x_CMD_SET_DEBOUNCE = 0x8f, /* Set debouncing time. */
+    LM832x_CMD_SET_KEY_SIZE = 0x90, /* Set keypad size. */
+    LM832x_CMD_READ_KEY_SIZE    = 0x91, /* Get keypad size. */
+    LM832x_CMD_READ_CFG     = 0x92, /* Get configuration item. */
+    LM832x_CMD_WRITE_CLOCK  = 0x93, /* Set clock config. */
+    LM832x_CMD_READ_CLOCK   = 0x94, /* Get clock config. */
+    LM832x_CMD_PWM_WRITE    = 0x95, /* Write PWM script. */
+    LM832x_CMD_PWM_START    = 0x96, /* Start PWM engine. */
+    LM832x_CMD_PWM_STOP     = 0x97, /* Stop PWM engine. */
+    LM832x_GENERAL_ERROR    = 0xff, /* There was one error.
                                            Previously was represented by -1
                                            This is not a command */
 };
 
-#define LM832x_MAX_KPX		8
-#define LM832x_MAX_KPY		12
+#define LM832x_MAX_KPX      8
+#define LM832x_MAX_KPY      12
 
 static uint8_t lm_kbd_read(LM823KbdState *s, int reg, int byte)
 {
@@ -257,9 +257,9 @@ static void lm_kbd_write(LM823KbdState *s, int reg, int byte, uint8_t value)
     case LM832x_CMD_WRITE_CFG:
         s->config = value;
         /* This must be done whenever s->mux.in is updated (never).  */
-        if ((s->config >> 1) & 1)			/* MUX1EN */
+        if ((s->config >> 1) & 1)           /* MUX1EN */
             qemu_set_irq(s->mux.out[0], s->mux.in[0][(s->config >> 0) & 1]);
-        if ((s->config >> 3) & 1)			/* MUX2EN */
+        if ((s->config >> 3) & 1)           /* MUX2EN */
             qemu_set_irq(s->mux.out[0], s->mux.in[0][(s->config >> 2) & 1]);
         /* TODO: check that this is issued only following the chip reset
          * and not in the middle of operation and that it is followed by

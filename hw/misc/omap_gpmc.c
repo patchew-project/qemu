@@ -518,32 +518,32 @@ static uint64_t omap_gpmc_read(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x000:	/* GPMC_REVISION */
+    case 0x000: /* GPMC_REVISION */
         return s->revision;
 
-    case 0x010:	/* GPMC_SYSCONFIG */
+    case 0x010: /* GPMC_SYSCONFIG */
         return s->sysconfig;
 
-    case 0x014:	/* GPMC_SYSSTATUS */
-        return 1;						/* RESETDONE */
+    case 0x014: /* GPMC_SYSSTATUS */
+        return 1;                       /* RESETDONE */
 
-    case 0x018:	/* GPMC_IRQSTATUS */
+    case 0x018: /* GPMC_IRQSTATUS */
         return s->irqst;
 
-    case 0x01c:	/* GPMC_IRQENABLE */
+    case 0x01c: /* GPMC_IRQENABLE */
         return s->irqen;
 
-    case 0x040:	/* GPMC_TIMEOUT_CONTROL */
+    case 0x040: /* GPMC_TIMEOUT_CONTROL */
         return s->timeout;
 
-    case 0x044:	/* GPMC_ERR_ADDRESS */
-    case 0x048:	/* GPMC_ERR_TYPE */
+    case 0x044: /* GPMC_ERR_ADDRESS */
+    case 0x048: /* GPMC_ERR_TYPE */
         return 0;
 
-    case 0x050:	/* GPMC_CONFIG */
+    case 0x050: /* GPMC_CONFIG */
         return s->config;
 
-    case 0x054:	/* GPMC_STATUS */
+    case 0x054: /* GPMC_STATUS */
         return 0x001;
 
     case 0x060 ... 0x1d4:
@@ -573,13 +573,13 @@ static uint64_t omap_gpmc_read(void *opaque, hwaddr addr,
         }
         break;
 
-    case 0x1e0:	/* GPMC_PREFETCH_CONFIG1 */
+    case 0x1e0: /* GPMC_PREFETCH_CONFIG1 */
         return s->prefetch.config1;
-    case 0x1e4:	/* GPMC_PREFETCH_CONFIG2 */
+    case 0x1e4: /* GPMC_PREFETCH_CONFIG2 */
         return s->prefetch.transfercount;
-    case 0x1ec:	/* GPMC_PREFETCH_CONTROL */
+    case 0x1ec: /* GPMC_PREFETCH_CONTROL */
         return s->prefetch.startengine;
-    case 0x1f0:	/* GPMC_PREFETCH_STATUS */
+    case 0x1f0: /* GPMC_PREFETCH_STATUS */
         /* NB: The OMAP3 TRM is inconsistent about whether the GPMC
          * FIFOTHRESHOLDSTATUS bit should be set when
          * FIFOPOINTER > FIFOTHRESHOLD or when it is >= FIFOTHRESHOLD.
@@ -592,13 +592,13 @@ static uint64_t omap_gpmc_read(void *opaque, hwaddr addr,
                   ((s->prefetch.config1 >> 8) & 0x7f) ? 1 : 0) << 16) |
                 s->prefetch.count;
 
-    case 0x1f4:	/* GPMC_ECC_CONFIG */
+    case 0x1f4: /* GPMC_ECC_CONFIG */
         return s->ecc_cs;
-    case 0x1f8:	/* GPMC_ECC_CONTROL */
+    case 0x1f8: /* GPMC_ECC_CONTROL */
         return s->ecc_ptr;
-    case 0x1fc:	/* GPMC_ECC_SIZE_CONFIG */
+    case 0x1fc: /* GPMC_ECC_SIZE_CONFIG */
         return s->ecc_cfg;
-    case 0x200 ... 0x220:	/* GPMC_ECC_RESULT */
+    case 0x200 ... 0x220:   /* GPMC_ECC_RESULT */
         cs = (addr & 0x1f) >> 2;
         /* TODO: check correctness */
         return
@@ -607,10 +607,10 @@ static uint64_t omap_gpmc_read(void *opaque, hwaddr addr,
                 ((s->ecc[cs].lp[0] & 0x1ff) <<  3) |
                 ((s->ecc[cs].lp[1] & 0x1ff) << 19);
 
-    case 0x230:	/* GPMC_TESTMODE_CTRL */
+    case 0x230: /* GPMC_TESTMODE_CTRL */
         return 0;
-    case 0x234:	/* GPMC_PSA_LSB */
-    case 0x238:	/* GPMC_PSA_MSB */
+    case 0x234: /* GPMC_PSA_LSB */
+    case 0x238: /* GPMC_PSA_MSB */
         return 0x00000000;
     }
 
@@ -631,17 +631,17 @@ static void omap_gpmc_write(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x000:	/* GPMC_REVISION */
-    case 0x014:	/* GPMC_SYSSTATUS */
-    case 0x054:	/* GPMC_STATUS */
-    case 0x1f0:	/* GPMC_PREFETCH_STATUS */
-    case 0x200 ... 0x220:	/* GPMC_ECC_RESULT */
-    case 0x234:	/* GPMC_PSA_LSB */
-    case 0x238:	/* GPMC_PSA_MSB */
+    case 0x000: /* GPMC_REVISION */
+    case 0x014: /* GPMC_SYSSTATUS */
+    case 0x054: /* GPMC_STATUS */
+    case 0x1f0: /* GPMC_PREFETCH_STATUS */
+    case 0x200 ... 0x220:   /* GPMC_ECC_RESULT */
+    case 0x234: /* GPMC_PSA_LSB */
+    case 0x238: /* GPMC_PSA_MSB */
         OMAP_RO_REG(addr);
         break;
 
-    case 0x010:	/* GPMC_SYSCONFIG */
+    case 0x010: /* GPMC_SYSCONFIG */
         if ((value >> 3) == 0x3)
             fprintf(stderr, "%s: bad SDRAM idle mode %"PRIi64"\n",
                             __func__, value >> 3);
@@ -650,25 +650,25 @@ static void omap_gpmc_write(void *opaque, hwaddr addr,
         s->sysconfig = value & 0x19;
         break;
 
-    case 0x018:	/* GPMC_IRQSTATUS */
+    case 0x018: /* GPMC_IRQSTATUS */
         s->irqst &= ~value;
         omap_gpmc_int_update(s);
         break;
 
-    case 0x01c:	/* GPMC_IRQENABLE */
+    case 0x01c: /* GPMC_IRQENABLE */
         s->irqen = value & 0xf03;
         omap_gpmc_int_update(s);
         break;
 
-    case 0x040:	/* GPMC_TIMEOUT_CONTROL */
+    case 0x040: /* GPMC_TIMEOUT_CONTROL */
         s->timeout = value & 0x1ff1;
         break;
 
-    case 0x044:	/* GPMC_ERR_ADDRESS */
-    case 0x048:	/* GPMC_ERR_TYPE */
+    case 0x044: /* GPMC_ERR_ADDRESS */
+    case 0x048: /* GPMC_ERR_TYPE */
         break;
 
-    case 0x050:	/* GPMC_CONFIG */
+    case 0x050: /* GPMC_CONFIG */
         s->config = value & 0xf13;
         break;
 
@@ -724,7 +724,7 @@ static void omap_gpmc_write(void *opaque, hwaddr addr,
         }
         break;
 
-    case 0x1e0:	/* GPMC_PREFETCH_CONFIG1 */
+    case 0x1e0: /* GPMC_PREFETCH_CONFIG1 */
         if (!s->prefetch.startengine) {
             uint32_t newconfig1 = value & 0x7f8f7fbf;
             uint32_t changed;
@@ -755,13 +755,13 @@ static void omap_gpmc_write(void *opaque, hwaddr addr,
         }
         break;
 
-    case 0x1e4:	/* GPMC_PREFETCH_CONFIG2 */
+    case 0x1e4: /* GPMC_PREFETCH_CONFIG2 */
         if (!s->prefetch.startengine) {
             s->prefetch.transfercount = value & 0x3fff;
         }
         break;
 
-    case 0x1ec:	/* GPMC_PREFETCH_CONTROL */
+    case 0x1ec: /* GPMC_PREFETCH_CONTROL */
         if (s->prefetch.startengine != (value & 1)) {
             s->prefetch.startengine = value & 1;
             if (s->prefetch.startengine) {
@@ -789,10 +789,10 @@ static void omap_gpmc_write(void *opaque, hwaddr addr,
         }
         break;
 
-    case 0x1f4:	/* GPMC_ECC_CONFIG */
+    case 0x1f4: /* GPMC_ECC_CONFIG */
         s->ecc_cs = 0x8f;
         break;
-    case 0x1f8:	/* GPMC_ECC_CONTROL */
+    case 0x1f8: /* GPMC_ECC_CONTROL */
         if (value & (1 << 8))
             for (cs = 0; cs < 9; cs ++)
                 ecc_reset(&s->ecc[cs]);
@@ -802,10 +802,10 @@ static void omap_gpmc_write(void *opaque, hwaddr addr,
             s->ecc_cs &= ~1;
         }
         break;
-    case 0x1fc:	/* GPMC_ECC_SIZE_CONFIG */
+    case 0x1fc: /* GPMC_ECC_SIZE_CONFIG */
         s->ecc_cfg = value & 0x3fcff1ff;
         break;
-    case 0x230:	/* GPMC_TESTMODE_CTRL */
+    case 0x230: /* GPMC_TESTMODE_CTRL */
         if (value & 7)
             fprintf(stderr, "%s: test mode enable attempt\n", __func__);
         break;

@@ -179,61 +179,61 @@ static void retu_interrupt_update(CBusRetu *s)
     qemu_set_irq(s->irq, s->irqst & ~s->irqen);
 }
 
-#define RETU_REG_ASICR		0x00	/* (RO) ASIC ID & revision */
-#define RETU_REG_IDR		0x01	/* (T)  Interrupt ID */
-#define RETU_REG_IMR		0x02	/* (RW) Interrupt mask */
-#define RETU_REG_RTCDSR		0x03	/* (RW) RTC seconds register */
-#define RETU_REG_RTCHMR		0x04	/* (RO) RTC hours and minutes reg */
-#define RETU_REG_RTCHMAR	0x05	/* (RW) RTC hours and minutes set reg */
-#define RETU_REG_RTCCALR	0x06	/* (RW) RTC calibration register */
-#define RETU_REG_ADCR		0x08	/* (RW) ADC result register */
-#define RETU_REG_ADCSCR		0x09	/* (RW) ADC sample control register */
-#define RETU_REG_AFCR		0x0a	/* (RW) AFC register */
-#define RETU_REG_ANTIFR		0x0b	/* (RW) AntiF register */
-#define RETU_REG_CALIBR		0x0c	/* (RW) CalibR register*/
-#define RETU_REG_CCR1		0x0d	/* (RW) Common control register 1 */
-#define RETU_REG_CCR2		0x0e	/* (RW) Common control register 2 */
-#define RETU_REG_RCTRL_CLR	0x0f	/* (T)  Regulator clear register */
-#define RETU_REG_RCTRL_SET	0x10	/* (T)  Regulator set register */
-#define RETU_REG_TXCR		0x11	/* (RW) TxC register */
-#define RETU_REG_STATUS		0x16	/* (RO) Status register */
-#define RETU_REG_WATCHDOG	0x17	/* (RW) Watchdog register */
-#define RETU_REG_AUDTXR		0x18	/* (RW) Audio Codec Tx register */
-#define RETU_REG_AUDPAR		0x19	/* (RW) AudioPA register */
-#define RETU_REG_AUDRXR1	0x1a	/* (RW) Audio receive register 1 */
-#define RETU_REG_AUDRXR2	0x1b	/* (RW) Audio receive register 2 */
-#define RETU_REG_SGR1		0x1c	/* (RW) */
-#define RETU_REG_SCR1		0x1d	/* (RW) */
-#define RETU_REG_SGR2		0x1e	/* (RW) */
-#define RETU_REG_SCR2		0x1f	/* (RW) */
+#define RETU_REG_ASICR      0x00    /* (RO) ASIC ID & revision */
+#define RETU_REG_IDR        0x01    /* (T)  Interrupt ID */
+#define RETU_REG_IMR        0x02    /* (RW) Interrupt mask */
+#define RETU_REG_RTCDSR     0x03    /* (RW) RTC seconds register */
+#define RETU_REG_RTCHMR     0x04    /* (RO) RTC hours and minutes reg */
+#define RETU_REG_RTCHMAR    0x05    /* (RW) RTC hours and minutes set reg */
+#define RETU_REG_RTCCALR    0x06    /* (RW) RTC calibration register */
+#define RETU_REG_ADCR       0x08    /* (RW) ADC result register */
+#define RETU_REG_ADCSCR     0x09    /* (RW) ADC sample control register */
+#define RETU_REG_AFCR       0x0a    /* (RW) AFC register */
+#define RETU_REG_ANTIFR     0x0b    /* (RW) AntiF register */
+#define RETU_REG_CALIBR     0x0c    /* (RW) CalibR register*/
+#define RETU_REG_CCR1       0x0d    /* (RW) Common control register 1 */
+#define RETU_REG_CCR2       0x0e    /* (RW) Common control register 2 */
+#define RETU_REG_RCTRL_CLR  0x0f    /* (T)  Regulator clear register */
+#define RETU_REG_RCTRL_SET  0x10    /* (T)  Regulator set register */
+#define RETU_REG_TXCR       0x11    /* (RW) TxC register */
+#define RETU_REG_STATUS     0x16    /* (RO) Status register */
+#define RETU_REG_WATCHDOG   0x17    /* (RW) Watchdog register */
+#define RETU_REG_AUDTXR     0x18    /* (RW) Audio Codec Tx register */
+#define RETU_REG_AUDPAR     0x19    /* (RW) AudioPA register */
+#define RETU_REG_AUDRXR1    0x1a    /* (RW) Audio receive register 1 */
+#define RETU_REG_AUDRXR2    0x1b    /* (RW) Audio receive register 2 */
+#define RETU_REG_SGR1       0x1c    /* (RW) */
+#define RETU_REG_SCR1       0x1d    /* (RW) */
+#define RETU_REG_SGR2       0x1e    /* (RW) */
+#define RETU_REG_SCR2       0x1f    /* (RW) */
 
 /* Retu Interrupt sources */
 enum {
-    retu_int_pwr	= 0,	/* Power button */
-    retu_int_char	= 1,	/* Charger */
-    retu_int_rtcs	= 2,	/* Seconds */
-    retu_int_rtcm	= 3,	/* Minutes */
-    retu_int_rtcd	= 4,	/* Days */
-    retu_int_rtca	= 5,	/* Alarm */
-    retu_int_hook	= 6,	/* Hook */
-    retu_int_head	= 7,	/* Headset */
-    retu_int_adcs	= 8,	/* ADC sample */
+    retu_int_pwr    = 0,    /* Power button */
+    retu_int_char   = 1,    /* Charger */
+    retu_int_rtcs   = 2,    /* Seconds */
+    retu_int_rtcm   = 3,    /* Minutes */
+    retu_int_rtcd   = 4,    /* Days */
+    retu_int_rtca   = 5,    /* Alarm */
+    retu_int_hook   = 6,    /* Hook */
+    retu_int_head   = 7,    /* Headset */
+    retu_int_adcs   = 8,    /* ADC sample */
 };
 
 /* Retu ADC channel wiring */
 enum {
-    retu_adc_bsi	= 1,	/* BSI */
-    retu_adc_batt_temp	= 2,	/* Battery temperature */
-    retu_adc_chg_volt	= 3,	/* Charger voltage */
-    retu_adc_head_det	= 4,	/* Headset detection */
-    retu_adc_hook_det	= 5,	/* Hook detection */
-    retu_adc_rf_gp	= 6,	/* RF GP */
-    retu_adc_tx_det	= 7,	/* Wideband Tx detection */
-    retu_adc_batt_volt	= 8,	/* Battery voltage */
-    retu_adc_sens	= 10,	/* Light sensor */
-    retu_adc_sens_temp	= 11,	/* Light sensor temperature */
-    retu_adc_bbatt_volt	= 12,	/* Backup battery voltage */
-    retu_adc_self_temp	= 13,	/* RETU temperature */
+    retu_adc_bsi    = 1,    /* BSI */
+    retu_adc_batt_temp  = 2,    /* Battery temperature */
+    retu_adc_chg_volt   = 3,    /* Charger voltage */
+    retu_adc_head_det   = 4,    /* Headset detection */
+    retu_adc_hook_det   = 5,    /* Hook detection */
+    retu_adc_rf_gp  = 6,    /* RF GP */
+    retu_adc_tx_det = 7,    /* Wideband Tx detection */
+    retu_adc_batt_volt  = 8,    /* Battery voltage */
+    retu_adc_sens   = 10,   /* Light sensor */
+    retu_adc_sens_temp  = 11,   /* Light sensor temperature */
+    retu_adc_bbatt_volt = 12,   /* Backup battery voltage */
+    retu_adc_self_temp  = 13,   /* RETU temperature */
 };
 
 static inline uint16_t retu_read(CBusRetu *s, int reg)
@@ -246,7 +246,7 @@ static inline uint16_t retu_read(CBusRetu *s, int reg)
     case RETU_REG_ASICR:
         return 0x0215 | (s->is_vilma << 7);
 
-    case RETU_REG_IDR:	/* TODO: Or is this ffs(s->irqst)?  */
+    case RETU_REG_IDR:  /* TODO: Or is this ffs(s->irqst)?  */
         return s->irqst;
 
     case RETU_REG_IMR:
@@ -436,7 +436,7 @@ static void retu_head_event(void *retu, int state)
     CBusSlave *slave = (CBusSlave *) retu;
     CBusRetu *s = (CBusRetu *) slave->opaque;
 
-    if ((s->cc[0] & 0x500) == 0x500) {	/* TODO: Which bits? */
+    if ((s->cc[0] & 0x500) == 0x500) {  /* TODO: Which bits? */
         /* TODO: reissue the interrupt every 100ms or so.  */
         s->irqst |= 1 << retu_int_head;
         retu_interrupt_update(s);
@@ -485,20 +485,20 @@ static void tahvo_interrupt_update(CBusTahvo *s)
     qemu_set_irq(s->irq, s->irqst & ~s->irqen);
 }
 
-#define TAHVO_REG_ASICR		0x00	/* (RO) ASIC ID & revision */
-#define TAHVO_REG_IDR		0x01	/* (T)  Interrupt ID */
-#define TAHVO_REG_IDSR		0x02	/* (RO) Interrupt status */
-#define TAHVO_REG_IMR		0x03	/* (RW) Interrupt mask */
-#define TAHVO_REG_CHAPWMR	0x04	/* (RW) Charger PWM */
-#define TAHVO_REG_LEDPWMR	0x05	/* (RW) LED PWM */
-#define TAHVO_REG_USBR		0x06	/* (RW) USB control */
-#define TAHVO_REG_RCR		0x07	/* (RW) Some kind of power management */
-#define TAHVO_REG_CCR1		0x08	/* (RW) Common control register 1 */
-#define TAHVO_REG_CCR2		0x09	/* (RW) Common control register 2 */
-#define TAHVO_REG_TESTR1	0x0a	/* (RW) Test register 1 */
-#define TAHVO_REG_TESTR2	0x0b	/* (RW) Test register 2 */
-#define TAHVO_REG_NOPR		0x0c	/* (RW) Number of periods */
-#define TAHVO_REG_FRR		0x0d	/* (RO) FR */
+#define TAHVO_REG_ASICR     0x00    /* (RO) ASIC ID & revision */
+#define TAHVO_REG_IDR       0x01    /* (T)  Interrupt ID */
+#define TAHVO_REG_IDSR      0x02    /* (RO) Interrupt status */
+#define TAHVO_REG_IMR       0x03    /* (RW) Interrupt mask */
+#define TAHVO_REG_CHAPWMR   0x04    /* (RW) Charger PWM */
+#define TAHVO_REG_LEDPWMR   0x05    /* (RW) LED PWM */
+#define TAHVO_REG_USBR      0x06    /* (RW) USB control */
+#define TAHVO_REG_RCR       0x07    /* (RW) Some kind of power management */
+#define TAHVO_REG_CCR1      0x08    /* (RW) Common control register 1 */
+#define TAHVO_REG_CCR2      0x09    /* (RW) Common control register 2 */
+#define TAHVO_REG_TESTR1    0x0a    /* (RW) Test register 1 */
+#define TAHVO_REG_TESTR2    0x0b    /* (RW) Test register 2 */
+#define TAHVO_REG_NOPR      0x0c    /* (RW) Number of periods */
+#define TAHVO_REG_FRR       0x0d    /* (RO) FR */
 
 static inline uint16_t tahvo_read(CBusTahvo *s, int reg)
 {
@@ -508,10 +508,10 @@ static inline uint16_t tahvo_read(CBusTahvo *s, int reg)
 
     switch (reg) {
     case TAHVO_REG_ASICR:
-        return 0x0021 | (s->is_betty ? 0x0b00 : 0x0300);	/* 22 in N810 */
+        return 0x0021 | (s->is_betty ? 0x0b00 : 0x0300);    /* 22 in N810 */
 
     case TAHVO_REG_IDR:
-    case TAHVO_REG_IDSR:	/* XXX: what does this do?  */
+    case TAHVO_REG_IDSR:    /* XXX: what does this do?  */
         return s->irqst;
 
     case TAHVO_REG_IMR:

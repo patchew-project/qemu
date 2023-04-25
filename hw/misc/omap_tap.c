@@ -32,25 +32,25 @@ static uint64_t omap_tap_read(void *opaque, hwaddr addr, unsigned size)
     }
 
     switch (addr) {
-    case 0x204:	/* IDCODE_reg */
+    case 0x204: /* IDCODE_reg */
         switch (s->mpu_model) {
         case omap2420:
         case omap2422:
         case omap2423:
-            return 0x5b5d902f;	/* ES 2.2 */
+            return 0x5b5d902f;  /* ES 2.2 */
         case omap2430:
-            return 0x5b68a02f;	/* ES 2.2 */
+            return 0x5b68a02f;  /* ES 2.2 */
         case omap3430:
-            return 0x1b7ae02f;	/* ES 2 */
+            return 0x1b7ae02f;  /* ES 2 */
         default:
             hw_error("%s: Bad mpu model\n", __func__);
         }
 
-    case 0x208:	/* PRODUCTION_ID_reg for OMAP2 */
-    case 0x210:	/* PRODUCTION_ID_reg for OMAP3 */
+    case 0x208: /* PRODUCTION_ID_reg for OMAP2 */
+    case 0x210: /* PRODUCTION_ID_reg for OMAP3 */
         switch (s->mpu_model) {
         case omap2420:
-            return 0x000254f0;	/* POP ESHS2.1.1 in N91/93/95, ES2 in N800 */
+            return 0x000254f0;  /* POP ESHS2.1.1 in N91/93/95, ES2 in N800 */
         case omap2422:
             return 0x000400f0;
         case omap2423:
@@ -68,22 +68,22 @@ static uint64_t omap_tap_read(void *opaque, hwaddr addr, unsigned size)
         case omap2420:
         case omap2422:
         case omap2423:
-            return 0xcafeb5d9;	/* ES 2.2 */
+            return 0xcafeb5d9;  /* ES 2.2 */
         case omap2430:
-            return 0xcafeb68a;	/* ES 2.2 */
+            return 0xcafeb68a;  /* ES 2.2 */
         case omap3430:
-            return 0xcafeb7ae;	/* ES 2 */
+            return 0xcafeb7ae;  /* ES 2 */
         default:
             hw_error("%s: Bad mpu model\n", __func__);
         }
 
-    case 0x218:	/* DIE_ID_reg */
+    case 0x218: /* DIE_ID_reg */
         return ('Q' << 24) | ('E' << 16) | ('M' << 8) | ('U' << 0);
-    case 0x21c:	/* DIE_ID_reg */
+    case 0x21c: /* DIE_ID_reg */
         return 0x54 << 24;
-    case 0x220:	/* DIE_ID_reg */
+    case 0x220: /* DIE_ID_reg */
         return ('Q' << 24) | ('E' << 16) | ('M' << 8) | ('U' << 0);
-    case 0x224:	/* DIE_ID_reg */
+    case 0x224: /* DIE_ID_reg */
         return ('Q' << 24) | ('E' << 16) | ('M' << 8) | ('U' << 0);
     }
 

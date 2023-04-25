@@ -18,18 +18,18 @@
 #include "hw/qdev-properties.h"
 
 /* Control-byte bitfields */
-#define CB_PD0		(1 << 0)
-#define CB_PD1		(1 << 1)
-#define CB_SGL		(1 << 2)
-#define CB_UNI		(1 << 3)
-#define CB_SEL0		(1 << 4)
-#define CB_SEL1		(1 << 5)
-#define CB_SEL2		(1 << 6)
-#define CB_START	(1 << 7)
+#define CB_PD0      (1 << 0)
+#define CB_PD1      (1 << 1)
+#define CB_SGL      (1 << 2)
+#define CB_UNI      (1 << 3)
+#define CB_SEL0     (1 << 4)
+#define CB_SEL1     (1 << 5)
+#define CB_SEL2     (1 << 6)
+#define CB_START    (1 << 7)
 
-#define CHANNEL_NUM(v, b0, b1, b2)	\
-                        ((((v) >> (2 + (b0))) & 4) |	\
-                         (((v) >> (3 + (b1))) & 2) |	\
+#define CHANNEL_NUM(v, b0, b1, b2)  \
+                        ((((v) >> (2 + (b0))) & 4) |    \
+                         (((v) >> (3 + (b1))) & 2) |    \
                          (((v) >> (4 + (b2))) & 1))
 
 static uint32_t max111x_read(MAX111xState *s)

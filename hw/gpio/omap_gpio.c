@@ -80,25 +80,25 @@ static uint64_t omap_gpio_read(void *opaque, hwaddr addr,
     }
 
     switch (offset) {
-    case 0x00:	/* DATA_INPUT */
+    case 0x00:  /* DATA_INPUT */
         return s->inputs & s->pins;
 
-    case 0x04:	/* DATA_OUTPUT */
+    case 0x04:  /* DATA_OUTPUT */
         return s->outputs;
 
-    case 0x08:	/* DIRECTION_CONTROL */
+    case 0x08:  /* DIRECTION_CONTROL */
         return s->dir;
 
-    case 0x0c:	/* INTERRUPT_CONTROL */
+    case 0x0c:  /* INTERRUPT_CONTROL */
         return s->edge;
 
-    case 0x10:	/* INTERRUPT_MASK */
+    case 0x10:  /* INTERRUPT_MASK */
         return s->mask;
 
-    case 0x14:	/* INTERRUPT_STATUS */
+    case 0x14:  /* INTERRUPT_STATUS */
         return s->ints;
 
-    case 0x18:	/* PIN_CONTROL (not in OMAP310) */
+    case 0x18:  /* PIN_CONTROL (not in OMAP310) */
         OMAP_BAD_REG(addr);
         return s->pins;
     }
@@ -121,11 +121,11 @@ static void omap_gpio_write(void *opaque, hwaddr addr,
     }
 
     switch (offset) {
-    case 0x00:	/* DATA_INPUT */
+    case 0x00:  /* DATA_INPUT */
         OMAP_RO_REG(addr);
         return;
 
-    case 0x04:	/* DATA_OUTPUT */
+    case 0x04:  /* DATA_OUTPUT */
         diff = (s->outputs ^ value) & ~s->dir;
         s->outputs = value;
         while ((ln = ctz32(diff)) != 32) {
@@ -135,7 +135,7 @@ static void omap_gpio_write(void *opaque, hwaddr addr,
         }
         break;
 
-    case 0x08:	/* DIRECTION_CONTROL */
+    case 0x08:  /* DIRECTION_CONTROL */
         diff = s->outputs & (s->dir ^ value);
         s->dir = value;
 
@@ -147,21 +147,21 @@ static void omap_gpio_write(void *opaque, hwaddr addr,
         }
         break;
 
-    case 0x0c:	/* INTERRUPT_CONTROL */
+    case 0x0c:  /* INTERRUPT_CONTROL */
         s->edge = value;
         break;
 
-    case 0x10:	/* INTERRUPT_MASK */
+    case 0x10:  /* INTERRUPT_MASK */
         s->mask = value;
         break;
 
-    case 0x14:	/* INTERRUPT_STATUS */
+    case 0x14:  /* INTERRUPT_STATUS */
         s->ints &= ~value;
         if (!s->ints)
             qemu_irq_lower(s->irq);
         break;
 
-    case 0x18:	/* PIN_CONTROL (not in OMAP310 TRM) */
+    case 0x18:  /* PIN_CONTROL (not in OMAP310 TRM) */
         OMAP_BAD_REG(addr);
         s->pins = value;
         break;
@@ -233,9 +233,9 @@ static inline void omap2_gpio_module_int_update(struct omap2_gpio_s *s,
 
 static void omap2_gpio_module_wake(struct omap2_gpio_s *s, int line)
 {
-    if (!(s->config[0] & (1 << 2)))			/* ENAWAKEUP */
+    if (!(s->config[0] & (1 << 2)))         /* ENAWAKEUP */
         return;
-    if (!(s->config[0] & (3 << 3)))			/* Force Idle */
+    if (!(s->config[0] & (3 << 3)))         /* Force Idle */
         return;
     if (!(s->wumask & (1 << line)))
         return;
@@ -312,66 +312,66 @@ static uint32_t omap2_gpio_module_read(void *opaque, hwaddr addr)
     struct omap2_gpio_s *s = opaque;
 
     switch (addr) {
-    case 0x00:	/* GPIO_REVISION */
+    case 0x00:  /* GPIO_REVISION */
         return s->revision;
 
-    case 0x10:	/* GPIO_SYSCONFIG */
+    case 0x10:  /* GPIO_SYSCONFIG */
         return s->config[0];
 
-    case 0x14:	/* GPIO_SYSSTATUS */
+    case 0x14:  /* GPIO_SYSSTATUS */
         return 0x01;
 
-    case 0x18:	/* GPIO_IRQSTATUS1 */
+    case 0x18:  /* GPIO_IRQSTATUS1 */
         return s->ints[0];
 
-    case 0x1c:	/* GPIO_IRQENABLE1 */
-    case 0x60:	/* GPIO_CLEARIRQENABLE1 */
-    case 0x64:	/* GPIO_SETIRQENABLE1 */
+    case 0x1c:  /* GPIO_IRQENABLE1 */
+    case 0x60:  /* GPIO_CLEARIRQENABLE1 */
+    case 0x64:  /* GPIO_SETIRQENABLE1 */
         return s->mask[0];
 
-    case 0x20:	/* GPIO_WAKEUPENABLE */
-    case 0x80:	/* GPIO_CLEARWKUENA */
-    case 0x84:	/* GPIO_SETWKUENA */
+    case 0x20:  /* GPIO_WAKEUPENABLE */
+    case 0x80:  /* GPIO_CLEARWKUENA */
+    case 0x84:  /* GPIO_SETWKUENA */
         return s->wumask;
 
-    case 0x28:	/* GPIO_IRQSTATUS2 */
+    case 0x28:  /* GPIO_IRQSTATUS2 */
         return s->ints[1];
 
-    case 0x2c:	/* GPIO_IRQENABLE2 */
-    case 0x70:	/* GPIO_CLEARIRQENABLE2 */
-    case 0x74:	/* GPIO_SETIREQNEABLE2 */
+    case 0x2c:  /* GPIO_IRQENABLE2 */
+    case 0x70:  /* GPIO_CLEARIRQENABLE2 */
+    case 0x74:  /* GPIO_SETIREQNEABLE2 */
         return s->mask[1];
 
-    case 0x30:	/* GPIO_CTRL */
+    case 0x30:  /* GPIO_CTRL */
         return s->config[1];
 
-    case 0x34:	/* GPIO_OE */
+    case 0x34:  /* GPIO_OE */
         return s->dir;
 
-    case 0x38:	/* GPIO_DATAIN */
+    case 0x38:  /* GPIO_DATAIN */
         return s->inputs;
 
-    case 0x3c:	/* GPIO_DATAOUT */
-    case 0x90:	/* GPIO_CLEARDATAOUT */
-    case 0x94:	/* GPIO_SETDATAOUT */
+    case 0x3c:  /* GPIO_DATAOUT */
+    case 0x90:  /* GPIO_CLEARDATAOUT */
+    case 0x94:  /* GPIO_SETDATAOUT */
         return s->outputs;
 
-    case 0x40:	/* GPIO_LEVELDETECT0 */
+    case 0x40:  /* GPIO_LEVELDETECT0 */
         return s->level[0];
 
-    case 0x44:	/* GPIO_LEVELDETECT1 */
+    case 0x44:  /* GPIO_LEVELDETECT1 */
         return s->level[1];
 
-    case 0x48:	/* GPIO_RISINGDETECT */
+    case 0x48:  /* GPIO_RISINGDETECT */
         return s->edge[0];
 
-    case 0x4c:	/* GPIO_FALLINGDETECT */
+    case 0x4c:  /* GPIO_FALLINGDETECT */
         return s->edge[1];
 
-    case 0x50:	/* GPIO_DEBOUNCENABLE */
+    case 0x50:  /* GPIO_DEBOUNCENABLE */
         return s->debounce;
 
-    case 0x54:	/* GPIO_DEBOUNCINGTIME */
+    case 0x54:  /* GPIO_DEBOUNCINGTIME */
         return s->delay;
     }
 
@@ -387,13 +387,13 @@ static void omap2_gpio_module_write(void *opaque, hwaddr addr,
     int ln;
 
     switch (addr) {
-    case 0x00:	/* GPIO_REVISION */
-    case 0x14:	/* GPIO_SYSSTATUS */
-    case 0x38:	/* GPIO_DATAIN */
+    case 0x00:  /* GPIO_REVISION */
+    case 0x14:  /* GPIO_SYSSTATUS */
+    case 0x38:  /* GPIO_DATAIN */
         OMAP_RO_REG(addr);
         break;
 
-    case 0x10:	/* GPIO_SYSCONFIG */
+    case 0x10:  /* GPIO_SYSCONFIG */
         if (((value >> 3) & 3) == 3) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: Illegal IDLEMODE value: 3\n", __func__);
@@ -403,39 +403,39 @@ static void omap2_gpio_module_write(void *opaque, hwaddr addr,
         s->config[0] = value & 0x1d;
         break;
 
-    case 0x18:	/* GPIO_IRQSTATUS1 */
+    case 0x18:  /* GPIO_IRQSTATUS1 */
         if (s->ints[0] & value) {
             s->ints[0] &= ~value;
             omap2_gpio_module_level_update(s, 0);
         }
         break;
 
-    case 0x1c:	/* GPIO_IRQENABLE1 */
+    case 0x1c:  /* GPIO_IRQENABLE1 */
         s->mask[0] = value;
         omap2_gpio_module_int_update(s, 0);
         break;
 
-    case 0x20:	/* GPIO_WAKEUPENABLE */
+    case 0x20:  /* GPIO_WAKEUPENABLE */
         s->wumask = value;
         break;
 
-    case 0x28:	/* GPIO_IRQSTATUS2 */
+    case 0x28:  /* GPIO_IRQSTATUS2 */
         if (s->ints[1] & value) {
             s->ints[1] &= ~value;
             omap2_gpio_module_level_update(s, 1);
         }
         break;
 
-    case 0x2c:	/* GPIO_IRQENABLE2 */
+    case 0x2c:  /* GPIO_IRQENABLE2 */
         s->mask[1] = value;
         omap2_gpio_module_int_update(s, 1);
         break;
 
-    case 0x30:	/* GPIO_CTRL */
+    case 0x30:  /* GPIO_CTRL */
         s->config[1] = value & 7;
         break;
 
-    case 0x34:	/* GPIO_OE */
+    case 0x34:  /* GPIO_OE */
         diff = s->outputs & (s->dir ^ value);
         s->dir = value;
 
@@ -449,71 +449,71 @@ static void omap2_gpio_module_write(void *opaque, hwaddr addr,
         omap2_gpio_module_level_update(s, 1);
         break;
 
-    case 0x3c:	/* GPIO_DATAOUT */
+    case 0x3c:  /* GPIO_DATAOUT */
         omap2_gpio_module_out_update(s, s->outputs ^ value);
         break;
 
-    case 0x40:	/* GPIO_LEVELDETECT0 */
+    case 0x40:  /* GPIO_LEVELDETECT0 */
         s->level[0] = value;
         omap2_gpio_module_level_update(s, 0);
         omap2_gpio_module_level_update(s, 1);
         break;
 
-    case 0x44:	/* GPIO_LEVELDETECT1 */
+    case 0x44:  /* GPIO_LEVELDETECT1 */
         s->level[1] = value;
         omap2_gpio_module_level_update(s, 0);
         omap2_gpio_module_level_update(s, 1);
         break;
 
-    case 0x48:	/* GPIO_RISINGDETECT */
+    case 0x48:  /* GPIO_RISINGDETECT */
         s->edge[0] = value;
         break;
 
-    case 0x4c:	/* GPIO_FALLINGDETECT */
+    case 0x4c:  /* GPIO_FALLINGDETECT */
         s->edge[1] = value;
         break;
 
-    case 0x50:	/* GPIO_DEBOUNCENABLE */
+    case 0x50:  /* GPIO_DEBOUNCENABLE */
         s->debounce = value;
         break;
 
-    case 0x54:	/* GPIO_DEBOUNCINGTIME */
+    case 0x54:  /* GPIO_DEBOUNCINGTIME */
         s->delay = value;
         break;
 
-    case 0x60:	/* GPIO_CLEARIRQENABLE1 */
+    case 0x60:  /* GPIO_CLEARIRQENABLE1 */
         s->mask[0] &= ~value;
         omap2_gpio_module_int_update(s, 0);
         break;
 
-    case 0x64:	/* GPIO_SETIRQENABLE1 */
+    case 0x64:  /* GPIO_SETIRQENABLE1 */
         s->mask[0] |= value;
         omap2_gpio_module_int_update(s, 0);
         break;
 
-    case 0x70:	/* GPIO_CLEARIRQENABLE2 */
+    case 0x70:  /* GPIO_CLEARIRQENABLE2 */
         s->mask[1] &= ~value;
         omap2_gpio_module_int_update(s, 1);
         break;
 
-    case 0x74:	/* GPIO_SETIREQNEABLE2 */
+    case 0x74:  /* GPIO_SETIREQNEABLE2 */
         s->mask[1] |= value;
         omap2_gpio_module_int_update(s, 1);
         break;
 
-    case 0x80:	/* GPIO_CLEARWKUENA */
+    case 0x80:  /* GPIO_CLEARWKUENA */
         s->wumask &= ~value;
         break;
 
-    case 0x84:	/* GPIO_SETWKUENA */
+    case 0x84:  /* GPIO_SETWKUENA */
         s->wumask |= value;
         break;
 
-    case 0x90:	/* GPIO_CLEARDATAOUT */
+    case 0x90:  /* GPIO_CLEARDATAOUT */
         omap2_gpio_module_out_update(s, s->outputs & value);
         break;
 
-    case 0x94:	/* GPIO_SETDATAOUT */
+    case 0x94:  /* GPIO_SETDATAOUT */
         omap2_gpio_module_out_update(s, ~s->outputs & value);
         break;
 
@@ -541,39 +541,39 @@ static void omap2_gpio_module_writep(void *opaque, hwaddr addr,
     }
 
     switch (addr & ~3) {
-    case 0x00:	/* GPIO_REVISION */
-    case 0x14:	/* GPIO_SYSSTATUS */
-    case 0x38:	/* GPIO_DATAIN */
+    case 0x00:  /* GPIO_REVISION */
+    case 0x14:  /* GPIO_SYSSTATUS */
+    case 0x38:  /* GPIO_DATAIN */
         OMAP_RO_REG(addr);
         break;
 
-    case 0x10:	/* GPIO_SYSCONFIG */
-    case 0x1c:	/* GPIO_IRQENABLE1 */
-    case 0x20:	/* GPIO_WAKEUPENABLE */
-    case 0x2c:	/* GPIO_IRQENABLE2 */
-    case 0x30:	/* GPIO_CTRL */
-    case 0x34:	/* GPIO_OE */
-    case 0x3c:	/* GPIO_DATAOUT */
-    case 0x40:	/* GPIO_LEVELDETECT0 */
-    case 0x44:	/* GPIO_LEVELDETECT1 */
-    case 0x48:	/* GPIO_RISINGDETECT */
-    case 0x4c:	/* GPIO_FALLINGDETECT */
-    case 0x50:	/* GPIO_DEBOUNCENABLE */
-    case 0x54:	/* GPIO_DEBOUNCINGTIME */
+    case 0x10:  /* GPIO_SYSCONFIG */
+    case 0x1c:  /* GPIO_IRQENABLE1 */
+    case 0x20:  /* GPIO_WAKEUPENABLE */
+    case 0x2c:  /* GPIO_IRQENABLE2 */
+    case 0x30:  /* GPIO_CTRL */
+    case 0x34:  /* GPIO_OE */
+    case 0x3c:  /* GPIO_DATAOUT */
+    case 0x40:  /* GPIO_LEVELDETECT0 */
+    case 0x44:  /* GPIO_LEVELDETECT1 */
+    case 0x48:  /* GPIO_RISINGDETECT */
+    case 0x4c:  /* GPIO_FALLINGDETECT */
+    case 0x50:  /* GPIO_DEBOUNCENABLE */
+    case 0x54:  /* GPIO_DEBOUNCINGTIME */
         cur = omap2_gpio_module_read(opaque, addr & ~3) &
                 ~(mask << ((addr & 3) << 3));
 
         /* Fall through.  */
-    case 0x18:	/* GPIO_IRQSTATUS1 */
-    case 0x28:	/* GPIO_IRQSTATUS2 */
-    case 0x60:	/* GPIO_CLEARIRQENABLE1 */
-    case 0x64:	/* GPIO_SETIRQENABLE1 */
-    case 0x70:	/* GPIO_CLEARIRQENABLE2 */
-    case 0x74:	/* GPIO_SETIREQNEABLE2 */
-    case 0x80:	/* GPIO_CLEARWKUENA */
-    case 0x84:	/* GPIO_SETWKUENA */
-    case 0x90:	/* GPIO_CLEARDATAOUT */
-    case 0x94:	/* GPIO_SETDATAOUT */
+    case 0x18:  /* GPIO_IRQSTATUS1 */
+    case 0x28:  /* GPIO_IRQSTATUS2 */
+    case 0x60:  /* GPIO_CLEARIRQENABLE1 */
+    case 0x64:  /* GPIO_SETIRQENABLE1 */
+    case 0x70:  /* GPIO_CLEARIRQENABLE2 */
+    case 0x74:  /* GPIO_SETIREQNEABLE2 */
+    case 0x80:  /* GPIO_CLEARWKUENA */
+    case 0x84:  /* GPIO_SETWKUENA */
+    case 0x90:  /* GPIO_CLEARDATAOUT */
+    case 0x94:  /* GPIO_SETDATAOUT */
         value <<= (addr & 3) << 3;
         omap2_gpio_module_write(opaque, addr, cur | value);
         break;
@@ -616,22 +616,22 @@ static uint64_t omap2_gpif_top_read(void *opaque, hwaddr addr, unsigned size)
     Omap2GpioState *s = opaque;
 
     switch (addr) {
-    case 0x00:	/* IPGENERICOCPSPL_REVISION */
+    case 0x00:  /* IPGENERICOCPSPL_REVISION */
         return 0x18;
 
-    case 0x10:	/* IPGENERICOCPSPL_SYSCONFIG */
+    case 0x10:  /* IPGENERICOCPSPL_SYSCONFIG */
         return s->autoidle;
 
-    case 0x14:	/* IPGENERICOCPSPL_SYSSTATUS */
+    case 0x14:  /* IPGENERICOCPSPL_SYSSTATUS */
         return 0x01;
 
-    case 0x18:	/* IPGENERICOCPSPL_IRQSTATUS */
+    case 0x18:  /* IPGENERICOCPSPL_IRQSTATUS */
         return 0x00;
 
-    case 0x40:	/* IPGENERICOCPSPL_GPO */
+    case 0x40:  /* IPGENERICOCPSPL_GPO */
         return s->gpo;
 
-    case 0x50:	/* IPGENERICOCPSPL_GPI */
+    case 0x50:  /* IPGENERICOCPSPL_GPI */
         return 0x00;
     }
 
@@ -645,20 +645,20 @@ static void omap2_gpif_top_write(void *opaque, hwaddr addr,
     Omap2GpioState *s = opaque;
 
     switch (addr) {
-    case 0x00:	/* IPGENERICOCPSPL_REVISION */
-    case 0x14:	/* IPGENERICOCPSPL_SYSSTATUS */
-    case 0x18:	/* IPGENERICOCPSPL_IRQSTATUS */
-    case 0x50:	/* IPGENERICOCPSPL_GPI */
+    case 0x00:  /* IPGENERICOCPSPL_REVISION */
+    case 0x14:  /* IPGENERICOCPSPL_SYSSTATUS */
+    case 0x18:  /* IPGENERICOCPSPL_IRQSTATUS */
+    case 0x50:  /* IPGENERICOCPSPL_GPI */
         OMAP_RO_REG(addr);
         break;
 
-    case 0x10:	/* IPGENERICOCPSPL_SYSCONFIG */
-        if (value & (1 << 1))					/* SOFTRESET */
+    case 0x10:  /* IPGENERICOCPSPL_SYSCONFIG */
+        if (value & (1 << 1))                   /* SOFTRESET */
             omap2_gpif_reset(DEVICE(s));
         s->autoidle = value & 1;
         break;
 
-    case 0x40:	/* IPGENERICOCPSPL_GPO */
+    case 0x40:  /* IPGENERICOCPSPL_GPO */
         s->gpo = value & 1;
         break;
 

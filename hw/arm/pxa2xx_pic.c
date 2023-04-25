@@ -19,24 +19,24 @@
 #include "qom/object.h"
 #include "target/arm/cpregs.h"
 
-#define ICIP	0x00	/* Interrupt Controller IRQ Pending register */
-#define ICMR	0x04	/* Interrupt Controller Mask register */
-#define ICLR	0x08	/* Interrupt Controller Level register */
-#define ICFP	0x0c	/* Interrupt Controller FIQ Pending register */
-#define ICPR	0x10	/* Interrupt Controller Pending register */
-#define ICCR	0x14	/* Interrupt Controller Control register */
-#define ICHP	0x18	/* Interrupt Controller Highest Priority register */
-#define IPR0	0x1c	/* Interrupt Controller Priority register 0 */
-#define IPR31	0x98	/* Interrupt Controller Priority register 31 */
-#define ICIP2	0x9c	/* Interrupt Controller IRQ Pending register 2 */
-#define ICMR2	0xa0	/* Interrupt Controller Mask register 2 */
-#define ICLR2	0xa4	/* Interrupt Controller Level register 2 */
-#define ICFP2	0xa8	/* Interrupt Controller FIQ Pending register 2 */
-#define ICPR2	0xac	/* Interrupt Controller Pending register 2 */
-#define IPR32	0xb0	/* Interrupt Controller Priority register 32 */
-#define IPR39	0xcc	/* Interrupt Controller Priority register 39 */
+#define ICIP    0x00    /* Interrupt Controller IRQ Pending register */
+#define ICMR    0x04    /* Interrupt Controller Mask register */
+#define ICLR    0x08    /* Interrupt Controller Level register */
+#define ICFP    0x0c    /* Interrupt Controller FIQ Pending register */
+#define ICPR    0x10    /* Interrupt Controller Pending register */
+#define ICCR    0x14    /* Interrupt Controller Control register */
+#define ICHP    0x18    /* Interrupt Controller Highest Priority register */
+#define IPR0    0x1c    /* Interrupt Controller Priority register 0 */
+#define IPR31   0x98    /* Interrupt Controller Priority register 31 */
+#define ICIP2   0x9c    /* Interrupt Controller IRQ Pending register 2 */
+#define ICMR2   0xa0    /* Interrupt Controller Mask register 2 */
+#define ICLR2   0xa4    /* Interrupt Controller Level register 2 */
+#define ICFP2   0xa8    /* Interrupt Controller FIQ Pending register 2 */
+#define ICPR2   0xac    /* Interrupt Controller Pending register 2 */
+#define IPR32   0xb0    /* Interrupt Controller Priority register 32 */
+#define IPR39   0xcc    /* Interrupt Controller Priority register 39 */
 
-#define PXA2XX_PIC_SRCS	40
+#define PXA2XX_PIC_SRCS 40
 
 #define TYPE_PXA2XX_PIC "pxa2xx_pic"
 OBJECT_DECLARE_SIMPLE_TYPE(PXA2xxPICState, PXA2XX_PIC)
@@ -104,7 +104,7 @@ static void pxa2xx_pic_set_irq(void *opaque, int irq, int level)
 static inline uint32_t pxa2xx_pic_highest(PXA2xxPICState *s) {
     int i, int_set, irq;
     uint32_t bit, mask[2];
-    uint32_t ichp = 0x003f003f;	/* Both IDs invalid */
+    uint32_t ichp = 0x003f003f; /* Both IDs invalid */
 
     mask[0] = s->int_pending[0] & s->int_enabled[0];
     mask[1] = s->int_pending[1] & s->int_enabled[1];
@@ -139,33 +139,33 @@ static uint64_t pxa2xx_pic_mem_read(void *opaque, hwaddr offset,
     PXA2xxPICState *s = (PXA2xxPICState *) opaque;
 
     switch (offset) {
-    case ICIP:	/* IRQ Pending register */
+    case ICIP:  /* IRQ Pending register */
         return s->int_pending[0] & ~s->is_fiq[0] & s->int_enabled[0];
-    case ICIP2:	/* IRQ Pending register 2 */
+    case ICIP2: /* IRQ Pending register 2 */
         return s->int_pending[1] & ~s->is_fiq[1] & s->int_enabled[1];
-    case ICMR:	/* Mask register */
+    case ICMR:  /* Mask register */
         return s->int_enabled[0];
-    case ICMR2:	/* Mask register 2 */
+    case ICMR2: /* Mask register 2 */
         return s->int_enabled[1];
-    case ICLR:	/* Level register */
+    case ICLR:  /* Level register */
         return s->is_fiq[0];
-    case ICLR2:	/* Level register 2 */
+    case ICLR2: /* Level register 2 */
         return s->is_fiq[1];
-    case ICCR:	/* Idle mask */
+    case ICCR:  /* Idle mask */
         return (s->int_idle == 0);
-    case ICFP:	/* FIQ Pending register */
+    case ICFP:  /* FIQ Pending register */
         return s->int_pending[0] & s->is_fiq[0] & s->int_enabled[0];
-    case ICFP2:	/* FIQ Pending register 2 */
+    case ICFP2: /* FIQ Pending register 2 */
         return s->int_pending[1] & s->is_fiq[1] & s->int_enabled[1];
-    case ICPR:	/* Pending register */
+    case ICPR:  /* Pending register */
         return s->int_pending[0];
-    case ICPR2:	/* Pending register 2 */
+    case ICPR2: /* Pending register 2 */
         return s->int_pending[1];
     case IPR0  ... IPR31:
         return s->priority[0  + ((offset - IPR0 ) >> 2)];
     case IPR32 ... IPR39:
         return s->priority[32 + ((offset - IPR32) >> 2)];
-    case ICHP:	/* Highest Priority register */
+    case ICHP:  /* Highest Priority register */
         return pxa2xx_pic_highest(s);
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -181,19 +181,19 @@ static void pxa2xx_pic_mem_write(void *opaque, hwaddr offset,
     PXA2xxPICState *s = (PXA2xxPICState *) opaque;
 
     switch (offset) {
-    case ICMR:	/* Mask register */
+    case ICMR:  /* Mask register */
         s->int_enabled[0] = value;
         break;
-    case ICMR2:	/* Mask register 2 */
+    case ICMR2: /* Mask register 2 */
         s->int_enabled[1] = value;
         break;
-    case ICLR:	/* Level register */
+    case ICLR:  /* Level register */
         s->is_fiq[0] = value;
         break;
-    case ICLR2:	/* Level register 2 */
+    case ICLR2: /* Level register 2 */
         s->is_fiq[1] = value;
         break;
-    case ICCR:	/* Idle mask */
+    case ICCR:  /* Idle mask */
         s->int_idle = (value & 1) ? 0 : ~0;
         break;
     case IPR0  ... IPR31:

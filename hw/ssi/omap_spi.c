@@ -62,52 +62,52 @@ static inline void omap_mcspi_interrupt_update(struct omap_mcspi_s *s)
 static inline void omap_mcspi_dmarequest_update(struct omap_mcspi_ch_s *ch)
 {
     qemu_set_irq(ch->txdrq,
-                    (ch->control & 1) &&		/* EN */
-                    (ch->config & (1 << 14)) &&		/* DMAW */
-                    (ch->status & (1 << 1)) &&		/* TXS */
-                    ((ch->config >> 12) & 3) != 1);	/* TRM */
+                    (ch->control & 1) &&        /* EN */
+                    (ch->config & (1 << 14)) &&     /* DMAW */
+                    (ch->status & (1 << 1)) &&      /* TXS */
+                    ((ch->config >> 12) & 3) != 1); /* TRM */
     qemu_set_irq(ch->rxdrq,
-                    (ch->control & 1) &&		/* EN */
-                    (ch->config & (1 << 15)) &&		/* DMAW */
-                    (ch->status & (1 << 0)) &&		/* RXS */
-                    ((ch->config >> 12) & 3) != 2);	/* TRM */
+                    (ch->control & 1) &&        /* EN */
+                    (ch->config & (1 << 15)) &&     /* DMAW */
+                    (ch->status & (1 << 0)) &&      /* RXS */
+                    ((ch->config >> 12) & 3) != 2); /* TRM */
 }
 
 static void omap_mcspi_transfer_run(struct omap_mcspi_s *s, int chnum)
 {
     struct omap_mcspi_ch_s *ch = s->ch + chnum;
 
-    if (!(ch->control & 1))				/* EN */
+    if (!(ch->control & 1))             /* EN */
         return;
-    if ((ch->status & (1 << 0)) &&			/* RXS */
-                    ((ch->config >> 12) & 3) != 2 &&	/* TRM */
-                    !(ch->config & (1 << 19)))		/* TURBO */
+    if ((ch->status & (1 << 0)) &&          /* RXS */
+                    ((ch->config >> 12) & 3) != 2 &&    /* TRM */
+                    !(ch->config & (1 << 19)))      /* TURBO */
         goto intr_update;
-    if ((ch->status & (1 << 1)) &&			/* TXS */
-                    ((ch->config >> 12) & 3) != 1)	/* TRM */
+    if ((ch->status & (1 << 1)) &&          /* TXS */
+                    ((ch->config >> 12) & 3) != 1)  /* TRM */
         goto intr_update;
 
-    if (!(s->control & 1) ||				/* SINGLE */
-                    (ch->config & (1 << 20))) {		/* FORCE */
+    if (!(s->control & 1) ||                /* SINGLE */
+                    (ch->config & (1 << 20))) {     /* FORCE */
         if (ch->txrx)
-            ch->rx = ch->txrx(ch->opaque, ch->tx,	/* WL */
+            ch->rx = ch->txrx(ch->opaque, ch->tx,   /* WL */
                             1 + (0x1f & (ch->config >> 7)));
     }
 
     ch->tx = 0;
-    ch->status |= 1 << 2;				/* EOT */
-    ch->status |= 1 << 1;				/* TXS */
-    if (((ch->config >> 12) & 3) != 2)			/* TRM */
-        ch->status |= 1 << 0;				/* RXS */
+    ch->status |= 1 << 2;               /* EOT */
+    ch->status |= 1 << 1;               /* TXS */
+    if (((ch->config >> 12) & 3) != 2)          /* TRM */
+        ch->status |= 1 << 0;               /* RXS */
 
 intr_update:
-    if ((ch->status & (1 << 0)) &&			/* RXS */
-                    ((ch->config >> 12) & 3) != 2 &&	/* TRM */
-                    !(ch->config & (1 << 19)))		/* TURBO */
-        s->irqst |= 1 << (2 + 4 * chnum);		/* RX_FULL */
-    if ((ch->status & (1 << 1)) &&			/* TXS */
-                    ((ch->config >> 12) & 3) != 1)	/* TRM */
-        s->irqst |= 1 << (0 + 4 * chnum);		/* TX_EMPTY */
+    if ((ch->status & (1 << 0)) &&          /* RXS */
+                    ((ch->config >> 12) & 3) != 2 &&    /* TRM */
+                    !(ch->config & (1 << 19)))      /* TURBO */
+        s->irqst |= 1 << (2 + 4 * chnum);       /* RX_FULL */
+    if ((ch->status & (1 << 1)) &&          /* TXS */
+                    ((ch->config >> 12) & 3) != 1)  /* TRM */
+        s->irqst |= 1 << (0 + 4 * chnum);       /* TX_EMPTY */
     omap_mcspi_interrupt_update(s);
     omap_mcspi_dmarequest_update(ch);
 }
@@ -125,7 +125,7 @@ void omap_mcspi_reset(struct omap_mcspi_s *s)
 
     for (ch = 0; ch < 4; ch ++) {
         s->ch[ch].config = 0x060000;
-        s->ch[ch].status = 2;				/* TXS */
+        s->ch[ch].status = 2;               /* TXS */
         s->ch[ch].control = 0;
 
         omap_mcspi_dmarequest_update(s->ch + ch);
@@ -145,28 +145,28 @@ static uint64_t omap_mcspi_read(void *opaque, hwaddr addr, unsigned size)
     }
 
     switch (addr) {
-    case 0x00:	/* MCSPI_REVISION */
+    case 0x00:  /* MCSPI_REVISION */
         return 0x91;
 
-    case 0x10:	/* MCSPI_SYSCONFIG */
+    case 0x10:  /* MCSPI_SYSCONFIG */
         return s->sysconfig;
 
-    case 0x14:	/* MCSPI_SYSSTATUS */
-        return 1;					/* RESETDONE */
+    case 0x14:  /* MCSPI_SYSSTATUS */
+        return 1;                   /* RESETDONE */
 
-    case 0x18:	/* MCSPI_IRQSTATUS */
+    case 0x18:  /* MCSPI_IRQSTATUS */
         return s->irqst;
 
-    case 0x1c:	/* MCSPI_IRQENABLE */
+    case 0x1c:  /* MCSPI_IRQENABLE */
         return s->irqen;
 
-    case 0x20:	/* MCSPI_WAKEUPENABLE */
+    case 0x20:  /* MCSPI_WAKEUPENABLE */
         return s->wken;
 
-    case 0x24:	/* MCSPI_SYST */
+    case 0x24:  /* MCSPI_SYST */
         return s->systest;
 
-    case 0x28:	/* MCSPI_MODULCTRL */
+    case 0x28:  /* MCSPI_MODULCTRL */
         return s->control;
 
     case 0x68: ch ++;
@@ -175,7 +175,7 @@ static uint64_t omap_mcspi_read(void *opaque, hwaddr addr, unsigned size)
         /* fall through */
     case 0x40: ch ++;
         /* fall through */
-    case 0x2c:	/* MCSPI_CHCONF */
+    case 0x2c:  /* MCSPI_CHCONF */
         return s->ch[ch].config;
 
     case 0x6c: ch ++;
@@ -184,7 +184,7 @@ static uint64_t omap_mcspi_read(void *opaque, hwaddr addr, unsigned size)
         /* fall through */
     case 0x44: ch ++;
         /* fall through */
-    case 0x30:	/* MCSPI_CHSTAT */
+    case 0x30:  /* MCSPI_CHSTAT */
         return s->ch[ch].status;
 
     case 0x70: ch ++;
@@ -193,7 +193,7 @@ static uint64_t omap_mcspi_read(void *opaque, hwaddr addr, unsigned size)
         /* fall through */
     case 0x48: ch ++;
         /* fall through */
-    case 0x34:	/* MCSPI_CHCTRL */
+    case 0x34:  /* MCSPI_CHCTRL */
         return s->ch[ch].control;
 
     case 0x74: ch ++;
@@ -202,7 +202,7 @@ static uint64_t omap_mcspi_read(void *opaque, hwaddr addr, unsigned size)
         /* fall through */
     case 0x4c: ch ++;
         /* fall through */
-    case 0x38:	/* MCSPI_TX */
+    case 0x38:  /* MCSPI_TX */
         return s->ch[ch].tx;
 
     case 0x78: ch ++;
@@ -211,8 +211,8 @@ static uint64_t omap_mcspi_read(void *opaque, hwaddr addr, unsigned size)
         /* fall through */
     case 0x50: ch ++;
         /* fall through */
-    case 0x3c:	/* MCSPI_RX */
-        s->ch[ch].status &= ~(1 << 0);			/* RXS */
+    case 0x3c:  /* MCSPI_RX */
+        s->ch[ch].status &= ~(1 << 0);          /* RXS */
         ret = s->ch[ch].rx;
         omap_mcspi_transfer_run(s, ch);
         return ret;
@@ -234,53 +234,53 @@ static void omap_mcspi_write(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x00:	/* MCSPI_REVISION */
-    case 0x14:	/* MCSPI_SYSSTATUS */
-    case 0x30:	/* MCSPI_CHSTAT0 */
-    case 0x3c:	/* MCSPI_RX0 */
-    case 0x44:	/* MCSPI_CHSTAT1 */
-    case 0x50:	/* MCSPI_RX1 */
-    case 0x58:	/* MCSPI_CHSTAT2 */
-    case 0x64:	/* MCSPI_RX2 */
-    case 0x6c:	/* MCSPI_CHSTAT3 */
-    case 0x78:	/* MCSPI_RX3 */
+    case 0x00:  /* MCSPI_REVISION */
+    case 0x14:  /* MCSPI_SYSSTATUS */
+    case 0x30:  /* MCSPI_CHSTAT0 */
+    case 0x3c:  /* MCSPI_RX0 */
+    case 0x44:  /* MCSPI_CHSTAT1 */
+    case 0x50:  /* MCSPI_RX1 */
+    case 0x58:  /* MCSPI_CHSTAT2 */
+    case 0x64:  /* MCSPI_RX2 */
+    case 0x6c:  /* MCSPI_CHSTAT3 */
+    case 0x78:  /* MCSPI_RX3 */
         OMAP_RO_REG(addr);
         return;
 
-    case 0x10:	/* MCSPI_SYSCONFIG */
-        if (value & (1 << 1))				/* SOFTRESET */
+    case 0x10:  /* MCSPI_SYSCONFIG */
+        if (value & (1 << 1))               /* SOFTRESET */
             omap_mcspi_reset(s);
         s->sysconfig = value & 0x31d;
         break;
 
-    case 0x18:	/* MCSPI_IRQSTATUS */
+    case 0x18:  /* MCSPI_IRQSTATUS */
         if (!((s->control & (1 << 3)) && (s->systest & (1 << 11)))) {
             s->irqst &= ~value;
             omap_mcspi_interrupt_update(s);
         }
         break;
 
-    case 0x1c:	/* MCSPI_IRQENABLE */
+    case 0x1c:  /* MCSPI_IRQENABLE */
         s->irqen = value & 0x1777f;
         omap_mcspi_interrupt_update(s);
         break;
 
-    case 0x20:	/* MCSPI_WAKEUPENABLE */
+    case 0x20:  /* MCSPI_WAKEUPENABLE */
         s->wken = value & 1;
         break;
 
-    case 0x24:	/* MCSPI_SYST */
-        if (s->control & (1 << 3))			/* SYSTEM_TEST */
-            if (value & (1 << 11)) {			/* SSB */
+    case 0x24:  /* MCSPI_SYST */
+        if (s->control & (1 << 3))          /* SYSTEM_TEST */
+            if (value & (1 << 11)) {            /* SSB */
                 s->irqst |= 0x1777f;
                 omap_mcspi_interrupt_update(s);
             }
         s->systest = value & 0xfff;
         break;
 
-    case 0x28:	/* MCSPI_MODULCTRL */
-        if (value & (1 << 3))				/* SYSTEM_TEST */
-            if (s->systest & (1 << 11)) {		/* SSB */
+    case 0x28:  /* MCSPI_MODULCTRL */
+        if (value & (1 << 3))               /* SYSTEM_TEST */
+            if (s->systest & (1 << 11)) {       /* SSB */
                 s->irqst |= 0x1777f;
                 omap_mcspi_interrupt_update(s);
             }
@@ -293,8 +293,8 @@ static void omap_mcspi_write(void *opaque, hwaddr addr,
         /* fall through */
     case 0x40: ch ++;
         /* fall through */
-    case 0x2c:	/* MCSPI_CHCONF */
-        if ((value ^ s->ch[ch].config) & (3 << 14))	/* DMAR | DMAW */
+    case 0x2c:  /* MCSPI_CHCONF */
+        if ((value ^ s->ch[ch].config) & (3 << 14)) /* DMAR | DMAW */
             omap_mcspi_dmarequest_update(s->ch + ch);
         if (((value >> 12) & 3) == 3) { /* TRM */
             qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid TRM value (3)\n",
@@ -314,8 +314,8 @@ static void omap_mcspi_write(void *opaque, hwaddr addr,
         /* fall through */
     case 0x48: ch ++;
         /* fall through */
-    case 0x34:	/* MCSPI_CHCTRL */
-        if (value & ~s->ch[ch].control & 1) {		/* EN */
+    case 0x34:  /* MCSPI_CHCTRL */
+        if (value & ~s->ch[ch].control & 1) {       /* EN */
             s->ch[ch].control |= 1;
             omap_mcspi_transfer_run(s, ch);
         } else
@@ -328,9 +328,9 @@ static void omap_mcspi_write(void *opaque, hwaddr addr,
         /* fall through */
     case 0x4c: ch ++;
         /* fall through */
-    case 0x38:	/* MCSPI_TX */
+    case 0x38:  /* MCSPI_TX */
         s->ch[ch].tx = value;
-        s->ch[ch].status &= ~(1 << 1);			/* TXS */
+        s->ch[ch].status &= ~(1 << 1);          /* TXS */
         omap_mcspi_transfer_run(s, ch);
         break;
 

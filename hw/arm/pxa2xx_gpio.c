@@ -19,7 +19,7 @@
 #include "qemu/module.h"
 #include "qom/object.h"
 
-#define PXA2XX_GPIO_BANKS	4
+#define PXA2XX_GPIO_BANKS   4
 
 #define TYPE_PXA2XX_GPIO "pxa2xx-gpio"
 OBJECT_DECLARE_SIMPLE_TYPE(PXA2xxGPIOInfo, PXA2XX_GPIO)
@@ -65,7 +65,7 @@ static struct {
     int bank;
 } pxa2xx_gpio_regs[0x200] = {
     [0 ... 0x1ff] = { GPIO_NONE, 0 },
-#define PXA2XX_REG(reg, a0, a1, a2, a3)	\
+#define PXA2XX_REG(reg, a0, a1, a2, a3) \
     [a0] = { reg, 0 }, [a1] = { reg, 1 }, [a2] = { reg, 2 }, [a3] = { reg, 3 },
 
     PXA2XX_REG(GPLR, 0x000, 0x004, 0x008, 0x100)
@@ -163,38 +163,38 @@ static uint64_t pxa2xx_gpio_read(void *opaque, hwaddr offset,
 
     bank = pxa2xx_gpio_regs[offset].bank;
     switch (pxa2xx_gpio_regs[offset].reg) {
-    case GPDR:		/* GPIO Pin-Direction registers */
+    case GPDR:      /* GPIO Pin-Direction registers */
         return s->dir[bank];
 
-    case GPSR:		/* GPIO Pin-Output Set registers */
+    case GPSR:      /* GPIO Pin-Output Set registers */
         qemu_log_mask(LOG_GUEST_ERROR,
                       "pxa2xx GPIO: read from write only register GPSR\n");
         return 0;
 
-    case GPCR:		/* GPIO Pin-Output Clear registers */
+    case GPCR:      /* GPIO Pin-Output Clear registers */
         qemu_log_mask(LOG_GUEST_ERROR,
                       "pxa2xx GPIO: read from write only register GPCR\n");
         return 0;
 
-    case GRER:		/* GPIO Rising-Edge Detect Enable registers */
+    case GRER:      /* GPIO Rising-Edge Detect Enable registers */
         return s->rising[bank];
 
-    case GFER:		/* GPIO Falling-Edge Detect Enable registers */
+    case GFER:      /* GPIO Falling-Edge Detect Enable registers */
         return s->falling[bank];
 
-    case GAFR_L:	/* GPIO Alternate Function registers */
+    case GAFR_L:    /* GPIO Alternate Function registers */
         return s->gafr[bank * 2];
 
-    case GAFR_U:	/* GPIO Alternate Function registers */
+    case GAFR_U:    /* GPIO Alternate Function registers */
         return s->gafr[bank * 2 + 1];
 
-    case GPLR:		/* GPIO Pin-Level registers */
+    case GPLR:      /* GPIO Pin-Level registers */
         ret = (s->olevel[bank] & s->dir[bank]) |
                 (s->ilevel[bank] & ~s->dir[bank]);
         qemu_irq_raise(s->read_notify);
         return ret;
 
-    case GEDR:		/* GPIO Edge Detect Status registers */
+    case GEDR:      /* GPIO Edge Detect Status registers */
         return s->status[bank];
 
     default:
@@ -215,38 +215,38 @@ static void pxa2xx_gpio_write(void *opaque, hwaddr offset,
 
     bank = pxa2xx_gpio_regs[offset].bank;
     switch (pxa2xx_gpio_regs[offset].reg) {
-    case GPDR:		/* GPIO Pin-Direction registers */
+    case GPDR:      /* GPIO Pin-Direction registers */
         s->dir[bank] = value;
         pxa2xx_gpio_handler_update(s);
         break;
 
-    case GPSR:		/* GPIO Pin-Output Set registers */
+    case GPSR:      /* GPIO Pin-Output Set registers */
         s->olevel[bank] |= value;
         pxa2xx_gpio_handler_update(s);
         break;
 
-    case GPCR:		/* GPIO Pin-Output Clear registers */
+    case GPCR:      /* GPIO Pin-Output Clear registers */
         s->olevel[bank] &= ~value;
         pxa2xx_gpio_handler_update(s);
         break;
 
-    case GRER:		/* GPIO Rising-Edge Detect Enable registers */
+    case GRER:      /* GPIO Rising-Edge Detect Enable registers */
         s->rising[bank] = value;
         break;
 
-    case GFER:		/* GPIO Falling-Edge Detect Enable registers */
+    case GFER:      /* GPIO Falling-Edge Detect Enable registers */
         s->falling[bank] = value;
         break;
 
-    case GAFR_L:	/* GPIO Alternate Function registers */
+    case GAFR_L:    /* GPIO Alternate Function registers */
         s->gafr[bank * 2] = value;
         break;
 
-    case GAFR_U:	/* GPIO Alternate Function registers */
+    case GAFR_U:    /* GPIO Alternate Function registers */
         s->gafr[bank * 2 + 1] = value;
         break;
 
-    case GEDR:		/* GPIO Edge Detect Status registers */
+    case GEDR:      /* GPIO Edge Detect Status registers */
         s->status[bank] &= ~value;
         pxa2xx_gpio_irq_update(s);
         break;

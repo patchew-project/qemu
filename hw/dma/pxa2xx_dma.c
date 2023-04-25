@@ -61,61 +61,61 @@ struct PXA2xxDMAState {
     int running;
 };
 
-#define DCSR0	0x0000	/* DMA Control / Status register for Channel 0 */
-#define DCSR31	0x007c	/* DMA Control / Status register for Channel 31 */
-#define DALGN	0x00a0	/* DMA Alignment register */
-#define DPCSR	0x00a4	/* DMA Programmed I/O Control Status register */
-#define DRQSR0	0x00e0	/* DMA DREQ<0> Status register */
-#define DRQSR1	0x00e4	/* DMA DREQ<1> Status register */
-#define DRQSR2	0x00e8	/* DMA DREQ<2> Status register */
-#define DINT	0x00f0	/* DMA Interrupt register */
-#define DRCMR0	0x0100	/* Request to Channel Map register 0 */
-#define DRCMR63	0x01fc	/* Request to Channel Map register 63 */
-#define D_CH0	0x0200	/* Channel 0 Descriptor start */
-#define DRCMR64	0x1100	/* Request to Channel Map register 64 */
-#define DRCMR74	0x1128	/* Request to Channel Map register 74 */
+#define DCSR0   0x0000  /* DMA Control / Status register for Channel 0 */
+#define DCSR31  0x007c  /* DMA Control / Status register for Channel 31 */
+#define DALGN   0x00a0  /* DMA Alignment register */
+#define DPCSR   0x00a4  /* DMA Programmed I/O Control Status register */
+#define DRQSR0  0x00e0  /* DMA DREQ<0> Status register */
+#define DRQSR1  0x00e4  /* DMA DREQ<1> Status register */
+#define DRQSR2  0x00e8  /* DMA DREQ<2> Status register */
+#define DINT    0x00f0  /* DMA Interrupt register */
+#define DRCMR0  0x0100  /* Request to Channel Map register 0 */
+#define DRCMR63 0x01fc  /* Request to Channel Map register 63 */
+#define D_CH0   0x0200  /* Channel 0 Descriptor start */
+#define DRCMR64 0x1100  /* Request to Channel Map register 64 */
+#define DRCMR74 0x1128  /* Request to Channel Map register 74 */
 
 /* Per-channel register */
-#define DDADR	0x00
-#define DSADR	0x01
-#define DTADR	0x02
-#define DCMD	0x03
+#define DDADR   0x00
+#define DSADR   0x01
+#define DTADR   0x02
+#define DCMD    0x03
 
 /* Bit-field masks */
-#define DRCMR_CHLNUM		0x1f
-#define DRCMR_MAPVLD		(1 << 7)
-#define DDADR_STOP		(1 << 0)
-#define DDADR_BREN		(1 << 1)
-#define DCMD_LEN		0x1fff
-#define DCMD_WIDTH(x)		(1 << ((((x) >> 14) & 3) - 1))
-#define DCMD_SIZE(x)		(4 << (((x) >> 16) & 3))
-#define DCMD_FLYBYT		(1 << 19)
-#define DCMD_FLYBYS		(1 << 20)
-#define DCMD_ENDIRQEN		(1 << 21)
-#define DCMD_STARTIRQEN		(1 << 22)
-#define DCMD_CMPEN		(1 << 25)
-#define DCMD_FLOWTRG		(1 << 28)
-#define DCMD_FLOWSRC		(1 << 29)
-#define DCMD_INCTRGADDR		(1 << 30)
-#define DCMD_INCSRCADDR		(1 << 31)
-#define DCSR_BUSERRINTR		(1 << 0)
-#define DCSR_STARTINTR		(1 << 1)
-#define DCSR_ENDINTR		(1 << 2)
-#define DCSR_STOPINTR		(1 << 3)
-#define DCSR_RASINTR		(1 << 4)
-#define DCSR_REQPEND		(1 << 8)
-#define DCSR_EORINT		(1 << 9)
-#define DCSR_CMPST		(1 << 10)
-#define DCSR_MASKRUN		(1 << 22)
-#define DCSR_RASIRQEN		(1 << 23)
-#define DCSR_CLRCMPST		(1 << 24)
-#define DCSR_SETCMPST		(1 << 25)
-#define DCSR_EORSTOPEN		(1 << 26)
-#define DCSR_EORJMPEN		(1 << 27)
-#define DCSR_EORIRQEN		(1 << 28)
-#define DCSR_STOPIRQEN		(1 << 29)
-#define DCSR_NODESCFETCH	(1 << 30)
-#define DCSR_RUN		(1 << 31)
+#define DRCMR_CHLNUM        0x1f
+#define DRCMR_MAPVLD        (1 << 7)
+#define DDADR_STOP      (1 << 0)
+#define DDADR_BREN      (1 << 1)
+#define DCMD_LEN        0x1fff
+#define DCMD_WIDTH(x)       (1 << ((((x) >> 14) & 3) - 1))
+#define DCMD_SIZE(x)        (4 << (((x) >> 16) & 3))
+#define DCMD_FLYBYT     (1 << 19)
+#define DCMD_FLYBYS     (1 << 20)
+#define DCMD_ENDIRQEN       (1 << 21)
+#define DCMD_STARTIRQEN     (1 << 22)
+#define DCMD_CMPEN      (1 << 25)
+#define DCMD_FLOWTRG        (1 << 28)
+#define DCMD_FLOWSRC        (1 << 29)
+#define DCMD_INCTRGADDR     (1 << 30)
+#define DCMD_INCSRCADDR     (1 << 31)
+#define DCSR_BUSERRINTR     (1 << 0)
+#define DCSR_STARTINTR      (1 << 1)
+#define DCSR_ENDINTR        (1 << 2)
+#define DCSR_STOPINTR       (1 << 3)
+#define DCSR_RASINTR        (1 << 4)
+#define DCSR_REQPEND        (1 << 8)
+#define DCSR_EORINT     (1 << 9)
+#define DCSR_CMPST      (1 << 10)
+#define DCSR_MASKRUN        (1 << 22)
+#define DCSR_RASIRQEN       (1 << 23)
+#define DCSR_CLRCMPST       (1 << 24)
+#define DCSR_SETCMPST       (1 << 25)
+#define DCSR_EORSTOPEN      (1 << 26)
+#define DCSR_EORJMPEN       (1 << 27)
+#define DCSR_EORIRQEN       (1 << 28)
+#define DCSR_STOPIRQEN      (1 << 29)
+#define DCSR_NODESCFETCH    (1 << 30)
+#define DCSR_RUN        (1 << 31)
 
 static inline void pxa2xx_dma_update(PXA2xxDMAState *s, int ch)
 {

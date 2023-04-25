@@ -83,27 +83,27 @@ static PXASSPDef pxa27x_ssp[] = {
     { 0, 0 }
 };
 
-#define PMCR	0x00	/* Power Manager Control register */
-#define PSSR	0x04	/* Power Manager Sleep Status register */
-#define PSPR	0x08	/* Power Manager Scratch-Pad register */
-#define PWER	0x0c	/* Power Manager Wake-Up Enable register */
-#define PRER	0x10	/* Power Manager Rising-Edge Detect Enable register */
-#define PFER	0x14	/* Power Manager Falling-Edge Detect Enable register */
-#define PEDR	0x18	/* Power Manager Edge-Detect Status register */
-#define PCFR	0x1c	/* Power Manager General Configuration register */
-#define PGSR0	0x20	/* Power Manager GPIO Sleep-State register 0 */
-#define PGSR1	0x24	/* Power Manager GPIO Sleep-State register 1 */
-#define PGSR2	0x28	/* Power Manager GPIO Sleep-State register 2 */
-#define PGSR3	0x2c	/* Power Manager GPIO Sleep-State register 3 */
-#define RCSR	0x30	/* Reset Controller Status register */
-#define PSLR	0x34	/* Power Manager Sleep Configuration register */
-#define PTSR	0x38	/* Power Manager Standby Configuration register */
-#define PVCR	0x40	/* Power Manager Voltage Change Control register */
-#define PUCR	0x4c	/* Power Manager USIM Card Control/Status register */
-#define PKWR	0x50	/* Power Manager Keyboard Wake-Up Enable register */
-#define PKSR	0x54	/* Power Manager Keyboard Level-Detect Status */
-#define PCMD0	0x80	/* Power Manager I2C Command register File 0 */
-#define PCMD31	0xfc	/* Power Manager I2C Command register File 31 */
+#define PMCR    0x00    /* Power Manager Control register */
+#define PSSR    0x04    /* Power Manager Sleep Status register */
+#define PSPR    0x08    /* Power Manager Scratch-Pad register */
+#define PWER    0x0c    /* Power Manager Wake-Up Enable register */
+#define PRER    0x10    /* Power Manager Rising-Edge Detect Enable register */
+#define PFER    0x14    /* Power Manager Falling-Edge Detect Enable register */
+#define PEDR    0x18    /* Power Manager Edge-Detect Status register */
+#define PCFR    0x1c    /* Power Manager General Configuration register */
+#define PGSR0   0x20    /* Power Manager GPIO Sleep-State register 0 */
+#define PGSR1   0x24    /* Power Manager GPIO Sleep-State register 1 */
+#define PGSR2   0x28    /* Power Manager GPIO Sleep-State register 2 */
+#define PGSR3   0x2c    /* Power Manager GPIO Sleep-State register 3 */
+#define RCSR    0x30    /* Reset Controller Status register */
+#define PSLR    0x34    /* Power Manager Sleep Configuration register */
+#define PTSR    0x38    /* Power Manager Standby Configuration register */
+#define PVCR    0x40    /* Power Manager Voltage Change Control register */
+#define PUCR    0x4c    /* Power Manager USIM Card Control/Status register */
+#define PKWR    0x50    /* Power Manager Keyboard Wake-Up Enable register */
+#define PKSR    0x54    /* Power Manager Keyboard Level-Detect Status */
+#define PCMD0   0x80    /* Power Manager I2C Command register File 0 */
+#define PCMD31  0xfc    /* Power Manager I2C Command register File 31 */
 
 static uint64_t pxa2xx_pm_read(void *opaque, hwaddr addr,
                                unsigned size)
@@ -140,13 +140,13 @@ static void pxa2xx_pm_write(void *opaque, hwaddr addr,
         s->pm_regs[addr >> 2] |= value & 0x15;
         break;
 
-    case PSSR:	/* Read-clean registers */
+    case PSSR:  /* Read-clean registers */
     case RCSR:
     case PKSR:
         s->pm_regs[addr >> 2] &= ~value;
         break;
 
-    default:	/* Read-write registers */
+    default:    /* Read-write registers */
         if (!(addr & 3)) {
             s->pm_regs[addr >> 2] = value;
             break;
@@ -174,10 +174,10 @@ static const VMStateDescription vmstate_pxa2xx_pm = {
     }
 };
 
-#define CCCR	0x00	/* Core Clock Configuration register */
-#define CKEN	0x04	/* Clock Enable register */
-#define OSCC	0x08	/* Oscillator Configuration register */
-#define CCSR	0x0c	/* Core Clock Status register */
+#define CCCR    0x00    /* Core Clock Configuration register */
+#define CKEN    0x04    /* Clock Enable register */
+#define OSCC    0x08    /* Oscillator Configuration register */
+#define CCSR    0x0c    /* Core Clock Status register */
 
 static uint64_t pxa2xx_cm_read(void *opaque, hwaddr addr,
                                unsigned size)
@@ -216,8 +216,8 @@ static void pxa2xx_cm_write(void *opaque, hwaddr addr,
     case OSCC:
         s->cm_regs[addr >> 2] &= ~0x6c;
         s->cm_regs[addr >> 2] |= value & 0x6e;
-        if ((value >> 1) & 1)			/* OON */
-            s->cm_regs[addr >> 2] |= 1 << 0;	/* Oscillator is now stable */
+        if ((value >> 1) & 1)           /* OON */
+            s->cm_regs[addr >> 2] |= 1 << 0;    /* Oscillator is now stable */
         break;
 
     default:
@@ -392,29 +392,29 @@ static void pxa2xx_setup_cp14(PXA2xxState *s)
     define_arm_cp_regs_with_opaque(s->cpu, pxa_cp_reginfo, s);
 }
 
-#define MDCNFG		0x00	/* SDRAM Configuration register */
-#define MDREFR		0x04	/* SDRAM Refresh Control register */
-#define MSC0		0x08	/* Static Memory Control register 0 */
-#define MSC1		0x0c	/* Static Memory Control register 1 */
-#define MSC2		0x10	/* Static Memory Control register 2 */
-#define MECR		0x14	/* Expansion Memory Bus Config register */
-#define SXCNFG		0x1c	/* Synchronous Static Memory Config register */
-#define MCMEM0		0x28	/* PC Card Memory Socket 0 Timing register */
-#define MCMEM1		0x2c	/* PC Card Memory Socket 1 Timing register */
-#define MCATT0		0x30	/* PC Card Attribute Socket 0 register */
-#define MCATT1		0x34	/* PC Card Attribute Socket 1 register */
-#define MCIO0		0x38	/* PC Card I/O Socket 0 Timing register */
-#define MCIO1		0x3c	/* PC Card I/O Socket 1 Timing register */
-#define MDMRS		0x40	/* SDRAM Mode Register Set Config register */
-#define BOOT_DEF	0x44	/* Boot-time Default Configuration register */
-#define ARB_CNTL	0x48	/* Arbiter Control register */
-#define BSCNTR0		0x4c	/* Memory Buffer Strength Control register 0 */
-#define BSCNTR1		0x50	/* Memory Buffer Strength Control register 1 */
-#define LCDBSCNTR	0x54	/* LCD Buffer Strength Control register */
-#define MDMRSLP		0x58	/* Low Power SDRAM Mode Set Config register */
-#define BSCNTR2		0x5c	/* Memory Buffer Strength Control register 2 */
-#define BSCNTR3		0x60	/* Memory Buffer Strength Control register 3 */
-#define SA1110		0x64	/* SA-1110 Memory Compatibility register */
+#define MDCNFG      0x00    /* SDRAM Configuration register */
+#define MDREFR      0x04    /* SDRAM Refresh Control register */
+#define MSC0        0x08    /* Static Memory Control register 0 */
+#define MSC1        0x0c    /* Static Memory Control register 1 */
+#define MSC2        0x10    /* Static Memory Control register 2 */
+#define MECR        0x14    /* Expansion Memory Bus Config register */
+#define SXCNFG      0x1c    /* Synchronous Static Memory Config register */
+#define MCMEM0      0x28    /* PC Card Memory Socket 0 Timing register */
+#define MCMEM1      0x2c    /* PC Card Memory Socket 1 Timing register */
+#define MCATT0      0x30    /* PC Card Attribute Socket 0 register */
+#define MCATT1      0x34    /* PC Card Attribute Socket 1 register */
+#define MCIO0       0x38    /* PC Card I/O Socket 0 Timing register */
+#define MCIO1       0x3c    /* PC Card I/O Socket 1 Timing register */
+#define MDMRS       0x40    /* SDRAM Mode Register Set Config register */
+#define BOOT_DEF    0x44    /* Boot-time Default Configuration register */
+#define ARB_CNTL    0x48    /* Arbiter Control register */
+#define BSCNTR0     0x4c    /* Memory Buffer Strength Control register 0 */
+#define BSCNTR1     0x50    /* Memory Buffer Strength Control register 1 */
+#define LCDBSCNTR   0x54    /* LCD Buffer Strength Control register */
+#define MDMRSLP     0x58    /* Low Power SDRAM Mode Set Config register */
+#define BSCNTR2     0x5c    /* Memory Buffer Strength Control register 2 */
+#define BSCNTR3     0x60    /* Memory Buffer Strength Control register 3 */
+#define SA1110      0x64    /* SA-1110 Memory Compatibility register */
 
 static uint64_t pxa2xx_mm_read(void *opaque, hwaddr addr,
                                unsigned size)
@@ -528,52 +528,52 @@ static const VMStateDescription vmstate_pxa2xx_ssp = {
     }
 };
 
-#define SSCR0	0x00	/* SSP Control register 0 */
-#define SSCR1	0x04	/* SSP Control register 1 */
-#define SSSR	0x08	/* SSP Status register */
-#define SSITR	0x0c	/* SSP Interrupt Test register */
-#define SSDR	0x10	/* SSP Data register */
-#define SSTO	0x28	/* SSP Time-Out register */
-#define SSPSP	0x2c	/* SSP Programmable Serial Protocol register */
-#define SSTSA	0x30	/* SSP TX Time Slot Active register */
-#define SSRSA	0x34	/* SSP RX Time Slot Active register */
-#define SSTSS	0x38	/* SSP Time Slot Status register */
-#define SSACD	0x3c	/* SSP Audio Clock Divider register */
+#define SSCR0   0x00    /* SSP Control register 0 */
+#define SSCR1   0x04    /* SSP Control register 1 */
+#define SSSR    0x08    /* SSP Status register */
+#define SSITR   0x0c    /* SSP Interrupt Test register */
+#define SSDR    0x10    /* SSP Data register */
+#define SSTO    0x28    /* SSP Time-Out register */
+#define SSPSP   0x2c    /* SSP Programmable Serial Protocol register */
+#define SSTSA   0x30    /* SSP TX Time Slot Active register */
+#define SSRSA   0x34    /* SSP RX Time Slot Active register */
+#define SSTSS   0x38    /* SSP Time Slot Status register */
+#define SSACD   0x3c    /* SSP Audio Clock Divider register */
 
 /* Bitfields for above registers */
-#define SSCR0_SPI(x)	(((x) & 0x30) == 0x00)
-#define SSCR0_SSP(x)	(((x) & 0x30) == 0x10)
-#define SSCR0_UWIRE(x)	(((x) & 0x30) == 0x20)
-#define SSCR0_PSP(x)	(((x) & 0x30) == 0x30)
-#define SSCR0_SSE	(1 << 7)
-#define SSCR0_RIM	(1 << 22)
-#define SSCR0_TIM	(1 << 23)
+#define SSCR0_SPI(x)    (((x) & 0x30) == 0x00)
+#define SSCR0_SSP(x)    (((x) & 0x30) == 0x10)
+#define SSCR0_UWIRE(x)  (((x) & 0x30) == 0x20)
+#define SSCR0_PSP(x)    (((x) & 0x30) == 0x30)
+#define SSCR0_SSE   (1 << 7)
+#define SSCR0_RIM   (1 << 22)
+#define SSCR0_TIM   (1 << 23)
 #define SSCR0_MOD       (1U << 31)
-#define SSCR0_DSS(x)	(((((x) >> 16) & 0x10) | ((x) & 0xf)) + 1)
-#define SSCR1_RIE	(1 << 0)
-#define SSCR1_TIE	(1 << 1)
-#define SSCR1_LBM	(1 << 2)
-#define SSCR1_MWDS	(1 << 5)
-#define SSCR1_TFT(x)	((((x) >> 6) & 0xf) + 1)
-#define SSCR1_RFT(x)	((((x) >> 10) & 0xf) + 1)
-#define SSCR1_EFWR	(1 << 14)
-#define SSCR1_PINTE	(1 << 18)
-#define SSCR1_TINTE	(1 << 19)
-#define SSCR1_RSRE	(1 << 20)
-#define SSCR1_TSRE	(1 << 21)
-#define SSCR1_EBCEI	(1 << 29)
-#define SSITR_INT	(7 << 5)
-#define SSSR_TNF	(1 << 2)
-#define SSSR_RNE	(1 << 3)
-#define SSSR_TFS	(1 << 5)
-#define SSSR_RFS	(1 << 6)
-#define SSSR_ROR	(1 << 7)
-#define SSSR_PINT	(1 << 18)
-#define SSSR_TINT	(1 << 19)
-#define SSSR_EOC	(1 << 20)
-#define SSSR_TUR	(1 << 21)
-#define SSSR_BCE	(1 << 23)
-#define SSSR_RW		0x00bc0080
+#define SSCR0_DSS(x)    (((((x) >> 16) & 0x10) | ((x) & 0xf)) + 1)
+#define SSCR1_RIE   (1 << 0)
+#define SSCR1_TIE   (1 << 1)
+#define SSCR1_LBM   (1 << 2)
+#define SSCR1_MWDS  (1 << 5)
+#define SSCR1_TFT(x)    ((((x) >> 6) & 0xf) + 1)
+#define SSCR1_RFT(x)    ((((x) >> 10) & 0xf) + 1)
+#define SSCR1_EFWR  (1 << 14)
+#define SSCR1_PINTE (1 << 18)
+#define SSCR1_TINTE (1 << 19)
+#define SSCR1_RSRE  (1 << 20)
+#define SSCR1_TSRE  (1 << 21)
+#define SSCR1_EBCEI (1 << 29)
+#define SSITR_INT   (7 << 5)
+#define SSSR_TNF    (1 << 2)
+#define SSSR_RNE    (1 << 3)
+#define SSSR_TFS    (1 << 5)
+#define SSSR_RFS    (1 << 6)
+#define SSSR_ROR    (1 << 7)
+#define SSSR_PINT   (1 << 18)
+#define SSSR_TINT   (1 << 19)
+#define SSSR_EOC    (1 << 20)
+#define SSSR_TUR    (1 << 21)
+#define SSSR_BCE    (1 << 23)
+#define SSSR_RW     0x00bc0080
 
 static void pxa2xx_ssp_int_update(PXA2xxSSPState *s)
 {
@@ -593,8 +593,8 @@ static void pxa2xx_ssp_int_update(PXA2xxSSPState *s)
 
 static void pxa2xx_ssp_fifo_update(PXA2xxSSPState *s)
 {
-    s->sssr &= ~(0xf << 12);	/* Clear RFL */
-    s->sssr &= ~(0xf << 8);	/* Clear TFL */
+    s->sssr &= ~(0xf << 12);    /* Clear RFL */
+    s->sssr &= ~(0xf << 8); /* Clear TFL */
     s->sssr &= ~SSSR_TFS;
     s->sssr &= ~SSSR_TNF;
     if (s->enable) {
@@ -794,21 +794,21 @@ static void pxa2xx_ssp_init(Object *obj)
 }
 
 /* Real-Time Clock */
-#define RCNR		0x00	/* RTC Counter register */
-#define RTAR		0x04	/* RTC Alarm register */
-#define RTSR		0x08	/* RTC Status register */
-#define RTTR		0x0c	/* RTC Timer Trim register */
-#define RDCR		0x10	/* RTC Day Counter register */
-#define RYCR		0x14	/* RTC Year Counter register */
-#define RDAR1		0x18	/* RTC Wristwatch Day Alarm register 1 */
-#define RYAR1		0x1c	/* RTC Wristwatch Year Alarm register 1 */
-#define RDAR2		0x20	/* RTC Wristwatch Day Alarm register 2 */
-#define RYAR2		0x24	/* RTC Wristwatch Year Alarm register 2 */
-#define SWCR		0x28	/* RTC Stopwatch Counter register */
-#define SWAR1		0x2c	/* RTC Stopwatch Alarm register 1 */
-#define SWAR2		0x30	/* RTC Stopwatch Alarm register 2 */
-#define RTCPICR		0x34	/* RTC Periodic Interrupt Counter register */
-#define PIAR		0x38	/* RTC Periodic Interrupt Alarm register */
+#define RCNR        0x00    /* RTC Counter register */
+#define RTAR        0x04    /* RTC Alarm register */
+#define RTSR        0x08    /* RTC Status register */
+#define RTTR        0x0c    /* RTC Timer Trim register */
+#define RDCR        0x10    /* RTC Day Counter register */
+#define RYCR        0x14    /* RTC Year Counter register */
+#define RDAR1       0x18    /* RTC Wristwatch Day Alarm register 1 */
+#define RYAR1       0x1c    /* RTC Wristwatch Year Alarm register 1 */
+#define RDAR2       0x20    /* RTC Wristwatch Day Alarm register 2 */
+#define RYAR2       0x24    /* RTC Wristwatch Year Alarm register 2 */
+#define SWCR        0x28    /* RTC Stopwatch Counter register */
+#define SWAR1       0x2c    /* RTC Stopwatch Alarm register 1 */
+#define SWAR2       0x30    /* RTC Stopwatch Alarm register 2 */
+#define RTCPICR     0x34    /* RTC Periodic Interrupt Counter register */
+#define PIAR        0x38    /* RTC Periodic Interrupt Alarm register */
 
 #define TYPE_PXA2XX_RTC "pxa2xx_rtc"
 OBJECT_DECLARE_SIMPLE_TYPE(PXA2xxRTCState, PXA2XX_RTC)
@@ -1269,19 +1269,19 @@ struct PXA2xxI2CState {
     uint8_t data;
 };
 
-#define IBMR	0x80	/* I2C Bus Monitor register */
-#define IDBR	0x88	/* I2C Data Buffer register */
-#define ICR	0x90	/* I2C Control register */
-#define ISR	0x98	/* I2C Status register */
-#define ISAR	0xa0	/* I2C Slave Address register */
+#define IBMR    0x80    /* I2C Bus Monitor register */
+#define IDBR    0x88    /* I2C Data Buffer register */
+#define ICR 0x90    /* I2C Control register */
+#define ISR 0x98    /* I2C Status register */
+#define ISAR    0xa0    /* I2C Slave Address register */
 
 static void pxa2xx_i2c_update(PXA2xxI2CState *s)
 {
     uint16_t level = 0;
-    level |= s->status & s->control & (1 << 10);		/* BED */
-    level |= (s->status & (1 << 7)) && (s->control & (1 << 9));	/* IRF */
-    level |= (s->status & (1 << 6)) && (s->control & (1 << 8));	/* ITE */
-    level |= s->status & (1 << 9);				/* SAD */
+    level |= s->status & s->control & (1 << 10);        /* BED */
+    level |= (s->status & (1 << 7)) && (s->control & (1 << 9)); /* IRF */
+    level |= (s->status & (1 << 6)) && (s->control & (1 << 8)); /* ITE */
+    level |= s->status & (1 << 9);              /* SAD */
     qemu_set_irq(s->irq, !!level);
 }
 
@@ -1293,18 +1293,18 @@ static int pxa2xx_i2c_event(I2CSlave *i2c, enum i2c_event event)
 
     switch (event) {
     case I2C_START_SEND:
-        s->status |= (1 << 9);				/* set SAD */
-        s->status &= ~(1 << 0);				/* clear RWM */
+        s->status |= (1 << 9);              /* set SAD */
+        s->status &= ~(1 << 0);             /* clear RWM */
         break;
     case I2C_START_RECV:
-        s->status |= (1 << 9);				/* set SAD */
-        s->status |= 1 << 0;				/* set RWM */
+        s->status |= (1 << 9);              /* set SAD */
+        s->status |= 1 << 0;                /* set RWM */
         break;
     case I2C_FINISH:
-        s->status |= (1 << 4);				/* set SSD */
+        s->status |= (1 << 4);              /* set SSD */
         break;
     case I2C_NACK:
-        s->status |= 1 << 1;				/* set ACKNAK */
+        s->status |= 1 << 1;                /* set ACKNAK */
         break;
     default:
         return -1;
@@ -1323,8 +1323,8 @@ static uint8_t pxa2xx_i2c_rx(I2CSlave *i2c)
         return 0;
     }
 
-    if (s->status & (1 << 0)) {			/* RWM */
-        s->status |= 1 << 6;			/* set ITE */
+    if (s->status & (1 << 0)) {         /* RWM */
+        s->status |= 1 << 6;            /* set ITE */
     }
     pxa2xx_i2c_update(s);
 
@@ -1340,8 +1340,8 @@ static int pxa2xx_i2c_tx(I2CSlave *i2c, uint8_t data)
         return 1;
     }
 
-    if (!(s->status & (1 << 0))) {		/* RWM */
-        s->status |= 1 << 7;			/* set IRF */
+    if (!(s->status & (1 << 0))) {      /* RWM */
+        s->status |= 1 << 7;            /* set IRF */
         s->data = data;
     }
     pxa2xx_i2c_update(s);
@@ -1368,7 +1368,7 @@ static uint64_t pxa2xx_i2c_read(void *opaque, hwaddr addr,
         return s->data;
     case IBMR:
         if (s->status & (1 << 2))
-            s->ibmr ^= 3;	/* Fake SCL and SDA pin changes */
+            s->ibmr ^= 3;   /* Fake SCL and SDA pin changes */
         else
             s->ibmr = 0;
         return s->ibmr;
@@ -1392,44 +1392,44 @@ static void pxa2xx_i2c_write(void *opaque, hwaddr addr,
     switch (addr) {
     case ICR:
         s->control = value & 0xfff7;
-        if ((value & (1 << 3)) && (value & (1 << 6))) {	/* TB and IUE */
+        if ((value & (1 << 3)) && (value & (1 << 6))) { /* TB and IUE */
             /* TODO: slave mode */
-            if (value & (1 << 0)) {			/* START condition */
+            if (value & (1 << 0)) {         /* START condition */
                 if (s->data & 1)
-                    s->status |= 1 << 0;		/* set RWM */
+                    s->status |= 1 << 0;        /* set RWM */
                 else
-                    s->status &= ~(1 << 0);		/* clear RWM */
+                    s->status &= ~(1 << 0);     /* clear RWM */
                 ack = !i2c_start_transfer(s->bus, s->data >> 1, s->data & 1);
             } else {
-                if (s->status & (1 << 0)) {		/* RWM */
+                if (s->status & (1 << 0)) {     /* RWM */
                     s->data = i2c_recv(s->bus);
-                    if (value & (1 << 2))		/* ACKNAK */
+                    if (value & (1 << 2))       /* ACKNAK */
                         i2c_nack(s->bus);
                     ack = 1;
                 } else
                     ack = !i2c_send(s->bus, s->data);
             }
 
-            if (value & (1 << 1))			/* STOP condition */
+            if (value & (1 << 1))           /* STOP condition */
                 i2c_end_transfer(s->bus);
 
             if (ack) {
-                if (value & (1 << 0))			/* START condition */
-                    s->status |= 1 << 6;		/* set ITE */
+                if (value & (1 << 0))           /* START condition */
+                    s->status |= 1 << 6;        /* set ITE */
                 else
-                    if (s->status & (1 << 0))		/* RWM */
-                        s->status |= 1 << 7;		/* set IRF */
+                    if (s->status & (1 << 0))       /* RWM */
+                        s->status |= 1 << 7;        /* set IRF */
                     else
-                        s->status |= 1 << 6;		/* set ITE */
-                s->status &= ~(1 << 1);			/* clear ACKNAK */
+                        s->status |= 1 << 6;        /* set ITE */
+                s->status &= ~(1 << 1);         /* clear ACKNAK */
             } else {
-                s->status |= 1 << 6;			/* set ITE */
-                s->status |= 1 << 10;			/* set BED */
-                s->status |= 1 << 1;			/* set ACKNAK */
+                s->status |= 1 << 6;            /* set ITE */
+                s->status |= 1 << 10;           /* set BED */
+                s->status |= 1 << 1;            /* set ACKNAK */
             }
         }
-        if (!(value & (1 << 3)) && (value & (1 << 6)))	/* !TB and IUE */
-            if (value & (1 << 4))			/* MA */
+        if (!(value & (1 << 3)) && (value & (1 << 6)))  /* !TB and IUE */
+            if (value & (1 << 4))           /* MA */
                 i2c_end_transfer(s->bus);
         pxa2xx_i2c_update(s);
         break;
@@ -1584,10 +1584,10 @@ static void pxa2xx_i2s_reset(PXA2xxI2SState *i2s)
     i2s->mask = 0x00;
 }
 
-#define SACR_TFTH(val)	((val >> 8) & 0xf)
-#define SACR_RFTH(val)	((val >> 12) & 0xf)
-#define SACR_DREC(val)	(val & (1 << 3))
-#define SACR_DPRL(val)	(val & (1 << 4))
+#define SACR_TFTH(val)  ((val >> 8) & 0xf)
+#define SACR_RFTH(val)  ((val >> 12) & 0xf)
+#define SACR_DREC(val)  (val & (1 << 3))
+#define SACR_DPRL(val)  (val & (1 << 4))
 
 static inline void pxa2xx_i2s_update(PXA2xxI2SState *i2s)
 {
@@ -1602,29 +1602,29 @@ static inline void pxa2xx_i2s_update(PXA2xxI2SState *i2s)
 
     i2s->status &= 0xe0;
     if (i2s->fifo_len < 16 || !i2s->enable)
-        i2s->status |= 1 << 0;			/* TNF */
+        i2s->status |= 1 << 0;          /* TNF */
     if (i2s->rx_len)
-        i2s->status |= 1 << 1;			/* RNE */
+        i2s->status |= 1 << 1;          /* RNE */
     if (i2s->enable)
-        i2s->status |= 1 << 2;			/* BSY */
+        i2s->status |= 1 << 2;          /* BSY */
     if (tfs)
-        i2s->status |= 1 << 3;			/* TFS */
+        i2s->status |= 1 << 3;          /* TFS */
     if (rfs)
-        i2s->status |= 1 << 4;			/* RFS */
+        i2s->status |= 1 << 4;          /* RFS */
     if (!(i2s->tx_len && i2s->enable))
-        i2s->status |= i2s->fifo_len << 8;	/* TFL */
-    i2s->status |= MAX(i2s->rx_len, 0xf) << 12;	/* RFL */
+        i2s->status |= i2s->fifo_len << 8;  /* TFL */
+    i2s->status |= MAX(i2s->rx_len, 0xf) << 12; /* RFL */
 
     qemu_set_irq(i2s->irq, i2s->status & i2s->mask);
 }
 
-#define SACR0	0x00	/* Serial Audio Global Control register */
-#define SACR1	0x04	/* Serial Audio I2S/MSB-Justified Control register */
-#define SASR0	0x0c	/* Serial Audio Interface and FIFO Status register */
-#define SAIMR	0x14	/* Serial Audio Interrupt Mask register */
-#define SAICR	0x18	/* Serial Audio Interrupt Clear register */
-#define SADIV	0x60	/* Serial Audio Clock Divider register */
-#define SADR	0x80	/* Serial Audio Data register */
+#define SACR0   0x00    /* Serial Audio Global Control register */
+#define SACR1   0x04    /* Serial Audio I2S/MSB-Justified Control register */
+#define SASR0   0x0c    /* Serial Audio Interface and FIFO Status register */
+#define SAIMR   0x14    /* Serial Audio Interrupt Mask register */
+#define SAICR   0x18    /* Serial Audio Interrupt Clear register */
+#define SADIV   0x60    /* Serial Audio Clock Divider register */
+#define SADR    0x80    /* Serial Audio Data register */
 
 static uint64_t pxa2xx_i2s_read(void *opaque, hwaddr addr,
                                 unsigned size)
@@ -1668,24 +1668,24 @@ static void pxa2xx_i2s_write(void *opaque, hwaddr addr,
 
     switch (addr) {
     case SACR0:
-        if (value & (1 << 3))				/* RST */
+        if (value & (1 << 3))               /* RST */
             pxa2xx_i2s_reset(s);
         s->control[0] = value & 0xff3d;
-        if (!s->enable && (value & 1) && s->tx_len) {	/* ENB */
+        if (!s->enable && (value & 1) && s->tx_len) {   /* ENB */
             for (sample = s->fifo; s->fifo_len > 0; s->fifo_len --, sample ++)
                 s->codec_out(s->opaque, *sample);
-            s->status &= ~(1 << 7);			/* I2SOFF */
+            s->status &= ~(1 << 7);         /* I2SOFF */
         }
-        if (value & (1 << 4))				/* EFWR */
+        if (value & (1 << 4))               /* EFWR */
             printf("%s: Attempt to use special function\n", __func__);
-        s->enable = (value & 9) == 1;			/* ENB && !RST*/
+        s->enable = (value & 9) == 1;           /* ENB && !RST*/
         pxa2xx_i2s_update(s);
         break;
     case SACR1:
         s->control[1] = value & 0x0039;
-        if (value & (1 << 5))				/* ENLBF */
+        if (value & (1 << 5))               /* ENLBF */
             printf("%s: Attempt to use loopback function\n", __func__);
-        if (value & (1 << 4))				/* DPRL */
+        if (value & (1 << 4))               /* DPRL */
             s->fifo_len = 0;
         pxa2xx_i2s_update(s);
         break;
@@ -1747,9 +1747,9 @@ static void pxa2xx_i2s_data_req(void *opaque, int tx, int rx)
 
     /* Signal FIFO errors */
     if (s->enable && s->tx_len)
-        s->status |= 1 << 5;		/* TUR */
+        s->status |= 1 << 5;        /* TUR */
     if (s->enable && s->rx_len)
-        s->status |= 1 << 6;		/* ROR */
+        s->status |= 1 << 6;        /* ROR */
 
     /* Should be tx - MIN(tx, s->fifo_len) but we don't really need to
      * handle the cases where it makes a difference.  */
@@ -1821,33 +1821,33 @@ static inline void pxa2xx_fir_update(PXA2xxFIrState *s)
 {
     static const int tresh[4] = { 8, 16, 32, 0 };
     int intr = 0;
-    if ((s->control[0] & (1 << 4)) &&			/* RXE */
-                    s->rx_len >= tresh[s->control[2] & 3])	/* TRIG */
-        s->status[0] |= 1 << 4;				/* RFS */
+    if ((s->control[0] & (1 << 4)) &&           /* RXE */
+                    s->rx_len >= tresh[s->control[2] & 3])  /* TRIG */
+        s->status[0] |= 1 << 4;             /* RFS */
     else
-        s->status[0] &= ~(1 << 4);			/* RFS */
-    if (s->control[0] & (1 << 3))			/* TXE */
-        s->status[0] |= 1 << 3;				/* TFS */
+        s->status[0] &= ~(1 << 4);          /* RFS */
+    if (s->control[0] & (1 << 3))           /* TXE */
+        s->status[0] |= 1 << 3;             /* TFS */
     else
-        s->status[0] &= ~(1 << 3);			/* TFS */
+        s->status[0] &= ~(1 << 3);          /* TFS */
     if (s->rx_len)
-        s->status[1] |= 1 << 2;				/* RNE */
+        s->status[1] |= 1 << 2;             /* RNE */
     else
-        s->status[1] &= ~(1 << 2);			/* RNE */
-    if (s->control[0] & (1 << 4))			/* RXE */
-        s->status[1] |= 1 << 0;				/* RSY */
+        s->status[1] &= ~(1 << 2);          /* RNE */
+    if (s->control[0] & (1 << 4))           /* RXE */
+        s->status[1] |= 1 << 0;             /* RSY */
     else
-        s->status[1] &= ~(1 << 0);			/* RSY */
+        s->status[1] &= ~(1 << 0);          /* RSY */
 
-    intr |= (s->control[0] & (1 << 5)) &&		/* RIE */
-            (s->status[0] & (1 << 4));			/* RFS */
-    intr |= (s->control[0] & (1 << 6)) &&		/* TIE */
-            (s->status[0] & (1 << 3));			/* TFS */
-    intr |= (s->control[2] & (1 << 4)) &&		/* TRAIL */
-            (s->status[0] & (1 << 6));			/* EOC */
-    intr |= (s->control[0] & (1 << 2)) &&		/* TUS */
-            (s->status[0] & (1 << 1));			/* TUR */
-    intr |= s->status[0] & 0x25;			/* FRE, RAB, EIF */
+    intr |= (s->control[0] & (1 << 5)) &&       /* RIE */
+            (s->status[0] & (1 << 4));          /* RFS */
+    intr |= (s->control[0] & (1 << 6)) &&       /* TIE */
+            (s->status[0] & (1 << 3));          /* TFS */
+    intr |= (s->control[2] & (1 << 4)) &&       /* TRAIL */
+            (s->status[0] & (1 << 6));          /* EOC */
+    intr |= (s->control[0] & (1 << 2)) &&       /* TUS */
+            (s->status[0] & (1 << 1));          /* TUR */
+    intr |= s->status[0] & 0x25;            /* FRE, RAB, EIF */
 
     qemu_set_irq(s->rx_dma, (s->status[0] >> 4) & 1);
     qemu_set_irq(s->tx_dma, (s->status[0] >> 3) & 1);
@@ -1855,13 +1855,13 @@ static inline void pxa2xx_fir_update(PXA2xxFIrState *s)
     qemu_set_irq(s->irq, intr && s->enable);
 }
 
-#define ICCR0	0x00	/* FICP Control register 0 */
-#define ICCR1	0x04	/* FICP Control register 1 */
-#define ICCR2	0x08	/* FICP Control register 2 */
-#define ICDR	0x0c	/* FICP Data register */
-#define ICSR0	0x14	/* FICP Status register 0 */
-#define ICSR1	0x18	/* FICP Status register 1 */
-#define ICFOR	0x1c	/* FICP FIFO Occupancy Status register */
+#define ICCR0   0x00    /* FICP Control register 0 */
+#define ICCR1   0x04    /* FICP Control register 1 */
+#define ICCR2   0x08    /* FICP Control register 2 */
+#define ICDR    0x0c    /* FICP Data register */
+#define ICSR0   0x14    /* FICP Status register 0 */
+#define ICSR1   0x18    /* FICP Status register 1 */
+#define ICFOR   0x1c    /* FICP FIFO Occupancy Status register */
 
 static uint64_t pxa2xx_fir_read(void *opaque, hwaddr addr,
                                 unsigned size)
@@ -1891,7 +1891,7 @@ static uint64_t pxa2xx_fir_read(void *opaque, hwaddr addr,
     case ICSR0:
         return s->status[0];
     case ICSR1:
-        return s->status[1] | (1 << 3);			/* TNF */
+        return s->status[1] | (1 << 3);         /* TNF */
     case ICFOR:
         return s->rx_len;
     default:
@@ -1913,12 +1913,12 @@ static void pxa2xx_fir_write(void *opaque, hwaddr addr,
     switch (addr) {
     case ICCR0:
         s->control[0] = value;
-        if (!(value & (1 << 4)))			/* RXE */
+        if (!(value & (1 << 4)))            /* RXE */
             s->rx_len = s->rx_start = 0;
         if (!(value & (1 << 3))) {                      /* TXE */
             /* Nop */
         }
-        s->enable = value & 1;				/* ITR */
+        s->enable = value & 1;              /* ITR */
         if (!s->enable)
             s->status[0] = 0;
         pxa2xx_fir_update(s);
@@ -1970,17 +1970,17 @@ static int pxa2xx_fir_is_empty(void *opaque)
 static void pxa2xx_fir_rx(void *opaque, const uint8_t *buf, int size)
 {
     PXA2xxFIrState *s = (PXA2xxFIrState *) opaque;
-    if (!(s->control[0] & (1 << 4)))			/* RXE */
+    if (!(s->control[0] & (1 << 4)))            /* RXE */
         return;
 
     while (size --) {
-        s->status[1] |= 1 << 4;				/* EOF */
+        s->status[1] |= 1 << 4;             /* EOF */
         if (s->rx_len >= 64) {
-            s->status[1] |= 1 << 6;			/* ROR */
+            s->status[1] |= 1 << 6;         /* ROR */
             break;
         }
 
-        if (s->control[2] & (1 << 3))			/* RXP */
+        if (s->control[2] & (1 << 3))           /* RXP */
             s->rx_fifo[(s->rx_start + s->rx_len ++) & 63] = *(buf ++);
         else
             s->rx_fifo[(s->rx_start + s->rx_len ++) & 63] = ~*(buf ++);
@@ -2085,7 +2085,7 @@ static void pxa2xx_reset(void *opaque, int line, int level)
 {
     PXA2xxState *s = (PXA2xxState *) opaque;
 
-    if (level && (s->pm_regs[PCFR >> 2] & 0x10)) {	/* GPR_EN */
+    if (level && (s->pm_regs[PCFR >> 2] & 0x10)) {  /* GPR_EN */
         cpu_reset(CPU(s->cpu));
         /* TODO: reset peripherals */
     }
@@ -2172,8 +2172,8 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *cpu_type)
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_LCD));
 
     s->cm_base = 0x41300000;
-    s->cm_regs[CCCR >> 2] = 0x02000210;	/* 416.0 MHz */
-    s->clkcfg = 0x00000009;		/* Turbo mode active */
+    s->cm_regs[CCCR >> 2] = 0x02000210; /* 416.0 MHz */
+    s->clkcfg = 0x00000009;     /* Turbo mode active */
     memory_region_init_io(&s->cm_iomem, NULL, &pxa2xx_cm_ops, s, "pxa2xx-cm", 0x1000);
     memory_region_add_subregion(address_space, s->cm_base, &s->cm_iomem);
     vmstate_register(NULL, 0, &vmstate_pxa2xx_cm, s);
@@ -2183,7 +2183,7 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *cpu_type)
     s->mm_base = 0x48000000;
     s->mm_regs[MDMRS >> 2] = 0x00020002;
     s->mm_regs[MDREFR >> 2] = 0x03ca4000;
-    s->mm_regs[MECR >> 2] = 0x00000001;	/* Two PC Card sockets */
+    s->mm_regs[MECR >> 2] = 0x00000001; /* Two PC Card sockets */
     memory_region_init_io(&s->mm_iomem, NULL, &pxa2xx_mm_ops, s, "pxa2xx-mm", 0x1000);
     memory_region_add_subregion(address_space, s->mm_base, &s->mm_iomem);
     vmstate_register(NULL, 0, &vmstate_pxa2xx_mm, s);
@@ -2309,7 +2309,7 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
     s->cm_regs[CCCR >> 2] = 0x00000121;         /* from datasheet */
     s->cm_regs[CKEN >> 2] = 0x00017def;         /* from datasheet */
 
-    s->clkcfg = 0x00000009;		/* Turbo mode active */
+    s->clkcfg = 0x00000009;     /* Turbo mode active */
     memory_region_init_io(&s->cm_iomem, NULL, &pxa2xx_cm_ops, s, "pxa2xx-cm", 0x1000);
     memory_region_add_subregion(address_space, s->cm_base, &s->cm_iomem);
     vmstate_register(NULL, 0, &vmstate_pxa2xx_cm, s);
@@ -2319,7 +2319,7 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
     s->mm_base = 0x48000000;
     s->mm_regs[MDMRS >> 2] = 0x00020002;
     s->mm_regs[MDREFR >> 2] = 0x03ca4000;
-    s->mm_regs[MECR >> 2] = 0x00000001;	/* Two PC Card sockets */
+    s->mm_regs[MECR >> 2] = 0x00000001; /* Two PC Card sockets */
     memory_region_init_io(&s->mm_iomem, NULL, &pxa2xx_mm_ops, s, "pxa2xx-mm", 0x1000);
     memory_region_add_subregion(address_space, s->mm_base, &s->mm_iomem);
     vmstate_register(NULL, 0, &vmstate_pxa2xx_mm, s);

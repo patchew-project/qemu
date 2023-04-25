@@ -31,13 +31,13 @@
 #include "hw/irq.h"
 #include "migration/vmstate.h"
 
-#define TSC_DATA_REGISTERS_PAGE		0x0
-#define TSC_CONTROL_REGISTERS_PAGE	0x1
-#define TSC_AUDIO_REGISTERS_PAGE	0x2
+#define TSC_DATA_REGISTERS_PAGE     0x0
+#define TSC_CONTROL_REGISTERS_PAGE  0x1
+#define TSC_AUDIO_REGISTERS_PAGE    0x2
 
 #define TSC_VERBOSE
 
-#define TSC_CUT_RESOLUTION(value, p)	((value) >> (16 - resolution[p]))
+#define TSC_CUT_RESOLUTION(value, p)    ((value) >> (16 - resolution[p]))
 
 typedef struct {
     qemu_irq pint;
@@ -103,60 +103,60 @@ typedef struct {
 
 static const int resolution[4] = { 12, 8, 10, 12 };
 
-#define TSC_MODE_NO_SCAN	0x0
-#define TSC_MODE_XY_SCAN	0x1
-#define TSC_MODE_XYZ_SCAN	0x2
-#define TSC_MODE_X		0x3
-#define TSC_MODE_Y		0x4
-#define TSC_MODE_Z		0x5
-#define TSC_MODE_BAT1		0x6
-#define TSC_MODE_BAT2		0x7
-#define TSC_MODE_AUX		0x8
-#define TSC_MODE_AUX_SCAN	0x9
-#define TSC_MODE_TEMP1		0xa
-#define TSC_MODE_PORT_SCAN	0xb
-#define TSC_MODE_TEMP2		0xc
-#define TSC_MODE_XX_DRV		0xd
-#define TSC_MODE_YY_DRV		0xe
-#define TSC_MODE_YX_DRV		0xf
+#define TSC_MODE_NO_SCAN    0x0
+#define TSC_MODE_XY_SCAN    0x1
+#define TSC_MODE_XYZ_SCAN   0x2
+#define TSC_MODE_X      0x3
+#define TSC_MODE_Y      0x4
+#define TSC_MODE_Z      0x5
+#define TSC_MODE_BAT1       0x6
+#define TSC_MODE_BAT2       0x7
+#define TSC_MODE_AUX        0x8
+#define TSC_MODE_AUX_SCAN   0x9
+#define TSC_MODE_TEMP1      0xa
+#define TSC_MODE_PORT_SCAN  0xb
+#define TSC_MODE_TEMP2      0xc
+#define TSC_MODE_XX_DRV     0xd
+#define TSC_MODE_YY_DRV     0xe
+#define TSC_MODE_YX_DRV     0xf
 
 static const uint16_t mode_regs[16] = {
-    0x0000,	/* No scan */
-    0x0600,	/* X, Y scan */
-    0x0780,	/* X, Y, Z scan */
-    0x0400,	/* X */
-    0x0200,	/* Y */
-    0x0180,	/* Z */
-    0x0040,	/* BAT1 */
-    0x0030,	/* BAT2 */
-    0x0010,	/* AUX */
-    0x0010,	/* AUX scan */
-    0x0004,	/* TEMP1 */
-    0x0070,	/* Port scan */
-    0x0002,	/* TEMP2 */
-    0x0000,	/* X+, X- drivers */
-    0x0000,	/* Y+, Y- drivers */
-    0x0000,	/* Y+, X- drivers */
+    0x0000, /* No scan */
+    0x0600, /* X, Y scan */
+    0x0780, /* X, Y, Z scan */
+    0x0400, /* X */
+    0x0200, /* Y */
+    0x0180, /* Z */
+    0x0040, /* BAT1 */
+    0x0030, /* BAT2 */
+    0x0010, /* AUX */
+    0x0010, /* AUX scan */
+    0x0004, /* TEMP1 */
+    0x0070, /* Port scan */
+    0x0002, /* TEMP2 */
+    0x0000, /* X+, X- drivers */
+    0x0000, /* Y+, Y- drivers */
+    0x0000, /* Y+, X- drivers */
 };
 
-#define X_TRANSFORM(s)			\
+#define X_TRANSFORM(s)          \
     ((s->y * s->tr[0] - s->x * s->tr[1]) / s->tr[2] + s->tr[3])
-#define Y_TRANSFORM(s)			\
+#define Y_TRANSFORM(s)          \
     ((s->y * s->tr[4] - s->x * s->tr[5]) / s->tr[6] + s->tr[7])
-#define Z1_TRANSFORM(s)			\
+#define Z1_TRANSFORM(s)         \
     ((400 - ((s)->x >> 7) + ((s)->pressure << 10)) << 4)
-#define Z2_TRANSFORM(s)			\
+#define Z2_TRANSFORM(s)         \
     ((4000 + ((s)->y >> 7) - ((s)->pressure << 10)) << 4)
 
-#define BAT1_VAL			0x8660
-#define BAT2_VAL			0x0000
-#define AUX1_VAL			0x35c0
-#define AUX2_VAL			0xffff
-#define TEMP1_VAL			0x8c70
-#define TEMP2_VAL			0xa5b0
+#define BAT1_VAL            0x8660
+#define BAT2_VAL            0x0000
+#define AUX1_VAL            0x35c0
+#define AUX2_VAL            0xffff
+#define TEMP1_VAL           0x8c70
+#define TEMP2_VAL           0xa5b0
 
-#define TSC_POWEROFF_DELAY		50
-#define TSC_SOFTSTEP_DELAY		50
+#define TSC_POWEROFF_DELAY      50
+#define TSC_SOFTSTEP_DELAY      50
 
 static void tsc210x_reset(TSC210xState *s)
 {
@@ -222,34 +222,34 @@ typedef struct {
     int fsref;
 } TSC210xRateInfo;
 
-/*  { rate,   dsor, fsref }	*/
+/*  { rate,   dsor, fsref } */
 static const TSC210xRateInfo tsc2102_rates[] = {
     /* Fsref / 6.0 */
-    { 7350,	63,	1 },
-    { 8000,	63,	0 },
+    { 7350, 63, 1 },
+    { 8000, 63, 0 },
     /* Fsref / 6.0 */
-    { 7350,	54,	1 },
-    { 8000,	54,	0 },
+    { 7350, 54, 1 },
+    { 8000, 54, 0 },
     /* Fsref / 5.0 */
-    { 8820,	45,	1 },
-    { 9600,	45,	0 },
+    { 8820, 45, 1 },
+    { 9600, 45, 0 },
     /* Fsref / 4.0 */
-    { 11025,	36,	1 },
-    { 12000,	36,	0 },
+    { 11025,    36, 1 },
+    { 12000,    36, 0 },
     /* Fsref / 3.0 */
-    { 14700,	27,	1 },
-    { 16000,	27,	0 },
+    { 14700,    27, 1 },
+    { 16000,    27, 0 },
     /* Fsref / 2.0 */
-    { 22050,	18,	1 },
-    { 24000,	18,	0 },
+    { 22050,    18, 1 },
+    { 24000,    18, 0 },
     /* Fsref / 1.5 */
-    { 29400,	9,	1 },
-    { 32000,	9,	0 },
+    { 29400,    9,  1 },
+    { 32000,    9,  0 },
     /* Fsref */
-    { 44100,	0,	1 },
-    { 48000,	0,	0 },
+    { 44100,    0,  1 },
+    { 48000,    0,  0 },
 
-    { 0,	0, 	0 },
+    { 0,    0,  0 },
 };
 
 static inline void tsc210x_out_flush(TSC210xState *s, int len)
@@ -283,11 +283,11 @@ static void tsc2102_audio_rate_update(TSC210xState *s)
 
     s->codec.tx_rate = 0;
     s->codec.rx_rate = 0;
-    if (s->dac_power & (1 << 15))				/* PWDNC */
+    if (s->dac_power & (1 << 15))               /* PWDNC */
         return;
 
     for (rate = tsc2102_rates; rate->rate; rate ++)
-        if (rate->dsor == (s->audio_ctrl1 & 0x3f) &&		/* DACFS */
+        if (rate->dsor == (s->audio_ctrl1 & 0x3f) &&        /* DACFS */
                         rate->fsref == ((s->audio_ctrl3 >> 13) & 1))/* REFFS */
             break;
     if (!rate->rate) {
@@ -313,8 +313,8 @@ static void tsc2102_audio_output_update(TSC210xState *s)
     s->codec.cts = 0;
 
     enable =
-            (~s->dac_power & (1 << 15)) &&			/* PWDNC */
-            (~s->dac_power & (1 << 10));			/* DAPWDN */
+            (~s->dac_power & (1 << 15)) &&          /* PWDNC */
+            (~s->dac_power & (1 << 10));            /* DAPWDN */
     if (!enable || !s->codec.tx_rate)
         return;
 
@@ -335,28 +335,28 @@ static void tsc2102_audio_output_update(TSC210xState *s)
 static uint16_t tsc2102_data_register_read(TSC210xState *s, int reg)
 {
     switch (reg) {
-    case 0x00:	/* X */
+    case 0x00:  /* X */
         s->dav &= 0xfbff;
         return TSC_CUT_RESOLUTION(X_TRANSFORM(s), s->precision) +
                 (s->noise & 3);
 
-    case 0x01:	/* Y */
+    case 0x01:  /* Y */
         s->noise ++;
         s->dav &= 0xfdff;
         return TSC_CUT_RESOLUTION(Y_TRANSFORM(s), s->precision) ^
                 (s->noise & 3);
 
-    case 0x02:	/* Z1 */
+    case 0x02:  /* Z1 */
         s->dav &= 0xfeff;
         return TSC_CUT_RESOLUTION(Z1_TRANSFORM(s), s->precision) -
                 (s->noise & 3);
 
-    case 0x03:	/* Z2 */
+    case 0x03:  /* Z2 */
         s->dav &= 0xff7f;
         return TSC_CUT_RESOLUTION(Z2_TRANSFORM(s), s->precision) |
                 (s->noise & 3);
 
-    case 0x04:	/* KPData */
+    case 0x04:  /* KPData */
         if ((s->model & 0xff00) == 0x2300) {
             if (s->kb.intr && (s->kb.mode & 2)) {
                 s->kb.intr = 0;
@@ -367,34 +367,34 @@ static uint16_t tsc2102_data_register_read(TSC210xState *s, int reg)
 
         return 0xffff;
 
-    case 0x05:	/* BAT1 */
+    case 0x05:  /* BAT1 */
         s->dav &= 0xffbf;
         return TSC_CUT_RESOLUTION(BAT1_VAL, s->precision) +
                 (s->noise & 6);
 
-    case 0x06:	/* BAT2 */
+    case 0x06:  /* BAT2 */
         s->dav &= 0xffdf;
         return TSC_CUT_RESOLUTION(BAT2_VAL, s->precision);
 
-    case 0x07:	/* AUX1 */
+    case 0x07:  /* AUX1 */
         s->dav &= 0xffef;
         return TSC_CUT_RESOLUTION(AUX1_VAL, s->precision);
 
-    case 0x08:	/* AUX2 */
+    case 0x08:  /* AUX2 */
         s->dav &= 0xfff7;
         return 0xffff;
 
-    case 0x09:	/* TEMP1 */
+    case 0x09:  /* TEMP1 */
         s->dav &= 0xfffb;
         return TSC_CUT_RESOLUTION(TEMP1_VAL, s->precision) -
                 (s->noise & 5);
 
-    case 0x0a:	/* TEMP2 */
+    case 0x0a:  /* TEMP2 */
         s->dav &= 0xfffd;
         return TSC_CUT_RESOLUTION(TEMP2_VAL, s->precision) ^
                 (s->noise & 3);
 
-    case 0x0b:	/* DAC */
+    case 0x0b:  /* DAC */
         s->dav &= 0xfffe;
         return 0xffff;
 
@@ -411,11 +411,11 @@ static uint16_t tsc2102_control_register_read(
                 TSC210xState *s, int reg)
 {
     switch (reg) {
-    case 0x00:	/* TSC ADC */
+    case 0x00:  /* TSC ADC */
         return (s->pressure << 15) | ((!s->busy) << 14) |
                 (s->nextfunction << 10) | (s->nextprecision << 8) | s->filter; 
 
-    case 0x01:	/* Status / Keypad Control */
+    case 0x01:  /* Status / Keypad Control */
         if ((s->model & 0xff00) == 0x2100)
             return (s->pin_func << 14) | ((!s->enabled) << 13) |
                     (s->host_mode << 12) | ((!!s->dav) << 11) | s->dav;
@@ -423,27 +423,27 @@ static uint16_t tsc2102_control_register_read(
             return (s->kb.intr << 15) | ((s->kb.scan || !s->kb.down) << 14) |
                     (s->kb.debounce << 11);
 
-    case 0x02:	/* DAC Control */
+    case 0x02:  /* DAC Control */
         if ((s->model & 0xff00) == 0x2300)
             return s->dac_power & 0x8000;
         else
             goto bad_reg;
 
-    case 0x03:	/* Reference */
+    case 0x03:  /* Reference */
         return s->ref;
 
-    case 0x04:	/* Reset */
+    case 0x04:  /* Reset */
         return 0xffff;
 
-    case 0x05:	/* Configuration */
+    case 0x05:  /* Configuration */
         return s->timing;
 
-    case 0x06:	/* Secondary configuration */
+    case 0x06:  /* Secondary configuration */
         if ((s->model & 0xff00) == 0x2100)
             goto bad_reg;
         return ((!s->dav) << 15) | ((s->kb.mode & 1) << 14) | s->pll[2];
 
-    case 0x10:	/* Keypad Mask */
+    case 0x10:  /* Keypad Mask */
         if ((s->model & 0xff00) == 0x2100)
             goto bad_reg;
         return s->kb.mask;
@@ -464,19 +464,19 @@ static uint16_t tsc2102_audio_register_read(TSC210xState *s, int reg)
     uint16_t val;
 
     switch (reg) {
-    case 0x00:	/* Audio Control 1 */
+    case 0x00:  /* Audio Control 1 */
         return s->audio_ctrl1;
 
     case 0x01:
         return 0xff00;
 
-    case 0x02:	/* DAC Volume Control */
+    case 0x02:  /* DAC Volume Control */
         return s->volume;
 
     case 0x03:
         return 0x8b00;
 
-    case 0x04:	/* Audio Control 2 */
+    case 0x04:  /* Audio Control 2 */
         l_ch = 1;
         r_ch = 1;
         if (s->softstep && !(s->dac_power & (1 << 10))) {
@@ -488,46 +488,46 @@ static uint16_t tsc2102_audio_register_read(TSC210xState *s, int reg)
 
         return s->audio_ctrl2 | (l_ch << 3) | (r_ch << 2);
 
-    case 0x05:	/* Stereo DAC Power Control */
+    case 0x05:  /* Stereo DAC Power Control */
         return 0x2aa0 | s->dac_power |
                 (((s->dac_power & (1 << 10)) &&
                   (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) >
                    s->powerdown + TSC_POWEROFF_DELAY)) << 6);
 
-    case 0x06:	/* Audio Control 3 */
+    case 0x06:  /* Audio Control 3 */
         val = s->audio_ctrl3 | 0x0001;
         s->audio_ctrl3 &= 0xff3f;
         return val;
 
-    case 0x07:	/* LCH_BASS_BOOST_N0 */
-    case 0x08:	/* LCH_BASS_BOOST_N1 */
-    case 0x09:	/* LCH_BASS_BOOST_N2 */
-    case 0x0a:	/* LCH_BASS_BOOST_N3 */
-    case 0x0b:	/* LCH_BASS_BOOST_N4 */
-    case 0x0c:	/* LCH_BASS_BOOST_N5 */
-    case 0x0d:	/* LCH_BASS_BOOST_D1 */
-    case 0x0e:	/* LCH_BASS_BOOST_D2 */
-    case 0x0f:	/* LCH_BASS_BOOST_D4 */
-    case 0x10:	/* LCH_BASS_BOOST_D5 */
-    case 0x11:	/* RCH_BASS_BOOST_N0 */
-    case 0x12:	/* RCH_BASS_BOOST_N1 */
-    case 0x13:	/* RCH_BASS_BOOST_N2 */
-    case 0x14:	/* RCH_BASS_BOOST_N3 */
-    case 0x15:	/* RCH_BASS_BOOST_N4 */
-    case 0x16:	/* RCH_BASS_BOOST_N5 */
-    case 0x17:	/* RCH_BASS_BOOST_D1 */
-    case 0x18:	/* RCH_BASS_BOOST_D2 */
-    case 0x19:	/* RCH_BASS_BOOST_D4 */
-    case 0x1a:	/* RCH_BASS_BOOST_D5 */
+    case 0x07:  /* LCH_BASS_BOOST_N0 */
+    case 0x08:  /* LCH_BASS_BOOST_N1 */
+    case 0x09:  /* LCH_BASS_BOOST_N2 */
+    case 0x0a:  /* LCH_BASS_BOOST_N3 */
+    case 0x0b:  /* LCH_BASS_BOOST_N4 */
+    case 0x0c:  /* LCH_BASS_BOOST_N5 */
+    case 0x0d:  /* LCH_BASS_BOOST_D1 */
+    case 0x0e:  /* LCH_BASS_BOOST_D2 */
+    case 0x0f:  /* LCH_BASS_BOOST_D4 */
+    case 0x10:  /* LCH_BASS_BOOST_D5 */
+    case 0x11:  /* RCH_BASS_BOOST_N0 */
+    case 0x12:  /* RCH_BASS_BOOST_N1 */
+    case 0x13:  /* RCH_BASS_BOOST_N2 */
+    case 0x14:  /* RCH_BASS_BOOST_N3 */
+    case 0x15:  /* RCH_BASS_BOOST_N4 */
+    case 0x16:  /* RCH_BASS_BOOST_N5 */
+    case 0x17:  /* RCH_BASS_BOOST_D1 */
+    case 0x18:  /* RCH_BASS_BOOST_D2 */
+    case 0x19:  /* RCH_BASS_BOOST_D4 */
+    case 0x1a:  /* RCH_BASS_BOOST_D5 */
         return s->filter_data[reg - 0x07];
 
-    case 0x1b:	/* PLL Programmability 1 */
+    case 0x1b:  /* PLL Programmability 1 */
         return s->pll[0];
 
-    case 0x1c:	/* PLL Programmability 2 */
+    case 0x1c:  /* PLL Programmability 2 */
         return s->pll[1];
 
-    case 0x1d:	/* Audio Control 4 */
+    case 0x1d:  /* Audio Control 4 */
         return (!s->softstep) << 14;
 
     default:
@@ -543,16 +543,16 @@ static void tsc2102_data_register_write(
                 TSC210xState *s, int reg, uint16_t value)
 {
     switch (reg) {
-    case 0x00:	/* X */
-    case 0x01:	/* Y */
-    case 0x02:	/* Z1 */
-    case 0x03:	/* Z2 */
-    case 0x05:	/* BAT1 */
-    case 0x06:	/* BAT2 */
-    case 0x07:	/* AUX1 */
-    case 0x08:	/* AUX2 */
-    case 0x09:	/* TEMP1 */
-    case 0x0a:	/* TEMP2 */
+    case 0x00:  /* X */
+    case 0x01:  /* Y */
+    case 0x02:  /* Z1 */
+    case 0x03:  /* Z2 */
+    case 0x05:  /* BAT1 */
+    case 0x06:  /* BAT2 */
+    case 0x07:  /* AUX1 */
+    case 0x08:  /* AUX2 */
+    case 0x09:  /* TEMP1 */
+    case 0x0a:  /* TEMP2 */
         return;
 
     default:
@@ -565,7 +565,7 @@ static void tsc2102_control_register_write(
                 TSC210xState *s, int reg, uint16_t value)
 {
     switch (reg) {
-    case 0x00:	/* TSC ADC */
+    case 0x00:  /* TSC ADC */
         s->host_mode = value >> 15;
         s->enabled = !(value & 0x4000);
         if (s->busy && !s->enabled)
@@ -576,7 +576,7 @@ static void tsc2102_control_register_write(
         s->filter = value & 0xff;
         return;
 
-    case 0x01:	/* Status / Keypad Control */
+    case 0x01:  /* Status / Keypad Control */
         if ((s->model & 0xff00) == 0x2100)
             s->pin_func = value >> 14;
         else {
@@ -589,7 +589,7 @@ static void tsc2102_control_register_write(
         }
         return;
 
-    case 0x02:	/* DAC Control */
+    case 0x02:  /* DAC Control */
         if ((s->model & 0xff00) == 0x2300) {
             s->dac_power &= 0x7fff;
             s->dac_power |= 0x8000 & value;
@@ -597,11 +597,11 @@ static void tsc2102_control_register_write(
             goto bad_reg;
         break;
 
-    case 0x03:	/* Reference */
+    case 0x03:  /* Reference */
         s->ref = value & 0x1f;
         return;
 
-    case 0x04:	/* Reset */
+    case 0x04:  /* Reset */
         if (value == 0xbb00) {
             if (s->busy)
                 timer_del(s->timer);
@@ -614,7 +614,7 @@ static void tsc2102_control_register_write(
         }
         return;
 
-    case 0x05:	/* Configuration */
+    case 0x05:  /* Configuration */
         s->timing = value & 0x3f;
 #ifdef TSC_VERBOSE
         if (value & ~0x3f)
@@ -623,14 +623,14 @@ static void tsc2102_control_register_write(
 #endif
         return;
 
-    case 0x06:	/* Secondary configuration */
+    case 0x06:  /* Secondary configuration */
         if ((s->model & 0xff00) == 0x2100)
             goto bad_reg;
         s->kb.mode = value >> 14;
         s->pll[2] = value & 0x3ffff;
         return;
 
-    case 0x10:	/* Keypad Mask */
+    case 0x10:  /* Keypad Mask */
         if ((s->model & 0xff00) == 0x2100)
             goto bad_reg;
         s->kb.mask = value;
@@ -647,7 +647,7 @@ static void tsc2102_audio_register_write(
                 TSC210xState *s, int reg, uint16_t value)
 {
     switch (reg) {
-    case 0x00:	/* Audio Control 1 */
+    case 0x00:  /* Audio Control 1 */
         s->audio_ctrl1 = value & 0x0f3f;
 #ifdef TSC_VERBOSE
         if ((value & ~0x0f3f) || ((value & 7) != ((value >> 3) & 7)))
@@ -666,7 +666,7 @@ static void tsc2102_audio_register_write(
 #endif
         return;
 
-    case 0x02:	/* DAC Volume Control */
+    case 0x02:  /* DAC Volume Control */
         s->volume = value;
         s->volume_change = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         return;
@@ -679,7 +679,7 @@ static void tsc2102_audio_register_write(
 #endif
         return;
 
-    case 0x04:	/* Audio Control 2 */
+    case 0x04:  /* Audio Control 2 */
         s->audio_ctrl2 = value & 0xf7f2;
 #ifdef TSC_VERBOSE
         if (value & ~0xf7fd)
@@ -688,7 +688,7 @@ static void tsc2102_audio_register_write(
 #endif
         return;
 
-    case 0x05:	/* Stereo DAC Power Control */
+    case 0x05:  /* Stereo DAC Power Control */
         if ((value & ~s->dac_power) & (1 << 10))
             s->powerdown = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
@@ -702,7 +702,7 @@ static void tsc2102_audio_register_write(
         tsc2102_audio_output_update(s);
         return;
 
-    case 0x06:	/* Audio Control 3 */
+    case 0x06:  /* Audio Control 3 */
         s->audio_ctrl3 &= 0x00c0;
         s->audio_ctrl3 |= value & 0xf800;
 #ifdef TSC_VERBOSE
@@ -713,30 +713,30 @@ static void tsc2102_audio_register_write(
         tsc2102_audio_output_update(s);
         return;
 
-    case 0x07:	/* LCH_BASS_BOOST_N0 */
-    case 0x08:	/* LCH_BASS_BOOST_N1 */
-    case 0x09:	/* LCH_BASS_BOOST_N2 */
-    case 0x0a:	/* LCH_BASS_BOOST_N3 */
-    case 0x0b:	/* LCH_BASS_BOOST_N4 */
-    case 0x0c:	/* LCH_BASS_BOOST_N5 */
-    case 0x0d:	/* LCH_BASS_BOOST_D1 */
-    case 0x0e:	/* LCH_BASS_BOOST_D2 */
-    case 0x0f:	/* LCH_BASS_BOOST_D4 */
-    case 0x10:	/* LCH_BASS_BOOST_D5 */
-    case 0x11:	/* RCH_BASS_BOOST_N0 */
-    case 0x12:	/* RCH_BASS_BOOST_N1 */
-    case 0x13:	/* RCH_BASS_BOOST_N2 */
-    case 0x14:	/* RCH_BASS_BOOST_N3 */
-    case 0x15:	/* RCH_BASS_BOOST_N4 */
-    case 0x16:	/* RCH_BASS_BOOST_N5 */
-    case 0x17:	/* RCH_BASS_BOOST_D1 */
-    case 0x18:	/* RCH_BASS_BOOST_D2 */
-    case 0x19:	/* RCH_BASS_BOOST_D4 */
-    case 0x1a:	/* RCH_BASS_BOOST_D5 */
+    case 0x07:  /* LCH_BASS_BOOST_N0 */
+    case 0x08:  /* LCH_BASS_BOOST_N1 */
+    case 0x09:  /* LCH_BASS_BOOST_N2 */
+    case 0x0a:  /* LCH_BASS_BOOST_N3 */
+    case 0x0b:  /* LCH_BASS_BOOST_N4 */
+    case 0x0c:  /* LCH_BASS_BOOST_N5 */
+    case 0x0d:  /* LCH_BASS_BOOST_D1 */
+    case 0x0e:  /* LCH_BASS_BOOST_D2 */
+    case 0x0f:  /* LCH_BASS_BOOST_D4 */
+    case 0x10:  /* LCH_BASS_BOOST_D5 */
+    case 0x11:  /* RCH_BASS_BOOST_N0 */
+    case 0x12:  /* RCH_BASS_BOOST_N1 */
+    case 0x13:  /* RCH_BASS_BOOST_N2 */
+    case 0x14:  /* RCH_BASS_BOOST_N3 */
+    case 0x15:  /* RCH_BASS_BOOST_N4 */
+    case 0x16:  /* RCH_BASS_BOOST_N5 */
+    case 0x17:  /* RCH_BASS_BOOST_D1 */
+    case 0x18:  /* RCH_BASS_BOOST_D2 */
+    case 0x19:  /* RCH_BASS_BOOST_D4 */
+    case 0x1a:  /* RCH_BASS_BOOST_D5 */
         s->filter_data[reg - 0x07] = value;
         return;
 
-    case 0x1b:	/* PLL Programmability 1 */
+    case 0x1b:  /* PLL Programmability 1 */
         s->pll[0] = value & 0xfffc;
 #ifdef TSC_VERBOSE
         if (value & ~0xfffc)
@@ -745,7 +745,7 @@ static void tsc2102_audio_register_write(
 #endif
         return;
 
-    case 0x1c:	/* PLL Programmability 2 */
+    case 0x1c:  /* PLL Programmability 2 */
         s->pll[1] = value & 0xfffc;
 #ifdef TSC_VERBOSE
         if (value & ~0xfffc)
@@ -754,7 +754,7 @@ static void tsc2102_audio_register_write(
 #endif
         return;
 
-    case 0x1d:	/* Audio Control 4 */
+    case 0x1d:  /* Audio Control 4 */
         s->softstep = !(value & 0x4000);
 #ifdef TSC_VERBOSE
         if (value & ~0x4000)

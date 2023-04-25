@@ -113,55 +113,55 @@ static const VMStateDescription vmstate_pxa2xx_mmci = {
     }
 };
 
-#define MMC_STRPCL	0x00	/* MMC Clock Start/Stop register */
-#define MMC_STAT	0x04	/* MMC Status register */
-#define MMC_CLKRT	0x08	/* MMC Clock Rate register */
-#define MMC_SPI		0x0c	/* MMC SPI Mode register */
-#define MMC_CMDAT	0x10	/* MMC Command/Data register */
-#define MMC_RESTO	0x14	/* MMC Response Time-Out register */
-#define MMC_RDTO	0x18	/* MMC Read Time-Out register */
-#define MMC_BLKLEN	0x1c	/* MMC Block Length register */
-#define MMC_NUMBLK	0x20	/* MMC Number of Blocks register */
-#define MMC_PRTBUF	0x24	/* MMC Buffer Partly Full register */
-#define MMC_I_MASK	0x28	/* MMC Interrupt Mask register */
-#define MMC_I_REG	0x2c	/* MMC Interrupt Request register */
-#define MMC_CMD		0x30	/* MMC Command register */
-#define MMC_ARGH	0x34	/* MMC Argument High register */
-#define MMC_ARGL	0x38	/* MMC Argument Low register */
-#define MMC_RES		0x3c	/* MMC Response FIFO */
-#define MMC_RXFIFO	0x40	/* MMC Receive FIFO */
-#define MMC_TXFIFO	0x44	/* MMC Transmit FIFO */
-#define MMC_RDWAIT	0x48	/* MMC RD_WAIT register */
-#define MMC_BLKS_REM	0x4c	/* MMC Blocks Remaining register */
+#define MMC_STRPCL  0x00    /* MMC Clock Start/Stop register */
+#define MMC_STAT    0x04    /* MMC Status register */
+#define MMC_CLKRT   0x08    /* MMC Clock Rate register */
+#define MMC_SPI     0x0c    /* MMC SPI Mode register */
+#define MMC_CMDAT   0x10    /* MMC Command/Data register */
+#define MMC_RESTO   0x14    /* MMC Response Time-Out register */
+#define MMC_RDTO    0x18    /* MMC Read Time-Out register */
+#define MMC_BLKLEN  0x1c    /* MMC Block Length register */
+#define MMC_NUMBLK  0x20    /* MMC Number of Blocks register */
+#define MMC_PRTBUF  0x24    /* MMC Buffer Partly Full register */
+#define MMC_I_MASK  0x28    /* MMC Interrupt Mask register */
+#define MMC_I_REG   0x2c    /* MMC Interrupt Request register */
+#define MMC_CMD     0x30    /* MMC Command register */
+#define MMC_ARGH    0x34    /* MMC Argument High register */
+#define MMC_ARGL    0x38    /* MMC Argument Low register */
+#define MMC_RES     0x3c    /* MMC Response FIFO */
+#define MMC_RXFIFO  0x40    /* MMC Receive FIFO */
+#define MMC_TXFIFO  0x44    /* MMC Transmit FIFO */
+#define MMC_RDWAIT  0x48    /* MMC RD_WAIT register */
+#define MMC_BLKS_REM    0x4c    /* MMC Blocks Remaining register */
 
 /* Bitfield masks */
-#define STRPCL_STOP_CLK	(1 << 0)
-#define STRPCL_STRT_CLK	(1 << 1)
-#define STAT_TOUT_RES	(1 << 1)
-#define STAT_CLK_EN	(1 << 8)
-#define STAT_DATA_DONE	(1 << 11)
-#define STAT_PRG_DONE	(1 << 12)
-#define STAT_END_CMDRES	(1 << 13)
-#define SPI_SPI_MODE	(1 << 0)
-#define CMDAT_RES_TYPE	(3 << 0)
-#define CMDAT_DATA_EN	(1 << 2)
-#define CMDAT_WR_RD	(1 << 3)
-#define CMDAT_DMA_EN	(1 << 7)
-#define CMDAT_STOP_TRAN	(1 << 10)
-#define INT_DATA_DONE	(1 << 0)
-#define INT_PRG_DONE	(1 << 1)
-#define INT_END_CMD	(1 << 2)
-#define INT_STOP_CMD	(1 << 3)
-#define INT_CLK_OFF	(1 << 4)
-#define INT_RXFIFO_REQ	(1 << 5)
-#define INT_TXFIFO_REQ	(1 << 6)
-#define INT_TINT	(1 << 7)
-#define INT_DAT_ERR	(1 << 8)
-#define INT_RES_ERR	(1 << 9)
-#define INT_RD_STALLED	(1 << 10)
-#define INT_SDIO_INT	(1 << 11)
-#define INT_SDIO_SACK	(1 << 12)
-#define PRTBUF_PRT_BUF	(1 << 0)
+#define STRPCL_STOP_CLK (1 << 0)
+#define STRPCL_STRT_CLK (1 << 1)
+#define STAT_TOUT_RES   (1 << 1)
+#define STAT_CLK_EN (1 << 8)
+#define STAT_DATA_DONE  (1 << 11)
+#define STAT_PRG_DONE   (1 << 12)
+#define STAT_END_CMDRES (1 << 13)
+#define SPI_SPI_MODE    (1 << 0)
+#define CMDAT_RES_TYPE  (3 << 0)
+#define CMDAT_DATA_EN   (1 << 2)
+#define CMDAT_WR_RD (1 << 3)
+#define CMDAT_DMA_EN    (1 << 7)
+#define CMDAT_STOP_TRAN (1 << 10)
+#define INT_DATA_DONE   (1 << 0)
+#define INT_PRG_DONE    (1 << 1)
+#define INT_END_CMD (1 << 2)
+#define INT_STOP_CMD    (1 << 3)
+#define INT_CLK_OFF (1 << 4)
+#define INT_RXFIFO_REQ  (1 << 5)
+#define INT_TXFIFO_REQ  (1 << 6)
+#define INT_TINT    (1 << 7)
+#define INT_DAT_ERR (1 << 8)
+#define INT_RES_ERR (1 << 9)
+#define INT_RD_STALLED  (1 << 10)
+#define INT_SDIO_INT    (1 << 11)
+#define INT_SDIO_SACK   (1 << 12)
+#define PRTBUF_PRT_BUF  (1 << 0)
 
 /* Route internal interrupt lines to the global IC and DMA */
 static void pxa2xx_mmci_int_update(PXA2xxMMCIState *s)
@@ -226,30 +226,30 @@ static void pxa2xx_mmci_wakequeues(PXA2xxMMCIState *s)
 
     request.cmd = s->cmd;
     request.arg = s->arg;
-    request.crc = 0;	/* FIXME */
+    request.crc = 0;    /* FIXME */
 
     rsplen = sdbus_do_command(&s->sdbus, &request, response);
     s->intreq |= INT_END_CMD;
 
     memset(s->resp_fifo, 0, sizeof(s->resp_fifo));
     switch (s->cmdat & CMDAT_RES_TYPE) {
-#define PXAMMCI_RESP(wd, value0, value1)	\
-        s->resp_fifo[(wd) + 0] |= (value0);	\
+#define PXAMMCI_RESP(wd, value0, value1)    \
+        s->resp_fifo[(wd) + 0] |= (value0); \
         s->resp_fifo[(wd) + 1] |= (value1) << 8;
-    case 0:	/* No response */
+    case 0: /* No response */
         goto complete;
 
-    case 1:	/* R1, R4, R5 or R6 */
+    case 1: /* R1, R4, R5 or R6 */
         if (rsplen < 4)
             goto timeout;
         goto complete;
 
-    case 2:	/* R2 */
+    case 2: /* R2 */
         if (rsplen < 16)
             goto timeout;
         goto complete;
 
-    case 3:	/* R3 */
+    case 3: /* R3 */
         if (rsplen < 4)
             goto timeout;
         goto complete;
