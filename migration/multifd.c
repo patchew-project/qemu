@@ -615,6 +615,7 @@ int multifd_send_sync_main(QEMUFile *f)
 
         trace_multifd_send_sync_main_signal(p->id);
 
+        qemu_sem_wait(&multifd_send_state->channels_ready);
         qemu_mutex_lock(&p->mutex);
 
         if (p->quit) {
@@ -919,7 +920,7 @@ int multifd_save_setup(Error **errp)
     multifd_send_state = g_malloc0(sizeof(*multifd_send_state));
     multifd_send_state->params = g_new0(MultiFDSendParams, thread_count);
     multifd_send_state->pages = multifd_pages_init(page_count);
-    qemu_sem_init(&multifd_send_state->channels_ready, 0);
+    qemu_sem_init(&multifd_send_state->channels_ready, thread_count);
     qatomic_set(&multifd_send_state->exiting, 0);
     multifd_send_state->ops = multifd_ops[migrate_multifd_compression()];
 
