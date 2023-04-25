@@ -282,7 +282,11 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
             break;
 
         case 0x00050001: /* Get command line */
-            resplen = 0;
+            resplen = strlen(s->command_line);
+            if (bufsize >= resplen)
+                address_space_write(&s->dma_as, value + 12,
+                                    MEMTXATTRS_UNSPECIFIED, s->command_line,
+                                    resplen);
             break;
 
         default:
@@ -413,6 +417,7 @@ static void bcm2835_property_realize(DeviceState *dev, Error **errp)
 
 static Property bcm2835_property_props[] = {
     DEFINE_PROP_UINT32("board-rev", BCM2835PropertyState, board_rev, 0),
+    DEFINE_PROP_STRING("command-line", BCM2835PropertyState, command_line),
     DEFINE_PROP_END_OF_LIST()
 };
 
