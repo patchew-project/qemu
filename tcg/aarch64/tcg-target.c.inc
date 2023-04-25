@@ -81,6 +81,7 @@ bool have_lse;
 bool have_lse2;
 
 #define TCG_REG_TMP0 TCG_REG_X30
+#define TCG_REG_TMP1 TCG_REG_X17
 #define TCG_VEC_TMP0 TCG_REG_V31
 
 #ifndef CONFIG_SOFTMMU
@@ -404,6 +405,10 @@ typedef enum {
     I3305_LDR_v64   = 0x5c000000,
     I3305_LDR_v128  = 0x9c000000,
 
+    /* Load/store exclusive. */
+    I3306_LDXP      = 0xc8600000,
+    I3306_STXP      = 0xc8200000,
+
     /* Load/store register.  Described here as 3.3.12, but the helper
        that emits them can transform to 3.3.10 or 3.3.13.  */
     I3312_STRB      = 0x38000000 | LDST_ST << 22 | MO_8 << 30,
@@ -467,6 +472,9 @@ typedef enum {
     /* PC relative addressing instructions.  */
     I3406_ADR       = 0x10000000,
     I3406_ADRP      = 0x90000000,
+
+    /* Add/subtract extended register instructions. */
+    I3501_ADD       = 0x0b200000,
 
     /* Add/subtract shifted register instructions (without a shift).  */
     I3502_ADD       = 0x0b000000,
@@ -638,6 +646,12 @@ static void tcg_out_insn_3305(TCGContext *s, AArch64Insn insn,
     tcg_out32(s, insn | (imm19 & 0x7ffff) << 5 | rt);
 }
 
+static void tcg_out_insn_3306(TCGContext *s, AArch64Insn insn, TCGReg rs,
+                              TCGReg rt, TCGReg rt2, TCGReg rn)
+{
+    tcg_out32(s, insn | rs << 16 | rt2 << 10 | rn << 5 | rt);
+}
+
 static void tcg_out_insn_3201(TCGContext *s, AArch64Insn insn, TCGType ext,
                               TCGReg rt, int imm19)
 {
@@ -718,6 +732,14 @@ static void tcg_out_insn_3406(TCGContext *s, AArch64Insn insn,
                               TCGReg rd, int64_t disp)
 {
     tcg_out32(s, insn | (disp & 3) << 29 | (disp & 0x1ffffc) << (5 - 2) | rd);
+}
+
+static inline void tcg_out_insn_3501(TCGContext *s, AArch64Insn insn,
+                                     TCGType sf, TCGReg rd, TCGReg rn,
+                                     TCGReg rm, int opt, int imm3)
+{
+    tcg_out32(s, insn | sf << 31 | rm << 16 | opt << 13 |
+              imm3 << 10 | rn << 5 | rd);
 }
 
 /* This function is for both 3.5.2 (Add/Subtract shifted register), for
@@ -1648,17 +1670,17 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
     TCGType addr_type = TARGET_LONG_BITS == 64 ? TCG_TYPE_I64 : TCG_TYPE_I32;
     TCGLabelQemuLdst *ldst = NULL;
     MemOp opc = get_memop(oi);
-    MemOp atom_u;
+    MemOp atom_u, s_bits;
     unsigned a_mask;
 
+    s_bits = opc & MO_SIZE;
     h->align = atom_and_align_for_opc(s, &h->atom, &atom_u, opc,
                                       have_lse2 ? MO_ATOM_WITHIN16
                                                 : MO_ATOM_IFALIGN,
-                                      false);
+                                      s_bits == MO_128);
     a_mask = (1 << h->align) - 1;
 
 #ifdef CONFIG_SOFTMMU
-    unsigned s_bits = opc & MO_SIZE;
     unsigned s_mask = (1u << s_bits) - 1;
     unsigned mem_index = get_mmuidx(oi);
     TCGReg x3;
@@ -1835,6 +1857,148 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
     if (ldst) {
         ldst->type = data_type;
         ldst->datalo_reg = data_reg;
+        ldst->raddr = tcg_splitwx_to_rx(s->code_ptr);
+    }
+}
+
+static TCGLabelQemuLdst *
+prepare_host_addr_base_only(TCGContext *s, HostAddress *h, TCGReg addr_reg,
+                            MemOpIdx oi, bool is_ld)
+{
+    TCGLabelQemuLdst *ldst;
+
+    ldst = prepare_host_addr(s, h, addr_reg, oi, true);
+
+    /* Compose the final address, as LDP/STP have no indexing. */
+    if (h->index != TCG_REG_XZR) {
+        tcg_out_insn(s, 3501, ADD, TCG_TYPE_I64, TCG_REG_TMP0,
+                     h->base, h->index,
+                     h->index_ext == TCG_TYPE_I32 ? MO_32 : MO_64, 0);
+        h->base = TCG_REG_TMP0;
+        h->index = TCG_REG_XZR;
+        h->index_ext = TCG_TYPE_I64;
+    }
+
+    return ldst;
+}
+
+static void tcg_out_qemu_ld128(TCGContext *s, TCGReg datalo, TCGReg datahi,
+                               TCGReg addr_reg, MemOpIdx oi)
+{
+    TCGLabelQemuLdst *ldst;
+    HostAddress h;
+
+    ldst = prepare_host_addr_base_only(s, &h, addr_reg, oi, true);
+
+    if (h.atom < MO_128 || have_lse2) {
+        tcg_out_insn(s, 3314, LDP, datalo, datahi, h.base, 0, 0, 0);
+    } else {
+        TCGLabel *l0, *l1 = NULL;
+
+        /*
+         * 16-byte atomicity without LSE2 requires LDXP+STXP loop:
+         * 1: ldxp lo,hi,[addr]
+         *    stxp tmp1,lo,hi,[addr]
+         *    cbnz tmp1, 1b
+         *
+         * If we have already checked for 16-byte alignment, that's all
+         * we need. Otherwise we have determined that misaligned atomicity
+         * may be handled with two 8-byte loads.
+         */
+        if (h.align < MO_128) {
+            /*
+             * TODO: align should be MO_64, so we only need test bit 3,
+             * which means we could use TBNZ instead of AND+CBNE.
+             */
+            l1 = gen_new_label();
+            tcg_out_logicali(s, I3404_ANDI, 0, TCG_REG_TMP1, addr_reg, 15);
+            tcg_out_brcond(s, TCG_TYPE_I32, TCG_COND_NE,
+                           TCG_REG_TMP1, 0, 1, l1);
+        }
+
+        l0 = gen_new_label();
+        tcg_out_label(s, l0);
+
+        tcg_out_insn(s, 3306, LDXP, TCG_REG_XZR, datalo, datahi, h.base);
+        tcg_out_insn(s, 3306, STXP, TCG_REG_TMP1, datalo, datahi, h.base);
+        tcg_out_brcond(s, TCG_TYPE_I32, TCG_COND_NE, TCG_REG_TMP1, 0, 1, l0);
+
+        if (l1) {
+            TCGLabel *l2 = gen_new_label();
+            tcg_out_goto_label(s, l2);
+
+            tcg_out_label(s, l1);
+            tcg_out_insn(s, 3314, LDP, datalo, datahi, h.base, 0, 0, 0);
+
+            tcg_out_label(s, l2);
+        }
+    }
+
+    if (ldst) {
+        ldst->type = TCG_TYPE_I128;
+        ldst->datalo_reg = datalo;
+        ldst->datahi_reg = datahi;
+        ldst->raddr = tcg_splitwx_to_rx(s->code_ptr);
+    }
+}
+
+static void tcg_out_qemu_st128(TCGContext *s, TCGReg datalo, TCGReg datahi,
+                               TCGReg addr_reg, MemOpIdx oi)
+{
+    TCGLabelQemuLdst *ldst;
+    HostAddress h;
+
+    ldst = prepare_host_addr_base_only(s, &h, addr_reg, oi, false);
+
+    if (h.atom < MO_128 || have_lse2) {
+        tcg_out_insn(s, 3314, STP, datalo, datahi, h.base, 0, 0, 0);
+    } else {
+        TCGLabel *l0, *l1 = NULL;
+
+        /*
+         * 16-byte atomicity without LSE2 requires LDXP+STXP loop:
+         * 1: ldxp xzr,tmp1,[addr]
+         *    stxp tmp1,lo,hi,[addr]
+         *    cbnz tmp1, 1b
+         *
+         * If we have already checked for 16-byte alignment, that's all
+         * we need. Otherwise we have determined that misaligned atomicity
+         * may be handled with two 8-byte stores.
+         */
+        if (h.align < MO_128) {
+            /*
+             * TODO: align should be MO_64, so we only need test bit 3,
+             * which means we could use TBNZ instead of AND+CBNE.
+             */
+            l1 = gen_new_label();
+            tcg_out_logicali(s, I3404_ANDI, 0, TCG_REG_TMP1, addr_reg, 15);
+            tcg_out_brcond(s, TCG_TYPE_I32, TCG_COND_NE,
+                           TCG_REG_TMP1, 0, 1, l1);
+        }
+
+        l0 = gen_new_label();
+        tcg_out_label(s, l0);
+
+        tcg_out_insn(s, 3306, LDXP, TCG_REG_XZR,
+                     TCG_REG_XZR, TCG_REG_TMP1, h.base);
+        tcg_out_insn(s, 3306, STXP, TCG_REG_TMP1, datalo, datahi, h.base);
+        tcg_out_brcond(s, TCG_TYPE_I32, TCG_COND_NE, TCG_REG_TMP1, 0, 1, l0);
+
+        if (l1) {
+            TCGLabel *l2 = gen_new_label();
+            tcg_out_goto_label(s, l2);
+
+            tcg_out_label(s, l1);
+            tcg_out_insn(s, 3314, STP, datalo, datahi, h.base, 0, 0, 0);
+
+            tcg_out_label(s, l2);
+        }
+    }
+
+    if (ldst) {
+        ldst->type = TCG_TYPE_I128;
+        ldst->datalo_reg = datalo;
+        ldst->datahi_reg = datahi;
         ldst->raddr = tcg_splitwx_to_rx(s->code_ptr);
     }
 }
@@ -2175,6 +2339,12 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_qemu_st_i32:
     case INDEX_op_qemu_st_i64:
         tcg_out_qemu_st(s, REG0(0), a1, a2, ext);
+        break;
+    case INDEX_op_qemu_ld_i128:
+        tcg_out_qemu_ld128(s, a0, a1, a2, args[3]);
+        break;
+    case INDEX_op_qemu_st_i128:
+        tcg_out_qemu_st128(s, REG0(0), REG0(1), a2, args[3]);
         break;
 
     case INDEX_op_bswap64_i64:
@@ -2813,9 +2983,13 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_qemu_ld_i32:
     case INDEX_op_qemu_ld_i64:
         return C_O1_I1(r, l);
+    case INDEX_op_qemu_ld_i128:
+        return C_O2_I1(r, r, l);
     case INDEX_op_qemu_st_i32:
     case INDEX_op_qemu_st_i64:
         return C_O0_I2(lZ, l);
+    case INDEX_op_qemu_st_i128:
+        return C_O0_I3(lZ, lZ, l);
 
     case INDEX_op_deposit_i32:
     case INDEX_op_deposit_i64:
@@ -2944,6 +3118,7 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_FP);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_X18); /* platform register */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_TMP0);
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_TMP1);
     tcg_regset_set_reg(s->reserved_regs, TCG_VEC_TMP0);
 }
 
