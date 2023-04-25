@@ -242,7 +242,8 @@ static int i2c_mctp_event_cb(I2CSlave *i2c, enum i2c_event event)
             goto drop;
         }
 
-        if (pkt->mctp.hdr.eid.dest != mctp->my_eid) {
+        if (!(pkt->mctp.hdr.eid.dest == mctp->my_eid ||
+              pkt->mctp.hdr.eid.dest == 0)) {
             trace_i2c_mctp_drop_invalid_eid(pkt->mctp.hdr.eid.dest,
                                             mctp->my_eid);
             goto drop;
