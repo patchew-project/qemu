@@ -2293,16 +2293,20 @@ static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom,
 {
     int64_t size;
     g_autofree char *path = NULL;
-    void *ptr;
     char name[32];
     const VMStateDescription *vmsd;
+    bool load_file;
 
     if (!pdev->romfile) {
         return;
     }
-    if (strlen(pdev->romfile) == 0) {
+
+    load_file = strlen(pdev->romfile) > 0;
+    if (!load_file && pdev->romsize == -1) {
         return;
     }
+
+    assert(load_file || !is_default_rom);
 
     if (!pdev->rom_bar) {
         /*
@@ -2329,32 +2333,35 @@ static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom,
         return;
     }
 
-    path = qemu_find_file(QEMU_FILE_TYPE_BIOS, pdev->romfile);
-    if (path == NULL) {
-        path = g_strdup(pdev->romfile);
-    }
+    if (load_file) {
+        path = qemu_find_file(QEMU_FILE_TYPE_BIOS, pdev->romfile);
+        if (path == NULL) {
+            path = g_strdup(pdev->romfile);
+        }
 
-    size = get_image_size(path);
-    if (size < 0) {
-        error_setg(errp, "failed to find romfile \"%s\"", pdev->romfile);
-        return;
-    } else if (size == 0) {
-        error_setg(errp, "romfile \"%s\" is empty", pdev->romfile);
-        return;
-    } else if (size > 2 * GiB) {
-        error_setg(errp, "romfile \"%s\" too large (size cannot exceed 2 GiB)",
-                   pdev->romfile);
-        return;
-    }
-    if (pdev->romsize != -1) {
-        if (size > pdev->romsize) {
-            error_setg(errp, "romfile \"%s\" (%u bytes) "
-                       "is too large for ROM size %u",
-                       pdev->romfile, (uint32_t)size, pdev->romsize);
+        size = get_image_size(path);
+        if (size < 0) {
+            error_setg(errp, "failed to find romfile \"%s\"", pdev->romfile);
+            return;
+        } else if (size == 0) {
+            error_setg(errp, "romfile \"%s\" is empty", pdev->romfile);
+            return;
+        } else if (size > 2 * GiB) {
+            error_setg(errp,
+                       "romfile \"%s\" too large (size cannot exceed 2 GiB)",
+                       pdev->romfile);
             return;
         }
-    } else {
-        pdev->romsize = pow2ceil(size);
+        if (pdev->romsize != -1) {
+            if (size > pdev->romsize) {
+                error_setg(errp, "romfile \"%s\" (%u bytes) "
+                           "is too large for ROM size %u",
+                           pdev->romfile, (uint32_t)size, pdev->romsize);
+                return;
+            }
+        } else {
+            pdev->romsize = pow2ceil(size);
+        }
     }
 
     vmsd = qdev_get_vmsd(DEVICE(pdev));
@@ -2365,15 +2372,18 @@ static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom,
     memory_region_init_rom(&pdev->rom, OBJECT(pdev), name, pdev->romsize,
                            &error_fatal);
 
-    ptr = memory_region_get_ram_ptr(&pdev->rom);
-    if (load_image_size(path, ptr, size) < 0) {
-        error_setg(errp, "failed to load romfile \"%s\"", pdev->romfile);
-        return;
-    }
+    if (load_file) {
+        void *ptr = memory_region_get_ram_ptr(&pdev->rom);
 
-    if (is_default_rom) {
-        /* Only the default rom images will be patched (if needed). */
-        pci_patch_ids(pdev, ptr, size);
+        if (load_image_size(path, ptr, size) < 0) {
+            error_setg(errp, "failed to load romfile \"%s\"", pdev->romfile);
+            return;
+        }
+
+        if (is_default_rom) {
+            /* Only the default rom images will be patched (if needed). */
+            pci_patch_ids(pdev, ptr, size);
+        }
     }
 
     pci_register_bar(pdev, PCI_ROM_SLOT, 0, &pdev->rom);
