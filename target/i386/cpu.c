@@ -5093,11 +5093,9 @@ uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
     } else {
         return ~0;
     }
-#ifndef TARGET_X86_64
-    if (w == FEAT_8000_0001_EDX) {
+    if (qemu_target_only_32bits() && w == FEAT_8000_0001_EDX) {
         r &= ~CPUID_EXT2_LM;
     }
-#endif
     if (migratable_only) {
         r &= x86_cpu_get_migratable_flags(w);
     }
@@ -5267,11 +5265,11 @@ static void x86_cpu_load_model(X86CPU *cpu, X86CPUModel *model)
 
 static gchar *x86_gdb_arch_name(CPUState *cs)
 {
-#ifdef TARGET_X86_64
-    return g_strdup("i386:x86-64");
-#else
-    return g_strdup("i386");
-#endif
+    if (qemu_target_only_32bits()) {
+        return g_strdup("i386");
+    } else {
+        return g_strdup("i386:x86-64");
+    }
 }
 
 static void x86_cpu_cpudef_class_init(ObjectClass *oc, void *data)
@@ -7295,13 +7293,13 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
 #endif /* !CONFIG_USER_ONLY */
 
     cc->gdb_arch_name = x86_gdb_arch_name;
-#ifdef TARGET_X86_64
-    cc->gdb_core_xml_file = "i386-64bit.xml";
-    cc->gdb_num_core_regs = 66;
-#else
-    cc->gdb_core_xml_file = "i386-32bit.xml";
-    cc->gdb_num_core_regs = 50;
-#endif
+    if (qemu_target_only_32bits()) {
+        cc->gdb_core_xml_file = "i386-32bit.xml";
+        cc->gdb_num_core_regs = 50;
+    } else {
+        cc->gdb_core_xml_file = "i386-64bit.xml";
+        cc->gdb_num_core_regs = 66;
+    }
     cc->disas_set_info = x86_disas_set_info;
 
     dc->user_creatable = true;

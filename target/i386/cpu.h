@@ -40,8 +40,8 @@
 #define TARGET_HAS_PRECISE_SMC
 
 #ifdef TARGET_X86_64
-#define I386_ELF_MACHINE  EM_X86_64
-#define ELF_MACHINE_UNAME "x86_64"
+#define I386_ELF_MACHINE  (qemu_target_only_32bits() ? EM_386 : EM_X86_64)
+#define ELF_MACHINE_UNAME (qemu_target_only_32bits() ? "i686" : "x86_64")
 #else
 #define I386_ELF_MACHINE  EM_386
 #define ELF_MACHINE_UNAME "i686"
