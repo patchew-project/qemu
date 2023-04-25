@@ -471,6 +471,15 @@ extern bool mttcg_enabled;
 #define qemu_tcg_mttcg_enabled() (mttcg_enabled)
 
 /**
+ * qemu_target_only_32bits:
+ * Check whether the target is 32 bits only (like i386 in contrast to x86_64).
+ *
+ * Returns: %true if we are running with a 32-bit only target
+ */
+extern bool target_only_32bits;
+#define qemu_target_only_32bits() (target_only_32bits)
+
+/**
  * cpu_paging_enabled:
  * @cpu: The CPU whose state is to be inspected.
  *
@@ -1009,6 +1018,7 @@ void cpu_exec_unrealizefn(CPUState *cpu);
  */
 bool target_words_bigendian(void);
 
+void cpu_init_target_only_32bits(const char *argv0);
 void page_size_init(void);
 
 #ifdef NEED_CPU_H

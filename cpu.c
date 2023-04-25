@@ -47,6 +47,8 @@
 uintptr_t qemu_host_page_size;
 intptr_t qemu_host_page_mask;
 
+bool target_only_32bits = (TARGET_LONG_BITS == 32);
+
 #ifndef CONFIG_USER_ONLY
 static int cpu_common_post_load(void *opaque, int version_id)
 {
@@ -425,6 +427,17 @@ bool target_words_bigendian(void)
 #else
     return false;
 #endif
+}
+
+/*
+ * This is used for 64-bit targets that can also run in restricted 32-bit
+ * mode, e.g. if running as qemu-system-i386 instead of qemu-system-x86_64
+ */
+void cpu_init_target_only_32bits(const char *argv0)
+{
+    target_only_32bits |= g_str_has_suffix(argv0, "-i386") ||
+                          g_str_has_suffix(argv0, "-arm") ||
+                          g_str_has_suffix(argv0, "-ppc");
 }
 
 void page_size_init(void)

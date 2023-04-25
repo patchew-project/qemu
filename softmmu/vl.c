@@ -2677,6 +2677,7 @@ void qemu_init(int argc, char **argv)
 
     error_init(argv[0]);
     qemu_init_exec_dir(argv[0]);
+    cpu_init_target_only_32bits(argv[0]);
 
     qemu_init_arch_modules();
 
