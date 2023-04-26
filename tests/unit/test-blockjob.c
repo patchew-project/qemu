@@ -488,11 +488,15 @@ static void test_complete_in_standby(void)
     bdrv_drain_all_begin();
     assert_job_status_is(job, JOB_STATUS_STANDBY);
 
+    /*
+     * Increase pause_count so that the counter is
+     * unbalanced and job won't resume
+     */
+    job_pause(job);
+
     /* Lock the IO thread to prevent the job from being run */
-    aio_context_acquire(ctx);
     /* This will schedule the job to resume it */
     bdrv_drain_all_end();
-    aio_context_release(ctx);
 
     WITH_JOB_LOCK_GUARD() {
         /* But the job cannot run, so it will remain on standby */
@@ -531,13 +535,6 @@ int main(int argc, char **argv)
     g_test_add_func("/blockjob/cancel/standby", test_cancel_standby);
     g_test_add_func("/blockjob/cancel/pending", test_cancel_pending);
     g_test_add_func("/blockjob/cancel/concluded", test_cancel_concluded);
-
-    /*
-     * This test is flaky and sometimes fails in CI and otherwise:
-     * don't run unless user opts in via environment variable.
-     */
-    if (getenv("QEMU_TEST_FLAKY_TESTS")) {
-        g_test_add_func("/blockjob/complete_in_standby", test_complete_in_standby);
-    }
+    g_test_add_func("/blockjob/complete_in_standby", test_complete_in_standby);
     return g_test_run();
 }
