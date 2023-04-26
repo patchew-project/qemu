@@ -191,7 +191,7 @@ static int scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s, int len)
     if ((s->type == TYPE_DISK || s->type == TYPE_ZBC) &&
         (r->req.cmd.buf[1] & 0x01)) {
         page = r->req.cmd.buf[2];
-        if (page == 0xb0) {
+        if (page == 0xb0 && r->buflen >= 12) {
             uint64_t max_transfer = calculate_max_transfer(s);
             stl_be_p(&r->buf[8], max_transfer);
             /* Also take care of the opt xfer len. */
