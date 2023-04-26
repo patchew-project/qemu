@@ -547,6 +547,9 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
         !mr->ram_device && !mr->ram && !mr->rom_device && !mr->readonly) {
         if (mr->dev->mem_reentrancy_guard.engaged_in_io) {
             trace_memory_region_reentrant_io(get_cpu_index(), mr, addr, size);
+#ifdef DEBUG
+            abort();
+#endif
             return MEMTX_ACCESS_ERROR;
         }
         mr->dev->mem_reentrancy_guard.engaged_in_io = true;

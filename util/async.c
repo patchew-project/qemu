@@ -160,6 +160,9 @@ void aio_bh_call(QEMUBH *bh)
         last_engaged_in_io = bh->reentrancy_guard->engaged_in_io;
         if (bh->reentrancy_guard->engaged_in_io) {
             trace_reentrant_aio(bh->ctx, bh->name);
+#ifdef DEBUG
+            abort();
+#endif
         }
         bh->reentrancy_guard->engaged_in_io = true;
     }
