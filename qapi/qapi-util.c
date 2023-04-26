@@ -15,6 +15,7 @@
 #include "qapi/error.h"
 #include "qemu/ctype.h"
 #include "qapi/qmp/qerror.h"
+#include "qapi/qmp/qdict.h"
 
 CompatPolicy compat_policy;
 
@@ -151,4 +152,14 @@ int parse_qapi_name(const char *str, bool complete)
         return -1;
     }
     return p - str;
+}
+
+QDict *qapi_get_timestamp_dict(int64_t rt)
+{
+    QDict *dict = qdict_new();
+
+    qdict_put_int(dict, "seconds", rt / G_USEC_PER_SEC);
+    qdict_put_int(dict, "microseconds", rt % G_USEC_PER_SEC);
+
+    return dict;
 }

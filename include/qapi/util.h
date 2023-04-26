@@ -56,4 +56,6 @@ int parse_qapi_name(const char *name, bool complete);
     (tail) = &(*(tail))->next; \
 } while (0)
 
+QDict *qapi_get_timestamp_dict(int64_t rt);
+
 #endif

@@ -33,6 +33,28 @@ static void test_version(QObject *version)
     visit_free(v);
 }
 
+static void test_timestamps(QDict *resp)
+{
+    QDict *start, *end;
+    int64_t start_s, start_us, end_s, end_us, start_ts, end_ts;
+
+    start = qdict_get_qdict(resp, "start");
+    g_assert(start);
+    end = qdict_get_qdict(resp, "end");
+    g_assert(end);
+
+    start_s = qdict_get_int(start, "seconds");
+    start_us = qdict_get_int(start, "microseconds");
+
+    end_s = qdict_get_int(end, "seconds");
+    end_us = qdict_get_int(end, "microseconds");
+
+    start_ts = (start_s * G_USEC_PER_SEC) + start_us;
+    end_ts = (end_s * G_USEC_PER_SEC) + end_us;
+
+    g_assert(end_ts > start_ts);
+}
+
 static void assert_recovered(QTestState *qts)
 {
     QDict *resp;
@@ -155,6 +177,16 @@ static void test_qmp_protocol(void)
     resp = qtest_qmp(qts, "{ 'execute': 'human-monitor-command', 'id': 2 }");
     g_assert_cmpint(qdict_get_int(resp, "id"), ==, 2);
     qmp_expect_error_and_unref(resp, "GenericError");
+
+    /* Test timestamps on success */
+    resp = qtest_qmp(qts, "{ 'execute': 'query-version' }");
+    test_timestamps(resp);
+    qobject_unref(resp);
+
+    /* Test timestamps on error */
+    resp = qtest_qmp(qts, "{ 'execute': 'not-existing-cmd' }");
+    test_timestamps(resp);
+    qobject_unref(resp);
 
     qtest_quit(qts);
 }

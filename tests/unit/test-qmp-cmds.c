@@ -153,7 +153,7 @@ static QObject *do_qmp_dispatch(bool allow_oob, const char *template, ...)
     g_assert(resp);
     ret = qdict_get(resp, "return");
     g_assert(ret);
-    g_assert(qdict_size(resp) == 1);
+    g_assert(qdict_size(resp) == 3);
 
     qobject_ref(ret);
     qobject_unref(resp);
@@ -181,7 +181,7 @@ static void do_qmp_dispatch_error(bool allow_oob, ErrorClass cls,
                     ==, QapiErrorClass_str(cls));
     g_assert(qdict_get_try_str(error, "desc"));
     g_assert(qdict_size(error) == 2);
-    g_assert(qdict_size(resp) == 1);
+    g_assert(qdict_size(resp) == 3);
 
     qobject_unref(resp);
     qobject_unref(req);

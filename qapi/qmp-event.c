@@ -16,16 +16,12 @@
 #include "qapi/qmp-event.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qjson.h"
 
 static void timestamp_put(QDict *qdict)
 {
-    QDict *ts;
     int64_t rt = g_get_real_time();
+    QDict *ts = qapi_get_timestamp_dict(rt);
 
-    ts = qdict_from_jsonf_nofail("{ 'seconds': %lld, 'microseconds': %lld }",
-                                 (long long)rt / G_USEC_PER_SEC,
-                                 (long long)rt % G_USEC_PER_SEC);
     qdict_put(qdict, "timestamp", ts);
 }
 
