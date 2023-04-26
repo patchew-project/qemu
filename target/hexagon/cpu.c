@@ -29,6 +29,22 @@ static void hexagon_v67_cpu_init(Object *obj)
 {
 }
 
+static void hexagon_v68_cpu_init(Object *obj)
+{
+}
+
+static void hexagon_v69_cpu_init(Object *obj)
+{
+}
+
+static void hexagon_v71_cpu_init(Object *obj)
+{
+}
+
+static void hexagon_v73_cpu_init(Object *obj)
+{
+}
+
 static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
@@ -382,6 +398,10 @@ static const TypeInfo hexagon_cpu_type_infos[] = {
         .class_init = hexagon_cpu_class_init,
     },
     DEFINE_CPU(TYPE_HEXAGON_CPU_V67,              hexagon_v67_cpu_init),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V68,              hexagon_v68_cpu_init),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V69,              hexagon_v69_cpu_init),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V71,              hexagon_v71_cpu_init),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V73,              hexagon_v73_cpu_init),
 };
 
 DEFINE_TYPES(hexagon_cpu_type_infos)
