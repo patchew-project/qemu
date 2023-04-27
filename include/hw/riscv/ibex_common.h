@@ -16,7 +16,7 @@
 #include "qemu/osdep.h"
 #include "qom/object.h"
 #include "exec/hwaddr.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 
 
 /* ------------------------------------------------------------------------ */

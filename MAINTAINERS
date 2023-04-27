@@ -4460,6 +4460,13 @@ S: Supported
 F: hw/riscv/ibex_common.c
 F: include/hw/riscv/ibex_common.h
 F: include/hw/riscv/ibex_irq.h
+
+OpenTitan
+M: lowRISC <qemu-maintainers@lowrisc.org>
+S: Supported
+F: hw/opentitan/*
+F: include/hw/opentitan/*
+
 Build and test automation
 -------------------------
 Build and test automation, general continuous integration

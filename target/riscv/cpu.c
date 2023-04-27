@@ -3043,13 +3043,25 @@ static const TypeInfo riscv_cpu_type_infos[] = {
         .misa_mxl_max = MXL_RV32,
     ),
 
-    DEFINE_RISCV_CPU(TYPE_RISCV_CPU_LOWRISC_IBEX, TYPE_RISCV_VENDOR_CPU,
+
+    DEFINE_ABSTRACT_RISCV_CPU(TYPE_RISCV_CPU_LOWRISC_IBEX,
+        TYPE_RISCV_VENDOR_CPU,
         .misa_mxl_max = MXL_RV32,
         .misa_ext = RVI | RVM | RVC | RVU,
         .priv_spec = PRIV_VERSION_1_12_0,
         .cfg.max_satp_mode = VM_1_10_MBARE,
         .cfg.ext_zifencei = true,
         .cfg.ext_zicsr = true,
+
+        .cfg.marchid = 0x16u,
+
+#ifndef CONFIG_USER_ONLY
+        .custom_csrs = ibex_csr_list,
+#endif
+    ),
+
+    DEFINE_RISCV_CPU(TYPE_RISCV_CPU_LOWRISC_OPENTITAN,
+        TYPE_RISCV_CPU_LOWRISC_IBEX,
         .cfg.pmp = true,
         .cfg.ext_smepmp = true,
 
