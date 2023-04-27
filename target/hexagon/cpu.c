@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -52,6 +52,8 @@ static Property hexagon_lldb_compat_property =
 static Property hexagon_lldb_stack_adjust_property =
     DEFINE_PROP_UNSIGNED("lldb-stack-adjust", HexagonCPU, lldb_stack_adjust,
                          0, qdev_prop_uint32, target_ulong);
+static Property hexagon_short_circuit_property =
+    DEFINE_PROP_BOOL("short-circuit", HexagonCPU, short_circuit, true);
 
 const char * const hexagon_regnames[TOTAL_PER_THREAD_REGS] = {
    "r0", "r1",  "r2",  "r3",  "r4",   "r5",  "r6",  "r7",
@@ -328,6 +330,7 @@ static void hexagon_cpu_init(Object *obj)
     cpu_set_cpustate_pointers(cpu);
     qdev_property_add_static(DEVICE(obj), &hexagon_lldb_compat_property);
     qdev_property_add_static(DEVICE(obj), &hexagon_lldb_stack_adjust_property);
+    qdev_property_add_static(DEVICE(obj), &hexagon_short_circuit_property);
 }
 
 #include "hw/core/tcg-cpu-ops.h"
