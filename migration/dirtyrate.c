@@ -258,6 +258,9 @@ static struct DirtyRateInfo *query_dirty_rate_info(void)
             info->n_sampled_pages = DirtyStat.page_sampling.n_sampled_pages;
             info->has_n_sampled_pages = true;
 
+            info->n_zero_pages = DirtyStat.page_sampling.n_zero_pages;
+            info->has_n_zero_pages = true;
+
             for (i = 0; i < DirtyStat.page_sampling.n_readings; i++) {
                 DirtyReading *dr = &DirtyStat.page_sampling.readings[i];
                 QAPI_LIST_APPEND(periods_tail, dr->period);
@@ -291,6 +294,7 @@ static void init_dirtyrate_stat(int64_t start_time,
     case DIRTY_RATE_MEASURE_MODE_PAGE_SAMPLING:
         DirtyStat.page_sampling.n_total_pages = 0;
         DirtyStat.page_sampling.n_sampled_pages = 0;
+        DirtyStat.page_sampling.n_zero_pages = 0;
         DirtyStat.page_sampling.n_readings = 0;
         DirtyStat.page_sampling.readings = g_try_malloc0_n(MAX_DIRTY_READINGS,
                                                           sizeof(DirtyReading));
@@ -319,6 +323,7 @@ static void cleanup_dirtyrate_stat(struct DirtyRateConfig config)
 
 /*
  * Compute hash of a single page of size TARGET_PAGE_SIZE.
+ * If ptr is NULL, then compute hash of a page entirely filled with zeros.
  */
 static uint32_t compute_page_hash(void *ptr)
 {
@@ -331,11 +336,20 @@ static uint32_t compute_page_hash(void *ptr)
     v2 = QEMU_XXHASH_SEED + XXH_PRIME64_2;
     v3 = QEMU_XXHASH_SEED + 0;
     v4 = QEMU_XXHASH_SEED - XXH_PRIME64_1;
-    for (i = 0; i < TARGET_PAGE_SIZE / 8; i += 4) {
-        v1 = XXH64_round(v1, p[i + 0]);
-        v2 = XXH64_round(v2, p[i + 1]);
-        v3 = XXH64_round(v3, p[i + 2]);
-        v4 = XXH64_round(v4, p[i + 3]);
+    if (ptr) {
+        for (i = 0; i < TARGET_PAGE_SIZE / 8; i += 4) {
+            v1 = XXH64_round(v1, p[i + 0]);
+            v2 = XXH64_round(v2, p[i + 1]);
+            v3 = XXH64_round(v3, p[i + 2]);
+            v4 = XXH64_round(v4, p[i + 3]);
+        }
+    } else {
+        for (i = 0; i < TARGET_PAGE_SIZE / 8; i += 4) {
+            v1 = XXH64_round(v1, 0);
+            v2 = XXH64_round(v2, 0);
+            v3 = XXH64_round(v3, 0);
+            v4 = XXH64_round(v4, 0);
+        }
     }
     res = XXH64_mergerounds(v1, v2, v3, v4);
     res += TARGET_PAGE_SIZE;
@@ -343,6 +357,17 @@ static uint32_t compute_page_hash(void *ptr)
     return (uint32_t)(res & UINT32_MAX);
 }
 
+static uint32_t get_zero_page_hash(void)
+{
+    static uint32_t hash;
+    static int is_computed;
+
+    if (!is_computed) {
+        hash = compute_page_hash(NULL);
+        is_computed = 1;
+    }
+    return hash;
+}
 
 /*
  * get hash result for the sampled memory with length of TARGET_PAGE_SIZE
@@ -364,6 +389,7 @@ static bool save_ramblock_hash(struct RamblockDirtyInfo *info)
     unsigned int sample_pages_count;
     int i;
     GRand *rand;
+    uint32_t zero_page_hash = get_zero_page_hash();
 
     sample_pages_count = info->sample_pages_count;
 
@@ -393,6 +419,9 @@ static bool save_ramblock_hash(struct RamblockDirtyInfo *info)
         info->hash_result[i] = get_ramblock_vfn_hash(info,
                                                      info->sample_page_vfn[i]);
         DirtyStat.page_sampling.n_sampled_pages++;
+        if (info->hash_result[i] == zero_page_hash) {
+            DirtyStat.page_sampling.n_zero_pages++;
+        }
     }
     g_rand_free(rand);
 
@@ -891,6 +920,7 @@ void hmp_info_dirty_rate(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "Page count (page size %d):\n", TARGET_PAGE_SIZE);
         monitor_printf(mon, " Total: %"PRIi64"\n", info->n_total_pages);
         monitor_printf(mon, "  Sampled: %"PRIi64"\n", info->n_sampled_pages);
+        monitor_printf(mon, "   Zero: %"PRIi64"\n", info->n_zero_pages);
         int64List *periods = info->periods;
         int64List *n_dirty_pages = info->n_dirty_pages;
         while (periods) {

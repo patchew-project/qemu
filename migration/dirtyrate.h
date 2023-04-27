@@ -80,6 +80,7 @@ typedef struct DirtyReading {
 typedef struct SampleVMStat {
     int64_t n_total_pages; /* total number of pages */
     int64_t n_sampled_pages; /* number of sampled pages */
+    int64_t n_zero_pages; /* number of observed zero pages */
     int64_t n_readings;
     DirtyReading *readings;
 } SampleVMStat;

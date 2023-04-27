@@ -1792,6 +1792,9 @@
 #
 # @n-sampled-pages: [page-sampling] number of sampled VM pages (since 8.1)
 #
+# @n-zero-pages: [page-sampling] number of observed all-zero pages among all
+#                sampled pages (since 8.1)
+#
 # @periods: [page-sampling] array of time periods expressed in milliseconds
 #           for which dirty-sample measurements were collected (since 8.1)
 #
@@ -1815,6 +1818,7 @@
            'page-size': 'int64',
            '*n-total-pages': 'int64',
            '*n-sampled-pages': 'int64',
+           '*n-zero-pages': 'int64',
            '*periods': ['int64'],
            '*n-dirty-pages': ['int64'] } }
 
