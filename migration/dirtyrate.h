@@ -42,6 +42,18 @@
 #define MIN_SAMPLE_PAGE_COUNT                     128
 #define MAX_SAMPLE_PAGE_COUNT                     16384
 
+/*
+ * Initial sampling period expressed in milliseconds
+ */
+#define INITIAL_PERIOD_MS 125
+
+/*
+ * Upper bound on the number of DirtyReadings calculcated based on
+ * INITIAL_PERIOD_MS, MAX_FETCH_DIRTYRATE_TIME_SEC and increase_period()
+ */
+#define MAX_DIRTY_READINGS 32
+
+
 struct DirtyRateConfig {
     uint64_t sample_pages_per_gigabytes; /* sample pages per GB */
     int64_t sample_period_seconds; /* time duration between two sampling */
@@ -57,14 +69,19 @@ struct RamblockDirtyInfo {
     uint64_t ramblock_pages; /* ramblock size in TARGET_PAGE_SIZE */
     uint64_t *sample_page_vfn; /* relative offset address for sampled page */
     uint64_t sample_pages_count; /* count of sampled pages */
-    uint64_t sample_dirty_count; /* count of dirty pages we measure */
     uint32_t *hash_result; /* array of hash result for sampled pages */
 };
 
+typedef struct DirtyReading {
+    int64_t period; /* time period in milliseconds */
+    int64_t n_dirty_pages; /* number of observed dirty pages */
+} DirtyReading;
+
 typedef struct SampleVMStat {
-    uint64_t total_dirty_samples; /* total dirty sampled page */
-    uint64_t total_sample_count; /* total sampled pages */
-    uint64_t total_block_mem_MB; /* size of total sampled pages in MB */
+    int64_t n_total_pages; /* total number of pages */
+    int64_t n_sampled_pages; /* number of sampled pages */
+    int64_t n_readings;
+    DirtyReading *readings;
 } SampleVMStat;
 
 /*

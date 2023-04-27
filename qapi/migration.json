@@ -1786,6 +1786,22 @@
 # @vcpu-dirty-rate: dirtyrate for each vcpu if dirty-ring mode
 #     specified (Since 6.2)
 #
+# @page-size: page size in bytes (since 8.1)
+#
+# @n-total-pages: [page-sampling] total number of VM pages (since 8.1)
+#
+# @n-sampled-pages: [page-sampling] number of sampled VM pages (since 8.1)
+#
+# @periods: [page-sampling] array of time periods expressed in milliseconds
+#           for which dirty-sample measurements were collected (since 8.1)
+#
+# @n-dirty-pages: [page-sampling] number of pages among all sampled pages
+#                 that were observed as changed during respective time period.
+#                 i-th element of this array corresponds to the i-th element
+#                 of the @periods array, i.e. @n-dirty-pages[i] is the number
+#                 of dirtied pages during period of @periods[i] milliseconds
+#                 after the initiation of calc-dirty-rate (since 8.1)
+#
 # Since: 5.2
 ##
 { 'struct': 'DirtyRateInfo',
@@ -1795,7 +1811,13 @@
            'calc-time': 'int64',
            'sample-pages': 'uint64',
            'mode': 'DirtyRateMeasureMode',
-           '*vcpu-dirty-rate': [ 'DirtyRateVcpu' ] } }
+           '*vcpu-dirty-rate': [ 'DirtyRateVcpu' ],
+           'page-size': 'int64',
+           '*n-total-pages': 'int64',
+           '*n-sampled-pages': 'int64',
+           '*periods': ['int64'],
+           '*n-dirty-pages': ['int64'] } }
+
 
 ##
 # @calc-dirty-rate:
