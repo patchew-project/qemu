@@ -3624,6 +3624,7 @@ if have_system
     'hw/nubus',
     'hw/nvme',
     'hw/nvram',
+    'hw/opentitan',
     'hw/pci',
     'hw/pci-host',
     'hw/ppc',

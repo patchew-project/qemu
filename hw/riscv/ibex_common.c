@@ -17,13 +17,13 @@
 #include "disas/disas.h"
 #include "elf.h"
 #include "exec/hwaddr.h"
-#include "hw/boards.h"
-#include "hw/loader.h"
+#include "hw/core/boards.h"
+#include "hw/core/loader.h"
 #include "hw/misc/unimp.h"
-#include "hw/qdev-core.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/riscv/ibex_common.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "monitor/monitor.h"
 
 
