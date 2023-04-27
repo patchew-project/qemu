@@ -579,6 +579,7 @@ TReadDirRes v9fs_treaddir(TReadDirOpt opt)
             v9fs_rlerror(req, &err);
             g_assert_cmpint(err, ==, opt.expectErr);
         } else {
+            g_assert(opt.rreaddir.count && opt.rreaddir.nentries && opt.rreaddir.entries);
             v9fs_rreaddir(req, opt.rreaddir.count, opt.rreaddir.nentries,
                           opt.rreaddir.entries);
         }
@@ -600,9 +601,7 @@ void v9fs_rreaddir(P9Req *req, uint32_t *count, uint32_t *nentries,
     v9fs_req_recv(req, P9_RREADDIR);
     v9fs_uint32_read(req, &local_count);
 
-    if (count) {
-        *count = local_count;
-    }
+    *count = local_count;
 
     for (int32_t togo = (int32_t)local_count;
          togo >= 13 + 8 + 1 + 2;
@@ -610,9 +609,7 @@ void v9fs_rreaddir(P9Req *req, uint32_t *count, uint32_t *nentries,
     {
         if (!e) {
             e = g_new(struct V9fsDirent, 1);
-            if (entries) {
-                *entries = e;
-            }
+            *entries = e;
         } else {
             e = e->next = g_new(struct V9fsDirent, 1);
         }
@@ -624,10 +621,7 @@ void v9fs_rreaddir(P9Req *req, uint32_t *count, uint32_t *nentries,
         v9fs_string_read(req, &slen, &e->name);
     }
 
-    if (nentries) {
-        *nentries = n;
-    }
-
+    *nentries = n;
     v9fs_req_free(req);
 }
 
