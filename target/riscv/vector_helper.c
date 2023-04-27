@@ -272,7 +272,7 @@ static void vext_set_tail_elems_1s(CPURISCVState *env, target_ulong vl,
     uint32_t vta = vext_vta(desc);
     int k;
 
-    if (vta == 0) {
+    if (vta == 0 || !riscv_cpu_cfg(env)->debug)  {
         return;
     }
 
