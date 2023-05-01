@@ -77,6 +77,13 @@ typedef struct SaveVMHandlers {
      * true if it's supported or false otherwise. Called both in src and dest.
      */
     bool (*initial_data_advise)(void *opaque);
+    /*
+     * Checks if precopy initial data is active. If it's inactive,
+     * initial_data_loaded check is skipped.
+     */
+    bool (*is_initial_data_active)(void *opaque);
+    /* Checks if precopy initial data has been loaded in dest */
+    bool (*initial_data_loaded)(void *opaque);
 } SaveVMHandlers;
 
 int register_savevm_live(const char *idstr,

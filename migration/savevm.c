@@ -2503,6 +2503,39 @@ static int loadvm_process_command(QEMUFile *f)
     return 0;
 }
 
+static int qemu_loadvm_initial_data_loaded_ack(MigrationIncomingState *mis)
+{
+    SaveStateEntry *se;
+    int ret;
+
+    if (!mis->initial_data_enabled || mis->initial_data_loaded_ack_sent) {
+        return 0;
+    }
+
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (!se->ops || !se->ops->initial_data_loaded) {
+            continue;
+        }
+
+        if (!se->ops->is_initial_data_active ||
+            !se->ops->is_initial_data_active(se->opaque)) {
+            continue;
+        }
+
+        if (!se->ops->initial_data_loaded(se->opaque)) {
+            return 0;
+        }
+    }
+
+    ret = migrate_send_rp_initial_data_loaded_ack(mis);
+    if (!ret) {
+        mis->initial_data_loaded_ack_sent = true;
+        trace_loadvm_initial_data_loaded_acked();
+    }
+
+    return ret;
+}
+
 /*
  * Read a footer off the wire and check that it matches the expected section
  *
@@ -2825,6 +2858,12 @@ retry:
             if (ret < 0) {
                 goto out;
             }
+
+            ret = qemu_loadvm_initial_data_loaded_ack(mis);
+            if (ret < 0) {
+                goto out;
+            }
+
             break;
         case QEMU_VM_COMMAND:
             ret = loadvm_process_command(f);
