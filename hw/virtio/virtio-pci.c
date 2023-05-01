@@ -716,6 +716,18 @@ virtio_address_space_read(VirtIOPCIProxy *proxy, hwaddr addr,
     }
 }
 
+static void virtio_pci_ats_ctrl_trigger(PCIDevice *pci_dev, bool enable)
+{
+    VirtIOPCIProxy *proxy = VIRTIO_PCI(pci_dev);
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+
+    vdev->device_iotlb_enabled = enable;
+
+    if (k->toggle_device_iotlb)
+        k->toggle_device_iotlb(vdev, enable);
+}
+
 static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
                                 uint32_t val, int len)
 {
@@ -727,6 +739,11 @@ static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
 
     if (proxy->flags & VIRTIO_PCI_FLAG_INIT_FLR) {
         pcie_cap_flr_write_config(pci_dev, address, val, len);
+    }
+
+    if (proxy->flags & VIRTIO_PCI_FLAG_ATS) {
+        pcie_ats_config_write(pci_dev, address, val, len,
+                virtio_pci_ats_ctrl_trigger);
     }
 
     if (range_covers_byte(address, len, PCI_COMMAND)) {
