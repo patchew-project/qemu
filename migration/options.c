@@ -560,10 +560,6 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
             error_setg(errp, "Precopy initial data requires return path");
             return false;
         }
-
-        /* Disable this capability until it's implemented */
-        error_setg(errp, "Precopy initial data is not implemented yet");
-        return false;
     }
 
     return true;
