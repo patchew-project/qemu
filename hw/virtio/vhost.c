@@ -796,7 +796,9 @@ static void vhost_iommu_region_add(MemoryListener *listener,
     iommu_idx = memory_region_iommu_attrs_to_index(iommu_mr,
                                                    MEMTXATTRS_UNSPECIFIED);
     iommu_notifier_init(&iommu->n, vhost_iommu_unmap_notify,
-                        IOMMU_NOTIFIER_DEVIOTLB_UNMAP,
+                        dev->vdev->device_iotlb_enabled ?
+                            IOMMU_NOTIFIER_DEVIOTLB_UNMAP :
+                            IOMMU_NOTIFIER_UNMAP,
                         section->offset_within_region,
                         int128_get64(end),
                         iommu_idx);
@@ -804,7 +806,8 @@ static void vhost_iommu_region_add(MemoryListener *listener,
     iommu->iommu_offset = section->offset_within_address_space -
                           section->offset_within_region;
     iommu->hdev = dev;
-    ret = memory_region_register_iommu_notifier(section->mr, &iommu->n, NULL);
+    ret = memory_region_register_iommu_notifier(section->mr, &iommu->n,
+            dev->vdev->device_iotlb_enabled ? NULL : &error_fatal);
     if (ret) {
         /*
          * Some vIOMMUs do not support dev-iotlb yet.  If so, try to use the
@@ -837,6 +840,25 @@ static void vhost_iommu_region_del(MemoryListener *listener,
             QLIST_REMOVE(iommu, iommu_next);
             g_free(iommu);
             break;
+        }
+    }
+}
+
+void vhost_toggle_device_iotlb(struct vhost_dev *dev, bool enable)
+{
+    struct vhost_iommu *iommu;
+    int ret;
+
+    QLIST_FOREACH(iommu, &dev->iommu_list, iommu_next) {
+        memory_region_unregister_iommu_notifier(iommu->mr, &iommu->n);
+        iommu->n.notifier_flags = enable ?
+                IOMMU_NOTIFIER_DEVIOTLB_UNMAP : IOMMU_NOTIFIER_UNMAP;
+        ret = memory_region_register_iommu_notifier(iommu->mr, &iommu->n,
+                enable ? NULL : &error_fatal);
+        if (ret) {
+            iommu->n.notifier_flags = IOMMU_NOTIFIER_UNMAP;
+            memory_region_register_iommu_notifier(iommu->mr, &iommu->n,
+                                                  &error_fatal);
         }
     }
 }
