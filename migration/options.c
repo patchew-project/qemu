@@ -184,6 +184,8 @@ Property migration_properties[] = {
     DEFINE_PROP_MIG_CAP("x-zero-copy-send",
             MIGRATION_CAPABILITY_ZERO_COPY_SEND),
 #endif
+    DEFINE_PROP_MIG_CAP("x-precopy-initial-data",
+                        MIGRATION_CAPABILITY_PRECOPY_INITIAL_DATA),
 
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -284,6 +286,13 @@ bool migrate_postcopy_ram(void)
     MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_POSTCOPY_RAM];
+}
+
+bool migrate_precopy_initial_data(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->capabilities[MIGRATION_CAPABILITY_PRECOPY_INITIAL_DATA];
 }
 
 bool migrate_rdma_pin_all(void)
@@ -544,6 +553,17 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
             error_setg(errp, "Multifd is not compatible with compress");
             return false;
         }
+    }
+
+    if (new_caps[MIGRATION_CAPABILITY_PRECOPY_INITIAL_DATA]) {
+        if (!new_caps[MIGRATION_CAPABILITY_RETURN_PATH]) {
+            error_setg(errp, "Precopy initial data requires return path");
+            return false;
+        }
+
+        /* Disable this capability until it's implemented */
+        error_setg(errp, "Precopy initial data is not implemented yet");
+        return false;
     }
 
     return true;
