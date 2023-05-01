@@ -2974,6 +2974,10 @@ static void *migration_thread(void *opaque)
         qemu_savevm_send_colo_enable(s->to_dst_file);
     }
 
+    if (migrate_precopy_initial_data()) {
+        qemu_savevm_send_initial_data_enable(s, s->to_dst_file);
+    }
+
     qemu_savevm_state_setup(s->to_dst_file);
 
     qemu_savevm_wait_unplug(s, MIGRATION_STATUS_SETUP,

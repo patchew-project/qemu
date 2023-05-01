@@ -72,6 +72,13 @@
 
 const unsigned int postcopy_ram_discard_version;
 
+typedef struct {
+    uint8_t general_enable;
+    uint8_t reserved[7];
+    uint8_t idstr[256];
+    uint32_t instance_id;
+} InitialDataInfo;
+
 /* Subcommands for QEMU_VM_COMMAND */
 enum qemu_vm_cmd {
     MIG_CMD_INVALID = 0,   /* Must be 0 */
@@ -91,6 +98,8 @@ enum qemu_vm_cmd {
     MIG_CMD_ENABLE_COLO,       /* Enable COLO */
     MIG_CMD_POSTCOPY_RESUME,   /* resume postcopy on dest */
     MIG_CMD_RECV_BITMAP,       /* Request for recved bitmap on dst */
+
+    MIG_CMD_INITIAL_DATA_ENABLE, /* Enable precopy initial data in dest */
     MIG_CMD_MAX
 };
 
@@ -110,6 +119,8 @@ static struct mig_cmd_args {
     [MIG_CMD_POSTCOPY_RESUME]  = { .len =  0, .name = "POSTCOPY_RESUME" },
     [MIG_CMD_PACKAGED]         = { .len =  4, .name = "PACKAGED" },
     [MIG_CMD_RECV_BITMAP]      = { .len = -1, .name = "RECV_BITMAP" },
+    [MIG_CMD_INITIAL_DATA_ENABLE] = { .len = sizeof(InitialDataInfo),
+                                      .name = "INITIAL_DATA_ENABLE" },
     [MIG_CMD_MAX]              = { .len = -1, .name = "MAX" },
 };
 
@@ -1033,6 +1044,40 @@ static void qemu_savevm_command_send(QEMUFile *f,
     qemu_put_be16(f, len);
     qemu_put_buffer(f, data, len);
     qemu_fflush(f);
+}
+
+void qemu_savevm_send_initial_data_enable(MigrationState *ms, QEMUFile *f)
+{
+    SaveStateEntry *se;
+    InitialDataInfo buf;
+
+    /* Enable precopy initial data generally in the migration */
+    memset(&buf, 0, sizeof(buf));
+    buf.general_enable = 1;
+    qemu_savevm_command_send(f, MIG_CMD_INITIAL_DATA_ENABLE, sizeof(buf),
+                             (uint8_t *)&buf);
+    trace_savevm_send_initial_data_enable(buf.general_enable, (char *)buf.idstr,
+                                          buf.instance_id);
+
+    /* Enable precopy initial data for each migration user that supports it */
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (!se->ops || !se->ops->initial_data_advise) {
+            continue;
+        }
+
+        if (!se->ops->initial_data_advise(se->opaque)) {
+            continue;
+        }
+
+        memset(&buf, 0, sizeof(buf));
+        memcpy(buf.idstr, se->idstr, sizeof(buf.idstr));
+        buf.instance_id = se->instance_id;
+
+        qemu_savevm_command_send(f, MIG_CMD_INITIAL_DATA_ENABLE, sizeof(buf),
+                                 (uint8_t *)&buf);
+        trace_savevm_send_initial_data_enable(
+            buf.general_enable, (char *)buf.idstr, buf.instance_id);
+    }
 }
 
 void qemu_savevm_send_colo_enable(QEMUFile *f)
@@ -2313,6 +2358,60 @@ static int loadvm_process_enable_colo(MigrationIncomingState *mis)
     return ret;
 }
 
+static int loadvm_handle_initial_data_enable(MigrationIncomingState *mis)
+{
+    InitialDataInfo buf;
+    SaveStateEntry *se;
+    ssize_t read_size;
+
+    read_size = qemu_get_buffer(mis->from_src_file, (void *)&buf, sizeof(buf));
+    if (read_size != sizeof(buf)) {
+        error_report("%s: Could not get data buffer, read_size %ld, len %lu",
+                     __func__, read_size, sizeof(buf));
+
+        return -EIO;
+    }
+
+    /* Enable precopy initial data generally in the migration */
+    if (buf.general_enable) {
+        mis->initial_data_enabled = true;
+        trace_loadvm_handle_initial_data_enable(
+            buf.general_enable, (char *)buf.idstr, buf.instance_id);
+
+        return 0;
+    }
+
+    /* Enable precopy initial data for a specific migration user */
+    se = find_se((char *)buf.idstr, buf.instance_id);
+    if (!se) {
+        error_report("%s: Could not find SaveStateEntry, idstr '%s', "
+                     "instance_id %" PRIu32,
+                     __func__, buf.idstr, buf.instance_id);
+
+        return -ENOENT;
+    }
+
+    if (!se->ops || !se->ops->initial_data_advise) {
+        error_report("%s: '%s' doesn't have required "
+                     "initial_data_advise op",
+                     __func__, buf.idstr);
+
+        return -EOPNOTSUPP;
+    }
+
+    if (!se->ops->initial_data_advise(se->opaque)) {
+        error_report("%s: '%s' doesn't support precopy initial data", __func__,
+                     buf.idstr);
+
+        return -EOPNOTSUPP;
+    }
+
+    trace_loadvm_handle_initial_data_enable(buf.general_enable,
+                                            (char *)buf.idstr, buf.instance_id);
+
+    return 0;
+}
+
 /*
  * Process an incoming 'QEMU_VM_COMMAND'
  * 0           just a normal return
@@ -2396,6 +2495,9 @@ static int loadvm_process_command(QEMUFile *f)
 
     case MIG_CMD_ENABLE_COLO:
         return loadvm_process_enable_colo(mis);
+
+    case MIG_CMD_INITIAL_DATA_ENABLE:
+        return loadvm_handle_initial_data_enable(mis);
     }
 
     return 0;

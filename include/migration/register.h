@@ -71,6 +71,12 @@ typedef struct SaveVMHandlers {
     int (*load_cleanup)(void *opaque);
     /* Called when postcopy migration wants to resume from failure */
     int (*resume_prepare)(MigrationState *s, void *opaque);
+
+    /*
+     * Advises that precopy initial data was requested to be enabled. Returns
+     * true if it's supported or false otherwise. Called both in src and dest.
+     */
+    bool (*initial_data_advise)(void *opaque);
 } SaveVMHandlers;
 
 int register_savevm_live(const char *idstr,

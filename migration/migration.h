@@ -204,6 +204,9 @@ struct MigrationIncomingState {
      * contains valid information.
      */
     QemuMutex page_request_mutex;
+
+    /* Indicates whether precopy initial data was enabled and should be used */
+    bool initial_data_enabled;
 };
 
 MigrationIncomingState *migration_incoming_get_current(void);
