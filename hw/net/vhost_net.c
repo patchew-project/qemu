@@ -552,6 +552,17 @@ int vhost_net_set_mtu(struct vhost_net *net, uint16_t mtu)
     return vhost_ops->vhost_net_set_mtu(&net->dev, mtu);
 }
 
+void vhost_net_toggle_device_iotlb(struct vhost_dev *dev, bool enable)
+{
+    const VhostOps *vhost_ops = dev->vhost_ops;
+
+    if (!vhost_ops->vhost_toggle_device_iotlb) {
+        return;
+    }
+
+    vhost_ops->vhost_toggle_device_iotlb(dev, enable);
+}
+
 void vhost_net_virtqueue_reset(VirtIODevice *vdev, NetClientState *nc,
                                int vq_index)
 {

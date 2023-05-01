@@ -56,4 +56,6 @@ int vhost_net_virtqueue_restart(VirtIODevice *vdev, NetClientState *nc,
                                 int vq_index);
 
 void vhost_net_save_acked_features(NetClientState *nc);
+
+void vhost_net_toggle_device_iotlb(struct vhost_dev *dev, bool enable);
 #endif
