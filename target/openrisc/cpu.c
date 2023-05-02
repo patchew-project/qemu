@@ -22,6 +22,7 @@
 #include "qemu/qemu-print.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
+#include "fpu/softfloat-helpers.h"
 #include "tcg/tcg.h"
 
 static void openrisc_cpu_set_pc(CPUState *cs, vaddr value)
@@ -89,6 +90,10 @@ static void openrisc_cpu_reset_hold(Object *obj)
     cpu->env.lock_addr = -1;
     s->exception_index = -1;
     cpu_set_fpcsr(&cpu->env, 0);
+
+    set_default_nan_mode(1, &cpu->env.fp_status);
+    set_float_detect_tininess(float_tininess_before_rounding,
+                              &cpu->env.fp_status);
 
 #ifndef CONFIG_USER_ONLY
     cpu->env.picmr = 0x00000000;
