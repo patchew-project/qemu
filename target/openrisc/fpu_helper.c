@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 #include "exception.h"
 #include "fpu/softfloat.h"
@@ -55,6 +56,9 @@ void HELPER(update_fpcsr)(CPUOpenRISCState *env)
         if (tmp) {
             env->fpcsr |= tmp;
             if (env->fpcsr & FPCSR_FPEE) {
+                CPUState *cs = env_cpu(env);
+
+                cpu_restore_state(cs, GETPC());
                 helper_exception(env, EXCP_FPE);
             }
         }
