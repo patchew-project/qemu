@@ -15,15 +15,15 @@ import inspect
 from tracetool import read_events, Event
 from tracetool.backend.simple import is_string
 
-header_event_id = 0xffffffffffffffff
-header_magic    = 0xf2b177cb0aa429b4
-dropped_event_id = 0xfffffffffffffffe
+header_event_id = 0xffffffffffffffff # trace/simple.c::HEADER_EVENT_ID
+header_magic    = 0xf2b177cb0aa429b4 # trace/simple.c::HEADER_MAGIC
+dropped_event_id = 0xfffffffffffffffe # trace/simple.c::DROPPED_EVENT_ID
 
-record_type_mapping = 0
-record_type_event = 1
+record_type_mapping = 0 # trace/simple.c::TRACE_RECORD_TYPE_MAPPING
+record_type_event = 1 # trace/simple.c::TRACE_RECORD_TYPE_EVENT
 
-log_header_fmt = '=QQQ'
-rec_header_fmt = '=QQII'
+log_header_fmt = '=QQQ' # trace/simple.c::TraceLogHeader
+rec_header_fmt = '=QQII' # trace/simple.c::TraceRecord
 
 def read_header(fobj, hfmt):
     '''Read a trace record header'''
