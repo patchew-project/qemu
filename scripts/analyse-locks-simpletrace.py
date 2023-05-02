@@ -69,7 +69,8 @@ if __name__ == '__main__':
 
     # Gather data from the trace
     analyser = MutexAnalyser()
-    simpletrace.process(args.events, args.tracefile, analyser)
+    with open(args.events, 'r') as events, open(args.tracefile, 'rb') as tracefile:
+        simpletrace.process(events, tracefile, analyser)
 
     print ("Total locks: %d, locked: %d, unlocked: %d" %
            (analyser.locks, analyser.locked, analyser.unlocks))
