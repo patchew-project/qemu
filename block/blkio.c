@@ -694,6 +694,49 @@ static int blkio_virtio_blk_common_open(BlockDriverState *bs,
     return 0;
 }
 
+static int blkio_virtio_blk_vhost_vdpa_open(BlockDriverState *bs,
+        QDict *options, int flags, Error **errp)
+{
+    const char *path = qdict_get_try_str(options, "path");
+    const char *fd_str = qdict_get_try_str(options, "fd");
+    BDRVBlkioState *s = bs->opaque;
+    int ret;
+
+    if (path && fd_str) {
+        error_setg(errp, "'path' and 'fd' options are mutually exclusive");
+        return -EINVAL;
+    }
+
+    if (!path && !fd_str) {
+        error_setg(errp, "none of 'path' or 'fd' options was specified");
+        return -EINVAL;
+    }
+
+    if (path) {
+        ret = blkio_set_str(s->blkio, "path", path);
+        qdict_del(options, "path");
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "failed to set path: %s",
+                             blkio_get_error_msg());
+            return ret;
+        }
+    } else {
+        ret = blkio_set_str(s->blkio, "fd", fd_str);
+        qdict_del(options, "fd");
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "failed to set fd: %s",
+                             blkio_get_error_msg());
+            return ret;
+        }
+    }
+
+    if (!(flags & BDRV_O_NOCACHE)) {
+        error_setg(errp, "cache.direct=off is not supported");
+        return -EINVAL;
+    }
+    return 0;
+}
+
 static int blkio_file_open(BlockDriverState *bs, QDict *options, int flags,
                            Error **errp)
 {
@@ -717,7 +760,7 @@ static int blkio_file_open(BlockDriverState *bs, QDict *options, int flags,
     } else if (strcmp(blkio_driver, DRIVER_VIRTIO_BLK_VHOST_USER) == 0) {
         ret = blkio_virtio_blk_common_open(bs, options, flags, errp);
     } else if (strcmp(blkio_driver, DRIVER_VIRTIO_BLK_VHOST_VDPA) == 0) {
-        ret = blkio_virtio_blk_common_open(bs, options, flags, errp);
+        ret = blkio_virtio_blk_vhost_vdpa_open(bs, options, flags, errp);
     } else {
         g_assert_not_reached();
     }
