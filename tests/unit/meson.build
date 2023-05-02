@@ -67,6 +67,7 @@ if have_block
     'test-coroutine': [testblock],
     'test-aio': [testblock],
     'test-aio-multithread': [testblock],
+    'test-nested-aio-poll': [testblock],
     'test-throttle': [testblock],
     'test-thread-pool': [testblock],
     'test-hbitmap': [testblock],
