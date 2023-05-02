@@ -131,16 +131,25 @@ class Analyzer:
     If a method matching a trace event name exists, it is invoked to process
     that trace record.  Otherwise the catchall() method is invoked.
 
+    The methods are called with a set of keyword-arguments. These can be ignored
+    using `**kwargs` or defined like any keyword-argument.
+
+    The following keyword-arguments are available:
+        event: Event object of current trace
+        event_id: The id of the event in the current trace file
+        timestamp_ns: The timestamp in nanoseconds of the trace
+        pid: The process id recorded for the given trace
+
     Example:
     The following method handles the runstate_set(int new_state) trace event::
 
-      def runstate_set(self, new_state):
+      def runstate_set(self, new_state, **kwargs):
           ...
 
-    The method can also take a timestamp argument before the trace event
-    arguments::
+    The method can also explicitly take a timestamp keyword-argument with the
+    trace event arguments::
 
-      def runstate_set(self, timestamp, new_state):
+      def runstate_set(self, new_state, *, timestamp, **kwargs):
           ...
 
     Timestamps have the uint64_t type and are in nanoseconds.
@@ -148,7 +157,7 @@ class Analyzer:
     The pid can be included in addition to the timestamp and is useful when
     dealing with traces from multiple processes::
 
-      def runstate_set(self, timestamp, pid, new_state):
+      def runstate_set(self, new_state, *, timestamp, pid, **kwargs):
           ...
     """
 
@@ -156,7 +165,7 @@ class Analyzer:
         """Called at the start of the trace."""
         return self
 
-    def catchall(self, event, rec):
+    def catchall(self, *rec_args, event, timestamp_ns, pid, event_id):
         """Called if no specific method for processing a trace event has been found."""
         pass
 
@@ -189,34 +198,11 @@ def process(events, log, analyzer_class, read_header=True):
         for event_id, event in enumerate(events):
             event_id_to_name[event_id] = event.name
 
-    def build_fn(analyzer, event):
-        if isinstance(event, str):
-            return analyzer.catchall
-
-        fn = getattr(analyzer, event.name, None)
-        if fn is None:
-            return analyzer.catchall
-
-        event_argcount = len(event.args)
-        fn_argcount = len(inspect.getfullargspec(fn)[0]) - 1
-        if fn_argcount == event_argcount + 1:
-            # Include timestamp as first argument
-            return lambda _, rec: fn(*(rec[1:2] + rec[3:3 + event_argcount]))
-        elif fn_argcount == event_argcount + 2:
-            # Include timestamp and pid
-            return lambda _, rec: fn(*rec[1:3 + event_argcount])
-        else:
-            # Just arguments, no timestamp or pid
-            return lambda _, rec: fn(*rec[3:3 + event_argcount])
-
     with analyzer_class() as analyzer:
-        fn_cache = {}
-        for rec in read_trace_records(event_mapping, event_id_to_name, log):
-            event_num = rec[0]
-            event = event_mapping[event_num]
-            if event_num not in fn_cache:
-                fn_cache[event_num] = build_fn(analyzer, event)
-            fn_cache[event_num](event, rec)
+        for event_id, timestamp_ns, record_pid, *rec_args in read_trace_records(event_mapping, event_id_to_name, log):
+            event = event_mapping[event_id]
+            fn = getattr(analyzer, event.name, analyzer.catchall)
+            fn(*rec_args, event=event, event_id=event_id, timestamp_ns=timestamp_ns, pid=record_pid)
 
 
 def run(analyzer):
@@ -240,24 +226,18 @@ def run(analyzer):
 if __name__ == '__main__':
     class Formatter(Analyzer):
         def __init__(self):
-            self.last_timestamp = None
+            self.last_timestamp_ns = None
 
-        def catchall(self, event, rec):
-            timestamp = rec[1]
-            if self.last_timestamp is None:
-                self.last_timestamp = timestamp
-            delta_ns = timestamp - self.last_timestamp
-            self.last_timestamp = timestamp
+        def catchall(self, *rec_args, event, timestamp_ns, pid, event_id):
+            if self.last_timestamp_ns is None:
+                self.last_timestamp_ns = timestamp_ns
+            delta_ns = timestamp_ns - self.last_timestamp_ns
+            self.last_timestamp_ns = timestamp_ns
 
-            fields = [event.name, '%0.3f' % (delta_ns / 1000.0),
-                      'pid=%d' % rec[2]]
-            i = 3
-            for type, name in event.args:
-                if is_string(type):
-                    fields.append('%s=%s' % (name, rec[i]))
-                else:
-                    fields.append('%s=0x%x' % (name, rec[i]))
-                i += 1
-            print(' '.join(fields))
+            fields = [
+                f'{name}={r}' if is_string(type) else f'{name}=0x{r:x}'
+                for r, (type, name) in zip(rec_args, event.args)
+            ]
+            print(f'{event.name} {delta_ns / 1000:0.3f} {pid=} ' + ' '.join(fields))
 
     run(Formatter())
