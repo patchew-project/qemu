@@ -121,12 +121,12 @@ def read_trace_records(event_mapping, event_id_to_name, fobj):
 
             yield rec
 
-class Analyzer(object):
+class Analyzer:
     """A trace file analyzer which processes trace records.
 
-    An analyzer can be passed to run() or process().  The begin() method is
-    invoked, then each trace record is processed, and finally the end() method
-    is invoked.
+    An analyzer can be passed to run() or process().  The __enter__() method is
+    invoked when opening the analyzer using the `with` statement, then each trace
+    record is processed, and finally the __exit__() method is invoked.
 
     If a method matching a trace event name exists, it is invoked to process
     that trace record.  Otherwise the catchall() method is invoked.
@@ -152,19 +152,25 @@ class Analyzer(object):
           ...
     """
 
-    def begin(self):
+    def __enter__(self):
         """Called at the start of the trace."""
-        pass
+        return self
 
     def catchall(self, event, rec):
         """Called if no specific method for processing a trace event has been found."""
         pass
 
-    def end(self):
+    def __exit__(self, _type, value, traceback):
         """Called at the end of the trace."""
         pass
 
-def process(events, log, analyzer, read_header=True):
+    def __call__(self):
+        """Fix for legacy use without context manager.
+        We call the provided object in `process` regardless of it being the object-type or instance.
+        With this function, it will work in both cases."""
+        return self
+
+def process(events, log, analyzer_class, read_header=True):
     """Invoke an analyzer on each event in a log."""
     if read_header:
         read_trace_header(log)
@@ -203,15 +209,15 @@ def process(events, log, analyzer, read_header=True):
             # Just arguments, no timestamp or pid
             return lambda _, rec: fn(*rec[3:3 + event_argcount])
 
-    analyzer.begin()
-    fn_cache = {}
-    for rec in read_trace_records(event_mapping, event_id_to_name, log):
-        event_num = rec[0]
-        event = event_mapping[event_num]
-        if event_num not in fn_cache:
-            fn_cache[event_num] = build_fn(analyzer, event)
-        fn_cache[event_num](event, rec)
-    analyzer.end()
+    with analyzer_class() as analyzer:
+        fn_cache = {}
+        for rec in read_trace_records(event_mapping, event_id_to_name, log):
+            event_num = rec[0]
+            event = event_mapping[event_num]
+            if event_num not in fn_cache:
+                fn_cache[event_num] = build_fn(analyzer, event)
+            fn_cache[event_num](event, rec)
+
 
 def run(analyzer):
     """Execute an analyzer on a trace file given on the command-line.
