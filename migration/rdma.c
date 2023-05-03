@@ -4114,6 +4114,7 @@ void rdma_start_incoming_migration(const char *host_port, Error **errp)
     int ret;
     RDMAContext *rdma;
     Error *local_err = NULL;
+    MigrationState *s = migrate_get_current();
 
     trace_rdma_start_incoming_migration();
 
@@ -4144,7 +4145,7 @@ void rdma_start_incoming_migration(const char *host_port, Error **errp)
     }
 
     trace_rdma_start_incoming_migration_after_rdma_listen();
-
+    s->rdma_migration = true;
     qemu_set_fd_handler(rdma->channel->fd, rdma_accept_incoming_migration,
                         NULL, (void *)(intptr_t)rdma);
     return;
@@ -4220,6 +4221,7 @@ void rdma_start_outgoing_migration(void *opaque,
 
     trace_rdma_start_outgoing_migration_after_rdma_connect();
 
+    s->rdma_migration = true;
     s->to_dst_file = qemu_fopen_rdma(rdma, "wb");
     migrate_fd_connect(s, NULL);
     return;
