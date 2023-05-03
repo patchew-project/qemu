@@ -45,6 +45,9 @@ config LOONGSON3V
     select PCI_EXPRESS_GENERIC_BRIDGE
     select MSI_NONBROKEN
     select FW_CFG_MIPS
+    select VIRTIO_PCI
+    select VIRTIO_NET
+    select USB_OHCI_PCI
 
 config MIPS_CPS
     bool
