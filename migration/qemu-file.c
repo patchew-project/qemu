@@ -315,32 +315,6 @@ void qemu_fflush(QEMUFile *f)
     f->iovcnt = 0;
 }
 
-size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
-                             ram_addr_t offset, size_t size,
-                             uint64_t *bytes_sent)
-{
-    if (f->hooks && f->hooks->save_page) {
-        int ret = f->hooks->save_page(f, block_offset,
-                                      offset, size, bytes_sent);
-        if (ret != RAM_SAVE_CONTROL_NOT_SUPP) {
-            qemu_file_acct_rate_limit(f, size);
-        }
-
-        if (ret != RAM_SAVE_CONTROL_DELAYED &&
-            ret != RAM_SAVE_CONTROL_NOT_SUPP) {
-            if (bytes_sent && *bytes_sent > 0) {
-                qemu_file_credit_transfer(f, *bytes_sent);
-            } else if (ret < 0) {
-                qemu_file_set_error(f, ret);
-            }
-        }
-
-        return ret;
-    }
-
-    return RAM_SAVE_CONTROL_NOT_SUPP;
-}
-
 /*
  * Attempt to fill the buffer from the underlying file
  * Returns the number of bytes read, or negative value for an error.
