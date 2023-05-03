@@ -42,7 +42,9 @@ if sphinx_build.found()
 endif
 
 if build_docs
-  SPHINX_ARGS += ['-Dversion=' + meson.project_version(), '-Drelease=' + get_option('pkgversion')]
+  SPHINX_ARGS += ['-Dversion=' + meson.project_version(),
+                  '-Drelease=' + get_option('pkgversion'),
+                  '-Ddepfile=@DEPFILE@', '-Ddepfile_stamp=@OUTPUT0@']
 
   man_pages = {
         'qemu-ga.8': (have_ga ? 'man8' : ''),
@@ -61,41 +63,43 @@ if build_docs
   }
 
   sphinxdocs = []
-  sphinxmans = []
 
   private_dir = meson.current_build_dir() / 'manual.p'
   output_dir = meson.current_build_dir() / 'manual'
   input_dir = meson.current_source_dir()
 
-  this_manual = custom_target('QEMU manual',
+  manual = custom_target('QEMU manual',
                 build_by_default: build_docs,
-                output: 'docs.stamp',
+                output: 'manual.stamp',
                 input: files('conf.py'),
-                depfile: 'docs.d',
-                command: [SPHINX_ARGS, '-Ddepfile=@DEPFILE@',
-                          '-Ddepfile_stamp=@OUTPUT0@',
-                          '-b', 'html', '-d', private_dir,
+                depfile: 'manual.dep',
+                command: [SPHINX_ARGS, '-b', 'html', '-d', private_dir,
                           input_dir, output_dir])
-  sphinxdocs += this_manual
+  sphinxdocs += manual
   install_subdir(output_dir, install_dir: qemu_docdir, strip_directory: true)
 
-  these_man_pages = []
-  install_dirs = []
+  man_private_dir = meson.current_build_dir() / 'man.p'
+  # man.stamp is not installed
+  these_man_pages = ['man.stamp']
+  install_dirs = [false]
+
   foreach page, section : man_pages
     these_man_pages += page
     install_dirs += section == '' ? false : get_option('mandir') / section
   endforeach
 
-  sphinxmans += custom_target('QEMU man pages',
+
+  man_pages = custom_target('QEMU man pages',
                               build_by_default: build_docs,
                               output: these_man_pages,
-                              input: this_manual,
+                              depfile: 'man.dep',
                               install: build_docs,
                               install_dir: install_dirs,
-                              command: [SPHINX_ARGS, '-b', 'man', '-d', private_dir,
+                              command: [SPHINX_ARGS, '-b', 'man', '-d', man_private_dir,
                                         input_dir, meson.current_build_dir()])
+  sphinxdocs += man_pages
 
   alias_target('sphinxdocs', sphinxdocs)
-  alias_target('html', sphinxdocs)
-  alias_target('man', sphinxmans)
+  alias_target('html', manual)
+  alias_target('man', man_pages)
 endif
