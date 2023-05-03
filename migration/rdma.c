@@ -3238,10 +3238,6 @@ static size_t qemu_rdma_save_page(QEMUFile *f,
 
     CHECK_ERROR_STATE();
 
-    if (migration_in_postcopy()) {
-        return RAM_SAVE_CONTROL_NOT_SUPP;
-    }
-
     qemu_fflush(f);
 
     /*
@@ -3315,6 +3311,10 @@ size_t rdma_control_save_page(QEMUFile *f, ram_addr_t block_offset,
                               uint64_t *bytes_sent)
 {
     if (!migrate_rdma()) {
+        return RAM_SAVE_CONTROL_NOT_SUPP;
+    }
+
+    if (migration_in_postcopy()) {
         return RAM_SAVE_CONTROL_NOT_SUPP;
     }
 
@@ -3878,6 +3878,10 @@ int rdma_registration_start(QEMUFile *f, uint64_t flags)
         return 0;
     }
 
+    if (migration_in_postcopy()) {
+        return 0;
+    }
+
     RCU_READ_LOCK_GUARD();
     rdma = qatomic_rcu_read(&rioc->rdmaout);
     if (!rdma) {
@@ -3885,10 +3889,6 @@ int rdma_registration_start(QEMUFile *f, uint64_t flags)
     }
 
     CHECK_ERROR_STATE();
-
-    if (migration_in_postcopy()) {
-        return 0;
-    }
 
     trace_rdma_registration_start(flags);
     qemu_put_be64(f, RAM_SAVE_FLAG_HOOK);
@@ -3912,6 +3912,10 @@ int rdma_registration_stop(QEMUFile *f, uint64_t flags)
         return 0;
     }
 
+    if (migration_in_postcopy()) {
+        return 0;
+    }
+
     RCU_READ_LOCK_GUARD();
     rdma = qatomic_rcu_read(&rioc->rdmaout);
     if (!rdma) {
@@ -3919,10 +3923,6 @@ int rdma_registration_stop(QEMUFile *f, uint64_t flags)
     }
 
     CHECK_ERROR_STATE();
-
-    if (migration_in_postcopy()) {
-        return 0;
-    }
 
     qemu_fflush(f);
     ret = qemu_rdma_drain_cq(f, rdma);
