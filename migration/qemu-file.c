@@ -36,7 +36,6 @@
 #define MAX_IOV_SIZE MIN_CONST(IOV_MAX, 64)
 
 struct QEMUFile {
-    const QEMUFileHooks *hooks;
     QIOChannel *ioc;
     bool is_writable;
 
@@ -158,11 +157,6 @@ QEMUFile *qemu_file_new_output(QIOChannel *ioc)
 QEMUFile *qemu_file_new_input(QIOChannel *ioc)
 {
     return qemu_file_new_impl(ioc, false);
-}
-
-void qemu_file_set_hooks(QEMUFile *f, const QEMUFileHooks *hooks)
-{
-    f->hooks = hooks;
 }
 
 /*
