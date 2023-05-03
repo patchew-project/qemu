@@ -254,6 +254,7 @@ config SBSA_REF
     select WDT_SBSA
     select ARM_GICV3_TCG
     select E1000E_PCI_EXPRESS
+    select VGA_PCI
 
 config SABRELITE
     bool
