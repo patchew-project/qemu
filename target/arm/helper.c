@@ -10972,7 +10972,7 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
  * We only see semihosting exceptions in TCG only as they are not
  * trapped to the hypervisor in KVM.
  */
-#ifdef CONFIG_TCG
+#ifdef CONFIG_SEMIHOSTING
 static void tcg_handle_semihosting(CPUState *cs)
 {
     ARMCPU *cpu = ARM_CPU(cs);
@@ -11033,7 +11033,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
      * that caused the exception, not the target exception level, so
      * must be handled here.
      */
-#ifdef CONFIG_TCG
+#ifdef CONFIG_SEMIHOSTING
     if (cs->exception_index == EXCP_SEMIHOST) {
         tcg_handle_semihosting(cs);
         return;

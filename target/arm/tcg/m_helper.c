@@ -2345,7 +2345,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
         qemu_log_mask(CPU_LOG_INT,
                       "...handling as semihosting call 0x%x\n",
                       env->regs[0]);
-#ifdef CONFIG_TCG
+#ifdef CONFIG_SEMIHOSTING
         do_common_semihosting(cs);
 #else
         g_assert_not_reached();
