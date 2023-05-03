@@ -10,6 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "hw/virtio/virtio-dmabuf.h"
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-user.h"
 #include "hw/virtio/vhost-backend.h"
@@ -20,6 +21,7 @@
 #include "sysemu/kvm.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
+#include "qemu/uuid.h"
 #include "qemu/sockets.h"
 #include "sysemu/runstate.h"
 #include "sysemu/cryptodev.h"
@@ -138,6 +140,7 @@ typedef enum VhostUserSlaveRequest {
     VHOST_USER_BACKEND_IOTLB_MSG = 1,
     VHOST_USER_BACKEND_CONFIG_CHANGE_MSG = 2,
     VHOST_USER_BACKEND_VRING_HOST_NOTIFIER_MSG = 3,
+    VHOST_USER_BACKEND_SHARED_OBJECT = 6,
     VHOST_USER_BACKEND_MAX
 }  VhostUserSlaveRequest;
 
@@ -200,6 +203,18 @@ typedef struct VhostUserInflight {
     uint16_t queue_size;
 } VhostUserInflight;
 
+typedef enum VhostUserSharedType {
+    VHOST_SHARED_OBJECT_ADD = 0,
+    VHOST_SHARED_OBJECT_LOOKUP,
+    VHOST_SHARED_OBJECT_REMOVE,
+} VhostUserSharedType;
+
+typedef struct VhostUserShared {
+    unsigned char uuid[16];
+    VhostUserSharedType type;
+    int dmabuf_fd;
+} VhostUserShared;
+
 typedef struct {
     VhostUserRequest request;
 
@@ -224,6 +239,7 @@ typedef union {
         VhostUserCryptoSession session;
         VhostUserVringArea area;
         VhostUserInflight inflight;
+        VhostUserShared object;
 } VhostUserPayload;
 
 typedef struct VhostUserMsg {
@@ -1591,6 +1607,52 @@ static int vhost_user_slave_handle_vring_host_notifier(struct vhost_dev *dev,
     return 0;
 }
 
+static int vhost_user_backend_handle_shared_object(VhostUserShared *object)
+{
+    QemuUUID uuid;
+    memcpy(uuid.data, object->uuid, sizeof(object->uuid));
+
+    switch (object->type) {
+    case VHOST_SHARED_OBJECT_ADD:
+        return virtio_add_dmabuf(uuid, object->dmabuf_fd);
+    case VHOST_SHARED_OBJECT_LOOKUP:
+        object->dmabuf_fd = virtio_lookup_dmabuf(uuid);
+        if (object->dmabuf_fd < 0) {
+            return object->dmabuf_fd;
+        }
+        break;
+    case VHOST_SHARED_OBJECT_REMOVE:
+        return virtio_remove_resource(uuid);
+    }
+
+    return 0;
+}
+
+static bool
+vhost_user_backend_send_dmabuf_fd(QIOChannel *ioc, VhostUserHeader *hdr,
+                                  VhostUserPayload *payload)
+{
+    Error *local_err = NULL;
+    struct iovec iov[2];
+    if (hdr->flags & VHOST_USER_NEED_REPLY_MASK) {
+        hdr->flags &= ~VHOST_USER_NEED_REPLY_MASK;
+        hdr->flags |= VHOST_USER_REPLY_MASK;
+
+        hdr->size = sizeof(payload->object);
+
+        iov[0].iov_base = hdr;
+        iov[0].iov_len = VHOST_USER_HDR_SIZE;
+        iov[1].iov_base = payload;
+        iov[1].iov_len = hdr->size;
+
+        if (qio_channel_writev_all(ioc, iov, ARRAY_SIZE(iov), &local_err)) {
+            error_report_err(local_err);
+            return false;
+        }
+    }
+    return true;
+}
+
 static void close_slave_channel(struct vhost_user *u)
 {
     g_source_destroy(u->slave_src);
@@ -1647,6 +1709,12 @@ static gboolean slave_read(QIOChannel *ioc, GIOCondition condition,
     case VHOST_USER_BACKEND_VRING_HOST_NOTIFIER_MSG:
         ret = vhost_user_slave_handle_vring_host_notifier(dev, &payload.area,
                                                           fd ? fd[0] : -1);
+        break;
+    case VHOST_USER_BACKEND_SHARED_OBJECT:
+        ret = vhost_user_backend_handle_shared_object(&payload.object);
+        if (!vhost_user_backend_send_dmabuf_fd(ioc, &hdr, &payload)) {
+            goto err;
+        }
         break;
     default:
         error_report("Received unexpected msg type: %d.", hdr.request);

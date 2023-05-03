@@ -1528,6 +1528,21 @@ is sent by the front-end.
 
   The state.num field is currently reserved and must be set to 0.
 
+``VHOST_USER_BACKEND_SHARED_OBJECT``
+  :id: 6
+  :equivalent ioctl: N/A
+  :request payload: ``struct VhostUserShared``
+  :reply payload: ``struct VhostUserShared`` (only for ``LOOKUP`` requests)
+
+  Backends that need to interact with the virtio-dmabuf shared table API
+  can send this message. The operation is determined by the ``type`` member
+  of the payload struct. The valid values for the operation type are
+  ``VHOST_SHARED_OBJECT_*`` members, i.e., ``ADD``, ``LOOKUP``, and ``REMOVE``.
+  ``LOOKUP`` operations require the ``VHOST_USER_NEED_REPLY_MASK`` flag to be
+  set by the back-end, and the front-end will then send the dma-buf fd as
+  a response if the UUID matches an object in the table, or a negative value
+  otherwise.
+
 .. _reply_ack:
 
 VHOST_USER_PROTOCOL_F_REPLY_ACK

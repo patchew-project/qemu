@@ -119,6 +119,7 @@ typedef enum VhostUserSlaveRequest {
     VHOST_USER_BACKEND_VRING_HOST_NOTIFIER_MSG = 3,
     VHOST_USER_BACKEND_VRING_CALL = 4,
     VHOST_USER_BACKEND_VRING_ERR = 5,
+    VHOST_USER_BACKEND_SHARED_OBJECT = 6,
     VHOST_USER_BACKEND_MAX
 }  VhostUserSlaveRequest;
 
@@ -172,6 +173,20 @@ typedef struct VhostUserInflight {
     uint16_t queue_size;
 } VhostUserInflight;
 
+typedef enum VhostUserSharedType {
+    VHOST_SHARED_OBJECT_ADD = 0,
+    VHOST_SHARED_OBJECT_LOOKUP,
+    VHOST_SHARED_OBJECT_REMOVE,
+} VhostUserSharedType;
+
+#define UUID_LEN 16
+
+typedef struct VhostUserShared {
+    unsigned char uuid[UUID_LEN];
+    VhostUserSharedType type;
+    int dmabuf_fd;
+} VhostUserShared;
+
 #if defined(_WIN32) && (defined(__x86_64__) || defined(__i386__))
 # define VU_PACKED __attribute__((gcc_struct, packed))
 #else
@@ -199,6 +214,7 @@ typedef struct VhostUserMsg {
         VhostUserConfig config;
         VhostUserVringArea area;
         VhostUserInflight inflight;
+        VhostUserShared object;
     } payload;
 
     int fds[VHOST_MEMORY_BASELINE_NREGIONS];
@@ -538,6 +554,20 @@ void vu_set_queue_handler(VuDev *dev, VuVirtq *vq,
  */
 bool vu_set_queue_host_notifier(VuDev *dev, VuVirtq *vq, int fd,
                                 int size, int offset);
+
+/**
+ * vu_get_shared_object:
+ * @dev: a VuDev context
+ * @uuid: UUID of the shared object
+ * @dmabuf_fd: output dma-buf file descriptor
+ *
+ * Lookup for a virtio shared object (i.e., dma-buf fd) associated with the
+ * received UUID. Result, if found, is stored in the dmabuf_fd argument.
+ *
+ * Returns: whether the virtio object was found.
+ */
+bool vu_get_shared_object(VuDev *dev, unsigned char uuid[UUID_LEN],
+                          int *dmabuf_fd);
 
 /**
  * vu_queue_set_notification:
