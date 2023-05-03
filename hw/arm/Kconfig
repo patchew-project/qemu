@@ -253,6 +253,7 @@ config SBSA_REF
     select USB_EHCI_SYSBUS
     select WDT_SBSA
     select ARM_GICV3_TCG
+    select E1000E_PCI_EXPRESS
 
 config SABRELITE
     bool
