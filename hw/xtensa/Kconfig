@@ -6,6 +6,8 @@ config XTENSA_VIRT
     select XTENSA_SIM
     select PCI_EXPRESS_GENERIC_BRIDGE
     select PCI_DEVICES
+    select VIRTIO_PCI
+    select VIRTIO_NET
 
 config XTENSA_XTFPGA
     bool
