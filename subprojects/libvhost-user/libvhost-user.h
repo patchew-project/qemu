@@ -242,6 +242,7 @@ typedef void (*vu_set_features_cb) (VuDev *dev, uint64_t features);
 typedef int (*vu_process_msg_cb) (VuDev *dev, VhostUserMsg *vmsg,
                                   int *do_reply);
 typedef bool (*vu_read_msg_cb) (VuDev *dev, int sock, VhostUserMsg *vmsg);
+typedef bool (*vu_write_msg_cb) (VuDev *dev, int sock, VhostUserMsg *vmsg);
 typedef void (*vu_queue_set_started_cb) (VuDev *dev, int qidx, bool started);
 typedef bool (*vu_queue_is_processed_in_order_cb) (VuDev *dev, int qidx);
 typedef int (*vu_get_config_cb) (VuDev *dev, uint8_t *config, uint32_t len);
@@ -428,6 +429,21 @@ struct VuDev {
      *
      */
     vu_read_msg_cb read_msg;
+
+    /*
+     * @write_msg: custom method to write vhost-user message
+     *
+     * Write data to vhost_user socket fd from the passed
+     * VhostUserMsg *vmsg struct.
+     *
+     * For the details, please refer to vu_message_write in libvhost-user.c
+     * which will be used by default when calling vu_unit.
+     * No custom method is allowed.
+     *
+     * Returns: true if vhost-user message successfully sent, false otherwise.
+     *
+     */
+    vu_write_msg_cb write_msg;
 
     /*
      * @set_watch: add or update the given fd to the watch set,

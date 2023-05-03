@@ -2115,6 +2115,7 @@ vu_init(VuDev *dev,
     dev->sock = socket;
     dev->panic = panic;
     dev->read_msg = read_msg ? read_msg : vu_message_read_default;
+    dev->write_msg = vu_message_write;
     dev->set_watch = set_watch;
     dev->remove_watch = remove_watch;
     dev->iface = iface;
