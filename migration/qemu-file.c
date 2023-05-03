@@ -317,10 +317,8 @@ void qemu_fflush(QEMUFile *f)
 
 void ram_control_load_hook(QEMUFile *f, uint64_t flags, void *data)
 {
-    int ret = -EINVAL;
-
     if (f->hooks && f->hooks->hook_ram_load) {
-        ret = f->hooks->hook_ram_load(f, flags, data);
+        int ret = f->hooks->hook_ram_load(f, flags, data);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
         }
@@ -330,7 +328,7 @@ void ram_control_load_hook(QEMUFile *f, uint64_t flags, void *data)
          * that expects there to be a hook on the destination.
          */
         if (flags == RAM_CONTROL_HOOK) {
-            qemu_file_set_error(f, ret);
+            qemu_file_set_error(f, -EINVAL);
         }
     }
 }
