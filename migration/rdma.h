@@ -42,17 +42,17 @@ void rdma_start_incoming_migration(const char *host_port, Error **errp);
 #define RAM_SAVE_CONTROL_DELAYED  -2000
 
 #ifdef CONFIG_RDMA
-int qemu_rdma_registration_handle(QEMUFile *f);
-int qemu_rdma_registration_start(QEMUFile *f, uint64_t flags);
-int qemu_rdma_registration_stop(QEMUFile *f, uint64_t flags);
+int rdma_registration_handle(QEMUFile *f);
+int rdma_registration_start(QEMUFile *f, uint64_t flags);
+int rdma_registration_stop(QEMUFile *f, uint64_t flags);
 int rdma_block_notification_handle(QEMUFile *f, const char *name);
 size_t rdma_control_save_page(QEMUFile *f, ram_addr_t block_offset,
                               ram_addr_t offset, size_t size,
                               uint64_t *bytes_sent);
 #else
-int qemu_rdma_registration_handle(QEMUFile *f) { return 0; }
-int qemu_rdma_registration_start(QEMUFile *f, uint64_t flags) { return 0; }
-int qemu_rdma_registration_stop(QEMUFile *f, uint64_t flags) { return 0; }
+int rdma_registration_handle(QEMUFile *f) { return 0; }
+int rdma_registration_start(QEMUFile *f, uint64_t flags) { return 0; }
+int rdma_registration_stop(QEMUFile *f, uint64_t flags) { return 0; }
 int rdma_block_notification_handle(QEMUFile *f, const char *name) { return 0; }
 size_t rdma_control_save_page(QEMUFile *f, ram_addr_t block_offset,
                               ram_addr_t offset, size_t size,
