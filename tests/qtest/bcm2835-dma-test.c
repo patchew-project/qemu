@@ -107,12 +107,11 @@ static void bcm2835_dma_test_interrupts(void)
 
 int main(int argc, char **argv)
 {
-    int ret;
     g_test_init(&argc, &argv, NULL);
-    qtest_add_func("/bcm2835/dma/test_interrupts",
+    if (qtest_has_machine("raspi3b")) {
+        qtest_add_func("/bcm2835/dma/test_interrupts",
                    bcm2835_dma_test_interrupts);
-    qtest_start("-machine raspi3b");
-    ret = g_test_run();
-    qtest_end();
-    return ret;
+        qtest_start("-machine raspi3b");
+    }
+    return g_test_run();
 }
