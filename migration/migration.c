@@ -1665,8 +1665,11 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         }
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "uri",
                    "a valid migration protocol");
+        error_setg(&local_err, QERR_INVALID_PARAMETER_VALUE, "uri",
+                   "a valid migration protocol");
         migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
                           MIGRATION_STATUS_FAILED);
+        migrate_set_error(s, local_err);
         block_cleanup_parameters();
         return;
     }
@@ -2059,6 +2062,7 @@ static int postcopy_start(MigrationState *ms)
     int64_t bandwidth = migrate_max_postcopy_bandwidth();
     bool restart_block = false;
     int cur_state = MIGRATION_STATUS_ACTIVE;
+    Error *local_err = NULL;
 
     if (migrate_postcopy_preempt()) {
         migration_wait_main_channel(ms);
@@ -2203,8 +2207,10 @@ static int postcopy_start(MigrationState *ms)
     ret = qemu_file_get_error(ms->to_dst_file);
     if (ret) {
         error_report("postcopy_start: Migration stream errored");
+        error_setg(&local_err, "postcopy_start: Migration stream errored");
         migrate_set_state(&ms->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
                               MIGRATION_STATUS_FAILED);
+        migrate_set_error(ms, local_err);
     }
 
     trace_postcopy_preempt_enabled(migrate_postcopy_preempt());
@@ -3233,7 +3239,9 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
     if (migrate_postcopy_ram() || migrate_return_path()) {
         if (open_return_path_on_source(s, !resume)) {
             error_report("Unable to open return-path for postcopy");
+            error_setg(&local_err, "Unable to open return-path");
             migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
+            migrate_set_error(s, local_err);
             migrate_fd_cleanup(s);
             return;
         }
