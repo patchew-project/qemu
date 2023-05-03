@@ -38,6 +38,7 @@ exec "$@"\n' > /usr/bin/nosync && \
                llvm \
                make \
                meson \
+               mtools \
                ninja-build \
                nmap-ncat \
                openssh-clients \
@@ -59,6 +60,7 @@ exec "$@"\n' > /usr/bin/nosync && \
                tesseract-langpack-eng \
                util-linux \
                which \
+               xorriso \
                zstd && \
     nosync dnf autoremove -y && \
     nosync dnf clean all -y

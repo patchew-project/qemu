@@ -73,6 +73,7 @@ packages:
  - llvm
  - lttng-ust
  - lzo
+ - mtools
  - netcat
  - nettle
  - ninja
@@ -116,6 +117,7 @@ packages:
  - which
  - xen
  - xfsprogs
+ - xorriso
  - zstdtools
  - zlib
  - zlib-static
