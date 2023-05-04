@@ -2066,6 +2066,49 @@ static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos, Error **errp)
     return 0;
 }
 
+static int vfio_setup_rebar_ecap(VFIOPCIDevice *vdev, uint16_t pos)
+{
+    uint8_t bars = pci_get_byte(vdev->pdev.config + pos + PCI_REBAR_CTRL) >>
+                                                    PCI_REBAR_CTRL_NBAR_SHIFT;
+    int i;
+
+    for (i = 0; i < bars; i++) {
+        uint32_t cap, ctrl;
+        uint8_t size;
+
+        ctrl = pci_get_long(vdev->pdev.config + pos + PCI_REBAR_CTRL + (i * 8));
+        size = (ctrl & PCI_REBAR_CTRL_BAR_SIZE) >> PCI_REBAR_CTRL_BAR_SHIFT;
+
+        /*
+         * PCIe spec requires HW to support at least one size in the range 1MB
+         * to 512GB, we intend to mask all sizes except the one currently
+         * enabled in the size field, therefore if it's outside the range,
+         * hide the whole capability.
+         */
+        if (size > 19) {
+            return -EINVAL;
+        }
+
+        /* Hide all sizes reported in the ctrl reg per above requirement. */
+        ctrl &= (PCI_REBAR_CTRL_BAR_SIZE |
+                 PCI_REBAR_CTRL_NBAR_MASK | PCI_REBAR_CTRL_BAR_IDX);
+
+        /* Only the current size is reported in the capabilities register. */
+        cap = 1 << (4 + size);
+
+        /*
+         * The BAR size field is RW, however we've mangled the capability
+         * register such that we only report a single size, ie. the current
+         * BAR size.  A write of an unsupported value is undefined, therefore
+         * the register field is essentially RO.
+         */
+        vfio_add_emulated_long(vdev, pos + PCI_REBAR_CTRL + (i * 8), ctrl, ~0);
+        vfio_add_emulated_long(vdev, pos + PCI_REBAR_CAP + (i * 8), cap, ~0);
+    }
+
+    return 0;
+}
+
 static void vfio_add_ext_cap(VFIOPCIDevice *vdev)
 {
     PCIDevice *pdev = &vdev->pdev;
@@ -2139,8 +2182,12 @@ static void vfio_add_ext_cap(VFIOPCIDevice *vdev)
         case 0: /* kernel masked capability */
         case PCI_EXT_CAP_ID_SRIOV: /* Read-only VF BARs confuse OVMF */
         case PCI_EXT_CAP_ID_ARI: /* XXX Needs next function virtualization */
-        case PCI_EXT_CAP_ID_REBAR: /* Can't expose read-only */
             trace_vfio_add_ext_cap_dropped(vdev->vbasedev.name, cap_id, next);
+            break;
+        case PCI_EXT_CAP_ID_REBAR:
+            if (!vfio_setup_rebar_ecap(vdev, next)) {
+                pcie_add_capability(pdev, cap_id, cap_ver, next, size);
+            }
             break;
         default:
             pcie_add_capability(pdev, cap_id, cap_ver, next, size);
