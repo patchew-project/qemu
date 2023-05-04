@@ -20,6 +20,9 @@
 
 static inline const char *cpu_get_model(uint32_t eflags)
 {
+    static char buf[32];
+    int err;
+
     /* For now, treat anything newer than v5 as a v67 */
     /* FIXME - Disable instructions that are newer than the specified arch */
     if (eflags == 0x04 ||    /* v5  */
@@ -34,7 +37,9 @@ static inline const char *cpu_get_model(uint32_t eflags)
        ) {
         return "v67";
     }
-    return "unknown";
+
+    err = snprintf(buf, sizeof(buf), "unknown (0x%x)", eflags);
+    return err >= 0 && err < sizeof(buf) ? buf : "unknown";
 }
 
 #endif
