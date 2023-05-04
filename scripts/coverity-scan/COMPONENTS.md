@@ -143,3 +143,9 @@ loongarch
 
 riscv
   ~ (/qemu)?((/include)?/hw/riscv/.*|/target/riscv/.*|/hw/.*/(riscv_|ibex_|sifive_).*)
+
+openrisc
+  ~ (/qemu)?((/include)?/hw/openrisc/.*|/target/openrisc/.*)
+
+xtensa
+  ~ (/qemu)?((/include)?/hw/xtensa/.*|/target/xtensa/.*)
