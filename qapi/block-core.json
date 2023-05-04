@@ -3841,10 +3841,14 @@
 #
 # @path: path to the vhost-vdpa character device.
 #
+# @fd: file descriptor of an already opened vhost-vdpa character device.
+#      (Since 8.1)
+#
 # Since: 7.2
 ##
 { 'struct': 'BlockdevOptionsVirtioBlkVhostVdpa',
-  'data': { 'path': 'str' },
+  'data': { '*path': 'str',
+            '*fd': 'str' },
   'if': 'CONFIG_BLKIO' }
 
 ##
