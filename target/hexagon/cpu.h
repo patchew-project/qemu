@@ -44,6 +44,9 @@
 
 #define TYPE_HEXAGON_CPU_V67 HEXAGON_CPU_TYPE_NAME("v67")
 
+void hexagon_cpu_list(void);
+#define cpu_list hexagon_cpu_list
+
 #define MMU_USER_IDX 0
 
 typedef struct {
