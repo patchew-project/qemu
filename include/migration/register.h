@@ -43,9 +43,9 @@ typedef struct SaveVMHandlers {
      * by other locks.
      */
     int (*save_live_iterate)(QEMUFile *f, void *opaque);
+    int (*save_setup)(QEMUFile *f, void *opaque);
 
     /* This runs outside the iothread lock!  */
-    int (*save_setup)(QEMUFile *f, void *opaque);
     /* Note for save_live_pending:
      * must_precopy:
      * - must be migrated in precopy or in stopped state

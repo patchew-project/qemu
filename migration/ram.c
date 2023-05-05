@@ -3106,8 +3106,16 @@ static void migration_bitmap_clear_discarded_pages(RAMState *rs)
 
 static void ram_init_bitmaps(RAMState *rs)
 {
-    /* For memory_global_dirty_log_start below.  */
-    qemu_mutex_lock_iothread();
+    bool release_lock = false;
+
+    /*
+     * For memory_global_dirty_log_start below.
+     * For snapshots, the BQL is held during setup.
+     */
+    if (!qemu_mutex_iothread_locked()) {
+        qemu_mutex_lock_iothread();
+        release_lock = true;
+    }
     qemu_mutex_lock_ramlist();
 
     WITH_RCU_READ_LOCK_GUARD() {
@@ -3119,7 +3127,9 @@ static void ram_init_bitmaps(RAMState *rs)
         }
     }
     qemu_mutex_unlock_ramlist();
-    qemu_mutex_unlock_iothread();
+    if (release_lock) {
+        qemu_mutex_unlock_iothread();
+    }
 
     /*
      * After an eventual first bitmap sync, fixup the initial bitmap

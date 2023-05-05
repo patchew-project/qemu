@@ -1217,10 +1217,17 @@ static int dirty_bitmap_save_setup(QEMUFile *f, void *opaque)
 {
     DBMSaveState *s = &((DBMState *)opaque)->save;
     SaveBitmapState *dbms = NULL;
+    bool release_lock = false;
 
-    qemu_mutex_lock_iothread();
+    /* For snapshots, the BQL is held during setup. */
+    if (!qemu_mutex_iothread_locked()) {
+        qemu_mutex_lock_iothread();
+        release_lock = true;
+    }
     if (init_dirty_bitmap_migration(s) < 0) {
-        qemu_mutex_unlock_iothread();
+        if (release_lock) {
+            qemu_mutex_unlock_iothread();
+        }
         return -1;
     }
 
@@ -1228,7 +1235,9 @@ static int dirty_bitmap_save_setup(QEMUFile *f, void *opaque)
         send_bitmap_start(f, s, dbms);
     }
     qemu_put_bitmap_flags(f, DIRTY_BITMAP_MIG_FLAG_EOS);
-    qemu_mutex_unlock_iothread();
+    if (release_lock) {
+        qemu_mutex_unlock_iothread();
+    }
     return 0;
 }
 
