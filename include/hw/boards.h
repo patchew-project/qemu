@@ -101,10 +101,10 @@ MemoryRegion *machine_consume_memdev(MachineState *machine,
 /**
  * CPUArchId:
  * @arch_id - architecture-dependent CPU ID of present or possible CPU
+ * @vcpus_count - number of threads provided by @cpu object
+ * @props - CPU object properties, initialized by board
  * @cpu - pointer to corresponding CPU object if it's present on NULL otherwise
  * @type - QOM class name of possible @cpu object
- * @props - CPU object properties, initialized by board
- * #vcpus_count - number of threads provided by @cpu object
  */
 typedef struct CPUArchId {
     uint64_t arch_id;
