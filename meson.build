@@ -3992,7 +3992,7 @@ if targetos == 'linux'
   summary_info += {'ALSA support':    alsa}
   summary_info += {'PulseAudio support': pulse}
 endif
-summary_info += {'Pipewire support':   pipewire}
+summary_info += {'PipeWire support':   pipewire}
 summary_info += {'JACK support':      jack}
 summary_info += {'brlapi support':    brlapi}
 summary_info += {'vde support':       vde}
