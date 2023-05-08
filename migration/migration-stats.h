@@ -78,10 +78,6 @@ typedef struct {
      */
     Stat64 rate_limit_max;
     /*
-     * Amount of data we have sent in the current cycle.
-     */
-    Stat64 rate_limit_used;
-    /*
      * How long has the setup stage took.
      */
     Stat64 setup_time;
@@ -107,16 +103,6 @@ extern MigrationAtomicStats mig_stats;
  */
 
 void calculate_time_since(Stat64 *val, int64_t since);
-
-/**
- * migration_rate_limit_account: Increase the number of bytes transferred.
- *
- * Report on a number of bytes the have been transferred that need to
- * be applied to the rate limiting calcuations.
- *
- * @len: amount of bytes transferred
- */
-void migration_rate_limit_account(uint64_t len);
 
 /**
  * migration_rate_limit_get: Get the maximum amount that can be transferred.
