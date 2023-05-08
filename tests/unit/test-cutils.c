@@ -2105,6 +2105,7 @@ static void test_qemu_strtod_einval(void)
     err = qemu_strtod(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
     g_assert_cmpfloat(res, ==, 0.0);
+    g_assert_false(signbit(res));
     g_assert_true(endptr == str);
 
     /* NULL */
@@ -2113,7 +2114,8 @@ static void test_qemu_strtod_einval(void)
     res = 999;
     err = qemu_strtod(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmpfloat(res, ==, 999.0);
+    g_assert_cmpfloat(res, ==, 0.0);
+    g_assert_false(signbit(res));
     g_assert_null(endptr);
 
     /* not recognizable */
@@ -2123,6 +2125,7 @@ static void test_qemu_strtod_einval(void)
     err = qemu_strtod(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
     g_assert_cmpfloat(res, ==, 0.0);
+    g_assert_false(signbit(res));
     g_assert_true(endptr == str);
 }
 
@@ -2309,7 +2312,8 @@ static void test_qemu_strtod_finite_einval(void)
     res = 999;
     err = qemu_strtod_finite(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmpfloat(res, ==, 999.0);
+    g_assert_cmpfloat(res, ==, 0.0);
+    g_assert_false(signbit(res));
     g_assert_true(endptr == str);
 
     /* NULL */
@@ -2318,7 +2322,8 @@ static void test_qemu_strtod_finite_einval(void)
     res = 999;
     err = qemu_strtod_finite(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmpfloat(res, ==, 999.0);
+    g_assert_cmpfloat(res, ==, 0.0);
+    g_assert_false(signbit(res));
     g_assert_null(endptr);
 
     /* not recognizable */
@@ -2327,7 +2332,8 @@ static void test_qemu_strtod_finite_einval(void)
     res = 999;
     err = qemu_strtod_finite(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmpfloat(res, ==, 999.0);
+    g_assert_cmpfloat(res, ==, 0.0);
+    g_assert_false(signbit(res));
     g_assert_true(endptr == str);
 }
 
@@ -2338,24 +2344,26 @@ static void test_qemu_strtod_finite_erange(void)
     int err;
     double res;
 
-    /* overflow */
+    /* overflow turns into EINVAL */
     str = "9e999";
     endptr = NULL;
     res = 999;
     err = qemu_strtod_finite(str, &endptr, &res);
-    g_assert_cmpint(err, ==, -ERANGE);
-    g_assert_cmpfloat(res, ==, HUGE_VAL);
-    g_assert_true(endptr == str + 5);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert_cmpfloat(res, ==, 0.0);
+    g_assert_false(signbit(res));
+    g_assert_true(endptr == str);
 
     str = "-9e+999";
     endptr = NULL;
     res = 999;
     err = qemu_strtod_finite(str, &endptr, &res);
-    g_assert_cmpint(err, ==, -ERANGE);
-    g_assert_cmpfloat(res, ==, -HUGE_VAL);
-    g_assert_true(endptr == str + 7);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert_cmpfloat(res, ==, 0.0);
+    g_assert_false(signbit(res));
+    g_assert_true(endptr == str);
 
-    /* underflow */
+    /* underflow is still possible */
     str = "-9e-999";
     endptr = NULL;
     res = 999;
@@ -2380,7 +2388,8 @@ static void test_qemu_strtod_finite_nonfinite(void)
     res = 999;
     err = qemu_strtod_finite(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmpfloat(res, ==, 999.0);
+    g_assert_cmpfloat(res, ==, 0.0);
+    g_assert_false(signbit(res));
     g_assert_true(endptr == str);
 
     str = "-infinity";
@@ -2388,7 +2397,8 @@ static void test_qemu_strtod_finite_nonfinite(void)
     res = 999;
     err = qemu_strtod_finite(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmpfloat(res, ==, 999.0);
+    g_assert_cmpfloat(res, ==, 0.0);
+    g_assert_false(signbit(res));
     g_assert_true(endptr == str);
 
     /* not a number */
@@ -2397,7 +2407,8 @@ static void test_qemu_strtod_finite_nonfinite(void)
     res = 999;
     err = qemu_strtod_finite(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmpfloat(res, ==, 999.0);
+    g_assert_cmpfloat(res, ==, 0.0);
+    g_assert_false(signbit(res));
     g_assert_true(endptr == str);
 }
 
@@ -2421,7 +2432,8 @@ static void test_qemu_strtod_finite_trailing(void)
     res = 999;
     err = qemu_strtod_finite(str, NULL, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmpfloat(res, ==, 999.0);
+    g_assert_cmpfloat(res, ==, 1.0);
+    g_assert_false(signbit(res));
 
     /* trailing e is not an exponent */
     str = ".5e";
@@ -2436,7 +2448,8 @@ static void test_qemu_strtod_finite_trailing(void)
     res = 999;
     err = qemu_strtod_finite(str, NULL, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmpfloat(res, ==, 999.0);
+    g_assert_cmpfloat(res, ==, 0.5);
+    g_assert_false(signbit(res));
 
     /* trailing ( not part of long NaN */
     str = "nan(";
@@ -2444,14 +2457,16 @@ static void test_qemu_strtod_finite_trailing(void)
     res = 999;
     err = qemu_strtod_finite(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmpfloat(res, ==, 999.0);
+    g_assert_cmpfloat(res, ==, 0.0);
+    g_assert_false(signbit(res));
     g_assert_true(endptr == str);
 
     endptr = NULL;
     res = 999;
     err = qemu_strtod_finite(str, NULL, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmpfloat(res, ==, 999.0);
+    g_assert_cmpfloat(res, ==, 0.0);
+    g_assert_false(signbit(res));
 }
 
 static void test_qemu_strtosz_simple(void)
@@ -3063,8 +3078,8 @@ static void test_qemu_strtosz_trailing(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpuint(res, ==, EiB /* FIXME EiB * 1.5 */);
-    g_assert(endptr == str + 9 /* FIXME + 4 */);
+    g_assert_cmpuint(res, ==, 1 /* FIXME EiB * 1.5 */);
+    g_assert(endptr == str + 2 /* FIXME + 4 */);
 
     res = 0xbaadf00d;
     err = qemu_strtosz(str, NULL, &res);
