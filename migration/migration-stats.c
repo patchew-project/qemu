@@ -14,6 +14,7 @@
 #include "qemu/stats64.h"
 #include "qemu/timer.h"
 #include "qemu-file.h"
+#include "trace.h"
 #include "migration-stats.h"
 
 MigrationAtomicStats mig_stats;
@@ -66,6 +67,9 @@ void migration_rate_limit_account(uint64_t len)
 
 uint64_t migration_transferred_bytes(QEMUFile *f)
 {
-    return qemu_file_transferred(f) + stat64_get(&mig_stats.multifd_bytes);
-}
+    uint64_t multifd = stat64_get(&mig_stats.multifd_bytes);
+    uint64_t qemu_file = qemu_file_transferred(f);
 
+    trace_migration_transferred_bytes(qemu_file, multifd);
+    return qemu_file + multifd;
+}
