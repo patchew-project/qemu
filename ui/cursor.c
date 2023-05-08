@@ -90,7 +90,7 @@ QEMUCursor *cursor_builtin_left_ptr(void)
     return cursor_parse_xpm(cursor_left_ptr_xpm);
 }
 
-QEMUCursor *cursor_alloc(int width, int height)
+QEMUCursor *cursor_alloc(uint32_t width, uint32_t height)
 {
     QEMUCursor *c;
     size_t datasize = width * height * sizeof(uint32_t);
