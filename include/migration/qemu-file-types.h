@@ -165,6 +165,6 @@ size_t coroutine_mixed_fn qemu_get_counted_string(QEMUFile *f, char buf[256]);
 
 void qemu_put_counted_string(QEMUFile *f, const char *name);
 
-int qemu_file_rate_limit(QEMUFile *f);
+bool migration_rate_limit_exceeded(QEMUFile *f);
 
 #endif

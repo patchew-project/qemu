@@ -70,6 +70,14 @@ typedef struct {
      */
     Stat64 precopy_bytes;
     /*
+     * Maximum amount of data we can send in a cycle.
+     */
+    Stat64 rate_limit_max;
+    /*
+     * Amount of data we have sent in the current cycle.
+     */
+    Stat64 rate_limit_used;
+    /*
      * How long has the setup stage took.
      */
     Stat64 setup_time;
@@ -95,4 +103,38 @@ extern MigrationAtomicStats mig_stats;
  */
 
 void calculate_time_since(Stat64 *val, int64_t since);
+
+/**
+ * migration_rate_limit_account: Increase the number of bytes transferred.
+ *
+ * Report on a number of bytes the have been transferred that need to
+ * be applied to the rate limiting calcuations.
+ *
+ * @len: amount of bytes transferred
+ */
+void migration_rate_limit_account(uint64_t len);
+
+/**
+ * migration_rate_limit_get: Get the maximum amount that can be transferred.
+ *
+ * Returns the maximum number of bytes that can be transferred in a cycle.
+ */
+uint64_t migration_rate_limit_get(void);
+
+/**
+ * migration_rate_limit_reset: Reset the rate limit counter.
+ *
+ * This is called when we know we start a new transfer cycle.
+ */
+void migration_rate_limit_reset(void);
+
+/**
+ * migration_rate_limit_set: Set the maximum amount that can be transferred.
+ *
+ * Sets the maximum amount of bytes that can be transferred in one cycle.
+ *
+ * @new_rate: new maximum amount
+ */
+void migration_rate_limit_set(uint64_t new_rate);
+
 #endif
