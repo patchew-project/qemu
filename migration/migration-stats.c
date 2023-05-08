@@ -12,6 +12,13 @@
 
 #include "qemu/osdep.h"
 #include "qemu/stats64.h"
+#include "qemu/timer.h"
 #include "migration-stats.h"
 
 MigrationAtomicStats mig_stats;
+
+void calculate_time_since(Stat64 *val, int64_t since)
+{
+    int64_t now = qemu_clock_get_ms(QEMU_CLOCK_HOST);
+    stat64_set(val, now - since);
+}

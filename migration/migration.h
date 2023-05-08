@@ -311,7 +311,6 @@ struct MigrationState {
     int64_t downtime;
     int64_t expected_downtime;
     bool capabilities[MIGRATION_CAPABILITY__MAX];
-    int64_t setup_time;
     /*
      * Whether guest was running when we enter the completion stage.
      * If migration is interrupted by any reason, we need to continue

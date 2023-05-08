@@ -70,6 +70,10 @@ typedef struct {
      */
     Stat64 precopy_bytes;
     /*
+     * How long has the setup stage took.
+     */
+    Stat64 setup_time;
+    /*
      * Total number of bytes transferred.
      */
     Stat64 transferred;
@@ -81,4 +85,14 @@ typedef struct {
 
 extern MigrationAtomicStats mig_stats;
 
+/**
+ * calculate_time_since: Calculate how much time has passed
+ *
+ * @val: stat64 where to store the time
+ * @since: reference time since we want to calculate
+ *
+ * Returns: Nothing.  The time is stored in val.
+ */
+
+void calculate_time_since(Stat64 *val, int64_t since);
 #endif
