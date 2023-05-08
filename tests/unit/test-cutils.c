@@ -2684,7 +2684,7 @@ static void test_qemu_strtosz_float(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL /* FIXME 0 */);
-    g_assert_cmpuint(res, ==, 0xbaadf00d /* FIXME 512 */);
+    g_assert_cmpuint(res, ==, 0 /* FIXME 512 */);
     g_assert_true(endptr == str /* FIXME + 4 */);
 
     /* For convenience, we permit values that are not byte-exact */
@@ -2736,7 +2736,7 @@ static void test_qemu_strtosz_invalid(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
     g_assert_null(endptr);
 
     str = "";
@@ -2744,7 +2744,7 @@ static void test_qemu_strtosz_invalid(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
     g_assert_true(endptr == str);
 
     str = " \t ";
@@ -2752,7 +2752,7 @@ static void test_qemu_strtosz_invalid(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
     g_assert_true(endptr == str);
 
     str = ".";
@@ -2760,14 +2760,14 @@ static void test_qemu_strtosz_invalid(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
     g_assert(endptr == str);
 
     str = " .";
     endptr = NULL;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
     g_assert(endptr == str);
 
     str = "crap";
@@ -2775,7 +2775,7 @@ static void test_qemu_strtosz_invalid(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
     g_assert_true(endptr == str);
 
     str = "inf";
@@ -2783,7 +2783,7 @@ static void test_qemu_strtosz_invalid(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
     g_assert_true(endptr == str);
 
     str = "NaN";
@@ -2791,7 +2791,7 @@ static void test_qemu_strtosz_invalid(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
     g_assert_true(endptr == str);
 
     /* Fractional values require scale larger than bytes */
@@ -2800,7 +2800,7 @@ static void test_qemu_strtosz_invalid(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
     g_assert_true(endptr == str);
 
     str = "1.1";
@@ -2808,7 +2808,7 @@ static void test_qemu_strtosz_invalid(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
     g_assert_true(endptr == str);
 
     /* FIXME Fraction tail can cause ERANGE overflow */
@@ -2817,7 +2817,7 @@ static void test_qemu_strtosz_invalid(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, 0 /* FIXME -ERANGE */);
-    g_assert_cmpuint(res, ==, 15ULL * EiB /* FIXME 0xbaadf00d */);
+    g_assert_cmpuint(res, ==, 15ULL * EiB /* FIXME 0 */);
     g_assert_true(endptr == str + 56 /* FIXME str */);
 
     /* FIXME ERANGE underflow in the fraction tail should matter for 'B' */
@@ -2834,7 +2834,7 @@ static void test_qemu_strtosz_invalid(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, 0 /* FIXME -EINVAL */);
-    g_assert_cmpuint(res, ==, 1 /* FIXME 0xbaadf00d */);
+    g_assert_cmpuint(res, ==, 1 /* FIXME 0 */);
     g_assert_true(endptr == str + 354 /* FIXME str */);
 
     /* No hex fractions */
@@ -2843,7 +2843,7 @@ static void test_qemu_strtosz_invalid(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
     g_assert_true(endptr == str);
 
     /* No suffixes */
@@ -2852,7 +2852,7 @@ static void test_qemu_strtosz_invalid(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
     g_assert_true(endptr == str);
 
     str = "0x1p1";
@@ -2860,7 +2860,7 @@ static void test_qemu_strtosz_invalid(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
     g_assert(endptr == str);
 
     /* No negative values */
@@ -2869,7 +2869,7 @@ static void test_qemu_strtosz_invalid(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
     g_assert_true(endptr == str);
 
     str = "-1";
@@ -2877,7 +2877,7 @@ static void test_qemu_strtosz_invalid(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
     g_assert_true(endptr == str);
 
     str = "-.0k";
@@ -2885,7 +2885,7 @@ static void test_qemu_strtosz_invalid(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
     g_assert_true(endptr == str);
 
     /* Too many decimals */
@@ -2894,7 +2894,7 @@ static void test_qemu_strtosz_invalid(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
     g_assert(endptr == str);
 }
 
@@ -2917,7 +2917,7 @@ static void test_qemu_strtosz_trailing(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, NULL, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
 
     /* Unknown suffix */
     str = "123xxx";
@@ -2931,7 +2931,7 @@ static void test_qemu_strtosz_trailing(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, NULL, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
 
     /* Junk after one-byte suffix */
     str = "1kiB";
@@ -2945,7 +2945,7 @@ static void test_qemu_strtosz_trailing(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, NULL, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
 
     /* Incomplete hex is an unknown suffix */
     str = "0x";
@@ -2959,7 +2959,7 @@ static void test_qemu_strtosz_trailing(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, NULL, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
 
     /* Junk after decimal */
     str = "0.NaN";
@@ -2973,7 +2973,7 @@ static void test_qemu_strtosz_trailing(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, NULL, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
 
     /* No support for binary literals; 'b' is valid suffix */
     str = "0b1000";
@@ -2987,7 +2987,7 @@ static void test_qemu_strtosz_trailing(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, NULL, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
 
     /* Hex literals use only one leading zero */
     str = "00x1";
@@ -3001,7 +3001,7 @@ static void test_qemu_strtosz_trailing(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, NULL, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
 
     /* Although negatives are invalid, '-' may be in trailing junk */
     str = "123-45";
@@ -3015,7 +3015,7 @@ static void test_qemu_strtosz_trailing(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, NULL, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
 
     str = " 123 - 45";
     endptr = NULL;
@@ -3028,7 +3028,7 @@ static void test_qemu_strtosz_trailing(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, NULL, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
 
     /* FIXME should stop parse after 'e'. No floating point exponents */
     str = "1.5e1k";
@@ -3036,26 +3036,26 @@ static void test_qemu_strtosz_trailing(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL /* FIXME 0 */);
-    g_assert_cmphex(res, ==, 0xbaadf00d /* FIXME EiB * 1.5 */);
+    g_assert_cmpuint(res, ==, 0 /* FIXME EiB * 1.5 */);
     g_assert_true(endptr == str /* FIXME + 4 */);
 
     res = 0xbaadf00d;
     err = qemu_strtosz(str, NULL, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
 
     str = "1.5E+0k";
     endptr = NULL;
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL /* FIXME 0 */);
-    g_assert_cmphex(res, ==, 0xbaadf00d /* FIXME EiB * 1.5 */);
+    g_assert_cmpuint(res, ==, 0 /* FIXME EiB * 1.5 */);
     g_assert_true(endptr == str /* FIXME + 4 */);
 
     res = 0xbaadf00d;
     err = qemu_strtosz(str, NULL, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
 
     /* FIXME overflow in fraction is buggy */
     str = "1.5E999";
@@ -3069,7 +3069,7 @@ static void test_qemu_strtosz_trailing(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, NULL, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
 }
 
 static void test_qemu_strtosz_erange(void)
@@ -3083,14 +3083,14 @@ static void test_qemu_strtosz_erange(void)
     endptr = NULL;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -ERANGE);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
     g_assert_true(endptr == str + 20);
 
     str = "20E";
     endptr = NULL;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -ERANGE);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
+    g_assert_cmpuint(res, ==, 0);
     g_assert_true(endptr == str + 3);
 }
 
