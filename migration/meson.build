@@ -1,5 +1,6 @@
 # Files needed by unit tests
 migration_files = files(
+  'migration-stats.c',
   'page_cache.c',
   'xbzrle.c',
   'vmstate-types.c',
@@ -19,7 +20,6 @@ softmmu_ss.add(files(
   'fd.c',
   'global_state.c',
   'migration-hmp-cmds.c',
-  'migration-stats.c',
   'migration.c',
   'multifd.c',
   'multifd-zlib.c',
