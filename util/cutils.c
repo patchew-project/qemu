@@ -384,12 +384,13 @@ static int check_strtox_error(const char *nptr, char *ep,
  *
  * @nptr may be null, and no conversion is performed then.
  *
- * If no conversion is performed, store @nptr in *@endptr and return
- * -EINVAL.
+ * If no conversion is performed, store @nptr in *@endptr, 0 in
+ * @result, and return -EINVAL.
  *
  * If @endptr is null, and the string isn't fully converted, return
- * -EINVAL.  This is the case when the pointer that would be stored in
- * a non-null @endptr points to a character other than '\0'.
+ * -EINVAL with @result set to the parsed value.  This is the case
+ * when the pointer that would be stored in a non-null @endptr points
+ * to a character other than '\0'.
  *
  * If the conversion overflows @result, store INT_MAX in @result,
  * and return -ERANGE.
@@ -407,6 +408,7 @@ int qemu_strtoi(const char *nptr, const char **endptr, int base,
 
     assert((unsigned) base <= 36 && base != 1);
     if (!nptr) {
+        *result = 0;
         if (endptr) {
             *endptr = nptr;
         }
@@ -436,12 +438,13 @@ int qemu_strtoi(const char *nptr, const char **endptr, int base,
  *
  * @nptr may be null, and no conversion is performed then.
  *
- * If no conversion is performed, store @nptr in *@endptr and return
- * -EINVAL.
+ * If no conversion is performed, store @nptr in *@endptr, 0 in
+ * @result, and return -EINVAL.
  *
  * If @endptr is null, and the string isn't fully converted, return
- * -EINVAL.  This is the case when the pointer that would be stored in
- * a non-null @endptr points to a character other than '\0'.
+ * -EINVAL with @result set to the parsed value.  This is the case
+ * when the pointer that would be stored in a non-null @endptr points
+ * to a character other than '\0'.
  *
  * If the conversion overflows @result, store UINT_MAX in @result,
  * and return -ERANGE.
@@ -460,6 +463,7 @@ int qemu_strtoui(const char *nptr, const char **endptr, int base,
 
     assert((unsigned) base <= 36 && base != 1);
     if (!nptr) {
+        *result = 0;
         if (endptr) {
             *endptr = nptr;
         }
@@ -495,12 +499,13 @@ int qemu_strtoui(const char *nptr, const char **endptr, int base,
  *
  * @nptr may be null, and no conversion is performed then.
  *
- * If no conversion is performed, store @nptr in *@endptr and return
- * -EINVAL.
+ * If no conversion is performed, store @nptr in *@endptr, 0 in
+ * @result, and return -EINVAL.
  *
  * If @endptr is null, and the string isn't fully converted, return
- * -EINVAL.  This is the case when the pointer that would be stored in
- * a non-null @endptr points to a character other than '\0'.
+ * -EINVAL with @result set to the parsed value.  This is the case
+ * when the pointer that would be stored in a non-null @endptr points
+ * to a character other than '\0'.
  *
  * If the conversion overflows @result, store LONG_MAX in @result,
  * and return -ERANGE.
@@ -517,6 +522,7 @@ int qemu_strtol(const char *nptr, const char **endptr, int base,
 
     assert((unsigned) base <= 36 && base != 1);
     if (!nptr) {
+        *result = 0;
         if (endptr) {
             *endptr = nptr;
         }
@@ -537,12 +543,13 @@ int qemu_strtol(const char *nptr, const char **endptr, int base,
  *
  * @nptr may be null, and no conversion is performed then.
  *
- * If no conversion is performed, store @nptr in *@endptr and return
- * -EINVAL.
+ * If no conversion is performed, store @nptr in *@endptr, 0 in
+ * @result, and return -EINVAL.
  *
  * If @endptr is null, and the string isn't fully converted, return
- * -EINVAL.  This is the case when the pointer that would be stored in
- * a non-null @endptr points to a character other than '\0'.
+ * -EINVAL with @result set to the parsed value.  This is the case
+ * when the pointer that would be stored in a non-null @endptr points
+ * to a character other than '\0'.
  *
  * If the conversion overflows @result, store ULONG_MAX in @result,
  * and return -ERANGE.
@@ -560,6 +567,7 @@ int qemu_strtoul(const char *nptr, const char **endptr, int base,
 
     assert((unsigned) base <= 36 && base != 1);
     if (!nptr) {
+        *result = 0;
         if (endptr) {
             *endptr = nptr;
         }
@@ -588,6 +596,7 @@ int qemu_strtoi64(const char *nptr, const char **endptr, int base,
 
     assert((unsigned) base <= 36 && base != 1);
     if (!nptr) {
+        *result = 0;
         if (endptr) {
             *endptr = nptr;
         }
@@ -613,6 +622,7 @@ int qemu_strtou64(const char *nptr, const char **endptr, int base,
 
     assert((unsigned) base <= 36 && base != 1);
     if (!nptr) {
+        *result = 0;
         if (endptr) {
             *endptr = nptr;
         }
