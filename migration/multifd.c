@@ -31,6 +31,9 @@
 #include "io/channel-socket.h"
 #include "yank_functions.h"
 
+#define MULTIFD_INTERNAL
+#include "multifd-internal.h"
+
 /* Multiple fd's */
 
 #define MULTIFD_MAGIC 0x11223344U
@@ -967,17 +970,7 @@ int multifd_save_setup(Error **errp)
     return 0;
 }
 
-struct {
-    MultiFDRecvParams *params;
-    /* number of created threads */
-    int count;
-    /* syncs main thread and channels */
-    QemuSemaphore sem_sync;
-    /* global number of generated multifd packets */
-    uint64_t packet_num;
-    /* multifd ops */
-    MultiFDMethods *ops;
-} *multifd_recv_state;
+struct MultiFDRecvState *multifd_recv_state;
 
 static void multifd_recv_terminate_threads(Error *err)
 {
