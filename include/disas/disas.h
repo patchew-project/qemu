@@ -3,19 +3,14 @@
 
 #include "exec/hwaddr.h"
 
-#ifdef NEED_CPU_H
-#include "cpu.h"
-
 /* Disassemble this for me please... (debugging). */
 void disas(FILE *out, const void *code, unsigned long size);
-void target_disas(FILE *out, CPUState *cpu, target_ulong code,
-                  target_ulong size);
+void target_disas(FILE *out, CPUState *cpu, hwaddr code, long size);
 
 char *plugin_disas(CPUState *cpu, uint64_t addr, size_t size);
 
 /* Look up symbol for debugging purpose.  Returns "" if unknown. */
-const char *lookup_symbol(target_ulong orig_addr);
-#endif
+const char *lookup_symbol(hwaddr orig_addr);
 
 void monitor_disas(Monitor *mon, CPUState *cpu,
                    hwaddr pc, int nb_insn, int is_physical);
@@ -24,11 +19,7 @@ struct syminfo;
 struct elf32_sym;
 struct elf64_sym;
 
-#if defined(CONFIG_USER_ONLY)
-typedef const char *(*lookup_symbol_t)(struct syminfo *s, target_ulong orig_addr);
-#else
-typedef const char *(*lookup_symbol_t)(struct syminfo *s, hwaddr orig_addr);
-#endif
+typedef const char *(*lookup_symbol_t)(struct syminfo *s, uint64_t orig_addr);
 
 struct syminfo {
     lookup_symbol_t lookup_symbol;

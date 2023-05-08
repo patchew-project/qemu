@@ -3,6 +3,9 @@
 #include "disas/disas-internal.h"
 #include "elf.h"
 #include "qemu/qemu-print.h"
+#include "exec/cpu-common.h"
+#include "exec/memory.h"
+#include "hw/core/cpu.h"
 
 #include "disas/disas.h"
 #include "disas/capstone.h"
@@ -121,11 +124,11 @@ void disas_initialize_debug_target(CPUDebug *s, CPUState *cpu)
     s->cpu = cpu;
     s->info.read_memory_func = target_read_memory;
     s->info.print_address_func = print_address;
-#if TARGET_BIG_ENDIAN
-    s->info.endian = BFD_ENDIAN_BIG;
-#else
-    s->info.endian = BFD_ENDIAN_LITTLE;
-#endif
+    if (target_words_bigendian()) {
+        s->info.endian = BFD_ENDIAN_BIG;
+    } else {
+        s->info.endian =  BFD_ENDIAN_LITTLE;
+    }
 
     CPUClass *cc = CPU_GET_CLASS(cpu);
     if (cc->disas_set_info) {
@@ -199,10 +202,9 @@ static void initialize_debug_host(CPUDebug *s)
 }
 
 /* Disassemble this for me please... (debugging).  */
-void target_disas(FILE *out, CPUState *cpu, target_ulong code,
-                  target_ulong size)
+void target_disas(FILE *out, CPUState *cpu, hwaddr code, long size)
 {
-    target_ulong pc;
+    hwaddr pc;
     int count;
     CPUDebug s;
 
@@ -221,7 +223,7 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
     }
 
     for (pc = code; size > 0; pc += count, size -= count) {
-	fprintf(out, "0x" TARGET_FMT_lx ":  ", pc);
+        fprintf(out, "0x" HWADDR_FMT_plx ":  ", pc);
 	count = s.info.print_insn(pc, &s.info);
 	fprintf(out, "\n");
 	if (count < 0)
@@ -318,7 +320,7 @@ void disas(FILE *out, const void *code, unsigned long size)
 }
 
 /* Look up symbol for debugging purpose.  Returns "" if unknown. */
-const char *lookup_symbol(target_ulong orig_addr)
+const char *lookup_symbol(hwaddr orig_addr)
 {
     const char *symbol = "";
     struct syminfo *s;
