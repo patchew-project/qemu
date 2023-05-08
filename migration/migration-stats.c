@@ -31,7 +31,9 @@ bool migration_rate_limit_exceeded(QEMUFile *f)
         return true;
     }
 
-    uint64_t rate_limit_used = stat64_get(&mig_stats.rate_limit_used);
+    uint64_t rate_limit_start = stat64_get(&mig_stats.rate_limit_start);
+    uint64_t rate_limit_current = migration_transferred_bytes(f);
+    uint64_t rate_limit_used = rate_limit_current - rate_limit_start;
     uint64_t rate_limit_max = stat64_get(&mig_stats.rate_limit_max);
     /*
      *  rate_limit_max == 0 means no rate_limit enfoncement.
@@ -55,9 +57,10 @@ void migration_rate_limit_set(uint64_t limit)
     stat64_set(&mig_stats.rate_limit_max, limit);
 }
 
-void migration_rate_limit_reset(void)
+void migration_rate_limit_reset(QEMUFile *f)
 {
     stat64_set(&mig_stats.rate_limit_used, 0);
+    stat64_set(&mig_stats.rate_limit_start, migration_transferred_bytes(f));
 }
 
 void migration_rate_limit_account(uint64_t len)

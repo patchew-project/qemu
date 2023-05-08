@@ -2684,7 +2684,7 @@ static void migration_update_counters(MigrationState *s,
             stat64_get(&mig_stats.dirty_bytes_last_sync) / bandwidth;
     }
 
-    migration_rate_limit_reset();
+    migration_rate_limit_reset(s->to_dst_file);
 
     update_iteration_initial_status(s);
 
