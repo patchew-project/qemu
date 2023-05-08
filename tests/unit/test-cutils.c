@@ -2693,14 +2693,14 @@ static void test_qemu_strtosz_float(void)
     g_assert_cmpuint(res, ==, 1024);
     g_assert_true(endptr == str + 4);
 
-    /* FIXME An empty fraction head should be tolerated */
+    /* An empty fraction head is tolerated */
     str = " .5k";
     endptr = str;
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
-    g_assert_cmpint(err, ==, -EINVAL /* FIXME 0 */);
-    g_assert_cmpuint(res, ==, 0 /* FIXME 512 */);
-    g_assert_true(endptr == str /* FIXME + 4 */);
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpuint(res, ==, 512);
+    g_assert_true(endptr == str + 4);
 
     /* For convenience, we permit values that are not byte-exact */
     str = "12.345M";
@@ -2711,16 +2711,16 @@ static void test_qemu_strtosz_float(void)
     g_assert_cmpuint(res, ==, (uint64_t) (12.345 * MiB + 0.5));
     g_assert_true(endptr == str + 7);
 
-    /* FIXME Fraction tail should round correctly */
+    /* Fraction tail can round up */
     str = "1.9999999999999999999999999999999999999999999999999999k";
     endptr = str;
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 1024 /* FIXME 2048 */);
+    g_assert_cmpuint(res, ==, 2048);
     g_assert_true(endptr == str + 55);
 
-    /* FIXME ERANGE underflow in the fraction tail should not matter for 'k' */
+    /* ERANGE underflow in the fraction tail does not matter for 'k' */
     str = "1."
         "00000000000000000000000000000000000000000000000000"
         "00000000000000000000000000000000000000000000000000"
@@ -2734,7 +2734,7 @@ static void test_qemu_strtosz_float(void)
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpuint(res, ==, 1 /* FIXME 1024 */);
+    g_assert_cmpuint(res, ==, 1024);
     g_assert_true(endptr == str + 354);
 }
 
@@ -2826,16 +2826,16 @@ static void test_qemu_strtosz_invalid(void)
     g_assert_cmpuint(res, ==, 0);
     g_assert_true(endptr == str);
 
-    /* FIXME Fraction tail can cause ERANGE overflow */
+    /* Fraction tail can cause ERANGE overflow */
     str = "15.9999999999999999999999999999999999999999999999999999E";
     endptr = str;
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
-    g_assert_cmpint(err, ==, 0 /* FIXME -ERANGE */);
-    g_assert_cmpuint(res, ==, 15ULL * EiB /* FIXME 0 */);
-    g_assert_true(endptr == str + 56 /* FIXME str */);
+    g_assert_cmpint(err, ==, -ERANGE);
+    g_assert_cmpuint(res, ==, 0);
+    g_assert_true(endptr == str + 56);
 
-    /* FIXME ERANGE underflow in the fraction tail should matter for 'B' */
+    /* ERANGE underflow in the fraction tail matters for 'B' */
     str = "1."
         "00000000000000000000000000000000000000000000000000"
         "00000000000000000000000000000000000000000000000000"
@@ -2848,9 +2848,9 @@ static void test_qemu_strtosz_invalid(void)
     endptr = str;
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
-    g_assert_cmpint(err, ==, 0 /* FIXME -EINVAL */);
-    g_assert_cmpuint(res, ==, 1 /* FIXME 0 */);
-    g_assert_true(endptr == str + 354 /* FIXME str */);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert_cmpuint(res, ==, 0);
+    g_assert_true(endptr == str);
 
     /* No hex fractions */
     str = "0x1.8k";
@@ -3045,14 +3045,14 @@ static void test_qemu_strtosz_trailing(void)
     g_assert_cmpint(err, ==, -EINVAL);
     g_assert_cmpuint(res, ==, 0);
 
-    /* FIXME should stop parse after 'e'. No floating point exponents */
+    /* Parse stops at 'e', which is not a floating point exponent */
     str = "1.5e1k";
     endptr = NULL;
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
-    g_assert_cmpint(err, ==, -EINVAL /* FIXME 0 */);
-    g_assert_cmpuint(res, ==, 0 /* FIXME EiB * 1.5 */);
-    g_assert_true(endptr == str /* FIXME + 4 */);
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpuint(res, ==, EiB * 1.5);
+    g_assert_true(endptr == str + 4);
 
     res = 0xbaadf00d;
     err = qemu_strtosz(str, NULL, &res);
@@ -3063,23 +3063,22 @@ static void test_qemu_strtosz_trailing(void)
     endptr = NULL;
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
-    g_assert_cmpint(err, ==, -EINVAL /* FIXME 0 */);
-    g_assert_cmpuint(res, ==, 0 /* FIXME EiB * 1.5 */);
-    g_assert_true(endptr == str /* FIXME + 4 */);
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpuint(res, ==, EiB * 1.5);
+    g_assert_true(endptr == str + 4);
 
     res = 0xbaadf00d;
     err = qemu_strtosz(str, NULL, &res);
     g_assert_cmpint(err, ==, -EINVAL);
     g_assert_cmpuint(res, ==, 0);
 
-    /* FIXME overflow in fraction is buggy */
     str = "1.5E999";
     endptr = NULL;
     res = 0xbaadf00d;
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpuint(res, ==, 1 /* FIXME EiB * 1.5 */);
-    g_assert(endptr == str + 2 /* FIXME + 4 */);
+    g_assert_cmpuint(res, ==, EiB * 1.5);
+    g_assert_true(endptr == str + 4);
 
     res = 0xbaadf00d;
     err = qemu_strtosz(str, NULL, &res);
