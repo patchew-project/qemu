@@ -78,6 +78,10 @@ typedef struct {
      */
     Stat64 rate_limit_max;
     /*
+     * Number of bytes sent through RDMA.
+     */
+    Stat64 rdma_bytes;
+    /*
      * How long has the setup stage took.
      */
     Stat64 setup_time;
