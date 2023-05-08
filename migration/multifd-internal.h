@@ -29,6 +29,11 @@ struct MultiFDRecvState {
     uint64_t packet_num;
     /* multifd ops */
     MultiFDMethods *ops;
+    /* overridable recv method */
+    int (*recv_pages)(MultiFDRecvParams *p, Error **errp);
 };
 
 extern struct MultiFDRecvState *multifd_recv_state;
+
+int _multifd_load_setup(Error **errp);
+int multifd_colo_load_setup(Error **errp);

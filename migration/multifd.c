@@ -1126,7 +1126,7 @@ static void *multifd_recv_thread(void *opaque)
         qemu_mutex_unlock(&p->mutex);
 
         if (p->normal_num) {
-            ret = multifd_recv_state->ops->recv_pages(p, &local_err);
+            ret = multifd_recv_state->recv_pages(p, &local_err);
             if (ret != 0) {
                 break;
             }
@@ -1152,19 +1152,11 @@ static void *multifd_recv_thread(void *opaque)
     return NULL;
 }
 
-int multifd_load_setup(Error **errp)
+int _multifd_load_setup(Error **errp)
 {
     int thread_count;
     uint32_t page_count = MULTIFD_PACKET_SIZE / qemu_target_page_size();
     uint8_t i;
-
-    /*
-     * Return successfully if multiFD recv state is already initialised
-     * or multiFD is not enabled.
-     */
-    if (multifd_recv_state || !migrate_multifd()) {
-        return 0;
-    }
 
     thread_count = migrate_multifd_channels();
     multifd_recv_state = g_malloc0(sizeof(*multifd_recv_state));
@@ -1202,6 +1194,42 @@ int multifd_load_setup(Error **errp)
         }
     }
     return 0;
+}
+
+static int multifd_normal_recv_pages(MultiFDRecvParams *p, Error **errp)
+{
+    return multifd_recv_state->ops->recv_pages(p, errp);
+}
+
+static int multifd_normal_load_setup(Error **errp)
+{
+    int ret;
+
+    ret = _multifd_load_setup(errp);
+    if (ret) {
+        return ret;
+    }
+
+    multifd_recv_state->recv_pages = multifd_normal_recv_pages;
+
+    return 0;
+}
+
+int multifd_load_setup(Error **errp)
+{
+    /*
+     * Return successfully if multiFD recv state is already initialised
+     * or multiFD is not enabled.
+     */
+    if (multifd_recv_state || !migrate_multifd()) {
+        return 0;
+    }
+
+    if (migrate_colo()) {
+        return multifd_colo_load_setup(errp);
+    } else {
+        return multifd_normal_load_setup(errp);
+    }
 }
 
 bool multifd_recv_all_channels_created(void)
