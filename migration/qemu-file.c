@@ -731,6 +731,9 @@ int qemu_file_rate_limit(QEMUFile *f)
     if (qemu_file_get_error(f)) {
         return 1;
     }
+    /*
+     *  rate_limit_max == 0 means no rate_limit enfoncement.
+     */
     if (f->rate_limit_max > 0 && f->rate_limit_used > f->rate_limit_max) {
         return 1;
     }
