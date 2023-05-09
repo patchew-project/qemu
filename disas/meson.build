@@ -13,4 +13,5 @@ common_ss.add(when: 'CONFIG_XTENSA_DIS', if_true: files('xtensa.c'))
 common_ss.add(when: capstone, if_true: [files('capstone.c'), capstone])
 
 softmmu_ss.add(files('disas-mon.c'))
-specific_ss.add(files('disas.c'), capstone)
+common_ss.add(files('disas.c'), capstone)
+specific_ss.add(capstone)
