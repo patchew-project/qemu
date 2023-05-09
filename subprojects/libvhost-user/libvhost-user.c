@@ -2384,8 +2384,7 @@ vu_queue_empty(VuDev *dev, VuVirtq *vq)
 static bool
 vring_notify(VuDev *dev, VuVirtq *vq)
 {
-    uint16_t old, new;
-    bool v;
+    uint16_t old, new, used;
 
     /* We need to expose used array entries before checking used event. */
     smp_mb();
@@ -2400,11 +2399,23 @@ vring_notify(VuDev *dev, VuVirtq *vq)
         return !(vring_avail_flags(vq) & VRING_AVAIL_F_NO_INTERRUPT);
     }
 
-    v = vq->signalled_used_valid;
-    vq->signalled_used_valid = true;
+    if (!vq->signalled_used_valid) {
+        vq->signalled_used_valid = true;
+        vq->signalled_used = vq->used_idx;
+        return true;
+    }
+
+    used = vring_get_used_event(vq);
+    new = vq->used_idx;
     old = vq->signalled_used;
-    new = vq->signalled_used = vq->used_idx;
-    return !v || vring_need_event(vring_get_used_event(vq), new, old);
+
+    if (vring_need_event(used, new, old)) {
+        vq->signalled_used_valid = true;
+        vq->signalled_used = vq->used_idx;
+        return true;
+    }
+
+    return false;
 }
 
 static void _vu_queue_notify(VuDev *dev, VuVirtq *vq, bool sync)
