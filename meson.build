@@ -1761,6 +1761,14 @@ dbus_display = get_option('dbus_display') \
            error_message: '-display dbus is not available on Windows') \
   .allowed()
 
+cairo = not_found
+if dbus_display
+  cairo = dependency('cairo',
+                     kwargs: static_kwargs,
+                     method: 'pkg-config',
+                    )
+endif
+
 have_virtfs = get_option('virtfs') \
     .require(targetos == 'linux' or targetos == 'darwin',
              error_message: 'virtio-9p (virtfs) requires Linux or macOS') \
