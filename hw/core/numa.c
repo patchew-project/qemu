@@ -168,6 +168,13 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
     numa_info[nodenr].present = true;
     max_numa_nodeid = MAX(max_numa_nodeid, nodenr + 1);
     ms->numa_state->num_nodes++;
+    if (ms->smp.max_cpus < ms->numa_state->num_nodes) {
+        error_setg(errp,
+                   "Number of NUMA nodes:(%d)"
+                   " is larger than number of CPUs:(%d)",
+                   ms->numa_state->num_nodes, ms->smp.max_cpus);
+        return;
+    }
 }
 
 static
