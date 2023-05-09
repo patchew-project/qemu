@@ -2988,7 +2988,7 @@ int coroutine_fn bdrv_co_pdiscard(BdrvChild *child, int64_t offset,
     }
 
     /* Do nothing if disabled.  */
-    if (!(bs->open_flags & BDRV_O_UNMAP)) {
+    if (!(bs->open_flags & BDRV_O_UNMAP) && !(bs->open_flags & BDRV_O_UNMAP_ZERO)) {
         return 0;
     }
 

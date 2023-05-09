@@ -1146,6 +1146,8 @@ int bdrv_parse_discard_flags(const char *mode, int *flags)
         /* do nothing */
     } else if (!strcmp(mode, "on") || !strcmp(mode, "unmap")) {
         *flags |= BDRV_O_UNMAP;
+    } else if (!strcmp(mode, "zeroes")) {
+        *flags |= BDRV_O_UNMAP_ZERO;
     } else {
         return -1;
     }

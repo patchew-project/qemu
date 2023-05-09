@@ -1237,7 +1237,7 @@ SRST
 ERST
 
 DEF("blockdev", HAS_ARG, QEMU_OPTION_blockdev,
-    "-blockdev [driver=]driver[,node-name=N][,discard=ignore|unmap]\n"
+    "-blockdev [driver=]driver[,node-name=N][,discard=ignore|unmap|zeroes]\n"
     "          [,cache.direct=on|off][,cache.no-flush=on|off]\n"
     "          [,read-only=on|off][,auto-read-only=on|off]\n"
     "          [,force-share=on|off][,detect-zeroes=on|off|unmap]\n"

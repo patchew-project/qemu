@@ -1969,46 +1969,6 @@ static int discard_in_l2_slice(BlockDriverState *bs, uint64_t offset,
     return nb_clusters;
 }
 
-int qcow2_cluster_discard(BlockDriverState *bs, uint64_t offset,
-                          uint64_t bytes, enum qcow2_discard_type type,
-                          bool full_discard)
-{
-    BDRVQcow2State *s = bs->opaque;
-    uint64_t end_offset = offset + bytes;
-    uint64_t nb_clusters;
-    int64_t cleared;
-    int ret;
-
-    /* Caller must pass aligned values, except at image end */
-    assert(QEMU_IS_ALIGNED(offset, s->cluster_size));
-    assert(QEMU_IS_ALIGNED(end_offset, s->cluster_size) ||
-           end_offset == bs->total_sectors << BDRV_SECTOR_BITS);
-
-    nb_clusters = size_to_clusters(s, bytes);
-
-    s->cache_discards = true;
-
-    /* Each L2 slice is handled by its own loop iteration */
-    while (nb_clusters > 0) {
-        cleared = discard_in_l2_slice(bs, offset, nb_clusters, type,
-                                      full_discard);
-        if (cleared < 0) {
-            ret = cleared;
-            goto fail;
-        }
-
-        nb_clusters -= cleared;
-        offset += (cleared * s->cluster_size);
-    }
-
-    ret = 0;
-fail:
-    s->cache_discards = false;
-    qcow2_process_discards(bs, ret);
-
-    return ret;
-}
-
 /*
  * This zeroes as many clusters of nb_clusters as possible at once (i.e.
  * all clusters in the same L2 slice) and returns the number of zeroed
@@ -2067,6 +2027,51 @@ static int zero_in_l2_slice(BlockDriverState *bs, uint64_t offset,
     qcow2_cache_put(s->l2_table_cache, (void **) &l2_slice);
 
     return nb_clusters;
+}
+
+int qcow2_cluster_discard(BlockDriverState *bs, uint64_t offset,
+                          uint64_t bytes, enum qcow2_discard_type type,
+                          bool full_discard)
+{
+    BDRVQcow2State *s = bs->opaque;
+    uint64_t end_offset = offset + bytes;
+    uint64_t nb_clusters;
+    int64_t cleared;
+    int ret;
+
+    /* Caller must pass aligned values, except at image end */
+    assert(QEMU_IS_ALIGNED(offset, s->cluster_size));
+    assert(QEMU_IS_ALIGNED(end_offset, s->cluster_size) ||
+           end_offset == bs->total_sectors << BDRV_SECTOR_BITS);
+
+    nb_clusters = size_to_clusters(s, bytes);
+
+    s->cache_discards = true;
+
+    /* Each L2 slice is handled by its own loop iteration */
+    while (nb_clusters > 0) {
+        cleared = 0;
+        if (bs->open_flags & BDRV_O_UNMAP_ZERO) {
+            cleared = zero_in_l2_slice(bs, offset, nb_clusters, 0);
+        } else {
+            cleared = discard_in_l2_slice(bs, offset, nb_clusters, type,
+                                        full_discard);
+        }
+        if (cleared < 0) {
+            ret = cleared;
+            goto fail;
+        }
+
+        nb_clusters -= cleared;
+        offset += (cleared * s->cluster_size);
+    }
+
+    ret = 0;
+fail:
+    s->cache_discards = false;
+    qcow2_process_discards(bs, ret);
+
+    return ret;
 }
 
 static int coroutine_fn
