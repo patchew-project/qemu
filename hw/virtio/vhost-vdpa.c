@@ -651,11 +651,22 @@ static int vhost_vdpa_set_mem_table(struct vhost_dev *dev,
     return 0;
 }
 
+int vhost_vdpa_set_dev_features_fd(int fd, uint64_t features)
+{
+    int ret;
+
+    ret = vhost_vdpa_call_fd(fd, VHOST_SET_FEATURES, &features);
+    if (ret) {
+        return ret;
+    }
+
+    return vhost_vdpa_add_status_fd(fd, VIRTIO_CONFIG_S_FEATURES_OK);
+}
+
 static int vhost_vdpa_set_features(struct vhost_dev *dev,
                                    uint64_t features)
 {
     struct vhost_vdpa *v = dev->opaque;
-    int ret;
 
     if (!vhost_vdpa_first_dev(dev)) {
         return 0;
@@ -678,12 +689,7 @@ static int vhost_vdpa_set_features(struct vhost_dev *dev,
     }
 
     trace_vhost_vdpa_set_features(dev, features);
-    ret = vhost_vdpa_call(dev, VHOST_SET_FEATURES, &features);
-    if (ret) {
-        return ret;
-    }
-
-    return vhost_vdpa_add_status(dev, VIRTIO_CONFIG_S_FEATURES_OK);
+    return vhost_vdpa_set_dev_features_fd(vhost_vdpa_dev_fd(dev), features);
 }
 
 static int vhost_vdpa_set_backend_cap(struct vhost_dev *dev)
