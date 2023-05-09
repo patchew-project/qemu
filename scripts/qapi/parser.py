@@ -474,17 +474,21 @@ class QAPIDoc:
             self._parser = parser
             # optional section name (argument/member or section name)
             self.name = name
+            # section text without section name
             self.text = ''
-            # the expected indent level of the text of this section
-            self._indent = indent
+            # indentation to strip (None means indeterminate)
+            self._indent = None if self.name else 0
 
         def append(self, line: str) -> None:
-            # Strip leading spaces corresponding to the expected indent level
-            # Blank lines are always OK.
+            line = line.rstrip()
+
             if line:
                 indent = must_match(r'\s*', line).end()
-                if self._indent < 0:
-                    self._indent = indent
+                if self._indent is None:
+                    # indeterminate indentation
+                    if self.text != '':
+                        # non-blank, non-first line determines indentation
+                        self._indent = indent
                 elif indent < self._indent:
                     raise QAPIParseError(
                         self._parser,
@@ -492,7 +496,7 @@ class QAPIDoc:
                         self._indent)
                 line = line[self._indent:]
 
-            self.text += line.rstrip() + '\n'
+            self.text += line + '\n'
 
     class ArgSection(Section):
         def __init__(self, parser: QAPISchemaParser,
@@ -621,22 +625,8 @@ class QAPIDoc:
 
         """
         if match := self._match_at_name_colon(line):
-            # If line is "@arg:   first line of description", find
-            # the index of 'f', which is the indent we expect for any
-            # following lines.  We then remove the leading "@arg:"
-            # from line and replace it with spaces so that 'f' has the
-            # same index as it did in the original line and can be
-            # handled the same way we will handle following lines.
-            name = match.group(1)
-            indent = match.end()
-            line = line[indent:]
-            if not line:
-                # Line was just the "@arg:" header
-                # The next non-blank line determines expected indent
-                indent = -1
-            else:
-                line = ' ' * indent + line
-            self._start_args_section(name, indent)
+            line = line[match.end():]
+            self._start_args_section(match.group(1), 0)
         elif self._match_section_tag(line):
             self._append_line = self._append_various_line
             self._append_various_line(line)
@@ -655,22 +645,8 @@ class QAPIDoc:
 
     def _append_features_line(self, line: str) -> None:
         if match := self._match_at_name_colon(line):
-            # If line is "@arg:   first line of description", find
-            # the index of 'f', which is the indent we expect for any
-            # following lines.  We then remove the leading "@arg:"
-            # from line and replace it with spaces so that 'f' has the
-            # same index as it did in the original line and can be
-            # handled the same way we will handle following lines.
-            name = match.group(1)
-            indent = match.end()
-            line = line[indent:]
-            if not line:
-                # Line was just the "@arg:" header
-                # The next non-blank line determines expected indent
-                indent = -1
-            else:
-                line = ' ' * indent + line
-            self._start_features_section(name, indent)
+            line = line[match.end():]
+            self._start_features_section(match.group(1), 0)
         elif self._match_section_tag(line):
             self._append_line = self._append_various_line
             self._append_various_line(line)
@@ -700,21 +676,8 @@ class QAPIDoc:
                                  "'@%s:' can't follow '%s' section"
                                  % (match.group(1), self.sections[0].name))
         if match := self._match_section_tag(line):
-            # If line is "Section:   first line of description", find
-            # the index of 'f', which is the indent we expect for any
-            # following lines.  We then remove the leading "Section:"
-            # from line and replace it with spaces so that 'f' has the
-            # same index as it did in the original line and can be
-            # handled the same way we will handle following lines.
-            indent = must_match(r'\S*:\s*', line).end()
-            line = line[indent:]
-            if not line:
-                # Line was just the "Section:" header
-                # The next non-blank line determines expected indent
-                indent = 0
-            else:
-                line = ' ' * indent + line
-            self._start_section(match.group(1), indent)
+            line = line[match.end():]
+            self._start_section(match.group(1), 0)
 
         self._append_freeform(line)
 
@@ -750,7 +713,7 @@ class QAPIDoc:
         self.sections.append(new_section)
 
     def _switch_section(self, new_section: 'QAPIDoc.Section') -> None:
-        text = self._section.text = self._section.text.strip()
+        text = self._section.text = self._section.text.strip('\n')
 
         # Only the 'body' section is allowed to have an empty body.
         # All other sections, including anonymous ones, must have text.
