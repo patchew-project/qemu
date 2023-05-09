@@ -23,7 +23,7 @@ softmmu_ss.add(files(
   'migration.c',
   'multifd.c',
   'multifd-zlib.c',
-  'multifd-zlib.c',
+  'multifd-colo.c',
   'ram-compress.c',
   'options.c',
   'postcopy-ram.c',
