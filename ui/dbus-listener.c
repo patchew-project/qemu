@@ -25,6 +25,7 @@
 #include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
 #include "dbus.h"
+#include <cairo.h>
 #include <gio/gunixfdlist.h>
 
 #ifdef CONFIG_OPENGL
@@ -43,9 +44,10 @@ struct _DBusDisplayListener {
 
     QemuDBusDisplay1Listener *proxy;
 
+    cairo_region_t *gl_damage;
+
     DisplayChangeListener dcl;
     DisplaySurface *ds;
-    int gl_updates;
 };
 
 G_DEFINE_TYPE(DBusDisplayListener, dbus_display_listener, G_TYPE_OBJECT)
@@ -226,10 +228,17 @@ static void dbus_gl_refresh(DisplayChangeListener *dcl)
         return;
     }
 
-    if (ddl->gl_updates) {
-        dbus_call_update_gl(ddl, 0, 0,
-                            surface_width(ddl->ds), surface_height(ddl->ds));
-        ddl->gl_updates = 0;
+    if (ddl->gl_damage) {
+        int n_rects = cairo_region_num_rectangles(ddl->gl_damage);
+
+        for (int i = 0; i < n_rects; i++) {
+            cairo_rectangle_int_t rect;
+
+            cairo_region_get_rectangle(ddl->gl_damage, i, &rect);
+            dbus_call_update_gl(ddl, rect.x, rect.y, rect.width, rect.height);
+        }
+
+        g_clear_pointer(&ddl->gl_damage, cairo_region_destroy);
     }
 }
 #endif
@@ -245,7 +254,11 @@ static void dbus_gl_gfx_update(DisplayChangeListener *dcl,
 {
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
 
-    ddl->gl_updates++;
+    if (ddl->gl_damage == NULL) {
+        ddl->gl_damage = cairo_region_create();
+    }
+    cairo_region_union_rectangle(ddl->gl_damage,
+                                 &(cairo_rectangle_int_t) {x, y, w, h});
 }
 #endif
 
