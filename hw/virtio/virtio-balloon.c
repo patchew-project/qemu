@@ -27,6 +27,7 @@
 #include "exec/address-spaces.h"
 #include "qapi/error.h"
 #include "qapi/qapi-events-machine.h"
+#include "qapi/qapi-visit-misc.h"
 #include "qapi/visitor.h"
 #include "trace.h"
 #include "qemu/error-report.h"
@@ -169,6 +170,116 @@ static void balloon_deflate_page(VirtIOBalloon *balloon,
     }
 }
 
+/*
+ * reset_working_set - Mark all items in the array as unset
+ *
+ * This function needs to be called at device initialization and
+ * whenever a new Working Set config is specified.
+ */
+static inline void reset_working_set(VirtIOBalloon *dev)
+{
+    int i;
+    for (i = 0; i < VIRTIO_BALLOON_WS_NR_BINS; i++) {
+        dev->ws[i].idle_age = 0;
+        if (dev->ws[i].memory_size_bytes) {
+            dev->ws[i].memory_size_bytes->anon = 0;
+            dev->ws[i].memory_size_bytes->file = 0;
+        } else {
+            dev->ws[i].memory_size_bytes = g_malloc0(sizeof(MemoryBin));
+        }
+    }
+}
+
+static void virtio_balloon_receive_working_set(VirtIODevice *vdev, VirtQueue *vq)
+{
+    VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
+    VirtQueueElement *elem;
+    VirtIOBalloonWS ws;
+    size_t offset = 0;
+    int count = 0;
+
+    elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+    if (!elem) {
+        return;
+    }
+
+    if (s->ws_vq_elem != NULL) {
+        /* This should never happen if the driver follows the spec. */
+        virtqueue_push(vq, s->ws_vq_elem, 0);
+        virtio_notify(vdev, vq);
+        g_free(s->ws_vq_elem);
+    }
+
+    s->ws_vq_elem = elem;
+
+    /* Initialize the Working Set to get rid of any stale values. */
+    reset_working_set(s);
+
+    while (iov_to_buf(elem->out_sg, elem->out_num, offset, &ws, sizeof(ws)) == sizeof(ws)) {
+        uint64_t idle_age_ms = virtio_tswap64(vdev, ws.idle_age_ms);
+        uint64_t bytes_anon = virtio_tswap64(vdev, ws.memory_size_bytes[0]);
+        uint64_t bytes_file = virtio_tswap64(vdev, ws.memory_size_bytes[1]);
+        s->ws[count].idle_age = idle_age_ms;
+        s->ws[count].memory_size_bytes->anon = bytes_anon;
+        s->ws[count].memory_size_bytes->file = bytes_file;
+        offset += sizeof(ws);
+        count++;
+    }
+    qapi_event_send_ws_event();
+}
+
+static void virtio_balloon_send_ws_request(VirtIODevice *vdev, VirtQueue *vq)
+{
+    VirtQueueElement *elem;
+    size_t sz = 0;
+    uint16_t tag = 0;
+
+    elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+    if (!elem) {
+        return;
+    }
+    tag = WS_REQUEST;
+    sz = iov_from_buf(elem->in_sg, elem->in_num, 0, &tag, sizeof(tag));
+    assert(sz == sizeof(tag));
+    virtqueue_push(vq, elem, sz);
+    virtio_notify(vdev, vq);
+    g_free(elem);
+}
+
+static void virtio_balloon_send_ws_config(VirtIODevice *vdev, VirtQueue *vq,
+                                          uint64_t i0, uint64_t i1, uint64_t i2,
+                                          uint64_t refresh, uint64_t report)
+{
+    VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
+    VirtQueueElement *elem;
+    uint16_t tag = 0;
+    size_t sz = 0;
+    elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+    if (!elem) {
+        return;
+    }
+
+    tag = WS_CONFIG;
+    s->ws_intervals[0] = i0;
+    s->ws_intervals[1] = i1;
+    s->ws_intervals[2] = i2;
+    s->ws_refresh_threshold = refresh;
+    s->ws_report_threshold = report;
+
+    sz = iov_from_buf(elem->in_sg, elem->in_num, 0, &tag, sizeof(tag));
+    assert(sz == sizeof(uint16_t));
+    sz += iov_from_buf(elem->in_sg, elem->in_num, sz, s->ws_intervals,
+                       (VIRTIO_BALLOON_WS_NR_BINS - 1) * \
+                       sizeof(s->ws_intervals[0]));
+    sz += iov_from_buf(elem->in_sg, elem->in_num, sz, &s->ws_refresh_threshold,
+                       sizeof(uint64_t));
+    sz += iov_from_buf(elem->in_sg, elem->in_num, sz, &s->ws_report_threshold,
+                       sizeof(uint64_t));
+    virtqueue_push(vq, elem, sz);
+    virtio_notify(vdev, vq);
+    g_free(elem);
+}
+
 static const char *balloon_stat_names[] = {
    [VIRTIO_BALLOON_S_SWAP_IN] = "stat-swap-in",
    [VIRTIO_BALLOON_S_SWAP_OUT] = "stat-swap-out",
@@ -237,6 +348,43 @@ static void balloon_stats_poll_cb(void *opaque)
     virtio_notify(vdev, s->svq);
     g_free(s->stats_vq_elem);
     s->stats_vq_elem = NULL;
+
+}
+
+static void balloon_ws_get_all(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
+{
+    Error *err = NULL;
+    VirtIOBalloon *s = VIRTIO_BALLOON(obj);
+    char ws_buf[4];
+    WorkingSetInfo *wsinfo;
+    int i;
+
+    if (!visit_start_struct(v, name, NULL, 0, &err)) {
+        goto out;
+    }
+
+    if (!visit_start_struct(v, "ws", NULL, 0, &err)) {
+        goto out_end;
+    }
+    for (i = 0; i < VIRTIO_BALLOON_WS_NR_BINS; i++) {
+        wsinfo = s->ws + i;
+        sprintf(ws_buf, "ws%d", i);
+        if (!visit_type_WorkingSetInfo(v, ws_buf, &wsinfo, &err)) {
+            goto out_nested;
+        }
+    }
+    visit_check_struct(v, &err);
+out_nested:
+    visit_end_struct(v, NULL);
+
+    if (!err) {
+        visit_check_struct(v, &err);
+    }
+out_end:
+    visit_end_struct(v, NULL);
+out:
+    error_propagate(errp, err);
 }
 
 static void balloon_stats_get_all(Object *obj, Visitor *v, const char *name,
@@ -697,8 +845,11 @@ static size_t virtio_balloon_config_size(VirtIOBalloon *s)
     if (s->qemu_4_0_config_size) {
         return sizeof(struct virtio_balloon_config);
     }
-    if (virtio_has_feature(features, VIRTIO_BALLOON_F_PAGE_POISON)) {
+    if (virtio_has_feature(features, VIRTIO_BALLOON_F_WS_REPORTING)) {
         return sizeof(struct virtio_balloon_config);
+    }
+    if (virtio_has_feature(features, VIRTIO_BALLOON_F_PAGE_POISON)) {
+        return offsetof(struct virtio_balloon_config, ws_num_bins);
     }
     if (virtio_has_feature(features, VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
         return offsetof(struct virtio_balloon_config, poison_val);
@@ -714,6 +865,7 @@ static void virtio_balloon_get_config(VirtIODevice *vdev, uint8_t *config_data)
     config.num_pages = cpu_to_le32(dev->num_pages);
     config.actual = cpu_to_le32(dev->actual);
     config.poison_val = cpu_to_le32(dev->poison_val);
+    config.ws_num_bins = cpu_to_le32(VIRTIO_BALLOON_WS_NR_BINS);
 
     if (dev->free_page_hint_status == FREE_PAGE_HINT_S_REQUESTED) {
         config.free_page_hint_cmd_id =
@@ -748,6 +900,14 @@ static bool virtio_balloon_page_poison_support(void *opaque)
     return virtio_vdev_has_feature(vdev, VIRTIO_BALLOON_F_PAGE_POISON);
 }
 
+static bool virtio_balloon_ws_reporting_support(void *opaque)
+{
+    VirtIOBalloon *s = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+
+    return virtio_vdev_has_feature(vdev, VIRTIO_BALLOON_F_WS_REPORTING);
+}
+
 static void virtio_balloon_set_config(VirtIODevice *vdev,
                                       const uint8_t *config_data)
 {
@@ -766,6 +926,10 @@ static void virtio_balloon_set_config(VirtIODevice *vdev,
     if (virtio_balloon_page_poison_support(dev)) {
         dev->poison_val = le32_to_cpu(config.poison_val);
     }
+    dev->ws_num_bins = 0;
+    if (virtio_balloon_ws_reporting_support(dev)) {
+        dev->ws_num_bins = le32_to_cpu(config.ws_num_bins);
+    }
     trace_virtio_balloon_set_config(dev->actual, oldactual);
 }
 
@@ -775,6 +939,7 @@ static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f,
     VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
     f |= dev->host_features;
     virtio_add_feature(&f, VIRTIO_BALLOON_F_STATS_VQ);
+    virtio_add_feature(&f, VIRTIO_BALLOON_F_WS_REPORTING);
 
     return f;
 }
@@ -784,6 +949,24 @@ static void virtio_balloon_stat(void *opaque, BalloonInfo *info)
     VirtIOBalloon *dev = opaque;
     info->actual = get_current_ram_size() - ((uint64_t) dev->actual <<
                                              VIRTIO_BALLOON_PFN_SHIFT);
+}
+
+static void virtio_balloon_ws_request(void *opaque)
+{
+    VirtIOBalloon *dev = VIRTIO_BALLOON(opaque);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+
+    virtio_balloon_send_ws_request(vdev, dev->cvq);
+}
+
+static void virtio_balloon_ws_config(void *opaque, uint64_t i0, uint64_t i1,
+                                      uint64_t i2, uint64_t refresh, uint64_t report)
+{
+    VirtIOBalloon *dev = VIRTIO_BALLOON(opaque);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+
+    printf("VIRTIO-BALLOON: ws config");
+    virtio_balloon_send_ws_config(vdev, dev->cvq, i0, i1, i2, refresh, report);
 }
 
 static void virtio_balloon_to_target(void *opaque, ram_addr_t target)
@@ -835,6 +1018,17 @@ static const VMStateDescription vmstate_virtio_balloon_page_poison = {
     }
 };
 
+static const VMStateDescription vmstate_virtio_balloon_ws_reporting = {
+    .name = "virtio-balloon-device/working-set-report",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = virtio_balloon_ws_reporting_support,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(ws_num_bins, VirtIOBalloon),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_virtio_balloon_device = {
     .name = "virtio-balloon-device",
     .version_id = 1,
@@ -848,6 +1042,7 @@ static const VMStateDescription vmstate_virtio_balloon_device = {
     .subsections = (const VMStateDescription * []) {
         &vmstate_virtio_balloon_free_page_hint,
         &vmstate_virtio_balloon_page_poison,
+        &vmstate_virtio_balloon_ws_reporting,
         NULL
     }
 };
@@ -861,7 +1056,9 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
     virtio_init(vdev, VIRTIO_ID_BALLOON, virtio_balloon_config_size(s));
 
     ret = qemu_add_balloon_handler(virtio_balloon_to_target,
-                                   virtio_balloon_stat, s);
+                                   virtio_balloon_stat,
+                                   virtio_balloon_ws_request,
+                                   virtio_balloon_ws_config, s);
 
     if (ret < 0) {
         error_setg(errp, "Only one balloon device is supported");
@@ -896,7 +1093,11 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
                                            virtio_balloon_handle_report);
     }
 
+    s->wvq = virtio_add_queue(vdev, 128, virtio_balloon_receive_working_set);
+    s->cvq = virtio_add_queue(vdev, 128, NULL);
+
     reset_stats(s);
+    reset_working_set(s);
 }
 
 static void virtio_balloon_device_unrealize(DeviceState *dev)
@@ -922,6 +1123,8 @@ static void virtio_balloon_device_unrealize(DeviceState *dev)
     if (s->reporting_vq) {
         virtio_delete_queue(s->reporting_vq);
     }
+    virtio_delete_queue(s->wvq);
+    virtio_delete_queue(s->cvq);
     virtio_cleanup(vdev);
 }
 
@@ -939,6 +1142,12 @@ static void virtio_balloon_device_reset(VirtIODevice *vdev)
         s->stats_vq_elem = NULL;
     }
 
+    if (s->ws_vq_elem != NULL) {
+        virtqueue_unpop(s->wvq, s->ws_vq_elem, 0);
+        g_free(s->ws_vq_elem);
+        s->ws_vq_elem = NULL;
+    }
+
     s->poison_val = 0;
 }
 
@@ -951,6 +1160,13 @@ static void virtio_balloon_set_status(VirtIODevice *vdev, uint8_t status)
         /* poll stats queue for the element we have discarded when the VM
          * was stopped */
         virtio_balloon_receive_stats(vdev, s->svq);
+    }
+
+    if (!s->ws_vq_elem && vdev->vm_running &&
+        (status & VIRTIO_CONFIG_S_DRIVER_OK) && virtqueue_rewind(s->wvq, 1)) {
+        /* poll ws queue for the element we have discarded when the VM
+         * was stopped */
+        virtio_balloon_receive_working_set(vdev, s->wvq);
     }
 
     if (virtio_balloon_free_page_support(s)) {
@@ -983,6 +1199,9 @@ static void virtio_balloon_instance_init(Object *obj)
     s->free_page_hint_cmd_id = VIRTIO_BALLOON_FREE_PAGE_HINT_CMD_ID_MIN;
     s->free_page_hint_notify.notify = virtio_balloon_free_page_hint_notify;
 
+    object_property_add(obj, "guest-ws", "guest working set",
+                        balloon_ws_get_all, NULL, NULL, NULL);
+
     object_property_add(obj, "guest-stats", "guest statistics",
                         balloon_stats_get_all, NULL, NULL, NULL);
 
@@ -1011,6 +1230,8 @@ static Property virtio_balloon_properties[] = {
                     VIRTIO_BALLOON_F_PAGE_POISON, true),
     DEFINE_PROP_BIT("free-page-reporting", VirtIOBalloon, host_features,
                     VIRTIO_BALLOON_F_REPORTING, false),
+    DEFINE_PROP_BIT("working-set", VirtIOBalloon, host_features,
+                    VIRTIO_BALLOON_F_WS_REPORTING, true),
     /* QEMU 4.0 accidentally changed the config size even when free-page-hint
      * is disabled, resulting in QEMU 3.1 migration incompatibility.  This
      * property retains this quirk for QEMU 4.1 machine types.

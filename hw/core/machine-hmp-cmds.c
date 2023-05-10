@@ -237,6 +237,27 @@ void hmp_balloon(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
+void hmp_ws_request(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+
+    qmp_ws_request(&err);
+    hmp_handle_error(mon, err);
+}
+
+void hmp_ws_config(Monitor *mon, const QDict *qdict)
+{
+    uint64_t i0 = qdict_get_int(qdict, "i0");
+    uint64_t i1 = qdict_get_int(qdict, "i1");
+    uint64_t i2 = qdict_get_int(qdict, "i2");
+    uint64_t refresh = qdict_get_int(qdict, "refresh");
+    uint64_t report = qdict_get_int(qdict, "report");
+    Error *err = NULL;
+
+    qmp_ws_config(i0, i1, i2, refresh, report, &err);
+    hmp_handle_error(mon, err);
+}
+
 void hmp_info_memory_devices(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;

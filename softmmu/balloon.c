@@ -35,6 +35,8 @@
 
 static QEMUBalloonEvent *balloon_event_fn;
 static QEMUBalloonStatus *balloon_stat_fn;
+static QEMUBalloonWSRequest *balloon_ws_request_fn;
+static QEMUBalloonWSConfig *balloon_ws_config_fn;
 static void *balloon_opaque;
 
 static bool have_balloon(Error **errp)
@@ -53,9 +55,12 @@ static bool have_balloon(Error **errp)
 }
 
 int qemu_add_balloon_handler(QEMUBalloonEvent *event_func,
-                             QEMUBalloonStatus *stat_func, void *opaque)
+                             QEMUBalloonStatus *stat_func,
+                             QEMUBalloonWSRequest *ws_request_func,
+                             QEMUBalloonWSConfig *ws_config_func, void *opaque)
 {
-    if (balloon_event_fn || balloon_stat_fn || balloon_opaque) {
+    if (balloon_event_fn || balloon_stat_fn || balloon_ws_request_fn \
+        || balloon_ws_config_fn || balloon_opaque) {
         /* We're already registered one balloon handler.  How many can
          * a guest really have?
          */
@@ -63,6 +68,8 @@ int qemu_add_balloon_handler(QEMUBalloonEvent *event_func,
     }
     balloon_event_fn = event_func;
     balloon_stat_fn = stat_func;
+    balloon_ws_request_fn = ws_request_func;
+    balloon_ws_config_fn = ws_config_func;
     balloon_opaque = opaque;
     return 0;
 }
@@ -74,6 +81,8 @@ void qemu_remove_balloon_handler(void *opaque)
     }
     balloon_event_fn = NULL;
     balloon_stat_fn = NULL;
+    balloon_ws_request_fn = NULL;
+    balloon_ws_config_fn = NULL;
     balloon_opaque = NULL;
 }
 
@@ -103,4 +112,23 @@ void qmp_balloon(int64_t target, Error **errp)
 
     trace_balloon_event(balloon_opaque, target);
     balloon_event_fn(balloon_opaque, target);
+}
+
+void qmp_ws_request(Error **errp)
+{
+    if (!have_balloon(errp)) {
+        return;
+    }
+
+    balloon_ws_request_fn(balloon_opaque);
+}
+
+void qmp_ws_config(uint64_t i0, uint64_t i1, uint64_t i2, uint64_t refresh,
+                       uint64_t report, Error **errp)
+{
+    if (!have_balloon(errp)) {
+        return;
+    }
+
+    balloon_ws_config_fn(balloon_opaque, i0, i1, i2, refresh, report);
 }

@@ -18,10 +18,16 @@
 #include "qapi/qapi-types-machine.h"
 
 typedef void (QEMUBalloonEvent)(void *opaque, ram_addr_t target);
+typedef void (QEMUBalloonWSRequest)(void *opaque);
 typedef void (QEMUBalloonStatus)(void *opaque, BalloonInfo *info);
+typedef void (QEMUBalloonWSConfig)(void *opaque, uint64_t i0, uint64_t i1,
+                                   uint64_t i2, uint64_t refresh,
+                                   uint64_t report);
 
 int qemu_add_balloon_handler(QEMUBalloonEvent *event_func,
-                             QEMUBalloonStatus *stat_func, void *opaque);
+                             QEMUBalloonStatus *stat_func,
+                             QEMUBalloonWSRequest *wss_func,
+                             QEMUBalloonWSConfig *config_func, void *opaque);
 void qemu_remove_balloon_handler(void *opaque);
 
 #endif

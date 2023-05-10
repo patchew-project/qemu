@@ -1397,6 +1397,32 @@ SRST
 ERST
 
     {
+        .name       = "ws_config",
+        .args_type  = "i0:i,i1:i,i2:i,refresh:i,report:i",
+        .params     = "bin intervals 0-2, refresh and report thresholds",
+        .help       = "Working Set intervals, refresh/report thresholds (ms)",
+        .cmd        = hmp_ws_config,
+    },
+
+SRST
+``ws_config``
+  Set the intervals (in ms), refresh, and report thresholds for WS reporting
+ERST
+
+    {
+        .name       = "ws_request",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Request the Working Set of the guest.",
+        .cmd        = hmp_ws_request,
+    },
+
+SRST
+``wss_request``
+  Request the Working Set Size of the guest.
+ERST
+
+    {
         .name       = "set_link",
         .args_type  = "name:s,up:b",
         .params     = "name on|off",
