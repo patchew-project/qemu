@@ -148,7 +148,7 @@ static void usage(const char *name)
 "                            valid options are: 'none', 'writeback' (default),\n"
 "                            'writethrough', 'directsync' and 'unsafe'\n"
 "      --aio=MODE            set AIO mode (native, io_uring or threads)\n"
-"      --discard=MODE        set discard mode (ignore, unmap)\n"
+"      --discard=MODE        set discard mode (ignore, unmap, zeroes)\n"
 "      --detect-zeroes=MODE  set detect-zeroes mode (off, on, unmap)\n"
 "      --image-opts          treat FILE as a full set of image options\n"
 "\n"

@@ -3009,11 +3009,12 @@
 # @ignore: Ignore the request
 #
 # @unmap: Forward as an unmap request
+# @zeroes: Zero the clusters instead of unmapping (since 8.1)
 #
 # Since: 2.9
 ##
 { 'enum': 'BlockdevDiscardOptions',
-  'data': [ 'ignore', 'unmap' ] }
+  'data': [ 'ignore', 'unmap', 'zeroes' ] }
 
 ##
 # @BlockdevDetectZeroesOptions:

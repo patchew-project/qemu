@@ -86,7 +86,7 @@ static void help(void)
 "                         specify tracing options\n"
 "  -V, --version          output version information and exit\n"
 "\n"
-"  --blockdev [driver=]<driver>[,node-name=<N>][,discard=ignore|unmap]\n"
+"  --blockdev [driver=]<driver>[,node-name=<N>][,discard=ignore|unmap|zeroes]\n"
 "             [,cache.direct=on|off][,cache.no-flush=on|off]\n"
 "             [,read-only=on|off][,auto-read-only=on|off]\n"
 "             [,force-share=on|off][,detect-zeroes=on|off|unmap]\n"

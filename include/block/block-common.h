@@ -179,6 +179,7 @@ typedef enum {
 #define BDRV_O_AUTO_RDONLY 0x20000 /* degrade to read-only if opening
                                       read-write fails */
 #define BDRV_O_IO_URING    0x40000 /* use io_uring instead of the thread pool */
+#define BDRV_O_UNMAP_ZERO  0x80000 /* rewrite guest unmap to zero */
 
 #define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_NO_FLUSH)
 
