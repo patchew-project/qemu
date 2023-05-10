@@ -97,7 +97,8 @@ run-gdbstub-sve-ioctls: sve-ioctls
 		--bin $< --test $(AARCH64_SRC)/gdbstub/test-sve-ioctl.py, \
 	basic gdbstub SVE ZLEN support)
 
-EXTRA_RUNS += run-gdbstub-sysregs run-gdbstub-sve-ioctls
+EXTRA_RUNS += run-gdbstub-sysregs run-gdbstub-sve-ioctls \
+              run-gdbstub-proc-mappings
 endif
 endif
 
