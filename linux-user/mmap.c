@@ -859,7 +859,7 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
 
 static bool can_passthrough_madvise(abi_ulong start, abi_ulong end)
 {
-    ulong addr;
+    unsigned long addr;
 
     if ((start | end) & ~qemu_host_page_mask) {
         return false;
