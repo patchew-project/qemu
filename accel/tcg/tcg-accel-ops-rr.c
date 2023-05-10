@@ -71,11 +71,13 @@ static void rr_kick_next_cpu(void)
 {
     CPUState *cpu;
     do {
-        cpu = qatomic_mb_read(&rr_current_cpu);
+        cpu = qatomic_read(&rr_current_cpu);
         if (cpu) {
             cpu_exit(cpu);
         }
-    } while (cpu != qatomic_mb_read(&rr_current_cpu));
+        /* Finish kicking this cpu before reading again.  */
+        smp_mb();
+    } while (cpu != qatomic_read(&rr_current_cpu));
 }
 
 static void rr_kick_thread(void *opaque)
@@ -206,8 +208,9 @@ static void *rr_cpu_thread_fn(void *arg)
         }
 
         while (cpu && cpu_work_list_empty(cpu) && !cpu->exit_request) {
-
+            /* Store rr_current_cpu before evaluating cpu_can_run().  */
             qatomic_mb_set(&rr_current_cpu, cpu);
+
             current_cpu = cpu;
 
             qemu_clock_enable(QEMU_CLOCK_VIRTUAL,
@@ -245,7 +248,7 @@ static void *rr_cpu_thread_fn(void *arg)
             cpu = CPU_NEXT(cpu);
         } /* while (cpu && !cpu->exit_request).. */
 
-        /* Does not need qatomic_mb_set because a spurious wakeup is okay.  */
+        /* Does not need a memory barrier because a spurious wakeup is okay.  */
         qatomic_set(&rr_current_cpu, NULL);
 
         if (cpu && cpu->exit_request) {
