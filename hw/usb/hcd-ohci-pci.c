@@ -75,7 +75,7 @@ static void usb_ohci_realize_pci(PCIDevice *dev, Error **errp)
         return;
     }
 
-    ohci->state.irq = pci_allocate_irq(dev);
+    ohci->state.irq = qdev_get_gpio_in_named(DEVICE(dev), "pci-input-irq", 0);
     pci_register_bar(dev, 0, 0, &ohci->state.mem);
 }
 
