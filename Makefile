@@ -26,7 +26,7 @@ quiet-command-run = $(if $(V),,$(if $2,printf "  %-7s %s\n" $2 $3 && ))$1
 quiet-@ = $(if $(V),,@)
 quiet-command = $(quiet-@)$(call quiet-command-run,$1,$2,$3)
 
-UNCHECKED_GOALS := %clean TAGS cscope ctags dist \
+UNCHECKED_GOALS := %clean TAGS cscope ctags gtags dist \
     help check-help print-% \
     docker docker-% vm-help vm-test vm-build-%
 
