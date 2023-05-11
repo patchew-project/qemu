@@ -123,7 +123,7 @@ static void pci_ich9_ahci_realize(PCIDevice *dev, Error **errp)
     /* XXX Software should program this register */
     dev->config[0x90]   = 1 << 6; /* Address Map Register - AHCI mode */
 
-    d->ahci.irq = pci_allocate_irq(dev);
+    d->ahci.irq = qdev_get_gpio_in_named(DEVICE(dev), "pci-input-irq", 0);
 
     pci_register_bar(dev, ICH9_IDP_BAR, PCI_BASE_ADDRESS_SPACE_IO,
                      &d->ahci.idp);
@@ -159,7 +159,6 @@ static void pci_ich9_uninit(PCIDevice *dev)
 
     msi_uninit(dev);
     ahci_uninit(&d->ahci);
-    qemu_free_irq(d->ahci.irq);
 }
 
 static void ich_ahci_class_init(ObjectClass *klass, void *data)
