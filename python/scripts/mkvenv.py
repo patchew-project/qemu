@@ -530,6 +530,10 @@ def generate_console_scripts(
         # launcher copied to foo.exe.  Unfortunately there is no guarantee that
         # py.exe exists on the machine.  Creating the script like this is
         # enough for msys and meson, both of which understand shebang lines.
+        # It does requires some care when invoking meson however, which is
+        # worked around in configure.  Note that a .exe launcher is needed
+        # and not for example a batch file, because the CreateProcess API
+        # (used by Ninja) cannot start them.
         with open(script_path, "w", encoding="UTF-8") as file:
             file.write(script)
         mode = os.stat(script_path).st_mode | stat.S_IEXEC
