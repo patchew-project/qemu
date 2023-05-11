@@ -149,6 +149,9 @@ struct PCIDevice {
     MemoryRegion rom;
     uint32_t rom_bar;
 
+    /* PCI IRQ */
+    qemu_irq irq;
+
     /* INTx routing notifier */
     PCIINTxRoutingNotifier intx_routing_notifier;
 

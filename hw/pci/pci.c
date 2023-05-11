@@ -2161,6 +2161,13 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
     pci_dev->msi_trigger = pci_msi_trigger;
 }
 
+static void pci_device_init(Object *obj)
+{
+    PCIDevice *pci_dev = PCI_DEVICE(obj);
+
+    qdev_init_gpio_out(DEVICE(obj), &pci_dev->irq, 1);
+}
+
 PCIDevice *pci_new_multifunction(int devfn, bool multifunction,
                                  const char *name)
 {
@@ -2812,6 +2819,7 @@ void pci_set_power(PCIDevice *d, bool state)
 static const TypeInfo pci_device_type_info = {
     .name = TYPE_PCI_DEVICE,
     .parent = TYPE_DEVICE,
+    .instance_init = pci_device_init,
     .instance_size = sizeof(PCIDevice),
     .abstract = true,
     .class_size = sizeof(PCIDeviceClass),
