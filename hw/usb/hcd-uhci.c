@@ -1168,7 +1168,7 @@ void usb_uhci_common_realize(PCIDevice *dev, Error **errp)
     /* TODO: reset value should be 0. */
     pci_conf[USB_SBRN] = USB_RELEASE_1; /* release number */
     pci_config_set_interrupt_pin(pci_conf, u->info.irq_pin + 1);
-    s->irq = pci_allocate_irq(dev);
+    s->irq = qdev_get_gpio_in_named(DEVICE(dev), "pci-input-irq", 0);
 
     if (s->masterbus) {
         USBPort *ports[NB_PORTS];
