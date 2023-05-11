@@ -182,7 +182,6 @@ static void pci_pcnet_uninit(PCIDevice *dev)
 {
     PCIPCNetState *d = PCI_PCNET(dev);
 
-    qemu_free_irq(d->state.irq);
     timer_free(d->state.poll_timer);
     qemu_del_nic(d->state.nic);
 }
@@ -227,7 +226,7 @@ static void pci_pcnet_realize(PCIDevice *pci_dev, Error **errp)
 
     pci_register_bar(pci_dev, 1, 0, &s->mmio);
 
-    s->irq = pci_allocate_irq(pci_dev);
+    s->irq = qdev_get_gpio_in_named(DEVICE(pci_dev), "pci-input-irq", 0);
     s->phys_mem_read = pci_physical_memory_read;
     s->phys_mem_write = pci_physical_memory_write;
     s->dma_opaque = DEVICE(pci_dev);
