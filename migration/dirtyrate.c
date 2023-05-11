@@ -17,6 +17,7 @@
 #include "cpu.h"
 #include "exec/ramblock.h"
 #include "exec/ram_addr.h"
+#include "exec/target_page.h"
 #include "qemu/rcu_queue.h"
 #include "qemu/main-loop.h"
 #include "qapi/qapi-commands-migration.h"
@@ -78,7 +79,7 @@ static int64_t do_calculate_dirtyrate(DirtyPageRecord dirty_pages,
     uint64_t increased_dirty_pages =
         dirty_pages.end_pages - dirty_pages.start_pages;
 
-    memory_size_MB = (increased_dirty_pages * TARGET_PAGE_SIZE) >> 20;
+    memory_size_MB = (increased_dirty_pages * qemu_target_page_size()) >> 20;
 
     return memory_size_MB * 1000 / calc_time_ms;
 }
@@ -291,8 +292,8 @@ static void update_dirtyrate_stat(struct RamblockDirtyInfo *info)
     DirtyStat.page_sampling.total_dirty_samples += info->sample_dirty_count;
     DirtyStat.page_sampling.total_sample_count += info->sample_pages_count;
     /* size of total pages in MB */
-    DirtyStat.page_sampling.total_block_mem_MB += (info->ramblock_pages *
-                                                   TARGET_PAGE_SIZE) >> 20;
+    DirtyStat.page_sampling.total_block_mem_MB +=
+        (info->ramblock_pages * qemu_target_page_size()) >> 20;
 }
 
 static void update_dirtyrate(uint64_t msec)
@@ -315,10 +316,10 @@ static void update_dirtyrate(uint64_t msec)
 static uint32_t get_ramblock_vfn_hash(struct RamblockDirtyInfo *info,
                                       uint64_t vfn)
 {
+    int page_size = qemu_target_page_size();
     uint32_t crc;
 
-    crc = crc32(0, (info->ramblock_addr +
-                vfn * TARGET_PAGE_SIZE), TARGET_PAGE_SIZE);
+    crc = crc32(0, info->ramblock_addr + vfn * page_size, page_size);
 
     trace_get_ramblock_vfn_hash(info->idstr, vfn, crc);
     return crc;
