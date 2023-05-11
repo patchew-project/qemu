@@ -163,7 +163,7 @@ static void pcm3680i_pci_realize(PCIDevice *pci_dev, Error **errp)
     pci_conf = pci_dev->config;
     pci_conf[PCI_INTERRUPT_PIN] = 0x01; /* interrupt pin A */
 
-    d->irq = pci_allocate_irq(&d->dev);
+    d->irq = qdev_get_gpio_in_named(DEVICE(pci_dev), "pci-input-irq", 0);
 
     for (i = 0; i < PCM3680i_PCI_SJA_COUNT; i++) {
         can_sja_init(&d->sja_state[i], d->irq);
@@ -196,8 +196,6 @@ static void pcm3680i_pci_exit(PCIDevice *pci_dev)
     for (i = 0; i < PCM3680i_PCI_SJA_COUNT; i++) {
         can_sja_disconnect(&d->sja_state[i]);
     }
-
-    qemu_free_irq(d->irq);
 }
 
 static const VMStateDescription vmstate_pcm3680i_pci = {
