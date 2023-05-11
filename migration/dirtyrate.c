@@ -314,10 +314,10 @@ static void update_dirtyrate(uint64_t msec)
 static uint32_t get_ramblock_vfn_hash(struct RamblockDirtyInfo *info,
                                       uint64_t vfn)
 {
+    int page_size = qemu_target_page_size();
     uint32_t crc;
 
-    crc = crc32(0, (info->ramblock_addr +
-                vfn * TARGET_PAGE_SIZE), TARGET_PAGE_SIZE);
+    crc = crc32(0, info->ramblock_addr + vfn * page_size, page_size);
 
     trace_get_ramblock_vfn_hash(info->idstr, vfn, crc);
     return crc;
