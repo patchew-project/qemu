@@ -63,14 +63,12 @@ from pathlib import Path
 import re
 import shutil
 import site
-import stat
 import subprocess
 import sys
 import sysconfig
 from types import SimpleNamespace
 from typing import (
     Any,
-    Dict,
     Iterator,
     Optional,
     Sequence,
@@ -376,7 +374,7 @@ def make_venv(  # pylint: disable=too-many-arguments
     print(builder.get_value("env_exe"))
 
 
-def _gen_importlib(packages: Sequence[str]) -> Iterator[Dict[str, str]]:
+def _gen_importlib(packages: Sequence[str]) -> Iterator[str]:
     # pylint: disable=import-outside-toplevel
     # pylint: disable=no-name-in-module
     # pylint: disable=import-error
@@ -394,14 +392,7 @@ def _gen_importlib(packages: Sequence[str]) -> Iterator[Dict[str, str]]:
             distribution,
         )
 
-    # Borrowed from CPython (Lib/importlib/metadata/__init__.py)
-    pattern = re.compile(
-        r"(?P<module>[\w.]+)\s*"
-        r"(:\s*(?P<attr>[\w.]+)\s*)?"
-        r"((?P<extras>\[.*\])\s*)?$"
-    )
-
-    def _generator() -> Iterator[Dict[str, str]]:
+    def _generator() -> Iterator[str]:
         for package in packages:
             try:
                 entry_points = distribution(package).entry_points
@@ -415,34 +406,17 @@ def _gen_importlib(packages: Sequence[str]) -> Iterator[Dict[str, str]]:
             )
 
             for entry_point in entry_points:
-                # Python 3.8 doesn't have 'module' or 'attr' attributes
-                if not (
-                    hasattr(entry_point, "module")
-                    and hasattr(entry_point, "attr")
-                ):
-                    match = pattern.match(entry_point.value)
-                    assert match is not None
-                    module = match.group("module")
-                    attr = match.group("attr")
-                else:
-                    module = entry_point.module
-                    attr = entry_point.attr
-                yield {
-                    "name": entry_point.name,
-                    "module": module,
-                    "import_name": attr,
-                    "func": attr,
-                }
+                yield f"{entry_point.name} = {entry_point.value}"
 
     return _generator()
 
 
-def _gen_pkg_resources(packages: Sequence[str]) -> Iterator[Dict[str, str]]:
+def _gen_pkg_resources(packages: Sequence[str]) -> Iterator[str]:
     # pylint: disable=import-outside-toplevel
     # Bundled with setuptools; has a good chance of being available.
     import pkg_resources
 
-    def _generator() -> Iterator[Dict[str, str]]:
+    def _generator() -> Iterator[str]:
         for package in packages:
             try:
                 eps = pkg_resources.get_entry_map(package, "console_scripts")
@@ -450,26 +424,9 @@ def _gen_pkg_resources(packages: Sequence[str]) -> Iterator[Dict[str, str]]:
                 continue
 
             for entry_point in eps.values():
-                yield {
-                    "name": entry_point.name,
-                    "module": entry_point.module_name,
-                    "import_name": ".".join(entry_point.attrs),
-                    "func": ".".join(entry_point.attrs),
-                }
+                yield str(entry_point)
 
     return _generator()
-
-
-# Borrowed/adapted from pip's vendored version of distlib:
-SCRIPT_TEMPLATE = r"""#!{python_path:s}
-# -*- coding: utf-8 -*-
-import re
-import sys
-from {module:s} import {import_name:s}
-if __name__ == '__main__':
-    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
-    sys.exit({func:s}())
-"""
 
 
 def generate_console_scripts(
@@ -496,7 +453,7 @@ def generate_console_scripts(
     if not packages:
         return
 
-    def _get_entry_points() -> Iterator[Dict[str, str]]:
+    def _get_entry_points() -> Iterator[str]:
         """Python 3.7 compatibility shim for iterating entry points."""
         # Python 3.8+, or Python 3.7 with importlib_metadata installed.
         try:
@@ -515,34 +472,32 @@ def generate_console_scripts(
                 "Use Python 3.8+, or install importlib-metadata or setuptools."
             ) from exc
 
+    # Try to load distlib, with a fallback to pip's vendored version.
+    # We perform the loading here, just-in-time, so it may occur after
+    # a potential call to ensurepip in checkpip().
+    # pylint: disable=import-outside-toplevel
+    try:
+        from distlib import scripts
+    except ImportError:
+        try:
+            # Reach into pip's cookie jar:
+            from pip._vendor.distlib import scripts  # type: ignore
+        except ImportError as exc:
+            logger.exception("failed to locate distlib")
+            raise Ouch(
+                "distlib not found, can't generate script shims."
+            ) from exc
+
+    maker = scripts.ScriptMaker(None, bin_path)
+    maker.variants = {""}
+    maker.clobber = False
+
     for entry_point in _get_entry_points():
-        script_path = os.path.join(bin_path, entry_point["name"])
-        script = SCRIPT_TEMPLATE.format(python_path=python_path, **entry_point)
-
-        # If the script already exists (in any form), do not overwrite
-        # it nor recreate it in a new format.
-        suffixes = ("", ".exe", "-script.py", "-script.pyw")
-        if any(os.path.exists(f"{script_path}{s}") for s in suffixes):
-            continue
-
-        # FIXME: this is only correct for POSIX systems.  On Windows, the
-        # script source should be written to foo-script.py, and the py.exe
-        # launcher copied to foo.exe.  Unfortunately there is no guarantee that
-        # py.exe exists on the machine.  Creating the script like this is
-        # enough for msys and meson, both of which understand shebang lines.
-        # It does requires some care when invoking meson however, which is
-        # worked around in configure.  Note that a .exe launcher is needed
-        # and not for example a batch file, because the CreateProcess API
-        # (used by Ninja) cannot start them.
-        with open(script_path, "w", encoding="UTF-8") as file:
-            file.write(script)
-        mode = os.stat(script_path).st_mode | stat.S_IEXEC
-        os.chmod(script_path, mode)
-
-        logger.debug("wrote '%s'", script_path)
+        for filename in maker.make(entry_point):
+            logger.debug("wrote console_script '%s'", filename)
 
 
-def checkpip() -> None:
+def checkpip() -> bool:
     """
     Debian10 has a pip that's broken when used inside of a virtual environment.
 
@@ -553,12 +508,12 @@ def checkpip() -> None:
         import pip._internal  # type: ignore  # noqa: F401
 
         logger.debug("pip appears to be working correctly.")
-        return
+        return False
     except ModuleNotFoundError as exc:
         if exc.name == "pip._internal":
             # Uh, fair enough. They did say "internal".
             # Let's just assume it's fine.
-            return
+            return False
         logger.warning("pip appears to be malfunctioning: %s", str(exc))
 
     check_ensurepip("pip appears to be non-functional, and ")
@@ -570,6 +525,7 @@ def checkpip() -> None:
         check=True,
     )
     logger.debug("Pip is now (hopefully) repaired!")
+    return True
 
 
 def pkgname_from_depspec(dep_spec: str) -> str:
@@ -787,7 +743,12 @@ def post_venv_setup() -> None:
     """
     logger.debug("post_venv_setup()")
     # Test for a broken pip (Debian 10 or derivative?) and fix it if needed
-    checkpip()
+    if checkpip():
+        # We ran ensurepip. We need to re-run post_init...!
+        args = [sys.executable, __file__, "post_init"]
+        subprocess.run(args, check=True)
+        return
+
     # Finally, generate a 'pip' script so the venv is usable in a normal
     # way from the CLI. This only happens when we inherited pip from a
     # parent/system-site and haven't run ensurepip in some way.

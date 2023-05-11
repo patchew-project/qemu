@@ -1147,21 +1147,7 @@ fi
 # We ignore PATH completely here: we want to use the venv's Meson
 # *exclusively*.
 
-# "mkvenv ensure" has a limitation compared to "pip install": it is not
-# able to create launcher .exe files on Windows.  This limitation exists
-# because "py.exe" is not guaranteed to exist on the machine (pip/setuptools
-# work around the issue by bundling the .exe files as resources).
-# This is not a problem for msys, since it emulates a POSIX environment;
-# it is also okay for programs that meson.build looks up with find_program(),
-# because in that case Meson checks the file for a shebang line.  However,
-# when meson wants to invoke itself as part of a build recipe, we need
-# to convince it to put the python interpreter in front of the path to the
-# script.  To do so, run it using '-m'.
-if test "$targetos" = windows; then
-  meson="$python -m mesonbuild.mesonmain"
-else
-  meson="$(cd pyvenv/bin; pwd)/meson"
-fi
+meson="$(cd pyvenv/bin; pwd)/meson"
 
 # Conditionally ensure Sphinx is installed.
 
