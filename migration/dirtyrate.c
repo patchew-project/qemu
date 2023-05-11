@@ -14,9 +14,7 @@
 #include "qemu/error-report.h"
 #include <zlib.h>
 #include "qapi/error.h"
-#include "cpu.h"
 #include "exec/ramblock.h"
-#include "exec/ram_addr.h"
 #include "exec/target_page.h"
 #include "qemu/rcu_queue.h"
 #include "qemu/main-loop.h"

@@ -40,8 +40,7 @@ if get_option('live_block_migration').allowed()
   softmmu_ss.add(files('block.c'))
 endif
 softmmu_ss.add(when: zstd, if_true: files('multifd-zstd.c'))
-
+softmmu_ss.add(when: 'CONFIG_SOFTMMU', if_true: files('dirtyrate.c'))
 specific_ss.add(when: 'CONFIG_SOFTMMU',
-                if_true: files('dirtyrate.c',
-                               'ram.c',
+                if_true: files('ram.c',
                                'target.c'))
