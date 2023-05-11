@@ -1670,14 +1670,6 @@ static void pci_bus_irq_handler(void *opaque, int devfn, int level)
     pci_irq_handler(pci_dev, intx, level);
 }
 
-qemu_irq pci_allocate_irq(PCIDevice *pci_dev)
-{
-    int intx = pci_intx(pci_dev);
-    assert(0 <= intx && intx < PCI_NUM_PINS);
-
-    return qemu_allocate_irq(pci_irq_handler, pci_dev, intx);
-}
-
 void pci_set_irq(PCIDevice *pci_dev, int level)
 {
     qemu_set_irq(pci_dev->irq, level);
