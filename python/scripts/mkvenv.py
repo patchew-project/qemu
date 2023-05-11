@@ -54,12 +54,15 @@ from pathlib import Path
 import re
 import shutil
 import site
+import stat
 import subprocess
 import sys
 import sysconfig
 from types import SimpleNamespace
 from typing import (
     Any,
+    Dict,
+    Iterator,
     Optional,
     Sequence,
     Union,
@@ -353,6 +356,168 @@ def make_venv(  # pylint: disable=too-many-arguments
     print(builder.get_value("env_exe"))
 
 
+def _gen_importlib(packages: Sequence[str]) -> Iterator[Dict[str, str]]:
+    # pylint: disable=import-outside-toplevel
+    # pylint: disable=no-name-in-module
+    # pylint: disable=import-error
+    try:
+        # First preference: Python 3.8+ stdlib
+        from importlib.metadata import (  # type: ignore
+            PackageNotFoundError,
+            distribution,
+        )
+    except ImportError as exc:
+        logger.debug("%s", str(exc))
+        # Second preference: Commonly available PyPI backport
+        from importlib_metadata import (  # type: ignore
+            PackageNotFoundError,
+            distribution,
+        )
+
+    # Borrowed from CPython (Lib/importlib/metadata/__init__.py)
+    pattern = re.compile(
+        r"(?P<module>[\w.]+)\s*"
+        r"(:\s*(?P<attr>[\w.]+)\s*)?"
+        r"((?P<extras>\[.*\])\s*)?$"
+    )
+
+    def _generator() -> Iterator[Dict[str, str]]:
+        for package in packages:
+            try:
+                entry_points = distribution(package).entry_points
+            except PackageNotFoundError:
+                continue
+
+            # The EntryPoints type is only available in 3.10+,
+            # treat this as a vanilla list and filter it ourselves.
+            entry_points = filter(
+                lambda ep: ep.group == "console_scripts", entry_points
+            )
+
+            for entry_point in entry_points:
+                # Python 3.8 doesn't have 'module' or 'attr' attributes
+                if not (
+                    hasattr(entry_point, "module")
+                    and hasattr(entry_point, "attr")
+                ):
+                    match = pattern.match(entry_point.value)
+                    assert match is not None
+                    module = match.group("module")
+                    attr = match.group("attr")
+                else:
+                    module = entry_point.module
+                    attr = entry_point.attr
+                yield {
+                    "name": entry_point.name,
+                    "module": module,
+                    "import_name": attr,
+                    "func": attr,
+                }
+
+    return _generator()
+
+
+def _gen_pkg_resources(packages: Sequence[str]) -> Iterator[Dict[str, str]]:
+    # pylint: disable=import-outside-toplevel
+    # Bundled with setuptools; has a good chance of being available.
+    import pkg_resources
+
+    def _generator() -> Iterator[Dict[str, str]]:
+        for package in packages:
+            try:
+                eps = pkg_resources.get_entry_map(package, "console_scripts")
+            except pkg_resources.DistributionNotFound:
+                continue
+
+            for entry_point in eps.values():
+                yield {
+                    "name": entry_point.name,
+                    "module": entry_point.module_name,
+                    "import_name": ".".join(entry_point.attrs),
+                    "func": ".".join(entry_point.attrs),
+                }
+
+    return _generator()
+
+
+# Borrowed/adapted from pip's vendored version of distlib:
+SCRIPT_TEMPLATE = r"""#!{python_path:s}
+# -*- coding: utf-8 -*-
+import re
+import sys
+from {module:s} import {import_name:s}
+if __name__ == '__main__':
+    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
+    sys.exit({func:s}())
+"""
+
+
+def generate_console_scripts(
+    packages: Sequence[str],
+    python_path: Optional[str] = None,
+    bin_path: Optional[str] = None,
+) -> None:
+    """
+    Generate script shims for console_script entry points in @packages.
+    """
+    if python_path is None:
+        python_path = sys.executable
+    if bin_path is None:
+        bin_path = sysconfig.get_path("scripts")
+        assert bin_path is not None
+
+    logger.debug(
+        "generate_console_scripts(packages=%s, python_path=%s, bin_path=%s)",
+        packages,
+        python_path,
+        bin_path,
+    )
+
+    if not packages:
+        return
+
+    def _get_entry_points() -> Iterator[Dict[str, str]]:
+        """Python 3.7 compatibility shim for iterating entry points."""
+        # Python 3.8+, or Python 3.7 with importlib_metadata installed.
+        try:
+            return _gen_importlib(packages)
+        except ImportError as exc:
+            logger.debug("%s", str(exc))
+
+        # Python 3.7 with setuptools installed.
+        try:
+            return _gen_pkg_resources(packages)
+        except ImportError as exc:
+            logger.debug("%s", str(exc))
+            raise Ouch(
+                "Neither importlib.metadata nor pkg_resources found, "
+                "can't generate console script shims.\n"
+                "Use Python 3.8+, or install importlib-metadata or setuptools."
+            ) from exc
+
+    for entry_point in _get_entry_points():
+        script_path = os.path.join(bin_path, entry_point["name"])
+        script = SCRIPT_TEMPLATE.format(python_path=python_path, **entry_point)
+
+        # If the script already exists (in any form), do not overwrite
+        # it nor recreate it in a new format.
+        suffixes = ("", ".exe", "-script.py", "-script.pyw")
+        if any(os.path.exists(f"{script_path}{s}") for s in suffixes):
+            continue
+
+        # FIXME: this is only correct for POSIX systems.  On Windows, the
+        # script source should be written to foo-script.py, and the py.exe
+        # launcher copied to foo.exe.  Unfortunately there is no guarantee that
+        # py.exe exists on the machine.  Creating the script like this is
+        # enough for msys and meson, both of which understand shebang lines.
+        with open(script_path, "w", encoding="UTF-8") as file:
+            file.write(script)
+        mode = os.stat(script_path).st_mode | stat.S_IEXEC
+        os.chmod(script_path, mode)
+
+        logger.debug("wrote '%s'", script_path)
+
+
 def pkgname_from_depspec(dep_spec: str) -> str:
     """
     Parse package name out of a PEP-508 depspec.
@@ -515,7 +680,6 @@ def _do_ensure(
             devnull=online and not wheels_dir,
         )
         # (A) or (B) happened. Success.
-        return
     except subprocess.CalledProcessError:
         # (C) Happened.
         # The package is missing or isn't a suitable version,
@@ -525,8 +689,12 @@ def _do_ensure(
                 f"mkvenv: installing {', '.join(dep_specs)}", file=sys.stderr
             )
             pip_install(dep_specs, online=True)
-        else:
-            raise
+            return
+        raise
+
+    # For case (A), we still need to generate entrypoint shims.
+    # (We generate them only if they do not exist, excluding (B).)
+    generate_console_scripts([pkgname_from_depspec(dep) for dep in dep_specs])
 
 
 def ensure(
