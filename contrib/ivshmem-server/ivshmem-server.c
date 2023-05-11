@@ -239,13 +239,17 @@ ivshmem_server_ftruncate(int fd, unsigned shmsize)
         return 0;
     }
 
-    while (shmsize <= IVSHMEM_SERVER_MAX_HUGEPAGE_SIZE) {
+    /*
+     * This is a do-while loop in case
+     * shmsize > IVSHMEM_SERVER_MAX_HUGEPAGE_SIZE
+     */
+    do {
         ret = ftruncate(fd, shmsize);
         if (ret == 0) {
             return ret;
         }
         shmsize *= 2;
-    }
+    } while (shmsize <= IVSHMEM_SERVER_MAX_HUGEPAGE_SIZE);
 
     return -1;
 }
