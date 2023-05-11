@@ -979,7 +979,7 @@ static void pci_tulip_realize(PCIDevice *pci_dev, Error **errp)
     pci_register_bar(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
     pci_register_bar(&s->dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->memory);
 
-    s->irq = pci_allocate_irq(&s->dev);
+    s->irq = qdev_get_gpio_in_named(DEVICE(pci_dev), "pci-input-irq", 0);
 
     s->nic = qemu_new_nic(&net_tulip_info, &s->c,
                           object_get_typename(OBJECT(pci_dev)),
@@ -992,7 +992,6 @@ static void pci_tulip_exit(PCIDevice *pci_dev)
     TULIPState *s = DO_UPCAST(TULIPState, dev, pci_dev);
 
     qemu_del_nic(s->nic);
-    qemu_free_irq(s->irq);
     eeprom93xx_free(&pci_dev->qdev, s->eeprom);
 }
 
