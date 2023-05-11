@@ -173,7 +173,7 @@ static void ctucan_pci_realize(PCIDevice *pci_dev, Error **errp)
     pci_conf = pci_dev->config;
     pci_conf[PCI_INTERRUPT_PIN] = 0x01; /* interrupt pin A */
 
-    d->irq = pci_allocate_irq(&d->dev);
+    d->irq = qdev_get_gpio_in_named(DEVICE(pci_dev), "pci-input-irq", 0);
 
     for (i = 0 ; i < CTUCAN_PCI_CORE_COUNT; i++) {
         ctucan_init(&d->ctucan_state[i], d->irq);
@@ -207,8 +207,6 @@ static void ctucan_pci_exit(PCIDevice *pci_dev)
     for (i = 0 ; i < CTUCAN_PCI_CORE_COUNT; i++) {
         ctucan_disconnect(&d->ctucan_state[i]);
     }
-
-    qemu_free_irq(d->irq);
 }
 
 static const VMStateDescription vmstate_ctucan_pci = {
