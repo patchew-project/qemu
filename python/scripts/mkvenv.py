@@ -118,7 +118,10 @@ def check_ensurepip(with_pip: bool) -> None:
 
     Raise a fatal exception with a helpful hint if it isn't available.
     """
-    if with_pip and not find_spec("ensurepip"):
+    if not with_pip:
+        return
+
+    if not find_spec("ensurepip"):
         msg = (
             "Python's ensurepip module is not found.\n"
             "It's normally part of the Python standard library, "
@@ -127,6 +130,19 @@ def check_ensurepip(with_pip: bool) -> None:
             "first place by installing pip and setuptools for "
             f"'{sys.executable}'.\n"
             "(Hint: Debian puts ensurepip in its python3-venv package.)"
+        )
+        raise Ouch(msg)
+
+    # ensurepip uses pyexpat, which can also go missing on us:
+    if not find_spec("pyexpat"):
+        msg = (
+            "Python's pyexpat module is not found.\n"
+            "It's normally part of the Python standard library, "
+            "maybe your distribution packages it separately?\n"
+            "Either install pyexpat, or alleviate the need for it in the "
+            "first place by installing pip and setuptools for "
+            f"'{sys.executable}'.\n\n"
+            "(Hint: NetBSD's pkgsrc debundles this to e.g. 'py310-expat'.)"
         )
         raise Ouch(msg)
 
