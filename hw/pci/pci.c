@@ -179,6 +179,24 @@ static void pci_bus_unrealize(BusState *qbus)
     vmstate_unregister(NULL, &vmstate_pcibus, bus);
 }
 
+static void pci_bus_irq_handler(void *opaque, int devfn, int level);
+
+static void pci_bus_init(Object *obj)
+{
+    PCIBus *bus = PCI_BUS(obj);
+
+    /* IRQs */
+    bus->irq_in = qemu_allocate_irqs(pci_bus_irq_handler, bus,
+                                     PCI_SLOT_MAX * PCI_FUNC_MAX);
+}
+
+static void pci_bus_finalize(Object *obj)
+{
+    PCIBus *bus = PCI_BUS(obj);
+
+    qemu_free_irqs(bus->irq_in, PCI_SLOT_MAX * PCI_FUNC_MAX);
+}
+
 static int pcibus_num(PCIBus *bus)
 {
     if (pci_bus_is_root(bus)) {
@@ -211,7 +229,9 @@ static void pci_bus_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pci_bus_info = {
     .name = TYPE_PCI_BUS,
     .parent = TYPE_BUS,
+    .instance_init = pci_bus_init,
     .instance_size = sizeof(PCIBus),
+    .instance_finalize = pci_bus_finalize,
     .class_size = sizeof(PCIBusClass),
     .class_init = pci_bus_class_init,
 };
@@ -1634,6 +1654,20 @@ static void pci_irq_handler(void *opaque, int irq_num, int level)
     if (pci_irq_disabled(pci_dev))
         return;
     pci_change_irq_level(pci_dev, irq_num, change);
+}
+
+/* Bus IRQ handler */
+static void pci_bus_irq_handler(void *opaque, int devfn, int level)
+{
+    PCIBus *bus = PCI_BUS(opaque);
+    PCIDevice *pci_dev;
+    int intx;
+
+    assert(0 <= devfn && devfn < PCI_SLOT_MAX * PCI_FUNC_MAX);
+    pci_dev = bus->devices[devfn];
+    intx = pci_intx(pci_dev);
+
+    pci_irq_handler(pci_dev, intx, level);
 }
 
 qemu_irq pci_allocate_irq(PCIDevice *pci_dev)

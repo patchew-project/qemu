@@ -54,6 +54,9 @@ struct PCIBus {
     int nirq;
     int *irq_count;
 
+    /* Bus IRQ handler */
+    qemu_irq *irq_in;
+
     Notifier machine_done;
 };
 
