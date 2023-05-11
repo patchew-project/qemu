@@ -1683,6 +1683,13 @@ void pci_set_irq(PCIDevice *pci_dev, int level)
     qemu_set_irq(pci_dev->irq, level);
 }
 
+static void pci_device_input_irq_handler(void *opaque, int n, int level)
+{
+    PCIDevice *pci_dev = PCI_DEVICE(opaque);
+
+    pci_set_irq(pci_dev, level);
+}
+
 /* Special hooks used by device assignment */
 void pci_bus_set_route_irq_fn(PCIBus *bus, pci_route_irq_fn route_intx_to_irq)
 {
@@ -2203,6 +2210,8 @@ static void pci_device_init(Object *obj)
     PCIDevice *pci_dev = PCI_DEVICE(obj);
 
     qdev_init_gpio_out(DEVICE(obj), &pci_dev->irq, 1);
+    qdev_init_gpio_in_named(DEVICE(obj), pci_device_input_irq_handler,
+                            "pci-input-irq", 1);
 }
 
 PCIDevice *pci_new_multifunction(int devfn, bool multifunction,
@@ -2856,6 +2865,8 @@ void pci_set_power(PCIDevice *d, bool state)
 /*
  * QEMU interface:
  * + Unnamed GPIO output: set to 1 if the PCI Device has asserted its irq
+ * + Named GPIO input "pci-input-irq": set to 1 if a downstream device
+ *   wishes to assert the PCI Device irq directly itself (optional)
  */
 
 static const TypeInfo pci_device_type_info = {
