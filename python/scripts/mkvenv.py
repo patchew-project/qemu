@@ -11,6 +11,8 @@ options:
 Commands:
   command     Description
     create    create a venv
+    post_init
+              post-venv initialization
     ensure    Ensure that the specified package is installed.
 
 --------------------------------------------------
@@ -22,6 +24,13 @@ positional arguments:
 
 options:
   -h, --help  show this help message and exit
+
+--------------------------------------------------
+
+usage: mkvenv post_init [-h]
+
+options:
+  -h, --help         show this help message and exit
 
 --------------------------------------------------
 
@@ -188,6 +197,13 @@ class QemuEnvBuilder(venv.EnvBuilder):
             pth_file = os.path.join(our_libpath, "nested.pth")
             with open(pth_file, "w", encoding="UTF-8") as file:
                 file.write(parent_libpath + os.linesep)
+
+        args = [
+            context.env_exe,
+            __file__,
+            "post_init",
+        ]
+        subprocess.run(args, check=True)
 
     def get_value(self, field: str) -> str:
         """
@@ -727,6 +743,17 @@ def ensure(
         raise Ouch(diagnose(dep_specs[0], online, wheels_dir, prog)) from exc
 
 
+def post_venv_setup() -> None:
+    """
+    This is intended to be run *inside the venv* after it is created.
+    """
+    logger.debug("post_venv_setup()")
+    # Generate a 'pip' script so the venv is usable in a normal
+    # way from the CLI. This only happens when we inherited pip from a
+    # parent/system-site and haven't run ensurepip in some way.
+    generate_console_scripts(["pip"])
+
+
 def _add_create_subcommand(subparsers: Any) -> None:
     subparser = subparsers.add_parser("create", help="create a venv")
     subparser.add_argument(
@@ -735,6 +762,10 @@ def _add_create_subcommand(subparsers: Any) -> None:
         action="store",
         help="Target directory to install virtual environment into.",
     )
+
+
+def _add_post_init_subcommand(subparsers: Any) -> None:
+    subparsers.add_parser("post_init", help="post-venv initialization")
 
 
 def _add_ensure_subcommand(subparsers: Any) -> None:
@@ -790,6 +821,7 @@ def main() -> int:
     )
 
     _add_create_subcommand(subparsers)
+    _add_post_init_subcommand(subparsers)
     _add_ensure_subcommand(subparsers)
 
     args = parser.parse_args()
@@ -800,6 +832,8 @@ def main() -> int:
                 system_site_packages=True,
                 clear=True,
             )
+        if args.command == "post_init":
+            post_venv_setup()
         if args.command == "ensure":
             ensure(
                 dep_specs=args.dep_specs,
