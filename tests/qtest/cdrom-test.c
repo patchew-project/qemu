@@ -131,9 +131,12 @@ static void test_cdboot(gconstpointer data)
 static void add_x86_tests(void)
 {
     qtest_add_data_func("cdrom/boot/default", "-cdrom ", test_cdboot);
-    qtest_add_data_func("cdrom/boot/virtio-scsi",
-                        "-device virtio-scsi -device scsi-cd,drive=cdr "
-                        "-blockdev file,node-name=cdr,filename=", test_cdboot);
+    if (qtest_has_device("virtio-scsi-ccw")) {
+        qtest_add_data_func("cdrom/boot/virtio-scsi",
+                            "-device virtio-scsi -device scsi-cd,drive=cdr "
+                            "-blockdev file,node-name=cdr,filename=",
+                            test_cdboot);
+    }
     /*
      * Unstable CI test under load
      * See https://lists.gnu.org/archive/html/qemu-devel/2019-02/msg05509.html
@@ -176,7 +179,16 @@ static void add_x86_tests(void)
 
 static void add_s390x_tests(void)
 {
+    if (!qtest_has_device("virtio-blk-ccw")) {
+        return;
+    }
+
     qtest_add_data_func("cdrom/boot/default", "-cdrom ", test_cdboot);
+
+    if (!qtest_has_device("virtio-scsi-ccw")) {
+        return;
+    }
+
     qtest_add_data_func("cdrom/boot/virtio-scsi",
                         "-device virtio-scsi -device scsi-cd,drive=cdr "
                         "-blockdev file,node-name=cdr,filename=", test_cdboot);
