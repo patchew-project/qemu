@@ -197,7 +197,8 @@ struct sigframe {
      * to it ensures that the base of the frame has an appropriate alignment
      * too.
      */
-    struct target_fpstate fpstate QEMU_ALIGNED(8);
+    abi_ulong unused QEMU_ALIGNED(8);
+    struct target_fpstate fpstate;
 };
 #define TARGET_SIGFRAME_FXSAVE_OFFSET (                                    \
     offsetof(struct sigframe, fpstate) + TARGET_FPSTATE_FXSAVE_OFFSET)
@@ -210,7 +211,8 @@ struct rt_sigframe {
     struct target_siginfo info;
     struct target_ucontext uc;
     char retcode[8];
-    struct target_fpstate fpstate QEMU_ALIGNED(8);
+    abi_ulong unused QEMU_ALIGNED(8);
+    struct target_fpstate fpstate;
 };
 #define TARGET_RT_SIGFRAME_FXSAVE_OFFSET (                                 \
     offsetof(struct rt_sigframe, fpstate) + TARGET_FPSTATE_FXSAVE_OFFSET)
@@ -220,7 +222,8 @@ struct rt_sigframe {
     abi_ulong pretcode;
     struct target_ucontext uc;
     struct target_siginfo info;
-    struct target_fpstate fpstate QEMU_ALIGNED(16);
+    abi_ulong unused QEMU_ALIGNED(16);
+    struct target_fpstate fpstate;
 };
 #define TARGET_RT_SIGFRAME_FXSAVE_OFFSET (                                 \
     offsetof(struct rt_sigframe, fpstate) + TARGET_FPSTATE_FXSAVE_OFFSET)
