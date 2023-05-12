@@ -297,6 +297,11 @@ static void vhost_kernel_set_iotlb_callback(struct vhost_dev *dev,
         qemu_set_fd_handler((uintptr_t)dev->opaque, NULL, NULL, NULL);
 }
 
+static void vhost_kernel_toggle_device_iotlb(struct vhost_dev *dev)
+{
+    vhost_toggle_device_iotlb(dev);
+}
+
 const VhostOps kernel_ops = {
         .backend_type = VHOST_BACKEND_TYPE_KERNEL,
         .vhost_backend_init = vhost_kernel_init,
@@ -328,6 +333,7 @@ const VhostOps kernel_ops = {
         .vhost_vsock_set_running = vhost_kernel_vsock_set_running,
         .vhost_set_iotlb_callback = vhost_kernel_set_iotlb_callback,
         .vhost_send_device_iotlb_msg = vhost_kernel_send_device_iotlb_msg,
+        .vhost_toggle_device_iotlb = vhost_kernel_toggle_device_iotlb,
 };
 #endif
 
