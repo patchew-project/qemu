@@ -3844,6 +3844,12 @@ static struct vhost_dev *virtio_net_get_vhost(VirtIODevice *vdev)
     return &net->dev;
 }
 
+static void virtio_net_toggle_device_iotlb(VirtIODevice *vdev)
+{
+    if (vdev->vhost_started)
+        vhost_net_toggle_device_iotlb(virtio_net_get_vhost(vdev));
+}
+
 static const VMStateDescription vmstate_virtio_net = {
     .name = "virtio-net",
     .minimum_version_id = VIRTIO_NET_VM_VERSION,
@@ -3949,6 +3955,7 @@ static void virtio_net_class_init(ObjectClass *klass, void *data)
     vdc->vmsd = &vmstate_virtio_net_device;
     vdc->primary_unplug_pending = primary_unplug_pending;
     vdc->get_vhost = virtio_net_get_vhost;
+    vdc->toggle_device_iotlb = virtio_net_toggle_device_iotlb;
 }
 
 static const TypeInfo virtio_net_info = {
