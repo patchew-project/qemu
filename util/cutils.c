@@ -466,10 +466,16 @@ int qemu_strtoui(const char *nptr, const char **endptr, int base,
     if (errno == ERANGE) {
         *result = -1;
     } else {
-        if (lresult > UINT_MAX) {
-            *result = UINT_MAX;
-            errno = ERANGE;
-        } else if (lresult < INT_MIN) {
+        /*
+         * Note that platforms with 32-bit strtoul accept input in the
+         * range [-4294967295, 4294967295]; but we used 64-bit
+         * strtoull which wraps -18446744073709551615 to 1.  Reject
+         * positive values that contain '-', and wrap all valid
+         * negative values.
+         */
+        if (lresult > UINT_MAX ||
+            lresult < -(long long)UINT_MAX ||
+            (lresult > 0 && memchr(nptr, '-', ep - nptr))) {
             *result = UINT_MAX;
             errno = ERANGE;
         } else {
