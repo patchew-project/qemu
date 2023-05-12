@@ -97,3 +97,12 @@ BFM             . 01 100110 . ...... ...... ..... ..... @bitfield_64
 BFM             . 01 100110 . ...... ...... ..... ..... @bitfield_32
 UBFM            . 10 100110 . ...... ...... ..... ..... @bitfield_64
 UBFM            . 10 100110 . ...... ...... ..... ..... @bitfield_32
+
+# Extract
+
+&extract        rd rn rm imm sf
+@extract_64     1 .. ...... 1 . rm:5 imm:6 rn:5 rd:5      &extract sf=1
+@extract_32     0 .. ...... 0 . rm:5 0 imm:5 rn:5 rd:5    &extract sf=0
+
+EXTR            . 00 100111 . 0 ..... ...... ..... ..... @extract_64
+EXTR            . 00 100111 . 0 ..... ...... ..... ..... @extract_32
