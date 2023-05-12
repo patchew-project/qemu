@@ -310,7 +310,7 @@ static void test_qemu_strtoi_null(void)
     err = qemu_strtoi(NULL, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmpint(res, ==, 999);
+    g_assert_cmpint(res, ==, 0);
     g_assert_null(endptr);
 }
 
@@ -610,7 +610,7 @@ static void test_qemu_strtoi_full_null(void)
     err = qemu_strtoi(NULL, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmpint(res, ==, 999);
+    g_assert_cmpint(res, ==, 0);
     g_assert_null(endptr);
 }
 
@@ -713,7 +713,7 @@ static void test_qemu_strtoui_null(void)
     err = qemu_strtoui(NULL, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmpuint(res, ==, 999);
+    g_assert_cmpuint(res, ==, 0);
     g_assert_null(endptr);
 }
 
@@ -1011,7 +1011,7 @@ static void test_qemu_strtoui_full_null(void)
     err = qemu_strtoui(NULL, NULL, 0, &res);
 
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmpuint(res, ==, 999);
+    g_assert_cmpuint(res, ==, 0);
 }
 
 static void test_qemu_strtoui_full_empty(void)
@@ -1111,7 +1111,7 @@ static void test_qemu_strtol_null(void)
     err = qemu_strtol(NULL, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmpint(res, ==, 999);
+    g_assert_cmpint(res, ==, 0);
     g_assert_null(endptr);
 }
 
@@ -1415,7 +1415,7 @@ static void test_qemu_strtol_full_null(void)
     err = qemu_strtol(NULL, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmpint(res, ==, 999);
+    g_assert_cmpint(res, ==, 0);
     g_assert_null(endptr);
 }
 
@@ -1518,7 +1518,7 @@ static void test_qemu_strtoul_null(void)
     err = qemu_strtoul(NULL, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmpuint(res, ==, 999);
+    g_assert_cmpuint(res, ==, 0);
     g_assert_null(endptr);
 }
 
@@ -1811,7 +1811,7 @@ static void test_qemu_strtoul_full_null(void)
     err = qemu_strtoul(NULL, NULL, 0, &res);
 
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmpuint(res, ==, 999);
+    g_assert_cmpuint(res, ==, 0);
 }
 
 static void test_qemu_strtoul_full_empty(void)
@@ -1911,7 +1911,7 @@ static void test_qemu_strtoi64_null(void)
     err = qemu_strtoi64(NULL, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmpint(res, ==, 999);
+    g_assert_cmpint(res, ==, 0);
     g_assert_null(endptr);
 }
 
@@ -2201,7 +2201,7 @@ static void test_qemu_strtoi64_full_null(void)
     err = qemu_strtoi64(NULL, NULL, 0, &res);
 
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmpint(res, ==, 999);
+    g_assert_cmpint(res, ==, 0);
 }
 
 static void test_qemu_strtoi64_full_empty(void)
@@ -2304,7 +2304,7 @@ static void test_qemu_strtou64_null(void)
     err = qemu_strtou64(NULL, &endptr, 0, &res);
 
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmpuint(res, ==, 999);
+    g_assert_cmpuint(res, ==, 0);
     g_assert_null(endptr);
 }
 
@@ -2593,7 +2593,7 @@ static void test_qemu_strtou64_full_null(void)
     err = qemu_strtou64(NULL, NULL, 0, &res);
 
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmpuint(res, ==, 999);
+    g_assert_cmpuint(res, ==, 0);
 }
 
 static void test_qemu_strtou64_full_empty(void)
