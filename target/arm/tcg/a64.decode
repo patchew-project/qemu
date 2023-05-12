@@ -121,3 +121,10 @@ BL              1 00101 .......................... @branch
 @cbz            sf:1 ...... nz:1 ................... rt:5 &cbz imm=%imm19
 
 CBZ             . 011010 . ................... ..... @cbz
+
+%imm14     5:s14 !function=times_4
+%imm31_19  31:1 19:5
+&tbz       rt imm nz bitpos
+@tbz            . ...... nz:1 ..... .............. rt:5 &tbz  imm=%imm14 bitpos=%imm31_19
+
+TBZ             . 011011 . ..... .............. ..... @tbz
