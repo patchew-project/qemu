@@ -35,9 +35,9 @@ qtests_cxl = \
   (config_all_devices.has_key('CONFIG_CXL') ? ['cxl-test'] : [])
 
 qtests_filter = \
-  (slirp.found() ? ['test-netfilter'] : []) + \
-  (config_host.has_key('CONFIG_POSIX') ? ['test-filter-mirror'] : []) + \
-  (config_host.has_key('CONFIG_POSIX') ? ['test-filter-redirector'] : [])
+  (get_option('default_devices') and slirp.found() ? ['test-netfilter'] : []) + \
+  (get_option('default_devices') and config_host.has_key('CONFIG_POSIX') ? ['test-filter-mirror'] : []) + \
+  (get_option('default_devices') and config_host.has_key('CONFIG_POSIX') ? ['test-filter-redirector'] : [])
 
 qtests_i386 = \
   (slirp.found() ? ['pxe-test'] : []) + \
@@ -221,9 +221,7 @@ qtests_aarch64 = \
    'migration-test']
 
 qtests_s390x = \
-  (slirp.found() ? ['pxe-test', 'test-netfilter'] : []) +                 \
-  (config_host.has_key('CONFIG_POSIX') ? ['test-filter-mirror'] : []) +                         \
-  (config_host.has_key('CONFIG_POSIX') ? ['test-filter-redirector'] : []) +                     \
+  qtests_filter + \
   ['boot-serial-test',
    'drive_del-test',
    'device-plug-test',
