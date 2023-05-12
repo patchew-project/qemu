@@ -3260,6 +3260,9 @@ static void test_qemu_strtosz_float(void)
 
 static void test_qemu_strtosz_invalid(void)
 {
+    do_strtosz(NULL, -EINVAL, 0xbaadf00d, 0);
+
+    /* Must parse at least one digit */
     do_strtosz("", -EINVAL, 0xbaadf00d, 0);
     do_strtosz(" \t ", -EINVAL, 0xbaadf00d, 0);
     do_strtosz("crap", -EINVAL, 0xbaadf00d, 0);
