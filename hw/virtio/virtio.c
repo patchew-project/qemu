@@ -1375,15 +1375,14 @@ static bool virtqueue_map_desc(VirtIODevice *vdev, unsigned int *p_num_sg,
     assert(num_sg <= max_num_sg);
 
     if (!sz) {
-        virtio_error(vdev, "virtio: zero sized buffers are not allowed");
+        virtio_error(vdev, "zero sized buffers are not allowed");
         goto out;
     }
 
     while (sz) {
         hwaddr len = sz;
-
         if (num_sg == max_num_sg) {
-            virtio_error(vdev, "virtio: too many write descriptors in "
+            virtio_error(vdev, "too many write descriptors in "
                                "indirect table");
             goto out;
         }
@@ -1394,7 +1393,7 @@ static bool virtqueue_map_desc(VirtIODevice *vdev, unsigned int *p_num_sg,
                                               DMA_DIRECTION_TO_DEVICE,
                                               MEMTXATTRS_UNSPECIFIED);
         if (!iov[num_sg].iov_base) {
-            virtio_error(vdev, "virtio: bogus descriptor or out of resources");
+            virtio_error(vdev, "bogus descriptor or out of resources");
             goto out;
         }
 
@@ -3563,7 +3562,8 @@ void virtio_device_set_child_bus_name(VirtIODevice *vdev, char *bus_name)
     vdev->bus_name = g_strdup(bus_name);
 }
 
-void G_GNUC_PRINTF(2, 3) virtio_error(VirtIODevice *vdev, const char *fmt, ...)
+G_GNUC_PRINTF(2, 3)
+void virtio_error_impl(VirtIODevice *vdev, const char *fmt, ...)
 {
     va_list ap;
 
