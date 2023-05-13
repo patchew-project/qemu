@@ -129,6 +129,34 @@ static void arduino_mega2560_class_init(ObjectClass *oc, void *data)
     amc->xtal_hz    = 16 * 1000 * 1000; /* CSTCE16M0V53-R0 */
 };
 
+static void arduino_mega16u4_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    ArduinoMachineClass *amc = ARDUINO_MACHINE_CLASS(oc);
+
+    /*
+     * https://ww1.microchip.com/downloads/en/devicedoc/atmel-7766-8-bit-avr-atmega16u4-32u4_datasheet.pdf
+     */
+    mc->desc        = "Arduino Mega 16u4 (ATmega16u4)";
+    mc->alias       = "mega16u4";
+    amc->mcu_type   = TYPE_ATMEGA16U4_MCU;
+    amc->xtal_hz    = 16 * 1000 * 1000; /* CSTCE16M0V53-R0 */
+};
+
+static void arduino_mega32u4_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    ArduinoMachineClass *amc = ARDUINO_MACHINE_CLASS(oc);
+
+    /*
+     * https://ww1.microchip.com/downloads/en/devicedoc/atmel-7766-8-bit-avr-atmega16u4-32u4_datasheet.pdf
+     */
+    mc->desc        = "Arduino Mega 32u4 (ATmega32u4)";
+    mc->alias       = "mega32u4";
+    amc->mcu_type   = TYPE_ATMEGA32U4_MCU;
+    amc->xtal_hz    = 16 * 1000 * 1000; /* CSTCE16M0V53-R0 */
+};
+
 static const TypeInfo arduino_machine_types[] = {
     {
         .name          = MACHINE_TYPE_NAME("arduino-duemilanove"),
@@ -146,6 +174,14 @@ static const TypeInfo arduino_machine_types[] = {
         .name          = MACHINE_TYPE_NAME("arduino-mega-2560-v3"),
         .parent        = TYPE_ARDUINO_MACHINE,
         .class_init    = arduino_mega2560_class_init,
+    }, {
+        .name          = MACHINE_TYPE_NAME("arduino-mega-16u4"),
+        .parent        = TYPE_ARDUINO_MACHINE,
+        .class_init    = arduino_mega16u4_class_init,
+    }, {
+        .name          = MACHINE_TYPE_NAME("arduino-mega-32u4"),
+        .parent        = TYPE_ARDUINO_MACHINE,
+        .class_init    = arduino_mega32u4_class_init,
     }, {
         .name           = TYPE_ARDUINO_MACHINE,
         .parent         = TYPE_MACHINE,

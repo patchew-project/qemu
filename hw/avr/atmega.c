@@ -27,6 +27,17 @@ enum AtmegaPeripheral {
     GPIOG, GPIOH, GPIOI, GPIOJ, GPIOK, GPIOL,
     USART0, USART1, USART2, USART3,
     TIMER0, TIMER1, TIMER2, TIMER3, TIMER4, TIMER5,
+    RESET,
+    INT0, INT1, INT2, INT3, INT4, INT5, INT6,
+    PCINT0,
+    USB_GEN, USB_EP,
+    WDT,
+    SPI,
+    ANALOG_COMP,
+    ADC,
+    EE_READY,
+    TWI,
+    SPM_READY,
     PERIFMAX
 };
 
@@ -98,6 +109,30 @@ static const peripheral_cfg dev168_328[PERIFMAX] = {
     [GPIOC]         = {  0x26 },
     [GPIOB]         = {  0x23 },
     [GPIOA]         = {  0x20 },
+}, dev16u4_32u4[PERIFMAX] = {
+    [POWER1]        = {  0x65 },
+    [POWER0]        = {  0x64 },
+    [TIMER4]        = {  0x4c, POWER1, 4, 0x72, 0x39, true }, 
+    [SPM_READY]     = {  0x4a },
+    [TWI]           = {  0x48 },
+    [TIMER3]        = {  0x3e, POWER1, 3, 0x71, 0x38, true },
+    [EE_READY]      = {  0x3c },
+    [ADC]           = {  0x3a },
+    [ANALOG_COMP]   = {  0x38 },
+    [USART1]        = {  0x32, POWER1, 0 },
+    [SPI]           = {  0x30 },
+    [TIMER0]        = {  0x2a, POWER0, 5, 0x6e, 0x35, true },
+    [TIMER1]        = {  0x20, POWER0, 3, 0x6f, 0x36, true },
+    [WDT]           = {  0x18 },
+    [USB_GEN]       = {  0x14 },
+    [USB_EP]        = {  0x16 },
+    [PCINT0]        = {  0x12 },
+    [INT6]          = {  0x0e },
+    [INT3]          = {  0x08 },
+    [INT2]          = {  0x06 },
+    [INT1]          = {  0x04 },
+    [INT0]          = {  0x02 },
+    [RESET]         = {  0x00 },
 };
 
 enum AtmegaIrq {
@@ -117,6 +152,17 @@ enum AtmegaIrq {
         TIMER4_COMPC_IRQ, TIMER4_OVF_IRQ,
     TIMER5_CAPT_IRQ, TIMER5_COMPA_IRQ, TIMER5_COMPB_IRQ,
         TIMER5_COMPC_IRQ, TIMER5_OVF_IRQ,
+    RESET_IRQ,
+    INT0_IRQ, INT1_IRQ, INT2_IRQ, INT3_IRQ, INT4_IRQ, INT5_IRQ, INT6_IRQ,
+    PCINT0_IRQ,
+    USB_GEN_IRQ, USB_EP_IRQ,
+    WDT_IRQ,
+    SPI_IRQ,
+    ANALOG_COMP_IRQ,
+    ADC_IRQ,
+    EE_READY_IRQ,
+    TWI_IRQ,
+    SPM_READY_IRQ,
     IRQ_COUNT
 };
 
@@ -184,6 +230,44 @@ static const uint8_t irq168_328[IRQ_COUNT] = {
     [USART3_RXC_IRQ]        = 55,
     [USART3_DRE_IRQ]        = 56,
     [USART3_TXC_IRQ]        = 57,
+}, irq16u4_32u4[IRQ_COUNT] = {
+    [RESET_IRQ]             =  1,
+    [INT0_IRQ]              =  2,
+    [INT1_IRQ]              =  3,
+    [INT2_IRQ]              =  4,
+    [INT3_IRQ]              =  5,
+    [INT6_IRQ]              =  8,
+    [PCINT0_IRQ]            = 10,
+    [USB_GEN_IRQ]           = 11,
+    [USB_EP_IRQ]            = 12,
+    [WDT_IRQ]               = 13,
+    [TIMER1_CAPT_IRQ]       = 17,
+    [TIMER1_COMPA_IRQ]      = 18,
+    [TIMER1_COMPB_IRQ]      = 19,
+    [TIMER1_COMPC_IRQ]      = 20,
+    [TIMER1_OVF_IRQ]        = 21,
+    [TIMER0_COMPA_IRQ]      = 22,
+    [TIMER0_COMPB_IRQ]      = 23,
+    [TIMER0_OVF_IRQ]        = 24,
+    [SPI_IRQ]               = 25,
+    [USART0_RXC_IRQ]        = 26,
+    [USART0_DRE_IRQ]        = 27,
+    [USART0_TXC_IRQ]        = 28,
+    [ANALOG_COMP]           = 29,
+    [ADC_IRQ]               = 30,
+    [EE_READY_IRQ]          = 31,
+    [TIMER3_CAPT_IRQ]       = 32,
+    [TIMER3_COMPA_IRQ]      = 33,
+    [TIMER3_COMPB_IRQ]      = 34,
+    [TIMER3_COMPC_IRQ]      = 35,
+    [TIMER3_OVF_IRQ]        = 36,
+    [TWI_IRQ]               = 37,
+    [SPM_READY_IRQ]         = 38,
+    [TIMER4_COMPA_IRQ]      = 39,
+    [TIMER4_COMPB_IRQ]      = 40,
+    [TIMER4_COMPC_IRQ]      = 41,
+    [TIMER4_OVF_IRQ]        = 42,
+    /*[TIMER4_FPF_IRQ]        = 43,*/
 };
 
 static void connect_peripheral_irq(const AtmegaMcuClass *k,
@@ -427,6 +511,36 @@ static void atmega2560_class_init(ObjectClass *oc, void *data)
     amc->dev = dev1280_2560;
 };
 
+static void atmega16u4_class_init(ObjectClass *oc, void *data)
+{
+    AtmegaMcuClass *amc = ATMEGA_MCU_CLASS(oc);
+
+    amc->cpu_type = AVR_CPU_TYPE_NAME("avr5");
+    amc->flash_size = 16 * KiB;
+    amc->eeprom_size = 512;
+    amc->sram_size = KiB + 256;
+    amc->io_size = 64;
+    amc->gpio_count = 32;
+    amc->adc_count = 12;
+    amc->irq = irq16u4_32u4;
+    amc->dev = dev16u4_32u4;
+};
+
+static void atmega32u4_class_init(ObjectClass *oc, void *data)
+{
+    AtmegaMcuClass *amc = ATMEGA_MCU_CLASS(oc);
+
+    amc->cpu_type = AVR_CPU_TYPE_NAME("avr5");
+    amc->flash_size = 32 * KiB;
+    amc->eeprom_size = KiB;
+    amc->sram_size = 2 * KiB + 512;
+    amc->io_size = 64;
+    amc->gpio_count = 32;
+    amc->adc_count = 12;
+    amc->irq = irq16u4_32u4;
+    amc->dev = dev16u4_32u4;
+};
+
 static const TypeInfo atmega_mcu_types[] = {
     {
         .name           = TYPE_ATMEGA168_MCU,
@@ -444,6 +558,14 @@ static const TypeInfo atmega_mcu_types[] = {
         .name           = TYPE_ATMEGA2560_MCU,
         .parent         = TYPE_ATMEGA_MCU,
         .class_init     = atmega2560_class_init,
+    }, {
+        .name           = TYPE_ATMEGA16U4_MCU,
+        .parent         = TYPE_ATMEGA_MCU,
+        .class_init     = atmega16u4_class_init,
+    }, {
+        .name           = TYPE_ATMEGA32U4_MCU,
+        .parent         = TYPE_ATMEGA_MCU,
+        .class_init     = atmega32u4_class_init,
     }, {
         .name           = TYPE_ATMEGA_MCU,
         .parent         = TYPE_SYS_BUS_DEVICE,
