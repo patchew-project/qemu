@@ -1,8 +1,8 @@
 /*
- * QEMU Block driver for  NBD
+ * QEMU Block driver for NBD
  *
  * Copyright (c) 2019 Virtuozzo International GmbH.
- * Copyright (C) 2016 Red Hat, Inc.
+ * Copyright Red Hat
  * Copyright (C) 2008 Bull S.A.S.
  *     Author: Laurent Vivier <Laurent.Vivier@bull.net>
  *
@@ -341,7 +341,7 @@ int coroutine_fn nbd_co_do_establish_connection(BlockDriverState *bs,
          */
         NBDRequest request = { .type = NBD_CMD_DISC };
 
-        nbd_send_request(s->ioc, &request);
+        nbd_send_request(s->ioc, &request, s->info.header_style);
 
         yank_unregister_function(BLOCKDEV_YANK_INSTANCE(s->bs->node_name),
                                  nbd_yank, bs);
@@ -464,7 +464,8 @@ static coroutine_fn int nbd_receive_replies(BDRVNBDState *s, uint64_t handle)
             nbd_channel_error(s, ret);
             return ret;
         }
-        if (nbd_reply_is_structured(&s->reply) && !s->info.structured_reply) {
+        if (nbd_reply_is_structured(&s->reply) &&
+            s->info.header_style < NBD_HEADER_STRUCTURED) {
             nbd_channel_error(s, -EINVAL);
             return -EINVAL;
         }
@@ -525,14 +526,14 @@ nbd_co_send_request(BlockDriverState *bs, NBDRequest *request,
 
     if (qiov) {
         qio_channel_set_cork(s->ioc, true);
-        rc = nbd_send_request(s->ioc, request);
+        rc = nbd_send_request(s->ioc, request, s->info.header_style);
         if (rc >= 0 && qio_channel_writev_all(s->ioc, qiov->iov, qiov->niov,
                                               NULL) < 0) {
             rc = -EIO;
         }
         qio_channel_set_cork(s->ioc, false);
     } else {
-        rc = nbd_send_request(s->ioc, request);
+        rc = nbd_send_request(s->ioc, request, s->info.header_style);
     }
     qemu_co_mutex_unlock(&s->send_mutex);
 
@@ -867,7 +868,7 @@ static coroutine_fn int nbd_co_do_receive_one_chunk(
     }
 
     /* handle structured reply chunk */
-    assert(s->info.structured_reply);
+    assert(s->info.header_style >= NBD_HEADER_STRUCTURED);
     chunk = &s->reply.structured;
 
     if (chunk->type == NBD_REPLY_TYPE_NONE) {
@@ -1069,7 +1070,8 @@ static int coroutine_fn nbd_co_receive_cmdread_reply(BDRVNBDState *s, uint64_t h
     void *payload = NULL;
     Error *local_err = NULL;
 
-    NBD_FOREACH_REPLY_CHUNK(s, iter, handle, s->info.structured_reply,
+    NBD_FOREACH_REPLY_CHUNK(s, iter, handle,
+                            s->info.header_style >= NBD_HEADER_STRUCTURED,
                             qiov, &reply, &payload)
     {
         int ret;
@@ -1301,10 +1303,11 @@ nbd_client_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int64_t bytes,
     NBDRequest request = {
         .type = NBD_CMD_WRITE_ZEROES,
         .from = offset,
-        .len = bytes,  /* .len is uint32_t actually */
+        .len = bytes,
     };
 
-    assert(bytes <= UINT32_MAX); /* rely on max_pwrite_zeroes */
+    /* rely on max_pwrite_zeroes */
+    assert(bytes <= UINT32_MAX || s->info.header_style >= NBD_HEADER_EXTENDED);
 
     assert(!(s->info.flags & NBD_FLAG_READ_ONLY));
     if (!(s->info.flags & NBD_FLAG_SEND_WRITE_ZEROES)) {
@@ -1351,10 +1354,11 @@ nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
     NBDRequest request = {
         .type = NBD_CMD_TRIM,
         .from = offset,
-        .len = bytes, /* len is uint32_t */
+        .len = bytes,
     };
 
-    assert(bytes <= UINT32_MAX); /* rely on max_pdiscard */
+    /* rely on max_pdiscard */
+    assert(bytes <= UINT32_MAX || s->info.header_style >= NBD_HEADER_EXTENDED);
 
     assert(!(s->info.flags & NBD_FLAG_READ_ONLY));
     if (!(s->info.flags & NBD_FLAG_SEND_TRIM) || !bytes) {
@@ -1376,8 +1380,7 @@ static int coroutine_fn GRAPH_RDLOCK nbd_client_co_block_status(
     NBDRequest request = {
         .type = NBD_CMD_BLOCK_STATUS,
         .from = offset,
-        .len = MIN(QEMU_ALIGN_DOWN(INT_MAX, bs->bl.request_alignment),
-                   MIN(bytes, s->info.size - offset)),
+        .len = MIN(bytes, s->info.size - offset),
         .flags = NBD_CMD_FLAG_REQ_ONE,
     };
 
@@ -1386,6 +1389,10 @@ static int coroutine_fn GRAPH_RDLOCK nbd_client_co_block_status(
         *map = offset;
         *file = bs;
         return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID;
+    }
+    if (s->info.header_style < NBD_HEADER_EXTENDED) {
+        request.len = MIN(QEMU_ALIGN_DOWN(INT_MAX, bs->bl.request_alignment),
+                          request.len);
     }
 
     /*
@@ -1465,7 +1472,7 @@ static void nbd_client_close(BlockDriverState *bs)
     NBDRequest request = { .type = NBD_CMD_DISC };
 
     if (s->ioc) {
-        nbd_send_request(s->ioc, &request);
+        nbd_send_request(s->ioc, &request, s->info.header_style);
     }
 
     nbd_teardown_connection(bs);
@@ -1950,6 +1957,14 @@ static void nbd_refresh_limits(BlockDriverState *bs, Error **errp)
     bs->bl.max_pdiscard = QEMU_ALIGN_DOWN(INT_MAX, min);
     bs->bl.max_pwrite_zeroes = max;
     bs->bl.max_transfer = max;
+
+    /*
+     * Assume that if the server supports extended headers, it also
+     * supports unlimited size zero and trim commands.
+     */
+    if (s->info.header_style >= NBD_HEADER_EXTENDED) {
+        bs->bl.max_pdiscard = bs->bl.max_pwrite_zeroes = 0;
+    }
 
     if (s->info.opt_block &&
         s->info.opt_block > bs->bl.opt_transfer) {

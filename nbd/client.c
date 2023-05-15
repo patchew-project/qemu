@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2016-2019 Red Hat, Inc.
+ *  Copyright Red Hat
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device Client Side
@@ -1031,9 +1031,10 @@ int nbd_receive_negotiate(AioContext *aio_context, QIOChannel *ioc,
     trace_nbd_receive_negotiate_name(info->name);
 
     result = nbd_start_negotiate(aio_context, ioc, tlscreds, hostname, outioc,
-                                 info->structured_reply, &zeroes, errp);
+                                 info->header_style >= NBD_HEADER_STRUCTURED,
+                                 &zeroes, errp);
 
-    info->structured_reply = false;
+    info->header_style = NBD_HEADER_SIMPLE;
     info->base_allocation = false;
     if (tlscreds && *outioc) {
         ioc = *outioc;
@@ -1041,7 +1042,7 @@ int nbd_receive_negotiate(AioContext *aio_context, QIOChannel *ioc,
 
     switch (result) {
     case 3: /* newstyle, with structured replies */
-        info->structured_reply = true;
+        info->header_style = NBD_HEADER_STRUCTURED;
         if (base_allocation) {
             result = nbd_negotiate_simple_meta_context(ioc, info, errp);
             if (result < 0) {
@@ -1179,7 +1180,8 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
             memset(&array[count - 1], 0, sizeof(*array));
             array[count - 1].name = name;
             array[count - 1].description = desc;
-            array[count - 1].structured_reply = result == 3;
+            array[count - 1].header_style = result == 3 ?
+                NBD_HEADER_STRUCTURED : NBD_HEADER_SIMPLE;
         }
 
         for (i = 0; i < count; i++) {
@@ -1222,7 +1224,7 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
         if (nbd_drop(ioc, 124, NULL) == 0) {
             NBDRequest request = { .type = NBD_CMD_DISC };
 
-            nbd_send_request(ioc, &request);
+            nbd_send_request(ioc, &request, NBD_HEADER_SIMPLE);
         }
         break;
     default:
@@ -1346,10 +1348,12 @@ int nbd_disconnect(int fd)
 
 #endif /* __linux__ */
 
-int nbd_send_request(QIOChannel *ioc, NBDRequest *request)
+int nbd_send_request(QIOChannel *ioc, NBDRequest *request, NBDHeaderStyle hdr)
 {
     uint8_t buf[NBD_REQUEST_SIZE];
 
+    assert(hdr < NBD_HEADER_EXTENDED);
+    assert(request->len <= UINT32_MAX);
     trace_nbd_send_request(request->from, request->len, request->handle,
                            request->flags, request->type,
                            nbd_cmd_lookup(request->type));

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2016-2022 Red Hat, Inc.
+ *  Copyright Red Hat
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device
@@ -51,19 +51,26 @@ typedef struct NBDOptionReplyMetaContext {
     /* metadata context name follows */
 } QEMU_PACKED NBDOptionReplyMetaContext;
 
-/* Transmission phase structs
- *
- * Note: these are _NOT_ the same as the network representation of an NBD
- * request and reply!
+/* Transmission phase structs */
+
+/* Header style in use */
+typedef enum NBDHeaderStyle {
+    NBD_HEADER_SIMPLE,      /* default; simple replies only */
+    NBD_HEADER_STRUCTURED,  /* NBD_OPT_STRUCTURED_REPLY negotiated */
+    NBD_HEADER_EXTENDED,    /* NBD_OPT_EXTENDED_HEADERS negotiated */
+} NBDHeaderStyle;
+
+/*
+ * Note: NBDRequest is _NOT_ the same as the network representation of an NBD
+ * request!
  */
-struct NBDRequest {
+typedef struct NBDRequest {
     uint64_t handle;
-    uint64_t from;
-    uint32_t len;
+    uint64_t from;  /* Offset touched by the command */
+    uint64_t len;   /* Effect length; 32 bit limit without extended headers */
     uint16_t flags; /* NBD_CMD_FLAG_* */
-    uint16_t type; /* NBD_CMD_* */
-};
-typedef struct NBDRequest NBDRequest;
+    uint16_t type;  /* NBD_CMD_* */
+} NBDRequest;
 
 typedef struct NBDSimpleReply {
     uint32_t magic;  /* NBD_SIMPLE_REPLY_MAGIC */
@@ -236,6 +243,9 @@ enum {
  */
 #define NBD_MAX_STRING_SIZE 4096
 
+/* Transmission request structure */
+#define NBD_REQUEST_MAGIC           0x25609513
+
 /* Two types of reply structures */
 #define NBD_SIMPLE_REPLY_MAGIC      0x67446698
 #define NBD_STRUCTURED_REPLY_MAGIC  0x668e33ef
@@ -293,7 +303,7 @@ struct NBDExportInfo {
 
     /* In-out fields, set by client before nbd_receive_negotiate() and
      * updated by server results during nbd_receive_negotiate() */
-    bool structured_reply;
+    NBDHeaderStyle header_style;
     bool base_allocation; /* base:allocation context for NBD_CMD_BLOCK_STATUS */
 
     /* Set by server results during nbd_receive_negotiate() and
@@ -323,7 +333,7 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
                             Error **errp);
 int nbd_init(int fd, QIOChannelSocket *sioc, NBDExportInfo *info,
              Error **errp);
-int nbd_send_request(QIOChannel *ioc, NBDRequest *request);
+int nbd_send_request(QIOChannel *ioc, NBDRequest *request, NBDHeaderStyle hdr);
 int coroutine_fn nbd_receive_reply(BlockDriverState *bs, QIOChannel *ioc,
                                    NBDReply *reply, Error **errp);
 int nbd_client(int fd);
