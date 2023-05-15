@@ -952,6 +952,7 @@ static void save_section_header(QEMUFile *f, SaveStateEntry *se,
     qemu_put_byte(f, section_type);
     qemu_put_be32(f, se->section_id);
 
+    size_t size = 1 + 4;
     if (section_type == QEMU_VM_SECTION_FULL ||
         section_type == QEMU_VM_SECTION_START) {
         /* ID string */
@@ -961,7 +962,9 @@ static void save_section_header(QEMUFile *f, SaveStateEntry *se,
 
         qemu_put_be32(f, se->instance_id);
         qemu_put_be32(f, se->version_id);
+        size += 1 + len + 4 + 4;
     }
+    stat64_add(&mig_stats.transferred, size);
 }
 
 /*
@@ -973,6 +976,7 @@ static void save_section_footer(QEMUFile *f, SaveStateEntry *se)
     if (migrate_get_current()->send_section_footer) {
         qemu_put_byte(f, QEMU_VM_SECTION_FOOTER);
         qemu_put_be32(f, se->section_id);
+        stat64_add(&mig_stats.transferred, 1 + 4);
     }
 }
 
@@ -1032,6 +1036,7 @@ static void qemu_savevm_command_send(QEMUFile *f,
     qemu_put_be16(f, (uint16_t)command);
     qemu_put_be16(f, len);
     qemu_put_buffer(f, data, len);
+    stat64_add(&mig_stats.transferred, 1 + 2 + 2 + len);
     qemu_fflush(f);
 }
 
@@ -1212,11 +1217,13 @@ void qemu_savevm_state_header(QEMUFile *f)
     trace_savevm_state_header();
     qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
     qemu_put_be32(f, QEMU_VM_FILE_VERSION);
-
+    size_t size = 4 + 4;
     if (migrate_get_current()->send_configuration) {
         qemu_put_byte(f, QEMU_VM_CONFIGURATION);
+        size += 1;
         vmstate_save_state(f, &vmstate_configuration, &savevm_state, 0);
     }
+    stat64_add(&mig_stats.transferred, size);
 }
 
 bool qemu_savevm_state_guest_unplug_pending(void)
@@ -1384,6 +1391,7 @@ void qemu_savevm_state_complete_postcopy(QEMUFile *f)
 {
     SaveStateEntry *se;
     int ret;
+    size_t size = 0;
 
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         if (!se->ops || !se->ops->save_live_complete_postcopy) {
@@ -1398,7 +1406,7 @@ void qemu_savevm_state_complete_postcopy(QEMUFile *f)
         /* Section type */
         qemu_put_byte(f, QEMU_VM_SECTION_END);
         qemu_put_be32(f, se->section_id);
-
+        size += 1 + 4;
         ret = se->ops->save_live_complete_postcopy(f, se->opaque);
         trace_savevm_section_end(se->idstr, se->section_id, ret);
         save_section_footer(f, se);
@@ -1409,6 +1417,8 @@ void qemu_savevm_state_complete_postcopy(QEMUFile *f)
     }
 
     qemu_put_byte(f, QEMU_VM_EOF);
+    size += 1;
+    stat64_add(&mig_stats.transferred, size);
     qemu_fflush(f);
 }
 
@@ -1484,6 +1494,7 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
     if (!in_postcopy) {
         /* Postcopy stream will still be going */
         qemu_put_byte(f, QEMU_VM_EOF);
+        stat64_add(&mig_stats.transferred, 1);
     }
 
     json_writer_end_array(vmdesc);
@@ -1664,15 +1675,18 @@ void qemu_savevm_live_state(QEMUFile *f)
     /* save QEMU_VM_SECTION_END section */
     qemu_savevm_state_complete_precopy(f, true, false);
     qemu_put_byte(f, QEMU_VM_EOF);
+    stat64_add(&mig_stats.transferred, 1);
 }
 
 int qemu_save_device_state(QEMUFile *f)
 {
     SaveStateEntry *se;
+    size_t size = 0;
 
     if (!migration_in_colo_state()) {
         qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
         qemu_put_be32(f, QEMU_VM_FILE_VERSION);
+        size = 4 + 4;
     }
     cpu_synchronize_all_states();
 
@@ -1690,6 +1704,7 @@ int qemu_save_device_state(QEMUFile *f)
 
     qemu_put_byte(f, QEMU_VM_EOF);
 
+    stat64_add(&mig_stats.transferred, size + 1);
     return qemu_file_get_error(f);
 }
 

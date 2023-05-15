@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "migration.h"
+#include "migration-stats.h"
 #include "migration/vmstate.h"
 #include "savevm.h"
 #include "qapi/qmp/json-writer.h"
@@ -394,6 +395,7 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
                 written_bytes = qemu_file_transferred_fast(f) - old_offset;
                 vmsd_desc_field_end(vmsd, vmdesc_loop, field, written_bytes, i);
 
+                stat64_add(&mig_stats.transferred, written_bytes);
                 /* Compressed arrays only care about the first element */
                 if (vmdesc_loop && vmsd_can_compress(field)) {
                     vmdesc_loop = NULL;
@@ -517,6 +519,7 @@ static int vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
             qemu_put_byte(f, len);
             qemu_put_buffer(f, (uint8_t *)vmsdsub->name, len);
             qemu_put_be32(f, vmsdsub->version_id);
+            stat64_add(&mig_stats.transferred, 1 + 1 + len + 4);
             ret = vmstate_save_state(f, vmsdsub, opaque, vmdesc);
             if (ret) {
                 return ret;

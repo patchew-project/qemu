@@ -337,6 +337,7 @@ int64_t ramblock_recv_bitmap_send(QEMUFile *file,
 
     g_free(le_bitmap);
 
+    stat64_add(&mig_stats.transferred, 8 + size + 8);
     if (qemu_file_get_error(file)) {
         return qemu_file_get_error(file);
     }
@@ -1392,6 +1393,7 @@ static int find_dirty_block(RAMState *rs, PageSearchStatus *pss)
                     return ret;
                 }
                 qemu_put_be64(f, RAM_SAVE_FLAG_MULTIFD_FLUSH);
+                stat64_add(&mig_stats.transferred, 8);
                 qemu_fflush(f);
             }
             /*
@@ -3020,6 +3022,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     RAMState **rsp = opaque;
     RAMBlock *block;
     int ret;
+    size_t size = 0;
 
     if (compress_threads_save_setup()) {
         return -1;
@@ -3038,16 +3041,20 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
         qemu_put_be64(f, ram_bytes_total_with_ignored()
                          | RAM_SAVE_FLAG_MEM_SIZE);
 
+        size += 8;
         RAMBLOCK_FOREACH_MIGRATABLE(block) {
             qemu_put_byte(f, strlen(block->idstr));
             qemu_put_buffer(f, (uint8_t *)block->idstr, strlen(block->idstr));
             qemu_put_be64(f, block->used_length);
+            size += 1 + strlen(block->idstr) + 8;
             if (migrate_postcopy_ram() && block->page_size !=
                                           qemu_host_page_size) {
                 qemu_put_be64(f, block->page_size);
+                size += 8;
             }
             if (migrate_ignore_shared()) {
                 qemu_put_be64(f, block->mr->addr);
+                size += 8;
             }
         }
     }
@@ -3064,11 +3071,14 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
 
     if (!migrate_multifd_flush_after_each_section()) {
         qemu_put_be64(f, RAM_SAVE_FLAG_MULTIFD_FLUSH);
+        size += 8;
     }
 
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
+    size += 8;
     qemu_fflush(f);
 
+    stat64_add(&mig_stats.transferred, size);
     return 0;
 }
 
@@ -3209,6 +3219,7 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
     RAMState **temp = opaque;
     RAMState *rs = *temp;
     int ret = 0;
+    size_t size = 0;
 
     rs->last_stage = !migration_in_colo_state();
 
@@ -3253,8 +3264,11 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
 
     if (!migrate_multifd_flush_after_each_section()) {
         qemu_put_be64(f, RAM_SAVE_FLAG_MULTIFD_FLUSH);
+        size += 8;
     }
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
+    size += 8;
+    stat64_add(&mig_stats.transferred, size);
     qemu_fflush(f);
 
     return 0;
