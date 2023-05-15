@@ -1146,10 +1146,9 @@ static int coroutine_fn nbd_co_receive_blockstatus_reply(BDRVNBDState *s,
 
         switch (chunk->type) {
         case NBD_REPLY_TYPE_BLOCK_STATUS_EXT:
-            wide = true;
-            /* fallthrough */
         case NBD_REPLY_TYPE_BLOCK_STATUS:
-            if (s->info.extended_headers != wide) {
+            wide = chunk->type == NBD_REPLY_TYPE_BLOCK_STATUS_EXT;
+            if ((s->info.header_style == NBD_HEADER_EXTENDED) != wide) {
                 trace_nbd_extended_headers_compliance("block_status");
             }
             if (received) {

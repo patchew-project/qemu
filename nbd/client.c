@@ -879,11 +879,12 @@ static int nbd_list_meta_contexts(QIOChannel *ioc,
  *          1: server is newstyle, but can only accept EXPORT_NAME
  *          2: server is newstyle, but lacks structured replies
  *          3: server is newstyle and set up for structured replies
+ *          4: server is newstyle and set up for extended headers
  */
 static int nbd_start_negotiate(AioContext *aio_context, QIOChannel *ioc,
                                QCryptoTLSCreds *tlscreds,
                                const char *hostname, QIOChannel **outioc,
-                               bool structured_reply, bool *zeroes,
+                               NBDHeaderStyle style, bool *zeroes,
                                Error **errp)
 {
     ERRP_GUARD();
@@ -961,15 +962,23 @@ static int nbd_start_negotiate(AioContext *aio_context, QIOChannel *ioc,
         if (fixedNewStyle) {
             int result = 0;
 
-            if (structured_reply) {
+            if (style >= NBD_HEADER_EXTENDED) {
+                result = nbd_request_simple_option(ioc,
+                                                   NBD_OPT_EXTENDED_HEADERS,
+                                                   false, errp);
+                if (result) {
+                    return result < 0 ? -EINVAL : 4;
+                }
+            }
+            if (style >= NBD_HEADER_STRUCTURED) {
                 result = nbd_request_simple_option(ioc,
                                                    NBD_OPT_STRUCTURED_REPLY,
                                                    false, errp);
-                if (result < 0) {
-                    return -EINVAL;
+                if (result) {
+                    return result < 0 ? -EINVAL : 3;
                 }
             }
-            return 2 + result;
+            return 2;
         } else {
             return 1;
         }
@@ -1031,8 +1040,7 @@ int nbd_receive_negotiate(AioContext *aio_context, QIOChannel *ioc,
     trace_nbd_receive_negotiate_name(info->name);
 
     result = nbd_start_negotiate(aio_context, ioc, tlscreds, hostname, outioc,
-                                 info->header_style >= NBD_HEADER_STRUCTURED,
-                                 &zeroes, errp);
+                                 info->header_style, &zeroes, errp);
 
     info->header_style = NBD_HEADER_SIMPLE;
     info->base_allocation = false;
@@ -1041,8 +1049,10 @@ int nbd_receive_negotiate(AioContext *aio_context, QIOChannel *ioc,
     }
 
     switch (result) {
+    case 4: /* newstyle, with extended headers */
     case 3: /* newstyle, with structured replies */
-        info->header_style = NBD_HEADER_STRUCTURED;
+        /* Relies on encoding of _STRUCTURED and _EXTENDED */
+        info->header_style = result - 2;
         if (base_allocation) {
             result = nbd_negotiate_simple_meta_context(ioc, info, errp);
             if (result < 0) {
@@ -1151,8 +1161,8 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
     QIOChannel *sioc = NULL;
 
     *info = NULL;
-    result = nbd_start_negotiate(NULL, ioc, tlscreds, hostname, &sioc, true,
-                                 NULL, errp);
+    result = nbd_start_negotiate(NULL, ioc, tlscreds, hostname, &sioc,
+                                 NBD_HEADER_EXTENDED, NULL, errp);
     if (tlscreds && sioc) {
         ioc = sioc;
     }
@@ -1160,6 +1170,7 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
     switch (result) {
     case 2:
     case 3:
+    case 4:
         /* newstyle - use NBD_OPT_LIST to populate array, then try
          * NBD_OPT_INFO on each array member. If structured replies
          * are enabled, also try NBD_OPT_LIST_META_CONTEXT. */
@@ -1180,8 +1191,9 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
             memset(&array[count - 1], 0, sizeof(*array));
             array[count - 1].name = name;
             array[count - 1].description = desc;
-            array[count - 1].header_style = result == 3 ?
-                NBD_HEADER_STRUCTURED : NBD_HEADER_SIMPLE;
+
+            /* Depends on values of _SIMPLE, _STRUCTURED, and _EXTENDED */
+            array[count - 1].header_style = result - 2;
         }
 
         for (i = 0; i < count; i++) {
@@ -1197,7 +1209,7 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
                 break;
             }
 
-            if (result == 3 &&
+            if (result >= 3 &&
                 nbd_list_meta_contexts(ioc, &array[i], errp) < 0) {
                 goto out;
             }
