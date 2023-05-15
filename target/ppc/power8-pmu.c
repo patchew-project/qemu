@@ -236,14 +236,16 @@ void helper_store_mmcr0(CPUPPCState *env, target_ulong value)
 {
     bool hflags_pmcc0 = (value & MMCR0_PMCC0) != 0;
     bool hflags_pmcc1 = (value & MMCR0_PMCC1) != 0;
+    bool hflags_pmcjce = (value & MMCR0_PMCjCE) != 0;
 
     pmu_update_cycles(env);
 
     env->spr[SPR_POWER_MMCR0] = value;
 
-    /* MMCR0 writes can change HFLAGS_PMCC[01] and HFLAGS_INSN_CNT */
+    /* MMCR0 writes can change HFLAGS_PMCC[01], PMCjCE, and HFLAGS_INSN_CNT */
     env->hflags = deposit32(env->hflags, HFLAGS_PMCC0, 1, hflags_pmcc0);
     env->hflags = deposit32(env->hflags, HFLAGS_PMCC1, 1, hflags_pmcc1);
+    env->hflags = deposit32(env->hflags, HFLAGS_PMCJCE, 1, hflags_pmcjce);
 
     pmu_update_summaries(env);
 
