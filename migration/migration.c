@@ -907,7 +907,7 @@ static void populate_time_info(MigrationInfo *info, MigrationState *s)
 {
     info->has_status = true;
     info->has_setup_time = true;
-    info->setup_time = s->setup_time;
+    info->setup_time = stat64_get(&mig_stats.setup_time);
 
     if (s->state == MIGRATION_STATUS_COMPLETED) {
         info->has_total_time = true;
@@ -1410,7 +1410,6 @@ void migrate_init(MigrationState *s)
     s->pages_per_second = 0.0;
     s->downtime = 0;
     s->expected_downtime = 0;
-    s->setup_time = 0;
     s->start_postcopy = false;
     s->postcopy_after_devices = false;
     s->migration_thread_running = false;
@@ -2667,7 +2666,7 @@ static void migration_calculate_complete(MigrationState *s)
         s->downtime = end_time - s->downtime_start;
     }
 
-    transfer_time = s->total_time - s->setup_time;
+    transfer_time = s->total_time - stat64_get(&mig_stats.setup_time);
     if (transfer_time) {
         s->mbps = ((double) bytes * 8.0) / transfer_time / 1000;
     }
@@ -2989,7 +2988,7 @@ static void *migration_thread(void *opaque)
     qemu_savevm_wait_unplug(s, MIGRATION_STATUS_SETUP,
                                MIGRATION_STATUS_ACTIVE);
 
-    s->setup_time = qemu_clock_get_ms(QEMU_CLOCK_HOST) - setup_start;
+    migration_time_since(&mig_stats, setup_start);
 
     trace_migration_thread_setup_complete();
 
@@ -3101,7 +3100,7 @@ static void *bg_migration_thread(void *opaque)
     qemu_savevm_wait_unplug(s, MIGRATION_STATUS_SETUP,
                                MIGRATION_STATUS_ACTIVE);
 
-    s->setup_time = qemu_clock_get_ms(QEMU_CLOCK_HOST) - setup_start;
+    migration_time_since(&mig_stats, setup_start);
 
     trace_migration_thread_setup_complete();
     s->downtime_start = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
