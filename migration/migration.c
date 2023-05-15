@@ -2139,7 +2139,7 @@ static int postcopy_start(MigrationState *ms)
      * will notice we're in POSTCOPY_ACTIVE and not actually
      * wrap their state up here
      */
-    qemu_file_set_rate_limit(ms->to_dst_file, bandwidth);
+    migration_rate_set(bandwidth);
     if (migrate_postcopy_ram()) {
         /* Ping just for debugging, helps line traces up */
         qemu_savevm_send_ping(ms->to_dst_file, 2);
@@ -2323,7 +2323,7 @@ static void migration_completion(MigrationState *s)
                  * them if migration fails or is cancelled.
                  */
                 s->block_inactive = !migrate_colo();
-                qemu_file_set_rate_limit(s->to_dst_file, RATE_LIMIT_MAX);
+                migration_rate_set(RATE_LIMIT_MAX);
                 ret = qemu_savevm_state_complete_precopy(s->to_dst_file, false,
                                                          s->block_inactive);
             }
@@ -2718,7 +2718,7 @@ static void migration_update_counters(MigrationState *s,
             stat64_get(&mig_stats.dirty_bytes_last_sync) / bandwidth;
     }
 
-    qemu_file_reset_rate_limit(s->to_dst_file);
+    migration_rate_reset();
 
     update_iteration_initial_status(s);
 
@@ -2871,7 +2871,7 @@ bool migration_rate_limit(void)
 
     bool urgent = false;
     migration_update_counters(s, now);
-    if (qemu_file_rate_limit(s->to_dst_file)) {
+    if (migration_rate_exceeded(s->to_dst_file)) {
 
         if (qemu_file_get_error(s->to_dst_file)) {
             return false;
@@ -2993,7 +2993,7 @@ static void *migration_thread(void *opaque)
     trace_migration_thread_setup_complete();
 
     while (migration_is_active(s)) {
-        if (urgent || !qemu_file_rate_limit(s->to_dst_file)) {
+        if (urgent || !migration_rate_exceeded(s->to_dst_file)) {
             MigIterateState iter_state = migration_iteration_run(s);
             if (iter_state == MIG_ITERATE_SKIP) {
                 continue;
@@ -3067,7 +3067,7 @@ static void *bg_migration_thread(void *opaque)
     rcu_register_thread();
     object_ref(OBJECT(s));
 
-    qemu_file_set_rate_limit(s->to_dst_file, RATE_LIMIT_MAX);
+    migration_rate_set(RATE_LIMIT_MAX);
 
     setup_start = qemu_clock_get_ms(QEMU_CLOCK_HOST);
     /*
@@ -3239,7 +3239,7 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
         notifier_list_notify(&migration_state_notifiers, s);
     }
 
-    qemu_file_set_rate_limit(s->to_dst_file, rate_limit);
+    migration_rate_set(rate_limit);
     qemu_file_set_blocking(s->to_dst_file, true);
 
     /*
