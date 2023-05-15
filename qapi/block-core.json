@@ -3432,6 +3432,9 @@
 # @pass-discard-other: whether discard requests for the data source
 #     should be issued on other occasions where a cluster gets freed
 #
+# @discard-no-unref: don't dereference the cluster when we do a discard
+#     this to avoid fragmentation of the qcow2 image (since 8.1)
+#
 # @overlap-check: which overlap checks to perform for writes to the
 #     image, defaults to 'cached' (since 2.2)
 #
@@ -3470,6 +3473,7 @@
             '*pass-discard-request': 'bool',
             '*pass-discard-snapshot': 'bool',
             '*pass-discard-other': 'bool',
+            '*discard-no-unref': 'bool',
             '*overlap-check': 'Qcow2OverlapChecks',
             '*cache-size': 'int',
             '*l2-cache-size': 'int',

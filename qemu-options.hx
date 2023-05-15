@@ -1431,6 +1431,12 @@ SRST
             issued on other occasions where a cluster gets freed
             (on/off; default: off)
 
+        ``discard-no-unref``
+            When enabled, a discard in the guest does not cause the
+            cluster inside the qcow2 image to be dereferenced. This
+            was added to avoid qcow2 fragmentation whithin the image.
+            (on/off; default: off)
+
         ``overlap-check``
             Which overlap checks to perform for writes to the image
             (none/constant/cached/all; default: cached). For details or

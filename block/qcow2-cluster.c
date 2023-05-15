@@ -1943,10 +1943,22 @@ static int discard_in_l2_slice(BlockDriverState *bs, uint64_t offset,
             new_l2_entry = new_l2_bitmap = 0;
         } else if (bs->backing || qcow2_cluster_is_allocated(cluster_type)) {
             if (has_subclusters(s)) {
-                new_l2_entry = 0;
+                if (s->discard_no_unref && (type & QCOW2_DISCARD_REQUEST)) {
+                    new_l2_entry = old_l2_entry;
+                } else {
+                    new_l2_entry = 0;
+                }
                 new_l2_bitmap = QCOW_L2_BITMAP_ALL_ZEROES;
             } else {
-                new_l2_entry = s->qcow_version >= 3 ? QCOW_OFLAG_ZERO : 0;
+                if (s->qcow_version >= 3) {
+                    if (s->discard_no_unref && (type & QCOW2_DISCARD_REQUEST)) {
+                        new_l2_entry |= QCOW_OFLAG_ZERO;
+                    } else {
+                        new_l2_entry = QCOW_OFLAG_ZERO;
+                    }
+                } else {
+                    new_l2_entry = 0;
+                }
             }
         }
 

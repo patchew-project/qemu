@@ -681,6 +681,7 @@ static const char *const mutable_opts[] = {
     QCOW2_OPT_DISCARD_REQUEST,
     QCOW2_OPT_DISCARD_SNAPSHOT,
     QCOW2_OPT_DISCARD_OTHER,
+    QCOW2_OPT_DISCARD_NO_UNREF,
     QCOW2_OPT_OVERLAP,
     QCOW2_OPT_OVERLAP_TEMPLATE,
     QCOW2_OPT_OVERLAP_MAIN_HEADER,
@@ -724,6 +725,11 @@ static QemuOptsList qcow2_runtime_opts = {
             .name = QCOW2_OPT_DISCARD_OTHER,
             .type = QEMU_OPT_BOOL,
             .help = "Generate discard requests when other clusters are freed",
+        },
+        {
+            .name = QCOW2_OPT_DISCARD_NO_UNREF,
+            .type = QEMU_OPT_BOOL,
+            .help = "Do not dereference discarded clusters",
         },
         {
             .name = QCOW2_OPT_OVERLAP,
@@ -968,6 +974,7 @@ typedef struct Qcow2ReopenState {
     bool use_lazy_refcounts;
     int overlap_check;
     bool discard_passthrough[QCOW2_DISCARD_MAX];
+    bool discard_no_unref;
     uint64_t cache_clean_interval;
     QCryptoBlockOpenOptions *crypto_opts; /* Disk encryption runtime options */
 } Qcow2ReopenState;
@@ -1139,6 +1146,9 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
     r->discard_passthrough[QCOW2_DISCARD_OTHER] =
         qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_OTHER, false);
 
+    r->discard_no_unref = qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_NO_UNREF,
+                                            false);
+
     switch (s->crypt_method_header) {
     case QCOW_CRYPT_NONE:
         if (encryptfmt) {
@@ -1218,6 +1228,8 @@ static void qcow2_update_options_commit(BlockDriverState *bs,
     for (i = 0; i < QCOW2_DISCARD_MAX; i++) {
         s->discard_passthrough[i] = r->discard_passthrough[i];
     }
+
+    s->discard_no_unref = r->discard_no_unref;
 
     if (s->cache_clean_interval != r->cache_clean_interval) {
         cache_clean_timer_del(bs);

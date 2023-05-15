@@ -830,7 +830,10 @@ static int update_refcount(BlockDriverState *bs,
         return 0;
     }
 
-    if (decrease) {
+    bool discard_no_unref = (s->discard_no_unref &&
+                             (type & QCOW2_DISCARD_REQUEST));
+
+    if (decrease && (!discard_no_unref)) {
         qcow2_cache_set_dependency(bs, s->refcount_block_cache,
             s->l2_table_cache);
     }
@@ -840,69 +843,92 @@ static int update_refcount(BlockDriverState *bs,
     for(cluster_offset = start; cluster_offset <= last;
         cluster_offset += s->cluster_size)
     {
-        int block_index;
-        uint64_t refcount;
-        int64_t cluster_index = cluster_offset >> s->cluster_bits;
-        int64_t table_index = cluster_index >> s->refcount_block_bits;
+        /*
+         * If discard-no-unref is enabled and this is a DISCARD request
+         * then we can skip the reference update, as we want to keep
+         * the reference in place.
+         */
+        if (!discard_no_unref) {
+            int block_index;
+            uint64_t refcount;
+            int64_t cluster_index = cluster_offset >> s->cluster_bits;
+            int64_t table_index = cluster_index >> s->refcount_block_bits;
 
-        /* Load the refcount block and allocate it if needed */
-        if (table_index != old_table_index) {
-            if (refcount_block) {
-                qcow2_cache_put(s->refcount_block_cache, &refcount_block);
-            }
-            ret = alloc_refcount_block(bs, cluster_index, &refcount_block);
-            /* If the caller needs to restart the search for free clusters,
-             * try the same ones first to see if they're still free. */
-            if (ret == -EAGAIN) {
-                if (s->free_cluster_index > (start >> s->cluster_bits)) {
-                    s->free_cluster_index = (start >> s->cluster_bits);
+            /*
+             * Load the refcount block and allocate it if needed
+             */
+            if (table_index != old_table_index) {
+                if (refcount_block) {
+                    qcow2_cache_put(s->refcount_block_cache, &refcount_block);
+                }
+                ret = alloc_refcount_block(bs, cluster_index, &refcount_block);
+                /*
+                 * If the caller needs to restart the search for free clusters,
+                 * try the same ones first to see if they're still free.
+                 */
+                if (ret == -EAGAIN) {
+                    if (s->free_cluster_index > (start >> s->cluster_bits)) {
+                        s->free_cluster_index = (start >> s->cluster_bits);
+                    }
+                }
+                if (ret < 0) {
+                    goto fail;
                 }
             }
-            if (ret < 0) {
+            old_table_index = table_index;
+
+            qcow2_cache_entry_mark_dirty(s->refcount_block_cache,
+                                         refcount_block);
+
+            /*
+             * we can update the count and save it
+             */
+            block_index = cluster_index & (s->refcount_block_size - 1);
+
+            refcount = s->get_refcount(refcount_block, block_index);
+            if (decrease ? (refcount - addend > refcount)
+                        : (refcount + addend < refcount ||
+                            refcount + addend > s->refcount_max))
+            {
+                ret = -EINVAL;
                 goto fail;
             }
-        }
-        old_table_index = table_index;
+            if (decrease) {
+                refcount -= addend;
+            } else {
+                refcount += addend;
+            }
+            if (refcount == 0 && cluster_index < s->free_cluster_index) {
+                s->free_cluster_index = cluster_index;
+            }
+            s->set_refcount(refcount_block, block_index, refcount);
 
-        qcow2_cache_entry_mark_dirty(s->refcount_block_cache, refcount_block);
+            if (refcount == 0) {
+                void *table;
 
-        /* we can update the count and save it */
-        block_index = cluster_index & (s->refcount_block_size - 1);
+                table = qcow2_cache_is_table_offset(s->refcount_block_cache,
+                                                    offset);
+                if (table != NULL) {
+                    qcow2_cache_put(s->refcount_block_cache, &refcount_block);
+                    old_table_index = -1;
+                    qcow2_cache_discard(s->refcount_block_cache, table);
+                }
 
-        refcount = s->get_refcount(refcount_block, block_index);
-        if (decrease ? (refcount - addend > refcount)
-                     : (refcount + addend < refcount ||
-                        refcount + addend > s->refcount_max))
-        {
-            ret = -EINVAL;
-            goto fail;
-        }
-        if (decrease) {
-            refcount -= addend;
+                table = qcow2_cache_is_table_offset(s->l2_table_cache, offset);
+                if (table != NULL) {
+                    qcow2_cache_discard(s->l2_table_cache, table);
+                }
+
+                if (s->discard_passthrough[type]) {
+                    update_refcount_discard(bs, cluster_offset,
+                                            s->cluster_size);
+                }
+            }
         } else {
-            refcount += addend;
-        }
-        if (refcount == 0 && cluster_index < s->free_cluster_index) {
-            s->free_cluster_index = cluster_index;
-        }
-        s->set_refcount(refcount_block, block_index, refcount);
-
-        if (refcount == 0) {
-            void *table;
-
-            table = qcow2_cache_is_table_offset(s->refcount_block_cache,
-                                                offset);
-            if (table != NULL) {
-                qcow2_cache_put(s->refcount_block_cache, &refcount_block);
-                old_table_index = -1;
-                qcow2_cache_discard(s->refcount_block_cache, table);
-            }
-
-            table = qcow2_cache_is_table_offset(s->l2_table_cache, offset);
-            if (table != NULL) {
-                qcow2_cache_discard(s->l2_table_cache, table);
-            }
-
+            /*
+             * We had a discard request with discard-no-ref enabled, but we
+             * want to pass the discard to the backend to free the data there.
+             */
             if (s->discard_passthrough[type]) {
                 update_refcount_discard(bs, cluster_offset, s->cluster_size);
             }
