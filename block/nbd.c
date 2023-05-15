@@ -610,13 +610,16 @@ static int nbd_parse_offset_hole_payload(BDRVNBDState *s,
  */
 static int nbd_parse_blockstatus_payload(BDRVNBDState *s,
                                          NBDStructuredReplyChunk *chunk,
-                                         uint8_t *payload, uint64_t orig_length,
-                                         NBDExtent *extent, Error **errp)
+                                         uint8_t *payload, bool wide,
+                                         uint64_t orig_length,
+                                         NBDExtentExt *extent, Error **errp)
 {
     uint32_t context_id;
+    uint32_t count = 0;
+    size_t len = wide ? sizeof(*extent) : sizeof(NBDExtent);
 
     /* The server succeeded, so it must have sent [at least] one extent */
-    if (chunk->length < sizeof(context_id) + sizeof(*extent)) {
+    if (chunk->length < sizeof(context_id) + wide * sizeof(count) + len) {
         error_setg(errp, "Protocol error: invalid payload for "
                          "NBD_REPLY_TYPE_BLOCK_STATUS");
         return -EINVAL;
@@ -631,8 +634,14 @@ static int nbd_parse_blockstatus_payload(BDRVNBDState *s,
         return -EINVAL;
     }
 
-    extent->length = payload_advance32(&payload);
-    extent->flags = payload_advance32(&payload);
+    if (wide) {
+        count = payload_advance32(&payload);
+        extent->length = payload_advance64(&payload);
+        extent->flags = payload_advance64(&payload);
+    } else {
+        extent->length = payload_advance32(&payload);
+        extent->flags = payload_advance32(&payload);
+    }
 
     if (extent->length == 0) {
         error_setg(errp, "Protocol error: server sent status chunk with "
@@ -672,7 +681,8 @@ static int nbd_parse_blockstatus_payload(BDRVNBDState *s,
      * connection; just ignore trailing extents, and clamp things to
      * the length of our request.
      */
-    if (chunk->length > sizeof(context_id) + sizeof(*extent)) {
+    if (count != wide ||
+        chunk->length > sizeof(context_id) + wide * sizeof(count) + len) {
         trace_nbd_parse_blockstatus_compliance("more than one extent");
     }
     if (extent->length > orig_length) {
@@ -1117,7 +1127,7 @@ static int coroutine_fn nbd_co_receive_cmdread_reply(BDRVNBDState *s, uint64_t h
 
 static int coroutine_fn nbd_co_receive_blockstatus_reply(BDRVNBDState *s,
                                                          uint64_t handle, uint64_t length,
-                                                         NBDExtent *extent,
+                                                         NBDExtentExt *extent,
                                                          int *request_ret, Error **errp)
 {
     NBDReplyChunkIter iter;
@@ -1125,6 +1135,7 @@ static int coroutine_fn nbd_co_receive_blockstatus_reply(BDRVNBDState *s,
     void *payload = NULL;
     Error *local_err = NULL;
     bool received = false;
+    bool wide = false;
 
     assert(!extent->length);
     NBD_FOREACH_REPLY_CHUNK(s, iter, handle, false, NULL, &reply, &payload) {
@@ -1134,7 +1145,13 @@ static int coroutine_fn nbd_co_receive_blockstatus_reply(BDRVNBDState *s,
         assert(nbd_reply_is_structured(&reply));
 
         switch (chunk->type) {
+        case NBD_REPLY_TYPE_BLOCK_STATUS_EXT:
+            wide = true;
+            /* fallthrough */
         case NBD_REPLY_TYPE_BLOCK_STATUS:
+            if (s->info.extended_headers != wide) {
+                trace_nbd_extended_headers_compliance("block_status");
+            }
             if (received) {
                 nbd_channel_error(s, -EINVAL);
                 error_setg(&local_err, "Several BLOCK_STATUS chunks in reply");
@@ -1142,9 +1159,9 @@ static int coroutine_fn nbd_co_receive_blockstatus_reply(BDRVNBDState *s,
             }
             received = true;
 
-            ret = nbd_parse_blockstatus_payload(s, &reply.structured,
-                                                payload, length, extent,
-                                                &local_err);
+            ret = nbd_parse_blockstatus_payload(
+                s, &reply.structured, payload, wide,
+                length, extent, &local_err);
             if (ret < 0) {
                 nbd_channel_error(s, ret);
                 nbd_iter_channel_error(&iter, ret, &local_err);
@@ -1374,7 +1391,7 @@ static int coroutine_fn GRAPH_RDLOCK nbd_client_co_block_status(
         int64_t *pnum, int64_t *map, BlockDriverState **file)
 {
     int ret, request_ret;
-    NBDExtent extent = { 0 };
+    NBDExtentExt extent = { 0 };
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
     Error *local_err = NULL;
 
