@@ -2998,7 +2998,9 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     }
 
     ret = vfio_get_device(group, name, vbasedev, errp);
-    g_free(name);
+    if (name != vbasedev->name) {
+        g_free(name);
+    }
     if (ret) {
         vfio_put_group(group);
         goto error;
