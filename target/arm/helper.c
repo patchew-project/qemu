@@ -7432,23 +7432,37 @@ static void dccvap_writefn(CPUARMState *env, const ARMCPRegInfo *opaque,
         }
     }
 }
+#endif /*CONFIG_USER_ONLY*/
 
 static const ARMCPRegInfo dcpop_reg[] = {
     { .name = "DC_CVAP", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 3, .crn = 7, .crm = 12, .opc2 = 1,
-      .access = PL0_W, .type = ARM_CP_NO_RAW | ARM_CP_SUPPRESS_TB_END,
+      .access = PL0_W,
       .fgt = FGT_DCCVAP,
-      .accessfn = aa64_cacheop_poc_access, .writefn = dccvap_writefn },
+      .accessfn = aa64_cacheop_poc_access,
+#ifdef CONFIG_USER_ONLY
+      .type = ARM_CP_NOP,
+#else
+      .type = ARM_CP_NO_RAW | ARM_CP_SUPPRESS_TB_END,
+      .writefn = dccvap_writefn,
+#endif
+    },
 };
 
 static const ARMCPRegInfo dcpodp_reg[] = {
     { .name = "DC_CVADP", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 3, .crn = 7, .crm = 13, .opc2 = 1,
-      .access = PL0_W, .type = ARM_CP_NO_RAW | ARM_CP_SUPPRESS_TB_END,
+      .access = PL0_W,
       .fgt = FGT_DCCVADP,
-      .accessfn = aa64_cacheop_poc_access, .writefn = dccvap_writefn },
+      .accessfn = aa64_cacheop_poc_access,
+#ifdef CONFIG_USER_ONLY
+      .type = ARM_CP_NOP,
+#else
+      .type = ARM_CP_NO_RAW | ARM_CP_SUPPRESS_TB_END,
+      .writefn = dccvap_writefn,
+#endif
+    },
 };
-#endif /*CONFIG_USER_ONLY*/
 
 static CPAccessResult access_aa64_tid5(CPUARMState *env, const ARMCPRegInfo *ri,
                                        bool isread)
@@ -9092,7 +9106,6 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     if (cpu_isar_feature(aa64_tlbios, cpu)) {
         define_arm_cp_regs(cpu, tlbios_reginfo);
     }
-#ifndef CONFIG_USER_ONLY
     /* Data Cache clean instructions up to PoP */
     if (cpu_isar_feature(aa64_dcpop, cpu)) {
         define_one_arm_cp_reg(cpu, dcpop_reg);
@@ -9101,7 +9114,6 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             define_one_arm_cp_reg(cpu, dcpodp_reg);
         }
     }
-#endif /*CONFIG_USER_ONLY*/
 
     /*
      * If full MTE is enabled, add all of the system registers.
