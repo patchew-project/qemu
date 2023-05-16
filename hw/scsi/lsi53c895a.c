@@ -1134,10 +1134,13 @@ static void lsi_execute_script(LSIState *s)
     uint32_t addr, addr_high;
     int opcode;
     int insn_processed = 0;
+    static int reentrancy_level;
+
+    reentrancy_level++;
 
     s->istat1 |= LSI_ISTAT1_SRUN;
 again:
-    if (++insn_processed > LSI_MAX_INSN) {
+    if (++insn_processed > LSI_MAX_INSN || reentrancy_level > 8) {
         /* Some windows drivers make the device spin waiting for a memory
            location to change.  If we have been executed a lot of code then
            assume this is the case and force an unexpected device disconnect.
@@ -1596,6 +1599,8 @@ again:
         }
     }
     trace_lsi_execute_script_stop();
+
+    reentrancy_level--;
 }
 
 static uint8_t lsi_reg_readb(LSIState *s, int offset)
