@@ -2799,7 +2799,7 @@ static void migration_iteration_finish(MigrationState *s)
             }
         } else {
             if (runstate_check(RUN_STATE_FINISH_MIGRATE)) {
-                runstate_set(RUN_STATE_POSTMIGRATE);
+                runstate_set(s->vm_old_state);
             }
         }
         break;
