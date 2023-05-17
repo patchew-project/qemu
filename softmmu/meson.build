@@ -1,6 +1,5 @@
 specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: [files(
   'arch_init.c',
-  'ioport.c',
   'memory.c',
   'physmem.c',
   'watchpoint.c',
@@ -20,6 +19,7 @@ softmmu_ss.add(files(
   'dirtylimit.c',
   'dma-helpers.c',
   'globals.c',
+  'ioport.c',
   'memory_mapping.c',
   'qdev-monitor.c',
   'qtest.c',
