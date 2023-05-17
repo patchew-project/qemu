@@ -487,6 +487,13 @@
 #     and should not affect the correctness of postcopy migration.
 #     (since 7.1)
 #
+# @precopy-initial-data: If enabled, migration will not attempt to
+#     stop source VM and complete the migration until an ACK is
+#     received from the destination that initial precopy data has been
+#     loaded.  This can improve downtime if there are migration users
+#     that support precopy initial data.  'return-path' capability
+#     must be enabled to use it.  (since 8.1)
+#
 # Features:
 #
 # @unstable: Members @x-colo and @x-ignore-shared are experimental.
@@ -502,7 +509,7 @@
            'dirty-bitmaps', 'postcopy-blocktime', 'late-block-activate',
            { 'name': 'x-ignore-shared', 'features': [ 'unstable' ] },
            'validate-uuid', 'background-snapshot',
-           'zero-copy-send', 'postcopy-preempt'] }
+           'zero-copy-send', 'postcopy-preempt', 'precopy-initial-data'] }
 
 ##
 # @MigrationCapabilityStatus:
