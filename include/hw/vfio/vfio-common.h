@@ -66,6 +66,9 @@ typedef struct VFIOMigration {
     int data_fd;
     void *data_buffer;
     size_t data_buffer_size;
+    uint64_t precopy_init_size;
+    uint64_t precopy_dirty_size;
+    uint64_t mig_flags;
 } VFIOMigration;
 
 typedef struct VFIOAddressSpace {
@@ -143,6 +146,7 @@ typedef struct VFIODevice {
     VFIOMigration *migration;
     Error *migration_blocker;
     OnOffAuto pre_copy_dirty_page_tracking;
+    bool allow_pre_copy;
     bool dirty_pages_supported;
     bool dirty_tracking;
 } VFIODevice;
