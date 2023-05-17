@@ -16,11 +16,16 @@
 #include "qapi/qapi-events-run-state.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
+#include <math.h>
+#include <stdint.h>
 #include <sys/ioctl.h>
 #include <sys/utsname.h>
 #include <sys/syscall.h>
+#include <sys/resource.h>
+#include <sys/time.h>
 
 #include <linux/kvm.h>
+#include <unistd.h>
 #include "standard-headers/asm-x86/kvm_para.h"
 #include "hw/xen/interface/arch-x86/cpuid.h"
 
@@ -35,6 +40,7 @@
 #include "xen-emu.h"
 #include "hyperv.h"
 #include "hyperv-proto.h"
+#include "vmsr_energy.h"
 
 #include "exec/gdbstub.h"
 #include "qemu/host-utils.h"
@@ -2518,6 +2524,49 @@ static bool kvm_rdmsr_core_thread_count(X86CPU *cpu, uint32_t msr,
     return true;
 }
 
+static bool kvm_rdmsr_rapl_power_unit(X86CPU *cpu, uint32_t msr,
+                                        uint64_t *val)
+{
+
+    CPUState *cs = CPU(cpu);
+
+    *val = cs->kvm_state->msr_energy.msr_unit;
+
+    return true;
+}
+
+static bool kvm_rdmsr_pkg_power_limit(X86CPU *cpu, uint32_t msr,
+                                        uint64_t *val)
+{
+
+    CPUState *cs = CPU(cpu);
+
+    *val = cs->kvm_state->msr_energy.msr_limit;
+
+    return true;
+}
+
+static bool kvm_rdmsr_pkg_power_info(X86CPU *cpu, uint32_t msr,
+                                        uint64_t *val)
+{
+
+    CPUState *cs = CPU(cpu);
+
+    *val = cs->kvm_state->msr_energy.msr_info;
+
+    return true;
+}
+
+static bool kvm_rdmsr_pkg_energy_status(X86CPU *cpu, uint32_t msr,
+    uint64_t *val)
+{
+
+    CPUState *cs = CPU(cpu);
+    *val = cs->kvm_state->msr_energy.msr_value[cs->cpu_index];
+
+    return true;
+}
+
 static Notifier smram_machine_done;
 static KVMMemoryListener smram_listener;
 static AddressSpace smram_address_space;
@@ -2550,6 +2599,190 @@ static void register_smram_listener(Notifier *n, void *unused)
     address_space_init(&smram_address_space, &smram_as_root, "KVM-SMRAM");
     kvm_memory_listener_register(kvm_state, &smram_listener,
                                  &smram_address_space, 1, "kvm-smram");
+}
+
+static void *kvm_msr_energy_thread(void *data)
+{
+    KVMState *s = data;
+    struct KVMMsrEnergy *vmsr = &s->msr_energy;
+    unsigned int maxpkgs, maxcpus, maxticks;
+    package_energy_stat *pkg_stat;
+    int num_threads;
+    thread_stat *thd_stat;
+    CPUState *cpu;
+    pid_t pid;
+
+    rcu_register_thread();
+
+    /* Get QEMU PID*/
+    pid = getpid();
+
+    /* Assuming those values are the same accross physical system/packages */
+    maxcpus = get_maxcpus(0); /* Number of CPUS per packages */
+    maxpkgs = numa_max_node(); /* Number of Packages on the system */
+    /* Those MSR values should not change as well */
+    vmsr->msr_unit = read_msr(MSR_RAPL_POWER_UNIT, 0);
+    vmsr->msr_limit = read_msr(MSR_PKG_POWER_LIMIT, 0);
+    vmsr->msr_info = read_msr(MSR_PKG_POWER_INFO, 0);
+
+    /* Allocate memory for each package energy status */
+    pkg_stat = (package_energy_stat *) calloc(maxpkgs + 1,
+                                              sizeof(package_energy_stat));
+
+    /*
+     * Max numbers of ticks per package
+     * time in second * number of ticks/second * Number of cores / package
+     * ex: for 100 ticks/second/CPU, 12 CPUs per Package gives 1200 ticks max
+     */
+    maxticks = (MSR_ENERGY_THREAD_SLEEP_US / 1000000)
+                    * sysconf(_SC_CLK_TCK) * maxcpus;
+
+    while (true) {
+
+        /* Get all qemu threads id */
+        pid_t *thread_ids = get_thread_ids(pid, &num_threads);
+
+        if (thread_ids == NULL) {
+            return NULL;
+        }
+
+        /* Allocate memory for each thread stats */
+        thd_stat = (thread_stat *) calloc(num_threads, sizeof(thread_stat));
+
+        /* Populate all the thread stats */
+        for (int i = 0; i < num_threads; i++) {
+            thd_stat[i].thread_id = thread_ids[i];
+            thd_stat[i].utime = calloc(2, sizeof(unsigned long long));
+            thd_stat[i].stime = calloc(2, sizeof(unsigned long long));
+            read_thread_stat(&thd_stat[i], pid, 0);
+            thd_stat[i].numa_node_id = numa_node_of_cpu(thd_stat[i].cpu_id);
+        }
+
+        /* Retrieve all packages power plane energy counter */
+        for (int i = 0; i <= maxpkgs; i++) {
+            for (int j = 0; j < num_threads; j++) {
+                /*
+                 * Use the first thread we found that ran on the CPU
+                 * of the package to read the packages energy counter
+                 */
+                if (thd_stat[j].numa_node_id == i) {
+                    pkg_stat[i].e_start = read_msr(MSR_PKG_ENERGY_STATUS, i);
+                    break;
+                }
+            }
+        }
+
+        /* Sleep a short period while the other threads are working */
+        usleep(MSR_ENERGY_THREAD_SLEEP_US);
+
+        /*
+         * Retrieve all packages power plane energy counter
+         * Calculate the delta of all packages
+         */
+        for (int i = 0; i <= maxpkgs; i++) {
+            for (int j = 0; j < num_threads; j++) {
+                /*
+                 * Use the first thread we found that ran on the CPU
+                 * of the package to read the packages energy counter
+                 */
+                if (thd_stat[j].numa_node_id == i) {
+                    pkg_stat[i].e_end =
+                        read_msr(MSR_PKG_ENERGY_STATUS, thd_stat[j].cpu_id);
+                    pkg_stat[i].e_delta =
+                        pkg_stat[i].e_end - pkg_stat[i].e_start;
+                    break;
+                }
+            }
+        }
+
+        /* Delta of ticks spend by each thread between the sample */
+        for (int i = 0; i < num_threads; i++) {
+            if (read_thread_stat(&thd_stat[i], pid, 1) != 0) {
+                /*
+                 * We don't count the dead thread
+                 * i.e threads that existed before the sleep
+                 * and not anymore
+                 */
+                thd_stat[i].delta_ticks = 0;
+            } else {
+                delta_ticks(thd_stat, i);
+            }
+        }
+
+        /*
+         * Identify the vCPU threads
+         * Calculate the Number of vCPU per package
+         */
+        CPU_FOREACH(cpu) {
+            for (int i = 0; i < num_threads; i++) {
+                if (cpu->thread_id == thd_stat[i].thread_id) {
+                    thd_stat[i].is_vcpu = true;
+                    thd_stat[i].vcpu_id = cpu->cpu_index;
+                    pkg_stat[thd_stat[i].numa_node_id].nb_vcpu++;
+                    break;
+                }
+            }
+        }
+
+        /* Calculate the total energy of all non-vCPU thread */
+        for (int i = 0; i < num_threads; i++) {
+            double temp;
+            if ((thd_stat[i].is_vcpu != true) &&
+                (thd_stat[i].delta_ticks > 0)) {
+                temp = get_ratio(pkg_stat, thd_stat, maxticks, i);
+                pkg_stat[thd_stat[i].numa_node_id].e_ratio
+                    += (uint64_t)lround(temp);
+            }
+        }
+
+        /* Calculate the ratio per non-vCPU thread of each package */
+        for (int i = 0; i <= maxpkgs; i++) {
+            if (pkg_stat[i].nb_vcpu > 0) {
+                pkg_stat[i].e_ratio = pkg_stat[i].e_ratio / pkg_stat[i].nb_vcpu;
+            }
+        }
+
+        /* Calculate the energy for each vCPU thread */
+        for (int i = 0; i < num_threads; i++) {
+            double temp;
+
+            if ((thd_stat[i].is_vcpu == true) &&
+                (thd_stat[i].delta_ticks > 0)) {
+                temp = get_ratio(pkg_stat, thd_stat, maxticks, i);
+                vmsr->msr_value[thd_stat[i].vcpu_id] += (uint64_t)lround(temp);
+                vmsr->msr_value[thd_stat[i].vcpu_id] \
+                    += pkg_stat[thd_stat[i].numa_node_id].e_ratio;
+            }
+        }
+
+        /* free all memory */
+        for (int i = 0; i < num_threads; i++) {
+            free(thd_stat[i].utime);
+            free(thd_stat[i].stime);
+        }
+        free(thd_stat);
+        free(thread_ids);
+    }
+
+    rcu_unregister_thread();
+    return NULL;
+}
+
+static int kvm_msr_energy_thread_init(KVMState *s, MachineState *ms)
+{
+    struct KVMMsrEnergy *r = &s->msr_energy;
+
+    /* Retrieve the number of vCPU */
+    r->cpus = ms->smp.cpus;
+
+    /* Allocate register memory (MSR_PKG_STATUS) for each vCPU */
+    r->msr_value = calloc(r->cpus, sizeof(r->msr_value));
+
+    qemu_thread_create(&r->msr_thr, "kvm-msr",
+                       kvm_msr_energy_thread,
+                       s, QEMU_THREAD_JOINABLE);
+
+    return 0;
 }
 
 int kvm_arch_init(MachineState *ms, KVMState *s)
@@ -2764,6 +2997,46 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
             error_report("Could not install MSR_CORE_THREAD_COUNT handler: %s",
                          strerror(-ret));
             exit(1);
+        }
+
+        if (s->msr_energy.enable == true) {
+
+            r = kvm_filter_msr(s, MSR_RAPL_POWER_UNIT,
+                               kvm_rdmsr_rapl_power_unit, NULL);
+            if (!r) {
+                error_report("Could not install MSR_RAPL_POWER_UNIT \
+                                handler: %s",
+                             strerror(-ret));
+                exit(1);
+            }
+
+            r = kvm_filter_msr(s, MSR_PKG_POWER_LIMIT,
+                               kvm_rdmsr_pkg_power_limit, NULL);
+            if (!r) {
+                error_report("Could not install MSR_PKG_POWER_LIMIT \
+                                handler: %s",
+                             strerror(-ret));
+                exit(1);
+            }
+
+            r = kvm_filter_msr(s, MSR_PKG_POWER_INFO,
+                               kvm_rdmsr_pkg_power_info, NULL);
+            if (!r) {
+                error_report("Could not install MSR_PKG_POWER_INFO \
+                                handler: %s",
+                             strerror(-ret));
+                exit(1);
+            }
+            r = kvm_filter_msr(s, MSR_PKG_ENERGY_STATUS,
+                               kvm_rdmsr_pkg_energy_status, NULL);
+            if (!r) {
+                error_report("Could not install MSR_PKG_ENERGY_STATUS \
+                                handler: %s",
+                             strerror(-ret));
+                exit(1);
+            } else {
+                kvm_msr_energy_thread_init(s, ms);
+            }
         }
     }
 

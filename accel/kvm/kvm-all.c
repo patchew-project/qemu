@@ -3699,6 +3699,12 @@ static void kvm_set_dirty_ring_size(Object *obj, Visitor *v,
     s->kvm_dirty_ring_size = value;
 }
 
+static void kvm_set_kvm_rapl(Object *obj, bool value, Error **errp)
+{
+    KVMState *s = KVM_STATE(obj);
+    s->msr_energy.enable = value;
+}
+
 static void kvm_accel_instance_init(Object *obj)
 {
     KVMState *s = KVM_STATE(obj);
@@ -3715,6 +3721,7 @@ static void kvm_accel_instance_init(Object *obj)
     s->xen_version = 0;
     s->xen_gnttab_max_frames = 64;
     s->xen_evtchn_max_pirq = 256;
+    s->msr_energy.enable = false;
 }
 
 /**
@@ -3754,6 +3761,12 @@ static void kvm_accel_class_init(ObjectClass *oc, void *data)
         NULL, NULL);
     object_class_property_set_description(oc, "dirty-ring-size",
         "Size of KVM dirty page ring buffer (default: 0, i.e. use bitmap)");
+
+    object_class_property_add_bool(oc, "rapl",
+                                   NULL,
+                                   kvm_set_kvm_rapl);
+    object_class_property_set_description(oc, "rapl",
+        "Allow energy related MSRs for RAPL interface in Guest");
 
     kvm_arch_accel_class_init(oc);
 }

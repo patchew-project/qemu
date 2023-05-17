@@ -47,6 +47,16 @@ typedef struct KVMMemoryListener {
 
 #define KVM_MSI_HASHTAB_SIZE    256
 
+struct KVMMsrEnergy {
+    bool enable;
+    QemuThread msr_thr;
+    int cpus;
+    uint64_t *msr_value;
+    uint64_t msr_unit;
+    uint64_t msr_limit;
+    uint64_t msr_info;
+};
+
 enum KVMDirtyRingReaperState {
     KVM_DIRTY_RING_REAPER_NONE = 0,
     /* The reaper is sleeping */
@@ -116,6 +126,7 @@ struct KVMState
     uint64_t kvm_dirty_ring_bytes;  /* Size of the per-vcpu dirty ring */
     uint32_t kvm_dirty_ring_size;   /* Number of dirty GFNs per ring */
     struct KVMDirtyRingReaper reaper;
+    struct KVMMsrEnergy msr_energy;
     NotifyVmexitOption notify_vmexit;
     uint32_t notify_window;
     uint32_t xen_version;
