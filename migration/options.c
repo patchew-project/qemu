@@ -561,10 +561,6 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
                              "capability 'return-path'");
             return false;
         }
-
-        /* Disable this capability until it's implemented */
-        error_setg(errp, "'precopy-initial-data' is not implemented yet");
-        return false;
     }
 
     return true;
