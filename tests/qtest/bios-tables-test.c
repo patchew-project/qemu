@@ -440,7 +440,12 @@ static void test_acpi_asl(test_data *data)
     AcpiSdtTable *sdt, *exp_sdt;
     test_data exp_data = {};
     gboolean exp_err, err, all_tables_match = true;
+    const char *user_iasl_path = getenv("IASL_PATH");
 
+    /* if user has provided a path to iasl, use that */
+    if (user_iasl_path) {
+        iasl = user_iasl_path;
+    }
     exp_data.tables = load_expected_aml(data);
     dump_aml_files(data, false);
     for (i = 0; i < data->tables->len; ++i) {
@@ -471,6 +476,15 @@ static void test_acpi_asl(test_data *data)
          */
         if (!iasl) {
             continue;
+        }
+
+        if (verbosity_level >= 2) {
+            if (user_iasl_path) {
+                fprintf(stderr, "User has provided an iasl path," \
+                        "using that: %s\n", user_iasl_path);
+            } else {
+                fprintf(stderr, "Using iasl: %s\n", iasl);
+            }
         }
 
         err = load_asl(data->tables, sdt);
