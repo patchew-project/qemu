@@ -1233,6 +1233,32 @@ bool qemu_savevm_state_guest_unplug_pending(void)
     return false;
 }
 
+void qemu_savevm_state_initial_data_advise(MigrationState *ms)
+{
+    SaveStateEntry *se;
+    unsigned int supported_num = 0;
+
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (!se->ops || !se->ops->initial_data_advise) {
+            continue;
+        }
+
+        if (se->ops->initial_data_advise(se->opaque)) {
+            supported_num++;
+        }
+    }
+
+    if (!supported_num) {
+        /*
+         * There are no migration users that support precopy initial data. Set
+         * initial data loaded acked to true so migration can be completed.
+         */
+        ms->initial_data_loaded_acked = true;
+    }
+
+    trace_savevm_state_initial_data_advise(supported_num);
+}
+
 void qemu_savevm_state_setup(QEMUFile *f)
 {
     MigrationState *ms = migrate_get_current();
@@ -2586,6 +2612,23 @@ static int qemu_loadvm_state_header(QEMUFile *f)
     return 0;
 }
 
+static void qemu_loadvm_state_initial_data_advise(MigrationIncomingState *mis)
+{
+    SaveStateEntry *se;
+
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (!se->ops || !se->ops->initial_data_advise) {
+            continue;
+        }
+
+        if (se->ops->initial_data_advise(se->opaque)) {
+            mis->initial_data_pending_num++;
+        }
+    }
+
+    trace_loadvm_state_initial_data_advise(mis->initial_data_pending_num);
+}
+
 static int qemu_loadvm_state_setup(QEMUFile *f)
 {
     SaveStateEntry *se;
@@ -2789,6 +2832,10 @@ int qemu_loadvm_state(QEMUFile *f)
         return -EINVAL;
     }
 
+    if (migrate_precopy_initial_data()) {
+        qemu_loadvm_state_initial_data_advise(mis);
+    }
+
     cpu_synchronize_all_pre_loadvm();
 
     ret = qemu_loadvm_state_main(f, mis);
@@ -2860,6 +2907,24 @@ int qemu_load_device_state(QEMUFile *f)
 
     cpu_synchronize_all_post_init();
     return 0;
+}
+
+int qemu_loadvm_notify_initial_data_loaded(void)
+{
+    MigrationIncomingState *mis = migration_incoming_get_current();
+
+    if (!mis->initial_data_pending_num) {
+        return -EINVAL;
+    }
+
+    mis->initial_data_pending_num--;
+    trace_loadvm_notify_initial_data_loaded(mis->initial_data_pending_num);
+
+    if (mis->initial_data_pending_num) {
+        return 0;
+    }
+
+    return migrate_send_rp_initial_data_loaded_ack(mis);
 }
 
 bool save_snapshot(const char *name, bool overwrite, const char *vmstate,

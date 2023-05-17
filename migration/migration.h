@@ -202,6 +202,13 @@ struct MigrationIncomingState {
      * contains valid information.
      */
     QemuMutex page_request_mutex;
+
+    /*
+     * Number of migration users that are waiting for their initial data to be
+     * loaded. When this reaches zero an ACK is sent to source. No lock is
+     * needed as this field is updated serially.
+     */
+    unsigned int initial_data_pending_num;
 };
 
 MigrationIncomingState *migration_incoming_get_current(void);
@@ -430,6 +437,12 @@ struct MigrationState {
 
     /* QEMU_VM_VMDESCRIPTION content filled for all non-iterable devices. */
     JSONWriter *vmdesc;
+
+    /*
+     * Indicates whether an ACK that precopy initial data was loaded in
+     * destination has been received.
+     */
+    bool initial_data_loaded_acked;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);
@@ -470,6 +483,7 @@ int migrate_send_rp_message_req_pages(MigrationIncomingState *mis,
 void migrate_send_rp_recv_bitmap(MigrationIncomingState *mis,
                                  char *block_name);
 void migrate_send_rp_resume_ack(MigrationIncomingState *mis, uint32_t value);
+int migrate_send_rp_initial_data_loaded_ack(MigrationIncomingState *mis);
 
 void dirty_bitmap_mig_before_vm_start(void);
 void dirty_bitmap_mig_cancel_outgoing(void);

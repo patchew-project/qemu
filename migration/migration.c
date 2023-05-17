@@ -78,6 +78,7 @@ enum mig_rp_message_type {
     MIG_RP_MSG_REQ_PAGES,    /* data (start: be64, len: be32) */
     MIG_RP_MSG_RECV_BITMAP,  /* send recved_bitmap back to source */
     MIG_RP_MSG_RESUME_ACK,   /* tell source that we are ready to resume */
+    MIG_RP_MSG_INITIAL_DATA_LOADED_ACK, /* Tell source initial data is loaded */
 
     MIG_RP_MSG_MAX
 };
@@ -780,6 +781,12 @@ bool migration_has_all_channels(void)
     return true;
 }
 
+int migrate_send_rp_initial_data_loaded_ack(MigrationIncomingState *mis)
+{
+    return migrate_send_rp_message(mis, MIG_RP_MSG_INITIAL_DATA_LOADED_ACK, 0,
+                                   NULL);
+}
+
 /*
  * Send a 'SHUT' message on the return channel with the given value
  * to indicate that we've finished with the RP.  Non-0 value indicates
@@ -1425,6 +1432,7 @@ void migrate_init(MigrationState *s)
     s->vm_was_running = false;
     s->iteration_initial_bytes = 0;
     s->threshold_size = 0;
+    s->initial_data_loaded_acked = false;
 }
 
 int migrate_add_blocker_internal(Error *reason, Error **errp)
@@ -1741,6 +1749,9 @@ static struct rp_cmd_args {
     [MIG_RP_MSG_REQ_PAGES_ID]   = { .len = -1, .name = "REQ_PAGES_ID" },
     [MIG_RP_MSG_RECV_BITMAP]    = { .len = -1, .name = "RECV_BITMAP" },
     [MIG_RP_MSG_RESUME_ACK]     = { .len =  4, .name = "RESUME_ACK" },
+    [MIG_RP_MSG_INITIAL_DATA_LOADED_ACK] = { .len = 0,
+                                             .name =
+                                                 "INITIAL_DATA_LOADED_ACK" },
     [MIG_RP_MSG_MAX]            = { .len = -1, .name = "MAX" },
 };
 
@@ -1977,6 +1988,11 @@ retry:
                 mark_source_rp_bad(ms);
                 goto out;
             }
+            break;
+
+        case MIG_RP_MSG_INITIAL_DATA_LOADED_ACK:
+            ms->initial_data_loaded_acked = true;
+            trace_source_return_path_thread_initial_data_loaded_ack();
             break;
 
         default:
@@ -2727,6 +2743,20 @@ static void migration_update_counters(MigrationState *s,
                               bandwidth, s->threshold_size);
 }
 
+static bool initial_data_loaded_acked(MigrationState *s)
+{
+    if (!migrate_precopy_initial_data()) {
+        return true;
+    }
+
+    /* No reason to wait for precopy initial data loaded ACK if VM is stopped */
+    if (!runstate_is_running()) {
+        return true;
+    }
+
+    return s->initial_data_loaded_acked;
+}
+
 /* Migration thread iteration status */
 typedef enum {
     MIG_ITERATE_RESUME,         /* Resume current iteration */
@@ -2742,6 +2772,7 @@ static MigIterateState migration_iteration_run(MigrationState *s)
 {
     uint64_t must_precopy, can_postcopy;
     bool in_postcopy = s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE;
+    bool initial_data_loaded = initial_data_loaded_acked(s);
 
     qemu_savevm_state_pending_estimate(&must_precopy, &can_postcopy);
     uint64_t pending_size = must_precopy + can_postcopy;
@@ -2754,7 +2785,8 @@ static MigIterateState migration_iteration_run(MigrationState *s)
         trace_migrate_pending_exact(pending_size, must_precopy, can_postcopy);
     }
 
-    if (!pending_size || pending_size < s->threshold_size) {
+    if ((!pending_size || pending_size < s->threshold_size) &&
+        initial_data_loaded) {
         trace_migration_thread_low_pending(pending_size);
         migration_completion(s);
         return MIG_ITERATE_BREAK;
@@ -2762,7 +2794,7 @@ static MigIterateState migration_iteration_run(MigrationState *s)
 
     /* Still a significant amount to transfer */
     if (!in_postcopy && must_precopy <= s->threshold_size &&
-        qatomic_read(&s->start_postcopy)) {
+        initial_data_loaded && qatomic_read(&s->start_postcopy)) {
         if (postcopy_start(s)) {
             error_report("%s: postcopy failed to start", __func__);
         }
@@ -2985,6 +3017,10 @@ static void *migration_thread(void *opaque)
     }
 
     qemu_savevm_state_setup(s->to_dst_file);
+
+    if (migrate_precopy_initial_data()) {
+        qemu_savevm_state_initial_data_advise(s);
+    }
 
     qemu_savevm_wait_unplug(s, MIGRATION_STATUS_SETUP,
                                MIGRATION_STATUS_ACTIVE);
