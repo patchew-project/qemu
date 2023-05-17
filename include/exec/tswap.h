@@ -69,4 +69,70 @@ static inline void tswap64s(uint64_t *s)
     }
 }
 
+/*
+ * Target-endianness CPU memory access functions. These fit into the
+ * {ld,st}{type}{sign}{size}{endian}_p naming scheme described in bswap.h.
+ */
+
+static inline int lduw_p(const void *ptr)
+{
+    return (uint16_t)tswap16(lduw_he_p(ptr));
+}
+
+static inline int ldsw_p(const void *ptr)
+{
+    return (int16_t)tswap16(lduw_he_p(ptr));
+}
+
+static inline int ldl_p(const void *ptr)
+{
+    return tswap32(ldl_he_p(ptr));
+}
+
+static inline uint64_t ldq_p(const void *ptr)
+{
+    return tswap64(ldq_he_p(ptr));
+}
+
+static inline uint64_t ldn_p(const void *ptr, int sz)
+{
+    if (target_needs_bswap()) {
+#if HOST_BIG_ENDIAN
+        return ldn_le_p(ptr, sz);
+#else
+        return ldn_be_p(ptr, sz);
+#endif
+    } else {
+        return ldn_he_p(ptr, sz);
+    }
+}
+
+static inline void stw_p(void *ptr, uint16_t v)
+{
+    stw_he_p(ptr, tswap16(v));
+}
+
+static inline void stl_p(void *ptr, uint32_t v)
+{
+    stl_he_p(ptr, tswap32(v));
+}
+
+static inline void stq_p(void *ptr, uint64_t v)
+{
+    stq_he_p(ptr, tswap64(v));
+}
+
+static inline void stn_p(void *ptr, int sz, uint64_t v)
+{
+    if (target_needs_bswap()) {
+#if HOST_BIG_ENDIAN
+        stn_le_p(ptr, sz, v);
+#else
+        stn_be_p(ptr, sz, v);
+#endif
+    } else {
+        stn_he_p(ptr, sz, v);
+    }
+}
+
 #endif  /* TSWAP_H */
