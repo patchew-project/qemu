@@ -110,6 +110,6 @@ bool tb_stats_cmp(const void *ap, const void *bp);
 void init_tb_stats_htable(void);
 
 void dump_jit_profile_info(TCGProfile *s, GString *buf);
-void dump_jit_exec_time_info(uint64_t dev_time);
+void dump_jit_exec_time_info(uint64_t dev_time, GString *buf);
 
 #endif
