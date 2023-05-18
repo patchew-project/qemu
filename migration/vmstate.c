@@ -14,6 +14,7 @@
 #include "migration.h"
 #include "migration/vmstate.h"
 #include "savevm.h"
+#include "qapi/error.h"
 #include "qapi/qmp/json-writer.h"
 #include "qemu-file.h"
 #include "qemu/bitops.h"
@@ -323,6 +324,8 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
 {
     int ret = 0;
     const VMStateField *field = vmsd->fields;
+    MigrationState *ms = migrate_get_current();
+    Error *local_err = NULL;
 
     trace_vmstate_save_state_top(vmsd->name);
 
@@ -330,7 +333,9 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
         ret = vmsd->pre_save(opaque);
         trace_vmstate_save_state_pre_save_res(vmsd->name, ret);
         if (ret) {
-            error_report("pre-save failed: %s", vmsd->name);
+            error_setg(&local_err, "pre-save failed: %s", vmsd->name);
+            migrate_set_error(ms, local_err);
+            error_report_err(local_err);
             return ret;
         }
     }
@@ -383,8 +388,10 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
                                      vmdesc_loop);
                 }
                 if (ret) {
-                    error_report("Save of field %s/%s failed",
-                                 vmsd->name, field->name);
+                    error_setg(&local_err, "Save of field %s/%s failed",
+                                vmsd->name, field->name);
+                    migrate_set_error(ms, local_err);
+                    error_report_err(local_err);
                     if (vmsd->post_save) {
                         vmsd->post_save(opaque);
                     }
