@@ -537,11 +537,20 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
             error_setg(errp, "Postcopy preempt not compatible with compress");
             return false;
         }
+
+        if (mis->transport_data) {
+            error_setg(errp, "Postcopy preempt should use deferred incoming");
+            return false;
+        }
     }
 
     if (new_caps[MIGRATION_CAPABILITY_MULTIFD]) {
         if (new_caps[MIGRATION_CAPABILITY_COMPRESS]) {
             error_setg(errp, "Multifd is not compatible with compress");
+            return false;
+        }
+        if (mis->transport_data) {
+            error_setg(errp, "Multifd should use deferred incoming");
             return false;
         }
     }
