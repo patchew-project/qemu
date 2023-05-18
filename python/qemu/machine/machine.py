@@ -49,10 +49,6 @@ from qemu.qmp.legacy import (
 
 from . import console_socket
 
-
-LOG = logging.getLogger(__name__)
-
-
 class QEMUMachineError(Exception):
     """
     Exception called when an error in QEMUMachine happens.
@@ -131,6 +127,7 @@ class QEMUMachine:
                  drain_console: bool = False,
                  console_log: Optional[str] = None,
                  log_dir: Optional[str] = None,
+                 log_namespace: Optional[str] = None,
                  qmp_timer: Optional[float] = 30):
         '''
         Initialize a QEMUMachine
@@ -163,6 +160,11 @@ class QEMUMachine:
         self._base_temp_dir = base_temp_dir
         self._sock_dir = sock_dir
         self._log_dir = log_dir
+
+        if log_namespace:
+            self.log = logging.getLogger(log_namespace)
+        else:
+            self.log = logging.getLogger(__name__)
 
         self._monitor_address = monitor_address
 
@@ -382,11 +384,11 @@ class QEMUMachine:
         Called to cleanup the VM instance after the process has exited.
         May also be called after a failed launch.
         """
-        LOG.debug("Cleaning up after VM process")
+        self.log.debug("Cleaning up after VM process")
         try:
             self._close_qmp_connection()
         except Exception as err:  # pylint: disable=broad-except
-            LOG.warning(
+            self.log.warning(
                 "Exception closing QMP connection: %s",
                 str(err) if str(err) else type(err).__name__
             )
@@ -414,7 +416,7 @@ class QEMUMachine:
                 command = ' '.join(self._qemu_full_args)
             else:
                 command = ''
-            LOG.warning(msg, -int(exitcode), command)
+            self.log.warning(msg, -int(exitcode), command)
 
         self._quit_issued = False
         self._user_killed = False
@@ -458,7 +460,7 @@ class QEMUMachine:
         Launch the VM and establish a QMP connection
         """
         self._pre_launch()
-        LOG.debug('VM launch command: %r', ' '.join(self._qemu_full_args))
+        self.log.debug('VM launch command: %r', ' '.join(self._qemu_full_args))
 
         # Cleaning up of this subprocess is guaranteed by _do_shutdown.
         # pylint: disable=consider-using-with
@@ -507,7 +509,7 @@ class QEMUMachine:
         # for QEMU to exit, while QEMU is waiting for the socket to
         # become writable.
         if self._console_socket is not None:
-            LOG.debug("Closing console socket")
+            self.log.debug("Closing console socket")
             self._console_socket.close()
             self._console_socket = None
 
@@ -518,7 +520,7 @@ class QEMUMachine:
         :raise subprocess.Timeout: When timeout is exceeds 60 seconds
             waiting for the QEMU process to terminate.
         """
-        LOG.debug("Performing hard shutdown")
+        self.log.debug("Performing hard shutdown")
         self._early_cleanup()
         self._subp.kill()
         self._subp.wait(timeout=60)
@@ -535,17 +537,17 @@ class QEMUMachine:
         :raise subprocess.TimeoutExpired: When timeout is exceeded waiting for
             the QEMU process to terminate.
         """
-        LOG.debug("Attempting graceful termination")
+        self.log.debug("Attempting graceful termination")
 
         self._early_cleanup()
 
         if self._quit_issued:
-            LOG.debug(
+            self.log.debug(
                 "Anticipating QEMU termination due to prior 'quit' command, "
                 "or explicit call to wait()"
             )
         else:
-            LOG.debug("Politely asking QEMU to terminate")
+            self.log.debug("Politely asking QEMU to terminate")
 
         if self._qmp_connection:
             try:
@@ -557,14 +559,14 @@ class QEMUMachine:
                 # Regardless, we want to quiesce the connection.
                 self._close_qmp_connection()
         elif not self._quit_issued:
-            LOG.debug(
+            self.log.debug(
                 "Not anticipating QEMU quit and no QMP connection present, "
                 "issuing SIGTERM"
             )
             self._subp.terminate()
 
         # May raise subprocess.TimeoutExpired
-        LOG.debug(
+        self.log.debug(
             "Waiting (timeout=%s) for QEMU process (pid=%s) to terminate",
             timeout, self._subp.pid
         )
@@ -586,9 +588,9 @@ class QEMUMachine:
             self._soft_shutdown(timeout)
         except Exception as exc:
             if isinstance(exc, subprocess.TimeoutExpired):
-                LOG.debug("Timed out waiting for QEMU process to exit")
-            LOG.debug("Graceful shutdown failed", exc_info=True)
-            LOG.debug("Falling back to hard shutdown")
+                self.log.debug("Timed out waiting for QEMU process to exit")
+            self.log.debug("Graceful shutdown failed", exc_info=True)
+            self.log.debug("Falling back to hard shutdown")
             self._hard_shutdown()
             raise AbnormalShutdown("Could not perform graceful shutdown") \
                 from exc
@@ -611,9 +613,9 @@ class QEMUMachine:
         if not self._launched:
             return
 
-        LOG.debug("Shutting down VM appliance; timeout=%s", timeout)
+        self.log.debug("Shutting down VM appliance; timeout=%s", timeout)
         if hard:
-            LOG.debug("Caller requests immediate termination of QEMU process.")
+            self.log.debug("Caller requests immediate termination of QEMU process.")
 
         try:
             if hard:
