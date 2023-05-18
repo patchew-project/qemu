@@ -1602,7 +1602,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
     target_ulong htval = 0;
     target_ulong mtval2 = 0;
 
-    if  (cause == RISCV_EXCP_SEMIHOST) {
+    if  (!async && cause == RISCV_EXCP_SEMIHOST) {
         do_common_semihosting(cs);
         env->pc += 4;
         return;
