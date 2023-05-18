@@ -983,6 +983,31 @@ of Avocado or ``make check-avocado``, and can also be queried using:
 
   tests/venv/bin/avocado list tests/avocado
 
+Logs
+^^^^
+
+Avocado collects anything logged under the 'avocado.*' name space in
+the log files for a given run. You can also use the ``--show`` option
+to dump selected logging streams directly to stdout:
+
+  .. code::
+
+   tests/venv/bin/avocado --show avocado.qemu.machine run tests/avocado/$TESTFILE:$TESTCLASS.$TESTNAME
+
+There are a number of useful streams you can select.
+
+.. list-table:: Avocado Logging Streams
+  :header-rows: 1
+
+  * - Stream Name
+    - Contents
+  * - avocado.qemu.machine
+    - VM lifecycle including the launch command
+  * - avocado.guest.console
+    - Serial console interactions
+  * - avocado.guest.ssh
+    - ssh interactions
+
 Manual Installation
 ~~~~~~~~~~~~~~~~~~~
 
