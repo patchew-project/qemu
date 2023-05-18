@@ -292,6 +292,14 @@ add_project_arguments('-iquote', '.',
                       '-iquote', meson.current_source_dir() / 'include',
                       language: all_languages)
 
+include_host = meson.current_source_dir() / 'include/host/'
+if fs.is_dir(include_host / host_arch)
+  add_project_arguments('-iquote', include_host / host_arch,
+                        language: all_languages)
+endif
+add_project_arguments('-iquote', include_host / 'generic',
+                      language: all_languages)
+
 sparse = find_program('cgcc', required: get_option('sparse'))
 if sparse.found()
   run_target('sparse',
