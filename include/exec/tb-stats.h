@@ -97,6 +97,12 @@ struct TBStatistics {
     uint64_t tb_restore_time;
     uint64_t tb_restore_count;
 
+    struct {
+        uint64_t ir;
+        uint64_t ir_opt;
+        uint64_t la;
+        uint64_t code;
+    } gen_times;
 };
 
 bool tb_stats_cmp(const void *ap, const void *bp);
@@ -104,5 +110,6 @@ bool tb_stats_cmp(const void *ap, const void *bp);
 void init_tb_stats_htable(void);
 
 void dump_jit_profile_info(TCGProfile *s, GString *buf);
+void dump_jit_exec_time_info(uint64_t dev_time);
 
 #endif
