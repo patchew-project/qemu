@@ -182,5 +182,7 @@ void hmp_boot_set(Monitor *mon, const QDict *qdict);
 void hmp_info_mtree(Monitor *mon, const QDict *qdict);
 void hmp_info_cryptodev(Monitor *mon, const QDict *qdict);
 void hmp_tbstats(Monitor *mon, const QDict *qdict);
+void hmp_info_tblist(Monitor *mon, const QDict *qdict);
+void hmp_info_tb(Monitor *mon, const QDict *qdict);
 
 #endif
