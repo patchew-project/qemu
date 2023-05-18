@@ -995,7 +995,7 @@ static inline int64_t profile_getclock(void)
     return get_clock();
 }
 
-extern int64_t dev_time;
+extern uint64_t dev_time;
 #endif
 
 #endif
