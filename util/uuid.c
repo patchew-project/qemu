@@ -16,6 +16,7 @@
 #include "qemu/osdep.h"
 #include "qemu/uuid.h"
 #include "qemu/bswap.h"
+#include "qemu/xxhash.h"
 
 void qemu_uuid_generate(QemuUUID *uuid)
 {
@@ -115,4 +116,41 @@ QemuUUID qemu_uuid_bswap(QemuUUID uuid)
     bswap16s(&uuid.fields.time_mid);
     bswap16s(&uuid.fields.time_high_and_version);
     return uuid;
+}
+
+uint32_t qemu_uuid_hash(const void *uuid)
+{
+    QemuUUID *id = (QemuUUID *) uuid;
+    uint64_t ab = (id->fields.time_low) |
+                  (((uint64_t) id->fields.time_mid) << 32) |
+                  (((uint64_t) id->fields.time_high_and_version) << 48);
+    uint64_t cd = (id->fields.clock_seq_and_reserved) |
+                  (id->fields.clock_seq_low << 8);
+    int i = 0, shift = 8;
+
+    for (; i < 6; i++) {
+        shift += 8;
+        cd |= ((uint64_t) id->fields.node[i]) << shift;
+    }
+
+    return qemu_xxhash4(ab, cd);
+}
+
+int qemu_uuid_equal(const void *lhv, const void *rhv)
+{
+    int i;
+    QemuUUID *lid = (QemuUUID *) lhv;
+    QemuUUID *rid = (QemuUUID *) rhv;
+    if (lid == NULL || rid == NULL) {
+        return 0;
+    }
+    if (lid == rid) {
+        return 1;
+    }
+    for (i = 0; i < 16; i++) {
+        if (lid->data[i] != rid->data[i]) {
+            return 0;
+        }
+    }
+    return 1;
 }
