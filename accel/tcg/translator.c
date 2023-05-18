@@ -18,6 +18,15 @@
 #include "exec/plugin-gen.h"
 #include "exec/replay-core.h"
 
+static inline void gen_tb_exec_count(TranslationBlock *tb)
+{
+    if (tb_stats_enabled(tb, TB_EXEC_STATS)) {
+        TCGv_ptr ptr = tcg_temp_new_ptr();
+        tcg_gen_movi_ptr(ptr, (intptr_t)tb->tb_stats);
+        gen_helper_inc_exec_freq(ptr);
+    }
+}
+
 bool translator_use_goto_tb(DisasContextBase *db, target_ulong dest)
 {
     /* Suppress goto_tb if requested. */
@@ -56,6 +65,7 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
 
     /* Start translating.  */
     gen_tb_start(db->tb);
+    gen_tb_exec_count(tb);
     ops->tb_start(db, cpu);
     tcg_debug_assert(db->is_jmp == DISAS_NEXT);  /* no early exit */
 
