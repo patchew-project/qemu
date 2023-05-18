@@ -92,6 +92,11 @@ struct TBStatistics {
      * this TBStats structure. Has to be reset on a tb_flush.
      */
     GPtrArray *tbs;
+
+    /* Recover state from TB */
+    uint64_t tb_restore_time;
+    uint64_t tb_restore_count;
+
 };
 
 bool tb_stats_cmp(const void *ap, const void *bp);
