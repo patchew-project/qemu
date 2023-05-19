@@ -424,9 +424,10 @@ void migrate_add_address(SocketAddress *address)
                       QAPI_CLONE(SocketAddress, address));
 }
 
-static bool migrate_uri_parse(const char *uri, MigrateAddress **channel,
+static bool migrate_uri_parse(const char *uri, MigrateChannel **channel,
                               Error **errp)
 {
+    g_autoptr(MigrateChannel) val = g_new0(MigrateChannel, 1);
     g_autoptr(MigrateAddress) addrs = g_new0(MigrateAddress, 1);
     SocketAddress *saddr = &addrs->u.socket;
     InetSocketAddress *isock = &addrs->u.rdma;
@@ -462,7 +463,9 @@ static bool migrate_uri_parse(const char *uri, MigrateAddress **channel,
         return false;
     }
 
-    *channel = addrs;
+    val->channeltype = MIGRATE_CHANNEL_TYPE_MAIN;
+    val->addr = addrs;
+    *channel = val;
     return true;
 }
 
@@ -470,7 +473,8 @@ static void qemu_start_incoming_migration(const char *uri, bool has_channels,
                                           MigrateChannelList *channels,
                                           Error **errp)
 {
-    g_autoptr(MigrateAddress) channel = g_new0(MigrateAddress, 1);
+    g_autoptr(MigrateChannel) channel = g_new0(MigrateChannel, 1);
+    g_autoptr(MigrateAddress) addrs;
 
     /*
      * Having preliminary checks for uri and channel
@@ -480,20 +484,29 @@ static void qemu_start_incoming_migration(const char *uri, bool has_channels,
                    "exclusive; exactly one of the two should be present in "
                    "'migrate-incoming' qmp command ");
         return;
-    }
-
-    if (uri && !migrate_uri_parse(uri, &channel, errp)) {
-        return;
+    } else if (channels) {
+        /* To verify that Migrate channel list has only item */
+        if (channels->next) {
+            error_setg(errp, "Channel list has more than one entries");
+            return;
+        }
+        channel = channels->value;
+        addrs = channel->addr;
+    } else {
+        /* caller uses the old URI syntax */
+        if (uri && !migrate_uri_parse(uri, &channel, errp)) {
+            return;
+        }
     }
 
     /* transport mechanism not suitable for migration? */
-    if (!migration_channels_and_transport_compatible(channel, errp)) {
+    if (!migration_channels_and_transport_compatible(addrs, errp)) {
         return;
     }
 
     qapi_event_send_migration(MIGRATION_STATUS_SETUP);
-    if (channel->transport == MIGRATE_TRANSPORT_SOCKET) {
-        SocketAddress *saddr = &channel->u.socket;
+    if (addrs->transport == MIGRATE_TRANSPORT_SOCKET) {
+        SocketAddress *saddr = &addrs->u.socket;
         if (saddr->type == SOCKET_ADDRESS_TYPE_INET ||
             saddr->type == SOCKET_ADDRESS_TYPE_UNIX ||
             saddr->type == SOCKET_ADDRESS_TYPE_VSOCK) {
@@ -502,11 +515,11 @@ static void qemu_start_incoming_migration(const char *uri, bool has_channels,
             fd_start_incoming_migration(saddr->u.fd.str, errp);
         }
 #ifdef CONFIG_RDMA
-    } else if (channel->transport == MIGRATE_TRANSPORT_RDMA) {
-        rdma_start_incoming_migration(&channel->u.rdma, errp);
+    } else if (addrs->transport == MIGRATE_TRANSPORT_RDMA) {
+        rdma_start_incoming_migration(&addrs->u.rdma, errp);
 #endif
-    } else if (channel->transport == MIGRATE_TRANSPORT_EXEC) {
-        exec_start_incoming_migration(channel->u.exec.args, errp);
+    } else if (addrs->transport == MIGRATE_TRANSPORT_EXEC) {
+        exec_start_incoming_migration(addrs->u.exec.args, errp);
     } else {
         error_setg(errp, "unknown migration protocol: %s", uri);
     }
@@ -1698,7 +1711,8 @@ void qmp_migrate(const char *uri, bool has_channels,
 {
     Error *local_err = NULL;
     MigrationState *s = migrate_get_current();
-    g_autoptr(MigrateAddress) channel = g_new0(MigrateAddress, 1);
+    g_autoptr(MigrateChannel) channel = g_new0(MigrateChannel, 1);
+    g_autoptr(MigrateAddress) addrs;
 
     /*
      * Having preliminary checks for uri and channel
@@ -1708,14 +1722,23 @@ void qmp_migrate(const char *uri, bool has_channels,
                    "exclusive; exactly one of the two should be present in "
                    "'migrate' qmp command ");
         return;
-    }
-
-    if (!migrate_uri_parse(uri, &channel, errp)) {
-        return;
+    } else if (channels) {
+        /* To verify that Migrate channel list has only item */
+        if (channels->next) {
+            error_setg(errp, "Channel list has more than one entries");
+            return;
+        }
+        channel = channels->value;
+        addrs = channel->addr;
+    } else {
+        /* caller uses the old URI syntax */
+        if (uri && !migrate_uri_parse(uri, &channel, errp)) {
+            return;
+        }
     }
 
     /* transport mechanism not suitable for migration? */
-    if (!migration_channels_and_transport_compatible(channel, errp)) {
+    if (!migration_channels_and_transport_compatible(addrs, errp)) {
         return;
     }
 
@@ -1731,8 +1754,8 @@ void qmp_migrate(const char *uri, bool has_channels,
         }
     }
 
-    if (channel->transport == MIGRATE_TRANSPORT_SOCKET) {
-        SocketAddress *saddr = &channel->u.socket;
+    if (addrs->transport == MIGRATE_TRANSPORT_SOCKET) {
+        SocketAddress *saddr = &addrs->u.socket;
         if (saddr->type == SOCKET_ADDRESS_TYPE_INET ||
             saddr->type == SOCKET_ADDRESS_TYPE_UNIX ||
             saddr->type == SOCKET_ADDRESS_TYPE_VSOCK) {
@@ -1741,11 +1764,11 @@ void qmp_migrate(const char *uri, bool has_channels,
             fd_start_outgoing_migration(s, saddr->u.fd.str, &local_err);
         }
 #ifdef CONFIG_RDMA
-    } else if (channel->transport == MIGRATE_TRANSPORT_RDMA) {
-        rdma_start_outgoing_migration(s, &channel->u.rdma, &local_err);
+    } else if (addrs->transport == MIGRATE_TRANSPORT_RDMA) {
+        rdma_start_outgoing_migration(s, &addrs->u.rdma, &local_err);
 #endif
-    } else if (channel->transport == MIGRATE_TRANSPORT_EXEC) {
-        exec_start_outgoing_migration(s, channel->u.exec.args, &local_err);
+    } else if (addrs->transport == MIGRATE_TRANSPORT_EXEC) {
+        exec_start_outgoing_migration(s, addrs->u.exec.args, &local_err);
     } else {
         if (!(has_resume && resume)) {
             yank_unregister_instance(MIGRATION_YANK_INSTANCE);
