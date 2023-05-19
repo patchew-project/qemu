@@ -1540,7 +1540,9 @@ static int probe_access_internal(CPUArchState *env, target_ulong addr,
     *pfull = &env_tlb(env)->d[mmu_idx].fulltlb[index];
 
     /* Fold all "mmio-like" bits into TLB_MMIO.  This is not RAM.  */
-    if (unlikely(flags & ~(TLB_WATCHPOINT | TLB_NOTDIRTY))) {
+    if (unlikely(flags & ~(TLB_WATCHPOINT | TLB_NOTDIRTY))
+        ||
+        (access_type != MMU_INST_FETCH && cpu_plugin_mem_cbs_enabled(env_cpu(env)))) {
         *phost = NULL;
         return TLB_MMIO;
     }
