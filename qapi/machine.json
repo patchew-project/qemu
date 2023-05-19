@@ -1125,10 +1125,13 @@
 #     field is omitted if target doesn't support memory hotplug (i.e.
 #     CONFIG_MEM_DEVICE not defined at build time).
 #
+# @page-size: the number of bytes per target page (since 8.1)
+#
 # Since: 2.11
 ##
 { 'struct': 'MemoryInfo',
-  'data'  : { 'base-memory': 'size', '*plugged-memory': 'size' } }
+  'data'  : { 'base-memory': 'size', '*plugged-memory': 'size',
+              'page-size': 'size' } }
 
 ##
 # @query-memory-size-summary:
@@ -1139,7 +1142,8 @@
 # Example:
 #
 # -> { "execute": "query-memory-size-summary" }
-# <- { "return": { "base-memory": 4294967296, "plugged-memory": 0 } }
+# <- { "return": { "page-size": 4096, "base-memory": 34359738368,
+#      "plugged-memory": 0 } }
 #
 # Since: 2.11
 ##
