@@ -1408,6 +1408,47 @@
 { 'command': 'migrate-continue', 'data': {'state': 'MigrationStatus'} }
 
 ##
+# @MigrateTransport:
+#
+# The supported communication transport mechanisms for migration
+#
+# @socket: Supported communication type between two devices for migration.
+#          Socket is able to cover all of 'tcp', 'unix', 'vsock' and
+#          'fd' already
+#
+# @exec: Supported communication type to redirect migration stream into file.
+#
+# @rdma: Supported communication type to redirect rdma type migration stream.
+#
+# Since 8.1
+##
+{ 'enum': 'MigrateTransport',
+  'data': ['socket', 'exec', 'rdma'] }
+
+##
+# @MigrateExecCommand:
+ #
+ # Since 8.1
+ ##
+{ 'struct': 'MigrateExecCommand',
+   'data': {'args': [ 'str' ] } }
+
+##
+# @MigrateAddress:
+#
+# The options available for communication transport mechanisms for migration
+#
+# Since 8.1
+##
+{ 'union': 'MigrateAddress',
+  'base': { 'transport' : 'MigrateTransport'},
+  'discriminator': 'transport',
+  'data': {
+    'socket': 'SocketAddress',
+    'exec': 'MigrateExecCommand',
+    'rdma': 'InetSocketAddress' } }
+
+##
 # @migrate:
 #
 # Migrates the current running guest to another Virtual Machine.
