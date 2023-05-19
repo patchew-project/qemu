@@ -1188,7 +1188,7 @@ fi
 case "$fdt" in
   auto | enabled | internal)
     # Simpler to always update submodule, even if not needed.
-    git_submodules="${git_submodules} dtc"
+    git_submodules="${git_submodules} subprojects/dtc"
     ;;
 esac
 
