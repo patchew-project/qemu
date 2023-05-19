@@ -1826,6 +1826,70 @@ static void vfio_add_emulated_long(VFIOPCIDevice *vdev, int pos,
     vfio_set_long_bits(vdev->emulated_config_bits + pos, mask, mask);
 }
 
+/*
+ * For a cold-plugged device connected directly to a root port where
+ * vfio-pci reports AtomicOp completer support on the host, twiddle
+ * bits in the emulated root port to reflect this capability.
+ */
+static void vfio_pci_enable_rp_atomics(VFIOPCIDevice *vdev)
+{
+    struct vfio_device_info_cap_pci_atomic_comp *cap;
+    g_autofree struct vfio_device_info *info = NULL;
+    struct vfio_info_cap_header *hdr;
+    PCIDevice *parent;
+    uint32_t mask = 0;
+    PCIBus *bus;
+
+    /*
+     * XXX
+     *  - Should this also be restricted to TYPE_VFIO_PCI_NOHOTPLUG devices?
+     *  - Should we clear the capability on exit?
+     */
+    if (vdev->pdev.qdev.hotplugged) {
+        return;
+    }
+
+    info = vfio_get_device_info(vdev->vbasedev.fd);
+    if (!info) {
+        return;
+    }
+
+    hdr = vfio_get_device_info_cap(info, VFIO_DEVICE_INFO_CAP_PCI_ATOMIC_COMP);
+    if (!hdr) {
+        return;
+    }
+
+    cap = (void *)hdr;
+    if (cap->flags & VFIO_PCI_ATOMIC_COMP32) {
+        mask |= PCI_EXP_DEVCAP2_ATOMIC_COMP32;
+    }
+    if (cap->flags & VFIO_PCI_ATOMIC_COMP64) {
+        mask |= PCI_EXP_DEVCAP2_ATOMIC_COMP64;
+    }
+    if (cap->flags & VFIO_PCI_ATOMIC_COMP128) {
+        mask |= PCI_EXP_DEVCAP2_ATOMIC_COMP128;
+    }
+
+    if (!mask) {
+        return;
+    }
+
+    bus = pci_get_bus(&vdev->pdev);
+    parent = bus->parent_dev;
+
+    if (!parent || !pci_is_express(parent) || !parent->exp.exp_cap) {
+        return;
+    }
+
+    if (pcie_cap_get_type(parent) != PCI_EXP_TYPE_ROOT_PORT ||
+        pcie_cap_get_version(parent) != PCI_EXP_FLAGS_VER2) {
+        return;
+    }
+
+    pci_long_test_and_set_mask(parent->config + parent->exp.exp_cap +
+                               PCI_EXP_DEVCAP2, mask);
+}
+
 static int vfio_setup_pcie_cap(VFIOPCIDevice *vdev, int pos, uint8_t size,
                                Error **errp)
 {
@@ -1929,6 +1993,8 @@ static int vfio_setup_pcie_cap(VFIOPCIDevice *vdev, int pos, uint8_t size,
                            QEMU_PCI_EXP_LNKCAP_MLS(QEMU_PCI_EXP_LNK_2_5GT), ~0);
             vfio_add_emulated_word(vdev, pos + PCI_EXP_LNKCTL, 0, ~0);
         }
+
+        vfio_pci_enable_rp_atomics(vdev);
     }
 
     /*
