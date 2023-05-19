@@ -239,8 +239,8 @@ ctags:
 		rm -f "$(SRC_PATH)/"tags, 	\
 		"CTAGS", "Remove old tags")
 	$(call quiet-command, \
-		$(find-src-path) -exec ctags 		\
-		-f "$(SRC_PATH)/"tags --append {} +,	\
+		$(find-src-path) -exec ctags --extra=+fq	\
+		-f "$(SRC_PATH)/"tags --append {} +,		\
 		"CTAGS", "Re-index $(SRC_PATH)")
 
 .PHONY: gtags
