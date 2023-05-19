@@ -17,6 +17,11 @@ config PL050
     bool
     select PS2
 
+config PS2PCI
+    bool
+    depends on PCI
+    select PS2
+
 config PS2
     bool
 

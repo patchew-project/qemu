@@ -36,6 +36,7 @@ config PC
     select I8259
     select I8254
     select PCKBD
+    select PS2PCI
     select PCSPK
     select I8257
     select MC146818RTC
