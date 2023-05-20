@@ -335,7 +335,9 @@ static inline uint64_t wswap64(uint64_t h)
  */
 static inline uint32_t extract32(uint32_t value, int start, int length)
 {
+#ifndef __OPTIMIZE__
     assert(start >= 0 && length > 0 && length <= 32 - start);
+#endif
     return (value >> start) & (~0U >> (32 - length));
 }
 
@@ -354,7 +356,9 @@ static inline uint32_t extract32(uint32_t value, int start, int length)
  */
 static inline uint8_t extract8(uint8_t value, int start, int length)
 {
+#ifndef __OPTIMIZE__
     assert(start >= 0 && length > 0 && length <= 8 - start);
+#endif
     return extract32(value, start, length);
 }
 
@@ -373,7 +377,9 @@ static inline uint8_t extract8(uint8_t value, int start, int length)
  */
 static inline uint16_t extract16(uint16_t value, int start, int length)
 {
+#ifndef __OPTIMIZE__
     assert(start >= 0 && length > 0 && length <= 16 - start);
+#endif
     return extract32(value, start, length);
 }
 
@@ -392,7 +398,9 @@ static inline uint16_t extract16(uint16_t value, int start, int length)
  */
 static inline uint64_t extract64(uint64_t value, int start, int length)
 {
+#ifndef __OPTIMIZE__
     assert(start >= 0 && length > 0 && length <= 64 - start);
+#endif
     return (value >> start) & (~0ULL >> (64 - length));
 }
 
@@ -414,7 +422,9 @@ static inline uint64_t extract64(uint64_t value, int start, int length)
  */
 static inline int32_t sextract32(uint32_t value, int start, int length)
 {
+#ifndef __OPTIMIZE__
     assert(start >= 0 && length > 0 && length <= 32 - start);
+#endif
     /* Note that this implementation relies on right shift of signed
      * integers being an arithmetic shift.
      */
@@ -439,7 +449,9 @@ static inline int32_t sextract32(uint32_t value, int start, int length)
  */
 static inline int64_t sextract64(uint64_t value, int start, int length)
 {
+#ifndef __OPTIMIZE__
     assert(start >= 0 && length > 0 && length <= 64 - start);
+#endif
     /* Note that this implementation relies on right shift of signed
      * integers being an arithmetic shift.
      */
@@ -467,7 +479,9 @@ static inline uint32_t deposit32(uint32_t value, int start, int length,
                                  uint32_t fieldval)
 {
     uint32_t mask;
+#ifndef __OPTIMIZE__
     assert(start >= 0 && length > 0 && length <= 32 - start);
+#endif
     mask = (~0U >> (32 - length)) << start;
     return (value & ~mask) | ((fieldval << start) & mask);
 }
@@ -493,7 +507,9 @@ static inline uint64_t deposit64(uint64_t value, int start, int length,
                                  uint64_t fieldval)
 {
     uint64_t mask;
+#ifndef __OPTIMIZE__
     assert(start >= 0 && length > 0 && length <= 64 - start);
+#endif
     mask = (~0ULL >> (64 - length)) << start;
     return (value & ~mask) | ((fieldval << start) & mask);
 }
