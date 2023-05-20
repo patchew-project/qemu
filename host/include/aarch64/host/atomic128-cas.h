@@ -1,6 +1,6 @@
 /*
  * SPDX-License-Identifier: GPL-2.0-or-later
- * Compare-and-swap for 128-bit atomic operations, generic version.
+ * Compare-and-swap for 128-bit atomic operations, aarch64 version.
  *
  * Copyright (C) 2018, 2023 Linaro, Ltd.
  *
