@@ -50,6 +50,7 @@ static uint64_t loongarch_ipi_readl(void *opaque, hwaddr addr, unsigned size)
     return ret;
 }
 
+#ifdef TARGET_LOONGARCH64
 static void send_ipi_data(CPULoongArchState *env, uint64_t val, hwaddr addr)
 {
     int i, mask = 0, data = 0;
@@ -140,6 +141,25 @@ static void any_send(uint64_t val)
     env = &cpu->env;
     send_ipi_data(env, val, addr);
 }
+#else
+static void ipi_send(uint64_t val)
+{
+    qemu_log_mask(LOG_UNIMP, "%s: Unimplemented send 0x%" PRIx64 "\n",
+                    __func__, val);
+}
+
+static void mail_send(uint64_t val)
+{
+    qemu_log_mask(LOG_UNIMP, "%s: Unimplemented send 0x%" PRIx64 "\n",
+                    __func__, val);
+}
+
+static void any_send(uint64_t val)
+{
+    qemu_log_mask(LOG_UNIMP, "%s: Unimplemented send 0x%" PRIx64 "\n",
+                    __func__, val);
+}
+#endif
 
 static void loongarch_ipi_writel(void *opaque, hwaddr addr, uint64_t val,
                                  unsigned size)
