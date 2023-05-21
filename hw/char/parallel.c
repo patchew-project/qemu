@@ -31,6 +31,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "migration/vmstate.h"
+#include "hw/char/parallel-isa.h"
 #include "hw/char/parallel.h"
 #include "sysemu/reset.h"
 #include "sysemu/sysemu.h"
@@ -50,18 +51,6 @@
 #define PARA_REG_CTR 2
 #define PARA_REG_EPP_ADDR 3
 #define PARA_REG_EPP_DATA 4
-
-#define TYPE_ISA_PARALLEL "isa-parallel"
-OBJECT_DECLARE_SIMPLE_TYPE(ISAParallelState, ISA_PARALLEL)
-
-struct ISAParallelState {
-    ISADevice parent_obj;
-
-    uint32_t index;
-    uint32_t iobase;
-    uint32_t isairq;
-    ParallelState state;
-};
 
 static void parallel_update_irq(ParallelState *s)
 {
