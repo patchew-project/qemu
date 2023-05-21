@@ -40,6 +40,7 @@ config LOONGSON3V
     imply QXL if SPICE
     select SERIAL
     select GOLDFISH_RTC
+    select LOONGARCH_IPI
     select LOONGSON_LIOINTC
     select PCI_DEVICES
     select PCI_EXPRESS_GENERIC_BRIDGE
