@@ -1783,8 +1783,11 @@ if gnutls.found()
   tasn1 = dependency('libtasn1',
                      method: 'pkg-config')
 endif
-keyutils = dependency('libkeyutils', required: false,
-                      method: 'pkg-config')
+keyutils = not_found
+if get_option('keyring').enabled()
+  keyutils = dependency('libkeyutils', required: false,
+                        method: 'pkg-config', kwargs: static_kwargs)
+endif
 
 has_gettid = cc.has_function('gettid')
 
