@@ -23,6 +23,8 @@
 #define R_RSTS 0x20
 #define V_RSTS_POWEROFF 0x555 /* Linux uses partition 63 to indicate halt. */
 #define R_WDOG 0x24
+#define R_ASB 0x20
+#define BCM2835_BRDG_ID 0x62726467
 
 static uint64_t bcm2835_powermgt_read(void *opaque, hwaddr offset,
                                       unsigned size)
@@ -97,9 +99,39 @@ static void bcm2835_powermgt_write(void *opaque, hwaddr offset,
     }
 }
 
+static uint64_t bcm2835_asb_read(void *opaque, hwaddr offset,
+                                      unsigned size)
+{
+    uint32_t res = 0;
+
+    switch (offset) {
+    case R_ASB:
+        qemu_log("Attempt to read PM BCM2835_BRDG_ID");
+        res = BCM2835_BRDG_ID;
+        break;
+
+    default:
+        qemu_log_mask(LOG_UNIMP,
+                      "bcm2835_asb_read: Unknown offset 0x%08"HWADDR_PRIx
+                      "\n", offset);
+        res = 0;
+        break;
+    }
+
+    return res;
+}
+
+
 static const MemoryRegionOps bcm2835_powermgt_ops = {
     .read = bcm2835_powermgt_read,
     .write = bcm2835_powermgt_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl.min_access_size = 4,
+    .impl.max_access_size = 4,
+};
+
+static const MemoryRegionOps bcm2835_asb_ops = {
+    .read = bcm2835_asb_read,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .impl.min_access_size = 4,
     .impl.max_access_size = 4,
@@ -124,6 +156,11 @@ static void bcm2835_powermgt_init(Object *obj)
     memory_region_init_io(&s->iomem, obj, &bcm2835_powermgt_ops, s,
                           TYPE_BCM2835_POWERMGT, 0x200);
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
+
+    /* See bcm2835-common.dtsi */
+    memory_region_init_io(&s->iomem_asb, obj, &bcm2835_asb_ops, s,
+                          TYPE_BCM2835_POWERMGT, 0x24);
+    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem_asb);
 }
 
 static void bcm2835_powermgt_reset(DeviceState *dev)

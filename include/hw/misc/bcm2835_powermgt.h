@@ -19,7 +19,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(BCM2835PowerMgtState, BCM2835_POWERMGT)
 
 struct BCM2835PowerMgtState {
     SysBusDevice busdev;
-    MemoryRegion iomem;
+    MemoryRegion iomem, iomem_asb;
 
     uint32_t rstc;
     uint32_t rsts;

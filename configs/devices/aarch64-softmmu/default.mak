@@ -2,3 +2,5 @@
 
 # We support all the 32 bit boards so need all their config
 include ../arm-softmmu/default.mak
+
+CONFIG_RASPI4B=y
