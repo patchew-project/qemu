@@ -43,6 +43,7 @@
 
 static void xen_vcpu_singleshot_timer_event(void *opaque);
 static void xen_vcpu_periodic_timer_event(void *opaque);
+static int vcpuop_stop_singleshot_timer(CPUState *cs);
 
 #ifdef TARGET_X86_64
 #define hypercall_compat32(longmode) (!(longmode))
@@ -483,6 +484,7 @@ static int kvm_xen_set_vcpu_timer(CPUState *cs)
 
 static void do_set_vcpu_timer_virq(CPUState *cs, run_on_cpu_data data)
 {
+    QEMU_LOCK_GUARD(&X86_CPU(cs)->env.xen_timers_lock);
     kvm_xen_set_vcpu_timer(cs);
 }
 
@@ -545,7 +547,6 @@ static void do_vcpu_soft_reset(CPUState *cs, run_on_cpu_data data)
     env->xen_vcpu_time_info_gpa = INVALID_GPA;
     env->xen_vcpu_runstate_gpa = INVALID_GPA;
     env->xen_vcpu_callback_vector = 0;
-    env->xen_singleshot_timer_ns = 0;
     memset(env->xen_virq, 0, sizeof(env->xen_virq));
 
     set_vcpu_info(cs, INVALID_GPA);
@@ -555,8 +556,13 @@ static void do_vcpu_soft_reset(CPUState *cs, run_on_cpu_data data)
                           INVALID_GPA);
     if (kvm_xen_has_cap(EVTCHN_SEND)) {
         kvm_xen_set_vcpu_callback_vector(cs);
+
+        QEMU_LOCK_GUARD(&X86_CPU(cs)->env.xen_timers_lock);
+        env->xen_singleshot_timer_ns = 0;
         kvm_xen_set_vcpu_timer(cs);
-    }
+    } else {
+        vcpuop_stop_singleshot_timer(cs);
+    };
 
 }
 
@@ -1844,10 +1850,7 @@ int kvm_put_xen_state(CPUState *cs)
     }
 
     if (env->xen_virq[VIRQ_TIMER]) {
-        ret = kvm_xen_set_vcpu_timer(cs);
-        if (ret < 0) {
-            return ret;
-        }
+        do_set_vcpu_timer_virq(cs, RUN_ON_CPU_HOST_INT(env->xen_virq[VIRQ_TIMER]));
     }
     return 0;
 }
