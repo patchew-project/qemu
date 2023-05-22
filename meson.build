@@ -267,10 +267,15 @@ endif
 # has explicitly disabled PIE we need to extend our cflags.
 if not get_option('b_pie')
   qemu_common_flags += cc.get_supported_arguments('-fno-pie')
-  if not get_option('prefer_static')
-    # No PIE is implied by -static which we added above.
-    qemu_ldflags += cc.get_supported_link_arguments('-no-pie')
-  endif
+  # What about linker flags?  For a static build, no PIE is implied by -static
+  # which we added above.  For dynamic linking, adding -no-pie is messy because
+  # it overrides -shared: the linker then wants to build an executable instead
+  # of a shared library and the build fails.  Before moving this code to Meson,
+  # we went through a dozen different commits affecting the usage of -no-pie,
+  # ultimately settling for a completely broken one that added -no-pie to the
+  # compiler flags together with -fno-pie... except that -no-pie is a linker
+  # flag that has no effect on the compiler command line.  So, don't add
+  # -no-pie anywhere and cross fingers.
 endif
 
 if not get_option('stack_protector').disabled()
