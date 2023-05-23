@@ -559,7 +559,7 @@ static void kvm_slot_sync_dirty_pages(KVMSlot *slot)
     ram_addr_t start = slot->ram_start_offset;
     ram_addr_t pages = slot->memory_size / qemu_real_host_page_size();
 
-    cpu_physical_memory_set_dirty_lebitmap(slot->dirty_bmap, start, pages);
+    cpu_physical_memory_set_dirty_lebitmap(slot->dirty_bmap, start, pages, NULL);
 }
 
 static void kvm_slot_reset_dirty_pages(KVMSlot *slot)

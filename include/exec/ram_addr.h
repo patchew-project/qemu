@@ -335,7 +335,8 @@ static inline void cpu_physical_memory_set_dirty_range(ram_addr_t start,
 #if !defined(_WIN32)
 static inline void cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
                                                           ram_addr_t start,
-                                                          ram_addr_t pages)
+                                                          ram_addr_t pages,
+                                                          unsigned long *dirty)
 {
     unsigned long i, j;
     unsigned long page_number, c;
@@ -380,6 +381,10 @@ static inline void cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
                         }
                     }
 
+                    if (dirty) {
+                        *dirty += ctpopl(temp);
+                    }
+
                     if (tcg_enabled()) {
                         qatomic_or(&blocks[DIRTY_MEMORY_CODE][idx][offset],
                                    temp);
@@ -410,6 +415,9 @@ static inline void cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
                 c = leul_to_cpu(bitmap[i]);
                 if (unlikely(global_dirty_tracking & GLOBAL_DIRTY_DIRTY_RATE)) {
                     total_dirty_pages += ctpopl(c);
+                }
+                if (dirty) {
+                    *dirty += ctpopl(c);
                 }
                 do {
                     j = ctzl(c);

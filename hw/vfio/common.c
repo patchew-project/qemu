@@ -587,7 +587,7 @@ static int vfio_dma_unmap_bitmap(VFIOContainer *container,
     ret = ioctl(container->fd, VFIO_IOMMU_UNMAP_DMA, unmap);
     if (!ret) {
         cpu_physical_memory_set_dirty_lebitmap(vbmap.bitmap,
-                iotlb->translated_addr, vbmap.pages);
+                iotlb->translated_addr, vbmap.pages, NULL);
     } else {
         error_report("VFIO_UNMAP_DMA with DIRTY_BITMAP : %m");
     }
@@ -1773,7 +1773,7 @@ static int vfio_get_dirty_bitmap(VFIOContainer *container, uint64_t iova,
     }
 
     cpu_physical_memory_set_dirty_lebitmap(vbmap.bitmap, ram_addr,
-                                           vbmap.pages);
+                                           vbmap.pages, NULL);
 
     trace_vfio_get_dirty_bitmap(container->fd, iova, size, vbmap.size,
                                 ram_addr);
