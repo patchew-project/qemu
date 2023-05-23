@@ -33,6 +33,9 @@
 #include "exec/log.h"
 #include "asi.h"
 
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
 
 #define DEBUG_DISAS
 
