@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+#define IN_TCG
+
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qemu/madvise.h"

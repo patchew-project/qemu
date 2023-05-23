@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+#define IN_TCG
+
 #include "qemu/osdep.h"
 
 /* Define to jump the ELF file used to communicate with GDB.  */

@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+#define IN_TCG
+
 #include "qemu/osdep.h"
 #include "tcg/tcg.h"
 #include "tcg/tcg-temp-internal.h"
