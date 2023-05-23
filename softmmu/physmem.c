@@ -3354,6 +3354,16 @@ size_t qemu_target_page_size(void)
     return TARGET_PAGE_SIZE;
 }
 
+unsigned qemu_target_page_mask(void)
+{
+    return TARGET_PAGE_MASK;
+}
+
+uint64_t qemu_target_page_align(uint64_t value)
+{
+    return TARGET_PAGE_ALIGN(value);
+}
+
 int qemu_target_page_bits(void)
 {
     return TARGET_PAGE_BITS;
