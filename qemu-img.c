@@ -3813,6 +3813,13 @@ static int img_rebase(int argc, char **argv)
                                  strerror(-ret));
                     goto out;
                 }
+                if (!n) {
+                    /*
+                     * We've reached EOF of the old backing, therefore there's
+                     * no more mergeable data.
+                     */
+                    break;
+                }
                 if (!ret) {
                     continue;
                 }
