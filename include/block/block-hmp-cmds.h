@@ -48,7 +48,7 @@ void hmp_eject(Monitor *mon, const QDict *qdict);
 
 void hmp_qemu_io(Monitor *mon, const QDict *qdict);
 
-void hmp_info_block(Monitor *mon, const QDict *qdict);
+void coroutine_fn hmp_info_block(Monitor *mon, const QDict *qdict);
 void hmp_info_blockstats(Monitor *mon, const QDict *qdict);
 void hmp_info_block_jobs(Monitor *mon, const QDict *qdict);
 void hmp_info_snapshots(Monitor *mon, const QDict *qdict);
