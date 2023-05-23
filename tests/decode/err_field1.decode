@@ -2,4 +2,4 @@
 # See the COPYING.LIB file in the top-level directory.
 
 # Diagnose invalid field syntax
-%field	asdf
+%field	1asdf
