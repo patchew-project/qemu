@@ -350,6 +350,10 @@ static void riscv_imsic_realize(DeviceState *dev, Error **errp)
         } else {
             rcpu->cfg.ext_smaia = true;
         }
+
+        /* Refresh the dynamic csr xml for the gdbstub. */
+        riscv_refresh_dynamic_csr_xml(cpu);
+
         riscv_cpu_set_aia_ireg_rmw_fn(env, (imsic->mmode) ? PRV_M : PRV_S,
                                       riscv_imsic_rmw, imsic);
     }
