@@ -494,6 +494,7 @@ struct ArchCPU {
     CPUNegativeOffsetState neg;
     CPURISCVState env;
 
+    int dyn_csr_base_reg;
     char *dyn_csr_xml;
     char *dyn_vreg_xml;
 
@@ -781,6 +782,7 @@ void riscv_get_csr_ops(int csrno, riscv_csr_operations *ops);
 void riscv_set_csr_ops(int csrno, riscv_csr_operations *ops);
 
 void riscv_cpu_register_gdb_regs_for_features(CPUState *cs);
+void riscv_refresh_dynamic_csr_xml(CPUState *cs);
 
 uint8_t satp_mode_max_from_map(uint32_t map);
 const char *satp_mode_str(uint8_t satp_mode, bool is_32_bit);

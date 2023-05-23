@@ -230,6 +230,8 @@ static int riscv_gen_dynamic_csr_xml(CPUState *cs, int base_reg)
         bitsize = 64;
     }
 
+    cpu->dyn_csr_base_reg = base_reg;
+
     g_string_printf(s, "<?xml version=\"1.0\"?>");
     g_string_append_printf(s, "<!DOCTYPE feature SYSTEM \"gdb-target.dtd\">");
     g_string_append_printf(s, "<feature name=\"org.gnu.gdb.riscv.csr\">");
@@ -348,4 +350,14 @@ void riscv_cpu_register_gdb_regs_for_features(CPUState *cs)
                                  riscv_gen_dynamic_csr_xml(cs, base_reg),
                                  "riscv-csr.xml", 0);
     }
+}
+
+void riscv_refresh_dynamic_csr_xml(CPUState *cs)
+{
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    if (!cpu->dyn_csr_xml) {
+        g_assert_not_reached();
+    }
+    g_free(cpu->dyn_csr_xml);
+    riscv_gen_dynamic_csr_xml(cs, cpu->dyn_csr_base_reg);
 }
