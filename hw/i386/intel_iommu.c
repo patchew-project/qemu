@@ -3743,6 +3743,7 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
     hwaddr start = n->start;
     hwaddr end = n->end;
     IntelIOMMUState *s = as->iommu_state;
+    IOMMUTLBEvent event;
     DMAMap map;
 
     /*
@@ -3762,22 +3763,25 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
     assert(start <= end);
     size = remain = end - start + 1;
 
+    event.type = IOMMU_NOTIFIER_UNMAP;
+    event.entry.target_as = &address_space_memory;
+    event.entry.perm = IOMMU_NONE;
+    /* This field is meaningless for unmap */
+    event.entry.translated_addr = 0;
+
     while (remain >= VTD_PAGE_SIZE) {
-        IOMMUTLBEvent event;
         uint64_t mask = dma_aligned_pow2_mask(start, end, s->aw_bits);
         uint64_t size = mask + 1;
 
         assert(size);
 
-        event.type = IOMMU_NOTIFIER_UNMAP;
-        event.entry.iova = start;
-        event.entry.addr_mask = mask;
-        event.entry.target_as = &address_space_memory;
-        event.entry.perm = IOMMU_NONE;
-        /* This field is meaningless for unmap */
-        event.entry.translated_addr = 0;
-
-        memory_region_notify_iommu_one(n, &event);
+        map.iova = start;
+        map.size = size;
+        if (iova_tree_find(as->iova_tree, &map)) {
+            event.entry.iova = start;
+            event.entry.addr_mask = mask;
+            memory_region_notify_iommu_one(n, &event);
+        }
 
         start += size;
         remain -= size;
@@ -3825,13 +3829,6 @@ static void vtd_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
     IntelIOMMUState *s = vtd_as->iommu_state;
     uint8_t bus_n = pci_bus_num(vtd_as->bus);
     VTDContextEntry ce;
-
-    /*
-     * The replay can be triggered by either a invalidation or a newly
-     * created entry. No matter what, we release existing mappings
-     * (it means flushing caches for UNMAP-only registers).
-     */
-    vtd_address_space_unmap(vtd_as, n);
 
     if (vtd_dev_to_context_entry(s, bus_n, vtd_as->devfn, &ce) == 0) {
         trace_vtd_replay_ce_valid(s->root_scalable ? "scalable mode" :
