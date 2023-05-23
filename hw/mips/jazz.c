@@ -128,7 +128,6 @@ static void mips_jazz_init(MachineState *machine,
     int bios_size, n, big_endian;
     Clock *cpuclk;
     MIPSCPU *cpu;
-    MIPSCPUClass *mcc;
     CPUMIPSState *env;
     qemu_irq *i8259;
     rc4030_dma *dmas;
@@ -176,23 +175,6 @@ static void mips_jazz_init(MachineState *machine,
     cpu = mips_cpu_create_with_clock(machine->cpu_type, cpuclk);
     env = &cpu->env;
     qemu_register_reset(main_cpu_reset, cpu);
-
-    /*
-     * Chipset returns 0 in invalid reads and do not raise data exceptions.
-     * However, we can't simply add a global memory region to catch
-     * everything, as this would make all accesses including instruction
-     * accesses be ignored and not raise exceptions.
-     *
-     * NOTE: this behaviour of raising exceptions for bad instruction
-     * fetches but not bad data accesses was added in commit 54e755588cf1e9
-     * to restore behaviour broken by c658b94f6e8c206, but it is not clear
-     * whether the real hardware behaves this way. It is possible that
-     * real hardware ignores bad instruction fetches as well -- if so then
-     * we could replace this hijacking of CPU methods with a simple global
-     * memory region that catches all memory accesses, as we do on Malta.
-     */
-    mcc = MIPS_CPU_GET_CLASS(cpu);
-    mcc->no_data_aborts = true;
 
     /* allocate RAM */
     memory_region_add_subregion(address_space, 0, machine->ram);
@@ -414,6 +396,27 @@ void mips_pica61_init(MachineState *machine)
     mips_jazz_init(machine, JAZZ_PICA61);
 }
 
+static void machine_class_ignore_data_abort(MachineClass *mc)
+{
+    MIPSCPUClass *mcc = MIPS_CPU_CLASS(mc);
+
+    /*
+     * Chipset returns 0 in invalid reads and do not raise data exceptions.
+     * However, we can't simply add a global memory region to catch
+     * everything, as this would make all accesses including instruction
+     * accesses be ignored and not raise exceptions.
+     *
+     * NOTE: this behaviour of raising exceptions for bad instruction
+     * fetches but not bad data accesses was added in commit 54e755588cf1e9
+     * to restore behaviour broken by c658b94f6e8c206, but it is not clear
+     * whether the real hardware behaves this way. It is possible that
+     * real hardware ignores bad instruction fetches as well -- if so then
+     * we could replace this hijacking of CPU methods with a simple global
+     * memory region that catches all memory accesses, as we do on Malta.
+     */
+    mcc->no_data_aborts = true;
+}
+
 static void mips_magnum_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -423,6 +426,7 @@ static void mips_magnum_class_init(ObjectClass *oc, void *data)
     mc->block_default_type = IF_SCSI;
     mc->default_cpu_type = MIPS_CPU_TYPE_NAME("R4000");
     mc->default_ram_id = "mips_jazz.ram";
+    machine_class_ignore_data_abort(mc);
 }
 
 static const TypeInfo mips_magnum_type = {
@@ -440,6 +444,7 @@ static void mips_pica61_class_init(ObjectClass *oc, void *data)
     mc->block_default_type = IF_SCSI;
     mc->default_cpu_type = MIPS_CPU_TYPE_NAME("R4000");
     mc->default_ram_id = "mips_jazz.ram";
+    machine_class_ignore_data_abort(mc);
 }
 
 static const TypeInfo mips_pica61_type = {
