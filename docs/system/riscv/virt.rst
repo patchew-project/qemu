@@ -53,6 +53,39 @@ with the default OpenSBI firmware image as the -bios. It also supports
 the recommended RISC-V bootflow: U-Boot SPL (M-mode) loads OpenSBI fw_dynamic
 firmware and U-Boot proper (S-mode), using the standard -bios functionality.
 
+Using flash devices
+-------------------
+
+The first flash device (pflash0) can contain either ROM code like Oreboot
+or S-mode payload firmware code like EDK2. If the pflash0 contains the
+ROM code, -bios should be set to none. Otherwise, pflash0 is assumed to
+contain S-mode payload code.
+
+Firmware images used for pflash should be of size 32M.
+
+To boot as ROM code like Oreboot:
+
+.. code-block:: bash
+
+  $ qemu-system-riscv64 -bios none -pflash <rom_code_image> \
+       ... other args ....
+
+To boot as S-mode payload like EDK2:
+
+.. code-block:: bash
+
+  $ qemu-system-riscv64 -pflash <s-mode_fw_code> -pflash <smode_fw_vars> \
+       ... other args ....
+
+To boot as read-only S-mode payload like EDK2:
+
+.. code-block:: bash
+
+  $ qemu-system-riscv64 -bios <opensbi_fw> \
+       -drive file=<smode_fw_code>,if=pflash,format=raw,unit=0,readonly=on \
+       -drive file=<smode_fw_vars>,if=pflash,format=raw,unit=1 \
+       ... other args ....
+
 Machine-specific options
 ------------------------
 
