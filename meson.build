@@ -2532,10 +2532,8 @@ has_int128 = cc.links('''
   int main (void) {
     a = a + b;
     b = a * b;
-    a = a * a;
     return 0;
   }''')
-
 config_host_data.set('CONFIG_INT128', has_int128)
 
 if has_int128
