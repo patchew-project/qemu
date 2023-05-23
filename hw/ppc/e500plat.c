@@ -30,18 +30,6 @@ static void e500plat_fixup_devtree(void *fdt)
                      sizeof(compatible));
 }
 
-static void e500plat_init(MachineState *machine)
-{
-    PPCE500MachineClass *pmc = PPCE500_MACHINE_GET_CLASS(machine);
-    /* Older KVM versions don't support EPR which breaks guests when we announce
-       MPIC variants that support EPR. Revert to an older one for those */
-    if (kvm_enabled() && !kvmppc_has_cap_epr()) {
-        pmc->mpic_version = OPENPIC_MODEL_FSL_MPIC_20;
-    }
-
-    ppce500_init(machine);
-}
-
 static void e500plat_machine_device_plug_cb(HotplugHandler *hotplug_dev,
                                             DeviceState *dev, Error **errp)
 {
@@ -81,7 +69,6 @@ static void e500plat_machine_class_init(ObjectClass *oc, void *data)
     pmc->pci_first_slot = 0x1;
     pmc->pci_nr_slots = PCI_SLOT_MAX - 1;
     pmc->fixup_devtree = e500plat_fixup_devtree;
-    pmc->mpic_version = OPENPIC_MODEL_FSL_MPIC_42;
     pmc->has_mpc8xxx_gpio = true;
     pmc->has_esdhc = true;
     pmc->platform_bus_base = 0xf00000000ULL;
@@ -94,8 +81,18 @@ static void e500plat_machine_class_init(ObjectClass *oc, void *data)
     pmc->pci_mmio_bus_base = 0xE0000000ULL;
     pmc->spin_base = 0xFEF000000ULL;
 
+    if (kvm_enabled() && !kvmppc_has_cap_epr()) {
+        /*
+         * Older KVM versions don't support EPR which breaks guests when
+         * we announce MPIC variants that support EPR. Revert to an older
+         * one for those.
+         */
+        pmc->mpic_version = OPENPIC_MODEL_FSL_MPIC_20;
+    } else {
+        pmc->mpic_version = OPENPIC_MODEL_FSL_MPIC_42;
+    }
+
     mc->desc = "generic paravirt e500 platform";
-    mc->init = e500plat_init;
     mc->max_cpus = 32;
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("e500v2_v30");
     mc->default_ram_id = "mpc8544ds.ram";
