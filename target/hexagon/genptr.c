@@ -880,7 +880,7 @@ static void gen_endloop0(DisasContext *ctx)
         /*
          *    if (hex_gpr[HEX_REG_LC0] > 1) {
          *        PC = hex_gpr[HEX_REG_SA0];
-         *        hex_new_value[HEX_REG_LC0] = hex_gpr[HEX_REG_LC0] - 1;
+         *        result_gpr(HEX_REG_LC0) = hex_gpr[HEX_REG_LC0] - 1;
          *    }
          */
         TCGLabel *label3 = gen_new_label();
@@ -899,7 +899,7 @@ static void gen_endloop1(DisasContext *ctx)
     /*
      *    if (hex_gpr[HEX_REG_LC1] > 1) {
      *        PC = hex_gpr[HEX_REG_SA1];
-     *        hex_new_value[HEX_REG_LC1] = hex_gpr[HEX_REG_LC1] - 1;
+     *        result_gpr(HEX_REG_LC1) = hex_gpr[HEX_REG_LC1] - 1;
      *    }
      */
     TCGLabel *label = gen_new_label();
@@ -948,11 +948,11 @@ static void gen_endloop01(DisasContext *ctx)
     /*
      *    if (hex_gpr[HEX_REG_LC0] > 1) {
      *        PC = hex_gpr[HEX_REG_SA0];
-     *        hex_new_value[HEX_REG_LC0] = hex_gpr[HEX_REG_LC0] - 1;
+     *        result_gpr(HEX_REG_LC0) = hex_gpr[HEX_REG_LC0] - 1;
      *    } else {
      *        if (hex_gpr[HEX_REG_LC1] > 1) {
-     *            hex_next_pc = hex_gpr[HEX_REG_SA1];
-     *            hex_new_value[HEX_REG_LC1] = hex_gpr[HEX_REG_LC1] - 1;
+     *            next_pc = hex_gpr[HEX_REG_SA1];
+     *            result_gpr(HEX_REG_LC1) = hex_gpr[HEX_REG_LC1] - 1;
      *        }
      *    }
      */
