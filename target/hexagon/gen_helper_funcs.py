@@ -87,9 +87,9 @@ def gen_helper_arg_opn(f, regtype, regid, i, tag):
         elif hex_common.is_new_val(regtype, regid, tag):
             gen_helper_arg_new(f, regtype, regid, i)
         else:
-            hex_common.bad_register(regtype, regid, toss, numregs)
+            hex_common.bad_register(regtype, regid)
     else:
-        hex_common.bad_register(regtype, regid, toss, numregs)
+        hex_common.bad_register(regtype, regid)
 
 
 def gen_helper_arg_imm(f, immlett):
@@ -135,7 +135,7 @@ def gen_helper_dest_decl_opn(f, regtype, regid, i):
         else:
             gen_helper_dest_decl(f, regtype, regid, i)
     else:
-        hex_common.bad_register(regtype, regid, toss, numregs)
+        hex_common.bad_register(regtype, regid)
 
 
 def gen_helper_src_var_ext(f, regtype, regid):
@@ -185,7 +185,7 @@ def gen_helper_return_opn(f, regtype, regid, i):
         else:
             gen_helper_return(f, regtype, regid, i)
     else:
-        hex_common.bad_register(regtype, regid, toss, numregs)
+        hex_common.bad_register(regtype, regid)
 
 
 ##

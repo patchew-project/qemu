@@ -354,9 +354,9 @@ def genptr_src_read_opn(f, regtype, regid, tag):
         elif hex_common.is_new_val(regtype, regid, tag):
             genptr_src_read_new(f, regtype, regid)
         else:
-            hex_common.bad_register(regtype, regid, toss, numregs)
+            hex_common.bad_register(regtype, regid)
     else:
-        hex_common.bad_register(regtype, regid, toss, numregs)
+        hex_common.bad_register(regtype, regid)
 
 
 def gen_helper_call_opn(f, tag, regtype, regid, toss, numregs, i):
@@ -468,7 +468,7 @@ def genptr_dst_write_opn(f, regtype, regid, tag):
         else:
             genptr_dst_write(f, tag, regtype, regid)
     else:
-        hex_common.bad_register(regtype, regid, toss, numregs)
+        hex_common.bad_register(regtype, regid)
 
 
 ##
