@@ -88,7 +88,6 @@ static void realview_init(MachineState *machine,
     I2CBus *i2c;
     int n;
     unsigned int smp_cpus = machine->smp.cpus;
-    int done_nic = 0;
     qemu_irq cpu_irq[4];
     int is_mpcore = 0;
     int is_pb = 0;
@@ -294,14 +293,13 @@ static void realview_init(MachineState *machine,
     for(n = 0; n < nb_nics; n++) {
         nd = &nd_table[n];
 
-        if (!done_nic && (!nd->model ||
-                    strcmp(nd->model, is_pb ? "lan9118" : "smc91c111") == 0)) {
+        if (!nd->model || strcmp(nd->model, is_pb ? "lan9118" : "smc91c111") == 0) {
             if (is_pb) {
                 lan9118_init(nd, 0x4e000000, pic[28]);
             } else {
                 smc91c111_init(nd, 0x4e000000, pic[28]);
             }
-            done_nic = 1;
+            break;
         } else {
             if (pci_bus) {
                 pci_nic_init_nofail(nd, pci_bus, "rtl8139", NULL);
