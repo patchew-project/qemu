@@ -34,6 +34,7 @@ struct RealviewMachineClass {
     MachineClass parent_obj;
 
     int board_id;
+    bool is_pb;
 };
 typedef struct RealviewMachineClass RealviewMachineClass;
 
@@ -94,7 +95,7 @@ static void realview_init(MachineState *machine,
     unsigned int smp_cpus = machine->smp.cpus;
     qemu_irq cpu_irq[4];
     int is_mpcore = 0;
-    int is_pb = 0;
+    bool is_pb = rmc->is_pb;
     uint32_t proc_id = 0;
     uint32_t sys_id;
     ram_addr_t low_ram_size;
@@ -109,11 +110,9 @@ static void realview_init(MachineState *machine,
         periphbase = 0x10100000;
         break;
     case BOARD_PB_A8:
-        is_pb = 1;
         break;
     case BOARD_PBX_A9:
         is_mpcore = 1;
-        is_pb = 1;
         periphbase = 0x1f000000;
         break;
     }
@@ -446,6 +445,7 @@ static void realview_pb_a8_class_init(ObjectClass *oc, void *data)
     mc->init = realview_pb_a8_init;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a8");
     rmc->board_id = 0x769;
+    rmc->is_pb = true;
 }
 
 static void realview_pbx_a9_class_init(ObjectClass *oc, void *data)
@@ -458,6 +458,7 @@ static void realview_pbx_a9_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = 4;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a9");
     rmc->board_id = 0x76d;
+    rmc->is_pb = true;
 }
 
 static const TypeInfo realview_machine_types[] = {
