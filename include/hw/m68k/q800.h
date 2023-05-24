@@ -31,6 +31,7 @@ struct Q800MachineState {
     MachineState parent_obj;
 
     M68kCPU *cpu;
+    MemoryRegion rom;
 };
 
 #define TYPE_Q800_MACHINE MACHINE_TYPE_NAME("q800")
