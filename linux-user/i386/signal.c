@@ -191,16 +191,7 @@ struct sigframe {
     struct target_fpstate fpstate_unused;
     abi_ulong extramask[TARGET_NSIG_WORDS-1];
     char retcode[8];
-
-    /*
-     * This field will be 16-byte aligned in memory.  Applying QEMU_ALIGNED
-     * to it ensures that the base of the frame has an appropriate alignment
-     * too.
-     */
-    struct target_fpstate fpstate QEMU_ALIGNED(8);
 };
-#define TARGET_SIGFRAME_FXSAVE_OFFSET (                                    \
-    offsetof(struct sigframe, fpstate) + TARGET_FPSTATE_FXSAVE_OFFSET)
 
 struct rt_sigframe {
     abi_ulong pretcode;
@@ -210,27 +201,21 @@ struct rt_sigframe {
     struct target_siginfo info;
     struct target_ucontext uc;
     char retcode[8];
-    struct target_fpstate fpstate QEMU_ALIGNED(8);
 };
-#define TARGET_RT_SIGFRAME_FXSAVE_OFFSET (                                 \
-    offsetof(struct rt_sigframe, fpstate) + TARGET_FPSTATE_FXSAVE_OFFSET)
 #else
-
 struct rt_sigframe {
     abi_ulong pretcode;
     struct target_ucontext uc;
     struct target_siginfo info;
-    struct target_fpstate fpstate QEMU_ALIGNED(16);
 };
-#define TARGET_RT_SIGFRAME_FXSAVE_OFFSET (                                 \
-    offsetof(struct rt_sigframe, fpstate) + TARGET_FPSTATE_FXSAVE_OFFSET)
 #endif
 
 /*
  * Set up a signal frame.
  */
 
-static void xsave_sigcontext(CPUX86State *env, struct target_fpstate_fxsave *fxsave,
+static void xsave_sigcontext(CPUX86State *env,
+                             struct target_fpstate_fxsave *fxsave,
                              abi_ulong fxsave_addr)
 {
     if (!(env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE)) {
@@ -266,8 +251,9 @@ static void xsave_sigcontext(CPUX86State *env, struct target_fpstate_fxsave *fxs
 }
 
 static void setup_sigcontext(struct target_sigcontext *sc,
-        struct target_fpstate *fpstate, CPUX86State *env, abi_ulong mask,
-        abi_ulong fpstate_addr)
+                             struct target_fpstate *fpstate,
+                             CPUX86State *env, abi_ulong mask,
+                             abi_ulong fpstate_addr)
 {
     CPUState *cs = env_cpu(env);
 #ifndef TARGET_X86_64
@@ -347,10 +333,11 @@ static void setup_sigcontext(struct target_sigcontext *sc,
  * Determine which stack to use..
  */
 
-static inline abi_ulong
-get_sigframe(struct target_sigaction *ka, CPUX86State *env, size_t fxsave_offset)
+static abi_ulong get_sigframe(struct target_sigaction *ka, CPUX86State *env,
+                              size_t *frame_size, abi_ulong *fpsave_addr)
 {
-    unsigned long esp;
+    abi_ulong esp, orig;
+    size_t fpsave_size;
 
     /* Default to using normal stack */
     esp = get_sp_from_cpustate(env);
@@ -371,16 +358,23 @@ get_sigframe(struct target_sigaction *ka, CPUX86State *env, size_t fxsave_offset
         }
 #endif
     }
+    orig = esp;
 
-    if (!(env->features[FEAT_1_EDX] & CPUID_FXSR)) {
-        return (esp - (fxsave_offset + TARGET_FXSAVE_SIZE)) & -8ul;
-    } else if (!(env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE)) {
-        return ((esp - TARGET_FXSAVE_SIZE) & -16ul) - fxsave_offset;
+    if (!(env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE)) {
+        fpsave_size = TARGET_FXSAVE_SIZE;
+        esp = ROUND_DOWN(esp - fpsave_size, 16);
     } else {
-        size_t xstate_size =
-               xsave_area_size(env->xcr0, false) + TARGET_FP_XSTATE_MAGIC2_SIZE;
-        return ((esp - xstate_size) & -64ul) - fxsave_offset;
+        fpsave_size = xsave_area_size(env->xcr0, false)
+                      + TARGET_FP_XSTATE_MAGIC2_SIZE;
+        esp = ROUND_DOWN(esp - fpsave_size, 64);
     }
+    *fpsave_addr = esp;
+
+    esp = esp - *frame_size + sizeof(abi_ulong);
+    esp = ROUND_DOWN(esp, 16) - sizeof(abi_ulong);
+
+    *frame_size = orig - esp;
+    return esp;
 }
 
 #ifndef TARGET_X86_64
@@ -405,26 +399,34 @@ void setup_frame(int sig, struct target_sigaction *ka,
                  target_sigset_t *set, CPUX86State *env)
 {
     abi_ulong frame_addr;
+    abi_ulong fpstate_addr;
+    size_t frame_size;
     struct sigframe *frame;
+    struct target_fpstate *fpstate;
     int i;
 
-    frame_addr = get_sigframe(ka, env, TARGET_SIGFRAME_FXSAVE_OFFSET);
+    frame_size = sizeof(struct sigframe);
+    frame_addr = get_sigframe(ka, env, &frame_size, &fpstate_addr);
     trace_user_setup_frame(env, frame_addr);
 
-    if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0))
+    frame = lock_user(VERIFY_WRITE, frame_addr, frame_size, false);
+    if (!frame) {
         goto give_sigsegv;
+    }
+    fpstate = (void *)frame + (fpstate_addr - frame_addr);
 
     __put_user(sig, &frame->sig);
 
-    setup_sigcontext(&frame->sc, &frame->fpstate, env, set->sig[0],
-            frame_addr + offsetof(struct sigframe, fpstate));
+    setup_sigcontext(&frame->sc, fpstate, env, set->sig[0], fpstate_addr);
 
-    for(i = 1; i < TARGET_NSIG_WORDS; i++) {
+    for (i = 1; i < TARGET_NSIG_WORDS; i++) {
         __put_user(set->sig[i], &frame->extramask[i - 1]);
     }
 
-    /* Set up to return from userspace.  If provided, use a stub
-       already in userspace.  */
+    /*
+     * Set up to return from userspace.
+     * If provided, use a stub already in userspace.
+     */
     if (ka->sa_flags & TARGET_SA_RESTORER) {
         __put_user(ka->sa_restorer, &frame->pretcode);
     } else {
@@ -443,11 +445,10 @@ void setup_frame(int sig, struct target_sigaction *ka,
     cpu_x86_load_seg(env, R_CS, __USER_CS);
     env->eflags &= ~TF_MASK;
 
-    unlock_user_struct(frame, frame_addr, 1);
-
+    unlock_user(frame, frame_addr, frame_size);
     return;
 
-give_sigsegv:
+ give_sigsegv:
     force_sigsegv(sig);
 }
 #endif
@@ -458,17 +459,24 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
                     target_sigset_t *set, CPUX86State *env)
 {
     abi_ulong frame_addr;
+    abi_ulong fpstate_addr;
+    size_t frame_size;
 #ifndef TARGET_X86_64
     abi_ulong addr;
 #endif
     struct rt_sigframe *frame;
+    struct target_fpstate *fpstate;
     int i;
 
-    frame_addr = get_sigframe(ka, env, TARGET_RT_SIGFRAME_FXSAVE_OFFSET);
+    frame_size = sizeof(struct rt_sigframe);
+    frame_addr = get_sigframe(ka, env, &frame_size, &fpstate_addr);
     trace_user_setup_rt_frame(env, frame_addr);
 
-    if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0))
+    frame = lock_user(VERIFY_WRITE, frame_addr, frame_size, false);
+    if (!frame) {
         goto give_sigsegv;
+    }
+    fpstate = (void *)frame + (fpstate_addr - frame_addr);
 
     /* These fields are only in rt_sigframe on 32 bit */
 #ifndef TARGET_X86_64
@@ -490,10 +498,10 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     }
     __put_user(0, &frame->uc.tuc_link);
     target_save_altstack(&frame->uc.tuc_stack, env);
-    setup_sigcontext(&frame->uc.tuc_mcontext, &frame->fpstate, env,
-            set->sig[0], frame_addr + offsetof(struct rt_sigframe, fpstate));
+    setup_sigcontext(&frame->uc.tuc_mcontext, fpstate, env,
+                     set->sig[0], fpstate_addr);
 
-    for(i = 0; i < TARGET_NSIG_WORDS; i++) {
+    for (i = 0; i < TARGET_NSIG_WORDS; i++) {
         __put_user(set->sig[i], &frame->uc.tuc_sigmask.sig[i]);
     }
 
@@ -533,15 +541,15 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     cpu_x86_load_seg(env, R_SS, __USER_DS);
     env->eflags &= ~TF_MASK;
 
-    unlock_user_struct(frame, frame_addr, 1);
-
+    unlock_user(frame, frame_addr, frame_size);
     return;
 
-give_sigsegv:
+ give_sigsegv:
     force_sigsegv(sig);
 }
 
-static int xrstor_sigcontext(CPUX86State *env, struct target_fpstate_fxsave *fxsave,
+static int xrstor_sigcontext(CPUX86State *env,
+                             struct target_fpstate_fxsave *fxsave,
                              abi_ulong fxsave_addr)
 {
     if (env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE) {
