@@ -1089,39 +1089,45 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
 static void migrate_params_test_apply(MigrateSetParameters *params,
                                       MigrationParameters *dest)
 {
-    *dest = migrate_get_current()->parameters;
-
     /* TODO use QAPI_CLONE() instead of duplicating it inline */
 
     if (params->has_compress_level) {
+        dest->has_compress_level = true;
         dest->compress_level = params->compress_level;
     }
 
     if (params->has_compress_threads) {
+        dest->has_compress_threads = true;
         dest->compress_threads = params->compress_threads;
     }
 
     if (params->has_compress_wait_thread) {
+        dest->has_compress_wait_thread = true;
         dest->compress_wait_thread = params->compress_wait_thread;
     }
 
     if (params->has_decompress_threads) {
+        dest->has_decompress_threads = true;
         dest->decompress_threads = params->decompress_threads;
     }
 
     if (params->has_throttle_trigger_threshold) {
+        dest->has_throttle_trigger_threshold = true;
         dest->throttle_trigger_threshold = params->throttle_trigger_threshold;
     }
 
     if (params->has_cpu_throttle_initial) {
+        dest->has_cpu_throttle_initial = true;
         dest->cpu_throttle_initial = params->cpu_throttle_initial;
     }
 
     if (params->has_cpu_throttle_increment) {
+        dest->has_cpu_throttle_increment = true;
         dest->cpu_throttle_increment = params->cpu_throttle_increment;
     }
 
     if (params->has_cpu_throttle_tailslow) {
+        dest->has_cpu_throttle_tailslow = true;
         dest->cpu_throttle_tailslow = params->cpu_throttle_tailslow;
     }
 
@@ -1136,45 +1142,58 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     }
 
     if (params->has_max_bandwidth) {
+        dest->has_max_bandwidth = true;
         dest->max_bandwidth = params->max_bandwidth;
     }
 
     if (params->has_downtime_limit) {
+        dest->has_downtime_limit = true;
         dest->downtime_limit = params->downtime_limit;
     }
 
     if (params->has_x_checkpoint_delay) {
+        dest->has_x_checkpoint_delay = true;
         dest->x_checkpoint_delay = params->x_checkpoint_delay;
     }
 
     if (params->has_block_incremental) {
+        dest->has_block_incremental = true;
         dest->block_incremental = params->block_incremental;
     }
     if (params->has_multifd_channels) {
+        dest->has_multifd_channels = true;
         dest->multifd_channels = params->multifd_channels;
     }
     if (params->has_multifd_compression) {
+        dest->has_multifd_compression = true;
         dest->multifd_compression = params->multifd_compression;
     }
     if (params->has_xbzrle_cache_size) {
+        dest->has_xbzrle_cache_size = true;
         dest->xbzrle_cache_size = params->xbzrle_cache_size;
     }
     if (params->has_max_postcopy_bandwidth) {
+        dest->has_max_postcopy_bandwidth = true;
         dest->max_postcopy_bandwidth = params->max_postcopy_bandwidth;
     }
     if (params->has_max_cpu_throttle) {
+        dest->has_max_cpu_throttle = true;
         dest->max_cpu_throttle = params->max_cpu_throttle;
     }
     if (params->has_announce_initial) {
+        dest->has_announce_initial = true;
         dest->announce_initial = params->announce_initial;
     }
     if (params->has_announce_max) {
+        dest->has_announce_max = true;
         dest->announce_max = params->announce_max;
     }
     if (params->has_announce_rounds) {
+        dest->has_announce_rounds = true;
         dest->announce_rounds = params->announce_rounds;
     }
     if (params->has_announce_step) {
+        dest->has_announce_step = true;
         dest->announce_step = params->announce_step;
     }
 
@@ -1321,6 +1340,7 @@ void qmp_migrate_set_parameters(MigrateSetParameters *params, Error **errp)
         params->tls_hostname->u.s = strdup("");
     }
 
+    memset(&tmp, 0, sizeof(MigrationParameters));
     migrate_params_test_apply(params, &tmp);
 
     if (!migrate_params_check(&tmp, errp)) {
