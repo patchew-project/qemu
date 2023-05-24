@@ -70,6 +70,7 @@ static void split_irq_from_named(DeviceState *src, const char* outname,
 
 static void realview_common_machine_init(MachineState *machine)
 {
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
     RealviewMachineClass *rmc = REALVIEW_MACHINE_GET_CLASS(machine);
     ARMCPU *cpu = NULL;
     CPUARMState *env;
@@ -274,7 +275,7 @@ static void realview_common_machine_init(MachineState *machine)
     for(n = 0; n < nb_nics; n++) {
         nd = &nd_table[n];
 
-        if (!nd->model || strcmp(nd->model, is_pb ? "lan9118" : "smc91c111") == 0) {
+        if (!nd->model || strcmp(nd->model, mc->default_nic) == 0) {
             if (is_pb) {
                 lan9118_init(nd, 0x4e000000, pic[28]);
             } else {
@@ -378,6 +379,7 @@ static void realview_eb_class_init(ObjectClass *oc, void *data)
     mc->desc = "ARM RealView Emulation Baseboard (ARM926EJ-S)";
     mc->block_default_type = IF_SCSI;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm926");
+    mc->default_nic = "smc91c111";
     rmc->board_id = 0x33b;
 }
 
@@ -390,6 +392,7 @@ static void realview_eb_mpcore_class_init(ObjectClass *oc, void *data)
     mc->block_default_type = IF_SCSI;
     mc->max_cpus = 4;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm11mpcore");
+    mc->default_nic = "smc91c111";
     rmc->board_id = 0x33b;
     rmc->mpcore_periphbase = 0x10100000;
 }
@@ -401,6 +404,7 @@ static void realview_pb_a8_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "ARM RealView Platform Baseboard for Cortex-A8";
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a8");
+    mc->default_nic = "lan9118";
     rmc->board_id = 0x769;
     rmc->is_pb = true;
     rmc->loader_start = 0x70000000;
@@ -414,6 +418,7 @@ static void realview_pbx_a9_class_init(ObjectClass *oc, void *data)
     mc->desc = "ARM RealView Platform Baseboard Explore for Cortex-A9";
     mc->max_cpus = 4;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a9");
+    mc->default_nic = "lan9118";
     rmc->board_id = 0x76d;
     rmc->is_pb = true;
     rmc->mpcore_periphbase = 0x1f000000;
