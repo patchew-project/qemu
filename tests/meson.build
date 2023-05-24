@@ -77,6 +77,7 @@ endif
 test('decodetree', sh,
      args: [ files('decode/check.sh'), config_host['PYTHON'], files('../scripts/decodetree.py') ],
      workdir: meson.current_source_dir() / 'decode',
+     protocol: 'tap', verbose: true,
      suite: 'decodetree')
 
 if 'CONFIG_TCG' in config_all
