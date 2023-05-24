@@ -757,10 +757,8 @@ out:
      * Error happen, I will exit, but I can't just leave, tell
      * who pay attention to me.
      */
-    if (ret != 0) {
-        qemu_sem_post(&p->sem_sync);
-        qemu_sem_post(&multifd_send_state->channels_ready);
-    }
+    qemu_sem_post(&p->sem_sync);
+    qemu_sem_post(&multifd_send_state->channels_ready);
 
     qemu_mutex_lock(&p->mutex);
     p->running = false;
