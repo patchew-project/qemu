@@ -35,6 +35,7 @@ struct RealviewMachineClass {
 
     int board_id;
     bool is_pb;
+    hwaddr mpcore_periphbase;
 };
 typedef struct RealviewMachineClass RealviewMachineClass;
 
@@ -94,26 +95,21 @@ static void realview_init(MachineState *machine,
     int n;
     unsigned int smp_cpus = machine->smp.cpus;
     qemu_irq cpu_irq[4];
-    int is_mpcore = 0;
+    bool is_mpcore = rmc->mpcore_periphbase != 0;
     bool is_pb = rmc->is_pb;
     uint32_t proc_id = 0;
     uint32_t sys_id;
     ram_addr_t low_ram_size;
     ram_addr_t ram_size = machine->ram_size;
-    hwaddr periphbase = 0;
 
     switch (board_type) {
     case BOARD_EB:
         break;
     case BOARD_EB_MPCORE:
-        is_mpcore = 1;
-        periphbase = 0x10100000;
         break;
     case BOARD_PB_A8:
         break;
     case BOARD_PBX_A9:
-        is_mpcore = 1;
-        periphbase = 0x1f000000;
         break;
     }
 
@@ -129,8 +125,8 @@ static void realview_init(MachineState *machine,
         }
 
         if (is_pb && is_mpcore) {
-            object_property_set_int(cpuobj, "reset-cbar", periphbase,
-                                    &error_fatal);
+            object_property_set_int(cpuobj, "reset-cbar",
+                                    rmc->mpcore_periphbase, &error_fatal);
         }
 
         qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
@@ -191,13 +187,13 @@ static void realview_init(MachineState *machine,
         qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
         busdev = SYS_BUS_DEVICE(dev);
         sysbus_realize_and_unref(busdev, &error_fatal);
-        sysbus_mmio_map(busdev, 0, periphbase);
+        sysbus_mmio_map(busdev, 0, rmc->mpcore_periphbase);
         for (n = 0; n < smp_cpus; n++) {
             sysbus_connect_irq(busdev, n, cpu_irq[n]);
         }
-        sysbus_create_varargs("l2x0", periphbase + 0x2000, NULL);
+        sysbus_create_varargs("l2x0", rmc->mpcore_periphbase + 0x2000, NULL);
         /* Both A9 and 11MPCore put the GIC CPU i/f at base + 0x100 */
-        realview_binfo.gic_cpu_if_addr = periphbase + 0x100;
+        realview_binfo.gic_cpu_if_addr = rmc->mpcore_periphbase + 0x100;
     } else {
         uint32_t gic_addr = is_pb ? 0x1e000000 : 0x10040000;
         /* For now just create the nIRQ GIC, and ignore the others.  */
@@ -434,6 +430,7 @@ static void realview_eb_mpcore_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = 4;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm11mpcore");
     rmc->board_id = 0x33b;
+    rmc->mpcore_periphbase = 0x10100000;
 }
 
 static void realview_pb_a8_class_init(ObjectClass *oc, void *data)
@@ -459,6 +456,7 @@ static void realview_pbx_a9_class_init(ObjectClass *oc, void *data)
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a9");
     rmc->board_id = 0x76d;
     rmc->is_pb = true;
+    rmc->mpcore_periphbase = 0x1f000000;
 }
 
 static const TypeInfo realview_machine_types[] = {
