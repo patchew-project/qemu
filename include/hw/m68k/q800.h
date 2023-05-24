@@ -30,6 +30,7 @@
 struct Q800MachineState {
     MachineState parent_obj;
 
+    bool easc;
     M68kCPU *cpu;
     MemoryRegion rom;
     DeviceState *glue;
