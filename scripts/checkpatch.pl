@@ -2877,6 +2877,12 @@ sub process {
 		if ($line =~ /^module_init\s*\(/) {
 			ERROR("please use block_init(), type_init() etc. instead of module_init()\n" . $herecurr);
 		}
+
+# recommend DEFINE_TYPES() over type_init()/type_register_static()
+		if ($line =~ /\b(type_init|type_register_static)\(/) {
+			WARN("consider using DEFINE_TYPES() in preference to type_init()\n" . $herecurr);
+		}
+
 # check for various ops structs, ensure they are const.
 		my $struct_ops = qr{AIOCBInfo|
 				BdrvActionOps|
