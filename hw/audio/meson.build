@@ -1,6 +1,7 @@
 softmmu_ss.add(files('soundhw.c'))
 softmmu_ss.add(when: 'CONFIG_AC97', if_true: files('ac97.c'))
 softmmu_ss.add(when: 'CONFIG_ADLIB', if_true: files('fmopl.c', 'adlib.c'))
+softmmu_ss.add(when: 'CONFIG_ASC', if_true: files('asc.c'))
 softmmu_ss.add(when: 'CONFIG_CS4231', if_true: files('cs4231.c'))
 softmmu_ss.add(when: 'CONFIG_CS4231A', if_true: files('cs4231a.c'))
 softmmu_ss.add(when: 'CONFIG_ES1370', if_true: files('es1370.c'))
