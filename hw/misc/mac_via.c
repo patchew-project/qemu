@@ -1026,12 +1026,47 @@ static void via1_timer_calibration_hack(MOS6522Q800VIA1State *v1s, int addr,
     }
 }
 
+static bool via1_unaligned_hack_state(MOS6522Q800VIA1State *v1s, hwaddr addr,
+                                      int size)
+{
+    /*
+     * Workaround for bug in QEMU whereby load_helper() doesn't correctly
+     * handle combining unaligned memory accesses: see QEMU issue
+     * https://gitlab.com/qemu-project/qemu/-/issues/360 for all the
+     * details.
+     *
+     * Its only known use is during the A/UX timer calibration loop which
+     * runs on kernel startup.
+     */
+    switch (v1s->unaligned_hack_state) {
+    case 0:
+        /* First half of unaligned access */
+        if (addr == 0x11fe && size == 2) {
+            v1s->unaligned_hack_state = 1;
+            trace_via1_unaligned_hack_state(v1s->unaligned_hack_state);
+            return true;
+        }
+        return false;
+    case 1:
+        /* Second half of unaligned access */
+        if (addr == 0x1200 && size == 2) {
+            v1s->unaligned_hack_state = 0;
+            trace_via1_unaligned_hack_state(v1s->unaligned_hack_state);
+            return true;
+        }
+        return false;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static uint64_t mos6522_q800_via1_read(void *opaque, hwaddr addr, unsigned size)
 {
     MOS6522Q800VIA1State *v1s = MOS6522_Q800_VIA1(opaque);
     MOS6522State *ms = MOS6522(v1s);
     int64_t now;
     uint64_t ret;
+    hwaddr oldaddr = addr;
 
     addr = (addr >> 9) & 0xf;
     ret = mos6522_read(ms, addr, size);
@@ -1059,6 +1094,12 @@ static uint64_t mos6522_q800_via1_read(void *opaque, hwaddr addr, unsigned size)
         }
         break;
     }
+
+    if (via1_unaligned_hack_state(v1s, oldaddr, size)) {
+        /* Splat return byte into word to fix unaligned access combine */
+        ret |= ret << 8;
+    }
+
     return ret;
 }
 
@@ -1126,6 +1167,7 @@ static const MemoryRegionOps mos6522_q800_via1_ops = {
     .valid = {
         .min_access_size = 1,
         .max_access_size = 4,
+        .unaligned = true,     /* For VIA1 via1_unaligned_hack_state() */
     },
 };
 

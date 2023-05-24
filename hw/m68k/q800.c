@@ -443,6 +443,7 @@ static const MemoryRegionOps macio_alias_ops = {
     .valid = {
         .min_access_size = 1,
         .max_access_size = 4,
+        .unaligned = true,     /* For VIA1 via1_unaligned_hack_state() */
     },
 };
 

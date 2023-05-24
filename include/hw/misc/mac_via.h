@@ -77,8 +77,10 @@ struct MOS6522Q800VIA1State {
 
     /* SETUPTIMEK hack */
     int timer_hack_state;
-};
 
+    /* Unaligned access hack */
+    int unaligned_hack_state;
+};
 
 /* VIA 2 */
 #define VIA2_IRQ_SCSI_DATA_BIT  CA2_INT_BIT
