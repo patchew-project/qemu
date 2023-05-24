@@ -254,6 +254,15 @@ it. Since all recent x86 hardware from the past >10 years is capable of the
 QEMU API (QAPI) events
 ----------------------
 
+``vcpu`` trace events (since 8.1)
+'''''''''''''''''''''''''''''''''
+
+The ability to instrument QEMU helper functions with vcpu aware trace
+points was removed in 7.0. However the QAPI still exposed the vcpu
+parameter. This argument has now been deprecated and the remaining
+used trace points converted to plain trace points selected just by
+name.
+
 ``MEM_UNPLUG_ERROR`` (since 6.2)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
