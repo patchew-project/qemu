@@ -283,3 +283,7 @@ lasi_chip_write(uint64_t addr, uint32_t val) "addr 0x%"PRIx64" val 0x%08x"
 # djmemc.c
 djmemc_read(int reg, unsigned size, uint64_t value) "reg=0x%x size=%u value=0x%"PRIx64
 djmemc_write(int reg, unsigned size, uint64_t value) "reg=0x%x size=%u value=0x%"PRIx64
+
+# iosb.c
+iosb_read(int reg, unsigned size, uint64_t value) "reg=%d size=%u value=0x%"PRIx64
+iosb_write(int reg, unsigned size, uint64_t value) "reg=%d size=%u value=0x%"PRIx64
