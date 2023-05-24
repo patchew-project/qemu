@@ -32,6 +32,8 @@
 
 struct RealviewMachineClass {
     MachineClass parent_obj;
+
+    int board_id;
 };
 typedef struct RealviewMachineClass RealviewMachineClass;
 
@@ -49,19 +51,11 @@ static struct arm_boot_info realview_binfo = {
     .smp_bootreg_addr = SMP_BOOTREG_ADDR,
 };
 
-/* The following two lists must be consistent.  */
 enum realview_board_type {
     BOARD_EB,
     BOARD_EB_MPCORE,
     BOARD_PB_A8,
     BOARD_PBX_A9,
-};
-
-static const int realview_board_id[] = {
-    0x33b,
-    0x33b,
-    0x769,
-    0x76d
 };
 
 static void split_irq_from_named(DeviceState *src, const char* outname,
@@ -81,6 +75,7 @@ static void split_irq_from_named(DeviceState *src, const char* outname,
 static void realview_init(MachineState *machine,
                           enum realview_board_type board_type)
 {
+    RealviewMachineClass *rmc = REALVIEW_MACHINE_GET_CLASS(machine);
     ARMCPU *cpu = NULL;
     CPUARMState *env;
     MemoryRegion *sysmem = get_system_memory();
@@ -385,7 +380,7 @@ static void realview_init(MachineState *machine,
     memory_region_add_subregion(sysmem, SMP_BOOT_ADDR, ram_hack);
 
     realview_binfo.ram_size = ram_size;
-    realview_binfo.board_id = realview_board_id[board_type];
+    realview_binfo.board_id = rmc->board_id;
     realview_binfo.loader_start = (board_type == BOARD_PB_A8 ? 0x70000000 : 0);
     arm_load_kernel(ARM_CPU(first_cpu), machine, &realview_binfo);
 }
@@ -420,41 +415,49 @@ static void realview_common_class_init(ObjectClass *oc, void *data)
 static void realview_eb_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    RealviewMachineClass *rmc = REALVIEW_MACHINE_CLASS(oc);
 
     mc->desc = "ARM RealView Emulation Baseboard (ARM926EJ-S)";
     mc->init = realview_eb_init;
     mc->block_default_type = IF_SCSI;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm926");
+    rmc->board_id = 0x33b;
 }
 
 static void realview_eb_mpcore_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    RealviewMachineClass *rmc = REALVIEW_MACHINE_CLASS(oc);
 
     mc->desc = "ARM RealView Emulation Baseboard (ARM11MPCore)";
     mc->init = realview_eb_mpcore_init;
     mc->block_default_type = IF_SCSI;
     mc->max_cpus = 4;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm11mpcore");
+    rmc->board_id = 0x33b;
 }
 
 static void realview_pb_a8_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    RealviewMachineClass *rmc = REALVIEW_MACHINE_CLASS(oc);
 
     mc->desc = "ARM RealView Platform Baseboard for Cortex-A8";
     mc->init = realview_pb_a8_init;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a8");
+    rmc->board_id = 0x769;
 }
 
 static void realview_pbx_a9_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    RealviewMachineClass *rmc = REALVIEW_MACHINE_CLASS(oc);
 
     mc->desc = "ARM RealView Platform Baseboard Explore for Cortex-A9";
     mc->init = realview_pbx_a9_init;
     mc->max_cpus = 4;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a9");
+    rmc->board_id = 0x76d;
 }
 
 static const TypeInfo realview_machine_types[] = {
