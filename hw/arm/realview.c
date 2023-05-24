@@ -410,6 +410,13 @@ static void realview_pbx_a9_init(MachineState *machine)
     realview_init(machine, BOARD_PBX_A9);
 }
 
+static void realview_common_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->ignore_memory_transaction_failures = true;
+}
+
 static void realview_eb_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -417,7 +424,6 @@ static void realview_eb_class_init(ObjectClass *oc, void *data)
     mc->desc = "ARM RealView Emulation Baseboard (ARM926EJ-S)";
     mc->init = realview_eb_init;
     mc->block_default_type = IF_SCSI;
-    mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm926");
 }
 
@@ -429,7 +435,6 @@ static void realview_eb_mpcore_class_init(ObjectClass *oc, void *data)
     mc->init = realview_eb_mpcore_init;
     mc->block_default_type = IF_SCSI;
     mc->max_cpus = 4;
-    mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm11mpcore");
 }
 
@@ -439,7 +444,6 @@ static void realview_pb_a8_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "ARM RealView Platform Baseboard for Cortex-A8";
     mc->init = realview_pb_a8_init;
-    mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a8");
 }
 
@@ -450,7 +454,6 @@ static void realview_pbx_a9_class_init(ObjectClass *oc, void *data)
     mc->desc = "ARM RealView Platform Baseboard Explore for Cortex-A9";
     mc->init = realview_pbx_a9_init;
     mc->max_cpus = 4;
-    mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a9");
 }
 
@@ -475,6 +478,7 @@ static const TypeInfo realview_machine_types[] = {
         .name           = TYPE_REALVIEW_MACHINE,
         .parent         = TYPE_MACHINE,
         .class_size     = sizeof(RealviewMachineClass),
+        .class_init     = realview_common_class_init,
         .abstract       = true,
     }
 };
