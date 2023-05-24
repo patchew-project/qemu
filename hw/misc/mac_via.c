@@ -973,11 +973,44 @@ static void via1_timer_calibration_hack(MOS6522Q800VIA1State *v1s, int addr,
             v1s->timer_hack_state = 4;
         }
         break;
+
     case 4:
         /*
          * This is the normal post-calibration timer state: we should
          * generally remain here unless we detect the A/UX calibration
          * loop, or a write to VIA_REG_PCR suggesting a reset
+         */
+        if (addr == VIA_REG_PCR && val == 0x22) {
+            /* Looks like there has been a reset? */
+            v1s->timer_hack_state = 1;
+        }
+
+        if (addr == VIA_REG_T2CL && val == 0xf0) {
+            /* VIA_REG_T2CH: high byte of counter (A/UX) */
+            v1s->timer_hack_state = 5;
+        }
+        break;
+    case 5:
+        if (addr == VIA_REG_T2CH && val == 0x3c) {
+            /* VIA_REG_T2CL: low byte of counter (A/UX) */
+            v1s->timer_hack_state = 6;
+        } else {
+            v1s->timer_hack_state = 0;
+        }
+        break;
+    case 6:
+        if ((addr == VIA_REG_IER && val == 0x20) || addr == VIA_REG_T2CH) {
+            /* End of A/UX timer calibration routine, or another write */
+            v1s->timer_hack_state = 7;
+        } else {
+            v1s->timer_hack_state = 0;
+        }
+        break;
+    case 7:
+        /*
+         * This is the normal post-calibration timer state once both the
+         * MacOS toolbox and A/UX have been calibrated, until we see a write
+         * to VIA_REG_PCR to suggest a reset
          */
         if (addr == VIA_REG_PCR && val == 0x22) {
             /* Looks like there has been a reset? */
@@ -995,8 +1028,9 @@ static void via1_timer_calibration_hack(MOS6522Q800VIA1State *v1s, int addr,
 
 static uint64_t mos6522_q800_via1_read(void *opaque, hwaddr addr, unsigned size)
 {
-    MOS6522Q800VIA1State *s = MOS6522_Q800_VIA1(opaque);
-    MOS6522State *ms = MOS6522(s);
+    MOS6522Q800VIA1State *v1s = MOS6522_Q800_VIA1(opaque);
+    MOS6522State *ms = MOS6522(v1s);
+    int64_t now;
     uint64_t ret;
 
     addr = (addr >> 9) & 0xf;
@@ -1006,6 +1040,23 @@ static uint64_t mos6522_q800_via1_read(void *opaque, hwaddr addr, unsigned size)
     case VIA_REG_ANH:
         /* Quadra 800 Id */
         ret = (ret & ~VIA1A_CPUID_MASK) | VIA1A_CPUID_Q800;
+        break;
+    case VIA_REG_T2CH:
+        if (v1s->timer_hack_state == 6) {
+            /*
+             * The A/UX timer calibration loop runs continuously until 2
+             * consecutive iterations differ by at least 0x492 timer ticks.
+             * Modern hosts execute the timer calibration loop so fast that
+             * this situation never occurs causing a hang on boot. Use a
+             * similar method to Shoebill which is to randomly add 0x500 to
+             * the T2 counter value during calibration to enable it to
+             * eventually succeed.
+             */
+            now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+            if (now & 1) {
+                ret += 0x5;
+            }
+        }
         break;
     }
     return ret;
