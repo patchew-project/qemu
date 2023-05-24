@@ -30,6 +30,15 @@
 #include "hw/i2c/arm_sbcon_i2c.h"
 #include "hw/sd/sd.h"
 
+struct RealviewMachineClass {
+    MachineClass parent_obj;
+};
+typedef struct RealviewMachineClass RealviewMachineClass;
+
+#define TYPE_REALVIEW_MACHINE   MACHINE_TYPE_NAME("realview-common")
+DECLARE_CLASS_CHECKERS(RealviewMachineClass,
+                       REALVIEW_MACHINE, TYPE_REALVIEW_MACHINE)
+
 #define SMP_BOOT_ADDR 0xe0000000
 #define SMP_BOOTREG_ADDR 0x10000030
 
@@ -448,20 +457,25 @@ static void realview_pbx_a9_class_init(ObjectClass *oc, void *data)
 static const TypeInfo realview_machine_types[] = {
     {
         .name           = MACHINE_TYPE_NAME("realview-eb"),
-        .parent         = TYPE_MACHINE,
+        .parent         = TYPE_REALVIEW_MACHINE,
         .class_init     = realview_eb_class_init,
     }, {
         .name           = MACHINE_TYPE_NAME("realview-eb-mpcore"),
-        .parent         = TYPE_MACHINE,
+        .parent         = TYPE_REALVIEW_MACHINE,
         .class_init     = realview_eb_mpcore_class_init,
     }, {
         .name           = MACHINE_TYPE_NAME("realview-pb-a8"),
-        .parent         = TYPE_MACHINE,
+        .parent         = TYPE_REALVIEW_MACHINE,
         .class_init     = realview_pb_a8_class_init,
     }, {
         .name           = MACHINE_TYPE_NAME("realview-pbx-a9"),
-        .parent         = TYPE_MACHINE,
+        .parent         = TYPE_REALVIEW_MACHINE,
         .class_init     = realview_pbx_a9_class_init,
+    }, {
+        .name           = TYPE_REALVIEW_MACHINE,
+        .parent         = TYPE_MACHINE,
+        .class_size     = sizeof(RealviewMachineClass),
+        .abstract       = true,
     }
 };
 
