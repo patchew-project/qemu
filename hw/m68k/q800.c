@@ -363,7 +363,7 @@ static uint8_t fake_mac_rom[] = {
 
 static void q800_machine_init(MachineState *machine)
 {
-    M68kCPU *cpu = NULL;
+    Q800MachineState *m = Q800_MACHINE(machine);
     int linux_boot;
     int32_t kernel_size;
     uint64_t elf_entry;
@@ -406,8 +406,8 @@ static void q800_machine_init(MachineState *machine)
     }
 
     /* init CPUs */
-    cpu = M68K_CPU(cpu_create(machine->cpu_type));
-    qemu_register_reset(main_cpu_reset, cpu);
+    m->cpu = M68K_CPU(cpu_create(machine->cpu_type));
+    qemu_register_reset(main_cpu_reset, m->cpu);
 
     /* RAM */
     memory_region_add_subregion(get_system_memory(), 0, machine->ram);
@@ -429,7 +429,7 @@ static void q800_machine_init(MachineState *machine)
 
     /* IRQ Glue */
     glue = qdev_new(TYPE_GLUE);
-    object_property_set_link(OBJECT(glue), "cpu", OBJECT(cpu), &error_abort);
+    object_property_set_link(OBJECT(glue), "cpu", OBJECT(m->cpu), &error_abort);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(glue), &error_fatal);
 
     /* VIA 1 */
@@ -604,7 +604,7 @@ static void q800_machine_init(MachineState *machine)
 
     macfb_mode = (NUBUS_MACFB(dev)->macfb).mode;
 
-    cs = CPU(cpu);
+    cs = CPU(m->cpu);
     if (linux_boot) {
         uint64_t high;
         void *param_blob, *param_ptr, *param_rng_seed;
