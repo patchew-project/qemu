@@ -36,6 +36,7 @@ struct RealviewMachineClass {
     int board_id;
     bool is_pb;
     hwaddr mpcore_periphbase;
+    hwaddr loader_start;
 };
 typedef struct RealviewMachineClass RealviewMachineClass;
 
@@ -376,7 +377,7 @@ static void realview_init(MachineState *machine,
 
     realview_binfo.ram_size = ram_size;
     realview_binfo.board_id = rmc->board_id;
-    realview_binfo.loader_start = (board_type == BOARD_PB_A8 ? 0x70000000 : 0);
+    realview_binfo.loader_start = rmc->loader_start;
     arm_load_kernel(ARM_CPU(first_cpu), machine, &realview_binfo);
 }
 
@@ -443,6 +444,7 @@ static void realview_pb_a8_class_init(ObjectClass *oc, void *data)
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a8");
     rmc->board_id = 0x769;
     rmc->is_pb = true;
+    rmc->loader_start = 0x70000000;
 }
 
 static void realview_pbx_a9_class_init(ObjectClass *oc, void *data)
