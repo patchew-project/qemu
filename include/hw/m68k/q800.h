@@ -33,6 +33,7 @@ struct Q800MachineState {
     bool easc;
     M68kCPU *cpu;
     MemoryRegion rom;
+    MemoryRegion rom_alias;
     DeviceState *glue;
     DeviceState *djmemc;
     MemoryRegion ramio;
