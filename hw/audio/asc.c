@@ -158,8 +158,10 @@ static int generate_fifo(ASCState *s, int maxsamples)
     limit = MIN(MAX(s->fifos[0].cnt, s->fifos[1].cnt), maxsamples);
 
     /*
-     * If starting a new run with no FIFO data present, update the IRQ and
-     * continue
+     * MacOS (un)helpfully leaves the FIFO engine running even when it has
+     * finished writing out samples. Since not all audio backends guarantee an
+     * all-zero output when no data is provided, zero out the sample buffer
+     * and then update the FIFO flags and IRQ as normal and continue
      */
     if (limit == 0 && s->fifos[0].int_status == 0 &&
             s->fifos[1].int_status == 0) {
@@ -168,8 +170,9 @@ static int generate_fifo(ASCState *s, int maxsamples)
         s->fifos[1].int_status |= ASC_FIFO_STATUS_HALF_FULL |
                                   ASC_FIFO_STATUS_FULL_EMPTY;
 
+        memset(buf, 0x80, maxsamples << s->shift);
         asc_raise_irq(s);
-        return 0;
+        return maxsamples;
     }
 
     while (count < limit) {
