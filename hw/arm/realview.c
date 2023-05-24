@@ -412,12 +412,6 @@ static void realview_eb_class_init(ObjectClass *oc, void *data)
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm926");
 }
 
-static const TypeInfo realview_eb_type = {
-    .name = MACHINE_TYPE_NAME("realview-eb"),
-    .parent = TYPE_MACHINE,
-    .class_init = realview_eb_class_init,
-};
-
 static void realview_eb_mpcore_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -430,12 +424,6 @@ static void realview_eb_mpcore_class_init(ObjectClass *oc, void *data)
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm11mpcore");
 }
 
-static const TypeInfo realview_eb_mpcore_type = {
-    .name = MACHINE_TYPE_NAME("realview-eb-mpcore"),
-    .parent = TYPE_MACHINE,
-    .class_init = realview_eb_mpcore_class_init,
-};
-
 static void realview_pb_a8_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -445,12 +433,6 @@ static void realview_pb_a8_class_init(ObjectClass *oc, void *data)
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a8");
 }
-
-static const TypeInfo realview_pb_a8_type = {
-    .name = MACHINE_TYPE_NAME("realview-pb-a8"),
-    .parent = TYPE_MACHINE,
-    .class_init = realview_pb_a8_class_init,
-};
 
 static void realview_pbx_a9_class_init(ObjectClass *oc, void *data)
 {
@@ -463,18 +445,24 @@ static void realview_pbx_a9_class_init(ObjectClass *oc, void *data)
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a9");
 }
 
-static const TypeInfo realview_pbx_a9_type = {
-    .name = MACHINE_TYPE_NAME("realview-pbx-a9"),
-    .parent = TYPE_MACHINE,
-    .class_init = realview_pbx_a9_class_init,
+static const TypeInfo realview_machine_types[] = {
+    {
+        .name           = MACHINE_TYPE_NAME("realview-eb"),
+        .parent         = TYPE_MACHINE,
+        .class_init     = realview_eb_class_init,
+    }, {
+        .name           = MACHINE_TYPE_NAME("realview-eb-mpcore"),
+        .parent         = TYPE_MACHINE,
+        .class_init     = realview_eb_mpcore_class_init,
+    }, {
+        .name           = MACHINE_TYPE_NAME("realview-pb-a8"),
+        .parent         = TYPE_MACHINE,
+        .class_init     = realview_pb_a8_class_init,
+    }, {
+        .name           = MACHINE_TYPE_NAME("realview-pbx-a9"),
+        .parent         = TYPE_MACHINE,
+        .class_init     = realview_pbx_a9_class_init,
+    }
 };
 
-static void realview_machine_init(void)
-{
-    type_register_static(&realview_eb_type);
-    type_register_static(&realview_eb_mpcore_type);
-    type_register_static(&realview_pb_a8_type);
-    type_register_static(&realview_pbx_a9_type);
-}
-
-type_init(realview_machine_init)
+DEFINE_TYPES(realview_machine_types)
