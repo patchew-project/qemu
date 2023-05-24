@@ -34,6 +34,7 @@ struct Q800MachineState {
     MemoryRegion rom;
     DeviceState *glue;
     DeviceState *djmemc;
+    MemoryRegion ramio;
 
     MemoryRegion macio;
     MemoryRegion macio_alias;
