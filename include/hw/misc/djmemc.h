@@ -1,5 +1,6 @@
 /*
- * QEMU Motorla 680x0 Macintosh hardware System Emulator
+ * djMEMC, macintosh memory and interrupt controller
+ * (Quadra 610/650/800 & Centris 610/650)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,26 +21,26 @@
  * THE SOFTWARE.
  */
 
-#ifndef HW_Q800_H
-#define HW_Q800_H
+#ifndef HW_MISC_DJMEMC_H
+#define HW_MISC_DJMEMC_H
 
-/*
- * The main Q800 machine
- */
+#include "hw/sysbus.h"
 
-struct Q800MachineState {
-    MachineState parent_obj;
+#define DJMEMC_SIZE        0x2000
+#define DJMEMC_NUM_REGS    (0x38 / sizeof(uint32_t))
 
-    M68kCPU *cpu;
-    MemoryRegion rom;
-    DeviceState *glue;
-    DeviceState *djmemc;
+#define DJMEMC_MAXBANKS    10
 
-    MemoryRegion macio;
-    MemoryRegion macio_alias;
+struct DJMEMCState {
+    SysBusDevice parent_obj;
+
+    MemoryRegion mem_regs;
+
+    /* Memory controller */
+    uint32_t regs[DJMEMC_NUM_REGS];
 };
 
-#define TYPE_Q800_MACHINE MACHINE_TYPE_NAME("q800")
-OBJECT_DECLARE_SIMPLE_TYPE(Q800MachineState, Q800_MACHINE)
+#define TYPE_DJMEMC "djMEMC"
+OBJECT_DECLARE_SIMPLE_TYPE(DJMEMCState, DJMEMC);
 
 #endif
