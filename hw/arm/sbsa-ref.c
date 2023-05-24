@@ -647,10 +647,10 @@ static void create_pcie(SBSAMachineState *sms)
 
             pci_nic_init_nofail(nd, pci->bus, nd->model, NULL);
         }
-    }
 
-    if (vga_interface_type != VGA_NONE) {
-        pci_create_simple(pci->bus, -1, "bochs-display");
+        if (vga_interface_type != VGA_NONE) {
+            pci_create_simple(pci->bus, -1, "bochs-display");
+        }
     }
 
     create_smmu(sms, pci->bus);
