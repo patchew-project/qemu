@@ -1624,10 +1624,8 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
     memset(&compression_counters, 0, sizeof(compression_counters));
     ms->to_dst_file = f;
 
-    qemu_mutex_unlock_iothread();
     qemu_savevm_state_header(f);
     qemu_savevm_state_setup(f);
-    qemu_mutex_lock_iothread();
 
     while (qemu_file_get_error(f) == 0) {
         if (qemu_savevm_state_iterate(f, false) > 0) {
