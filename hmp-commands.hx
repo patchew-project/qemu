@@ -1399,6 +1399,32 @@ SRST
 ERST
 
     {
+        .name       = "working_set_config",
+        .args_type  = "i0:i,i1:i,i2:i,refresh:i,report:i",
+        .params     = "bin intervals 0-2, refresh and report thresholds",
+        .help       = "Working Set intervals, refresh/report thresholds (ms)",
+        .cmd        = hmp_working_set_config,
+    },
+
+SRST
+``working_set_config``
+  Set the intervals (in ms), refresh, report thresholds for Working Set reporting
+ERST
+
+    {
+        .name       = "working_set_request",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Request the Working Set of the guest.",
+        .cmd        = hmp_working_set_request,
+    },
+
+SRST
+``working_set_request``
+  Request the Working Set from the guest.
+ERST
+
+    {
         .name       = "set_link",
         .args_type  = "name:s,up:b",
         .params     = "name on|off",

@@ -59,6 +59,8 @@ void hmp_nmi(Monitor *mon, const QDict *qdict);
 void hmp_info_network(Monitor *mon, const QDict *qdict);
 void hmp_set_link(Monitor *mon, const QDict *qdict);
 void hmp_balloon(Monitor *mon, const QDict *qdict);
+void hmp_working_set_config(Monitor *mon, const QDict *qdict);
+void hmp_working_set_request(Monitor *mon, const QDict *qdict);
 void hmp_loadvm(Monitor *mon, const QDict *qdict);
 void hmp_savevm(Monitor *mon, const QDict *qdict);
 void hmp_delvm(Monitor *mon, const QDict *qdict);
