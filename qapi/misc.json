@@ -551,6 +551,32 @@
  'allow-preconfig': true}
 
 ##
+# @MemoryBin:
+#
+# A bin of memory with a size in bytes. File-backed and
+# anonymous memory are tracked separately.
+#
+# @anon: number of bytes of anonymous memory
+# @file: number of bytes of file-backed memory
+##
+{ 'struct': 'MemoryBin',
+  'data': { 'anon': 'uint64',
+            'file': 'uint64' } }
+
+##
+# @WorkingSetInfo:
+#
+# A bin of memory of the given size that has been idle at most `idle-age` ms
+#
+# @idle-age: guest-relative time (in milliseconds)
+#
+# @memory-size-bytes: A MemoryBin with file and anon info.
+##
+{ 'struct': 'WorkingSetInfo',
+  'data': { 'idle-age': 'uint64',
+            'memory-size-bytes': 'MemoryBin' } }
+
+##
 # @RTC_CHANGE:
 #
 # Emitted when the guest changes the RTC time.

@@ -17,6 +17,7 @@
 
 #include "standard-headers/linux/virtio_balloon.h"
 #include "hw/virtio/virtio.h"
+#include "qapi/qapi-types-misc.h"
 #include "sysemu/iothread.h"
 #include "qom/object.h"
 
@@ -25,7 +26,10 @@ OBJECT_DECLARE_SIMPLE_TYPE(VirtIOBalloon, VIRTIO_BALLOON)
 
 #define VIRTIO_BALLOON_FREE_PAGE_HINT_CMD_ID_MIN 0x80000000
 
+#define VIRTIO_BALLOON_WS_NR_BINS 4  /* Number of bins in Working Set report */
+
 typedef struct virtio_balloon_stat VirtIOBalloonStat;
+typedef struct virtio_balloon_working_set VirtIOBalloonWorkingSet;
 
 typedef struct virtio_balloon_stat_modern {
        uint16_t tag;
@@ -42,13 +46,19 @@ enum virtio_balloon_free_page_hint_status {
 
 struct VirtIOBalloon {
     VirtIODevice parent_obj;
-    VirtQueue *ivq, *dvq, *svq, *free_page_vq, *reporting_vq;
+    VirtQueue *ivq, *dvq, *svq, *free_page_vq, *reporting_vq, *working_set_vq,
+              *notification_vq;
     uint32_t free_page_hint_status;
     uint32_t num_pages;
     uint32_t actual;
     uint32_t free_page_hint_cmd_id;
     uint64_t stats[VIRTIO_BALLOON_S_NR];
+    WorkingSetInfo ws[VIRTIO_BALLOON_WS_NR_BINS];
+    uint64_t ws_intervals[VIRTIO_BALLOON_WS_NR_BINS - 1];
+    uint64_t ws_refresh_threshold;
+    uint64_t ws_report_threshold;
     VirtQueueElement *stats_vq_elem;
+    VirtQueueElement *working_set_vq_elem;
     size_t stats_vq_offset;
     QEMUTimer *stats_timer;
     IOThread *iothread;
@@ -71,6 +81,7 @@ struct VirtIOBalloon {
 
     bool qemu_4_0_config_size;
     uint32_t poison_val;
+    uint8_t working_set_num_bins;
 };
 
 #endif
