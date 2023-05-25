@@ -1056,6 +1056,57 @@
 { 'command': 'balloon', 'data': {'value': 'int'} }
 
 ##
+# @working-set-config:
+#
+# Specify the config parameters for Working Set reporting.
+#
+# @i0: the endpoint of the first interval (in ms)
+#
+# @i1: the endpoint of the second interval (in ms)
+#
+# @i2: the endpoint of the third interval (in ms)
+#
+# @refresh: the refresh threshold (in ms) for Working Set reporting
+#
+# @report: the report threshold (in ms) for Working Set reporting
+#
+# Returns: - Nothing on success
+#          - If no balloon device is present, DeviceNotActive
+#
+# Example:
+#
+# -> { "execute": "working-set-config",
+#                 "arguments": { "i0": 100,
+#                                "i1": 500,
+#                                "i2": 2000,
+#                                "refresh": 750,
+#                                "report": 1000 } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'working-set-config', 'data': {'i0': 'uint64',
+                                            'i1': 'uint64',
+                                            'i2': 'uint64',
+                                            'refresh': 'uint64',
+                                            'report': 'uint64'} }
+##
+# @working-set-request:
+#
+# Request the Working Set report from the guest.
+#
+# Returns: - Nothing on success
+#          - If no balloon device is present, DeviceNotActive
+#
+# Example:
+#
+# -> { "execute": "working-set-request", "arguments": {} }
+# <- { "return": {} }
+#
+##
+{ 'command': 'working-set-request', 'data': {} }
+
+
+##
 # @BalloonInfo:
 #
 # Information about the guest balloon device.
@@ -1112,6 +1163,21 @@
 ##
 { 'event': 'BALLOON_CHANGE',
   'data': { 'actual': 'int' } }
+
+##
+# @WORKING_SET_EVENT:
+#
+# Emitted when the guest sends a new Working Set report.
+#
+# Note: this event is rate-limited.
+#
+# Example:
+#
+# <- { "event": "WORKING_SET_EVENT",
+#      "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
+#
+##
+{ 'event': 'WORKING_SET_EVENT' }
 
 ##
 # @MemoryInfo:

@@ -68,6 +68,8 @@ static void virtio_balloon_pci_instance_init(Object *obj)
     object_property_add_alias(obj, "guest-stats-polling-interval",
                               OBJECT(&dev->vdev),
                               "guest-stats-polling-interval");
+    object_property_add_alias(obj, "guest-working-set", OBJECT(&dev->vdev),
+                              "guest-working-set");
 }
 
 static const VirtioPCIDeviceTypeInfo virtio_balloon_pci_info = {

@@ -229,7 +229,7 @@ static void virtio_balloon_receive_working_set(VirtIODevice *vdev,
     }
 }
 
-static __attribute__((unused)) void virtio_balloon_send_working_set_request(
+static void virtio_balloon_send_working_set_request(
     VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtQueueElement *elem;
@@ -248,7 +248,7 @@ static __attribute__((unused)) void virtio_balloon_send_working_set_request(
     g_free(elem);
 }
 
-static __attribute__((unused)) void virtio_balloon_send_working_set_config(
+static void virtio_balloon_send_working_set_config(
     VirtIODevice *vdev, VirtQueue *vq,
     uint64_t i0, uint64_t i1, uint64_t i2,
     uint64_t refresh, uint64_t report)
@@ -351,6 +351,43 @@ static void balloon_stats_poll_cb(void *opaque)
     virtio_notify(vdev, s->svq);
     g_free(s->stats_vq_elem);
     s->stats_vq_elem = NULL;
+}
+
+static void balloon_working_set_get_all(Object *obj, Visitor *v,
+                                        const char *name, void *opaque,
+                                        Error **errp)
+{
+    Error *err = NULL;
+    VirtIOBalloon *s = VIRTIO_BALLOON(obj);
+    char ws_buf[4];
+    WorkingSetInfo *wsinfo;
+    int i;
+
+    if (!visit_start_struct(v, name, NULL, 0, &err)) {
+        goto out;
+    }
+
+    if (!visit_start_struct(v, "working_set", NULL, 0, &err)) {
+        goto out_end;
+    }
+    for (i = 0; i < VIRTIO_BALLOON_WS_NR_BINS; i++) {
+        wsinfo = s->ws + i;
+        sprintf(ws_buf, "ws%d", i);
+        if (!visit_type_WorkingSetInfo(v, ws_buf, &wsinfo, &err)) {
+            goto out_nested;
+        }
+    }
+    visit_check_struct(v, &err);
+out_nested:
+    visit_end_struct(v, NULL);
+
+    if (!err) {
+        visit_check_struct(v, &err);
+    }
+out_end:
+    visit_end_struct(v, NULL);
+out:
+    error_propagate(errp, err);
 }
 
 static void balloon_stats_get_all(Object *obj, Visitor *v, const char *name,
@@ -917,6 +954,25 @@ static void virtio_balloon_stat(void *opaque, BalloonInfo *info)
                                              VIRTIO_BALLOON_PFN_SHIFT);
 }
 
+static void virtio_balloon_working_set_request(void *opaque)
+{
+    VirtIOBalloon *dev = VIRTIO_BALLOON(opaque);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+
+    virtio_balloon_send_working_set_request(vdev, dev->notification_vq);
+}
+
+static void virtio_balloon_working_set_config(void *opaque, uint64_t i0,
+                                              uint64_t i1, uint64_t i2,
+                                              uint64_t refresh, uint64_t report)
+{
+    VirtIOBalloon *dev = VIRTIO_BALLOON(opaque);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+
+    virtio_balloon_send_working_set_config(vdev, dev->notification_vq, i0, i1,
+                                           i2, refresh, report);
+}
+
 static void virtio_balloon_to_target(void *opaque, ram_addr_t target)
 {
     VirtIOBalloon *dev = VIRTIO_BALLOON(opaque);
@@ -992,7 +1048,9 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
     virtio_init(vdev, VIRTIO_ID_BALLOON, virtio_balloon_config_size(s));
 
     ret = qemu_add_balloon_handler(virtio_balloon_to_target,
-                                   virtio_balloon_stat, s);
+                                   virtio_balloon_stat,
+                                   virtio_balloon_working_set_request,
+                                   virtio_balloon_working_set_config, s);
 
     if (ret < 0) {
         error_setg(errp, "Only one balloon device is supported");
@@ -1148,6 +1206,9 @@ static void virtio_balloon_instance_init(Object *obj)
                         balloon_stats_get_poll_interval,
                         balloon_stats_set_poll_interval,
                         NULL, NULL);
+
+    object_property_add(obj, "guest-working-set", "guest working set",
+                        balloon_working_set_get_all, NULL, NULL, NULL);
 }
 
 static const VMStateDescription vmstate_virtio_balloon = {
