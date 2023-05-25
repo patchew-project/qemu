@@ -1748,6 +1748,7 @@ static int vfio_get_dirty_bitmap(VFIOContainer *container, uint64_t iova,
     bool all_device_dirty_tracking =
         vfio_devices_all_device_dirty_tracking(container);
     VFIOBitmap vbmap;
+    uint64_t dirty;
     int ret;
 
     if (!container->dirty_pages_supported && !all_device_dirty_tracking) {
@@ -1772,11 +1773,11 @@ static int vfio_get_dirty_bitmap(VFIOContainer *container, uint64_t iova,
         goto out;
     }
 
-    cpu_physical_memory_set_dirty_lebitmap(vbmap.bitmap, ram_addr,
-                                           vbmap.pages);
+    dirty = cpu_physical_memory_set_dirty_lebitmap(vbmap.bitmap, ram_addr,
+                                                   vbmap.pages);
 
     trace_vfio_get_dirty_bitmap(container->fd, iova, size, vbmap.size,
-                                ram_addr);
+                                ram_addr, dirty);
 out:
     g_free(vbmap.bitmap);
 
