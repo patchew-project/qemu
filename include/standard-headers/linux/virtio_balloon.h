@@ -37,6 +37,7 @@
 #define VIRTIO_BALLOON_F_FREE_PAGE_HINT	3 /* VQ to report free pages */
 #define VIRTIO_BALLOON_F_PAGE_POISON	4 /* Guest is using page poisoning */
 #define VIRTIO_BALLOON_F_REPORTING	5 /* Page reporting virtqueue */
+#define VIRTIO_BALLOON_F_WS_REPORTING	6 /* Working set report virtqueues */
 
 /* Size of a PFN in the balloon interface. */
 #define VIRTIO_BALLOON_PFN_SHIFT 12
@@ -59,6 +60,9 @@ struct virtio_balloon_config {
 	};
 	/* Stores PAGE_POISON if page poisoning is in use */
 	uint32_t poison_val;
+	/* Stores the number of histogram bins if WS reporting in use */
+	uint8_t working_set_num_bins;
+	uint8_t padding[3];
 };
 
 #define VIRTIO_BALLOON_S_SWAP_IN  0   /* Amount of memory swapped in */
@@ -114,6 +118,22 @@ struct virtio_balloon_config {
 struct virtio_balloon_stat {
 	__virtio16 tag;
 	__virtio64 val;
+} QEMU_PACKED;
+
+enum virtio_balloon_working_set_op {
+    VIRTIO_BALLOON_WS_REQUEST = 1, /* a Working Set request from the host */
+    VIRTIO_BALLOON_WS_CONFIG = 2,  /* a Working Set config from the host */
+};
+
+struct virtio_balloon_working_set {
+	/* A tag for additional metadata */
+	__virtio16 tag;
+	/* The NUMA node for this report. */
+	__virtio16 node_id;
+	uint8_t reserved[4];
+	__virtio64 idle_age_ms;
+	/* A bin each for anonymous and file-backed memory. */
+	__virtio64 memory_size_bytes[2];
 } QEMU_PACKED;
 
 #endif /* _LINUX_VIRTIO_BALLOON_H */
