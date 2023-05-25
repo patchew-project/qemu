@@ -677,8 +677,15 @@ typedef struct CPUArchState {
         uint64_t zcr_el[4];   /* ZCR_EL[1-3] */
         uint64_t smcr_el[4];  /* SMCR_EL[1-3] */
     } vfp;
+
     uint64_t exclusive_addr;
     uint64_t exclusive_val;
+    /*
+     * Contains the 'val' for the second 64-bit register of LDXP, which comes
+     * from the higher address, not the high part of a complete 128-bit value.
+     * This is perhaps confusingly named, but the name is now baked into the
+     * migration format.
+     */
     uint64_t exclusive_high;
 
     /* iwMMXt coprocessor state.  */
