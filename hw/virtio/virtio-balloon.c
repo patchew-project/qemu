@@ -1022,6 +1022,17 @@ static const VMStateDescription vmstate_virtio_balloon_page_poison = {
     }
 };
 
+static const VMStateDescription vmstate_virtio_balloon_working_set_reporting = {
+    .name = "virtio-balloon-device/working-set-report",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = virtio_balloon_working_set_reporting_support,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(working_set_num_bins, VirtIOBalloon),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_virtio_balloon_device = {
     .name = "virtio-balloon-device",
     .version_id = 1,
@@ -1035,6 +1046,7 @@ static const VMStateDescription vmstate_virtio_balloon_device = {
     .subsections = (const VMStateDescription * []) {
         &vmstate_virtio_balloon_free_page_hint,
         &vmstate_virtio_balloon_page_poison,
+        &vmstate_virtio_balloon_working_set_reporting,
         NULL
     }
 };
