@@ -161,6 +161,8 @@ vu_request_to_string(unsigned int req)
         REQ(VHOST_USER_GET_MAX_MEM_SLOTS),
         REQ(VHOST_USER_ADD_MEM_REG),
         REQ(VHOST_USER_REM_MEM_REG),
+        REQ(VHOST_USER_SET_STATUS),
+        REQ(VHOST_USER_GET_STATUS),
         REQ(VHOST_USER_MAX),
     };
 #undef REQ
