@@ -271,6 +271,11 @@ static QMPRequest *monitor_qmp_dispatcher_pop_any(void)
     }
 }
 
+static void sync_with_main_loop_bh(void *opaque)
+{
+    qmp_dispatcher_co = NULL;
+}
+
 void coroutine_fn monitor_qmp_dispatcher_co(void *data)
 {
     QMPRequest *req_obj;
@@ -365,7 +370,7 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
         aio_co_schedule(iohandler_get_aio_context(), qmp_dispatcher_co);
         qemu_coroutine_yield();
     }
-    qatomic_set(&qmp_dispatcher_co, NULL);
+    aio_bh_schedule_oneshot(qemu_get_aio_context(), sync_with_main_loop_bh, NULL);
 }
 
 void qmp_dispatcher_co_wake(void)

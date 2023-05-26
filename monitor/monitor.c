@@ -666,9 +666,10 @@ void monitor_cleanup(void)
     }
     qmp_dispatcher_co_wake();
 
-    AIO_WAIT_WHILE_UNLOCKED(NULL,
-                   (aio_poll(iohandler_get_aio_context(), false),
-                    qatomic_read(&qmp_dispatcher_co)));
+    /* Loop until sync_with_main_loop_bh runs.  */
+    while (qmp_dispatcher_co) {
+        main_loop_wait(false);
+    }
 
     /*
      * We need to explicitly stop the I/O thread (but not destroy it),
