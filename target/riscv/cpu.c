@@ -1364,6 +1364,11 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
                                           riscv_pmu_timer_cb, cpu);
         }
      }
+
+    /* With H-Ext, VSSIP, VSTIP, VSEIP and SGEIP are hardwired to one. */
+    if (riscv_has_ext(env, RVH)) {
+        env->mideleg = MIP_VSSIP | MIP_VSTIP | MIP_VSEIP | MIP_SGEIP;
+    }
 #endif
 
     riscv_cpu_finalize_features(cpu, &local_err);
