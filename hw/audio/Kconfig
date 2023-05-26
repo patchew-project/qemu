@@ -47,3 +47,8 @@ config PL041
 
 config CS4231
     bool
+
+config VIRTIO_SND
+    bool
+    default y
+    depends on VIRTIO
