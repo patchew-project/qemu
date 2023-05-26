@@ -273,10 +273,10 @@
 #if !defined(QEMU_SANITIZE_THREAD) && \
     (defined(__i386__) || defined(__x86_64__) || defined(__s390x__))
 /* This is more efficient than a store plus a fence.  */
-# define qatomic_mb_set(ptr, i) \
+# define qatomic_set_mb(ptr, i) \
     ({ (void)qatomic_xchg(ptr, i); smp_mb__after_rmw(); })
 #else
-# define qatomic_mb_set(ptr, i) \
+# define qatomic_set_mb(ptr, i) \
    ({ qatomic_store_release(ptr, i); smp_mb(); })
 #endif
 
