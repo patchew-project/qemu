@@ -349,7 +349,8 @@ static void ppc_core99_init(MachineState *machine)
                                     sysbus_mmio_get_region(s, 3));
     }
 
-    machine->usb |= defaults_enabled() && !machine->usb_disabled;
+    machine->usb |= defaults_enabled() && !machine->usb_disabled &&
+                    module_object_class_by_name("pci-ohci") != 0;
     has_pmu = (core99_machine->via_config != CORE99_VIA_CONFIG_CUDA);
     has_adb = (core99_machine->via_config == CORE99_VIA_CONFIG_CUDA ||
                core99_machine->via_config == CORE99_VIA_CONFIG_PMU_ADB);
