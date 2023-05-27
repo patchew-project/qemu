@@ -12,7 +12,7 @@ maybe_modules="$@"
 # if --with-git-submodules=ignore, do nothing
 test "$command" = "ignore" && exit 0
 
-test -z "$GIT" && GIT=git
+GIT=$(command -v git)
 
 cd "$(dirname "$0")/.."
 
@@ -54,6 +54,12 @@ validate_error() {
 if test -n "$maybe_modules" && ! test -e ".git"
 then
     echo "$0: unexpectedly called with submodules but no git checkout exists"
+    exit 1
+fi
+
+if test -n "$maybe_modules" && test -z "$GIT"
+then
+    echo "$0: unexpectedly called with submodules but git binary not found"
     exit 1
 fi
 
