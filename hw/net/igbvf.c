@@ -283,9 +283,17 @@ static void igbvf_pci_uninit(PCIDevice *dev)
     msix_uninit(dev, &s->msix, &s->msix);
 }
 
+static void igbvf_qdev_reset_hold(Object *obj)
+{
+    trace_e1000e_cb_qdev_reset_hold();
+
+    igbvf_mmio_write(obj, E1000_CTRL, E1000_CTRL_RST, 0x4); /* Write to VTCTRL to trigger VF reset */
+}
+
 static void igbvf_class_init(ObjectClass *class, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
+    ResettableClass *rc = RESETTABLE_CLASS(class);
     PCIDeviceClass *c = PCI_DEVICE_CLASS(class);
 
     c->realize = igbvf_pci_realize;
@@ -294,6 +302,8 @@ static void igbvf_class_init(ObjectClass *class, void *data)
     c->device_id = E1000_DEV_ID_82576_VF;
     c->revision = 1;
     c->class_id = PCI_CLASS_NETWORK_ETHERNET;
+
+    rc->phases.hold = igbvf_qdev_reset_hold;
 
     dc->desc = "Intel 82576 Virtual Function";
     dc->user_creatable = false;
