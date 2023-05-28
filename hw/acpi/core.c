@@ -593,13 +593,13 @@ void acpi_pm1_cnt_update(ACPIREGS *ar,
 static uint64_t acpi_pm_cnt_read(void *opaque, hwaddr addr, unsigned width)
 {
     ACPIREGS *ar = opaque;
-    return ar->pm1.cnt.cnt;
+    return ar->pm1.cnt.cnt >> addr * 8;
 }
 
 static void acpi_pm_cnt_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned width)
 {
-    acpi_pm1_cnt_write(opaque, val);
+    acpi_pm1_cnt_write(opaque, val << addr * 8);
 }
 
 static const MemoryRegionOps acpi_pm_cnt_ops = {
