@@ -522,6 +522,46 @@ static inline TCGRegSet output_pref(const TCGOp *op, unsigned i)
     return i < ARRAY_SIZE(op->output_pref) ? op->output_pref[i] : 0;
 }
 
+/*
+ * The TCGProfile structure holds data for analysing the quality of
+ * the code generation. The data is split between stuff that is valid
+ * for the lifetime of a single translation and things that are valid
+ * for the lifetime of the translator. As the former is reset for each
+ * new translation so it should be copied elsewhere if you want to
+ * keep it.
+ *
+ * The structure is safe to access within the context of translation
+ * but accessing the data from elsewhere should be done with safe
+ * work.
+ */
+typedef struct TCGProfile {
+
+    struct {
+        int nb_guest_insns;
+        int nb_spills;
+        int nb_ops_pre_opt;
+
+        int del_op_count;
+        int temp_count;
+    } translation;
+
+    int64_t cpu_exec_time;
+    int64_t op_count; /* total insn count */
+    int64_t code_in_len;
+    int64_t code_out_len;
+    int64_t search_out_len;
+
+    /* Timestamps during translation  */
+    uint64_t gen_start_time;
+    uint64_t gen_ir_done_time;
+    uint64_t gen_opt_done_time;
+    uint64_t gen_la_done_time;
+    uint64_t gen_code_done_time;
+
+    /* Lifetime count of TCGOps per TCGContext */
+    uint64_t table_op_count[NB_OPS];
+} TCGProfile;
+
 struct TCGContext {
     uint8_t *pool_cur, *pool_end;
     TCGPool *pool_first, *pool_current, *pool_first_large;
@@ -547,6 +587,8 @@ struct TCGContext {
     TranslationBlock *gen_tb;     /* tb for which code is being generated */
     tcg_insn_unit *code_buf;      /* pointer for start of tb */
     tcg_insn_unit *code_ptr;      /* pointer for running end of tb */
+
+    TCGProfile prof;
 
 #ifdef CONFIG_DEBUG_TCG
     int goto_tb_issue_mask;
@@ -608,6 +650,7 @@ struct TCGContext {
 
     /* Exit to translator on overflow. */
     sigjmp_buf jmp_trans;
+    TranslationBlock *current_tb;
 };
 
 static inline bool temp_readonly(TCGTemp *ts)
@@ -885,7 +928,7 @@ static inline TCGv_ptr tcg_temp_new_ptr(void)
     return temp_tcgv_ptr(t);
 }
 
-int64_t tcg_cpu_exec_time(void);
+uint64_t tcg_cpu_exec_time(void);
 void tcg_dump_info(GString *buf);
 void tcg_dump_op_count(GString *buf);
 

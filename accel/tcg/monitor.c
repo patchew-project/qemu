@@ -15,6 +15,7 @@
 #include "sysemu/cpus.h"
 #include "sysemu/cpu-timers.h"
 #include "sysemu/tcg.h"
+#include "exec/tb-stats.h"
 #include "internal.h"
 
 
@@ -69,6 +70,11 @@ HumanReadableText *qmp_x_query_opcount(Error **errp)
 {
     g_autoptr(GString) buf = g_string_new("");
 
+    if (!tb_stats_collection_enabled()) {
+        error_setg(errp, "TB information not being recorded.");
+        return NULL;
+    }
+
     if (!tcg_enabled()) {
         error_setg(errp,
                    "Opcode count information is only available with accel=tcg");
@@ -80,11 +86,23 @@ HumanReadableText *qmp_x_query_opcount(Error **errp)
     return human_readable_text_from_str(buf);
 }
 
+#ifdef CONFIG_TCG
 HumanReadableText *qmp_x_query_profile(Error **errp)
 {
-    error_setg(errp, "Internal profiler not compiled");
+    g_autoptr(GString) buf = g_string_new("");
+
+    dump_jit_exec_time_info(dev_time, buf);
+    dev_time = 0;
+
+    return human_readable_text_from_str(buf);
+}
+#else
+HumanReadableText *qmp_x_query_profile(Error **errp)
+{
+    error_setg(errp, "TCG should be enabled!");
     return NULL;
 }
+#endif
 
 static void hmp_tcg_register(void)
 {

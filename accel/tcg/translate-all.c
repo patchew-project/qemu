@@ -204,6 +204,12 @@ void cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
                                uintptr_t host_pc)
 {
     uint64_t data[TARGET_INSN_START_WORDS];
+    uint64_t ti = 0;
+
+    if (tb_stats_enabled(tb, TB_JIT_TIME)) {
+        ti = profile_getclock();
+    }
+
     int insns_left = cpu_unwind_data_from_tb(tb, host_pc, data);
 
     if (insns_left < 0) {
@@ -220,6 +226,15 @@ void cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
     }
 
     cpu->cc->tcg_ops->restore_state_to_opc(cpu, tb, data);
+
+    if (tb_stats_enabled(tb, TB_JIT_TIME)) {
+        TBStatistics *ts = tb->tb_stats;
+        uint64_t elapsed = profile_getclock() - ti;
+        qemu_mutex_lock(&ts->jit_stats_lock);
+        ts->tb_restore_time += elapsed;
+        ts->tb_restore_count++;
+        qemu_mutex_unlock(&ts->jit_stats_lock);
+    }
 }
 
 bool cpu_restore_state(CPUState *cpu, uintptr_t host_pc)
@@ -267,8 +282,9 @@ void page_init(void)
  */
 static int setjmp_gen_code(CPUArchState *env, TranslationBlock *tb,
                            target_ulong pc, void *host_pc,
-                           int *max_insns, int64_t *ti)
+                           int *max_insns)
 {
+    TCGProfile *prof = &tcg_ctx->prof;
     int ret = sigsetjmp(tcg_ctx->jmp_trans, 0);
     if (unlikely(ret != 0)) {
         return ret;
@@ -281,6 +297,10 @@ static int setjmp_gen_code(CPUArchState *env, TranslationBlock *tb,
     assert(tb->size != 0);
     tcg_ctx->cpu = NULL;
     *max_insns = tb->icount;
+
+    if (tb_stats_enabled(tb, TB_JIT_TIME)) {
+        prof->gen_ir_done_time = profile_getclock();
+    }
 
     return tcg_gen_code(tcg_ctx, tb, pc);
 }
@@ -296,6 +316,8 @@ static TBStatistics *tb_get_stats(tb_page_addr_t phys_pc, target_ulong pc,
     new_stats->cs_base = cs_base;
     new_stats->flags = flags;
     new_stats->stats_enabled = get_default_tbstats_flag();
+    new_stats->tbs = g_ptr_array_sized_new(4);
+    qemu_mutex_init(&new_stats->jit_stats_lock);
 
     /*
      * All initialisation must be complete before we insert into qht
@@ -309,6 +331,7 @@ static TBStatistics *tb_get_stats(tb_page_addr_t phys_pc, target_ulong pc,
          * If there is already a TBStatistic for this TB from a previous flush
          * then just make the new TB point to the older TBStatistic
          */
+        g_ptr_array_free(new_stats->tbs, true);
         g_free(new_stats);
         return existing_stats;
     } else {
@@ -327,7 +350,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     tb_page_addr_t phys_pc;
     tcg_insn_unit *gen_code_buf;
     int gen_code_size, search_size, max_insns;
-    int64_t ti;
+    TCGProfile *prof = &tcg_ctx->prof;
     void *host_pc;
 
     assert_memory_lock();
@@ -389,11 +412,14 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     if (tb_stats_collection_enabled() &&
         qemu_log_in_addr_range(tb->pc)) {
         tb->tb_stats = tb_get_stats(phys_pc, pc, cs_base, flags);
+        if (tb_stats_enabled(tb, TB_JIT_TIME)) {
+            prof->gen_start_time = profile_getclock();
+        }
     } else {
         tb->tb_stats = NULL;
     }
 
-    gen_code_size = setjmp_gen_code(env, tb, pc, host_pc, &max_insns, &ti);
+    gen_code_size = setjmp_gen_code(env, tb, pc, host_pc, &max_insns);
     if (unlikely(gen_code_size < 0)) {
         switch (gen_code_size) {
         case -1:
@@ -444,6 +470,10 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
      * to its first mapping.
      */
     perf_report_code(pc, tb, tcg_splitwx_to_rx(gen_code_buf));
+
+    if (tb_stats_enabled(tb, TB_JIT_TIME)) {
+        prof->gen_code_done_time = profile_getclock();
+    }
 
     if (qemu_loglevel_mask(CPU_LOG_TB_OUT_ASM) &&
         qemu_log_in_addr_range(pc)) {
@@ -545,6 +575,46 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
      */
     if (tb_page_addr0(tb) == -1) {
         return tb;
+    }
+
+    /*
+     * Collect JIT stats when enabled. We batch them all up here to
+     * avoid spamming the cache with atomic accesses
+     */
+    if (tb_stats_enabled(tb, (TB_JIT_STATS | TB_JIT_TIME))) {
+        TBStatistics *ts = tb->tb_stats;
+        qemu_mutex_lock(&ts->jit_stats_lock);
+
+        if (tb_stats_enabled(tb, TB_JIT_STATS)) {
+            ts->code.num_guest_inst += prof->translation.nb_guest_insns;
+            ts->code.num_tcg_ops += prof->translation.nb_ops_pre_opt;
+            ts->code.num_tcg_ops_opt += tcg_ctx->nb_ops;
+            ts->code.spills += prof->translation.nb_spills;
+            ts->code.temps += prof->translation.temp_count;
+            ts->code.deleted_ops += prof->translation.del_op_count;
+            ts->code.in_len += tb->size;
+            ts->code.out_len += tb->tc.size;
+            ts->code.search_out_len += search_size;
+
+            ts->translations.total++;
+            if (tb_page_addr1(tb) != -1) {
+                ts->translations.spanning++;
+            }
+
+            g_ptr_array_add(ts->tbs, tb);
+        }
+
+        if (tb_stats_enabled(tb, TB_JIT_TIME)) {
+            ts->gen_times.ir += prof->gen_ir_done_time - prof->gen_start_time;
+            ts->gen_times.ir_opt +=
+                prof->gen_opt_done_time - prof->gen_ir_done_time;
+            ts->gen_times.la +=
+                prof->gen_la_done_time - prof->gen_opt_done_time;
+            ts->gen_times.code +=
+                prof->gen_code_done_time - prof->gen_la_done_time;
+        }
+
+        qemu_mutex_unlock(&ts->jit_stats_lock);
     }
 
     /*
