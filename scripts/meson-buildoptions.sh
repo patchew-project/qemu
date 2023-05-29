@@ -81,6 +81,8 @@ meson_options_help() {
   printf "%s\n" '  avx2            AVX2 optimizations'
   printf "%s\n" '  avx512bw        AVX512BW optimizations'
   printf "%s\n" '  avx512f         AVX512F optimizations'
+  printf "%s\n" '  enqcmd          ENQCMD optimizations'
+  printf "%s\n" '  movdir64b       MOVDIR64B optimizations'
   printf "%s\n" '  blkio           libblkio block device driver'
   printf "%s\n" '  bochs           bochs image format support'
   printf "%s\n" '  bpf             eBPF support'
@@ -221,6 +223,10 @@ _meson_option_parse() {
     --disable-avx512bw) printf "%s" -Davx512bw=disabled ;;
     --enable-avx512f) printf "%s" -Davx512f=enabled ;;
     --disable-avx512f) printf "%s" -Davx512f=disabled ;;
+    --enable-enqcmd) printf "%s" -Denqcmd=true ;;
+    --disable-enqcmd) printf "%s" -Denqcmd=false ;;
+    --enable-movdir64b) printf "%s" -Dmovdir64b=true ;;
+    --disable-movdir64b) printf "%s" -Dmovdir64b=false ;;
     --enable-gcov) printf "%s" -Db_coverage=true ;;
     --disable-gcov) printf "%s" -Db_coverage=false ;;
     --enable-lto) printf "%s" -Db_lto=true ;;

@@ -117,6 +117,10 @@ option('avx512f', type: 'feature', value: 'disabled',
        description: 'AVX512F optimizations')
 option('avx512bw', type: 'feature', value: 'auto',
        description: 'AVX512BW optimizations')
+option('enqcmd', type: 'boolean', value: false,
+       description: 'MENQCMD optimizations')
+option('movdir64b', type: 'boolean', value: false,
+       description: 'MMOVDIR64B optimizations')
 option('keyring', type: 'feature', value: 'auto',
        description: 'Linux keyring support')
 
