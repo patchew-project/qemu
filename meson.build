@@ -1797,6 +1797,7 @@ malloc = []
 if get_option('malloc') == 'system'
   has_malloc_trim = \
     get_option('malloc_trim').allowed() and \
+    cc.has_function('malloc_trim', prefix: '#include <malloc.h>') and \
     cc.links('''#include <malloc.h>
                 int main(void) { malloc_trim(0); return 0; }''')
 else
@@ -1818,27 +1819,29 @@ gnu_source_prefix = '''
   #define _GNU_SOURCE
   #endif
 '''
-statx_test = gnu_source_prefix + '''
-  #include <sys/stat.h>
+statx_prefix = gnu_source_prefix + '''
+  #include<sys/stat.h>
+'''
+statx_test = statx_prefix + '''
   int main(void) {
     struct statx statxbuf;
     statx(0, "", 0, STATX_BASIC_STATS, &statxbuf);
     return 0;
   }'''
 
-has_statx = cc.links(statx_test)
+has_statx = cc.has_function('statx', prefix: statx_prefix) and \
+    cc.links(statx_test)
 
 # Check whether statx() provides mount ID information
 
-statx_mnt_id_test = gnu_source_prefix + '''
-  #include <sys/stat.h>
+statx_mnt_id_test = statx_prefix + '''
   int main(void) {
     struct statx statxbuf;
     statx(0, "", 0, STATX_BASIC_STATS | STATX_MNT_ID, &statxbuf);
     return statxbuf.stx_mnt_id;
   }'''
 
-has_statx_mnt_id = cc.links(statx_mnt_id_test)
+has_statx_mnt_id = has_statx and cc.links(statx_mnt_id_test)
 
 have_vhost_user_blk_server = get_option('vhost_user_blk_server') \
   .require(targetos == 'linux',
