@@ -4890,6 +4890,16 @@ SRST
         otherwise the option is ignored. Default is off.
 ERST
 
+DEF("dsa-accelerate", HAS_ARG, QEMU_OPTION_dsa,
+    "-dsa-accelerate <file>\n"
+    "                Use Intel Data Streaming Accelerator for certain QEMU\n"
+    "                operations, eg, checkpoint.\n",
+    QEMU_ARCH_I386)
+SRST
+``-dsa-accelerate path``
+    The device path to a DSA accelerator.
+ERST
+
 DEF("dump-vmstate", HAS_ARG, QEMU_OPTION_dump_vmstate,
     "-dump-vmstate <file>\n"
     "                Output vmstate information in JSON format to file.\n"

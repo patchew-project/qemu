@@ -41,6 +41,7 @@
 #include "qapi/qapi-commands-run-state.h"
 #include "qapi/qapi-events-run-state.h"
 #include "qemu/accel.h"
+#include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "qemu/job.h"
 #include "qemu/log.h"
@@ -834,6 +835,9 @@ void qemu_cleanup(void)
     tpm_cleanup();
     net_cleanup();
     audio_cleanup();
+
+    dsa_cleanup();
+
     monitor_cleanup();
     qemu_chr_cleanup();
     user_creatable_cleanup();

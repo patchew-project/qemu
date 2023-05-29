@@ -161,6 +161,7 @@ static const char *mem_path;
 static const char *incoming;
 static const char *loadvm;
 static const char *accelerators;
+static const char *dsa_path;
 static bool have_custom_ram_size;
 static const char *ram_memdev_id;
 static QDict *machine_opts_dict;
@@ -368,6 +369,20 @@ static QemuOptsList qemu_msg_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "Prepends guest name for error messages but only if "
                     "-name guest is set otherwise option is ignored\n",
+        },
+        { /* end of list */ }
+    },
+};
+
+static QemuOptsList qemu_dsa_opts = {
+    .name = "dsa-accelerate",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_dsa_opts.head),
+    .desc = {
+        {
+            .name = "device",
+            .type = QEMU_OPT_STRING,
+            .help = "The device path to DSA accelerator used for certain "
+                    "QEMU operations, eg, checkpoint\n",
         },
         { /* end of list */ }
     },
@@ -2704,6 +2719,7 @@ void qemu_init(int argc, char **argv)
     qemu_add_opts(&qemu_semihosting_config_opts);
     qemu_add_opts(&qemu_fw_cfg_opts);
     qemu_add_opts(&qemu_action_opts);
+    qemu_add_opts(&qemu_dsa_opts);
     module_call_init(MODULE_INIT_OPTS);
 
     error_init(argv[0]);
@@ -3503,6 +3519,12 @@ void qemu_init(int argc, char **argv)
                     exit(1);
                 }
                 configure_msg(opts);
+                break;
+            case QEMU_OPTION_dsa:
+                dsa_path = optarg;
+                if (configure_dsa(dsa_path)) {
+                    exit(1);
+                }
                 break;
             case QEMU_OPTION_dump_vmstate:
                 if (vmstate_dump_file) {

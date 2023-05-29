@@ -439,6 +439,8 @@ int main(int argc, char *argv[])
     job_cancel_sync_all();
     bdrv_close_all();
 
+    dsa_cleanup();
+
     monitor_cleanup();
     qemu_chr_cleanup();
     user_creatable_cleanup();
