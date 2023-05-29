@@ -188,8 +188,14 @@ char *freq_to_str(uint64_t freq_hz);
 /* used to print char* safely */
 #define STR_OR_NULL(str) ((str) ? (str) : "null")
 
+typedef bool (*buffer_accel_fn)(const void *, size_t);
+void set_accel(buffer_accel_fn, size_t len);
+void get_fallback_accel(buffer_accel_fn *);
 bool buffer_is_zero(const void *buf, size_t len);
 bool test_buffer_is_zero_next_accel(void);
+
+int configure_dsa(const char *dsa_path);
+void dsa_cleanup(void);
 
 /*
  * Implementation of ULEB128 (http://en.wikipedia.org/wiki/LEB128)

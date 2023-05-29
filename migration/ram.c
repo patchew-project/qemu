@@ -2280,6 +2280,10 @@ static int ram_save_host_page(RAMState *rs, PageSearchStatus *pss)
             if (preempt_active) {
                 qemu_mutex_unlock(&rs->bitmap_mutex);
             }
+            /*
+             * TODO: Make ram_save_target_page asyn to take advantage
+             * of DSA offloading.
+             */
             tmppages = migration_ops->ram_save_target_page(rs, pss);
             if (tmppages >= 0) {
                 pages += tmppages;
