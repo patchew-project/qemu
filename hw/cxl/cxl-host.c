@@ -48,7 +48,7 @@ static void cxl_fixed_memory_window_config(CXLState *cxl_state,
     if (object->size % (256 * MiB)) {
         error_setg(errp,
                    "Size of a CXL fixed memory window must be a multiple of 256MiB");
-        return;
+        goto err_free;
     }
     fw->size = object->size;
 
@@ -57,7 +57,7 @@ static void cxl_fixed_memory_window_config(CXLState *cxl_state,
             cxl_interleave_granularity_enc(object->interleave_granularity,
                                            errp);
         if (*errp) {
-            return;
+            goto err_free;
         }
     } else {
         /* Default to 256 byte interleave */
@@ -68,6 +68,12 @@ static void cxl_fixed_memory_window_config(CXLState *cxl_state,
                                              g_steal_pointer(&fw));
 
     return;
+
+err_free:
+    for (i = 0; i < fw->num_targets && fw->targets[i]; i++) {
+        g_free(fw->targets[i]);
+    }
+    g_free(fw->targets);
 }
 
 void cxl_fmws_link_targets(CXLState *cxl_state, Error **errp)
