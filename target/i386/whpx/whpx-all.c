@@ -2613,8 +2613,8 @@ static int whpx_accel_init(MachineState *ms)
         sizeof(WHV_PARTITION_PROPERTY));
 
     if (FAILED(hr)) {
-        error_report("WHPX: Failed to set partition core count to %d,"
-                     " hr=%08lx", ms->smp.cores, hr);
+        error_report("WHPX: Failed to set partition processor count to %d,"
+                     " hr=%08lx", prop.ProcessorCount, hr);
         ret = -EINVAL;
         goto error;
     }
