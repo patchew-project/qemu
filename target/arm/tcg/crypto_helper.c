@@ -18,10 +18,32 @@
 #include "crypto/sm4.h"
 #include "vec_internal.h"
 
+#ifdef __x86_64
+#pragma GCC target ("aes")
+#include <cpuid.h>
+#include <wmmintrin.h>
+
+static bool have_aes(void)
+{
+    static int cpuid_have_aes = -1;
+
+    if (cpuid_have_aes == -1) {
+        unsigned int eax, ebx, ecx, edx;
+        int ret = __get_cpuid(0x1, &eax, &ebx, &ecx, &edx);
+
+        cpuid_have_aes = ret && (ecx & bit_AES);
+    }
+    return cpuid_have_aes > 0;
+}
+#endif
+
 union CRYPTO_STATE {
     uint8_t    bytes[16];
     uint32_t   words[4];
     uint64_t   l[2];
+#ifdef __x86_64
+    __m128i    vec;
+#endif
 };
 
 #if HOST_BIG_ENDIAN
@@ -53,6 +75,16 @@ static void do_crypto_aese(uint64_t *rd, uint64_t *rn,
     union CRYPTO_STATE rk = { .l = { rm[0], rm[1] } };
     union CRYPTO_STATE st = { .l = { rn[0], rn[1] } };
     int i;
+
+#ifdef __x86_64__
+    if (have_aes()) {
+        __m128i *d = (__m128i *)rd;
+
+        *d = decrypt ? _mm_aesdeclast_si128(rk.vec ^ st.vec, (__m128i){})
+                     : _mm_aesenclast_si128(rk.vec ^ st.vec, (__m128i){});
+        return;
+    }
+#endif
 
     /* xor state vector with round key */
     rk.l[0] ^= st.l[0];
@@ -217,6 +249,17 @@ static void do_crypto_aesmc(uint64_t *rd, uint64_t *rm, bool decrypt)
     union CRYPTO_STATE st = { .l = { rm[0], rm[1] } };
     int i;
 
+#ifdef __x86_64__
+    if (have_aes()) {
+        __m128i *d = (__m128i *)rd;
+
+        *d = decrypt ? _mm_aesdec_si128(_mm_aesenclast_si128(st.vec, (__m128i){}),
+                                        (__m128i){})
+                     : _mm_aesenc_si128(_mm_aesdeclast_si128(st.vec, (__m128i){}),
+                                        (__m128i){});
+        return;
+    }
+#endif
     for (i = 0; i < 16; i += 4) {
         CR_ST_WORD(st, i >> 2) =
             mc[decrypt][CR_ST_BYTE(st, i)] ^
