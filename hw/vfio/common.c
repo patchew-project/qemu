@@ -474,15 +474,17 @@ static int vfio_viommu_get_max_iova(hwaddr *max_iova)
 
 int vfio_block_giommu_migration(Error **errp)
 {
+    hwaddr max;
     int ret;
 
     if (giommu_migration_blocker ||
-        !vfio_viommu_preset()) {
+        !vfio_viommu_preset() ||
+        (vfio_viommu_preset() && !vfio_viommu_get_max_iova(&max))) {
         return 0;
     }
 
     error_setg(&giommu_migration_blocker,
-               "Migration is currently not supported with vIOMMU enabled");
+               "Migration is currently not supported with the configured vIOMMU");
     ret = migrate_add_blocker(giommu_migration_blocker, errp);
     if (ret < 0) {
         error_free(giommu_migration_blocker);
