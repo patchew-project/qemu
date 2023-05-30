@@ -365,13 +365,14 @@ void pci_device_deassert_intx(PCIDevice *dev);
 
 typedef struct PCIAddressSpace {
     AddressSpace *as;
+    IOMMUMemoryRegion *iommu_mr;
 } PCIAddressSpace;
 
 typedef AddressSpace *(*PCIIOMMUFunc)(PCIBus *, void *, int);
 typedef PCIAddressSpace (*PCIIOMMUASFunc)(PCIBus *, void *, int);
 static inline PCIAddressSpace as_to_pci_as(AddressSpace *as)
 {
-    PCIAddressSpace ret = { .as = as };
+    PCIAddressSpace ret = { .as = as, .iommu_mr = NULL };
 
     return ret;
 }
@@ -379,11 +380,25 @@ static inline AddressSpace *pci_as_to_as(PCIAddressSpace pci_as)
 {
     return pci_as.as;
 }
+static inline PCIAddressSpace to_pci_as(AddressSpace *as,
+                                        IOMMUMemoryRegion *iommu_mr)
+{
+    PCIAddressSpace ret = { .as = as, .iommu_mr = iommu_mr };
+
+    return ret;
+}
 
 PCIAddressSpace pci_device_iommu_info(PCIDevice *dev);
 static inline AddressSpace *pci_device_iommu_address_space(PCIDevice *dev)
 {
     return pci_as_to_as(pci_device_iommu_info(dev));
+}
+
+static inline IOMMUMemoryRegion *pci_device_iommu_memory_region(PCIDevice *dev)
+{
+    PCIAddressSpace ret = pci_device_iommu_info(dev);
+
+    return ret.iommu_mr;
 }
 
 void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque);
