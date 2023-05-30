@@ -66,6 +66,11 @@ static void test_load_tmp2(void)
     void *pout1 = &output[1];
 
     asm volatile(
+        "r0 = #0x0\n\t"
+        "v14 = vsplat(r0)\n\t"
+        "v15 = vsplat(r0)\n\t"
+        "v24 = vsplat(r0)\n\t"
+        "v25 = vsplat(r0)\n\t"
         "r0 = #0x03030303\n\t"
         "v16 = vsplat(r0)\n\t"
         "r0 = #0x04040404\n\t"
@@ -79,7 +84,7 @@ static void test_load_tmp2(void)
         "vmem(%0 + #0) = v24\n\t"
         "vmem(%1 + #0) = v25\n\t"
         : : "r"(pout0), "r"(pout1)
-        : "r0", "v16", "v18", "v21", "v24", "v25", "memory"
+        : "r0", "v14", "v15", "v16", "v18", "v21", "v24", "v25", "memory"
     );
 
     for (int i = 0; i < MAX_VEC_SIZE_BYTES / 4; ++i) {
