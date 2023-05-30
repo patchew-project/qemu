@@ -522,6 +522,26 @@ static inline TCGRegSet output_pref(const TCGOp *op, unsigned i)
     return i < ARRAY_SIZE(op->output_pref) ? op->output_pref[i] : 0;
 }
 
+/* Timestamps during translation  */
+typedef struct TCGTime {
+    uint64_t start;
+    uint64_t ir_done;
+    uint64_t opt_done;
+    uint64_t la_done;
+    uint64_t code_done;
+} TCGTime;
+
+/*
+ * The TCGProfile structure holds data for the lifetime of the translator.
+ */
+typedef struct TCGProfile {
+    /* exec time of this vcpu */
+    int64_t cpu_exec_time;
+
+    /* Lifetime count of TCGOps per TCGContext when tb_stats enabled */
+    size_t table_op_count[NB_OPS];
+} TCGProfile;
+
 struct TCGContext {
     uint8_t *pool_cur, *pool_end;
     TCGPool *pool_first, *pool_current, *pool_first_large;
@@ -547,6 +567,8 @@ struct TCGContext {
     TranslationBlock *gen_tb;     /* tb for which code is being generated */
     tcg_insn_unit *code_buf;      /* pointer for start of tb */
     tcg_insn_unit *code_ptr;      /* pointer for running end of tb */
+
+    TCGProfile prof;
 
 #ifdef CONFIG_DEBUG_TCG
     int goto_tb_issue_mask;
@@ -608,6 +630,7 @@ struct TCGContext {
 
     /* Exit to translator on overflow. */
     sigjmp_buf jmp_trans;
+    TranslationBlock *current_tb;
 };
 
 static inline bool temp_readonly(TCGTemp *ts)
@@ -827,7 +850,8 @@ void tcg_register_thread(void);
 void tcg_prologue_init(TCGContext *s);
 void tcg_func_start(TCGContext *s);
 
-int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start);
+int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start,
+                 TCGTime *tcg_time);
 
 void tb_target_set_jmp_target(const TranslationBlock *, int,
                               uintptr_t, uintptr_t);
@@ -885,7 +909,7 @@ static inline TCGv_ptr tcg_temp_new_ptr(void)
     return temp_tcgv_ptr(t);
 }
 
-int64_t tcg_cpu_exec_time(void);
+uint64_t tcg_cpu_exec_time(void);
 void tcg_dump_info(GString *buf);
 void tcg_dump_op_count(GString *buf);
 

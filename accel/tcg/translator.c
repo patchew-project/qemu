@@ -19,7 +19,7 @@
 #include "exec/plugin-gen.h"
 #include "exec/replay-core.h"
 
-static void gen_tb_exec_count(TranslationBlock *tb)
+static inline void gen_tb_exec_count(TranslationBlock *tb)
 {
     if (tb_stats_enabled(tb, TB_EXEC_STATS)) {
         TCGv_ptr ptr = tcg_temp_ebb_new_ptr();
@@ -146,6 +146,11 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
     /* The disas_log hook may use these values rather than recompute.  */
     tb->size = db->pc_next - db->pc_first;
     tb->icount = db->num_insns;
+
+    /* Save number of guest instructions for TB_JIT_STATS */
+    if (tb_stats_enabled(tb, TB_JIT_STATS)) {
+        tb->tb_stats->code.num_guest_inst += db->num_insns;
+    }
 
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
         && qemu_log_in_addr_range(db->pc_first)) {

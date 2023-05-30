@@ -41,6 +41,7 @@
 #define NO_CPU_IO_DEFS
 
 #include "exec/exec-all.h"
+#include "exec/tb-stats.h"
 #include "tcg/tcg-op.h"
 
 #if UINTPTR_MAX == UINT32_MAX
@@ -2983,6 +2984,10 @@ void tcg_op_remove(TCGContext *s, TCGOp *op)
     QTAILQ_REMOVE(&s->ops, op, link);
     QTAILQ_INSERT_TAIL(&s->free_ops, op, link);
     s->nb_ops--;
+    /* ? won't this end up op_opt - op = del_op_count ? */
+    if (tb_stats_enabled(s->gen_tb, TB_JIT_STATS)) {
+        s->gen_tb->tb_stats->code.deleted_ops++;
+    }
 }
 
 void tcg_remove_ops_after(TCGOp *op)
@@ -4148,6 +4153,10 @@ static TCGReg tcg_reg_alloc(TCGContext *s, TCGRegSet required_regs,
     }
 
     /* We must spill something.  */
+    if (tb_stats_enabled(s->gen_tb, TB_JIT_STATS)) {
+        s->gen_tb->tb_stats->code.spills++;
+    }
+
     for (j = f; j < 2; j++) {
         TCGRegSet set = reg_ct[j];
 
@@ -5852,21 +5861,56 @@ static void tcg_out_st_helper_args(TCGContext *s, const TCGLabelQemuLdst *ldst,
     tcg_out_helper_load_common_args(s, ldst, parm, info, next_arg);
 }
 
-void tcg_dump_op_count(GString *buf)
+/* avoid copy/paste errors */
+#define PROF_ADD(to, from, field)                       \
+    do {                                                \
+        (to)->field += qatomic_read(&((from)->field));  \
+    } while (0)
+
+static void collect_tcg_profiler(TCGProfile *prof)
 {
-    g_string_append_printf(buf, "[TCG profiler not compiled]\n");
+    unsigned int n_ctxs = qatomic_read(&tcg_cur_ctxs);
+    unsigned int i;
+
+    for (i = 0; i < n_ctxs; i++) {
+        TCGContext *s = qatomic_read(&tcg_ctxs[i]);
+        const TCGProfile *orig = &s->prof;
+
+        PROF_ADD(prof, orig, cpu_exec_time);
+
+        for (i = 0; i < NB_OPS; i++) {
+            PROF_ADD(prof, orig, table_op_count[i]);
+        }
+    }
 }
 
-int64_t tcg_cpu_exec_time(void)
+uint64_t tcg_cpu_exec_time(void)
 {
-    error_report("%s: TCG profiler not compiled", __func__);
-    exit(EXIT_FAILURE);
+    unsigned int n_ctxs = qatomic_read(&tcg_cur_ctxs);
+    unsigned int i;
+    uint64_t ret = 0;
+
+    for (i = 0; i < n_ctxs; i++) {
+        const TCGContext *s = qatomic_read(&tcg_ctxs[i]);
+        const TCGProfile *prof = &s->prof;
+
+        ret += qatomic_read(&prof->cpu_exec_time);
+    }
+    return ret;
 }
 
-int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
+int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start,
+                 TCGTime *tcg_time)
 {
     int i, num_insns;
     TCGOp *op;
+
+    s->current_tb = tb;
+    /* save pre-optimisation op count */
+    if (tb_stats_enabled(tb, TB_JIT_STATS)) {
+        tb->tb_stats->code.num_tcg_ops += s->nb_ops;
+        tb->tb_stats->code.temps += s->nb_temps;
+    }
 
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP)
                  && qemu_log_in_addr_range(pc_start))) {
@@ -5878,6 +5922,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
             qemu_log_unlock(logfile);
         }
     }
+
 
 #ifdef CONFIG_DEBUG_TCG
     /* Ensure all labels referenced have been emitted.  */
@@ -5897,6 +5942,10 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
 #endif
 
     tcg_optimize(s);
+
+    if (tb_stats_enabled(tb, TB_JIT_TIME)) {
+        tcg_time->opt_done = get_clock();
+    }
 
     reachable_code_pass(s);
     liveness_pass_0(s);
@@ -5919,6 +5968,10 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
             /* If changes were made, re-run liveness.  */
             liveness_pass_1(s);
         }
+    }
+
+    if (tb_stats_enabled(tb, TB_JIT_TIME)) {
+        tcg_time->la_done = get_clock();
     }
 
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP_OPT)
@@ -5954,6 +6007,13 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
 #ifdef TCG_TARGET_NEED_POOL_LABELS
     s->pool_labels = NULL;
 #endif
+
+    if (tb_stats_collection_enabled()) {
+        QTAILQ_FOREACH(op, &s->ops, link) {
+            TCGOpcode opc = op->opc;
+            s->prof.table_op_count[opc]++;
+        }
+    }
 
     num_insns = -1;
     QTAILQ_FOREACH(op, &s->ops, link) {
@@ -6053,9 +6113,23 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
     return tcg_current_code_size(s);
 }
 
+void tcg_dump_op_count(GString *buf)
+{
+    TCGProfile prof = {};
+    int i;
+
+    collect_tcg_profiler(&prof);
+    for (i = 0; i < NB_OPS; i++) {
+        g_string_append_printf(buf, "%s %" PRId64 "\n",
+                tcg_op_defs[i].name, prof.table_op_count[i]);
+    }
+}
+
 void tcg_dump_info(GString *buf)
 {
-    g_string_append_printf(buf, "[TCG profiler not compiled]\n");
+    TCGProfile prof = {};
+    collect_tcg_profiler(&prof);
+    dump_jit_profile_info(&prof, buf);
 }
 
 #ifdef ELF_HOST_MACHINE
