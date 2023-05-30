@@ -363,9 +363,28 @@ void pci_bus_get_w64_range(PCIBus *bus, Range *range);
 
 void pci_device_deassert_intx(PCIDevice *dev);
 
-typedef AddressSpace *(*PCIIOMMUFunc)(PCIBus *, void *, int);
+typedef struct PCIAddressSpace {
+    AddressSpace *as;
+} PCIAddressSpace;
 
-AddressSpace *pci_device_iommu_address_space(PCIDevice *dev);
+typedef AddressSpace *(*PCIIOMMUFunc)(PCIBus *, void *, int);
+static inline PCIAddressSpace as_to_pci_as(AddressSpace *as)
+{
+    PCIAddressSpace ret = { .as = as };
+
+    return ret;
+}
+static inline AddressSpace *pci_as_to_as(PCIAddressSpace pci_as)
+{
+    return pci_as.as;
+}
+
+PCIAddressSpace pci_device_iommu_info(PCIDevice *dev);
+static inline AddressSpace *pci_device_iommu_address_space(PCIDevice *dev)
+{
+    return pci_as_to_as(pci_device_iommu_info(dev));
+}
+
 void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque);
 
 pcibus_t pci_bar_address(PCIDevice *d,
