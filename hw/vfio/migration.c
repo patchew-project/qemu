@@ -323,7 +323,8 @@ static bool vfio_precopy_supported(VFIODevice *vbasedev)
 {
     VFIOMigration *migration = vbasedev->migration;
 
-    return migration->mig_flags & VFIO_MIGRATION_PRE_COPY;
+    return vbasedev->allow_pre_copy &&
+           migration->mig_flags & VFIO_MIGRATION_PRE_COPY;
 }
 
 /* ---------------------------------------------------------------------- */
