@@ -2029,6 +2029,11 @@ have_virtfs_proxy_helper = get_option('virtfs_proxy_helper') \
     .require(libcap_ng.found(), error_message: 'the virtfs proxy helper requires libcap-ng') \
     .allowed()
 
+have_user_native_call = get_option('user_native_call') \
+    .require(have_user, error_message: 'user_native_call requires user') \
+    .require(targetos == 'linux', error_message: 'user_native_call requires Linux') \
+    .allowed()
+
 if get_option('block_drv_ro_whitelist') == ''
   config_host_data.set('CONFIG_BDRV_RO_WHITELIST', '')
 else
@@ -2870,6 +2875,9 @@ foreach target : target_dirs
       error('Target @0@ is only available on a Linux host'.format(target))
     endif
     config_target += { 'CONFIG_LINUX_USER': 'y' }
+    if have_user_native_call
+      config_target += { 'CONFIG_USER_NATIVE_CALL': 'y' }
+    endif
   elif target.endswith('bsd-user')
     if 'CONFIG_BSD' not in config_host
       if default_targets

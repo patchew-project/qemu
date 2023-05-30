@@ -33,6 +33,7 @@
 #include "helper-tcg.h"
 
 #include "exec/log.h"
+#include "exec/user/native-func.h"
 
 #define PREFIX_REPZ   0x01
 #define PREFIX_REPNZ  0x02
@@ -6806,6 +6807,25 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
     case 0x1d0 ... 0x1fe:
         disas_insn_new(s, cpu, b);
         break;
+    /* One unknown opcode for native call */
+#if defined(CONFIG_USER_ONLY)  && defined(CONFIG_USER_NATIVE_CALL)
+    case 0x1ff:
+        uint16_t sig = x86_lduw_code(env, s);
+        switch (sig) {
+        case NATIVE_MEMCPY:
+            gen_helper_native_memcpy(cpu_env);
+            break;
+        case NATIVE_MEMSET:
+            gen_helper_native_memset(cpu_env);
+            break;
+        case NATIVE_MEMCMP:
+            gen_helper_native_memcmp(cpu_env);
+            break;
+        default:
+            goto unknown_op;
+        }
+        break;
+#endif
     default:
         goto unknown_op;
     }

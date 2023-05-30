@@ -589,6 +589,12 @@ DEF_HELPER_FLAGS_3(dmthlip, 0, void, tl, tl, env)
 DEF_HELPER_FLAGS_3(wrdsp, 0, void, tl, tl, env)
 DEF_HELPER_FLAGS_2(rddsp, 0, tl, tl, env)
 
+#if defined(CONFIG_USER_ONLY)  && defined(CONFIG_USER_NATIVE_CALL)
+DEF_HELPER_1(native_memcpy, void, env)
+DEF_HELPER_1(native_memcmp, void, env)
+DEF_HELPER_1(native_memset, void, env)
+#endif
+
 #ifndef CONFIG_USER_ONLY
 #include "tcg/sysemu_helper.h.inc"
 #endif /* !CONFIG_USER_ONLY */

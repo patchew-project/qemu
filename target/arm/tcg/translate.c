@@ -34,7 +34,7 @@
 #include "exec/helper-gen.h"
 #include "exec/log.h"
 #include "cpregs.h"
-
+#include "exec/user/native-func.h"
 
 #define ENABLE_ARCH_4T    arm_dc_feature(s, ARM_FEATURE_V4T)
 #define ENABLE_ARCH_5     arm_dc_feature(s, ARM_FEATURE_V5)
@@ -57,6 +57,11 @@ static TCGv_i32 cpu_R[16];
 TCGv_i32 cpu_CF, cpu_NF, cpu_VF, cpu_ZF;
 TCGv_i64 cpu_exclusive_addr;
 TCGv_i64 cpu_exclusive_val;
+
+#if defined(CONFIG_USER_ONLY) && !defined(TARGET_AARCH64)  \
+    && defined(CONFIG_USER_NATIVE_CALL)
+bool native_call_status;
+#endif
 
 #include "exec/gen-icount.h"
 
@@ -8576,6 +8581,10 @@ static bool trans_SVC(DisasContext *s, arg_SVC *a)
         if (s->fgt_svc) {
             uint32_t syndrome = syn_aa32_svc(a->imm, s->thumb);
             gen_exception_insn_el(s, 0, EXCP_UDEF, syndrome, 2);
+#if defined(CONFIG_USER_ONLY)  && defined(CONFIG_USER_NATIVE_CALL)
+        } else if (a->imm == 0xff) {
+            native_call_status = true;
+#endif
         } else {
             gen_update_pc(s, curr_insn_len(s));
             s->svc_imm = a->imm;
@@ -9372,6 +9381,25 @@ static void arm_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     insn = arm_ldl_code(env, &dc->base, pc, dc->sctlr_b);
     dc->insn = insn;
     dc->base.pc_next = pc + 4;
+#if defined(CONFIG_USER_ONLY)  && defined(CONFIG_USER_NATIVE_CALL)
+    if (native_call_status) {
+        switch (insn) {
+        case NATIVE_MEMCPY:
+            gen_helper_native_memcpy(cpu_env);
+            break;
+        case NATIVE_MEMCMP:
+            gen_helper_native_memcmp(cpu_env);
+            break;
+        case NATIVE_MEMSET:
+            gen_helper_native_memset(cpu_env);
+            break;
+        default:
+            unallocated_encoding(dc);
+        }
+        native_call_status = false;
+        return;
+    }
+#endif
     disas_arm_insn(dc, insn);
 
     arm_post_translate_insn(dc);

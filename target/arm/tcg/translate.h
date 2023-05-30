@@ -162,6 +162,14 @@ extern TCGv_i64 cpu_exclusive_addr;
 extern TCGv_i64 cpu_exclusive_val;
 
 /*
+ * Indicate whether the next instruction is a native function call (true)
+ * or not (false).
+ */
+#if defined(CONFIG_USER_ONLY)  && defined(CONFIG_USER_NATIVE_CALL)
+extern bool native_call_status;
+#endif
+
+/*
  * Constant expanders for the decoders.
  */
 

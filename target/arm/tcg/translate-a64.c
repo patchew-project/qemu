@@ -35,12 +35,18 @@
 #include "cpregs.h"
 #include "translate-a64.h"
 #include "qemu/atomic128.h"
+#include "exec/user/native-func.h"
 
 static TCGv_i64 cpu_X[32];
 static TCGv_i64 cpu_pc;
 
 /* Load/store exclusive handling */
 static TCGv_i64 cpu_exclusive_high;
+
+#if defined(CONFIG_USER_ONLY) && defined(TARGET_AARCH64) && \
+    defined(CONFIG_USER_NATIVE_CALL)
+bool native_call_status;
+#endif
 
 static const char *regnames[] = {
     "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7",
@@ -2292,6 +2298,12 @@ static void disas_exc(DisasContext *s, uint32_t insn)
                 gen_exception_insn_el(s, 0, EXCP_UDEF, syndrome, 2);
                 break;
             }
+#if defined(CONFIG_USER_ONLY)  && defined(CONFIG_USER_NATIVE_CALL)
+            else if (imm16 == 0xff) {
+                native_call_status = true;
+                break;
+            }
+#endif
             gen_ss_advance(s);
             gen_exception_insn(s, 4, EXCP_SWI, syndrome);
             break;
@@ -14202,6 +14214,26 @@ static void aarch64_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 
     s->fp_access_checked = false;
     s->sve_access_checked = false;
+
+#if defined(CONFIG_USER_ONLY)  && defined(CONFIG_USER_NATIVE_CALL)
+    if (native_call_status) {
+        switch (insn) {
+        case NATIVE_MEMCPY:
+            gen_helper_native_memcpy(cpu_env);
+            break;
+        case NATIVE_MEMCMP:
+            gen_helper_native_memcmp(cpu_env);
+            break;
+        case NATIVE_MEMSET:
+            gen_helper_native_memset(cpu_env);
+            break;
+        default:
+            unallocated_encoding(s);
+        }
+        native_call_status = false;
+        return;
+    }
+#endif
 
     if (s->pstate_il) {
         /*

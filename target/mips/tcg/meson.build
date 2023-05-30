@@ -22,6 +22,7 @@ mips_ss.add(files(
   'txx9_translate.c',
   'vr54xx_helper.c',
   'vr54xx_translate.c',
+  'native_helper.c',
 ))
 mips_ss.add(when: 'TARGET_MIPS64', if_true: files(
   'tx79_translate.c',

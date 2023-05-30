@@ -352,3 +352,5 @@ option('slirp_smbd', type : 'feature', value : 'auto',
 
 option('hexagon_idef_parser', type : 'boolean', value : true,
        description: 'use idef-parser to automatically generate TCG code for the Hexagon frontend')
+option('user_native_call', type : 'feature', value : 'auto',
+       description: 'use native code for user mode emulation')
