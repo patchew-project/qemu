@@ -354,7 +354,7 @@ static inline target_ulong tlb_addr_write(const CPUTLBEntry *entry)
     return tlb_read_idx(entry, MMU_DATA_STORE);
 }
 
-/* Find the TLB index corresponding to the mmu_idx + address pair.  */
+/* Find the TLB index corresponding to the mmu_idx + address pair. */
 static inline uintptr_t tlb_index(CPUArchState *env, uintptr_t mmu_idx,
                                   target_ulong addr)
 {
@@ -363,11 +363,22 @@ static inline uintptr_t tlb_index(CPUArchState *env, uintptr_t mmu_idx,
     return (addr >> TARGET_PAGE_BITS) & size_mask;
 }
 
-/* Find the TLB entry corresponding to the mmu_idx + address pair.  */
+/* Find the TLB index and entry corresponding to the mmu_idx + address pair. */
+static inline CPUTLBEntry *tlb_index_and_entry(CPUArchState *env,
+                                               uintptr_t mmu_idx,
+                                               target_ulong addr,
+                                               uintptr_t *index)
+{
+    *index = tlb_index(env, mmu_idx, addr);
+    return &env_tlb(env)->f[mmu_idx].table[*index];
+}
+
+/* Find the TLB entry corresponding to the mmu_idx + address pair. */
 static inline CPUTLBEntry *tlb_entry(CPUArchState *env, uintptr_t mmu_idx,
                                      target_ulong addr)
 {
-    return &env_tlb(env)->f[mmu_idx].table[tlb_index(env, mmu_idx, addr)];
+    uintptr_t index;
+    return tlb_index_and_entry(env, mmu_idx, addr, &index);
 }
 
 #endif /* defined(CONFIG_USER_ONLY) */
