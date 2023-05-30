@@ -1405,6 +1405,7 @@ void migrate_init(MigrationState *s)
     s->vm_old_state = -1;
     s->iteration_initial_bytes = 0;
     s->threshold_size = 0;
+    s->rdma_migration = false;
 }
 
 int migrate_add_blocker_internal(Error *reason, Error **errp)
