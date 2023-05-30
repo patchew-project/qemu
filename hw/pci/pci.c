@@ -2681,8 +2681,12 @@ PCIAddressSpace pci_device_iommu_info(PCIDevice *dev)
     }
 
     as = &address_space_memory;
-    if (!pci_bus_bypass_iommu(bus) && iommu_bus && iommu_bus->iommu_fn) {
-        as = iommu_bus->iommu_fn(bus, iommu_bus->iommu_opaque, devfn);
+    if (!pci_bus_bypass_iommu(bus) && iommu_bus) {
+        if (iommu_bus->iommu_fn) {
+            as = iommu_bus->iommu_fn(bus, iommu_bus->iommu_opaque, devfn);
+        } else if (iommu_bus->iommu_as_fn) {
+            return iommu_bus->iommu_as_fn(bus, iommu_bus->iommu_opaque, devfn);
+        }
     }
     return as_to_pci_as(as);
 }
@@ -2690,6 +2694,12 @@ PCIAddressSpace pci_device_iommu_info(PCIDevice *dev)
 void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque)
 {
     bus->iommu_fn = fn;
+    bus->iommu_opaque = opaque;
+}
+
+void pci_setup_iommu_info(PCIBus *bus, PCIIOMMUASFunc fn, void *opaque)
+{
+    bus->iommu_as_fn = fn;
     bus->iommu_opaque = opaque;
 }
 

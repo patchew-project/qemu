@@ -34,6 +34,7 @@ struct PCIBus {
     BusState qbus;
     enum PCIBusFlags flags;
     PCIIOMMUFunc iommu_fn;
+    PCIIOMMUASFunc iommu_as_fn;
     void *iommu_opaque;
     uint8_t devfn_min;
     uint32_t slot_reserved_mask;

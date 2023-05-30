@@ -368,6 +368,7 @@ typedef struct PCIAddressSpace {
 } PCIAddressSpace;
 
 typedef AddressSpace *(*PCIIOMMUFunc)(PCIBus *, void *, int);
+typedef PCIAddressSpace (*PCIIOMMUASFunc)(PCIBus *, void *, int);
 static inline PCIAddressSpace as_to_pci_as(AddressSpace *as)
 {
     PCIAddressSpace ret = { .as = as };
@@ -386,6 +387,7 @@ static inline AddressSpace *pci_device_iommu_address_space(PCIDevice *dev)
 }
 
 void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque);
+void pci_setup_iommu_info(PCIBus *bus, PCIIOMMUASFunc fn, void *opaque);
 
 pcibus_t pci_bar_address(PCIDevice *d,
                          int reg, uint8_t type, pcibus_t size);
