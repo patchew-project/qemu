@@ -414,12 +414,32 @@ void vfio_unblock_multiple_devices_migration(void)
     multiple_devices_migration_blocker = NULL;
 }
 
+static bool vfio_viommu_dma_translation_enabled(VFIOAddressSpace *space)
+{
+    bool enabled = false;
+    int ret;
+
+    if (!space->iommu_mr) {
+        return true;
+    }
+
+    ret = memory_region_iommu_get_attr(space->iommu_mr,
+                                       IOMMU_ATTR_DMA_TRANSLATION,
+                                       &enabled);
+    if (ret || enabled) {
+        return true;
+    }
+
+    return false;
+}
+
 static bool vfio_viommu_preset(void)
 {
     VFIOAddressSpace *space;
 
     QLIST_FOREACH(space, &vfio_address_spaces, list) {
-        if (space->as != &address_space_memory) {
+        if ((space->as != &address_space_memory) &&
+            vfio_viommu_dma_translation_enabled(space)) {
             return true;
         }
     }
