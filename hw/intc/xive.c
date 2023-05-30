@@ -528,6 +528,15 @@ void xive_tctx_tm_write(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
     trace_xive_tctx_tm_write(offset, size, value);
 
     /*
+     * The TIMA can be accessed through 4 ports/snoop buses, with
+     * addresses 0x80 apart.
+     * However, the offset bits between the "special op" bits and the
+     * MSB of the range used for the TIMA registers are "don't care"
+     * for the hardware, so we filter them out.
+     */
+    offset &= 0xC3F;
+
+    /*
      * TODO: check V bit in Q[0-3]W2
      */
 
@@ -565,6 +574,15 @@ uint64_t xive_tctx_tm_read(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
 {
     const XiveTmOp *xto;
     uint64_t ret;
+
+    /*
+     * The TIMA can be accessed through 4 ports/snoop buses, with
+     * addresses 0x80 apart.
+     * However, the offset bits between the "special op" bits and the
+     * MSB of the range used for the TIMA registers are "don't care"
+     * for the hardware, so we filter them out.
+     */
+    offset &= 0xC3F;
 
     /*
      * TODO: check V bit in Q[0-3]W2
