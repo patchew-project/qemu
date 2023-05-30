@@ -19,10 +19,13 @@
 #ifndef HEX_TEST_H
 #define HEX_TEST_H
 
+#include <inttypes.h>
+
 static inline void __check32(int line, uint32_t val, uint32_t expect)
 {
     if (val != expect) {
-        printf("ERROR at line %d: 0x%08x != 0x%08x\n", line, val, expect);
+        printf("ERROR at line %d: 0x%08"PRIx32" != 0x%08"PRIx32"\n",
+               line, val, expect);
         err++;
     }
 }
@@ -32,7 +35,8 @@ static inline void __check32(int line, uint32_t val, uint32_t expect)
 static inline void __check64(int line, uint64_t val, uint64_t expect)
 {
     if (val != expect) {
-        printf("ERROR at line %d: 0x%016llx != 0x%016llx\n", line, val, expect);
+        printf("ERROR at line %d: 0x%016"PRIx64" != 0x%016"PRIx64"\n",
+               line, val, expect);
         err++;
     }
 }
@@ -62,7 +66,8 @@ static inline void __checkp(int line, void *p, void *expect)
 static inline void __check32_ne(int line, uint32_t val, uint32_t expect)
 {
     if (val == expect) {
-        printf("ERROR at line %d: 0x%08x == 0x%08x\n", line, val, expect);
+        printf("ERROR at line %d: 0x%08"PRIx32" == 0x%08"PRIx32"\n",
+               line, val, expect);
         err++;
     }
 }
@@ -72,7 +77,8 @@ static inline void __check32_ne(int line, uint32_t val, uint32_t expect)
 static inline void __check64_ne(int line, uint64_t val, uint64_t expect)
 {
     if (val == expect) {
-        printf("ERROR at line %d: 0x%016llx == 0x%016llx\n", line, val, expect);
+        printf("ERROR at line %d: 0x%016"PRIx64" == 0x%016"PRIx64"\n",
+               line, val, expect);
         err++;
     }
 }
