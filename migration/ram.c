@@ -3013,12 +3013,12 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
         }
     }
 
-    ret = qemu_rdma_registration_start(f, RAM_CONTROL_SETUP);
+    ret = rdma_registration_start(f, RAM_CONTROL_SETUP);
     if (ret < 0) {
         qemu_file_set_error(f, ret);
     }
 
-    ret = qemu_rdma_registration_stop(f, RAM_CONTROL_SETUP);
+    ret = rdma_registration_stop(f, RAM_CONTROL_SETUP);
     if (ret < 0) {
         qemu_file_set_error(f, ret);
     }
@@ -3080,7 +3080,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
         /* Read version before ram_list.blocks */
         smp_rmb();
 
-        ret = qemu_rdma_registration_start(f, RAM_CONTROL_ROUND);
+        ret = rdma_registration_start(f, RAM_CONTROL_ROUND);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
         }
@@ -3140,7 +3140,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
      * Must occur before EOS (or any QEMUFile operation)
      * because of RDMA protocol.
      */
-    ret = qemu_rdma_registration_stop(f, RAM_CONTROL_ROUND);
+    ret = rdma_registration_stop(f, RAM_CONTROL_ROUND);
     if (ret < 0) {
         qemu_file_set_error(f, ret);
     }
@@ -3191,7 +3191,7 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
             migration_bitmap_sync_precopy(rs, true);
         }
 
-        ret = qemu_rdma_registration_start(f, RAM_CONTROL_FINISH);
+        ret = rdma_registration_start(f, RAM_CONTROL_FINISH);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
         }
@@ -3217,7 +3217,7 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
 
         ram_flush_compressed_data(rs);
 
-        int ret = qemu_rdma_registration_stop(f, RAM_CONTROL_FINISH);
+        int ret = rdma_registration_stop(f, RAM_CONTROL_FINISH);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
         }
@@ -4026,7 +4026,7 @@ static int ram_load_precopy(QEMUFile *f)
             }
             break;
         case RAM_SAVE_FLAG_HOOK:
-            ret = qemu_rdma_registration_handle(f);
+            ret = rdma_registration_handle(f);
             if (ret < 0) {
                 qemu_file_set_error(f, ret);
             }
