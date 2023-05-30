@@ -415,6 +415,11 @@ INITIALIZE_MIGRATE_CAPS_SET(check_caps_background_snapshot,
     MIGRATION_CAPABILITY_VALIDATE_UUID,
     MIGRATION_CAPABILITY_ZERO_COPY_SEND);
 
+static bool migrate_incoming_started(void)
+{
+    return !!migration_incoming_get_current()->transport_data;
+}
+
 /**
  * @migration_caps_check - check capability compatibility
  *
@@ -538,11 +543,21 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
             error_setg(errp, "Postcopy preempt not compatible with compress");
             return false;
         }
+
+        if (migrate_incoming_started()) {
+            error_setg(errp,
+                       "Postcopy preempt must be set before incoming starts");
+            return false;
+        }
     }
 
     if (new_caps[MIGRATION_CAPABILITY_MULTIFD]) {
         if (new_caps[MIGRATION_CAPABILITY_COMPRESS]) {
             error_setg(errp, "Multifd is not compatible with compress");
+            return false;
+        }
+        if (migrate_incoming_started()) {
+            error_setg(errp, "Multifd must be set before incoming starts");
             return false;
         }
     }
@@ -998,11 +1013,22 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
 
     /* x_checkpoint_delay is now always positive */
 
-    if (params->has_multifd_channels && (params->multifd_channels < 1)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "multifd_channels",
-                   "a value between 1 and 255");
-        return false;
+    if (params->has_multifd_channels) {
+        if (params->multifd_channels < 1) {
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                       "multifd_channels",
+                       "a value between 1 and 255");
+            return false;
+        }
+        if (migrate_incoming_started()) {
+            MigrationState *ms = migrate_get_current();
+
+            ms->capabilities[MIGRATION_CAPABILITY_MULTIFD] = false;
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                       "multifd_channels",
+                       "must be set before incoming starts");
+            return false;
+        }
     }
 
     if (params->has_multifd_zlib_level &&
