@@ -16,18 +16,20 @@
 #include "qemu/timer.h"
 
 #include "exec/tb-stats.h"
+#include "exec/tb-flush.h"
 #include "tb-context.h"
 
 /* TBStatistic collection controls */
 enum TBStatsStatus {
     TB_STATS_DISABLED = 0,
     TB_STATS_RUNNING,
-    TB_STATS_PAUSED,
-    TB_STATS_STOPPED
+    TB_STATS_PAUSED
 };
 
 static enum TBStatsStatus tcg_collect_tb_stats;
 static uint32_t default_tbstats_flag;
+/* only accessed in safe work */
+static GList *last_search;
 
 uint64_t dev_time;
 
@@ -170,6 +172,101 @@ void dump_jit_profile_info(TCGProfile *s, GString *buf)
     g_free(jpi);
 }
 
+static void free_tbstats(void *p, uint32_t hash, void *userp)
+{
+    g_free(p);
+}
+
+static void clean_tbstats(void)
+{
+    /* remove all tb_stats */
+    qht_iter(&tb_ctx.tb_stats, free_tbstats, NULL);
+    qht_destroy(&tb_ctx.tb_stats);
+}
+
+void do_hmp_tbstats_safe(CPUState *cpu, run_on_cpu_data icmd)
+{
+    struct TbstatsCommand *cmdinfo = icmd.host_ptr;
+    int cmd = cmdinfo->cmd;
+    uint32_t level = cmdinfo->level;
+
+    switch (cmd) {
+    case START:
+        if (tb_stats_collection_enabled()) {
+            qemu_printf("TB information already being recorded");
+            return;
+        } else if (tb_stats_collection_paused()) {
+            set_tbstats_flags(level);
+        } else {
+            qht_init(&tb_ctx.tb_stats, tb_stats_cmp, CODE_GEN_HTABLE_SIZE,
+                     QHT_MODE_AUTO_RESIZE);
+        }
+
+        set_default_tbstats_flag(level);
+        enable_collect_tb_stats();
+        tb_flush(cpu);
+        break;
+    case PAUSE:
+        if (!tb_stats_collection_enabled()) {
+            qemu_printf("TB information not being recorded");
+            return;
+        }
+
+        /*
+         * Continue to create TBStatistic structures but stop collecting
+         * statistics
+         */
+        pause_collect_tb_stats();
+        set_default_tbstats_flag(TB_NOTHING);
+        set_tbstats_flags(TB_PAUSED);
+        tb_flush(cpu);
+        break;
+    case STOP:
+        if (tb_stats_collection_disabled()) {
+            qemu_printf("TB information not being recorded");
+            return;
+        }
+
+        /* Dissalloc all TBStatistics structures and stop creating new ones */
+        disable_collect_tb_stats();
+        clean_tbstats();
+        tb_flush(cpu);
+        break;
+    case FILTER:
+        if (!tb_stats_collection_enabled()) {
+            qemu_printf("TB information not being recorded");
+            return;
+        }
+        if (!last_search) {
+            qemu_printf(
+                    "no search on record! execute info tbs before filtering!");
+            return;
+        }
+
+        set_default_tbstats_flag(TB_NOTHING);
+
+        /*
+         * Set all tbstats as paused, then return only the ones from last_search
+         */
+        pause_collect_tb_stats();
+        set_tbstats_flags(TB_PAUSED);
+
+        for (GList *iter = last_search; iter; iter = g_list_next(iter)) {
+            TBStatistics *tbs = iter->data;
+            tbs->stats_enabled = level;
+        }
+
+        tb_flush(cpu);
+
+        break;
+    default: /* INVALID */
+        g_assert_not_reached();
+        break;
+    }
+
+    g_free(cmdinfo);
+}
+
 void init_tb_stats_htable(void)
 {
     if (!tb_ctx.tb_stats.map && tb_stats_collection_enabled()) {
@@ -186,7 +283,7 @@ void enable_collect_tb_stats(void)
 
 void disable_collect_tb_stats(void)
 {
-    tcg_collect_tb_stats = TB_STATS_STOPPED;
+    tcg_collect_tb_stats = TB_STATS_DISABLED;
 }
 
 void pause_collect_tb_stats(void)
@@ -199,9 +296,27 @@ bool tb_stats_collection_enabled(void)
     return tcg_collect_tb_stats == TB_STATS_RUNNING;
 }
 
+bool tb_stats_collection_disabled(void)
+{
+    return tcg_collect_tb_stats == TB_STATS_DISABLED;
+}
+
 bool tb_stats_collection_paused(void)
 {
     return tcg_collect_tb_stats == TB_STATS_PAUSED;
+}
+
+static void reset_tbstats_flag(void *p, uint32_t hash, void *userp)
+{
+    uint32_t flag = *((int *)userp);
+    TBStatistics *tbs = p;
+    tbs->stats_enabled = flag;
+}
+
+void set_tbstats_flags(uint32_t flag)
+{
+    /* iterate over tbstats setting their flag as TB_NOTHING */
+    qht_iter(&tb_ctx.tb_stats, reset_tbstats_flag, &flag);
 }
 
 uint32_t get_default_tbstats_flag(void)
