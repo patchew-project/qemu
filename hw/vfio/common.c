@@ -447,6 +447,31 @@ static bool vfio_viommu_preset(void)
     return false;
 }
 
+static int vfio_viommu_get_max_iova(hwaddr *max_iova)
+{
+    VFIOAddressSpace *space;
+    int ret = -EINVAL;
+
+    QLIST_FOREACH(space, &vfio_address_spaces, list) {
+        if (space->as == &address_space_memory) {
+            continue;
+        }
+
+        if (!space->iommu_mr) {
+            break;
+        }
+
+        ret = memory_region_iommu_get_attr(space->iommu_mr,
+                                           IOMMU_ATTR_MAX_IOVA,
+                                           max_iova);
+        if (ret) {
+            break;
+        }
+    }
+
+    return ret;
+}
+
 int vfio_block_giommu_migration(Error **errp)
 {
     int ret;
@@ -1483,10 +1508,11 @@ static const MemoryListener vfio_dirty_tracking_listener = {
     .region_add = vfio_listener_dirty_tracking_update,
 };
 
-static void vfio_dirty_tracking_init(VFIOContainer *container,
+static int vfio_dirty_tracking_init(VFIOContainer *container,
                                      VFIODirtyRanges *ranges)
 {
     VFIODirtyRangesListener dirty;
+    int ret;
 
     memset(&dirty, 0, sizeof(dirty));
     dirty.ranges.min32 = UINT32_MAX;
@@ -1494,17 +1520,29 @@ static void vfio_dirty_tracking_init(VFIOContainer *container,
     dirty.listener = vfio_dirty_tracking_listener;
     dirty.container = container;
 
-    memory_listener_register(&dirty.listener,
-                             container->space->as);
+    if (vfio_viommu_preset()) {
+        hwaddr iommu_max_iova;
+
+        ret = vfio_viommu_get_max_iova(&iommu_max_iova);
+        if (ret) {
+            return ret;
+        }
+
+        vfio_dirty_tracking_update(0, iommu_max_iova, &dirty.ranges);
+    } else {
+        memory_listener_register(&dirty.listener,
+                                 container->space->as);
+        /*
+         * The memory listener is synchronous, and used to calculate the range
+         * to dirty tracking. Unregister it after we are done as we are not
+         * interested in any follow-up updates.
+         */
+        memory_listener_unregister(&dirty.listener);
+    }
 
     *ranges = dirty.ranges;
 
-    /*
-     * The memory listener is synchronous, and used to calculate the range
-     * to dirty tracking. Unregister it after we are done as we are not
-     * interested in any follow-up updates.
-     */
-    memory_listener_unregister(&dirty.listener);
+    return 0;
 }
 
 static void vfio_devices_dma_logging_stop(VFIOContainer *container)
@@ -1609,7 +1647,13 @@ static int vfio_devices_dma_logging_start(VFIOContainer *container)
     VFIOGroup *group;
     int ret = 0;
 
-    vfio_dirty_tracking_init(container, &ranges);
+    ret = vfio_dirty_tracking_init(container, &ranges);
+    if (ret) {
+        error_report("Failed to init DMA logging ranges, err %d",
+                      ret);
+        return -EOPNOTSUPP;
+    }
+
     feature = vfio_device_feature_dma_logging_start_create(container,
                                                            &ranges);
     if (!feature) {
