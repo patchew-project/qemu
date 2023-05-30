@@ -2900,6 +2900,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     VFIOPCIDevice *vdev = VFIO_PCI(pdev);
     VFIODevice *vbasedev = &vdev->vbasedev;
     VFIODevice *vbasedev_iter;
+    VFIOAddressSpace *space;
     VFIOGroup *group;
     char *tmp, *subsys, group_path[PATH_MAX], *group_name;
     Error *err = NULL;
@@ -2960,6 +2961,9 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     if (!group) {
         goto error;
     }
+
+    space = group->container->space;
+    space->iommu_mr = pci_device_iommu_memory_region(pdev);
 
     QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
         if (strcmp(vbasedev_iter->name, vbasedev->name) == 0) {
