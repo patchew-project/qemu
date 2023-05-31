@@ -62,6 +62,10 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
         ifr.ifr_flags |= IFF_ONE_QUEUE;
     }
 
+    if (features & IFF_NAPI) {
+        ifr.ifr_flags |= IFF_NAPI;
+    }
+
     if (*vnet_hdr) {
         if (features & IFF_VNET_HDR) {
             *vnet_hdr = 1;
