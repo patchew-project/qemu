@@ -18,10 +18,21 @@
 #include "crypto/sm4.h"
 #include "vec_internal.h"
 
+#ifdef __x86_64__
+#include "host/cpuinfo.h"
+#include <wmmintrin.h>
+#define TARGET_AES  __attribute__((__target__("aes")))
+#else
+#define TARGET_AES
+#endif
+
 union CRYPTO_STATE {
     uint8_t    bytes[16];
     uint32_t   words[4];
     uint64_t   l[2];
+#ifdef __x86_64__
+    __m128i    vec;
+#endif
 };
 
 #if HOST_BIG_ENDIAN
@@ -45,14 +56,24 @@ static void clear_tail_16(void *vd, uint32_t desc)
     clear_tail(vd, opr_sz, max_sz);
 }
 
-static void do_crypto_aese(uint64_t *rd, uint64_t *rn,
-                           uint64_t *rm, bool decrypt)
+static void TARGET_AES do_crypto_aese(uint64_t *rd, uint64_t *rn,
+                                      uint64_t *rm, bool decrypt)
 {
     static uint8_t const * const sbox[2] = { AES_sbox, AES_isbox };
     static uint8_t const * const shift[2] = { AES_shifts, AES_ishifts };
     union CRYPTO_STATE rk = { .l = { rm[0], rm[1] } };
     union CRYPTO_STATE st = { .l = { rn[0], rn[1] } };
     int i;
+
+#ifdef __x86_64__
+    if (cpuinfo & CPUINFO_AES) {
+        __m128i *d = (__m128i *)rd, z = {};
+
+        *d = decrypt ? _mm_aesdeclast_si128(rk.vec ^ st.vec, z)
+                     : _mm_aesenclast_si128(rk.vec ^ st.vec, z);
+        return;
+    }
+#endif
 
     /* xor state vector with round key */
     rk.l[0] ^= st.l[0];
@@ -78,7 +99,7 @@ void HELPER(crypto_aese)(void *vd, void *vn, void *vm, uint32_t desc)
     clear_tail(vd, opr_sz, simd_maxsz(desc));
 }
 
-static void do_crypto_aesmc(uint64_t *rd, uint64_t *rm, bool decrypt)
+static void TARGET_AES do_crypto_aesmc(uint64_t *rd, uint64_t *rm, bool decrypt)
 {
     static uint32_t const mc[][256] = { {
         /* MixColumns lookup table */
@@ -216,6 +237,16 @@ static void do_crypto_aesmc(uint64_t *rd, uint64_t *rm, bool decrypt)
 
     union CRYPTO_STATE st = { .l = { rm[0], rm[1] } };
     int i;
+
+#ifdef __x86_64__
+    if (cpuinfo & CPUINFO_AES) {
+        __m128i *d = (__m128i *)rd, z = {};
+
+        *d = decrypt ? _mm_aesimc_si128(st.vec)
+                     : _mm_aesenc_si128(_mm_aesdeclast_si128(st.vec, z), z);
+        return;
+    }
+#endif
 
     for (i = 0; i < 16; i += 4) {
         CR_ST_WORD(st, i >> 2) =
