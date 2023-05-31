@@ -25,6 +25,7 @@
 
 #include "hw/m68k/q800-glue.h"
 #include "hw/misc/mac_via.h"
+#include "hw/net/dp8393x.h"
 
 /*
  * The main Q800 machine
@@ -38,6 +39,7 @@ struct Q800MachineState {
     GLUEState glue;
     MOS6522Q800VIA1State via1;
     MOS6522Q800VIA2State via2;
+    dp8393xState dp8393x;
     MemoryRegion macio;
     MemoryRegion macio_alias;
 };
