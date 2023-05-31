@@ -522,6 +522,12 @@ def get_qemu_version(qemu_path):
     version_num = re.split(' |\(', version_line)[3].split('.')[0]
     return int(version_num)
 
+def get_qemu_packages_from_lcitool_vars(vars_path):
+    """Parse a lcitool variables file and return the PKGS list."""
+    with open(vars_path, 'r') as fd:
+        line = list(filter(lambda y: y.startswith('PKGS'), fd.readlines()))[0]
+        return line.split("'")[1].split()
+
 def parse_config(config, args):
     """ Parse yaml config and populate our config structure.
         The yaml config allows the user to override the
