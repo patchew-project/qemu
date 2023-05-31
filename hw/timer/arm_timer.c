@@ -309,6 +309,21 @@ static void sp804_realize(DeviceState *dev, Error **errp)
     s->timer[1]->irq = qemu_allocate_irq(sp804_set_irq, s, 1);
 }
 
+static Property sp804_properties[] = {
+    DEFINE_PROP_UINT32("freq0", SP804State, freq0, 1000000),
+    DEFINE_PROP_UINT32("freq1", SP804State, freq1, 1000000),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void sp804_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *k = DEVICE_CLASS(klass);
+
+    k->realize = sp804_realize;
+    device_class_set_props(k, sp804_properties);
+    k->vmsd = &vmstate_sp804;
+}
+
 /* Integrator/CP timer module.  */
 
 #define TYPE_INTEGRATOR_PIT "integrator_pit"
@@ -378,21 +393,6 @@ static void icp_pit_init(Object *obj)
     sysbus_init_mmio(dev, &s->iomem);
     /* This device has no state to save/restore.  The component timers will
        save themselves.  */
-}
-
-static Property sp804_properties[] = {
-    DEFINE_PROP_UINT32("freq0", SP804State, freq0, 1000000),
-    DEFINE_PROP_UINT32("freq1", SP804State, freq1, 1000000),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void sp804_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *k = DEVICE_CLASS(klass);
-
-    k->realize = sp804_realize;
-    device_class_set_props(k, sp804_properties);
-    k->vmsd = &vmstate_sp804;
 }
 
 static const TypeInfo arm_timer_types[] = {
