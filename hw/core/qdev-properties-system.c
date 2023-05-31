@@ -147,7 +147,10 @@ static void set_drive_helper(Object *obj, Visitor *v, const char *name,
             blk = blk_new(ctx, 0, BLK_PERM_ALL);
             blk_created = true;
 
+            aio_context_acquire(ctx);
             ret = blk_insert_bs(blk, bs, errp);
+            aio_context_release(ctx);
+
             if (ret < 0) {
                 goto fail;
             }
