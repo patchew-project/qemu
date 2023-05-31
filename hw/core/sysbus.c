@@ -175,10 +175,15 @@ void sysbus_mmio_map_overlap(SysBusDevice *dev, int n, hwaddr addr,
     sysbus_mmio_map_common(dev, n, addr, true, priority);
 }
 
+void sysbus_init_irqs(SysBusDevice *dev, qemu_irq *p, unsigned count)
+{
+    qdev_init_gpio_out_named(DEVICE(dev), p, SYSBUS_DEVICE_GPIO_IRQ, count);
+}
+
 /* Request an IRQ source.  The actual IRQ object may be populated later.  */
 void sysbus_init_irq(SysBusDevice *dev, qemu_irq *p)
 {
-    qdev_init_gpio_out_named(DEVICE(dev), p, SYSBUS_DEVICE_GPIO_IRQ, 1);
+    sysbus_init_irqs(dev, p, 1);
 }
 
 /* Pass IRQs from a target device.  */
