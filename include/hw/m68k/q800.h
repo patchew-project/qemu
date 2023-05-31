@@ -28,6 +28,7 @@
 #include "hw/net/dp8393x.h"
 #include "hw/char/escc.h"
 #include "hw/or-irq.h"
+#include "hw/scsi/esp.h"
 
 /*
  * The main Q800 machine
@@ -44,6 +45,7 @@ struct Q800MachineState {
     dp8393xState dp8393x;
     ESCCState escc;
     OrIRQState escc_orgate;
+    SysBusESPState esp;
     MemoryRegion macio;
     MemoryRegion macio_alias;
 };
