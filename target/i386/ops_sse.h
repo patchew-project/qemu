@@ -20,6 +20,11 @@
 
 #include "crypto/aes.h"
 
+#ifdef __aarch64__
+#include "host/cpuinfo.h"
+typedef uint8_t aes_vec_t __attribute__((vector_size(16)));
+#endif
+
 #if SHIFT == 0
 #define Reg MMXReg
 #define XMM_ONLY(...)
@@ -2165,6 +2170,20 @@ void glue(helper_aesdec, SUFFIX)(CPUX86State *env, Reg *d, Reg *v, Reg *s)
     Reg st = *v;
     Reg rk = *s;
 
+#ifdef __aarch64__
+    if (cpuinfo & CPUINFO_AES) {
+        asm("   .arch_extension aes             \n"
+            "   aesd    %0.16b, %1.16b          \n"
+            "   aesimc  %0.16b, %0.16b          \n"
+            "   eor     %0.16b, %0.16b, %2.16b  \n"
+            :   "=w"(*(aes_vec_t *)d)
+            :   "w"((aes_vec_t){}),
+                "w"(*(aes_vec_t *)s),
+                "0"(*(aes_vec_t *)v));
+        return;
+    }
+#endif
+
     for (i = 0 ; i < 2 << SHIFT ; i++) {
         int j = i & 3;
         d->L(i) = rk.L(i) ^ bswap32(AES_Td0[st.B(AES_ishifts[4 * j + 0])] ^
@@ -2180,6 +2199,19 @@ void glue(helper_aesdeclast, SUFFIX)(CPUX86State *env, Reg *d, Reg *v, Reg *s)
     Reg st = *v;
     Reg rk = *s;
 
+#ifdef __aarch64__
+    if (cpuinfo & CPUINFO_AES) {
+        asm("   .arch_extension aes             \n"
+            "   aesd    %0.16b, %1.16b          \n"
+            "   eor     %0.16b, %0.16b, %2.16b  \n"
+            :   "=w"(*(aes_vec_t *)d)
+            :   "w"((aes_vec_t){}),
+                "w"(*(aes_vec_t *)s),
+                "0"(*(aes_vec_t *)v));
+        return;
+    }
+#endif
+
     for (i = 0; i < 8 << SHIFT; i++) {
         d->B(i) = rk.B(i) ^ (AES_isbox[st.B(AES_ishifts[i & 15] + (i & ~15))]);
     }
@@ -2190,6 +2222,20 @@ void glue(helper_aesenc, SUFFIX)(CPUX86State *env, Reg *d, Reg *v, Reg *s)
     int i;
     Reg st = *v;
     Reg rk = *s;
+
+#ifdef __aarch64__
+    if (cpuinfo & CPUINFO_AES) {
+        asm("   .arch_extension aes             \n"
+            "   aese    %0.16b, %1.16b          \n"
+            "   aesmc   %0.16b, %0.16b          \n"
+            "   eor     %0.16b, %0.16b, %2.16b  \n"
+            :   "=w"(*(aes_vec_t *)d)
+            :   "w"((aes_vec_t){}),
+                "w"(*(aes_vec_t *)s),
+                "0"(*(aes_vec_t *)v));
+        return;
+    }
+#endif
 
     for (i = 0 ; i < 2 << SHIFT ; i++) {
         int j = i & 3;
@@ -2206,6 +2252,19 @@ void glue(helper_aesenclast, SUFFIX)(CPUX86State *env, Reg *d, Reg *v, Reg *s)
     Reg st = *v;
     Reg rk = *s;
 
+#ifdef __aarch64__
+    if (cpuinfo & CPUINFO_AES) {
+        asm("   .arch_extension aes             \n"
+            "   aese    %0.16b, %1.16b          \n"
+            "   eor     %0.16b, %0.16b, %2.16b  \n"
+            :   "=w"(*(aes_vec_t *)d)
+            :   "w"((aes_vec_t){}),
+                "w"(*(aes_vec_t *)s),
+                "0"(*(aes_vec_t *)v));
+        return;
+    }
+#endif
+
     for (i = 0; i < 8 << SHIFT; i++) {
         d->B(i) = rk.B(i) ^ (AES_sbox[st.B(AES_shifts[i & 15] + (i & ~15))]);
     }
@@ -2216,6 +2275,16 @@ void glue(helper_aesimc, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
 {
     int i;
     Reg tmp = *s;
+
+#ifdef __aarch64__
+    if (cpuinfo & CPUINFO_AES) {
+        asm("   .arch_extension aes             \n"
+            "   aesimc  %0.16b, %1.16b          \n"
+            :   "=w"(*(aes_vec_t *)d)
+            :   "w"(*(aes_vec_t *)s));
+        return;
+    }
+#endif
 
     for (i = 0 ; i < 4 ; i++) {
         d->L(i) = bswap32(AES_imc[tmp.B(4 * i + 0)][0] ^
