@@ -26,8 +26,6 @@ OBJECT_DECLARE_TYPE(SysBusDevice, SysBusDeviceClass,
  * classes overriding it are not required to invoke its implementation.
  */
 
-#define SYSBUS_DEVICE_GPIO_IRQ "sysbus-irq"
-
 struct SysBusDeviceClass {
     /*< private >*/
     DeviceClass parent_class;
