@@ -22,7 +22,7 @@ class UbuntuVM(basevm.BaseVM):
         self.login_prompt = "ubuntu-{}-guest login:".format(self.arch)
         basevm.BaseVM.__init__(self, args, config)
 
-    def build_image(self, img):
+    def build_image(self, img, src_path):
         """Build an Ubuntu VM image.  The child class will
            define the install_cmds to init the VM."""
         os_img = self._download_with_cache(self.image_link,

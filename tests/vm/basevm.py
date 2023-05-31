@@ -261,7 +261,7 @@ class BaseVM(object):
     def ssh_root_check(self, *cmd):
         self._ssh_do(self._config["root_user"], cmd, True)
 
-    def build_image(self, img):
+    def build_image(self, img, src_path):
         raise NotImplementedError
 
     def exec_qemu_img(self, *args):
@@ -636,7 +636,7 @@ def main(vmcls, config=None):
                 sys.stderr.writelines(["Image file exists: %s\n" % args.image,
                                       "Use --force option to overwrite\n"])
                 return 1
-            return vm.build_image(args.image)
+            return vm.build_image(args.image, args.source_path)
         if args.build_qemu:
             vm.add_source_dir(args.build_qemu)
             cmd = [vm.BUILD_SCRIPT.format(

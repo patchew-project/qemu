@@ -73,7 +73,7 @@ class OpenBSDVM(basevm.BaseVM):
     """
     poweroff = "halt -p"
 
-    def build_image(self, img):
+    def build_image(self, img, src_path):
         self.print_step("Downloading install iso")
         cimg = self._download_with_cache(self.link, sha256sum=self.csum)
         img_tmp = img + ".tmp"

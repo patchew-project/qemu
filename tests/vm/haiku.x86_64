@@ -93,7 +93,7 @@ class HaikuVM(basevm.BaseVM):
         make --output-sync -j{jobs} {target} {verbose};
     """
 
-    def build_image(self, img):
+    def build_image(self, img, src_path):
         self.print_step("Downloading disk image")
         tarball = self._download_with_cache(self.link, sha256sum=self.csum)
 

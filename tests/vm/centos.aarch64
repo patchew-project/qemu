@@ -72,7 +72,7 @@ class CentosAarch64VM(basevm.BaseVM):
         # Call down to the base class method.
         super(CentosAarch64VM, self).boot(img, extra_args=extra_args)
 
-    def build_image(self, img):
+    def build_image(self, img, src_path):
         cimg = self._download_with_cache(self.image_link)
         img_tmp = img + ".tmp"
         subprocess.run(['cp', '-f', cimg, img_tmp])

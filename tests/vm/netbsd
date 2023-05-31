@@ -79,7 +79,7 @@ class NetBSDVM(basevm.BaseVM):
     # take more than a minute to be established.
     ipv6 = False
 
-    def build_image(self, img):
+    def build_image(self, img, src_path):
         cimg = self._download_with_cache(self.link, sha512sum=self.csum)
         img_tmp = img + ".tmp"
         iso = img + ".install.iso"
