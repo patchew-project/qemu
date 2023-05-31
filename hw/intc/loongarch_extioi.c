@@ -275,8 +275,7 @@ static void loongarch_extioi_instance_init(Object *obj)
     LoongArchExtIOI *s = LOONGARCH_EXTIOI(obj);
     int cpu, pin;
 
-    sysbus_init_irqs(SYS_BUS_DEVICE(dev), s->irq, EXTIOI_IRQS);
-
+    sysbus_init_irqs(dev, s->irq, EXTIOI_IRQS);
     qdev_init_gpio_in(DEVICE(obj), extioi_setirq, EXTIOI_IRQS);
 
     for (cpu = 0; cpu < EXTIOI_CPUS; cpu++) {
