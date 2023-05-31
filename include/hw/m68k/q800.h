@@ -23,6 +23,8 @@
 #ifndef HW_Q800_H
 #define HW_Q800_H
 
+#include "hw/m68k/q800-glue.h"
+
 /*
  * The main Q800 machine
  */
@@ -32,6 +34,7 @@ struct Q800MachineState {
 
     M68kCPU cpu;
     MemoryRegion rom;
+    GLUEState glue;
 };
 
 #define TYPE_Q800_MACHINE MACHINE_TYPE_NAME("q800")
