@@ -32,43 +32,59 @@ class FreeBSDVM(basevm.BaseVM):
     csum = "a4fb3b6c7b75dd4d58fb0d75e4caf72844bffe0ca00e66459c028b198ffb3c0e"
     size = "20G"
     pkgs = [
-        # build tools
-        "git",
-        "pkgconf",
-        "bzip2",
-        "python39",
-        "ninja",
-
-        # gnu tools
+        "alsa-lib",
         "bash",
-        "gmake",
-        "gsed",
+        "bison",
+        "bzip2",
+        "capstone4",
+        "curl",
+        "cyrus-sasl",
+        "dbus",
+        "diffutils",
+        "dtc",
+        "flex",
+        "fusefs-libs3",
         "gettext",
-
-        # libs: crypto
+        "git",
+        "glib",
+        "gmake",
         "gnutls",
-
-        # libs: images
-        "jpeg-turbo",
-        "png",
-
-        # libs: ui
-        "sdl2",
+        "gsed",
         "gtk3",
-        "libxkbcommon",
-
-        # libs: opengl
         "libepoxy",
-        "mesa-libs",
-
-        # libs: migration
-        "zstd",
-
-        # libs: networking
+        "libffi",
+        "libgcrypt",
+        "libjpeg-turbo",
+        "libnfs",
         "libslirp",
-
-        # libs: sndio
+        "libspice-server",
+        "libssh",
+        "libtasn1",
+        "libxkbcommon",
+        "lzo2",
+        "mesa-libs",
+        "meson",
+        "ncurses",
+        "nettle",
+        "ninja",
+        "pixman",
+        "pkgconf",
+        "png",
+        "py39-pip",
+        "py39-sphinx",
+        "py39-sphinx_rtd_theme",
+        "py39-yaml",
+        "python3",
+        "sdl2",
+        "sdl2_image",
+        "snappy",
         "sndio",
+        "spice-protocol",
+        "usbredir",
+        "virglrenderer",
+        "vte3",
+        "xorriso",
+        "zstd",
     ]
 
     BUILD_SCRIPT = """
