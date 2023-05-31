@@ -177,7 +177,7 @@ static void arm_timer_reset(ArmTimerState *s)
     s->control = TIMER_CTRL_IE;
 }
 
-static ArmTimerState *arm_timer_new(uint32_t freq)
+static ArmTimerState *arm_timer_new(uint32_t freq, qemu_irq irq_out)
 {
     ArmTimerState *s;
 
@@ -185,6 +185,7 @@ static ArmTimerState *arm_timer_new(uint32_t freq)
     s->freq = freq;
     arm_timer_reset(s);
 
+    s->irq = irq_out;
     s->timer = ptimer_init(arm_timer_tick, s, PTIMER_POLICY_LEGACY);
     vmstate_register(NULL, VMSTATE_INSTANCE_ID_ANY, &vmstate_arm_timer, s);
     return s;
@@ -207,6 +208,7 @@ struct SP804State {
     uint32_t freq[2];
     int level[2];
     qemu_irq irq;
+    qemu_irq irq_in[2];
 };
 
 static const uint8_t sp804_ids[] = {
@@ -309,8 +311,8 @@ static void sp804_realize(DeviceState *dev, Error **errp)
     SP804State *s = SP804(dev);
 
     for (unsigned i = 0; i < ARRAY_SIZE(s->timer); i++) {
-        s->timer[i] = arm_timer_new(s->freq[i]);
-        s->timer[i]->irq = qemu_allocate_irq(sp804_set_irq, s, i);
+        s->irq_in[i] = qemu_allocate_irq(sp804_set_irq, s, i);
+        s->timer[i] = arm_timer_new(s->freq[i], s->irq_in[i]);
     }
 }
 
@@ -319,7 +321,7 @@ static void sp804_unrealize(DeviceState *dev)
     SP804State *s = SP804(dev);
 
     for (unsigned i = 0; i < ARRAY_SIZE(s->timer); i++) {
-        qemu_free_irq(s->timer[i]->irq);
+        qemu_free_irq(s->irq_in[i]);
     }
 }
 
@@ -349,6 +351,7 @@ struct IntegratorPitState {
 
     MemoryRegion iomem;
     ArmTimerState *timer[3];
+    qemu_irq irq_in[3];
 };
 
 static uint64_t icp_pit_read(void *opaque, hwaddr offset,
@@ -400,8 +403,8 @@ static void icp_pit_init(Object *obj)
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
     for (unsigned i = 0; i < ARRAY_SIZE(s->timer); i++) {
-        s->timer[i] = arm_timer_new(tmr_freq[i]);
-        sysbus_init_irq(dev, &s->timer[i]->irq);
+        s->timer[i] = arm_timer_new(tmr_freq[i], s->irq_in[i]);
+        sysbus_init_irq(dev, &s->irq_in[i]);
     }
 
     memory_region_init_io(&s->iomem, obj, &icp_pit_ops, s,
