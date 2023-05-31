@@ -337,9 +337,9 @@ static void sp804_class_init(ObjectClass *klass, void *data)
 /* Integrator/CP timer module.  */
 
 #define TYPE_INTEGRATOR_PIT "integrator_pit"
-OBJECT_DECLARE_SIMPLE_TYPE(icp_pit_state, INTEGRATOR_PIT)
+OBJECT_DECLARE_SIMPLE_TYPE(IntegratorPitState, INTEGRATOR_PIT)
 
-struct icp_pit_state {
+struct IntegratorPitState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -349,7 +349,7 @@ struct icp_pit_state {
 static uint64_t icp_pit_read(void *opaque, hwaddr offset,
                              unsigned size)
 {
-    icp_pit_state *s = opaque;
+    IntegratorPitState *s = opaque;
     int n;
 
     /* ??? Don't know the PrimeCell ID for this device.  */
@@ -365,7 +365,7 @@ static uint64_t icp_pit_read(void *opaque, hwaddr offset,
 static void icp_pit_write(void *opaque, hwaddr offset,
                           uint64_t value, unsigned size)
 {
-    icp_pit_state *s = opaque;
+    IntegratorPitState *s = opaque;
     int n;
 
     n = offset >> 8;
@@ -385,7 +385,7 @@ static const MemoryRegionOps icp_pit_ops = {
 
 static void icp_pit_init(Object *obj)
 {
-    icp_pit_state *s = INTEGRATOR_PIT(obj);
+    IntegratorPitState *s = INTEGRATOR_PIT(obj);
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
     /* Timer 0 runs at the system clock speed (40MHz).  */
@@ -409,7 +409,7 @@ static const TypeInfo arm_timer_types[] = {
     {
         .name           = TYPE_INTEGRATOR_PIT,
         .parent         = TYPE_SYS_BUS_DEVICE,
-        .instance_size  = sizeof(icp_pit_state),
+        .instance_size  = sizeof(IntegratorPitState),
         .instance_init  = icp_pit_init,
 
     }, {
