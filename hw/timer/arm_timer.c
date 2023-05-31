@@ -308,10 +308,10 @@ static void sp804_realize(DeviceState *dev, Error **errp)
 {
     SP804State *s = SP804(dev);
 
-    s->timer[0] = arm_timer_new(s->freq[0]);
-    s->timer[1] = arm_timer_new(s->freq[1]);
-    s->timer[0]->irq = qemu_allocate_irq(sp804_set_irq, s, 0);
-    s->timer[1]->irq = qemu_allocate_irq(sp804_set_irq, s, 1);
+    for (unsigned i = 0; i < ARRAY_SIZE(s->timer); i++) {
+        s->timer[i] = arm_timer_new(s->freq[i]);
+        s->timer[i]->irq = qemu_allocate_irq(sp804_set_irq, s, i);
+    }
 }
 
 static void sp804_unrealize(DeviceState *dev)
@@ -390,18 +390,19 @@ static const MemoryRegionOps icp_pit_ops = {
 
 static void icp_pit_init(Object *obj)
 {
+    static const uint32_t tmr_freq[] = {
+        /* Timer 0 runs at the system clock speed (40MHz).  */
+        40000000,
+        /* The other two timers run at 1MHz.  */
+        1000000, 1000000
+    };
     IntegratorPitState *s = INTEGRATOR_PIT(obj);
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
-    /* Timer 0 runs at the system clock speed (40MHz).  */
-    s->timer[0] = arm_timer_new(40000000);
-    /* The other two timers run at 1MHz.  */
-    s->timer[1] = arm_timer_new(1000000);
-    s->timer[2] = arm_timer_new(1000000);
-
-    sysbus_init_irq(dev, &s->timer[0]->irq);
-    sysbus_init_irq(dev, &s->timer[1]->irq);
-    sysbus_init_irq(dev, &s->timer[2]->irq);
+    for (unsigned i = 0; i < ARRAY_SIZE(s->timer); i++) {
+        s->timer[i] = arm_timer_new(tmr_freq[i]);
+        sysbus_init_irq(dev, &s->timer[i]->irq);
+    }
 
     memory_region_init_io(&s->iomem, obj, &icp_pit_ops, s,
                           "icp_pit", 0x1000);
