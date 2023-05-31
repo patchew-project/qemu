@@ -17,6 +17,7 @@
 #include "qemu/module.h"
 #include "qemu/log.h"
 #include "qom/object.h"
+#include "qapi/error.h"
 
 /* Common timer implementation.  */
 
@@ -29,14 +30,18 @@
 #define TIMER_CTRL_PERIODIC     (1 << 6)
 #define TIMER_CTRL_ENABLE       (1 << 7)
 
-typedef struct {
+#define TYPE_ARM_TIMER "arm-timer"
+OBJECT_DECLARE_SIMPLE_TYPE(ArmTimerState, ARM_TIMER)
+
+struct ArmTimerState {
+    SysBusDevice parent_obj;
     ptimer_state *timer;
     uint32_t control;
     uint32_t limit;
     uint32_t freq;
     int int_level;
     qemu_irq irq;
-} ArmTimerState;
+};
 
 /* Check all active timers, and schedule the next timer interrupt.  */
 
@@ -172,23 +177,42 @@ static const VMStateDescription vmstate_arm_timer = {
     }
 };
 
-static void arm_timer_reset(ArmTimerState *s)
+static void arm_timer_reset(DeviceState *dev)
 {
+    ArmTimerState *s = ARM_TIMER(dev);
+
     s->control = TIMER_CTRL_IE;
 }
 
-static ArmTimerState *arm_timer_new(uint32_t freq, qemu_irq irq_out)
+static void arm_timer_init(Object *obj)
 {
-    ArmTimerState *s;
+    ArmTimerState *s = ARM_TIMER(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    s = g_new0(ArmTimerState, 1);
-    s->freq = freq;
-    arm_timer_reset(s);
-
-    s->irq = irq_out;
     s->timer = ptimer_init(arm_timer_tick, s, PTIMER_POLICY_LEGACY);
-    vmstate_register(NULL, VMSTATE_INSTANCE_ID_ANY, &vmstate_arm_timer, s);
-    return s;
+
+    sysbus_init_irq(sbd, &s->irq);
+}
+
+static void arm_timer_finalize(Object *obj)
+{
+    ArmTimerState *s = ARM_TIMER(obj);
+
+    ptimer_free(s->timer);
+}
+
+static Property arm_timer_properties[] = {
+    DEFINE_PROP_UINT32("freq", ArmTimerState, freq, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void arm_timer_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->reset = arm_timer_reset;
+    dc->vmsd = &vmstate_arm_timer;
+    device_class_set_props(dc, arm_timer_properties);
 }
 
 /*
@@ -204,11 +228,9 @@ struct SP804State {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
-    ArmTimerState *timer[2];
-    uint32_t freq[2];
+    ArmTimerState timer[2];
     int level[2];
     qemu_irq irq;
-    qemu_irq irq_in[2];
 };
 
 static const uint8_t sp804_ids[] = {
@@ -233,10 +255,10 @@ static uint64_t sp804_read(void *opaque, hwaddr offset,
     SP804State *s = opaque;
 
     if (offset < 0x20) {
-        return arm_timer_read(s->timer[0], offset);
+        return arm_timer_read(&s->timer[0], offset);
     }
     if (offset < 0x40) {
-        return arm_timer_read(s->timer[1], offset - 0x20);
+        return arm_timer_read(&s->timer[1], offset - 0x20);
     }
 
     /* TimerPeriphID */
@@ -265,12 +287,12 @@ static void sp804_write(void *opaque, hwaddr offset,
     SP804State *s = opaque;
 
     if (offset < 0x20) {
-        arm_timer_write(s->timer[0], offset, value);
+        arm_timer_write(&s->timer[0], offset, value);
         return;
     }
 
     if (offset < 0x40) {
-        arm_timer_write(s->timer[1], offset - 0x20, value);
+        arm_timer_write(&s->timer[1], offset - 0x20, value);
         return;
     }
 
@@ -304,6 +326,12 @@ static void sp804_init(Object *obj)
     memory_region_init_io(&s->iomem, obj, &sp804_ops, s,
                           "sp804", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
+
+    qdev_init_gpio_in_named(DEVICE(obj), sp804_set_irq,
+                            "timer-in", ARRAY_SIZE(s->timer));
+    for (unsigned i = 0; i < ARRAY_SIZE(s->timer); i++) {
+        object_initialize_child(obj, "timer[*]", &s->timer[i], TYPE_ARM_TIMER);
+    }
 }
 
 static void sp804_realize(DeviceState *dev, Error **errp)
@@ -311,23 +339,17 @@ static void sp804_realize(DeviceState *dev, Error **errp)
     SP804State *s = SP804(dev);
 
     for (unsigned i = 0; i < ARRAY_SIZE(s->timer); i++) {
-        s->irq_in[i] = qemu_allocate_irq(sp804_set_irq, s, i);
-        s->timer[i] = arm_timer_new(s->freq[i], s->irq_in[i]);
-    }
-}
-
-static void sp804_unrealize(DeviceState *dev)
-{
-    SP804State *s = SP804(dev);
-
-    for (unsigned i = 0; i < ARRAY_SIZE(s->timer); i++) {
-        qemu_free_irq(s->irq_in[i]);
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer[i]), errp)) {
+            return;
+        }
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->timer[i]), 0,
+                           qdev_get_gpio_in_named(dev, "timer-in", i));
     }
 }
 
 static Property sp804_properties[] = {
-    DEFINE_PROP_UINT32("freq0", SP804State, freq[0], 1000000),
-    DEFINE_PROP_UINT32("freq1", SP804State, freq[1], 1000000),
+    DEFINE_PROP_UINT32("freq0", SP804State, timer[0].freq, 1000000),
+    DEFINE_PROP_UINT32("freq1", SP804State, timer[1].freq, 1000000),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -336,7 +358,6 @@ static void sp804_class_init(ObjectClass *klass, void *data)
     DeviceClass *k = DEVICE_CLASS(klass);
 
     k->realize = sp804_realize;
-    k->unrealize = sp804_unrealize;
     device_class_set_props(k, sp804_properties);
     k->vmsd = &vmstate_sp804;
 }
@@ -350,8 +371,7 @@ struct IntegratorPitState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
-    ArmTimerState *timer[3];
-    qemu_irq irq_in[3];
+    ArmTimerState timer[3];
     qemu_irq irq[3];
 };
 
@@ -368,7 +388,7 @@ static uint64_t icp_pit_read(void *opaque, hwaddr offset,
         return 0;
     }
 
-    return arm_timer_read(s->timer[n], offset & 0xff);
+    return arm_timer_read(&s->timer[n], offset & 0xff);
 }
 
 static void icp_pit_write(void *opaque, hwaddr offset,
@@ -383,7 +403,7 @@ static void icp_pit_write(void *opaque, hwaddr offset,
         return;
     }
 
-    arm_timer_write(s->timer[n], offset & 0xff, value);
+    arm_timer_write(&s->timer[n], offset & 0xff, value);
 }
 
 static const MemoryRegionOps icp_pit_ops = {
@@ -414,7 +434,8 @@ static void icp_pit_init(Object *obj)
                             "timer-in", ARRAY_SIZE(s->timer));
 
     for (unsigned i = 0; i < ARRAY_SIZE(s->timer); i++) {
-        s->timer[i] = arm_timer_new(tmr_freq[i], s->irq_in[i]);
+        object_initialize_child(obj, "timer[*]", &s->timer[i], TYPE_ARM_TIMER);
+        qdev_prop_set_uint32(DEVICE(&s->timer[i]), "freq", tmr_freq[i]);
         sysbus_init_irq(dev, &s->irq[i]);
     }
 
@@ -430,7 +451,10 @@ static void icp_pit_realize(DeviceState *dev, Error **errp)
     IntegratorPitState *s = INTEGRATOR_PIT(dev);
 
     for (unsigned i = 0; i < ARRAY_SIZE(s->timer); i++) {
-        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i,
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer[i]), errp)) {
+            return;
+        }
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->timer[i]), 0,
                            qdev_get_gpio_in_named(dev, "timer-in", i));
     }
 }
@@ -444,6 +468,13 @@ static void icp_pit_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo arm_timer_types[] = {
     {
+        .name           = TYPE_ARM_TIMER,
+        .parent         = TYPE_SYS_BUS_DEVICE,
+        .instance_size  = sizeof(ArmTimerState),
+        .instance_init  = arm_timer_init,
+        .instance_finalize = arm_timer_finalize,
+        .class_init     = arm_timer_class_init,
+    }, {
         .name           = TYPE_INTEGRATOR_PIT,
         .parent         = TYPE_SYS_BUS_DEVICE,
         .instance_size  = sizeof(IntegratorPitState),
