@@ -6337,8 +6337,10 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                                        &topo_info, eax, ebx, ecx, edx);
             break;
         case 3: /* L3 cache info */
-            encode_cache_cpuid8000001d(env->cache_info_amd.l3_cache,
-                                       &topo_info, eax, ebx, ecx, edx);
+            if (cpu->enable_l3_cache) {
+                encode_cache_cpuid8000001d(env->cache_info_amd.l3_cache,
+                                           &topo_info, eax, ebx, ecx, edx);
+            }
             break;
         default: /* end of info */
             *eax = *ebx = *ecx = *edx = 0;
