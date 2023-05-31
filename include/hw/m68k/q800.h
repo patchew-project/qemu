@@ -31,6 +31,7 @@
 #include "hw/scsi/esp.h"
 #include "hw/block/swim.h"
 #include "hw/nubus/mac-nubus-bridge.h"
+#include "hw/display/macfb.h"
 
 /*
  * The main Q800 machine
@@ -50,6 +51,7 @@ struct Q800MachineState {
     SysBusESPState esp;
     Swim swim;
     MacNubusBridge mac_nubus_bridge;
+    MacfbNubusState macfb;
     MemoryRegion macio;
     MemoryRegion macio_alias;
 };
