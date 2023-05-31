@@ -446,9 +446,7 @@ static void e500_pcihost_realize(DeviceState *dev, Error **errp)
     h = PCI_HOST_BRIDGE(dev);
     s = PPC_E500_PCI_HOST_BRIDGE(dev);
 
-    for (i = 0; i < ARRAY_SIZE(s->irq); i++) {
-        sysbus_init_irq(sbd, &s->irq[i]);
-    }
+    sysbus_init_irqs(sbd, s->irq, ARRAY_SIZE(s->irq));
 
     for (i = 0; i < PCI_NUM_PINS; i++) {
         s->irq_num[i] = s->first_pin_irq + i;

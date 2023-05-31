@@ -458,7 +458,6 @@ static const struct MemoryRegionOps imx_spi_ops = {
 static void imx_spi_realize(DeviceState *dev, Error **errp)
 {
     IMXSPIState *s = IMX_SPI(dev);
-    int i;
 
     s->bus = ssi_create_bus(dev, "spi");
 
@@ -467,9 +466,7 @@ static void imx_spi_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
     sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq);
 
-    for (i = 0; i < ECSPI_NUM_CS; ++i) {
-        sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->cs_lines[i]);
-    }
+    sysbus_init_irqs(SYS_BUS_DEVICE(dev), s->cs_lines, ECSPI_NUM_CS);
 
     fifo32_create(&s->tx_fifo, ECSPI_FIFO_SIZE);
     fifo32_create(&s->rx_fifo, ECSPI_FIFO_SIZE);

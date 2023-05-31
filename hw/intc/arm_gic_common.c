@@ -143,22 +143,12 @@ void gic_init_irqs_and_mmio(GICState *s, qemu_irq_handler handler,
     i += (GIC_INTERNAL * s->num_cpu);
     qdev_init_gpio_in(DEVICE(s), handler, i);
 
-    for (i = 0; i < s->num_cpu; i++) {
-        sysbus_init_irq(sbd, &s->parent_irq[i]);
-    }
-    for (i = 0; i < s->num_cpu; i++) {
-        sysbus_init_irq(sbd, &s->parent_fiq[i]);
-    }
-    for (i = 0; i < s->num_cpu; i++) {
-        sysbus_init_irq(sbd, &s->parent_virq[i]);
-    }
-    for (i = 0; i < s->num_cpu; i++) {
-        sysbus_init_irq(sbd, &s->parent_vfiq[i]);
-    }
+    sysbus_init_irqs(sbd, s->parent_irq, s->num_cpu);
+    sysbus_init_irqs(sbd, s->parent_fiq, s->num_cpu);
+    sysbus_init_irqs(sbd, s->parent_virq, s->num_cpu);
+    sysbus_init_irqs(sbd, s->parent_vfiq, s->num_cpu);
     if (s->virt_extn) {
-        for (i = 0; i < s->num_cpu; i++) {
-            sysbus_init_irq(sbd, &s->maintenance_irq[i]);
-        }
+        sysbus_init_irqs(sbd, s->maintenance_irq, s->num_cpu);
     }
 
     /* Distributor */

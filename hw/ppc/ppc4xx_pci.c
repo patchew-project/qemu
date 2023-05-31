@@ -318,14 +318,11 @@ static void ppc4xx_pcihost_realize(DeviceState *dev, Error **errp)
     PPC4xxPCIState *s;
     PCIHostState *h;
     PCIBus *b;
-    int i;
 
     h = PCI_HOST_BRIDGE(dev);
     s = PPC4xx_PCI_HOST_BRIDGE(dev);
 
-    for (i = 0; i < ARRAY_SIZE(s->irq); i++) {
-        sysbus_init_irq(sbd, &s->irq[i]);
-    }
+    sysbus_init_irqs(sbd, s->irq, ARRAY_SIZE(s->irq));
 
     b = pci_register_root_bus(dev, NULL, ppc4xx_pci_set_irq,
                               ppc4xx_pci_map_irq, s->irq, get_system_memory(),

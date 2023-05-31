@@ -934,11 +934,8 @@ static void stellaris_adc_init(Object *obj)
     DeviceState *dev = DEVICE(obj);
     StellarisADCState *s = STELLARIS_ADC(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    int n;
 
-    for (n = 0; n < 4; n++) {
-        sysbus_init_irq(sbd, &s->irq[n]);
-    }
+    sysbus_init_irqs(sbd, s->irq, 4);
 
     memory_region_init_io(&s->iomem, obj, &stellaris_adc_ops, s,
                           "adc", 0x1000);

@@ -83,10 +83,8 @@ static void avr_mask_init(Object *dev)
     memory_region_init_io(&s->iomem, dev, &avr_mask_ops, s, TYPE_AVR_MASK,
                           0x01);
     sysbus_init_mmio(busdev, &s->iomem);
+    sysbus_init_irqs(busdev, s->irq, 8);
 
-    for (int i = 0; i < 8; i++) {
-        sysbus_init_irq(busdev, &s->irq[i]);
-    }
     s->val = 0x00;
 }
 

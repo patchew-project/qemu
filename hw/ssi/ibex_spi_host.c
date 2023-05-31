@@ -589,14 +589,11 @@ static void fifo_trigger_update(void *opaque)
 static void ibex_spi_host_realize(DeviceState *dev, Error **errp)
 {
     IbexSPIHostState *s = IBEX_SPI_HOST(dev);
-    int i;
 
     s->ssi = ssi_create_bus(dev, "ssi");
     s->cs_lines = g_new0(qemu_irq, s->num_cs);
 
-    for (i = 0; i < s->num_cs; ++i) {
-        sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->cs_lines[i]);
-    }
+    sysbus_init_irqs(SYS_BUS_DEVICE(dev), s->cs_lines, s->num_cs);
 
     /* Setup CONFIGOPTS Multi-register */
     s->config_opts = g_new0(uint32_t, s->num_cs);

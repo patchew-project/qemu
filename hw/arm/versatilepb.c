@@ -160,12 +160,9 @@ static void vpb_sic_init(Object *obj)
     DeviceState *dev = DEVICE(obj);
     vpb_sic_state *s = VERSATILE_PB_SIC(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    int i;
 
     qdev_init_gpio_in(dev, vpb_sic_set_irq, 32);
-    for (i = 0; i < 32; i++) {
-        sysbus_init_irq(sbd, &s->parent[i]);
-    }
+    sysbus_init_irqs(sbd, s->parent, 32);
     s->irq = 31;
     memory_region_init_io(&s->iomem, obj, &vpb_sic_ops, s,
                           "vpb-sic", 0x1000);

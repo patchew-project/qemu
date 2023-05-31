@@ -135,7 +135,6 @@ static const MemoryRegionOps gicv2m_ops = {
 static void gicv2m_realize(DeviceState *dev, Error **errp)
 {
     ARMGICv2mState *s = ARM_GICV2M(dev);
-    int i;
 
     if (s->num_spi > GICV2M_NUM_SPI_MAX) {
         error_setg(errp,
@@ -151,9 +150,7 @@ static void gicv2m_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    for (i = 0; i < s->num_spi; i++) {
-        sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->spi[i]);
-    }
+    sysbus_init_irqs(SYS_BUS_DEVICE(dev), s->spi, s->num_spi);
 
     msi_nonbroken = true;
     kvm_gsi_direct_mapping = true;

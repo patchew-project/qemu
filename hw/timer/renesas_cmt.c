@@ -225,15 +225,12 @@ static void rcmt_init(Object *obj)
 {
     SysBusDevice *d = SYS_BUS_DEVICE(obj);
     RCMTState *cmt = RCMT(obj);
-    int i;
 
     memory_region_init_io(&cmt->memory, OBJECT(cmt), &cmt_ops,
                           cmt, "renesas-cmt", 0x10);
     sysbus_init_mmio(d, &cmt->memory);
 
-    for (i = 0; i < ARRAY_SIZE(cmt->cmi); i++) {
-        sysbus_init_irq(d, &cmt->cmi[i]);
-    }
+    sysbus_init_irqs(d, cmt->cmi, ARRAY_SIZE(cmt->cmi));
     timer_init_ns(&cmt->timer[0], QEMU_CLOCK_VIRTUAL, timer_event0, cmt);
     timer_init_ns(&cmt->timer[1], QEMU_CLOCK_VIRTUAL, timer_event1, cmt);
 }

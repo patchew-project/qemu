@@ -221,13 +221,10 @@ static void irq_handler(void *opaque, int irq, int level)
 static void loongson_liointc_init(Object *obj)
 {
     struct loongson_liointc *p = LOONGSON_LIOINTC(obj);
-    int i;
 
     qdev_init_gpio_in(DEVICE(obj), irq_handler, 32);
 
-    for (i = 0; i < NUM_PARENTS; i++) {
-        sysbus_init_irq(SYS_BUS_DEVICE(obj), &p->parent_irq[i]);
-    }
+    sysbus_init_irqs(SYS_BUS_DEVICE(obj), p->parent_irq, NUM_PARENTS);
 
     memory_region_init_io(&p->mmio, obj, &pic_ops, p,
                          TYPE_LOONGSON_LIOINTC, R_END);

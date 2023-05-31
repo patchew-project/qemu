@@ -310,15 +310,12 @@ static void sifive_spi_realize(DeviceState *dev, Error **errp)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     SiFiveSPIState *s = SIFIVE_SPI(dev);
-    int i;
 
     s->spi = ssi_create_bus(dev, "spi");
     sysbus_init_irq(sbd, &s->irq);
 
     s->cs_lines = g_new0(qemu_irq, s->num_cs);
-    for (i = 0; i < s->num_cs; i++) {
-        sysbus_init_irq(sbd, &s->cs_lines[i]);
-    }
+    sysbus_init_irqs(sbd, s->cs_lines, s->num_cs);
 
     memory_region_init_io(&s->mmio, OBJECT(s), &sifive_spi_ops, s,
                           TYPE_SIFIVE_SPI, 0x1000);

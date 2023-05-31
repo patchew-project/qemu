@@ -454,15 +454,12 @@ static const MemoryRegionOps sifive_pdma_ops = {
 static void sifive_pdma_realize(DeviceState *dev, Error **errp)
 {
     SiFivePDMAState *s = SIFIVE_PDMA(dev);
-    int i;
 
     memory_region_init_io(&s->iomem, OBJECT(dev), &sifive_pdma_ops, s,
                           TYPE_SIFIVE_PDMA, SIFIVE_PDMA_REG_SIZE);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
 
-    for (i = 0; i < SIFIVE_PDMA_IRQS; i++) {
-        sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq[i]);
-    }
+    sysbus_init_irqs(SYS_BUS_DEVICE(dev), s->irq, SIFIVE_PDMA_IRQS);
 }
 
 static void sifive_pdma_class_init(ObjectClass *klass, void *data)

@@ -1692,11 +1692,7 @@ static const MemoryRegionOps smmu_mem_ops = {
 
 static void smmu_init_irq(SMMUv3State *s, SysBusDevice *dev)
 {
-    int i;
-
-    for (i = 0; i < ARRAY_SIZE(s->irq); i++) {
-        sysbus_init_irq(dev, &s->irq[i]);
-    }
+    sysbus_init_irqs(dev, s->irq, ARRAY_SIZE(s->irq));
 }
 
 static void smmu_reset_hold(Object *obj)

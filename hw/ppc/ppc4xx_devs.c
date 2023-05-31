@@ -193,9 +193,7 @@ static void ppc4xx_mal_realize(DeviceState *dev, Error **errp)
     mal->rxctpr = g_new0(uint32_t, mal->rxcnum);
     mal->rcbs = g_new0(uint32_t, mal->rxcnum);
 
-    for (i = 0; i < ARRAY_SIZE(mal->irqs); i++) {
-        sysbus_init_irq(SYS_BUS_DEVICE(dev), &mal->irqs[i]);
-    }
+    sysbus_init_irqs(SYS_BUS_DEVICE(dev), mal->irqs, ARRAY_SIZE(mal->irqs));
 
     ppc4xx_dcr_register(dcr, MAL0_CFG, mal, &dcr_read_mal, &dcr_write_mal);
     ppc4xx_dcr_register(dcr, MAL0_ESR, mal, &dcr_read_mal, &dcr_write_mal);

@@ -1740,9 +1740,7 @@ static void xlnx_versal_ospi_realize(DeviceState *dev, Error **errp)
     s->num_cs = 4;
     s->spi = ssi_create_bus(dev, "spi0");
     s->cs_lines = g_new0(qemu_irq, s->num_cs);
-    for (int i = 0; i < s->num_cs; ++i) {
-        sysbus_init_irq(sbd, &s->cs_lines[i]);
-    }
+    sysbus_init_irqs(sbd, s->cs_lines, s->num_cs);
 
     fifo8_create(&s->rx_fifo, RXFF_SZ);
     fifo8_create(&s->tx_fifo, TXFF_SZ);

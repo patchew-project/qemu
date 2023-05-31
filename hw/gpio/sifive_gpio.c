@@ -362,10 +362,7 @@ static void sifive_gpio_realize(DeviceState *dev, Error **errp)
             TYPE_SIFIVE_GPIO, SIFIVE_GPIO_SIZE);
 
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mmio);
-
-    for (int i = 0; i < s->ngpio; i++) {
-        sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq[i]);
-    }
+    sysbus_init_irqs(SYS_BUS_DEVICE(dev), s->irq, s->ngpio);
 
     qdev_init_gpio_in(DEVICE(s), sifive_gpio_set, s->ngpio);
     qdev_init_gpio_out(DEVICE(s), s->output, s->ngpio);

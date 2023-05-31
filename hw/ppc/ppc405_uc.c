@@ -265,11 +265,8 @@ static void ppc405_dma_realize(DeviceState *dev, Error **errp)
 {
     Ppc405DmaState *dma = PPC405_DMA(dev);
     Ppc4xxDcrDeviceState *dcr = PPC4xx_DCR_DEVICE(dev);
-    int i;
 
-    for (i = 0; i < ARRAY_SIZE(dma->irqs); i++) {
-        sysbus_init_irq(SYS_BUS_DEVICE(dma), &dma->irqs[i]);
-    }
+    sysbus_init_irqs(SYS_BUS_DEVICE(dma), dma->irqs, ARRAY_SIZE(dma->irqs));
 
     ppc4xx_dcr_register(dcr, DMA0_CR0, dma, &dcr_read_dma, &dcr_write_dma);
     ppc4xx_dcr_register(dcr, DMA0_CT0, dma, &dcr_read_dma, &dcr_write_dma);
@@ -702,15 +699,12 @@ static void ppc405_gpt_realize(DeviceState *dev, Error **errp)
 {
     Ppc405GptState *s = PPC405_GPT(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    int i;
 
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &ppc4xx_gpt_cb, s);
     memory_region_init_io(&s->iomem, OBJECT(s), &gpt_ops, s, "gpt", 0xd4);
     sysbus_init_mmio(sbd, &s->iomem);
 
-    for (i = 0; i < ARRAY_SIZE(s->irqs); i++) {
-        sysbus_init_irq(sbd, &s->irqs[i]);
-    }
+    sysbus_init_irqs(sbd, s->irqs, ARRAY_SIZE(s->irqs));
 }
 
 static void ppc405_gpt_finalize(Object *obj)

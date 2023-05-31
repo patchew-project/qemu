@@ -1004,7 +1004,7 @@ static void ppc460ex_pcie_realize(DeviceState *dev, Error **errp)
 {
     PPC460EXPCIEState *s = PPC460EX_PCIE_HOST(dev);
     PCIHostState *pci = PCI_HOST_BRIDGE(dev);
-    int i, id;
+    int id;
     char buf[16];
 
     switch (s->dcrn_base) {
@@ -1020,9 +1020,7 @@ static void ppc460ex_pcie_realize(DeviceState *dev, Error **errp)
     }
     snprintf(buf, sizeof(buf), "pcie%d-io", id);
     memory_region_init(&s->iomem, OBJECT(s), buf, UINT64_MAX);
-    for (i = 0; i < 4; i++) {
-        sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq[i]);
-    }
+    sysbus_init_irqs(SYS_BUS_DEVICE(dev), s->irq, 4);
     snprintf(buf, sizeof(buf), "pcie.%d", id);
     pci->bus = pci_register_root_bus(DEVICE(s), buf, ppc460ex_set_irq,
                                 pci_swizzle_map_irq_fn, s, &s->iomem,
