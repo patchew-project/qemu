@@ -704,9 +704,7 @@ static void versal_unimp(Versal *s)
                                 gpio_in);
 
     gpio_in = qdev_get_gpio_in_named(DEVICE(s), "irq-parity-imr-dummy", 0);
-    qdev_connect_gpio_out_named(DEVICE(&s->pmc.iou.slcr),
-                                SYSBUS_DEVICE_GPIO_IRQ, 0,
-                                gpio_in);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->pmc.iou.slcr), 0, gpio_in);
 }
 
 static void versal_realize(DeviceState *dev, Error **errp)
