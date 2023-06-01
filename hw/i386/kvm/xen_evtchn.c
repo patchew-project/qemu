@@ -303,16 +303,13 @@ void xen_evtchn_create(void)
 {
     XenEvtchnState *s = XEN_EVTCHN(sysbus_create_simple(TYPE_XEN_EVTCHN,
                                                         -1, NULL));
-    int i;
 
     xen_evtchn_singleton = s;
 
     qemu_mutex_init(&s->port_lock);
     s->gsi_bh = aio_bh_new(qemu_get_aio_context(), gsi_assert_bh, s);
 
-    for (i = 0; i < IOAPIC_NUM_PINS; i++) {
-        sysbus_init_irq(SYS_BUS_DEVICE(s), &s->gsis[i]);
-    }
+    sysbus_init_irqs(SYS_BUS_DEVICE(s), s->gsis, IOAPIC_NUM_PINS);
 
     /*
      * The Xen scheme for encoding PIRQ# into an MSI message is not

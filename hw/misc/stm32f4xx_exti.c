@@ -135,11 +135,8 @@ static const MemoryRegionOps stm32f4xx_exti_ops = {
 static void stm32f4xx_exti_init(Object *obj)
 {
     STM32F4xxExtiState *s = STM32F4XX_EXTI(obj);
-    int i;
 
-    for (i = 0; i < NUM_INTERRUPT_OUT_LINES; i++) {
-        sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq[i]);
-    }
+    sysbus_init_irqs(SYS_BUS_DEVICE(obj), s->irq, NUM_INTERRUPT_OUT_LINES);
 
     memory_region_init_io(&s->mmio, obj, &stm32f4xx_exti_ops, s,
                           TYPE_STM32F4XX_EXTI, 0x400);

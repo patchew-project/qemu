@@ -1620,9 +1620,7 @@ static void pl330_realize(DeviceState *dev, Error **errp)
     s->manager.is_manager = true;
 
     s->irq = g_new0(qemu_irq, s->num_events);
-    for (i = 0; i < s->num_events; i++) {
-        sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq[i]);
-    }
+    sysbus_init_irqs(SYS_BUS_DEVICE(dev), s->irq, s->num_events);
 
     qdev_init_gpio_in(dev, pl330_dma_stop_irq, PL330_PERIPH_NUM);
 

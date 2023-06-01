@@ -668,11 +668,8 @@ static void designware_pcie_host_realize(DeviceState *dev, Error **errp)
     PCIHostState *pci = PCI_HOST_BRIDGE(dev);
     DesignwarePCIEHost *s = DESIGNWARE_PCIE_HOST(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    size_t i;
 
-    for (i = 0; i < ARRAY_SIZE(s->pci.irqs); i++) {
-        sysbus_init_irq(sbd, &s->pci.irqs[i]);
-    }
+    sysbus_init_irqs(sbd, s->pci.irqs, ARRAY_SIZE(s->pci.irqs));
 
     memory_region_init_io(&s->mmio,
                           OBJECT(s),

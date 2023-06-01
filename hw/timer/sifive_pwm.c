@@ -414,11 +414,8 @@ static Property sifive_pwm_properties[] = {
 static void sifive_pwm_init(Object *obj)
 {
     SiFivePwmState *s = SIFIVE_PWM(obj);
-    int i;
 
-    for (i = 0; i < SIFIVE_PWM_IRQS; i++) {
-        sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irqs[i]);
-    }
+    sysbus_init_irqs(SYS_BUS_DEVICE(obj), s->irqs, SIFIVE_PWM_IRQS);
 
     memory_region_init_io(&s->mmio, obj, &sifive_pwm_ops, s,
                           TYPE_SIFIVE_PWM, 0x100);

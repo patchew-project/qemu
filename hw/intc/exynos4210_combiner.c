@@ -309,16 +309,13 @@ static void exynos4210_combiner_init(Object *obj)
     DeviceState *dev = DEVICE(obj);
     Exynos4210CombinerState *s = EXYNOS4210_COMBINER(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    unsigned int i;
 
     /* Allocate general purpose input signals and connect a handler to each of
      * them */
     qdev_init_gpio_in(dev, exynos4210_combiner_handler, IIC_NIRQ);
 
     /* Connect SysBusDev irqs to device specific irqs */
-    for (i = 0; i < IIC_NGRP; i++) {
-        sysbus_init_irq(sbd, &s->output_irq[i]);
-    }
+    sysbus_init_irqs(sbd, s->output_irq, IIC_NGRP);
 
     memory_region_init_io(&s->iomem, obj, &exynos4210_combiner_ops, s,
                           "exynos4210-combiner", IIC_REGION_SIZE);

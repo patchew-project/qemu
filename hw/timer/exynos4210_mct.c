@@ -1521,9 +1521,7 @@ static void exynos4210_mct_init(Object *obj)
     }
 
     /* IRQs */
-    for (i = 0; i < MCT_GT_CMP_NUM; i++) {
-        sysbus_init_irq(dev, &s->g_timer.irq[i]);
-    }
+    sysbus_init_irqs(dev, s->g_timer.irq, MCT_GT_CMP_NUM);
     for (i = 0; i < 2; i++) {
         sysbus_init_irq(dev, &s->l_timer[i].irq);
     }

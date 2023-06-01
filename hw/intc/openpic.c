@@ -1505,7 +1505,7 @@ static void openpic_realize(DeviceState *dev, Error **errp)
 {
     SysBusDevice *d = SYS_BUS_DEVICE(dev);
     OpenPICState *opp = OPENPIC(dev);
-    int i, j;
+    int i;
     int list_count = 0;
     static const MemReg list_le[] = {
         {"glb", &openpic_glb_ops_le,
@@ -1597,9 +1597,7 @@ static void openpic_realize(DeviceState *dev, Error **errp)
 
     for (i = 0; i < opp->nb_cpus; i++) {
         opp->dst[i].irqs = g_new0(qemu_irq, OPENPIC_OUTPUT_NB);
-        for (j = 0; j < OPENPIC_OUTPUT_NB; j++) {
-            sysbus_init_irq(d, &opp->dst[i].irqs[j]);
-        }
+        sysbus_init_irqs(d, opp->dst[i].irqs, OPENPIC_OUTPUT_NB);
 
         opp->dst[i].raised.queue_size = IRQQUEUE_SIZE_BITS;
         opp->dst[i].raised.queue = bitmap_new(IRQQUEUE_SIZE_BITS);

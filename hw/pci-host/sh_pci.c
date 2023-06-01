@@ -121,11 +121,8 @@ static void sh_pci_device_realize(DeviceState *dev, Error **errp)
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     SHPCIState *s = SH_PCI_HOST_BRIDGE(dev);
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
-    int i;
 
-    for (i = 0; i < 4; i++) {
-        sysbus_init_irq(sbd, &s->irq[i]);
-    }
+    sysbus_init_irqs(sbd, s->irq, 4);
     phb->bus = pci_register_root_bus(dev, "pci",
                                      sh_pci_set_irq, sh_pci_map_irq,
                                      s->irq,

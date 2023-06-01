@@ -153,11 +153,8 @@ static void macio_gpio_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     MacIOGPIOState *s = MACIO_GPIO(obj);
-    int i;
 
-    for (i = 0; i < 10; i++) {
-        sysbus_init_irq(sbd, &s->gpio_extirqs[i]);
-    }
+    sysbus_init_irqs(sbd, s->gpio_extirqs, 10);
 
     memory_region_init_io(&s->gpiomem, OBJECT(s), &macio_gpio_ops, obj,
                           "gpio", 0x30);

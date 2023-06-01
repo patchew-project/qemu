@@ -658,7 +658,6 @@ static void strongarm_gpio_initfn(Object *obj)
     DeviceState *dev = DEVICE(obj);
     StrongARMGPIOInfo *s = STRONGARM_GPIO(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    int i;
 
     qdev_init_gpio_in(dev, strongarm_gpio_set, 28);
     qdev_init_gpio_out(dev, s->handler, 28);
@@ -667,9 +666,7 @@ static void strongarm_gpio_initfn(Object *obj)
                           "gpio", 0x1000);
 
     sysbus_init_mmio(sbd, &s->iomem);
-    for (i = 0; i < 11; i++) {
-        sysbus_init_irq(sbd, &s->irqs[i]);
-    }
+    sysbus_init_irqs(sbd, s->irqs, 11);
     sysbus_init_irq(sbd, &s->irqX);
 }
 

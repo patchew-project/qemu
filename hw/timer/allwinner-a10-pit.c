@@ -263,9 +263,7 @@ static void a10_pit_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     uint8_t i;
 
-    for (i = 0; i < AW_A10_PIT_TIMER_NR; i++) {
-        sysbus_init_irq(sbd, &s->irq[i]);
-    }
+    sysbus_init_irqs(sbd, s->irq, AW_A10_PIT_TIMER_NR);
     memory_region_init_io(&s->iomem, OBJECT(s), &a10_pit_ops, s,
                           TYPE_AW_A10_PIT, 0x400);
     sysbus_init_mmio(sbd, &s->iomem);

@@ -286,15 +286,12 @@ static void rsci_init(Object *obj)
 {
     SysBusDevice *d = SYS_BUS_DEVICE(obj);
     RSCIState *sci = RSCI(obj);
-    int i;
 
     memory_region_init_io(&sci->memory, OBJECT(sci), &sci_ops,
                           sci, "renesas-sci", 0x8);
     sysbus_init_mmio(d, &sci->memory);
 
-    for (i = 0; i < SCI_NR_IRQ; i++) {
-        sysbus_init_irq(d, &sci->irq[i]);
-    }
+    sysbus_init_irqs(d, sci->irq, SCI_NR_IRQ);
     timer_init_ns(&sci->timer, QEMU_CLOCK_VIRTUAL, txend, sci);
 }
 

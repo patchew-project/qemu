@@ -419,7 +419,7 @@ static void slavio_intctl_init(Object *obj)
     DeviceState *dev = DEVICE(obj);
     SLAVIO_INTCTLState *s = SLAVIO_INTCTL(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    unsigned int i, j;
+    unsigned int i;
     char slave_name[45];
 
     qdev_init_gpio_in(dev, slavio_set_irq_all, 32 + MAX_CPUS);
@@ -430,9 +430,7 @@ static void slavio_intctl_init(Object *obj)
     for (i = 0; i < MAX_CPUS; i++) {
         snprintf(slave_name, sizeof(slave_name),
                  "slave-interrupt-controller-%i", i);
-        for (j = 0; j < MAX_PILS; j++) {
-            sysbus_init_irq(sbd, &s->cpu_irqs[i][j]);
-        }
+        sysbus_init_irqs(sbd, s->cpu_irqs[i], MAX_PILS);
         memory_region_init_io(&s->slaves[i].iomem, OBJECT(s),
                               &slavio_intctl_mem_ops,
                               &s->slaves[i], slave_name, INTCTL_SIZE);

@@ -182,7 +182,6 @@ static void platform_bus_realize(DeviceState *dev, Error **errp)
 {
     PlatformBusDevice *pbus;
     SysBusDevice *d;
-    int i;
 
     d = SYS_BUS_DEVICE(dev);
     pbus = PLATFORM_BUS_DEVICE(dev);
@@ -193,9 +192,7 @@ static void platform_bus_realize(DeviceState *dev, Error **errp)
 
     pbus->used_irqs = bitmap_new(pbus->num_irqs);
     pbus->irqs = g_new0(qemu_irq, pbus->num_irqs);
-    for (i = 0; i < pbus->num_irqs; i++) {
-        sysbus_init_irq(d, &pbus->irqs[i]);
-    }
+    sysbus_init_irqs(d, pbus->irqs, pbus->num_irqs);
 
     /* some devices might be initialized before so update used IRQs map */
     plaform_bus_refresh_irqs(pbus);

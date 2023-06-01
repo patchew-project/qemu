@@ -239,9 +239,7 @@ static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
     int i;
 
     if (s->is_legacy_prep) {
-        for (i = 0; i < PCI_NUM_PINS; i++) {
-            sysbus_init_irq(dev, &s->pci_irqs[i]);
-        }
+        sysbus_init_irqs(dev, s->pci_irqs, PCI_NUM_PINS);
     } else {
         /* According to PReP specification section 6.1.6 "System Interrupt
          * Assignments", all PCI interrupts are routed via IRQ 15 */

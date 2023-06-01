@@ -651,13 +651,10 @@ static void mcf_fec_instance_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     mcf_fec_state *s = MCF_FEC_NET(obj);
-    int i;
 
     memory_region_init_io(&s->iomem, obj, &mcf_fec_ops, s, "fec", 0x400);
     sysbus_init_mmio(sbd, &s->iomem);
-    for (i = 0; i < FEC_NUM_IRQ; i++) {
-        sysbus_init_irq(sbd, &s->irq[i]);
-    }
+    sysbus_init_irqs(sbd, s->irq, FEC_NUM_IRQ);
 }
 
 static Property mcf_fec_properties[] = {

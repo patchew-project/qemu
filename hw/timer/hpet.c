@@ -756,9 +756,7 @@ static void hpet_realize(DeviceState *dev, Error **errp)
 
     s->hpet_id = hpet_cfg.count++;
 
-    for (i = 0; i < HPET_NUM_IRQ_ROUTES; i++) {
-        sysbus_init_irq(sbd, &s->irqs[i]);
-    }
+    sysbus_init_irqs(sbd, s->irqs, HPET_NUM_IRQ_ROUTES);
 
     if (s->num_timers < HPET_MIN_TIMERS) {
         s->num_timers = HPET_MIN_TIMERS;
