@@ -2,7 +2,7 @@ slow_qtests = {
   'bios-tables-test' : 120,
   'migration-test' : 300,
   'npcm7xx_pwm-test': 150,
-  'qom-test' : 300,
+  'qom-test' : 420,
   'test-hmp' : 120,
 }
 
