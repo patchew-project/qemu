@@ -49,7 +49,7 @@ static void versal_usb2_realize(DeviceState *dev, Error **errp)
     }
     sysbus_init_mmio(sbd, &s->dwc3_mr);
     sysbus_init_mmio(sbd, &s->usb2Ctrl_mr);
-    qdev_pass_gpios(DEVICE(&s->dwc3.sysbus_xhci), dev, SYSBUS_DEVICE_GPIO_IRQ);
+    sysbus_pass_irq(sbd, SYS_BUS_DEVICE(&s->dwc3.sysbus_xhci));
 }
 
 static void versal_usb2_init(Object *obj)
