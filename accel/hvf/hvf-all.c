@@ -38,6 +38,9 @@ void assert_hvf_ok(hv_return_t ret)
     case HV_UNSUPPORTED:
         error_report("Error: HV_UNSUPPORTED");
         break;
+    case HV_DENIED:
+        error_report("Error: HV_DENIED");
+        break;
     default:
         error_report("Unknown Error");
     }
