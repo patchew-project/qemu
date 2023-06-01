@@ -3517,11 +3517,13 @@ static int img_rebase(int argc, char **argv)
     char *filename;
     const char *fmt, *cache, *src_cache, *out_basefmt, *out_baseimg;
     int c, flags, src_flags, ret;
+    BdrvRequestFlags write_flags = 0;
     bool writethrough, src_writethrough;
     int unsafe = 0;
     bool force_share = false;
     int progress = 0;
     bool quiet = false;
+    bool compress = false;
     Error *local_err = NULL;
     bool image_opts = false;
 
@@ -3537,9 +3539,10 @@ static int img_rebase(int argc, char **argv)
             {"object", required_argument, 0, OPTION_OBJECT},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {"force-share", no_argument, 0, 'U'},
+            {"compress", no_argument, 0, 'c'},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":hf:F:b:upt:T:qU",
+        c = getopt_long(argc, argv, ":hf:F:b:upt:T:qUc",
                         long_options, NULL);
         if (c == -1) {
             break;
@@ -3586,6 +3589,9 @@ static int img_rebase(int argc, char **argv)
             break;
         case 'U':
             force_share = true;
+            break;
+        case 'c':
+            compress = true;
             break;
         }
     }
@@ -3638,6 +3644,14 @@ static int img_rebase(int argc, char **argv)
     bs = blk_bs(blk);
 
     unfiltered_bs = bdrv_skip_filters(bs);
+
+    if (compress && !block_driver_can_compress(unfiltered_bs->drv)) {
+        error_report("Compression not supported for this file format");
+        ret = -1;
+        goto out;
+    } else if (compress) {
+        write_flags |= BDRV_REQ_WRITE_COMPRESSED;
+    }
 
     if (out_basefmt != NULL) {
         if (bdrv_find_format(out_basefmt) == NULL) {
@@ -3903,7 +3917,8 @@ static int img_rebase(int argc, char **argv)
                                             bdi.cluster_size);
                         end = end > size ? size : end;
                         ret = blk_pwrite(blk, start, end - start,
-                                         buf_old + (start - offset), 0);
+                                         buf_old + (start - offset),
+                                         write_flags);
                         pnum = end - (offset + written);
                     }
                     if (ret < 0) {
