@@ -1446,6 +1446,18 @@ int hvf_vcpu_exec(CPUState *cpu)
             hvf_raise_exception(cpu, EXCP_UDEF, syn_uncategorized());
         }
         break;
+    case EC_INSNABORT: {
+        uint32_t sas = (syndrome >> 22) & 3;
+        uint32_t len = 1 << sas;
+        uint64_t val = 0;
+
+        MemTxResult res = address_space_read(
+            &address_space_memory, hvf_exit->exception.physical_address,
+            MEMTXATTRS_UNSPECIFIED, &val, len);
+        assert(res == MEMTX_OK);
+        flush_cpu_state(cpu);
+        break;
+    }
     default:
         cpu_synchronize_state(cpu);
         trace_hvf_exit(syndrome, ec, env->pc);
