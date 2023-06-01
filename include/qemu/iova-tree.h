@@ -39,6 +39,7 @@ typedef struct DMAMap {
     IOMMUAccessFlags perm;
 } QEMU_PACKED DMAMap;
 typedef gboolean (*iova_tree_iterator)(DMAMap *map);
+typedef gboolean (*iova_tree_iterator_2)(DMAMap *map, gpointer *private);
 
 /**
  * iova_tree_new:
@@ -131,10 +132,22 @@ const DMAMap *iova_tree_find_address(const IOVATree *tree, hwaddr iova);
  * @iterator: the interator for the mappings, return true to stop
  *
  * Iterate over the iova tree.
- *
- * Return: 1 if found any overlap, 0 if not, <0 if error.
  */
 void iova_tree_foreach(IOVATree *tree, iova_tree_iterator iterator);
+
+/**
+ * iova_tree_foreach_range_data:
+ *
+ * @tree: the iova tree to iterate on
+ * @range: the iova range to iterate in
+ * @func: the iterator for the mappings, return true to stop
+ * @private: parameter passed to @func
+ *
+ * Iterate over an iova range in iova tree.
+ */
+void iova_tree_foreach_range_data(IOVATree *tree, DMAMap *range,
+                                  iova_tree_iterator_2 func,
+                                  gpointer *private);
 
 /**
  * iova_tree_alloc_map:
