@@ -193,7 +193,7 @@ allocate_clusters(BlockDriverState *bs, int64_t sector_num,
     assert(idx < s->bat_size && idx + to_allocate <= s->bat_size);
 
     space = to_allocate * s->tracks;
-    len = bdrv_getlength(bs->file->bs);
+    len = bdrv_co_getlength(bs->file->bs);
     if (len < 0) {
         return len;
     }
@@ -426,7 +426,7 @@ parallels_co_check(BlockDriverState *bs, BdrvCheckResult *res,
     uint32_t i;
     bool flush_bat = false;
 
-    size = bdrv_getlength(bs->file->bs);
+    size = bdrv_co_getlength(bs->file->bs);
     if (size < 0) {
         res->check_errors++;
         return size;
