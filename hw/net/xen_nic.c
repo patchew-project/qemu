@@ -293,8 +293,8 @@ static int net_init(struct XenLegacyDevice *xendev)
         return -1;
     }
 
-    netdev->nic = qemu_new_nic(&net_xen_info, &netdev->conf,
-                               "xen", NULL, netdev);
+    netdev->nic = qemu_new_nic(&net_xen_info, &netdev->conf, "xen", NULL,
+                               &xendev->qdev.mem_reentrancy_guard, netdev);
 
     qemu_set_info_str(qemu_get_queue(netdev->nic),
                       "nic: xenbus vif macaddr=%s", netdev->mac);
