@@ -441,9 +441,9 @@ struct IOMMUMemoryRegionClass {
      * call the IOMMU translate method for every page in the address space
      * with flag == IOMMU_NONE and then call the notifier if translate
      * returns a valid mapping. If this method is implemented then it
-     * overrides the default behaviour, and must provide the full semantics
-     * of memory_region_iommu_replay(), by calling @notifier for every
-     * translation present in the IOMMU.
+     * overrides the default behavior, and must provide corresponding
+     * semantics depending on notifier's type, e.g. IOMMU_NOTIFIER_MAP,
+     * notify changed entries; IOMMU_NOTIFIER_FULL_MAP, notify full entries.
      *
      * Optional method -- an IOMMU only needs to provide this method
      * if the default is inefficient or produces undesirable side effects.
