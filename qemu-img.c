@@ -3746,8 +3746,8 @@ static int img_rebase(int argc, char **argv)
         int64_t n;
         float local_progress = 0;
 
-        buf_old = blk_blockalign(blk, IO_BUF_SIZE);
-        buf_new = blk_blockalign(blk, IO_BUF_SIZE);
+        buf_old = blk_blockalign(blk_old_backing, IO_BUF_SIZE);
+        buf_new = blk_blockalign(blk_new_backing, IO_BUF_SIZE);
 
         size = blk_getlength(blk);
         if (size < 0) {
