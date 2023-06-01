@@ -26,6 +26,117 @@
 #include "elf.h"
 #include "semihosting/common-semi.h"
 
+#define RISCV_HWPROBE_KEY_MVENDORID     0
+#define RISCV_HWPROBE_KEY_MARCHID       1
+#define RISCV_HWPROBE_KEY_MIMPID        2
+
+#define RISCV_HWPROBE_KEY_BASE_BEHAVIOR 3
+#define     RISCV_HWPROBE_BASE_BEHAVIOR_IMA (1 << 0)
+
+#define RISCV_HWPROBE_KEY_IMA_EXT_0     4
+#define     RISCV_HWPROBE_IMA_FD       (1 << 0)
+#define     RISCV_HWPROBE_IMA_C        (1 << 1)
+
+#define RISCV_HWPROBE_KEY_CPUPERF_0     5
+#define     RISCV_HWPROBE_MISALIGNED_UNKNOWN     (0 << 0)
+#define     RISCV_HWPROBE_MISALIGNED_EMULATED    (1 << 0)
+#define     RISCV_HWPROBE_MISALIGNED_SLOW        (2 << 0)
+#define     RISCV_HWPROBE_MISALIGNED_FAST        (3 << 0)
+#define     RISCV_HWPROBE_MISALIGNED_UNSUPPORTED (4 << 0)
+#define     RISCV_HWPROBE_MISALIGNED_MASK        (7 << 0)
+
+struct riscv_hwprobe {
+    int64_t  key;
+    uint64_t value;
+};
+
+static void hwprobe_one_pair(CPURISCVState *env, struct riscv_hwprobe *pair)
+{
+    const RISCVCPUConfig *cfg = riscv_cpu_cfg(env);
+
+    pair->value = 0;
+
+    switch (pair->key) {
+    case RISCV_HWPROBE_KEY_MVENDORID:
+        pair->value = cfg->mvendorid;
+        break;
+    case RISCV_HWPROBE_KEY_MARCHID:
+        pair->value = cfg->marchid;
+        break;
+    case RISCV_HWPROBE_KEY_MIMPID:
+        pair->value = cfg->mimpid;
+        break;
+    case RISCV_HWPROBE_KEY_BASE_BEHAVIOR:
+        pair->value = riscv_has_ext(env, RVI) &&
+                      riscv_has_ext(env, RVM) &&
+                      riscv_has_ext(env, RVA) ?
+                      RISCV_HWPROBE_BASE_BEHAVIOR_IMA : 0;
+        break;
+    case RISCV_HWPROBE_KEY_IMA_EXT_0:
+        pair->value = riscv_has_ext(env, RVF) &&
+                      riscv_has_ext(env, RVD) ?
+                      RISCV_HWPROBE_IMA_FD : 0;
+        pair->value |= riscv_has_ext(env, RVC) ?
+                       RISCV_HWPROBE_IMA_C : pair->value;
+        break;
+    case RISCV_HWPROBE_KEY_CPUPERF_0:
+        pair->value = RISCV_HWPROBE_MISALIGNED_UNKNOWN;
+        break;
+    default:
+        pair->key = -1;
+    break;
+    }
+}
+
+static long sys_riscv_hwprobe(CPURISCVState *env,
+                              abi_ulong user_pairs,
+                              size_t pair_count,
+                              size_t cpu_count,
+                              abi_ulong user_cpus,
+                              unsigned int flags)
+{
+    struct riscv_hwprobe *host_pairs;
+    cpu_set_t *host_cpus = NULL;
+    size_t cpu_setsize = 0;
+
+    /* flags must be 0 */
+    if (flags != 0) {
+        return 1
+    };
+
+    /* inconsistence cpu_set */
+    if (cpu_count != 0 && user_cpus == 0) {
+        return 1;
+    }
+
+    host_pairs = lock_user(VERIFY_WRITE, user_pairs,
+                           sizeof(*host_pairs) * pair_count, 0);
+
+    if (host_pairs == NULL) {
+        return 1;
+    }
+
+    if (user_cpus != 0) {
+        cpu_setsize = CPU_ALLOC_SIZE(user_cpus);
+        host_cpus = lock_user(VERIFY_READ, user_cpus, cpu_setsize, 0);
+    }
+
+    /* cpuset is ignored, symmetric CPUs in qemu */
+
+    for (struct riscv_hwprobe *ipairs = host_pairs;
+         pair_count > 0;
+         pair_count--, ipairs++) {
+        hwprobe_one_pair(env, ipairs);
+    }
+
+    if (host_cpus != 0) {
+        unlock_user(host_cpus, user_cpus, cpu_setsize);
+    }
+
+    unlock_user(host_pairs, user_pairs, sizeof(*host_pairs) * pair_count);
+    return 0;
+};
+
 void cpu_loop(CPURISCVState *env)
 {
     CPUState *cs = env_cpu(env);
@@ -47,7 +158,13 @@ void cpu_loop(CPURISCVState *env)
             break;
         case RISCV_EXCP_U_ECALL:
             env->pc += 4;
-            if (env->gpr[xA7] == TARGET_NR_arch_specific_syscall + 15) {
+            if (env->gpr[xA7] == TARGET_NR_arch_specific_syscall + 14) {
+                /* riscv_hwprobe */
+                ret = sys_riscv_hwprobe(env,
+                                        env->gpr[xA0], env->gpr[xA1],
+                                        env->gpr[xA2], env->gpr[xA3],
+                                        env->gpr[xA4]);
+            } else if (env->gpr[xA7] == TARGET_NR_arch_specific_syscall + 15) {
                 /* riscv_flush_icache_syscall is a no-op in QEMU as
                    self-modifying code is automatically detected */
                 ret = 0;
