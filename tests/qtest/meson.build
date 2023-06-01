@@ -1,4 +1,5 @@
 slow_qtests = {
+  'aspeed_smc-test': 120,
   'bios-tables-test' : 120,
   'migration-test' : 300,
   'npcm7xx_pwm-test': 150,
