@@ -678,6 +678,40 @@ static int vhost_vdpa_net_load_mq(VhostVDPAState *s,
     return *s->status != VIRTIO_NET_OK;
 }
 
+static int vhost_vdpa_net_load_offloads(VhostVDPAState *s,
+                                        const VirtIONet *n)
+{
+    uint64_t offloads;
+    ssize_t dev_written;
+
+    if (!virtio_vdev_has_feature(&n->parent_obj,
+                                 VIRTIO_NET_F_CTRL_GUEST_OFFLOADS)) {
+        return 0;
+    }
+
+    offloads = cpu_to_le64(n->curr_guest_offloads);
+
+    if (offloads == virtio_net_supported_guest_offloads(n)) {
+        /*
+         * According to VirtIO standard, "Upon feature negotiation
+         * corresponding offload gets enabled to preserve
+         * backward compatibility."
+         * So we do not need to send this CVQ command if the guest
+         * also enables all supported offloads.
+         */
+        return 0;
+    }
+
+    dev_written = vhost_vdpa_net_load_cmd(s, VIRTIO_NET_CTRL_GUEST_OFFLOADS,
+                                          VIRTIO_NET_CTRL_GUEST_OFFLOADS_SET,
+                                          &offloads, sizeof(offloads));
+    if (unlikely(dev_written < 0)) {
+        return dev_written;
+    }
+
+    return *s->status != VIRTIO_NET_OK;
+}
+
 static int vhost_vdpa_net_load(NetClientState *nc)
 {
     VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, nc);
@@ -697,6 +731,10 @@ static int vhost_vdpa_net_load(NetClientState *nc)
         return r;
     }
     r = vhost_vdpa_net_load_mq(s, n);
+    if (unlikely(r)) {
+        return r;
+    }
+    r = vhost_vdpa_net_load_offloads(s, n);
     if (unlikely(r)) {
         return r;
     }
