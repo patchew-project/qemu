@@ -3819,19 +3819,47 @@ static int vtd_replay_hook(IOMMUTLBEvent *event, void *private)
     return 0;
 }
 
+static gboolean vtd_replay_full_map(DMAMap *map, gpointer *private)
+{
+    IOMMUTLBEvent event;
+
+    event.type = IOMMU_NOTIFIER_MAP;
+    event.entry.iova = map->iova;
+    event.entry.addr_mask = map->size;
+    event.entry.target_as = &address_space_memory;
+    event.entry.perm = map->perm;
+    event.entry.translated_addr = map->translated_addr;
+
+    return vtd_replay_hook(&event, private);
+}
+
+/*
+ * This is a fast path to notify the full mappings falling in the scope
+ * of IOMMU notifier. The call site should ensure no iova tree update by
+ * taking necessary locks(e.x. BQL).
+ */
+static int vtd_page_walk_full_map_fast_path(IOVATree *iova_tree,
+                                            IOMMUNotifier *n)
+{
+    DMAMap map;
+
+    map.iova = n->start;
+    map.size = n->end - n->start;
+    if (!iova_tree_find(iova_tree, &map)) {
+        return 0;
+    }
+
+    iova_tree_foreach_range_data(iova_tree, &map, vtd_replay_full_map,
+                                 (gpointer *)n);
+    return 0;
+}
+
 static void vtd_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
 {
     VTDAddressSpace *vtd_as = container_of(iommu_mr, VTDAddressSpace, iommu);
     IntelIOMMUState *s = vtd_as->iommu_state;
     uint8_t bus_n = pci_bus_num(vtd_as->bus);
     VTDContextEntry ce;
-
-    /*
-     * The replay can be triggered by either a invalidation or a newly
-     * created entry. No matter what, we release existing mappings
-     * (it means flushing caches for UNMAP-only registers).
-     */
-    vtd_address_space_unmap(vtd_as, n);
 
     if (vtd_dev_to_context_entry(s, bus_n, vtd_as->devfn, &ce) == 0) {
         trace_vtd_replay_ce_valid(s->root_scalable ? "scalable mode" :
@@ -3850,8 +3878,11 @@ static void vtd_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
                 .as = vtd_as,
                 .domain_id = vtd_get_domain_id(s, &ce, vtd_as->pasid),
             };
-
-            vtd_page_walk(s, &ce, 0, ~0ULL, &info, vtd_as->pasid);
+            if (n->notifier_flags & IOMMU_NOTIFIER_FULL_MAP) {
+                vtd_page_walk_full_map_fast_path(vtd_as->iova_tree, n);
+            } else {
+                vtd_page_walk(s, &ce, 0, ~0ULL, &info, vtd_as->pasid);
+            }
         }
     } else {
         trace_vtd_replay_ce_invalid(bus_n, PCI_SLOT(vtd_as->devfn),

@@ -142,6 +142,10 @@ struct IOMMUTLBEntry {
  *       events (e.g. VFIO). Both notifications must be accurate so that
  *       the shadow page table is fully in sync with the guest view.
  *
+ *       Besides MAP, there is a special use case called FULL_MAP which
+ *       requests notification for all the existent mappings (e.g. VFIO
+ *       dirty page sync).
+ *
  *   (2) When the device doesn't need accurate synchronizations of the
  *       vIOMMU page tables, it needs to register only with UNMAP or
  *       DEVIOTLB_UNMAP notifies.
@@ -164,6 +168,8 @@ typedef enum {
     IOMMU_NOTIFIER_MAP = 0x2,
     /* Notify changes on device IOTLB entries */
     IOMMU_NOTIFIER_DEVIOTLB_UNMAP = 0x04,
+    /* Notify every existent entries */
+    IOMMU_NOTIFIER_FULL_MAP = 0x8,
 } IOMMUNotifierFlag;
 
 #define IOMMU_NOTIFIER_IOTLB_EVENTS (IOMMU_NOTIFIER_MAP | IOMMU_NOTIFIER_UNMAP)
@@ -237,6 +243,13 @@ static inline void iommu_notifier_init(IOMMUNotifier *n, IOMMUNotify fn,
                                        hwaddr start, hwaddr end,
                                        int iommu_idx)
 {
+    /*
+     * memory_region_notify_iommu_one() needs IOMMU_NOTIFIER_MAP set to
+     * trigger notifier.
+     */
+    if (flags & IOMMU_NOTIFIER_FULL_MAP) {
+        flags |= IOMMU_NOTIFIER_MAP;
+    }
     n->notify = fn;
     n->notifier_flags = flags;
     n->start = start;

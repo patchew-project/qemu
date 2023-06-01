@@ -1922,6 +1922,10 @@ int memory_region_register_iommu_notifier(MemoryRegion *mr,
     assert(n->iommu_idx >= 0 &&
            n->iommu_idx < memory_region_iommu_num_indexes(iommu_mr));
 
+    if (n->notifier_flags & IOMMU_NOTIFIER_FULL_MAP) {
+        error_setg(errp, "FULL_MAP could only be used in replay");
+    }
+
     QLIST_INSERT_HEAD(&iommu_mr->iommu_notify, n, node);
     ret = memory_region_update_iommu_notify_flags(iommu_mr, errp);
     if (ret) {

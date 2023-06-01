@@ -1890,7 +1890,7 @@ static int vfio_sync_dirty_bitmap(VFIOContainer *container,
 
                 iommu_notifier_init(&gdn.n,
                                     vfio_iommu_map_dirty_notify,
-                                    IOMMU_NOTIFIER_MAP,
+                                    IOMMU_NOTIFIER_FULL_MAP,
                                     section->offset_within_region,
                                     int128_get64(llend),
                                     idx);
