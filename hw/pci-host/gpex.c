@@ -128,8 +128,8 @@ static void gpex_host_realize(DeviceState *dev, Error **errp)
         sysbus_init_mmio(sbd, &s->io_ioport);
     }
 
+    sysbus_init_irqs(sbd, s->irq, GPEX_NUM_IRQS);
     for (i = 0; i < GPEX_NUM_IRQS; i++) {
-        sysbus_init_irq(sbd, &s->irq[i]);
         s->irq_num[i] = -1;
     }
 

@@ -428,17 +428,14 @@ static void rtmr_init(Object *obj)
 {
     SysBusDevice *d = SYS_BUS_DEVICE(obj);
     RTMRState *tmr = RTMR(obj);
-    int i;
 
     memory_region_init_io(&tmr->memory, OBJECT(tmr), &tmr_ops,
                           tmr, "renesas-tmr", 0x10);
     sysbus_init_mmio(d, &tmr->memory);
 
-    for (i = 0; i < ARRAY_SIZE(tmr->ovi); i++) {
-        sysbus_init_irq(d, &tmr->cmia[i]);
-        sysbus_init_irq(d, &tmr->cmib[i]);
-        sysbus_init_irq(d, &tmr->ovi[i]);
-    }
+    sysbus_init_irqs(d, tmr->cmia, ARRAY_SIZE(tmr->cmia));
+    sysbus_init_irqs(d, tmr->cmib, ARRAY_SIZE(tmr->cmib));
+    sysbus_init_irqs(d, tmr->ovi, ARRAY_SIZE(tmr->ovi));
     timer_init_ns(&tmr->timer[0], QEMU_CLOCK_VIRTUAL, timer_event0, tmr);
     timer_init_ns(&tmr->timer[1], QEMU_CLOCK_VIRTUAL, timer_event1, tmr);
 }
