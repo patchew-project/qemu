@@ -636,6 +636,7 @@ static void gen_asl_op(Context *c, YYLTYPE *locp, unsigned bit_width,
     } break;
     case REG_IMM: {
         OUT(c, locp, "if (", op2, " >= ", &bit_width, ") {\n");
+        OUT(c, locp, "/* coverity[dead_error_condition] */\n");
         OUT(c, locp, "tcg_gen_movi_", bit_suffix, "(", res, ", 0);\n");
         OUT(c, locp, "} else {\n");
         OUT(c, locp, "tcg_gen_shli_", bit_suffix,
@@ -691,7 +692,8 @@ static void gen_asr_op(Context *c, YYLTYPE *locp, unsigned bit_width,
         gen_c_int_type(c, locp, bit_width, signedness);
         OUT(c, locp, " shift = ", op2, ";\n");
         OUT(c, locp, "if (", op2, " >= ", &bit_width, ") {\n");
-        OUT(c, locp, "    shift = ", &bit_width, " - 1;\n");
+        OUT(c, locp, "/* coverity[dead_error_condition] */\n");
+        OUT(c, locp, "shift = ", &bit_width, " - 1;\n");
         OUT(c, locp, "}\n");
         OUT(c, locp, "tcg_gen_sari_", bit_suffix,
             "(", res, ", ", op1, ", shift);\n}\n");
@@ -1060,6 +1062,7 @@ static HexValue gen_extend_imm_width_op(Context *c,
             ");\n");
         if (need_guarding) {
             OUT(c, locp, "} else {\n");
+            OUT(c, locp, "/* coverity[dead_error_condition] */\n");
             OUT(c, locp, "tcg_gen_movi_i", &dst_width, "(", &res,
                 ", 0);\n");
             OUT(c, locp, "}\n");
