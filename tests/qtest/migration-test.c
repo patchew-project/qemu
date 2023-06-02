@@ -433,16 +433,13 @@ static void migrate_set_parameter_bool(QTestState *who, const char *parameter,
 
 static void migrate_ensure_non_converge(QTestState *who)
 {
-    /* Can't converge with 1ms downtime + 3 mbs bandwidth limit */
-    migrate_set_parameter_int(who, "max-bandwidth", 3 * 1000 * 1000);
-    migrate_set_parameter_int(who, "downtime-limit", 1);
+    /* Hold off switchover for precopy only */
+    migrate_set_parameter_bool(who, "switchover-hold", true);
 }
 
 static void migrate_ensure_converge(QTestState *who)
 {
-    /* Should converge with 30s downtime + 1 gbs bandwidth limit */
-    migrate_set_parameter_int(who, "max-bandwidth", 1 * 1000 * 1000 * 1000);
-    migrate_set_parameter_int(who, "downtime-limit", 30 * 1000);
+    migrate_set_parameter_bool(who, "switchover-hold", false);
 }
 
 static void migrate_pause(QTestState *who)
@@ -492,6 +489,13 @@ static void migrate_postcopy_start(QTestState *from, QTestState *to)
     }
 
     qtest_qmp_eventwait(to, "RESUME");
+
+    /*
+     * Now allow precopy switchover (which will allow completion).  This
+     * needs to be done after migrate-start-postcopy to make sure we switch
+     * to postcopy first.
+     */
+    migrate_ensure_converge(from);
 }
 
 typedef struct {
@@ -735,6 +739,14 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     if (args->use_shmem) {
         unlink(shmem_path);
     }
+
+    /*
+     * By default, use full speed for precopy in qtests as that will reduce
+     * the time of testing. The default bandwidth (128MB/s) may be too slow
+     * in this case.  Specific test can overwrite this value after the
+     * function returns but before starting migration.
+     */
+    migrate_set_parameter_int(*from, "max-bandwidth", 0);
 
     return 0;
 }
