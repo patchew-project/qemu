@@ -494,3 +494,40 @@ LD_mult         0 . 001100 . 1 0 ..... 0110 .. ..... ..... @ldst_mult rpt=3 sele
 LD_mult         0 . 001100 . 1 0 ..... 0111 .. ..... ..... @ldst_mult rpt=1 selem=1
 LD_mult         0 . 001100 . 1 0 ..... 1000 .. ..... ..... @ldst_mult rpt=1 selem=2
 LD_mult         0 . 001100 . 1 0 ..... 1010 .. ..... ..... @ldst_mult rpt=2 selem=1
+
+# Load/store single structure
+
+%ldst_single_selem 13:1 21:1 !function=plus_1
+# The index is made up from bits Q, S and the size; we may then need to scale
+# it down by the size.
+%ldst_single_index q:1 s:1 sz:2
+%ldst_single_index_scaled q:1 s:1 sz:2 scale:3 !function=uimm_scaled_down
+%ldst_single_repl_scale 10:2
+
+# We don't care about S in the trans functions (the decode folds it into
+# the calculation of index), but we have to list it here so that we can
+# handle the S-must-be-0 pattern lines. Similarly we don't care about sz
+# once it has been used to calculate index.
+&ldst_single    rm rn rt sz p q s selem index scale repl
+
+@ldst_single        . q:1 ...... p:1 . . rm:5 ... . .. rn:5 rt:5 \
+                    &ldst_single index=%ldst_single_index_scaled \
+                    selem=%ldst_single_selem repl=0
+@ldst_single_repl   . q:1 ...... p:1 . . rm:5 ... . sz:2 rn:5 rt:5 \
+                    &ldst_single index=%ldst_single_index \
+                    scale=%ldst_single_repl_scale selem=%ldst_single_selem repl=1
+
+
+ST_single       0 . 001101 . 0 . ..... 00 . s:1 sz:2 ..... ..... @ldst_single scale=0
+ST_single       0 . 001101 . 0 . ..... 01 . s:1 00 ..... ..... @ldst_single scale=1 sz=0
+ST_single       0 . 001101 . 0 . ..... 01 . s:1 10 ..... ..... @ldst_single scale=1 sz=2
+ST_single       0 . 001101 . 0 . ..... 10 . s:1 00 ..... ..... @ldst_single scale=2 sz=0
+ST_single       0 . 001101 . 0 . ..... 10 . 0 01 ..... ..... @ldst_single scale=3 sz=1 s=0
+
+LD_single       0 . 001101 . 1 . ..... 00 . s:1 sz:2 ..... ..... @ldst_single scale=0
+LD_single       0 . 001101 . 1 . ..... 01 . s:1 00 ..... ..... @ldst_single scale=1 sz=0
+LD_single       0 . 001101 . 1 . ..... 01 . s:1 10 ..... ..... @ldst_single scale=1 sz=2
+LD_single       0 . 001101 . 1 . ..... 10 . s:1 00 ..... ..... @ldst_single scale=2 sz=0
+LD_single       0 . 001101 . 1 . ..... 10 . 0 01 ..... ..... @ldst_single scale=3 sz=1 s=0
+# Replicating load case
+LD_single_repl  0 . 001101 . 1 . ..... 11 . 0 .. ..... ..... @ldst_single_repl s=0
