@@ -608,9 +608,6 @@ void do_cpu_sipi(X86CPU *cpu)
 void do_cpu_init(X86CPU *cpu)
 {
 }
-void do_cpu_sipi(X86CPU *cpu)
-{
-}
 #endif
 
 #ifndef CONFIG_USER_ONLY
