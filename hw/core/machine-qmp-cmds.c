@@ -27,6 +27,7 @@
 #include "sysemu/numa.h"
 #include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
+#include "exec/target_page.h"
 
 /*
  * fast means: we NEVER interrupt vCPU threads to retrieve
@@ -288,6 +289,8 @@ MemoryInfo *qmp_query_memory_size_summary(Error **errp)
     mem_info->plugged_memory = get_plugged_memory_size();
     mem_info->has_plugged_memory =
         mem_info->plugged_memory != (uint64_t)-1;
+
+    mem_info->page_size = qemu_target_page_size();
 
     return mem_info;
 }
