@@ -1761,7 +1761,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
-    uint32_t limit, i, j, cpuid_i;
+    uint32_t limit, i, j, cpuid_i, cpuid_0xa;
     uint32_t unused;
     struct kvm_cpuid_entry2 *c;
     uint32_t signature[3];
@@ -1773,6 +1773,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
     memset(&cpuid_data, 0, sizeof(cpuid_data));
 
     cpuid_i = 0;
+    cpuid_0xa = 0;
 
     has_xsave2 = kvm_check_extension(cs->kvm_state, KVM_CAP_XSAVE2);
 
@@ -2045,6 +2046,9 @@ int kvm_arch_init_vcpu(CPUState *cs)
             c->function = i;
             c->flags = 0;
             cpu_x86_cpuid(env, i, 0, &c->eax, &c->ebx, &c->ecx, &c->edx);
+            if (0x0a == i) {
+                cpuid_0xa = cpuid_i - 1;
+            }
             if (!c->eax && !c->ebx && !c->ecx && !c->edx) {
                 /*
                  * KVM already returns all zeroes if a CPUID entry is missing,
@@ -2059,7 +2063,11 @@ int kvm_arch_init_vcpu(CPUState *cs)
     if (limit >= 0x0a) {
         uint32_t eax, edx;
 
-        cpu_x86_cpuid(env, 0x0a, 0, &eax, &unused, &unused, &edx);
+        assert(cpuid_0xa >= 0x0a);
+
+        c = &cpuid_data.entries[cpuid_0xa];
+        eax = c->eax;
+        edx = c->edx;
 
         has_architectural_pmu_version = eax & 0xff;
         if (has_architectural_pmu_version > 0) {
@@ -2078,6 +2086,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
                 if (num_architectural_pmu_fixed_counters > MAX_FIXED_COUNTERS) {
                     num_architectural_pmu_fixed_counters = MAX_FIXED_COUNTERS;
+                    c->edx = (edx & ~0x1f) | num_architectural_pmu_fixed_counters;
                 }
             }
         }
