@@ -8772,6 +8772,74 @@ static int do_getdents64(abi_long dirfd, abi_long arg2, abi_long count)
 }
 #endif /* TARGET_NR_getdents64 */
 
+#if defined(TARGET_RISCV)
+
+#define RISCV_HWPROBE_KEY_MVENDORID     0
+#define RISCV_HWPROBE_KEY_MARCHID       1
+#define RISCV_HWPROBE_KEY_MIMPID        2
+
+#define RISCV_HWPROBE_KEY_BASE_BEHAVIOR 3
+#define     RISCV_HWPROBE_BASE_BEHAVIOR_IMA (1 << 0)
+
+#define RISCV_HWPROBE_KEY_IMA_EXT_0     4
+#define     RISCV_HWPROBE_IMA_FD       (1 << 0)
+#define     RISCV_HWPROBE_IMA_C        (1 << 1)
+
+#define RISCV_HWPROBE_KEY_CPUPERF_0     5
+#define     RISCV_HWPROBE_MISALIGNED_UNKNOWN     (0 << 0)
+#define     RISCV_HWPROBE_MISALIGNED_EMULATED    (1 << 0)
+#define     RISCV_HWPROBE_MISALIGNED_SLOW        (2 << 0)
+#define     RISCV_HWPROBE_MISALIGNED_FAST        (3 << 0)
+#define     RISCV_HWPROBE_MISALIGNED_UNSUPPORTED (4 << 0)
+#define     RISCV_HWPROBE_MISALIGNED_MASK        (7 << 0)
+
+struct riscv_hwprobe {
+    int64_t  key;
+    uint64_t value;
+};
+
+static void risc_hwprobe_fill_pairs(CPURISCVState *env,
+                                    struct riscv_hwprobe *pair,
+                                    size_t pair_count)
+{
+    const RISCVCPUConfig *cfg = riscv_cpu_cfg(env);
+
+    for (; pair_count > 0; pair_count--, pair++) {
+        pair->value = 0;
+        switch (pair->key) {
+        case RISCV_HWPROBE_KEY_MVENDORID:
+            pair->value = cfg->mvendorid;
+            break;
+        case RISCV_HWPROBE_KEY_MARCHID:
+            pair->value = cfg->marchid;
+            break;
+        case RISCV_HWPROBE_KEY_MIMPID:
+            pair->value = cfg->mimpid;
+            break;
+        case RISCV_HWPROBE_KEY_BASE_BEHAVIOR:
+            pair->value = riscv_has_ext(env, RVI) &&
+                          riscv_has_ext(env, RVM) &&
+                          riscv_has_ext(env, RVA) ?
+                          RISCV_HWPROBE_BASE_BEHAVIOR_IMA : 0;
+            break;
+        case RISCV_HWPROBE_KEY_IMA_EXT_0:
+            pair->value = riscv_has_ext(env, RVF) &&
+                          riscv_has_ext(env, RVD) ?
+                          RISCV_HWPROBE_IMA_FD : 0;
+            pair->value |= riscv_has_ext(env, RVC) ?
+                           RISCV_HWPROBE_IMA_C : pair->value;
+            break;
+        case RISCV_HWPROBE_KEY_CPUPERF_0:
+            pair->value = RISCV_HWPROBE_MISALIGNED_UNKNOWN;
+            break;
+        default:
+            pair->key = -1;
+        break;
+        }
+    }
+}
+#endif
+
 #if defined(TARGET_NR_pivot_root) && defined(__NR_pivot_root)
 _syscall2(int, pivot_root, const char *, new_root, const char *, put_old)
 #endif
@@ -13465,6 +13533,47 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             }
             unlock_user(p2, arg2, 0);
             unlock_user(p, arg1, 0);
+        }
+        return ret;
+#endif
+
+#if defined(TARGET_RISCV)
+    case TARGET_NR_riscv_hwprobe:
+        {
+            struct riscv_hwprobe *host_pairs;
+
+            /* flags must be 0 */
+            if (arg5 != 0) {
+                return -TARGET_EINVAL;
+            }
+
+            /* check cpu_set */
+            if (arg3 != 0) {
+                int ccpu;
+                size_t cpu_setsize = CPU_ALLOC_SIZE(arg3);
+                cpu_set_t *host_cpus = lock_user(VERIFY_READ, arg4,
+                                                 cpu_setsize, 0);
+                if (!host_cpus) {
+                    return -TARGET_EFAULT;
+                }
+                ccpu = CPU_COUNT_S(cpu_setsize, host_cpus);
+                unlock_user(host_cpus, arg4, cpu_setsize);
+                /* no selected cpu */
+                if (ccpu == 0) {
+                    return -TARGET_EINVAL;
+                }
+            } else if (arg4 != 0) {
+                return -TARGET_EINVAL;
+            }
+
+            host_pairs = lock_user(VERIFY_WRITE, arg1,
+                                   sizeof(*host_pairs) * (size_t)arg2, 0);
+            if (host_pairs == NULL) {
+                return -TARGET_EFAULT;
+            }
+            risc_hwprobe_fill_pairs(cpu_env, host_pairs, arg2);
+            unlock_user(host_pairs, arg1, sizeof(*host_pairs) * (size_t)arg2);
+            ret = 0;
         }
         return ret;
 #endif
