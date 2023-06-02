@@ -90,3 +90,8 @@ config VHOST_VDPA_DEV
     bool
     default y
     depends on VIRTIO && VHOST_VDPA && LINUX
+
+config VIRTIO_VCPU_STALL_WATCHDOG
+    bool
+    default y
+    depends on VIRTIO
