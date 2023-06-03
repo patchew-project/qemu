@@ -1298,6 +1298,52 @@ void aesenc_SB_SR_genrev(AESState *r, const AESState *st)
     aesenc_SB_SR_swap(r, st, true);
 }
 
+/* Perform InvSubBytes + InvShiftRows. */
+static inline void
+aesdec_ISB_ISR_swap(AESState *r, const AESState *st, bool swap)
+{
+    const int swap_b = swap ? 15 : 0;
+    uint8_t t;
+
+    /* These four indexes are not swizzled. */
+    r->b[swap_b ^ 0x0] = AES_isbox[st->b[swap_b ^ AES_ISH_0]];
+    r->b[swap_b ^ 0x4] = AES_isbox[st->b[swap_b ^ AES_ISH_4]];
+    r->b[swap_b ^ 0x8] = AES_isbox[st->b[swap_b ^ AES_ISH_8]];
+    r->b[swap_b ^ 0xc] = AES_isbox[st->b[swap_b ^ AES_ISH_C]];
+
+    /* Otherwise, break cycles. */
+
+    t = AES_isbox[st->b[swap_b ^ AES_ISH_5]];
+    r->b[swap_b ^ 0x1] = AES_isbox[st->b[swap_b ^ AES_ISH_1]];
+    r->b[swap_b ^ 0xd] = AES_isbox[st->b[swap_b ^ AES_ISH_D]];
+    r->b[swap_b ^ 0x9] = AES_isbox[st->b[swap_b ^ AES_ISH_9]];
+    r->b[swap_b ^ 0x5] = t;
+
+    t = AES_isbox[st->b[swap_b ^ AES_ISH_A]];
+    r->b[swap_b ^ 0x2] = AES_isbox[st->b[swap_b ^ AES_ISH_2]];
+    r->b[swap_b ^ 0xa] = t;
+
+    t = AES_isbox[st->b[swap_b ^ AES_ISH_E]];
+    r->b[swap_b ^ 0x6] = AES_isbox[st->b[swap_b ^ AES_ISH_6]];
+    r->b[swap_b ^ 0xe] = t;
+
+    t = AES_isbox[st->b[swap_b ^ AES_ISH_F]];
+    r->b[swap_b ^ 0x3] = AES_isbox[st->b[swap_b ^ AES_ISH_3]];
+    r->b[swap_b ^ 0x7] = AES_isbox[st->b[swap_b ^ AES_ISH_7]];
+    r->b[swap_b ^ 0xb] = AES_isbox[st->b[swap_b ^ AES_ISH_B]];
+    r->b[swap_b ^ 0xf] = t;
+}
+
+void aesdec_ISB_ISR_gen(AESState *r, const AESState *st)
+{
+    aesdec_ISB_ISR_swap(r, st, false);
+}
+
+void aesdec_ISB_ISR_genrev(AESState *r, const AESState *st)
+{
+    aesdec_ISB_ISR_swap(r, st, true);
+}
+
 /**
  * Expand the cipher key into the encryption key schedule.
  */

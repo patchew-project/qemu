@@ -12,4 +12,7 @@
 void aesenc_SB_SR_accel(AESState *, const AESState *, bool)
     QEMU_ERROR("unsupported accel");
 
+void aesdec_ISB_ISR_accel(AESState *, const AESState *, bool)
+    QEMU_ERROR("unsupported accel");
+
 #endif

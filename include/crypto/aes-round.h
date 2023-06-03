@@ -38,4 +38,22 @@ static inline void aesenc_SB_SR(AESState *r, const AESState *st, bool be)
     }
 }
 
+/*
+ * Perform InvSubBytes + InvShiftRows.
+ */
+
+void aesdec_ISB_ISR_gen(AESState *ret, const AESState *st);
+void aesdec_ISB_ISR_genrev(AESState *ret, const AESState *st);
+
+static inline void aesdec_ISB_ISR(AESState *r, const AESState *st, bool be)
+{
+    if (HAVE_AES_ACCEL) {
+        aesdec_ISB_ISR_accel(r, st, be);
+    } else if (HOST_BIG_ENDIAN == be) {
+        aesdec_ISB_ISR_gen(r, st);
+    } else {
+        aesdec_ISB_ISR_genrev(r, st);
+    }
+}
+
 #endif /* CRYPTO_AES_ROUND_H */
