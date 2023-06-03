@@ -1571,6 +1571,26 @@ void aesdec_ISB_ISR_IMC_AK_genrev(AESState *r, const AESState *st,
     aesdec_ISB_ISR_IMC_AK_swap(r, st, rk, true);
 }
 
+void aesdec_ISB_ISR_AK_IMC_gen(AESState *r, const AESState *st,
+                               const AESState *rk)
+{
+    AESState t;
+
+    aesdec_ISB_ISR_gen(&t, st);
+    t.v ^= rk->v;
+    aesdec_IMC_gen(r, &t);
+}
+
+void aesdec_ISB_ISR_AK_IMC_genrev(AESState *r, const AESState *st,
+                                  const AESState *rk)
+{
+    AESState t;
+
+    aesdec_ISB_ISR_genrev(&t, st);
+    t.v ^= rk->v;
+    aesdec_IMC_genrev(r, &t);
+}
+
 /**
  * Expand the cipher key into the encryption key schedule.
  */
