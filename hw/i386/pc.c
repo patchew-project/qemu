@@ -1770,7 +1770,10 @@ static void pc_machine_set_smbios_ep(Object *obj, Visitor *v, const char *name,
 {
     PCMachineState *pcms = PC_MACHINE(obj);
 
-    visit_type_SmbiosEntryPointType(v, name, &pcms->smbios_entry_point_type, errp);
+    pcms->smbios_use_cmdline_ep_type =
+        visit_type_SmbiosEntryPointType(v, name,
+                                        &pcms->smbios_entry_point_type,
+                                        errp);
 }
 
 static void pc_machine_get_max_ram_below_4g(Object *obj, Visitor *v,

@@ -50,6 +50,7 @@ typedef struct PCMachineState {
     bool i8042_enabled;
     bool default_bus_bypass_iommu;
     uint64_t max_fw_size;
+    bool smbios_use_cmdline_ep_type;
 
     /* ACPI Memory hotplug IO base address */
     hwaddr memhp_io_base;
@@ -110,6 +111,7 @@ struct PCMachineClass {
     bool smbios_defaults;
     bool smbios_legacy_mode;
     bool smbios_uuid_encoded;
+    SmbiosEntryPointType default_smbios_ep_type;
 
     /* RAM / address space compat: */
     bool gigabyte_align;
