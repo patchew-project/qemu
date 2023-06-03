@@ -29,6 +29,7 @@
  */
 #include "qemu/osdep.h"
 #include "crypto/aes.h"
+#include "crypto/aes-round.h"
 
 typedef uint32_t u32;
 typedef uint8_t u8;
@@ -1250,6 +1251,52 @@ static const u32 rcon[] = {
         0x10000000, 0x20000000, 0x40000000, 0x80000000,
         0x1B000000, 0x36000000, /* for 128-bit blocks, Rijndael never uses more than 10 rcon values */
 };
+
+/* Perform SubBytes + ShiftRows. */
+static inline void
+aesenc_SB_SR_swap(AESState *r, const AESState *st, bool swap)
+{
+    const int swap_b = swap ? 15 : 0;
+    uint8_t t;
+
+    /* These four indexes are not swizzled. */
+    r->b[swap_b ^ 0x0] = AES_sbox[st->b[swap_b ^ AES_SH_0]];
+    r->b[swap_b ^ 0x4] = AES_sbox[st->b[swap_b ^ AES_SH_4]];
+    r->b[swap_b ^ 0x8] = AES_sbox[st->b[swap_b ^ AES_SH_8]];
+    r->b[swap_b ^ 0xc] = AES_sbox[st->b[swap_b ^ AES_SH_C]];
+
+    /* Otherwise, break cycles. */
+
+    t = AES_sbox[st->b[swap_b ^ AES_SH_D]];
+    r->b[swap_b ^ 0x1] = AES_sbox[st->b[swap_b ^ AES_SH_1]];
+    r->b[swap_b ^ 0x5] = AES_sbox[st->b[swap_b ^ AES_SH_5]];
+    r->b[swap_b ^ 0x9] = AES_sbox[st->b[swap_b ^ AES_SH_9]];
+    r->b[swap_b ^ 0xd] = t;
+
+    t = AES_sbox[st->b[swap_b ^ AES_SH_A]];
+    r->b[swap_b ^ 0x2] = AES_sbox[st->b[swap_b ^ AES_SH_2]];
+    r->b[swap_b ^ 0xa] = t;
+
+    t = AES_sbox[st->b[swap_b ^ AES_SH_E]];
+    r->b[swap_b ^ 0x6] = AES_sbox[st->b[swap_b ^ AES_SH_6]];
+    r->b[swap_b ^ 0xe] = t;
+
+    t = AES_sbox[st->b[swap_b ^ AES_SH_7]];
+    r->b[swap_b ^ 0x3] = AES_sbox[st->b[swap_b ^ AES_SH_3]];
+    r->b[swap_b ^ 0xf] = AES_sbox[st->b[swap_b ^ AES_SH_F]];
+    r->b[swap_b ^ 0xb] = AES_sbox[st->b[swap_b ^ AES_SH_B]];
+    r->b[swap_b ^ 0x7] = t;
+}
+
+void aesenc_SB_SR_gen(AESState *r, const AESState *st)
+{
+    aesenc_SB_SR_swap(r, st, false);
+}
+
+void aesenc_SB_SR_genrev(AESState *r, const AESState *st)
+{
+    aesenc_SB_SR_swap(r, st, true);
+}
 
 /**
  * Expand the cipher key into the encryption key schedule.
