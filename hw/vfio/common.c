@@ -2062,7 +2062,7 @@ int vfio_region_setup(Object *obj, VFIODevice *vbasedev, VFIORegion *region,
 
     region->vbasedev = vbasedev;
     region->flags = info->flags;
-    region->size = info->size;
+    region->size = info->size ? pow2ceil(info->size) : info->size;
     region->fd_offset = info->offset;
     region->nr = index;
 
