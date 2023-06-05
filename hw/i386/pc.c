@@ -781,6 +781,18 @@ void pc_machine_done(Notifier *notifier, void *data)
 
     acpi_setup();
     if (x86ms->fw_cfg) {
+        PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
+
+        if (pcmc->smbios_defaults) {
+            MachineClass *mc = MACHINE_GET_CLASS(pcms);
+
+            /* These values are guest ABI, do not change */
+            smbios_set_defaults("QEMU", mc->desc,
+                                mc->name, pcmc->smbios_legacy_mode,
+                                pcmc->smbios_uuid_encoded,
+                                pcms->smbios_entry_point_type);
+        }
+
         fw_cfg_build_smbios(MACHINE(pcms), x86ms->fw_cfg);
         fw_cfg_build_feature_control(MACHINE(pcms), x86ms->fw_cfg);
         /* update FW_CFG_NB_CPUS to account for -device added CPUs */
