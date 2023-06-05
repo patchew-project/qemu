@@ -6915,7 +6915,7 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
     dc->popl_esp_hack = 0;
     /* select memory access functions */
     dc->mem_index = 0;
-#ifdef CONFIG_SOFTMMU
+#ifndef CONFIG_USER_ONLY
     dc->mem_index = cpu_mmu_index(env, false);
 #endif
     dc->cpuid_features = env->features[FEAT_1_EDX];
