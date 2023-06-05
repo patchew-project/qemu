@@ -7,6 +7,9 @@ config RISCV_NUMA
 config IBEX
     bool
 
+config IBEX_COMMON
+    bool
+
 # RISC-V machines in alphabetical order
 
 config MICROCHIP_PFSOC

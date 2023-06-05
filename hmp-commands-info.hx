@@ -1010,3 +1010,15 @@ SRST
   ``info firmware-log``
     Show the firmware (ovmf) debug log.
 ERST
+
+    {
+        .name       = "ibex",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Show Ibex vCPU info",
+    },
+
+SRST
+  ``info ibex``
+    Show Ibex vCPU information.
+ERST
