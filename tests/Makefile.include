@@ -1,5 +1,8 @@
 # -*- Mode: makefile -*-
 
+AVOCADO_MIN_VERSION=88.1
+PYCDLIB_MIN_VERSION=1.11.0
+
 .PHONY: check-help
 check-help:
 	@echo "Regression testing targets:"
@@ -90,7 +93,7 @@ distclean-tcg: $(DISTCLEAN_TCG_TARGET_RULES)
 TARGETS=$(patsubst libqemu-%.fa, %, $(filter libqemu-%.fa, $(ninja-targets)))
 
 TESTS_VENV_TOKEN=$(BUILD_DIR)/pyvenv/tests.group
-TESTS_VENV_REQ=$(SRC_PATH)/tests/requirements.txt
+TESTS_VENV_REQ=$(SRC_PATH)/python/tests/minreqs.txt
 TESTS_RESULTS_DIR=$(BUILD_DIR)/tests/results
 ifndef AVOCADO_TESTS
 	AVOCADO_TESTS=tests/avocado
@@ -112,7 +115,8 @@ quiet-venv-pip = $(quiet-@)$(call quiet-command-run, \
 
 $(TESTS_VENV_TOKEN): $(TESTS_VENV_REQ)
 	$(call quiet-venv-pip,install -e "$(SRC_PATH)/python/")
-	$(call quiet-venv-pip,install -r $(TESTS_VENV_REQ))
+	$(quiet-@)$(PYTHON) $(SRC_PATH)/python/scripts/mkvenv.py ensure --diagnose avocado --online \
+	      'avocado-framework>=$(AVOCADO_MIN_VERSION)' 'pycdlib>=$(PYCDLIB_MIN_VERSION)'
 	$(call quiet-command, touch $@)
 
 $(TESTS_RESULTS_DIR):

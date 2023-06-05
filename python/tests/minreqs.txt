@@ -23,7 +23,8 @@ distlib==0.3.6
 fusepy==2.0.4
 
 # Test-runners, utilities, etc.
-avocado-framework==90.0
+avocado-framework==88.1
+pycdlib==1.11.0
 
 # Linters
 flake8==5.0.4
