@@ -1,0 +1,87 @@
+QA output created by zoned-qcow2
+
+=== Initial image setup ===
+
+Formatting 'zbc.qcow2', fmt=qcow2 cluster_size=65536 extended_l2=off compression_type=zlib zoned_profile=zbc zone_size=67108864 zone_capacity=67108864 zone_nr_conv=0 max_append_sectors=512 max_active_zones=0 max_open_zones=0 size=805306368 lazy_refcounts=off refcount_bits=16
+
+=== Testing a qcow2 img with zoned format ===
+
+case 1: if the operations work
+(1) report the first zone:
+start: 0x0, len 0x20000, cap 0x20000, wptr 0x0, zcond:1, [type: 2]
+
+report the first 10 zones
+start: 0x0, len 0x20000, cap 0x20000, wptr 0x0, zcond:1, [type: 2]
+start: 0x20000, len 0x20000, cap 0x20000, wptr 0x20000, zcond:1, [type: 2]
+start: 0x40000, len 0x20000, cap 0x20000, wptr 0x40000, zcond:1, [type: 2]
+start: 0x60000, len 0x20000, cap 0x20000, wptr 0x60000, zcond:1, [type: 2]
+start: 0x80000, len 0x20000, cap 0x20000, wptr 0x80000, zcond:1, [type: 2]
+start: 0xa0000, len 0x20000, cap 0x20000, wptr 0xa0000, zcond:1, [type: 2]
+start: 0xc0000, len 0x20000, cap 0x20000, wptr 0xc0000, zcond:1, [type: 2]
+start: 0xe0000, len 0x20000, cap 0x20000, wptr 0xe0000, zcond:1, [type: 2]
+start: 0x100000, len 0x20000, cap 0x20000, wptr 0x100000, zcond:1, [type: 2]
+start: 0x120000, len 0x20000, cap 0x20000, wptr 0x120000, zcond:1, [type: 2]
+
+report the last zone:
+start: 0x160000, len 0x20000, cap 0x20000, wptr 0x160000, zcond:1, [type: 2]
+
+
+(2) opening the first zone
+wps[0]: 0x0
+report after:
+start: 0x0, len 0x20000, cap 0x20000, wptr 0x0, zcond:3, [type: 2]
+
+opening the second zone
+wps[1]: 0x20000
+report after:
+start: 0x20000, len 0x20000, cap 0x20000, wptr 0x20000, zcond:3, [type: 2]
+
+opening the last zone
+wps[11]: 0x160000
+report after:
+start: 0x160000, len 0x20000, cap 0x20000, wptr 0x160000, zcond:3, [type: 2]
+
+
+(3) closing the first zone
+wps[0]: 0x0
+report after:
+start: 0x0, len 0x20000, cap 0x20000, wptr 0x0, zcond:4, [type: 2]
+
+closing the last zone
+zone close failed: Input/output error
+report after:
+start: 0x1f380000, len 0x20000, cap 0x20000, wptr 0x0, zcond:0, [type: 2]
+start: 0x1f3a0000, len 0x20000, cap 0x20000, wptr 0x0, zcond:0, [type: 2]
+
+
+(4) finishing the second zone
+wps[1]: 0x40000
+After finishing a zone:
+start: 0x20000, len 0x20000, cap 0x20000, wptr 0x40000, zcond:14, [type: 2]
+
+
+(5) resetting the second zone
+wps[1]: 0x20000
+After resetting a zone:
+start: 0x20000, len 0x20000, cap 0x20000, wptr 0x20000, zcond:1, [type: 2]
+
+
+(6) append write
+start: 0x0, len 0x20000, cap 0x20000, wptr 0x0, zcond:4, [type: 2]
+wps[0]: 0x18
+After zap done, the append sector is 0x0
+After appending the first zone firstly:
+start: 0x0, len 0x20000, cap 0x20000, wptr 0x18, zcond:2, [type: 2]
+wps[0]: 0x30
+After zap done, the append sector is 0x18
+After appending the first zone secondly:
+start: 0x0, len 0x20000, cap 0x20000, wptr 0x30, zcond:2, [type: 2]
+wps[1]: 0x20018
+After zap done, the append sector is 0x20000
+After appending the second zone firstly:
+start: 0x20000, len 0x20000, cap 0x20000, wptr 0x20018, zcond:2, [type: 2]
+wps[1]: 0x20030
+After zap done, the append sector is 0x20018
+After appending the second zone secondly:
+start: 0x20000, len 0x20000, cap 0x20000, wptr 0x20030, zcond:2, [type: 2]
+*** done
