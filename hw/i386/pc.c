@@ -786,6 +786,14 @@ void pc_machine_done(Notifier *notifier, void *data)
         if (pcmc->smbios_defaults) {
             MachineClass *mc = MACHINE_GET_CLASS(pcms);
 
+            /*
+             * Check if user has specified a command line option
+             * to override the SMBIOS default entry point type.
+             */
+            if (!pcms->smbios_use_cmdline_ep_type) {
+                pcms->smbios_entry_point_type = pcmc->default_smbios_ep_type;
+            }
+
             /* These values are guest ABI, do not change */
             smbios_set_defaults("QEMU", mc->desc,
                                 mc->name, pcmc->smbios_legacy_mode,
@@ -1782,7 +1790,10 @@ static void pc_machine_set_smbios_ep(Object *obj, Visitor *v, const char *name,
 {
     PCMachineState *pcms = PC_MACHINE(obj);
 
-    visit_type_SmbiosEntryPointType(v, name, &pcms->smbios_entry_point_type, errp);
+    pcms->smbios_use_cmdline_ep_type =
+        visit_type_SmbiosEntryPointType(v, name,
+                                        &pcms->smbios_entry_point_type,
+                                        errp);
 }
 
 static void pc_machine_get_max_ram_below_4g(Object *obj, Visitor *v,
@@ -1992,6 +2003,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     mc->nvdimm_supported = true;
     mc->smp_props.dies_supported = true;
     mc->default_ram_id = "pc.ram";
+    pcmc->default_smbios_ep_type = SMBIOS_ENTRY_POINT_TYPE_64;
 
     object_class_property_add(oc, PC_MACHINE_MAX_RAM_BELOW_4G, "size",
         pc_machine_get_max_ram_below_4g, pc_machine_set_max_ram_below_4g,
