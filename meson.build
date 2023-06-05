@@ -4018,7 +4018,6 @@ endif
 summary_info += {'Doc directory':     get_option('prefix') / get_option('docdir')}
 summary_info += {'Build directory':   meson.current_build_dir()}
 summary_info += {'Source path':       meson.current_source_dir()}
-summary_info += {'GIT submodules':    config_host['GIT_SUBMODULES']}
 summary(summary_info, bool_yn: true, section: 'Directories')
 
 # Host binaries
