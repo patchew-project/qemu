@@ -26,6 +26,7 @@
 #include "qemu/xattr.h"
 #include "9p-iov-marshal.h"
 #include "hw/9pfs/9p-proxy.h"
+#include "hw/9pfs/9p-util.h"
 #include "fsdev/9p-iov-marshal.h"
 
 #define PROGNAME "virtfs-proxy-helper"
@@ -336,6 +337,49 @@ static void resetugid(int suid, int sgid)
     if (setresuid(-1, suid, suid) == -1) {
         abort();
     }
+}
+
+/*
+ * Open regular file or directory. Attempts to open any special file are
+ * rejected.
+ *
+ * returns file descriptor or -1 on error
+ */
+static int open_regular(const char *pathname, int flags, mode_t mode) {
+    int fd;
+    struct stat stbuf;
+
+    fd = open(pathname, flags, mode);
+    if (fd < 0) {
+        return fd;
+    }
+
+    /* CVE-2023-2861: Prohibit opening any special file directly on host
+     * (especially device files), as a compromised client could potentially
+     * gain access outside exported tree under certain, unsafe setups. We
+     * expect client to handle I/O on special files exclusively on guest side.
+     */
+    if (qemu_fstat(fd, &stbuf) < 0) {
+        close_preserve_errno(fd);
+        return -1;
+    }
+    if (!S_ISREG(stbuf.st_mode) && !S_ISDIR(stbuf.st_mode)) {
+        /* Tcreate and Tlcreate 9p messages mandate to immediately open the
+         * created file for I/O. So this is not (necessarily) due to a broken
+         * client, and hence no error message is to be reported in this case.
+         */
+        if (!(flags & O_CREAT)) {
+            error_report_once(
+                "9p: broken or compromised client detected; attempt to open "
+                "special file (i.e. neither regular file, nor directory)"
+            );
+        }
+        close(fd);
+        errno = ENXIO;
+        return -1;
+    }
+
+    return fd;
 }
 
 /*
@@ -682,7 +726,7 @@ static int do_create(struct iovec *iovec)
     if (ret < 0) {
         goto unmarshal_err_out;
     }
-    ret = open(path.data, flags, mode);
+    ret = open_regular(path.data, flags, mode);
     if (ret < 0) {
         ret = -errno;
     }
@@ -707,7 +751,7 @@ static int do_open(struct iovec *iovec)
     if (ret < 0) {
         goto err_out;
     }
-    ret = open(path.data, flags);
+    ret = open_regular(path.data, flags, 0);
     if (ret < 0) {
         ret = -errno;
     }

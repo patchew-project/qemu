@@ -13,6 +13,8 @@
 #ifndef QEMU_9P_UTIL_H
 #define QEMU_9P_UTIL_H
 
+#include "qemu/error-report.h"
+
 #ifdef O_PATH
 #define O_PATH_9P_UTIL O_PATH
 #else
@@ -95,6 +97,7 @@ static inline int errno_to_dotl(int err) {
 #endif
 
 #define qemu_openat     openat
+#define qemu_fstat      fstat
 #define qemu_fstatat    fstatat
 #define qemu_mkdirat    mkdirat
 #define qemu_renameat   renameat
@@ -118,6 +121,7 @@ static inline int openat_file(int dirfd, const char *name, int flags,
                               mode_t mode)
 {
     int fd, serrno, ret;
+    struct stat stbuf;
 
 #ifndef CONFIG_DARWIN
 again:
@@ -139,6 +143,31 @@ again:
             goto again;
         }
 #endif
+        return -1;
+    }
+
+    /* CVE-2023-2861: Prohibit opening any special file directly on host
+     * (especially device files), as a compromised client could potentially
+     * gain access outside exported tree under certain, unsafe setups. We
+     * expect client to handle I/O on special files exclusively on guest side.
+     */
+    if (qemu_fstat(fd, &stbuf) < 0) {
+        close_preserve_errno(fd);
+        return -1;
+    }
+    if (!S_ISREG(stbuf.st_mode) && !S_ISDIR(stbuf.st_mode)) {
+        /* Tcreate and Tlcreate 9p messages mandate to immediately open the
+         * created file for I/O. So this is not (necessarily) due to a broken
+         * client, and hence no error message is to be reported in this case.
+         */
+        if (!(flags & O_CREAT)) {
+            error_report_once(
+                "9p: broken or compromised client detected; attempt to open "
+                "special file (i.e. neither regular file, nor directory)"
+            );
+        }
+        close(fd);
+        errno = ENXIO;
         return -1;
     }
 
