@@ -1146,6 +1146,7 @@ static void migrate_fd_cleanup(MigrationState *s)
         qemu_mutex_lock_iothread();
 
         multifd_save_cleanup();
+        qmp_migration_threads_cleanup();
         qemu_mutex_lock(&s->qemu_file_lock);
         tmp = s->to_dst_file;
         s->to_dst_file = NULL;
@@ -1405,6 +1406,8 @@ void migrate_init(MigrationState *s)
     s->vm_old_state = -1;
     s->iteration_initial_bytes = 0;
     s->threshold_size = 0;
+
+    qmp_migration_threads_init();
 }
 
 int migrate_add_blocker_internal(Error *reason, Error **errp)
@@ -2997,10 +3000,10 @@ static void *migration_thread(void *opaque)
     }
 
     trace_migration_thread_after_loop();
+    qmp_migration_threads_remove(thread);
     migration_iteration_finish(s);
     object_unref(OBJECT(s));
     rcu_unregister_thread();
-    qmp_migration_threads_remove(thread);
     return NULL;
 }
 

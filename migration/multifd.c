@@ -762,12 +762,13 @@ out:
         qemu_sem_post(&multifd_send_state->channels_ready);
     }
 
+    qmp_migration_threads_remove(thread);
+
     qemu_mutex_lock(&p->mutex);
     p->running = false;
     qemu_mutex_unlock(&p->mutex);
 
     rcu_unregister_thread();
-    qmp_migration_threads_remove(thread);
     trace_multifd_send_thread_end(p->id, p->num_packets, p->total_normal_pages);
 
     return NULL;

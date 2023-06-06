@@ -10,9 +10,23 @@
  *  See the COPYING file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
+#include "qemu/queue.h"
+#include "qemu/lockable.h"
 #include "threadinfo.h"
 
+QemuMutex migration_threads_lock;
 static QLIST_HEAD(, MigrationThread) migration_threads;
+
+void qmp_migration_threads_init(void)
+{
+    qemu_mutex_init(&migration_threads_lock);
+}
+
+void qmp_migration_threads_cleanup(void)
+{
+    qemu_mutex_destroy(&migration_threads_lock);
+}
 
 MigrationThread *qmp_migration_threads_add(const char *name, int thread_id)
 {
@@ -20,13 +34,16 @@ MigrationThread *qmp_migration_threads_add(const char *name, int thread_id)
     thread->name = name;
     thread->thread_id = thread_id;
 
-    QLIST_INSERT_HEAD(&migration_threads, thread, node);
+    WITH_QEMU_LOCK_GUARD(&migration_threads_lock) {
+        QLIST_INSERT_HEAD(&migration_threads, thread, node);
+    }
 
     return thread;
 }
 
 void qmp_migration_threads_remove(MigrationThread *thread)
 {
+    QEMU_LOCK_GUARD(&migration_threads_lock);
     if (thread) {
         QLIST_REMOVE(thread, node);
         g_free(thread);

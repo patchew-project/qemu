@@ -10,8 +10,6 @@
  *  See the COPYING file in the top-level directory.
  */
 
-#include "qemu/queue.h"
-#include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-migration.h"
 
@@ -22,6 +20,9 @@ struct MigrationThread {
     int thread_id; /* ID of the underlying host thread */
     QLIST_ENTRY(MigrationThread) node;
 };
+
+void qmp_migration_threads_init(void);
+void qmp_migration_threads_cleanup(void);
 
 MigrationThread *qmp_migration_threads_add(const char *name, int thread_id);
 void qmp_migration_threads_remove(MigrationThread *info);
