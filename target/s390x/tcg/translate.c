@@ -45,7 +45,7 @@
 #include "exec/log.h"
 #include "qemu/atomic128.h"
 
-#define HELPER_H "helper.h"
+#define HELPER_H "helper.h.inc"
 #include "exec/helper-info.c.inc"
 #undef  HELPER_H
 

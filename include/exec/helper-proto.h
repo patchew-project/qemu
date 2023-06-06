@@ -9,7 +9,7 @@
 
 #include "exec/helper-proto-common.h"
 
-#define HELPER_H "helper.h"
+#define HELPER_H "helper.h.inc"
 #include "exec/helper-proto.h.inc"
 #undef  HELPER_H
 

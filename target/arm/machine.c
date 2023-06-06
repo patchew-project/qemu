@@ -462,7 +462,7 @@ static bool pmsav7_rnr_needed(void *opaque)
     CPUARMState *env = &cpu->env;
 
     /* For R profile cores pmsav7.rnr is migrated via the cpreg
-     * "RGNR" definition in helper.h. For M profile we have to
+     * "RGNR" definition in helper.h.inc. For M profile we have to
      * migrate it separately.
      */
     return arm_feature(env, ARM_FEATURE_M);

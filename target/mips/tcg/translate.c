@@ -32,7 +32,7 @@
 #include "disas/disas.h"
 #include "fpu_helper.h"
 
-#define HELPER_H "helper.h"
+#define HELPER_H "helper.h.inc"
 #include "exec/helper-info.c.inc"
 #undef  HELPER_H
 

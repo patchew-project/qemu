@@ -151,7 +151,7 @@ Types
 Helpers
 =======
 
-Helpers are registered in a guest-specific ``helper.h``,
+Helpers are registered in a guest-specific ``helper.h.inc``,
 which is processed to generate ``tcg_gen_helper_*`` functions.
 With these functions it is possible to call a function taking
 i32, i64, i128 or pointer types.

@@ -34,7 +34,7 @@
 #include "qemu/qemu-print.h"
 #include "semihosting/semihost.h"
 
-#define HELPER_H "helper.h"
+#define HELPER_H "helper.h.inc"
 #include "exec/helper-info.c.inc"
 #undef  HELPER_H
 

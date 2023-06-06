@@ -34,7 +34,7 @@
 #include "exec/log.h"
 #include "fpu/softfloat.h"
 
-#define HELPER_H "helper.h"
+#define HELPER_H "helper.h.inc"
 #include "exec/helper-info.c.inc"
 #undef  HELPER_H
 
