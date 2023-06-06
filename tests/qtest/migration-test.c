@@ -433,16 +433,23 @@ static void migrate_set_parameter_bool(QTestState *who, const char *parameter,
 
 static void migrate_ensure_non_converge(QTestState *who)
 {
-    /* Can't converge with 1ms downtime + 3 mbs bandwidth limit */
-    migrate_set_parameter_int(who, "max-bandwidth", 3 * 1000 * 1000);
-    migrate_set_parameter_int(who, "downtime-limit", 1);
+    /* Hold off switchover for precopy only */
+    migrate_set_parameter_bool(who, "switchover-hold", true);
 }
 
 static void migrate_ensure_converge(QTestState *who)
 {
-    /* Should converge with 30s downtime + 1 gbs bandwidth limit */
-    migrate_set_parameter_int(who, "max-bandwidth", 1 * 1000 * 1000 * 1000);
-    migrate_set_parameter_int(who, "downtime-limit", 30 * 1000);
+    migrate_set_parameter_bool(who, "switchover-hold", false);
+}
+
+static void migrate_set_bandwidth_precopy(QTestState *who, int bw)
+{
+    migrate_set_parameter_int(who, "max-bandwidth", bw);
+}
+
+static void migrate_set_bandwidth_postcopy(QTestState *who, int bw)
+{
+    migrate_set_parameter_int(who, "max-postcopy-bandwidth", bw);
 }
 
 static void migrate_pause(QTestState *who)
@@ -735,6 +742,14 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     if (args->use_shmem) {
         unlink(shmem_path);
     }
+
+    /*
+     * By default, use full speed for precopy in qtests as that will reduce
+     * the time of testing. The default bandwidth (128MB/s) may be too slow
+     * in this case.  Specific test can overwrite this value after the
+     * function returns but before starting migration.
+     */
+    migrate_set_bandwidth_precopy(*from, 0);
 
     return 0;
 }
@@ -1168,9 +1183,13 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
+    /*
+     * Limit precopy to 200MB/s for 0.1 sec, so we guarantee to leave
+     * enough pages (total-20MB) for remote page fault processes later.
+     */
+    migrate_set_bandwidth_precopy(from, 200 * 1024 * 1024);
     migrate_qmp(from, uri, "{}");
-
-    wait_for_migration_pass(from);
+    usleep(100000);
 
     *from_ptr = from;
     *to_ptr = to;
@@ -1270,7 +1289,7 @@ static void test_postcopy_recovery_common(MigrateCommon *args)
     }
 
     /* Turn postcopy speed down, 4K/s is slow enough on any machines */
-    migrate_set_parameter_int(from, "max-postcopy-bandwidth", 4096);
+    migrate_set_bandwidth_postcopy(from, 4096);
 
     /* Now we start the postcopy */
     migrate_postcopy_start(from, to);
@@ -1314,7 +1333,7 @@ static void test_postcopy_recovery_common(MigrateCommon *args)
     migrate_qmp(from, uri, "{'resume': true}");
 
     /* Restore the postcopy bandwidth to unlimited */
-    migrate_set_parameter_int(from, "max-postcopy-bandwidth", 0);
+    migrate_set_bandwidth_postcopy(from, 0);
 
     migrate_postcopy_complete(from, to, args);
 }
