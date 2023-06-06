@@ -368,6 +368,11 @@ int gd_egl_make_current(DisplayGLCtx *dgc,
 {
     VirtualConsole *vc = container_of(dgc, VirtualConsole, gfx.dgc);
 
-    return eglMakeCurrent(qemu_egl_display, vc->gfx.esurface,
-                          vc->gfx.esurface, ctx);
+    if (!eglMakeCurrent(qemu_egl_display, vc->gfx.esurface,
+                        vc->gfx.esurface, ctx)) {
+        error_report("egl: eglMakeCurrent failed: %s", qemu_egl_get_error_string());
+        return -1;
+    }
+
+    return 0;
 }
