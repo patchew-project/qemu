@@ -24,7 +24,7 @@ The sbsa-ref board supports:
   - A configurable number of AArch64 CPUs
   - GIC version 3
   - System bus AHCI controller
-  - System bus EHCI controller
+  - System bus XHCI controller
   - CDROM and hard disc on AHCI bus
   - E1000E ethernet card on PCIe bus
   - Bochs display adapter on PCIe bus
