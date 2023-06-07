@@ -793,6 +793,9 @@
 #     limit during live migration. Should be in the range 1 to 1000ms,
 #     defaults to 1000ms.  (Since 8.2)
 #
+# @vcpu-dirty-limit: Dirty page rate limit (MB/s) during live
+#     migration, defaults to 1.  (Since 8.2)
+#
 # Features:
 #
 # @unstable: Members @x-checkpoint-delay and
@@ -817,7 +820,8 @@
            'multifd-zlib-level', 'multifd-zstd-level',
            'block-bitmap-mapping',
            { 'name': 'x-vcpu-dirty-limit-period',
-             'features': ['unstable'] } ] }
+             'features': ['unstable'] },
+           'vcpu-dirty-limit'] }
 
 ##
 # @MigrateSetParameters:
@@ -956,6 +960,9 @@
 #     limit during live migration. Should be in the range 1 to 1000ms,
 #     defaults to 1000ms.  (Since 8.2)
 #
+# @vcpu-dirty-limit: Dirty page rate limit (MB/s) during live
+#     migration, defaults to 1.  (Since 8.2)
+#
 # Features:
 #
 # @unstable: Members @x-checkpoint-delay and
@@ -996,7 +1003,8 @@
             '*multifd-zstd-level': 'uint8',
             '*block-bitmap-mapping': [ 'BitmapMigrationNodeAlias' ],
             '*x-vcpu-dirty-limit-period': { 'type': 'uint64',
-                                            'features': [ 'unstable' ] } } }
+                                            'features': [ 'unstable' ] },
+            '*vcpu-dirty-limit': 'uint64'} }
 
 ##
 # @migrate-set-parameters:
@@ -1155,6 +1163,9 @@
 #     limit during live migration. Should be in the range 1 to 1000ms,
 #     defaults to 1000ms.  (Since 8.2)
 #
+# @vcpu-dirty-limit: Dirty page rate limit (MB/s) during live
+#     migration, defaults to 1.  (Since 8.2)
+#
 # Features:
 #
 # @unstable: Members @x-checkpoint-delay and
@@ -1192,7 +1203,8 @@
             '*multifd-zstd-level': 'uint8',
             '*block-bitmap-mapping': [ 'BitmapMigrationNodeAlias' ],
             '*x-vcpu-dirty-limit-period': { 'type': 'uint64',
-                                            'features': [ 'unstable' ] } } }
+                                            'features': [ 'unstable' ] },
+            '*vcpu-dirty-limit': 'uint64'} }
 
 ##
 # @query-migrate-parameters:
