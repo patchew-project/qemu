@@ -108,8 +108,7 @@ static void pci_proxy_dev_realize(PCIDevice *device, Error **errp)
 
     error_setg(&dev->migration_blocker, "%s does not support migration",
                TYPE_PCI_PROXY_DEV);
-    if (migrate_add_blocker(dev->migration_blocker, errp) < 0) {
-        error_free(dev->migration_blocker);
+    if (migrate_add_blocker(&dev->migration_blocker, errp) < 0) {
         object_unref(dev->ioc);
         return;
     }
@@ -135,9 +134,7 @@ static void pci_proxy_dev_exit(PCIDevice *pdev)
         qio_channel_close(dev->ioc, NULL);
     }
 
-    migrate_del_blocker(dev->migration_blocker);
-
-    error_free(dev->migration_blocker);
+    migrate_del_blocker(&dev->migration_blocker);
 
     proxy_memory_listener_deconfigure(&dev->proxy_listener);
 

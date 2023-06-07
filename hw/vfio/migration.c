@@ -662,12 +662,7 @@ add_blocker:
     error_setg(&vbasedev->migration_blocker,
                "VFIO device doesn't support migration");
 
-    ret = migrate_add_blocker(vbasedev->migration_blocker, errp);
-    if (ret < 0) {
-        error_free(vbasedev->migration_blocker);
-        vbasedev->migration_blocker = NULL;
-    }
-    return ret;
+    return migrate_add_blocker(&vbasedev->migration_blocker, errp);
 }
 
 void vfio_migration_exit(VFIODevice *vbasedev)
@@ -682,9 +677,5 @@ void vfio_migration_exit(VFIODevice *vbasedev)
         vfio_unblock_multiple_devices_migration();
     }
 
-    if (vbasedev->migration_blocker) {
-        migrate_del_blocker(vbasedev->migration_blocker);
-        error_free(vbasedev->migration_blocker);
-        vbasedev->migration_blocker = NULL;
-    }
+    migrate_del_blocker(&vbasedev->migration_blocker);
 }
