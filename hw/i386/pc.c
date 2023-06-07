@@ -1756,6 +1756,22 @@ static void pc_machine_set_default_bus_bypass_iommu(Object *obj, bool value,
     pcms->default_bus_bypass_iommu = value;
 }
 
+static void pc_machine_init_smbios(PCMachineState *pcms)
+{
+    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
+    MachineClass *mc = MACHINE_GET_CLASS(pcms);
+
+    if (!pcmc->smbios_defaults) {
+        return;
+    }
+
+    /* These values are guest ABI, do not change */
+    smbios_set_defaults("QEMU", mc->desc,
+                        mc->name, pcmc->smbios_legacy_mode,
+                        pcmc->smbios_uuid_encoded,
+                        pcms->smbios_entry_point_type);
+}
+
 static void pc_machine_get_smbios_ep(Object *obj, Visitor *v, const char *name,
                                      void *opaque, Error **errp)
 {
@@ -1768,9 +1784,14 @@ static void pc_machine_get_smbios_ep(Object *obj, Visitor *v, const char *name,
 static void pc_machine_set_smbios_ep(Object *obj, Visitor *v, const char *name,
                                      void *opaque, Error **errp)
 {
+    SmbiosEntryPointType ep_type;
     PCMachineState *pcms = PC_MACHINE(obj);
 
-    visit_type_SmbiosEntryPointType(v, name, &pcms->smbios_entry_point_type, errp);
+    if (!visit_type_SmbiosEntryPointType(v, name, &ep_type, errp)) {
+        return;
+    }
+    pcms->smbios_entry_point_type = ep_type;
+    pc_machine_init_smbios(pcms);
 }
 
 static void pc_machine_get_max_ram_below_4g(Object *obj, Visitor *v,
@@ -1878,6 +1899,7 @@ static void pc_machine_initfn(Object *obj)
     object_property_add_alias(OBJECT(pcms), "pcspk-audiodev",
                               OBJECT(pcms->pcspk), "audiodev");
     cxl_machine_init(obj, &pcms->cxl_devices_state);
+    pc_machine_init_smbios(pcms);
 }
 
 int pc_machine_kvm_type(MachineState *machine, const char *kvm_type)
