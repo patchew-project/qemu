@@ -3083,7 +3083,7 @@ static int img_info(int argc, char **argv)
 }
 
 static int dump_map_entry(OutputFormat output_format, MapEntry *e,
-                          MapEntry *next)
+                          MapEntry *next, bool can_compress)
 {
     switch (output_format) {
     case OFORMAT_HUMAN:
@@ -3112,6 +3112,9 @@ static int dump_map_entry(OutputFormat output_format, MapEntry *e,
                e->present ? "true" : "false",
                e->zero ? "true" : "false",
                e->data ? "true" : "false");
+        if (can_compress) {
+            printf(", \"compressed\": %s", e->compressed ? "true" : "false");
+        }
         if (e->has_offset) {
             printf(", \"offset\": %"PRId64"", e->offset);
         }
@@ -3172,6 +3175,7 @@ static int get_block_status(BlockDriverState *bs, int64_t offset,
         .length = bytes,
         .data = !!(ret & BDRV_BLOCK_DATA),
         .zero = !!(ret & BDRV_BLOCK_ZERO),
+        .compressed = !!(ret & BDRV_BLOCK_COMPRESSED),
         .offset = map,
         .has_offset = has_offset,
         .depth = depth,
@@ -3189,6 +3193,7 @@ static inline bool entry_mergeable(const MapEntry *curr, const MapEntry *next)
     }
     if (curr->zero != next->zero ||
         curr->data != next->data ||
+        curr->compressed != next->compressed ||
         curr->depth != next->depth ||
         curr->present != next->present ||
         !curr->filename != !next->filename ||
@@ -3218,6 +3223,7 @@ static int img_map(int argc, char **argv)
     bool force_share = false;
     int64_t start_offset = 0;
     int64_t max_length = -1;
+    bool can_compress = false;
 
     fmt = NULL;
     output = NULL;
@@ -3313,6 +3319,10 @@ static int img_map(int argc, char **argv)
         length = MIN(start_offset + max_length, length);
     }
 
+    if (output_format == OFORMAT_JSON) {
+        can_compress = block_driver_can_compress(bs->drv);
+    }
+
     curr.start = start_offset;
     while (curr.start + curr.length < length) {
         int64_t offset = curr.start + curr.length;
@@ -3330,7 +3340,7 @@ static int img_map(int argc, char **argv)
         }
 
         if (curr.length > 0) {
-            ret = dump_map_entry(output_format, &curr, &next);
+            ret = dump_map_entry(output_format, &curr, &next, can_compress);
             if (ret < 0) {
                 goto out;
             }
@@ -3338,7 +3348,7 @@ static int img_map(int argc, char **argv)
         curr = next;
     }
 
-    ret = dump_map_entry(output_format, &curr, NULL);
+    ret = dump_map_entry(output_format, &curr, NULL, can_compress);
     if (output_format == OFORMAT_JSON) {
         puts("]");
     }
