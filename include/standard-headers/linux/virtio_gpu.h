@@ -116,6 +116,9 @@ enum virtio_gpu_ctrl_type {
 	VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID,
 	VIRTIO_GPU_RESP_ERR_INVALID_CONTEXT_ID,
 	VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER,
+
+	/* status */
+	VIRTIO_GPU_CMD_STATUS_FREEZING = 0x1300,
 };
 
 enum virtio_gpu_shm_id {
@@ -451,6 +454,12 @@ struct virtio_gpu_resource_unmap_blob {
 	struct virtio_gpu_ctrl_hdr hdr;
 	uint32_t resource_id;
 	uint32_t padding;
+};
+
+/* VIRTIO_GPU_CMD_STATUS_FREEZING */
+struct virtio_gpu_status_freezing {
+	struct virtio_gpu_ctrl_hdr hdr;
+	__u32 freezing;
 };
 
 #endif
