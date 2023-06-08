@@ -1591,8 +1591,6 @@ static void test_precopy_unix_tls_x509_override_host(void)
 #endif /* CONFIG_TASN1 */
 #endif /* CONFIG_GNUTLS */
 
-#if 0
-/* Currently upset on aarch64 TCG */
 static void test_ignore_shared(void)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
@@ -1629,7 +1627,6 @@ static void test_ignore_shared(void)
 
     test_migrate_end(from, to, true);
 }
-#endif
 
 static void *
 test_migrate_xbzrle_start(QTestState *from,
@@ -2771,7 +2768,7 @@ int main(int argc, char **argv)
 #endif /* CONFIG_TASN1 */
 #endif /* CONFIG_GNUTLS */
 
-    /* qtest_add_func("/migration/ignore_shared", test_ignore_shared); */
+    qtest_add_func("/migration/ignore_shared", test_ignore_shared);
 #ifndef _WIN32
     qtest_add_func("/migration/fd_proto", test_migrate_fd_proto);
 #endif
