@@ -777,33 +777,26 @@ typedef struct {
     bool postcopy_preempt;
 } MigrateCommon;
 
-static void test_migrate_end(GuestState *from, GuestState *to, bool test_dest)
+static void test_migrate_check(GuestState *from, GuestState *to)
 {
     unsigned char dest_byte_a, dest_byte_b, dest_byte_c, dest_byte_d;
 
-    guest_destroy(from);
+    qtest_memread(to->qs, to->start_address, &dest_byte_a, 1);
 
-    if (test_dest) {
-        qtest_memread(to->qs, to->start_address, &dest_byte_a, 1);
+    /* Destination still running, wait for a byte to change */
+    do {
+        qtest_memread(to->qs, to->start_address, &dest_byte_b, 1);
+        usleep(1000 * 10);
+    } while (dest_byte_a == dest_byte_b);
 
-        /* Destination still running, wait for a byte to change */
-        do {
-            qtest_memread(to->qs, to->start_address, &dest_byte_b, 1);
-            usleep(1000 * 10);
-        } while (dest_byte_a == dest_byte_b);
+    qtest_qmp_assert_success(to->qs, "{ 'execute' : 'stop'}");
 
-        qtest_qmp_assert_success(to->qs, "{ 'execute' : 'stop'}");
-
-        /* With it stopped, check nothing changes */
-        qtest_memread(to->qs, to->start_address, &dest_byte_c, 1);
-        usleep(1000 * 200);
-        qtest_memread(to->qs, to->start_address, &dest_byte_d, 1);
-        g_assert_cmpint(dest_byte_c, ==, dest_byte_d);
-
-        check_guests_ram(to);
-    }
-
-    guest_destroy(to);
+    /* With it stopped, check nothing changes */
+    qtest_memread(to->qs, to->start_address, &dest_byte_c, 1);
+    usleep(1000 * 200);
+    qtest_memread(to->qs, to->start_address, &dest_byte_d, 1);
+    g_assert_cmpint(dest_byte_c, ==, dest_byte_d);
+    check_guests_ram(to);
 }
 
 #ifdef CONFIG_GNUTLS
@@ -1203,7 +1196,9 @@ static void migrate_postcopy_complete(GuestState *from, GuestState *to,
         args->postcopy_data = NULL;
     }
 
-    test_migrate_end(from, to, true);
+    guest_destroy(from);
+    test_migrate_check(from, to);
+    guest_destroy(to);
 }
 
 static void test_postcopy_common(GuestState *from, GuestState *to,
@@ -1399,7 +1394,8 @@ static void test_baddest(void)
      */
     migrate_qmp(from->qs, "tcp:127.0.0.1:0", "{}");
     wait_for_migration_fail(from->qs, false);
-    test_migrate_end(from, to, false);
+    guest_destroy(from);
+    guest_destroy(to);
 }
 
 static void test_precopy_common(GuestState *from, GuestState *to,
@@ -1497,7 +1493,11 @@ static void test_precopy_common(GuestState *from, GuestState *to,
         args->finish_hook(from, to, data_hook);
     }
 
-    test_migrate_end(from, to, args->result == MIG_TEST_SUCCEED);
+    guest_destroy(from);
+    if (args->result == MIG_TEST_SUCCEED) {
+        test_migrate_check(from, to);
+    }
+    guest_destroy(to);
 }
 
 static void test_precopy_unix_plain(void)
@@ -1615,7 +1615,9 @@ static void test_ignore_shared(void)
     g_assert_cmpint(
         read_ram_property_int(from->qs, "transferred"), <, 1024 * 1024);
 
-    test_migrate_end(from, to, true);
+    guest_destroy(from);
+    test_migrate_check(from, to);
+    guest_destroy(to);
 }
 
 static void *
@@ -1925,7 +1927,8 @@ static void do_test_validate_uuid(GuestState *from, GuestState *to,
         wait_for_migration_complete(from->qs);
     }
 
-    test_migrate_end(from, to, false);
+    guest_destroy(from);
+    guest_destroy(to);
 }
 
 static void test_validate_uuid(void)
@@ -2055,7 +2058,9 @@ static void test_migrate_auto_converge(void)
     wait_for_serial(to);
     wait_for_migration_complete(from->qs);
 
-    test_migrate_end(from, to, true);
+    guest_destroy(from);
+    test_migrate_check(from, to);
+    guest_destroy(to);
 }
 
 static void *
@@ -2374,7 +2379,9 @@ static void test_multifd_tcp_cancel(void)
 
     wait_for_serial(to2);
     wait_for_migration_complete(from->qs);
-    test_migrate_end(from, to2, true);
+    guest_destroy(from);
+    test_migrate_check(from, to2);
+    guest_destroy(to2);
 }
 
 static void calc_dirty_rate(QTestState *who, uint64_t calc_time)
