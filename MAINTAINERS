@@ -3176,7 +3176,8 @@ F: include/qemu/userfaultfd.h
 F: migration/
 F: scripts/vmstate-static-checker.py
 F: tests/vmstate-static-checker-data/
-F: tests/qtest/migration-test.c
+F: tests/qtest/migration-*
+F: tests/qtest/vcpu-dirty-limit-test.c
 F: docs/devel/migration.rst
 F: qapi/migration.json
 F: tests/migration/

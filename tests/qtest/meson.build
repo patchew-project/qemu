@@ -9,6 +9,7 @@ slow_qtests = {
   'qos-test' : 60,
   'qom-test' : 300,
   'test-hmp' : 120,
+  'vcpu-dirty-limit' : 150,
 }
 
 qtests_generic = [
@@ -101,7 +102,8 @@ qtests_i386 = \
    'vmgenid-test',
    'migration-test',
    'test-x86-cpuid-compat',
-   'numa-test'
+   'numa-test',
+   'vcpu-dirty-limit-test',
   ]
 
 if dbus_display and targetos != 'windows'
@@ -315,6 +317,7 @@ qtests = {
   'tpm-tis-device-test': [io, tpmemu_files, 'tpm-tis-util.c'],
   'vmgenid-test': files('boot-sector.c', 'acpi-utils.c'),
   'netdev-socket': files('netdev-socket.c', '../unit/socket-helpers.c'),
+  'vcpu-dirty-limit-test': migration_files,
 }
 
 if vnc.found()
