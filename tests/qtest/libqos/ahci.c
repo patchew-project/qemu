@@ -444,17 +444,32 @@ void ahci_port_check_interrupts(AHCIQState *ahci, uint8_t port,
     g_assert_cmphex(ahci_px_rreg(ahci, port, AHCI_PX_IS), ==, 0);
 }
 
-void ahci_port_check_nonbusy(AHCIQState *ahci, uint8_t port, uint8_t slot)
+void ahci_port_check_nonbusy(AHCIQState *ahci, AHCICommand *cmd)
 {
+    uint8_t slot = cmd->slot;
+    uint8_t port = cmd->port;
     uint32_t reg;
 
-    /* Assert that the command slot is no longer busy (NCQ) */
+    /* For NCQ command with error PxSACT bit should still be set.
+     * For NCQ command without error, PxSACT bit should be cleared.
+     * For non-NCQ command, PxSACT bit should always be cleared. */
     reg = ahci_px_rreg(ahci, port, AHCI_PX_SACT);
-    ASSERT_BIT_CLEAR(reg, (1 << slot));
+    if (cmd->props->ncq && cmd->errors) {
+        ASSERT_BIT_SET(reg, (1 << slot));
+    } else {
+        ASSERT_BIT_CLEAR(reg, (1 << slot));
+    }
 
-    /* Non-NCQ */
+    /* For non-NCQ command with error, PxCI bit should still be set.
+     * For non-NCQ command without error, PxCI bit should be cleared.
+     * For NCQ command without error, PxCI bit should be cleared.
+     * For NCQ command with error, PxCI bit may or may not be cleared. */
     reg = ahci_px_rreg(ahci, port, AHCI_PX_CI);
-    ASSERT_BIT_CLEAR(reg, (1 << slot));
+    if (!cmd->props->ncq && cmd->errors) {
+        ASSERT_BIT_SET(reg, (1 << slot));
+    } else if (!cmd->errors) {
+        ASSERT_BIT_CLEAR(reg, (1 << slot));
+    }
 
     /* And assert that we are generally not busy. */
     reg = ahci_px_rreg(ahci, port, AHCI_PX_TFD);
@@ -1229,7 +1244,7 @@ void ahci_command_verify(AHCIQState *ahci, AHCICommand *cmd)
 
     ahci_port_check_error(ahci, port, cmd->interrupts, cmd->errors);
     ahci_port_check_interrupts(ahci, port, cmd->interrupts);
-    ahci_port_check_nonbusy(ahci, port, slot);
+    ahci_port_check_nonbusy(ahci, cmd);
     ahci_port_check_cmd_sanity(ahci, cmd);
     if (cmd->interrupts & AHCI_PX_IS_DHRS) {
         ahci_port_check_d2h_sanity(ahci, port, slot);
