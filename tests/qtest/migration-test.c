@@ -667,12 +667,22 @@ static void migrate_postcopy_start(GuestState *from, GuestState *to)
 
 static void do_migrate(GuestState *from, GuestState *to, const gchar *uri)
 {
-    if (!uri) {
-        g_autofree char *tcp_uri =
-            migrate_get_socket_address(to->qs, "socket-address");
-        migrate_qmp(from->qs, tcp_uri, "{}");
+    if (to->uri) {
+        if (strncmp(to->uri, "tcp:", strlen("tcp:")) == 0) {
+            g_autofree char *tcp_uri =
+                migrate_get_socket_address(to->qs, "socket-address");
+            migrate_qmp(from->qs, tcp_uri, "{}");
+        } else {
+            migrate_qmp(from->qs, to->uri, "{}");
+        }
     } else {
-        migrate_qmp(from->qs, uri, "{}");
+        if (!uri) {
+            g_autofree char *tcp_uri =
+                migrate_get_socket_address(to->qs, "socket-address");
+            migrate_qmp(from->qs, tcp_uri, "{}");
+        } else {
+            migrate_qmp(from->qs, uri, "{}");
+        }
     }
 }
 
