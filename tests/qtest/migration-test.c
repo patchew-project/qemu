@@ -528,6 +528,17 @@ static void migrate_postcopy_start(QTestState *from, QTestState *to)
     qtest_qmp_eventwait(to, "RESUME");
 }
 
+static void do_migrate(QTestState *from, QTestState *to, const gchar *uri)
+{
+    if (!uri) {
+        g_autofree char *tcp_uri =
+            migrate_get_socket_address(to, "socket-address");
+        migrate_qmp(from, tcp_uri, "{}");
+    } else {
+        migrate_qmp(from, uri, "{}");
+    }
+}
+
 typedef struct {
     /*
      * QTEST_LOG=1 may override this.  When QTEST_LOG=1, we always dump errors
@@ -1173,7 +1184,7 @@ static void migrate_postcopy_prepare(QTestState **from_ptr,
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
-    migrate_qmp(from, uri, "{}");
+    do_migrate(from, to, uri);
 
     wait_for_migration_pass(from);
 
@@ -1378,6 +1389,9 @@ static void test_baddest(void)
     QTestState *from, *to;
 
     test_migrate_start(&from, &to, "tcp:127.0.0.1:0", &args);
+    /*
+     * Don't change to do_migrate(). We are using a wrong uri on purpose.
+     */
     migrate_qmp(from, "tcp:127.0.0.1:0", "{}");
     wait_for_migration_fail(from, false);
     test_migrate_end(from, to, false);
@@ -1424,14 +1438,7 @@ static void test_precopy_common(MigrateCommon *args)
         }
     }
 
-    if (!args->connect_uri) {
-        g_autofree char *local_connect_uri =
-            migrate_get_socket_address(to, "socket-address");
-        migrate_qmp(from, local_connect_uri, "{}");
-    } else {
-        migrate_qmp(from, args->connect_uri, "{}");
-    }
-
+    do_migrate(from, to, args->connect_uri);
 
     if (args->result != MIG_TEST_SUCCEED) {
         bool allow_active = args->result == MIG_TEST_FAIL;
@@ -1586,7 +1593,7 @@ static void test_ignore_shared(void)
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
-    migrate_qmp(from, uri, "{}");
+    do_migrate(from, to, uri);
 
     wait_for_migration_pass(from);
 
@@ -1890,7 +1897,7 @@ static void do_test_validate_uuid(MigrateStart *args, bool should_fail)
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
-    migrate_qmp(from, uri, "{}");
+    do_migrate(from, to, uri);
 
     if (should_fail) {
         qtest_set_expected_status(to, EXIT_FAILURE);
@@ -1991,7 +1998,7 @@ static void test_migrate_auto_converge(void)
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
-    migrate_qmp(from, uri, "{}");
+    do_migrate(from, to, uri);
 
     /* Wait for throttling begins */
     percentage = 0;
@@ -2280,7 +2287,6 @@ static void test_multifd_tcp_cancel(void)
         .hide_stderr = true,
     };
     QTestState *from, *to, *to2;
-    g_autofree char *uri = NULL;
 
     test_migrate_start(&from, &to, "defer", &args);
 
@@ -2299,9 +2305,7 @@ static void test_multifd_tcp_cancel(void)
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
-    uri = migrate_get_socket_address(to, "socket-address");
-
-    migrate_qmp(from, uri, "{}");
+    do_migrate(from, to, "127.0.0.1:0");
 
     wait_for_migration_pass(from);
 
@@ -2325,14 +2329,11 @@ static void test_multifd_tcp_cancel(void)
     qtest_qmp_assert_success(to2, "{ 'execute': 'migrate-incoming',"
                              "  'arguments': { 'uri': 'tcp:127.0.0.1:0' }}");
 
-    g_free(uri);
-    uri = migrate_get_socket_address(to2, "socket-address");
-
     wait_for_migration_status(from, "cancelled", NULL);
 
     migrate_ensure_converge(from);
 
-    migrate_qmp(from, uri, "{}");
+    do_migrate(from, to2, "127.0.0.1:0");
 
     wait_for_migration_pass(from);
 
