@@ -684,6 +684,13 @@ static void migrate_set_capability(QTestState *who, const char *capability,
                              capability, value);
 }
 
+static void migrate_incoming(GuestState *who, const char *uri)
+{
+    qtest_qmp_assert_success(who->qs, "{ 'execute': 'migrate-incoming',"
+                             "  'arguments': { 'uri': %s }}", uri);
+    guest_set_uri(who, uri);
+}
+
 static void migrate_postcopy_start(GuestState *from, GuestState *to)
 {
     qtest_qmp_assert_success(from->qs,
@@ -1851,9 +1858,7 @@ static void *test_migrate_fd_start_hook(GuestState *from, GuestState *to)
     close(pair[0]);
 
     /* Start incoming migration from the 1st socket */
-    qtest_qmp_assert_success(to->qs, "{ 'execute': 'migrate-incoming',"
-                             "  'arguments': { 'uri': 'fd:fd-mig' }}");
-    guest_set_uri(to, "fd:fd-mig");
+    migrate_incoming(to, "fd:fd-mig");
 
     /* Send the 2nd socket to the target */
     qtest_qmp_fds_assert_success(from->qs, &pair[1], 1,
@@ -2077,9 +2082,7 @@ test_migrate_precopy_tcp_multifd_start_common(GuestState *from, GuestState *to,
     migrate_set_capability(to->qs, "multifd", true);
 
     /* Start incoming migration from the 1st socket */
-    qtest_qmp_assert_success(to->qs, "{ 'execute': 'migrate-incoming',"
-                             "  'arguments': { 'uri': 'tcp:127.0.0.1:0' }}");
-    guest_set_uri(to, "tcp:127.0.0.1:0");
+    migrate_incoming(to, "tcp:127.0.0.1:0");
 
     return NULL;
 }
@@ -2334,9 +2337,7 @@ static void test_multifd_tcp_cancel(void)
     migrate_set_capability(to->qs, "multifd", true);
 
     /* Start incoming migration from the 1st socket */
-    qtest_qmp_assert_success(to->qs, "{ 'execute': 'migrate-incoming',"
-                             "  'arguments': { 'uri': 'tcp:127.0.0.1:0' }}");
-    guest_set_uri(to, "tcp:127.0.0.1:0");
+    migrate_incoming(to, "tcp:127.0.0.1:0");
 
     /* Wait for the first serial output from the source */
     wait_for_serial(from);
@@ -2360,9 +2361,7 @@ static void test_multifd_tcp_cancel(void)
     migrate_set_capability(to2->qs, "multifd", true);
 
     /* Start incoming migration from the 1st socket */
-    qtest_qmp_assert_success(to2->qs, "{ 'execute': 'migrate-incoming',"
-                             "  'arguments': { 'uri': 'tcp:127.0.0.1:0' }}");
-    guest_set_uri(to2, "tcp:127.0.0.1:0");
+    migrate_incoming(to2, "tcp:127.0.0.1:0");
 
     wait_for_migration_status(from->qs, "cancelled", NULL);
 
