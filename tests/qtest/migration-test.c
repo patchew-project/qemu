@@ -1419,11 +1419,9 @@ static void test_baddest(void)
     test_migrate_end(from, to, false);
 }
 
-static void test_precopy_common(MigrateCommon *args)
+static void test_precopy_common(GuestState *from, GuestState *to,
+                                MigrateCommon *args)
 {
-    GuestState *from = guest_create("source");
-    GuestState *to = guest_create("target");
-
     void *data_hook = NULL;
 
     test_migrate_start(from, to, args->listen_uri, &args->start);
@@ -1521,6 +1519,8 @@ static void test_precopy_common(MigrateCommon *args)
 static void test_precopy_unix_plain(void)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .listen_uri = uri,
         .connect_uri = uri,
@@ -1531,13 +1531,15 @@ static void test_precopy_unix_plain(void)
         .live = true,
     };
 
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 
 
 static void test_precopy_unix_dirty_ring(void)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .start = {
             .use_dirty_ring = true,
@@ -1551,13 +1553,15 @@ static void test_precopy_unix_dirty_ring(void)
         .live = true,
     };
 
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 
 #ifdef CONFIG_GNUTLS
 static void test_precopy_unix_tls_psk(void)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .connect_uri = uri,
         .listen_uri = uri,
@@ -1565,13 +1569,15 @@ static void test_precopy_unix_tls_psk(void)
         .finish_hook = test_migrate_tls_psk_finish,
     };
 
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 
 #ifdef CONFIG_TASN1
 static void test_precopy_unix_tls_x509_default_host(void)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .start = {
             .hide_stderr = true,
@@ -1583,12 +1589,14 @@ static void test_precopy_unix_tls_x509_default_host(void)
         .result = MIG_TEST_FAIL_DEST_QUIT_ERR,
     };
 
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 
 static void test_precopy_unix_tls_x509_override_host(void)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .connect_uri = uri,
         .listen_uri = uri,
@@ -1596,7 +1604,7 @@ static void test_precopy_unix_tls_x509_override_host(void)
         .finish_hook = test_migrate_tls_x509_finish,
     };
 
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 #endif /* CONFIG_TASN1 */
 #endif /* CONFIG_GNUTLS */
@@ -1653,6 +1661,8 @@ test_migrate_xbzrle_start(QTestState *from,
 static void test_precopy_unix_xbzrle(void)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .connect_uri = uri,
         .listen_uri = uri,
@@ -1665,12 +1675,14 @@ static void test_precopy_unix_xbzrle(void)
         .live = true,
     };
 
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 
 static void test_precopy_unix_compress(void)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .connect_uri = uri,
         .listen_uri = uri,
@@ -1688,12 +1700,14 @@ static void test_precopy_unix_compress(void)
         .live = true,
     };
 
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 
 static void test_precopy_unix_compress_nowait(void)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .connect_uri = uri,
         .listen_uri = uri,
@@ -1707,32 +1721,38 @@ static void test_precopy_unix_compress_nowait(void)
         .live = true,
     };
 
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 
 static void test_precopy_tcp_plain(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .listen_uri = "tcp:127.0.0.1:0",
     };
 
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 
 #ifdef CONFIG_GNUTLS
 static void test_precopy_tcp_tls_psk_match(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .listen_uri = "tcp:127.0.0.1:0",
         .start_hook = test_migrate_tls_psk_start_match,
         .finish_hook = test_migrate_tls_psk_finish,
     };
 
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 
 static void test_precopy_tcp_tls_psk_mismatch(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .start = {
             .hide_stderr = true,
@@ -1743,34 +1763,40 @@ static void test_precopy_tcp_tls_psk_mismatch(void)
         .result = MIG_TEST_FAIL,
     };
 
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 
 #ifdef CONFIG_TASN1
 static void test_precopy_tcp_tls_x509_default_host(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .listen_uri = "tcp:127.0.0.1:0",
         .start_hook = test_migrate_tls_x509_start_default_host,
         .finish_hook = test_migrate_tls_x509_finish,
     };
 
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 
 static void test_precopy_tcp_tls_x509_override_host(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .listen_uri = "tcp:127.0.0.1:0",
         .start_hook = test_migrate_tls_x509_start_override_host,
         .finish_hook = test_migrate_tls_x509_finish,
     };
 
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 
 static void test_precopy_tcp_tls_x509_mismatch_host(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .start = {
             .hide_stderr = true,
@@ -1781,22 +1807,26 @@ static void test_precopy_tcp_tls_x509_mismatch_host(void)
         .result = MIG_TEST_FAIL_DEST_QUIT_ERR,
     };
 
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 
 static void test_precopy_tcp_tls_x509_friendly_client(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .listen_uri = "tcp:127.0.0.1:0",
         .start_hook = test_migrate_tls_x509_start_friendly_client,
         .finish_hook = test_migrate_tls_x509_finish,
     };
 
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 
 static void test_precopy_tcp_tls_x509_hostile_client(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .start = {
             .hide_stderr = true,
@@ -1807,22 +1837,26 @@ static void test_precopy_tcp_tls_x509_hostile_client(void)
         .result = MIG_TEST_FAIL,
     };
 
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 
 static void test_precopy_tcp_tls_x509_allow_anon_client(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .listen_uri = "tcp:127.0.0.1:0",
         .start_hook = test_migrate_tls_x509_start_allow_anon_client,
         .finish_hook = test_migrate_tls_x509_finish,
     };
 
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 
 static void test_precopy_tcp_tls_x509_reject_anon_client(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .start = {
             .hide_stderr = true,
@@ -1833,7 +1867,7 @@ static void test_precopy_tcp_tls_x509_reject_anon_client(void)
         .result = MIG_TEST_FAIL,
     };
 
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 #endif /* CONFIG_TASN1 */
 #endif /* CONFIG_GNUTLS */
@@ -1895,13 +1929,15 @@ static void test_migrate_fd_finish_hook(QTestState *from,
 
 static void test_migrate_fd_proto(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .listen_uri = "defer",
         .connect_uri = "fd:fd-mig",
         .start_hook = test_migrate_fd_start_hook,
         .finish_hook = test_migrate_fd_finish_hook
     };
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 #endif /* _WIN32 */
 
@@ -2116,6 +2152,8 @@ test_migrate_precopy_tcp_multifd_zstd_start(QTestState *from,
 
 static void test_multifd_tcp_none(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .listen_uri = "defer",
         .start_hook = test_migrate_precopy_tcp_multifd_start,
@@ -2126,26 +2164,30 @@ static void test_multifd_tcp_none(void)
          */
         .live = true,
     };
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 
 static void test_multifd_tcp_zlib(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .listen_uri = "defer",
         .start_hook = test_migrate_precopy_tcp_multifd_zlib_start,
     };
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 
 #ifdef CONFIG_ZSTD
 static void test_multifd_tcp_zstd(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .listen_uri = "defer",
         .start_hook = test_migrate_precopy_tcp_multifd_zstd_start,
     };
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 #endif
 
@@ -2210,16 +2252,20 @@ test_migrate_multifd_tls_x509_start_reject_anon_client(QTestState *from,
 
 static void test_multifd_tcp_tls_psk_match(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .listen_uri = "defer",
         .start_hook = test_migrate_multifd_tcp_tls_psk_start_match,
         .finish_hook = test_migrate_tls_psk_finish,
     };
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 
 static void test_multifd_tcp_tls_psk_mismatch(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .start = {
             .hide_stderr = true,
@@ -2229,28 +2275,32 @@ static void test_multifd_tcp_tls_psk_mismatch(void)
         .finish_hook = test_migrate_tls_psk_finish,
         .result = MIG_TEST_FAIL,
     };
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 
 #ifdef CONFIG_TASN1
 static void test_multifd_tcp_tls_x509_default_host(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .listen_uri = "defer",
         .start_hook = test_migrate_multifd_tls_x509_start_default_host,
         .finish_hook = test_migrate_tls_x509_finish,
     };
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 
 static void test_multifd_tcp_tls_x509_override_host(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .listen_uri = "defer",
         .start_hook = test_migrate_multifd_tls_x509_start_override_host,
         .finish_hook = test_migrate_tls_x509_finish,
     };
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 
 static void test_multifd_tcp_tls_x509_mismatch_host(void)
@@ -2268,6 +2318,8 @@ static void test_multifd_tcp_tls_x509_mismatch_host(void)
      * to load migration state, and thus just aborts the migration
      * without exiting.
      */
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .start = {
             .hide_stderr = true,
@@ -2277,21 +2329,25 @@ static void test_multifd_tcp_tls_x509_mismatch_host(void)
         .finish_hook = test_migrate_tls_x509_finish,
         .result = MIG_TEST_FAIL,
     };
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 
 static void test_multifd_tcp_tls_x509_allow_anon_client(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .listen_uri = "defer",
         .start_hook = test_migrate_multifd_tls_x509_start_allow_anon_client,
         .finish_hook = test_migrate_tls_x509_finish,
     };
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 
 static void test_multifd_tcp_tls_x509_reject_anon_client(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .start = {
             .hide_stderr = true,
@@ -2301,7 +2357,7 @@ static void test_multifd_tcp_tls_x509_reject_anon_client(void)
         .finish_hook = test_migrate_tls_x509_finish,
         .result = MIG_TEST_FAIL,
     };
-    test_precopy_common(&args);
+    test_precopy_common(from, to, &args);
 }
 #endif /* CONFIG_TASN1 */
 #endif /* CONFIG_GNUTLS */
