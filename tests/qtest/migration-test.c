@@ -462,13 +462,6 @@ static void check_guests_ram(GuestState *who)
     g_assert(bad == 0);
 }
 
-static void cleanup(const char *filename)
-{
-    g_autofree char *path = g_strdup_printf("%s/%s", tmpfs, filename);
-
-    unlink(path);
-}
-
 static char *SocketAddress_to_str(SocketAddress *addr)
 {
     switch (addr->type) {
@@ -843,8 +836,6 @@ static void test_migrate_end(GuestState *from, GuestState *to, bool test_dest)
     }
 
     guest_destroy(to);
-
-    cleanup("migsocket");
 }
 
 #ifdef CONFIG_GNUTLS
@@ -1540,11 +1531,9 @@ static void test_precopy_common(GuestState *from, GuestState *to,
 
 static void test_precopy_unix_plain(void)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = uri,
         /*
          * The simplest use case of precopy, covering smoke tests of
          * get-dirty-log dirty tracking.
@@ -1552,17 +1541,16 @@ static void test_precopy_unix_plain(void)
         .live = true,
     };
 
+    guest_listen_unix_socket(to);
     test_precopy_common(from, to, &args);
 }
 
 
 static void test_precopy_unix_dirty_ring(void)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = uri,
         /*
          * Besides the precopy/unix basic test, cover dirty ring interface
          * rather than get-dirty-log.
@@ -1572,32 +1560,30 @@ static void test_precopy_unix_dirty_ring(void)
 
     guest_use_dirty_ring(from);
     guest_use_dirty_ring(to);
+    guest_listen_unix_socket(to);
     test_precopy_common(from, to, &args);
 }
 
 #ifdef CONFIG_GNUTLS
 static void test_precopy_unix_tls_psk(void)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = uri,
         .start_hook = test_migrate_tls_psk_start_match,
         .finish_hook = test_migrate_tls_psk_finish,
     };
 
+    guest_listen_unix_socket(to);
     test_precopy_common(from, to, &args);
 }
 
 #ifdef CONFIG_TASN1
 static void test_precopy_unix_tls_x509_default_host(void)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = uri,
         .start_hook = test_migrate_tls_x509_start_default_host,
         .finish_hook = test_migrate_tls_x509_finish,
         .result = MIG_TEST_FAIL_DEST_QUIT_ERR,
@@ -1605,20 +1591,20 @@ static void test_precopy_unix_tls_x509_default_host(void)
 
     guest_hide_stderr(from);
     guest_hide_stderr(to);
+    guest_listen_unix_socket(to);
     test_precopy_common(from, to, &args);
 }
 
 static void test_precopy_unix_tls_x509_override_host(void)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = uri,
         .start_hook = test_migrate_tls_x509_start_override_host,
         .finish_hook = test_migrate_tls_x509_finish,
     };
 
+    guest_listen_unix_socket(to);
     test_precopy_common(from, to, &args);
 }
 #endif /* CONFIG_TASN1 */
@@ -1626,14 +1612,14 @@ static void test_precopy_unix_tls_x509_override_host(void)
 
 static void test_ignore_shared(void)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateStart args = { };
 
     guest_use_shmem(from);
     guest_use_shmem(to);
-    test_migrate_start(from, to, uri, &args);
+    guest_listen_unix_socket(to);
+    test_migrate_start(from, to, NULL, &args);
 
     migrate_set_capability(from->qs, "x-ignore-shared", true);
     migrate_set_capability(to->qs, "x-ignore-shared", true);
@@ -1674,11 +1660,9 @@ test_migrate_xbzrle_start(GuestState *from, GuestState *to)
 
 static void test_precopy_unix_xbzrle(void)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = uri,
         .start_hook = test_migrate_xbzrle_start,
         .iterations = 2,
         /*
@@ -1688,16 +1672,15 @@ static void test_precopy_unix_xbzrle(void)
         .live = true,
     };
 
+    guest_listen_unix_socket(to);
     test_precopy_common(from, to, &args);
 }
 
 static void test_precopy_unix_compress(void)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = uri,
         .start_hook = test_migrate_compress_start,
         /*
          * Test that no invalid thread state is left over from
@@ -1712,16 +1695,15 @@ static void test_precopy_unix_compress(void)
         .live = true,
     };
 
+    guest_listen_unix_socket(to);
     test_precopy_common(from, to, &args);
 }
 
 static void test_precopy_unix_compress_nowait(void)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = uri,
         .start_hook = test_migrate_compress_nowait_start,
         /*
          * Test that no invalid thread state is left over from
@@ -1732,6 +1714,7 @@ static void test_precopy_unix_compress_nowait(void)
         .live = true,
     };
 
+    guest_listen_unix_socket(to);
     test_precopy_common(from, to, &args);
 }
 
@@ -2053,7 +2036,7 @@ static void test_migrate_auto_converge(void)
     const int64_t init_pct = 5, inc_pct = 25, max_pct = 95;
 
     guest_listen_unix_socket(to);
-    test_migrate_start(from, to, to->uri, &args);
+    test_migrate_start(from, to, NULL, &args);
 
     migrate_set_capability(from->qs, "auto-converge", true);
     migrate_set_parameter_int(from->qs, "cpu-throttle-initial", init_pct);
