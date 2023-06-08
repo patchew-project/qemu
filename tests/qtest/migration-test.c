@@ -645,13 +645,6 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     const char *arch = qtest_get_arch();
     const char *memory_size;
 
-    if (args->use_shmem) {
-        if (!g_file_test("/dev/shm", G_FILE_TEST_IS_DIR)) {
-            g_test_skip("/dev/shm is not supported");
-            return -1;
-        }
-    }
-
     got_src_stop = false;
     got_dst_resume = false;
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
@@ -2639,6 +2632,15 @@ static bool kvm_dirty_ring_supported(void)
 #endif
 }
 
+static bool shm_supported(void)
+{
+    if (g_file_test("/dev/shm", G_FILE_TEST_IS_DIR)) {
+        return true;
+    }
+    g_test_message("Skipping test: shared memory not available");
+    return false;
+}
+
 int main(int argc, char **argv)
 {
     bool has_kvm, has_tcg;
@@ -2768,7 +2770,9 @@ int main(int argc, char **argv)
 #endif /* CONFIG_TASN1 */
 #endif /* CONFIG_GNUTLS */
 
-    qtest_add_func("/migration/ignore_shared", test_ignore_shared);
+    if (shm_supported()) {
+        qtest_add_func("/migration/ignore_shared", test_ignore_shared);
+    }
 #ifndef _WIN32
     qtest_add_func("/migration/fd_proto", test_migrate_fd_proto);
 #endif
