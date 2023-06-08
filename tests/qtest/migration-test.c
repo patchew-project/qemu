@@ -164,6 +164,8 @@ typedef struct {
      */
     const gchar *name;
     gchar *serial_path;
+    gchar *shmem_opts;
+    gchar *shmem_path;
     unsigned start_address;
     unsigned end_address;
 } GuestState;
@@ -217,6 +219,9 @@ static void guest_destroy(GuestState *vm)
     g_free(vm->kvm_opts);
     unlink(vm->serial_path);
     g_free(vm->serial_path);
+    g_free(vm->shmem_opts);
+    unlink(vm->shmem_path);
+    g_free(vm->shmem_path);
     g_free(vm);
 }
 
@@ -224,6 +229,18 @@ static void guest_use_dirty_ring(GuestState *vm)
 {
     g_assert(vm->kvm_opts == NULL);
     vm->kvm_opts = g_strdup(",dirty-ring-size=4096");
+}
+
+static void guest_use_shmem(GuestState *vm)
+{
+    g_assert(vm->shmem_opts == NULL);
+    g_assert(vm->shmem_path == NULL);
+
+    vm->shmem_path = g_strdup_printf("/dev/shm/qemu-%d", getpid());
+    vm->shmem_opts = g_strdup_printf(
+        "-object memory-backend-file,id=mem0,size=%s"
+        ",mem-path=%s,share=on -numa node,memdev=mem0",
+        vm->memory_size, vm->shmem_path);
 }
 
 /*
@@ -621,7 +638,6 @@ typedef struct {
      * unconditionally, because it means the user would like to be verbose.
      */
     bool hide_stderr;
-    bool use_shmem;
     /* only launch the target process */
     bool only_target;
     const char *opts_source;
@@ -720,8 +736,6 @@ static void test_migrate_start(GuestState *from, GuestState *to,
     g_autofree gchar *cmd_source = NULL;
     g_autofree gchar *cmd_target = NULL;
     const gchar *ignore_stderr = NULL;
-    g_autofree char *shmem_opts = NULL;
-    g_autofree char *shmem_path = NULL;
 
     got_src_stop = false;
     got_dst_resume = false;
@@ -738,14 +752,6 @@ static void test_migrate_start(GuestState *from, GuestState *to,
 #endif
     }
 
-    if (args->use_shmem) {
-        shmem_path = g_strdup_printf("/dev/shm/qemu-%d", getpid());
-        shmem_opts = g_strdup_printf(
-            "-object memory-backend-file,id=mem0,size=%s"
-            ",mem-path=%s,share=on -numa node,memdev=mem0",
-            from->memory_size, shmem_path);
-    }
-
     cmd_source = g_strdup_printf("-accel kvm%s -accel tcg "
                                  "-name %s,debug-threads=on "
                                  "-m %s "
@@ -757,7 +763,7 @@ static void test_migrate_start(GuestState *from, GuestState *to,
                                  from->serial_path,
                                  from->arch_opts ? from->arch_opts : "",
                                  from->arch_source ? from->arch_source : "",
-                                 shmem_opts ? shmem_opts : "",
+                                 from->shmem_opts ? from->shmem_opts : "",
                                  args->opts_source ? args->opts_source : "",
                                  ignore_stderr ? ignore_stderr : "");
 
@@ -781,21 +787,13 @@ static void test_migrate_start(GuestState *from, GuestState *to,
                                  uri,
                                  to->arch_opts ? to->arch_opts : "",
                                  to->arch_target ? to->arch_target : "",
-                                 shmem_opts ? shmem_opts : "",
+                                 to->shmem_opts ? to->shmem_opts : "",
                                  args->opts_target ? args->opts_target : "",
                                  ignore_stderr ? ignore_stderr : "");
     to->qs = qtest_init(cmd_target);
     qtest_qmp_set_event_callback(to->qs,
                                  migrate_watch_for_resume,
                                  &got_dst_resume);
-
-    /*
-     * Remove shmem file immediately to avoid memory leak in test failed case.
-     * It's valid becase QEMU has already opened this file
-     */
-    if (args->use_shmem) {
-        unlink(shmem_path);
-    }
 }
 
 static void test_migrate_end(GuestState *from, GuestState *to, bool test_dest)
@@ -1637,10 +1635,10 @@ static void test_ignore_shared(void)
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
-    MigrateStart args = {
-        .use_shmem = true
-    };
+    MigrateStart args = { };
 
+    guest_use_shmem(from);
+    guest_use_shmem(to);
     test_migrate_start(from, to, uri, &args);
 
     migrate_set_capability(from->qs, "x-ignore-shared", true);
