@@ -706,9 +706,6 @@ typedef struct {
     /* Optional: fine tune start parameters */
     MigrateStart start;
 
-    /* Required: the URI for the dst QEMU to listen on */
-    const char *listen_uri;
-
     /* Optional: callback to run at start to set migration parameters */
     TestMigrateStartHook start_hook;
     /* Optional: callback to run at finish to cleanup */
@@ -757,7 +754,7 @@ typedef struct {
 } MigrateCommon;
 
 static void test_migrate_start(GuestState *from, GuestState *to,
-                               const char *uri, MigrateStart *args)
+                               MigrateStart *args)
 {
     g_autofree gchar *cmd_source = NULL;
     g_autofree gchar *cmd_target = NULL;
@@ -797,7 +794,7 @@ static void test_migrate_start(GuestState *from, GuestState *to,
                                  to->name,
                                  to->memory_size,
                                  to->serial_path,
-                                 to->uri ? to->uri : uri,
+                                 to->uri ? to->uri : "defer",
                                  to->arch_opts ? to->arch_opts : "",
                                  to->arch_target ? to->arch_target : "",
                                  to->shmem_opts ? to->shmem_opts : "",
@@ -1192,7 +1189,7 @@ static void migrate_postcopy_prepare(GuestState *from,
                                      MigrateCommon *args)
 {
     guest_listen_unix_socket(to);
-    test_migrate_start(from, to, NULL, &args->start);
+    test_migrate_start(from, to, &args->start);
 
     if (args->start_hook) {
         args->postcopy_data = args->start_hook(from, to);
@@ -1424,7 +1421,7 @@ static void test_baddest(void)
     guest_hide_stderr(from);
     guest_hide_stderr(to);
     guest_set_uri(to, "tcp:127.0.0.1:0");
-    test_migrate_start(from, to, NULL, &args);
+    test_migrate_start(from, to, &args);
     /*
      * Don't change to do_migrate(). We are using a wrong uri on purpose.
      */
@@ -1438,7 +1435,7 @@ static void test_precopy_common(GuestState *from, GuestState *to,
 {
     void *data_hook = NULL;
 
-    test_migrate_start(from, to, args->listen_uri, &args->start);
+    test_migrate_start(from, to, &args->start);
 
     if (args->start_hook) {
         data_hook = args->start_hook(from, to);
@@ -1620,7 +1617,7 @@ static void test_ignore_shared(void)
     guest_use_shmem(from);
     guest_use_shmem(to);
     guest_listen_unix_socket(to);
-    test_migrate_start(from, to, NULL, &args);
+    test_migrate_start(from, to, &args);
 
     migrate_set_capability(from->qs, "x-ignore-shared", true);
     migrate_set_capability(to->qs, "x-ignore-shared", true);
@@ -1921,7 +1918,6 @@ static void test_migrate_fd_proto(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = "defer",
         .start_hook = test_migrate_fd_start_hook,
         .finish_hook = test_migrate_fd_finish_hook
     };
@@ -1933,7 +1929,7 @@ static void do_test_validate_uuid(GuestState *from, GuestState *to,
                                   MigrateStart *args, bool should_fail)
 {
     guest_listen_unix_socket(to);
-    test_migrate_start(from, to, NULL, args);
+    test_migrate_start(from, to, args);
 
     /*
      * UUID validation is at the begin of migration. So, the main process of
@@ -2036,7 +2032,7 @@ static void test_migrate_auto_converge(void)
     const int64_t init_pct = 5, inc_pct = 25, max_pct = 95;
 
     guest_listen_unix_socket(to);
-    test_migrate_start(from, to, NULL, &args);
+    test_migrate_start(from, to, &args);
 
     migrate_set_capability(from->qs, "auto-converge", true);
     migrate_set_parameter_int(from->qs, "cpu-throttle-initial", init_pct);
@@ -2138,7 +2134,6 @@ static void test_multifd_tcp_none(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = "defer",
         .start_hook = test_migrate_precopy_tcp_multifd_start,
         /*
          * Multifd is more complicated than most of the features, it
@@ -2155,7 +2150,6 @@ static void test_multifd_tcp_zlib(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = "defer",
         .start_hook = test_migrate_precopy_tcp_multifd_zlib_start,
     };
     test_precopy_common(from, to, &args);
@@ -2167,7 +2161,6 @@ static void test_multifd_tcp_zstd(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = "defer",
         .start_hook = test_migrate_precopy_tcp_multifd_zstd_start,
     };
     test_precopy_common(from, to, &args);
@@ -2237,7 +2230,6 @@ static void test_multifd_tcp_tls_psk_match(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = "defer",
         .start_hook = test_migrate_multifd_tcp_tls_psk_start_match,
         .finish_hook = test_migrate_tls_psk_finish,
     };
@@ -2249,7 +2241,6 @@ static void test_multifd_tcp_tls_psk_mismatch(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = "defer",
         .start_hook = test_migrate_multifd_tcp_tls_psk_start_mismatch,
         .finish_hook = test_migrate_tls_psk_finish,
         .result = MIG_TEST_FAIL,
@@ -2265,7 +2256,6 @@ static void test_multifd_tcp_tls_x509_default_host(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = "defer",
         .start_hook = test_migrate_multifd_tls_x509_start_default_host,
         .finish_hook = test_migrate_tls_x509_finish,
     };
@@ -2277,7 +2267,6 @@ static void test_multifd_tcp_tls_x509_override_host(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = "defer",
         .start_hook = test_migrate_multifd_tls_x509_start_override_host,
         .finish_hook = test_migrate_tls_x509_finish,
     };
@@ -2302,7 +2291,6 @@ static void test_multifd_tcp_tls_x509_mismatch_host(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = "defer",
         .start_hook = test_migrate_multifd_tls_x509_start_mismatch_host,
         .finish_hook = test_migrate_tls_x509_finish,
         .result = MIG_TEST_FAIL,
@@ -2317,7 +2305,6 @@ static void test_multifd_tcp_tls_x509_allow_anon_client(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = "defer",
         .start_hook = test_migrate_multifd_tls_x509_start_allow_anon_client,
         .finish_hook = test_migrate_tls_x509_finish,
     };
@@ -2329,7 +2316,6 @@ static void test_multifd_tcp_tls_x509_reject_anon_client(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = "defer",
         .start_hook = test_migrate_multifd_tls_x509_start_reject_anon_client,
         .finish_hook = test_migrate_tls_x509_finish,
         .result = MIG_TEST_FAIL,
@@ -2362,7 +2348,7 @@ static void test_multifd_tcp_cancel(void)
     guest_hide_stderr(from);
     guest_hide_stderr(to);
 
-    test_migrate_start(from, to, "defer", &args);
+    test_migrate_start(from, to, &args);
 
     migrate_ensure_non_converge(from->qs);
 
@@ -2396,7 +2382,7 @@ static void test_multifd_tcp_cancel(void)
         .only_target = true,
     };
 
-    test_migrate_start(from, to2, "defer", &args);
+    test_migrate_start(from, to2, &args);
 
     migrate_set_parameter_int(to2->qs, "multifd-channels", 16);
 
