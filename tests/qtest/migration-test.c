@@ -286,6 +286,12 @@ static void guest_listen_unix_socket(GuestState *vm)
     vm->uri = g_strdup_printf("unix:%s", vm->unix_socket);
 }
 
+static void guest_set_uri(GuestState *vm, const gchar *uri)
+{
+    g_free(vm->uri);
+    vm->uri = g_strdup(uri);
+}
+
 /*
  * Wait for some output in the serial output file,
  * we get an 'A' followed by an endless string of 'B's
@@ -1918,6 +1924,7 @@ static void *test_migrate_fd_start_hook(GuestState *from, GuestState *to)
     /* Start incoming migration from the 1st socket */
     qtest_qmp_assert_success(to->qs, "{ 'execute': 'migrate-incoming',"
                              "  'arguments': { 'uri': 'fd:fd-mig' }}");
+    guest_set_uri(to, "fd:fd-mig");
 
     /* Send the 2nd socket to the target */
     qtest_qmp_fds_assert_success(from->qs, &pair[1], 1,
@@ -1958,7 +1965,6 @@ static void test_migrate_fd_proto(void)
     GuestState *to = guest_create("target");
     MigrateCommon args = {
         .listen_uri = "defer",
-        .connect_uri = "fd:fd-mig",
         .start_hook = test_migrate_fd_start_hook,
         .finish_hook = test_migrate_fd_finish_hook
     };
@@ -2145,6 +2151,7 @@ test_migrate_precopy_tcp_multifd_start_common(GuestState *from, GuestState *to,
     /* Start incoming migration from the 1st socket */
     qtest_qmp_assert_success(to->qs, "{ 'execute': 'migrate-incoming',"
                              "  'arguments': { 'uri': 'tcp:127.0.0.1:0' }}");
+    guest_set_uri(to, "tcp:127.0.0.1:0");
 
     return NULL;
 }
@@ -2411,6 +2418,7 @@ static void test_multifd_tcp_cancel(void)
     /* Start incoming migration from the 1st socket */
     qtest_qmp_assert_success(to->qs, "{ 'execute': 'migrate-incoming',"
                              "  'arguments': { 'uri': 'tcp:127.0.0.1:0' }}");
+    guest_set_uri(to, "tcp:127.0.0.1:0");
 
     /* Wait for the first serial output from the source */
     wait_for_serial(from);
@@ -2440,6 +2448,7 @@ static void test_multifd_tcp_cancel(void)
     /* Start incoming migration from the 1st socket */
     qtest_qmp_assert_success(to2->qs, "{ 'execute': 'migrate-incoming',"
                              "  'arguments': { 'uri': 'tcp:127.0.0.1:0' }}");
+    guest_set_uri(to2, "tcp:127.0.0.1:0");
 
     wait_for_migration_status(from->qs, "cancelled", NULL);
 
