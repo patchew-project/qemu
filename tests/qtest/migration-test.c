@@ -2432,6 +2432,8 @@ static void test_multifd_tcp_cancel(void)
     qtest_set_expected_status(to->qs, EXIT_FAILURE);
     qtest_wait_qemu(to->qs);
 
+    guest_destroy(to);
+
     args = (MigrateStart){
         .only_target = true,
     };
