@@ -1423,7 +1423,8 @@ static void test_baddest(void)
 
     guest_hide_stderr(from);
     guest_hide_stderr(to);
-    test_migrate_start(from, to, "tcp:127.0.0.1:0", &args);
+    guest_set_uri(to, "tcp:127.0.0.1:0");
+    test_migrate_start(from, to, NULL, &args);
     /*
      * Don't change to do_migrate(). We are using a wrong uri on purpose.
      */
@@ -1722,10 +1723,9 @@ static void test_precopy_tcp_plain(void)
 {
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
-    MigrateCommon args = {
-        .listen_uri = "tcp:127.0.0.1:0",
-    };
+    MigrateCommon args = { };
 
+    guest_set_uri(to, "tcp:127.0.0.1:0");
     test_precopy_common(from, to, &args);
 }
 
@@ -1735,11 +1735,11 @@ static void test_precopy_tcp_tls_psk_match(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = "tcp:127.0.0.1:0",
         .start_hook = test_migrate_tls_psk_start_match,
         .finish_hook = test_migrate_tls_psk_finish,
     };
 
+    guest_set_uri(to, "tcp:127.0.0.1:0");
     test_precopy_common(from, to, &args);
 }
 
@@ -1748,7 +1748,6 @@ static void test_precopy_tcp_tls_psk_mismatch(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = "tcp:127.0.0.1:0",
         .start_hook = test_migrate_tls_psk_start_mismatch,
         .finish_hook = test_migrate_tls_psk_finish,
         .result = MIG_TEST_FAIL,
@@ -1756,6 +1755,7 @@ static void test_precopy_tcp_tls_psk_mismatch(void)
 
     guest_hide_stderr(from);
     guest_hide_stderr(to);
+    guest_set_uri(to, "tcp:127.0.0.1:0");
     test_precopy_common(from, to, &args);
 }
 
@@ -1765,11 +1765,11 @@ static void test_precopy_tcp_tls_x509_default_host(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = "tcp:127.0.0.1:0",
         .start_hook = test_migrate_tls_x509_start_default_host,
         .finish_hook = test_migrate_tls_x509_finish,
     };
 
+    guest_set_uri(to, "tcp:127.0.0.1:0");
     test_precopy_common(from, to, &args);
 }
 
@@ -1778,11 +1778,11 @@ static void test_precopy_tcp_tls_x509_override_host(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = "tcp:127.0.0.1:0",
         .start_hook = test_migrate_tls_x509_start_override_host,
         .finish_hook = test_migrate_tls_x509_finish,
     };
 
+    guest_set_uri(to, "tcp:127.0.0.1:0");
     test_precopy_common(from, to, &args);
 }
 
@@ -1791,7 +1791,6 @@ static void test_precopy_tcp_tls_x509_mismatch_host(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = "tcp:127.0.0.1:0",
         .start_hook = test_migrate_tls_x509_start_mismatch_host,
         .finish_hook = test_migrate_tls_x509_finish,
         .result = MIG_TEST_FAIL_DEST_QUIT_ERR,
@@ -1799,6 +1798,7 @@ static void test_precopy_tcp_tls_x509_mismatch_host(void)
 
     guest_hide_stderr(from);
     guest_hide_stderr(to);
+    guest_set_uri(to, "tcp:127.0.0.1:0");
     test_precopy_common(from, to, &args);
 }
 
@@ -1807,11 +1807,11 @@ static void test_precopy_tcp_tls_x509_friendly_client(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = "tcp:127.0.0.1:0",
         .start_hook = test_migrate_tls_x509_start_friendly_client,
         .finish_hook = test_migrate_tls_x509_finish,
     };
 
+    guest_set_uri(to, "tcp:127.0.0.1:0");
     test_precopy_common(from, to, &args);
 }
 
@@ -1820,7 +1820,6 @@ static void test_precopy_tcp_tls_x509_hostile_client(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = "tcp:127.0.0.1:0",
         .start_hook = test_migrate_tls_x509_start_hostile_client,
         .finish_hook = test_migrate_tls_x509_finish,
         .result = MIG_TEST_FAIL,
@@ -1828,6 +1827,7 @@ static void test_precopy_tcp_tls_x509_hostile_client(void)
 
     guest_hide_stderr(from);
     guest_hide_stderr(to);
+    guest_set_uri(to, "tcp:127.0.0.1:0");
     test_precopy_common(from, to, &args);
 }
 
@@ -1836,11 +1836,11 @@ static void test_precopy_tcp_tls_x509_allow_anon_client(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = "tcp:127.0.0.1:0",
         .start_hook = test_migrate_tls_x509_start_allow_anon_client,
         .finish_hook = test_migrate_tls_x509_finish,
     };
 
+    guest_set_uri(to, "tcp:127.0.0.1:0");
     test_precopy_common(from, to, &args);
 }
 
@@ -1849,7 +1849,6 @@ static void test_precopy_tcp_tls_x509_reject_anon_client(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .listen_uri = "tcp:127.0.0.1:0",
         .start_hook = test_migrate_tls_x509_start_reject_anon_client,
         .finish_hook = test_migrate_tls_x509_finish,
         .result = MIG_TEST_FAIL,
@@ -1857,6 +1856,7 @@ static void test_precopy_tcp_tls_x509_reject_anon_client(void)
 
     guest_hide_stderr(from);
     guest_hide_stderr(to);
+    guest_set_uri(to, "tcp:127.0.0.1:0");
     test_precopy_common(from, to, &args);
 }
 #endif /* CONFIG_TASN1 */
