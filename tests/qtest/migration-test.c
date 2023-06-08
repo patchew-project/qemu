@@ -157,6 +157,7 @@ typedef struct {
     gchar *arch_source;
     gchar *arch_target;
     const gchar *extra_opts;
+    const gchar *hide_stderr;
     gchar *kvm_opts;
     const gchar *memory_size;
     /*
@@ -242,6 +243,23 @@ static void guest_use_shmem(GuestState *vm)
         "-object memory-backend-file,id=mem0,size=%s"
         ",mem-path=%s,share=on -numa node,memdev=mem0",
         vm->memory_size, vm->shmem_path);
+}
+
+static void guest_hide_stderr(GuestState *vm)
+{
+    g_assert(vm->hide_stderr == NULL);
+
+     if (!getenv("QTEST_LOG")) {
+#ifndef _WIN32
+        vm->hide_stderr = "2>/dev/null";
+#else
+        /*
+         * On Windows the QEMU executable is created via CreateProcess() and
+         * IO redirection does not work, so don't bother adding IO redirection
+         * to the command line.
+         */
+#endif
+    }
 }
 
 static void guest_extra_opts(GuestState *vm, const gchar *opts)
@@ -640,11 +658,6 @@ static void do_migrate(GuestState *from, GuestState *to, const gchar *uri)
 }
 
 typedef struct {
-    /*
-     * QTEST_LOG=1 may override this.  When QTEST_LOG=1, we always dump errors
-     * unconditionally, because it means the user would like to be verbose.
-     */
-    bool hide_stderr;
     /* only launch the target process */
     bool only_target;
 } MigrateStart;
@@ -740,22 +753,9 @@ static void test_migrate_start(GuestState *from, GuestState *to,
 {
     g_autofree gchar *cmd_source = NULL;
     g_autofree gchar *cmd_target = NULL;
-    const gchar *ignore_stderr = NULL;
 
     got_src_stop = false;
     got_dst_resume = false;
-
-    if (!getenv("QTEST_LOG") && args->hide_stderr) {
-#ifndef _WIN32
-        ignore_stderr = "2>/dev/null";
-#else
-        /*
-         * On Windows the QEMU executable is created via CreateProcess() and
-         * IO redirection does not work, so don't bother adding IO redirection
-         * to the command line.
-         */
-#endif
-    }
 
     cmd_source = g_strdup_printf("-accel kvm%s -accel tcg "
                                  "-name %s,debug-threads=on "
@@ -770,7 +770,7 @@ static void test_migrate_start(GuestState *from, GuestState *to,
                                  from->arch_source ? from->arch_source : "",
                                  from->shmem_opts ? from->shmem_opts : "",
                                  from->extra_opts ? from->extra_opts : "",
-                                 ignore_stderr ? ignore_stderr : "");
+                                 from->hide_stderr ? from->hide_stderr : "");
 
     if (!args->only_target) {
         from->qs = qtest_init(cmd_source);
@@ -794,7 +794,7 @@ static void test_migrate_start(GuestState *from, GuestState *to,
                                  to->arch_target ? to->arch_target : "",
                                  to->shmem_opts ? to->shmem_opts : "",
                                  to->extra_opts ? to->extra_opts : "",
-                                 ignore_stderr ? ignore_stderr : "");
+                                 to->hide_stderr ? to->hide_stderr : "");
     to->qs = qtest_init(cmd_target);
     qtest_qmp_set_event_callback(to->qs,
                                  migrate_watch_for_resume,
@@ -1323,8 +1323,8 @@ static void test_postcopy_recovery_common(MigrateCommon *args)
     g_autofree char *uri = NULL;
 
     /* Always hide errors for postcopy recover tests since they're expected */
-    args->start.hide_stderr = true;
-
+    guest_hide_stderr(from);
+    guest_hide_stderr(to);
     migrate_postcopy_prepare(from, to, args);
 
     /* Turn postcopy speed down, 4K/s is slow enough on any machines */
@@ -1431,12 +1431,12 @@ static void test_postcopy_preempt_all(void)
 
 static void test_baddest(void)
 {
-    MigrateStart args = {
-        .hide_stderr = true
-    };
+    MigrateStart args = { };
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
 
+    guest_hide_stderr(from);
+    guest_hide_stderr(to);
     test_migrate_start(from, to, "tcp:127.0.0.1:0", &args);
     /*
      * Don't change to do_migrate(). We are using a wrong uri on purpose.
@@ -1605,9 +1605,6 @@ static void test_precopy_unix_tls_x509_default_host(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .start = {
-            .hide_stderr = true,
-        },
         .connect_uri = uri,
         .listen_uri = uri,
         .start_hook = test_migrate_tls_x509_start_default_host,
@@ -1615,6 +1612,8 @@ static void test_precopy_unix_tls_x509_default_host(void)
         .result = MIG_TEST_FAIL_DEST_QUIT_ERR,
     };
 
+    guest_hide_stderr(from);
+    guest_hide_stderr(to);
     test_precopy_common(from, to, &args);
 }
 
@@ -1780,15 +1779,14 @@ static void test_precopy_tcp_tls_psk_mismatch(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .start = {
-            .hide_stderr = true,
-        },
         .listen_uri = "tcp:127.0.0.1:0",
         .start_hook = test_migrate_tls_psk_start_mismatch,
         .finish_hook = test_migrate_tls_psk_finish,
         .result = MIG_TEST_FAIL,
     };
 
+    guest_hide_stderr(from);
+    guest_hide_stderr(to);
     test_precopy_common(from, to, &args);
 }
 
@@ -1824,15 +1822,14 @@ static void test_precopy_tcp_tls_x509_mismatch_host(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .start = {
-            .hide_stderr = true,
-        },
         .listen_uri = "tcp:127.0.0.1:0",
         .start_hook = test_migrate_tls_x509_start_mismatch_host,
         .finish_hook = test_migrate_tls_x509_finish,
         .result = MIG_TEST_FAIL_DEST_QUIT_ERR,
     };
 
+    guest_hide_stderr(from);
+    guest_hide_stderr(to);
     test_precopy_common(from, to, &args);
 }
 
@@ -1854,15 +1851,14 @@ static void test_precopy_tcp_tls_x509_hostile_client(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .start = {
-            .hide_stderr = true,
-        },
         .listen_uri = "tcp:127.0.0.1:0",
         .start_hook = test_migrate_tls_x509_start_hostile_client,
         .finish_hook = test_migrate_tls_x509_finish,
         .result = MIG_TEST_FAIL,
     };
 
+    guest_hide_stderr(from);
+    guest_hide_stderr(to);
     test_precopy_common(from, to, &args);
 }
 
@@ -1884,15 +1880,14 @@ static void test_precopy_tcp_tls_x509_reject_anon_client(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .start = {
-            .hide_stderr = true,
-        },
         .listen_uri = "tcp:127.0.0.1:0",
         .start_hook = test_migrate_tls_x509_start_reject_anon_client,
         .finish_hook = test_migrate_tls_x509_finish,
         .result = MIG_TEST_FAIL,
     };
 
+    guest_hide_stderr(from);
+    guest_hide_stderr(to);
     test_precopy_common(from, to, &args);
 }
 #endif /* CONFIG_TASN1 */
@@ -2012,10 +2007,10 @@ static void test_validate_uuid_error(void)
 {
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
-    MigrateStart args = {
-        .hide_stderr = true,
-    };
+    MigrateStart args = { };
 
+    guest_hide_stderr(from);
+    guest_hide_stderr(to);
     guest_extra_opts(from, "-uuid 11111111-1111-1111-1111-111111111111");
     guest_extra_opts(to, "-uuid 22222222-2222-2222-2222-222222222222");
     do_test_validate_uuid(from, to, &args, true);
@@ -2025,10 +2020,10 @@ static void test_validate_uuid_src_not_set(void)
 {
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
-    MigrateStart args = {
-        .hide_stderr = true,
-    };
+    MigrateStart args = { };
 
+    guest_hide_stderr(from);
+    guest_hide_stderr(to);
     guest_extra_opts(to, "-uuid 22222222-2222-2222-2222-222222222222");
     do_test_validate_uuid(from, to, &args, false);
 }
@@ -2037,10 +2032,10 @@ static void test_validate_uuid_dst_not_set(void)
 {
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
-    MigrateStart args = {
-        .hide_stderr = true,
-    };
+    MigrateStart args = { };
 
+    guest_hide_stderr(from);
+    guest_hide_stderr(to);
     guest_extra_opts(from, "-uuid 11111111-1111-1111-1111-111111111111");
     do_test_validate_uuid(from, to, &args, false);
 }
@@ -2292,14 +2287,13 @@ static void test_multifd_tcp_tls_psk_mismatch(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .start = {
-            .hide_stderr = true,
-        },
         .listen_uri = "defer",
         .start_hook = test_migrate_multifd_tcp_tls_psk_start_mismatch,
         .finish_hook = test_migrate_tls_psk_finish,
         .result = MIG_TEST_FAIL,
     };
+    guest_hide_stderr(from);
+    guest_hide_stderr(to);
     test_precopy_common(from, to, &args);
 }
 
@@ -2346,14 +2340,13 @@ static void test_multifd_tcp_tls_x509_mismatch_host(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .start = {
-            .hide_stderr = true,
-        },
         .listen_uri = "defer",
         .start_hook = test_migrate_multifd_tls_x509_start_mismatch_host,
         .finish_hook = test_migrate_tls_x509_finish,
         .result = MIG_TEST_FAIL,
     };
+    guest_hide_stderr(from);
+    guest_hide_stderr(to);
     test_precopy_common(from, to, &args);
 }
 
@@ -2374,14 +2367,13 @@ static void test_multifd_tcp_tls_x509_reject_anon_client(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .start = {
-            .hide_stderr = true,
-        },
         .listen_uri = "defer",
         .start_hook = test_migrate_multifd_tls_x509_start_reject_anon_client,
         .finish_hook = test_migrate_tls_x509_finish,
         .result = MIG_TEST_FAIL,
     };
+    guest_hide_stderr(from);
+    guest_hide_stderr(to);
     test_precopy_common(from, to, &args);
 }
 #endif /* CONFIG_TASN1 */
@@ -2400,12 +2392,13 @@ static void test_multifd_tcp_tls_x509_reject_anon_client(void)
  */
 static void test_multifd_tcp_cancel(void)
 {
-    MigrateStart args = {
-        .hide_stderr = true,
-    };
+    MigrateStart args = { };
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     GuestState *to2 = guest_create("target2");
+
+    guest_hide_stderr(from);
+    guest_hide_stderr(to);
 
     test_migrate_start(from, to, "defer", &args);
 
