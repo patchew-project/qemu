@@ -1207,9 +1207,10 @@ void ahci_command_wait(AHCIQState *ahci, AHCICommand *cmd)
 
 #define RSET(REG, MASK) (BITSET(ahci_px_rreg(ahci, cmd->port, (REG)), (MASK)))
 
-    while (RSET(AHCI_PX_TFD, AHCI_PX_TFD_STS_BSY) ||
-           RSET(AHCI_PX_CI, 1 << cmd->slot) ||
-           (cmd->props->ncq && RSET(AHCI_PX_SACT, 1 << cmd->slot))) {
+    while (!RSET(AHCI_PX_TFD, AHCI_PX_TFD_STS_ERR) &&
+           (RSET(AHCI_PX_TFD, AHCI_PX_TFD_STS_BSY) ||
+            RSET(AHCI_PX_CI, 1 << cmd->slot) ||
+            (cmd->props->ncq && RSET(AHCI_PX_SACT, 1 << cmd->slot)))) {
         usleep(50);
     }
 
