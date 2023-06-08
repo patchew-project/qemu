@@ -404,14 +404,14 @@ void ahci_port_clear(AHCIQState *ahci, uint8_t port)
 /**
  * Check a port for errors.
  */
-void ahci_port_check_error(AHCIQState *ahci, uint8_t port,
-                           uint32_t imask, uint8_t emask)
+void ahci_port_check_error(AHCIQState *ahci, AHCICommand *cmd)
 {
+    uint8_t port = cmd->port;
     uint32_t reg;
 
     /* The upper 9 bits of the IS register all indicate errors. */
     reg = ahci_px_rreg(ahci, port, AHCI_PX_IS);
-    reg &= ~imask;
+    reg &= ~cmd->interrupts;
     reg >>= 23;
     g_assert_cmphex(reg, ==, 0);
 
@@ -421,13 +421,13 @@ void ahci_port_check_error(AHCIQState *ahci, uint8_t port,
 
     /* The TFD also has two error sections. */
     reg = ahci_px_rreg(ahci, port, AHCI_PX_TFD);
-    if (!emask) {
+    if (!cmd->errors) {
         ASSERT_BIT_CLEAR(reg, AHCI_PX_TFD_STS_ERR);
     } else {
         ASSERT_BIT_SET(reg, AHCI_PX_TFD_STS_ERR);
     }
-    ASSERT_BIT_CLEAR(reg, AHCI_PX_TFD_ERR & (~emask << 8));
-    ASSERT_BIT_SET(reg, AHCI_PX_TFD_ERR & (emask << 8));
+    ASSERT_BIT_CLEAR(reg, AHCI_PX_TFD_ERR & (~cmd->errors << 8));
+    ASSERT_BIT_SET(reg, AHCI_PX_TFD_ERR & (cmd->errors << 8));
 }
 
 void ahci_port_check_interrupts(AHCIQState *ahci, uint8_t port,
@@ -1242,7 +1242,7 @@ void ahci_command_verify(AHCIQState *ahci, AHCICommand *cmd)
     uint8_t slot = cmd->slot;
     uint8_t port = cmd->port;
 
-    ahci_port_check_error(ahci, port, cmd->interrupts, cmd->errors);
+    ahci_port_check_error(ahci, cmd);
     ahci_port_check_interrupts(ahci, port, cmd->interrupts);
     ahci_port_check_nonbusy(ahci, cmd);
     ahci_port_check_cmd_sanity(ahci, cmd);
