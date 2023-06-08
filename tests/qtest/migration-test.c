@@ -156,6 +156,7 @@ typedef struct {
     gchar *arch_opts;
     gchar *arch_source;
     gchar *arch_target;
+    const gchar *extra_opts;
     gchar *kvm_opts;
     const gchar *memory_size;
     /*
@@ -241,6 +242,12 @@ static void guest_use_shmem(GuestState *vm)
         "-object memory-backend-file,id=mem0,size=%s"
         ",mem-path=%s,share=on -numa node,memdev=mem0",
         vm->memory_size, vm->shmem_path);
+}
+
+static void guest_extra_opts(GuestState *vm, const gchar *opts)
+{
+    g_assert(vm->extra_opts == NULL);
+    vm->extra_opts = opts;
 }
 
 /*
@@ -640,8 +647,6 @@ typedef struct {
     bool hide_stderr;
     /* only launch the target process */
     bool only_target;
-    const char *opts_source;
-    const char *opts_target;
 } MigrateStart;
 
 /*
@@ -764,7 +769,7 @@ static void test_migrate_start(GuestState *from, GuestState *to,
                                  from->arch_opts ? from->arch_opts : "",
                                  from->arch_source ? from->arch_source : "",
                                  from->shmem_opts ? from->shmem_opts : "",
-                                 args->opts_source ? args->opts_source : "",
+                                 from->extra_opts ? from->extra_opts : "",
                                  ignore_stderr ? ignore_stderr : "");
 
     if (!args->only_target) {
@@ -788,7 +793,7 @@ static void test_migrate_start(GuestState *from, GuestState *to,
                                  to->arch_opts ? to->arch_opts : "",
                                  to->arch_target ? to->arch_target : "",
                                  to->shmem_opts ? to->shmem_opts : "",
-                                 args->opts_target ? args->opts_target : "",
+                                 to->extra_opts ? to->extra_opts : "",
                                  ignore_stderr ? ignore_stderr : "");
     to->qs = qtest_init(cmd_target);
     qtest_qmp_set_event_callback(to->qs,
@@ -1996,11 +2001,10 @@ static void test_validate_uuid(void)
 {
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
-    MigrateStart args = {
-        .opts_source = "-uuid 11111111-1111-1111-1111-111111111111",
-        .opts_target = "-uuid 11111111-1111-1111-1111-111111111111",
-    };
+    MigrateStart args = { };
 
+    guest_extra_opts(from, "-uuid 11111111-1111-1111-1111-111111111111");
+    guest_extra_opts(to, "-uuid 11111111-1111-1111-1111-111111111111");
     do_test_validate_uuid(from, to, &args, false);
 }
 
@@ -2009,11 +2013,11 @@ static void test_validate_uuid_error(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateStart args = {
-        .opts_source = "-uuid 11111111-1111-1111-1111-111111111111",
-        .opts_target = "-uuid 22222222-2222-2222-2222-222222222222",
         .hide_stderr = true,
     };
 
+    guest_extra_opts(from, "-uuid 11111111-1111-1111-1111-111111111111");
+    guest_extra_opts(to, "-uuid 22222222-2222-2222-2222-222222222222");
     do_test_validate_uuid(from, to, &args, true);
 }
 
@@ -2022,10 +2026,10 @@ static void test_validate_uuid_src_not_set(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateStart args = {
-        .opts_target = "-uuid 22222222-2222-2222-2222-222222222222",
         .hide_stderr = true,
     };
 
+    guest_extra_opts(to, "-uuid 22222222-2222-2222-2222-222222222222");
     do_test_validate_uuid(from, to, &args, false);
 }
 
@@ -2034,10 +2038,10 @@ static void test_validate_uuid_dst_not_set(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateStart args = {
-        .opts_source = "-uuid 11111111-1111-1111-1111-111111111111",
         .hide_stderr = true,
     };
 
+    guest_extra_opts(from, "-uuid 11111111-1111-1111-1111-111111111111");
     do_test_validate_uuid(from, to, &args, false);
 }
 
