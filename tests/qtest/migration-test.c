@@ -602,7 +602,7 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     g_autofree gchar *arch_target = NULL;
     g_autofree gchar *cmd_source = NULL;
     g_autofree gchar *cmd_target = NULL;
-    const gchar *ignore_stderr;
+    const gchar *ignore_stderr = NULL;
     g_autofree char *bootpath = NULL;
     g_autofree char *shmem_opts = NULL;
     g_autofree char *shmem_path = NULL;
@@ -672,10 +672,7 @@ static int test_migrate_start(QTestState **from, QTestState **to,
          * IO redirection does not work, so don't bother adding IO redirection
          * to the command line.
          */
-        ignore_stderr = "";
 #endif
-    } else {
-        ignore_stderr = "";
     }
 
     if (args->use_shmem) {
@@ -701,7 +698,8 @@ static int test_migrate_start(QTestState **from, QTestState **to,
                                  memory_size, tmpfs,
                                  arch_source, shmem_opts,
                                  args->opts_source ? args->opts_source : "",
-                                 ignore_stderr);
+                                 ignore_stderr ? ignore_stderr : "");
+
     if (!args->only_target) {
         *from = qtest_init(cmd_source);
         qtest_qmp_set_event_callback(*from,
@@ -722,7 +720,7 @@ static int test_migrate_start(QTestState **from, QTestState **to,
                                  memory_size, tmpfs, uri,
                                  arch_target, shmem_opts,
                                  args->opts_target ? args->opts_target : "",
-                                 ignore_stderr);
+                                 ignore_stderr ? ignore_stderr : "");
     *to = qtest_init(cmd_target);
     qtest_qmp_set_event_callback(*to,
                                  migrate_watch_for_resume,
