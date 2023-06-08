@@ -41,8 +41,6 @@
 #endif
 
 static bool uffd_feature_thread_id;
-static bool got_src_stop;
-static bool got_dst_resume;
 
 /*
  * Dirtylimit stop working if dirty page rate error
@@ -172,6 +170,7 @@ typedef struct {
     gchar *uri;
     unsigned start_address;
     unsigned end_address;
+    bool got_event;
 } GuestState;
 
 static GuestState *guest_create(const char *name)
@@ -396,21 +395,21 @@ static void read_blocktime(QTestState *who)
     qobject_unref(rsp_return);
 }
 
-static void wait_for_migration_pass(QTestState *who)
+static void wait_for_migration_pass(GuestState *who)
 {
-    uint64_t initial_pass = get_migration_pass(who);
+    uint64_t initial_pass = get_migration_pass(who->qs);
     uint64_t pass;
 
     /* Wait for the 1st sync */
-    while (!got_src_stop && !initial_pass) {
+    while (!who->got_event && !initial_pass) {
         usleep(1000);
-        initial_pass = get_migration_pass(who);
+        initial_pass = get_migration_pass(who->qs);
     }
 
     do {
         usleep(1000);
-        pass = get_migration_pass(who);
-    } while (pass == initial_pass && !got_src_stop);
+        pass = get_migration_pass(who->qs);
+    } while (pass == initial_pass && !who->got_event);
 }
 
 static void check_guests_ram(GuestState *who)
@@ -657,7 +656,7 @@ static void migrate_postcopy_start(GuestState *from, GuestState *to)
     qtest_qmp_assert_success(from->qs,
                              "{ 'execute': 'migrate-start-postcopy' }");
 
-    if (!got_src_stop) {
+    if (!from->got_event) {
         qtest_qmp_eventwait(from->qs, "STOP");
     }
 
@@ -759,9 +758,6 @@ static void test_migrate_start(GuestState *from, GuestState *to,
     g_autofree gchar *cmd_source = NULL;
     g_autofree gchar *cmd_target = NULL;
 
-    got_src_stop = false;
-    got_dst_resume = false;
-
     cmd_source = g_strdup_printf("-accel kvm%s -accel tcg "
                                  "-name %s,debug-threads=on "
                                  "-m %s "
@@ -781,7 +777,7 @@ static void test_migrate_start(GuestState *from, GuestState *to,
         from->qs = qtest_init(cmd_source);
         qtest_qmp_set_event_callback(from->qs,
                                      migrate_watch_for_stop,
-                                     &got_src_stop);
+                                     &from->got_event);
     }
 
     cmd_target = g_strdup_printf("-accel kvm%s -accel tcg "
@@ -803,7 +799,7 @@ static void test_migrate_start(GuestState *from, GuestState *to,
     to->qs = qtest_init(cmd_target);
     qtest_qmp_set_event_callback(to->qs,
                                  migrate_watch_for_resume,
-                                 &got_dst_resume);
+                                 &to->got_event);
 }
 
 static void test_migrate_end(GuestState *from, GuestState *to, bool test_dest)
@@ -1211,7 +1207,7 @@ static void migrate_postcopy_prepare(GuestState *from,
 
     do_migrate(from, to);
 
-    wait_for_migration_pass(from->qs);
+    wait_for_migration_pass(from);
 }
 
 static void migrate_postcopy_complete(GuestState *from, GuestState *to,
@@ -1464,7 +1460,7 @@ static void test_precopy_common(GuestState *from, GuestState *to,
          */
         if (args->result == MIG_TEST_SUCCEED) {
             qtest_qmp_assert_success(from->qs, "{ 'execute' : 'stop'}");
-            if (!got_src_stop) {
+            if (!from->got_event) {
                 qtest_qmp_eventwait(from->qs, "STOP");
             }
             migrate_ensure_converge(from->qs);
@@ -1484,10 +1480,10 @@ static void test_precopy_common(GuestState *from, GuestState *to,
         if (args->live) {
             if (args->iterations) {
                 while (args->iterations--) {
-                    wait_for_migration_pass(from->qs);
+                    wait_for_migration_pass(from);
                 }
             } else {
-                wait_for_migration_pass(from->qs);
+                wait_for_migration_pass(from);
             }
 
             migrate_ensure_converge(from->qs);
@@ -1498,7 +1494,7 @@ static void test_precopy_common(GuestState *from, GuestState *to,
              */
             wait_for_migration_complete(from->qs);
 
-            if (!got_src_stop) {
+            if (!from->got_event) {
                 qtest_qmp_eventwait(from->qs, "STOP");
             }
         } else {
@@ -1513,7 +1509,7 @@ static void test_precopy_common(GuestState *from, GuestState *to,
             qtest_qmp_assert_success(to->qs, "{ 'execute' : 'cont'}");
         }
 
-        if (!got_dst_resume) {
+        if (!to->got_event) {
             qtest_qmp_eventwait(to->qs, "RESUME");
         }
 
@@ -1627,9 +1623,9 @@ static void test_ignore_shared(void)
 
     do_migrate(from, to);
 
-    wait_for_migration_pass(from->qs);
+    wait_for_migration_pass(from);
 
-    if (!got_src_stop) {
+    if (!from->got_event) {
         qtest_qmp_eventwait(from->qs, "STOP");
     }
 
@@ -2062,7 +2058,7 @@ static void test_migrate_auto_converge(void)
             break;
         }
         usleep(20);
-        g_assert_false(got_src_stop);
+        g_assert_false(from->got_event);
     } while (true);
     /* The first percentage of throttling should be at least init_pct */
     g_assert_cmpint(percentage, >=, init_pct);
@@ -2368,7 +2364,7 @@ static void test_multifd_tcp_cancel(void)
 
     do_migrate(from, to);
 
-    wait_for_migration_pass(from->qs);
+    wait_for_migration_pass(from);
 
     migrate_cancel(from->qs);
 
@@ -2399,9 +2395,9 @@ static void test_multifd_tcp_cancel(void)
 
     do_migrate(from, to2);
 
-    wait_for_migration_pass(from->qs);
+    wait_for_migration_pass(from);
 
-    if (!got_src_stop) {
+    if (!from->got_event) {
         qtest_qmp_eventwait(from->qs, "STOP");
     }
     qtest_qmp_eventwait(to2->qs, "RESUME");
