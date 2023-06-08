@@ -653,15 +653,16 @@ static void migrate_set_capability(QTestState *who, const char *capability,
                              capability, value);
 }
 
-static void migrate_postcopy_start(QTestState *from, QTestState *to)
+static void migrate_postcopy_start(GuestState *from, GuestState *to)
 {
-    qtest_qmp_assert_success(from, "{ 'execute': 'migrate-start-postcopy' }");
+    qtest_qmp_assert_success(from->qs,
+                             "{ 'execute': 'migrate-start-postcopy' }");
 
     if (!got_src_stop) {
-        qtest_qmp_eventwait(from, "STOP");
+        qtest_qmp_eventwait(from->qs, "STOP");
     }
 
-    qtest_qmp_eventwait(to, "RESUME");
+    qtest_qmp_eventwait(to->qs, "RESUME");
 }
 
 static void do_migrate(GuestState *from, GuestState *to, const gchar *uri)
@@ -688,8 +689,7 @@ typedef struct {
  * Returns: NULL, or a pointer to opaque state to be
  *          later passed to the TestMigrateFinishHook
  */
-typedef void * (*TestMigrateStartHook)(QTestState *from,
-                                       QTestState *to);
+typedef void * (*TestMigrateStartHook)(GuestState *from, GuestState *to);
 
 /*
  * A hook that runs after the migration has finished,
@@ -700,8 +700,7 @@ typedef void * (*TestMigrateStartHook)(QTestState *from,
  * @opaque is a pointer to state previously returned
  * by the TestMigrateStartHook if any, or NULL.
  */
-typedef void (*TestMigrateFinishHook)(QTestState *from,
-                                      QTestState *to,
+typedef void (*TestMigrateFinishHook)(GuestState *from, GuestState *to,
                                       void *opaque);
 
 typedef struct {
@@ -859,8 +858,7 @@ struct TestMigrateTLSPSKData {
 };
 
 static void *
-test_migrate_tls_psk_start_common(QTestState *from,
-                                  QTestState *to,
+test_migrate_tls_psk_start_common(GuestState *from, GuestState *to,
                                   bool mismatch)
 {
     struct TestMigrateTLSPSKData *data =
@@ -880,7 +878,7 @@ test_migrate_tls_psk_start_common(QTestState *from,
         test_tls_psk_init_alt(data->pskfilealt);
     }
 
-    qtest_qmp_assert_success(from,
+    qtest_qmp_assert_success(from->qs,
                              "{ 'execute': 'object-add',"
                              "  'arguments': { 'qom-type': 'tls-creds-psk',"
                              "                 'id': 'tlscredspsk0',"
@@ -889,7 +887,7 @@ test_migrate_tls_psk_start_common(QTestState *from,
                              "                 'username': 'qemu'} }",
                              data->workdir);
 
-    qtest_qmp_assert_success(to,
+    qtest_qmp_assert_success(to->qs,
                              "{ 'execute': 'object-add',"
                              "  'arguments': { 'qom-type': 'tls-creds-psk',"
                              "                 'id': 'tlscredspsk0',"
@@ -897,30 +895,26 @@ test_migrate_tls_psk_start_common(QTestState *from,
                              "                 'dir': %s } }",
                              mismatch ? data->workdiralt : data->workdir);
 
-    migrate_set_parameter_str(from, "tls-creds", "tlscredspsk0");
-    migrate_set_parameter_str(to, "tls-creds", "tlscredspsk0");
+    migrate_set_parameter_str(from->qs, "tls-creds", "tlscredspsk0");
+    migrate_set_parameter_str(to->qs, "tls-creds", "tlscredspsk0");
 
     return data;
 }
 
 static void *
-test_migrate_tls_psk_start_match(QTestState *from,
-                                 QTestState *to)
+test_migrate_tls_psk_start_match(GuestState *from, GuestState *to)
 {
     return test_migrate_tls_psk_start_common(from, to, false);
 }
 
 static void *
-test_migrate_tls_psk_start_mismatch(QTestState *from,
-                                    QTestState *to)
+test_migrate_tls_psk_start_mismatch(GuestState *from, GuestState *to)
 {
     return test_migrate_tls_psk_start_common(from, to, true);
 }
 
 static void
-test_migrate_tls_psk_finish(QTestState *from,
-                            QTestState *to,
-                            void *opaque)
+test_migrate_tls_psk_finish(GuestState *from, GuestState *to, void *opaque)
 {
     struct TestMigrateTLSPSKData *data = opaque;
 
@@ -961,8 +955,7 @@ typedef struct {
 } TestMigrateTLSX509;
 
 static void *
-test_migrate_tls_x509_start_common(QTestState *from,
-                                   QTestState *to,
+test_migrate_tls_x509_start_common(GuestState *from, GuestState *to,
                                    TestMigrateTLSX509 *args)
 {
     TestMigrateTLSX509Data *data = g_new0(TestMigrateTLSX509Data, 1);
@@ -1008,7 +1001,7 @@ test_migrate_tls_x509_start_common(QTestState *from,
                                args->certhostname,
                                args->certipaddr);
 
-    qtest_qmp_assert_success(from,
+    qtest_qmp_assert_success(from->qs,
                              "{ 'execute': 'object-add',"
                              "  'arguments': { 'qom-type': 'tls-creds-x509',"
                              "                 'id': 'tlscredsx509client0',"
@@ -1017,12 +1010,12 @@ test_migrate_tls_x509_start_common(QTestState *from,
                              "                 'sanity-check': true,"
                              "                 'verify-peer': true} }",
                              data->workdir);
-    migrate_set_parameter_str(from, "tls-creds", "tlscredsx509client0");
+    migrate_set_parameter_str(from->qs, "tls-creds", "tlscredsx509client0");
     if (args->certhostname) {
-        migrate_set_parameter_str(from, "tls-hostname", args->certhostname);
+        migrate_set_parameter_str(from->qs, "tls-hostname", args->certhostname);
     }
 
-    qtest_qmp_assert_success(to,
+    qtest_qmp_assert_success(to->qs,
                              "{ 'execute': 'object-add',"
                              "  'arguments': { 'qom-type': 'tls-creds-x509',"
                              "                 'id': 'tlscredsx509server0',"
@@ -1031,16 +1024,16 @@ test_migrate_tls_x509_start_common(QTestState *from,
                              "                 'sanity-check': true,"
                              "                 'verify-peer': %i} }",
                              data->workdir, args->verifyclient);
-    migrate_set_parameter_str(to, "tls-creds", "tlscredsx509server0");
+    migrate_set_parameter_str(to->qs, "tls-creds", "tlscredsx509server0");
 
     if (args->authzclient) {
-        qtest_qmp_assert_success(to,
+        qtest_qmp_assert_success(to->qs,
                                  "{ 'execute': 'object-add',"
                                  "  'arguments': { 'qom-type': 'authz-simple',"
                                  "                 'id': 'tlsauthz0',"
                                  "                 'identity': %s} }",
                                  "CN=" QCRYPTO_TLS_TEST_CLIENT_NAME);
-        migrate_set_parameter_str(to, "tls-authz", "tlsauthz0");
+        migrate_set_parameter_str(to->qs, "tls-authz", "tlsauthz0");
     }
 
     return data;
@@ -1051,8 +1044,7 @@ test_migrate_tls_x509_start_common(QTestState *from,
  * whatever host we were telling QEMU to connect to (if any)
  */
 static void *
-test_migrate_tls_x509_start_default_host(QTestState *from,
-                                         QTestState *to)
+test_migrate_tls_x509_start_default_host(GuestState *from, GuestState *to)
 {
     TestMigrateTLSX509 args = {
         .verifyclient = true,
@@ -1068,8 +1060,7 @@ test_migrate_tls_x509_start_default_host(QTestState *from,
  * so we must give QEMU an explicit hostname to validate
  */
 static void *
-test_migrate_tls_x509_start_override_host(QTestState *from,
-                                          QTestState *to)
+test_migrate_tls_x509_start_override_host(GuestState *from, GuestState *to)
 {
     TestMigrateTLSX509 args = {
         .verifyclient = true,
@@ -1085,8 +1076,7 @@ test_migrate_tls_x509_start_override_host(QTestState *from,
  * expect the client to reject the server
  */
 static void *
-test_migrate_tls_x509_start_mismatch_host(QTestState *from,
-                                          QTestState *to)
+test_migrate_tls_x509_start_mismatch_host(GuestState *from, GuestState *to)
 {
     TestMigrateTLSX509 args = {
         .verifyclient = true,
@@ -1097,8 +1087,7 @@ test_migrate_tls_x509_start_mismatch_host(QTestState *from,
 }
 
 static void *
-test_migrate_tls_x509_start_friendly_client(QTestState *from,
-                                            QTestState *to)
+test_migrate_tls_x509_start_friendly_client(GuestState *from, GuestState *to)
 {
     TestMigrateTLSX509 args = {
         .verifyclient = true,
@@ -1110,8 +1099,7 @@ test_migrate_tls_x509_start_friendly_client(QTestState *from,
 }
 
 static void *
-test_migrate_tls_x509_start_hostile_client(QTestState *from,
-                                           QTestState *to)
+test_migrate_tls_x509_start_hostile_client(GuestState *from, GuestState *to)
 {
     TestMigrateTLSX509 args = {
         .verifyclient = true,
@@ -1128,8 +1116,7 @@ test_migrate_tls_x509_start_hostile_client(QTestState *from,
  * and no server verification
  */
 static void *
-test_migrate_tls_x509_start_allow_anon_client(QTestState *from,
-                                              QTestState *to)
+test_migrate_tls_x509_start_allow_anon_client(GuestState *from, GuestState *to)
 {
     TestMigrateTLSX509 args = {
         .certipaddr = "127.0.0.1",
@@ -1142,8 +1129,7 @@ test_migrate_tls_x509_start_allow_anon_client(QTestState *from,
  * and server verification rejecting
  */
 static void *
-test_migrate_tls_x509_start_reject_anon_client(QTestState *from,
-                                               QTestState *to)
+test_migrate_tls_x509_start_reject_anon_client(GuestState *from, GuestState *to)
 {
     TestMigrateTLSX509 args = {
         .verifyclient = true,
@@ -1153,9 +1139,7 @@ test_migrate_tls_x509_start_reject_anon_client(QTestState *from,
 }
 
 static void
-test_migrate_tls_x509_finish(QTestState *from,
-                             QTestState *to,
-                             void *opaque)
+test_migrate_tls_x509_finish(GuestState *from, GuestState *to, void *opaque)
 {
     TestMigrateTLSX509Data *data = opaque;
 
@@ -1187,31 +1171,29 @@ test_migrate_tls_x509_finish(QTestState *from,
 #endif /* CONFIG_GNUTLS */
 
 static void *
-test_migrate_compress_start(QTestState *from,
-                            QTestState *to)
+test_migrate_compress_start(GuestState *from, GuestState *to)
 {
-    migrate_set_parameter_int(from, "compress-level", 1);
-    migrate_set_parameter_int(from, "compress-threads", 4);
-    migrate_set_parameter_bool(from, "compress-wait-thread", true);
-    migrate_set_parameter_int(to, "decompress-threads", 4);
+    migrate_set_parameter_int(from->qs, "compress-level", 1);
+    migrate_set_parameter_int(from->qs, "compress-threads", 4);
+    migrate_set_parameter_bool(from->qs, "compress-wait-thread", true);
+    migrate_set_parameter_int(to->qs, "decompress-threads", 4);
 
-    migrate_set_capability(from, "compress", true);
-    migrate_set_capability(to, "compress", true);
+    migrate_set_capability(from->qs, "compress", true);
+    migrate_set_capability(to->qs, "compress", true);
 
     return NULL;
 }
 
 static void *
-test_migrate_compress_nowait_start(QTestState *from,
-                                   QTestState *to)
+test_migrate_compress_nowait_start(GuestState *from, GuestState *to)
 {
-    migrate_set_parameter_int(from, "compress-level", 9);
-    migrate_set_parameter_int(from, "compress-threads", 1);
-    migrate_set_parameter_bool(from, "compress-wait-thread", false);
-    migrate_set_parameter_int(to, "decompress-threads", 1);
+    migrate_set_parameter_int(from->qs, "compress-level", 9);
+    migrate_set_parameter_int(from->qs, "compress-threads", 1);
+    migrate_set_parameter_bool(from->qs, "compress-wait-thread", false);
+    migrate_set_parameter_int(to->qs, "decompress-threads", 1);
 
-    migrate_set_capability(from, "compress", true);
-    migrate_set_capability(to, "compress", true);
+    migrate_set_capability(from->qs, "compress", true);
+    migrate_set_capability(to->qs, "compress", true);
 
     return NULL;
 }
@@ -1224,7 +1206,7 @@ static void migrate_postcopy_prepare(GuestState *from,
     test_migrate_start(from, to, NULL, &args->start);
 
     if (args->start_hook) {
-        args->postcopy_data = args->start_hook(from->qs, to->qs);
+        args->postcopy_data = args->start_hook(from, to);
     }
 
     migrate_set_capability(from->qs, "postcopy-ram", true);
@@ -1259,7 +1241,7 @@ static void migrate_postcopy_complete(GuestState *from, GuestState *to,
     }
 
     if (args->finish_hook) {
-        args->finish_hook(from->qs, to->qs, args->postcopy_data);
+        args->finish_hook(from, to, args->postcopy_data);
         args->postcopy_data = NULL;
     }
 
@@ -1270,7 +1252,7 @@ static void test_postcopy_common(GuestState *from, GuestState *to,
                                  MigrateCommon *args)
 {
     migrate_postcopy_prepare(from, to, args);
-    migrate_postcopy_start(from->qs, to->qs);
+    migrate_postcopy_start(from, to);
     migrate_postcopy_complete(from, to, args);
 }
 
@@ -1346,7 +1328,7 @@ static void test_postcopy_recovery_common(MigrateCommon *args)
     migrate_set_parameter_int(from->qs, "max-postcopy-bandwidth", 4096);
 
     /* Now we start the postcopy */
-    migrate_postcopy_start(from->qs, to->qs);
+    migrate_postcopy_start(from, to);
 
     /*
      * Wait until postcopy is really started; we can only run the
@@ -1469,7 +1451,7 @@ static void test_precopy_common(GuestState *from, GuestState *to,
     test_migrate_start(from, to, args->listen_uri, &args->start);
 
     if (args->start_hook) {
-        data_hook = args->start_hook(from->qs, to->qs);
+        data_hook = args->start_hook(from, to);
     }
 
     /* Wait for the first serial output from the source */
@@ -1552,7 +1534,7 @@ static void test_precopy_common(GuestState *from, GuestState *to,
     }
 
     if (args->finish_hook) {
-        args->finish_hook(from->qs, to->qs, data_hook);
+        args->finish_hook(from, to, data_hook);
     }
 
     test_migrate_end(from, to, args->result == MIG_TEST_SUCCEED);
@@ -1687,13 +1669,12 @@ static void test_ignore_shared(void)
 }
 
 static void *
-test_migrate_xbzrle_start(QTestState *from,
-                          QTestState *to)
+test_migrate_xbzrle_start(GuestState *from, GuestState *to)
 {
-    migrate_set_parameter_int(from, "xbzrle-cache-size", 33554432);
+    migrate_set_parameter_int(from->qs, "xbzrle-cache-size", 33554432);
 
-    migrate_set_capability(from, "xbzrle", true);
-    migrate_set_capability(to, "xbzrle", true);
+    migrate_set_capability(from->qs, "xbzrle", true);
+    migrate_set_capability(to->qs, "xbzrle", true);
 
     return NULL;
 }
@@ -1909,8 +1890,7 @@ static void test_precopy_tcp_tls_x509_reject_anon_client(void)
 #endif /* CONFIG_GNUTLS */
 
 #ifndef _WIN32
-static void *test_migrate_fd_start_hook(QTestState *from,
-                                        QTestState *to)
+static void *test_migrate_fd_start_hook(GuestState *from, GuestState *to)
 {
     int ret;
     int pair[2];
@@ -1920,17 +1900,17 @@ static void *test_migrate_fd_start_hook(QTestState *from,
     g_assert_cmpint(ret, ==, 0);
 
     /* Send the 1st socket to the target */
-    qtest_qmp_fds_assert_success(to, &pair[0], 1,
+    qtest_qmp_fds_assert_success(to->qs, &pair[0], 1,
                                  "{ 'execute': 'getfd',"
                                  "  'arguments': { 'fdname': 'fd-mig' }}");
     close(pair[0]);
 
     /* Start incoming migration from the 1st socket */
-    qtest_qmp_assert_success(to, "{ 'execute': 'migrate-incoming',"
+    qtest_qmp_assert_success(to->qs, "{ 'execute': 'migrate-incoming',"
                              "  'arguments': { 'uri': 'fd:fd-mig' }}");
 
     /* Send the 2nd socket to the target */
-    qtest_qmp_fds_assert_success(from, &pair[1], 1,
+    qtest_qmp_fds_assert_success(from->qs, &pair[1], 1,
                                  "{ 'execute': 'getfd',"
                                  "  'arguments': { 'fdname': 'fd-mig' }}");
     close(pair[1]);
@@ -1938,8 +1918,7 @@ static void *test_migrate_fd_start_hook(QTestState *from,
     return NULL;
 }
 
-static void test_migrate_fd_finish_hook(QTestState *from,
-                                        QTestState *to,
+static void test_migrate_fd_finish_hook(GuestState *from, GuestState *to,
                                         void *opaque)
 {
     QDict *rsp;
@@ -1948,14 +1927,14 @@ static void test_migrate_fd_finish_hook(QTestState *from,
     /* Test closing fds */
     /* We assume, that QEMU removes named fd from its list,
      * so this should fail */
-    rsp = qtest_qmp(from, "{ 'execute': 'closefd',"
+    rsp = qtest_qmp(from->qs, "{ 'execute': 'closefd',"
                           "  'arguments': { 'fdname': 'fd-mig' }}");
     g_assert_true(qdict_haskey(rsp, "error"));
     error_desc = qdict_get_str(qdict_get_qdict(rsp, "error"), "desc");
     g_assert_cmpstr(error_desc, ==, "File descriptor named 'fd-mig' not found");
     qobject_unref(rsp);
 
-    rsp = qtest_qmp(to, "{ 'execute': 'closefd',"
+    rsp = qtest_qmp(to->qs, "{ 'execute': 'closefd',"
                         "  'arguments': { 'fdname': 'fd-mig' }}");
     g_assert_true(qdict_haskey(rsp, "error"));
     error_desc = qdict_get_str(qdict_get_qdict(rsp, "error"), "desc");
@@ -2141,44 +2120,40 @@ static void test_migrate_auto_converge(void)
 }
 
 static void *
-test_migrate_precopy_tcp_multifd_start_common(QTestState *from,
-                                              QTestState *to,
+test_migrate_precopy_tcp_multifd_start_common(GuestState *from, GuestState *to,
                                               const char *method)
 {
-    migrate_set_parameter_int(from, "multifd-channels", 16);
-    migrate_set_parameter_int(to, "multifd-channels", 16);
+    migrate_set_parameter_int(from->qs, "multifd-channels", 16);
+    migrate_set_parameter_int(to->qs, "multifd-channels", 16);
 
-    migrate_set_parameter_str(from, "multifd-compression", method);
-    migrate_set_parameter_str(to, "multifd-compression", method);
+    migrate_set_parameter_str(from->qs, "multifd-compression", method);
+    migrate_set_parameter_str(to->qs, "multifd-compression", method);
 
-    migrate_set_capability(from, "multifd", true);
-    migrate_set_capability(to, "multifd", true);
+    migrate_set_capability(from->qs, "multifd", true);
+    migrate_set_capability(to->qs, "multifd", true);
 
     /* Start incoming migration from the 1st socket */
-    qtest_qmp_assert_success(to, "{ 'execute': 'migrate-incoming',"
+    qtest_qmp_assert_success(to->qs, "{ 'execute': 'migrate-incoming',"
                              "  'arguments': { 'uri': 'tcp:127.0.0.1:0' }}");
 
     return NULL;
 }
 
 static void *
-test_migrate_precopy_tcp_multifd_start(QTestState *from,
-                                       QTestState *to)
+test_migrate_precopy_tcp_multifd_start(GuestState *from, GuestState *to)
 {
     return test_migrate_precopy_tcp_multifd_start_common(from, to, "none");
 }
 
 static void *
-test_migrate_precopy_tcp_multifd_zlib_start(QTestState *from,
-                                            QTestState *to)
+test_migrate_precopy_tcp_multifd_zlib_start(GuestState *from, GuestState *to)
 {
     return test_migrate_precopy_tcp_multifd_start_common(from, to, "zlib");
 }
 
 #ifdef CONFIG_ZSTD
 static void *
-test_migrate_precopy_tcp_multifd_zstd_start(QTestState *from,
-                                            QTestState *to)
+test_migrate_precopy_tcp_multifd_zstd_start(GuestState *from, GuestState *to)
 {
     return test_migrate_precopy_tcp_multifd_start_common(from, to, "zstd");
 }
@@ -2227,16 +2202,15 @@ static void test_multifd_tcp_zstd(void)
 
 #ifdef CONFIG_GNUTLS
 static void *
-test_migrate_multifd_tcp_tls_psk_start_match(QTestState *from,
-                                             QTestState *to)
+test_migrate_multifd_tcp_tls_psk_start_match(GuestState *from, GuestState *to)
 {
     test_migrate_precopy_tcp_multifd_start_common(from, to, "none");
     return test_migrate_tls_psk_start_match(from, to);
 }
 
 static void *
-test_migrate_multifd_tcp_tls_psk_start_mismatch(QTestState *from,
-                                                QTestState *to)
+test_migrate_multifd_tcp_tls_psk_start_mismatch(GuestState *from,
+                                                GuestState *to)
 {
     test_migrate_precopy_tcp_multifd_start_common(from, to, "none");
     return test_migrate_tls_psk_start_mismatch(from, to);
@@ -2244,40 +2218,40 @@ test_migrate_multifd_tcp_tls_psk_start_mismatch(QTestState *from,
 
 #ifdef CONFIG_TASN1
 static void *
-test_migrate_multifd_tls_x509_start_default_host(QTestState *from,
-                                                 QTestState *to)
+test_migrate_multifd_tls_x509_start_default_host(GuestState *from,
+                                                 GuestState *to)
 {
     test_migrate_precopy_tcp_multifd_start_common(from, to, "none");
     return test_migrate_tls_x509_start_default_host(from, to);
 }
 
 static void *
-test_migrate_multifd_tls_x509_start_override_host(QTestState *from,
-                                                  QTestState *to)
+test_migrate_multifd_tls_x509_start_override_host(GuestState *from,
+                                                  GuestState *to)
 {
     test_migrate_precopy_tcp_multifd_start_common(from, to, "none");
     return test_migrate_tls_x509_start_override_host(from, to);
 }
 
 static void *
-test_migrate_multifd_tls_x509_start_mismatch_host(QTestState *from,
-                                                  QTestState *to)
+test_migrate_multifd_tls_x509_start_mismatch_host(GuestState *from,
+                                                  GuestState *to)
 {
     test_migrate_precopy_tcp_multifd_start_common(from, to, "none");
     return test_migrate_tls_x509_start_mismatch_host(from, to);
 }
 
 static void *
-test_migrate_multifd_tls_x509_start_allow_anon_client(QTestState *from,
-                                                      QTestState *to)
+test_migrate_multifd_tls_x509_start_allow_anon_client(GuestState *from,
+                                                      GuestState *to)
 {
     test_migrate_precopy_tcp_multifd_start_common(from, to, "none");
     return test_migrate_tls_x509_start_allow_anon_client(from, to);
 }
 
 static void *
-test_migrate_multifd_tls_x509_start_reject_anon_client(QTestState *from,
-                                                       QTestState *to)
+test_migrate_multifd_tls_x509_start_reject_anon_client(GuestState *from,
+                                                       GuestState *to)
 {
     test_migrate_precopy_tcp_multifd_start_common(from, to, "none");
     return test_migrate_tls_x509_start_reject_anon_client(from, to);
