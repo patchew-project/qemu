@@ -1905,11 +1905,10 @@ static void test_migrate_fd_proto(void)
 }
 #endif /* _WIN32 */
 
-static void do_test_validate_uuid(MigrateStart *args, bool should_fail)
+static void do_test_validate_uuid(GuestState *from, GuestState *to,
+                                  MigrateStart *args, bool should_fail)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-    GuestState *from = guest_create("source");
-    GuestState *to = guest_create("target");
 
     test_migrate_start(from, to, uri, args);
 
@@ -1938,43 +1937,51 @@ static void do_test_validate_uuid(MigrateStart *args, bool should_fail)
 
 static void test_validate_uuid(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateStart args = {
         .opts_source = "-uuid 11111111-1111-1111-1111-111111111111",
         .opts_target = "-uuid 11111111-1111-1111-1111-111111111111",
     };
 
-    do_test_validate_uuid(&args, false);
+    do_test_validate_uuid(from, to, &args, false);
 }
 
 static void test_validate_uuid_error(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateStart args = {
         .opts_source = "-uuid 11111111-1111-1111-1111-111111111111",
         .opts_target = "-uuid 22222222-2222-2222-2222-222222222222",
         .hide_stderr = true,
     };
 
-    do_test_validate_uuid(&args, true);
+    do_test_validate_uuid(from, to, &args, true);
 }
 
 static void test_validate_uuid_src_not_set(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateStart args = {
         .opts_target = "-uuid 22222222-2222-2222-2222-222222222222",
         .hide_stderr = true,
     };
 
-    do_test_validate_uuid(&args, false);
+    do_test_validate_uuid(from, to, &args, false);
 }
 
 static void test_validate_uuid_dst_not_set(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateStart args = {
         .opts_source = "-uuid 11111111-1111-1111-1111-111111111111",
         .hide_stderr = true,
     };
 
-    do_test_validate_uuid(&args, false);
+    do_test_validate_uuid(from, to, &args, false);
 }
 
 /*
