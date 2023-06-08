@@ -156,6 +156,7 @@ typedef struct {
     gchar *arch_opts;
     gchar *arch_source;
     gchar *arch_target;
+    gchar *kvm_opts;
     const gchar *memory_size;
     const gchar *name;
     unsigned start_address;
@@ -208,7 +209,14 @@ static void guest_destroy(GuestState *vm)
     g_free(vm->arch_opts);
     g_free(vm->arch_source);
     g_free(vm->arch_target);
+    g_free(vm->kvm_opts);
     g_free(vm);
+}
+
+static void guest_use_dirty_ring(GuestState *vm)
+{
+    g_assert(vm->kvm_opts == NULL);
+    vm->kvm_opts = g_strdup(",dirty-ring-size=4096");
 }
 
 /*
@@ -608,8 +616,6 @@ typedef struct {
     bool use_shmem;
     /* only launch the target process */
     bool only_target;
-    /* Use dirty ring if true; dirty logging otherwise */
-    bool use_dirty_ring;
     const char *opts_source;
     const char *opts_target;
 } MigrateStart;
@@ -708,7 +714,6 @@ static void test_migrate_start(GuestState *from, GuestState *to,
     const gchar *ignore_stderr = NULL;
     g_autofree char *shmem_opts = NULL;
     g_autofree char *shmem_path = NULL;
-    const char *kvm_opts = NULL;
 
     got_src_stop = false;
     got_dst_resume = false;
@@ -733,16 +738,12 @@ static void test_migrate_start(GuestState *from, GuestState *to,
             from->memory_size, shmem_path);
     }
 
-    if (args->use_dirty_ring) {
-        kvm_opts = ",dirty-ring-size=4096";
-    }
-
     cmd_source = g_strdup_printf("-accel kvm%s -accel tcg "
                                  "-name %s,debug-threads=on "
                                  "-m %s "
                                  "-serial file:%s/src_serial "
                                  "%s %s %s %s %s",
-                                 kvm_opts ? kvm_opts : "",
+                                 from->kvm_opts ? from->kvm_opts : "",
                                  from->name,
                                  from->memory_size, tmpfs,
                                  from->arch_opts ? from->arch_opts : "",
@@ -764,7 +765,7 @@ static void test_migrate_start(GuestState *from, GuestState *to,
                                  "-serial file:%s/dest_serial "
                                  "-incoming %s "
                                  "%s %s %s %s %s",
-                                 kvm_opts ? kvm_opts : "",
+                                 to->kvm_opts ? to->kvm_opts : "",
                                  to->name,
                                  to->memory_size, tmpfs, uri,
                                  to->arch_opts ? to->arch_opts : "",
@@ -1555,9 +1556,6 @@ static void test_precopy_unix_dirty_ring(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .start = {
-            .use_dirty_ring = true,
-        },
         .listen_uri = uri,
         .connect_uri = uri,
         /*
@@ -1567,6 +1565,8 @@ static void test_precopy_unix_dirty_ring(void)
         .live = true,
     };
 
+    guest_use_dirty_ring(from);
+    guest_use_dirty_ring(to);
     test_precopy_common(from, to, &args);
 }
 
@@ -2588,6 +2588,9 @@ static int64_t get_limit_rate(QTestState *who)
 static GuestState *dirtylimit_start_vm(void)
 {
     GuestState *vm = guest_create("dirtylimit-test");
+
+    guest_use_dirty_ring(vm);
+
     g_autofree gchar *
     cmd = g_strdup_printf("-accel kvm,dirty-ring-size=4096 "
                           "-name dirtylimit-test,debug-threads=on "
