@@ -1146,9 +1146,9 @@ test_migrate_compress_nowait_start(QTestState *from,
     return NULL;
 }
 
-static int migrate_postcopy_prepare(QTestState **from_ptr,
-                                    QTestState **to_ptr,
-                                    MigrateCommon *args)
+static void migrate_postcopy_prepare(QTestState **from_ptr,
+                                     QTestState **to_ptr,
+                                     MigrateCommon *args)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
@@ -1179,8 +1179,6 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
 
     *from_ptr = from;
     *to_ptr = to;
-
-    return 0;
 }
 
 static void migrate_postcopy_complete(QTestState *from, QTestState *to,
@@ -1207,9 +1205,7 @@ static void test_postcopy_common(MigrateCommon *args)
 {
     QTestState *from, *to;
 
-    if (migrate_postcopy_prepare(&from, &to, args)) {
-        return;
-    }
+    migrate_postcopy_prepare(&from, &to, args);
     migrate_postcopy_start(from, to);
     migrate_postcopy_complete(from, to, args);
 }
@@ -1270,9 +1266,7 @@ static void test_postcopy_recovery_common(MigrateCommon *args)
     /* Always hide errors for postcopy recover tests since they're expected */
     args->start.hide_stderr = true;
 
-    if (migrate_postcopy_prepare(&from, &to, args)) {
-        return;
-    }
+    migrate_postcopy_prepare(&from, &to, args);
 
     /* Turn postcopy speed down, 4K/s is slow enough on any machines */
     migrate_set_parameter_int(from, "max-postcopy-bandwidth", 4096);
