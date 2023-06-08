@@ -671,24 +671,14 @@ static void migrate_postcopy_start(GuestState *from, GuestState *to)
     qtest_qmp_eventwait(to->qs, "RESUME");
 }
 
-static void do_migrate(GuestState *from, GuestState *to, const gchar *uri)
+static void do_migrate(GuestState *from, GuestState *to)
 {
-    if (to->uri) {
-        if (strncmp(to->uri, "tcp:", strlen("tcp:")) == 0) {
-            g_autofree char *tcp_uri =
-                migrate_get_socket_address(to->qs, "socket-address");
-            migrate_qmp(from->qs, tcp_uri, "{}");
-        } else {
-            migrate_qmp(from->qs, to->uri, "{}");
-        }
+    if (!to->uri || strncmp(to->uri, "tcp:", strlen("tcp:")) == 0) {
+        g_autofree char *tcp_uri =
+            migrate_get_socket_address(to->qs, "socket-address");
+        migrate_qmp(from->qs, tcp_uri, "{}");
     } else {
-        if (!uri) {
-            g_autofree char *tcp_uri =
-                migrate_get_socket_address(to->qs, "socket-address");
-            migrate_qmp(from->qs, tcp_uri, "{}");
-        } else {
-            migrate_qmp(from->qs, uri, "{}");
-        }
+        migrate_qmp(from->qs, to->uri, "{}");
     }
 }
 
@@ -725,14 +715,6 @@ typedef struct {
 
     /* Required: the URI for the dst QEMU to listen on */
     const char *listen_uri;
-
-    /*
-     * Optional: the URI for the src QEMU to connect to
-     * If NULL, then it will query the dst QEMU for its actual
-     * listening address and use that as the connect address.
-     * This allows for dynamically picking a free TCP port.
-     */
-    const char *connect_uri;
 
     /* Optional: callback to run at start to set migration parameters */
     TestMigrateStartHook start_hook;
@@ -1239,7 +1221,7 @@ static void migrate_postcopy_prepare(GuestState *from,
     /* Wait for the first serial output from the source */
     wait_for_serial(from);
 
-    do_migrate(from, to, to->uri);
+    do_migrate(from, to);
 
     wait_for_migration_pass(from->qs);
 }
@@ -1500,7 +1482,7 @@ static void test_precopy_common(GuestState *from, GuestState *to,
         }
     }
 
-    do_migrate(from, to, args->connect_uri);
+    do_migrate(from, to);
 
     if (args->result != MIG_TEST_SUCCEED) {
         bool allow_active = args->result == MIG_TEST_FAIL;
@@ -1563,7 +1545,6 @@ static void test_precopy_unix_plain(void)
     GuestState *to = guest_create("target");
     MigrateCommon args = {
         .listen_uri = uri,
-        .connect_uri = uri,
         /*
          * The simplest use case of precopy, covering smoke tests of
          * get-dirty-log dirty tracking.
@@ -1582,7 +1563,6 @@ static void test_precopy_unix_dirty_ring(void)
     GuestState *to = guest_create("target");
     MigrateCommon args = {
         .listen_uri = uri,
-        .connect_uri = uri,
         /*
          * Besides the precopy/unix basic test, cover dirty ring interface
          * rather than get-dirty-log.
@@ -1602,7 +1582,6 @@ static void test_precopy_unix_tls_psk(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .connect_uri = uri,
         .listen_uri = uri,
         .start_hook = test_migrate_tls_psk_start_match,
         .finish_hook = test_migrate_tls_psk_finish,
@@ -1618,7 +1597,6 @@ static void test_precopy_unix_tls_x509_default_host(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .connect_uri = uri,
         .listen_uri = uri,
         .start_hook = test_migrate_tls_x509_start_default_host,
         .finish_hook = test_migrate_tls_x509_finish,
@@ -1636,7 +1614,6 @@ static void test_precopy_unix_tls_x509_override_host(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .connect_uri = uri,
         .listen_uri = uri,
         .start_hook = test_migrate_tls_x509_start_override_host,
         .finish_hook = test_migrate_tls_x509_finish,
@@ -1664,7 +1641,7 @@ static void test_ignore_shared(void)
     /* Wait for the first serial output from the source */
     wait_for_serial(from);
 
-    do_migrate(from, to, to->uri);
+    do_migrate(from, to);
 
     wait_for_migration_pass(from->qs);
 
@@ -1701,7 +1678,6 @@ static void test_precopy_unix_xbzrle(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .connect_uri = uri,
         .listen_uri = uri,
         .start_hook = test_migrate_xbzrle_start,
         .iterations = 2,
@@ -1721,7 +1697,6 @@ static void test_precopy_unix_compress(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .connect_uri = uri,
         .listen_uri = uri,
         .start_hook = test_migrate_compress_start,
         /*
@@ -1746,7 +1721,6 @@ static void test_precopy_unix_compress_nowait(void)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
     MigrateCommon args = {
-        .connect_uri = uri,
         .listen_uri = uri,
         .start_hook = test_migrate_compress_nowait_start,
         /*
@@ -1989,7 +1963,7 @@ static void do_test_validate_uuid(GuestState *from, GuestState *to,
     /* Wait for the first serial output from the source */
     wait_for_serial(from);
 
-    do_migrate(from, to, to->uri);
+    do_migrate(from, to);
 
     if (should_fail) {
         qtest_set_expected_status(to->qs, EXIT_FAILURE);
@@ -2098,7 +2072,7 @@ static void test_migrate_auto_converge(void)
     /* Wait for the first serial output from the source */
     wait_for_serial(from);
 
-    do_migrate(from, to, to->uri);
+    do_migrate(from, to);
 
     /* Wait for throttling begins */
     percentage = 0;
@@ -2423,7 +2397,7 @@ static void test_multifd_tcp_cancel(void)
     /* Wait for the first serial output from the source */
     wait_for_serial(from);
 
-    do_migrate(from, to, "127.0.0.1:0");
+    do_migrate(from, to);
 
     wait_for_migration_pass(from->qs);
 
@@ -2454,7 +2428,7 @@ static void test_multifd_tcp_cancel(void)
 
     migrate_ensure_converge(from->qs);
 
-    do_migrate(from, to2, "127.0.0.1:0");
+    do_migrate(from, to2);
 
     wait_for_migration_pass(from->qs);
 
