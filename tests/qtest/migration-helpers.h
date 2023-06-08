@@ -15,6 +15,8 @@
 
 #include "libqtest.h"
 
+extern char *tmpfs;
+
 bool migrate_watch_for_stop(QTestState *who, const char *name,
                             QDict *event, void *opaque);
 bool migrate_watch_for_resume(QTestState *who, const char *name,
@@ -32,5 +34,42 @@ void wait_for_migration_status(QTestState *who,
 void wait_for_migration_complete(QTestState *who);
 
 void wait_for_migration_fail(QTestState *from, bool allow_active);
+
+typedef struct {
+    QTestState *qs;
+    /* options for source and target */
+    gchar *arch_opts;
+    gchar *arch_source;
+    gchar *arch_target;
+    const gchar *extra_opts;
+    const gchar *hide_stderr;
+    gchar *kvm_opts;
+    const gchar *memory_size;
+    /*
+     * name must *not* contain "target" if it is the target of a
+     * migration.
+     */
+    const gchar *name;
+    gchar *serial_path;
+    gchar *shmem_opts;
+    gchar *shmem_path;
+    gchar *unix_socket;
+    gchar *uri;
+    unsigned start_address;
+    unsigned end_address;
+    bool got_event;
+} GuestState;
+
+GuestState *guest_create(const char *name);
+void guest_destroy(GuestState *vm);
+void guest_realize(GuestState *who);
+void guest_use_dirty_ring(GuestState *vm);
+
+void wait_for_serial(GuestState *vm);
+
+void bootfile_create(char *dir);
+void bootfile_delete(void);
+
+bool kvm_dirty_ring_supported(void);
 
 #endif /* MIGRATION_HELPERS_H */
