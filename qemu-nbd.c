@@ -274,8 +274,10 @@ static void *show_parts(void *arg)
 
 static void *nbd_client_thread(void *arg)
 {
+    /* TODO: Revisit this if nbd.ko ever gains support for structured reply */
     char *device = arg;
-    NBDExportInfo info = { .request_sizes = false, .name = g_strdup("") };
+    NBDExportInfo info = { .request_sizes = false, .name = g_strdup(""),
+                           .mode = NBD_MODE_SIMPLE };
     QIOChannelSocket *sioc;
     int fd = -1;
     int ret = EXIT_FAILURE;
