@@ -40,8 +40,6 @@
 #include "linux/kvm.h"
 #endif
 
-unsigned start_address;
-unsigned end_address;
 static bool uffd_feature_thread_id;
 static bool got_src_stop;
 static bool got_dst_resume;
@@ -154,12 +152,50 @@ static void bootfile_delete(void)
 
 typedef struct {
     QTestState *qs;
+    /* options for source and target */
+    gchar *arch_opts;
+    gchar *arch_source;
+    gchar *arch_target;
+    const gchar *memory_size;
     const gchar *name;
+    unsigned start_address;
+    unsigned end_address;
 } GuestState;
 
 static GuestState *guest_create(const char *name)
 {
     GuestState *vm = g_new0(GuestState, 1);
+    const char *arch = qtest_get_arch();
+
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        vm->memory_size = "150M";
+        vm->arch_opts = g_strdup_printf("-drive file=%s,format=raw", bootpath);
+        vm->start_address = X86_TEST_MEM_START;
+        vm->end_address = X86_TEST_MEM_END;
+    } else if (g_str_equal(arch, "s390x")) {
+        vm->memory_size = "128M";
+        vm->arch_opts = g_strdup_printf("-bios %s", bootpath);
+        vm->start_address = S390_TEST_MEM_START;
+        vm->end_address = S390_TEST_MEM_END;
+    } else if (strcmp(arch, "ppc64") == 0) {
+        vm->memory_size = "256M";
+        vm->start_address = PPC_TEST_MEM_START;
+        vm->end_address = PPC_TEST_MEM_END;
+        vm->arch_source = g_strdup_printf(
+            "-prom-env 'use-nvramrc?=true' -prom-env "
+            "'nvramrc=hex .\" _\" begin %x %x "
+            "do i c@ 1 + i c! 1000 +loop .\" B\" 0 "
+            "until'", vm->end_address, vm->start_address);
+        vm->arch_opts = g_strdup("-nodefaults -machine vsmt=8");
+    } else if (strcmp(arch, "aarch64") == 0) {
+        vm->memory_size = "150M";
+        vm->arch_opts = g_strdup_printf(
+            "-machine virt,gic-version=max -cpu max -kernel %s", bootpath);
+        vm->start_address = ARM_TEST_MEM_START;
+        vm->end_address = ARM_TEST_MEM_END;
+    } else {
+        g_assert_not_reached();
+    }
 
     vm->name = name;
 
@@ -169,6 +205,9 @@ static GuestState *guest_create(const char *name)
 static void guest_destroy(GuestState *vm)
 {
     qtest_quit(vm->qs);
+    g_free(vm->arch_opts);
+    g_free(vm->arch_source);
+    g_free(vm->arch_target);
     g_free(vm);
 }
 
@@ -307,10 +346,11 @@ static void check_guests_ram(GuestState *who)
     bool hit_edge = false;
     int bad = 0;
 
-    qtest_memread(who->qs, start_address, &first_byte, 1);
+    qtest_memread(who->qs, who->start_address, &first_byte, 1);
     last_byte = first_byte;
 
-    for (address = start_address + TEST_MEM_PAGE_SIZE; address < end_address;
+    for (address = who->start_address + TEST_MEM_PAGE_SIZE;
+         address < who->end_address;
          address += TEST_MEM_PAGE_SIZE)
     {
         uint8_t b;
@@ -663,49 +703,15 @@ typedef struct {
 static void test_migrate_start(GuestState *from, GuestState *to,
                                const char *uri, MigrateStart *args)
 {
-    g_autofree gchar *arch_source = NULL;
-    g_autofree gchar *arch_target = NULL;
-    /* options for source and target */
-    g_autofree gchar *arch_opts = NULL;
     g_autofree gchar *cmd_source = NULL;
     g_autofree gchar *cmd_target = NULL;
     const gchar *ignore_stderr = NULL;
     g_autofree char *shmem_opts = NULL;
     g_autofree char *shmem_path = NULL;
     const char *kvm_opts = NULL;
-    const char *arch = qtest_get_arch();
-    const char *memory_size;
 
     got_src_stop = false;
     got_dst_resume = false;
-    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
-        memory_size = "150M";
-        arch_opts = g_strdup_printf("-drive file=%s,format=raw", bootpath);
-        start_address = X86_TEST_MEM_START;
-        end_address = X86_TEST_MEM_END;
-    } else if (g_str_equal(arch, "s390x")) {
-        memory_size = "128M";
-        arch_opts = g_strdup_printf("-bios %s", bootpath);
-        start_address = S390_TEST_MEM_START;
-        end_address = S390_TEST_MEM_END;
-    } else if (strcmp(arch, "ppc64") == 0) {
-        memory_size = "256M";
-        start_address = PPC_TEST_MEM_START;
-        end_address = PPC_TEST_MEM_END;
-        arch_source = g_strdup_printf("-prom-env 'use-nvramrc?=true' -prom-env "
-                                      "'nvramrc=hex .\" _\" begin %x %x "
-                                      "do i c@ 1 + i c! 1000 +loop .\" B\" 0 "
-                                      "until'", end_address, start_address);
-        arch_opts = g_strdup("-nodefaults -machine vsmt=8");
-    } else if (strcmp(arch, "aarch64") == 0) {
-        memory_size = "150M";
-        arch_opts = g_strdup_printf("-machine virt,gic-version=max -cpu max "
-                                    "-kernel %s", bootpath);
-        start_address = ARM_TEST_MEM_START;
-        end_address = ARM_TEST_MEM_END;
-    } else {
-        g_assert_not_reached();
-    }
 
     if (!getenv("QTEST_LOG") && args->hide_stderr) {
 #ifndef _WIN32
@@ -724,7 +730,7 @@ static void test_migrate_start(GuestState *from, GuestState *to,
         shmem_opts = g_strdup_printf(
             "-object memory-backend-file,id=mem0,size=%s"
             ",mem-path=%s,share=on -numa node,memdev=mem0",
-            memory_size, shmem_path);
+            from->memory_size, shmem_path);
     }
 
     if (args->use_dirty_ring) {
@@ -738,9 +744,9 @@ static void test_migrate_start(GuestState *from, GuestState *to,
                                  "%s %s %s %s %s",
                                  kvm_opts ? kvm_opts : "",
                                  from->name,
-                                 memory_size, tmpfs,
-                                 arch_opts ? arch_opts : "",
-                                 arch_source ? arch_source : "",
+                                 from->memory_size, tmpfs,
+                                 from->arch_opts ? from->arch_opts : "",
+                                 from->arch_source ? from->arch_source : "",
                                  shmem_opts ? shmem_opts : "",
                                  args->opts_source ? args->opts_source : "",
                                  ignore_stderr ? ignore_stderr : "");
@@ -760,9 +766,9 @@ static void test_migrate_start(GuestState *from, GuestState *to,
                                  "%s %s %s %s %s",
                                  kvm_opts ? kvm_opts : "",
                                  to->name,
-                                 memory_size, tmpfs, uri,
-                                 arch_opts ? arch_opts : "",
-                                 arch_target ? arch_target : "",
+                                 to->memory_size, tmpfs, uri,
+                                 to->arch_opts ? to->arch_opts : "",
+                                 to->arch_target ? to->arch_target : "",
                                  shmem_opts ? shmem_opts : "",
                                  args->opts_target ? args->opts_target : "",
                                  ignore_stderr ? ignore_stderr : "");
@@ -787,20 +793,20 @@ static void test_migrate_end(GuestState *from, GuestState *to, bool test_dest)
     guest_destroy(from);
 
     if (test_dest) {
-        qtest_memread(to->qs, start_address, &dest_byte_a, 1);
+        qtest_memread(to->qs, to->start_address, &dest_byte_a, 1);
 
         /* Destination still running, wait for a byte to change */
         do {
-            qtest_memread(to->qs, start_address, &dest_byte_b, 1);
+            qtest_memread(to->qs, to->start_address, &dest_byte_b, 1);
             usleep(1000 * 10);
         } while (dest_byte_a == dest_byte_b);
 
         qtest_qmp_assert_success(to->qs, "{ 'execute' : 'stop'}");
 
         /* With it stopped, check nothing changes */
-        qtest_memread(to->qs, start_address, &dest_byte_c, 1);
+        qtest_memread(to->qs, to->start_address, &dest_byte_c, 1);
         usleep(1000 * 200);
-        qtest_memread(to->qs, start_address, &dest_byte_d, 1);
+        qtest_memread(to->qs, to->start_address, &dest_byte_d, 1);
         g_assert_cmpint(dest_byte_c, ==, dest_byte_d);
 
         check_guests_ram(to);
