@@ -24,7 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "ui/console.h"
+#include "ui/input.h"
 #include "hw/i386/vmport.h"
 #include "hw/input/i8042.h"
 #include "hw/qdev-properties.h"
@@ -61,7 +61,10 @@ struct VMMouseState {
     uint16_t nb_queue;
     uint16_t status;
     uint8_t absolute;
-    QEMUPutMouseEntry *entry;
+    int32_t last_x;
+    int32_t last_y;
+    int32_t last_buttons;
+    QemuInputHandlerState *entry;
     ISAKBDState *i8042;
 };
 
@@ -91,33 +94,72 @@ static uint32_t vmmouse_get_status(VMMouseState *s)
     return (s->status << 16) | s->nb_queue;
 }
 
-static void vmmouse_mouse_event(void *opaque, int x, int y, int dz, int buttons_state)
+static void vmmouse_mouse_event(DeviceState *dev, QemuConsole *src,
+                                InputEvent *evt)
 {
-    VMMouseState *s = opaque;
-    int buttons = 0;
+    static const int bmap[INPUT_BUTTON__MAX] = {
+        [INPUT_BUTTON_LEFT]   = 0x20,
+        [INPUT_BUTTON_MIDDLE] = 0x08,
+        [INPUT_BUTTON_RIGHT]  = 0x10,
+    };
+
+    VMMouseState *s = VMMOUSE(dev);
+    InputMoveEvent *move;
+    InputBtnEvent *btn;
+
+    int32_t dz = 0;
 
     if (s->nb_queue > (VMMOUSE_QUEUE_SIZE - 4))
         return;
 
-    DPRINTF("vmmouse_mouse_event(%d, %d, %d, %d)\n",
-            x, y, dz, buttons_state);
+    switch (evt->type) {
+    case INPUT_EVENT_KIND_REL:
+        move = evt->u.rel.data;
+        if (move->axis == INPUT_AXIS_X) {
+            s->last_x += move->value;
+        } else if (move->axis == INPUT_AXIS_Y) {
+            s->last_y -= move->value;
+        }
+        break;
 
-    if ((buttons_state & MOUSE_EVENT_LBUTTON))
-        buttons |= 0x20;
-    if ((buttons_state & MOUSE_EVENT_RBUTTON))
-        buttons |= 0x10;
-    if ((buttons_state & MOUSE_EVENT_MBUTTON))
-        buttons |= 0x08;
+    case INPUT_EVENT_KIND_ABS:
+        move = evt->u.rel.data;
+        if (move->axis == INPUT_AXIS_X) {
+            s->last_x = move->value;
+        } else if (move->axis == INPUT_AXIS_Y) {
+            s->last_y = move->value;
+        }
+        break;
 
-    if (s->absolute) {
-        x <<= 1;
-        y <<= 1;
+    case INPUT_EVENT_KIND_BTN:
+        btn = evt->u.btn.data;
+        if (btn->down) {
+            s->last_buttons |= bmap[btn->button];
+            if (btn->button == INPUT_BUTTON_WHEEL_UP) {
+                dz--;
+            } else if (btn->button == INPUT_BUTTON_WHEEL_DOWN) {
+                dz++;
+            }
+
+        } else {
+          s->last_buttons &= ~bmap[btn->button];
+        }
+        break;
+
+    default:
+        /* keep gcc happy */
+        break;
     }
 
-    s->queue[s->nb_queue++] = buttons;
-    s->queue[s->nb_queue++] = x;
-    s->queue[s->nb_queue++] = y;
+    s->queue[s->nb_queue++] = s->last_buttons;
+    s->queue[s->nb_queue++] = s->absolute ? s->last_x << 1 : s->last_x;
+    s->queue[s->nb_queue++] = s->absolute ? s->last_y << 1 : s->last_y;
     s->queue[s->nb_queue++] = dz;
+}
+
+static void vmmouse_mouse_sync(DeviceState *dev)
+{
+    VMMouseState *s = VMMOUSE(dev);
 
     /* need to still generate PS2 events to notify driver to
        read from queue */
@@ -127,10 +169,17 @@ static void vmmouse_mouse_event(void *opaque, int x, int y, int dz, int buttons_
 static void vmmouse_remove_handler(VMMouseState *s)
 {
     if (s->entry) {
-        qemu_remove_mouse_event_handler(s->entry);
+        qemu_input_handler_unregister(s->entry);
         s->entry = NULL;
     }
 }
+
+static QemuInputHandler vm_mouse_handler = {
+    .name  = "vmmouse",
+    .mask  = INPUT_EVENT_MASK_BTN | INPUT_EVENT_MASK_ABS,
+    .event = vmmouse_mouse_event,
+    .sync  = vmmouse_mouse_sync,
+};
 
 static void vmmouse_update_handler(VMMouseState *s, int absolute)
 {
@@ -142,10 +191,8 @@ static void vmmouse_update_handler(VMMouseState *s, int absolute)
         vmmouse_remove_handler(s);
     }
     if (s->entry == NULL) {
-        s->entry = qemu_add_mouse_event_handler(vmmouse_mouse_event,
-                                                s, s->absolute,
-                                                "vmmouse");
-        qemu_activate_mouse_event_handler(s->entry);
+        s->entry = qemu_input_handler_register(DEVICE(s), &vm_mouse_handler);
+        qemu_input_handler_activate(s->entry);
     }
 }
 
