@@ -629,8 +629,8 @@ typedef struct {
     bool postcopy_preempt;
 } MigrateCommon;
 
-static int test_migrate_start(QTestState **from, QTestState **to,
-                              const char *uri, MigrateStart *args)
+static void test_migrate_start(QTestState **from, QTestState **to,
+                               const char *uri, MigrateStart *args)
 {
     g_autofree gchar *arch_source = NULL;
     g_autofree gchar *arch_target = NULL;
@@ -745,8 +745,6 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     if (args->use_shmem) {
         unlink(shmem_path);
     }
-
-    return 0;
 }
 
 static void test_migrate_end(QTestState *from, QTestState *to, bool test_dest)
@@ -1155,9 +1153,7 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
 
-    if (test_migrate_start(&from, &to, uri, &args->start)) {
-        return -1;
-    }
+    test_migrate_start(&from, &to, uri, &args->start);
 
     if (args->start_hook) {
         args->postcopy_data = args->start_hook(from, to);
@@ -1387,9 +1383,7 @@ static void test_baddest(void)
     };
     QTestState *from, *to;
 
-    if (test_migrate_start(&from, &to, "tcp:127.0.0.1:0", &args)) {
-        return;
-    }
+    test_migrate_start(&from, &to, "tcp:127.0.0.1:0", &args);
     migrate_qmp(from, "tcp:127.0.0.1:0", "{}");
     wait_for_migration_fail(from, false);
     test_migrate_end(from, to, false);
@@ -1400,9 +1394,7 @@ static void test_precopy_common(MigrateCommon *args)
     QTestState *from, *to;
     void *data_hook = NULL;
 
-    if (test_migrate_start(&from, &to, args->listen_uri, &args->start)) {
-        return;
-    }
+    test_migrate_start(&from, &to, args->listen_uri, &args->start);
 
     if (args->start_hook) {
         data_hook = args->start_hook(from, to);
@@ -1592,9 +1584,7 @@ static void test_ignore_shared(void)
         .use_shmem = true
     };
 
-    if (test_migrate_start(&from, &to, uri, &args)) {
-        return;
-    }
+    test_migrate_start(&from, &to, uri, &args);
 
     migrate_set_capability(from, "x-ignore-shared", true);
     migrate_set_capability(to, "x-ignore-shared", true);
@@ -1893,9 +1883,7 @@ static void do_test_validate_uuid(MigrateStart *args, bool should_fail)
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
 
-    if (test_migrate_start(&from, &to, uri, args)) {
-        return;
-    }
+    test_migrate_start(&from, &to, uri, args);
 
     /*
      * UUID validation is at the begin of migration. So, the main process of
@@ -1990,9 +1978,7 @@ static void test_migrate_auto_converge(void)
      */
     const int64_t init_pct = 5, inc_pct = 25, max_pct = 95;
 
-    if (test_migrate_start(&from, &to, uri, &args)) {
-        return;
-    }
+    test_migrate_start(&from, &to, uri, &args);
 
     migrate_set_capability(from, "auto-converge", true);
     migrate_set_parameter_int(from, "cpu-throttle-initial", init_pct);
@@ -2302,9 +2288,7 @@ static void test_multifd_tcp_cancel(void)
     QTestState *from, *to, *to2;
     g_autofree char *uri = NULL;
 
-    if (test_migrate_start(&from, &to, "defer", &args)) {
-        return;
-    }
+    test_migrate_start(&from, &to, "defer", &args);
 
     migrate_ensure_non_converge(from);
 
@@ -2337,9 +2321,7 @@ static void test_multifd_tcp_cancel(void)
         .only_target = true,
     };
 
-    if (test_migrate_start(&from, &to2, "defer", &args)) {
-        return;
-    }
+    test_migrate_start(&from, &to2, "defer", &args);
 
     migrate_set_parameter_int(to2, "multifd-channels", 16);
 
