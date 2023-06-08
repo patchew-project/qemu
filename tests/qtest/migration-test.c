@@ -168,6 +168,8 @@ typedef struct {
     gchar *serial_path;
     gchar *shmem_opts;
     gchar *shmem_path;
+    gchar *unix_socket;
+    gchar *uri;
     unsigned start_address;
     unsigned end_address;
 } GuestState;
@@ -224,6 +226,11 @@ static void guest_destroy(GuestState *vm)
     g_free(vm->shmem_opts);
     unlink(vm->shmem_path);
     g_free(vm->shmem_path);
+    if (vm->unix_socket) {
+        unlink(vm->unix_socket);
+        g_free(vm->unix_socket);
+    }
+    g_free(vm->uri);
     g_free(vm);
 }
 
@@ -266,6 +273,17 @@ static void guest_extra_opts(GuestState *vm, const gchar *opts)
 {
     g_assert(vm->extra_opts == NULL);
     vm->extra_opts = opts;
+}
+
+static void guest_listen_unix_socket(GuestState *vm)
+{
+    if (vm->unix_socket) {
+        unlink(vm->unix_socket);
+        g_free(vm->unix_socket);
+    }
+    g_free(vm->uri);
+    vm->unix_socket = g_strdup_printf("%s/migsocket", tmpfs);
+    vm->uri = g_strdup_printf("unix:%s", vm->unix_socket);
 }
 
 /*
@@ -789,7 +807,7 @@ static void test_migrate_start(GuestState *from, GuestState *to,
                                  to->name,
                                  to->memory_size,
                                  to->serial_path,
-                                 uri,
+                                 to->uri ? to->uri : uri,
                                  to->arch_opts ? to->arch_opts : "",
                                  to->arch_target ? to->arch_target : "",
                                  to->shmem_opts ? to->shmem_opts : "",
@@ -1202,9 +1220,8 @@ static void migrate_postcopy_prepare(GuestState *from,
                                      GuestState *to,
                                      MigrateCommon *args)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-
-    test_migrate_start(from, to, uri, &args->start);
+    guest_listen_unix_socket(to);
+    test_migrate_start(from, to, NULL, &args->start);
 
     if (args->start_hook) {
         args->postcopy_data = args->start_hook(from->qs, to->qs);
@@ -1224,7 +1241,7 @@ static void migrate_postcopy_prepare(GuestState *from,
     /* Wait for the first serial output from the source */
     wait_for_serial(from);
 
-    do_migrate(from, to, uri);
+    do_migrate(from, to, to->uri);
 
     wait_for_migration_pass(from->qs);
 }
@@ -1320,8 +1337,6 @@ static void test_postcopy_recovery_common(MigrateCommon *args)
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
 
-    g_autofree char *uri = NULL;
-
     /* Always hide errors for postcopy recover tests since they're expected */
     guest_hide_stderr(from);
     guest_hide_stderr(to);
@@ -1359,8 +1374,8 @@ static void test_postcopy_recovery_common(MigrateCommon *args)
      * from the broken migration channel; tell the destination to
      * listen to the new port
      */
-    uri = g_strdup_printf("unix:%s/migsocket-recover", tmpfs);
-    migrate_recover(to->qs, uri);
+    guest_listen_unix_socket(to);
+    migrate_recover(to->qs, to->uri);
 
     /*
      * Try to rebuild the migration channel using the resume flag and
@@ -1369,7 +1384,7 @@ static void test_postcopy_recovery_common(MigrateCommon *args)
     wait_for_migration_status(from->qs, "postcopy-paused",
                               (const char * []) { "failed", "active",
                                                   "completed", NULL });
-    migrate_qmp(from->qs, uri, "{'resume': true}");
+    migrate_qmp(from->qs, to->uri, "{'resume': true}");
 
     /* Restore the postcopy bandwidth to unlimited */
     migrate_set_parameter_int(from->qs, "max-postcopy-bandwidth", 0);
@@ -1651,7 +1666,7 @@ static void test_ignore_shared(void)
     /* Wait for the first serial output from the source */
     wait_for_serial(from);
 
-    do_migrate(from, to, uri);
+    do_migrate(from, to, to->uri);
 
     wait_for_migration_pass(from->qs);
 
@@ -1965,9 +1980,8 @@ static void test_migrate_fd_proto(void)
 static void do_test_validate_uuid(GuestState *from, GuestState *to,
                                   MigrateStart *args, bool should_fail)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-
-    test_migrate_start(from, to, uri, args);
+    guest_listen_unix_socket(to);
+    test_migrate_start(from, to, NULL, args);
 
     /*
      * UUID validation is at the begin of migration. So, the main process of
@@ -1980,7 +1994,7 @@ static void do_test_validate_uuid(GuestState *from, GuestState *to,
     /* Wait for the first serial output from the source */
     wait_for_serial(from);
 
-    do_migrate(from, to, uri);
+    do_migrate(from, to, to->uri);
 
     if (should_fail) {
         qtest_set_expected_status(to->qs, EXIT_FAILURE);
@@ -2057,7 +2071,6 @@ static void test_validate_uuid_dst_not_set(void)
  */
 static void test_migrate_auto_converge(void)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     MigrateStart args = {};
     GuestState *from = guest_create("source");
     GuestState *to = guest_create("target");
@@ -2070,7 +2083,8 @@ static void test_migrate_auto_converge(void)
      */
     const int64_t init_pct = 5, inc_pct = 25, max_pct = 95;
 
-    test_migrate_start(from, to, uri, &args);
+    guest_listen_unix_socket(to);
+    test_migrate_start(from, to, to->uri, &args);
 
     migrate_set_capability(from->qs, "auto-converge", true);
     migrate_set_parameter_int(from->qs, "cpu-throttle-initial", init_pct);
@@ -2089,7 +2103,7 @@ static void test_migrate_auto_converge(void)
     /* Wait for the first serial output from the source */
     wait_for_serial(from);
 
-    do_migrate(from, to, uri);
+    do_migrate(from, to, to->uri);
 
     /* Wait for throttling begins */
     percentage = 0;
