@@ -158,7 +158,12 @@ typedef struct {
     gchar *arch_target;
     gchar *kvm_opts;
     const gchar *memory_size;
+    /*
+     * name must *not* contain "target" if it is the target of a
+     * migration.
+     */
     const gchar *name;
+    gchar *serial_path;
     unsigned start_address;
     unsigned end_address;
 } GuestState;
@@ -199,7 +204,7 @@ static GuestState *guest_create(const char *name)
     }
 
     vm->name = name;
-
+    vm->serial_path = g_strdup_printf("%s/%s", tmpfs, vm->name);
     return vm;
 }
 
@@ -210,6 +215,8 @@ static void guest_destroy(GuestState *vm)
     g_free(vm->arch_source);
     g_free(vm->arch_target);
     g_free(vm->kvm_opts);
+    unlink(vm->serial_path);
+    g_free(vm->serial_path);
     g_free(vm);
 }
 
@@ -224,12 +231,12 @@ static void guest_use_dirty_ring(GuestState *vm)
  * we get an 'A' followed by an endless string of 'B's
  * but on the destination we won't have the A.
  */
-static void wait_for_serial(const char *side)
+static void wait_for_serial(GuestState *vm)
 {
-    g_autofree char *serialpath = g_strdup_printf("%s/%s", tmpfs, side);
-    FILE *serialfile = fopen(serialpath, "r");
+    FILE *serialfile = fopen(vm->serial_path, "r");
     const char *arch = qtest_get_arch();
-    int started = (strcmp(side, "src_serial") == 0 &&
+    /* see serial_path comment on GuestState definition */
+    int started = (strstr(vm->serial_path, "target") == NULL &&
                    strcmp(arch, "ppc64") == 0) ? 0 : 1;
 
     do {
@@ -262,14 +269,15 @@ static void wait_for_serial(const char *side)
             return;
 
         case EOF:
-            started = (strcmp(side, "src_serial") == 0 &&
+            started = (strstr(vm->serial_path, "target") == NULL &&
                        strcmp(arch, "ppc64") == 0) ? 0 : 1;
             fseek(serialfile, 0, SEEK_SET);
             usleep(1000);
             break;
 
         default:
-            fprintf(stderr, "Unexpected %d on %s serial\n", readvalue, side);
+            fprintf(stderr, "Unexpected %d on %s serial\n", readvalue,
+                    vm->serial_path);
             g_assert_not_reached();
         }
     } while (true);
@@ -741,11 +749,12 @@ static void test_migrate_start(GuestState *from, GuestState *to,
     cmd_source = g_strdup_printf("-accel kvm%s -accel tcg "
                                  "-name %s,debug-threads=on "
                                  "-m %s "
-                                 "-serial file:%s/src_serial "
+                                 "-serial file:%s "
                                  "%s %s %s %s %s",
                                  from->kvm_opts ? from->kvm_opts : "",
                                  from->name,
-                                 from->memory_size, tmpfs,
+                                 from->memory_size,
+                                 from->serial_path,
                                  from->arch_opts ? from->arch_opts : "",
                                  from->arch_source ? from->arch_source : "",
                                  shmem_opts ? shmem_opts : "",
@@ -762,12 +771,14 @@ static void test_migrate_start(GuestState *from, GuestState *to,
     cmd_target = g_strdup_printf("-accel kvm%s -accel tcg "
                                  "-name %s,debug-threads=on "
                                  "-m %s "
-                                 "-serial file:%s/dest_serial "
+                                 "-serial file:%s "
                                  "-incoming %s "
                                  "%s %s %s %s %s",
                                  to->kvm_opts ? to->kvm_opts : "",
                                  to->name,
-                                 to->memory_size, tmpfs, uri,
+                                 to->memory_size,
+                                 to->serial_path,
+                                 uri,
                                  to->arch_opts ? to->arch_opts : "",
                                  to->arch_target ? to->arch_target : "",
                                  shmem_opts ? shmem_opts : "",
@@ -816,8 +827,6 @@ static void test_migrate_end(GuestState *from, GuestState *to, bool test_dest)
     guest_destroy(to);
 
     cleanup("migsocket");
-    cleanup("src_serial");
-    cleanup("dest_serial");
 }
 
 #ifdef CONFIG_GNUTLS
@@ -1210,7 +1219,7 @@ static void migrate_postcopy_prepare(GuestState *from,
     migrate_ensure_non_converge(from->qs);
 
     /* Wait for the first serial output from the source */
-    wait_for_serial("src_serial");
+    wait_for_serial(from);
 
     do_migrate(from, to, uri);
 
@@ -1223,7 +1232,7 @@ static void migrate_postcopy_complete(GuestState *from, GuestState *to,
     wait_for_migration_complete(from->qs);
 
     /* Make sure we get at least one "B" on destination */
-    wait_for_serial("dest_serial");
+    wait_for_serial(to);
 
     if (uffd_feature_thread_id) {
         read_blocktime(to->qs);
@@ -1447,7 +1456,7 @@ static void test_precopy_common(GuestState *from, GuestState *to,
 
     /* Wait for the first serial output from the source */
     if (args->result == MIG_TEST_SUCCEED) {
-        wait_for_serial("src_serial");
+        wait_for_serial(from);
     }
 
     if (args->live) {
@@ -1521,7 +1530,7 @@ static void test_precopy_common(GuestState *from, GuestState *to,
             qtest_qmp_eventwait(to->qs, "RESUME");
         }
 
-        wait_for_serial("dest_serial");
+        wait_for_serial(to);
     }
 
     if (args->finish_hook) {
@@ -1638,7 +1647,7 @@ static void test_ignore_shared(void)
     migrate_set_capability(to->qs, "x-ignore-shared", true);
 
     /* Wait for the first serial output from the source */
-    wait_for_serial("src_serial");
+    wait_for_serial(from);
 
     do_migrate(from, to, uri);
 
@@ -1650,7 +1659,7 @@ static void test_ignore_shared(void)
 
     qtest_qmp_eventwait(to->qs, "RESUME");
 
-    wait_for_serial("dest_serial");
+    wait_for_serial(to);
     wait_for_migration_complete(from->qs);
 
     /* Check whether shared RAM has been really skipped */
@@ -1971,7 +1980,7 @@ static void do_test_validate_uuid(GuestState *from, GuestState *to,
     migrate_set_capability(from->qs, "validate-uuid", true);
 
     /* Wait for the first serial output from the source */
-    wait_for_serial("src_serial");
+    wait_for_serial(from);
 
     do_migrate(from, to, uri);
 
@@ -2081,7 +2090,7 @@ static void test_migrate_auto_converge(void)
     migrate_set_capability(from->qs, "pause-before-switchover", true);
 
     /* Wait for the first serial output from the source */
-    wait_for_serial("src_serial");
+    wait_for_serial(from);
 
     do_migrate(from, to, uri);
 
@@ -2114,7 +2123,7 @@ static void test_migrate_auto_converge(void)
 
     qtest_qmp_eventwait(to->qs, "RESUME");
 
-    wait_for_serial("dest_serial");
+    wait_for_serial(to);
     wait_for_migration_complete(from->qs);
 
     test_migrate_end(from, to, true);
@@ -2411,7 +2420,7 @@ static void test_multifd_tcp_cancel(void)
                              "  'arguments': { 'uri': 'tcp:127.0.0.1:0' }}");
 
     /* Wait for the first serial output from the source */
-    wait_for_serial("src_serial");
+    wait_for_serial(from);
 
     do_migrate(from, to, "127.0.0.1:0");
 
@@ -2450,7 +2459,7 @@ static void test_multifd_tcp_cancel(void)
     }
     qtest_qmp_eventwait(to2->qs, "RESUME");
 
-    wait_for_serial("dest_serial");
+    wait_for_serial(to2);
     wait_for_migration_complete(from->qs);
     test_migrate_end(from, to2, true);
 }
@@ -2595,9 +2604,10 @@ static GuestState *dirtylimit_start_vm(void)
     cmd = g_strdup_printf("-accel kvm,dirty-ring-size=4096 "
                           "-name dirtylimit-test,debug-threads=on "
                           "-m 150M -smp 1 "
-                          "-serial file:%s/vm_serial "
+                          "-serial file:%s "
                           "-drive file=%s,format=raw ",
-                          tmpfs, bootpath);
+                          vm->serial_path,
+                          bootpath);
 
     vm->qs = qtest_init(cmd);
     return vm;
@@ -2606,7 +2616,6 @@ static GuestState *dirtylimit_start_vm(void)
 static void dirtylimit_stop_vm(GuestState *vm)
 {
     guest_destroy(vm);
-    cleanup("vm_serial");
 }
 
 static void test_vcpu_dirty_limit(void)
@@ -2621,7 +2630,7 @@ static void test_vcpu_dirty_limit(void)
     GuestState *vm = dirtylimit_start_vm();
 
     /* Wait for the first serial output from the vm*/
-    wait_for_serial("vm_serial");
+    wait_for_serial(vm);
 
     /* Do dirtyrate measurement with calc time equals 1s */
     calc_dirty_rate(vm->qs, 1);
