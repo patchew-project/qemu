@@ -12,6 +12,7 @@
 import sys
 import struct
 import inspect
+import warnings
 from tracetool import read_events, Event
 from tracetool.backend.simple import is_string
 
@@ -188,6 +189,11 @@ class Analyzer:
             return lambda _, rec: fn(*rec[3:3 + event_argcount])
 
     def _process_event(self, rec_args, *, event, event_id, timestamp_ns, pid, **kwargs):
+        warnings.warn(
+            "Use of deprecated Analyzer class. Refer to Analyzer2 instead.",
+            DeprecationWarning,
+        )
+
         if not hasattr(self, '_fn_cache'):
             # NOTE: Cannot depend on downstream subclasses to have
             # super().__init__() because of legacy.
@@ -210,6 +216,56 @@ class Analyzer:
         if exc_type is None:
             self.end()
         return False
+
+class Analyzer2(Analyzer):
+    """A trace file analyzer which processes trace records.
+
+    An analyzer can be passed to run() or process().  The begin() method is
+    invoked, then each trace record is processed, and finally the end() method
+    is invoked. When Analyzer is used as a context-manager (using the `with`
+    statement), begin() and end() are called automatically.
+
+    If a method matching a trace event name exists, it is invoked to process
+    that trace record.  Otherwise the catchall() method is invoked.
+
+    The methods are called with a set of keyword-arguments. These can be ignored
+    using `**kwargs` or defined like any keyword-argument.
+
+    The following keyword-arguments are available, but make sure to have an
+    **kwargs to allow for unmatched arguments in the future:
+        event: Event object of current trace
+        event_id: The id of the event in the current trace file
+        timestamp_ns: The timestamp in nanoseconds of the trace
+        pid: The process id recorded for the given trace
+
+    Example:
+    The following method handles the runstate_set(int new_state) trace event::
+
+      def runstate_set(self, new_state, **kwargs):
+          ...
+
+    The method can also explicitly take a timestamp keyword-argument with the
+    trace event arguments::
+
+      def runstate_set(self, new_state, *, timestamp_ns, **kwargs):
+          ...
+
+    Timestamps have the uint64_t type and are in nanoseconds.
+
+    The pid can be included in addition to the timestamp and is useful when
+    dealing with traces from multiple processes:
+
+      def runstate_set(self, new_state, *, timestamp_ns, pid, **kwargs):
+          ...
+    """
+
+    def catchall(self, *rec_args, event, timestamp_ns, pid, event_id, **kwargs):
+        """Called if no specific method for processing a trace event has been found."""
+        pass
+
+    def _process_event(self, rec_args, *, event, **kwargs):
+        fn = getattr(self, event.name, self.catchall)
+        fn(*rec_args, event=event, **kwargs)
 
 def process(events, log, analyzer, read_header=True):
     """Invoke an analyzer on each event in a log.
@@ -299,6 +355,22 @@ if __name__ == '__main__':
                     fields.append('%s=0x%x' % (name, rec[i]))
                 i += 1
             print(' '.join(fields))
+
+    class Formatter2(Analyzer2):
+        def __init__(self):
+            self.last_timestamp_ns = None
+
+        def catchall(self, *rec_args, event, timestamp_ns, pid, event_id):
+            if self.last_timestamp_ns is None:
+                self.last_timestamp_ns = timestamp_ns
+            delta_ns = timestamp_ns - self.last_timestamp_ns
+            self.last_timestamp_ns = timestamp_ns
+
+            fields = [
+                f'{name}={r}' if is_string(type) else f'{name}=0x{r:x}'
+                for r, (type, name) in zip(rec_args, event.args)
+            ]
+            print(f'{event.name} {delta_ns / 1000:0.3f} {pid=} ' + ' '.join(fields))
 
     try:
         run(Formatter())
