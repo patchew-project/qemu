@@ -1230,11 +1230,9 @@ static void migrate_postcopy_complete(GuestState *from, GuestState *to,
     test_migrate_end(from, to, true);
 }
 
-static void test_postcopy_common(MigrateCommon *args)
+static void test_postcopy_common(GuestState *from, GuestState *to,
+                                 MigrateCommon *args)
 {
-    GuestState *from = guest_create("source");
-    GuestState *to = guest_create("target");
-
     migrate_postcopy_prepare(from, to, args);
     migrate_postcopy_start(from->qs, to->qs);
     migrate_postcopy_complete(from, to, args);
@@ -1242,49 +1240,59 @@ static void test_postcopy_common(MigrateCommon *args)
 
 static void test_postcopy(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = { };
 
-    test_postcopy_common(&args);
+    test_postcopy_common(from, to, &args);
 }
 
 static void test_postcopy_compress(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .start_hook = test_migrate_compress_start
     };
 
-    test_postcopy_common(&args);
+    test_postcopy_common(from, to, &args);
 }
 
 static void test_postcopy_preempt(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .postcopy_preempt = true,
     };
 
-    test_postcopy_common(&args);
+    test_postcopy_common(from, to, &args);
 }
 
 #ifdef CONFIG_GNUTLS
 static void test_postcopy_tls_psk(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .start_hook = test_migrate_tls_psk_start_match,
         .finish_hook = test_migrate_tls_psk_finish,
     };
 
-    test_postcopy_common(&args);
+    test_postcopy_common(from, to, &args);
 }
 
 static void test_postcopy_preempt_tls_psk(void)
 {
+    GuestState *from = guest_create("source");
+    GuestState *to = guest_create("target");
     MigrateCommon args = {
         .postcopy_preempt = true,
         .start_hook = test_migrate_tls_psk_start_match,
         .finish_hook = test_migrate_tls_psk_finish,
     };
 
-    test_postcopy_common(&args);
+    test_postcopy_common(from, to, &args);
 }
 #endif
 
