@@ -96,7 +96,7 @@ static uint64_t bmdma_read(void *opaque, hwaddr addr,
         return ((uint64_t)1 << (size * 8)) - 1;
     }
 
-    switch(addr & 3) {
+    switch (addr & 3) {
     case 0:
         val = bm->cmd;
         break;
@@ -133,7 +133,7 @@ static void bmdma_write(void *opaque, hwaddr addr,
     }
 
     trace_bmdma_write_cmd646(addr, val);
-    switch(addr & 3) {
+    switch (addr & 3) {
     case 0:
         bmdma_cmd_writeb(bm, val);
         break;
@@ -144,7 +144,8 @@ static void bmdma_write(void *opaque, hwaddr addr,
         cmd646_update_irq(pci_dev);
         break;
     case 2:
-        bm->status = (val & 0x60) | (bm->status & 1) | (bm->status & ~val & 0x06);
+        bm->status = (val & 0x60) | (bm->status & 1) |
+                     (bm->status & ~val & 0x06);
         break;
     case 3:
         if (bm == &bm->pci_dev->bmdma[0]) {
@@ -167,7 +168,7 @@ static void bmdma_setup_bar(PCIIDEState *d)
     int i;
 
     memory_region_init(&d->bmdma_bar, OBJECT(d), "cmd646-bmdma", 16);
-    for(i = 0;i < 2; i++) {
+    for (i = 0; i < 2; i++) {
         bm = &d->bmdma[i];
         memory_region_init_io(&bm->extra_io, OBJECT(d), &cmd646_bmdma_ops, bm,
                               "cmd646-bmdma-bus", 4);
@@ -255,7 +256,7 @@ static void pci_cmd646_ide_realize(PCIDevice *dev, Error **errp)
 
     pci_conf[PCI_CLASS_PROG] = 0x8f;
 
-    pci_conf[CNTRL] = CNTRL_EN_CH0; // enable IDE0
+    pci_conf[CNTRL] = CNTRL_EN_CH0; /* enable IDE0 */
     if (d->secondary) {
         /* XXX: if not enabled, really disable the seconday IDE controller */
         pci_conf[CNTRL] |= CNTRL_EN_CH1; /* enable IDE1 */
@@ -289,7 +290,7 @@ static void pci_cmd646_ide_realize(PCIDevice *dev, Error **errp)
     pci_register_bar(dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &d->bmdma_bar);
 
     /* TODO: RST# value should be 0 */
-    pci_conf[PCI_INTERRUPT_PIN] = 0x01; // interrupt on pin 1
+    pci_conf[PCI_INTERRUPT_PIN] = 0x01; /* interrupt on pin 1 */
 
     qdev_init_gpio_in(ds, cmd646_set_irq, 2);
     for (i = 0; i < 2; i++) {
