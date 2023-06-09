@@ -3102,6 +3102,11 @@ void qemu_init(int argc, char **argv)
                     error_report("Usage: -virtfs fsdriver,mount_tag=tag");
                     exit(1);
                 }
+                if (strncmp(qemu_opt_get(opts, "fsdriver"), "proxy", 5) == 0) {
+                    warn_report("'-virtfs proxy' is deprecated, use "
+                                "'-virtfs local' instead");
+                }
+
                 fsdev = qemu_opts_create(qemu_find_opts("fsdev"),
                                          qemu_opts_id(opts) ?:
                                          qemu_opt_get(opts, "mount_tag"),
