@@ -13,7 +13,7 @@
 #include "alpha_sys.h"
 #include "qemu/error-report.h"
 #include "hw/rtc/mc146818rtc.h"
-#include "hw/ide/pci.h"
+#include "hw/ide/cmd646.h"
 #include "hw/isa/superio.h"
 #include "net/net.h"
 #include "qemu/cutils.h"
@@ -132,7 +132,7 @@ static void clipper_init(MachineState *machine)
     isa_create_simple(isa_bus, TYPE_SMC37C669_SUPERIO);
 
     /* IDE disk setup.  */
-    pci_dev = pci_create_simple(pci_bus, -1, "cmd646-ide");
+    pci_dev = pci_create_simple(pci_bus, -1, TYPE_CMD646_IDE);
     pci_ide_create_devs(pci_dev);
 
     /* Load PALcode.  Given that this is not "real" cpu palcode,

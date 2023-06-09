@@ -50,7 +50,7 @@
 #include "hw/sparc/sparc64.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/sysbus.h"
-#include "hw/ide/pci.h"
+#include "hw/ide/cmd646.h"
 #include "hw/loader.h"
 #include "hw/fw-path-provider.h"
 #include "elf.h"
@@ -673,7 +673,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
         qemu_macaddr_default_if_unset(&macaddr);
     }
 
-    pci_dev = pci_new(PCI_DEVFN(3, 0), "cmd646-ide");
+    pci_dev = pci_new(PCI_DEVFN(3, 0), TYPE_CMD646_IDE);
     qdev_prop_set_uint32(&pci_dev->qdev, "secondary", 1);
     pci_realize_and_unref(pci_dev, pci_busA, &error_fatal);
     pci_ide_create_devs(pci_dev);
