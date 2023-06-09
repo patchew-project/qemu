@@ -1972,7 +1972,8 @@
 { 'command': 'query-named-block-nodes',
   'returns': [ 'BlockDeviceInfo' ],
   'data': { '*flat': 'bool' },
-  'allow-preconfig': true }
+  'allow-preconfig': true,
+  'coroutine': true}
 
 ##
 # @XDbgBlockGraphNodeType:
