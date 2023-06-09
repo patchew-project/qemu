@@ -29,6 +29,10 @@
 #include "qapi/error.h"
 #include "qemu/guest-random.h"
 
+#define HELPER_H "tcg/helper-a64.h.inc"
+#include "exec/helper-proto.h.inc"
+#include "exec/helper-gen.h.inc"
+#undef  HELPER_H
 
 static int choose_nonexcluded_tag(int tag, int offset, uint16_t exclude)
 {
