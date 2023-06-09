@@ -559,5 +559,4 @@ DEF_HELPER_FLAGS_5(gvec_uclamp_d, TCG_CALL_NO_RWG,
 #ifdef TARGET_AARCH64
 #include "tcg/helper-a64.h.inc"
 DEF_HELPER_FLAGS_3(set_svcr, TCG_CALL_NO_RWG, void, env, i32, i32) /* SME */
-#include "tcg/helper-sme.h.inc"
 #endif
