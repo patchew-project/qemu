@@ -158,7 +158,7 @@ static void bmdma_write(void *opaque, hwaddr addr,
     }
 }
 
-static const MemoryRegionOps cmd646_bmdma_ops = {
+static const MemoryRegionOps bmdma_ops = {
     .read = bmdma_read,
     .write = bmdma_write,
 };
@@ -171,7 +171,7 @@ static void bmdma_setup_bar(PCIIDEState *d)
     memory_region_init(&d->bmdma_bar, OBJECT(d), "cmd646-bmdma", 16);
     for (i = 0; i < 2; i++) {
         bm = &d->bmdma[i];
-        memory_region_init_io(&bm->extra_io, OBJECT(d), &cmd646_bmdma_ops, bm,
+        memory_region_init_io(&bm->extra_io, OBJECT(d), &bmdma_ops, bm,
                               "cmd646-bmdma-bus", 4);
         memory_region_add_subregion(&d->bmdma_bar, i * 8, &bm->extra_io);
         memory_region_init_io(&bm->addr_ioport, OBJECT(d),
