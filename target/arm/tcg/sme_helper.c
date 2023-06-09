@@ -21,13 +21,17 @@
 #include "cpu.h"
 #include "internals.h"
 #include "tcg/tcg-gvec-desc.h"
-#include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
 #include "exec/exec-all.h"
 #include "qemu/int128.h"
 #include "fpu/softfloat.h"
 #include "vec_internal.h"
 #include "sve_ldst_internal.h"
+
+#define HELPER_H "tcg/helper.h.inc"
+#include "exec/helper-proto.h.inc"
+#include "exec/helper-gen.h.inc"
+#undef  HELPER_H
 
 #define HELPER_H "tcg/helper-sme.h.inc"
 #include "exec/helper-proto.h.inc"

@@ -11,10 +11,15 @@
 #include "internals.h"
 #include "cpregs.h"
 #include "exec/exec-all.h"
-#include "exec/helper-proto.h"
 #include "sysemu/tcg.h"
 
 #ifdef CONFIG_TCG
+
+#define HELPER_H "tcg/helper.h.inc"
+#include "exec/helper-proto.h.inc"
+#include "exec/helper-gen.h.inc"
+#undef  HELPER_H
+
 /* Return the Exception Level targeted by debug exceptions. */
 static int arm_debug_target_el(CPUARMState *env)
 {
