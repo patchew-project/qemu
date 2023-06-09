@@ -668,67 +668,101 @@ VirtioDeviceFeatures *qmp_decode_features(uint16_t device_id, uint64_t bitmap)
 VirtioInfoList *qmp_x_query_virtio(Error **errp)
 {
     VirtioInfoList *list = NULL;
-    VirtioInfo *node;
-    VirtIODevice *vdev;
 
-    QTAILQ_FOREACH(vdev, &virtio_list, next) {
-        DeviceState *dev = DEVICE(vdev);
-        Error *err = NULL;
-        QObject *obj = qmp_qom_get(dev->canonical_path, "realized", &err);
-
-        if (err == NULL) {
-            GString *is_realized = qobject_to_json_pretty(obj, true);
-            /* virtio device is NOT realized, remove it from list */
-            if (!strncmp(is_realized->str, "false", 4)) {
-                QTAILQ_REMOVE(&virtio_list, vdev, next);
-            } else {
-                node = g_new(VirtioInfo, 1);
-                node->path = g_strdup(dev->canonical_path);
-                node->name = g_strdup(vdev->name);
-                QAPI_LIST_PREPEND(list, node);
-            }
-           g_string_free(is_realized, true);
-        }
-        qobject_unref(obj);
+    /* Query the QOM composition tree for virtio devices */
+    qmp_set_virtio_device_list("/machine/peripheral/", &list);
+    qmp_set_virtio_device_list("/machine/peripheral-anon/", &list);
+    if (list == NULL) {
+        error_setg(errp, "No virtio devices found");
+        return NULL;
     }
-
     return list;
+}
+
+/* qmp_set_virtio_device_list:
+ * @ppath: An incomplete peripheral path to search from.
+ * @list: A list of realized virtio devices.
+ * Searches a given incomplete peripheral path (e.g. '/machine/peripheral/'
+ * or '/machine/peripheral-anon/') for realized virtio devices and adds them
+ * to a given list of virtio devices.
+ */
+void qmp_set_virtio_device_list(const char *ppath, VirtioInfoList **list)
+{
+    ObjectPropertyInfoList *plist;
+    VirtioInfoList *node;
+    Error *err = NULL;
+
+    /* Search an incomplete path for virtio devices */
+    plist = qmp_qom_list(ppath, &err);
+    if (err == NULL) {
+        ObjectPropertyInfoList *start = plist;
+        while (plist != NULL) {
+            ObjectPropertyInfo *value = plist->value;
+            GString *path = g_string_new(ppath);
+            g_string_append(path, value->name);
+            g_string_append(path, "/virtio-backend");
+
+            /* Determine if full path is a realized virtio device */
+            VirtIODevice *vdev = qmp_find_virtio_device(path->str);
+            if (vdev != NULL) {
+                node = g_new0(VirtioInfoList, 1);
+                node->value = g_new(VirtioInfo, 1);
+                node->value->path = g_strdup(path->str);
+                node->value->name = g_strdup(vdev->name);
+                QAPI_LIST_PREPEND(*list, node->value);
+            }
+            g_string_free(path, true);
+            plist = plist->next;
+        }
+        qapi_free_ObjectPropertyInfoList(start);
+    }
 }
 
 VirtIODevice *qmp_find_virtio_device(const char *path)
 {
-    VirtIODevice *vdev;
+    Error *err = NULL;
+    char *basename;
 
-    QTAILQ_FOREACH(vdev, &virtio_list, next) {
-        DeviceState *dev = DEVICE(vdev);
-
-        if (strcmp(dev->canonical_path, path) != 0) {
-            continue;
-        }
-
-        Error *err = NULL;
-        QObject *obj = qmp_qom_get(dev->canonical_path, "realized", &err);
-        if (err == NULL) {
-            GString *is_realized = qobject_to_json_pretty(obj, true);
-            /* virtio device is NOT realized, remove it from list */
-            if (!strncmp(is_realized->str, "false", 4)) {
-                g_string_free(is_realized, true);
-                qobject_unref(obj);
-                QTAILQ_REMOVE(&virtio_list, vdev, next);
-                return NULL;
-            }
-            g_string_free(is_realized, true);
+    /* Append 'virtio-backend' to path if needed */
+    basename = g_path_get_basename(path);
+    if (strcmp(basename, "virtio-backend")) {
+        GString *temp = g_string_new(path);
+        char *last = strrchr(path, '/');
+        if (g_strcmp0(last, "/")) {
+            g_string_append(temp, "/virtio-backend");
         } else {
-            /* virtio device doesn't exist in QOM tree */
-            QTAILQ_REMOVE(&virtio_list, vdev, next);
-            qobject_unref(obj);
+            g_string_append(temp, "virtio-backend");
+        }
+        path = g_strdup(temp->str);
+        g_string_free(temp, true);
+    }
+
+    /* Verify the canonical path is a virtio device */
+    Object *obj = object_resolve_path(path, NULL);
+    if (!obj || !object_dynamic_cast(obj, TYPE_VIRTIO_DEVICE)) {
+        object_unref(obj);
+        return NULL;
+    }
+
+    /* Verify the virtio device is realized */
+    QObject *qobj = qmp_qom_get(path, "realized", &err);
+    if (err == NULL) {
+        GString *is_realized = qobject_to_json_pretty(qobj, true);
+        if (!strncmp(is_realized->str, "false", 4)) {
+            g_string_free(is_realized, true);
+            qobject_unref(qobj);
             return NULL;
         }
-        /* device exists in QOM tree & is realized */
-        qobject_unref(obj);
-        return vdev;
+        g_string_free(is_realized, true);
+    } else {
+        qobject_unref(qobj);
+        return NULL;
     }
-    return NULL;
+    qobject_unref(qobj);
+
+    /* Get VirtIODevice object */
+    VirtIODevice *vdev = VIRTIO_DEVICE(obj);
+    return vdev;
 }
 
 VirtioStatus *qmp_x_query_virtio_status(const char *path, Error **errp)
