@@ -44,6 +44,7 @@ def gen_header():
 #include "block/block-gen.h"
 #include "block/block_int.h"
 #include "block/dirty-bitmap.h"
+#include "block/qapi.h"
 """
 
 

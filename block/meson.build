@@ -150,6 +150,7 @@ block_gen_c = custom_target('block-gen.c',
                                       '../include/block/dirty-bitmap.h',
                                       '../include/block/block_int-io.h',
                                       '../include/block/block-global-state.h',
+                                      '../include/block/qapi.h',
                                       '../include/sysemu/block-backend-global-state.h',
                                       '../include/sysemu/block-backend-io.h',
                                       'coroutines.h'
