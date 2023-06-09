@@ -33,6 +33,7 @@
 #include "sysemu/reset.h"
 
 #include "hw/ide/pci.h"
+#include "hw/ide/cmd646.h"
 #include "trace.h"
 
 /* CMD646 specific */
@@ -339,9 +340,10 @@ static void cmd646_ide_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo cmd646_ide_info = {
-    .name          = "cmd646-ide",
+    .name          = TYPE_CMD646_IDE,
     .parent        = TYPE_PCI_IDE,
     .class_init    = cmd646_ide_class_init,
+    .instance_size = sizeof(CMD646IDEState),
 };
 
 static void cmd646_ide_register_types(void)
