@@ -41,10 +41,10 @@
 #include "qemu/qemu-print.h"
 #include "sysemu/block-backend.h"
 
-BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
-                                        BlockDriverState *bs,
-                                        bool flat,
-                                        Error **errp)
+BlockDeviceInfo *coroutine_fn bdrv_co_block_device_info(BlockBackend *blk,
+                                                        BlockDriverState *bs,
+                                                        bool flat,
+                                                        Error **errp)
 {
     ImageInfo **p_image_info;
     ImageInfo *backing_info;
