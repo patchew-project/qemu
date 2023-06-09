@@ -90,7 +90,6 @@ static uint64_t bmdma_read(void *opaque, hwaddr addr,
                            unsigned size)
 {
     BMDMAState *bm = opaque;
-    PCIDevice *pci_dev = PCI_DEVICE(bm->pci_dev);
     uint32_t val;
 
     if (size != 1) {
@@ -101,18 +100,8 @@ static uint64_t bmdma_read(void *opaque, hwaddr addr,
     case 0:
         val = bm->cmd;
         break;
-    case 1:
-        val = pci_dev->config[MRDMODE];
-        break;
     case 2:
         val = bm->status;
-        break;
-    case 3:
-        if (bm == &bm->pci_dev->bmdma[0]) {
-            val = pci_dev->config[UDIDETCR0];
-        } else {
-            val = pci_dev->config[UDIDETCR1];
-        }
         break;
     default:
         val = 0xff;
@@ -127,7 +116,6 @@ static void bmdma_write(void *opaque, hwaddr addr,
                         uint64_t val, unsigned size)
 {
     BMDMAState *bm = opaque;
-    PCIDevice *pci_dev = PCI_DEVICE(bm->pci_dev);
 
     if (size != 1) {
         return;
@@ -138,22 +126,9 @@ static void bmdma_write(void *opaque, hwaddr addr,
     case 0:
         bmdma_cmd_writeb(bm, val);
         break;
-    case 1:
-        pci_dev->config[MRDMODE] =
-            (pci_dev->config[MRDMODE] & ~0x30) | (val & 0x30);
-        cmd646_update_dma_interrupts(pci_dev);
-        cmd646_update_irq(pci_dev);
-        break;
     case 2:
         bm->status = (val & 0x60) | (bm->status & 1) |
                      (bm->status & ~val & 0x06);
-        break;
-    case 3:
-        if (bm == &bm->pci_dev->bmdma[0]) {
-            pci_dev->config[UDIDETCR0] = val;
-        } else {
-            pci_dev->config[UDIDETCR1] = val;
-        }
         break;
     }
 }
@@ -178,6 +153,91 @@ static void bmdma_setup_bar(PCIIDEState *d)
                               &bmdma_addr_ioport_ops, bm,
                               "cmd646-bmdma-ioport", 4);
         memory_region_add_subregion(&d->bmdma_bar, i * 8 + 4, &bm->addr_ioport);
+    }
+}
+
+static uint64_t cmd646_bmdma_read(void *opaque, hwaddr addr, unsigned size)
+{
+    BMDMAState *bm = opaque;
+    PCIDevice *pci_dev = PCI_DEVICE(bm->pci_dev);
+    uint32_t val;
+
+    if (size != 1) {
+        return ((uint64_t)1 << (size * 8)) - 1;
+    }
+
+    switch (addr & 3) {
+    case 1:
+        val = pci_dev->config[MRDMODE];
+        break;
+    case 3:
+        if (bm == &bm->pci_dev->bmdma[0]) {
+            val = pci_dev->config[UDIDETCR0];
+        } else {
+            val = pci_dev->config[UDIDETCR1];
+        }
+        break;
+    default:
+        val = 0xff;
+        break;
+    }
+
+    trace_bmdma_read_cmd646(addr, val);
+    return val;
+}
+
+static void cmd646_bmdma_write(void *opaque, hwaddr addr, uint64_t val,
+                               unsigned size)
+{
+    BMDMAState *bm = opaque;
+    PCIDevice *pci_dev = PCI_DEVICE(bm->pci_dev);
+
+    if (size != 1) {
+        return;
+    }
+
+    trace_bmdma_write_cmd646(addr, val);
+    switch (addr & 3) {
+    case 1:
+        pci_dev->config[MRDMODE] =
+            (pci_dev->config[MRDMODE] & ~0x30) | (val & 0x30);
+        cmd646_update_dma_interrupts(pci_dev);
+        cmd646_update_irq(pci_dev);
+        break;
+    case 3:
+        if (bm == &bm->pci_dev->bmdma[0]) {
+            pci_dev->config[UDIDETCR0] = val;
+        } else {
+            pci_dev->config[UDIDETCR1] = val;
+        }
+        break;
+    }
+}
+
+static const MemoryRegionOps cmd646_bmdma_ops = {
+    .read = cmd646_bmdma_read,
+    .write = cmd646_bmdma_write,
+};
+
+static void cmd646_bmdma_setup(PCIIDEState *d)
+{
+    CMD646IDEState *s = CMD646_IDE(d);
+    BMDMAState *bm;
+    int i;
+
+    /* Setup aliases for device-specific BMDMA registers */
+    for (i = 0; i < 2; i++) {
+        bm = &d->bmdma[i];
+        memory_region_init_io(&s->bmdma_mem[i], OBJECT(d), &cmd646_bmdma_ops,
+                              bm, "cmd646-bmdma", 4);
+        memory_region_init_alias(&s->bmdma_mem_alias[i][0], OBJECT(d),
+                                 "cmd646-bmdma[1]", &s->bmdma_mem[i], 0x1, 1);
+        memory_region_add_subregion(&bm->extra_io, 0x1,
+                                    &s->bmdma_mem_alias[i][0]);
+        memory_region_init_alias(&s->bmdma_mem_alias[i][1], OBJECT(d),
+                                 "cmd646-bmdma[3]", &s->bmdma_mem[i], 0x3, 1);
+        memory_region_add_subregion(&bm->extra_io, 0x3,
+                                    &s->bmdma_mem_alias[i][1]);
     }
 }
 
@@ -289,6 +349,7 @@ static void pci_cmd646_ide_realize(PCIDevice *dev, Error **errp)
 
     bmdma_setup_bar(d);
     pci_register_bar(dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &d->bmdma_bar);
+    cmd646_bmdma_setup(d);
 
     /* TODO: RST# value should be 0 */
     pci_conf[PCI_INTERRUPT_PIN] = 0x01; /* interrupt on pin 1 */

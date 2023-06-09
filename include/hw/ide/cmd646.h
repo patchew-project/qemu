@@ -29,10 +29,14 @@
 #define TYPE_CMD646_IDE "cmd646-ide"
 OBJECT_DECLARE_SIMPLE_TYPE(CMD646IDEState, CMD646_IDE)
 
+#include "exec/memory.h"
 #include "hw/ide/pci.h"
 
 struct CMD646IDEState {
     PCIIDEState parent_obj;
+
+    MemoryRegion bmdma_mem[2];
+    MemoryRegion bmdma_mem_alias[2][2];
 };
 
 #endif
