@@ -2308,6 +2308,54 @@ uint32_t helper_crc32_le(uint32_t arg0, uint32_t arg1)
     return crc32(arg1, buf, 4);
 }
 
+/*
+ * table from
+ * https://graphics.stanford.edu/~seander/bithacks.html#BitReverseTable
+ */
+static const unsigned char BitReverseTable256[256] = {
+#   define R2(n) n, n + 2 * 64, n + 1 * 64, n + 3 * 64
+#   define R4(n) R2(n), R2(n + 2 * 16), R2(n + 1 * 16), R2(n + 3 * 16)
+#   define R6(n) R4(n), R4(n + 2 * 4 ), R4(n + 1 * 4 ), R4(n + 3 * 4 )
+    R6(0), R6(2), R6(1), R6(3)
+};
+
+uint32_t helper_shuffle(uint32_t arg0, uint32_t arg1)
+{
+    uint8_t buf[4];
+    uint8_t resbuf[4];
+    uint32_t byte_select;
+    uint32_t res = 0;
+
+    stl_le_p(buf, arg0);
+
+    byte_select = arg1 & 0x3;
+    resbuf[0] = buf[byte_select];
+    if (arg1 & 0x100) {
+        resbuf[0] = BitReverseTable256[resbuf[0]];
+    }
+
+    byte_select = (arg1 >> 2) & 0x3;
+    resbuf[1] = buf[byte_select];
+    if (arg1 & 0x100) {
+        resbuf[1] = BitReverseTable256[resbuf[1]];
+    }
+
+    byte_select = (arg1 >> 4) & 0x3;
+    resbuf[2] = buf[byte_select];
+    if (arg1 & 0x100) {
+        resbuf[2] = BitReverseTable256[resbuf[2]];
+    }
+
+    byte_select = (arg1 >> 6) & 0x3;
+    resbuf[3] = buf[byte_select];
+    if (arg1 & 0x100) {
+        resbuf[3] = BitReverseTable256[resbuf[3]];
+    }
+
+    res = ldl_le_p(resbuf);
+    return res;
+}
+
 /* context save area (CSA) related helpers */
 
 static int cdc_increment(target_ulong *psw)
