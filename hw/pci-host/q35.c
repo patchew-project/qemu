@@ -290,7 +290,6 @@ static const MemoryRegionOps blackhole_ops = {
     .valid.max_access_size = 4,
     .impl.min_access_size = 4,
     .impl.max_access_size = 4,
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 /* PCIe MMCFG */
