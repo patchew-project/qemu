@@ -6,9 +6,11 @@
 #include "tcg/tcg-op-gvec.h"
 #include "exec/exec-all.h"
 #include "exec/translator.h"
-#include "exec/helper-gen.h"
 #include "internals.h"
 
+#define HELPER_H "helper.h"
+#include "exec/helper-gen.h.inc"
+#undef  HELPER_H
 
 /* internal defines */
 
