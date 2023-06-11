@@ -27,7 +27,6 @@
 #include "arm_ldst.h"
 #include "semihosting/semihost.h"
 #include "cpregs.h"
-#include "exec/helper-proto.h"
 
 #define HELPER_H "tcg/helper-neon.h.inc"
 #include "exec/helper-gen.h.inc"
@@ -43,6 +42,7 @@
 #undef  HELPER_H
 
 #define HELPER_H "helper.h"
+#include "exec/helper-proto.h.inc"
 #include "exec/helper-info.c.inc"
 #undef  HELPER_H
 

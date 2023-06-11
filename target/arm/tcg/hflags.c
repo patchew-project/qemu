@@ -8,8 +8,11 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "internals.h"
-#include "exec/helper-proto.h"
 #include "cpregs.h"
+
+#define HELPER_H "helper.h"
+#include "exec/helper-proto.h.inc"
+#undef  HELPER_H
 
 static inline bool fgt_svc(CPUARMState *env, int el)
 {

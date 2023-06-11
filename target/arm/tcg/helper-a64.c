@@ -21,7 +21,6 @@
 #include "qemu/units.h"
 #include "cpu.h"
 #include "gdbstub/helpers.h"
-#include "exec/helper-proto.h"
 #include "qemu/host-utils.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
@@ -34,6 +33,10 @@
 #include "qemu/atomic128.h"
 #include "fpu/softfloat.h"
 #include <zlib.h> /* For crc32 */
+
+#define HELPER_H "helper.h"
+#include "exec/helper-proto.h.inc"
+#undef  HELPER_H
 
 #define HELPER_H "tcg/helper-a64.h.inc"
 #include "exec/helper-proto.h.inc"
