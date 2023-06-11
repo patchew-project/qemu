@@ -4419,10 +4419,12 @@ static void gen_hrfid(DisasContext *ctx)
 #endif
 static void gen_sc(DisasContext *ctx)
 {
-    uint32_t lev;
+    uint32_t lev = (ctx->opcode >> 5) & 0x7F;
 
-    lev = (ctx->opcode >> 5) & 0x7F;
-    gen_exception_err(ctx, POWERPC_SYSCALL, lev);
+    gen_update_nip(ctx, ctx->base.pc_next);
+    gen_helper_raise_exception_err(cpu_env, tcg_constant_i32(POWERPC_SYSCALL),
+                                   tcg_constant_i32(lev));
+    ctx->base.is_jmp = DISAS_NORETURN;
 }
 
 #if defined(TARGET_PPC64)
