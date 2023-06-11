@@ -21,6 +21,7 @@ arm_ss.add(gen)
 arm_ss.add(files(
   'cpu32.c',
   'translate.c',
+  'translate-iwmmxt.c',
   'translate-m-nocp.c',
   'translate-mve.c',
   'translate-neon.c',
