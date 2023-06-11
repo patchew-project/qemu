@@ -26,7 +26,7 @@
 #include "qemu/guest-random.h"
 #ifdef CONFIG_TCG
 
-#define HELPER_H "helper.h"
+#define HELPER_H "tcg/helper.h.inc"
 #include "exec/helper-proto.h.inc"
 #include "exec/helper-gen.h.inc"
 #undef  HELPER_H

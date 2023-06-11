@@ -34,7 +34,7 @@
 #include "fpu/softfloat.h"
 #include <zlib.h> /* For crc32 */
 
-#define HELPER_H "helper.h"
+#define HELPER_H "tcg/helper.h.inc"
 #include "exec/helper-proto.h.inc"
 #undef  HELPER_H
 

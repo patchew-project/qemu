@@ -24,7 +24,7 @@
 #include "qemu/int128.h"
 #include "vec_internal.h"
 
-#define HELPER_H "helper.h"
+#define HELPER_H "tcg/helper.h.inc"
 #include "exec/helper-proto.h.inc"
 #undef  HELPER_H
 
