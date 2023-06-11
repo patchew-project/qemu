@@ -21,7 +21,6 @@
 #include "cpu.h"
 #include "internals.h"
 #include "exec/exec-all.h"
-#include "exec/helper-proto.h"
 #include "tcg/tcg-gvec-desc.h"
 #include "fpu/softfloat.h"
 #include "tcg/tcg.h"
@@ -34,6 +33,10 @@
 #undef  HELPER_H
 
 #define HELPER_H "tcg/helper-sve.h.inc"
+#include "exec/helper-proto.h.inc"
+#undef  HELPER_H
+
+#define HELPER_H "tcg/helper-a64.h.inc"
 #include "exec/helper-proto.h.inc"
 #undef  HELPER_H
 

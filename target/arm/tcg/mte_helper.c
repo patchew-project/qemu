@@ -24,11 +24,13 @@
 #include "exec/exec-all.h"
 #include "exec/ram_addr.h"
 #include "exec/cpu_ldst.h"
-#include "exec/helper-proto.h"
 #include "hw/core/tcg-cpu-ops.h"
 #include "qapi/error.h"
 #include "qemu/guest-random.h"
 
+#define HELPER_H "tcg/helper-a64.h.inc"
+#include "exec/helper-proto.h.inc"
+#undef  HELPER_H
 
 static int choose_nonexcluded_tag(int tag, int offset, uint16_t exclude)
 {
