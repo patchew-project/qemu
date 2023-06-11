@@ -59,6 +59,8 @@ struct I440FXState {
     uint64_t pci_hole64_size;
     bool pci_hole64_fix;
     uint32_t short_root_bus;
+
+    char *pci_type;
 };
 
 #define I440FX_PAM      0x59
@@ -286,6 +288,7 @@ PCIBus *i440fx_init(const char *pci_type,
     s->ram_memory = ram_memory;
     s->below_4g_mem_size = below_4g_mem_size;
     s->above_4g_mem_size = above_4g_mem_size;
+    s->pci_type = (char *)pci_type;
 
     b = pci_root_bus_new(dev, NULL, s->pci_address_space,
                          s->address_space_io, 0, TYPE_PCI_BUS);
@@ -293,7 +296,7 @@ PCIBus *i440fx_init(const char *pci_type,
     object_property_add_child(qdev_get_machine(), "i440fx", OBJECT(dev));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
-    d = pci_create_simple(b, 0, pci_type);
+    d = pci_create_simple(b, 0, s->pci_type);
     f = I440FX_PCI_DEVICE(d);
 
     range_set_bounds(&s->pci_hole, s->below_4g_mem_size,
@@ -392,6 +395,7 @@ static Property i440fx_props[] = {
     DEFINE_PROP_SIZE(PCI_HOST_ABOVE_4G_MEM_SIZE, I440FXState,
                      above_4g_mem_size, 0),
     DEFINE_PROP_BOOL("x-pci-hole64-fix", I440FXState, pci_hole64_fix, true),
+    DEFINE_PROP_STRING(I440FX_HOST_PROP_PCI_TYPE, I440FXState, pci_type),
     DEFINE_PROP_END_OF_LIST(),
 };
 
