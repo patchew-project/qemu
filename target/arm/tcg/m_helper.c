@@ -21,6 +21,10 @@
 #include "hw/intc/armv7m_nvic.h"
 #endif
 
+#define HELPER_H "tcg/helper-m.h.inc"
+#include "exec/helper-proto.h.inc"
+#undef  HELPER_H
+
 static void v7m_msr_xpsr(CPUARMState *env, uint32_t mask,
                          uint32_t reg, uint32_t val)
 {
