@@ -237,7 +237,7 @@ void cpu_get_tb_cpu_state(CPUPPCState *env, target_ulong *pc,
 }
 #endif
 
-void cpu_interrupt_exittb(CPUState *cs)
+void cpu_interrupt_exittb(CPUPPCState *env)
 {
     /*
      * We don't need to worry about translation blocks
@@ -245,18 +245,14 @@ void cpu_interrupt_exittb(CPUState *cs)
      */
     if (tcg_enabled()) {
         QEMU_IOTHREAD_LOCK_GUARD();
-        cpu_interrupt(cs, CPU_INTERRUPT_EXITTB);
+        cpu_interrupt(env_cpu(env), CPU_INTERRUPT_EXITTB);
     }
 }
 
 int hreg_store_msr(CPUPPCState *env, target_ulong value, int alter_hv)
 {
-    int excp;
-#if !defined(CONFIG_USER_ONLY)
-    CPUState *cs = env_cpu(env);
-#endif
+    int excp = 0;
 
-    excp = 0;
     value &= env->msr_mask;
 #if !defined(CONFIG_USER_ONLY)
     /* Neither mtmsr nor guest state can alter HV */
@@ -265,12 +261,12 @@ int hreg_store_msr(CPUPPCState *env, target_ulong value, int alter_hv)
         value |= env->msr & MSR_HVB;
     }
     if ((value ^ env->msr) & (R_MSR_IR_MASK | R_MSR_DR_MASK)) {
-        cpu_interrupt_exittb(cs);
+        cpu_interrupt_exittb(env);
     }
     if ((env->mmu_model == POWERPC_MMU_BOOKE ||
          env->mmu_model == POWERPC_MMU_BOOKE206) &&
         ((value ^ env->msr) & R_MSR_GS_MASK)) {
-        cpu_interrupt_exittb(cs);
+        cpu_interrupt_exittb(env);
     }
     if (unlikely((env->flags & POWERPC_FLAG_TGPR) &&
                  ((value ^ env->msr) & (1 << MSR_TGPR)))) {
@@ -301,6 +297,7 @@ int hreg_store_msr(CPUPPCState *env, target_ulong value, int alter_hv)
 
     if (unlikely(FIELD_EX64(env->msr, MSR, POW))) {
         if (!env->pending_interrupts && (*env->check_pow)(env)) {
+            CPUState *cs = env_cpu(env);
             cs->halted = 1;
             excp = EXCP_HALTED;
         }
