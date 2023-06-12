@@ -18,6 +18,7 @@ including both hardware implementions and virtual cards:
 
 * CanoKey STM32 [4]_
 * CanoKey Pigeon [5]_
+* CanoKey nRF52 [6]_
 * (virt-card) CanoKey USB/IP
 * (virt-card) CanoKey FunctionFS
 
@@ -100,7 +101,7 @@ and find CanoKey QEMU there:
     $ lsusb
     Bus 001 Device 002: ID 20a0:42d4 Clay Logic CanoKey QEMU
 
-You may setup the key as guided in [6]_. The console for the key is at [7]_.
+You may setup the key as guided in [7]_. The console for the key is at [8]_ or [9]_.
 
 Debugging
 =========
@@ -154,5 +155,7 @@ References
 .. [3] `<https://github.com/canokeys/canokey-core>`_
 .. [4] `<https://github.com/canokeys/canokey-stm32>`_
 .. [5] `<https://github.com/canokeys/canokey-pigeon>`_
-.. [6] `<https://docs.canokeys.org/>`_
-.. [7] `<https://console.canokeys.org/>`_
+.. [6] `<https://github.com/canokeys/canokey-nrf52>`_
+.. [7] `<https://docs.canokeys.org/>`_
+.. [8] `<https://console.canokeys.org/>`_
+.. [9] `<https://console-legacy.canokeys.org/>`_
