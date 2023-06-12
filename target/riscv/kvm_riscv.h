@@ -21,5 +21,6 @@
 
 void kvm_riscv_reset_vcpu(RISCVCPU *cpu);
 void kvm_riscv_set_irq(RISCVCPU *cpu, int irq, int level);
+int kvm_riscv_set_mpstate_to_kvm(RISCVCPU *cpu, int state);
 
 #endif
