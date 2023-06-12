@@ -53,7 +53,7 @@ libcanokey-qemu is required to use CanoKey QEMU.
 
 .. code-block:: shell
 
-    git clone https://github.com/canokeys/canokey-qemu
+    git clone --recursive https://github.com/canokeys/canokey-qemu
     mkdir canokey-qemu/build
     pushd canokey-qemu/build
 
