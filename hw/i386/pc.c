@@ -1559,7 +1559,25 @@ static void pc_virtio_md_pci_unplug_request(HotplugHandler *hotplug_dev,
 static void pc_virtio_md_pci_unplug(HotplugHandler *hotplug_dev,
                                     DeviceState *dev, Error **errp)
 {
-    /* We don't support hot unplug of virtio based memory devices */
+    HotplugHandler *hotplug_dev2 = qdev_get_bus_hotplug_handler(dev);
+    Error *local_err = NULL;
+
+    /* Unplug the memory device while it is still realized. */
+    memory_device_unplug(MEMORY_DEVICE(dev), MACHINE(hotplug_dev));
+
+    if (hotplug_dev2) {
+        hotplug_handler_unplug(hotplug_dev2, dev, &local_err);
+        if (local_err) {
+            /* Not expected to fail ... but still try to recover. */
+            memory_device_plug(MEMORY_DEVICE(dev), MACHINE(hotplug_dev));
+            error_propagate(errp, local_err);
+            return;
+        }
+    } else {
+        /* Very unexpected, but let's just try to do the right thing. */
+        warn_report("Unexpected unplug of virtio based memory device");
+        qdev_unrealize(dev);
+    }
 }
 
 static void pc_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
