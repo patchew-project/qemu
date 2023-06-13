@@ -100,4 +100,6 @@ struct VirtIOMEMClass {
     void (*remove_size_change_notifier)(VirtIOMEM *vmem, Notifier *notifier);
 };
 
+void virtio_mem_unplug_request_check(VirtIOMEM *vmem, Error **errp);
+
 #endif

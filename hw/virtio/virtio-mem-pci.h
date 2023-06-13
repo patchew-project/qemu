@@ -32,4 +32,6 @@ struct VirtIOMEMPCI {
     Notifier size_change_notifier;
 };
 
+void virtio_mem_pci_unplug_request_check(VirtIOMEMPCI *pci_mem, Error **errp);
+
 #endif /* QEMU_VIRTIO_MEM_PCI_H */
