@@ -1549,13 +1549,6 @@ static void pc_virtio_md_pci_plug(HotplugHandler *hotplug_dev,
     error_propagate(errp, local_err);
 }
 
-static void pc_virtio_md_pci_unplug_request(HotplugHandler *hotplug_dev,
-                                            DeviceState *dev, Error **errp)
-{
-    /* We don't support hot unplug of virtio based memory devices */
-    error_setg(errp, "virtio based memory devices cannot be unplugged.");
-}
-
 static void pc_virtio_md_pci_unplug(HotplugHandler *hotplug_dev,
                                     DeviceState *dev, Error **errp)
 {
@@ -1577,6 +1570,47 @@ static void pc_virtio_md_pci_unplug(HotplugHandler *hotplug_dev,
         /* Very unexpected, but let's just try to do the right thing. */
         warn_report("Unexpected unplug of virtio based memory device");
         qdev_unrealize(dev);
+    }
+}
+
+static void pc_virtio_md_pci_unplug_request(HotplugHandler *hotplug_dev,
+                                            DeviceState *dev, Error **errp)
+{
+    HotplugHandler *hotplug_dev2 = qdev_get_bus_hotplug_handler(dev);
+    HotplugHandlerClass *hdc;
+    Error *local_err = NULL;
+
+    if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_PMEM_PCI)) {
+        error_setg(errp, "virtio-pmem devices cannot be unplugged.");
+        return;
+    }
+
+    if (!hotplug_dev2) {
+        error_setg(errp, "hotunplug of virtio based memory devices not"
+                   "supported on this bus");
+        return;
+    }
+
+    /* Verify whether it is *currently* safe to unplug the virtio-mem device. */
+    g_assert(object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MEM_PCI));
+    virtio_mem_pci_unplug_request_check(VIRTIO_MEM_PCI(dev), &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    /*
+     * Forward the async request or turn it into a sync request (handling it
+     * like qdev_unplug()).
+     */
+    hdc = HOTPLUG_HANDLER_GET_CLASS(hotplug_dev2);
+    if (hdc->unplug_request) {
+        hotplug_handler_unplug_request(hotplug_dev2, dev, &local_err);
+    } else {
+        pc_virtio_md_pci_unplug(hotplug_dev, dev, &local_err);
+        if (!local_err) {
+            object_unparent(OBJECT(dev));
+        }
     }
 }
 
