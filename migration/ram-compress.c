@@ -262,10 +262,13 @@ static inline void set_compress_params(CompressParam *param, RAMBlock *block,
     param->trigger = true;
 }
 
-int compress_page_with_multi_thread(RAMBlock *block, ram_addr_t offset,
-                                int (send_queued_data(CompressParam *)))
+/*
+ * Return true when it compress a page
+ */
+bool compress_page_with_multi_thread(RAMBlock *block, ram_addr_t offset,
+                                     int (send_queued_data(CompressParam *)))
 {
-    int idx, thread_count, pages = -1;
+    int idx, thread_count;
     bool wait = migrate_compress_wait_thread();
 
     thread_count = migrate_compress_threads();
@@ -283,8 +286,8 @@ retry:
 
             qemu_cond_signal(&param->cond);
             qemu_mutex_unlock(&param->mutex);
-            pages = 1;
-            break;
+            qemu_mutex_unlock(&comp_done_lock);
+            return true;
         }
     }
 
@@ -292,13 +295,13 @@ retry:
      * wait for the free thread if the user specifies 'compress-wait-thread',
      * otherwise we will post the page out in the main thread as normal page.
      */
-    if (pages < 0 && wait) {
+    if (wait) {
         qemu_cond_wait(&comp_done_cond, &comp_done_lock);
         goto retry;
     }
     qemu_mutex_unlock(&comp_done_lock);
 
-    return pages;
+    return false;
 }
 
 /* return the size after decompression, or negative value on error */
