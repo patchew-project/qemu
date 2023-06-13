@@ -1068,20 +1068,20 @@ void ram_release_page(const char *rbname, uint64_t offset)
  * a zero page
  *
  * @pss: current PSS channel
- * @block: block that contains the page we want to send
  * @offset: offset inside the block for the page
  */
 static int save_zero_page_to_file(PageSearchStatus *pss, QEMUFile *file,
-                                  RAMBlock *block, ram_addr_t offset)
+                                  ram_addr_t offset)
 {
-    uint8_t *p = block->host + offset;
+    uint8_t *p = pss->block->host + offset;
     int len = 0;
 
     if (buffer_is_zero(p, TARGET_PAGE_SIZE)) {
-        len += save_page_header(pss, file, block, offset | RAM_SAVE_FLAG_ZERO);
+        len += save_page_header(pss, file, pss->block,
+                                offset | RAM_SAVE_FLAG_ZERO);
         qemu_put_byte(file, 0);
         len += 1;
-        ram_release_page(block->idstr, offset);
+        ram_release_page(pss->block->idstr, offset);
     }
     return len;
 }
@@ -1092,13 +1092,11 @@ static int save_zero_page_to_file(PageSearchStatus *pss, QEMUFile *file,
  * Returns the number of pages written.
  *
  * @pss: current PSS channel
- * @block: block that contains the page we want to send
  * @offset: offset inside the block for the page
  */
-static int save_zero_page(PageSearchStatus *pss, QEMUFile *f, RAMBlock *block,
-                          ram_addr_t offset)
+static int save_zero_page(PageSearchStatus *pss, QEMUFile *f, ram_addr_t offset)
 {
-    int len = save_zero_page_to_file(pss, f, block, offset);
+    int len = save_zero_page_to_file(pss, f, offset);
 
     if (len) {
         stat64_add(&mig_stats.zero_pages, 1);
@@ -2034,7 +2032,7 @@ static int ram_save_target_page_legacy(RAMState *rs, PageSearchStatus *pss)
         return 1;
     }
 
-    res = save_zero_page(pss, pss->pss_channel, block, offset);
+    res = save_zero_page(pss, pss->pss_channel, offset);
     if (res > 0) {
         /* Must let xbzrle know, otherwise a previous (now 0'd) cached
          * page would be stale
