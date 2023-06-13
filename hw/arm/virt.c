@@ -2821,10 +2821,38 @@ static void virt_virtio_md_pci_unplug(HotplugHandler *hotplug_dev,
 static void virt_virtio_md_pci_unplug_request(HotplugHandler *hotplug_dev,
                                               DeviceState *dev, Error **errp)
 {
-    /* We don't support hot unplug of virtio based memory devices */
-    error_setg(errp, "virtio based memory devices cannot be unplugged.");
-}
+    HotplugHandler *hotplug_dev2 = qdev_get_bus_hotplug_handler(dev);
+    HotplugHandlerClass *hdc;
+    Error *local_err = NULL;
 
+    if (!hotplug_dev2) {
+        error_setg(errp, "hotunplug of virtio based memory devices not"
+                   "supported on this bus");
+        return;
+    }
+
+    /* Verify whether it is *currently* safe to unplug the virtio-mem device. */
+    g_assert(object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MEM_PCI));
+    virtio_mem_pci_unplug_request_check(VIRTIO_MEM_PCI(dev), &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    /*
+     * Forward the async request or turn it into a sync request (handling it
+     * like qdev_unplug()).
+     */
+    hdc = HOTPLUG_HANDLER_GET_CLASS(hotplug_dev2);
+    if (hdc->unplug_request) {
+        hotplug_handler_unplug_request(hotplug_dev2, dev, &local_err);
+    } else {
+        virt_virtio_md_pci_unplug(hotplug_dev, dev, &local_err);
+        if (!local_err) {
+            object_unparent(OBJECT(dev));
+        }
+    }
+}
 
 static void virt_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
                                             DeviceState *dev, Error **errp)
