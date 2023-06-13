@@ -34,7 +34,6 @@
 #include "io/channel.h"
 
 extern XBZRLECacheStats xbzrle_counters;
-extern CompressionStats compression_counters;
 
 bool ramblock_is_ignored(RAMBlock *block);
 /* Should be holding either ram_list.mutex, or the RCU lock. */
