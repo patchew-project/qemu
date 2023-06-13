@@ -2794,6 +2794,30 @@ static void virt_virtio_md_pci_plug(HotplugHandler *hotplug_dev,
     error_propagate(errp, local_err);
 }
 
+static void virt_virtio_md_pci_unplug(HotplugHandler *hotplug_dev,
+                                      DeviceState *dev, Error **errp)
+{
+    HotplugHandler *hotplug_dev2 = qdev_get_bus_hotplug_handler(dev);
+    Error *local_err = NULL;
+
+    /* Unplug the memory device while it is still realized. */
+    memory_device_unplug(MEMORY_DEVICE(dev), MACHINE(hotplug_dev));
+
+    if (hotplug_dev2) {
+        hotplug_handler_unplug(hotplug_dev2, dev, &local_err);
+        if (local_err) {
+            /* Not expected to fail ... but still try to recover. */
+            memory_device_plug(MEMORY_DEVICE(dev), MACHINE(hotplug_dev));
+            error_propagate(errp, local_err);
+            return;
+        }
+    } else {
+        /* Very unexpected, but let's just try to do the right thing. */
+        warn_report("Unexpected unplug of virtio based memory device");
+        qdev_unrealize(dev);
+    }
+}
+
 static void virt_virtio_md_pci_unplug_request(HotplugHandler *hotplug_dev,
                                               DeviceState *dev, Error **errp)
 {
@@ -2932,6 +2956,8 @@ static void virt_machine_device_unplug_cb(HotplugHandler *hotplug_dev,
 {
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
         virt_dimm_unplug(hotplug_dev, dev, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MEM_PCI)) {
+        virt_virtio_md_pci_unplug(hotplug_dev, dev, errp);
     } else {
         error_setg(errp, "virt: device unplug for unsupported device"
                    " type: %s", object_get_typename(OBJECT(dev)));
