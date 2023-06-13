@@ -502,3 +502,9 @@ void populate_compress(MigrationInfo *info)
             compression_counters.compression_rate;
     }
 }
+
+uint64_t ram_compressed_pages(void)
+{
+    return compression_counters.pages;
+}
+
