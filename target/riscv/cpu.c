@@ -1590,6 +1590,11 @@ static void riscv_cpu_add_misa_properties(Object *cpu_obj)
     for (i = 0; i < ARRAY_SIZE(misa_ext_cfgs); i++) {
         const RISCVCPUMisaExtConfig *misa_cfg = &misa_ext_cfgs[i];
 
+        /* Check if KVM didn't create the property already */
+        if (object_property_find(cpu_obj, misa_cfg->name)) {
+            continue;
+        }
+
         object_property_add(cpu_obj, misa_cfg->name, "bool",
                             cpu_get_misa_ext_cfg,
                             cpu_set_misa_ext_cfg,
@@ -1713,6 +1718,11 @@ static void riscv_cpu_add_user_properties(Object *obj)
     riscv_cpu_add_misa_properties(obj);
 
     for (prop = riscv_cpu_extensions; prop && prop->name; prop++) {
+        /* Check if KVM didn't create the property already */
+        if (object_property_find(obj, prop->name)) {
+            continue;
+        }
+
         qdev_property_add_static(dev, prop);
     }
 
