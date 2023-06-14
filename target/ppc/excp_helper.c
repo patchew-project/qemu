@@ -1506,8 +1506,8 @@ static int p7_interrupt_powersave(CPUPPCState *env)
 
 static int p7_next_unmasked_interrupt(CPUPPCState *env)
 {
-    PowerPCCPU *cpu = env_archcpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUState *cs = env_cpu(env);
+
     /* Ignore MSR[EE] when coming out of some power management states */
     bool msr_ee = FIELD_EX64(env->msr, MSR, EE) || env->resume_as_sreset;
 
@@ -1596,8 +1596,8 @@ static int p8_interrupt_powersave(CPUPPCState *env)
 
 static int p8_next_unmasked_interrupt(CPUPPCState *env)
 {
-    PowerPCCPU *cpu = env_archcpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUState *cs = env_cpu(env);
+
     /* Ignore MSR[EE] when coming out of some power management states */
     bool msr_ee = FIELD_EX64(env->msr, MSR, EE) || env->resume_as_sreset;
 
@@ -1717,8 +1717,8 @@ static int p9_interrupt_powersave(CPUPPCState *env)
 
 static int p9_next_unmasked_interrupt(CPUPPCState *env)
 {
-    PowerPCCPU *cpu = env_archcpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUState *cs = env_cpu(env);
+
     /* Ignore MSR[EE] when coming out of some power management states */
     bool msr_ee = FIELD_EX64(env->msr, MSR, EE) || env->resume_as_sreset;
 
@@ -2412,9 +2412,8 @@ void helper_scv(CPUPPCState *env, uint32_t lev)
 
 void helper_pminsn(CPUPPCState *env, uint32_t insn)
 {
-    CPUState *cs;
+    CPUState *cs = env_cpu(env);
 
-    cs = env_cpu(env);
     cs->halted = 1;
 
     /* Condition for waking up at 0x100 */
