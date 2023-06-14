@@ -1335,8 +1335,9 @@ static RISCVException write_mstatus(CPURISCVState *env, int csrno,
      */
     if (env->debugger) {
         env->xl = cpu_recompute_xl(env);
-        riscv_cpu_update_mask(env);
     }
+
+    riscv_cpu_update_mask(env);
     return RISCV_EXCP_NONE;
 }
 
@@ -3639,7 +3640,7 @@ static RISCVException write_mpmmask(CPURISCVState *env, int csrno,
     uint64_t mstatus;
 
     env->mpmmask = val;
-    if ((env->priv == PRV_M) && (env->mmte & M_PM_ENABLE)) {
+    if ((cpu_address_mode(env) == PRV_M) && (env->mmte & M_PM_ENABLE)) {
         env->cur_pmmask = val;
     }
     env->mmte |= EXT_STATUS_DIRTY;
@@ -3667,8 +3668,11 @@ static RISCVException write_spmmask(CPURISCVState *env, int csrno,
         return RISCV_EXCP_NONE;
     }
     env->spmmask = val;
-    if ((env->priv == PRV_S) && (env->mmte & S_PM_ENABLE)) {
+    if ((cpu_address_mode(env) == PRV_S) && (env->mmte & S_PM_ENABLE)) {
         env->cur_pmmask = val;
+        if (cpu_get_xl(env, PRV_S) == MXL_RV32) {
+            env->cur_pmmask &= UINT32_MAX;
+        }
     }
     env->mmte |= EXT_STATUS_DIRTY;
 
@@ -3695,8 +3699,11 @@ static RISCVException write_upmmask(CPURISCVState *env, int csrno,
         return RISCV_EXCP_NONE;
     }
     env->upmmask = val;
-    if ((env->priv == PRV_U) && (env->mmte & U_PM_ENABLE)) {
+    if ((cpu_address_mode(env) == PRV_U) && (env->mmte & U_PM_ENABLE)) {
         env->cur_pmmask = val;
+        if (cpu_get_xl(env, PRV_U) == MXL_RV32) {
+            env->cur_pmmask &= UINT32_MAX;
+        }
     }
     env->mmte |= EXT_STATUS_DIRTY;
 
@@ -3719,7 +3726,7 @@ static RISCVException write_mpmbase(CPURISCVState *env, int csrno,
     uint64_t mstatus;
 
     env->mpmbase = val;
-    if ((env->priv == PRV_M) && (env->mmte & M_PM_ENABLE)) {
+    if ((cpu_address_mode(env) == PRV_M) && (env->mmte & M_PM_ENABLE)) {
         env->cur_pmbase = val;
     }
     env->mmte |= EXT_STATUS_DIRTY;
@@ -3747,8 +3754,11 @@ static RISCVException write_spmbase(CPURISCVState *env, int csrno,
         return RISCV_EXCP_NONE;
     }
     env->spmbase = val;
-    if ((env->priv == PRV_S) && (env->mmte & S_PM_ENABLE)) {
+    if ((cpu_address_mode(env) == PRV_S) && (env->mmte & S_PM_ENABLE)) {
         env->cur_pmbase = val;
+        if (cpu_get_xl(env, PRV_S) == MXL_RV32) {
+            env->cur_pmbase &= UINT32_MAX;
+        }
     }
     env->mmte |= EXT_STATUS_DIRTY;
 
@@ -3775,8 +3785,11 @@ static RISCVException write_upmbase(CPURISCVState *env, int csrno,
         return RISCV_EXCP_NONE;
     }
     env->upmbase = val;
-    if ((env->priv == PRV_U) && (env->mmte & U_PM_ENABLE)) {
+    if ((cpu_address_mode(env) == PRV_U) && (env->mmte & U_PM_ENABLE)) {
         env->cur_pmbase = val;
+        if (cpu_get_xl(env, PRV_U) == MXL_RV32) {
+            env->cur_pmbase &= UINT32_MAX;
+        }
     }
     env->mmte |= EXT_STATUS_DIRTY;
 

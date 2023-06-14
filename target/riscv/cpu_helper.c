@@ -148,13 +148,16 @@ void cpu_get_tb_cpu_state(CPURISCVState *env, target_ulong *pc,
 void riscv_cpu_update_mask(CPURISCVState *env)
 {
     target_ulong mask = 0, base = 0;
+    RISCVMXL xl = env->xl;
     /*
      * TODO: Current RVJ spec does not specify
      * how the extension interacts with XLEN.
      */
 #ifndef CONFIG_USER_ONLY
+    int mode = cpu_address_mode(env);
+    xl = cpu_get_xl(env, mode);
     if (riscv_has_ext(env, RVJ)) {
-        switch (env->priv) {
+        switch (mode) {
         case PRV_M:
             if (env->mmte & M_PM_ENABLE) {
                 mask = env->mpmmask;
@@ -178,7 +181,7 @@ void riscv_cpu_update_mask(CPURISCVState *env)
         }
     }
 #endif
-    if (env->xl == MXL_RV32) {
+    if (xl == MXL_RV32) {
         env->cur_pmmask = mask & UINT32_MAX;
         env->cur_pmbase = base & UINT32_MAX;
     } else {
