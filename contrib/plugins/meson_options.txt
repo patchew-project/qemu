@@ -1,0 +1,1 @@
+option('qemu_path', type : 'string', value : '', description : 'Full path to the QEMU sources to build plugins for')
