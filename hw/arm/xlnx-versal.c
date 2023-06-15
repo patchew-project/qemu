@@ -272,6 +272,7 @@ static void versal_create_gems(Versal *s, qemu_irq *pic)
         memory_region_add_subregion(&s->mr_ps, addrs[i], mr);
 
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[irqs[i]]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 1, pic[irqs[i]]);
         g_free(name);
     }
 }
