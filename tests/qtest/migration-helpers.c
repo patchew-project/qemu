@@ -28,7 +28,7 @@ bool migrate_watch_for_stop(QTestState *who, const char *name,
 {
     bool *seen = opaque;
 
-    if (g_str_equal(name, "STOP")) {
+    if (g_str_equal(name, "STOP") || g_str_equal(name, "SUSPEND")) {
         *seen = true;
         return true;
     }

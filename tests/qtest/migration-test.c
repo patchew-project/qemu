@@ -121,7 +121,7 @@ static void init_bootfile(const char *bootpath, void *content, size_t len)
 /*
  * Wait for some output in the serial output file,
  * we get an 'A' followed by an endless string of 'B's
- * but on the destination we won't have the A.
+ * but on the destination we won't have the A (unless we enabled suspend/resume)
  */
 static void wait_for_serial(const char *side)
 {
@@ -507,6 +507,8 @@ typedef struct {
     bool use_dirty_ring;
     const char *opts_source;
     const char *opts_target;
+    /* suspend the src before migrating to dest. */
+    bool suspend;
 } MigrateStart;
 
 /*
@@ -616,6 +618,8 @@ static int test_migrate_start(QTestState **from, QTestState **to,
             return -1;
         }
     }
+
+    x86_bootsect[SYM_suspend_me - SYM_start] = args->suspend;
 
     got_src_stop = false;
     got_dst_resume = false;
@@ -1475,7 +1479,13 @@ static void test_precopy_common(MigrateCommon *args)
              */
             wait_for_migration_complete(to);
 
-            qtest_qmp_assert_success(to, "{ 'execute' : 'cont'}");
+            if (!args->start.suspend) {
+                qtest_qmp_assert_success(to, "{ 'execute' : 'cont'}");
+            }
+        }
+
+        if (args->start.suspend) {
+            qtest_qmp_assert_success(to, "{'execute': 'system_wakeup'}");
         }
 
         if (!got_dst_resume) {
@@ -1508,6 +1518,18 @@ static void test_precopy_unix_plain(void)
     test_precopy_common(&args);
 }
 
+static void test_precopy_unix_suspend(void)
+{
+    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
+    MigrateCommon args = {
+        .listen_uri = uri,
+        .connect_uri = uri,
+        .live = true,
+        .start.suspend = true,
+    };
+
+    test_precopy_common(&args);
+}
 
 static void test_precopy_unix_dirty_ring(void)
 {
@@ -2681,6 +2703,11 @@ int main(int argc, char **argv)
     g_assert(tmpfs);
 
     module_call_init(MODULE_INIT_QOM);
+
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        qtest_add_func("/migration/precopy/unix/suspend",
+                       test_precopy_unix_suspend);
+    }
 
     if (has_uffd) {
         qtest_add_func("/migration/postcopy/plain", test_postcopy);
