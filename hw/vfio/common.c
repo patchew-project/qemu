@@ -399,7 +399,7 @@ int vfio_block_multiple_devices_migration(Error **errp)
         multiple_devices_migration_blocker = NULL;
     }
 
-    return ret;
+    return !ret;
 }
 
 void vfio_unblock_multiple_devices_migration(void)
@@ -444,7 +444,7 @@ int vfio_block_giommu_migration(Error **errp)
         giommu_migration_blocker = NULL;
     }
 
-    return ret;
+    return !ret;
 }
 
 void vfio_migration_finalize(void)

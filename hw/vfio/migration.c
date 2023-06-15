@@ -646,12 +646,12 @@ int vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
     }
 
     ret = vfio_block_multiple_devices_migration(errp);
-    if (ret) {
+    if (ret || (errp && *errp)) {
         return ret;
     }
 
     ret = vfio_block_giommu_migration(errp);
-    if (ret) {
+    if (ret || (errp && *errp)) {
         return ret;
     }
 
@@ -667,7 +667,7 @@ add_blocker:
         error_free(vbasedev->migration_blocker);
         vbasedev->migration_blocker = NULL;
     }
-    return ret;
+    return !ret;
 }
 
 void vfio_migration_exit(VFIODevice *vbasedev)
