@@ -635,6 +635,8 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->gem[i]), 0, gem_addr[i]);
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->gem[i]), 0,
                            gic_spi[gem_intr[i]]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->gem[i]), 1,
+                           gic_spi[gem_intr[i]]);
     }
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_UARTS; i++) {
