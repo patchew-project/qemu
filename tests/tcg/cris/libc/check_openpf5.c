@@ -13,44 +13,41 @@
 #include <fcntl.h>
 #include <string.h>
 
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
-  int i;
-  int filemax;
+    int i;
+    int filemax;
 
 #ifdef OPEN_MAX
-  filemax = OPEN_MAX;
+    filemax = OPEN_MAX;
 #else
-  filemax = sysconf (_SC_OPEN_MAX);
+    filemax = sysconf(_SC_OPEN_MAX);
 #endif
 
-  char *fn = malloc (strlen (argv[0]) + 2);
-  if (fn == NULL)
-    abort ();
-  strcpy (fn, "/");
-  strcat (fn, argv[0]);
-
-  for (i = 0; i < filemax + 1; i++)
-    {
-      if (open (fn, O_RDONLY) < 0)
-	{
-	  /* Shouldn't happen too early.  */
-	  if (i < filemax - 3 - 1)
-	    {
-	      fprintf (stderr, "i: %d\n", i);
-	      abort ();
-	    }
-	  if (errno != EMFILE)
-	    {
-	      perror ("open");
-	      abort ();
-	    }
-	  goto ok;
-	}
+    char *fn = malloc(strlen(argv[0]) + 2);
+    if (fn == NULL) {
+        abort();
     }
-  abort ();
+    strcpy(fn, "/");
+    strcat(fn, argv[0]);
+
+    for (i = 0; i < filemax + 1; i++) {
+        if (open(fn, O_RDONLY) < 0) {
+            /* Shouldn't happen too early.  */
+            if (i < filemax - 3 - 1) {
+                fprintf(stderr, "i: %d\n", i);
+                abort();
+            }
+            if (errno != EMFILE) {
+                perror("open");
+                abort();
+            }
+        goto ok;
+        }
+    }
+    abort();
 
 ok:
-  printf ("pass\n");
-  exit (0);
+    printf("pass\n");
+    exit(0);
 }
