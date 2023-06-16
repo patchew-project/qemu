@@ -560,6 +560,7 @@ int qemu_open_old(const char *name, int flags, ...);
 int qemu_open(const char *name, int flags, Error **errp);
 int qemu_create(const char *name, int flags, mode_t mode, Error **errp);
 int qemu_close(int fd);
+int qemu_close_range(unsigned int first, unsigned int last);
 int qemu_unlink(const char *name);
 #ifndef _WIN32
 int qemu_dup_flags(int fd, int flags);
