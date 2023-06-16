@@ -1409,6 +1409,18 @@ static void virt_machine_init(MachineState *machine)
                     RISCV_ACLINT_DEFAULT_MTIMECMP, RISCV_ACLINT_DEFAULT_MTIME,
                     RISCV_ACLINT_DEFAULT_TIMEBASE_FREQ, true);
             }
+        } else {
+            /*
+             * With KVM enabled, check if the user wants to use AIA
+             * and we have the proper support for it.
+             */
+            RISCVCPU *cpu = &s->soc[i].harts[0];
+
+            if (s->aia_type != VIRT_AIA_TYPE_NONE && !cpu->cfg.ext_ssaia) {
+                error_report("Unable to set AIA: host does not "
+                             "have extension 'ssaia' enabled");
+                exit(1);
+            }
         }
 
         /* Per-socket interrupt controller */
