@@ -31,10 +31,10 @@ int main(int argc, char *argv[])
     strcpy(fn, "/");
     strcat(fn, argv[0]);
 
-    for (i = 0; i < filemax + 1; i++) {
+    for (i = 0; i < filemax; i++) {
         if (open(fn, O_RDONLY) < 0) {
             /* Shouldn't happen too early.  */
-            if (i < filemax - 3 - 1) {
+            if (i < filemax - 3) {
                 fprintf(stderr, "i: %d\n", i);
                 abort();
             }
