@@ -48,7 +48,11 @@ static void close_all_open_fd(void)
 
     dir = opendir("/proc/self/fd");
     if (!dir) {
-        /* If /proc is not mounted, there is nothing that can be done. */
+        /* If /proc is not mounted, close fds one by one. */
+        int open_max = sysconf(_SC_OPEN_MAX), i;
+        for (i = 0; i < open_max; i++) {
+                close(i);
+        }
         return;
     }
     /* Avoid closing the directory. */
