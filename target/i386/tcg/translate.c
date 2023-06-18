@@ -122,6 +122,7 @@ typedef struct DisasContext {
     int cpuid_ext3_features;
     int cpuid_7_0_ebx_features;
     int cpuid_7_0_ecx_features;
+    int cpuid_8000_0008_ebx_features;
     int cpuid_xsave_features;
 
     /* TCG local temps */
@@ -6127,8 +6128,14 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
         }
         break;
 
+    case 0x109: /* wbinvd; wbnoinvd with REPZ prefix */
+        if ((s->cpuid_8000_0008_ebx_features & CPUID_8000_0008_EBX_WBNOINVD) &&
+            s->prefix & PREFIX_REPZ) {
+            check_cpl0(s);
+            break;
+        }
+        /* fallthrough */
     case 0x108: /* invd */
-    case 0x109: /* wbinvd */
         if (check_cpl0(s)) {
             gen_svm_check_intercept(s, (b & 1) ? SVM_EXIT_WBINVD : SVM_EXIT_INVD);
             /* nothing to do */
@@ -6936,6 +6943,7 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
     dc->cpuid_7_0_ebx_features = env->features[FEAT_7_0_EBX];
     dc->cpuid_7_0_ecx_features = env->features[FEAT_7_0_ECX];
     dc->cpuid_xsave_features = env->features[FEAT_XSAVE];
+    dc->cpuid_8000_0008_ebx_features = env->features[FEAT_8000_0008_EBX];
     dc->jmp_opt = !((cflags & CF_NO_GOTO_TB) ||
                     (flags & (HF_TF_MASK | HF_INHIBIT_IRQ_MASK)));
     /*
