@@ -24,6 +24,10 @@
 #include "exec/exec-all.h"
 #include "helper-tcg.h"
 
+#if defined CONFIG_USER_ONLY && defined CONFIG_LINUX
+#include "target_cpu.h"
+#endif
+
 /*
  * NOTE: the translator must set DisasContext.cc_op to CC_OP_EFLAGS
  * after generating a call to a helper that uses this.
@@ -73,12 +77,6 @@ void helper_rdtsc(CPUX86State *env)
     val = cpu_get_tsc(env) + env->tsc_offset;
     env->regs[R_EAX] = (uint32_t)(val);
     env->regs[R_EDX] = (uint32_t)(val >> 32);
-}
-
-void helper_rdtscp(CPUX86State *env)
-{
-    helper_rdtsc(env);
-    env->regs[R_ECX] = (uint32_t)(env->tsc_aux);
 }
 
 G_NORETURN void helper_rdpmc(CPUX86State *env)
@@ -136,4 +134,15 @@ void helper_wrpkru(CPUX86State *env, uint32_t ecx, uint64_t val)
 
     env->pkru = val;
     tlb_flush(cs);
+}
+
+target_ulong HELPER(rdpid)(CPUX86State *env)
+{
+#if defined CONFIG_SOFTMMU
+    return env->tsc_aux;
+#elif defined CONFIG_LINUX
+    return get_cpunode();
+#else
+    return 0;
+#endif
 }

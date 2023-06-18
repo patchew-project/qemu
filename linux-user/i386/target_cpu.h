@@ -54,4 +54,12 @@ static inline abi_ulong get_sp_from_cpustate(CPUX86State *state)
 {
     return state->regs[R_ESP];
 }
+
+static inline uint32_t get_cpunode(void)
+{
+    unsigned cpu, node;
+    getcpu(&cpu, &node);
+    return (node << 12) | (cpu & 0xfff);
+}
+
 #endif /* I386_TARGET_CPU_H */
