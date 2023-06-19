@@ -38,7 +38,10 @@ typedef void (*BusRealize)(BusState *bus, Error **errp);
 typedef void (*BusUnrealize)(BusState *bus);
 
 /**
- * DeviceClass:
+ * struct DeviceClass:
+ *
+ * The base class for all devices.
+ *
  * @props: Properties accessing state fields.
  * @realize: Callback function invoked when the #DeviceState:realized
  * property is changed to %true.
@@ -97,22 +100,34 @@ typedef void (*BusUnrealize)(BusState *bus);
  *
  */
 struct DeviceClass {
-    /*< private >*/
+    /* private: */
     ObjectClass parent_class;
-    /*< public >*/
+    /* public: */
 
+    /**
+     * @categories: device categories device belongs to
+     */
     DECLARE_BITMAP(categories, DEVICE_CATEGORY_MAX);
+    /**
+     * @fw_name: name used to identify device to firmware interfaces
+     */
     const char *fw_name;
+    /**
+     * @desc: human readable description of device
+     */
     const char *desc;
 
-    /*
-     * The underscore at the end ensures a compile-time error if someone
-     * assigns to dc->props instead of using device_class_set_props.
+    /**
+     * @props_: properties associated with device, should only be
+     * assigned by using device_class_set_props(). The underscore
+     * ensures a compile-time error if someone attempts to assign
+     * dc->props directly.
      */
     Property *props_;
 
-    /*
-     * Can this device be instantiated with -device / device_add?
+    /**
+     * @user_creatable: Can this device be instantiated with -device / device_add?
+     *
      * All devices should support instantiation with device_add, and
      * this flag should not exist.  But we're not there, yet.  Some
      * devices fail to instantiate with cryptic error messages.
@@ -126,19 +141,28 @@ struct DeviceClass {
     bool hotpluggable;
 
     /* callbacks */
-    /*
-     * Reset method here is deprecated and replaced by methods in the
-     * resettable class interface to implement a multi-phase reset.
+    /**
+     * @reset: deprecated device reset method pointer
+     *
+     * Modern code should use the ResettableClass interface to
+     * implement a multi-phase reset.
+     *
      * TODO: remove once every reset callback is unused
      */
     DeviceReset reset;
     DeviceRealize realize;
     DeviceUnrealize unrealize;
 
-    /* device state */
+    /**
+     * @vmsd: device state serialisation description for
+     * migration/save/restore
+     */
     const VMStateDescription *vmsd;
 
-    /* Private to qdev / bus.  */
+    /**
+     * @bus_type: bus type
+     * private: to qdev / bus.
+     */
     const char *bus_type;
 };
 
@@ -168,36 +192,91 @@ typedef struct {
 } MemReentrancyGuard;
 
 /**
- * DeviceState:
- * @reset: ResettableState for the device; handled by Resettable interface.
+ * struct DeviceState - common device state, accessed with qdev helpers
  *
  * This structure should not be accessed directly.  We declare it here
  * so that it can be embedded in individual device state structures.
  */
 struct DeviceState {
-    /*< private >*/
+    /* private: */
     Object parent_obj;
-    /*< public >*/
+    /* public: */
 
+    /**
+     * @id: global device id
+     */
     char *id;
+    /**
+     * @canonical_path: canonical path of realized device in the QOM tree
+     */
     char *canonical_path;
+    /**
+     * @realized: has device been realized?
+     */
     bool realized;
+    /**
+     * @pending_deleted_event: track pending deletion events during unplug
+     */
     bool pending_deleted_event;
+    /**
+     * @pending_deleted_expires_ms: optional timeout for deletion events
+     */
     int64_t pending_deleted_expires_ms;
+    /**
+     * @opts: QDict of options for the device
+     */
     QDict *opts;
+    /**
+     * @hotplugged: was device added after PHASE_MACHINE_READY?
+     */
     int hotplugged;
+    /**
+     * @allow_unplug_during_migration: can device be unplugged during migration
+     */
     bool allow_unplug_during_migration;
+    /**
+     * @parent_bus: bus this device belongs to
+     */
     BusState *parent_bus;
+    /**
+     * @gpios: list of named GPIOs the device provides.
+     */
     QLIST_HEAD(, NamedGPIOList) gpios;
+    /**
+     * @clocks: list of named clocks the device provides.
+     */
     QLIST_HEAD(, NamedClockList) clocks;
+    /**
+     * @child_bus: list of child buses
+     */
     QLIST_HEAD(, BusState) child_bus;
+    /**
+     * @num_child_bus: number of @child_bus entries
+     */
     int num_child_bus;
+    /**
+     * @instance_id_alias: device alias for handling legacy migration setups
+     */
     int instance_id_alias;
+    /**
+     * @alias_required_for_version: indicates @instance_id_alias is
+     * needed for migration
+     */
     int alias_required_for_version;
+    /**
+     * @reset: ResettableState for the device; handled by Resettable interface.
+     */
     ResettableState reset;
+    /**
+     * @unplug_blockers: list of reasons to block unplugging of device
+     */
     GSList *unplug_blockers;
 
-    /* Is the device currently in mmio/pio/dma? Used to prevent re-entrancy */
+    /**
+     * @mem_reentrancy_guard: Is the device currently in mmio/pio/dma?
+     *
+     * Used to prevent re-entrancy confusing things.
+     */
     MemReentrancyGuard mem_reentrancy_guard;
 };
 
@@ -265,7 +344,7 @@ typedef struct BusChild {
 #define QDEV_HOTPLUG_HANDLER_PROPERTY "hotplug-handler"
 
 /**
- * BusState:
+ * struct BusState:
  * @hotplug_handler: link to a hotplug handler associated with bus.
  * @reset: ResettableState for the bus; handled by Resettable interface.
  */
@@ -290,7 +369,8 @@ struct BusState {
 };
 
 /**
- * GlobalProperty:
+ * typedef GlobalProperty - a global property type
+ *
  * @used: Set to true if property was used when initializing a device.
  * @optional: If set to true, GlobalProperty will be skipped without errors
  *            if the property doesn't exist.
@@ -871,7 +951,8 @@ void device_listener_register(DeviceListener *listener);
 void device_listener_unregister(DeviceListener *listener);
 
 /**
- * @qdev_should_hide_device:
+ * qdev_should_hide_device() - check if device should be hidden
+ *
  * @opts: options QDict
  * @from_json: true if @opts entries are typed, false for all strings
  * @errp: pointer to error object
