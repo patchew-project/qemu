@@ -1,6 +1,7 @@
 /*
- * ST STM32VLDISCOVERY machine
+ * ST generic STM32F1 board
  *
+ * Copyright (c) 2023 Lucas C. Villa Real <lucas@osdyne.com>
  * Copyright (c) 2021 Alexandre Iooss <erdnaxe@crans.org>
  * Copyright (c) 2014 Alistair Francis <alistair@alistair23.me>
  *
@@ -32,13 +33,12 @@
 #include "hw/arm/stm32f100_soc.h"
 #include "hw/arm/boot.h"
 
-/* stm32vldiscovery implementation is derived from netduinoplus2 */
-
 /* Main SYSCLK frequency in Hz (24MHz) */
 #define SYSCLK_FRQ 24000000ULL
 
-static void stm32vldiscovery_init(MachineState *machine)
+static void stm32f1_generic_init(MachineState *machine)
 {
+    STM32F100State *s;
     DeviceState *dev;
     Clock *sysclk;
 
@@ -46,21 +46,25 @@ static void stm32vldiscovery_init(MachineState *machine)
     sysclk = clock_new(OBJECT(machine), "SYSCLK");
     clock_set_hz(sysclk, SYSCLK_FRQ);
 
+    /*
+     * Note that we don't set the "density" property so that the default
+     * value ("high") can be changed via "-global stm32f100-soc.density=..."
+     */
     dev = qdev_new(TYPE_STM32F100_SOC);
-    qdev_prop_set_string(dev, "density", "medium");
     qdev_prop_set_string(dev, "cpu-type", ARM_CPU_TYPE_NAME("cortex-m3"));
     qdev_connect_clock_in(dev, "sysclk", sysclk);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
+    s = STM32F100_SOC(OBJECT(dev));
     armv7m_load_kernel(ARM_CPU(first_cpu),
                        machine->kernel_filename,
-                       0, FLASH_SIZE_MD);
+                       0, s->flash_size);
 }
 
-static void stm32vldiscovery_machine_init(MachineClass *mc)
+static void stm32f1_generic_machine_init(MachineClass *mc)
 {
-    mc->desc = "ST STM32VLDISCOVERY (Cortex-M3)";
-    mc->init = stm32vldiscovery_init;
+    mc->desc = "STM32F1 generic (Cortex-M3)";
+    mc->init = stm32f1_generic_init;
 }
 
-DEFINE_MACHINE("stm32vldiscovery", stm32vldiscovery_machine_init)
+DEFINE_MACHINE("stm32f1-generic", stm32f1_generic_machine_init)

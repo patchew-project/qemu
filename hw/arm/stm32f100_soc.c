@@ -38,10 +38,11 @@
 
 static const uint32_t usart_addr[STM_NUM_USARTS] = { 0x40013800, 0x40004400,
     0x40004800 };
-static const uint32_t spi_addr[STM_NUM_SPIS] = { 0x40013000, 0x40003800 };
+static const uint32_t spi_addr[STM_NUM_SPIS] = { 0x40013000, 0x40003800,
+    0x40003C00 };
 
 static const int usart_irq[STM_NUM_USARTS] = {37, 38, 39};
-static const int spi_irq[STM_NUM_SPIS] = {35, 36};
+static const int spi_irq[STM_NUM_SPIS] = {35, 36, 51};
 
 static void stm32f100_soc_initfn(Object *obj)
 {
@@ -50,17 +51,21 @@ static void stm32f100_soc_initfn(Object *obj)
 
     object_initialize_child(obj, "armv7m", &s->armv7m, TYPE_ARMV7M);
 
+    /*
+     * All density lines feature the same number of USARTs, so they can be
+     * initialized in this function. The number of SPIs is density-dependent,
+     * though, so SPIs are initialized in stm32f100_soc_realize().
+     */
     for (i = 0; i < STM_NUM_USARTS; i++) {
         object_initialize_child(obj, "usart[*]", &s->usart[i],
                                 TYPE_STM32F2XX_USART);
     }
 
-    for (i = 0; i < STM_NUM_SPIS; i++) {
-        object_initialize_child(obj, "spi[*]", &s->spi[i], TYPE_STM32F2XX_SPI);
-    }
-
     s->sysclk = qdev_init_clock_in(DEVICE(s), "sysclk", NULL, NULL, 0);
     s->refclk = qdev_init_clock_in(DEVICE(s), "refclk", NULL, NULL, 0);
+
+    /* Default density. May be overridden by the machine or cmdline option */
+    s->density = STM32F100_DENSITY_HIGH;
 }
 
 static void stm32f100_soc_realize(DeviceState *dev_soc, Error **errp)
@@ -69,6 +74,17 @@ static void stm32f100_soc_realize(DeviceState *dev_soc, Error **errp)
     DeviceState *dev, *armv7m;
     SysBusDevice *busdev;
     int i;
+
+    if (s->density == STM32F100_DENSITY_HIGH) {
+        s->num_spis = 3;
+        s->flash_size = FLASH_SIZE_HD;
+    } else if (s->density == STM32F100_DENSITY_MEDIUM) {
+        s->num_spis = 2;
+        s->flash_size = FLASH_SIZE_MD;
+    } else {
+        s->num_spis = 2;
+        s->flash_size = FLASH_SIZE_LD;
+    }
 
     MemoryRegion *system_memory = get_system_memory();
 
@@ -101,9 +117,10 @@ static void stm32f100_soc_realize(DeviceState *dev_soc, Error **errp)
      * Flash starts at 0x08000000 and then is aliased to boot memory at 0x0
      */
     memory_region_init_rom(&s->flash, OBJECT(dev_soc), "STM32F100.flash",
-                           FLASH_SIZE, &error_fatal);
+                           s->flash_size, &error_fatal);
     memory_region_init_alias(&s->flash_alias, OBJECT(dev_soc),
-                             "STM32F100.flash.alias", &s->flash, 0, FLASH_SIZE);
+                             "STM32F100.flash.alias", &s->flash, 0,
+                             s->flash_size);
     memory_region_add_subregion(system_memory, FLASH_BASE_ADDRESS, &s->flash);
     memory_region_add_subregion(system_memory, 0, &s->flash_alias);
 
@@ -137,8 +154,11 @@ static void stm32f100_soc_realize(DeviceState *dev_soc, Error **errp)
         sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, usart_irq[i]));
     }
 
-    /* SPI 1 and 2 */
-    for (i = 0; i < STM_NUM_SPIS; i++) {
+    /* Initialize all SPIs supported by the selected density line */
+    for (i = 0; i < s->num_spis; i++) {
+        object_initialize_child(OBJECT(dev_soc), "spi[*]", &s->spi[i],
+                                TYPE_STM32F2XX_SPI);
+
         dev = DEVICE(&(s->spi[i]));
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->spi[i]), errp)) {
             return;
@@ -153,9 +173,14 @@ static void stm32f100_soc_realize(DeviceState *dev_soc, Error **errp)
     create_unimplemented_device("timer[4]",  0x40000800, 0x400);
     create_unimplemented_device("timer[6]",  0x40001000, 0x400);
     create_unimplemented_device("timer[7]",  0x40001400, 0x400);
+    create_unimplemented_device("timer[12]", 0x40001800, 0x400);
+    create_unimplemented_device("timer[13]", 0x40001C00, 0x400);
+    create_unimplemented_device("timer[14]", 0x40002000, 0x400);
     create_unimplemented_device("RTC",       0x40002800, 0x400);
     create_unimplemented_device("WWDG",      0x40002C00, 0x400);
     create_unimplemented_device("IWDG",      0x40003000, 0x400);
+    create_unimplemented_device("UART4",     0x40004C00, 0x400);
+    create_unimplemented_device("UART5",     0x40005000, 0x400);
     create_unimplemented_device("I2C1",      0x40005400, 0x400);
     create_unimplemented_device("I2C2",      0x40005800, 0x400);
     create_unimplemented_device("BKP",       0x40006C00, 0x400);
@@ -169,12 +194,15 @@ static void stm32f100_soc_realize(DeviceState *dev_soc, Error **errp)
     create_unimplemented_device("GPIOC",     0x40011000, 0x400);
     create_unimplemented_device("GPIOD",     0x40011400, 0x400);
     create_unimplemented_device("GPIOE",     0x40011800, 0x400);
+    create_unimplemented_device("GPIOF",     0x40011C00, 0x400);
+    create_unimplemented_device("GPIOG",     0x40012000, 0x400);
     create_unimplemented_device("ADC1",      0x40012400, 0x400);
     create_unimplemented_device("timer[1]",  0x40012C00, 0x400);
     create_unimplemented_device("timer[15]", 0x40014000, 0x400);
     create_unimplemented_device("timer[16]", 0x40014400, 0x400);
     create_unimplemented_device("timer[17]", 0x40014800, 0x400);
-    create_unimplemented_device("DMA",       0x40020000, 0x400);
+    create_unimplemented_device("DMA1",      0x40020000, 0x400);
+    create_unimplemented_device("DMA2",      0x40020400, 0x400);
     create_unimplemented_device("RCC",       0x40021000, 0x400);
     create_unimplemented_device("Flash Int", 0x40022000, 0x400);
     create_unimplemented_device("CRC",       0x40023000, 0x400);
@@ -185,12 +213,50 @@ static Property stm32f100_soc_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void stm32f100_soc_class_init(ObjectClass *klass, void *data)
+static char *stm32f100_get_density(Object *obj, Error **errp)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    STM32F100State *s = STM32F100_SOC(obj);
+
+    switch (s->density) {
+    case STM32F100_DENSITY_LOW:
+        return g_strdup("low");
+    case STM32F100_DENSITY_MEDIUM:
+        return g_strdup("medium");
+    case STM32F100_DENSITY_HIGH:
+        return g_strdup("high");
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void stm32f100_set_density(Object *obj, const char *value, Error **errp)
+{
+    STM32F100State *s = STM32F100_SOC(obj);
+
+    if (!strcmp(value, "low")) {
+        s->density = STM32F100_DENSITY_LOW;
+    } else if (!strcmp(value, "medium")) {
+        s->density = STM32F100_DENSITY_MEDIUM;
+    } else if (!strcmp(value, "high")) {
+        s->density = STM32F100_DENSITY_HIGH;
+    } else {
+        error_setg(errp, "Invalid density value '%s'", value);
+        error_append_hint(errp, "Valid values: 'low', 'medium', 'high'\n");
+    }
+}
+
+static void stm32f100_soc_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = stm32f100_soc_realize;
     device_class_set_props(dc, stm32f100_soc_properties);
+
+    object_class_property_add_str(oc, "density", stm32f100_get_density,
+        stm32f100_set_density);
+    object_class_property_set_description(oc, "density",
+        "Set the STM32F100 density line device. "
+        "Valid values are 'low', 'medium', and 'high' (default).");
 }
 
 static const TypeInfo stm32f100_soc_info = {

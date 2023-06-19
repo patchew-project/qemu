@@ -302,6 +302,12 @@ config STM32VLDISCOVERY
     depends on TCG && ARM
     select STM32F100_SOC
 
+config STM32F1_GENERIC
+    bool
+    default y
+    depends on TCG && ARM
+    select STM32F100_SOC
+
 config STRONGARM
     bool
     select PXA2XX

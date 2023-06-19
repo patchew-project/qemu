@@ -10,6 +10,12 @@ The STM32F1 series is based on ARM Cortex-M3 core. The following machines are
 based on this chip :
 
 - ``stm32vldiscovery``  STM32VLDISCOVERY board with STM32F100RBT6 microcontroller
+- ``stm32f1-generic``   Generic STM32F1 board supporting low, medium and high
+                        density devices. Low-density emulates a 32KB FLASH;
+                        medium-density emulates a 128KB FLASH; high-density
+                        emulates a 512KB FLASH. The density also affects the
+                        number of peripherals exposed by QEMU for the emulated
+                        device. See ``Boot options`` below for more details.
 
 The STM32F2 series is based on ARM Cortex-M3 core. The following machines are
 based on this chip :
@@ -65,3 +71,11 @@ firmware. Example:
 .. code-block:: bash
 
   $ qemu-system-arm -M stm32vldiscovery -kernel firmware.bin
+
+Additionally, the ``stm32f1-generic`` board supports the ``density`` option
+to select the device density line.  The following values are supported:
+``low``, ``medium``, ``high``. Example:
+
+.. code-block:: bash
+
+  $ qemu-system-arm -M stm32f1-generic -global stm32f100-soc.density=medium ...

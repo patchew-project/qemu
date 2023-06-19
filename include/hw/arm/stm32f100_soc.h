@@ -34,13 +34,23 @@
 #define TYPE_STM32F100_SOC "stm32f100-soc"
 OBJECT_DECLARE_SIMPLE_TYPE(STM32F100State, STM32F100_SOC)
 
+/* Definitions for high-density value line devices */
 #define STM_NUM_USARTS 3
-#define STM_NUM_SPIS 2
+#define STM_NUM_SPIS 3
 
 #define FLASH_BASE_ADDRESS 0x08000000
-#define FLASH_SIZE (128 * 1024)
+#define FLASH_SIZE_LD (32 * 1024)
+#define FLASH_SIZE_MD (128 * 1024)
+#define FLASH_SIZE_HD (512 * 1024)
 #define SRAM_BASE_ADDRESS 0x20000000
 #define SRAM_SIZE (8 * 1024)
+
+/* Supported density value lines */
+typedef enum {
+    STM32F100_DENSITY_LOW,
+    STM32F100_DENSITY_MEDIUM,
+    STM32F100_DENSITY_HIGH,
+} STM32F100Density;
 
 struct STM32F100State {
     /*< private >*/
@@ -60,6 +70,10 @@ struct STM32F100State {
 
     Clock *sysclk;
     Clock *refclk;
+
+    STM32F100Density density;
+    uint8_t num_spis;
+    uint32_t flash_size;
 };
 
 #endif
