@@ -115,7 +115,11 @@ void tcg_gen_mb(TCGBar mb_type)
 #endif
 
     if (parallel) {
-        tcg_gen_op1(INDEX_op_mb, mb_type);
+        /* We can elide anything which the host provides for free. */
+        mb_type &= ~TCG_TARGET_DEFAULT_MO;
+        if (mb_type & TCG_MO_ALL) {
+            tcg_gen_op1(INDEX_op_mb, mb_type);
+        }
     }
 }
 
