@@ -632,42 +632,41 @@ int64_t vfio_mig_bytes_transferred(void)
     return bytes_transferred;
 }
 
-int vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
+bool vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
 {
-    int ret = -ENOTSUP;
+    int ret;
 
-    if (!vbasedev->enable_migration) {
+    if (!vbasedev->enable_migration || vfio_migration_init(vbasedev)) {
+        error_setg(&vbasedev->migration_blocker,
+                   "VFIO device doesn't support migration");
         goto add_blocker;
     }
 
-    ret = vfio_migration_init(vbasedev);
-    if (ret) {
+    if (vfio_block_multiple_devices_migration(errp)) {
+        error_setg(&vbasedev->migration_blocker,
+                   "Migration is currently not supported with multiple "
+                   "VFIO devices");
         goto add_blocker;
     }
 
-    ret = vfio_block_multiple_devices_migration(errp);
-    if (ret) {
-        return ret;
-    }
-
-    ret = vfio_block_giommu_migration(errp);
-    if (ret) {
-        return ret;
+    if (vfio_block_giommu_migration(errp)) {
+        error_setg(&vbasedev->migration_blocker,
+                   "Migration is currently not supported with vIOMMU enabled");
+        goto add_blocker;
     }
 
     trace_vfio_migration_probe(vbasedev->name);
-    return 0;
+    return true;
 
 add_blocker:
-    error_setg(&vbasedev->migration_blocker,
-               "VFIO device doesn't support migration");
-
     ret = migrate_add_blocker(vbasedev->migration_blocker, errp);
     if (ret < 0) {
         error_free(vbasedev->migration_blocker);
         vbasedev->migration_blocker = NULL;
+    } else {
+        error_report("%s: Migration disabled", vbasedev->name);
     }
-    return ret;
+    return false;
 }
 
 void vfio_migration_exit(VFIODevice *vbasedev)
@@ -679,7 +678,6 @@ void vfio_migration_exit(VFIODevice *vbasedev)
         qemu_del_vm_change_state_handler(migration->vm_state);
         unregister_savevm(VMSTATE_IF(vbasedev->dev), "vfio", vbasedev);
         vfio_migration_free(vbasedev);
-        vfio_unblock_multiple_devices_migration();
     }
 
     if (vbasedev->migration_blocker) {
