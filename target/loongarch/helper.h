@@ -1059,3 +1059,8 @@ DEF_HELPER_3(xvclz_b, void, env, i32, i32)
 DEF_HELPER_3(xvclz_h, void, env, i32, i32)
 DEF_HELPER_3(xvclz_w, void, env, i32, i32)
 DEF_HELPER_3(xvclz_d, void, env, i32, i32)
+
+DEF_HELPER_3(xvpcnt_b, void, env, i32, i32)
+DEF_HELPER_3(xvpcnt_h, void, env, i32, i32)
+DEF_HELPER_3(xvpcnt_w, void, env, i32, i32)
+DEF_HELPER_3(xvpcnt_d, void, env, i32, i32)

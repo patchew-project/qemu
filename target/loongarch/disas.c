@@ -2204,6 +2204,11 @@ INSN_LASX(xvclz_h,           xx)
 INSN_LASX(xvclz_w,           xx)
 INSN_LASX(xvclz_d,           xx)
 
+INSN_LASX(xvpcnt_b,          xx)
+INSN_LASX(xvpcnt_h,          xx)
+INSN_LASX(xvpcnt_w,          xx)
+INSN_LASX(xvpcnt_d,          xx)
+
 INSN_LASX(xvreplgr2vr_b,     xr)
 INSN_LASX(xvreplgr2vr_h,     xr)
 INSN_LASX(xvreplgr2vr_w,     xr)

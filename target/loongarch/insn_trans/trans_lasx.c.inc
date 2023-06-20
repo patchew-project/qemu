@@ -2153,6 +2153,11 @@ TRANS(xvclz_h, gen_xx, gen_helper_xvclz_h)
 TRANS(xvclz_w, gen_xx, gen_helper_xvclz_w)
 TRANS(xvclz_d, gen_xx, gen_helper_xvclz_d)
 
+TRANS(xvpcnt_b, gen_xx, gen_helper_xvpcnt_b)
+TRANS(xvpcnt_h, gen_xx, gen_helper_xvpcnt_h)
+TRANS(xvpcnt_w, gen_xx, gen_helper_xvpcnt_w)
+TRANS(xvpcnt_d, gen_xx, gen_helper_xvpcnt_d)
+
 static bool gvec_dupx(DisasContext *ctx, arg_xr *a, MemOp mop)
 {
     TCGv src = gpr_src(ctx, a->rj, EXT_NONE);

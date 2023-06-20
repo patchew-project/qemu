@@ -2102,3 +2102,20 @@ XDO_2OP(xvclz_b, 8, UXB, DO_CLZ_B)
 XDO_2OP(xvclz_h, 16, UXH, DO_CLZ_H)
 XDO_2OP(xvclz_w, 32, UXW, DO_CLZ_W)
 XDO_2OP(xvclz_d, 64, UXD, DO_CLZ_D)
+
+#define XVPCNT(NAME, BIT, E, FN)                                    \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t xd, uint32_t xj) \
+{                                                                   \
+    int i;                                                          \
+    XReg *Xd = &(env->fpr[xd].xreg);                                \
+    XReg *Xj = &(env->fpr[xj].xreg);                                \
+                                                                    \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                          \
+        Xd->E(i) = FN(Xj->E(i));                                    \
+    }                                                               \
+}
+
+XVPCNT(xvpcnt_b, 8, UXB, ctpop8)
+XVPCNT(xvpcnt_h, 16, UXH, ctpop16)
+XVPCNT(xvpcnt_w, 32, UXW, ctpop32)
+XVPCNT(xvpcnt_d, 64, UXD, ctpop64)
