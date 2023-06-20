@@ -3083,3 +3083,24 @@ TRANS(xvilvh_b, gen_xxx, gen_helper_xvilvh_b)
 TRANS(xvilvh_h, gen_xxx, gen_helper_xvilvh_h)
 TRANS(xvilvh_w, gen_xxx, gen_helper_xvilvh_w)
 TRANS(xvilvh_d, gen_xxx, gen_helper_xvilvh_d)
+
+TRANS(xvshuf_b, gen_xxxx, gen_helper_xvshuf_b)
+TRANS(xvshuf_h, gen_xxx, gen_helper_xvshuf_h)
+TRANS(xvshuf_w, gen_xxx, gen_helper_xvshuf_w)
+TRANS(xvshuf_d, gen_xxx, gen_helper_xvshuf_d)
+
+TRANS(xvperm_w, gen_xxx, gen_helper_xvperm_w)
+
+TRANS(xvshuf4i_b, gen_xx_i, gen_helper_xvshuf4i_b)
+TRANS(xvshuf4i_h, gen_xx_i, gen_helper_xvshuf4i_h)
+TRANS(xvshuf4i_w, gen_xx_i, gen_helper_xvshuf4i_w)
+TRANS(xvshuf4i_d, gen_xx_i, gen_helper_xvshuf4i_d)
+
+TRANS(xvpermi_w, gen_xx_i, gen_helper_xvpermi_w)
+TRANS(xvpermi_d, gen_xx_i, gen_helper_xvpermi_d)
+TRANS(xvpermi_q, gen_xx_i, gen_helper_xvpermi_q)
+
+TRANS(xvextrins_b, gen_xx_i, gen_helper_xvextrins_b)
+TRANS(xvextrins_h, gen_xx_i, gen_helper_xvextrins_h)
+TRANS(xvextrins_w, gen_xx_i, gen_helper_xvextrins_w)
+TRANS(xvextrins_d, gen_xx_i, gen_helper_xvextrins_d)

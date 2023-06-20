@@ -1264,3 +1264,24 @@ DEF_HELPER_4(xvilvh_b, void, env, i32, i32, i32)
 DEF_HELPER_4(xvilvh_h, void, env, i32, i32, i32)
 DEF_HELPER_4(xvilvh_w, void, env, i32, i32, i32)
 DEF_HELPER_4(xvilvh_d, void, env, i32, i32, i32)
+
+DEF_HELPER_5(xvshuf_b, void, env, i32, i32, i32, i32)
+DEF_HELPER_4(xvshuf_h, void, env, i32, i32, i32)
+DEF_HELPER_4(xvshuf_w, void, env, i32, i32, i32)
+DEF_HELPER_4(xvshuf_d, void, env, i32, i32, i32)
+
+DEF_HELPER_4(xvperm_w, void, env, i32, i32, i32)
+
+DEF_HELPER_4(xvshuf4i_b, void, env, i32, i32, i32)
+DEF_HELPER_4(xvshuf4i_h, void, env, i32, i32, i32)
+DEF_HELPER_4(xvshuf4i_w, void, env, i32, i32, i32)
+DEF_HELPER_4(xvshuf4i_d, void, env, i32, i32, i32)
+
+DEF_HELPER_4(xvpermi_w, void, env, i32, i32, i32)
+DEF_HELPER_4(xvpermi_d, void, env, i32, i32, i32)
+DEF_HELPER_4(xvpermi_q, void, env, i32, i32, i32)
+
+DEF_HELPER_4(xvextrins_d, void, env, i32, i32, i32)
+DEF_HELPER_4(xvextrins_w, void, env, i32, i32, i32)
+DEF_HELPER_4(xvextrins_h, void, env, i32, i32, i32)
+DEF_HELPER_4(xvextrins_b, void, env, i32, i32, i32)

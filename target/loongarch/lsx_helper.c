@@ -2909,8 +2909,7 @@ void HELPER(NAME)(CPULoongArchState *env,                 \
     VReg *Vj = &(env->fpr[vj].vreg);                      \
                                                           \
     for (i = 0; i < LSX_LEN/BIT; i++) {                   \
-         temp.E(i) = Vj->E(((i) & 0xfc) + (((imm) >>      \
-                           (2 * ((i) & 0x03))) & 0x03));  \
+        temp.E(i) = Vj->E(SHF_POS(i, imm));               \
     }                                                     \
     *Vd = temp;                                           \
 }

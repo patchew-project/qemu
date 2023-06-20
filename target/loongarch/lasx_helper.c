@@ -2992,3 +2992,171 @@ XVILVH(xvilvh_b, 8, XB)
 XVILVH(xvilvh_h, 16, XH)
 XVILVH(xvilvh_w, 32, XW)
 XVILVH(xvilvh_d, 64, XD)
+
+void HELPER(xvshuf_b)(CPULoongArchState *env,
+                      uint32_t xd, uint32_t xj, uint32_t xk, uint32_t xa)
+{
+    int i, m;
+    XReg temp;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+    XReg *Xk = &(env->fpr[xk].xreg);
+    XReg *Xa = &(env->fpr[xa].xreg);
+
+    m = LASX_LEN / (8 * 2);
+    for (i = 0; i < 2 * m ; i++) {
+        uint64_t k = (uint8_t)Xa->XB(i) % (2 * m);
+        if (i < m) {
+            temp.XB(i) = k < m ? Xk->XB(k) : Xj->XB(k - m);
+        } else {
+            temp.XB(i) = k < m ? Xk->XB(k + m) : Xj->XB(k);
+        }
+    }
+    *Xd = temp;
+}
+
+#define XVSHUF(NAME, BIT, E)                             \
+void HELPER(NAME)(CPULoongArchState *env,                \
+                  uint32_t xd, uint32_t xj, uint32_t xk) \
+{                                                        \
+    int i, m;                                            \
+    XReg temp;                                           \
+    XReg *Xd = &(env->fpr[xd].xreg);                     \
+    XReg *Xj = &(env->fpr[xj].xreg);                     \
+    XReg *Xk = &(env->fpr[xk].xreg);                     \
+                                                         \
+    m = LASX_LEN / (BIT * 2);                            \
+    for (i = 0; i < m * 2; i++) {                        \
+        uint64_t k  = (uint8_t)Xd->E(i) % (2 * m);       \
+        if (i < m) {                                     \
+            temp.E(i) = k < m ? Xk->E(k) : Xj->E(k - m); \
+        } else {                                         \
+            temp.E(i) = k < m ? Xk->E(k + m) : Xj->E(k); \
+        }                                                \
+    }                                                    \
+    *Xd = temp;                                          \
+}
+
+XVSHUF(xvshuf_h, 16, XH)
+XVSHUF(xvshuf_w, 32, XW)
+XVSHUF(xvshuf_d, 64, XD)
+
+void HELPER(xvperm_w)(CPULoongArchState *env,
+                      uint32_t xd, uint32_t xj, uint32_t xk)
+{
+    int i, m;
+    XReg temp;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+    XReg *Xk = &(env->fpr[xk].xreg);
+
+    m = LASX_LEN / 32;
+    for (i = 0; i < m ; i++) {
+        uint64_t k = (uint8_t)Xk->XW(i) % 8;
+        temp.XW(i) = Xj->XW(k);
+    }
+    *Xd = temp;
+}
+
+#define XVSHUF4I(NAME, BIT, E)                                      \
+void HELPER(NAME)(CPULoongArchState *env,                           \
+                  uint32_t xd, uint32_t xj, uint32_t imm)           \
+{                                                                   \
+    int i, m;                                                       \
+    XReg temp;                                                      \
+    XReg *Xd = &(env->fpr[xd].xreg);                                \
+    XReg *Xj = &(env->fpr[xj].xreg);                                \
+                                                                    \
+    m = LASX_LEN / BIT;                                             \
+    for (i = 0; i < m; i++) {                                       \
+        if (i < (m / 2)) {                                          \
+            temp.E(i) = Xj->E(SHF_POS(i, imm));                     \
+        } else {                                                    \
+            temp.E(i) = Xj->E(SHF_POS(i - (m / 2), imm) + (m / 2)); \
+        }                                                           \
+    }                                                               \
+    *Xd = temp;                                                     \
+}
+
+XVSHUF4I(xvshuf4i_b, 8, XB)
+XVSHUF4I(xvshuf4i_h, 16, XH)
+XVSHUF4I(xvshuf4i_w, 32, XW)
+
+void HELPER(xvshuf4i_d)(CPULoongArchState *env,
+                        uint32_t xd, uint32_t xj, uint32_t imm)
+{
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    XReg temp;
+    temp.XD(0) = (imm & 2 ? Xj : Xd)->XD(imm & 1);
+    temp.XD(1) = (imm & 8 ? Xj : Xd)->XD((imm >> 2) & 1);
+    temp.XD(2) = (imm & 2 ? Xj : Xd)->XD((imm & 1) + 2);
+    temp.XD(3) = (imm & 8 ? Xj : Xd)->XD(((imm >> 2) & 1) + 2);
+    *Xd = temp;
+}
+
+void HELPER(xvpermi_w)(CPULoongArchState *env,
+                       uint32_t xd, uint32_t xj, uint32_t imm)
+{
+    XReg temp;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    temp.XW(0) = Xj->XW(imm & 0x3);
+    temp.XW(1) = Xj->XW((imm >> 2) & 0x3);
+    temp.XW(2) = Xd->XW((imm >> 4) & 0x3);
+    temp.XW(3) = Xd->XW((imm >> 6) & 0x3);
+    temp.XW(4) = Xj->XW((imm & 0x3) + 4);
+    temp.XW(5) = Xj->XW(((imm >> 2) & 0x3) + 4);
+    temp.XW(6) = Xd->XW(((imm >> 4) & 0x3) + 4);
+    temp.XW(7) = Xd->XW(((imm >> 6) & 0x3) + 4);
+    *Xd = temp;
+}
+
+void HELPER(xvpermi_d)(CPULoongArchState *env,
+                       uint32_t xd, uint32_t xj, uint32_t imm)
+{
+    XReg temp;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    temp.XD(0) = Xj->XD(imm & 0x3);
+    temp.XD(1) = Xj->XD((imm >> 2) & 0x3);
+    temp.XD(2) = Xj->XD((imm >> 4) & 0x3);
+    temp.XD(3) = Xj->XD((imm >> 6) & 0x3);
+    *Xd = temp;
+}
+
+void HELPER(xvpermi_q)(CPULoongArchState *env,
+                       uint32_t xd, uint32_t xj, uint32_t imm)
+{
+    XReg temp;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    temp.XQ(0) = (imm & 0x3) > 1 ? Xd->XQ((imm & 0x3) - 2) : Xj->XQ(imm & 0x3);
+    temp.XQ(1) = ((imm >> 4) & 0x3) > 1 ? Xd->XQ(((imm >> 4) & 0x3) - 2) :
+                                          Xj->XQ((imm >> 4) & 0x3);
+    *Xd = temp;
+}
+
+#define XVEXTRINS(NAME, BIT, E, MASK)                     \
+void HELPER(NAME)(CPULoongArchState *env,                 \
+                  uint32_t xd, uint32_t xj, uint32_t imm) \
+{                                                         \
+    int ins, extr, m;                                     \
+    XReg *Xd = &(env->fpr[xd].xreg);                      \
+    XReg *Xj = &(env->fpr[xj].xreg);                      \
+                                                          \
+    m = LASX_LEN / (BIT * 2);                             \
+    ins = (imm >> 4) & MASK;                              \
+    extr = imm & MASK;                                    \
+    Xd->E(ins) = Xj->E(extr);                             \
+    Xd->E(ins + m) = Xj->E(extr + m);                     \
+}
+
+XVEXTRINS(xvextrins_b, 8, XB, 0xf)
+XVEXTRINS(xvextrins_h, 16, XH, 0x7)
+XVEXTRINS(xvextrins_w, 32, XW, 0x3)
+XVEXTRINS(xvextrins_d, 64, XD, 0x1)

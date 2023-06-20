@@ -2574,3 +2574,24 @@ INSN_LASX(xvilvh_b,          xxx)
 INSN_LASX(xvilvh_h,          xxx)
 INSN_LASX(xvilvh_w,          xxx)
 INSN_LASX(xvilvh_d,          xxx)
+
+INSN_LASX(xvshuf_b,          xxxx)
+INSN_LASX(xvshuf_h,          xxx)
+INSN_LASX(xvshuf_w,          xxx)
+INSN_LASX(xvshuf_d,          xxx)
+
+INSN_LASX(xvperm_w,          xxx)
+
+INSN_LASX(xvshuf4i_b,        xx_i)
+INSN_LASX(xvshuf4i_h,        xx_i)
+INSN_LASX(xvshuf4i_w,        xx_i)
+INSN_LASX(xvshuf4i_d,        xx_i)
+
+INSN_LASX(xvpermi_w,         xx_i)
+INSN_LASX(xvpermi_d,         xx_i)
+INSN_LASX(xvpermi_q,         xx_i)
+
+INSN_LASX(xvextrins_d,       xx_i)
+INSN_LASX(xvextrins_w,       xx_i)
+INSN_LASX(xvextrins_h,       xx_i)
+INSN_LASX(xvextrins_b,       xx_i)
