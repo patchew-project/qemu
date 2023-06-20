@@ -2848,3 +2848,147 @@ void HELPER(NAME)(CPULoongArchState *env,                 \
 
 XVPICKVE(xvpickve_w, XW, 32, 0x7)
 XVPICKVE(xvpickve_d, XD, 64, 0x3)
+
+#define XVPACKEV(NAME, BIT, E)                           \
+void HELPER(NAME)(CPULoongArchState *env,                \
+                  uint32_t xd, uint32_t xj, uint32_t xk) \
+{                                                        \
+    int i;                                               \
+    XReg temp;                                           \
+    XReg *Xd = &(env->fpr[xd].xreg);                     \
+    XReg *Xj = &(env->fpr[xj].xreg);                     \
+    XReg *Xk = &(env->fpr[xk].xreg);                     \
+                                                         \
+    for (i = 0; i < LASX_LEN / (BIT * 2); i++) {         \
+        temp.E(2 * i + 1) = Xj->E(2 * i);                \
+        temp.E(2 * i) = Xk->E(2 * i);                    \
+    }                                                    \
+    *Xd = temp;                                          \
+}
+
+XVPACKEV(xvpackev_b, 8, XB)
+XVPACKEV(xvpackev_h, 16, XH)
+XVPACKEV(xvpackev_w, 32, XW)
+XVPACKEV(xvpackev_d, 64, XD)
+
+#define XVPACKOD(NAME, BIT, E)                           \
+void HELPER(NAME)(CPULoongArchState *env,                \
+                  uint32_t xd, uint32_t xj, uint32_t xk) \
+{                                                        \
+    int i;                                               \
+    XReg temp;                                           \
+    XReg *Xd = &(env->fpr[xd].xreg);                     \
+    XReg *Xj = &(env->fpr[xj].xreg);                     \
+    XReg *Xk = &(env->fpr[xk].xreg);                     \
+                                                         \
+    for (i = 0; i < LASX_LEN / (BIT * 2); i++) {         \
+        temp.E(2 * i + 1) = Xj->E(2 * i + 1);            \
+        temp.E(2 * i) = Xk->E(2 * i + 1);                \
+    }                                                    \
+    *Xd = temp;                                          \
+}
+
+XVPACKOD(xvpackod_b, 8, XB)
+XVPACKOD(xvpackod_h, 16, XH)
+XVPACKOD(xvpackod_w, 32, XW)
+XVPACKOD(xvpackod_d, 64, XD)
+
+#define XVPICKEV(NAME, BIT, E)                           \
+void HELPER(NAME)(CPULoongArchState *env,                \
+                  uint32_t xd, uint32_t xj, uint32_t xk) \
+{                                                        \
+    int i, max;                                          \
+    XReg temp;                                           \
+    XReg *Xd = &(env->fpr[xd].xreg);                     \
+    XReg *Xj = &(env->fpr[xj].xreg);                     \
+    XReg *Xk = &(env->fpr[xk].xreg);                     \
+                                                         \
+    max = LASX_LEN / (BIT * 4);                          \
+    for (i = 0; i < max; i++) {                          \
+        temp.E(i + max) = Xj->E(2 * i);                  \
+        temp.E(i) = Xk->E(2 * i);                        \
+        temp.E(i + max * 3) = Xj->E(2 * i + max * 2);    \
+        temp.E(i + max * 2) = Xk->E(2 * i + max * 2);    \
+    }                                                    \
+    *Xd = temp;                                          \
+}
+
+XVPICKEV(xvpickev_b, 8, XB)
+XVPICKEV(xvpickev_h, 16, XH)
+XVPICKEV(xvpickev_w, 32, XW)
+XVPICKEV(xvpickev_d, 64, XD)
+
+#define XVPICKOD(NAME, BIT, E)                            \
+void HELPER(NAME)(CPULoongArchState *env,                 \
+                  uint32_t xd, uint32_t xj, uint32_t xk)  \
+{                                                         \
+    int i, max;                                           \
+    XReg temp;                                            \
+    XReg *Xd = &(env->fpr[xd].xreg);                      \
+    XReg *Xj = &(env->fpr[xj].xreg);                      \
+    XReg *Xk = &(env->fpr[xk].xreg);                      \
+                                                          \
+    max = LASX_LEN / (BIT * 4);                           \
+    for (i = 0; i < max; i++) {                           \
+        temp.E(i + max) = Xj->E(2 * i + 1);               \
+        temp.E(i) = Xk->E(2 * i + 1);                     \
+        temp.E(i + max * 3) = Xj->E(2 * i + 1 + max * 2); \
+        temp.E(i + max * 2) = Xk->E(2 * i + 1 + max * 2); \
+    }                                                     \
+    *Xd = temp;                                           \
+}
+
+XVPICKOD(xvpickod_b, 8, XB)
+XVPICKOD(xvpickod_h, 16, XH)
+XVPICKOD(xvpickod_w, 32, XW)
+XVPICKOD(xvpickod_d, 64, XD)
+
+#define XVILVL(NAME, BIT, E)                              \
+void HELPER(NAME)(CPULoongArchState *env,                 \
+                  uint32_t xd, uint32_t xj, uint32_t xk)  \
+{                                                         \
+    int i, max;                                           \
+    XReg temp;                                            \
+    XReg *Xd = &(env->fpr[xd].xreg);                      \
+    XReg *Xj = &(env->fpr[xj].xreg);                      \
+    XReg *Xk = &(env->fpr[xk].xreg);                      \
+                                                          \
+    max = LASX_LEN / (BIT * 4);                           \
+    for (i = 0; i < max; i++) {                           \
+        temp.E(2 * i + 1) = Xj->E(i);                     \
+        temp.E(2 * i) = Xk->E(i);                         \
+        temp.E(2 * i + 1 + max * 2) = Xj->E(i + max * 2); \
+        temp.E(2 * i + max * 2) = Xk->E(i + max * 2);     \
+    }                                                     \
+    *Xd = temp;                                           \
+}
+
+XVILVL(xvilvl_b, 8, XB)
+XVILVL(xvilvl_h, 16, XH)
+XVILVL(xvilvl_w, 32, XW)
+XVILVL(xvilvl_d, 64, XD)
+
+#define XVILVH(NAME, BIT, E)                               \
+void HELPER(NAME)(CPULoongArchState *env,                  \
+                  uint32_t xd, uint32_t xj, uint32_t xk)   \
+{                                                          \
+    int i, max;                                            \
+    XReg temp;                                             \
+    XReg *Xd = &(env->fpr[xd].xreg);                       \
+    XReg *Xj = &(env->fpr[xj].xreg);                       \
+    XReg *Xk = &(env->fpr[xk].xreg);                       \
+                                                           \
+    max = LASX_LEN / (BIT * 4);                            \
+    for (i = 0; i < max; i++) {                            \
+        temp.E(2 * i + 1) = Xj->E(i + max);                \
+        temp.E(2 * i) = Xk->E(i + max);                    \
+        temp.E(2 * i +  1 + max * 2) = Xj->E(i + max * 3); \
+        temp.E(2 * i + max * 2) = Xk->E(i + max * 3);      \
+    }                                                      \
+    *Xd = temp;                                            \
+}
+
+XVILVH(xvilvh_b, 8, XB)
+XVILVH(xvilvh_h, 16, XH)
+XVILVH(xvilvh_w, 32, XW)
+XVILVH(xvilvh_d, 64, XD)

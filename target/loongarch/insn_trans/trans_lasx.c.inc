@@ -3056,3 +3056,30 @@ static bool trans_xvbsrl_v(DisasContext *ctx, arg_xx_i *a)
 
     return true;
 }
+
+TRANS(xvpackev_b, gen_xxx, gen_helper_xvpackev_b)
+TRANS(xvpackev_h, gen_xxx, gen_helper_xvpackev_h)
+TRANS(xvpackev_w, gen_xxx, gen_helper_xvpackev_w)
+TRANS(xvpackev_d, gen_xxx, gen_helper_xvpackev_d)
+TRANS(xvpackod_b, gen_xxx, gen_helper_xvpackod_b)
+TRANS(xvpackod_h, gen_xxx, gen_helper_xvpackod_h)
+TRANS(xvpackod_w, gen_xxx, gen_helper_xvpackod_w)
+TRANS(xvpackod_d, gen_xxx, gen_helper_xvpackod_d)
+
+TRANS(xvpickev_b, gen_xxx, gen_helper_xvpickev_b)
+TRANS(xvpickev_h, gen_xxx, gen_helper_xvpickev_h)
+TRANS(xvpickev_w, gen_xxx, gen_helper_xvpickev_w)
+TRANS(xvpickev_d, gen_xxx, gen_helper_xvpickev_d)
+TRANS(xvpickod_b, gen_xxx, gen_helper_xvpickod_b)
+TRANS(xvpickod_h, gen_xxx, gen_helper_xvpickod_h)
+TRANS(xvpickod_w, gen_xxx, gen_helper_xvpickod_w)
+TRANS(xvpickod_d, gen_xxx, gen_helper_xvpickod_d)
+
+TRANS(xvilvl_b, gen_xxx, gen_helper_xvilvl_b)
+TRANS(xvilvl_h, gen_xxx, gen_helper_xvilvl_h)
+TRANS(xvilvl_w, gen_xxx, gen_helper_xvilvl_w)
+TRANS(xvilvl_d, gen_xxx, gen_helper_xvilvl_d)
+TRANS(xvilvh_b, gen_xxx, gen_helper_xvilvh_b)
+TRANS(xvilvh_h, gen_xxx, gen_helper_xvilvh_h)
+TRANS(xvilvh_w, gen_xxx, gen_helper_xvilvh_w)
+TRANS(xvilvh_d, gen_xxx, gen_helper_xvilvh_d)
