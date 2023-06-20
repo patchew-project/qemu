@@ -26,6 +26,7 @@
 #include "qemu/config-file.h"
 #include "qemu/help_option.h"
 #include "qemu/option.h"
+#include "qemu/strList.h"
 
 void hmp_info_network(Monitor *mon, const QDict *qdict)
 {
@@ -72,7 +73,7 @@ void hmp_announce_self(Monitor *mon, const QDict *qdict)
                                             migrate_announce_params());
 
     qapi_free_strList(params->interfaces);
-    params->interfaces = hmp_split_at_comma(interfaces_str);
+    params->interfaces = strList_from_string(interfaces_str, ",");
     params->has_interfaces = params->interfaces != NULL;
     params->id = g_strdup(id);
     qmp_announce_self(params, NULL);
