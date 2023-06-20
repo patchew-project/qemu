@@ -15,6 +15,19 @@
 #define CHECK_ASXE
 #endif
 
+static bool gen_xxx(DisasContext *ctx, arg_xxx *a,
+                    void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 xd = tcg_constant_i32(a->xd);
+    TCGv_i32 xj = tcg_constant_i32(a->xj);
+    TCGv_i32 xk = tcg_constant_i32(a->xk);
+
+    CHECK_ASXE;
+
+    func(cpu_env, xd, xj, xk);
+    return true;
+}
+
 static bool gvec_xxx(DisasContext *ctx, arg_xxx *a, MemOp mop,
                      void (*func)(unsigned, uint32_t, uint32_t,
                                   uint32_t, uint32_t, uint32_t))
@@ -147,6 +160,23 @@ TRANS(xvssub_bu, gvec_xxx, MO_8, tcg_gen_gvec_ussub)
 TRANS(xvssub_hu, gvec_xxx, MO_16, tcg_gen_gvec_ussub)
 TRANS(xvssub_wu, gvec_xxx, MO_32, tcg_gen_gvec_ussub)
 TRANS(xvssub_du, gvec_xxx, MO_64, tcg_gen_gvec_ussub)
+
+TRANS(xvhaddw_h_b, gen_xxx, gen_helper_xvhaddw_h_b)
+TRANS(xvhaddw_w_h, gen_xxx, gen_helper_xvhaddw_w_h)
+TRANS(xvhaddw_d_w, gen_xxx, gen_helper_xvhaddw_d_w)
+TRANS(xvhaddw_q_d, gen_xxx, gen_helper_xvhaddw_q_d)
+TRANS(xvhaddw_hu_bu, gen_xxx, gen_helper_xvhaddw_hu_bu)
+TRANS(xvhaddw_wu_hu, gen_xxx, gen_helper_xvhaddw_wu_hu)
+TRANS(xvhaddw_du_wu, gen_xxx, gen_helper_xvhaddw_du_wu)
+TRANS(xvhaddw_qu_du, gen_xxx, gen_helper_xvhaddw_qu_du)
+TRANS(xvhsubw_h_b, gen_xxx, gen_helper_xvhsubw_h_b)
+TRANS(xvhsubw_w_h, gen_xxx, gen_helper_xvhsubw_w_h)
+TRANS(xvhsubw_d_w, gen_xxx, gen_helper_xvhsubw_d_w)
+TRANS(xvhsubw_q_d, gen_xxx, gen_helper_xvhsubw_q_d)
+TRANS(xvhsubw_hu_bu, gen_xxx, gen_helper_xvhsubw_hu_bu)
+TRANS(xvhsubw_wu_hu, gen_xxx, gen_helper_xvhsubw_wu_hu)
+TRANS(xvhsubw_du_wu, gen_xxx, gen_helper_xvhsubw_du_wu)
+TRANS(xvhsubw_qu_du, gen_xxx, gen_helper_xvhsubw_qu_du)
 
 static bool gvec_dupx(DisasContext *ctx, arg_xr *a, MemOp mop)
 {

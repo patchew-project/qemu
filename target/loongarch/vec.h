@@ -48,4 +48,7 @@
 #define XQ(x)  XQ[x]
 #endif /* HOST_BIG_ENDIAN */
 
+#define DO_ADD(a, b)  (a + b)
+#define DO_SUB(a, b)  (a - b)
+
 #endif /* LOONGARCH_VEC_H */

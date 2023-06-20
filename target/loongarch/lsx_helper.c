@@ -14,9 +14,6 @@
 #include "tcg/tcg.h"
 #include "vec.h"
 
-#define DO_ADD(a, b)  (a + b)
-#define DO_SUB(a, b)  (a - b)
-
 #define DO_ODD_EVEN(NAME, BIT, E1, E2, DO_OP)                        \
 void HELPER(NAME)(CPULoongArchState *env,                            \
                   uint32_t vd, uint32_t vj, uint32_t vk)             \
