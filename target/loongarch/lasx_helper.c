@@ -2119,3 +2119,54 @@ XVPCNT(xvpcnt_b, 8, UXB, ctpop8)
 XVPCNT(xvpcnt_h, 16, UXH, ctpop16)
 XVPCNT(xvpcnt_w, 32, UXW, ctpop32)
 XVPCNT(xvpcnt_d, 64, UXD, ctpop64)
+
+#define XDO_BIT(NAME, BIT, E, DO_OP)                        \
+void HELPER(NAME)(void *xd, void *xj, void *xk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    XReg *Xd = (XReg *)xd;                                  \
+    XReg *Xj = (XReg *)xj;                                  \
+    XReg *Xk = (XReg *)xk;                                  \
+                                                            \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                  \
+        Xd->E(i) = DO_OP(Xj->E(i), Xk->E(i) % BIT);         \
+    }                                                       \
+}
+
+XDO_BIT(xvbitclr_b, 8, UXB, DO_BITCLR)
+XDO_BIT(xvbitclr_h, 16, UXH, DO_BITCLR)
+XDO_BIT(xvbitclr_w, 32, UXW, DO_BITCLR)
+XDO_BIT(xvbitclr_d, 64, UXD, DO_BITCLR)
+XDO_BIT(xvbitset_b, 8, UXB, DO_BITSET)
+XDO_BIT(xvbitset_h, 16, UXH, DO_BITSET)
+XDO_BIT(xvbitset_w, 32, UXW, DO_BITSET)
+XDO_BIT(xvbitset_d, 64, UXD, DO_BITSET)
+XDO_BIT(xvbitrev_b, 8, UXB, DO_BITREV)
+XDO_BIT(xvbitrev_h, 16, UXH, DO_BITREV)
+XDO_BIT(xvbitrev_w, 32, UXW, DO_BITREV)
+XDO_BIT(xvbitrev_d, 64, UXD, DO_BITREV)
+
+#define XDO_BITI(NAME, BIT, E, DO_OP)                           \
+void HELPER(NAME)(void *xd, void *xj, uint64_t imm, uint32_t v) \
+{                                                               \
+    int i;                                                      \
+    XReg *Xd = (XReg *)xd;                                      \
+    XReg *Xj = (XReg *)xj;                                      \
+                                                                \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                      \
+        Xd->E(i) = DO_OP(Xj->E(i), imm);                        \
+    }                                                           \
+}
+
+XDO_BITI(xvbitclri_b, 8, UXB, DO_BITCLR)
+XDO_BITI(xvbitclri_h, 16, UXH, DO_BITCLR)
+XDO_BITI(xvbitclri_w, 32, UXW, DO_BITCLR)
+XDO_BITI(xvbitclri_d, 64, UXD, DO_BITCLR)
+XDO_BITI(xvbitseti_b, 8, UXB, DO_BITSET)
+XDO_BITI(xvbitseti_h, 16, UXH, DO_BITSET)
+XDO_BITI(xvbitseti_w, 32, UXW, DO_BITSET)
+XDO_BITI(xvbitseti_d, 64, UXD, DO_BITSET)
+XDO_BITI(xvbitrevi_b, 8, UXB, DO_BITREV)
+XDO_BITI(xvbitrevi_h, 16, UXH, DO_BITREV)
+XDO_BITI(xvbitrevi_w, 32, UXW, DO_BITREV)
+XDO_BITI(xvbitrevi_d, 64, UXD, DO_BITREV)

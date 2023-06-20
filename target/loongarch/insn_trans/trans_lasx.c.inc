@@ -2158,6 +2158,252 @@ TRANS(xvpcnt_h, gen_xx, gen_helper_xvpcnt_h)
 TRANS(xvpcnt_w, gen_xx, gen_helper_xvpcnt_w)
 TRANS(xvpcnt_d, gen_xx, gen_helper_xvpcnt_d)
 
+static void do_xvbitclr(unsigned vece, uint32_t xd_ofs, uint32_t xj_ofs,
+                        uint32_t xk_ofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_shlv_vec, INDEX_op_andc_vec, 0
+        };
+    static const GVecGen3 op[4] = {
+        {
+            .fniv = gen_vbitclr,
+            .fno = gen_helper_xvbitclr_b,
+            .opt_opc = vecop_list,
+            .vece = MO_8
+        },
+        {
+            .fniv = gen_vbitclr,
+            .fno = gen_helper_xvbitclr_h,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fniv = gen_vbitclr,
+            .fno = gen_helper_xvbitclr_w,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fniv = gen_vbitclr,
+            .fno = gen_helper_xvbitclr_d,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_3(xd_ofs, xj_ofs, xk_ofs, oprsz, maxsz, &op[vece]);
+}
+
+TRANS(xvbitclr_b, gvec_xxx, MO_8, do_xvbitclr)
+TRANS(xvbitclr_h, gvec_xxx, MO_16, do_xvbitclr)
+TRANS(xvbitclr_w, gvec_xxx, MO_32, do_xvbitclr)
+TRANS(xvbitclr_d, gvec_xxx, MO_64, do_xvbitclr)
+
+static void do_xvbitclri(unsigned vece, uint32_t xd_ofs, uint32_t xj_ofs,
+                         int64_t imm, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_shli_vec, INDEX_op_andc_vec, 0
+        };
+    static const GVecGen2i op[4] = {
+        {
+            .fniv = gen_vbitclri,
+            .fnoi = gen_helper_xvbitclri_b,
+            .opt_opc = vecop_list,
+            .vece = MO_8
+        },
+        {
+            .fniv = gen_vbitclri,
+            .fnoi = gen_helper_xvbitclri_h,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fniv = gen_vbitclri,
+            .fnoi = gen_helper_xvbitclri_w,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fniv = gen_vbitclri,
+            .fnoi = gen_helper_xvbitclri_d,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_2i(xd_ofs, xj_ofs, oprsz, maxsz, imm, &op[vece]);
+}
+
+TRANS(xvbitclri_b, gvec_xx_i, MO_8, do_xvbitclri)
+TRANS(xvbitclri_h, gvec_xx_i, MO_16, do_xvbitclri)
+TRANS(xvbitclri_w, gvec_xx_i, MO_32, do_xvbitclri)
+TRANS(xvbitclri_d, gvec_xx_i, MO_64, do_xvbitclri)
+
+static void do_xvbitset(unsigned vece, uint32_t xd_ofs, uint32_t xj_ofs,
+                        uint32_t xk_ofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_shlv_vec, 0
+        };
+    static const GVecGen3 op[4] = {
+        {
+            .fniv = gen_vbitset,
+            .fno = gen_helper_xvbitset_b,
+            .opt_opc = vecop_list,
+            .vece = MO_8
+        },
+        {
+            .fniv = gen_vbitset,
+            .fno = gen_helper_xvbitset_h,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fniv = gen_vbitset,
+            .fno = gen_helper_xvbitset_w,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fniv = gen_vbitset,
+            .fno = gen_helper_xvbitset_d,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_3(xd_ofs, xj_ofs, xk_ofs, oprsz, maxsz, &op[vece]);
+}
+
+TRANS(xvbitset_b, gvec_xxx, MO_8, do_xvbitset)
+TRANS(xvbitset_h, gvec_xxx, MO_16, do_xvbitset)
+TRANS(xvbitset_w, gvec_xxx, MO_32, do_xvbitset)
+TRANS(xvbitset_d, gvec_xxx, MO_64, do_xvbitset)
+
+static void do_xvbitseti(unsigned vece, uint32_t xd_ofs, uint32_t xj_ofs,
+                         int64_t imm, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_shli_vec, 0
+        };
+    static const GVecGen2i op[4] = {
+        {
+            .fniv = gen_vbitseti,
+            .fnoi = gen_helper_xvbitseti_b,
+            .opt_opc = vecop_list,
+            .vece = MO_8
+        },
+        {
+            .fniv = gen_vbitseti,
+            .fnoi = gen_helper_xvbitseti_h,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fniv = gen_vbitseti,
+            .fnoi = gen_helper_xvbitseti_w,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fniv = gen_vbitseti,
+            .fnoi = gen_helper_xvbitseti_d,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_2i(xd_ofs, xj_ofs, oprsz, maxsz, imm, &op[vece]);
+}
+
+TRANS(xvbitseti_b, gvec_xx_i, MO_8, do_xvbitseti)
+TRANS(xvbitseti_h, gvec_xx_i, MO_16, do_xvbitseti)
+TRANS(xvbitseti_w, gvec_xx_i, MO_32, do_xvbitseti)
+TRANS(xvbitseti_d, gvec_xx_i, MO_64, do_xvbitseti)
+
+static void do_xvbitrev(unsigned vece, uint32_t xd_ofs, uint32_t xj_ofs,
+                        uint32_t xk_ofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_shlv_vec, 0
+        };
+    static const GVecGen3 op[4] = {
+        {
+            .fniv = gen_vbitrev,
+            .fno = gen_helper_xvbitrev_b,
+            .opt_opc = vecop_list,
+            .vece = MO_8
+        },
+        {
+            .fniv = gen_vbitrev,
+            .fno = gen_helper_xvbitrev_h,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fniv = gen_vbitrev,
+            .fno = gen_helper_xvbitrev_w,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fniv = gen_vbitrev,
+            .fno = gen_helper_xvbitrev_d,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_3(xd_ofs, xj_ofs, xk_ofs, oprsz, maxsz, &op[vece]);
+}
+
+TRANS(xvbitrev_b, gvec_xxx, MO_8, do_xvbitrev)
+TRANS(xvbitrev_h, gvec_xxx, MO_16, do_xvbitrev)
+TRANS(xvbitrev_w, gvec_xxx, MO_32, do_xvbitrev)
+TRANS(xvbitrev_d, gvec_xxx, MO_64, do_xvbitrev)
+
+static void do_xvbitrevi(unsigned vece, uint32_t xd_ofs, uint32_t xj_ofs,
+                         int64_t imm, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_shli_vec, 0
+        };
+    static const GVecGen2i op[4] = {
+        {
+            .fniv = gen_vbitrevi,
+            .fnoi = gen_helper_xvbitrevi_b,
+            .opt_opc = vecop_list,
+            .vece = MO_8
+        },
+        {
+            .fniv = gen_vbitrevi,
+            .fnoi = gen_helper_xvbitrevi_h,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fniv = gen_vbitrevi,
+            .fnoi = gen_helper_xvbitrevi_w,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fniv = gen_vbitrevi,
+            .fnoi = gen_helper_xvbitrevi_d,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_2i(xd_ofs, xj_ofs, oprsz, maxsz, imm, &op[vece]);
+}
+
+TRANS(xvbitrevi_b, gvec_xx_i, MO_8, do_xvbitrevi)
+TRANS(xvbitrevi_h, gvec_xx_i, MO_16, do_xvbitrevi)
+TRANS(xvbitrevi_w, gvec_xx_i, MO_32, do_xvbitrevi)
+TRANS(xvbitrevi_d, gvec_xx_i, MO_64, do_xvbitrevi)
+
 static bool gvec_dupx(DisasContext *ctx, arg_xr *a, MemOp mop)
 {
     TCGv src = gpr_src(ctx, a->rj, EXT_NONE);
