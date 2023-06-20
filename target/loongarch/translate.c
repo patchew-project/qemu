@@ -18,6 +18,7 @@
 #include "fpu/softfloat.h"
 #include "translate.h"
 #include "internals.h"
+#include "vec.h"
 
 /* Global register indices */
 TCGv cpu_gpr[32], cpu_pc;
@@ -46,6 +47,18 @@ static inline void set_vreg64(TCGv_i64 src, int regno, int index)
 {
     tcg_gen_st_i64(src, cpu_env,
                    offsetof(CPULoongArchState, fpr[regno].vreg.D(index)));
+}
+
+static inline void get_xreg64(TCGv_i64 dest, int regno, int index)
+{
+    tcg_gen_ld_i64(dest, cpu_env,
+                   offsetof(CPULoongArchState, fpr[regno].xreg.XD(index)));
+}
+
+static inline void set_xreg64(TCGv_i64 src, int regno, int index)
+{
+    tcg_gen_st_i64(src, cpu_env,
+                   offsetof(CPULoongArchState, fpr[regno].xreg.XD(index)));
 }
 
 static inline int plus_1(DisasContext *ctx, int x)
@@ -117,6 +130,10 @@ static void loongarch_tr_init_disas_context(DisasContextBase *dcbase,
 
     if (FIELD_EX64(env->cpucfg[2], CPUCFG2, LSX)) {
         ctx->vl = LSX_LEN;
+    }
+
+    if (FIELD_EX64(env->cpucfg[2], CPUCFG2, LASX)) {
+        ctx->vl = LASX_LEN;
     }
 
     ctx->zero = tcg_constant_tl(0);

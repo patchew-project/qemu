@@ -1695,3 +1695,26 @@ INSN_LSX(vstelm_d,         vr_ii)
 INSN_LSX(vstelm_w,         vr_ii)
 INSN_LSX(vstelm_h,         vr_ii)
 INSN_LSX(vstelm_b,         vr_ii)
+
+#define INSN_LASX(insn, type)                               \
+static bool trans_##insn(DisasContext *ctx, arg_##type * a) \
+{                                                           \
+    output_##type(ctx, a, #insn);                           \
+    return true;                                            \
+}
+
+static void output_xxx(DisasContext *ctx, arg_xxx * a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "x%d, x%d, x%d", a->xd, a->xj, a->xk);
+}
+
+INSN_LASX(xvadd_b,           xxx)
+INSN_LASX(xvadd_h,           xxx)
+INSN_LASX(xvadd_w,           xxx)
+INSN_LASX(xvadd_d,           xxx)
+INSN_LASX(xvadd_q,           xxx)
+INSN_LASX(xvsub_b,           xxx)
+INSN_LASX(xvsub_h,           xxx)
+INSN_LASX(xvsub_w,           xxx)
+INSN_LASX(xvsub_d,           xxx)
+INSN_LASX(xvsub_q,           xxx)
