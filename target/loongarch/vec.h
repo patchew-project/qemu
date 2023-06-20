@@ -63,4 +63,7 @@
 
 #define DO_MUL(a, b)    (a * b)
 
+#define DO_MADD(a, b, c)  (a + b * c)
+#define DO_MSUB(a, b, c)  (a - b * c)
+
 #endif /* LOONGARCH_VEC_H */

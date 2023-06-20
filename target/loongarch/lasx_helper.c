@@ -467,3 +467,107 @@ XDO_EVEN_U_S(xvmulwev_d_wu_w, 64, XD, UXD, XW, UXW, DO_MUL)
 XDO_ODD_U_S(xvmulwod_h_bu_b, 16, XH, UXH, XB, UXB, DO_MUL)
 XDO_ODD_U_S(xvmulwod_w_hu_h, 32, XW, UXW, XH, UXH, DO_MUL)
 XDO_ODD_U_S(xvmulwod_d_wu_w, 64, XD, UXD, XW, UXW, DO_MUL)
+
+#define XVMADDSUB(NAME, BIT, E, DO_OP)                      \
+void HELPER(NAME)(void *xd, void *xj, void *xk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    XReg *Xd = (XReg *)xd;                                  \
+    XReg *Xj = (XReg *)xj;                                  \
+    XReg *Xk = (XReg *)xk;                                  \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                  \
+        Xd->E(i) = DO_OP(Xd->E(i), Xj->E(i), Xk->E(i));     \
+    }                                                       \
+}
+
+XVMADDSUB(xvmadd_b, 8, XB, DO_MADD)
+XVMADDSUB(xvmadd_h, 16, XH, DO_MADD)
+XVMADDSUB(xvmadd_w, 32, XW, DO_MADD)
+XVMADDSUB(xvmadd_d, 64, XD, DO_MADD)
+XVMADDSUB(xvmsub_b, 8, XB, DO_MSUB)
+XVMADDSUB(xvmsub_h, 16, XH, DO_MSUB)
+XVMADDSUB(xvmsub_w, 32, XW, DO_MSUB)
+XVMADDSUB(xvmsub_d, 64, XD, DO_MSUB)
+
+#define XVMADDWEV(NAME, BIT, E1, E2, DO_OP)                       \
+void HELPER(NAME)(void *xd, void *xj, void *xk, uint32_t v)       \
+{                                                                 \
+    int i;                                                        \
+    XReg *Xd = (XReg *)xd;                                        \
+    XReg *Xj = (XReg *)xj;                                        \
+    XReg *Xk = (XReg *)xk;                                        \
+    typedef __typeof(Xd->E1(0)) TD;                               \
+                                                                  \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                        \
+        Xd->E1(i) += DO_OP((TD)Xj->E2(2 * i), (TD)Xk->E2(2 * i)); \
+    }                                                             \
+}
+
+XVMADDWEV(xvmaddwev_h_b, 16, XH, XB, DO_MUL)
+XVMADDWEV(xvmaddwev_w_h, 32, XW, XH, DO_MUL)
+XVMADDWEV(xvmaddwev_d_w, 64, XD, XW, DO_MUL)
+XVMADDWEV(xvmaddwev_h_bu, 16, UXH, UXB, DO_MUL)
+XVMADDWEV(xvmaddwev_w_hu, 32, UXW, UXH, DO_MUL)
+XVMADDWEV(xvmaddwev_d_wu, 64, UXD, UXW, DO_MUL)
+
+#define XVMADDWOD(NAME, BIT, E1, E2, DO_OP)                 \
+void HELPER(NAME)(void *xd, void *xj, void *xk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    XReg *Xd = (XReg *)xd;                                  \
+    XReg *Xj = (XReg *)xj;                                  \
+    XReg *Xk = (XReg *)xk;                                  \
+    typedef __typeof(Xd->E1(0)) TD;                         \
+                                                            \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                  \
+        Xd->E1(i) += DO_OP((TD)Xj->E2(2 * i + 1),           \
+                           (TD)Xk->E2(2 * i + 1));          \
+    }                                                       \
+}
+
+XVMADDWOD(xvmaddwod_h_b, 16, XH, XB, DO_MUL)
+XVMADDWOD(xvmaddwod_w_h, 32, XW, XH, DO_MUL)
+XVMADDWOD(xvmaddwod_d_w, 64, XD, XW, DO_MUL)
+XVMADDWOD(xvmaddwod_h_bu, 16,  UXH, UXB, DO_MUL)
+XVMADDWOD(xvmaddwod_w_hu, 32,  UXW, UXH, DO_MUL)
+XVMADDWOD(xvmaddwod_d_wu, 64,  UXD, UXW, DO_MUL)
+
+#define XVMADDWEV_U_S(NAME, BIT, ES1, EU1, ES2, EU2, DO_OP) \
+void HELPER(NAME)(void *xd, void *xj, void *xk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    XReg *Xd = (XReg *)xd;                                  \
+    XReg *Xj = (XReg *)xj;                                  \
+    XReg *Xk = (XReg *)xk;                                  \
+    typedef __typeof(Xd->ES1(0)) TS1;                       \
+    typedef __typeof(Xd->EU1(0)) TU1;                       \
+                                                            \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                  \
+        Xd->ES1(i) += DO_OP((TU1)Xj->EU2(2 * i),            \
+                            (TS1)Xk->ES2(2 * i));           \
+    }                                                       \
+}
+
+XVMADDWEV_U_S(xvmaddwev_h_bu_b, 16, XH, UXH, XB, UXB, DO_MUL)
+XVMADDWEV_U_S(xvmaddwev_w_hu_h, 32, XW, UXW, XH, UXH, DO_MUL)
+XVMADDWEV_U_S(xvmaddwev_d_wu_w, 64, XD, UXD, XW, UXW, DO_MUL)
+
+#define XVMADDWOD_U_S(NAME, BIT, ES1, EU1, ES2, EU2, DO_OP) \
+void HELPER(NAME)(void *xd, void *xj, void *xk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    XReg *Xd = (XReg *)xd;                                  \
+    XReg *Xj = (XReg *)xj;                                  \
+    XReg *Xk = (XReg *)xk;                                  \
+    typedef __typeof(Xd->ES1(0)) TS1;                       \
+    typedef __typeof(Xd->EU1(0)) TU1;                       \
+                                                            \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                  \
+        Xd->ES1(i) += DO_OP((TU1)Xj->EU2(2 * i + 1),        \
+                            (TS1)Xk->ES2(2 * i + 1));       \
+    }                                                       \
+}
+
+XVMADDWOD_U_S(xvmaddwod_h_bu_b, 16, XH, UXH, XB, UXB, DO_MUL)
+XVMADDWOD_U_S(xvmaddwod_w_hu_h, 32, XW, UXW, XH, UXH, DO_MUL)
+XVMADDWOD_U_S(xvmaddwod_d_wu_w, 64, XD, UXD, XW, UXW, DO_MUL)
