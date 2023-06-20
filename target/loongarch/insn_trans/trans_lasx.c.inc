@@ -2520,6 +2520,160 @@ TRANS(xvffintl_d_w, gen_xx, gen_helper_xvffintl_d_w)
 TRANS(xvffinth_d_w, gen_xx, gen_helper_xvffinth_d_w)
 TRANS(xvffint_s_l, gen_xxx, gen_helper_xvffint_s_l)
 
+static bool do_xcmp(DisasContext *ctx, arg_xxx * a, MemOp mop, TCGCond cond)
+{
+    uint32_t xd_ofs, xj_ofs, xk_ofs;
+
+    CHECK_ASXE;
+
+    xd_ofs = vec_full_offset(a->xd);
+    xj_ofs = vec_full_offset(a->xj);
+    xk_ofs = vec_full_offset(a->xk);
+
+    tcg_gen_gvec_cmp(cond, mop, xd_ofs, xj_ofs, xk_ofs, 32, ctx->vl / 8);
+    return true;
+}
+
+#define DO_XCMPI_S(NAME)                                                 \
+static bool do_x## NAME ##_s(DisasContext *ctx, arg_xx_i * a, MemOp mop) \
+{                                                                        \
+    uint32_t xd_ofs, xj_ofs;                                             \
+                                                                         \
+    CHECK_ASXE;                                                          \
+                                                                         \
+    static const TCGOpcode vecop_list[] = {                              \
+        INDEX_op_cmp_vec, 0                                              \
+    };                                                                   \
+    static const GVecGen2i op[4] = {                                     \
+        {                                                                \
+            .fniv = gen_## NAME ##_s_vec,                                \
+            .fnoi = gen_helper_x## NAME ##_b,                            \
+            .opt_opc = vecop_list,                                       \
+            .vece = MO_8                                                 \
+        },                                                               \
+        {                                                                \
+            .fniv = gen_## NAME ##_s_vec,                                \
+            .fnoi = gen_helper_x## NAME ##_h,                            \
+            .opt_opc = vecop_list,                                       \
+            .vece = MO_16                                                \
+        },                                                               \
+        {                                                                \
+            .fniv = gen_## NAME ##_s_vec,                                \
+            .fnoi = gen_helper_x## NAME ##_w,                            \
+            .opt_opc = vecop_list,                                       \
+            .vece = MO_32                                                \
+        },                                                               \
+        {                                                                \
+            .fniv = gen_## NAME ##_s_vec,                                \
+            .fnoi = gen_helper_x## NAME ##_d,                            \
+            .opt_opc = vecop_list,                                       \
+            .vece = MO_64                                                \
+        }                                                                \
+    };                                                                   \
+                                                                         \
+    xd_ofs = vec_full_offset(a->xd);                                     \
+    xj_ofs = vec_full_offset(a->xj);                                     \
+                                                                         \
+    tcg_gen_gvec_2i(xd_ofs, xj_ofs, 32, ctx->vl / 8, a->imm, &op[mop]);  \
+                                                                         \
+    return true;                                                         \
+}
+
+DO_XCMPI_S(vseqi)
+DO_XCMPI_S(vslei)
+DO_XCMPI_S(vslti)
+
+#define DO_XCMPI_U(NAME)                                                 \
+static bool do_x## NAME ##_u(DisasContext *ctx, arg_xx_i * a, MemOp mop) \
+{                                                                        \
+    uint32_t xd_ofs, xj_ofs;                                             \
+                                                                         \
+    CHECK_ASXE;                                                          \
+                                                                         \
+    static const TCGOpcode vecop_list[] = {                              \
+        INDEX_op_cmp_vec, 0                                              \
+    };                                                                   \
+    static const GVecGen2i op[4] = {                                     \
+        {                                                                \
+            .fniv = gen_## NAME ##_u_vec,                                \
+            .fnoi = gen_helper_x## NAME ##_bu,                           \
+            .opt_opc = vecop_list,                                       \
+            .vece = MO_8                                                 \
+        },                                                               \
+        {                                                                \
+            .fniv = gen_## NAME ##_u_vec,                                \
+            .fnoi = gen_helper_x## NAME ##_hu,                           \
+            .opt_opc = vecop_list,                                       \
+            .vece = MO_16                                                \
+        },                                                               \
+        {                                                                \
+            .fniv = gen_## NAME ##_u_vec,                                \
+            .fnoi = gen_helper_x## NAME ##_wu,                           \
+            .opt_opc = vecop_list,                                       \
+            .vece = MO_32                                                \
+        },                                                               \
+        {                                                                \
+            .fniv = gen_## NAME ##_u_vec,                                \
+            .fnoi = gen_helper_x## NAME ##_du,                           \
+            .opt_opc = vecop_list,                                       \
+            .vece = MO_64                                                \
+        }                                                                \
+    };                                                                   \
+                                                                         \
+    xd_ofs = vec_full_offset(a->xd);                                     \
+    xj_ofs = vec_full_offset(a->xj);                                     \
+                                                                         \
+    tcg_gen_gvec_2i(xd_ofs, xj_ofs, 32, ctx->vl / 8, a->imm, &op[mop]);  \
+                                                                         \
+    return true;                                                         \
+}
+
+DO_XCMPI_U(vslei)
+DO_XCMPI_U(vslti)
+
+TRANS(xvseq_b, do_xcmp, MO_8, TCG_COND_EQ)
+TRANS(xvseq_h, do_xcmp, MO_16, TCG_COND_EQ)
+TRANS(xvseq_w, do_xcmp, MO_32, TCG_COND_EQ)
+TRANS(xvseq_d, do_xcmp, MO_64, TCG_COND_EQ)
+TRANS(xvseqi_b, do_xvseqi_s, MO_8)
+TRANS(xvseqi_h, do_xvseqi_s, MO_16)
+TRANS(xvseqi_w, do_xvseqi_s, MO_32)
+TRANS(xvseqi_d, do_xvseqi_s, MO_64)
+
+TRANS(xvsle_b, do_xcmp, MO_8, TCG_COND_LE)
+TRANS(xvsle_h, do_xcmp, MO_16, TCG_COND_LE)
+TRANS(xvsle_w, do_xcmp, MO_32, TCG_COND_LE)
+TRANS(xvsle_d, do_xcmp, MO_64, TCG_COND_LE)
+TRANS(xvslei_b, do_xvslei_s, MO_8)
+TRANS(xvslei_h, do_xvslei_s, MO_16)
+TRANS(xvslei_w, do_xvslei_s, MO_32)
+TRANS(xvslei_d, do_xvslei_s, MO_64)
+TRANS(xvsle_bu, do_xcmp, MO_8, TCG_COND_LEU)
+TRANS(xvsle_hu, do_xcmp, MO_16, TCG_COND_LEU)
+TRANS(xvsle_wu, do_xcmp, MO_32, TCG_COND_LEU)
+TRANS(xvsle_du, do_xcmp, MO_64, TCG_COND_LEU)
+TRANS(xvslei_bu, do_xvslei_u, MO_8)
+TRANS(xvslei_hu, do_xvslei_u, MO_16)
+TRANS(xvslei_wu, do_xvslei_u, MO_32)
+TRANS(xvslei_du, do_xvslei_u, MO_64)
+
+TRANS(xvslt_b, do_xcmp, MO_8, TCG_COND_LT)
+TRANS(xvslt_h, do_xcmp, MO_16, TCG_COND_LT)
+TRANS(xvslt_w, do_xcmp, MO_32, TCG_COND_LT)
+TRANS(xvslt_d, do_xcmp, MO_64, TCG_COND_LT)
+TRANS(xvslti_b, do_xvslti_s, MO_8)
+TRANS(xvslti_h, do_xvslti_s, MO_16)
+TRANS(xvslti_w, do_xvslti_s, MO_32)
+TRANS(xvslti_d, do_xvslti_s, MO_64)
+TRANS(xvslt_bu, do_xcmp, MO_8, TCG_COND_LTU)
+TRANS(xvslt_hu, do_xcmp, MO_16, TCG_COND_LTU)
+TRANS(xvslt_wu, do_xcmp, MO_32, TCG_COND_LTU)
+TRANS(xvslt_du, do_xcmp, MO_64, TCG_COND_LTU)
+TRANS(xvslti_bu, do_xvslti_u, MO_8)
+TRANS(xvslti_hu, do_xvslti_u, MO_16)
+TRANS(xvslti_wu, do_xvslti_u, MO_32)
+TRANS(xvslti_du, do_xvslti_u, MO_64)
+
 static bool gvec_dupx(DisasContext *ctx, arg_xr *a, MemOp mop)
 {
     TCGv src = gpr_src(ctx, a->rj, EXT_NONE);

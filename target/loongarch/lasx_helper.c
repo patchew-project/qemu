@@ -2723,3 +2723,37 @@ void HELPER(xvffint_s_l)(CPULoongArchState *env,
     }
     *Xd = temp;
 }
+
+#define XVCMPI(NAME, BIT, E, DO_OP)                             \
+void HELPER(NAME)(void *xd, void *xj, uint64_t imm, uint32_t v) \
+{                                                               \
+    int i;                                                      \
+    XReg *Xd = (XReg *)xd;                                      \
+    XReg *Xj = (XReg *)xj;                                      \
+    typedef __typeof(Xd->E(0)) TD;                              \
+                                                                \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                      \
+        Xd->E(i) = DO_OP(Xj->E(i), (TD)imm);                    \
+    }                                                           \
+}
+
+XVCMPI(xvseqi_b, 8, XB, VSEQ)
+XVCMPI(xvseqi_h, 16, XH, VSEQ)
+XVCMPI(xvseqi_w, 32, XW, VSEQ)
+XVCMPI(xvseqi_d, 64, XD, VSEQ)
+XVCMPI(xvslei_b, 8, XB, VSLE)
+XVCMPI(xvslei_h, 16, XH, VSLE)
+XVCMPI(xvslei_w, 32, XW, VSLE)
+XVCMPI(xvslei_d, 64, XD, VSLE)
+XVCMPI(xvslei_bu, 8, UXB, VSLE)
+XVCMPI(xvslei_hu, 16, UXH, VSLE)
+XVCMPI(xvslei_wu, 32, UXW, VSLE)
+XVCMPI(xvslei_du, 64, UXD, VSLE)
+XVCMPI(xvslti_b, 8, XB, VSLT)
+XVCMPI(xvslti_h, 16, XH, VSLT)
+XVCMPI(xvslti_w, 32, XW, VSLT)
+XVCMPI(xvslti_d, 64, XD, VSLT)
+XVCMPI(xvslti_bu, 8, UXB, VSLT)
+XVCMPI(xvslti_hu, 16, UXH, VSLT)
+XVCMPI(xvslti_wu, 32, UXW, VSLT)
+XVCMPI(xvslti_du, 64, UXD, VSLT)
