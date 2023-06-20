@@ -296,7 +296,7 @@ static void tpm_crb_realize(DeviceState *dev, Error **errp)
 
     memory_region_init_io(&s->mmio, OBJECT(s), &tpm_crb_memory_ops, s,
         "tpm-crb-mmio", sizeof(s->regs));
-    memory_region_init_ram(&s->cmdmem, OBJECT(s),
+    memory_region_init_ram_protected(&s->cmdmem, OBJECT(s),
         "tpm-crb-cmd", CRB_CTRL_CMD_SIZE, errp);
 
     memory_region_add_subregion(get_system_memory(),
