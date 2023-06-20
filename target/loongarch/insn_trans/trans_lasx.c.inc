@@ -131,6 +131,23 @@ TRANS(xvneg_h, gvec_xx, MO_16, tcg_gen_gvec_neg)
 TRANS(xvneg_w, gvec_xx, MO_32, tcg_gen_gvec_neg)
 TRANS(xvneg_d, gvec_xx, MO_64, tcg_gen_gvec_neg)
 
+TRANS(xvsadd_b, gvec_xxx, MO_8, tcg_gen_gvec_ssadd)
+TRANS(xvsadd_h, gvec_xxx, MO_16, tcg_gen_gvec_ssadd)
+TRANS(xvsadd_w, gvec_xxx, MO_32, tcg_gen_gvec_ssadd)
+TRANS(xvsadd_d, gvec_xxx, MO_64, tcg_gen_gvec_ssadd)
+TRANS(xvsadd_bu, gvec_xxx, MO_8, tcg_gen_gvec_usadd)
+TRANS(xvsadd_hu, gvec_xxx, MO_16, tcg_gen_gvec_usadd)
+TRANS(xvsadd_wu, gvec_xxx, MO_32, tcg_gen_gvec_usadd)
+TRANS(xvsadd_du, gvec_xxx, MO_64, tcg_gen_gvec_usadd)
+TRANS(xvssub_b, gvec_xxx, MO_8, tcg_gen_gvec_sssub)
+TRANS(xvssub_h, gvec_xxx, MO_16, tcg_gen_gvec_sssub)
+TRANS(xvssub_w, gvec_xxx, MO_32, tcg_gen_gvec_sssub)
+TRANS(xvssub_d, gvec_xxx, MO_64, tcg_gen_gvec_sssub)
+TRANS(xvssub_bu, gvec_xxx, MO_8, tcg_gen_gvec_ussub)
+TRANS(xvssub_hu, gvec_xxx, MO_16, tcg_gen_gvec_ussub)
+TRANS(xvssub_wu, gvec_xxx, MO_32, tcg_gen_gvec_ussub)
+TRANS(xvssub_du, gvec_xxx, MO_64, tcg_gen_gvec_ussub)
+
 static bool gvec_dupx(DisasContext *ctx, arg_xr *a, MemOp mop)
 {
     TCGv src = gpr_src(ctx, a->rj, EXT_NONE);
