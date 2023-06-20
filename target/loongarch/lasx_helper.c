@@ -393,3 +393,77 @@ XVMINMAXI(xvmaxi_bu, 8, UXB, DO_MAX)
 XVMINMAXI(xvmaxi_hu, 16, UXH, DO_MAX)
 XVMINMAXI(xvmaxi_wu, 32, UXW, DO_MAX)
 XVMINMAXI(xvmaxi_du, 64, UXD, DO_MAX)
+
+#define DO_XVMUH(NAME, BIT, E1, E2)                         \
+void HELPER(NAME)(void *xd, void *xj, void *xk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    XReg *Xd = (XReg *)xd;                                  \
+    XReg *Xj = (XReg *)xj;                                  \
+    XReg *Xk = (XReg *)xk;                                  \
+    typedef __typeof(Xd->E1(0)) T;                          \
+                                                            \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                  \
+        Xd->E2(i) = ((T)Xj->E2(i)) * ((T)Xk->E2(i)) >> BIT; \
+    }                                                       \
+}
+
+void HELPER(xvmuh_d)(void *xd, void *xj, void *xk, uint32_t v)
+{
+    uint64_t l, h;
+    XReg *Xd = (XReg *)xd;
+    XReg *Xj = (XReg *)xj;
+    XReg *Xk = (XReg *)xk;
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        muls64(&l, &h, Xj->XD(i), Xk->XD(i));
+        Xd->XD(i) = h;
+    }
+}
+
+DO_XVMUH(xvmuh_b, 8, XH, XB)
+DO_XVMUH(xvmuh_h, 16, XW, XH)
+DO_XVMUH(xvmuh_w, 32, XD, XW)
+
+void HELPER(xvmuh_du)(void *xd, void *xj, void *xk, uint32_t v)
+{
+    uint64_t l, h;
+    XReg *Xd = (XReg *)xd;
+    XReg *Xj = (XReg *)xj;
+    XReg *Xk = (XReg *)xk;
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        mulu64(&l, &h, Xj->XD(i), Xk->XD(i));
+        Xd->XD(i) = h;
+    }
+}
+
+DO_XVMUH(xvmuh_bu, 8, UXH, UXB)
+DO_XVMUH(xvmuh_hu, 16, UXW, UXH)
+DO_XVMUH(xvmuh_wu, 32, UXD, UXW)
+
+XDO_EVEN(xvmulwev_h_b, 16, XH, XB, DO_MUL)
+XDO_EVEN(xvmulwev_w_h, 32, XW, XH, DO_MUL)
+XDO_EVEN(xvmulwev_d_w, 64, XD, XW, DO_MUL)
+
+XDO_ODD(xvmulwod_h_b, 16, XH, XB, DO_MUL)
+XDO_ODD(xvmulwod_w_h, 32, XW, XH, DO_MUL)
+XDO_ODD(xvmulwod_d_w, 64, XD, XW, DO_MUL)
+
+XDO_EVEN(xvmulwev_h_bu, 16, UXH, UXB, DO_MUL)
+XDO_EVEN(xvmulwev_w_hu, 32, UXW, UXH, DO_MUL)
+XDO_EVEN(xvmulwev_d_wu, 64, UXD, UXW, DO_MUL)
+
+XDO_ODD(xvmulwod_h_bu, 16, UXH, UXB, DO_MUL)
+XDO_ODD(xvmulwod_w_hu, 32, UXW, UXH, DO_MUL)
+XDO_ODD(xvmulwod_d_wu, 64, UXD, UXW, DO_MUL)
+
+XDO_EVEN_U_S(xvmulwev_h_bu_b, 16, XH, UXH, XB, UXB, DO_MUL)
+XDO_EVEN_U_S(xvmulwev_w_hu_h, 32, XW, UXW, XH, UXH, DO_MUL)
+XDO_EVEN_U_S(xvmulwev_d_wu_w, 64, XD, UXD, XW, UXW, DO_MUL)
+
+XDO_ODD_U_S(xvmulwod_h_bu_b, 16, XH, UXH, XB, UXB, DO_MUL)
+XDO_ODD_U_S(xvmulwod_w_hu_h, 32, XW, UXW, XH, UXH, DO_MUL)
+XDO_ODD_U_S(xvmulwod_d_wu_w, 64, XD, UXD, XW, UXW, DO_MUL)

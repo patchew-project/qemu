@@ -61,4 +61,6 @@
 #define DO_MIN(a, b)    (a < b ? a : b)
 #define DO_MAX(a, b)    (a > b ? a : b)
 
+#define DO_MUL(a, b)    (a * b)
+
 #endif /* LOONGARCH_VEC_H */
