@@ -94,3 +94,217 @@ void HELPER(xvhsubw_qu_du)(CPULoongArchState *env,
     Xd->XQ(1) = int128_sub(int128_make64(Xj->UXD(3)),
                            int128_make64(Xk->UXD(2)));
 }
+
+#define XDO_EVEN(NAME, BIT, E1, E2, DO_OP)                       \
+void HELPER(NAME)(void *xd, void *xj, void *xk, uint32_t v)      \
+{                                                                \
+    int i;                                                       \
+    XReg *Xd = (XReg *)xd;                                       \
+    XReg *Xj = (XReg *)xj;                                       \
+    XReg *Xk = (XReg *)xk;                                       \
+    typedef __typeof(Xd->E1(0)) TD;                              \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                       \
+        Xd->E1(i) = DO_OP((TD)Xj->E2(2 * i), (TD)Xk->E2(2 * i)); \
+    }                                                            \
+}
+
+#define XDO_ODD(NAME, BIT, E1, E2, DO_OP)                                \
+void HELPER(NAME)(void *xd, void *xj, void *xk, uint32_t v)              \
+{                                                                        \
+    int i;                                                               \
+    XReg *Xd = (XReg *)xd;                                               \
+    XReg *Xj = (XReg *)xj;                                               \
+    XReg *Xk = (XReg *)xk;                                               \
+    typedef __typeof(Xd->E1(0)) TD;                                      \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                               \
+        Xd->E1(i) = DO_OP((TD)Xj->E2(2 * i + 1), (TD)Xk->E2(2 * i + 1)); \
+    }                                                                    \
+}
+
+void HELPER(xvaddwev_q_d)(void *xd, void *xj, void *xk, uint32_t v)
+{
+    XReg *Xd = (XReg *)xd;
+    XReg *Xj = (XReg *)xj;
+    XReg *Xk = (XReg *)xk;
+
+    Xd->XQ(0) = int128_add(int128_makes64(Xj->XD(0)),
+                           int128_makes64(Xk->XD(0)));
+    Xd->XQ(1) = int128_add(int128_makes64(Xj->XD(2)),
+                           int128_makes64(Xk->XD(2)));
+}
+
+XDO_EVEN(xvaddwev_h_b, 16, XH, XB, DO_ADD)
+XDO_EVEN(xvaddwev_w_h, 32, XW, XH, DO_ADD)
+XDO_EVEN(xvaddwev_d_w, 64, XD, XW, DO_ADD)
+
+void HELPER(xvaddwod_q_d)(void *xd, void *xj, void *xk, uint32_t v)
+{
+    XReg *Xd = (XReg *)xd;
+    XReg *Xj = (XReg *)xj;
+    XReg *Xk = (XReg *)xk;
+
+    Xd->XQ(0) = int128_add(int128_makes64(Xj->XD(1)),
+                           int128_makes64(Xk->XD(1)));
+    Xd->XQ(1) = int128_add(int128_makes64(Xj->XD(3)),
+                           int128_makes64(Xk->XD(3)));
+}
+
+XDO_ODD(xvaddwod_h_b, 16, XH, XB, DO_ADD)
+XDO_ODD(xvaddwod_w_h, 32, XW, XH, DO_ADD)
+XDO_ODD(xvaddwod_d_w, 64, XD, XW, DO_ADD)
+
+void HELPER(xvsubwev_q_d)(void *xd, void *xj, void *xk, uint32_t v)
+{
+    XReg *Xd = (XReg *)xd;
+    XReg *Xj = (XReg *)xj;
+    XReg *Xk = (XReg *)xk;
+
+    Xd->XQ(0) = int128_sub(int128_makes64(Xj->XD(0)),
+                           int128_makes64(Xk->XD(0)));
+    Xd->XQ(1) = int128_sub(int128_makes64(Xj->XD(2)),
+                           int128_makes64(Xk->XD(2)));
+}
+
+XDO_EVEN(xvsubwev_h_b, 16, XH, XB, DO_SUB)
+XDO_EVEN(xvsubwev_w_h, 32, XW, XH, DO_SUB)
+XDO_EVEN(xvsubwev_d_w, 64, XD, XW, DO_SUB)
+
+void HELPER(xvsubwod_q_d)(void *xd, void *xj, void *xk, uint32_t v)
+{
+    XReg *Xd = (XReg *)xd;
+    XReg *Xj = (XReg *)xj;
+    XReg *Xk = (XReg *)xk;
+
+    Xd->XQ(0) = int128_sub(int128_makes64(Xj->XD(1)),
+                           int128_makes64(Xk->XD(1)));
+    Xd->XQ(1) = int128_sub(int128_makes64(Xj->XD(3)),
+                           int128_makes64(Xk->XD(3)));
+}
+
+XDO_ODD(xvsubwod_h_b, 16, XH, XB, DO_SUB)
+XDO_ODD(xvsubwod_w_h, 32, XW, XH, DO_SUB)
+XDO_ODD(xvsubwod_d_w, 64, XD, XW, DO_SUB)
+
+void HELPER(xvaddwev_q_du)(void *xd, void *xj, void *xk, uint32_t v)
+{
+    XReg *Xd = (XReg *)xd;
+    XReg *Xj = (XReg *)xj;
+    XReg *Xk = (XReg *)xk;
+
+    Xd->XQ(0) = int128_add(int128_make64(Xj->UXD(0)),
+                           int128_make64(Xk->UXD(0)));
+    Xd->XQ(1) = int128_add(int128_make64(Xj->UXD(2)),
+                           int128_make64(Xk->UXD(2)));
+}
+
+XDO_EVEN(xvaddwev_h_bu, 16, UXH, UXB, DO_ADD)
+XDO_EVEN(xvaddwev_w_hu, 32, UXW, UXH, DO_ADD)
+XDO_EVEN(xvaddwev_d_wu, 64, UXD, UXW, DO_ADD)
+
+void HELPER(xvaddwod_q_du)(void *xd, void *xj, void *xk, uint32_t v)
+{
+    XReg *Xd = (XReg *)xd;
+    XReg *Xj = (XReg *)xj;
+    XReg *Xk = (XReg *)xk;
+
+    Xd->XQ(0) = int128_add(int128_make64(Xj->UXD(1)),
+                           int128_make64(Xk->UXD(1)));
+    Xd->XQ(1) = int128_add(int128_make64(Xj->UXD(3)),
+                           int128_make64(Xk->UXD(3)));
+}
+
+XDO_ODD(xvaddwod_h_bu, 16, UXH, UXB, DO_ADD)
+XDO_ODD(xvaddwod_w_hu, 32, UXW, UXH, DO_ADD)
+XDO_ODD(xvaddwod_d_wu, 64, UXD, UXW, DO_ADD)
+
+void HELPER(xvsubwev_q_du)(void *xd, void *xj, void *xk, uint32_t v)
+{
+    XReg *Xd = (XReg *)xd;
+    XReg *Xj = (XReg *)xj;
+    XReg *Xk = (XReg *)xk;
+
+    Xd->XQ(0) = int128_sub(int128_make64(Xj->UXD(0)),
+                           int128_make64(Xk->UXD(0)));
+    Xd->XQ(1) = int128_sub(int128_make64(Xj->UXD(2)),
+                           int128_make64(Xk->UXD(2)));
+}
+
+XDO_EVEN(xvsubwev_h_bu, 16, UXH, UXB, DO_SUB)
+XDO_EVEN(xvsubwev_w_hu, 32, UXW, UXH, DO_SUB)
+XDO_EVEN(xvsubwev_d_wu, 64, UXD, UXW, DO_SUB)
+
+void HELPER(xvsubwod_q_du)(void *xd, void *xj, void *xk, uint32_t v)
+{
+    XReg *Xd = (XReg *)xd;
+    XReg *Xj = (XReg *)xj;
+    XReg *Xk = (XReg *)xk;
+
+    Xd->XQ(0) = int128_sub(int128_make64(Xj->UXD(1)),
+                           int128_make64(Xk->UXD(1)));
+    Xd->XQ(1) = int128_sub(int128_make64(Xj->UXD(3)),
+                           int128_make64(Xk->UXD(3)));
+}
+
+XDO_ODD(xvsubwod_h_bu, 16, UXH, UXB, DO_SUB)
+XDO_ODD(xvsubwod_w_hu, 32, UXW, UXH, DO_SUB)
+XDO_ODD(xvsubwod_d_wu, 64, UXD, UXW, DO_SUB)
+
+#define XDO_EVEN_U_S(NAME, BIT, ES1, EU1, ES2, EU2, DO_OP)            \
+void HELPER(NAME)(void *xd, void *xj, void *xk, uint32_t v)           \
+{                                                                     \
+    int i;                                                            \
+    XReg *Xd = (XReg *)xd;                                            \
+    XReg *Xj = (XReg *)xj;                                            \
+    XReg *Xk = (XReg *)xk;                                            \
+    typedef __typeof(Xd->ES1(0)) TDS;                                 \
+    typedef __typeof(Xd->EU1(0)) TDU;                                 \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                            \
+        Xd->ES1(i) = DO_OP((TDU)Xj->EU2(2 * i), (TDS)Xk->ES2(2 * i)); \
+    }                                                                 \
+}
+
+#define XDO_ODD_U_S(NAME, BIT, ES1, EU1, ES2, EU2, DO_OP)                     \
+void HELPER(NAME)(void *xd, void *xj, void *xk, uint32_t v)                   \
+{                                                                             \
+    int i;                                                                    \
+    XReg *Xd = (XReg *)xd;                                                    \
+    XReg *Xj = (XReg *)xj;                                                    \
+    XReg *Xk = (XReg *)xk;                                                    \
+    typedef __typeof(Xd->ES1(0)) TDS;                                         \
+    typedef __typeof(Xd->EU1(0)) TDU;                                         \
+    for (i = 0; i < LSX_LEN / BIT; i++) {                                     \
+        Xd->ES1(i) = DO_OP((TDU)Xj->EU2(2 * i + 1), (TDS)Xk->ES2(2 * i + 1)); \
+    }                                                                         \
+}
+
+void HELPER(xvaddwev_q_du_d)(void *xd, void *xj, void *xk, uint32_t v)
+{
+    XReg *Xd = (XReg *)xd;
+    XReg *Xj = (XReg *)xj;
+    XReg *Xk = (XReg *)xk;
+
+    Xd->XQ(0) = int128_add(int128_make64(Xj->UXD(0)),
+                           int128_makes64(Xk->XD(0)));
+    Xd->XQ(1) = int128_add(int128_make64(Xj->UXD(2)),
+                           int128_makes64(Xk->XD(2)));
+}
+
+XDO_EVEN_U_S(xvaddwev_h_bu_b, 16, XH, UXH, XB, UXB, DO_ADD)
+XDO_EVEN_U_S(xvaddwev_w_hu_h, 32, XW, UXW, XH, UXH, DO_ADD)
+XDO_EVEN_U_S(xvaddwev_d_wu_w, 64, XD, UXD, XW, UXW, DO_ADD)
+
+void HELPER(xvaddwod_q_du_d)(void *xd, void *xj, void *xk, uint32_t v)
+{
+    XReg *Xd = (XReg *)xd;
+    XReg *Xj = (XReg *)xj;
+    XReg *Xk = (XReg *)xk;
+
+    Xd->XQ(0) = int128_add(int128_make64(Xj->UXD(1)),
+                           int128_makes64(Xk->XD(1)));
+    Xd->XQ(1) = int128_add(int128_make64(Xj->UXD(3)),
+                           int128_makes64(Xk->XD(3)));
+}
+
+XDO_ODD_U_S(xvaddwod_h_bu_b, 16, XH, UXH, XB, UXB, DO_ADD)
+XDO_ODD_U_S(xvaddwod_w_hu_h, 32, XW, UXW, XH, UXH, DO_ADD)
+XDO_ODD_U_S(xvaddwod_d_wu_w, 64, XD, UXD, XW, UXW, DO_ADD)
