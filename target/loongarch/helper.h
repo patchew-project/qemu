@@ -931,3 +931,12 @@ DEF_HELPER_3(xvmskgez_b, void, env, i32, i32)
 DEF_HELPER_3(xvmsknz_b, void, env, i32, i32)
 
 DEF_HELPER_FLAGS_4(xvnori_b, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
+
+DEF_HELPER_4(xvsllwil_h_b, void, env, i32, i32, i32)
+DEF_HELPER_4(xvsllwil_w_h, void, env, i32, i32, i32)
+DEF_HELPER_4(xvsllwil_d_w, void, env, i32, i32, i32)
+DEF_HELPER_3(xvextl_q_d, void, env, i32, i32)
+DEF_HELPER_4(xvsllwil_hu_bu, void, env, i32, i32, i32)
+DEF_HELPER_4(xvsllwil_wu_hu, void, env, i32, i32, i32)
+DEF_HELPER_4(xvsllwil_du_wu, void, env, i32, i32, i32)
+DEF_HELPER_3(xvextl_qu_du, void, env, i32, i32)

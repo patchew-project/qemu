@@ -815,3 +815,48 @@ void HELPER(xvnori_b)(void *xd, void *xj, uint64_t imm, uint32_t v)
         Xd->XB(i) = ~(Xj->XB(i) | (uint8_t)imm);
     }
 }
+
+#define XVSLLWIL(NAME, BIT, E1, E2)                                \
+void HELPER(NAME)(CPULoongArchState *env,                          \
+                  uint32_t xd, uint32_t xj, uint32_t imm)          \
+{                                                                  \
+    int i, max;                                                    \
+    XReg temp;                                                     \
+    XReg *Xd = &(env->fpr[xd].xreg);                               \
+    XReg *Xj = &(env->fpr[xj].xreg);                               \
+    typedef __typeof(temp.E1(0)) TD;                               \
+                                                                   \
+    temp.XQ(0) = int128_zero();                                    \
+    temp.XQ(1) = int128_zero();                                    \
+    max = LASX_LEN / (BIT * 2);                                    \
+    for (i = 0; i < max; i++) {                                    \
+        temp.E1(i) = (TD)Xj->E2(i) << (imm % BIT);                 \
+        temp.E1(i + max) = (TD)Xj->E2(i + max * 2) << (imm % BIT); \
+    }                                                              \
+    *Xd = temp;                                                    \
+}
+
+void HELPER(xvextl_q_d)(CPULoongArchState *env, uint32_t xd, uint32_t xj)
+{
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    Xd->XQ(0) = int128_makes64(Xj->XD(0));
+    Xd->XQ(1) = int128_makes64(Xj->XD(2));
+}
+
+void HELPER(xvextl_qu_du)(CPULoongArchState *env, uint32_t xd, uint32_t xj)
+{
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    Xd->XQ(0) = int128_make64(Xj->UXD(0));
+    Xd->XQ(1) = int128_make64(Xj->UXD(2));
+}
+
+XVSLLWIL(xvsllwil_h_b, 16, XH, XB)
+XVSLLWIL(xvsllwil_w_h, 32, XW, XH)
+XVSLLWIL(xvsllwil_d_w, 64, XD, XW)
+XVSLLWIL(xvsllwil_hu_bu, 16, UXH, UXB)
+XVSLLWIL(xvsllwil_wu_hu, 32, UXW, UXH)
+XVSLLWIL(xvsllwil_du_wu, 64, UXD, UXW)
