@@ -638,3 +638,42 @@ XVSAT_U(xvsat_bu, 8, UXB)
 XVSAT_U(xvsat_hu, 16, UXH)
 XVSAT_U(xvsat_wu, 32, UXW)
 XVSAT_U(xvsat_du, 64, UXD)
+
+#define XVEXTH(NAME, BIT, E1, E2)                                   \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t xd, uint32_t xj) \
+{                                                                   \
+    int i, max;                                                     \
+    XReg *Xd = &(env->fpr[xd].xreg);                                \
+    XReg *Xj = &(env->fpr[xj].xreg);                                \
+                                                                    \
+    max = LASX_LEN / (BIT * 2);                                     \
+    for (i = 0; i < max; i++) {                                     \
+        Xd->E1(i) = Xj->E2(i + max);                                \
+        Xd->E1(i + max) = Xj->E2(i + max * 3);                      \
+    }                                                               \
+}
+
+void HELPER(xvexth_q_d)(CPULoongArchState *env, uint32_t xd, uint32_t xj)
+{
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    Xd->XQ(0) = int128_makes64(Xj->XD(1));
+    Xd->XQ(1) = int128_makes64(Xj->XD(3));
+}
+
+void HELPER(xvexth_qu_du)(CPULoongArchState *env, uint32_t xd, uint32_t xj)
+{
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    Xd->XQ(0) = int128_make64(Xj->UXD(1));
+    Xd->XQ(1) = int128_make64(Xj->UXD(3));
+}
+
+XVEXTH(xvexth_h_b, 16, XH, XB)
+XVEXTH(xvexth_w_h, 32, XW, XH)
+XVEXTH(xvexth_d_w, 64, XD, XW)
+XVEXTH(xvexth_hu_bu, 16, UXH, UXB)
+XVEXTH(xvexth_wu_hu, 32, UXW, UXH)
+XVEXTH(xvexth_du_wu, 64, UXD, UXW)
