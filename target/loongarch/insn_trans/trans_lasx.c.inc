@@ -15,6 +15,20 @@
 #define CHECK_ASXE
 #endif
 
+static bool gen_xxxx(DisasContext *ctx, arg_xxxx *a,
+                     void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32,
+                                  TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 xd = tcg_constant_i32(a->xd);
+    TCGv_i32 xj = tcg_constant_i32(a->xj);
+    TCGv_i32 xk = tcg_constant_i32(a->xk);
+    TCGv_i32 xa = tcg_constant_i32(a->xa);
+
+    CHECK_ASXE;
+    func(cpu_env, xd, xj, xk, xa);
+    return true;
+}
+
 static bool gen_xxx(DisasContext *ctx, arg_xxx *a,
                     void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32))
 {
@@ -2408,6 +2422,47 @@ TRANS(xvfrstp_b, gen_xxx, gen_helper_xvfrstp_b)
 TRANS(xvfrstp_h, gen_xxx, gen_helper_xvfrstp_h)
 TRANS(xvfrstpi_b, gen_xx_i, gen_helper_xvfrstpi_b)
 TRANS(xvfrstpi_h, gen_xx_i, gen_helper_xvfrstpi_h)
+
+TRANS(xvfadd_s, gen_xxx, gen_helper_xvfadd_s)
+TRANS(xvfadd_d, gen_xxx, gen_helper_xvfadd_d)
+TRANS(xvfsub_s, gen_xxx, gen_helper_xvfsub_s)
+TRANS(xvfsub_d, gen_xxx, gen_helper_xvfsub_d)
+TRANS(xvfmul_s, gen_xxx, gen_helper_xvfmul_s)
+TRANS(xvfmul_d, gen_xxx, gen_helper_xvfmul_d)
+TRANS(xvfdiv_s, gen_xxx, gen_helper_xvfdiv_s)
+TRANS(xvfdiv_d, gen_xxx, gen_helper_xvfdiv_d)
+
+TRANS(xvfmadd_s, gen_xxxx, gen_helper_xvfmadd_s)
+TRANS(xvfmadd_d, gen_xxxx, gen_helper_xvfmadd_d)
+TRANS(xvfmsub_s, gen_xxxx, gen_helper_xvfmsub_s)
+TRANS(xvfmsub_d, gen_xxxx, gen_helper_xvfmsub_d)
+TRANS(xvfnmadd_s, gen_xxxx, gen_helper_xvfnmadd_s)
+TRANS(xvfnmadd_d, gen_xxxx, gen_helper_xvfnmadd_d)
+TRANS(xvfnmsub_s, gen_xxxx, gen_helper_xvfnmsub_s)
+TRANS(xvfnmsub_d, gen_xxxx, gen_helper_xvfnmsub_d)
+
+TRANS(xvfmax_s, gen_xxx, gen_helper_xvfmax_s)
+TRANS(xvfmax_d, gen_xxx, gen_helper_xvfmax_d)
+TRANS(xvfmin_s, gen_xxx, gen_helper_xvfmin_s)
+TRANS(xvfmin_d, gen_xxx, gen_helper_xvfmin_d)
+
+TRANS(xvfmaxa_s, gen_xxx, gen_helper_xvfmaxa_s)
+TRANS(xvfmaxa_d, gen_xxx, gen_helper_xvfmaxa_d)
+TRANS(xvfmina_s, gen_xxx, gen_helper_xvfmina_s)
+TRANS(xvfmina_d, gen_xxx, gen_helper_xvfmina_d)
+
+TRANS(xvflogb_s, gen_xx, gen_helper_xvflogb_s)
+TRANS(xvflogb_d, gen_xx, gen_helper_xvflogb_d)
+
+TRANS(xvfclass_s, gen_xx, gen_helper_xvfclass_s)
+TRANS(xvfclass_d, gen_xx, gen_helper_xvfclass_d)
+
+TRANS(xvfsqrt_s, gen_xx, gen_helper_xvfsqrt_s)
+TRANS(xvfsqrt_d, gen_xx, gen_helper_xvfsqrt_d)
+TRANS(xvfrecip_s, gen_xx, gen_helper_xvfrecip_s)
+TRANS(xvfrecip_d, gen_xx, gen_helper_xvfrecip_d)
+TRANS(xvfrsqrt_s, gen_xx, gen_helper_xvfrsqrt_s)
+TRANS(xvfrsqrt_d, gen_xx, gen_helper_xvfrsqrt_d)
 
 static bool gvec_dupx(DisasContext *ctx, arg_xr *a, MemOp mop)
 {

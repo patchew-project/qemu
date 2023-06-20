@@ -96,4 +96,17 @@ uint64_t do_vmskltz_w(int64_t val);
 uint64_t do_vmskltz_d(int64_t val);
 uint64_t do_vmskez_b(uint64_t val);
 
+void vec_update_fcsr0_mask(CPULoongArchState *env, uintptr_t pc, int mask);
+void vec_update_fcsr0(CPULoongArchState *env, uintptr_t pc);
+void vec_clear_cause(CPULoongArchState *env);
+
+uint32_t do_flogb_32(CPULoongArchState *env, uint32_t fj);
+uint64_t do_flogb_64(CPULoongArchState *env, uint64_t fj);
+uint32_t do_fsqrt_32(CPULoongArchState *env, uint32_t fj);
+uint64_t do_fsqrt_64(CPULoongArchState *env, uint64_t fj);
+uint32_t do_frecip_32(CPULoongArchState *env, uint32_t fj);
+uint64_t do_frecip_64(CPULoongArchState *env, uint64_t fj);
+uint32_t do_frsqrt_32(CPULoongArchState *env, uint32_t fj);
+uint64_t do_frsqrt_64(CPULoongArchState *env, uint64_t fj);
+
 #endif /* LOONGARCH_VEC_H */

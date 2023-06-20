@@ -9,6 +9,7 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
+#include "fpu/softfloat.h"
 #include "internals.h"
 #include "vec.h"
 
@@ -2226,3 +2227,101 @@ void HELPER(NAME)(CPULoongArchState *env,                 \
 
 XVFRSTPI(xvfrstpi_b, 8, XB)
 XVFRSTPI(xvfrstpi_h, 16, XH)
+
+#define XDO_3OP_F(NAME, BIT, E, FN)                         \
+void HELPER(NAME)(CPULoongArchState *env,                   \
+                  uint32_t xd, uint32_t xj, uint32_t xk)    \
+{                                                           \
+    int i;                                                  \
+    XReg *Xd = &(env->fpr[xd].xreg);                        \
+    XReg *Xj = &(env->fpr[xj].xreg);                        \
+    XReg *Xk = &(env->fpr[xk].xreg);                        \
+                                                            \
+    vec_clear_cause(env);                                   \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                  \
+        Xd->E(i) = FN(Xj->E(i), Xk->E(i), &env->fp_status); \
+        vec_update_fcsr0(env, GETPC());                     \
+    }                                                       \
+}
+
+XDO_3OP_F(xvfadd_s, 32, UXW, float32_add)
+XDO_3OP_F(xvfadd_d, 64, UXD, float64_add)
+XDO_3OP_F(xvfsub_s, 32, UXW, float32_sub)
+XDO_3OP_F(xvfsub_d, 64, UXD, float64_sub)
+XDO_3OP_F(xvfmul_s, 32, UXW, float32_mul)
+XDO_3OP_F(xvfmul_d, 64, UXD, float64_mul)
+XDO_3OP_F(xvfdiv_s, 32, UXW, float32_div)
+XDO_3OP_F(xvfdiv_d, 64, UXD, float64_div)
+XDO_3OP_F(xvfmax_s, 32, UXW, float32_maxnum)
+XDO_3OP_F(xvfmax_d, 64, UXD, float64_maxnum)
+XDO_3OP_F(xvfmin_s, 32, UXW, float32_minnum)
+XDO_3OP_F(xvfmin_d, 64, UXD, float64_minnum)
+XDO_3OP_F(xvfmaxa_s, 32, UXW, float32_maxnummag)
+XDO_3OP_F(xvfmaxa_d, 64, UXD, float64_maxnummag)
+XDO_3OP_F(xvfmina_s, 32, UXW, float32_minnummag)
+XDO_3OP_F(xvfmina_d, 64, UXD, float64_minnummag)
+
+#define XDO_4OP_F(NAME, BIT, E, FN, flags)                                   \
+void HELPER(NAME)(CPULoongArchState *env,                                    \
+                  uint32_t xd, uint32_t xj, uint32_t xk, uint32_t xa)        \
+{                                                                            \
+    int i;                                                                   \
+    XReg *Xd = &(env->fpr[xd].xreg);                                         \
+    XReg *Xj = &(env->fpr[xj].xreg);                                         \
+    XReg *Xk = &(env->fpr[xk].xreg);                                         \
+    XReg *Xa = &(env->fpr[xa].xreg);                                         \
+                                                                             \
+    vec_clear_cause(env);                                                    \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                                   \
+        Xd->E(i) = FN(Xj->E(i), Xk->E(i), Xa->E(i), flags, &env->fp_status); \
+        vec_update_fcsr0(env, GETPC());                                      \
+    }                                                                        \
+}
+
+XDO_4OP_F(xvfmadd_s, 32, UXW, float32_muladd, 0)
+XDO_4OP_F(xvfmadd_d, 64, UXD, float64_muladd, 0)
+XDO_4OP_F(xvfmsub_s, 32, UXW, float32_muladd, float_muladd_negate_c)
+XDO_4OP_F(xvfmsub_d, 64, UXD, float64_muladd, float_muladd_negate_c)
+XDO_4OP_F(xvfnmadd_s, 32, UXW, float32_muladd, float_muladd_negate_result)
+XDO_4OP_F(xvfnmadd_d, 64, UXD, float64_muladd, float_muladd_negate_result)
+XDO_4OP_F(xvfnmsub_s, 32, UXW, float32_muladd,
+         float_muladd_negate_c | float_muladd_negate_result)
+XDO_4OP_F(xvfnmsub_d, 64, UXD, float64_muladd,
+         float_muladd_negate_c | float_muladd_negate_result)
+
+#define XDO_2OP_F(NAME, BIT, E, FN)                                 \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t xd, uint32_t xj) \
+{                                                                   \
+    int i;                                                          \
+    XReg *Xd = &(env->fpr[xd].xreg);                                \
+    XReg *Xj = &(env->fpr[xj].xreg);                                \
+                                                                    \
+    vec_clear_cause(env);                                           \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                          \
+        Xd->E(i) = FN(env, Xj->E(i));                               \
+    }                                                               \
+}
+
+#define XFCLASS(NAME, BIT, E, FN)                                   \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t xd, uint32_t xj) \
+{                                                                   \
+    int i;                                                          \
+    XReg *Xd = &(env->fpr[xd].xreg);                                \
+    XReg *Xj = &(env->fpr[xj].xreg);                                \
+                                                                    \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                          \
+        Xd->E(i) = FN(env, Xj->E(i));                               \
+    }                                                               \
+}
+
+XFCLASS(xvfclass_s, 32, UXW, helper_fclass_s)
+XFCLASS(xvfclass_d, 64, UXD, helper_fclass_d)
+
+XDO_2OP_F(xvflogb_s, 32, UXW, do_flogb_32)
+XDO_2OP_F(xvflogb_d, 64, UXD, do_flogb_64)
+XDO_2OP_F(xvfsqrt_s, 32, UXW, do_fsqrt_32)
+XDO_2OP_F(xvfsqrt_d, 64, UXD, do_fsqrt_64)
+XDO_2OP_F(xvfrecip_s, 32, UXW, do_frecip_32)
+XDO_2OP_F(xvfrecip_d, 64, UXD, do_frecip_64)
+XDO_2OP_F(xvfrsqrt_s, 32, UXW, do_frsqrt_32)
+XDO_2OP_F(xvfrsqrt_d, 64, UXD, do_frsqrt_64)

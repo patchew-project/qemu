@@ -2029,8 +2029,7 @@ void HELPER(NAME)(CPULoongArchState *env,                 \
 VFRSTPI(vfrstpi_b, 8,  B)
 VFRSTPI(vfrstpi_h, 16, H)
 
-static void vec_update_fcsr0_mask(CPULoongArchState *env,
-                                  uintptr_t pc, int mask)
+void vec_update_fcsr0_mask(CPULoongArchState *env, uintptr_t pc, int mask)
 {
     int flags = get_float_exception_flags(&env->fp_status);
 
@@ -2050,12 +2049,12 @@ static void vec_update_fcsr0_mask(CPULoongArchState *env,
     }
 }
 
-static void vec_update_fcsr0(CPULoongArchState *env, uintptr_t pc)
+void vec_update_fcsr0(CPULoongArchState *env, uintptr_t pc)
 {
     vec_update_fcsr0_mask(env, pc, 0);
 }
 
-static inline void vec_clear_cause(CPULoongArchState *env)
+inline void vec_clear_cause(CPULoongArchState *env)
 {
     SET_FP_CAUSE(env->fcsr0, 0);
 }
@@ -2134,19 +2133,19 @@ void HELPER(NAME)(CPULoongArchState *env, uint32_t vd, uint32_t vj) \
     }                                                               \
 }
 
-#define FLOGB(BIT, T)                                            \
-static T do_flogb_## BIT(CPULoongArchState *env, T fj)           \
-{                                                                \
-    T fp, fd;                                                    \
-    float_status *status = &env->fp_status;                      \
-    FloatRoundMode old_mode = get_float_rounding_mode(status);   \
-                                                                 \
-    set_float_rounding_mode(float_round_down, status);           \
-    fp = float ## BIT ##_log2(fj, status);                       \
-    fd = float ## BIT ##_round_to_int(fp, status);               \
-    set_float_rounding_mode(old_mode, status);                   \
-    vec_update_fcsr0_mask(env, GETPC(), float_flag_inexact);     \
-    return fd;                                                   \
+#define FLOGB(BIT, T)                                          \
+T do_flogb_## BIT(CPULoongArchState *env, T fj)                \
+{                                                              \
+    T fp, fd;                                                  \
+    float_status *status = &env->fp_status;                    \
+    FloatRoundMode old_mode = get_float_rounding_mode(status); \
+                                                               \
+    set_float_rounding_mode(float_round_down, status);         \
+    fp = float ## BIT ##_log2(fj, status);                     \
+    fd = float ## BIT ##_round_to_int(fp, status);             \
+    set_float_rounding_mode(old_mode, status);                 \
+    vec_update_fcsr0_mask(env, GETPC(), float_flag_inexact);   \
+    return fd;                                                 \
 }
 
 FLOGB(32, uint32_t)
@@ -2167,20 +2166,20 @@ void HELPER(NAME)(CPULoongArchState *env, uint32_t vd, uint32_t vj) \
 FCLASS(vfclass_s, 32, UW, helper_fclass_s)
 FCLASS(vfclass_d, 64, UD, helper_fclass_d)
 
-#define FSQRT(BIT, T)                                  \
-static T do_fsqrt_## BIT(CPULoongArchState *env, T fj) \
-{                                                      \
-    T fd;                                              \
-    fd = float ## BIT ##_sqrt(fj, &env->fp_status);    \
-    vec_update_fcsr0(env, GETPC());                    \
-    return fd;                                         \
+#define FSQRT(BIT, T)                               \
+T do_fsqrt_## BIT(CPULoongArchState *env, T fj)     \
+{                                                   \
+    T fd;                                           \
+    fd = float ## BIT ##_sqrt(fj, &env->fp_status); \
+    vec_update_fcsr0(env, GETPC());                 \
+    return fd;                                      \
 }
 
 FSQRT(32, uint32_t)
 FSQRT(64, uint64_t)
 
 #define FRECIP(BIT, T)                                                  \
-static T do_frecip_## BIT(CPULoongArchState *env, T fj)                 \
+T do_frecip_## BIT(CPULoongArchState *env, T fj)                        \
 {                                                                       \
     T fd;                                                               \
     fd = float ## BIT ##_div(float ## BIT ##_one, fj, &env->fp_status); \
@@ -2192,7 +2191,7 @@ FRECIP(32, uint32_t)
 FRECIP(64, uint64_t)
 
 #define FRSQRT(BIT, T)                                                  \
-static T do_frsqrt_## BIT(CPULoongArchState *env, T fj)                 \
+T do_frsqrt_## BIT(CPULoongArchState *env, T fj)                        \
 {                                                                       \
     T fd, fp;                                                           \
     fp = float ## BIT ##_sqrt(fj, &env->fp_status);                     \
