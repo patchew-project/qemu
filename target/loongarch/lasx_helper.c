@@ -2325,3 +2325,401 @@ XDO_2OP_F(xvfrecip_s, 32, UXW, do_frecip_32)
 XDO_2OP_F(xvfrecip_d, 64, UXD, do_frecip_64)
 XDO_2OP_F(xvfrsqrt_s, 32, UXW, do_frsqrt_32)
 XDO_2OP_F(xvfrsqrt_d, 64, UXD, do_frsqrt_64)
+
+void HELPER(xvfcvtl_s_h)(CPULoongArchState *env, uint32_t xd, uint32_t xj)
+{
+    int i, max;
+    XReg temp;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    max = LASX_LEN / (32 * 2);
+    vec_clear_cause(env);
+    for (i = 0; i < max; i++) {
+        temp.UXW(i) = float16_to_float32(Xj->UXH(i), true,  &env->fp_status);
+        temp.UXW(i + max) = float16_to_float32(Xj->UXH(i + max * 2),
+                                               true, &env->fp_status);
+        vec_update_fcsr0(env, GETPC());
+    }
+    *Xd = temp;
+}
+
+void HELPER(xvfcvtl_d_s)(CPULoongArchState *env, uint32_t xd, uint32_t xj)
+{
+    int i, max;
+    XReg temp;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    max = LASX_LEN / (64 * 2);
+    vec_clear_cause(env);
+    for (i = 0; i < max; i++) {
+        temp.UXD(i) = float32_to_float64(Xj->UXW(i), &env->fp_status);
+        temp.UXD(i + max) = float32_to_float64(Xj->UXW(i + max * 2),
+                                               &env->fp_status);
+        vec_update_fcsr0(env, GETPC());
+    }
+    *Xd = temp;
+}
+
+void HELPER(xvfcvth_s_h)(CPULoongArchState *env, uint32_t xd, uint32_t xj)
+{
+    int i, max;
+    XReg temp;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    max = LASX_LEN / (32 * 2);
+    vec_clear_cause(env);
+    for (i = 0; i < max; i++) {
+        temp.UXW(i) = float16_to_float32(Xj->UXH(i + max),
+                                         true,  &env->fp_status);
+        temp.UXW(i + max) = float16_to_float32(Xj->UXH(i + max * 3),
+                                               true,  &env->fp_status);
+        vec_update_fcsr0(env, GETPC());
+    }
+    *Xd = temp;
+}
+
+void HELPER(xvfcvth_d_s)(CPULoongArchState *env, uint32_t xd, uint32_t xj)
+{
+    int i, max;
+    XReg temp;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    max = LASX_LEN / (64 * 2);
+    vec_clear_cause(env);
+    for (i = 0; i < max; i++) {
+        temp.UXD(i) = float32_to_float64(Xj->UXW(i + max), &env->fp_status);
+        temp.UXD(i + max) = float32_to_float64(Xj->UXW(i + max * 3),
+                                               &env->fp_status);
+        vec_update_fcsr0(env, GETPC());
+    }
+    *Xd = temp;
+}
+
+void HELPER(xvfcvt_h_s)(CPULoongArchState *env,
+                        uint32_t xd, uint32_t xj, uint32_t xk)
+{
+    int i, max;
+    XReg temp;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+    XReg *Xk = &(env->fpr[xk].xreg);
+
+    max = LASX_LEN / (32 * 2);
+    vec_clear_cause(env);
+    for (i = 0; i < max; i++) {
+        temp.UXH(i + max) = float32_to_float16(Xj->UXW(i),
+                                               true,  &env->fp_status);
+        temp.UXH(i)  = float32_to_float16(Xk->UXW(i), true,  &env->fp_status);
+        temp.UXH(i + max * 3) = float32_to_float16(Xj->UXW(i + max),
+                                                   true, &env->fp_status);
+        temp.UXH(i + max * 2) = float32_to_float16(Xk->UXW(i + max),
+                                                   true, &env->fp_status);
+        vec_update_fcsr0(env, GETPC());
+    }
+    *Xd = temp;
+}
+
+void HELPER(xvfcvt_s_d)(CPULoongArchState *env,
+                        uint32_t xd, uint32_t xj, uint32_t xk)
+{
+    int i, max;
+    XReg temp;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+    XReg *Xk = &(env->fpr[xk].xreg);
+
+    max = LASX_LEN / (64 * 2);
+    vec_clear_cause(env);
+    for (i = 0; i < max; i++) {
+        temp.UXW(i + max) = float64_to_float32(Xj->UXD(i), &env->fp_status);
+        temp.UXW(i)  = float64_to_float32(Xk->UXD(i), &env->fp_status);
+        temp.UXW(i + max * 3) = float64_to_float32(Xj->UXD(i + max),
+                                                   &env->fp_status);
+        temp.UXW(i + max * 2) = float64_to_float32(Xk->UXD(i + max),
+                                                   &env->fp_status);
+        vec_update_fcsr0(env, GETPC());
+    }
+    *Xd = temp;
+}
+
+void HELPER(xvfrint_s)(CPULoongArchState *env, uint32_t xd, uint32_t xj)
+{
+    int i;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    vec_clear_cause(env);
+    for (i = 0; i < LASX_LEN / 32; i++) {
+        Xd->XW(i) = float32_round_to_int(Xj->UXW(i), &env->fp_status);
+        vec_update_fcsr0(env, GETPC());
+    }
+}
+
+void HELPER(xvfrint_d)(CPULoongArchState *env, uint32_t xd, uint32_t xj)
+{
+    int i;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    vec_clear_cause(env);
+    for (i = 0; i < LASX_LEN / 64; i++) {
+        Xd->XD(i) = float64_round_to_int(Xj->UXD(i), &env->fp_status);
+        vec_update_fcsr0(env, GETPC());
+    }
+}
+
+#define XFCVT_2OP(NAME, BIT, E, MODE)                                       \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t xd, uint32_t xj)         \
+{                                                                           \
+    int i;                                                                  \
+    XReg *Xd = &(env->fpr[xd].xreg);                                        \
+    XReg *Xj = &(env->fpr[xj].xreg);                                        \
+                                                                            \
+    vec_clear_cause(env);                                                   \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                                  \
+        FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status); \
+        set_float_rounding_mode(MODE, &env->fp_status);                     \
+        Xd->E(i) = float## BIT ## _round_to_int(Xj->E(i), &env->fp_status); \
+        set_float_rounding_mode(old_mode, &env->fp_status);                 \
+        vec_update_fcsr0(env, GETPC());                                     \
+    }                                                                       \
+}
+
+XFCVT_2OP(xvfrintrne_s, 32, UXW, float_round_nearest_even)
+XFCVT_2OP(xvfrintrne_d, 64, UXD, float_round_nearest_even)
+XFCVT_2OP(xvfrintrz_s, 32, UXW, float_round_to_zero)
+XFCVT_2OP(xvfrintrz_d, 64, UXD, float_round_to_zero)
+XFCVT_2OP(xvfrintrp_s, 32, UXW, float_round_up)
+XFCVT_2OP(xvfrintrp_d, 64, UXD, float_round_up)
+XFCVT_2OP(xvfrintrm_s, 32, UXW, float_round_down)
+XFCVT_2OP(xvfrintrm_d, 64, UXD, float_round_down)
+
+#define XFTINT(NAME, FMT1, FMT2, T1, T2,  MODE)                         \
+static T2 do_xftint ## NAME(CPULoongArchState *env, T1 fj)              \
+{                                                                       \
+    T2 fd;                                                              \
+    FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status); \
+                                                                        \
+    set_float_rounding_mode(MODE, &env->fp_status);                     \
+    fd = do_## FMT1 ##_to_## FMT2(env, fj);                             \
+    set_float_rounding_mode(old_mode, &env->fp_status);                 \
+    return fd;                                                          \
+}
+
+#define XDO_FTINT(FMT1, FMT2, T1, T2)                                        \
+static T2 do_## FMT1 ##_to_## FMT2(CPULoongArchState *env, T1 fj)            \
+{                                                                            \
+    T2 fd;                                                                   \
+                                                                             \
+    fd = FMT1 ##_to_## FMT2(fj, &env->fp_status);                            \
+    if (get_float_exception_flags(&env->fp_status) & (float_flag_invalid)) { \
+        if (FMT1 ##_is_any_nan(fj)) {                                        \
+            fd = 0;                                                          \
+        }                                                                    \
+    }                                                                        \
+    vec_update_fcsr0(env, GETPC());                                          \
+    return fd;                                                               \
+}
+
+XDO_FTINT(float32, int32, uint32_t, uint32_t)
+XDO_FTINT(float64, int64, uint64_t, uint64_t)
+XDO_FTINT(float32, uint32, uint32_t, uint32_t)
+XDO_FTINT(float64, uint64, uint64_t, uint64_t)
+XDO_FTINT(float64, int32, uint64_t, uint32_t)
+XDO_FTINT(float32, int64, uint32_t, uint64_t)
+
+XFTINT(rne_w_s, float32, int32, uint32_t, uint32_t, float_round_nearest_even)
+XFTINT(rne_l_d, float64, int64, uint64_t, uint64_t, float_round_nearest_even)
+XFTINT(rp_w_s, float32, int32, uint32_t, uint32_t, float_round_up)
+XFTINT(rp_l_d, float64, int64, uint64_t, uint64_t, float_round_up)
+XFTINT(rz_w_s, float32, int32, uint32_t, uint32_t, float_round_to_zero)
+XFTINT(rz_l_d, float64, int64, uint64_t, uint64_t, float_round_to_zero)
+XFTINT(rm_w_s, float32, int32, uint32_t, uint32_t, float_round_down)
+XFTINT(rm_l_d, float64, int64, uint64_t, uint64_t, float_round_down)
+
+XDO_2OP_F(xvftintrne_w_s, 32, UXW, do_xftintrne_w_s)
+XDO_2OP_F(xvftintrne_l_d, 64, UXD, do_xftintrne_l_d)
+XDO_2OP_F(xvftintrp_w_s, 32, UXW, do_xftintrp_w_s)
+XDO_2OP_F(xvftintrp_l_d, 64, UXD, do_xftintrp_l_d)
+XDO_2OP_F(xvftintrz_w_s, 32, UXW, do_xftintrz_w_s)
+XDO_2OP_F(xvftintrz_l_d, 64, UXD, do_xftintrz_l_d)
+XDO_2OP_F(xvftintrm_w_s, 32, UXW, do_xftintrm_w_s)
+XDO_2OP_F(xvftintrm_l_d, 64, UXD, do_xftintrm_l_d)
+XDO_2OP_F(xvftint_w_s, 32, UXW, do_float32_to_int32)
+XDO_2OP_F(xvftint_l_d, 64, UXD, do_float64_to_int64)
+
+XFTINT(rz_wu_s, float32, uint32, uint32_t, uint32_t, float_round_to_zero)
+XFTINT(rz_lu_d, float64, uint64, uint64_t, uint64_t, float_round_to_zero)
+
+XDO_2OP_F(xvftintrz_wu_s, 32, UXW, do_xftintrz_wu_s)
+XDO_2OP_F(xvftintrz_lu_d, 64, UXD, do_xftintrz_lu_d)
+XDO_2OP_F(xvftint_wu_s, 32, UXW, do_float32_to_uint32)
+XDO_2OP_F(xvftint_lu_d, 64, UXD, do_float64_to_uint64)
+
+XFTINT(rm_w_d, float64, int32, uint64_t, uint32_t, float_round_down)
+XFTINT(rp_w_d, float64, int32, uint64_t, uint32_t, float_round_up)
+XFTINT(rz_w_d, float64, int32, uint64_t, uint32_t, float_round_to_zero)
+XFTINT(rne_w_d, float64, int32, uint64_t, uint32_t, float_round_nearest_even)
+
+#define XFTINT_W_D(NAME, FN)                              \
+void HELPER(NAME)(CPULoongArchState *env,                 \
+                  uint32_t xd, uint32_t xj, uint32_t xk)  \
+{                                                         \
+    int i, max;                                           \
+    XReg temp;                                            \
+    XReg *Xd = &(env->fpr[xd].xreg);                      \
+    XReg *Xj = &(env->fpr[xj].xreg);                      \
+    XReg *Xk = &(env->fpr[xk].xreg);                      \
+                                                          \
+    max = LASX_LEN / (64 * 2);                            \
+    vec_clear_cause(env);                                 \
+    for (i = 0; i < max; i++) {                           \
+        temp.XW(i + max) = FN(env, Xj->UXD(i));           \
+        temp.XW(i) = FN(env, Xk->UXD(i));                 \
+        temp.XW(i + max * 3) = FN(env, Xj->UXD(i + max)); \
+        temp.XW(i + max * 2) = FN(env, Xk->UXD(i + max)); \
+    }                                                     \
+    *Xd = temp;                                           \
+}
+
+XFTINT_W_D(xvftint_w_d, do_float64_to_int32)
+XFTINT_W_D(xvftintrm_w_d, do_xftintrm_w_d)
+XFTINT_W_D(xvftintrp_w_d, do_xftintrp_w_d)
+XFTINT_W_D(xvftintrz_w_d, do_xftintrz_w_d)
+XFTINT_W_D(xvftintrne_w_d, do_xftintrne_w_d)
+
+XFTINT(rml_l_s, float32, int64, uint32_t, uint64_t, float_round_down)
+XFTINT(rpl_l_s, float32, int64, uint32_t, uint64_t, float_round_up)
+XFTINT(rzl_l_s, float32, int64, uint32_t, uint64_t, float_round_to_zero)
+XFTINT(rnel_l_s, float32, int64, uint32_t, uint64_t, float_round_nearest_even)
+XFTINT(rmh_l_s, float32, int64, uint32_t, uint64_t, float_round_down)
+XFTINT(rph_l_s, float32, int64, uint32_t, uint64_t, float_round_up)
+XFTINT(rzh_l_s, float32, int64, uint32_t, uint64_t, float_round_to_zero)
+XFTINT(rneh_l_s, float32, int64, uint32_t, uint64_t, float_round_nearest_even)
+
+#define XFTINTL_L_S(NAME, FN)                                       \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t xd, uint32_t xj) \
+{                                                                   \
+    int i, max;                                                     \
+    XReg temp;                                                      \
+    XReg *Xd = &(env->fpr[xd].xreg);                                \
+    XReg *Xj = &(env->fpr[xj].xreg);                                \
+                                                                    \
+    max = LASX_LEN / (64 * 2);                                      \
+    vec_clear_cause(env);                                           \
+    for (i = 0; i < max; i++) {                                     \
+        temp.XD(i) = FN(env, Xj->UXW(i));                           \
+        temp.XD(i + max) = FN(env, Xj->UXW(i + max * 2));           \
+    }                                                               \
+    *Xd = temp;                                                     \
+}
+
+XFTINTL_L_S(xvftintl_l_s, do_float32_to_int64)
+XFTINTL_L_S(xvftintrml_l_s, do_xftintrml_l_s)
+XFTINTL_L_S(xvftintrpl_l_s, do_xftintrpl_l_s)
+XFTINTL_L_S(xvftintrzl_l_s, do_xftintrzl_l_s)
+XFTINTL_L_S(xvftintrnel_l_s, do_xftintrnel_l_s)
+
+#define XFTINTH_L_S(NAME, FN)                                       \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t xd, uint32_t xj) \
+{                                                                   \
+    int i, max;                                                     \
+    XReg temp;                                                      \
+    XReg *Xd = &(env->fpr[xd].xreg);                                \
+    XReg *Xj = &(env->fpr[xj].xreg);                                \
+                                                                    \
+    max = LASX_LEN / (64 * 2);                                      \
+    vec_clear_cause(env);                                           \
+    for (i = 0; i < max; i++) {                                     \
+        temp.XD(i) = FN(env, Xj->UXW(i + max));                     \
+        temp.XD(i + max) = FN(env, Xj->UXW(i + max * 3));           \
+    }                                                               \
+    *Xd = temp;                                                     \
+}
+
+XFTINTH_L_S(xvftinth_l_s, do_float32_to_int64)
+XFTINTH_L_S(xvftintrmh_l_s, do_xftintrmh_l_s)
+XFTINTH_L_S(xvftintrph_l_s, do_xftintrph_l_s)
+XFTINTH_L_S(xvftintrzh_l_s, do_xftintrzh_l_s)
+XFTINTH_L_S(xvftintrneh_l_s, do_xftintrneh_l_s)
+
+#define XFFINT(NAME, FMT1, FMT2, T1, T2)                    \
+static T2 do_xffint_ ## NAME(CPULoongArchState *env, T1 fj) \
+{                                                           \
+    T2 fd;                                                  \
+                                                            \
+    fd = FMT1 ##_to_## FMT2(fj, &env->fp_status);           \
+    vec_update_fcsr0(env, GETPC());                         \
+    return fd;                                              \
+}
+
+XFFINT(s_w, int32, float32, int32_t, uint32_t)
+XFFINT(d_l, int64, float64, int64_t, uint64_t)
+XFFINT(s_wu, uint32, float32, uint32_t, uint32_t)
+XFFINT(d_lu, uint64, float64, uint64_t, uint64_t)
+
+XDO_2OP_F(xvffint_s_w, 32, XW, do_xffint_s_w)
+XDO_2OP_F(xvffint_d_l, 64, XD, do_xffint_d_l)
+XDO_2OP_F(xvffint_s_wu, 32, UXW, do_xffint_s_wu)
+XDO_2OP_F(xvffint_d_lu, 64, UXD, do_xffint_d_lu)
+
+void HELPER(xvffintl_d_w)(CPULoongArchState *env, uint32_t xd, uint32_t xj)
+{
+    int i, max;
+    XReg temp;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    max = LASX_LEN / (64 * 2);
+    vec_clear_cause(env);
+    for (i = 0; i < max; i++) {
+        temp.XD(i) = int32_to_float64(Xj->XW(i), &env->fp_status);
+        temp.XD(i + max) = int32_to_float64(Xj->XW(i + max * 2),
+                                            &env->fp_status);
+        vec_update_fcsr0(env, GETPC());
+    }
+    *Xd = temp;
+}
+
+void HELPER(xvffinth_d_w)(CPULoongArchState *env, uint32_t xd, uint32_t xj)
+{
+    int i, max;
+    XReg temp;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    max = LASX_LEN / (64 * 2);
+    vec_clear_cause(env);
+    for (i = 0; i < max; i++) {
+        temp.XD(i) = int32_to_float64(Xj->XW(i + max), &env->fp_status);
+        temp.XD(i + max) = int32_to_float64(Xj->XW(i + max * 3),
+                                            &env->fp_status);
+        vec_update_fcsr0(env, GETPC());
+    }
+    *Xd = temp;
+}
+
+void HELPER(xvffint_s_l)(CPULoongArchState *env,
+                         uint32_t xd, uint32_t xj, uint32_t xk)
+{
+    int i, max;
+    XReg temp;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+    XReg *Xk = &(env->fpr[xk].xreg);
+
+    max = LASX_LEN / (64 * 2);
+    vec_clear_cause(env);
+    for (i = 0; i < max; i++) {
+        temp.XW(i + max) = int64_to_float32(Xj->XD(i), &env->fp_status);
+        temp.XW(i) = int64_to_float32(Xk->XD(i), &env->fp_status);
+        temp.XW(i + max * 3) = int64_to_float32(Xj->XD(i + max), &env->fp_status);
+        temp.XW(i + max * 2) = int64_to_float32(Xk->XD(i + max), &env->fp_status);
+        vec_update_fcsr0(env, GETPC());
+    }
+    *Xd = temp;
+}
