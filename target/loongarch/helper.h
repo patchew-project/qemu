@@ -1091,3 +1091,8 @@ DEF_HELPER_FLAGS_4(xvbitrevi_b, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
 DEF_HELPER_FLAGS_4(xvbitrevi_h, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
 DEF_HELPER_FLAGS_4(xvbitrevi_w, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
 DEF_HELPER_FLAGS_4(xvbitrevi_d, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
+
+DEF_HELPER_4(xvfrstp_b, void, env, i32, i32, i32)
+DEF_HELPER_4(xvfrstp_h, void, env, i32, i32, i32)
+DEF_HELPER_4(xvfrstpi_b, void, env, i32, i32, i32)
+DEF_HELPER_4(xvfrstpi_h, void, env, i32, i32, i32)

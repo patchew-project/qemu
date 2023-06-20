@@ -2170,3 +2170,59 @@ XDO_BITI(xvbitrevi_b, 8, UXB, DO_BITREV)
 XDO_BITI(xvbitrevi_h, 16, UXH, DO_BITREV)
 XDO_BITI(xvbitrevi_w, 32, UXW, DO_BITREV)
 XDO_BITI(xvbitrevi_d, 64, UXD, DO_BITREV)
+
+#define XVFRSTP(NAME, BIT, MASK, E)                      \
+void HELPER(NAME)(CPULoongArchState *env,                \
+                  uint32_t xd, uint32_t xj, uint32_t xk) \
+{                                                        \
+    int i, j, m1, m2, max;                               \
+    XReg *Xd = &(env->fpr[xd].xreg);                     \
+    XReg *Xj = &(env->fpr[xj].xreg);                     \
+    XReg *Xk = &(env->fpr[xk].xreg);                     \
+                                                         \
+    max = LASX_LEN / (BIT * 2);                          \
+    m1 = Xk->E(0) & MASK;                                \
+    for (i = 0; i < max; i++) {                          \
+        if (Xj->E(i) < 0) {                              \
+            break;                                       \
+        }                                                \
+    }                                                    \
+    Xd->E(m1) = i;                                       \
+    for (j = 0; j < max; j++) {                          \
+        if (Xj->E(j + max) < 0) {                        \
+            break;                                       \
+        }                                                \
+    }                                                    \
+    m2 = Xk->E(max) & MASK;                              \
+    Xd->E(m2 + max) = j;                                 \
+}
+
+XVFRSTP(xvfrstp_b, 8, 0xf, XB)
+XVFRSTP(xvfrstp_h, 16, 0x7, XH)
+
+#define XVFRSTPI(NAME, BIT, E)                            \
+void HELPER(NAME)(CPULoongArchState *env,                 \
+                  uint32_t xd, uint32_t xj, uint32_t imm) \
+{                                                         \
+    int i, j, m, max;                                     \
+    XReg *Xd = &(env->fpr[xd].xreg);                      \
+    XReg *Xj = &(env->fpr[xj].xreg);                      \
+                                                          \
+    max = LASX_LEN / (BIT * 2);                           \
+    m = imm % (max);                                      \
+    for (i = 0; i < max; i++) {                           \
+        if (Xj->E(i) < 0) {                               \
+            break;                                        \
+        }                                                 \
+    }                                                     \
+    Xd->E(m) = i;                                         \
+    for (j = 0; j < max; j++) {                           \
+        if (Xj->E(j + max) < 0) {                         \
+            break;                                        \
+        }                                                 \
+    }                                                     \
+    Xd->E(m + max) = j;                                   \
+}
+
+XVFRSTPI(xvfrstpi_b, 8, XB)
+XVFRSTPI(xvfrstpi_h, 16, XH)

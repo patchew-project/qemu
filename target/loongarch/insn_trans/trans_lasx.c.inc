@@ -2404,6 +2404,11 @@ TRANS(xvbitrevi_h, gvec_xx_i, MO_16, do_xvbitrevi)
 TRANS(xvbitrevi_w, gvec_xx_i, MO_32, do_xvbitrevi)
 TRANS(xvbitrevi_d, gvec_xx_i, MO_64, do_xvbitrevi)
 
+TRANS(xvfrstp_b, gen_xxx, gen_helper_xvfrstp_b)
+TRANS(xvfrstp_h, gen_xxx, gen_helper_xvfrstp_h)
+TRANS(xvfrstpi_b, gen_xx_i, gen_helper_xvfrstpi_b)
+TRANS(xvfrstpi_h, gen_xx_i, gen_helper_xvfrstpi_h)
+
 static bool gvec_dupx(DisasContext *ctx, arg_xr *a, MemOp mop)
 {
     TCGv src = gpr_src(ctx, a->rj, EXT_NONE);

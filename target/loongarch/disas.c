@@ -2234,6 +2234,11 @@ INSN_LASX(xvbitrevi_h,       xx_i)
 INSN_LASX(xvbitrevi_w,       xx_i)
 INSN_LASX(xvbitrevi_d,       xx_i)
 
+INSN_LASX(xvfrstp_b,         xxx)
+INSN_LASX(xvfrstp_h,         xxx)
+INSN_LASX(xvfrstpi_b,        xx_i)
+INSN_LASX(xvfrstpi_h,        xx_i)
+
 INSN_LASX(xvreplgr2vr_b,     xr)
 INSN_LASX(xvreplgr2vr_h,     xr)
 INSN_LASX(xvreplgr2vr_w,     xr)
