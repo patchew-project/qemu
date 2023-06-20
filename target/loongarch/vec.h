@@ -54,4 +54,6 @@
 #define DO_VAVG(a, b)  ((a >> 1) + (b >> 1) + (a & b & 1))
 #define DO_VAVGR(a, b) ((a >> 1) + (b >> 1) + ((a | b) & 1))
 
+#define DO_VABSD(a, b)  ((a > b) ? (a - b) : (b - a))
+
 #endif /* LOONGARCH_VEC_H */

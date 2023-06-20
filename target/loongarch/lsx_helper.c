@@ -309,8 +309,6 @@ DO_3OP(vavgr_hu, 16, UH, DO_VAVGR)
 DO_3OP(vavgr_wu, 32, UW, DO_VAVGR)
 DO_3OP(vavgr_du, 64, UD, DO_VAVGR)
 
-#define DO_VABSD(a, b)  ((a > b) ? (a -b) : (b-a))
-
 DO_3OP(vabsd_b, 8, B, DO_VABSD)
 DO_3OP(vabsd_h, 16, H, DO_VABSD)
 DO_3OP(vabsd_w, 32, W, DO_VABSD)
