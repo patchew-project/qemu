@@ -308,3 +308,32 @@ void HELPER(xvaddwod_q_du_d)(void *xd, void *xj, void *xk, uint32_t v)
 XDO_ODD_U_S(xvaddwod_h_bu_b, 16, XH, UXH, XB, UXB, DO_ADD)
 XDO_ODD_U_S(xvaddwod_w_hu_h, 32, XW, UXW, XH, UXH, DO_ADD)
 XDO_ODD_U_S(xvaddwod_d_wu_w, 64, XD, UXD, XW, UXW, DO_ADD)
+
+#define XDO_3OP(NAME, BIT, E, DO_OP)                        \
+void HELPER(NAME)(void *xd, void *xj, void *xk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    XReg *Xd = (XReg *)xd;                                  \
+    XReg *Xj = (XReg *)xj;                                  \
+    XReg *Xk = (XReg *)xk;                                  \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                  \
+        Xd->E(i) = DO_OP(Xj->E(i), Xk->E(i));               \
+    }                                                       \
+}
+
+XDO_3OP(xvavg_b, 8, XB, DO_VAVG)
+XDO_3OP(xvavg_h, 16, XH, DO_VAVG)
+XDO_3OP(xvavg_w, 32, XW, DO_VAVG)
+XDO_3OP(xvavg_d, 64, XD, DO_VAVG)
+XDO_3OP(xvavgr_b, 8, XB, DO_VAVGR)
+XDO_3OP(xvavgr_h, 16, XH, DO_VAVGR)
+XDO_3OP(xvavgr_w, 32, XW, DO_VAVGR)
+XDO_3OP(xvavgr_d, 64, XD, DO_VAVGR)
+XDO_3OP(xvavg_bu, 8, UXB, DO_VAVG)
+XDO_3OP(xvavg_hu, 16, UXH, DO_VAVG)
+XDO_3OP(xvavg_wu, 32, UXW, DO_VAVG)
+XDO_3OP(xvavg_du, 64, UXD, DO_VAVG)
+XDO_3OP(xvavgr_bu, 8, UXB, DO_VAVGR)
+XDO_3OP(xvavgr_hu, 16, UXH, DO_VAVGR)
+XDO_3OP(xvavgr_wu, 32, UXW, DO_VAVGR)
+XDO_3OP(xvavgr_du, 64, UXD, DO_VAVGR)
