@@ -8,7 +8,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "migration/cpu.h"
-#include "internals.h"
+#include "vec.h"
 
 static const VMStateDescription vmstate_fpu_reg = {
     .name = "fpu_reg",
@@ -76,6 +76,39 @@ static const VMStateDescription vmstate_lsx = {
     },
 };
 
+static const VMStateDescription vmstate_lasxh_reg = {
+    .name = "lasxh_reg",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(UXD(2), XReg),
+        VMSTATE_UINT64(UXD(3), XReg),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+#define VMSTATE_LASXH_REGS(_field, _state, _start)          \
+    VMSTATE_STRUCT_SUB_ARRAY(_field, _state, _start, 32, 0, \
+                             vmstate_lasxh_reg, fpr_t)
+
+static bool lasx_needed(void *opaque)
+{
+    LoongArchCPU *cpu = opaque;
+
+    return FIELD_EX64(cpu->env.cpucfg[2], CPUCFG2, LASX);
+}
+
+static const VMStateDescription vmstate_lasx = {
+    .name = "cpu/lasx",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = lasx_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_LASXH_REGS(env.fpr, LoongArchCPU, 0),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 /* TLB state */
 const VMStateDescription vmstate_tlb = {
     .name = "cpu/tlb",
@@ -92,8 +125,8 @@ const VMStateDescription vmstate_tlb = {
 /* LoongArch CPU state */
 const VMStateDescription vmstate_loongarch_cpu = {
     .name = "cpu",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINTTL_ARRAY(env.gpr, LoongArchCPU, 32),
         VMSTATE_UINTTL(env.pc, LoongArchCPU),
@@ -163,6 +196,7 @@ const VMStateDescription vmstate_loongarch_cpu = {
     .subsections = (const VMStateDescription*[]) {
         &vmstate_fpu,
         &vmstate_lsx,
+        &vmstate_lasx,
         NULL
     }
 };

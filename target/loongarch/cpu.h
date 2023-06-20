@@ -259,9 +259,23 @@ typedef union VReg {
     Int128   Q[LSX_LEN / 128];
 }VReg;
 
+#define LASX_LEN   (256)
+typedef union XReg {
+    int8_t   XB[LASX_LEN / 8];
+    int16_t  XH[LASX_LEN / 16];
+    int32_t  XW[LASX_LEN / 32];
+    int64_t  XD[LASX_LEN / 64];
+    uint8_t  UXB[LASX_LEN / 8];
+    uint16_t UXH[LASX_LEN / 16];
+    uint32_t UXW[LASX_LEN / 32];
+    uint64_t UXD[LASX_LEN / 64];
+    Int128   XQ[LASX_LEN / 128];
+} XReg;
+
 typedef union fpr_t fpr_t;
 union fpr_t {
     VReg  vreg;
+    XReg  xreg;
 };
 
 struct LoongArchTLB {
