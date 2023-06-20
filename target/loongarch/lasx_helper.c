@@ -860,3 +860,107 @@ XVSLLWIL(xvsllwil_d_w, 64, XD, XW)
 XVSLLWIL(xvsllwil_hu_bu, 16, UXH, UXB)
 XVSLLWIL(xvsllwil_wu_hu, 32, UXW, UXH)
 XVSLLWIL(xvsllwil_du_wu, 64, UXD, UXW)
+
+#define do_xvsrlr(E, T)                                 \
+static T do_xvsrlr_ ##E(T s1, int sh)                   \
+{                                                       \
+    if (sh == 0) {                                      \
+        return s1;                                      \
+    } else {                                            \
+        return  (s1 >> sh)  + ((s1 >> (sh - 1)) & 0x1); \
+    }                                                   \
+}
+
+do_xvsrlr(XB, uint8_t)
+do_xvsrlr(XH, uint16_t)
+do_xvsrlr(XW, uint32_t)
+do_xvsrlr(XD, uint64_t)
+
+#define XVSRLR(NAME, BIT, E1, E2)                                   \
+void HELPER(NAME)(CPULoongArchState *env,                           \
+                  uint32_t xd, uint32_t xj, uint32_t xk)            \
+{                                                                   \
+    int i;                                                          \
+    XReg *Xd = &(env->fpr[xd].xreg);                                \
+    XReg *Xj = &(env->fpr[xj].xreg);                                \
+    XReg *Xk = &(env->fpr[xk].xreg);                                \
+                                                                    \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                          \
+        Xd->E1(i) = do_xvsrlr_ ## E1(Xj->E1(i), (Xk->E2(i)) % BIT); \
+    }                                                               \
+}
+
+XVSRLR(xvsrlr_b, 8, XB, UXB)
+XVSRLR(xvsrlr_h, 16, XH, UXH)
+XVSRLR(xvsrlr_w, 32, XW, UXW)
+XVSRLR(xvsrlr_d, 64, XD, UXD)
+
+#define XVSRLRI(NAME, BIT, E)                             \
+void HELPER(NAME)(CPULoongArchState *env,                 \
+                  uint32_t xd, uint32_t xj, uint32_t imm) \
+{                                                         \
+    int i;                                                \
+    XReg *Xd = &(env->fpr[xd].xreg);                      \
+    XReg *Xj = &(env->fpr[xj].xreg);                      \
+                                                          \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                \
+        Xd->E(i) = do_xvsrlr_ ## E(Xj->E(i), imm);        \
+    }                                                     \
+}
+
+XVSRLRI(xvsrlri_b, 8, XB)
+XVSRLRI(xvsrlri_h, 16, XH)
+XVSRLRI(xvsrlri_w, 32, XW)
+XVSRLRI(xvsrlri_d, 64, XD)
+
+#define do_xvsrar(E, T)                                 \
+static T do_xvsrar_ ##E(T s1, int sh)                   \
+{                                                       \
+    if (sh == 0) {                                      \
+        return s1;                                      \
+    } else {                                            \
+        return  (s1 >> sh)  + ((s1 >> (sh - 1)) & 0x1); \
+    }                                                   \
+}
+
+do_xvsrar(XB, int8_t)
+do_xvsrar(XH, int16_t)
+do_xvsrar(XW, int32_t)
+do_xvsrar(XD, int64_t)
+
+#define XVSRAR(NAME, BIT, E1, E2)                                   \
+void HELPER(NAME)(CPULoongArchState *env,                           \
+                  uint32_t xd, uint32_t xj, uint32_t xk)            \
+{                                                                   \
+    int i;                                                          \
+    XReg *Xd = &(env->fpr[xd].xreg);                                \
+    XReg *Xj = &(env->fpr[xj].xreg);                                \
+    XReg *Xk = &(env->fpr[xk].xreg);                                \
+                                                                    \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                          \
+        Xd->E1(i) = do_xvsrar_ ## E1(Xj->E1(i), (Xk->E2(i)) % BIT); \
+    }                                                               \
+}
+
+XVSRAR(xvsrar_b, 8, XB, UXB)
+XVSRAR(xvsrar_h, 16, XH, UXH)
+XVSRAR(xvsrar_w, 32, XW, UXW)
+XVSRAR(xvsrar_d, 64, XD, UXD)
+
+#define XVSRARI(NAME, BIT, E)                             \
+void HELPER(NAME)(CPULoongArchState *env,                 \
+                  uint32_t xd, uint32_t xj, uint32_t imm) \
+{                                                         \
+    int i;                                                \
+    XReg *Xd = &(env->fpr[xd].xreg);                      \
+    XReg *Xj = &(env->fpr[xj].xreg);                      \
+                                                          \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                \
+        Xd->E(i) = do_xvsrar_ ## E(Xj->E(i), imm);        \
+    }                                                     \
+}
+
+XVSRARI(xvsrari_b, 8, XB)
+XVSRARI(xvsrari_h, 16, XH)
+XVSRARI(xvsrari_w, 32, XW)
+XVSRARI(xvsrari_d, 64, XD)
