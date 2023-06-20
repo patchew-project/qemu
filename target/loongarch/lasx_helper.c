@@ -677,3 +677,30 @@ XVEXTH(xvexth_d_w, 64, XD, XW)
 XVEXTH(xvexth_hu_bu, 16, UXH, UXB)
 XVEXTH(xvexth_wu_hu, 32, UXW, UXH)
 XVEXTH(xvexth_du_wu, 64, UXD, UXW)
+
+#define VEXT2XV(NAME, BIT, E1, E2)                                  \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t xd, uint32_t xj) \
+{                                                                   \
+    int i;                                                          \
+    XReg *Xd = &(env->fpr[xd].xreg);                                \
+    XReg *Xj = &(env->fpr[xj].xreg);                                \
+    XReg temp;                                                      \
+                                                                    \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                          \
+        temp.E1(i) = Xj->E2(i);                                     \
+    }                                                               \
+    *Xd = temp;                                                     \
+}
+
+VEXT2XV(vext2xv_h_b, 16, XH, XB)
+VEXT2XV(vext2xv_w_b, 32, XW, XB)
+VEXT2XV(vext2xv_d_b, 64, XD, XB)
+VEXT2XV(vext2xv_w_h, 32, XW, XH)
+VEXT2XV(vext2xv_d_h, 64, XD, XH)
+VEXT2XV(vext2xv_d_w, 64, XD, XW)
+VEXT2XV(vext2xv_hu_bu, 16, UXH, UXB)
+VEXT2XV(vext2xv_wu_bu, 32, UXW, UXB)
+VEXT2XV(vext2xv_du_bu, 64, UXD, UXB)
+VEXT2XV(vext2xv_wu_hu, 32, UXW, UXH)
+VEXT2XV(vext2xv_du_hu, 64, UXD, UXH)
+VEXT2XV(vext2xv_du_wu, 64, UXD, UXW)

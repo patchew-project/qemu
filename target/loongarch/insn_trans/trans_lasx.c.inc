@@ -1853,6 +1853,19 @@ TRANS(xvexth_wu_hu, gen_xx, gen_helper_xvexth_wu_hu)
 TRANS(xvexth_du_wu, gen_xx, gen_helper_xvexth_du_wu)
 TRANS(xvexth_qu_du, gen_xx, gen_helper_xvexth_qu_du)
 
+TRANS(vext2xv_h_b, gen_xx, gen_helper_vext2xv_h_b)
+TRANS(vext2xv_w_b, gen_xx, gen_helper_vext2xv_w_b)
+TRANS(vext2xv_d_b, gen_xx, gen_helper_vext2xv_d_b)
+TRANS(vext2xv_w_h, gen_xx, gen_helper_vext2xv_w_h)
+TRANS(vext2xv_d_h, gen_xx, gen_helper_vext2xv_d_h)
+TRANS(vext2xv_d_w, gen_xx, gen_helper_vext2xv_d_w)
+TRANS(vext2xv_hu_bu, gen_xx, gen_helper_vext2xv_hu_bu)
+TRANS(vext2xv_wu_bu, gen_xx, gen_helper_vext2xv_wu_bu)
+TRANS(vext2xv_du_bu, gen_xx, gen_helper_vext2xv_du_bu)
+TRANS(vext2xv_wu_hu, gen_xx, gen_helper_vext2xv_wu_hu)
+TRANS(vext2xv_du_hu, gen_xx, gen_helper_vext2xv_du_hu)
+TRANS(vext2xv_du_wu, gen_xx, gen_helper_vext2xv_du_wu)
+
 static bool gvec_dupx(DisasContext *ctx, arg_xr *a, MemOp mop)
 {
     TCGv src = gpr_src(ctx, a->rj, EXT_NONE);
