@@ -1914,6 +1914,27 @@ TRANS(xvmskltz_d, gen_xx, gen_helper_xvmskltz_d)
 TRANS(xvmskgez_b, gen_xx, gen_helper_xvmskgez_b)
 TRANS(xvmsknz_b, gen_xx, gen_helper_xvmsknz_b)
 
+static bool trans_xvldi(DisasContext *ctx, arg_xvldi * a)
+{
+    int sel, vece;
+    uint64_t value;
+    CHECK_ASXE;
+
+    sel = (a->imm >> 12) & 0x1;
+
+    if (sel) {
+        value = vldi_get_value(ctx, a->imm);
+        vece = MO_64;
+    } else {
+        value = ((int32_t)(a->imm << 22)) >> 22;
+        vece = (a->imm >> 10) & 0x3;
+    }
+
+    tcg_gen_gvec_dup_i64(vece, vec_full_offset(a->xd), 32, ctx->vl / 8,
+                         tcg_constant_i64(value));
+    return true;
+}
+
 static bool gvec_dupx(DisasContext *ctx, arg_xr *a, MemOp mop)
 {
     TCGv src = gpr_src(ctx, a->rj, EXT_NONE);

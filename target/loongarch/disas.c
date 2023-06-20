@@ -1703,6 +1703,11 @@ static bool trans_##insn(DisasContext *ctx, arg_##type * a) \
     return true;                                            \
 }
 
+static void output_x_i(DisasContext *ctx, arg_x_i *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "x%d, 0x%x", a->xd, a->imm);
+}
+
 static void output_xxx(DisasContext *ctx, arg_xxx * a, const char *mnemonic)
 {
     output(ctx, mnemonic, "x%d, x%d, x%d", a->xd, a->xj, a->xk);
@@ -2020,6 +2025,8 @@ INSN_LASX(xvmskltz_w,        xx)
 INSN_LASX(xvmskltz_d,        xx)
 INSN_LASX(xvmskgez_b,        xx)
 INSN_LASX(xvmsknz_b,         xx)
+
+INSN_LASX(xvldi,             x_i)
 
 INSN_LASX(xvreplgr2vr_b,     xr)
 INSN_LASX(xvreplgr2vr_h,     xr)
