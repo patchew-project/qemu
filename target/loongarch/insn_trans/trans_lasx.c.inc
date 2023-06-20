@@ -1730,6 +1730,23 @@ TRANS(xvmaddwod_h_bu_b, gvec_xxx, MO_8, do_xvmaddwod_u_s)
 TRANS(xvmaddwod_w_hu_h, gvec_xxx, MO_16, do_xvmaddwod_u_s)
 TRANS(xvmaddwod_d_wu_w, gvec_xxx, MO_32, do_xvmaddwod_u_s)
 
+TRANS(xvdiv_b, gen_xxx, gen_helper_xvdiv_b)
+TRANS(xvdiv_h, gen_xxx, gen_helper_xvdiv_h)
+TRANS(xvdiv_w, gen_xxx, gen_helper_xvdiv_w)
+TRANS(xvdiv_d, gen_xxx, gen_helper_xvdiv_d)
+TRANS(xvdiv_bu, gen_xxx, gen_helper_xvdiv_bu)
+TRANS(xvdiv_hu, gen_xxx, gen_helper_xvdiv_hu)
+TRANS(xvdiv_wu, gen_xxx, gen_helper_xvdiv_wu)
+TRANS(xvdiv_du, gen_xxx, gen_helper_xvdiv_du)
+TRANS(xvmod_b, gen_xxx, gen_helper_xvmod_b)
+TRANS(xvmod_h, gen_xxx, gen_helper_xvmod_h)
+TRANS(xvmod_w, gen_xxx, gen_helper_xvmod_w)
+TRANS(xvmod_d, gen_xxx, gen_helper_xvmod_d)
+TRANS(xvmod_bu, gen_xxx, gen_helper_xvmod_bu)
+TRANS(xvmod_hu, gen_xxx, gen_helper_xvmod_hu)
+TRANS(xvmod_wu, gen_xxx, gen_helper_xvmod_wu)
+TRANS(xvmod_du, gen_xxx, gen_helper_xvmod_du)
+
 static bool gvec_dupx(DisasContext *ctx, arg_xr *a, MemOp mop)
 {
     TCGv src = gpr_src(ctx, a->rj, EXT_NONE);

@@ -571,3 +571,33 @@ void HELPER(NAME)(void *xd, void *xj, void *xk, uint32_t v) \
 XVMADDWOD_U_S(xvmaddwod_h_bu_b, 16, XH, UXH, XB, UXB, DO_MUL)
 XVMADDWOD_U_S(xvmaddwod_w_hu_h, 32, XW, UXW, XH, UXH, DO_MUL)
 XVMADDWOD_U_S(xvmaddwod_d_wu_w, 64, XD, UXD, XW, UXW, DO_MUL)
+
+#define XVDIV(NAME, BIT, E, DO_OP)                          \
+void HELPER(NAME)(CPULoongArchState *env,                   \
+                  uint32_t xd, uint32_t xj, uint32_t xk)    \
+{                                                           \
+    int i;                                                  \
+    XReg *Xd = &(env->fpr[xd].xreg);                        \
+    XReg *Xj = &(env->fpr[xj].xreg);                        \
+    XReg *Xk = &(env->fpr[xk].xreg);                        \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                  \
+        Xd->E(i) = DO_OP(Xj->E(i), Xk->E(i));               \
+    }                                                       \
+}
+
+XVDIV(xvdiv_b, 8, XB, DO_DIV)
+XVDIV(xvdiv_h, 16, XH, DO_DIV)
+XVDIV(xvdiv_w, 32, XW, DO_DIV)
+XVDIV(xvdiv_d, 64, XD, DO_DIV)
+XVDIV(xvdiv_bu, 8, UXB, DO_DIVU)
+XVDIV(xvdiv_hu, 16, UXH, DO_DIVU)
+XVDIV(xvdiv_wu, 32, UXW, DO_DIVU)
+XVDIV(xvdiv_du, 64, UXD, DO_DIVU)
+XVDIV(xvmod_b, 8, XB, DO_REM)
+XVDIV(xvmod_h, 16, XH, DO_REM)
+XVDIV(xvmod_w, 32, XW, DO_REM)
+XVDIV(xvmod_d, 64, XD, DO_REM)
+XVDIV(xvmod_bu, 8, UXB, DO_REMU)
+XVDIV(xvmod_hu, 16, UXH, DO_REMU)
+XVDIV(xvmod_wu, 32, UXW, DO_REMU)
+XVDIV(xvmod_du, 64, UXD, DO_REMU)
