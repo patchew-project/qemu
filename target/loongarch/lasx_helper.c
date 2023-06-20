@@ -1242,3 +1242,431 @@ void HELPER(xvsrarni_d_q)(CPULoongArchState *env,
 XVSRARNI(xvsrarni_b_h, 16, XB, XH)
 XVSRARNI(xvsrarni_h_w, 32, XH, XW)
 XVSRARNI(xvsrarni_w_d, 64, XW, XD)
+
+#define XSSRLNS(NAME, T1, T2, T3)                    \
+static T1 do_xssrlns_ ## NAME(T2 e2, int sa, int sh) \
+{                                                    \
+        T1 shft_res;                                 \
+        if (sa == 0) {                               \
+            shft_res = e2;                           \
+        } else {                                     \
+            shft_res = (((T1)e2) >> sa);             \
+        }                                            \
+        T3 mask;                                     \
+        mask = (1ull << sh) - 1;                     \
+        if (shft_res > mask) {                       \
+            return mask;                             \
+        } else {                                     \
+            return  shft_res;                        \
+        }                                            \
+}
+
+XSSRLNS(XB, uint16_t, int16_t, uint8_t)
+XSSRLNS(XH, uint32_t, int32_t, uint16_t)
+XSSRLNS(XW, uint64_t, int64_t, uint32_t)
+
+#define XVSSRLN(NAME, BIT, E1, E2, E3)                                 \
+void HELPER(NAME)(CPULoongArchState *env,                              \
+                  uint32_t xd, uint32_t xj, uint32_t xk)               \
+{                                                                      \
+    int i, max;                                                        \
+    XReg *Xd = &(env->fpr[xd].xreg);                                   \
+    XReg *Xj = &(env->fpr[xj].xreg);                                   \
+    XReg *Xk = &(env->fpr[xk].xreg);                                   \
+                                                                       \
+    max = LASX_LEN / (BIT * 2);                                        \
+    for (i = 0; i < max; i++) {                                        \
+        Xd->E1(i) = do_xssrlns_ ## E1(Xj->E2(i),                       \
+                                      Xk->E3(i) % BIT, (BIT / 2) - 1); \
+        Xd->E1(i + max * 2) = do_xssrlns_## E1(Xj->E2(i + max),        \
+                                               Xk->E3(i + max) % BIT,  \
+                                               (BIT / 2) - 1);         \
+    }                                                                  \
+    Xd->XD(1) = 0;                                                     \
+    Xd->XD(3) = 0;                                                     \
+}
+
+XVSSRLN(xvssrln_b_h, 16, XB, XH, UXH)
+XVSSRLN(xvssrln_h_w, 32, XH, XW, UXW)
+XVSSRLN(xvssrln_w_d, 64, XW, XD, UXD)
+
+#define XSSRANS(E, T1, T2)                        \
+static T1 do_xssrans_ ## E(T1 e2, int sa, int sh) \
+{                                                 \
+        T1 shft_res;                              \
+        if (sa == 0) {                            \
+            shft_res = e2;                        \
+        } else {                                  \
+            shft_res = e2 >> sa;                  \
+        }                                         \
+        T2 mask;                                  \
+        mask = (1ll << sh) - 1;                   \
+        if (shft_res > mask) {                    \
+            return  mask;                         \
+        } else if (shft_res < -(mask + 1)) {      \
+            return  ~mask;                        \
+        } else {                                  \
+            return shft_res;                      \
+        }                                         \
+}
+
+XSSRANS(XB, int16_t, int8_t)
+XSSRANS(XH, int32_t, int16_t)
+XSSRANS(XW, int64_t, int32_t)
+
+#define XVSSRAN(NAME, BIT, E1, E2, E3)                                 \
+void HELPER(NAME)(CPULoongArchState *env,                              \
+                  uint32_t xd, uint32_t xj, uint32_t xk)               \
+{                                                                      \
+    int i, max;                                                        \
+    XReg *Xd = &(env->fpr[xd].xreg);                                   \
+    XReg *Xj = &(env->fpr[xj].xreg);                                   \
+    XReg *Xk = &(env->fpr[xk].xreg);                                   \
+                                                                       \
+    max = LASX_LEN / (BIT * 2);                                        \
+    for (i = 0; i < max; i++) {                                        \
+        Xd->E1(i) = do_xssrans_ ## E1(Xj->E2(i),                       \
+                                      Xk->E3(i) % BIT, (BIT / 2) - 1); \
+        Xd->E1(i + max * 2) = do_xssrans_## E1(Xj->E2(i + max),        \
+                                               Xk->E3(i + max) % BIT,  \
+                                               (BIT / 2) - 1);         \
+    }                                                                  \
+    Xd->XD(1) = 0;                                                     \
+    Xd->XD(3) = 0;                                                     \
+}
+
+XVSSRAN(xvssran_b_h, 16, XB, XH, UXH)
+XVSSRAN(xvssran_h_w, 32, XH, XW, UXW)
+XVSSRAN(xvssran_w_d, 64, XW, XD, UXD)
+
+#define XSSRLNU(E, T1, T2, T3)                    \
+static T1 do_xssrlnu_ ## E(T3 e2, int sa, int sh) \
+{                                                 \
+        T1 shft_res;                              \
+        if (sa == 0) {                            \
+            shft_res = e2;                        \
+        } else {                                  \
+            shft_res = (((T1)e2) >> sa);          \
+        }                                         \
+        T2 mask;                                  \
+        mask = (1ull << sh) - 1;                  \
+        if (shft_res > mask) {                    \
+            return mask;                          \
+        } else {                                  \
+            return shft_res;                      \
+        }                                         \
+}
+
+XSSRLNU(XB, uint16_t, uint8_t,  int16_t)
+XSSRLNU(XH, uint32_t, uint16_t, int32_t)
+XSSRLNU(XW, uint64_t, uint32_t, int64_t)
+
+#define XVSSRLNU(NAME, BIT, E1, E2, E3)                                     \
+void HELPER(NAME)(CPULoongArchState *env,                                   \
+                  uint32_t xd, uint32_t xj, uint32_t xk)                    \
+{                                                                           \
+    int i, max;                                                             \
+    XReg *Xd = &(env->fpr[xd].xreg);                                        \
+    XReg *Xj = &(env->fpr[xj].xreg);                                        \
+    XReg *Xk = &(env->fpr[xk].xreg);                                        \
+                                                                            \
+    max = LASX_LEN / (BIT * 2);                                             \
+    for (i = 0; i < max; i++) {                                             \
+        Xd->E1(i) = do_xssrlnu_ ## E1(Xj->E2(i), Xk->E3(i) % BIT, BIT / 2); \
+        Xd->E1(i + max * 2) = do_xssrlnu_## E1(Xj->E2(i + max),             \
+                                               Xk->E3(i + max) % BIT,       \
+                                               BIT / 2);                    \
+    }                                                                       \
+    Xd->XD(1) = 0;                                                          \
+    Xd->XD(3) = 0;                                                          \
+}
+
+XVSSRLNU(xvssrln_bu_h, 16, XB, XH, UXH)
+XVSSRLNU(xvssrln_hu_w, 32, XH, XW, UXW)
+XVSSRLNU(xvssrln_wu_d, 64, XW, XD, UXD)
+
+#define XSSRANU(E, T1, T2, T3)                    \
+static T1 do_xssranu_ ## E(T3 e2, int sa, int sh) \
+{                                                 \
+        T1 shft_res;                              \
+        if (sa == 0) {                            \
+            shft_res = e2;                        \
+        } else {                                  \
+            shft_res = e2 >> sa;                  \
+        }                                         \
+        if (e2 < 0) {                             \
+            shft_res = 0;                         \
+        }                                         \
+        T2 mask;                                  \
+        mask = (1ull << sh) - 1;                  \
+        if (shft_res > mask) {                    \
+            return mask;                          \
+        } else {                                  \
+            return shft_res;                      \
+        }                                         \
+}
+
+XSSRANU(XB, uint16_t, uint8_t,  int16_t)
+XSSRANU(XH, uint32_t, uint16_t, int32_t)
+XSSRANU(XW, uint64_t, uint32_t, int64_t)
+
+#define XVSSRANU(NAME, BIT, E1, E2, E3)                                     \
+void HELPER(NAME)(CPULoongArchState *env,                                   \
+                  uint32_t xd, uint32_t xj, uint32_t xk)                    \
+{                                                                           \
+    int i, max;                                                             \
+    XReg *Xd = &(env->fpr[xd].xreg);                                        \
+    XReg *Xj = &(env->fpr[xj].xreg);                                        \
+    XReg *Xk = &(env->fpr[xk].xreg);                                        \
+                                                                            \
+    max = LASX_LEN / (BIT * 2);                                             \
+    for (i = 0; i < max; i++) {                                             \
+        Xd->E1(i) = do_xssranu_ ## E1(Xj->E2(i), Xk->E3(i) % BIT, BIT / 2); \
+        Xd->E1(i + max * 2) = do_xssranu_## E1(Xj->E2(i + max),             \
+                                               Xk->E3(i + max) % BIT,       \
+                                               BIT / 2);                    \
+    }                                                                       \
+    Xd->XD(1) = 0;                                                          \
+    Xd->XD(3) = 0;                                                          \
+}
+
+XVSSRANU(xvssran_bu_h, 16, XB, XH, UXH)
+XVSSRANU(xvssran_hu_w, 32, XH, XW, UXW)
+XVSSRANU(xvssran_wu_d, 64, XW, XD, UXD)
+
+#define XVSSRLNI(NAME, BIT, E1, E2)                                          \
+void HELPER(NAME)(CPULoongArchState *env,                                    \
+                  uint32_t xd, uint32_t xj, uint32_t imm)                    \
+{                                                                            \
+    int i, max;                                                              \
+    XReg temp;                                                               \
+    XReg *Xd = &(env->fpr[xd].xreg);                                         \
+    XReg *Xj = &(env->fpr[xj].xreg);                                         \
+                                                                             \
+    max = LASX_LEN / (BIT * 2);                                              \
+    for (i = 0; i < max; i++) {                                              \
+        temp.E1(i) = do_xssrlns_ ## E1(Xj->E2(i), imm, (BIT / 2) - 1);       \
+        temp.E1(i + max) = do_xssrlns_ ## E1(Xd->E2(i), imm, (BIT / 2) - 1); \
+        temp.E1(i + max * 2) = do_xssrlns_## E1(Xj->E2(i + max),             \
+                                                imm, (BIT / 2) - 1);         \
+        temp.E1(i + max * 3) = do_xssrlns_## E1(Xd->E2(i + max),             \
+                                                imm, (BIT / 2) - 1);         \
+    }                                                                        \
+    *Xd = temp;                                                              \
+}
+
+void HELPER(xvssrlni_d_q)(CPULoongArchState *env,
+                          uint32_t xd, uint32_t xj, uint32_t imm)
+{
+    int i;
+    Int128 shft_res[4], mask;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    if (imm == 0) {
+        shft_res[0] = Xj->XQ(0);
+        shft_res[1] = Xd->XQ(0);
+        shft_res[2] = Xj->XQ(1);
+        shft_res[3] = Xd->XQ(1);
+    } else {
+        shft_res[0] = int128_urshift(Xj->XQ(0), imm);
+        shft_res[1] = int128_urshift(Xd->XQ(0), imm);
+        shft_res[2] = int128_urshift(Xj->XQ(1), imm);
+        shft_res[3] = int128_urshift(Xd->XQ(1), imm);
+    }
+    mask = int128_sub(int128_lshift(int128_one(), 63), int128_one());
+
+    for (i = 0; i < 4; i++) {
+        if (int128_ult(mask, shft_res[i])) {
+            Xd->XD(i) = int128_getlo(mask);
+        } else {
+            Xd->XD(i) = int128_getlo(shft_res[i]);
+        }
+    }
+}
+
+XVSSRLNI(xvssrlni_b_h, 16, XB, XH)
+XVSSRLNI(xvssrlni_h_w, 32, XH, XW)
+XVSSRLNI(xvssrlni_w_d, 64, XW, XD)
+
+#define XVSSRANI(NAME, BIT, E1, E2)                                          \
+void HELPER(NAME)(CPULoongArchState *env,                                    \
+                  uint32_t xd, uint32_t xj, uint32_t imm)                    \
+{                                                                            \
+    int i, max;                                                              \
+    XReg temp;                                                               \
+    XReg *Xd = &(env->fpr[xd].xreg);                                         \
+    XReg *Xj = &(env->fpr[xj].xreg);                                         \
+                                                                             \
+    max = LASX_LEN / (BIT * 2);                                              \
+    for (i = 0; i < max; i++) {                                              \
+        temp.E1(i) = do_xssrans_ ## E1(Xj->E2(i), imm, (BIT / 2) - 1);       \
+        temp.E1(i + max) = do_xssrans_ ## E1(Xd->E2(i), imm, (BIT / 2) - 1); \
+        temp.E1(i + max * 2) = do_xssrans_## E1(Xj->E2(i + max),             \
+                                                imm, (BIT / 2) - 1);         \
+        temp.E1(i + max * 3) = do_xssrans_## E1(Xd->E2(i + max),             \
+                                                imm, (BIT / 2) - 1);         \
+    }                                                                        \
+    *Xd = temp;                                                              \
+}
+
+void HELPER(xvssrani_d_q)(CPULoongArchState *env,
+                          uint32_t xd, uint32_t xj, uint32_t imm)
+{
+    int i;
+    Int128 shft_res[4], mask, min;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    if (imm == 0) {
+        shft_res[0] = Xj->XQ(0);
+        shft_res[1] = Xd->XQ(0);
+        shft_res[2] = Xj->XQ(1);
+        shft_res[3] = Xd->XQ(1);
+    } else {
+        shft_res[0] = int128_rshift(Xj->XQ(0), imm);
+        shft_res[1] = int128_rshift(Xd->XQ(0), imm);
+        shft_res[2] = int128_rshift(Xj->XQ(1), imm);
+        shft_res[3] = int128_rshift(Xd->XQ(1), imm);
+    }
+    mask = int128_sub(int128_lshift(int128_one(), 63), int128_one());
+    min  = int128_lshift(int128_one(), 63);
+
+    for (i = 0; i < 4; i++) {
+        if (int128_gt(shft_res[i],  mask)) {
+            Xd->XD(i) = int128_getlo(mask);
+        } else if (int128_lt(shft_res[i], int128_neg(min))) {
+            Xd->XD(i) = int128_getlo(min);
+        } else {
+            Xd->XD(i) = int128_getlo(shft_res[i]);
+        }
+    }
+}
+
+XVSSRANI(xvssrani_b_h, 16, XB, XH)
+XVSSRANI(xvssrani_h_w, 32, XH, XW)
+XVSSRANI(xvssrani_w_d, 64, XW, XD)
+
+#define XVSSRLNUI(NAME, BIT, E1, E2)                                   \
+void HELPER(NAME)(CPULoongArchState *env,                              \
+                  uint32_t xd, uint32_t xj, uint32_t imm)              \
+{                                                                      \
+    int i, max;                                                        \
+    XReg temp;                                                         \
+    XReg *Xd = &(env->fpr[xd].xreg);                                   \
+    XReg *Xj = &(env->fpr[xj].xreg);                                   \
+                                                                       \
+    max = LASX_LEN / (BIT * 2);                                        \
+    for (i = 0; i < max; i++) {                                        \
+        temp.E1(i) = do_xssrlnu_ ## E1(Xj->E2(i), imm, BIT / 2);       \
+        temp.E1(i + max) = do_xssrlnu_ ## E1(Xd->E2(i), imm, BIT / 2); \
+        temp.E1(i + max * 2) = do_xssrlnu_## E1(Xj->E2(i + max),       \
+                                                imm, BIT / 2);         \
+        temp.E1(i + max * 3) = do_xssrlnu_## E1(Xd->E2(i + max),       \
+                                                       imm, BIT / 2);  \
+    }                                                                  \
+    *Xd = temp;                                                        \
+}
+
+void HELPER(xvssrlni_du_q)(CPULoongArchState *env,
+                           uint32_t xd, uint32_t xj, uint32_t imm)
+{
+    int i;
+    Int128 shft_res[4], mask;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    if (imm == 0) {
+        shft_res[0] = Xj->XQ(0);
+        shft_res[1] = Xd->XQ(0);
+        shft_res[2] = Xj->XQ(1);
+        shft_res[3] = Xd->XQ(1);
+    } else {
+        shft_res[0] = int128_urshift(Xj->XQ(0), imm);
+        shft_res[1] = int128_urshift(Xd->XQ(0), imm);
+        shft_res[2] = int128_urshift(Xj->XQ(1), imm);
+        shft_res[3] = int128_urshift(Xd->XQ(1), imm);
+    }
+    mask = int128_sub(int128_lshift(int128_one(), 64), int128_one());
+
+    for (i = 0; i < 4; i++) {
+        if (int128_ult(mask, shft_res[i])) {
+            Xd->XD(i) = int128_getlo(mask);
+        } else {
+            Xd->XD(i) = int128_getlo(shft_res[i]);
+        }
+    }
+}
+
+XVSSRLNUI(xvssrlni_bu_h, 16, XB, XH)
+XVSSRLNUI(xvssrlni_hu_w, 32, XH, XW)
+XVSSRLNUI(xvssrlni_wu_d, 64, XW, XD)
+
+#define XVSSRANUI(NAME, BIT, E1, E2)                                   \
+void HELPER(NAME)(CPULoongArchState *env,                              \
+                  uint32_t xd, uint32_t xj, uint32_t imm)              \
+{                                                                      \
+    int i, max;                                                        \
+    XReg temp;                                                         \
+    XReg *Xd = &(env->fpr[xd].xreg);                                   \
+    XReg *Xj = &(env->fpr[xj].xreg);                                   \
+                                                                       \
+    max = LASX_LEN / (BIT * 2);                                        \
+    for (i = 0; i < max; i++) {                                        \
+        temp.E1(i) = do_xssranu_ ## E1(Xj->E2(i), imm, BIT / 2);       \
+        temp.E1(i + max) = do_xssranu_ ## E1(Xd->E2(i), imm, BIT / 2); \
+        temp.E1(i + max * 2) = do_xssranu_## E1(Xj->E2(i + max),       \
+                                                imm, BIT / 2);         \
+        temp.E1(i + max * 3) = do_xssranu_## E1(Xd->E2(i + max),       \
+                                                imm, BIT / 2);         \
+    }                                                                  \
+    *Xd = temp;                                                        \
+}
+
+void HELPER(xvssrani_du_q)(CPULoongArchState *env,
+                           uint32_t xd, uint32_t xj, uint32_t imm)
+{
+    int i;
+    Int128 shft_res[4], mask;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    if (imm == 0) {
+        shft_res[0] = Xj->XQ(0);
+        shft_res[1] = Xd->XQ(0);
+        shft_res[2] = Xj->XQ(1);
+        shft_res[3] = Xd->XQ(1);
+    } else {
+        shft_res[0] = int128_rshift(Xj->XQ(0), imm);
+        shft_res[1] = int128_rshift(Xd->XQ(0), imm);
+        shft_res[2] = int128_rshift(Xj->XQ(1), imm);
+        shft_res[3] = int128_rshift(Xd->XQ(1), imm);
+    }
+
+    if (int128_lt(Xj->XQ(0), int128_zero())) {
+        shft_res[0] = int128_zero();
+    }
+    if (int128_lt(Xd->XQ(0), int128_zero())) {
+        shft_res[1] = int128_zero();
+    }
+    if (int128_lt(Xj->XQ(1), int128_zero())) {
+        shft_res[2] = int128_zero();
+    }
+    if (int128_lt(Xd->XQ(1), int128_zero())) {
+        shft_res[3] = int128_zero();
+    }
+
+    mask = int128_sub(int128_lshift(int128_one(), 64), int128_one());
+
+    for (i = 0; i < 4; i++) {
+        if (int128_ult(mask, shft_res[i])) {
+            Xd->XD(i) = int128_getlo(mask);
+        } else {
+            Xd->XD(i) = int128_getlo(shft_res[i]);
+        }
+    }
+}
+
+XVSSRANUI(xvssrani_bu_h, 16, XB, XH)
+XVSSRANUI(xvssrani_hu_w, 32, XH, XW)
+XVSSRANUI(xvssrani_wu_d, 64, XW, XD)
