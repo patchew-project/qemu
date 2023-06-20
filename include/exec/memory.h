@@ -1521,6 +1521,39 @@ void memory_region_init_iommu(void *_iommu_mr,
                               uint64_t size);
 
 /**
+ * memory_region_init_ram_protected - Initialize RAM memory region.  Accesses
+ *                                    into the region will modify memory
+ *                                    directly.
+ *
+ * The memory is created with the RAM_PROTECTED flag, for memory that
+ * looks and acts like RAM but inaccessible via normal mechanisms,
+ * including DMA.
+ *
+ * @mr: the #MemoryRegion to be initialized
+ * @owner: the object that tracks the region's reference count (must be
+ *         TYPE_DEVICE or a subclass of TYPE_DEVICE, or NULL)
+ * @name: name of the memory region
+ * @size: size of the region in bytes
+ * @errp: pointer to Error*, to store an error if it happens.
+ *
+ * This function allocates RAM for a board model or device, and
+ * arranges for it to be migrated (by calling vmstate_register_ram()
+ * if @owner is a DeviceState, or vmstate_register_ram_global() if
+ * @owner is NULL).
+ *
+ * TODO: Currently we restrict @owner to being either NULL (for
+ * global RAM regions with no owner) or devices, so that we can
+ * give the RAM block a unique name for migration purposes.
+ * We should lift this restriction and allow arbitrary Objects.
+ * If you pass a non-NULL non-device @owner then we will assert.
+ */
+void memory_region_init_ram_protected(MemoryRegion *mr,
+                                      Object *owner,
+                                      const char *name,
+                                      uint64_t size,
+                                      Error **errp);
+
+/**
  * memory_region_init_ram - Initialize RAM memory region.  Accesses into the
  *                          region will modify memory directly.
  *

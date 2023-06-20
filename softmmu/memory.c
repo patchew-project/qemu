@@ -3551,16 +3551,18 @@ void mtree_info(bool flatview, bool dispatch_tree, bool owner, bool disabled)
     }
 }
 
-void memory_region_init_ram(MemoryRegion *mr,
-                            Object *owner,
-                            const char *name,
-                            uint64_t size,
-                            Error **errp)
+static void memory_region_init_ram_flags(MemoryRegion *mr,
+                                         Object *owner,
+                                         const char *name,
+                                         uint64_t size,
+                                         uint32_t ram_flags,
+                                         Error **errp)
 {
     DeviceState *owner_dev;
     Error *err = NULL;
 
-    memory_region_init_ram_nomigrate(mr, owner, name, size, &err);
+    memory_region_init_ram_flags_nomigrate(mr, owner, name, size, ram_flags,
+                                           &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -3573,6 +3575,25 @@ void memory_region_init_ram(MemoryRegion *mr,
      */
     owner_dev = DEVICE(owner);
     vmstate_register_ram(mr, owner_dev);
+}
+
+void memory_region_init_ram_protected(MemoryRegion *mr,
+                                      Object *owner,
+                                      const char *name,
+                                      uint64_t size,
+                                      Error **errp)
+{
+        memory_region_init_ram_flags(mr, owner, name, size, RAM_PROTECTED,
+                                     errp);
+}
+
+void memory_region_init_ram(MemoryRegion *mr,
+                            Object *owner,
+                            const char *name,
+                            uint64_t size,
+                            Error **errp)
+{
+        memory_region_init_ram_flags(mr, owner, name, size, 0, errp);
 }
 
 void memory_region_init_rom(MemoryRegion *mr,
