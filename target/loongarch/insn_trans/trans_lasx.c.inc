@@ -1977,6 +1977,42 @@ static void do_xvnori_b(unsigned vece, uint32_t xd_ofs, uint32_t xj_ofs,
 
 TRANS(xvnori_b, gvec_xx_i, MO_8, do_xvnori_b)
 
+TRANS(xvsll_b, gvec_xxx, MO_8, tcg_gen_gvec_shlv)
+TRANS(xvsll_h, gvec_xxx, MO_16, tcg_gen_gvec_shlv)
+TRANS(xvsll_w, gvec_xxx, MO_32, tcg_gen_gvec_shlv)
+TRANS(xvsll_d, gvec_xxx, MO_64, tcg_gen_gvec_shlv)
+TRANS(xvslli_b, gvec_xx_i, MO_8, tcg_gen_gvec_shli)
+TRANS(xvslli_h, gvec_xx_i, MO_16, tcg_gen_gvec_shli)
+TRANS(xvslli_w, gvec_xx_i, MO_32, tcg_gen_gvec_shli)
+TRANS(xvslli_d, gvec_xx_i, MO_64, tcg_gen_gvec_shli)
+
+TRANS(xvsrl_b, gvec_xxx, MO_8, tcg_gen_gvec_shrv)
+TRANS(xvsrl_h, gvec_xxx, MO_16, tcg_gen_gvec_shrv)
+TRANS(xvsrl_w, gvec_xxx, MO_32, tcg_gen_gvec_shrv)
+TRANS(xvsrl_d, gvec_xxx, MO_64, tcg_gen_gvec_shrv)
+TRANS(xvsrli_b, gvec_xx_i, MO_8, tcg_gen_gvec_shri)
+TRANS(xvsrli_h, gvec_xx_i, MO_16, tcg_gen_gvec_shri)
+TRANS(xvsrli_w, gvec_xx_i, MO_32, tcg_gen_gvec_shri)
+TRANS(xvsrli_d, gvec_xx_i, MO_64, tcg_gen_gvec_shri)
+
+TRANS(xvsra_b, gvec_xxx, MO_8, tcg_gen_gvec_sarv)
+TRANS(xvsra_h, gvec_xxx, MO_16, tcg_gen_gvec_sarv)
+TRANS(xvsra_w, gvec_xxx, MO_32, tcg_gen_gvec_sarv)
+TRANS(xvsra_d, gvec_xxx, MO_64, tcg_gen_gvec_sarv)
+TRANS(xvsrai_b, gvec_xx_i, MO_8, tcg_gen_gvec_sari)
+TRANS(xvsrai_h, gvec_xx_i, MO_16, tcg_gen_gvec_sari)
+TRANS(xvsrai_w, gvec_xx_i, MO_32, tcg_gen_gvec_sari)
+TRANS(xvsrai_d, gvec_xx_i, MO_64, tcg_gen_gvec_sari)
+
+TRANS(xvrotr_b, gvec_xxx, MO_8, tcg_gen_gvec_rotrv)
+TRANS(xvrotr_h, gvec_xxx, MO_16, tcg_gen_gvec_rotrv)
+TRANS(xvrotr_w, gvec_xxx, MO_32, tcg_gen_gvec_rotrv)
+TRANS(xvrotr_d, gvec_xxx, MO_64, tcg_gen_gvec_rotrv)
+TRANS(xvrotri_b, gvec_xx_i, MO_8, tcg_gen_gvec_rotri)
+TRANS(xvrotri_h, gvec_xx_i, MO_16, tcg_gen_gvec_rotri)
+TRANS(xvrotri_w, gvec_xx_i, MO_32, tcg_gen_gvec_rotri)
+TRANS(xvrotri_d, gvec_xx_i, MO_64, tcg_gen_gvec_rotri)
+
 static bool gvec_dupx(DisasContext *ctx, arg_xr *a, MemOp mop)
 {
     TCGv src = gpr_src(ctx, a->rj, EXT_NONE);
