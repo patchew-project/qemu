@@ -2782,6 +2782,60 @@ TRANS(xvsetallnez_h, gen_cx, gen_helper_xvsetallnez_h)
 TRANS(xvsetallnez_w, gen_cx, gen_helper_xvsetallnez_w)
 TRANS(xvsetallnez_d, gen_cx, gen_helper_xvsetallnez_d)
 
+static bool trans_xvinsgr2vr_w(DisasContext *ctx, arg_xr_i *a)
+{
+    TCGv src = gpr_src(ctx, a->rj, EXT_NONE);
+    CHECK_ASXE;
+    tcg_gen_st32_i64(src, cpu_env,
+                     offsetof(CPULoongArchState, fpr[a->xd].xreg.XW(a->imm)));
+    return true;
+}
+
+static bool trans_xvinsgr2vr_d(DisasContext *ctx, arg_xr_i *a)
+{
+    TCGv src = gpr_src(ctx, a->rj, EXT_NONE);
+    CHECK_ASXE;
+    tcg_gen_st_i64(src, cpu_env,
+                   offsetof(CPULoongArchState, fpr[a->xd].xreg.XD(a->imm)));
+    return true;
+}
+
+static bool trans_xvpickve2gr_w(DisasContext *ctx, arg_rx_i *a)
+{
+    TCGv dst = gpr_dst(ctx, a->rd, EXT_NONE);
+    CHECK_ASXE;
+    tcg_gen_ld32s_i64(dst, cpu_env,
+                      offsetof(CPULoongArchState, fpr[a->xj].xreg.XW(a->imm)));
+    return true;
+}
+
+static bool trans_xvpickve2gr_d(DisasContext *ctx, arg_rx_i *a)
+{
+    TCGv dst = gpr_dst(ctx, a->rd, EXT_NONE);
+    CHECK_ASXE;
+    tcg_gen_ld_i64(dst, cpu_env,
+                   offsetof(CPULoongArchState, fpr[a->xj].xreg.XD(a->imm)));
+    return true;
+}
+
+static bool trans_xvpickve2gr_wu(DisasContext *ctx, arg_rx_i *a)
+{
+    TCGv dst = gpr_dst(ctx, a->rd, EXT_NONE);
+    CHECK_ASXE;
+    tcg_gen_ld32u_i64(dst, cpu_env,
+                      offsetof(CPULoongArchState, fpr[a->xj].xreg.XW(a->imm)));
+    return true;
+}
+
+static bool trans_xvpickve2gr_du(DisasContext *ctx, arg_rx_i *a)
+{
+    TCGv dst = gpr_dst(ctx, a->rd, EXT_NONE);
+    CHECK_ASXE;
+    tcg_gen_ld_i64(dst, cpu_env,
+                   offsetof(CPULoongArchState, fpr[a->xj].xreg.XD(a->imm)));
+    return true;
+}
+
 static bool gvec_dupx(DisasContext *ctx, arg_xr *a, MemOp mop)
 {
     TCGv src = gpr_src(ctx, a->rj, EXT_NONE);

@@ -1309,6 +1309,8 @@ vstelm_b         0011 000110 .... ........ ..... .....    @vr_i8i4
 &xxxx         xd xj xk xa
 &xxx_fcond    xd xj xk fcond
 &cx           cd xj
+&xr_i         xd rj imm
+&rx_i         rd xj imm
 
 #
 # LASX Formats
@@ -1328,6 +1330,10 @@ vstelm_b         0011 000110 .... ........ ..... .....    @vr_i8i4
 @xxxx                .... ........ xa:5 xk:5 xj:5 xd:5    &xxxx
 @xxx_fcond        .... ........ fcond:5 xk:5 xj:5 xd:5    &xxx_fcond
 @cx             .... ........ ..... ..... xj:5 .. cd:3    &cx
+@xr_ui3         .... ........ ..... .. imm:3 rj:5 xd:5    &xr_i
+@xr_ui2        .... ........ ..... ... imm:2 rj:5 xd:5    &xr_i
+@rx_ui3         .... ........ ..... .. imm:3 xj:5 rd:5    &rx_i
+@rx_ui2        .... ........ ..... ... imm:2 xj:5 rd:5    &rx_i
 
 xvadd_b          0111 01000000 10100 ..... ..... .....    @xxx
 xvadd_h          0111 01000000 10101 ..... ..... .....    @xxx
@@ -2004,6 +2010,13 @@ xvsetallnez_b    0111 01101001 11001 01100 ..... 00 ...   @cx
 xvsetallnez_h    0111 01101001 11001 01101 ..... 00 ...   @cx
 xvsetallnez_w    0111 01101001 11001 01110 ..... 00 ...   @cx
 xvsetallnez_d    0111 01101001 11001 01111 ..... 00 ...   @cx
+
+xvinsgr2vr_w     0111 01101110 10111 10 ... ..... .....   @xr_ui3
+xvinsgr2vr_d     0111 01101110 10111 110 .. ..... .....   @xr_ui2
+xvpickve2gr_w    0111 01101110 11111 10 ... ..... .....   @rx_ui3
+xvpickve2gr_d    0111 01101110 11111 110 .. ..... .....   @rx_ui2
+xvpickve2gr_wu   0111 01101111 00111 10 ... ..... .....   @rx_ui3
+xvpickve2gr_du   0111 01101111 00111 110 .. ..... .....   @rx_ui2
 
 xvreplgr2vr_b    0111 01101001 11110 00000 ..... .....    @xr
 xvreplgr2vr_h    0111 01101001 11110 00001 ..... .....    @xr
