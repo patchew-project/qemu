@@ -1308,6 +1308,7 @@ vstelm_b         0011 000110 .... ........ ..... .....    @vr_i8i4
 &x_i          xd imm
 &xxxx         xd xj xk xa
 &xxx_fcond    xd xj xk fcond
+&cx           cd xj
 
 #
 # LASX Formats
@@ -1326,6 +1327,7 @@ vstelm_b         0011 000110 .... ........ ..... .....    @vr_i8i4
 @xx_ui8               .... ........ .. imm:8 xj:5 xd:5    &xx_i
 @xxxx                .... ........ xa:5 xk:5 xj:5 xd:5    &xxxx
 @xxx_fcond        .... ........ fcond:5 xk:5 xj:5 xd:5    &xxx_fcond
+@cx             .... ........ ..... ..... xj:5 .. cd:3    &cx
 
 xvadd_b          0111 01000000 10100 ..... ..... .....    @xxx
 xvadd_h          0111 01000000 10101 ..... ..... .....    @xxx
@@ -1987,6 +1989,21 @@ xvslti_du        0111 01101000 10011 ..... ..... .....    @xx_ui5
 
 xvfcmp_cond_s    0000 11001001 ..... ..... ..... .....    @xxx_fcond
 xvfcmp_cond_d    0000 11001010 ..... ..... ..... .....    @xxx_fcond
+
+xvbitsel_v       0000 11010010 ..... ..... ..... .....    @xxxx
+
+xvbitseli_b      0111 01111100 01 ........ ..... .....    @xx_ui8
+
+xvseteqz_v       0111 01101001 11001 00110 ..... 00 ...   @cx
+xvsetnez_v       0111 01101001 11001 00111 ..... 00 ...   @cx
+xvsetanyeqz_b    0111 01101001 11001 01000 ..... 00 ...   @cx
+xvsetanyeqz_h    0111 01101001 11001 01001 ..... 00 ...   @cx
+xvsetanyeqz_w    0111 01101001 11001 01010 ..... 00 ...   @cx
+xvsetanyeqz_d    0111 01101001 11001 01011 ..... 00 ...   @cx
+xvsetallnez_b    0111 01101001 11001 01100 ..... 00 ...   @cx
+xvsetallnez_h    0111 01101001 11001 01101 ..... 00 ...   @cx
+xvsetallnez_w    0111 01101001 11001 01110 ..... 00 ...   @cx
+xvsetallnez_d    0111 01101001 11001 01111 ..... 00 ...   @cx
 
 xvreplgr2vr_b    0111 01101001 11110 00000 ..... .....    @xr
 xvreplgr2vr_h    0111 01101001 11110 00001 ..... .....    @xr

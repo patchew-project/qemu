@@ -2688,7 +2688,7 @@ void HELPER(vbitseli_b)(void *vd, void *vj,  uint64_t imm, uint32_t v)
 }
 
 /* Copy from target/arm/tcg/sve_helper.c */
-static inline bool do_match2(uint64_t n, uint64_t m0, uint64_t m1, int esz)
+bool do_match2(uint64_t n, uint64_t m0, uint64_t m1, int esz)
 {
     uint64_t bits = 8 << esz;
     uint64_t ones = dup_const(esz, 1);

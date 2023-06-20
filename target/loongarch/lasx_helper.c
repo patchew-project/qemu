@@ -2782,3 +2782,40 @@ XVFCMP(xvfcmp_c_s, 32, UXW, float32_compare_quiet)
 XVFCMP(xvfcmp_s_s, 32, UXW, float32_compare)
 XVFCMP(xvfcmp_c_d, 64, UXD, float64_compare_quiet)
 XVFCMP(xvfcmp_s_d, 64, UXD, float64_compare)
+
+void HELPER(xvbitseli_b)(void *xd, void *xj,  uint64_t imm, uint32_t v)
+{
+    int i;
+    XReg *Xd = (XReg *)xd;
+    XReg *Xj = (XReg *)xj;
+
+    for (i = 0; i < LASX_LEN / 8; i++) {
+        Xd->XB(i) = (~Xd->XB(i) & Xj->XB(i)) | (Xd->XB(i) & imm);
+    }
+}
+
+#define XSETANYEQZ(NAME, MO)                                        \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t cd, uint32_t xj) \
+{                                                                   \
+    XReg *Xj = &(env->fpr[xj].xreg);                                \
+                                                                    \
+    env->cf[cd & 0x7] = do_match2(0, Xj->XD(0), Xj->XD(1), MO) ||   \
+                        do_match2(0, Xj->XD(2), Xj->XD(3), MO);     \
+}
+XSETANYEQZ(xvsetanyeqz_b, MO_8)
+XSETANYEQZ(xvsetanyeqz_h, MO_16)
+XSETANYEQZ(xvsetanyeqz_w, MO_32)
+XSETANYEQZ(xvsetanyeqz_d, MO_64)
+
+#define XSETALLNEZ(NAME, MO)                                        \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t cd, uint32_t xj) \
+{                                                                   \
+    XReg *Xj = &(env->fpr[xj].xreg);                                \
+                                                                    \
+    env->cf[cd & 0x7] = !do_match2(0, Xj->XD(0), Xj->XD(1), MO) &&  \
+                        !do_match2(0, Xj->XD(2), Xj->XD(3), MO);    \
+}
+XSETALLNEZ(xvsetallnez_b, MO_8)
+XSETALLNEZ(xvsetallnez_h, MO_16)
+XSETALLNEZ(xvsetallnez_w, MO_32)
+XSETALLNEZ(xvsetallnez_d, MO_64)

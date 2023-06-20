@@ -1703,6 +1703,11 @@ static bool trans_##insn(DisasContext *ctx, arg_##type * a) \
     return true;                                            \
 }
 
+static void output_cx(DisasContext *ctx, arg_cx *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "fcc%d, x%d", a->cd, a->xj);
+}
+
 static void output_x_i(DisasContext *ctx, arg_x_i *a, const char *mnemonic)
 {
     output(ctx, mnemonic, "x%d, 0x%x", a->xd, a->imm);
@@ -2477,6 +2482,20 @@ static bool trans_xvfcmp_cond_##suffix(DisasContext *ctx, \
 
 LASX_FCMP_INSN(s)
 LASX_FCMP_INSN(d)
+
+INSN_LASX(xvbitsel_v,        xxxx)
+INSN_LASX(xvbitseli_b,       xx_i)
+
+INSN_LASX(xvseteqz_v,        cx)
+INSN_LASX(xvsetnez_v,        cx)
+INSN_LASX(xvsetanyeqz_b,     cx)
+INSN_LASX(xvsetanyeqz_h,     cx)
+INSN_LASX(xvsetanyeqz_w,     cx)
+INSN_LASX(xvsetanyeqz_d,     cx)
+INSN_LASX(xvsetallnez_b,     cx)
+INSN_LASX(xvsetallnez_h,     cx)
+INSN_LASX(xvsetallnez_w,     cx)
+INSN_LASX(xvsetallnez_d,     cx)
 
 INSN_LASX(xvreplgr2vr_b,     xr)
 INSN_LASX(xvreplgr2vr_h,     xr)

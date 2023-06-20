@@ -118,4 +118,6 @@ uint64_t do_frsqrt_64(CPULoongArchState *env, uint64_t fj);
 uint64_t vfcmp_common(CPULoongArchState *env,
                       FloatRelation cmp, uint32_t flags);
 
+bool do_match2(uint64_t n, uint64_t m0, uint64_t m1, int esz);
+
 #endif /* LOONGARCH_VEC_H */

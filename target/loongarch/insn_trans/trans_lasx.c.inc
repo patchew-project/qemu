@@ -65,6 +65,17 @@ static bool gen_xx_i(DisasContext *ctx, arg_xx_i *a,
     return true;
 }
 
+static bool gen_cx(DisasContext *ctx, arg_cx *a,
+                   void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 xj = tcg_constant_i32(a->xj);
+    TCGv_i32 cd = tcg_constant_i32(a->cd);
+
+    CHECK_ASXE;
+    func(cpu_env, cd, xj);
+    return true;
+}
+
 static bool gvec_xxx(DisasContext *ctx, arg_xxx *a, MemOp mop,
                      void (*func)(unsigned, uint32_t, uint32_t,
                                   uint32_t, uint32_t, uint32_t))
@@ -2705,6 +2716,71 @@ static bool trans_xvfcmp_cond_d(DisasContext *ctx, arg_xxx_fcond *a)
 
     return true;
 }
+
+static bool trans_xvbitsel_v(DisasContext *ctx, arg_xxxx *a)
+{
+    CHECK_ASXE;
+
+    tcg_gen_gvec_bitsel(MO_64, vec_full_offset(a->xd), vec_full_offset(a->xa),
+                        vec_full_offset(a->xk), vec_full_offset(a->xj),
+                        32, ctx->vl / 8);
+    return true;
+}
+
+static bool trans_xvbitseli_b(DisasContext *ctx, arg_xx_i *a)
+{
+    static const GVecGen2i op = {
+       .fniv = gen_vbitseli,
+       .fnoi = gen_helper_xvbitseli_b,
+       .vece = MO_8,
+       .load_dest = true
+    };
+
+    CHECK_ASXE;
+
+    tcg_gen_gvec_2i(vec_full_offset(a->xd), vec_full_offset(a->xj),
+                    32, ctx->vl / 8, a->imm, &op);
+    return true;
+}
+
+#define XVSET(NAME, COND)                                                      \
+static bool trans_## NAME(DisasContext *ctx, arg_cx * a)                       \
+{                                                                              \
+    TCGv_i64 t1, t2, d[4];                                                     \
+                                                                               \
+    d[0] = tcg_temp_new_i64();                                                 \
+    d[1] = tcg_temp_new_i64();                                                 \
+    d[2] = tcg_temp_new_i64();                                                 \
+    d[3] = tcg_temp_new_i64();                                                 \
+    t1 = tcg_temp_new_i64();                                                   \
+    t2 = tcg_temp_new_i64();                                                   \
+                                                                               \
+    get_xreg64(d[0], a->xj, 0);                                                \
+    get_xreg64(d[1], a->xj, 1);                                                \
+    get_xreg64(d[2], a->xj, 2);                                                \
+    get_xreg64(d[3], a->xj, 3);                                                \
+                                                                               \
+    CHECK_ASXE;                                                                \
+    tcg_gen_or_i64(t1, d[0], d[1]);                                            \
+    tcg_gen_or_i64(t2, d[2], d[3]);                                            \
+    tcg_gen_or_i64(t1, t2, t1);                                                \
+    tcg_gen_setcondi_i64(COND, t1, t1, 0);                                     \
+    tcg_gen_st8_tl(t1, cpu_env, offsetof(CPULoongArchState, cf[a->cd & 0x7])); \
+                                                                               \
+    return true;                                                               \
+}
+
+XVSET(xvseteqz_v, TCG_COND_EQ)
+XVSET(xvsetnez_v, TCG_COND_NE)
+
+TRANS(xvsetanyeqz_b, gen_cx, gen_helper_xvsetanyeqz_b)
+TRANS(xvsetanyeqz_h, gen_cx, gen_helper_xvsetanyeqz_h)
+TRANS(xvsetanyeqz_w, gen_cx, gen_helper_xvsetanyeqz_w)
+TRANS(xvsetanyeqz_d, gen_cx, gen_helper_xvsetanyeqz_d)
+TRANS(xvsetallnez_b, gen_cx, gen_helper_xvsetallnez_b)
+TRANS(xvsetallnez_h, gen_cx, gen_helper_xvsetallnez_h)
+TRANS(xvsetallnez_w, gen_cx, gen_helper_xvsetallnez_w)
+TRANS(xvsetallnez_d, gen_cx, gen_helper_xvsetallnez_d)
 
 static bool gvec_dupx(DisasContext *ctx, arg_xr *a, MemOp mop)
 {
