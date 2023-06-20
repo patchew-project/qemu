@@ -709,3 +709,98 @@ XDO_3OP(xvsigncov_b, 8, XB, DO_SIGNCOV)
 XDO_3OP(xvsigncov_h, 16, XH, DO_SIGNCOV)
 XDO_3OP(xvsigncov_w, 32, XW, DO_SIGNCOV)
 XDO_3OP(xvsigncov_d, 64, XD, DO_SIGNCOV)
+
+void HELPER(xvmskltz_b)(CPULoongArchState *env, uint32_t xd, uint32_t xj)
+{
+    uint16_t temp;
+    int i;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    for (i = 0; i < 2; i++) {
+        temp = 0;
+        temp = do_vmskltz_b(Xj->XD(2 * i));
+        temp |= (do_vmskltz_b(Xj->XD(2 * i + 1)) << 8);
+        Xd->XD(2 * i) = temp;
+        Xd->XD(2 * i + 1) = 0;
+    }
+}
+
+void HELPER(xvmskltz_h)(CPULoongArchState *env, uint32_t xd, uint32_t xj)
+{
+    uint16_t temp;
+    int i;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    for (i = 0; i < 2; i++) {
+        temp = 0;
+        temp = do_vmskltz_h(Xj->XD(2 * i));
+        temp |= (do_vmskltz_h(Xj->XD(2 * i + 1)) << 4);
+        Xd->XD(2 * i) = temp;
+        Xd->XD(2 * i + 1) = 0;
+    }
+}
+
+void HELPER(xvmskltz_w)(CPULoongArchState *env, uint32_t xd, uint32_t xj)
+{
+    uint16_t temp;
+    int i;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    for (i = 0; i < 2; i++) {
+        temp = do_vmskltz_w(Xj->XD(2 * i));
+        temp |= (do_vmskltz_w(Xj->XD(2 * i + 1)) << 2);
+        Xd->XD(2 * i) = temp;
+        Xd->XD(2 * i + 1) = 0;
+    }
+}
+
+void HELPER(xvmskltz_d)(CPULoongArchState *env, uint32_t xd, uint32_t xj)
+{
+    uint16_t temp;
+    int i;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    for (i = 0; i < 2; i++) {
+        temp = 0;
+        temp = do_vmskltz_d(Xj->XD(2 * i));
+        temp |= (do_vmskltz_d(Xj->XD(2 * i + 1)) << 1);
+        Xd->XD(2 * i) = temp;
+        Xd->XD(2 * i + 1) = 0;
+    }
+}
+
+void HELPER(xvmskgez_b)(CPULoongArchState *env, uint32_t xd, uint32_t xj)
+{
+    uint16_t temp;
+    int i;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    for (i = 0; i < 2; i++) {
+        temp = 0;
+        temp =  do_vmskltz_b(Xj->XD(2 * i));
+        temp |= (do_vmskltz_b(Xj->XD(2 * i + 1)) << 8);
+        Xd->XD(2 * i) = (uint16_t)(~temp);
+        Xd->XD(2 * i + 1) = 0;
+    }
+}
+
+void HELPER(xvmsknz_b)(CPULoongArchState *env, uint32_t xd, uint32_t xj)
+{
+    uint16_t temp;
+    int i;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    XReg *Xj = &(env->fpr[xj].xreg);
+
+    for (i = 0; i < 2; i++) {
+        temp = 0;
+        temp = do_vmskez_b(Xj->XD(2 * i));
+        temp |= (do_vmskez_b(Xj->XD(2 * i + 1)) << 8);
+        Xd->XD(2 * i) = (uint16_t)(~temp);
+        Xd->XD(2 * i + 1) = 0;
+    }
+}

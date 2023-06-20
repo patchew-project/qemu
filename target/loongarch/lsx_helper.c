@@ -653,7 +653,7 @@ DO_3OP(vsigncov_h, 16, H, DO_SIGNCOV)
 DO_3OP(vsigncov_w, 32, W, DO_SIGNCOV)
 DO_3OP(vsigncov_d, 64, D, DO_SIGNCOV)
 
-static uint64_t do_vmskltz_b(int64_t val)
+uint64_t do_vmskltz_b(int64_t val)
 {
     uint64_t m = 0x8080808080808080ULL;
     uint64_t c =  val & m;
@@ -675,7 +675,7 @@ void HELPER(vmskltz_b)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
     Vd->D(1) = 0;
 }
 
-static uint64_t do_vmskltz_h(int64_t val)
+uint64_t do_vmskltz_h(int64_t val)
 {
     uint64_t m = 0x8000800080008000ULL;
     uint64_t c =  val & m;
@@ -696,7 +696,7 @@ void HELPER(vmskltz_h)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
     Vd->D(1) = 0;
 }
 
-static uint64_t do_vmskltz_w(int64_t val)
+uint64_t do_vmskltz_w(int64_t val)
 {
     uint64_t m = 0x8000000080000000ULL;
     uint64_t c =  val & m;
@@ -716,7 +716,7 @@ void HELPER(vmskltz_w)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
     Vd->D(1) = 0;
 }
 
-static uint64_t do_vmskltz_d(int64_t val)
+uint64_t do_vmskltz_d(int64_t val)
 {
     return (uint64_t)val >> 63;
 }
@@ -744,7 +744,7 @@ void HELPER(vmskgez_b)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
     Vd->D(1) = 0;
 }
 
-static uint64_t do_vmskez_b(uint64_t a)
+uint64_t do_vmskez_b(uint64_t a)
 {
     uint64_t m = 0x7f7f7f7f7f7f7f7fULL;
     uint64_t c = ~(((a & m) + m) | a | m);

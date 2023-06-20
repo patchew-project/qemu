@@ -2014,6 +2014,13 @@ INSN_LASX(xvsigncov_h,       xxx)
 INSN_LASX(xvsigncov_w,       xxx)
 INSN_LASX(xvsigncov_d,       xxx)
 
+INSN_LASX(xvmskltz_b,        xx)
+INSN_LASX(xvmskltz_h,        xx)
+INSN_LASX(xvmskltz_w,        xx)
+INSN_LASX(xvmskltz_d,        xx)
+INSN_LASX(xvmskgez_b,        xx)
+INSN_LASX(xvmsknz_b,         xx)
+
 INSN_LASX(xvreplgr2vr_b,     xr)
 INSN_LASX(xvreplgr2vr_h,     xr)
 INSN_LASX(xvreplgr2vr_w,     xr)

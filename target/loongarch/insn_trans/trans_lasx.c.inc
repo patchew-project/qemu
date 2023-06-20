@@ -1907,6 +1907,13 @@ TRANS(xvsigncov_h, gvec_xxx, MO_16, do_xvsigncov)
 TRANS(xvsigncov_w, gvec_xxx, MO_32, do_xvsigncov)
 TRANS(xvsigncov_d, gvec_xxx, MO_64, do_xvsigncov)
 
+TRANS(xvmskltz_b, gen_xx, gen_helper_xvmskltz_b)
+TRANS(xvmskltz_h, gen_xx, gen_helper_xvmskltz_h)
+TRANS(xvmskltz_w, gen_xx, gen_helper_xvmskltz_w)
+TRANS(xvmskltz_d, gen_xx, gen_helper_xvmskltz_d)
+TRANS(xvmskgez_b, gen_xx, gen_helper_xvmskgez_b)
+TRANS(xvmsknz_b, gen_xx, gen_helper_xvmsknz_b)
+
 static bool gvec_dupx(DisasContext *ctx, arg_xr *a, MemOp mop)
 {
     TCGv src = gpr_src(ctx, a->rj, EXT_NONE);
