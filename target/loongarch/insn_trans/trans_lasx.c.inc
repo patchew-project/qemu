@@ -3104,3 +3104,100 @@ TRANS(xvextrins_b, gen_xx_i, gen_helper_xvextrins_b)
 TRANS(xvextrins_h, gen_xx_i, gen_helper_xvextrins_h)
 TRANS(xvextrins_w, gen_xx_i, gen_helper_xvextrins_w)
 TRANS(xvextrins_d, gen_xx_i, gen_helper_xvextrins_d)
+
+static bool gen_lasx_memory(DisasContext *ctx, arg_xr_i * a,
+                            void (*func)(TCGv_ptr, TCGv_i32, TCGv))
+{
+    TCGv_i32 xd = tcg_constant_i32(a->xd);
+    TCGv addr = gpr_src(ctx, a->rj, EXT_NONE);
+    TCGv temp = NULL;
+
+    CHECK_ASXE;
+
+    if (a->imm) {
+        temp = tcg_temp_new();
+        tcg_gen_addi_tl(temp, addr, a->imm);
+        addr = temp;
+    }
+
+    func(cpu_env, xd, addr);
+    return true;
+}
+
+TRANS(xvld, gen_lasx_memory, gen_helper_xvld_b)
+TRANS(xvst, gen_lasx_memory, gen_helper_xvst_b)
+
+static bool gen_lasx_memoryx(DisasContext *ctx, arg_xrr *a,
+                             void (*func)(TCGv_ptr, TCGv_i32, TCGv))
+{
+    TCGv_i32 xd = tcg_constant_i32(a->xd);
+    TCGv src1 = gpr_src(ctx, a->rj, EXT_NONE);
+    TCGv src2 = gpr_src(ctx, a->rk, EXT_NONE);
+    TCGv addr = tcg_temp_new();
+
+    CHECK_ASXE;
+
+    tcg_gen_add_tl(addr, src1, src2);
+    func(cpu_env, xd, addr);
+    return true;
+}
+
+TRANS(xvldx, gen_lasx_memoryx, gen_helper_xvld_b)
+TRANS(xvstx, gen_lasx_memoryx, gen_helper_xvst_b)
+
+#define XVLDREPL(NAME, MO)                                                  \
+static bool trans_## NAME(DisasContext *ctx, arg_xr_i * a)                  \
+{                                                                           \
+    TCGv addr, temp;                                                        \
+    TCGv_i64 val;                                                           \
+                                                                            \
+    CHECK_ASXE;                                                             \
+                                                                            \
+    addr = gpr_src(ctx, a->rj, EXT_NONE);                                   \
+    val = tcg_temp_new_i64();                                               \
+                                                                            \
+    if (a->imm) {                                                           \
+        temp = tcg_temp_new();                                              \
+        tcg_gen_addi_tl(temp, addr, a->imm);                                \
+        addr = temp;                                                        \
+    }                                                                       \
+                                                                            \
+    tcg_gen_qemu_ld_i64(val, addr, ctx->mem_idx, MO);                       \
+    tcg_gen_gvec_dup_i64(MO, vec_full_offset(a->xd), 32, ctx->vl / 8, val); \
+                                                                            \
+    return true;                                                            \
+}
+
+XVLDREPL(xvldrepl_b, MO_8)
+XVLDREPL(xvldrepl_h, MO_16)
+XVLDREPL(xvldrepl_w, MO_32)
+XVLDREPL(xvldrepl_d, MO_64)
+
+#define XVSTELM(NAME, MO, E)                                                 \
+static bool trans_## NAME(DisasContext *ctx, arg_xr_ii * a)                  \
+{                                                                            \
+    TCGv addr, temp;                                                         \
+    TCGv_i64 val;                                                            \
+                                                                             \
+    CHECK_ASXE;                                                              \
+                                                                             \
+    addr = gpr_src(ctx, a->rj, EXT_NONE);                                    \
+    val = tcg_temp_new_i64();                                                \
+                                                                             \
+    if (a->imm) {                                                            \
+        temp = tcg_temp_new();                                               \
+        tcg_gen_addi_tl(temp, addr, a->imm);                                 \
+        addr = temp;                                                         \
+    }                                                                        \
+                                                                             \
+    tcg_gen_ld_i64(val, cpu_env,                                             \
+                   offsetof(CPULoongArchState, fpr[a->xd].xreg.E(a->imm2))); \
+    tcg_gen_qemu_st_i64(val, addr, ctx->mem_idx, MO);                        \
+                                                                             \
+    return true;                                                             \
+}
+
+XVSTELM(xvstelm_b, MO_8, XB)
+XVSTELM(xvstelm_h, MO_16, XH)
+XVSTELM(xvstelm_w, MO_32, XW)
+XVSTELM(xvstelm_d, MO_64, XD)

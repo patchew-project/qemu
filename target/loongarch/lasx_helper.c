@@ -12,6 +12,9 @@
 #include "fpu/softfloat.h"
 #include "internals.h"
 #include "vec.h"
+#include "tcg/tcg.h"
+#include "exec/cpu_ldst.h"
+#include "tcg/tcg-ldst.h"
 
 #define XDO_ODD_EVEN(NAME, BIT, E1, E2, DO_OP)                       \
 void HELPER(NAME)(CPULoongArchState *env,                            \
@@ -3160,3 +3163,59 @@ XVEXTRINS(xvextrins_b, 8, XB, 0xf)
 XVEXTRINS(xvextrins_h, 16, XH, 0x7)
 XVEXTRINS(xvextrins_w, 32, XW, 0x3)
 XVEXTRINS(xvextrins_d, 64, XD, 0x1)
+
+void helper_xvld_b(CPULoongArchState *env, uint32_t xd, target_ulong addr)
+{
+    int i;
+    XReg *Xd = &(env->fpr[xd].xreg);
+#if !defined(CONFIG_USER_ONLY)
+    MemOpIdx oi = make_memop_idx(MO_TE | MO_UNALN, cpu_mmu_index(env, false));
+
+    for (i = 0; i < LASX_LEN / 8; i++) {
+        Xd->XB(i)  = helper_ldub_mmu(env, addr + i, oi, GETPC());
+    }
+#else
+    for (i = 0; i < LASX_LEN / 8; i++) {
+        Xd->XB(i)  = cpu_ldub_data(env, addr + i);
+    }
+#endif
+}
+
+#define LASX_PAGESPAN(x) \
+        ((((x) & ~TARGET_PAGE_MASK) + (LASX_LEN / 8) - 1) >= TARGET_PAGE_SIZE)
+
+static inline void ensure_lasx_writable_pages(CPULoongArchState *env,
+                                             target_ulong addr,
+                                             int mmu_idx,
+                                             uintptr_t retaddr)
+{
+#ifndef CONFIG_USER_ONLY
+    /* FIXME: Probe the actual accesses (pass and use a size) */
+    if (unlikely(LASX_PAGESPAN(addr))) {
+        /* first page */
+        probe_write(env, addr, 0, mmu_idx, retaddr);
+        /* second page */
+        addr = (addr & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
+        probe_write(env, addr, 0, mmu_idx, retaddr);
+    }
+#endif
+}
+
+void helper_xvst_b(CPULoongArchState *env, uint32_t xd, target_ulong addr)
+{
+    int i;
+    XReg *Xd = &(env->fpr[xd].xreg);
+    int mmu_idx = cpu_mmu_index(env, false);
+
+    ensure_lasx_writable_pages(env, addr, mmu_idx, GETPC());
+#if !defined(CONFIG_USER_ONLY)
+    MemOpIdx oi = make_memop_idx(MO_TE | MO_UNALN, mmu_idx);
+    for (i = 0; i < LASX_LEN / 8; i++) {
+        helper_stb_mmu(env, addr + i, Xd->XB(i),  oi, GETPC());
+    }
+#else
+    for (i = 0; i < LASX_LEN / 8; i++) {
+        cpu_stb_data(env, addr + i, Xd->XB(i));
+    }
+#endif
+}

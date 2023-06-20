@@ -1285,3 +1285,6 @@ DEF_HELPER_4(xvextrins_d, void, env, i32, i32, i32)
 DEF_HELPER_4(xvextrins_w, void, env, i32, i32, i32)
 DEF_HELPER_4(xvextrins_h, void, env, i32, i32, i32)
 DEF_HELPER_4(xvextrins_b, void, env, i32, i32, i32)
+
+DEF_HELPER_3(xvld_b, void, env, i32, tl)
+DEF_HELPER_3(xvst_b, void, env, i32, tl)
