@@ -1866,6 +1866,47 @@ TRANS(vext2xv_wu_hu, gen_xx, gen_helper_vext2xv_wu_hu)
 TRANS(vext2xv_du_hu, gen_xx, gen_helper_vext2xv_du_hu)
 TRANS(vext2xv_du_wu, gen_xx, gen_helper_vext2xv_du_wu)
 
+static void do_xvsigncov(unsigned vece, uint32_t xd_ofs, uint32_t xj_ofs,
+                         uint32_t xk_ofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_neg_vec, INDEX_op_cmpsel_vec, 0
+        };
+    static const GVecGen3 op[4] = {
+        {
+            .fniv = gen_vsigncov,
+            .fno = gen_helper_xvsigncov_b,
+            .opt_opc = vecop_list,
+            .vece = MO_8
+        },
+        {
+            .fniv = gen_vsigncov,
+            .fno = gen_helper_xvsigncov_h,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fniv = gen_vsigncov,
+            .fno = gen_helper_xvsigncov_w,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fniv = gen_vsigncov,
+            .fno = gen_helper_xvsigncov_d,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_3(xd_ofs, xj_ofs, xk_ofs, oprsz, maxsz, &op[vece]);
+}
+
+TRANS(xvsigncov_b, gvec_xxx, MO_8, do_xvsigncov)
+TRANS(xvsigncov_h, gvec_xxx, MO_16, do_xvsigncov)
+TRANS(xvsigncov_w, gvec_xxx, MO_32, do_xvsigncov)
+TRANS(xvsigncov_d, gvec_xxx, MO_64, do_xvsigncov)
+
 static bool gvec_dupx(DisasContext *ctx, arg_xr *a, MemOp mop)
 {
     TCGv src = gpr_src(ctx, a->rj, EXT_NONE);

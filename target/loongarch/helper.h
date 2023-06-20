@@ -917,3 +917,8 @@ DEF_HELPER_3(vext2xv_du_bu, void, env, i32, i32)
 DEF_HELPER_3(vext2xv_wu_hu, void, env, i32, i32)
 DEF_HELPER_3(vext2xv_du_hu, void, env, i32, i32)
 DEF_HELPER_3(vext2xv_du_wu, void, env, i32, i32)
+
+DEF_HELPER_FLAGS_4(xvsigncov_b, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, i32)
+DEF_HELPER_FLAGS_4(xvsigncov_h, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, i32)
+DEF_HELPER_FLAGS_4(xvsigncov_w, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, i32)
+DEF_HELPER_FLAGS_4(xvsigncov_d, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, i32)

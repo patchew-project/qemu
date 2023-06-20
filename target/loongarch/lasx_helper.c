@@ -704,3 +704,8 @@ VEXT2XV(vext2xv_du_bu, 64, UXD, UXB)
 VEXT2XV(vext2xv_wu_hu, 32, UXW, UXH)
 VEXT2XV(vext2xv_du_hu, 64, UXD, UXH)
 VEXT2XV(vext2xv_du_wu, 64, UXD, UXW)
+
+XDO_3OP(xvsigncov_b, 8, XB, DO_SIGNCOV)
+XDO_3OP(xvsigncov_h, 16, XH, DO_SIGNCOV)
+XDO_3OP(xvsigncov_w, 32, XW, DO_SIGNCOV)
+XDO_3OP(xvsigncov_d, 64, XD, DO_SIGNCOV)
