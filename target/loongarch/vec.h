@@ -56,4 +56,6 @@
 
 #define DO_VABSD(a, b)  ((a > b) ? (a - b) : (b - a))
 
+#define DO_VABS(a)      ((a < 0) ? (-a) : (a))
+
 #endif /* LOONGARCH_VEC_H */

@@ -831,6 +831,47 @@ TRANS(xvabsd_hu, gvec_xxx, MO_16, do_xvabsd_u)
 TRANS(xvabsd_wu, gvec_xxx, MO_32, do_xvabsd_u)
 TRANS(xvabsd_du, gvec_xxx, MO_64, do_xvabsd_u)
 
+static void do_xvadda(unsigned vece, uint32_t xd_ofs, uint32_t xj_ofs,
+                      uint32_t xk_ofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_abs_vec, INDEX_op_add_vec, 0
+        };
+    static const GVecGen3 op[4] = {
+        {
+            .fniv = gen_vadda,
+            .fno = gen_helper_xvadda_b,
+            .opt_opc = vecop_list,
+            .vece = MO_8
+        },
+        {
+            .fniv = gen_vadda,
+            .fno = gen_helper_xvadda_h,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fniv = gen_vadda,
+            .fno = gen_helper_xvadda_w,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fniv = gen_vadda,
+            .fno = gen_helper_xvadda_d,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_3(xd_ofs, xj_ofs, xk_ofs, oprsz, maxsz, &op[vece]);
+}
+
+TRANS(xvadda_b, gvec_xxx, MO_8, do_xvadda)
+TRANS(xvadda_h, gvec_xxx, MO_16, do_xvadda)
+TRANS(xvadda_w, gvec_xxx, MO_32, do_xvadda)
+TRANS(xvadda_d, gvec_xxx, MO_64, do_xvadda)
+
 static bool gvec_dupx(DisasContext *ctx, arg_xr *a, MemOp mop)
 {
     TCGv src = gpr_src(ctx, a->rj, EXT_NONE);

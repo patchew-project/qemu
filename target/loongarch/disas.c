@@ -1851,6 +1851,11 @@ INSN_LASX(xvabsd_hu,         xxx)
 INSN_LASX(xvabsd_wu,         xxx)
 INSN_LASX(xvabsd_du,         xxx)
 
+INSN_LASX(xvadda_b,          xxx)
+INSN_LASX(xvadda_h,          xxx)
+INSN_LASX(xvadda_w,          xxx)
+INSN_LASX(xvadda_d,          xxx)
+
 INSN_LASX(xvreplgr2vr_b,     xr)
 INSN_LASX(xvreplgr2vr_h,     xr)
 INSN_LASX(xvreplgr2vr_w,     xr)

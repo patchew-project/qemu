@@ -346,3 +346,20 @@ XDO_3OP(xvabsd_bu, 8, UXB, DO_VABSD)
 XDO_3OP(xvabsd_hu, 16, UXH, DO_VABSD)
 XDO_3OP(xvabsd_wu, 32, UXW, DO_VABSD)
 XDO_3OP(xvabsd_du, 64, UXD, DO_VABSD)
+
+#define XDO_VADDA(NAME, BIT, E, DO_OP)                      \
+void HELPER(NAME)(void *xd, void *xj, void *xk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    XReg *Xd = (XReg *)xd;                                  \
+    XReg *Xj = (XReg *)xj;                                  \
+    XReg *Xk = (XReg *)xk;                                  \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                  \
+        Xd->E(i) = DO_OP(Xj->E(i)) + DO_OP(Xk->E(i));       \
+    }                                                       \
+}
+
+XDO_VADDA(xvadda_b, 8, XB, DO_VABS)
+XDO_VADDA(xvadda_h, 16, XH, DO_VABS)
+XDO_VADDA(xvadda_w, 32, XW, DO_VABS)
+XDO_VADDA(xvadda_d, 64, XD, DO_VABS)
