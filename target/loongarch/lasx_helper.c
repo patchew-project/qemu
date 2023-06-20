@@ -2819,3 +2819,32 @@ XSETALLNEZ(xvsetallnez_b, MO_8)
 XSETALLNEZ(xvsetallnez_h, MO_16)
 XSETALLNEZ(xvsetallnez_w, MO_32)
 XSETALLNEZ(xvsetallnez_d, MO_64)
+
+#define XVINSVE0(NAME, E, MASK)                           \
+void HELPER(NAME)(CPULoongArchState *env,                 \
+                  uint32_t xd, uint32_t xj, uint32_t imm) \
+{                                                         \
+    XReg *Xd = &(env->fpr[xd].xreg);                      \
+    XReg *Xj = &(env->fpr[xj].xreg);                      \
+    Xd->E(imm & MASK) = Xj->E(0);                         \
+}
+
+XVINSVE0(xvinsve0_w, XW, 0x7)
+XVINSVE0(xvinsve0_d, XD, 0x3)
+
+#define XVPICKVE(NAME, E, BIT, MASK)                      \
+void HELPER(NAME)(CPULoongArchState *env,                 \
+                  uint32_t xd, uint32_t xj, uint32_t imm) \
+{                                                         \
+    int i;                                                \
+    XReg *Xd = &(env->fpr[xd].xreg);                      \
+    XReg *Xj = &(env->fpr[xj].xreg);                      \
+                                                          \
+    Xd->E(0) = Xj->E(imm & MASK);                         \
+    for (i = 1; i < LASX_LEN / BIT; i++) {                \
+        Xd->E(i) = 0;                                     \
+    }                                                     \
+}
+
+XVPICKVE(xvpickve_w, XW, 32, 0x7)
+XVPICKVE(xvpickve_d, XD, 64, 0x3)

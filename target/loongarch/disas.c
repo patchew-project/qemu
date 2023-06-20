@@ -1748,6 +1748,11 @@ static void output_rx_i(DisasContext *ctx, arg_rx_i *a, const char *mnemonic)
     output(ctx, mnemonic, "r%d, x%d, 0x%x", a->rd, a->xj, a->imm);
 }
 
+static void output_xxr(DisasContext *ctx, arg_xxr *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "x%d, x%d, r%d", a->xd, a->xj, a->rk);
+}
+
 INSN_LASX(xvadd_b,           xxx)
 INSN_LASX(xvadd_h,           xxx)
 INSN_LASX(xvadd_w,           xxx)
@@ -2518,3 +2523,27 @@ INSN_LASX(xvreplgr2vr_b,     xr)
 INSN_LASX(xvreplgr2vr_h,     xr)
 INSN_LASX(xvreplgr2vr_w,     xr)
 INSN_LASX(xvreplgr2vr_d,     xr)
+
+INSN_LASX(xvreplve_b,        xxr)
+INSN_LASX(xvreplve_h,        xxr)
+INSN_LASX(xvreplve_w,        xxr)
+INSN_LASX(xvreplve_d,        xxr)
+INSN_LASX(xvrepl128vei_b,    xx_i)
+INSN_LASX(xvrepl128vei_h,    xx_i)
+INSN_LASX(xvrepl128vei_w,    xx_i)
+INSN_LASX(xvrepl128vei_d,    xx_i)
+
+INSN_LASX(xvreplve0_b,       xx)
+INSN_LASX(xvreplve0_h,       xx)
+INSN_LASX(xvreplve0_w,       xx)
+INSN_LASX(xvreplve0_d,       xx)
+INSN_LASX(xvreplve0_q,       xx)
+
+INSN_LASX(xvinsve0_w,        xx_i)
+INSN_LASX(xvinsve0_d,        xx_i)
+
+INSN_LASX(xvpickve_w,        xx_i)
+INSN_LASX(xvpickve_d,        xx_i)
+
+INSN_LASX(xvbsll_v,          xx_i)
+INSN_LASX(xvbsrl_v,          xx_i)

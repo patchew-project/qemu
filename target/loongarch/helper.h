@@ -1232,3 +1232,8 @@ DEF_HELPER_3(xvsetallnez_b, void, env, i32, i32)
 DEF_HELPER_3(xvsetallnez_h, void, env, i32, i32)
 DEF_HELPER_3(xvsetallnez_w, void, env, i32, i32)
 DEF_HELPER_3(xvsetallnez_d, void, env, i32, i32)
+
+DEF_HELPER_4(xvinsve0_w, void, env, i32, i32, i32)
+DEF_HELPER_4(xvinsve0_d, void, env, i32, i32, i32)
+DEF_HELPER_4(xvpickve_w, void, env, i32, i32, i32)
+DEF_HELPER_4(xvpickve_d, void, env, i32, i32, i32)
