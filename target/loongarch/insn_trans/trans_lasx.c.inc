@@ -73,3 +73,19 @@ TRANS(xvsub_b, gvec_xxx, MO_8, tcg_gen_gvec_sub)
 TRANS(xvsub_h, gvec_xxx, MO_16, tcg_gen_gvec_sub)
 TRANS(xvsub_w, gvec_xxx, MO_32, tcg_gen_gvec_sub)
 TRANS(xvsub_d, gvec_xxx, MO_64, tcg_gen_gvec_sub)
+
+static bool gvec_dupx(DisasContext *ctx, arg_xr *a, MemOp mop)
+{
+    TCGv src = gpr_src(ctx, a->rj, EXT_NONE);
+
+    CHECK_ASXE;
+
+    tcg_gen_gvec_dup_i64(mop, vec_full_offset(a->xd),
+                         32, ctx->vl / 8, src);
+    return true;
+}
+
+TRANS(xvreplgr2vr_b, gvec_dupx, MO_8)
+TRANS(xvreplgr2vr_h, gvec_dupx, MO_16)
+TRANS(xvreplgr2vr_w, gvec_dupx, MO_32)
+TRANS(xvreplgr2vr_d, gvec_dupx, MO_64)
