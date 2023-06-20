@@ -2674,6 +2674,38 @@ TRANS(xvslti_hu, do_xvslti_u, MO_16)
 TRANS(xvslti_wu, do_xvslti_u, MO_32)
 TRANS(xvslti_du, do_xvslti_u, MO_64)
 
+static bool trans_xvfcmp_cond_s(DisasContext *ctx, arg_xxx_fcond * a)
+{
+    uint32_t flags;
+    void (*fn)(TCGv_env, TCGv_i32, TCGv_i32, TCGv_i32, TCGv_i32);
+    TCGv_i32 xd = tcg_constant_i32(a->xd);
+    TCGv_i32 xj = tcg_constant_i32(a->xj);
+    TCGv_i32 xk = tcg_constant_i32(a->xk);
+
+    CHECK_SXE;
+
+    fn = (a->fcond & 1 ? gen_helper_xvfcmp_s_s : gen_helper_xvfcmp_c_s);
+    flags = get_fcmp_flags(a->fcond >> 1);
+    fn(cpu_env, xd, xj, xk, tcg_constant_i32(flags));
+
+    return true;
+}
+
+static bool trans_xvfcmp_cond_d(DisasContext *ctx, arg_xxx_fcond *a)
+{
+    uint32_t flags;
+    void (*fn)(TCGv_env, TCGv_i32, TCGv_i32, TCGv_i32, TCGv_i32);
+    TCGv_i32 xd = tcg_constant_i32(a->xd);
+    TCGv_i32 xj = tcg_constant_i32(a->xj);
+    TCGv_i32 xk = tcg_constant_i32(a->xk);
+
+    fn = (a->fcond & 1 ? gen_helper_xvfcmp_s_d : gen_helper_xvfcmp_c_d);
+    flags = get_fcmp_flags(a->fcond >> 1);
+    fn(cpu_env, xd, xj, xk, tcg_constant_i32(flags));
+
+    return true;
+}
+
 static bool gvec_dupx(DisasContext *ctx, arg_xr *a, MemOp mop)
 {
     TCGv src = gpr_src(ctx, a->rj, EXT_NONE);

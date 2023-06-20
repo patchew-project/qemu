@@ -2757,3 +2757,28 @@ XVCMPI(xvslti_bu, 8, UXB, VSLT)
 XVCMPI(xvslti_hu, 16, UXH, VSLT)
 XVCMPI(xvslti_wu, 32, UXW, VSLT)
 XVCMPI(xvslti_du, 64, UXD, VSLT)
+
+#define XVFCMP(NAME, BIT, E, FN)                                         \
+void HELPER(NAME)(CPULoongArchState *env,                                \
+                  uint32_t xd, uint32_t xj, uint32_t xk, uint32_t flags) \
+{                                                                        \
+    int i;                                                               \
+    XReg t;                                                              \
+    XReg *Xd = &(env->fpr[xd].xreg);                                     \
+    XReg *Xj = &(env->fpr[xj].xreg);                                     \
+    XReg *Xk = &(env->fpr[xk].xreg);                                     \
+                                                                         \
+    vec_clear_cause(env);                                                \
+    for (i = 0; i < LASX_LEN / BIT ; i++) {                              \
+        FloatRelation cmp;                                               \
+        cmp = FN(Xj->E(i), Xk->E(i), &env->fp_status);                   \
+        t.E(i) = vfcmp_common(env, cmp, flags);                          \
+        vec_update_fcsr0(env, GETPC());                                  \
+    }                                                                    \
+    *Xd = t;                                                             \
+}
+
+XVFCMP(xvfcmp_c_s, 32, UXW, float32_compare_quiet)
+XVFCMP(xvfcmp_s_s, 32, UXW, float32_compare)
+XVFCMP(xvfcmp_c_d, 64, UXD, float64_compare_quiet)
+XVFCMP(xvfcmp_s_d, 64, UXD, float64_compare)

@@ -2622,8 +2622,8 @@ VCMPI(vslti_hu, 16, UH, VSLT)
 VCMPI(vslti_wu, 32, UW, VSLT)
 VCMPI(vslti_du, 64, UD, VSLT)
 
-static uint64_t vfcmp_common(CPULoongArchState *env,
-                             FloatRelation cmp, uint32_t flags)
+uint64_t vfcmp_common(CPULoongArchState *env,
+                      FloatRelation cmp, uint32_t flags)
 {
     uint64_t ret = 0;
 

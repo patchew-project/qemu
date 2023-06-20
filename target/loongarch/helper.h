@@ -1216,3 +1216,8 @@ DEF_HELPER_FLAGS_4(xvslti_bu, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
 DEF_HELPER_FLAGS_4(xvslti_hu, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
 DEF_HELPER_FLAGS_4(xvslti_wu, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
 DEF_HELPER_FLAGS_4(xvslti_du, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
+
+DEF_HELPER_5(xvfcmp_c_s, void, env, i32, i32, i32, i32)
+DEF_HELPER_5(xvfcmp_s_s, void, env, i32, i32, i32, i32)
+DEF_HELPER_5(xvfcmp_c_d, void, env, i32, i32, i32, i32)
+DEF_HELPER_5(xvfcmp_s_d, void, env, i32, i32, i32, i32)

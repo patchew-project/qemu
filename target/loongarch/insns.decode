@@ -1307,6 +1307,7 @@ vstelm_b         0011 000110 .... ........ ..... .....    @vr_i8i4
 &xx_i         xd xj imm
 &x_i          xd imm
 &xxxx         xd xj xk xa
+&xxx_fcond    xd xj xk fcond
 
 #
 # LASX Formats
@@ -1324,6 +1325,7 @@ vstelm_b         0011 000110 .... ........ ..... .....    @vr_i8i4
 @xx_ui7              .... ........ ... imm:7 xj:5 xd:5    &xx_i
 @xx_ui8               .... ........ .. imm:8 xj:5 xd:5    &xx_i
 @xxxx                .... ........ xa:5 xk:5 xj:5 xd:5    &xxxx
+@xxx_fcond        .... ........ fcond:5 xk:5 xj:5 xd:5    &xxx_fcond
 
 xvadd_b          0111 01000000 10100 ..... ..... .....    @xxx
 xvadd_h          0111 01000000 10101 ..... ..... .....    @xxx
@@ -1982,6 +1984,9 @@ xvslti_bu        0111 01101000 10000 ..... ..... .....    @xx_ui5
 xvslti_hu        0111 01101000 10001 ..... ..... .....    @xx_ui5
 xvslti_wu        0111 01101000 10010 ..... ..... .....    @xx_ui5
 xvslti_du        0111 01101000 10011 ..... ..... .....    @xx_ui5
+
+xvfcmp_cond_s    0000 11001001 ..... ..... ..... .....    @xxx_fcond
+xvfcmp_cond_d    0000 11001010 ..... ..... ..... .....    @xxx_fcond
 
 xvreplgr2vr_b    0111 01101001 11110 00000 ..... .....    @xr
 xvreplgr2vr_h    0111 01101001 11110 00001 ..... .....    @xr

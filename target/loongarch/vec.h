@@ -8,6 +8,8 @@
 #ifndef LOONGARCH_VEC_H
 #define LOONGARCH_VEC_H
 
+#include "fpu/softfloat.h"
+
 #if HOST_BIG_ENDIAN
 #define B(x)  B[15 - (x)]
 #define H(x)  H[7 - (x)]
@@ -112,5 +114,8 @@ uint32_t do_frecip_32(CPULoongArchState *env, uint32_t fj);
 uint64_t do_frecip_64(CPULoongArchState *env, uint64_t fj);
 uint32_t do_frsqrt_32(CPULoongArchState *env, uint32_t fj);
 uint64_t do_frsqrt_64(CPULoongArchState *env, uint64_t fj);
+
+uint64_t vfcmp_common(CPULoongArchState *env,
+                      FloatRelation cmp, uint32_t flags);
 
 #endif /* LOONGARCH_VEC_H */
