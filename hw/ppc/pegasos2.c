@@ -29,7 +29,6 @@
 #include "qemu/log.h"
 #include "qemu/error-report.h"
 #include "sysemu/kvm.h"
-#include "kvm_ppc.h"
 #include "exec/address-spaces.h"
 #include "qom/qom-qobject.h"
 #include "qapi/qmp/qdict.h"
@@ -119,6 +118,12 @@ static void pegasos2_init(MachineState *machine)
     char *filename;
     int i, sz;
     uint8_t *spd_data;
+
+    if (kvm_enabled()) {
+        error_report("machine %s does not support the KVM accelerator",
+                     MACHINE_GET_CLASS(machine)->name);
+        exit(EXIT_FAILURE);
+    }
 
     /* init CPU */
     pm->cpu = POWERPC_CPU(cpu_create(machine->cpu_type));
