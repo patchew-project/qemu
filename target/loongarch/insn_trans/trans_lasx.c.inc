@@ -1935,6 +1935,48 @@ static bool trans_xvldi(DisasContext *ctx, arg_xvldi * a)
     return true;
 }
 
+TRANS(xvand_v, gvec_xxx, MO_64, tcg_gen_gvec_and)
+TRANS(xvor_v, gvec_xxx, MO_64, tcg_gen_gvec_or)
+TRANS(xvxor_v, gvec_xxx, MO_64, tcg_gen_gvec_xor)
+TRANS(xvnor_v, gvec_xxx, MO_64, tcg_gen_gvec_nor)
+
+static bool trans_xvandn_v(DisasContext *ctx, arg_xxx * a)
+{
+    uint32_t xd_ofs, xj_ofs, xk_ofs;
+
+    CHECK_ASXE;
+
+    xd_ofs = vec_full_offset(a->xd);
+    xj_ofs = vec_full_offset(a->xj);
+    xk_ofs = vec_full_offset(a->xk);
+
+    tcg_gen_gvec_andc(MO_64, xd_ofs, xk_ofs, xj_ofs, 32, ctx->vl / 8);
+    return true;
+}
+TRANS(xvorn_v, gvec_xxx, MO_64, tcg_gen_gvec_orc)
+TRANS(xvandi_b, gvec_xx_i, MO_8, tcg_gen_gvec_andi)
+TRANS(xvori_b, gvec_xx_i, MO_8, tcg_gen_gvec_ori)
+TRANS(xvxori_b, gvec_xx_i, MO_8, tcg_gen_gvec_xori)
+
+static void do_xvnori_b(unsigned vece, uint32_t xd_ofs, uint32_t xj_ofs,
+                        int64_t imm, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_nor_vec, 0
+        };
+    static const GVecGen2i op = {
+       .fni8 = gen_vnori_b,
+       .fniv = gen_vnori,
+       .fnoi = gen_helper_xvnori_b,
+       .opt_opc = vecop_list,
+       .vece = MO_8
+    };
+
+    tcg_gen_gvec_2i(xd_ofs, xj_ofs, oprsz, maxsz, imm, &op);
+}
+
+TRANS(xvnori_b, gvec_xx_i, MO_8, do_xvnori_b)
+
 static bool gvec_dupx(DisasContext *ctx, arg_xr *a, MemOp mop)
 {
     TCGv src = gpr_src(ctx, a->rj, EXT_NONE);

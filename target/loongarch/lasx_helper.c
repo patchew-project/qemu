@@ -804,3 +804,14 @@ void HELPER(xvmsknz_b)(CPULoongArchState *env, uint32_t xd, uint32_t xj)
         Xd->XD(2 * i + 1) = 0;
     }
 }
+
+void HELPER(xvnori_b)(void *xd, void *xj, uint64_t imm, uint32_t v)
+{
+    int i;
+    XReg *Xd = (XReg *)xd;
+    XReg *Xj = (XReg *)xj;
+
+    for (i = 0; i < LASX_LEN / 8; i++) {
+        Xd->XB(i) = ~(Xj->XB(i) | (uint8_t)imm);
+    }
+}

@@ -929,3 +929,5 @@ DEF_HELPER_3(xvmskltz_w, void, env, i32, i32)
 DEF_HELPER_3(xvmskltz_d, void, env, i32, i32)
 DEF_HELPER_3(xvmskgez_b, void, env, i32, i32)
 DEF_HELPER_3(xvmsknz_b, void, env, i32, i32)
+
+DEF_HELPER_FLAGS_4(xvnori_b, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
