@@ -64,6 +64,7 @@ bool pci_available = true;
 static char *pcibus_get_dev_path(DeviceState *dev);
 static char *pcibus_get_fw_dev_path(DeviceState *dev);
 static void pcibus_reset(BusState *qbus);
+static bool pcie_has_upstream_port(PCIDevice *dev);
 
 static Property pci_props[] = {
     DEFINE_PROP_PCI_DEVFN("addr", PCIDevice, devfn, -1),
@@ -1182,6 +1183,11 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev,
     } else if (dev->hotplugged &&
                !pci_is_vf(pci_dev) &&
                pci_get_function_0(pci_dev)) {
+        /*
+         * populating function 0 triggers a bus scan from the guest that
+         * exposes other non-zero functions. Hence we need to ensure that
+         * function 0 wasn't added yet.
+         */
         error_setg(errp, "PCI: slot %d function 0 already occupied by %s,"
                    " new func %s cannot be exposed to guest.",
                    PCI_SLOT(pci_get_function_0(pci_dev)->devfn),
@@ -1189,6 +1195,18 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev,
                    name);
 
        return NULL;
+    } else if (dev->hotplugged &&
+               !pci_is_vf(pci_dev) &&
+               pcie_has_upstream_port(pci_dev) && PCI_SLOT(devfn)) {
+        /*
+         * If the device has an upstream PCIE port, like a pcie root port,
+         * we only support functions on slot 0.
+         */
+        error_setg(errp, "PCI: slot %d is not valid for %s,"
+                   " only functions on slot 0 is supported for devices"
+                   " with an upstream PCIE port.",
+                   PCI_SLOT(devfn), name);
+        return NULL;
     }
 
     pci_dev->devfn = devfn;
