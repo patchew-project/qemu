@@ -2052,6 +2052,22 @@ TRANS(xvsrari_h, gen_xx_i, gen_helper_xvsrari_h)
 TRANS(xvsrari_w, gen_xx_i, gen_helper_xvsrari_w)
 TRANS(xvsrari_d, gen_xx_i, gen_helper_xvsrari_d)
 
+TRANS(xvsrln_b_h, gen_xxx, gen_helper_xvsrln_b_h)
+TRANS(xvsrln_h_w, gen_xxx, gen_helper_xvsrln_h_w)
+TRANS(xvsrln_w_d, gen_xxx, gen_helper_xvsrln_w_d)
+TRANS(xvsran_b_h, gen_xxx, gen_helper_xvsran_b_h)
+TRANS(xvsran_h_w, gen_xxx, gen_helper_xvsran_h_w)
+TRANS(xvsran_w_d, gen_xxx, gen_helper_xvsran_w_d)
+
+TRANS(xvsrlni_b_h, gen_xx_i, gen_helper_xvsrlni_b_h)
+TRANS(xvsrlni_h_w, gen_xx_i, gen_helper_xvsrlni_h_w)
+TRANS(xvsrlni_w_d, gen_xx_i, gen_helper_xvsrlni_w_d)
+TRANS(xvsrlni_d_q, gen_xx_i, gen_helper_xvsrlni_d_q)
+TRANS(xvsrani_b_h, gen_xx_i, gen_helper_xvsrani_b_h)
+TRANS(xvsrani_h_w, gen_xx_i, gen_helper_xvsrani_h_w)
+TRANS(xvsrani_w_d, gen_xx_i, gen_helper_xvsrani_w_d)
+TRANS(xvsrani_d_q, gen_xx_i, gen_helper_xvsrani_d_q)
+
 static bool gvec_dupx(DisasContext *ctx, arg_xr *a, MemOp mop)
 {
     TCGv src = gpr_src(ctx, a->rj, EXT_NONE);

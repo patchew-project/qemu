@@ -922,8 +922,6 @@ VSRARI(vsrari_h, 16, H)
 VSRARI(vsrari_w, 32, W)
 VSRARI(vsrari_d, 64, D)
 
-#define R_SHIFT(a, b) (a >> b)
-
 #define VSRLN(NAME, BIT, T, E1, E2)                             \
 void HELPER(NAME)(CPULoongArchState *env,                       \
                   uint32_t vd, uint32_t vj, uint32_t vk)        \
