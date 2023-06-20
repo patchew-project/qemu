@@ -21,4 +21,10 @@
  */
 strList *strList_from_string(const char *in, const char *delim);
 
+/*
+ * Produce and return a NULL-terminated array of strings from @args.
+ * The result is g_malloc'd and all strings are g_strdup'd.
+ */
+GStrv strv_from_strList(const strList *args);
+
 #endif
