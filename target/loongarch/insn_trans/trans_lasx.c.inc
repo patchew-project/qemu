@@ -2144,6 +2144,15 @@ TRANS(xvssrarni_hu_w, gen_xx_i, gen_helper_xvssrarni_hu_w)
 TRANS(xvssrarni_wu_d, gen_xx_i, gen_helper_xvssrarni_wu_d)
 TRANS(xvssrarni_du_q, gen_xx_i, gen_helper_xvssrarni_du_q)
 
+TRANS(xvclo_b, gen_xx, gen_helper_xvclo_b)
+TRANS(xvclo_h, gen_xx, gen_helper_xvclo_h)
+TRANS(xvclo_w, gen_xx, gen_helper_xvclo_w)
+TRANS(xvclo_d, gen_xx, gen_helper_xvclo_d)
+TRANS(xvclz_b, gen_xx, gen_helper_xvclz_b)
+TRANS(xvclz_h, gen_xx, gen_helper_xvclz_h)
+TRANS(xvclz_w, gen_xx, gen_helper_xvclz_w)
+TRANS(xvclz_d, gen_xx, gen_helper_xvclz_d)
+
 static bool gvec_dupx(DisasContext *ctx, arg_xr *a, MemOp mop)
 {
     TCGv src = gpr_src(ctx, a->rj, EXT_NONE);

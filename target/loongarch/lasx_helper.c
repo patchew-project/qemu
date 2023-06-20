@@ -2081,3 +2081,24 @@ void HELPER(xvssrarni_du_q)(CPULoongArchState *env,
 XVSSRARNUI(xvssrarni_bu_h, 16, XB, XH)
 XVSSRARNUI(xvssrarni_hu_w, 32, XH, XW)
 XVSSRARNUI(xvssrarni_wu_d, 64, XW, XD)
+
+#define XDO_2OP(NAME, BIT, E, DO_OP)                                \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t xd, uint32_t xj) \
+{                                                                   \
+    int i;                                                          \
+    XReg *Xd = &(env->fpr[xd].xreg);                                \
+    XReg *Xj = &(env->fpr[xj].xreg);                                \
+                                                                    \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                          \
+        Xd->E(i) = DO_OP(Xj->E(i));                                 \
+    }                                                               \
+}
+
+XDO_2OP(xvclo_b, 8, UXB, DO_CLO_B)
+XDO_2OP(xvclo_h, 16, UXH, DO_CLO_H)
+XDO_2OP(xvclo_w, 32, UXW, DO_CLO_W)
+XDO_2OP(xvclo_d, 64, UXD, DO_CLO_D)
+XDO_2OP(xvclz_b, 8, UXB, DO_CLZ_B)
+XDO_2OP(xvclz_h, 16, UXH, DO_CLZ_H)
+XDO_2OP(xvclz_w, 32, UXW, DO_CLZ_W)
+XDO_2OP(xvclz_d, 64, UXD, DO_CLZ_D)
