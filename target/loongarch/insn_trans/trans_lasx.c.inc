@@ -59,6 +59,21 @@ static bool gvec_xsubi(DisasContext *ctx, arg_xx_i *a, MemOp mop)
     return true;
 }
 
+static bool gvec_xx(DisasContext *ctx, arg_xx *a, MemOp mop,
+                    void (*func)(unsigned, uint32_t, uint32_t,
+                                 uint32_t, uint32_t))
+{
+    uint32_t xd_ofs, xj_ofs;
+
+    CHECK_ASXE;
+
+    xd_ofs = vec_full_offset(a->xd);
+    xj_ofs = vec_full_offset(a->xj);
+
+    func(mop, xd_ofs, xj_ofs, 32, ctx->vl / 8);
+    return true;
+}
+
 TRANS(xvadd_b, gvec_xxx, MO_8, tcg_gen_gvec_add)
 TRANS(xvadd_h, gvec_xxx, MO_16, tcg_gen_gvec_add)
 TRANS(xvadd_w, gvec_xxx, MO_32, tcg_gen_gvec_add)
@@ -110,6 +125,11 @@ TRANS(xvsubi_bu, gvec_xsubi, MO_8)
 TRANS(xvsubi_hu, gvec_xsubi, MO_16)
 TRANS(xvsubi_wu, gvec_xsubi, MO_32)
 TRANS(xvsubi_du, gvec_xsubi, MO_64)
+
+TRANS(xvneg_b, gvec_xx, MO_8, tcg_gen_gvec_neg)
+TRANS(xvneg_h, gvec_xx, MO_16, tcg_gen_gvec_neg)
+TRANS(xvneg_w, gvec_xx, MO_32, tcg_gen_gvec_neg)
+TRANS(xvneg_d, gvec_xx, MO_64, tcg_gen_gvec_neg)
 
 static bool gvec_dupx(DisasContext *ctx, arg_xr *a, MemOp mop)
 {
