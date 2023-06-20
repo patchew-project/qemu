@@ -1800,7 +1800,7 @@ static MemoryListener kvm_io_listener = {
     .name = "kvm-io",
     .eventfd_add = kvm_io_ioeventfd_add,
     .eventfd_del = kvm_io_ioeventfd_del,
-    .priority = 10,
+    .priority = MEMORY_LISTENER_PRIORITY_DEV_BAKCNED,
 };
 
 int kvm_set_irq(KVMState *s, int irq, int level)
