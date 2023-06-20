@@ -1747,6 +1747,92 @@ TRANS(xvmod_hu, gen_xxx, gen_helper_xvmod_hu)
 TRANS(xvmod_wu, gen_xxx, gen_helper_xvmod_wu)
 TRANS(xvmod_du, gen_xxx, gen_helper_xvmod_du)
 
+static void do_xvsat_s(unsigned vece, uint32_t xd_ofs, uint32_t xj_ofs,
+                       int64_t imm, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_smax_vec, INDEX_op_smin_vec, 0
+        };
+    static const GVecGen2s op[4] = {
+        {
+            .fniv = gen_vsat_s,
+            .fno = gen_helper_xvsat_b,
+            .opt_opc = vecop_list,
+            .vece = MO_8
+        },
+        {
+            .fniv = gen_vsat_s,
+            .fno = gen_helper_xvsat_h,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fniv = gen_vsat_s,
+            .fno = gen_helper_xvsat_w,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fniv = gen_vsat_s,
+            .fno = gen_helper_xvsat_d,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_2s(xd_ofs, xj_ofs, oprsz, maxsz,
+                    tcg_constant_i64((1ll << imm) - 1), &op[vece]);
+}
+
+TRANS(xvsat_b, gvec_xx_i, MO_8, do_xvsat_s)
+TRANS(xvsat_h, gvec_xx_i, MO_16, do_xvsat_s)
+TRANS(xvsat_w, gvec_xx_i, MO_32, do_xvsat_s)
+TRANS(xvsat_d, gvec_xx_i, MO_64, do_xvsat_s)
+
+static void do_xvsat_u(unsigned vece, uint32_t xd_ofs, uint32_t xj_ofs,
+                       int64_t imm, uint32_t oprsz, uint32_t maxsz)
+{
+    uint64_t max;
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_umin_vec, 0
+        };
+    static const GVecGen2s op[4] = {
+        {
+            .fniv = gen_vsat_u,
+            .fno = gen_helper_xvsat_bu,
+            .opt_opc = vecop_list,
+            .vece = MO_8
+        },
+        {
+            .fniv = gen_vsat_u,
+            .fno = gen_helper_xvsat_hu,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fniv = gen_vsat_u,
+            .fno = gen_helper_xvsat_wu,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fniv = gen_vsat_u,
+            .fno = gen_helper_xvsat_du,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    max = (imm == 0x3f) ? UINT64_MAX : (1ull << (imm + 1)) - 1;
+    tcg_gen_gvec_2s(xd_ofs, xj_ofs, oprsz, maxsz,
+                    tcg_constant_i64(max), &op[vece]);
+}
+
+TRANS(xvsat_bu, gvec_xx_i, MO_8, do_xvsat_u)
+TRANS(xvsat_hu, gvec_xx_i, MO_16, do_xvsat_u)
+TRANS(xvsat_wu, gvec_xx_i, MO_32, do_xvsat_u)
+TRANS(xvsat_du, gvec_xx_i, MO_64, do_xvsat_u)
+
 static bool gvec_dupx(DisasContext *ctx, arg_xr *a, MemOp mop)
 {
     TCGv src = gpr_src(ctx, a->rj, EXT_NONE);

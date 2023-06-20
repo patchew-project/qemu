@@ -601,3 +601,40 @@ XVDIV(xvmod_bu, 8, UXB, DO_REMU)
 XVDIV(xvmod_hu, 16, UXH, DO_REMU)
 XVDIV(xvmod_wu, 32, UXW, DO_REMU)
 XVDIV(xvmod_du, 64, UXD, DO_REMU)
+
+#define XVSAT_S(NAME, BIT, E)                                   \
+void HELPER(NAME)(void *xd, void *xj, uint64_t max, uint32_t v) \
+{                                                               \
+    int i;                                                      \
+    XReg *Xd = (XReg *)xd;                                      \
+    XReg *Xj = (XReg *)xj;                                      \
+    typedef __typeof(Xd->E(0)) TD;                              \
+                                                                \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                      \
+        Xd->E(i) = Xj->E(i) > (TD)max ? (TD)max :               \
+                   Xj->E(i) < (TD)~max ? (TD)~max : Xj->E(i);   \
+    }                                                           \
+}
+
+XVSAT_S(xvsat_b, 8, XB)
+XVSAT_S(xvsat_h, 16, XH)
+XVSAT_S(xvsat_w, 32, XW)
+XVSAT_S(xvsat_d, 64, XD)
+
+#define XVSAT_U(NAME, BIT, E)                                   \
+void HELPER(NAME)(void *xd, void *xj, uint64_t max, uint32_t v) \
+{                                                               \
+    int i;                                                      \
+    XReg *Xd = (XReg *)xd;                                      \
+    XReg *Xj = (XReg *)xj;                                      \
+    typedef __typeof(Xd->E(0)) TD;                              \
+                                                                \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                      \
+        Xd->E(i) = Xj->E(i) > (TD)max ? (TD)max : Xj->E(i);     \
+    }                                                           \
+}
+
+XVSAT_U(xvsat_bu, 8, UXB)
+XVSAT_U(xvsat_hu, 16, UXH)
+XVSAT_U(xvsat_wu, 32, UXW)
+XVSAT_U(xvsat_du, 64, UXD)
