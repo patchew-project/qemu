@@ -250,6 +250,7 @@ git_submodules_action="update"
 git="git"
 debug_tcg="no"
 docs="auto"
+tests="enabled"
 EXESUF=""
 prefix="/usr/local"
 qemu_suffix="qemu"
@@ -639,6 +640,10 @@ for opt do
   ;;
   --disable-docs) docs=disabled
   ;;
+  --enable-tests) tests=enabled
+  ;;
+  --disable-tests) tests=disabled
+  ;;
   --cpu=*)
   ;;
   --target-list=*) target_list="$optarg"
@@ -984,6 +989,32 @@ if test "$docs" != "disabled" ; then
         docs=enabled
     fi
 fi
+
+# Optionally pre-load the testing pre-requisites. This is for iotests,
+# vmtests, and anything else that uses Python qemu.* packages. Note that
+# our in-tree qemu packages are currently pure python with zero external
+# dependencies. For this reason, it excludes the Avocado dependencies
+# which are installed on-demand at time of use instead.
+
+mkvenv_flags=""
+if test "$pypi" = "enabled" ; then
+    mkvenv_flags="--online"
+fi
+
+if test "$tests" = "enabled" ; then
+    if ! $mkvenv install \
+         $mkvenv_flags \
+         --editable \
+         --dir "${source_path}/python/wheels" \
+         "${source_path}/python/";
+    then
+        echo "There was a problem installing the in-tree python packages for testing."
+        exit 1
+    fi
+    touch pyvenv/tests.group
+fi
+
+echo "mkvenv: done for now, ciao!"
 
 # Probe for ninja
 
