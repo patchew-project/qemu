@@ -635,9 +635,11 @@ static void virtio_gpu_do_set_scanout(VirtIOGPU *g,
             if (!virtio_gpu_update_dmabuf(g, scanout_id, res, fb, r)) {
                 virtio_gpu_update_scanout(g, scanout_id, res, r);
                 return;
+            } else {
+                *error = VIRTIO_GPU_RESP_ERR_OUT_OF_MEMORY;
+                return;
             }
         }
-
         data = res->blob;
     } else {
         data = (uint8_t *)pixman_image_get_data(res->image);
