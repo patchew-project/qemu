@@ -138,7 +138,20 @@ class TestEnv(ContextManager['TestEnv']):
              PYTHON (for bash tests)
              QEMU_PROG, QEMU_IMG_PROG, QEMU_IO_PROG, QEMU_NBD_PROG, QSD_PROG
         """
-        self.python = sys.executable
+        # The python we want to use to launch tests.
+        self.python: str = str(
+            Path(self.build_root).joinpath('pyvenv', 'bin', 'python3')
+        )
+        # RFC: Do I need to amend '.exe' for windows, or nah?
+
+        if self.python != sys.executable:
+            print(
+                "Note: "
+                f"check was launched with a Python ({sys.executable}) "
+                f"that doesn't match QEMU's configured Python ({self.python})."
+                " QEMU's Python will be used for individual test processes.",
+                file=sys.stderr
+            )
 
         def root(*names: str) -> str:
             return os.path.join(self.build_root, *names)
