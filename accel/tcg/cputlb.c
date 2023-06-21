@@ -1984,7 +1984,7 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
          */
         goto stop_the_world;
     }
-    /* Collect TLB_WATCHPOINT for read. */
+    /* Collect tlb flags for read. */
     tlb_addr |= tlbe->addr_read;
 
     /* Notice an IO access or a needs-MMU-lookup access */
@@ -2001,9 +2001,19 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
         notdirty_write(env_cpu(env), addr, size, full, retaddr);
     }
 
-    if (unlikely(tlb_addr & TLB_WATCHPOINT)) {
-        cpu_check_watchpoint(env_cpu(env), addr, size, full->attrs,
-                             BP_MEM_READ | BP_MEM_WRITE, retaddr);
+    if (unlikely(tlb_addr & TLB_FORCE_SLOW)) {
+        int wp_flags = 0;
+
+        if (full->slow_flags[MMU_DATA_STORE] & TLB_WATCHPOINT) {
+            wp_flags |= BP_MEM_WRITE;
+        }
+        if (full->slow_flags[MMU_DATA_LOAD] & TLB_WATCHPOINT) {
+            wp_flags |= BP_MEM_READ;
+        }
+        if (wp_flags) {
+            cpu_check_watchpoint(env_cpu(env), addr, size,
+                                 full->attrs, wp_flags, retaddr);
+        }
     }
 
     return hostaddr;
