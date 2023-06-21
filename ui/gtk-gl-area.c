@@ -270,6 +270,7 @@ void gd_gl_area_scanout_disable(DisplayChangeListener *dcl)
 {
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
 
+    gtk_gl_area_make_current(GTK_GL_AREA(vc->gfx.drawing_area));
     gtk_gl_area_set_scanout_mode(vc, false);
 }
 
@@ -282,6 +283,7 @@ void gd_gl_area_scanout_flush(DisplayChangeListener *dcl,
         return;
     }
 
+    gtk_gl_area_make_current(GTK_GL_AREA(vc->gfx.drawing_area));
     if (vc->gfx.guest_fb.dmabuf && !vc->gfx.guest_fb.dmabuf->draw_submitted) {
         graphic_hw_gl_block(vc->gfx.dcl.con, true);
         vc->gfx.guest_fb.dmabuf->draw_submitted = true;
