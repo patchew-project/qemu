@@ -847,6 +847,10 @@ static gboolean gd_draw_event(GtkWidget *widget, cairo_t *cr, void *opaque)
 
 #if defined(CONFIG_OPENGL)
     if (vc->gfx.gls) {
+        if (!vc->gfx.visible) {
+            return TRUE;
+        }
+
         if (gtk_use_gl_area) {
             /* invoke render callback please */
             return FALSE;
