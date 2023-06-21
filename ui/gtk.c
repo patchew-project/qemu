@@ -1462,6 +1462,44 @@ static gboolean gd_win_grab(void *opaque)
     return TRUE;
 }
 
+static void gd_tab_window_create(VirtualConsole *vc)
+{
+    GtkDisplayState *s = vc->s;
+
+    gtk_widget_set_sensitive(vc->menu_item, false);
+    vc->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    gtk_window_set_default_size(GTK_WINDOW(vc->window),
+                                surface_width(vc->gfx.ds),
+                                surface_height(vc->gfx.ds));
+#if defined(CONFIG_OPENGL)
+    if (vc->gfx.esurface) {
+	eglDestroySurface(qemu_egl_display, vc->gfx.esurface);
+	vc->gfx.esurface = NULL;
+    }
+    if (vc->gfx.ectx) {
+	eglDestroyContext(qemu_egl_display, vc->gfx.ectx);
+	vc->gfx.ectx = NULL;
+    }
+#endif
+    gd_widget_reparent(s->notebook, vc->window, vc->tab_item);
+
+    g_signal_connect(vc->window, "delete-event",
+		     G_CALLBACK(gd_tab_window_close), vc);
+    gtk_widget_show_all(vc->window);
+
+    if (qemu_console_is_graphic(vc->gfx.dcl.con)) {
+	GtkAccelGroup *ag = gtk_accel_group_new();
+	gtk_window_add_accel_group(GTK_WINDOW(vc->window), ag);
+
+	GClosure *cb = g_cclosure_new_swap(G_CALLBACK(gd_win_grab),
+					   vc, NULL);
+	gtk_accel_group_connect(ag, GDK_KEY_g, HOTKEY_MODIFIERS, 0, cb);
+    }
+
+    gd_update_geometry_hints(vc);
+    gd_update_caption(s);
+}
+
 static void gd_menu_untabify(GtkMenuItem *item, void *opaque)
 {
     GtkDisplayState *s = opaque;
@@ -1474,38 +1512,7 @@ static void gd_menu_untabify(GtkMenuItem *item, void *opaque)
                                        FALSE);
     }
     if (!vc->window) {
-        gtk_widget_set_sensitive(vc->menu_item, false);
-        vc->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-#if defined(CONFIG_OPENGL)
-        if (vc->gfx.esurface) {
-            eglDestroySurface(qemu_egl_display, vc->gfx.esurface);
-            vc->gfx.esurface = NULL;
-        }
-        if (vc->gfx.esurface) {
-            eglDestroyContext(qemu_egl_display, vc->gfx.ectx);
-            vc->gfx.ectx = NULL;
-        }
-#endif
-        gd_widget_reparent(s->notebook, vc->window, vc->tab_item);
-
-        g_signal_connect(vc->window, "delete-event",
-                         G_CALLBACK(gd_tab_window_close), vc);
-        g_signal_connect(vc->window, "window-state-event",
-                         G_CALLBACK(gd_window_state_event), vc);
-
-        gtk_widget_show_all(vc->window);
-
-        if (qemu_console_is_graphic(vc->gfx.dcl.con)) {
-            GtkAccelGroup *ag = gtk_accel_group_new();
-            gtk_window_add_accel_group(GTK_WINDOW(vc->window), ag);
-
-            GClosure *cb = g_cclosure_new_swap(G_CALLBACK(gd_win_grab),
-                                               vc, NULL);
-            gtk_accel_group_connect(ag, GDK_KEY_g, HOTKEY_MODIFIERS, 0, cb);
-        }
-
-        gd_update_geometry_hints(vc);
-        gd_update_caption(s);
+        gd_tab_window_create(vc);
     }
 
     window = gtk_widget_get_window(vc->gfx.drawing_area);
