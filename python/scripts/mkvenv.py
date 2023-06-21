@@ -940,6 +940,35 @@ def _add_ensure_subcommand(subparsers: Any) -> None:
     )
 
 
+def _add_install_subcommand(subparsers: Any) -> None:
+    subparser = subparsers.add_parser(
+        "install", help="Install the specified package."
+    )
+    subparser.add_argument(
+        "--online",
+        action="store_true",
+        help="Install packages from PyPI, if necessary.",
+    )
+    subparser.add_argument(
+        "--dir",
+        type=str,
+        action="store",
+        help="Path to vendored packages where we may install from.",
+    )
+    subparser.add_argument(
+        '--editable',
+        action="store_true",
+        help="Should package(s) be installed in editable mode?"
+    )
+    subparser.add_argument(
+        "dep_specs",
+        type=str,
+        action="store",
+        help="PEP 508 Dependency specification, e.g. 'meson>=0.61.5'",
+        nargs="+",
+    )
+
+
 def main() -> int:
     """CLI interface to make_qemu_venv. See module docstring."""
     if os.environ.get("DEBUG") or os.environ.get("GITLAB_CI"):
@@ -964,6 +993,7 @@ def main() -> int:
     _add_create_subcommand(subparsers)
     _add_post_init_subcommand(subparsers)
     _add_ensure_subcommand(subparsers)
+    _add_install_subcommand(subparsers)
 
     args = parser.parse_args()
     try:
@@ -981,6 +1011,16 @@ def main() -> int:
                 online=args.online,
                 wheels_dir=args.dir,
                 prog=args.diagnose,
+            )
+        if args.command == "install":
+            print(f"mkvenv: installing {', '.join(args.dep_specs)}", file=sys.stderr)
+            pip_args = list(args.dep_specs)
+            if args.editable:
+                pip_args.insert(0, "--editable")
+            pip_install(
+                args=pip_args,
+                online=args.online,
+                wheels_dir=args.dir
             )
         logger.debug("mkvenv.py %s: exiting", args.command)
     except Ouch as exc:
