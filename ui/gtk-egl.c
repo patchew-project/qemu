@@ -106,6 +106,11 @@ void gd_egl_draw(VirtualConsole *vc)
         if (!vc->gfx.ds) {
             return;
         }
+
+        if (!vc->gfx.esurface || !vc->gfx.ectx || !vc->gfx.ds->image) {
+            return;
+        }
+
         eglMakeCurrent(qemu_egl_display, vc->gfx.esurface,
                        vc->gfx.esurface, vc->gfx.ectx);
 
