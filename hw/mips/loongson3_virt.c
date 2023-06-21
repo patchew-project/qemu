@@ -51,6 +51,7 @@
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
 #include "qemu/error-report.h"
+#include CONFIG_DEVICES
 
 #define PM_CNTL_MODE          0x10
 
@@ -447,11 +448,13 @@ static inline void loongson3_virt_devices_init(MachineState *machine,
 
     pci_vga_init(pci_bus);
 
+#ifdef CONFIG_USB_OHCI_PCI
     if (defaults_enabled()) {
         pci_create_simple(pci_bus, -1, "pci-ohci");
         usb_create_simple(usb_bus_find(-1), "usb-kbd");
         usb_create_simple(usb_bus_find(-1), "usb-tablet");
     }
+#endif
 
     for (i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
