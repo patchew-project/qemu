@@ -632,42 +632,39 @@ int64_t vfio_mig_bytes_transferred(void)
     return bytes_transferred;
 }
 
-int vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
+/* Return true when either migration initialized or blocker registered */
+bool vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
 {
-    int ret = -ENOTSUP;
+    int ret;
 
-    if (!vbasedev->enable_migration) {
+    if (!vbasedev->enable_migration || vfio_migration_init(vbasedev)) {
+        error_setg(&vbasedev->migration_blocker,
+                   "VFIO device %s doesn't support migration", vbasedev->name);
         goto add_blocker;
     }
 
-    ret = vfio_migration_init(vbasedev);
-    if (ret) {
+    if (!vfio_block_multiple_devices_migration(errp)) {
+        return false;
+    }
+
+    if (vfio_block_giommu_migration(vbasedev)) {
+        error_setg(&vbasedev->migration_blocker,
+                   "Migration is currently not supported on %s "
+                   "with vIOMMU enabled", vbasedev->name);
         goto add_blocker;
     }
 
-    ret = vfio_block_multiple_devices_migration(errp);
-    if (ret) {
-        return ret;
-    }
-
-    ret = vfio_block_giommu_migration(errp);
-    if (ret) {
-        return ret;
-    }
-
-    trace_vfio_migration_probe(vbasedev->name);
-    return 0;
+    return true;
 
 add_blocker:
-    error_setg(&vbasedev->migration_blocker,
-               "VFIO device doesn't support migration");
-
     ret = migrate_add_blocker(vbasedev->migration_blocker, errp);
     if (ret < 0) {
         error_free(vbasedev->migration_blocker);
         vbasedev->migration_blocker = NULL;
+    } else {
+        error_report("%s: Migration disabled", vbasedev->name);
     }
-    return ret;
+    return !ret;
 }
 
 void vfio_migration_exit(VFIODevice *vbasedev)
