@@ -598,10 +598,21 @@ void gd_hw_gl_flushed(void *vcon)
     VirtualConsole *vc = vcon;
     QemuDmaBuf *dmabuf = vc->gfx.guest_fb.dmabuf;
 
-    qemu_set_fd_handler(dmabuf->fence_fd, NULL, NULL, NULL);
-    close(dmabuf->fence_fd);
-    dmabuf->fence_fd = -1;
-    graphic_hw_gl_block(vc->gfx.dcl.con, false);
+    if (!dmabuf) {
+        return;
+    }
+
+    if (dmabuf->fence_fd > 0) {
+        qemu_set_fd_handler(dmabuf->fence_fd, NULL, NULL, NULL);
+        close(dmabuf->fence_fd);
+        dmabuf->fence_fd = -1;
+        graphic_hw_gl_block(vc->gfx.dcl.con, false);
+    } else if (dmabuf->draw_submitted) {
+        /* if called after a frame is submitted but render event
+         * is not scheduled yet, cancel submitted draw. */
+        dmabuf->draw_submitted = false;
+        graphic_hw_gl_block(vc->gfx.dcl.con, false);
+    }
 }
 
 /** DisplayState Callbacks (opengl version) **/
@@ -742,6 +753,9 @@ static void gd_set_ui_size(VirtualConsole *vc, gint width, gint height)
     dpy_set_ui_info(vc->gfx.dcl.con, &info, true);
 }
 
+static gboolean gd_window_state_event(GtkWidget *widget, GdkEvent *event,
+                                      void *opaque);
+
 static void gd_ui_hide(VirtualConsole *vc)
 {
     QemuUIInfo info;
@@ -751,6 +765,8 @@ static void gd_ui_hide(VirtualConsole *vc)
     info.width = 0;
     info.height = 0;
     dpy_set_ui_info(vc->gfx.dcl.con, &info, false);
+    /* forcefully cancel rendering sequence */
+    gd_hw_gl_flushed(vc);
 }
 
 static void gd_ui_show(VirtualConsole *vc)
@@ -1460,11 +1476,6 @@ static gboolean gd_window_state_event(GtkWidget *widget, GdkEvent *event,
 
     if (event->window_state.new_window_state & GDK_WINDOW_STATE_ICONIFIED) {
         gd_ui_hide(vc);
-        if (vc->gfx.guest_fb.dmabuf &&
-            vc->gfx.guest_fb.dmabuf->draw_submitted) {
-            vc->gfx.guest_fb.dmabuf->draw_submitted = false;
-            graphic_hw_gl_block(vc->gfx.dcl.con, false);
-        }
     } else {
         gd_ui_show(vc);
     }
