@@ -56,6 +56,7 @@ struct RISCVVirtState {
     bool have_aclint;
     RISCVVirtAIAType aia_type;
     int aia_guests;
+    uint64_t kvm_aia_mode;
     char *oem_id;
     char *oem_table_id;
     OnOffAuto acpi;
