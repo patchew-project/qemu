@@ -927,7 +927,7 @@ int coroutine_fn colo_incoming_co(void)
 
     assert(qemu_mutex_iothread_locked());
 
-    if (!migration_incoming_colo_enabled()) {
+    if (!migrate_colo()) {
         return 0;
     }
 
