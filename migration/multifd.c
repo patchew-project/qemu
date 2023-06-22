@@ -25,6 +25,7 @@
 #include "qemu-file.h"
 #include "trace.h"
 #include "multifd.h"
+#include "multifd-colo.h"
 #include "threadinfo.h"
 #include "options.h"
 #include "qemu/yank.h"
@@ -1134,10 +1135,14 @@ static void *multifd_recv_thread(void *opaque)
         qemu_mutex_unlock(&p->mutex);
 
         if (p->normal_num) {
+            multifd_colo_prepare_recv_pages(p);
+
             ret = multifd_recv_state->ops->recv_pages(p, &local_err);
             if (ret != 0) {
                 break;
             }
+
+            multifd_colo_process_recv_pages(p);
         }
 
         if (flags & MULTIFD_FLAG_SYNC) {
