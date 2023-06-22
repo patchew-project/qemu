@@ -404,10 +404,6 @@ int migration_incoming_enable_colo(void)
         return -EINVAL;
     }
 
-    if (ram_block_discard_disable(true)) {
-        error_report("COLO: cannot disable RAM discard");
-        return -EBUSY;
-    }
     migration_colo_enabled = true;
     return 0;
 }
@@ -517,6 +513,18 @@ process_incoming_migration_co(void *opaque)
     if (compress_threads_load_setup(mis->from_src_file)) {
         error_report("Failed to setup decompress threads");
         goto fail;
+    }
+
+    if (migrate_colo()) {
+        if (ram_block_discard_disable(true)) {
+            error_report("COLO: cannot disable RAM discard");
+            goto fail;
+        }
+
+        if (colo_init_ram_cache() < 0) {
+            error_report("Init ram cache failed");
+            goto fail;
+        }
     }
 
     mis->largest_page_size = qemu_ram_pagesize_largest();
