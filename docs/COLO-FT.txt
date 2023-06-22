@@ -148,6 +148,8 @@ in test procedure.
 Note: Here we are running both instances on the same host for testing,
 change the IP Addresses if you want to run it on two hosts. Initially
 127.0.0.1 is the Primary Host and 127.0.0.2 is the Secondary Host.
+Note: COLO is a experimental feature, so currently is should only be used
+with the same qemu version on sourcee and target.
 
 == Startup qemu ==
 1. Primary:
