@@ -2710,6 +2710,22 @@ AddressSpace *pci_device_iommu_address_space(PCIDevice *dev)
     return &address_space_memory;
 }
 
+int pci_device_iommu_get_attr(PCIDevice *dev, enum IOMMUMemoryRegionAttr attr,
+                              void *data)
+{
+    PCIBus *bus, *iommu_bus;
+    uint8_t devfn;
+
+    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    if (!pci_bus_bypass_iommu(bus) && iommu_bus &&
+        iommu_bus->iommu_ops && iommu_bus->iommu_ops->get_iommu_attr) {
+        return iommu_bus->iommu_ops->get_iommu_attr(bus, iommu_bus->iommu_opaque,
+                                                    devfn, attr, data);
+    }
+
+    return -ENOENT;
+}
+
 void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque)
 {
     bus->iommu_fn = fn;
