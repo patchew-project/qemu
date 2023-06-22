@@ -419,7 +419,8 @@ static bool vfio_viommu_preset(void)
     VFIOAddressSpace *space;
 
     QLIST_FOREACH(space, &vfio_address_spaces, list) {
-        if (space->as != &address_space_memory) {
+        if ((space->as != &address_space_memory) &&
+            !space->no_dma_translation) {
             return true;
         }
     }
