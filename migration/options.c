@@ -451,6 +451,11 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
             error_setg(errp, "COLO is not compatible with postcopy");
             return false;
         }
+
+        if (new_caps[MIGRATION_CAPABILITY_BLOCK]) {
+            error_setg(errp, "COLO is not compatible with block migration");
+            return false;
+        }
     }
 #endif
 
