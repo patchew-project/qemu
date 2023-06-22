@@ -445,7 +445,16 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
         error_append_hint(errp, "Please enable replication before COLO.\n");
         return false;
     }
+#else
+    if (new_caps[MIGRATION_CAPABILITY_X_COLO]) {
+        if (new_caps[MIGRATION_CAPABILITY_POSTCOPY_RAM]) {
+            error_setg(errp, "COLO is not compatible with postcopy");
+            return false;
+        }
+    }
 #endif
+
+
 
     if (new_caps[MIGRATION_CAPABILITY_POSTCOPY_RAM]) {
         /* This check is reasonably expensive, so only when it's being

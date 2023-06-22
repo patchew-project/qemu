@@ -2333,9 +2333,10 @@ static void migration_completion(MigrationState *s)
         goto fail;
     }
 
-    if (migrate_colo() && s->state == MIGRATION_STATUS_ACTIVE) {
+    if (migrate_colo()) {
         /* COLO does not support postcopy */
-        migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
+        assert(s->state != MIGRATION_STATUS_POSTCOPY_ACTIVE);
+        migrate_set_state(&s->state, current_active_state,
                           MIGRATION_STATUS_COLO);
     } else {
         migrate_set_state(&s->state, current_active_state,
