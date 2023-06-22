@@ -3876,6 +3876,13 @@ static int vtd_iommu_get_attr(IOMMUMemoryRegion *iommu_mr,
         *enabled = s->dma_translation;
         break;
     }
+    case IOMMU_ATTR_MAX_IOVA:
+    {
+        hwaddr *max_iova = (hwaddr *)(uintptr_t) data;
+
+        *max_iova = MAKE_64BIT_MASK(0, s->aw_bits);;
+        break;
+    }
     default:
         ret = -EINVAL;
         break;
