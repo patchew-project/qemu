@@ -2900,6 +2900,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     VFIOPCIDevice *vdev = VFIO_PCI(pdev);
     VFIODevice *vbasedev = &vdev->vbasedev;
     VFIODevice *vbasedev_iter;
+    VFIOAddressSpace *space;
     VFIOGroup *group;
     char *tmp, *subsys, group_path[PATH_MAX], *group_name;
     Error *err = NULL;
@@ -2907,7 +2908,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     struct stat st;
     int groupid;
     int i, ret;
-    bool is_mdev;
+    bool is_mdev, dma_translation;
     char uuid[UUID_FMT_LEN];
     char *name;
 
@@ -2960,6 +2961,18 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     if (!group) {
         goto error;
     }
+
+    space = group->container->space;
+
+    /*
+     * Support for toggling DMA translation is optional.
+     * By default, DMA translation is assumed to be enabled i.e.
+     * space::no_dma_translation is 0.
+     */
+    dma_translation = true;
+    pci_device_iommu_get_attr(pdev, IOMMU_ATTR_DMA_TRANSLATION,
+                              &dma_translation);
+    space->no_dma_translation = !dma_translation;
 
     QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
         if (strcmp(vbasedev_iter->name, vbasedev->name) == 0) {
