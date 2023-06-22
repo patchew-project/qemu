@@ -651,8 +651,45 @@ static int vhost_vdpa_net_load_mac(VhostVDPAState *s, const VirtIONet *n)
         if (unlikely(dev_written < 0)) {
             return dev_written;
         }
+        if (*s->status != VIRTIO_NET_OK) {
+            return -EINVAL;
+        }
+    }
 
-        return *s->status != VIRTIO_NET_OK;
+    if (virtio_vdev_has_feature(&n->parent_obj, VIRTIO_NET_F_CTRL_RX)) {
+        /* Load the MAC address filtering */
+        uint32_t uni_entries = n->mac_table.first_multi,
+                 uni_macs_size = uni_entries * ETH_ALEN,
+                 uni_size = sizeof(struct virtio_net_ctrl_mac) + uni_macs_size,
+                 mul_entries = n->mac_table.in_use - uni_entries,
+                 mul_macs_size = mul_entries * ETH_ALEN,
+                 mul_size = sizeof(struct virtio_net_ctrl_mac) + mul_macs_size,
+                 data_size = uni_size + mul_size;
+        void *data = g_malloc(data_size);
+        struct virtio_net_ctrl_mac *ctrl_mac;
+
+        /* Pack the non-multicast(unicast) MAC addresses */
+        ctrl_mac = data;
+        ctrl_mac->entries = cpu_to_le32(uni_entries);
+        memcpy(ctrl_mac->macs, n->mac_table.macs, uni_macs_size);
+
+        /* Pack the multicast MAC addresses */
+        ctrl_mac = data + uni_size;
+        ctrl_mac->entries = cpu_to_le32(mul_entries);
+        memcpy(ctrl_mac->macs, &n->mac_table.macs[uni_macs_size],
+               mul_macs_size);
+
+        ssize_t dev_written = vhost_vdpa_net_load_cmd(s, VIRTIO_NET_CTRL_MAC,
+                                                  VIRTIO_NET_CTRL_MAC_TABLE_SET,
+                                                  data, data_size);
+        g_free(data);
+
+        if (unlikely(dev_written < 0)) {
+            return dev_written;
+        }
+        if (*s->status != VIRTIO_NET_OK) {
+            return -EINVAL;
+        }
     }
 
     return 0;
