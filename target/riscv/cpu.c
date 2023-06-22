@@ -1714,6 +1714,10 @@ static void riscv_cpu_add_user_properties(Object *obj)
     Property *prop;
     DeviceState *dev = DEVICE(obj);
 
+    if (riscv_running_kvm()) {
+        kvm_riscv_init_user_properties(obj);
+    }
+
     riscv_cpu_add_misa_properties(obj);
 
     for (prop = riscv_cpu_extensions; prop && prop->name; prop++) {
