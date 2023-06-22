@@ -2994,17 +2994,17 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     RAMBlock *block;
     int ret;
 
+    assert(!migration_in_colo_state());
+
     if (compress_threads_save_setup()) {
         return -1;
     }
 
-    /* migration has already setup the bitmap, reuse it. */
-    if (!migration_in_colo_state()) {
-        if (ram_init_all(rsp) != 0) {
-            compress_threads_save_cleanup();
-            return -1;
-        }
+    if (ram_init_all(rsp) != 0) {
+        compress_threads_save_cleanup();
+        return -1;
     }
+
     (*rsp)->pss[RAM_CHANNEL_PRECOPY].pss_channel = f;
 
     WITH_RCU_READ_LOCK_GUARD() {
