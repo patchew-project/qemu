@@ -71,6 +71,7 @@ typedef struct VFIOMigration {
 typedef struct VFIOAddressSpace {
     AddressSpace *as;
     bool no_dma_translation;
+    hwaddr max_iova;
     QLIST_HEAD(, VFIOContainer) containers;
     QLIST_ENTRY(VFIOAddressSpace) list;
 } VFIOAddressSpace;

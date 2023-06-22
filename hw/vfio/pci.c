@@ -2974,6 +2974,13 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
                               &dma_translation);
     space->no_dma_translation = !dma_translation;
 
+    /*
+     * Support for advertised IOMMU address space boundaries is optional.
+     * By default, it is not advertised i.e. space::max_iova is 0.
+     */
+    pci_device_iommu_get_attr(pdev, IOMMU_ATTR_MAX_IOVA,
+                              &space->max_iova);
+
     QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
         if (strcmp(vbasedev_iter->name, vbasedev->name) == 0) {
             error_setg(errp, "device is already attached");
