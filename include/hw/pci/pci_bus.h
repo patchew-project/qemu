@@ -35,6 +35,7 @@ struct PCIBus {
     enum PCIBusFlags flags;
     PCIIOMMUFunc iommu_fn;
     void *iommu_opaque;
+    const PCIIOMMUOps *iommu_ops;
     uint8_t devfn_min;
     uint32_t slot_reserved_mask;
     pci_set_irq_fn set_irq;

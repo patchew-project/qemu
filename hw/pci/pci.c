@@ -2639,7 +2639,15 @@ AddressSpace *pci_device_iommu_address_space(PCIDevice *dev)
     PCIBus *iommu_bus = bus;
     uint8_t devfn = dev->devfn;
 
-    while (iommu_bus && !iommu_bus->iommu_fn && iommu_bus->parent_dev) {
+    /*
+     * get_address_space() callback is mandatory when iommu uses
+     * pci_setup_iommu_ops(), so needs to ensure its presence in
+     * the iommu_bus search.
+     */
+    while (iommu_bus &&
+           !(iommu_bus->iommu_fn ||
+            (iommu_bus->iommu_ops && iommu_bus->iommu_ops->get_address_space)) &&
+           iommu_bus->parent_dev) {
         PCIBus *parent_bus = pci_get_bus(iommu_bus->parent_dev);
 
         /*
@@ -2678,8 +2686,14 @@ AddressSpace *pci_device_iommu_address_space(PCIDevice *dev)
 
         iommu_bus = parent_bus;
     }
-    if (!pci_bus_bypass_iommu(bus) && iommu_bus && iommu_bus->iommu_fn) {
-        return iommu_bus->iommu_fn(bus, iommu_bus->iommu_opaque, devfn);
+    if (!pci_bus_bypass_iommu(bus) && iommu_bus) {
+        if (iommu_bus->iommu_fn) {
+           return iommu_bus->iommu_fn(bus, iommu_bus->iommu_opaque, devfn);
+        } else if (iommu_bus->iommu_ops &&
+                   iommu_bus->iommu_ops->get_address_space) {
+           return iommu_bus->iommu_ops->get_address_space(bus,
+                                           iommu_bus->iommu_opaque, devfn);
+        }
     }
     return &address_space_memory;
 }
@@ -2687,6 +2701,12 @@ AddressSpace *pci_device_iommu_address_space(PCIDevice *dev)
 void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque)
 {
     bus->iommu_fn = fn;
+    bus->iommu_opaque = opaque;
+}
+
+void pci_setup_iommu_ops(PCIBus *bus, const PCIIOMMUOps *ops, void *opaque)
+{
+    bus->iommu_ops = ops;
     bus->iommu_opaque = opaque;
 }
 
