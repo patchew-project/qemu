@@ -2300,11 +2300,6 @@ static int loadvm_handle_recv_bitmap(MigrationIncomingState *mis,
     return 0;
 }
 
-static int loadvm_process_enable_colo(MigrationIncomingState *mis)
-{
-    return migration_incoming_enable_colo();
-}
-
 /*
  * Process an incoming 'QEMU_VM_COMMAND'
  * 0           just a normal return
@@ -2387,7 +2382,7 @@ static int loadvm_process_command(QEMUFile *f)
         return loadvm_handle_recv_bitmap(mis, len);
 
     case MIG_CMD_ENABLE_COLO:
-        return loadvm_process_enable_colo(mis);
+        return 0;
     }
 
     return 0;
