@@ -743,9 +743,18 @@ static int vhost_vdpa_net_handle_ctrl_avail(VhostShadowVirtqueue *svq,
     };
     ssize_t dev_written = -EINVAL;
 
+    /*
+     * This code truncates the VIRTIO_NET_CTRL_MAC_TABLE_SET CVQ command
+     * and prevents QEMU from marking `mac_table.x_overflow` in the device
+     * internal state in virtio_net_handle_mac() if the guest sets more than
+     * `(vhost_vdpa_net_cvq_cmd_page_len() - sizeof(struct virtio_net_ctrl_hdr)
+     * - 2 * sizeof(struct virtio_net_ctrl_mac)) / ETH_ALEN` MAC addresses for
+     * filter table.
+     * However, this situation is considered rare, so it is acceptable.
+     */
     out.iov_len = iov_to_buf(elem->out_sg, elem->out_num, 0,
                              s->cvq_cmd_out_buffer,
-                             vhost_vdpa_net_cvq_cmd_len());
+                             vhost_vdpa_net_cvq_cmd_page_len());
     if (*(uint8_t *)s->cvq_cmd_out_buffer == VIRTIO_NET_CTRL_ANNOUNCE) {
         /*
          * Guest announce capability is emulated by qemu, so don't forward to
