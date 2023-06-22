@@ -409,6 +409,56 @@
     '*devname':    'str' } }
 
 ##
+# @AFXDPMode:
+#
+# Attach mode for a default XDP program
+#
+# @skb: generic mode, no driver support necessary
+#
+# @native: DRV mode, program is attached to a driver, packets are passed to
+#     the socket without allocation of skb.
+#
+# Since: 8.1
+##
+{ 'enum': 'AFXDPMode',
+  'data': [ 'native', 'skb' ] }
+
+##
+# @NetdevAFXDPOptions:
+#
+# AF_XDP network backend
+#
+# @ifname: The name of an existing network interface.
+#
+# @mode: Attach mode for a default XDP program.  If not specified, then
+#     'native' will be tried first, then 'skb'.
+#
+# @inhibit: Don't load a default XDP program, use one already loaded to
+#     the interface (default: false).  Requires @xsks-map-fd.
+#
+# @xsks-map-fd: A file descriptor for an already open XDP socket map in
+#     the already loaded XDP program.  Requires @inhibit.
+#
+# @force-copy: Force XDP copy mode even if device supports zero-copy.
+#     (default: false)
+#
+# @queues: number of queues to be used for multiqueue interfaces (default: 1).
+#
+# @start-queue: Use @queues starting from this queue number (default: 0).
+#
+# Since: 8.1
+##
+{ 'struct': 'NetdevAFXDPOptions',
+  'data': {
+    'ifname':       'str',
+    '*mode':        'AFXDPMode',
+    '*inhibit':     'bool',
+    '*xsks-map-fd': 'str',
+    '*force-copy':  'bool',
+    '*queues':      'int',
+    '*start-queue': 'int' } }
+
+##
 # @NetdevVhostUserOptions:
 #
 # Vhost-user network backend
@@ -642,13 +692,14 @@
 # @vmnet-bridged: since 7.1
 # @stream: since 7.2
 # @dgram: since 7.2
+# @af-xdp: since 8.1
 #
 # Since: 2.7
 ##
 { 'enum': 'NetClientDriver',
   'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'stream',
             'dgram', 'vde', 'bridge', 'hubport', 'netmap', 'vhost-user',
-            'vhost-vdpa',
+            'vhost-vdpa', 'af-xdp',
             { 'name': 'vmnet-host', 'if': 'CONFIG_VMNET' },
             { 'name': 'vmnet-shared', 'if': 'CONFIG_VMNET' },
             { 'name': 'vmnet-bridged', 'if': 'CONFIG_VMNET' }] }
@@ -680,6 +731,7 @@
     'bridge':   'NetdevBridgeOptions',
     'hubport':  'NetdevHubPortOptions',
     'netmap':   'NetdevNetmapOptions',
+    'af-xdp':   'NetdevAFXDPOptions',
     'vhost-user': 'NetdevVhostUserOptions',
     'vhost-vdpa': 'NetdevVhostVDPAOptions',
     'vmnet-host': { 'type': 'NetdevVmnetHostOptions',
