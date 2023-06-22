@@ -717,6 +717,76 @@ static int vhost_vdpa_net_load_mq(VhostVDPAState *s,
     return *s->status != VIRTIO_NET_OK;
 }
 
+static int vhost_vdpa_net_load_rx_mode(VhostVDPAState *s,
+                                       uint8_t cmd,
+                                       uint8_t on)
+{
+    ssize_t dev_written;
+    dev_written = vhost_vdpa_net_load_cmd(s, VIRTIO_NET_CTRL_RX,
+                                          cmd, &on, sizeof(on));
+    if (unlikely(dev_written < 0)) {
+        return dev_written;
+    }
+    if (*s->status != VIRTIO_NET_OK) {
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+static int vhost_vdpa_net_load_rx(VhostVDPAState *s,
+                                  const VirtIONet *n)
+{
+    uint8_t on;
+    int r;
+
+    if (virtio_vdev_has_feature(&n->parent_obj, VIRTIO_NET_F_CTRL_RX)) {
+        /* Load the promiscous mode */
+        if (n->mac_table.uni_overflow) {
+            /*
+             * According to VirtIO standard, "Since there are no guarantees,
+             * it can use a hash filter or silently switch to
+             * allmulti or promiscuous mode if it is given too many addresses."
+             *
+             * QEMU ignores non-multicast(unicast) MAC addresses and
+             * marks `uni_overflow` for the device internal state
+             * if guest sets too many non-multicast(unicast) MAC addresses.
+             * Therefore, we should turn promiscous mode on in this case.
+             */
+            on = 1;
+        } else {
+            on = n->promisc;
+        }
+        r = vhost_vdpa_net_load_rx_mode(s, VIRTIO_NET_CTRL_RX_PROMISC, on);
+        if (r < 0) {
+            return r;
+        }
+
+        /* Load the all-multicast mode */
+        if (n->mac_table.multi_overflow) {
+            /*
+             * According to VirtIO standard, "Since there are no guarantees,
+             * it can use a hash filter or silently switch to
+             * allmulti or promiscuous mode if it is given too many addresses."
+             *
+             * QEMU ignores multicast MAC addresses and
+             * marks `multi_overflow` for the device internal state
+             * if guest sets too many multicast MAC addresses.
+             * Therefore, we should turn all-multicast mode on in this case.
+             */
+            on = 1;
+        } else {
+            on = n->allmulti;
+        }
+        r = vhost_vdpa_net_load_rx_mode(s, VIRTIO_NET_CTRL_RX_ALLMULTI, on);
+        if (r < 0) {
+            return r;
+        }
+    }
+
+    return 0;
+}
+
 static int vhost_vdpa_net_load(NetClientState *nc)
 {
     VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, nc);
@@ -736,6 +806,10 @@ static int vhost_vdpa_net_load(NetClientState *nc)
         return r;
     }
     r = vhost_vdpa_net_load_mq(s, n);
+    if (unlikely(r)) {
+        return r;
+    }
+    r = vhost_vdpa_net_load_rx(s, n);
     if (unlikely(r)) {
         return r;
     }
