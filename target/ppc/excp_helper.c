@@ -1402,7 +1402,9 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
         /* machine check exceptions don't have ME set */
         new_msr &= ~((target_ulong)1 << MSR_ME);
 
+        msr |= env->error_code;
         break;
+
     case POWERPC_EXCP_DSI:       /* Data storage exception                   */
         trace_ppc_excp_dsi(env->spr[SPR_DSISR], env->spr[SPR_DAR]);
         break;
@@ -3122,6 +3124,39 @@ void ppc_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
     cs->exception_index = POWERPC_EXCP_ALIGN;
     env->error_code = insn & 0x03FF0000;
     cpu_loop_exit(cs);
+}
+
+void ppc_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
+                                   vaddr vaddr, unsigned size,
+                                   MMUAccessType access_type,
+                                   int mmu_idx, MemTxAttrs attrs,
+                                   MemTxResult response, uintptr_t retaddr)
+{
+    CPUPPCState *env = cs->env_ptr;
+
+    switch (env->excp_model) {
+#if defined(TARGET_PPC64)
+    case POWERPC_EXCP_970:
+    case POWERPC_EXCP_POWER7:
+    case POWERPC_EXCP_POWER8:
+    case POWERPC_EXCP_POWER9:
+    case POWERPC_EXCP_POWER10:
+        /*
+         * TODO: This does not give the correct machine check code but
+         * it will report a NIP and DAR.
+         */
+        if (access_type == MMU_DATA_LOAD || access_type == MMU_DATA_STORE) {
+            env->spr[SPR_DAR] = vaddr;
+        }
+        break;
+#endif
+    default:
+        /* TODO: Check behaviour for other CPUs, for now do nothing. */
+        return;
+    }
+
+    cs->exception_index = POWERPC_EXCP_MCHECK;
+    cpu_loop_exit_restore(cs, retaddr);
 }
 #endif /* CONFIG_TCG */
 #endif /* !CONFIG_USER_ONLY */
