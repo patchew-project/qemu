@@ -94,7 +94,7 @@ class ReverseDebugging(LinuxKernelTest):
     def vm_get_icount(vm):
         return vm.qmp('query-replay')['return']['icount']
 
-    def reverse_debugging(self, shift=7, args=None):
+    def reverse_debugging(self, shift=7, args=None, initial_skip=False):
         logger = logging.getLogger('replay')
 
         # create qcow2 for snapshots
@@ -135,6 +135,10 @@ class ReverseDebugging(LinuxKernelTest):
             self.fail('Reverse continue is not supported by QEMU')
 
         logger.info('stepping forward')
+
+        if initial_skip:
+            self.gdb_step(g)
+
         steps = []
         # record first instruction addresses
         for _ in range(self.STEPS):
@@ -216,3 +220,25 @@ class ReverseDebugging_AArch64(ReverseDebugging):
 
         self.reverse_debugging(
             args=('-kernel', kernel_path))
+
+class ReverseDebugging_ppc64(ReverseDebugging):
+    """
+    :avocado: tags=accel:tcg
+    """
+
+    REG_PC = 0x40
+
+    # unidentified gitlab timeout problem
+    @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
+    def test_ppc64_pseries(self):
+        """
+        :avocado: tags=arch:ppc64
+        :avocado: tags=machine:pseries
+        """
+        # start with BIOS only
+        self.endian_is_le = False
+        # reverse-continue fails (seems to end up at the start) if a break
+        # is put on the first instruction. initial_skip skips one before the
+        # first bp, and it works. Could be due to break at the same icount
+        # as the snapshot?
+        self.reverse_debugging(initial_skip=True)
