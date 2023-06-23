@@ -3139,14 +3139,36 @@ void ppc_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
     case POWERPC_EXCP_970:
     case POWERPC_EXCP_POWER7:
     case POWERPC_EXCP_POWER8:
-    case POWERPC_EXCP_POWER9:
-    case POWERPC_EXCP_POWER10:
         /*
          * TODO: This does not give the correct machine check code but
          * it will report a NIP and DAR.
          */
         if (access_type == MMU_DATA_LOAD || access_type == MMU_DATA_STORE) {
             env->spr[SPR_DAR] = vaddr;
+        }
+        break;
+    case POWERPC_EXCP_POWER9:
+    case POWERPC_EXCP_POWER10:
+        /*
+         * Machine check codes can be found in User Manual or Linux or
+         * skiboot source.
+         */
+        if (access_type == MMU_DATA_LOAD) {
+            env->spr[SPR_DAR] = vaddr;
+            env->spr[SPR_DSISR] = PPC_BIT(57);
+            env->error_code = PPC_BIT(42);
+
+        } else if (access_type == MMU_DATA_STORE) {
+            /*
+             * MCE for stores in POWER is asynchronous so hardware does
+             * not set DAR, but QEMU can do better.
+             */
+            env->spr[SPR_DAR] = vaddr;
+            env->error_code = PPC_BIT(36) | PPC_BIT(43) | PPC_BIT(45);
+            env->error_code |= PPC_BIT(42);
+        } else { /* Fetch */
+
+            env->error_code = PPC_BIT(36) | PPC_BIT(44) | PPC_BIT(45);
         }
         break;
 #endif
