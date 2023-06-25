@@ -264,6 +264,9 @@ static void icount_warp_rt(void)
              */
             int64_t cur_icount = icount_get_locked();
             int64_t delta = clock - cur_icount;
+            if (delta < 0) {
+                warp_delta = 0;
+            }
             warp_delta = MIN(warp_delta, delta);
         }
         qatomic_set_i64(&timers_state.qemu_icount_bias,
