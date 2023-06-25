@@ -199,12 +199,17 @@ static bool throttle_compute_timer(ThrottleState *ts,
 void throttle_timers_attach_aio_context(ThrottleTimers *tt,
                                         AioContext *new_context)
 {
-    tt->timers[THROTTLE_TIMER_READ] =
-        aio_timer_new(new_context, tt->clock_type, SCALE_NS,
-                      tt->timer_cb[THROTTLE_TIMER_READ], tt->timer_opaque);
-    tt->timers[THROTTLE_TIMER_WRITE] =
-        aio_timer_new(new_context, tt->clock_type, SCALE_NS,
-                      tt->timer_cb[THROTTLE_TIMER_WRITE], tt->timer_opaque);
+    if (tt->timer_cb[THROTTLE_TIMER_READ]) {
+        tt->timers[THROTTLE_TIMER_READ] =
+            aio_timer_new(new_context, tt->clock_type, SCALE_NS,
+                          tt->timer_cb[THROTTLE_TIMER_READ], tt->timer_opaque);
+    }
+
+    if (tt->timer_cb[THROTTLE_TIMER_WRITE]) {
+        tt->timers[THROTTLE_TIMER_WRITE] =
+            aio_timer_new(new_context, tt->clock_type, SCALE_NS,
+                          tt->timer_cb[THROTTLE_TIMER_WRITE], tt->timer_opaque);
+    }
 }
 
 /*
@@ -235,6 +240,7 @@ void throttle_timers_init(ThrottleTimers *tt,
                           QEMUTimerCB *write_timer_cb,
                           void *timer_opaque)
 {
+    assert(read_timer_cb || write_timer_cb);
     memset(tt, 0, sizeof(ThrottleTimers));
 
     tt->clock_type = clock_type;
@@ -247,7 +253,9 @@ void throttle_timers_init(ThrottleTimers *tt,
 /* destroy a timer */
 static void throttle_timer_destroy(QEMUTimer **timer)
 {
-    assert(*timer != NULL);
+    if (*timer == NULL) {
+        return;
+    }
 
     timer_free(*timer);
     *timer = NULL;
@@ -272,7 +280,7 @@ void throttle_timers_destroy(ThrottleTimers *tt)
 /* is any throttling timer configured */
 bool throttle_timers_are_initialized(ThrottleTimers *tt)
 {
-    if (tt->timers[0]) {
+    if (tt->timers[THROTTLE_TIMER_READ] || tt->timers[THROTTLE_TIMER_WRITE]) {
         return true;
     }
 
