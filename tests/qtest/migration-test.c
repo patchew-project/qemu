@@ -763,6 +763,7 @@ static void test_migrate_end(QTestState *from, QTestState *to, bool test_dest)
     cleanup("migsocket");
     cleanup("src_serial");
     cleanup("dest_serial");
+    cleanup("migfile");
 }
 
 #ifdef CONFIG_GNUTLS
@@ -1460,11 +1461,28 @@ static void test_precopy_common(MigrateCommon *args)
              */
             wait_for_migration_complete(from);
 
+            /*
+             * For file based migration the target must begin its
+             * migration after the source has finished.
+             */
+            if (strstr(connect_uri, "file:")) {
+                migrate_incoming_qmp(to, connect_uri, "{}");
+            }
+
             if (!got_src_stop) {
                 qtest_qmp_eventwait(from, "STOP");
             }
         } else {
             wait_for_migration_complete(from);
+
+            /*
+             * For file based migration the target must begin its
+             * migration after the source has finished.
+             */
+            if (strstr(connect_uri, "file:")) {
+                migrate_incoming_qmp(to, connect_uri, "{}");
+            }
+
             /*
              * Must wait for dst to finish reading all incoming
              * data on the socket before issuing 'cont' otherwise
@@ -1680,6 +1698,46 @@ static void test_precopy_unix_compress_nowait(void)
     };
 
     test_precopy_common(&args);
+}
+
+static void test_precopy_file(void)
+{
+    g_autofree char *uri = g_strdup_printf("file:%s/migfile", tmpfs);
+    MigrateCommon args = {
+        .connect_uri = uri,
+        .listen_uri = "defer",
+    };
+
+    test_precopy_common(&args);
+}
+
+static void test_precopy_file_offset(void)
+{
+    g_autofree char *uri = g_strdup_printf("file:%s/migfile,offset=0x1000",
+                                           tmpfs);
+    MigrateCommon args = {
+        .connect_uri = uri,
+        .listen_uri = "defer",
+    };
+
+    test_precopy_common(&args);
+}
+
+static void test_precopy_file_offset_bad(void)
+{
+    /* using a value not supported by qemu_strtosz() */
+    g_autofree char *uri = g_strdup_printf("file:%s/migfile,offset=0x20M",
+                                           tmpfs);
+    MigrateCommon args = {
+        .connect_uri = uri,
+        .listen_uri = "defer",
+        .error_str = g_strdup(
+            "file URI has bad offset 0x20M: Unknown error -22"),
+        .result = MIG_TEST_QMP_ERROR,
+    };
+
+    test_precopy_common(&args);
+    g_free(args.error_str);
 }
 
 static void test_precopy_tcp_plain(void)
@@ -2704,6 +2762,14 @@ int main(int argc, char **argv)
         qtest_add_func("/migration/precopy/unix/compress/nowait",
                        test_precopy_unix_compress_nowait);
     }
+
+    qtest_add_func("/migration/precopy/file",
+                   test_precopy_file);
+    qtest_add_func("/migration/precopy/file/offset",
+                   test_precopy_file_offset);
+    qtest_add_func("/migration/precopy/file/offset/bad",
+                   test_precopy_file_offset_bad);
+
 #ifdef CONFIG_GNUTLS
     qtest_add_func("/migration/precopy/unix/tls/psk",
                    test_precopy_unix_tls_psk);
