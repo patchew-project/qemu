@@ -9,6 +9,8 @@
  */
 
 #include "qemu/osdep.h"
+#include <asm-arm64/kvm.h>
+#include <linux/arm-smccc.h>
 #include <sys/ioctl.h>
 
 #include <linux/kvm.h>
@@ -247,6 +249,20 @@ int kvm_arm_get_max_vm_ipa_size(MachineState *ms, bool *fixed_ipa)
     return ret > 0 ? ret : 40;
 }
 
+static int kvm_arm_init_smccc_filter(KVMState *s)
+{
+    int ret = 0;
+
+    if (kvm_vm_check_attr(s, KVM_ARM_VM_SMCCC_CTRL, KVM_ARM_VM_SMCCC_FILTER)) {
+        error_report("ARM SMCCC filter not supported");
+        ret = -EINVAL;
+        goto out;
+    }
+
+out:
+    return ret;
+}
+
 int kvm_arch_init(MachineState *ms, KVMState *s)
 {
     int ret = 0;
@@ -281,6 +297,10 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     }
 
     kvm_arm_init_debug(s);
+
+    if (ret == 0 && object_property_get_bool(OBJECT(ms), "user-smccc", NULL)) {
+        ret = kvm_arm_init_smccc_filter(s);
+    }
 
     return ret;
 }
@@ -912,6 +932,37 @@ static int kvm_arm_handle_dabt_nisv(CPUState *cs, uint64_t esr_iss,
     return -1;
 }
 
+static void kvm_arm_smccc_return_result(CPUState *cs, struct arm_smccc_res *res)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+
+    env->xregs[0] = res->a0;
+    env->xregs[1] = res->a1;
+    env->xregs[2] = res->a2;
+    env->xregs[3] = res->a3;
+}
+
+static int kvm_arm_handle_hypercall(CPUState *cs, struct kvm_run *run)
+{
+    uint32_t fn = run->hypercall.nr;
+    struct arm_smccc_res res = {
+        .a0     = SMCCC_RET_NOT_SUPPORTED,
+    };
+    int ret = 0;
+
+    kvm_cpu_synchronize_state(cs);
+
+    switch (ARM_SMCCC_OWNER_NUM(fn)) {
+    default:
+        break;
+    }
+
+    kvm_arm_smccc_return_result(cs, &res);
+
+    return ret;
+}
+
 int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
 {
     int ret = 0;
@@ -926,6 +977,9 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
         /* External DABT with no valid iss to decode */
         ret = kvm_arm_handle_dabt_nisv(cs, run->arm_nisv.esr_iss,
                                        run->arm_nisv.fault_ipa);
+        break;
+    case KVM_EXIT_HYPERCALL:
+        ret = kvm_arm_handle_hypercall(cs, run);
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "%s: un-handled exit reason %d\n",

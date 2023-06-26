@@ -42,6 +42,7 @@
 #include "hw/vfio/vfio-amd-xgbe.h"
 #include "hw/display/ramfb.h"
 #include "net/net.h"
+#include "qom/object.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/numa.h"
 #include "sysemu/runstate.h"
@@ -2511,6 +2512,19 @@ static void virt_set_oem_table_id(Object *obj, const char *value,
     strncpy(vms->oem_table_id, value, 8);
 }
 
+static bool virt_get_user_smccc(Object *obj, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    return vms->user_smccc;
+}
+
+static void virt_set_user_smccc(Object *obj, bool value, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    vms->user_smccc = value;
+}
 
 bool virt_is_acpi_enabled(VirtMachineState *vms)
 {
@@ -3154,6 +3168,13 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
                                           "Override the default value of field OEM Table ID "
                                           "in ACPI table header."
                                           "The string may be up to 8 bytes in size");
+
+    object_class_property_add_bool(oc, "user-smccc",
+                                   virt_get_user_smccc,
+                                   virt_set_user_smccc);
+    object_class_property_set_description(oc, "user-smccc",
+                                          "Set on/off to enable/disable "
+                                          "handling smccc call in userspace");
 
 }
 
