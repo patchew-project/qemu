@@ -120,3 +120,8 @@ external_new_mask:
     .quad   0x0000000180000000
 io_new_mask:
     .quad   0x0000000180000000
+
+.bss
+
+    .align  16
+    .lcomm  stack,STACK_SIZE
