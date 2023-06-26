@@ -1716,6 +1716,22 @@ static Property riscv_cpu_extensions[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+
+static void cpu_set_cfg_noop(Object *obj, Visitor *v,
+                             const char *name,
+                             void *opaque, Error **errp)
+{
+    const char *propname = opaque;
+    bool value;
+
+    if (!visit_type_bool(v, name, &value, errp)) {
+        return;
+    }
+
+    error_setg(errp, "extension %s is not available with KVM",
+               propname);
+}
+
 /*
  * Add CPU properties with user-facing flags.
  *
@@ -1734,9 +1750,27 @@ static void riscv_cpu_add_user_properties(Object *obj)
     riscv_cpu_add_misa_properties(obj);
 
     for (prop = riscv_cpu_extensions; prop && prop->name; prop++) {
-        /* Check if KVM didn't create the property already */
-        if (object_property_find(obj, prop->name)) {
-            continue;
+        if (riscv_running_kvm()) {
+            /* Check if KVM didn't create the property already */
+            if (object_property_find(obj, prop->name)) {
+                continue;
+            }
+
+            /*
+             * Set every multi-letter extension that KVM doesn't
+             * know as a no-op. This will allow users to set values
+             * to them while keeping their internal state to 'false'.
+             *
+             * We're giving a pass for non-bool properties since they're
+             * not related to the availability of extensions and can be
+             * safely ignored as is.
+             */
+            if (prop->info == &qdev_prop_bool) {
+                object_property_add(obj, prop->name, "bool",
+                                    NULL, cpu_set_cfg_noop,
+                                    NULL, (void *)prop->name);
+                continue;
+            }
         }
 
         qdev_property_add_static(dev, prop);
