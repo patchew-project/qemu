@@ -10,6 +10,7 @@
 
 #include "qemu/osdep.h"
 #include <asm-arm64/kvm.h>
+#include <linux/psci.h>
 #include <linux/arm-smccc.h>
 #include <sys/ioctl.h>
 
@@ -251,12 +252,44 @@ int kvm_arm_get_max_vm_ipa_size(MachineState *ms, bool *fixed_ipa)
 
 static int kvm_arm_init_smccc_filter(KVMState *s)
 {
+    unsigned int i;
     int ret = 0;
+    struct kvm_smccc_filter filter_ranges[] = {
+        {
+            .base           = KVM_PSCI_FN_BASE,
+            .nr_functions   = 4,
+            .action         = KVM_SMCCC_FILTER_DENY,
+        },
+        {
+            .base           = PSCI_0_2_FN_BASE,
+            .nr_functions   = 0x20,
+            .action         = KVM_SMCCC_FILTER_FWD_TO_USER,
+        },
+        {
+            .base           = PSCI_0_2_FN64_BASE,
+            .nr_functions   = 0x20,
+            .action         = KVM_SMCCC_FILTER_FWD_TO_USER,
+        },
+    };
+    struct kvm_device_attr attr = {
+        .group = KVM_ARM_VM_SMCCC_CTRL,
+        .attr = KVM_ARM_VM_SMCCC_FILTER,
+    };
 
     if (kvm_vm_check_attr(s, KVM_ARM_VM_SMCCC_CTRL, KVM_ARM_VM_SMCCC_FILTER)) {
         error_report("ARM SMCCC filter not supported");
         ret = -EINVAL;
         goto out;
+    }
+
+    for (i = 0; i < ARRAY_SIZE(filter_ranges); i++) {
+        attr.addr = (uint64_t)&filter_ranges[i];
+
+        ret = kvm_vm_ioctl(s, KVM_SET_DEVICE_ATTR, &attr);
+        if (ret < 0) {
+            error_report("KVM_SET_DEVICE_ATTR failed when SMCCC init");
+            goto out;
+        }
     }
 
 out:
@@ -654,6 +687,14 @@ void kvm_arm_reset_vcpu(ARMCPU *cpu)
      * for the same reason we do so in kvm_arch_get_registers().
      */
     write_list_to_cpustate(cpu);
+
+    /*
+     * When enabled userspace psci call handling, qemu will reset the vcpu if
+     * it's PSCI CPU_ON call. Since this will reset the vcpu register and
+     * power_state, we should sync these state to kvm, so manually set the
+     * vcpu_dirty to force the qemu to put register to kvm.
+     */
+    CPU(cpu)->vcpu_dirty = true;
 }
 
 /*
@@ -932,6 +973,51 @@ static int kvm_arm_handle_dabt_nisv(CPUState *cs, uint64_t esr_iss,
     return -1;
 }
 
+static int kvm_arm_handle_psci(CPUState *cs, struct kvm_run *run)
+{
+    if (run->hypercall.flags & KVM_HYPERCALL_EXIT_SMC) {
+        cs->exception_index = EXCP_SMC;
+    } else {
+        cs->exception_index = EXCP_HVC;
+    }
+
+    qemu_mutex_lock_iothread();
+    arm_cpu_do_interrupt(cs);
+    qemu_mutex_unlock_iothread();
+
+    /*
+     * We need to exit the run loop to have the chance to execute the
+     * qemu_wait_io_event() which will execute the psci function which queued in
+     * the cpu work queue.
+     */
+    return EXCP_INTERRUPT;
+}
+
+static int kvm_arm_handle_std_call(CPUState *cs, struct kvm_run *run,
+                                   struct arm_smccc_res *res,
+                                   bool *sync_reg)
+{
+    uint32_t fn = run->hypercall.nr;
+    int ret = 0;
+
+    switch (ARM_SMCCC_FUNC_NUM(fn)) {
+    /* PSCI */
+    case 0x00 ... 0x1F:
+        /*
+         * We will reuse the psci handler, but the handler directly get psci
+         * call parameter from register, and write the return value to register.
+         * So we no need to sync the value in arm_smccc_res.
+         */
+        *sync_reg = false;
+        ret = kvm_arm_handle_psci(cs, run);
+        break;
+    default:
+        break;
+    }
+
+    return ret;
+}
+
 static void kvm_arm_smccc_return_result(CPUState *cs, struct arm_smccc_res *res)
 {
     ARMCPU *cpu = ARM_CPU(cs);
@@ -949,16 +1035,22 @@ static int kvm_arm_handle_hypercall(CPUState *cs, struct kvm_run *run)
     struct arm_smccc_res res = {
         .a0     = SMCCC_RET_NOT_SUPPORTED,
     };
+    bool sync_reg = true;
     int ret = 0;
 
     kvm_cpu_synchronize_state(cs);
 
     switch (ARM_SMCCC_OWNER_NUM(fn)) {
+    case ARM_SMCCC_OWNER_STANDARD:
+        ret = kvm_arm_handle_std_call(cs, run, &res, &sync_reg);
+        break;
     default:
         break;
     }
 
-    kvm_arm_smccc_return_result(cs, &res);
+    if (sync_reg) {
+        kvm_arm_smccc_return_result(cs, &res);
+    }
 
     return ret;
 }
