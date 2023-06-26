@@ -10,10 +10,12 @@
  * directory.
  */
 
+#define STACK_SIZE 0x8000
+
     .globl _start
 _start:
 
-    larl    %r15,stack + 0x8000     /* Set up stack */
+    larl    %r15,stack + STACK_SIZE - 160   /* Set up stack */
 
     /* clear bss */
     larl    %r2,__bss_start
