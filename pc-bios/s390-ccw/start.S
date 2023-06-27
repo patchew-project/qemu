@@ -18,7 +18,7 @@ _start:
     larl    %r15,stack + STACK_SIZE - 160   /* Set up stack */
 
     /* clear bss */
-    larl    %r2,__bss_start
+    larl    %r2,.bss
     larl    %r3,_end
     slgr    %r3,%r2    /* get sizeof bss */
     ltgr    %r3,%r3    /* bss empty? */
