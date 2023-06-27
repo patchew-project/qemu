@@ -6382,6 +6382,12 @@ static void gen_dform3D(DisasContext *ctx)
 }
 
 #if defined(TARGET_PPC64)
+/* attn */
+static void gen_attn(DisasContext *ctx)
+{
+    gen_helper_attn(cpu_env);
+}
+
 /* brd */
 static void gen_brd(DisasContext *ctx)
 {
@@ -6413,6 +6419,7 @@ static void gen_brh(DisasContext *ctx)
 
 static opcode_t opcodes[] = {
 #if defined(TARGET_PPC64)
+GEN_HANDLER_E(attn, 0x00, 0x00, 0x08, 0xFFFFFDFF, PPC_NONE, PPC2_ISA207S),
 GEN_HANDLER_E(brd, 0x1F, 0x1B, 0x05, 0x0000F801, PPC_NONE, PPC2_ISA310),
 GEN_HANDLER_E(brw, 0x1F, 0x1B, 0x04, 0x0000F801, PPC_NONE, PPC2_ISA310),
 GEN_HANDLER_E(brh, 0x1F, 0x1B, 0x06, 0x0000F801, PPC_NONE, PPC2_ISA310),

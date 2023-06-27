@@ -208,6 +208,34 @@ static void powerpc_checkstop(CPUPPCState *env, const char *reason)
 }
 
 #if defined(TARGET_PPC64)
+void helper_attn(CPUPPCState *env)
+{
+    CPUState *cs = env_cpu(env);
+    target_ulong hid0_attn = 0;
+
+    switch (env->excp_model) {
+    case POWERPC_EXCP_970:
+    case POWERPC_EXCP_POWER7:
+    case POWERPC_EXCP_POWER8:
+        hid0_attn = HID0_ENABLE_ATTN;
+        break;
+    case POWERPC_EXCP_POWER9:
+    case POWERPC_EXCP_POWER10:
+        hid0_attn = HID0_POWER9_ENABLE_ATTN;
+        break;
+    default:
+        break;
+    }
+
+    if (env->spr[SPR_HID0] & hid0_attn) {
+        powerpc_checkstop(env, "host executed attn");
+        cpu_loop_exit_noexc(cs);
+    } else {
+        raise_exception_err(env, POWERPC_EXCP_HV_EMU,
+                            POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL);
+    }
+}
+
 static int powerpc_reset_wakeup(CPUState *cs, CPUPPCState *env, int excp,
                                 target_ulong *msr)
 {
