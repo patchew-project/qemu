@@ -95,6 +95,8 @@ Property migration_properties[] = {
                       clear_bitmap_shift, CLEAR_BITMAP_SHIFT_DEFAULT),
     DEFINE_PROP_BOOL("x-preempt-pre-7-2", MigrationState,
                      preempt_pre_7_2, false),
+    DEFINE_PROP_BOOL("force-emit-setup-event", MigrationState,
+                      force_emit_setup_event, true),
 
     /* Migration parameters */
     DEFINE_PROP_UINT8("x-compress-level", MigrationState,
@@ -346,6 +348,17 @@ bool migrate_zero_copy_send(void)
 }
 
 /* pseudo capabilities */
+
+bool migrate_emit_setup_event(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    /*
+     * If migration events are enabled the setup event will have
+     * already been sent.
+     */
+    return !migrate_events() && s->force_emit_setup_event;
+}
 
 bool migrate_multifd_flush_after_each_section(void)
 {

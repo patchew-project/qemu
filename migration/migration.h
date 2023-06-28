@@ -441,6 +441,17 @@ struct MigrationState {
     uint8_t clear_bitmap_shift;
 
     /*
+     * Always emit the incoming migration's SETUP event, even when the
+     * 'events' capability is not enabled.
+     *
+     * QMP clients that wish to receive migration events should always
+     * enable the 'events' capability. This property is for
+     * compatibility with clients that rely on the older QEMU behavior
+     * of unconditionally emitting the SETUP event.
+     */
+    bool force_emit_setup_event;
+
+    /*
      * This save hostname when out-going migration starts
      */
     char *hostname;
