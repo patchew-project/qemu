@@ -91,6 +91,18 @@ void dump_jit_profile_info(GString *buf)
     g_free(jpi);
 }
 
+static void free_tbstats(void *p, uint32_t hash, void *userp)
+{
+    g_free(p);
+}
+
+void clean_tbstats(void)
+{
+    /* remove all tb_stats */
+    qht_iter(&tb_ctx.tb_stats, free_tbstats, NULL);
+    qht_destroy(&tb_ctx.tb_stats);
+}
+
 void init_tb_stats_htable(void)
 {
     if (!tb_ctx.tb_stats.map && tb_stats_collection_enabled()) {
@@ -113,6 +125,11 @@ void disable_collect_tb_stats(void)
 bool tb_stats_collection_enabled(void)
 {
     return tcg_collect_tb_stats == TB_STATS_RUNNING;
+}
+
+bool tb_stats_collection_disabled(void)
+{
+    return tcg_collect_tb_stats == TB_STATS_STOPPED;
 }
 
 uint32_t get_tbstats_flag(void)

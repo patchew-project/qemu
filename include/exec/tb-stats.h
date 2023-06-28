@@ -31,6 +31,8 @@
 #include "exec/tb-stats-flags.h"
 #include "tcg/tcg.h"
 
+enum SortBy { SORT_BY_HOTNESS, SORT_BY_HG /* Host/Guest */, SORT_BY_SPILLS };
+
 typedef struct TBStatistics TBStatistics;
 
 /*
@@ -89,5 +91,7 @@ void init_tb_stats_htable(void);
 bool tb_stats_enabled(TranslationBlock *tb, uint32_t flag);
 
 void dump_jit_profile_info(GString *buf);
+
+void clean_tbstats(void);
 
 #endif

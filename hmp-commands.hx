@@ -1670,6 +1670,22 @@ SRST
   Executes a qemu-io command on the given block device.
 ERST
 
+#if defined(CONFIG_TCG)
+    {
+        .name       = "tb_stats",
+        .args_type  = "command:s,flag:s?",
+        .params     = "command [flag]",
+        .help       = "Control tb statistics collection:"
+                        "tb_stats (start|stop|status) [all|jit|exec]",
+        .cmd        = hmp_tbstats,
+    },
+#endif
+
+SRST
+``tb_stats`` *command* *flag*
+  Control recording tb statistics
+ERST
+
     {
         .name       = "qom-list",
         .args_type  = "path:s?",
