@@ -30,3 +30,7 @@ void set_tbstats_flag(uint32_t flag)
 {
     return;
 }
+
+void set_tbstats_max_tbs(int max) {
+    return;
+}

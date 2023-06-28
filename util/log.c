@@ -498,8 +498,9 @@ const QEMULogItem qemu_log_items[] = {
       "open a separate log file per thread; filename must contain '%d'" },
     { CPU_LOG_TB_VPU, "vpu",
       "include VPU registers in the 'cpu' logging" },
-    { CPU_LOG_TB_STATS, "tb_stats_{all,jit,exec}",
-      "enable collection of TBs statistics at startup" },
+    { CPU_LOG_TB_STATS, "tb_stats_{all,jit,exec}[:dump_num_at_exit]",
+      "enable collection of TBs statistics at startup "
+      "and dump at exit until given a limit" },
     { 0, NULL, NULL },
 };
 
@@ -526,15 +527,22 @@ int qemu_str_to_log_mask(const char *str)
             uint32_t flag = TB_NONE_STATS;
             if (g_str_has_prefix(p, "all")) {
                 flag = TB_ALL_STATS;
+                p += 3;
             } else if (g_str_has_prefix(p, "jit")) {
                 flag = TB_JIT_STATS;
+                p += 3;
             } else if (g_str_has_prefix(p, "exec")) {
                 flag = TB_EXEC_STATS;
+                p += 4;
             }
             if (flag != TB_NONE_STATS) {
                 mask |= CPU_LOG_TB_STATS;
                 set_tbstats_flag(flag);
                 enable_collect_tb_stats();
+            }
+            if (p[0] == ':') {
+                int max_to_dump = atoi(p + 1);
+                set_tbstats_max_tbs(max_to_dump);
             }
         } else {
             for (item = qemu_log_items; item->mask != 0; item++) {
