@@ -1613,14 +1613,19 @@ static void riscv_cpu_add_misa_properties(Object *cpu_obj)
 
     for (i = 0; i < ARRAY_SIZE(misa_ext_cfgs); i++) {
         RISCVCPUMisaExtConfig *misa_cfg = &misa_ext_cfgs[i];
+        Error *local_err = NULL;
 
         misa_cfg->name = riscv_get_misa_ext_name(misa_cfg->misa_bit);
         misa_cfg->description = riscv_get_misa_ext_descr(misa_cfg->misa_bit);
 
-        object_property_add(cpu_obj, misa_cfg->name, "bool",
-                            cpu_get_misa_ext_cfg,
-                            cpu_set_misa_ext_cfg,
-                            NULL, (void *)misa_cfg);
+        object_property_try_add(cpu_obj, misa_cfg->name, "bool",
+                                cpu_get_misa_ext_cfg, cpu_set_misa_ext_cfg,
+                                NULL, (void *)misa_cfg, &local_err);
+        if (local_err) {
+            /* Someone (KVM) already created the property */
+            continue;
+        }
+
         object_property_set_description(cpu_obj, misa_cfg->name,
                                         misa_cfg->description);
         object_property_set_bool(cpu_obj, misa_cfg->name,
