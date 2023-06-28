@@ -411,6 +411,66 @@ int qemu_close(int fd)
     return close(fd);
 }
 
+int qemu_close_range(unsigned int first, unsigned int last)
+{
+    if (first > last) {
+        errno = EINVAL;
+        return -1;
+    }
+
+#ifndef _WIN32
+    if (last >= sysconf(_SC_OPEN_MAX)) {
+        last = sysconf(_SC_OPEN_MAX) - 1;
+    }
+#endif
+
+#ifdef CONFIG_CLOSE_RANGE
+    int r = close_range(first, last, 0);
+    if (!r) {
+        /* Success, no need to try other ways */
+        return 0;
+    }
+#endif
+
+#ifdef __linux__
+    DIR *dir = opendir("/proc/self/fd");
+    if (dir) {
+        /* Avoid closing the directory */
+        int dfd = dirfd(dir);
+
+        for (struct dirent *de = readdir(dir); de; de = readdir(dir)) {
+            int fd, ret;
+
+            ret = qemu_strtoi(de->d_name, NULL, 10, &fd);
+            if (ret) {
+                /* skip "." and ".." */
+                continue;
+            }
+            if (fd < first || fd > last) {
+                /* Exclude the fds outside the target range */
+                continue;
+            }
+            if (fd != dfd) {
+                close(fd);
+            }
+        }
+        closedir(dir);
+
+        return 0;
+    }
+#endif
+
+    /*
+     * If /proc is not mounted or /proc/self/fd is not supported,
+     * try close() from first to last.
+     */
+    for (unsigned int i = first; i <= last; i++) {
+        close(i);
+    }
+
+    return 0;
+}
+
 /*
  * Delete a file from the filesystem, unless the filename is /dev/fdset/...
  *
