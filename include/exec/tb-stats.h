@@ -47,10 +47,17 @@ struct TBStatistics {
     uint32_t flags;
     /* cs_base isn't included in the hash but we do check for matches */
     uint64_t cs_base;
+
+    /* Execution stats */
+    struct {
+        unsigned long normal;
+        unsigned long atomic;
+    } executions;
 };
 
 bool tb_stats_cmp(const void *ap, const void *bp);
 
 void init_tb_stats_htable(void);
+bool tb_stats_enabled(TranslationBlock *tb, uint32_t flag);
 
 #endif

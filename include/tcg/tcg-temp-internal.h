@@ -25,6 +25,8 @@
 #ifndef TCG_TEMP_INTERNAL_H
 #define TCG_TEMP_INTERNAL_H
 
+#include "tcg.h"
+
 /*
  * Allocation and freeing of EBB temps is reserved to TCG internals
  */

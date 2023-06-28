@@ -11,9 +11,15 @@
 #ifndef TB_STATS_FLAGS
 #define TB_STATS_FLAGS
 
+#define TB_NONE_STATS (0)  /* no stats */
+#define TB_EXEC_STATS (1 << 0)
+
 /* TBStatistic collection controls */
 void enable_collect_tb_stats(void);
 void disable_collect_tb_stats(void);
 bool tb_stats_collection_enabled(void);
+
+uint32_t get_tbstats_flag(void);
+void set_tbstats_flag(uint32_t flag);
 
 #endif

@@ -20,6 +20,7 @@ enum TBStatsStatus {
 };
 
 static enum TBStatsStatus tcg_collect_tb_stats;
+static uint32_t tbstats_flag;
 
 void init_tb_stats_htable(void)
 {
@@ -43,4 +44,21 @@ void disable_collect_tb_stats(void)
 bool tb_stats_collection_enabled(void)
 {
     return tcg_collect_tb_stats == TB_STATS_RUNNING;
+}
+
+uint32_t get_tbstats_flag(void)
+{
+    return tbstats_flag;
+}
+
+void set_tbstats_flag(uint32_t flag)
+{
+    tbstats_flag = flag;
+}
+
+bool tb_stats_enabled(TranslationBlock *tb, uint32_t flag)
+{
+    return tb_stats_collection_enabled() &&
+           tb->tb_stats &&
+           (tbstats_flag & flag);
 }
