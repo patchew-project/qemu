@@ -67,4 +67,11 @@ uint32_t tb_hash_func(tb_page_addr_t phys_pc, vaddr pc,
     return qemu_xxhash8(phys_pc, pc, flags2, flags, cf_mask);
 }
 
+static inline
+uint32_t tb_stats_hash_func(tb_page_addr_t phys_pc, target_ulong pc,
+                            uint32_t flags)
+{
+    return qemu_xxhash5(phys_pc, pc, flags);
+}
+
 #endif
