@@ -446,13 +446,13 @@ static void launch_script(const char *setup_script, const char *ifname,
         return;
     }
     if (pid == 0) {
-        int open_max = sysconf(_SC_OPEN_MAX), i;
+        unsigned int last_fd = sysconf(_SC_OPEN_MAX) - 1;
 
-        for (i = 3; i < open_max; i++) {
-            if (i != fd) {
-                close(i);
-            }
-        }
+        /* skip stdin, stdout and stderr */
+        qemu_close_range(3, fd - 1);
+        /* skip the currently used fd */
+        qemu_close_range(fd + 1, last_fd);
+
         parg = args;
         *parg++ = (char *)setup_script;
         *parg++ = (char *)ifname;
@@ -536,16 +536,16 @@ static int net_bridge_run_helper(const char *helper, const char *bridge,
         return -1;
     }
     if (pid == 0) {
-        int open_max = sysconf(_SC_OPEN_MAX), i;
+        unsigned int last_fd = sysconf(_SC_OPEN_MAX) - 1;
+        unsigned int fd = sv[1];
         char *fd_buf = NULL;
         char *br_buf = NULL;
         char *helper_cmd = NULL;
 
-        for (i = 3; i < open_max; i++) {
-            if (i != sv[1]) {
-                close(i);
-            }
-        }
+        /* skip stdin, stdout and stderr */
+        qemu_close_range(3, fd - 1);
+        /* skip the currently used fd */
+        qemu_close_range(fd + 1, last_fd);
 
         fd_buf = g_strdup_printf("%s%d", "--fd=", sv[1]);
 
