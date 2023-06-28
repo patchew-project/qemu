@@ -53,11 +53,41 @@ struct TBStatistics {
         unsigned long normal;
         unsigned long atomic;
     } executions;
+
+    /* JIT Stats - protected by lock */
+    QemuMutex jit_stats_lock;
+
+    /* Sum of all operations for all translations */
+    struct {
+        unsigned num_guest_inst;
+        unsigned num_tcg_ops;
+        unsigned num_tcg_ops_opt;
+        unsigned spills;
+
+        unsigned temps;
+        unsigned deleted_ops;
+        unsigned in_len;
+        unsigned out_len;
+        unsigned search_out_len;
+    } code;
+
+    struct {
+        unsigned long total;
+        unsigned long spanning;
+    } translations;
+
+    /*
+     * All persistent (cached) TranslationBlocks using
+     * this TBStats structure. Has to be reset on a tb_flush.
+     */
+    GPtrArray *tbs;
 };
 
 bool tb_stats_cmp(const void *ap, const void *bp);
 
 void init_tb_stats_htable(void);
 bool tb_stats_enabled(TranslationBlock *tb, uint32_t flag);
+
+void dump_jit_profile_info(GString *buf);
 
 #endif

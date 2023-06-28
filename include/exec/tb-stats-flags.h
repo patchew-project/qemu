@@ -13,6 +13,7 @@
 
 #define TB_NONE_STATS (0)  /* no stats */
 #define TB_EXEC_STATS (1 << 0)
+#define TB_JIT_STATS  (1 << 1)
 
 /* TBStatistic collection controls */
 void enable_collect_tb_stats(void);

@@ -478,6 +478,14 @@ static inline TCGRegSet output_pref(const TCGOp *op, unsigned i)
     return i < ARRAY_SIZE(op->output_pref) ? op->output_pref[i] : 0;
 }
 
+/*
+ * The TCGProfile structure holds data for the lifetime of the translator.
+ */
+typedef struct TCGProfile {
+    /* Lifetime count of TCGOps per TCGContext when tb_stats enabled */
+    size_t table_op_count[NB_OPS];
+} TCGProfile;
+
 struct TCGContext {
     uint8_t *pool_cur, *pool_end;
     TCGPool *pool_first, *pool_current, *pool_first_large;
@@ -506,6 +514,8 @@ struct TCGContext {
     TranslationBlock *gen_tb;     /* tb for which code is being generated */
     tcg_insn_unit *code_buf;      /* pointer for start of tb */
     tcg_insn_unit *code_ptr;      /* pointer for running end of tb */
+
+    TCGProfile prof;
 
 #ifdef CONFIG_DEBUG_TCG
     int goto_tb_issue_mask;

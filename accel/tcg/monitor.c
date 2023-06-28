@@ -16,6 +16,7 @@
 #include "sysemu/cpu-timers.h"
 #include "sysemu/tcg.h"
 #include "tcg/tcg.h"
+#include "exec/tb-stats.h"
 #include "internal.h"
 
 
@@ -69,6 +70,11 @@ HumanReadableText *qmp_x_query_jit(Error **errp)
 HumanReadableText *qmp_x_query_opcount(Error **errp)
 {
     g_autoptr(GString) buf = g_string_new("");
+
+    if (!tb_stats_collection_enabled()) {
+        error_setg(errp, "TB information not being recorded");
+        return NULL;
+    }
 
     if (!tcg_enabled()) {
         error_setg(errp,

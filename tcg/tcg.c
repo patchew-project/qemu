@@ -36,6 +36,7 @@
 #include "qemu/timer.h"
 #include "exec/translation-block.h"
 #include "exec/tlb-common.h"
+#include "exec/tb-stats.h"
 #include "tcg/tcg-op-common.h"
 
 #if UINTPTR_MAX == UINT32_MAX
@@ -3033,6 +3034,9 @@ void tcg_op_remove(TCGContext *s, TCGOp *op)
     QTAILQ_REMOVE(&s->ops, op, link);
     QTAILQ_INSERT_TAIL(&s->free_ops, op, link);
     s->nb_ops--;
+    if (tb_stats_enabled(s->gen_tb, TB_JIT_STATS)) {
+        s->gen_tb->tb_stats->code.deleted_ops++;
+    }
 }
 
 void tcg_remove_ops_after(TCGOp *op)
@@ -4198,6 +4202,10 @@ static TCGReg tcg_reg_alloc(TCGContext *s, TCGRegSet required_regs,
     }
 
     /* We must spill something.  */
+    if (tb_stats_enabled(s->gen_tb, TB_JIT_STATS)) {
+        s->gen_tb->tb_stats->code.spills++;
+    }
+
     for (j = f; j < 2; j++) {
         TCGRegSet set = reg_ct[j];
 
@@ -5902,15 +5910,29 @@ static void tcg_out_st_helper_args(TCGContext *s, const TCGLabelQemuLdst *ldst,
     tcg_out_helper_load_common_args(s, ldst, parm, info, next_arg);
 }
 
-void tcg_dump_op_count(GString *buf)
+static void collect_tcg_profiler(TCGProfile *prof)
 {
-    g_string_append_printf(buf, "[TCG profiler not compiled]\n");
+    unsigned int n_ctxs = qatomic_read(&tcg_cur_ctxs);
+    unsigned int i;
+
+    for (i = 0; i < n_ctxs; i++) {
+        TCGContext *s = qatomic_read(&tcg_ctxs[i]);
+        for (i = 0; i < NB_OPS; i++) {
+            prof->table_op_count[i] += s->prof.table_op_count[i];
+        }
+    }
 }
 
 int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
 {
     int i, start_words, num_insns;
     TCGOp *op;
+
+    /* save pre-optimisation op count */
+    if (tb_stats_enabled(tb, TB_JIT_STATS)) {
+        tb->tb_stats->code.num_tcg_ops += s->nb_ops;
+        tb->tb_stats->code.temps += s->nb_temps;
+    }
 
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP)
                  && qemu_log_in_addr_range(pc_start))) {
@@ -6002,6 +6024,13 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
     start_words = s->insn_start_words;
     s->gen_insn_data =
         tcg_malloc(sizeof(uint64_t) * s->gen_tb->icount * start_words);
+
+    if (tb_stats_collection_enabled()) {
+        QTAILQ_FOREACH(op, &s->ops, link) {
+            TCGOpcode opc = op->opc;
+            s->prof.table_op_count[opc]++;
+        }
+    }
 
     num_insns = -1;
     QTAILQ_FOREACH(op, &s->ops, link) {
@@ -6101,9 +6130,21 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
     return tcg_current_code_size(s);
 }
 
+void tcg_dump_op_count(GString *buf)
+{
+    TCGProfile prof = {};
+    int i;
+
+    collect_tcg_profiler(&prof);
+    for (i = 0; i < NB_OPS; i++) {
+        g_string_append_printf(buf, "%s %" PRId64 "\n",
+                tcg_op_defs[i].name, prof.table_op_count[i]);
+    }
+}
+
 void tcg_dump_info(GString *buf)
 {
-    g_string_append_printf(buf, "[TCG profiler not compiled]\n");
+    dump_jit_profile_info(buf);
 }
 
 #ifdef ELF_HOST_MACHINE
