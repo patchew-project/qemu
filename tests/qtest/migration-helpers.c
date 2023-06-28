@@ -49,6 +49,28 @@ bool migrate_watch_for_resume(QTestState *who, const char *name,
     return false;
 }
 
+void migrate_qmp_with_error(QTestState *who, const char *uri,
+                            const char *error_str, const char *fmt, ...)
+{
+    va_list ap;
+    QDict *args, *err;
+
+    va_start(ap, fmt);
+    args = qdict_from_vjsonf_nofail(fmt, ap);
+    va_end(ap);
+
+    g_assert(!qdict_haskey(args, "uri"));
+    qdict_put_str(args, "uri", uri);
+
+    err = qtest_qmp_assert_failure_ref(
+        who, "{ 'execute': 'migrate', 'arguments': %p}", args);
+
+    g_assert(qdict_haskey(err, "desc"));
+    g_assert_cmpstr(qdict_get_str(err, "desc"), ==, error_str);
+
+    qobject_unref(err);
+}
+
 /*
  * Send QMP command "migrate".
  * Arguments are built from @fmt... (formatted like
