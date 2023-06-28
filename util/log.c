@@ -27,6 +27,7 @@
 #include "qemu/thread.h"
 #include "qemu/lockable.h"
 #include "qemu/rcu.h"
+#include "exec/tb-stats-flags.h"
 #ifdef CONFIG_LINUX
 #include <sys/syscall.h>
 #endif
@@ -497,6 +498,8 @@ const QEMULogItem qemu_log_items[] = {
       "open a separate log file per thread; filename must contain '%d'" },
     { CPU_LOG_TB_VPU, "vpu",
       "include VPU registers in the 'cpu' logging" },
+    { CPU_LOG_TB_STATS, "tb_stats_{all,jit,exec}",
+      "enable collection of TBs statistics at startup" },
     { 0, NULL, NULL },
 };
 
@@ -518,6 +521,21 @@ int qemu_str_to_log_mask(const char *str)
             trace_enable_events((*tmp) + 6);
             mask |= LOG_TRACE;
 #endif
+        } else if (g_str_has_prefix(*tmp, "tb_stats_")) {
+            char *p = *tmp + 9;
+            uint32_t flag = TB_NONE_STATS;
+            if (g_str_has_prefix(p, "all")) {
+                flag = TB_ALL_STATS;
+            } else if (g_str_has_prefix(p, "jit")) {
+                flag = TB_JIT_STATS;
+            } else if (g_str_has_prefix(p, "exec")) {
+                flag = TB_EXEC_STATS;
+            }
+            if (flag != TB_NONE_STATS) {
+                mask |= CPU_LOG_TB_STATS;
+                set_tbstats_flag(flag);
+                enable_collect_tb_stats();
+            }
         } else {
             for (item = qemu_log_items; item->mask != 0; item++) {
                 if (g_str_equal(*tmp, item->name)) {
