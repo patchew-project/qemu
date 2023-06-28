@@ -1,12 +1,18 @@
 #ifndef QEMU_DISAS_H
 #define QEMU_DISAS_H
 
+enum {
+    DISAS_GVA = 0,
+    DISAS_GPA,
+    DISAS_GRA,  /* guest ram addr */
+};
+
 /* Disassemble this for me please... (debugging). */
 void disas(FILE *out, const void *code, size_t size);
 void target_disas(FILE *out, CPUState *cpu, uint64_t code, size_t size);
 
 void monitor_disas(Monitor *mon, CPUState *cpu, uint64_t pc,
-                   int nb_insn, bool is_physical);
+                   int nb_insn, int addr_kind);
 
 char *plugin_disas(CPUState *cpu, uint64_t addr, size_t size);
 

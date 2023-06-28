@@ -133,7 +133,8 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
     }
 
     if (format == 'i') {
-        monitor_disas(mon, cs, addr, count, is_physical);
+        monitor_disas(mon, cs, addr, count,
+                      is_physical ? DISAS_GPA : DISAS_GVA);
         return;
     }
 

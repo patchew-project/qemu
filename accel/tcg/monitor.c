@@ -8,18 +8,22 @@
 
 #include "qemu/osdep.h"
 #include "qemu/accel.h"
+#include "qemu/log.h"
 #include "qapi/error.h"
 #include "qapi/type-helpers.h"
 #include "qapi/qapi-commands-machine.h"
 #include "qapi/qmp/qdict.h"
 #include "monitor/monitor.h"
 #include "monitor/hmp.h"
+#include "monitor/hmp-target.h"
 #include "sysemu/cpus.h"
 #include "sysemu/cpu-timers.h"
 #include "sysemu/tcg.h"
 #include "tcg/tcg.h"
 #include "exec/tb-stats.h"
 #include "exec/tb-flush.h"
+#include "disas/disas.h"
+#include "tb-context.h"
 #include "internal.h"
 #include "tb-context.h"
 
@@ -183,6 +187,114 @@ void hmp_tbstats(Monitor *mon, const QDict *qdict)
     async_safe_run_on_cpu(first_cpu, do_hmp_tbstats_safe,
                           RUN_ON_CPU_HOST_PTR(tbscommand));
 
+}
+
+struct tblist_dump_info {
+    int count;
+    int sortedby;
+    Monitor *mon;
+};
+
+static void do_dump_tblist_info_safe(CPUState *cpu, run_on_cpu_data info)
+{
+    struct tblist_dump_info *tbdi = info.host_ptr;
+    g_autoptr(GString) buf = g_string_new("");
+
+    dump_tblist_info(buf, tbdi->count, tbdi->sortedby);
+    monitor_printf(tbdi->mon, "%s", buf->str);
+
+    g_free(tbdi);
+}
+
+void hmp_info_tblist(Monitor *mon, const QDict *qdict)
+{
+    int number_int;
+    const char *sortedby_str = NULL;
+
+    if (!tcg_enabled()) {
+        monitor_printf(mon, "Only available with accel=tcg\n");
+        return;
+    }
+    if (!tb_ctx.tb_stats.map) {
+        monitor_printf(mon, "no TB information recorded\n");
+        return;
+    }
+
+    number_int = qdict_get_try_int(qdict, "number", 10);
+    sortedby_str = qdict_get_try_str(qdict, "sortedby");
+
+    int sortedby = SORT_BY_HOTNESS;
+    if (sortedby_str == NULL || strcmp(sortedby_str, "hotness") == 0) {
+        sortedby = SORT_BY_HOTNESS;
+    } else if (strcmp(sortedby_str, "hg") == 0) {
+        sortedby = SORT_BY_HG;
+    } else if (strcmp(sortedby_str, "spills") == 0) {
+        sortedby = SORT_BY_SPILLS;
+    } else {
+        monitor_printf(mon, "valid sort options are: hotness hg spills\n");
+        return;
+    }
+
+    struct tblist_dump_info *tbdi = g_new(struct tblist_dump_info, 1);
+    tbdi->count = number_int;
+    tbdi->sortedby = sortedby;
+    tbdi->mon = mon;
+    async_safe_run_on_cpu(first_cpu, do_dump_tblist_info_safe,
+                          RUN_ON_CPU_HOST_PTR(tbdi));
+}
+
+struct tb_dump_info {
+    int id;
+    Monitor *mon;
+};
+
+static void do_dump_tb_info_safe(CPUState *cpu, run_on_cpu_data info)
+{
+    struct tb_dump_info *tbdi = info.host_ptr;
+    int id = tbdi->id;
+    Monitor *mon = tbdi->mon;
+    g_autoptr(GString) buf = g_string_new("");
+
+    TBStatistics *tbs = get_tbstats_by_id(id);
+    if (tbs == NULL) {
+        monitor_printf(mon, "TB %d information is not recorded\n", id);
+        return;
+    }
+
+    monitor_printf(mon, "\n------------------------------\n\n");
+
+    int valid_tb_num = dump_tb_info(buf, tbs, id);
+    monitor_printf(mon, "%s", buf->str);
+
+    if (valid_tb_num > 0) {
+        for (int i = tbs->tbs->len - 1; i >= 0; --i) {
+            TranslationBlock *tb = g_ptr_array_index(tbs->tbs, i);
+            if (!(tb->cflags & CF_INVALID)) {
+                monitor_disas(mon, mon_get_cpu(mon), tbs->phys_pc, tb->icount,
+                              DISAS_GRA);
+                break;
+            }
+        }
+    }
+    monitor_printf(mon, "\n------------------------------\n\n");
+
+    g_free(tbdi);
+}
+
+void hmp_info_tb(Monitor *mon, const QDict *qdict)
+{
+    const int id = qdict_get_int(qdict, "id");
+
+    if (!tcg_enabled()) {
+        monitor_printf(mon, "Only available with accel=tcg\n");
+        return;
+    }
+
+    struct tb_dump_info *tbdi = g_new(struct tb_dump_info, 1);
+    tbdi->id = id;
+    tbdi->mon = mon;
+    async_safe_run_on_cpu(first_cpu, do_dump_tb_info_safe,
+                          RUN_ON_CPU_HOST_PTR(tbdi));
 }
 
 static void hmp_tcg_register(void)

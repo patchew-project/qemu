@@ -54,6 +54,8 @@ struct TBStatistics {
     struct {
         unsigned long normal;
         unsigned long atomic;
+        /* filled only when dumping x% cover set */
+        uint16_t coverage;
     } executions;
 
     /* JIT Stats - protected by lock */
@@ -89,6 +91,7 @@ bool tb_stats_cmp(const void *ap, const void *bp);
 
 void init_tb_stats_htable(void);
 bool tb_stats_enabled(TranslationBlock *tb, uint32_t flag);
+bool tbs_stats_enabled(struct TBStatistics *tbs, uint32_t flag);
 
 void dump_jit_profile_info(GString *buf);
 
@@ -101,5 +104,27 @@ void clean_tbstats(void);
  * safe work during tb_flush.
  */
 void tbstats_reset_tbs(void);
+
+/**
+ * dump_tbs_info: report the hottest blocks
+ *
+ * @buf: output buffer
+ * @total: the limit of hotblocks
+ * @sort_by: property in which the dump will be sorted
+ *
+ * Report the hottest blocks to either the log or monitor
+ */
+void dump_tblist_info(GString *buf, int total, int sort_by);
+
+/**
+ * dump_tb_info: dump information about one TB
+ *
+ * @buf: output buffer
+ * @tbs: the tbs to dump
+ * @id: the display id of the block (from previous search)
+ */
+int dump_tb_info(GString *buf, TBStatistics *tbs, int id);
+
+TBStatistics *get_tbstats_by_id(int id);
 
 #endif

@@ -8,6 +8,8 @@
 #include "hw/core/cpu.h"
 #include "exec/memory.h"
 
+#include "qemu/log-for-trace.h"
+
 /* Filled in by elfload.c.  Simplistic, but will do for now. */
 struct syminfo *syminfos = NULL;
 
