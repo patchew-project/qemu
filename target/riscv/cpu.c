@@ -473,7 +473,7 @@ static void rv64_veyron_v1_cpu_init(Object *obj)
 
 static void rv128_base_cpu_init(Object *obj)
 {
-    if (qemu_tcg_mttcg_enabled()) {
+    if (CPU(obj)->tcg_cflags & CF_PARALLEL) {
         /* Missing 128-bit aligned atomics */
         error_report("128-bit RISC-V currently does not work with Multi "
                      "Threaded TCG. Please use: -accel tcg,thread=single");
