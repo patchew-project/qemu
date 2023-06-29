@@ -274,6 +274,17 @@ struct scrub_regions {
     int fd_idx;
 };
 
+struct backend_thread {
+    QemuThread thread;
+    QemuSemaphore init_done_sem;
+    int thread_id;
+    GMainContext *ctxt;
+    GMainLoop *loop;
+};
+
+static struct backend_thread *backend_th;
+static bool backend_thread_run;
+
 static bool ioeventfd_enabled(void)
 {
     return !kvm_enabled() || kvm_eventfds_enabled();
@@ -1696,7 +1707,8 @@ fdcleanup:
     return rc;
 }
 
-static int vhost_setup_backend_channel(struct vhost_dev *dev)
+static int vhost_setup_backend_channel(struct vhost_dev *dev,
+                                       GMainContext *ctxt)
 {
     VhostUserMsg msg = {
         .hdr.request = VHOST_USER_SET_BACKEND_REQ_FD,
@@ -1728,7 +1740,7 @@ static int vhost_setup_backend_channel(struct vhost_dev *dev)
     u->backend_ioc = ioc;
     u->backend_src = qio_channel_add_watch_source(u->backend_ioc,
                                                 G_IO_IN | G_IO_HUP,
-                                                backend_read, dev, NULL, NULL);
+                                                backend_read, dev, NULL, ctxt);
 
     if (reply_supported) {
         msg.hdr.flags |= VHOST_USER_NEED_REPLY_MASK;
@@ -1981,6 +1993,42 @@ static int vhost_user_postcopy_notifier(NotifierWithReturn *notifier,
     return 0;
 }
 
+static void *vhost_backend_channel_worker(void *opaque)
+{
+    struct backend_thread *backend_th = opaque;
+
+    rcu_register_thread();
+
+    backend_th->ctxt = g_main_context_new();
+    backend_th->loop = g_main_loop_new(backend_th->ctxt, false);
+    backend_th->thread_id = qemu_get_thread_id();
+
+    qemu_sem_post(&backend_th->init_done_sem);
+
+    g_main_loop_run(backend_th->loop);
+
+    g_main_loop_unref(backend_th->loop);
+    g_main_context_unref(backend_th->ctxt);
+    g_free(backend_th);
+    rcu_unregister_thread();
+    return NULL;
+}
+
+static void vhost_backend_thread_init(void)
+{
+    backend_th = g_malloc0(sizeof(struct backend_thread));
+    backend_th->thread_id = -1;
+    qemu_sem_init(&backend_th->init_done_sem, 0);
+
+    qemu_thread_create(&backend_th->thread, "backend-channel-worker",
+                       vhost_backend_channel_worker, backend_th,
+                       QEMU_THREAD_DETACHED);
+
+    while (backend_th->thread_id == -1) {
+        qemu_sem_wait(&backend_th->init_done_sem);
+    }
+}
+
 static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque,
                                    Error **errp)
 {
@@ -2108,10 +2156,17 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque,
     }
 
     if (dev->vq_index == 0) {
-        err = vhost_setup_backend_channel(dev);
-        if (err < 0) {
-            error_setg_errno(errp, EPROTO, "vhost_backend_init failed");
-            return -EPROTO;
+        if (!backend_thread_run) {
+            vhost_backend_thread_init();
+            backend_thread_run = true;
+        }
+
+        if (backend_thread_run && backend_th) {
+            err = vhost_setup_backend_channel(dev, backend_th->ctxt);
+            if (err < 0) {
+                error_setg_errno(errp, EPROTO, "vhost_backend_init failed");
+                return -EPROTO;
+            }
         }
     }
 
