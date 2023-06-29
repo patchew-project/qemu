@@ -32,6 +32,7 @@
 #include "qapi/error.h"
 #include "tcg/tcg.h"
 #include "exec/translation-block.h"
+#include "accel/tcg/tcg-accel-ops-mttcg.h"
 #include "tcg-internal.h"
 
 
@@ -413,7 +414,7 @@ static size_t tcg_n_regions(size_t tb_size, unsigned max_cpus)
      * dividing the code_gen_buffer among the vCPUs.
      */
     /* Use a single region if all we have is one vCPU thread */
-    if (max_cpus == 1 || !qemu_tcg_mttcg_enabled()) {
+    if (max_cpus == 1 || !mttcg_enabled) {
         return 1;
     }
 
