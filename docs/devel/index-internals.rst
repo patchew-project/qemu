@@ -17,5 +17,6 @@ Details about QEMU's various subsystems including how to add features to them.
    s390-dasd-ipl
    tracing
    vfio-migration
+   vfio-user
    writing-monitor-commands
    virtio-backends
