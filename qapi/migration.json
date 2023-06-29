@@ -1788,7 +1788,12 @@
 #
 # @start-time: start time in units of second for calculation
 #
-# @calc-time: time in units of second for sample dirty pages
+# @calc-time: time period for which dirty page rate was measured
+#     (rounded down to seconds).
+#
+# @calc-time-ms: actual time period for which dirty page rate was
+#     measured (in milliseconds).  Value may be larger than requested
+#     time period due to measurement overhead.
 #
 # @sample-pages: page count per GB for sample dirty pages the default
 #     value is 512 (since 6.1)
@@ -1806,6 +1811,7 @@
            'status': 'DirtyRateStatus',
            'start-time': 'int64',
            'calc-time': 'int64',
+           'calc-time-ms': 'int64',
            'sample-pages': 'uint64',
            'mode': 'DirtyRateMeasureMode',
            '*vcpu-dirty-rate': [ 'DirtyRateVcpu' ] } }
@@ -1816,6 +1822,10 @@
 # start calculating dirty page rate for vm
 #
 # @calc-time: time in units of second for sample dirty pages
+#
+# @calc-time-ms: the same as @calc-time but in milliseconds.  These
+#    two arguments are mutually exclusive.  Exactly one of them must
+#    be specified. (Since 8.1)
 #
 # @sample-pages: page count per GB for sample dirty pages the default
 #     value is 512 (since 6.1)
@@ -1831,7 +1841,8 @@
 #                                                 'sample-pages': 512} }
 # <- { "return": {} }
 ##
-{ 'command': 'calc-dirty-rate', 'data': {'calc-time': 'int64',
+{ 'command': 'calc-dirty-rate', 'data': {'*calc-time': 'int64',
+                                         '*calc-time-ms': 'int64',
                                          '*sample-pages': 'int',
                                          '*mode': 'DirtyRateMeasureMode'} }
 
