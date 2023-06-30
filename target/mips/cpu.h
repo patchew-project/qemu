@@ -1177,9 +1177,8 @@ struct ArchCPU {
     CPUState parent_obj;
     /*< public >*/
 
-    Clock *clock;
-    CPUNegativeOffsetState neg;
     CPUMIPSState env;
+    Clock *clock;
 };
 
 

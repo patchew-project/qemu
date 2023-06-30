@@ -352,7 +352,6 @@ struct ArchCPU {
     bool ns_axi_dc;
     bool ns_axi_ic;
 
-    CPUNegativeOffsetState neg;
     CPUMBState env;
     MicroBlazeCPUConfig cfg;
 };
