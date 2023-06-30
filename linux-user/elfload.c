@@ -1681,8 +1681,18 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 
 #ifdef TARGET_RISCV32
 #define ELF_CLASS ELFCLASS32
+#if TARGET_BIG_ENDIAN
+#define ELF_PLATFORM "riscv32be"
+#else
+#define ELF_PLATFORM "riscv32"
+#endif
 #else
 #define ELF_CLASS ELFCLASS64
+#if TARGET_BIG_ENDIAN
+#define ELF_PLATFORM "riscv64be"
+#else
+#define ELF_PLATFORM "riscv64"
+#endif
 #endif
 
 #define ELF_HWCAP get_elf_hwcap()

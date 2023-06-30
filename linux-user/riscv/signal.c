@@ -199,8 +199,13 @@ void setup_sigtramp(abi_ulong sigtramp_page)
     uint32_t *tramp = lock_user(VERIFY_WRITE, sigtramp_page, 8, 0);
     assert(tramp != NULL);
 
+#if TARGET_BIG_ENDIAN
+    __put_user(0x9308b008, tramp + 0);  /* li a7, 139 = __NR_rt_sigreturn */
+    __put_user(0x73000000, tramp + 1);  /* ecall */
+#else
     __put_user(0x08b00893, tramp + 0);  /* li a7, 139 = __NR_rt_sigreturn */
     __put_user(0x00000073, tramp + 1);  /* ecall */
+#endif
 
     default_rt_sigreturn = sigtramp_page;
     unlock_user(tramp, sigtramp_page, 8);

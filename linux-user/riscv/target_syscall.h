@@ -44,10 +44,18 @@ struct target_pt_regs {
 };
 
 #ifdef TARGET_RISCV32
+#if TARGET_BIG_ENDIAN
+#define UNAME_MACHINE "riscv32be"
+#else
 #define UNAME_MACHINE "riscv32"
+#endif
 #define UNAME_MINIMUM_RELEASE "5.4.0"
 #else
+#if TARGET_BIG_ENDIAN
+#define UNAME_MACHINE "riscv64be"
+#else
 #define UNAME_MACHINE "riscv64"
+#endif
 #define UNAME_MINIMUM_RELEASE "4.15.0"
 #endif
 

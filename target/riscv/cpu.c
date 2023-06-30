@@ -873,6 +873,11 @@ static void riscv_cpu_disas_set_info(CPUState *s, disassemble_info *info)
     default:
         g_assert_not_reached();
     }
+#if TARGET_BIG_ENDIAN
+    info->endian = BFD_ENDIAN_LITTLE;
+#else
+    info->endian = BFD_ENDIAN_BIG;
+#endif
 }
 
 static void riscv_cpu_validate_v(CPURISCVState *env, RISCVCPUConfig *cfg,

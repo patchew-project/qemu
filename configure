@@ -1190,6 +1190,7 @@ fi
 : ${cross_prefix_ppc64="powerpc64-linux-gnu-"}
 : ${cross_prefix_ppc64le="$cross_prefix_ppc64"}
 : ${cross_prefix_riscv64="riscv64-linux-gnu-"}
+: ${cross_prefix_riscv64be="riscv64be-linux-gnu-"}
 : ${cross_prefix_s390x="s390x-linux-gnu-"}
 : ${cross_prefix_sh4="sh4-linux-gnu-"}
 : ${cross_prefix_sparc64="sparc64-linux-gnu-"}

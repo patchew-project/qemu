@@ -1157,9 +1157,16 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
         }
     } else {
         uint32_t opcode32 = opcode;
+#if TARGET_BIG_ENDIAN
+        opcode32 = bswap16(opcode);
+#endif
         opcode32 = deposit32(opcode32, 16, 16,
                              translator_lduw(env, &ctx->base,
                                              ctx->base.pc_next + 2));
+#if TARGET_BIG_ENDIAN
+        opcode32 = (opcode32) << 16 | (opcode32 >> 16);
+        opcode32 = bswap32(opcode32);
+#endif
         ctx->opcode = opcode32;
 
         for (size_t i = 0; i < ARRAY_SIZE(decoders); ++i) {
@@ -1230,6 +1237,9 @@ static void riscv_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     CPURISCVState *env = cpu->env_ptr;
     uint16_t opcode16 = translator_lduw(env, &ctx->base, ctx->base.pc_next);
+#if TARGET_BIG_ENDIAN
+    opcode16 = bswap16(opcode16);
+#endif
 
     ctx->ol = ctx->xl;
     decode_opc(env, ctx, opcode16);
@@ -1244,6 +1254,9 @@ static void riscv_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 
             if (page_ofs > TARGET_PAGE_SIZE - MAX_INSN_LEN) {
                 uint16_t next_insn = cpu_lduw_code(env, ctx->base.pc_next);
+#if TARGET_BIG_ENDIAN
+                next_insn = bswap16(next_insn);
+#endif
                 int len = insn_len(next_insn);
 
                 if (!is_same_page(&ctx->base, ctx->base.pc_next + len - 1)) {

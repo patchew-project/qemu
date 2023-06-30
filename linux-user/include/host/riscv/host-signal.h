@@ -38,6 +38,9 @@ static inline bool host_signal_write(siginfo_t *info, host_sigcontext *uc)
      */
     const uint16_t *pinsn = (const uint16_t *)host_signal_pc(uc);
     uint16_t insn = pinsn[0];
+#if TARGET_BIG_ENDIAN
+    insn = (insn << 8) | (insn >> 8);
+#endif
 
     /* 16-bit instructions */
     switch (insn & 0xe003) {
