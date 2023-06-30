@@ -2387,42 +2387,61 @@ DO_BITI(vbitrevi_h, 16, UH, DO_BITREV)
 DO_BITI(vbitrevi_w, 32, UW, DO_BITREV)
 DO_BITI(vbitrevi_d, 64, UD, DO_BITREV)
 
-#define VFRSTP(NAME, BIT, MASK, E)                       \
-void HELPER(NAME)(CPULoongArchState *env,                \
-                  uint32_t vd, uint32_t vj, uint32_t vk) \
-{                                                        \
-    int i, m;                                            \
-    VReg *Vd = &(env->fpr[vd].vreg);                     \
-    VReg *Vj = &(env->fpr[vj].vreg);                     \
-    VReg *Vk = &(env->fpr[vk].vreg);                     \
-                                                         \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
-        if (Vj->E(i) < 0) {                              \
-            break;                                       \
-        }                                                \
-    }                                                    \
-    m = Vk->E(0) & MASK;                                 \
-    Vd->E(m) = i;                                        \
+#define VFRSTP(NAME, BIT, MASK, E)                        \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t oprsz, \
+                  uint32_t vd, uint32_t vj, uint32_t vk)  \
+{                                                         \
+    int i, j, m, max;                                     \
+    VReg *Vd = &(env->fpr[vd].vreg);                      \
+    VReg *Vj = &(env->fpr[vj].vreg);                      \
+    VReg *Vk = &(env->fpr[vk].vreg);                      \
+                                                          \
+    max = LSX_LEN / BIT;                                  \
+    m = Vk->E(0) & MASK;                                  \
+    for (i = 0; i < max; i++) {                           \
+        if (Vj->E(i) < 0) {                               \
+            break;                                        \
+        }                                                 \
+    }                                                     \
+    Vd->E(m) = i;                                         \
+    if (oprsz == 32) {                                    \
+        for (j = 0; j < max; j++) {                       \
+            if (Vj->E(j + max) < 0) {                     \
+                break;                                    \
+            }                                             \
+        }                                                 \
+        m = Vk->E(max) & MASK;                            \
+        Vd->E(m + max) = j;                               \
+    }                                                     \
 }
 
 VFRSTP(vfrstp_b, 8, 0xf, B)
 VFRSTP(vfrstp_h, 16, 0x7, H)
 
-#define VFRSTPI(NAME, BIT, E)                             \
-void HELPER(NAME)(CPULoongArchState *env,                 \
-                  uint32_t vd, uint32_t vj, uint32_t imm) \
-{                                                         \
-    int i, m;                                             \
-    VReg *Vd = &(env->fpr[vd].vreg);                      \
-    VReg *Vj = &(env->fpr[vj].vreg);                      \
-                                                          \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                   \
-        if (Vj->E(i) < 0) {                               \
-            break;                                        \
-        }                                                 \
-    }                                                     \
-    m = imm % (LSX_LEN/BIT);                              \
-    Vd->E(m) = i;                                         \
+#define VFRSTPI(NAME, BIT, E)                              \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t oprsz,  \
+                  uint32_t vd, uint32_t vj, uint32_t imm)  \
+{                                                          \
+    int i, j, m, max;                                      \
+    VReg *Vd = &(env->fpr[vd].vreg);                       \
+    VReg *Vj = &(env->fpr[vj].vreg);                       \
+                                                           \
+    max = LSX_LEN / BIT;                                   \
+    m = imm % max;                                         \
+    for (i = 0; i < max; i++) {                            \
+        if (Vj->E(i) < 0) {                                \
+            break;                                         \
+        }                                                  \
+    }                                                      \
+    Vd->E(m) = i;                                          \
+    if (oprsz == 32) {                                     \
+        for(j = 0; j < max; j++) {                         \
+            if(Vj->E(j + max) < 0) {                       \
+                break;                                     \
+            }                                              \
+        }                                                  \
+        Vd->E(m + max) = j;                                \
+    }                                                      \
 }
 
 VFRSTPI(vfrstpi_b, 8,  B)
