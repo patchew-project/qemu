@@ -62,7 +62,7 @@
 #include "tb-hash.h"
 #include "tb-context.h"
 #include "internal.h"
-#include "perf.h"
+#include "tcg/perf.h"
 #include "tcg/insn-start-words.h"
 
 TBContext tb_ctx;

@@ -10,7 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "elf.h"
-#include "exec/exec-all.h"
+#include "exec/translation-block.h"
 #include "qemu/timer.h"
 #include "tcg/tcg.h"
 
