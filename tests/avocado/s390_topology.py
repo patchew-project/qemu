@@ -287,3 +287,31 @@ class S390CPUTopology(QemuSystemTest):
         self.check_topology(1, 0, 0, 0, 'medium', False)
         self.check_topology(2, 1, 0, 0, 'high', False)
         self.check_topology(3, 1, 0, 0, 'high', False)
+
+    def test_dedicated(self):
+        """
+        This test verifies that QEMU modifies the entitlement change correctly
+        for a dedicated CPU after several guest polarization change requests.
+
+        :avocado: tags=arch:s390x
+        :avocado: tags=machine:s390-ccw-virtio
+        """
+        self.kernel_init()
+        self.vm.launch()
+        self.wait_until_booted()
+
+        self.system_init()
+
+        res = self.vm.qmp('set-cpu-topology',
+                          {'core-id': 0, 'dedicated': True})
+        self.assertEqual(res['return'], {})
+
+        self.check_topology(0, 0, 0, 0, 'high', True)
+
+        self.guest_set_dispatching('1');
+
+        self.check_topology(0, 0, 0, 0, 'high', True)
+
+        self.guest_set_dispatching('0');
+
+        self.check_topology(0, 0, 0, 0, 'high', True)
