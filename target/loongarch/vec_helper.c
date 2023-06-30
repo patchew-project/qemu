@@ -434,29 +434,31 @@ VMINMAXI(vmaxi_du, 64, UD, DO_MAX)
 #define DO_VMUH(NAME, BIT, E1, E2, DO_OP)                   \
 void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v) \
 {                                                           \
-    int i;                                                  \
+    int i, len;                                             \
     VReg *Vd = (VReg *)vd;                                  \
     VReg *Vj = (VReg *)vj;                                  \
     VReg *Vk = (VReg *)vk;                                  \
     typedef __typeof(Vd->E1(0)) T;                          \
                                                             \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
+    len = (simd_oprsz(v) == 16) ? LSX_LEN : LASX_LEN;       \
+    for (i = 0; i < len / BIT; i++) {                       \
         Vd->E2(i) = ((T)Vj->E2(i)) * ((T)Vk->E2(i)) >> BIT; \
     }                                                       \
 }
 
 void HELPER(vmuh_d)(void *vd, void *vj, void *vk, uint32_t v)
 {
-    uint64_t l, h1, h2;
+    int i, len;
+    uint64_t l, h;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
     VReg *Vk = (VReg *)vk;
 
-    muls64(&l, &h1, Vj->D(0), Vk->D(0));
-    muls64(&l, &h2, Vj->D(1), Vk->D(1));
-
-    Vd->D(0) = h1;
-    Vd->D(1) = h2;
+    len = (simd_oprsz(v) == 16) ? LSX_LEN : LASX_LEN;
+    for (i = 0; i < len / 64; i++) {
+        muls64(&l, &h, Vj->D(i), Vk->D(i));
+        Vd->D(i) = h;
+    }
 }
 
 DO_VMUH(vmuh_b, 8, H, B, DO_MUH)
@@ -465,23 +467,22 @@ DO_VMUH(vmuh_w, 32, D, W, DO_MUH)
 
 void HELPER(vmuh_du)(void *vd, void *vj, void *vk, uint32_t v)
 {
-    uint64_t l, h1, h2;
+    int i, len;
+    uint64_t l, h;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
     VReg *Vk = (VReg *)vk;
 
-    mulu64(&l, &h1, Vj->D(0), Vk->D(0));
-    mulu64(&l, &h2, Vj->D(1), Vk->D(1));
-
-    Vd->D(0) = h1;
-    Vd->D(1) = h2;
+    len = (simd_oprsz(v) == 16) ? LSX_LEN : LASX_LEN;
+    for (i = 0; i < len / 64; i++) {
+        mulu64(&l, &h, Vj->D(i), Vk->D(i));
+        Vd->D(i) = h;
+    }
 }
 
 DO_VMUH(vmuh_bu, 8, UH, UB, DO_MUH)
 DO_VMUH(vmuh_hu, 16, UW, UH, DO_MUH)
 DO_VMUH(vmuh_wu, 32, UD, UW, DO_MUH)
-
-#define DO_MUL(a, b) (a * b)
 
 DO_EVEN(vmulwev_h_b, 16, H, B, DO_MUL)
 DO_EVEN(vmulwev_w_h, 32, W, H, DO_MUL)

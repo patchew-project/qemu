@@ -207,6 +207,74 @@ TRANS(xvmaxi_hu, gvec_vv_i, 32, MO_16, do_vmaxi_u)
 TRANS(xvmaxi_wu, gvec_vv_i, 32, MO_32, do_vmaxi_u)
 TRANS(xvmaxi_du, gvec_vv_i, 32, MO_64, do_vmaxi_u)
 
+TRANS(xvmul_b, gvec_vvv, 32, MO_8, tcg_gen_gvec_mul)
+TRANS(xvmul_h, gvec_vvv, 32, MO_16, tcg_gen_gvec_mul)
+TRANS(xvmul_w, gvec_vvv, 32, MO_32, tcg_gen_gvec_mul)
+TRANS(xvmul_d, gvec_vvv, 32, MO_64, tcg_gen_gvec_mul)
+TRANS(xvmuh_b, gvec_vvv, 32, MO_8, do_vmuh_s)
+TRANS(xvmuh_h, gvec_vvv, 32, MO_16, do_vmuh_s)
+TRANS(xvmuh_w, gvec_vvv, 32, MO_32, do_vmuh_s)
+TRANS(xvmuh_d, gvec_vvv, 32, MO_64, do_vmuh_s)
+TRANS(xvmuh_bu, gvec_vvv, 32, MO_8, do_vmuh_u)
+TRANS(xvmuh_hu, gvec_vvv, 32, MO_16, do_vmuh_u)
+TRANS(xvmuh_wu, gvec_vvv, 32, MO_32, do_vmuh_u)
+TRANS(xvmuh_du, gvec_vvv, 32, MO_64, do_vmuh_u)
+
+TRANS(xvmulwev_h_b, gvec_vvv, 32, MO_8, do_vmulwev_s)
+TRANS(xvmulwev_w_h, gvec_vvv, 32, MO_16, do_vmulwev_s)
+TRANS(xvmulwev_d_w, gvec_vvv, 32, MO_32, do_vmulwev_s)
+
+#define XVMUL_Q(NAME, FN, idx1, idx2)                     \
+static bool trans_## NAME(DisasContext *ctx, arg_vvv * a) \
+{                                                         \
+    TCGv_i64 rh, rl, arg1, arg2;                          \
+    int i;                                                \
+                                                          \
+    CHECK_VEC;                                            \
+                                                          \
+    rh = tcg_temp_new_i64();                              \
+    rl = tcg_temp_new_i64();                              \
+    arg1 = tcg_temp_new_i64();                            \
+    arg2 = tcg_temp_new_i64();                            \
+                                                          \
+    for (i = 0; i < 2; i++) {                             \
+        get_vreg64(arg1, a->vj, idx1 + i * 2);            \
+        get_vreg64(arg2, a->vk, idx2 + i * 2);            \
+                                                          \
+        tcg_gen_## FN ##_i64(rl, rh, arg1, arg2);         \
+                                                          \
+        set_vreg64(rh, a->vd, 1 + i * 2);                 \
+        set_vreg64(rl, a->vd, 0 + i * 2);                 \
+    }                                                     \
+                                                          \
+    return true;                                          \
+}
+
+XVMUL_Q(xvmulwev_q_d, muls2, 0, 0)
+XVMUL_Q(xvmulwod_q_d, muls2, 1, 1)
+XVMUL_Q(xvmulwev_q_du, mulu2, 0, 0)
+XVMUL_Q(xvmulwod_q_du, mulu2, 1, 1)
+XVMUL_Q(xvmulwev_q_du_d, mulus2, 0, 0)
+XVMUL_Q(xvmulwod_q_du_d, mulus2, 1, 1)
+
+TRANS(xvmulwod_h_b, gvec_vvv, 32, MO_8, do_vmulwod_s)
+TRANS(xvmulwod_w_h, gvec_vvv, 32, MO_16, do_vmulwod_s)
+TRANS(xvmulwod_d_w, gvec_vvv, 32, MO_32, do_vmulwod_s)
+
+TRANS(xvmulwev_h_bu, gvec_vvv, 32, MO_8, do_vmulwev_u)
+TRANS(xvmulwev_w_hu, gvec_vvv, 32, MO_16, do_vmulwev_u)
+TRANS(xvmulwev_d_wu, gvec_vvv, 32, MO_32, do_vmulwev_u)
+TRANS(xvmulwod_h_bu, gvec_vvv, 32, MO_8, do_vmulwod_u)
+TRANS(xvmulwod_w_hu, gvec_vvv, 32, MO_16, do_vmulwod_u)
+TRANS(xvmulwod_d_wu, gvec_vvv, 32, MO_32, do_vmulwod_u)
+
+TRANS(xvmulwev_h_bu_b, gvec_vvv, 32, MO_8, do_vmulwev_u_s)
+TRANS(xvmulwev_w_hu_h, gvec_vvv, 32, MO_16, do_vmulwev_u_s)
+TRANS(xvmulwev_d_wu_w, gvec_vvv, 32, MO_32, do_vmulwev_u_s)
+TRANS(xvmulwod_h_bu_b, gvec_vvv, 32, MO_8, do_vmulwod_u_s)
+TRANS(xvmulwod_w_hu_h, gvec_vvv, 32, MO_16, do_vmulwod_u_s)
+TRANS(xvmulwod_d_wu_w, gvec_vvv, 32, MO_32, do_vmulwod_u_s)
+
 TRANS(xvreplgr2vr_b, gvec_dup, 32, MO_8)
 TRANS(xvreplgr2vr_h, gvec_dup, 32, MO_16)
 TRANS(xvreplgr2vr_w, gvec_dup, 32, MO_32)
