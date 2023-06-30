@@ -341,17 +341,16 @@ DO_ODD_U_S(vaddwod_h_bu_b, 16, H, UH, B, UB, DO_ADD)
 DO_ODD_U_S(vaddwod_w_hu_h, 32, W, UW, H, UH, DO_ADD)
 DO_ODD_U_S(vaddwod_d_wu_w, 64, D, UD, W, UW, DO_ADD)
 
-#define DO_VAVG(a, b)  ((a >> 1) + (b >> 1) + (a & b & 1))
-#define DO_VAVGR(a, b) ((a >> 1) + (b >> 1) + ((a | b) & 1))
-
 #define DO_3OP(NAME, BIT, E, DO_OP)                         \
 void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v) \
 {                                                           \
-    int i;                                                  \
+    int i, len;                                             \
     VReg *Vd = (VReg *)vd;                                  \
     VReg *Vj = (VReg *)vj;                                  \
     VReg *Vk = (VReg *)vk;                                  \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
+                                                            \
+    len = (simd_oprsz(v) == 16) ? LSX_LEN : LASX_LEN;       \
+    for (i = 0; i < len / BIT; i++) {                       \
         Vd->E(i) = DO_OP(Vj->E(i), Vk->E(i));               \
     }                                                       \
 }
