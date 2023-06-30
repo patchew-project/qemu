@@ -2334,20 +2334,17 @@ VPCNT(vpcnt_h, 16, UH, ctpop16)
 VPCNT(vpcnt_w, 32, UW, ctpop32)
 VPCNT(vpcnt_d, 64, UD, ctpop64)
 
-#define DO_BITCLR(a, bit) (a & ~(1ull << bit))
-#define DO_BITSET(a, bit) (a | 1ull << bit)
-#define DO_BITREV(a, bit) (a ^ (1ull << bit))
-
 #define DO_BIT(NAME, BIT, E, DO_OP)                         \
 void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v) \
 {                                                           \
-    int i;                                                  \
+    int i, len;                                             \
     VReg *Vd = (VReg *)vd;                                  \
     VReg *Vj = (VReg *)vj;                                  \
     VReg *Vk = (VReg *)vk;                                  \
                                                             \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
-        Vd->E(i) = DO_OP(Vj->E(i), Vk->E(i)%BIT);           \
+    len = (simd_oprsz(v) == 16) ? LSX_LEN : LASX_LEN;       \
+    for (i = 0; i < len / BIT; i++) {                       \
+        Vd->E(i) = DO_OP(Vj->E(i), Vk->E(i) % BIT);         \
     }                                                       \
 }
 
@@ -2367,11 +2364,12 @@ DO_BIT(vbitrev_d, 64, UD, DO_BITREV)
 #define DO_BITI(NAME, BIT, E, DO_OP)                            \
 void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t v) \
 {                                                               \
-    int i;                                                      \
+    int i, len;                                                 \
     VReg *Vd = (VReg *)vd;                                      \
     VReg *Vj = (VReg *)vj;                                      \
                                                                 \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                         \
+    len = (simd_oprsz(v) == 16) ? LSX_LEN : LASX_LEN;           \
+    for (i = 0; i < len / BIT; i++) {                           \
         Vd->E(i) = DO_OP(Vj->E(i), imm);                        \
     }                                                           \
 }
