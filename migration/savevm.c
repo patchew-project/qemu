@@ -3194,6 +3194,7 @@ bool load_snapshot(const char *name, const char *vmstate,
     }
     aio_context_acquire(aio_context);
     ret = qemu_loadvm_state(f);
+    migrate_set_runstate();
     migration_incoming_state_destroy();
     aio_context_release(aio_context);
 
