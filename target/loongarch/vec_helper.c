@@ -3426,7 +3426,7 @@ VILVH(vilvh_h, 32, H)
 VILVH(vilvh_w, 64, W)
 VILVH(vilvh_d, 128, D)
 
-void HELPER(vshuf_b)(CPULoongArchState *env,
+void HELPER(vshuf_b)(CPULoongArchState *env, uint32_t oprsz,
                      uint32_t vd, uint32_t vj, uint32_t vk, uint32_t va)
 {
     int i, m;
@@ -3436,93 +3436,168 @@ void HELPER(vshuf_b)(CPULoongArchState *env,
     VReg *Vk = &(env->fpr[vk].vreg);
     VReg *Va = &(env->fpr[va].vreg);
 
-    m = LSX_LEN/8;
-    for (i = 0; i < m ; i++) {
+    m = LSX_LEN / 8;
+    for (i = 0; i < m; i++) {
         uint64_t k = (uint8_t)Va->B(i) % (2 * m);
         temp.B(i) = k < m ? Vk->B(k) : Vj->B(k - m);
     }
+    if (oprsz == 32) {
+        for(i = m; i < 2 * m; i++) {
+            uint64_t j = (uint8_t)Va->B(i) % (2 * m);
+            temp.B(i) = j < m ? Vk->B(j + m) : Vj->B(j);
+        }
+    }
+
     *Vd = temp;
 }
 
-#define VSHUF(NAME, BIT, E)                              \
-void HELPER(NAME)(CPULoongArchState *env,                \
-                  uint32_t vd, uint32_t vj, uint32_t vk) \
-{                                                        \
-    int i, m;                                            \
-    VReg temp;                                           \
-    VReg *Vd = &(env->fpr[vd].vreg);                     \
-    VReg *Vj = &(env->fpr[vj].vreg);                     \
-    VReg *Vk = &(env->fpr[vk].vreg);                     \
-                                                         \
-    m = LSX_LEN/BIT;                                     \
-    for (i = 0; i < m; i++) {                            \
-        uint64_t k  = ((uint8_t) Vd->E(i)) % (2 * m);    \
-        temp.E(i) = k < m ? Vk->E(k) : Vj->E(k - m);     \
-    }                                                    \
-    *Vd = temp;                                          \
+#define VSHUF(NAME, BIT, E)                               \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t oprsz, \
+                  uint32_t vd, uint32_t vj, uint32_t vk)  \
+{                                                         \
+    int i, m;                                             \
+    VReg temp;                                            \
+    VReg *Vd = &(env->fpr[vd].vreg);                      \
+    VReg *Vj = &(env->fpr[vj].vreg);                      \
+    VReg *Vk = &(env->fpr[vk].vreg);                      \
+                                                          \
+    m = LSX_LEN / BIT;                                    \
+    for (i = 0; i < m; i++) {                             \
+        uint64_t k  = (uint8_t)Vd->E(i) % (2 * m);        \
+        temp.E(i) = k < m ? Vk->E(k) : Vj->E(k - m);      \
+    }                                                     \
+    if (oprsz == 32) {                                    \
+        for (i = m; i < 2 * m; i++) {                     \
+            uint64_t j = (uint8_t)Vd->E(i) % (2 * m);     \
+            temp.E(i) = j < m ? Vk->E(j + m): Vj->E(j);   \
+        }                                                 \
+    }                                                     \
+    *Vd = temp;                                           \
 }
 
 VSHUF(vshuf_h, 16, H)
 VSHUF(vshuf_w, 32, W)
 VSHUF(vshuf_d, 64, D)
 
-#define VSHUF4I(NAME, BIT, E)                             \
-void HELPER(NAME)(CPULoongArchState *env,                 \
-                  uint32_t vd, uint32_t vj, uint32_t imm) \
-{                                                         \
-    int i;                                                \
-    VReg temp;                                            \
-    VReg *Vd = &(env->fpr[vd].vreg);                      \
-    VReg *Vj = &(env->fpr[vj].vreg);                      \
-                                                          \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                   \
-         temp.E(i) = Vj->E(((i) & 0xfc) + (((imm) >>      \
-                           (2 * ((i) & 0x03))) & 0x03));  \
-    }                                                     \
-    *Vd = temp;                                           \
+#define VSHUF4I(NAME, BIT, E)                               \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t oprsz,   \
+                  uint32_t vd, uint32_t vj, uint32_t imm)   \
+{                                                           \
+    int i, max;                                             \
+    VReg temp;                                              \
+    VReg *Vd = &(env->fpr[vd].vreg);                        \
+    VReg *Vj = &(env->fpr[vj].vreg);                        \
+                                                            \
+    max = LSX_LEN / BIT;                                    \
+    for (i = 0; i < max; i++) {                             \
+        temp.E(i) = Vj->E(SHF_POS(i, imm));                 \
+    }                                                       \
+    if (oprsz == 32) {                                      \
+        for (i = max; i < 2 * max; i++) {                   \
+            temp.E(i) = Vj->E(SHF_POS(i - max, imm) + max); \
+        }                                                   \
+    }                                                       \
+    *Vd = temp;                                             \
 }
 
 VSHUF4I(vshuf4i_b, 8, B)
 VSHUF4I(vshuf4i_h, 16, H)
 VSHUF4I(vshuf4i_w, 32, W)
 
-void HELPER(vshuf4i_d)(CPULoongArchState *env,
+void HELPER(vshuf4i_d)(CPULoongArchState *env, uint32_t oprsz,
                        uint32_t vd, uint32_t vj, uint32_t imm)
 {
+    int i, max;
     VReg *Vd = &(env->fpr[vd].vreg);
     VReg *Vj = &(env->fpr[vj].vreg);
 
     VReg temp;
-    temp.D(0) = (imm & 2 ? Vj : Vd)->D(imm & 1);
-    temp.D(1) = (imm & 8 ? Vj : Vd)->D((imm >> 2) & 1);
+    max = (oprsz == 16) ? 1 : 2;
+    for (i = 0; i < max; i++) {
+        temp.D(2 * i) = (imm & 2 ? Vj : Vd)->D((imm & 1) + 2 * i);
+        temp.D(2 * i + 1) = (imm & 8 ? Vj : Vd)->D(((imm >> 2) & 1) + 2 * i);
+    }
     *Vd = temp;
 }
 
-void HELPER(vpermi_w)(CPULoongArchState *env,
+void HELPER(vperm_w)(CPULoongArchState *env, uint32_t oprsz,
+                     uint32_t vd, uint32_t vj, uint32_t vk)
+{
+    int i, m;
+    VReg temp;
+    VReg *Vd = &(env->fpr[vd].vreg);
+    VReg *Vj = &(env->fpr[vj].vreg);
+    VReg *Vk = &(env->fpr[vk].vreg);
+
+    m = LASX_LEN / 32;
+    for (i = 0; i < m ; i++) {
+        uint64_t k = (uint8_t)Vk->W(i) % 8;
+        temp.W(i) = Vj->W(k);
+    }
+    *Vd = temp;
+}
+
+void HELPER(vpermi_w)(CPULoongArchState *env, uint32_t oprsz,
+                      uint32_t vd, uint32_t vj, uint32_t imm)
+{
+    int i, max;
+    VReg temp;
+    VReg *Vd = &(env->fpr[vd].vreg);
+    VReg *Vj = &(env->fpr[vj].vreg);
+
+    max = (oprsz == 16) ? 1 : 2;
+
+    for (i = 0; i < max; i++) {
+        temp.W(4 * i) = Vj->W((imm & 0x3) + 4 * i);
+        temp.W(4 * i + 1) = Vj->W(((imm >> 2) & 0x3) + 4 * i);
+        temp.W(4 * i + 2) = Vd->W(((imm >> 4) & 0x3) + 4 * i);
+        temp.W(4 * i + 3) = Vd->W(((imm >> 6) & 0x3) + 4 * i);
+    }
+    *Vd = temp;
+}
+
+void HELPER(vpermi_d)(CPULoongArchState *env, uint32_t oprsz,
                       uint32_t vd, uint32_t vj, uint32_t imm)
 {
     VReg temp;
     VReg *Vd = &(env->fpr[vd].vreg);
     VReg *Vj = &(env->fpr[vj].vreg);
 
-    temp.W(0) = Vj->W(imm & 0x3);
-    temp.W(1) = Vj->W((imm >> 2) & 0x3);
-    temp.W(2) = Vd->W((imm >> 4) & 0x3);
-    temp.W(3) = Vd->W((imm >> 6) & 0x3);
+    temp.D(0) = Vj->D(imm & 0x3);
+    temp.D(1) = Vj->D((imm >> 2) & 0x3);
+    temp.D(2) = Vj->D((imm >> 4) & 0x3);
+    temp.D(3) = Vj->D((imm >> 6) & 0x3);
+    *Vd = temp;
+}
+
+void HELPER(vpermi_q)(CPULoongArchState *env, uint32_t oprsz,
+                      uint32_t vd, uint32_t vj, uint32_t imm)
+{
+    VReg temp;
+    VReg *Vd = &(env->fpr[vd].vreg);
+    VReg *Vj = &(env->fpr[vj].vreg);
+
+    temp.Q(0) = (imm & 0x3) > 1 ? Vd->Q((imm & 0x3) - 2) : Vj->Q(imm & 0x3);
+    temp.Q(1) = ((imm >> 4) & 0x3) > 1 ? Vd->Q(((imm >> 4) & 0x3) - 2) :
+                                         Vj->Q((imm >> 4) & 0x3);
     *Vd = temp;
 }
 
 #define VEXTRINS(NAME, BIT, E, MASK)                      \
-void HELPER(NAME)(CPULoongArchState *env,                 \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t oprsz, \
                   uint32_t vd, uint32_t vj, uint32_t imm) \
 {                                                         \
-    int ins, extr;                                        \
+    int ins, extr, max;                                   \
     VReg *Vd = &(env->fpr[vd].vreg);                      \
     VReg *Vj = &(env->fpr[vj].vreg);                      \
                                                           \
+    max = LSX_LEN / BIT;                                  \
     ins = (imm >> 4) & MASK;                              \
     extr = imm & MASK;                                    \
     Vd->E(ins) = Vj->E(extr);                             \
+    if (oprsz == 32) {                                    \
+        Vd->E(ins + max) = Vj->E(extr + max);             \
+    }                                                     \
 }
 
 VEXTRINS(vextrins_b, 8, B, 0xf)
