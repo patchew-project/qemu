@@ -259,6 +259,17 @@ struct qemu_work_item;
 
 #define CPU_UNSET_NUMA_NODE_ID -1
 
+/*
+ * For reasons related to code-generation quality the fast path
+ * CPUTLBDescFast array and IcountDecr fields need to be located within a
+ * small negative offset of CPUArchState.  This requirement comes from
+ * host-specific addressing modes of arm[32|64] and riscv which uses 12-
+ * and 11 bits of displacement respectively.
+ */
+#define CPU_MIN_DISPLACEMENT_BITS 11
+#define CPU_MAX_NEGATIVE_ENV_OFFSET \
+    (-(1 << CPU_MIN_DISPLACEMENT_BITS))
+
 /**
  * CPUState:
  * @cpu_index: CPU index (informative).
