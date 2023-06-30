@@ -77,11 +77,4 @@
 
 #endif /* CONFIG_SOFTMMU && CONFIG_TCG */
 
-/*
- * This structure must be placed in ArchCPU immediately
- * before CPUArchState, as a field named "neg".
- */
-typedef struct CPUNegativeOffsetState {
-} CPUNegativeOffsetState;
-
 #endif
