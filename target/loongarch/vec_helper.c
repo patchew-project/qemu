@@ -3604,3 +3604,62 @@ VEXTRINS(vextrins_b, 8, B, 0xf)
 VEXTRINS(vextrins_h, 16, H, 0x7)
 VEXTRINS(vextrins_w, 32, W, 0x3)
 VEXTRINS(vextrins_d, 64, D, 0x1)
+
+#include "exec/cpu_ldst.h"
+#include "tcg/tcg-ldst.h"
+
+void helper_xvld_b(CPULoongArchState *env, uint32_t vd, target_ulong addr)
+{
+    int i;
+    VReg *Vd = &(env->fpr[vd].vreg);
+#if !defined(CONFIG_USER_ONLY)
+    MemOpIdx oi = make_memop_idx(MO_TE | MO_UNALN, cpu_mmu_index(env, false));
+
+    for (i = 0; i < LASX_LEN / 8; i++) {
+        Vd->B(i)  = helper_ldub_mmu(env, addr + i, oi, GETPC());
+    }
+#else
+    for (i = 0; i < LASX_LEN / 8; i++) {
+        Vd->B(i)  = cpu_ldub_data(env, addr + i);
+    }
+#endif
+}
+
+#define LASX_PAGESPAN(x) \
+        ((((x) & ~TARGET_PAGE_MASK) + (LASX_LEN / 8) - 1) >= TARGET_PAGE_SIZE)
+
+static inline void ensure_lasx_writable_pages(CPULoongArchState *env,
+                                             target_ulong addr,
+                                             int mmu_idx,
+                                             uintptr_t retaddr)
+{
+#ifndef CONFIG_USER_ONLY
+    /* FIXME: Probe the actual accesses (pass and use a size) */
+    if (unlikely(LASX_PAGESPAN(addr))) {
+        /* first page */
+        probe_write(env, addr, 0, mmu_idx, retaddr);
+        /* second page */
+        addr = (addr & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
+        probe_write(env, addr, 0, mmu_idx, retaddr);
+    }
+#endif
+}
+
+void helper_xvst_b(CPULoongArchState *env, uint32_t vd, target_ulong addr)
+{
+    int i;
+    VReg *Vd = &(env->fpr[vd].vreg);
+    int mmu_idx = cpu_mmu_index(env, false);
+
+    ensure_lasx_writable_pages(env, addr, mmu_idx, GETPC());
+#if !defined(CONFIG_USER_ONLY)
+    MemOpIdx oi = make_memop_idx(MO_TE | MO_UNALN, mmu_idx);
+    for (i = 0; i < LASX_LEN / 8; i++) {
+        helper_stb_mmu(env, addr + i, Vd->B(i),  oi, GETPC());
+    }
+#else
+    for (i = 0; i < LASX_LEN / 8; i++) {
+        cpu_stb_data(env, addr + i, Vd->B(i));
+    }
+#endif
+}

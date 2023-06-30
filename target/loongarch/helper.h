@@ -717,3 +717,6 @@ DEF_HELPER_5(vextrins_b, void, env, i32, i32, i32, i32)
 DEF_HELPER_5(vextrins_h, void, env, i32, i32, i32, i32)
 DEF_HELPER_5(vextrins_w, void, env, i32, i32, i32, i32)
 DEF_HELPER_5(vextrins_d, void, env, i32, i32, i32, i32)
+
+DEF_HELPER_3(xvld_b, void, env, i32, tl)
+DEF_HELPER_3(xvst_b, void, env, i32, tl)
