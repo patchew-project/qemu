@@ -780,16 +780,23 @@ static uint64_t do_vmskltz_b(int64_t val)
     return c >> 56;
 }
 
-void HELPER(vmskltz_b)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+void HELPER(vmskltz_b)(CPULoongArchState *env,
+                       uint32_t oprsz, uint32_t vd, uint32_t vj)
 {
-    uint16_t temp = 0;
+    int i, max;
+    uint16_t temp;
     VReg *Vd = &(env->fpr[vd].vreg);
     VReg *Vj = &(env->fpr[vj].vreg);
 
-    temp = do_vmskltz_b(Vj->D(0));
-    temp |= (do_vmskltz_b(Vj->D(1)) << 8);
-    Vd->D(0) = temp;
-    Vd->D(1) = 0;
+    max = (oprsz == 16) ? 1 : 2;
+
+    for (i = 0; i < max; i++) {
+        temp = 0;
+        temp = do_vmskltz_b(Vj->D(2 * i));
+        temp |= (do_vmskltz_b(Vj->D(2 * i  + 1)) << 8);
+        Vd->D(2 * i) = temp;
+        Vd->D(2 * i + 1) = 0;
+    }
 }
 
 static uint64_t do_vmskltz_h(int64_t val)
@@ -801,16 +808,23 @@ static uint64_t do_vmskltz_h(int64_t val)
     return c >> 60;
 }
 
-void HELPER(vmskltz_h)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+void HELPER(vmskltz_h)(CPULoongArchState *env,
+                       uint32_t oprsz, uint32_t vd, uint32_t vj)
 {
-    uint16_t temp = 0;
+    int i, max;
+    uint16_t temp;
     VReg *Vd = &(env->fpr[vd].vreg);
     VReg *Vj = &(env->fpr[vj].vreg);
 
-    temp = do_vmskltz_h(Vj->D(0));
-    temp |= (do_vmskltz_h(Vj->D(1)) << 4);
-    Vd->D(0) = temp;
-    Vd->D(1) = 0;
+    max = (oprsz == 16) ? 1 : 2;
+
+    for (i = 0; i < max; i++) {
+        temp = 0;
+        temp = do_vmskltz_h(Vj->D(2 * i));
+        temp |= (do_vmskltz_h(Vj->D(2 * i + 1)) << 4);
+        Vd->D(2 * i) = temp;
+        Vd->D(2 * i + 1) = 0;
+    }
 }
 
 static uint64_t do_vmskltz_w(int64_t val)
@@ -821,44 +835,66 @@ static uint64_t do_vmskltz_w(int64_t val)
     return c >> 62;
 }
 
-void HELPER(vmskltz_w)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+void HELPER(vmskltz_w)(CPULoongArchState *env,
+                       uint32_t oprsz, uint32_t vd, uint32_t vj)
 {
-    uint16_t temp = 0;
+    int i, max;
+    uint16_t temp;
     VReg *Vd = &(env->fpr[vd].vreg);
     VReg *Vj = &(env->fpr[vj].vreg);
 
-    temp = do_vmskltz_w(Vj->D(0));
-    temp |= (do_vmskltz_w(Vj->D(1)) << 2);
-    Vd->D(0) = temp;
-    Vd->D(1) = 0;
+    max = (oprsz == 16) ? 1 : 2;
+
+    for (i = 0; i < max; i++) {
+        temp = 0;
+        temp = do_vmskltz_w(Vj->D(2 * i));
+        temp |= (do_vmskltz_w(Vj->D(2 * i + 1)) << 2);
+        Vd->D(2 * i) = temp;
+        Vd->D(2 * i + 1) = 0;
+    }
 }
 
 static uint64_t do_vmskltz_d(int64_t val)
 {
     return (uint64_t)val >> 63;
 }
-void HELPER(vmskltz_d)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+
+void HELPER(vmskltz_d)(CPULoongArchState *env,
+                       uint32_t oprsz, uint32_t vd, uint32_t vj)
 {
-    uint16_t temp = 0;
+    int i, max;
+    uint16_t temp;
     VReg *Vd = &(env->fpr[vd].vreg);
     VReg *Vj = &(env->fpr[vj].vreg);
 
-    temp = do_vmskltz_d(Vj->D(0));
-    temp |= (do_vmskltz_d(Vj->D(1)) << 1);
-    Vd->D(0) = temp;
-    Vd->D(1) = 0;
+    max = (oprsz == 16) ? 1 : 2;
+
+    for (i = 0; i < max; i++) {
+        temp = 0;
+        temp = do_vmskltz_d(Vj->D(2 * i));
+        temp |= (do_vmskltz_d(Vj->D(2 * i + 1)) << 1);
+        Vd->D(2 * i) = temp;
+        Vd->D(2 * i + 1) = 0;
+    }
 }
 
-void HELPER(vmskgez_b)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+void HELPER(vmskgez_b)(CPULoongArchState *env,
+                       uint32_t oprsz, uint32_t vd, uint32_t vj)
 {
-    uint16_t temp = 0;
+    int i, max;
+    uint16_t temp;
     VReg *Vd = &(env->fpr[vd].vreg);
     VReg *Vj = &(env->fpr[vj].vreg);
 
-    temp =  do_vmskltz_b(Vj->D(0));
-    temp |= (do_vmskltz_b(Vj->D(1)) << 8);
-    Vd->D(0) = (uint16_t)(~temp);
-    Vd->D(1) = 0;
+    max = (oprsz == 16) ? 1 : 2;
+
+    for (i = 0; i < max; i++) {
+        temp = 0;
+        temp =  do_vmskltz_b(Vj->D(2 * i));
+        temp |= (do_vmskltz_b(Vj->D(2 * i + 1)) << 8);
+        Vd->D(2 * i) = (uint16_t)(~temp);
+        Vd->D(2 * i + 1) = 0;
+    }
 }
 
 static uint64_t do_vmskez_b(uint64_t a)
@@ -871,16 +907,23 @@ static uint64_t do_vmskez_b(uint64_t a)
     return c >> 56;
 }
 
-void HELPER(vmsknz_b)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+void HELPER(vmsknz_b)(CPULoongArchState *env,
+                      uint32_t oprsz, uint32_t vd, uint32_t vj)
 {
-    uint16_t temp = 0;
+    int i, max;
+    uint16_t temp;
     VReg *Vd = &(env->fpr[vd].vreg);
     VReg *Vj = &(env->fpr[vj].vreg);
 
-    temp = do_vmskez_b(Vj->D(0));
-    temp |= (do_vmskez_b(Vj->D(1)) << 8);
-    Vd->D(0) = (uint16_t)(~temp);
-    Vd->D(1) = 0;
+    max = (oprsz == 16) ? 1 : 2;
+
+    for (i = 0; i < max; i++) {
+        temp = 0;
+        temp = do_vmskez_b(Vj->D(2 * i));
+        temp |= (do_vmskez_b(Vj->D(2 * i + 1)) << 8);
+        Vd->D(2 * i) = (uint16_t)(~temp);
+        Vd->D(2 * i + 1) = 0;
+    }
 }
 
 void HELPER(vnori_b)(void *vd, void *vj, uint64_t imm, uint32_t v)

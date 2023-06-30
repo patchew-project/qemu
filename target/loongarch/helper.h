@@ -357,12 +357,12 @@ DEF_HELPER_FLAGS_4(vsigncov_h, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, i32)
 DEF_HELPER_FLAGS_4(vsigncov_w, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, i32)
 DEF_HELPER_FLAGS_4(vsigncov_d, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, i32)
 
-DEF_HELPER_3(vmskltz_b, void, env, i32, i32)
-DEF_HELPER_3(vmskltz_h, void, env, i32, i32)
-DEF_HELPER_3(vmskltz_w, void, env, i32, i32)
-DEF_HELPER_3(vmskltz_d, void, env, i32, i32)
-DEF_HELPER_3(vmskgez_b, void, env, i32, i32)
-DEF_HELPER_3(vmsknz_b, void, env, i32,i32)
+DEF_HELPER_4(vmskltz_b, void, env, i32, i32, i32)
+DEF_HELPER_4(vmskltz_h, void, env, i32, i32, i32)
+DEF_HELPER_4(vmskltz_w, void, env, i32, i32, i32)
+DEF_HELPER_4(vmskltz_d, void, env, i32, i32, i32)
+DEF_HELPER_4(vmskgez_b, void, env, i32, i32, i32)
+DEF_HELPER_4(vmsknz_b, void, env, i32, i32,i32)
 
 DEF_HELPER_FLAGS_4(vnori_b, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
 
