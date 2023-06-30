@@ -2333,6 +2333,8 @@ static bool trans_## NAME (DisasContext *ctx, arg_vvv *a) \
 {                                                         \
     TCGv_i64 rh, rl, arg1, arg2, th, tl;                  \
                                                           \
+    CHECK_VEC;                                            \
+                                                          \
     rh = tcg_temp_new_i64();                              \
     rl = tcg_temp_new_i64();                              \
     arg1 = tcg_temp_new_i64();                            \
