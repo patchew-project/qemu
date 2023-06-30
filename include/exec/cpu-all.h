@@ -453,7 +453,7 @@ static inline CPUNegativeOffsetState *cpu_neg(CPUState *cpu)
  */
 static inline CPUTLB *env_tlb(CPUArchState *env)
 {
-    return &env_neg(env)->tlb;
+    return &env_cpu(env)->tlb;
 }
 
 #endif /* CPU_ALL_H */

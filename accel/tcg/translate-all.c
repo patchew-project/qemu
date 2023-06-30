@@ -339,8 +339,17 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     tcg_ctx->page_bits = TARGET_PAGE_BITS;
     tcg_ctx->page_mask = TARGET_PAGE_MASK;
     tcg_ctx->tlb_dyn_max_bits = CPU_TLB_DYN_MAX_BITS;
-    tcg_ctx->tlb_fast_offset =
-        (int)offsetof(ArchCPU, neg.tlb.f) - (int)offsetof(ArchCPU, env);
+
+#define TLB_FAST_OFFSET \
+    ((int)offsetof(ArchCPU, parent_obj.tlb.f) - (int)offsetof(ArchCPU, env))
+
+    QEMU_BUILD_BUG_ON(TLB_FAST_OFFSET < CPU_MAX_NEGATIVE_ENV_OFFSET ||
+                      TLB_FAST_OFFSET > 0);
+
+    tcg_ctx->tlb_fast_offset = TLB_FAST_OFFSET;
+
+#undef TLB_FAST_OFFSET
+
 #endif
     tcg_ctx->insn_start_words = TARGET_INSN_START_WORDS;
 #ifdef TCG_GUEST_DEFAULT_MO

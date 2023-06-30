@@ -448,6 +448,13 @@ struct CPUState {
 
     /* track IOMMUs whose translations we've cached in the TCG TLB */
     GArray *iommu_notifiers;
+
+    /*
+     * The following fields needs to be within CPU_MAX_NEGATIVE_ENV_OFFSET of
+     * CPUArchState.  As CPUArchState is assumed to follow CPUState in the
+     * ArchCPU struct these are placed last.  This is checked statically.
+     */
+    CPUTLB tlb;
 };
 
 typedef QTAILQ_HEAD(CPUTailQ, CPUState) CPUTailQ;

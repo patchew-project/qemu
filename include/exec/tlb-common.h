@@ -190,8 +190,8 @@ typedef struct CPUTLBCommon {
 /*
  * The entire softmmu tlb, for all MMU modes.
  * The meaning of each of the MMU modes is defined in the target code.
- * Since this is placed within CPUNegativeOffsetState, the smallest
- * negative offsets are at the end of the struct.
+ * Since this is placed within CPUState, the smallest negative offsets
+ * are at the end of the struct.
  */
 
 typedef struct CPUTLB {

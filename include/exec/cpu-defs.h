@@ -25,7 +25,6 @@
 
 #include "qemu/host-utils.h"
 #include "qemu/thread.h"
-#include "exec/tlb-common.h"
 #include "hw/core/cpu.h"
 
 #include "cpu-param.h"
@@ -83,7 +82,6 @@
  * before CPUArchState, as a field named "neg".
  */
 typedef struct CPUNegativeOffsetState {
-    CPUTLB tlb;
     IcountDecr icount_decr;
 } CPUNegativeOffsetState;
 
