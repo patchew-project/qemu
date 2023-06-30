@@ -66,6 +66,7 @@
 #endif /* CONFIG_LINUX */
 
 static QemuMutex qemu_global_mutex;
+static bool vm_started;
 
 /*
  * The chosen accelerator is supposed to register this.
@@ -264,6 +265,7 @@ static int do_vm_stop(RunState state, bool send_stop)
         if (send_stop) {
             qapi_event_send_stop();
         }
+        vm_started = false;
     }
 
     bdrv_drain_all();
@@ -722,6 +724,16 @@ void vm_start(void)
 {
     if (!vm_prepare_start(false)) {
         resume_all_vcpus();
+        vm_started = true;
+    }
+}
+
+void vm_wakeup(void)
+{
+    if (!vm_started) {
+        vm_start();
+    } else {
+        runstate_set(RUN_STATE_RUNNING);
     }
 }
 

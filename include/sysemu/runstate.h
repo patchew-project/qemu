@@ -34,6 +34,7 @@ static inline bool shutdown_caused_by_guest(ShutdownCause cause)
 }
 
 void vm_start(void);
+void vm_wakeup(void);
 
 /**
  * vm_prepare_start: Prepare for starting/resuming the VM
