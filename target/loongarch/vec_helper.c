@@ -653,12 +653,13 @@ VDIV(vmod_du, 64, UD, DO_REMU)
 #define VSAT_S(NAME, BIT, E)                                    \
 void HELPER(NAME)(void *vd, void *vj, uint64_t max, uint32_t v) \
 {                                                               \
-    int i;                                                      \
+    int i, len;                                                 \
     VReg *Vd = (VReg *)vd;                                      \
     VReg *Vj = (VReg *)vj;                                      \
     typedef __typeof(Vd->E(0)) TD;                              \
                                                                 \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                         \
+    len = (simd_oprsz(v) == 16) ? LSX_LEN : LASX_LEN;           \
+    for (i = 0; i < len / BIT; i++) {                           \
         Vd->E(i) = Vj->E(i) > (TD)max ? (TD)max :               \
                    Vj->E(i) < (TD)~max ? (TD)~max: Vj->E(i);    \
     }                                                           \
@@ -672,12 +673,13 @@ VSAT_S(vsat_d, 64, D)
 #define VSAT_U(NAME, BIT, E)                                    \
 void HELPER(NAME)(void *vd, void *vj, uint64_t max, uint32_t v) \
 {                                                               \
-    int i;                                                      \
+    int i, len;                                                 \
     VReg *Vd = (VReg *)vd;                                      \
     VReg *Vj = (VReg *)vj;                                      \
     typedef __typeof(Vd->E(0)) TD;                              \
                                                                 \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                         \
+    len = (simd_oprsz(v) == 16) ? LSX_LEN : LASX_LEN;           \
+    for (i = 0; i < len / BIT; i++) {                           \
         Vd->E(i) = Vj->E(i) > (TD)max ? (TD)max : Vj->E(i);     \
     }                                                           \
 }
