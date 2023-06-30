@@ -22,6 +22,9 @@ if get_option('tcg_interpreter')
   tcg_ss.add(files('tci.c'))
 endif
 
+tcg_ss.add(when: libdw, if_true: files('debuginfo.c'))
+tcg_ss.add(when: 'CONFIG_LINUX', if_true: files('perf.c'))
+
 tcg_ss = tcg_ss.apply(config_host, strict: false)
 
 libtcg_user = static_library('tcg_user',
