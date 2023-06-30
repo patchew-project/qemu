@@ -455,6 +455,7 @@ struct CPUState {
      * ArchCPU struct these are placed last.  This is checked statically.
      */
     CPUTLB tlb;
+    IcountDecr icount_decr;
 };
 
 typedef QTAILQ_HEAD(CPUTailQ, CPUState) CPUTailQ;

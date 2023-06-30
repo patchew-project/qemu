@@ -52,9 +52,16 @@ static TCGOp *gen_tb_start(uint32_t cflags)
     TCGv_i32 count = tcg_temp_new_i32();
     TCGOp *icount_start_insn = NULL;
 
-    tcg_gen_ld_i32(count, cpu_env,
-                   offsetof(ArchCPU, neg.icount_decr.u32) -
-                   offsetof(ArchCPU, env));
+#define ICOUNT_DECR_OFFSET \
+    ((int)offsetof(ArchCPU, parent_obj.icount_decr.u32) - \
+     (int)offsetof(ArchCPU, env))
+
+    QEMU_BUILD_BUG_ON(ICOUNT_DECR_OFFSET < CPU_MAX_NEGATIVE_ENV_OFFSET ||
+                      ICOUNT_DECR_OFFSET > 0);
+
+    tcg_gen_ld_i32(count, cpu_env, ICOUNT_DECR_OFFSET);
+
+#undef ICOUNT_DECR_OFFSET
 
     if (cflags & CF_USE_ICOUNT) {
         /*
@@ -82,7 +89,7 @@ static TCGOp *gen_tb_start(uint32_t cflags)
 
     if (cflags & CF_USE_ICOUNT) {
         tcg_gen_st16_i32(count, cpu_env,
-                         offsetof(ArchCPU, neg.icount_decr.u16.low) -
+                         offsetof(ArchCPU, parent_obj.icount_decr.u16.low) -
                          offsetof(ArchCPU, env));
         /*
          * cpu->can_do_io is cleared automatically here at the beginning of

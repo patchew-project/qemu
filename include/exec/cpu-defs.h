@@ -82,7 +82,6 @@
  * before CPUArchState, as a field named "neg".
  */
 typedef struct CPUNegativeOffsetState {
-    IcountDecr icount_decr;
 } CPUNegativeOffsetState;
 
 #endif
