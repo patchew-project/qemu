@@ -3091,19 +3091,16 @@ void HELPER(vffint_s_l)(CPULoongArchState *env,
     *Vd = temp;
 }
 
-#define VSEQ(a, b) (a == b ? -1 : 0)
-#define VSLE(a, b) (a <= b ? -1 : 0)
-#define VSLT(a, b) (a < b ? -1 : 0)
-
 #define VCMPI(NAME, BIT, E, DO_OP)                              \
 void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t v) \
 {                                                               \
-    int i;                                                      \
+    int i, len;                                                 \
     VReg *Vd = (VReg *)vd;                                      \
     VReg *Vj = (VReg *)vj;                                      \
     typedef __typeof(Vd->E(0)) TD;                              \
                                                                 \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                         \
+    len = (simd_oprsz(v) == 16) ? LSX_LEN : LASX_LEN;           \
+    for (i = 0; i < len / BIT; i++) {                           \
         Vd->E(i) = DO_OP(Vj->E(i), (TD)imm);                    \
     }                                                           \
 }
