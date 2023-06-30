@@ -20,6 +20,7 @@
 #include "hw/qdev-properties.h"
 #include "cpu-models.h"
 #include "sysemu/kvm.h"
+#include "kvm_ppc.h"
 
 #include "trace.h"
 
@@ -294,6 +295,7 @@ uint32_t spapr_irq_nr_msis(SpaprMachineState *spapr)
 void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
 {
     SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
+    bool cap_xive = kvmppc_has_cap_xive();
 
     if (kvm_enabled() && kvm_kernel_irqchip_split()) {
         error_setg(errp, "kernel_irqchip split mode not supported on pseries");
@@ -301,6 +303,16 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
     }
 
     if (spapr_irq_check(spapr, errp) < 0) {
+        return;
+    }
+
+    /*
+     * Check for valid ic-mode - XIVE native won't work if hypervisor doesn't
+     * have support
+     */
+    if (!cap_xive && !spapr->irq->xics) {
+        error_setg(errp,
+            "XIVE native mode not available, don't use ic-mode=xive");
         return;
     }
 
@@ -323,7 +335,7 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
         spapr->ics = ICS_SPAPR(obj);
     }
 
-    if (spapr->irq->xive) {
+    if (cap_xive && spapr->irq->xive) {
         uint32_t nr_servers = spapr_max_server_number(spapr);
         DeviceState *dev;
         int i;
