@@ -1590,6 +1590,17 @@ static uint32_t pnv_xive2_ic_tm_get_pir(PnvXive2 *xive, hwaddr offset)
     return xive->chip->chip_id << 8 | offset >> xive->ic_shift;
 }
 
+static uint32_t pnv_xive2_ic_tm_get_offset(PnvXive2 *xive, hwaddr offset)
+{
+    /*
+     * Indirect TIMA accesses are similar to direct accesses for
+     * privilege ring 0. So remove any traces of the hw thread ID from
+     * the offset in the IC BAR as it could be interpreted as the ring
+     * privilege when calling the underlying direct access functions.
+     */
+    return offset & ((1 << xive->ic_shift) - 1);
+}
+
 static XiveTCTX *pnv_xive2_get_indirect_tctx(PnvXive2 *xive, uint32_t pir)
 {
     PnvChip *chip = xive->chip;
@@ -1612,14 +1623,16 @@ static uint64_t pnv_xive2_ic_tm_indirect_read(void *opaque, hwaddr offset,
                                               unsigned size)
 {
     PnvXive2 *xive = PNV_XIVE2(opaque);
+    hwaddr tima_offset;
     uint32_t pir;
     XiveTCTX *tctx;
     uint64_t val = -1;
 
     pir = pnv_xive2_ic_tm_get_pir(xive, offset);
+    tima_offset = pnv_xive2_ic_tm_get_offset(xive, offset);
     tctx = pnv_xive2_get_indirect_tctx(xive, pir);
     if (tctx) {
-        val = xive_tctx_tm_read(NULL, tctx, offset, size);
+        val = xive_tctx_tm_read(NULL, tctx, tima_offset, size);
     }
 
     return val;
@@ -1629,13 +1642,15 @@ static void pnv_xive2_ic_tm_indirect_write(void *opaque, hwaddr offset,
                                            uint64_t val, unsigned size)
 {
     PnvXive2 *xive = PNV_XIVE2(opaque);
+    hwaddr tima_offset;
     uint32_t pir;
     XiveTCTX *tctx;
 
     pir = pnv_xive2_ic_tm_get_pir(xive, offset);
+    tima_offset = pnv_xive2_ic_tm_get_offset(xive, offset);
     tctx = pnv_xive2_get_indirect_tctx(xive, pir);
     if (tctx) {
-        xive_tctx_tm_write(NULL, tctx, offset, val, size);
+        xive_tctx_tm_write(NULL, tctx, tima_offset, val, size);
     }
 }
 
