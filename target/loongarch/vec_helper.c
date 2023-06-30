@@ -737,6 +737,34 @@ VEXTH(vexth_hu_bu, 16, UH, UB)
 VEXTH(vexth_wu_hu, 32, UW, UH)
 VEXTH(vexth_du_wu, 64, UD, UW)
 
+#define VEXT2XV(NAME, BIT, E1, E2)                        \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t oprsz, \
+                  uint32_t vd, uint32_t vj)               \
+{                                                         \
+    int i;                                                \
+    VReg *Vd = &(env->fpr[vd].vreg);                      \
+    VReg *Vj = &(env->fpr[vj].vreg);                      \
+    VReg temp;                                            \
+                                                          \
+    for (i = 0; i < LASX_LEN / BIT; i++) {                \
+        temp.E1(i) = Vj->E2(i);                           \
+    }                                                     \
+    *Vd = temp;                                           \
+}
+
+VEXT2XV(vext2xv_h_b, 16, H, B)
+VEXT2XV(vext2xv_w_b, 32, W, B)
+VEXT2XV(vext2xv_d_b, 64, D, B)
+VEXT2XV(vext2xv_w_h, 32, W, H)
+VEXT2XV(vext2xv_d_h, 64, D, H)
+VEXT2XV(vext2xv_d_w, 64, D, W)
+VEXT2XV(vext2xv_hu_bu, 16, UH, UB)
+VEXT2XV(vext2xv_wu_bu, 32, UW, UB)
+VEXT2XV(vext2xv_du_bu, 64, UD, UB)
+VEXT2XV(vext2xv_wu_hu, 32, UW, UH)
+VEXT2XV(vext2xv_du_hu, 64, UD, UH)
+VEXT2XV(vext2xv_du_wu, 64, UD, UW)
+
 #define DO_SIGNCOV(a, b)  (a == 0 ? 0 : a < 0 ? -b : b)
 
 DO_3OP(vsigncov_b, 8, B, DO_SIGNCOV)
