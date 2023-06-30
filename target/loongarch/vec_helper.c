@@ -3243,6 +3243,35 @@ SETALLNEZ(vsetallnez_h, MO_16)
 SETALLNEZ(vsetallnez_w, MO_32)
 SETALLNEZ(vsetallnez_d, MO_64)
 
+#define XVINSVE0(NAME, E, MASK)                           \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t oprsz, \
+                  uint32_t vd, uint32_t vj, uint32_t imm) \
+{                                                         \
+    VReg *Vd = &(env->fpr[vd].vreg);                      \
+    VReg *Vj = &(env->fpr[vj].vreg);                      \
+    Vd->E(imm & MASK) = Vj->E(0);                         \
+}
+
+XVINSVE0(xvinsve0_w, W, 0x7)
+XVINSVE0(xvinsve0_d, D, 0x3)
+
+#define XVPICKVE(NAME, E, BIT, MASK)                      \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t oprsz, \
+                  uint32_t vd, uint32_t vj, uint32_t imm) \
+{                                                         \
+    int i;                                                \
+    VReg *Vd = &(env->fpr[vd].vreg);                      \
+    VReg *Vj = &(env->fpr[vj].vreg);                      \
+                                                          \
+    Vd->E(0) = Vj->E(imm & MASK);                         \
+    for (i = 1; i < LASX_LEN / BIT; i++) {                \
+        Vd->E(i) = 0;                                     \
+    }                                                     \
+}
+
+XVPICKVE(xvpickve_w, W, 32, 0x7)
+XVPICKVE(xvpickve_d, D, 64, 0x3)
+
 #define VPACKEV(NAME, BIT, E)                            \
 void HELPER(NAME)(CPULoongArchState *env,                \
                   uint32_t vd, uint32_t vj, uint32_t vk) \

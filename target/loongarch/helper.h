@@ -667,6 +667,11 @@ DEF_HELPER_4(vsetallnez_h, void, env, i32, i32, i32)
 DEF_HELPER_4(vsetallnez_w, void, env, i32, i32, i32)
 DEF_HELPER_4(vsetallnez_d, void, env, i32, i32, i32)
 
+DEF_HELPER_5(xvinsve0_w, void, env, i32, i32, i32, i32)
+DEF_HELPER_5(xvinsve0_d, void, env, i32, i32, i32, i32)
+DEF_HELPER_5(xvpickve_w, void, env, i32, i32, i32, i32)
+DEF_HELPER_5(xvpickve_d, void, env, i32, i32, i32, i32)
+
 DEF_HELPER_4(vpackev_b, void, env, i32, i32, i32)
 DEF_HELPER_4(vpackev_h, void, env, i32, i32, i32)
 DEF_HELPER_4(vpackev_w, void, env, i32, i32, i32)
