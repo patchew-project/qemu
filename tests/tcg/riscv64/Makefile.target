@@ -9,3 +9,9 @@ TESTS += noexec
 TESTS += test-noc
 test-noc: LDFLAGS = -nostdlib -static
 run-test-noc: QEMU_OPTS += -cpu rv64,c=false
+
+# Test for fcvtmod
+TESTS += test-fcvtmod
+test-fcvtmod: CFLAGS += -march=rv64imafdc_zfa
+test-fcvtmod: LDFLAGS = -nostdlib -static
+run-test-fcvtmod: QEMU_OPTS += -cpu rv64,d=true,Zfa=true
