@@ -3272,21 +3272,22 @@ void HELPER(NAME)(CPULoongArchState *env, uint32_t oprsz, \
 XVPICKVE(xvpickve_w, W, 32, 0x7)
 XVPICKVE(xvpickve_d, D, 64, 0x3)
 
-#define VPACKEV(NAME, BIT, E)                            \
-void HELPER(NAME)(CPULoongArchState *env,                \
-                  uint32_t vd, uint32_t vj, uint32_t vk) \
-{                                                        \
-    int i;                                               \
-    VReg temp;                                           \
-    VReg *Vd = &(env->fpr[vd].vreg);                     \
-    VReg *Vj = &(env->fpr[vj].vreg);                     \
-    VReg *Vk = &(env->fpr[vk].vreg);                     \
-                                                         \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
-        temp.E(2 * i + 1) = Vj->E(2 * i);                \
-        temp.E(2 *i) = Vk->E(2 * i);                     \
-    }                                                    \
-    *Vd = temp;                                          \
+#define VPACKEV(NAME, BIT, E)                             \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t oprsz, \
+                  uint32_t vd, uint32_t vj, uint32_t vk)  \
+{                                                         \
+    int i, len;                                           \
+    VReg temp;                                            \
+    VReg *Vd = &(env->fpr[vd].vreg);                      \
+    VReg *Vj = &(env->fpr[vj].vreg);                      \
+    VReg *Vk = &(env->fpr[vk].vreg);                      \
+                                                          \
+    len = (oprsz == 16) ? LSX_LEN : LASX_LEN;             \
+    for (i = 0; i < len / BIT; i++) {                     \
+        temp.E(2 * i + 1) = Vj->E(2 * i);                 \
+        temp.E(2 *i) = Vk->E(2 * i);                      \
+    }                                                     \
+    *Vd = temp;                                           \
 }
 
 VPACKEV(vpackev_b, 16, B)
@@ -3294,21 +3295,22 @@ VPACKEV(vpackev_h, 32, H)
 VPACKEV(vpackev_w, 64, W)
 VPACKEV(vpackev_d, 128, D)
 
-#define VPACKOD(NAME, BIT, E)                            \
-void HELPER(NAME)(CPULoongArchState *env,                \
-                  uint32_t vd, uint32_t vj, uint32_t vk) \
-{                                                        \
-    int i;                                               \
-    VReg temp;                                           \
-    VReg *Vd = &(env->fpr[vd].vreg);                     \
-    VReg *Vj = &(env->fpr[vj].vreg);                     \
-    VReg *Vk = &(env->fpr[vk].vreg);                     \
-                                                         \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
-        temp.E(2 * i + 1) = Vj->E(2 * i + 1);            \
-        temp.E(2 * i) = Vk->E(2 * i + 1);                \
-    }                                                    \
-    *Vd = temp;                                          \
+#define VPACKOD(NAME, BIT, E)                             \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t oprsz, \
+                  uint32_t vd, uint32_t vj, uint32_t vk)  \
+{                                                         \
+    int i, len;                                           \
+    VReg temp;                                            \
+    VReg *Vd = &(env->fpr[vd].vreg);                      \
+    VReg *Vj = &(env->fpr[vj].vreg);                      \
+    VReg *Vk = &(env->fpr[vk].vreg);                      \
+                                                          \
+    len = (oprsz == 16) ? LSX_LEN : LASX_LEN;             \
+    for (i = 0; i < len / BIT; i++) {                     \
+        temp.E(2 * i + 1) = Vj->E(2 * i + 1);             \
+        temp.E(2 * i) = Vk->E(2 * i + 1);                 \
+    }                                                     \
+    *Vd = temp;                                           \
 }
 
 VPACKOD(vpackod_b, 16, B)
@@ -3316,21 +3318,26 @@ VPACKOD(vpackod_h, 32, H)
 VPACKOD(vpackod_w, 64, W)
 VPACKOD(vpackod_d, 128, D)
 
-#define VPICKEV(NAME, BIT, E)                            \
-void HELPER(NAME)(CPULoongArchState *env,                \
-                  uint32_t vd, uint32_t vj, uint32_t vk) \
-{                                                        \
-    int i;                                               \
-    VReg temp;                                           \
-    VReg *Vd = &(env->fpr[vd].vreg);                     \
-    VReg *Vj = &(env->fpr[vj].vreg);                     \
-    VReg *Vk = &(env->fpr[vk].vreg);                     \
-                                                         \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
-        temp.E(i + LSX_LEN/BIT) = Vj->E(2 * i);          \
-        temp.E(i) = Vk->E(2 * i);                        \
-    }                                                    \
-    *Vd = temp;                                          \
+#define VPICKEV(NAME, BIT, E)                             \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t oprsz, \
+                  uint32_t vd, uint32_t vj, uint32_t vk)  \
+{                                                         \
+    int i, max;                                           \
+    VReg temp;                                            \
+    VReg *Vd = &(env->fpr[vd].vreg);                      \
+    VReg *Vj = &(env->fpr[vj].vreg);                      \
+    VReg *Vk = &(env->fpr[vk].vreg);                      \
+                                                          \
+    max = LSX_LEN / BIT;                                  \
+    for (i = 0; i < max; i++) {                           \
+        temp.E(i + max) = Vj->E(2 * i);                   \
+        temp.E(i) = Vk->E(2 * i);                         \
+        if (oprsz == 32) {                                \
+            temp.E(i + max * 3) = Vj->E(2 * i + max * 2); \
+            temp.E(i + max * 2) = Vk->E(2 * i + max * 2); \
+        }                                                 \
+    }                                                     \
+    *Vd = temp;                                           \
 }
 
 VPICKEV(vpickev_b, 16, B)
@@ -3338,21 +3345,26 @@ VPICKEV(vpickev_h, 32, H)
 VPICKEV(vpickev_w, 64, W)
 VPICKEV(vpickev_d, 128, D)
 
-#define VPICKOD(NAME, BIT, E)                            \
-void HELPER(NAME)(CPULoongArchState *env,                \
-                  uint32_t vd, uint32_t vj, uint32_t vk) \
-{                                                        \
-    int i;                                               \
-    VReg temp;                                           \
-    VReg *Vd = &(env->fpr[vd].vreg);                     \
-    VReg *Vj = &(env->fpr[vj].vreg);                     \
-    VReg *Vk = &(env->fpr[vk].vreg);                     \
-                                                         \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
-        temp.E(i + LSX_LEN/BIT) = Vj->E(2 * i + 1);      \
-        temp.E(i) = Vk->E(2 * i + 1);                    \
-    }                                                    \
-    *Vd = temp;                                          \
+#define VPICKOD(NAME, BIT, E)                                 \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t oprsz,     \
+                  uint32_t vd, uint32_t vj, uint32_t vk)      \
+{                                                             \
+    int i, max;                                               \
+    VReg temp;                                                \
+    VReg *Vd = &(env->fpr[vd].vreg);                          \
+    VReg *Vj = &(env->fpr[vj].vreg);                          \
+    VReg *Vk = &(env->fpr[vk].vreg);                          \
+                                                              \
+    max = LSX_LEN / BIT;                                      \
+    for (i = 0; i < max; i++) {                               \
+        temp.E(i + max) = Vj->E(2 * i + 1);                   \
+        temp.E(i) = Vk->E(2 * i + 1);                         \
+        if (oprsz == 32) {                                    \
+            temp.E(i + max * 3) = Vj->E(2 * i + 1 + max * 2); \
+            temp.E(i + max * 2) = Vk->E(2 * i + 1 + max * 2); \
+        }                                                     \
+    }                                                         \
+    *Vd = temp;                                               \
 }
 
 VPICKOD(vpickod_b, 16, B)
@@ -3360,21 +3372,26 @@ VPICKOD(vpickod_h, 32, H)
 VPICKOD(vpickod_w, 64, W)
 VPICKOD(vpickod_d, 128, D)
 
-#define VILVL(NAME, BIT, E)                              \
-void HELPER(NAME)(CPULoongArchState *env,                \
-                  uint32_t vd, uint32_t vj, uint32_t vk) \
-{                                                        \
-    int i;                                               \
-    VReg temp;                                           \
-    VReg *Vd = &(env->fpr[vd].vreg);                     \
-    VReg *Vj = &(env->fpr[vj].vreg);                     \
-    VReg *Vk = &(env->fpr[vk].vreg);                     \
-                                                         \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
-        temp.E(2 * i + 1) = Vj->E(i);                    \
-        temp.E(2 * i) = Vk->E(i);                        \
-    }                                                    \
-    *Vd = temp;                                          \
+#define VILVL(NAME, BIT, E)                                   \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t oprsz,     \
+                  uint32_t vd, uint32_t vj, uint32_t vk)      \
+{                                                             \
+    int i, max;                                               \
+    VReg temp;                                                \
+    VReg *Vd = &(env->fpr[vd].vreg);                          \
+    VReg *Vj = &(env->fpr[vj].vreg);                          \
+    VReg *Vk = &(env->fpr[vk].vreg);                          \
+                                                              \
+    max = LSX_LEN / BIT;                                      \
+    for (i = 0; i < max; i++) {                               \
+        temp.E(2 * i + 1) = Vj->E(i);                         \
+        temp.E(2 * i) = Vk->E(i);                             \
+        if (oprsz == 32) {                                    \
+            temp.E(2 * i + 1 + max * 2) = Vj->E(i + max * 2); \
+            temp.E(2 * i + max * 2) = Vk->E(i + max * 2);     \
+        }                                                     \
+    }                                                         \
+    *Vd = temp;                                               \
 }
 
 VILVL(vilvl_b, 16, B)
@@ -3382,21 +3399,26 @@ VILVL(vilvl_h, 32, H)
 VILVL(vilvl_w, 64, W)
 VILVL(vilvl_d, 128, D)
 
-#define VILVH(NAME, BIT, E)                              \
-void HELPER(NAME)(CPULoongArchState *env,                \
-                  uint32_t vd, uint32_t vj, uint32_t vk) \
-{                                                        \
-    int i;                                               \
-    VReg temp;                                           \
-    VReg *Vd = &(env->fpr[vd].vreg);                     \
-    VReg *Vj = &(env->fpr[vj].vreg);                     \
-    VReg *Vk = &(env->fpr[vk].vreg);                     \
-                                                         \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
-        temp.E(2 * i + 1) = Vj->E(i + LSX_LEN/BIT);      \
-        temp.E(2 * i) = Vk->E(i + LSX_LEN/BIT);          \
-    }                                                    \
-    *Vd = temp;                                          \
+#define VILVH(NAME, BIT, E)                                   \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t oprsz,     \
+                  uint32_t vd, uint32_t vj, uint32_t vk)      \
+{                                                             \
+    int i, max;                                               \
+    VReg temp;                                                \
+    VReg *Vd = &(env->fpr[vd].vreg);                          \
+    VReg *Vj = &(env->fpr[vj].vreg);                          \
+    VReg *Vk = &(env->fpr[vk].vreg);                          \
+                                                              \
+    max = LSX_LEN / BIT;                                      \
+    for (i = 0; i < max; i++) {                               \
+        temp.E(2 * i + 1) = Vj->E(i + max);                   \
+        temp.E(2 * i) = Vk->E(i + max);                       \
+        if (oprsz == 32) {                                    \
+            temp.E(2 * i + 1 + max * 2) = Vj->E(i + max * 3); \
+            temp.E(2 * i + max * 2) = Vk->E(i + max * 3);     \
+        }                                                     \
+    }                                                         \
+    *Vd = temp;                                               \
 }
 
 VILVH(vilvh_b, 16, B)
