@@ -2479,16 +2479,17 @@ static inline void vec_clear_cause(CPULoongArchState *env)
 }
 
 #define DO_3OP_F(NAME, BIT, E, FN)                          \
-void HELPER(NAME)(CPULoongArchState *env,                   \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t oprsz,   \
                   uint32_t vd, uint32_t vj, uint32_t vk)    \
 {                                                           \
-    int i;                                                  \
+    int i, len;                                             \
     VReg *Vd = &(env->fpr[vd].vreg);                        \
     VReg *Vj = &(env->fpr[vj].vreg);                        \
     VReg *Vk = &(env->fpr[vk].vreg);                        \
                                                             \
+    len = (oprsz == 16) ? LSX_LEN : LASX_LEN;               \
     vec_clear_cause(env);                                   \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
+    for (i = 0; i < len / BIT; i++) {                       \
         Vd->E(i) = FN(Vj->E(i), Vk->E(i), &env->fp_status); \
         vec_update_fcsr0(env, GETPC());                     \
     }                                                       \
@@ -2512,17 +2513,18 @@ DO_3OP_F(vfmina_s, 32, UW, float32_minnummag)
 DO_3OP_F(vfmina_d, 64, UD, float64_minnummag)
 
 #define DO_4OP_F(NAME, BIT, E, FN, flags)                                    \
-void HELPER(NAME)(CPULoongArchState *env,                                    \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t oprsz,                    \
                   uint32_t vd, uint32_t vj, uint32_t vk, uint32_t va)        \
 {                                                                            \
-    int i;                                                                   \
+    int i, len;                                                              \
     VReg *Vd = &(env->fpr[vd].vreg);                                         \
     VReg *Vj = &(env->fpr[vj].vreg);                                         \
     VReg *Vk = &(env->fpr[vk].vreg);                                         \
     VReg *Va = &(env->fpr[va].vreg);                                         \
                                                                              \
+    len = (oprsz == 16) ? LSX_LEN : LASX_LEN;                                \
     vec_clear_cause(env);                                                    \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                                      \
+    for (i = 0; i < len / BIT; i++) {                                        \
         Vd->E(i) = FN(Vj->E(i), Vk->E(i), Va->E(i), flags, &env->fp_status); \
         vec_update_fcsr0(env, GETPC());                                      \
     }                                                                        \
@@ -2539,47 +2541,51 @@ DO_4OP_F(vfnmsub_s, 32, UW, float32_muladd,
 DO_4OP_F(vfnmsub_d, 64, UD, float64_muladd,
          float_muladd_negate_c | float_muladd_negate_result)
 
-#define DO_2OP_F(NAME, BIT, E, FN)                                  \
-void HELPER(NAME)(CPULoongArchState *env, uint32_t vd, uint32_t vj) \
-{                                                                   \
-    int i;                                                          \
-    VReg *Vd = &(env->fpr[vd].vreg);                                \
-    VReg *Vj = &(env->fpr[vj].vreg);                                \
-                                                                    \
-    vec_clear_cause(env);                                           \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                             \
-        Vd->E(i) = FN(env, Vj->E(i));                               \
-    }                                                               \
+#define DO_2OP_F(NAME, BIT, E, FN)                          \
+void HELPER(NAME)(CPULoongArchState *env,                   \
+                  uint32_t oprsz, uint32_t vd, uint32_t vj) \
+{                                                           \
+    int i, len;                                             \
+    VReg *Vd = &(env->fpr[vd].vreg);                        \
+    VReg *Vj = &(env->fpr[vj].vreg);                        \
+                                                            \
+    len = (oprsz == 16) ? LSX_LEN : LASX_LEN;               \
+    vec_clear_cause(env);                                   \
+    for (i = 0; i < len / BIT; i++) {                       \
+        Vd->E(i) = FN(env, Vj->E(i));                       \
+    }                                                       \
 }
 
-#define FLOGB(BIT, T)                                            \
-static T do_flogb_## BIT(CPULoongArchState *env, T fj)           \
-{                                                                \
-    T fp, fd;                                                    \
-    float_status *status = &env->fp_status;                      \
-    FloatRoundMode old_mode = get_float_rounding_mode(status);   \
-                                                                 \
-    set_float_rounding_mode(float_round_down, status);           \
-    fp = float ## BIT ##_log2(fj, status);                       \
-    fd = float ## BIT ##_round_to_int(fp, status);               \
-    set_float_rounding_mode(old_mode, status);                   \
-    vec_update_fcsr0_mask(env, GETPC(), float_flag_inexact);     \
-    return fd;                                                   \
+#define FLOGB(BIT, T)                                          \
+static T do_flogb_## BIT(CPULoongArchState *env, T fj)         \
+{                                                              \
+    T fp, fd;                                                  \
+    float_status *status = &env->fp_status;                    \
+    FloatRoundMode old_mode = get_float_rounding_mode(status); \
+                                                               \
+    set_float_rounding_mode(float_round_down, status);         \
+    fp = float ## BIT ##_log2(fj, status);                     \
+    fd = float ## BIT ##_round_to_int(fp, status);             \
+    set_float_rounding_mode(old_mode, status);                 \
+    vec_update_fcsr0_mask(env, GETPC(), float_flag_inexact);   \
+    return fd;                                                 \
 }
 
 FLOGB(32, uint32_t)
 FLOGB(64, uint64_t)
 
-#define FCLASS(NAME, BIT, E, FN)                                    \
-void HELPER(NAME)(CPULoongArchState *env, uint32_t vd, uint32_t vj) \
-{                                                                   \
-    int i;                                                          \
-    VReg *Vd = &(env->fpr[vd].vreg);                                \
-    VReg *Vj = &(env->fpr[vj].vreg);                                \
-                                                                    \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                             \
-        Vd->E(i) = FN(env, Vj->E(i));                               \
-    }                                                               \
+#define FCLASS(NAME, BIT, E, FN)                            \
+void HELPER(NAME)(CPULoongArchState *env,                   \
+                  uint32_t oprsz, uint32_t vd, uint32_t vj) \
+{                                                           \
+    int i, len;                                             \
+    VReg *Vd = &(env->fpr[vd].vreg);                        \
+    VReg *Vj = &(env->fpr[vj].vreg);                        \
+                                                            \
+    len = (oprsz == 16) ? LSX_LEN : LASX_LEN;               \
+    for (i = 0; i < len / BIT; i++) {                       \
+        Vd->E(i) = FN(env, Vj->E(i));                       \
+    }                                                       \
 }
 
 FCLASS(vfclass_s, 32, UW, helper_fclass_s)

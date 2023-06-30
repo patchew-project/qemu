@@ -4,17 +4,19 @@
  * Copyright (c) 2022-2023 Loongson Technology Corporation Limited
  */
 
-static bool gen_vvvv(DisasContext *ctx, arg_vvvv *a,
+static bool gen_vvvv(DisasContext *ctx, arg_vvvv *a, uint32_t sz,
                      void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32,
-                                  TCGv_i32, TCGv_i32))
+                                  TCGv_i32, TCGv_i32, TCGv_i32))
 {
     TCGv_i32 vd = tcg_constant_i32(a->vd);
     TCGv_i32 vj = tcg_constant_i32(a->vj);
     TCGv_i32 vk = tcg_constant_i32(a->vk);
     TCGv_i32 va = tcg_constant_i32(a->va);
+    TCGv_i32 oprsz = tcg_constant_i32(sz);
 
     CHECK_VEC;
-    func(cpu_env, vd, vj, vk, va);
+
+    func(cpu_env, oprsz, vd, vj, vk, va);
     return true;
 }
 
@@ -3596,14 +3598,14 @@ TRANS(vfmul_d, gen_vvv, 16, gen_helper_vfmul_d)
 TRANS(vfdiv_s, gen_vvv, 16, gen_helper_vfdiv_s)
 TRANS(vfdiv_d, gen_vvv, 16, gen_helper_vfdiv_d)
 
-TRANS(vfmadd_s, gen_vvvv, gen_helper_vfmadd_s)
-TRANS(vfmadd_d, gen_vvvv, gen_helper_vfmadd_d)
-TRANS(vfmsub_s, gen_vvvv, gen_helper_vfmsub_s)
-TRANS(vfmsub_d, gen_vvvv, gen_helper_vfmsub_d)
-TRANS(vfnmadd_s, gen_vvvv, gen_helper_vfnmadd_s)
-TRANS(vfnmadd_d, gen_vvvv, gen_helper_vfnmadd_d)
-TRANS(vfnmsub_s, gen_vvvv, gen_helper_vfnmsub_s)
-TRANS(vfnmsub_d, gen_vvvv, gen_helper_vfnmsub_d)
+TRANS(vfmadd_s, gen_vvvv, 16, gen_helper_vfmadd_s)
+TRANS(vfmadd_d, gen_vvvv, 16, gen_helper_vfmadd_d)
+TRANS(vfmsub_s, gen_vvvv, 16, gen_helper_vfmsub_s)
+TRANS(vfmsub_d, gen_vvvv, 16, gen_helper_vfmsub_d)
+TRANS(vfnmadd_s, gen_vvvv, 16, gen_helper_vfnmadd_s)
+TRANS(vfnmadd_d, gen_vvvv, 16, gen_helper_vfnmadd_d)
+TRANS(vfnmsub_s, gen_vvvv, 16, gen_helper_vfnmsub_s)
+TRANS(vfnmsub_d, gen_vvvv, 16, gen_helper_vfnmsub_d)
 
 TRANS(vfmax_s, gen_vvv, 16, gen_helper_vfmax_s)
 TRANS(vfmax_d, gen_vvv, 16, gen_helper_vfmax_d)
@@ -4241,7 +4243,7 @@ TRANS(vilvh_h, gen_vvv, 16, gen_helper_vilvh_h)
 TRANS(vilvh_w, gen_vvv, 16, gen_helper_vilvh_w)
 TRANS(vilvh_d, gen_vvv, 16, gen_helper_vilvh_d)
 
-TRANS(vshuf_b, gen_vvvv, gen_helper_vshuf_b)
+TRANS(vshuf_b, gen_vvvv, 16, gen_helper_vshuf_b)
 TRANS(vshuf_h, gen_vvv, 16, gen_helper_vshuf_h)
 TRANS(vshuf_w, gen_vvv, 16, gen_helper_vshuf_w)
 TRANS(vshuf_d, gen_vvv, 16, gen_helper_vshuf_d)
