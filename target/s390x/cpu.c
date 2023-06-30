@@ -146,6 +146,10 @@ static void s390_query_cpu_fast(CPUState *cpu, CpuInfoFast *value)
     S390CPU *s390_cpu = S390_CPU(cpu);
 
     value->u.s390x.cpu_state = s390_cpu->env.cpu_state;
+#if !defined(CONFIG_USER_ONLY)
+    value->u.s390x.dedicated = s390_cpu->env.dedicated;
+    value->u.s390x.entitlement = s390_cpu->env.entitlement;
+#endif
 }
 
 /* S390CPUClass::reset() */
