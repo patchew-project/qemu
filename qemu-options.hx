@@ -4629,7 +4629,7 @@ DEF("incoming", HAS_ARG, QEMU_OPTION_incoming, \
     "                prepare for incoming migration, listen on\n" \
     "                specified protocol and socket address\n" \
     "-incoming fd:fd\n" \
-    "-incoming file:filename\n" \
+    "-incoming file:filename[,offset=offset]\n" \
     "-incoming exec:cmdline\n" \
     "                accept incoming migration on given file descriptor\n" \
     "                or from given external command\n" \
@@ -4648,8 +4648,9 @@ SRST
 ``-incoming fd:fd``
     Accept incoming migration from a given file descriptor.
 
-``-incoming file:filename``
-    Accept incoming migration from a given file.
+``-incoming file:filename[,offset=offset]``
+    Accept incoming migration from a given file starting at offset.
+    offset allows the common size suffixes, or a 0x prefix, but not both.
 
 ``-incoming exec:cmdline``
     Accept incoming migration as an output from specified external
