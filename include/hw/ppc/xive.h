@@ -187,6 +187,7 @@ struct XiveSource {
 
     /* PQ bits and LSI assertion bit */
     uint8_t         *status;
+    uint8_t         pq_init; /* PQ state on reset */
 
     /* ESB memory region */
     uint64_t        esb_flags;
