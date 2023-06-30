@@ -939,38 +939,54 @@ void HELPER(vnori_b)(void *vd, void *vj, uint64_t imm, uint32_t v)
     }
 }
 
-#define VSLLWIL(NAME, BIT, E1, E2)                        \
-void HELPER(NAME)(CPULoongArchState *env,                 \
-                  uint32_t vd, uint32_t vj, uint32_t imm) \
-{                                                         \
-    int i;                                                \
-    VReg temp;                                            \
-    VReg *Vd = &(env->fpr[vd].vreg);                      \
-    VReg *Vj = &(env->fpr[vj].vreg);                      \
-    typedef __typeof(temp.E1(0)) TD;                      \
-                                                          \
-    temp.D(0) = 0;                                        \
-    temp.D(1) = 0;                                        \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                   \
-        temp.E1(i) = (TD)Vj->E2(i) << (imm % BIT);        \
-    }                                                     \
-    *Vd = temp;                                           \
+#define VSLLWIL(NAME, BIT, E1, E2)                                     \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t oprsz,              \
+                  uint32_t vd, uint32_t vj, uint32_t imm)              \
+{                                                                      \
+    int i, max;                                                        \
+    VReg temp;                                                         \
+    VReg *Vd = &(env->fpr[vd].vreg);                                   \
+    VReg *Vj = &(env->fpr[vj].vreg);                                   \
+    typedef __typeof(temp.E1(0)) TD;                                   \
+                                                                       \
+    temp.Q(0) = int128_zero();                                         \
+                                                                       \
+    if (oprsz == 32) {                                                 \
+        temp.Q(1) = int128_zero();                                     \
+    }                                                                  \
+                                                                       \
+    max = LSX_LEN / BIT;                                               \
+    for (i = 0; i < max; i++) {                                        \
+        temp.E1(i) = (TD)Vj->E2(i) << (imm % BIT);                     \
+        if (oprsz == 32) {                                             \
+            temp.E1(i + max) = (TD)Vj->E2(i + max * 2) << (imm % BIT); \
+        }                                                              \
+    }                                                                  \
+    *Vd = temp;                                                        \
 }
 
-void HELPER(vextl_q_d)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+void HELPER(vextl_q_d)(CPULoongArchState *env,
+                       uint32_t oprsz, uint32_t vd, uint32_t vj)
 {
     VReg *Vd = &(env->fpr[vd].vreg);
     VReg *Vj = &(env->fpr[vj].vreg);
 
     Vd->Q(0) = int128_makes64(Vj->D(0));
+    if (oprsz == 32) {
+        Vd->Q(1) = int128_makes64(Vj->D(2));
+    }
 }
 
-void HELPER(vextl_qu_du)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+void HELPER(vextl_qu_du)(CPULoongArchState *env,
+                         uint32_t oprsz, uint32_t vd, uint32_t vj)
 {
     VReg *Vd = &(env->fpr[vd].vreg);
     VReg *Vj = &(env->fpr[vj].vreg);
 
-    Vd->Q(0) = int128_make64(Vj->D(0));
+    Vd->Q(0) = int128_make64(Vj->UD(0));
+    if (oprsz == 32) {
+        Vd->Q(1) = int128_make64(Vj->UD(2));
+    }
 }
 
 VSLLWIL(vsllwil_h_b, 16, H, B)
