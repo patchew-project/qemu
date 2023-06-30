@@ -1128,6 +1128,20 @@ void migrate_set_state(int *state, int old_state, int new_state)
     }
 }
 
+void migrate_set_runstate(void)
+{
+    if (!global_state_received() ||
+        global_state_get_runstate() == RUN_STATE_RUNNING) {
+        if (autostart) {
+            vm_start();
+        } else {
+            runstate_set(RUN_STATE_PAUSED);
+        }
+    } else {
+        runstate_set(global_state_get_runstate());
+    }
+}
+
 static void migrate_fd_cleanup(MigrationState *s)
 {
     qemu_bh_delete(s->cleanup_bh);
