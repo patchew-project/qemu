@@ -928,11 +928,13 @@ void HELPER(vmsknz_b)(CPULoongArchState *env,
 
 void HELPER(vnori_b)(void *vd, void *vj, uint64_t imm, uint32_t v)
 {
-    int i;
+    int i, len;
     VReg *Vd = (VReg *)vd;
     VReg *Vj = (VReg *)vj;
 
-    for (i = 0; i < LSX_LEN/8; i++) {
+    len = (simd_oprsz(v) == 16) ? LSX_LEN : LASX_LEN;
+
+    for (i = 0; i < len / 8; i++) {
         Vd->B(i) = ~(Vj->B(i) | (uint8_t)imm);
     }
 }
