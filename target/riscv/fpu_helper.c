@@ -482,70 +482,46 @@ target_ulong helper_fcvt_w_d(CPURISCVState *env, uint64_t frs1)
     return float64_to_int32(frs1, &env->fp_status);
 }
 
+/* T floating (double) */
+static inline float64 t_to_float64(uint64_t a)
+{
+    /* Memory format is the same as float64 */
+    CPU_DoubleU r;
+    r.ll = a;
+    return r.d;
+}
+
 /*
  * Implement float64 to int32_t conversion without saturation;
  * the result is supplied modulo 2^32.
  * Rounding mode is RTZ.
  * Flag behaviour identical to fcvt.w.d (see F specification).
- *
- * Similar conversion of this function can be found in
- * target/arm/vfp_helper.c (fjcvtzs): f64->i32 with other fflag behaviour, and
- * target/alpha/fpu_helper.c (do_cvttq): f64->i64 with support for several
- * rounding modes and different fflag behaviour.
  */
 uint64_t helper_fcvtmod_w_d(CPURISCVState *env, uint64_t value)
 {
     float_status *status = &env->fp_status;
-    uint32_t sign = extract64(value, 63, 1);
-    uint32_t exp = extract64(value, 52, 11);
-    uint64_t frac = extract64(value, 0, 52);
+    int64_t ret;
+    int32_t ret32;
+    uint32_t e_old, e_new;
+    float64 fvalue;
 
-    /* Handle the special cases first. */
-    if (exp == 0) {
-        if (unlikely(frac != 0)) {
-            /* Subnormal numbers. */
-            float_raise(float_flag_inexact, status);
-            return 0;
-        } else {
-            /* +0 or -0 */
-            return 0;
-	}
-    } else if (exp == 0x7ff) {
-        /* NaN (frac != 0) or INF (frac == 0). */
-        float_raise(float_flag_invalid, status);
-	return 0;
+    e_old = get_float_exception_flags(status);
+    set_float_exception_flags(0, status);
+    fvalue = t_to_float64(value);
+    ret = float64_to_int32_modulo(fvalue, float_round_to_zero, status);
+    e_new = get_float_exception_flags(status);
+
+    /* Map the flags to the specified ones. */
+    if (e_new & float_flag_inexact) {
+        e_new = float_flag_inexact;
+    } else if (e_new) {
+        e_new = float_flag_invalid;
     }
 
-    /* Normal value. */
-    int true_exp = exp - 1023;
-    int shift = true_exp - 52;
-    uint64_t true_frac = frac | 1ull << 52;
-    uint64_t ret;
-
-    /* Shift the fraction into place and set NX flag. */
-    if (shift >= 64 || shift <= -64) {
-            /* The fraction is shifted out entirely. */
-            ret = 0;
-            float_raise(float_flag_inexact, status);
-    } else if (shift >= 0) {
-        ret = true_frac << shift;
-        /* Raise NX if bit 52 got shifted out. */
-        if (shift >= 12)
-            float_raise(float_flag_inexact, status);
-    } else { /* shift < 0 */
-        ret = true_frac >> -shift;
-        /* Raise NX if bits got shifted out. */
-        if ((ret << -shift) != true_frac)
-            float_raise(float_flag_inexact, status);
-    }
-
-    /* Honor the sign bit. */
-    if (sign) {
-        ret = -ret;
-    }
+    set_float_exception_flags(e_old | e_new, status);
 
     /* Truncate to 32-bits. */
-    int32_t ret32 = (int32_t)ret;
+    ret32 = (int32_t)ret;
 
     /* If the truncation drops bits then raise NV. */
     if ((uint64_t)ret32 != ret)
