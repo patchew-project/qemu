@@ -74,4 +74,6 @@
 
 #define DO_SIGNCOV(a, b)  (a == 0 ? 0 : a < 0 ? -b : b)
 
+#define R_SHIFT(a, b) (a >> b)
+
 #endif /* LOONGARCH_VEC_H */
