@@ -2655,137 +2655,181 @@ static uint32_t float64_cvt_float32(uint64_t d, float_status *status)
     return float64_to_float32(d, status);
 }
 
-void HELPER(vfcvtl_s_h)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+void HELPER(vfcvtl_s_h)(CPULoongArchState *env,
+                        uint32_t oprsz, uint32_t vd, uint32_t vj)
 {
-    int i;
+    int i, max;
     VReg temp;
     VReg *Vd = &(env->fpr[vd].vreg);
     VReg *Vj = &(env->fpr[vj].vreg);
 
+    max = LSX_LEN / 32;
     vec_clear_cause(env);
-    for (i = 0; i < LSX_LEN/32; i++) {
+    for (i = 0; i < max; i++) {
         temp.UW(i) = float16_cvt_float32(Vj->UH(i), &env->fp_status);
+        if (oprsz == 32) {
+            temp.UW(i + max) =float16_cvt_float32(Vj->UH(i + max * 2),
+                                                   &env->fp_status);
+        }
         vec_update_fcsr0(env, GETPC());
     }
     *Vd = temp;
 }
 
-void HELPER(vfcvtl_d_s)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+void HELPER(vfcvtl_d_s)(CPULoongArchState *env,
+                        uint32_t oprsz, uint32_t vd, uint32_t vj)
 {
-    int i;
+    int i, max;
     VReg temp;
     VReg *Vd = &(env->fpr[vd].vreg);
     VReg *Vj = &(env->fpr[vj].vreg);
 
+    max = LSX_LEN / 64;
     vec_clear_cause(env);
-    for (i = 0; i < LSX_LEN/64; i++) {
+    for (i = 0; i < max; i++) {
         temp.UD(i) = float32_cvt_float64(Vj->UW(i), &env->fp_status);
+        if (oprsz == 32) {
+            temp.UD(i + max) = float32_cvt_float64(Vj->UW(i + max * 2),
+                                                   &env->fp_status);
+        }
         vec_update_fcsr0(env, GETPC());
     }
     *Vd = temp;
 }
 
-void HELPER(vfcvth_s_h)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+void HELPER(vfcvth_s_h)(CPULoongArchState *env,
+                        uint32_t oprsz, uint32_t vd, uint32_t vj)
 {
-    int i;
+    int i, max;
     VReg temp;
     VReg *Vd = &(env->fpr[vd].vreg);
     VReg *Vj = &(env->fpr[vj].vreg);
 
+    max = LSX_LEN / 32;
     vec_clear_cause(env);
-    for (i = 0; i < LSX_LEN/32; i++) {
-        temp.UW(i) = float16_cvt_float32(Vj->UH(i + 4), &env->fp_status);
+    for (i = 0; i < max; i++) {
+        temp.UW(i) = float16_cvt_float32(Vj->UH(i + max), &env->fp_status);
+        if (oprsz == 32) {
+            temp.UW(i + max) = float16_cvt_float32(Vj->UH(i + max * 3),
+                                                   &env->fp_status);
+        }
         vec_update_fcsr0(env, GETPC());
     }
     *Vd = temp;
 }
 
-void HELPER(vfcvth_d_s)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+void HELPER(vfcvth_d_s)(CPULoongArchState *env,
+                        uint32_t oprsz, uint32_t vd, uint32_t vj)
 {
-    int i;
+    int i, max;
     VReg temp;
     VReg *Vd = &(env->fpr[vd].vreg);
     VReg *Vj = &(env->fpr[vj].vreg);
 
+    max = LSX_LEN / 64;
     vec_clear_cause(env);
-    for (i = 0; i < LSX_LEN/64; i++) {
-        temp.UD(i) = float32_cvt_float64(Vj->UW(i + 2), &env->fp_status);
+    for (i = 0; i < max; i++) {
+        temp.UD(i) = float32_cvt_float64(Vj->UW(i + max), &env->fp_status);
+        if (oprsz == 32) {
+            temp.UD(i + max) = float32_cvt_float64(Vj->UW(i + max * 3),
+                                                   &env->fp_status);
+        }
         vec_update_fcsr0(env, GETPC());
     }
     *Vd = temp;
 }
 
-void HELPER(vfcvt_h_s)(CPULoongArchState *env,
+void HELPER(vfcvt_h_s)(CPULoongArchState *env, uint32_t oprsz,
                        uint32_t vd, uint32_t vj, uint32_t vk)
 {
-    int i;
+    int i, max;
     VReg temp;
     VReg *Vd = &(env->fpr[vd].vreg);
     VReg *Vj = &(env->fpr[vj].vreg);
     VReg *Vk = &(env->fpr[vk].vreg);
 
+    max = LSX_LEN / 32;
     vec_clear_cause(env);
-    for(i = 0; i < LSX_LEN/32; i++) {
-        temp.UH(i + 4) = float32_cvt_float16(Vj->UW(i), &env->fp_status);
+    for(i = 0; i < max; i++) {
+        temp.UH(i + max) = float32_cvt_float16(Vj->UW(i), &env->fp_status);
         temp.UH(i)  = float32_cvt_float16(Vk->UW(i), &env->fp_status);
+        if (oprsz == 32) {
+            temp.UH(i + max * 3) = float32_cvt_float16(Vj->UW(i + max),
+                                                       &env->fp_status);
+            temp.UH(i + max * 2) = float32_cvt_float16(Vk->UW(i + max),
+                                                       &env->fp_status);
+        }
         vec_update_fcsr0(env, GETPC());
     }
     *Vd = temp;
 }
 
-void HELPER(vfcvt_s_d)(CPULoongArchState *env,
+void HELPER(vfcvt_s_d)(CPULoongArchState *env, uint32_t oprsz,
                        uint32_t vd, uint32_t vj, uint32_t vk)
 {
-    int i;
+    int i, max;
     VReg temp;
     VReg *Vd = &(env->fpr[vd].vreg);
     VReg *Vj = &(env->fpr[vj].vreg);
     VReg *Vk = &(env->fpr[vk].vreg);
 
+    max = LSX_LEN / 64;
     vec_clear_cause(env);
-    for(i = 0; i < LSX_LEN/64; i++) {
-        temp.UW(i + 2) = float64_cvt_float32(Vj->UD(i), &env->fp_status);
+    for(i = 0; i < max; i++) {
+        temp.UW(i + max) = float64_cvt_float32(Vj->UD(i), &env->fp_status);
         temp.UW(i)  = float64_cvt_float32(Vk->UD(i), &env->fp_status);
+        if (oprsz == 32) {
+            temp.UW(i + max * 3) = float64_cvt_float32(Vj->UD(i + max),
+                                                       &env->fp_status);
+            temp.UW(i + max * 2) = float64_cvt_float32(Vk->UD(i + max),
+                                                       &env->fp_status);
+        }
         vec_update_fcsr0(env, GETPC());
     }
     *Vd = temp;
 }
 
-void HELPER(vfrint_s)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+void HELPER(vfrint_s)(CPULoongArchState *env,
+                      uint32_t oprsz, uint32_t vd, uint32_t vj)
 {
-    int i;
+    int i, len;
     VReg *Vd = &(env->fpr[vd].vreg);
     VReg *Vj = &(env->fpr[vj].vreg);
 
+    len = (oprsz == 16) ? LSX_LEN : LASX_LEN;
     vec_clear_cause(env);
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < len / 32; i++) {
         Vd->W(i) = float32_round_to_int(Vj->UW(i), &env->fp_status);
         vec_update_fcsr0(env, GETPC());
     }
 }
 
-void HELPER(vfrint_d)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+void HELPER(vfrint_d)(CPULoongArchState *env,
+                      uint32_t oprsz, uint32_t vd, uint32_t vj)
 {
-    int i;
+    int i, len;
     VReg *Vd = &(env->fpr[vd].vreg);
     VReg *Vj = &(env->fpr[vj].vreg);
 
+    len = (oprsz == 16) ? LSX_LEN : LASX_LEN;
     vec_clear_cause(env);
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < len / 64; i++) {
         Vd->D(i) = float64_round_to_int(Vj->UD(i), &env->fp_status);
         vec_update_fcsr0(env, GETPC());
     }
 }
 
 #define FCVT_2OP(NAME, BIT, E, MODE)                                        \
-void HELPER(NAME)(CPULoongArchState *env, uint32_t vd, uint32_t vj)         \
+void HELPER(NAME)(CPULoongArchState *env,                                   \
+                  uint32_t oprsz, uint32_t vd, uint32_t vj)                 \
 {                                                                           \
-    int i;                                                                  \
+    int i, len;                                                             \
     VReg *Vd = &(env->fpr[vd].vreg);                                        \
     VReg *Vj = &(env->fpr[vj].vreg);                                        \
                                                                             \
+    len = (oprsz == 16) ? LSX_LEN : LASX_LEN;                               \
     vec_clear_cause(env);                                                   \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                                     \
+    for (i = 0; i < len / BIT; i++) {                                       \
         FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status); \
         set_float_rounding_mode(MODE, &env->fp_status);                     \
         Vd->E(i) = float## BIT ## _round_to_int(Vj->E(i), &env->fp_status); \
@@ -2870,22 +2914,27 @@ FTINT(rp_w_d, float64, int32, uint64_t, uint32_t, float_round_up)
 FTINT(rz_w_d, float64, int32, uint64_t, uint32_t, float_round_to_zero)
 FTINT(rne_w_d, float64, int32, uint64_t, uint32_t, float_round_nearest_even)
 
-#define FTINT_W_D(NAME, FN)                              \
-void HELPER(NAME)(CPULoongArchState *env,                \
-                  uint32_t vd, uint32_t vj, uint32_t vk) \
-{                                                        \
-    int i;                                               \
-    VReg temp;                                           \
-    VReg *Vd = &(env->fpr[vd].vreg);                     \
-    VReg *Vj = &(env->fpr[vj].vreg);                     \
-    VReg *Vk = &(env->fpr[vk].vreg);                     \
-                                                         \
-    vec_clear_cause(env);                                \
-    for (i = 0; i < 2; i++) {                            \
-        temp.W(i + 2) = FN(env, Vj->UD(i));              \
-        temp.W(i) = FN(env, Vk->UD(i));                  \
-    }                                                    \
-    *Vd = temp;                                          \
+#define FTINT_W_D(NAME, FN)                                 \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t oprsz,   \
+                  uint32_t vd, uint32_t vj, uint32_t vk)    \
+{                                                           \
+    int i, max;                                             \
+    VReg temp;                                              \
+    VReg *Vd = &(env->fpr[vd].vreg);                        \
+    VReg *Vj = &(env->fpr[vj].vreg);                        \
+    VReg *Vk = &(env->fpr[vk].vreg);                        \
+                                                            \
+    max = LSX_LEN / 64;                                     \
+    vec_clear_cause(env);                                   \
+    for (i = 0; i < max; i++) {                             \
+        temp.W(i + max) = FN(env, Vj->UD(i));               \
+        temp.W(i) = FN(env, Vk->UD(i));                     \
+        if (oprsz == 32) {                                  \
+            temp.W(i + max * 3) = FN(env, Vj->UD(i + max)); \
+            temp.W(i + max * 2) = FN(env, Vk->UD(i + max)); \
+        }                                                   \
+    }                                                       \
+    *Vd = temp;                                             \
 }
 
 FTINT_W_D(vftint_w_d, do_float64_to_int32)
@@ -2903,19 +2952,24 @@ FTINT(rph_l_s, float32, int64, uint32_t, uint64_t, float_round_up)
 FTINT(rzh_l_s, float32, int64, uint32_t, uint64_t, float_round_to_zero)
 FTINT(rneh_l_s, float32, int64, uint32_t, uint64_t, float_round_nearest_even)
 
-#define FTINTL_L_S(NAME, FN)                                        \
-void HELPER(NAME)(CPULoongArchState *env, uint32_t vd, uint32_t vj) \
-{                                                                   \
-    int i;                                                          \
-    VReg temp;                                                      \
-    VReg *Vd = &(env->fpr[vd].vreg);                                \
-    VReg *Vj = &(env->fpr[vj].vreg);                                \
-                                                                    \
-    vec_clear_cause(env);                                           \
-    for (i = 0; i < 2; i++) {                                       \
-        temp.D(i) = FN(env, Vj->UW(i));                             \
-    }                                                               \
-    *Vd = temp;                                                     \
+#define FTINTL_L_S(NAME, FN)                                \
+void HELPER(NAME)(CPULoongArchState *env,                   \
+                  uint32_t oprsz, uint32_t vd, uint32_t vj) \
+{                                                           \
+    int i, max;                                             \
+    VReg temp;                                              \
+    VReg *Vd = &(env->fpr[vd].vreg);                        \
+    VReg *Vj = &(env->fpr[vj].vreg);                        \
+                                                            \
+    max = LSX_LEN / 64;                                     \
+    vec_clear_cause(env);                                   \
+    for (i = 0; i < max; i++) {                             \
+        temp.D(i) = FN(env, Vj->UW(i));                     \
+        if (oprsz == 32) {                                  \
+            temp.D(i + max) = FN(env, Vj->UW(i + max * 2)); \
+        }                                                   \
+    }                                                       \
+    *Vd = temp;                                             \
 }
 
 FTINTL_L_S(vftintl_l_s, do_float32_to_int64)
@@ -2924,19 +2978,24 @@ FTINTL_L_S(vftintrpl_l_s, do_ftintrpl_l_s)
 FTINTL_L_S(vftintrzl_l_s, do_ftintrzl_l_s)
 FTINTL_L_S(vftintrnel_l_s, do_ftintrnel_l_s)
 
-#define FTINTH_L_S(NAME, FN)                                        \
-void HELPER(NAME)(CPULoongArchState *env, uint32_t vd, uint32_t vj) \
-{                                                                   \
-    int i;                                                          \
-    VReg temp;                                                      \
-    VReg *Vd = &(env->fpr[vd].vreg);                                \
-    VReg *Vj = &(env->fpr[vj].vreg);                                \
-                                                                    \
-    vec_clear_cause(env);                                           \
-    for (i = 0; i < 2; i++) {                                       \
-        temp.D(i) = FN(env, Vj->UW(i + 2));                         \
-    }                                                               \
-    *Vd = temp;                                                     \
+#define FTINTH_L_S(NAME, FN)                                \
+void HELPER(NAME)(CPULoongArchState *env,                   \
+                  uint32_t oprsz, uint32_t vd, uint32_t vj) \
+{                                                           \
+    int i, max;                                             \
+    VReg temp;                                              \
+    VReg *Vd = &(env->fpr[vd].vreg);                        \
+    VReg *Vj = &(env->fpr[vj].vreg);                        \
+                                                            \
+    max = LSX_LEN / 64;                                     \
+    vec_clear_cause(env);                                   \
+    for (i = 0; i < max; i++) {                             \
+        temp.D(i) = FN(env, Vj->UW(i + max));               \
+        if (oprsz == 32) {                                  \
+            temp.D(i + max) = FN(env, Vj->UW(i + max * 3)); \
+        }                                                   \
+    }                                                       \
+    *Vd = temp;                                             \
 }
 
 FTINTH_L_S(vftinth_l_s, do_float32_to_int64)
@@ -2965,49 +3024,68 @@ DO_2OP_F(vffint_d_l, 64, D, do_ffint_d_l)
 DO_2OP_F(vffint_s_wu, 32, UW, do_ffint_s_wu)
 DO_2OP_F(vffint_d_lu, 64, UD, do_ffint_d_lu)
 
-void HELPER(vffintl_d_w)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+void HELPER(vffintl_d_w)(CPULoongArchState *env,
+                         uint32_t oprsz, uint32_t vd, uint32_t vj)
 {
-    int i;
+    int i, max;
     VReg temp;
     VReg *Vd = &(env->fpr[vd].vreg);
     VReg *Vj = &(env->fpr[vj].vreg);
 
+    max = LSX_LEN / 64;
     vec_clear_cause(env);
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < max; i++) {
         temp.D(i) = int32_to_float64(Vj->W(i), &env->fp_status);
+        if (oprsz == 32) {
+            temp.D(i + max) = int32_to_float64(Vj->W(i + max * 2),
+                                               &env->fp_status);
+        }
         vec_update_fcsr0(env, GETPC());
     }
     *Vd = temp;
 }
 
-void HELPER(vffinth_d_w)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+void HELPER(vffinth_d_w)(CPULoongArchState *env,
+                         uint32_t oprsz, uint32_t vd, uint32_t vj)
 {
-    int i;
+    int i, max;
     VReg temp;
     VReg *Vd = &(env->fpr[vd].vreg);
     VReg *Vj = &(env->fpr[vj].vreg);
 
+    max = LSX_LEN / 64;
     vec_clear_cause(env);
-    for (i = 0; i < 2; i++) {
-        temp.D(i) = int32_to_float64(Vj->W(i + 2), &env->fp_status);
+    for (i = 0; i < max; i++) {
+        temp.D(i) = int32_to_float64(Vj->W(i + max), &env->fp_status);
+        if (oprsz == 32) {
+            temp.D(i + max) = int32_to_float64(Vj->W(i + max * 3),
+                                               &env->fp_status);
+        }
         vec_update_fcsr0(env, GETPC());
     }
     *Vd = temp;
 }
 
 void HELPER(vffint_s_l)(CPULoongArchState *env,
-                        uint32_t vd, uint32_t vj, uint32_t vk)
+                        uint32_t oprsz, uint32_t vd, uint32_t vj, uint32_t vk)
 {
-    int i;
+    int i, max;
     VReg temp;
     VReg *Vd = &(env->fpr[vd].vreg);
     VReg *Vj = &(env->fpr[vj].vreg);
     VReg *Vk = &(env->fpr[vk].vreg);
 
+    max = LSX_LEN / 64;
     vec_clear_cause(env);
-    for (i = 0; i < 2; i++) {
-        temp.W(i + 2) = int64_to_float32(Vj->D(i), &env->fp_status);
+    for (i = 0; i < max; i++) {
+        temp.W(i + max) = int64_to_float32(Vj->D(i), &env->fp_status);
         temp.W(i) = int64_to_float32(Vk->D(i), &env->fp_status);
+        if (oprsz == 32) {
+            temp.W(i + max * 3) = int64_to_float32(Vj->D(i + max),
+                                                   &env->fp_status);
+            temp.W(i + max * 2) = int64_to_float32(Vk->D(i + max),
+                                                   &env->fp_status);
+        }
         vec_update_fcsr0(env, GETPC());
     }
     *Vd = temp;
