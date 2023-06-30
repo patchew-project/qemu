@@ -1012,15 +1012,16 @@ do_vsrlr(W, uint32_t)
 do_vsrlr(D, uint64_t)
 
 #define VSRLR(NAME, BIT, T, E)                                  \
-void HELPER(NAME)(CPULoongArchState *env,                       \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t oprsz,       \
                   uint32_t vd, uint32_t vj, uint32_t vk)        \
 {                                                               \
-    int i;                                                      \
+    int i, len;                                                 \
     VReg *Vd = &(env->fpr[vd].vreg);                            \
     VReg *Vj = &(env->fpr[vj].vreg);                            \
     VReg *Vk = &(env->fpr[vk].vreg);                            \
                                                                 \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                         \
+    len = (oprsz == 16) ? LSX_LEN : LASX_LEN;                   \
+    for (i = 0; i < len / BIT; i++) {                           \
         Vd->E(i) = do_vsrlr_ ## E(Vj->E(i), ((T)Vk->E(i))%BIT); \
     }                                                           \
 }
@@ -1031,14 +1032,15 @@ VSRLR(vsrlr_w, 32, uint32_t, W)
 VSRLR(vsrlr_d, 64, uint64_t, D)
 
 #define VSRLRI(NAME, BIT, E)                              \
-void HELPER(NAME)(CPULoongArchState *env,                 \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t oprsz, \
                   uint32_t vd, uint32_t vj, uint32_t imm) \
 {                                                         \
-    int i;                                                \
+    int i, len;                                           \
     VReg *Vd = &(env->fpr[vd].vreg);                      \
     VReg *Vj = &(env->fpr[vj].vreg);                      \
                                                           \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                   \
+    len = (oprsz == 16) ? LSX_LEN : LASX_LEN;             \
+    for (i = 0; i < len / BIT; i++) {                     \
         Vd->E(i) = do_vsrlr_ ## E(Vj->E(i), imm);         \
     }                                                     \
 }
@@ -1064,15 +1066,16 @@ do_vsrar(W, int32_t)
 do_vsrar(D, int64_t)
 
 #define VSRAR(NAME, BIT, T, E)                                  \
-void HELPER(NAME)(CPULoongArchState *env,                       \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t oprsz,       \
                   uint32_t vd, uint32_t vj, uint32_t vk)        \
 {                                                               \
-    int i;                                                      \
+    int i, len;                                                 \
     VReg *Vd = &(env->fpr[vd].vreg);                            \
     VReg *Vj = &(env->fpr[vj].vreg);                            \
     VReg *Vk = &(env->fpr[vk].vreg);                            \
                                                                 \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                         \
+    len = (oprsz == 16) ? LSX_LEN : LASX_LEN;                   \
+    for (i = 0; i < len / BIT; i++) {                           \
         Vd->E(i) = do_vsrar_ ## E(Vj->E(i), ((T)Vk->E(i))%BIT); \
     }                                                           \
 }
@@ -1083,14 +1086,15 @@ VSRAR(vsrar_w, 32, uint32_t, W)
 VSRAR(vsrar_d, 64, uint64_t, D)
 
 #define VSRARI(NAME, BIT, E)                              \
-void HELPER(NAME)(CPULoongArchState *env,                 \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t oprsz, \
                   uint32_t vd, uint32_t vj, uint32_t imm) \
 {                                                         \
-    int i;                                                \
+    int i, len;                                           \
     VReg *Vd = &(env->fpr[vd].vreg);                      \
     VReg *Vj = &(env->fpr[vj].vreg);                      \
                                                           \
-    for (i = 0; i < LSX_LEN/BIT; i++) {                   \
+    len = (oprsz == 16) ? LSX_LEN : LASX_LEN;             \
+    for (i = 0; i < len / BIT; i++) {                     \
         Vd->E(i) = do_vsrar_ ## E(Vj->E(i), imm);         \
     }                                                     \
 }
