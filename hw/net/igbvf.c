@@ -240,6 +240,9 @@ static const MemoryRegionOps mmio_ops = {
 static void igbvf_pci_realize(PCIDevice *dev, Error **errp)
 {
     IgbVfState *s = IGBVF(dev);
+    uint16_t nextvfn = pcie_sriov_vf_number(dev) + 1;
+    uint16_t nextfn = nextvfn < IGB_MAX_VF_FUNCTIONS ?
+                      IGB_VF_OFFSET + nextvfn * IGB_VF_STRIDE : 0;
     int ret;
     int i;
 
@@ -270,7 +273,7 @@ static void igbvf_pci_realize(PCIDevice *dev, Error **errp)
         hw_error("Failed to initialize AER capability");
     }
 
-    pcie_ari_init(dev, 0x150, 1);
+    pcie_ari_init(dev, 0x150, nextfn);
 }
 
 static void igbvf_pci_uninit(PCIDevice *dev)

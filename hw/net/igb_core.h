@@ -49,6 +49,9 @@
 #define IGB_NUM_QUEUES          (16)
 #define IGB_NUM_VM_POOLS        (8)
 
+#define IGB_VF_OFFSET           (0x80)
+#define IGB_VF_STRIDE           (2)
+
 typedef struct IGBCore IGBCore;
 
 enum { PHY_R = BIT(0),

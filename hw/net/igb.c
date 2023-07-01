@@ -81,8 +81,6 @@ struct IGBState {
 };
 
 #define IGB_CAP_SRIOV_OFFSET    (0x160)
-#define IGB_VF_OFFSET           (0x80)
-#define IGB_VF_STRIDE           (2)
 
 #define E1000E_MMIO_IDX     0
 #define E1000E_FLASH_IDX    1
@@ -431,7 +429,7 @@ static void igb_pci_realize(PCIDevice *pci_dev, Error **errp)
         hw_error("Failed to initialize AER capability");
     }
 
-    pcie_ari_init(pci_dev, 0x150, 1);
+    pcie_ari_init(pci_dev, 0x150, IGB_VF_OFFSET);
 
     pcie_sriov_pf_init(pci_dev, IGB_CAP_SRIOV_OFFSET, TYPE_IGBVF,
         IGB_82576_VF_DEV_ID, IGB_MAX_VF_FUNCTIONS, IGB_MAX_VF_FUNCTIONS,
