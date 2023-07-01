@@ -446,6 +446,65 @@ static void parallels_check_unclean(BlockDriverState *bs,
     }
 }
 
+/*
+ * Returns 0 if data_off is correct or returns correct offset.
+ */
+static uint32_t parallels_test_data_off(BDRVParallelsState *s,
+                                        int64_t file_nb_sectors)
+{
+    uint32_t data_off, min_off;
+    bool old_magic;
+
+    old_magic = !memcmp(s->header->magic, HEADER_MAGIC, 16);
+
+    data_off = le32_to_cpu(s->header->data_off);
+    if (data_off == 0 && old_magic) {
+        return 0;
+    }
+
+    min_off = DIV_ROUND_UP(bat_entry_off(s->bat_size), BDRV_SECTOR_SIZE);
+    if (!old_magic) {
+        min_off = ROUND_UP(min_off, s->cluster_size / BDRV_SECTOR_SIZE);
+    }
+
+    if (data_off >= min_off && data_off <= file_nb_sectors) {
+        return 0;
+    }
+
+    return min_off;
+}
+
+static int coroutine_fn GRAPH_RDLOCK
+parallels_check_data_off(BlockDriverState *bs, BdrvCheckResult *res,
+                         BdrvCheckMode fix)
+{
+    BDRVParallelsState *s = bs->opaque;
+    int64_t file_size;
+    uint32_t data_off;
+
+    file_size = bdrv_co_nb_sectors(bs->file->bs);
+    if (file_size < 0) {
+        res->check_errors++;
+        return file_size;
+    }
+
+    data_off = parallels_test_data_off(s, file_size);
+    if (data_off == 0) {
+        return 0;
+    }
+
+    res->corruptions++;
+    if (fix & BDRV_FIX_ERRORS) {
+        s->header->data_off = cpu_to_le32(data_off);
+        res->corruptions_fixed++;
+    }
+
+    fprintf(stderr, "%s data_off field has incorrect value\n",
+            fix & BDRV_FIX_ERRORS ? "Repairing" : "ERROR");
+
+    return 0;
+}
+
 static int coroutine_fn GRAPH_RDLOCK
 parallels_check_outside_image(BlockDriverState *bs, BdrvCheckResult *res,
                               BdrvCheckMode fix)
@@ -709,6 +768,11 @@ parallels_co_check(BlockDriverState *bs, BdrvCheckResult *res,
     WITH_QEMU_LOCK_GUARD(&s->lock) {
         parallels_check_unclean(bs, res, fix);
 
+        ret = parallels_check_data_off(bs, res, fix);
+        if (ret < 0) {
+            return ret;
+        }
+
         ret = parallels_check_outside_image(bs, res, fix);
         if (ret < 0) {
             return ret;
@@ -947,7 +1011,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     BDRVParallelsState *s = bs->opaque;
     ParallelsHeader ph;
     int ret, size, i;
-    int64_t file_nb_sectors, sector;
+    int64_t file_nb_sectors, sector, new_data_start;
     QemuOpts *opts = NULL;
     Error *local_err = NULL;
     char *buf;
@@ -1008,16 +1072,6 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         ret = -ENOMEM;
         goto fail;
     }
-    s->data_start = le32_to_cpu(ph.data_off);
-    if (s->data_start == 0) {
-        s->data_start = DIV_ROUND_UP(size, BDRV_SECTOR_SIZE);
-    }
-    s->data_end = s->data_start;
-    if (s->data_end < (s->header_size >> BDRV_SECTOR_BITS)) {
-        /* there is not enough unused space to fit to block align between BAT
-           and actual data. We can't avoid read-modify-write... */
-        s->header_size = size;
-    }
 
     ret = bdrv_pread(bs->file, 0, s->header_size, s->header, 0);
     if (ret < 0) {
@@ -1027,6 +1081,19 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
 
     if (le32_to_cpu(ph.inuse) == HEADER_INUSE_MAGIC) {
         s->header_unclean = true;
+    }
+
+    new_data_start = parallels_test_data_off(s, file_nb_sectors);
+    if (new_data_start == 0) {
+        s->data_start = le32_to_cpu(ph.data_off);
+    } else {
+        s->data_start = new_data_start;
+    }
+    s->data_end = s->data_start;
+    if (s->data_end < (s->header_size >> BDRV_SECTOR_BITS)) {
+        /* there is not enough unused space to fit to block align between BAT
+           and actual data. We can't avoid read-modify-write... */
+        s->header_size = size;
     }
 
     opts = qemu_opts_create(&parallels_runtime_opts, NULL, 0, errp);
@@ -1111,7 +1178,8 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
      * Repair the image if it's dirty or
      * out-of-image corruption was detected.
      */
-    if (s->data_end > file_nb_sectors || s->header_unclean) {
+    if (s->data_end > file_nb_sectors || s->header_unclean
+        || new_data_start != 0) {
         BdrvCheckResult res;
         ret = bdrv_check(bs, &res, BDRV_FIX_ERRORS | BDRV_FIX_LEAKS);
         if (ret < 0) {
