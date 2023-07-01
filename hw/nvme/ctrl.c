@@ -8120,7 +8120,12 @@ static bool nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
     pcie_endpoint_cap_init(pci_dev, 0x80);
     pcie_cap_flr_init(pci_dev);
     if (n->params.sriov_max_vfs) {
-        pcie_ari_init(pci_dev, 0x100, 1);
+        uint16_t nextvfn = pci_is_vf(pci_dev) ?
+                           pcie_sriov_vf_number(pci_dev) + 1 : 0;
+        uint16_t nextfn = nextvfn < n->params.sriov_max_vfs ?
+                          NVME_VF_OFFSET + nextvfn * NVME_VF_STRIDE : 0;
+
+        pcie_ari_init(pci_dev, 0x100, nextfn);
     }
 
     /* add one to max_ioqpairs to account for the admin queue pair */
