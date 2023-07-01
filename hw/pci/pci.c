@@ -2059,6 +2059,8 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
     Error *local_err = NULL;
     bool is_default_rom;
     uint16_t class_id;
+    uint16_t ari;
+    uint16_t nextfn;
 
     /*
      * capped by systemd (see: udev-builtin-net_id.c)
@@ -2118,6 +2120,19 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
             error_propagate(errp, local_err);
             do_pci_unregister_device(pci_dev);
             return;
+        }
+    }
+
+    if (pci_is_express(pci_dev)) {
+        ari = pcie_find_capability(pci_dev, PCI_EXT_CAP_ID_ARI);
+        if (ari) {
+            nextfn = (pci_get_long(pci_dev->config + ari + PCI_ARI_CAP) >> 8) & 0xff;
+            if (nextfn && (pci_dev->devfn & 0xff) >= nextfn) {
+                error_setg(errp, "PCI: function number %u is not lower than ARI next function number %u",
+                           pci_dev->devfn & 0xff, nextfn);
+                pci_qdev_unrealize(DEVICE(pci_dev));
+                return;
+            }
         }
     }
 
