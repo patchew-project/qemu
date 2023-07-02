@@ -198,6 +198,8 @@ static const MemoryRegionOps macio_alias_ops = {
     .valid = {
         .min_access_size = 1,
         .max_access_size = 4,
+        /* VIA1 unaligned access for A/UX timer calibration */
+        .unaligned = true,
     },
 };
 

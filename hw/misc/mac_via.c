@@ -995,20 +995,33 @@ static void via1_timer_calibration_hack(MOS6522Q800VIA1State *v1s, int addr,
 
 static uint64_t mos6522_q800_via1_read(void *opaque, hwaddr addr, unsigned size)
 {
-    MOS6522Q800VIA1State *s = MOS6522_Q800_VIA1(opaque);
-    MOS6522State *ms = MOS6522(s);
-    uint64_t ret;
+    MOS6522Q800VIA1State *v1s = MOS6522_Q800_VIA1(opaque);
+    MOS6522State *ms = MOS6522(v1s);
+    int64_t now;
+    uint8_t ret;
+    uint64_t val = 0;
+    int i;
+    hwaddr addr1;
 
-    addr = (addr >> 9) & 0xf;
-    ret = mos6522_read(ms, addr, size);
-    switch (addr) {
-    case VIA_REG_A:
-    case VIA_REG_ANH:
-        /* Quadra 800 Id */
-        ret = (ret & ~VIA1A_CPUID_MASK) | VIA1A_CPUID_Q800;
-        break;
+    /* Handle unaligned read used by A/UX timer calibration code */
+    addr1 = (addr >> 9) & 0xf;
+    for (i = 0; i < size; i++, addr1++) {
+        ret = mos6522_read(ms, addr1, size);
+        switch (addr1) {
+        case VIA_REG_A:
+        case VIA_REG_ANH:
+            /* Quadra 800 Id */
+            ret = (ret & ~VIA1A_CPUID_MASK) | VIA1A_CPUID_Q800;
+            break;
+        }
+        val |= ret << ((size - i - 1) << 3);
     }
-    return ret;
+
+    if ((addr >> 9) != ((addr + size) >> 9)) {
+        trace_via1_unaligned_read(addr, val, size);
+    }
+
+    return val;
 }
 
 static void mos6522_q800_via1_write(void *opaque, hwaddr addr, uint64_t val,
@@ -1018,53 +1031,63 @@ static void mos6522_q800_via1_write(void *opaque, hwaddr addr, uint64_t val,
     MOS6522State *ms = MOS6522(v1s);
     int oldstate, state;
     int oldsr = ms->sr;
+    hwaddr addr1;
+    uint8_t v;
+    int i;
 
-    addr = (addr >> 9) & 0xf;
+    if ((addr >> 9) != ((addr + size) >> 9)) {
+        trace_via1_unaligned_write(addr, val, size);
+    }
 
-    via1_timer_calibration_hack(v1s, addr, val, size);
+    addr1 = (addr >> 9) & 0xf;
+    via1_timer_calibration_hack(v1s, addr1, val, size);
 
-    mos6522_write(ms, addr, val, size);
+    /* Handle unaligned write used by A/UX timer calibration code */
+    for (i = 0; i < size; i++, addr1++) {
+        v = val >> ((size - i - 1) << 3);
+        mos6522_write(ms, addr1, v, size);
 
-    switch (addr) {
-    case VIA_REG_B:
-        via1_rtc_update(v1s);
-        via1_adb_update(v1s);
-        via1_auxmode_update(v1s);
+        switch (addr1) {
+        case VIA_REG_B:
+            via1_rtc_update(v1s);
+            via1_adb_update(v1s);
+            via1_auxmode_update(v1s);
 
-        v1s->last_b = ms->b;
-        break;
+            v1s->last_b = ms->b;
+            break;
 
-    case VIA_REG_SR:
-        {
-            /*
-             * NetBSD assumes it can send its first ADB command after sending
-             * the ADB_BUSRESET command in ADB_STATE_NEW without changing the
-             * state back to ADB_STATE_IDLE first as detailed in the ADB
-             * protocol.
-             *
-             * Add a workaround to detect this condition at the start of ADB
-             * enumeration and send the next command written to SR after a
-             * ADB_BUSRESET onto the bus regardless, even if we don't detect a
-             * state transition to ADB_STATE_NEW.
-             *
-             * Note that in my tests the NetBSD state machine takes one ADB
-             * operation to recover which means the probe for an ADB device at
-             * address 1 always fails. However since the first device is at
-             * address 2 then this will work fine, without having to come up
-             * with a more complicated and invasive solution.
-             */
-            oldstate = (v1s->last_b & VIA1B_vADB_StateMask) >>
-                       VIA1B_vADB_StateShift;
-            state = (ms->b & VIA1B_vADB_StateMask) >> VIA1B_vADB_StateShift;
+        case VIA_REG_SR:
+            {
+                /*
+                 * NetBSD assumes it can send its first ADB command after
+                 * sending the ADB_BUSRESET command in ADB_STATE_NEW without
+                 * changing the state back to ADB_STATE_IDLE first as detailed
+                 * in the ADB protocol.
+                 *
+                 * Add a workaround to detect this condition at the start of
+                 * ADB enumeration and send the next command written to SR
+                 * after a ADB_BUSRESET onto the bus regardless, even if we
+                 * don't detect a state transition to ADB_STATE_NEW.
+                 *
+                 * Note that in my tests the NetBSD state machine takes one ADB
+                 * operation to recover which means the probe for an ADB device
+                 * at address 1 always fails. However since the first device is
+                 * at address 2 then this will work fine, without having to
+                 * come up with a more complicated and invasive solution.
+                 */
+                oldstate = (v1s->last_b & VIA1B_vADB_StateMask) >>
+                           VIA1B_vADB_StateShift;
+                state = (ms->b & VIA1B_vADB_StateMask) >> VIA1B_vADB_StateShift;
 
-            if (oldstate == ADB_STATE_NEW && state == ADB_STATE_NEW &&
-                    (ms->acr & VIA1ACR_vShiftOut) &&
-                    oldsr == 0 /* ADB_BUSRESET */) {
-                trace_via1_adb_netbsd_enum_hack();
-                adb_via_send(v1s, state, ms->sr);
+                if (oldstate == ADB_STATE_NEW && state == ADB_STATE_NEW &&
+                        (ms->acr & VIA1ACR_vShiftOut) &&
+                        oldsr == 0 /* ADB_BUSRESET */) {
+                    trace_via1_adb_netbsd_enum_hack();
+                    adb_via_send(v1s, state, ms->sr);
+                }
             }
+            break;
         }
-        break;
     }
 }
 
@@ -1075,6 +1098,8 @@ static const MemoryRegionOps mos6522_q800_via1_ops = {
     .valid = {
         .min_access_size = 1,
         .max_access_size = 4,
+        /* VIA1 unaligned access for A/UX timer calibration */
+        .unaligned = true,
     },
 };
 
