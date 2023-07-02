@@ -983,6 +983,30 @@ static void via1_timer_calibration_hack(MOS6522Q800VIA1State *v1s, int addr,
             /* Looks like there has been a reset? */
             v1s->timer_hack_state = 1;
         }
+
+        if (addr == VIA_REG_T2CL && val == 0xf03c && size == 2) {
+            /* VIA_REG_T2CH: high byte of counter (A/UX) */
+            v1s->timer_hack_state = 5;
+        }
+        break;
+    case 5:
+        if ((addr == VIA_REG_IER && val == 0x20) || addr == VIA_REG_T2CH) {
+            /* End of A/UX timer calibration routine, or another write */
+            v1s->timer_hack_state = 6;
+        } else {
+            v1s->timer_hack_state = 0;
+        }
+        break;
+    case 6:
+        /*
+         * This is the normal post-calibration timer state once both the
+         * MacOS toolbox and A/UX have been calibrated, until we see a write
+         * to VIA_REG_PCR to suggest a reset
+         */
+        if (addr == VIA_REG_PCR && val == 0x22) {
+            /* Looks like there has been a reset? */
+            v1s->timer_hack_state = 1;
+        }
         break;
     default:
         g_assert_not_reached();
@@ -1012,6 +1036,23 @@ static uint64_t mos6522_q800_via1_read(void *opaque, hwaddr addr, unsigned size)
         case VIA_REG_ANH:
             /* Quadra 800 Id */
             ret = (ret & ~VIA1A_CPUID_MASK) | VIA1A_CPUID_Q800;
+            break;
+        case VIA_REG_T2CH:
+            if (v1s->timer_hack_state == 5) {
+                /*
+                 * The A/UX timer calibration loop runs continuously until 2
+                 * consecutive iterations differ by at least 0x492 timer ticks.
+                 * Modern hosts execute the timer calibration loop so fast that
+                 * this situation never occurs causing a hang on boot. Use a
+                 * similar method to Shoebill which is to randomly add 0x500 to
+                 * the T2 counter value during calibration to enable it to
+                 * eventually succeed.
+                 */
+                now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+                if (now & 1) {
+                    ret += 0x5;
+                }
+            }
             break;
         }
         val |= ret << ((size - i - 1) << 3);
