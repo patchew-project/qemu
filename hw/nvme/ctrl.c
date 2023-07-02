@@ -8120,7 +8120,7 @@ static bool nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
     pcie_endpoint_cap_init(pci_dev, 0x80);
     pcie_cap_flr_init(pci_dev);
     if (n->params.sriov_max_vfs) {
-        pcie_ari_init(pci_dev, 0x100, 1);
+        pcie_ari_init(pci_dev, 0x100, n->params.ari_nextfn_1 ? 1 : 0);
     }
 
     /* add one to max_ioqpairs to account for the admin queue pair */
@@ -8438,6 +8438,7 @@ static Property nvme_props[] = {
                       params.sriov_max_vi_per_vf, 0),
     DEFINE_PROP_UINT8("sriov_max_vq_per_vf", NvmeCtrl,
                       params.sriov_max_vq_per_vf, 0),
+    DEFINE_PROP_BOOL("ari-nextfn-1", NvmeCtrl, params.ari_nextfn_1, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
