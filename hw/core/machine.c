@@ -41,7 +41,8 @@
 
 GlobalProperty hw_compat_8_0[] = {
     { "migration", "multifd-flush-after-each-section", "on"},
-    { "nvme", "ari-nextfn-1", "on"},
+    { "igb", "ari-nextfn-1", "on" },
+    { "nvme", "ari-nextfn-1", "on" },
 };
 const size_t hw_compat_8_0_len = G_N_ELEMENTS(hw_compat_8_0);
 

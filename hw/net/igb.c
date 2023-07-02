@@ -78,6 +78,8 @@ struct IGBState {
     uint32_t ioaddr;
 
     IGBCore core;
+
+    bool ari_nextfn_1;
 };
 
 #define IGB_CAP_SRIOV_OFFSET    (0x160)
@@ -431,7 +433,7 @@ static void igb_pci_realize(PCIDevice *pci_dev, Error **errp)
         hw_error("Failed to initialize AER capability");
     }
 
-    pcie_ari_init(pci_dev, 0x150, 1);
+    pcie_ari_init(pci_dev, 0x150, s->ari_nextfn_1 ? 1 : 0);
 
     pcie_sriov_pf_init(pci_dev, IGB_CAP_SRIOV_OFFSET, TYPE_IGBVF,
         IGB_82576_VF_DEV_ID, IGB_MAX_VF_FUNCTIONS, IGB_MAX_VF_FUNCTIONS,
@@ -582,6 +584,7 @@ static const VMStateDescription igb_vmstate = {
 
 static Property igb_properties[] = {
     DEFINE_NIC_PROPERTIES(IGBState, conf),
+    DEFINE_PROP_BOOL("ari-nextfn-1", IGBState, ari_nextfn_1, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
