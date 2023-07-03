@@ -182,6 +182,10 @@ struct AspeedMachineState {
 #define FUJI_BMC_HW_STRAP1    0x00000000
 #define FUJI_BMC_HW_STRAP2    0x00000000
 
+/* Montblanc hardware value */
+#define MONTBLANC_BMC_HW_STRAP1    0x00000000
+#define MONTBLANC_BMC_HW_STRAP2    0x00000000
+
 /* Bletchley hardware value */
 /* TODO: Leave same as EVB for now. */
 #define BLETCHLEY_BMC_HW_STRAP1 AST2600_EVB_HW_STRAP1
@@ -918,6 +922,39 @@ static void fuji_bmc_i2c_init(AspeedMachineState *bmc)
     }
 }
 
+static void montblanc_bmc_i2c_init(AspeedMachineState *bmc)
+{
+    AspeedSoCState *soc = &bmc->soc;
+    I2CBus *i2c[16] = {};
+
+    for (int i = 0; i < 16; i++) {
+        i2c[i] = aspeed_i2c_get_bus(&soc->i2c, i);
+    }
+
+    /* Ref from Minipack3_I2C_Tree_V1.6 20230320 */
+    at24c_eeprom_init_rom(i2c[3], 0x56, 8192, montblanc_scm_fruid, true);
+    at24c_eeprom_init_rom(i2c[6], 0x53, 8192, montblanc_fcm_fruid, true);
+
+    /* CPLD and FPGA */
+    at24c_eeprom_init(i2c[1], 0x35, 256);  /* SCM CPLD */
+    at24c_eeprom_init(i2c[5], 0x35, 256);  /* COMe CPLD TODO: need to update */
+    at24c_eeprom_init(i2c[12], 0x60, 256); /* MCB PWR CPLD */
+    at24c_eeprom_init(i2c[13], 0x35, 256); /* IOB FPGA */
+
+    /* on BMC board */
+    at24c_eeprom_init_rom(i2c[8], 0x51, 8192, montblanc_bmc_fruid, true);
+                                                      /* BMC EEPROM */
+    i2c_slave_create_simple(i2c[8], TYPE_LM75, 0x48); /* Thermal Sensor */
+
+    /* COMe Sensor/EEPROM */
+    at24c_eeprom_init(i2c[0], 0x56, 16384);          /* FRU EEPROM */
+    i2c_slave_create_simple(i2c[0], TYPE_LM75, 0x48); /* INLET Sensor */
+    i2c_slave_create_simple(i2c[0], TYPE_LM75, 0x4A); /* OUTLET Sensor */
+
+    /* It expects a pca9555 but a pca9552 is compatible */
+    create_pca9552(soc, 4, 0x27);
+}
+
 #define TYPE_TMP421 "tmp421"
 
 static void bletchley_bmc_i2c_init(AspeedMachineState *bmc)
@@ -1452,6 +1489,32 @@ static void aspeed_machine_fuji_class_init(ObjectClass *oc, void *data)
 
 /* On 32-bit hosts, lower RAM to 1G because of the 2047 MB limit */
 #if HOST_LONG_BITS == 32
+#define MONTBLANC_BMC_RAM_SIZE (1 * GiB)
+#else
+#define MONTBLANC_BMC_RAM_SIZE (2 * GiB)
+#endif
+static void aspeed_machine_montblanc_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
+
+    mc->desc = "Facebook Montblanc BMC (Cortex-A7)";
+    amc->soc_name = "ast2600-a3";
+    amc->hw_strap1 = MONTBLANC_BMC_HW_STRAP1;
+    amc->hw_strap2 = MONTBLANC_BMC_HW_STRAP2;
+    amc->fmc_model = "mx66l1g45g";
+    amc->spi_model = "mx66l1g45g";
+    amc->num_cs = 2;
+    amc->macs_mask = ASPEED_MAC3_ON;
+    amc->i2c_init = montblanc_bmc_i2c_init;
+    amc->uart_default = ASPEED_DEV_UART1;
+    mc->default_ram_size = MONTBLANC_BMC_RAM_SIZE;
+    mc->default_cpus = mc->min_cpus = mc->max_cpus =
+        aspeed_soc_num_cpus(amc->soc_name);
+};
+
+/* On 32-bit hosts, lower RAM to 1G because of the 2047 MB limit */
+#if HOST_LONG_BITS == 32
 #define BLETCHLEY_BMC_RAM_SIZE (1 * GiB)
 #else
 #define BLETCHLEY_BMC_RAM_SIZE (2 * GiB)
@@ -1706,6 +1769,10 @@ static const TypeInfo aspeed_machine_types[] = {
         .name          = MACHINE_TYPE_NAME("fuji-bmc"),
         .parent        = TYPE_ASPEED_MACHINE,
         .class_init    = aspeed_machine_fuji_class_init,
+    }, {
+        .name          = MACHINE_TYPE_NAME("montblanc-bmc"),
+        .parent        = TYPE_ASPEED_MACHINE,
+        .class_init    = aspeed_machine_montblanc_class_init,
     }, {
         .name          = MACHINE_TYPE_NAME("bletchley-bmc"),
         .parent        = TYPE_ASPEED_MACHINE,

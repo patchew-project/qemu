@@ -27,4 +27,11 @@ extern const size_t rainier_bb_fruid_len;
 extern const uint8_t rainier_bmc_fruid[];
 extern const size_t rainier_bmc_fruid_len;
 
+extern const uint8_t montblanc_scm_fruid[];
+extern const uint8_t montblanc_fcm_fruid[];
+extern const uint8_t montblanc_bmc_fruid[];
+extern const size_t montblanc_scm_fruid_len;
+extern const size_t montblanc_fcm_fruid_len;
+extern const size_t montblanc_bmc_fruid_len;
+
 #endif
