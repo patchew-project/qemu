@@ -369,14 +369,36 @@ foreach dir : target_dirs
         test: executable(test, src, dependencies: deps)
       }
     endif
-    test('qtest-@0@/@1@'.format(target_base, test),
-         qtest_executables[test],
-         depends: [test_deps, qtest_emulator, emulator_modules],
-         env: qtest_env,
-         args: ['--tap', '-k'],
-         protocol: 'tap',
-         timeout: slow_qtests.get(test, 30),
-         priority: slow_qtests.get(test, 30),
-         suite: ['qtest', 'qtest-' + target_base])
+
+    migtest = 'migration-test'
+    if test == migtest
+      migtests = run_command(python, files('gen_migration_tests_list.py'),
+                             meson.current_source_dir() / 'migration-test.c',
+                             check: true)
+
+      foreach item : migtests.stdout().strip().split('\n')
+        testname = '/@0@@1@'.format(target_base, item)
+
+        test(testname,
+             qtest_executables['migration-test'],
+             depends: [test_deps, qtest_emulator, emulator_modules],
+             env: qtest_env,
+             args: ['-k', '-p', testname],
+             protocol: 'tap',
+             timeout: slow_qtests.get(migtest),
+             priority: slow_qtests.get(migtest),
+             suite: ['migration'])
+      endforeach
+    else
+      test('qtest-@0@/@1@'.format(target_base, test),
+           qtest_executables[test],
+           depends: [test_deps, qtest_emulator, emulator_modules],
+           env: qtest_env,
+           args: ['--tap', '-k'],
+           protocol: 'tap',
+           timeout: slow_qtests.get(test, 30),
+           priority: slow_qtests.get(test, 30),
+           suite: ['qtest', 'qtest-' + target_base])
+      endif
   endforeach
 endforeach
