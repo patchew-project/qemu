@@ -659,6 +659,7 @@ safe_syscall4(pid_t, wait4, pid_t, pid, int *, status, int, options, \
 #endif
 safe_syscall5(int, waitid, idtype_t, idtype, id_t, id, siginfo_t *, infop, \
               int, options, struct rusage *, rusage)
+safe_syscall3(int, execve, const char *, filename, char **, argv, char **, envp)
 safe_syscall5(int, execveat, int, dirfd, const char *, filename,
               char **, argv, char **, envp, int, flags)
 #if defined(TARGET_NR_select) || defined(TARGET_NR__newselect) || \
@@ -8615,9 +8616,12 @@ ssize_t do_guest_readlink(const char *pathname, char *buf, size_t bufsiz)
     return ret;
 }
 
-static int do_execveat(CPUArchState *cpu_env, int dirfd,
-                       abi_long pathname, abi_long guest_argp,
-                       abi_long guest_envp, int flags)
+#define IS_EXECVEAT 0
+#define IS_EXECVE 1
+
+static int do_execv(CPUArchState *cpu_env, int dirfd,
+                    abi_long pathname, abi_long guest_argp,
+                    abi_long guest_envp, int flags, bool is_execve)
 {
     int ret;
     char **argp, **envp;
@@ -8696,10 +8700,18 @@ static int do_execveat(CPUArchState *cpu_env, int dirfd,
         goto execve_efault;
     }
 
-    if (is_proc_myself(p, "exe")) {
-        ret = get_errno(safe_execveat(dirfd, exec_path, argp, envp, flags));
+    if (is_execve == IS_EXECVE) {
+        if (is_proc_myself(p, "exe")) {
+            ret = get_errno(safe_execve(exec_path, argp, envp));
+        } else {
+            ret = get_errno(safe_execve(p, argp, envp));
+        }
     } else {
-        ret = get_errno(safe_execveat(dirfd, p, argp, envp, flags));
+        if (is_proc_myself(p, "exe")) {
+            ret = get_errno(safe_execveat(dirfd, exec_path, argp, envp, flags));
+        } else {
+            ret = get_errno(safe_execveat(dirfd, p, argp, envp, flags));
+        }
     }
 
     unlock_user(p, pathname, 0);
@@ -8727,6 +8739,25 @@ execve_end:
     g_free(envp);
     return ret;
 }
+
+static int do_execveat(CPUArchState *cpu_env, int dirfd,
+                       abi_long pathname, abi_long guest_argp,
+                       abi_long guest_envp, int flags)
+{
+    return do_execv(cpu_env, dirfd,
+                    pathname, guest_argp, guest_envp, flags,
+                    IS_EXECVEAT);
+}
+
+static int do_execve(CPUArchState *cpu_env,
+                     abi_long pathname, abi_long guest_argp,
+                     abi_long guest_envp)
+{
+    return do_execv(cpu_env, AT_FDCWD,
+                    pathname, guest_argp, guest_envp, 0,
+                    IS_EXECVE);
+}
+
 
 #define TIMER_MAGIC 0x0caf0000
 #define TIMER_MAGIC_MASK 0xffff0000
@@ -9253,7 +9284,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
     case TARGET_NR_execveat:
         return do_execveat(cpu_env, arg1, arg2, arg3, arg4, arg5);
     case TARGET_NR_execve:
-        return do_execveat(cpu_env, AT_FDCWD, arg1, arg2, arg3, 0);
+        return do_execve(cpu_env, arg1, arg2, arg3);
     case TARGET_NR_chdir:
         if (!(p = lock_user_string(arg1)))
             return -TARGET_EFAULT;
