@@ -191,8 +191,8 @@ static ArmTimer *arm_timer_init(uint32_t freq)
  * https://developer.arm.com/documentation/ddi0271/latest/
  */
 
-#define TYPE_SP804 "sp804"
-OBJECT_DECLARE_SIMPLE_TYPE(SP804Timer, SP804)
+#define TYPE_SP804_TIMER "sp804"
+OBJECT_DECLARE_SIMPLE_TYPE(SP804Timer, SP804_TIMER)
 
 struct SP804Timer {
     SysBusDevice parent_obj;
@@ -290,7 +290,7 @@ static const VMStateDescription vmstate_sp804 = {
 
 static void sp804_init(Object *obj)
 {
-    SP804Timer *s = SP804(obj);
+    SP804Timer *s = SP804_TIMER(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     sysbus_init_irq(sbd, &s->irq);
@@ -301,7 +301,7 @@ static void sp804_init(Object *obj)
 
 static void sp804_realize(DeviceState *dev, Error **errp)
 {
-    SP804Timer *s = SP804(dev);
+    SP804Timer *s = SP804_TIMER(dev);
 
     s->timer[0] = arm_timer_init(s->freq0);
     s->timer[1] = arm_timer_init(s->freq1);
@@ -403,7 +403,7 @@ static const TypeInfo arm_timer_types[] = {
         .instance_init  = icp_pit_init,
 
     }, {
-        .name           = TYPE_SP804,
+        .name           = TYPE_SP804_TIMER,
         .parent         = TYPE_SYS_BUS_DEVICE,
         .instance_size  = sizeof(SP804Timer),
         .instance_init  = sp804_init,
