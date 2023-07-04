@@ -9,9 +9,10 @@ AARCH64_SRC=$(SRC_PATH)/tests/tcg/aarch64
 VPATH 		+= $(AARCH64_SRC)
 
 # Base architecture tests
-AARCH64_TESTS=fcvt pcalign-a64
+AARCH64_TESTS=fcvt pcalign-a64 icivau
 
 fcvt: LDFLAGS+=-lm
+icivau: LDFLAGS+=-lrt
 
 run-fcvt: fcvt
 	$(call run-test,$<,$(QEMU) $<, "$< on $(TARGET_NAME)")
