@@ -1,6 +1,7 @@
 config ARM_TIMER
     bool
     select PTIMER
+    select OR_IRQ
 
 config ARM_MPTIMER
     bool
