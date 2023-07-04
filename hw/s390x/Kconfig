@@ -10,3 +10,7 @@ config S390_CCW_VIRTIO
     select SCLPCONSOLE
     select VIRTIO_CCW
     select MSI_NONBROKEN
+    imply PCI_EXPRESS
+    imply E1000E_PCI_EXPRESS
+    imply IGB_PCI_EXPRESS
+    imply USB_XHCI_PCI
