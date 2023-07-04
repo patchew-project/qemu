@@ -400,6 +400,7 @@ struct XiveRouterClass {
     int (*write_nvt)(XiveRouter *xrtr, uint8_t nvt_blk, uint32_t nvt_idx,
                      XiveNVT *nvt, uint8_t word_number);
     uint8_t (*get_block_id)(XiveRouter *xrtr);
+    void (*end_notify)(XiveRouter *xrtr, XiveEAS *eas);
 };
 
 int xive_router_get_eas(XiveRouter *xrtr, uint8_t eas_blk, uint32_t eas_idx,
@@ -413,6 +414,7 @@ int xive_router_get_nvt(XiveRouter *xrtr, uint8_t nvt_blk, uint32_t nvt_idx,
 int xive_router_write_nvt(XiveRouter *xrtr, uint8_t nvt_blk, uint32_t nvt_idx,
                           XiveNVT *nvt, uint8_t word_number);
 void xive_router_notify(XiveNotifier *xn, uint32_t lisn, bool pq_checked);
+void xive_router_end_notify(XiveRouter *xrtr, XiveEAS *eas);
 
 /*
  * XIVE Presenter
