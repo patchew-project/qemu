@@ -344,6 +344,7 @@ struct IntegratorPIT {
     MemoryRegion iomem;
     ArmTimer *timer[3];
     qemu_irq irq_in[3];
+    qemu_irq irq[3];
 };
 
 static uint64_t icp_pit_read(void *opaque, hwaddr offset,
@@ -383,6 +384,13 @@ static const MemoryRegionOps icp_pit_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static void icp_pit_fwd_irq(void *opaque, int n, int level)
+{
+    IntegratorPIT *s = opaque;
+
+    qemu_set_irq(s->irq[n], level);
+}
+
 static void icp_pit_init(Object *obj)
 {
     static const uint32_t tmr_freq[] = {
@@ -394,9 +402,14 @@ static void icp_pit_init(Object *obj)
     IntegratorPIT *s = INTEGRATOR_PIT(obj);
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
+    qdev_init_gpio_in_named(DEVICE(obj), icp_pit_fwd_irq,
+                            "timer-in", ARRAY_SIZE(s->timer));
+
     for (unsigned i = 0; i < ARRAY_SIZE(s->timer); i++) {
         s->timer[i] = arm_timer_new(tmr_freq[i], s->irq_in[i]);
-        sysbus_init_irq(dev, &s->irq_in[i]);
+        sysbus_init_irq(dev, &s->irq[i]);
+        sysbus_connect_irq(dev, i,
+                           qdev_get_gpio_in_named(DEVICE(obj), "timer-in", i));
     }
 
     memory_region_init_io(&s->iomem, obj, &icp_pit_ops, s,
