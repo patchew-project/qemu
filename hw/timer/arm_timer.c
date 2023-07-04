@@ -179,7 +179,7 @@ static void arm_timer_reset_hold(ArmTimer *s)
     s->control = TIMER_CTRL_IE;
 }
 
-static ArmTimer *arm_timer_init(uint32_t freq)
+static ArmTimer *arm_timer_new(uint32_t freq)
 {
     ArmTimer *s;
 
@@ -310,8 +310,8 @@ static void sp804_realize(DeviceState *dev, Error **errp)
 {
     SP804Timer *s = SP804_TIMER(dev);
 
-    s->timer[0] = arm_timer_init(s->freq0);
-    s->timer[1] = arm_timer_init(s->freq1);
+    s->timer[0] = arm_timer_new(s->freq0);
+    s->timer[1] = arm_timer_new(s->freq1);
     s->timer[0]->irq = qemu_allocate_irq(sp804_set_irq, s, 0);
     s->timer[1]->irq = qemu_allocate_irq(sp804_set_irq, s, 1);
 }
@@ -386,10 +386,10 @@ static void icp_pit_init(Object *obj)
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
     /* Timer 0 runs at the system clock speed (40MHz).  */
-    s->timer[0] = arm_timer_init(40000000);
+    s->timer[0] = arm_timer_new(40000000);
     /* The other two timers run at 1MHz.  */
-    s->timer[1] = arm_timer_init(1000000);
-    s->timer[2] = arm_timer_init(1000000);
+    s->timer[1] = arm_timer_new(1000000);
+    s->timer[2] = arm_timer_new(1000000);
 
     sysbus_init_irq(dev, &s->timer[0]->irq);
     sysbus_init_irq(dev, &s->timer[1]->irq);
