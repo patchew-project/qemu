@@ -68,22 +68,9 @@ typedef struct {
     int sg_cur_index;
     dma_addr_t sg_cur_byte;
     QEMUIOVector iov;
-    QEMUBH *bh;
     DMAIOFunc *io_func;
     void *io_func_opaque;
 } DMAAIOCB;
-
-static void dma_blk_cb(void *opaque, int ret);
-
-static void reschedule_dma(void *opaque)
-{
-    DMAAIOCB *dbs = (DMAAIOCB *)opaque;
-
-    assert(!dbs->acb && dbs->bh);
-    qemu_bh_delete(dbs->bh);
-    dbs->bh = NULL;
-    dma_blk_cb(dbs, 0);
-}
 
 static void dma_blk_unmap(DMAAIOCB *dbs)
 {
@@ -101,7 +88,6 @@ static void dma_complete(DMAAIOCB *dbs, int ret)
 {
     trace_dma_complete(dbs, ret, dbs->common.cb);
 
-    assert(!dbs->acb && !dbs->bh);
     dma_blk_unmap(dbs);
     if (dbs->common.cb) {
         dbs->common.cb(dbs->common.opaque, ret);
@@ -164,13 +150,6 @@ static void dma_blk_cb(void *opaque, int ret)
         }
     }
 
-    if (dbs->iov.size == 0) {
-        trace_dma_map_wait(dbs);
-        dbs->bh = aio_bh_new(ctx, reschedule_dma, dbs);
-        cpu_register_map_client(dbs->bh);
-        goto out;
-    }
-
     if (!QEMU_IS_ALIGNED(dbs->iov.size, dbs->align)) {
         qemu_iovec_discard_back(&dbs->iov,
                                 QEMU_ALIGN_DOWN(dbs->iov.size, dbs->align));
@@ -189,18 +168,12 @@ static void dma_aio_cancel(BlockAIOCB *acb)
 
     trace_dma_aio_cancel(dbs);
 
-    assert(!(dbs->acb && dbs->bh));
     if (dbs->acb) {
         /* This will invoke dma_blk_cb.  */
         blk_aio_cancel_async(dbs->acb);
         return;
     }
 
-    if (dbs->bh) {
-        cpu_unregister_map_client(dbs->bh);
-        qemu_bh_delete(dbs->bh);
-        dbs->bh = NULL;
-    }
     if (dbs->common.cb) {
         dbs->common.cb(dbs->common.opaque, -ECANCELED);
     }
@@ -239,7 +212,6 @@ BlockAIOCB *dma_blk_io(AioContext *ctx,
     dbs->dir = dir;
     dbs->io_func = io_func;
     dbs->io_func_opaque = io_func_opaque;
-    dbs->bh = NULL;
     qemu_iovec_init(&dbs->iov, sg->nsg);
     dma_blk_cb(dbs, 0);
     return &dbs->common;

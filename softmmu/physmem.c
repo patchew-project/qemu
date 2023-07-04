@@ -2908,49 +2908,6 @@ typedef struct {
     uint8_t buffer[];
 } BounceBuffer;
 
-static size_t bounce_buffers_in_use;
-
-typedef struct MapClient {
-    QEMUBH *bh;
-    QLIST_ENTRY(MapClient) link;
-} MapClient;
-
-QemuMutex map_client_list_lock;
-static QLIST_HEAD(, MapClient) map_client_list
-    = QLIST_HEAD_INITIALIZER(map_client_list);
-
-static void cpu_unregister_map_client_do(MapClient *client)
-{
-    QLIST_REMOVE(client, link);
-    g_free(client);
-}
-
-static void cpu_notify_map_clients_locked(void)
-{
-    MapClient *client;
-
-    while (!QLIST_EMPTY(&map_client_list)) {
-        client = QLIST_FIRST(&map_client_list);
-        qemu_bh_schedule(client->bh);
-        cpu_unregister_map_client_do(client);
-    }
-}
-
-void cpu_register_map_client(QEMUBH *bh)
-{
-    MapClient *client = g_malloc(sizeof(*client));
-
-    qemu_mutex_lock(&map_client_list_lock);
-    client->bh = bh;
-    QLIST_INSERT_HEAD(&map_client_list, client, link);
-    /* Write map_client_list before reading in_use.  */
-    smp_mb();
-    if (qatomic_read(&bounce_buffers_in_use)) {
-        cpu_notify_map_clients_locked();
-    }
-    qemu_mutex_unlock(&map_client_list_lock);
-}
-
 void cpu_exec_init_all(void)
 {
     qemu_mutex_init(&ram_list.mutex);
@@ -2964,28 +2921,6 @@ void cpu_exec_init_all(void)
     finalize_target_page_bits();
     io_mem_init();
     memory_map_init();
-    qemu_mutex_init(&map_client_list_lock);
-}
-
-void cpu_unregister_map_client(QEMUBH *bh)
-{
-    MapClient *client;
-
-    qemu_mutex_lock(&map_client_list_lock);
-    QLIST_FOREACH(client, &map_client_list, link) {
-        if (client->bh == bh) {
-            cpu_unregister_map_client_do(client);
-            break;
-        }
-    }
-    qemu_mutex_unlock(&map_client_list_lock);
-}
-
-static void cpu_notify_map_clients(void)
-{
-    qemu_mutex_lock(&map_client_list_lock);
-    cpu_notify_map_clients_locked();
-    qemu_mutex_unlock(&map_client_list_lock);
 }
 
 static bool flatview_access_valid(FlatView *fv, hwaddr addr, hwaddr len,
@@ -3077,8 +3012,6 @@ void *address_space_map(AddressSpace *as,
     memory_region_ref(mr);
 
     if (!memory_access_is_direct(mr, is_write)) {
-        qatomic_inc_fetch(&bounce_buffers_in_use);
-
         BounceBuffer *bounce = g_malloc(l + sizeof(BounceBuffer));
         bounce->addr = addr;
         bounce->mr = mr;
@@ -3122,10 +3055,6 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
         }
         memory_region_unref(bounce->mr);
         g_free(bounce);
-
-        if (qatomic_dec_fetch(&bounce_buffers_in_use) == 1) {
-            cpu_notify_map_clients();
-        }
         return;
     }
 
