@@ -1773,17 +1773,92 @@ static uint64_t pnv_xive_pc_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
     PnvXive *xive = PNV_XIVE(opaque);
+    uint32_t offset = (addr & 0x1F0) >> 4;
+    uint8_t nvt_blk;
+    uint32_t nvt_idx;
+    XiveNVT nvt;
+    uint8_t ipb;
+    uint64_t ret = -1;
 
-    xive_error(xive, "PC: invalid read @%"HWADDR_PRIx, addr);
-    return -1;
+    if (size != 8) {
+        xive_error(xive, "PC: invalid read size %d @%"HWADDR_PRIx"\n",
+                   size, addr);
+        return -1;
+    }
+
+    /* TODO: support multi block */
+    nvt_blk = pnv_xive_block_id(xive);
+    nvt_idx = addr >> TM_SHIFT;
+
+    if (xive_router_get_nvt(XIVE_ROUTER(xive), nvt_blk, nvt_idx, &nvt)) {
+        xive_error(xive, "PC: invalid NVT %x/%x\n", nvt_blk, nvt_idx);
+        return -1;
+    }
+
+    ipb = xive_get_field32(NVT_W4_IPB, nvt.w4);
+
+    switch (offset) {
+    case  0x0 ... 0x7: /* set IBP bit x */
+        ret = ipb;
+        ipb |= 1 << offset;
+        break;
+    case 0x10 ... 0x17: /* reset IBP bit x */
+        ret = ipb;
+        ipb &= ~(1 << (offset - 0x10));
+        break;
+
+    case  0x8 ... 0xF: /* TODO: increment backlog */
+        /* backlog = offset - 0x8; */
+    case 0x18 ... 0x1F: /* TODO: decrement backlog */
+        /* backlog = offset - 0x18; */
+    default:
+        xive_error(xive, "PC: invalid write @%"HWADDR_PRIx"\n", addr);
+    }
+
+    if (ipb != xive_get_field32(NVT_W4_IPB, nvt.w4)) {
+        nvt.w4 = xive_set_field32(NVT_W4_IPB, nvt.w4, ipb);
+        xive_router_write_nvt(XIVE_ROUTER(xive), nvt_blk, nvt_idx, &nvt, 4);
+    }
+
+    return ret;
 }
 
 static void pnv_xive_pc_write(void *opaque, hwaddr addr,
                               uint64_t value, unsigned size)
 {
     PnvXive *xive = PNV_XIVE(opaque);
+    uint32_t offset = (addr & 0x1F0) >> 4;
+    uint8_t nvt_blk;
+    uint32_t nvt_idx;
+    XiveNVT nvt;
 
-    xive_error(xive, "PC: invalid write to VC @%"HWADDR_PRIx, addr);
+    if (size != 1) {
+        xive_error(xive, "PC: invalid write size %d @%"HWADDR_PRIx"\n",
+                   size, addr);
+        return;
+    }
+
+    /* TODO: support multi block */
+    nvt_blk = pnv_xive_block_id(xive);
+    nvt_idx = addr >> TM_SHIFT;
+
+    if (xive_router_get_nvt(XIVE_ROUTER(xive), nvt_blk, nvt_idx, &nvt)) {
+        xive_error(xive, "PC: invalid NVT %x/%x\n", nvt_blk, nvt_idx);
+        return;
+    }
+
+    switch (offset) {
+    case  0x0 ... 0x7: /* ignored */
+    case 0x10 ... 0x17: /* ignored */
+        break;
+
+    case  0x8 ... 0xF: /* TODO: Add to backlog */
+        /* backlog = offset - 0x8; */
+    case 0x18 ... 0x1F: /* TODO: substract to backlog */
+        /* backlog = offset - 0x18; */
+    default:
+        xive_error(xive, "PC: invalid write @%"HWADDR_PRIx"\n", addr);
+    }
 }
 
 static const MemoryRegionOps pnv_xive_pc_ops = {
@@ -1791,11 +1866,11 @@ static const MemoryRegionOps pnv_xive_pc_ops = {
     .write = pnv_xive_pc_write,
     .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
-        .min_access_size = 8,
+        .min_access_size = 1,
         .max_access_size = 8,
     },
     .impl = {
-        .min_access_size = 8,
+        .min_access_size = 1,
         .max_access_size = 8,
     },
 };
