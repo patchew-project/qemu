@@ -262,15 +262,6 @@ static const uint8_t sp804_ids[] = {
 static uint64_t sp804_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
-    SP804Timer *s = opaque;
-
-    if (offset < 0x20) {
-        return arm_timer_read(&s->timer[0], offset, size);
-    }
-    if (offset < 0x40) {
-        return arm_timer_read(&s->timer[1], offset - 0x20, size);
-    }
-
     /* TimerPeriphID */
     if (offset >= 0xfe0 && offset <= 0xffc) {
         return sp804_ids[(offset - 0xfe0) >> 2];
@@ -294,18 +285,6 @@ static uint64_t sp804_read(void *opaque, hwaddr offset,
 static void sp804_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
-    SP804Timer *s = opaque;
-
-    if (offset < 0x20) {
-        arm_timer_write(&s->timer[0], offset, value, size);
-        return;
-    }
-
-    if (offset < 0x40) {
-        arm_timer_write(&s->timer[1], offset - 0x20, value, size);
-        return;
-    }
-
     /* Technically we could be writing to the Test Registers, but not likely */
     qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %x\n",
                   __func__, (int)offset);
@@ -374,6 +353,8 @@ static void sp804_realize(DeviceState *dev, Error **errp)
             return;
         }
         sysbus_connect_irq(tmr, 0, qdev_get_gpio_in(DEVICE(&s->irq_orgate), i));
+        memory_region_add_subregion_overlap(&s->iomem, 0x20 * i,
+                                            sysbus_mmio_get_region(tmr, 0), 1);
     }
 }
 
