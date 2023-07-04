@@ -393,6 +393,7 @@ static void sp804_class_init(ObjectClass *klass, void *data)
 }
 
 /* Integrator/CP timer module.  */
+/* ??? Don't know the PrimeCell ID for this device.  */
 
 #define TYPE_INTEGRATOR_PIT "integrator_pit"
 OBJECT_DECLARE_SIMPLE_TYPE(IntegratorPIT, INTEGRATOR_PIT)
@@ -403,43 +404,6 @@ struct IntegratorPIT {
     MemoryRegion iomem;
     ArmTimer timer[3];
     qemu_irq irq[3];
-};
-
-static uint64_t icp_pit_read(void *opaque, hwaddr offset,
-                             unsigned size)
-{
-    IntegratorPIT *s = opaque;
-    int n;
-
-    /* ??? Don't know the PrimeCell ID for this device.  */
-    n = offset >> 8;
-    if (n > 2) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad timer %d\n", __func__, n);
-        return 0;
-    }
-
-    return arm_timer_read(&s->timer[n], offset & 0xff, size);
-}
-
-static void icp_pit_write(void *opaque, hwaddr offset,
-                          uint64_t value, unsigned size)
-{
-    IntegratorPIT *s = opaque;
-    int n;
-
-    n = offset >> 8;
-    if (n > 2) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad timer %d\n", __func__, n);
-        return;
-    }
-
-    arm_timer_write(&s->timer[n], offset & 0xff, value, size);
-}
-
-static const MemoryRegionOps icp_pit_ops = {
-    .read = icp_pit_read,
-    .write = icp_pit_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void icp_pit_fwd_irq(void *opaque, int n, int level)
@@ -469,8 +433,7 @@ static void icp_pit_init(Object *obj)
         sysbus_init_irq(dev, &s->irq[i]);
     }
 
-    memory_region_init_io(&s->iomem, obj, &icp_pit_ops, s,
-                          "icp_pit", 0x1000);
+    memory_region_init(&s->iomem, obj, "icp_pit", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     /* This device has no state to save/restore.  The component timers will
        save themselves.  */
@@ -487,6 +450,8 @@ static void icp_pit_realize(DeviceState *dev, Error **errp)
             return;
         }
         sysbus_connect_irq(tmr, 0, qdev_get_gpio_in_named(dev, "timer-in", i));
+        memory_region_add_subregion(&s->iomem, 0x100 * i,
+                                    sysbus_mmio_get_region(tmr, 0));
     }
 }
 
