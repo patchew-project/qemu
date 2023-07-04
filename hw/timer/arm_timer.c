@@ -36,11 +36,11 @@ typedef struct {
     int freq;
     int int_level;
     qemu_irq irq;
-} arm_timer_state;
+} ArmTimer;
 
 /* Check all active timers, and schedule the next timer interrupt.  */
 
-static void arm_timer_update(arm_timer_state *s)
+static void arm_timer_update(ArmTimer *s)
 {
     /* Update interrupts.  */
     if (s->int_level && (s->control & TIMER_CTRL_IE)) {
@@ -52,7 +52,7 @@ static void arm_timer_update(arm_timer_state *s)
 
 static uint32_t arm_timer_read(void *opaque, hwaddr offset)
 {
-    arm_timer_state *s = opaque;
+    ArmTimer *s = opaque;
 
     switch (offset >> 2) {
     case 0: /* TimerLoad */
@@ -79,7 +79,7 @@ static uint32_t arm_timer_read(void *opaque, hwaddr offset)
  * Reset the timer limit after settings have changed.
  * May only be called from inside a ptimer transaction block.
  */
-static void arm_timer_recalibrate(arm_timer_state *s, int reload)
+static void arm_timer_recalibrate(ArmTimer *s, int reload)
 {
     uint32_t limit;
 
@@ -99,7 +99,7 @@ static void arm_timer_recalibrate(arm_timer_state *s, int reload)
 static void arm_timer_write(void *opaque, hwaddr offset,
                             uint32_t value)
 {
-    arm_timer_state *s = opaque;
+    ArmTimer *s = opaque;
     int freq;
 
     switch (offset >> 2) {
@@ -154,7 +154,7 @@ static void arm_timer_write(void *opaque, hwaddr offset,
 
 static void arm_timer_tick(void *opaque)
 {
-    arm_timer_state *s = opaque;
+    ArmTimer *s = opaque;
     s->int_level = 1;
     arm_timer_update(s);
 }
@@ -164,19 +164,19 @@ static const VMStateDescription vmstate_arm_timer = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(control, arm_timer_state),
-        VMSTATE_UINT32(limit, arm_timer_state),
-        VMSTATE_INT32(int_level, arm_timer_state),
-        VMSTATE_PTIMER(timer, arm_timer_state),
+        VMSTATE_UINT32(control, ArmTimer),
+        VMSTATE_UINT32(limit, ArmTimer),
+        VMSTATE_INT32(int_level, ArmTimer),
+        VMSTATE_PTIMER(timer, ArmTimer),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static arm_timer_state *arm_timer_init(uint32_t freq)
+static ArmTimer *arm_timer_init(uint32_t freq)
 {
-    arm_timer_state *s;
+    ArmTimer *s;
 
-    s = g_new0(arm_timer_state, 1);
+    s = g_new0(ArmTimer, 1);
     s->freq = freq;
     s->control = TIMER_CTRL_IE;
 
@@ -198,7 +198,7 @@ struct SP804State {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
-    arm_timer_state *timer[2];
+    ArmTimer *timer[2];
     uint32_t freq0, freq1;
     int level[2];
     qemu_irq irq;
@@ -333,7 +333,7 @@ struct IntegratorPIT {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
-    arm_timer_state *timer[3];
+    ArmTimer *timer[3];
 };
 
 static uint64_t icp_pit_read(void *opaque, hwaddr offset,
