@@ -206,7 +206,7 @@ struct SP804Timer {
 
     MemoryRegion iomem;
     ArmTimer *timer[2];
-    uint32_t freq0, freq1;
+    uint32_t freq[2];
     int level[2];
     qemu_irq irq;
 };
@@ -310,15 +310,15 @@ static void sp804_realize(DeviceState *dev, Error **errp)
 {
     SP804Timer *s = SP804_TIMER(dev);
 
-    s->timer[0] = arm_timer_new(s->freq0);
-    s->timer[1] = arm_timer_new(s->freq1);
+    s->timer[0] = arm_timer_new(s->freq[0]);
+    s->timer[1] = arm_timer_new(s->freq[1]);
     s->timer[0]->irq = qemu_allocate_irq(sp804_set_irq, s, 0);
     s->timer[1]->irq = qemu_allocate_irq(sp804_set_irq, s, 1);
 }
 
 static Property sp804_properties[] = {
-    DEFINE_PROP_UINT32("freq0", SP804Timer, freq0, 1000000),
-    DEFINE_PROP_UINT32("freq1", SP804Timer, freq1, 1000000),
+    DEFINE_PROP_UINT32("freq0", SP804Timer, freq[0], 1000000),
+    DEFINE_PROP_UINT32("freq1", SP804Timer, freq[1], 1000000),
     DEFINE_PROP_END_OF_LIST(),
 };
 
