@@ -991,7 +991,7 @@ static void pnv_xive_ic_reg_write(void *opaque, hwaddr offset,
                 memory_region_del_subregion(&xive->ic_mmio,
                                             &xive->ic_notify_mmio);
                 memory_region_del_subregion(&xive->ic_mmio,
-                                            &xive->ic_lsi_mmio);
+                                            &xive->lsi_source.esb_mmio);
                 memory_region_del_subregion(&xive->ic_mmio,
                                             &xive->tm_indirect_mmio);
 
@@ -1010,7 +1010,7 @@ static void pnv_xive_ic_reg_write(void *opaque, hwaddr offset,
                                             &xive->ic_notify_mmio);
                 memory_region_add_subregion(&xive->ic_mmio,
                                             2ul << xive->ic_shift,
-                                            &xive->ic_lsi_mmio);
+                                            &xive->lsi_source.esb_mmio);
                 memory_region_add_subregion(&xive->ic_mmio,
                                             4ull << xive->ic_shift,
                                             &xive->tm_indirect_mmio);
@@ -1503,38 +1503,8 @@ static const MemoryRegionOps pnv_xive_ic_notify_ops = {
 };
 
 /*
- * IC - LSI MMIO handlers (not modeled)
+ * IC - LSI MMIO handlers
  */
-
-static void pnv_xive_ic_lsi_write(void *opaque, hwaddr addr,
-                              uint64_t val, unsigned size)
-{
-    PnvXive *xive = PNV_XIVE(opaque);
-
-    xive_error(xive, "IC: LSI invalid write @%"HWADDR_PRIx, addr);
-}
-
-static uint64_t pnv_xive_ic_lsi_read(void *opaque, hwaddr addr, unsigned size)
-{
-    PnvXive *xive = PNV_XIVE(opaque);
-
-    xive_error(xive, "IC: LSI invalid read @%"HWADDR_PRIx, addr);
-    return -1;
-}
-
-static const MemoryRegionOps pnv_xive_ic_lsi_ops = {
-    .read = pnv_xive_ic_lsi_read,
-    .write = pnv_xive_ic_lsi_write,
-    .endianness = DEVICE_BIG_ENDIAN,
-    .valid = {
-        .min_access_size = 8,
-        .max_access_size = 8,
-    },
-    .impl = {
-        .min_access_size = 8,
-        .max_access_size = 8,
-    },
-};
 
 /*
  * IC - Indirect TIMA MMIO handlers
@@ -1975,6 +1945,10 @@ static void pnv_xive_init(Object *obj)
                             TYPE_XIVE_SOURCE);
     object_initialize_child(obj, "end_source", &xive->end_source,
                             TYPE_XIVE_END_SOURCE);
+    object_initialize_child(obj, "lsi_source", &xive->lsi_source,
+                            TYPE_XIVE_SOURCE);
+    object_initialize_child(obj, "xive_lsi", &xive->lsi_xive,
+                            TYPE_PNV_XIVE_LSI);
 }
 
 /*
@@ -1988,6 +1962,7 @@ static void pnv_xive_realize(DeviceState *dev, Error **errp)
     PnvXive *xive = PNV_XIVE(dev);
     PnvXiveClass *pxc = PNV_XIVE_GET_CLASS(dev);
     XiveSource *xsrc = &xive->ipi_source;
+    XiveSource *lsi_xsrc = &xive->lsi_source;
     XiveENDSource *end_xsrc = &xive->end_source;
     Error *local_err = NULL;
 
@@ -2037,9 +2012,20 @@ static void pnv_xive_realize(DeviceState *dev, Error **errp)
                           &pnv_xive_ic_notify_ops,
                           xive, "xive-ic-notify", 1 << xive->ic_shift);
 
-    /* The Pervasive LSI trigger and EOI pages (not modeled) */
-    memory_region_init_io(&xive->ic_lsi_mmio, OBJECT(dev), &pnv_xive_ic_lsi_ops,
-                          xive, "xive-ic-lsi", 2 << xive->ic_shift);
+    /* The Pervasive LSI trigger and EOI pages */
+
+    object_property_set_link(OBJECT(&xive->lsi_xive), "xive", OBJECT(xive),
+                             &error_abort);
+    if (!qdev_realize(DEVICE(&xive->lsi_xive), NULL, errp)) {
+        return;
+    }
+
+    object_property_set_int(OBJECT(lsi_xsrc), "nr-irqs", 1, &error_fatal);
+    object_property_set_link(OBJECT(lsi_xsrc), "xive", OBJECT(&xive->lsi_xive),
+                             &error_abort);
+    if (!qdev_realize(DEVICE(lsi_xsrc), NULL, &local_err)) {
+        return;
+    }
 
     /* Thread Interrupt Management Area (Indirect) */
     memory_region_init_io(&xive->tm_indirect_mmio, OBJECT(dev),
@@ -2156,9 +2142,60 @@ static const TypeInfo pnv_xive_info = {
     }
 };
 
+/*
+ * Notifier proxy for LSI sources
+ *
+ * Trigger all threads 0
+ */
+static void pnv_xive_lsi_notify(XiveNotifier *xn, uint32_t srcno,
+                                bool pq_checked)
+{
+    PnvXive *xive = PNV_XIVE_LSI(xn)->xive;
+    PnvChip *chip = xive->chip;
+    int i;
+
+    for (i = 0; i < chip->nr_cores; i++) {
+        PowerPCCPU *cpu = chip->cores[i]->threads[0];
+
+        if (!pnv_xive_is_cpu_enabled(xive, cpu)) {
+            continue;
+        }
+
+        xive_tctx_lsi_notify(XIVE_TCTX(pnv_cpu_state(cpu)->intc));
+    }
+}
+
+static Property pnv_xive_lsi_properties[] = {
+    DEFINE_PROP_LINK("xive", PnvXiveLsi, xive, TYPE_PNV_XIVE, PnvXive *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void pnv_xive_lsi_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    XiveNotifierClass *xnc = XIVE_NOTIFIER_CLASS(klass);
+
+    dc->desc = "PowerNV XIVE LSI proxy";
+    device_class_set_props(dc, pnv_xive_lsi_properties);
+
+    xnc->notify = pnv_xive_lsi_notify;
+};
+
+static const TypeInfo pnv_xive_lsi_info = {
+    .name          = TYPE_PNV_XIVE_LSI,
+    .parent        = TYPE_DEVICE,
+    .instance_size = sizeof(PnvXiveLsi),
+    .class_init    = pnv_xive_lsi_class_init,
+    .interfaces    = (InterfaceInfo[]) {
+        { TYPE_XIVE_NOTIFIER },
+        { }
+    }
+};
+
 static void pnv_xive_register_types(void)
 {
     type_register_static(&pnv_xive_info);
+    type_register_static(&pnv_xive_lsi_info);
 }
 
 type_init(pnv_xive_register_types)

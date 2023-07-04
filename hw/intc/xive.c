@@ -90,6 +90,8 @@ static uint64_t xive_tctx_accept(XiveTCTX *tctx, uint8_t ring)
                                regs[TM_CPPR], regs[TM_NSR]);
     }
 
+    /* TODO: drop LP bit when LE is set */
+
     return (nsr << 8) | regs[TM_CPPR];
 }
 
@@ -151,6 +153,26 @@ void xive_tctx_ipb_update(XiveTCTX *tctx, uint8_t ring, uint8_t ipb)
     regs[TM_IPB] |= ipb;
     regs[TM_PIPR] = ipb_to_pipr(regs[TM_IPB]);
     xive_tctx_notify(tctx, ring);
+}
+
+void xive_tctx_lsi_notify(XiveTCTX *tctx)
+{
+    uint32_t qw3w2 = xive_tctx_word2(&tctx->regs[TM_QW3_HV_PHYS]);
+    uint8_t *regs = &tctx->regs[TM_QW3_HV_PHYS];
+
+    /*
+     * If the HW context (VT) is enabled and the LSI enabled (LE) bit
+     * is set, raise the LSI pending bit and notify the CPU on the HV
+     * line.
+     */
+    if ((be32_to_cpu(qw3w2) & (TM_QW3W2_VT | TM_QW3W2_LE)) ==
+        (TM_QW3W2_VT | TM_QW3W2_LE)) {
+        qw3w2 = xive_set_field32(TM_QW3W2_LP, qw3w2, 1);
+        memcpy(&tctx->regs[TM_QW3_HV_PHYS + TM_WORD2], &qw3w2, 4);
+
+        regs[TM_NSR] |= (TM_QW3_NSR_HE_LSI << 6);
+        qemu_irq_raise(xive_tctx_output(tctx, TM_QW3_HV_PHYS));
+    }
 }
 
 /*

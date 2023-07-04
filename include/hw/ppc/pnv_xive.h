@@ -15,6 +15,17 @@
 #include "qom/object.h"
 #include "hw/ppc/xive2.h"
 
+struct PnvXive;
+
+#define TYPE_PNV_XIVE_LSI "pnv-xive-lsi"
+#define PNV_XIVE_LSI(obj) OBJECT_CHECK(PnvXiveLsi, (obj), TYPE_PNV_XIVE_LSI)
+
+typedef struct PnvXiveLsi {
+    DeviceState  parent_obj;
+
+    struct PnvXive   *xive;
+} PnvXiveLsi;
+
 #define TYPE_PNV_XIVE "pnv-xive"
 OBJECT_DECLARE_TYPE(PnvXive, PnvXiveClass,
                     PNV_XIVE)
@@ -70,6 +81,10 @@ struct PnvXive {
     /* Our XIVE source objects for IPIs and ENDs */
     XiveSource    ipi_source;
     XiveENDSource end_source;
+
+    /* Lsi handlers */
+    PnvXiveLsi    lsi_xive;
+    XiveSource    lsi_source;
 
     /* Interrupt controller registers */
     uint64_t      regs[0x300];
