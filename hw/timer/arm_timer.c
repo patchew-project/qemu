@@ -172,13 +172,20 @@ static const VMStateDescription vmstate_arm_timer = {
     }
 };
 
+static void arm_timer_reset_hold(ArmTimer *s)
+{
+    s->limit = 0;
+    s->int_level = 0;
+    s->control = TIMER_CTRL_IE;
+}
+
 static ArmTimer *arm_timer_init(uint32_t freq)
 {
     ArmTimer *s;
 
     s = g_new0(ArmTimer, 1);
     s->freq = freq;
-    s->control = TIMER_CTRL_IE;
+    arm_timer_reset_hold(s);
 
     s->timer = ptimer_init(arm_timer_tick, s, PTIMER_POLICY_LEGACY);
     vmstate_register(NULL, VMSTATE_INSTANCE_ID_ANY, &vmstate_arm_timer, s);
