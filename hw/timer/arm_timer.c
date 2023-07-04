@@ -408,8 +408,6 @@ static void icp_pit_init(Object *obj)
     for (unsigned i = 0; i < ARRAY_SIZE(s->timer); i++) {
         s->timer[i] = arm_timer_new(tmr_freq[i], s->irq_in[i]);
         sysbus_init_irq(dev, &s->irq[i]);
-        sysbus_connect_irq(dev, i,
-                           qdev_get_gpio_in_named(DEVICE(obj), "timer-in", i));
     }
 
     memory_region_init_io(&s->iomem, obj, &icp_pit_ops, s,
@@ -419,12 +417,31 @@ static void icp_pit_init(Object *obj)
        save themselves.  */
 }
 
+static void icp_pit_realize(DeviceState *dev, Error **errp)
+{
+    IntegratorPIT *s = INTEGRATOR_PIT(dev);
+
+    for (unsigned i = 0; i < ARRAY_SIZE(s->timer); i++) {
+        SysBusDevice *tmr = SYS_BUS_DEVICE(&s->timer[i]);
+
+        sysbus_connect_irq(tmr, i, qdev_get_gpio_in_named(dev, "timer-in", i));
+    }
+}
+
+static void icp_pit_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *k = DEVICE_CLASS(klass);
+
+    k->realize = icp_pit_realize;
+}
+
 static const TypeInfo arm_timer_types[] = {
     {
         .name           = TYPE_INTEGRATOR_PIT,
         .parent         = TYPE_SYS_BUS_DEVICE,
         .instance_size  = sizeof(IntegratorPIT),
         .instance_init  = icp_pit_init,
+        .class_init     = icp_pit_class_init,
 
     }, {
         .name           = TYPE_SP804_TIMER,
