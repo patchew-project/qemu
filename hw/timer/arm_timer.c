@@ -192,9 +192,9 @@ static ArmTimer *arm_timer_init(uint32_t freq)
  */
 
 #define TYPE_SP804 "sp804"
-OBJECT_DECLARE_SIMPLE_TYPE(SP804State, SP804)
+OBJECT_DECLARE_SIMPLE_TYPE(SP804Timer, SP804)
 
-struct SP804State {
+struct SP804Timer {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -214,7 +214,7 @@ static const uint8_t sp804_ids[] = {
 /* Merge the IRQs from the two component devices.  */
 static void sp804_set_irq(void *opaque, int irq, int level)
 {
-    SP804State *s = opaque;
+    SP804Timer *s = opaque;
 
     s->level[irq] = level;
     qemu_set_irq(s->irq, s->level[0] || s->level[1]);
@@ -223,7 +223,7 @@ static void sp804_set_irq(void *opaque, int irq, int level)
 static uint64_t sp804_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
-    SP804State *s = opaque;
+    SP804Timer *s = opaque;
 
     if (offset < 0x20) {
         return arm_timer_read(s->timer[0], offset);
@@ -255,7 +255,7 @@ static uint64_t sp804_read(void *opaque, hwaddr offset,
 static void sp804_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
-    SP804State *s = opaque;
+    SP804Timer *s = opaque;
 
     if (offset < 0x20) {
         arm_timer_write(s->timer[0], offset, value);
@@ -283,14 +283,14 @@ static const VMStateDescription vmstate_sp804 = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_INT32_ARRAY(level, SP804State, 2),
+        VMSTATE_INT32_ARRAY(level, SP804Timer, 2),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static void sp804_init(Object *obj)
 {
-    SP804State *s = SP804(obj);
+    SP804Timer *s = SP804(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     sysbus_init_irq(sbd, &s->irq);
@@ -301,7 +301,7 @@ static void sp804_init(Object *obj)
 
 static void sp804_realize(DeviceState *dev, Error **errp)
 {
-    SP804State *s = SP804(dev);
+    SP804Timer *s = SP804(dev);
 
     s->timer[0] = arm_timer_init(s->freq0);
     s->timer[1] = arm_timer_init(s->freq1);
@@ -310,8 +310,8 @@ static void sp804_realize(DeviceState *dev, Error **errp)
 }
 
 static Property sp804_properties[] = {
-    DEFINE_PROP_UINT32("freq0", SP804State, freq0, 1000000),
-    DEFINE_PROP_UINT32("freq1", SP804State, freq1, 1000000),
+    DEFINE_PROP_UINT32("freq0", SP804Timer, freq0, 1000000),
+    DEFINE_PROP_UINT32("freq1", SP804Timer, freq1, 1000000),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -405,7 +405,7 @@ static const TypeInfo arm_timer_types[] = {
     }, {
         .name           = TYPE_SP804,
         .parent         = TYPE_SYS_BUS_DEVICE,
-        .instance_size  = sizeof(SP804State),
+        .instance_size  = sizeof(SP804Timer),
         .instance_init  = sp804_init,
         .class_init     = sp804_class_init,
     }
