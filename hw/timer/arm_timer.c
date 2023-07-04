@@ -50,7 +50,7 @@ static void arm_timer_update(ArmTimer *s)
     }
 }
 
-static uint32_t arm_timer_read(void *opaque, hwaddr offset)
+static uint64_t arm_timer_read(void *opaque, hwaddr offset, unsigned size)
 {
     ArmTimer *s = opaque;
 
@@ -97,7 +97,7 @@ static void arm_timer_recalibrate(ArmTimer *s, int reload)
 }
 
 static void arm_timer_write(void *opaque, hwaddr offset,
-                            uint32_t value)
+                            uint64_t value, unsigned size)
 {
     ArmTimer *s = opaque;
     int freq;
@@ -233,10 +233,10 @@ static uint64_t sp804_read(void *opaque, hwaddr offset,
     SP804Timer *s = opaque;
 
     if (offset < 0x20) {
-        return arm_timer_read(s->timer[0], offset);
+        return arm_timer_read(&s->timer[0], offset, size);
     }
     if (offset < 0x40) {
-        return arm_timer_read(s->timer[1], offset - 0x20);
+        return arm_timer_read(&s->timer[1], offset - 0x20, size);
     }
 
     /* TimerPeriphID */
@@ -265,12 +265,12 @@ static void sp804_write(void *opaque, hwaddr offset,
     SP804Timer *s = opaque;
 
     if (offset < 0x20) {
-        arm_timer_write(s->timer[0], offset, value);
+        arm_timer_write(&s->timer[0], offset, value, size);
         return;
     }
 
     if (offset < 0x40) {
-        arm_timer_write(s->timer[1], offset - 0x20, value);
+        arm_timer_write(&s->timer[1], offset - 0x20, value, size);
         return;
     }
 
@@ -356,7 +356,7 @@ static uint64_t icp_pit_read(void *opaque, hwaddr offset,
         return 0;
     }
 
-    return arm_timer_read(s->timer[n], offset & 0xff);
+    return arm_timer_read(&s->timer[n], offset & 0xff, size);
 }
 
 static void icp_pit_write(void *opaque, hwaddr offset,
@@ -371,7 +371,7 @@ static void icp_pit_write(void *opaque, hwaddr offset,
         return;
     }
 
-    arm_timer_write(s->timer[n], offset & 0xff, value);
+    arm_timer_write(&s->timer[n], offset & 0xff, value, size);
 }
 
 static const MemoryRegionOps icp_pit_ops = {
