@@ -33,7 +33,7 @@ typedef struct {
     ptimer_state *timer;
     uint32_t control;
     uint32_t limit;
-    int freq;
+    uint32_t freq;
     int int_level;
     qemu_irq irq;
 } ArmTimer;
