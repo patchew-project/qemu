@@ -161,7 +161,7 @@ void migration_object_init(void)
     dirty_bitmap_mig_init();
 }
 
-void migration_cancel(const Error *error)
+void migration_cancel(Error *error)
 {
     if (error) {
         migrate_set_error(current_migration, error);
@@ -1205,11 +1205,20 @@ static void migrate_fd_cleanup_bh(void *opaque)
     object_unref(OBJECT(s));
 }
 
-void migrate_set_error(MigrationState *s, const Error *error)
+/*
+ * Set error for current migration state.  The `error' ownership will be
+ * moved from the caller to MigrationState, so the caller doesn't need to
+ * free the error.
+ *
+ * If the caller still needs to reference the `error' passed in, one should
+ * use error_copy() explicitly.
+ */
+void migrate_set_error(MigrationState *s, Error *error)
 {
     QEMU_LOCK_GUARD(&s->error_mutex);
     if (!s->error) {
-        s->error = error_copy(error);
+        /* Record the first error triggered */
+        s->error = error;
     }
 }
 
@@ -1222,7 +1231,7 @@ static void migrate_error_free(MigrationState *s)
     }
 }
 
-void migrate_fd_error(MigrationState *s, const Error *error)
+void migrate_fd_error(MigrationState *s, Error *error)
 {
     trace_migrate_fd_error(error_get_pretty(error));
     assert(s->to_dst_file == NULL);
@@ -1688,7 +1697,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         if (!(has_resume && resume)) {
             yank_unregister_instance(MIGRATION_YANK_INSTANCE);
         }
-        migrate_fd_error(s, local_err);
+        migrate_fd_error(s, error_copy(local_err));
         error_propagate(errp, local_err);
         return;
     }
@@ -2611,7 +2620,6 @@ static MigThrError migration_detect_error(MigrationState *s)
 
     if (local_error) {
         migrate_set_error(s, local_error);
-        error_free(local_error);
     }
 
     if (state == MIGRATION_STATUS_POSTCOPY_ACTIVE && ret) {

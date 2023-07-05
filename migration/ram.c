@@ -4267,7 +4267,6 @@ static void ram_mig_ram_block_resized(RAMBlockNotifier *n, void *host,
          */
         error_setg(&err, "RAM block '%s' resized during precopy.", rb->idstr);
         migration_cancel(err);
-        error_free(err);
     }
 
     switch (ps) {

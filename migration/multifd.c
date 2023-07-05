@@ -551,7 +551,6 @@ void multifd_save_cleanup(void)
         multifd_send_state->ops->send_cleanup(p, &local_err);
         if (local_err) {
             migrate_set_error(migrate_get_current(), local_err);
-            error_free(local_err);
         }
     }
     qemu_sem_destroy(&multifd_send_state->channels_ready);
@@ -750,7 +749,6 @@ out:
     if (local_err) {
         trace_multifd_send_error(p->id);
         multifd_send_terminate_threads(local_err);
-        error_free(local_err);
     }
 
     /*
@@ -883,7 +881,6 @@ static void multifd_new_send_channel_cleanup(MultiFDSendParams *p,
       */
      p->quit = true;
      object_unref(OBJECT(ioc));
-     error_free(err);
 }
 
 static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
@@ -1148,7 +1145,6 @@ static void *multifd_recv_thread(void *opaque)
 
     if (local_err) {
         multifd_recv_terminate_threads(local_err);
-        error_free(local_err);
     }
     qemu_mutex_lock(&p->mutex);
     p->running = false;
@@ -1240,7 +1236,8 @@ void multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
 
     id = multifd_recv_initial_packet(ioc, &local_err);
     if (id < 0) {
-        multifd_recv_terminate_threads(local_err);
+        /* Copy local error because we'll also return it to caller */
+        multifd_recv_terminate_threads(error_copy(local_err));
         error_propagate_prepend(errp, local_err,
                                 "failed to receive packet"
                                 " via multifd channel %d: ",
@@ -1253,7 +1250,8 @@ void multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
     if (p->c != NULL) {
         error_setg(&local_err, "multifd: received id '%d' already setup'",
                    id);
-        multifd_recv_terminate_threads(local_err);
+        /* Copy local error because we'll also return it to caller */
+        multifd_recv_terminate_threads(error_copy(local_err));
         error_propagate(errp, local_err);
         return;
     }
