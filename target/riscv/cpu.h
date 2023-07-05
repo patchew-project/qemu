@@ -194,6 +194,7 @@ struct CPUArchState {
     uint64_t mideleg;
 
     target_ulong satp;   /* since: priv-1.10.0 */
+    target_ulong asid_clear;    /* always clear these bits in satp */
     target_ulong stval;
     target_ulong medeleg;
 

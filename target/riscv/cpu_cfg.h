@@ -128,6 +128,7 @@ struct RISCVCPUConfig {
     bool short_isa_string;
 
 #ifndef CONFIG_USER_ONLY
+    int32_t asid_bits;
     RISCVSATPMap satp_mode;
 #endif
 };

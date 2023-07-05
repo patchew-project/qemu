@@ -617,11 +617,13 @@ typedef enum {
 /* RV32 satp CSR field masks */
 #define SATP32_MODE         0x80000000
 #define SATP32_ASID         0x7fc00000
+#define SATP32_ASID_SHIFT   22
 #define SATP32_PPN          0x003fffff
 
 /* RV64 satp CSR field masks */
 #define SATP64_MODE         0xF000000000000000ULL
 #define SATP64_ASID         0x0FFFF00000000000ULL
+#define SATP64_ASID_SHIFT   44
 #define SATP64_PPN          0x00000FFFFFFFFFFFULL
 
 /* VM modes (satp.mode) privileged ISA 1.10 */

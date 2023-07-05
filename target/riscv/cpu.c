@@ -1281,6 +1281,38 @@ static void riscv_cpu_satp_mode_finalize(RISCVCPU *cpu, Error **errp)
         }
     }
 }
+
+static void riscv_cpu_asid_finalized_features(RISCVCPU *cpu, Error **errp)
+{
+    bool rv32 = riscv_cpu_mxl(&cpu->env) == MXL_RV32;
+    target_ulong asid_mask, asid_shift;
+    target_ulong calc_mask;
+
+    if (rv32) {
+        asid_mask = SATP32_ASID;
+        asid_shift = SATP32_ASID_SHIFT;
+    } else {
+        asid_mask = SATP64_ASID;
+        asid_shift = SATP64_ASID_SHIFT;
+    }
+
+    if (cpu->cfg.asid_bits < 0) {
+        cpu->env.asid_clear = 0;
+        return;
+    }
+
+    calc_mask = ((target_ulong)1 << cpu->cfg.asid_bits) - 1;
+    calc_mask <<= asid_shift;
+
+    if (calc_mask > asid_mask) {
+        error_setg(errp, "invalid ASID bits [0 %d]",
+                   __builtin_clz(asid_mask >> asid_shift));
+        return;
+    }
+
+    cpu->env.asid_clear = calc_mask ^ asid_mask;
+}
+
 #endif
 
 static void riscv_cpu_finalize_features(RISCVCPU *cpu, Error **errp)
@@ -1289,6 +1321,12 @@ static void riscv_cpu_finalize_features(RISCVCPU *cpu, Error **errp)
     Error *local_err = NULL;
 
     riscv_cpu_satp_mode_finalize(cpu, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    riscv_cpu_asid_finalized_features(cpu, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         return;
@@ -1647,6 +1685,10 @@ static Property riscv_cpu_extensions[] = {
     DEFINE_PROP_UINT16("cbom_blocksize", RISCVCPU, cfg.cbom_blocksize, 64),
     DEFINE_PROP_BOOL("zicboz", RISCVCPU, cfg.ext_icboz, true),
     DEFINE_PROP_UINT16("cboz_blocksize", RISCVCPU, cfg.cboz_blocksize, 64),
+
+#ifndef CONFIG_USER_ONLY
+    DEFINE_PROP_INT32("asid-bits",  RISCVCPU, cfg.asid_bits, -1),
+#endif
 
     DEFINE_PROP_BOOL("zmmul", RISCVCPU, cfg.ext_zmmul, false),
 
