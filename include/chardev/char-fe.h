@@ -179,8 +179,8 @@ typedef gboolean (*FEWatchFunc)(void *do_not_use, GIOCondition condition, void *
 
 /**
  * qemu_chr_fe_add_watch:
- * @cond: the condition to poll for
- * @func: the function to call when the condition happens
+ * @cond: bitwise combination of conditions to poll for
+ * @func: the function to call when the conditions are satisfied
  * @user_data: the opaque pointer to pass to @func
  *
  * If the backend is connected, create and add a #GSource that fires
