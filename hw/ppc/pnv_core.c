@@ -248,9 +248,8 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
     }
 
     snprintf(name, sizeof(name), "xscom-core.%d", cc->core_id);
-    /* TODO: check PNV_XSCOM_EX_SIZE for p10 */
     pnv_xscom_region_init(&pc->xscom_regs, OBJECT(dev), pcc->xscom_ops,
-                          pc, name, PNV_XSCOM_EX_SIZE);
+                          pc, name, PNV10_XSCOM_EC_SIZE);
 
     qemu_register_reset(pnv_core_reset, pc);
     return;
