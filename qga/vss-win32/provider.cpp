@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "vss-common.h"
+#include "vss-debug.h"
 #ifdef HAVE_VSS_SDK
 #include <vscoordint.h>
 #else
@@ -529,9 +530,11 @@ STDAPI DllCanUnloadNow()
 EXTERN_C
 BOOL WINAPI DllMain(HINSTANCE hinstDll, DWORD dwReason, LPVOID lpReserved)
 {
+    PRINT_DEBUG("begin, reason = %lu", dwReason);
     if (dwReason == DLL_PROCESS_ATTACH) {
         g_hinstDll = hinstDll;
         DisableThreadLibraryCalls(hinstDll);
     }
+    PRINT_DEBUG_END;
     return TRUE;
 }
