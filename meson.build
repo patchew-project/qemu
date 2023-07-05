@@ -1891,6 +1891,18 @@ if libbpf.found() and not cc.links('''
   endif
 endif
 
+# libxdp
+libxdp = dependency('libxdp', required: get_option('af_xdp'), method: 'pkg-config')
+if libxdp.found() and \
+      not (libbpf.found() and libbpf.version().version_compare('>=0.7'))
+  libxdp = not_found
+  if get_option('af_xdp').enabled()
+    error('af-xdp support requires libbpf version >= 0.7')
+  else
+    warning('af-xdp support requires libbpf version >= 0.7, disabling')
+  endif
+endif
+
 # libdw
 libdw = not_found
 if not get_option('libdw').auto() or \
@@ -2112,6 +2124,12 @@ config_host_data.set('CONFIG_HEXAGON_IDEF_PARSER', get_option('hexagon_idef_pars
 config_host_data.set('CONFIG_LIBATTR', have_old_libattr)
 config_host_data.set('CONFIG_LIBCAP_NG', libcap_ng.found())
 config_host_data.set('CONFIG_EBPF', libbpf.found())
+config_host_data.set('CONFIG_AF_XDP', libxdp.found())
+if libxdp.found()
+  config_host_data.set('HAVE_XSK_UMEM__CREATE_WITH_FD',
+                       cc.has_function('xsk_umem__create_with_fd',
+                                       dependencies: libxdp))
+endif
 config_host_data.set('CONFIG_LIBDAXCTL', libdaxctl.found())
 config_host_data.set('CONFIG_LIBISCSI', libiscsi.found())
 config_host_data.set('CONFIG_LIBNFS', libnfs.found())
@@ -4285,6 +4303,7 @@ summary_info += {'PVRDMA support':    have_pvrdma}
 summary_info += {'fdt support':       fdt_opt == 'disabled' ? false : fdt_opt}
 summary_info += {'libcap-ng support': libcap_ng}
 summary_info += {'bpf support':       libbpf}
+summary_info += {'AF_XDP support':    libxdp}
 summary_info += {'rbd support':       rbd}
 summary_info += {'smartcard support': cacard}
 summary_info += {'U2F support':       u2f}

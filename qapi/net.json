@@ -409,6 +409,62 @@
     '*devname':    'str' } }
 
 ##
+# @AFXDPMode:
+#
+# Attach mode for a default XDP program
+#
+# @skb: generic mode, no driver support necessary
+#
+# @native: DRV mode, program is attached to a driver, packets are passed to
+#     the socket without allocation of skb.
+#
+# Since: 8.1
+##
+{ 'enum': 'AFXDPMode',
+  'data': [ 'native', 'skb' ] }
+
+##
+# @NetdevAFXDPOptions:
+#
+# AF_XDP network backend
+#
+# @ifname: The name of an existing network interface.
+#
+# @mode: Attach mode for a default XDP program.  If not specified, then
+#     'native' will be tried first, then 'skb'.
+#
+# @force-copy: Force XDP copy mode even if device supports zero-copy.
+#     (default: false)
+#
+# @queues: number of queues to be used for multiqueue interfaces (default: 1).
+#
+# @start-queue: Use @queues starting from this queue number (default: 0).
+#
+# @inhibit: Don't load a default XDP program, use one already loaded to
+#     the interface (default: false).  Requires @sock-fds or @xsks-map-fd.
+#
+# @sock-fds: A colon (:) separated list of file descriptors for already open
+#     but not bound AF_XDP sockets in the queue order.  One fd per queue.
+#     These descriptors should already be added into XDP socket map for
+#     corresponding queues.  Requires @inhibit.
+#
+# @xsks-map-fd: A file descriptor for an already open XDP socket map in
+#     the already loaded XDP program.  Requires @inhibit.
+#
+# Since: 8.1
+##
+{ 'struct': 'NetdevAFXDPOptions',
+  'data': {
+    'ifname':       'str',
+    '*mode':        'AFXDPMode',
+    '*force-copy':  'bool',
+    '*queues':      'int',
+    '*start-queue': 'int',
+    '*inhibit':     'bool',
+    '*sock-fds':    { 'type': 'str', 'if': 'HAVE_XSK_UMEM__CREATE_WITH_FD' },
+    '*xsks-map-fd': 'str' } }
+
+##
 # @NetdevVhostUserOptions:
 #
 # Vhost-user network backend
@@ -642,13 +698,14 @@
 # @vmnet-bridged: since 7.1
 # @stream: since 7.2
 # @dgram: since 7.2
+# @af-xdp: since 8.1
 #
 # Since: 2.7
 ##
 { 'enum': 'NetClientDriver',
   'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'stream',
             'dgram', 'vde', 'bridge', 'hubport', 'netmap', 'vhost-user',
-            'vhost-vdpa',
+            'vhost-vdpa', 'af-xdp',
             { 'name': 'vmnet-host', 'if': 'CONFIG_VMNET' },
             { 'name': 'vmnet-shared', 'if': 'CONFIG_VMNET' },
             { 'name': 'vmnet-bridged', 'if': 'CONFIG_VMNET' }] }
@@ -680,6 +737,7 @@
     'bridge':   'NetdevBridgeOptions',
     'hubport':  'NetdevHubPortOptions',
     'netmap':   'NetdevNetmapOptions',
+    'af-xdp':   'NetdevAFXDPOptions',
     'vhost-user': 'NetdevVhostUserOptions',
     'vhost-vdpa': 'NetdevVhostVDPAOptions',
     'vmnet-host': { 'type': 'NetdevVmnetHostOptions',
