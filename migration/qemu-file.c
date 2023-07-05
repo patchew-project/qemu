@@ -87,7 +87,10 @@ int qemu_file_shutdown(QEMUFile *f)
      *      --> guest crash!
      */
     if (!f->last_error) {
-        qemu_file_set_error(f, -EIO);
+        Error *err = NULL;
+
+        error_setg(&err, "Channel is explicitly shutdown by the user");
+        qemu_file_set_error_obj(f, -EIO, err);
     }
 
     if (!qio_channel_has_feature(f->ioc,
