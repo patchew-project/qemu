@@ -148,8 +148,8 @@ void egl_fb_blit(egl_fb *dst, egl_fb *src, bool flip)
     if (src->dmabuf) {
         x1 = src->dmabuf->x;
         y1 = src->dmabuf->y;
-        w = src->dmabuf->scanout_width;
-        h = src->dmabuf->scanout_height;
+        w = src->dmabuf->backing_width;
+        h = src->dmabuf->backing_height;
     }
 
     w = (x1 + w) > src->width ? src->width - x1 : w;

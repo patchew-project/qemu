@@ -420,8 +420,8 @@ static void dbus_scanout_texture(DisplayChangeListener *dcl,
         .y0_top = backing_y_0_top,
         .x = x,
         .y = y,
-        .scanout_width = w,
-        .scanout_height = h,
+        .backing_width = w,
+        .backing_height = h,
     };
 
     assert(tex_id);
