@@ -346,7 +346,8 @@ class App(QMPClient):
                 self._set_status('[Disconnected]')
                 await self.disconnect()
                 # check if a retry is needed
-                if self.runstate == Runstate.IDLE:
+                # mypy bug - doesn't realize self.runstate could change
+                if self.runstate == Runstate.IDLE:  # type: ignore
                     continue
             await self.runstate_changed()
 
