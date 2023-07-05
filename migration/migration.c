@@ -1222,6 +1222,21 @@ void migrate_set_error(MigrationState *s, Error *error)
     }
 }
 
+/*
+ * Whether the migration state has error set?
+ *
+ * Note this function explicitly didn't use error_mutex, because it only
+ * reads the error pointer for a boolean status.
+ *
+ * As long as the Error* is set, it shouldn't be freed before migration
+ * cleanup, so any thread can use this helper to safely detect whether
+ * there's anything wrong happened already.
+ */
+bool migrate_has_error(MigrationState *s)
+{
+    return qatomic_read(&s->error);
+}
+
 static void migrate_error_free(MigrationState *s)
 {
     QEMU_LOCK_GUARD(&s->error_mutex);
