@@ -97,7 +97,7 @@ struct QIOChannel {
  * The first five callbacks are mandatory to support, others
  * provide additional optional features.
  *
- * Consult the corresponding public API docs for a description
+ * Consult the corresponding GLib IOChannel public API docs for a description
  * of the semantics of each callback. io_shutdown in particular
  * must be thread-safe, terminate quickly and must not block.
  */
