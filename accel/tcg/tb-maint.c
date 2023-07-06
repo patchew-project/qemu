@@ -156,7 +156,7 @@ static PageForEachNext foreach_tb_next(PageForEachNext tb,
     return NULL;
 }
 
-#else
+#else /* !CONFIG_USER_ONLY */
 /*
  * In system mode we want L1_MAP to be based on ram offsets.
  */
@@ -722,7 +722,7 @@ static void page_unlock_tb(const TranslationBlock *tb)
         }
     }
 }
-#endif /* CONFIG_USER_ONLY */
+#endif /* !CONFIG_USER_ONLY */
 
 /* flush all the translation blocks */
 static void do_tb_flush(CPUState *cpu, run_on_cpu_data tb_flush_count)
