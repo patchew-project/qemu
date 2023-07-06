@@ -222,6 +222,8 @@ int qemu_file_get_error(QEMUFile *f)
 
 /*
  * Set the last error for stream f
+ *
+ * The error ('ret') should be in -errno format.
  */
 void qemu_file_set_error(QEMUFile *f, int ret)
 {

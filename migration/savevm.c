@@ -1249,7 +1249,7 @@ void qemu_savevm_state_setup(QEMUFile *f)
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         if (se->vmsd && se->vmsd->early_setup) {
             ret = vmstate_save(f, se, ms->vmdesc);
-            if (ret) {
+            if (ret < 0) {
                 qemu_file_set_error(f, ret);
                 break;
             }
@@ -1464,7 +1464,7 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
         }
 
         ret = vmstate_save(f, se, vmdesc);
-        if (ret) {
+        if (ret < 0) {
             qemu_file_set_error(f, ret);
             return ret;
         }
@@ -1474,7 +1474,7 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
         /* Inactivate before sending QEMU_VM_EOF so that the
          * bdrv_activate_all() on the other end won't fail. */
         ret = bdrv_inactivate_all();
-        if (ret) {
+        if (ret < 0) {
             error_report("%s: bdrv_inactivate_all() failed (%d)",
                          __func__, ret);
             qemu_file_set_error(f, ret);
