@@ -739,6 +739,13 @@ static int vhost_vdpa_net_load(NetClientState *nc)
         return r;
     }
 
+    for (int i = 0; i < v->dev->vq_index; ++i) {
+        r = vhost_vdpa_set_vring_ready(v, i);
+        if (unlikely(r)) {
+            return r;
+        }
+    }
+
     return 0;
 }
 
@@ -826,9 +833,25 @@ static const VhostShadowVirtqueueOps vhost_vdpa_net_svq_ops = {
     .avail_handler = vhost_vdpa_net_handle_ctrl_avail,
 };
 
+/**
+ * Check if a vhost_vdpa device should enable before DRIVER_OK
+ *
+ * CVQ must always start first if we want to restore the state safely. Do not
+ * start data vqs if the device has CVQ.
+ */
 static bool vhost_vdpa_should_enable(const struct vhost_vdpa *v)
 {
-    return true;
+    struct vhost_dev *dev = v->dev;
+
+    if (!dev->vq_index_end % 2) {
+        /* vDPA device does not have CVQ */
+        return true;
+    }
+
+    /*
+     * We're evaluating CVQ, enable to send control cmds to load device state.
+     */
+    return dev->vq_index + 1 == dev->vq_index_end;
 }
 
 static const VhostVDPAVirtIOOps vhost_vdpa_virtio_net_ops = {
