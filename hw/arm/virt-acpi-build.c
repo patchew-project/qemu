@@ -57,6 +57,7 @@
 #include "migration/vmstate.h"
 #include "hw/acpi/ghes.h"
 #include "hw/acpi/viot.h"
+#include "qemu/error-report.h"
 
 #define ARM_SPI_BASE 32
 
