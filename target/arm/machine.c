@@ -702,7 +702,7 @@ static int put_power(QEMUFile *f, void *opaque, size_t size,
         qemu_put_byte(f, powered_off);
         return 0;
     } else {
-        return 1;
+        return -1;
     }
 }
 
