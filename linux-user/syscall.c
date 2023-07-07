@@ -12328,6 +12328,15 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
         }
 
         switch(arg2) {
+#if HOST_LONG_BITS == 64 && TARGET_LONG_BITS == 32 && \
+    O_LARGEFILE == 0     && TARGET_O_LARGEFILE != 0
+        case TARGET_F_GETFL:
+            ret = do_fcntl(arg1, arg2, arg3);
+            if (ret > 0) {
+                ret |= TARGET_O_LARGEFILE;
+            }
+	    break;
+#endif
         case TARGET_F_GETLK64:
             ret = copyfrom(&fl, arg3);
             if (ret) {
