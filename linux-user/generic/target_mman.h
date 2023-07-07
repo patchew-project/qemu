@@ -1,6 +1,10 @@
 #ifndef LINUX_USER_TARGET_MMAN_H
 #define LINUX_USER_TARGET_MMAN_H
 
+#ifndef TARGET_PROT_SEM
+#define TARGET_PROT_SEM                 0x08
+#endif
+
 /* These are defined in linux/mmap.h */
 #define TARGET_MAP_SHARED               0x01
 #define TARGET_MAP_PRIVATE              0x02
