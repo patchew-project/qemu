@@ -741,12 +741,15 @@ static IntervalTreeNode *interval_tree_subtree_search(IntervalTreeNode *node,
                                                       uint64_t last)
 {
     while (true) {
+        RBNode *rb_tmp;
+
         /*
          * Loop invariant: start <= node->subtree_last
          * (Cond2 is satisfied by one of the subtree nodes)
          */
-        if (node->rb.rb_left) {
-            IntervalTreeNode *left = rb_to_itree(node->rb.rb_left);
+        rb_tmp = node->rb.rb_left;
+        if (rb_tmp) {
+            IntervalTreeNode *left = rb_to_itree(rb_tmp);
 
             if (start <= left->subtree_last) {
                 /*
@@ -765,8 +768,10 @@ static IntervalTreeNode *interval_tree_subtree_search(IntervalTreeNode *node,
             if (start <= node->last) {     /* Cond2 */
                 return node; /* node is leftmost match */
             }
-            if (node->rb.rb_right) {
-                node = rb_to_itree(node->rb.rb_right);
+
+            rb_tmp = node->rb.rb_right;
+            if (rb_tmp) {
+                node = rb_to_itree(rb_tmp);
                 if (start <= node->subtree_last) {
                     continue;
                 }
