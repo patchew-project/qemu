@@ -796,7 +796,8 @@ static int vhost_vdpa_net_handle_ctrl_avail(VhostShadowVirtqueue *svq,
         dev_written = sizeof(status);
         *s->status = VIRTIO_NET_OK;
     } else {
-        dev_written = vhost_vdpa_net_cvq_add(s, out.iov_len, sizeof(status));
+        //dev_written = vhost_vdpa_net_cvq_add(s, out.iov_len, sizeof(status));
+        dev_written = -EINVAL;
         if (unlikely(dev_written < 0)) {
             goto out;
         }
