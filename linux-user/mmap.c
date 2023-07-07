@@ -49,8 +49,7 @@ bool have_mmap_lock(void)
 /* Grab lock to make sure things are in a consistent state after fork().  */
 void mmap_fork_start(void)
 {
-    if (mmap_lock_count)
-        abort();
+    assert(mmap_lock_count == 0);
     pthread_mutex_lock(&mmap_mutex);
 }
 
