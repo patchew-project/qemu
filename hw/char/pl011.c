@@ -57,6 +57,9 @@ DeviceState *pl011_create(hwaddr addr, qemu_irq irq, Chardev *chr)
 /* Data Register, UARTDR */
 #define DR_BE   (1 << 10)
 
+/* Receive Status Register/Error Clear Register, UARTRSR/UARTECR */
+#define RSR_OE  (1 << 3)
+
 /* Interrupt status bits in UARTRIS, UARTMIS, UARTIMSC */
 #define INT_OE (1 << 10)
 #define INT_BE (1 << 9)
@@ -152,6 +155,59 @@ static inline void pl011_reset_tx_fifo(PL011State *s)
     /* Reset FIFO flags */
     s->flags &= ~PL011_FLAG_TXFF;
     s->flags |= PL011_FLAG_TXFE;
+
+    fifo8_reset(&s->xmit_fifo);
+}
+
+static gboolean pl011_drain_tx(PL011State *s)
+{
+    trace_pl011_fifo_tx_drain(fifo8_num_used(&s->xmit_fifo));
+    pl011_reset_tx_fifo(s);
+    s->rsr &= ~RSR_OE;
+    return G_SOURCE_REMOVE;
+}
+
+static gboolean pl011_xmit(void *do_not_use, GIOCondition cond, void *opaque)
+{
+    PL011State *s = opaque;
+    int ret;
+    const uint8_t *buf;
+    uint32_t buflen;
+    uint32_t count;
+    bool tx_enabled;
+
+    if (!qemu_chr_fe_backend_connected(&s->chr)) {
+        /* Instant drain the fifo when there's no back-end */
+        return pl011_drain_tx(s);
+    }
+
+    tx_enabled = s->cr & CR_UARTEN;
+    /* Allow completing the current FIFO character before stopping. */
+    count = tx_enabled ? fifo8_num_used(&s->xmit_fifo) : 1; /* current only */
+    if (count) {
+        /* Transmit as much data as we can */
+        buf = fifo8_peek_buf(&s->xmit_fifo, count, &buflen);
+        ret = qemu_chr_fe_write(&s->chr, buf, buflen);
+        if (ret >= 0) {
+            /* Pop the data we could transmit */
+            trace_pl011_fifo_tx_xmit(ret);
+            fifo8_pop_buf(&s->xmit_fifo, ret, NULL);
+            s->int_level |= INT_TX;
+        }
+
+        if (tx_enabled && !fifo8_is_empty(&s->xmit_fifo)) {
+            /* Reschedule another transmission if we couldn't transmit all */
+            guint r = qemu_chr_fe_add_watch(&s->chr, G_IO_OUT | G_IO_HUP,
+                                            pl011_xmit, s);
+            if (!r) {
+                return pl011_drain_tx(s);
+            }
+        }
+
+        pl011_update(s);
+    }
+
+    return G_SOURCE_REMOVE;
 }
 
 static void pl011_write_txdata(PL011State *s, const uint8_t *buf, int length)
@@ -162,12 +218,32 @@ static void pl011_write_txdata(PL011State *s, const uint8_t *buf, int length)
     if (!(s->cr & CR_TXE)) {
         qemu_log_mask(LOG_GUEST_ERROR, "PL011 write data but TX disabled\n");
     }
+    if (!fifo8_is_empty(&s->xmit_fifo)) {
+        /*
+         * If the UART is disabled in the middle of transmission
+         * or reception, it completes the current character before
+         * stopping.
+         */
+        pl011_xmit(NULL, G_IO_OUT, s);
+        return;
+    }
 
-    /* XXX this blocks entire thread. Rewrite to use
-     * qemu_chr_fe_write and background I/O callbacks */
-    qemu_chr_fe_write_all(&s->chr, buf, 1);
-    s->int_level |= INT_TX;
-    pl011_update(s);
+    if (length > fifo8_num_free(&s->xmit_fifo)) {
+        /*
+         * The FIFO contents remain valid because no more data is
+         * written when the FIFO is full, only the contents of the
+         * shift register are overwritten. The CPU must now read
+         * the data, to empty the FIFO.
+         */
+        trace_pl011_fifo_tx_overrun();
+        s->rsr |= RSR_OE;
+        return;
+    }
+
+    trace_pl011_fifo_tx_put(length);
+    fifo8_push_all(&s->xmit_fifo, buf, length);
+
+    pl011_xmit(NULL, G_IO_OUT, s);
 }
 
 static uint32_t pl011_read_rxdata(PL011State *s)
@@ -434,6 +510,13 @@ static const VMStateDescription vmstate_pl011_clock = {
     }
 };
 
+static bool pl011_xmit_fifo_state_needed(void *opaque, int version_id)
+{
+    PL011State* s = opaque;
+
+    return pl011_is_fifo_enabled(s) && !fifo8_is_empty(&s->xmit_fifo);
+}
+
 static int pl011_post_load(void *opaque, int version_id)
 {
     PL011State* s = opaque;
@@ -455,6 +538,11 @@ static int pl011_post_load(void *opaque, int version_id)
         s->read_pos = 0;
     }
 
+    if (pl011_xmit_fifo_state_needed(s, version_id)) {
+        /* Reschedule another transmission */
+        qemu_chr_fe_add_watch(&s->chr, G_IO_OUT | G_IO_HUP, pl011_xmit, s);
+    }
+
     return 0;
 }
 
@@ -473,6 +561,7 @@ static const VMStateDescription vmstate_pl011 = {
         VMSTATE_UINT32(int_enabled, PL011State),
         VMSTATE_UINT32(int_level, PL011State),
         VMSTATE_UINT32_ARRAY(read_fifo, PL011State, PL011_FIFO_DEPTH),
+        VMSTATE_FIFO8_TEST(xmit_fifo, PL011State, pl011_xmit_fifo_state_needed),
         VMSTATE_UINT32(ilpr, PL011State),
         VMSTATE_UINT32(ibrd, PL011State),
         VMSTATE_UINT32(fbrd, PL011State),
@@ -500,6 +589,7 @@ static void pl011_init(Object *obj)
     PL011State *s = PL011(obj);
     int i;
 
+    fifo8_create(&s->xmit_fifo, PL011_FIFO_DEPTH);
     memory_region_init_io(&s->iomem, OBJECT(s), &pl011_ops, s, "pl011", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     for (i = 0; i < ARRAY_SIZE(s->irq); i++) {
@@ -510,6 +600,13 @@ static void pl011_init(Object *obj)
                                 ClockUpdate);
 
     s->id = pl011_id_arm;
+}
+
+static void pl011_finalize(Object *obj)
+{
+    PL011State *s = PL011(obj);
+
+    fifo8_destroy(&s->xmit_fifo);
 }
 
 static void pl011_realize(DeviceState *dev, Error **errp)
@@ -555,6 +652,7 @@ static const TypeInfo pl011_arm_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PL011State),
     .instance_init = pl011_init,
+    .instance_finalize = pl011_finalize,
     .class_init    = pl011_class_init,
 };
 
