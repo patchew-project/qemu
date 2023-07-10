@@ -1450,7 +1450,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     }
 
     /* Skip if we don't yet have number of vqs */
-    if (hdev->vqs && hdev->nvqs) {
+    if (hdev->nvqs) {
         if (!vhost_init_virtqs(hdev, busyloop_timeout, errp)) {
             goto fail_busyloop;
         }

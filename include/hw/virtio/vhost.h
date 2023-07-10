@@ -68,6 +68,13 @@ typedef struct VhostDevConfigOps {
 
 struct vhost_memory;
 
+typedef struct VhostUserBackendSpecs {
+    uint32_t device_id;
+    uint32_t config_size;
+    uint32_t min_vqs;
+    uint32_t max_vqs;
+} VhostUserBackendSpecs;
+
 /**
  * struct vhost_dev - common vhost_dev structure
  * @vhost_ops: backend specific ops
@@ -107,10 +114,14 @@ struct vhost_dev {
      * VHOST_USER_SET_FEATURES or VHOST_NET_F_VIRTIO_NET_HDR. Its
      * future use should be discouraged and the variable retired as
      * its easy to confuse with the VirtIO backend_features.
+     *
+     * @specs: the results of a GET_BACKEND_SPECS probe.
      */
     uint64_t features;
     uint64_t acked_features;
     uint64_t backend_features;
+
+    VhostUserBackendSpecs specs;
 
     /**
      * @protocol_features: is the vhost-user only feature set by
@@ -134,6 +145,7 @@ struct vhost_dev {
     QLIST_HEAD(, vhost_iommu) iommu_list;
     IOMMUNotifier n;
     const VhostDevConfigOps *config_ops;
+
 };
 
 extern const VhostOps kernel_ops;

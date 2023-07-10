@@ -123,6 +123,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_REM_MEM_REG = 38,
     VHOST_USER_SET_STATUS = 39,
     VHOST_USER_GET_STATUS = 40,
+    VHOST_USER_GET_BACKEND_SPECS = 41,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -203,13 +204,6 @@ typedef struct VhostUserInflight {
     uint16_t num_queues;
     uint16_t queue_size;
 } VhostUserInflight;
-
-typedef struct VhostUserBackendSpecs {
-    uint32_t device_id;
-    uint32_t config_size;
-    uint32_t min_vqs;
-    uint32_t max_vqs;
-} VhostUserBackendSpecs;
 
 typedef struct {
     VhostUserRequest request;
@@ -1991,6 +1985,56 @@ static int vhost_user_postcopy_notifier(NotifierWithReturn *notifier,
     return 0;
 }
 
+static bool vhost_user_get_backend_specs(struct vhost_dev *dev, Error **errp)
+{
+    int ret;
+    VhostUserMsg msg = {
+        .hdr.request = VHOST_USER_GET_BACKEND_SPECS,
+        .hdr.flags = VHOST_USER_VERSION,
+        .hdr.size = VHOST_USER_HDR_SIZE,
+    };
+
+    if (!virtio_has_feature(dev->protocol_features,
+                VHOST_USER_PROTOCOL_F_STANDALONE)) {
+        error_setg(errp, "VHOST_USER_PROTOCOL_F_STANDALONE not supported");
+        return -EINVAL;
+    }
+
+    ret = vhost_user_write(dev, &msg, NULL, 0);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "vhost_get_backend send failed");
+        return ret;
+    }
+
+    ret = vhost_user_read(dev, &msg);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "vhost_get_backend recv failed");
+        return ret;
+    }
+
+    if (msg.hdr.request != VHOST_USER_GET_BACKEND_SPECS) {
+        error_setg(errp,
+                   "Received unexpected msg type. Expected %d received %d",
+                   VHOST_USER_GET_BACKEND_SPECS, msg.hdr.request);
+        return -EPROTO;
+    }
+
+    if (msg.hdr.size != sizeof(msg.payload.specs)) {
+        error_setg(errp, "Received bad msg size.");
+        return -EPROTO;
+    }
+
+    if (msg.payload.specs.config_size && !virtio_has_feature(dev->protocol_features,
+                                                             VHOST_USER_PROTOCOL_F_CONFIG)) {
+        error_setg(errp, "VHOST_USER_PROTOCOL_F_CONFIG not supported");
+        return -EPROTO;
+    }
+
+    dev->specs = msg.payload.specs;
+
+    return 0;
+}
+
 static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque,
                                    Error **errp)
 {
@@ -2071,6 +2115,21 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque,
         if (err < 0) {
             error_setg_errno(errp, EPROTO, "vhost_backend_init failed");
             return -EPROTO;
+        }
+
+        if (dev->protocol_features & (1ULL << VHOST_USER_PROTOCOL_F_STANDALONE)) {
+            err = vhost_user_get_backend_specs(dev, errp);
+            if (err < 0) {
+                error_setg_errno(errp, EPROTO, "vhost_get_backend_specs failed");
+                return -EPROTO;
+            }
+            /*
+             * If this was never set by the user we can now fill it in
+             * so we can continue the initialisation
+             */
+            if (!dev->nvqs) {
+                dev->nvqs = dev->specs.min_vqs;
+            }
         }
 
         /* query the max queues we support if backend supports Multiple Queue */
