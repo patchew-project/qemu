@@ -243,7 +243,6 @@ static void vub_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserBase *vub = VHOST_USER_BASE(dev);
-    int ret;
 
     if (!vub->chardev.chr) {
         error_setg(errp, "vhost-user-device: missing chardev");
@@ -254,13 +253,43 @@ static void vub_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (!vub->virtio_id) {
-        error_setg(errp, "vhost-user-device: need to define device id");
+    if (vhost_dev_init(&vub->vhost_dev, &vub->vhost_user,
+                       VHOST_BACKEND_TYPE_USER, 0, errp)!=0) {
+        error_setg(errp, "vhost-user-device: unable to start connection");
         return;
     }
 
+    if (vub->vhost_dev.specs.device_id) {
+        if (vub->virtio_id && vub->virtio_id != vub->vhost_dev.specs.device_id) {
+            error_setg(errp, "vhost-user-device: backend id %d doesn't match cli %d",
+                       vub->vhost_dev.specs.device_id, vub->virtio_id);
+            return;
+        }
+        vub->virtio_id = vub->vhost_dev.specs.device_id;
+    }
+
+    if (!vub->virtio_id) {
+        error_setg(errp, "vhost-user-device: need to define or be told device id");
+        return;
+    }
+
+    if (vub->vhost_dev.specs.min_vqs) {
+        if (vub->num_vqs) {
+            if (vub->num_vqs < vub->vhost_dev.specs.min_vqs ||
+                vub->num_vqs > vub->vhost_dev.specs.max_vqs) {
+                error_setg(errp,
+                           "vhost-user-device: selected nvqs (%d) out of bounds (%d->%d)",
+                           vub->num_vqs,
+                           vub->vhost_dev.specs.min_vqs, vub->vhost_dev.specs.max_vqs);
+                return;
+            }
+        } else {
+            vub->num_vqs = vub->vhost_dev.specs.min_vqs;
+        }
+    }
+
     if (!vub->num_vqs) {
-        vub->num_vqs = 1; /* reasonable default? */
+        error_setg(errp, "vhost-user-device: need to define number of vqs");
     }
 
     /*
@@ -285,16 +314,6 @@ static void vub_device_realize(DeviceState *dev, Error **errp)
     for (int i = 0; i < vub->num_vqs; i++) {
         g_ptr_array_add(vub->vqs,
                         virtio_add_queue(vdev, 4, vub_handle_output));
-    }
-
-    vub->vhost_dev.nvqs = vub->num_vqs;
-
-    /* connect to backend */
-    ret = vhost_dev_init(&vub->vhost_dev, &vub->vhost_user,
-                         VHOST_BACKEND_TYPE_USER, 0, errp);
-
-    if (ret < 0) {
-        do_vhost_user_cleanup(vdev, vub);
     }
 
     qemu_chr_fe_set_handlers(&vub->chardev, NULL, NULL, vub_event, NULL,
