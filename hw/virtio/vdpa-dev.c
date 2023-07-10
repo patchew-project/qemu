@@ -54,7 +54,6 @@ static void vhost_vdpa_device_realize(DeviceState *dev, Error **errp)
     VhostVdpaDevice *v = VHOST_VDPA_DEVICE(vdev);
     struct vhost_vdpa_iova_range iova_range;
     uint16_t max_queue_size;
-    struct vhost_virtqueue *vqs;
     int i, ret;
 
     if (!v->vhostdev) {
@@ -101,8 +100,6 @@ static void vhost_vdpa_device_realize(DeviceState *dev, Error **errp)
     }
 
     v->dev.nvqs = v->num_queues;
-    vqs = g_new0(struct vhost_virtqueue, v->dev.nvqs);
-    v->dev.vqs = vqs;
     v->dev.vq_index = 0;
     v->dev.vq_index_end = v->dev.nvqs;
     v->dev.backend_features = 0;
@@ -112,7 +109,7 @@ static void vhost_vdpa_device_realize(DeviceState *dev, Error **errp)
     if (ret < 0) {
         error_setg(errp, "vhost-vdpa-device: get iova range failed: %s",
                    strerror(-ret));
-        goto free_vqs;
+        goto out;
     }
     v->vdpa.iova_range = iova_range;
 
@@ -120,7 +117,7 @@ static void vhost_vdpa_device_realize(DeviceState *dev, Error **errp)
     if (ret < 0) {
         error_setg(errp, "vhost-vdpa-device: vhost initialization failed: %s",
                    strerror(-ret));
-        goto free_vqs;
+        goto out;
     }
 
     v->config_size = vhost_vdpa_device_get_u32(v->vhostfd,
@@ -160,8 +157,6 @@ free_config:
     g_free(v->config);
 vhost_cleanup:
     vhost_dev_cleanup(&v->dev);
-free_vqs:
-    g_free(vqs);
 out:
     qemu_close(v->vhostfd);
     v->vhostfd = -1;

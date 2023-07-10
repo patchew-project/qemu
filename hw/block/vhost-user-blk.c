@@ -332,7 +332,6 @@ static int vhost_user_blk_connect(DeviceState *dev, Error **errp)
 
     s->dev.num_queues = s->num_queues;
     s->dev.nvqs = s->num_queues;
-    s->dev.vqs = s->vhost_vqs;
     s->dev.vq_index = 0;
     s->dev.backend_features = 0;
 
@@ -480,7 +479,6 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
     }
 
     s->inflight = g_new0(struct vhost_inflight, 1);
-    s->vhost_vqs = g_new0(struct vhost_virtqueue, s->num_queues);
 
     retries = REALIZE_CONNECTION_RETRIES;
     assert(!*errp);
@@ -504,8 +502,7 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
     return;
 
 virtio_err:
-    g_free(s->vhost_vqs);
-    s->vhost_vqs = NULL;
+    vhost_dev_cleanup(&s->dev);
     g_free(s->inflight);
     s->inflight = NULL;
     for (i = 0; i < s->num_queues; i++) {
@@ -527,8 +524,6 @@ static void vhost_user_blk_device_unrealize(DeviceState *dev)
                              NULL, NULL, NULL, false);
     vhost_dev_cleanup(&s->dev);
     vhost_dev_free_inflight(s->inflight);
-    g_free(s->vhost_vqs);
-    s->vhost_vqs = NULL;
     g_free(s->inflight);
     s->inflight = NULL;
 

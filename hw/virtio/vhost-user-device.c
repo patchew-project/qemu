@@ -288,7 +288,6 @@ static void vub_device_realize(DeviceState *dev, Error **errp)
     }
 
     vub->vhost_dev.nvqs = vub->num_vqs;
-    vub->vhost_dev.vqs = g_new0(struct vhost_virtqueue, vub->vhost_dev.nvqs);
 
     /* connect to backend */
     ret = vhost_dev_init(&vub->vhost_dev, &vub->vhost_user,
@@ -306,12 +305,10 @@ static void vub_device_unrealize(DeviceState *dev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserBase *vub = VHOST_USER_BASE(dev);
-    struct vhost_virtqueue *vhost_vqs = vub->vhost_dev.vqs;
 
     /* This will stop vhost backend if appropriate. */
     vub_set_status(vdev, 0);
     vhost_dev_cleanup(&vub->vhost_dev);
-    g_free(vhost_vqs);
     do_vhost_user_cleanup(vdev, vub);
 }
 

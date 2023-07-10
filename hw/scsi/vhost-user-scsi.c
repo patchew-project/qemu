@@ -94,7 +94,6 @@ static void vhost_user_scsi_realize(DeviceState *dev, Error **errp)
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(dev);
     VHostUserSCSI *s = VHOST_USER_SCSI(dev);
     VHostSCSICommon *vsc = VHOST_SCSI_COMMON(s);
-    struct vhost_virtqueue *vqs = NULL;
     Error *err = NULL;
     int ret;
 
@@ -116,10 +115,8 @@ static void vhost_user_scsi_realize(DeviceState *dev, Error **errp)
     }
 
     vsc->dev.nvqs = VIRTIO_SCSI_VQ_NUM_FIXED + vs->conf.num_queues;
-    vsc->dev.vqs = g_new0(struct vhost_virtqueue, vsc->dev.nvqs);
     vsc->dev.vq_index = 0;
     vsc->dev.backend_features = 0;
-    vqs = vsc->dev.vqs;
 
     ret = vhost_dev_init(&vsc->dev, &s->vhost_user,
                          VHOST_BACKEND_TYPE_USER, 0, errp);
@@ -136,7 +133,6 @@ static void vhost_user_scsi_realize(DeviceState *dev, Error **errp)
 
 free_vhost:
     vhost_user_cleanup(&s->vhost_user);
-    g_free(vqs);
 free_virtio:
     virtio_scsi_common_unrealize(dev);
 }
@@ -146,13 +142,11 @@ static void vhost_user_scsi_unrealize(DeviceState *dev)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserSCSI *s = VHOST_USER_SCSI(dev);
     VHostSCSICommon *vsc = VHOST_SCSI_COMMON(s);
-    struct vhost_virtqueue *vqs = vsc->dev.vqs;
 
     /* This will stop the vhost backend. */
     vhost_user_scsi_set_status(vdev, 0);
 
     vhost_dev_cleanup(&vsc->dev);
-    g_free(vqs);
 
     virtio_scsi_common_unrealize(dev);
     vhost_user_cleanup(&s->vhost_user);

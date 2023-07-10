@@ -82,6 +82,10 @@ struct vhost_dev {
     MemoryRegionSection *mem_sections;
     int n_tmp_sections;
     MemoryRegionSection *tmp_sections;
+    /**
+     * @vqs - internal to vhost_dev, allocated based on @nvqs
+     * @nvqs - number of @vqs to allocate.
+     */
     struct vhost_virtqueue *vqs;
     unsigned int nvqs;
     /* the first virtqueue which would be used by this vhost dev */
@@ -156,6 +160,9 @@ struct vhost_net {
  * negotiation of backend interface. Configuration of the VirtIO
  * itself won't happen until the interface is started.
  *
+ * If the initialisation fails it will call vhost_dev_cleanup() to
+ * tear down the interface and free memory.
+ *
  * Return: 0 on success, non-zero on error while setting errp.
  */
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
@@ -165,6 +172,8 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
 /**
  * vhost_dev_cleanup() - tear down and cleanup vhost interface
  * @hdev: the common vhost_dev structure
+ *
+ * This includes freeing internals such as @vqs
  */
 void vhost_dev_cleanup(struct vhost_dev *hdev);
 

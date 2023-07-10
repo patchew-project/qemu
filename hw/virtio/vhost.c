@@ -1392,6 +1392,8 @@ static bool vhost_init_virtqs(struct vhost_dev *hdev, uint32_t busyloop_timeout,
 {
     int i, r, n_initialized_vqs = 0;
 
+    hdev->vqs = g_new0(struct vhost_virtqueue, hdev->nvqs);
+
     for (i = 0; i < hdev->nvqs; ++i, ++n_initialized_vqs) {
         r = vhost_virtqueue_init(hdev, hdev->vqs + i, hdev->vq_index + i);
         if (r < 0) {
@@ -1530,9 +1532,13 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
 
     trace_vhost_dev_cleanup(hdev);
 
-    for (i = 0; i < hdev->nvqs; ++i) {
-        vhost_virtqueue_cleanup(hdev->vqs + i);
+    if (hdev->vqs) {
+        for (i = 0; i < hdev->nvqs; ++i) {
+            vhost_virtqueue_cleanup(hdev->vqs + i);
+        }
+        g_free(hdev->vqs);
     }
+
     if (hdev->mem) {
         /* those are only safe after successful init */
         memory_listener_unregister(&hdev->memory_listener);
