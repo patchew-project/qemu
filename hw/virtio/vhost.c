@@ -1382,12 +1382,47 @@ static void vhost_virtqueue_cleanup(struct vhost_virtqueue *vq)
     }
 }
 
+/*
+ * Initialise the virtqs. This can happen soon after the initial
+ * connection if we have all the details we need or be deferred until
+ * later.
+ */
+static bool vhost_init_virtqs(struct vhost_dev *hdev, uint32_t busyloop_timeout,
+                              Error **errp)
+{
+    int i, r, n_initialized_vqs = 0;
+
+    for (i = 0; i < hdev->nvqs; ++i, ++n_initialized_vqs) {
+        r = vhost_virtqueue_init(hdev, hdev->vqs + i, hdev->vq_index + i);
+        if (r < 0) {
+            error_setg_errno(errp, -r, "Failed to initialize virtqueue %d", i);
+            /* not sure what the point of this is if we have failed... */
+            hdev->nvqs = n_initialized_vqs;
+            return false;
+        }
+    }
+
+    if (busyloop_timeout) {
+        for (i = 0; i < hdev->nvqs; ++i) {
+            r = vhost_virtqueue_set_busyloop_timeout(hdev, hdev->vq_index + i,
+                                                     busyloop_timeout);
+            if (r < 0) {
+                error_setg_errno(errp, -r, "Failed to set busyloop timeout");
+                return false;
+            }
+        }
+    }
+
+    g_assert(hdev->nvqs == n_initialized_vqs);
+    return true;
+}
+
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
                    VhostBackendType backend_type, uint32_t busyloop_timeout,
                    Error **errp)
 {
     uint64_t features;
-    int i, r, n_initialized_vqs = 0;
+    int i, r;
 
     hdev->vdev = NULL;
     hdev->migration_blocker = NULL;
@@ -1412,22 +1447,10 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         goto fail;
     }
 
-    for (i = 0; i < hdev->nvqs; ++i, ++n_initialized_vqs) {
-        r = vhost_virtqueue_init(hdev, hdev->vqs + i, hdev->vq_index + i);
-        if (r < 0) {
-            error_setg_errno(errp, -r, "Failed to initialize virtqueue %d", i);
-            goto fail;
-        }
-    }
-
-    if (busyloop_timeout) {
-        for (i = 0; i < hdev->nvqs; ++i) {
-            r = vhost_virtqueue_set_busyloop_timeout(hdev, hdev->vq_index + i,
-                                                     busyloop_timeout);
-            if (r < 0) {
-                error_setg_errno(errp, -r, "Failed to set busyloop timeout");
-                goto fail_busyloop;
-            }
+    /* Skip if we don't yet have number of vqs */
+    if (hdev->vqs && hdev->nvqs) {
+        if (!vhost_init_virtqs(hdev, busyloop_timeout, errp)) {
+            goto fail_busyloop;
         }
     }
 
@@ -1492,12 +1515,11 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
 
 fail_busyloop:
     if (busyloop_timeout) {
-        while (--i >= 0) {
+        for (i = 0; i < hdev->nvqs; ++i) {
             vhost_virtqueue_set_busyloop_timeout(hdev, hdev->vq_index + i, 0);
         }
     }
 fail:
-    hdev->nvqs = n_initialized_vqs;
     vhost_dev_cleanup(hdev);
     return r;
 }
