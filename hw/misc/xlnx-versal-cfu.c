@@ -257,6 +257,26 @@ static void cfu_stream_write(void *opaque, hwaddr addr, uint64_t value,
     }
 }
 
+static uint64_t cfu_fdro_read(void *opaque, hwaddr addr, unsigned size)
+{
+    XlnxVersalCFUFDRO *s = XLNX_VERSAL_CFU_FDRO(opaque);
+    uint64_t ret = 0;
+
+    if (s->fdro_data->len) {
+        ret = g_array_index(s->fdro_data, uint32_t, 0);
+        g_array_remove_index(s->fdro_data, 0);
+    }
+
+    return ret;
+}
+
+static void cfu_fdro_write(void *opaque, hwaddr addr, uint64_t value,
+                           unsigned size)
+{
+    qemu_log_mask(LOG_GUEST_ERROR, "%s: Unsupported write from addr=%"
+                  HWADDR_PRIx "\n", __func__, addr);
+}
+
 static const MemoryRegionOps cfu_stream_ops = {
     .read = cfu_stream_read,
     .write = cfu_stream_write,
@@ -264,6 +284,16 @@ static const MemoryRegionOps cfu_stream_ops = {
     .valid = {
         .min_access_size = 4,
         .max_access_size = 8,
+    },
+};
+
+static const MemoryRegionOps cfu_fdro_ops = {
+    .read = cfu_fdro_read,
+    .write = cfu_fdro_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
     },
 };
 
@@ -296,6 +326,24 @@ static void cfu_apb_init(Object *obj)
         g_free(name);
     }
     sysbus_init_irq(sbd, &s->irq_cfu_imr);
+}
+
+static void cfu_fdro_init(Object *obj)
+{
+    XlnxVersalCFUFDRO *s = XLNX_VERSAL_CFU_FDRO(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+
+    memory_region_init_io(&s->iomem_fdro, obj, &cfu_fdro_ops, s,
+                          TYPE_XLNX_VERSAL_CFU_FDRO, KEYHOLE_STREAM_4K);
+    sysbus_init_mmio(sbd, &s->iomem_fdro);
+    s->fdro_data = g_array_new(FALSE, FALSE, sizeof(uint32_t));
+}
+
+static void cfu_fdro_cfi_transfer_packet(XlnxCfiIf *cfi_if, XlnxCfiPacket *pkt)
+{
+    XlnxVersalCFUFDRO *s = XLNX_VERSAL_CFU_FDRO(cfi_if);
+
+    g_array_append_vals(s->fdro_data, &pkt->data[0], 4);
 }
 
 static Property cfu_props[] = {
@@ -344,6 +392,41 @@ static const VMStateDescription vmstate_cfu_apb = {
     }
 };
 
+static int cfdro_reg_pre_save(void *opaque)
+{
+    XlnxVersalCFUFDRO *s = XLNX_VERSAL_CFU_FDRO(opaque);
+
+    if (s->fdro_data->len) {
+        s->ro_data = (uint32_t *) s->fdro_data->data;
+        s->ro_dlen = s->fdro_data->len;
+    }
+
+    return 0;
+}
+
+static int cfdro_reg_post_load(void *opaque, int version_id)
+{
+    XlnxVersalCFUFDRO *s = XLNX_VERSAL_CFU_FDRO(opaque);
+
+    if (s->ro_dlen) {
+        g_array_append_vals(s->fdro_data, s->ro_data, s->ro_dlen);
+    }
+    return 0;
+}
+
+static const VMStateDescription vmstate_cfu_fdro = {
+    .name = TYPE_XLNX_VERSAL_CFU_FDRO,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .pre_save = cfdro_reg_pre_save,
+    .post_load = cfdro_reg_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_VARRAY_UINT32_ALLOC(ro_data, XlnxVersalCFUFDRO, ro_dlen,
+                                    0, vmstate_info_uint32, uint32_t),
+        VMSTATE_END_OF_LIST(),
+    }
+};
+
 static void cfu_apb_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -351,6 +434,15 @@ static void cfu_apb_class_init(ObjectClass *klass, void *data)
     dc->reset = cfu_apb_reset;
     dc->vmsd = &vmstate_cfu_apb;
     device_class_set_props(dc, cfu_props);
+}
+
+static void cfu_fdro_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    XlnxCfiIfClass *xcic = XLNX_CFI_IF_CLASS(klass);
+
+    dc->vmsd = &vmstate_cfu_fdro;
+    xcic->cfi_transfer_packet = cfu_fdro_cfi_transfer_packet;
 }
 
 static const TypeInfo cfu_apb_info = {
@@ -365,9 +457,22 @@ static const TypeInfo cfu_apb_info = {
     }
 };
 
+static const TypeInfo cfu_fdro_info = {
+    .name          = TYPE_XLNX_VERSAL_CFU_FDRO,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(XlnxVersalCFUFDRO),
+    .class_init    = cfu_fdro_class_init,
+    .instance_init = cfu_fdro_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_XLNX_CFI_IF },
+        { }
+    }
+};
+
 static void cfu_apb_register_types(void)
 {
     type_register_static(&cfu_apb_info);
+    type_register_static(&cfu_fdro_info);
 }
 
 type_init(cfu_apb_register_types)
