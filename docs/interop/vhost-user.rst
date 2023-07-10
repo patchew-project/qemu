@@ -275,6 +275,21 @@ Inflight description
 
 :queue size: a 16-bit size of virtqueues
 
+Backend specifications
+^^^^^^^^^^^^^^^^^^^^^^
+
++-----------+-------------+------------+------------+
+| device id | config size |   min_vqs  |   max_vqs  |
++-----------+-------------+------------+------------+
+
+:device id: a 32-bit value holding the VirtIO device ID
+
+:config size: a 32-bit value holding the config size (see ``VHOST_USER_GET_CONFIG``)
+
+:min_vqs: a 32-bit value holding the minimum number of vqs supported
+
+:max_vqs: a 32-bit value holding the maximum number of vqs supported, must be >= min_vqs
+
 C structure
 -----------
 
@@ -296,6 +311,7 @@ In QEMU the vhost-user message is implemented with the following struct:
           VhostUserConfig config;
           VhostUserVringArea area;
           VhostUserInflight inflight;
+          VhostUserBackendSpecs specs;
       };
   } QEMU_PACKED VhostUserMsg;
 
@@ -316,6 +332,7 @@ replies. Here is a list of the ones that do:
 * ``VHOST_USER_GET_VRING_BASE``
 * ``VHOST_USER_SET_LOG_BASE`` (if ``VHOST_USER_PROTOCOL_F_LOG_SHMFD``)
 * ``VHOST_USER_GET_INFLIGHT_FD`` (if ``VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD``)
+* ``VHOST_USER_GET_BACKEND_SPECS`` (if ``VHOST_USER_PROTOCOL_F_STANDALONE``)
 
 .. seealso::
 
@@ -885,6 +902,15 @@ Protocol features
   #define VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS  15
   #define VHOST_USER_PROTOCOL_F_STATUS               16
   #define VHOST_USER_PROTOCOL_F_XEN_MMAP             17
+  #define VHOST_USER_PROTOCOL_F_STANDALONE           18
+
+Some features depend on others to be supported:
+
+* ``VHOST_USER_PROTOCOL_F_STANDALONE`` depends on:
+
+  * ``VHOST_USER_PROTOCOL_F_STATUS``
+  * ``VHOST_USER_PROTOCOL_F_CONFIG`` (if there is a config space)
+
 
 Front-end message types
 -----------------------
@@ -1440,6 +1466,19 @@ Front-end message types
   query the back-end for its device status as defined in the Virtio
   specification.
 
+``VHOST_USER_GET_BACKEND_SPECS``
+  :id: 41
+  :request payload: N/A
+  :reply payload: ``Backend specifications``
+
+  When the ``VHOST_USER_PROTOCOL_F_STANDALONE`` protocol feature has been
+  successfully negotiated, this message is submitted by the front-end to
+  query the back-end for its capabilities. This is intended to remove
+  the need for the front-end to know ahead of time what the VirtIO
+  device the backend emulates is.
+
+  The reply contains the device id, size of the config space and the
+  range of VirtQueues the backend supports.
 
 Back-end message types
 ----------------------
