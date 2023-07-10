@@ -8,8 +8,7 @@
 
 import os
 
-from avocado import skip
-from avocado import skipUnless
+from avocado import skipIf
 from avocado.utils import archive
 
 from avocado_qemu import QemuSystemTest
@@ -76,6 +75,7 @@ class Aarch64SbsarefMachine(QemuSystemTest):
             "sbsa-ref",
         )
 
+    @skipIf(os.getenv('GITLAB_CI'), 'Test does not work reliably')
     def test_sbsaref_edk2_firmware(self):
         """
         :avocado: tags=cpu:cortex-a57
