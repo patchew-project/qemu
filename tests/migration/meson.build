@@ -1,3 +1,7 @@
+if targetos != 'linux'
+   subdir_done()
+endif
+
 sysprof = dependency('sysprof-capture-4', required: false)
 glib_static = dependency('glib-2.0', version: glib_req_ver, required: false,
                          method: 'pkg-config', static: true)
