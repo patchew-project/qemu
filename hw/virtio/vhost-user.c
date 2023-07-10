@@ -74,6 +74,8 @@ enum VhostUserProtocolFeature {
     /* Feature 14 reserved for VHOST_USER_PROTOCOL_F_INBAND_NOTIFICATIONS. */
     VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS = 15,
     VHOST_USER_PROTOCOL_F_STATUS = 16,
+    VHOST_USER_PROTOCOL_F_XEN_MMAP = 17,
+    VHOST_USER_PROTOCOL_F_STANDALONE = 18,
     VHOST_USER_PROTOCOL_F_MAX
 };
 
@@ -2045,6 +2047,21 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque,
                 warn_report("vhost-user backend supports "
                             "VHOST_USER_PROTOCOL_F_CONFIG but QEMU does not.");
                 protocol_features &= ~(1ULL << VHOST_USER_PROTOCOL_F_CONFIG);
+            }
+        }
+
+        /*
+         * If the backend supports F_STANDALONE we should validate it
+         * supports the other features we expect. We can't check for
+         * F_CONFIG support until we know if there is a config space
+         * to manage.
+         */
+        if (virtio_has_feature(protocol_features,
+                               VHOST_USER_PROTOCOL_F_STANDALONE)) {
+            if (!virtio_has_feature(protocol_features, VHOST_USER_PROTOCOL_F_STATUS)) {
+                error_setg(errp, "vhost-user device expecting F_STANDALONE device to also "
+                           "support F_STATUS but it does not.");
+                return -EPROTO;
             }
         }
 
