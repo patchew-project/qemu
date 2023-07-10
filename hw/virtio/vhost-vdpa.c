@@ -26,6 +26,7 @@
 #include "cpu.h"
 #include "trace.h"
 #include "qapi/error.h"
+#include "sysemu/runstate.h"
 
 /*
  * Return one past the end of the end of section. Be careful with uint64_t
@@ -1390,6 +1391,15 @@ static int vhost_vdpa_get_vring_base(struct vhost_dev *dev,
 {
     struct vhost_vdpa *v = dev->opaque;
     int ret;
+
+    if (runstate_check(RUN_STATE_SHUTDOWN)) {
+        /*
+         * Some devices do not support this call properly,
+         * and we don't need to retrieve the indexes
+         * if it is shutting down
+         */
+        return 0;
+    }
 
     if (v->shadow_vqs_enabled) {
         ring->num = virtio_queue_get_last_avail_idx(dev->vdev, ring->index);
