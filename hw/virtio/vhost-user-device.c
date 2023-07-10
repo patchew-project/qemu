@@ -250,6 +250,10 @@ static void vub_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (!vhost_user_init(&vub->vhost_user, &vub->chardev, errp)) {
+        return;
+    }
+
     if (!vub->virtio_id) {
         error_setg(errp, "vhost-user-device: need to define device id");
         return;
@@ -266,10 +270,6 @@ static void vub_device_realize(DeviceState *dev, Error **errp)
      */
     if (vub->config_size) {
         vub->vhost_user.supports_config = true;
-    }
-
-    if (!vhost_user_init(&vub->vhost_user, &vub->chardev, errp)) {
-        return;
     }
 
     virtio_init(vdev, vub->virtio_id, vub->config_size);
