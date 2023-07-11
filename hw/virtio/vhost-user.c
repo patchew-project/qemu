@@ -74,6 +74,8 @@ enum VhostUserProtocolFeature {
     /* Feature 14 reserved for VHOST_USER_PROTOCOL_F_INBAND_NOTIFICATIONS. */
     VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS = 15,
     VHOST_USER_PROTOCOL_F_STATUS = 16,
+    /* Feature 17 reserved for VHOST_USER_PROTOCOL_F_XEN_MMAP. */
+    VHOST_USER_PROTOCOL_F_SUSPEND = 18,
     VHOST_USER_PROTOCOL_F_MAX
 };
 
@@ -121,6 +123,8 @@ typedef enum VhostUserRequest {
     VHOST_USER_REM_MEM_REG = 38,
     VHOST_USER_SET_STATUS = 39,
     VHOST_USER_GET_STATUS = 40,
+    VHOST_USER_SUSPEND = 41,
+    VHOST_USER_RESUME = 42,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -1389,7 +1393,19 @@ static int vhost_user_set_u64(struct vhost_dev *dev, int request, uint64_t u64,
 
 static int vhost_user_set_status(struct vhost_dev *dev, uint8_t status)
 {
-    return vhost_user_set_u64(dev, VHOST_USER_SET_STATUS, status, false);
+    int ret;
+
+    ret = vhost_user_set_u64(dev, VHOST_USER_SET_STATUS, status, false);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (!status) {
+        /* reset */
+        dev->suspended = false;
+    }
+
+    return 0;
 }
 
 static int vhost_user_get_status(struct vhost_dev *dev, uint8_t *status)
@@ -1490,6 +1506,7 @@ static int vhost_user_get_max_memslots(struct vhost_dev *dev,
 
 static int vhost_user_reset_device(struct vhost_dev *dev)
 {
+    int ret;
     VhostUserMsg msg = {
         .hdr.flags = VHOST_USER_VERSION,
     };
@@ -1499,7 +1516,13 @@ static int vhost_user_reset_device(struct vhost_dev *dev)
         ? VHOST_USER_RESET_DEVICE
         : VHOST_USER_RESET_OWNER;
 
-    return vhost_user_write(dev, &msg, NULL, 0);
+    ret = vhost_user_write(dev, &msg, NULL, 0);
+    if (ret < 0) {
+        return ret;
+    }
+
+    dev->suspended = false;
+    return 0;
 }
 
 static int vhost_user_backend_handle_config_change(struct vhost_dev *dev)
@@ -2707,8 +2730,80 @@ void vhost_user_async_close(DeviceState *d,
     }
 }
 
+static bool vhost_user_supports_suspend(struct vhost_dev *dev)
+{
+    return virtio_has_feature(dev->protocol_features,
+                              VHOST_USER_PROTOCOL_F_SUSPEND);
+}
+
+static int vhost_user_do_suspend_resume(struct vhost_dev *dev, bool suspend)
+{
+    VhostUserMsg msg;
+    bool reply_supported = virtio_has_feature(dev->protocol_features,
+                                              VHOST_USER_PROTOCOL_F_REPLY_ACK);
+    VhostUserRequest request = suspend ? VHOST_USER_SUSPEND : VHOST_USER_RESUME;
+    int ret;
+
+    if (dev->suspended == suspend) {
+        /* Nothing to do */
+        return 0;
+    }
+
+    if (!vhost_user_supports_suspend(dev)) {
+        return -ENOTSUP;
+    }
+
+    msg = (VhostUserMsg) {
+        .hdr = {
+            .request = request,
+            .size = 0,
+            .flags = VHOST_USER_VERSION,
+        },
+    };
+    if (reply_supported) {
+        msg.hdr.flags |= VHOST_USER_NEED_REPLY_MASK;
+    }
+
+    ret = vhost_user_write(dev, &msg, NULL, 0);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (reply_supported) {
+        ret = process_message_reply(dev, &msg);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    dev->suspended = suspend;
+    return 0;
+}
+
+static int vhost_user_suspend(struct vhost_dev *dev)
+{
+    return vhost_user_do_suspend_resume(dev, true);
+}
+
+static int vhost_user_resume(struct vhost_dev *dev)
+{
+    return vhost_user_do_suspend_resume(dev, false);
+}
+
 static int vhost_user_dev_start(struct vhost_dev *dev, bool started)
 {
+    /*
+     * Ignore results.  If the central vhost code cares, it will check
+     * dev->suspended.  (These calls will fail if the back-end does not
+     * support suspend/resume, which callers that just want to start the
+     * device do not care about.)
+     */
+    if (started) {
+        vhost_user_resume(dev);
+    } else {
+        vhost_user_suspend(dev);
+    }
+
     if (!virtio_has_feature(dev->protocol_features,
                             VHOST_USER_PROTOCOL_F_STATUS)) {
         return 0;
