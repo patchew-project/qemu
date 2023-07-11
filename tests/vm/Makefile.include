@@ -106,6 +106,10 @@ $(IMAGES_DIR)/%.img:	$(SRC_PATH)/tests/vm/% \
 		--build-image $@, \
 		"  VM-IMAGE $*")
 
+$(SRC_PATH)/tests/vm/%.json:
+	$(call quiet-command, \
+		make lcitool-refresh)
+
 # Build in VM $(IMAGE)
 vm-build-%: $(IMAGES_DIR)/%.img $(VM_VENV)
 	$(call quiet-command, \
