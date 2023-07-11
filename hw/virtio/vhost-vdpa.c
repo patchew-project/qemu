@@ -1294,8 +1294,6 @@ static void vhost_vdpa_reset_status(struct vhost_dev *dev)
     }
 
     vhost_vdpa_reset_device(dev);
-    vhost_vdpa_add_status(dev, VIRTIO_CONFIG_S_ACKNOWLEDGE |
-                               VIRTIO_CONFIG_S_DRIVER);
     memory_listener_unregister(&v->listener);
 }
 
@@ -1334,7 +1332,9 @@ static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
         }
         memory_listener_register(&v->listener, dev->vdev->dma_as);
 
-        return vhost_vdpa_add_status(dev, VIRTIO_CONFIG_S_DRIVER_OK);
+        return vhost_vdpa_add_status(dev, VIRTIO_CONFIG_S_ACKNOWLEDGE |
+                                          VIRTIO_CONFIG_S_DRIVER |
+                                          VIRTIO_CONFIG_S_DRIVER_OK);
     }
 
     return 0;
