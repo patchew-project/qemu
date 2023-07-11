@@ -23,3 +23,9 @@ G_NORETURN void riscv_raise_exception(CPURISCVState *env,
 {
     g_assert_not_reached();
 }
+
+hwaddr riscv_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
+{
+    /* XXX too many TCG code in the real riscv_cpu_get_phys_page_debug() */
+    return -1;
+}
