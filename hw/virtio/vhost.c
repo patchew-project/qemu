@@ -2059,7 +2059,13 @@ void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev, bool vrings)
                              hdev->vqs + i,
                              hdev->vq_index + i);
     }
-    if (hdev->vhost_ops->vhost_reset_status) {
+
+    /*
+     * If we failed to successfully stop the device via SUSPEND (should have
+     * been attempted by `vhost_dev_start(hdev, false)`), reset it to stop it.
+     * Stateful devices where this would be problematic must implement SUSPEND.
+     */
+    if (!hdev->suspended && hdev->vhost_ops->vhost_reset_status) {
         hdev->vhost_ops->vhost_reset_status(hdev);
     }
 

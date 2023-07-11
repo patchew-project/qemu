@@ -120,6 +120,14 @@ struct vhost_dev {
     uint64_t backend_cap;
     /* @started: is the vhost device started? */
     bool started;
+    /**
+     * @suspended: Whether the vhost device is currently suspended.  Set
+     * and reset by implementations (vhost-user, vhost-vdpa, ...), which
+     * are supposed to automatically suspend/resume in their
+     * vhost_dev_start handlers as required.  Must also be cleared when
+     * the device is reset.
+     */
+    bool suspended;
     bool log_enabled;
     uint64_t log_size;
     Error *migration_blocker;
