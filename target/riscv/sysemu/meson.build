@@ -1,5 +1,6 @@
 riscv_system_ss.add(files(
   'arch_dump.c',
+  'cpu_helper.c',
   'debug.c',
   'machine.c',
   'monitor.c',
