@@ -2833,6 +2833,8 @@ static void vhost_user_reset_status(struct vhost_dev *dev)
     if (virtio_has_feature(dev->protocol_features,
                            VHOST_USER_PROTOCOL_F_STATUS)) {
         vhost_user_set_status(dev, 0);
+    } else {
+        vhost_user_reset_device(dev);
     }
 }
 
