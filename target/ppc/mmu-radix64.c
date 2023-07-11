@@ -219,27 +219,48 @@ static bool ppc_radix64_check_prot(PowerPCCPU *cpu, MMUAccessType access_type,
     return false;
 }
 
-static void ppc_radix64_set_rc(PowerPCCPU *cpu, MMUAccessType access_type,
-                               uint64_t pte, hwaddr pte_addr, int *prot)
+static int ppc_radix64_check_rc(PowerPCCPU *cpu, MMUAccessType access_type,
+                               uint64_t pte, vaddr eaddr, bool partition_scoped,
+                               hwaddr g_raddr)
 {
-    CPUState *cs = CPU(cpu);
-    uint64_t npte;
+    uint64_t lpid = 0;
+    uint64_t pid = 0;
 
-    npte = pte | R_PTE_R; /* Always set reference bit */
+    switch (access_type) {
+    case MMU_DATA_STORE:
+        if (!(pte & R_PTE_C)) {
+            break;
+        }
+        /* fall through */
+    case MMU_INST_FETCH:
+    case MMU_DATA_LOAD:
+        if (!(pte & R_PTE_R)) {
+            break;
+        }
 
-    if (access_type == MMU_DATA_STORE) { /* Store/Write */
-        npte |= R_PTE_C; /* Set change bit */
+        /* R/C bits are already set appropriately for this access */
+        return 0;
+    }
+
+    /* Obtain effLPID */
+    (void)ppc_radix64_get_fully_qualified_addr(&cpu->env, eaddr, &lpid, &pid);
+
+    /*
+     * Per ISA 3.1 Book III, 7.5.3 and 7.5.5, failure to set R/C during
+     * partition-scoped translation when effLPID = 0 results in normal
+     * (non-Hypervisor) Data and Instruction Storage Interrupts respectively.
+     *
+     * ISA 3.0 is ambiguous about this, but tests on POWER9 hardware seem to
+     * exhibit the same behavior.
+     */
+    if (partition_scoped && lpid > 0) {
+        ppc_radix64_raise_hsi(cpu, access_type, eaddr, g_raddr,
+                              DSISR_ATOMIC_RC);
     } else {
-        /*
-         * Treat the page as read-only for now, so that a later write
-         * will pass through this function again to set the C bit.
-         */
-        *prot &= ~PAGE_WRITE;
+        ppc_radix64_raise_si(cpu, access_type, eaddr, DSISR_ATOMIC_RC);
     }
 
-    if (pte ^ npte) { /* If pte has changed then write it back */
-        stq_phys(cs->as, pte_addr, npte);
-    }
+    return 1;
 }
 
 static bool ppc_radix64_is_valid_level(int level, int psize, uint64_t nls)
@@ -418,7 +439,8 @@ static int ppc_radix64_partition_scoped_xlate(PowerPCCPU *cpu,
     }
 
     if (guest_visible) {
-        ppc_radix64_set_rc(cpu, access_type, pte, pte_addr, h_prot);
+        return ppc_radix64_check_rc(cpu, access_type, pte, eaddr, true,
+                                    g_raddr);
     }
 
     return 0;
@@ -580,7 +602,8 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu,
     }
 
     if (guest_visible) {
-        ppc_radix64_set_rc(cpu, access_type, pte, pte_addr, g_prot);
+        return ppc_radix64_check_rc(cpu, access_type, pte, eaddr, false,
+                                    *g_raddr);
     }
 
     return 0;
