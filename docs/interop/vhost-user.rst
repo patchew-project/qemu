@@ -381,6 +381,10 @@ readable) on the descriptor specified by ``VHOST_USER_SET_VRING_KICK``
 or receiving the in-band message ``VHOST_USER_VRING_KICK`` if negotiated,
 and stop ring upon receiving ``VHOST_USER_GET_VRING_BASE``.
 
+While the back-end is suspended (via ``VHOST_USER_SUSPEND``), it must
+never process rings, and thus also delay handling kicks until the
+back-end is resumed again.
+
 Rings can be enabled or disabled by ``VHOST_USER_SET_VRING_ENABLE``.
 
 If ``VHOST_USER_F_PROTOCOL_FEATURES`` has not been negotiated, the
@@ -479,8 +483,9 @@ supplied by ``VhostUserLog``.
 ancillary data, it may be used to inform the front-end that the log has
 been modified.
 
-Once the source has finished migration, rings will be stopped by the
-source. No further update must be done before rings are restarted.
+Once the source has finished migration, the device will be suspended and
+its rings will be stopped by the source. No further update must be done
+before the device and its rings are resumed.
 
 In postcopy migration the back-end is started before all the memory has
 been received from the source host, and care must be taken to avoid
@@ -885,6 +890,7 @@ Protocol features
   #define VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS  15
   #define VHOST_USER_PROTOCOL_F_STATUS               16
   #define VHOST_USER_PROTOCOL_F_XEN_MMAP             17
+  #define VHOST_USER_PROTOCOL_F_SUSPEND              18
 
 Front-end message types
 -----------------------
@@ -1439,6 +1445,31 @@ Front-end message types
   successfully negotiated, this message is submitted by the front-end to
   query the back-end for its device status as defined in the Virtio
   specification.
+
+``VHOST_USER_SUSPEND``
+  :id: 41
+  :equivalent ioctl: VHOST_VDPA_SUSPEND
+  :request payload: N/A
+  :reply payload: N/A
+
+  When the ``VHOST_USER_PROTOCOL_F_SUSPEND`` protocol feature has been
+  successfully negotiated, this message is submitted by the front-end to
+  have the back-end cease all operations except for handling vhost-user
+  requests.  The back-end must stop processing all virt queues, and it
+  must not perform any background operations.  It may not resume until a
+  subsequent ``VHOST_USER_RESUME`` call.
+
+``VHOST_USER_RESUME``
+  :id: 42
+  :equivalent ioctl: VHOST_VDPA_RESUME
+  :request payload: N/A
+  :reply payload: N/A
+
+  When the ``VHOST_USER_PROTOCOL_F_SUSPEND`` protocol feature has been
+  successfully negotiated, this message is submitted by the front-end to
+  allow the back-end to resume operations after having been suspended
+  before.  The back-end must again begin processing rings that are not
+  stopped, and it may resume background operations.
 
 
 Back-end message types
