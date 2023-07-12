@@ -84,6 +84,22 @@ static const MemMapEntry virt_memmap[] = {
 
 static MemMapEntry virt_high_pcie_memmap;
 
+/*
+ * virt_memmap doesn't include floating High Mem IO address entry. To enable
+ * code organization in multiple files (ex: ACPI), it is better to have single
+ * memmap which has complete information.
+ *
+ * VIRT_HIGH_PCIE_MMIO is always greater than the last memmap entry and hence
+ * full_virt_memmap is capable of holding both virt_memmap and
+ * VIRT_HIGH_PCIE_MMIO entry.
+ *
+ * The values for these floating entries will be updated when top of RAM is
+ * discovered.
+ */
+static MemMapEntry full_virt_memmap[] = {
+    [VIRT_HIGH_PCIE_MMIO] =     { 0x0, 0 },
+};
+
 #define VIRT_FLASH_SECTOR_SIZE (256 * KiB)
 
 static PFlashCFI01 *virt_flash_create1(RISCVVirtState *s,
@@ -1444,7 +1460,20 @@ static void virt_machine_init(MachineState *machine)
             ROUND_UP(virt_high_pcie_memmap.base, virt_high_pcie_memmap.size);
     }
 
-    s->memmap = virt_memmap;
+    /*
+     * Initialize the floating values in full memory map
+     */
+    full_virt_memmap[VIRT_HIGH_PCIE_MMIO].base = virt_high_pcie_memmap.base;
+    full_virt_memmap[VIRT_HIGH_PCIE_MMIO].size = virt_high_pcie_memmap.size;
+
+    s->memmap = full_virt_memmap;
+    /*
+     * Copy the base virt_memmap entries to full memmap
+     */
+    for (i = 0; i < ARRAY_SIZE(virt_memmap); i++) {
+        s->memmap[i] = virt_memmap[i];
+    }
+
 
     /* register system main memory (actual RAM) */
     memory_region_add_subregion(system_memory, memmap[VIRT_DRAM].base,
