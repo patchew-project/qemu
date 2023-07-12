@@ -1759,17 +1759,17 @@ void vfio_reset_handler(void *opaque)
     }
 }
 
-static void vfio_kvm_device_add_group(VFIOGroup *group)
+int vfio_kvm_device_add_fd(int fd)
 {
 #ifdef CONFIG_KVM
     struct kvm_device_attr attr = {
-        .group = KVM_DEV_VFIO_GROUP,
-        .attr = KVM_DEV_VFIO_GROUP_ADD,
-        .addr = (uint64_t)(unsigned long)&group->fd,
+        .group = KVM_DEV_VFIO_FILE,
+        .attr = KVM_DEV_VFIO_FILE_ADD,
+        .addr = (uint64_t)(unsigned long)&fd,
     };
 
     if (!kvm_enabled()) {
-        return;
+        return 0;
     }
 
     if (vfio_kvm_device_fd < 0) {
@@ -1779,37 +1779,57 @@ static void vfio_kvm_device_add_group(VFIOGroup *group)
 
         if (kvm_vm_ioctl(kvm_state, KVM_CREATE_DEVICE, &cd)) {
             error_report("Failed to create KVM VFIO device: %m");
-            return;
+            return -ENODEV;
         }
 
         vfio_kvm_device_fd = cd.fd;
     }
 
     if (ioctl(vfio_kvm_device_fd, KVM_SET_DEVICE_ATTR, &attr)) {
-        error_report("Failed to add group %d to KVM VFIO device: %m",
-                     group->groupid);
+        error_report("Failed to add fd %d to KVM VFIO device: %m",
+                     fd);
+        return -errno;
     }
 #endif
+    return 0;
+}
+
+static void vfio_kvm_device_add_group(VFIOGroup *group)
+{
+    if (vfio_kvm_device_add_fd(group->fd)) {
+        error_report("Failed to add group %d to KVM VFIO device",
+                     group->groupid);
+    }
+}
+
+int vfio_kvm_device_del_fd(int fd)
+{
+#ifdef CONFIG_KVM
+    struct kvm_device_attr attr = {
+        .group = KVM_DEV_VFIO_FILE,
+        .attr = KVM_DEV_VFIO_FILE_DEL,
+        .addr = (uint64_t)(unsigned long)&fd,
+    };
+
+    if (vfio_kvm_device_fd < 0) {
+        return -EINVAL;
+    }
+
+    if (ioctl(vfio_kvm_device_fd, KVM_SET_DEVICE_ATTR, &attr)) {
+        error_report("Failed to remove fd %d from KVM VFIO device: %m",
+                     fd);
+        return -EBADF;
+    }
+#endif
+    return 0;
 }
 
 static void vfio_kvm_device_del_group(VFIOGroup *group)
 {
-#ifdef CONFIG_KVM
-    struct kvm_device_attr attr = {
-        .group = KVM_DEV_VFIO_GROUP,
-        .attr = KVM_DEV_VFIO_GROUP_DEL,
-        .addr = (uint64_t)(unsigned long)&group->fd,
-    };
-
-    if (vfio_kvm_device_fd < 0) {
-        return;
-    }
-
-    if (ioctl(vfio_kvm_device_fd, KVM_SET_DEVICE_ATTR, &attr)) {
-        error_report("Failed to remove group %d from KVM VFIO device: %m",
+    if (vfio_kvm_device_del_fd(group->fd)) {
+        error_report("Failed to remove group %d from KVM VFIO device",
                      group->groupid);
     }
-#endif
 }
 
 static VFIOAddressSpace *vfio_get_address_space(AddressSpace *as)
