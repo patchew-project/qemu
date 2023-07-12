@@ -383,12 +383,23 @@ and stop ring upon receiving ``VHOST_USER_GET_VRING_BASE``.
 
 Rings can be enabled or disabled by ``VHOST_USER_SET_VRING_ENABLE``.
 
-If ``VHOST_USER_F_PROTOCOL_FEATURES`` has not been negotiated, the
-ring starts directly in the enabled state.
+Between initialization and the first ``VHOST_USER_SET_FEATURES`` call, it
+is implementation-defined whether each ring is enabled or disabled.
 
-If ``VHOST_USER_F_PROTOCOL_FEATURES`` has been negotiated, the ring is
-initialized in a disabled state and is enabled by
-``VHOST_USER_SET_VRING_ENABLE`` with parameter 1.
+If ``VHOST_USER_SET_FEATURES`` does not negotiate
+``VHOST_USER_F_PROTOCOL_FEATURES``, each ring, when started, will be
+enabled immediately.
+
+If ``VHOST_USER_SET_FEATURES`` does negotiate
+``VHOST_USER_F_PROTOCOL_FEATURES``, each ring will remain in the disabled
+state until ``VHOST_USER_SET_VRING_ENABLE`` enables it with parameter 1.
+
+Back-end implementations that support ``VHOST_USER_F_PROTOCOL_FEATURES``
+should implement this by initializing each ring in a disabled state, and
+enabling them when ``VHOST_USER_SET_FEATURES`` is used without
+negotiating ``VHOST_USER_F_PROTOCOL_FEATURES``.  Other than that, rings
+should only be enabled and disabled through
+``VHOST_USER_SET_VRING_ENABLE``.
 
 While processing the rings (whether they are enabled or not), the back-end
 must support changing some configuration aspects on the fly.
