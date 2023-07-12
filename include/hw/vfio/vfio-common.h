@@ -133,6 +133,7 @@ typedef struct VFIODevice {
 #ifdef CONFIG_IOMMUFD
     int devid;
     IOMMUFDBackend *iommufd;
+    VFIOIOASHwpt *hwpt;
 #endif
 } VFIODevice;
 
