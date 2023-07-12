@@ -27,6 +27,7 @@
 #include "hw/acpi/acpi-defs.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/aml-build.h"
+#include "hw/acpi/pci.h"
 #include "hw/acpi/utils.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -35,6 +36,7 @@
 #include "hw/riscv/virt.h"
 #include "hw/riscv/numa.h"
 #include "hw/intc/riscv_aclint.h"
+#include "hw/pci-host/gpex.h"
 
 #define ACPI_BUILD_TABLE_SIZE             0x20000
 #define ACPI_BUILD_INTC_ID(socket, index) ((socket << 24) | (index))
@@ -136,6 +138,55 @@ static void acpi_dsdt_add_cpus(Aml *scope, RISCVVirtState *s)
 
             aml_append(scope, dev);
     }
+}
+
+static void
+acpi_dsdt_add_uart(Aml *scope, const MemMapEntry *uart_memmap,
+                    uint32_t uart_irq)
+{
+    Aml *dev = aml_device("COM0");
+    aml_append(dev, aml_name_decl("_HID", aml_string("PNP0501")));
+    aml_append(dev, aml_name_decl("_UID", aml_int(0)));
+
+    Aml *crs = aml_resource_template();
+    aml_append(crs, aml_memory32_fixed(uart_memmap->base,
+                                         uart_memmap->size, AML_READ_WRITE));
+    aml_append(crs,
+                aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
+                               AML_EXCLUSIVE, &uart_irq, 1));
+    aml_append(dev, aml_name_decl("_CRS", crs));
+
+    Aml *pkg = aml_package(2);
+    aml_append(pkg, aml_string("clock-frequency"));
+    aml_append(pkg, aml_int(3686400));
+
+    Aml *UUID = aml_touuid("DAFFD814-6EBA-4D8C-8A91-BC9BBF4AA301");
+
+    Aml *pkg1 = aml_package(1);
+    aml_append(pkg1, pkg);
+
+    Aml *package = aml_package(2);
+    aml_append(package, UUID);
+    aml_append(package, pkg1);
+
+    aml_append(dev, aml_name_decl("_DSD", package));
+    aml_append(scope, dev);
+}
+
+static void
+acpi_dsdt_add_pci(Aml *scope, const MemMapEntry *memmap,
+                   uint32_t irq, RISCVVirtState *s)
+{
+    struct GPEXConfig cfg = {
+        .mmio32 = memmap[VIRT_PCIE_MMIO],
+        .mmio64 = memmap[VIRT_HIGH_PCIE_MMIO],
+        .pio = memmap[VIRT_PCIE_PIO],
+        .ecam = memmap[VIRT_PCIE_ECAM],
+        .irq = irq,
+        .bus = s->bus,
+    };
+
+    acpi_dsdt_add_gpex(scope, &cfg);
 }
 
 /* RHCT Node[N] starts at offset 56 */
@@ -318,6 +369,8 @@ static void build_dsdt(GArray *table_data,
                        RISCVVirtState *s)
 {
     Aml *scope, *dsdt;
+    MachineState *ms = MACHINE(s);
+    uint8_t socket_count;
     const MemMapEntry *memmap = s->memmap;
     AcpiTable table = { .sig = "DSDT", .rev = 2, .oem_id = s->oem_id,
                         .oem_table_id = s->oem_table_id };
@@ -336,6 +389,30 @@ static void build_dsdt(GArray *table_data,
     acpi_dsdt_add_cpus(scope, s);
 
     acpi_dsdt_add_fw_cfg(scope, &memmap[VIRT_FW_CFG]);
+
+    socket_count = riscv_socket_count(ms);
+
+    acpi_dsdt_add_uart(scope, &memmap[VIRT_UART0], UART0_IRQ);
+
+    if (socket_count == 1) {
+        acpi_dsdt_add_virtio(scope, &memmap[VIRT_VIRTIO],
+                             VIRTIO_IRQ, VIRTIO_COUNT);
+        acpi_dsdt_add_pci(scope, memmap, PCIE_IRQ, s);
+    } else if (socket_count == 2) {
+        acpi_dsdt_add_virtio(scope, &memmap[VIRT_VIRTIO],
+                             VIRTIO_IRQ + VIRT_IRQCHIP_NUM_SOURCES,
+                             VIRTIO_COUNT);
+        acpi_dsdt_add_pci(scope, memmap,
+                          PCIE_IRQ + VIRT_IRQCHIP_NUM_SOURCES,
+                          s);
+    } else {
+        acpi_dsdt_add_virtio(scope, &memmap[VIRT_VIRTIO],
+                             VIRTIO_IRQ + VIRT_IRQCHIP_NUM_SOURCES,
+                             VIRTIO_COUNT);
+        acpi_dsdt_add_pci(scope, memmap,
+                          PCIE_IRQ + VIRT_IRQCHIP_NUM_SOURCES * 2,
+                          s);
+    }
 
     aml_append(dsdt, scope);
 
@@ -485,6 +562,16 @@ static void virt_acpi_build(RISCVVirtState *s, AcpiBuildTables *tables)
 
     acpi_add_table(table_offsets, tables_blob);
     build_rhct(tables_blob, tables->linker, s);
+
+    acpi_add_table(table_offsets, tables_blob);
+    {
+        AcpiMcfgInfo mcfg = {
+           .base = s->memmap[VIRT_PCIE_MMIO].base,
+           .size = s->memmap[VIRT_PCIE_MMIO].size,
+        };
+        build_mcfg(tables_blob, tables->linker, &mcfg, s->oem_id,
+                   s->oem_table_id);
+    }
 
     /* XSDT is pointed to by RSDP */
     xsdt = tables_blob->len;
