@@ -135,6 +135,9 @@ struct VFIOIOMMUBackendOpsClass {
     int (*dma_unmap)(VFIOContainer *container,
                      hwaddr iova, ram_addr_t size,
                      IOMMUTLBEntry *iotlb);
+    int (*attach_device)(char *name, VFIODevice *vbasedev,
+                         AddressSpace *as, Error **errp);
+    void (*detach_device)(VFIODevice *vbasedev);
     /* migration feature */
     int (*set_dirty_page_tracking)(VFIOContainer *container, bool start);
     int (*query_dirty_bitmap)(VFIOContainer *bcontainer, VFIOBitmap *vbmap,
