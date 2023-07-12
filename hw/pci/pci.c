@@ -2124,23 +2124,48 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
         }
     }
 
-    /*
-     * A PCIe Downstream Port that do not have ARI Forwarding enabled must
-     * associate only Device 0 with the device attached to the bus
-     * representing the Link from the Port (PCIe base spec rev 4.0 ver 0.3,
-     * sec 7.3.1).
-     * With ARI, PCI_SLOT() can return non-zero value as the traditional
-     * 5-bit Device Number and 3-bit Function Number fields in its associated
-     * Routing IDs, Requester IDs and Completer IDs are interpreted as a
-     * single 8-bit Function Number. Hence, ignore ARI capable devices.
-     */
-    if (pci_is_express(pci_dev) &&
-        !pcie_find_capability(pci_dev, PCI_EXT_CAP_ID_ARI) &&
-        pcie_has_upstream_port(pci_dev) &&
-        PCI_SLOT(pci_dev->devfn)) {
-        warn_report("PCI: slot %d is not valid for %s,"
-                    " parent device only allows plugging into slot 0.",
-                    PCI_SLOT(pci_dev->devfn), pci_dev->name);
+    if (pci_is_express(pci_dev)) {
+        /*
+         * A PCIe Downstream Port that do not have ARI Forwarding enabled must
+         * associate only Device 0 with the device attached to the bus
+         * representing the Link from the Port (PCIe base spec rev 4.0 ver 0.3,
+         * sec 7.3.1).
+         * With ARI, PCI_SLOT() can return non-zero value as the traditional
+         * 5-bit Device Number and 3-bit Function Number fields in its
+         * associated Routing IDs, Requester IDs and Completer IDs are
+         * interpreted as a single 8-bit Function Number. Hence, ignore ARI
+         * capable devices.
+         */
+        if (!pcie_find_capability(pci_dev, PCI_EXT_CAP_ID_ARI) &&
+            pcie_has_upstream_port(pci_dev) &&
+            PCI_SLOT(pci_dev->devfn)) {
+            warn_report("PCI: slot %d is not valid for %s,"
+                        " parent device only allows plugging into slot 0.",
+                        PCI_SLOT(pci_dev->devfn), pci_dev->name);
+        }
+
+        /*
+         * Current SR/IOV implementations assume that hardcoded Function numbers
+         * are always available. Ensure there is only one PF to make the
+         * assumption hold true.
+         */
+        if (pcie_find_capability(pci_dev, PCI_EXT_CAP_ID_SRIOV) &&
+            PCI_FUNC(pci_dev->devfn)) {
+            warn_report("PCI: function %d is not valid for %s,"
+                        " currently PF can only be assigned to function 0.",
+                        PCI_FUNC(pci_dev->devfn), pci_dev->name);
+        }
+
+        /*
+         * ARI has the next Function number field register, and currently it's
+         * hardcoded to 0, which prevents non-SR/IOV multifunction.
+         */
+        if (pcie_find_capability(pci_dev, PCI_EXT_CAP_ID_ARI) &&
+            !pci_is_vf(pci_dev) && (pci_dev->devfn & 0xff)) {
+            warn_report("PCI: function %d is not valid for %s,"
+                        " non-SR/IOV multifunction is not supported with ARI enabled.",
+                        pci_dev->devfn & 0xff, pci_dev->name);
+        }
     }
 
     if (pci_dev->failover_pair_id) {
