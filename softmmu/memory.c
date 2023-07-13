@@ -1151,7 +1151,6 @@ static char *memory_region_escape_name(const char *name)
 {
     const char *p;
     char *escaped, *q;
-    uint8_t c;
     size_t bytes = 0;
 
     for (p = name; *p; p++) {
@@ -1163,14 +1162,14 @@ static char *memory_region_escape_name(const char *name)
 
     escaped = g_malloc(bytes + 1);
     for (p = name, q = escaped; *p; p++) {
-        c = *p;
-        if (unlikely(memory_region_need_escape(c))) {
+        if (likely(!memory_region_need_escape(*p))) {
+            *q++ = *p;
+        } else {
             *q++ = '\\';
             *q++ = 'x';
-            *q++ = "0123456789abcdef"[c >> 4];
-            c = "0123456789abcdef"[c & 15];
+            *q++ = "0123456789abcdef"[*p >> 4];
+            *q++ = "0123456789abcdef"[*p & 15];
         }
-        *q++ = c;
     }
     *q = 0;
     return escaped;
