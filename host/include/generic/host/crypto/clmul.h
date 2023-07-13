@@ -19,4 +19,8 @@
 #define clmul_16x4_even         clmul_16x4_even_gen
 #define clmul_16x4_odd          clmul_16x4_odd_gen
 
+#define clmul_32                clmul_32_gen
+#define clmul_32x2_even         clmul_32x2_even_gen
+#define clmul_32x2_odd          clmul_32x2_odd_gen
+
 #endif /* GENERIC_HOST_CRYPTO_CLMUL_H */
