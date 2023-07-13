@@ -56,6 +56,38 @@ Int128 clmul_8x8_odd_gen(Int128, Int128);
  */
 Int128 clmul_8x8_packed_gen(uint64_t, uint64_t);
 
+/**
+ * clmul_16x2_even:
+ *
+ * Perform two 16x16->32 carry-less multiplies.
+ * The odd words of the inputs are ignored.
+ */
+uint64_t clmul_16x2_even_gen(uint64_t, uint64_t);
+
+/**
+ * clmul_16x2_odd:
+ *
+ * Perform two 16x16->32 carry-less multiplies.
+ * The even bytes of the inputs are ignored.
+ */
+uint64_t clmul_16x2_odd_gen(uint64_t, uint64_t);
+
+/**
+ * clmul_16x4_even:
+ *
+ * Perform four 16x16->32 carry-less multiplies.
+ * The odd bytes of the inputs are ignored.
+ */
+Int128 clmul_16x4_even_gen(Int128, Int128);
+
+/**
+ * clmul_16x4_odd:
+ *
+ * Perform eight 16x16->32 carry-less multiplies.
+ * The even bytes of the inputs are ignored.
+ */
+Int128 clmul_16x4_odd_gen(Int128, Int128);
+
 #include "host/crypto/clmul.h"
 
 #endif /* CRYPTO_CLMUL_H */

@@ -74,3 +74,42 @@ Int128 clmul_8x8_packed_gen(uint64_t n, uint64_t m)
     rh = clmul_8x4_even_gen(unpack_8_to_16(n >> 32), unpack_8_to_16(m >> 32));
     return int128_make128(rl, rh);
 }
+
+uint64_t clmul_16x2_even_gen(uint64_t n, uint64_t m)
+{
+    uint64_t r = 0;
+
+    n &= 0x0000ffff0000ffffull;
+    m &= 0x0000ffff0000ffffull;
+
+    for (int i = 0; i < 16; ++i) {
+        uint64_t mask = (n & 0x0000000100000001ull) * 0xffffffffull;
+        r ^= m & mask;
+        n >>= 1;
+        m <<= 1;
+    }
+    return r;
+}
+
+uint64_t clmul_16x2_odd_gen(uint64_t n, uint64_t m)
+{
+    return clmul_16x2_even_gen(n >> 16, m >> 16);
+}
+
+Int128 clmul_16x4_even_gen(Int128 n, Int128 m)
+{
+    uint64_t rl, rh;
+
+    rl = clmul_16x2_even_gen(int128_getlo(n), int128_getlo(m));
+    rh = clmul_16x2_even_gen(int128_gethi(n), int128_gethi(m));
+    return int128_make128(rl, rh);
+}
+
+Int128 clmul_16x4_odd_gen(Int128 n, Int128 m)
+{
+    uint64_t rl, rh;
+
+    rl = clmul_16x2_odd_gen(int128_getlo(n), int128_getlo(m));
+    rh = clmul_16x2_odd_gen(int128_gethi(n), int128_gethi(m));
+    return int128_make128(rl, rh);
+}
