@@ -45,6 +45,7 @@ operating system.
 
 QEMU files related to TPM CRB interface:
  - ``hw/tpm/tpm_crb.c``
+ - ``hw/tpm/tpm_crb_common.c``
 
 SPAPR interface
 ---------------
