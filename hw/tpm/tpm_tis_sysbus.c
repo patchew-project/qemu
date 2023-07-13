@@ -124,6 +124,10 @@ static void tpm_tis_sysbus_realizefn(DeviceState *dev, Error **errp)
         error_setg(errp, "'tpmdev' property is required");
         return;
     }
+
+    if (s->ppi_enabled) {
+        sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->ppi.ram);
+    }
 }
 
 static void tpm_tis_sysbus_class_init(ObjectClass *klass, void *data)
