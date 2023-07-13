@@ -165,22 +165,6 @@ DEF_VCTZ(8)
 DEF_VCTZ(16)
 
 /* like binary multiplication, but XOR instead of addition */
-#define DEF_GALOIS_MULTIPLY(BITS, TBITS)                                       \
-static uint##TBITS##_t galois_multiply##BITS(uint##TBITS##_t a,                \
-                                             uint##TBITS##_t b)                \
-{                                                                              \
-    uint##TBITS##_t res = 0;                                                   \
-                                                                               \
-    while (b) {                                                                \
-        if (b & 0x1) {                                                         \
-            res = res ^ a;                                                     \
-        }                                                                      \
-        a = a << 1;                                                            \
-        b = b >> 1;                                                            \
-    }                                                                          \
-    return res;                                                                \
-}
-DEF_GALOIS_MULTIPLY(32, 64)
 
 static S390Vector galois_multiply64(uint64_t a, uint64_t b)
 {
@@ -244,24 +228,24 @@ void HELPER(gvec_vgfma16)(void *v1, const void *v2, const void *v3,
     *(Int128 *)v1 = int128_xor(r, *(Int128 *)v4);
 }
 
-#define DEF_VGFM(BITS, TBITS)                                                  \
-void HELPER(gvec_vgfm##BITS)(void *v1, const void *v2, const void *v3,         \
-                             uint32_t desc)                                    \
-{                                                                              \
-    int i;                                                                     \
-                                                                               \
-    for (i = 0; i < (128 / TBITS); i++) {                                      \
-        uint##BITS##_t a = s390_vec_read_element##BITS(v2, i * 2);             \
-        uint##BITS##_t b = s390_vec_read_element##BITS(v3, i * 2);             \
-        uint##TBITS##_t d = galois_multiply##BITS(a, b);                       \
-                                                                               \
-        a = s390_vec_read_element##BITS(v2, i * 2 + 1);                        \
-        b = s390_vec_read_element##BITS(v3, i * 2 + 1);                        \
-        d = d ^ galois_multiply32(a, b);                                       \
-        s390_vec_write_element##TBITS(v1, i, d);                               \
-    }                                                                          \
+static Int128 do_gfm32(Int128 n, Int128 m)
+{
+    Int128 e = clmul_32x2_even(n, m);
+    Int128 o = clmul_32x2_odd(n, m);
+    return int128_xor(e, o);
 }
-DEF_VGFM(32, 64)
+
+void HELPER(gvec_vgfm32)(void *v1, const void *v2, const void *v3, uint32_t d)
+{
+    *(Int128 *)v1 = do_gfm32(*(const Int128 *)v2, *(const Int128 *)v3);
+}
+
+void HELPER(gvec_vgfma32)(void *v1, const void *v2, const void *v3,
+                         const void *v4, uint32_t d)
+{
+    Int128 r = do_gfm32(*(const Int128 *)v2, *(const Int128 *)v3);
+    *(Int128 *)v1 = int128_xor(r, *(Int128 *)v4);
+}
 
 void HELPER(gvec_vgfm64)(void *v1, const void *v2, const void *v3,
                          uint32_t desc)
@@ -277,26 +261,6 @@ void HELPER(gvec_vgfm64)(void *v1, const void *v2, const void *v3,
     tmp2 = galois_multiply64(a, b);
     s390_vec_xor(v1, &tmp1, &tmp2);
 }
-
-#define DEF_VGFMA(BITS, TBITS)                                                 \
-void HELPER(gvec_vgfma##BITS)(void *v1, const void *v2, const void *v3,        \
-                              const void *v4, uint32_t desc)                   \
-{                                                                              \
-    int i;                                                                     \
-                                                                               \
-    for (i = 0; i < (128 / TBITS); i++) {                                      \
-        uint##BITS##_t a = s390_vec_read_element##BITS(v2, i * 2);             \
-        uint##BITS##_t b = s390_vec_read_element##BITS(v3, i * 2);             \
-        uint##TBITS##_t d = galois_multiply##BITS(a, b);                       \
-                                                                               \
-        a = s390_vec_read_element##BITS(v2, i * 2 + 1);                        \
-        b = s390_vec_read_element##BITS(v3, i * 2 + 1);                        \
-        d = d ^ galois_multiply32(a, b);                                       \
-        d = d ^ s390_vec_read_element##TBITS(v4, i);                           \
-        s390_vec_write_element##TBITS(v1, i, d);                               \
-    }                                                                          \
-}
-DEF_VGFMA(32, 64)
 
 void HELPER(gvec_vgfma64)(void *v1, const void *v2, const void *v3,
                           const void *v4, uint32_t desc)
