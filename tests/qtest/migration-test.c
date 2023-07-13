@@ -2191,10 +2191,44 @@ test_migrate_precopy_tcp_multifd_start_common(QTestState *from,
 }
 
 static void *
+test_migrate_precopy_tcp_multifd_start_new_syntax_common(QTestState *from,
+                                                         QTestState *to,
+                                                         const char *method)
+{
+    migrate_set_parameter_int(from, "multifd-channels", 16);
+    migrate_set_parameter_int(to, "multifd-channels", 16);
+
+    migrate_set_parameter_str(from, "multifd-compression", method);
+    migrate_set_parameter_str(to, "multifd-compression", method);
+
+    migrate_set_capability(from, "multifd", true);
+    migrate_set_capability(to, "multifd", true);
+
+    /* Start incoming migration from the 1st socket */
+    qtest_qmp_assert_success(to, "{ 'execute': 'migrate-incoming',"
+                             "  'arguments': { "
+                             "      'channels': [ { 'channeltype': 'main',"
+                             "      'addr': { 'transport': 'socket',"
+                             "                'type': 'inet',"
+                             "                'host': '127.0.0.1',"
+                             "                'port': '0' } } ] } }");
+
+    return NULL;
+}
+
+static void *
 test_migrate_precopy_tcp_multifd_start(QTestState *from,
                                        QTestState *to)
 {
     return test_migrate_precopy_tcp_multifd_start_common(from, to, "none");
+}
+
+static void *
+test_migrate_precopy_tcp_multifd_new_syntax_start(QTestState *from,
+                                                  QTestState *to)
+{
+    return test_migrate_precopy_tcp_multifd_start_new_syntax_common(from,
+                                                              to, "none");
 }
 
 static void *
@@ -2224,6 +2258,15 @@ static void test_multifd_tcp_none(void)
          * everything will work alright even if guest page is changing.
          */
         .live = true,
+    };
+    test_precopy_common(&args);
+}
+
+static void test_multifd_tcp_new_syntax_none(void)
+{
+    MigrateCommon args = {
+        .listen_uri = "defer",
+        .start_hook = test_migrate_precopy_tcp_multifd_new_syntax_start,
     };
     test_precopy_common(&args);
 }
@@ -2916,6 +2959,8 @@ int main(int argc, char **argv)
     }
     qtest_add_func("/migration/multifd/tcp/plain/none",
                    test_multifd_tcp_none);
+    qtest_add_func("/migration/multifd/tcp/plain/none",
+                   test_multifd_tcp_new_syntax_none);
     /*
      * This test is flaky and sometimes fails in CI and otherwise:
      * don't run unless user opts in via environment variable.
