@@ -14,6 +14,7 @@
 #include "vec.h"
 #include "exec/helper-proto.h"
 #include "tcg/tcg-gvec-desc.h"
+#include "crypto/clmul.h"
 
 static bool s390_vec_is_zero(const S390Vector *v)
 {
@@ -179,7 +180,6 @@ static uint##TBITS##_t galois_multiply##BITS(uint##TBITS##_t a,                \
     }                                                                          \
     return res;                                                                \
 }
-DEF_GALOIS_MULTIPLY(8, 16)
 DEF_GALOIS_MULTIPLY(16, 32)
 DEF_GALOIS_MULTIPLY(32, 64)
 
@@ -203,6 +203,29 @@ static S390Vector galois_multiply64(uint64_t a, uint64_t b)
     return res;
 }
 
+static Int128 do_gfm8(Int128 n, Int128 m)
+{
+    Int128 e = clmul_8x8_even(n, m);
+    Int128 o = clmul_8x8_odd(n, m);
+    return int128_xor(e, o);
+}
+
+void HELPER(gvec_vgfm8)(void *v1, const void *v2, const void *v3, uint32_t d)
+{
+    /*
+     * There is no carry across the two doublewords, so their order
+     * does not matter, so we need not care for host endianness.
+     */
+    *(Int128 *)v1 = do_gfm8(*(const Int128 *)v2, *(const Int128 *)v3);
+}
+
+void HELPER(gvec_vgfma8)(void *v1, const void *v2, const void *v3,
+                         const void *v4, uint32_t d)
+{
+    Int128 r = do_gfm8(*(const Int128 *)v2, *(const Int128 *)v3);
+    *(Int128 *)v1 = int128_xor(r, *(Int128 *)v4);
+}
+
 #define DEF_VGFM(BITS, TBITS)                                                  \
 void HELPER(gvec_vgfm##BITS)(void *v1, const void *v2, const void *v3,         \
                              uint32_t desc)                                    \
@@ -220,7 +243,6 @@ void HELPER(gvec_vgfm##BITS)(void *v1, const void *v2, const void *v3,         \
         s390_vec_write_element##TBITS(v1, i, d);                               \
     }                                                                          \
 }
-DEF_VGFM(8, 16)
 DEF_VGFM(16, 32)
 DEF_VGFM(32, 64)
 
@@ -257,7 +279,6 @@ void HELPER(gvec_vgfma##BITS)(void *v1, const void *v2, const void *v3,        \
         s390_vec_write_element##TBITS(v1, i, d);                               \
     }                                                                          \
 }
-DEF_VGFMA(8, 16)
 DEF_VGFMA(16, 32)
 DEF_VGFMA(32, 64)
 
