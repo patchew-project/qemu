@@ -23,4 +23,6 @@
 #define clmul_32x2_even         clmul_32x2_even_gen
 #define clmul_32x2_odd          clmul_32x2_odd_gen
 
+#define clmul_64                clmul_64_gen
+
 #endif /* GENERIC_HOST_CRYPTO_CLMUL_H */
