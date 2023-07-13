@@ -1349,12 +1349,52 @@ out:
     return r;
 }
 
+static void validate_cpu_type(MachineState *machine)
+{
+    MachineClass *machine_class = MACHINE_GET_CLASS(machine);
+    ObjectClass *oc = object_class_by_name(machine->cpu_type);
+    CPUClass *cc = CPU_CLASS(oc);
+    int i;
+
+    /*
+     * Check if the user-specified CPU type is supported when the valid
+     * CPU types have been determined. Note that the user-specified CPU
+     * type is given by '-cpu' option.
+     */
+    if (!machine->cpu_type || !machine_class->valid_cpu_types) {
+        goto out_no_check;
+    }
+
+    for (i = 0; machine_class->valid_cpu_types[i]; i++) {
+        if (object_class_dynamic_cast(oc, machine_class->valid_cpu_types[i])) {
+            break;
+        }
+    }
+
+    if (!machine_class->valid_cpu_types[i]) {
+        /* The user-specified CPU type is invalid */
+        error_report("Invalid CPU type: %s", machine->cpu_type);
+        error_printf("The valid types are: %s",
+                     machine_class->valid_cpu_types[0]);
+        for (i = 1; machine_class->valid_cpu_types[i]; i++) {
+            error_printf(", %s", machine_class->valid_cpu_types[i]);
+        }
+        error_printf("\n");
+
+        exit(1);
+    }
+
+    /* Check if CPU type is deprecated and warn if so */
+out_no_check:
+    if (cc && cc->deprecation_note) {
+        warn_report("CPU model %s is deprecated -- %s",
+                    machine->cpu_type, cc->deprecation_note);
+    }
+}
 
 void machine_run_board_init(MachineState *machine, const char *mem_path, Error **errp)
 {
     MachineClass *machine_class = MACHINE_GET_CLASS(machine);
-    ObjectClass *oc = object_class_by_name(machine->cpu_type);
-    CPUClass *cc;
 
     /* This checkpoint is required by replay to separate prior clock
        reading from the other reads, because timer polling functions query
@@ -1405,42 +1445,7 @@ void machine_run_board_init(MachineState *machine, const char *mem_path, Error *
         machine->ram = machine_consume_memdev(machine, machine->memdev);
     }
 
-    /* If the machine supports the valid_cpu_types check and the user
-     * specified a CPU with -cpu check here that the user CPU is supported.
-     */
-    if (machine_class->valid_cpu_types && machine->cpu_type) {
-        int i;
-
-        for (i = 0; machine_class->valid_cpu_types[i]; i++) {
-            if (object_class_dynamic_cast(oc,
-                                          machine_class->valid_cpu_types[i])) {
-                /* The user specificed CPU is in the valid field, we are
-                 * good to go.
-                 */
-                break;
-            }
-        }
-
-        if (!machine_class->valid_cpu_types[i]) {
-            /* The user specified CPU is not valid */
-            error_report("Invalid CPU type: %s", machine->cpu_type);
-            error_printf("The valid types are: %s",
-                         machine_class->valid_cpu_types[0]);
-            for (i = 1; machine_class->valid_cpu_types[i]; i++) {
-                error_printf(", %s", machine_class->valid_cpu_types[i]);
-            }
-            error_printf("\n");
-
-            exit(1);
-        }
-    }
-
-    /* Check if CPU type is deprecated and warn if so */
-    cc = CPU_CLASS(oc);
-    if (cc && cc->deprecation_note) {
-        warn_report("CPU model %s is deprecated -- %s", machine->cpu_type,
-                    cc->deprecation_note);
-    }
+    validate_cpu_type(machine);
 
     if (machine->cgs) {
         /*
