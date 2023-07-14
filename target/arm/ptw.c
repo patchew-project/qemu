@@ -209,9 +209,9 @@ static bool regime_translation_disabled(CPUARMState *env, ARMMMUIdx mmu_idx,
                                         ARMSecuritySpace space)
 {
     uint64_t hcr_el2;
-    bool is_secure = arm_space_is_secure(space);
 
     if (arm_feature(env, ARM_FEATURE_M)) {
+        bool is_secure = arm_space_is_secure(space);
         switch (env->v7m.mpu_ctrl[is_secure] &
                 (R_V7M_MPU_CTRL_ENABLE_MASK | R_V7M_MPU_CTRL_HFNMIENA_MASK)) {
         case R_V7M_MPU_CTRL_ENABLE_MASK:
@@ -230,7 +230,7 @@ static bool regime_translation_disabled(CPUARMState *env, ARMMMUIdx mmu_idx,
         }
     }
 
-    hcr_el2 = arm_hcr_el2_eff_secstate(env, is_secure);
+    hcr_el2 = arm_hcr_el2_eff_secstate(env, space);
 
     switch (mmu_idx) {
     case ARMMMUIdx_Stage2:
@@ -530,7 +530,6 @@ static bool fault_s1ns(ARMSecuritySpace space, ARMMMUIdx s2_mmu_idx)
 static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
                              hwaddr addr, ARMMMUFaultInfo *fi)
 {
-    bool is_secure = ptw->in_secure;
     ARMMMUIdx mmu_idx = ptw->in_mmu_idx;
     ARMMMUIdx s2_mmu_idx = ptw->in_ptw_idx;
     uint8_t pte_attrs;
@@ -587,7 +586,7 @@ static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
     }
 
     if (regime_is_stage2(s2_mmu_idx)) {
-        uint64_t hcr = arm_hcr_el2_eff_secstate(env, is_secure);
+        uint64_t hcr = arm_hcr_el2_eff_secstate(env, ptw->in_space);
 
         if ((hcr & HCR_PTW) && S2_attrs_are_device(hcr, pte_attrs)) {
             /*
@@ -3066,7 +3065,6 @@ static bool get_phys_addr_disabled(CPUARMState *env,
                                    ARMMMUFaultInfo *fi)
 {
     ARMMMUIdx mmu_idx = ptw->in_mmu_idx;
-    bool is_secure = arm_space_is_secure(ptw->in_space);
     uint8_t memattr = 0x00;    /* Device nGnRnE */
     uint8_t shareability = 0;  /* non-shareable */
     int r_el;
@@ -3112,7 +3110,7 @@ static bool get_phys_addr_disabled(CPUARMState *env,
 
         /* Fill in cacheattr a-la AArch64.TranslateAddressS1Off. */
         if (r_el == 1) {
-            uint64_t hcr = arm_hcr_el2_eff_secstate(env, is_secure);
+            uint64_t hcr = arm_hcr_el2_eff_secstate(env, ptw->in_space);
             if (hcr & HCR_DC) {
                 if (hcr & HCR_DCT) {
                     memattr = 0xf0;  /* Tagged, Normal, WB, RWA */
@@ -3149,7 +3147,6 @@ static bool get_phys_addr_twostage(CPUARMState *env, S1Translate *ptw,
 {
     hwaddr ipa;
     int s1_prot, s1_lgpgsz;
-    bool is_secure = ptw->in_secure;
     ARMSecuritySpace in_space = ptw->in_space;
     bool ret, ipa_secure;
     ARMCacheAttrs cacheattrs1;
@@ -3212,7 +3209,7 @@ static bool get_phys_addr_twostage(CPUARMState *env, S1Translate *ptw,
     }
 
     /* Combine the S1 and S2 cache attributes. */
-    hcr = arm_hcr_el2_eff_secstate(env, is_secure);
+    hcr = arm_hcr_el2_eff_secstate(env, in_space);
     if (hcr & HCR_DC) {
         /*
          * HCR.DC forces the first stage attributes to
