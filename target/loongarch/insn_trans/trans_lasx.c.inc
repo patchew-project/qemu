@@ -905,3 +905,24 @@ TRANS(xvilvh_b, gen_vvv, 32, gen_helper_vilvh_b)
 TRANS(xvilvh_h, gen_vvv, 32, gen_helper_vilvh_h)
 TRANS(xvilvh_w, gen_vvv, 32, gen_helper_vilvh_w)
 TRANS(xvilvh_d, gen_vvv, 32, gen_helper_vilvh_d)
+
+TRANS(xvshuf_b, gen_vvvv, 32, gen_helper_vshuf_b)
+TRANS(xvshuf_h, gen_vvv, 32, gen_helper_vshuf_h)
+TRANS(xvshuf_w, gen_vvv, 32, gen_helper_vshuf_w)
+TRANS(xvshuf_d, gen_vvv, 32, gen_helper_vshuf_d)
+
+TRANS(xvperm_w, gen_vvv, 32,  gen_helper_vperm_w)
+
+TRANS(xvshuf4i_b, gen_vv_i, 32, gen_helper_vshuf4i_b)
+TRANS(xvshuf4i_h, gen_vv_i, 32, gen_helper_vshuf4i_h)
+TRANS(xvshuf4i_w, gen_vv_i, 32, gen_helper_vshuf4i_w)
+TRANS(xvshuf4i_d, gen_vv_i, 32, gen_helper_vshuf4i_d)
+
+TRANS(xvpermi_w, gen_vv_i, 32, gen_helper_vpermi_w)
+TRANS(xvpermi_d, gen_vv_i, 32, gen_helper_vpermi_d)
+TRANS(xvpermi_q, gen_vv_i, 32, gen_helper_vpermi_q)
+
+TRANS(xvextrins_b, gen_vv_i, 32, gen_helper_vextrins_b)
+TRANS(xvextrins_h, gen_vv_i, 32, gen_helper_vextrins_h)
+TRANS(xvextrins_w, gen_vv_i, 32, gen_helper_vextrins_w)
+TRANS(xvextrins_d, gen_vv_i, 32, gen_helper_vextrins_d)
