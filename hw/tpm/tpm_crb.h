@@ -70,5 +70,6 @@ enum TPMVersion tpm_crb_get_version(TPMCRBState *s);
 int tpm_crb_pre_save(TPMCRBState *s);
 void tpm_crb_reset(TPMCRBState *s, uint64_t baseaddr);
 void tpm_crb_init_memory(Object *obj, TPMCRBState *s, Error **errp);
+void tpm_crb_restore_regs(TPMCRBState *s, uint32_t *saved_regs);
 
 #endif /* TPM_TPM_CRB_H */

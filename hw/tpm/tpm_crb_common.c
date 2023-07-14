@@ -224,3 +224,10 @@ void tpm_crb_init_memory(Object *obj, TPMCRBState *s, Error **errp)
         tpm_ppi_init_memory(&s->ppi, obj);
     }
 }
+
+void tpm_crb_restore_regs(TPMCRBState *s, uint32_t *saved_regs)
+{
+    uint32_t *regs = memory_region_get_ram_ptr(&s->mmio);
+
+    memcpy(regs, saved_regs, TPM_CRB_R_MAX);
+}

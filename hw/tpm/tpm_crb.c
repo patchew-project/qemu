@@ -40,6 +40,7 @@ struct CRBState {
     ISADevice parent_obj;
 
     TPMCRBState state;
+    uint32_t legacy_regs[TPM_CRB_R_MAX];
 };
 typedef struct CRBState CRBState;
 
@@ -67,10 +68,23 @@ static int tpm_crb_isa_pre_save(void *opaque)
     return tpm_crb_pre_save(&s->state);
 }
 
+static int tpm_crb_isa_post_load(void *opaque, int version_id)
+{
+    CRBState *s = opaque;
+
+    if (version_id == 0) {
+        tpm_crb_restore_regs(&s->state, s->legacy_regs);
+    }
+    return 0;
+}
+
 static const VMStateDescription vmstate_tpm_crb_isa = {
     .name = "tpm-crb",
+    .version_id = 1,
     .pre_save = tpm_crb_isa_pre_save,
+    .post_load = tpm_crb_isa_post_load,
     .fields = (VMStateField[]) {
+        VMSTATE_UINT32_ARRAY(legacy_regs, CRBState, TPM_CRB_R_MAX),
         VMSTATE_END_OF_LIST(),
     }
 };
